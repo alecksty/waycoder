@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui;
 
@@ -20,11 +21,34 @@ public class InputManager : IDisposable
     private bool _mouseEnabled;
     private bool _disposed;
 
-    /// <summary>ESC 序列解析时暂读的非鼠标字符（保证 Alt+字母 等组合键不丢失）</summary>
-    private readonly Queue<ConsoleKeyInfo> _pendingKeys = new();
+    /// <summary>ESC 序列解析时暂读的非鼠标字符（保证 Alt+字母 等组合键不丢失）。注入键也走这里，主循环优先消费。</summary>
+    private readonly ConcurrentQueue<ConsoleKeyInfo> _pendingKeys = new();
+
+    // ── v0.96.53 输入线程化：读控制台整体搬到后台读键线程 ──
+    // 主循环此前直接调 Console.KeyAvailable/Console.ReadKey——Windows 下这两个调用对
+    // 非按键事件（鼠标/resize/残留字节）或 KeyAvailable 竞态会【永久阻塞】，导致整机冻结
+    // （spinner 不跑、任意按键无效）。现在阻塞读只发生在后台线程，主循环 ReadInput 只从队列出队。
+    /// <summary>后台读键线程解析出的输入事件队列（主循环只出队，不碰控制台）。</summary>
+    private readonly ConcurrentQueue<InputEvent> _rawEvents = new();
+    /// <summary>后台读键线程（阻塞读由它承担，主循环永不阻塞）。</summary>
+    private Thread? _pumpThread;
+    private readonly object _pumpLock = new();
+    private bool _pumpRunning;
+
+    // ── 统一输入源：时钟并入泵线程 ──
+    // 此前 TuiManager 另起一条「TuiAnimTicker」独立线程（~120ms）驱动 spinner 动画 + 冻结看门狗
+    // + CPU 采样——独立线程意味着又一个可能抢终端/互相卡死的源。现在全部并入本泵线程：
+    // 泵线程 = 唯一读控制台 + 唯一驱动时钟的线程，其余子系统只消费其产出（回调/事件）。
+    private const long HeartbeatIntervalMs = 120; // 与旧 TuiAnimTicker 的 120ms 节拍一致
+    /// <summary>泵线程周期驱动的「时钟」回调（实现方=TuiManager.HeartbeatTick：动画/冻结/CPU 采样）。null=注销。</summary>
+    private Action? _heartbeat;
+    private long _nextHeartbeatTick;
 
     /// <summary>注入一个按键到输入队列（脚本测试用：阻塞式选择器 RenderWait 的 ReadInput 优先消费队列）。</summary>
     public void InjectKey(ConsoleKeyInfo key) => _pendingKeys.Enqueue(key);
+
+    /// <summary>注册/注销泵线程时钟回调（统一输入源：读键 + 时钟都在泵线程）。null=注销。</summary>
+    public void SetHeartbeat(Action? heartbeat) => Volatile.Write(ref _heartbeat, heartbeat);
 
     /// <summary>窗口大小变化时触发（在 ReadInput 返回前调用）</summary>
     public event Action? OnResize;
@@ -96,11 +120,14 @@ public class InputManager : IDisposable
     /// <summary>
     /// 读取下一个输入事件。非阻塞：timeoutMs 后返回 Timeout 事件。
     /// 每个轮询周期都会检查窗口大小变化。
+    /// 所有控制台读取（KeyAvailable/ReadKey/转义解析）都在后台读键线程完成，
+    /// 本方法只从队列出队——保证主循环永不阻塞在 Console.ReadKey（Windows 非按键事件会挂死）。
     /// </summary>
     public InputEvent ReadInput(int timeoutMs = 50)
     {
         if (_disposed) return new InputEvent { Type = InputType.Timeout };
 
+        EnsurePumpStarted();
         var deadline = Environment.TickCount64 + timeoutMs;
 
         // 至少执行一轮检查，防止 Render() 耗时导致 deadline 过期后跳过所有输入检测
@@ -115,46 +142,84 @@ public class InputManager : IDisposable
                 return new InputEvent { Type = InputType.Resize, Width = w, Height = h };
             }
 
-            // 先返回 ESC 序列解析时暂存的字符（如 Alt+x 的 'x'），保证按键顺序
-            if (_pendingKeys.Count > 0)
-            {
-                return new InputEvent { Type = InputType.Key, KeyInfo = _pendingKeys.Dequeue() };
-            }
+            // 先返回 ESC 序列解析时暂存的字符（如 Alt+x 的 'x'）与注入键，保证按键顺序
+            if (_pendingKeys.TryDequeue(out var pk))
+                return new InputEvent { Type = InputType.Key, KeyInfo = pk };
 
-            // 键盘输入
-            // 非交互环境（管道/重定向/后台）：Console.KeyAvailable 会抛 InvalidOperationException
-            // （"Cannot see if a key has been pressed when ... console input has been redirected"），
-            // 空转返回超时，避免 REPL 在 echo "x" | waycoder / CI 场景崩溃。
-            if (Console.IsInputRedirected)
-                return new InputEvent { Type = InputType.Timeout };
+            // 后台读键线程解析好的输入事件（真实按键/转义/鼠标/粘贴）
+            if (_rawEvents.TryDequeue(out var ev))
+                return ev;
 
-            if (Console.KeyAvailable)
-            {
-                var key = Tty.ReadKey();
-
-                // 转义序列解析（SGR 鼠标 \x1b[<...、其他 CSI \x1b[...）
-                // 无论鼠标是否启用都必须尝试：终端可能残留鼠标上报模式，
-                // 若不吞掉，\x1b 被当 ESC、后面的 [<35;95;28M 被逐字符敲进输入框。
-                if (key.KeyChar == AnsiTty.AnsiCharPrefix)
-                {
-                    var ev = TryParseEscapeSequence();
-                    if (ev != null) return ev;
-                    return new InputEvent { Type = InputType.Key, KeyInfo = key };
-                }
-
-                // Ctrl+C 拦截为 Esc（防止退出）
-                if (key.Key == ConsoleKey.C && key.Modifiers.HasFlag(ConsoleModifiers.Control))
-                {
-                    return new InputEvent { Type = InputType.Key, KeyInfo = key };
-                }
-
-                return new InputEvent { Type = InputType.Key, KeyInfo = key };
-            }
-
-            Thread.Sleep(10); // 10ms 轮询间隔
+            Thread.Sleep(5); // 5ms 轮询间隔
         } while (Environment.TickCount64 < deadline);
 
         return new InputEvent { Type = InputType.Timeout };
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  后台读键线程（阻塞读与转义解析都在这条线程，主循环不阻塞）
+    // ═══════════════════════════════════════════════════════════
+
+    /// <summary>确保后台读键线程已启动（幂等；非交互环境不启动，注入键仍可用）。</summary>
+    private void EnsurePumpStarted()
+    {
+        if (Volatile.Read(ref _pumpRunning)) return;
+        lock (_pumpLock)
+        {
+            if (_pumpRunning) return;
+            // 管道/重定向/CI：stdin 不可交互则不启动读键线程（InjectKey 与 _pendingKeys 仍派上用场）。
+            // 注意只判 stdin：stdout 被管道（如 | tee）不影响键盘交互，仍需读键。
+            if (Console.IsInputRedirected) return;
+            _pumpRunning = true;
+            _pumpThread = new Thread(PumpKeys) { IsBackground = true, Name = "waycoder-input-pump" };
+            _pumpThread.Start();
+        }
+    }
+
+    /// <summary>后台读键 + 时钟循环：读控制台 → 解析为 InputEvent → 入队；并按节拍驱动时钟回调。
+    /// 阻塞读只发生在该线程，主循环永不阻塞；本线程也是唯一驱动时钟（动画/冻结/CPU）的源。</summary>
+    private void PumpKeys()
+    {
+        try
+        {
+            while (!_disposed)
+            {
+                try
+                {
+                    // 统一输入源的「时钟」：到点调用注册的心跳回调（spinner 动画/冻结看门狗/CPU 采样）。
+                    // 不管主循环是否被堵、是否有输入，节拍到就触发——主循环被堵时光标照转。
+                    if (Volatile.Read(ref _heartbeat) is { } heartbeat
+                        && Environment.TickCount64 >= Volatile.Read(ref _nextHeartbeatTick))
+                    {
+                        Volatile.Write(ref _nextHeartbeatTick, Environment.TickCount64 + HeartbeatIntervalMs);
+                        try { heartbeat(); }
+                        catch { /* 心跳单次失败忽略，下轮再试 */ }
+                    }
+
+                    if (Console.IsInputRedirected) { Thread.Sleep(50); continue; }
+                    if (Console.KeyAvailable)
+                    {
+                        var key = Tty.ReadKey();
+
+                        // 转义序列（SGR 鼠标 / bracketed paste / Kitty / xterm 功能键）：
+                        // 解析可能连续读多个字节——这些阻塞读都在本后台线程，主循环不受影响。
+                        if (key.KeyChar == AnsiTty.AnsiCharPrefix)
+                        {
+                            var ev = TryParseEscapeSequence();
+                            _rawEvents.Enqueue(ev ?? new InputEvent { Type = InputType.Key, KeyInfo = key });
+                        }
+                        else
+                        {
+                            // Ctrl+C 等组合键原样入队（下游 Intercept/CancelKeyPress 负责拦截）
+                            _rawEvents.Enqueue(new InputEvent { Type = InputType.Key, KeyInfo = key });
+                        }
+                    }
+                    else Thread.Sleep(1);
+                }
+                catch (Exception) { Thread.Sleep(50); } // 单轮异常不终止线程
+            }
+        }
+        catch { /* 线程终止路径 */ }
     }
 
     /// <summary>

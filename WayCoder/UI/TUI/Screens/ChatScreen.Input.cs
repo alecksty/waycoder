@@ -820,6 +820,12 @@ public partial class ChatScreen : TuiScreen
     /// <summary>输入区编辑：粘贴/换行/历史/补全/委托给 InputArea</summary>
     private bool HandleInputEditing(ConsoleKeyInfo key, bool ctrl, bool shift)
     {
+        // 输入框失焦兜底：TuiEditBase.OnKey 在 !Focused 时直接 drop 所有字面键（`if (!IsEnabled || !Focused) return false`），
+        // 而 InputArea.Focused 只在模态窗口开/关时保存/恢复（TuiScreen._savedRootFocus），一旦恢复路径漏执行
+        // （非模态窗口/编辑器切换/深层弹窗后 _savedRootFocus 丢置 null），就停在「能按全局快捷键却打不了字」。
+        // 聊天输入框是唯一真正的输入目标：到这里说明无模态、无弹窗、面向聊天屏，直接恢复聚焦即可 —— 顺手不侵入窗口系统。
+        if (!InputArea.Focused) InputArea.Focused = true;
+
         // 粘贴快捷键
         if ((key.Key == ConsoleKey.V && ctrl && !shift) ||
             (key.Key == ConsoleKey.Insert && shift))

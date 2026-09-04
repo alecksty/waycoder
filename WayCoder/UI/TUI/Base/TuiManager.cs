@@ -35,19 +35,16 @@ public class TuiManager : IDisposable
     /// 串行化避免双线程并发遍历控件树与写终端（帧交错花屏）。</summary>
     private readonly object _renderLock = new();
 
-    // ── 独立动画心跳线程 ──
-    // 主渲染循环被阻塞（ReadKey 被抢 / 锁 / 长时间同步任务）时，Render 不再被调用，动态栏 spinner
-    // 也会停 —— 用户看到「卡死」。独立心跳线程周期直写 spinner 帧，与主循环解耦：
-    // 只要 screen 可见（活跃屏幕 + 无浮层窗口），动画就一直转，UI 看起来是活的。
-    // 不取 _renderLock（主循环若堵在 Render 里，取锁会让心跳也停，违背目标）；靠 Console.Write
-    // 单次调用原子 + 下帧全量覆盖自愈（直写只碰 spinner 一格，其余像素不触碰）。
-    private Thread? _animTicker;
-    private CancellationTokenSource? _animCts;
-    private long _lastRenderTicks; // 主渲染循环最近一次 Render 时间戳（心跳据此判断主循环是否还活着）
+    // ── 统一输入源：主线程唯一渲染 ──
+    // 输入（按键/鼠标/粘贴/尺寸）与时钟都由共享 InputManager 泵线程（子线程）产出，经事件队列
+    // 上抛给主线程；主线程是唯一渲染者（Render 恒持 _renderLock，动画 RenderAllDirect 在 Render 内）。
+    // 泵线程回归「纯输入 + 纯诊断」，绝不写屏 —— 界面刷新只在主线程。spinner 动画由主渲染循环
+    // 每帧推进；泵线程不再参与动画渲染，故无需独立动画线程（此前「独立心跳线程直写 spinner」已废弃）。
     private string _lastModelSnapshot = ""; // 上次心跳采样的 active connect 模型快照（5s 同步比较用）
+    private int _heartbeatCount; // 心跳节拍计数（用于 1s/5s 的丰富条/CPU 采样节拍）
 
     // ── 主循环冻结看门狗 ──
-    // 主循环每完成一个阶段更新 UiLoopTick + 标记当前阶段；看门狗（心跳线程）发现 UiLoopTick
+    // 主循环每完成一个阶段更新 UiLoopTick + 标记当前阶段；看门狗（泵线程心跳）发现 UiLoopTick
     // 停滞 >3s 就记一条错误日志，含最后活动阶段 —— 排查「死机」时定位主循环卡在哪个阶段
     // （PumpUIQueue=某个 PostToUI 动作忙循环 / Render=渲染忙循环 / ReadInput=输入被阻塞）。
     public static volatile string UiLoopActivity = "idle";
@@ -68,99 +65,69 @@ public class TuiManager : IDisposable
 
     private void StartAnimTicker()
     {
-        if (_animTicker != null) return;
-        _animCts = new CancellationTokenSource();
-        var cts = _animCts;
-        _animTicker = new Thread(() =>
+        // 统一输入源：动画心跳并入共享 InputManager 泵线程（不再另起独立线程）。
+        // 泵线程是唯一读控制台 + 唯一驱动时钟的线程；本方法只是把心跳逻辑经回调注册到泵线程。
+        // 用 Input（而非 _input）：Enter 早于首次 ReadInput，此时 _input 尚未创建；用 Input 惰性创建
+        // 并注册，泵线程随后在首次 ReadInput→EnsurePumpStarted 时读到该回调并周期驱动。
+        // 好处：少一条可能竞争/互相卡死的线程；卡死后动画与冻结侦测仍由泵线程周期驱动。
+        Input.SetHeartbeat(HeartbeatTick);
+    }
+
+    /// <summary>
+    /// 泵线程时钟回调（统一输入源驱动）：冻结看门狗 + 丰富条 + CPU 采样 + 模型兜底同步 + 定时 dump。
+    /// 全为诊断/后台安全操作，不做任何渲染——界面刷新严格在主线程；泵线程（子线程）只产出输入/时钟消息。
+    /// 由 InputManager 泵线程按 120ms 节拍调用。
+    /// </summary>
+    private void HeartbeatTick()
+    {
+        if (!IsActive) return;
+
+        // 冻结看门狗：主循环 UiLoopTick 停滞 >3s → 记一条错误（一次性/冻结段），
+        // 附最后活动阶段，并同步强制落盘完整现场。门控 UiLoopActivity != "idle"。
+        long stale = UiLoopActivity != "idle" ? Environment.TickCount64 - Volatile.Read(ref UiLoopTick) : 0;
+        if (stale > 3000)
         {
-            int tickerCount = 0;
-            while (!cts.IsCancellationRequested)
+            if (!_freezeLogged)
             {
-                try
-                {
-                    if (IsActive)
-                    {
-                        // 主循环活跃（最近 150ms 内 Render 过）：它已在 30ms 循环里直写 spinner + EmitCursor
-                        // 恢复光标，心跳不插嘴（避免双写 + 光标跳回 spinner 格）。仅当主循环被堵
-                        // （Render 不再被调用）心跳才接管直写 —— 这正是「卡死后动画还要转」的关键。
-                        // 注意：直写用 CursorPos 移动了光标，必须补 EmitCursor 恢复到输入框，
-                        // 否则主循环持续被堵时光标会停在任意 spinner 位置「到处乱跑」。
-                        if (Environment.TickCount64 - Volatile.Read(ref _lastRenderTicks) > 150)
-                        {
-                            // 渲染中途（主循环持 _renderLock 正在 Render）试锁失败 → 跳过本轮直写，
-                            // 避免按上一帧坐标写屏/移光标；卡死在非渲染阶段不持锁，仍能拿到锁转动画。
-                            if (Monitor.TryEnter(_renderLock))
-                            {
-                                try
-                                {
-                                    TuiDynamicBar.RenderAllDirect(); // RenderDirect 内部门控活跃屏+无浮层，安全
-                                    ActiveScreen?.EmitCursor();      // 恢复光标到输入框（与主循环一致）
-                                }
-                                finally { Monitor.Exit(_renderLock); }
-                            }
-                        }
-
-                        // 冻结看门狗：主循环 UiLoopTick 停滞 >3s → 记一条错误（一次性/冻结段），
-                        // 附最后活动阶段，并同步强制落盘完整现场（黑匣子尾部 + Agent 状态 + native 栈）。
-                        // 恢复（tick 前进）后复位，下次再冻再记。
-                        // 门控 UiLoopActivity != "idle"：测试/无主循环场景不更新 tick，不算冻结。
-                        long stale = UiLoopActivity != "idle" ? Environment.TickCount64 - Volatile.Read(ref UiLoopTick) : 0;
-                        if (stale > 3000)
-                        {
-                            if (!_freezeLogged)
-                            {
-                                _freezeLogged = true;
-                                var dumpPath = FreezeCapture.Trigger(UiLoopActivity, stale);
-                                ErrorLog.Error("UI.Freeze",
-                                    $"主循环冻结 {stale}ms，最后活动: {UiLoopActivity} —— 现场已落盘: {dumpPath}");
-                            }
-                        }
-                        else
-                        {
-                            _freezeLogged = false;
-                        }
-
-                        // 死机黑匣子丰富条（~1 条/s：8 × 120ms）——记录 Agent/上下文状态进环。
-                        if (++tickerCount % 8 == 0)
-                            FreezeCapture.RecordRichSnapshot();
-
-                        // CPU 采样（~5s 一次：42 × 120ms）+ 更新共享值（动态栏显示/dump）。
-                        // 超 70% 且开启 --debug-dump 时输出资源占用（DumpNow 自带节流/防重入）。
-                        if (tickerCount % 42 == 0)
-                        {
-                            var cpu = CpuMonitor.Sample();
-                            FreezeCapture.SetCpuPercent(cpu);
-                            if (cpu > 70 && FreezeCapture.Enabled)
-                                FreezeCapture.DumpNow($"CPU 高占用 {cpu:F0}%", UiLoopActivity, 0);
-
-                            // 模型显示 5s 兜底同步：切换路径（/connect/Ctrl+Shift+M 等）可能漏刷新，
-                            // 心跳比较 active connect 快照，变了才刷新动态栏/模型栏（防每 5s 全屏闪烁）。
-                            var snap = $"{Config.Instance.Provider}|{Config.Instance.Model}|{Config.Instance.SmallProvider}|{Config.Instance.SmallModel}";
-                            if (snap != _lastModelSnapshot)
-                            {
-                                _lastModelSnapshot = snap;
-                                if (ActiveScreen is UI.Tui.Screens.ChatScreen cs)
-                                    cs.RefreshModelStatus(); // 只标脏不碰控件树，后台线程安全
-                            }
-                        }
-
-                        // 定时 dump（用户需求：每分钟一次）——死机前最近一次快照即现场。
-                        FreezeCapture.PeriodicDumpTick(UiLoopActivity);
-                    }
-                    // 注：TuiAnimatedText.RenderDirect 无活跃屏/浮层门控，不可从心跳线程调（会写旧位置）
-                }
-                catch { /* 单次直写失败忽略，下轮再试（如 DirectWriters 恰好被改动） */ }
-                try { cts.Token.WaitHandle.WaitOne(120); } catch { break; } // ~120ms ≈ 半帧，转得平滑
+                _freezeLogged = true;
+                var dumpPath = FreezeCapture.Trigger(UiLoopActivity, stale);
+                ErrorLog.Error("UI.Freeze",
+                    $"主循环冻结 {stale}ms，最后活动: {UiLoopActivity} —— 现场已落盘: {dumpPath}");
             }
-        })
-        { IsBackground = true, Name = "TuiAnimTicker" };
-        _animTicker.Start();
+        }
+        else _freezeLogged = false;
+
+        // 死机黑匣子丰富条（~1 条/s：8 × 120ms）——记录 Agent/上下文状态进环。
+        if (++_heartbeatCount % 8 == 0)
+            FreezeCapture.RecordRichSnapshot();
+
+        // CPU 采样（~5s 一次：42 × 120ms）+ 更新共享值（动态栏显示/dump）。
+        if (_heartbeatCount % 42 == 0)
+        {
+            var cpu = CpuMonitor.Sample();
+            FreezeCapture.SetCpuPercent(cpu);
+            if (cpu > 70 && FreezeCapture.Enabled)
+                FreezeCapture.DumpNow($"CPU 高占用 {cpu:F0}%", UiLoopActivity, 0);
+
+            // 模型显示 5s 兜底同步：切换路径（/connect/Ctrl+Shift+M 等）可能漏刷新，
+            // 心跳比较 active connect 快照，变了才刷新动态栏/模型栏（防每 5s 全屏闪烁）。
+            var snap = $"{Config.Instance.Provider}|{Config.Instance.Model}|{Config.Instance.SmallProvider}|{Config.Instance.SmallModel}";
+            if (snap != _lastModelSnapshot)
+            {
+                _lastModelSnapshot = snap;
+                if (ActiveScreen is UI.Tui.Screens.ChatScreen cs)
+                    cs.RefreshModelStatus(); // 只标脏不碰控件树，后台线程安全
+            }
+        }
+
+        // 定时 dump（用户需求：每分钟一次）——死机前最近一次快照即现场。
+        FreezeCapture.PeriodicDumpTick(UiLoopActivity);
     }
 
     private void StopAnimTicker()
     {
-        try { _animCts?.Cancel(); } catch { }
-        _animTicker = null;
+        // 注销泵线程上的心跳回调（不再有独立动画线程需停）。_input 可能为 null（从未创建）则跳过。
+        if (_input != null) _input.SetHeartbeat(null);
     }
 
     private InputManager? _input;
@@ -292,10 +259,6 @@ public class TuiManager : IDisposable
         // 串行化避免双线程并发遍历控件树 + 写终端（帧交错花屏）
         lock (_renderLock)
         {
-            // 渲染轮开始打点（原在 lock 外：单次长渲染 >150ms 时心跳会误判主循环死亡，
-            // 按上一帧旧坐标直写 spinner/移光标 → 瞬时花屏）。移进 lock 内 + 心跳写前 TryEnter，
-            // 渲染中途心跳拿不到锁自动跳过，卡死在非渲染阶段（ReadKey 被抢/忙循环）仍能转动画。
-            Volatile.Write(ref _lastRenderTicks, Environment.TickCount64);
             if (!IsDirty && !_needsFullRefresh)
             {
                 // 无脏变化也刷新直接写屏的动画控件（不依赖 Dirty 标志）
