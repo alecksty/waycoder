@@ -1905,6 +1905,19 @@ public static partial class SelfTest
         chatScreen.Activate();
         Check("TuiScreen TW>0", chatScreen.TW > 0);
         Check("TuiScreen TH>0", chatScreen.TH > 0);
+
+        // ── 输入失焦兜底：任务后 InputArea.Focused 被外部清掉（ChatScreen 典型「输入框失灵」前置态）──
+        //    TuiEditBase.OnKey 在 !IsEnabled || !Focused 时丢弃全部字面键；当无模态、无弹窗、面向聊天屏时，
+        //    打字必须重新聚焦输入框并成功录入 —— 否则只全局快捷键(Ctrl+M)能走、字符全被吞。
+        {
+            var focusScr = new ChatScreen();
+            focusScr.Activate();
+            focusScr.InputArea.Focused = false; // 模拟：模态开/关后 _savedRootFocus 恢复链漏执行，或焦点停在非输入控件
+            Check("输入失焦兜底: 前置失焦成立", !focusScr.InputArea.Focused);
+            focusScr.OnKey(new ConsoleKeyInfo('a', ConsoleKey.A, false, false, false));
+            Check("输入失焦兜底: 打字后焦点交还输入框", focusScr.InputArea.Focused);
+            Check("输入失焦兜底: 字符成功录入(不被 !Focused 吞掉)", focusScr.InputArea.Text == "a");
+        }
         Console.WriteLine();
 
         // ================================================================

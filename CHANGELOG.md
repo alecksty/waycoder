@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.96.54 (2026-09-04) — TUI 统一输入源（泵线程单读者 + 时钟并入）+ 输入框失焦兜底
+
+「卡死→输入失灵」根治：控制台读取全上单泵线程，主循环永不阻塞；界面刷新严格在主线程；动画心跳并入泵线程（纯诊断不渲染）。主项目编译 0 警告 0 错误，`--test ui` 1304 全过（+3 回归）。
+
+- **统一输入源（单读者）**：`InputManager` 把所有 `Console.KeyAvailable`/`ReadKey`/转义解析（SGR 鼠标/bracketed paste/Kitty/xterm）搬上单泵线程 `PumpKeys`（子线程），`ReadInput` 变纯出队——修「双读者竞态：两线程都 KeyAvailable→一个 ReadKey 永久阻塞 = 整机冻结（spinner 停 + 任意按键无效）」；`_pendingKeys` 改 `ConcurrentQueue`（泵写、主循环读）
+- **统一时钟**：删除独立 `TuiAnimTicker` 线程，动画心跳经 `Input.SetHeartbeat(HeartbeatTick)` 并入泵线程；`HeartbeatTick` 只做诊断（冻结看门狗/丰富条/CPU 采样/模型兜底同步），**不渲染**——界面刷新严格在主线程（`Render()` 恒持 `_renderLock`，动画 `RenderAllDirect` 在 Render 内）
+- **聊天输入框失焦兜底**：`ChatScreen.HandleInputEditing` 顶部 `if (!InputArea.Focused) InputArea.Focused = true`——修「任务后输入框失灵：能 Ctrl+M/全局快捷键却打不了字」（`TuiEditBase.OnKey` 在 `!IsEnabled || !Focused` 时吞掉全部字面键，而 `InputArea.Focused` 只在模态开/关时由 `TuiScreen._savedRootFocus` 保存/恢复，恢复链一断就停失焦）
+- **`TuiChatInput`（Plan 模式）输入迁移**：由裸 `Tty.ReadKey()` 改走共享 `TuiManager.Instance.Input.ReadInput()` 出队，补齐唯一的双读者漏网；Ctrl+V 剪贴板兜底保留
+- **回归测试 +3**：`SelfTest.Chunk8`「输入失焦兜底」3 项置于 `[TuiScreen]` 模块（前置失焦成立 / 打字后焦点交还输入框 / 字符成功录入）
+
 ## v0.96.53 (2026-09-04) — 模型提问永不拦截（沟通≠权限）+ bash shellBlock 全链路修复（code-review 6 项）
 
 修复 YOLO 模式大模型提问被静默自答（确认轴误划归类到沟通），并整体收尾 shellBlock「│ 」竖线 gutter 特性的 6 项 code-review 发现。自测全过，主项目 + GUI 编译 0 警告 0 错误。

@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.TUI.Custom;
 
@@ -68,7 +69,26 @@ public static class TuiChatInput
 
                 RenderAll(lines, cy, cx, scrScroll, tw, contentW, vh, scrLines, suggestH);
 
-                var key = Tty.ReadKey();
+                // 读键：统一经共享 InputManager（泵线程是唯一控制台读者）。此前裸调 Tty.ReadKey()
+                // 会在 Plan 模式与后台泵线程双读控制台（双读者竞态 → 按键被抢/主线程 ReadKey 挂死）。
+                // 忙等直到非 Timeout 事件：保持输入区静态渲染（与旧阻塞 ReadKey 一致的节奏），
+                // 转义/鼠标/粘贴已由泵线程解析为结构化事件，这里只出队不再裸读 Tty。
+                InputEvent ev;
+                do { ev = ReadInputEvent(); } while (ev.Type == InputType.Timeout);
+
+                // 尺寸变化 → 循环头以新宽度重绘；鼠标 → 输入区暂不响应；粘贴 → 直接插入文本
+                if (ev.Type == InputType.Resize) continue;
+                if (ev.Type == InputType.Mouse) continue;
+                if (ev.Type == InputType.Paste)
+                {
+                    if (!string.IsNullOrEmpty(ev.PasteText))
+                        InsertPasteText(lines, ref cy, ref cx, ev.PasteText);
+                    continue;
+                }
+
+                var key = ev.Type == InputType.ShiftTab
+                    ? new ConsoleKeyInfo('\t', ConsoleKey.Tab, shift: true, alt: false, control: false)
+                    : ev.KeyInfo;
                 bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
                 bool shift = key.Modifiers.HasFlag(ConsoleModifiers.Shift);
 
@@ -438,10 +458,17 @@ public static class TuiChatInput
             Tty.Write($"粘贴 {pasteLines.Length} 行 / {clip.Length} 字符? ");
             Tty.WriteLine(preview);
             Tty.Write("[Y] 确认粘贴  [N] 取消 ");
-            var confirm = Tty.ReadKey();
-            if (char.ToUpperInvariant(confirm.KeyChar) != 'Y') return;
+            var confirm = ReadConfirmKey();
+            if (confirm != null && char.ToUpperInvariant(confirm.Value.KeyChar) != 'Y') return;
         }
 
+        InsertPasteText(lines, ref cy, ref cx, clip);
+    }
+
+    /// <summary>把一段文本插入输入缓冲（保留硬换行，与现有换行/光标逻辑一致）。供 Ctrl+V 与 bracketed paste 复用。</summary>
+    private static void InsertPasteText(List<StringBuilder> lines, ref int cy, ref int cx, string text)
+    {
+        var pasteLines = text.Replace("\r\n", "\n").Split('\n');
         foreach (var line in pasteLines)
         {
             if (lines.Count > 1 || lines[0].Length > 0 || cy > 0)
@@ -611,6 +638,33 @@ public static class TuiChatInput
         string.Join("\n", lines.Select(l => l.ToString())).TrimEnd();
 
     private static int VW(string s) => AnsiHelper.DisplayWidth(s);
+
+    // ── 统一输入源 ──
+    // 所有输入（按键/鼠标/粘贴/尺寸）都经共享 InputManager 泵线程产出、本类出队消费，
+    // 确保「单读者」——泵线程是唯一碰控制台的线程，本类不再裸调 Tty.ReadKey()/Console.ReadKey()。
+
+    /// <summary>从共享 InputManager 读取一个输入事件（泵线程是唯一控制台读者）。
+    /// 无 InputManager（非 TUI/未初始化）时退化为阻塞直读——此时无泵，单读者仍安全。</summary>
+    private static InputEvent ReadInputEvent(int timeoutMs = 50)
+    {
+        var input = TuiManager.Instance?.Input;
+        if (input == null)
+            return new InputEvent { Type = InputType.Key, KeyInfo = Tty.ReadKey() };
+        try { return input.ReadInput(timeoutMs); }
+        catch { return new InputEvent { Type = InputType.Timeout }; }
+    }
+
+    /// <summary>读取确认键（Y/N/Esc）。Esc 返回 null（=取消）；其余按键原样返回。超长粘贴确认等场景使用。</summary>
+    private static ConsoleKeyInfo? ReadConfirmKey()
+    {
+        while (true)
+        {
+            var ev = ReadInputEvent();
+            if (ev.Type == InputType.Key)
+                return ev.KeyInfo.Key == ConsoleKey.Escape ? null : ev.KeyInfo;
+            // Timeout/Resize/Mouse/ShiftTab/Paste → 继续等待确认（保留旧阻塞行为，不因空闲超时误取消）
+        }
+    }
 
     private static string? ReadClipboard()
     {
