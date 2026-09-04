@@ -245,9 +245,14 @@ public static partial class SelfTest
         Check("providerId: 去 www. 前缀", ModelCatalog.NormalizeProviderId("www.openai.com") == "openai");
         Check("providerId: 去 www- 前缀", ModelCatalog.NormalizeProviderId("www-openai.com") == "openai");
         Check("providerId: 多层 api-ai- 链", ModelCatalog.NormalizeProviderId("api-ai.openai.com") == "openai");
+        Check("providerId: 去 api-inference. 前缀", ModelCatalog.NormalizeProviderId("api-inference.deepseek.com") == "deepseek");
+        Check("providerId: 去 inference. 前缀", ModelCatalog.NormalizeProviderId("inference.siliconflow.com") == "siliconflow");
         Check("providerId: ResolveProviderId 自定义网关去 ai./www-",
             ModelCatalog.ResolveProviderId("https://ai.gw.example/v1", "x") == "gw-example"
             && ModelCatalog.ResolveProviderId("https://www-my.example.com/v1", "x") == "my-example");
+        Check("providerId: ResolveProviderId 去 api-inference./inference.",
+            ModelCatalog.ResolveProviderId("https://api-inference.gw.example/v1", "x") == "gw-example"
+            && ModelCatalog.ResolveProviderId("https://inference-gw.example.com/v1", "x") == "gw-example");
 
         // 本地 opencode.json：provider 配了 opencode 网关地址 → 归 opencode（而非配置里的 deepseek pid）
         var ocLocal = ModelCatalog.ImportOpenCode(

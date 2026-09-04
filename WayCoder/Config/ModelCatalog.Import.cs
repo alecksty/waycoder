@@ -239,10 +239,12 @@ public static partial class ModelCatalog
     public static string NormalizeProviderId(string? pid)
     {
         var s = NormalizeId(pid ?? "");
-        // 循环剥多层前缀（如 api-ai.openai.com → api- → ai. → openai.com）
+        // 循环剥多层前缀（如 api-ai.openai.com → api- → ai. → openai.com；api-inference.deepseek.com → deepseek）
         while (true)
         {
-            if (s.StartsWith("api-", StringComparison.Ordinal)) s = s["api-".Length..];
+            if (s.StartsWith("api-inference-", StringComparison.Ordinal)) s = s["api-inference-".Length..];
+            else if (s.StartsWith("inference-", StringComparison.Ordinal)) s = s["inference-".Length..];
+            else if (s.StartsWith("api-", StringComparison.Ordinal)) s = s["api-".Length..];
             else if (s.StartsWith("ai.", StringComparison.Ordinal)) s = s["ai.".Length..];
             else if (s.StartsWith("ai-", StringComparison.Ordinal)) s = s["ai-".Length..];
             else if (s.StartsWith("www.", StringComparison.Ordinal)) s = s["www.".Length..];
@@ -277,6 +279,9 @@ public static partial class ModelCatalog
             host = host.ToLowerInvariant();
             if (host.StartsWith("www.", StringComparison.Ordinal)) host = host[4..];
             else if (host.StartsWith("www-", StringComparison.Ordinal)) host = host[4..];
+            else if (host.StartsWith("api-inference.", StringComparison.Ordinal)) host = host["api-inference.".Length..];
+            else if (host.StartsWith("inference.", StringComparison.Ordinal)) host = host["inference.".Length..];
+            else if (host.StartsWith("inference-", StringComparison.Ordinal)) host = host["inference-".Length..];
             else if (host.StartsWith("ai.", StringComparison.Ordinal)) host = host[3..];
             else if (host.StartsWith("ai-", StringComparison.Ordinal)) host = host[3..];
             // 去端口（localhost:11434 → localhost）；非标准端口用于区分服务商时，保留路径段交给 InferProviderFromBaseUrl 已先判断
