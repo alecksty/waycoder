@@ -420,6 +420,24 @@ public static partial class SelfTest
             }
             finally { Config.Instance.Model = oldModel; Config.Instance.BaseUrl = oldBase; Config.Instance.Provider = oldProv; }
         }
+        {
+            var oldModel = Config.Instance.Model; var oldBase = Config.Instance.BaseUrl; var oldProv = Config.Instance.Provider;
+            try
+            {
+                // 自定义网关模型（目录无该「id+网关」精确条目）：ResolveBaseUrl 用全局配置网关（权威），
+                // ResolveLargeProvider 回落全局 provider——修「模型栏显示 (DeepSeek)mimo-v2.5」：
+                // 此前 ResolveBaseUrl 落到 Find(modelId)「内置官方优先」误报成别的服务商，且与实际请求端点不一致。
+                Config.Instance.Model = "mimo-v2.5";
+                Config.Instance.BaseUrl = "https://api.ambient.xyz/v1";
+                Config.Instance.Provider = "ambient-xyz";
+                var slot = new AgentSlotConfig.SlotConfig { UseGlobal = true };
+                Check("模型栏: 自定义网关全局模型 ResolveBaseUrl 用全局网关",
+                    AgentSlotConfig.ResolveBaseUrl(slot, "mimo-v2.5") == "https://api.ambient.xyz/v1");
+                Check("模型栏: 自定义网关全局模型 ResolveLargeProvider 回落全局 provider(非内置误报)",
+                    AgentSlotConfig.ResolveLargeProvider(slot, 0) == "ambient-xyz");
+            }
+            finally { Config.Instance.Model = oldModel; Config.Instance.BaseUrl = oldBase; Config.Instance.Provider = oldProv; }
+        }
         Check("ApiKeyStore.ForModel 未知模型返回 null", ApiKeyStore.ForModel("no-such-model-xyz") == null);
         Check("Config 含 SmallProvider 设置项", ConfigCli.Get("SmallProvider").Contains("SmallProvider"));
 

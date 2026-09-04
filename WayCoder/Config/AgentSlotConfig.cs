@@ -161,6 +161,10 @@ public static class AgentSlotConfig
                     var reg = ModelCatalog.Providers.TryGetValue(match.ProviderId, out var rp) ? rp.DefaultBaseUrl : null;
                     return !string.IsNullOrEmpty(reg) ? reg : match.DefaultBaseUrl;
                 }
+                // 全局 + 目录无该「id+网关」精确条目（用户自定义网关 / custom 中转）→ 直接用全局配置网关（权威），
+                // 绝不落进下方 Find(modelId)「内置官方优先」——否则选中 mimo-v2.5@ambient.xyz 会被误报成
+                // deepseek，导致模型栏显示错误供应商（DeepSeek 无此模型），且与实际请求端点不一致。
+                return cfgBase;
             }
         }
         // 模型目录默认（provider 注册表优先）
