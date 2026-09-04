@@ -11,7 +11,7 @@
 - **`UxHelper.RenderWait` 关窗守卫**：窗口已关闭（`win.Screen == null`，ESC/OnClosed 关窗但未置位 evt）即返回——修「`/provider` 执行一次后，下次 `/` 命令消息进列表但命令不执行」：ProviderPicker 未像 ModelPicker 那样 `RegisterShortcut(Esc)` 置位 evt，ESC 关窗后 `RenderWait(timeout=0)` 永久卡住主循环，后续命令永远解不出队
 - **首次无 API key 也允许启动**：去掉「API 密钥未设置！」红框+退出（`return 1`），改为温和提示并直接进入软件——经 `/model`（选模型时输入 key）/`/provider`（设Key）/`/model keys set <供应商> <key>` 在软件内补设；本地模型（ollama / baseUrl 含 localhost/127.0.0.1）本就免 key
 - **模型栏供应商误报修复**：`AgentSlotConfig.ResolveBaseUrl` 全局场景目录无该「id+网关」精确条目时改用全局配置网关（权威），不再落进 `Find(modelId)`「内置官方优先」——修「模型栏显示 `(DeepSeek)mimo-v2.5`」（DeepSeek 无此模型）：选中自定义网关模型（如 `mimo-v2.5@api.ambient.xyz`）被误报成内置 deepseek，且与实际请求端点不一致
-- **providerId 生成去前端网关前缀**：`ModelCatalog.NormalizeProviderId` / `ExtractHost` 生成服务商 id 时剥 `api-` / `ai.` / `ai-` / `www.` / `www-` 前端前缀（`ai.deepseek.com`→`deepseek`、`www-openai.com`→`openai`、`api-ai.openai.com`→`openai`）——同一网关的子域/`www` 变体归并成同一服务商 id，避免自定义中转被拆成 `ai-*`/`www-*` 多个 id
+- **providerId 生成去前端网关前缀**：`ModelCatalog.NormalizeProviderId` / `ExtractHost` 生成服务商 id 时剥 `api-` / `api-inference.` / `inference.` / `ai.` / `ai-` / `www.` / `www-` 前端前缀（`ai.deepseek.com`→`deepseek`、`www-openai.com`→`openai`、`api-inference.deepseek.com`→`deepseek`、`inference.siliconflow.com`→`siliconflow`）——同一网关的子域/`www`/`api-inference` 变体归并成同一服务商 id，避免自定义中转被拆成多个 id
 - **表格缩行「花屏」修复**：`TuiTableList.OnRender` 写数据行后补齐表格 Height 区域内的剩余空行（用列表底色覆盖）——修「模型对话框『清空全部模型』后花屏」：总行数 < Height 时前帧旧行内容残留在未重绘区域（TuiView 渲染子控件不先清区域），缩行/清空目录即残留
 - **回归测试 +5**：`SelfTest.Chunk4`「模型栏」2 项（自定义网关全局模型 ResolveBaseUrl 用全局网关 / ResolveLargeProvider 回落全局 provider）+ `SelfTest.Chunk8`「输入失焦兜底」3 项 +「RenderWait 守卫」2 项
 
