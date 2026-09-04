@@ -16,8 +16,9 @@ public static class TuiMarkdown
     /// 每行是 (文本, 前景色, 背景色) 片段列表。
     /// </summary>
     /// <param name="isError">错误输出模式：整体保持角色默认色（红色由控件层应用），不做语法高亮</param>
+    /// <param name="shellBlock">Shell/命令输出块：每行加 │ 竖线前缀 + dim 等宽呈现（模拟终端滚动区）。</param>
     public static List<List<(string Text, int Fg, int Bg)>> RenderMessage(
-        string content, string role, int maxWidth, bool plainText = false, bool isError = false)
+        string content, string role, int maxWidth, bool plainText = false, bool isError = false, bool shellBlock = false)
     {
         var result = new List<List<(string Text, int Fg, int Bg)>>();
 
@@ -52,46 +53,19 @@ public static class TuiMarkdown
                 && !content.Contains(AnsiTty.AnsiCharPrefix)
                 ? Syntax.Detect(content)
                 : null;
-
+            // shellBlock（bash/命令输出）复用同一内容行渲染：bash 跑 git diff / dotnet build 等
+            // 仍保留红绿染色与语法高亮（此前 shellBlock 分支提前 return 丢掉了这层染色）。
+            // defaultFg/isDiff/codeSyntax 只计算一次，shell 分支不再重复求值、不再产生死变量。
+            int gutterFg = AnsiColors.BrightBlack;
             foreach (var rawLine in content.Split('\n'))
             {
-                // «grey» 这类中间格式标记必须在渲染层解码成颜色段，否则用户直接看到字面量。
-                // 只解码 «»、不做完整内联解析 —— 纯文本走的是 system/tool 输出，
-                // 里面的反引号/星号是数据，交给 ParseInline 会被当 Markdown 吃掉。
-                if (rawLine.Contains('\xAB'))
-                {
-                    result.Add(MarkdownParser.ParseMarkupOnly(rawLine, defaultFg));
-                    continue;
-                }
-                if (isDiff)
-                {
-                    // diff 行红绿背景（+++/--- 文件头行除外），源码 token 前景仍按语法着色
-                    // 注意：全部用 Ordinal 比较——string.StartsWith(默认) 走 culture-aware ICU 排序，
-                    // 在 170K tokens 大上下文下逐行调用会反复创建/销毁 ICU 排序器 → 渲染卡死。
-                    int bg = 0;
-                    if (rawLine.StartsWith('+') && !rawLine.StartsWith("+++", StringComparison.Ordinal)) bg = AnsiTty.RgbCode(0, 45, 0);
-                    else if (rawLine.StartsWith('-') && !rawLine.StartsWith("---", StringComparison.Ordinal)) bg = AnsiTty.RgbCode(45, 0, 0);
-                    if (codeSyntax != null && !string.IsNullOrEmpty(rawLine))
-                    {
-                        var segments = new List<(string, int, int)>();
-                        foreach (var (text, color) in codeSyntax.Tokenize(rawLine))
-                            segments.Add((text, color, bg));
-                        result.Add(segments);
-                    }
-                    else
-                        result.Add([(rawLine, defaultFg, bg)]);
-                }
-                else if (codeSyntax != null && !string.IsNullOrEmpty(rawLine))
-                {
-                    var segments = new List<(string, int, int)>();
-                    foreach (var (text, color) in codeSyntax.Tokenize(rawLine))
-                        segments.Add((text, color, 0));
-                    result.Add(segments);
-                }
-                else
-                {
-                    result.Add([(rawLine, defaultFg, 0)]);
-                }
+                // 命令行输出常带 \r（cmd 管道 CRLF），渲染前清理，防止行末回车覆盖下一字符。
+                var line = rawLine.TrimEnd('\r');
+                var segments = new List<(string Text, int Fg, int Bg)>();
+                if (shellBlock)
+                    segments.Add(("│ ", gutterFg, 0)); // 等宽控制台块：每行固定 │ 竖线前缀
+                AddContentLine(segments, line, defaultFg, isDiff, codeSyntax, decodeMarkup: !shellBlock);
+                result.Add(segments);
             }
             return result;
         }
@@ -151,6 +125,55 @@ public static class TuiMarkdown
 
         return result.Count > 0 ? result
             : new List<List<(string, int, int)>> { new() { (content, FgForRole(role), 0) } };
+    }
+
+    /// <summary>
+    /// 渲染单行内容的颜色片段（不含 gutter；shellBlock 由调用方先加「│ 」前缀再调用）。
+    /// </summary>
+    /// <param name="decodeMarkup">
+    /// 是否解码 WayCoder 的「«»」中间格式标记。shellBlock（bash/命令原始输出）为 false——
+    /// 那是 OS 文本，`«`/`»` 只是普通字符，解码反而渲染错；普通纯文本为 true——system/tool
+    /// 输出可能含 WayCoder 自身发射的 «grey» 等标记，必须解码成颜色段。
+    /// </param>
+    /// <remarks>
+    /// diff/语法染色对 shellBlock 同样生效（bash 跑 git diff / build 不再丢失红绿背景）。
+    /// 注意 diff 判断全部用 Ordinal 比较——string.StartsWith(默认) 走 culture-aware ICU 排序，
+    /// 在 170K tokens 大上下文下逐行调用会反复创建/销毁 ICU 排序器 → 渲染卡死。
+    /// </remarks>
+    private static void AddContentLine(
+        List<(string Text, int Fg, int Bg)> segments, string line, int defaultFg,
+        bool isDiff, Syntax? codeSyntax, bool decodeMarkup)
+    {
+        if (decodeMarkup && line.Contains('\xAB'))
+        {
+            // «grey» 这类中间格式标记必须在渲染层解码成颜色段，否则用户直接看到字面量。
+            // 只解码 «»、不做完整内联解析 —— 纯文本走的是 system/tool 输出，
+            // 里面的反引号/星号是数据，交给 ParseInline 会被当 Markdown 吃掉。
+            segments.AddRange(MarkdownParser.ParseMarkupOnly(line, defaultFg));
+            return;
+        }
+        if (isDiff)
+        {
+            // diff 行红绿背景（+++/--- 文件头行除外），源码 token 前景仍按语法着色
+            int bg = 0;
+            if (line.StartsWith('+') && !line.StartsWith("+++", StringComparison.Ordinal)) bg = AnsiTty.RgbCode(0, 45, 0);
+            else if (line.StartsWith('-') && !line.StartsWith("---", StringComparison.Ordinal)) bg = AnsiTty.RgbCode(45, 0, 0);
+            if (codeSyntax != null && !string.IsNullOrEmpty(line))
+            {
+                foreach (var (text, color) in codeSyntax.Tokenize(line))
+                    segments.Add((text, color, bg));
+            }
+            else
+                segments.Add((line, defaultFg, bg));
+            return;
+        }
+        if (codeSyntax != null && !string.IsNullOrEmpty(line))
+        {
+            foreach (var (text, color) in codeSyntax.Tokenize(line))
+                segments.Add((text, color, 0));
+            return;
+        }
+        segments.Add((line, defaultFg, 0));
     }
 
     // ================================================================

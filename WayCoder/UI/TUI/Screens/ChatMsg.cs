@@ -20,4 +20,6 @@ public class ChatMsg
     public bool Centered { get; set; }
     /// <summary>嵌套层级（0=顶层；1=工具子消息，缩进在所属 assistant 消息下）</summary>
     public int Indent { get; set; }
+    /// <summary>Shell/命令输出块：每行加 │ 竖线前缀（模拟终端滚动区）。槽位切换/恢复会话需忠实重建，必须持久化到 DTO。</summary>
+    public bool ShellBlock { get; set; }
 }

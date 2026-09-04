@@ -855,7 +855,8 @@ deepseek 性价比最高。"
                 capturedScreen.PostToUI(() => capturedScreen.AddSystemMsg($"⏳ 执行: $ {capturedCmd}"));
                 var result = await new Tools.BashTool().ExecuteUserShellAsync(capturedCmd);
                 capturedScreen.PostToUI(() =>
-                    capturedScreen.AddMessage($"$ {capturedCmd}\n{TailLines(result, 500)}", "tool"));
+                    // 与 agent bash 工具路径一致：shell 输出走等宽竖线控制台块（带 ┃ gutter 与角色色）
+                    capturedScreen.AddMessage($"$ {capturedCmd}\n{TailLines(result, 500)}", "tool", shellBlock: true));
             }
             catch (Exception ex)
             {

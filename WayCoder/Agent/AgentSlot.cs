@@ -176,9 +176,9 @@ public class AgentSlot
         screen.ChatMessages.Clear();
         screen.ChatMessages.AddRange(ChatMessages);
 
-        // 重建聊天列表项
+        // 重建聊天列表项；ShellBlock 持久化在 ChatMsg，重放时一并传递（bash 竖线 gutter 不丢）
         foreach (var msg in ChatMessages)
-            screen.AddMessage(msg.Content, msg.Role, msg.Centered, msg.Indent);
+            screen.AddMessage(msg.Content, msg.Role, msg.Centered, msg.Indent, msg.ShellBlock);
 
         // 恢复输入状态
         screen.InputArea.Text = InputText;

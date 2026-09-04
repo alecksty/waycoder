@@ -178,6 +178,26 @@ public static partial class SelfTest
         var plainRaw = UI.Tui.TuiMarkdown.RenderMessage("cmd `x` **y**", "tool", 40, plainText: true)
             .SelectMany(l => l).Aggregate("", (a, s) => a + s.Text);
         Check("纯文本: 反引号/星号原样保留", plainRaw.Contains("`x`") && plainRaw.Contains("**y**"));
+        // Shell/命令输出块：每行加 │ 竖线前缀 + \r 清理 + 不折行（模拟终端滚动区）
+        var shLines = UI.Tui.TuiMarkdown.RenderMessage("a  b\r\nc\td\r\n", "tool", 40, plainText: true, shellBlock: true);
+        Check("shell块: 每行以竖线前缀开头", shLines.All(row => row.First().Text == "│ "));
+        Check("shell块: 清理行末回车", shLines.All(row => row.All(s => !s.Text.Contains('\r'))));
+        var shText = shLines.SelectMany(l => l).Aggregate("", (a, s) => a + s.Text);
+        Check("shell块: 内容原样保留(含tab)", shText.Contains("a  b") && shText.Contains("c\td"));
+        Check("shell块: 竖线用暗灰(90)", shLines.All(row => row.First().Fg == 90));
+        // ── 修复 #4: shellBlock 不再是纯平文本，diff 内容保留红绿背景（bash 跑 git diff/build 不丢染色）──
+        var shDiff = UI.Tui.TuiMarkdown.RenderMessage("diff --git a/x b/x\n+added\n-removed\n", "tool", 80, plainText: true, shellBlock: true);
+        Check("shell块: diff 保留红绿背景(修#4)",
+            shDiff.Any(r => r.Any(s => s.Text == "+added" && s.Bg != 0))
+            && shDiff.Any(r => r.Any(s => s.Text == "-removed" && s.Bg != 0)));
+        Check("shell块: diff 行仍带竖线前缀", shDiff.All(r => r.First().Text == "│ "));
+        // ── 修复 #6: bash 是 OS 原始文本，不得解码 WayCoder 的 «» 标记（reviewer 驳回项锁定）──
+        var shRaw = UI.Tui.TuiMarkdown.RenderMessage("«grey»x«/»", "tool", 40, plainText: true, shellBlock: true);
+        var shRawFlat = shRaw.SelectMany(l => l).Aggregate("", (a, s) => a + s.Text);
+        Check("shell块: 不解码 «» 标记(原始输出)", shRawFlat.Contains("«") && shRawFlat.Contains("«grey»"));
+        // 对照：非 shellBlock 的纯文本仍然要解码 «»（WayCoder 自身发射的标记）
+        var plainMarks = UI.Tui.TuiMarkdown.RenderMessage("«grey»─灰«/»白", "tool", 40, plainText: true);
+        Check("纯文本: 非shell仍解码 «»", !plainMarks.SelectMany(l => l).Any(s => s.Text.Contains('«')));
         // system 消息（/model list 等）走 markdown 渲染（ChatScreen.AddMessage 不再强制 system 纯文本）
         var mdSys = UI.Tui.TuiMarkdown.RenderMessage("cmd `x` **y**", "system", 40, plainText: false)
             .SelectMany(l => l).Aggregate("", (a, s) => a + s.Text);
