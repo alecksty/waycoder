@@ -248,6 +248,7 @@ public class TuiTableList : TuiListControl
 
         // 数据行
         int vis = Math.Min(VisibleDataRows, Height - (dataStart - absY));
+        int written = 0;
         for (int i = 0; i < vis; i++)
         {
             int idx = ScrollOffset + i;
@@ -262,6 +263,7 @@ public class TuiTableList : TuiListControl
                 var line = $"── {title} " + new string('─', Math.Max(0, dataWidth - AnsiHelper.DisplayWidth(title) - 4));
                 WriteTableRow(sb, absX, dataStart + i, line,
                     TuiTheme.Current.ControlDisabledFg, rowBg, dataWidth);
+                written = i + 1;
                 continue;
             }
 
@@ -272,7 +274,15 @@ public class TuiTableList : TuiListControl
                 RenderCellRow(sb, absX, dataStart + i, idx, fg, bg, dataWidth, widths);
             else
                 WriteTableRow(sb, absX, dataStart + i, FormatRow(_rows[idx], widths), fg, bg, dataWidth);
+            written = i + 1;
         }
+
+        // 补齐表格余下空行：总行数 < Height 时（短列表/清空目录），前帧旧行内容残留在未重绘的
+        // 区域 → 「清空全部模型后花屏」。用列表底色把剩余行覆盖成空白，保证表格自身 Height 区域始终干净。
+        // 总行数 >= vis 时 written==vis 不进此循环（滚动列表无需补空）。
+        int blankFg = Fg > 0 ? Fg : TuiTheme.Current.ListFg;
+        for (int r = written; r < vis; r++)
+            WriteAt(sb, dataStart + r, absX, new string(' ', dataWidth), blankFg, rowBg);
 
         // 内联滚动条
         if (total > vis && vis > 0)
