@@ -213,9 +213,9 @@ public abstract class TuiView : TuiControl
     public override TuiControl? HitTest(int absX, int absY)
     {
         if (!Visible || !IsEnabled) return null;
-        // 先检查自身区域
-        int myAbsX = Parent != null ? GetAbsoluteX() : X;
-        int myAbsY = Parent != null ? GetAbsoluteY() : Y;
+        // 先检查自身区域（用渲染缓存坐标：含窗口偏移，防弹窗内命中错位）
+        int myAbsX = HitAbsX;
+        int myAbsY = HitAbsY;
         if (absX < myAbsX || absX >= myAbsX + Width ||
             absY < myAbsY || absY >= myAbsY + Height)
             return null;

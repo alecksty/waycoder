@@ -142,6 +142,9 @@ public static class TuiDialog
         var win = res.Window ?? throw new InvalidOperationException($"{template} 根应为 Dialog");
         win.Title = title;
         if (borderColor > 0) win.BorderColor = borderColor;
+        // 对话框一律模态：否则叠在已有模态（如 ModelPicker）之上时 TopModal 仍是下层，
+        // 鼠标事件被下层模态遮罩吞掉 → 本层按钮点击无反应。
+        win.Modal = true;
         return (win, res);
     }
 

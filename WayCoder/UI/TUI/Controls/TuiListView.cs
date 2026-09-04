@@ -194,8 +194,8 @@ public class TuiListView : TuiView
         if (ev.Type != InputType.Mouse) return false;
 
         // 检查鼠标是否在列表区域内
-        int absX = GetAbsoluteX();
-        int absY = GetAbsoluteY();
+        int absX = HitAbsX; // 渲染缓存命中（含窗口偏移，防弹窗内点击错位）
+        int absY = HitAbsY;
         if (ev.MouseX < absX || ev.MouseX >= absX + Width ||
             ev.MouseY < absY || ev.MouseY >= absY + Height)
             return false;
