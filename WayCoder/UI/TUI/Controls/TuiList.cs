@@ -25,23 +25,19 @@ public class TuiList : TuiListControl
     /// 此前无 OnMouse —— 设置界面分类列表等点击无效，只能键盘导航。</summary>
     public override bool OnMouse(InputEvent ev)
     {
-        if (ev.Type != InputType.Mouse) return false;
-        int absX = HitAbsX; // 渲染缓存命中（含窗口偏移，防弹窗内点击错位）
-        int absY = HitAbsY;
-        if (ev.MouseX < absX || ev.MouseX >= absX + Width ||
-            ev.MouseY < absY || ev.MouseY >= absY + Height)
-            return false;
+        // 命中判定（渲染缓存命中，含窗口偏移，防弹窗内点击错位）；relY 供行命中换算
+        if (!MouseInBounds(ev, out _, out int relY)) return false;
 
         if (ev.MouseScrollUp)
         {
-            ScrollOffset = Math.Max(0, ScrollOffset - 3);
+            ScrollOffset = TuiScrollMath.Wheel(ScrollOffset, Items.Count, Height, -3);
             MarkDirty();
             return true;
         }
 
         if (ev.MouseScrollDown)
         {
-            ScrollOffset = Math.Min(Math.Max(0, Items.Count - Height), ScrollOffset + 3);
+            ScrollOffset = TuiScrollMath.Wheel(ScrollOffset, Items.Count, Height, 3);
             MarkDirty();
             return true;
         }
@@ -49,7 +45,7 @@ public class TuiList : TuiListControl
         if (ev.MouseLeft)
         {
             Focused = true; // 点击后方向键才路由到本列表（对齐 TuiView.OnKey 只派发聚焦子控件）
-            int idx = ScrollOffset + (ev.MouseY - absY);
+            int idx = ScrollOffset + relY;
             if (idx >= 0 && idx < Items.Count)
             {
                 if (MultiSelect)

@@ -406,6 +406,33 @@ public static class UxHelper
         return result;
     }
 
+    // ── 模态对话框样板收敛 ──
+
+    /// <summary>
+    /// 运行一个模态对话框的通用样板：构建窗口 → ShowWindow → RenderWait 阻塞等待结果。
+    /// 各 Picker（ModelPicker/FilePicker/CommandPalette…）此前重复约 8 份同样的
+    /// 「result + ManualResetEventSlim + try/catch + RenderWait」样板，收敛到此单点。
+    /// </summary>
+    /// <param name="build">构建对话框窗口。参数为当前活跃屏 + 完成回调（回调触发即置位事件、返回结果）。</param>
+    /// <param name="timeoutMs">超时毫秒数（0=无限等，用户主动对话框默认）。透传 RenderWait。</param>
+    /// <param name="readKeys">是否由本循环接管渲染+读键，见 <see cref="RenderWait"/>。null 自动判定。</param>
+    public static TResult? RunModalDialog<TResult>(
+        Func<TuiScreen?, Action<TResult?>, TuiWindow> build,
+        int timeoutMs = 0, bool? readKeys = null)
+    {
+        TResult? result = default;
+        using var evt = new ManualResetEventSlim(false);
+        try
+        {
+            var screen = TuiManager.Instance?.ActiveScreen;
+            var win = build(screen, r => { result = r; evt.Set(); });
+            screen?.ShowWindow(win);
+            RenderWait(screen, evt, timeoutMs, win, readKeys: readKeys);
+        }
+        catch { evt.Set(); }
+        return result;
+    }
+
     // ── 事件循环 ──
 
     /// <summary>

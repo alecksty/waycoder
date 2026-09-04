@@ -369,6 +369,10 @@ public abstract class TuiControl : TuiBase
         return true;
     }
 
+    /// <summary>鼠标点是否落在控件区域内（基于渲染缓存绝对坐标）——各控件自算 inside 的统一入口。</summary>
+    protected bool ContainsMouse(InputEvent ev)
+        => ev.Type == InputType.Mouse && MouseInBounds(ev, out _, out _);
+
     /// <summary>
     /// 控件尺寸变化时调用。子类可覆写以响应布局变化。
     /// 例如：容器子类（TuiView）可覆写以调整子节点位置。
