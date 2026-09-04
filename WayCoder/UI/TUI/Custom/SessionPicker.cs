@@ -42,17 +42,9 @@ public static class SessionPicker
     /// <param name="slot">当前槽位（0-9），会话记录按槽位隔离；缺省 -1 走全局共享</param>
     public static Result? Show(string? currentSessionId = null, int slot = -1)
     {
-        Result? result = null;
-        using var evt = new ManualResetEventSlim(false);
-        try
-        {
-            var screen = TuiManager.Instance?.ActiveScreen;
-            var win = BuildWindow(currentSessionId, slot, screen, r => { result = r; evt.Set(); });
-            screen?.ShowWindow(win);
-            UxHelper.RenderWait(screen, evt, 0, win); // 用户主动对话框：不超时，等用户操作才关
-        }
-        catch { evt.Set(); }
-        return result;
+        // 用户主动对话框：不超时，等用户操作才关
+        return UxHelper.RunModalDialog<Result>((screen, onDone) =>
+            BuildWindow(currentSessionId, slot, screen, onDone));
     }
 
     // ── 窗口构建 ──

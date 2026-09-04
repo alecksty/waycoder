@@ -328,11 +328,11 @@ public static class DiffPreview
                     return true;
                 case ConsoleKey.LeftArrow:
                 case ConsoleKey.H:
-                    if (_scrollOffset > 0) { _scrollOffset = Math.Max(0, _scrollOffset - 3); Changed(); }
+                    if (_scrollOffset > 0) { _scrollOffset = TuiScrollMath.Wheel(_scrollOffset, TotalLines, Height, -3); Changed(); }
                     return true;
                 case ConsoleKey.RightArrow:
                 case ConsoleKey.L:
-                    _scrollOffset = Math.Min(Math.Max(0, TotalLines - Height), _scrollOffset + 3);
+                    _scrollOffset = TuiScrollMath.Wheel(_scrollOffset, TotalLines, Height, 3);
                     Changed();
                     return true;
                 case ConsoleKey.PageUp:
@@ -366,8 +366,7 @@ public static class DiffPreview
         /// <summary>按行数滚动，钳制到有效范围。</summary>
         private void ScrollBy(int delta)
         {
-            int maxScroll = Math.Max(0, TotalLines - Height);
-            int next = Math.Clamp(_scrollOffset + delta, 0, maxScroll);
+            int next = TuiScrollMath.Wheel(_scrollOffset, TotalLines, Height, delta);
             if (next == _scrollOffset) return;
             _scrollOffset = next;
             Changed();

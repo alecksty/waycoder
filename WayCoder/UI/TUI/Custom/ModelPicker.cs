@@ -63,18 +63,11 @@ public static class ModelPicker
     /// ModelPicker，仍让 RenderWait 主动读 InputManager 队列以接收脚本注入的按键）。默认 null 跟随线程。</param>
     public static Result? Show(int currentSlot = -1, bool forceReadKeys = false)
     {
-        Result? result = null;
-        using var evt = new ManualResetEventSlim(false);
-        try
-        {
-            var screen = TuiManager.Instance?.ActiveScreen;
-            var win = BuildWindow(currentSlot, screen, r => { result = r; evt.Set(); });
-            screen?.ShowWindow(win);
-            // timeoutMs=0 = 无限等：模型选择是用户主动打开的对话框，不该「啥也不干过一会自动关闭」
-            UxHelper.RenderWait(screen, evt, 0, win, readKeys: forceReadKeys ? true : null);
-        }
-        catch { evt.Set(); }
-        return result;
+        // timeoutMs=0 = 无限等：模型选择是用户主动打开的对话框，不该「啥也不干过一会自动关闭」；
+        // forceReadKeys（--keypad 后台线程测试入口）映射为 readKeys:true，其余自动判定
+        return UxHelper.RunModalDialog<Result>(
+            (screen, onDone) => BuildWindow(currentSlot, screen, onDone),
+            timeoutMs: 0, readKeys: forceReadKeys ? true : null);
     }
 
     // ── 窗口构建 ──

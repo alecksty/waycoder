@@ -51,17 +51,9 @@ public static class ReasoningPicker
         // 按当前模型解析允许集（模型级 > 厂商级），级别列表只显示允许项
         var allowed = ModelCatalog.ResolveModelCallConstraints(modelName, Config.Instance.BaseUrl).ReasoningEffortAllowed;
 
-        Result? result = null;
-        using var evt = new ManualResetEventSlim(false);
-        try
-        {
-            var screen = TuiManager.Instance?.ActiveScreen;
-            var win = BuildWindow(currentLevel, modelName, allowed, screen, r => { result = r; evt.Set(); });
-            screen?.ShowWindow(win);
-            UxHelper.RenderWait(screen, evt, 0, win); // 用户主动对话框：不超时，等用户操作才关
-        }
-        catch { evt.Set(); }
-        return result;
+        // 用户主动对话框：不超时，等用户操作才关
+        return UxHelper.RunModalDialog<Result>((screen, onDone) =>
+            BuildWindow(currentLevel, modelName, allowed, screen, onDone));
     }
 
     // ── 窗口构建 ──

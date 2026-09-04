@@ -50,25 +50,9 @@ public static class FilePicker
         dir = Path.GetFullPath(dir);
         var pattern = filter ?? "*";
 
-        string? result = null;
-        using var evt = new ManualResetEventSlim(false);
-        try
-        {
-            var screen = TuiManager.Instance?.ActiveScreen;
-            var win = BuildWindow(dir, pattern, title, screen, p =>
-            {
-                result = p;
-                evt.Set();
-            });
-            screen?.ShowWindow(win);
-            UxHelper.RenderWait(screen, evt, 0, win); // 用户主动对话框：不超时，等用户操作才关
-        }
-        catch
-        {
-            evt.Set();
-        }
-
-        return result;
+        // 用户主动对话框：不超时，等用户操作才关
+        return UxHelper.RunModalDialog<string>((screen, onDone) =>
+            BuildWindow(dir, pattern, title, screen, onDone));
     }
 
     // ── 窗口构建 ──

@@ -22,15 +22,8 @@ public static class ProviderPicker
 
     public static void Show()
     {
-        using var evt = new ManualResetEventSlim(false);
-        try
-        {
-            var screen = TuiManager.Instance?.ActiveScreen;
-            var win = BuildWindow(screen, () => evt.Set());
-            screen?.ShowWindow(win);
-            UxHelper.RenderWait(screen, evt, 0, win);
-        }
-        catch { evt.Set(); }
+        // 无结果值（close 回调即关闭）；用 bool 占位触发完成回调
+        UxHelper.RunModalDialog<bool>((screen, onDone) => BuildWindow(screen, () => onDone(false)));
     }
 
     private static void Wire(TuiMarkupResult res, string id, Action action)

@@ -31,16 +31,8 @@ public static class CommandPalette
     /// <summary>显示命令面板。返回 true 表示执行了命令，false = 取消。</summary>
     public static bool Show(List<Command> commands)
     {
-        Command? toRun = null;
-        using var evt = new ManualResetEventSlim(false);
-        try
-        {
-            var screen = TuiManager.Instance?.ActiveScreen;
-            var win = BuildWindow(commands, screen, c => { toRun = c; evt.Set(); });
-            screen?.ShowWindow(win);
-            UxHelper.RenderWait(screen, evt, 0, win); // 用户主动对话框：不超时，等用户操作才关
-        }
-        catch { evt.Set(); }
+        var toRun = UxHelper.RunModalDialog<Command>((screen, onDone) =>
+            BuildWindow(commands, screen, onDone)); // 用户主动对话框：不超时，等用户操作才关
         // 窗口关闭后再执行命令，避免命令内部再弹模态框造成 RenderWait 嵌套
         toRun?.Action?.Invoke();
         return toRun != null;

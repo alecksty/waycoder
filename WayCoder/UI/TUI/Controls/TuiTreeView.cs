@@ -331,14 +331,14 @@ public class TuiTreeView : TuiListControl
         if (ev.MouseScrollUp)
         {
             BuildFlatList();
-            ScrollOffset = Math.Max(0, ScrollOffset - 3);
+            ScrollOffset = TuiScrollMath.Wheel(ScrollOffset, _flatList.Count, Height, -3);
             MarkDirty();
             return true;
         }
         if (ev.MouseScrollDown)
         {
             BuildFlatList();
-            ScrollOffset = Math.Min(Math.Max(0, _flatList.Count - Height), ScrollOffset + 3);
+            ScrollOffset = TuiScrollMath.Wheel(ScrollOffset, _flatList.Count, Height, 3);
             MarkDirty();
             return true;
         }

@@ -208,10 +208,7 @@ public class TuiButton : TuiControl
         // 悬停检测（鼠标移动事件）
         if (ev.MouseMotion)
         {
-            int absX = HitAbsX; // 渲染缓存命中（含窗口偏移，防弹窗内点击错位）
-            int absY = HitAbsY;
-            bool inside = ev.MouseX >= absX && ev.MouseX < absX + Width &&
-                          ev.MouseY >= absY && ev.MouseY < absY + Height;
+            bool inside = ContainsMouse(ev); // 渲染缓存命中（含窗口偏移，防弹窗内点击错位）
             if (inside != IsHovered)
             {
                 IsHovered = inside;
@@ -224,11 +221,7 @@ public class TuiButton : TuiControl
         // 左键点击（需命中按钮区域，否则不触发 —— 否则点击按钮外也会误触）
         if (ev.MouseLeft)
         {
-            int absX = HitAbsX; // 渲染缓存命中（含窗口偏移，防弹窗内点击错位）
-            int absY = HitAbsY;
-            bool inside = ev.MouseX >= absX && ev.MouseX < absX + Width &&
-                          ev.MouseY >= absY && ev.MouseY < absY + Height;
-            if (!inside) return false;
+            if (!ContainsMouse(ev)) return false;
             Focused = true;
             OnClick?.Invoke(this);
             return true;

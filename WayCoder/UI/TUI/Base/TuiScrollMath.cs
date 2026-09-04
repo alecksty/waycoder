@@ -31,4 +31,8 @@ public static class TuiScrollMath
     /// <summary>页滚动：offset 按 delta 页移动后 clamp 到有效区间（delta 负数=上翻页）。</summary>
     public static int PageMove(int offset, int viewport, int count, int delta)
         => Math.Clamp(offset + delta * viewport, 0, Math.Max(0, count - viewport));
+
+    /// <summary>滚轮滚动 N 行后的新 offset（delta=±N，正下负上），clamp 到有效区间。</summary>
+    public static int Wheel(int offset, int count, int viewport, int delta)
+        => Math.Clamp(offset + delta, 0, Math.Max(0, count - viewport));
 }

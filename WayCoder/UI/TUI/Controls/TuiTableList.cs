@@ -183,13 +183,13 @@ public class TuiTableList : TuiListControl
         // 滚轮：垂直滚动（每滚 3 行）
         if (ev.MouseScrollUp)
         {
-            ScrollOffset = Math.Max(0, ScrollOffset - 3);
+            ScrollOffset = TuiScrollMath.Wheel(ScrollOffset, _rows.Count, VisibleDataRows, -3);
             MarkDirty();
             return true;
         }
         if (ev.MouseScrollDown)
         {
-            ScrollOffset = Math.Min(Math.Max(0, _rows.Count - VisibleDataRows), ScrollOffset + 3);
+            ScrollOffset = TuiScrollMath.Wheel(ScrollOffset, _rows.Count, VisibleDataRows, 3);
             MarkDirty();
             return true;
         }
