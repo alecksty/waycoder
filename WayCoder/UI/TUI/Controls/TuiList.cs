@@ -26,8 +26,8 @@ public class TuiList : TuiListControl
     public override bool OnMouse(InputEvent ev)
     {
         if (ev.Type != InputType.Mouse) return false;
-        int absX = GetAbsoluteX();
-        int absY = GetAbsoluteY();
+        int absX = HitAbsX; // 渲染缓存命中（含窗口偏移，防弹窗内点击错位）
+        int absY = HitAbsY;
         if (ev.MouseX < absX || ev.MouseX >= absX + Width ||
             ev.MouseY < absY || ev.MouseY >= absY + Height)
             return false;

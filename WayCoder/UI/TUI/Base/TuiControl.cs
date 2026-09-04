@@ -127,6 +127,18 @@ public abstract class TuiControl : TuiBase
     /// </summary>
     protected int _lastAbsX, _lastAbsY;
 
+    /// <summary>是否已渲染过至少一次（_lastAbsX/Y 有效）。命中总在渲染后发生 → true。</summary>
+    private bool _renderedOnce;
+
+    /// <summary>鼠标命中基准 X：已渲染 → 用最近渲染绝对坐标（含窗口偏移，所见即所得）；
+    /// 未渲染（如直接构造控件的单测）→ 回退 Parent 链实时累加（GetAbsoluteX）。
+    /// 修复弹窗内点击错位：窗口内容 RootView 不设 Parent，GetAbsoluteX 沿链累加漏窗口 X/Y，
+    /// 而渲染显式传 win.X/Y——命中用实时链少窗口偏移（偏上/偏左 win 位置）。</summary>
+    protected int HitAbsX => _renderedOnce ? _lastAbsX : GetAbsoluteX();
+
+    /// <summary>命中基准 Y，见 <see cref="HitAbsX"/>。</summary>
+    protected int HitAbsY => _renderedOnce ? _lastAbsY : GetAbsoluteY();
+
     /// <summary>获取光标状态（仅光标所有者返回有效值）</summary>
     public virtual (int row, int col, bool show)? GetCursorState()
     {
@@ -270,6 +282,7 @@ public abstract class TuiControl : TuiBase
         // 记录渲染时的绝对原点（在裁剪早退前设置，保证光标定位始终有正确坐标）
         _lastAbsX = absX;
         _lastAbsY = absY;
+        _renderedOnce = true; // 命中基准可用渲染坐标（含窗口偏移）
 
         // 控件自身裁剪区（含 Padding 内缩）
         var selfL = absX + Padding.Left;
@@ -346,8 +359,8 @@ public abstract class TuiControl : TuiBase
         relX = 0;
         relY = 0;
         if (ev.Type != InputType.Mouse) return false;
-        int ax = GetAbsoluteX();
-        int ay = GetAbsoluteY();
+        int ax = HitAbsX;
+        int ay = HitAbsY;
         if (ev.MouseX < ax || ev.MouseX >= ax + Width ||
             ev.MouseY < ay || ev.MouseY >= ay + Height)
             return false;
@@ -388,20 +401,11 @@ public abstract class TuiControl : TuiBase
     public virtual TuiControl? HitTest(int absX, int absY)
     {
         if (!Visible || !IsEnabled) return null;
-        // 计算控件在屏幕上的绝对位置（需要父容器坐标）
-        int myAbsX = 0, myAbsY = 0;
-        if (Parent != null)
-        {
-            // 父容器坐标由 Render 时传入的 parentAbsX/Y 确定，
-            // 但 HitTest 时没有该上下文。使用 X/Y + 递归查找根坐标。
-            myAbsX = GetAbsoluteX();
-            myAbsY = GetAbsoluteY();
-        }
-        else
-        {
-            myAbsX = X;
-            myAbsY = Y;
-        }
+        // 计算控件在屏幕上的绝对位置：用渲染缓存坐标（含窗口偏移）——GetAbsoluteX/Y 沿
+        // Parent 链累加，窗口内容 RootView 不设 Parent 会漏窗口位置，弹窗内叶子控件
+        // （按钮/输入框等不 override HitTest 的）命中测试会 miss → 点击无反应。
+        int myAbsX = HitAbsX;
+        int myAbsY = HitAbsY;
 
         if (absX >= myAbsX && absX < myAbsX + Width &&
             absY >= myAbsY && absY < myAbsY + Height)
