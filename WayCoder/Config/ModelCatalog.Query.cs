@@ -12,6 +12,17 @@ public static partial class ModelCatalog
         return custom.Values.FirstOrDefault(m => m.Id == id);
     }
 
+    /// <summary>
+    /// 解析「能确切匹配」到某服务商的 providerId（供模型栏 `(provider)model` 展示）。
+    /// 只在目录按 id+baseUrl 精确命中、或 baseUrl 可反推出已知服务商时返回；两者皆不中返回 null——
+    /// 调用方应显示 `(?)model`，而不是回落到 `Config.Provider` 乱猜（自定义网关模型会被误报成别的服务商，如 mimo-v2.5→DeepSeek）。
+    /// </summary>
+    public static string? ResolveConfidentProvider(string? modelId, string? baseUrl)
+    {
+        if (string.IsNullOrWhiteSpace(modelId)) return null;
+        return Find(modelId, baseUrl)?.ProviderId ?? InferProviderFromBaseUrl(baseUrl);
+    }
+
     /// <summary>按 id + baseUrl 精确查模型（地址不同 = 不同服务商）。baseUrl 为空回退 <see cref="Find(string)"/>。
     /// baseUrl 与目录条目均做尾斜杠规范化比较——槽位/配置里的网关可能带尾斜杠，与 ResolveBaseUrl 的 TrimEnd('/') 对齐，
     /// 否则带尾斜杠的网关匹配不到（归属退化为 Find(id) 内置官方优先）。</summary>
