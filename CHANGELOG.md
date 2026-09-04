@@ -1,5 +1,19 @@
 # 更新日志
 
+## v0.96.53 (2026-09-04) — 模型提问永不拦截（沟通≠权限）+ bash shellBlock 全链路修复（code-review 6 项）
+
+修复 YOLO 模式大模型提问被静默自答（确认轴误划归类到沟通），并整体收尾 shellBlock「│ 」竖线 gutter 特性的 6 项 code-review 发现。自测全过，主项目 + GUI 编译 0 警告 0 错误。
+
+- **模型询问用户 = 沟通，永不拦截**：`ask_user_question` 与权限模式彻底解耦——判据改「可交互性」（TUI / Web 交互桥 / 交互式终端 → 弹框；真正无用户可应答 → 明确返回「无法询问，请自行决定」），YOLO/Ask/Auto/SmartAuto 一律不弹权限框、不静默自答。此前 YOLO 下大模型提问被「自动选第一个选项/留空」代替用户做决定；已加 2 条 YOLO 回归测试锁定
+- **ShellBlock 持久化到 ChatMsg**：`ChatMsg` 新增 `ShellBlock`，`AddToolProgress` 写入，`AgentSlot.RestoreTo` / `CaptureChatItems` 重放传参——切槽位 / 后台 / 调宽后 bash 竖线 gutter 不丢（此前只存在临时 `TuiListItem.Body`，重放时静默丢失）
+- **`!` shell 直通带 gutter**：`!cmd` 输出与 agent bash 工具路径一致（`AddMessage shellBlock:true`）
+- **标题截断预留 gutter**：bash 命令头截断 `Width-4`→`Width-6`，长命令不再被右侧 `│ ` 挤掉 2 列
+- **shellBlock 保留 diff/语法染色**：合并进单一内容行渲染，bash 跑 `git diff` / `dotnet build` 不再丢红绿背景；bash 原始输出仍不解码 WayCoder「«»」标记（reviewer 特别锁定为正确行为）
+- **shellBlock 提前到构造器**：`TuiListItem` 构造参数 `isShellBlock` / `isError` 在 `BuildContent` 前生效，删掉后置二次重解析（修首次解析白费 + 每次 bash 双次解析）
+- **渲染循环去重**：shell/plain 合并进 `AddContentLine` 辅助，弃死变量 `defaultFg`、不再重复求值
+- **活跃槽位内容同步**：`AppendToLast` 把流式 tool/system 输出同步回 `ChatMsg.Content`（assistant 由 `AppendToken` 预先同步，按角色跳过避免重复累加）——切槽位后完整 bash 块不再只剩进度 label
+- **回归测试 +12**：YOLO 下仍弹窗 ×2、shell 块 diff 红绿背景、shell 块不解码「«»」、非 shell 仍解码「«»」等
+
 ## v0.96.52 (2026-09-03) — 会话恢复网关 6 项修复（code-review 补丁）
 
 修复 v0.96.51「会话恢复携带网关」的 6 项 code-review 发现，会话恢复/保存的网关一致性逻辑集中到核心。自测 4905 全过（+7 回归），主项目 + GUI 编译 0 警告 0 错误。
