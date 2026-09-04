@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.96.55 (2026-09-05) — TUI 鼠标点击命中修复 + 提炼简化
+
+- **鼠标点击命中修复**：弹窗内点击错位——窗口内容控件命中坐标沿 Parent 链累加漏掉窗口偏移（TuiWindow 非控件、RootView 不设 Parent），渲染显式传 win.X/Y 而命中用实时链 → 弹窗内点击偏窗口位置（居中窗口上/左差约窗口偏移）。修复：命中基准改用最近渲染绝对坐标（`_lastAbsX/Y`，`HitAbsX/Y` 兼容入口，未渲染回退实时链）——覆盖 `TuiControl.MouseInBounds`/`HitTest`、`TuiButton`、`TuiList`、`TuiListView`、`TuiView.HitTest`。主界面（根在 0,0）不受影响
+- **跨终端鼠标启用序列健壮化**：`MouseEnable` 去 `?1015h`（legacy UTF-8 鼠标干扰 SGR，部分终端据此不发 `\x1b[<...` 序列致鼠标无反应）、`?1003h` 全运动 flood 改 `?1002h` 按键运动；`MouseDisable` 对称
+- **TuiDialog 窗口模态化**：此前所有 TuiDialog 对话框 Modal=false，叠在已有模态（如 ModelPicker）之上时 TopModal 仍指下层 → 上层对话框鼠标被下层遮罩吞掉
+- **已知遗留**：二层确认框（TuiDialog 弹于 ModelPicker 等之上）按钮鼠标仍无响应（HitTest 未路由到内容层），待专项
+- **TUI 提炼简化**（行为不变，净 -37 行）：`UxHelper.RunModalDialog<T>` 收敛 7 个 Picker（ModelPicker/SessionPicker/FilePicker/ProviderPicker/ReasoningPicker/CommandPalette）的「result+evt+ShowWindow+RenderWait」样板；`TuiScrollMath.Wheel` 收敛 TuiList/TuiTableList/TuiTreeView/DiffPreview 滚轮 ±3 clamp；`TuiControl.ContainsMouse` 收敛 TuiButton/TuiList/TuiListView 命中 inside 判定（基于渲染缓存命中基准）
+- 自测 4935 全过，主项目编译 0 警告 0 错误
+
 ## v0.96.54 (2026-09-04) — TUI 统一输入源（泵线程单读者 + 时钟并入）+ 输入框失焦兜底
 
 「卡死→输入失灵」根治：控制台读取全上单泵线程，主循环永不阻塞；界面刷新严格在主线程；动画心跳并入泵线程（纯诊断不渲染）。主项目编译 0 警告 0 错误，`--test ui` 1304 全过（+3 回归）。
