@@ -237,6 +237,18 @@ public static partial class SelfTest
         Check("按地址: localhost→local", ModelCatalog.InferProviderFromBaseUrl("http://localhost:11434") == "local");
         Check("按地址: 空/不可识别→null", ModelCatalog.InferProviderFromBaseUrl(null) == null && ModelCatalog.InferProviderFromBaseUrl("") == null);
 
+        // ── 3.6 providerId 生成去前端 ai./ai-/www./www- 前缀（同网关子域变体归并成同一服务商 id）──
+        // 注意：NormalizeId 会把 . / 转成 '-'（ai.deepseek.com → ai-deepseek-com），故前缀剥离认「-」/「.」两种，
+        // 断言按 NormalizeId 后的短横线形式（含原有 -com 后缀剥离）。
+        Check("providerId: 去 ai. 前缀", ModelCatalog.NormalizeProviderId("ai.deepseek.com") == "deepseek");
+        Check("providerId: 去 ai- 前缀", ModelCatalog.NormalizeProviderId("ai-siliconflow-ai") == "siliconflow");
+        Check("providerId: 去 www. 前缀", ModelCatalog.NormalizeProviderId("www.openai.com") == "openai");
+        Check("providerId: 去 www- 前缀", ModelCatalog.NormalizeProviderId("www-openai.com") == "openai");
+        Check("providerId: 多层 api-ai- 链", ModelCatalog.NormalizeProviderId("api-ai.openai.com") == "openai");
+        Check("providerId: ResolveProviderId 自定义网关去 ai./www-",
+            ModelCatalog.ResolveProviderId("https://ai.gw.example/v1", "x") == "gw-example"
+            && ModelCatalog.ResolveProviderId("https://www-my.example.com/v1", "x") == "my-example");
+
         // 本地 opencode.json：provider 配了 opencode 网关地址 → 归 opencode（而非配置里的 deepseek pid）
         var ocLocal = ModelCatalog.ImportOpenCode(
             """{"provider":{"deepseek":{"name":"DeepSeek","options":{"baseURL":"https://opencode.ai/zen/go/v1"},"models":{"deepseek-v4-flash":{"name":"deepseek-v4-flash"}}}}}""");

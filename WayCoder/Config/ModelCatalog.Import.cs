@@ -231,15 +231,24 @@ public static partial class ModelCatalog
     /// （deepseek/openai…）；否则按 host 派生稳定 id（同 host 必得同 id，跨来源也能合并）；
     /// 地址为空/不可解析才回退来源 pid。这是「请求打到哪，就归哪个服务商」的唯一入口。
     /// </summary>
-    /// <summary>规范化供应商 ID：去掉 `api-` 前缀和 `-ai` / `-com` 后缀（导入数据常见格式
-    /// api-openai-ai.com → openai）。只影响导入解析（影响名称/图标/去重的判断），不改变已注册的规范 ID。
-    /// api- 前缀来自 host 的 api.deepseek.com 子域、-ai 后缀来自 api-siliconflow-ai 这类服务商 slug、
-    /// -com 后缀来自 .com 域（对名称判断无用）。</summary>
+    /// <summary>规范化供应商 ID：去掉前端 `api-` / `ai.` / `ai-` / `www.` / `www-` 前缀和 `-ai` / `-com` 后缀
+    /// （导入数据常见格式 api-openai-ai.com → openai、ai.deepseek.com → deepseek.com、www-openai.com → openai.com）。
+    /// 只影响导入解析（影响名称/图标/去重的判断），不改变已注册的规范 ID。
+    /// 前缀来自 host 子域/常见网关变体：api-（api.*）、ai. / ai-（ai.* / ai-*）、www. / www-（www.* / www-*），
+    /// -ai 后缀来自 api-siliconflow-ai 这类服务商 slug、-com 后缀来自 .com 域。</summary>
     public static string NormalizeProviderId(string? pid)
     {
         var s = NormalizeId(pid ?? "");
-        if (s.StartsWith("api-", StringComparison.Ordinal))
-            s = s["api-".Length..];
+        // 循环剥多层前缀（如 api-ai.openai.com → api- → ai. → openai.com）
+        while (true)
+        {
+            if (s.StartsWith("api-", StringComparison.Ordinal)) s = s["api-".Length..];
+            else if (s.StartsWith("ai.", StringComparison.Ordinal)) s = s["ai.".Length..];
+            else if (s.StartsWith("ai-", StringComparison.Ordinal)) s = s["ai-".Length..];
+            else if (s.StartsWith("www.", StringComparison.Ordinal)) s = s["www.".Length..];
+            else if (s.StartsWith("www-", StringComparison.Ordinal)) s = s["www-".Length..];
+            else break;
+        }
         if (s.EndsWith("-ai", StringComparison.Ordinal))
             s = s[..^"-ai".Length];
         if (s.EndsWith("-com", StringComparison.Ordinal))
@@ -267,6 +276,9 @@ public static partial class ModelCatalog
                 : baseUrl;
             host = host.ToLowerInvariant();
             if (host.StartsWith("www.", StringComparison.Ordinal)) host = host[4..];
+            else if (host.StartsWith("www-", StringComparison.Ordinal)) host = host[4..];
+            else if (host.StartsWith("ai.", StringComparison.Ordinal)) host = host[3..];
+            else if (host.StartsWith("ai-", StringComparison.Ordinal)) host = host[3..];
             // 去端口（localhost:11434 → localhost）；非标准端口用于区分服务商时，保留路径段交给 InferProviderFromBaseUrl 已先判断
             var colon = host.LastIndexOf(':');
             if (colon > 0 && host.IndexOf(':') == colon) host = host[..colon];
