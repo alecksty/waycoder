@@ -547,8 +547,8 @@ public partial class ChatScreen : TuiScreen
         // 恢复聊天消息：非保留路径走 AddMessage 重灌（自动处理续接/纯文本）；保留路径只按新宽重建项内容
         if (savedMessages != null)
         {
-            foreach (var (role, content, centered, indent) in savedMessages)
-                AddMessage(content, role, centered, indent);
+            foreach (var (role, content, centered, indent, shellBlock) in savedMessages)
+                AddMessage(content, role, centered, indent, shellBlock);
         }
         else if (BuildLayoutPreservesChatItems)
         {
@@ -575,16 +575,16 @@ public partial class ChatScreen : TuiScreen
         }
     }
 
-    /// <summary>捕获当前 ChatList 的消息数据（Role/Content/Centered/Indent）。</summary>
-    private List<(string Role, string Content, bool Centered, int Indent)>? CaptureChatItems()
+    /// <summary>捕获当前 ChatList 的消息数据（Role/Content/Centered/Indent/ShellBlock）。</summary>
+    private List<(string Role, string Content, bool Centered, int Indent, bool ShellBlock)>? CaptureChatItems()
     {
         if (ChatList == null) return null;
-        var saved = new List<(string Role, string Content, bool Centered, int Indent)>();
+        var saved = new List<(string Role, string Content, bool Centered, int Indent, bool ShellBlock)>();
         for (int i = 0; i < ChatList.ItemCount; i++)
         {
             var item = ChatList.GetItem(i) as TuiListItem;
             if (item != null)
-                saved.Add((item.Role, item.MarkdownContent, item.ContentAlign == EHAlign.Center, item.Indent));
+                saved.Add((item.Role, item.MarkdownContent, item.ContentAlign == EHAlign.Center, item.Indent, item.IsShellBlock));
         }
 
         return saved;
@@ -817,7 +817,7 @@ public partial class ChatScreen : TuiScreen
     /// <param name="centered">null=续接同角色消息时继承前一条对齐（否则左对齐）；
     /// 显式 true/false 则强制该对齐 —— 表格类内容必须显式传 false，
     /// 否则会被前一条居中的 system 消息带偏，每行按各自宽度居中而参差不齐。</param>
-    public void AddMessage(string content, string role = "assistant", bool? centered = null, int indent = 0)
+    public void AddMessage(string content, string role = "assistant", bool? centered = null, int indent = 0, bool shellBlock = false)
     {
         bool continuation = false;
         // system 消息含 markdown（ModelCommand 的 **bold**/`code` 等）→ 走 markdown 渲染；
@@ -840,18 +840,17 @@ public partial class ChatScreen : TuiScreen
         if (indent > 0)
             continuation = true;
 
+        // shellBlock/isError 经构造器传入：在 BuildContent 前生效，避免后置赋值导致首解析白费 + 二次解析
+        var isError = plainText && IsErrorOutput(content);
         var item = new TuiListItem(role, content, ChatList.Width - 2,
             role == "banner" ? true : continuation, plainText,
-            align ? EHAlign.Center : EHAlign.Left)
+            align ? EHAlign.Center : EHAlign.Left,
+            isShellBlock: shellBlock, isError: isError)
         {
             Indent = indent
         };
         if (!continuation)
             item.SetTime(DateTime.Now);
-
-        // 错误输出红色显示
-        if (plainText && IsErrorOutput(content))
-            item.Body.IsError = true;
 
         ChatList.AddItem(item); // AddItem 内部 MarkDirtyTree：聊天区整棵标脏 + 触发下一帧，无需再弄脏根
 
@@ -947,6 +946,18 @@ public partial class ChatScreen : TuiScreen
                         return;
                     break;
                 // detailed 模式：不限制，全量显示
+            }
+        }
+
+        // 流式工具/系统输出同步回 ChatMsg：槽位切换/恢复时按完整内容忠实重建（否则 ChatMsg 只有进度 label）。
+        // assistant 由 AppendToken 预先同步（此处按角色跳过，避免重复累加）；
+        // 折叠分支已 return，仅当实际追加时才同步——聊天气泡显示什么，ChatMsg 就存什么。
+        if (last.Role is "tool" or "system")
+        {
+            lock (_chatLock)
+            {
+                if (ChatMessages.Count > 0)
+                    ChatMessages[^1].Content = CapMessageContent(ChatMessages[^1].Content, delta);
             }
         }
 

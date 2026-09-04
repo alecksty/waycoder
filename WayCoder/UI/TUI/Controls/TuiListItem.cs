@@ -45,6 +45,12 @@ public class TuiListItem : TuiVBox
     /// <summary>纯文本模式：逐行渲染，不走 Markdown 解析（避免行合并）</summary>
     public bool IsPlainText { get; set; }
 
+    /// <summary>Shell/命令输出块：每行加 │ 竖线前缀，等宽呈现（模拟终端滚动区）。</summary>
+    public bool IsShellBlock { get; set; }
+
+    /// <summary>错误模式：正文使用红色渲染（用于工具错误输出）。</summary>
+    public bool IsError { get; set; }
+
     /// <summary>嵌套层级（0=顶层；>0 时作为子消息续接无角色头并左缩进）</summary>
     public int Indent { get; set; }
 
@@ -57,7 +63,7 @@ public class TuiListItem : TuiVBox
     }
 
     /// <summary>从角色和内容构建完整列表项</summary>
-    public TuiListItem(string role, string content, int maxWidth = 80, bool continuation = false, bool isPlainText = false, EHAlign contentAlign = EHAlign.Left)
+    public TuiListItem(string role, string content, int maxWidth = 80, bool continuation = false, bool isPlainText = false, EHAlign contentAlign = EHAlign.Left, bool isShellBlock = false, bool isError = false)
     {
         Role = role;
         MarkdownContent = content;
@@ -65,6 +71,10 @@ public class TuiListItem : TuiVBox
         Continuation = continuation;
         IsPlainText = isPlainText;
         ContentAlign = contentAlign;
+        IsShellBlock = isShellBlock;
+        IsError = isError;
+        // shellBlock/isError 必须在 BuildContent 前生效：否则 Body 首次 EnsureParsed 用的是默认 false，
+        // 外部再赋值会触发二次重解析（每次 bash 消息双次解析、首解析白费）。
         BuildContent(maxWidth);
     }
 
@@ -120,6 +130,8 @@ public class TuiListItem : TuiVBox
         Body.Content = MarkdownContent;
         Body.Role = Role;
         Body.IsPlainText = IsPlainText;
+        Body.IsShellBlock = IsShellBlock;
+        Body.IsError = IsError;
         Body.Width = innerW;
         Body.MaxWidth = innerW;
         Body.ContentAlign = ContentAlign;

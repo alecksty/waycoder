@@ -37,12 +37,16 @@ public partial class ChatScreen : TuiScreen
         {
             // 参数摘要按聊天区宽度截取（减一点留边距），不再依赖调用方提前砍短 ——
             // 之前调用方硬截 57 字符，bash 命令/文件路径一眼看不全参数。
-            int avail = Math.Max(30, ChatList.Width - 4);
+            // 注意：bash 走 shellBlock 渲染会再前缀「│ 」（2 显示列），标题可用宽必须再减 2，
+            // 否则长命令头超出 item 体内宽被右裁 2 列。item 体内宽 = (list-2)-padding(1+1) = list-4，故用 list-6。
+            int avail = Math.Max(30, ChatList.Width - 6);
             if (AnsiHelper.DisplayWidth(label) > avail)
                 label = AnsiHelper.TruncateByWidth(label, avail);
-            var msg = new ChatMsg { Role = "tool", Content = label, Indent = 1 };
+            var msg = new ChatMsg { Role = "tool", Content = label, Indent = 1, ShellBlock = toolName == "bash" };
             ChatMessages.Add(msg);
-            AddMessage(label, "tool", indent: 1);
+            // bash 输出走等宽竖线控制台块（模拟终端滚动区），其他工具保持普通纯文本。
+            // ShellBlock 持久化到 ChatMsg：切换槽位/恢复会话重放时忠实重建竖线 gutter。
+            AddMessage(label, "tool", indent: 1, shellBlock: toolName == "bash");
         }
         _toolOutputLineCount = 0;
     }

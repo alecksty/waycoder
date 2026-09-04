@@ -26,6 +26,9 @@ public class TuiMarkdown : TuiDisplayControl, ILazyItem
     /// <summary>错误模式：文本使用红色渲染（用于工具错误输出）</summary>
     public bool IsError { get; set; }
 
+    /// <summary>Shell/命令输出块：给每行加 │ 竖线前缀、dim 等宽呈现（模拟终端滚动区）。</summary>
+    public bool IsShellBlock { get; set; }
+
     /// <summary>内容横向对齐（默认左对齐，欢迎消息用居中）</summary>
     public EHAlign ContentAlign { get; set; } = EHAlign.Left;
 
@@ -43,6 +46,7 @@ public class TuiMarkdown : TuiDisplayControl, ILazyItem
     private string _lastRole = "";
     private bool _lastPlain;
     private bool _lastIsError;
+    private bool _lastIsShellBlock;
 
     public TuiMarkdown()
     {
@@ -107,13 +111,15 @@ public class TuiMarkdown : TuiDisplayControl, ILazyItem
         // 钳到 ≥1：折行宽度至少 1，避免 RenderMessage 除零/负宽。
         int effectiveMaxW = Math.Max(1, MaxWidth > 0 ? MaxWidth : Width);
         if (_parsed && _lastContent == Content && _lastMaxWidth == effectiveMaxW &&
-            _lastRole == Role && _lastPlain == IsPlainText && _lastIsError == IsError) return;
+            _lastRole == Role && _lastPlain == IsPlainText && _lastIsError == IsError &&
+            _lastIsShellBlock == IsShellBlock) return;
 
         _lastContent = Content;
         _lastMaxWidth = effectiveMaxW;
         _lastRole = Role;
         _lastPlain = IsPlainText;
         _lastIsError = IsError;
+        _lastIsShellBlock = IsShellBlock;
 
         if (string.IsNullOrEmpty(Content))
         {
@@ -124,7 +130,7 @@ public class TuiMarkdown : TuiDisplayControl, ILazyItem
         }
 
         // 使用旧的静态渲染器生成带色段列表
-        _rendered = OldMd.RenderMessage(Content, Role, effectiveMaxW, IsPlainText, IsError);
+        _rendered = OldMd.RenderMessage(Content, Role, effectiveMaxW, IsPlainText, IsError, IsShellBlock);
         Height = Math.Max(1, _rendered.Count);
         _parsed = true;
     }

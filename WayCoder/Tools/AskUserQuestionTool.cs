@@ -72,29 +72,25 @@ public class AskUserQuestionTool : ITool
 
             // ── 2. 依次展示每个问题 ──
             var answers = JNode.Object();
+            // 模型询问用户是【沟通】而非【权限】——权限模式（YOLO/Ask/Auto/SmartAuto）一律不拦截，
+            // 该弹框就给真用户弹框，绝不静默作答（那会让模型替用户做决定）。
+            // 仅当完全没有用户可应答（标准输入被重定向：管道 echo|waycoder、--json IDE 桥、批量任务）
+            // 才不让模型假装「问了人」，改为明确告知由模型自行决定。
+            if (!CanAskUser())
+                return "无法询问用户：当前为非交互环境（无终端/Web 用户可应答），请自行决定。";
+
             foreach (var q in questions)
             {
                 object? answer;
-                // YOLO（畅通）：无任何问答阻止，自动选第一个选项/文本留空，不弹框（Web/TUI/GUI 三端统一）
-                if (PermissionManager.CurrentMode == PermissionManager.Mode.Yolo)
+                try
                 {
-                    if (q.Options.Count > 0)
-                        answer = q.MultiSelect ? JNode.Array().Add(q.Options[0].Label) : q.Options[0].Label;
-                    else
-                        answer = "";
+                    answer = await ShowQuestionAsync(q);
                 }
-                else
+                catch (OperationCanceledException)
                 {
-                    try
-                    {
-                        answer = await ShowQuestionAsync(q);
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        // 用户取消 → 剩余问题跳过
-                        answers[q.Header] = JNode.From("已取消");
-                        break;
-                    }
+                    // 用户取消 → 剩余问题跳过
+                    answers[q.Header] = JNode.From("已取消");
+                    break;
                 }
 
                 if (answer == null)
@@ -233,6 +229,19 @@ public class AskUserQuestionTool : ITool
     // ═══════════════════════════════════════════════════════════════
     //  对话框展示（阻塞等待用户响应）
     // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 是否有真实用户能应答提问。
+    /// YOLO（畅通）只跳过【权限确认】（确认轴），不应跳过【向用户提问】——否则大模型想问用户时静默自答，
+    /// 用户被架空。判定依据是【可交互性】而非权限模式：TUI 客户端 / Web 交互桥 / 交互式终端均可回应；
+    /// 仅当标准输入被重定向（管道 echo | waycoder、--json IDE 桥）才无用户，交由调用方自动作答兜底。
+    /// </summary>
+    private static bool CanAskUser()
+    {
+        if (UxHelper.IsTuiMode) return true;            // TUI 全屏客户端（含 YOLO）→ 弹框询问
+        if (UxHelper.WebInteraction != null) return true; // Web 浏览器用户 → 经 SSE 弹框询问
+        return !Console.IsInputRedirected && !Console.IsOutputRedirected; // 交互式终端 → 行内询问
+    }
 
     /// <summary>
     /// 展示单个问题并等待回答。返回：

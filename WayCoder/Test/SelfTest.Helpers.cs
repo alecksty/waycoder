@@ -3795,6 +3795,28 @@ public static partial class SelfTest
         }
         finally { UxHelper.WebInteraction = null; }
 
+        // ── 4b. YOLO 模式仍应弹窗询问（畅通只跳过权限确认，不跳过向用户提问）──
+        // 若 tool 在 YOLO 下直接自动选第一项，SelectCalled 恒为 false —— 此测试即失败，专捕该回归。
+        var oldAskMode = PermissionManager.CurrentMode;
+        try
+        {
+            PermissionManager.CurrentMode = PermissionManager.Mode.Yolo;
+            var mockYolo = new MockInteraction { SelectResult = "A  —  desc A" };
+            UxHelper.WebInteraction = mockYolo;
+            try
+            {
+                var tool = new AskUserQuestionTool();
+                var qy = JNode.Object().Set("question", "选哪个").Set("header", "choice")
+                    .Set("options", JNode.Array().Add(JNode.Object().Set("label", "A").Set("description", "desc A")));
+                var argsY = new Dictionary<string, object?> { ["questions"] = JNode.Array().Add(qy) };
+                var resultY = tool.ExecuteAsync(argsY).Result;
+                Check("WebAsk: YOLO 下仍走交互桥弹窗", mockYolo.SelectCalled);
+                Check("WebAsk: YOLO 下取用户所选而非默认首项", Json.Parse(resultY)?["choice"]?.AsString() == "A");
+            }
+            finally { UxHelper.WebInteraction = null; }
+        }
+        finally { PermissionManager.CurrentMode = oldAskMode; }
+
         // ── 5. 端点冒烟：/panel /sessions /sessions/load /answer ──
         var web = new WayCoder.UI.Web.WebChatServer(a, 0);
         web.Start();

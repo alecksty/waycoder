@@ -395,6 +395,12 @@ public partial class Program
                 continue;
             }
 
+            // 屏幕作用域闸：设置/编辑器等非聊天屏打开时，聊天屏专用窗口键一律不生效。
+            // 下方分支都操作 ChatScreen 的 screen 引用并 AddSystemMsg（在聊天屏后面发不可见消息，
+            // 或切模式/权限/经济），设置屏开着时触发 = 「按键无反应」。必须按 ActiveScreen 判定，
+            // 不能靠 FocusedWindow==null 猜 —— 设置屏是非模态屏，FocusedWindow 也是 null。
+            bool onChatScreen = mgr.ActiveScreen is ChatScreen;
+
             // 系统级：Ctrl+C 设置退出标志，走正常清理路径
             if (key.Key == ConsoleKey.C && ctrl)
             {
@@ -402,8 +408,9 @@ public partial class Program
                 continue;
             }
 
-            // 以下全是窗口键：能走到这里就说明栈顶没有窗口（被上面的总闸拦掉了），
-            // 也就是焦点在 ChatScreen 上。对话框开着时它们一律不生效。
+            // 以下全是聊天屏窗口键：能走到这里说明栈顶没有窗口（被上面的总闸拦掉了）。
+            // 聊天屏专用分支用 onChatScreen 闸保证——设置/编辑器屏开着时不触发（否则在
+            // 被挡住的聊天屏上改状态、发不可见消息 = 「按键无反应」）；对话框开着时它们一律不生效。
 
             // 窗口键：Ctrl+Q 紧急退出（强制保存所有槽位 + 恢复终端）
             if (key.Key == ConsoleKey.Q && ctrl)
@@ -414,7 +421,7 @@ public partial class Program
             // 窗口键：切换工作模式（Build → Plan → Chat）
             // 判定见 InputEvent.IsModeSwitchKey —— Unix 的 ESC[Z / Windows 的 Tab+Shift / 通用 Ctrl+K
             // 槽位/Agent 模式同步 + 工具集刷新 + 状态栏由 ModeChanged 处理器统一完成
-            if (InputEvent.IsModeSwitchKey(ev))
+            if (onChatScreen && InputEvent.IsModeSwitchKey(ev))
             {
                 var newMode = WorkModeManager.CycleNext();
                 screen.AddSystemMsg($"工作模式: {WorkModeManager.Format(newMode)}（Shift+Tab / Ctrl+K 切换）");
@@ -464,7 +471,7 @@ public partial class Program
             }
 
             // 窗口键：Ctrl+P 循环切换权限模式（问答→自动→智能→畅通）
-            if (key.Key == ConsoleKey.P && ctrl)
+            if (onChatScreen && key.Key == ConsoleKey.P && ctrl)
             {
                 PermissionManager.CycleMode();
                 screen.AddSystemMsg($"权限模式: {PermissionManager.FormatMode()}（Ctrl+P 循环切换）");
@@ -474,7 +481,7 @@ public partial class Program
             }
 
             // 窗口键：Ctrl+E 循环切换经济模式（关闭→自动→开启→极致）
-            if (key.Key == ConsoleKey.E && ctrl)
+            if (onChatScreen && key.Key == ConsoleKey.E && ctrl)
             {
                 var eco = _config.CycleEconomy();
                 var name = eco switch
@@ -492,7 +499,7 @@ public partial class Program
             }
 
             // 窗口键：Ctrl+X 交换当前槽位的大小模型
-            if (key.Key == ConsoleKey.X && ctrl)
+            if (onChatScreen && key.Key == ConsoleKey.X && ctrl)
             {
                 // 交换 = 大小模型整套（模型 id + 服务商 + 网关 + KEY）整体互换：
                 // 新大模型继承原小模型的服务商/网关/Key，新小模型继承原大模型的。
@@ -570,7 +577,7 @@ public partial class Program
             }
 
             // 窗口键：Ctrl+Shift+M 快速循环切换 connect（大模型）—— 创建多个 connect 后一键轮流切换
-            if (key.Key == ConsoleKey.M && ctrl && key.Modifiers.HasFlag(ConsoleModifiers.Shift))
+            if (onChatScreen && key.Key == ConsoleKey.M && ctrl && key.Modifiers.HasFlag(ConsoleModifiers.Shift))
             {
                 CycleConnect(screen);
                 mgr.Render();
