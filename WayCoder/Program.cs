@@ -432,26 +432,11 @@ public partial class Program
 
         if (string.IsNullOrEmpty(_config.ApiKey) && !isLocalModel)
         {
-            MarkupLine("«bold red»╔══════════════════════════════╗«/»");
-            MarkupLine("«bold red»║  API 密钥未设置！           ║«/»");
-            MarkupLine("«bold red»╚══════════════════════════════╝«/»");
+            // 首次无 API key 也允许启动——不退出。进入软件后经 /model（ModelPicker 选模型提示输入 key）、
+            // /provider（设Key/清Key）、或 /model keys set <供应商> <key> 在软件内设置，无需先退出配环境变量。
+            // 仅打印一行温和提示（不阻塞、不进红框），引导到可设置处。
+            MarkupLine("«bold yellow»⚠ 当前未设置 API Key：已直接启动，可用 /model（选择模型时输入）、/provider（设Key）或 /model keys set <供应商> <key> 补设«/»");
             Console.WriteLine();
-            Console.WriteLine("请设置以下环境变量之一:");
-            Console.WriteLine("  WAYCODER_API_KEY");
-            Console.WriteLine("  DEEPSEEK_API_KEY");
-            Console.WriteLine("  GEMINI_API_KEY (Google 免费层)");
-            Console.WriteLine("  OPENAI_API_KEY");
-            Console.WriteLine("  ANTHROPIC_API_KEY");
-            Console.WriteLine("  DASHSCOPE_API_KEY (阿里千问)");
-            Console.WriteLine("  API_KEY");
-            Console.WriteLine();
-            Console.WriteLine("或者在项目根目录创建 .env 文件:");
-            Console.WriteLine("  WAYCODER_API_KEY=sk-你的密钥");
-            Console.WriteLine();
-            Console.WriteLine("或用全局 JSON 保存多个服务商的 key（一键切换模型/服务商，无需重输）:");
-            Console.WriteLine("  waycoder --model key <供应商> <key> [有效期]   # 如 --model key deepseek sk-xxx 2026-12-31（永久省略有效期）");
-            Console.WriteLine("  waycoder --model name <模型ID>        # 切换模型，自动匹配对应 key");
-            return 1;
         }
 
         // 批量任务引擎：多仓库并行处理（每个任务在独立克隆副本中隔离执行，无需构建 LLM/Agent）
