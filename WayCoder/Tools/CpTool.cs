@@ -79,7 +79,7 @@ public class CpTool : ITool
                     return $"⚠ 无法复制：目标 '{destPath}' 位于源目录内部";
 
                 // 递归复制目录
-                CopyDirectory(srcPath, destPath, overwrite);
+                FileOps.CopyDirectory(srcPath, destPath, overwrite);
                 return $"✔ 已复制目录: {srcPath} → {destPath}";
             }
 
@@ -91,20 +91,5 @@ public class CpTool : ITool
         }
     }
 
-    private static void CopyDirectory(string srcDir, string destDir, bool overwrite, int depth = 0)
-    {
-        // 深度上限防符号链接环无限递归 → StackOverflow。抛错而非静默 return，避免产生不完整副本
-        if (depth > 64) throw new IOException("目录层级过深（>64 层），已中止复制");
-        Directory.CreateDirectory(destDir);
-        foreach (var file in Directory.GetFiles(srcDir))
-        {
-            var destFile = Path.Combine(destDir, Path.GetFileName(file));
-            File.Copy(file, destFile, overwrite);
-        }
-        foreach (var dir in Directory.GetDirectories(srcDir))
-        {
-            var destSubDir = Path.Combine(destDir, Path.GetFileName(dir));
-            CopyDirectory(dir, destSubDir, overwrite, depth + 1);
-        }
-    }
+
 }
