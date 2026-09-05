@@ -255,7 +255,7 @@ WayCoder/
 /perm off|project|network-off|hard  沙箱边界切换（独立于权限）
 /permit ack|auto|smart|yolo  权限模式切换（独立于边界）
 /edit            内置源码编辑器（三端共享 EditorCore：TUI / Web `✏ 编辑器` / GUI `--gui [文件]`）
-/mode build|plan|chat  工作模式切换 (Shift+Tab)
+/mode build|plan|chat  工作模式切换 (Shift+Tab / Ctrl+K)
 /cd [路径]            查看/设置当前槽位工作目录（每槽位独立）
 /update [check|now]  检查/自动升级到最新版本
 /auto            智能分级确认
@@ -266,7 +266,7 @@ WayCoder/
 /history         搜索对话历史
 /settings        图形化设置界面
 /theme           切换主题
-quit / exit      退出 (Ctrl+Q)
+quit / exit      退出（正常 Ctrl+C 保存退出 / 紧急 Ctrl+Q）
 ```
 
 ## 多 Agent 工作区
@@ -282,7 +282,7 @@ quit / exit      退出 (Ctrl+Q)
 | 红色 | 出错 |
 
 > 运行中热键：`Esc` 中断当前槽位 Agent，`Ctrl+Z` 优雅暂停（当前批次完成后提交停机）
-> 热键迁移：帮助 `Ctrl+H`、面板 `Ctrl+B`、设置 `Ctrl+T`、退出 `Ctrl+Q`
+> 热键迁移：帮助 `Ctrl+H`、面板 `Ctrl+B`、设置 `Ctrl+T`、退出 `Ctrl+C`（紧急 `Ctrl+Q`）、权限 `Ctrl+P`、经济 `Ctrl+E`
 
 ## TUI 界面预览
 
