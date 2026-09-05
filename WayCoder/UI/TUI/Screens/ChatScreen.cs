@@ -344,11 +344,6 @@ public partial class ChatScreen : TuiScreen
             _completeAtTicks[slotIndex] = Environment.TickCount64;
     }
 
-    /// <summary>
-    /// 同步模型/模式信息行（输入区下方、状态栏上方）：权限/工作模式/经济模式/大模型/小模型，`·` 分隔。
-    /// 每帧读取实时模式/模型，变了才标脏重绘（模式切换后下一帧自动刷新）。
-    /// 用 «tag»…«/» 标记分段着色（TuiLabel.ParseMarkup）：标签暗、值亮/彩，当前模型加粗 —— 比此前整行灰暗更醒目。
-    /// </summary>
     /// <summary>构建状态栏路径文本：当前工作目录 + git 分支（分支探测节流 2s，防渲染循环高频读盘）。</summary>
     private string BuildPathBarText()
     {
@@ -378,6 +373,11 @@ public partial class ChatScreen : TuiScreen
         return Directory.GetCurrentDirectory();
     }
 
+    /// <summary>
+    /// 同步模型/模式信息行（输入区下方、状态栏上方）：权限/工作模式/经济模式/大模型/小模型，`·` 分隔。
+    /// 每帧读取实时模式/模型，变了才标脏重绘（模式切换后下一帧自动刷新）。
+    /// 用 «tag»…«/» 标记分段着色（TuiLabel.ParseMarkup）：标签暗、值亮/彩，当前模型加粗 —— 比此前整行灰暗更醒目。
+    /// </summary>
     private void SyncModelInfo()
     {
         // 模型栏用 `(provider)model` 格式：即使同名模型分属不同服务商（如两个 deepseek）也能区分。

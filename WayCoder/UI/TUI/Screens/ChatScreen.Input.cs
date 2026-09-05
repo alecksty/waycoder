@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using System.Text;
+﻿using System.Text;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.Tools;
 using WayCoder.UI.Tui.Controls;
@@ -83,17 +82,11 @@ public partial class ChatScreen : TuiScreen
     {
         if (text.Length <= 500 && lines.Length <= 3) return true;
         var preview = text.Length > 200 ? ContextManager.TruncateByRunes(text, 200) + "..." : text;
-        using var evt = new ManualResetEventSlim(false);
-        bool confirmed = false;
-        ShowWindow(TuiDialog.Confirm("粘贴确认",
-            $"将粘贴 {lines.Length} 行 / {text.Length} 字符:\n{preview}",
-            result =>
-            {
-                confirmed = result;
-                evt.Set();
-            }));
-        RenderWait(evt);
-        return confirmed;
+        var confirmed = UxHelper.RunModalDialogOnScreen<bool>(this,
+            onDone => TuiDialog.Confirm("粘贴确认",
+                $"将粘贴 {lines.Length} 行 / {text.Length} 字符:\n{preview}",
+                r => onDone(r)));
+        return confirmed ?? false;
     }
 
     // ── 输入操作 ──
@@ -102,55 +95,6 @@ public partial class ChatScreen : TuiScreen
     public string GetInputText()
     {
         return InputArea.Text;
-    }
-
-    /// <summary>在输入区插入文本</summary>
-    public void InputInsert(string text)
-    {
-        InputArea.InsertText(text);
-        MarkDirty();
-    }
-
-    /// <summary>输入区退格</summary>
-    public void InputBackspace()
-    {
-        InputArea.OnKey(new ConsoleKeyInfo('\b', ConsoleKey.Backspace, false, false, false));
-        MarkDirty();
-    }
-
-    /// <summary>输入区删除</summary>
-    public void InputDelete()
-    {
-        InputArea.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Delete, false, false, false));
-        MarkDirty();
-    }
-
-    /// <summary>输入区左移光标</summary>
-    public void InputCursorLeft()
-    {
-        InputArea.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.LeftArrow, false, false, false));
-        MarkDirty();
-    }
-
-    /// <summary>输入区右移光标</summary>
-    public void InputCursorRight()
-    {
-        InputArea.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.RightArrow, false, false, false));
-        MarkDirty();
-    }
-
-    /// <summary>输入区移到行首</summary>
-    public void InputHome()
-    {
-        InputArea.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Home, false, false, false));
-        MarkDirty();
-    }
-
-    /// <summary>输入区移到行尾</summary>
-    public void InputEnd()
-    {
-        InputArea.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.End, false, false, false));
-        MarkDirty();
     }
 
     /// <summary>接受当前建议</summary>
@@ -524,6 +468,29 @@ public partial class ChatScreen : TuiScreen
     private bool IsKnownPrefix(char c) =>
         BuiltinPrefixes.Contains(c) || _prefixHintHooks.ContainsKey(c);
 
+    /// <summary>
+    /// Shell 命令提示单源清单（Hint=命令标签 / Detail=说明 / Value=实际键入内容，`!` 前缀展开为 Shell 块）。
+    /// <see cref="BuildDefaultHints"/>（Ctrl+P 默认提示）与 <see cref="BuildPrefixHints"/> 的 `!` 分支共用，
+    /// 杜绝两份数组 Detail 漂移（此前 git status 一处「查看状态」一处「查看仓库状态」）。
+    /// </summary>
+    private static readonly (string Hint, string Detail, string Value)[] ShellCommandHints =
+    [
+        ("dotnet build", "编译项目", "!dotnet build"),
+        ("dotnet run", "运行项目", "!dotnet run"),
+        ("dotnet test", "运行测试", "!dotnet test"),
+        ("dotnet publish -c Release", "AOT 发布", "!dotnet publish -c Release"),
+        ("git status", "查看仓库状态", "!git status"),
+        ("git diff", "查看变更", "!git diff"),
+        ("git add -A", "暂存所有变更", "!git add -A"),
+        ("git commit -m", "提交", "!git commit -m"),
+        ("git push", "推送", "!git push"),
+        ("git pull", "拉取", "!git pull"),
+        ("git log --oneline", "查看日志", "!git log --oneline"),
+        ("ls -la", "列出文件", "!ls -la"),
+        ("find . -name", "搜索文件", "!find . -name"),
+        ("grep -r", "搜索内容", "!grep -r"),
+    ];
+
     /// <summary>构建默认提示列表（命令 + 最近文件 + 快捷操作）</summary>
     private List<PromptItem> BuildDefaultHints()
     {
@@ -555,10 +522,12 @@ public partial class ChatScreen : TuiScreen
         }
 
         // ── Shell ──
-        items.Add(new PromptItem { Kind = EPromptKind.Shell, Label = "dotnet build", Detail = "编译项目", Value = "!dotnet build" });
-        items.Add(new PromptItem { Kind = EPromptKind.Shell, Label = "dotnet test", Detail = "运行测试", Value = "!dotnet test" });
-        items.Add(new PromptItem { Kind = EPromptKind.Shell, Label = "git status", Detail = "查看状态", Value = "!git status" });
-        items.Add(new PromptItem { Kind = EPromptKind.Shell, Label = "git diff", Detail = "查看变更", Value = "!git diff" });
+        // 默认栏保持原 4 个常用（不意外变长）；`!` 前缀输入时列全 14（见 BuildPrefixHints 的 '!' 分支）
+        foreach (var (hint, detail, value) in ShellCommandHints)
+        {
+            if (hint is not ("dotnet build" or "dotnet test" or "git status" or "git diff")) continue;
+            items.Add(new PromptItem { Kind = EPromptKind.Shell, Label = hint, Detail = detail, Value = value });
+        }
 
         return items;
     }
@@ -629,7 +598,8 @@ public partial class ChatScreen : TuiScreen
                 AcceptSuggestion();
                 return true;
             case ConsoleKey.Backspace:
-                InputBackspace();
+                InputArea.OnKey(new ConsoleKeyInfo('\b', ConsoleKey.Backspace, false, false, false));
+                MarkDirty();
                 UpdateSuggestions(Suggestions, SuggestIndex);
                 return true; // 已处理，不再向下传递
             case ConsoleKey.LeftArrow:
@@ -844,7 +814,8 @@ public partial class ChatScreen : TuiScreen
         // Ctrl+Enter / Shift+Enter → 换行
         if (key.Key == ConsoleKey.Enter && (ctrl || shift))
         {
-            InputNewLine();
+            InputArea.OnKey(new ConsoleKeyInfo('\n', ConsoleKey.Enter, false, false, false));
+            MarkDirty();
             return true;
         }
 
@@ -1012,29 +983,12 @@ public partial class ChatScreen : TuiScreen
 
                 break;
 
-            case '!': // Shell 命令
-                var shellCmds = new (string cmd, string desc)[]
-                {
-                    ("dotnet build", "编译项目"),
-                    ("dotnet run", "运行项目"),
-                    ("dotnet test", "运行测试"),
-                    ("dotnet publish -c Release", "AOT 发布"),
-                    ("git status", "查看仓库状态"),
-                    ("git diff", "查看变更"),
-                    ("git add -A", "暂存所有变更"),
-                    ("git commit -m", "提交"),
-                    ("git push", "推送"),
-                    ("git pull", "拉取"),
-                    ("git log --oneline", "查看日志"),
-                    ("ls -la", "列出文件"),
-                    ("find . -name", "搜索文件"),
-                    ("grep -r", "搜索内容"),
-                };
-                foreach (var (cmd, desc) in shellCmds)
+            case '!': // Shell 命令（单源 <see cref="ShellCommandHints"/>，与 Ctrl+P 默认提示共用）
+                foreach (var (hint, detail, value) in ShellCommandHints)
                 {
                     if (string.IsNullOrEmpty(q) ||
-                        cmd.StartsWith(q, StringComparison.OrdinalIgnoreCase))
-                        items.Add(new PromptItem { Kind = EPromptKind.Shell, Label = cmd, Detail = desc, Value = "!" + cmd });
+                        hint.StartsWith(q, StringComparison.OrdinalIgnoreCase))
+                        items.Add(new PromptItem { Kind = EPromptKind.Shell, Label = hint, Detail = detail, Value = value });
                 }
 
                 break;
@@ -1068,7 +1022,17 @@ public partial class ChatScreen : TuiScreen
                 SetInput(InputHistory[HistoryIdx]);
             }
         }
-        else InputMoveUp();
+        else
+        {
+            if (InputArea.CursorRow > 0)
+            {
+                InputArea.CursorRow--;
+                InputArea.CursorCol = Math.Min(InputArea.CursorCol,
+                    InputArea.Lines[InputArea.CursorRow].Length);
+            }
+
+            MarkDirty();
+        }
 
         return true;
     }
@@ -1091,7 +1055,17 @@ public partial class ChatScreen : TuiScreen
                 if (HistoryIdx >= InputHistory.Count) HistoryIdx = -1;
             }
         }
-        else InputMoveDown();
+        else
+        {
+            if (InputArea.CursorRow < InputArea.Lines.Count - 1)
+            {
+                InputArea.CursorRow++;
+                InputArea.CursorCol = Math.Min(InputArea.CursorCol,
+                    InputArea.Lines[InputArea.CursorRow].Length);
+            }
+
+            MarkDirty();
+        }
 
         return true;
     }
@@ -1120,7 +1094,12 @@ public partial class ChatScreen : TuiScreen
         if (atPos < 0)
         {
             // 无 @ 模式：插入 4 空格
-            for (int t = 0; t < 4; t++) InputInsert(' ');
+            for (int t = 0; t < 4; t++)
+            {
+                InputArea.OnKey(new ConsoleKeyInfo(' ', (ConsoleKey)' ', false, false, false));
+                MarkDirty();
+            }
+
             return true;
         }
 
@@ -1144,7 +1123,8 @@ public partial class ChatScreen : TuiScreen
         if (matches.Count == 0)
         {
             // 无匹配：插入空格
-            InputInsert(' ');
+            InputArea.OnKey(new ConsoleKeyInfo(' ', (ConsoleKey)' ', false, false, false));
+            MarkDirty();
             return true;
         }
 
@@ -1255,84 +1235,4 @@ public partial class ChatScreen : TuiScreen
     /// <summary>最近访问的文件列表</summary>
     public List<string> RecentFiles { get; set; } = [];
 
-    // ── 增强输入操作 ──
-
-    /// <summary>光标上移一行（多行输入）</summary>
-    public void InputMoveUp()
-    {
-        if (InputArea.CursorRow > 0)
-        {
-            InputArea.CursorRow--;
-            InputArea.CursorCol = Math.Min(InputArea.CursorCol,
-                InputArea.Lines[InputArea.CursorRow].Length);
-        }
-
-        MarkDirty();
-    }
-
-    /// <summary>光标下移一行（多行输入）</summary>
-    public void InputMoveDown()
-    {
-        if (InputArea.CursorRow < InputArea.Lines.Count - 1)
-        {
-            InputArea.CursorRow++;
-            InputArea.CursorCol = Math.Min(InputArea.CursorCol,
-                InputArea.Lines[InputArea.CursorRow].Length);
-        }
-
-        MarkDirty();
-    }
-
-    /// <summary>插入换行</summary>
-    public void InputNewLine()
-    {
-        InputArea.OnKey(new ConsoleKeyInfo('\n', ConsoleKey.Enter, false, false, false));
-        MarkDirty();
-    }
-
-    /// <summary>删除光标前一个词</summary>
-    public void InputDeleteWordLeft()
-    {
-        InputArea.OnKey(new ConsoleKeyInfo('\b', ConsoleKey.Backspace,
-            false, false, true));
-        MarkDirty();
-    }
-
-    /// <summary>删除光标后一个词</summary>
-    public void InputDeleteWordRight()
-    {
-        InputArea.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Delete,
-            false, false, true));
-        MarkDirty();
-    }
-
-    /// <summary>光标左移一个词</summary>
-    public void InputWordLeft()
-    {
-        // Ctrl+Left: 跳过空格，再跳过单词字符
-        var line = InputArea.Lines[InputArea.CursorRow];
-        int pos = InputArea.CursorCol;
-        while (pos > 0 && line[pos - 1] == ' ') pos--;
-        while (pos > 0 && line[pos - 1] != ' ') pos--;
-        InputArea.CursorCol = pos;
-        MarkDirty();
-    }
-
-    /// <summary>光标右移一个词</summary>
-    public void InputWordRight()
-    {
-        var line = InputArea.Lines[InputArea.CursorRow];
-        int pos = InputArea.CursorCol;
-        while (pos < line.Length && line[pos] != ' ') pos++;
-        while (pos < line.Length && line[pos] == ' ') pos++;
-        InputArea.CursorCol = pos;
-        MarkDirty();
-    }
-
-    /// <summary>在光标位置插入字符</summary>
-    public void InputInsert(char ch)
-    {
-        InputArea.OnKey(new ConsoleKeyInfo(ch, (ConsoleKey)ch, false, false, false));
-        MarkDirty();
-    }
 }

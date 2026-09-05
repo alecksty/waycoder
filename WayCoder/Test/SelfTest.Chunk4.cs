@@ -43,15 +43,16 @@ public static partial class SelfTest
         Check("StatusRight 非空", screen.StatusRight.Length > 0);
         Check("StatusRight 含大/小模型用量", screen.StatusRight.Contains("大:") && screen.StatusRight.Contains("小:"));
 
-        // 输入编辑
+        // 输入编辑（直接驱动 InputArea 按键；InputInsert/InputBackspace/InputNewLine 转发方法已收敛删除）
         screen.InputArea.Text = "";
         screen.InputArea.CursorRow = 0; screen.InputArea.CursorCol = 0;
-        screen.InputInsert('a'); screen.InputInsert('b');
+        screen.InputArea.OnKey(new ConsoleKeyInfo('a', ConsoleKey.A, false, false, false));
+        screen.InputArea.OnKey(new ConsoleKeyInfo('b', ConsoleKey.B, false, false, false));
         Check("InputInsert 字符", screen.GetInputText() == "ab");
-        screen.InputBackspace();
+        screen.InputArea.OnKey(new ConsoleKeyInfo('\b', ConsoleKey.Backspace, false, false, false));
         Check("InputBackspace 删除", screen.GetInputText() == "a");
-        screen.InputNewLine();
-        screen.InputInsert('x');
+        screen.InputArea.OnKey(new ConsoleKeyInfo('\n', ConsoleKey.Enter, false, false, false));
+        screen.InputArea.OnKey(new ConsoleKeyInfo('x', ConsoleKey.X, false, false, false));
         Check("InputNewLine 换行", screen.GetInputText() == "a\nx");
 
         // 建议
