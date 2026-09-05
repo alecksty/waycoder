@@ -124,7 +124,7 @@ public static class BackgroundTaskManager
             WayCoder.Infra.ProcEncoding.Apply(psi);
 
             proc = Process.Start(psi)!;
-            try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF
+            ProcUtil.CloseStdin(proc);
             task.Process = proc;
 
             // 异步读取输出（防止管道缓冲区满死锁）
@@ -191,7 +191,7 @@ public static class BackgroundTaskManager
 
         if (!exited)
         {
-            try { proc.Kill(entireProcessTree: true); } catch { }
+            ProcUtil.KillTree(proc);
             task.Status = "timeout";
             await DrainOutput(ioCompletion);
             task.Output = outputGetter().Trim() + "\n[超时]";
@@ -270,7 +270,7 @@ public static class BackgroundTaskManager
 
         try
         {
-            task.Process?.Kill(entireProcessTree: true);
+            if (task.Process != null) ProcUtil.KillTree(task.Process);
             task.Status = "killed";
             task.AppendOutput("\n[已被用户终止]");
             task.CompletedAt = DateTime.Now;
@@ -290,7 +290,7 @@ public static class BackgroundTaskManager
             try
             {
                 if (_tasks.TryGetValue(id, out var task) && task.Status == "running")
-                    task.Process?.Kill(entireProcessTree: true);
+                    if (task.Process != null) ProcUtil.KillTree(task.Process);
             }
             catch { }
         }

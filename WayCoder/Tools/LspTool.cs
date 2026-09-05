@@ -230,7 +230,7 @@ public class LspTool : ITool
     private static void KillAndDispose(Process? proc)
     {
         if (proc == null) return;
-        try { if (!proc.HasExited) proc.Kill(entireProcessTree: true); } catch { }
+        try { if (!proc.HasExited) ProcUtil.KillTree(proc); } catch { }
         try { proc.Dispose(); } catch { }
     }
 

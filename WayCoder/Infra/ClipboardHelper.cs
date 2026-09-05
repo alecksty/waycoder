@@ -69,7 +69,7 @@ public static class ClipboardHelper
             ProcEncoding.Apply(psi); // 强制 UTF-8 解码，防中文乱码
             using var proc = Process.Start(psi);
             if (proc == null) return null;
-            try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF
+            ProcUtil.CloseStdin(proc);
             var result = await proc.StandardOutput.ReadToEndAsync();
             await proc.WaitForExitAsync();
             return result?.TrimEnd('\n', '\r');

@@ -35,7 +35,7 @@ public static class ProcUtil
         // psi 设置了 RedirectStandardInput 时，立即置 EOF：子进程不共享主控台 stdin，
         // 防与 TUI 主循环的 Console.KeyAvailable/ReadKey 抢控制台输入（ReadKey 永久阻塞 = 界面卡死）。
         // 未重定向 stdin 的调用方此处访问会抛异常，被捕获忽略。
-        try { proc.StandardInput.Close(); } catch { }
+        CloseStdin(proc);
         var stdoutTask = proc.StandardOutput.ReadToEndAsync();
         var stderrTask = proc.StandardError.ReadToEndAsync();
         using var timeoutCts = timeoutMs > 0 ? new CancellationTokenSource(timeoutMs) : null;
@@ -45,11 +45,17 @@ public static class ProcUtil
         try { await proc.WaitForExitAsync(linked.Token); }
         catch (OperationCanceledException)
         {
-            try { proc.Kill(entireProcessTree: true); } catch { }
+            KillTree(proc);
             return null; // 超时/取消
         }
         var stdout = await AwaitReadWithTimeoutAsync(stdoutTask, TimeSpan.FromSeconds(5)) ?? "";
         var stderr = await AwaitReadWithTimeoutAsync(stderrTask, TimeSpan.FromSeconds(5)) ?? "";
         return (proc.ExitCode, stdout, stderr);
     }
+
+    /// <summary>关闭子进程 stdin 置 EOF（不共享主控台 stdin，防与 TUI 抢控制台输入）。异常忽略。</summary>
+    public static void CloseStdin(System.Diagnostics.Process proc) { try { proc.StandardInput.Close(); } catch { } }
+
+    /// <summary>终止整进程树（含子进程），异常忽略。</summary>
+    public static void KillTree(System.Diagnostics.Process proc) { try { proc.Kill(entireProcessTree: true); } catch { } }
 }

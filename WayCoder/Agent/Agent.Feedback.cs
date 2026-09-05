@@ -171,7 +171,7 @@ public partial class Agent
         };
         using var proc = System.Diagnostics.Process.Start(psi);
         if (proc == null) return (null, "");
-        try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF
+        ProcUtil.CloseStdin(proc);
 
         var stdoutTask = proc.StandardOutput.ReadToEndAsync();
         var stderrTask = proc.StandardError.ReadToEndAsync();
@@ -179,7 +179,7 @@ public partial class Agent
         var completed = await Task.WhenAny(Task.WhenAll(stdoutTask, stderrTask), timeoutTask);
         if (completed == timeoutTask)
         {
-            try { proc.Kill(entireProcessTree: true); } catch { }
+            ProcUtil.KillTree(proc);
             ErrorLog.Warning("Agent", $"测试命令超时（{timeoutSec}s），已终止进程");
             return (null, "");
         }
