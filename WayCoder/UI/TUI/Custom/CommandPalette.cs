@@ -71,7 +71,7 @@ public static class CommandPalette
         // ── 斜杠命令（对齐绝大多数界面/动作入口）──
         var common = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            "help", "reset", "compact", "model", "settings", "undo", "diff", "edit",
+            "help", "menu", "reset", "compact", "model", "settings", "undo", "diff", "edit",
             "recent", "session", "mcp", "init", "update", "stats", "tokens", "config",
             "provider", "search", "git", "todo", "theme", "mode",
             "permit", "perm", "history", "kb", "mind", "connect", "free", "resume",
