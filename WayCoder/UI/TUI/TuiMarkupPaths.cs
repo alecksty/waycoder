@@ -15,17 +15,37 @@ public static class TuiMarkupPaths
     /// <summary>嵌入资源的逻辑名前缀（与 csproj EmbeddedResource LogicalName 对应）。</summary>
     public const string ResourcePrefix = "WayCoder.UI.TUI.Raw";
 
-    /// <summary>读取一个 .tui 资源的文本内容（文件系统优先，嵌入资源兜底）。</summary>
+    /// <summary>
+    /// 模板文本缓存（key=资源名，value=文件/嵌入资源读出的文本）。
+    /// chat-item.tui 每条消息 / 每次 resize 都经 LoadResource → LoadText 读取，此缓存让每个模板
+    /// 进程内只读一次（消除重复文件 IO + 嵌入资源反射扫描）。.tui 运行期视为静态：
+    /// 热刷新工具 --tui-preview/--tui-watch 直接 File.ReadAllText，不经本缓存，编辑即时生效不受影响。
+    /// 线程安全（LruCache 内置锁），容量 64 足够容纳全部模板。
+    /// </summary>
+    private static readonly LruCache<string, string> TextCache = new(capacity: 64);
+
+    /// <summary>读取一个 .tui 资源的文本内容（文件系统优先，嵌入资源兜底，带只读缓存）。</summary>
     /// <param name="name">相对 Raw/ 的资源名，如 "chat.tui"、"dialogs/confirm.tui"。</param>
     public static string LoadText(string name)
     {
+        if (TextCache.TryGet(name, out var cached)) return cached;
+
         // 1. 文件系统（开发/预览热刷新 + 发布输出的 Raw/ 复制）
         var file = TryResolveFile(name);
-        if (file != null) return File.ReadAllText(file);
+        if (file != null)
+        {
+            var txt = File.ReadAllText(file);
+            TextCache.Put(name, txt);
+            return txt;
+        }
 
         // 2. 嵌入资源（AOT 单文件 exe）
         var embedded = TryReadResource(name);
-        if (embedded != null) return embedded;
+        if (embedded != null)
+        {
+            TextCache.Put(name, embedded);
+            return embedded;
+        }
 
         throw new FileNotFoundException(
             $"未找到标记资源 {name}（文件系统 Raw/ 或嵌入资源 {ResourcePrefix} 下均无）");

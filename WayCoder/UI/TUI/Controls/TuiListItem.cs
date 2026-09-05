@@ -30,6 +30,9 @@ public class TuiListItem : TuiVBox
     /// <summary>底部元信息（可选）</summary>
     public TuiLabel? Footer { get; set; }
 
+    /// <summary>模板根视图（chat-item.tui 的 VBox，存引用供 resize 复用，避免重新 LoadResource）。</summary>
+    private TuiVBox? _root;
+
     // ── 数据 ──
 
     public string Role { get; set; } = "assistant";
@@ -100,6 +103,7 @@ public class TuiListItem : TuiVBox
         var res = TuiMarkup.LoadResource("chat-item.tui",
             new Dictionary<string, string> { ["role"] = Role });
         var root = (TuiVBox)res.View!;
+        _root = root;
         root.Width = innerW;
 
         // ── Header: Icon + Role + Time（模板声明，此处填数据）──
@@ -178,6 +182,10 @@ public class TuiListItem : TuiVBox
     /// 更新 Markdown 内容（用于流式追加）。超 <see cref="Global.MaxSingleMessageChars"/> 保留尾部窗口 + 滚动标记，
     /// 每次追加滚动更新（旧内容被挤出，始终显示最新内容——思考/工具输出滚动可见），
     /// 防止一条超长流式消息把渲染项（MarkdownContent/Body.Content）与解析结果无限撑爆。
+    ///
+    /// 性能：只追加 + 标脏 + 失效解析缓存，不做同步 <c>EnsureParsed()</c>/<c>ReLayout()</c> ——
+    /// 重解析交给 <see cref="TuiMarkdown.EnsureParsed"/> 的渲染帧惰性调用（<c>ChatScreen.FlushStreamingLayout</c>
+    /// 在每帧统一 flush），把同帧内到达的多个流式 delta 合并成一次解析，消除每 delta 全量重解析 + 全量重布局。
     /// </summary>
     public void AppendContent(string delta)
     {
@@ -195,11 +203,33 @@ public class TuiListItem : TuiVBox
             MarkdownContent += delta;
             Body.Content += delta;
         }
-        Body.Invalidate();
+        Body.Invalidate();          // 解析缓存失效（_parsed=false），重解析交给下一渲染帧
+        Body.MarkDirty();           // 标脏正文叶子，增量渲染才重画新内容
         Body.Width = Width - PaddingLeft - PaddingRight;
         Body.MaxWidth = Width - PaddingLeft - PaddingRight;
-        Body.EnsureParsed();
-        ReLayout();
+        MarkDirty();                // 条目自身标脏（重排/滚动后需重绘），同时唤醒渲染帧
+    }
+
+    /// <summary>
+    /// 仅按新宽度重排内容（resize / 侧栏开合路径）：复用已有模板控件树，不重新 LoadResource("chat-item.tui")、
+    /// 不重建 Header/Body —— 只更新宽度 + 用新宽度同步重解析正文。相比 <see cref="BuildContent"/>
+    /// 省去模板文件读取 + XML 解析 + 控件树构建（N 条消息 × 每次 resize 的成本）。
+    /// </summary>
+    public void ResizeContent(int newParentW)
+    {
+        Width = newParentW;
+        int innerW = Math.Max(1, newParentW - PaddingLeft - PaddingRight);
+        if (_root != null) _root.Width = innerW;
+        if (Body != null)
+        {
+            Body.Width = innerW;
+            Body.MaxWidth = innerW;
+            Body.Invalidate();      // 失效解析缓存 → EnsureParsed 用新宽度重解析
+            Body.EnsureParsed();
+            Body.MarkDirty();
+        }
+        Layout();                   // 条目高度按新正文行数重算
+        MarkDirty();
     }
 
     /// <summary>设置时间戳</summary>
@@ -238,6 +268,6 @@ public class TuiListItem : TuiVBox
     public override void OnResize(int newParentW, int newParentH)
     {
         Width = newParentW;
-        BuildContent(newParentW); // 重建整个控件树以适应新宽度
+        ResizeContent(newParentW); // 复用模板控件树只改宽度（免重复 LoadResource/XML 解析）
     }
 }

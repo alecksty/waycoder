@@ -89,6 +89,22 @@ public class TuiListView : TuiView
         MarkDirtyTree(); // 删除后剩余项上移，需擦除重绘
     }
 
+    /// <summary>
+    /// 标记列表及其全部后代为脏（只置 IsDirty，不唤醒渲染帧闸门）。
+    /// 列表 OnRender 先整视口擦除背景再重绘脏叶子，故内容变化后须整棵子树标脏，否则被擦除的未变消息
+    /// 不会重画而消失。供渲染帧内（如 <c>ChatScreen.FlushStreamingLayout</c>）调用：帧已在渲染中，
+    /// 无需再唤醒 Manager，避免多排一帧空渲染。
+    /// </summary>
+    public void MarkTreeDirty() => SetTreeDirty(this);
+
+    private static void SetTreeDirty(TuiControl c)
+    {
+        c.IsDirty = true;
+        if (c is TuiView view)
+            foreach (var child in view.Children)
+                SetTreeDirty(child);
+    }
+
     /// <summary>清空所有项</summary>
     public void ClearItems()
     {
