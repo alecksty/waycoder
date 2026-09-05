@@ -56,8 +56,7 @@ public class FindReplaceTool : ITool
         {
             path ??= CwdContext.Root;
             path = CwdContext.Resolve(path); // cd 后相对路径基于被跟踪工作目录
-            if (!Directory.Exists(path))
-                return $"错误：目录不存在 — {path}";
+            if (PathGuard.RequireDir(path) is { } e) return e;
 
             // 编译正则（带超时，防 (a+)+$ 类灾难性回溯卡死 Agent 主循环）
             var regexOptions = RegexOptions.Multiline | (ignoreCase ? RegexOptions.IgnoreCase : RegexOptions.None);

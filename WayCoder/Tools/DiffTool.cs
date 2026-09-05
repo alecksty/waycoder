@@ -33,8 +33,8 @@ public class DiffTool : ITool
     {
         try
         {
-            if (!File.Exists(f1)) return $"错误：文件不存在 — {f1}";
-            if (!File.Exists(f2)) return $"错误：文件不存在 — {f2}";
+            if (PathGuard.RequireFile(f1) is { } e1) return e1;
+            if (PathGuard.RequireFile(f2) is { } e2) return e2;
 
             var lines1 = File.ReadAllLines(f1);
             var lines2 = File.ReadAllLines(f2);

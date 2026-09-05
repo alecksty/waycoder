@@ -31,8 +31,7 @@ public class CdTool : ITool
 
             var fullPath = Path.GetFullPath(Path.Combine(current, path));
 
-            if (!Directory.Exists(fullPath))
-                return Task.FromResult($"错误：目录不存在 — {fullPath}");
+            if (PathGuard.RequireDir(fullPath) is { } e) return Task.FromResult(e);
 
             CwdContext.Current.Value = fullPath;
             return Task.FromResult($"✔ 工作目录: {fullPath}");

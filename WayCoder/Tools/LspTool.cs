@@ -106,8 +106,7 @@ public class LspTool : ITool
 
     private static async Task<string> Execute(string action, string filePath, int line, int charPos, string query)
     {
-        if (!File.Exists(filePath))
-            return $"错误：文件不存在 - {filePath}";
+        if (PathGuard.RequireFile(filePath) is { } e) return e;
 
         var ext = Path.GetExtension(filePath).ToLowerInvariant();
         var config = FindServer(ext);
