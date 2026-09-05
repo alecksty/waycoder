@@ -90,6 +90,9 @@ public partial class Program
     /// <summary>一次性/管道模式 POSIX 信号注册（保持引用防 GC 回收，Windows 下为 null）。</summary>
     private static System.Runtime.InteropServices.PosixSignalRegistration? _sigintReg;
     private static System.Runtime.InteropServices.PosixSignalRegistration? _sigtermReg;
+    // 非 Windows：Ctrl+Z 默认发 SIGTSTP（终端会挂起整个进程）——注册处理把「优雅暂停」落到信号上，
+    // 同时 ctx.Cancel=true 取消默认挂起。Windows 无此信号，Ctrl+Z 仍走 ReadKey 键路径。
+    private static System.Runtime.InteropServices.PosixSignalRegistration? _sigtstpReg;
 
     /// <summary>各槽位当前会话 ID（用于 SessionPicker 标记），按槽位隔离</summary>
     private static readonly string[] _currentSessionIds = InitCurrentSessionIds();

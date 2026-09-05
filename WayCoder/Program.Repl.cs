@@ -101,6 +101,22 @@ public partial class Program
             _exitRequested = true;
         };
 
+        // 非 Windows：Ctrl+Z 默认发 SIGTSTP 会挂起整个进程——注册处理把「优雅暂停」落到信号上，
+        // ctx.Cancel=true 取消默认挂起；Windows 无此信号，Ctrl+Z 仍走下方 ReadKey 键路径（line 464）。
+        if (!OperatingSystem.IsWindows())
+        {
+            try
+            {
+                _sigtstpReg = System.Runtime.InteropServices.PosixSignalRegistration.Create(
+                    System.Runtime.InteropServices.PosixSignal.SIGTSTP, ctx =>
+                    {
+                        ctx.Cancel = true;
+                        _slots[_activeSlot].Agent?.PauseRequested = true;
+                    });
+            }
+            catch { /* 平台不支持 POSIX 信号 → 回退默认（可能挂起，极少见） */ }
+        }
+
         // 输入管理器：拦截键盘 + 鼠标 + resize 即时重绘
         var inputMgr = TuiManager.Instance.Input; // 共享输入管理器（RenderWait 复用，统一 paste 解析）
 
