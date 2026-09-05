@@ -59,7 +59,7 @@ public class TodoTool : ITool
     // ── 持久化路径 ──
 
     private static string StorePath => Path.Combine(
-        CwdContext.Current.Value ?? Directory.GetCurrentDirectory(), ".waycoder", "todos.json"); // cd 后基于被跟踪工作目录，而非进程启动目录
+        CwdContext.Root, ".waycoder", "todos.json"); // cd 后基于被跟踪工作目录，而非进程启动目录
 
     /// <summary>todos.json 读改写串行锁：多槽位 Agent 与 GUI 2s 定时器 / MAUI 状态栏并发读写时防撕裂/丢更新。</summary>
     private static readonly object _fileLock = new();

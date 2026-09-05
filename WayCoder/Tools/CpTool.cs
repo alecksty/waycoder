@@ -40,8 +40,8 @@ public class CpTool : ITool
     {
         try
         {
-            var srcPath = Path.GetFullPath(src, CwdContext.Current.Value ?? Directory.GetCurrentDirectory());
-            var destPath = Path.GetFullPath(dest, CwdContext.Current.Value ?? Directory.GetCurrentDirectory());
+            var srcPath = CwdContext.Resolve(src);
+            var destPath = CwdContext.Resolve(dest);
 
             // 敏感路径防护（src 防复制泄露密钥 + dest 防写入后门，含 symlink 解析）
             var srcSensitive = PathSafety.CheckSensitive(srcPath);

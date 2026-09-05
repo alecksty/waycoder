@@ -99,7 +99,7 @@ public class TuiList : TuiListControl
                 : idx == SelectedIndex ? TuiTheme.Current.ListSelBg
                 : (Bg > 0 ? Bg : TuiTheme.Current.ListBg);
 
-            rb.Write(row, absX, display + new string(' ', Math.Max(0, Width - AnsiHelper.DisplayWidth(display))), fg: fg, bg: bg);
+            rb.Write(row, absX, AnsiHelper.PadRightByWidth(display, Width), fg: fg, bg: bg);
         }
 
         // 滚动条

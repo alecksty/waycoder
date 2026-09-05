@@ -167,7 +167,7 @@ public class LspTool : ITool
         }
         catch (Exception ex)
         {
-            return $"LSP 错误：{ex.GetType().Name}: {ex.Message}";
+            return ToolErrors.Error("LSP ", ex);
         }
         finally
         {
@@ -178,7 +178,7 @@ public class LspTool : ITool
     /// <summary>向上查找项目根目录（.sln/.csproj/package.json/go.mod/Cargo.toml/pyproject.toml）。</summary>
     internal static string FindProjectRoot(string file)
     {
-        var root = Path.GetDirectoryName(Path.GetFullPath(file, CwdContext.Current.Value ?? Directory.GetCurrentDirectory())) ?? "."; // cd 后相对路径基于被跟踪工作目录
+        var root = Path.GetDirectoryName(CwdContext.Resolve(file)) ?? "."; // cd 后相对路径基于被跟踪工作目录
         while (root != null && !HasProjectMarker(root))
         {
             var parent = Path.GetDirectoryName(root);

@@ -94,7 +94,7 @@ public class DrawTool : ITool
         }
         catch (Exception ex)
         {
-            return Task.FromResult($"draw 错误：{ex.GetType().Name}: {ex.Message}");
+            return Task.FromResult(ToolErrors.Error("draw ", ex));
         }
     }
 

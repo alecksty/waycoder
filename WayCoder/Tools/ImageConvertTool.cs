@@ -56,7 +56,7 @@ public class ImageConvertTool : ITool
         }
         catch (Exception ex)
         {
-            return Task.FromResult($"convert_image 错误：{ex.GetType().Name}: {ex.Message}");
+            return Task.FromResult(ToolErrors.Error("convert_image ", ex));
         }
     }
 }

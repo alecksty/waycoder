@@ -99,7 +99,7 @@ public class DiffTool : ITool
         }
         catch (Exception ex)
         {
-            return $"diff 错误：{ex.GetType().Name}: {ex.Message}";
+            return ToolErrors.Error("diff ", ex);
         }
     }
 }

@@ -175,7 +175,7 @@ public class DocTool : ITool
         }
         catch (SsgfBlockedException ex)
         {
-            return $"错误：{ex.Message}";
+            return ToolErrors.Error(ex);
         }
         catch (TaskCanceledException)
         {
@@ -184,7 +184,7 @@ public class DocTool : ITool
         }
         catch (Exception ex)
         {
-            return $"抓取错误：{ex.GetType().Name}: {ex.Message}";
+            return ToolErrors.Error("抓取", ex);
         }
     }
 

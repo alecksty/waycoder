@@ -94,7 +94,7 @@ public partial class Agent
             {
                 try
                 {
-                    var wcOldPath = Path.GetFullPath(wcOldFpStr, CwdContext.Current.Value ?? Directory.GetCurrentDirectory());
+                    var wcOldPath = CwdContext.Resolve(wcOldFpStr);
                     if (File.Exists(wcOldPath)) oldContentForDisplay = File.ReadAllText(wcOldPath);
                 }
                 catch { }
@@ -180,7 +180,7 @@ public partial class Agent
                     bool multiOk = isMulti && (result.StartsWith("✅ 已创建") || result.StartsWith("✅ 已编辑"));
                     if (writeOk || editOk || multiOk)
                     {
-                        var wcPath = Path.GetFullPath(wcFpStr, CwdContext.Current.Value ?? Directory.GetCurrentDirectory());
+                        var wcPath = CwdContext.Resolve(wcFpStr);
                         if (File.Exists(wcPath))
                         {
                             var wcNewContent = File.ReadAllText(wcPath);
@@ -237,7 +237,7 @@ public partial class Agent
         };
         if (args != null && args.TryGetValue(key, out var v) && v is string s && !string.IsNullOrWhiteSpace(s))
         {
-            try { path = Path.GetFullPath(s, CwdContext.Current.Value ?? Directory.GetCurrentDirectory()); return true; }
+            try { path = CwdContext.Resolve(s); return true; }
             catch { return false; }
         }
         return false;

@@ -164,7 +164,7 @@ public class AgentTool : ITool, ICancellableTool
             }
             catch (InvalidOperationException ex)
             {
-                return $"错误：{ex.Message}";
+                return ToolErrors.Error(ex);
             }
 
             var idMap = new Dictionary<string, int>(StringComparer.Ordinal);

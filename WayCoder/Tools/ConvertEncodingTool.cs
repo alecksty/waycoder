@@ -53,7 +53,7 @@ public class ConvertEncodingTool : ITool
         if (string.IsNullOrWhiteSpace(filePath))
             return "错误：file_path 不能为空 — 请提供要转换的文件路径。";
 
-        var cwd = CwdContext.Current.Value ?? Directory.GetCurrentDirectory();
+        var cwd = CwdContext.Root;
         var srcPath = Path.GetFullPath(filePath, cwd);
 
         // 敏感路径防护（SSH 密钥/云凭据/系统凭据，防提示注入读泄露）
@@ -129,7 +129,7 @@ public class ConvertEncodingTool : ITool
         }
         catch (Exception ex)
         {
-            return $"错误：{ex.GetType().Name}: {ex.Message}";
+            return ToolErrors.Error("", ex);
         }
         finally
         {

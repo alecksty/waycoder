@@ -27,7 +27,7 @@ public class LintTool : ITool
 
         // 解析相对路径
         if (!Path.IsPathRooted(path))
-            path = Path.GetFullPath(path, CwdContext.Current.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
+            path = CwdContext.Resolve(path); // cd 后相对路径基于被跟踪工作目录
 
         if (!File.Exists(path) && !Directory.Exists(path))
             return $"错误: 路径不存在: {path}";
