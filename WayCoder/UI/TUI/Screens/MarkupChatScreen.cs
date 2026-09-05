@@ -65,13 +65,15 @@ public class MarkupChatScreen : ChatScreen
         RootView.Layout();
     }
 
-    /// <summary>resize 时按新宽度重建聊天项内容（复用 ChatList 实例，不能走 AddMessage 重灌以免重复）。</summary>
+    /// <summary>resize 时按新宽度重建聊天项内容（复用 ChatList 实例，不能走 AddMessage 重灌以免重复）。
+    /// 走 <see cref="TuiListItem.ResizeContent"/> 复用已有模板控件树只改宽，不重新 LoadResource("chat-item.tui")。
+    /// </summary>
     protected override void RebuildChatItems()
     {
         int w = Math.Max(1, ChatList.Width - 2);
         for (int i = 0; i < ChatList.ItemCount; i++)
             if (ChatList.GetItem(i) is TuiListItem item)
-                item.BuildContent(w);
+                item.ResizeContent(w);
         ChatList.ReLayout();
     }
 

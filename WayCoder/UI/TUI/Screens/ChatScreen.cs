@@ -128,6 +128,13 @@ public partial class ChatScreen : TuiScreen
     private readonly object _chatLock = new();
     // 注：PostToUI / PumpUIQueue / _uiQueue / _uiThreadId 已提炼到基类 TuiScreen（所有屏幕共用）。
 
+    /// <summary>流式追加待处理标记：置位后由下一渲染帧统一解析 + 布局（合并同帧多个 delta 一次重解析）。
+    /// UI 线程专用（AppendToLast 恒在 UI 线程经 PostToUI 执行）。</summary>
+    private bool _streamAppendPending;
+
+    /// <summary>流式 flush 后需在 RootView.Layout 完成后滚到底部（此时 ContentHeight 已随解析刷新）。</summary>
+    private bool _scrollToBottomPending;
+
     /// <summary>状态栏左侧（模型名、git 分支等）</summary>
     public string StatusLeft { get; set; } = "";
 
@@ -943,11 +950,8 @@ public partial class ChatScreen : TuiScreen
                     if (_toolOutputLineCount == 21)
                     {
                         last.AppendContent($"\n  ... (后续输出已折叠) ...\n");
-                        ChatList.ReLayout();
-                        if (ChatList.IsAutoScrollToEnd)
-                            ChatList.ScrollToBottom();
-                        // 折叠提示也需要刷新
-                        MarkDirty();
+                        // 折叠提示同样延迟到渲染帧统一 flush（合并 delta 一次解析）
+                        QueueStreamLayout();
                     }
 
                     if (_toolOutputLineCount > 20)
@@ -970,13 +974,50 @@ public partial class ChatScreen : TuiScreen
         }
 
         last.AppendContent(delta);
-        ChatList.ReLayout();
-        if (ChatList.IsAutoScrollToEnd)
-            ChatList.ScrollToBottom();
+        QueueStreamLayout();
+    }
 
-        // 流式输出实时刷新：必须置脏才能让 30ms 渲染循环的下一帧不跳过
-        // TuiView 子容器（ChatList）总是被遍历，ChatList.OnRender 渲染所有可见子项 → 无需单独标记
-        if (Manager != null) Manager.IsDirty = true;
+    /// <summary>
+    /// 流式追加后的轻量登记：不做每 delta 的全量 ChatList.ReLayout/ScrollToBottom/重解析，
+    /// 只标脏 + 置待处理标记 —— 重解析 + 条目高度重算 + ChatList.ReLayout + 滚底统一由渲染帧
+    /// <see cref="FlushStreamingLayout"/> 执行（RootView.Layout 内联 ReLayout），把同帧多个 delta
+    /// 合并成一次解析，消除「每个流式 token 全量重解析一遍累计正文」的流式卡顿。
+    /// </summary>
+    private void QueueStreamLayout()
+    {
+        _streamAppendPending = true;
+        _scrollToBottomPending = true;
+        if (Manager != null) Manager.IsDirty = true; // 唤醒帧闸门：下一帧 ChatScreen.Render 执行 flush
+    }
+
+    /// <summary>
+    /// 渲染帧统一 flush 流式追加：对解析缓存失效（_parsed=false）的消息正文做一次 EnsureParsed，
+    /// 并按新行高重算条目高度 —— 使随后的 RootView.Layout（内联 ChatList.ReLayout）拿到最新高度。
+    /// 同帧内多个 delta 只触发一次解析（合并），而非每个 delta 全量重解析。
+    /// </summary>
+    private void FlushStreamingLayout()
+    {
+        if (!_streamAppendPending) return;
+        _streamAppendPending = false;
+        if (ChatList == null) return;
+
+        bool touched = false;
+        for (int i = 0; i < ChatList.ItemCount; i++)
+        {
+            if (ChatList.GetItem(i) is TuiListItem item && item.Body != null && !item.Body.IsRenderCached)
+            {
+                item.Body.EnsureParsed(); // 重解析：Body.Height 更新
+                item.ReLayout();          // 条目高度按新正文行数重算
+                touched = true;
+            }
+        }
+        if (touched)
+        {
+            // ChatList.OnRender 会整视口擦除后重绘脏叶子 → 必须整棵子树标脏，未变消息才不会被擦掉。
+            // ChatList.ReLayout 由紧随的 RootView.Layout 递归完成（VBox/HBox → ChatList.Layout）；
+            // ScrollToBottom 由调用方在 RootView.Layout 后按 _scrollToBottomPending 执行（需 ContentHeight 已刷新）。
+            ChatList.MarkTreeDirty();
+        }
     }
 
     /// <summary>清空聊天</summary>
@@ -1235,8 +1276,20 @@ public partial class ChatScreen : TuiScreen
         // ── 输入框上下横线随前缀变色（/ 命令 青 · ! shell 红 · @ 品红 · # 灰）──
         SyncInputBorderColor();
 
-        // VBox/HBox 自动处理 Y 坐标
+        // ── 流式 flush：先解析本帧待处理的流式追加（合并 delta），再布局（高度正确）──
+        FlushStreamingLayout();
+
+        // VBox/HBox 自动处理 Y 坐标（含 ChatList.ReLayout，用 flush 后的最新高度）
         RootView.Layout();
+
+        // 滚底必须放在 ReLayout 之后：ContentHeight 已随 flush 的解析刷新
+        if (_scrollToBottomPending)
+        {
+            _scrollToBottomPending = false;
+            if (ChatList.IsAutoScrollToEnd)
+                ChatList.ScrollToBottom();
+        }
+
         base.Render(sb);
     }
 
