@@ -18,7 +18,7 @@ namespace WayCoder.UI.Tui.Controls;
 ///   Tab / Shift+Tab — 缩进 / 反缩进（选中态整块）
 ///   Ctrl+←/→ — 词级移动 · Ctrl+Backspace/Ctrl+Delete — 删词 · Ctrl+K — 删到行尾
 ///   Ctrl+D — 重复行 · Ctrl+Shift+K — 删除整行 · Ctrl+E — 到行尾
-///   Ctrl+Z — 撤销 · Ctrl+Y / Ctrl+Shift+Z — 重做
+///   Ctrl+Z — 撤销 · Ctrl+Y — 重做
 ///   Ctrl+X/C/V — 剪切/复制/粘贴（无选区时整行）· Shift+Insert — 粘贴
 ///   Ctrl+A — 全选 · Ctrl+F — 搜索 · Ctrl+G — 跳转行 · Ctrl+S — 保存
 ///   Esc / Ctrl+Q — 退出
@@ -428,10 +428,8 @@ public class TuiRichEditor : TuiEditBase
                 case ConsoleKey.V: Core.PasteClipboard(); return true;
                 case ConsoleKey.A: Core.SelectAll(); return true;
 
-                // 撤销 / 重做
-                case ConsoleKey.Z:
-                    if (shift) Core.Redo(); else Core.Undo();
-                    return true;
+                // 撤销 / 重做（Ctrl+Z=撤销 · Ctrl+Y=重做；Ctrl+Shift+Z 已删，与 Ctrl+Y 重复）
+                case ConsoleKey.Z: Core.Undo(); return true;
                 case ConsoleKey.Y: Core.Redo(); return true;
 
                 // 词级 / 行级（新增）

@@ -373,9 +373,7 @@ public class EditorScreen : TuiScreen
                 case ConsoleKey.F:
                     HandleFindReplace();
                     return true;
-                case ConsoleKey.H:
-                    HandleFindReplace();
-                    return true;
+                // Ctrl+H 已删除：与 Ctrl+F 重复（查找/替换），保留 Ctrl+F。Unix 下 Ctrl+H 也是回退键。
                 case ConsoleKey.P:
                     JumpToMatchingBracket();
                     return true;
