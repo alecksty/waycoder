@@ -92,9 +92,7 @@ public class TuiComboBox : TuiControl
 
         // 文本 + 箭头（根据 TextAlign 对齐）
         int maxTextW = Width - 4; // 预留 " ▼" 位置
-        var text = AnsiHelper.DisplayWidth(display) > maxTextW
-            ? AnsiHelper.TruncateByWidth(display, maxTextW)
-            : display;
+        var text = AnsiHelper.TruncateIfNeeded(display, maxTextW);
         int textVw = AnsiHelper.DisplayWidth(text);
         int textX = TextAlign switch
         {
@@ -129,9 +127,7 @@ public class TuiComboBox : TuiControl
                 int lBg = !IsEnabled ? (DisabledBg > 0 ? DisabledBg : 0)
                     : sel ? TuiTheme.Current.ListSelBg : TuiTheme.Current.WindowBg;
 
-                var optText = AnsiHelper.DisplayWidth(Options[optIdx]) > Width - 3
-                    ? AnsiHelper.TruncateByWidth(Options[optIdx], Width - 3)
-                    : Options[optIdx];
+                var optText = AnsiHelper.TruncateIfNeeded(Options[optIdx], Width - 3);
                 var pad = Width - 3 - AnsiHelper.DisplayWidth(optText);
 
                 var rb = new RenderBuffer();

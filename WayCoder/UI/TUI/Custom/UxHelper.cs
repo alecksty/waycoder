@@ -1,4 +1,5 @@
 using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.Tui.Screens;
@@ -19,6 +20,22 @@ public static class UxHelper
             try { return TuiManager.Instance?.ActiveScreen != null; }
             catch { return false; }
         }
+    }
+
+    /// <summary>把 TuiMarkup 指定 id 的按钮接线到 action（多个 Picker 重复的 Wire 样板）。</summary>
+    public static void Wire(TuiMarkupResult res, string id, Action action)
+    {
+        var btn = res.Find<TuiButton>(id);
+        if (btn != null) btn.OnClick = _ => action();
+    }
+
+    /// <summary>应用统一对话框渐变（与 TuiDialog 系一致），收敛各 Picker 手写的 4 行渐变样板。</summary>
+    public static void ApplyGradient(TuiWindow win)
+    {
+        var g = TuiTheme.Current.DialogGradient;
+        win.GradientBorder = true;
+        win.GradientStart = g.start;
+        win.GradientEnd = g.end;
     }
 
     /// <summary>

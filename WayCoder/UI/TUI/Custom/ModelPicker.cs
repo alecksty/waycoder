@@ -74,10 +74,7 @@ public static class ModelPicker
 
     /// <summary>把标记里的按钮接到动作上（缺 id 静默跳过，标记改名不至于崩窗口）。样式全在 .tui 里。</summary>
     private static void Wire(TuiMarkupResult res, string id, Action action)
-    {
-        var btn = res.Find<TuiButton>(id);
-        if (btn != null) btn.OnClick = _ => action();
-    }
+        => UxHelper.Wire(res, id, action);
 
     private static TuiWindow BuildWindow(int currentSlot, TuiScreen? screen, Action<Result?> onDone)
     {

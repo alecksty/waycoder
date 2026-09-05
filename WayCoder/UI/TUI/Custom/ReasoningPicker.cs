@@ -74,10 +74,7 @@ public static class ReasoningPicker
         win.WinBg = TuiTheme.Current.WindowBg;
         win.XScale = 0.6; // 宽度 = 终端 60%（标记 scale 兜底，此处显式保证）
         // 渐变边框（紫→粉，沿用主题；标记 hex 为兜底）
-        var g = TuiTheme.Current.DialogGradient; // 统一对话框渐变（与 TuiDialog 系一致）
-        win.GradientBorder = true;
-        win.GradientStart = g.start;
-        win.GradientEnd = g.end;
+        UxHelper.ApplyGradient(win);
 
         // 控件接线（结构在标记里，精确样式/数据/事件在此）
         var search = res.Find<TuiInput>("search")!;

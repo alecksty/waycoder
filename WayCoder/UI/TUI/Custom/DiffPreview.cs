@@ -172,10 +172,7 @@ public static class DiffPreview
         win.Width = winW; win.Height = winH;
         win.MinWidth = 60; win.MinHeight = 12;
         win.WinBg = contentBg;
-        var g = TuiTheme.Current.DialogGradient;
-        win.GradientBorder = true;
-        win.GradientStart = g.start;
-        win.GradientEnd = g.end;
+        UxHelper.ApplyGradient(win);
 
         var body = res.Find<TuiVBox>("body")!;
 
@@ -237,10 +234,7 @@ public static class DiffPreview
 
     /// <summary>把标记里的按钮接到动作上（缺 id 静默跳过，标记改名不至于崩窗口）。渐变底是 TuiButton 默认值。</summary>
     private static void Wire(TuiMarkupResult res, string id, Action action)
-    {
-        var btn = res.Find<TuiButton>(id);
-        if (btn != null) btn.OnClick = _ => action();
-    }
+        => UxHelper.Wire(res, id, action);
 
     /// <summary>
     /// 只读 diff 渲染控件 —— 统一/分屏两种模式，↑↓ 切 hunk、←→/PgUp/PgDn 滚动。
