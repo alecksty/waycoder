@@ -43,14 +43,7 @@ public class DownloadTool : ITool, ICancellableTool
         filePath = CwdContext.Resolve(filePath); // cd 后相对路径基于被跟踪工作目录
 
         // 敏感路径防护（SSH 密钥/shell 配置/系统凭据，防提示注入下载写后门）
-        var sensitive = PathSafety.CheckSensitive(filePath);
-        if (sensitive != null)
-            return $"❌ 已阻止：{sensitive}（安全策略：敏感文件读写受保护）";
-
-        // 沙箱边界：项目写限（独立于权限模式）
-        var sandbox = SandboxManager.CheckWritable(filePath);
-        if (sandbox != null)
-            return sandbox;
+        if (PathSafety.Guard(filePath) is { } guardErr) return guardErr;
 
         // 文件锁检查（对齐 write_file/edit_file，防多 Agent 并发写同一目标）
         var lockErr = FileLockManager.TryAcquireOrError(filePath, agentId, "请等待锁释放或使用其他文件名");

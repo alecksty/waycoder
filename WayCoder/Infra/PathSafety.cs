@@ -1,3 +1,5 @@
+using WayCoder.Infra;
+
 namespace WayCoder;
 
 /// <summary>
@@ -45,7 +47,15 @@ public static class PathSafety
     /// 检查绝对路径是否命中敏感文件/目录。命中返回拦截原因，未命中返回 null。
     /// </summary>
     /// <param name="fullPath">已由 Path.GetFullPath 归一化的绝对路径。</param>
-    public static string? CheckSensitive(string fullPath)
+        /// <summary>写路径守卫：敏感路径 + 沙箱可写检查。返回首次错误文案，全部通过返回 null。</summary>
+    public static string? Guard(string path)
+    {
+        var sensitive = CheckSensitive(path);
+        if (sensitive != null) return $"❌ 已阻止：{sensitive}（安全策略：敏感文件读写受保护）";
+        return SandboxManager.CheckWritable(path);
+    }
+
+public static string? CheckSensitive(string fullPath)
     {
         if (string.IsNullOrWhiteSpace(fullPath)) return null;
 
