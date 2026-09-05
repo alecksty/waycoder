@@ -16,7 +16,7 @@ public class MvTool : ITool
             .Set("src", JNode.Param("string", "源文件或目录路径"))
             .Set("dest", JNode.Param("string", "目标路径"))
             .Set("overwrite", JNode.Param("boolean", "是否覆盖已存在的目标（默认 false）")))
-        .Set("required", JNode.Array().Add("src").Add("dest"));
+        .Set("required", JNode.Array("src", "dest"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

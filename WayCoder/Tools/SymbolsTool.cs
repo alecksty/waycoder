@@ -19,7 +19,7 @@ public class SymbolsTool : ITool
         .Set("properties", JNode.Object()
             .Set("name", JNode.Param("string", "要查找的符号名（类名/函数名/方法名，大小写不敏感，如 'GrepTool' 或 'ExecuteAsync'）"))
             .Set("path", JNode.Param("string", "项目根目录（默认：当前仓库根目录）")))
-        .Set("required", JNode.Array().Add("name"));
+        .Set("required", JNode.Array("name"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

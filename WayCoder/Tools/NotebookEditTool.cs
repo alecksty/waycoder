@@ -30,7 +30,7 @@ public class NotebookEditTool : ITool
             .Set("new_source", JNode.Param("string", "新内容。replace 时替换 cell 源代码；insert 时为整个新 cell 的源代码"))
             .Set("cell_type", JNode.Param("string", "Cell 类型（insert 时需要）: code | markdown"))
             .Set("edit_mode", JNode.Param("string", "编辑模式: replace（默认，替换 cell 源） | insert（插入新 cell） | delete（删除 cell）")))
-        .Set("required", JNode.Array().Add("notebook_path").Add("new_source"));
+        .Set("required", JNode.Array("notebook_path", "new_source"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

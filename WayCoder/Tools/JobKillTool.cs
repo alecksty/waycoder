@@ -13,7 +13,7 @@ public class JobKillTool : ITool
         .Set("type", "object")
         .Set("properties", JNode.Object()
             .Set("shell_id", JNode.Param("string", "要终止的后台任务的 shell ID")))
-        .Set("required", JNode.Array().Add("shell_id"));
+        .Set("required", JNode.Array("shell_id"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

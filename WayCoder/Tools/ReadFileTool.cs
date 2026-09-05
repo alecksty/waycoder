@@ -36,7 +36,7 @@ public class ReadFileTool : ITool
             .Set("offset", JNode.Param("integer", "起始行（从 1 开始）。PDF 文件此参数表示起始页码。默认 1。"))
             .Set("limit", JNode.Param("integer", "最大读取行数。PDF 文件此参数表示最大页数（默认 20）。默认 2000。"))
             .Set("tail", JNode.Param("integer", "读取文件末尾 N 行（与 offset/limit 互斥，优先于 offset）。适合查看日志/大文件末尾。默认 0 禁用。")))
-        .Set("required", JNode.Array().Add("file_path"));
+        .Set("required", JNode.Array("file_path"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

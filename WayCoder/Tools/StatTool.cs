@@ -15,7 +15,7 @@ public class StatTool : ITool
         .Set("type", "object")
         .Set("properties", JNode.Object()
             .Set("path", JNode.Param("string", "文件或目录路径")))
-        .Set("required", JNode.Array().Add("path"));
+        .Set("required", JNode.Array("path"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

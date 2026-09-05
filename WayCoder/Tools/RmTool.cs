@@ -15,7 +15,7 @@ public class RmTool : ITool
         .Set("properties", JNode.Object()
             .Set("path", JNode.Param("string", "要删除的文件或目录路径"))
             .Set("recursive", JNode.Param("boolean", "是否递归删除目录（默认 false）")))
-        .Set("required", JNode.Array().Add("path"));
+        .Set("required", JNode.Array("path"));
 
     // 系统关键路径（禁止删除）
     private static readonly HashSet<string> ProtectedPaths = new(StringComparer.OrdinalIgnoreCase)

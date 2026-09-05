@@ -27,13 +27,13 @@ public class FetchTool : ITool, ICancellableTool
             .Set("format", JNode.Param("string", "输出格式：'text'（纯文本）或 'markdown'（结构化），默认 'text'"))
             .Set("method", JNode.Object()
                 .Set("type", "string")
-                .Set("enum", JNode.Array().Add("GET").Add("POST").Add("PUT").Add("DELETE").Add("PATCH").Add("HEAD").Add("OPTIONS"))
+                .Set("enum", JNode.Array("GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"))
                 .Set("description", "HTTP 方法，默认 GET。POST/PUT/DELETE 等用于调用 API"))
             .Set("headers", JNode.Object()
                 .Set("type", "string")
                 .Set("description", "请求头，JSON 对象字符串，如 {\"Authorization\":\"Bearer xxx\",\"Content-Type\":\"application/json\"}"))
             .Set("body", JNode.Param("string", "请求体（POST/PUT/PATCH 时用），默认按 application/json 发送")))
-        .Set("required", JNode.Array().Add("url"));
+        .Set("required", JNode.Array("url"));
 
     private static HttpClient _client => _lazyClient.Value;
     private static readonly Lazy<HttpClient> _lazyClient = new(() => new HttpClient(

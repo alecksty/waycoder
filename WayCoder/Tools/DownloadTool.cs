@@ -15,7 +15,7 @@ public class DownloadTool : ITool, ICancellableTool
             .Set("url", JNode.Param("string", "要下载的 URL（仅支持 http/https）"))
             .Set("file_path", JNode.Param("string", "保存下载内容的本地文件路径（绝对路径或相对于当前目录）"))
             .Set("timeout", JNode.Param("integer", "下载超时时间，单位秒（默认 60，最大 600）")))
-        .Set("required", JNode.Array().Add("url").Add("file_path"));
+        .Set("required", JNode.Array("url", "file_path"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
         => await ExecuteAsync(arguments, CancellationToken.None);

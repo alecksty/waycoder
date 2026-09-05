@@ -21,7 +21,7 @@ public class ImageConvertTool : ITool
             .Set("input", JNode.Param("string", "输入图片路径（png/jpg/jpeg/bmp）"))
             .Set("output", JNode.Param("string", "输出图片路径，扩展名决定格式（png/jpg/jpeg/bmp）"))
             .Set("quality", JNode.Param("integer", "JPEG 质量 1-100，默认 85（仅 jpg 输出生效）")))
-        .Set("required", JNode.Array().Add("input").Add("output"));
+        .Set("required", JNode.Array("input", "output"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

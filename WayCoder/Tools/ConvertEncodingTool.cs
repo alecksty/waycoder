@@ -28,7 +28,7 @@ public class ConvertEncodingTool : ITool
             .Set("from_encoding", JNode.Param("string", "源编码，默认 auto（自动识别 BOM/UTF-8/GB18030）。可显式指定：utf-8/gbk/gb2312/gb18030/big5/shift-jis/euc-jp/euc-kr/iso-8859-1/windows-1252 等，或代码页数字（如 936/950）。"))
             .Set("to_encoding", JNode.Param("string", "目标编码，默认 utf-8。支持同上全部编码；utf-8-bom 输出带 BOM。"))
             .Set("output", JNode.Param("string", "输出文件路径，默认覆盖原文件（原地转码）。指定后写到新路径，原文件不动。")))
-        .Set("required", JNode.Array().Add("file_path"));
+        .Set("required", JNode.Array("file_path"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

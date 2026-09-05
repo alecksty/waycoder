@@ -15,10 +15,10 @@ public class ExportTool : ITool
         .Set("properties", JNode.Object()
             .Set("format", JNode.Object()
                 .Set("type", "string")
-                .Set("enum", JNode.Array().Add("md").Add("json").Add("html"))
+                .Set("enum", JNode.Array("md", "json", "html"))
                 .Set("description", "导出格式: md(Markdown), json(JSON数组), html(网页)"))
             .Set("output_path", JNode.Param("string", "输出文件路径（可选，默认 chat_export_{timestamp}.{format}）")))
-        .Set("required", JNode.Array().Add("format"));
+        .Set("required", JNode.Array("format"));
 
     /// <summary>消息历史引用（由 Agent 在构造后注入）</summary>
     public List<JNode>? Messages { get; set; }

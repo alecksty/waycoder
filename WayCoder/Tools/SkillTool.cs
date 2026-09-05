@@ -14,7 +14,7 @@ public class SkillTool : ITool
         .Set("type", "object")
         .Set("properties", JNode.Object()
             .Set("name", JNode.Param("string", "要加载的技能名称")))
-        .Set("required", JNode.Array().Add("name"));
+        .Set("required", JNode.Array("name"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

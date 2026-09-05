@@ -33,7 +33,7 @@ public class DrawTool : ITool
             .Set("code", JNode.Param("string", "绘图指令文本，每行一条（canvas/rect/circle/line/text 等）"))
             .Set("format", JNode.Object()
                 .Set("type", "string")
-                .Set("enum", JNode.Array().Add("svg").Add("png"))
+                .Set("enum", JNode.Array("svg", "png"))
                 .Set("description", "输出格式，默认 svg"))
             .Set("output", JNode.Param("string", "输出文件路径；png 时必填，svg 时缺省则返回内容文本"))
             .Set("image", JNode.Param("string", "要采样的图片路径（png/jpg/bmp）。给了此项则进入像素采样模式，返回颜色而非绘图"))
@@ -43,7 +43,7 @@ public class DrawTool : ITool
             .Set("grid", JNode.Object()
                 .Set("type", "string")
                 .Set("description", "网格采样，格式 \"cols,rows\"（如 \"4,3\"），需配合 image")))
-        .Set("required", JNode.Array().Add("code"));
+        .Set("required", JNode.Array("code"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
