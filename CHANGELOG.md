@@ -1,5 +1,13 @@
 # 更新日志
 
+## v0.96.56 (2026-09-05) — TUI 优化专项四批（清理 / 性能 / 结构 / 去重）
+
+- **快速清理**：删 `ChatScreen.Input` 15 个零引用转发方法（内联到唯一调用点，−105 行）；shell 命令清单单源 `ShellCommandHints`（默认栏保持原 4 常用）；`ChatScreen.Dialogs/Input` 5 处模态样板走新增 `RunModalDialogOnScreen`（UI 线程直执 / 后台 `PostToUI`）；注释错位修复
+- **性能**：流式 Markdown 重解析**按帧合并**——`AppendContent` 只追加+标脏，渲染帧 `FlushStreamingLayout` 统一重解析+高度重算+滚底，消除「每个流式 token 全量重解析累计正文」；`chat-item.tui` 模板文本 LRU 缓存（64）+ `TuiListItem.ResizeContent` resize 复用模板控件树（免重复文件 IO + XML 解析）
+- **结构债**：双布局接线单源 `WireStaticInputHooks` + 快捷键文案 `ShortcutRowText` 单常量（手写版补 Tab 补全、标记版补 Ctrl+Shift+M，漂移统一）；`Tty.Capabilities` 平台判定单点（`SupportsButtonDrag`/`SupportsKittyKeyboard`/`EnableMouseForTerminal`，InputManager/TuiManager 不再散写 `IsAppleTerminal`）；17 个控件标注「仅演示用，发货未实例化」+ 控件使用矩阵
+- **Picker 去重**：`SearchableListPicker.WireSearchInput` 收敛搜索 KeyHook（ReasoningPicker/FilePicker 全接入）+ `UxHelper.FinishModal` 单源 5 Picker Finish；SessionPicker/CommandPalette/ModelPicker 自绘高亮/自定义导航/ClassifyKey 边界差异保留（共性/差异表见 commit）
+- 自测 4935 全过，keypad 全系列 exit 0，主项目编译 0 警告 0 错误
+
 ## v0.96.55 (2026-09-05) — TUI 鼠标点击命中修复 + 提炼简化
 
 - **鼠标点击命中修复**：弹窗内点击错位——窗口内容控件命中坐标沿 Parent 链累加漏掉窗口偏移（TuiWindow 非控件、RootView 不设 Parent），渲染显式传 win.X/Y 而命中用实时链 → 弹窗内点击偏窗口位置（居中窗口上/左差约窗口偏移）。修复：命中基准改用最近渲染绝对坐标（`_lastAbsX/Y`，`HitAbsX/Y` 兼容入口，未渲染回退实时链）——覆盖 `TuiControl.MouseInBounds`/`HitTest`、`TuiButton`、`TuiList`、`TuiListView`、`TuiView.HitTest`。主界面（根在 0,0）不受影响
