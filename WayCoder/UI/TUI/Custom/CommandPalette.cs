@@ -39,38 +39,47 @@ public static class CommandPalette
     }
 
     /// <summary>
-    /// 构建默认命令列表（高频动作 + 精选常用斜杠命令），供 Ctrl+Shift+P 命令面板使用。
-    /// 对标 Claude Code / OpenCode 命令面板：只列最常用命令，避免刷屏。
-    /// 高频动作复用 ChatScreen 已暴露的回调；斜杠命令经 SlashCommandRegistry 按白名单精选。
+    /// 构建默认命令列表（功能菜单）：⚡ 界面组直达大多数界面/面板（带快捷键），
+    /// 🗂 命令组收录常用斜杠命令。供 Ctrl+Shift+P 命令面板使用，对标 Claude Code / VS Code 命令面板。
+    /// 界面直达复用 ChatScreen 已暴露的回调与各 Picker 静态 Show；斜杠命令经 SlashCommandRegistry 按白名单精选。
     /// </summary>
     public static List<Command> BuildDefaultCommands(ChatScreen screen)
     {
         var list = new List<Command>();
-        const string cat = "⚡ 常用";
+        const string uiCat = "⚡ 界面";
 
+        // ── 界面 / 面板直达（带快捷键）──
         if (screen.OnCycleModel != null)
-            list.Add(new("model", "模型选择", cat, "Ctrl+M", "打开模型选择对话框", () => screen.OnCycleModel()));
-        if (screen.OnShowHelp != null)
-            list.Add(new("help", "快捷键帮助", cat, "Ctrl+H", "打开快捷键速查面板", () => screen.OnShowHelp()));
-        list.Add(new("settings", "设置", cat, "Ctrl+T", "打开设置界面", () => screen.Manager?.PushScreen(new SettingsScreen())));
+            list.Add(new("model", "模型选择", uiCat, "Ctrl+M", "打开模型选择对话框", () => screen.OnCycleModel()));
+        list.Add(new("settings", "设置", uiCat, "Ctrl+T", "打开设置界面", () => screen.Manager?.PushScreen(new SettingsScreen())));
         if (screen.OnOpenSessions != null)
-            list.Add(new("sessions", "会话列表", cat, "Ctrl+S", "查看 / 切换会话", () => screen.OnOpenSessions()));
+            list.Add(new("sessions", "会话列表", uiCat, "Ctrl+S", "查看 / 切换 / 重命名会话", () => screen.OnOpenSessions()));
         if (screen.OnOpenDiff != null)
-            list.Add(new("diff", "Diff 预览", cat, "Ctrl+D", "查看修改文件差异", () => screen.OnOpenDiff()));
+            list.Add(new("diff", "Diff 预览", uiCat, "Ctrl+D", "查看未提交文件差异", () => screen.OnOpenDiff()));
         if (screen.OnReasoningEffort != null)
-            list.Add(new("reasoning", "推理深度", cat, "Ctrl+G", "切换推理深度", () => screen.OnReasoningEffort()));
+            list.Add(new("reasoning", "推理深度", uiCat, "Ctrl+G", "切换推理深度", () => screen.OnReasoningEffort()));
         if (screen.OnSearchHistory != null)
-            list.Add(new("search", "搜索历史", cat, "Ctrl+Y", "搜索对话历史",
+            list.Add(new("search", "搜索对话历史", uiCat, "Ctrl+Y", "关键词搜索对话历史",
                 () => { var q = UxHelper.Ask("搜索对话历史"); if (!string.IsNullOrWhiteSpace(q)) screen.OnSearchHistory?.Invoke(q); }));
+        if (screen.OnShowHelp != null)
+            list.Add(new("help", "快捷键帮助", uiCat, "Ctrl+H", "打开快捷键速查面板", () => screen.OnShowHelp()));
+        if (screen.OnSyncQr != null)
+            list.Add(new("syncqr", "同步二维码", uiCat, "Ctrl+R", "生成扫码跨设备连接二维码", () => screen.OnSyncQr()));
+        list.Add(new("sidebar", "切换侧栏", uiCat, "Ctrl+B", "显示 / 隐藏侧栏面板", () => screen.ToggleSidePanel()));
+        list.Add(new("provider", "模型供应商", uiCat, "", "管理供应商 / API Key / 连通性", () => WayCoder.UI.TUI.Custom.ProviderPicker.Show()));
 
-        // 精选常用斜杠命令（对标 Claude Code / OpenCode 命令面板的常见项）
+        // ── 斜杠命令（对齐绝大多数界面/动作入口）──
         var common = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "help", "reset", "compact", "model", "settings", "undo", "diff", "edit",
             "recent", "session", "mcp", "init", "update", "stats", "tokens", "config",
             "provider", "search", "git", "todo", "theme", "mode",
+            "permit", "perm", "history", "kb", "mind", "connect", "free", "resume",
+            "pause", "exit", "doctor", "versions", "checkpoints", "repro", "export",
+            "join", "architect", "timeline", "repomap", "lint", "diag", "about", "teach",
+            "cd", "import",
         };
-        const string slashCat = "🗂 常用命令";
+        const string slashCat = "🗂 命令";
         foreach (var cmd in SlashCommandRegistry.Commands)
         {
             var name = cmd.Name.TrimStart('/').ToLowerInvariant();
