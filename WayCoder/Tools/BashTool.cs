@@ -156,7 +156,7 @@ public class BashTool : ITool, ICancellableTool
 
         // Worktree 隔离：检测 worktree 路径，自动切换 cwd
         var worktreePath = WorktreeIsolation.CurrentWorktree;
-        var cwd = worktreePath ?? CwdContext.Current.Value ?? Directory.GetCurrentDirectory();
+        var cwd = worktreePath ?? CwdContext.Root;
 
         // 沙箱边界检查（Off 放行；危险命令/网络关/cd 逃逸/系统写按模式拦截，独立于权限）
         if (SandboxManager.Mode != SandboxMode.Off)

@@ -1307,7 +1307,7 @@ public partial class Program
                 // 持久化本槽位工作目录：Agent cd 后保存，下次任务从该目录起步。
                 // 须在 AsyncLocal 仍绑定于本任务的 ExecutionContext 内读取，读到的是本槽位 Agent 顶层 cd 后的值
                 // （子智能体的 cd 已被 AgentTool 恢复，不会污染此值）
-                slot.WorkingDirectory = CwdContext.Current.Value ?? Directory.GetCurrentDirectory();
+                slot.WorkingDirectory = CwdContext.Root;
 
                 // 必须先摘除 Cts 再置 IsBusy=false：若反过来，二者之间 UI 线程看到 IsBusy=false
                 // 会启动新任务写入新的 Cts，此处的 Exchange 会把新任务的 Cts 摘走并 Dispose，

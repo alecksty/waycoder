@@ -86,7 +86,7 @@ public class EditFileTool : ITool
         if (string.IsNullOrWhiteSpace(filePath))
             return "错误：file_path 不能为空 — 请提供有效的文件路径。";
 
-        var path = Path.GetFullPath(filePath, CwdContext.Current.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
+        var path = CwdContext.Resolve(filePath); // cd 后相对路径基于被跟踪工作目录
 
         // 敏感路径防护（SSH 密钥/shell 配置/系统凭据，防提示注入写后门）
         var sensitive = PathSafety.CheckSensitive(path);
@@ -189,7 +189,7 @@ public class EditFileTool : ITool
         }
         catch (Exception ex)
         {
-            return $"错误：{ex.GetType().Name}: {ex.Message}";
+            return ToolErrors.Error("", ex);
         }
         finally
         {

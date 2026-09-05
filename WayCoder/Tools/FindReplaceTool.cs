@@ -70,8 +70,8 @@ public class FindReplaceTool : ITool
 
         try
         {
-            path ??= CwdContext.Current.Value ?? Directory.GetCurrentDirectory();
-            path = Path.GetFullPath(path, CwdContext.Current.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
+            path ??= CwdContext.Root;
+            path = CwdContext.Resolve(path); // cd 后相对路径基于被跟踪工作目录
             if (!Directory.Exists(path))
                 return $"错误：目录不存在 — {path}";
 
@@ -208,7 +208,7 @@ public class FindReplaceTool : ITool
         }
         catch (Exception ex)
         {
-            return $"find_replace 错误：{ex.GetType().Name}: {ex.Message}";
+            return ToolErrors.Error("find_replace ", ex);
         }
     }
 

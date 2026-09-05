@@ -1237,11 +1237,11 @@ sealed class PackStore
         catch { yield break; }
         if (b.Length < 8 + 256 * 4 || b[0] != 0xFF || b[1] != 't' || b[2] != 'O' || b[3] != 'c')
             yield break;
-        int ver = ReadInt32BE(b, 4);
+        int ver = GitBin.ReadInt32BE(b, 4);
         if (ver != 2) yield break; // 只支持 idx v2（现代 git 默认）
 
         var fanout = new int[256];
-        for (int i = 0; i < 256; i++) fanout[i] = ReadInt32BE(b, 8 + i * 4);
+        for (int i = 0; i < 256; i++) fanout[i] = GitBin.ReadInt32BE(b, 8 + i * 4);
         int n = fanout[255];
         int pos = 8 + 256 * 4;
 
@@ -1257,29 +1257,20 @@ sealed class PackStore
         var largeIdx = new List<int>();
         for (int i = 0; i < n; i++)
         {
-            uint o = (uint)ReadInt32BE(b, pos);
+            uint o = (uint)GitBin.ReadInt32BE(b, pos);
             pos += 4;
             if ((o & 0x80000000u) != 0) { offsets[i] = -1; largeIdx.Add(i); }
             else offsets[i] = o;
         }
         for (int li = 0; li < largeIdx.Count; li++)
         {
-            offsets[largeIdx[li]] = ReadInt64BE(b, pos);
+            offsets[largeIdx[li]] = GitBin.ReadInt64BE(b, pos);
             pos += 8;
         }
         for (int i = 0; i < n; i++)
             yield return (shas[i], offsets[i]);
     }
 
-    static int ReadInt32BE(byte[] b, int off)
-        => (b[off] << 24) | (b[off + 1] << 16) | (b[off + 2] << 8) | b[off + 3];
-
-    static long ReadInt64BE(byte[] b, int off)
-    {
-        long v = 0;
-        for (int i = 0; i < 8; i++) v = (v << 8) | b[off + i];
-        return v;
-    }
 }
 
 /// <summary>git 远程凭证：账号密码 或 token 二选一（IsToken 区分，展示/认证据此处理）。</summary>

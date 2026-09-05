@@ -110,7 +110,7 @@ public static class PackFileReader
         if (pack[0] != 'P' || pack[1] != 'A' || pack[2] != 'C' || pack[3] != 'K')
             throw new InvalidDataException("非 packfile（缺 PACK 魔数）");
 
-        int count = ReadInt32BE(pack, 8);
+        int count = GitBin.ReadInt32BE(pack, 8);
         if (count <= 0) return 0;
 
         // offset → sha：ofs-delta 引用 base 时先取其 sha，再由 externalBase 读回内容
@@ -519,9 +519,6 @@ public static class PackFileReader
         }
         return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
     }
-
-    static int ReadInt32BE(byte[] b, int off)
-        => (b[off] << 24) | (b[off + 1] << 16) | (b[off + 2] << 8) | b[off + 3];
 
     /// <summary>应用 delta 数据（RFC git pack）：{src-size}{dst-size} + copy/insert 指令序列。</summary>
     internal static byte[] ApplyDelta(byte[] baseContent, byte[] delta)

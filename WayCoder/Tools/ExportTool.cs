@@ -51,7 +51,7 @@ public class ExportTool : ITool
             }}";
 
             // 相对路径基于被跟踪的 cd 工作目录，而非进程启动目录
-            var fullPath = Path.GetFullPath(outputPath, CwdContext.Current.Value ?? Directory.GetCurrentDirectory());
+            var fullPath = CwdContext.Resolve(outputPath);
             File.WriteAllText(fullPath, content);
             var size = new FileInfo(fullPath).Length;
             return Task.FromResult($"✅ 已导出 {Messages.Count} 条消息到 {fullPath} ({FormatUtil.FormatSize(size)})");

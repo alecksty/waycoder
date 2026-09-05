@@ -139,7 +139,7 @@ public class FetchTool : ITool, ICancellableTool
         }
         catch (SsgfBlockedException ex)
         {
-            return $"错误：{ex.Message}";
+            return ToolErrors.Error(ex);
         }
         catch (HttpRequestException ex)
         {
@@ -156,7 +156,7 @@ public class FetchTool : ITool, ICancellableTool
         }
         catch (Exception ex)
         {
-            return $"抓取错误：{ex.GetType().Name}: {ex.Message}";
+            return ToolErrors.Error("抓取", ex);
         }
     }
 

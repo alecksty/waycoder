@@ -306,7 +306,7 @@ public class TuiTableList : TuiListControl
     {
         if (AnsiHelper.DisplayWidth(line) > dataWidth)
             line = AnsiHelper.TruncateByWidth(line, dataWidth);
-        WriteAt(sb, row, absX, line + new string(' ', Math.Max(0, dataWidth - AnsiHelper.DisplayWidth(line))), fg, bg);
+        WriteAt(sb, row, absX, AnsiHelper.PadRightByWidth(line, dataWidth), fg, bg);
     }
 
     /// <summary>用自定义单元格模板渲染整行：每列一个 cell（宽度=列宽，占位符 {value}/{colN}/{text}/{index}）。</summary>

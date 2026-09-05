@@ -46,7 +46,7 @@ public class DownloadTool : ITool, ICancellableTool
         // 将相对路径转为绝对路径（无条件归一化，折叠 ../ 等）
         if (string.IsNullOrWhiteSpace(filePath))
             return "错误：file_path 不能为空 — 请提供有效的文件路径。";
-        filePath = Path.GetFullPath(filePath, CwdContext.Current.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
+        filePath = CwdContext.Resolve(filePath); // cd 后相对路径基于被跟踪工作目录
 
         // 敏感路径防护（SSH 密钥/shell 配置/系统凭据，防提示注入下载写后门）
         var sensitive = PathSafety.CheckSensitive(filePath);
@@ -142,7 +142,7 @@ public class DownloadTool : ITool, ICancellableTool
         }
         catch (SsgfBlockedException ex)
         {
-            return $"错误：{ex.Message}";
+            return ToolErrors.Error(ex);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

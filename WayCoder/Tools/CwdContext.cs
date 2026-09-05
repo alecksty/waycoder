@@ -12,4 +12,14 @@ public static class CwdContext
 {
     /// <summary>当前被跟踪工作目录（cd 命令更新；null 表示未设置，回退进程启动目录）。</summary>
     public static readonly AsyncLocal<string?> Current = new();
+
+    /// <summary>当前生效工作目录根：被跟踪 cwd，未设置则回退进程启动目录。</summary>
+    public static string Root => Current.Value ?? Directory.GetCurrentDirectory();
+
+    /// <summary>
+    /// 按被跟踪工作目录解析路径（cd 后相对路径基于被跟踪工作目录，而非进程启动目录）。
+    /// 消除各工具「Path.GetFullPath(x, CwdContext.Root)」的逐字重复。
+    /// </summary>
+    public static string Resolve(string path)
+        => Path.GetFullPath(path, Root);
 }

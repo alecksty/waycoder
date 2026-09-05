@@ -72,7 +72,7 @@ public class SqliteTool : ITool
         }
         catch (Exception ex)
         {
-            return $"错误：{ex.GetType().Name}: {ex.Message}";
+            return ToolErrors.Error("", ex);
         }
     }
 }

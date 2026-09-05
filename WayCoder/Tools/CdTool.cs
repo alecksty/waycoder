@@ -25,7 +25,7 @@ public class CdTool : ITool
 
         try
         {
-            var current = CwdContext.Current.Value ?? Directory.GetCurrentDirectory();
+            var current = CwdContext.Root;
 
             // 处理 ~ 展开：仅前缀 ~ 或 ~/ 展开为 home，`~user`/路径中段 ~ 保持原样
             if (path.StartsWith('~'))
@@ -41,7 +41,7 @@ public class CdTool : ITool
         }
         catch (Exception ex)
         {
-            return Task.FromResult($"cd 错误：{ex.GetType().Name}: {ex.Message}");
+            return Task.FromResult(ToolErrors.Error("cd ", ex));
         }
 
         static string ExpandHome(string p)

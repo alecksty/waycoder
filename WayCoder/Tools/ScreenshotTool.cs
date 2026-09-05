@@ -136,7 +136,7 @@ public class ScreenshotTool : ITool
             }
             else
             {
-                var fullPath = Path.GetFullPath(savePath, CwdContext.Current.Value ?? Directory.GetCurrentDirectory()); // cd 后相对路径基于被跟踪工作目录
+                var fullPath = CwdContext.Resolve(savePath); // cd 后相对路径基于被跟踪工作目录
                 Global.EnsureDir(fullPath);
                 savePath = fullPath;
             }

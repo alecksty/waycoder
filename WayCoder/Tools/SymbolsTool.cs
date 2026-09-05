@@ -34,7 +34,7 @@ public class SymbolsTool : ITool
         string? root = null;
         var path = arguments.GetValueOrDefault("path")?.ToString();
         if (!string.IsNullOrWhiteSpace(path))
-            root = Path.GetFullPath(path, CwdContext.Current.Value ?? Directory.GetCurrentDirectory());
+            root = CwdContext.Resolve(path);
 
         try
         {
