@@ -10,6 +10,8 @@ namespace WayCoder.UI.Tui.Controls;
 /// 收起时显示当前选中项 + ▼ 箭头，展开时弹出选项列表。
 /// 键盘：Enter/↓ 展开，↑↓ 在列表内导航，Enter 确认，Esc 收起。
 /// </summary>
+/// <remarks>[仅演示/标记句法演示用，发货 UI 未实例化——重构需谨慎勿当死码删]
+/// 只被 TuiMarkup 工厂（&lt;ComboBox&gt; 标签，showcase.tui 演示）与 Test 使用，发货布局/对话框未用。</remarks>
 public class TuiComboBox : TuiControl
 {
     /// <summary>选项列表</summary>

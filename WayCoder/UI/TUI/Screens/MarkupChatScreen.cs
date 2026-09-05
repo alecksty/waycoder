@@ -40,19 +40,16 @@ public class MarkupChatScreen : ChatScreen
             InputBotBorder = _markup.Find<TuiSeparator>("inputBotBorder") ?? throw Missing("inputBotBorder");
             ModelInfoRow = _markup.Find<TuiSmartLabel>("modelInfoRow"); // 可空：动态栏放得下模型信息时整行隐藏
             _shortcutRow = _markup.Find<TuiSmartLabel>("shortcutRow"); // 模式栏下方快捷键行
+            if (_shortcutRow != null)
+                _shortcutRow.Text = ShortcutRowText; // 文案单源：覆盖 chat.tui 静态文本，见基类 ShortcutRowText（防两处漂移）
             SuggestPanel = _markup.Find<TuiVBox>("suggestPanel") ?? throw Missing("suggestPanel");
             SidePanel = _markup.Find<TuiSidePanel>("sidePanel") ?? throw Missing("sidePanel");
 
             RootView = _markup.Screen?.RootView
                        ?? throw new InvalidOperationException("chat.tui 根元素应为 Screen");
 
-            // ── 一次性 code-behind 接线（对应基类 BuildLayout 中代码侧的静态内容）──
-            TuiInputHistory.SetPersistPath(Global.GlobalReadConfigPath("input_history.txt"));
-            InputArea.OnSubmit = text =>
-            {
-                if (!string.IsNullOrWhiteSpace(text))
-                    OnSubmit?.Invoke(text);
-            };
+            // ── 一次性 code-behind 接线（对应基类 BuildLayout 中代码侧的静态内容；SetPersistPath+OnSubmit 单源在基类）──
+            WireStaticInputHooks();
             InputArea.CursorLineBg = 0;
             InputArea.CursorLineFg = TuiTheme.Current.TextAreaFg;
             InputTopBorder.LineColor = TuiTheme.Current.SeparatorFg;

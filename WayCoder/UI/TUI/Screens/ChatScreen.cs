@@ -59,8 +59,15 @@ public partial class ChatScreen : TuiScreen
     /// <summary>模型信息行下方空行（与底部状态栏分隔），可见性跟随 ModelInfoRow。</summary>
     private TuiSpace? _modelInfoSpacer;
 
-    /// <summary>模式栏下方快捷键提示行（只显示 Shift+Tab/Ctrl+P/E/X 切换快捷键），可见性跟随 ModelInfoRow。</summary>
+    /// <summary>模式栏下方快捷键提示行，可见性跟随 ModelInfoRow。</summary>
     protected TuiSmartLabel? _shortcutRow;
+
+    /// <summary>
+    /// 快捷键提示行文案 —— 单处定义：手写 BuildLayout（代码侧）与 chat.tui 标记版 MarkupChatScreen
+    /// （code-behind 覆写）共用同一常量，避免两处静态文本漂移。
+    /// </summary>
+    protected const string ShortcutRowText =
+        "«dim»Shift+Tab 模式 · Ctrl+P 权限 · Ctrl+E 经济 · Ctrl+X 换模型 · Ctrl+Shift+M 切连接 · Enter 发送 · ↑↓ 历史 · Tab 补全 · F1-F10 · Ctrl+H 帮助«/»";
 
     /// <summary>建议下拉面板</summary>
     public TuiVBox SuggestPanel { get; protected set; } = null!;
@@ -659,16 +666,28 @@ public partial class ChatScreen : TuiScreen
     }
 
     /// <summary>
+    /// 一次性静态接线（幂等，可多次调用）：输入历史持久化路径 + 输入区提交回调转发到本屏 OnSubmit。
+    /// 手写 BuildLayout 与标记版 MarkupChatScreen 共用 —— 两处原本各自重复写一遍，易漂移。
+    /// 须在 InputArea 创建/赋值后调用（只依赖 InputArea 与全局配置，不碰控件树结构）。
+    /// </summary>
+    protected void WireStaticInputHooks()
+    {
+        TuiInputHistory.SetPersistPath(Global.GlobalReadConfigPath("input_history.txt"));
+        if (InputArea != null)
+            InputArea.OnSubmit = text =>
+            {
+                if (!string.IsNullOrWhiteSpace(text))
+                    OnSubmit?.Invoke(text);
+            };
+    }
+
+    /// <summary>
     /// 构建聊天屏幕布局
     /// </summary>
     protected virtual void BuildLayout()
     {
         RootView.Clear();
         RootView = new TuiVBox { Width = TW, Height = TH };
-
-        // 输入历史持久化
-        var histPath = Global.GlobalReadConfigPath("input_history.txt");
-        TuiInputHistory.SetPersistPath(histPath);
 
         // ── 标题栏（顶行）──
         TitleBar = new TuiTitleBar
@@ -765,11 +784,7 @@ public partial class ChatScreen : TuiScreen
             ShowLineNumbers = false,
             // 输入上限 32K 字符；MaxColumnWidth（自动折行宽度）由 ApplyDynamicSizes 按终端宽设置
             MaxLength = 32 * 1024,
-            OnSubmit = text =>
-            {
-                if (!string.IsNullOrWhiteSpace(text))
-                    OnSubmit?.Invoke(text);
-            }
+            // OnSubmit 接线统一走 BuildLayout 末尾的 WireStaticInputHooks（与 MarkupChatScreen 单源）
         };
         RootView.Add(InputArea);
 
@@ -802,7 +817,7 @@ public partial class ChatScreen : TuiScreen
             Visible = false,
             Fg = AnsiColors.White,
             TextAlign = EHAlign.Center,
-            Text = "«dim»Shift+Tab 模式 · Ctrl+P 权限 · Ctrl+E 经济 · Ctrl+X 换模型 · Ctrl+Shift+M 切连接 · Enter 发送 · ↑↓ 历史 · F1-F10 · Ctrl+H 帮助«/»",
+            Text = ShortcutRowText, // 文案单源：见 ShortcutRowText（与 chat.tui 标记版共用）
         };
         RootView.Add(_shortcutRow);
 
@@ -819,6 +834,9 @@ public partial class ChatScreen : TuiScreen
             HintText = ""
         };
         RootView.Add(StatusBar);
+
+        // 一次性静态接线（InputArea 已建）：输入历史持久化 + 提交回调转发
+        WireStaticInputHooks();
 
         RootView.Layout();
     }

@@ -384,6 +384,9 @@ public static class TuiMarkup
     {
         if (node.Kind != XKind.Element) return null;
 
+        // 标记句法演示用标签（发货布局/对话框未用，仅 showcase.tui 等演示资源或 Test 实例化）：
+        // Grid/WrapPanel/DataList/TreeView/ComboBox/RadioGroup/SeekBar/Line/Rect/Panel/Spinner/Banner/Scrollbar——
+        // 控件类文档已标 [仅演示/标记句法演示用]，重构时勿当死码整段删除。
         TuiControl? c = node.Name switch
         {
             "VBox" => new TuiVBox(),

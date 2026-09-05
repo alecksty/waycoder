@@ -7,6 +7,8 @@ namespace WayCoder.UI.Tui.Controls;
 /// 加载动画控件 —— 旋转指示器。
 /// 帧字符循环：⣾⣽⣻⢿⡿⣟⣯⣷
 /// 每帧调用 Tick() 推进动画。
+/// [仅演示/标记句法演示用，发货 UI 未实例化——重构需谨慎勿当死码删]
+/// 只被 TuiMarkup 工厂（&lt;Spinner&gt; 标签）与 Test 使用；动态栏 Braille 旋转动画为 TuiDynamicBar 内实现，与本控件无关。
 /// </summary>
 public class TuiSpinner : TuiDisplayControl
 {

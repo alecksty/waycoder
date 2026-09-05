@@ -15,6 +15,8 @@ namespace WayCoder.UI.Tui.Controls;
 ///
 ///   当前激活的内容面板通过 ActiveContent 获取。
 /// </summary>
+/// <remarks>[仅演示/标记句法演示用，发货 UI 未实例化——重构需谨慎勿当死码删]
+/// 无任何发货代码实例化（TuiControl/ControlRenderer 仅注释提及），只被 Test/SelfTest/TuiMouseTest 使用。</remarks>
 public class TuiTabs : TuiControl
 {
     /// <summary>标签定义列表</summary>

@@ -4,7 +4,9 @@ using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
-/// <summary>线控件 —— 画横线或竖线，指定线形（复用 WindowBorder 的横/竖线字符）。纯展示，无交互。</summary>
+/// <summary>线控件 —— 画横线或竖线，指定线形（复用 WindowBorder 的横/竖线字符）。纯展示，无交互。
+/// [仅演示/标记句法演示用，发货 UI 未实例化——重构需谨慎勿当死码删]
+/// 注意：chat.tui SidePanel 里 &lt;Section&gt; 内的 &lt;Line&gt; 由 TuiMarkup 手解析成 PanelSection 文本，不产生本控件。</summary>
 public class TuiLine : TuiBorderedControl
 {
     /// <summary>true=竖线（占 Height 行），false=横线（占 Width 列）。</summary>

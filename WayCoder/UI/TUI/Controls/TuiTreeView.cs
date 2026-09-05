@@ -82,6 +82,8 @@ public class TuiTreeNode
 ///   Home  — 跳到第一个节点
 ///   End   — 跳到最后一个可见节点
 /// </summary>
+/// <remarks>[仅演示/标记句法演示用，发货 UI 未实例化——重构需谨慎勿当死码删]
+/// 只被 TuiMarkup 工厂（&lt;TreeView&gt; 标签，showcase.tui 演示）与 Test 使用；Base 各文件仅注释提及。</remarks>
 public class TuiTreeView : TuiListControl
 {
     /// <summary>根节点列表</summary>

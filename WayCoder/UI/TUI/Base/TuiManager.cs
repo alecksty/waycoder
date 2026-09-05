@@ -159,7 +159,8 @@ public class TuiManager : IDisposable
         Tty.EnterAltScreen();
         Tty.HideCursor();
         // macOS 自带终端不支持 ?1003h/?1015h，用基础鼠标（点击+SGR）避免显示/输入异常
-        if (MouseEnabled) { if (Tty.IsAppleTerminal) Tty.EnableMouseBasic(); else Tty.EnableMouse(); }
+        // 平台判定单点在 Tty.SupportsButtonDrag → EnableMouseForTerminal 内完成
+        if (MouseEnabled) Tty.EnableMouseForTerminal();
         (TW, TH) = (Tty.Cols, Tty.Rows);
         IsActive = true;
         // 进入备用屏后强制全刷新：否则 Render 读到上次残留的 _needsFullRefresh=false 走「无脏」路径

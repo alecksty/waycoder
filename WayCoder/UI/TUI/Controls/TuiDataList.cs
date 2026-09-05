@@ -8,6 +8,8 @@ namespace WayCoder.UI.Tui.Controls;
 /// 数据列表 —— 用 .tui 单元格模板渲染每行（自定义单元格）。
 /// 每项数据是 key-value，单元格模板用 {key} 占位符引用（如 text="{name}"）。
 /// </summary>
+/// <remarks>[仅演示/标记句法演示用，发货 UI 未实例化——重构需谨慎勿当死码删]
+/// 只被 TuiMarkup 工厂（&lt;DataList&gt; 标签）实例化；该标签仅 showcase.tui（Test/TuiMarkupDemo）使用，发货布局未用。</remarks>
 public class TuiDataList : TuiDisplayControl
 {
     /// <summary>数据项（key-value，供单元格模板 {key} 占位符）。</summary>

@@ -6,6 +6,8 @@ namespace WayCoder.UI.Tui.Controls;
 /// 流式布局面板 —— 子控件从左到右排列，超出宽度自动换行。
 /// 类似 CSS flex-wrap: wrap。
 /// </summary>
+/// <remarks>[仅演示/标记句法演示用，发货 UI 未实例化——重构需谨慎勿当死码删]
+/// 只被 TuiMarkup 工厂（&lt;WrapPanel&gt; 标签）与 Test/SelfTest 实例化，发货布局未使用。</remarks>
 public class TuiWrapPanel : TuiView
 {
     /// <summary>水平方向（默认）。Vertical 为从上到下、超出高度自动换列。</summary>

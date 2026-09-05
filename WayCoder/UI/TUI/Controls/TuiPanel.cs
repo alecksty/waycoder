@@ -11,6 +11,8 @@ namespace WayCoder.UI.Tui.Controls;
 /// 与 TuiWindow 不同，Panel 是控件（TuiView 子类），可放入控件树任意位置。
 /// 子控件渲染在边框内部（含标题栏）。
 /// </summary>
+/// <remarks>[仅演示/标记句法演示用，发货 UI 未实例化——重构需谨慎勿当死码删]
+/// 只被 TuiMarkup 工厂（&lt;Panel&gt; 标签）与 Test/TuiDemo 实例化，发货布局未使用。</remarks>
 public class TuiPanel : TuiView
 {
     /// <summary>面板标题（空=无标题栏）</summary>

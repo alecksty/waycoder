@@ -9,6 +9,8 @@ namespace WayCoder.UI.Tui.Controls;
 /// 每个选项渲染为 ◉/○ 符号 + 标签文本。
 /// 键盘：↑↓ 切换选择，Enter/Space 确认。
 /// </summary>
+/// <remarks>[仅演示/标记句法演示用，发货 UI 未实例化——重构需谨慎勿当死码删]
+/// 只被 TuiMarkup 工厂（&lt;RadioGroup&gt; 标签，showcase.tui 演示）与 Test 使用，发货布局/对话框未用。</remarks>
 public class TuiRadioGroup : TuiControl
 {
     /// <summary>选项列表</summary>
