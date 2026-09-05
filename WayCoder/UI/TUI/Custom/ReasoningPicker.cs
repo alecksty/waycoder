@@ -82,9 +82,7 @@ public static class ReasoningPicker
         // 控件接线（结构在标记里，精确样式/数据/事件在此）
         var search = res.Find<TuiInput>("search")!;
         var list = res.Find<TuiList>("list")!;
-        search.Fg = AnsiColors.White;
-        search.Bg = AnsiColors.BgBlack;
-        list.Fg = AnsiColors.Black;
+        list.Fg = AnsiColors.Black; // search 样式由 SearchableListPicker.WireSearchInput 统一设置
 
         // 当前过滤后的级别列表（搜索输入实时更新；基集已被模型允许集过滤）
         var filtered = FilterLevels("", baseLevels);
@@ -93,11 +91,7 @@ public static class ReasoningPicker
 
         // ── 动作 ──
 
-        void Finish(Result? r)
-        {
-            onDone(r);
-            win.OnClosed?.Invoke(); // 关闭模态窗口
-        }
+        void Finish(Result? r) => UxHelper.FinishModal(win, onDone, r); // 关闭模态窗口
         void Confirm()
         {
             int idx = list.SelectedIndex;
@@ -128,26 +122,8 @@ public static class ReasoningPicker
             list.MarkDirty();
             screen?.MarkDirty();
         };
-        search.KeyHook = key =>
-        {
-            switch (key.Key)
-            {
-                case ConsoleKey.UpArrow:
-                case ConsoleKey.DownArrow:
-                case ConsoleKey.Home:
-                case ConsoleKey.End:
-                case ConsoleKey.PageUp:
-                case ConsoleKey.PageDown:
-                    list.OnKey(key);
-                    list.MarkDirty();
-                    screen?.MarkDirty();
-                    return true;
-                case ConsoleKey.Enter:
-                    Confirm();
-                    return true;
-            }
-            return false; // 其余（字母/退格）交给输入框处理
-        };
+        // 搜索框聚焦：导航键转发列表、Enter 确认、其余字符留在搜索框过滤（宿主收敛样板）
+        SearchableListPicker.WireSearchInput(search, list, screen, Confirm);
         list.OnSelect = _ => Confirm(); // Tab 聚焦列表后 Enter 亦可确认
 
         win.RegisterShortcut(ConsoleKey.Escape, Cancel);
