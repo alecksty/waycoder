@@ -50,14 +50,7 @@ public class MultiEditTool : ITool
         var path = CwdContext.Resolve(filePath); // cd 后相对路径基于被跟踪工作目录
 
         // 敏感路径防护（与 write/edit 对齐，此前缺失）
-        var sensitive = PathSafety.CheckSensitive(path);
-        if (sensitive != null)
-            return $"❌ 已阻止：{sensitive}（安全策略：敏感文件读写受保护）";
-
-        // 沙箱边界：项目写限（独立于权限模式）
-        var sandbox = SandboxManager.CheckWritable(path);
-        if (sandbox != null)
-            return sandbox;
+        if (PathSafety.Guard(path) is { } guardErr) return guardErr;
 
         // 验证编辑列表
         var validationError = ValidateEdits(edits);
