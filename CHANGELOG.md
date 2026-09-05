@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.96.57 (2026-09-05) — TUI 提示框残留修复 + 全库重复代码提炼收尾
+
+修复「拉取 v0.96.56 后首次自测」暴露的两个 TUI 缺陷，并完成一批安全、行为保持的重复代码提炼（统一度收尾）。自测 4928 全过，主项目编译 0 警告 0 错误。
+
+- **修复：拉取 v0.96.56 后编译失败**——重构提交 63e4644 引用了从未入库的 `SearchableListPicker.WireSearchInput`（作者强推时漏掉新增文件），导致远程 HEAD 编译不过。按重构前 FilePicker 的内联接线补回宿主类：搜索框样式统一 + 导航键转发列表 + Enter 确认 + onExtraKey 优先裁决
+- **修复：TUI 提示框开合吞聊天内容**——侧栏可见时输入 `/` 命令，提示框消失后聊天区/侧栏残留（实测更严重：聊天消息被擦成永久空白）。根因：`ShowPromptBar`/`HidePromptBar` 只标脏 ChatList 容器（`MarkDirty`），而 `TuiListView.OnRender` 在容器脏时先整视口擦成空白，子项因 `parentDirty=false` 不重画 → 消息消失。改 `MarkTreeDirty` 标脏整棵子树（与侧栏无关，无侧栏同样复现）
+- **全库重复代码提炼**（7 类收敛到单一真源，行为保持/修复）：
+  - `CwdContext.Resolve/Root`：cwd 相对路径解析 28+11 处收敛
+  - `ToolErrors.Error(op, ex)`：工具错误文案 22+5 处收敛
+  - `GitBin.ReadInt32/ReadInt64BE`：Git 大端读取收敛
+  - `AnsiHelper.PadRightByWidth`：就地补白收敛
+  - `AnsiHelper.CharVisualWidth`：Tab/单字符宽 3 处收敛
+  - `AnsiHelper.TruncateByWidth`：3 份手写截断委托归一（修省略号宽 off-by-one：2→1）
+  - `AnsiString.Strip`：StripAnsi 3 份实现收敛（TuiTable 修漏剥 OSC）
+  - `TuiScrollMath.Clamp`：滚动钳制 5 处收敛
+
 ## v0.96.56 (2026-09-05) — TUI 优化专项四批（清理 / 性能 / 结构 / 去重）
 
 - **快速清理**：删 `ChatScreen.Input` 15 个零引用转发方法（内联到唯一调用点，−105 行）；shell 命令清单单源 `ShellCommandHints`（默认栏保持原 4 常用）；`ChatScreen.Dialogs/Input` 5 处模态样板走新增 `RunModalDialogOnScreen`（UI 线程直执 / 后台 `PostToUI`）；注释错位修复
