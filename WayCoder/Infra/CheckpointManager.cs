@@ -497,7 +497,7 @@ public static class CheckpointManager
             }
         };
         proc.Start();
-        try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF
+        ProcUtil.CloseStdin(proc);
         // 同时排空 stdout 与 stderr：命令输出大量 stderr（如 git 报错）时，
         // 若只读 stdout，stderr 管道缓冲区写满会阻塞子进程 → 死锁。
         var stdoutTask = proc.StandardOutput.ReadToEndAsync();
@@ -507,7 +507,7 @@ public static class CheckpointManager
         try { await proc.WaitForExitAsync(timeoutCts.Token); }
         catch (OperationCanceledException)
         {
-            try { proc.Kill(entireProcessTree: true); } catch { }
+            ProcUtil.KillTree(proc);
             return "[checkpoint 命令超时（15s）]";
         }
         // 守护子进程继承管道会让读取永不 EOF：加超时兜底

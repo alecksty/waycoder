@@ -86,7 +86,7 @@ public sealed class PersistentShell : IDisposable
 
         if (_proc != null)
         {
-            try { if (!_proc.HasExited) _proc.Kill(entireProcessTree: true); } catch { }
+            try { if (!_proc.HasExited) ProcUtil.KillTree(_proc); } catch { }
             try { _proc.Dispose(); } catch { }
             _proc = null;
         }
@@ -165,7 +165,7 @@ public sealed class PersistentShell : IDisposable
     /// <summary>终止会话进程（下次 RunAsync 自动重建）。</summary>
     private void KillSession()
     {
-        try { if (_proc != null && !_proc.HasExited) _proc.Kill(entireProcessTree: true); } catch { }
+        try { if (_proc != null && !_proc.HasExited) ProcUtil.KillTree(_proc); } catch { }
         try { _proc?.Dispose(); } catch { }
         _proc = null;
     }

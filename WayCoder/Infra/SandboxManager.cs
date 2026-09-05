@@ -376,7 +376,7 @@ public static class SandboxManager
                     var cpuSeconds = proc.TotalProcessorTime.TotalSeconds;
                     if (cpuSeconds > MaxCpuTimeSeconds)
                     {
-                        proc.Kill(entireProcessTree: true);
+                        ProcUtil.KillTree(proc);
                         return $"⛔ 沙箱终止：CPU 时间超限（{cpuSeconds:F1}秒 > {MaxCpuTimeSeconds}秒）";
                     }
                 }
@@ -412,7 +412,7 @@ public static class SandboxManager
                     if (proc.WorkingSet64 > MaxMemoryBytes)
                     {
                         var usedMb = proc.WorkingSet64 / (1024 * 1024);
-                        proc.Kill(entireProcessTree: true);
+                        ProcUtil.KillTree(proc);
                         return $"⛔ 沙箱终止：内存超限（{usedMb}MB > {MaxMemoryBytes / 1024 / 1024}MB）";
                     }
                 }

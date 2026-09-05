@@ -198,7 +198,7 @@ public class BashTool : ITool, ICancellableTool
 
             var proc = Process.Start(psi)!;
             // 立即关闭 stdin 管道：子进程读到 EOF（而非挂起/共享控制台）。非交互命令不受影响。
-            try { proc.StandardInput.Close(); } catch { /* 进程已退出 */ }
+            ProcUtil.CloseStdin(proc);
 
             // 中断令牌 → 立即杀掉子进程（Web 停止按钮 / Ctrl+C 真正终止 bash）
             using var cancelReg = cancellationToken.Register(() => KillQuietly(proc));
@@ -242,7 +242,7 @@ public class BashTool : ITool, ICancellableTool
                 var sandboxViolation = await CheckSandboxMonitorsAsync(memTask, cpuTask);
                 if (sandboxViolation != null)
                 {
-                    if (!exited) proc.Kill(entireProcessTree: true);
+                    if (!exited) ProcUtil.KillTree(proc);
                     return sandboxViolation;
                 }
 
@@ -251,7 +251,7 @@ public class BashTool : ITool, ICancellableTool
                     // 沙箱模式：直接终止以强制资源限制（迁移会绕过内存/CPU 上限）
                     if (SandboxManager.IsSandboxed)
                     {
-                        proc.Kill(entireProcessTree: true);
+                        ProcUtil.KillTree(proc);
                         return $"错误：在 {timeout} 秒后超时";
                     }
 
@@ -318,7 +318,7 @@ public class BashTool : ITool, ICancellableTool
     /// <summary>安全杀掉进程（进程可能已退出，忽略异常）。</summary>
     private static void KillQuietly(Process proc)
     {
-        try { if (!proc.HasExited) proc.Kill(entireProcessTree: true); }
+        try { if (!proc.HasExited) ProcUtil.KillTree(proc); }
         catch { /* 进程已退出或无法访问 */ }
     }
 

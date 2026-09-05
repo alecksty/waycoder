@@ -46,14 +46,14 @@ public static class GitRunner
         try
         {
             using var proc = Process.Start(BuildStartInfo(args, cwd))!;
-            try { proc.StandardInput.Close(); } catch { /* 进程已退出 */ } // stdin 置 EOF，不共享控制台
+            ProcUtil.CloseStdin(proc);
             // 并发读取 stdout/stderr，避免经典死锁：stderr 缓冲写满时进程阻塞，
             // 而同步先读 stdout 永远等不到 EOF。
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();
             if (!proc.WaitForExit(DefaultTimeoutMs))
             {
-                try { proc.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
+                ProcUtil.KillTree(proc);
                 return (-1, "", $"git 命令超时（>{DefaultTimeoutMs / 1000}s）: {args}");
             }
             // 与 RunCoreAsync 对齐：读取加超时，防止 git 守护子进程继承管道致 ReadToEndAsync 永不 EOF 而永久阻塞
@@ -90,7 +90,7 @@ public static class GitRunner
         try
         {
             using var proc = Process.Start(psi)!;
-            try { proc.StandardInput.Close(); } catch { /* 进程已退出 */ } // stdin 置 EOF，不共享控制台
+            ProcUtil.CloseStdin(proc);
             // 并发读取 stdout/stderr，避免同步先读 stdout 的死锁。
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();
@@ -106,12 +106,12 @@ public static class GitRunner
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && timeoutCts != null)
             {
                 // 配置超时（非外部取消）：杀掉进程并返回超时错误
-                try { proc.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
+                ProcUtil.KillTree(proc);
                 return (-1, "", $"git 命令超时（>{timeoutMs / 1000}s）: {argsDesc}");
             }
             catch (OperationCanceledException)
             {
-                try { proc.Kill(entireProcessTree: true); } catch { /* 已退出 */ }
+                ProcUtil.KillTree(proc);
                 throw;
             }
             // 守护子进程继承管道会让 ReadToEndAsync 永不 EOF：读取加超时，超时按空输出降级

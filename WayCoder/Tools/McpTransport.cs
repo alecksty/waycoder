@@ -126,7 +126,7 @@ internal class StdioMcpTransport : McpTransport
 
     public override Task DisconnectAsync()
     {
-        _process?.Kill(entireProcessTree: true);
+        if (_process != null) ProcUtil.KillTree(_process);
         _process?.Dispose();
         _process = null;
         return Task.CompletedTask;

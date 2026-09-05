@@ -637,7 +637,7 @@ public static class SystemPrompt
             };
             using var testProcess = Process.Start(psi);
             if (testProcess == null) return "";
-            try { testProcess.StandardInput.Close(); } catch { }
+            ProcUtil.CloseStdin(testProcess);
             testProcess.WaitForExit(5000);
             if (testProcess.ExitCode != 0) return "";
 
@@ -702,14 +702,14 @@ public static class SystemPrompt
             };
             using var process = Process.Start(psi);
             if (process == null) return "";
-            try { process.StandardInput.Close(); } catch { }
+            ProcUtil.CloseStdin(process);
             // 先并发读 stdout/stderr 再等退出：stderr 写满 4KB 管道缓冲时进程阻塞，
             // 先同步 ReadToEnd() stdout 会永久卡死（stderr 无人读，进程无法继续写 stdout）
             var stdoutTask = process.StandardOutput.ReadToEndAsync();
             _ = process.StandardError.ReadToEndAsync();
             if (!process.WaitForExit(5000))
             {
-                try { process.Kill(entireProcessTree: true); } catch { }
+                ProcUtil.KillTree(process);
                 return "";
             }
             return stdoutTask.GetAwaiter().GetResult().Trim();

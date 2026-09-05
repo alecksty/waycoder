@@ -694,13 +694,13 @@ public static class TuiChatInput
             var readTask = p.StandardOutput.ReadToEndAsync();
             if (!p.WaitForExit(2000))
             {
-                try { p.Kill(entireProcessTree: true); } catch { }
+                ProcUtil.KillTree(p);
                 return null;
             }
             var finished = Task.WaitAny(readTask, Task.Delay(2000));
             if (finished != 0)
             {
-                try { p.Kill(entireProcessTree: true); } catch { }
+                ProcUtil.KillTree(p);
                 return null;
             }
             return readTask.Result.TrimEnd();

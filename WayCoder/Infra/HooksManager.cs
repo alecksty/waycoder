@@ -604,7 +604,7 @@ public static class HooksManager
                 proc.StartInfo.Environment[key] = value;
 
             proc.Start();
-            try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF
+            ProcUtil.CloseStdin(proc);
 
             var stdoutTask = proc.StandardOutput.ReadToEndAsync();
             var stderrTask = proc.StandardError.ReadToEndAsync();
@@ -615,7 +615,7 @@ public static class HooksManager
             var completed = await Task.WhenAny(exitTask, delayTask);
             if (completed != exitTask || !exitTask.IsCompletedSuccessfully)
             {
-                try { proc.Kill(entireProcessTree: true); } catch { }
+                ProcUtil.KillTree(proc);
                 return (-1, $"Hook 超时（{actualTimeout / 1000} 秒）");
             }
 

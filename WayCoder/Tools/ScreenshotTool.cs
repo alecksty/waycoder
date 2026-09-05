@@ -320,7 +320,7 @@ public class ScreenshotTool : ITool
         foreach (var a in arguments) psi.ArgumentList.Add(a);
         using var proc = Process.Start(psi);
         if (proc == null) return (-1, "");
-        try { proc.StandardInput.Close(); } catch { } // stdin 置 EOF
+        ProcUtil.CloseStdin(proc);
         var stdout = proc.StandardOutput.ReadToEnd();
         var stderr = proc.StandardError.ReadToEnd();
         proc.WaitForExit();
