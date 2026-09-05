@@ -14,15 +14,9 @@ public class DiffTool : ITool
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("file1", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "第一个文件路径"))
-            .Set("file2", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "第二个文件路径"))
-            .Set("context", JNode.Object()
-                .Set("type", "integer")
-                .Set("description", "差异周围显示的上下文行数（默认 3）")))
+            .Set("file1", JNode.Param("string", "第一个文件路径"))
+            .Set("file2", JNode.Param("string", "第二个文件路径"))
+            .Set("context", JNode.Param("integer", "差异周围显示的上下文行数（默认 3）")))
         .Set("required", JNode.Array().Add("file1").Add("file2"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

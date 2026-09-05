@@ -13,15 +13,9 @@ public class CpTool : ITool
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("src", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "源文件路径"))
-            .Set("dest", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "目标路径（文件或目录）"))
-            .Set("overwrite", JNode.Object()
-                .Set("type", "boolean")
-                .Set("description", "是否覆盖已存在的目标文件（默认 false）")))
+            .Set("src", JNode.Param("string", "源文件路径"))
+            .Set("dest", JNode.Param("string", "目标路径（文件或目录）"))
+            .Set("overwrite", JNode.Param("boolean", "是否覆盖已存在的目标文件（默认 false）")))
         .Set("required", JNode.Array().Add("src").Add("dest"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

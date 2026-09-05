@@ -18,12 +18,8 @@ public class KbTool : ITool
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("action", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "操作: search 检索条目 | diagnose 诊断报错"))
-            .Set("query", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "搜索关键词或错误文本（支持中文），如: 终端尺寸 0、AOT 反射、git force push")))
+            .Set("action", JNode.Param("string", "操作: search 检索条目 | diagnose 诊断报错"))
+            .Set("query", JNode.Param("string", "搜索关键词或错误文本（支持中文），如: 终端尺寸 0、AOT 反射、git force push")))
         .Set("required", JNode.Array().Add("query"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

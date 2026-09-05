@@ -119,6 +119,11 @@ public sealed class JNode
     public JNode Set(string key, int value) => Set(key, Num(value));
     public JNode Set(string key, bool value) => Set(key, Bool(value));
 
+    /// <summary>构建工具参数定义：{ type, description }。收敛各工具 Parameters 里重复的
+    /// <c>JNode.Object().Set("type",…).Set("description",…)</c> 样板。</summary>
+    public static JNode Param(string type, string description)
+        => Object().Set("type", type).Set("description", description);
+
     public bool Has(string key) => Kind == JKind.Object && _obj!.ContainsKey(key);
     public IEnumerable<string> Keys => Kind == JKind.Object ? _order!.Select(p => p.Key) : [];
     public IEnumerable<(string Key, JNode Value)> Entries => Kind == JKind.Object ? _order! : [];

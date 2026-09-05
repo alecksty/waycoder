@@ -13,9 +13,7 @@ public class MkdirTool : ITool
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("path", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "要创建的目录路径（相对或绝对）")))
+            .Set("path", JNode.Param("string", "要创建的目录路径（相对或绝对）")))
         .Set("required", JNode.Array().Add("path"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
