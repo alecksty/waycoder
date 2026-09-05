@@ -104,22 +104,9 @@ public class EditFileTool : ITool
             if (preEditWarning != null)
                 return preEditWarning;
 
-            // 检测非 UTF-8 文件
-            byte[] raw;
-            try { raw = File.ReadAllBytes(path); }
-            catch { return $"错误：无法读取 {filePath}"; }
-
-            try { _ = new UTF8Encoding(false, true).GetString(raw); }
-            catch { return $"错误：{filePath} 不是 UTF-8 文本文件（edit_file 只能编辑文本文件）"; }
-
-            var content = File.ReadAllText(path, Encoding.UTF8);
-            // 检测原始行尾格式（CRLF 保留，对标 crush）
-            var hasCrlf = raw.AsSpan().IndexOf("\r\n"u8) >= 0;
-
-            // CRLF 归一化为 LF 后再匹配：模型的多行 old_string 通常以 \n 结尾，
-            // 直接对含 \r\n 的内容匹配会永远失败（写入时再按 hasCrlf 恢复）。
-            if (hasCrlf)
-                content = content.Replace("\r\n", "\n");
+            // 读取 + UTF-8 校验 + CRLF 归一化（与 MultiEditTool 同源）
+            if (FileText.ReadUtf8File(path, out var content, out var hasCrlf) is { } err)
+                return err;
 
             var occurrences = CountOccurrences(content, oldString);
 
