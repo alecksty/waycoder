@@ -135,6 +135,54 @@ public static partial class SelfTest
         // Activate 末尾 ApplyDynamicSizes 后 ChatList.Width 应=屏幕宽（默认无侧栏），否则欢迎横幅按错误宽度居中
         Check("Activate 后 ChatList.Width 就绪=TW", chatListW > 0 && chatListW == mScreen.TW);
 
+        // ── 回归：提示栏开合不吞聊天消息（MarkDirty→MarkTreeDirty 修复）──
+        // 提示栏出现/消失会改 chatH → ChatList 渲染时先整视口擦成空白；若只标脏容器（MarkDirty）不标脏子项，
+        // 消息子项因 parentDirty=false 不重画 → 收起提示栏后聊天内容永久空白（MarkTreeDirty 修复）。累积增量帧到网格断言消息仍在。
+        Section("[提示栏开合保留消息]");
+        {
+            var savedSz = Tty.SizeOverride;
+            Tty.SizeOverride = (100, 30);
+            var mgrR = TuiManager.Instance;
+            bool enteredR = false;
+            bool msgPresent = false;
+            var msgText = "提示栏开合回归标记XYZ";
+            try
+            {
+                var prevOut = Console.Out;
+                Console.SetOut(TextWriter.Null); // 抑制 Enter/Render 屏幕输出（LastCleanFrame 仍填充）
+                try
+                {
+                    if (!mgrR.IsActive) { mgrR.Enter(); enteredR = true; }
+                    var chatR = new MarkupChatScreen();
+                    mgrR.PushScreen(chatR);
+                    chatR.AddMessage(msgText, "user");
+                    mgrR.Render();
+                    var fb = new Keypad.FrameBuffer(Tty.Rows, Tty.Cols);
+                    fb.Apply(mgrR.LastCleanFrame);
+                    // 弹出提示栏（模拟输入 / 前缀）→ 收起，消息不应被擦成空白
+                    chatR.ShowPromptBar(new List<PromptItem> { new() { Label = "测试项", Value = "x" } });
+                    mgrR.Render();
+                    fb.Apply(mgrR.LastCleanFrame);
+                    chatR.HidePromptBar();
+                    mgrR.Render();
+                    fb.Apply(mgrR.LastCleanFrame);
+                    msgPresent = fb.Dump().Any(l => l.Contains(msgText));
+                }
+                finally { Console.SetOut(prevOut); }
+            }
+            catch (Exception ex)
+            {
+                Check($"提示栏开合渲染异常: {ex.Message}", false);
+            }
+            finally
+            {
+                if (enteredR) { try { mgrR.Exit(); } catch { } }
+                Tty.SizeOverride = savedSz;
+            }
+            Check("提示栏开合后聊天消息保留", msgPresent);
+        }
+        Console.WriteLine();
+
         // ── 模型信息行（输入区下方，Render 每帧同步；动态栏不放模型）──
         // 静音窗口内只取数据（渲染帧不污染输出），断言挪到恢复后统一做，避免 Check 输出被抑制
         {
