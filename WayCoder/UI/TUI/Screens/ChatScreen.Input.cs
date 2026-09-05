@@ -615,8 +615,8 @@ public partial class ChatScreen : TuiScreen
     }
 
     /// <summary>
-    /// 全局快捷键（轴向层，一键一义）：Ctrl+B/R/Y/M/S/G/H/T/O/L/D、Ctrl+Shift+P、Ctrl+Shift+F1/F2、
-    /// Alt+P、F5、F1-F10、Ctrl+Home/End/Up/Down。
+    /// 全局快捷键（轴向层，一键一义）：Ctrl+B/R/Y/M/S/G/H/T/L/D、Ctrl+Shift+P、Ctrl+Shift+F1/F2、
+    /// F1-F10、Ctrl+Home/End/Up/Down。
     /// 注意 Ctrl+P/E/Q/X（权限/经济/紧急退出/换大小模型）由 REPL 主循环截走（Program.Repl:416/474/484/502），
     /// 此处不重复绑定——避免「同一键两种含义」。
     /// </summary>
@@ -638,7 +638,6 @@ public partial class ChatScreen : TuiScreen
                 // Ctrl+E 已统一为「经济模式循环」（轴向层）——REPL 主循环 Program.Repl:484 在无弹窗时先截走；
                 // 编辑器经 /edit（Plan 模式只读走 --readonly）。此处不再绑定 Ctrl+E。
                 case ConsoleKey.T:
-                case ConsoleKey.O:
                     Manager?.PushScreen(new SettingsScreen());
                     return true;
                 case ConsoleKey.B:
@@ -703,21 +702,6 @@ public partial class ChatScreen : TuiScreen
                     CycleThemeDirect();
                     return true;
             }
-        }
-
-        // ── Alt+P 模型选择（对齐 Claude Code meta+p）──
-        if (key.Modifiers.HasFlag(ConsoleModifiers.Alt) && key.Key == ConsoleKey.P)
-        {
-            OnCycleModel?.Invoke();
-            return true;
-        }
-
-        // ── F5 刷新/重绘 ──
-        if (key.Key == ConsoleKey.F5)
-        {
-            MarkDirty();
-            Manager?.Render();
-            return true;
         }
 
         // ── F1-F10 槽位切换 ──
