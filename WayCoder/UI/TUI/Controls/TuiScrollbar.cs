@@ -179,7 +179,7 @@ public class TuiScrollbar : TuiDisplayControl
     }
 
     private int ClampOffset() =>
-        Math.Clamp(ScrollOffset, 0, Math.Max(0, ContentHeight - ViewportHeight));
+        TuiScrollMath.Clamp(ScrollOffset, ContentHeight, ViewportHeight);
 
     // ── 键盘滚动 ──
 

@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.Tui;
 using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.TUI.Custom;
@@ -65,7 +66,7 @@ public static class TuiChatInput
 
                 if (scrCy < scrScroll) scrScroll = scrCy;
                 if (scrCy >= scrScroll + vh) scrScroll = scrCy - vh + 1;
-                scrScroll = Math.Clamp(scrScroll, 0, Math.Max(0, totalScr - vh));
+                scrScroll = TuiScrollMath.Clamp(scrScroll, totalScr, vh);
 
                 RenderAll(lines, cy, cx, scrScroll, tw, contentW, vh, scrLines, suggestH);
 

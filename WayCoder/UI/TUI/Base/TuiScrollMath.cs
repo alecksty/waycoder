@@ -35,4 +35,8 @@ public static class TuiScrollMath
     /// <summary>滚轮滚动 N 行后的新 offset（delta=±N，正下负上），clamp 到有效区间。</summary>
     public static int Wheel(int offset, int count, int viewport, int delta)
         => Math.Clamp(offset + delta, 0, Math.Max(0, count - viewport));
+
+    /// <summary>把滚动值钳制到 [0, count-viewport] 有效区间（纯值钳制，供各控件就地 clamp 复用）。
+    public static int Clamp(int value, int count, int viewport)
+        => Math.Clamp(value, 0, Math.Max(0, count - viewport));
 }

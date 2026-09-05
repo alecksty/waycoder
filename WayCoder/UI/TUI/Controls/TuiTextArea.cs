@@ -930,7 +930,7 @@ public class TuiTextArea : TuiEditBase
     {
         if (CursorRow < ScrollRow) ScrollRow = CursorRow;
         if (CursorRow >= ScrollRow + visRows) ScrollRow = CursorRow - visRows + 1;
-        ScrollRow = Math.Clamp(ScrollRow, 0, Math.Max(0, Lines.Count - visRows));
+        ScrollRow = TuiScrollMath.Clamp(ScrollRow, Lines.Count, visRows);
     }
 
     // ── 工具 ──

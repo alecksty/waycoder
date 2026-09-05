@@ -368,7 +368,7 @@ public class TuiRichEditor : TuiEditBase
         int vh = VisibleLines;
         if (Core.Cy < Core.Scroll) Core.Scroll = Core.Cy;
         if (Core.Cy >= Core.Scroll + vh) Core.Scroll = Core.Cy - vh + 1;
-        Core.Scroll = Math.Clamp(Core.Scroll, 0, Math.Max(0, Core.Lines.Count - vh));
+        Core.Scroll = TuiScrollMath.Clamp(Core.Scroll, Core.Lines.Count, vh);
     }
 
     /// <summary>
@@ -387,7 +387,7 @@ public class TuiRichEditor : TuiEditBase
         // 确保光标在视口内
         if (Core.Cy < Core.Scroll) Core.Scroll = Core.Cy;
         if (Core.Cy >= Core.Scroll + vh) Core.Scroll = Core.Cy - vh + 1;
-        Core.Scroll = Math.Clamp(Core.Scroll, 0, Math.Max(0, Core.Lines.Count - vh));
+        Core.Scroll = TuiScrollMath.Clamp(Core.Scroll, Core.Lines.Count, vh);
 
         int screenRow = absY + (Core.Cy - Core.Scroll);
 
