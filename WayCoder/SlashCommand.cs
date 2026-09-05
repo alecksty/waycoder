@@ -117,6 +117,7 @@ public static class SlashCommandRegistry
         Register(new Commands.ExitCommand());
         Register(new Commands.ResumeCommand());
         Register(new Commands.HelpCommand());
+        Register(new Commands.MenuCommand());
         Register(new Commands.ResetCommand());
         Register(new Commands.ModelCommand());
         Register(new Commands.FreeCommand());

@@ -265,6 +265,7 @@ WayCoder/
 /export          导出对话历史
 /history         搜索对话历史
 /settings        图形化设置界面
+/menu            功能菜单（模型/设置/会话/Diff 等界面直达 + 常用命令，等价 Ctrl+Shift+P）
 /theme           切换主题
 quit / exit      退出（正常 Ctrl+C 保存退出 / 紧急 Ctrl+Q）
 ```
