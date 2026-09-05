@@ -9,7 +9,7 @@ namespace WayCoder.UI.Tui.Controls;
 
 /// <summary>
 /// 快捷键速查面板 —— 居中带边框帮助窗口。
-/// 按 Ctrl+H 或 F1 打开，Esc / Q 关闭，↑↓ 滚动浏览。
+/// 按 Ctrl+H 打开，Esc / Q 关闭，↑↓ 滚动浏览。（F1 是槽位键，不是帮助。）
 ///
 /// 实现：TuiWindow（模态）+ TuiVBox + TuiListView（分类头 + 键位行，聚焦滚动）
 ///       + TuiLabel（底部提示），走 UxHelper.RenderWait 阻塞 → 事件桥接，
@@ -26,7 +26,7 @@ public static class TuiKeybindHelp
             ("Esc", "中断当前 Agent（运行中）"),
             ("Ctrl+Z", "优雅暂停（本批次后停）"),
             ("Ctrl+C", "退出（先保存会话）"),
-            ("Ctrl+Q", "强制退出（立即，无确认）"),
+            ("Ctrl+Q", "紧急退出（强制保存，立即）"),
             ("Ctrl+S", "打开会话列表"),
             ("Ctrl+L", "全屏强制重绘"),
             ("F5", "刷新/重绘界面"),
@@ -43,21 +43,22 @@ public static class TuiKeybindHelp
         ]),
         ("🔄 模式", [
             ("Shift+Tab / Ctrl+K", "切模式 Build→Plan→Chat"),
+            ("Ctrl+P", "权限模式循环（Ask/Auto/SmartAuto/Yolo）"),
+            ("Ctrl+E", "经济模式循环（关→自动→省→极致）"),
             ("Ctrl+M / /model", "打开模型选择对话框"),
+            ("Alt+P", "打开模型选择对话框（同 Ctrl+M）"),
             ("Ctrl+Shift+M", "快速切换 connect（下一个）"),
-            ("Alt+P", "模型选择（对齐 Claude Code meta+p）"),
             ("Ctrl+Shift+P", "命令面板（对齐 Claude Code/OpenCode）"),
             ("Ctrl+G", "切换推理深度"),
-            ("Ctrl+P", "输入建议条（非命令面板）"),
         ]),
         ("🧭 导航", [
             ("↑↓", "聊天滚动（输入区为空时）"),
             ("Ctrl+↑ / ↓", "聊天滚动 3 行"),
             ("PgUp / PgDn", "聊天列表翻页"),
             ("Ctrl+Home / End", "聊天跳到顶 / 底部"),
-            ("Ctrl+E", "打开编辑器"),
             ("Ctrl+T / O", "打开设置"),
             ("Ctrl+B", "切换侧栏"),
+            ("Ctrl+X", "交换大小模型"),
         ]),
         ("🖱 鼠标", [
             ("左键点击", "选中/确认"),
@@ -67,24 +68,27 @@ public static class TuiKeybindHelp
         ]),
         ("🛠 工具", [
             ("Ctrl+D", "Diff 预览修改文件"),
-            ("Ctrl+R", "搜索对话历史"),
+            ("Ctrl+R", "生成同步二维码（扫码跨设备）"),
+            ("Ctrl+Y", "搜索对话历史"),
             ("Ctrl+H", "打开本帮助面板"),
+            ("Ctrl+Shift+F1", "主题选择对话框"),
+            ("Ctrl+Shift+F2", "轮转主题（下一个）"),
         ]),
     ];
 
     /// <summary>
-    /// 启动简版只显示这些键 —— 常用高频键，一眼记住；完整表在帮助面板（Ctrl+H / F1）。
+    /// 启动简版只显示这些键 —— 常用高频键，一眼记住；完整表在帮助面板（Ctrl+H）。
     /// 用键名做筛选：与 Groups 保持单一事实源，加新键默认只进完整版，要进启动版再来这里登记。
     /// 注意「↑↓」在编辑（历史）与导航（滚动）各出现一次，筛的是键名，两条会一起进简版——正好都要。
     /// </summary>
     private static readonly HashSet<string> StartupKeys = new(StringComparer.Ordinal)
     {
-        "F1 - F10", "Esc", "Ctrl+Z", "Ctrl+C", "Ctrl+S",      // 全局
+        "F1 - F10", "Esc", "Ctrl+Z", "Ctrl+C", "Ctrl+Q", "Ctrl+S",  // 全局
         "Enter", "Ctrl+V", "↑↓",                               // 编辑
-        "Ctrl+Shift+M",                                         // 模式：快速切换 connect
         "Shift+Tab / Ctrl+K", "Ctrl+M / /model",               // 模式
-        "PgUp / PgDn", "Ctrl+E", "Ctrl+B",                     // 导航
-        "Ctrl+H",                                              // 工具
+        "Ctrl+P", "Ctrl+E", "Ctrl+Shift+M",                    // 模式：权限/经济/换连接
+        "PgUp / PgDn", "Ctrl+B",                               // 导航
+        "Ctrl+R", "Ctrl+Y", "Ctrl+H",                          // 工具
     };
 
     /// <summary>
@@ -102,6 +106,8 @@ public static class TuiKeybindHelp
     [
         "ℹ 上表快捷键仅在聊天界面有焦点时有效。对话框打开时键盘归对话框，",
         "  唯一例外是 Ctrl+C（唯一的系统键，任何时候都能退出）。",
+        "▷ 一键一义：Ctrl+P=权限循环、Ctrl+E=经济循环（不因弹窗改变含义，轴向层）。",
+        "  编辑器 → /edit；输入建议条 → 输入 `/`、`!`、`#`、`@` 自动弹出。",
         "⚠ Unix 终端下 Ctrl+M / Ctrl+H 与 Enter / Backspace 同码，收不到：",
         "  Ctrl+M 打开模型框 → 改用 /model",
         "  Ctrl+H 打开本面板 → 改用 /help",
@@ -205,7 +211,7 @@ public static class TuiKeybindHelp
                 sb.AppendLine("  " + PadKey(key, KeyW) + " «grey»│ " + desc + "«/»");
             sb.AppendLine("«grey»" + rule + "«/»");
         }
-        sb.AppendLine("«grey»完整快捷键：按 Ctrl+H 或 F1 打开速查面板«/»");
+        sb.AppendLine("«grey»完整快捷键：按 Ctrl+H 打开速查面板«/»");
         sb.AppendLine("«grey»⚠ Unix 下 Ctrl+M / Ctrl+H 与 Enter / Backspace 同码收不到 → 用 /model、/help«/»");
         return sb.ToString().TrimEnd();
     }

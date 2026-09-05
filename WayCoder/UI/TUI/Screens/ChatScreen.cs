@@ -67,7 +67,7 @@ public partial class ChatScreen : TuiScreen
     /// （code-behind 覆写）共用同一常量，避免两处静态文本漂移。
     /// </summary>
     protected const string ShortcutRowText =
-        "«dim»Shift+Tab 模式 · Ctrl+P 权限 · Ctrl+E 经济 · Ctrl+X 换模型 · Ctrl+Shift+M 切连接 · Enter 发送 · ↑↓ 历史 · Tab 补全 · F1-F10 · Ctrl+H 帮助«/»";
+        "«dim»Shift+Tab 模式 · Ctrl+P 权限 · Ctrl+E 经济 · Ctrl+M 模型 · Ctrl+B 侧栏 · Ctrl+S 会话 · Enter 发送 · ↑↓ 历史 · Tab 补全 · F1-F10 · Ctrl+H 帮助«/»";
 
     /// <summary>建议下拉面板</summary>
     public TuiVBox SuggestPanel { get; protected set; } = null!;

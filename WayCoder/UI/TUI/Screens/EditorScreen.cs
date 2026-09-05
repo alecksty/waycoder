@@ -330,8 +330,8 @@ public class EditorScreen : TuiScreen
         if (pathDisplay.Length > 50) pathDisplay = "..." + pathDisplay[^47..];
         StatusBar2.Text = $" {pathDisplay}  " +
                           (ReadOnly
-                              ? "只读查看 · ^F查找 F3下一处 F8诊断 Tab缩进 ^Tab焦点 ^B文件 ^⇧O大纲 Esc退出"
-                              : "^S保存 ^Z撤销 ^F查找/替换 F3下一处 F8诊断 Tab缩进 ^Tab焦点 ^B文件 ^⇧O大纲 Esc退出");
+                              ? "只读 · ^F查找/替换 ^G跳转 ^P配对括号 ^B文件 ^⇧O大纲 ^Tab焦点 F3下一处 F8诊断 Esc退出"
+                              : "^S保存 ^Z撤销 ^Y重做 ^X/C/V 行剪贴板 ^A全选 ^F查找/替换 ^G跳转 ^P配对括号 ^B文件 ^⇧O大纲 ^Tab焦点 F3下一处 F8诊断 Esc退出");
     }
 
     // ════════════════════════════════════════════════════════════════

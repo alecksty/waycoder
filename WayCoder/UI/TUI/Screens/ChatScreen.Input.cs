@@ -614,7 +614,12 @@ public partial class ChatScreen : TuiScreen
         return false;
     }
 
-    /// <summary>全局快捷键：Ctrl+E/T/O/B/R/M/H/Q, F1-F10, Ctrl+Home/End/Up/Down</summary>
+    /// <summary>
+    /// 全局快捷键（轴向层，一键一义）：Ctrl+B/R/Y/M/S/G/H/T/O/L/D、Ctrl+Shift+P、Ctrl+Shift+F1/F2、
+    /// Alt+P、F5、F1-F10、Ctrl+Home/End/Up/Down。
+    /// 注意 Ctrl+P/E/Q/X（权限/经济/紧急退出/换大小模型）由 REPL 主循环截走（Program.Repl:416/474/484/502），
+    /// 此处不重复绑定——避免「同一键两种含义」。
+    /// </summary>
     private bool HandleGlobalShortcut(ConsoleKeyInfo key, bool ctrl, bool shift)
     {
         // ── Ctrl+Shift+P 命令面板（对齐 Claude Code quickOpen / OpenCode）──
@@ -630,9 +635,8 @@ public partial class ChatScreen : TuiScreen
         {
             switch (key.Key)
             {
-                case ConsoleKey.E:
-                    Manager?.PushScreen(new EditorScreen(readOnly: WorkModeManager.CurrentMode == WorkMode.Plan)); // Plan 模式默认只读
-                    return true;
+                // Ctrl+E 已统一为「经济模式循环」（轴向层）——REPL 主循环 Program.Repl:484 在无弹窗时先截走；
+                // 编辑器经 /edit（Plan 模式只读走 --readonly）。此处不再绑定 Ctrl+E。
                 case ConsoleKey.T:
                 case ConsoleKey.O:
                     Manager?.PushScreen(new SettingsScreen());
@@ -660,18 +664,9 @@ public partial class ChatScreen : TuiScreen
                 case ConsoleKey.H:
                     OnShowHelp?.Invoke();
                     return true;
-                case ConsoleKey.P:
-                    if (PromptBarVisible)
-                    {
-                        HidePromptBar();
-                        return true;
-                    }
-
-                    ShowPromptBar(BuildDefaultHints());
-                    return true;
-                case ConsoleKey.Q:
-                    ShowExitConfirmDialog();
-                    return true;
+                // Ctrl+P 已统一为「权限模式循环」（轴向层，主循环 Program.Repl:474 先截走）；
+                // 建议条改由 `/`、`!`、`#`、`@` 前缀自动触发（CheckPrefixHints）。此处不再绑定 Ctrl+P。
+                // Ctrl+Q 已统一为「紧急退出」（主循环 Program.Repl:416 PanicExit）——此处不再绑定 Ctrl+Q。
                 case ConsoleKey.L:
                     // 全屏强制重绘（修复终端残留，保留聊天内容）
                     MarkDirty();
