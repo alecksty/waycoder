@@ -40,7 +40,7 @@ public abstract class TuiEditBase : TuiControl
         int v = 0, idx = 0;
         foreach (var rune in line.EnumerateRunes())
         {
-            int w = rune.Value == '\t' ? 4 : AnsiHelper.DisplayWidth(rune.ToString());
+            int w = AnsiHelper.CharVisualWidth(rune);
             if (visualCol < v + w) return idx;
             v += w;
             idx += rune.Utf16SequenceLength;

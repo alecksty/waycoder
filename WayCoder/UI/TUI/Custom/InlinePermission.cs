@@ -202,18 +202,7 @@ public class InlinePermission : TuiControl
     // ── 工具 ──
 
     private static string Truncate(string text, int maxVw)
-    {
-        if (string.IsNullOrEmpty(text)) return "";
-        if (AnsiHelper.DisplayWidth(text) <= maxVw) return text;
-        int vw = 0, chars = 0;
-        foreach (var r in text.EnumerateRunes())
-        {
-            int w = AnsiHelper.RuneWidth(r);
-            if (vw + w + 2 > maxVw) break; // 预留 "…" 两列
-            vw += w; chars += r.Utf16SequenceLength;
-        }
-        return chars >= text.Length ? text : text[..chars] + "…";
-    }
+        => AnsiHelper.TruncateByWidth(text, maxVw);
 
     private void WriteLine(StringBuilder sb, int row, int col,
         string text, int fg, int bg, int attr, char pad)

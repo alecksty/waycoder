@@ -995,16 +995,5 @@ public static class DiffPreview
 
     private static int VW(string text) => AnsiHelper.DisplayWidth(text);
     private static string TruncateByVW(string text, int maxVW)
-    {
-        if (string.IsNullOrEmpty(text)) return "";
-        if (AnsiHelper.DisplayWidth(text) <= maxVW) return text;
-        int vw = 0, chars = 0;
-        foreach (var rune in text.EnumerateRunes())
-        {
-            var w = AnsiHelper.RuneWidth(rune);
-            if (vw + w + 2 > maxVW) break; // 预留 "…" 两列
-            vw += w; chars += rune.Utf16SequenceLength;
-        }
-        return chars == text.Length ? text : text[..chars] + "…";
-    }
+        => AnsiHelper.TruncateByWidth(text, maxVW);
 }

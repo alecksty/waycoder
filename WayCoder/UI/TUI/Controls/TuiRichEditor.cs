@@ -353,7 +353,7 @@ public class TuiRichEditor : TuiEditBase
         var runes = text.EnumerateRunes().ToList();
         for (int i = 0; i < runes.Count; i++)
         {
-            int w = runes[i].Value == '\t' ? 4 : AnsiHelper.DisplayWidth(runes[i].ToString());
+            int w = AnsiHelper.CharVisualWidth(runes[i]);
             if (vw + w > maxVw)
                 return text.Substring(0, bytePos);
             vw += w;
@@ -528,7 +528,7 @@ public class TuiRichEditor : TuiEditBase
         int v = 0, idx = 0;
         foreach (var rune in line.EnumerateRunes())
         {
-            int w = rune.Value == '\t' ? 4 : AnsiHelper.DisplayWidth(rune.ToString());
+            int w = AnsiHelper.CharVisualWidth(rune);
             if (visualCol < v + w) return idx;
             v += w;
             idx += rune.Utf16SequenceLength;
