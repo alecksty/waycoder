@@ -267,6 +267,10 @@ public static class AnsiHelper
     /// </summary>
     internal static int RuneWidth(Rune rune) => AnsiString.CharWidth(rune);
 
+    /// <summary>计算单个字符（Rune）的视觉宽度，Tab 按 4 展开（对齐编辑器/输入框制表位）。</summary>
+    public static int CharVisualWidth(Rune rune)
+        => rune.Value == '	' ? 4 : DisplayWidth(rune.ToString());
+
     // ── 边框字符映射 ──
 
     /// <summary>边框字符集：左上 右上 左下 右下 水平 垂直，上水平 下水平（默认同 H）</summary>
