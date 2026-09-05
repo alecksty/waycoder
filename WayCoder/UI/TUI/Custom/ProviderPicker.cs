@@ -27,10 +27,7 @@ public static class ProviderPicker
     }
 
     private static void Wire(TuiMarkupResult res, string id, Action action)
-    {
-        var btn = res.Find<TuiButton>(id);
-        if (btn != null) btn.OnClick = _ => action();
-    }
+        => UxHelper.Wire(res, id, action);
 
     private static TuiWindow BuildWindow(TuiScreen? screen, Action close)
     {

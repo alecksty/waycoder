@@ -83,9 +83,7 @@ public class TuiSidePanel : TuiBorderedControl
             if (curRow >= ClipTop && curRow < ClipBottom)
             {
                 var titleRb = new RenderBuffer();
-                string title = AnsiHelper.DisplayWidth(sec.Title) > contentW - 2
-                    ? AnsiHelper.TruncateByWidth(sec.Title, contentW - 2)
-                    : sec.Title;
+                string title = AnsiHelper.TruncateIfNeeded(sec.Title, contentW - 2);
                 // 名称 + 横线到边（少一格）：名称(num)────…… 横线长度随内容区宽，动数据不错位
                 int titleW = AnsiHelper.DisplayWidth(title);
                 int sepLen = Math.Max(1, contentW - 2 - titleW);

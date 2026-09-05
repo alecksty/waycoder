@@ -59,6 +59,10 @@ public static class AnsiHelper
         return sb.ToString();
     }
 
+    /// <summary>超宽才截断：DisplayWidth(text) > maxWidth 时 TruncateByWidth，否则原样返回。收敛各控件三元截断调用。</summary>
+    public static string TruncateIfNeeded(string text, int maxWidth)
+        => DisplayWidth(text) > maxWidth ? TruncateByWidth(text, maxWidth) : text;
+
     /// <summary>按显示宽度截断文本，末尾不加省略号（供 WrapText 预留省略号宽度后补 "…" 用）。</summary>
     private static string TruncateByWidthPlain(string text, int maxWidth)
     {

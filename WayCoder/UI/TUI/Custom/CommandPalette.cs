@@ -100,10 +100,7 @@ public static class CommandPalette
         win.Width = winW; win.Height = winH;
         win.MinWidth = MinW; win.MinHeight = 10;
         win.WinBg = TuiTheme.Current.WindowBg;
-        var g = TuiTheme.Current.DialogGradient; // 统一对话框渐变（与 TuiDialog 系一致）
-        win.GradientBorder = true;
-        win.GradientStart = g.start;
-        win.GradientEnd = g.end;
+        UxHelper.ApplyGradient(win);
 
         // 控件接线（结构在标记里，精确样式/数据/事件在此）
         var search = res.Find<TuiInput>("search")!;

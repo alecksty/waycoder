@@ -61,10 +61,7 @@ public static class SessionPicker
         win.Width = winW; win.Height = winH;
         win.MinWidth = MinW; win.MinHeight = winH;
         win.WinBg = TuiTheme.Current.WindowBg;
-        var g = TuiTheme.Current.DialogGradient; // 统一对话框渐变（与 TuiDialog 系一致）
-        win.GradientBorder = true;
-        win.GradientStart = g.start;
-        win.GradientEnd = g.end;
+        UxHelper.ApplyGradient(win);
 
         // ── 状态 ──
         var sessions = SessionManager.ListSessions(limit: 50, offset: 0, slot: slot);
