@@ -433,6 +433,27 @@ public static class UxHelper
         return result;
     }
 
+    /// <summary>屏幕版模态对话框样板：UI 线程直执 ShowWindow；后台线程经 screen.PostToUI 投递，
+    /// RenderWait 保持原 readKeys 语义（后台线程只等待）。收敛 ChatScreen.Dialogs/Input 手写样板。
+    /// 约束 struct 使 TResult? = Nullable&lt;T&gt;（int/bool 等值类型可放心用 ?? 兜底），
+    /// 无约束泛型的 TResult? 对值类型不退化为 Nullable，无法表达「对话框未回调」的空态。</summary>
+    public static TResult? RunModalDialogOnScreen<TResult>(
+        TuiScreen screen, Func<Action<TResult?>, TuiWindow> build,
+        int timeoutMs = 0, bool? readKeys = null) where TResult : struct
+    {
+        TResult? result = default;
+        using var evt = new ManualResetEventSlim(false);
+        try
+        {
+            var win = build(r => { result = r; evt.Set(); });
+            if (screen.IsUiThread) screen.ShowWindow(win);
+            else screen.PostToUI(() => screen.ShowWindow(win));
+            RenderWait(screen, evt, timeoutMs, win, readKeys: readKeys);
+        }
+        catch { evt.Set(); }
+        return result;
+    }
+
     // ── 事件循环 ──
 
     /// <summary>
