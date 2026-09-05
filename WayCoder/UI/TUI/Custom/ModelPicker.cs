@@ -289,11 +289,7 @@ public static class ModelPicker
 
         // ── 动作 ──
 
-        void Finish(Result? r)
-        {
-            onDone(r);
-            win.OnClosed?.Invoke();
-        }
+        void Finish(Result? r) => UxHelper.FinishModal(win, onDone, r);
         /// <summary>Enter / 保存：应用选中并保存关闭对话框，返回当前选中的 providerId+modelId。
         /// 无 key 的模型先弹 key 输入框，保存 key 后自动应用并关闭。</summary>
         void Commit()

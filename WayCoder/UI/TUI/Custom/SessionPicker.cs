@@ -156,11 +156,7 @@ public static class SessionPicker
 
         // ── 动作 ──
 
-        void Finish(Result? r)
-        {
-            onDone(r);
-            win.OnClosed?.Invoke();
-        }
+        void Finish(Result? r) => UxHelper.FinishModal(win, onDone, r);
 
         void SetSel(int v)
         {

@@ -174,11 +174,7 @@ public static class CommandPalette
 
         // ── 动作 ──
 
-        void Finish(Command? c)
-        {
-            onDone(c);
-            win.OnClosed?.Invoke();
-        }
+        void Finish(Command? c) => UxHelper.FinishModal(win, onDone, c);
 
         void Execute()
         {

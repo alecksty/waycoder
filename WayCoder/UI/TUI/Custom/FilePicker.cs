@@ -82,9 +82,7 @@ public static class FilePicker
         var search = res.Find<TuiInput>("search")!;
         var table = res.Find<TuiTableList>("table")!;
         var help = res.Find<TuiLabel>("help")!;
-        search.Fg = AnsiColors.White;
-        search.Bg = AnsiColors.BgBlack;
-        table.Height = ListH;
+        table.Height = ListH; // search 样式由 SearchableListPicker.WireSearchInput 统一设置
         table.AddColumn("文件", nameW);
         table.AddColumn("大小", SizeW);
         table.AddColumn("日期", DateW);
@@ -130,11 +128,7 @@ public static class FilePicker
             Refresh();
         }
 
-        void Finish(string? path)
-        {
-            onDone(path);
-            win.OnClosed?.Invoke();
-        }
+        void Finish(string? path) => UxHelper.FinishModal(win, onDone, path);
 
         void Activate()
         {
@@ -154,35 +148,18 @@ public static class FilePicker
 
         // 搜索输入：字母进过滤词（OnTextChanged 实时过滤），↑↓ 导航列表，Enter 打开，Backspace 上级
         search.OnTextChanged = Refresh;
-        search.KeyHook = key =>
-        {
-            switch (key.Key)
+        // 搜索框聚焦：导航键转发列表、Enter 打开、空搜索 Backspace 返上级、其余字符留在搜索框过滤（宿主收敛样板）
+        SearchableListPicker.WireSearchInput(search, table, screen, Activate,
+            onExtraKey: key =>
             {
-                case ConsoleKey.UpArrow:
-                case ConsoleKey.DownArrow:
-                case ConsoleKey.Home:
-                case ConsoleKey.End:
-                case ConsoleKey.PageUp:
-                case ConsoleKey.PageDown:
-                    table.OnKey(key);
-                    table.MarkDirty();
-                    screen?.MarkDirty();
+                if (key.Key == ConsoleKey.Backspace && search.Text.Length == 0)
+                {
+                    GoParent();
                     return true;
-                case ConsoleKey.Enter:
-                    Activate();
-                    return true;
-                case ConsoleKey.Backspace:
-                    if (search.Text.Length == 0)
-                    {
-                        GoParent();
-                        return true;
-                    }
+                }
 
-                    return false; // 有搜索词 → 交给输入框删除字符
-            }
-
-            return false;
-        };
+                return false; // 有搜索词 → 交给输入框删除字符
+            });
         table.OnSelect = _ => Activate(); // 若焦点切到列表，Enter 亦可打开
 
         win.RegisterShortcut(ConsoleKey.Escape, () => Finish(null));
