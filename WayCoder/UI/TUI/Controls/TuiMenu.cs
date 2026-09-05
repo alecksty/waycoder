@@ -21,6 +21,8 @@ namespace WayCoder.UI.Tui.Controls;
 ///   var win = TuiMenu.Show("操作", items, x, y, idx => ..., onCancel: () => ...);
 ///   screen.ShowWindow(win);
 /// </summary>
+/// <remarks>[仅演示/标记句法演示用，发货 UI 未实例化——重构需谨慎勿当死码删]
+/// 无任何发货 .cs 调用 TuiMenu.Show；menu.tui 模板只在本类静态资源内加载，仅供 Test/TuiDemo 等演示。</remarks>
 public static class TuiMenu
 {
     /// <summary>最大可见行数（超出则滚动）</summary>

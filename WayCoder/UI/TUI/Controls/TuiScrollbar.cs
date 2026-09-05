@@ -7,6 +7,8 @@ namespace WayCoder.UI.Tui.Controls;
 /// 独立滚动条组件 —— 对标 Crush scrollbar.go。
 /// 垂直滑块、百分比指示、自动隐藏、鼠标滚轮+拖拽。
 /// </summary>
+/// <remarks>[仅演示/标记句法演示用，发货 UI 未实例化——重构需谨慎勿当死码删]
+/// 只被 TuiMarkup 工厂（&lt;Scrollbar&gt; 标签）与 Test/TuiMouseTest 使用；TuiScrollMath 仅注释对齐公式，发货布局未用。</remarks>
 public class TuiScrollbar : TuiDisplayControl
 {
     /// <summary>内容总高度（行数）</summary>

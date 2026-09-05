@@ -82,8 +82,8 @@ public class InputManager : IDisposable
             try
             {
                 // macOS 自带终端不支持 ?1003h（移动追踪）/ ?1015h（UTF-8 鼠标），启用后显示/输入异常
-                if (Tty.IsAppleTerminal) Tty.EnableMouseBasic();
-                else Tty.EnableMouse();
+                // 平台判定单点在 Tty.SupportsButtonDrag → EnableMouseForTerminal 内完成
+                Tty.EnableMouseForTerminal();
                 _mouseEnabled = true;
             }
             catch
@@ -104,7 +104,7 @@ public class InputManager : IDisposable
 
         // 启用 Kitty 键盘协议：现代终端（iTerm2/Kitty/WezTerm）支持修饰键完整报告；
         // macOS 自带终端不支持 Kitty，启用后可能产生异常（不做协议协商就发 >1u）。
-        if (!Tty.IsAppleTerminal)
+        if (Tty.SupportsKittyKeyboard)
         {
             try
             {
@@ -299,15 +299,17 @@ public class InputManager : IDisposable
             Type = InputType.Mouse,
             MouseX = x - 1, // 1-based → 0-based
             MouseY = y - 1,
-            // SGR 鼠标：32/33/34/35 是 motion（32=无按键纯移动），不是点击——
-            // 误判会让鼠标悬停在标题栏就触发拖拽
-            // 注意：注释说的 32/33/34/35 与实际代码判定的 35/36/39 不完全一致，
-            // 以代码实现为准（锁定现状，避免改动影响真实终端行为）
+            // SGR 鼠标 motion 判定：本实现只把 code 35/36/39 视为 motion（按下状态移动/带修饰键移动），
+            // 其余 motion 码（如 32=无按键纯移动、33/34=按住左/中键移动）一律不认——
+            // 否则鼠标无按键悬停在标题栏也会被误判成拖拽。
+            // 注：SGR 手册与各终端实现存在出入（不同终端拖动/修饰移动的编码不一），
+            // 以下以实际终端行为为准锁定现状；本注释已对齐代码实现（勿按手册改逻辑，
+            // 改动需跨 Terminal.app / iTerm2 / xterm 回归验证）。
             MouseLeft = !isRelease && code == 0,
             MouseRight = !isRelease && code == 2,
             MouseScrollUp = code == 64,
             MouseScrollDown = code == 65,
-            MouseMotion = code == 35 || code == 36 || code == 39, // SGR motion (no button / with button / release motion)
+            MouseMotion = code == 35 || code == 36 || code == 39, // motion 判定细节见上方块注释（35=按住拖动 36/39=带修饰移动）
             MouseButton = code,
             MouseRelease = isRelease,
         };

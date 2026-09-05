@@ -49,6 +49,8 @@ public readonly struct GridSize
 /// grid.Add(button, row: 1, col: 1);
 /// </code>
 /// </summary>
+/// <remarks>[仅演示/标记句法演示用，发货 UI 未实例化——重构需谨慎勿当死码删]
+/// 目前只被 TuiMarkup 工厂（&lt;Grid&gt; 标签）与 Test/SelfTest 实例化，发货布局（chat/editor/dialogs *.tui）未使用。</remarks>
 public class TuiGrid : TuiView
 {
     /// <summary>网格单元定义</summary>

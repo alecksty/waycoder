@@ -8,6 +8,8 @@ namespace WayCoder.UI.Tui.Controls;
 /// 按钮组 —— 对标 Crush button.go ButtonGroup。
 /// 管理一组 TuiButton，支持水平/垂直布局、Tab 切换焦点、方向键导航、字母快捷键。
 /// </summary>
+/// <remarks>[仅演示/标记句法演示用，发货 UI 未实例化——重构需谨慎勿当死码删]
+/// 无任何发货代码实例化（TuiControl 仅注释提及），只被 Test/TuiDemo/TuiMouseTest 使用。</remarks>
 public class TuiButtonGroup : TuiControl
 {
     /// <summary>布局方向</summary>

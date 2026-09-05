@@ -3,7 +3,9 @@ using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
-/// <summary>横幅控件 —— 居中展示 ASCII 艺术标题。</summary>
+/// <summary>横幅控件 —— 居中展示 ASCII 艺术标题。
+/// [仅演示/标记句法演示用，发货 UI 未实例化——重构需谨慎勿当死码删]（TuiMarkup 工厂 &lt;Banner&gt; 标签，发货布局未用；
+/// 聊天「banner」角色横幅走 TuiListItem 纯文本渲染，与本控件无关）。</summary>
 public class TuiBanner : TuiDisplayControl
 {
     /// <summary>

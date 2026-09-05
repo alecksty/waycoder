@@ -166,6 +166,21 @@ public static class Tty
     public static bool IsAppleTerminal
         => string.Equals(Environment.GetEnvironmentVariable("TERM_PROGRAM"), "Apple_Terminal", StringComparison.OrdinalIgnoreCase);
 
+    /// <summary>该终端是否支持按住按键拖动追踪（?1002h/?1003h 移动追踪）——Terminal.app 不支持 → 降级基础点击 ?1000h+?1006h。
+    /// 平台判定单点：InputManager/TuiManager 不再各自散写 IsAppleTerminal 分支。</summary>
+    public static bool SupportsButtonDrag => !IsAppleTerminal;
+
+    /// <summary>该终端是否支持 Kitty 键盘协议（修饰键完整报告 CSI u）——Terminal.app 不支持，启用前须判此布尔。</summary>
+    public static bool SupportsKittyKeyboard => !IsAppleTerminal;
+
+    /// <summary>按终端能力启用合适的鼠标追踪模式：支持按住拖动追踪用完整 SGR 鼠标，否则降级基础点击（Terminal.app 兼容）。
+    /// 启用序列字节内容为 <see cref="AnsiTty.MouseEnable"/>/<see cref="AnsiTty.MouseEnableBasic"/>（v0.96.55 已验证，勿改）。</summary>
+    public static void EnableMouseForTerminal()
+    {
+        if (SupportsButtonDrag) EnableMouse();
+        else EnableMouseBasic();
+    }
+
     /// <summary>启用鼠标跟踪（SGR 扩展协议）</summary>
     public static void EnableMouse() => Write(AnsiTty.MouseEnable);
 

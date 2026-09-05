@@ -9,6 +9,8 @@ namespace WayCoder.UI.Tui.Controls;
 /// 渲染为 `━━●━━━━` 风格，支持拖动和键盘微调。
 /// 键盘：←→ 微调，Home/End 跳到边界，PgUp/PgDn 大步跳。
 /// </summary>
+/// <remarks>[仅演示/标记句法演示用，发货 UI 未实例化——重构需谨慎勿当死码删]
+/// 只被 TuiMarkup 工厂（&lt;SeekBar&gt; 标签，showcase.tui 演示）与 Test 使用，发货布局/对话框未用。</remarks>
 public class TuiSeekBar : TuiControl
 {
     /// <summary>最小值</summary>

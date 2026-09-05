@@ -4,7 +4,8 @@ using WayCoder.UI.TUI.Base;
 
 namespace WayCoder.UI.Tui.Controls;
 
-/// <summary>矩形框控件 —— 只画外框（边框），内部空白。纯展示，无交互。</summary>
+/// <summary>矩形框控件 —— 只画外框（边框），内部空白。纯展示，无交互。
+/// [仅演示/标记句法演示用，发货 UI 未实例化——重构需谨慎勿当死码删]（TuiMarkup 工厂 &lt;Rect&gt; 标签 + showcase.tui 演示）。</summary>
 public class TuiRect : TuiBorderedControl
 {
     public TuiRect() { BorderStyle = WindowBorder.Single; }
