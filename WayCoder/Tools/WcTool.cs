@@ -37,8 +37,7 @@ public class WcTool : ITool
             // 单文件模式
             if (!string.IsNullOrEmpty(file))
             {
-                if (!File.Exists(file))
-                    return $"错误：文件不存在 — {file}";
+                if (PathGuard.RequireFile(file) is { } e) return e;
                 var stats = CountFile(file);
                 return $"{stats.Lines,8} 行  {stats.Words,8} 词  {stats.Chars,8} 字符  {stats.Bytes,10} 字节  {file}";
             }
@@ -47,8 +46,7 @@ public class WcTool : ITool
             if (!string.IsNullOrEmpty(glob))
             {
                 path = CwdContext.Resolve(path); // cd 后相对路径基于被跟踪工作目录
-                if (!Directory.Exists(path))
-                    return $"错误：目录不存在 — {path}";
+                if (PathGuard.RequireDir(path) is { } e2) return e2;
 
                 var files = new List<string>();
                 CollectFiles(path, glob, files, 200);

@@ -34,8 +34,7 @@ public class TreeTool : ITool
         {
             path ??= CwdContext.Root;
             path = CwdContext.Resolve(path); // cd 后相对路径基于被跟踪工作目录
-            if (!Directory.Exists(path))
-                return $"错误：目录不存在 — {path}";
+            if (PathGuard.RequireDir(path) is { } e) return e;
 
             var sb = new StringBuilder();
             sb.AppendLine(path);
