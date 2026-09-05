@@ -14,15 +14,9 @@ public class WcTool : ITool
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("file", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "要统计的文件路径"))
-            .Set("glob", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "Glob 模式批量统计，如 '*.cs'（与 file 二选一）"))
-            .Set("path", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "搜索目录（使用 glob 时，默认当前目录）")))
+            .Set("file", JNode.Param("string", "要统计的文件路径"))
+            .Set("glob", JNode.Param("string", "Glob 模式批量统计，如 '*.cs'（与 file 二选一）"))
+            .Set("path", JNode.Param("string", "搜索目录（使用 glob 时，默认当前目录）")))
         .Set("required", JNode.Array());
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

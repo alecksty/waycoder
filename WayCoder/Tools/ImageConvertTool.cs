@@ -18,15 +18,9 @@ public class ImageConvertTool : ITool
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("input", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "输入图片路径（png/jpg/jpeg/bmp）"))
-            .Set("output", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "输出图片路径，扩展名决定格式（png/jpg/jpeg/bmp）"))
-            .Set("quality", JNode.Object()
-                .Set("type", "integer")
-                .Set("description", "JPEG 质量 1-100，默认 85（仅 jpg 输出生效）")))
+            .Set("input", JNode.Param("string", "输入图片路径（png/jpg/jpeg/bmp）"))
+            .Set("output", JNode.Param("string", "输出图片路径，扩展名决定格式（png/jpg/jpeg/bmp）"))
+            .Set("quality", JNode.Param("integer", "JPEG 质量 1-100，默认 85（仅 jpg 输出生效）")))
         .Set("required", JNode.Array().Add("input").Add("output"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

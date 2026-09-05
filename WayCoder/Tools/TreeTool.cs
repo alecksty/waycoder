@@ -14,15 +14,9 @@ public class TreeTool : ITool
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("path", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "起始目录路径（默认当前目录）"))
-            .Set("depth", JNode.Object()
-                .Set("type", "integer")
-                .Set("description", "最大深度（默认 3）"))
-            .Set("max", JNode.Object()
-                .Set("type", "integer")
-                .Set("description", "最大显示条目数（默认 100）")))
+            .Set("path", JNode.Param("string", "起始目录路径（默认当前目录）"))
+            .Set("depth", JNode.Param("integer", "最大深度（默认 3）"))
+            .Set("max", JNode.Param("integer", "最大显示条目数（默认 100）")))
         .Set("required", JNode.Array());
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

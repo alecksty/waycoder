@@ -13,12 +13,8 @@ public class RmTool : ITool
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("path", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "要删除的文件或目录路径"))
-            .Set("recursive", JNode.Object()
-                .Set("type", "boolean")
-                .Set("description", "是否递归删除目录（默认 false）")))
+            .Set("path", JNode.Param("string", "要删除的文件或目录路径"))
+            .Set("recursive", JNode.Param("boolean", "是否递归删除目录（默认 false）")))
         .Set("required", JNode.Array().Add("path"));
 
     // 系统关键路径（禁止删除）

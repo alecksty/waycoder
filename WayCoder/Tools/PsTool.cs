@@ -14,12 +14,8 @@ public class PsTool : ITool
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("name", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "按进程名过滤（可选），如 'dotnet'、'node'、'python'"))
-            .Set("top", JNode.Object()
-                .Set("type", "integer")
-                .Set("description", "只显示前 N 个结果（默认 30）")))
+            .Set("name", JNode.Param("string", "按进程名过滤（可选），如 'dotnet'、'node'、'python'"))
+            .Set("top", JNode.Param("integer", "只显示前 N 个结果（默认 30）")))
         .Set("required", JNode.Array());
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

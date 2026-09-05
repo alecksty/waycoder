@@ -26,12 +26,8 @@ public class DocTool : ITool
                 .Set("type", "string")
                 .Set("description", "操作类型: 'search' 搜索文档, 'fetch' 抓取指定 URL")
                 .Set("enum", JNode.Array().Add("search").Add("fetch")))
-            .Set("query", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "搜索关键词（action=search 时必填），如 'React useEffect cleanup' 或 'Next.js routing'"))
-            .Set("url", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "要抓取的文档 URL（action=fetch 时必填）")))
+            .Set("query", JNode.Param("string", "搜索关键词（action=search 时必填），如 'React useEffect cleanup' 或 'Next.js routing'"))
+            .Set("url", JNode.Param("string", "要抓取的文档 URL（action=fetch 时必填）")))
         .Set("required", JNode.Array().Add("action"));
 
     // 统一 SSRF 安全 handler：ConnectCallback 原子「解析+校验+连接」杜绝 DNS 重绑定；禁自动重定向，

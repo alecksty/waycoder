@@ -17,9 +17,7 @@ public class ExportTool : ITool
                 .Set("type", "string")
                 .Set("enum", JNode.Array().Add("md").Add("json").Add("html"))
                 .Set("description", "导出格式: md(Markdown), json(JSON数组), html(网页)"))
-            .Set("output_path", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "输出文件路径（可选，默认 chat_export_{timestamp}.{format}）")))
+            .Set("output_path", JNode.Param("string", "输出文件路径（可选，默认 chat_export_{timestamp}.{format}）")))
         .Set("required", JNode.Array().Add("format"));
 
     /// <summary>消息历史引用（由 Agent 在构造后注入）</summary>

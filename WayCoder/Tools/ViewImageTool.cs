@@ -17,12 +17,8 @@ public class ViewImageTool : ITool
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("path", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "图片文件路径（如 screenshot 返回的 PNG 路径）"))
-            .Set("question", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "针对这张图想问的问题（默认「请描述这张图片的内容」）")))
+            .Set("path", JNode.Param("string", "图片文件路径（如 screenshot 返回的 PNG 路径）"))
+            .Set("question", JNode.Param("string", "针对这张图想问的问题（默认「请描述这张图片的内容」）")))
         .Set("required", JNode.Array().Add("path"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

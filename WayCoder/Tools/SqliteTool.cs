@@ -17,12 +17,8 @@ public class SqliteTool : ITool
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("database", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "SQLite 数据库文件路径（.db/.sqlite）。省略则作用于内存库"))
-            .Set("query", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "要执行的 SQL 语句")))
+            .Set("database", JNode.Param("string", "SQLite 数据库文件路径（.db/.sqlite）。省略则作用于内存库"))
+            .Set("query", JNode.Param("string", "要执行的 SQL 语句")))
         .Set("required", JNode.Array().Add("query"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)

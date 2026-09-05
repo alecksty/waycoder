@@ -129,9 +129,7 @@ internal class McpResourceTool : ITool
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("uri", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "要读取的资源 URI（省略则列出所有可用资源）")));
+            .Set("uri", JNode.Param("string", "要读取的资源 URI（省略则列出所有可用资源）")));
 
     public McpResourceTool(string serverName, JNode resources, McpConnection connection)
     {

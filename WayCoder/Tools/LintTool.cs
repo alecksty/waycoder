@@ -16,9 +16,7 @@ public class LintTool : ITool
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("path", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "要检查的文件或目录路径。留空则检查当前目录。")));
+            .Set("path", JNode.Param("string", "要检查的文件或目录路径。留空则检查当前目录。")));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

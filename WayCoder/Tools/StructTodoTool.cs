@@ -18,12 +18,8 @@ public class StructTodoTool : ITool
                 .Set("type", "string")
                 .Set("enum", JNode.Array().Add("create").Add("update").Add("list").Add("delete"))
                 .Set("description", "操作类型"))
-            .Set("id", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "任务 ID（create/update/delete 必填）"))
-            .Set("title", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "任务标题（create 必填）"))
+            .Set("id", JNode.Param("string", "任务 ID（create/update/delete 必填）"))
+            .Set("title", JNode.Param("string", "任务标题（create 必填）"))
             .Set("status", JNode.Object()
                 .Set("type", "string")
                 .Set("enum", JNode.Array().Add("pending").Add("in_progress").Add("completed").Add("blocked"))
@@ -32,9 +28,7 @@ public class StructTodoTool : ITool
                 .Set("type", "array")
                 .Set("items", JNode.Object().Set("type", "string"))
                 .Set("description", "前置依赖任务 ID 列表（create 操作可选）"))
-            .Set("filter", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "状态过滤器，逗号分隔（list 操作可选）")))
+            .Set("filter", JNode.Param("string", "状态过滤器，逗号分隔（list 操作可选）")))
         .Set("required", JNode.Array().Add("action"));
 
     private static string StorePath => Path.Combine(

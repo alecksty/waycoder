@@ -15,15 +15,9 @@ public class KillTool : ITool
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("pid", JNode.Object()
-                .Set("type", "integer")
-                .Set("description", "要终止的进程 PID"))
-            .Set("name", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "要终止的进程名（如 'node'、'python'）"))
-            .Set("force", JNode.Object()
-                .Set("type", "boolean")
-                .Set("description", "强制终止（默认 false，先尝试优雅终止）")))
+            .Set("pid", JNode.Param("integer", "要终止的进程 PID"))
+            .Set("name", JNode.Param("string", "要终止的进程名（如 'node'、'python'）"))
+            .Set("force", JNode.Param("boolean", "强制终止（默认 false，先尝试优雅终止）")))
         .Set("required", JNode.Array());
 
     // 禁止终止的关键系统进程

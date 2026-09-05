@@ -19,15 +19,9 @@ public class TestTool : ITool
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
         .Set("properties", JNode.Object()
-            .Set("command", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "测试命令，如 'dotnet test --no-build'、'pytest -x'、'npm test'、'cargo test'"))
-            .Set("cwd", JNode.Object()
-                .Set("type", "string")
-                .Set("description", "工作目录，默认当前目录"))
-            .Set("timeout", JNode.Object()
-                .Set("type", "integer")
-                .Set("description", "超时秒数，默认 300，最大 3600")))
+            .Set("command", JNode.Param("string", "测试命令，如 'dotnet test --no-build'、'pytest -x'、'npm test'、'cargo test'"))
+            .Set("cwd", JNode.Param("string", "工作目录，默认当前目录"))
+            .Set("timeout", JNode.Param("integer", "超时秒数，默认 300，最大 3600")))
         .Set("required", JNode.Array().Add("command"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
