@@ -118,7 +118,7 @@ public class TuiTable
                 if (!isMarkup)
                     cellText = AnsiHelper.Esc(cellText);
                 else if (!ansi)
-                    cellText = StripAnsi(cellText); // TUI 模式去掉内嵌 ANSI，走正常渲染管线
+                    cellText = AnsiString.Strip(cellText); // TUI 模式去掉内嵌 ANSI，走正常渲染管线
 
                 var displayW = isMarkup && ansi
                     ? AnsiDisplayWidth(cellText)
@@ -160,23 +160,6 @@ public class TuiTable
         return sb.ToString();
     }
 
-    /// <summary>去掉 ANSI 转义序列，保留纯文本</summary>
-    private static string StripAnsi(string text)
-    {
-        var sb = new System.Text.StringBuilder();
-        for (int i = 0; i < text.Length; i++)
-        {
-            if (text[i] == AnsiString.AnsiCharPrefix && i + 1 < text.Length && text[i + 1] == '[')
-            {
-                while (i < text.Length && text[i] != 'm') i++;
-                continue;
-            }
-
-            sb.Append(text[i]);
-        }
-
-        return sb.ToString();
-    }
 
     /// <summary>渲染表格。TUI 模式下注入聊天区（纯文本，避免 ANSI 码干扰渲染管线），非 TUI 模式直接写终端（带颜色）。</summary>
     public void Render()
