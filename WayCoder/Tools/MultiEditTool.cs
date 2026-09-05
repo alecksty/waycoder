@@ -222,22 +222,9 @@ public class MultiEditTool : ITool
         if (preEditWarning != null)
             return preEditWarning;
 
-        // 检测非 UTF-8
-        byte[] raw;
-        try { raw = File.ReadAllBytes(path); }
-        catch { return $"❌ 错误：无法读取 {path}"; }
-
-        try { _ = new UTF8Encoding(false, true).GetString(raw); }
-        catch { return $"❌ 错误：{path} 不是 UTF-8 文本文件"; }
-
-        // CRLF 行尾检测
-        var hasCrlf = raw.AsSpan().IndexOf("\r\n"u8) >= 0;
-
-        var oldContent = File.ReadAllText(path, Encoding.UTF8);
-        // CRLF 归一化为 LF 后再匹配（与 EditFileTool 一致）：模型多行 old_string 以 \n 结尾，
-        // 直接对 \r\n 内容匹配会永远失败
-        if (hasCrlf)
-            oldContent = oldContent.Replace("\r\n", "\n");
+        // 读取 + UTF-8 校验 + CRLF 归一化（与 EditFileTool 同源）
+        if (FileText.ReadUtf8File(path, out var oldContent, out var hasCrlf) is { } err)
+            return err;
 
         // 顺序应用编辑
         var (newContent, applied, failed) = ApplyEdits(oldContent, edits, 0);
