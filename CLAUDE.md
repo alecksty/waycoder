@@ -216,6 +216,8 @@ WayCoder 的模式参考 Claude Code / OpenAI Codex / Crush / Aider 划分为**�
 **决策链**：工具有没有 = 工作模式（Chat=0 / Plan=只读白名单 `WorkModeManager.PlanReadOnlyTools` / Build=白名单或经济精简）> 黑名单 > 全量；物理边界看边界轴；确认只看确认轴；省钱只看省钱轴。
 **注意**：确认轴全局静态（多槽位共享）、行为轴槽位实例、边界/省钱轴全局 config；同名异义（Auto×4、`--permit tiny`→Chat 工作模式 vs 窗口 `--tiny`）见 docs/模式体系.md §5。
 
+**快捷键一键一义**（v0.96.58 统一）：Ctrl+P=权限循环、Ctrl+E=经济循环（轴向层，主循环 `Program.Repl` 414/474/484 截走），**编辑器→`/edit`、输入建议条→输入 `/`·`!`·`#`·`@` 前缀自动弹出**；ChatScreen 不再绑 Ctrl+E/P/Q（防双重绑定「同一键两种含义」）。完整键表唯一事实源 = `UI/TUI/Controls/TuiKeybindHelp.cs` 的 `Groups`，底部行/文档据此维护。
+
 ## 非显而易见的约束
 
 - **孤立的工具消息是非法的**：压缩时必须保持 tool 消息紧跟其 assistant 消息

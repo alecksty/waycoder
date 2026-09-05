@@ -60,7 +60,7 @@ public static class CommandPalette
         if (screen.OnReasoningEffort != null)
             list.Add(new("reasoning", "推理深度", cat, "Ctrl+G", "切换推理深度", () => screen.OnReasoningEffort()));
         if (screen.OnSearchHistory != null)
-            list.Add(new("search", "搜索历史", cat, "Ctrl+R", "搜索对话历史",
+            list.Add(new("search", "搜索历史", cat, "Ctrl+Y", "搜索对话历史",
                 () => { var q = UxHelper.Ask("搜索对话历史"); if (!string.IsNullOrWhiteSpace(q)) screen.OnSearchHistory?.Invoke(q); }));
 
         // 精选常用斜杠命令（对标 Claude Code / OpenCode 命令面板的常见项）

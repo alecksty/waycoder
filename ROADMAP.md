@@ -101,7 +101,7 @@
 | ✅ Diff-based Code Review | v0.16.2 | `git diff HEAD` 替代全文件内容 |
 | ✅ Checkpoint 持久化 | v0.16.2 | 磁盘恢复检查点列表，重启后 `/undo` 不丢失 |
 | ✅ AGENTS.md 支持 | v0.16.1 | 同时搜索 CLAUDE.md / AGENTS.md / .cursorrules |
-| ✅ 对话历史搜索 | v0.16.0 | `/history` + `Ctrl+R` 交互搜索 |
+| ✅ 对话历史搜索 | v0.16.0 | `/history` + `Ctrl+Y` 交互搜索 |
 | ✅ 用量统计面板 | v0.16.2 | `/stats` 模型/Token/花费/延迟全维度 |
 | ✅ 自定义提示词模板 | v0.16.0 | 扫描 `.waycoder/prompt.md` 及 `.waycoder/*.md` |
 | ✅ 项目初始化向导 | v0.16.0 | `waycoder --init` 创建配置目录和模板 |
