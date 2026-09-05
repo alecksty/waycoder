@@ -32,21 +32,21 @@ public class TodoTool : ITool
         .Set("properties", JNode.Object()
             .Set("action", JNode.Object()
                 .Set("type", "string")
-                .Set("enum", JNode.Array().Add("create").Add("update").Add("list").Add("delete").Add("clear"))
+                .Set("enum", JNode.Array("create", "update", "list", "delete", "clear"))
                 .Set("description", "操作类型"))
             .Set("id", JNode.Param("string", "任务 ID（create/update/delete 需要）。使用有意义的 kebab-case 名称，如 'fix-auth-bug'。"))
             .Set("title", JNode.Param("string", "任务标题（create/update 可选）"))
             .Set("description", JNode.Param("string", "任务详细描述（create/update 可选）"))
             .Set("status", JNode.Object()
                 .Set("type", "string")
-                .Set("enum", JNode.Array().Add("pending").Add("in_progress").Add("completed").Add("cancelled").Add("blocked"))
+                .Set("enum", JNode.Array("pending", "in_progress", "completed", "cancelled", "blocked"))
                 .Set("description", "任务状态（update 操作）"))
             .Set("deps", JNode.Object()
                 .Set("type", "array")
                 .Set("items", JNode.Object().Set("type", "string"))
                 .Set("description", "前置依赖任务 ID 列表（create 操作可选）。被依赖的任务必须全部 completed 后此任务才能开始。"))
             .Set("filter", JNode.Param("string", "状态过滤器，逗号分隔（list 操作可选）。如 'pending,in_progress'。")))
-        .Set("required", JNode.Array().Add("action"));
+        .Set("required", JNode.Array("action"));
 
     // ── 持久化路径 ──
 

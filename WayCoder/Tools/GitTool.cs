@@ -17,7 +17,7 @@ public class GitTool : ITool, ICancellableTool
             .Set("command", JNode.Object()
                 .Set("type", "string")
                 .Set("description", "Git 子命令及参数，如 'status'、'log --oneline -10'、'diff HEAD~1'、'add src/'、'commit -m \"msg\"'")))
-        .Set("required", JNode.Array().Add("command"));
+        .Set("required", JNode.Array("command"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
         => await ExecuteAsync(arguments, CancellationToken.None);

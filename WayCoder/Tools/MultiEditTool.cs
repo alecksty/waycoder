@@ -31,8 +31,8 @@ public class MultiEditTool : ITool
                         .Set("old_string", JNode.Param("string", "要查找的精确文本（首个编辑若为空则创建新文件）"))
                         .Set("new_string", JNode.Param("string", "替换文本"))
                         .Set("replace_all", JNode.Param("boolean", "替换所有匹配项（默认 false，仅替换单个唯一匹配项）")))
-                    .Set("required", JNode.Array().Add("old_string").Add("new_string")))))
-        .Set("required", JNode.Array().Add("file_path").Add("edits"));
+                    .Set("required", JNode.Array("old_string", "new_string")))))
+        .Set("required", JNode.Array("file_path", "edits"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

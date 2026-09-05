@@ -25,7 +25,7 @@ public class EditFileTool : ITool
             .Set("old_string", JNode.Param("string", "要查找并替换的精确文本。必须逐字符匹配原文，包括所有空白符、缩进、换行。含 3-5 行上下文行以确保唯一匹配（除非 replace_all=true）。从 read_file 输出中精确复制，不要凭记忆或近似猜测。"))
             .Set("new_string", JNode.Param("string", "替换后的新文本。保持与周围代码一致的缩进和风格。"))
             .Set("replace_all", JNode.Param("boolean", "设为 true 替换文件中该文本的所有匹配项。默认 false 仅替换首次匹配，且要求该文本在文件中唯一出现。")))
-        .Set("required", JNode.Array().Add("file_path").Add("old_string").Add("new_string"));
+        .Set("required", JNode.Array("file_path", "old_string", "new_string"));
 
     /// <summary>
     /// 跟踪本次会话中修改的文件，供 /diff 使用。

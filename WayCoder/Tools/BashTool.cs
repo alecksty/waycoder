@@ -20,7 +20,7 @@ public class BashTool : ITool, ICancellableTool
             .Set("run_in_background", JNode.Param("boolean", "设为 true 则立即后台运行，返回 shell_id。之后用 job_output 读取输出，用 job_kill 终止。"))
             .Set("auto_background_after", JNode.Param("integer", "前台等待 N 秒后自动转入后台（默认 60 秒）。仅 run_in_background=true 时生效。"))
             .Set("session_id", JNode.Param("string", "持久 shell 会话 ID。提供则复用同一 shell 进程，多命令共享 cwd/环境变量/shell 状态（如 export、alias）。省略则每次新建进程。")))
-        .Set("required", JNode.Array().Add("command"));
+        .Set("required", JNode.Array("command"));
 
     // 可能破坏文件系统或泄露密钥的危险模式
     private static readonly (Regex Pattern, string Reason)[] DangerousPatterns =

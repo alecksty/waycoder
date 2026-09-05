@@ -24,7 +24,7 @@ public class GrepTool : ITool
             .Set("path", JNode.Param("string", "要搜索的文件或目录（默认：当前工作目录）"))
             .Set("include", JNode.Param("string", "仅搜索匹配此 glob 模式的文件（如 '*.py'）"))
             .Set("literal_text", JNode.Param("boolean", "如果为 true，pattern 将被当做纯文本处理（自动转义正则特殊字符），默认 false")))
-        .Set("required", JNode.Array().Add("pattern"));
+        .Set("required", JNode.Array("pattern"));
 
     // 跳过这些目录以减少噪音
     private static readonly HashSet<string> SkipDirs =

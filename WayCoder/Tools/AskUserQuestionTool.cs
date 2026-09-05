@@ -35,10 +35,10 @@ public class AskUserQuestionTool : ITool
                                 .Set("properties", JNode.Object()
                                     .Set("label", JNode.Param("string", "选项显示文本（简短，1-5词）"))
                                     .Set("description", JNode.Param("string", "选项说明（解释此选项的含义和影响，可选）")))
-                                .Set("required", JNode.Array().Add("label"))))
+                                .Set("required", JNode.Array("label"))))
                         .Set("multiSelect", JNode.Param("boolean", "是否允许多选。默认 false（单选）。")))
-                    .Set("required", JNode.Array().Add("question")))))
-        .Set("required", JNode.Array().Add("questions"));
+                    .Set("required", JNode.Array("question")))))
+        .Set("required", JNode.Array("questions"));
 
     /// <summary>
     /// 解析后的单个问题

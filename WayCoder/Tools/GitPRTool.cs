@@ -24,7 +24,7 @@ public class GitPRTool : ITool
             .Set("title", JNode.Param("string", "PR 标题（create 操作需要）"))
             .Set("description", JNode.Param("string", "PR 描述（可选，支持 Markdown）"))
             .Set("base_branch", JNode.Param("string", "目标分支（默认 master 或 main）")))
-        .Set("required", JNode.Array().Add("action"));
+        .Set("required", JNode.Array("action"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

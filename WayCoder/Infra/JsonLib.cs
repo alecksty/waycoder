@@ -57,6 +57,16 @@ public sealed class JNode
     // ---------- 工厂 ----------
     public static JNode Object() => new(JKind.Object) { _obj = new(), _order = new() };
     public static JNode Array() => new(JKind.Array) { _arr = new() };
+
+    /// <summary>从字符串序列直接构建字符串数组，收敛「Array().Add("a").Add("b")」样板（required/items 等）。
+    /// 无参调用仍走 <see cref="Array()"/>（精确匹配优先于 params，歧义安全）。</summary>
+    public static JNode Array(params string[]? items)
+    {
+        var node = Array();
+        if (items != null)
+            foreach (var it in items) node.Add(it);
+        return node;
+    }
     public static JNode Str(string s) => new(JKind.String) { _str = s ?? "" };
     public static JNode Num(double d) => new(JKind.Number) { _num = d };
     public static JNode Bool(bool b) => new(JKind.Bool) { _bool = b };

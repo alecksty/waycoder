@@ -18,7 +18,7 @@ public class WebSearchTool : ITool, ICancellableTool
         .Set("properties", JNode.Object()
             .Set("query", JNode.Param("string", "搜索关键词"))
             .Set("num", JNode.Param("integer", "返回结果数量（1-10，默认 5）")))
-        .Set("required", JNode.Array().Add("query"));
+        .Set("required", JNode.Array("query"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
         => await ExecuteAsync(arguments, CancellationToken.None);

@@ -36,7 +36,7 @@ public class ScreenshotTool : ITool
         .Set("properties", JNode.Object()
             .Set("target", JNode.Object()
                 .Set("type", "string")
-                .Set("enum", JNode.Array().Add("console").Add("screen").Add("region"))
+                .Set("enum", JNode.Array("console", "screen", "region"))
                 .Set("description", "抓取目标：console=终端画面纯文本（默认）；screen=整个桌面；region=指定区域"))
             .Set("x", JNode.Param("integer", "region 模式：区域左上角 X 坐标（像素）"))
             .Set("y", JNode.Param("integer", "region 模式：区域左上角 Y 坐标（像素）"))

@@ -13,7 +13,7 @@ public class GlobTool : ITool
         .Set("properties", JNode.Object()
             .Set("pattern", JNode.Param("string", "Glob 模式，如 '**/*.py' 或 'src/**/*.ts'"))
             .Set("path", JNode.Param("string", "搜索目录（默认：当前工作目录）")))
-        .Set("required", JNode.Array().Add("pattern"));
+        .Set("required", JNode.Array("pattern"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

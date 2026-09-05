@@ -25,7 +25,7 @@ public class FindReplaceTool : ITool
             .Set("max_per_file", JNode.Param("integer", "每文件最多显示匹配数（默认 10）"))
             .Set("ignore_case", JNode.Param("boolean", "是否忽略大小写（默认 true）"))
             .Set("dry_run", JNode.Param("boolean", "仅预览不实际替换（默认 true）")))
-        .Set("required", JNode.Array().Add("pattern"));
+        .Set("required", JNode.Array("pattern"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

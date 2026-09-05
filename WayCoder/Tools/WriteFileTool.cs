@@ -21,7 +21,7 @@ public class WriteFileTool : ITool
             .Set("content", JNode.Param("string", "要写入的完整文件内容。将完全替换目标文件的全部内容。"))
             .Set("append", JNode.Param("boolean", "设为 true 追加到文件末尾（不覆写），默认 false 覆写"))
             .Set("encoding", JNode.Param("string", "文件编码，默认 utf8。支持 utf8/utf8bom/ascii/utf16/utf16be/utf32")))
-        .Set("required", JNode.Array().Add("file_path").Add("content"));
+        .Set("required", JNode.Array("file_path", "content"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

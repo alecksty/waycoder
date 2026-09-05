@@ -17,7 +17,7 @@ public class DiffTool : ITool
             .Set("file1", JNode.Param("string", "第一个文件路径"))
             .Set("file2", JNode.Param("string", "第二个文件路径"))
             .Set("context", JNode.Param("integer", "差异周围显示的上下文行数（默认 3）")))
-        .Set("required", JNode.Array().Add("file1").Add("file2"));
+        .Set("required", JNode.Array("file1", "file2"));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

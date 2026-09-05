@@ -22,7 +22,7 @@ public class LspTool : ITool
             .Set("line", JNode.Param("integer", "行号 (1-based)"))
             .Set("character", JNode.Param("integer", "列号 (1-based)"))
             .Set("query", JNode.Param("string", "符号搜索关键词 (symbols 操作时用)")))
-        .Set("required", JNode.Array().Add("action").Add("file_path").Add("line").Add("character"));
+        .Set("required", JNode.Array("action", "file_path", "line", "character"));
 
     /// <summary>支持的语言服务器列表（供 UI 展示）</summary>
     public static IReadOnlyDictionary<string, (string Command, string[] Args)> SupportedServers => ServerConfigs;

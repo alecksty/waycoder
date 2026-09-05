@@ -21,7 +21,7 @@ public class TranscribeAudioTool : ITool
             .Set("path", JNode.Param("string", "音频文件路径（如 /path/to/meeting.mp3）"))
             .Set("language", JNode.Param("string", "语言代码（ISO 639-1，如 zh/en/ja），省略则自动检测"))
             .Set("prompt", JNode.Param("string", "可选引导词，提供上下文/术语帮助提高转录准确率")))
-        .Set("required", JNode.Array().Add("path"));
+        .Set("required", JNode.Array("path"));
 
     private const long MaxBytes = 25L * 1024 * 1024; // OpenAI Whisper 25MB 上限
 

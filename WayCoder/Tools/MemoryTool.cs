@@ -25,7 +25,7 @@ public class MemoryTool : ITool
             .Set("description", JNode.Param("string", "一行摘要（write 时需要）"))
             .Set("type", JNode.Param("string", "记忆类型（write 时可选）: user | feedback | project | reference"))
             .Set("content", JNode.Param("string", "正文内容（write 时需要），或搜索关键词（search 时需要）")))
-        .Set("required", JNode.Array().Add("action"));
+        .Set("required", JNode.Array("action"));
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
