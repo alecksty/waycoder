@@ -375,8 +375,10 @@ public partial class ChatScreen : TuiScreen
         // 在 InputArea 上挂 KeyHook：拦截 ↑↓/Enter/Esc/Tab，透传其他键
         InputArea.KeyHook = PromptKeyHook;
 
-        // 提示栏挤压/让出聊天区：标脏聊天列表，强制填充背景+重绘，清掉被覆盖的残留像素
-        ChatList.MarkDirty();
+        // 提示栏挤压/让出聊天区：标脏聊天列表整棵子树，强制填充背景+重绘，清掉被覆盖的残留像素。
+        // 必须 MarkTreeDirty 而非 MarkDirty：提示栏一出现 chatH 就变，聊天列表渲染时先整视口擦成空白，
+        // 若只标脏容器（MarkDirty），消息子项因 parentDirty=false 不重画 → 提示栏收起后消息永久空白。
+        ChatList.MarkTreeDirty();
 
         MarkDirty();
     }
@@ -396,8 +398,9 @@ public partial class ChatScreen : TuiScreen
         PromptBar.SelectedIndex = -1;
         PromptBar.ViewIndex = 0;
         InputArea.KeyHook = null;
-        // 提示栏消失 → 聊天区高度还原：标脏聊天列表强制填充背景+重绘，清掉被提示栏盖住的残留（否则花屏）
-        ChatList.MarkDirty();
+        // 提示栏消失 → 聊天区高度还原：标脏聊天列表整棵子树强制填充背景+重绘，清掉被提示栏盖住的残留（否则花屏）。
+        // 同上必须 MarkTreeDirty：chatH 增高后若子项不重画，聊天内容会被擦成空白。
+        ChatList.MarkTreeDirty();
         MarkDirty();
     }
 

@@ -819,7 +819,7 @@ public static class Keypad
     /// 一个 rows×cols 的文本网格，逐帧 Apply 增量 ANSI（CursorPos/SGR/ClearScreen）后保持累积状态，
     /// 避免增量渲染只输出 delta 时抓不到完整画面。SGR 颜色被剥离，仅保留字符与位置。
     /// </summary>
-    sealed class FrameBuffer
+    public sealed class FrameBuffer
     {
         readonly int _rows, _cols;
         readonly string[][] _cell;
