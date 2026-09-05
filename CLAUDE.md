@@ -218,6 +218,8 @@ WayCoder 的模式参考 Claude Code / OpenAI Codex / Crush / Aider 划分为**�
 
 **快捷键一键一义**（v0.96.58 统一）：Ctrl+P=权限循环、Ctrl+E=经济循环（轴向层，主循环 `Program.Repl` 414/474/484 截走），**编辑器→`/edit`、输入建议条→输入 `/`·`!`·`#`·`@` 前缀自动弹出**；ChatScreen 不再绑 Ctrl+E/P/Q（防双重绑定「同一键两种含义」）。完整键表唯一事实源 = `UI/TUI/Controls/TuiKeybindHelp.cs` 的 `Groups`，底部行/文档据此维护。
 
+**快捷键跨平台铁律**（Win/Linux/Mac 通用）：功能键用 `Ctrl+字母`（非信号/控制码）与 `Ctrl+方向/Home/End`；**禁用这些 Unix 坑键**——`Ctrl+C`(SIGINT 信号，系统键=退出)、`Ctrl+Z`(Unix 默认 SIGTSTP 挂起进程，已注册 `PosixSignal.SIGTSTP` 转「优雅暂停」且 `ctx.Cancel=true`)、`Ctrl+M`/`Ctrl+H`(Unix ≡回车/退格)、`Ctrl+S`/`Ctrl+Q`(终端流控 XOFF/XON)。终端拿不准的键一定配斜杠兜底（`/model` `/help` `/session`）；复制 `Ctrl+Insert`（Mac 无 Insert 键，用终端原生复制）。
+
 ## 非显而易见的约束
 
 - **孤立的工具消息是非法的**：压缩时必须保持 tool 消息紧跟其 assistant 消息

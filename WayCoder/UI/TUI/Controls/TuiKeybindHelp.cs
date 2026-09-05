@@ -33,8 +33,9 @@ public static class TuiKeybindHelp
         ("✏ 编辑", [
             ("Enter", "发送消息"),
             ("Shift+Enter", "输入区换行"),
+            ("Ctrl+Insert", "复制选中（Ctrl+C 被占用为退出，改用此键）"),
+            ("Ctrl+V", "粘贴"),
             ("Tab", "路径补全 / 插 4 空格"),
-            ("Ctrl+V", "粘贴（超长/多行时确认）"),
             ("↑↓", "输入历史（输入区非空时）"),
             ("←→", "输入区光标移动"),
             ("Home / End", "输入区行首 / 行尾"),
@@ -103,8 +104,11 @@ public static class TuiKeybindHelp
     [
         "ℹ 上表快捷键仅在聊天界面有焦点时有效。对话框打开时键盘归对话框，",
         "  唯一例外是 Ctrl+C（唯一的系统键，任何时候都能退出）。",
+        "ℹ 剪贴板：复制 Ctrl+Insert、粘贴 Ctrl+V（Ctrl+C 被系统键占用为退出，不做复制）。",
         "▷ 一键一义：Ctrl+P=权限循环、Ctrl+E=经济循环（不因弹窗改变含义，轴向层）。",
         "  编辑器 → /edit；输入建议条 → 输入 `/`、`!`、`#`、`@` 自动弹出。",
+        "ℹ 跨平台：Ctrl+Z 优雅暂停在 Unix 已按信号处理（不挂起进程）；Ctrl+Insert 复制 Mac 无此键，用终端原生复制；",
+        "  Ctrl+M/H Unix 收不到 → /model /help；F1-F10 槽位 Mac 需按 Fn。",
         "⚠ Unix 终端下 Ctrl+M / Ctrl+H 与 Enter / Backspace 同码，收不到：",
         "  Ctrl+M 打开模型框 → 改用 /model",
         "  Ctrl+H 打开本面板 → 改用 /help",
