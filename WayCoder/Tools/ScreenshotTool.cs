@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using System.Text;
-using System.Text.RegularExpressions;
+using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
 using WayCoder.UI.TUI.Base;
@@ -55,11 +55,6 @@ public class ScreenshotTool : ITool
                 .Set("description", "GUI 抓屏 PNG 的保存路径（默认 ~/.waycoder/screenshots/ 自动命名）")))
         .Set("required", JNode.Array());
 
-    // 完整 ANSI 转义序列匹配：CSI / OSC / 两字符转义
-    internal static readonly Regex AnsiEscape = new(
-        @"\x1B(?:\[[0-9;?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1B\\)|[@-Z\\-_])",
-        RegexOptions.None);
-
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
         var target = (arguments.GetValueOrDefault("target")?.ToString() ?? "console").ToLowerInvariant();
@@ -77,7 +72,7 @@ public class ScreenshotTool : ITool
     {
         if (string.IsNullOrEmpty(input)) return "";
         // 先替换掉 OSC / CSI / 两字符转义
-        var text = AnsiEscape.Replace(input, "");
+        var text = AnsiString.Strip(input);
         // 逐行去掉行尾空白，保留大体排版
         var lines = text.Split('\n');
         for (var i = 0; i < lines.Length; i++)
