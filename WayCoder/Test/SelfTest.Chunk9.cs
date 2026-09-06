@@ -318,7 +318,7 @@ public static partial class SelfTest
         Check("命令面板: 含精选斜杠 /model", cmds.Any(c => c.Id == "slash-/model"));
         Check("命令面板: 含精选斜杠 /settings", cmds.Any(c => c.Id == "slash-/settings"));
         Check("命令面板: 含精选斜杠 /undo", cmds.Any(c => c.Id == "slash-/undo"));
-        Check("命令面板: 不含非精选 /architect", !cmds.Any(c => c.Id == "slash-/architect"));
+        Check("命令面板: 含 /architect（v0.96.59 功能菜单全量精选）", cmds.Any(c => c.Id == "slash-/architect"));
         Check("命令面板: 不含非精选 /debugon", !cmds.Any(c => c.Id == "slash-/debugon"));
         // 无回调时动作项被跳过、只剩斜杠命令
         var cmdsNoCb = WayCoder.UI.Tui.CommandPalette.BuildDefaultCommands(new ChatScreen());
