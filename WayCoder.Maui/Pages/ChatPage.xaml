@@ -28,7 +28,7 @@
             </Grid>
         </DataTemplate>
 
-        <!-- AI 消息：左对齐，卡片背景 + 富文本（«» 已解码）+ 思考过程折叠条 -->
+        <!-- AI 消息：左对齐，卡片背景 + 富文本（«» 已解码）；思考默认不显示，只留一行入口弹子页 -->
         <DataTemplate x:Key="AssistantTemplate" x:DataType="models:ChatMessage">
             <Grid Padding="12,6">
                 <Border
@@ -40,24 +40,17 @@
                         <RoundRectangle CornerRadius="14,14,14,4" />
                     </Border.StrokeShape>
                     <VerticalStackLayout Spacing="2">
-                        <!-- 思考过程：流式时实时展开、结束后折叠成一条，点击可展开/收起 -->
-                        <VerticalStackLayout IsVisible="{Binding HasReasoning}" Spacing="2">
-                            <Border BackgroundColor="Transparent" StrokeThickness="0" Padding="12,6,12,2">
+                        <!-- 思考入口：默认不显示思考内容，气泡顶部一行灰小字，点击弹 ReasoningDetailPage 看全文 -->
+                        <VerticalStackLayout IsVisible="{Binding HasReasoning}" Spacing="0">
+                            <Border BackgroundColor="Transparent" StrokeThickness="0" Padding="12,6,12,0">
                                 <Border.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnToggleReasoning" />
+                                    <TapGestureRecognizer Tapped="OnShowReasoning" />
                                 </Border.GestureRecognizers>
                                 <Label
-                                    Text="💭 思考过程"
-                                    FontSize="12"
+                                    Text="💭 查看思考"
+                                    FontSize="11"
                                     TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                             </Border>
-                            <Label
-                                Text="{Binding Reasoning}"
-                                Padding="12,0,12,6"
-                                FontSize="12"
-                                LineHeight="1.25"
-                                TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
-                                IsVisible="{Binding IsReasoningExpanded}" />
                         </VerticalStackLayout>
                         <Label
                             FormattedText="{Binding Formatted}"
@@ -69,36 +62,29 @@
             </Grid>
         </DataTemplate>
 
-        <!-- 工具调用提示：灰色小字 + 参数摘要 + 可展开输出详情 -->
+        <!-- 工具消息：工具组 = 一行「工具调用:N 次」（点开弹详情页）；普通灰字行（错误/任务摘要）直接显示文本 -->
         <DataTemplate x:Key="ToolTemplate" x:DataType="models:ChatMessage">
             <VerticalStackLayout Padding="12,2" Spacing="1">
+                <!-- 工具调用组：默认一行计数，点击弹 ToolCallsDetailPage 看每个工具 -->
+                <Border
+                    BackgroundColor="Transparent"
+                    StrokeThickness="0"
+                    Padding="0,2,0,2"
+                    IsVisible="{Binding HasToolCalls}">
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnShowToolCalls" />
+                    </Border.GestureRecognizers>
+                    <Label
+                        Text="{Binding RawText}"
+                        FontSize="12"
+                        TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                </Border>
+                <!-- 普通灰字行（工具错误 ⚠ / 任务摘要 ⏱ 等非组消息）：无 ToolCalls 时直接显示 -->
                 <Label
                     Text="{Binding RawText}"
                     FontSize="12"
-                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-                <Label
-                    Text="{Binding ToolSummary}"
-                    FontSize="11"
                     TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
-                    IsVisible="{Binding HasToolSummary}" />
-                <VerticalStackLayout IsVisible="{Binding HasToolDetail}" Spacing="1">
-                    <Border BackgroundColor="Transparent" StrokeThickness="0" Padding="0,2,0,2">
-                        <Border.GestureRecognizers>
-                            <TapGestureRecognizer Tapped="OnToggleToolDetail" />
-                        </Border.GestureRecognizers>
-                        <Label
-                            Text="▸ 输出详情"
-                            FontSize="11"
-                            TextColor="{StaticResource Primary}" />
-                    </Border>
-                    <Label
-                        FormattedText="{Binding ToolDetailFormatted}"
-                        FontSize="11"
-                        FontFamily="Courier New"
-                        LineHeight="1.2"
-                        TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
-                        IsVisible="{Binding IsToolDetailExpanded}" />
-                </VerticalStackLayout>
+                    IsVisible="{Binding IsPlainTool}" />
             </VerticalStackLayout>
         </DataTemplate>
 
@@ -122,9 +108,20 @@
             <Border.GestureRecognizers>
                 <TapGestureRecognizer Tapped="OnModelBarTapped" />
             </Border.GestureRecognizers>
-            <Grid ColumnDefinitions="*,Auto">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <!-- 左 ≡：滑出左抽屉（会话历史列表） -->
+                <Button Grid.Column="0"
+                        x:Name="SessionsBtn"
+                        Text="≡"
+                        FontSize="16"
+                        Padding="4,2"
+                        Margin="0,0,6,0"
+                        BackgroundColor="Transparent"
+                        TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
+                        Clicked="OnSessionsBtnClicked"
+                        SemanticProperties.Hint="会话历史" />
                 <!-- 行1：模型（左）+ 工作模式/权限（右）；行2：todo/上下文/用量/花费 -->
-                <Grid RowDefinitions="Auto,Auto" RowSpacing="1">
+                <Grid Grid.Column="1" RowDefinitions="Auto,Auto" RowSpacing="1">
                     <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
                         <Label x:Name="ModelBar"
                                FontSize="13"
@@ -146,8 +143,8 @@
                            TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
                            HorizontalOptions="Start" />
                 </Grid>
-                <!-- 右上角菜单键：会话管理/任务管理/模型选择/模式切换/权限切换 等 -->
-                <Button Grid.Column="1"
+                <!-- 右 ☰：滑出右抽屉（侧边栏：模式/权限/todo/上下文/记忆/命令） -->
+                <Button Grid.Column="2"
                         x:Name="MenuBtn"
                         Text="☰"
                         FontSize="16"
@@ -155,7 +152,7 @@
                         BackgroundColor="Transparent"
                         TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
                         Clicked="OnMenuClicked"
-                        SemanticProperties.Hint="菜单" />
+                        SemanticProperties.Hint="侧边栏" />
             </Grid>
         </Border>
 
@@ -272,6 +269,72 @@
                 Clicked="OnSendClicked"
                 VerticalOptions="End"
                 SemanticProperties.Hint="发送（忙时点=停止；键盘发送忙时排队）" />
+        </Grid>
+
+        <!-- 左右屏幕边缘滑动手势热区（横向 Pan：左缘向右滑=开左会话抽屉；右缘向左滑=开右侧栏）。
+             窄条只占消息区两侧边缘，主体 CollectionView 滚动不受影响 -->
+        <BoxView Grid.Row="1" HorizontalOptions="Start" WidthRequest="26" BackgroundColor="Transparent" Opacity="0">
+            <BoxView.GestureRecognizers>
+                <PanGestureRecognizer PanUpdated="OnLeftEdgePan" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+        <BoxView Grid.Row="1" HorizontalOptions="End" WidthRequest="26" BackgroundColor="Transparent" Opacity="0">
+            <BoxView.GestureRecognizers>
+                <PanGestureRecognizer PanUpdated="OnRightEdgePan" />
+            </BoxView.GestureRecognizers>
+        </BoxView>
+
+        <!-- 抽屉覆盖层（覆盖全页，Z 最顶）：半透明遮罩 + 左抽屉(会话历史) / 右抽屉(侧边栏)。
+             两抽屉初始在屏外（TranslationX=±Width），打开时 TranslateTo 滑入 -->
+        <Grid x:Name="DrawerLayer" Grid.Row="0" Grid.RowSpan="4" IsVisible="False">
+            <BoxView x:Name="DrawerScrim" Color="#99000000" Opacity="0">
+                <BoxView.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnDrawerScrimTapped" />
+                </BoxView.GestureRecognizers>
+            </BoxView>
+            <!-- 左抽屉：会话历史列表。固定头部（标题+新建）+ 可滚动列表（内容由 code-behind 构建/刷新） -->
+            <Border x:Name="LeftDrawer"
+                    HorizontalOptions="Start"
+                    VerticalOptions="Fill"
+                    WidthRequest="330"
+                    StrokeThickness="0"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}">
+                <Grid RowDefinitions="Auto,*" RowSpacing="2">
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="16,12,6,4">
+                        <Label
+                            Text="会话历史"
+                            FontSize="14"
+                            FontAttributes="Bold"
+                            VerticalOptions="Center"
+                            TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+                        <Button
+                            x:Name="NewSessionBtn"
+                            Grid.Column="1"
+                            Text="＋ 新会话"
+                            FontSize="12"
+                            Padding="10,6"
+                            Margin="0,0,6,0"
+                            BackgroundColor="Transparent"
+                            TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                            Clicked="OnNewSessionClicked"
+                            SemanticProperties.Hint="新建会话" />
+                    </Grid>
+                    <ScrollView Grid.Row="1">
+                        <VerticalStackLayout x:Name="LeftBody" Spacing="4" Padding="8,0,8,12" />
+                    </ScrollView>
+                </Grid>
+            </Border>
+            <!-- 右抽屉：侧边栏（模式/权限/经济 · todo · 上下文 · 记忆 · 命令；内容 RightBody code-behind 构建） -->
+            <Border x:Name="RightDrawer"
+                    HorizontalOptions="End"
+                    VerticalOptions="Fill"
+                    WidthRequest="340"
+                    StrokeThickness="0"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}">
+                <ScrollView>
+                    <VerticalStackLayout x:Name="RightBody" Padding="14,10" Spacing="8" />
+                </ScrollView>
+            </Border>
         </Grid>
     </Grid>
 </ContentPage>

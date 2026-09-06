@@ -26,10 +26,12 @@ public class TranscribeAudioTool : ITool
     private const long MaxBytes = 25L * 1024 * 1024; // OpenAI Whisper 25MB 上限
 
     private static HttpClient _client => _lazyClient.Value;
-    private static readonly Lazy<HttpClient> _lazyClient = new(() => new HttpClient
-    {
-        Timeout = TimeSpan.FromSeconds(180),
-    });
+    // Android：默认 handler 由 .NET Android 解析为 Java HttpURLConnection（主线程受限）。
+    // 移动端 agent 跑在 UI 线程，这里强制纯托管 SocketsHttpSocketHandler（socket 无主线程限制），
+    // 否则 UI 线程 upload 会抛 NetworkOnMainThreadException。桌面默认即 SocketsHttpHandler 无回归。
+    private static readonly Lazy<HttpClient> _lazyClient = new(() => OperatingSystem.IsAndroid()
+        ? new HttpClient(new SocketsHttpHandler()) { Timeout = TimeSpan.FromSeconds(180) }
+        : new HttpClient { Timeout = TimeSpan.FromSeconds(180) });
 
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {

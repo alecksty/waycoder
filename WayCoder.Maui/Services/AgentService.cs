@@ -138,12 +138,16 @@ public sealed class AgentService
         IsRunning = true;
         try
         {
-            return await agent.ChatAsync(
+            // Agent 主循环放线程池（不捕获 UI SynchronizationContext）——否则 agent 的工具执行/
+            // token 估算/SHA256 等同步工作全落在主线程，长任务会卡死 UI：顶部转轮（DispatcherTimer
+            // 驱动）停转、「思考中/使用工具」界面短暂冻结。回调已用 BeginInvokeOnMainThread 泵回 UI，
+            // 故放后台后 token/工具更新仍安全回主线程渲染；网络/工具也在后台线程（Android 无主线程网络限制的额外保险）。
+            return await Task.Run(() => agent.ChatAsync(
                 userInput,
                 token => MainThread.BeginInvokeOnMainThread(() => onToken(token)),
                 (name, summary) => MainThread.BeginInvokeOnMainThread(() => onTool(name, summary)),
                 output => MainThread.BeginInvokeOnMainThread(() => onToolOutput(output)),
-                ct);
+                ct));
         }
         finally
         {
