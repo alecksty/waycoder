@@ -233,33 +233,23 @@
                                     Grid.Column="1"
                                     HorizontalAlignment="Center"
                                     VerticalAlignment="Center"
-                                    ColumnDefinitions="5*,5*,*,2*,*,2*">
+                                    ColumnDefinitions="5*,*,2*,*,2*">
 
+                                    <!-- 模型栏主按钮：只显示当前生效模型（通道前缀:(供应商)model）；大/小切换经弹窗内 Tab -->
                                     <Button
-                                        x:Name="BigModelBtn"
+                                        x:Name="CurrentModelBtn"
                                         Grid.Column="0"
-                                        Content="大"
+                                        Content="选择模型"
                                         Foreground="{DynamicResource TextBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}"
-                                        ToolTip.Tip="选择大模型（复杂任务）"
-                                        Click="BigModel_Click"
-                                        FontSize="{DynamicResource TextFontSize}"
-                                        Margin="5"
-                                        CornerRadius="5" />
-
-                                    <Button
-                                        x:Name="SmallModelBtn"
-                                        Grid.Column="1"
-                                        Foreground="{DynamicResource TextBrush}"
-                                        BorderBrush="{DynamicResource BorderBrush}"
-                                        Content="小"
-                                        ToolTip.Tip="选择小模型（简单 / 压缩）" Click="SmallModel_Click"
+                                        ToolTip.Tip="当前生效模型 / 点击切换（大/小模型经弹窗内 Tab）"
+                                        Click="CurrentModel_Click"
                                         FontSize="{DynamicResource TextFontSize}"
                                         Margin="5"
                                         CornerRadius="5" />
 
                                     <TextBlock
-                                        Grid.Column="2"
+                                        Grid.Column="1"
                                         Text="经济"
                                         FontSize="{DynamicResource TextFontSize}"
                                         Margin="5"
@@ -268,7 +258,7 @@
 
                                     <ComboBox
                                         x:Name="EconomyCombo"
-                                        Grid.Column="3"
+                                        Grid.Column="2"
                                         Foreground="{DynamicResource TextBrush}"
                                         BorderBrush="{DynamicResource BorderBrush}"
                                         BorderThickness="0.5"
@@ -280,7 +270,7 @@
                                         SelectionChanged="Economy_SelectionChanged" />
 
                                     <TextBlock
-                                        Grid.Column="4"
+                                        Grid.Column="3"
                                         Text="权限"
                                         FontSize="{DynamicResource TextFontSize}"
                                         Margin="5"
@@ -289,7 +279,7 @@
 
                                     <ComboBox
                                         x:Name="PermCombo"
-                                        Grid.Column="5"
+                                        Grid.Column="4"
                                         FontSize="{DynamicResource TextFontSize}"
                                         Margin="5"
                                         Padding="0"

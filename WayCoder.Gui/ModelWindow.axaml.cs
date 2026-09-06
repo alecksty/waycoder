@@ -17,7 +17,8 @@ namespace WayCoder.UI.Gui;
 public sealed partial class ModelWindow : Window
 {
     private readonly MainWindow _owner;
-    private readonly bool _smallMode;
+    private bool _smallMode; // 当前目标通道：false=大模型（default 锚点）/ true=小模型；可经顶部 Tab 切换
+    private Button _bigTabBtn = null!, _smallTabBtn = null!;
     private string _selectedId = "";
     private string _selectedProviderId = "";
     private string? _selectedBaseUrl;
@@ -37,10 +38,52 @@ public sealed partial class ModelWindow : Window
         _owner = owner;
         _smallMode = smallMode;
         Title = smallMode ? "🔧 选择小模型" : "🤖 选择大模型";
+        // 预选该通道当前模型（与 Web/TUI 弹窗一致：打开即见当前大/小模型行高亮）
+        var cfg = Config.Instance;
+        _selectedId = smallMode ? cfg.SmallModel : cfg.Model;
+        _selectedProviderId = smallMode ? cfg.SmallProvider : cfg.Provider;
 
+        BuildModeTabs();
         BuildToolbar();
         BuildHeader();
         RenderList("");
+    }
+
+    /// <summary>顶部「大模型 | 小模型」分段切换（模型栏不再并列小模型入口，切小模型经此 Tab）。</summary>
+    private void BuildModeTabs()
+    {
+        _bigTabBtn = UiKit.MakeButton("🤖 大模型", ButtonVariant.Default, () => SetMode(small: false));
+        _smallTabBtn = UiKit.MakeButton("🔧 小模型", ButtonVariant.Default, () => SetMode(small: true));
+        ModeTabs.Children.Add(_bigTabBtn);
+        ModeTabs.Children.Add(_smallTabBtn);
+        ApplyModeStyle();
+    }
+
+    /// <summary>切换目标通道（大/小），同步标题、Tab 高亮，并把预选行定位到该通道当前模型。</summary>
+    private void SetMode(bool small)
+    {
+        _smallMode = small;
+        Title = small ? "🔧 选择小模型" : "🤖 选择大模型";
+        var cfg = Config.Instance;
+        _selectedId = small ? cfg.SmallModel : cfg.Model;
+        _selectedProviderId = small ? cfg.SmallProvider : cfg.Provider;
+        _selectedBaseUrl = null; // 切换时经 ModelCatalog/注册表解析网关
+        ApplyModeStyle();
+        RenderList(SearchBox.Text ?? "");
+    }
+
+    /// <summary>把大/小两个 Tab 的高亮刷到与当前 _smallMode 一致（主题切换后经 ApplyTabActive 重取动态画刷）。</summary>
+    private void ApplyModeStyle()
+    {
+        ApplyTabActive(_bigTabBtn, !_smallMode);
+        ApplyTabActive(_smallTabBtn, _smallMode);
+    }
+
+    private static void ApplyTabActive(Button b, bool active)
+    {
+        b[!Button.BackgroundProperty] = new DynamicResourceExtension(active ? "AccentBrush" : "Panel2BgBrush");
+        b[!Button.ForegroundProperty] = new DynamicResourceExtension(active ? "ButtonText" : "TextBrush");
+        b.FontWeight = active ? FontWeight.Bold : FontWeight.Normal;
     }
 
     /// <summary>底部按钮行：左工具栏 + 右操作。</summary>

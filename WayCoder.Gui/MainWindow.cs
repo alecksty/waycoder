@@ -196,9 +196,9 @@ public partial class MainWindow : Window
     private void UpdateHeader()
     {
         var cfg = Config.Instance;
-        // 模型栏只显示当前生效模型，前缀提示通道：big→大模型 / free→自由模型（小模型为辅助通道，标 小模型）
-        BigModelBtn.Content = $"🤖 {ConnectionConfig.FormatModelChannel(ConnectionConfig.CurrentMainChannel(), cfg.Provider, cfg.Model)}";
-        SmallModelBtn.Content = $"🔧 {ConnectionConfig.FormatModelChannel("small", cfg.SmallProvider, cfg.SmallModel)}";
+        // 模型栏只显示当前生效模型，格式 `{通道前缀}:(供应商)model`（big→大模型 / free→自由模型）。
+        // 小模型不再并列显示——切小模型经 ModelWindow 内「大模型|小模型」Tab。
+        CurrentModelBtn.Content = ConnectionConfig.FormatModelChannel(ConnectionConfig.CurrentMainChannel(), cfg.Provider, cfg.Model);
     }
 
     /// <summary>初始化 composer 工具栏：省钱模式 + 交互权限模式下拉。需先清空（Settings 保存后经 NotifySettingsSaved 重入，避免重复追加）。</summary>

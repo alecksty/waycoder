@@ -371,19 +371,16 @@ function renderModelBar(state) {
   // 优先显示当前槽位实际模型（/sessions/load 可覆盖槽位模型），回退全局默认。
   // 模型栏只显示当前生效模型，前缀提示通道：`{通道前缀}:(provider)model`。
   // 前缀由后端 state.channel 给定（big→大模型 / free→自由模型）；provider 用 (服务商) 区分跨供应商同名模型。
+  // 小模型不再并列显示——切小模型经模型弹窗内「大模型|小模型」Tab。
   const slot = (state.slots && state.slots[state.activeSlot]) ? state.slots[state.activeSlot] : null;
   const slotModel = slot ? slot.model : '';
   const slotProvider = (slot && slot.providerId) || currentProvider;
-  const big = findModel(slotModel || state.model || currentModelId, slotProvider);
-  const small = findModel(state.smallModel || currentSmallModel, currentSmallProvider);
+  const cur = findModel(slotModel || state.model || currentModelId, slotProvider);
   // 当前槽位实际运行模型 ≠ 全局默认（回退链 / 会话恢复跑非默认模型）→ 通道标 回滚模型；否则按 state.channel
   const isRollback = !!slotModel && !!state.model && slotModel !== state.model;
-  const bigPrefix = isRollback ? '回滚模型' : (state.channel || '大模型');
-  const bigName = big ? formatModelLabel(big) : (slotModel || state.model || currentModelId || '');
-  const smallName = small ? formatModelLabel(small) : (state.smallModel || currentSmallModel || '');
-  document.getElementById('big-model-label').textContent = bigName ? (bigPrefix + ':' + bigName) : '选择模型';
-  // 小模型是辅助通道（压缩/子任务），始终标 小模型 前缀，与当前生效模型区分开
-  document.getElementById('small-model-label').textContent = smallName ? ('小模型:' + smallName) : '选择小模型';
+  const prefix = isRollback ? '回滚模型' : (state.channel || '大模型');
+  const name = cur ? formatModelLabel(cur) : (slotModel || state.model || currentModelId || '');
+  document.getElementById('current-model-label').textContent = name ? (prefix + ':' + name) : '选择模型';
   if (state.economy) eco.value = state.economy;
 }
 
@@ -392,8 +389,7 @@ function renderModelBar(state) {
 function formatModelLabel(m) {
   return m ? ('(' + (m.provider || m.providerId || '?') + ')' + m.id) : '选择';
 }
-document.getElementById('big-model-btn').onclick = () => openModelModal('large');
-document.getElementById('small-model-btn').onclick = () => openModelModal('small');
+document.getElementById('current-model-btn').onclick = () => openModelModal('large');
 document.getElementById('economy-select').onchange = e =>
   fetch('/settings', { method: 'POST', body: JSON.stringify({ key: 'EconomyMode', value: e.target.value }) }).catch(() => {});
 function formatContext(ctx) {
@@ -411,17 +407,25 @@ function formatPrice(m) {
   const s = inS + '/' + outS;
   return hasOff ? s + ' 闲' + fmt(m.inputPriceOffpeak) + '/' + fmt(m.outputPriceOffpeak) : s;
 }
-function openModelModal(mode) {
+// 模型弹窗内「大模型|小模型」目标通道切换：切到哪档，预选行 = 该档当前模型，「切换/保存」作用于该档。
+function setModelMode(mode) {
   pendingMode = mode;
   const isSmall = mode === 'small';
+  document.getElementById('model-title').textContent = isSmall ? '🔧 选择小模型' : '🤖 选择大模型';
   selectedModelId = isSmall ? currentSmallModel : currentModelId;
   selectedProviderId = isSmall ? currentSmallProvider : currentProvider;
-  document.getElementById('model-title').textContent = isSmall ? '🔧 选择小模型' : '🤖 选择大模型';
+  document.getElementById('model-mode-large').classList.toggle('active', !isSmall);
+  document.getElementById('model-mode-small').classList.toggle('active', isSmall);
+  renderModelList(document.getElementById('model-search').value);
+}
+function openModelModal(mode) {
   document.getElementById('model-search').value = '';
   document.getElementById('model-scan-status').textContent = '';
-  renderModelList('');
+  setModelMode(mode || 'large');
   document.getElementById('model-modal').classList.add('open');
 }
+document.getElementById('model-mode-large').onclick = () => setModelMode('large');
+document.getElementById('model-mode-small').onclick = () => setModelMode('small');
 function statusText(s) {
   switch (s) {
     case 'connected': return '✔连通';
