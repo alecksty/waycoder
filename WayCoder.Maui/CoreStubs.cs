@@ -416,6 +416,9 @@ namespace WayCoder.UI.Tui.Screens
         /// <summary>模型显示刷新桩：MAUI 真实刷新走 ChatPage.RefreshModelBar（ConnectionCommand 切换后调用，编译兼容）。</summary>
         public void RefreshModelStatus() { }
 
+        /// <summary>功能菜单回调（/menu 命令引用；MAUI 无终端命令面板 → ChatPage 可选注入或 null）。</summary>
+        public Action? OnOpenCommandPalette;
+
         public void AddMessage(string content, string role = "assistant", bool? centered = null, int indent = 0)
             => OnAddMessage?.Invoke(content, role, centered, indent);
 
