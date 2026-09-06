@@ -388,7 +388,9 @@ public partial class ChatScreen : TuiScreen
     }
 
     /// <summary>
-    /// 同步模型/模式信息行（输入区下方、状态栏上方）：权限/工作模式/经济模式/大模型/小模型，`·` 分隔。
+    /// 同步模型/模式信息行（输入区下方、状态栏上方）：权限/工作模式/经济模式/当前生效模型，`·` 分隔。
+    /// 模型栏只显示「当前生效模型」，前缀提示通道：big→大模型 / free→自由模型 / 回退链→回滚模型。
+    /// 小模型是压缩/子任务辅助通道（非当前对话），不再并列展示，避免「不知道哪个是当前模型」。
     /// 每帧读取实时模式/模型，变了才标脏重绘（模式切换后下一帧自动刷新）。
     /// 用 «tag»…«/» 标记分段着色（TuiLabel.ParseMarkup）：标签暗、值亮/彩，当前模型加粗 —— 比此前整行灰暗更醒目。
     /// </summary>
@@ -396,29 +398,21 @@ public partial class ChatScreen : TuiScreen
     {
         // 模型栏用 `(provider)model` 格式：即使同名模型分属不同服务商（如两个 deepseek）也能区分。
         // 大模型显示「实际生效」的模型：回退/切换后 agent.LlmClient.Model 变了，模型栏立即反映真实值，
-        // 并标 (回退)，避免「不知道当前模型是哪个」。
+        // 前缀改标 回滚模型，避免「不知道当前模型是哪个」。
         var slotCfg = AgentSlotConfig.Get(ActiveSlotIndex);
         var cfgLargeModel = AgentSlotConfig.ResolveLargeModel(slotCfg, ActiveSlotIndex);
         var liveLlm = ProgramContext.Agent?.LlmClient;
         var isLargeFallback = liveLlm != null && !string.IsNullOrWhiteSpace(liveLlm.Model)
                                               && !string.Equals(liveLlm.Model, cfgLargeModel, StringComparison.OrdinalIgnoreCase);
-        var largeModel = isLargeFallback ? liveLlm!.Model : cfgLargeModel;
+        var curModel = isLargeFallback ? liveLlm!.Model : cfgLargeModel;
         // 只信「模型+网关」能精确匹配到的 provider；匹配不到显示 (?)model，而非回落 Config.Provider 乱猜
         // （自定义网关模型 mimo-v2.5@ambient.xyz 会被误报成别的服务商，如 DeepSeek）。
-        var largeProv = ModelCatalog.ResolveConfidentProvider(
-            largeModel, isLargeFallback ? liveLlm?.BaseUrl : AgentSlotConfig.ResolveBaseUrl(slotCfg, cfgLargeModel));
-        string large = ConnectionConfig.FormatModel(
-            largeProv != null ? ModelCatalog.ProviderDisplayName(largeProv) : "?",
-            largeModel) + (isLargeFallback ? "«dim»(回退)«/»" : "");
-        var smallModel = AgentSlotConfig.ResolveSmallModel(slotCfg, ActiveSlotIndex);
-        // 小模型无实时回退（不像大模型有 LlmClient fallback），信「配置/connect 的小模型 provider」——
-        // ResolveSmallProvider 内部 Find+Infer 兜底 cfg.SmallProvider；而 ResolveConfidentProvider
-        // 只在网关能精确命中/反推时返回，inferera 等聚合网关（不在 InferProviderFromBaseUrl 关键字表）
-        // 会得 null → 误显示 (?)。配置的 SmallProvider/小 connect 是用户显式选择，可信。
-        var smallProv = AgentSlotConfig.ResolveSmallProvider(slotCfg, ActiveSlotIndex);
-        string small = ConnectionConfig.FormatModel(
-            smallProv != null ? ModelCatalog.ProviderDisplayName(smallProv) : "?",
-            smallModel);
+        var curProv = ModelCatalog.ResolveConfidentProvider(
+            curModel, isLargeFallback ? liveLlm?.BaseUrl : AgentSlotConfig.ResolveBaseUrl(slotCfg, cfgLargeModel));
+        // 通道前缀：回退链运行态 → 回滚模型；free 模式 → 自由模型；其余（big/槽位独立）→ 大模型。
+        string channel = isLargeFallback ? "rollback" : ConnectionConfig.CurrentMainChannel();
+        string modelBar = ConnectionConfig.FormatModelChannel(channel,
+            curProv ?? "?", curModel);
         string modeStr = WorkModeManager.Format(WorkModeManager.CurrentMode);
         string economyStr = Config.Instance.EconomyMode switch
         {
@@ -451,11 +445,17 @@ public partial class ChatScreen : TuiScreen
             _ => "grey",
         };
 
+        // 前缀（如 大模型:）暗显、模型本体加粗 —— 前缀与模型在同一个分段着色内拼出 `大模型:(AIHubMix)glm-5.2`
+        int channelColon = modelBar.IndexOf(':');
+        string prefixPart = channelColon >= 0 ? modelBar[..(channelColon + 1)] : (modelBar + ":");
+        string modelPart = channelColon >= 0 ? modelBar[(channelColon + 1)..] : "";
+        // 确保 modelBar 非空时不拆错：modelPart 为空则整段加粗
+        if (modelPart.Length == 0) { prefixPart = modelBar; }
+
         string rowStr = $"«dim»模式:«/»«{modeColor}»{modeStr}«/»"
                         + $" · «dim»权限:«/»«{permColor}»{permStr}«/»"
                         + $" · «dim»经济:«/»«{economyColor}»{economyStr}«/»"
-                        + $" · «dim»大:«/»«bold»{large}«/»"
-                        + $" · «dim»小:«/»«bold»{small}«/»";
+                        + $" · «dim»{prefixPart}«/»«bold»{modelPart}«/»";
 
         SetModelInfoRow(true, rowStr);
     }
@@ -482,15 +482,16 @@ public partial class ChatScreen : TuiScreen
 
     /// <summary>
     /// 统一刷新模型显示（动态栏 StatusLeft + 模型栏）：从 active connect（Config.Instance）派生当前
-    /// 大模型/小模型，格式统一 (provider)model。供所有切换路径调用 + 心跳线程 5s 兜底同步。
-    /// 只标脏（MarkDirty）不碰控件树，后台线程可安全调用；下一帧 SyncDynamicBar/SyncModelInfo 自愈。
+    /// 生效模型，格式统一 {通道前缀}:(provider)model（big→大模型 / free→自由模型）。供所有切换路径调用
+    /// + 心跳线程 5s 兜底同步。只标脏（MarkDirty）不碰控件树，后台线程可安全调用；
+    /// 下一帧 SyncDynamicBar/SyncModelInfo 自愈。
     /// </summary>
     public void RefreshModelStatus()
     {
-        var prov = ModelCatalog.ResolveConfidentProvider(Config.Instance.Model, Config.Instance.BaseUrl);
-        StatusLeft = ConnectionConfig.FormatModel(
-            prov != null ? ModelCatalog.ProviderDisplayName(prov) : "?",
-            Config.Instance.Model);
+        var cfg = Config.Instance;
+        var prov = ModelCatalog.ResolveConfidentProvider(cfg.Model, cfg.BaseUrl);
+        StatusLeft = ConnectionConfig.FormatModelChannel(ConnectionConfig.CurrentMainChannel(),
+            prov ?? "?", cfg.Model);
         MarkDirty();
     }
 

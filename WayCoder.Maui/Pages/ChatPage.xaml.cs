@@ -309,7 +309,9 @@ public partial class ChatPage : ContentPage
     /// <summary>顶部状态区行 1：当前生效模型（点击可切换）。行 2 统计见 <see cref="RefreshStatusBar"/>。</summary>
     private void RefreshModelBar()
     {
-        ModelBar.Text = $"🧠 {ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(Config.Instance.Provider), Config.Instance.Model)}";
+        var cfg = Config.Instance;
+        // 模型栏只显示当前生效模型，前缀提示通道：big→大模型 / free→自由模型
+        ModelBar.Text = $"🧠 {ConnectionConfig.FormatModelChannel(ConnectionConfig.CurrentMainChannel(), cfg.Provider, cfg.Model)}";
         RefreshStatusBar();
     }
 
