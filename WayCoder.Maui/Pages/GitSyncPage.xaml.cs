@@ -1,7 +1,6 @@
 using System.Text.RegularExpressions;
 using WayCoder.Git;
 using WayCoder.Maui.Services;
-using ZXing;
 
 namespace WayCoder.Maui.Pages;
 
@@ -330,74 +329,16 @@ public partial class GitSyncPage : ContentPage
             if (photo == null) return;
             await using var stream = await photo.OpenReadAsync();
 
+            // 解码较吃 CPU（像素提取 + 手写 QrDecoder），放后台线程避免卡 UI/ANR。
+            string? text;
 #if ANDROID
-            // 照片流拷进内存（可重复 seek），多尺度尝试解码（QR 在照片中大小未知）
-            using var ms = new MemoryStream();
-            await stream.CopyToAsync(ms);
-            ms.Position = 0;
-
-            string? text = null;
-            var reader = new BarcodeReaderGeneric
-            {
-                Options = new ZXing.Common.DecodingOptions
-                {
-                    TryHarder = true,
-                    TryInverted = true,
-                    PossibleFormats = new List<ZXing.BarcodeFormat> { ZXing.BarcodeFormat.QR_CODE },
-                },
-            };
-
-            // 先读原始尺寸
-            var bounds = new Android.Graphics.BitmapFactory.Options { InJustDecodeBounds = true };
-            ms.Position = 0;
-            Android.Graphics.BitmapFactory.DecodeStream(ms, null, bounds);
-            int maxDim = Math.Max(bounds.OutWidth, bounds.OutHeight);
-            if (maxDim <= 0) maxDim = 3000;
-
-            // 多尺度：原图、1/2、1/4、1/8（QR 小则用原图，大则缩小后更稳）
-            var samples = new[] { 1, 2, 4, 8 }.Where(s => maxDim / s >= 200).ToList();
-            foreach (var s in samples)
-            {
-                ms.Position = 0;
-                var opts = new Android.Graphics.BitmapFactory.Options { InSampleSize = s };
-                using var bmp = Android.Graphics.BitmapFactory.DecodeStream(ms, null, opts);
-                if (bmp == null) continue;
-
-                // 相机照片可能带 EXIF 旋转（Android 拍照 90°/270° 常见，微信自动处理但我们没读），
-                // 4 个旋转角都试一次。注意：只释放旋转出的新位图，bmp 由外层 using 释放。
-                foreach (var angle in new[] { 0, 90, 180, 270 })
-                {
-                    Android.Graphics.Bitmap? rotated = null;
-                    var toDecode = bmp;
-                    if (angle != 0)
-                    {
-                        rotated = RotateBitmap(bmp, angle);
-                        toDecode = rotated;
-                    }
-                    try
-                    {
-                        var w = toDecode.Width; var h = toDecode.Height;
-                        var pixels = new int[w * h];
-                        toDecode.GetPixels(pixels, 0, w, 0, 0, w, h);
-                        // ARGB int → RGB byte（ZXing RGBLuminanceSource 期望 3 字节/像素）
-                        var rgb = new byte[w * h * 3];
-                        for (int i = 0; i < pixels.Length; i++)
-                        {
-                            var p = pixels[i];
-                            rgb[i * 3] = (byte)((p >> 16) & 0xFF);
-                            rgb[i * 3 + 1] = (byte)((p >> 8) & 0xFF);
-                            rgb[i * 3 + 2] = (byte)(p & 0xFF);
-                        }
-                        text = reader.Decode(new RGBLuminanceSource(rgb, w, h))?.Text;
-                    }
-                    finally
-                    {
-                        rotated?.Dispose(); // 仅释放旋转产生的新位图
-                    }
-                    if (text != null) break;
-                }
-                if (text != null) break;
-            }
+            text = await Task.Run(() => DecodeAndroidQr(stream));
+#elif IOS
+            text = await Task.Run(() => DecodeIosQr(stream));
+#else
+            await DisplayAlertAsync("扫码", "当前平台暂不支持拍照扫码，请手动填写。", "关闭");
+            return;
+#endif
 
             if (text == null)
             {
@@ -407,9 +348,6 @@ public partial class GitSyncPage : ContentPage
             FillFromJson(text);
             ShowStatus();
             await DisplayAlertAsync("已识别", "已从二维码填入仓库/凭证，点「📥 克隆 / 拉取」同步。", "确定");
-#else
-            await DisplayAlertAsync("扫码", "当前平台暂不支持拍照扫码，请手动填写。", "关闭");
-#endif
         }
         catch (Exception ex)
         {
@@ -418,6 +356,79 @@ public partial class GitSyncPage : ContentPage
     }
 
 #if ANDROID
+    /// <summary>
+    /// Android：BitmapFactory 读图（多尺度采样，保留平台旋转处理）→ 手写 QrDecoder 解码。
+    /// 返回解码文本；失败返回 null。
+    /// </summary>
+    private static string? DecodeAndroidQr(Stream photoStream)
+    {
+        // 照片流拷进内存（可重复 seek），多尺度尝试解码（QR 在照片中大小未知）
+        using var ms = new MemoryStream();
+        photoStream.CopyTo(ms);
+        ms.Position = 0;
+
+        // 先读原始尺寸
+        var bounds = new Android.Graphics.BitmapFactory.Options { InJustDecodeBounds = true };
+        ms.Position = 0;
+        Android.Graphics.BitmapFactory.DecodeStream(ms, null, bounds);
+        int maxDim = Math.Max(bounds.OutWidth, bounds.OutHeight);
+        if (maxDim <= 0) maxDim = 3000;
+
+        // 多尺度：原图、1/2、1/4、1/8（QR 小则用原图，大则缩小后更稳）
+        var samples = new[] { 1, 2, 4, 8 }.Where(s => maxDim / s >= 200).ToList();
+        foreach (var s in samples)
+        {
+            ms.Position = 0;
+            var opts = new Android.Graphics.BitmapFactory.Options { InSampleSize = s };
+            using var bmp = Android.Graphics.BitmapFactory.DecodeStream(ms, null, opts);
+            if (bmp == null) continue;
+
+            // 相机照片可能带 EXIF 旋转（Android 拍照 90°/270° 常见，微信自动处理但我们没读），
+            // 4 个旋转角都试一次。注意：只释放旋转出的新位图，bmp 由外层 using 释放。
+            foreach (var angle in new[] { 0, 90, 180, 270 })
+            {
+                Android.Graphics.Bitmap? rotated = null;
+                var toDecode = bmp;
+                if (angle != 0)
+                {
+                    rotated = RotateBitmap(bmp, angle);
+                    toDecode = rotated;
+                }
+                try
+                {
+                    if (TryDecodeAndroidBitmap(toDecode, out var text)) return text;
+                }
+                finally
+                {
+                    rotated?.Dispose(); // 仅释放旋转产生的新位图
+                }
+            }
+        }
+        return null;
+    }
+
+    /// <summary>Android Bitmap → ARGB int[] → RGBA byte[]（每像素 r,g,b,a 连续 4 字节）→ QrDecoder.Decode。</summary>
+    private static bool TryDecodeAndroidBitmap(Android.Graphics.Bitmap bmp, out string? text)
+    {
+        text = null;
+        var w = bmp.Width; var h = bmp.Height;
+        var pixels = new int[w * h];
+        bmp.GetPixels(pixels, 0, w, 0, 0, w, h);
+        // ARGB int → RGBA byte（QrDecoder 期望每像素 4 字节连续 RGBA）
+        var rgba = new byte[w * h * 4];
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            var p = pixels[i];
+            rgba[i * 4] = (byte)((p >> 16) & 0xFF);    // R
+            rgba[i * 4 + 1] = (byte)((p >> 8) & 0xFF); // G
+            rgba[i * 4 + 2] = (byte)(p & 0xFF);        // B
+            rgba[i * 4 + 3] = (byte)((uint)p >> 24);   // A
+        }
+        var res = WayCoder.Infra.QrDecoder.Decode(rgba, w, h);
+        text = res?.Text;
+        return text != null;
+    }
+
     /// <summary>旋转位图（处理相机照片 EXIF 旋转）。</summary>
     private static Android.Graphics.Bitmap RotateBitmap(Android.Graphics.Bitmap src, int angle)
     {
@@ -425,6 +436,86 @@ public partial class GitSyncPage : ContentPage
         var matrix = new Android.Graphics.Matrix();
         matrix.PostRotate(angle);
         return Android.Graphics.Bitmap.CreateBitmap(src, 0, 0, src.Width, src.Height, matrix, true);
+    }
+#elif IOS
+    /// <summary>
+    /// iOS：UIImage 读图（EXIF 朝向归一）→ 多尺度绘制 RGBA → 手写 QrDecoder 解码。
+    /// 返回解码文本；失败返回 null。
+    /// </summary>
+    private static string? DecodeIosQr(Stream photoStream)
+    {
+        using var data = Foundation.NSData.FromStream(photoStream);
+        if (data == null) return null;
+        using var image = UIKit.UIImage.LoadFromData(data);
+        if (image == null) return null;
+
+        // EXIF 朝向归一：非 Up 先生成直立副本（用完释放）；Up 直接复用原图，避免双重 Dispose。
+        UIKit.UIImage? orientedTemp = null;
+        try
+        {
+            var oriented = image.Orientation == UIKit.UIImageOrientation.Up
+                ? image
+                : (orientedTemp = RenderUpright(image));
+
+            using var cg = oriented.CGImage;
+            if (cg == null) return null;
+            int ow = (int)cg.Width, oh = (int)cg.Height;
+            if (ow <= 0 || oh <= 0) return null;
+            int maxDim = Math.Max(ow, oh);
+
+            // 多尺度：原大、2048、1024、512（QR 小则用原图，大则缩小后更稳）
+            var dims = new[] { maxDim, 2048, 1024, 512 }.Distinct().Where(d => d >= 200).ToArray();
+            foreach (var dim in dims)
+            {
+                if (TryDecodeIosScaled(cg, ow, oh, dim, out var text)) return text;
+            }
+            return null;
+        }
+        finally
+        {
+            orientedTemp?.Dispose();
+        }
+    }
+
+    /// <summary>把带 EXIF 朝向的 UIImage 经 UIGraphicsImageRenderer 绘制成直立副本（UIKit Draw 会应用朝向）。</summary>
+    private static UIKit.UIImage RenderUpright(UIKit.UIImage image)
+    {
+        var format = new UIKit.UIGraphicsImageRendererFormat { Scale = 1.0f };
+        using var renderer = new UIKit.UIGraphicsImageRenderer(image.Size, format);
+        return renderer.CreateImage(_ =>
+            image.Draw(new CoreGraphics.CGRect(CoreGraphics.CGPoint.Empty, image.Size)));
+    }
+
+    /// <summary>把直立 CGImage 等比例缩至最长边 ≤ maxDim，绘制成 RGBA buffer（首行 = 图像顶）后解码。</summary>
+    private static bool TryDecodeIosScaled(CoreGraphics.CGImage cg, int ow, int oh, int maxDim, out string? text)
+    {
+        text = null;
+        double scale = Math.Min(1.0, (double)maxDim / Math.Max(ow, oh));
+        int tw = Math.Max(1, (int)Math.Round(ow * scale));
+        int th = Math.Max(1, (int)Math.Round(oh * scale));
+        int bpr = tw * 4;
+
+        using var cs = CoreGraphics.CGColorSpace.CreateDeviceRGB();
+        // 组合 bitmapInfo：PremultipliedLast(alpha 在末字节) | ByteOrder32Big(32 位大端 → 内存 RGBA 序)。
+        var bitmapInfo = CoreGraphics.CGBitmapFlags.PremultipliedLast
+                       | CoreGraphics.CGBitmapFlags.ByteOrder32Big;
+        using var ctx = new CoreGraphics.CGBitmapContext(
+            IntPtr.Zero, tw, th, 8, bpr, cs, bitmapInfo);
+        if (ctx.Data == IntPtr.Zero) return false;
+
+        // 白底（QR 黑在白上）。Quartz 用户空间原点在左下，而 CGImage 数据首行在图像顶 →
+        // 先翻转再 DrawImage，使内存首行 = 图像顶（否则垂直镜像，手写解码器不识别）。
+        ctx.SetFillColor(1f, 1f, 1f, 1f);
+        ctx.FillRect(new CoreGraphics.CGRect(0, 0, tw, th));
+        ctx.TranslateCTM(0, th);
+        ctx.ScaleCTM(1, -1);
+        ctx.DrawImage(new CoreGraphics.CGRect(0, 0, tw, th), cg);
+
+        var rgba = new byte[tw * th * 4];
+        System.Runtime.InteropServices.Marshal.Copy(ctx.Data, rgba, 0, rgba.Length);
+        var res = WayCoder.Infra.QrDecoder.Decode(rgba, tw, th);
+        text = res?.Text;
+        return text != null;
     }
 #endif
 
