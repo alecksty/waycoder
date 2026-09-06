@@ -17,8 +17,13 @@ public static class MauiProgram
 			});
 
 #if ANDROID
-		// 去掉 Android Editor 默认下划线（underbar）——聊天输入框/编辑器底部那条横线
+		// 去掉 Android 原生下划线（underbar）：Editor 用于编辑器/多行输入，Entry 用于聊天输入框与
+		// 各设置单行输入——原生 EditText/AppCompatEditText 默认底部一条横线，iOS 无，观感不一致。
 		EditorHandler.Mapper.AppendToMapping("RemoveUnderline", (handler, view) =>
+		{
+			handler.PlatformView.Background = null;
+		});
+		EntryHandler.Mapper.AppendToMapping("RemoveUnderline", (handler, view) =>
 		{
 			handler.PlatformView.Background = null;
 		});

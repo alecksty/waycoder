@@ -36,8 +36,20 @@ public partial class ChatPage : ContentPage
     private readonly ChatScreen _screen = new();
     private CancellationTokenSource? _cts;
 
-    /// <summary>最近一次 onTool 创建的工具消息（onToolOutput 累积详情时追加到这里）。</summary>
-    private ChatMessage? _currentToolMsg;
+    /// <summary>左/右抽屉开合状态（Edge Pan / scrim / ≡ / ☰ 联动判定）。</summary>
+    private bool _leftDrawerOpen;
+    private bool _rightDrawerOpen;
+
+    /// <summary>抽屉开合动画进行中（防重入：动画未完再点 ≡/☰/scrim 直接忽略）。</summary>
+    private bool _drawerAnimating;
+
+    private const uint DrawerAnimMs = 200; // 抽屉滑入/滑出动画时长
+
+    /// <summary>当前会话 id（多会话历史；切换/新建后更新并持久化到 Preferences）。</summary>
+    private string _currentSessionId = "";
+
+    /// <summary>当前工具调用组（onTool/onToolOutput 累积到这里；正文间断或新轮开新组）。</summary>
+    private ChatMessage? _toolGroup;
 
     /// <summary>消息列表是否接近底部（用于智能滚动：接近底部才跟随，用户上翻时不打断）。</summary>
     private bool _isNearBottom = true;
@@ -48,8 +60,6 @@ public partial class ChatPage : ContentPage
     /// <summary>富文本重算节流：代码回复每 token 全量重分词会卡 UI，按增长量/时间节流。</summary>
     private DateTime _lastFormatRecompute = DateTime.MinValue;
     private int _lastFormattedLen;
-    private DateTime _lastReasoningUpdate = DateTime.MinValue;
-    private int _lastReasoningLen;
 
     /// <summary>发送队列：agent 忙时发送的消息排队，忙完自动取下一条（移动端聊天不卡输入）。</summary>
     private readonly Queue<QueuedItem> _sendQueue = new();
@@ -122,19 +132,6 @@ public partial class ChatPage : ContentPage
         return false;
     }
 
-    /// <summary>思考内容同样节流（Reasoning 属性 setter 每 token 触发绑定重渲染 → 长思考流卡死主线程）。</summary>
-    private bool ShouldRecomputeReasoning(int len)
-    {
-        var now = DateTime.UtcNow;
-        if (len - _lastReasoningLen >= 300 || (now - _lastReasoningUpdate).TotalMilliseconds >= 120)
-        {
-            _lastReasoningUpdate = now;
-            _lastReasoningLen = len;
-            return true;
-        }
-        return false;
-    }
-
     public ChatPage()
     {
         InitializeComponent();
@@ -195,7 +192,7 @@ public partial class ChatPage : ContentPage
         // 上下文压缩进度 → 状态栏（压缩是背景状态，不进入聊天区）
         ContextManager.CompressProgress += OnCompressProgress;
         ContextManager.CompressFinished += OnCompressFinished;
-        _ = PromptResumeSession(); // 进入时：有上次会话则弹「继续会话 / 新的会话」
+        _ = EnsureSessionAsync(); // 进入时：恢复多会话历史（迁移旧单会话后载入最后打开的会话）
     }
 
     protected override void OnDisappearing()
@@ -207,18 +204,38 @@ public partial class ChatPage : ContentPage
         PermissionManager.PermissionPromptResolved -= OnPermissionResolved;
         ContextManager.CompressProgress -= OnCompressProgress;
         ContextManager.CompressFinished -= OnCompressFinished;
-        if (Messages.Count > 0) MauiSessionStore.Save(Messages); // 退出时记住会话
+        SaveCurrentSession(); // 退出时记住会话
     }
 
-    /// <summary>进入聊天页且有上次会话时，弹「继续会话 / 新的会话」选择。</summary>
-    private async Task PromptResumeSession()
+    /// <summary>保存当前会话（多会话：复用桌面 SessionManager 格式）。空会话不写盘。</summary>
+    private void SaveCurrentSession()
     {
-        if (Messages.Count > 0 || !MauiSessionStore.Exists()) return;
-        var action = await DisplayActionSheetAsync("发现上次会话", "取消", null, "继续会话", "新的会话");
-        if (action == "继续会话")
+        if (string.IsNullOrEmpty(_currentSessionId) || Messages.Count == 0) return;
+        var model = AgentService.CurrentAgent?.LlmClient?.EffectiveModel ?? Config.Instance.Model;
+        MauiSessions.Save(Messages, model, _currentSessionId);
+    }
+
+    /// <summary>恢复上一会话并自动载入（多会话历史：重启回最后打开的会话）。</summary>
+    private async Task EnsureSessionAsync()
+    {
+        try
         {
             var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
-            foreach (var m in MauiSessionStore.Load())
+
+            // 首次：无记录的会话 → 迁移旧单会话，或新建一个
+            _currentSessionId = MauiSessions.CurrentSessionId();
+            if (string.IsNullOrEmpty(_currentSessionId) || !MauiSessions.Exists(_currentSessionId))
+            {
+                _currentSessionId = MauiSessions.MigrateLegacySingleSession(Config.Instance.Model)
+                                   ?? MauiSessions.NewId();
+                MauiSessions.SetCurrentSessionId(_currentSessionId);
+            }
+
+            if (Messages.Count > 0) return; // 已在内存（恢复/切回）
+            var loaded = MauiSessions.Load(_currentSessionId);
+            if (loaded == null) return; // 空会话/首次：停留空对话
+
+            foreach (var m in MauiSessions.FromNodes(loaded.Value.Messages))
             {
                 m.IsDark = isDark;
                 if (m.Role == ChatRole.Assistant && !string.IsNullOrEmpty(m.RawText))
@@ -227,10 +244,7 @@ public partial class ChatPage : ContentPage
             }
             ScrollToEnd();
         }
-        else if (action == "新的会话")
-        {
-            MauiSessionStore.Clear();
-        }
+        catch { /* 恢复失败静默：保持空对话 */ }
     }
 
     private void OnPermissionStarted(string _)
@@ -337,22 +351,328 @@ public partial class ChatPage : ContentPage
     private async void OnModelBarTapped(object? sender, TappedEventArgs? e)
         => await Shell.Current.GoToAsync("modelpicker");
 
-    /// <summary>右上角菜单：会话/任务/模型/模式/权限等缺失功能集中入口。</summary>
-    private async void OnMenuClicked(object? sender, EventArgs e)
+    /// <summary>右上 ☰：滑出右抽屉（侧边栏）；已开则收起。命令动作在右面板「命令」区。</summary>
+    private void OnMenuClicked(object? sender, EventArgs e)
     {
-        var action = await DisplayActionSheetAsync("菜单", "取消", null,
-            "🧠 模型选择", "🗂 供应商/模型", "🔄 代码同步", "⚙ 模式切换", "🔐 权限切换", "📋 会话管理", "📌 任务管理", "ℹ️ 关于");
-        switch (action)
+        if (_rightDrawerOpen) CloseDrawers();
+        else { BuildRightPanel(); OpenRightDrawer(); }
+    }
+
+    /// <summary>左上 ≡：滑出左抽屉（会话历史）；已开则收起。</summary>
+    private void OnSessionsBtnClicked(object? sender, EventArgs e)
+    {
+        if (_leftDrawerOpen) CloseDrawers();
+        else { BuildSessionList(); OpenLeftDrawer(); }
+    }
+
+    /// <summary>左抽屉「＋ 新会话」：先存档当前 → 开空会话 → 收起抽屉回聊天。</summary>
+    private void OnNewSessionClicked(object? sender, EventArgs e)
+    {
+        NewSession();
+        _ = CloseDrawersAsync();
+    }
+
+    /// <summary>点半透明遮罩：收起当前抽屉。</summary>
+    private void OnDrawerScrimTapped(object? sender, TappedEventArgs e) => CloseDrawers();
+
+    /// <summary>消息区左缘右滑 → 开左抽屉（会话历史）。手势 Started 即触发（热区 26px，滑动方向意图明确）。</summary>
+    private void OnLeftEdgePan(object? sender, PanUpdatedEventArgs e)
+    {
+        if (e.StatusType != GestureStatus.Started || _drawerAnimating) return;
+        if (_leftDrawerOpen) return;
+        if (_rightDrawerOpen) { _ = CloseDrawersAsync(); return; } // 右侧开时左滑仅收起，避免误开
+        BuildSessionList();
+        OpenLeftDrawer();
+    }
+
+    /// <summary>消息区右缘左滑 → 开右抽屉（侧边栏命令）。</summary>
+    private void OnRightEdgePan(object? sender, PanUpdatedEventArgs e)
+    {
+        if (e.StatusType != GestureStatus.Started || _drawerAnimating) return;
+        if (_rightDrawerOpen) return;
+        if (_leftDrawerOpen) { _ = CloseDrawersAsync(); return; }
+        BuildRightPanel();
+        OpenRightDrawer();
+    }
+
+    // ── 抽屉开合：滑入/滑出动画（抽屉初始在屏外；打开同帧 scrim 渐显，关闭反向） ──
+
+    /// <summary>滑入左抽屉（若右侧开先收起——同屏只留一侧）。</summary>
+    private async void OpenLeftDrawer()
+    {
+        if (_leftDrawerOpen || _drawerAnimating) return;
+        if (_rightDrawerOpen) await CloseDrawersAsync();
+        _drawerAnimating = true;
+        try
         {
-            case "🧠 模型选择": OnModelBarTapped(null, null); break;
-            case "🗂 供应商/模型": await Shell.Current.GoToAsync("models"); break;
-            case "🔄 代码同步": await Shell.Current.GoToAsync("gitsync"); break;
-            case "⚙ 模式切换": CycleWorkMode(); break;
-            case "🔐 权限切换": CyclePermission(); break;
-            case "📋 会话管理": await ManageSessionsAsync(); break;
-            case "📌 任务管理": await ShowTasksAsync(); break;
-            case "ℹ️ 关于": await Shell.Current.GoToAsync("about"); break;
+            DrawerLayer.IsVisible = true;
+            LeftDrawer.TranslationX = -LeftDrawer.WidthRequest; // 先置屏外再动画，避免首帧闪现
+            DrawerScrim.Opacity = 0;
+            await Task.WhenAll(
+                LeftDrawer.TranslateToAsync(0, 0, DrawerAnimMs, Easing.CubicOut),
+                DrawerScrim.FadeToAsync(1, DrawerAnimMs, Easing.CubicOut));
+            _leftDrawerOpen = true;
+            _rightDrawerOpen = false;
         }
+        catch { /* 页面导航/生命周期中断动画：保持现状不崩溃 */ }
+        finally { _drawerAnimating = false; }
+    }
+
+    /// <summary>滑入右抽屉（侧边栏命令）。</summary>
+    private async void OpenRightDrawer()
+    {
+        if (_rightDrawerOpen || _drawerAnimating) return;
+        if (_leftDrawerOpen) await CloseDrawersAsync();
+        _drawerAnimating = true;
+        try
+        {
+            DrawerLayer.IsVisible = true;
+            RightDrawer.TranslationX = RightDrawer.WidthRequest;
+            DrawerScrim.Opacity = 0;
+            await Task.WhenAll(
+                RightDrawer.TranslateToAsync(0, 0, DrawerAnimMs, Easing.CubicOut),
+                DrawerScrim.FadeToAsync(1, DrawerAnimMs, Easing.CubicOut));
+            _rightDrawerOpen = true;
+            _leftDrawerOpen = false;
+        }
+        catch { }
+        finally { _drawerAnimating = false; }
+    }
+
+    /// <summary>收起打开的抽屉（抽屉滑回屏外 + scrim 淡出 + 隐藏覆盖层）。</summary>
+    private async Task CloseDrawersAsync()
+    {
+        if (!DrawerLayer.IsVisible) { _leftDrawerOpen = _rightDrawerOpen = false; return; }
+        if (_drawerAnimating) return;
+        _drawerAnimating = true;
+        try
+        {
+            var anims = new List<Task>();
+            if (_leftDrawerOpen)
+                anims.Add(LeftDrawer.TranslateToAsync(-LeftDrawer.WidthRequest, 0, DrawerAnimMs, Easing.CubicIn));
+            if (_rightDrawerOpen)
+                anims.Add(RightDrawer.TranslateToAsync(RightDrawer.WidthRequest, 0, DrawerAnimMs, Easing.CubicIn));
+            anims.Add(DrawerScrim.FadeToAsync(0, DrawerAnimMs, Easing.CubicIn));
+            await Task.WhenAll(anims);
+            DrawerLayer.IsVisible = false;
+            _leftDrawerOpen = _rightDrawerOpen = false;
+        }
+        catch { }
+        finally { _drawerAnimating = false; }
+    }
+
+    /// <summary>收起抽屉（fire-and-forget；内部消化异常）。</summary>
+    private void CloseDrawers() => _ = CloseDrawersAsync();
+
+    // ── 抽屉内容构建：左=会话历史，右=命令与模式（每次打开前重建，时间/高亮/当前值实时刷新） ──
+
+    private void BuildRightPanel() => PopulateRightPanel();
+    private void BuildSessionList() => PopulateSessionList();
+
+    /// <summary>会话切换/新建后刷新左抽屉列表（仅抽屉开着时重建；关着则下次打开自然重建）。</summary>
+    private void RefreshSessionList()
+    {
+        if (!_leftDrawerOpen || _drawerAnimating) return;
+        PopulateSessionList();
+    }
+
+    private static Color? ColorKey(string key)
+        => Application.Current?.Resources.TryGetValue(key, out var v) == true ? v as Color : null;
+
+    /// <summary>左抽屉内容：会话历史列表（最新在前）。当前会话高亮，点击切换。</summary>
+    private void PopulateSessionList()
+    {
+        LeftBody.Children.Clear();
+        var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
+        var main = ColorKey(isDark ? "MainTextDark" : "MainTextLight");
+        var muted = ColorKey(isDark ? "MutedTextDark" : "MutedTextLight");
+        var primary = ColorKey("Primary") ?? Colors.DodgerBlue;
+
+        var sessions = MauiSessions.List(50);
+        if (sessions.Count == 0)
+        {
+            LeftBody.Add(new Label
+            {
+                Text = "暂无历史会话",
+                FontSize = 12,
+                TextColor = muted,
+                Margin = new Thickness(16, 24),
+            });
+            return;
+        }
+
+        foreach (var s in sessions)
+        {
+            var current = s.Id == _currentSessionId;
+            var row = new Border
+            {
+                Padding = new Thickness(12, 9),
+                StrokeThickness = 0,
+                BackgroundColor = current ? new Color(primary.Red, primary.Green, primary.Blue, 0.14f) : null,
+                StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 8 },
+            };
+            var title = string.IsNullOrWhiteSpace(s.Preview) ? "（空会话）" : s.Preview;
+            row.Content = new VerticalStackLayout
+            {
+                Spacing = 2,
+                Children =
+                {
+                    new Label
+                    {
+                        Text = title,
+                        FontSize = 13,
+                        FontAttributes = current ? FontAttributes.Bold : FontAttributes.None,
+                        TextColor = current ? primary : main,
+                        LineBreakMode = LineBreakMode.TailTruncation,
+                        MaxLines = 1,
+                    },
+                    new Label
+                    {
+                        Text = $"{MauiSessions.RelativeTime(s.SavedAt)} · {s.MessageCount} 条消息",
+                        FontSize = 11,
+                        TextColor = muted,
+                    },
+                },
+            };
+            var id = s.Id;
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += async (_, _) =>
+            {
+                try { await SwitchToSessionAsync(id); }
+                catch (Exception ex) { ErrorLog.Error("Chat", "切换会话", ex); }
+            };
+            row.GestureRecognizers.Add(tap);
+            LeftBody.Add(row);
+        }
+    }
+
+    /// <summary>经济模式显示名（枚举顺序 Off→Auto→On→Extreme，非直觉序）。</summary>
+    private static string EconomyName(EconomyMode m) => m switch
+    {
+        EconomyMode.On => "开",
+        EconomyMode.Auto => "自动",
+        EconomyMode.Extreme => "极致",
+        _ => "关",
+    };
+
+    /// <summary>命令跳转：先关抽屉（避免盖层残留于下一页）再导航；异常落日志不崩溃。</summary>
+    private async Task NavThen(string route)
+    {
+        await CloseDrawersAsync();
+        try { await Shell.Current.GoToAsync(route); }
+        catch (Exception ex) { ErrorLog.Error("Chat", $"侧栏导航 {route}", ex); }
+    }
+
+    /// <summary>右抽屉内容：模型横幅 + 命令区 + 模式/权限/经济循环行 + 关于。</summary>
+    private void PopulateRightPanel()
+    {
+        RightBody.Children.Clear();
+        var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
+        var main = ColorKey(isDark ? "MainTextDark" : "MainTextLight");
+        var muted = ColorKey(isDark ? "MutedTextDark" : "MutedTextLight");
+        var inputBg = ColorKey(isDark ? "InputBgDark" : "InputBgLight");
+        var primary = ColorKey("Primary") ?? Colors.DodgerBlue;
+        var cfg = Config.Instance;
+        var st = AgentService.GetStatus();
+
+        // 模型横幅（点按 → 模型选择页）
+        var modelText = ConnectionConfig.FormatModelChannel(
+            ConnectionConfig.CurrentMainChannel(), cfg.Provider, cfg.Model);
+        var modelCard = new Border
+        {
+            Padding = new Thickness(14, 12),
+            StrokeThickness = 0,
+            BackgroundColor = new Color(primary.Red, primary.Green, primary.Blue, 0.10f),
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 10 },
+            Content = new VerticalStackLayout
+            {
+                Spacing = 2,
+                Children =
+                {
+                    new Label
+                    {
+                        Text = "🧠 " + modelText,
+                        FontSize = 14,
+                        FontAttributes = FontAttributes.Bold,
+                        TextColor = primary,
+                        LineBreakMode = LineBreakMode.TailTruncation,
+                        MaxLines = 1,
+                    },
+                    new Label { Text = "当前模型 · 点按选择", FontSize = 11, TextColor = muted },
+                },
+            },
+        };
+        var pickModel = new TapGestureRecognizer();
+        pickModel.Tapped += async (_, _) => await NavThen("modelpicker");
+        modelCard.GestureRecognizers.Add(pickModel);
+        RightBody.Add(modelCard);
+
+        // 命令区
+        RightBody.Add(new Label
+        {
+            Text = "命令",
+            FontSize = 11,
+            TextColor = muted,
+            Margin = new Thickness(2, 8, 2, 2),
+        });
+        RightBody.Add(CommandRow("🗂 供应商 / 模型", null, async () => await NavThen("models"), inputBg, main, muted));
+        RightBody.Add(CommandRow("🔄 代码同步", null, async () => await NavThen("gitsync"), inputBg, main, muted));
+        RightBody.Add(CommandRow("📌 任务管理", null,
+            async () => { try { await CloseDrawersAsync(); await ShowTasksAsync(); } catch (Exception ex) { ErrorLog.Error("Chat", "任务管理", ex); } },
+            inputBg, main, muted));
+
+        // 模式区：值行点按循环（重绘右面板刷新当前值；保持抽屉开可连点）
+        RightBody.Add(new Label
+        {
+            Text = "模式",
+            FontSize = 11,
+            TextColor = muted,
+            Margin = new Thickness(2, 8, 2, 2),
+        });
+        RightBody.Add(CommandRow("⚙ 工作模式", st?.WorkMode ?? "建造",
+            () => { CycleWorkMode(); PopulateRightPanel(); }, inputBg, main, muted));
+        RightBody.Add(CommandRow("🔐 确认权限", st?.PermMode ?? "Ask",
+            () => { CyclePermission(); PopulateRightPanel(); }, inputBg, main, muted));
+        RightBody.Add(CommandRow("💸 经济模式", EconomyName(cfg.EconomyMode),
+            () => { cfg.CycleEconomy(); SaveModes(); RefreshModelBar(); PopulateRightPanel(); }, inputBg, main, muted));
+
+        // 其它
+        RightBody.Add(new Label
+        {
+            Text = "其它",
+            FontSize = 11,
+            TextColor = muted,
+            Margin = new Thickness(2, 8, 2, 2),
+        });
+        RightBody.Add(CommandRow("ℹ️ 关于", null, async () => await NavThen("about"), inputBg, main, muted));
+    }
+
+    /// <summary>命令按钮行卡片：标题（+ 可选副文本当前值），整行点击执行 onTap。</summary>
+    private static Border CommandRow(string title, string? sub, Action onTap, Color? bg, Color? fg, Color? subColor)
+    {
+        var inner = new VerticalStackLayout { Spacing = 1 };
+        inner.Children.Add(new Label
+        {
+            Text = title,
+            FontSize = 14,
+            TextColor = fg,
+            LineBreakMode = LineBreakMode.TailTruncation,
+        });
+        if (!string.IsNullOrEmpty(sub))
+            inner.Children.Add(new Label { Text = sub, FontSize = 11, TextColor = subColor });
+
+        var row = new Border
+        {
+            Padding = new Thickness(12, 10),
+            StrokeThickness = 0,
+            BackgroundColor = bg,
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 10 },
+            Content = inner,
+        };
+        var tap = new TapGestureRecognizer();
+        tap.Tapped += (_, _) => { try { onTap(); } catch (Exception ex) { ErrorLog.Error("Chat", "侧栏命令", ex); } };
+        row.GestureRecognizers.Add(tap);
+        return row;
     }
 
     /// <summary>循环切换工作模式（建造→计划→聊天）并同步到 Agent，持久化供下次启动恢复。</summary>
@@ -377,29 +697,49 @@ public partial class ChatPage : ContentPage
         => Services.MauiModeStore.Save(WorkModeManager.CurrentMode, PermissionManager.CurrentMode, Config.Instance.EconomyMode);
 
     /// <summary>会话管理：继续上次会话 / 新的会话。</summary>
+    /// <summary>旧「会话管理」入口（☰ 曾用）：保留为新会话快捷（左抽屉会话列表为正式入口）。</summary>
     private async Task ManageSessionsAsync()
     {
-        var action = await DisplayActionSheetAsync("会话管理", "取消", null, "继续会话", "新的会话");
-        if (action == "继续会话")
+        var action = await DisplayActionSheetAsync("会话管理", "取消", null, "新建会话");
+        if (action == "新建会话")
+            NewSession();
+    }
+
+    /// <summary>新建会话：先保存当前，再开空会话（新 id），刷新左抽屉列表。</summary>
+    internal void NewSession()
+    {
+        SaveCurrentSession();
+        Messages.Clear();
+        _currentSessionId = MauiSessions.NewId();
+        MauiSessions.SetCurrentSessionId(_currentSessionId);
+        ScrollToEnd();
+        RefreshSessionList();
+    }
+
+    /// <summary>切换会话：保存当前 → 载入目标 → 更新当前 id（左抽屉点击）。正在跑先停。</summary>
+    internal async Task SwitchToSessionAsync(string sessionId)
+    {
+        if (sessionId == _currentSessionId) return;
+        if (_agent.IsRunning) StopCurrent();
+        SaveCurrentSession();
+        Messages.Clear();
+        _currentSessionId = sessionId;
+        MauiSessions.SetCurrentSessionId(sessionId);
+        var loaded = MauiSessions.Load(sessionId);
+        if (loaded != null)
         {
-            var loaded = MauiSessionStore.Load(); // 先读再清，避免删了文件读到空
             var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
-            Messages.Clear();
-            foreach (var m in loaded)
+            foreach (var m in MauiSessions.FromNodes(loaded.Value.Messages))
             {
                 m.IsDark = isDark;
                 if (m.Role == ChatRole.Assistant && !string.IsNullOrEmpty(m.RawText))
                     m.Formatted = MarkupToFormattedString.Convert(m.RawText, isDark);
                 AddMessage(m);
             }
-            MauiSessionStore.Save(Messages); // 重新落盘
-            ScrollToEnd();
         }
-        else if (action == "新的会话")
-        {
-            Messages.Clear();
-            MauiSessionStore.Clear();
-        }
+        ScrollToEnd();
+        RefreshModelBar();
+        RefreshSessionList();
     }
 
     /// <summary>任务管理：展示当前 todo 列表。</summary>
@@ -536,19 +876,31 @@ public partial class ChatPage : ContentPage
     /// <summary>单轮对话：流式渲染 + 思考/正文分离 + 工具消息 + 摘要。返回后由 ProcessQueueAsync 取下一条。</summary>
     private async Task RunOneMessageAsync(string text)
     {
-        var aiMsg = new ChatMessage { Role = ChatRole.Assistant, IsStreaming = true };
-        AddMessage(aiMsg);
-
+        _toolGroup = null; // 新轮独立分组（防上轮遗留组把本轮首工具错误并入）
         var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
-        // 思考过程与正文分离：reasoning 用 «dim»…«/» 包裹（LLM 层发独立边界 token），
-        // 正文其余 token 归 content。思考流式时实时展开、结束折叠，正文独立渲染富文本。
+        // 正文与工具按时间交错：正文切「段」（每段独立气泡），工具组插在段间 → AI1/工具1/AI2/工具2…。
+        // 段惰性创建（收到首正文 token 才有，无正文不发空气泡）；工具到来先把当前段冻结成正式消息，
+        // 之后的新正文另起一段。reasoning 全程隐藏仅累积，最终挂本轮第一正文段的「💭 查看思考」入口。
         var inReasoning = false;
         var reasoningSb = new StringBuilder();
-        var contentSb = new StringBuilder();
+        ChatMessage? seg = null;         // 当前流式正文段气泡（冻结后置 null，下段新开）
+        StringBuilder? segSb = null;     // 当前段正文累积（段创建时同步 new）
+        ChatMessage? firstAi = null;     // 本轮第一正文段（reasoning 归属）
+        bool spokeSinceLastTool = false; // 自上个工具以来是否说过话（说话 → 下个工具开新组）
+
+        void FreezeSeg()
+        {
+            if (seg == null) return;
+            seg.IsStreaming = false;
+            var raw = segSb?.ToString() ?? "";
+            seg.RawText = raw;
+            seg.Formatted = MarkupToFormattedString.Convert(raw, isDark);
+            seg = null;
+            segSb = null;
+        }
+
         _cts = new CancellationTokenSource();
         AgentService.SetActiveCts(_cts); // 注册给 App 生命周期：切后台（来电/Home/锁屏）时取消在途请求
-        _lastReasoningLen = 0;
-        _lastReasoningUpdate = DateTime.MinValue;
         SendBtn.Text = "■"; // 忙时按钮 = 停止
         var sw = System.Diagnostics.Stopwatch.StartNew();
         bool cancelled = false;
@@ -568,31 +920,34 @@ public partial class ChatPage : ContentPage
                     {
                         if (token == "«/»" || token == "«/»\n")
                         {
-                            inReasoning = false;          // 思考结束 → 折叠
-                            aiMsg.IsReasoningExpanded = false;
+                            inReasoning = false;          // 思考结束（正文即将开始；思考完全隐藏，不进聊天流）
                         }
                         else
                         {
+                            // 思考完全隐藏：只累积，不在聊天流写任何 UI；最终挂首段「查看思考」入口
                             AppendCapped(reasoningSb, token);
-                            // 思考内容节流：Reasoning setter 每 token 触发绑定重渲染，长思考流会卡死主线程
-                            if (ShouldRecomputeReasoning(reasoningSb.Length))
-                                aiMsg.Reasoning = reasoningSb.ToString();
-                            aiMsg.HasReasoning = true;
-                            FollowStreamScroll();   // 流式跟随：思考过程滚动
                         }
                     }
                     else
                     {
                         if (token == "«dim»" || token == "\n«dim»")
                         {
-                            inReasoning = true;           // 思考开始 → 实时展开
-                            aiMsg.IsReasoningExpanded = true;
+                            inReasoning = true;           // 思考开始（只累积到 reasoningSb，不显示）
                         }
                         else
                         {
-                            AppendCapped(contentSb, token);
-                            if (ShouldRecomputeFormatted(contentSb.Length))
-                                aiMsg.Formatted = MarkupToFormattedString.Convert(contentSb.ToString(), isDark);
+                            // 正文 token：惰性建段。工具打断后 seg 为 null，新正文在此另起气泡 → 与工具组交错
+                            if (seg == null)
+                            {
+                                seg = new ChatMessage { Role = ChatRole.Assistant, IsStreaming = true };
+                                firstAi ??= seg;
+                                segSb = new StringBuilder();
+                                spokeSinceLastTool = true; // 工具后说了话 = 正文间断，下一工具开新组
+                                AddMessage(seg);
+                            }
+                            AppendCapped(segSb!, token);
+                            if (ShouldRecomputeFormatted(segSb!.Length))
+                                seg.Formatted = MarkupToFormattedString.Convert(segSb.ToString(), isDark);
                             FollowStreamScroll();   // 流式跟随：正文滚动
                         }
                     }
@@ -607,25 +962,34 @@ public partial class ChatPage : ContentPage
                         _ => AgentStatus.ToolRunning,
                     };
                     _toolName = name;
-                    _currentToolMsg = new ChatMessage
+                    // 工具到来：先把当前正文段冻结成正式消息（若正在流式写正文）→ 工具组紧随其后，
+                    // 实现「AI段 / 工具组」按时间交错。工具后新正文会另起一段气泡。
+                    FreezeSeg();
+                    // 分组：自上个工具以来没说过话（连续纯工具流）并入当前组；说过话则新开一组。
+                    if (_toolGroup == null || spokeSinceLastTool)
                     {
-                        Role = ChatRole.Tool,
-                        RawText = $"🔧 {name}",
-                        ToolSummary = summary,
-                        ToolFilePath = ExtractFilePath(summary),
+                        _toolGroup = new ChatMessage { Role = ChatRole.Tool, IsDark = isDark };
+                        AddMessage(_toolGroup);
+                    }
+                    spokeSinceLastTool = false;
+                    _toolGroup.ToolCalls.Add(new ToolCallItem
+                    {
+                        Name = name,
+                        Summary = summary,
+                        FilePath = ExtractFilePath(summary),
                         IsDark = isDark,
-                    };
-                    AddMessage(_currentToolMsg);
+                    });
+                    _toolGroup.RawText = $"🔧 工具调用:{_toolGroup.ToolCount} 次";
                 },
                 output =>
                 {
-                    if (_currentToolMsg == null) return;
-                    // 工具详情防无限增长：超上限停止追加并加标记（对齐 Global.MaxSingleMessageChars）。
-                    if (_currentToolMsg.ToolDetail.Length < Global.MaxSingleMessageChars)
-                        _currentToolMsg.ToolDetail += output;
-                    else if (!_currentToolMsg.ToolDetail.EndsWith("… 已截断…", StringComparison.Ordinal))
-                        _currentToolMsg.ToolDetail += "\n… 已截断（工具输出过长，停止追加）…";
-                    _currentToolMsg.HasToolDetail = true;
+                    if (_toolGroup == null || _toolGroup.ToolCalls.Count == 0) return;
+                    // 工具输出防无限增长：超上限停止追加并加标记（对齐 Global.MaxSingleMessageChars）。
+                    var last = _toolGroup.ToolCalls[^1];
+                    if (last.Detail.Length < Global.MaxSingleMessageChars)
+                        last.Detail += output;
+                    else if (!last.Detail.EndsWith("… 已截断…", StringComparison.Ordinal))
+                        last.Detail += "\n… 已截断（工具输出过长，停止追加）…";
                     RefreshStatusBar(); // 工具输出阶段统计变化
                 },
                 _cts.Token);
@@ -639,17 +1003,20 @@ public partial class ChatPage : ContentPage
         }
         finally
         {
-            aiMsg.IsStreaming = false;
-            aiMsg.RawText = contentSb.ToString();
-            aiMsg.Reasoning = reasoningSb.ToString();   // 节流后补齐最终思考全文
-            aiMsg.Formatted = MarkupToFormattedString.Convert(contentSb.ToString(), isDark); // 节流后补齐最终富文本
+            FreezeSeg(); // 收尾：冻结未被打断的最后正文段（取消时保留已生成片段）
+            if (firstAi != null)
+            {
+                // 思考全文挂本轮第一正文段（全程隐藏，点「💭 查看思考」才看）
+                firstAi.Reasoning = reasoningSb.ToString();
+                firstAi.HasReasoning = reasoningSb.Length > 0;
+            }
             SendBtn.Text = "↑"; // 空闲恢复 = 发送
             AgentService.SetActiveCts(null);
             _cts = null;
             _uiState = cancelled ? AgentStatus.Idle : AgentStatus.Complete; // 任务完成瞬态（取消/异常直接回空闲）
             if (!cancelled) _completeAt = DateTime.UtcNow;
             RefreshStatusBar();
-            if (Messages.Count > 0) MauiSessionStore.Save(Messages); // 每轮结束落盘，退出/重启可恢复
+            SaveCurrentSession(); // 每轮结束落盘，退出/重启可恢复
 
             // 任务完成摘要：用时 / prompt+completion token / 费用（用户主动停止或无消耗则跳过）
             if (!cancelled)
@@ -698,36 +1065,23 @@ public partial class ChatPage : ContentPage
         return p.Length == 0 ? null : p;
     }
 
-    /// <summary>收起聊天里所有折叠项（保持同屏只开一个折叠项）。</summary>
-    private void CollapseAllFolds()
-    {
-        foreach (var msg in Messages)
-        {
-            msg.IsReasoningExpanded = false;
-            msg.IsToolDetailExpanded = false;
-        }
-    }
-
-    /// <summary>折叠条点击：切换思考过程展开/收起（sender 是挂手势的 Border，BindingContext 即消息）。
-    /// 展开前先收起其它折叠项——同屏只开一个。</summary>
-    private void OnToggleReasoning(object? sender, TappedEventArgs e)
+    /// <summary>「💭 查看思考」点击：弹 ReasoningDetailPage 子页看完整思考（默认完全隐藏，不进聊天流）。</summary>
+    private async void OnShowReasoning(object? sender, TappedEventArgs e)
     {
         if (sender is BindableObject view && view.BindingContext is ChatMessage m && m.HasReasoning)
         {
-            var willExpand = !m.IsReasoningExpanded;
-            if (willExpand) CollapseAllFolds();
-            m.IsReasoningExpanded = willExpand;
+            ReasoningDetailPage.Target = m;
+            await Shell.Current.GoToAsync("reasoning");
         }
     }
 
-    /// <summary>折叠条点击：切换工具输出详情展开/收起。展开前先收起其它折叠项——同屏只开一个。</summary>
-    private void OnToggleToolDetail(object? sender, TappedEventArgs e)
+    /// <summary>「工具调用:N 次」点击：弹 ToolCallsDetailPage 子页看每个工具详情。</summary>
+    private async void OnShowToolCalls(object? sender, TappedEventArgs e)
     {
-        if (sender is BindableObject view && view.BindingContext is ChatMessage m && m.HasToolDetail)
+        if (sender is BindableObject view && view.BindingContext is ChatMessage m && m.HasToolCalls)
         {
-            var willExpand = !m.IsToolDetailExpanded;
-            if (willExpand) CollapseAllFolds();
-            m.IsToolDetailExpanded = willExpand;
+            ToolCallsDetailPage.Target = m;
+            await Shell.Current.GoToAsync("toolcalls");
         }
     }
 

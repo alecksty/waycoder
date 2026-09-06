@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="WayCoder.Maui.Pages.ReasoningDetailPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="思考过程">
+    <ScrollView>
+        <VerticalStackLayout Padding="16,12" Spacing="8">
+            <Label
+                Text="模型推理过程（未参与对话正文）"
+                FontSize="11"
+                TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+            <Label
+                x:Name="Body"
+                FontSize="14"
+                LineHeight="1.4" />
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

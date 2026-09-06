@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.96.63 (2026-09-06) — MAUI 移动端：多会话历史 + 左右抽屉 + 工具分组/推理子页 + Android 网络与输入框修复
+
+移动端聊天体验大改：多会话历史（复用桌面 SessionManager 格式，左抽屉管理）、工具调用按正文间断分组、思考过程默认隐藏改子页查看、正文与工具组按时间交错呈现，另修 Android 主线程网络（NetworkOnMainThreadException）与输入框底线。Android Debug 编译 0 错误，真机验证抽屉/交错时序/入口导航。
+
+- **多会话历史（`WayCoder.Maui/Services/MauiSessions.cs`）**：复用桌面 `SessionManager` file-per-session JSON（`Global.Home/.waycoder/sessions/*.json`，slot=-1 全局、桌面可互读）；只存 User/Assistant 正文 RawText（不含思考/工具结果）；当前会话 id 存 Preferences，重启回最后打开的会话；首启自动迁移旧单会话 `maui_session.txt`；每轮结束/退出自动落盘
+- **左右抽屉（`ChatPage`）**：左上 `≡` 滑出**会话历史左抽屉**（固定头「＋ 新会话」+ 可滚动会话卡片：首句摘要/相对时间/条数，当前项高亮，点击 `SwitchToSessionAsync` 切换——正在跑先停），右上 `☰` 滑出**侧边栏右抽屉**（模型横幅 + 命令区：供应商/模型、代码同步、任务管理 + 模式区值行：工作模式/确认权限/经济模式点按循环即时刷新）；DrawerLayer 覆盖层 scrim 半透明遮罩点击关闭、左右消息区边缘 Pan 开合、动画防重入 + 同屏单侧（`TranslateToAsync`/`FadeToAsync` 新 API 去 obsolete）
+- **工具调用分组 + 详情子页**：`ChatMessage.ToolCalls`（`ToolCallItem` 名称/摘要/输出流式累积）；工具按「正文间断」合并成组，聊天流只留一行 `🔧 工具调用:N 次`，点开 `ToolCallsDetailPage` 逐个工具分区展示（名称/参数摘要/输出详情语法高亮，按 `file_path=` 推语言）
+- **思考过程默认隐藏 + 子页**：推理不再污染聊天流——AI 气泡顶部灰字「💭 查看思考」入口，点开 `ReasoningDetailPage` 整页滚动渲染（`«»` 富文本）；思考只累积到 `reasoningSb`、不流式写 UI、最终挂本轮第一正文段
+- **正文/工具按时间交错**：AI 正文按工具边界切「段」（每段独立气泡），工具组插在段间 → AI1/工具1/AI2/工具2…；段惰性创建（收到正文 token 才有，无正文不发空气泡），工具到来先 `FreezeSeg` 冻结当前段；每轮独立 `_toolGroup`（防上轮遗留组并首工具）；工具输出/思考不计入正文间断
+- **Android 网络修复（NetworkOnMainThreadException）**：`LLM.CreateHttpClient` / `TranscribeAudioTool` / `WebSearchTool` 在 Android 强制纯托管 `SocketsHttpHandler`——默认 handler 由 .NET Android 解析为 Java `HttpURLConnection`（`AndroidMessageHandler`），主线程触碰 Java 网络流抛异常中止对话（实测堆栈终止于 `InputStream.Close`）；桌面默认 `HttpClientHandler` 本质等同无回归；`AgentService.ChatAsync` 改 `Task.Run` 放线程池（agent 工具执行/token 估算等同步工作不卡 UI 主线程）+ 回调 `MainThread.BeginInvokeOnMainThread` 泵回渲染
+- **Android 输入框去底线**：`MauiProgram` 给 `EntryHandler` 补 `RemoveUnderline`（原只覆盖 `Editor`）——聊天输入框与各设置单行输入去除 Android 原生底部横线（iOS 无，观感统一）
+
 ## v0.96.62 (2026-09-06) — 手写 QR 编解码库（去 ZXing，0 NuGet 依赖）+ 二维码缩小
 
 手写标准 QR（ISO 18004）编码与解码库，移除 ZXing.Net——项目 **0 NuGet 依赖**。自测 5062 全过，编译 0 警告。

@@ -10,8 +10,39 @@ public enum ChatRole
     User,
     /// <summary>AI 回复（正文，可流式）。</summary>
     Assistant,
-    /// <summary>工具调用提示（灰色小字，非正文）。</summary>
+    /// <summary>工具调用组提示 / 独立灰字行（错误、任务摘要），非正文。</summary>
     Tool,
+}
+
+/// <summary>
+/// 单个工具调用记录（工具组内一项）。Name + 参数摘要 Summary 在工具开始即定；
+/// Detail（输出）由 onToolOutput 流式追加。运行时只增不改，只读展示无需深拷贝。
+/// </summary>
+public sealed class ToolCallItem : INotifyPropertyChanged
+{
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>工具名（如 write_file / bash）。</summary>
+    public string Name { get; init; } = "";
+
+    /// <summary>参数摘要（onTool 的 summary，可能含 file_path=…）。</summary>
+    public string Summary { get; init; } = "";
+
+    /// <summary>摘要里的 file_path= 值（详情页语法高亮语言推断）。</summary>
+    public string? FilePath { get; init; }
+
+    /// <summary>是否深色主题（工具输出渲染配色用）。</summary>
+    public bool IsDark { get; init; }
+
+    private string _detail = "";
+    /// <summary>工具输出详情（onToolOutput 流式累积；详情页打开时惰性渲染）。</summary>
+    public string Detail
+    {
+        get => _detail;
+        set { _detail = value; OnChanged(nameof(Detail)); }
+    }
+
+    private void OnChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 
 /// <summary>聊天消息视图模型（CollectionView 绑定项）。</summary>
@@ -22,7 +53,7 @@ public sealed class ChatMessage : INotifyPropertyChanged
     public ChatRole Role { get; init; }
 
     private string _rawText = "";
-    /// <summary>原始文本（用户输入 / AI 正文，含 «» 中间格式标记）。</summary>
+    /// <summary>原始文本（用户输入 / AI 正文，含 «» 中间格式标记；Tool 角色为组标题或灰字行文本）。</summary>
     public string RawText
     {
         get => _rawText;
@@ -46,7 +77,7 @@ public sealed class ChatMessage : INotifyPropertyChanged
     }
 
     private string _reasoning = "";
-    /// <summary>思考过程文本（仅 Assistant 角色有；与正文分离，默认折叠显示）。</summary>
+    /// <summary>思考过程文本（仅 Assistant 角色有；聊天流不展示，经「💭 查看思考」弹子页查看）。</summary>
     public string Reasoning
     {
         get => _reasoning;
@@ -54,83 +85,27 @@ public sealed class ChatMessage : INotifyPropertyChanged
     }
 
     private bool _hasReasoning;
-    /// <summary>是否有思考过程（有则显示「💭 思考过程」折叠条）。</summary>
+    /// <summary>是否有思考过程（有则在 AI 气泡顶部显示「💭 查看思考」入口）。</summary>
     public bool HasReasoning
     {
         get => _hasReasoning;
         set { _hasReasoning = value; OnChanged(nameof(HasReasoning)); }
     }
 
-    private bool _isReasoningExpanded;
-    /// <summary>思考过程是否展开（默认 false = 折叠；流式生成时临时 true 实时显示）。</summary>
-    public bool IsReasoningExpanded
-    {
-        get => _isReasoningExpanded;
-        set { _isReasoningExpanded = value; OnChanged(nameof(IsReasoningExpanded)); }
-    }
+    /// <summary>工具调用组内容（仅 Tool 角色有；非空 = 组样式「工具调用:N 次」）。</summary>
+    public List<ToolCallItem> ToolCalls { get; } = new();
 
-    private string _toolSummary = "";
-    /// <summary>工具参数摘要（onTool 的 summary，仅 Tool 角色有）。</summary>
-    public string ToolSummary
-    {
-        get => _toolSummary;
-        set { _toolSummary = value; OnChanged(nameof(ToolSummary)); OnChanged(nameof(HasToolSummary)); }
-    }
+    /// <summary>本组已调用工具数（模板组标题 N 用；Add 后由 code 刷新 RawText 组标题）。</summary>
+    public int ToolCount => ToolCalls.Count;
 
-    /// <summary>是否有工具参数摘要（非空才显示摘要行，避免空行占位）。</summary>
-    public bool HasToolSummary => !string.IsNullOrEmpty(_toolSummary);
+    /// <summary>是否为工具调用组（区别于普通灰字行：错误 / 任务摘要等 Tool 消息无 ToolCalls）。</summary>
+    public bool HasToolCalls => ToolCalls.Count > 0;
 
-    private string _toolDetail = "";
-    /// <summary>工具输出详情（onToolOutput 累积，仅 Tool 角色有）。</summary>
-    public string ToolDetail
-    {
-        get => _toolDetail;
-        set
-        {
-            _toolDetail = value;
-            _toolDetailFormatted = null;   // 内容变更 → 置空，展开时惰性重算
-            OnChanged(nameof(ToolDetail));
-            OnChanged(nameof(ToolDetailFormatted));
-        }
-    }
+    /// <summary>是否普通灰字行（非工具组；消息创建即定态，无运行时变化）。</summary>
+    public bool IsPlainTool => ToolCalls.Count == 0;
 
-    private bool _hasToolDetail;
-    /// <summary>是否有工具输出详情（有则显示「▸ 输出详情」折叠条）。</summary>
-    public bool HasToolDetail
-    {
-        get => _hasToolDetail;
-        set { _hasToolDetail = value; OnChanged(nameof(HasToolDetail)); }
-    }
-
-    private bool _isToolDetailExpanded;
-    /// <summary>工具输出详情是否展开（默认 false = 折叠）。</summary>
-    public bool IsToolDetailExpanded
-    {
-        get => _isToolDetailExpanded;
-        set { _isToolDetailExpanded = value; OnChanged(nameof(IsToolDetailExpanded)); OnChanged(nameof(ToolDetailFormatted)); }
-    }
-
-    /// <summary>工具对应文件路径（onTool 从 summary 的 file_path= 解析，供语言推断）。</summary>
-    public string? ToolFilePath { get; set; }
-
-    /// <summary>是否深色主题（工具详情渲染配色用）。</summary>
+    /// <summary>是否深色主题（思考详情页配色用）。</summary>
     public bool IsDark { get; set; }
-
-    private FormattedString? _toolDetailFormatted;
-    /// <summary>工具详情渲染富文本（«» 解码 + 代码/diff 语法高亮）。仅在展开时惰性计算。</summary>
-    public FormattedString? ToolDetailFormatted
-    {
-        get
-        {
-            if (!IsToolDetailExpanded) return null;
-            if (_toolDetailFormatted == null && !string.IsNullOrEmpty(ToolDetail))
-            {
-                try { _toolDetailFormatted = Markup.ToolOutputFormatter.Render(ToolDetail, ToolFilePath, IsDark); }
-                catch { _toolDetailFormatted = null; }
-            }
-            return _toolDetailFormatted;
-        }
-    }
 
     private void OnChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }

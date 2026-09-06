@@ -94,10 +94,13 @@ public class WebSearchTool : ITool, ICancellableTool
     {
         try
         {
-            using var client = new HttpClient();
+            // Android 强制纯托管 SocketsHttpHandler（默认 handler = Java HttpURLConnection，主线程
+            // 受限，移动端 agent 跑 UI 线程时 Java 流会抛 NetworkOnMainThreadException）。桌面无差。
+            using var client = OperatingSystem.IsAndroid()
+                ? new HttpClient(new SocketsHttpHandler()) { Timeout = TimeSpan.FromSeconds(15) }
+                : new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
             client.DefaultRequestHeaders.UserAgent.ParseAdd(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-            client.Timeout = TimeSpan.FromSeconds(15);
 
             var encodedQuery = HttpUtility.UrlEncode(query);
             var url = string.Format(urlTemplate, encodedQuery);

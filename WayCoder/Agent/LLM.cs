@@ -80,15 +80,33 @@ public class LLM
 
     private static HttpClient CreateHttpClient()
     {
-        var handler = new HttpClientHandler();
+        // Android：默认 HttpClientHandler 由 .NET Android 解析为 Java HttpURLConnection handler
+        // （AndroidMessageHandler），响应流是 Java InputStream（Android.Runtime.InputStreamInvoker）。
+        // Android 禁止主线程触碰 Java 网络流——而移动端 agent 整体跑在 UI 线程（token/工具回调
+        // 直操作 MAUI 控件，不能离 UI），读流/dispose 落在主线程即抛 NetworkOnMainThreadException
+        // 中止对话（实测 12:59/13:18 两次 [Chat] 对话异常堆栈均终止于 InputStream.Close()）。
+        // 故 Android 强制纯托管 SocketsHttpHandler：socket 层无 Java 主线程网络限制，UI 线程读流合法。
+        // 桌面/其它端 HttpClientHandler 本质 == SocketsHttpHandler，行为一致无回归。
+        var isAndroid = OperatingSystem.IsAndroid();
+        HttpMessageHandler handler = isAndroid
+            ? new SocketsHttpHandler()
+            : new HttpClientHandler();
         // HTTP 代理支持 — 读取环境变量 HTTP_PROXY / HTTPS_PROXY，同时遵守 NO_PROXY。
         var proxyUrl = Environment.GetEnvironmentVariable("HTTPS_PROXY")
                     ?? Environment.GetEnvironmentVariable("HTTP_PROXY")
                     ?? Environment.GetEnvironmentVariable("ALL_PROXY");
         if (!string.IsNullOrWhiteSpace(proxyUrl))
         {
-            handler.Proxy = new ProxyFromEnvironment(proxyUrl, GetNoProxy());
-            handler.UseProxy = true;
+            var proxy = new ProxyFromEnvironment(proxyUrl, GetNoProxy());
+            if (handler is HttpClientHandler ch)
+            {
+                ch.Proxy = proxy;
+                ch.UseProxy = true;
+            }
+            else if (handler is SocketsHttpHandler sh)
+            {
+                sh.Proxy = proxy;
+            }
         }
         // Timeout 由内部 CancellationTokenSource 逐次控制，不通过 HttpClient.Timeout
         // （HttpClient.Timeout 发送首次请求后不可修改，渐进重试会报错）

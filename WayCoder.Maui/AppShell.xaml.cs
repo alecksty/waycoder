@@ -20,5 +20,9 @@ public partial class AppShell : Shell
         Routing.RegisterRoute("providermodels", typeof(ProviderModelsPage));
         // 代码同步页：跨设备 git 轮转
         Routing.RegisterRoute("gitsync", typeof(GitSyncPage));
+        // 聊天详情子页：思考过程（AI 气泡「💭 查看思考」入口）
+        Routing.RegisterRoute("reasoning", typeof(ReasoningDetailPage));
+        // 聊天详情子页：工具调用组（「工具调用:N 次」入口）
+        Routing.RegisterRoute("toolcalls", typeof(ToolCallsDetailPage));
     }
 }
