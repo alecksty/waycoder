@@ -71,10 +71,8 @@
               </select>
               <span class="model-bar-label">经济</span>
               <select id="economy-select" title="省 Token 模式"></select>
-              <button class="btn model-pick-btn" id="big-model-btn" title="当前生效模型 / 点选大模型（复杂任务）"><b
-                  id="big-model-label">…</b></button>
-              <button class="btn model-pick-btn" id="small-model-btn" title="选择小模型（简单 / 压缩）"><b
-                  id="small-model-label">…</b></button>
+              <button class="btn model-pick-btn" id="current-model-btn" title="当前生效模型 / 点击切换（大/小经弹窗内 Tab）"><b
+                  id="current-model-label">…</b></button>
             </div>
             <button class="send-btn" id="send" title="发送" aria-label="发送"><svg viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -136,7 +134,11 @@
   <div class="modal" id="model-modal">
     <div class="modal-card model-card">
       <div class="model-title">
-        <h2 id="model-title">🧠 选择模型</h2>
+        <h2 id="model-title">🤖 选择大模型</h2>
+        <div class="model-mode" id="model-mode-tabs">
+          <button class="btn model-mode-tab active" id="model-mode-large" title="目标：大模型（复杂任务 / 默认锚点）">🤖 大模型</button>
+          <button class="btn model-mode-tab" id="model-mode-small" title="目标：小模型（简单任务 / 压缩）">🔧 小模型</button>
+        </div>
         <button class="btn ghost" id="model-close" title="关闭">×</button>
       </div>
       <input id="model-search" type="text" placeholder="搜索模型名称 / 供应商…">

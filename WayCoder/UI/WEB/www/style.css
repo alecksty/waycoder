@@ -230,8 +230,11 @@ select optgroup { background:var(--panel); color:var(--text); }
 .diff-line.ctx { color:var(--dim); }
 /* ── 模型选择窗口 ── */
 .model-card { width:860px; max-width:94vw; display:flex; flex-direction:column; overflow:hidden; }
-.model-title { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+.model-title { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; row-gap:6px; margin-bottom:6px; }
 .model-title h2 { flex-shrink:0; margin-bottom:0; }
+.model-mode { display:flex; gap:6px; }
+.model-mode .model-mode-tab { height:26px; padding:0 10px; font-size:12px; border-radius:8px; font-weight:600; }
+.model-mode .model-mode-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
 #model-close { font-size:22px; padding:0 10px; line-height:1; }
 #model-list { flex:1; min-height:0; overflow-y:auto; padding:0 6px; }
 #model-search { margin-bottom:0; }

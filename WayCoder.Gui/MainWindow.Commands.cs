@@ -199,11 +199,9 @@ public partial class MainWindow
         win.ShowDialog(this);
     }
 
-    private void BigModel_Click(object? sender, RoutedEventArgs e)
+    /// <summary>模型栏主按钮：打开模型选择弹窗（弹窗内可切 大模型|小模型 Tab）。</summary>
+    private void CurrentModel_Click(object? sender, RoutedEventArgs e)
         => new ModelWindow(this).ShowDialog(this);
-
-    private void SmallModel_Click(object? sender, RoutedEventArgs e)
-        => new ModelWindow(this, smallMode: true).ShowDialog(this);
 
     private void Economy_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
