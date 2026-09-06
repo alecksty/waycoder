@@ -39,6 +39,12 @@ public partial class ChatPage : ContentPage
     private readonly ChatScreen _screen = new();
     private CancellationTokenSource? _cts;
 
+    /// <summary>
+    /// 跨页会话切换桥（独立页 B 方案）：SessionHistoryPage 点选/新建时设置，
+    /// 本页 OnAppearing 消费后执行切换（SwitchToSessionAsync），随后置 null。
+    /// </summary>
+    internal static string? PendingOpenSessionId;
+
     /// <summary>左/右抽屉开合状态（Edge Pan / scrim / ≡ / ☰ 联动判定）。</summary>
     private bool _leftDrawerOpen;
     private bool _rightDrawerOpen;
@@ -152,7 +158,7 @@ public partial class ChatPage : ContentPage
     {
         base.OnSizeAllocated(width, height);
         if (width <= 0) return;
-        var want = Math.Clamp(width * 0.62, 200, 300);
+        var want = Math.Clamp(width * 0.5, 150, 300); // 推开模式：抽屉 ~50% 屏，聊天余一半完整重排
         if (Math.Abs(LeftDrawer.WidthRequest - want) > 10)
         {
             LeftDrawer.WidthRequest = want;
@@ -214,7 +220,13 @@ public partial class ChatPage : ContentPage
         // 上下文压缩进度 → 状态栏（压缩是背景状态，不进入聊天区）
         ContextManager.CompressProgress += OnCompressProgress;
         ContextManager.CompressFinished += OnCompressFinished;
-        _ = EnsureSessionAsync(); // 进入时：恢复多会话历史（迁移旧单会话后载入最后打开的会话）
+        // 进入时：会话历史页点选/新建 → 先消费 PendingOpenSessionId 切换；否则恢复当前会话
+        var pending = PendingOpenSessionId;
+        PendingOpenSessionId = null;
+        if (pending != null)
+            _ = SwitchToSessionAsync(pending); // 载入目标会话（新建 id 无存档 → 空会话）
+        else
+            _ = EnsureSessionAsync();
     }
 
     protected override void OnDisappearing()
@@ -384,18 +396,18 @@ public partial class ChatPage : ContentPage
     private async void OnModelBarTapped(object? sender, TappedEventArgs? e)
         => await Shell.Current.GoToAsync("modelpicker");
 
-    /// <summary>右上 ☰：滑出右抽屉（侧边栏）；已开则收起。命令动作在右面板「命令」区。</summary>
-    private void OnMenuClicked(object? sender, EventArgs e)
+    /// <summary>右上 ☰：跳独立「侧栏命令」页（替代抽屉，聊天保持全宽）。</summary>
+    private async void OnMenuClicked(object? sender, EventArgs e)
     {
-        if (_rightDrawerOpen) CloseDrawers();
-        else { BuildRightPanel(); OpenRightDrawer(); }
+        try { await Shell.Current.GoToAsync("panel"); }
+        catch (Exception ex) { ErrorLog.Error("Chat", "侧栏页", ex); }
     }
 
-    /// <summary>左上 ≡：滑出左抽屉（会话历史）；已开则收起。</summary>
-    private void OnSessionsBtnClicked(object? sender, EventArgs e)
+    /// <summary>左上 ≡：跳独立「会话历史」页（替代抽屉，聊天保持全宽）。</summary>
+    private async void OnSessionsBtnClicked(object? sender, EventArgs e)
     {
-        if (_leftDrawerOpen) CloseDrawers();
-        else { BuildSessionList(); OpenLeftDrawer(); }
+        try { await Shell.Current.GoToAsync("sessions"); }
+        catch (Exception ex) { ErrorLog.Error("Chat", "会话历史页", ex); }
     }
 
     /// <summary>左抽屉「＋ 新会话」：先存档当前 → 开空会话 → 收起抽屉回聊天。</summary>
@@ -430,6 +442,17 @@ public partial class ChatPage : ContentPage
 
     // ── 抽屉开合：滑入/滑出动画（抽屉初始在屏外；打开同帧 scrim 渐显，关闭反向） ──
 
+    /// <summary>
+    /// 开合抽屉时同步平移 MainGrid（聊天界面）——抽屉「推开」内容而不是盖住：
+    /// 开左抽屉 MainGrid 右移一个抽屉宽、聊天整体移到抽屉右侧完整可见（不再因文字被盖而"空白"）；
+    /// 开右抽屉 MainGrid 左移。MainGrid.TranslationX 与 DrawerLayer 动画同步走同一 easing/时长。
+    /// </summary>
+    /// <summary>
+    /// 开抽屉让 MainHost 让位（Padding 顶到抽屉宽）→ 聊天整体收缩到抽屉另一侧完整重排，
+    /// 不被浮层盖住、右侧/左侧不再空白。开左抽屉 Padding.Left=w（聊天移右），开右则 Right。
+    /// 抽屉本身仍以覆盖层浮在让出的区域上（滑入动画）。关闭时 Padding 归零。
+    /// </summary>
+
     /// <summary>滑入左抽屉（若右侧开先收起——同屏只留一侧）。</summary>
     private async void OpenLeftDrawer()
     {
@@ -438,8 +461,10 @@ public partial class ChatPage : ContentPage
         _drawerAnimating = true;
         try
         {
+            var w = LeftDrawer.WidthRequest;
+            MainGrid.Margin = new Thickness(w, 0, 0, 0); // 让位：聊天整体缩到右侧完整重排（Margin 改布局宽）
             DrawerLayer.IsVisible = true;
-            LeftDrawer.TranslationX = -LeftDrawer.WidthRequest; // 先置屏外再动画，避免首帧闪现
+            LeftDrawer.TranslationX = -w;                 // 抽屉先置屏外再滑入
             DrawerScrim.Opacity = 0;
             await Task.WhenAll(
                 LeftDrawer.TranslateToAsync(0, 0, DrawerAnimMs, Easing.CubicOut),
@@ -459,8 +484,10 @@ public partial class ChatPage : ContentPage
         _drawerAnimating = true;
         try
         {
+            var w = RightDrawer.WidthRequest;
+            MainGrid.Margin = new Thickness(0, 0, w, 0); // 让位：聊天收缩到左侧
             DrawerLayer.IsVisible = true;
-            RightDrawer.TranslationX = RightDrawer.WidthRequest;
+            RightDrawer.TranslationX = w;                 // 抽屉先置屏外再滑入
             DrawerScrim.Opacity = 0;
             await Task.WhenAll(
                 RightDrawer.TranslateToAsync(0, 0, DrawerAnimMs, Easing.CubicOut),
@@ -472,7 +499,7 @@ public partial class ChatPage : ContentPage
         finally { _drawerAnimating = false; }
     }
 
-    /// <summary>收起打开的抽屉（抽屉滑回屏外 + scrim 淡出 + 隐藏覆盖层）。</summary>
+    /// <summary>收起打开的抽屉（抽屉滑回屏外 + MainHost 让位归零 + scrim 淡出 + 隐藏覆盖层）。</summary>
     private async Task CloseDrawersAsync()
     {
         if (!DrawerLayer.IsVisible) { _leftDrawerOpen = _rightDrawerOpen = false; return; }
@@ -488,6 +515,7 @@ public partial class ChatPage : ContentPage
             anims.Add(DrawerScrim.FadeToAsync(0, DrawerAnimMs, Easing.CubicIn));
             await Task.WhenAll(anims);
             DrawerLayer.IsVisible = false;
+            MainGrid.Margin = new Thickness(0); // 聊天恢复全宽
             _leftDrawerOpen = _rightDrawerOpen = false;
         }
         catch { }
@@ -496,6 +524,21 @@ public partial class ChatPage : ContentPage
 
     /// <summary>收起抽屉（fire-and-forget；内部消化异常）。</summary>
     private void CloseDrawers() => _ = CloseDrawersAsync();
+
+    /// <summary>
+    /// MainHost.Padding 让位会改变 CollectionView 可用宽度；Android 上 CollectionView
+    /// 对父级 padding 动态变化不自动重排已渲染内容（保持空白），此处重设 ItemsSource 强制其重绘。
+    /// </summary>
+    private void ForceRelayoutList()
+    {
+        Dispatcher.Dispatch(() =>
+        {
+            if (MsgList == null) return;
+            var src = MsgList.ItemsSource;
+            MsgList.ItemsSource = null;
+            MsgList.ItemsSource = src;
+        });
+    }
 
     // ── 抽屉内容构建：左=会话历史，右=命令与模式（每次打开前重建，时间/高亮/当前值实时刷新） ──
 

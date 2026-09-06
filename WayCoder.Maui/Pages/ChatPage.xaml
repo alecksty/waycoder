@@ -105,7 +105,14 @@
             ThinkingTemplate="{StaticResource ThinkingTemplate}" />
     </ContentPage.Resources>
 
-    <Grid RowDefinitions="Auto,*,Auto,Auto">
+    <!-- 外层容器：主界面 MainGrid + 抽屉浮层 DrawerLayer 同一 cell 叠放。
+         浮层独立布局，不再用 RowSpan 跨主 grid 行——否则浮层首开触发布局重排会干扰
+         CollectionView（首次开左抽屉聊天区被压没/抽屉过窄），先右后左才正常即由此引起 -->
+    <Grid>
+        <!-- MainHost：抽屉推开内容时对其 Padding 左右让位（聊天整体收缩到抽屉另一侧完整重排，
+             不被浮层盖住、不出现右侧空白） -->
+        <Grid x:Name="MainHost">
+        <Grid x:Name="MainGrid" RowDefinitions="Auto,*,Auto,Auto">
 
         <!-- 顶部状态区：行1 模型（点击切换），行2 工作模式/权限/todo/上下文/用量/花费 -->
         <Border Grid.Row="0" BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0"
@@ -281,23 +288,12 @@
                 SemanticProperties.Hint="发送（忙时点=停止；键盘发送忙时排队）" />
         </Grid>
 
-        <!-- 左右屏幕边缘滑动手势热区（横向 Pan：左缘向右滑=开左会话抽屉；右缘向左滑=开右侧栏）。
-             窄条只占消息区两侧边缘，主体 CollectionView 滚动不受影响 -->
-        <BoxView Grid.Row="1" HorizontalOptions="Start" WidthRequest="26" BackgroundColor="Transparent" Opacity="0">
-            <BoxView.GestureRecognizers>
-                <PanGestureRecognizer PanUpdated="OnLeftEdgePan" />
-            </BoxView.GestureRecognizers>
-        </BoxView>
-        <BoxView Grid.Row="1" HorizontalOptions="End" WidthRequest="26" BackgroundColor="Transparent" Opacity="0">
-            <BoxView.GestureRecognizers>
-                <PanGestureRecognizer PanUpdated="OnRightEdgePan" />
-            </BoxView.GestureRecognizers>
-        </BoxView>
-
-        <!-- 抽屉覆盖层（覆盖全页，Z 最顶）：半透明遮罩 + 左抽屉(会话历史) / 右抽屉(侧边栏)。
-             两抽屉初始在屏外（TranslationX=±Width），打开时 TranslateTo 滑入 -->
-        <Grid x:Name="DrawerLayer" Grid.Row="0" Grid.RowSpan="4" IsVisible="False" ZIndex="10">
-            <BoxView x:Name="DrawerScrim" Color="#33000000" Opacity="0">
+        </Grid>
+        </Grid>
+        <!-- 抽屉浮层（覆盖全页、独立于 MainHost 布局，Z 最顶）：半透明遮罩 + 左抽屉(会话历史) / 右抽屉(侧边栏)。
+             两抽屉初始在屏外（TranslationX=±Width），打开时 TranslateTo 滑入 + MainHost.Padding 让位。 -->
+        <Grid x:Name="DrawerLayer" IsVisible="False" ZIndex="10">
+            <BoxView x:Name="DrawerScrim" Color="#00000000" Opacity="0">
                 <BoxView.GestureRecognizers>
                     <TapGestureRecognizer Tapped="OnDrawerScrimTapped" />
                 </BoxView.GestureRecognizers>
