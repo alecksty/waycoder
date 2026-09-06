@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.96.60 (2026-09-06) — 连接状态收敛 connections.json state（config 停用模型字段）
+
+模型/连接状态由 config.json 扁平字段迁至 connections.json 顶层 `state` 单一权威，消除双源不一致；回退与 free 切换不再覆盖主模型锚点；模型栏跨端统一为当前模型 + 通道前缀。自测 4983 全过，主项目 + GUI + MAUI 编译 0 错误。
+
+- **connections.json `state` 权威**：`connect_mode`（big/free/rollback）+ `default/small/free/rollback_connect`（`providerId:modelId`，含 `*_base_url` 自定义网关覆盖）；老文件无 state 自动迁移生成并落盘升级
+- **config.json 停用模型字段**：`Model/Provider/BaseUrl/SmallModel/SmallProvider/FallbackChain/freePrev*` Load 不读 Save 不写（保留镜像）；`Config.Instance.*` 经 `SyncToConfig` 从 state 按 connect_mode 解析填充；`FallbackChain` 转发 connections `fallbackChain[]`
+- **回退/free 不覆盖主模型锚点**：`SetActiveModel(free)` 只设 free_connect + connect_mode（首入快照 rollback_connect），default_connect 仅用户主动换主时变；回退链运行回退纯内存不落盘
+- **绕过点收敛**：`/config set Model` 直写同步命名连接（state↔connections 双向一致）；`Config.FallbackChain` setter 走 `SetFallbackChainFromSpec`（目录模型自动注册 connect）；`--model connect` → `SetDefaultBaseUrl`（写 default_base_url 锚点）；会话内存加载 `SessionModelMirror` 守卫防泄漏持久（显式模型写清标志）
+- **模型栏跨端统一**：只显示当前生效模型 + 通道前缀 `大模型/自由模型/回滚模型:(供应商)model`（TUI 状态栏、GUI/Web 大小按钮各带前缀、MAUI、CLI 横幅/StatusLeft）
+- **/model reset**：清空 uniform + F1-F10 全部槽位设置回 UseGlobal 默认（等效删 agent_slots.json）
+- **修复**：MAUI CoreStubs 补 `OnOpenCommandPalette`（v0.96.59 /menu 拉取后 MAUI 编译断）；补交此前漏 add 的 `ConnectionConfig.State.cs`
+- 自测 4983 全过（+47 state/显示/绕过断言），主项目 + GUI + MAUI 编译 0 错误，keypad exit 0
+
 ## v0.96.59 (2026-09-05) — 快捷键跨平台适配 + 功能菜单 + /menu
 
 让快捷键在 Win/Linux/Mac 三端可靠，并把命令面板练成"调出大多数界面"的功能菜单，新增 `/menu` 打字直达。自测 4928 全过，主项目编译 0 警告 0 错误。
