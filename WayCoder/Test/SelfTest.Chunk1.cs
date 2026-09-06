@@ -127,6 +127,7 @@ public static partial class SelfTest
         TestXmlLib(Check);            // 手搓 XML 库：解析/实体/CDATA/属性/序列化（AOT 零反射）
         TestSyncQr(Check);            // 同步二维码：手写 QrEncoder 矩阵 + PNG 渲染
         TestQrEncoder(Check);         // 手写 QR：版本/容量/掩码/几何结构自检
+        TestQrDecoder(Check);         // 手写 QR 解码器：encode→RGBA/PNG→decode 闭环 + RS 纠错
         TestToolScheduler(Check);     // 工具调度器：Parallel/Exclusive 分批 + 有界并发 + 顺序提交
         TestToolResultClassifier(Check); // 工具结果分类器：真实错误 vs 用户取消/安全阻止
         TestTrajectory(Check);         // 运行轨迹：截断纯函数 + JSONL 事件流落盘/读回
