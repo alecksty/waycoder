@@ -61,15 +61,17 @@ public class SyncQrCommand : SlashCommand
             }
 
             // 全屏大二维码：手机扫屏（白底黑块，ANSI 背景色填充，与 PNG 同对比——修复深色终端
-            // 前景 █ ASCII 反色扫不到的问题）。终端放得下才进入全屏，Esc/q 返回；放不下（版本过高）
-            // 只提示打开 sync-qr.png。聊天里的小 ASCII 预览已在上方保留作上下文记录。
+            // 前景 █ ASCII 反色扫不到的问题）。只用全块大方块（半块字形 macOS 有缝隙弃用），
+            // 终端行/列足够才进入全屏，Esc/q 返回；不够则提示拉高/拉宽窗口或打开 sync-qr.png。
+            // 聊天里的小 ASCII 预览已在上方保留作上下文记录。
+            int grid = qr.Size + 8; // 含 quiet zone 4 模块白边
             if (TuiManager.Instance.IsActive && QrScanScreen.CanFit(qr.Matrix, Tty.Cols, Tty.Rows))
             {
                 TuiManager.Instance.PushScreen(new QrScanScreen(qr.Matrix));
             }
             else if (TuiManager.Instance.IsActive)
             {
-                screen.AddSystemMsg("📱 全屏二维码：终端尺寸不足以完整放大（版本过高），请直接扫上方 PNG 或打开 sync-qr.png 扫码。");
+                screen.AddSystemMsg($"📱 全屏二维码：需 ≥{grid} 行 × ≥{grid * 2} 列（当前 {Tty.Cols}×{Tty.Rows}）以大方块显示。请拉高/拉宽终端窗口后重试 /sync-qr，或打开 sync-qr.png 扫码。");
             }
         }
         catch (Exception ex)
