@@ -81,8 +81,4 @@
     <None Include="UI\TUI\Raw\**\*.tui" Link="Raw\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="ZXing.Net" Version="0.16.9" />
-  </ItemGroup>
-
 </Project>
