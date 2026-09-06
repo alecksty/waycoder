@@ -185,10 +185,15 @@ public partial class MainWindow
             // 会话恢复同步 Config 镜像（头部/模型对话框都读 Config）：让恢复的模型+网关成为当前默认，
             // 避免头部仍显示旧默认造成误导、以及用户信头部在对话框点确认后 ApplyModel 重新解析官方端点丢弃刚恢复的网关。
             // 仅改内存不落盘——加载会话不应改写用户持久化配置；后续用户显式切换模型属正常操作。
+            // 置 SessionModelMirror：即使随后发生无关配置保存（主题/经济/设置），Reconcile 也跳过这些会话镜像字段，
+            // 防止被误收敛为持久 state 默认（Phase 2）。
             var cfg = Config.Instance;
             if (!string.IsNullOrEmpty(loaded.Model)) cfg.Model = loaded.Model!;
             if (!string.IsNullOrWhiteSpace(loaded.Provider)) cfg.Provider = loaded.Provider;
             if (!string.IsNullOrWhiteSpace(effBaseUrl)) cfg.BaseUrl = effBaseUrl;
+            if (!string.IsNullOrEmpty(loaded.Model) || !string.IsNullOrWhiteSpace(loaded.Provider)
+                || !string.IsNullOrWhiteSpace(effBaseUrl))
+                cfg.SessionModelMirror = true;
             RebuildChatFromAgent(_activeSlot, agent);
             UpdateHeader();
             AppendSystem(_activeSlot, $"[已加载会话 {id}]");

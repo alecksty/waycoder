@@ -548,6 +548,9 @@ public partial class Program
                 {
                     _llm.Model = loaded.Value.Model;
                     _config.Model = loaded.Value.Model;
+                    // 会话模型只做内存镜像（不落盘）；标记使后续任何配置保存的 Reconcile 跳过它，
+                    // 避免把会话模型误收敛为 state 默认（Phase 2 确认：不污染持久配置）
+                    _config.SessionModelMirror = true;
                 }
 
                 MarkupLine($"«green»✔ 已恢复会话:«/» «cyan»{E(resumeId)}«/» «dim»({loaded.Value.Messages.Count} 条消息, 模型: {E(_llm.Model)})«/»");

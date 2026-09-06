@@ -711,6 +711,9 @@ public partial class Config
 
         try
         {
+            // 显式写模型/连接字段（/config set、GUI/Web/MAUI 设置界面、TUI Settings 默认分支）
+            // = 用户主动配置，解除会话加载的内存镜像标记（Reconcile 才会把新值收敛回 state）
+            if (NonPersistedModelKeys.Contains(p.Key)) Instance.SessionModelMirror = false;
             p.Setter(Instance, value);
             error = null;
             return true;

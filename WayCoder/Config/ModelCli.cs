@@ -26,14 +26,17 @@ public static partial class ModelCli
         return sb.ToString();
     }
 
-    /// <summary>设置连接地址（base-url），写入 .env 持久化</summary>
+    /// <summary>设置默认主模型的网关地址（--model connect）。经 state 统一入口持久化
+    /// （default_base_url 覆盖），不再直写 Config.BaseUrl——保证 state 单一权威、config/connections 一致。</summary>
     public static string Connect(string baseUrl)
     {
         if (string.IsNullOrWhiteSpace(baseUrl))
             return "用法: --model connect <base-url>";
-        Config.Instance.BaseUrl = baseUrl.Trim();
-        Config.Instance.SaveToEnvFile();
-        return $"BaseUrl 已设为 {baseUrl.Trim()}（已写入 .env）";
+        var b = baseUrl.Trim();
+        ConnectionConfig.SetDefaultBaseUrl(b);
+        var isFree = ConnectionConfig.State.ConnectMode.Equals("free", StringComparison.OrdinalIgnoreCase);
+        return $"BaseUrl 已设为 {b}（默认模型网关，已持久化）" +
+            (isFree ? "\n  ⚠ 当前在 free 模型，此修改作用于 default 锚点（/free restore 后生效）" : "");
     }
 
     /// <summary>列出模型目录（按供应商分组，当前模型标注），可传关键词过滤</summary>

@@ -729,6 +729,79 @@ public static partial class SelfTest
                 st = ConnectionConfig.State;
                 Check("State: 文件往返 default 保持", st.DefaultConnect == "qwen:qwen-turbo");
                 Check("State: 文件往返 free 清空保持", string.IsNullOrEmpty(st.FreeConnect));
+
+                // ---- Phase 2：Reconcile 收敛「直写 Config 模型字段」+ 命名连接同步 ----
+                // (a) 直写主模型（模拟 /config set Model / 设置界面 Provider+Model 保存）→ state.default + 激活连接大 connect 同步
+                Config.Instance.SessionModelMirror = false;
+                Config.Instance.Model = "deepseek-v4-pro";
+                Config.Instance.Provider = "deepseek";
+                Config.Instance.BaseUrl = null;
+                Config.Instance.SaveToConfigJson(); // 触发 Reconcile
+                st = ConnectionConfig.State;
+                Check("Phase2 Reconcile: 直写 Model 收敛 default_connect", st.DefaultConnect == "deepseek:deepseek-v4-pro");
+                Check("Phase2 Reconcile: 命名连接大 connect 同步",
+                    ConnectionConfig.FindConnection("default")?.BigConnect == "deepseek/deepseek-v4-pro");
+
+                // (b) 直写小模型 → state.small + 激活连接小 connect 同步
+                Config.Instance.SmallModel = "deepseek-v4-flash";
+                Config.Instance.SmallProvider = "deepseek";
+                Config.Instance.SaveToConfigJson();
+                st = ConnectionConfig.State;
+                Check("Phase2 Reconcile: 直写 SmallModel 收敛 small_connect", st.SmallConnect == "deepseek:deepseek-v4-flash");
+                Check("Phase2 Reconcile: 命名连接小 connect 同步",
+                    ConnectionConfig.FindConnection("default")?.SmallConnect == "deepseek/deepseek-v4-flash");
+
+                // (c) 直写 BaseUrl（big 模式）→ default_base_url（--config set BaseUrl / 设置界面保存）
+                Config.Instance.BaseUrl = "https://custom.local/v1";
+                Config.Instance.SaveToConfigJson();
+                st = ConnectionConfig.State;
+                Check("Phase2 Reconcile: 直写 BaseUrl 收敛 default_base_url", st.DefaultBaseUrl == "https://custom.local/v1");
+
+                // (d) 会话加载镜像标记：cfg 模型字段改了但 flag 置位 → Save 不收敛 state（不污染持久）
+                Config.Instance.SessionModelMirror = true;
+                Config.Instance.Model = "qwen-turbo";
+                Config.Instance.Provider = "qwen";
+                Config.Instance.SaveToConfigJson();
+                st = ConnectionConfig.State;
+                Check("Phase2 会话镜像: 置位不收敛 default", st.DefaultConnect == "deepseek:deepseek-v4-pro");
+                Check("Phase2 会话镜像: 置位不收敛命名连接",
+                    ConnectionConfig.FindConnection("default")?.BigConnect == "deepseek/deepseek-v4-pro");
+
+                // (e) 显式模型键写（TrySetPropValue 模型键）清除镜像标记 → 收敛
+                Config.TrySetPropValue("Provider", "qwen", out _); // Provider=text，写即清除标记
+                Config.Instance.Model = "qwen-turbo";
+                Config.Instance.SaveToConfigJson();
+                st = ConnectionConfig.State;
+                Check("Phase2 会话镜像: 显式写清除标记后收敛", st.DefaultConnect == "qwen:qwen-turbo");
+                Check("Phase2 会话镜像: 收敛同步命名连接大 connect",
+                    ConnectionConfig.FindConnection("default")?.BigConnect == "qwen/qwen-turbo");
+
+                // (f) free 模式下直写 BaseUrl → free_base_url（按上下文，不碰 default_base_url）
+                ConnectionConfig.SetActiveModel("deepseek", "deepseek-v4-flash", mode: "free", out _);
+                Config.Instance.BaseUrl = "https://free.custom/v1";
+                Config.Instance.SaveToConfigJson();
+                st = ConnectionConfig.State;
+                Check("Phase2 Reconcile: free 直写 BaseUrl 收敛 free_base_url", st.FreeBaseUrl == "https://free.custom/v1");
+                Check("Phase2 Reconcile: free 直写不碰 default_base_url", st.DefaultBaseUrl == "https://custom.local/v1");
+
+                // (g) --model connect（SetDefaultBaseUrl）→ 直写 default_base_url，不改 mode/free
+                Config.Instance.SessionModelMirror = false;
+                ConnectionConfig.SetDefaultBaseUrl("https://anchor.custom/v1");
+                st = ConnectionConfig.State;
+                Check("Phase2 --model connect: 更新 default_base_url", st.DefaultBaseUrl == "https://anchor.custom/v1");
+                Check("Phase2 --model connect: 不改 free/mode",
+                    st.ConnectMode == "free" && st.FreeConnect == "deepseek:deepseek-v4-flash");
+
+                // (h) /config set FallbackChain（混写 connect 名 + 模型名）→ SetFallbackChainFromSpec 解析为 connect 名
+                ConnectionConfig.SetFallbackChainFromSpec("deepseek-v4-pro, deepseek/deepseek-v4-flash");
+                var fbc = ConnectionConfig.FallbackChain;
+                Check("Phase2 FallbackChain: setter 解析模型名/connect 名",
+                    fbc.Count == 2 && fbc[0] == "deepseek/deepseek-v4-pro" && fbc[1] == "deepseek/deepseek-v4-flash");
+                // (i) Config.FallbackChain setter（TrySetPropValue /config set FallbackChain 落点）同样转发解析
+                Config.Instance.FallbackChain = "qwen-turbo, deepseek/deepseek-v4-flash";
+                fbc = ConnectionConfig.FallbackChain;
+                Check("Phase2 FallbackChain: Config setter 转发解析",
+                    fbc.Count == 2 && fbc[0] == "qwen/qwen-turbo" && fbc[1] == "deepseek/deepseek-v4-flash");
             }
             finally
             {
@@ -739,6 +812,7 @@ public static partial class SelfTest
                 Config.Instance.Model = savedM; Config.Instance.Provider = savedP;
                 Config.Instance.SmallModel = savedSm; Config.Instance.SmallProvider = savedSp;
                 Config.Instance.BaseUrl = savedB;
+                Config.Instance.SessionModelMirror = false; // 防止中途异常残留标记影响后续 Chunk 的 Reconcile
             }
         }
 
