@@ -126,6 +126,7 @@ public static partial class SelfTest
         TestJsonLib(Check);           // 手搓 JSON 库：解析/DOM/序列化/转义/错误分支（AOT 零反射）
         TestXmlLib(Check);            // 手搓 XML 库：解析/实体/CDATA/属性/序列化（AOT 零反射）
         TestSyncQr(Check);            // 同步二维码：手写 QrEncoder 矩阵 + PNG 渲染
+        TestQrScanScreen(Check);      // 全屏扫码屏：布局计算/半块字符/quiet/放不下判定
         TestQrEncoder(Check);         // 手写 QR：版本/容量/掩码/几何结构自检
         TestQrDecoder(Check);         // 手写 QR 解码器：encode→RGBA/PNG→decode 闭环 + RS 纠错
         TestToolScheduler(Check);     // 工具调度器：Parallel/Exclusive 分批 + 有界并发 + 顺序提交

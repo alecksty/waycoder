@@ -1,6 +1,8 @@
 using System.Text;
 using WayCoder.Git;
 using WayCoder.Infra;
+using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder.UI.Cli.Commands;
@@ -56,6 +58,18 @@ public class SyncQrCommand : SlashCommand
             catch (Exception ex)
             {
                 screen.AddSystemMsg($"⚠️ PNG 保存失败：{ex.Message}");
+            }
+
+            // 全屏大二维码：手机扫屏（白底黑块，ANSI 背景色填充，与 PNG 同对比——修复深色终端
+            // 前景 █ ASCII 反色扫不到的问题）。终端放得下才进入全屏，Esc/q 返回；放不下（版本过高）
+            // 只提示打开 sync-qr.png。聊天里的小 ASCII 预览已在上方保留作上下文记录。
+            if (TuiManager.Instance.IsActive && QrScanScreen.CanFit(qr.Matrix, Tty.Cols, Tty.Rows))
+            {
+                TuiManager.Instance.PushScreen(new QrScanScreen(qr.Matrix));
+            }
+            else if (TuiManager.Instance.IsActive)
+            {
+                screen.AddSystemMsg("📱 全屏二维码：终端尺寸不足以完整放大（版本过高），请直接扫上方 PNG 或打开 sync-qr.png 扫码。");
             }
         }
         catch (Exception ex)
