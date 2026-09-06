@@ -2,14 +2,12 @@ using System.Text;
 using WayCoder.Git;
 using WayCoder.Infra;
 using WayCoder.UI.Tui.Screens;
-using ZXing.Common;
-using ZXing.QrCode.Internal;
 
 namespace WayCoder.UI.Cli.Commands;
 
 /// <summary>
 /// /sync-qr —— 为跨设备代码同步生成二维码（含仓库 URL + 凭证 JSON），手机扫码免输入。
-/// 终端渲染半块 ASCII 二维码 + 存 sync-qr.png。用 ZXing.Net 编码（纯托管，AOT 安全）。
+/// 手写 QrEncoder（ISO/IEC 18004，AOT 安全）编码 + 终端半块窄二维码 + 存 sync-qr.png（小文件）。
 /// </summary>
 public class SyncQrCommand : SlashCommand
 {
@@ -42,18 +40,18 @@ public class SyncQrCommand : SlashCommand
             payload.Append('}');
             var json = payload.ToString();
 
-            // ZXing 编码为 BitMatrix（字节模式 + M 纠错——比 L 抗照片反光/噪声，手机扫码更稳）
-            var matrix = ZXing.QrCode.Internal.Encoder.encode(json, ErrorCorrectionLevel.M).Matrix;
+            // 手写 QR 编码（字节模式 + M 纠错——比 L 抗照片反光/噪声，手机扫码更稳）
+            var qr = QrEncoder.EncodeText(json, QrEcLevel.Medium);
             screen.AddSystemMsg($"📱 手机「代码同步」页点「扫二维码」扫描（或扫 sync-qr.png）：\n仓库 {url}\n凭证 {(cred is { } ? "已含（用户名+Token）" : "未配置（/git credential 设置后重新生成）")}");
-            screen.AddSystemMsg(RenderAscii(matrix));
+            screen.AddSystemMsg(RenderAscii(qr.Matrix));
 
-            // 存 PNG（项目手写 PngEncoder，AOT 安全；scale 10 更清晰）
+            // 存 PNG（项目手写 PngEncoder + QrEncoder，AOT 安全；scale 5 + 4 模块白边：文件小且手机易扫）
             try
             {
-                var png = RenderPng(matrix, scale: 10);
+                var png = RenderPng(qr.Matrix, scale: 5, quiet: 4);
                 var path = Path.Combine(Environment.CurrentDirectory, "sync-qr.png");
                 File.WriteAllBytes(path, png);
-                screen.AddSystemMsg($"💾 已存二维码图片：{path}");
+                screen.AddSystemMsg($"💾 已存二维码图片：{path}（{qr.Size + 8}×{qr.Size + 8}px 含白边，v{qr.Version}）");
             }
             catch (Exception ex)
             {
@@ -69,36 +67,60 @@ public class SyncQrCommand : SlashCommand
 
     private static string Escape(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
 
-    /// <summary>ASCII 渲染（正方形模块：每模块 2 字符宽 × 1 行，终端等宽字体下模块≈正方形，手机可扫码）。</summary>
-    private static string RenderAscii(ZXing.QrCode.Internal.ByteMatrix m)
+    /// <summary>
+    /// 窄版 ASCII 二维码：半块字符（▀▄█ + 空格）把 2 个模块行合成 1 个终端行、1 字符/模块列，
+    /// 等宽终端下模块≈正方形且宽度比旧「██ 2 字符」减半。四周加 2 模块安静区提升扫码率。
+    /// 输入矩阵 [y, x]，true=黑。
+    /// </summary>
+    internal static string RenderAscii(bool[,] m)
     {
+        int size = m.GetLength(0);
+        const int qz = 2; // quiet zone（模块）
+        int grid = size + qz * 2;         // 含安静区的网格边长（列 = 行数）
+        int lines = (grid + 1) / 2;       // 半块：每终端行覆盖 2 个模块行
         var sb = new StringBuilder();
-        for (int y = 0; y < m.Height; y++)
+        for (int line = 0; line < lines; line++)
         {
-            for (int x = 0; x < m.Width; x++)
-                sb.Append(m[x, y] != 0 ? "██" : "  ");
+            int my0 = line * 2 - qz;      // 上半模块行（含安静区偏移）
+            int my1 = my0 + 1;            // 下半模块行
+            for (int gx = 0; gx < grid; gx++)
+            {
+                int mx = gx - qz;
+                bool top = In(m, mx, my0);
+                bool bot = In(m, mx, my1);
+                sb.Append(top ? (bot ? '█' : '▀') : (bot ? '▄' : ' '));
+            }
             sb.Append('\n');
         }
         return sb.ToString();
     }
 
-    /// <summary>渲染为 RGBA PNG（PngEncoder.Encode）。</summary>
-    private static byte[] RenderPng(ZXing.QrCode.Internal.ByteMatrix m, int scale)
+    /// <summary>矩阵外（quiet zone / 相邻半块越界）视为白。</summary>
+    private static bool In(bool[,] m, int x, int y)
     {
-        int size = m.Width * scale;
-        var rgba = new byte[size * size * 4];
-        for (int y = 0; y < m.Height; y++)
-            for (int x = 0; x < m.Width; x++)
+        int n = m.GetLength(0);
+        return x >= 0 && x < n && y >= 0 && y < n && m[y, x];
+    }
+
+    /// <summary>渲染为 RGBA PNG（PngEncoder.Encode），含 quiet zone 白边后整体放大 scale 倍。</summary>
+    internal static byte[] RenderPng(bool[,] m, int scale, int quiet)
+    {
+        int n = m.GetLength(0);
+        int full = n + quiet * 2;
+        int px = full * scale;
+        var rgba = new byte[px * px * 4];
+        for (int y = 0; y < full; y++)
+            for (int x = 0; x < full; x++)
             {
-                var dark = m[x, y] != 0;
+                bool dark = x >= quiet && x < quiet + n && y >= quiet && y < quiet + n && m[y - quiet, x - quiet];
                 for (int dy = 0; dy < scale; dy++)
                     for (int dx = 0; dx < scale; dx++)
                     {
-                        int i = (((y * scale + dy) * size) + (x * scale + dx)) * 4;
+                        int i = (((y * scale + dy) * px) + (x * scale + dx)) * 4;
                         rgba[i] = rgba[i + 1] = rgba[i + 2] = (byte)(dark ? 0 : 255);
                         rgba[i + 3] = 255;
                     }
             }
-        return PngEncoder.Encode(size, size, rgba);
+        return PngEncoder.Encode(px, px, rgba);
     }
 }

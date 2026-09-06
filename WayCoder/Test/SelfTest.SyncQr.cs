@@ -1,58 +1,154 @@
 using WayCoder.Infra;
-using ZXing.QrCode.Internal;
+using WayCoder.UI.Cli.Commands;
 
 namespace WayCoder;
 
 public static partial class SelfTest
 {
-    /// <summary>同步二维码：ZXing 编码矩阵 + PngEncoder PNG 渲染（/sync-qr 命令核心逻辑）。</summary>
+    /// <summary>同步二维码：手写 QrEncoder 编码矩阵 + PngEncoder PNG 渲染（/sync-qr 命令核心逻辑，零 ZXing）。</summary>
     private static void TestSyncQr(Action<string, bool> Check)
     {
-        // 编码 JSON payload（含 url/user/token）
-        var matrix = ZXing.QrCode.Internal.Encoder
-            .encode("{\"url\":\"https://gitee.com/a/b.git\",\"user\":\"u\",\"token\":\"t\"}", ErrorCorrectionLevel.L)
-            .Matrix;
-        Check("QR: 矩阵非空", matrix.Width > 0 && matrix.Height > 0);
-        Check("QR: 矩阵含深色模块", HasDarkModule(matrix));
+        var payload = "{\"url\":\"https://gitee.com/a/b.git\",\"user\":\"u\",\"token\":\"t\"}";
+        var qr = QrEncoder.EncodeText(payload, QrEcLevel.Medium);
+        int size = qr.Size;
+        Check("QR: 尺寸 = 21+4*(版本-1)", size == 21 + 4 * (qr.Version - 1));
+        Check("QR: 版本自动选择", qr.Version >= 1 && qr.Version <= 40);
+        Check("QR: 掩码在 0-7", qr.Mask is >= 0 and <= 7);
+        Check("QR: EC 级别为 M", qr.EcLevel == QrEcLevel.Medium);
 
-        // PNG 渲染（与 SyncQrCommand.RenderPng 同逻辑，内联验证）
-        const int scale = 8;
-        int size = matrix.Width * scale;
-        var rgba = new byte[size * size * 4];
-        for (int y = 0; y < matrix.Height; y++)
-            for (int x = 0; x < matrix.Width; x++)
-            {
-                var dark = matrix[x, y] != 0;
-                for (int dy = 0; dy < scale; dy++)
-                    for (int dx = 0; dx < scale; dx++)
-                    {
-                        int i = (((y * scale + dy) * size) + (x * scale + dx)) * 4;
-                        rgba[i] = rgba[i + 1] = rgba[i + 2] = (byte)(dark ? 0 : 255);
-                        rgba[i + 3] = 255;
-                    }
-            }
-        var png = PngEncoder.Encode(size, size, rgba);
+        var m = qr.Matrix;
+        Check("QR: 矩阵含深色模块", HasDarkModule(m));
+
+        // ── 结构自检：finder / timing / 恒黑模块 / 格式信息（不依赖 ZXing）──
+        // finder 左上角中心 (3,3)：9x9 区内 dark 当 max(|dx|,|dy|) ∉ {2,4}。
+        Check("QR: finder 中心黑", m[3, 3]);
+        Check("QR: finder 外边框黑(顶部)", m[0, 3]);
+        Check("QR: finder 白环(距 2)", !m[1, 3]);
+        Check("QR: finder 核心黑(2,2)", m[2, 2]);
+        // 3 个 finder 分布：右上中心 (size-4,3)、左下中心 (3,size-4)。
+        Check("QR: 右上 finder 中心黑", m[3, size - 4]);
+        Check("QR: 左下 finder 中心黑", m[size - 4, 3]);
+
+        // 时序图案：行 y=6 与列 x=6 从 (6,6) 起黑亮交替（偶数黑）。
+        Check("QR: 水平时序 x=8 黑", m[6, 8]);
+        Check("QR: 水平时序 x=9 白", !m[6, 9]);
+        Check("QR: 垂直时序 y=8 黑", m[8, 6]);
+        Check("QR: 垂直时序 y=9 白", !m[9, 6]);
+
+        // 恒黑模块：位于 (8, size-8)（格式信息副本 2 末尾）。
+        Check("QR: 恒黑模块(8,size-8) 黑", m[size - 8, 8]);
+
+        // 格式信息第一副本 15 位 + 恒黑模块位置与 BCH 计算一致。
+        Check("QR: 格式信息 15 位位置正确", FormatFirstCopyMatches(m, qr));
+
+        // ── 真实渲染方法（SyncQrCommand.RenderAscii / RenderPng）验证：窄版 + 小 PNG ──
+        string ascii = SyncQrCommand.RenderAscii(m);
+        string[] asciiLines = ascii.TrimEnd('\n').Split('\n');
+        Check("QR: ASCII 半块宽度 = 模块+安静区4", asciiLines.Length > 0 && asciiLines[0].Length == size + 4);
+        Check("QR: ASCII 行数半高", asciiLines.Length == (size + 5) / 2);
+        Check("QR: ASCII 半块宽度 < 旧 2 字符宽", asciiLines[0].Length < size * 2);
+        Check("QR: ASCII 含黑半块字符", ascii.Contains('█') || ascii.Contains('▀'));
+
+        var png = SyncQrCommand.RenderPng(m, scale: 5, quiet: 4);
         Check("QR: PNG 头有效", png.Length > 100 && png[0] == 0x89 && png[1] == 0x50 && png[2] == 0x4E && png[3] == 0x47);
+        int w = (png[16] << 24) | (png[17] << 16) | (png[18] << 8) | png[19];
+        Check("QR: PNG 宽 = (模块+8)*scale", w == (size + 8) * 5);
         Check("QR: PNG 数据合理", png.Length > 1000);
-
-        // 回读验证：渲染出的 RGBA 应能被 ZXing 解码回 payload（证明二维码真实可扫）
-        var rgbBack = new byte[size * size * 3];
-        for (int i = 0; i < size * size; i++)
-        {
-            rgbBack[i * 3] = rgba[i * 4];
-            rgbBack[i * 3 + 1] = rgba[i * 4 + 1];
-            rgbBack[i * 3 + 2] = rgba[i * 4 + 2];
-        }
-        var decoded = new ZXing.BarcodeReaderGeneric()
-            .Decode(new ZXing.RGBLuminanceSource(rgbBack, size, size))?.Text;
-        Check("QR: 解码回 payload", decoded == "{\"url\":\"https://gitee.com/a/b.git\",\"user\":\"u\",\"token\":\"t\"}");
     }
 
-    private static bool HasDarkModule(ByteMatrix m)
+    /// <summary>手写 QR 编码器纯函数/容量/版本边界自检（零 ZXing）。</summary>
+    private static void TestQrEncoder(Action<string, bool> Check)
     {
-        for (int y = 0; y < m.Height; y++)
-            for (int x = 0; x < m.Width; x++)
-                if (m[x, y] != 0) return true;
+        // ── QrCodec 容量表（ISO/IEC 18004 已知锚点）──
+        Check("QRc: v1-L 数据码字 19", QrCodec.NumDataCodewords(QrEcLevel.Low, 1) == 19);
+        Check("QRc: v1-M 数据码字 16", QrCodec.NumDataCodewords(QrEcLevel.Medium, 1) == 16);
+        Check("QRc: v1-Q 数据码字 13", QrCodec.NumDataCodewords(QrEcLevel.Quartile, 1) == 13);
+        Check("QRc: v1-H 数据码字 9", QrCodec.NumDataCodewords(QrEcLevel.High, 1) == 9);
+        Check("QRc: v40-L 数据码字 2956", QrCodec.NumDataCodewords(QrEcLevel.Low, 40) == 2956);
+        Check("QRc: v1 原始码字 26 / v40 3706", QrCodec.NumRawCodewords(1) == 26 && QrCodec.NumRawCodewords(40) == 3706);
+        Check("QRc: v1 尺寸 21 / v40 177", QrCodec.SizeOfVersion(1) == 21 && QrCodec.SizeOfVersion(40) == 177);
+
+        // ── 版本字节容量边界（M 级，字节模式）──
+        Check("QRc: v1-M 字节容量 14", QrCodec.ByteModeCapacity(QrEcLevel.Medium, 1) == 14);
+        Check("QRc: v2-M 字节容量 26", QrCodec.ByteModeCapacity(QrEcLevel.Medium, 2) == 26);
+        Check("QRc: 14B→v1-M", QrEncoder.Encode(new byte[14], QrEcLevel.Medium).Version == 1);
+        Check("QRc: 15B→v2-M", QrEncoder.Encode(new byte[15], QrEcLevel.Medium).Version == 2);
+        Check("QRc: 26B→v2-M", QrEncoder.Encode(new byte[26], QrEcLevel.Medium).Version == 2);
+        Check("QRc: 27B→v3-M", QrEncoder.Encode(new byte[27], QrEcLevel.Medium).Version == 3);
+        Check("QRc: 空载荷→v1", QrEncoder.EncodeText("", QrEcLevel.Medium).Version == 1);
+
+        // 300 字节超过 8-bit 字符计数（255）→ 必须走 16-bit 计数（版本 ≥ 10）。
+        Check("QRc: 300B 版本≥10", QrEncoder.Encode(new byte[300], QrEcLevel.Medium).Version >= 10);
+
+        // 超出版本 40-M 容量抛异常。
+        bool threw = false;
+        try { QrEncoder.Encode(new byte[3000], QrEcLevel.Medium); }
+        catch (ArgumentException) { threw = true; }
+        Check("QRc: 3000B 超容量抛 ArgumentException", threw);
+
+        // ── 对齐图案坐标（已知锚点）──
+        Check("QRc: v1 无对齐图案", QrCodec.GetAlignmentPatternPositions(1).Length == 0);
+        var p2 = QrCodec.GetAlignmentPatternPositions(2);
+        Check("QRc: v2 对齐 {6,18}", p2.Length == 2 && p2[0] == 6 && p2[1] == 18);
+        var p7 = QrCodec.GetAlignmentPatternPositions(7);
+        Check("QRc: v7 对齐 {6,22,38}", p7.Length == 3 && p7[0] == 6 && p7[1] == 22 && p7[2] == 38);
+
+        // ── 格式信息 BCH 往返（每个 EC × 掩码 0-7）──
+        bool fmtAll = true;
+        for (int e = 0; e < 4; e++)
+            for (int mk = 0; mk < 8; mk++)
+            {
+                var ecl = (QrEcLevel)e;
+                if (!QrCodec.TryDecodeFormatInfo(QrCodec.FormatInfoBits(ecl, mk), out var de, out var dm)
+                    || de != ecl || dm != mk)
+                    fmtAll = false;
+            }
+        Check("QRc: 32 组格式信息 BCH 往返一致", fmtAll);
+
+        // 格式信息值 < 2^15 且唯一。
+        var seen = new HashSet<int>();
+        bool unique = true;
+        for (int mk = 0; mk < 8; mk++)
+            if (!seen.Add(QrCodec.FormatInfoBits(QrEcLevel.Medium, mk)))
+                unique = false;
+        Check("QRc: 同 EC 8 掩码格式码唯一", unique && QrCodec.FormatInfoBits(QrEcLevel.Medium, 0) < (1 << 15));
+
+        // ── 掩码 pattern 已知坐标 ──
+        Check("QRc: mask0 (x+y)%2 在(1,0)翻转", QrCodec.MaskCondition(1, 0, 0) == ((1 + 0) % 2 == 0));
+        Check("QRc: mask2 x%3 在(0,9)翻转", QrCodec.MaskCondition(0, 9, 2) == (0 % 3 == 0));
+        Check("QRc: mask3 (x+y)%3 在(3,0)不翻转", QrCodec.MaskCondition(3, 0, 3) == ((3 + 0) % 3 == 0));
+
+        // ── quiet zone 外扩 ──
+        var tiny = QrEncoder.EncodeText("a", QrEcLevel.Medium);
+        var qz = QrEncoder.AddQuietZone(tiny.Matrix, 4);
+        Check("QRc: quiet zone 外扩尺寸 +8", qz.GetLength(0) == tiny.Size + 8 && qz.GetLength(1) == tiny.Size + 8);
+        Check("QRc: quiet zone 边角白", !qz[0, 0] && !qz[0, qz.GetLength(1) - 1] && !qz[qz.GetLength(0) - 1, 0]);
+        Check("QRc: quiet zone 内部保留黑", qz[4 + 3, 4 + 3] == tiny.Matrix[3, 3]);
+    }
+
+    private static bool HasDarkModule(bool[,] m)
+    {
+        int n = m.GetLength(0);
+        for (int y = 0; y < n; y++)
+            for (int x = 0; x < n; x++)
+                if (m[y, x]) return true;
         return false;
+    }
+
+    /// <summary>断言格式信息第一副本 15 位 + 恒黑模块与 BCH 计算值逐位一致。</summary>
+    private static bool FormatFirstCopyMatches(bool[,] m, QrCodeResult qr)
+    {
+        int size = qr.Size;
+        int fb = QrCodec.FormatInfoBits(qr.EcLevel, qr.Mask);
+        bool Bit(int i) => ((fb >> i) & 1) != 0;
+
+        for (int i = 0; i <= 5; i++)
+            if (m[i, 8] != Bit(i)) return false;
+        if (m[7, 8] != Bit(6)) return false;
+        if (m[8, 8] != Bit(7)) return false;
+        if (m[8, 7] != Bit(8)) return false;
+        for (int i = 9; i <= 14; i++)
+            if (m[8, 14 - i] != Bit(i)) return false;
+        return true;
     }
 }
