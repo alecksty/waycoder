@@ -12,6 +12,8 @@ public enum ChatRole
     Assistant,
     /// <summary>工具调用组提示 / 独立灰字行（错误、任务摘要），非正文。</summary>
     Tool,
+    /// <summary>思考泡泡（一行「已思考 N 秒」，点开看完整推理）。</summary>
+    Thinking,
 }
 
 /// <summary>
@@ -77,7 +79,7 @@ public sealed class ChatMessage : INotifyPropertyChanged
     }
 
     private string _reasoning = "";
-    /// <summary>思考过程文本（仅 Assistant 角色有；聊天流不展示，经「💭 查看思考」弹子页查看）。</summary>
+    /// <summary>思考过程全文（Thinking 泡泡点开经详情页查看；思考时不实时刷，结束时落定）。</summary>
     public string Reasoning
     {
         get => _reasoning;
@@ -85,11 +87,19 @@ public sealed class ChatMessage : INotifyPropertyChanged
     }
 
     private bool _hasReasoning;
-    /// <summary>是否有思考过程（有则在 AI 气泡顶部显示「💭 查看思考」入口）。</summary>
+    /// <summary>是否有思考内容（泡泡标题可点开看全文的门控）。</summary>
     public bool HasReasoning
     {
         get => _hasReasoning;
         set { _hasReasoning = value; OnChanged(nameof(HasReasoning)); }
+    }
+
+    private double _thinkingSeconds = -1;
+    /// <summary>思考耗时（秒）。&lt;0 = 思考中/未知；结束时设为 &gt;=1（标题「已思考 N 秒」用）。</summary>
+    public double ThinkingSeconds
+    {
+        get => _thinkingSeconds;
+        set { _thinkingSeconds = value; OnChanged(nameof(ThinkingSeconds)); }
     }
 
     /// <summary>工具调用组内容（仅 Tool 角色有；非空 = 组样式「工具调用:N 次」）。</summary>
