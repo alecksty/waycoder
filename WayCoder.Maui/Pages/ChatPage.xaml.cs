@@ -10,19 +10,22 @@ using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder.Maui.Pages;
 
-/// <summary>按消息角色选择气泡模板（用户右对齐 / AI 左对齐富文本 / 工具灰色小字）。</summary>
+/// <summary>按消息角色选择气泡模板（用户右对齐 / AI 左对齐富文本 / 思考一行泡泡 / 工具灰色小字）。</summary>
 public class MessageTemplateSelector : DataTemplateSelector
 {
     public DataTemplate UserTemplate { get; set; } = null!;
     public DataTemplate AssistantTemplate { get; set; } = null!;
     public DataTemplate ToolTemplate { get; set; } = null!;
+    public DataTemplate ThinkingTemplate { get; set; } = null!;
 
     protected override DataTemplate OnSelectTemplate(object item, BindableObject container)
         => item is ChatMessage m
             ? m.Role switch
             {
                 ChatRole.User => UserTemplate,
+                ChatRole.Assistant => AssistantTemplate,
                 ChatRole.Tool => ToolTemplate,
+                ChatRole.Thinking => ThinkingTemplate,
                 _ => AssistantTemplate,
             }
             : AssistantTemplate;
@@ -136,6 +139,25 @@ public partial class ChatPage : ContentPage
     {
         InitializeComponent();
         BindingContext = this;
+    }
+
+    /// <summary>
+    /// 抽屉作为「浮层」悬浮在聊天列表之上：宽度 = 屏宽 ~62%（上限 300dp、下限 200dp），
+    /// 真机 360dp 屏 → 约 223dp，右侧始终露出约 38% 屏聊天且遮罩仅 ~20%，聊天列表清晰可见；
+    /// 视觉是「聊天上叠一块侧面板」。每次布局按当前屏宽重算（首次 OnSizeAllocated 的 width
+    /// 可能不是最终屏宽——如 540dp 中间值会把 0.72 顶到上限后锁死成过宽抽屉，故不一次性锁死）。
+    /// 仅当期望值与现值差 >10dp 才更新，避免动画期间反复触发布局。
+    /// </summary>
+    protected override void OnSizeAllocated(double width, double height)
+    {
+        base.OnSizeAllocated(width, height);
+        if (width <= 0) return;
+        var want = Math.Clamp(width * 0.62, 200, 300);
+        if (Math.Abs(LeftDrawer.WidthRequest - want) > 10)
+        {
+            LeftDrawer.WidthRequest = want;
+            RightDrawer.WidthRequest = want;
+        }
     }
 
     /// <summary>输入 / 前缀 → 显示常用命令建议列表（输入 /xx 过滤；对齐 Web suggest-box）。</summary>
@@ -336,9 +358,11 @@ public partial class ChatPage : ContentPage
     private void RefreshStatusBar()
     {
         var s = AgentService.GetStatus();
-        ModeBar.Text = s == null
-            ? "⚙ 建造 · 🔐 Ask"
-            : $"⚙ {s.WorkMode} · 🔐 {s.PermMode}";
+        // agent 未创建（首次启动未发过消息）时 GetStatus()==null：模式/权限改读全局 CurrentMode，
+        // 顶栏仍真实反映右抽屉循环后的结果，不再 fallback 成写死的「建造/Ask」让人以为切不了。
+        ModeBar.Text = s != null
+            ? $"⚙ {s.WorkMode} · 🔐 {s.PermMode}"
+            : $"⚙ {WorkModeManager.Format(WorkModeManager.CurrentMode)} · 🔐 {PermName(PermissionManager.CurrentMode)}";
         StatusBar.Text = s == null
             ? "📋 todo ×0"
             : $"📋 todo ×{s.TodoCount} · 上下文 {FormatK(s.ContextUsed)}/{FormatK(s.ContextMax)} · "
@@ -346,6 +370,15 @@ public partial class ChatPage : ContentPage
     }
 
     private static string FormatK(int n) => n >= 1000 ? $"{n / 1000.0:F1}k" : n.ToString();
+
+    /// <summary>确认权限显示名（与 AgentService.GetStatus 的 PermMode 文案一致，供 agent 未创建时用）。</summary>
+    private static string PermName(PermissionManager.Mode m) => m switch
+    {
+        PermissionManager.Mode.Yolo => "Yolo",
+        PermissionManager.Mode.SmartAuto => "SmartAuto",
+        PermissionManager.Mode.Auto => "Auto",
+        _ => "Ask",
+    };
 
     /// <summary>点模型条 → 打开模型选择页（TUI ModelPicker 移植：分组+搜索+大/小切换）。</summary>
     private async void OnModelBarTapped(object? sender, TappedEventArgs? e)
@@ -573,7 +606,6 @@ public partial class ChatPage : ContentPage
         var inputBg = ColorKey(isDark ? "InputBgDark" : "InputBgLight");
         var primary = ColorKey("Primary") ?? Colors.DodgerBlue;
         var cfg = Config.Instance;
-        var st = AgentService.GetStatus();
 
         // 模型横幅（点按 → 模型选择页）
         var modelText = ConnectionConfig.FormatModelChannel(
@@ -629,9 +661,11 @@ public partial class ChatPage : ContentPage
             TextColor = muted,
             Margin = new Thickness(2, 8, 2, 2),
         });
-        RightBody.Add(CommandRow("⚙ 工作模式", st?.WorkMode ?? "建造",
+        // 值行直接读全局 CurrentMode（不依赖 agent 实例：agent 未创建时 GetStatus()==null，
+        // 否则循环后行内值恒显示 fallback「建造/Ask」，看起来像「切不了」）
+        RightBody.Add(CommandRow("⚙ 工作模式", WorkModeManager.Format(WorkModeManager.CurrentMode),
             () => { CycleWorkMode(); PopulateRightPanel(); }, inputBg, main, muted));
-        RightBody.Add(CommandRow("🔐 确认权限", st?.PermMode ?? "Ask",
+        RightBody.Add(CommandRow("🔐 确认权限", PermName(PermissionManager.CurrentMode),
             () => { CyclePermission(); PopulateRightPanel(); }, inputBg, main, muted));
         RightBody.Add(CommandRow("💸 经济模式", EconomyName(cfg.EconomyMode),
             () => { cfg.CycleEconomy(); SaveModes(); RefreshModelBar(); PopulateRightPanel(); }, inputBg, main, muted));
@@ -878,15 +912,30 @@ public partial class ChatPage : ContentPage
     {
         _toolGroup = null; // 新轮独立分组（防上轮遗留组把本轮首工具错误并入）
         var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
-        // 正文与工具按时间交错：正文切「段」（每段独立气泡），工具组插在段间 → AI1/工具1/AI2/工具2…。
-        // 段惰性创建（收到首正文 token 才有，无正文不发空气泡）；工具到来先把当前段冻结成正式消息，
-        // 之后的新正文另起一段。reasoning 全程隐藏仅累积，最终挂本轮第一正文段的「💭 查看思考」入口。
+        // 思考 / 正文 / 工具按时间交错：思考为独立「思考泡泡」（一行「已思考 N 秒」，点开看全文），
+        // 正文切「段」（每段独立气泡），工具组插在段间 → 💭思考 / AI1 / 工具1 / AI2 / 工具2…。
+        // 思考泡泡惰性建（首个推理字符才 Add，空思考不发泡）；正文段同样收到正文 token 才建；
+        // 工具到来先把当前正文段冻结，之后的新正文另起一段。
         var inReasoning = false;
-        var reasoningSb = new StringBuilder();
-        ChatMessage? seg = null;         // 当前流式正文段气泡（冻结后置 null，下段新开）
-        StringBuilder? segSb = null;     // 当前段正文累积（段创建时同步 new）
-        ChatMessage? firstAi = null;     // 本轮第一正文段（reasoning 归属）
-        bool spokeSinceLastTool = false; // 自上个工具以来是否说过话（说话 → 下个工具开新组）
+        ChatMessage? thinkMsg = null;        // 当前思考泡泡（结束冻结后置 null；再次思考开新泡）
+        StringBuilder? thinkSb = null;       // 当前思考块累积（结束时落 thinkMsg.Reasoning 供详情页）
+        DateTime thinkStart = DateTime.MinValue;   // 本块思考开始（标题秒数）
+        DateTime thinkLastCap = DateTime.MinValue; // 思考泡泡标题刷新节流
+        ChatMessage? seg = null;             // 当前流式正文段气泡（冻结后置 null，下段新开）
+        StringBuilder? segSb = null;         // 当前段正文累积（段创建时同步 new）
+        bool interruptSinceTool = false;     // 自上个工具以来是否出现过内容（新思考块 / 正文段）→ 下个工具新开组
+
+        void FinishThink()
+        {
+            if (thinkMsg == null) return;
+            var elapsed = thinkStart == DateTime.MinValue ? 1.0 : (DateTime.UtcNow - thinkStart).TotalSeconds;
+            thinkMsg.ThinkingSeconds = Math.Max(1, (int)Math.Round(elapsed));
+            thinkMsg.Reasoning = thinkSb?.ToString() ?? "";
+            thinkMsg.HasReasoning = thinkMsg.Reasoning.Length > 0; // 有内容才可点开详情页
+            thinkMsg.RawText = $"💭 已思考 {thinkMsg.ThinkingSeconds} 秒";
+            thinkMsg = null;
+            thinkSb = null;
+        }
 
         void FreezeSeg()
         {
@@ -920,19 +969,38 @@ public partial class ChatPage : ContentPage
                     {
                         if (token == "«/»" || token == "«/»\n")
                         {
-                            inReasoning = false;          // 思考结束（正文即将开始；思考完全隐藏，不进聊天流）
+                            inReasoning = false; // 思考块结束 → 冻结泡泡（标题「已思考 N 秒」）
+                            FinishThink();
                         }
                         else
                         {
-                            // 思考完全隐藏：只累积，不在聊天流写任何 UI；最终挂首段「查看思考」入口
-                            AppendCapped(reasoningSb, token);
+                            // 首个真实推理字符 → 惰性建思考泡泡（先一行占位，标题随思考实时计秒）
+                            if (thinkMsg == null)
+                            {
+                                thinkMsg = new ChatMessage { Role = ChatRole.Thinking, IsDark = isDark, RawText = "💭 思考中…" };
+                                thinkSb = new StringBuilder();
+                                thinkStart = DateTime.UtcNow;
+                                thinkLastCap = DateTime.MinValue;
+                                interruptSinceTool = true; // 新思考块出现 = 内容间断：此前的工具组到此为止，下个工具新开组
+                                AddMessage(thinkMsg);
+                            }
+                            AppendCapped(thinkSb!, token);
+                            // 每秒刷新：标题「思考中 Ns」+ 推理全文落到泡泡（点开详情页能看进行中半截）
+                            var nowThink = DateTime.UtcNow;
+                            if ((nowThink - thinkLastCap).TotalSeconds >= 1)
+                            {
+                                thinkLastCap = nowThink;
+                                thinkMsg.RawText = $"💭 思考中 {Math.Max(1, (int)(nowThink - thinkStart).TotalSeconds)}s";
+                                thinkMsg.Reasoning = thinkSb!.ToString();
+                                thinkMsg.HasReasoning = thinkSb.Length > 0;
+                            }
                         }
                     }
                     else
                     {
                         if (token == "«dim»" || token == "\n«dim»")
                         {
-                            inReasoning = true;           // 思考开始（只累积到 reasoningSb，不显示）
+                            inReasoning = true;   // 思考块开始（下个推理字符建泡泡）
                         }
                         else
                         {
@@ -940,9 +1008,8 @@ public partial class ChatPage : ContentPage
                             if (seg == null)
                             {
                                 seg = new ChatMessage { Role = ChatRole.Assistant, IsStreaming = true };
-                                firstAi ??= seg;
                                 segSb = new StringBuilder();
-                                spokeSinceLastTool = true; // 工具后说了话 = 正文间断，下一工具开新组
+                                interruptSinceTool = true; // 工具后出现正文 = 内容间断，下一工具开新组
                                 AddMessage(seg);
                             }
                             AppendCapped(segSb!, token);
@@ -965,13 +1032,14 @@ public partial class ChatPage : ContentPage
                     // 工具到来：先把当前正文段冻结成正式消息（若正在流式写正文）→ 工具组紧随其后，
                     // 实现「AI段 / 工具组」按时间交错。工具后新正文会另起一段气泡。
                     FreezeSeg();
-                    // 分组：自上个工具以来没说过话（连续纯工具流）并入当前组；说过话则新开一组。
-                    if (_toolGroup == null || spokeSinceLastTool)
+                    // 分组：自上个工具以来没出现内容（连续纯工具流）并入当前组；
+                    // 出现过内容（新思考块 / 正文段）则新开一组 → 工具与思考、对话都按时间交错。
+                    if (_toolGroup == null || interruptSinceTool)
                     {
                         _toolGroup = new ChatMessage { Role = ChatRole.Tool, IsDark = isDark };
                         AddMessage(_toolGroup);
                     }
-                    spokeSinceLastTool = false;
+                    interruptSinceTool = false;
                     _toolGroup.ToolCalls.Add(new ToolCallItem
                     {
                         Name = name,
@@ -1003,13 +1071,8 @@ public partial class ChatPage : ContentPage
         }
         finally
         {
-            FreezeSeg(); // 收尾：冻结未被打断的最后正文段（取消时保留已生成片段）
-            if (firstAi != null)
-            {
-                // 思考全文挂本轮第一正文段（全程隐藏，点「💭 查看思考」才看）
-                firstAi.Reasoning = reasoningSb.ToString();
-                firstAi.HasReasoning = reasoningSb.Length > 0;
-            }
+            FreezeSeg();  // 收尾：冻结未被打断的最后正文段（取消时保留已生成片段）
+            FinishThink(); // 收尾：思考未闭合（取消/异常）也冻结成「已思考 N 秒」泡泡
             SendBtn.Text = "↑"; // 空闲恢复 = 发送
             AgentService.SetActiveCts(null);
             _cts = null;
@@ -1065,7 +1128,7 @@ public partial class ChatPage : ContentPage
         return p.Length == 0 ? null : p;
     }
 
-    /// <summary>「💭 查看思考」点击：弹 ReasoningDetailPage 子页看完整思考（默认完全隐藏，不进聊天流）。</summary>
+    /// <summary>思考泡泡点击：弹 ReasoningDetailPage 看完整推理（泡泡有一行字，内容点开才显示）。</summary>
     private async void OnShowReasoning(object? sender, TappedEventArgs e)
     {
         if (sender is BindableObject view && view.BindingContext is ChatMessage m && m.HasReasoning)

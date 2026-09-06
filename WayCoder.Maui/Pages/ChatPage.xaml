@@ -28,7 +28,7 @@
             </Grid>
         </DataTemplate>
 
-        <!-- AI 消息：左对齐，卡片背景 + 富文本（«» 已解码）；思考默认不显示，只留一行入口弹子页 -->
+        <!-- AI 消息：左对齐，卡片背景 + 富文本（«» 已解码）。思考已独立为 Thinking 泡泡，不再内嵌入口 -->
         <DataTemplate x:Key="AssistantTemplate" x:DataType="models:ChatMessage">
             <Grid Padding="12,6">
                 <Border
@@ -39,27 +39,36 @@
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="14,14,14,4" />
                     </Border.StrokeShape>
-                    <VerticalStackLayout Spacing="2">
-                        <!-- 思考入口：默认不显示思考内容，气泡顶部一行灰小字，点击弹 ReasoningDetailPage 看全文 -->
-                        <VerticalStackLayout IsVisible="{Binding HasReasoning}" Spacing="0">
-                            <Border BackgroundColor="Transparent" StrokeThickness="0" Padding="12,6,12,0">
-                                <Border.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnShowReasoning" />
-                                </Border.GestureRecognizers>
-                                <Label
-                                    Text="💭 查看思考"
-                                    FontSize="11"
-                                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
-                            </Border>
-                        </VerticalStackLayout>
-                        <Label
-                            FormattedText="{Binding Formatted}"
-                            Padding="12,8"
-                            FontSize="15"
-                            LineHeight="1.3" />
-                    </VerticalStackLayout>
+                    <Label
+                        FormattedText="{Binding Formatted}"
+                        Padding="12,8"
+                        FontSize="15"
+                        LineHeight="1.3" />
                 </Border>
             </Grid>
+        </DataTemplate>
+
+        <!-- 思考泡泡：与工具组同构——聊天流只留一行「已思考 N 秒」，点开弹 ReasoningDetailPage 看完整推理 -->
+        <DataTemplate x:Key="ThinkingTemplate" x:DataType="models:ChatMessage">
+            <VerticalStackLayout Padding="12,2">
+                <Border
+                    BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}"
+                    StrokeThickness="0"
+                    Padding="10,5"
+                    HorizontalOptions="Start">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="14" />
+                    </Border.StrokeShape>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnShowReasoning" />
+                    </Border.GestureRecognizers>
+                    <Label
+                        Text="{Binding RawText}"
+                        FontSize="11"
+                        FontAttributes="Italic"
+                        TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                </Border>
+            </VerticalStackLayout>
         </DataTemplate>
 
         <!-- 工具消息：工具组 = 一行「工具调用:N 次」（点开弹详情页）；普通灰字行（错误/任务摘要）直接显示文本 -->
@@ -92,7 +101,8 @@
             x:Key="TemplateSelector"
             UserTemplate="{StaticResource UserTemplate}"
             AssistantTemplate="{StaticResource AssistantTemplate}"
-            ToolTemplate="{StaticResource ToolTemplate}" />
+            ToolTemplate="{StaticResource ToolTemplate}"
+            ThinkingTemplate="{StaticResource ThinkingTemplate}" />
     </ContentPage.Resources>
 
     <Grid RowDefinitions="Auto,*,Auto,Auto">
@@ -286,8 +296,8 @@
 
         <!-- 抽屉覆盖层（覆盖全页，Z 最顶）：半透明遮罩 + 左抽屉(会话历史) / 右抽屉(侧边栏)。
              两抽屉初始在屏外（TranslationX=±Width），打开时 TranslateTo 滑入 -->
-        <Grid x:Name="DrawerLayer" Grid.Row="0" Grid.RowSpan="4" IsVisible="False">
-            <BoxView x:Name="DrawerScrim" Color="#99000000" Opacity="0">
+        <Grid x:Name="DrawerLayer" Grid.Row="0" Grid.RowSpan="4" IsVisible="False" ZIndex="10">
+            <BoxView x:Name="DrawerScrim" Color="#33000000" Opacity="0">
                 <BoxView.GestureRecognizers>
                     <TapGestureRecognizer Tapped="OnDrawerScrimTapped" />
                 </BoxView.GestureRecognizers>

@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.96.64 (2026-09-06) — MAUI 移动端：思考独立泡泡（计时）+ 工具组按思考/正文交错 + 抽屉浮层化 + 模式/权限即时切换
+
+承接 v0.96.63 的聊天重构：思考从「AI 气泡顶部入口」升级为**独立思考泡泡**（与工具同构：一行「已思考 N 秒」，点开看全文），工具分组判据扩展为思考/正文任一间断；抽屉改为真正的浮层（收窄 + 淡遮罩 + 置顶），并修复右侧栏「切换不了权限/模式」的显示回退 bug。Android Debug 编译 0 错误，真机验证各交互。
+
+- **思考独立泡泡**：新增 `ChatRole.Thinking` + 思考消息模板（一行小圆角胶囊「已思考 N 秒」，斜体，点开 `ReasoningDetailPage`）；`ChatMessage.ThinkingSeconds` 记录耗时；AI 气泡上的旧「💭 查看思考」内嵌入口移除（思考统一走独立泡泡）
+- **思考计时与展示**：`RunOneMessageAsync` 推理改为**每思考块独立泡泡**——首个推理字符惰性建泡（空推理不发泡），标题随思考实时计秒（`思考中 Ns` → 结束 `已思考 N 秒`），推理全文结束时落 `bubble.Reasoning`（取消/异常 `FinishThink` 兜底）；`ReasoningDetailPage` 顶部副标显示「已思考 N 秒」
+- **工具组按思考/正文都交错**：分组间断判据从「仅正文说话」扩为「新思考块或正文段任一出现」(`interruptSinceTool`)——工具与思考、与对话严格按时间交错（💭思考 → 工具组 → 正文 → 思考 → 工具组…），同一思考块内连续工具仍合一组不切碎
+- **抽屉浮层化**：抽屉宽度改为**每次布局按屏宽重算**（首次 `OnSizeAllocated` 的 width 可能非最终屏宽，一次性锁死会把抽屉顶到上限过宽）→ 屏宽 ~62%（上限 300dp、下限 200dp），真机约 223dp；遮罩 `#99000000`(60%) 减淡为 `#33000000`(20%)；`DrawerLayer ZIndex=10` 确保浮在 CollectionView 之上——抽屉打开时聊天列表在遮罩下清晰可见，不再被盖没/像全屏页
+- **模式/权限即时切换修复**：右侧栏「工作模式 / 确认权限」值与顶栏 ModeBar 空 agent 分支原读 `AgentService.GetStatus()`（agent 未创建时返回 null → fallback 成写死「建造/Ask」），循环切换内部状态但 UI 永不更新，观感「切不了」；改为**直接读全局 `WorkModeManager.CurrentMode` / `PermissionManager.CurrentMode`**（`PermName` 文案与 GetStatus 一致），点按后经面板重建即时刷新；经济模式行本就直读 `cfg.EconomyMode` 正常
+
 ## v0.96.63 (2026-09-06) — MAUI 移动端：多会话历史 + 左右抽屉 + 工具分组/推理子页 + Android 网络与输入框修复
 
 移动端聊天体验大改：多会话历史（复用桌面 SessionManager 格式，左抽屉管理）、工具调用按正文间断分组、思考过程默认隐藏改子页查看、正文与工具组按时间交错呈现，另修 Android 主线程网络（NetworkOnMainThreadException）与输入框底线。Android Debug 编译 0 错误，真机验证抽屉/交错时序/入口导航。
