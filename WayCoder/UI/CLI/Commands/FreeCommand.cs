@@ -45,9 +45,10 @@ public class FreeCommand : SlashCommand
                 return Task.CompletedTask;
             }
             var c = available[n - 1];
-            // 切换前记住当前模型（/free restore 可恢复；未记录才记，不覆盖已记住的）
+            // 切换前记住当前主模型（/free restore 恢复；未记录才记，不覆盖已记住的）。
+            // 免费切换只更新 state.free_connect + connect_mode=free，【不覆盖】default_connect 锚点。
             ModelCli.RememberCurrentModel();
-            ConnectionConfig.ApplyModelChoice(c.ProviderId, c.ModelId, isLarge: true, out var msg, c.BaseUrl);
+            ConnectionConfig.SetActiveModel(c.ProviderId, c.ModelId, mode: "free", out var msg, c.BaseUrl);
             screen.AddSystemMsg($"✅ 已切换免费模型 #{n}：{ModelCatalog.ShortDisplayName(c.ModelId)}（{ModelCatalog.ProviderDisplayName(c.ProviderId)}）\n  /free restore 还原收费模型");
             return Task.CompletedTask;
         }
@@ -62,9 +63,9 @@ public class FreeCommand : SlashCommand
             if (idx >= 0 && idx < available.Count)
             {
                 var c = available[idx];
-                // 切换前记住当前模型（/free restore 可恢复；未记录才记，不覆盖已记住的）
+                // 切换前记住当前主模型；免费切换不覆盖 default_connect 锚点
                 ModelCli.RememberCurrentModel();
-                ConnectionConfig.ApplyModelChoice(c.ProviderId, c.ModelId, isLarge: true, out var msg, c.BaseUrl);
+                ConnectionConfig.SetActiveModel(c.ProviderId, c.ModelId, mode: "free", out var msg, c.BaseUrl);
                 screen.AddSystemMsg($"✅ 已切换免费模型：{ModelCatalog.ShortDisplayName(c.ModelId)}（{c.ProviderId}）\n  /free restore 还原收费模型");
             }
         }));
