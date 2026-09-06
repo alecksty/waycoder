@@ -622,3 +622,16 @@ namespace WayCoder.UI.TUI.Custom
         public static void Show() { }
     }
 }
+
+namespace WayCoder.UI.Cli.Commands
+{
+    /// <summary>SyncQrCommand 桩：MAUI 无终端 TUI 全屏屏（QrScanScreen 在 UI/TUI 被 MAUI 排除），
+    /// /sync-qr 属 TUI 命令；MAUI 端扫码同步走 GitSyncPage 原生页。仅保证 SlashCommand 注册编译。</summary>
+    public class SyncQrCommand : WayCoder.SlashCommand
+    {
+        public override string Name => "/sync-qr";
+        public override string Description => "生成代码同步二维码（TUI 全屏命令；MAUI 扫码走 GitSyncPage）";
+        public override Task ExecuteAsync(string args, WayCoder.UI.Tui.Screens.ChatScreen screen)
+            => Task.CompletedTask;
+    }
+}
