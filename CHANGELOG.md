@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.96.62 (2026-09-06) — 手写 QR 编解码库（去 ZXing，0 NuGet 依赖）+ 二维码缩小
+
+手写标准 QR（ISO 18004）编码与解码库，移除 ZXing.Net——项目 **0 NuGet 依赖**。自测 5062 全过，编译 0 警告。
+
+- **QrCodec 共享基础**：GF(256) 对数/反对数、EC 块参数/交错布局、8 掩码 pattern、格式信息 BCH(15,5)+`TryDecodeFormatInfo`、版本容量/对齐坐标（encode+decode 共用）
+- **QrEncoder**（encode，`Infra/QrCodec.cs`+`QrEncoder.cs`）：版本 1-40 自动、字节模式、RS 纠错、finder/timing/alignment/格式+版本信息布局、8 掩码惩罚择优；`/sync-qr` 去 ZXing
+- **QrDecoder**（decode，`Infra/QrDecoder.cs`）：Otsu 二值化 → finder 1:1:3:1:1 定位 + 连通聚类 → 仿射网格采样 → 格式解析 → 位流逆解码 → RS 纠错（Berlekamp-Massey/Chien/Forney）→ 字节模式 UTF-8；`Decode(rgba/RasterImage/PngFile/矩阵)`，供 PNG 与相机帧
+- **二维码缩小**：ASCII 半块字符（宽高减半 + 2 模块安静区）；PNG scale 10→5 + 4 模块白边（~205px）
+- **可扫验证**：encode 17 样本临时 ZXing 全回读；decode 闭环 encode→绘制→decode 回读（L/M/Q/H、中文/emoji/300B、v1-v13 边界、8 掩码、几何容差、真实 PNG），RS 直接损坏恢复
+- 自测 +79（encode 46 + decode 33）：5062 全过，编译 0 警告
+- 已知限制（后续增强）：decode 极端透视/反光/90° 旋转；相机 MAUI UI 接入为独立后续
+
 ## v0.96.61 (2026-09-06) — GUI/Web 模型栏单当前模型（小模型入口并入弹窗 Tab）
 
 GUI 与 Web 模型栏从「并列大/小两个模型」收敛为**只显示当前生效模型**，与 TUI/MAUI 一致；小模型切换经模型选择弹窗内「大模型|小模型」Tab。自测 4983 全过，GUI + 主 build 0 警告。
