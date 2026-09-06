@@ -5,46 +5,37 @@ namespace WayCoder;
 
 public static partial class ModelCli
 {
+    /// <summary>主模型快照（进入 free / --model name 换主前的模型）——Phase 1' 起存 connections.json state.rollback_connect。</summary>
     public static (string Provider, string Model, string? BaseUrl)? PreviousModel
     {
         get
         {
-            var c = Config.Instance;
-            if (string.IsNullOrEmpty(c.FreePrevModel)) return null;
-            return (c.FreePrevProvider ?? "", c.FreePrevModel, c.FreePrevBaseUrl);
+            if (!ConnectionConfig.TryGetRollbackSnapshot(out var p, out var m, out var b)) return null;
+            return (p, m, b);
         }
         set
         {
-            var c = Config.Instance;
-            if (value is { } v)
-            {
-                c.FreePrevProvider = v.Provider;
-                c.FreePrevModel = v.Model;
-                c.FreePrevBaseUrl = v.BaseUrl;
-            }
-            else
-            {
-                c.FreePrevProvider = null;
-                c.FreePrevModel = null;
-                c.FreePrevBaseUrl = null;
-            }
-            c.SaveToConfigJson(); // 跨会话持久化
+            if (value is { } v) ConnectionConfig.SetRollbackSnapshot(v.Provider, v.Model, v.BaseUrl);
+            else ConnectionConfig.ClearRollbackSnapshot();
         }
     }
 
-    /// <summary>记住当前模型（切换免费模型前调用；未记录才记，避免覆盖已记住的）。</summary>
+    /// <summary>记住当前主模型（切换免费模型 / --model name 换主前调用；未记录才记，避免覆盖已记住的）。
+    /// 快照存 rollback_connect；不覆盖 default_connect（锚点）。</summary>
     public static void RememberCurrentModel()
     {
-        if (PreviousModel == null)
-            PreviousModel = (Config.Instance.Provider, Config.Instance.Model, Config.Instance.BaseUrl);
+        if (ConnectionConfig.HasRollbackSnapshot()) return; // 未记录才记
+        // 快照默认锚点（= 非 free 时的当前主模型；free 不会覆盖 default，故锚点即恢复目标）
+        if (ConnectionConfig.TryGetDefaultAnchor(out var p, out var m, out var b))
+            ConnectionConfig.SetRollbackSnapshot(p, m, b);
     }
 
-    /// <summary>恢复 /free 切换前的模型（三端共用：TUI /free-restore、Web /free-restore、CLI --model restore）。</summary>
+    /// <summary>恢复 /free 切换前的模型（三端共用：TUI /free-restore、Web /free-restore、CLI --model restore）。
+    /// 切回 rollback_connect（free 从未覆盖 default，通常等价回默认锚点）。</summary>
     public static string RestorePrevious()
     {
         if (PreviousModel is not { } prev) return "⚠️ 无之前模型可恢复（先切换免费模型）";
-        ConnectionConfig.ApplyModelChoice(prev.Provider, prev.Model, isLarge: true, out var msg, prev.BaseUrl);
-        PreviousModel = null;
+        ConnectionConfig.RestoreMain();
         return $"✅ 已恢复之前模型：{ModelCatalog.ShortDisplayName(prev.Model)}（{prev.Provider}）";
     }
 

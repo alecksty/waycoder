@@ -104,38 +104,40 @@ public partial class Config
     private static Config CreateInstance()
     {
         var cfg = new Config();
+
+        // Phase 1'：易变模型状态单一权威 = connections.json 顶层 "state"。
+        // 先确保其已加载（老文件无 state → 从旧 config.json 扁平字段迁移生成并落盘），
+        // 使 Config 模型字段能从 state 读取而非 config.json（config.json 不再保存模型键）。
+        ConnectionConfig.EnsureLoaded();
+
         var configExists = File.Exists(ConfigJsonPath);
         string? providerKey = null;
 
         if (configExists)
         {
-            // 默认路径：config.json 是唯一权威源 —— 不读 .env、不读环境变量
-            //（环境变量仅在首次启动导入过，之后不再被引用）。
+            // 默认路径：config.json 只读稳定配置（模型字段已跳过，权威在 connections state）。
             cfg.LoadConfigJson();
-
-            // API Key 只从 api_keys.json 解析（环境变量 key 首次启动时已导入 api_keys.json）
-            providerKey = ApiKeyStore.Get(cfg.Provider) ?? ApiKeyStore.ForModel(cfg.Model);
-            if (!string.IsNullOrWhiteSpace(providerKey))
-                cfg.ApiKey = providerKey;
-            // BaseUrl 已由 LoadConfigJson 载入，无环境变量兜底
         }
         else
         {
-            // 首次启动（无 config.json）：从 .env + 环境变量读取，并把结果导入固化到配置文件。
+            // 首次启动（无 config.json）：从 .env + 环境变量读取，并把结果导入固化。
             LoadDotEnv();
+            var appliedModelKeys = new List<string>();
             foreach (var p in _schema)
             {
                 var val = Env(p.EnvVar, p.OldEnvVar);
                 if (!string.IsNullOrEmpty(val))
                 {
-                    try { p.Setter(cfg, val); }
+                    try
+                    {
+                        p.Setter(cfg, val);
+                        if (NonPersistedModelKeys.Contains(p.Key)) appliedModelKeys.Add(p.Key);
+                    }
                     catch { /* 非法值（如 WAYCODER_MAX_TOKENS=abc）忽略，保留默认值，避免启动崩溃 */ }
                 }
             }
 
-            // 环境变量 API Key → api_keys.json（只补空不覆盖）：
-            // 供应商专属变量（DEEPSEEK_API_KEY 等）由 ImportFromEnvironment 处理；
-            // 通用 WAYCODER_API_KEY（schema 已写入 cfg.ApiKey）导入到当前服务商条目。
+            // 环境变量 API Key → api_keys.json（只补空不覆盖）
             ApiKeyStore.ImportFromEnvironment();
             if (string.IsNullOrEmpty(ApiKeyStore.Get(cfg.Provider))
                 && !string.IsNullOrWhiteSpace(cfg.ApiKey)
@@ -144,28 +146,38 @@ public partial class Config
                 ApiKeyStore.Set(cfg.Provider, cfg.ApiKey);
             }
 
-            // ApiKey 解析：api_keys.json（刚导入）优先，其余环境变量兜底（仅首次）
-            providerKey = ApiKeyStore.Get(cfg.Provider) ?? ApiKeyStore.ForModel(cfg.Model);
-            if (!string.IsNullOrWhiteSpace(providerKey))
-            {
-                cfg.ApiKey = providerKey;
-            }
-            else if (string.IsNullOrEmpty(cfg.ApiKey))
-            {
-                // json 为空时才用环境变量 key（默认优先 api_keys.json，env 只补空不覆盖）
-                cfg.ApiKey = ApiKeyStore.EnvKey(cfg.Provider)
-                    ?? Environment.GetEnvironmentVariable("API_KEY")
-                    ?? "";
-            }
-
             // BaseUrl 环境变量兜底（仅首次）
             if (string.IsNullOrEmpty(cfg.BaseUrl))
             {
                 cfg.BaseUrl = Environment.GetEnvironmentVariable("OPENAI_BASE_URL");
+                if (!string.IsNullOrEmpty(cfg.BaseUrl)) appliedModelKeys.Add("BaseUrl");
             }
 
-            // 导入：把当前值固化为 config.json（此后 config.json 为权威源，环境变量不再被读取）。
-            // 首次启动固定生成 config.json（即使无环境变量），锁定「config.json 存在」状态。
+            // 环境变量引导的模型字段 → connections state（仅全新安装无 connections.json 时；
+            // 已有 connections.json 则其 state 权威，不覆盖）。
+            ConnectionConfig.ImportEnvModelState(cfg, appliedModelKeys);
+        }
+
+        // state → Config 模型镜像（cfg.Model/Provider/BaseUrl/Small* 全部读点读到连接权威源）
+        ConnectionConfig.SyncToConfig(cfg);
+
+        // API Key 解析：api_keys.json 优先（env 只补空不覆盖）
+        providerKey = ApiKeyStore.Get(cfg.Provider) ?? ApiKeyStore.ForModel(cfg.Model);
+        if (!string.IsNullOrWhiteSpace(providerKey))
+        {
+            cfg.ApiKey = providerKey;
+        }
+        else if (!configExists)
+        {
+            // 首次启动且 json 为空 → 环境变量 key 兜底
+            cfg.ApiKey = ApiKeyStore.EnvKey(cfg.Provider)
+                ?? Environment.GetEnvironmentVariable("API_KEY")
+                ?? "";
+        }
+
+        if (!configExists)
+        {
+            // 首次启动固定生成 config.json（锁定「config.json 存在」状态）
             cfg.SaveToConfigJson();
             // 已有 .env 才精简为 5 项引导配置；全新安装不凭空创建 .env
             if (FindEnvFile() != null) cfg.SaveMinimalDotEnv();
@@ -310,7 +322,15 @@ public partial class Config
     // ── 回退链 ──
     /// <summary>回退链开关：默认关。开=模型失败时按 connect 链自动回退；关=只用当前模型，失败即停。</summary>
     public bool FallbackEnabled { get; set; } = false;
-    public string FallbackChain { get; set; } = "deepseek-v4-pro,deepseek-v4-flash,qwen-turbo,glm-4-flash";
+    /// <summary>
+    /// 回退链（config 字符串镜像已停用）。Phase 1' 起权威在 connections.json fallbackChain[]，
+    /// 此 getter 转发到 connections 数组的 join；setter 为 no-op（请用 /connect chain 设置）。
+    /// </summary>
+    public string FallbackChain
+    {
+        get => string.Join(",", ConnectionConfig.FallbackChain);
+        set { /* 停用：不再写 config.json / 不再镜像；权威 = connections.json fallbackChain[] */ }
+    }
 
     // ── 文件锁 ──
     public int FileLockTimeoutSec { get; set; } = 30;

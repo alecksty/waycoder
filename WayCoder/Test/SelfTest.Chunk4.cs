@@ -647,6 +647,85 @@ public static partial class SelfTest
                 ConnectionConfig.FilePathOverride = null; // 恢复真实路径（后续无 ConnectionConfig 测试）
                 try { if (File.Exists(legacyPath)) File.Delete(legacyPath); } catch { }
             }
+
+            // ---- 连接状态 state（Phase 1'：单一权威 + free/rollback 不覆盖 default 锚点）----
+            var savedM = Config.Instance.Model; var savedP = Config.Instance.Provider;
+            var savedSm = Config.Instance.SmallModel; var savedSp = Config.Instance.SmallProvider;
+            var savedB = Config.Instance.BaseUrl;
+            var stPath = Path.Combine(Path.GetTempPath(), "waycoder_conn_state.json");
+            ConnectionConfig.FilePathOverride = stPath;
+            try
+            {
+                File.WriteAllText(stPath, """
+                {
+                  "active": "default",
+                  "connects": [
+                    { "name": "deepseek/deepseek-v4-pro", "providerId": "deepseek", "modelId": "deepseek-v4-pro" },
+                    { "name": "deepseek/deepseek-v4-flash", "providerId": "deepseek", "modelId": "deepseek-v4-flash" },
+                    { "name": "qwen/qwen-turbo", "providerId": "qwen", "modelId": "qwen-turbo" }
+                  ],
+                  "connections": [
+                    { "name": "default", "big": "deepseek/deepseek-v4-pro", "small": "deepseek/deepseek-v4-flash" }
+                  ]
+                }
+                """);
+                ConnectionConfig.ClearCache();
+                Check("State: FormatConnect 纯函数",
+                    ConnectionConfig.FormatConnect("deepseek", "deepseek-v4-pro") == "deepseek:deepseek-v4-pro");
+                Check("State: TryParseConnect 解析",
+                    ConnectionConfig.TryParseConnect("deepseek:deepseek-v4-pro", out var fpid, out var fmid)
+                    && fpid == "deepseek" && fmid == "deepseek-v4-pro");
+                Check("State: TryParseConnect 空 false", !ConnectionConfig.TryParseConnect("", out _, out _));
+                Check("State: TryParseConnect 无冒号 false", !ConnectionConfig.TryParseConnect("deepseek-v4-pro", out _, out _));
+                var st = ConnectionConfig.State;
+                Check("State: 无 state 老文件迁移 default_connect=激活连接 big", st.DefaultConnect == "deepseek:deepseek-v4-pro");
+                Check("State: 无 state 老文件迁移 small_connect=激活连接 small", st.SmallConnect == "deepseek:deepseek-v4-flash");
+                Check("State: 无 state 老文件迁移 mode=big", st.ConnectMode == "big");
+                Check("State: CurrentMainModel", ConnectionConfig.CurrentMainModel() == "deepseek-v4-pro");
+                Check("State: CurrentSmallModel", ConnectionConfig.CurrentSmallModel() == "deepseek-v4-flash");
+
+                // 小模型切换 → 只改 small_connect，default 不动
+                ConnectionConfig.SetActiveModel("qwen", "qwen-turbo", mode: "small", out _);
+                st = ConnectionConfig.State;
+                Check("State: SetActiveModel small 更新 small_connect", st.SmallConnect == "qwen:qwen-turbo");
+                Check("State: SetActiveModel small 不动 default", st.DefaultConnect == "deepseek:deepseek-v4-pro");
+
+                // 换主模型 → default_connect 更新
+                ConnectionConfig.SetActiveModel("qwen", "qwen-turbo", mode: "big", out _);
+                st = ConnectionConfig.State;
+                Check("State: SetActiveModel big 更新 default_connect", st.DefaultConnect == "qwen:qwen-turbo");
+
+                // free 切换 → free_connect + mode=free，【不覆盖】default 锚点
+                ConnectionConfig.SetActiveModel("deepseek", "deepseek-v4-flash", mode: "free", out _);
+                st = ConnectionConfig.State;
+                Check("State: free 记录 free_connect", st.FreeConnect == "deepseek:deepseek-v4-flash");
+                Check("State: free 后 mode=free", st.ConnectMode == "free");
+                Check("State: free 不覆盖 default 锚点", st.DefaultConnect == "qwen:qwen-turbo");
+                Check("State: free 后 CurrentMainModel=free 模型", ConnectionConfig.CurrentMainModel() == "deepseek-v4-flash");
+
+                // /free restore → mode=big、free 清空、default 锚点不变
+                ConnectionConfig.RestoreMain();
+                st = ConnectionConfig.State;
+                Check("State: restore 后 mode=big", st.ConnectMode == "big");
+                Check("State: restore 后 free 清空", string.IsNullOrEmpty(st.FreeConnect));
+                Check("State: restore 后 default 回锚点", st.DefaultConnect == "qwen:qwen-turbo");
+
+                // 文件往返：ClearCache 后 state 仍在（写盘幂等）
+                ConnectionConfig.ClearCache();
+                st = ConnectionConfig.State;
+                Check("State: 文件往返 default 保持", st.DefaultConnect == "qwen:qwen-turbo");
+                Check("State: 文件往返 free 清空保持", string.IsNullOrEmpty(st.FreeConnect));
+            }
+            finally
+            {
+                ConnectionConfig.ClearCache();
+                ConnectionConfig.FilePathOverride = null; // 恢复真实路径（后续无 ConnectionConfig 测试）
+                try { if (File.Exists(stPath)) File.Delete(stPath); } catch { }
+                // 还原 Config 镜像（上述写操作会改 Config.Instance 模型字段，避免污染后续 Chunk）
+                Config.Instance.Model = savedM; Config.Instance.Provider = savedP;
+                Config.Instance.SmallModel = savedSm; Config.Instance.SmallProvider = savedSp;
+                Config.Instance.BaseUrl = savedB;
+            }
         }
 
         // 外部配置导入：Claude Code settings.json（env 中 *_MODEL + BASE_URL，去 [1M] 后缀 + 去重 + 跳过 *_MODEL_NAME）

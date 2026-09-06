@@ -3,6 +3,18 @@ namespace WayCoder;
 public partial class Config
 {
     // ════════════════════════════════════════════════════════════
+    // config.json 不再保存的模型/连接字段（Phase 1'：易变模型状态收敛到
+    // connections.json 顶层 "state"）。这些键保留在 _schema 仅用于
+    // 设置界面/命令展示与运行时镜像；Load 不读 / Save 不写。
+    // ════════════════════════════════════════════════════════════
+
+    internal static readonly HashSet<string> NonPersistedModelKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Model", "Provider", "SmallModel", "SmallProvider", "BaseUrl",
+        "FallbackChain", "freePrevProvider", "freePrevModel", "freePrevBaseUrl",
+    };
+
+    // ════════════════════════════════════════════════════════════
     // 保存到 .env 文件（从 Schema 自动生成）
     // ════════════════════════════════════════════════════════════
 
@@ -37,16 +49,13 @@ public partial class Config
             foreach (var p in _schema)
             {
                 if (p.Type == "secret") continue;
+                if (NonPersistedModelKeys.Contains(p.Key)) continue; // 模型字段权威在 connections.json state
                 var val = root[p.Key]?.AsString();
                 if (val == null) continue;
                 try { p.Setter(this, val); }
                 catch { /* 非法值（如越界数字）忽略，保留当前值，避免启动崩溃 */ }
             }
-
-            // 非 schema 的辅助字段：/free 切换前的模型（PreviousModel 跨会话持久化）
-            FreePrevProvider = root["freePrevProvider"]?.AsString();
-            FreePrevModel = root["freePrevModel"]?.AsString();
-            FreePrevBaseUrl = root["freePrevBaseUrl"]?.AsString();
+            // 旧 config.json 残留的 freePrev* 不再读取（迁移已进 connections.json state）
         }
         catch { /* config.json 损坏时静默忽略，回退 .env/默认 */ }
     }
@@ -59,6 +68,11 @@ public partial class Config
     {
         lock (SaveLock)
         {
+            // 模型字段直接写入（SettingsScreen Provider/BaseUrl、--model connect、/config set 等）先收敛回
+            // connections.json state（单一权威），再写 config.json（不写模型键）。
+            try { ConnectionConfig.ReconcileFromConfig(this); }
+            catch { /* 收敛失败不阻塞 config.json 写入 */ }
+
             try
             {
                 var path = ConfigJsonPath;
@@ -69,18 +83,11 @@ public partial class Config
                 {
                     // API Key 不写入 config.json：密钥独立管理，走全局 api_keys.json（一个服务商一个 key）
                     if (p.Type == "secret") continue;
+                    if (NonPersistedModelKeys.Contains(p.Key)) continue; // 模型字段权威在 connections.json state
                     var val = p.Getter(this);
                     if (p.SkipIfEmpty && string.IsNullOrEmpty(val)) continue;
                     if (p.DefaultStr != null && val == p.DefaultStr) continue;
                     obj.Set(p.Key, JNode.From(val));
-                }
-
-                // 非 schema 辅助字段：/free 切换前模型（有记录才写，恢复/清空后不再残留）
-                if (!string.IsNullOrEmpty(FreePrevModel))
-                {
-                    obj.Set("freePrevProvider", JNode.From(FreePrevProvider ?? ""));
-                    obj.Set("freePrevModel", JNode.From(FreePrevModel));
-                    obj.Set("freePrevBaseUrl", JNode.From(FreePrevBaseUrl ?? ""));
                 }
 
                 Global.WriteAllTextAtomic(path, Json.Serialize(obj, indent: true)); // 同卷原子替换

@@ -18,7 +18,7 @@ namespace WayCoder;
 ///   { "active", "connects": [{name,providerId,modelId}], "connections": [{name,big,small}], "fallbackChain": [connect名] }
 /// 兼容迁移：旧格式 {name,providerId,largeModel,smallModel}、Config 扁平字段、FallbackChain 模型名串。
 /// </summary>
-public static class ConnectionConfig
+public static partial class ConnectionConfig
 {
     // ════════════════════════════════════════════════════════════
     // 数据模型：provider / connect / connection 三层
@@ -241,20 +241,25 @@ public static class ConnectionConfig
             return null;
         }
 
-        var cfg = Config.Instance;
-        cfg.Provider = big.ProviderId;
-        cfg.SmallProvider = small.ProviderId;      // 大/小可不同服务商
-        cfg.Model = big.ModelId;
-        cfg.SmallModel = small.ModelId;
-        cfg.BaseUrl = ResolveBaseUrl(big.ProviderId); // 主 LLM 走大 connect 的 provider 地址
+        lock (_lock) { _active = c.Name; Save(); }
 
-        // 持久化：config.json（权威源）+ .env 基本引导
-        cfg.SaveToConfigJson();
+        // state 锚点跟随激活连接大/小 connect（用户主动切连接 = 换主模型，显式离开 free）
+        lock (_lock)
+        {
+            Load();
+            SyncStateFromActiveLocked();
+            _state = _state! with { ConnectMode = "big", FreeConnect = null, FreeBaseUrl = null };
+            Save();
+        }
+
+        // 同步运行时镜像（cfg.Model 等）——权威在 state，Config 只是镜像
+        var cfg = Config.Instance;
+        SyncToConfig(cfg);
+        cfg.SaveToConfigJson(); // config.json 不再保存模型字段；此处仅写非模型配置
         cfg.SaveToEnvFile();
 
-        lock (_lock) { _active = c.Name; Save(); }
         message = $"已切换至 连接「{c.Name}」：大={FormatModel(ModelCatalog.ProviderDisplayName(big.ProviderId), big.ModelId)} · 小={FormatModel(ModelCatalog.ProviderDisplayName(small.ProviderId), small.ModelId)}" +
-            (string.IsNullOrEmpty(cfg.BaseUrl) ? "" : $" / {cfg.BaseUrl}");
+            (string.IsNullOrEmpty(ConnectionConfig.ResolveBaseUrl(big.ProviderId)) ? "" : $" / {ResolveBaseUrl(big.ProviderId)}");
         return c;
     }
 
@@ -494,16 +499,39 @@ public static class ConnectionConfig
             Save();
         }
 
-        // 同步扁平字段（运行时镜像） + 持久化
-        cfg.Model = isLarge ? conn.ModelId : cfg.Model;
-        cfg.SmallModel = isLarge ? cfg.SmallModel : conn.ModelId;
-        if (isLarge) { cfg.Provider = conn.ProviderId; cfg.BaseUrl = ResolveBaseUrl(conn.ProviderId); }
-        else { cfg.SmallProvider = conn.ProviderId; }
-        cfg.SaveToConfigJson();
+        // state 锚点跟随激活连接大/小 connect（用户主动换主/小模型才更新 default/small）。
+        // 换主模型（isLarge）是显式离开 free → 清 free + 回 big 模式。
+        lock (_lock)
+        {
+            Load();
+            SyncStateFromActiveLocked();
+            if (isLarge)
+                _state = _state! with { ConnectMode = "big", FreeConnect = null, FreeBaseUrl = null };
+            Save();
+        }
+
+        // 同步运行时镜像（cfg.Model 等）——权威在 state，Config 只是镜像
+        SyncToConfig(cfg);
+        cfg.SaveToConfigJson(); // config.json 不再保存模型字段
         cfg.SaveToEnvFile();
 
         message = $"已切换至 {FormatModel(ModelCatalog.ProviderDisplayName(conn.ProviderId), conn.ModelId)} 模型";
         return true;
+    }
+
+    /// <summary>state.default_connect/small_connect 跟随激活命名连接的大/小 connect 内容（仅调用方在用户主动切换后调用）。</summary>
+    private static void SyncStateFromActiveLocked()
+    {
+        if (_state == null) return;
+        var active = _connections!.FirstOrDefault(c => string.Equals(c.Name, _active, StringComparison.OrdinalIgnoreCase))
+                     ?? _connections!.FirstOrDefault();
+        if (active == null) return;
+        var big = FindConnectCore(active.BigConnect);
+        var small = FindConnectCore(active.SmallConnect);
+        if (big != null)
+            _state = _state with { DefaultConnect = FormatConnect(big.ProviderId, big.ModelId) };
+        if (small != null)
+            _state = _state with { SmallConnect = FormatConnect(small.ProviderId, small.ModelId) };
     }
 
     /// <summary>当前全局 Config 命中的命名连接（大/小 connect 完全一致才视为当前），无则 null。</summary>
@@ -551,12 +579,12 @@ public static class ConnectionConfig
                 if (FindConnect(t) != null && seen.Add(t)) list.Add(t);
             }
             _fallback = list;
-            var cfg = Config.Instance;
-            cfg.FallbackChain = string.Join(",", list);
-            cfg.SaveToConfigJson();
-            cfg.SaveToEnvFile();
             Save();
         }
+        // 在 _lock 外写 config.json（避免与 SaveToConfigJson→Reconcile 的 _lock 交叉持锁）
+        var cfg = Config.Instance;
+        cfg.SaveToConfigJson();
+        cfg.SaveToEnvFile();
     }
 
     // ════════════════════════════════════════════════════════════
@@ -615,7 +643,7 @@ public static class ConnectionConfig
     }
 
     /// <summary>清除缓存（测试用）</summary>
-    public static void ClearCache() { lock (_lock) { _connects = null; _connections = null; _fallback = []; _active = ""; } }
+    public static void ClearCache() { lock (_lock) { _connects = null; _connections = null; _fallback = []; _active = ""; _state = null; _sawConnectionsFile = false; } }
 
     // ════════════════════════════════════════════════════════════
     // 持久化（手写 JNode 序列化，零反射，AOT 安全）+ 迁移
@@ -627,6 +655,7 @@ public static class ConnectionConfig
         lock (_lock)
         {
             if (_connects != null) return;
+            _sawConnectionsFile = File.Exists(FilePath);
             var connects = new List<Connect>();
             var connections = new List<Connection>();
             var fallback = new List<string>();
@@ -679,6 +708,8 @@ public static class ConnectionConfig
                                 if (!string.IsNullOrWhiteSpace(n)) fallback.Add(n.Trim());
                             }
                         }
+                        if (root["state"] is { Kind: JKind.Object } sobj)
+                            _state = ParseState(sobj);
                     }
                 }
             }
@@ -688,20 +719,44 @@ public static class ConnectionConfig
             _connections = connections;
             _fallback = fallback;
             _active = active;
-            MigrateIfNeeded(legacy);
+            var seed = ReadLegacySeed();
+            MigrateIfNeeded(legacy, seed);
+            EnsureStateLocked(seed);
         }
     }
 
+    /// <summary>解析 connections.json 顶层 "state" 对象（缺字段容错）。</summary>
+    private static ConnectState ParseState(JNode sobj)
+    {
+        string Get(string k) => sobj[k]?.AsString() ?? "";
+        var mode = Get("connect_mode");
+        if (mode.Length == 0) mode = "big";
+        if (!mode.Equals("big", StringComparison.OrdinalIgnoreCase)
+            && !mode.Equals("free", StringComparison.OrdinalIgnoreCase))
+            mode = "big";
+        return new ConnectState(
+            ConnectMode: mode,
+            DefaultConnect: Nz(Get("default_connect")),
+            SmallConnect: Nz(Get("small_connect")),
+            FreeConnect: Nz(Get("free_connect")),
+            RollbackConnect: Nz(Get("rollback_connect")),
+            DefaultBaseUrl: Nz(Get("default_base_url")),
+            FreeBaseUrl: Nz(Get("free_base_url")),
+            RollbackBaseUrl: Nz(Get("rollback_base_url")));
+    }
+
+    private static string? Nz(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
     /// <summary>
-    /// 首次加载的迁移：
+    /// 首次加载的迁移（【不引用 Config.Instance】——ConnectionConfig 可能先于 Config 完整构造被加载，
+    /// 引用会递归。旧 Config 扁平字段从 config.json 原文读取）。
     /// 1. 旧 connections.json（{name,providerId,largeModel,smallModel}）→ 自动注册 connect + 转换命名连接。
-    /// 2. 当前 Config 扁平字段 seed 大/小 connect。
-    /// 3. Config.FallbackChain（模型名串）→ 解析为 connect 名，回写镜像。
+    /// 2. 旧 config.json 扁平字段 seed 大/小 connect（无任何 connect 时）。
+    /// 3. config.json FallbackChain（connect 名串/模型名串）→ 解析为 connect 名。
     /// 4. active 命中最匹配连接；无连接则自动建默认。
     /// </summary>
-    private static void MigrateIfNeeded(List<(string Name, string Pid, string Large, string Small)> legacy)
+    private static void MigrateIfNeeded(List<(string Name, string Pid, string Large, string Small)> legacy, LegacySeed seed)
     {
-        var cfg = Config.Instance;
         var changed = false;
 
         // 1. 旧连接格式迁移
@@ -714,18 +769,19 @@ public static class ConnectionConfig
             changed = true;
         }
 
-        // 2. 当前扁平字段 seed 大/小 connect（无任何 connect 时）
-        if (_connects!.Count == 0 && !string.IsNullOrWhiteSpace(cfg.Model))
+        // 2. 旧 config 扁平字段 seed 大/小 connect（无任何 connect 时）
+        if (_connects!.Count == 0 && seed.HasModel)
         {
-            FindOrCreateConnectCore(cfg.Provider, cfg.Model);
-            FindOrCreateConnectCore(cfg.SmallProvider, cfg.SmallModel);
+            FindOrCreateConnectCore(seed.Provider, seed.Model);
+            if (!string.IsNullOrWhiteSpace(seed.SmallModel))
+                FindOrCreateConnectCore(seed.SmallProvider, seed.SmallModel);
             changed = true;
         }
 
-        // 3. 回退链：Config.FallbackChain 模型名 → connect 名
-        if (_fallback.Count == 0 && !string.IsNullOrWhiteSpace(cfg.FallbackChain))
+        // 3. 回退链：config.json FallbackChain（connect 名串，旧版可能存模型名串）→ connect 名
+        if (_fallback.Count == 0 && !string.IsNullOrWhiteSpace(seed.FallbackChain))
         {
-            foreach (var token in cfg.FallbackChain.Split(','))
+            foreach (var token in seed.FallbackChain.Split(','))
             {
                 var t = token.Trim();
                 if (t.Length == 0) continue;
@@ -733,30 +789,27 @@ public static class ConnectionConfig
                 var info = ModelCatalog.Find(t);
                 var conn = info != null
                     ? FindOrCreateConnectCore(info.ProviderId, info.Id)
-                    : FindOrCreateConnectCore(cfg.Provider, t);
+                    : FindOrCreateConnectCore(seed.Provider, t);
                 _fallback.Add(conn.Name);
             }
-            if (_fallback.Count > 0)
-            {
-                cfg.FallbackChain = string.Join(",", _fallback);
-                cfg.SaveToConfigJson();
-                cfg.SaveToEnvFile();
-                changed = true;
-            }
+            changed = true;
         }
 
         // 4. 命名连接 seed + active
-        if (_connections!.Count == 0 && !string.IsNullOrWhiteSpace(cfg.Model))
+        if (_connections!.Count == 0 && seed.HasModel)
         {
-            var big = FindOrCreateConnectCore(cfg.Provider, cfg.Model);
-            var small = FindOrCreateConnectCore(cfg.SmallProvider, cfg.SmallModel);
+            var big = FindOrCreateConnectCore(seed.Provider, seed.Model);
+            var small = FindOrCreateConnectCore(
+                string.IsNullOrWhiteSpace(seed.SmallModel) ? seed.Provider : seed.SmallProvider,
+                string.IsNullOrWhiteSpace(seed.SmallModel) ? seed.Model : seed.SmallModel);
             _connections.Add(new Connection("default", big.Name, small.Name));
             if (_active.Length == 0) _active = "default";
             changed = true;
         }
         if (_active.Length == 0 && _connections.Count > 0)
         {
-            var cur = CurrentByConfig();
+            // 命中最匹配当前 seed 的连接；无则取第一个（当前激活连接大/小 connect 即 state 锚点来源）
+            var cur = seed.HasModel ? FindMatchingConnection(seed.Provider, seed.Model, seed.SmallProvider, seed.SmallModel) : null;
             _active = cur?.Name ?? _connections[0].Name;
             changed = true;
         }
@@ -768,6 +821,143 @@ public static class ConnectionConfig
         }
 
         if (changed) Save();
+    }
+
+    /// <summary>在现有命名连接中找大/小 connect 与旧扁平字段一致的那个（无 cfg 依赖版本）。</summary>
+    private static Connection? FindMatchingConnection(string pid, string mid, string spid, string smid)
+    {
+        foreach (var c in _connections!)
+        {
+            var big = FindConnectCore(c.BigConnect);
+            var small = FindConnectCore(c.SmallConnect);
+            if (big != null && small != null
+                && big.ProviderId.Equals(pid, StringComparison.OrdinalIgnoreCase)
+                && big.ModelId.Equals(mid, StringComparison.OrdinalIgnoreCase)
+                && small.ProviderId.Equals(spid, StringComparison.OrdinalIgnoreCase)
+                && small.ModelId.Equals(smid, StringComparison.OrdinalIgnoreCase))
+                return c;
+        }
+        return null;
+    }
+
+    /// <summary>state 缺失时从现有结构 + 旧 config 扁平字段生成（一次性，生成后落盘升级老文件）。</summary>
+    private static void EnsureStateLocked(LegacySeed seed)
+    {
+        if (_state != null) return;
+
+        var st = BuildStateFromExisting(seed);
+        _state = st;
+        Save(); // 升级一次：老 connections.json 无 state → 写 state
+    }
+
+    private static ConnectState BuildStateFromExisting(LegacySeed seed)
+    {
+        // 当前激活命名连接的大/小 connect 内容（无 config.json 时兜底）
+        string? activeBigPid = null, activeBigMid = null, activeSmallPid = null, activeSmallMid = null;
+        if (_active.Length > 0)
+        {
+            var activeConn = _connections!.FirstOrDefault(c => string.Equals(c.Name, _active, StringComparison.OrdinalIgnoreCase));
+            if (activeConn != null)
+            {
+                var big = FindConnectCore(activeConn.BigConnect);
+                var small = FindConnectCore(activeConn.SmallConnect);
+                if (big != null) { activeBigPid = big.ProviderId; activeBigMid = big.ModelId; }
+                if (small != null) { activeSmallPid = small.ProviderId; activeSmallMid = small.ModelId; }
+            }
+        }
+        if (activeBigPid == null && _connections!.Count > 0)
+        {
+            var conn0 = _connections[0];
+            var big = FindConnectCore(conn0.BigConnect);
+            var small = FindConnectCore(conn0.SmallConnect);
+            if (big != null) { activeBigPid = big.ProviderId; activeBigMid = big.ModelId; }
+            if (small != null) { activeSmallPid = small.ProviderId; activeSmallMid = small.ModelId; }
+        }
+
+        // 主模型：config.json 扁平字段（旧权威）优先；其次激活连接 big connect；最后默认。
+        string mainPid, mainMid, smallPid, smallMid;
+        if (seed.HasModel) { mainPid = seed.Provider; mainMid = seed.Model; }
+        else if (activeBigMid != null) { mainPid = activeBigPid!; mainMid = activeBigMid; }
+        else { var d = new Config(); mainPid = d.Provider; mainMid = d.Model; }
+
+        if (seed.HasSmall && !string.IsNullOrWhiteSpace(seed.SmallModel))
+        { smallPid = seed.SmallProvider; smallMid = seed.SmallModel; }
+        else if (activeSmallMid != null) { smallPid = activeSmallPid!; smallMid = activeSmallMid; }
+        else { var d2 = new Config(); smallPid = d2.SmallProvider; smallMid = d2.SmallModel; }
+
+        var defaultConnect = FormatConnect(mainPid, mainMid);
+        var smallConnect = FormatConnect(smallPid, smallMid);
+        var defaultBaseUrl = NormalizeBaseUrlOverride(mainPid, seed.BaseUrl);
+
+        // free/rollback：config.json freePrev* 记录进入 free 前主模型 → rollback_connect。
+        // 当前主模型 id 含 "free" 且存在 freePrev → 正处于 free：free_connect=当前(free)、
+        // default 锚点=freePrev（被换主前的主模型）。否则 mode=big，rollback=freePrev（若残留）。
+        var hasFreePrev = !string.IsNullOrWhiteSpace(seed.FreePrevModel);
+        var curIsFree = mainMid.ToLowerInvariant().Contains("free");
+        string mode = "big";
+        string? freeConnect = null, freeBaseUrl = null;
+        string? rollbackConnect = null, rollbackBaseUrl = null;
+
+        if (hasFreePrev && curIsFree)
+        {
+            // 运行在免费模型上，锚点其实是 freePrev
+            rollbackConnect = FormatConnect(seed.FreePrevProvider, seed.FreePrevModel);
+            rollbackBaseUrl = NormalizeBaseUrlOverride(seed.FreePrevProvider ?? "", seed.FreePrevBaseUrl);
+            defaultConnect = rollbackConnect;
+            defaultBaseUrl = rollbackBaseUrl;
+            freeConnect = FormatConnect(mainPid, mainMid);
+            freeBaseUrl = NormalizeBaseUrlOverride(mainPid, seed.BaseUrl);
+            mode = "free";
+        }
+        else if (hasFreePrev)
+        {
+            rollbackConnect = FormatConnect(seed.FreePrevProvider, seed.FreePrevModel);
+            rollbackBaseUrl = NormalizeBaseUrlOverride(seed.FreePrevProvider ?? "", seed.FreePrevBaseUrl);
+        }
+
+        return new ConnectState(mode, defaultConnect, smallConnect, freeConnect, rollbackConnect,
+            defaultBaseUrl, freeBaseUrl, rollbackBaseUrl);
+    }
+
+    /// <summary>旧 config.json 模型扁平字段种子（ConnectionConfig 迁移专用，不依赖 Config.Instance）。</summary>
+    private sealed record LegacySeed(
+        bool HasModel, string Provider, string Model,
+        bool HasSmall, string SmallProvider, string SmallModel,
+        string? BaseUrl,
+        string? FreePrevProvider, string? FreePrevModel, string? FreePrevBaseUrl,
+        string? FallbackChain);
+
+    /// <summary>读取 config.json 原文中的模型扁平字段（迁移种子；config.json 不再读写这些键后仅老文件残留）。</summary>
+    private static LegacySeed ReadLegacySeed()
+    {
+        var d = new Config(); // 仅取默认值，不触发 Config.Instance（避免递归）
+        var seed = new LegacySeed(false, d.Provider, d.Model, false, d.SmallProvider, d.SmallModel,
+            null, null, null, null, null);
+        try
+        {
+            var path = Global.GlobalConfigPath("config.json");
+            if (!File.Exists(path)) return seed;
+            var root = Json.Parse(File.ReadAllText(path));
+            if (root is not { Kind: JKind.Object }) return seed;
+            var prov = root["Provider"]?.AsString();
+            var model = root["Model"]?.AsString();
+            var sprov = root["SmallProvider"]?.AsString();
+            var smodel = root["SmallModel"]?.AsString();
+            seed = new LegacySeed(
+                HasModel: !string.IsNullOrWhiteSpace(prov) && !string.IsNullOrWhiteSpace(model),
+                Provider: string.IsNullOrWhiteSpace(prov) ? d.Provider : prov.Trim().ToLowerInvariant(),
+                Model: string.IsNullOrWhiteSpace(model) ? d.Model : model.Trim(),
+                HasSmall: !string.IsNullOrWhiteSpace(smodel),
+                SmallProvider: string.IsNullOrWhiteSpace(sprov) ? d.SmallProvider : sprov.Trim().ToLowerInvariant(),
+                SmallModel: string.IsNullOrWhiteSpace(smodel) ? d.SmallModel : smodel.Trim(),
+                BaseUrl: root["BaseUrl"]?.AsString(),
+                FreePrevProvider: root["freePrevProvider"]?.AsString(),
+                FreePrevModel: root["freePrevModel"]?.AsString(),
+                FreePrevBaseUrl: root["freePrevBaseUrl"]?.AsString(),
+                FallbackChain: root["FallbackChain"]?.AsString());
+        }
+        catch { /* config.json 损坏按默认 */ }
+        return seed;
     }
 
     private static Connect? FindConnectCore(string name)
@@ -805,6 +995,19 @@ public static class ConnectionConfig
                 .Set("connects", connectsArr)
                 .Set("connections", connsArr)
                 .Set("fallbackChain", fbArr);
+
+            if (_state != null)
+            {
+                root.Set("state", JNode.Object()
+                    .Set("connect_mode", _state.ConnectMode)
+                    .Set("default_connect", _state.DefaultConnect ?? "")
+                    .Set("small_connect", _state.SmallConnect ?? "")
+                    .Set("free_connect", _state.FreeConnect ?? "")
+                    .Set("rollback_connect", _state.RollbackConnect ?? "")
+                    .Set("default_base_url", _state.DefaultBaseUrl ?? "")
+                    .Set("free_base_url", _state.FreeBaseUrl ?? "")
+                    .Set("rollback_base_url", _state.RollbackBaseUrl ?? ""));
+            }
 
             Global.WriteAllTextAtomic(FilePath, Json.Serialize(root, indent: true)); // 同卷原子替换
         }
