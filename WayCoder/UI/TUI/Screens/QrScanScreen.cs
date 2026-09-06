@@ -9,27 +9,31 @@ namespace WayCoder.UI.Tui.Screens;
 /// 全屏二维码扫码屏 —— 把聊天里的小 ASCII 预览放大成覆盖整个终端的大二维码给手机扫屏。
 /// PushScreen 进入（由 /sync-qr 触发），Esc / q 返回上一层（ChatScreen）。
 ///
-/// 渲染关键（用户实机反馈根因 = 反色/对比，不是大小）：
+/// 渲染关键（用户实机反馈根因 = 反色/对比 + macOS 半块字形缝隙，不是大小）：
 /// PNG（白底黑块）手机能扫；终端深色主题用「前景 █ + 终端默认背景」画 ASCII 是反色（浅块深底），
-/// 手机扫码兼容性差扫不到。故本屏用 <b>ANSI 背景色填充</b> 模拟真实「白底黑块」：
+/// 手机扫码兼容性差扫不到。故本屏只显示<b>全块方形大方块</b>，用 ANSI 背景色填充模拟真实「白底黑块」：
 ///   白模块区（含 quiet zone 4 模块白边）= 空格 + 背景白（TrueColor #FFFFFF）；
-///   黑模块区 = 空格 + 背景黑（TrueColor #000000）铺满整个模块矩形；
-///   半块兜底模式下▀▄█ 字形的前景色为黑、背景仍为白（透明半格透出白底）。
+///   黑模块区 = 空格 + 背景黑（TrueColor #000000）铺满整个模块矩形。
 /// 渲染结果与 PNG 同对比度（白底矩形内黑块），与终端主题无关（不依赖默认背景色）。
 /// QR 矩形之外保持终端原背景（不清屏为白色），只让「白色纸面 + 黑块」出现在 QR 区域。
+/// 终端行数不足以全块显示时<b>不渲染半块</b>（▀▄█ 在 macOS 渲染有缝隙、扫码不可靠）——
+/// 直接 RenderTooBig 提示拉高窗口。HalfBlock 枚举/方法保留仅供将来/自测引用，运行时不再产生。
 /// </summary>
 public class QrScanScreen : TuiScreen
 {
     /// <summary>标准 quiet zone 宽度（模块数），与 <see cref="QrEncoder.AddQuietZone"/> 一致。</summary>
     public const int Quiet = 4;
 
-    /// <summary>渲染模式：全块方形（主）或半块兜底（屏幕放不下全块时）。</summary>
+    /// <summary>渲染模式。运行时只会产生 <see cref="FullBlock"/>；HalfBlock 仅为保留引用（见 <see cref="RenderHalfBlock"/>）。</summary>
     public enum QrRenderMode
     {
-        /// <summary>每模块 = 2×Scale 列 × Scale 行终端格（方形，纯背景填充，白底黑块最可靠）。</summary>
+        /// <summary>每模块 = 2×Scale 列 × Scale 行终端格（方形，纯背景填充，白底黑块最可靠、可扫）。</summary>
         FullBlock,
 
-        /// <summary>每模块 = 1 列宽 × 半行高，用 ▀▄█ 把 2 个模块行压进 1 个终端行（屏幕太矮/太窄时兜底）。</summary>
+        /// <summary>
+        /// 半块（▀▄█ 把 2 个模块行压进 1 个终端行）。macOS 半块字形渲染有缝隙、扫码不可靠，
+        /// 已弃用作扫码显示——ComputeLayout 不再返回此模式，保留仅供将来/自测引用。
+        /// </summary>
         HalfBlock,
     }
 
@@ -69,14 +73,13 @@ public class QrScanScreen : TuiScreen
     }
 
     /// <summary>
-    /// 计算在 (cols, rows) 终端格下二维码能放下的最大方形布局。
+    /// 计算在 (cols, rows) 终端格下二维码能放下的全块方形布局。
     /// 网格边长 grid 已含 quiet zone（= 模块数 + 8）。
-    /// 返回 null = 半块也放不下（QR 版本过高，屏显示残缺无意义）。
+    /// 返回 null = 全块放不下（终端行/列不足，由调用方走 RenderTooBig 提示拉高窗口），
+    /// <b>不退化半块</b>——▀▄█ 半块字形在 macOS 渲染有缝隙、扫码不可靠，弃用作扫码显示。
     ///
-    /// 优先「全块方形」：每模块 2s 列 × s 行（等比放大，s≥1），约束 grid*2s ≤ cols 且 grid*s ≤ rows，
-    /// s 取满足约束的最大值（尽量占满屏幕）。
-    /// 全块放不下则退化「半块」：每模块 1 列宽 × 半行高（▀▄█ 压 2 个模块行到 1 个终端行），
-    /// 约束 grid ≤ cols 且 ceil(grid/2) ≤ rows。
+    /// 「全块方形」：每模块 2s 列 × s 行（等比放大，s≥1），约束 grid*2s ≤ cols 且 grid*s ≤ rows，
+    /// s 取满足约束的最大值（尽量占满屏幕，s≥1 即每模块 2 列 × 1 行）。
     /// </summary>
     internal static QrLayout? ComputeLayout(int grid, int cols, int rows)
     {
@@ -85,10 +88,6 @@ public class QrScanScreen : TuiScreen
         int s = Math.Min(cols / (grid * 2), rows / grid);
         if (s >= 1)
             return new QrLayout(QrRenderMode.FullBlock, s, grid, grid * 2 * s, grid * s);
-
-        int halfRows = (grid + 1) / 2; // ceil(grid/2)
-        if (grid <= cols && halfRows <= rows)
-            return new QrLayout(QrRenderMode.HalfBlock, 1, grid, grid, halfRows);
 
         return null;
     }
@@ -189,7 +188,11 @@ public class QrScanScreen : TuiScreen
         }
     }
 
-    /// <summary>半块兜底渲染：1 列/模块，2 模块行压进 1 终端行（▀▄█）。背景白、字形前景黑。</summary>
+    /// <summary>
+    /// 半块渲染：1 列/模块，2 模块行压进 1 终端行（▀▄█）。背景白、字形前景黑。
+    /// macOS 半块字形有缝隙、扫码不可靠，已弃用作扫码显示——ComputeLayout 不再返回 HalfBlock，
+    /// 本方法保留仅供将来/参考（自测只锁 HalfBlockChar 纯函数映射）。
+    /// </summary>
     private void RenderHalfBlock(StringBuilder sb, QrLayout layout, int top, int left)
     {
         // 1. 白底（含 quiet zone 白边）
@@ -221,15 +224,19 @@ public class QrScanScreen : TuiScreen
         return my >= 0 && my < _size && mx >= 0 && mx < _size && _matrix[my, mx];
     }
 
-    /// <summary>版本过高放不下：屏内提示打开 sync-qr.png，不渲染残缺 QR。</summary>
+    /// <summary>终端行/列不足以全块显示：屏内提示拉高窗口或打开 sync-qr.png，不渲染半块/残缺 QR。</summary>
     private void RenderTooBig(StringBuilder sb)
     {
+        // 全块方形最小需 grid 行 × grid*2 列（s=1，每模块 2 列 × 1 行）
+        int needCols = _grid * 2;
+        int needRows = _grid;
         string[] lines =
         {
-            "❌ 二维码版本过高，当前终端放不下完整图形",
-            $"（含 quiet zone 共 {_grid}×{_grid} 模块 · 终端 {TW} 列 × {TH} 行）",
+            "❌ 二维码需要大方块全块显示，当前终端放不下",
+            $"（含 quiet zone 共 {_grid}×{_grid} 模块 · 终端 {TW} 列 × {TH} 行，需 ≥{needCols} 列 × ≥{needRows} 行）",
             "",
-            "请打开 sync-qr.png 扫码，或放大终端窗口后重试 /sync-qr",
+            $"请拉高/拉宽终端窗口（≥ {needRows} 行且 ≥ {needCols} 列）后重试 /sync-qr，",
+            "或打开 sync-qr.png 扫码（手机相册/扫一扫）",
             "",
             "按 Esc / q 返回聊天",
         };

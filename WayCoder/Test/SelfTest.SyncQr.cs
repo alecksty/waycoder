@@ -127,14 +127,16 @@ public static partial class SelfTest
         Check("QRc: quiet zone 内部保留黑", qz[4 + 3, 4 + 3] == tiny.Matrix[3, 3]);
     }
 
-    /// <summary>全屏扫码屏（QrScanScreen）：布局计算纯函数 + 半块字符 + quiet zone（Esc/q 返回交互属 UI 目视，不自动测）。</summary>
+    /// <summary>全屏扫码屏（QrScanScreen）：布局计算纯函数 + quiet zone + 渲染冒烟。
+    /// 半块（▀▄█）已弃用作扫码显示（macOS 字形缝隙）——ComputeLayout 只返回全块/空，
+    /// HalfBlockChar 纯函数映射保留仅供将来/参考。</summary>
     private static void TestQrScanScreen(Action<string, bool> Check)
     {
         Check("QR屏: quiet zone 常量 = 4", QrScanScreen.Quiet == 4);
 
-        // ── ComputeLayout：全块方形（模块 2s 列 × s 行）──
+        // ── ComputeLayout：全块方形（模块 2s 列 × s 行），s≥1 才放得下 ──
         var full = QrScanScreen.ComputeLayout(29, 80, 30); // grid=29（v1+8 quiet）
-        Check("QR屏: 80x30 下 29 网格走全块 s=1",
+        Check("QR屏: 80x30 下 29 网格全块 s=1",
             full is { Mode: QrScanScreen.QrRenderMode.FullBlock, Scale: 1, BoxCols: 58, BoxRows: 29 });
 
         var fullUp = QrScanScreen.ComputeLayout(29, 200, 60); // 等比放大到 s=2
@@ -142,12 +144,9 @@ public static partial class SelfTest
             fullUp is { Mode: QrScanScreen.QrRenderMode.FullBlock, Scale: 2, BoxCols: 116, BoxRows: 58 });
         Check("QR屏: 全块放大不超屏", fullUp!.BoxCols <= 200 && fullUp.BoxRows <= 60);
 
-        // ── ComputeLayout：全块放不下 → 半块兜底（1 列/模块，2 行压 1 行）──
-        var half = QrScanScreen.ComputeLayout(45, 80, 30); // grid=45 全块需 90 列或 45 行 → 放不下
-        Check("QR屏: 80x30 下 45 网格退化半块",
-            half is { Mode: QrScanScreen.QrRenderMode.HalfBlock, Scale: 1, BoxCols: 45, BoxRows: 23 });
-
-        // ── ComputeLayout：超屏放不下 → null（不渲染残缺 QR）──
+        // ── ComputeLayout：全块放不下 → null（不退化半块——半块字形 macOS 不可靠，走 RenderTooBig 提示）──
+        Check("QR屏: 45 网格 80x30 全块放不下返回 null",
+            QrScanScreen.ComputeLayout(45, 80, 30) == null);
         Check("QR屏: 100 网格 80x30 放不下返回 null",
             QrScanScreen.ComputeLayout(100, 80, 30) == null);
         Check("QR屏: 极小终端返回 null",
@@ -155,35 +154,28 @@ public static partial class SelfTest
         Check("QR屏: 非法入参返回 null",
             QrScanScreen.ComputeLayout(0, 80, 30) == null);
 
-        // ── HalfBlockChar：半块单格字符映射（█/▀/▄/空格）──
+        // ── HalfBlockChar：半块单格字符映射保留（█/▀/▄/空格）——仅供将来/参考 ──
         Check("QR屏: 半块 上下皆黑=█", QrScanScreen.HalfBlockChar(true, true) == '█');
         Check("QR屏: 半块 上黑下白=▀", QrScanScreen.HalfBlockChar(true, false) == '▀');
         Check("QR屏: 半块 上白下黑=▄", QrScanScreen.HalfBlockChar(false, true) == '▄');
         Check("QR屏: 半块 上下皆白=空格", QrScanScreen.HalfBlockChar(false, false) == ' ');
 
-        // ── CanFit：/sync-qr 预判（v1 矩阵 21 → grid 29，80x24 半块可容）──
-        var qr = QrEncoder.EncodeText("{\"url\":\"https://gitee.com/a/b.git\",\"user\":\"u\",\"token\":\"t\"}", QrEcLevel.Medium);
-        Check("QR屏: v1 矩阵 80x24 可容", QrScanScreen.CanFit(qr.Matrix, 80, 24));
+        // ── CanFit：/sync-qr 预判（用 v1 载荷 → size 21 → grid 29，全块需 ≥29 行 × ≥58 列）──
+        var qr = QrEncoder.EncodeText("a", QrEcLevel.Medium); // 1 字节 → v1（size 21）
+        Check("QR屏: v1 载荷 size=21", qr.Size == 21);
+        Check("QR屏: v1 矩阵 80x30 可容", QrScanScreen.CanFit(qr.Matrix, 80, 30));
+        Check("QR屏: v1 矩阵 80x24 不可容(行不足)", !QrScanScreen.CanFit(qr.Matrix, 80, 24));
         Check("QR屏: v1 矩阵 10x5 不可容", !QrScanScreen.CanFit(qr.Matrix, 10, 5));
-        Check("QR屏: 含 quiet 网格 = size+8", QrScanScreen.ComputeLayout(qr.Size + 8, 80, 24) != null);
+        Check("QR屏: 含 quiet 网格 = size+8", QrScanScreen.ComputeLayout(qr.Size + 8, 100, 30) != null);
 
         // ── 渲染冒烟（白底黑块，ANSI 背景色填充，与 PNG 同对比——不依赖终端默认背景/不反色）──
-        RenderQrScreenSmoke(Check, qr.Matrix, (100, 30));          // 全块方形：白底+黑底序列
-        RenderQrScreenSmoke(Check, CheckerMatrix(37), (100, 30));  // 37 网格 → 半块兜底：黑前景+白底序列
-        RenderQrScreenSmoke(Check, qr.Matrix, (40, 8));            // 放不下：屏内提示（不渲染残缺 QR）
+        RenderQrScreenSmoke(Check, qr.Matrix, (100, 30));   // v1 全块方形可容：白底+黑底序列
+        // 真实 /sync-qr 载荷（url+token）通常较大 → grid 常见 45+，常规终端行数不足 → 屏内提示拉高窗口
+        var bigQr = QrEncoder.EncodeText("{\"url\":\"https://gitee.com/a/b.git\",\"user\":\"u\",\"token\":\"t\"}", QrEcLevel.Medium);
+        RenderQrScreenSmoke(Check, bigQr.Matrix, (40, 8));  // 放不下：屏内提示（不渲染残缺 QR/半块）
     }
 
-    /// <summary>棋盘矩阵（非合法 QR，仅渲染冒烟用）：(x+y)%2==0 为黑。</summary>
-    private static bool[,] CheckerMatrix(int n)
-    {
-        var m = new bool[n, n];
-        for (int y = 0; y < n; y++)
-            for (int x = 0; x < n; x++)
-                m[y, x] = (x + y) % 2 == 0;
-        return m;
-    }
-
-    /// <summary>QrScanScreen 无头渲染冒烟：Activate → Render，断言输出含 TrueColor 白底/黑块 ANSI。</summary>
+    /// <summary>QrScanScreen 无头渲染冒烟：Activate → Render，断言输出含 TrueColor 白底/黑块 ANSI（全块方形）。</summary>
     private static void RenderQrScreenSmoke(Action<string, bool> Check, bool[,] matrix, (int W, int H) term)
     {
         string frame = "";
@@ -207,19 +199,16 @@ public static partial class SelfTest
 
         bool white = frame.Contains("[48;2;255;255;255"); // 白底背景填充
         bool black = frame.Contains("[48;2;0;0;0");       // 黑模块背景填充
-        bool blackFg = frame.Contains("[38;2;0;0;0");     // 半块黑字形
         bool fits = QrScanScreen.CanFit(matrix, term.W, term.H);
 
         if (fits)
         {
             Check($"QR屏 渲染 {term.W}x{term.H} 含白底 ANSI", white);
-            // 全块方形用黑背景铺块、半块用黑前景字形；两种都要求白底（不反色/不靠终端默认背景）
-            bool blockMode = QrScanScreen.ComputeLayout(matrix.GetLength(0) + 8, term.W, term.H) is { Mode: QrScanScreen.QrRenderMode.FullBlock };
-            Check($"QR屏 渲染 {term.W}x{term.H} 黑模块 ANSI", blockMode ? black : blackFg);
+            Check($"QR屏 渲染 {term.W}x{term.H} 黑模块 ANSI", black);
         }
         else
         {
-            // 放不下：屏内提示而非残缺图形 → 不应出现大面积白底填充，但要有提示文本
+            // 放不下：屏内提示（拉高/拉宽窗口）而非残缺图形 → 不应出现大面积白底填充，但要有提示文本
             Check($"QR屏 放不下 {term.W}x{term.H} 不画白底块", !white);
             Check($"QR屏 放不下 {term.W}x{term.H} 含提示", frame.Contains("二维码") && frame.Contains("sync-qr.png"));
         }
