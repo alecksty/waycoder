@@ -116,6 +116,10 @@ public class ModelCommand : SlashCommand
             case "slot":
                 SetSlotModel(screen, rest);
                 break;
+            case "reset":
+            case "slotreset":
+                ResetSlots(screen);
+                break;
             case "test":
                 screen.AddSystemMsg(ModelCli.Test());
                 break;
@@ -266,6 +270,14 @@ public class ModelCommand : SlashCommand
         sb.AppendLine($"Use `/model uniform <id>` to set for all 10 slots.");
 
         screen.AddSystemMsg(sb.ToString());
+    }
+
+    /// <summary>/model reset：清空 uniform + 全部槽位模型设置 → 回 UseGlobal 默认
+    /// （等效删除 agent_slots.json，槽位跟随全局 state 默认连接）。</summary>
+    static void ResetSlots(ChatScreen screen)
+    {
+        AgentSlotConfig.ResetAll();
+        screen.AddSystemMsg("✅ 已清空全部槽位模型设置（uniform + F1-F10）——所有槽位回用全局默认连接（大/小模型取 state）");
     }
 
     static void SetUniform(ChatScreen screen, string modelId)
