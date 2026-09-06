@@ -411,8 +411,11 @@ public partial class ChatScreen : TuiScreen
             largeProv != null ? ModelCatalog.ProviderDisplayName(largeProv) : "?",
             largeModel) + (isLargeFallback ? "«dim»(回退)«/»" : "");
         var smallModel = AgentSlotConfig.ResolveSmallModel(slotCfg, ActiveSlotIndex);
-        var smallProv = ModelCatalog.ResolveConfidentProvider(
-            smallModel, AgentSlotConfig.ResolveBaseUrl(slotCfg, smallModel));
+        // 小模型无实时回退（不像大模型有 LlmClient fallback），信「配置/connect 的小模型 provider」——
+        // ResolveSmallProvider 内部 Find+Infer 兜底 cfg.SmallProvider；而 ResolveConfidentProvider
+        // 只在网关能精确命中/反推时返回，inferera 等聚合网关（不在 InferProviderFromBaseUrl 关键字表）
+        // 会得 null → 误显示 (?)。配置的 SmallProvider/小 connect 是用户显式选择，可信。
+        var smallProv = AgentSlotConfig.ResolveSmallProvider(slotCfg, ActiveSlotIndex);
         string small = ConnectionConfig.FormatModel(
             smallProv != null ? ModelCatalog.ProviderDisplayName(smallProv) : "?",
             smallModel);
