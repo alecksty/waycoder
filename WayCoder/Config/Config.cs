@@ -324,13 +324,23 @@ public partial class Config
     public bool FallbackEnabled { get; set; } = false;
     /// <summary>
     /// 回退链（config 字符串镜像已停用）。Phase 1' 起权威在 connections.json fallbackChain[]，
-    /// 此 getter 转发到 connections 数组的 join；setter 为 no-op（请用 /connect chain 设置）。
+    /// 此 getter 转发到 connections 数组的 join；setter 收敛到 ConnectionConfig.SetFallbackChain
+    /// （/config set FallbackChain、GUI/Web/TUI 设置界面保存都经 TrySetPropValue → 本 setter）。
     /// </summary>
     public string FallbackChain
     {
         get => string.Join(",", ConnectionConfig.FallbackChain);
-        set { /* 停用：不再写 config.json / 不再镜像；权威 = connections.json fallbackChain[] */ }
+        set => ConnectionConfig.SetFallbackChainFromSpec(value);
     }
+
+    /// <summary>
+    /// 会话加载（--resume / /session load / GUI 载入会话）把 cfg.Model/Provider/BaseUrl 改为
+    /// 内存镜像【不落盘】的标记（设计如此：加载会话不应改写用户持久化配置）。置位时
+    /// ReconcileFromConfig 跳过把 cfg 模型字段收敛回 state 的动作，防止会话模型被误当作
+    /// 用户显式换默认模型写进 connections.json state。任何显式模型写操作（TrySetPropValue
+    /// 模型键 / ApplyModelChoice / SetActiveConnect / Settings 直写分支）会清除此位。
+    /// </summary>
+    internal bool SessionModelMirror { get; set; }
 
     // ── 文件锁 ──
     public int FileLockTimeoutSec { get; set; } = 30;

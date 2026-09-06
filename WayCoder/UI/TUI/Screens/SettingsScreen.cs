@@ -535,14 +535,16 @@ public class SettingsScreen : TuiScreen
         {
             case "Model":              ConnectionConfig.ApplyModelChoice(_config.Provider, value, true, out _); break;
             case "SmallModel":         ConnectionConfig.ApplyModelChoice(_config.SmallProvider, value, false, out _); break;
-            case "BaseUrl":            _config.BaseUrl = value; break;
+            // Provider/SmallProvider/BaseUrl 直写 Config 字段（保存时 Reconcile 收敛回 state）：
+            // 显式写解除会话加载的内存镜像标记，确保本次编辑会被 Reconcile 收敛
+            case "BaseUrl":            _config.SessionModelMirror = false; _config.BaseUrl = value; break;
+            case "Provider":           _config.SessionModelMirror = false; _config.Provider = value; break;
+            case "SmallProvider":      _config.SessionModelMirror = false; _config.SmallProvider = value; break;
             case "ApiKey":             _config.ApiKey = value; break;
             case "MaxTokens":          if (int.TryParse(value, out var v)) _config.MaxTokens = v; break;
             case "Temperature":        if (float.TryParse(value, out var f)) _config.Temperature = f; break;
             case "MaxContextTokens":   if (int.TryParse(value, out var v2)) _config.MaxContextTokens = v2; break;
             case "MaxBudgetUsd":       _config.MaxBudgetUsd = double.TryParse(value, out var d) ? d : null; break;
-            case "Provider":           _config.Provider = value; break;
-            case "SmallProvider":      _config.SmallProvider = value; break;
             case "AutoGitCommit":      _config.AutoGitCommit = bool.TryParse(value, out var b) && b; break;
             case "WatchMode":          _config.WatchMode = bool.TryParse(value, out var b2) && b2; break;
             case "PromptCaching":      _config.PromptCaching = bool.TryParse(value, out var b3) && b3; break;

@@ -254,6 +254,7 @@ public static partial class ConnectionConfig
 
         // 同步运行时镜像（cfg.Model 等）——权威在 state，Config 只是镜像
         var cfg = Config.Instance;
+        cfg.SessionModelMirror = false; // 显式连接操作，解除会话加载的内存镜像标记
         SyncToConfig(cfg);
         cfg.SaveToConfigJson(); // config.json 不再保存模型字段；此处仅写非模型配置
         cfg.SaveToEnvFile();
@@ -511,6 +512,7 @@ public static partial class ConnectionConfig
         }
 
         // 同步运行时镜像（cfg.Model 等）——权威在 state，Config 只是镜像
+        cfg.SessionModelMirror = false; // 显式连接操作，解除会话加载的内存镜像标记
         SyncToConfig(cfg);
         cfg.SaveToConfigJson(); // config.json 不再保存模型字段
         cfg.SaveToEnvFile();
@@ -581,10 +583,42 @@ public static partial class ConnectionConfig
             _fallback = list;
             Save();
         }
+        // 显式连接操作：解除会话加载的内存镜像标记（与其它统一写入口一致）
+        Config.Instance.SessionModelMirror = false;
         // 在 _lock 外写 config.json（避免与 SaveToConfigJson→Reconcile 的 _lock 交叉持锁）
         var cfg = Config.Instance;
         cfg.SaveToConfigJson();
         cfg.SaveToEnvFile();
+    }
+
+    /// <summary>
+    /// 把「/config set FallbackChain」/ 设置界面保存的逗号分隔回退链（connect 名或模型名混写）
+    /// 解析为 connect 名并设置（Phase 2：FallbackChain setter 收敛到统一入口，不再静默失效）。
+    /// 模型名经目录解析自动注册 connect；未知 token 兜底当前 provider（对齐旧 config 迁移语义）。
+    /// </summary>
+    public static void SetFallbackChainFromSpec(string? commaSeparated)
+    {
+        var names = new List<string>();
+        if (!string.IsNullOrWhiteSpace(commaSeparated))
+        {
+            foreach (var raw in commaSeparated.Split(','))
+            {
+                var t = raw.Trim();
+                if (t.Length == 0) continue;
+                names.Add(ResolveChainToken(t));
+            }
+        }
+        SetFallbackChain(names);
+    }
+
+    /// <summary>把单个回退链 token 解析为 connect 名：connect 名原样保留；模型名经目录解析
+    /// 自动注册 connect；未知 token 原样返回 → SetFallbackChain 过滤丢弃（不建垃圾 connect）。</summary>
+    private static string ResolveChainToken(string token)
+    {
+        if (FindConnect(token) != null) return token;
+        var info = ModelCatalog.Find(token) ?? ModelCatalog.Search(token).FirstOrDefault();
+        if (info != null) return FindOrCreateConnect(info.ProviderId, info.Id).Name;
+        return token;
     }
 
     // ════════════════════════════════════════════════════════════
