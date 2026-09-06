@@ -24,5 +24,8 @@ public partial class AppShell : Shell
         Routing.RegisterRoute("reasoning", typeof(ReasoningDetailPage));
         // 聊天详情子页：工具调用组（「工具调用:N 次」入口）
         Routing.RegisterRoute("toolcalls", typeof(ToolCallsDetailPage));
+        // 独立页（替代抽屉浮层，聊天页保持全宽无布局干扰）：会话历史 / 侧栏命令
+        Routing.RegisterRoute("sessions", typeof(SessionHistoryPage));
+        Routing.RegisterRoute("panel", typeof(CommandPanelPage));
     }
 }
