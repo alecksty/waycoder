@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.96.61 (2026-09-06) — GUI/Web 模型栏单当前模型（小模型入口并入弹窗 Tab）
+
+GUI 与 Web 模型栏从「并列大/小两个模型」收敛为**只显示当前生效模型**，与 TUI/MAUI 一致；小模型切换经模型选择弹窗内「大模型|小模型」Tab。自测 4983 全过，GUI + 主 build 0 警告。
+
+- **GUI**：删并列 `SmallModelBtn`；主按钮 `CurrentModelBtn` 只显示当前生效模型（通道前缀 `大/自由/回滚模型:(供应商)model`）；`ModelWindow` 新增「🤖 大模型 | 🔧 小模型」分段 Tab（`_smallMode` 可变 + `SetMode` 预选当前模型，切小经 `ApplySmallModel` / 切大经 `ApplyModelChoice`）
+- **Web**：删模型栏 `small-model-btn`/`small-model-label`；主标签单当前模型（回滚/自由/大前缀判定保留）；模型弹窗加 `model-mode` 大/小 Tab（保存/设 key 自动适配 `pendingMode`）；`.model-mode` 样式
+- **MAUI**：核验已单当前 + 前缀，无需改——四端（TUI/GUI/Web/MAUI）模型栏统一单当前模型
+- 自测 4983 全过，GUI + 主 build 0 警告 0 错误，keypad exit 0
+
 ## v0.96.60 (2026-09-06) — 连接状态收敛 connections.json state（config 停用模型字段）
 
 模型/连接状态由 config.json 扁平字段迁至 connections.json 顶层 `state` 单一权威，消除双源不一致；回退与 free 切换不再覆盖主模型锚点；模型栏跨端统一为当前模型 + 通道前缀。自测 4983 全过，主项目 + GUI + MAUI 编译 0 错误。
