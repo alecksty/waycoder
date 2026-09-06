@@ -763,7 +763,11 @@ deepseek 性价比最高。"
                             else if (role == "assistant") screen.AddMessage(content, "assistant");
                             else if (role == "tool") screen.AddMessage(content, "tool", indent: 1);
                         }
-                        screen.StatusLeft = ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(Config.Instance.Provider), model);
+                        // 会话恢复的模型可能与当前 cfg.Model 不同：不同 → 运行态回滚通道；相同 → 当前主通道
+                        screen.StatusLeft = ConnectionConfig.FormatModelChannel(
+                            string.Equals(model, Config.Instance.Model, StringComparison.OrdinalIgnoreCase)
+                                ? ConnectionConfig.CurrentMainChannel() : "rollback",
+                            Config.Instance.Provider, model);
                         screen.AddSystemMsg($"📂 已切换到会话: {result.SessionId}");
                     }
                 }

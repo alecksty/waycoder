@@ -136,9 +136,11 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             .Set("activeSlot", activeSlot)
             .Set("model", cfg.Model)
             .Set("smallModel", cfg.SmallModel)
-            // 模型栏显示：`(provider)model` —— 即使同名模型分属不同服务商也能区分；provider 用显示名（与 TUI/GUI 一致）
-            .Set("modelLabel", ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(providerId), cfg.Model))
-            .Set("smallModelLabel", ConnectionConfig.FormatModel(ModelCatalog.ProviderDisplayName(smallProviderId), cfg.SmallModel))
+            // 模型栏只显示当前生效模型，前缀提示通道：`{通道前缀}:(provider)model`（big→大模型 / free→自由模型）
+            // provider 用显示名（与 TUI/GUI 一致）；通道前缀单源在 ConnectionConfig.ChannelLabel
+            .Set("channel", ConnectionConfig.ChannelLabel(ConnectionConfig.CurrentMainChannel()))
+            .Set("modelLabel", ConnectionConfig.FormatModelChannel(ConnectionConfig.CurrentMainChannel(), providerId, cfg.Model))
+            .Set("smallModelLabel", ConnectionConfig.FormatModelChannel("small", smallProviderId, cfg.SmallModel))
             // 当前大小模型的实际供应商：前端勾选/选中判断用它精确定位（同 id 跨供应商不误勾）
             .Set("smallProvider", smallProviderId)
             .Set("economy", cfg.EconomyMode.ToString().ToLowerInvariant())

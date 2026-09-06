@@ -369,14 +369,21 @@ function renderModelBar(state) {
     ECONOMY_OPTIONS.forEach(([v, l]) => { const op = document.createElement('option'); op.value = v; op.textContent = l; eco.appendChild(op); });
   }
   // 优先显示当前槽位实际模型（/sessions/load 可覆盖槽位模型），回退全局默认。
-  // 带服务商精确定位 + 显示：同 id 跨供应商用 (服务商) 区分，一眼看出当前是哪个服务商的模型
+  // 模型栏只显示当前生效模型，前缀提示通道：`{通道前缀}:(provider)model`。
+  // 前缀由后端 state.channel 给定（big→大模型 / free→自由模型）；provider 用 (服务商) 区分跨供应商同名模型。
   const slot = (state.slots && state.slots[state.activeSlot]) ? state.slots[state.activeSlot] : null;
   const slotModel = slot ? slot.model : '';
   const slotProvider = (slot && slot.providerId) || currentProvider;
   const big = findModel(slotModel || state.model || currentModelId, slotProvider);
   const small = findModel(state.smallModel || currentSmallModel, currentSmallProvider);
-  document.getElementById('big-model-label').textContent = big ? formatModelLabel(big) : (slotModel || state.model || currentModelId || '选择');
-  document.getElementById('small-model-label').textContent = small ? formatModelLabel(small) : (state.smallModel || currentSmallModel || '选择');
+  // 当前槽位实际运行模型 ≠ 全局默认（回退链 / 会话恢复跑非默认模型）→ 通道标 回滚模型；否则按 state.channel
+  const isRollback = !!slotModel && !!state.model && slotModel !== state.model;
+  const bigPrefix = isRollback ? '回滚模型' : (state.channel || '大模型');
+  const bigName = big ? formatModelLabel(big) : (slotModel || state.model || currentModelId || '');
+  const smallName = small ? formatModelLabel(small) : (state.smallModel || currentSmallModel || '');
+  document.getElementById('big-model-label').textContent = bigName ? (bigPrefix + ':' + bigName) : '选择模型';
+  // 小模型是辅助通道（压缩/子任务），始终标 小模型 前缀，与当前生效模型区分开
+  document.getElementById('small-model-label').textContent = smallName ? ('小模型:' + smallName) : '选择小模型';
   if (state.economy) eco.value = state.economy;
 }
 

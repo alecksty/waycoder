@@ -226,8 +226,9 @@ public static partial class SelfTest
                 Check("模型信息行: 可见", rowVisible);
                 Check("模型信息行: 含工作模式", rowText is { } r && r.Contains("模式:"));
                 Check("模型信息行: 含经济模式", rowText is { } r1 && r1.Contains("经济:"));
-                Check("模型信息行: 含大模型", rowText is { } r2 && r2.Contains("大:"));
-                Check("模型信息行: 含小模型", rowText is { } r3 && r3.Contains("小:"));
+                // 模型栏只显示当前生效模型：前缀为通道（大模型/自由模型/回滚模型/小模型）+ `:`，不再并列大小模型
+                Check("模型信息行: 含通道前缀模型", rowText is { } r2 && (r2.Contains("大模型:") || r2.Contains("自由模型:") || r2.Contains("回滚模型:") || r2.Contains("小模型:")));
+                Check("模型信息行: 不再并列小模型", rowText is { } r3 && !r3.Contains("小:"));
                 Check("模型信息行: 无尖括号", rowText is { } r4 && !r4.Contains('<') && !r4.Contains('>'));
                 Check("模型信息行: · 分隔", rowText is { } r5 && r5.Contains(" · "));
                 Check("模型信息行: 模式切换刷新", planRowText is { } r6 && r6.Contains("计划"));

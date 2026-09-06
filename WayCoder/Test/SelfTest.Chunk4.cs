@@ -683,6 +683,20 @@ public static partial class SelfTest
                 Check("State: 无 state 老文件迁移 mode=big", st.ConnectMode == "big");
                 Check("State: CurrentMainModel", ConnectionConfig.CurrentMainModel() == "deepseek-v4-pro");
                 Check("State: CurrentSmallModel", ConnectionConfig.CurrentSmallModel() == "deepseek-v4-flash");
+                // 模型栏跨端统一：通道前缀映射 + {前缀}:(provider)model 格式
+                Check("ChannelLabel: big→大模型", ConnectionConfig.ChannelLabel("big") == "大模型");
+                Check("ChannelLabel: free→自由模型", ConnectionConfig.ChannelLabel("free") == "自由模型");
+                Check("ChannelLabel: rollback→回滚模型", ConnectionConfig.ChannelLabel("rollback") == "回滚模型");
+                Check("ChannelLabel: small→小模型", ConnectionConfig.ChannelLabel("small") == "小模型");
+                Check("ChannelLabel: 未知回退大模型", ConnectionConfig.ChannelLabel("") == "大模型"
+                    && ConnectionConfig.ChannelLabel(null) == "大模型" && ConnectionConfig.ChannelLabel("xx") == "大模型");
+                Check("ChannelLabel: 大小写不敏感", ConnectionConfig.ChannelLabel("FREE") == "自由模型");
+                // FormatModelChannel 用未知 providerId "zzz"（ProviderDisplayName 回退 id 本身）→ 断言与用户 providers.json 无关
+                Check("FormatModelChannel: big 格式", ConnectionConfig.FormatModelChannel("big", "zzz", "m1") == "大模型:(zzz)m1");
+                Check("FormatModelChannel: free 格式", ConnectionConfig.FormatModelChannel("free", "zzz", "m2") == "自由模型:(zzz)m2");
+                Check("FormatModelChannel: rollback 格式", ConnectionConfig.FormatModelChannel("rollback", "zzz", "m3") == "回滚模型:(zzz)m3");
+                Check("FormatModelChannel: small 格式", ConnectionConfig.FormatModelChannel("small", "zzz", "m4") == "小模型:(zzz)m4");
+                Check("FormatModelChannel: 空 provider 不补括号", ConnectionConfig.FormatModelChannel("big", "", "m5") == "大模型:m5");
 
                 // 小模型切换 → 只改 small_connect，default 不动
                 ConnectionConfig.SetActiveModel("qwen", "qwen-turbo", mode: "small", out _);
