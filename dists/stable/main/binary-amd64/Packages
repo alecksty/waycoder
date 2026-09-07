@@ -5,7 +5,7 @@ Priority: optional
 Section: devel
 Maintainer: Aleckstygit <aleckstygit@outlook.com>
 Installed-Size: 14876
-Filename: pool/main/w/waycoder/waycoder_0.96.36_amd64.deb
+Filename: ../../pool/main/w/waycoder/waycoder_0.96.36_amd64.deb
 Size: 5816382
 MD5sum: fad904018a9cc596afcebb74ee540b3a
 SHA1: ff4674639371d875031b9808480945b7240c95f7
@@ -18,12 +18,30 @@ Description: 中文版易用编程智能体（C# .NET NativeAOT 单文件 CLI �
 
 Package: waycoder
 Architecture: amd64
+Version: 0.96.67
+Priority: optional
+Section: devel
+Maintainer: Aleckstygit <aleckstygit@outlook.com>
+Installed-Size: 14932
+Filename: ../../pool/main/w/waycoder/waycoder_0.96.67_amd64.deb
+Size: 5840792
+MD5sum: 498188678309313d674429d955ab9977
+SHA1: dd62ff09c16f799670d70263af10df272f2a3f9d
+SHA256: 93c6314e43397af8350b51a146adf2647fd5a65df342df06f927b111c64ddd31
+SHA512: cee80219979ad33a914a3c93938119f81d71e6de11bae73c2010f15f51b78a89ec1ceb57f458fe4814663ba58a389bdac1cb93ae6dea28fad1aa2db8ec84be6e
+Homepage: https://gitee.com/aleckstygit/my-coder
+Description: 中文版易用编程智能体（C# .NET NativeAOT 单文件 CLI 编程 Agent）
+ WayCoder（道码）是一个中文版易用编程智能体，AOT 编译为单文件，
+ 41 个工具 + 多 Agent 工作区 + 权限系统 + Watch 模式。
+
+Package: waycoder
+Architecture: amd64
 Version: 0.96.7
 Priority: optional
 Section: devel
 Maintainer: Aleckstygit <aleckstygit@outlook.com>
 Installed-Size: 74748
-Filename: pool/main/w/waycoder/waycoder_0.96.7_amd64.deb
+Filename: ../../pool/main/w/waycoder/waycoder_0.96.7_amd64.deb
 Size: 26868066
 MD5sum: 829004d7dfc6c6db323f7850995fbdc6
 SHA1: 75eb5228d548c2e3505f21ac6894359b2938cb8c
@@ -41,7 +59,7 @@ Priority: optional
 Section: devel
 Maintainer: Aleckstygit <aleckstygit@outlook.com>
 Installed-Size: 13808
-Filename: pool/main/w/waycoder/waycoder_0.96.8_amd64.deb
+Filename: ../../pool/main/w/waycoder/waycoder_0.96.8_amd64.deb
 Size: 5457020
 MD5sum: eccdbefa699f93750d6652323c959b63
 SHA1: a29c10682cf1e9ddc46abf12a538e6f2aeba235a

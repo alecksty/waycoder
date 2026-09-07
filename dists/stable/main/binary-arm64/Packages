@@ -5,7 +5,7 @@ Priority: optional
 Section: devel
 Maintainer: Aleckstygit <aleckstygit@outlook.com>
 Installed-Size: 82688
-Filename: pool/main/w/waycoder/waycoder_0.96.36_arm64.deb
+Filename: ../../pool/main/w/waycoder/waycoder_0.96.36_arm64.deb
 Size: 25110670
 MD5sum: 2a08dd1825f22190f827bb85bf593fbc
 SHA1: ed17426eb87b787985a5998ac5c58ad4482cf94b
@@ -23,7 +23,7 @@ Priority: optional
 Section: devel
 Maintainer: Aleckstygit <aleckstygit@outlook.com>
 Installed-Size: 81940
-Filename: pool/main/w/waycoder/waycoder_0.96.7_arm64.deb
+Filename: ../../pool/main/w/waycoder/waycoder_0.96.7_arm64.deb
 Size: 24853400
 MD5sum: ae48d915b3247c4893e11ea3420c27a5
 SHA1: e72a03d70dc699fb2f89fe8cebd605fa9c619a8c
