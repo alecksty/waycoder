@@ -16,23 +16,23 @@ public class HelpCommand : SlashCommand
         // 且左列用 cmd.Usage（部分超长）导致各行长度失控。改为：短名(Name+别名) 一列 + 描述一列，
         // 按 DisplayWidth 补空格（码点/代理对安全），仅 DisplayWidth 而非常规 String.Length。
         var all = SlashCommandRegistry.Commands
-            .Select(c => (Name: c.Name, Alias: c.Aliases.Length > 0 ? $"({string.Join(", ", c.Aliases)})" : "", Desc: c.Description))
+            .Select(c => (Cmd: c, Name: c.Name, Alias: c.Aliases.Length > 0 ? $"({string.Join(", ", c.Aliases)})" : "", Desc: c.Description))
             .ToList();
 
-        // MAUI 端注入的界面导航命令（/open /sessions /files …）单独成组置顶，便于手机首屏看到；
-        // 桌面无此类命令（Desc 均以「打开」开头）→ 分组为空时不影响原有帮助布局。
-        bool IsNav((string Name, string Alias, string Desc) c)
-            => c.Name == "/open" || c.Desc.StartsWith("打开", StringComparison.Ordinal);
+        // 界面导航命令（移动端 MauiCommands.PageNav/OpenAnyCommand，IsNavCommand=true）单独成组置顶；
+        // 判据用命令自带的 IsNavCommand 标记而非描述文本——描述以「打开」开头会误捕桌面 /menu「打开功能菜单…」。
+        bool IsNav((ISlashCommand Cmd, string Name, string Alias, string Desc) c)
+            => c.Cmd is SlashCommand s && s.IsNavCommand;
 
         var nav = all.Where(IsNav).OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToList();
         var cmds = all.Where(c => !IsNav(c)).OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase).ToList();
 
-        static int RowWidth(IReadOnlyList<(string Name, string Alias, string Desc)> list)
+        static int RowWidth(IReadOnlyList<(ISlashCommand Cmd, string Name, string Alias, string Desc)> list)
             => list.Count > 0
                 ? list.Max(c => AnsiString.DisplayWidth(c.Name) + (c.Alias.Length > 0 ? 1 + AnsiString.DisplayWidth(c.Alias) : 0))
                 : 20;
 
-        void DumpBlock(System.Text.StringBuilder sb, IReadOnlyList<(string Name, string Alias, string Desc)> list, int descCol)
+        void DumpBlock(System.Text.StringBuilder sb, IReadOnlyList<(ISlashCommand Cmd, string Name, string Alias, string Desc)> list, int descCol)
         {
             foreach (var c in list)
             {

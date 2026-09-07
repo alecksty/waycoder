@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.96.67 (2026-09-07) — 多端斜杠命令收敛到单一 SlashCommandRegistry（GUI/Web/MAUI 补齐）
+
+此前斜杠命令四端分裂：CLI/TUI 走主工程 `SlashCommandRegistry`，MAUI 复用注册表+端命令覆盖，GUI 是空 stub+独立 switch(11条)，Web 是独立 switch(17条)——同一命令三处各写一份、语义不一（MAUI `/settings` 被桌面同名命令吞掉即由此来）。本轮收敛到「单一命令真源 + 端命令同名覆盖」，消除手写 switch 分叉、统一命名，并按端补齐命令。三端编译 0 错误，主工程自测 5076 通过。
+
+- **统一机制**：`SlashCommandRegistry` 新增公共 `ApplyEndCommands`（与已注册命令同名则覆盖、否则追加），`RegisterAll` 插件循环改用它（DRY）；TUI `ChatScreen` 的 `AddMessage/AddSystemMsg/AddUserMsg/ClearChat` 标 `virtual`，允许端桥 override 收集/重定向，不改命令签名。四端处理 `/xxx` 统一经注册表 `Match`，端命令经注入同名覆盖主工程命令。
+- **GUI（原空 stub）**：`CoreStubs` 的 `SlashCommand`（`Matches` 真实化）/`SlashCommandRegistry`（可注入/匹配）由空变为可用；新增 `GuiCommands` 端命令子集（经 `GuiContext.MainWindow` 调主窗口 internal 方法），`TryHandleCommand` 改注册表 `Match`。命令名补齐至与 CLI/Web 一致：`/perm` 语义修正为沙箱边界（原错位为权限）、补 `/permit`（权限）、`/todos`→`/todo`(别名 `/todos`)，新增 `/session` `/stats` `/mcp` `/free` `/free-restore` `/recent` `/diff` `/history` 等数据/界面命令；`/edit` `/config` 映射编辑器/设置窗口。
+- **Web**：新增 `WebCommands` 端命令子集 + `WebChatScreen`（收集 `AddSystemMsg` 文本）；`HandleCommand` 保留 `(bool,string)` 签名（自测兼容）但内部改经注册表分发，未命中再兜底主工程命令（多数用 `AddSystemMsg`，经桥可出文本；TUI 界面命令捕获后回退为未处理）。合并 `WebChat.Commands.cs` 原 switch 分叉。前端本地 `/theme` `/settings` `/model` `/provider` 与路由层 `/interrupt` `/review` `/model`（需实例槽位副作用）保留。
+- **MAUI**：导航命令从 10 个分散 PageNav + `/open` 收敛为单个 `/topage <page>`（参数映射 home/chat/files/settings/sessions/panel/modelpicker/providers/gitsync/about/editor），减少命令占用、避免与桌面同名冲突。
+- **保留/特有**：Web 前端本地命令与 `/interrupt`（需要实例副作用）、MAUI 移动端页、GUI `/slots`。GUI/Web 对 TUI 面板类命令（`/git` `/checkpoint` `/undo` `/versions` 等）提供端化说明引导，完整端面板为后续增量。
+
 ## v0.96.66 (2026-09-07) — MAUI 移动端：斜杠命令打开全部界面 + /help 界面导航分组
 
 聊天输入斜杠命令即可直达移动端各界面（此前只能靠按钮/页面导航），并把界面导航命令在 /help 中单独分组置顶。Android Debug 编译 0 错误，模拟器验证 /files /sessions /help 分组。
