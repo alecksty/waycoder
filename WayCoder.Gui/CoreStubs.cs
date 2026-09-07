@@ -72,23 +72,10 @@ public static class SlashCommandRegistry
     {
         foreach (var cmd in _commands)
         {
-            var args = ExtractArgs(cmd, userInput);
+            var args = SlashMatcher.ExtractArgs(cmd, userInput);
             if (args != null) return (cmd, args);
         }
         return (null, "");
-    }
-    private static string? ExtractArgs(ISlashCommand cmd, string input)
-    {
-        if (string.Equals(input, cmd.Name, StringComparison.OrdinalIgnoreCase)) return "";
-        var nameSpace = cmd.Name + " ";
-        if (input.StartsWith(nameSpace, StringComparison.OrdinalIgnoreCase)) return input[nameSpace.Length..].Trim();
-        foreach (var alias in cmd.Aliases)
-        {
-            if (string.Equals(input, alias, StringComparison.OrdinalIgnoreCase)) return "";
-            var aliasSpace = alias + " ";
-            if (input.StartsWith(aliasSpace, StringComparison.OrdinalIgnoreCase)) return input[aliasSpace.Length..].Trim();
-        }
-        return null;
     }
 }
 

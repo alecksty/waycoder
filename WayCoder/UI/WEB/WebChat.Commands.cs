@@ -69,22 +69,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     private static (ISlashCommand? Command, string Args) MatchWebCommand(string text)
     {
         foreach (var c in WebCommands.All())
-            if (c.Matches(text)) return (c, ExtractWebArgs(c, text));
+            if (c.Matches(text)) return (c, SlashMatcher.ExtractArgs(c, text) ?? "");
         return (null, "");
-    }
-
-    private static string ExtractWebArgs(ISlashCommand c, string text)
-    {
-        if (string.Equals(text, c.Name, StringComparison.OrdinalIgnoreCase)) return "";
-        var nameSpace = c.Name + " ";
-        if (text.StartsWith(nameSpace, StringComparison.OrdinalIgnoreCase)) return text[nameSpace.Length..].Trim();
-        foreach (var alias in c.Aliases)
-        {
-            if (string.Equals(text, alias, StringComparison.OrdinalIgnoreCase)) return "";
-            var aliasSpace = alias + " ";
-            if (text.StartsWith(aliasSpace, StringComparison.OrdinalIgnoreCase)) return text[aliasSpace.Length..].Trim();
-        }
-        return "";
     }
 
     internal static string WebHelpText()
