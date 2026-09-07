@@ -240,6 +240,10 @@ public static partial class SelfTest
         {
             if (RunGit(gdir, "init -q -b main"))
             {
+                // CI（GitHub Actions runner）无全局 git user.* 配置，缺了 commit 会失败 → 无 HEAD → BFS 空（total=0）→ 本项失败。
+                // 设仓库级身份，跨环境（本地/CI）一致。
+                RunGit(gdir, "config user.email waycoder@test.local");
+                RunGit(gdir, "config user.name WayCoder");
                 File.WriteAllText(Path.Combine(gdir, "a.txt"), "pack base content 0");
                 RunGit(gdir, "add -A");
                 RunGit(gdir, "commit -q -m init");
