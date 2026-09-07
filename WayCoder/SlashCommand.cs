@@ -236,35 +236,10 @@ public static class SlashCommandRegistry
     {
         foreach (var cmd in _commands)
         {
-            var args = TryExtractArgs(cmd, userInput);
+            var args = SlashMatcher.ExtractArgs(cmd, userInput);
             if (args != null)
                 return (cmd, args);
         }
         return (null, "");
-    }
-
-    /// <summary>提取参数：精确匹配→""，前缀匹配→剩余部分。未匹配→null。</summary>
-    static string? TryExtractArgs(ISlashCommand cmd, string input)
-    {
-        // 精确匹配主名
-        if (string.Equals(input, cmd.Name, StringComparison.OrdinalIgnoreCase))
-            return "";
-
-        // 前缀匹配 "Name "
-        var nameSpace = cmd.Name + " ";
-        if (input.StartsWith(nameSpace, StringComparison.OrdinalIgnoreCase))
-            return input[nameSpace.Length..].Trim();
-
-        // 检查别名
-        foreach (var alias in cmd.Aliases)
-        {
-            if (string.Equals(input, alias, StringComparison.OrdinalIgnoreCase))
-                return "";
-            var aliasSpace = alias + " ";
-            if (input.StartsWith(aliasSpace, StringComparison.OrdinalIgnoreCase))
-                return input[aliasSpace.Length..].Trim();
-        }
-
-        return null;
     }
 }
