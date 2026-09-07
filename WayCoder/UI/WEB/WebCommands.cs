@@ -1,0 +1,84 @@
+using System.Text;
+using WayCoder.UI.Tui.Screens;
+
+namespace WayCoder.UI.Web;
+
+/// <summary>
+/// Web 命令上下文：路由层 / HandleCommand 在每个命令执行前设置当前参与执行的 Agent 与槽位，
+/// 供 Web 命令读取（命令签名 ExecuteAsync 不含 agent/slot，经此传达）。
+/// </summary>
+public static class WebCommandContext
+{
+    public static Agent? Agent;
+    public static int Slot = -1;
+}
+
+/// <summary>
+/// Web 命令输出桥：把命令的 AddSystemMsg/AddMessage 收集到 <see cref="Output"/>，供 /command 路由
+/// 取回返回前端。继承主工程 ChatScreen 但 override 消息方法为「收集」，不触碰任何 TUI 控件
+/// （基类构造仅设 Name="chat"，无渲染依赖，可安全在 Web 进程实例化）。
+/// </summary>
+public sealed class WebChatScreen : ChatScreen
+{
+    public StringBuilder Output { get; } = new();
+
+    public override void AddSystemMsg(string content) => Output.Append(content).Append('\n');
+
+    public override void AddMessage(string content, string role = "assistant", bool? centered = null, int indent = 0, bool shellBlock = false)
+        => Output.Append(content).Append('\n');
+
+    public override void AddUserMsg(string content) => Output.Append(content).Append('\n');
+
+    public override void ClearChat() => Output.Clear();
+}
+
+/// <summary>
+/// Web 端斜杠命令（文本版）。经 <see cref="SlashCommandRegistry.ApplyEndCommands"/> 注入、覆盖主工程同名命令，
+/// 复用 <see cref="WebChatServer"/> 的 WebXxxText 纯逻辑，使「命名/语义与各端一致 + 消除手写 switch 分叉」。
+/// 仅覆盖 Web 可文本化的命令；需实例副作用（/interrupt /review /model）与前端本地命令（/theme /settings /model /provider）保留独立。
+/// </summary>
+public static class WebCommands
+{
+    public static IEnumerable<ISlashCommand> All()
+    {
+        yield return new WebTextCommand("/help", _ => WebChatServer.WebHelpText());
+        yield return new WebTextCommand("/perm", a => WebChatServer.WebSandboxText(a), "permissions");
+        yield return new WebTextCommand("/permit", a => WebChatServer.WebPermText(a));
+        yield return new WebTextCommand("/reset", _ =>
+        {
+            var ag = WebCommandContext.Agent;
+            if (ag != null) ag.ClearMessages();
+            return "🗑 已清空当前会话";
+        }, "clear");
+        yield return new WebTextCommand("/session", a => WebChatServer.WebSessionText(a, WebCommandContext.Agent, WebCommandContext.Slot));
+        yield return new WebTextCommand("/tokens", _ => WebChatServer.WebTokensText(WebCommandContext.Agent));
+        yield return new WebTextCommand("/mcp", _ => WebChatServer.WebMcpText());
+        yield return new WebTextCommand("/todo", _ => WebChatServer.WebTodoText());
+        yield return new WebTextCommand("/stats", _ => WebChatServer.WebStatsText(WebCommandContext.Agent));
+        yield return new WebTextCommand("/recent", _ => WebChatServer.WebRecentText(), "diff");
+        yield return new WebTextCommand("/free", _ => WebChatServer.WebFreeText());
+        yield return new WebTextCommand("/free-restore", _ => ModelCli.RestorePrevious(), "恢复模型");
+        yield return new WebTextCommand("/test", a => WebChatServer.WebTestText(a));
+    }
+
+    /// <summary>Web 命令基类：Render(args) 返回文本，ExecuteAsync 经 WebChatScreen 收集。</summary>
+    private sealed class WebTextCommand : SlashCommand
+    {
+        private readonly Func<string, string> _render;
+        private readonly string[] _aliases;
+        public override string Name { get; }
+        public override string[] Aliases => _aliases;
+        public override string Description => $"Web 命令（{Name}）";
+
+        public WebTextCommand(string name, Func<string, string> render, params string[] aliases)
+        {
+            Name = name; _render = render; _aliases = aliases;
+        }
+
+        public override Task ExecuteAsync(string args, ChatScreen screen)
+        {
+            screen.AddSystemMsg(_render(args));
+            return Task.CompletedTask;
+        }
+    }
+}

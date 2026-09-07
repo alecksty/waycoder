@@ -1,12 +1,15 @@
 using WayCoder.Tools;
+using WayCoder.UI.Gui;
 using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder;
 
 // ═══════════════════════════════════════════════════════════════
 //  GUI 版占位桩：核心/TUI 源码引用的 CLI 专属类型（斜杠命令、插件、
-//  程序全局上下文）在 GUI 进程中不参与实际工作，此处提供最小占位
-//  使其编译通过。真实实现见主项目 SlashCommand.cs / Plugins/。
+//  程序全局上下文）在 GUI 进程中参与实际工作，此处提供可用实现。
+//  GUI 是独立进程（csproj 排除主工程 SlashCommand.cs），故自建一套
+//  ISlashCommand/SlashCommand/SlashCommandRegistry；命令集经
+//  GuiCommands 注入（命名与主工程一致），输入统一走 Match。
 // ═══════════════════════════════════════════════════════════════
 
 public interface ISlashCommand
@@ -25,18 +28,68 @@ public abstract class SlashCommand : ISlashCommand
     public virtual string[] Aliases => [];
     public abstract string Description { get; }
     public virtual string? Usage => null;
-    public virtual bool Matches(string input) => false;
+    public virtual bool Matches(string input)
+    {
+        if (string.Equals(input, Name, StringComparison.OrdinalIgnoreCase)) return true;
+        var ns = Name + " ";
+        if (input.StartsWith(ns, StringComparison.OrdinalIgnoreCase)) return true;
+        foreach (var alias in Aliases)
+        {
+            if (string.Equals(input, alias, StringComparison.OrdinalIgnoreCase)) return true;
+            var aspace = alias + " ";
+            if (input.StartsWith(aspace, StringComparison.OrdinalIgnoreCase)) return true;
+        }
+        return false;
+    }
     public abstract Task ExecuteAsync(string args, ChatScreen screen);
 }
 
 public static class SlashCommandRegistry
 {
     private static readonly List<ISlashCommand> _commands = [];
+    private static bool _registered;
     public static IReadOnlyList<ISlashCommand> Commands => _commands;
-    public static void Register(ISlashCommand cmd) { }
-    public static void RegisterAll() { }
-    public static string[] AllNames => [];
-    public static (ISlashCommand? Command, string Args) Match(string userInput) => (null, userInput);
+    public static void Register(ISlashCommand cmd) => _commands.Add(cmd);
+    public static void RegisterAll()
+    {
+        if (_registered) return;
+        _registered = true;
+        ApplyEndCommands(GuiCommands.All());
+    }
+    /// <summary>注入端命令：同名（忽略大小写）覆盖，否则追加（对齐主工程 SlashCommandRegistry.ApplyEndCommands）。</summary>
+    public static void ApplyEndCommands(IEnumerable<ISlashCommand> cmds)
+    {
+        foreach (var cmd in cmds)
+        {
+            var idx = _commands.FindIndex(c => c.Name.Equals(cmd.Name, StringComparison.OrdinalIgnoreCase));
+            if (idx >= 0) _commands[idx] = cmd;
+            else _commands.Add(cmd);
+        }
+    }
+    public static string[] AllNames => _commands.SelectMany(c => new[] { c.Name }.Concat(c.Aliases))
+        .Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    public static (ISlashCommand? Command, string Args) Match(string userInput)
+    {
+        foreach (var cmd in _commands)
+        {
+            var args = ExtractArgs(cmd, userInput);
+            if (args != null) return (cmd, args);
+        }
+        return (null, "");
+    }
+    private static string? ExtractArgs(ISlashCommand cmd, string input)
+    {
+        if (string.Equals(input, cmd.Name, StringComparison.OrdinalIgnoreCase)) return "";
+        var nameSpace = cmd.Name + " ";
+        if (input.StartsWith(nameSpace, StringComparison.OrdinalIgnoreCase)) return input[nameSpace.Length..].Trim();
+        foreach (var alias in cmd.Aliases)
+        {
+            if (string.Equals(input, alias, StringComparison.OrdinalIgnoreCase)) return "";
+            var aliasSpace = alias + " ";
+            if (input.StartsWith(aliasSpace, StringComparison.OrdinalIgnoreCase)) return input[aliasSpace.Length..].Trim();
+        }
+        return null;
+    }
 }
 
 /// <summary>GUI 进程占位：主项目 CLI Program 的静态成员（GUI 无 REPL 主循环，InAgentRenderLoop 恒 false）。</summary>

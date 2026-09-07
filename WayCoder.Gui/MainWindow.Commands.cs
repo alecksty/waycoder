@@ -26,125 +26,32 @@ public partial class MainWindow
     /// <summary>处理 GUI 斜杠命令。返回 true 表示已消费（不再作为普通消息发送）。</summary>
     private bool TryHandleCommand(string input)
     {
-        var cmd = input[1..].Trim();
-        var parts = cmd.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var name = parts.Length > 0 ? parts[0].ToLowerInvariant() : "";
-
-        switch (name)
-        {
-            case "help" or "?":
-                AppendSystem(_activeSlot, """
-                                          GUI 斜杠命令：
-                                          /help      帮助
-                                          /model     选择模型
-                                          /provider  服务商管理（Key/改名/改地址/删除/测试）
-                                          /review    代码审查（git diff + 多维度分析）
-                                          /settings  打开设置
-                                          /theme     切换深/浅主题
-                                          /reset     清空当前会话
-                                          /todos     显示任务列表
-                                          /tokens    显示本轮 token/费用
-                                          /perm      <ask|auto|smart|yolo>  切换交互模式
-                                          /slots     槽位说明
-                                          """);
-                return true;
-
-            case "model":
-                new ModelWindow(this).ShowDialog(this);
-                return true;
-
-            case "provider":
-                new ProviderWindow(this).ShowDialog(this);
-                return true;
-
-            case "review" or "审查":
-                // 代码审查：生成审查 prompt 作为普通消息投递（后台 Agent 执行，结果流式显示）
-                InputBox.Text = ReviewMode.BuildReviewPrompt();
-                _ = SendAsync();
-                return true;
-
-            case "settings":
-                new SettingsWindow(this).ShowDialog(this);
-                return true;
-
-            case "theme":
-                Theme_Click(null, null!);
-                return true;
-
-            case "reset":
-                NewSession_Click(null, null!);
-                return true;
-
-            case "todos":
-            {
-                var items = TodoTool.Items;
-                if (items == null || items.Count == 0)
-                {
-                    AppendSystem(_activeSlot, "[无任务]");
-                    return true;
-                }
-
-                var sb = new StringBuilder();
-                foreach (var t in items) sb.AppendLine($"• [{t.Status}] {t.Title}");
-                AppendSystem(_activeSlot, sb.ToString());
-                return true;
-            }
-
-            case "tokens":
-            {
-                var llm = _agents[_activeSlot]?.LlmClient;
-                if (llm == null)
-                {
-                    AppendSystem(_activeSlot, "[无活动数据]");
-                    return true;
-                }
-
-                AppendSystem(_activeSlot,
-                    $"本轮 {llm.TaskPromptTokens:N0}/{llm.TaskCompletionTokens:N0} · 累计 {llm.TotalPromptTokens:N0}/{llm.TotalCompletionTokens:N0}" +
-                    (llm.TaskCost.HasValue ? $" · 费用 ${llm.TaskCost.Value:F4}" : ""));
-                return true;
-            }
-
-            case "perm":
-            {
-                if (parts.Length < 2)
-                {
-                    AppendSystem(_activeSlot, "用法: /perm <ask|auto|smart|yolo>");
-                    return true;
-                }
-
-                try
-                {
-                    // 纯聊天别名（tiny/chat）→ 切工作模式 Chat（0 工具 0 提示词）
-                    if (PermissionManager.IsChatModeAlias(parts[1]))
-                    {
-                        WorkModeManager.SetMode(WorkMode.Chat);
-                        AppendSystem(_activeSlot, $"[工作模式已切换: 💬 聊天（纯聊天 · 0 工具 0 提示词）]");
-                        return true;
-                    }
-
-                    PermissionManager.SetMode(parts[1]);
-                    // 下拉 0..3 与枚举同序（Ask/Auto/SmartAuto/Yolo）；按当前模式回填，
-                    // 兼容 smart/smart-auto/smartauto/god/yolo 等别名（数组按字面匹配 smartauto 会漏）。
-                    PermCombo.SelectedIndex = (int)PermissionManager.CurrentMode;
-                    AppendSystem(_activeSlot, $"[交互模式已切换: {parts[1]}]");
-                }
-                catch (Exception ex)
-                {
-                    AppendSystem(_activeSlot, $"[切换失败] {ex.Message}");
-                }
-
-                return true;
-            }
-
-            case "slots":
-                AppendSystem(_activeSlot, "F1-F10 切换 10 个独立槽位（各自会话/模型/草稿）；顶栏标签显示当前槽位");
-                return true;
-
-            default:
-                return false; // 未知命令 → 按普通消息发给 Agent
-        }
+        // 经 GUI 注册表分发（GuiCommands 端命令命名与主工程一致）；未命中回退为普通消息发给 Agent
+        var (cmd, args) = SlashCommandRegistry.Match(input);
+        if (cmd == null) return false;
+        cmd.ExecuteAsync(args, null!).GetAwaiter().GetResult();
+        return true;
     }
+
+    #region GUI 命令复用入口（供 GuiCommands 经 GuiContext.MainWindow 调用）
+    internal Agent? ActiveAgent => _agents[_activeSlot];
+    internal int ActiveSlotIndex => _activeSlot;
+    internal void NotifySystem(string text) => AppendSystem(_activeSlot, text);
+    internal void OpenEditor() => new EditorWindow().Show();
+    internal void OpenModelPicker() => new ModelWindow(this).ShowDialog(this);
+    internal void OpenProviders() => new ProviderWindow(this).ShowDialog(this);
+    internal void OpenSettings() => new SettingsWindow(this).ShowDialog(this);
+    internal void RunReview() { InputBox.Text = ReviewMode.BuildReviewPrompt(); _ = SendAsync(); }
+    internal void ToggleThemeUi() => Theme_Click(null, null!);
+    internal void ResetSession() => NewSession_Click(null, null!);
+    internal string TokensSummary()
+    {
+        var llm = _agents[_activeSlot]?.LlmClient;
+        if (llm == null) return "[无活动数据]";
+        return $"本轮 {llm.TaskPromptTokens:N0}/{llm.TaskCompletionTokens:N0} · 累计 {llm.TotalPromptTokens:N0}/{llm.TotalCompletionTokens:N0}" +
+            (llm.TaskCost.HasValue ? $" · 费用 ${llm.TaskCost.Value:F4}" : "");
+    }
+    #endregion
 
     // ── 模型 / 主题 / 省钱 / 权限 ──
 

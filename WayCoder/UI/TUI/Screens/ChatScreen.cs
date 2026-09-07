@@ -854,7 +854,7 @@ public partial class ChatScreen : TuiScreen
     /// <param name="centered">null=续接同角色消息时继承前一条对齐（否则左对齐）；
     /// 显式 true/false 则强制该对齐 —— 表格类内容必须显式传 false，
     /// 否则会被前一条居中的 system 消息带偏，每行按各自宽度居中而参差不齐。</param>
-    public void AddMessage(string content, string role = "assistant", bool? centered = null, int indent = 0, bool shellBlock = false)
+    public virtual void AddMessage(string content, string role = "assistant", bool? centered = null, int indent = 0, bool shellBlock = false)
     {
         bool continuation = false;
         // system 消息含 markdown（ModelCommand 的 **bold**/`code` 等）→ 走 markdown 渲染；
@@ -1043,7 +1043,7 @@ public partial class ChatScreen : TuiScreen
     }
 
     /// <summary>清空聊天</summary>
-    public void ClearChat()
+    public virtual void ClearChat()
     {
         ChatList.ClearItems();
     }
@@ -1071,7 +1071,7 @@ public partial class ChatScreen : TuiScreen
     // ── 便捷消息方法 ──
 
     /// <summary>添加用户消息。线程安全：ChatMessages 写入与流式 token 追加统一走 _chatLock。</summary>
-    public void AddUserMsg(string content)
+    public virtual void AddUserMsg(string content)
     {
         lock (_chatLock)
         {
@@ -1082,7 +1082,7 @@ public partial class ChatScreen : TuiScreen
     }
 
     /// <summary>添加系统消息。线程安全：可从后台线程调用。</summary>
-    public void AddSystemMsg(string content)
+    public virtual void AddSystemMsg(string content)
     {
         lock (_chatLock)
         {

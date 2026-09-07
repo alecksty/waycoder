@@ -32,63 +32,62 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         var cmd = (space < 0 ? text : text[..space]).ToLowerInvariant();
         var args = space < 0 ? "" : text[(space + 1)..].Trim();
 
-        switch (cmd)
+        // /model：list/未知列表；无参 → 前端打开模型选择窗口（回退为未处理）。带参切换副作用由路由层执行。
+        if (cmd == "/model")
         {
-            case "/help" or "/h":
-                return (true, WebHelpText());
-
-            case "/perm" or "/permissions":
-                return (true, WebSandboxText(args));
-
-            case "/permit":
-                return (true, WebPermText(args));
-
-            case "/model":
-                if (args.Equals("list", StringComparison.OrdinalIgnoreCase)
-                    || args.Equals("ls", StringComparison.OrdinalIgnoreCase))
-                    return (true, WebModelListText());
-                return (false, ""); // /model 无参 → 前端打开模型选择窗口
-
-            case "/free":
-                return (true, WebFreeText());
-
-            case "/free-restore" or "/恢复模型":
-                return (true, ModelCli.RestorePrevious());
-
-            case "/reset" or "/clear":
-                if (agent != null) agent.ClearMessages();
-                return (true, "🗑 已清空当前会话");
-
-            case "/session":
-                return (true, WebSessionText(args, agent, slot));
-
-            case "/tokens":
-                return (true, WebTokensText(agent));
-
-            case "/mcp":
-                return (true, WebMcpText());
-
-            case "/todo":
-                return (true, WebTodoText());
-
-            case "/stats":
-                return (true, WebStatsText(agent));
-
-            case "/recent" or "/diff":
-                return (true, WebRecentText());
-
-            case "/interrupt" or "/stop":
-                return (true, "⏹ 已请求中断");
-
-            case "/test":
-                return (true, WebTestText(args));
-
-            default:
-                return (false, "");
+            if (args.Equals("list", StringComparison.OrdinalIgnoreCase)
+                || args.Equals("ls", StringComparison.OrdinalIgnoreCase)
+                || args.Equals("-l", StringComparison.OrdinalIgnoreCase))
+                return (true, WebModelListText());
+            return (false, "");
         }
+
+        // 在 Web 命令集内匹配（隔离于全局注册表——Web 与 CLI 同进程，注入全局会污染 CLI/自测）
+        WebCommandContext.Agent = agent;
+        WebCommandContext.Slot = slot;
+        var (registered, cmdArgs) = MatchWebCommand(text);
+        if (registered == null)
+        {
+            // 兜底：主工程命令（Web 进程已 RegisterAll）——多数用 AddSystemMsg，经 WebChatScreen 收集可出文本；
+            // TUI 界面/进程专属命令在 Web 无屏，捕获后回退为未处理（前端转普通消息）。
+            var (global, gArgs) = SlashCommandRegistry.Match(text);
+            if (global == null) return (false, "");
+            var gs = new WebChatScreen();
+            try { global.ExecuteAsync(gArgs, gs).GetAwaiter().GetResult(); }
+            catch { return (false, ""); }
+            var gout = gs.Output.ToString();
+            return string.IsNullOrEmpty(gout) ? (false, "") : (true, gout);
+        }
+
+        var screen = new WebChatScreen();
+        registered.ExecuteAsync(cmdArgs, screen).GetAwaiter().GetResult();
+        var output = screen.Output.ToString();
+        return string.IsNullOrEmpty(output) ? (false, "") : (true, output);
     }
 
-    private static string WebHelpText()
+    /// <summary>在 Web 命令集（WebCommands）内匹配（隔离于全局注册表，避免 Web 与 CLI 同进程互相污染）。</summary>
+    private static (ISlashCommand? Command, string Args) MatchWebCommand(string text)
+    {
+        foreach (var c in WebCommands.All())
+            if (c.Matches(text)) return (c, ExtractWebArgs(c, text));
+        return (null, "");
+    }
+
+    private static string ExtractWebArgs(ISlashCommand c, string text)
+    {
+        if (string.Equals(text, c.Name, StringComparison.OrdinalIgnoreCase)) return "";
+        var nameSpace = c.Name + " ";
+        if (text.StartsWith(nameSpace, StringComparison.OrdinalIgnoreCase)) return text[nameSpace.Length..].Trim();
+        foreach (var alias in c.Aliases)
+        {
+            if (string.Equals(text, alias, StringComparison.OrdinalIgnoreCase)) return "";
+            var aliasSpace = alias + " ";
+            if (text.StartsWith(aliasSpace, StringComparison.OrdinalIgnoreCase)) return text[aliasSpace.Length..].Trim();
+        }
+        return "";
+    }
+
+    internal static string WebHelpText()
     {
         var sb = new StringBuilder();
         sb.AppendLine("📋 **Web 命令**");
@@ -117,7 +116,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return sb.ToString();
     }
 
-    private static string WebPermLabel()
+    internal static string WebPermLabel()
         => PermissionManager.CurrentMode switch
         {
             PermissionManager.Mode.Yolo => "YOLO（直接执行）",
@@ -126,7 +125,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             _ => "Ask（每次确认）",
         };
 
-    private static string WebPermText(string args)
+    internal static string WebPermText(string args)
     {
         if (string.IsNullOrWhiteSpace(args))
             return $"当前权限模式: **{WebPermLabel()}**";
@@ -140,7 +139,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return $"权限模式已切换: **{WebPermLabel()}**";
     }
 
-    private static string WebSandboxText(string args)
+    internal static string WebSandboxText(string args)
     {
         if (string.IsNullOrWhiteSpace(args))
             return $"当前沙箱边界: **{SandboxManager.Level}**（off/project/network-off/hard；/permit 管权限）";
@@ -148,7 +147,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return $"沙箱边界已切换: **{SandboxManager.Level}**（边界独立于权限）";
     }
 
-    private static string WebModelListText()
+    internal static string WebModelListText()
     {
         var sb = new StringBuilder();
         sb.AppendLine("🧠 **模型列表**");
@@ -161,7 +160,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     }
 
     /// <summary>/free — 列出缓存的可用免费模型（free.json，--model free 扫描生成）。查看前记住当前模型，/free-restore 可恢复。</summary>
-    private static string WebFreeText()
+    internal static string WebFreeText()
     {
         // 记住当前模型（/free-restore 恢复；未记录才记，不覆盖已记住的）
         ModelCli.RememberCurrentModel();
@@ -180,7 +179,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return sb.ToString();
     }
 
-    private static string WebSessionText(string args, Agent? agent, int slot)
+    internal static string WebSessionText(string args, Agent? agent, int slot)
     {
         var parts = args.Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
         var sub = parts.Length > 0 ? parts[0].ToLowerInvariant() : "list";
@@ -215,7 +214,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         }
     }
 
-    private static string WebTokensText(Agent? agent)
+    internal static string WebTokensText(Agent? agent)
     {
         var llm = agent?.LlmClient;
         if (llm == null) return "⚠ 无活跃槽位";
@@ -230,7 +229,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return sb.ToString();
     }
 
-    private static string WebMcpText()
+    internal static string WebMcpText()
     {
         var servers = McpManager.Servers;
         if (servers.Count == 0) return "🔌 未配置 MCP 服务器";
@@ -248,7 +247,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return sb.ToString();
     }
 
-    private static string WebTodoText()
+    internal static string WebTodoText()
     {
         var items = TodoTool.Items;
         if (items.Count == 0) return "📋 无任务";
@@ -260,7 +259,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return sb.ToString();
     }
 
-    private static string WebStatsText(Agent? agent)
+    internal static string WebStatsText(Agent? agent)
     {
         var llm = agent?.LlmClient;
         var sb = new StringBuilder();
@@ -276,7 +275,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return sb.ToString();
     }
 
-    private static string WebRecentText()
+    internal static string WebRecentText()
     {
         var files = EditFileTool.ChangedFiles.ToList();
         if (files.Count == 0) return "📝 本次会话尚未修改文件";
@@ -292,7 +291,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     }
 
     /// <summary>/test — 渲染测试内容（markdown 表格 / 代码高亮 / «» 中间格式 / Shell ANSI 配色等），供前端验证显示效果。</summary>
-    private static string WebTestText(string args)
+    internal static string WebTestText(string args)
     {
         var sub = args.ToLowerInvariant().Trim();
         return sub switch
@@ -305,7 +304,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         };
     }
 
-    private static string WebTestListText()
+    internal static string WebTestListText()
     {
         return """
             📋 **可用测试项**
@@ -327,7 +326,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     /// 由各平台渲染器决定呈现：CLI/TUI → ANSI（SpectreToAnsi）、Web → HTML（markupToHtml）、GUI → 富文本。
     /// 这里返回中间格式原文，前端 mdToHtml 的 inline 管线会调用 markupToHtml 渲染。
     /// </summary>
-    private static string WebTestMarkupText()
+    internal static string WebTestMarkupText()
     {
         return """
             # 中间格式（«» 标记）渲染测试
@@ -360,7 +359,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             """;
     }
 
-    private static string WebTestTableText()
+    internal static string WebTestTableText()
     {
         return """
             ## 表格专项测试
@@ -386,7 +385,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             """;
     }
 
-    private static string WebTestMarkdownText()
+    internal static string WebTestMarkdownText()
     {
         return """
             # Markdown 渲染测试

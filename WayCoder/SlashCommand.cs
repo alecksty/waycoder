@@ -58,6 +58,13 @@ public abstract class SlashCommand : ISlashCommand
     public virtual string? Usage => null;
 
     /// <summary>
+    /// 是否属于「界面导航」命令（路由到某界面/页面）。桌面命令默认 false；
+    /// 移动端 MauiCommands 的 PageNav/OpenAnyCommand 覆写 true，供 /help 分组，并与「描述以『打开』开头」
+    /// 的文本猜测解耦（否则桌面 /menu「打开功能菜单…」被误归入导航组）。
+    /// </summary>
+    public virtual bool IsNavCommand => false;
+
+    /// <summary>
     /// 默认匹配：精确 Name/Aliases，或前缀 "Name " / "Alias "。
     /// </summary>
     public virtual bool Matches(string input)
@@ -101,6 +108,20 @@ public static class SlashCommandRegistry
 
     /// <summary>注册一个命令</summary>
     public static void Register(ISlashCommand cmd) => _commands.Add(cmd);
+
+    /// <summary>
+    /// 注入端/插件贡献命令：与已注册命令同名（忽略大小写）则覆盖（后注册覆盖先注册），否则追加。
+    /// 供 Web/GUI/MAUI 端在 RegisterAll 之后注入端命令，实现「单一注册表 + 端命名统一」。
+    /// </summary>
+    public static void ApplyEndCommands(IEnumerable<ISlashCommand> cmds)
+    {
+        foreach (var cmd in cmds)
+        {
+            var idx = _commands.FindIndex(c => c.Name.Equals(cmd.Name, StringComparison.OrdinalIgnoreCase));
+            if (idx >= 0) _commands[idx] = cmd; // 同名（忽略大小写）：后注册覆盖先注册
+            else _commands.Add(cmd);
+        }
+    }
 
     /// <summary>
     /// 注册所有内置命令（AOT 兼容：显式 new，不用反射）。
@@ -184,9 +205,10 @@ public static class SlashCommandRegistry
         Register(new Commands.DebugOnCommand());
         Register(new Commands.DebugOffCommand());
 
-        // 编译期插件贡献的命令（[ModuleInitializer] 自动注册到 PluginRegistry，这里统一并入）
-        foreach (var cmd in PluginRegistry.CollectCommands())
-            Register(cmd);
+        // 编译期插件/端贡献的命令（[ModuleInitializer] 自动注册到 PluginRegistry，这里统一并入）。
+        // 端贡献命令（移动端 MauiCommands / GUI GuiCommands / Web WebCommands）与内置同名时作同名覆盖：
+        // 内置先注册、Match 首个匹配，若不覆盖则端命令被桌面同名命令吞掉（对齐 PluginRegistry 同名覆盖约定）。
+        ApplyEndCommands(PluginRegistry.CollectCommands());
     }
 
     /// <summary>所有命令名（主名 + 别名），用于拼写纠错和 Tab 补全</summary>

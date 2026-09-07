@@ -77,6 +77,10 @@ public partial class MainWindow : Window
             AppendSystem(_activeSlot,
                 $"[{level switch { "success" => "✓", "warn" => "⚠", "error" => "✘", _ => "ℹ" }} {title}] {msg}"));
 
+        // GUI 命令收敛：挂命令上下文 + 注册 GuiCommands 端命令，输入统一走 SlashCommandRegistry.Match
+        GuiContext.MainWindow = this;
+        SlashCommandRegistry.RegisterAll();
+
         InitModels();
         InitModelBar();
         InitSlots();
