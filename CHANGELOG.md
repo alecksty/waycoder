@@ -1,5 +1,14 @@
 # 更新日志
 
+## v0.96.66 (2026-09-07) — MAUI 移动端：斜杠命令打开全部界面 + /help 界面导航分组
+
+聊天输入斜杠命令即可直达移动端各界面（此前只能靠按钮/页面导航），并把界面导航命令在 /help 中单独分组置顶。Android Debug 编译 0 错误，模拟器验证 /files /sessions /help 分组。
+
+- **页面导航斜杠命令**（`WayCoder.Maui/Services/MauiCommands.cs`，经 `CoreStubs.PluginRegistry.CollectCommands` 注入 `SlashCommandRegistry`）：Tab 切换 `/home` `/chat` `/files` `/settings`（`//` 绝对路由）；独立页 `/sessions`（会话历史）、`/panel`（侧栏命令）、`/modelpicker`（模型选择）、`/providers`（供应商/模型）、`/gitsync`（代码同步）、`/about`（关于）；主命令 `/open <页面>`（支持全部页面别名，无参列出可用项）
+- **命名规避桌面冲突**：桌面既有 `/model` `/session` `/about` 等仍走桌面语义，另起 `/modelpicker` `/sessions` 等不冲突名
+- **/help 分组**：`HelpCommand` 把界面导航命令（描述以「打开」开头 / `/open`）从总表抽出，顶部「📱 打开界面」单独成组（手机首屏即见导航命令）；桌面无此类命令，分组为空不影响原布局
+- 界面导航命令不进四端共享 `CommandBar.Favorites`（避免污染桌面建议栏）
+
 ## v0.96.65 (2026-09-07) — MAUI 移动端：会话历史/侧栏改独立页（弃抽屉浮层，根治布局类 bug）
 
 v0.96.63/64 的左右抽屉浮层在 MAUI Android 上反复出现布局问题（首开过窄、抽屉打开时 CollectionView 内容不渲染导致「聊天空白」——Padding/Margin 让位两种方式均复现，覆盖又盖住左对齐气泡文字）。本轮**弃用抽屉浮层，会话历史与侧栏改为 Shell 独立页**：聊天页始终全宽、内容永不丢失。Android Debug 编译 0 错误，模拟器全链路验证（入口/会话页/侧栏页/模式循环/新建会话）。
