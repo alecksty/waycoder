@@ -282,8 +282,11 @@ namespace WayCoder
     {
         public static IEnumerable<ITool> CollectTools() => [];
 
-        /// <summary>移动端无编译期插件，贡献命令为空（SlashCommandRegistry.RegisterAll 末尾调用）。</summary>
-        public static IEnumerable<ISlashCommand> CollectCommands() => [];
+        /// <summary>
+        /// 移动端注入页面导航斜杠命令（/home /sessions /panel /open …，见 MauiCommands.All），
+        /// SlashCommandRegistry.RegisterAll 末尾收集注册。
+        /// </summary>
+        public static IEnumerable<ISlashCommand> CollectCommands() => WayCoder.Maui.Services.MauiCommands.All();
     }
 
     /// <summary>
