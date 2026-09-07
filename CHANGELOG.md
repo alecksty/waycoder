@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.96.68 (2026-09-07) — 多端命令统一代码审查修复（SlashMatcher 提炼 + 5 项）
+
+承接 v0.96.67 的多端命令统一，经 code review 校对并修复 5 项：命令别名约定、Web /interrupt、并发隔离、匹配逻辑去重、实例缓存。主工程自测 5076 通过，ci 门禁通过。
+
+- **SlashMatcher 提炼**（`WayCoder/SlashMatcher.cs`）：主工程 `SlashCommandRegistry.TryExtractArgs` / GUI `CoreStubs.ExtractArgs` / Web `ExtractWebArgs` 三处相同的命令匹配逻辑合并为单一实现（四项目共编、各自 resolve 本项目 `ISlashCommand`），消除复制漂移。
+- **命令别名加前导斜杠**：WebCommands（`/clear` `/diff` `/permissions` `/恢复模型`）与 GuiCommands（`/hist` `/repro` `/connect`）的无斜杠别名补前导 `'/'`，对齐 CLI 约定——原裸别名与输入（以 `/` 开头）永不匹配，导致 Web `/clear` 等落为普通消息的回归。
+- **Web `/interrupt` `/stop` 恢复**：重构时移除的命令补回 ack（真实中断副作用仍在 WebChat 路由层）。
+- **Web 命令上下文 AsyncLocal 隔离**：`WebCommandContext.Agent/Slot` 由静态可变改 `AsyncLocal`，避免多浏览器并发 `/command` 串槽。
+- **Web 命令集静态缓存**：`WebCommands.All()` 由生成器改为一次性构建缓存，免除每 `/command` 请求重建实例。
+
 ## v0.96.67 (2026-09-07) — 多端斜杠命令收敛到单一 SlashCommandRegistry（GUI/Web/MAUI 补齐）
 
 此前斜杠命令四端分裂：CLI/TUI 走主工程 `SlashCommandRegistry`，MAUI 复用注册表+端命令覆盖，GUI 是空 stub+独立 switch(11条)，Web 是独立 switch(17条)——同一命令三处各写一份、语义不一（MAUI `/settings` 被桌面同名命令吞掉即由此来）。本轮收敛到「单一命令真源 + 端命令同名覆盖」，消除手写 switch 分叉、统一命名，并按端补齐命令。三端编译 0 错误，主工程自测 5076 通过。
