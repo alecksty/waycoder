@@ -49,7 +49,7 @@ public static class GuiCommands
         yield return new InfoCmd("/cd", "当前目录", _ => $"当前目录: {System.IO.Directory.GetCurrentDirectory()}");
         yield return new InfoCmd("/git", "Git 状态", _ => "GUI 下 Git 操作见 GitSync/顶部 Git 菜单");
         yield return new InfoCmd("/pr", "Pull Request", _ => "GUI 下 PR 请在 Git 仓库终端发起");
-        yield return new InfoCmd("/connection", "当前连接", _ => "连接/模型见顶栏 Provider；切换用 /model", "connect");
+        yield return new InfoCmd("/connection", "当前连接", _ => "连接/模型见顶栏 Provider；切换用 /model", "/connect");
         yield return new InfoCmd("/checkpoint", "检查点", _ => "检查点请用 Checkpoint 面板或 /timeline");
         yield return new InfoCmd("/checkpoints", "列出检查点", _ => "检查点列表见 /timeline");
         yield return new InfoCmd("/timeline", "时间线", _ => "时间线见顶部会话/检查点面板");
@@ -63,7 +63,7 @@ public static class GuiCommands
         yield return new InfoCmd("/resume", "恢复会话", _ => "用法: /session load <会话ID>");
         yield return new InfoCmd("/import", "导入模型/配置", _ => "导入用顶部菜单或 `--model import`");
         yield return new InfoCmd("/init", "初始化项目", _ => "项目初始化已生成 AGENTS.md/CLAUDE.md（/init claude）");
-        yield return new InfoCmd("/reproduce", "复现报告", _ => "复现报告见 /diag", "repro");
+        yield return new InfoCmd("/reproduce", "复现报告", _ => "复现报告见 /diag", "/repro");
         yield return new InfoCmd("/architect", "架构审查", _ => "架构审查在 /review 里（git diff 维度）");
         yield return new InfoCmd("/search", "搜索", _ => "GUI 搜索用顶部搜索框 / 编辑器（Ctrl+F）");
         yield return new InfoCmd("/lint", "静态检查", _ => "GUI 静态检查在编辑器诊断/Lint");
@@ -85,7 +85,7 @@ public static class GuiCommands
             var ss = SessionManager.ListSessions(20, 0, -1);
             return ss.Count == 0 ? "📂 没有已保存的会话"
                 : $"📂 **会话历史**（{ss.Count} 条）\n" + string.Join("\n", ss.Select(s => $"- `{s.Id}` · {s.Model}"));
-        }, "hist");
+        }, "/hist");
     }
 
     private abstract class GuiCmd : SlashCommand
