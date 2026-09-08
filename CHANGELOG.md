@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.96.69 (2026-09-08) — MAUI 移动端 code-review 修复（会话切换屏障 + 首跑模式 + 详情页健壮性）
+
+对移动端会话/抽屉/详情页做代码审查并修复 8 项确认问题。Android Debug 编译 0 错误。
+
+- **会话切换竞态屏障**（`ChatPage`）：新增 `_activeRound` 完成信号 + `AwaitActiveRoundEndAsync`——`NewSessionAsync`/`SwitchToSessionAsync` 先取消并**等旧轮 finally 彻底结束**（旧 `_currentSessionId` 下 FreezeSeg + 落盘、残余回调跑完）再清空/切 id，杜绝「长回答流式中切会话 → 旧轮残余写入新会话 / 源会话丢尾」
+- **首跑工作模式生效**（`AgentService.EnsureAgent`）：建 Agent 后应用全局 `WorkModeManager.CurrentMode`，不再默认 Build 吞掉用户预设的 计划/聊天 模式
+- **回调异常不外溢**（`AgentService`）：onToken/onTool/onToolOutput 在 `BeginInvokeOnMainThread` 内 try/catch 记日志，改道主线程后异常不再脱离 agent 控制流、在主线程未捕获崩溃
+- **桌面会话互读不串扰**（`MauiSessions.FromNodes`）：只取 user/assistant 正文，跳过 role=tool/system——桌面会话不再显示成假 AI 气泡，回写不破坏共享 schema
+- **OnAppearing 性能**：`Messages.Count>0` 提前返回移至 `Exists`（全目录扫描）之前，返回详情页不再整目录重解析
+- **富文本节流状态重置**：`FreezeSeg` 段切换时清 `_lastFormattedLen/_lastFormatRecompute`，短段不再继承长段节流（新段开头被压制不渲染）
+- **ToolCallsDetailPage 健壮性**：Detail 变更节流实时重绘（打开跟随流式输出）+ 全页 150k 字符渲染预算防多工具巨输出 ANR（按码点截断）；ToolCallsDetailPage/ReasoningDetailPage 等打开期间不再一次快照
+- **edge-pan 核对**：审查所称 26dp 边缘热区在当前代码已不存在（v0.96.65 移除），该 finding 不成立
+
 ## v0.96.68 (2026-09-07) — 多端命令统一代码审查修复（SlashMatcher 提炼 + 5 项）
 
 承接 v0.96.67 的多端命令统一，经 code review 校对并修复 5 项：命令别名约定、Web /interrupt、并发隔离、匹配逻辑去重、实例缓存。主工程自测 5076 通过，ci 门禁通过。
