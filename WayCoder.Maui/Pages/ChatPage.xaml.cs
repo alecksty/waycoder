@@ -223,14 +223,18 @@ public partial class ChatPage : ContentPage
         ChatScreen.OnAddMessage = (content, role, centered, indent) =>
             MainThread.BeginInvokeOnMainThread(() => AddMessage(new ChatMessage { Role = ChatRole.Tool, RawText = content }));
         ChatScreen.OnClearChat = () =>
-            MainThread.BeginInvokeOnMainThread(() =>
+            MainThread.BeginInvokeOnMainThread(async () =>
             {
+                // /clear = 彻底清空本会话：先停/等在跑轮（防其 finally 再写盘把旧内容复活），
+                // 再删盘上会话文件并清内存状态——否则重启/切回会从 .json 复活已清除对话（finding #3）
+                await AwaitActiveRoundEndAsync();
+                try { MauiSessions.Delete(_currentSessionId); } catch { }
                 Messages.Clear();
-                // /clear 同时重置会话状态：否则 _sessionRaw/_appAddCount 保留，下次保存会把已清空内容回写（finding #5）
                 _sessionRaw = null;
                 _appAddCount = 0;
                 _contextSeeded = false;
                 if (AgentService.CurrentAgent is { } ag) ag.Reset(); // 清空 LLM 上下文，防下条消息带旧会话历史
+                ScrollToEnd();
             });
         // ReviewCommand 等命令把审查 prompt 投递为普通消息 → 桥接发送（走排队）
         ChatScreen.OnEnqueueSubmission = text =>
@@ -264,7 +268,10 @@ public partial class ChatPage : ContentPage
         PermissionManager.PermissionPromptResolved -= OnPermissionResolved;
         ContextManager.CompressProgress -= OnCompressProgress;
         ContextManager.CompressFinished -= OnCompressFinished;
-        SaveCurrentSession(); // 退出时记住会话
+        // 运行中离页（导航去详情页等）不在此中途保存：流式段 RawText 尚未 FreezeSeg、且中途保存会
+        // 重置 _appAddCount 基线，导致轮末 finally 误走 SaveRaw(基线) 把完成的回复丢掉（finding #1）。
+        // 由轮末 finally 的 SaveCurrentSession 统一落盘。
+        if (!_agent.IsRunning) SaveCurrentSession();
     }
 
     /// <summary>保存当前会话（多会话：复用桌面 SessionManager 格式）。空会话不写盘。
@@ -984,14 +991,15 @@ public partial class ChatPage : ContentPage
         DrainSendQueue("❌ 已停止（不再执行）");
     }
 
-    /// <summary>丢弃发送队列并标记排队消息（停止/会话切换时调用）。防旧会话排队消息在切换后被取走执行并写入新会话。</summary>
-    private void DrainSendQueue(string marker)
+    /// <summary>丢弃发送队列并移除其排队占位气泡（停止/会话切换时调用）。防旧会话排队消息在切换后被
+    /// 取走执行并写入新会话，也防「User + ❌已停止」伪消息被持久化成真实用户轮、注入 LLM 上下文（finding #4）。</summary>
+    private void DrainSendQueue(string _)
     {
         while (_sendQueue.Count > 0)
         {
             var dropped = _sendQueue.Dequeue();
-            if (dropped.Msg != null && !string.IsNullOrEmpty(dropped.Msg.RawText))
-                dropped.Msg.RawText = dropped.Msg.RawText.Replace("⏳ 排队中…", marker);
+            if (dropped.Msg != null && Messages.Contains(dropped.Msg))
+                Messages.Remove(dropped.Msg);
         }
     }
 
@@ -1011,11 +1019,11 @@ public partial class ChatPage : ContentPage
         EnsureContextSeeded(); // 首条消息：把当前会话历史注入 Agent LLM 上下文（每组会话只种一次）
         var text = first;
         var userMsg = firstUserMsg;
-        var sessionAtStart = _currentSessionId; // 队列只属于发起时所在会话
         while (true)
         {
-            // 队列执行期间会话被切换（屏障已丢弃余队）→ 不再向新会话发送旧会话消息
-            if (_currentSessionId != sessionAtStart) break;
+            // 会话切换时队列已被 AwaitActiveRoundEndAsync → DrainSendQueue 清空，故不设会话守卫 break：
+            // 否则切换后旧轮 wind-down 期间新输入的排队消息会因无消费者永久卡「排队中…」（finding #2）。
+            // 旧轮取到的新入队消息自然在当前会话串行执行。
             if (userMsg == null)
             {
                 userMsg = new ChatMessage { Role = ChatRole.User, RawText = text };
