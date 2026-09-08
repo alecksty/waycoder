@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using System.ComponentModel;
 using WayCoder.Maui.Markup;
 using WayCoder.Maui.Models;
@@ -20,6 +21,8 @@ public partial class ToolCallsDetailPage : ContentPage
     private bool _pendingRerender;   // 节流：Detail 流式变更期间最多每 ~500ms 重绘一次
     private readonly object _lock = new();
     private bool _isDark;
+    private Color? _main;
+    private Color? _muted;
     private readonly List<ToolCardView> _cards = new(); // index 对齐 _msg.ToolCalls
 
     /// <summary>全页渲染总字符预算（按码点/rune 计，与 TruncateByRunes 单位一致，防多工具巨输出主线程 ANR）。</summary>
@@ -30,7 +33,8 @@ public partial class ToolCallsDetailPage : ContentPage
     {
         public required VerticalStackLayout Card;
         public Label? DetailLabel;
-        public int UsedBefore; // 此工具渲染前已占用的预算（rune）
+        public int RenderedRunes;    // 该工具当前实际渲染的 rune（计入共享总量，预算=总量-其它工具已渲染）
+        public string? LastRendered; // 上次渲染的（截断后）正文；文本未变则跳过重绘（finding #I）
     }
 
     private static int CountRunes(string s)
@@ -58,7 +62,8 @@ public partial class ToolCallsDetailPage : ContentPage
             return;
         }
         _msg = msg;
-        // 工具仍在流式输出时，Detail 变化 → 节流重绘（首次渲染同步快照；之后跟随到结束）
+        // 流式中工具仍可能追加：订阅集合变更，新工具加入 → 追加卡片 + 订阅（finding #F）
+        _msg.ToolCalls.CollectionChanged += OnToolCallsChanged;
         foreach (var tc in msg.ToolCalls)
             tc.PropertyChanged += OnToolDetailChanged;
         Build(msg);
@@ -68,9 +73,26 @@ public partial class ToolCallsDetailPage : ContentPage
     {
         base.OnDisappearing();
         if (_msg != null)
+        {
+            _msg.ToolCalls.CollectionChanged -= OnToolCallsChanged;
             foreach (var tc in _msg.ToolCalls)
                 tc.PropertyChanged -= OnToolDetailChanged;
+        }
         _msg = null;
+    }
+
+    /// <summary>工具组会话期间仍追加工具 → 追加卡片并订阅其 PropertyChanged（否则新工具永不渲染）。</summary>
+    private void OnToolCallsChanged(object? s, NotifyCollectionChangedEventArgs e)
+    {
+        if (_msg == null || e.Action != NotifyCollectionChangedAction.Add || e.NewItems == null) return;
+        foreach (ToolCallItem tc in e.NewItems)
+        {
+            tc.PropertyChanged += OnToolDetailChanged;
+            var index = _cards.Count; // BuildCard 已把视图加入 _cards（序号 i+1）
+            Body.Add(BuildCard(tc, index + 1));
+            var view = _cards[index];
+            RenderOrOmit(view, tc, DetailBudget - TotalRenderedExcept(index));
+        }
     }
 
     private void OnToolDetailChanged(object? sender, PropertyChangedEventArgs e)
@@ -96,73 +118,95 @@ public partial class ToolCallsDetailPage : ContentPage
         Body.Children.Clear();
         _cards.Clear();
         _isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
-        var main = _isDark ? (Color?)Application.Current?.Resources["MainTextDark"] : Application.Current?.Resources["MainTextLight"];
-        var muted = _isDark ? Application.Current?.Resources["MutedTextDark"] : Application.Current?.Resources["MutedTextLight"];
-        var primary = Application.Current?.Resources["Primary"];
+        _main = _isDark ? (Color?)Application.Current?.Resources["MainTextDark"] : (Color?)Application.Current?.Resources["MainTextLight"];
+        _muted = _isDark ? (Color?)Application.Current?.Resources["MutedTextDark"] : (Color?)Application.Current?.Resources["MutedTextLight"];
 
         int used = 0;
         for (int i = 0; i < msg.ToolCalls.Count; i++)
         {
             var tc = msg.ToolCalls[i];
-            var card = new VerticalStackLayout { Spacing = 4 };
-            int usedBefore = used; // 本工具渲染前预算占用，供流式增量更新按剩余额度截断
+            Body.Add(BuildCard(tc, i + 1)); // 每张卡自带尾部分隔线（后续追加时自动承接分隔）
+            var view = _cards[i];
+            RenderOrOmit(view, tc, DetailBudget - used);
+            used += view.RenderedRunes;
+        }
+    }
 
+    /// <summary>创建「序号 + 名称 + 摘要」卡（正文细节由 RenderOrOmit/UpdateTool 惰性渲染；自带宽高 1 的尾部分隔线）。</summary>
+    private VerticalStackLayout BuildCard(ToolCallItem tc, int number)
+    {
+        var card = new VerticalStackLayout { Spacing = 4 };
+        card.Children.Add(new Label
+        {
+            Text = $"{number}. 🔧 {tc.Name}",
+            FontSize = 15,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = _main as Color ?? Colors.DimGray,
+        });
+        if (!string.IsNullOrEmpty(tc.Summary))
+        {
             card.Children.Add(new Label
             {
-                Text = $"{(i + 1)}. 🔧 {tc.Name}",
-                FontSize = 15,
-                FontAttributes = FontAttributes.Bold,
-                TextColor = main as Color ?? Colors.DimGray,
+                Text = tc.Summary,
+                FontSize = 12,
+                LineBreakMode = LineBreakMode.WordWrap,
+                TextColor = _muted as Color ?? Colors.Gray,
             });
-
-            if (!string.IsNullOrEmpty(tc.Summary))
-            {
-                card.Children.Add(new Label
-                {
-                    Text = tc.Summary,
-                    FontSize = 12,
-                    LineBreakMode = LineBreakMode.WordWrap,
-                    TextColor = muted as Color ?? Colors.Gray,
-                });
-            }
-
-            Label? detailLabel = null;
-            if (!string.IsNullOrWhiteSpace(tc.Detail))
-            {
-                if (used >= DetailBudget)
-                {
-                    card.Children.Add(new Label { Text = "（输出过长，已省略详情）", FontSize = 11, TextColor = muted as Color ?? Colors.Gray });
-                }
-                else
-                {
-                    // 预算按码点/rune 计（与 TruncateByRunes 单位一致，防代理对字符下 UTF-16 length 发散冲过预算）
-                    string detail = tc.Detail;
-                    int detailRunes = CountRunes(detail);
-                    if (used + detailRunes > DetailBudget)
-                    {
-                        detail = WayCoder.ContextManager.TruncateByRunes(detail, DetailBudget - used);
-                        used = DetailBudget;
-                    }
-                    else
-                    {
-                        used += detailRunes;
-                    }
-                    detailLabel = new Label
-                    {
-                        FontSize = 12,
-                        LineHeight = 1.25,
-                        LineBreakMode = LineBreakMode.WordWrap,
-                    };
-                    detailLabel.FormattedText = ToolOutputFormatter.Render(detail, tc.FilePath, _isDark);
-                    card.Children.Add(detailLabel);
-                }
-            }
-
-            Body.Add(card);
-            _cards.Add(new ToolCardView { Card = card, DetailLabel = detailLabel, UsedBefore = usedBefore });
-            if (i < msg.ToolCalls.Count - 1)
-                Body.Add(new BoxView { HeightRequest = 1, Color = Colors.LightGray, Opacity = 0.4 });
         }
+        card.Children.Add(new BoxView { HeightRequest = 1, Color = Colors.LightGray, Opacity = 0.4 }); // 尾部分隔线
+        _cards.Add(new ToolCardView { Card = card }); // 占位（DetailLabel/RenderedRunes 稍后填充），与 _msg.ToolCalls 对齐
+        return card;
+    }
+
+    /// <summary>在共享预算内渲染/省略某工具的正文（补齐空/超预算卡的具体内容）。</summary>
+    private void RenderOrOmit(ToolCardView view, ToolCallItem tc, int allowance)
+    {
+        if (string.IsNullOrWhiteSpace(tc.Detail)) return; // 无正文：等流式填充（UpdateTool 懒建）
+        if (allowance <= 0)
+        {
+            // 预算已耗尽：显示「已省略」占位（此前为空卡则补上，finding #G）
+            if (view.DetailLabel == null)
+            {
+                var lbl = new Label { Text = "（输出过长，已省略详情）", FontSize = 11, TextColor = _muted as Color ?? Colors.Gray };
+                view.Card.Children.Insert(view.Card.Children.Count - 1, lbl); // 插到尾部分隔线之前
+                view.DetailLabel = lbl;
+                view.LastRendered = null;
+            }
+            return;
+        }
+        string detail = tc.Detail;
+        if (CountRunes(detail) > allowance)
+            detail = WayCoder.ContextManager.TruncateByRunes(detail, allowance);
+        RenderDetail(view, tc, detail);
+    }
+
+    /// <summary>把（截断后的）正文渲染到工具卡正文标签；文本未变则跳过，避免每 500ms 重渲染同串（finding #I）。</summary>
+    private void RenderDetail(ToolCardView view, ToolCallItem tc, string detail)
+    {
+        if (view.LastRendered == detail) return; // 流式只追加，截断前缀稳定 → 跳过重渲染
+        if (view.DetailLabel == null)
+        {
+            var lbl = new Label
+            {
+                FontSize = 12,
+                LineHeight = 1.25,
+                LineBreakMode = LineBreakMode.WordWrap,
+            };
+            view.Card.Children.Insert(view.Card.Children.Count - 1, lbl); // 插到尾部分隔线之前
+            view.DetailLabel = lbl;
+        }
+        view.DetailLabel.FormattedText = ToolOutputFormatter.Render(detail, tc.FilePath, _isDark);
+        view.RenderedRunes = CountRunes(detail);
+        view.LastRendered = detail;
+    }
+
+    /// <summary>除某工具外，其余工具当前已实际渲染的 rune 总量（共享预算口径，保证总量不超 DetailBudget）。</summary>
+    private int TotalRenderedExcept(int index)
+    {
+        int total = 0;
+        for (int j = 0; j < _cards.Count; j++)
+            if (j != index) total += _cards[j].RenderedRunes;
+        return total;
     }
 
     /// <summary>增量重绘指定工具：流式 Detail 变更只重建该工具，不整页重载——避免主线程反复大构建 ANR（code-review finding #5）。</summary>
@@ -173,25 +217,7 @@ public partial class ToolCallsDetailPage : ContentPage
         var view = _cards[index];
         if (string.IsNullOrWhiteSpace(tc.Detail)) return; // 无正文不动
 
-        int remaining = DetailBudget - view.UsedBefore;
-        if (remaining <= 0) return; // 预算已耗尽，保持「已省略」
-
-        string detail = tc.Detail;
-        if (CountRunes(detail) > remaining)
-            detail = WayCoder.ContextManager.TruncateByRunes(detail, remaining);
-
-        // 懒建正文标签：工具初始空正文，流式填充到非空才首次加标签
-        if (view.DetailLabel == null)
-        {
-            var label = new Label
-            {
-                FontSize = 12,
-                LineHeight = 1.25,
-                LineBreakMode = LineBreakMode.WordWrap,
-            };
-            view.Card.Children.Add(label);
-            view.DetailLabel = label;
-        }
-        view.DetailLabel.FormattedText = ToolOutputFormatter.Render(detail, tc.FilePath, _isDark);
+        // 共享预算：其它工具已渲染的总 rune（随各自增长动态收缩本工具的允许额，总量保持 ≤ DetailBudget）
+        RenderOrOmit(view, tc, DetailBudget - TotalRenderedExcept(index));
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using Microsoft.Maui.Controls;
 
@@ -102,8 +103,9 @@ public sealed class ChatMessage : INotifyPropertyChanged
         set { _thinkingSeconds = value; OnChanged(nameof(ThinkingSeconds)); }
     }
 
-    /// <summary>工具调用组内容（仅 Tool 角色有；非空 = 组样式「工具调用:N 次」）。</summary>
-    public List<ToolCallItem> ToolCalls { get; } = new();
+    /// <summary>工具调用组内容（仅 Tool 角色有；非空 = 组样式「工具调用:N 次」）。
+    /// ObservableCollection：详情页在流式中仍追加工具时订阅 CollectionChanged 增量渲染（finding #F）。</summary>
+    public ObservableCollection<ToolCallItem> ToolCalls { get; } = new();
 
     /// <summary>本组已调用工具数（模板组标题 N 用；Add 后由 code 刷新 RawText 组标题）。</summary>
     public int ToolCount => ToolCalls.Count;

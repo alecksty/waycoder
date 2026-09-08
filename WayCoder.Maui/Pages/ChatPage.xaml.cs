@@ -49,8 +49,9 @@ public partial class ChatPage : ContentPage
     /// 未从盘载入（新建）的会话为 null。</summary>
     private List<JNode>? _sessionRaw;
 
-    /// <summary>载入会话时加入 UI 的消息数（后续新增消息自此索引追加，回写合并用）。</summary>
-    private int _loadedDisplayCount;
+    /// <summary>会话载入后经 UI 新增的消息数（非载入 AddMessage 递增；载入后归零）。
+    /// 独立于条数裁剪（PruneMessages 从队列头 RemoveAt(0)），保证回写合并总能定位载入后新增的尾部消息。</summary>
+    private int _appAddCount;
 
     /// <summary>当前会话的 LLM 上下文是否已注入 Agent（每会话首条消息只种一次，防旧会话历史污染新会话）。</summary>
     private bool _contextSeeded;
@@ -94,6 +95,7 @@ public partial class ChatPage : ContentPage
     private void AddMessage(ChatMessage m)
     {
         Messages.Add(m);
+        _appAddCount++; // 载入消息在 load 循环后已归零；此后每次新增算一条会话内容（含工具/思考占位，回写时仅取 user/assistant）
         PruneMessages();
     }
 
@@ -268,11 +270,13 @@ public partial class ChatPage : ContentPage
             MauiSessions.Save(Messages, model, _currentSessionId);
             return;
         }
-        // 有盘载入原始节点：以它为基底，仅追加本会话新增消息（跳过载入的那批展示消息，防重复）
-        if (Messages.Count > _loadedDisplayCount)
+        // 有盘载入原始节点：以它为基底，仅追加载入后新增的尾部消息。用 _appAddCount 而非条数边界——
+        // PruneMessages 从队首 RemoveAt(0) 会使条数边界失效（导致新消息被丢），而新加消息永远在队尾，
+        // TakeLast(_appAddCount) 对裁剪稳健（code-review finding #A）。
+        if (_appAddCount > 0)
         {
             var merged = new List<JNode>(_sessionRaw);
-            foreach (var m in Messages.Skip(_loadedDisplayCount))
+            foreach (var m in Messages.TakeLast(Math.Min(_appAddCount, Messages.Count)))
             {
                 var node = MauiSessions.ToNode(m);
                 if (node != null) merged.Add(node);
@@ -308,7 +312,6 @@ public partial class ChatPage : ContentPage
             if (loaded == null) return; // 空会话/首次：停留空对话
 
             _sessionRaw = new List<JNode>(loaded.Value.Messages); // 记录原始节点，回写合并保留 tool/system
-            var before = Messages.Count;
             foreach (var m in MauiSessions.FromNodes(loaded.Value.Messages))
             {
                 m.IsDark = isDark;
@@ -316,7 +319,7 @@ public partial class ChatPage : ContentPage
                     m.Formatted = MarkupToFormattedString.Convert(m.RawText, isDark);
                 AddMessage(m);
             }
-            _loadedDisplayCount = Messages.Count - before;
+            _appAddCount = 0; // 载入消息不计入「新增」，回写以 _sessionRaw 为基底
             _contextSeeded = false; // 首条消息按本会话历史种入 Agent 上下文
             ScrollToEnd();
         }
@@ -831,7 +834,7 @@ public partial class ChatPage : ContentPage
         SaveCurrentSession(); // 兜底：非运行轮当前内容也存档
         Messages.Clear();
         _sessionRaw = null;      // 新会话：无盘载入原始节点
-        _loadedDisplayCount = 0;
+        _appAddCount = 0;
         _contextSeeded = false;  // 下条消息按新会话（空上下文）重新种入 Agent
         _currentSessionId = MauiSessions.NewId();
         MauiSessions.SetCurrentSessionId(_currentSessionId);
@@ -854,7 +857,6 @@ public partial class ChatPage : ContentPage
         MauiSessions.SetCurrentSessionId(sessionId);
         var loaded = MauiSessions.Load(sessionId);
         _sessionRaw = loaded != null ? new List<JNode>(loaded.Value.Messages) : null; // 记录原始节点，回写合并保留 tool/system
-        var before = Messages.Count;
         if (loaded != null)
         {
             var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
@@ -866,7 +868,7 @@ public partial class ChatPage : ContentPage
                 AddMessage(m);
             }
         }
-        _loadedDisplayCount = Messages.Count - before;
+        _appAddCount = 0;
         _contextSeeded = false; // 下条消息按本会话历史重新种入 Agent 上下文（隔离旧会话，finding #2）
         ScrollToEnd();
         RefreshModelBar();
@@ -1072,6 +1074,7 @@ public partial class ChatPage : ContentPage
         _cts = new CancellationTokenSource();
         var round = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         _activeRound = round;
+        var roundSessionId = _currentSessionId; // 记录发起轮次的会话：超时后旧轮在切换后才跑 → 只冻结自身，不污染新会话
         AgentService.SetActiveCts(_cts); // 注册给 App 生命周期：切后台（来电/Home/锁屏）时取消在途请求
         SendBtn.Text = "■"; // 忙时按钮 = 停止
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -1194,31 +1197,37 @@ public partial class ChatPage : ContentPage
         }
         finally
         {
+            // 超时放弃切换后，旧轮 continue 可能在新建会话后跑：此时只冻结自身已生成片段，
+            // 不再写新会话（SaveCurrentSession/摘要/清 CTS/清状态），否则污染新会话，还清掉新轮的取消令牌。
+            bool moved = _currentSessionId != roundSessionId; // 僵尸轮（切换已越过本轮）→ 不碰新会话
             FreezeSeg();  // 收尾：冻结未被打断的最后正文段（取消时保留已生成片段）
             FinishThink(); // 收尾：思考未闭合（取消/异常）也冻结成「已思考 N 秒」泡泡
-            SendBtn.Text = "↑"; // 空闲恢复 = 发送
-            AgentService.SetActiveCts(null);
-            _cts = null;
-            _uiState = cancelled ? AgentStatus.Idle : AgentStatus.Complete; // 任务完成瞬态（取消/异常直接回空闲）
-            if (!cancelled) _completeAt = DateTime.UtcNow;
-            RefreshStatusBar();
-            SaveCurrentSession(); // 每轮结束落盘，退出/重启可恢复
-
-            // 任务完成摘要：用时 / prompt+completion token / 费用（用户主动停止或无消耗则跳过）
-            if (!cancelled)
+            if (!moved)
             {
-                sw.Stop();
-                var llm = AgentService.CurrentAgent?.LlmClient;
-                var used = (llm?.TaskPromptTokens ?? 0) + (llm?.TaskCompletionTokens ?? 0);
-                if (llm != null && used > 0)
-                {
-                    var cost = llm.TaskCost;
-                    var summary = $"⏱ {sw.Elapsed.TotalSeconds:F1}s · 🪙 {llm.TaskPromptTokens:N0} prompt + {llm.TaskCompletionTokens:N0} completion · 💰 ${cost?.ToString("F4") ?? "-"}";
-                    AddMessage(new ChatMessage { Role = ChatRole.Tool, RawText = summary });
-                }
-            }
+                SendBtn.Text = "↑"; // 空闲恢复 = 发送
+                AgentService.SetActiveCts(null);
+                _cts = null;
+                _uiState = cancelled ? AgentStatus.Idle : AgentStatus.Complete; // 任务完成瞬态（取消/异常直接回空闲）
+                if (!cancelled) _completeAt = DateTime.UtcNow;
+                RefreshStatusBar();
+                SaveCurrentSession(); // 每轮结束落盘，退出/重启可恢复
 
-            ScrollToEnd();
+                // 任务完成摘要：用时 / prompt+completion token / 费用（用户主动停止或无消耗则跳过）
+                if (!cancelled)
+                {
+                    sw.Stop();
+                    var llm = AgentService.CurrentAgent?.LlmClient;
+                    var used = (llm?.TaskPromptTokens ?? 0) + (llm?.TaskCompletionTokens ?? 0);
+                    if (llm != null && used > 0)
+                    {
+                        var cost = llm.TaskCost;
+                        var summary = $"⏱ {sw.Elapsed.TotalSeconds:F1}s · 🪙 {llm.TaskPromptTokens:N0} prompt + {llm.TaskCompletionTokens:N0} completion · 💰 ${cost?.ToString("F4") ?? "-"}";
+                        AddMessage(new ChatMessage { Role = ChatRole.Tool, RawText = summary });
+                    }
+                }
+
+                ScrollToEnd();
+            }
             round.TrySetResult(true); // 通知会话切换/新建：本轮已彻底结束（旧 id 下已保存）
             if (ReferenceEquals(_activeRound, round)) _activeRound = null; // 防超时放弃后旧轮误清已接替的新轮
         }
