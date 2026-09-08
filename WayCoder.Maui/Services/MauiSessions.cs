@@ -33,7 +33,11 @@ public static class MauiSessions
         return list;
     }
 
-    /// <summary>会话 JNode → UI 消息（RawText；富文本由调用方惰性重建）。</summary>
+    /// <summary>
+    /// 会话 JNode → UI 消息（RawText；富文本由调用方惰性重建）。
+    /// 只取 user/assistant 正文；桌面会话（"桌面可互读"）里的 role=tool/system 节点一律跳过——
+    /// 否则 tool 结果/system prompt 会被强转成假 AI 气泡，且回写时以 assistant 破坏共享 schema。
+    /// </summary>
     public static List<ChatMessage> FromNodes(IEnumerable<JNode> nodes)
     {
         var result = new List<ChatMessage>();
@@ -42,6 +46,7 @@ public static class MauiSessions
             var role = n["role"]?.AsString() ?? "";
             var content = n["content"]?.AsString();
             if (content == null) continue;
+            if (role is not ("user" or "assistant")) continue; // tool/system 等非正文不渲染
             result.Add(new ChatMessage
             {
                 Role = role == "user" ? ChatRole.User : ChatRole.Assistant,

@@ -59,6 +59,10 @@ public sealed class AgentService
                 AgentId = "maui-slot-0",
             };
 
+            // 首跑应用全局工作模式（右侧栏/命令页切换后持久化到 MauiModeStore）：否则 Agent 默认 Build，
+            // 首条消息会忽略用户预设的 计划/聊天 模式（code-review finding：EnsureAgent 后顶栏翻回"建造"）。
+            _agent.WorkMode = WorkModeManager.CurrentMode;
+
             // 运行时注入全局上下文：斜杠命令层（/model /mode /compact /config 等）经 ProgramContext 拿 Agent/LLM/Config。
             ProgramContext.Agent = _agent;
             ProgramContext.LLM = llm;
@@ -142,11 +146,13 @@ public sealed class AgentService
             // token 估算/SHA256 等同步工作全落在主线程，长任务会卡死 UI：顶部转轮（DispatcherTimer
             // 驱动）停转、「思考中/使用工具」界面短暂冻结。回调已用 BeginInvokeOnMainThread 泵回 UI，
             // 故放后台后 token/工具更新仍安全回主线程渲染；网络/工具也在后台线程（Android 无主线程网络限制的额外保险）。
+            // 注意：回调改道主线程后其异常脱离 agent.ChatAsync 控制流 → 在 dispatcher 内 try/catch 记录，
+            // 否则会在 Android looper 上未捕获崩溃（code-review finding）。
             return await Task.Run(() => agent.ChatAsync(
                 userInput,
-                token => MainThread.BeginInvokeOnMainThread(() => onToken(token)),
-                (name, summary) => MainThread.BeginInvokeOnMainThread(() => onTool(name, summary)),
-                output => MainThread.BeginInvokeOnMainThread(() => onToolOutput(output)),
+                token => MainThread.BeginInvokeOnMainThread(() => { try { onToken(token); } catch (Exception ex) { ErrorLog.Error("Chat", "token 回调", ex); } }),
+                (name, summary) => MainThread.BeginInvokeOnMainThread(() => { try { onTool(name, summary); } catch (Exception ex) { ErrorLog.Error("Chat", "tool 回调", ex); } }),
+                output => MainThread.BeginInvokeOnMainThread(() => { try { onToolOutput(output); } catch (Exception ex) { ErrorLog.Error("Chat", "tool 输出回调", ex); } }),
                 ct));
         }
         finally

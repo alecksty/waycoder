@@ -39,6 +39,11 @@ public partial class ChatPage : ContentPage
     private readonly ChatScreen _screen = new();
     private CancellationTokenSource? _cts;
 
+    /// <summary>当前一轮对话的完成信号（RunOneMessageAsync finally 置完成）。
+    /// 会话切换/新建须等旧轮彻底结束（其 finally 已在旧 _currentSessionId 下完成落盘、
+    /// 残余回调已执行完）再清空/切 id，否则旧轮残余会写入新会话（见 code-review finding）。</summary>
+    private TaskCompletionSource<bool>? _activeRound;
+
     /// <summary>
     /// 跨页会话切换桥（独立页 B 方案）：SessionHistoryPage 点选/新建时设置，
     /// 本页 OnAppearing 消费后执行切换（SwitchToSessionAsync），随后置 null。
@@ -256,6 +261,8 @@ public partial class ChatPage : ContentPage
         {
             var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
 
+            if (Messages.Count > 0) return; // 已在内存（恢复/切回）——提前于 Exists 全目录扫描返回
+
             // 首次：无记录的会话 → 迁移旧单会话，或新建一个
             _currentSessionId = MauiSessions.CurrentSessionId();
             if (string.IsNullOrEmpty(_currentSessionId) || !MauiSessions.Exists(_currentSessionId))
@@ -265,7 +272,6 @@ public partial class ChatPage : ContentPage
                 MauiSessions.SetCurrentSessionId(_currentSessionId);
             }
 
-            if (Messages.Count > 0) return; // 已在内存（恢复/切回）
             var loaded = MauiSessions.Load(_currentSessionId);
             if (loaded == null) return; // 空会话/首次：停留空对话
 
@@ -782,10 +788,11 @@ public partial class ChatPage : ContentPage
             NewSession();
     }
 
-    /// <summary>新建会话：先保存当前，再开空会话（新 id），刷新左抽屉列表。</summary>
-    internal void NewSession()
+    /// <summary>新建会话：先停/等在途轮结束（其 finally 已在旧 id 落盘），再开空会话（新 id），刷新左抽屉列表。</summary>
+    internal async Task NewSessionAsync()
     {
-        SaveCurrentSession();
+        await AwaitActiveRoundEndAsync();
+        SaveCurrentSession(); // 兜底：非运行轮当前内容也存档
         Messages.Clear();
         _currentSessionId = MauiSessions.NewId();
         MauiSessions.SetCurrentSessionId(_currentSessionId);
@@ -793,11 +800,14 @@ public partial class ChatPage : ContentPage
         RefreshSessionList();
     }
 
-    /// <summary>切换会话：保存当前 → 载入目标 → 更新当前 id（左抽屉点击）。正在跑先停。</summary>
+    /// <summary>新建会话（同步入口，历史遗留；推荐 <see cref="NewSessionAsync"/>）。</summary>
+    internal void NewSession() => _ = NewSessionAsync();
+
+    /// <summary>切换会话：等在途轮彻底结束（finally 已在旧 id 落盘）→ 保存 → 载入目标 → 更新当前 id。</summary>
     internal async Task SwitchToSessionAsync(string sessionId)
     {
         if (sessionId == _currentSessionId) return;
-        if (_agent.IsRunning) StopCurrent();
+        await AwaitActiveRoundEndAsync(); // 等旧轮 finally 完成（旧 _currentSessionId 下 FreezeSeg+Save 已跑）
         SaveCurrentSession();
         Messages.Clear();
         _currentSessionId = sessionId;
@@ -982,6 +992,10 @@ public partial class ChatPage : ContentPage
 
         void FreezeSeg()
         {
+            // 段切换先重置富文本节流：短段不继承上个长段的 _lastFormattedLen（否则字符门禁失效，
+            // 新段开头 ~120ms 的 token 被压制不渲染——code-review finding）
+            _lastFormattedLen = 0;
+            _lastFormatRecompute = DateTime.MinValue;
             if (seg == null) return;
             seg.IsStreaming = false;
             var raw = segSb?.ToString() ?? "";
@@ -992,6 +1006,7 @@ public partial class ChatPage : ContentPage
         }
 
         _cts = new CancellationTokenSource();
+        _activeRound = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         AgentService.SetActiveCts(_cts); // 注册给 App 生命周期：切后台（来电/Home/锁屏）时取消在途请求
         SendBtn.Text = "■"; // 忙时按钮 = 停止
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -1139,7 +1154,19 @@ public partial class ChatPage : ContentPage
             }
 
             ScrollToEnd();
+            _activeRound?.TrySetResult(true); // 通知会话切换/新建：本轮已彻底结束（旧 id 下已保存）
+            _activeRound = null;
         }
+    }
+
+    /// <summary>等待在途一轮彻底结束（供会话切换/新建屏障）：取消后等 finally 完成——其已在旧
+    /// _currentSessionId 下 FreezeSeg + SaveCurrentSession 落盘、残余回调已跑完，随后才能安全切 id。</summary>
+    private async Task AwaitActiveRoundEndAsync()
+    {
+        if (!_agent.IsRunning) return;
+        try { _cts?.Cancel(); } catch { }
+        var done = _activeRound;
+        if (done != null) await done.Task; // finally 置完成（主线程 continuation，UI 不阻塞）
     }
 
     /// <summary>智能滚动：仅在列表接近底部时才跟随到底，用户上翻历史时不打断浏览。</summary>
