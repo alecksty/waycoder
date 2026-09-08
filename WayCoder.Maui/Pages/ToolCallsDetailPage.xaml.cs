@@ -2,6 +2,7 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using WayCoder.Maui.Markup;
 using WayCoder.Maui.Models;
+using WayCoder.Maui.Services;
 
 namespace WayCoder.Maui.Pages;
 
@@ -126,9 +127,9 @@ public partial class ToolCallsDetailPage : ContentPage
     {
         Body.Children.Clear();
         _cards.Clear();
-        _isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
-        _main = _isDark ? (Color?)Application.Current?.Resources["MainTextDark"] : (Color?)Application.Current?.Resources["MainTextLight"];
-        _muted = _isDark ? (Color?)Application.Current?.Resources["MutedTextDark"] : (Color?)Application.Current?.Resources["MutedTextLight"];
+        _isDark = MauiUi.IsDark;
+        _main = MauiUi.ResOrNull(_isDark ? "MainTextDark" : "MainTextLight");
+        _muted = MauiUi.ResOrNull(_isDark ? "MutedTextDark" : "MutedTextLight");
 
         for (int i = 0; i < msg.ToolCalls.Count; i++)
         {

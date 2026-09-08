@@ -54,9 +54,8 @@ public sealed class SessionHistoryPage : ContentPage
         Grid.SetRow(scroll, 1);
     }
 
-    private static bool isDark => Application.Current?.RequestedTheme == AppTheme.Dark;
-    private static Color Res(string key)
-        => Application.Current?.Resources.TryGetValue(key, out var v) == true ? (v as Color) ?? Colors.DimGray : Colors.DimGray;
+    private static bool isDark => MauiUi.IsDark;
+    private static Color Res(string key) => MauiUi.Res(key);
 
     protected override void OnAppearing()
     {
