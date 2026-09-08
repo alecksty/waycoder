@@ -53,6 +53,10 @@ public partial class ToolCallsDetailPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        // 重入清理：上一次进入若已订阅/残留 Body，先解除并清空（否则空分支会叠加占位、订阅泄漏，finding #3）
+        if (_msg != null) Unsubscribe(_msg);
+        _cards.Clear();
+        Body.Children.Clear();
         var msg = Target;
         Target = null; // 一次性消费，防返回后再进残留旧内容
         if (msg == null || msg.ToolCalls.Count == 0)
@@ -72,13 +76,16 @@ public partial class ToolCallsDetailPage : ContentPage
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
-        if (_msg != null)
-        {
-            _msg.ToolCalls.CollectionChanged -= OnToolCallsChanged;
-            foreach (var tc in _msg.ToolCalls)
-                tc.PropertyChanged -= OnToolDetailChanged;
-        }
+        if (_msg != null) Unsubscribe(_msg);
         _msg = null;
+    }
+
+    /// <summary>解除某编辑器消息的集合/属性订阅（OnAppearing 重入与 OnDisappearing 共用，防订阅泄漏）。</summary>
+    private void Unsubscribe(ChatMessage m)
+    {
+        m.ToolCalls.CollectionChanged -= OnToolCallsChanged;
+        foreach (var tc in m.ToolCalls)
+            tc.PropertyChanged -= OnToolDetailChanged;
     }
 
     /// <summary>工具组会话期间仍追加工具 → 追加卡片并订阅其 PropertyChanged（否则新工具永不渲染）。</summary>
@@ -106,9 +113,11 @@ public partial class ToolCallsDetailPage : ContentPage
         Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(500), () =>
         {
             lock (_lock) _pendingRerender = false;
-            if (_msg == null || sender is not ToolCallItem tc) return;
-            var idx = _msg.ToolCalls.IndexOf(tc);
-            if (idx >= 0) UpdateTool(idx); // 只重绘该工具，不整页重载（防主线程反复大构建 ANR）
+            if (_msg == null) return;
+            // 窗口内可能多个工具 Detail 变更合一：全量 reconcile（未变的经 LastRendered 跳过，只重绘有变化的）。
+            // 只重绘首个工具会丢并发窗口里的其它工具（finding #4）。
+            int n = Math.Min(_cards.Count, _msg.ToolCalls.Count);
+            for (int i = 0; i < n; i++) UpdateTool(i);
         });
     }
 

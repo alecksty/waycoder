@@ -223,7 +223,15 @@ public partial class ChatPage : ContentPage
         ChatScreen.OnAddMessage = (content, role, centered, indent) =>
             MainThread.BeginInvokeOnMainThread(() => AddMessage(new ChatMessage { Role = ChatRole.Tool, RawText = content }));
         ChatScreen.OnClearChat = () =>
-            MainThread.BeginInvokeOnMainThread(Messages.Clear);
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                Messages.Clear();
+                // /clear 同时重置会话状态：否则 _sessionRaw/_appAddCount 保留，下次保存会把已清空内容回写（finding #5）
+                _sessionRaw = null;
+                _appAddCount = 0;
+                _contextSeeded = false;
+                if (AgentService.CurrentAgent is { } ag) ag.Reset(); // 清空 LLM 上下文，防下条消息带旧会话历史
+            });
         // ReviewCommand 等命令把审查 prompt 投递为普通消息 → 桥接发送（走排队）
         ChatScreen.OnEnqueueSubmission = text =>
             MainThread.BeginInvokeOnMainThread(async () =>
@@ -282,6 +290,10 @@ public partial class ChatPage : ContentPage
                 if (node != null) merged.Add(node);
             }
             MauiSessions.SaveRaw(merged, model, _currentSessionId);
+            // 以合并结果为新的基线（累计态）：本轮新增的（连同仍留在基线下游的真实历史）并入基线，
+            // 下次保存就不会丢——即使 PruneMessages 之后把本轮早先消息从显示头裁掉（findings #6）。
+            _sessionRaw = merged;
+            _appAddCount = 0;
         }
         else
         {
@@ -1075,6 +1087,9 @@ public partial class ChatPage : ContentPage
         var round = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         _activeRound = round;
         var roundSessionId = _currentSessionId; // 记录发起轮次的会话：超时后旧轮在切换后才跑 → 只冻结自身，不污染新会话
+        // 僵尸轮判定：会话已切换（切到别处），或本轮的 _activeRound 已被新轮接替 → 流式回调与收尾清理都应放弃。
+        // 仅用 session-id 不够：切走再切回同一会话开新轮时 session-id 未变但 _activeRound 已是新轮（finding #2）。
+        bool StaleRound() => _currentSessionId != roundSessionId || !ReferenceEquals(_activeRound, round);
         AgentService.SetActiveCts(_cts); // 注册给 App 生命周期：切后台（来电/Home/锁屏）时取消在途请求
         SendBtn.Text = "■"; // 忙时按钮 = 停止
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -1085,6 +1100,7 @@ public partial class ChatPage : ContentPage
             await _agent.ChatAsync(text,
                 token =>
                 {
+                    if (StaleRound()) return; // 僵尸轮：丢弃旧会话流式 token，防写入新会话（finding #1）
                     // 过滤上下文压缩进度文本（🔄 [x/3]...）：压缩是背景状态，
                     // 进度已由 CompressProgress 事件进状态栏，这里不进入聊天内容
                     if (token.StartsWith("🔄 [", StringComparison.Ordinal))
@@ -1147,6 +1163,7 @@ public partial class ChatPage : ContentPage
                 },
                 (name, summary) =>
                 {
+                    if (StaleRound()) return; // 僵尸轮：丢弃旧会话工具事件，防写入新会话（finding #1）
                     // 按工具名分派：ask_user_question=等待用户回复、agent=等待子代理、其余=使用工具中
                     _uiState = name switch
                     {
@@ -1177,6 +1194,7 @@ public partial class ChatPage : ContentPage
                 },
                 output =>
                 {
+                    if (StaleRound()) return; // 僵尸轮：丢弃旧会话工具输出，防写入新会话（finding #1）
                     if (_toolGroup == null || _toolGroup.ToolCalls.Count == 0) return;
                     // 工具输出防无限增长：超上限停止追加并加标记（对齐 Global.MaxSingleMessageChars）。
                     var last = _toolGroup.ToolCalls[^1];
@@ -1199,10 +1217,9 @@ public partial class ChatPage : ContentPage
         {
             // 超时放弃切换后，旧轮 continue 可能在新建会话后跑：此时只冻结自身已生成片段，
             // 不再写新会话（SaveCurrentSession/摘要/清 CTS/清状态），否则污染新会话，还清掉新轮的取消令牌。
-            bool moved = _currentSessionId != roundSessionId; // 僵尸轮（切换已越过本轮）→ 不碰新会话
             FreezeSeg();  // 收尾：冻结未被打断的最后正文段（取消时保留已生成片段）
             FinishThink(); // 收尾：思考未闭合（取消/异常）也冻结成「已思考 N 秒」泡泡
-            if (!moved)
+            if (!StaleRound()) // 僵尸轮：不写新会话、不写摘要、不清新轮 CTS（finding #B/#C/#2）
             {
                 SendBtn.Text = "↑"; // 空闲恢复 = 发送
                 AgentService.SetActiveCts(null);
