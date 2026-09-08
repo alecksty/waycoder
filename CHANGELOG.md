@@ -1,5 +1,15 @@
 # 更新日志
 
+## v0.96.71 (2026-09-08) — MAUI 移动端 code-review 二轮 5 项修复（会话持久化/队列/详情页预算）
+
+承接 v0.96.70 增量会话保存模型（`_sessionRaw`/`_appAddCount`）的 code-review 复核，修复 5 项会话持久化与队列问题。Android Debug 编译 0 错误。
+
+- **流式中离页丢回复（回归）**：`ChatPage.OnDisappearing` 仅在非运行（`!_agent.IsRunning`）时保存——运行中离页由轮末 finally 统一落盘，避免中途保存重置 `_appAddCount` 基线后 finally 误走 `SaveRaw`(基线) 把已冻结的回复丢掉
+- **切换后队列无消费者卡死**：移除 `ProcessQueueAsync` 会话守卫 break（切换路径已 `DrainSendQueue` 清队），旧轮 wind-down 期间新输入的排队消息不再永久卡「排队中…」（发送键还显示 ↑ 无法停止）
+- **`/clear` 复活**：`OnClearChat` 先 `AwaitActiveRoundEndAsync`（防在跑轮 finally 再写盘）再 `MauiSessions.Delete` 盘上文件 + 清内存状态；空消息下重启不再从 `.json` 复活已清除会话
+- **被丢弃排队消息以假 user 轮入库**：`DrainSendQueue` 改为从 `Messages` 直接移除排队占位气泡（而非只改文本留 `Role=User`），不再持久化「❌已停止」伪消息、不再注入 LLM context
+- **详情页渲染预算头偏**：`ToolCallsDetailPage` 150k 预算由先到先得改为**按工具均分**（`ShareFor(count)`），流式 `UpdateTool` 与 `Build` 都按各自配额截断，后序/最终工具不再被前面大输出饿成「已省略」
+
 ## v0.96.70 (2026-09-08) — MAUI 移动端 code-review 复核三连修（会话切换/详情页健壮性）
 
 承接 v0.96.69 的会话切换/详情页改动，经三轮 code review 复核修复发现问题项：重点是「僵尸轮只挡 finally 没挡流式回调」这一根因，以及会话切换/保存的数据正确性。Android Debug 编译 0 错误。

@@ -130,16 +130,18 @@ public partial class ToolCallsDetailPage : ContentPage
         _main = _isDark ? (Color?)Application.Current?.Resources["MainTextDark"] : (Color?)Application.Current?.Resources["MainTextLight"];
         _muted = _isDark ? (Color?)Application.Current?.Resources["MutedTextDark"] : (Color?)Application.Current?.Resources["MutedTextLight"];
 
-        int used = 0;
         for (int i = 0; i < msg.ToolCalls.Count; i++)
         {
             var tc = msg.ToolCalls[i];
             Body.Add(BuildCard(tc, i + 1)); // 每张卡自带尾部分隔线（后续追加时自动承接分隔）
             var view = _cards[i];
-            RenderOrOmit(view, tc, DetailBudget - used);
-            used += view.RenderedRunes;
+            // 预算按工具均分（非先到先得）：后序/最终工具不再因前面大输出被饿成「已省略」（finding #5）
+            RenderOrOmit(view, tc, ShareFor(msg.ToolCalls.Count));
         }
     }
+
+    /// <summary>每工具渲染配额：DetailBudget 均分（下限 1；总数多时按份截断，各份之和 ≤ DetailBudget）。</summary>
+    private int ShareFor(int toolCount) => Math.Max(1, DetailBudget / Math.Max(1, toolCount));
 
     /// <summary>创建「序号 + 名称 + 摘要」卡（正文细节由 RenderOrOmit/UpdateTool 惰性渲染；自带宽高 1 的尾部分隔线）。</summary>
     private VerticalStackLayout BuildCard(ToolCallItem tc, int number)
@@ -226,7 +228,7 @@ public partial class ToolCallsDetailPage : ContentPage
         var view = _cards[index];
         if (string.IsNullOrWhiteSpace(tc.Detail)) return; // 无正文不动
 
-        // 共享预算：其它工具已渲染的总 rune（随各自增长动态收缩本工具的允许额，总量保持 ≤ DetailBudget）
-        RenderOrOmit(view, tc, DetailBudget - TotalRenderedExcept(index));
+        // 按工具均分配额：流式增量也只在该工具自己的份内截断，互不挤占（finding #5 头偏修复）
+        RenderOrOmit(view, tc, ShareFor(_msg.ToolCalls.Count));
     }
 }
