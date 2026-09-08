@@ -18,20 +18,34 @@ public static class MauiSessions
 
     // ═══════ 消息互转（ChatMessage ⇄ JNode {role,content}） ═══════
 
+    /// <summary>单个 ChatMessage → session JNode（仅 User/Assistant 非空正文；其余角色/空正文返回 null）。</summary>
+    public static JNode? ToNode(ChatMessage m)
+    {
+        if (m.Role != ChatRole.User && m.Role != ChatRole.Assistant) return null;
+        if (string.IsNullOrEmpty(m.RawText)) return null;
+        return JNode.Object()
+            .Set("role", m.Role == ChatRole.User ? "user" : "assistant")
+            .Set("content", m.RawText);
+    }
+
     /// <summary>UI 消息 → 会话 JNode 数组（仅 User/Assistant 非空正文）。</summary>
     public static List<JNode> ToNodes(IEnumerable<ChatMessage> messages)
     {
         var list = new List<JNode>();
         foreach (var m in messages)
         {
-            if (m.Role != ChatRole.User && m.Role != ChatRole.Assistant) continue;
-            if (string.IsNullOrEmpty(m.RawText)) continue;
-            list.Add(JNode.Object()
-                .Set("role", m.Role == ChatRole.User ? "user" : "assistant")
-                .Set("content", m.RawText));
+            var node = ToNode(m);
+            if (node != null) list.Add(node);
         }
         return list;
     }
+
+    /// <summary>
+    /// 按原始 JNode 保存会话（保留 desktop 会话的 tool/system 节点）。
+    /// 手机端从盘载入的会话回写时用它而非 <see cref="Save"/>，否则重存会抹掉共享 schema 里的工具结果/系统上下文。
+    /// </summary>
+    public static string SaveRaw(List<JNode> nodes, string model, string sessionId)
+        => SessionManager.SaveSession(nodes, model, sessionId);
 
     /// <summary>
     /// 会话 JNode → UI 消息（RawText；富文本由调用方惰性重建）。

@@ -44,6 +44,17 @@ public partial class ChatPage : ContentPage
     /// 残余回调已执行完）再清空/切 id，否则旧轮残余会写入新会话（见 code-review finding）。</summary>
     private TaskCompletionSource<bool>? _activeRound;
 
+    /// <summary>当前会话从盘载入的原始 JNode（含 desktop 会话的 tool/system 节点）。
+    /// 回写时以此为基础合并新消息，确保共享 schema 会话被手机端重存时不丢失 tool/system（code-review finding #4）。
+    /// 未从盘载入（新建）的会话为 null。</summary>
+    private List<JNode>? _sessionRaw;
+
+    /// <summary>载入会话时加入 UI 的消息数（后续新增消息自此索引追加，回写合并用）。</summary>
+    private int _loadedDisplayCount;
+
+    /// <summary>当前会话的 LLM 上下文是否已注入 Agent（每会话首条消息只种一次，防旧会话历史污染新会话）。</summary>
+    private bool _contextSeeded;
+
     /// <summary>
     /// 跨页会话切换桥（独立页 B 方案）：SessionHistoryPage 点选/新建时设置，
     /// 本页 OnAppearing 消费后执行切换（SwitchToSessionAsync），随后置 null。
@@ -246,12 +257,33 @@ public partial class ChatPage : ContentPage
         SaveCurrentSession(); // 退出时记住会话
     }
 
-    /// <summary>保存当前会话（多会话：复用桌面 SessionManager 格式）。空会话不写盘。</summary>
+    /// <summary>保存当前会话（多会话：复用桌面 SessionManager 格式）。空会话不写盘。
+    /// 从盘载入的会话（含 tool/system 原始节点）以原始节点为基底合并新消息再存，防重存抹掉共享 schema 的工具结果。</summary>
     private void SaveCurrentSession()
     {
         if (string.IsNullOrEmpty(_currentSessionId) || Messages.Count == 0) return;
         var model = AgentService.CurrentAgent?.LlmClient?.EffectiveModel ?? Config.Instance.Model;
-        MauiSessions.Save(Messages, model, _currentSessionId);
+        if (_sessionRaw == null)
+        {
+            MauiSessions.Save(Messages, model, _currentSessionId);
+            return;
+        }
+        // 有盘载入原始节点：以它为基底，仅追加本会话新增消息（跳过载入的那批展示消息，防重复）
+        if (Messages.Count > _loadedDisplayCount)
+        {
+            var merged = new List<JNode>(_sessionRaw);
+            foreach (var m in Messages.Skip(_loadedDisplayCount))
+            {
+                var node = MauiSessions.ToNode(m);
+                if (node != null) merged.Add(node);
+            }
+            MauiSessions.SaveRaw(merged, model, _currentSessionId);
+        }
+        else
+        {
+            // 未新增消息：原样回写原始节点，保留桌面 tool/system（code-review finding #4）
+            MauiSessions.SaveRaw(_sessionRaw, model, _currentSessionId);
+        }
     }
 
     /// <summary>恢复上一会话并自动载入（多会话历史：重启回最后打开的会话）。</summary>
@@ -275,6 +307,8 @@ public partial class ChatPage : ContentPage
             var loaded = MauiSessions.Load(_currentSessionId);
             if (loaded == null) return; // 空会话/首次：停留空对话
 
+            _sessionRaw = new List<JNode>(loaded.Value.Messages); // 记录原始节点，回写合并保留 tool/system
+            var before = Messages.Count;
             foreach (var m in MauiSessions.FromNodes(loaded.Value.Messages))
             {
                 m.IsDark = isDark;
@@ -282,6 +316,8 @@ public partial class ChatPage : ContentPage
                     m.Formatted = MarkupToFormattedString.Convert(m.RawText, isDark);
                 AddMessage(m);
             }
+            _loadedDisplayCount = Messages.Count - before;
+            _contextSeeded = false; // 首条消息按本会话历史种入 Agent 上下文
             ScrollToEnd();
         }
         catch { /* 恢复失败静默：保持空对话 */ }
@@ -794,8 +830,12 @@ public partial class ChatPage : ContentPage
         await AwaitActiveRoundEndAsync();
         SaveCurrentSession(); // 兜底：非运行轮当前内容也存档
         Messages.Clear();
+        _sessionRaw = null;      // 新会话：无盘载入原始节点
+        _loadedDisplayCount = 0;
+        _contextSeeded = false;  // 下条消息按新会话（空上下文）重新种入 Agent
         _currentSessionId = MauiSessions.NewId();
         MauiSessions.SetCurrentSessionId(_currentSessionId);
+        if (AgentService.CurrentAgent is { } a) a.Reset(); // 清空 LLM 上下文，隔离旧会话历史（finding #2）
         ScrollToEnd();
         RefreshSessionList();
     }
@@ -813,6 +853,8 @@ public partial class ChatPage : ContentPage
         _currentSessionId = sessionId;
         MauiSessions.SetCurrentSessionId(sessionId);
         var loaded = MauiSessions.Load(sessionId);
+        _sessionRaw = loaded != null ? new List<JNode>(loaded.Value.Messages) : null; // 记录原始节点，回写合并保留 tool/system
+        var before = Messages.Count;
         if (loaded != null)
         {
             var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
@@ -824,6 +866,8 @@ public partial class ChatPage : ContentPage
                 AddMessage(m);
             }
         }
+        _loadedDisplayCount = Messages.Count - before;
+        _contextSeeded = false; // 下条消息按本会话历史重新种入 Agent 上下文（隔离旧会话，finding #2）
         ScrollToEnd();
         RefreshModelBar();
         RefreshSessionList();
@@ -923,21 +967,41 @@ public partial class ChatPage : ContentPage
     private void StopCurrent()
     {
         _cts?.Cancel();
+        DrainSendQueue("❌ 已停止（不再执行）");
+    }
+
+    /// <summary>丢弃发送队列并标记排队消息（停止/会话切换时调用）。防旧会话排队消息在切换后被取走执行并写入新会话。</summary>
+    private void DrainSendQueue(string marker)
+    {
         while (_sendQueue.Count > 0)
         {
             var dropped = _sendQueue.Dequeue();
             if (dropped.Msg != null && !string.IsNullOrEmpty(dropped.Msg.RawText))
-                dropped.Msg.RawText = dropped.Msg.RawText.Replace("⏳ 排队中…", "❌ 已停止（不再执行）");
+                dropped.Msg.RawText = dropped.Msg.RawText.Replace("⏳ 排队中…", marker);
         }
+    }
+
+    /// <summary>首次发送前把当前会话历史注入 Agent LLM 上下文（盘载入历史→LLM 上下文；新建空会话→清空）。
+    /// 每会话只种一次（_contextSeeded），切换/新建后重置——防旧会话历史污染新会话（code-review finding #2）。</summary>
+    private void EnsureContextSeeded()
+    {
+        if (_contextSeeded) return;
+        _contextSeeded = true;
+        var agent = _agent.EnsureAgent();
+        agent.Messages = _sessionRaw != null ? new List<JNode>(_sessionRaw) : new();
     }
 
     /// <summary>串行处理发送队列：发完一条取下一条，直到队列空。firstUserMsg 为 null 表示首条需新建用户气泡。</summary>
     private async Task ProcessQueueAsync(string first, ChatMessage? firstUserMsg)
     {
+        EnsureContextSeeded(); // 首条消息：把当前会话历史注入 Agent LLM 上下文（每组会话只种一次）
         var text = first;
         var userMsg = firstUserMsg;
+        var sessionAtStart = _currentSessionId; // 队列只属于发起时所在会话
         while (true)
         {
+            // 队列执行期间会话被切换（屏障已丢弃余队）→ 不再向新会话发送旧会话消息
+            if (_currentSessionId != sessionAtStart) break;
             if (userMsg == null)
             {
                 userMsg = new ChatMessage { Role = ChatRole.User, RawText = text };
@@ -1006,7 +1070,8 @@ public partial class ChatPage : ContentPage
         }
 
         _cts = new CancellationTokenSource();
-        _activeRound = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var round = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _activeRound = round;
         AgentService.SetActiveCts(_cts); // 注册给 App 生命周期：切后台（来电/Home/锁屏）时取消在途请求
         SendBtn.Text = "■"; // 忙时按钮 = 停止
         var sw = System.Diagnostics.Stopwatch.StartNew();
@@ -1154,19 +1219,29 @@ public partial class ChatPage : ContentPage
             }
 
             ScrollToEnd();
-            _activeRound?.TrySetResult(true); // 通知会话切换/新建：本轮已彻底结束（旧 id 下已保存）
-            _activeRound = null;
+            round.TrySetResult(true); // 通知会话切换/新建：本轮已彻底结束（旧 id 下已保存）
+            if (ReferenceEquals(_activeRound, round)) _activeRound = null; // 防超时放弃后旧轮误清已接替的新轮
         }
     }
 
-    /// <summary>等待在途一轮彻底结束（供会话切换/新建屏障）：取消后等 finally 完成——其已在旧
-    /// _currentSessionId 下 FreezeSeg + SaveCurrentSession 落盘、残余回调已跑完，随后才能安全切 id。</summary>
+    /// <summary>等待在途一轮彻底结束（供会话切换/新建屏障）：同步丢弃本会话排队消息 + 取消在途轮，
+    /// 再等 finally 完成——其已在旧 _currentSessionId 下 FreezeSeg + SaveCurrentSession 落盘、残余回调跑完，
+    /// 随后才能安全切 id。有超时兜底：被取消的工具若不理会 token 也不永久挂起切换（见 finding #1/#3）。</summary>
     private async Task AwaitActiveRoundEndAsync()
     {
-        if (!_agent.IsRunning) return;
+        // 必须同步清空排队消息（在 await 之前）：否则旧会话队列里的消息会在切换后被 ProcessQueueAsync
+        // 的续体取走执行并写入新会话（StopCurrent→AwaitActiveRoundEndAsync 回归，finding #1）。
+        DrainSendQueue("❌ 已停止（会话已切换，不再执行）");
         try { _cts?.Cancel(); } catch { }
         var done = _activeRound;
-        if (done != null) await done.Task; // finally 置完成（主线程 continuation，UI 不阻塞）
+        if (done == null) return; // 无在途轮（空闲/已彻底结束）
+        try
+        {
+            var completed = await Task.WhenAny(done.Task, Task.Delay(TimeSpan.FromSeconds(10)));
+            if (completed != done.Task)
+                ErrorLog.Error("Chat", "切换/新建会话等待在途轮结束超时(>10s)，放弃等待继续切换");
+        }
+        catch { }
     }
 
     /// <summary>智能滚动：仅在列表接近底部时才跟随到底，用户上翻历史时不打断浏览。</summary>
