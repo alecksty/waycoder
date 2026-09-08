@@ -1,5 +1,18 @@
 # 更新日志
 
+## v0.96.70 (2026-09-08) — MAUI 移动端 code-review 复核三连修（会话切换/详情页健壮性）
+
+承接 v0.96.69 的会话切换/详情页改动，经三轮 code review 复核修复发现问题项：重点是「僵尸轮只挡 finally 没挡流式回调」这一根因，以及会话切换/保存的数据正确性。Android Debug 编译 0 错误。
+
+- **会话切换丢弃排队消息**（`ChatPage.AwaitActiveRoundEndAsync`）：取消在途轮**之前**同步清空 `_sendQueue`（`StopCurrent`→`AwaitActiveRoundEndAsync` 回归）——否则旧会话排队消息被 `ProcessQueueAsync` 续体取走执行并写入新会话；`ProcessQueueAsync` 另按发起会话守卫，队列不再跨会话执行
+- **会话 LLM 上下文隔离**（`EnsureContextSeeded` + `_contextSeeded`）：每会话首条消息才把当前会话历史注入 `Agent.Messages`；`NewSessionAsync` 直接 `Agent.Reset()`；旧会话历史不再污染新/其它会话
+- **切换屏障门控 + 超时**：`AwaitActiveRoundEndAsync` 改以 `_activeRound`（`done.Task`）门控（原 `IsRunning` 先翻 false 留下残余写窗口）+ 10s 超时兜底（被取消的工具不理会 token 也不永久挂起切换）+ TCS 局部化（`ReferenceEquals` 防旧轮误清接替的新轮）
+- **僵尸轮彻底隔离**（`StaleRound()` 局部函数）：统一判定「会话已切走 **或** `_activeRound` 已被新轮接替」，流式回调（`onToken`/`onTool`/`onToolOutput`）与收尾 `finally` 两侧都据此放弃——超时后旧轮残余 token/工具/输出不再写入新会话，也不再清掉接替新轮的 `_cts`/`_activeCts`（修复仅 finally 守卫生效太晚、且切回同会话开新轮时被误清的问题）
+- **共享会话回写不丢数据**（`SaveCurrentSession` + `MauiSessions.SaveRaw`/`ToNode`）：以盘载入原始节点为基底合并新消息；改用递增计数 `_appAddCount` + `TakeLast`，对 `PruneMessages` 队首 `RemoveAt(0)` 稳健（条数边界在裁剪下失效会让新消息被丢）；合并后把结果升为新基线（`_sessionRaw=merged`），已保存的旧历史即使被后续裁剪也不回丢；`/clear` 同时重置会话状态 + `Reset()` 清空 LLM 上下文
+- **工具组流式新工具渲染**（`ChatMessage.ToolCalls` 改 `ObservableCollection`）：详情页订阅 `CollectionChanged`，流式中追加的工具即时加卡渲染（`List<T>` 不触发变更事件，此前新工具漏渲染）
+- **详情页共享预算**：改按「预算 − 其它工具已实际渲染 rune 总量」动态收缩每工具允许额，全页总量恒 ≤150k（原每工具 `UsedBefore` 为 Build 时快照，无共享总量，流式可压超）；流式只增量重绘该工具；`LastRendered` 相同则跳过重渲染；超预算空卡补「（输出过长，已省略详情）」
+- **详情页重入/节流**：`OnAppearing` 重入先解除订阅 + 清 Body（防占位叠加/订阅泄漏）；节流回调改全量 reconcile（未变经 `LastRendered` 跳过），防并发窗口内其它工具的 Detail 被丢
+
 ## v0.96.69 (2026-09-08) — MAUI 移动端 code-review 修复（会话切换屏障 + 首跑模式 + 详情页健壮性）
 
 对移动端会话/抽屉/详情页做代码审查并修复 8 项确认问题。Android Debug 编译 0 错误。
