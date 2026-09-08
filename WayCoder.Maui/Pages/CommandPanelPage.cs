@@ -1,4 +1,5 @@
 using Microsoft.Maui.Controls.Shapes;
+using WayCoder.Maui.Services;
 
 namespace WayCoder.Maui.Pages;
 
@@ -19,26 +20,13 @@ public sealed class CommandPanelPage : ContentPage
         Content = _scroll;
     }
 
-    private static bool isDark => Application.Current?.RequestedTheme == AppTheme.Dark;
-    private static Color Res(string key)
-        => Application.Current?.Resources.TryGetValue(key, out var v) == true ? (v as Color) ?? Colors.DimGray : Colors.DimGray;
+    private static bool isDark => MauiUi.IsDark;
+    private static Color Res(string key) => MauiUi.Res(key);
 
-    /// <summary>确认权限显示名（与 AgentService.GetStatus PermMode 一致）。</summary>
-    private static string PermName(PermissionManager.Mode m) => m switch
-    {
-        PermissionManager.Mode.Yolo => "Yolo",
-        PermissionManager.Mode.SmartAuto => "SmartAuto",
-        PermissionManager.Mode.Auto => "Auto",
-        _ => "Ask",
-    };
+    /// <summary>确认权限显示名（经 MauiUi 收敛）。</summary>
+    private static string PermName(PermissionManager.Mode m) => MauiUi.PermName(m);
 
-    private static string EconomyName(EconomyMode m) => m switch
-    {
-        EconomyMode.On => "开",
-        EconomyMode.Auto => "自动",
-        EconomyMode.Extreme => "极致",
-        _ => "关",
-    };
+    private static string EconomyName(EconomyMode m) => MauiUi.EconomyName(m);
 
     protected override void OnAppearing()
     {
@@ -63,9 +51,8 @@ public sealed class CommandPanelPage : ContentPage
         var primary = Res("Primary");
         var cfg = Config.Instance;
 
-        // ── 模型横幅：点按 → 模型选择 ──
-        var modelText = ConnectionConfig.FormatModelChannel(
-            ConnectionConfig.CurrentMainChannel(), cfg.Provider, cfg.Model);
+        // ── 模型横幅：点按 → 模型选择（文本经 MauiUi 收敛） ──
+        var modelText = MauiUi.ModelText();
         _body.Add(Card(
             new VerticalStackLayout
             {

@@ -1,5 +1,13 @@
 # 更新日志
 
+## v0.96.72 (2026-09-08) — Android 恢复系统代理 + UI 重复代码提炼（MauiUi 共享助手）
+
+修复 review 遗留的 Android 网络能力问题，并把移动端多处重复的取值/渲染 helper 收敛为单一来源。Android Debug 编译 0 错误。
+
+- **Android 恢复系统网络能力（review finding）**：`LLM.CreateHttpClient` / `TranscribeAudioTool` / `WebSearchTool` 撤销强制 `SocketsHttpHandler`、恢复系统默认 handler（Android=AndroidMessageHandler）——保留 Wi‑Fi/系统代理、VPN、network-security-config cleartext、用户安装 CA（自建网关场景回归修复）。前提：网络调用不在主线程——agent 已由 AgentService `Task.Run` 后台执行，UI 入口（聊天页录音转录）补 `Task.Run` 移后台，避免主线程 Java 流 NetworkOnMainThreadException
+- **`MauiUi` 共享助手（DRY）**：`WayCoder.Maui/Services/MauiUi.cs` 收敛各页重复——主题色取值 `Res/ResOrNull`、深色判断 `IsDark`、确认权限名 `PermName`、经济模式名 `EconomyName`、千分位 `FormatK`、当前模型文本 `ModelText`；ChatPage（含死代码薄委托）/CommandPanelPage/SessionHistoryPage/ToolCallsDetailPage 全部改用
+- **载入渲染合一**：`EnsureSessionAsync` 与 `SwitchToSessionAsync` 的「FromNodes→富文本→AddMessage→滚底」循环收敛为共享 `AppendHistoryNodes`，并清掉不再用的局部 `isDark`
+
 ## v0.96.71 (2026-09-08) — MAUI 移动端 code-review 二轮 5 项修复（会话持久化/队列/详情页预算）
 
 承接 v0.96.70 增量会话保存模型（`_sessionRaw`/`_appAddCount`）的 code-review 复核，修复 5 项会话持久化与队列问题。Android Debug 编译 0 错误。

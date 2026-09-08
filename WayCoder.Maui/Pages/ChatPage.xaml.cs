@@ -314,8 +314,6 @@ public partial class ChatPage : ContentPage
     {
         try
         {
-            var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
-
             if (Messages.Count > 0) return; // 已在内存（恢复/切回）——提前于 Exists 全目录扫描返回
 
             // 首次：无记录的会话 → 迁移旧单会话，或新建一个
@@ -331,16 +329,9 @@ public partial class ChatPage : ContentPage
             if (loaded == null) return; // 空会话/首次：停留空对话
 
             _sessionRaw = new List<JNode>(loaded.Value.Messages); // 记录原始节点，回写合并保留 tool/system
-            foreach (var m in MauiSessions.FromNodes(loaded.Value.Messages))
-            {
-                m.IsDark = isDark;
-                if (m.Role == ChatRole.Assistant && !string.IsNullOrEmpty(m.RawText))
-                    m.Formatted = MarkupToFormattedString.Convert(m.RawText, isDark);
-                AddMessage(m);
-            }
+            AppendHistoryNodes(loaded.Value.Messages); // 渲染（Ensure/Switch 共用，见方法注释）
             _appAddCount = 0; // 载入消息不计入「新增」，回写以 _sessionRaw 为基底
             _contextSeeded = false; // 首条消息按本会话历史种入 Agent 上下文
-            ScrollToEnd();
         }
         catch { /* 恢复失败静默：保持空对话 */ }
     }
@@ -421,9 +412,8 @@ public partial class ChatPage : ContentPage
     /// <summary>顶部状态区行 1：当前生效模型（点击可切换）。行 2 统计见 <see cref="RefreshStatusBar"/>。</summary>
     private void RefreshModelBar()
     {
-        var cfg = Config.Instance;
-        // 模型栏只显示当前生效模型，前缀提示通道：big→大模型 / free→自由模型
-        ModelBar.Text = $"🧠 {ConnectionConfig.FormatModelChannel(ConnectionConfig.CurrentMainChannel(), cfg.Provider, cfg.Model)}";
+        // 模型栏只显示当前生效模型（通道前缀与文本经 MauiUi 收敛，侧栏页共用）
+        ModelBar.Text = "🧠 " + WayCoder.Maui.Services.MauiUi.ModelText();
         RefreshStatusBar();
     }
 
@@ -445,16 +435,10 @@ public partial class ChatPage : ContentPage
               + $"🪙 {FormatK(s.PromptTokens)}+{FormatK(s.CompletionTokens)} · 💰 ${s.Cost?.ToString("F4") ?? "-"}";
     }
 
-    private static string FormatK(int n) => n >= 1000 ? $"{n / 1000.0:F1}k" : n.ToString();
+    private static string FormatK(int n) => MauiUi.FormatK(n);
 
-    /// <summary>确认权限显示名（与 AgentService.GetStatus 的 PermMode 文案一致，供 agent 未创建时用）。</summary>
-    private static string PermName(PermissionManager.Mode m) => m switch
-    {
-        PermissionManager.Mode.Yolo => "Yolo",
-        PermissionManager.Mode.SmartAuto => "SmartAuto",
-        PermissionManager.Mode.Auto => "Auto",
-        _ => "Ask",
-    };
+    /// <summary>确认权限显示名（经 MauiUi 收敛，供 agent 未创建时用）。</summary>
+    private static string PermName(PermissionManager.Mode m) => MauiUi.PermName(m);
 
     /// <summary>点模型条 → 打开模型选择页（TUI ModelPicker 移植：分组+搜索+大/小切换）。</summary>
     private async void OnModelBarTapped(object? sender, TappedEventArgs? e)
@@ -616,8 +600,7 @@ public partial class ChatPage : ContentPage
         PopulateSessionList();
     }
 
-    private static Color? ColorKey(string key)
-        => Application.Current?.Resources.TryGetValue(key, out var v) == true ? v as Color : null;
+    private static Color? ColorKey(string key) => MauiUi.ResOrNull(key);
 
     /// <summary>左抽屉内容：会话历史列表（最新在前）。当前会话高亮，点击切换。</summary>
     private void PopulateSessionList()
@@ -686,14 +669,8 @@ public partial class ChatPage : ContentPage
         }
     }
 
-    /// <summary>经济模式显示名（枚举顺序 Off→Auto→On→Extreme，非直觉序）。</summary>
-    private static string EconomyName(EconomyMode m) => m switch
-    {
-        EconomyMode.On => "开",
-        EconomyMode.Auto => "自动",
-        EconomyMode.Extreme => "极致",
-        _ => "关",
-    };
+    /// <summary>经济模式显示名（经 MauiUi 收敛）。</summary>
+    private static string EconomyName(EconomyMode m) => MauiUi.EconomyName(m);
 
     /// <summary>命令跳转：先关抽屉（避免盖层残留于下一页）再导航；异常落日志不崩溃。</summary>
     private async Task NavThen(string route)
@@ -876,22 +853,26 @@ public partial class ChatPage : ContentPage
         MauiSessions.SetCurrentSessionId(sessionId);
         var loaded = MauiSessions.Load(sessionId);
         _sessionRaw = loaded != null ? new List<JNode>(loaded.Value.Messages) : null; // 记录原始节点，回写合并保留 tool/system
-        if (loaded != null)
-        {
-            var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
-            foreach (var m in MauiSessions.FromNodes(loaded.Value.Messages))
-            {
-                m.IsDark = isDark;
-                if (m.Role == ChatRole.Assistant && !string.IsNullOrEmpty(m.RawText))
-                    m.Formatted = MarkupToFormattedString.Convert(m.RawText, isDark);
-                AddMessage(m);
-            }
-        }
+        if (loaded != null) AppendHistoryNodes(loaded.Value.Messages); // 渲染（Ensure/Switch 共用）
         _appAddCount = 0;
         _contextSeeded = false; // 下条消息按本会话历史重新种入 Agent 上下文（隔离旧会话，finding #2）
-        ScrollToEnd();
         RefreshModelBar();
         RefreshSessionList();
+    }
+
+    /// <summary>把会话节点渲染进消息列表：FromNodes 只取 user/assistant + 富文本重建 + 统一滚到底。
+    /// EnsureSessionAsync 与 SwitchToSessionAsync 两处载入共用（DRY 提炼）。</summary>
+    private void AppendHistoryNodes(List<JNode> nodes)
+    {
+        var isDark = MauiUi.IsDark;
+        foreach (var m in MauiSessions.FromNodes(nodes))
+        {
+            m.IsDark = isDark;
+            if (m.Role == ChatRole.Assistant && !string.IsNullOrEmpty(m.RawText))
+                m.Formatted = MarkupToFormattedString.Convert(m.RawText, isDark);
+            AddMessage(m);
+        }
+        ScrollToEnd();
     }
 
     /// <summary>任务管理：展示当前 todo 列表。</summary>
@@ -1441,8 +1422,10 @@ public partial class ChatPage : ContentPage
         try
         {
             AddBtn.IsEnabled = false;
-            var text = await new TranscribeAudioTool()
-                .ExecuteAsync(new Dictionary<string, object?> { ["path"] = audioPath });
+            // 转录工具在后台线程执行（默认 handler 为 Java AndroidMessageHandler，主线程触碰会抛
+            // NetworkOnMainThreadException——agent 已后台，此 UI 入口单独 Task.Run 移后台，code-review finding）
+            var text = await Task.Run(() => new TranscribeAudioTool()
+                .ExecuteAsync(new Dictionary<string, object?> { ["path"] = audioPath }));
             AddBtn.IsEnabled = true;
 
             if (TranscribeAudioTool.IsTranscribeError(text))
