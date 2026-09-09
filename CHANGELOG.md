@@ -1,10 +1,19 @@
 # 更新日志
 
-## v0.96.74 (2026-09-09) — WIP：TUI 鼠标 Windows 支持（统一字符源）+ 卡死修复（未完，鼠标乱码待解决）
+## v0.96.74 (2026-09-09) — TUI 鼠标 Windows 支持（统一字符源）+ 卡死修复（2026-09-10 code-review 修复后，待实机复验）
 
-> ⚠ **WIP 状态**：本轮把 TUI 输入读键链路重构为统一字符源（Windows 用 VT 字节流、macOS/Linux 用 Console.ReadKey），
-> 让 Windows 也能收到 SGR 鼠标序列 —— **已实机验证字节流可达、`ParseSgrMouse` 解析成功**。但**鼠标事件仍会在屏幕/输入框显示乱码**（如 `^[[<64;95;48M`），
-> 且 `?1002h` 在 Windows Terminal 触发 **motion 泛滥**（每秒几百个 `code=35` 事件，平台无关）。**这两处未解决，本轮为进度存档，供后续修复。**
+> 原始 WIP 记录：本轮把 TUI 输入读键链路重构为统一字符源（Windows 用 VT 字节流、macOS/Linux 用 Console.ReadKey），
+> 让 Windows 也能收到 SGR 鼠标序列 —— **已实机验证字节流可达、`ParseSgrMouse` 解析成功**。鼠标乱码与 motion 泛滥两处曾未解决。
+
+**2026-09-10 code-review 修复（Windows 输入链，桌面自测 5083/5083 通过）**：
+- **ESC 塌缩**：Windows VT 输入下方向/Home/End/Delete 等以 `ESC[A-D/H/F`、`1~..6~` 到达但解析返回 null → 泵退化成裸 ESC **取消在跑 agent / 丢聊天草稿**。`ParseCsiFuncKey` 现显式映射（含修饰键）
+- **回显 / 行缓冲**：`WinConsoleMode.Enable` 追加清 `ENABLE_LINE_INPUT|ENABLE_ECHO_INPUT`——原生字节流前提完整，消除 conhost 按键回显叠加到 TUI 自绘（重复/鬼影字符，**疑「鼠标乱码」真因之一**）与行缓冲等 Enter 成批到达
+- **UTF-8 多字节损坏**：`WindowsCharSource.TryReadChar` 改状态化（跨 64B 读边界缓存续字节，不再丢首字节/出 U+FFFD）+ 代理对高位先返、低位缓存（emoji/CJK 粘贴不乱码）
+- **粘贴误确认**：`ReadConfirmKey` 鼠标点按须落在确认提示行跨度内才 Y/N，任意位置点击不再误自动确认/取消
+- **Unix 点击定位降级**：`Console.CursorTop/Left` 缓存不可靠 → Unix 输入区点击定位跳过（避免光标落错位），Windows VT 路径保留
+- **映射收敛**：char→ConsoleKey 收敛为 `WindowsCharSource.MapToConsoleKey` 单实现（删死代码 `ToKeyEvent`）
+
+**仍需 Windows 真机复验**：① 屏幕/输入框鼠标乱码（`^[[<64;95;48M`）在回显/行缓冲修复后是否消除；② `?1002h` motion 泛滥是否仍存在；③ macOS 鼠标实机行为。
 
 - **输入通道统一字符源重构（核心）**：新增 `UI/TUI/Base/CharSource.cs` —— `ICharSource` 抽象 + `WindowsCharSource`（`Console.OpenStandardInput` 读 VT 字节流）+ `UnixCharSource`（macOS/Linux 保 `Console.ReadKey`）；`InputManager.PumpKeys`/`TryParseEscapeSequence`/`TryParseCsiFunctionKey`/`ReadPasteContent` 读键全部收敛到统一源，Windows 用字节流收 SGR 鼠标。macOS/Linux 路径与原逻辑等价（零回归）
   - **Windows VT 输入启用**：新增 `UI/Shared/Terminal/WinConsoleMode.cs` —— `GetStdHandle`/`GetConsoleMode`/`SetConsoleMode` P/Invoke（`ENABLE_VIRTUAL_TERMINAL_INPUT` + 关 `ENABLE_QUICK_EDIT_MODE`），`TuiManager.Enter/Exit` 接线；非 Windows/重定向 no-op，macOS/Linux 不碰 kernel32（AOT 可移植）
