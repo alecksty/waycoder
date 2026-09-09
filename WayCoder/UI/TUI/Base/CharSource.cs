@@ -113,41 +113,54 @@ public sealed class WindowsCharSource : ICharSource, IDisposable
 
     public bool HasInput => !_bytes.IsEmpty;
 
+    // 状态化 UTF-8：跨 64 字节读边界时续字节可能尚未到达，暂存 _pending 等下次继续拼（原实现直接
+    // 丢弃起始字节/把半字符解成 U+FFFD）；代理对（emoji 等 >U+FFFF）解出两个 char，先返回高位、
+    // 低位存 _pendingSurrogate 下次返回（原实现只取 s[0] 丢低位，code-review finding）。
+    private readonly List<byte> _pending = new();
+    private char _pendingSurrogate;
+
     public bool TryReadChar(out char c)
     {
         c = '\0';
-        if (!_bytes.TryDequeue(out var first)) return false;
+        if (_pendingSurrogate != '\0') { c = _pendingSurrogate; _pendingSurrogate = '\0'; return true; }
 
-        // 跳过终端协议层分隔符 RS(0x1E)：Windows Terminal 在 SGR 鼠标上报（m/M）后额外发一个
-        // RS 记录分隔符。它不代表任何按键，ReadKey 路径（macOS）没有它，这里是 Windows 与 macOS
-        // 的关键差异。丢弃以免被当成孤立字符当按键入队。
-        if (first == 0x1E) return TryReadChar(out c); // 递归跳过多余 RS，读下一个实际字符
-
-        // UTF-8 前导字节（>0x7F）须聚合成完整字符；纯 ASCII 单字节即可。
-        if (first < 0x80)
+        if (_pending.Count == 0)
         {
-            c = (char)first;
-            return true;
+            if (!_bytes.TryDequeue(out var first)) return false;
+            // 跳过终端协议层分隔符 RS(0x1E)：Windows Terminal 在 SGR 鼠标上报（m/M）后额外发一个
+            // RS 记录分隔符。它不代表任何按键，ReadKey 路径（macOS）没有它，这里是 Windows 与 macOS
+            // 的关键差异。丢弃以免被当成孤立字符当按键入队。
+            if (first == 0x1E) return TryReadChar(out c); // 递归跳过多余 RS，读下一个实际字符
+            _pending.Add(first);
         }
 
-        // 多字节 UTF-8：收集续字节（0x80-0xBF）补全一个码点。数量有限，阻塞式取（前台泵线程，
-        // 量小；缺字节则放弃该起始字节——终端输入极少出现孤立前导字节）。
-        var utf8 = new List<byte> { first };
-        // 从首字节估算后续字节数
-        int expected = first switch
+        byte lead = _pending[0];
+        if (lead < 0x80) { _pending.Clear(); c = (char)lead; return true; } // ASCII
+
+        // 从首字节估算续字节数；不足则留在 _pending 等下次（不丢、不产生 U+FFFD）。
+        int expected = lead switch
         {
             >= 0xF0 => 3, >= 0xE0 => 2, >= 0xC0 => 1, _ => 0,
         };
-        for (int i = 0; i < expected; i++)
+        while (_pending.Count < expected + 1)
         {
-            if (!_bytes.TryDequeue(out var b)) break;
-            utf8.Add(b);
+            if (!_bytes.TryDequeue(out var b)) return false; // 续字节未齐：等待下轮
+            _pending.Add(b);
         }
-
+        var seq = _pending.ToArray();
+        _pending.Clear();
         try
         {
-            var s = System.Text.Encoding.UTF8.GetString(utf8.ToArray(), 0, utf8.Count);
-            if (s.Length > 0) { c = s[0]; return true; }
+            var s = System.Text.Encoding.UTF8.GetString(seq, 0, seq.Length);
+            if (s.Length == 0) return false;
+            if (s.Length == 2) // 代理对：高位先返回，低位缓存
+            {
+                c = s[0];
+                _pendingSurrogate = s[1];
+                return true;
+            }
+            c = s[0];
+            return true;
         }
         catch { /* 非法序列丢弃 */ }
         return false;
