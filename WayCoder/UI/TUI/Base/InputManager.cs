@@ -697,20 +697,8 @@ public class InputManager : IDisposable
         return new ConsoleKeyInfo(ch, ToConsoleKey(ch), false, false, false);
     }
 
-    /// <summary>char → ConsoleKey 粗略映射（近似；字节流层对方向键/功能键已在转义序列处理，这里是纯字符键）。</summary>
-    private static ConsoleKey ToConsoleKey(char ch)
-    {
-        if (ch >= 'a' && ch <= 'z') return (ConsoleKey)((int)ConsoleKey.A + (ch - 'a'));
-        if (ch >= 'A' && ch <= 'Z') return (ConsoleKey)((int)ConsoleKey.A + (ch - 'A'));
-        if (ch >= '0' && ch <= '9') return (ConsoleKey)((int)ConsoleKey.D0 + (ch - '0'));
-        return ch switch
-        {
-            ' ' => ConsoleKey.Spacebar, '\r' => ConsoleKey.Enter, '\t' => ConsoleKey.Tab,
-            '\b' => ConsoleKey.Backspace, '\x1b' => ConsoleKey.Escape,
-            '\n' => ConsoleKey.Enter, '\0' => ConsoleKey.NoName,
-            _ => ConsoleKey.NoName,
-        };
-    }
+    /// <summary>char → ConsoleKey 映射统一走 WindowsCharSource.MapToConsoleKey（单一实现，修一处全端生效）。</summary>
+    private static ConsoleKey ToConsoleKey(char ch) => WindowsCharSource.MapToConsoleKey(ch);
 
     /// <summary>恢复终端设置</summary>
     public void Dispose()

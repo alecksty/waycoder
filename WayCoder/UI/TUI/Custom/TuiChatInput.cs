@@ -85,6 +85,11 @@ public static class TuiChatInput
                 if (ev.Type == InputType.Resize) continue;
                 if (ev.Type == InputType.Mouse)
                 {
+                    // Unix/macOS：Console.CursorTop/Left 是 .NET 内部缓存，全帧 ANSI 后不可靠
+                    // （项目对 Unix 光标用 CPR 探测），inputTopY/inputLeftX 基于它 → 点击会落到错误
+                    // 行列。此处无布局锚点，先跳过点击定位（忽略事件），避免错位（code-review finding）。
+                    // Windows VT 输入下光标与读位置较可信，保留定位。
+                    if (!OperatingSystem.IsWindows()) continue;
                     // 鼠标点击输入区 → 绝对坐标转输入区相对行列，定位光标（复用 ScreenToHard：屏幕行/列 → hard cy/cx）。
                     // 输入框顶线在 inputTopY，内容区自其下一行起；左框「│ 」占 2 列（┃ 左框 + 1 空格）。
                     // 未落入内容区视为空白区点击，忽略（不消费不抖动）。
