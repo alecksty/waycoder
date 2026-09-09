@@ -177,15 +177,24 @@ public sealed class WindowsCharSource : ICharSource, IDisposable
         return true;
     }
 
-    private static ConsoleKey CharToConsoleKey(char c)
+    private static ConsoleKey CharToConsoleKey(char c) => MapToConsoleKey(c);
+
+    /// <summary>char → ConsoleKey 唯一映射（InputManager.ToConsoleKey 与 WindowsCharSource 共用，
+    /// 避免三处重复实现、修一处全端生效——code-review finding）。方向/功能键走转义序列单独解析，
+    /// 这里只覆盖纯字符/编辑键。</summary>
+    public static ConsoleKey MapToConsoleKey(char c)
     {
         if (c >= 'a' && c <= 'z') return (ConsoleKey)((int)ConsoleKey.A + (c - 'a'));
         if (c >= 'A' && c <= 'Z') return (ConsoleKey)((int)ConsoleKey.A + (c - 'A'));
         if (c >= '0' && c <= '9') return (ConsoleKey)((int)ConsoleKey.D0 + (c - '0'));
         return c switch
         {
-            ' ' => ConsoleKey.Spacebar, '\r' => ConsoleKey.Enter, '\t' => ConsoleKey.Tab,
-            '\b' => ConsoleKey.Backspace, '\n' => ConsoleKey.Enter,
+            ' ' => ConsoleKey.Spacebar,
+            '\r' or '\n' => ConsoleKey.Enter,
+            '\t' => ConsoleKey.Tab,
+            '\b' => ConsoleKey.Backspace,
+            '\x1b' => ConsoleKey.Escape,
+            '\0' => ConsoleKey.NoName,
             _ => ConsoleKey.NoName,
         };
     }
