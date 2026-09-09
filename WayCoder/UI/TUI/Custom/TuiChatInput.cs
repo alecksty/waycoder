@@ -45,6 +45,10 @@ public static class TuiChatInput
 
         // 保存光标位置，后续每次渲染从这里开始清除+重绘
         Tty.WriteLine();
+        // 记录输入框屏幕原点（顶线所在行/列），供鼠标点击绝对坐标 → 输入区相对行/列换算。
+        // 此时光标已到换行后的输入框顶线所在行。不用 ANSI saveCursor（那存的是相对序列，此处需真实坐标）。
+        int inputTopY = Tty.CursorTop;
+        int inputLeftX = Tty.CursorLeft;
         Tty.SaveCursor();
 
         try
@@ -77,9 +81,26 @@ public static class TuiChatInput
                 InputEvent ev;
                 do { ev = ReadInputEvent(); } while (ev.Type == InputType.Timeout);
 
-                // 尺寸变化 → 循环头以新宽度重绘；鼠标 → 输入区暂不响应；粘贴 → 直接插入文本
+                // 尺寸变化 → 循环头以新宽度重绘；鼠标 → 输入区点击定位光标；粘贴 → 直接插入文本
                 if (ev.Type == InputType.Resize) continue;
-                if (ev.Type == InputType.Mouse) continue;
+                if (ev.Type == InputType.Mouse)
+                {
+                    // 鼠标点击输入区 → 绝对坐标转输入区相对行列，定位光标（复用 ScreenToHard：屏幕行/列 → hard cy/cx）。
+                    // 输入框顶线在 inputTopY，内容区自其下一行起；左框「│ 」占 2 列（┃ 左框 + 1 空格）。
+                    // 未落入内容区视为空白区点击，忽略（不消费不抖动）。
+                    int relRow = ev.MouseY - inputTopY - 1;   // 减顶线行
+                    int relCol = ev.MouseX - inputLeftX - 1;  // 减左框「│ 」
+                    if (relRow >= 0 && relCol >= 0 && relRow < vh)
+                    {
+                        var (ncy, ncx) = ScreenToHard(lines, scrScroll + relRow, relCol, contentW);
+                        cy = ncy; cx = ncx;
+                        // 光标所在行滚回可视区（参照循环头 67-68 的 clamp 逻辑）
+                        var (tScrCy, _) = HardToScreen(lines, cy, cx, contentW);
+                        if (tScrCy < scrScroll) scrScroll = tScrCy;
+                        if (tScrCy >= scrScroll + vh) scrScroll = tScrCy - vh + 1;
+                    }
+                    continue;
+                }
                 if (ev.Type == InputType.Paste)
                 {
                     if (!string.IsNullOrEmpty(ev.PasteText))
@@ -663,7 +684,18 @@ public static class TuiChatInput
             var ev = ReadInputEvent();
             if (ev.Type == InputType.Key)
                 return ev.KeyInfo.Key == ConsoleKey.Escape ? null : ev.KeyInfo;
-            // Timeout/Resize/Mouse/ShiftTab/Paste → 继续等待确认（保留旧阻塞行为，不因空闲超时误取消）
+            if (ev.Type == InputType.Mouse)
+            {
+                // 鼠标确认（输入框确认提示无精确坐标，用直觉映射）：左键=确认 Y，右键=取消 N。
+                // 避免「确认框对鼠标无反应」（此前 Mouse 一律继续等待，鼠标点了没反馈）。
+                // 注意：滚轮/移动不计，不能返回 null——null 会被调用方当「取消」，须继续等待其它事件。
+                if (ev.MouseLeft)
+                    return new ConsoleKeyInfo('Y', ConsoleKey.Y, false, false, false);
+                if (ev.MouseRight)
+                    return new ConsoleKeyInfo('N', ConsoleKey.N, false, false, false);
+                continue; // 滚轮/移动，继续等待
+            }
+            // Timeout/Resize/ShiftTab/Paste → 继续等待确认（保留旧阻塞行为，不因空闲超时误取消）
         }
     }
 

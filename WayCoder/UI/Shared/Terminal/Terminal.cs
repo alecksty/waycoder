@@ -106,6 +106,26 @@ public static class Tty
         }
     }
 
+    /// <summary>光标当前行（0-based）。非交互/重定向抛 IOException 时返回 0（安全默认）。</summary>
+    public static int CursorTop
+    {
+        get
+        {
+            try { return Console.CursorTop; }
+            catch (IOException) { return 0; }
+        }
+    }
+
+    /// <summary>光标当前列（0-based）。非交互/重定向抛 IOException 时返回 0（安全默认）。</summary>
+    public static int CursorLeft
+    {
+        get
+        {
+            try { return Console.CursorLeft; }
+            catch (IOException) { return 0; }
+        }
+    }
+
     /// <summary>检测尺寸变化，变化时更新 lastW/lastH 并返回 true</summary>
     public static bool SizeChanged(ref int lastW, ref int lastH)
     {

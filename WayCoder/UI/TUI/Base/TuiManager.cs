@@ -40,6 +40,16 @@ public class TuiManager : IDisposable
     // 上抛给主线程；主线程是唯一渲染者（Render 恒持 _renderLock，动画 RenderAllDirect 在 Render 内）。
     // 泵线程回归「纯输入 + 纯诊断」，绝不写屏 —— 界面刷新只在主线程。spinner 动画由主渲染循环
     // 每帧推进；泵线程不再参与动画渲染，故无需独立动画线程（此前「独立心跳线程直写 spinner」已废弃）。
+
+    // ── UI 渲染循环线程追踪 ──
+    // 判定「当前线程是否 UI 循环线程」不能比对构造 ChatScreen 时的线程快照：async REPL 主循环
+    // 在 await 后续体被调度到线程池线程（项目无 SynchronizationContext），构造线程 ≠ 运行循环的线程。
+    // 于是 RenderWait 会把真正的循环线程误认成「后台线程」而只空转 —— 循环线程自己又阻塞在 RenderWait
+    // 里「等自己渲染」，无人渲染无人读键 = 整机卡死。这里改由 Render() 与 ReadInput() 在任何渲染循环
+    // 执行时更新「当前循环线程」（这两者都只可能由循环线程调用），TuiScreen.IsUiThread 据此对齐，
+    // await 迁移后也能对上。后台线程误调用 Render/ReadInput 会短暂错记，但下个循环迭代即自愈。
+    /// <summary>当前 UI 渲染循环所在线程 ID（-1=尚未渲染）。由 Render() / ReadInput() 更新。</summary>
+    public static volatile int UiLoopThreadId = -1;
     private string _lastModelSnapshot = ""; // 上次心跳采样的 active connect 模型快照（5s 同步比较用）
     private int _heartbeatCount; // 心跳节拍计数（用于 1s/5s 的丰富条/CPU 采样节拍）
 
@@ -158,9 +168,11 @@ public class TuiManager : IDisposable
     {
         Tty.EnterAltScreen();
         Tty.HideCursor();
-        // macOS 自带终端不支持 ?1003h/?1015h，用基础鼠标（点击+SGR）避免显示/输入异常
-        // 平台判定单点在 Tty.SupportsButtonDrag → EnableMouseForTerminal 内完成
+        // 启用鼠标序列（?1000h/?1002h/?1006h SGR）——单靠它有鼠标是「输出」侧；Windows 还要开
+        // VT 输入 + 读 stdin 原始字节（InputManager）才能「收到」鼠标。WinConsoleMode.Enable 内部
+        // 有 Windows/重定向守卫，macOS/Linux 直接 no-op（return false），不碰 kernel32。
         if (MouseEnabled) Tty.EnableMouseForTerminal();
+        WinConsoleMode.Enable();
         (TW, TH) = (Tty.Cols, Tty.Rows);
         IsActive = true;
         // 进入备用屏后强制全刷新：否则 Render 读到上次残留的 _needsFullRefresh=false 走「无脏」路径
@@ -175,6 +187,7 @@ public class TuiManager : IDisposable
     {
         StopAnimTicker(); // 先停心跳，避免退出时再往已还原的终端写
         Tty.DisableMouse();
+        WinConsoleMode.Disable(); // 恢复 Windows 控制台输入模式（未启用则 no-op）
         Tty.ShowCursor();
         Tty.ExitAltScreen();
         IsActive = false;
@@ -256,6 +269,8 @@ public class TuiManager : IDisposable
     public void Render()
     {
         if (!IsActive) return;
+        // 记录当前循环线程（await 迁移后对齐；只有循环线程会走到这里）
+        UiLoopThreadId = Environment.CurrentManagedThreadId;
         // 渲染互斥：主循环 / RunAgentWithRenderLoop / 对话框 RenderWait 可能跨线程调 Render，
         // 串行化避免双线程并发遍历控件树 + 写终端（帧交错花屏）
         lock (_renderLock)

@@ -45,15 +45,15 @@ public abstract class TuiScreen : TuiBase
     /// <summary>后台线程 → UI 线程消息队列：子线程永不直接碰控件树，只投递操作，UI 线程 PumpUIQueue 消费。</summary>
     private readonly ConcurrentQueue<Action> _uiQueue = new();
 
-    /// <summary>UI 线程 ID（构造时捕获；PostToUI 据此判定直接执行还是投递）。所有 TuiScreen 都在 UI 线程构造。</summary>
-    private readonly int _uiThreadId = Environment.CurrentManagedThreadId;
-
     /// <summary>
-    /// 当前线程是否本屏幕所属 UI 线程。
+    /// 当前线程是否本屏幕所属 UI 渲染循环线程。
     /// 渲染/读键/窗口栈只能有一个所有者：UI 线程调用对话框 RenderWait 时由本线程接管（主循环被阻塞）；
     /// 后台线程调用时必须只等待，由常驻主循环负责 —— 判定依据即此属性。
+    /// 判定比对「实时循环线程」（TuiManager.UiLoopThreadId）而非构造时快照：async REPL 主循环在 await 后
+    /// 线程会迁移到线程池（项目无 SynchronizationContext），构造时捕获的线程 ID 与运行循环的线程不再相等，
+    /// 用构造快照会把真正的循环线程误判成后台线程 → RenderWait 只空转不渲染读键 = 整机卡死（见卡死修复记录）。
     /// </summary>
-    public bool IsUiThread => Environment.CurrentManagedThreadId == _uiThreadId;
+    public bool IsUiThread => Environment.CurrentManagedThreadId == TuiManager.UiLoopThreadId;
 
     /// <summary>后台→UI 投递队列上限：渲染慢时流式 token 持续投递会积压无上限，超限丢最旧防内存撑爆。</summary>
     
@@ -66,7 +66,7 @@ public abstract class TuiScreen : TuiBase
     public void PostToUI(Action action)
     {
         if (action == null) return;
-        if (Environment.CurrentManagedThreadId == _uiThreadId)
+        if (IsUiThread)
         {
             action();
             return;

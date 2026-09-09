@@ -522,6 +522,11 @@ public static class UxHelper
             {
                 if (ownLoop)
                 {
+                    // 本循环接管渲染+读键 = 主循环（UiLoopTick 所属循环）被本调用阻塞。
+                    // 必须同步刷新 UiLoopTick + 阶段标记，否则看门狗会把「对话框正常打开等待用户操作」
+                    // 误判成「主循环冻结」（日志里反复的 ~3s UI.Freeze 假阳性）。本循环每帧都在跑，
+                    // UiLoopTick 随之前进 → 看门狗不再误报。
+                    TuiManager.SetActivity("RenderWait.Dialog");
                     screen.PumpUIQueue(); // 对话框期间也消费后台投递的 UI 操作（PostToUI 已提炼到基类）
                     manager?.Render();
                     var ev = inputMgr.ReadInput(30);

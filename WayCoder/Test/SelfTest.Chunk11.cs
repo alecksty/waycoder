@@ -173,6 +173,9 @@ public static partial class SelfTest
             "ThemeVerify.cs",
             // 终端 ANSI 底层原语：本就负责发射 \x1b 转义序列，属 Tty 层而非界面层
             "AnsiString.cs", "AnsiTty.cs", "RenderBuffer.cs", "Terminal.cs",
+            // 统一字符源：Windows 用 Console.OpenStandardInput 读 VT 字节流、Unix 用 Console.KeyAvailable
+            // 读真实 PTY——与 TerminalRawMode 同属终端输入底层，负责读控制台，非界面层硬编码。
+            "CharSource.cs", "WinConsoleMode.cs",
             // 终端宽度探针 + raw 模式：直接操作 Console.Out/\x1b + libc termios，属终端底层
             "TerminalWidthProbe.cs", "TerminalRawMode.cs",
             // CLI 参数解析层（--keypad/--test/--model 等），一次性模式直接打印 stdout，非全屏界面。

@@ -105,6 +105,14 @@ public class TuiMouseArg : CliArg
     public override int? OnMatch(List<string> values) => TuiMouseTest.Run();
 }
 
+public class MouseProbeArg : CliArg
+{
+    public override string Description => "Windows 鼠标 VT 字节流实机探针（验证 .NET stream 能否读到 SGR 鼠标序列）";
+    public override bool Internal => true;
+    public MouseProbeArg() : base("mouse-probe", "--mouse-probe") { }
+    public override int? OnMatch(List<string> values) => TuiMouseProbe.Run();
+}
+
 public class DialogShowArg : CliArg
 {
     public override string Description => "对话框仅绘制演示（1~6 行消息 + 指定位置，抓屏核对布局）";
