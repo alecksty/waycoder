@@ -82,9 +82,12 @@ public sealed class WindowsCharSource : ICharSource, IDisposable
     private volatile bool _done;
     private readonly System.IO.Stream _stdin;
 
-    public WindowsCharSource()
+    public WindowsCharSource() : this(Console.OpenStandardInput()) { }
+
+    /// <summary>测试/自定义流注入构造（生产走无参 = Console 标准输入）。</summary>
+    public WindowsCharSource(Stream stdin)
     {
-        _stdin = Console.OpenStandardInput();
+        _stdin = stdin;
         _reader = new Thread(ReadLoop) { IsBackground = true, Name = "waycoder-win-char-source" };
         _reader.Start();
     }
