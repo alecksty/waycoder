@@ -480,41 +480,11 @@ public partial class ChatPage : ContentPage
 
 
 
-    private static Color? ColorKey(string key) => MauiUi.ResOrNull(key);
-
-
-    /// <summary>经济模式显示名（经 MauiUi 收敛）。</summary>
-    private static string EconomyName(EconomyMode m) => MauiUi.EconomyName(m);
 
 
 
-    /// <summary>命令按钮行卡片：标题（+ 可选副文本当前值），整行点击执行 onTap。</summary>
-    private static Border CommandRow(string title, string? sub, Action onTap, Color? bg, Color? fg, Color? subColor)
-    {
-        var inner = new VerticalStackLayout { Spacing = 1 };
-        inner.Children.Add(new Label
-        {
-            Text = title,
-            FontSize = 14,
-            TextColor = fg,
-            LineBreakMode = LineBreakMode.TailTruncation,
-        });
-        if (!string.IsNullOrEmpty(sub))
-            inner.Children.Add(new Label { Text = sub, FontSize = 11, TextColor = subColor });
 
-        var row = new Border
-        {
-            Padding = new Thickness(12, 10),
-            StrokeThickness = 0,
-            BackgroundColor = bg,
-            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 10 },
-            Content = inner,
-        };
-        var tap = new TapGestureRecognizer();
-        tap.Tapped += (_, _) => { try { onTap(); } catch (Exception ex) { ErrorLog.Error("Chat", "侧栏命令", ex); } };
-        row.GestureRecognizers.Add(tap);
-        return row;
-    }
+
 
     /// <summary>循环切换工作模式（建造→计划→聊天）并同步到 Agent，持久化供下次启动恢复。</summary>
     private void CycleWorkMode()
@@ -572,18 +542,6 @@ public partial class ChatPage : ContentPage
         ScrollToEnd();
     }
 
-    /// <summary>任务管理：展示当前 todo 列表。</summary>
-    private async Task ShowTasksAsync()
-    {
-        var items = new List<string>();
-        try { items = WayCoder.Tools.TodoTool.Items.Select(t => $"{t.Status} · {t.Title}").ToList(); } catch { }
-        if (items.Count == 0)
-        {
-            await DisplayAlertAsync("任务管理", "暂无任务", "关闭");
-            return;
-        }
-        await DisplayActionSheetAsync($"任务列表（{items.Count}）", "关闭", null, items.Take(20).ToArray());
-    }
 
     /// <summary>发送按钮（单按钮）：空闲=发送；忙时点一下=停止当前任务（取消本轮 + 清空排队）。
     /// 忙时想发下一条消息用虚拟键盘「发送」键（OnEditorCompleted，忙时进队列）。</summary>
