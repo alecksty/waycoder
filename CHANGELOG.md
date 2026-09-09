@@ -1,5 +1,13 @@
 # 更新日志
 
+## v0.96.75 (2026-09-10) — MAUI 死成员清理 + WindowsCharSource UTF-8 自测护栏
+
+v0.96.74 后的收尾：清理 MAUI 抽屉独立页化残留的死成员，并为 Windows 输入链的 UTF-8 状态化解码补自测（可注入流）。Android Debug 编译 0 错误；桌面自测 5089 / 5089。
+
+- **MAUI 清理残留死成员**（`ChatPage`）：CommandRow / EconomyName / ColorKey / ShowTasksAsync（抽屉独立页后各仅剩定义无引用）删除，净删 42 行
+- **WindowsCharSource 可注入构造**：加 `Stream` 注入构造（生产无参 = Console 标准输入），解码逻辑不再锁死真实控制台，可单测
+- **UTF-8 状态化解码自测（回归护栏）**：新增 `SelfTest.Chunk19`——emoji 代理对高位/低位完整返回、跨读边界拆包（先喂前导字节后喂续字节）不丢字节/不出 U+FFFD、RS(0x1E) 分隔符跳过、ASCII 直通；主自测 5083 → **5089** 全过（finding #3 若复发先红）
+
 ## v0.96.74 (2026-09-09) — TUI 鼠标 Windows 支持（统一字符源）+ 卡死修复（2026-09-10 code-review 修复后，待实机复验）
 
 > 原始 WIP 记录：本轮把 TUI 输入读键链路重构为统一字符源（Windows 用 VT 字节流、macOS/Linux 用 Console.ReadKey），
