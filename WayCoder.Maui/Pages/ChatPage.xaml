@@ -290,57 +290,5 @@
 
         </Grid>
         </Grid>
-        <!-- 抽屉浮层（覆盖全页、独立于 MainHost 布局，Z 最顶）：半透明遮罩 + 左抽屉(会话历史) / 右抽屉(侧边栏)。
-             两抽屉初始在屏外（TranslationX=±Width），打开时 TranslateTo 滑入 + MainHost.Padding 让位。 -->
-        <Grid x:Name="DrawerLayer" IsVisible="False" ZIndex="10">
-            <BoxView x:Name="DrawerScrim" Color="#00000000" Opacity="0">
-                <BoxView.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnDrawerScrimTapped" />
-                </BoxView.GestureRecognizers>
-            </BoxView>
-            <!-- 左抽屉：会话历史列表。固定头部（标题+新建）+ 可滚动列表（内容由 code-behind 构建/刷新） -->
-            <Border x:Name="LeftDrawer"
-                    HorizontalOptions="Start"
-                    VerticalOptions="Fill"
-                    WidthRequest="330"
-                    StrokeThickness="0"
-                    BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}">
-                <Grid RowDefinitions="Auto,*" RowSpacing="2">
-                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="16,12,6,4">
-                        <Label
-                            Text="会话历史"
-                            FontSize="14"
-                            FontAttributes="Bold"
-                            VerticalOptions="Center"
-                            TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
-                        <Button
-                            x:Name="NewSessionBtn"
-                            Grid.Column="1"
-                            Text="＋ 新会话"
-                            FontSize="12"
-                            Padding="10,6"
-                            Margin="0,0,6,0"
-                            BackgroundColor="Transparent"
-                            TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
-                            Clicked="OnNewSessionClicked"
-                            SemanticProperties.Hint="新建会话" />
-                    </Grid>
-                    <ScrollView Grid.Row="1">
-                        <VerticalStackLayout x:Name="LeftBody" Spacing="4" Padding="8,0,8,12" />
-                    </ScrollView>
-                </Grid>
-            </Border>
-            <!-- 右抽屉：侧边栏（模式/权限/经济 · todo · 上下文 · 记忆 · 命令；内容 RightBody code-behind 构建） -->
-            <Border x:Name="RightDrawer"
-                    HorizontalOptions="End"
-                    VerticalOptions="Fill"
-                    WidthRequest="340"
-                    StrokeThickness="0"
-                    BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}">
-                <ScrollView>
-                    <VerticalStackLayout x:Name="RightBody" Padding="14,10" Spacing="8" />
-                </ScrollView>
-            </Border>
-        </Grid>
     </Grid>
 </ContentPage>
