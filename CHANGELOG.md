@@ -1,5 +1,13 @@
 # 更新日志
 
+## v0.96.73 (2026-09-09) — MAUI 清理抽屉死代码（净删 355 行）+ 自测基线
+
+会话历史/侧栏自 v0.96.65 改 Shell 独立页后，抽屉浮层整套代码（XAML DrawerLayer/左右抽屉、ChatPage 开合动画/边缘 Pan/scrim/Populate 面板/NewSession 链等）一直是未调用死代码。本轮删除并记录桌面自测基线。Android Debug 编译 0 错误，模拟器启动正常。
+
+- **抽屉死代码清理**：删除 ChatPage.xaml DrawerLayer/DrawerScrim/LeftDrawer/RightDrawer/LeftBody/RightBody 整块（52 行）+ ChatPage 抽屉相关字段与 18 个方法（303 行）：开合动画（Open/Close/CloseDrawersAsync）、边缘 Pan（OnLeft/RightEdgePan）、scrim 关闭、Build/Populate 左右面板、RefreshSessionList、NewSession/NewSessionAsync/ManageSessions 链、NavThen、OnNewSessionClicked/OnDrawerScrimTapped、OnSizeAllocated 抽屉宽覆盖；清理残留 `RefreshSessionList()` 调用
+- **文档同步**：CLAUDE.md 更新 v0.96.65 条目"抽屉旧 UI/方法暂留为未调用死代码待清理"为"v0.96.73 已清理"
+- **自测基线**：桌面 Debug `dotnet run -- --test` 通过 5083 / 5083，失败 0——Android 网络 handler 恢复改动（v0.96.72）在桌面 core 无回归
+
 ## v0.96.72 (2026-09-08) — Android 恢复系统代理 + UI 重复代码提炼（MauiUi 共享助手）
 
 修复 review 遗留的 Android 网络能力问题，并把移动端多处重复的取值/渲染 helper 收敛为单一来源。Android Debug 编译 0 错误。
