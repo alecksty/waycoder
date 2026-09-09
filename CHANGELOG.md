@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.96.74 (2026-09-09) — WIP：TUI 鼠标 Windows 支持（统一字符源）+ 卡死修复（未完，鼠标乱码待解决）
+
+> ⚠ **WIP 状态**：本轮把 TUI 输入读键链路重构为统一字符源（Windows 用 VT 字节流、macOS/Linux 用 Console.ReadKey），
+> 让 Windows 也能收到 SGR 鼠标序列 —— **已实机验证字节流可达、`ParseSgrMouse` 解析成功**。但**鼠标事件仍会在屏幕/输入框显示乱码**（如 `^[[<64;95;48M`），
+> 且 `?1002h` 在 Windows Terminal 触发 **motion 泛滥**（每秒几百个 `code=35` 事件，平台无关）。**这两处未解决，本轮为进度存档，供后续修复。**
+
+- **输入通道统一字符源重构（核心）**：新增 `UI/TUI/Base/CharSource.cs` —— `ICharSource` 抽象 + `WindowsCharSource`（`Console.OpenStandardInput` 读 VT 字节流）+ `UnixCharSource`（macOS/Linux 保 `Console.ReadKey`）；`InputManager.PumpKeys`/`TryParseEscapeSequence`/`TryParseCsiFunctionKey`/`ReadPasteContent` 读键全部收敛到统一源，Windows 用字节流收 SGR 鼠标。macOS/Linux 路径与原逻辑等价（零回归）
+  - **Windows VT 输入启用**：新增 `UI/Shared/Terminal/WinConsoleMode.cs` —— `GetStdHandle`/`GetConsoleMode`/`SetConsoleMode` P/Invoke（`ENABLE_VIRTUAL_TERMINAL_INPUT` + 关 `ENABLE_QUICK_EDIT_MODE`），`TuiManager.Enter/Exit` 接线；非 Windows/重定向 no-op，macOS/Linux 不碰 kernel32（AOT 可移植）
+  - **跳过 Windows Terminal 的孤立 RS 分隔符**（`\x1e`，SGR 鼠标序列后的记录分隔，macOS 无此字节）
+  - **方向键/功能键保留**：`ICharSource.TryReadKey` 返回完整 `ConsoleKeyInfo`（`Key=UpArrow` 等不丢），macOS/Linux 方向键回归已测
+- **Windows 原始通道两件套（探针实证）**：仅改字节流不够，还须开 `ENABLE_VIRTUAL_TERMINAL_INPUT` 终端才把 VT 序列交付为字节——`--mouse-probe` 用真实 `WindowsCharSource` 实机验证字节流可达 + `ParseSgrMouse` 解析正确
+- **统一鼠标消费补齐**：`TuiChatInput` 输入区鼠标点击定位光标（复用 `ScreenToHard`）+ `ReadConfirmKey` 左键=确认 Y/右键=取消 N；`Terminal.cs` 加 `Tty.CursorTop/CursorLeft`（IO 异常防护）；`TuiMouseTest.cs` 更新过期"不支持列表"注释（各 Picker 已走 RenderWait 路由鼠标）
+- **卡死修复（前述根因）**：异步 REPL 主循环 await 后线程迁移，`TuiScreen.IsUiThread` 比对构造线程快照失效 → `RenderWait` 误判后台线程只空转 = 卡死；改由 `TuiManager.UiLoopThreadId`（`Render`/`ReadInput` 记录实时循环线程）+ `RenderWait` ownLoop 期间 `SetActivity` 刷新看门狗。**此部分已修**
+- **已知未解决（供后续）**：① 鼠标事件屏幕乱码，`^[[<64;95;48M` 来源未定位（不在泵线程日志，疑第二条读取路径）；② `?1002h` 在 Windows Terminal 触发 motion 泛滥（每秒几百 `MouseMotion`）；③ macOS 实机鼠标未验证（理论等价）
+- **自测**：桌面 Debug `dotnet run -- --test` 通过 5076 / 5076，失败 0（含 Lint、方向键、TuiMouse）；`--tui-mouse` 76 项全过
+
 ## v0.96.73 (2026-09-09) — MAUI 清理抽屉死代码（净删 355 行）+ 自测基线
 
 会话历史/侧栏自 v0.96.65 改 Shell 独立页后，抽屉浮层整套代码（XAML DrawerLayer/左右抽屉、ChatPage 开合动画/边缘 Pan/scrim/Populate 面板/NewSession 链等）一直是未调用死代码。本轮删除并记录桌面自测基线。Android Debug 编译 0 错误，模拟器启动正常。

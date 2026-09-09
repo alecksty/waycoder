@@ -1,7 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Diagnostics;
 using WayCoder.UI.Shared.Terminal;
-using WayCoder.UI.Tui;
 
 namespace WayCoder.UI.TUI.Base;
 
@@ -20,6 +19,11 @@ public class InputManager : IDisposable
     private int _lastWidth, _lastHeight;
     private bool _mouseEnabled;
     private bool _disposed;
+
+    // ── 统一字符源：解析层透过它读键，与底层读取通道解耦 ──
+    // Windows 用字节流实现（收 SGR 鼠标），macOS/Linux 用 Console.ReadKey 实现（真实 PTY 原生）。
+    // 在 Init() 按平台创建；非交互（stdin 重定向）不启动泵线程，注入键仍可用。
+    private ICharSource? _charSource;
 
     /// <summary>ESC 序列解析时暂读的非鼠标字符（保证 Alt+字母 等组合键不丢失）。注入键也走这里，主循环优先消费。</summary>
     private readonly ConcurrentQueue<ConsoleKeyInfo> _pendingKeys = new();
@@ -115,6 +119,22 @@ public class InputManager : IDisposable
                 /* 非关键功能 */
             }
         }
+
+        // 创建统一字符源：Windows 用字节流（收 SGR 鼠标），macOS/Linux 用 Console.ReadKey。
+        // 前提 WinConsoleMode.Enable 已在 TuiManager.Enter 开 VT 输入；stdin 被重定向（管道/CI）
+        // 时不真实读（注入键仍可用），Windows 源读不到字节则降级走 Unix 源判定。
+        if (_charSource == null)
+        {
+            if (OperatingSystem.IsWindows() && !Console.IsInputRedirected)
+            {
+                try { _charSource = new WindowsCharSource(); }
+                catch { _charSource = new UnixCharSource(); }
+            }
+            else
+            {
+                _charSource = new UnixCharSource();
+            }
+        }
     }
 
     /// <summary>
@@ -126,6 +146,10 @@ public class InputManager : IDisposable
     public InputEvent ReadInput(int timeoutMs = 50)
     {
         if (_disposed) return new InputEvent { Type = InputType.Timeout };
+
+        // 记录当前循环线程：只有循环线程（REPL/AgentLoop/CmdLoop/RenderWait）会调 ReadInput。
+        // TuiScreen.IsUiThread 据此对齐，使 async REPL 主循环 await 迁移线程后仍能判对「谁接管循环」。
+        TuiManager.UiLoopThreadId = Environment.CurrentManagedThreadId;
 
         EnsurePumpStarted();
         var deadline = Environment.TickCount64 + timeoutMs;
@@ -197,12 +221,17 @@ public class InputManager : IDisposable
                     }
 
                     if (Console.IsInputRedirected) { Thread.Sleep(50); continue; }
-                    if (Console.KeyAvailable)
-                    {
-                        var key = Tty.ReadKey();
 
-                        // 转义序列（SGR 鼠标 / bracketed paste / Kitty / xterm 功能键）：
-                        // 解析可能连续读多个字节——这些阻塞读都在本后台线程，主循环不受影响。
+                    // 统一字符源读键：Windows（字节流）或 macOS/Linux（Console.ReadKey）。
+                    // 一个字符 = 码点；ESC(0x1B) 开走转义解析（SGR 鼠标/paste/Kitty/功能键），
+                    // 其余作为普通键。ctrl 修饰在键盘层（ReadKey）已并入；字节流层字符键原样。
+                    var src = _charSource;
+                    if (src != null && src.HasInput)
+                    {
+                        if (!src.TryReadKey(out var key)) { Thread.Sleep(1); continue; }
+
+                        // ESC（\x1b）开走转义序列解析（SGR 鼠标 / bracketed paste / Kitty / xterm 功能键）；
+                        // 其余（含方向键/功能键——KeyChar='\0' 但 Key 有语义）作为普通键入队，保留 ConsoleKey。
                         if (key.KeyChar == AnsiTty.AnsiCharPrefix)
                         {
                             var ev = TryParseEscapeSequence();
@@ -210,7 +239,6 @@ public class InputManager : IDisposable
                         }
                         else
                         {
-                            // Ctrl+C 等组合键原样入队（下游 Intercept/CancelKeyPress 负责拦截）
                             _rawEvents.Enqueue(new InputEvent { Type = InputType.Key, KeyInfo = key });
                         }
                     }
@@ -232,33 +260,34 @@ public class InputManager : IDisposable
     /// </summary>
     private InputEvent? TryParseEscapeSequence()
     {
-        // 等待 '['（最多 20ms）；超时 = 用户单独按了 ESC
+        // 等待 '['（最多 20ms）；超时 = 用户单独按了 ESC。统一经 _charSource 读（单通道）。
         if (!WaitForChar(20)) return null;
-        var bracket = Tty.ReadKey();
-        if (bracket.KeyChar != AnsiTty.AnsiCharEscape)
+        var bracket = ReadCharFromSource(20);
+        if (bracket != AnsiTty.AnsiCharEscape)
         {
-            // Alt+字符 组合：AnsiTty.AnsiCharPrefix x —— 退回字符，AnsiTty.AnsiCharPrefix 单独作为 ESC 键返回
-            _pendingKeys.Enqueue(bracket);
+            // Alt+字符 组合：AnsiTty.AnsiCharPrefix x —— 退回字符，AnsiTty.AnsiCharPrefix 单独作为 ESC 键返回。
+            // Windows 字节流层此字符已在 _charSource 读出；退回 pending 供 ReadInput 出队为普通键。
+            if (bracket != '\0') _pendingKeys.Enqueue(ToConsoleKeyInfo(bracket));
             return null;
         }
 
         // \x1b[ 后无内容（极少见）→ 退回 '['，让 \x1b 单独作为 ESC 键
         if (!WaitForChar(10))
         {
-            _pendingKeys.Enqueue(bracket);
+            _pendingKeys.Enqueue(ToConsoleKeyInfo(bracket));
             return null;
         }
 
-        var lt = Tty.ReadKey();
+        var lt = ReadCharFromSource(10);
 
         // Shift+Tab：\x1b[Z
-        if (lt.KeyChar == 'Z')
+        if (lt == 'Z')
             return new InputEvent { Type = InputType.ShiftTab };
 
         // 非 SGR 鼠标的 CSI 序列：统一解析（bracketed paste / Kitty / xterm 功能键）
-        if (lt.KeyChar != '<')
+        if (lt != '<')
         {
-            return TryParseCsiFunctionKey(lt.KeyChar);
+            return TryParseCsiFunctionKey(lt);
         }
 
         // SGR 鼠标：\x1b[<Cb;Cx;CyM（按下）/ \x1b[<Cb;Cx;Cym（释放）
@@ -267,9 +296,9 @@ public class InputManager : IDisposable
         for (int i = 0; i < 30; i++)
         {
             if (!WaitForChar(10)) break;
-            var ch = Tty.ReadKey();
-            buf.Append(ch.KeyChar);
-            if (ch.KeyChar == 'M' || ch.KeyChar == 'm') break;
+            var ch = ReadCharFromSource(10);
+            buf.Append(ch);
+            if (ch == 'M' || ch == 'm') break;
         }
 
         return ParseSgrMouse(buf.ToString());
@@ -338,11 +367,11 @@ public class InputManager : IDisposable
             for (int i = 0; i < 20; i++)
             {
                 if (!WaitForChar(10)) break;
-                var ch = Tty.ReadKey();
-                paramStr.Append(ch.KeyChar);
-                if (ch.KeyChar >= 0x40 && ch.KeyChar <= 0x7E)
+                var ch = ReadCharFromSource(10);
+                paramStr.Append(ch);
+                if (ch >= 0x40 && ch <= 0x7E)
                 {
-                    terminator = ch.KeyChar;
+                    terminator = ch;
                     break;
                 }
             }
@@ -456,7 +485,8 @@ public class InputManager : IDisposable
 
         while (true)
         {
-            if (!Console.KeyAvailable)
+            var src = _charSource;
+            if (src == null || !src.HasInput)
             {
                 if (Environment.TickCount64 - lastActivity > pasteIdleTimeoutMs)
                     break;
@@ -464,8 +494,8 @@ public class InputManager : IDisposable
                 continue;
             }
 
-            var ch = Tty.ReadKey();
-            sb.Append(ch.KeyChar);
+            if (!src.TryReadChar(out var pasteCh)) { Thread.Sleep(1); continue; }
+            sb.Append(pasteCh);
             lastActivity = Environment.TickCount64;
 
             // 检查缓冲区末尾是否匹配结束标记
@@ -622,18 +652,53 @@ public class InputManager : IDisposable
         return new InputEvent { Type = InputType.Key, KeyInfo = keyInfo };
     }
 
-    /// <summary>等待键盘输入到达（忙等），最多 timeoutMs 毫秒</summary>
-    private static bool WaitForChar(int timeoutMs)
+    /// <summary>等待键盘输入到达（忙等），最多 timeoutMs 毫秒 —— 统一经 _charSource（单通道，不与解析层脱节）。</summary>
+    private bool WaitForChar(int timeoutMs)
     {
         int waited = 0;
-        while (!Console.KeyAvailable)
+        while (_charSource == null || !_charSource.HasInput)
         {
             if (waited >= timeoutMs) return false;
             Thread.Sleep(1);
             waited++;
         }
-
         return true;
+    }
+
+    /// <summary>从统一字符源读一个字符（忙等，最多 timeoutMs）。返回的 char 为含控制符的码点；无输入返回 '\0'。</summary>
+    private char ReadCharFromSource(int timeoutMs)
+    {
+        if (!WaitForChar(timeoutMs)) return '\0';
+        return _charSource!.TryReadChar(out var c) ? c : '\0';
+    }
+
+    /// <summary>把一个字符（码点）转换为键事件。主要给字节流层：字符若非可打印/普通键则不产键事件。</summary>
+    private static InputEvent ToKeyEvent(char ch)
+    {
+        var keyInfo = new ConsoleKeyInfo(ch, ToConsoleKey(ch), false, false, false);
+        return new InputEvent { Type = InputType.Key, KeyInfo = keyInfo };
+    }
+
+    /// <summary>把一个字符（码点）转换为 ConsoleKeyInfo（供 _pendingKeys 队列与 ReadKey 兼容路径）。</summary>
+    private static ConsoleKeyInfo ToConsoleKeyInfo(char ch)
+    {
+        if (ch == '\0') return new ConsoleKeyInfo('\0', ConsoleKey.NoName, false, false, false);
+        return new ConsoleKeyInfo(ch, ToConsoleKey(ch), false, false, false);
+    }
+
+    /// <summary>char → ConsoleKey 粗略映射（近似；字节流层对方向键/功能键已在转义序列处理，这里是纯字符键）。</summary>
+    private static ConsoleKey ToConsoleKey(char ch)
+    {
+        if (ch >= 'a' && ch <= 'z') return (ConsoleKey)((int)ConsoleKey.A + (ch - 'a'));
+        if (ch >= 'A' && ch <= 'Z') return (ConsoleKey)((int)ConsoleKey.A + (ch - 'A'));
+        if (ch >= '0' && ch <= '9') return (ConsoleKey)((int)ConsoleKey.D0 + (ch - '0'));
+        return ch switch
+        {
+            ' ' => ConsoleKey.Spacebar, '\r' => ConsoleKey.Enter, '\t' => ConsoleKey.Tab,
+            '\b' => ConsoleKey.Backspace, '\x1b' => ConsoleKey.Escape,
+            '\n' => ConsoleKey.Enter, '\0' => ConsoleKey.NoName,
+            _ => ConsoleKey.NoName,
+        };
     }
 
     /// <summary>恢复终端设置</summary>
@@ -668,6 +733,13 @@ public class InputManager : IDisposable
             {
             }
         }
+
+        // 释放统一字符源（Windows 源后台读线程 + stdin 句柄）
+        if (_charSource is WindowsCharSource wc)
+        {
+            try { wc.Dispose(); } catch { }
+        }
+        _charSource = null;
 
         Console.CursorVisible = true;
     }

@@ -387,15 +387,17 @@ public static class TuiMouseTest
 
     // ── 报告 ──
 
-    /// <summary>报告已知不支持鼠标的界面（全屏 ANSI 对话框，走 Console.ReadKey 阻塞循环）。</summary>
+    /// <summary>
+    /// 报告键盘-only 的输入路径（非鼠标缺支持）。注意：各 Picker（ModelPicker/SessionPicker/
+    /// ReasoningPicker/CommandPalette/FilePicker）已改走 UxHelper.RenderWait 阻塞循环——RenderWait
+    /// 的 ownLoop 分支会把 InputType.Mouse 路由给 HandleMouse→OnMouse，故这些对话框组件的点击/滚动
+    /// 已经可用。剩余纯键盘路径：聊天输入区的临时粘贴确认（TuiChatInput.ReadConfirmKey，左/右键映射），
+    /// 以及 Plan 模式输入框内部的少量无坐标确认文本。
+    /// </summary>
     static void ReportUnsupported()
     {
-        Console.WriteLine("\n── 已知不支持鼠标的界面（全屏 ANSI 对话框，走 Console.ReadKey 阻塞循环，不经 OnMouse 分发）──");
-        Console.WriteLine("  · 模型选择器 ModelPicker (/m)");
-        Console.WriteLine("  · 会话管理器 SessionPicker (/s)");
-        Console.WriteLine("  · 推理深度 ReasoningPicker (/r)");
-        Console.WriteLine("  · 命令面板 CommandPalette (/c)");
-        Console.WriteLine("  · 文件选择器 FilePicker (/f)");
-        Console.WriteLine("  （这些界面内部虽用 TuiButton 等控件，但输入层未接入鼠标，仅键盘可用）");
+        Console.WriteLine("\n── 键盘-only / 部分鼠标的界面（其余对话框组件已走 RenderWait 路由鼠标）──");
+        Console.WriteLine("  · 聊天/Plan 输入区临时粘贴确认（ReadConfirmKey：左键=确认 Y，右键=取消 N）");
+        Console.WriteLine("  · 全屏 ANSI 对话框（如欢迎横幅/纯文本提示，不经 OnMouse 分发，仅键盘可关）");
     }
 }

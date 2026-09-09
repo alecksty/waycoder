@@ -78,6 +78,7 @@ public static class BuiltinArgs
         CliArgRegistry.Register(new TuiDemoArg());
         CliArgRegistry.Register(new TuiAuditArg());
         CliArgRegistry.Register(new TuiMouseArg());
+        CliArgRegistry.Register(new MouseProbeArg());
         CliArgRegistry.Register(new DialogShowArg());
 #endif
         CliArgRegistry.Register(new GuiArg());
