@@ -21,6 +21,11 @@ public static partial class WinConsoleMode
 {
     private const uint ENABLE_VIRTUAL_TERMINAL_INPUT = 0x0200;
     private const uint ENABLE_QUICK_EDIT_MODE = 0x0040;
+    // 关行缓冲/回显（0x0002/0x0004）：WindowsCharSource 走 OpenStandardInput 原生字节流，
+    // 若行缓冲开着按键只在 Enter 成批到达、回显开着 conhost 把字符叠加回 TUI 自绘上（重复/鬼影，
+    // 即「鼠标乱码」症状之一）。保留 PROCESSED_INPUT(0x0001) 让 Ctrl+C 仍由控制台处理。
+    private const uint ENABLE_LINE_INPUT = 0x0002;
+    private const uint ENABLE_ECHO_INPUT = 0x0004;
 
     private const int STD_INPUT_HANDLE = -10;
 
@@ -52,8 +57,9 @@ public static partial class WinConsoleMode
         if (handle == nint.Zero || handle == (nint)(-1)) return false;
         if (!GetConsoleMode(handle, out var mode)) return false;
 
-        // 打开 VT 输入 + 关 quick-edit（否则 conhost 鼠标点击做选区不发事件）。
-        var newMode = (mode | ENABLE_VIRTUAL_TERMINAL_INPUT) & ~ENABLE_QUICK_EDIT_MODE;
+        // 打开 VT 输入 + 关 quick-edit（否则 conhost 鼠标点击做选区不发事件）+ 关行缓冲/回显
+        // （原生字节流需 raw；否则按键回显叠加 TUI 自绘、行缓冲等 Enter 成批到——code-review finding）。
+        var newMode = (mode | ENABLE_VIRTUAL_TERMINAL_INPUT) & ~(ENABLE_QUICK_EDIT_MODE | ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT);
         if (!SetConsoleMode(handle, newMode)) return false;
 
         _origMode = mode;

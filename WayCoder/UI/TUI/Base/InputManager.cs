@@ -402,72 +402,90 @@ public class InputManager : IDisposable
     /// 解析 CSI 参数串为功能键事件。
     /// 支持格式：
     ///   num;mod term  →  xterm 修饰键格式（如 1;2P = Shift+F1）
-    ///   num term      →  无修饰键格式（如 1P = F1, 15~ = F5）
-    /// term: P = F1-F4, ~ = F5+ 或 Home/End/Insert/Delete/PgUp/PgDn
+    ///   裸字母 term   →  方向键/Home/End（ESC[A..D/H/F）——Windows ENABLE_VIRTUAL_TERMINAL_INPUT 下
+    ///                    conhost 就以这种 CSI 字节送方向/功能键，若在此返回 null 泵会退化成裸 ESC，
+    ///                    从而取消在跑 agent/丢草稿（code-review finding，故显式映射）
+    ///   ~：1~Home 2~Insert 3~Delete 4~End 5~PgUp 6~PgDn（无修饰也生效）；11~-24~ = F1-F12
+    /// term: P = F1-F4
     /// </summary>
     private static InputEvent? ParseCsiFuncKey(string paramBody, char terminator)
     {
         // 去掉终止符，解析数字参数
         var body = paramBody.TrimEnd(terminator);
-        if (body.Length == 0) return null;
 
-        var parts = body.Split(';');
-        if (!int.TryParse(parts[0], out var num)) return null;
+        int mod = 0;
+        int num = 0;
+        if (body.Length > 0)
+        {
+            var parts = body.Split(';');
+            if (parts.Length >= 1 && int.TryParse(parts[0], out num))
+                mod = parts.Length >= 2 && int.TryParse(parts[1], out var m) ? m : 0;
+        }
 
-        int mod = parts.Length >= 2 && int.TryParse(parts[1], out var m) ? m : 0;
+        // xterm modifier encoding: 2=Shift,3=Alt,4=Shift+Alt,5=Ctrl,6=Ctrl+Shift,7=Ctrl+Alt,8=Ctrl+Shift+Alt
+        bool shift = mod is 2 or 4 or 6 or 8;
+        bool alt = mod is 3 or 4 or 7 or 8;
+        bool ctrl = mod is 5 or 6 or 7 or 8;
 
-        // 映射功能键编号：xterm 有两种编码
-        // 编码1：F1-F4=1-4(P) / F5+=5-12(~)
-        // 编码2：F1-F12=11-24(~)
+        InputEvent? Key(ConsoleKey ck) => new()
+        {
+            Type = InputType.Key,
+            KeyInfo = new ConsoleKeyInfo('\0', ck, shift, alt, ctrl),
+        };
+
+        // 裸 CSI 字母：方向键 / Home / End（Windows VT 输入路径）
+        if (terminator is 'A' or 'B' or 'C' or 'D' or 'H' or 'F')
+        {
+            var nav = terminator switch
+            {
+                'A' => ConsoleKey.UpArrow,
+                'B' => ConsoleKey.DownArrow,
+                'C' => ConsoleKey.RightArrow,
+                'D' => ConsoleKey.LeftArrow,
+                'H' => ConsoleKey.Home,
+                _ => ConsoleKey.End,
+            };
+            return Key(nav);
+        }
+
+        // 编辑键区 ~（无修饰也映射：1~..6~ = Home/Insert/Delete/End/PgUp/PgDn）
+        if (terminator == '~' && num >= 1 && num <= 6)
+        {
+            var nav = num switch
+            {
+                1 => ConsoleKey.Home,
+                2 => ConsoleKey.Insert,
+                3 => ConsoleKey.Delete,
+                4 => ConsoleKey.End,
+                5 => ConsoleKey.PageUp,
+                _ => ConsoleKey.PageDown,
+            };
+            return Key(nav);
+        }
+
+        // 功能键：P=1-4(F1-F4)；~ 的 11-24(F1-F12；VT 下 F5+=15~…24~)
         int funcNum;
         if (terminator == 'P' && num >= 1 && num <= 4)
         {
-            funcNum = num; // F1=1, F2=2, F3=3, F4=4
+            funcNum = num;
         }
-        else if (terminator == '~')
+        else if (terminator == '~' && num >= 11 && num <= 24)
         {
-            if (num >= 1 && num <= 12)
-            {
-                // 部分终端 F1=1~, F2=2~, ..., F12=12~
-                // 也有 F1=11~, F2=12~, ..., F12=24~
-                // 但 num=1~6 可能是 Home/Insert/Delete/End/PgUp/PgDn
-                // 仅当有修饰键时才解析为功能键
-                if (mod != 0 && num >= 1 && num <= 12)
-                    funcNum = num;
-                else if (num >= 11 && num <= 24)
-                    funcNum = num - 10; // F1=11, F2=12, ...
-                else if (num >= 5 && num <= 12)
-                    funcNum = num; // F5=5, F6=6, ...
-                else
-                    return null;
-            }
-            else
-                return null;
+            funcNum = num - 10;
         }
         else
         {
-            return null; // 不认识的终止符（如 A/B/C/D 方向键，已在 .NET 层处理）
+            return null;
         }
-
-        if (funcNum < 1 || funcNum > 12) return null;
-
-        // xterm modifier encoding:
-        // 2=Shift, 3=Alt, 4=Shift+Alt, 5=Ctrl, 6=Ctrl+Shift, 7=Ctrl+Alt, 8=Ctrl+Shift+Alt
-        bool shift = mod == 2 || mod == 4 || mod == 6 || mod == 8;
-        bool alt = mod == 3 || mod == 4 || mod == 7 || mod == 8;
-        bool ctrl = mod == 5 || mod == 6 || mod == 7 || mod == 8;
 
         var consoleKey = funcNum switch
         {
             1 => ConsoleKey.F1, 2 => ConsoleKey.F2, 3 => ConsoleKey.F3,
             4 => ConsoleKey.F4, 5 => ConsoleKey.F5, 6 => ConsoleKey.F6,
             7 => ConsoleKey.F7, 8 => ConsoleKey.F8, 9 => ConsoleKey.F9,
-            10 => ConsoleKey.F10, 11 => ConsoleKey.F11, 12 => ConsoleKey.F12,
-            _ => ConsoleKey.F1
+            10 => ConsoleKey.F10, 11 => ConsoleKey.F11, _ => ConsoleKey.F12,
         };
-
-        var keyInfo = new ConsoleKeyInfo('\0', consoleKey, shift, alt, ctrl);
-        return new InputEvent { Type = InputType.Key, KeyInfo = keyInfo };
+        return Key(consoleKey);
     }
 
     /// <summary>
@@ -670,13 +688,6 @@ public class InputManager : IDisposable
     {
         if (!WaitForChar(timeoutMs)) return '\0';
         return _charSource!.TryReadChar(out var c) ? c : '\0';
-    }
-
-    /// <summary>把一个字符（码点）转换为键事件。主要给字节流层：字符若非可打印/普通键则不产键事件。</summary>
-    private static InputEvent ToKeyEvent(char ch)
-    {
-        var keyInfo = new ConsoleKeyInfo(ch, ToConsoleKey(ch), false, false, false);
-        return new InputEvent { Type = InputType.Key, KeyInfo = keyInfo };
     }
 
     /// <summary>把一个字符（码点）转换为 ConsoleKeyInfo（供 _pendingKeys 队列与 ReadKey 兼容路径）。</summary>

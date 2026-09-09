@@ -479,8 +479,13 @@ public static class TuiChatInput
             Tty.Write(AnsiTty.ClearToEndScreen); // 恢复光标 + 清除输入区
             Tty.Write($"粘贴 {pasteLines.Length} 行 / {clip.Length} 字符? ");
             Tty.WriteLine(preview);
-            Tty.Write("[Y] 确认粘贴  [N] 取消 ");
-            var confirm = ReadConfirmKey();
+            const string confirmHint = "[Y] 确认粘贴  [N] 取消 ";
+            Tty.Write(confirmHint);
+            // 记录确认提示所在行/列跨度，供 ReadConfirmKey 鼠标点按只在该行内确认——
+            // 否则屏幕上任意左键都被当 Y（误触滚动条/聊天区即自动确认，code-review finding）。
+            var confirmRow = Tty.CursorTop;
+            var colAfter = Tty.CursorLeft;
+            var confirm = ReadConfirmKey(confirmRow, colAfter - VW(confirmHint) - 1, colAfter + 1);
             if (confirm != null && char.ToUpperInvariant(confirm.Value.KeyChar) != 'Y') return;
         }
 
@@ -676,8 +681,12 @@ public static class TuiChatInput
         catch { return new InputEvent { Type = InputType.Timeout }; }
     }
 
-    /// <summary>读取确认键（Y/N/Esc）。Esc 返回 null（=取消）；其余按键原样返回。超长粘贴确认等场景使用。</summary>
-    private static ConsoleKeyInfo? ReadConfirmKey()
+    /// <summary>
+    /// 读取确认键（Y/N/Esc）。Esc 返回 null（=取消）；其余按键原样返回。超长粘贴确认等场景使用。
+    /// 鼠标确认仅当点按落在确认提示行（confirmRow）及横向跨度内才映射：左键=Y、右键=N；
+    /// 其它位置的点击一律忽略（继续等待），防误触滚动条/聊天区自动确认/取消（code-review finding）。
+    /// </summary>
+    private static ConsoleKeyInfo? ReadConfirmKey(int confirmRow = -1, int minCol = 0, int maxCol = int.MaxValue)
     {
         while (true)
         {
@@ -686,14 +695,13 @@ public static class TuiChatInput
                 return ev.KeyInfo.Key == ConsoleKey.Escape ? null : ev.KeyInfo;
             if (ev.Type == InputType.Mouse)
             {
-                // 鼠标确认（输入框确认提示无精确坐标，用直觉映射）：左键=确认 Y，右键=取消 N。
-                // 避免「确认框对鼠标无反应」（此前 Mouse 一律继续等待，鼠标点了没反馈）。
-                // 注意：滚轮/移动不计，不能返回 null——null 会被调用方当「取消」，须继续等待其它事件。
-                if (ev.MouseLeft)
+                // 点按须在提示行内（row 精确命中 + 列落在跨度里），才映射 Y/N；否则忽略继续等待。
+                bool onHint = confirmRow >= 0 && ev.MouseY == confirmRow && ev.MouseX >= minCol && ev.MouseX <= maxCol;
+                if (ev.MouseLeft && onHint)
                     return new ConsoleKeyInfo('Y', ConsoleKey.Y, false, false, false);
-                if (ev.MouseRight)
+                if (ev.MouseRight && onHint)
                     return new ConsoleKeyInfo('N', ConsoleKey.N, false, false, false);
-                continue; // 滚轮/移动，继续等待
+                continue; // 其它位置 / 滚轮 / 移动，继续等待
             }
             // Timeout/Resize/ShiftTab/Paste → 继续等待确认（保留旧阻塞行为，不因空闲超时误取消）
         }
