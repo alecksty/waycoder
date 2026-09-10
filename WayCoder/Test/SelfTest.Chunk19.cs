@@ -14,6 +14,16 @@ public static partial class SelfTest
     /// </summary>
     private static void TestChunk19(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
     {
+        Section("[/topage 路由映射(core PageRouteMap)]");
+        Check("home/chat/files/settings → //xxx", PageRouteMap.Resolve("home") == "//home"
+            && PageRouteMap.Resolve("CHAT") == "//chat" && PageRouteMap.Resolve(" files ") == "//files"
+            && PageRouteMap.Resolve("settings") == "//settings" && PageRouteMap.Resolve("config") == "//settings");
+        Check("独立页别名 → 路由", PageRouteMap.Resolve("history") == "sessions"
+            && PageRouteMap.Resolve("menu") == "panel" && PageRouteMap.Resolve("model") == "modelpicker"
+            && PageRouteMap.Resolve("供应商") == "models" && PageRouteMap.Resolve("sync") == "gitsync");
+        Check("/home 带斜杠也识别", PageRouteMap.Resolve("/about") == "about");
+        Check("未知页面 → null(回显用法)", PageRouteMap.Resolve("nope") == null && PageRouteMap.Resolve("") == null);
+
         Section("[跨端 UI 文本(core UiText)]");
         Check("PermName Yolo/SmartAuto/Auto/Ask", UiText.PermName(PermissionManager.Mode.Yolo) == "Yolo"
             && UiText.PermName(PermissionManager.Mode.SmartAuto) == "SmartAuto"

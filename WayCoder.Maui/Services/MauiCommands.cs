@@ -25,25 +25,10 @@ public static class MauiCommands
 
         public override async Task ExecuteAsync(string args, ChatScreen screen)
         {
-            var p = args.Trim().ToLowerInvariant().TrimStart('/');
-            var route = p switch
-            {
-                "home" => "//home",
-                "chat" => "//chat",
-                "files" => "//files",
-                "settings" or "config" => "//settings",
-                "session" or "sessions" or "history" => "sessions",
-                "panel" or "menu" or "side" or "命令" => "panel",
-                "model" or "modelpicker" or "模型" => "modelpicker",
-                "provider" or "providers" or "models" or "供应商" => "models",
-                "sync" or "gitsync" or "同步" => "gitsync",
-                "about" or "关于" => "about",
-                "editor" or "编辑器" => "editor",
-                _ => null,
-            };
+            // 页面名 → 路由映射上移 core PageRouteMap（纯逻辑，主自测可断言）
+            var route = PageRouteMap.Resolve(args);
             if (route != null) { await NavigateAsync(route); return; }
-            ChatScreen.OnAddSystemMsg?.Invoke(
-                "可用：/topage home|chat|files|settings|sessions|panel|modelpicker|providers|gitsync|about|editor");
+            ChatScreen.OnAddSystemMsg?.Invoke(PageRouteMap.Usage);
         }
     }
 
