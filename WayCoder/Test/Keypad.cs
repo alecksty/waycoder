@@ -19,6 +19,9 @@ namespace WayCoder;
 /// 脚本格式（每行一条命令，`#` 或 `//` 开头为注释，空行忽略）：
 ///   KEY:F1              按键（支持修饰键：CTRL+P / SHIFT+TAB / CTRL+SHIFT+F1）
 ///   KEY:Up / KEY:Down   方向键（Up/Down/Left/Right/Home/End/PgUp/PgDn/Tab/Space/Enter/Escape/Backspace/Delete）
+///   RAWKEY:7F           按【终端原始字节】喂键（hex，空格分隔；如 RAWKEY:1B 5B 41）——
+///                       走 字节→WindowsCharSource→ConsoleKeyInfo 的真机路径，能复现
+///                       Backspace(7F)/Ctrl+字母(01..1A) 这类只有字节层才会暴露的映射问题（KEY 覆盖不到）
 ///   TEXT:hello world    逐字符键入（用于输入框；换行用单独 KEY:Enter）
 ///   DELAY:1000          延时毫秒（等待动画/异步更新）
 ///   SNAP:标签           抓取当前帧并输出纯文本（省略标签则为 SNAP）
@@ -122,6 +125,15 @@ public static class Keypad
                             mgr.Input.InjectKey(ik);
                         else
                             Emit(orig, $"# (第 {step} 行) 无法识别的按键: {value}");
+                        break;
+
+                    case "RAWKEY":
+                        // 走【终端原始字节】真机路径：hex 字节 → WindowsCharSource → ConsoleKeyInfo → OnKey。
+                        // KEY:/INJECT 直接注入 ConsoleKeyInfo，**绕过了字节映射层**——Windows 读键自 v0.96.74
+                        // 起走 VT 字节流，Backspace(0x7F)、Ctrl+字母(0x01..0x1A) 这类映射漏洞只有这条路径能复现。
+                        // 仅覆盖单字节键；ESC 开头的方向/功能键序列仍用 KEY:Up 等。
+                        foreach (var kb in RawBytesToKeys(value))
+                            mgr.OnKey(kb);
                         break;
 
                     case "MODEL":
@@ -430,6 +442,40 @@ public static class Keypad
         }
         if (key == ConsoleKey.Spacebar) return ' ';
         return '\0';
+    }
+
+    /// <summary>
+    /// hex 字节串（"7F" 或 "1B 5B 41"，空格/逗号分隔）→ 真实 <see cref="WindowsCharSource"/> 解出的按键列表。
+    /// 用于在脚本里复现「终端交给程序的原始字节」，覆盖 KEY:/INJECT 绕过的字节映射层。
+    /// </summary>
+    static List<ConsoleKeyInfo> RawBytesToKeys(string spec)
+    {
+        var bytes = new List<byte>();
+        foreach (var tok in spec.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries))
+        {
+            var t = tok.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? tok[2..] : tok;
+            if (byte.TryParse(t, System.Globalization.NumberStyles.HexNumber,
+                    System.Globalization.CultureInfo.InvariantCulture, out var b))
+                bytes.Add(b);
+        }
+
+        var keys = new List<ConsoleKeyInfo>();
+        if (bytes.Count == 0) return keys;
+
+        // 用可注入流构造真实字符源：读取线程把字节入队后，TryReadKey 走的就是生产同一条解码路径。
+        using var src = new WindowsCharSource(new System.IO.MemoryStream(bytes.ToArray()));
+
+        // 读取线程是异步的：刚构造完队列还是空的，此时 HasInput=false 只代表「还没读进来」，
+        // 不代表「读完了」。因此先有界等首字节入队，再按「连续 quiet 次读空」判定排空结束。
+        for (int i = 0; i < 300 && !src.HasInput; i++) Thread.Sleep(1);
+
+        for (int quiet = 0; quiet < 25 && keys.Count < 64; )
+        {
+            if (src.TryReadKey(out var k)) { keys.Add(k); quiet = 0; continue; }
+            Thread.Sleep(2);
+            quiet++;
+        }
+        return keys;
     }
 
     /// <summary>单个可打印字符 → ConsoleKeyInfo。文本插入走 TuiEditBase 的 keyChar 分支。</summary>

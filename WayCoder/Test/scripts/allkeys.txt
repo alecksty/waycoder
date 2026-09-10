@@ -1,0 +1,42 @@
+# 全键盘按键巡检 —— 重点覆盖 Windows VT 字节流路径
+#
+# 分两层：
+#   KEY:xxx   直接注入 ConsoleKeyInfo（走 OnKey 分发链，验「键 → 界面行为」）
+#   RAWKEY:xx 喂终端原始字节（走 字节→WindowsCharSource→ConsoleKeyInfo，验「字节 → 键」映射层）
+# 后者才是能暴露 Backspace(0x7F)/Ctrl+字母(0x01..0x1A) 映射漏洞的那一层。
+
+# ── 1. 输入框打字基线 ──
+TEXT:abcde
+SNAP:1 输入 abcde
+
+# ── 2. Backspace：KEY 路径（ConsoleKeyInfo 直接注入）──
+KEY:Backspace
+SNAP:2 KEY.Backspace 后应 abcd
+
+# ── 3. Backspace：真机字节路径（VT 输入下终端发的就是 0x7F）──
+RAWKEY:7F
+SNAP:3 RAWKEY 7F 后应 abc
+
+# ── 4. BS(0x08) 变体也要能退格 ──
+RAWKEY:08
+SNAP:4 RAWKEY 08 后应 ab
+
+# ── 5. 连续退格到空，再退不得崩 ──
+RAWKEY:7F
+RAWKEY:7F
+RAWKEY:7F
+RAWKEY:7F
+SNAP:5 退空后应无内容且不崩
+
+# ── 6. Ctrl 组合键：真机字节路径（非 Kitty 终端下 Ctrl+字母 = 0x01..0x1A）──
+TEXT:xyz
+SNAP:6 输入 xyz
+RAWKEY:01
+TEXT:Q
+SNAP:7 RAWKEY 01=Ctrl+A(全选) 后输入 Q → 应只剩 Q（证明 Ctrl 修饰键已还原）
+
+# ── 7. 歧义码位不得被 Ctrl 还原抢走既有语义 ──
+RAWKEY:09
+SNAP:8 RAWKEY 09=Tab（焦点切换，不应插字符）
+RAWKEY:1B
+SNAP:9 RAWKEY 1B=ESC

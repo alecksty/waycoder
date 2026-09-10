@@ -75,6 +75,16 @@ public static partial class SelfTest
         Check("15~ → F5", ParseKey("15~", '~') == ConsoleKey.F5);
         var ctrlEv = InputManager.ParseCsiFuncKey("1;5D", 'D');
         Check("1;5D → Ctrl+Left", ctrlEv?.KeyInfo is { } kk && kk.Key == ConsoleKey.LeftArrow && kk.Modifiers.HasFlag(ConsoleModifiers.Control));
+        // SS3 形态（ESC O x，序列里没有 '['）：xterm/Windows Terminal 的 F1-F4 走这条。
+        // 漏处理会让 F1-F4 落进「Alt+字符」分支 → 槽位切换键整排失效。
+        Check("SS3 P/Q/R/S → F1-F4（槽位切换键）",
+            InputManager.MapSs3Key('P') == ConsoleKey.F1 && InputManager.MapSs3Key('Q') == ConsoleKey.F2
+            && InputManager.MapSs3Key('R') == ConsoleKey.F3 && InputManager.MapSs3Key('S') == ConsoleKey.F4);
+        Check("SS3 A/B/C/D/H/F → 方向键与 Home/End（应用光标键模式）",
+            InputManager.MapSs3Key('A') == ConsoleKey.UpArrow && InputManager.MapSs3Key('B') == ConsoleKey.DownArrow
+            && InputManager.MapSs3Key('C') == ConsoleKey.RightArrow && InputManager.MapSs3Key('D') == ConsoleKey.LeftArrow
+            && InputManager.MapSs3Key('H') == ConsoleKey.Home && InputManager.MapSs3Key('F') == ConsoleKey.End);
+        Check("SS3 未识别字节返回 null（不吞按键）", InputManager.MapSs3Key('Z') == null);
 
         Section("[char→ConsoleKey 统一映射]");
         Check("MapToConsoleKey a→A", WindowsCharSource.MapToConsoleKey('a') == ConsoleKey.A);
@@ -82,6 +92,57 @@ public static partial class SelfTest
         Check("MapToConsoleKey 空格→Spacebar", WindowsCharSource.MapToConsoleKey(' ') == ConsoleKey.Spacebar);
         Check("MapToConsoleKey ESC→Escape", WindowsCharSource.MapToConsoleKey('\x1b') == ConsoleKey.Escape);
         Check("MapToConsoleKey CJK→NoName", WindowsCharSource.MapToConsoleKey('中') == ConsoleKey.NoName);
+        Check("MapToConsoleKey DEL(0x7F)→Backspace",
+            WindowsCharSource.MapToConsoleKey('\x7f') == ConsoleKey.Backspace);
+
+        // ── 字节流按键还原：v0.96.74 把 Windows 读键改成 VT 字节流后，字节层丢掉了修饰键信息，
+        //    且 0x7F/控制符两条映射一起漏掉 → 退格擦不掉、Ctrl 组合键全静默失效。
+        //    下面直接喂字节走真实 WindowsCharSource → TryReadKey，等于端到端复现真机路径。──
+        Section("[字节流按键还原（Backspace / Ctrl）]");
+        using (var feed = new TestFeedStream())
+        using (var src = new WindowsCharSource(feed))
+        {
+            feed.Feed([0x7F]); // 真机 Backspace 在 VT 输入下发的就是 DEL
+            var bs = ReadKey(src, feed);
+            Check("字节 0x7F → ConsoleKey.Backspace", bs?.Key == ConsoleKey.Backspace);
+            Check("字节 0x7F → KeyChar 归一为 \\b", bs?.KeyChar == '\b');
+        }
+        using (var feed = new TestFeedStream())
+        using (var src = new WindowsCharSource(feed))
+        {
+            feed.Feed([0x08]); // BS 变体：少数终端/粘贴路径发这个，须同样识别
+            var bs = ReadKey(src, feed);
+            Check("字节 0x08 → ConsoleKey.Backspace", bs?.Key == ConsoleKey.Backspace);
+        }
+        using (var feed = new TestFeedStream())
+        using (var src = new WindowsCharSource(feed))
+        {
+            feed.Feed([0x01, 0x10, 0x1A]); // Ctrl+A / Ctrl+P / Ctrl+Z
+            var ca = ReadKey(src, feed);
+            var cp = ReadKey(src, feed);
+            var cz = ReadKey(src, feed);
+            Check("字节 0x01 → Ctrl+A",
+                ca?.Key == ConsoleKey.A && ca.Value.Modifiers.HasFlag(ConsoleModifiers.Control));
+            Check("字节 0x10 → Ctrl+P（权限循环键）",
+                cp?.Key == ConsoleKey.P && cp.Value.Modifiers.HasFlag(ConsoleModifiers.Control));
+            Check("字节 0x1A → Ctrl+Z（优雅暂停键）",
+                cz?.Key == ConsoleKey.Z && cz.Value.Modifiers.HasFlag(ConsoleModifiers.Control));
+        }
+        using (var feed = new TestFeedStream())
+        using (var src = new WindowsCharSource(feed))
+        {
+            // 歧义码位不得被 Ctrl 还原抢走既有语义
+            feed.Feed([0x09, 0x0D, 0x1B]);
+            var tab = ReadKey(src, feed);
+            var enter = ReadKey(src, feed);
+            var esc = ReadKey(src, feed);
+            Check("Tab/Enter/ESC 语义不被 Ctrl 还原破坏",
+                tab?.Key == ConsoleKey.Tab && enter?.Key == ConsoleKey.Enter && esc?.Key == ConsoleKey.Escape);
+        }
+        // InputManager 的字符转换须与字节流共用同一实现（修一处全端生效）
+        Check("ToConsoleKeyInfo 与 MapToConsoleKey 同源（0x7F）",
+            WindowsCharSource.ToConsoleKeyInfo('\x7f').Key == ConsoleKey.Backspace
+            && WindowsCharSource.ToConsoleKeyInfo('\x10').Modifiers.HasFlag(ConsoleModifiers.Control));
 
         Section("[字符源 UTF-8 状态化]");
         using (var feed = new TestFeedStream())
@@ -153,6 +214,17 @@ public static partial class SelfTest
         string.Equals(a.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
                       b.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
                       StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>读一个完整按键（带 ConsoleKey/修饰键），语义同 <see cref="ReadChar"/> 的等待策略。</summary>
+    private static ConsoleKeyInfo? ReadKey(WindowsCharSource src, TestFeedStream feed)
+    {
+        for (int i = 0; i < 200; i++)
+        {
+            if (src.TryReadKey(out var k)) return k;
+            Thread.Sleep(2);
+        }
+        return null;
+    }
 
     private static char? ReadChar(WindowsCharSource src, TestFeedStream feed, bool allowEmpty = false)
     {

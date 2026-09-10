@@ -1,5 +1,43 @@
 # 更新日志
 
+## v0.96.78 (2026-09-10) — 修复 VT 字节流丢键：退格无法擦除、Ctrl 组合键与 F1-F4 失效
+
+v0.96.74 把 Windows 读键从 `Console.ReadKey()` 换成 VT 字节流（为了收 SGR 鼠标），但字节流层
+**丢失了修饰键信息**，而几处「按字节还原按键」的映射没补齐——表现为退格擦不掉输入、Ctrl 组合键
+静默失效、F1-F4 槽位键失效。桌面自测 **5134 / 5134 全绿**，0 警告 0 错误。
+
+### 根因：字节流 → ConsoleKeyInfo 的还原有三处缺口
+
+- **Backspace 收不到**：VT 输入下终端对 Backspace 发的是 **DEL(0x7F)** 而非 BS(0x08)，
+  而 `MapToConsoleKey` 只映射了 `'\b'` → `Key=NoName`。编辑控件都按 `Key==ConsoleKey.Backspace`
+  分支判（`TuiEditBase`/`TuiChatInput`），于是**退格无法回退擦除**。
+- **Ctrl+字母全失效**：终端未协商 Kitty 协议（conhost/旧终端忽略 `CSI >1u`）时，Ctrl 组合以
+  **控制字节 0x01..0x1A** 到达，`Modifiers` 恒为 false；而 `Program.Repl` 判的是
+  `Modifiers.HasFlag(Control)` → Ctrl+P/E/M/B/S 全部静默失效。
+- **F1-F4 失效**：xterm / Windows Terminal 对 F1-F4 用 **SS3 形态 `ESC O P/Q/R/S`**（序列里没有
+  `[`），`TryParseEscapeSequence` 只认 `[` → 落进「Alt+字符」分支，F1-F4 退化成 Alt+O/P/Q/R，
+  **F1-F10 槽位切换键整排失效**（v0.96.74 只补了 CSI 形态，漏了 SS3）。
+
+### 修复
+
+- **`WindowsCharSource.ToConsoleKeyInfo(char)` 成为唯一实现**（`TryReadKey` 与
+  `InputManager.ToConsoleKeyInfo` 共用——此前两处各写一份，两处一起漏）：0x7F → Backspace
+  （KeyChar 归一为 `'\b'`，与 Kitty 路径一致）；0x01..0x1A → Ctrl+字母（还原 Key 与 Control 修饰键）。
+- **歧义码位保持既有语义不动**：0x08(BS)/0x09(Tab)/0x0A(LF)/0x0D(CR)/0x1B(ESC)——它们在 Unix 上
+  与 Ctrl+H/I/J/M/[ 同码，代码库既有约定见 `TuiKeybindHelp`，不在字节流层重新分配。
+- **新增 `InputManager.MapSs3Key`**（纯函数，便于单测）：SS3 终止字节 → F1-F4 / 方向键 / Home/End；
+  未识别返回 null（不吞按键）。`TryParseEscapeSequence` 在读到 `ESC O` 时走这条。
+- 删除因此变为死代码的 `InputManager.ToConsoleKey`。
+
+### 测试
+
+- **`--keypad` 新增 `RAWKEY:<hex>` 指令**：按**终端原始字节**喂键（`字节→WindowsCharSource→
+  ConsoleKeyInfo→OnKey`）。此前的 `KEY:`/`INJECT` 直接注入 `ConsoleKeyInfo`，**绕过了字节映射层**，
+  结构性无法复现本次这类问题（这正是它漏网的原因）。仅覆盖单字节键，方向/功能键序列仍用 `KEY:Up`。
+- 新增脚本 `Test/scripts/allkeys.txt`：全键盘巡检，覆盖 打字基线 → KEY/RAWKEY 两条退格路径 →
+  BS 变体 → 连退到空 → Ctrl 组合（用 Ctrl+A 全选 + 输入验证修饰键真的到了编辑控件）→ 歧义码位。
+- 自测新增 12 项护栏（含**直接喂 0x7F 走真实 `WindowsCharSource` 的字节级断言**，即在真机路径上复现）。
+
 ## v0.96.77 (2026-09-10) — 自测离线化 + 项目根解析性能修复（106s → 35s，5122 全绿）
 
 自测全程不再触网、不再产生 token 费用，也不再对 gitee 执行真实 push；同时修掉一个「非项目目录下
