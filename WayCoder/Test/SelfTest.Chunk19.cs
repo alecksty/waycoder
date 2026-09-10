@@ -200,16 +200,57 @@ public static partial class SelfTest
             db.ProgressPercent = db.ProgressPercent;
             Check("同值赋值不标脏（内容没变就不重绘）", !db.IsDirty);
 
+            // 未渲染过（无 spinner 位置）→ 直写不可用 → 变值须退回整行标脏兜底，
+            // 否则被遮挡/未上屏时内容会丢。直写可用时则交给段级直写（只重写变化的那一段）。
             db.LeftText = "思考中…";
-            Check("左段变值标脏", db.IsDirty);
+            Check("直写不可用时：左段变值标脏（兜底不丢内容）", db.IsDirty);
 
             db.ClearDirty();
             db.Status = WayCoder.UI.Shared.AgentStatus.Thinking;
-            Check("Status 变值标脏", db.IsDirty);
+            Check("直写不可用时：Status 变值标脏", db.IsDirty);
 
             db.ClearDirty();
             db.TokenDisplay = "🔤大1K 小0";
-            Check("TokenDisplay 变值标脏（实时数字仍会更新）", db.IsDirty);
+            Check("直写不可用时：TokenDisplay 变值标脏", db.IsDirty);
+        }
+
+        // 段级刷新契约：动态栏上屏后（可直写），只有变化的段被重写，其余段不动。
+        {
+            var segBar = new WayCoder.UI.Tui.Controls.TuiDynamicBar { Width = 60 };
+            // owner 必须对齐当前活跃屏幕，否则 RenderDirect 的门控（owner != ActiveScreen）会把直写整个跳过，
+            // 断言就会「空字符串通过」——这是套件里跑才暴露的环境依赖。
+            segBar.RegisterDirectWrite(WayCoder.UI.TUI.Base.TuiManager.Instance?.ActiveScreen);
+            segBar.LeftText = "思考中";
+            segBar.ToolText = "bash工具";
+            segBar.TokenDisplay = "🔤大1K";
+            var keepOut = Console.Out;
+            string idle, changed;
+            // 捕获必须与断言分开：Check 也写 Console，写在重定向作用域内会被一起吞掉（只剩计数、看不到结果）
+            using (var sw = new StringWriter())
+            {
+                Console.SetOut(sw);
+                try
+                {
+                    // OnRender：整行写入 + 记录段缓存（顺便让 _spinnerX 有值 → 可直写）
+                    segBar.Render(new System.Text.StringBuilder(), 0, 0, 0, 0, 60, 5);
+                    sw.GetStringBuilder().Clear();
+
+                    WayCoder.UI.Tui.Controls.TuiDynamicBar.RenderAllDirect(); // 内容未变
+                    idle = sw.ToString();
+
+                    sw.GetStringBuilder().Clear();
+                    segBar.TokenDisplay = "🔤大2K"; // 只动右段
+                    WayCoder.UI.Tui.Controls.TuiDynamicBar.RenderAllDirect();
+                    changed = sw.ToString();
+                }
+                finally { Console.SetOut(keepOut); segBar.OnDestroy(); }
+            }
+
+            // idle 必须非空（否则直写被门控跳过，下面两条会「空通过」变成假绿）
+            Check("段级直写：内容未变时不重写左/中/右段（且 spinner 仍在写）",
+                idle.Length > 0 && !idle.Contains("思考中") && !idle.Contains("bash工具") && !idle.Contains("🔤大1K"));
+            Check("段级直写：只改右段时只重写右段（左/中段不动）",
+                changed.Contains("🔤大2K") && !changed.Contains("思考中") && !changed.Contains("bash工具"));
         }
 
         Section("[项目根解析边界（性能回归护栏）]");
