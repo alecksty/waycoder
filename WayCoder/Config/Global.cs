@@ -121,7 +121,7 @@ public static class Global
     /// <summary>应用全称</summary>
     public const string AppFullName = "WayCoder 道码·通用编程智能体";
     /// <summary>版本号</summary>
-    public const string Version = "v0.96.85";
+    public const string Version = "v0.96.86";
     /// <summary>应用名 + 版本号</summary>
     public static string AppNameVersion => $"{AppName} {Version} ({AppNameCN})";
 
@@ -263,6 +263,19 @@ public static class Global
     // ════════════════════════════════════════════════════════════════════
     /// <summary>离线模式开关（自测/CI 用；生产代码不得置位）。</summary>
     public static bool OfflineMode { get; set; }
+
+    /// <summary>
+    /// 禁止持久化：只改内存状态，不写 <c>connections.json</c> / <c>config.json</c> / <c>.env</c>。
+    ///
+    /// 用途：CLI 启动参数 <c>--model</c> / <c>--base-url</c> / <c>--api-key</c> 的语义是
+    /// **「本次启动强制使用这个连接」**，用户配置不该被一次命令行调用改掉。此前它们会经由
+    /// <c>ApplyModelChoice → SetActiveConnect</c> 连带写出三个文件（含 .env！），既与
+    /// 「本次会话，不持久化」的自身说明矛盾，也让「换套参数试一下」变成不可逆的配置变更。
+    ///
+    /// 由 Program 在应用这几个参数的**极小闭区间**内置位并在 finally 还原 —— 置位期间
+    /// 内存状态照常更新（运行时镜像一致，压缩/回退链读到的都是新连接），只是不落盘。
+    /// </summary>
+    public static bool PersistDisabled { get; set; }
 
     /// <summary>
     /// 判断 URL 是否指向本机（回环 / localhost）。无法解析为绝对 URI 时按「本机」处理，

@@ -1002,6 +1002,7 @@ public static partial class ConnectionConfig
 
     private static void Save()
     {
+        if (Global.PersistDisabled) return; // CLI 强制连接期间：只改内存，不写 connections.json
         try
         {
             Global.EnsureDir(FilePath);

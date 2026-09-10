@@ -20,6 +20,7 @@ public partial class Config
 
     public void SaveToEnvFile()
     {
+        if (Global.PersistDisabled) return; // CLI 强制连接期间：绝不写 .env
         lock (SaveLock)
         {
             // 全部配置 → 全局 config.json（secret 密钥除外，独立管理走 api_keys.json）
@@ -66,6 +67,7 @@ public partial class Config
     /// </summary>
     public void SaveToConfigJson()
     {
+        if (Global.PersistDisabled) return; // CLI 强制连接期间：绝不写 config.json（含其内的 Reconcile 连带写）
         lock (SaveLock)
         {
             // 模型字段直接写入（SettingsScreen Provider/BaseUrl、--model connect、/config set 等）先收敛回
