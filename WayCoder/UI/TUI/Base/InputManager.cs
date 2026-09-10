@@ -263,6 +263,22 @@ public class InputManager : IDisposable
         // 等待 '['（最多 20ms）；超时 = 用户单独按了 ESC。统一经 _charSource 读（单通道）。
         if (!WaitForChar(20)) return null;
         var bracket = ReadCharFromSource(20);
+
+        // SS3（ESC O x）：xterm / Windows Terminal 对 **F1-F4** 以及「应用光标键模式」下的方向键
+        // 用这种形式——序列里没有 '['。此前不认 → 落到下面「Alt+字符」分支，F1-F4 退化成
+        // Alt+O/P/Q/R，**F1-F10 槽位切换键整排失效**（v0.96.74 只补了 CSI 形态，漏了 SS3）。
+        if (bracket == 'O')
+        {
+            if (!WaitForChar(20)) return null; // 孤立「ESC O」：退回当 ESC 处理
+            var ss3Key = MapSs3Key(ReadCharFromSource(20));
+            if (ss3Key == null) return null;   // 未识别的 SS3：不吞按键，交给上层
+            return new InputEvent
+            {
+                Type = InputType.Key,
+                KeyInfo = new ConsoleKeyInfo('\0', ss3Key.Value, false, false, false),
+            };
+        }
+
         if (bracket != AnsiTty.AnsiCharEscape)
         {
             // Alt+字符 组合：AnsiTty.AnsiCharPrefix x —— 退回字符，AnsiTty.AnsiCharPrefix 单独作为 ESC 键返回。
@@ -397,6 +413,26 @@ public class InputManager : IDisposable
         // xterm 功能键格式：num;mod P 或 num;mod ~
         return ParseCsiFuncKey(paramBody, terminator);
     }
+
+    /// <summary>
+    /// SS3 终止字节（<c>ESC O x</c> 的 x）→ ConsoleKey。纯函数：便于离屏单测。
+    /// xterm / Windows Terminal 对 F1-F4（P/Q/R/S）与「应用光标键模式」下的方向键（A/B/C/D）、
+    /// Home/End（H/F）用 SS3 而非 CSI。返回 null = 未识别（调用方不吞按键）。
+    /// </summary>
+    internal static ConsoleKey? MapSs3Key(char c) => c switch
+    {
+        'P' => ConsoleKey.F1,
+        'Q' => ConsoleKey.F2,
+        'R' => ConsoleKey.F3,
+        'S' => ConsoleKey.F4,
+        'A' => ConsoleKey.UpArrow,
+        'B' => ConsoleKey.DownArrow,
+        'C' => ConsoleKey.RightArrow,
+        'D' => ConsoleKey.LeftArrow,
+        'H' => ConsoleKey.Home,
+        'F' => ConsoleKey.End,
+        _ => null,
+    };
 
     /// <summary>
     /// 解析 CSI 参数串为功能键事件。
@@ -690,15 +726,9 @@ public class InputManager : IDisposable
         return _charSource!.TryReadChar(out var c) ? c : '\0';
     }
 
-    /// <summary>把一个字符（码点）转换为 ConsoleKeyInfo（供 _pendingKeys 队列与 ReadKey 兼容路径）。</summary>
-    private static ConsoleKeyInfo ToConsoleKeyInfo(char ch)
-    {
-        if (ch == '\0') return new ConsoleKeyInfo('\0', ConsoleKey.NoName, false, false, false);
-        return new ConsoleKeyInfo(ch, ToConsoleKey(ch), false, false, false);
-    }
-
-    /// <summary>char → ConsoleKey 映射统一走 WindowsCharSource.MapToConsoleKey（单一实现，修一处全端生效）。</summary>
-    private static ConsoleKey ToConsoleKey(char ch) => WindowsCharSource.MapToConsoleKey(ch);
+    /// <summary>把一个字符（码点）转换为 ConsoleKeyInfo（供 _pendingKeys 队列与 ReadKey 兼容路径）。
+    /// 与字节流读键共用同一实现——Backspace(0x7F) 归一与 Ctrl+字母还原都在那里，避免两处漏一处。</summary>
+    private static ConsoleKeyInfo ToConsoleKeyInfo(char ch) => WindowsCharSource.ToConsoleKeyInfo(ch);
 
     /// <summary>恢复终端设置</summary>
     public void Dispose()

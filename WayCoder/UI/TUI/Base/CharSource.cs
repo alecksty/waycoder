@@ -173,18 +173,48 @@ public sealed class WindowsCharSource : ICharSource, IDisposable
     {
         key = default;
         if (!TryReadChar(out var c)) return false;
-        // 复用字符聚合；把码点映射为 ConsoleKey（方向键/功能键等转义序列由 PumpKeys 走
+        // 复用字符聚合；把码点映射为 ConsoleKeyInfo（方向键/功能键等转义序列由 PumpKeys 走
         // TryParseEscapeSequence 单独解析，这里只处理单字符键）。
         if (c == '\0') return false;
-        key = new ConsoleKeyInfo(c, CharToConsoleKey(c), false, false, false);
+        key = ToConsoleKeyInfo(c);
         return true;
     }
 
-    private static ConsoleKey CharToConsoleKey(char c) => MapToConsoleKey(c);
+    /// <summary>
+    /// char（码点）→ ConsoleKeyInfo 的**唯一实现**（<see cref="TryReadKey"/> 与
+    /// <c>InputManager.ToConsoleKeyInfo</c> 共用——此前两处各写一份，0x7F 与控制字符在两处
+    /// 一起漏掉，修一处也修不全）。
+    ///
+    /// 字节流层拿不到修饰键信息，这里按 VT 约定还原：
+    /// - **0x7F(DEL) → Backspace**：Windows VT 输入下 Backspace 发 DEL 而非 BS(0x08)。漏映射则
+    ///   `Key=NoName`，而编辑控件都按 `Key==Backspace` 分支判（TuiEditBase/TuiChatInput），
+    ///   表现为**退格无法擦除输入**（v0.96.74 改字节流后引入）。
+    /// - **0x01..0x1A → Ctrl+字母**：终端未协商 Kitty 协议（conhost/旧终端忽略 CSI &gt;1u）时
+    ///   Ctrl 组合以控制字节到达。不还原则 Ctrl+P/E/M/B/S 等**全部快捷键在 Windows 上静默失效**
+    ///   （`Program.Repl` 判的是 `Modifiers.HasFlag(Control)`）。
+    ///
+    /// 歧义码位保持既有语义不动：0x08(BS)/0x09(Tab)/0x0A(LF)/0x0D(CR)/0x1B(ESC)——它们在 Unix 上
+    /// 与 Ctrl+H/I/J/M/[ 同码，代码库既有约定见 <c>TuiKeybindHelp</c>，不在字节流层重新分配。
+    /// </summary>
+    public static ConsoleKeyInfo ToConsoleKeyInfo(char c)
+    {
+        if (c == '\0') return new ConsoleKeyInfo('\0', ConsoleKey.NoName, false, false, false);
+
+        // DEL → Backspace（KeyChar 归一为 '\b'，与 Kitty 解析路径 keyChar='\b' 保持一致）
+        if (c == '\x7f') return new ConsoleKeyInfo('\b', ConsoleKey.Backspace, false, false, false);
+
+        // 控制字节 → Ctrl+字母（跳过上面那批有独立语义的歧义码位）
+        if (c is >= '\x01' and <= '\x1a'
+            && c is not ('\b' or '\t' or '\n' or '\r' or '\x1b'))
+            return new ConsoleKeyInfo((char)('a' + (c - 1)),
+                (ConsoleKey)((int)ConsoleKey.A + (c - 1)), false, false, true);
+
+        return new ConsoleKeyInfo(c, MapToConsoleKey(c), false, false, false);
+    }
 
     /// <summary>char → ConsoleKey 唯一映射（InputManager.ToConsoleKey 与 WindowsCharSource 共用，
     /// 避免三处重复实现、修一处全端生效——code-review finding）。方向/功能键走转义序列单独解析，
-    /// 这里只覆盖纯字符/编辑键。</summary>
+    /// 这里只覆盖纯字符/编辑键。修饰键信息见 <see cref="ToConsoleKeyInfo"/>。</summary>
     public static ConsoleKey MapToConsoleKey(char c)
     {
         if (c >= 'a' && c <= 'z') return (ConsoleKey)((int)ConsoleKey.A + (c - 'a'));
@@ -195,7 +225,7 @@ public sealed class WindowsCharSource : ICharSource, IDisposable
             ' ' => ConsoleKey.Spacebar,
             '\r' or '\n' => ConsoleKey.Enter,
             '\t' => ConsoleKey.Tab,
-            '\b' => ConsoleKey.Backspace,
+            '\b' or '\x7f' => ConsoleKey.Backspace,
             '\x1b' => ConsoleKey.Escape,
             '\0' => ConsoleKey.NoName,
             _ => ConsoleKey.NoName,
