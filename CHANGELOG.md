@@ -1,5 +1,16 @@
 # 更新日志
 
+## v0.96.76 (2026-09-10) — 核心纯逻辑上移 + 自测护栏扩面（5083 → 5127）
+
+对近期修复补自动化回归护栏，并把 MAUI 里的纯逻辑上移 core 使其可被主自测覆盖。桌面自测 5127 / 5127，MAUI Android 编译 0 错误。
+
+- **TUI 输入链护栏**：`ParseCsiFuncKey` 提 internal + Chunk19 断言裸 CSI 光标键（`A-D/H/F`）、`1~..6~`（Home/Insert/Delete/End/PgUp/PgDn）、`15~`=F5、`Ctrl+Left` 修饰键——**不得退化成裸 ESC**（finding#1 回归护栏）；`MapToConsoleKey` 字母/数字/空格/ESC/CJK 断言
+- **纯逻辑上移 core（可测）**：
+  - `WayCoder/UiText.cs`：PermName / EconomyName / FormatK / IsSessionBodyRole（`MauiUi`、`MauiSessions.FromNodes` 委托它）
+  - `WayCoder/PageRouteMap.cs`：`/topage` 页面名（含中文别名）→ Shell 路由映射 + Usage（`MauiCommands` 调用它）
+- **既有核心逻辑补断言**：`SlashMatcher`（四端共用唯一实现，主名/别名/带参/大小写/不匹配）、`ContextManager.EstimateText`（ASCII 0.25 / CJK 1.5 每字、emoji 代理对安全、单调不减）
+- **护栏累计**：TUI UTF-8 状态化、CSI 功能键映射、跨端文本、路由映射、命令匹配、token 估算
+
 ## v0.96.75 (2026-09-10) — MAUI 死成员清理 + WindowsCharSource UTF-8 自测护栏
 
 v0.96.74 后的收尾：清理 MAUI 抽屉独立页化残留的死成员，并为 Windows 输入链的 UTF-8 状态化解码补自测（可注入流）。Android Debug 编译 0 错误；桌面自测 5089 / 5089。
