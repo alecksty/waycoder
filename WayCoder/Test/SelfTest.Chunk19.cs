@@ -14,6 +14,17 @@ public static partial class SelfTest
     /// </summary>
     private static void TestChunk19(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
     {
+        Section("[斜杠命令匹配(core SlashMatcher)]");
+        var helpCmd = new WayCoder.UI.Cli.Commands.HelpCommand(); // 主名 /help、别名 /h
+        Check("/help 精确 → 空参", SlashMatcher.ExtractArgs(helpCmd, "/help") == "");
+        Check("主名大小写不敏感", SlashMatcher.ExtractArgs(helpCmd, "/HELP") == "");
+        Check("主名带参 → 参数 Trim", SlashMatcher.ExtractArgs(helpCmd, "/help  me ") == "me");
+        Check("别名 /h 精确匹配", SlashMatcher.ExtractArgs(helpCmd, "/h") == "");
+        Check("别名带参匹配", SlashMatcher.ExtractArgs(helpCmd, "/H  x y") == "x y");
+        Check("不匹配 → null", SlashMatcher.ExtractArgs(helpCmd, "/he") == null
+            && SlashMatcher.ExtractArgs(helpCmd, "/helpme") == null
+            && SlashMatcher.ExtractArgs(helpCmd, "x /help") == null);
+
         Section("[/topage 路由映射(core PageRouteMap)]");
         Check("home/chat/files/settings → //xxx", PageRouteMap.Resolve("home") == "//home"
             && PageRouteMap.Resolve("CHAT") == "//chat" && PageRouteMap.Resolve(" files ") == "//files"
