@@ -123,11 +123,24 @@ public class InputManager : IDisposable
         // 创建统一字符源：Windows 用字节流（收 SGR 鼠标），macOS/Linux 用 Console.ReadKey。
         // 前提 WinConsoleMode.Enable 已在 TuiManager.Enter 开 VT 输入；stdin 被重定向（管道/CI）
         // 时不真实读（注入键仍可用），Windows 源读不到字节则降级走 Unix 源判定。
+        //
+        // stdin 被重定向但本进程仍挂着控制台时（被别的程序拉起 / `waycoder < file` 后仍要进 TUI）
+        // 改从控制台设备（CONIN$）读键 —— 这段逻辑在 ConsoleDevice.OpenInput，
+        // 同时把句柄交给 WinConsoleMode：stdin 是管道时它拿不到控制台模式，必须作用在 CONIN$ 上。
         if (_charSource == null)
         {
-            if (OperatingSystem.IsWindows() && !Console.IsInputRedirected)
+            if (OperatingSystem.IsWindows())
             {
-                try { _charSource = new WindowsCharSource(); }
+                var (stream, fromDevice) = ConsoleDevice.OpenInput();
+                try
+                {
+                    if (fromDevice)
+                    {
+                        var h = (stream as FileStream)?.SafeFileHandle.DangerousGetHandle() ?? nint.Zero;
+                        WinConsoleMode.Enable(h); // 在 CONIN$ 句柄上开 VT 输入 + 关行缓冲/回显
+                    }
+                    _charSource = new WindowsCharSource(stream);
+                }
                 catch { _charSource = new UnixCharSource(); }
             }
             else

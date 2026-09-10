@@ -63,6 +63,53 @@ public sealed class UnixCharSource : ICharSource
 }
 
 /// <summary>
+/// 控制台设备 —— stdin 被重定向时改从这里读键，让「不带参数但 stdin 不接键盘」的场景
+/// （被别的程序拉起、脚本调用、`waycoder &lt; file`、双击启动器）同样能启动全屏界面。
+/// </summary>
+public static class ConsoleDevice
+{
+    /// <summary>
+    /// 能否启动全屏界面（纯逻辑，便于自测）。
+    ///
+    /// 判据不是「stdin 是否被重定向」—— stdin 被占不等于没有终端：被别的程序拉起时
+    /// 进程往往仍挂着可用的控制台，只是键盘不走 stdin。真正的判据是
+    /// **有没有画布（stdout 是终端）+ 拿不拿得到键盘（stdin 是终端，或 Windows 上能开 CONIN$）**。
+    ///
+    /// Unix 不算 CONIN$ 这条路：`Console.ReadKey` 的 raw mode 绑在 stdin 上，
+    /// 单独打开 `/dev/tty` 没进 raw mode，按键要等回车才到（等于不能交互）。
+    /// </summary>
+    public static bool CanUseFullScreen(bool stdinRedirected, bool stdoutRedirected,
+        bool hasConsoleDevice, bool isWindows)
+        => !stdoutRedirected && (!stdinRedirected || (isWindows && hasConsoleDevice));
+
+    /// <summary>按真实环境判断能否启动全屏界面。</summary>
+    public static bool CanUseFullScreen()
+        => CanUseFullScreen(Console.IsInputRedirected, Console.IsOutputRedirected,
+            OperatingSystem.IsWindows() && TryOpen() != null, OperatingSystem.IsWindows());
+
+    /// <summary>打开控制台输入设备（Windows `CONIN$` / Unix `/dev/tty`）；没有控制台则返回 null。</summary>
+    public static Stream? TryOpen()
+    {
+        try
+        {
+            return new FileStream(OperatingSystem.IsWindows() ? "CONIN$" : "/dev/tty",
+                FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        }
+        catch { return null; }
+    }
+
+    /// <summary>选择读键用的事件流：stdin 接键盘就用 stdin；被重定向则尝试控制台设备。
+    /// 第二个返回值 = 是否来自控制台设备（决定 WinConsoleMode 要作用在哪个句柄上）。</summary>
+    public static (Stream Stream, bool FromDevice) OpenInput()
+    {
+        if (!Console.IsInputRedirected || !OperatingSystem.IsWindows())
+            return (Console.OpenStandardInput(), false);
+        var dev = TryOpen();
+        return dev != null ? (dev, true) : (Console.OpenStandardInput(), false);
+    }
+}
+
+/// <summary>
 /// Windows 字符源 —— 读 stdin 原始字节流（Console.OpenStandardInput），聚合成 char ，
 /// 使 VT 输入的 SGR 鼠标字节流可被解析。前置条件：WinConsoleMode.Enable 已开 ENABLE_VIRTUAL_TERMINAL_INPUT
 /// （否则终端不把 VT 序列作为字节交付）。非 Windows 或 stdin 被重定向时回退到 <see cref="UnixCharSource"/>路径。

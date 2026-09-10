@@ -40,19 +40,10 @@ public partial class Program
         }
     }
 
-    /// <summary>管道模式：echo "任务" | waycoder 逐行读 stdin 交给 Agent，纯文本输出，EOF 退出。</summary>
-    private static async Task RunPipeModeAsync()
-    {
-        var agent = _agent;
-        if (agent == null) { Console.Error.WriteLine("Agent 未初始化"); return; }
-        string? line;
-        while ((line = Console.In.ReadLine()) != null)
-        {
-            var input = line.Trim();
-            if (string.IsNullOrWhiteSpace(input)) continue;
-            await ProcessTextInput(agent, input);
-        }
-    }
+    // 注：原 RunPipeModeAsync（逐行读 stdin）已删除 —— 它只在「stdin 被重定向且没有提示词」时
+    // 才被调用，而这种输入早已被 Main 的 ReadToEnd 抢先读成 prompt（→ RunOnceAsync 一次性执行），
+    // 所以那条分支实际只剩「stdin 是空的」一种情况：读不到任何一行、静默退出（零输出、退出码 0）。
+    // 现在这种情况改为启动全屏界面（读键走控制台设备），确实没有控制台时才报错退出。
 
     /// <summary>纯文本聊天处理（管道/CLI 界面复用）：显示输入 → Agent 流式回复 → 工具调用行 → 异常兜底。</summary>
     private static async Task ProcessTextInput(Agent agent, string input)
@@ -74,13 +65,21 @@ public partial class Program
         }
     }
 
-    private static async Task RunReplAsync(string? editFile = null)
+    private static async Task<int> RunReplAsync(string? editFile = null)
     {
-        // 非交互（管道/重定向）：echo "任务" | waycoder 读 stdin 执行后退出，不启动全屏 TUI
-        if (Console.IsInputRedirected)
+        // 走到这里 = 没有任何任务要执行（无 -p、stdin 里没内容、无槽位任务）＝ 用户就是想开界面。
+        // 此时 stdin 被重定向**不等于**没有终端：被别的程序拉起、脚本调用、`waycoder < 文件`、
+        // 双击启动器都可能让 stdin 是管道，而进程仍挂着可用的控制台。判据看的是
+        // 「有画布 + 拿得到键盘」（ConsoleDevice.CanUseFullScreen），能拿到就照常进 TUI，
+        // 读键改从控制台设备取（Windows CONIN$，见 InputManager/CharSource）。
+        // 确实没有控制台（CI / 服务 / 输出也被重定向）时才不走 TUI —— 且必须说清为什么，
+        // 此前是静默退出（零输出、退出码 0），用户完全看不出发生了什么。
+        if (!ConsoleDevice.CanUseFullScreen())
         {
-            await RunPipeModeAsync();
-            return;
+            Console.Error.WriteLine("✘ 当前环境没有可用的控制台，无法启动全屏界面。");
+            Console.Error.WriteLine("  非交互用法：waycoder -p \"任务\"（一次性） · echo \"任务\" | waycoder（读管道执行）");
+            Console.Error.WriteLine("  查看全部选项：waycoder -h");
+            return 1; // 由 Main 透传：Main 末尾的 return 0 会盖掉 Environment.ExitCode，必须走返回值
         }
 
         var mgr = TuiManager.Instance;
@@ -608,6 +607,7 @@ public partial class Program
         AutoSaveSession();
         _watchMode?.Dispose();
         mgr.Exit();
+        return 0; // 正常退出（用户主动退出/EOF）
     }
 
     /// <summary>

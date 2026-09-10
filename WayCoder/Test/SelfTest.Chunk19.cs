@@ -308,7 +308,73 @@ public static partial class SelfTest
                 Check("分区刷新：只改右段 → 只补右段，不重写左/中段",
                     rightOnly.Contains("🔤大2K")
                     && !rightOnly.Contains("空闲") && !rightOnly.Contains("bash工具"));
+
+                // 位移：输入区从 1 行长到 3 行会把动态栏整体挪一行。此时段内容可能一字未变，
+                // 但段缓存里的绝对行/列已失效 —— 不整行重画就会「老行留旧像素、新行只有 spinner」。
+                var moved = new System.Text.StringBuilder();
+                bar.Render(moved, 0, 4, 0, 0, 60, 9); // 同一内容、换一行渲染
+                Check("分区刷新：本栏位移（行号变化）→ 整行重写",
+                    moved.ToString().Contains("空闲") && moved.ToString().Contains("bash工具"));
+
+                // OnRender 补过的段必须刷新段缓存，否则紧随其后的 RenderDirect（同一帧内
+                // TuiManager.Render 写完帧就调 RenderAllDirect）会把同一段再写一遍。
+                var direct = new System.Text.StringBuilder();
+                var keepOut2 = Console.Out;
+                using (var sw = new StringWriter())
+                {
+                    Console.SetOut(sw);
+                    try
+                    {
+                        bar.TokenDisplay = "🔤大3K";
+                        bar.Render(new System.Text.StringBuilder(), 0, 4, 0, 0, 60, 9); // OnRender 补右段
+                        sw.GetStringBuilder().Clear();
+                        WayCoder.UI.Tui.Controls.TuiDynamicBar.RenderAllDirect();
+                        direct.Append(sw.ToString());
+                    }
+                    finally { Console.SetOut(keepOut2); }
+                }
+                Check("分区刷新：OnRender 补过的段刷新缓存 → 同帧 RenderDirect 不重写该段",
+                    !direct.ToString().Contains("🔤大3K"));
             }
+        }
+
+        Section("[动态栏直写登记（框架统一登记护栏）]");
+        // 直写 spinner 与段级增量全靠 owner 门控（owner 必须是当前活跃屏幕）。**漏登记 = 直写整体失效
+        // = 每帧整行重写**（表现正是「内容没变动态栏却一直闪」）。此前登记只写在手写版 ChatScreen 的
+        // BuildLayout 里，而默认界面是标记版 MarkupChatScreen（覆写 BuildLayout 且不调 base）——
+        // 于是默认界面根本没登记，修闪烁的段级机制在用户实际跑的界面上完全没生效。
+        // 现在登记收到框架侧：TuiManager.PushScreen/PopScreen 在 Activate 之后调 RegisterDirectWriters。
+        {
+            var screen = new WayCoder.UI.Tui.Screens.ChatScreen();
+            var bar = new WayCoder.UI.Tui.Controls.TuiDynamicBar { Width = 40 };
+            screen.RootView.Add(bar);
+            Check("直写登记：未登记时不在直写名单", !bar.IsDirectWriteRegistered);
+
+            screen.RegisterDirectWriters();
+            Check("直写登记：RegisterDirectWriters 遍历控件树并认领动态栏", bar.IsDirectWriteRegistered);
+
+            screen.RootView.Remove(bar);
+            bar.OnDestroy();
+            Check("直写登记：销毁后自动从直写名单摘除（不写已销毁控件）", !bar.IsDirectWriteRegistered);
+        }
+
+        Section("[无参数启动界面：重定向 stdin 也能进 TUI]");
+        // 「能不能开全屏界面」的判据不是「stdin 是否被重定向」，而是**有没有画布 + 拿不拿得到键盘**：
+        // 被别的程序拉起 / 脚本调用 / `waycoder < 文件` 都可能让 stdin 是管道，而进程仍挂着可用控制台。
+        // 此前只看 IsInputRedirected → 这种情况下静默退出（零输出、退出码 0），用户看不出发生了什么。
+        {
+            // 直接调纯逻辑重载（AOT 禁反射，测试也不得走 GetMethod）
+            bool Can(bool sin, bool sout, bool dev, bool win)
+                => WayCoder.UI.TUI.Base.ConsoleDevice.CanUseFullScreen(sin, sout, dev, win);
+
+            Check("启动判据：正常终端 → 开 TUI", Can(false, false, false, true));
+            Check("启动判据：stdin 被重定向但控制台设备可用（Windows）→ 仍开 TUI",
+                Can(true, false, true, true));
+            Check("启动判据：stdin 被重定向且拿不到控制台设备 → 不开（报错退出，不再静默）",
+                !Can(true, false, false, true));
+            Check("启动判据：输出被重定向（没有画布）→ 不开", !Can(false, true, true, true));
+            Check("启动判据：Unix 上 stdin 被重定向 → 不开（ReadKey 的 raw mode 绑在 stdin）",
+                !Can(true, false, true, false));
         }
 
         Section("[项目根解析边界（性能回归护栏）]");
