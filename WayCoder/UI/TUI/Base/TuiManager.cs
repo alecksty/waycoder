@@ -235,6 +235,8 @@ public class TuiManager : IDisposable
         ActiveScreen = screen;
         screen.Manager = this;
         screen.Activate();
+        // Activate 之后控件树才就绪（标记版界面在 BuildLayout 里才建树）—— 动态栏直写归属在此登记
+        screen.RegisterDirectWriters();
     }
 
     /// <summary>弹出当前屏幕，恢复上一层</summary>
@@ -247,6 +249,7 @@ public class TuiManager : IDisposable
         popped.Deactivate();
         ActiveScreen = _screenStack.Count > 0 ? _screenStack.Peek() : null;
         ActiveScreen?.Activate();
+        ActiveScreen?.RegisterDirectWriters(); // 回到本屏 → 重新认领动态栏直写
         return popped;
     }
 

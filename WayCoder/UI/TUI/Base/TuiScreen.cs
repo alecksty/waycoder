@@ -145,6 +145,29 @@ public abstract class TuiScreen : TuiBase
         OnCreate();
     }
 
+    /// <summary>
+    /// 把本屏控件树里的动态栏登记为「直写归属本屏」。
+    ///
+    /// 动态栏的 spinner 直写与段级增量都靠 owner 门控（`TuiDynamicBar.CanDirectWrite`：
+    /// owner 必须是当前活跃屏幕）。**漏登记 = 直写整体失效 = 每帧整行重写**，表现就是
+    /// 「内容没变动态栏却一直在闪」——这正是标记版界面（MarkupChatScreen，默认界面）踩过的坑：
+    /// 它覆写 BuildLayout 且不调 base，而登记原先只写在手写版 ChatScreen 里。
+    /// 所以登记收到框架侧统一做（`TuiManager.PushScreen/PopScreen` 在 Activate 之后调用），
+    /// 新增屏幕不必记得手写。
+    /// </summary>
+    public void RegisterDirectWriters()
+    {
+        RegisterDirectWriters(RootView);
+    }
+
+    private void RegisterDirectWriters(TuiControl control)
+    {
+        if (control is UI.Tui.Controls.TuiDynamicBar bar) bar.RegisterDirectWrite(this);
+        if (control is not TuiView view) return;
+        for (int i = 0; i < view.Children.Count; i++) // for + 重读 Count：防后台并发增删崩
+            RegisterDirectWriters(view.Children[i]);
+    }
+
     /// <summary>屏幕失活时调用</summary>
     public virtual void Deactivate()
     {

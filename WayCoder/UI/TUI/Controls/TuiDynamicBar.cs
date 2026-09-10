@@ -50,6 +50,10 @@ public class TuiDynamicBar : TuiDisplayControl
 
     private TuiScreen? _owner; // 所属屏幕：直写门控
 
+    /// <summary>本栏是否已登记直写（自测/诊断用）。漏登记 = 直写整体失效 =
+    /// 每帧整行重写（表现：内容没变动态栏却一直闪），所以值得单独立一条契约。</summary>
+    public bool IsDirectWriteRegistered => DirectWriters.Contains(this);
+
     public override void OnDestroy()
     {
         DirectWriters.Remove(this);
@@ -197,9 +201,21 @@ public class TuiDynamicBar : TuiDisplayControl
         base.MarkDirty();
     }
 
-    /// <summary>整行待重写标志。显式标脏置位；被窗口/浮层遮挡期间保持置位，
-    /// 于是「遮挡解除后的首帧」也必定整行重写一次（遮挡期间帧内容仍是完整的）。</summary>
+    /// <summary>强制重绘（`Invalidate` / `MarkDirtyInRect` 等框架侧入口）同样作废整行基线 ——
+    /// 这些入口绕过 <see cref="MarkDirty"/> 直接置 `IsDirty`（`TuiControl.Invalidate`、`TuiScreen.MarkDirty`
+    /// 里的 `RootView.IsDirty = true`），漏掉它们的话「已经脏了、但段内容没变」会写出零字节。</summary>
+    public override void Invalidate()
+    {
+        _rowInvalidated = true;
+        base.Invalidate();
+    }
+
+    /// <summary>整行待重写标志（显式标脏 / 强制重绘置位，写完整行后消费）。</summary>
     private bool _rowInvalidated;
+
+    /// <summary>上一帧是否被遮挡（窗口/浮层在场或本栏不在活跃屏幕）。
+    /// 用于在遮挡**解除**的首帧强制整行重写一次。</summary>
+    private bool _occludedLastFrame;
 
     /// <summary>本栏当前能否直写屏幕（与 <see cref="RenderDirect"/> 的门控完全一致）。</summary>
     private bool CanDirectWrite()
@@ -237,6 +253,12 @@ public class TuiDynamicBar : TuiDisplayControl
         // 裁剪检查
         if (absY < ClipTop || absY >= ClipBottom) return;
 
+        // 几何是否变化：输入区从 1 行长到 3 行、压缩进度行出现/消失都会把本栏整体挪一行，
+        // 此时旧的段缓存（绝对列 + 已写内容）全部失效，必须整行重画 —— 否则段比对会得出
+        // 「内容没变、无需重写」的结论，于是老行留着旧像素、新行只被 spinner 直写点一下。
+        bool firstRender = _barWidth == 0;
+        bool geometryChanged = !firstRender && (absX != _barAbsX || absY != _spinnerY || Width != _barWidth);
+
         // ── 几何先行 ──
         // 无论本帧是否真的重绘，几何都必须记录：RenderDirect 每帧靠它定位 spinner 与三段。
         _barAbsX = absX;
@@ -248,15 +270,20 @@ public class TuiDynamicBar : TuiDisplayControl
         int midStart = absX + Width / 3;
         int rightStart = absX + Width * 2 / 3;
 
-        // 本帧要「整行重写」还是「只补变化的区段」
-        // 整行重写的三种情形（缺一不可）：
-        //   ① 显式 MarkDirty（内容变化 / 这张行可能被浮层或窗口擦过）；
-        //   ② 全屏重绘 / 切屏（`IsIncrementalUpdate == false`，清屏后段缓存坐标已失效）；
-        //   ③ 直写不可用（被窗口遮挡 / 本栏不在活跃屏幕）——此时帧内容必须自洽完整，
-        //      且遮挡解除后的首帧也要整行（窗口可能擦掉本行任意一列）。
+        // 本帧要「整行重写」还是「只补变化的区段」：
+        //   ① 首帧 / 全屏重绘 / 切屏（清屏后段缓存坐标已失效）；
+        //   ② 本栏位移（见上）；
+        //   ③ 显式 MarkDirty（无法确定本行是否被浮层/窗口擦过）；
+        //   ④ 遮挡解除后的首帧（遮挡期间只补过变化的段，被擦掉的未变列要补回来）。
+        // 被遮挡期间**不**整行重写：此时内容变化仍应按区段写（写下也被遮住，但漏写会丢内容），
+        // 而逐帧整行重写会在模态遮罩上打出一条亮行（遮罩只在全屏帧重画），且又变成「一直闪」。
         bool canDirect = CanDirectWrite();
-        bool wholeRow = _rowInvalidated || _owner?.IsIncrementalUpdate != true || !canDirect;
-        _rowInvalidated = !canDirect; // 遮挡期间保持置位 → 解除后的首帧必定整行
+        if (canDirect && _occludedLastFrame) _rowInvalidated = true;
+        _occludedLastFrame = !canDirect;
+
+        bool wholeRow = firstRender || geometryChanged
+                        || _rowInvalidated || _owner?.IsIncrementalUpdate != true;
+        _rowInvalidated = false;
 
         // 根据状态计算颜色（spinner 统一用 SpinnerFg 的黄色，与 DirectWrite 直写一致）
         // 文字统一橙色（255,180,0 同对话框渐变起始色），Error 保留红便于区分
@@ -283,11 +310,20 @@ public class TuiDynamicBar : TuiDisplayControl
             // 同一帧不会重复写（它只补 spinner）。
             var patch = new RenderBuffer();
             if (!string.Equals(leftStr, _lastLeft, StringComparison.Ordinal))
+            {
                 WriteSegment(patch, absY, absX + 3, midStart - (absX + 3), leftStr, LeftTextFg());
+                _lastLeft = leftStr; // 写过的段必须同步缓存：否则紧随其后的 RenderDirect
+            }                        // 会认为「还没写」把同一段再写一遍（同帧重复写）
             if (!string.Equals(toolDisplay, _lastMiddle, StringComparison.Ordinal))
+            {
                 WriteSegment(patch, absY, midStart + 2, rightStart - (midStart + 2), toolDisplay, AnsiColors.Grey);
+                _lastMiddle = toolDisplay;
+            }
             if (!string.Equals(rightSig, _lastRight, StringComparison.Ordinal))
+            {
                 WriteRightSegment(patch, absY, rightItems, rightStart + 2, absX + Width - 1);
+                _lastRight = rightSig;
+            }
             sb.Append(patch.ToString());
             return;
         }

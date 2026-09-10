@@ -605,7 +605,7 @@ public partial class Program
             await RunOnceAsync(prompt);
         }
         else
-            await RunReplAsync(editFile);
+            return await RunReplAsync(editFile); // 界面起不来（无控制台）时透传非 0 退出码
 
         return 0;
     }

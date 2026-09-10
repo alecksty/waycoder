@@ -31,6 +31,7 @@ public static partial class WinConsoleMode
 
     private static bool _saved;
     private static uint _origMode;
+    private static nint _handle; // Enable 实际作用的句柄（CONIN$ 场景下与 std stdin 不同）
 
     [LibraryImport("kernel32.dll", EntryPoint = "GetStdHandle", SetLastError = true)]
     private static partial nint GetStdHandle(int nStdHandle);
@@ -48,12 +49,20 @@ public static partial class WinConsoleMode
     /// 非 Windows、stdin 被重定向、或控制台句柄不可得时静默失败（返回 false）——
     /// 此时鼠标保持不可用（不强退），符合「鼠标是增强能力、缺失不致命」的定位。
     /// </summary>
-    public static bool Enable()
+    public static bool Enable() => Enable(nint.Zero);
+
+    /// <summary>
+    /// 同上，但作用在**指定句柄**上（该句柄须是控制台输入句柄，如 `CONIN$` 的
+    /// SafeFileHandle）—— stdin 被重定向而改从控制台设备读键时用这个重载，
+    /// 因为此时 GetStdHandle(STD_INPUT) 拿到的是管道、拿不到控制台模式。
+    /// </summary>
+    public static bool Enable(nint explicitHandle)
     {
-        if (!OperatingSystem.IsWindows() || Console.IsInputRedirected) return false;
+        if (!OperatingSystem.IsWindows()) return false;
+        if (explicitHandle == nint.Zero && Console.IsInputRedirected) return false;
         if (_saved) return true; // 已启用，幂等
 
-        var handle = GetStdHandle(STD_INPUT_HANDLE);
+        var handle = explicitHandle != nint.Zero ? explicitHandle : GetStdHandle(STD_INPUT_HANDLE);
         if (handle == nint.Zero || handle == (nint)(-1)) return false;
         if (!GetConsoleMode(handle, out var mode)) return false;
 
@@ -63,6 +72,7 @@ public static partial class WinConsoleMode
         if (!SetConsoleMode(handle, newMode)) return false;
 
         _origMode = mode;
+        _handle = handle; // Disable 要作用在同一个句柄上（可能是 CONIN$ 而非 std stdin）
         _saved = true;
         return true;
     }
@@ -72,8 +82,8 @@ public static partial class WinConsoleMode
     {
         if (!_saved) return;
         _saved = false;
-        if (!OperatingSystem.IsWindows() || Console.IsInputRedirected) return;
-        var handle = GetStdHandle(STD_INPUT_HANDLE);
+        if (!OperatingSystem.IsWindows()) return;
+        var handle = _handle != nint.Zero ? _handle : GetStdHandle(STD_INPUT_HANDLE);
         if (handle == nint.Zero || handle == (nint)(-1)) return;
         try { SetConsoleMode(handle, _origMode); } catch { /* 恢复失败不致命 */ }
     }

@@ -1,5 +1,68 @@
 # 更新日志
 
+## v0.96.88 (2026-09-11) — 无参数即可进 TUI（stdin 被重定向时改读控制台设备）+ 动态栏直写登记的致命漏登记
+
+### 1. 不带参数启动全屏界面
+
+**问题**：`waycoder`（无参数）在「stdin 被重定向」的环境里**静默退出**——零输出、退出码 0，
+用户完全看不出发生了什么。实测 `waycoder < /dev/null` 就是这个结果。
+
+**根因**：`RunReplAsync` 用 `Console.IsInputRedirected` 当「非交互」的判据，直接切到管道模式
+逐行读 stdin；而 stdin 早已被 `Main` 的 `ReadToEnd` 读过（有内容就成了一次性提示词），
+所以这条分支实际只剩「stdin 是空的」一种情况 —— 读不到任何一行，然后安静退出。
+**「stdin 被重定向」不等于「没有终端」**：被别的程序拉起、脚本调用、双击启动器、
+`waycoder < 文件` 都可能让 stdin 是管道，而进程仍挂着可用的控制台。
+
+- **判据换成「有画布 + 拿得到键盘」**：`ConsoleDevice.CanUseFullScreen(stdin被重定向, stdout被重定向,
+  能否开控制台设备, 是否Windows)`（纯逻辑，可自测）。stdout 被重定向 = 没有画布 → 不开；
+  stdin 被重定向但 Windows 上能开 `CONIN$` → **照常开 TUI**。
+- **读键改从控制台设备取**：`ConsoleDevice.OpenInput()` 在 stdin 被重定向时返回 `CONIN$` 流，
+  `InputManager` 用它构造 `WindowsCharSource`，并把该句柄交给 `WinConsoleMode.Enable(handle)`
+  ——stdin 是管道时 `GetStdHandle(STD_INPUT)` 拿到的是管道、拿不到控制台模式，必须作用在 `CONIN$` 上。
+- **确实没有控制台**（CI / 服务 / 输出也被重定向）时打印三行说明 + **退出码 1**，不再静默。
+  （`RunReplAsync` 改为返回 `Task<int>` 并由 `Main` 透传 —— `Environment.ExitCode` 会被
+  `Main` 末尾的 `return 0` 盖掉，这个坑踩过一次。）
+- **删掉已不可达的 `RunPipeModeAsync`**（逐行读 stdin）：它唯一的入口就是上面那条分支，
+  而那种输入早被 `Main` 抢先读成 prompt 走一次性执行。`echo "任务" | waycoder` 行为不变。
+- Unix 上仍不算这条路：`Console.ReadKey` 的 raw mode 绑在 stdin 上，单独打开 `/dev/tty`
+  没进 raw mode（按键要等回车才到），所以「Unix + stdin 被重定向」仍旧报错退出而不是假开界面。
+
+### 2. 动态栏直写登记的致命漏登记（code-review 关键发现）
+
+**上一版（v0.96.87）的分区刷新在用户实际跑的界面上完全没生效。** 直写 spinner 与段级增量都靠
+`owner` 门控（owner 必须是当前活跃屏幕），而 `RegisterDirectWrite` 只写着手写版 `ChatScreen`
+的 `BuildLayout` 里 —— 默认界面却是**标记版 `MarkupChatScreen`**（`Program.Repl.cs` 里
+`new MarkupChatScreen()`，手写版只是 chat.tui 加载失败的兜底），它覆写 `BuildLayout` 且不调 `base`。
+于是默认界面 `_owner` 恒为 null → `CanDirectWrite()` 恒 false → `wholeRow` 恒 true →
+**整行每帧被重写**，正是「空闲时整行闪烁」本身。验证也一并失真：`--keypad` 与自测建的是
+手写版 `ChatScreen`，量到的「39 字节/帧」并不代表用户那道界面。
+
+**修法：登记收到框架侧** —— `TuiScreen.RegisterDirectWriters()` 遍历控件树认领所有动态栏，
+由 `TuiManager.PushScreen/PopScreen` 在 `Activate()` 之后调用（标记版在 `BuildLayout` 里才建树，
+必须等 Activate 之后）。新增屏幕不必再记得手写这一句。
+
+### 3. 同轮 code-review 的其余修复
+
+- **`OnRender` 补过的段没刷新段缓存** → 紧随其后的 `RenderDirect`（同一帧内 `TuiManager.Render`
+  写完帧就调 `RenderAllDirect`）会把同一段**再写一遍**。补上三处缓存赋值，v0.96.87 声称的
+  「同帧不重复写」才成立。
+- **`wholeRow` 丢了几何项**：上一版用整行签名时签名含 `absX/absY/Width`，改成标志位后丢了。
+  输入区从 1 行长到 3 行（或在压缩进度行出现时）动态栏会整体挪一行，而内容可能一字未变 →
+  段比对得出「无需重画」→ 老行留旧像素、新行只有 spinner。现在位移也触发整行重写。
+- **遮挡期间不再强制整行**：原 `_rowInvalidated = !canDirect` 让「有对话框时」每帧整行重写
+  （等于原缺陷对对话框场景复现），且模态遮罩只在全屏帧重画 → 会在暗底上打出一条亮行。
+  改为**遮挡解除后的首帧**整行重写一次（遮挡期间仍按区段补，内容不丢）。
+- **覆写 `Invalidate()`**：`MarkDirtyInRect`、`TuiScreen.MarkDirty`（`RootView.IsDirty = true`）、
+  主题切换等入口绕过 `MarkDirty` 直接置 `IsDirty`，漏掉它们会让「已经脏了但段没变」写出零字节。
+
+**验证**：`--test` **5163 / 5163 全绿**；新增护栏 12 条 —— 分区刷新 3 条（位移整行重写、
+补过的段不重复写）+ 直写登记 3 条（未登记/登记/销毁摘除）+ 启动判据 5 条 + 无控制台退出码。
+
+**已知未修（code-review 另有报告，留待下轮）**：① `_sectionModuleMap` 有 106 个 Section 没有映射，
+`/test <模块>` 会「不跑它们却报全部通过」；② `TuiScreen.Render` 的 dirty-rect 擦除在 pass 1 之后执行，
+被擦的控件不会被重绘（`ClampOverlayToContent` 允许高对话框压到动态栏行）；③ `TuiStatusBar`/
+`TuiTitleBar` 仍无条件整行重绘金色渐变（同源闪因，未收口到机制层）。
+
 ## v0.96.87 (2026-09-11) — 动态栏改为「分区域刷新」：空闲时整行闪烁修复
 
 **问题**：空闲时动态栏整行持续闪烁。内容是静止的（「空闲 / 上下文%、CPU%、token、花费」都不变），

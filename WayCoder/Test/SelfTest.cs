@@ -136,6 +136,8 @@ public static partial class SelfTest
         ["[窗口比例缩放]"] = "ui",  ["[窗口位置对齐]"] = "ui",  ["[Flex 布局]"] = "ui",
         ["[TuiMouse]"] = "ui",
         ["[TuiDynamicBar"] = "ui", ["[动态栏分区刷新"] = "ui",
+        ["[无参数启动界面"] = "system",
+        ["[动态栏直写登记"] = "ui",
         // git
         ["[Git]"] = "git",         ["[Git "] = "git",         ["[Git PR]"] = "git",     ["[Git 大"] = "git",
         // config
