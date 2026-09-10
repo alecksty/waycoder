@@ -303,6 +303,13 @@ public static partial class ModelCli
     /// 显著加快 --model test 与 /models/scan（自测最慢项从 ~15s 降到 ~4s）。
     /// </summary>
 
+    /// <summary>
+    /// 测试用：把所有连通性探测的 base_url 重定向到指定地址（自测指向本地 mock）。
+    /// 非 null 时 <see cref="ResolveProviderBaseUrl"/> 一律返回它，使 TestList / /models/scan
+    /// 不再携带真实密钥探测真实服务商。生产路径保持 null。
+    /// </summary>
+    internal static string? ProbeBaseUrlOverride { get; set; }
+
     private static string? EffectiveBaseUrl(ModelCatalog.ModelInfo m)
     {
         // 注册表地址 > model 默认地址（复用核心解析），本地服务兜底 localhost 是探测场景专属增量（MAUI/Web 无）
@@ -316,6 +323,9 @@ public static partial class ModelCli
     /// 注册表查询复用 <see cref="ModelCatalog.BaseUrlOf"/>（providers.json 实时覆盖 + 大小写不敏感），目录模型默认走 <see cref="EffectiveBaseUrl"/>。</summary>
     private static string? ResolveProviderBaseUrl(string providerId)
     {
+        // 测试用重定向：自测把全部探测指向本地 mock，避免用真实密钥打真实服务商
+        if (ProbeBaseUrlOverride != null) return ProbeBaseUrlOverride;
+
         var pid = providerId.Trim().ToLowerInvariant();
         var reg = ModelCatalog.BaseUrlOf(pid);
         if (!string.IsNullOrEmpty(reg)) return reg;
@@ -337,6 +347,9 @@ public static partial class ModelCli
     {
         if (string.IsNullOrWhiteSpace(baseUrl))
             return (false, "无端点（未配置 base_url）");
+        // 离线模式（自测/CI）：外部端点一律跳过，绝不外发真实密钥
+        if (Global.OfflineMode && !Global.IsLoopbackUrl(baseUrl))
+            return (false, "离线模式：已跳过外部探测");
         try
         {
             var b = ModelCatalog.NormalizeBaseUrl(baseUrl);

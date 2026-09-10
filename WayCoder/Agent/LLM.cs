@@ -1065,6 +1065,11 @@ public class LLM
             try
             {
                 var req = createRequest();
+                // 离线模式硬护栏（自测/CI）：非本机端点直接拒绝，保证跑测试绝不产生 token 费用。
+                // 只拦真正的发送，不拦 Endpoint 属性/配置读取等纯展示路径。
+                if (Global.OfflineMode && !Global.IsLoopbackUrl(req.RequestUri?.ToString()))
+                    throw new InvalidOperationException(
+                        $"离线模式禁止外部 LLM 请求：{req.RequestUri}（自测不得产生 token 费用）");
                 var resp = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, linked.Token);
 
                 // 5xx 服务器错误重试

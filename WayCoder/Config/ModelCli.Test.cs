@@ -186,7 +186,8 @@ public static partial class ModelCli
             .ToList();
 
         foreach (var g in localGroups)
-            targets.Add(new ProbeTarget(g.First().ProviderId, g.First().Provider, g.Key, null,
+            targets.Add(new ProbeTarget(g.First().ProviderId, g.First().Provider,
+                ProbeBaseUrlOverride ?? g.Key, null,
                 g.Select(m => m.Id).Distinct().ToArray(), IsLocal: true));
 
         // 并发探测，保持原顺序

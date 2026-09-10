@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using WayCoder.Tools;
 using WayCoder.UI.Shared;
@@ -188,16 +189,29 @@ public static partial class SelfTest
         var failed = 0;
         var _secEnabled = true;
 
-        // ── 计时：统计每条 Check / 每个 Section 的耗时，末尾输出最慢项，便于定位慢测试去优化 ──
+        // ── 计时：统计每条 Check / 每个 Section 的耗时，逐条打时间标签 + 末尾最长项排行 ──
         // Check 收到的是调用方已算好的 bool，无法在 Check 内部包住被测逻辑；
         // 故用「上一次计时点（Section 起始 或 上一条 Check）到本条 Check」的间隔近似本条测试耗时
         // （含其前置 setup，仍能准确定位慢点）。Section 耗时独立按段累计，不受 Check 门控影响。
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var sectionAccum = new Dictionary<string, double>();  // Section 名 → 累计耗时 ms
-        var itemTimes = new List<(string Name, double Ms)>(); // 单条测试耗时 ms
+        var itemTimes = new List<(string Section, string Name, double Ms, bool Ok)>(); // 全部测试项耗时
         string currentSection = "";
         double sectionStartMs = 0;
         double lastPointMs = 0;
+
+        // 距上一计时点的耗时，并推进计时点（新段起始时由 Section 重置 lastPointMs）
+        double Lap()
+        {
+            var now = sw.Elapsed.TotalMilliseconds;
+            var gap = now - lastPointMs;
+            lastPointMs = now;
+            return gap;
+        }
+
+        // 逐条打时间标签；前缀保持「  ✅ 名称」不变（可 grep），耗时贴行尾
+        void Report(string icon, string name, double ms) =>
+            Console.WriteLine($"  {icon} {name}  [{TagMs(ms)}]");
 
         void Section(string title)
         {
@@ -215,25 +229,21 @@ public static partial class SelfTest
         void Check(string name, bool condition)
         {
             if (!_secEnabled) return;
-            var now = sw.Elapsed.TotalMilliseconds;
-            var gap = now - lastPointMs;
-            lastPointMs = now;
-            if (gap >= 0.5) itemTimes.Add(($"{currentSection} ▸ {name}", gap));
+            var gap = Lap();
+            itemTimes.Add((currentSection, name, gap, condition));
 
-            if (condition) { passed++; Console.WriteLine($"  ✅ {name}"); }
-            else { failed++; Console.WriteLine($"  ❌ {name}"); }
+            if (condition) { passed++; Report("✅", name, gap); }
+            else { failed++; Report("❌", name, gap); }
         }
 
         void Fail(string name)
         {
             if (!_secEnabled) return;
-            var now = sw.Elapsed.TotalMilliseconds;
-            var gap = now - lastPointMs;
-            lastPointMs = now;
-            if (gap >= 0.5) itemTimes.Add(($"{currentSection} ▸ {name}", gap));
+            var gap = Lap();
+            itemTimes.Add((currentSection, name, gap, false));
 
             failed++;
-            Console.WriteLine($"  ❌ {name}");
+            Report("❌", name, gap);
         }
 
         Console.WriteLine("WayCoder 自测");
@@ -241,9 +251,17 @@ public static partial class SelfTest
 
         // 自测全程隔离全局配置目录，避免 SessionManager/CheckpointManager 等写真实用户目录。
         var savedHomeOverride = Global.HomeOverride;
+        var savedOfflineMode = Global.OfflineMode;
         var testHome = Path.Combine(Path.GetTempPath(), "waycoder_selftest_home_" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(testHome);
         Global.HomeOverride = testHome;
+
+        // 硬离线护栏（必须在 Config.Instance 首次构造之前置位）：自测不得产生 token 费用、
+        // 不得外发真实密钥。三处生效：① .env 不再被发现导入；② LLM 拒绝非本机端点；
+        // ③ 模型连通性探测跳过外部端点。
+        Global.OfflineMode = true;
+        // 清掉可能已缓存的真实密钥（同进程 /test 场景：REPL 早已加载过 ~/.waycoder/api_keys.json）
+        ApiKeyStore.ClearCache();
 
         try
         {
@@ -319,6 +337,10 @@ public static partial class SelfTest
         finally
         {
             Global.HomeOverride = savedHomeOverride;
+            Global.OfflineMode = savedOfflineMode;
+            // 再清一次：测试期间缓存的是临时 home 的（空）密钥集，不清会把同进程 REPL（/test）
+            // 已有的真实密钥一起抹掉——下次 Get 会按还原后的 home 重新 Load。
+            ApiKeyStore.ClearCache();
             try { Directory.Delete(testHome, true); } catch { }
         }
 
@@ -330,24 +352,76 @@ public static partial class SelfTest
         if (!string.IsNullOrEmpty(currentSection))
             sectionAccum[currentSection] = sectionAccum.GetValueOrDefault(currentSection) + (endMs - sectionStartMs);
         sw.Stop();
+        var totalMs = sw.Elapsed.TotalMilliseconds;
 
         // ── 最慢项报告 ──
-        Console.WriteLine("\n── 最慢 Section（耗时降序，前 5）──");
-        var topSections = sectionAccum.OrderByDescending(kv => kv.Value).Take(5).ToList();
+        Console.WriteLine($"\n── 最慢 Section（耗时降序，前 15 / 共 {sectionAccum.Count}）──");
+        var topSections = sectionAccum.OrderByDescending(kv => kv.Value).Take(15).ToList();
         if (topSections.Count == 0) Console.WriteLine("  (无)");
         foreach (var (name, ms) in topSections)
             Console.WriteLine($"  {FmtMs(ms)}  {name}");
 
-        Console.WriteLine("\n── 最慢测试项（耗时降序，前 10，≥0.5ms）──");
-        var topItems = itemTimes.OrderByDescending(t => t.Ms).Take(10).ToList();
-        if (topItems.Count == 0) Console.WriteLine("  (全部 < 0.5ms)");
-        foreach (var (name, ms) in topItems)
-            Console.WriteLine($"  {FmtMs(ms)}  {name}");
+        Console.WriteLine($"\n── 最慢测试项（耗时降序，前 20 / 共 {itemTimes.Count}）──");
+        var topItems = itemTimes.OrderByDescending(t => t.Ms).Take(20).ToList();
+        if (topItems.Count == 0) Console.WriteLine("  (无)");
+        foreach (var (sec, name, ms, ok) in topItems)
+            Console.WriteLine($"  {FmtMs(ms)}  {sec} ▸ {name}{(ok ? "" : "   ← 本次失败")}");
+
+        // ── 全量计时落盘：供后续针对性优化（逐条含 Section/耗时/成败），两次运行可比对 ──
+        var csvPath = DumpTimingCsv(itemTimes, sectionAccum, totalMs, filter != null);
+        Console.WriteLine($"\n总耗时: {totalMs / 1000:F1}s   全量计时: {csvPath}");
 
         return failed == 0;
     }
 
+    /// <summary>
+    /// 全量计时写 CSV（失败静默，绝不影响测试结果）：逐条 run_utc,section,name,ms,ok
+    /// 后接 Section 汇总与总耗时。文件名按「全量 / 过滤」区分，避免 /test &lt;模块&gt; 覆盖全量数据。
+    /// </summary>
+    private static string DumpTimingCsv(
+        List<(string Section, string Name, double Ms, bool Ok)> items,
+        Dictionary<string, double> sections,
+        double totalMs,
+        bool filtered)
+    {
+        var path = Path.Combine(Path.GetTempPath(),
+            filtered ? "waycoder-selftest-timing-filtered.csv" : "waycoder-selftest-timing.csv");
+        try
+        {
+            var run = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
+            var sb = new StringBuilder();
+            sb.AppendLine("run_utc,section,name,ms,ok");
+            foreach (var (sec, name, ms, ok) in items)
+                sb.Append(run).Append(',').Append(Csv(sec)).Append(',').Append(Csv(name))
+                  .Append(',').Append(ms.ToString("F3", CultureInfo.InvariantCulture))
+                  .Append(',').Append(ok ? '1' : '0').Append('\n');
+            sb.AppendLine();
+            sb.AppendLine("run_utc,section,total_ms");
+            foreach (var (name, ms) in sections.OrderByDescending(kv => kv.Value))
+                sb.Append(run).Append(',').Append(Csv(name)).Append(',')
+                  .Append(ms.ToString("F3", CultureInfo.InvariantCulture)).Append('\n');
+            sb.AppendLine();
+            sb.AppendLine("run_utc,total_ms");
+            sb.Append(run).Append(',').Append(totalMs.ToString("F3", CultureInfo.InvariantCulture)).Append('\n');
+
+            File.WriteAllText(path, sb.ToString(), new UTF8Encoding(false));
+        }
+        catch { }
+        return path;
+    }
+
+    /// <summary>CSV 需转义的字符（逗号 / 引号 / 换行）</summary>
+    private static readonly char[] _csvSpecials = [',', '"', '\n', '\r'];
+
+    /// <summary>CSV 字段转义：含逗号 / 引号 / 换行时加引号并把内部引号翻倍</summary>
+    private static string Csv(string s) =>
+        s.IndexOfAny(_csvSpecials) < 0 ? s : "\"" + s.Replace("\"", "\"\"") + "\"";
+
     /// <summary>耗时格式化：≥100ms 整毫秒，否则保留 1 位小数</summary>
     private static string FmtMs(double ms) =>
         ms >= 100 ? $"{ms,7:F0}ms" : $"{ms,7:F1}ms";
+
+    /// <summary>行内时间标签：固定 7 字符宽（≥1s 换单位），便于纵向扫读比较</summary>
+    private static string TagMs(double ms) =>
+        ms >= 1000 ? $"{ms / 1000,4:F2}s " : $"{ms,5:F1}ms";
 }
