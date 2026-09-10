@@ -1,5 +1,23 @@
 # 更新日志
 
+## v0.96.82 (2026-09-11) — 修复 GUI 聊天输入回车不发送（只能点按钮）
+
+- **现象**：GUI 版在输入框按回车没反应，必须点「发送」按钮。
+- **根因**：`MainWindow.axaml` 上挂的是普通（冒泡）`KeyDown` 处理器，而 `TextBox`
+  （`AcceptsReturn="True"`）自己的**类处理器**会先一步消费 Enter —— 插入换行并置 `Handled=true`，
+  挂在同一元素上的普通处理器随即被**直接跳过**，`SendAsync` 永远走不到。
+- **修法**：不在 XAML 挂处理器，改为新增 `ChatInputBox : TextBox` **覆写 `OnKeyDown`**
+  —— 我就是那个类处理器，Enter 的处理顺序不存在歧义：
+  - Enter（无 Shift）→ 触发 `SendRequested` → 宿主调 `SendAsync`，`return` 不调 `base`（否则发送后输入框会留一个空行）
+  - Shift+Enter → 放行给 `base.OnKeyDown`，由 TextBox 正常插入换行
+  - 覆写 `StyleKeyOverride => typeof(TextBox)`：Avalonia 按 StyleKey 查 `ControlTheme`，
+    子类默认用自己的类型作 key 会找不到主题、输入框退化成无边框无光标的裸控件。
+- 顺带修正占位符文案：原写「Ctrl+Enter 发送」与实际行为（Enter 发送）不符，改为
+  「输入消息…（Enter 发送 · Shift+Enter 换行）」，与 Web/TUI 端一致。
+- **验证**：`dotnet build WayCoder.Gui` 0 警告 0 错误。（GUI 无 headless 测试基建，
+  行为待实机确认 —— 但「原处理器被跳过」这一现象本身即证明 Enter 是在 `OnKeyDown` 被消费的，
+  覆写点正确。）
+
 ## v0.96.81 (2026-09-11) — 动态栏段级刷新：只重写变化的段，不再整行重画
 
 承接 v0.96.79 的「动态栏内容变化才刷新」，本轮把粒度做细到**段**：此前任一段的值一变就整条重绘

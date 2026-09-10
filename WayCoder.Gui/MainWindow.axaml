@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:system="clr-namespace:System;assembly=System.Runtime"
+        xmlns:local="clr-namespace:WayCoder.UI.Gui"
         x:Class="WayCoder.UI.Gui.MainWindow"
         Title="WayCoder（道码）"
         Width="1180"
@@ -195,8 +196,9 @@
                                 FontSize="{DynamicResource TextFontSize}"
                                 SelectionChanged="SlashSuggest_SelectionChanged" />
 
-                            <!-- 输入框 -->
-                            <TextBox
+                            <!-- 输入框：Enter 发送 / Shift+Enter 换行（ChatInputBox 覆写 OnKeyDown 实现，
+                                 见该类注释——TextBox 的类处理器会先吃掉 Enter，XAML 挂 KeyDown 收不到） -->
+                            <local:ChatInputBox
                                 x:Name="InputBox"
                                 Background="Transparent"
                                 BorderThickness="0"
@@ -207,8 +209,7 @@
                                 FontSize="{DynamicResource TextFontSize}"
                                 PlaceholderForeground="Gray"
                                 Foreground="{DynamicResource TextBrush}"
-                                PlaceholderText="输入消息…（Ctrl+Enter 发送）"
-                                KeyDown="Input_KeyDown"
+                                PlaceholderText="输入消息…（Enter 发送 · Shift+Enter 换行）"
                                 TextChanged="Input_TextChanged" />
 
                             <Grid

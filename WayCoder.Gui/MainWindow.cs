@@ -81,6 +81,9 @@ public partial class MainWindow : Window
         GuiContext.MainWindow = this;
         SlashCommandRegistry.RegisterAll();
 
+        // 输入框 Enter 发送：由 ChatInputBox 覆写 OnKeyDown 提供（见该类注释说明为何不能在 XAML 挂 KeyDown）
+        InputBox.SendRequested += OnInputSendRequested;
+
         InitModels();
         InitModelBar();
         InitSlots();
