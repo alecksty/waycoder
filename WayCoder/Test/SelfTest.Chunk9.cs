@@ -273,6 +273,33 @@ public static partial class SelfTest
         Check("对齐: --session 解析", Arguments.CliArgRegistry.Get(pSession, "session") == "abc123");
         Console.WriteLine();
 
+        // ---- CLI 强制连接：只改内存，绝不写用户配置 ----
+        Section("[CLI 强制连接: 不落盘]");
+        // --model / --base-url / --api-key 的语义是「本次启动强制用这个连接」，
+        // 此前会经 ApplyModelChoice → SetActiveConnect 连带写出 connections.json + config.json + .env。
+        {
+            // 直接测闸门本身，不借道 ConnectionConfig 的增删：那条路依赖内存缓存与
+            // FilePathOverride 的生命周期，套件中途被替换会让 Load 从空文件重建、探针丢失（踩过一次）。
+            var cfgFile = Global.GlobalConfigPath("config.json");
+            var savedDisabled = Global.PersistDisabled;
+            try { if (File.Exists(cfgFile)) File.Delete(cfgFile); } catch { }
+            try
+            {
+                Global.PersistDisabled = true;
+                try { Config.Instance.SaveToConfigJson(); }
+                finally { Global.PersistDisabled = false; }
+                Check("PersistDisabled 下 SaveToConfigJson 不写 config.json", !File.Exists(cfgFile));
+
+                Config.Instance.SaveToConfigJson();
+                Check("还原后 config.json 正常写出（闸门不会一直关着）", File.Exists(cfgFile));
+            }
+            finally
+            {
+                Global.PersistDisabled = savedDisabled;
+                try { if (File.Exists(cfgFile)) File.Delete(cfgFile); } catch { }
+            }
+        }
+
         // ---- CLI 参数：有错即报错退出（绝不静默忽略后带默认配置启动）----
         Section("[CLI 参数: 严格校验]");
         // 静默忽略的后果：`waycoder --modle plan` 拼错旗标后程序照常进交互界面，

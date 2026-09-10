@@ -352,29 +352,34 @@ public partial class Program
             WayCoder.Tools.McpManager.ConfigPathOverride = mcpCfgPath;
         if (Arguments.CliArgRegistry.Get(parsed, "theme") is string themeName)
             Config.ApplyColorScheme(_config, themeName);
-        if (model != null)
+        // ── --model / --base-url / --api-key：本次启动「强制连接」三元组 ──
+        // 语义：给了哪几项就覆盖哪几项，**只作用于本次进程**，绝不改用户配置。
+        // 需要一个不提权的临时连接（换套 baseUrl/key/model 试一下）就用这三个参数；
+        // 要**永久**保存请用 /model、/connect、/provider —— 那些才是"改配置"的入口。
+        //
+        // 为什么要 PersistDisabled：--model 会走 ApplyModelChoice → SetActiveConnect，
+        // 那条路默认会写出 connections.json + config.json + .env 三个文件（见 SetActiveConnect 尾部），
+        // 与 --model 自身「本次会话，不持久化」的说明矛盾，也让一次命令行启动变成不可逆的配置变更。
+        // 置位后内存状态照常更新（运行时镜像一致，压缩用的小模型/回退链读到的都是新连接），只是不落盘。
+        //
+        // 顺序依赖：base-url 必须在 ApplyModelChoice 之后落到 _config 上，否则会被 connect 推导出的
+        // 地址覆盖。这里靠"先 ApplyModelChoice、后显式赋值"保证，别再把这几个赋值散到别处。
+        if (model != null || baseUrl != null || apiKey != null)
         {
-            // 「切换模型 = 切换 connect」：--model 也注册/切换大 connect
-            var catInfo = ModelCatalog.Find(model);
-            ConnectionConfig.ApplyModelChoice(catInfo?.ProviderId ?? _config.Provider, model,
-                isLarge: true, out _, catInfo?.DefaultBaseUrl);
-        }
-        if (baseUrl != null) _config.BaseUrl = baseUrl;
-        if (apiKey != null)
-        {
-            _config.ApiKey = apiKey;
-            // 命令行配置的 API key：默认优先 api_keys.json——仅当该服务商 json 无 key 时才落盘保存
-            // （否则 --api-key 一传就覆盖掉已存 key，env/CLI 一换 key 就莫名其妙丢了）。
-            // 本次会话始终使用 CLI 传入的 key（_config.ApiKey）。
-            var keyProvider = model != null
-                ? (ModelCatalog.Find(model)?.ProviderId ?? _config.Provider)
-                : _config.Provider;
-            if (!string.IsNullOrWhiteSpace(keyProvider))
+            var savedPersistDisabled = Global.PersistDisabled;
+            Global.PersistDisabled = true;
+            try
             {
-                if (!ApiKeyStore.Has(keyProvider))
-                    ApiKeyStore.Set(keyProvider, apiKey);
-                _config.Provider = keyProvider;
+                if (model != null)
+                {
+                    var catInfo = ModelCatalog.Find(model);
+                    ConnectionConfig.ApplyModelChoice(catInfo?.ProviderId ?? _config.Provider, model,
+                        isLarge: true, out _, catInfo?.DefaultBaseUrl);
+                }
+                if (baseUrl != null) _config.BaseUrl = baseUrl;
+                if (apiKey != null) _config.ApiKey = apiKey; // 仅本次会话；不写 api_keys.json
             }
+            finally { Global.PersistDisabled = savedPersistDisabled; }
         }
         if (maxBudget != null) _config.MaxBudgetUsd = maxBudget;
         if (maxRequeue != null) _config.MaxAutoRequeue = maxRequeue.Value;

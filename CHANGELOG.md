@@ -1,5 +1,29 @@
 # 更新日志
 
+## v0.96.86 (2026-09-11) — `--model/--base-url/--api-key` 成为真正的「本次启动强制连接」（不落盘）
+
+**问题**：这三个参数本就存在、组合也生效（实测 `--base-url` 确实压过模型目录默认地址），
+但语义不干净 —— 它们会经 `ApplyModelChoice → SetActiveConnect` **连带写出三个文件**
+（`connections.json` + `config.json` + **`.env`**），与 `--model` 自身「本次会话，不持久化」的
+说明矛盾；`--api-key` 还会在该服务商原本无 key 时**永久写入 `api_keys.json`**。
+一次「换套参数试一下」变成了不可逆的配置变更。
+
+- **新增 `Global.PersistDisabled`**：只改内存、不写盘。闸门设在三个写盘出口上 ——
+  `ConnectionConfig.Save()`、`Config.SaveToConfigJson()`、`Config.SaveToEnvFile()`
+  （与 `--offline` 的 `OfflineMode` 一样属于「窄区间开关」，由 Program 在应用这几个参数的
+  极小闭区间内置位并 `finally` 还原）。
+- **`Program.cs`** 把三者收成一个「强制连接」块：给了哪几项就覆盖哪几项，全程 `PersistDisabled`；
+  `--api-key` 不再落盘（要永久保存请用 `/model key <供应商> <key>`）。
+  内存状态照常更新（运行时镜像一致，压缩用的小模型/回退链读到的都是新连接），只是不写文件。
+- 顺带把这个块里的**隐式顺序依赖**写明：`base-url` 必须在 `ApplyModelChoice` **之后**落到
+  `_config` 上，否则会被 connect 推导出的地址覆盖 —— 以后别把这几个赋值散出去。
+- **验证（端到端）**：用 `--model gpt-4o-mini --base-url http://127.0.0.1:9 --api-key sk-...`
+  启动（死端口，零 token），实测 ① 请求确实打到 `127.0.0.1:9`；②
+  `api_keys.json` / `connections.json` / `config.json` / 仓库 `.env` **四个文件哈希全部未变**。
+- 自测新增 2 项「闸门双向」护栏（关时确实不写、还原后确实写），**5149 / 5149 全绿**。
+- **注意**：`ExitCode` 之外，`PersistDisabled` 也不要用 `!= null`/布尔单独判断"是否出错"——
+  它的语义是「这次启动改了就改」，与正常/异常退出无关。
+
 ## v0.96.85 (2026-09-11) — 命令行参数有错即报错退出（不再静默忽略后照常启动）
 
 - **旧行为有多危险**：`CliArgRegistry.Parse` 对未知参数是 `continue` —— `waycoder --modle plan`
