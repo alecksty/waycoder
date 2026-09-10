@@ -14,6 +14,30 @@ public static partial class SelfTest
     /// </summary>
     private static void TestChunk19(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
     {
+        Section("[输入 CSI 功能键映射]");
+        // code-review finding #1 回归护栏：Windows VT 输入下裸 CSI 光标键/编辑键必须映射为对应
+        // ConsoleKey，绝不可退化成裸 ESC（否则取消在跑 agent / 丢聊天草稿）。
+        ConsoleKey ParseKey(string param, char term) => InputManager.ParseCsiFuncKey(param, term)?.KeyInfo.Key ?? ConsoleKey.NoName;
+        Check("ESC[A → Up(非 ESC)", ParseKey("A", 'A') == ConsoleKey.UpArrow);
+        Check("ESC[B → Down", ParseKey("B", 'B') == ConsoleKey.DownArrow);
+        Check("ESC[D → Left", ParseKey("D", 'D') == ConsoleKey.LeftArrow);
+        Check("ESC[H → Home", ParseKey("H", 'H') == ConsoleKey.Home);
+        Check("ESC[F → End", ParseKey("F", 'F') == ConsoleKey.End);
+        Check("1~ → Home", ParseKey("1~", '~') == ConsoleKey.Home);
+        Check("3~ → Delete", ParseKey("3~", '~') == ConsoleKey.Delete);
+        Check("5~ → PgUp", ParseKey("5~", '~') == ConsoleKey.PageUp);
+        Check("6~ → PgDn", ParseKey("6~", '~') == ConsoleKey.PageDown);
+        Check("15~ → F5", ParseKey("15~", '~') == ConsoleKey.F5);
+        var ctrlEv = InputManager.ParseCsiFuncKey("1;5D", 'D');
+        Check("1;5D → Ctrl+Left", ctrlEv?.KeyInfo is { } kk && kk.Key == ConsoleKey.LeftArrow && kk.Modifiers.HasFlag(ConsoleModifiers.Control));
+
+        Section("[char→ConsoleKey 统一映射]");
+        Check("MapToConsoleKey a→A", WindowsCharSource.MapToConsoleKey('a') == ConsoleKey.A);
+        Check("MapToConsoleKey 9→D9", WindowsCharSource.MapToConsoleKey('9') == ConsoleKey.D9);
+        Check("MapToConsoleKey 空格→Spacebar", WindowsCharSource.MapToConsoleKey(' ') == ConsoleKey.Spacebar);
+        Check("MapToConsoleKey ESC→Escape", WindowsCharSource.MapToConsoleKey('\x1b') == ConsoleKey.Escape);
+        Check("MapToConsoleKey CJK→NoName", WindowsCharSource.MapToConsoleKey('中') == ConsoleKey.NoName);
+
         Section("[字符源 UTF-8 状态化]");
         using (var feed = new TestFeedStream())
         using (var src = new WindowsCharSource(feed))
