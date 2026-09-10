@@ -183,6 +183,35 @@ public static partial class SelfTest
             Check("RS 分隔符跳过、ASCII 直通", cx == 'x');
         }
 
+        Section("[TuiDynamicBar 按值标脏（与聊天区解耦护栏）]");
+        // 契约：动态栏内容属性只在「值真变化」时标脏。spinner 动画由 RenderDirect 直写转动、
+        // 不依赖脏标记，所以绝不能靠「定时无条件标脏」来刷 —— 那会按动画节拍把整个屏幕
+        // （含聊天区）反复拖进渲染路径，表现为内容没变却一直闪。
+        {
+            var db = new WayCoder.UI.Tui.Controls.TuiDynamicBar();
+            db.ClearDirty();
+            db.Status = db.Status;
+            db.LeftText = db.LeftText;
+            db.ToolText = db.ToolText;
+            db.TokenDisplay = db.TokenDisplay;
+            db.CostDisplay = db.CostDisplay;
+            db.ContextPercent = db.ContextPercent;
+            db.CpuPercent = db.CpuPercent;
+            db.ProgressPercent = db.ProgressPercent;
+            Check("同值赋值不标脏（内容没变就不重绘）", !db.IsDirty);
+
+            db.LeftText = "思考中…";
+            Check("左段变值标脏", db.IsDirty);
+
+            db.ClearDirty();
+            db.Status = WayCoder.UI.Shared.AgentStatus.Thinking;
+            Check("Status 变值标脏", db.IsDirty);
+
+            db.ClearDirty();
+            db.TokenDisplay = "🔤大1K 小0";
+            Check("TokenDisplay 变值标脏（实时数字仍会更新）", db.IsDirty);
+        }
+
         Section("[项目根解析边界（性能回归护栏）]");
         // 非项目目录下 FindProjectRoot 绝不可把用户主目录当项目根：home 下通常有 package.json，
         // 一旦被选中，DetectLanguages 会递归遍历整个 home（几十万文件）——实测系统提示词构建

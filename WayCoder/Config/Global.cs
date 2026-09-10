@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 
 namespace WayCoder;
 
@@ -121,7 +121,7 @@ public static class Global
     /// <summary>应用全称</summary>
     public const string AppFullName = "WayCoder 道码·通用编程智能体";
     /// <summary>版本号</summary>
-    public const string Version = "v0.96.78";
+    public const string Version = "v0.96.79";
     /// <summary>应用名 + 版本号</summary>
     public static string AppNameVersion => $"{AppName} {Version} ({AppNameCN})";
 

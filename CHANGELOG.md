@@ -1,5 +1,41 @@
 # 更新日志
 
+## v0.96.79 (2026-09-10) — 动态栏与聊天区解耦（去掉动画定时标脏）+ 帧范围诊断工具
+
+### 已修：动态栏动画不再按节拍拖拽整屏重绘
+
+- **`TuiDynamicBar` 内容属性改为按值标脏**：`Status` / `LeftText` / `ToolText` / `TokenDisplay` /
+  `CostDisplay` / `ContextPercent` / `CpuPercent` / `ProgressPercent` / `ProgressLabel` 此前都是
+  **普通自动属性**（赋值不标脏），只能靠 `ChatScreen.SyncDynamicBar` 里「每 250ms 无条件 `MarkDirty()`」
+  的定时器硬刷 —— 那等于按 spinner 的动画节拍把整屏反复拖进渲染路径。
+- **删除该定时器**：spinner 动画本就走 `TuiDynamicBar.RenderDirect` 直写终端（不依赖脏标记，
+  空闲态照常转），定时器纯属冗余。改后「动态栏何时重绘」完全由**内容是否变化**决定：
+  内容不变 → 不标脏 → 不重绘；实时数字（token/花费/上下文）仍随值变化即时更新。
+
+### 未修：聊天区闪烁的根因已定位（待定方案）
+
+思考中聊天滚动区持续闪烁，**与动态栏无关**，根因在流式追加路径：
+
+```
+LLM.cs:725        推理 token 走 onToken 回调（与正文同一条流）
+  → AppendToken → AppendToLast → QueueStreamLayout()
+  → 渲染帧 FlushStreamingLayout() → ChatList.MarkTreeDirty()      ChatScreen.cs:1032
+  → TuiListView.OnRender 整视口「擦除 + 重绘」                     TuiListView.cs:263-282
+```
+
+即**每个推理 token 都会把整个聊天视口擦掉重画一次**（`TuiListView` 一脏就 `Fill` 满视口再逐项重绘），
+推理持续期间即为连续闪烁。`ChatScreen.cs:1029` 的注释也确认了这一取舍（「必须整棵子树标脏，
+未变消息才不会被擦掉」）。方案（跳过整视口擦除、只重绘变动行）已评估，改动落在共享列表控件上
+且需真机目视确认，**待确认后再动**。
+
+### 工具：渲染帧范围诊断
+
+- **`--keypad` 新增 `FRAMES:<n>`**：连续渲染 n 帧，逐帧报告**写出的字节数 + 光标定位到的行 + 文本**。
+  这是判断「区域是否联动刷新」的直读工具：健康帧应只有动画行与光标行、约 40 字节。
+- 另加 `STATUS:<名>`（强制动态栏状态）与 `DIRTY`（只标脏不渲染）。
+- 新增脚本 `Test/scripts/frames.txt`（含判读要点），替代临时诊断件。
+- 自测新增 4 项护栏锁定「同值赋值不标脏 / 变值标脏」契约（**5138 / 5138 全绿**）。
+
 ## v0.96.78 (2026-09-10) — 修复 VT 字节流丢键：退格无法擦除、Ctrl 组合键与 F1-F4 失效
 
 v0.96.74 把 Windows 读键从 `Console.ReadKey()` 换成 VT 字节流（为了收 SGR 鼠标），但字节流层
