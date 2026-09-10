@@ -132,6 +132,18 @@ public partial class MainWindow
     /// </summary>
     private async void OnInputSendRequested() => await SendAsync();
 
+    /// <summary>
+    /// 输入卡下方显示当前工作目录（对齐 Web <c>#cwd-bar</c>）。
+    /// GUI 的 <c>/cd</c> 是只读信息命令（不切换目录），工作目录即进程启动目录 ——
+    /// 与 <c>/cd</c> 报告的值同源，也与 GuiBootstrap 设置 SandboxManager.AllowedDirectory 的取值一致。
+    /// 复用 <see cref="PathStatus.FormatCwd"/>：主目录前缀折叠成 ~，与 TUI 状态栏同一套呈现。
+    /// </summary>
+    private void UpdateCwdBar()
+    {
+        var cwd = WayCoder.Infra.PathStatus.FormatCwd(Directory.GetCurrentDirectory());
+        CwdBar.Text = $"📁 {cwd}";
+    }
+
     /// <summary>输入框自动增高（按行数钳制 56~220，对齐 Web autoResizeInput）。</summary>
     private void Input_TextChanged(object? sender, TextChangedEventArgs e)
     {
