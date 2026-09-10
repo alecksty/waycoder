@@ -271,12 +271,15 @@ public partial class ChatScreen : TuiScreen
     {
         if (DynamicBar == null) return;
         DynamicBar.Width = TW;
-        DynamicBar.ContextPercent = _contextPercent; // 常驻上下文占用%
         // 常驻 CPU 占用%：从 CpuMonitor 读取最新采样值（心跳线程 5s 采样，此处每帧取最新）
         DynamicBar.CpuPercent = CpuMonitor.LastPercent;
 
         // 实时 token 消耗/花费/上下文：每帧从 Agent.LlmClient/Context 读取（getter-only 廉价计算）。
         // 流式/工具执行时 token 随 LLM 累计实时变化，本处每帧取最新 → 动态栏 250ms 节流显示。
+        //
+        // 每个属性每帧**只赋值一次**：动态栏内容属性是「值变了就当作内容变化」（段级直写/整行标脏），
+        // 同一帧里先置 A 再置 B 会被记成两次变化 —— 直写不可用时就是逐帧整行重绘 = 整条闪。
+        // （此前这里开头有一句 `ContextPercent = _contextPercent` 紧接着又被真值覆盖，正是这个坑。）
         var llm = ProgramContext.Agent?.LlmClient;
         var ctx = ProgramContext.Agent?.Context;
         if (llm != null)
@@ -284,14 +287,16 @@ public partial class ChatScreen : TuiScreen
             DynamicBar.TokenDisplay = $"🔤大{FormatNum(llm.LargeTotalTokens)} 小{FormatNum(llm.SmallTotalTokens)}";
             DynamicBar.CostDisplay = llm.EstimatedCost.HasValue
                 ? $"¥{llm.EstimatedCost.Value * 7.25:F2}" : null;
-            // 上下文占比改用真实 LastPromptTokens/MaxTokens（比估算值准）
-            if (ctx != null && ctx.MaxTokens > 0)
-                DynamicBar.ContextPercent = ctx.LastPromptTokens * 100.0 / ctx.MaxTokens;
+            // 上下文占比优先用真实 LastPromptTokens/MaxTokens（比估算值准），取不到回退最近一次已知值
+            DynamicBar.ContextPercent = ctx != null && ctx.MaxTokens > 0
+                ? ctx.LastPromptTokens * 100.0 / ctx.MaxTokens
+                : _contextPercent;
         }
         else
         {
             DynamicBar.TokenDisplay = null;
             DynamicBar.CostDisplay = null;
+            DynamicBar.ContextPercent = _contextPercent; // 无 Agent → 保持最近一次已知占用
         }
 
         // 不再「每 FrameMs 无条件标脏」驱动 spinner：
@@ -492,7 +497,7 @@ public partial class ChatScreen : TuiScreen
     /// <summary>等待权限的工具名（非 null = 正在等待）</summary>
     private string? _pendingPermissionTool;
 
-    /// <summary>上下文占用百分比（null=未知，用于动态栏常驻显示）</summary>
+    /// <summary>上下文占用百分比（null=未知；动态栏常驻显示 + 侧栏指纹取用）</summary>
     private double? _contextPercent;
 
     /// <summary>排队任务数（Agent 忙时待处理指令），动态栏显示；0=无排队</summary>

@@ -253,6 +253,58 @@ public static partial class SelfTest
                 changed.Contains("🔤大2K") && !changed.Contains("思考中") && !changed.Contains("bash工具"));
         }
 
+        Section("[动态栏整行签名（未变内容不重绘护栏）]");
+        // 契约：整行渲染按「内容签名」去重 —— 内容一字未变且直写通道可用时，整行一个字节都不写。
+        // 只有 spinner 该转（它由 RenderDirect 直写维护，签名不含帧字符）。
+        // 此前只要别处重绘把本栏当父容器脏顺带带进来（增量渲染 child.IsDirty || parentDirty），
+        // 整行就会被重写一次 —— 实测表现为「空闲时动态栏整行一直闪」。
+        {
+            var owner = WayCoder.UI.TUI.Base.TuiManager.Instance?.ActiveScreen;
+            Check("整行签名：测试前置（存在活跃屏幕，否则直写被门控、会空通过）", owner != null);
+            if (owner != null)
+            {
+                var signBar = new WayCoder.UI.Tui.Controls.TuiDynamicBar { Width = 60 };
+                var keepOut = Console.Out;
+                string first, repeat, marked, changed;
+                try
+                {
+                    signBar.RegisterDirectWrite(owner);
+                    signBar.LeftText = "空闲";
+                    owner.IsIncrementalUpdate = true; // 增量帧（全屏清屏帧必须重画，由该标志区分）
+                    var sink = new System.Text.StringBuilder();
+
+                    Console.SetOut(TextWriter.Null); // Render 不写控制台，但防意外输出污染套件
+                    signBar.Render(sink, 0, 0, 0, 0, 60, 5); // 首次：整行写入 + 记录签名
+                    first = sink.ToString();
+
+                    sink.Clear();
+                    signBar.Render(sink, 0, 0, 0, 0, 60, 5); // 内容未变 + 增量 + 可直写
+                    repeat = sink.ToString();
+
+                    sink.Clear();
+                    signBar.MarkDirty();                    // 显式标脏（遮挡解除/浮层让位）→ 作废签名
+                    signBar.Render(sink, 0, 0, 0, 0, 60, 5);
+                    marked = sink.ToString();
+
+                    sink.Clear();
+                    signBar.TokenDisplay = "🔤大2K";        // 内容真变了
+                    signBar.Render(sink, 0, 0, 0, 0, 60, 5);
+                    changed = sink.ToString();
+                }
+                finally
+                {
+                    Console.SetOut(keepOut);
+                    owner.IsIncrementalUpdate = false;
+                    signBar.OnDestroy();
+                }
+
+                Check("整行签名：内容未变 + 增量帧 + 可直写 → 整行零写入",
+                    first.Length > 0 && repeat.Length == 0);
+                Check("整行签名：显式标脏 → 重画一次（遮挡/浮层让位不漏补）", marked.Contains("空闲"));
+                Check("整行签名：内容变化 → 重画且含新值", changed.Contains("🔤大2K"));
+            }
+        }
+
         Section("[项目根解析边界（性能回归护栏）]");
         // 非项目目录下 FindProjectRoot 绝不可把用户主目录当项目根：home 下通常有 package.json，
         // 一旦被选中，DetectLanguages 会递归遍历整个 home（几十万文件）——实测系统提示词构建
