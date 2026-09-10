@@ -30,6 +30,10 @@ namespace WayCoder;
 ///   DIRTY               只把屏幕标脏、不渲染（配合 FRAMES 观察「脏帧」的真实重绘范围）
 ///   FRAMES:<n>          连续渲染 n 帧，逐帧报告写出的字节数 + 光标定位到的行 + 文本——
 ///                       排查「闪烁 / 区域联动」的核心工具：内容未变的帧应只碰动画行与光标行
+///   STREAM:<文本>        模拟一次流式追加（等价 LLM 吐一个 token），走 EnsureAgentStreaming→
+///                       AppendToLast→QueueStreamLayout 真实路径
+///   STREAMFRAME:<文本>   追加并**当场渲染一帧**后报告其字节数/光标行——测流式重绘范围必须用它，
+///                       否则 keypad 循环自己的渲染会先吃掉脏帧，测到的是善后帧
 ///   FOCUS              转储当前焦点状态（焦点窗口 / RootView 类型 / 焦点控件 / 可聚焦控件列表）
 ///   MSG:角色:内容       注入一条聊天消息（user/assistant/agent/system/tool/error/banner；`\n` 换行）
 ///   FILL:数量           批量注入编号消息（交替 user/assistant/system，用于撑满列表测滚动）
@@ -135,6 +139,31 @@ public static class Keypad
                         // 诊断：只标脏不渲染（配合 FRAMES 观察「脏帧」的真实重绘范围）
                         mgr.IsDirty = true;
                         screen.MarkDirty();
+                        break;
+
+                    case "STREAMFRAME":
+                        // 诊断：模拟一次流式追加并**当场渲染一帧**，报告该帧字节数与光标行。
+                        // 必须与追加同帧，否则 keypad 循环自己的渲染会先吃掉脏帧，测到的是善后帧。
+                        {
+                            screen.EnsureAgentStreaming();
+                            screen.AppendToken(value.Replace("\\n", "\n"));
+                            var cap2 = new StringWriter();
+                            var keep2 = Console.Out;
+                            Console.SetOut(cap2);
+                            try { mgr.Render(); } finally { Console.SetOut(keep2); }
+                            var s2 = cap2.ToString();
+                            var rows2 = System.Text.RegularExpressions.Regex
+                                .Matches(s2, @"\x1b\[(\d+);(\d+)H")
+                                .Select(m => int.Parse(m.Groups[1].Value)).Distinct().OrderBy(r => r).ToArray();
+                            Emit(orig, $"# STREAMFRAME: bytes={s2.Length} rows=[{string.Join(",", rows2)}]");
+                        }
+                        break;
+
+                    case "STREAM":
+                        // 诊断：模拟一次流式追加（等价于 LLM 吐一个 token），走
+                        // EnsureAgentStreaming → AppendToLast → QueueStreamLayout 的真实路径。
+                        screen.EnsureAgentStreaming();
+                        screen.AppendToken(value.Replace("\\n", "\n"));
                         break;
 
                     case "FRAMES":

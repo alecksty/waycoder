@@ -1014,23 +1014,31 @@ public partial class ChatScreen : TuiScreen
         _streamAppendPending = false;
         if (ChatList == null) return;
 
-        bool touched = false;
+        int touchedIdx = -1;
+        bool multipleTouched = false;
         for (int i = 0; i < ChatList.ItemCount; i++)
         {
             if (ChatList.GetItem(i) is TuiListItem item && item.Body != null && !item.Body.IsRenderCached)
             {
                 item.Body.EnsureParsed(); // 重解析：Body.Height 更新
                 item.ReLayout();          // 条目高度按新正文行数重算
-                touched = true;
+                if (touchedIdx < 0) touchedIdx = i;
+                else multipleTouched = true;
             }
         }
-        if (touched)
-        {
-            // ChatList.OnRender 会整视口擦除后重绘脏叶子 → 必须整棵子树标脏，未变消息才不会被擦掉。
-            // ChatList.ReLayout 由紧随的 RootView.Layout 递归完成（VBox/HBox → ChatList.Layout）；
-            // ScrollToBottom 由调用方在 RootView.Layout 后按 _scrollToBottomPending 执行（需 ContentHeight 已刷新）。
+        if (touchedIdx < 0) return;
+
+        // 流式追加的常态：只有**最后一条**正文在变、其后没有条目需要跟着位移。
+        // 此时走内容级脏（只擦这一条自己的行，见 TuiListView.MarkItemContentDirty）——
+        // 整视口擦除+重绘会按渲染帧频率把聊天区整片刷一遍，就是「内容没变也一直闪」的根源。
+        // 其余情况（多项变化 / 中间项变高会把后续条目挤下去）必须整棵子树标脏，
+        // 否则未标脏的条目不会重绘 → 错位残影。
+        // ChatList.ReLayout 由紧随的 RootView.Layout 递归完成（VBox/HBox → ChatList.Layout）；
+        // ScrollToBottom 由调用方在 RootView.Layout 后按 _scrollToBottomPending 执行（需 ContentHeight 已刷新）。
+        if (!multipleTouched && touchedIdx == ChatList.ItemCount - 1)
+            ChatList.MarkItemContentDirty(touchedIdx);
+        else
             ChatList.MarkTreeDirty();
-        }
     }
 
     /// <summary>清空聊天</summary>

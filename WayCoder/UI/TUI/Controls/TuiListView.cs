@@ -265,23 +265,13 @@ public class TuiListView : TuiView
         // 否则后台渲染（如状态栏动画每 30ms 一帧）会擦掉正文、又不重绘非脏叶子 → 黑屏闪烁。
         if (!IsDirty) return;
 
-        // 填充整个视口背景，清除滚动残影（右边也刷到控件右缘）。
-        // 子项渲染不补齐整行宽度，滚动后旧像素会残留在右侧/间隙。
         int fillBg = GetInheritedBg();
         int l = Math.Max(ClipLeft, absX);
         int r = Math.Min(ClipRight, absX + Width);
         int t = Math.Max(ClipTop, absY);
         int b = Math.Min(ClipBottom, absY + visH);
-        if (r > l && b > t)
-        {
-            var rb = new Terminal.RenderBuffer();
-            if (fillBg <= 0) rb.Reset(); // 透明背景：先复位到终端默认底色，空格才能清掉残留
-            for (int row = t; row < b; row++)
-                rb.Fill(row, l, r - l, fillBg);
-            sb.Append(rb.ToString());
-        }
 
-        // 确保选中项可见
+        // 确保选中项可见（必须先于下面的分区间填充：填充范围依赖 ScrollOffset）
         if (SelectedIndex >= 0 && SelectedIndex < Children.Count)
         {
             var sel = Children[SelectedIndex];
@@ -295,6 +285,48 @@ public class TuiListView : TuiView
         // 二分查找起始项，避免遍历所有子项
         int startIdx = FindFirstVisibleIndex();
         int screenBottom = absY + visH;
+
+        // 内容级脏（如流式追加：只有最后一条正文在变、其后无项需要位移）走窄路径——
+        // 只擦「脏项自己的行区间」+「最后一项底边以下的空档」，不擦整个视口。
+        // 整视口擦除是给「滚动 / 条目增删 / 多项位移」的保险；按流式频率（每渲染帧一次）
+        // 整片擦掉再画，就是聊天区「内容没变也一直闪」的根源。
+        // 滚动偏移本帧若变化（如流式追加触发自动滚到底），可视条目会整体位移，
+        // 未被标脏的条目不会重绘 → 必须退回全量擦除，否则留下错位残影。
+        bool contentOnly = _contentOnlyDirty && ScrollOffset == _lastRenderedScroll;
+        _contentOnlyDirty = false;
+        _lastRenderedScroll = ScrollOffset;
+
+        if (r > l && b > t)
+        {
+            var rb = new Terminal.RenderBuffer();
+            if (fillBg <= 0) rb.Reset(); // 透明背景：先复位到终端默认底色，空格才能清掉残留
+
+            if (!contentOnly)
+            {
+                // 全量：填充整个视口背景，清除滚动残影（右边也刷到控件右缘）。
+                for (int row = t; row < b; row++)
+                    rb.Fill(row, l, r - l, fillBg);
+            }
+            else
+            {
+                // 窄路径：只擦脏项覆盖的行（按新高度），其余行由各自的子项原地覆盖
+                int coveredBottom = t;
+                for (int i = startIdx; i < Children.Count; i++)
+                {
+                    var c = Children[i];
+                    if (!c.Visible || !c.IsDirty) continue;
+                    int cTop = absY + c.Y - ScrollOffset;
+                    int cBottom = cTop + c.Height;
+                    for (int row = Math.Max(t, cTop); row < Math.Min(b, cBottom); row++)
+                        rb.Fill(row, l, r - l, fillBg);
+                    coveredBottom = Math.Max(coveredBottom, Math.Min(b, cBottom));
+                }
+                // 末尾空档：该项变矮时腾出的行不属于任何子项，必须补擦，否则残留旧像素
+                for (int row = coveredBottom; row < b; row++)
+                    rb.Fill(row, l, r - l, fillBg);
+            }
+            sb.Append(rb.ToString());
+        }
 
         for (int i = startIdx; i < Children.Count; i++)
         {
@@ -314,6 +346,30 @@ public class TuiListView : TuiView
                 ClipLeft, ClipTop, ClipRight, ClipBottom);
         }
     }
+
+    /// <summary>
+    /// 内容级脏：只有第 <paramref name="index"/> 项的**正文**变了（典型场景：流式追加最后一条），
+    /// 其后没有子项需要跟着位移、也没有条目增删/滚动。
+    ///
+    /// 此时不必擦整个视口：只擦这一项自己的行区间即可，其余项原地不动。调用方须自行确认
+    /// 「被改的是最后一项」——中间项变高会把后续项挤下去，那些项必须一起重绘，走 <see cref="MarkTreeDirty"/>。
+    /// </summary>
+    public void MarkItemContentDirty(int index)
+    {
+        if (index < 0 || index >= Children.Count) return;
+        // 必须整棵子树标脏（与 MarkTreeDirty 同理）：本路径会先擦掉该项所在的行区间，
+        // 而 TuiView 的 parentDirty 只向下传播一层 —— 只标容器的话，标题等叶子不会重画，
+        // 擦掉的像素就补不回来（实测：流式消息的「● 智能体」标题行被擦成空白）。
+        SetTreeDirty(Children[index]);
+        _contentOnlyDirty = true;
+        MarkDirty();
+    }
+
+    /// <summary>本帧是否为「内容级脏」（只擦脏项自己的行，不擦整个视口）。</summary>
+    private bool _contentOnlyDirty;
+
+    /// <summary>上一帧实际使用的滚动偏移：用于判断「本帧可视条目是否整体位移过」。</summary>
+    private int _lastRenderedScroll = -1;
 
     // ── 输入 ──
 
