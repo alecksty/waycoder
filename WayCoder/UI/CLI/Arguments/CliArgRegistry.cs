@@ -43,13 +43,22 @@ public static class CliArgRegistry
         {
             var arg = args[i];
 
-            if (!arg.StartsWith('-')) continue;
+            // 位置参数：本 CLI 的用法是 waycoder [选项]，没有位置参数。裸词几乎都是「漏了选项名」
+            // （如 waycoder "写个 hello" 少写 -p）——必须报错退出，绝不静默忽略：
+            // 静默忽略会让用户以为提示词/选项生效了，实际程序以默认配置进了交互界面。
+            if (!arg.StartsWith('-'))
+                return Fail(values,
+                    $"无法识别的参数: {arg}",
+                    "提示词要用 -p 显式指定：waycoder -p \"...\"");
 
             // 支持 --key=value 格式
             CliArg? def = null;
             var eqIdx = arg.IndexOf('=');
-            if (eqIdx > 1 && _byName.TryGetValue(arg[..eqIdx], out var eqDef))
+            if (eqIdx > 1)
             {
+                if (!_byName.TryGetValue(arg[..eqIdx], out var eqDef))
+                    return Fail(values, $"未知选项: {arg[..eqIdx]}");
+
                 def = eqDef;
                 var embedded = arg[(eqIdx + 1)..];
                 if (def is { AllowMultiple: true } && values.TryGetValue(def.Key, out var prevEq))
@@ -61,7 +70,10 @@ public static class CliArgRegistry
                 continue;
             }
 
-            if (!_byName.TryGetValue(arg, out def)) continue;
+            // 未知选项：此前是 continue 直接跳过 —— `waycoder --modle plan` 这种拼写错误会被
+            // 悄悄吞掉、程序照常以默认配置启动，用户完全看不出参数没生效。改为报错退出。
+            if (!_byName.TryGetValue(arg, out def))
+                return Fail(values, $"未知选项: {arg}");
 
             var consumed = new List<string>();
 
@@ -83,6 +95,11 @@ public static class CliArgRegistry
                     consumed.Add(args[++i]);
             }
 
+            // 必需值没给够：如 `waycoder --prompt` 后面什么都没有。此前会带着空值继续启动，
+            // 各 OnMatch 再各自处理（有的报错有的不报）——统一在这里拦下。
+            if (def.ValueCount > 0 && consumed.Count < def.ValueCount)
+                return Fail(values, $"选项 {arg} 缺少参数值（需要 {def.ValueCount} 个）");
+
             // 允许累积：同一参数多次出现时追加而非覆盖（如 -p1 "A" -p1 "B" → [A, B]）
             // 此前先无条件 values[def.Key]=consumed 再判断 ContainsKey，导致 !ContainsKey 分支永远走不到、
             // AllowMultiple 时每次把 consumed 自身重复追加一份（[B,B] 且丢 A）。
@@ -95,6 +112,19 @@ public static class CliArgRegistry
         }
 
         return (values, null);
+    }
+
+    /// <summary>
+    /// 参数有错 → 打印错误并给出可执行的下一步，返回非 null 退出码让调用方**立即退出**（不启动程序）。
+    /// 宁可拒绝启动也不要带着错误参数跑起来：静默降级成默认配置，用户根本察觉不到参数没生效。
+    /// </summary>
+    private static (Dictionary<string, List<string>> Values, int? ExitCode) Fail(
+        Dictionary<string, List<string>> values, string message, string? hint = null)
+    {
+        Console.Error.WriteLine($"✘ {message}");
+        if (hint != null) Console.Error.WriteLine($"  {hint}");
+        Console.Error.WriteLine("  查看全部选项：waycoder -h");
+        return (values, 1);
     }
 
     /// <summary>从解析结果获取单个值</summary>
