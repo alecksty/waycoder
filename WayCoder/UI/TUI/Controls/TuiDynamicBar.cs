@@ -74,7 +74,7 @@ public class TuiDynamicBar : TuiDisplayControl
         sb.Append(CurrentFrame);
         sb.Append(AnsiTty.SgrReset);
 
-        // ② 三段：只重写「内容与上次整行渲染写入的不同」的那一段。
+        // ② 三段：只重写「内容与屏幕上已有的不同」的那一段。
         //    左段(状态)/中段(工具)平时不动，思考与流式期间持续跳变的只有右段的
         //    token/花费/上下文——此前任何一个数字变一下就要整行重画。
         if (_barWidth > 0)
@@ -101,28 +101,7 @@ public class TuiDynamicBar : TuiDisplayControl
             var rightSig = RightSignature(rightItems);
             if (!string.Equals(rightSig, _lastRight, StringComparison.Ordinal))
             {
-                int drawnTo = rightStart + 2;
-                foreach (var (rCol, rText, rFg) in rightItems)
-                {
-                    if (rCol > drawnTo) // 段内留白（如进度条后的 4 列间隔）也要补上
-                    {
-                        sb.Append(AnsiTty.CursorPos0(_spinnerY, drawnTo));
-                        sb.Append(AnsiTty.FgBgCode(AnsiColors.BrightBlack, AnsiColors.BgBlack));
-                        sb.Append(new string(' ', rCol - drawnTo));
-                    }
-                    sb.Append(AnsiTty.CursorPos0(_spinnerY, rCol));
-                    sb.Append(AnsiTty.FgBgCode(rFg, AnsiColors.BgBlack));
-                    sb.Append(rText);
-                    drawnTo = rCol + AnsiHelper.DisplayWidth(rText);
-                }
-                // 收尾空白：新内容比旧的短时，把剩余列刷回底色，防残留旧数字
-                if (drawnTo < rightEnd)
-                {
-                    sb.Append(AnsiTty.CursorPos0(_spinnerY, drawnTo));
-                    sb.Append(AnsiTty.FgBgCode(AnsiColors.BrightBlack, AnsiColors.BgBlack));
-                    sb.Append(new string(' ', rightEnd - drawnTo));
-                }
-                sb.Append(AnsiTty.SgrReset);
+                WriteRightSegment(sb, _spinnerY, rightItems, rightStart + 2, rightEnd);
                 _lastRight = rightSig;
             }
         }
@@ -209,16 +188,18 @@ public class TuiDynamicBar : TuiDisplayControl
         if (!CanDirectWrite()) MarkDirty();
     }
 
-    /// <summary>显式标脏 = 有人要求本栏重画（内容变化 / 遮挡解除 / 浮层让位 / 切屏）——
-    /// 作废整行内容签名，保证下一帧真的写一次；否则「内容未变则跳过」会把该补的像素也跳掉。</summary>
+    /// <summary>显式标脏 = 有人要求本栏重画。与「某一段内容变了」不同：这里无法确定
+    /// 本行的像素是否已被浮层/窗口擦过（`MarkDirtyInRect`、窗口关闭后的补绘都走这里），
+    /// 所以要求**整行**重写一次——只补变化段会让被擦过但内容未变的列留在错误状态。</summary>
     public override void MarkDirty()
     {
-        _lastRowSig = null;
+        _rowInvalidated = true;
         base.MarkDirty();
     }
 
-    /// <summary>上一帧整行渲染写入的内容签名（null = 未记录/已作废，一律视为需要重写）。</summary>
-    private string? _lastRowSig;
+    /// <summary>整行待重写标志。显式标脏置位；被窗口/浮层遮挡期间保持置位，
+    /// 于是「遮挡解除后的首帧」也必定整行重写一次（遮挡期间帧内容仍是完整的）。</summary>
+    private bool _rowInvalidated;
 
     /// <summary>本栏当前能否直写屏幕（与 <see cref="RenderDirect"/> 的门控完全一致）。</summary>
     private bool CanDirectWrite()
@@ -258,18 +239,24 @@ public class TuiDynamicBar : TuiDisplayControl
 
         // ── 几何先行 ──
         // 无论本帧是否真的重绘，几何都必须记录：RenderDirect 每帧靠它定位 spinner 与三段。
-        // 记录几何（段级直写要按绝对列定位）。本方法照常整行写文字并**记录已写内容**，
-        // RenderDirect 只补「与已写内容不同」的段——这样：
-        // ① 对话框在场时直写被门控跳过，本方法仍把整行画好（动态栏不会变空白）；
-        // ② 全屏重绘/遮挡解除后重绘都会走到本方法 → 重新写入并刷新记录，不会漏补。
         _barAbsX = absX;
         _barWidth = Width;
-        // 记录 spinner 位置（DirectWrite 直写用）
-        _spinnerX = absX + 1; _spinnerY = absY;
+        _spinnerX = absX + 1; _spinnerY = absY; // spinner 位置（DirectWrite 直写用）
 
-        // 整行底色（分隔效果）范围
         int left = Math.Max(absX, ClipLeft);
         int right = Math.Min(absX + Width, ClipRight);
+        int midStart = absX + Width / 3;
+        int rightStart = absX + Width * 2 / 3;
+
+        // 本帧要「整行重写」还是「只补变化的区段」
+        // 整行重写的三种情形（缺一不可）：
+        //   ① 显式 MarkDirty（内容变化 / 这张行可能被浮层或窗口擦过）；
+        //   ② 全屏重绘 / 切屏（`IsIncrementalUpdate == false`，清屏后段缓存坐标已失效）；
+        //   ③ 直写不可用（被窗口遮挡 / 本栏不在活跃屏幕）——此时帧内容必须自洽完整，
+        //      且遮挡解除后的首帧也要整行（窗口可能擦掉本行任意一列）。
+        bool canDirect = CanDirectWrite();
+        bool wholeRow = _rowInvalidated || _owner?.IsIncrementalUpdate != true || !canDirect;
+        _rowInvalidated = !canDirect; // 遮挡期间保持置位 → 解除后的首帧必定整行
 
         // 根据状态计算颜色（spinner 统一用 SpinnerFg 的黄色，与 DirectWrite 直写一致）
         // 文字统一橙色（255,180,0 同对话框渐变起始色），Error 保留红便于区分
@@ -279,27 +266,33 @@ public class TuiDynamicBar : TuiDisplayControl
             _ => (AnsiColors.Yellow, AnsiTty.RgbCode(255, 180, 0)),
         };
 
-        // ── 先算出本帧要写的内容（写入与签名同源，不会漂移）──
+        // 本帧三段内容（写入与比对同源，不会漂移）
         var leftStr = BuildLeftSegment();
         var toolDisplay = BuildMiddleSegment();
-        int rightStart = absX + Width * 2 / 3;
         var rightItems = BuildRightItems(absX, rightStart + 2);
+        var rightSig = RightSignature(rightItems);
 
-        // ── 整行内容签名：内容一字未变 → 整行一个字节都不写 ──
-        // 「内容没变却走进 OnRender」有三个来源：
-        //   ① 只有 spinner 在转 —— 它由 RenderDirect 直写维护，本方法不负责（签名不含帧字符）；
-        //   ② 别的控件重绘时，本栏作为父容器脏被增量渲染顺带带进来（`child.IsDirty || parentDirty`）；
-        //   ③ 全屏重绘（清屏）—— 这种情况必须重画，由下面的 IsIncrementalUpdate 判据排除。
-        // 前两种都不该重写整行：整行重写一次就是整条状态栏闪一下（实测「内容没变却一直闪」的根源）。
-        // 显式 MarkDirty（内容变化 / 遮挡解除 / 浮层让位）会作废签名，保证该重画时一定重画。
-        var rowSig = $"{absY},{absX},{Width},{left},{right},{(int)Status},{(IsActive ? 1 : 0)}"
-                     + $"|{leftStr}|{toolDisplay}|{RightSignatureWithColors(rightItems)}";
-        if (string.Equals(rowSig, _lastRowSig, StringComparison.Ordinal)
-            && _owner?.IsIncrementalUpdate == true // 全屏重绘/切屏必须重画（清屏后缓存坐标已失效）
-            && CanDirectWrite())                   // spinner 正由直写维护，跳过不会让动画停住
+        if (!wholeRow)
+        {
+            // ── 增量帧 + 直写可用：分区域刷新 ──
+            // 整行基线已经在屏幕上，这里只把**内容真的变了的那一段**补上去：
+            // spinner 不在此列（它每帧由 RenderDirect 直写，转不转与本方法无关），
+            // 左段(状态)几乎不变、中段(工具)随工具切换、右段(📊⚡🔤¥)在思考与流式期间持续跳变
+            // —— 三段刷新时机各不相同，各写各的，谁都不带着别人重画。
+            // 写过的段同时刷新段缓存，于是紧随其后的 RenderDirect 会发现「无段可补」，
+            // 同一帧不会重复写（它只补 spinner）。
+            var patch = new RenderBuffer();
+            if (!string.Equals(leftStr, _lastLeft, StringComparison.Ordinal))
+                WriteSegment(patch, absY, absX + 3, midStart - (absX + 3), leftStr, LeftTextFg());
+            if (!string.Equals(toolDisplay, _lastMiddle, StringComparison.Ordinal))
+                WriteSegment(patch, absY, midStart + 2, rightStart - (midStart + 2), toolDisplay, AnsiColors.Grey);
+            if (!string.Equals(rightSig, _lastRight, StringComparison.Ordinal))
+                WriteRightSegment(patch, absY, rightItems, rightStart + 2, absX + Width - 1);
+            sb.Append(patch.ToString());
             return;
-        _lastRowSig = rowSig;
+        }
 
+        // ── 整行重写（首帧 / 全屏重绘 / 切屏 / 遮挡前后）──
         var rb = new RenderBuffer();
 
         // 整行底色
@@ -322,7 +315,6 @@ public class TuiDynamicBar : TuiDisplayControl
         _lastLeft = leftStr; // 段级直写的比对基准（与写入内容同源，不会漂移）
 
         // ── 分段留白（不画分隔竖线，靠间距区分左/中/右段）──
-        int midStart = absX + Width / 3;
         if (col < midStart)
         {
             rb.Write(absY, col, new string(' ', midStart - col),
@@ -341,7 +333,7 @@ public class TuiDynamicBar : TuiDisplayControl
         // 模型/模式信息统一由输入区下方模型栏显示，动态栏不放（重复）。
         foreach (var (rCol, rText, rFg) in rightItems)
             rb.Write(absY, rCol, rText, fg: rFg, bg: AnsiColors.BgBlack);
-        _lastRight = RightSignature(rightItems); // 段级直写比对基准
+        _lastRight = rightSig; // 段级直写比对基准
 
         sb.Append(rb.ToString());
     }
@@ -405,15 +397,41 @@ public class TuiDynamicBar : TuiDisplayControl
         sb.Append(AnsiTty.SgrReset);
     }
 
-    /// <summary>右段比对签名（纯文本拼接）：判断右段内容是否变化。
-    /// 段级直写用它比对——同文本不同色（如 📊 跨阈值绿→黄）在终端上也只差一个颜色，直写会重发整段，无需比色。</summary>
+    /// <summary>右段比对签名（绝对列 + 颜色 + 文本）：判断右段内容是否变化。
+    /// 必须含颜色 —— 📊 跨阈值时是「绿→黄」同文本换色，只比文本会漏掉这次重绘。
+    /// 必须含绝对列 —— 前面几项变宽会把后面几项整体推移（如 CPU% 从 9% 到 100%），
+    /// 只比文本拼接会认为「内容没变」而留下错位。</summary>
     private static string RightSignature(List<(int Col, string Text, int Fg)> items)
-        => string.Concat(items.Select(i => i.Text));
-
-    /// <summary>整行签名用的右段比对（文本 + 绝对列 + 颜色）：整行重绘要的是「屏幕上这行长什么样」，
-    /// 颜色变了（阈值变色）也算内容变化，必须重画。</summary>
-    private static string RightSignatureWithColors(List<(int Col, string Text, int Fg)> items)
         => string.Join(';', items.Select(i => $"{i.Col}:{i.Fg}:{i.Text}"));
+
+    /// <summary>右段写入（整行渲染与段级直写共用）：按绝对列逐项写 + 补段内留白 + 收尾刷掉旧内容，
+    /// 防止新内容比旧的短时残留上一帧的尾巴。</summary>
+    private static void WriteRightSegment(StringBuilder sb, int row,
+        List<(int Col, string Text, int Fg)> items, int startCol, int rightEnd)
+    {
+        int drawnTo = startCol;
+        foreach (var (rCol, rText, rFg) in items)
+        {
+            if (rCol > drawnTo) // 段内留白（如进度条后的 4 列间隔）也要补上
+            {
+                sb.Append(AnsiTty.CursorPos0(row, drawnTo));
+                sb.Append(AnsiTty.FgBgCode(AnsiColors.BrightBlack, AnsiColors.BgBlack));
+                sb.Append(new string(' ', rCol - drawnTo));
+            }
+            sb.Append(AnsiTty.CursorPos0(row, rCol));
+            sb.Append(AnsiTty.FgBgCode(rFg, AnsiColors.BgBlack));
+            sb.Append(rText);
+            drawnTo = rCol + AnsiHelper.DisplayWidth(rText);
+        }
+        // 收尾空白：新内容比旧的短时，把剩余列刷回底色
+        if (drawnTo < rightEnd)
+        {
+            sb.Append(AnsiTty.CursorPos0(row, drawnTo));
+            sb.Append(AnsiTty.FgBgCode(AnsiColors.BrightBlack, AnsiColors.BgBlack));
+            sb.Append(new string(' ', rightEnd - drawnTo));
+        }
+        sb.Append(AnsiTty.SgrReset);
+    }
 
     /// <summary>
     /// 右段内容：按当前属性产出「绝对列 + 文本 + 颜色」序列（进度条 / 进度标签 / 📊⚡🔤¥ 指标流）。

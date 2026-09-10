@@ -253,55 +253,61 @@ public static partial class SelfTest
                 changed.Contains("🔤大2K") && !changed.Contains("思考中") && !changed.Contains("bash工具"));
         }
 
-        Section("[动态栏整行签名（未变内容不重绘护栏）]");
-        // 契约：整行渲染按「内容签名」去重 —— 内容一字未变且直写通道可用时，整行一个字节都不写。
-        // 只有 spinner 该转（它由 RenderDirect 直写维护，签名不含帧字符）。
-        // 此前只要别处重绘把本栏当父容器脏顺带带进来（增量渲染 child.IsDirty || parentDirty），
-        // 整行就会被重写一次 —— 实测表现为「空闲时动态栏整行一直闪」。
+        Section("[动态栏分区刷新（未变内容不重绘护栏）]");
+        // 契约：动态栏按**区段**刷新，各段时机不同 —— 左段(状态)只在状态变时写、
+        // 中段(工具)只在工具变时写、右段(📊⚡🔤¥)在思考与流式期间持续跳变、spinner 每帧转。
+        // 谁变写谁，谁都不带着别人整行重画；内容一字未变时**一个字节都不写**。
+        // 此前 OnRender 无条件整行重写：别处重绘把本栏当父容器脏顺带带进来
+        //（增量渲染 child.IsDirty || parentDirty）就整行写一遍 —— 实测表现为「空闲时整行一直闪」。
         {
             var owner = WayCoder.UI.TUI.Base.TuiManager.Instance?.ActiveScreen;
-            Check("整行签名：测试前置（存在活跃屏幕，否则直写被门控、会空通过）", owner != null);
+            Check("分区刷新：测试前置（存在活跃屏幕，否则直写被门控、会空通过）", owner != null);
             if (owner != null)
             {
-                var signBar = new WayCoder.UI.Tui.Controls.TuiDynamicBar { Width = 60 };
+                var bar = new WayCoder.UI.Tui.Controls.TuiDynamicBar { Width = 60 };
                 var keepOut = Console.Out;
-                string first, repeat, marked, changed;
+                string first, repeat, marked, rightOnly;
                 try
                 {
-                    signBar.RegisterDirectWrite(owner);
-                    signBar.LeftText = "空闲";
-                    owner.IsIncrementalUpdate = true; // 增量帧（全屏清屏帧必须重画，由该标志区分）
+                    bar.RegisterDirectWrite(owner);
+                    bar.LeftText = "空闲";
+                    bar.ToolText = "bash工具";
+                    owner.IsIncrementalUpdate = true; // 增量帧（全屏清屏帧必须整行重画，由该标志区分）
                     var sink = new System.Text.StringBuilder();
 
                     Console.SetOut(TextWriter.Null); // Render 不写控制台，但防意外输出污染套件
-                    signBar.Render(sink, 0, 0, 0, 0, 60, 5); // 首次：整行写入 + 记录签名
+                    bar.MarkDirty();                        // 首次：整行写入（模拟上屏的那一帧）
+                    bar.Render(sink, 0, 0, 0, 0, 60, 5);
                     first = sink.ToString();
 
                     sink.Clear();
-                    signBar.Render(sink, 0, 0, 0, 0, 60, 5); // 内容未变 + 增量 + 可直写
+                    bar.Render(sink, 0, 0, 0, 0, 60, 5);     // 内容未变 + 增量 + 可直写
                     repeat = sink.ToString();
 
                     sink.Clear();
-                    signBar.MarkDirty();                    // 显式标脏（遮挡解除/浮层让位）→ 作废签名
-                    signBar.Render(sink, 0, 0, 0, 0, 60, 5);
+                    bar.MarkDirty();                        // 显式标脏（遮挡解除/浮层让位）
+                    bar.Render(sink, 0, 0, 0, 0, 60, 5);
                     marked = sink.ToString();
 
                     sink.Clear();
-                    signBar.TokenDisplay = "🔤大2K";        // 内容真变了
-                    signBar.Render(sink, 0, 0, 0, 0, 60, 5);
-                    changed = sink.ToString();
+                    bar.TokenDisplay = "🔤大2K";            // 只有右段变了
+                    bar.Render(sink, 0, 0, 0, 0, 60, 5);
+                    rightOnly = sink.ToString();
                 }
                 finally
                 {
                     Console.SetOut(keepOut);
                     owner.IsIncrementalUpdate = false;
-                    signBar.OnDestroy();
+                    bar.OnDestroy();
                 }
 
-                Check("整行签名：内容未变 + 增量帧 + 可直写 → 整行零写入",
+                Check("分区刷新：内容未变 + 增量帧 + 可直写 → 整行零写入",
                     first.Length > 0 && repeat.Length == 0);
-                Check("整行签名：显式标脏 → 重画一次（遮挡/浮层让位不漏补）", marked.Contains("空闲"));
-                Check("整行签名：内容变化 → 重画且含新值", changed.Contains("🔤大2K"));
+                Check("分区刷新：显式标脏 → 整行重写一次（遮挡/浮层让位不漏补）",
+                    marked.Contains("空闲") && marked.Contains("bash工具"));
+                Check("分区刷新：只改右段 → 只补右段，不重写左/中段",
+                    rightOnly.Contains("🔤大2K")
+                    && !rightOnly.Contains("空闲") && !rightOnly.Contains("bash工具"));
             }
         }
 
