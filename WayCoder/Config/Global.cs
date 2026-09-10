@@ -255,6 +255,26 @@ public static class Global
     /// <summary>测试/嵌入式场景可覆写的用户主目录；默认取系统用户目录。</summary>
     public static string? HomeOverride { get; set; }
 
+    // ════════════════════════════════════════════════════════════════════
+    // 离线模式（自测 / CI 硬护栏）
+    // 置位后：① 不再从 .env 发现与导入用户真实凭据；② 拒绝一切非本机 LLM 补全请求；
+    // ③ 模型连通性探测跳过外部端点。目的：跑自测绝不产生 token 费用、绝不外发真实密钥。
+    // 由 <see cref="SelfTest"/> 在 RunWithFilter 期间置位并在 finally 还原，生产路径始终为 false。
+    // ════════════════════════════════════════════════════════════════════
+    /// <summary>离线模式开关（自测/CI 用；生产代码不得置位）。</summary>
+    public static bool OfflineMode { get; set; }
+
+    /// <summary>
+    /// 判断 URL 是否指向本机（回环 / localhost）。无法解析为绝对 URI 时按「本机」处理，
+    /// 避免把相对路径或畸形串误判成外部端点而拦掉本地 mock。
+    /// </summary>
+    public static bool IsLoopbackUrl(string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return true;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var u)) return true;
+        return u.IsLoopback || u.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase);
+    }
+
     /// <summary>当前生效的用户主目录。</summary>
     public static string Home =>
         HomeOverride ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

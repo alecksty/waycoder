@@ -106,6 +106,10 @@ public static class ProjectContext
         return results;
     }
 
+    /// <summary>操作系统用户主目录（不随 <see cref="Global.HomeOverride"/> 变化，用于兜住测试/嵌入式场景）。</summary>
+    private static readonly string UserProfileDir =
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
     private static string FindProjectRoot()
     {
         var current = Directory.GetCurrentDirectory();
@@ -113,6 +117,16 @@ public static class ProjectContext
 
         while (true)
         {
+            // 边界判定必须在项目标志检测【之前】：用户主目录（含 HomeOverride 指向的目录）与盘根本身
+            // 绝不算项目根。否则 home 下只要有一个 package.json（很常见），home 就被当成项目根，
+            // 紧接着 DetectLanguages 递归遍历整个 home（几十万文件）——实测系统提示词构建卡 12~36s。
+            // 注意 CWD 恰好在 home 时返回值不变（下面返回的就是 CWD 本身），无行为回退。
+            if (string.IsNullOrEmpty(current)
+                || current == home
+                || current == UserProfileDir
+                || current == Path.GetPathRoot(current))
+                return Directory.GetCurrentDirectory();
+
             // 移动端（Android/iOS）向上遍历会越过 app 私有目录到系统目录（如 /data/data），
             // Directory.GetFiles 枚举无权限目录抛 UnauthorizedAccessException —— 需 try-catch 兜底，
             // 无权限视为「无项目标志」继续向上/停止（不阻断项目检测）。
@@ -139,8 +153,6 @@ public static class ProjectContext
                 return current;
             }
 
-            if (current == home || current == Path.GetPathRoot(current) || string.IsNullOrEmpty(current))
-                return Directory.GetCurrentDirectory();
             current = Path.GetDirectoryName(current)!;
         }
     }
@@ -279,12 +291,17 @@ public static class ProjectContext
         return false;
     }
 
+    /// <summary>单次递归扫描的目录访问上限：与文件数上限互补——防「文件没凑满 max 但目录极多」的
+    /// 病态树（超大祖目录被当项目根）把项目检测拖成十几秒。</summary>
+    private const int MaxDirsPerScan = 2000;
+
     private static List<string> SafeGetFiles(string root, int maxFiles)
     {
         var files = new List<string>();
         try
         {
-            WalkFiles(root, root, 0, files, null, maxFiles);
+            var dirs = 0;
+            WalkFiles(root, root, 0, files, null, maxFiles, ref dirs, MaxDirsPerScan);
         }
         catch (Exception ex) { DebugLog.Log("ProjectContext", $"SafeGetFiles 失败: {ex.Message}"); }
         return files;
@@ -298,17 +315,21 @@ public static class ProjectContext
         var files = new List<string>();
         try
         {
-            WalkFiles(root, root, 0, files, pattern, maxFiles);
+            var dirs = 0;
+            WalkFiles(root, root, 0, files, pattern, maxFiles, ref dirs, MaxDirsPerScan);
         }
         catch (Exception ex) { DebugLog.Log("ProjectContext", $"FindProjectFiles 失败: {ex.Message}"); }
         return files;
     }
 
-    /// <summary>受限递归：深度 ≤ 5 + 跳过忽略目录（node_modules/.git/bin 等）+ 提前到 maxFiles 停止。
-    /// 此前 AllDirectories 全递归——在 ~（home）目录启动时 FindProjectRoot 返回 home，递归扫描几十万文件导致启动卡死（TUI 不出现）。</summary>
-    private static void WalkFiles(string root, string dir, int depth, List<string> files, string? pattern, int max)
+    /// <summary>受限递归：深度 ≤ 5 + 跳过忽略目录（node_modules/.git/bin 等）+ 目录数 ≤ maxDirs
+    /// + 提前到 maxFiles 停止。此前 AllDirectories 全递归——在 ~（home）目录启动时 FindProjectRoot
+    /// 返回 home，递归扫描几十万文件导致启动卡死（TUI 不出现）。</summary>
+    private static void WalkFiles(string root, string dir, int depth, List<string> files,
+        string? pattern, int max, ref int dirs, int maxDirs)
     {
-        if (depth > 5 || files.Count >= max) return;
+        if (depth > 5 || files.Count >= max || dirs >= maxDirs) return;
+        dirs++;
         try
         {
             foreach (var file in pattern == null
@@ -321,9 +342,9 @@ public static class ProjectContext
             }
             foreach (var sub in Directory.EnumerateDirectories(dir))
             {
-                if (files.Count >= max) return;
+                if (files.Count >= max || dirs >= maxDirs) return;
                 if (IsIgnoredPath(Path.GetRelativePath(root, sub))) continue;
-                WalkFiles(root, sub, depth + 1, files, pattern, max);
+                WalkFiles(root, sub, depth + 1, files, pattern, max, ref dirs, maxDirs);
             }
         }
         catch (Exception) { /* 无权限目录等，跳过 */ }

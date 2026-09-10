@@ -318,8 +318,13 @@ public static partial class SelfTest
         var bashDesc = new BashTool().Description;
         Check("bash 描述非空", bashDesc.Length > 0);
 
-        // 验证异步读取修复：大输出不死锁
-        var largeOutput = new BashTool().ExecuteAsync(new() { ["command"] = "yes head 2>&1 | head -2000", ["timeout"] = 5 }).Result;
+        // 验证异步读取修复：大输出不死锁。
+        // 命令必须按平台选：`yes`/`head` 是 Unix 专有，Windows 的 BashTool 走 cmd.exe 时两者都不存在，
+        // 输出恒为空 → 该断言在 Windows 上必然失败（此前就是从 PowerShell 跑必红、从 Git Bash 跑才绿）。
+        var largeCmd = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? "for /l %i in (1,1,3000) do @echo xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            : "yes head 2>&1 | head -2000";
+        var largeOutput = new BashTool().ExecuteAsync(new() { ["command"] = largeCmd, ["timeout"] = 5 }).Result;
         Check("bash 大输出不死锁", largeOutput.Length > 1000 || largeOutput.Contains("已阻止"));
 
         // 前台超时自动迁移（对标 Crush）：慢命令超时后转入后台而非直接失败
@@ -459,7 +464,22 @@ public static partial class SelfTest
             Check("DetectLanguage .sql → sql", LintTool.DetectLanguage(Path.Combine(lintDir, "test.sql")) == "sql");
             Check("DetectLanguage 未知 → null", LintTool.DetectLanguage(Path.Combine(lintDir, "test.xyz")) == null);
 
-            var csResult = lintTool.ExecuteAsync(new Dictionary<string, object?>()).Result;
+            // 隔离：无参调用会把 CWD（仓库根）当目标 → 真的对 WayCoder 自身跑 `dotnet build`
+            // （写仓库 obj/bin、可能访问 NuGet、与在途构建抢文件锁、结果随仓库状态漂移）。
+            // 改为在临时目录里造一个最小 C# 项目，只验证 lint 的 C# 代码路径本身。
+            File.WriteAllText(Path.Combine(lintDir, "lint_probe.csproj"), """
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>net10.0</TargetFramework>
+                <OutputType>Library</OutputType>
+                <Nullable>disable</Nullable>
+              </PropertyGroup>
+            </Project>
+            """);
+            var probeCs = Path.Combine(lintDir, "Probe.cs");
+            File.WriteAllText(probeCs, "public class Probe { public int X => 1; }");
+
+            var csResult = lintTool.ExecuteAsync(new Dictionary<string, object?> { ["path"] = probeCs }).Result;
             Check("lint C# 项目不崩溃", csResult.Length > 0);
         }
         finally { try { Directory.Delete(lintDir, true); } catch { } }
@@ -863,11 +883,44 @@ public static partial class SelfTest
             prTool.ExecuteAsync(new() { ["action"] = "unknown" }).Result.Contains("未知操作"));
         Check("git_pr create 无标题返回错误",
             prTool.ExecuteAsync(new() { ["action"] = "create" }).Result.Contains("错误"));
-        var urlResult = prTool.ExecuteAsync(new() { ["action"] = "url" }).Result;
-        Check("git_pr url 不崩溃", urlResult.Length > 0);
-        // 验证 push 操作至少不崩溃（有 remote 的话会真实推送，没 remote 则报错）
-        var pushResult = prTool.ExecuteAsync(new() { ["action"] = "push" }).Result;
-        Check("git_pr push 不崩溃", pushResult.Length > 0);
+        // push/url 必须在【临时仓库 + 本地裸远端】里跑：GitPRTool.FindGitRoot 从当前目录向上找 .git，
+        // 而自测 CWD 就是本仓库根 → 会真的对 gitee 远端执行 git push（仓库 .env 里还存着 GITEE_TOKEN）。
+        // 换成临时裸远端后，push 仍走完整真实代码路径，但零外网、零远端副作用。
+        var prTmp = Path.Combine(Path.GetTempPath(), "waycoder_pr_" + Guid.NewGuid().ToString("N")[..6]);
+        var prBare = Path.Combine(prTmp, "remote.git");
+        var prWork = Path.Combine(prTmp, "work");
+        var savedPrCwd = Directory.GetCurrentDirectory();
+        try
+        {
+            Directory.CreateDirectory(prWork);
+            if (RunGit(prTmp, $"init -q --bare \"{prBare}\"") && RunGit(prWork, "init -q -b main"))
+            {
+                RunGit(prWork, "config user.email selftest@example.com");
+                RunGit(prWork, "config user.name selftest");
+                File.WriteAllText(Path.Combine(prWork, "a.txt"), "selftest");
+                RunGit(prWork, "add -A");
+                RunGit(prWork, "commit -q -m init");
+                RunGit(prWork, $"remote add origin \"{prBare}\"");
+
+                Directory.SetCurrentDirectory(prWork);
+                var urlResult = prTool.ExecuteAsync(new() { ["action"] = "url" }).Result;
+                Check("git_pr url 不崩溃", urlResult.Length > 0);
+                // 真实执行 push —— 目标是本地裸远端，不是 gitee
+                var pushResult = prTool.ExecuteAsync(new() { ["action"] = "push" }).Result;
+                Check("git_pr push 不崩溃", pushResult.Length > 0);
+            }
+            else
+            {
+                // 无 git 环境：退化为不阻断（与 GitPack 相同的兜底策略）
+                Check("git_pr url 不崩溃（无 git 环境，跳过）", true);
+                Check("git_pr push 不崩溃（无 git 环境，跳过）", true);
+            }
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(savedPrCwd);
+            try { Directory.Delete(prTmp, true); } catch { }
+        }
 
         // ---- Git 输出死锁验证 ----
         Section("[Git 大输出]");

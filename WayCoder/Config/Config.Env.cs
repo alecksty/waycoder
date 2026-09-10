@@ -87,6 +87,10 @@ public partial class Config
 
     private static string? FindEnvFile()
     {
+        // 离线模式（自测）不读 .env：临时 home 不在 cwd 祖先链上，下方「上溯到 home 为止」
+        // 的护栏会一路走到盘根，意外命中仓库根的 .env 并把真实密钥导进测试进程。
+        if (Global.OfflineMode) return null;
+
         var current = Directory.GetCurrentDirectory();
         var home = Global.Home;
 

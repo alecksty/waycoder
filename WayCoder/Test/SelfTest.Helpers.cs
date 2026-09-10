@@ -3377,7 +3377,32 @@ public static partial class SelfTest
     }
 
     /// <summary>Web 界面完整化：换模型/换 key/设置/槽位切换/序列化纯函数 + 端点冒烟。</summary>
+    /// <summary>
+    /// 离线化外壳：本段会调用 <c>ModelCli.TestList()</c>（TestList 与 POST /models/scan 内部都走它），
+    /// 而它默认会带着**真实 API key** 去探测**真实服务商**（api.deepseek.com 等）。
+    /// 这里把探测端点整体重定向到本地 mock：保留探针代码路径的覆盖率，同时保证自测绝不触网、
+    /// 绝不出网真实凭据。配合 <see cref="Global.OfflineMode"/> 构成双保险。
+    /// </summary>
     private static void TestWebFull(Action<string, bool> Check)
+    {
+        var mock = new WayCoder.UI.Web.HttpServer(0);
+        mock.OnRequest = _ => Task.FromResult<WayCoder.UI.Web.HttpResponse?>(
+            WayCoder.UI.Web.HttpResponse.JsonBody("{\"data\":[]}"));
+        mock.Start();
+        var savedOverride = WayCoder.ModelCli.ProbeBaseUrlOverride;
+        WayCoder.ModelCli.ProbeBaseUrlOverride = $"http://127.0.0.1:{mock.ActualPort}";
+        try
+        {
+            TestWebFullCore(Check);
+        }
+        finally
+        {
+            WayCoder.ModelCli.ProbeBaseUrlOverride = savedOverride;
+            mock.Stop();
+        }
+    }
+
+    private static void TestWebFullCore(Action<string, bool> Check)
     {
         // ── 1. LLM.Reconfigure（运行时换 key/baseUrl）──
         var llm = new LLM("deepseek-v4-flash", "old-key", "https://old.example.com");
@@ -3532,6 +3557,9 @@ public static partial class SelfTest
 
         var testList = WayCoder.ModelCli.TestList();
         Check("TestList: 返回列表（不抛异常）", testList != null);
+        // 外壳已把探测端点重定向到本地 mock：断言「真实探测代码路径」仍被跑通（比原来只判非 null 更实）
+        Check("TestList: 探测经本地 mock 全部连通",
+            testList is { Count: > 0 } && testList.All(p => p.Ok));
 
         // ── 7. 端点冒烟：WebChatServer + HttpClient ──
         var web = new WayCoder.UI.Web.WebChatServer(a0, 0);

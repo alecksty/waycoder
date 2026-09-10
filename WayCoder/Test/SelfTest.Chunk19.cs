@@ -121,7 +121,38 @@ public static partial class SelfTest
             var cx = ReadChar(src, feed);
             Check("RS 分隔符跳过、ASCII 直通", cx == 'x');
         }
+
+        Section("[项目根解析边界（性能回归护栏）]");
+        // 非项目目录下 FindProjectRoot 绝不可把用户主目录当项目根：home 下通常有 package.json，
+        // 一旦被选中，DetectLanguages 会递归遍历整个 home（几十万文件）——实测系统提示词构建
+        // 从 ~0.1s 恶化到 12~36s，且每次会话构建提示词都吃这个开销。
+        var savedRootCwd = Directory.GetCurrentDirectory();
+        var rootTmp = Path.Combine(Path.GetTempPath(), "waycoder_root_" + Guid.NewGuid().ToString("N")[..6]);
+        Directory.CreateDirectory(rootTmp);
+        try
+        {
+            Directory.SetCurrentDirectory(rootTmp);
+            var rootSw = System.Diagnostics.Stopwatch.StartNew();
+            var rootInfo = ProjectContext.DetectProject();
+            rootSw.Stop();
+
+            var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            Check("非项目目录下项目根不落在用户主目录",
+                !PathsEqual(rootInfo.ProjectRoot, profile) && !PathsEqual(rootInfo.ProjectRoot, Global.Home));
+            Check("非项目目录下项目检测 < 3s", rootSw.Elapsed.TotalSeconds < 3);
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(savedRootCwd);
+            try { Directory.Delete(rootTmp, true); } catch { }
+        }
     }
+
+    /// <summary>路径等价比较（忽略末尾分隔符与大小写，Windows 语义）。</summary>
+    private static bool PathsEqual(string a, string b) =>
+        string.Equals(a.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                      b.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+                      StringComparison.OrdinalIgnoreCase);
 
     private static char? ReadChar(WindowsCharSource src, TestFeedStream feed, bool allowEmpty = false)
     {
