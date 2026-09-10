@@ -12,7 +12,7 @@ WayCoder（道码）是一个中文版易用编程智能体，C# (.NET 10) 实�
 # C# 版
 cd WayCoder
 dotnet publish -c Release            # AOT 编译
-dotnet run -- --test                 # 4106 自测
+dotnet run -- --test                 # 5122 自测
 dotnet run -- -p "提示词"            # 一次性模式
 dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
 dotnet run -- --update               # 自动升级 (检查并自替换)
@@ -210,6 +210,7 @@ WayCoder/
 - **移动端十期（v0.96.69）**：**会话/切换 code-review 修复**——切换/新建会话必须先经 `AwaitActiveRoundEndAsync` 等旧轮 finally 彻底结束（`_activeRound` 完成信号；finally 已在旧 `_currentSessionId` 下 FreezeSeg+落盘）再清空/切 id，防残余写目标会话；`EnsureAgent` 建 agent 应用全局 `WorkModeManager.CurrentMode`（勿默认 Build 吞预设模式）；回调改道主线程后异常要包 try/catch（否则脱离 agent 控制流在主线程崩）；`FromNodes` 只取 user/assistant（跳过 tool/system 防假 AI 气泡+破坏共享 schema）；富文本节流状态段切换时重置；ToolCallsDetailPage 渲染设总预算并实时跟随
 - **移动端十一期（v0.96.71）**：**会话持久化/队列复核修复**——`OnDisappearing` 只在非运行轮保存（运行中离页由轮末 finally 统一落盘，勿中途重置 `_appAddCount` 基线否则 finally 走 SaveRaw 丢回复）；`ProcessQueueAsync` 不设会话守卫 break（切换已 drain 清队，wind-down 新入队消息才有消费者）；`/clear`=先停轮再 `MauiSessions.Delete` 盘文件（防 finally 复活）；`DrainSendQueue` 直接移除排队气泡（勿留 Role=User+❌ 伪消息入库）；ToolCallsDetailPage 预算**按工具均分** `ShareFor(count)`（勿先到先得饿死后序关键工具）
 - **移动端十二期（v0.96.72）**：**Android 恢复系统网络能力**——LLM/Transcribe/WebSearch 撤销强制 `SocketsHttpHandler`、恢复默认 handler（AndroidMessageHandler 保留系统代理/VPN/cleartext/用户 CA；前提网络不在主线程——agent 已 Task.Run 后台、UI 转录入口也 Task.Run）；**`MauiUi` 共享助手**（`Services/MauiUi.cs`：Res/ResOrNull/IsDark/PermName/EconomyName/FormatK/ModelText），移动端各页颜色/格式 helper 收敛到它（新页面取值一律走 MauiUi，勿各自 Resources 直取）；`Ensure/Switch` 载入渲染合一 `AppendHistoryNodes`
+- **自测硬离线 + 项目根解析边界（v0.96.77）**：`Global.OfflineMode` 是自测/CI 的**硬护栏**（`SelfTest.RunWithFilter` 置位、`finally` 还原，生产恒 false）——①`LLM` 在**真正发包处**拒绝非本机端点（只拦发送，`Endpoint` 等展示路径不受影响）⇒ 跑测试不可能产生 token 费用；②`Config.Env.FindEnvFile` 不再发现 `.env`（临时 home 不在 cwd 祖先链上，「上溯到 home 为止」护栏会失效、一路走到盘根命中仓库根 `.env` 把真实密钥导进测试进程）；③`ModelCli.ProbeEndpointAsync` 跳过外部探测。**新写测试必须遵守此约定**——真要联网的用例走 `ProbeBaseUrlOverride` 之类的本地 mock 接缝，不要直连真实服务商。另一条铁律：`ProjectContext.FindProjectRoot()` 的**边界判定（home / 用户主目录 / 盘根）必须在项目标志检测之前**——home 下有个 `package.json`（很常见）就会让 home 被当成项目根，`DetectLanguages` 随即递归遍历整个 home（几十万文件），实测 `DetectProject` 从 88ms 恶化到 **12~36s**（生产路径每次构建系统提示词都要吃）；`UserProfileDir` 兜住 `HomeOverride` 场景，`WalkFiles` 的 `MaxDirsPerScan` 目录预算兜底
 - **TUI Windows 输入统一字符源（v0.96.74）**：TUI 读键链路统一到 `UI/TUI/Base/CharSource.cs`（`WindowsCharSource`=OpenStandardInput VT 字节流 / `UnixCharSource`=ReadKey）+ `WinConsoleMode` P/Invoke 开 `ENABLE_VIRTUAL_TERMINAL_INPUT`；code-review 修复要点（桌面自测 5083）：①VT 下方向/功能键是裸 CSI（`ESC[A`、`1~..6~`）须在 `ParseCsiFuncKey` 显式映射，否则退化成裸 ESC 取消 agent；②字节流前提要清 `LINE_INPUT|ECHO_INPUT`（否则回显叠加 TUI 自绘=「鼠标乱码」疑因+行缓冲）；③`WindowsCharSource` 解码须状态化（跨读边界缓存续字节、代理对高位先返）防中文 emoji 乱码；④鼠标乱码/motion 泛滥仍待 Windows 真机复验
 
 ## 模式体系（三分钟版，竞品对标）

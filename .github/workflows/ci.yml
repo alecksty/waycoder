@@ -1,6 +1,6 @@
 # WayCoder CI 门禁
 # 触发：任意分支 push / PR（v* 标签交给 release.yml 处理）
-# 验证：主工程构建 + WayCoder.Gui 构建（独立 Avalonia 工程）+ 4620 项自测门禁（非零退出即失败）
+# 验证：主工程构建 + WayCoder.Gui 构建（独立 Avalonia 工程）+ 5122 项自测门禁（非零退出即失败）
 name: ci
 
 on:
@@ -27,6 +27,6 @@ jobs:
       - name: Build GUI (Avalonia)
         run: dotnet build WayCoder.Gui/WayCoder.Gui.csproj -c Debug
 
-      # 自测门禁：4620 项（Debug 定义 WAYCODER_TEST），任一失败非零退出
+      # 自测门禁：5122 项（Debug 定义 WAYCODER_TEST），任一失败非零退出
       - name: Self-test gate
         run: dotnet run --project WayCoder -- --test
