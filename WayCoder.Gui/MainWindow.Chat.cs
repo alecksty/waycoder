@@ -126,15 +126,11 @@ public partial class MainWindow
 
     // ── 输入框 ──
 
-    /// <summary>输入框按下事件（Ctrl+Enter 发送；Shift+Enter 换行，对齐 Web input-box）。</summary>
-    private async void Input_KeyDown(object? sender, KeyEventArgs e)
-    {
-        if (e.Key == Key.Enter && !e.KeyModifiers.HasFlag(KeyModifiers.Shift))
-        {
-            e.Handled = true;
-            await SendAsync();
-        }
-    }
+    /// <summary>
+    /// 输入框 Enter 发送（由 <see cref="ChatInputBox.SendRequested"/> 触发；
+    /// Shift+Enter 换行由该控件放行给 TextBox 基类处理）。
+    /// </summary>
+    private async void OnInputSendRequested() => await SendAsync();
 
     /// <summary>输入框自动增高（按行数钳制 56~220，对齐 Web autoResizeInput）。</summary>
     private void Input_TextChanged(object? sender, TextChangedEventArgs e)
