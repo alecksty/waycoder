@@ -84,6 +84,9 @@ public partial class MainWindow : Window
         // 输入框 Enter 发送：由 ChatInputBox 覆写 OnKeyDown 提供（见该类注释说明为何不能在 XAML 挂 KeyDown）
         InputBox.SendRequested += OnInputSendRequested;
 
+        // 输入卡下方显示当前工作目录（对齐 Web #cwd-bar）
+        UpdateCwdBar();
+
         InitModels();
         InitModelBar();
         InitSlots();

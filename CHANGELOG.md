@@ -1,5 +1,17 @@
 # 更新日志
 
+## v0.96.84 (2026-09-11) — GUI 输入卡下方显示当前工作目录（对齐 Web #cwd-bar）
+
+- 输入卡下方新增一行 **`📁 <当前工作目录>`**，呈现对齐 Web 的 `#cwd-bar`：
+  居中、12px、暗色（`DimTextBrush`）、单行不换行 + `CharacterEllipsis` 省略、`ToolTip` 提示「当前工作目录」、
+  `MaxWidth` 与输入卡同为 940 保证左右对齐。
+- **取值的依据**：GUI 的 `/cd`（`GuiCommands`）是只读信息命令、不切换目录，
+  `CoreStubs.GetSlots()` 返回空数组（GUI 没有 AgentSlot 体系），`GuiBootstrap` 又是以
+  `Directory.GetCurrentDirectory()` 设 `SandboxManager.AllowedDirectory` —— 因此 GUI 的工作目录
+  就是进程启动目录，与 `/cd` 报告值和沙箱根**同源**，不会出现三处不一致。
+- 复用 core 的 `PathStatus.FormatCwd`（主目录前缀折叠为 `~`）——与 TUI 状态栏同一套呈现，不另写一份。
+- **验证**：`dotnet build -t:Compile WayCoder.Gui` 0 警告 0 错误（XAML 结构已由编译器校验）。
+
 ## v0.96.83 (2026-09-11) — GUI 聊天输入框聚焦不变黑、无焦点外框（只留光标）
 
 - **现象**：GUI 输入框获得焦点时整块变黑并出现焦点边框。

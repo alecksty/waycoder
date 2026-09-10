@@ -179,6 +179,7 @@
                         BorderBrush="{DynamicResource BorderBrush}"
                         BorderThickness="0,0,0,0">
 
+                    <StackPanel>
                     <Border CornerRadius="22"
                             MaxWidth="940"
                             Background="{DynamicResource PanelBgBrush}"
@@ -310,6 +311,20 @@
                             </Grid>
                         </StackPanel>
                     </Border>
+
+                        <!-- 当前工作目录（对齐 Web #cwd-bar：输入卡下方、居中、暗色、单行省略） -->
+                        <TextBlock
+                            x:Name="CwdBar"
+                            MaxWidth="940"
+                            Margin="0,6,0,0"
+                            Padding="6,0"
+                            FontSize="12"
+                            Foreground="{DynamicResource DimTextBrush}"
+                            TextWrapping="NoWrap"
+                            TextTrimming="CharacterEllipsis"
+                            TextAlignment="Center"
+                            ToolTip.Tip="当前工作目录" />
+                    </StackPanel>
                 </Border>
             </Grid>
 
