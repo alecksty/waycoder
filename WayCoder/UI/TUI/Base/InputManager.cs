@@ -408,7 +408,7 @@ public class InputManager : IDisposable
     ///   ~：1~Home 2~Insert 3~Delete 4~End 5~PgUp 6~PgDn（无修饰也生效）；11~-24~ = F1-F12
     /// term: P = F1-F4
     /// </summary>
-    private static InputEvent? ParseCsiFuncKey(string paramBody, char terminator)
+    internal static InputEvent? ParseCsiFuncKey(string paramBody, char terminator)
     {
         // 去掉终止符，解析数字参数
         var body = paramBody.TrimEnd(terminator);
