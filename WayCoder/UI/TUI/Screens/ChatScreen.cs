@@ -294,16 +294,10 @@ public partial class ChatScreen : TuiScreen
             DynamicBar.CostDisplay = null;
         }
 
-        // 动画节流：活跃态每 FrameMs（500ms）标一次脏让 spinner 转起来。
-        // 动画常驻标脏（spinner 每 FrameMs 转，不依赖 IsActive —— 空闲也显示旋转动画）
-        {
-            long now = Environment.TickCount64;
-            if (now - _lastAnimDirtyTicks >= TuiDynamicBar.FrameMs)
-            {
-                _lastAnimDirtyTicks = now;
-                DynamicBar.MarkDirty();
-            }
-        }
+        // 不再「每 FrameMs 无条件标脏」驱动 spinner：
+        // spinner 动画由 TuiDynamicBar.RenderDirect 直写屏幕（不依赖脏标记，空闲态照常转），
+        // 而 DynamicBar 的内容属性已改为按值标脏 —— 于是「动态栏重绘」只在内容真变化时发生，
+        // 不再按动画节拍把整个屏幕（含聊天区）拖进渲染路径。见 TuiDynamicBar 属性区注释。
 
         // 排队中：Agent 忙且有待处理指令 → 动态栏突出排队（⏳排队N），不弹聊天区。
         // 独立于状态解析器处理，确保无论 Agent 处于思考/工具/压缩都显示排队。
@@ -514,9 +508,6 @@ public partial class ChatScreen : TuiScreen
         DynamicBar?.MarkDirty();
         MarkDirty();
     }
-
-    /// <summary>动态栏动画上次标脏时间戳（TickCount64，节流用，避免逐帧整条重绘）</summary>
-    private long _lastAnimDirtyTicks;
 
     /// <summary>标记工具开始执行（只刷动态栏，不弄脏根，防标题栏闪）</summary>
     public void OnToolStarted(string toolName, string brief)

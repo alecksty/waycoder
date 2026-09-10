@@ -91,32 +91,48 @@ public class TuiDynamicBar : TuiDisplayControl
     // 公开属性
     // ═══════════════════════════════════════════════════════════
 
+    // 以下内容属性一律走 SetDirty（值真变了才标脏）：
+    // 动态栏的 spinner 动画由 RenderDirect 直写、不需要脏标记，所以「何时重绘整条」应当完全由
+    // 「内容是否变化」决定。此前它们是普通自动属性 → 只能靠 ChatScreen 里「每 250ms 无条件标脏」
+    // 的定时器硬刷，那会把整个屏幕（含聊天区所在的重绘路径）按动画节拍反复拖进渲染，
+    // 表现为内容没变却一直在闪。改为按值标脏后：内容不变 → 不标脏 → 不重绘；
+    // spinner 照常靠直写转动 —— 动态栏与聊天区彻底分开刷新。
+
+    private AgentStatus _status = AgentStatus.Idle;
     /// <summary>当前代理状态</summary>
-    public AgentStatus Status { get; set; } = AgentStatus.Idle;
+    public AgentStatus Status { get => _status; set => SetDirty(ref _status, value); }
 
+    private string _leftText = "";
     /// <summary>左段：状态文本（如 "思考中... deepseek-v4-pro"）</summary>
-    public string LeftText { get; set; } = "";
+    public string LeftText { get => _leftText; set => SetDirty(ref _leftText, value); }
 
+    private string _toolText = "";
     /// <summary>中段：工具/任务文本（如 "⚙ bash: dotnet build"）</summary>
-    public string ToolText { get; set; } = "";
+    public string ToolText { get => _toolText; set => SetDirty(ref _toolText, value); }
 
+    private double? _progressPercent;
     /// <summary>压缩进度百分比（null=不显示）</summary>
-    public double? ProgressPercent { get; set; }
+    public double? ProgressPercent { get => _progressPercent; set => SetDirty(ref _progressPercent, value); }
 
+    private string _progressLabel = "";
     /// <summary>压缩进度标签</summary>
-    public string ProgressLabel { get; set; } = "";
+    public string ProgressLabel { get => _progressLabel; set => SetDirty(ref _progressLabel, value); }
 
+    private double? _contextPercent;
     /// <summary>上下文占用百分比（null=不显示，常驻右段，绿→黄→红）</summary>
-    public double? ContextPercent { get; set; }
+    public double? ContextPercent { get => _contextPercent; set => SetDirty(ref _contextPercent, value); }
 
+    private double? _cpuPercent;
     /// <summary>CPU 占用百分比（null=不显示，常驻右段 ContextPercent 之后，绿→黄→红）</summary>
-    public double? CpuPercent { get; set; }
+    public double? CpuPercent { get => _cpuPercent; set => SetDirty(ref _cpuPercent, value); }
 
+    private string? _tokenDisplay;
     /// <summary>token 消耗显示串（如 "大:12K 小:3K"，null/空=不显示，常驻右段）</summary>
-    public string? TokenDisplay;
+    public string? TokenDisplay { get => _tokenDisplay; set => SetDirty(ref _tokenDisplay, value); }
 
+    private string? _costDisplay;
     /// <summary>花费显示（如 "¥0.42"，null/空=不显示，常驻右段）</summary>
-    public string? CostDisplay;
+    public string? CostDisplay { get => _costDisplay; set => SetDirty(ref _costDisplay, value); }
 
     /// <summary>是否处于任务活跃状态（显示 spinner）</summary>
     public bool IsActive => Status != AgentStatus.Idle;

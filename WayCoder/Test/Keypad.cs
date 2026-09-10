@@ -26,6 +26,10 @@ namespace WayCoder;
 ///   DELAY:1000          延时毫秒（等待动画/异步更新）
 ///   SNAP:标签           抓取当前帧并输出纯文本（省略标签则为 SNAP）
 ///   DIALOG:confirm      打开一个演示对话框（permission/input/list/confirm/multi/buttons/...）
+///   STATUS:<名>         强制动态栏状态（thinking/tool/compressing/idle…）并渲染一帧
+///   DIRTY               只把屏幕标脏、不渲染（配合 FRAMES 观察「脏帧」的真实重绘范围）
+///   FRAMES:<n>          连续渲染 n 帧，逐帧报告写出的字节数 + 光标定位到的行 + 文本——
+///                       排查「闪烁 / 区域联动」的核心工具：内容未变的帧应只碰动画行与光标行
 ///   FOCUS              转储当前焦点状态（焦点窗口 / RootView 类型 / 焦点控件 / 可聚焦控件列表）
 ///   MSG:角色:内容       注入一条聊天消息（user/assistant/agent/system/tool/error/banner；`\n` 换行）
 ///   FILL:数量           批量注入编号消息（交替 user/assistant/system，用于撑满列表测滚动）
@@ -125,6 +129,49 @@ public static class Keypad
                             mgr.Input.InjectKey(ik);
                         else
                             Emit(orig, $"# (第 {step} 行) 无法识别的按键: {value}");
+                        break;
+
+                    case "DIRTY":
+                        // 诊断：只标脏不渲染（配合 FRAMES 观察「脏帧」的真实重绘范围）
+                        mgr.IsDirty = true;
+                        screen.MarkDirty();
+                        break;
+
+                    case "FRAMES":
+                        // 诊断：连续渲染 n 帧，逐帧报告「写出的字节数 / 光标定位到的行」。
+                        // 用途：验证「动态栏动画是否带动其它区域重绘」——内容未变时不该出现别的行。
+                        {
+                            int frameCount = int.TryParse(value.Trim(), out var nn) && nn > 0 ? Math.Min(nn, 40) : 6;
+                            for (int fi = 0; fi < frameCount; fi++)
+                            {
+                                var cap = new StringWriter();
+                                var keep = Console.Out;
+                                Console.SetOut(cap);
+                                try { mgr.Render(); } finally { Console.SetOut(keep); }
+                                var s = cap.ToString();
+                                var hitRows = System.Text.RegularExpressions.Regex
+                                    .Matches(s, @"\x1b\[(\d+);(\d+)H")
+                                    .Select(m => int.Parse(m.Groups[1].Value))
+                                    .Distinct().OrderBy(r => r).ToArray();
+                                var preview = System.Text.RegularExpressions.Regex
+                                    .Replace(s, @"\x1b\[[0-9;?]*[A-Za-z]", "")
+                                    .Replace("\r", "").Replace("\n", "");
+                                Emit(orig, $"# FRAME {fi}: bytes={s.Length} rows=[{string.Join(",", hitRows)}] text={preview}");
+                                Thread.Sleep(120);
+                            }
+                        }
+                        break;
+
+                    case "STATUS":
+                        // 诊断：强制动态栏状态（thinking/tool/compressing/idle…），复现「思考中」等状态的渲染行为
+                        if (Enum.TryParse<AgentStatus>(value.Trim(), ignoreCase: true, out var st))
+                        {
+                            screen.DynamicBar.Status = st;
+                            screen.DynamicBar.MarkDirty();
+                            screen.MarkDirty();
+                            mgr.Render();
+                        }
+                        else Emit(orig, $"# 未知状态: {value}");
                         break;
 
                     case "RAWKEY":
