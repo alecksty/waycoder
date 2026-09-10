@@ -20,25 +20,14 @@ public static class MauiUi
         => Application.Current?.Resources.TryGetValue(key, out var v) == true ? v as Color : null;
 
     /// <summary>确认权限显示名（与 AgentService.GetStatus PermMode 一致）。</summary>
-    public static string PermName(PermissionManager.Mode m) => m switch
-    {
-        PermissionManager.Mode.Yolo => "Yolo",
-        PermissionManager.Mode.SmartAuto => "SmartAuto",
-        PermissionManager.Mode.Auto => "Auto",
-        _ => "Ask",
-    };
+    /// <summary>确认权限显示名（实现上移 core UiText，便于主自测覆盖）。</summary>
+    public static string PermName(PermissionManager.Mode m) => UiText.PermName(m);
 
-    /// <summary>经济模式显示名（枚举顺序 Off→Auto→On→Extreme 非直觉序）。</summary>
-    public static string EconomyName(EconomyMode m) => m switch
-    {
-        EconomyMode.On => "开",
-        EconomyMode.Auto => "自动",
-        EconomyMode.Extreme => "极致",
-        _ => "关",
-    };
+    /// <summary>经济模式显示名（上移 core UiText）。</summary>
+    public static string EconomyName(EconomyMode m) => UiText.EconomyName(m);
 
-    /// <summary>千分位/K 缩写（todo/上下文/token 统计）。</summary>
-    public static string FormatK(int n) => n >= 1000 ? $"{n / 1000.0:F1}k" : n.ToString();
+    /// <summary>千分位/K 缩写（上移 core UiText）。</summary>
+    public static string FormatK(int n) => UiText.FormatK(n);
 
     /// <summary>当前模型栏文本（通道前缀 + (provider)model），顶栏与侧栏共用。</summary>
     public static string ModelText()

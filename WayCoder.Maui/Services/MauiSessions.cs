@@ -60,7 +60,7 @@ public static class MauiSessions
             var role = n["role"]?.AsString() ?? "";
             var content = n["content"]?.AsString();
             if (content == null) continue;
-            if (role is not ("user" or "assistant")) continue; // tool/system 等非正文不渲染
+            if (!UiText.IsSessionBodyRole(role)) continue; // tool/system 等非正文不渲染（判定上移 core，可自测）
             result.Add(new ChatMessage
             {
                 Role = role == "user" ? ChatRole.User : ChatRole.Assistant,
