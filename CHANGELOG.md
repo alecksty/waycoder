@@ -1,5 +1,57 @@
 # 更新日志
 
+## v0.96.77 (2026-09-10) — 自测离线化 + 项目根解析性能修复（106s → 35s，5122 全绿）
+
+自测全程不再触网、不再产生 token 费用，也不再对 gitee 执行真实 push；同时修掉一个「非项目目录下
+系统提示词构建卡 12~36 秒」的生产性能缺陷。桌面自测 **5122 / 5122 全绿**（`WAYCODER_STRESS` 未开），
+0 警告 0 错误，**全量耗时 106~121s → 35s**。
+
+### 性能：真凶不是 Generate，是 DetectProject
+
+此前自测里 4 个「15~18s 慢测试」都被记为 `SystemPrompt.Generate`，实测 `Generate` 只要 0.65~0.9s。
+
+- **根因**：`ProjectContext.FindProjectRoot()` 先查项目标志、**后**查主目录边界。用户主目录下有
+  一个 `package.json`（很常见）时，home 就被当成项目根 → `DetectLanguages` 递归遍历整个 home
+  （几十万文件）。实测 `DetectProject` 在非项目目录 **12~36s**，在仓库内只要 88ms。
+  **这是生产 bug**——非项目目录下每次构建系统提示词都要吃这个开销。
+- **修复**：边界判定（`Global.Home` / 用户主目录 / 盘根）**前移**到标志检测之前；新增
+  `UserProfileDir` 让护栏在 `HomeOverride` 下（自测 / MAUI）依然生效；`WalkFiles` 增加
+  `MaxDirsPerScan = 2000` 目录预算兜底——无论根选成什么，扫描都不会失控。
+- **效果**：`SystemPrompt.Generate` 14s → **0.17s**；`DetectProject`（非项目目录）36s → **5.9ms**。
+
+### 离线硬护栏（`Global.OfflineMode`）
+
+自测 / CI 期间置位、`finally` 还原，生产路径恒为 false：
+
+- **`LLM`** 在**真正发包处**拒绝非本机端点（只拦发送，`Endpoint` 等纯展示路径不受影响）→
+  跑测试**不可能产生 token 费用**
+- **`Config.Env.FindEnvFile`** 离线模式不发现 `.env` → 真实密钥不再被导入测试进程
+  （此前临时 home 不在 cwd 祖先链上，`FindEnvFile` 的「上溯到 home 为止」护栏失效，会一路走到
+  盘根命中仓库根 `.env`）
+- **`ModelCli.ProbeEndpointAsync`** 跳过外部端点探测
+
+### 消除两处真实外部副作用
+
+- **`TestList` / `POST /models/scan` 曾带着真实 API key 探测真实服务商**（实测
+  `api.inferera.com`、`api.deepseek.com` 均返回 200）。新增 `ProbeBaseUrlOverride` 测试接缝，
+  `TestWebFull` 外壳把探测整体重定向到本地 mock —— 覆盖率不减，4004ms → **1.2ms**。
+- **`git_pr push` / `url` 曾在仓库根 CWD 下真的对 gitee 执行 `git push`**（仓库 `.env` 里还存着
+  `GITEE_TOKEN`）。改到【临时仓库 + 本地裸远端】，仍走完整真实代码路径，但零外网、零远端副作用。
+
+### 修复环境依赖的失败测试
+
+- **`bash 大输出不死锁`**：原命令用 Unix 专有的 `yes`/`head`，而 Windows 的 BashTool 走
+  `cmd.exe` → 输出恒为空 → 从 PowerShell 跑必红、从 Git Bash 跑才绿。改平台自适应命令。
+- **`lint C# 项目不崩溃`**：无参调用把 CWD（仓库根）当目标，真的对 WayCoder 自身跑
+  `dotnet build`（写仓库 `obj/bin`、可能访问 NuGet、与在途构建抢文件锁）。改到临时最小项目。
+
+### 自测工程化
+
+- 逐条测试打印**时间标签** `[x.x ms]`，末尾排行扩到 Section 前 15 / 测试项前 20，**全量明细落盘 CSV**
+  （`%TEMP%\waycoder-selftest-timing.csv`，带 UTC 时间戳便于优化前后对比）
+- `ApiKeyStore.ClearCache()` 前后各一次，同进程 `/test` 不会污染 REPL 的真实密钥
+- 新增回归护栏：非项目目录下项目根不得落在主目录 + 检测 < 3s
+
 ## v0.96.76 (2026-09-10) — 核心纯逻辑上移 + 自测护栏扩面（5083 → 5127）
 
 对近期修复补自动化回归护栏，并把 MAUI 里的纯逻辑上移 core 使其可被主自测覆盖。桌面自测 5127 / 5127，MAUI Android 编译 0 错误。
