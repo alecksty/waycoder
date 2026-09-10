@@ -202,8 +202,23 @@ public class TuiDynamicBar : TuiDisplayControl
     {
         if (EqualityComparer<T>.Default.Equals(field, value)) return;
         field = value;
+        // 直写可用 → 段级直写负责刷新（只重写变化的那一段），不必整行标脏；
+        // 不可用（被窗口遮挡 / 本栏不在活跃屏幕）→ 退回整行标脏兜底，内容绝不丢。
+        // 注意这里**不做节流**：内容真变了就该重画。真正防闪的是 OnRender 里的整行内容签名
+        // ——「没变的内容不重绘」，而不是「变了的内容晚点重绘」。
         if (!CanDirectWrite()) MarkDirty();
     }
+
+    /// <summary>显式标脏 = 有人要求本栏重画（内容变化 / 遮挡解除 / 浮层让位 / 切屏）——
+    /// 作废整行内容签名，保证下一帧真的写一次；否则「内容未变则跳过」会把该补的像素也跳掉。</summary>
+    public override void MarkDirty()
+    {
+        _lastRowSig = null;
+        base.MarkDirty();
+    }
+
+    /// <summary>上一帧整行渲染写入的内容签名（null = 未记录/已作废，一律视为需要重写）。</summary>
+    private string? _lastRowSig;
 
     /// <summary>本栏当前能否直写屏幕（与 <see cref="RenderDirect"/> 的门控完全一致）。</summary>
     private bool CanDirectWrite()
@@ -241,21 +256,20 @@ public class TuiDynamicBar : TuiDisplayControl
         // 裁剪检查
         if (absY < ClipTop || absY >= ClipBottom) return;
 
-        var rb = new RenderBuffer();
-
-        // 整行底色（分隔效果）
-        int left = Math.Max(absX, ClipLeft);
-        int right = Math.Min(absX + Width, ClipRight);
-        if (left < right)
-            rb.Write(absY, left, new string(' ', right - left),
-                fg: AnsiColors.BrightBlack, bg: AnsiColors.BgBlack);
-
+        // ── 几何先行 ──
+        // 无论本帧是否真的重绘，几何都必须记录：RenderDirect 每帧靠它定位 spinner 与三段。
         // 记录几何（段级直写要按绝对列定位）。本方法照常整行写文字并**记录已写内容**，
         // RenderDirect 只补「与已写内容不同」的段——这样：
         // ① 对话框在场时直写被门控跳过，本方法仍把整行画好（动态栏不会变空白）；
         // ② 全屏重绘/遮挡解除后重绘都会走到本方法 → 重新写入并刷新记录，不会漏补。
         _barAbsX = absX;
         _barWidth = Width;
+        // 记录 spinner 位置（DirectWrite 直写用）
+        _spinnerX = absX + 1; _spinnerY = absY;
+
+        // 整行底色（分隔效果）范围
+        int left = Math.Max(absX, ClipLeft);
+        int right = Math.Min(absX + Width, ClipRight);
 
         // 根据状态计算颜色（spinner 统一用 SpinnerFg 的黄色，与 DirectWrite 直写一致）
         // 文字统一橙色（255,180,0 同对话框渐变起始色），Error 保留红便于区分
@@ -265,16 +279,41 @@ public class TuiDynamicBar : TuiDisplayControl
             _ => (AnsiColors.Yellow, AnsiTty.RgbCode(255, 180, 0)),
         };
 
+        // ── 先算出本帧要写的内容（写入与签名同源，不会漂移）──
+        var leftStr = BuildLeftSegment();
+        var toolDisplay = BuildMiddleSegment();
+        int rightStart = absX + Width * 2 / 3;
+        var rightItems = BuildRightItems(absX, rightStart + 2);
+
+        // ── 整行内容签名：内容一字未变 → 整行一个字节都不写 ──
+        // 「内容没变却走进 OnRender」有三个来源：
+        //   ① 只有 spinner 在转 —— 它由 RenderDirect 直写维护，本方法不负责（签名不含帧字符）；
+        //   ② 别的控件重绘时，本栏作为父容器脏被增量渲染顺带带进来（`child.IsDirty || parentDirty`）；
+        //   ③ 全屏重绘（清屏）—— 这种情况必须重画，由下面的 IsIncrementalUpdate 判据排除。
+        // 前两种都不该重写整行：整行重写一次就是整条状态栏闪一下（实测「内容没变却一直闪」的根源）。
+        // 显式 MarkDirty（内容变化 / 遮挡解除 / 浮层让位）会作废签名，保证该重画时一定重画。
+        var rowSig = $"{absY},{absX},{Width},{left},{right},{(int)Status},{(IsActive ? 1 : 0)}"
+                     + $"|{leftStr}|{toolDisplay}|{RightSignatureWithColors(rightItems)}";
+        if (string.Equals(rowSig, _lastRowSig, StringComparison.Ordinal)
+            && _owner?.IsIncrementalUpdate == true // 全屏重绘/切屏必须重画（清屏后缓存坐标已失效）
+            && CanDirectWrite())                   // spinner 正由直写维护，跳过不会让动画停住
+            return;
+        _lastRowSig = rowSig;
+
+        var rb = new RenderBuffer();
+
+        // 整行底色
+        if (left < right)
+            rb.Write(absY, left, new string(' ', right - left),
+                fg: AnsiColors.BrightBlack, bg: AnsiColors.BgBlack);
 
         // ── 左段：动画字符位（预留 1 字符 + 空格，活跃=spinner / 空闲=占位空格）──
         // 始终占位让左段文字水平位置稳定：idle→active 切换时状态文本不左右跳。
-        _spinnerX = absX + 1; _spinnerY = absY; // 记录 spinner 位置（DirectWrite 直写用）
         int col = absX + 1;
         rb.Write(absY, col, CurrentFrame, // spinner 常驻转（空闲灰、活跃彩）
             fg: IsActive ? spinnerColor : AnsiColors.BrightBlack, bg: AnsiColors.BgBlack);
         col += 2;
 
-        var leftStr = BuildLeftSegment();
         if (leftStr.Length > 0)
         {
             rb.Write(absY, col, leftStr, fg: textColor, bg: AnsiColors.BgBlack);
@@ -292,19 +331,14 @@ public class TuiDynamicBar : TuiDisplayControl
         col = midStart + 2;
 
         // ── 中段：工具/任务 ──
-        int midWidth = Width / 3 - 4;
-        var toolDisplay = BuildMiddleSegment();
         if (toolDisplay.Length > 0)
             rb.Write(absY, col, toolDisplay, fg: AnsiColors.Grey, bg: AnsiColors.BgBlack);
         _lastMiddle = toolDisplay; // 段级直写的比对基准
-        col = midStart + Width / 3;
 
         // ── 右段：进度条 / 进度标签 / 📊⚡🔤¥ 指标流 ──
         // 内容由 BuildRightItems 统一产出（连绝对列一起返回——各分支列步进不同，只给文本还原不了布局），
         // 整行渲染与段级直写共用同一份，避免两处布局/截断规则漂移。
         // 模型/模式信息统一由输入区下方模型栏显示，动态栏不放（重复）。
-        int rightStart = absX + Width * 2 / 3;
-        var rightItems = BuildRightItems(absX, rightStart + 2);
         foreach (var (rCol, rText, rFg) in rightItems)
             rb.Write(absY, rCol, rText, fg: rFg, bg: AnsiColors.BgBlack);
         _lastRight = RightSignature(rightItems); // 段级直写比对基准
@@ -371,9 +405,15 @@ public class TuiDynamicBar : TuiDisplayControl
         sb.Append(AnsiTty.SgrReset);
     }
 
-    /// <summary>右段比对签名（纯文本拼接）：判断右段内容是否变化。</summary>
+    /// <summary>右段比对签名（纯文本拼接）：判断右段内容是否变化。
+    /// 段级直写用它比对——同文本不同色（如 📊 跨阈值绿→黄）在终端上也只差一个颜色，直写会重发整段，无需比色。</summary>
     private static string RightSignature(List<(int Col, string Text, int Fg)> items)
         => string.Concat(items.Select(i => i.Text));
+
+    /// <summary>整行签名用的右段比对（文本 + 绝对列 + 颜色）：整行重绘要的是「屏幕上这行长什么样」，
+    /// 颜色变了（阈值变色）也算内容变化，必须重画。</summary>
+    private static string RightSignatureWithColors(List<(int Col, string Text, int Fg)> items)
+        => string.Join(';', items.Select(i => $"{i.Col}:{i.Fg}:{i.Text}"));
 
     /// <summary>
     /// 右段内容：按当前属性产出「绝对列 + 文本 + 颜色」序列（进度条 / 进度标签 / 📊⚡🔤¥ 指标流）。

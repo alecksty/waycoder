@@ -77,8 +77,13 @@ public static partial class SelfTest
     /// </summary>
     public static string RunModule(string module)
     {
-        var sections = ModuleToSections(module);
-        if (sections == null)
+        // "all" 是「不过滤」而非模块名：ModuleToSections 对它也返回 null（= 全跑），
+        // 与「未知模块」的 null 撞在一起 —— 此前 `/test all` 会被误报「未知模块: all」，
+        // 而可用列表里恰恰写着 all。这里先分流，再判未知。
+        HashSet<string>? sections = module.Equals("all", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : ModuleToSections(module);
+        if (!module.Equals("all", StringComparison.OrdinalIgnoreCase) && sections == null)
             return $"❌ 未知模块: {module}\n可用: all, tools, ui, git, config, memory, agent, review, mcp, system";
 
         var sb = new StringBuilder();
@@ -130,6 +135,7 @@ public static partial class SelfTest
         ["[对话框 resize]"] = "ui",
         ["[窗口比例缩放]"] = "ui",  ["[窗口位置对齐]"] = "ui",  ["[Flex 布局]"] = "ui",
         ["[TuiMouse]"] = "ui",
+        ["[TuiDynamicBar"] = "ui", ["[动态栏整行签名"] = "ui",
         // git
         ["[Git]"] = "git",         ["[Git "] = "git",         ["[Git PR]"] = "git",     ["[Git 大"] = "git",
         // config
@@ -148,6 +154,7 @@ public static partial class SelfTest
         // system
         ["[LLM]"] = "system",      ["[系统提示词]"] = "system",["[JSON 辅助]"] = "system",
         ["[模型回退]"] = "system", ["[调试日志]"] = "system",  ["[项目检测]"] = "system",
+        ["[项目根解析边界"] = "system", ["[项目根]"] = "system",
         ["[上下文管理]"] = "system",["[预算系统]"] = "system",  ["[Hooks]"] = "system",
         ["[自定义命令]"] = "system",["[输入规范化]"] = "system",["[命令别名]"] = "system",
         ["[错误自恢复]"] = "system",["[Token 性能统计]"] = "system",["[HTTP 代理]"] = "system",
