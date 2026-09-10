@@ -1,5 +1,6 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:WayCoder.UI.Gui"
              x:Class="WayCoder.UI.Gui.App">
     <!--
         配色唯一真源：深/浅两套主题色内联于 ThemeDictionaries（Dark/Light 键）。
@@ -157,6 +158,29 @@
             <!-- <Setter Property="HorizontalAlignment" Value="Center" /> -->
             <Setter Property="FontSize" Value="12" />
             <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+        </Style>
+
+        <!-- 聊天输入框：聚焦时保持透明、不要边框，只留光标（用户要求「有光标就可以了」）。
+             只在控件上设 Background="Transparent" / BorderThickness="0" 是压不住的：
+             Fluent 主题的焦点态是「带伪类的样式触发」+「作用在模板内部 Border 上」，
+             前者优先级高于本地值、后者根本不在同一个元素。所以这里两处都覆盖：
+             ① 控件自身（:focus / :pointerover 的伪类触发，与主题同优先级但声明在后 → 胜出）
+             ② 模板内的 Border（各伪类态各写一条）。只作用于 ChatInputBox，不影响其它输入框。 -->
+        <Style Selector="local|ChatInputBox, local|ChatInputBox:focus, local|ChatInputBox:pointerover">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="local|ChatInputBox /template/ Border">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="local|ChatInputBox:focus /template/ Border">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="local|ChatInputBox:pointerover /template/ Border">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
         </Style>
 
     </Application.Styles>

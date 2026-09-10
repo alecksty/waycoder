@@ -1,5 +1,21 @@
 # 更新日志
 
+## v0.96.83 (2026-09-11) — GUI 聊天输入框聚焦不变黑、无焦点外框（只留光标）
+
+- **现象**：GUI 输入框获得焦点时整块变黑并出现焦点边框。
+- **根因**：控件上设的 `Background="Transparent"` / `BorderThickness="0"` 压不住 Fluent 的焦点态 ——
+  焦点视觉是**带伪类的样式触发**（`:focus` / `:pointerover`，优先级高于本地值），且作用在
+  **模板内部的 Border** 上（根本不在同一个元素）。两处各堵一半，所以本地值形同虚设。
+- **修法**（只作用于 `ChatInputBox`，不影响其它输入框）：
+  - `App.axaml` 新增 `local|ChatInputBox` 及其 `:focus` / `:pointerover` 态的样式，控件层
+    `Background=Transparent` + `BorderThickness=0`（与主题同优先级、声明在后 → 胜出）；
+  - 同样三条再以 `/template/ Border` 选择器覆盖模板内部的 Border；
+  - `MainWindow.axaml` 给输入框加 `FocusAdorner="{x:Null}"`（去掉焦点装饰外框）+
+    `CaretBrush="{DynamicResource CaretBrush}"`（保留光标，用主题色）。
+- 效果：聚焦时输入框保持与背景同色、无边框、无外框，只有光标。
+- **验证**：`dotnet build -t:Compile WayCoder.Gui` 0 警告 0 错误（GUI 当时正在运行，
+  bin 复制被 .NET Host 占用，故只做了编译验证；视觉效果待重启后确认）。
+
 ## v0.96.82 (2026-09-11) — 修复 GUI 聊天输入回车不发送（只能点按钮）
 
 - **现象**：GUI 版在输入框按回车没反应，必须点「发送」按钮。

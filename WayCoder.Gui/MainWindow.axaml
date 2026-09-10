@@ -210,6 +210,8 @@
                                 PlaceholderForeground="Gray"
                                 Foreground="{DynamicResource TextBrush}"
                                 PlaceholderText="输入消息…（Enter 发送 · Shift+Enter 换行）"
+                                CaretBrush="{DynamicResource CaretBrush}"
+                                FocusAdorner="{x:Null}"
                                 TextChanged="Input_TextChanged" />
 
                             <Grid
