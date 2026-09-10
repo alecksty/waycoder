@@ -1,5 +1,29 @@
 # 更新日志
 
+## v0.96.85 (2026-09-11) — 命令行参数有错即报错退出（不再静默忽略后照常启动）
+
+- **旧行为有多危险**：`CliArgRegistry.Parse` 对未知参数是 `continue` —— `waycoder --modle plan`
+  这种**拼错旗标**会被悄悄吞掉，程序照常以默认配置进交互界面，用户以为参数生效了；
+  `waycoder "写个 hello"`（漏 `-p`）同理，提示词被静默丢弃。裸位置参数本就不在用法
+  （`waycoder [选项]`）里，也没有任何代码读原始 `args`。
+- **新行为**（全部 `✘` 报错到 stderr + 退出码 1，**不启动**）：
+  - 未知选项（含 `--modle` 这类拼写错误）
+  - `--key=value` 形式但选项名未知
+  - 位置参数（漏 `-p`）——附带提示 `提示词要用 -p 显式指定：waycoder -p "..."`）
+  - 必需值缺失（如 `--prompt` 后面没东西）
+  - 统一附一行 `查看全部选项：waycoder -h`
+- **注意区分**：`ExitCode` 非 null 有两种语义 —— 「解析出错」（返回 1）与「终结型动作已处理、
+  正常退出」（如 `--model list` 的 `OnMatch` 返回 0）。二者都靠 `Program.Main` 的
+  `if (exitCode.HasValue) return exitCode.Value;` 退出，不要用 `ExitCode != null` 当错误判据。
+- **跨模块风险已排除**：批量子进程（`BatchRunner.SpawnSelf`）以
+  `-p <任务> -y --model/--base-url/--api-key/--max-budget-usd` 启动自身，这些名字全部已注册；
+  且 `-p` 是 `ValueCount=1`（盲取值，不看是否以 `-` 开头），任务文本以 `-` 开头也能正确吃进。
+  已加断言把这一组参数锁住 —— 否则严格校验漏认任何一个，批量任务会整批起不来。
+- **验证**：实测 5 类非法参数均 `exit=1` 且打印对应错误；正对照 `--model list` / `--model=list` /
+  `-h` / `--permit yolo --test` 均 `exit=0` 正常。自测新增 7 项护栏，**5147 / 5147 全绿**。
+- **未覆盖**：GUI 版（`WayCoder.Gui`）参数面只有 `--edit`，其余交给 Avalonia 自己的启动器解析，
+  本次未动 —— 需要的话可另做。
+
 ## v0.96.84 (2026-09-11) — GUI 输入卡下方显示当前工作目录（对齐 Web #cwd-bar）
 
 - 输入卡下方新增一行 **`📁 <当前工作目录>`**，呈现对齐 Web 的 `#cwd-bar`：

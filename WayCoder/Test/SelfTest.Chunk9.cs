@@ -273,6 +273,38 @@ public static partial class SelfTest
         Check("对齐: --session 解析", Arguments.CliArgRegistry.Get(pSession, "session") == "abc123");
         Console.WriteLine();
 
+        // ---- CLI 参数：有错即报错退出（绝不静默忽略后带默认配置启动）----
+        Section("[CLI 参数: 严格校验]");
+        // 静默忽略的后果：`waycoder --modle plan` 拼错旗标后程序照常进交互界面，
+        // 用户以为参数生效了 —— 所以这些情况都必须返回非 null 退出码。
+        Check("未知选项 → 退出码 1",
+            Arguments.CliArgRegistry.Parse(new[] { "--definitely-not-an-option" }).ExitCode == 1);
+        Check("拼错旗标（--modle）→ 退出码 1",
+            Arguments.CliArgRegistry.Parse(new[] { "--modle", "plan" }).ExitCode == 1);
+        Check("位置参数（漏 -p）→ 退出码 1",
+            Arguments.CliArgRegistry.Parse(new[] { "写个 hello" }).ExitCode == 1);
+        Check("必需值缺失（--prompt 后面没东西）→ 退出码 1",
+            Arguments.CliArgRegistry.Parse(new[] { "--prompt" }).ExitCode == 1);
+        Check("= 形式但选项名未知 → 退出码 1",
+            Arguments.CliArgRegistry.Parse(new[] { "--modle=plan" }).ExitCode == 1);
+        // 正对照：普通合法参数不得被误伤（ExitCode 仍为 null = 交给后续流程，不是「已处理可退出」）。
+        // 注意别用 --model list 之类**终结型动作**做正对照：它们的 OnMatch 会返回 0 表示
+        // 「已处理、可退出」，ExitCode 非 null 是正常语义，与「解析出错」不是一回事。
+        Check("合法参数 → 不退出",
+            Arguments.CliArgRegistry.Parse(new[] { "--print", "hi" }).ExitCode == null
+            && Arguments.CliArgRegistry.Parse(new[] { "--permit", "yolo" }).ExitCode == null
+            && Arguments.CliArgRegistry.Parse(new[] { "--session", "abc123" }).ExitCode == null
+            && Arguments.CliArgRegistry.Parse(new[] { "--allowed-tools", "Bash", "Edit" }).ExitCode == null);
+        // 跨模块风险护栏：批量子进程（BatchRunner.SpawnSelf）用这套参数启动自身，
+        // 严格校验一旦漏认其中任何一个，批量任务就会整批起不来。任务文本以 '-' 开头也要能正确吃进 -p。
+        Check("批量子进程参数集可解析",
+            Arguments.CliArgRegistry.Parse(new[]
+            {
+                "-p", "- 修复登录 bug", "-y", "--model", "deepseek-v4-pro",
+                "--base-url", "https://api.deepseek.com", "--api-key", "sk-x", "--max-budget-usd", "5",
+            }).ExitCode == null);
+        Console.WriteLine();
+
         // ---- CLI 参数: --permission-mode 行为映射（P0-4 回归）----
         Section("[CLI 参数: permission-mode]");
         var savedWorkMode = WorkModeManager.CurrentMode;
