@@ -25,6 +25,16 @@ public static partial class SelfTest
             && SlashMatcher.ExtractArgs(helpCmd, "/helpme") == null
             && SlashMatcher.ExtractArgs(helpCmd, "x /help") == null);
 
+        Section("[token 估算(core ContextManager.EstimateText)]");
+        Check("空串/空引用 → 0", ContextManager.EstimateText("") == 0 && ContextManager.EstimateText(null!) == 0);
+        Check("纯 ASCII 4 字符 → 1 (0.25/字)", ContextManager.EstimateText("abcd") == 1);
+        Check("纯 ASCII 1000 字符 → 250", ContextManager.EstimateText(new string('a', 1000)) == 250);
+        Check("CJK 2 字 → 3 (1.5/字)", ContextManager.EstimateText("中文") == 3);
+        Check("CJK 4 字 → 6", ContextManager.EstimateText("中文中文") == 6);
+        Check("混合 中a → 1 (截断)", ContextManager.EstimateText("中a") == 1);
+        Check("emoji 按宽字符计(代理对安全) → 1", ContextManager.EstimateText("😀") == 1);
+        Check("单调不减", ContextManager.EstimateText("这是一个较长的句子用于估算") > ContextManager.EstimateText("短"));
+
         Section("[/topage 路由映射(core PageRouteMap)]");
         Check("home/chat/files/settings → //xxx", PageRouteMap.Resolve("home") == "//home"
             && PageRouteMap.Resolve("CHAT") == "//chat" && PageRouteMap.Resolve(" files ") == "//files"
