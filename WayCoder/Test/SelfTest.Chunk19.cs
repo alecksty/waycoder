@@ -14,6 +14,20 @@ public static partial class SelfTest
     /// </summary>
     private static void TestChunk19(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
     {
+        Section("[跨端 UI 文本(core UiText)]");
+        Check("PermName Yolo/SmartAuto/Auto/Ask", UiText.PermName(PermissionManager.Mode.Yolo) == "Yolo"
+            && UiText.PermName(PermissionManager.Mode.SmartAuto) == "SmartAuto"
+            && UiText.PermName(PermissionManager.Mode.Auto) == "Auto"
+            && UiText.PermName(PermissionManager.Mode.Ask) == "Ask");
+        Check("EconomyName 关/自动/开/极致", UiText.EconomyName(EconomyMode.Off) == "关"
+            && UiText.EconomyName(EconomyMode.Auto) == "自动"
+            && UiText.EconomyName(EconomyMode.On) == "开"
+            && UiText.EconomyName(EconomyMode.Extreme) == "极致");
+        Check("FormatK 999/1000/1500", UiText.FormatK(999) == "999" && UiText.FormatK(1000) == "1.0k" && UiText.FormatK(1500) == "1.5k");
+        Check("IsSessionBodyRole user/assistant 真、tool/system 假",
+            UiText.IsSessionBodyRole("user") && UiText.IsSessionBodyRole("assistant")
+            && !UiText.IsSessionBodyRole("tool") && !UiText.IsSessionBodyRole("system") && !UiText.IsSessionBodyRole(""));
+
         Section("[输入 CSI 功能键映射]");
         // code-review finding #1 回归护栏：Windows VT 输入下裸 CSI 光标键/编辑键必须映射为对应
         // ConsoleKey，绝不可退化成裸 ESC（否则取消在跑 agent / 丢聊天草稿）。
