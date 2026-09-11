@@ -268,12 +268,18 @@ public partial class Agent
     /// <param name="maxTokens">新的窗口上限（token）。</param>
     public void UpdateContextWindow(int maxTokens) => Context.UpdateMaxTokens(maxTokens);
 
-    /// <summary>运行时应用模型选择：重配 LLM（key/baseUrl/Model）+ 同步上下文窗口。
-    /// CLI/TUI/GUI/Web/MAUI 各端「切换模型」的公共收尾——每端的 key/baseUrl 解析差异留在调用方。</summary>
-    public void ApplyRuntimeModel(string modelId, string apiKey, string? baseUrl)
+    /// <summary>运行时应用模型选择：重配 LLM（key/baseUrl/Model[/SmallModel]）+ 同步上下文窗口。
+    /// CLI/TUI/GUI/Web/MAUI 各端「切换模型」的公共收尾——每端的 key/baseUrl 解析差异留在调用方。
+    ///
+    /// <paramref name="smallModelId"/> = null 表示「本次不动小模型」（各端对「小模型是否随大模型一起换」
+    /// 策略不同，一律显式传，别让调用方各自在外面补一句 `SmallModel = …`）。此前本方法没有这个参数，
+    /// 于是 5 个调用点各补一句、取法四样（局部变量 / cfg.SmallModel / `_llm.SmallModel` / **干脆不设**），
+    /// 其中运行时回退那条漏设 ⇒ 跨服务商回退后小模型仍指向旧服务商。</summary>
+    public void ApplyRuntimeModel(string modelId, string? smallModelId, string apiKey, string? baseUrl)
     {
         LlmClient.Reconfigure(apiKey, baseUrl);
         LlmClient.Model = modelId;
+        if (smallModelId != null) LlmClient.SmallModel = smallModelId;
         UpdateContextWindow(ModelCatalog.ResolveContextWindow(modelId, Config.Instance.MaxContextTokens));
     }
 

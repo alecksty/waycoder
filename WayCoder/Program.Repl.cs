@@ -598,13 +598,7 @@ public partial class Program
             if (onChatScreen && key.Key == ConsoleKey.E && ctrl)
             {
                 var eco = _config.CycleEconomy();
-                var name = eco switch
-                {
-                    EconomyMode.On => "省钱",
-                    EconomyMode.Auto => "自动",
-                    EconomyMode.Extreme => "极致",
-                    _ => "关闭",
-                };
+                var name = UiText.EconomyShortName(eco);
                 RefreshActiveSlotTools(); // 经济档位可影响 Build 工具集，切换后立即刷新
                 _config.SaveToEnvFile();
                 screen.AddSystemMsg($"经济模式: {name}（Ctrl+E 循环切换，已持久化）");
@@ -625,8 +619,9 @@ public partial class Program
                     var smallModel = slotCfg.SmallModel ?? _config.SmallModel;
                     var smallInfo = ModelCatalog.Find(smallModel);
                     var smallProvider = smallInfo?.ProviderId ?? _config.SmallProvider;
+                    var regGw = ModelCatalog.BaseUrlOf(smallProvider); // 含大小写兜底；未注册为 ""
                     var smallGw = smallInfo?.DefaultBaseUrl
-                        ?? (ModelCatalog.Providers.TryGetValue(smallProvider, out var p) ? p.DefaultBaseUrl : null);
+                        ?? (regGw.Length > 0 ? regGw : null);
                     AgentSlotConfig.Set(_activeSlot, new AgentSlotConfig.SlotConfig
                     {
                         UseGlobal = false,
@@ -661,12 +656,9 @@ public partial class Program
                 // RunSlotAgentAsync 用的是 agent.LlmClient（Agent 持有的实例）——
                 // 必须更新当前槽位 Agent 的 LLM + 上下文窗口，实际请求才会走新模型
                 var curAgent = _slots[_activeSlot].Agent;
+                // 交换大小模型：两个都要换，走统一收尾（key/baseUrl 用该 Agent 自己的，Reconfigure 传同值即无副作用）
                 if (curAgent?.LlmClient != null)
-                {
-                    curAgent.LlmClient.Model = lg;
-                    curAgent.LlmClient.SmallModel = sm;
-                }
-                curAgent?.UpdateContextWindow(ModelCatalog.ResolveContextWindow(lg, _config.MaxContextTokens));
+                    curAgent.ApplyRuntimeModel(lg, sm, curAgent.LlmClient.ApiKey, curAgent.LlmClient.BaseUrl);
                 if (slotCfg.UseGlobal && _llm != null)
                 {
                     _llm.Model = _config.Model;
@@ -742,13 +734,8 @@ public partial class Program
         var prov = ConnectionConfig.ResolveProvider(next.ProviderId);
         var key = prov?.ApiKey ?? cfg.ApiKey;
         var agent = ProgramContext.Agent;
-        if (agent != null)
-        {
-            agent.LlmClient.Reconfigure(key, cfg.BaseUrl);
-            agent.LlmClient.Model = cfg.Model;
-            agent.LlmClient.SmallModel = cfg.SmallModel;
-            agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(cfg.Model, cfg.MaxContextTokens));
-        }
+        // 切换连接 = 大/小一起切 → 走统一收尾（此前在这里手写四步，是 5 处绕过之一）
+        agent?.ApplyRuntimeModel(cfg.Model, cfg.SmallModel, key, cfg.BaseUrl);
         screen.AddSystemMsg($"✅ {msg}（{(idx + 1) % connects.Count + 1}/{connects.Count}，Ctrl+Shift+M 下一个）" +
             (string.IsNullOrEmpty(key) ? "\n  ⚠ 该服务商尚未存 key（/provider apikey set <pid> <key>）" : ""));
         screen.RefreshModelStatus(); // 切换连接后刷新动态栏/模型栏显示（此前漏刷新 → 显示旧模型）
@@ -1496,9 +1483,9 @@ public partial class Program
             if (attempt > 0)
             {
                 // 仅改槽位专属 LLM，避免并发槽位间对全局 _config.Model 的竞态
-                llm.Reconfigure(fbKey, fbUrl);   // key/baseUrl 随 connect 一起换（可跨服务商）
-                llm.Model = model;
-                agent.UpdateContextWindow(ModelCatalog.ResolveContextWindow(model, Config.Instance.MaxContextTokens));
+                // key/baseUrl 随 connect 一起换（可跨服务商）；小模型也要跟着换 —— 此前这里**只改大模型**，
+                // 跨服务商回退后小模型仍指向旧服务商（压缩请求打到旧网关）。取法与 CycleConnect 一致。
+                agent.ApplyRuntimeModel(model, Config.Instance.SmallModel, fbKey, fbUrl);
                 // 明确告知当前回退到哪个模型 + 剩余链，避免「退到哪里不清楚」。
                 // 回退链运行态 → 通道前缀标 回滚模型（模型栏「只显示当前生效模型」口径）
                 var fmt = ConnectionConfig.FormatModelChannel("rollback", connect?.ProviderId ?? Config.Instance.Provider, model);

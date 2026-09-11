@@ -260,27 +260,23 @@ public static class PermissionManager
         Console.WriteLine($"权限模式: {AnsiText.Fg(label, color)}");
     }
 
-    /// <summary>权限模式显示名（问答ACK/自动AUTO/智能SMART/畅通YOLO）。</summary>
-    public static string FormatMode() => CurrentMode switch
-    {
-        Mode.Yolo => "畅通YOLO",
-        Mode.SmartAuto => "智能SMART",
-        Mode.Auto => "自动AUTO",
-        _ => "问答ACK",
-    };
+    /// <summary>权限模式显示名（必问ASK/自动AUTO/智能SMART/畅通YOLO）——文案唯一真源见 <see cref="UiText"/>。</summary>
+    public static string FormatMode() => UiText.PermCompact(CurrentMode);
 
     /// <summary>
     /// 显示当前权限状态。
     /// </summary>
     public static void ShowStatus()
     {
-        var (label, desc, color) = CurrentMode switch
+        // 颜色是确认轴自己的事（留在本类），文案走 UiText 唯一真源
+        var color = CurrentMode switch
         {
-            Mode.Yolo => ("YOLO", "不确认，直接执行", AnsiColors.Red),
-            Mode.SmartAuto => ("SmartAuto", "智能分级：Safe 放行 / Cautious 记一次 / Dangerous 每次确认", AnsiColors.Cyan),
-            Mode.Auto => ("Auto", "改必问：只读放行，危险/修改操作逐次确认", AnsiColors.Green),
-            _ => ("Ask", "必问：危险/修改操作每次都确认", AnsiColors.Yellow),
+            Mode.Yolo => AnsiColors.Red,
+            Mode.SmartAuto => AnsiColors.Cyan,
+            Mode.Auto => AnsiColors.Green,
+            _ => AnsiColors.Yellow,
         };
+        var (label, desc) = (UiText.PermLabel(CurrentMode), UiText.PermDesc(CurrentMode));
 
         var sandboxInfo = SandboxManager.IsSandboxed
             ? $"\n{AnsiText.Accent("沙箱:")} full-auto（bash 隔离 + 环境清理 + 内存监控）"

@@ -225,13 +225,8 @@ public static class GuiCommands
             catch (Exception ex) { win?.NotifySystem($"[切换失败] {ex.Message}"); }
         }
 
-        private static string PermLabel() => PermissionManager.CurrentMode switch
-        {
-            PermissionManager.Mode.Yolo => "YOLO（直接执行）",
-            PermissionManager.Mode.SmartAuto => "SmartAuto（智能分级）",
-            PermissionManager.Mode.Auto => "Auto（改必问：只读放行，写操作确认）",
-            _ => "Ask（每次确认）",
-        };
+        /// <summary>文案唯一真源见 <see cref="UiText.PermFull"/>。</summary>
+        private static string PermLabel() => UiText.PermFull(PermissionManager.CurrentMode);
     }
 
     private sealed class SlotsCmd : GuiCmd

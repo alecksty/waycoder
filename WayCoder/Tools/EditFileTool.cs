@@ -101,7 +101,7 @@ public class EditFileTool : ITool
             if (FileText.ReadUtf8File(path, out var content, out var hasCrlf) is { } err)
                 return err;
 
-            var occurrences = CountOccurrences(content, oldString);
+            var occurrences = FileText.CountOccurrences(content, oldString);
 
             if (occurrences == 0)
             {
@@ -140,7 +140,10 @@ public class EditFileTool : ITool
 
             // 生成 diff 与记录变更须在恢复 CRLF 前（此时 content/newContent 都是 LF，行尾一致，
             // 否则逐行比较 LF vs CRLF 会把整文件误判为改动）
-            var diff = UnifiedDiff(content, newContent, filePath);
+            // 走 UnifiedDiff.Generate（多 hunk + @@ 头；引擎在 UI/Shared，MAUI 也编译得到）。此前本类与 MultiEditTool 各有一份
+            // 逐字拷贝的私有实现，只找「首个差异行 → 末尾差异行」、**只支持单块改动且无 @@ 头** ——
+            // 同文件两处相隔较远的小改动会被呈现成「删掉中间全部 + 重新加」，误导模型。
+            var diff = WayCoder.UI.Shared.UnifiedDiff.Generate(content, newContent, filePath);
             RecordChange(path, content, newContent);
 
             // CRLF 行尾保留：先归一化为 LF 再统一转 CRLF，避免把已有 \r\n 二次转成 \r\r\n
@@ -171,87 +174,6 @@ public class EditFileTool : ITool
         }
     }
 
-    /// <summary>
-    /// 计算子串在内容中的出现次数。
-    /// </summary>
-    private static int CountOccurrences(string text, string substring)
-    {
-        if (string.IsNullOrEmpty(substring)) return 0;
-        int count = 0, idx = 0;
-        while ((idx = text.IndexOf(substring, idx, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            idx += substring.Length;
-        }
-        return count;
-    }
-
-    /// <summary>
-    /// 生成新旧文件内容之间的紧凑 unified diff。
-    /// </summary>
-    private static string UnifiedDiff(string old, string newText, string filename, int context = 3)
-    {
-        var oldLines = old.Split('\n');
-        var newLines = newText.Split('\n');
-
-        // 简单的逐行比较生成 diff
-        var sb = new StringBuilder();
-        var diffLines = GenerateDiff(oldLines, newLines, context);
-
-        sb.AppendLine($"--- a/{filename}");
-        sb.AppendLine($"+++ b/{filename}");
-
-        foreach (var dl in diffLines)
-        {
-            sb.AppendLine(dl);
-        }
-
-        var result = sb.ToString();
-        if (result.Length > 3000)
-            result = ContextManager.TruncateByRunes(result, 2500) + "\n...（diff 已截断）\n";
-
-        return result;
-    }
-
-    private static List<string> GenerateDiff(string[] old, string[] newText, int context)
-    {
-        var result = new List<string>();
-        // 找到第一个不同的行
-        int i = 0;
-        while (i < old.Length && i < newText.Length && old[i] == newText[i]) i++;
-        int changeStart = i;
-
-        // 找到最后一个不同的行
-        int jOld = old.Length - 1, jNew = newText.Length - 1;
-        while (jOld > i && jNew > i && old[jOld] == newText[jNew])
-        {
-            jOld--;
-            jNew--;
-        }
-
-        // 上下文行
-        var contextStart = Math.Max(0, changeStart - context);
-        var contextEndOld = Math.Min(old.Length, jOld + 1 + context);
-        var contextEndNew = Math.Min(newText.Length, jNew + 1 + context);
-
-        for (int line = contextStart; line < changeStart; line++)
-            result.Add($"  {old[line].TrimEnd('\r')}");
-
-        // 删除的行
-        for (int line = changeStart; line <= jOld; line++)
-            result.Add($"-{old[line].TrimEnd('\r')}");
-
-        // 添加的行
-        for (int line = changeStart; line <= jNew; line++)
-            result.Add($"+{newText[line].TrimEnd('\r')}");
-
-        // 后续上下文
-        var maxEnd = Math.Max(contextEndOld, contextEndNew);
-        for (int line = Math.Max(jOld, jNew) + 1; line < maxEnd && line < old.Length; line++)
-            result.Add($"  {old[line].TrimEnd('\r')}");
-
-        return result;
-    }
 }
 
 /// <summary>

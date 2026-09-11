@@ -1,5 +1,93 @@
 # 更新日志
 
+## v0.96.91 (2026-09-11) — 重复代码清理（下）：模型解析 / 模型切换 / diff 引擎 / 跨端文案 / key 判定
+
+接 v0.96.90（A 级 7 条真 bug + 三处单一真源收口），本版做完 B 级剩下 5 条。
+27 文件，**+211 / −499 行**（净删 288 行）。
+
+### 1. 模型地址 / 服务商判定（B1）
+
+同一概念「这个模型该连哪个地址 / 这个地址属于哪个服务商」有 8 处内联实现。收口到
+`ModelCatalog.BaseUrlOf` / `ResolveBaseUrl`：
+
+- `ConnectionConfig.ResolveBaseUrl`、`ApiKeyStore.Set`、`ModelCli.AddModel`、
+  `ModelCatalog.Import`、`AgentSlotConfig`（两处）、`Program.Repl`（Ctrl+X 交换）共 7 处改走助手。
+- **实质变化**：`BaseUrlOf` 有大小写不敏感兜底（注释解释了为什么 —— providers.json 手写混合大小写 key），
+  而内联的 `Providers.TryGetValue(pid, ...)` **没有** ⇒ 传 `"DeepSeek"` 时助手命中、内联落空。
+  现在全链路一致。
+- `ConnectionConfig.InferProviderFromBaseUrl`（未命中返回 `"custom"`）与
+  `ModelCatalog.FindProviderByBaseUrl`（未命中返回 null）是同一逻辑两份实现，前者改为
+  `FindProviderByBaseUrl(baseUrl) ?? "custom"`。
+
+### 2. 模型切换收尾（B2）
+
+`Agent.ApplyRuntimeModel` 的文档自称「CLI/TUI/GUI/Web/MAUI 各端切换模型的公共收尾」，
+但 TUI 五处全绕过，且每处各自补一句 `SmallModel = …`、取法四样（局部变量 / `cfg.SmallModel` /
+`_llm.SmallModel` / **干脆不设**）。
+
+- 签名扩为 `ApplyRuntimeModel(modelId, smallModelId, apiKey, baseUrl)`：`smallModelId` 为 null
+  表示「本次不动小模型」，各端策略显式传，不再是「补了这处忘那处」。
+- **修掉真 bug**：运行时回退链那条**只改大模型** ⇒ 跨服务商回退后小模型仍指向旧服务商，
+  压缩请求打到旧网关。
+- 删掉 `Program.ApplyModel` —— 与 `ModelPicker.Apply` 逐字重复 40 行，且**漏了「运行时生效」尾段**，
+  逼得 `CycleModel` 在下面自己又补一遍。现在统一走 `ModelPicker.Apply`。
+
+### 3. unified diff 引擎（B6）
+
+`EditFileTool` 与 `MultiEditTool` 各有一份逐字拷贝的私有 diff 生成器（后者函数名就叫
+`EditFileTool_GenerateDiff`、注释写「复用 EditFileTool 逻辑」，**实际是拷贝不是调用**），
+而公共实现 `DiffPreview.GenerateUnifiedDiff` 就在旁边。工具那两份
+**只找「首个差异行 → 末尾差异行」、只支持单块改动、无 `@@` 头** ⇒ 同一文件两处相隔较远的
+小改动会被呈现成「删掉中间全部 + 重新加」，误导模型以为整段被重写。
+
+引擎下沉到 **`UI/Shared/UnifiedDiff.cs`**（`Build`/`Render`/`Generate`）：
+`UI/Shared/` 是桌面 / Gui / **MAUI** 三边都编译的位置 —— 留在 `UI/TUI/Custom/DiffPreview.cs` 里的话，
+MAUI 排除了 `UI/TUI/**`，`Tools/**` 在 MAUI 构建下根本引用不到（这正是当初各抄一份的成因）。
+`DiffPreview.BuildHunks` / `GenerateUnifiedDiff` 改为适配本引擎（删掉它的
+`ComputeLineEdits` + `GroupIntoHunks` + 生成主体，−152 行），`ApplyAccepted` 保持原样未动。
+两个工具改调 `UnifiedDiff.Generate`。新增 2 条自测锁住「两处远距离改动 → 2 个 hunk」
+与「未改动的中间段被省略、既不算删除也不重复添加」。
+
+### 4. 跨端权限 / 经济文案（B7）
+
+同一个枚举 5 种叫法（`Ask` / `必问` / `Ask（每次确认）` / `问答ACK` / `YOLO (上帝模式)`），
+散在 `PermissionManager` / `AutoCommand` / `WebChat` / `GuiCommands` / Maui 五处各写一遍 switch；
+`UiText`（建来就是为消重）**零生产调用点**。
+
+- `UiText` 增 `PermNameZh`（必问/自动/智能/畅通）、`PermDesc`、`PermLabel`、`PermFull`、
+  `PermCompact`（必问ASK…）与 `EconomyShortName`（省钱/自动/极致/关闭）；六处改调。
+- 颜色/emoji 留在各自端（那是呈现选择，不是文案）。
+- Gui 的下拉与 Maui 的标签数组改为**从枚举派生**（`Enum.GetValues` 顺序即 `(int)` 索引，
+  `SelectedIndex` 依赖它），不再手维护平行数组 —— 加档位不会再只改一端。
+
+### 5. key 判定（B8）
+
+Web 的 `ProviderHasKey` 与 `SerializeState` 里的内联判据都**只查 ApiKeyStore + 全局 ApiKey、
+不查环境变量**，而同文件的模型列表走 `ApiKeyStore.HasKeyFor`（查环境变量）
+⇒ **同一个页面上「模型列表说有 key、供应商列表说没 key」**。两处改走 `HasKeyFor`。
+另删掉 `ModelPicker` 私有的 `ProviderEnvVar` 表 + `ModelHasKey`（1844 字符，与 `ApiKeyStore`
+逐行等价，两边注释互相点名「对齐对方」——作者已知重复而选择保留）。
+
+### 6. 用户可见的变化
+
+1. **工具输出的 diff 变成多 hunk 且带 `@@` 头**（更正确；`--json` 桥与 Web 面板的 diff 呈现同变）。
+2. **权限/经济措辞统一**为「必问 / 自动 / 智能 / 畅通」与「省钱 / 自动 / 极致 / 关闭」——
+   各端此前互不相同，现在同一套。
+3. **跨服务商回退后小模型会跟着换**（此前不换，是个 bug）。
+4. Web 上「供应商是否已配置 key」现在会认环境变量（此前不认）。
+
+**验证**：`--test` **5182 / 5182**（v0.96.90 为 5180）；桌面 / Gui / MAUI Android 三工程构建均 0 错误。
+
+**仍未做**：C 级 20 余条 —— `TuiListView : TuiScrollView`（滚动状态与方法重复，且 `TuiListView`
+缺 `OnResize` 重钳）、`UxHelper` 六个私有对话框收口到同文件的 `RunModalDialog`
+（含「超时默认 `2`=拒绝 vs 默认 null」这个会把权限弹窗**从拒绝翻成允许**的坑）、
+工具写文件流水线 4 份（guard→lock→finally→diff→CRLF→record→lint）、
+三份 `SendWithRedirectAsync`（**重定向预算 5 / 10 / 5** 无理由地不同）、
+`TuiDialog` 关闭协议 46 处、内联滚动条 4 份（含 `fg: 8` = conceal 已单独修）、
+日志 sink 日期轮转 3 份、BOM 表 2 份（`Detect` 缺 UTF-32 分支）、
+`ImportHelper` Cursor/Cline 两份、Maui `Markup/` 内三份高亮循环、
+鼠标命中绕过 `MouseInBounds`、Braille 帧集 3 份、目录上溯循环 3 份、`ToolErrors` 被 6 处手拼。
+
 ## v0.96.90 (2026-09-11) — 全仓重复代码清理：7 条已致 bug 的重复 + 三处单一真源收口
 
 用 6 路并行区域审查 + 一份机械检测（479 个非测试文件、8 行窗口、跨文件重复 409 组）过了一遍

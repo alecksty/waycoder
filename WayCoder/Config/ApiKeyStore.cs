@@ -78,8 +78,10 @@ public static class ApiKeyStore
             {
                 // baseUrl 未显式传时，自动从服务商注册表推断该供应商地址——保证 key 与网关绑定生效
                 // （否则各调用方漏传 → GetBaseUrl 恒 null，防同名供应商/网关间 key 混用的保护失效）
+                // 注册表查询走 BaseUrlOf（大小写不敏感兜底）；未注册返回 "" → 归一成 null
+                var regUrl = ModelCatalog.BaseUrlOf(pid);
                 var effBaseUrl = string.IsNullOrWhiteSpace(baseUrl)
-                    ? (ModelCatalog.Providers.TryGetValue(pid, out var p) ? p.DefaultBaseUrl : null)
+                    ? (regUrl.Length > 0 ? regUrl : null)
                     : baseUrl.Trim();
                 keys[pid] = new KeyEntry(apiKey.Trim(), NormalizeExpiry(expiry), effBaseUrl);
             }

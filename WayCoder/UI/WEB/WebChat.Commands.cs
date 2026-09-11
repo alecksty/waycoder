@@ -102,14 +102,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return sb.ToString();
     }
 
-    internal static string WebPermLabel()
-        => PermissionManager.CurrentMode switch
-        {
-            PermissionManager.Mode.Yolo => "YOLO（直接执行）",
-            PermissionManager.Mode.SmartAuto => "SmartAuto（智能分级）",
-            PermissionManager.Mode.Auto => "Auto（改必问：只读放行，写操作确认）",
-            _ => "Ask（每次确认）",
-        };
+    /// <summary>文案唯一真源见 <see cref="UiText.PermFull"/>（此前 Web/Gui/CLI 各写一份，叫法互不相同）。</summary>
+    internal static string WebPermLabel() => UiText.PermFull(PermissionManager.CurrentMode);
 
     internal static string WebPermText(string args)
     {

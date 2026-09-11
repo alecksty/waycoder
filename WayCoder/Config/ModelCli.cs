@@ -270,8 +270,10 @@ public static partial class ModelCli
         if (pid.Length == 0) pid = "custom";
         var display = ModelCatalog.ProviderDisplayName(pid);
         // 未指定 baseUrl → 用服务商默认地址
+        // 注册表查询走 BaseUrlOf（大小写不敏感兜底）；未注册返回 "" → 归一成 null
+        var regUrl = ModelCatalog.BaseUrlOf(pid);
         var effBaseUrl = string.IsNullOrWhiteSpace(baseUrl)
-            ? (ModelCatalog.Providers.TryGetValue(pid, out var pp) && !string.IsNullOrEmpty(pp.DefaultBaseUrl) ? pp.DefaultBaseUrl : null)
+            ? (regUrl.Length > 0 ? regUrl : null)
             : baseUrl.Trim();
         var info = new ModelCatalog.ModelInfo(id.Trim(), id.Trim(), display, pid, "*", "Custom",
             0, 0, 0, effBaseUrl, $"手动添加（{pid}）", 0);

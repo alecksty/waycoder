@@ -74,13 +74,15 @@ public class AutoCommand : SlashCommand
         else
         {
             // 无参数 → 显示当前状态
-            var (label, emoji) = PermissionManager.CurrentMode switch
+            // emoji 是命令自己的呈现选择（留在本地），文案走 UiText 唯一真源
+            var emoji = PermissionManager.CurrentMode switch
             {
-                PermissionManager.Mode.Yolo => ("YOLO (上帝模式)", "⚠"),
-                PermissionManager.Mode.SmartAuto => ("SmartAuto (智能分级)", "🧠"),
-                PermissionManager.Mode.Auto => ("Auto (智能确认)", "🟢"),
-                _ => ("Ask (每次确认)", "🟡"),
+                PermissionManager.Mode.Yolo => "⚠",
+                PermissionManager.Mode.SmartAuto => "🧠",
+                PermissionManager.Mode.Auto => "🟢",
+                _ => "🟡",
             };
+            var label = UiText.PermLabel(PermissionManager.CurrentMode);
 
             var statsInfo = PermissionManager.CurrentMode == PermissionManager.Mode.SmartAuto
                 ? $"\n\n**分级统计**：{AutoModeClassifier.GetStats()}"

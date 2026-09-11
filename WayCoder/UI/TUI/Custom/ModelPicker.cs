@@ -859,53 +859,6 @@ public static class ModelPicker
         return (cfg.Model, cfg.SmallModel);
     }
 
-    /// <summary>供应商 → 专属环境变量名映射</summary>
-    private static readonly Dictionary<string, string> ProviderEnvVar = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["openai"] = "OPENAI_API_KEY",
-        ["anthropic"] = "ANTHROPIC_API_KEY",
-        ["deepseek"] = "DEEPSEEK_API_KEY",
-        ["google"] = "GOOGLE_API_KEY",
-        ["qwen"] = "DASHSCOPE_API_KEY",
-        ["moonshot"] = "MOONSHOT_API_KEY",
-        ["zhipu"] = "ZHIPU_API_KEY",
-        ["bytedance"] = "ARK_API_KEY",
-        ["01ai"] = "YI_API_KEY",
-        ["xai"] = "XAI_API_KEY",
-        ["mistral"] = "MISTRAL_API_KEY",
-        ["siliconflow"] = "SILICONFLOW_API_KEY",
-        ["meta"] = "META_API_KEY",
-    };
-
-    /// <summary>检查指定模型是否有 API Key</summary>
-    private static bool ModelHasKey(string providerId, string modelId)
-    {
-        // 1. ApiKeyStore 显式存储（按供应商）
-        if (!string.IsNullOrEmpty(ApiKeyStore.Get(providerId)))
-            return true;
-        // 2. 供应商专属环境变量（如 DEEPSEEK_API_KEY）
-        if (ProviderEnvVar.TryGetValue(providerId, out var envVar))
-        {
-            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(envVar)))
-                return true;
-        }
-        // 3. 通用模式：{PROVIDER}_API_KEY
-        var genericEnv = $"{providerId}_API_KEY".ToUpperInvariant().Replace('-', '_').Replace(' ', '_');
-        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(genericEnv)))
-            return true;
-        // 4. 全局 WAYCODER_API_KEY → 仅当前配置的大小模型
-        if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYCODER_API_KEY")))
-        {
-            var cfg = Config.Instance;
-            if (modelId == cfg.Model || modelId == cfg.SmallModel)
-                return true;
-        }
-        // 5. Local/Custom 不需要 key
-        if (providerId is "local" or "custom") return true;
-
-        return false;
-    }
-
     private static List<ModelEntry> GetAvailableModels()
     {
         var list = new List<ModelEntry>();
@@ -914,7 +867,7 @@ public static class ModelPicker
         {
             // 地址不同 = 不同服务商：同 id 不同 baseUrl 都保留（不再按 id 去重）
             if (!seen.Add(ModelCatalog.ModelKey(info.ProviderId, info.Id))) continue;
-            var hasKey = ModelHasKey(info.ProviderId, info.Id);
+            var hasKey = ApiKeyStore.HasKeyFor(info.ProviderId, info.Id);
             // 厂商列用实时注册表显示名（ProviderDisplayName），而非静态快照 Provider——
             // /provider rename 后重绘立即反映新名（快照字段不随 RenameProvider 更新）
             list.Add(new(info.Id, info.DisplayName,

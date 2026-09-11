@@ -626,47 +626,6 @@ deepseek 性价比最高。"
     }
 
     /// <summary>Ctrl+M 打开模型选择对话框</summary>
-    /// <summary>应用模型到指定槽位（供 CycleModel 调用）。baseUrl/providerId 来自所选模型（地址不同=不同服务商）。</summary>
-    internal static void ApplyModel(string modelId, bool isLarge, int slot, string? baseUrl = null, string? providerId = null)
-    {
-        if (slot is -1 or -2)
-        {
-            // 「切换模型 = 切换 connect」：经 ConnectConfig.ApplyModelChoice 统一入口
-            var pid = providerId ?? ModelCatalog.Find(modelId)?.ProviderId ?? _config.Provider;
-            ConnectionConfig.ApplyModelChoice(pid, modelId, isLarge, out _, baseUrl);
-            if (slot == -2)
-            {
-                var uniformConnect = ConnectionConfig.FindOrCreateConnect(pid, modelId);
-                AgentSlotConfig.SetUniform(new AgentSlotConfig.SlotConfig
-                {
-                    UseGlobal = false,
-                    BigConnect = isLarge ? uniformConnect.Name : null,
-                    SmallConnect = isLarge ? null : uniformConnect.Name,
-                    LargeModel = isLarge ? modelId : null,
-                    SmallModel = isLarge ? null : modelId,
-                    BaseUrl = baseUrl ?? _config.BaseUrl,
-                    ApiKeyProviderId = providerId ?? pid,
-                });
-            }
-        }
-        else if (slot is >= 0 and < 10)
-        {
-            var e = AgentSlotConfig.Get(slot);
-            var spid = providerId ?? e.ApiKeyProviderId ?? ModelCatalog.Find(modelId)?.ProviderId ?? _config.Provider;
-            AgentSlotConfig.Set(slot, new AgentSlotConfig.SlotConfig
-            {
-                UseGlobal = false,
-                BigConnect = isLarge ? ConnectionConfig.FindOrCreateConnect(spid, modelId).Name : e.BigConnect,
-                SmallConnect = isLarge ? e.SmallConnect : ConnectionConfig.FindOrCreateConnect(spid, modelId).Name,
-                LargeModel = isLarge ? modelId : e.LargeModel,
-                SmallModel = isLarge ? e.SmallModel : modelId,
-                BaseUrl = baseUrl ?? e.BaseUrl,
-                ApiKeyProviderId = providerId ?? e.ApiKeyProviderId,
-                ApiKey = e.ApiKey,
-            });
-        }
-    }
-
     private static void CycleModel(ChatScreen screen)
     {
         var result = ModelPicker.Show(currentSlot: ActiveSlotIndex);
@@ -689,10 +648,14 @@ deepseek 性价比最高。"
                 }
             }
 
-            // 应用模型到配置（携带所选模型的网关地址 + 服务商，地址不同=不同服务商）
-            ApplyModel(result.ModelId, result.IsLarge, result.TargetSlot, result.BaseUrl, result.ProviderId);
+            // 应用模型到配置（携带所选模型的网关地址 + 服务商，地址不同=不同服务商）。
+            // 走 ModelPicker.Apply —— 此前这里另有一份逐字重复的 Program.ApplyModel，
+            // 且它**漏了「运行时生效」尾段**，CycleModel 只好在下面自己补一遍。
+            ModelPicker.Apply(result.ModelId, result.IsLarge, result.TargetSlot, result.BaseUrl, result.ProviderId);
 
             var modelName = result.ModelId;
+            // 全局 _llm 镜像（ModelPicker.Apply 的尾段管的是 ProgramContext.Agent，
+            // 槽位 UseGlobal 时用的才是这个全局实例，两边都要跟上）
             _llm!.Model = _config.Model;
             _llm.SmallModel = _config.SmallModel;
             if (result.IsLarge)
