@@ -901,14 +901,14 @@ public static partial class SelfTest
                 var body = antBody2 == null ? null : Json.Parse(antBody2);
                 var am = body?["messages"]?.Items.ToList();
                 Check("Anthropic: 连发多个工具 → 角色严格交替（user/assistant/user 共 3 条，不出现连续 user）",
-                    am != null && am.Count == 3);
+                    am is { Count: 3 });
+                var mergedUser = am is { Count: 3 } ? am[2]["content"] : null;
+                var asstBlocks = am is { Count: 3 } ? am[1]["content"] : null;
                 Check("Anthropic: 多个 tool_result 合并进同一条 user 消息",
-                    am != null && am.Count == 3
-                    && am[2]["content"].Items.Count() == 2
-                    && am[2]["content"].Items.All(b => b["type"]?.AsString() == "tool_result"));
+                    mergedUser?.Items.Count() == 2
+                    && mergedUser.Items.All(b => b["type"]?.AsString() == "tool_result"));
                 Check("Anthropic: assistant 空正文不产出空 text 块（只留 tool_use）",
-                    am != null && am.Count == 3
-                    && am[1]["content"].Items.All(b => b["type"]?.AsString() == "tool_use"));
+                    asstBlocks != null && asstBlocks.Items.All(b => b["type"]?.AsString() == "tool_use"));
             }
             finally
             {
