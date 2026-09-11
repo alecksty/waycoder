@@ -857,6 +857,112 @@ public static partial class SelfTest
         }
         finally { server.Stop(); }
 
+        // ── 2b. Anthropic 与 OpenAI 的**硬差异**（踩中必 400，不是风格问题）──
+        // ① 角色必须严格交替：一次发多个工具 → 多个 tool_result **必须合进同一条 user 消息**。
+        //    每条 tool 消息各生成一条 user 消息的话，会出现连续两条 user → Anthropic 直接 400。
+        // ② 空 text 块被拒（text content blocks must be non-empty）：assistant 只带 tool_calls、
+        //    content 为空串时，不能再补一个 text:"" 的块。
+        // ③ 开启 extended thinking 时 temperature 必须为 1。
+        var serverAnt2 = new WayCoder.UI.Web.HttpServer(0);
+        string? antBody2 = null;
+        serverAnt2.OnRequest = async req =>
+        {
+            antBody2 = req.Body;
+            return WayCoder.UI.Web.HttpResponse.JsonBody("data: {\"type\":\"message_stop\"}\n\n");
+        };
+        serverAnt2.Start();
+        try
+        {
+            var urlAnt2 = $"http://127.0.0.1:{serverAnt2.ActualPort}";
+            var savedProv2 = ModelCatalog.Providers.TryGetValue("__antprov2__", out var spAnt2) ? spAnt2 : null;
+            ModelCatalog.Providers["__antprov2__"] = new ModelCatalog.ProviderInfo("AntTest2", urlAnt2, ApiFormat: "anthropic");
+            ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
+                "__selftest_ant2__", "__selftest_ant2__", "AntTest2", "__antprov2__", "A", "Imported",
+                0, 0, 0, urlAnt2, "test"), local: true);
+            try
+            {
+                static JNode ToolCall(string id, string name, string args) =>
+                    JNode.Object().Set("id", id).Set("type", "function")
+                        .Set("function", JNode.Object().Set("name", name).Set("arguments", args));
+
+                var antMsgs = new List<JNode>
+                {
+                    JNode.Object().Set("role", "user").Set("content", "hi"),
+                    // assistant 只有工具调用、正文为空（真实主循环里最常见的一轮）
+                    JNode.Object().Set("role", "assistant").Set("content", "")
+                        .Set("tool_calls", JNode.Array()
+                            .Add(ToolCall("call_1", "bash", "{\"command\":\"ls\"}"))
+                            .Add(ToolCall("call_2", "read_file", "{\"path\":\"a.txt\"}"))),
+                    JNode.Object().Set("role", "tool").Set("tool_call_id", "call_1").Set("content", "out1"),
+                    JNode.Object().Set("role", "tool").Set("tool_call_id", "call_2").Set("content", "out2"),
+                };
+                _ = new LLM("__selftest_ant2__", "sk-ant-test", urlAnt2).ChatAsync(antMsgs).GetAwaiter().GetResult();
+
+                var body = antBody2 == null ? null : Json.Parse(antBody2);
+                var am = body?["messages"]?.Items.ToList();
+                Check("Anthropic: 连发多个工具 → 角色严格交替（user/assistant/user 共 3 条，不出现连续 user）",
+                    am != null && am.Count == 3);
+                Check("Anthropic: 多个 tool_result 合并进同一条 user 消息",
+                    am != null && am.Count == 3
+                    && am[2]["content"].Items.Count() == 2
+                    && am[2]["content"].Items.All(b => b["type"]?.AsString() == "tool_result"));
+                Check("Anthropic: assistant 空正文不产出空 text 块（只留 tool_use）",
+                    am != null && am.Count == 3
+                    && am[1]["content"].Items.All(b => b["type"]?.AsString() == "tool_use"));
+            }
+            finally
+            {
+                ModelCatalog.RemoveCustom("__selftest_ant2__");
+                if (savedProv2 != null) ModelCatalog.Providers["__antprov2__"] = savedProv2; else ModelCatalog.Providers.Remove("__antprov2__");
+            }
+        }
+        finally { serverAnt2.Stop(); }
+
+        // ── 2c. Anthropic extended thinking 的硬约束 ──
+        // budget_tokens 必须 ≥1024 且 < max_tokens，且**开启 thinking 时 temperature 只能为 1**
+        // （给别的值直接 400）。此前 budget 用 Math.Min(maxTok,1024)（max_tokens 小时给非法值）、
+        // temperature 照发原值，两个都会踩。
+        var serverAnt3 = new WayCoder.UI.Web.HttpServer(0);
+        string? antBody3 = null;
+        serverAnt3.OnRequest = async req =>
+        {
+            antBody3 = req.Body;
+            return WayCoder.UI.Web.HttpResponse.JsonBody("data: {\"type\":\"message_stop\"}\n\n");
+        };
+        serverAnt3.Start();
+        var savedEffort = Config.Instance.ReasoningEffort;
+        try
+        {
+            var urlAnt3 = $"http://127.0.0.1:{serverAnt3.ActualPort}";
+            var savedProv3 = ModelCatalog.Providers.TryGetValue("__antprov3__", out var spAnt3) ? spAnt3 : null;
+            ModelCatalog.Providers["__antprov3__"] = new ModelCatalog.ProviderInfo(
+                "AntTest3", urlAnt3, ApiFormat: "anthropic", SupportsThinking: true);
+            ModelCatalog.AddCustom(new ModelCatalog.ModelInfo(
+                "__selftest_ant3__", "__selftest_ant3__", "AntTest3", "__antprov3__", "A", "Imported",
+                0, 0, 0, urlAnt3, "test"), local: true);
+            try
+            {
+                Config.Instance.ReasoningEffort = "high";
+                var antMsgs3 = new List<JNode> { JNode.Object().Set("role", "user").Set("content", "hi") };
+                _ = new LLM("__selftest_ant3__", "sk-ant-test", urlAnt3).ChatAsync(antMsgs3).GetAwaiter().GetResult();
+
+                var b3 = antBody3 == null ? null : Json.Parse(antBody3);
+                var budget = (int?)(b3?["thinking"]?["budget_tokens"]?.AsNumber()) ?? 0;
+                var maxTok3 = (int?)(b3?["max_tokens"]?.AsNumber()) ?? 0;
+                Check("Anthropic: 开启 thinking 时 temperature 必须为 1",
+                    (b3?["temperature"]?.AsNumber() ?? 0) == 1);
+                Check("Anthropic: thinking budget_tokens ≥1024 且 < max_tokens",
+                    budget >= 1024 && budget < maxTok3);
+            }
+            finally
+            {
+                Config.Instance.ReasoningEffort = savedEffort;
+                ModelCatalog.RemoveCustom("__selftest_ant3__");
+                if (savedProv3 != null) ModelCatalog.Providers["__antprov3__"] = savedProv3; else ModelCatalog.Providers.Remove("__antprov3__");
+            }
+        }
+        finally { serverAnt3.Stop(); }
+
         // ── 3. 集成：Gemini 原生（模拟 candidates[0].content.parts SSE）──
         var server2 = new WayCoder.UI.Web.HttpServer(0);
         string? gBody = null, gKey = null, gPath = null;

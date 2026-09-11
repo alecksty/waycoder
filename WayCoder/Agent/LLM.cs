@@ -581,21 +581,30 @@ public class LLM
         JNode BuildAnthropicBody(List<JNode> msgs, List<JNode>? tools, int maxTok, ModelCatalog.ModelCallConstraints cons)
         {
             var (system, messagesArray) = ConvertMessagesToAnthropic(msgs);
+            // extended thinking 的三条硬约束（违反任一条直接 400）：budget_tokens ≥ 1024、
+            // budget_tokens < max_tokens、**temperature 必须为 1**。max_tokens 本身就 ≤1024 时
+            // 无论如何摆不下合法 budget，干脆不开 thinking（此前用 Math.Min(maxTok,1024) 会在
+            // max_tokens 小时给出 <1024 的非法 budget，且 temperature 照旧发原值 → 400）。
+            var thinkingOn = cons.SupportsThinking
+                && !string.IsNullOrEmpty(Config.Instance.ReasoningEffort)
+                && maxTok > 1024;
+            var temp = thinkingOn
+                ? 1.0
+                : Math.Round((double)Math.Clamp(Temperature, 0f, 1f), cons.TemperaturePrecision);
             var b = JNode.Object()
                 .Set("model", EffectiveModel)
                 .Set("messages", messagesArray)
                 .Set("max_tokens", maxTok)                     // Anthropic 必填
-                .Set("temperature", Math.Round((double)Math.Clamp(Temperature, 0f, 1f), cons.TemperaturePrecision))
+                .Set("temperature", temp)
                 .Set("stream", true);
             if (system != null) b.Set("system", system);
             // 工具能力门控（原生格式无 400 回退，必须提前判断）
             if (cons.SupportsTools && tools is { Count: > 0 }) b.Set("tools", ConvertToolsToAnthropic(tools));
-            // 支持思考时开启 extended thinking（当前全局 reasoning_effort 仅 OpenAI 格式用，Anthropic 用 thinking 块）
-            if (cons.SupportsThinking && !string.IsNullOrEmpty(Config.Instance.ReasoningEffort))
+            if (thinkingOn)
             {
                 b.Set("thinking", JNode.Object()
                     .Set("type", "enabled")
-                    .Set("budget_tokens", Math.Min(maxTok, 1024)));
+                    .Set("budget_tokens", Math.Clamp(maxTok / 4, 1024, maxTok - 1)));
             }
             return b;
         }
@@ -1219,23 +1228,52 @@ public class LLM
     {
         var arr = JNode.Array();
         string? system = null;
+
+        // 累积中的消息：同角色的连续消息并入同一个 content 数组。
+        // Anthropic 要求角色严格交替，而 OpenAI 风格的对话里「一轮发多个工具」会产生
+        // 连续的 tool 消息（都映射到 user）—— 各生成一条就是连续 user，API 直接 400。
+        string? pendingRole = null;
+        JNode? pendingBlocks = null;
+
+        void Flush()
+        {
+            if (pendingRole != null && pendingBlocks is { } pb && pb.Items.Any())
+                arr.Add(JNode.Object().Set("role", pendingRole).Set("content", pb));
+            pendingRole = null;
+            pendingBlocks = null;
+        }
+
+        void Append(string role, JNode blocks)
+        {
+            if (pendingRole == role && pendingBlocks is { } pb)
+            {
+                foreach (var b in blocks.Items) pb.Add(b);
+                return;
+            }
+            Flush();
+            pendingRole = role;
+            pendingBlocks = blocks;
+        }
+
         foreach (var m in messages)
         {
             var role = m["role"]?.AsString() ?? "user";
             var contentNode = m["content"];
             var content = contentNode?.AsString() ?? "";
             if (role == "system") { system = content; continue; }
+
             var blocks = JNode.Array();
             if (role == "tool")
             {
-                // Anthropic 要求 tool_result 放在 user 消息的 content 块
+                // Anthropic 没有 role:"tool" —— 工具结果作为 tool_result 块放进 user 消息
                 blocks.Add(JNode.Object()
                     .Set("type", "tool_result")
                     .Set("tool_use_id", m["tool_call_id"]?.AsString() ?? "")
                     .Set("content", content));
-                arr.Add(JNode.Object().Set("role", "user").Set("content", blocks));
+                Append("user", blocks);
                 continue;
             }
+
             if (contentNode?.Kind == JKind.Array)
             {
                 // 多模态数组 content（text + image_url）→ 文本块 + 图片块
@@ -1253,16 +1291,19 @@ public class LLM
                                 .Set("media_type", mime)
                                 .Set("data", dp[1])));
                     }
-                    else
+                    else if (c["text"]?.AsString() is { Length: > 0 } ct)
                     {
-                        blocks.Add(JNode.Object().Set("type", "text").Set("text", c["text"]?.AsString() ?? ""));
+                        blocks.Add(JNode.Object().Set("type", "text").Set("text", ct));
                     }
+                    // 空 text 块丢弃：Anthropic 拒收 text 为空的块
+                    // （messages.N.content.M.text: text content blocks must be non-empty）
                 }
             }
-            else
+            else if (content.Length > 0)
             {
                 blocks.Add(JNode.Object().Set("type", "text").Set("text", content));
             }
+
             // assistant 的工具调用 → tool_use 块（附在 assistant 消息 content 数组）
             if (role == "assistant" && m["tool_calls"] is { } tcs)
             {
@@ -1276,8 +1317,13 @@ public class LLM
                         .Set("input", Json.Parse(fn?["arguments"]?.AsString() ?? "{}") ?? JNode.Object()));
                 }
             }
-            arr.Add(JNode.Object().Set("role", role == "assistant" ? "assistant" : "user").Set("content", blocks));
+
+            // 既无正文也无工具调用的消息在 Anthropic 下等价于空 content 数组 → 不收，直接丢
+            if (!blocks.Items.Any()) continue;
+            Append(role == "assistant" ? "assistant" : "user", blocks);
         }
+
+        Flush();
         return (system, arr);
     }
 
