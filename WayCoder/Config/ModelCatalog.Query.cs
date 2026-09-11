@@ -79,17 +79,16 @@ public static partial class ModelCatalog
     public static ModelCallConstraints ResolveModelCallConstraints(string? modelId, string? baseUrl)
     {
         var info = string.IsNullOrWhiteSpace(modelId) ? null : Find(modelId, baseUrl);
-        string? provAllowed = null;
-        int? provPrec = null;
-        bool? provThink = null, provTools = null, provVision = null;
-        if (info != null && Providers.TryGetValue(info.ProviderId, out var prov))
-        {
-            provAllowed = prov.ReasoningEffortAllowed;
-            provPrec = prov.TemperaturePrecision;
-            provThink = prov.SupportsThinking;
-            provTools = prov.SupportsTools;
-            provVision = prov.SupportsVision;
-        }
+        // 供应商条目同样要地址反查 —— 用户只在 providers.json 配了新网关（带 supportsThinking /
+        // temperaturePrecision 等）却没导入模型时，精确匹配必落空，那些网关级设置就全被忽略，
+        // 能力特性回退到「按模型名推断」（claude → 支持思考）→ 于是给不支持 thinking 的网关发
+        // thinking 参数，请求直接失败。
+        var prov = ResolveProviderFor(modelId, baseUrl);
+        var provAllowed = prov?.ReasoningEffortAllowed;
+        var provPrec = prov?.TemperaturePrecision;
+        var provThink = prov?.SupportsThinking;
+        var provTools = prov?.SupportsTools;
+        var provVision = prov?.SupportsVision;
         var (allowed, prec) = MergeModelProviderConstraints(
             info?.ReasoningEffortAllowed, info?.TemperaturePrecision,
             provAllowed, provPrec);
@@ -102,10 +101,23 @@ public static partial class ModelCatalog
 
     /// <summary>厂商级 temperature 覆盖（per-provider 参数）：ProviderInfo.Temperature 优先，未声明返回 null 用全局。</summary>
     public static double? ResolveProviderTemperature(string? modelId, string? baseUrl)
+        => ResolveProviderFor(modelId, baseUrl)?.Temperature;
+
+    /// <summary>
+    /// 解析 (模型, 地址) 归属的供应商条目。两级：
+    /// ① 目录内 (model, baseUrl) 精确命中条目 → 取它的 provider；
+    /// ② **地址反查注册表占用者** —— 用户只在 providers.json 配了新网关、没重新导入模型时，
+    ///    目录里没有「这个模型 + 这个地址」的组合，①必落空；而 gateway 级设置
+    ///    （apiFormat / supportsThinking / temperaturePrecision…）全挂在 provider 上。
+    /// 少了 ②，这些设置会被静默忽略（格式退回 openai、能力退回按模型名推断），排查时看不出根因。
+    /// 返回 null = 该地址不属于任何已注册供应商。
+    /// </summary>
+    internal static ProviderInfo? ResolveProviderFor(string? modelId, string? baseUrl)
     {
         var info = string.IsNullOrWhiteSpace(modelId) ? null : Find(modelId, baseUrl);
-        if (info != null && Providers.TryGetValue(info.ProviderId, out var prov))
-            return prov.Temperature;
+        if (info != null && Providers.TryGetValue(info.ProviderId, out var prov)) return prov;
+        if (FindProviderByBaseUrl(baseUrl) is { } ownerId && Providers.TryGetValue(ownerId, out var byUrl))
+            return byUrl;
         return null;
     }
 
@@ -176,15 +188,19 @@ public static partial class ModelCatalog
 
     /// <summary>
     /// 解析当前模型的 API 请求格式（openai / anthropic / gemini）。
-    /// Find 带网关反查（同 id 不同网关是两个条目），再按 ProviderId 取厂商级；默认 openai。
+    ///
+    /// 两级判定，缺一不可：
+    /// ① 目录内 (model, baseUrl) 精确命中 → 取该条目 provider 的 ApiFormat；
+    /// ② **按 baseUrl 反查注册表占用者** —— 用户在 providers.json 里配了新网关（如
+    ///    `"aihubmix-anthropic": { base_url, apiFormat: "anthropic" }`）却没重新导入模型时，
+    ///    目录里根本没有「这个模型 + 这个地址」的组合，①必落空。少了 ② 的后果是**静默降级成
+    ///    OpenAI 格式**：请求打到 /v1/chat/completions，那个 anthropic 端点自然不认，或者
+    ///    被网关当成另一个协议处理 —— 排查时完全看不出是格式没切过去。
     /// </summary>
     public static string ResolveApiFormat(string? modelId, string? baseUrl)
     {
-        var info = string.IsNullOrWhiteSpace(modelId) ? null : Find(modelId, baseUrl);
-        if (info != null && Providers.TryGetValue(info.ProviderId, out var prov)
-            && !string.IsNullOrWhiteSpace(prov.ApiFormat))
-            return prov.ApiFormat;
-        return "openai";
+        var prov = ResolveProviderFor(modelId, baseUrl);
+        return string.IsNullOrWhiteSpace(prov?.ApiFormat) ? "openai" : prov!.ApiFormat!;
     }
 
     /// <summary>

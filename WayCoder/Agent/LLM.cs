@@ -105,7 +105,12 @@ public class LLM
         }
         // Timeout 由内部 CancellationTokenSource 逐次控制，不通过 HttpClient.Timeout
         // （HttpClient.Timeout 发送首次请求后不可修改，渐进重试会报错）
-        return new HttpClient(handler) { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
+        var client = new HttpClient(handler) { Timeout = System.Threading.Timeout.InfiniteTimeSpan };
+        // 必须带 User-Agent：部分网关（如 opencode-zen）前面挂着 Cloudflare，**空 UA 会被判成
+        // 机器人直接 403（error code: 1010）**。实测同一个 Anthropic 端点：空 UA → 403，
+        // "WayCoder/0.96.105" → 200；用不着伪造浏览器 UA，有自己的标识即可。
+        client.DefaultRequestHeaders.UserAgent.ParseAdd($"{Global.AppName}/{Global.Version.TrimStart('v', 'V')}");
+        return client;
     }
 
     private static string? GetNoProxy()
