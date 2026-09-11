@@ -540,6 +540,47 @@ public static partial class SelfTest
                 Route(false, false, false, true, false) == StartupRoute.Repl);
         }
 
+        Section("[连接解析：命名连接名优先]");
+        // `select default` / `/connect default` 里的 default 是**命名连接名**，不是模型名。
+        // 修复前两条解析都落空 → 走「裸模型名」分支，静默建出 providerId/modelId="default"
+        // 的假 connect，并把主模型换成一个根本不存在的模型（实测踩过一次）。
+        {
+            var savedPersist = Global.PersistDisabled;
+            var savedM = Config.Instance.Model; var savedP = Config.Instance.Provider;
+            var savedSm = Config.Instance.SmallModel; var savedSp = Config.Instance.SmallProvider;
+            var savedB = Config.Instance.BaseUrl;
+            Global.PersistDisabled = true; // 只改内存，绝不写真实 connections.json / config.json / .env
+            try
+            {
+                // 自包含：不依赖上游 chunk 留下的 fixture 状态（它们中途换过 FilePathOverride）
+                ConnectionConfig.ClearCache();
+                var big = ConnectionConfig.FindOrCreateConnect("deepseek", "deepseek-v4-pro");
+                var small = ConnectionConfig.FindOrCreateConnect("deepseek", "deepseek-v4-flash");
+                ConnectionConfig.AddConnection("__test_named_conn__", big!.Name, small!.Name, out _);
+
+                int FakeCount() => ConnectionConfig.ListConnects().Count(c =>
+                    string.Equals(c.ModelId, "__test_named_conn__", StringComparison.OrdinalIgnoreCase));
+                var before = FakeCount();
+
+                ConnectionConfig.ApplySpec("__test_named_conn__", true, out _);
+
+                Check("连接解析：命名连接名优先于裸模型名（ApplySpec）",
+                    ConnectionConfig.ActiveName == "__test_named_conn__"
+                    && Config.Instance.Model == "deepseek-v4-pro");
+                Check("连接解析：命名连接切换带上小模型（大+小一起切）",
+                    Config.Instance.SmallModel == "deepseek-v4-flash");
+                Check("连接解析：未把它当模型名建假 connect", FakeCount() == before);
+            }
+            finally
+            {
+                Config.Instance.Model = savedM; Config.Instance.Provider = savedP;
+                Config.Instance.SmallModel = savedSm; Config.Instance.SmallProvider = savedSp;
+                Config.Instance.BaseUrl = savedB;
+                Global.PersistDisabled = savedPersist;
+                ConnectionConfig.ClearCache();
+            }
+        }
+
         Section("[项目根解析边界（性能回归护栏）]");
         // 非项目目录下 FindProjectRoot 绝不可把用户主目录当项目根：home 下通常有 package.json，
         // 一旦被选中，DetectLanguages 会递归遍历整个 home（几十万文件）——实测系统提示词构建
