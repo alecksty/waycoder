@@ -5035,6 +5035,35 @@ public static partial class SelfTest
             Check("Office 提取: emoji 完整保留", result.StartsWith("aa😀"));
             // 截断说明正常追加
             Check("Office 提取: 截断说明保留", result.Contains("截断于 3"));
+
+            // ── DoctorEngine 的日志预览截断（v0.96.104）──
+            // 「最近日志含 N 条 ERROR」的示例预览此前写 `preview[..160] + "…"` —— 日志行含中文与 emoji，
+            // UTF-16 切片落在代理对中间就产出孤立代理项（用户看到 U+FFFD）。改走 TruncateWithEllipsis。
+            // 159 个 BMP 字 + 1 个 emoji（占 2 个 code unit）⇒ [..160] 恰好只取到 emoji 的高位代理。
+            var logLine = new string('日', 159) + "😀" + "尾部";
+            Check("日志预览截断: 旧写法 [..160] 确实切出孤立代理（这就是要修的东西）",
+                HasLoneSurrogate(logLine[..160]));
+            Check("日志预览截断: TruncateWithEllipsis 不切出孤立代理",
+                !HasLoneSurrogate(ContextManager.TruncateWithEllipsis(logLine, 160)));
+            Check("日志预览截断: 短行原样返回（不白加省略号）",
+                ContextManager.TruncateWithEllipsis("普通日志行", 160) == "普通日志行");
+
+            // 端到端：真造一份带 emoji 的 error 日志跑 CheckErrorLogs，
+            // 断言最终**提示文案**里没有孤立代理（这才能证伪调用点本身，而不是只测到 helper）。
+            // 偏移设计：preview 下标 159 是 emoji 的高位代理 ⇒ 旧的 [..160] 必然切半。
+            var docDir = Path.Combine(Path.GetTempPath(), "wc_doctor_" + Guid.NewGuid().ToString("N")[..8]);
+            try
+            {
+                Directory.CreateDirectory(Path.Combine(docDir, "logs"));
+                File.WriteAllText(Path.Combine(docDir, "logs", "error_20260101.log"),
+                    "ERROR " + new string('日', 153) + "😀" + "尾部\n", new UTF8Encoding(false));
+                var docIssues = new List<DoctorIssue>();
+                DoctorEngine.CheckErrorLogs(docDir, docIssues);
+                var msg = docIssues.Count > 0 ? docIssues[0].Message : "";
+                Check("日志预览截断: Doctor 提示文案无孤立代理（端到端）",
+                    msg.Contains("ERROR") && !HasLoneSurrogate(msg));
+            }
+            finally { try { Directory.Delete(docDir, true); } catch { } }
         }
         finally
         {
