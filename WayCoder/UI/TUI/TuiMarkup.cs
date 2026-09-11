@@ -269,7 +269,7 @@ public static class TuiMarkup
         // 快捷键：遍历 RootView 树注册按钮 shortcut，窗口 shortcut 映射到关闭
         RegisterButtonShortcuts(win, win.RootView);
         if (ParseShortcutKey(Attr(node, "shortcut")) is ConsoleKey wsc)
-            win.RegisterShortcut(wsc, () => win.OnClosed?.Invoke());
+            win.RegisterShortcut(wsc, win.Close);
 
         return win;
     }

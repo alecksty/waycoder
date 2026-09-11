@@ -95,8 +95,8 @@ public static class TuiMenu
             HasTitle = hasTitle,
             OnSelect = onSelect,
             OnCancel = onCancel,
-            // 关闭窗口回调（由 MenuView 在选中/取消时调用）
-            CloseMenu = () => { win.OnClosed?.Invoke(); },
+            // 关闭窗口回调（由 MenuView 在选中/取消时调用）—— 关窗统一走 TuiWindow.Close
+            CloseMenu = win.Close,
         };
 
         // 计算快捷键编号：仅非分隔线项参与编号，1..9 连续编号（分隔线不占编号）
@@ -129,9 +129,7 @@ public static class TuiMenu
                 win.RegisterShortcut(key, () =>
                 {
                     state.SelectedIndex = idx;
-                    state.OnSelect?.Invoke(idx);
-                    win.Result = idx;
-                    win.OnClosed?.Invoke();
+                    win.Close(idx, () => state.OnSelect?.Invoke(idx));
                 });
             }
         }
@@ -139,9 +137,7 @@ public static class TuiMenu
         // Esc 取消
         win.RegisterShortcut(ConsoleKey.Escape, () =>
         {
-            win.Result = -1;
-            state.OnCancel?.Invoke();
-            win.OnClosed?.Invoke();
+            win.Close(-1, () => state.OnCancel?.Invoke());
         });
 
         return win;

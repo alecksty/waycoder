@@ -557,7 +557,9 @@ public abstract class TuiScreen : TuiBase
                 // 窗口级快捷键优先（如 Esc 注册为取消回调）
                 if (topModal.OnKey(key))
                     return true;
-                // 未处理 → 默认关闭（OnClosed 触发 ChatScreen 的 RenderWait 退出）
+                // 未处理 → 默认关闭（OnClosed 触发 ChatScreen 的 RenderWait 退出）。
+                // 这里**故意不走 win.Close()**：消息框（Info/Success/Warn/Error）没注册 Esc 快捷键，
+                // 兜底关窗不该编造一个「结果」——保持 Result 默认 -1（无人读），与 v0.96.101 之前一致。
                 topModal.OnClosed?.Invoke();
                 return true;
             }

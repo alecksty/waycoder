@@ -268,13 +268,11 @@ public static class TuiDialog
         ApplyButtonGradient(btnGrad, btn);
         btn.OnClick = _ =>
         {
-            win.Result = EDialogResult.Ok;
-            win.OnClosed?.Invoke();
+            win.Close(EDialogResult.Ok);
         };
         win.RegisterShortcut(ConsoleKey.Enter, () =>
         {
-            win.Result = EDialogResult.Ok;
-            win.OnClosed?.Invoke();
+            win.Close(EDialogResult.Ok);
         });
 
         ApplyGradient(win, winGrad);
@@ -297,34 +295,24 @@ public static class TuiDialog
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, yesBtn, noBtn);
         yesBtn.OnClick = _ =>
         {
-            win.Result = true;
-            onResult(true);
-            win.OnClosed?.Invoke();
+            win.Close(true, () => onResult(true));
         };
         noBtn.OnClick = _ =>
         {
-            win.Result = false;
-            onResult(false);
-            win.OnClosed?.Invoke();
+            win.Close(false, () => onResult(false));
         };
 
         win.RegisterShortcut(ConsoleKey.Y, () =>
         {
-            win.Result = true;
-            onResult(true);
-            win.OnClosed?.Invoke();
+            win.Close(true, () => onResult(true));
         });
         win.RegisterShortcut(ConsoleKey.N, () =>
         {
-            win.Result = false;
-            onResult(false);
-            win.OnClosed?.Invoke();
+            win.Close(false, () => onResult(false));
         });
         win.RegisterShortcut(ConsoleKey.Escape, () =>
         {
-            win.Result = false;
-            onResult(false);
-            win.OnClosed?.Invoke();
+            win.Close(false, () => onResult(false));
         });
 
         ApplyGradient(win, TuiTheme.Current.DialogGradient);
@@ -344,40 +332,28 @@ public static class TuiDialog
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, yesBtn, noBtn, cancelBtn);
         yesBtn.OnClick = _ =>
         {
-            win.Result = EDialogResult.Yes;
-            onResult(EDialogResult.Yes);
-            win.OnClosed?.Invoke();
+            win.Close(EDialogResult.Yes, () => onResult(EDialogResult.Yes));
         };
         noBtn.OnClick = _ =>
         {
-            win.Result = EDialogResult.No;
-            onResult(EDialogResult.No);
-            win.OnClosed?.Invoke();
+            win.Close(EDialogResult.No, () => onResult(EDialogResult.No));
         };
         cancelBtn.OnClick = _ =>
         {
-            win.Result = EDialogResult.Cancel;
-            onResult(EDialogResult.Cancel);
-            win.OnClosed?.Invoke();
+            win.Close(EDialogResult.Cancel, () => onResult(EDialogResult.Cancel));
         };
 
         win.RegisterShortcut(ConsoleKey.Y, () =>
         {
-            win.Result = EDialogResult.Yes;
-            onResult(EDialogResult.Yes);
-            win.OnClosed?.Invoke();
+            win.Close(EDialogResult.Yes, () => onResult(EDialogResult.Yes));
         });
         win.RegisterShortcut(ConsoleKey.N, () =>
         {
-            win.Result = EDialogResult.No;
-            onResult(EDialogResult.No);
-            win.OnClosed?.Invoke();
+            win.Close(EDialogResult.No, () => onResult(EDialogResult.No));
         });
         win.RegisterShortcut(ConsoleKey.Escape, () =>
         {
-            win.Result = EDialogResult.Cancel;
-            onResult(EDialogResult.Cancel);
-            win.OnClosed?.Invoke();
+            win.Close(EDialogResult.Cancel, () => onResult(EDialogResult.Cancel));
         });
 
         ApplyGradient(win, TuiTheme.Current.DialogGradient);
@@ -422,23 +398,20 @@ public static class TuiDialog
         okBtn.OnClick = _ =>
         {
             var text = input.Text;
-            win.Result = text;
-            if (!string.IsNullOrWhiteSpace(text)) TuiInputHistory.Add(title, text);
-            onConfirm(text);
-            win.OnClosed?.Invoke();
+            win.Close(text, () =>
+            {
+                if (!string.IsNullOrWhiteSpace(text)) TuiInputHistory.Add(title, text);
+                onConfirm(text);
+            });
         };
         cancelBtn.OnClick = _ =>
         {
-            win.Result = null;
-            onCancel?.Invoke();
-            win.OnClosed?.Invoke();
+            win.Close(null, () => onCancel?.Invoke());
         };
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, okBtn, cancelBtn);
         win.RegisterShortcut(ConsoleKey.Escape, () =>
         {
-            win.Result = null;
-            onCancel?.Invoke();
-            win.OnClosed?.Invoke();
+            win.Close(null, () => onCancel?.Invoke());
         });
 
         // 高度按填好内容后的控件树实测（提示行 + 输入区 + 按钮行 + 各处 spacing）。
@@ -488,26 +461,23 @@ public static class TuiDialog
         void SubmitInput()
         {
             var text = input.Text;
-            win.Result = text;
-            if (!string.IsNullOrWhiteSpace(text)) TuiInputHistory.Add(title, text);
-            onConfirm(text);
-            win.OnClosed?.Invoke();
+            win.Close(text, () =>
+            {
+                if (!string.IsNullOrWhiteSpace(text)) TuiInputHistory.Add(title, text);
+                onConfirm(text);
+            });
         }
 
         okBtn.OnClick = _ => SubmitInput();
         input.OnSubmit = _ => SubmitInput(); // 单行输入框回车 = 确定
         cancelBtn.OnClick = _ =>
         {
-            win.Result = null;
-            onCancel?.Invoke();
-            win.OnClosed?.Invoke();
+            win.Close(null, () => onCancel?.Invoke());
         };
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, okBtn, cancelBtn);
         win.RegisterShortcut(ConsoleKey.Escape, () =>
         {
-            win.Result = null;
-            onCancel?.Invoke();
-            win.OnClosed?.Invoke();
+            win.Close(null, () => onCancel?.Invoke());
         });
 
         // 高度按填好内容后的控件树实测（提示行 + 输入区 + 按钮行 + 各处 spacing）。
@@ -575,19 +545,19 @@ public static class TuiDialog
         findBtn.OnClick = _ =>
         {
             onFindNext(findInput.Text, CurrentOpts());
-            win.OnClosed?.Invoke();
+            win.Close();
         };
         replBtn.OnClick = _ =>
         {
             onReplace(findInput.Text, replInput.Text, CurrentOpts());
-            win.OnClosed?.Invoke();
+            win.Close();
         };
         allBtn.OnClick = _ =>
         {
             onReplaceAll(findInput.Text, replInput.Text, CurrentOpts());
-            win.OnClosed?.Invoke();
+            win.Close();
         };
-        cancelBtn.OnClick = _ => win.OnClosed?.Invoke();
+        cancelBtn.OnClick = _ => win.Close();
         ApplyButtonGradient(TuiTheme.Current.BtnCyanBlue, findBtn);
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, replBtn);
         ApplyButtonGradient(TuiTheme.Current.BtnGreenCyan, allBtn);
@@ -596,19 +566,19 @@ public static class TuiDialog
         findInput.OnSubmit = _ =>
         {
             onFindNext(findInput.Text, CurrentOpts());
-            win.OnClosed?.Invoke();
+            win.Close();
         };
         replInput.OnSubmit = _ =>
         {
             onReplace(findInput.Text, replInput.Text, CurrentOpts());
-            win.OnClosed?.Invoke();
+            win.Close();
         };
         win.RegisterShortcut(ConsoleKey.F3, () =>
         {
             onFindNext(findInput.Text, CurrentOpts());
-            win.OnClosed?.Invoke();
+            win.Close();
         });
-        win.RegisterShortcut(ConsoleKey.Escape, () => win.OnClosed?.Invoke());
+        win.RegisterShortcut(ConsoleKey.Escape, () => win.Close());
 
         ApplyGradient(win, TuiTheme.Current.DialogGradient);
         return win;
@@ -644,25 +614,19 @@ public static class TuiDialog
 
         void SubmitInput()
         {
-            win.Result = input.Text;
-            onConfirm(input.Text);
-            win.OnClosed?.Invoke();
+            win.Close(input.Text, () => onConfirm(input.Text));
         }
 
         okBtn.OnClick = _ => SubmitInput();
         input.OnSubmit = _ => SubmitInput(); // 单行输入框回车 = 确定
         cancelBtn.OnClick = _ =>
         {
-            win.Result = null;
-            onCancel?.Invoke();
-            win.OnClosed?.Invoke();
+            win.Close(null, () => onCancel?.Invoke());
         };
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, okBtn, cancelBtn);
         win.RegisterShortcut(ConsoleKey.Escape, () =>
         {
-            win.Result = null;
-            onCancel?.Invoke();
-            win.OnClosed?.Invoke();
+            win.Close(null, () => onCancel?.Invoke());
         });
 
         // 高度按填好内容后的控件树实测（提示行 + 输入区 + 按钮行 + 各处 spacing）。
@@ -696,25 +660,19 @@ public static class TuiDialog
         win.MaxHeight = Math.Max(0, Tty.Rows - 1);
         list.OnSelect = idx =>
         {
-            win.Result = idx;
-            onSelect(idx);
-            win.OnClosed?.Invoke();
+            win.Close(idx, () => onSelect(idx));
         };
 
         var cancelBtn = res.Find<TuiButton>("cancel") ?? throw Invalid("select.tui", "cancel");
         cancelBtn.Flex = 1;
         cancelBtn.OnClick = _ =>
         {
-            win.Result = -1;
-            onCancel?.Invoke();
-            win.OnClosed?.Invoke();
+            win.Close(-1, () => onCancel?.Invoke());
         };
         ApplyButtonGradient(TuiTheme.Current.BtnCyanBlue, cancelBtn);
         win.RegisterShortcut(ConsoleKey.Escape, () =>
         {
-            win.Result = -1;
-            onCancel?.Invoke();
-            win.OnClosed?.Invoke();
+            win.Close(-1, () => onCancel?.Invoke());
         });
 
         ApplyGradient(win, TuiTheme.Current.GradCyanBlue);
@@ -750,26 +708,20 @@ public static class TuiDialog
 
         void Confirm()
         {
-            win.Result = list.CheckedIndices;
-            onConfirm(list.CheckedIndices);
-            win.OnClosed?.Invoke();
+            win.Close(list.CheckedIndices, () => onConfirm(list.CheckedIndices));
         }
 
         okBtn.OnClick = _ => Confirm();
         cancelBtn.OnClick = _ =>
         {
-            win.Result = null;
-            onCancel?.Invoke();
-            win.OnClosed?.Invoke();
+            win.Close(null, () => onCancel?.Invoke());
         };
         // 多选列表：空格勾选，Enter = 确认（等同点击“确定”按钮）
         list.OnSelect = _ => Confirm();
         ApplyButtonGradient(TuiTheme.Current.BtnCyanBlue, okBtn, cancelBtn);
         win.RegisterShortcut(ConsoleKey.Escape, () =>
         {
-            win.Result = null;
-            onCancel?.Invoke();
-            win.OnClosed?.Invoke();
+            win.Close(null, () => onCancel?.Invoke());
         });
 
         ApplyGradient(win, TuiTheme.Current.GradCyanBlue);
@@ -838,17 +790,13 @@ public static class TuiDialog
         ApplyButtonGradient(TuiTheme.Current.BtnCyanBlue, okBtn, cancelBtn);
         cancelBtn.OnClick = _ =>
         {
-            win.Result = null;
-            onCancel?.Invoke();
-            win.OnClosed?.Invoke();
+            win.Close(null, () => onCancel?.Invoke());
         };
         if (multiSelect)
         {
             void Confirm()
             {
-                win.Result = list.CheckedIndices;
-                onMultiConfirm(list.CheckedIndices);
-                win.OnClosed?.Invoke();
+                win.Close(list.CheckedIndices, () => onMultiConfirm(list.CheckedIndices));
             }
 
             okBtn.OnClick = _ => Confirm();
@@ -860,17 +808,13 @@ public static class TuiDialog
             // 单选：Enter/空格 激活当前选中项
             list.OnSelect = idx =>
             {
-                win.Result = idx;
-                onSelect(idx);
-                win.OnClosed?.Invoke();
+                win.Close(idx, () => onSelect(idx));
             };
         }
 
         win.RegisterShortcut(ConsoleKey.Escape, () =>
         {
-            win.Result = null;
-            onCancel?.Invoke();
-            win.OnClosed?.Invoke();
+            win.Close(null, () => onCancel?.Invoke());
         });
 
         ApplyGradient(win, TuiTheme.Current.GradCyanBlue);
@@ -898,21 +842,15 @@ public static class TuiDialog
         yesBtn.Focused = true;
         yesBtn.OnClick = _ =>
         {
-            win.Result = EDialogResult.Yes;
-            onResult(EDialogResult.Yes);
-            win.OnClosed?.Invoke();
+            win.Close(EDialogResult.Yes, () => onResult(EDialogResult.Yes));
         };
         noBtn.OnClick = _ =>
         {
-            win.Result = EDialogResult.No;
-            onResult(EDialogResult.No);
-            win.OnClosed?.Invoke();
+            win.Close(EDialogResult.No, () => onResult(EDialogResult.No));
         };
         allBtn.OnClick = _ =>
         {
-            win.Result = EDialogResult.Ok;
-            onResult(EDialogResult.Ok);
-            win.OnClosed?.Invoke();
+            win.Close(EDialogResult.Ok, () => onResult(EDialogResult.Ok));
         };
         ApplyButtonGradient(TuiTheme.Current.BtnOrangeYellow, yesBtn, noBtn, allBtn);
 
@@ -926,27 +864,19 @@ public static class TuiDialog
 
         win.RegisterShortcut(ConsoleKey.Y, () =>
         {
-            win.Result = EDialogResult.Yes;
-            onResult(EDialogResult.Yes);
-            win.OnClosed?.Invoke();
+            win.Close(EDialogResult.Yes, () => onResult(EDialogResult.Yes));
         });
         win.RegisterShortcut(ConsoleKey.N, () =>
         {
-            win.Result = EDialogResult.No;
-            onResult(EDialogResult.No);
-            win.OnClosed?.Invoke();
+            win.Close(EDialogResult.No, () => onResult(EDialogResult.No));
         });
         win.RegisterShortcut(ConsoleKey.A, () =>
         {
-            win.Result = EDialogResult.Ok;
-            onResult(EDialogResult.Ok);
-            win.OnClosed?.Invoke();
+            win.Close(EDialogResult.Ok, () => onResult(EDialogResult.Ok));
         });
         win.RegisterShortcut(ConsoleKey.Escape, () =>
         {
-            win.Result = EDialogResult.No;
-            onResult(EDialogResult.No);
-            win.OnClosed?.Invoke();
+            win.Close(EDialogResult.No, () => onResult(EDialogResult.No));
         });
 
         return win;
