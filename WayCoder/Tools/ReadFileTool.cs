@@ -11,7 +11,7 @@ namespace WayCoder.Tools;
 ///
 /// 功能：
 ///   - 带行号的文件内容读取
-///   - PDF 文本提取（PdfPig，支持分页）
+///   - PDF 文本提取（手搓 PdfParser，纯 BCL，支持分页）
 ///   - Markdown 结构化渲染（标题/代码块/表格/列表）
 ///   - 文件不存在时提供相似文件名建议（"Did you mean?"）
 ///   - UTF-8 验证
