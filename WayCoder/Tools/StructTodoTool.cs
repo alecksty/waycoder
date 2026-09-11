@@ -121,18 +121,13 @@ public class StructTodoTool : ITool
 
     private static string List(Dictionary<string, object?> args)
     {
-        var todos = TodoStore.Load();
-        var filter = args.GetValueOrDefault("filter")?.ToString();
-        if (!string.IsNullOrWhiteSpace(filter))
-        {
-            var statuses = filter.Split(',', StringSplitOptions.TrimEntries).ToHashSet();
-            todos = todos.Where(t => statuses.Contains(t.Status)).ToList();
-        }
+        // 加载 + filter + 排序的共同前置已收敛到 TodoStore.LoadFiltered（与 todo 共用）
+        var todos = TodoStore.LoadFiltered(args.GetValueOrDefault("filter")?.ToString());
 
         if (todos.Count == 0) return "📋 任务列表为空";
 
         var lines = new List<string> { $"📋 任务列表 ({todos.Count} 项)" };
-        foreach (var t in todos.OrderBy(t => TodoStore.Order(t.Status)).ThenBy(t => t.CreatedAt))
+        foreach (var t in todos)
         {
             var emoji = TodoStore.Emoji(t.Status);
             var deps = t.DependsOn.Count > 0 ? $" (依赖: {string.Join(", ", t.DependsOn)})" : "";
