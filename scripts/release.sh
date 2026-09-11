@@ -182,8 +182,12 @@ cat <<EOF
 
   ③ 上传后必须回验远端 == dist（清单 sha 只对 dist 负责，上传错文件同样会导致安装失败）:
     gh release upload $VERSION dist/waycoder-$VERSION-* dist/SHA256SUMS.txt --clobber
-    gh release download $VERSION --pattern '*osx-arm64*' --clobber -D /tmp/vfy
-    shasum -a 256 /tmp/vfy/*.tar.gz | awk '{print \$1}' | grep -q "\$(grep osx-arm64 "$DIST/SHA256SUMS.txt" | awk '{print \$1}')" && echo "远端一致"
+    # 比对远端资产 digest 与本地 SHA256SUMS（SHA256SUMS.txt 自身不在其内容里，故先滤掉）
+    gh release view $VERSION --json assets \\
+      --jq '.assets[] | "\\(.digest|sub("sha256:";""))  \\(.name)"' | grep -v SHA256SUMS.txt | sort > /tmp/remote.txt
+    diff /tmp/remote.txt <(sort "$DIST/SHA256SUMS.txt") && echo "✅ 远端与 dist 逐项一致"
+    # 安装端端到端验收（校验和通过 = 前三步真的对齐了）
+    brew fetch --force alecksty/waycoder/waycoder
 EOF
 
 echo ""
