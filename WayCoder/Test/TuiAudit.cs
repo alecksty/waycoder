@@ -138,80 +138,20 @@ public static class TuiAudit
 
     // ── ANSI 帧解释成文本网格 ──
 
-    /// <summary>把 CursorPos/SGR 定位的原始 ANSI 输出解释成 rows×cols 文本网格。</summary>
+    /// <summary>
+    /// 把 ANSI 输出渲染成字符网格（固定 rows 行，末尾空行裁掉）。
+    ///
+    /// 直接复用 <see cref="Keypad.FrameBuffer"/>（按键测试用的同一套 ANSI 屏幕模拟器）——
+    /// 此前这里是**第二份手写解析**：只处理 CUP/\r\n\t/字符，而它的输出拼接逻辑
+    /// （跳宽字符延续格 + TrimEnd + 裁末尾空行）与 FrameBuffer.Dump 逐字相同。
+    /// 两套模拟器意味着「审计说渲染对了、按键测试说错了」这类自相矛盾的结论，
+    /// 而两者本该对同一份终端输出给出同一张网格。
+    /// </summary>
     internal static List<string> AnsiToGrid(string ansi, int rows, int cols)
     {
-        // 尺寸 ≤ 0（无控制台/CI）会令下方 Math.Clamp 抛异常终止整个自测，保底 1×1 网格
-        rows = Math.Max(rows, 1);
-        cols = Math.Max(cols, 1);
-        var cell = new string[rows][];
-        var cont = new bool[rows][];
-        for (int r = 0; r < rows; r++)
-        {
-            cell[r] = new string[cols];
-            cont[r] = new bool[cols];
-            for (int c = 0; c < cols; c++) cell[r][c] = " ";
-        }
-
-        int curR = 0, curC = 0, i = 0, len = ansi.Length;
-        while (i < len)
-        {
-            char ch = ansi[i];
-            if (ch == '\x1b' && i + 1 < len && ansi[i + 1] == '[')
-            {
-                int j = i + 2;
-                while (j < len && !(ansi[j] >= '@' && ansi[j] <= '~')) j++;
-                if (j >= len) break;
-                char final = ansi[j];
-                string param = ansi.Substring(i + 2, j - (i + 2));
-                i = j + 1;
-                if (final == 'H' || final == 'f') // CUP / HVP：行;列，1-based
-                {
-                    int row = 1, col = 1;
-                    var p = param.Split(';');
-                    if (p.Length >= 1 && int.TryParse(p[0], out var rr)) row = rr;
-                    if (p.Length >= 2 && int.TryParse(p[1], out var cc)) col = cc;
-                    curR = Math.Clamp(row - 1, 0, rows - 1);
-                    curC = Math.Clamp(col - 1, 0, cols - 1);
-                }
-                continue;
-            }
-            if (ch == '\r') { curC = 0; i++; continue; }
-            if (ch == '\n') { curR++; curC = 0; i++; continue; }
-            if (ch == '\t') { curC += 4 - (curC % 4); i++; continue; }
-
-            var rune = Rune.GetRuneAt(ansi, i);
-            int w = AnsiString.CharWidth(rune);
-            string s = rune.ToString();
-            i += rune.Utf16SequenceLength;
-
-            if (w == 0)
-            {
-                // 零宽字符（组合标记/变体选择器 FE0F 等）：不占列，跳过，避免列错位
-                continue;
-            }
-
-            if (curR >= 0 && curR < rows && curC >= 0 && curC < cols)
-            {
-                cell[curR][curC] = s;
-                if (w == 2 && curC + 1 < cols) cont[curR][curC + 1] = true;
-            }
-            curC += w;
-        }
-
-        var lines = new List<string>();
-        for (int r = 0; r < rows; r++)
-        {
-            var sb = new StringBuilder();
-            for (int c = 0; c < cols; c++)
-            {
-                if (cont[r][c]) continue; // 宽字符延续格
-                sb.Append(cell[r][c]);
-            }
-            lines.Add(sb.ToString().TrimEnd());
-        }
-        while (lines.Count > 0 && lines[^1].Length == 0) lines.RemoveAt(lines.Count - 1);
-        return lines;
+        var fb = new Keypad.FrameBuffer(rows, cols);
+        fb.Apply(ansi);
+        return fb.Dump();
     }
 
     static void PrintSection(string name, IEnumerable<string> lines)

@@ -586,6 +586,19 @@ public static partial class SelfTest
             }
         }
 
+        Section("[ANSI 网格：审计与按键测试同一套模拟器]");
+        // TuiAudit.AnsiToGrid 此前是第二份手写解析（只处理 CUP/\r\n\t/字符），
+        // 现已复用 Keypad.FrameBuffer（按键测试用的那套）——否则两个工具会对同一份终端
+        // 输出给出互相矛盾的结论。这里钉住它的语义：CUP 定位、宽字符延续格、裁末尾空行。
+        {
+            Check("ANSI 网格: CUP 定位到第 2 行第 3 列写字，末尾空行裁掉",
+                TuiAudit.AnsiToGrid("\x1b[2;3H中", 3, 10) is ["", "  中"]);
+            Check("ANSI 网格: 宽字符占两格（延续格不重复输出字符）",
+                TuiAudit.AnsiToGrid("中文", 1, 10) is ["中文"]);
+            Check("ANSI 网格: SGR 颜色序列不占格子",
+                TuiAudit.AnsiToGrid("\x1b[31m红\x1b[0m", 1, 10) is ["红"]);
+        }
+
         Section("[列表导航键表：选择器共用]");
         {
             ConsoleKeyInfo K(ConsoleKey k, char c = '\0') => new(c, k, false, false, false);
