@@ -10,7 +10,7 @@ namespace WayCoder.UI.Cli.Arguments;
 
 public class PromptArg : CliArg
 {
-    public override string Description => "一次性提示词。-p1~-p0 投递槽位, -pa 共享前缀, 同槽位可排队";
+    public override string Description => "一次性提示词（CLI 纯文本输出，跑完退出）。-p1~-p0 投递槽位(进 TUI), -pa 共享前缀, 同槽位可排队";
     public override int ValueCount => 1;
     public override string? ValueLabel => "文本";
     // --print 别名（-p/--print），OpenCode 对应 run <message>
