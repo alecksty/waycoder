@@ -35,21 +35,18 @@ public static class SearchableListPicker
             if (onExtraKey != null && onExtraKey(key))
                 return true;
 
-            switch (key.Key)
+            // 导航键表与 ModelPicker.ClassifyKey 共用一份（见 TuiListNav）
+            if (WayCoder.UI.TUI.Custom.TuiListNav.IsNavKey(key))
             {
-                case ConsoleKey.UpArrow:
-                case ConsoleKey.DownArrow:
-                case ConsoleKey.Home:
-                case ConsoleKey.End:
-                case ConsoleKey.PageUp:
-                case ConsoleKey.PageDown:
-                    list.OnKey(key);
-                    list.MarkDirty();
-                    screen?.MarkDirty();
-                    return true;
-                case ConsoleKey.Enter:
-                    activate();
-                    return true;
+                list.OnKey(key);
+                list.MarkDirty();
+                screen?.MarkDirty();
+                return true;
+            }
+            if (key.Key == ConsoleKey.Enter)
+            {
+                activate();
+                return true;
             }
 
             return false; // 普通字符 / Backspace 交给输入框默认编辑

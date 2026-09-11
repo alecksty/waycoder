@@ -709,18 +709,9 @@ public static class ModelPicker
     {
         slot = -1;
 
-        switch (key.Key)
-        {
-            case ConsoleKey.UpArrow:
-            case ConsoleKey.DownArrow:
-            case ConsoleKey.Home:
-            case ConsoleKey.End:
-            case ConsoleKey.PageUp:
-            case ConsoleKey.PageDown:
-                return EKeyAction.Nav;
-            case ConsoleKey.Enter:
-                return EKeyAction.Commit;
-        }
+        // 导航键表与 SearchableListPicker 共用一份（见 TuiListNav，漂移会让同一个键在两处表现不同）
+        if (TuiListNav.IsNavKey(key)) return EKeyAction.Nav;
+        if (key.Key == ConsoleKey.Enter) return EKeyAction.Commit;
 
         // F1-F10 → 槽位 0-9（模态框里 F 键不会被 REPL 抢走，RenderWait 自己收键）
         if (key.Key is >= ConsoleKey.F1 and <= ConsoleKey.F10)
