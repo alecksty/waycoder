@@ -1485,6 +1485,36 @@ public static partial class SelfTest
         // ── ps 工具注入拦截 ──
         Check("ps: 非法进程名拦截",
             new PsTool().ExecuteAsync(new() { ["name"] = "foo; rm -rf /" }).Result.Contains("非法字符"));
+
+        // ── cmd.exe / powershell 启动点的输出解码（v0.96.102）──
+        // Windows 上 cmd.exe 及其子命令（tasklist/taskkill）向**重定向管道**写的是系统 OEM 代码页字节
+        // （中文系统 GBK），不设解码则中文进程名/提示语全是乱码。实测 `tasklist /NH` 输出含非 ASCII
+        // （「微信开发者工具.exe」）、`taskkill` 的「错误: 没有找到进程…」、`powershell` 的中文回显，
+        // 三者按 UTF-8 解码**全部失败**。这三处此前漏了 `ProcEncoding.Apply`（CLAUDE.md 既有铁律）。
+        if (OperatingSystem.IsWindows())
+        {
+            var oem = WayCoder.Infra.ProcEncoding.OemEncoding;
+            Check("cmd 解码: ps 的 psi 设了 OEM 输出解码",
+                PsTool.BuildPsi("cmd.exe", "/c tasklist").StandardOutputEncoding == oem);
+            Check("cmd 解码: kill 的 psi 设了 OEM 输出解码",
+                KillTool.BuildPsi("cmd.exe", "/c taskkill").StandardOutputEncoding == oem);
+
+            // 端到端：真跑一次 cmd 回显中文，断言解码后拿到原字（含替换字符即失败）
+            try
+            {
+                var psi = PsTool.BuildPsi("cmd.exe", "/c echo 中文测试ABC");
+                var r = WayCoder.Infra.ProcUtil.RunAsync(psi, 5000).GetAwaiter().GetResult();
+                var outText = r?.Stdout ?? "";
+                Check("cmd 解码: cmd 回显中文端到端不乱码",
+                    outText.Contains("中文测试ABC") && !outText.Contains('�'));
+            }
+            catch (Exception ex) { Check($"cmd 解码: 端到端异常 {ex.Message}", false); }
+        }
+        else
+        {
+            Check("cmd 解码: 非 Windows 不设解码（/bin/bash 本就 UTF-8）",
+                PsTool.BuildPsi("/bin/bash", "-c ps").StandardOutputEncoding is null);
+        }
     }
 
     private static void TestSsgfGuard(Action<string, bool> Check)

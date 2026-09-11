@@ -1,5 +1,45 @@
 # 更新日志
 
+## v0.96.102 (2026-09-11) — `ps` / `kill` / 抓屏的 cmd 启动点漏了解码（中文系统必乱码）
+
+3 工具改动，**+92 / −23 行**；自测 **+3 条护栏**。
+
+### 问题
+
+CLAUDE.md 有一条既有铁律：**「新建任何启动 cmd/bash 子进程的代码都要调 `ProcEncoding.Apply`」**
+—— cmd.exe 及其子命令向**重定向管道**写的是系统 OEM 代码页字节（中文系统 GBK），
+按 UTF-8 解码必乱码。这条铁律有三处**漏了**，且都是「智能体直接读它的输出」的工具：
+
+| 位置 | 子进程 | 实测输出 |
+|---|---|---|
+| `Tools/PsTool.cs` | `cmd.exe /c tasklist` | `tasklist /NH` 有 **350 字节非 ASCII**（`微信开发者工具.exe` 等），UTF-8 解码在偏移 27928 处失败 |
+| `Tools/KillTool.cs` | `cmd.exe /c taskkill` | `错误: 没有找到进程 "999999"。` —— 非法 UTF-8 |
+| `Tools/ScreenshotTool.cs` | `powershell -Command` | `中文测试 abc` —— 非法 UTF-8 |
+
+后果不是「显示难看」：`ps` 的中文进程名解成乱码后，智能体**照着拼进 `kill` 必然失败**；
+`kill` 的成败提示解成乱码后，**它读不出杀成功还是杀失败**。
+
+**三条都是实测确认的**（不是按代码推断）：直接抓子进程 stdout 字节，
+`b.decode('utf-8')` 全部抛 `UnicodeDecodeError`，`b.decode('gbk')` 全部还原成正确中文。
+
+### 修法
+
+三处各补 `ProcEncoding.Apply(psi)`。**没有**塞进 `ProcUtil.RunAsync` 一刀切 ——
+它同时还服务 `git`（UTF-8）、`sqlite3`（UTF-8）、`dotnet build`/`ruff`/`npx`（UTF-8）、
+`gdb`（UTF-8），套上 OEM 解码会把它们的输出解成乱码。**判据是「子进程是不是 Windows 控制台工具」，
+不是「有没有重定向」**：
+
+- `PsTool` / `KillTool` 的 psi 装配提成 `internal static BuildPsi(fileName, args)`（工具本就只在 Windows 走 cmd.exe）
+- `ScreenshotTool.RunProcess` 加 `oemDecode` 参数，**默认 false** —— 只有 Windows 抓屏那条
+  powershell 路径传 true，`tesseract` 保持 UTF-8（它输出的正是中文 OCR 文本，套 OEM 解码反而毁掉）
+
+### 验证
+
+新增 3 条断言：两条断言 `BuildPsi` 的 `StandardOutputEncoding == ProcEncoding.OemEncoding`，
+一条**端到端真跑 cmd 回显中文**（`/c echo 中文测试ABC`）断言解出原字且不含 `�`。
+**证伪过** —— 摘掉 `PsTool.BuildPsi` 里的 `Apply`，其中两条立刻变红。
+`--test` **5225 / 5225**；桌面 / Gui / MAUI Android 三工程构建均 0 错误。
+
 ## v0.96.101 (2026-09-11) — 重复代码清理（C 级第十批）：模态窗关闭协议单出口
 
 9 文件改动，**+194 / −142 行**；自测 **+16 条护栏**。
