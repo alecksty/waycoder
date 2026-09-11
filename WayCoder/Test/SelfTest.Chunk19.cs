@@ -5,6 +5,7 @@ using WayCoder.UI.Cli.Arguments;
 using WayCoder.UI.Cli.Commands;
 using WayCoder.UI.Shared;
 using WayCoder.UI.TUI.Base;
+using WayCoder.UI.TUI.Custom;
 
 namespace WayCoder;
 
@@ -583,6 +584,19 @@ public static partial class SelfTest
                 Global.PersistDisabled = savedPersist;
                 ConnectionConfig.ClearCache();
             }
+        }
+
+        Section("[列表导航键表：选择器共用]");
+        {
+            ConsoleKeyInfo K(ConsoleKey k, char c = '\0') => new(c, k, false, false, false);
+            Check("导航键: 上下/Home/End/PageUp/PageDown 为导航键",
+                TuiListNav.IsNavKey(K(ConsoleKey.UpArrow)) && TuiListNav.IsNavKey(K(ConsoleKey.DownArrow))
+                && TuiListNav.IsNavKey(K(ConsoleKey.Home)) && TuiListNav.IsNavKey(K(ConsoleKey.End))
+                && TuiListNav.IsNavKey(K(ConsoleKey.PageUp)) && TuiListNav.IsNavKey(K(ConsoleKey.PageDown)));
+            Check("导航键: Enter / 字母 / 左右方向键不算（要交给提交或搜索框）",
+                !TuiListNav.IsNavKey(K(ConsoleKey.Enter, '\r'))
+                && !TuiListNav.IsNavKey(K(ConsoleKey.A, 'a'))
+                && !TuiListNav.IsNavKey(K(ConsoleKey.LeftArrow)));
         }
 
         Section("[区间合并与转录构建：共用实现]");
