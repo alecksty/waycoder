@@ -7,6 +7,9 @@ Commands:
 Installers:
   - Architecture: x64
     InstallerUrl: https://github.com/alecksty/waycoder/releases/download/v0.96.105/waycoder-v0.96.105-win-x64.zip
-    InstallerSha256: 833c0513e9d29e37a925e733294982cb2752744eb45798077fde103c98ae6d0a
+    InstallerSha256: b615650a125d9ecaac1a98d2d52b758dcda6814cf2b26bb8327f818f7812d896
+  - Architecture: arm64
+    InstallerUrl: https://github.com/alecksty/waycoder/releases/download/v0.96.105/waycoder-v0.96.105-win-arm64.zip
+    InstallerSha256: 53aac45fd7596ff961c6cf33c5874ba9224d07cc82f480638ffe893c838c000a
 ManifestType: installer
 ManifestVersion: 1.6.0
