@@ -1,5 +1,28 @@
 # 更新日志
 
+## v0.96.98 (2026-09-11) — 重复代码清理（C 级第七批）：日志文件句柄生命周期
+
+2 文件改动 + 1 新增，**+16 / −145 行**。
+
+### `RotatingFileWriter`（新）
+
+`FileLogSink` 与 `JsonLogSink` 各写一遍 `EnsureOpen` / `Flush` / `Dispose` 样板，
+连 `StreamWriter` 的构造都逐字相同（`new FileStream(path, Append, Write, FileShare.Read)`
++ `UTF8Encoding(false)`）。其中 `FileLogSink` 内部**同一个构造表达式还写了两遍**
+（首次打开 + 按大小轮转后重开）。
+
+差异全部提成构造参数，语义仍由各 sink 自己决定：
+
+- `FileLogSink`：`rotateByDate: _rotateByDate, maxFileSizeBytes: _maxFileSizeBytes,
+  flushEveryWrite: !_buffered`（保留「按大小 + 按日期」双策略与 `_rotateSeq`）
+- `JsonLogSink`：`.jsonl`，只按日期、逐条 flush、不按大小轮转
+
+**为什么这类重复值得收**（已写进类注释）：样板漏改一处**没有任何编译期提示** ——
+漏 `Flush` 会丢日志，漏 `FileShare.Read` 会把文件**独占锁死**（外部连 `tail` 都打不开）。
+现在句柄打开只有一处。
+
+**验证**：`--test` **5191 / 5191**；桌面 / Gui / MAUI Android 三工程构建均 0 错误。
+
 ## v0.96.97 (2026-09-11) — 重复代码清理（C 级第六批）：相对时间阶梯 / 模型文件移除
 
 6 文件，**+72 / −65 行**；自测 **+7 条护栏**。

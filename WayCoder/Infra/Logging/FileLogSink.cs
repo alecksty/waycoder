@@ -10,17 +10,9 @@ namespace WayCoder;
 public sealed class FileLogSink : ILogSink
 {
     private readonly string _directory;
-    private readonly string _appName;
     private readonly LogLevel _minLevel;
-    private readonly long _maxFileSizeBytes;
-    private readonly bool _rotateByDate;
-    private readonly bool _buffered;
-    private readonly Lock _lock = new();
-
-    private StreamWriter? _writer;
-    private DateTime _currentDate;
-    private long _currentSize;
-    private int _rotateSeq;
+    /// <summary>句柄生命周期与轮转策略全在它手里（与 JsonLogSink 共用唯一实现）。</summary>
+    private readonly RotatingFileWriter _file;
 
     /// <summary>槽名称。</summary>
     public string Name => "file";
@@ -49,12 +41,11 @@ public sealed class FileLogSink : ILogSink
         bool buffered = true)
     {
         _directory = Path.GetFullPath(directory);
-        _appName = string.IsNullOrWhiteSpace(appName) ? "app" : appName;
         _minLevel = minLevel;
-        _maxFileSizeBytes = maxFileSizeBytes;
-        _rotateByDate = rotateByDate;
-        _buffered = buffered;
-        System.IO.Directory.CreateDirectory(_directory);
+        _file = new RotatingFileWriter(_directory, appName, ".log",
+            rotateByDate: rotateByDate,
+            maxFileSizeBytes: maxFileSizeBytes,
+            flushEveryWrite: !buffered);
     }
 
     /// <summary>写出一条日志到文件。</summary>
@@ -62,81 +53,12 @@ public sealed class FileLogSink : ILogSink
     {
         if (entry.Level < _minLevel) return;
 
-        var line = entry.ToString();
-        var text = line + Environment.NewLine;
-
-        lock (_lock)
-        {
-            try
-            {
-                EnsureOpen(entry.Timestamp);
-                _writer!.Write(text);
-                _currentSize += Encoding.UTF8.GetByteCount(text);
-                if (!_buffered) _writer.Flush();
-            }
-            catch (IOException)
-            {
-                // 磁盘不可写等场景静默失败，避免影响主流程。
-            }
-        }
+        _file.Write(entry.ToString() + Environment.NewLine, entry.Timestamp);
     }
 
     /// <summary>刷盘，确保缓冲内容写入磁盘。</summary>
-    public void Flush()
-    {
-        lock (_lock)
-        {
-            try { _writer?.Flush(); } catch (IOException) { /* 忽略 */ }
-        }
-    }
+    public void Flush() => _file.Flush();
 
     /// <summary>关闭并释放文件句柄。</summary>
-    public void Dispose()
-    {
-        lock (_lock)
-        {
-            try { _writer?.Flush(); } catch { /* 忽略 */ }
-            _writer?.Dispose();
-            _writer = null;
-        }
-    }
-
-    private void EnsureOpen(DateTimeOffset ts)
-    {
-        var now = ts.LocalDateTime;
-        if (_writer is not null && _rotateByDate && now.Date != _currentDate)
-        {
-            _writer.Flush();
-            _writer.Dispose();
-            _writer = null;
-            _rotateSeq = 0;
-        }
-
-        if (_writer is null)
-        {
-            _currentDate = now.Date;
-            _currentSize = 0;
-            var path = BuildPath(_currentDate, _rotateSeq);
-            _writer = new StreamWriter(
-                new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read),
-                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-        }
-        else if (_maxFileSizeBytes > 0 && _currentSize >= _maxFileSizeBytes)
-        {
-            _writer.Flush();
-            _writer.Dispose();
-            _rotateSeq++;
-            var path = BuildPath(_currentDate, _rotateSeq);
-            _currentSize = 0;
-            _writer = new StreamWriter(
-                new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read),
-                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-        }
-    }
-
-    private string BuildPath(DateTime date, int seq)
-    {
-        var name = $"{_appName}.{date:yyyyMMdd}" + (seq > 0 ? $".{seq}" : string.Empty) + ".log";
-        return System.IO.Path.Combine(_directory, name);
-    }
+    public void Dispose() => _file.Dispose();
 }
