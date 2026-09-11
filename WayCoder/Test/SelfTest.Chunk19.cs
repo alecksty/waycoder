@@ -584,6 +584,43 @@ public static partial class SelfTest
             }
         }
 
+        Section("[Claude 会话解析：唯一实现]");
+        // ContextBridge（导外部会话进上下文，要工具调用/摘要）与 ImportHelper（导入成消息）
+        // 此前各写一份同格式解析，连文本提取都有三份 → 收敛为 ClaudeSessionParser。
+        {
+            var jsonl = string.Join("\n",
+                """{"type":"user","message":{"content":"你好"}}""",
+                """{"type":"user","isSidechain":true,"message":{"content":"侧链应跳过"}}""",
+                """{"type":"assistant","message":{"content":[{"type":"text","text":"回复一"},{"type":"tool_use","name":"todo_write","input":{"todos":[{"id":"1"}]}},{"type":"text","text":"回复二"}]}}""",
+                """{"type":"summary","summary":"会话摘要"}""",
+                """{"type":"unknown_thing"}""",
+                """不是 JSON 的行""");
+            var tmpJsonl = Path.Combine(Path.GetTempPath(), "waycoder_cc_" + Guid.NewGuid().ToString("N")[..6] + ".jsonl");
+            try
+            {
+                File.WriteAllText(tmpJsonl, jsonl);
+                var entries = ClaudeSessionParser.Parse(tmpJsonl);
+                Check("Claude 解析: 跳过侧链与无法解析的行（user/assistant×2/tool/summary 共 5 条）",
+                    entries.Count == 5);
+                Check("Claude 解析: user 正文", entries[0].Kind == "user" && entries[0].Text == "你好");
+                // 顺序严格按块出现次序：text(回复一) → tool_use → text(回复二)
+                Check("Claude 解析: assistant 多个 text 块各成一条（按块序）",
+                    entries[1].Kind == "assistant" && entries[1].Text == "回复一"
+                    && entries[3].Kind == "assistant" && entries[3].Text == "回复二");
+                Check("Claude 解析: tool_use 带出工具名与 input（夹在文本块之间也按序）",
+                    entries[2].Kind == "tool" && entries[2].ToolName == "todo_write"
+                    && entries[2].ToolInput?["todos"] != null);
+                Check("Claude 解析: summary 单独成条", entries[4].Kind == "summary" && entries[4].Text == "会话摘要");
+            }
+            finally { try { File.Delete(tmpJsonl); } catch { } }
+
+            Check("Claude 解析: ExtractText 字符串直通", ClaudeSessionParser.ExtractText(JNode.Str("abc")) == "abc");
+            Check("Claude 解析: ExtractText 数组取 text 块并以换行连接",
+                ClaudeSessionParser.ExtractText(Json.Parse("""[{"type":"text","text":"A"},{"type":"text","text":"B"}]""")) == "A\nB");
+            Check("Claude 解析: ExtractText 空数组 → null（旧版返回空串会让标题变空）",
+                ClaudeSessionParser.ExtractText(JNode.Array()) == null);
+        }
+
         Section("[任务列表：todo 与 struct_todo 共用前置]");
         // 两个工具的 List 此前各写一份逐字相同的「Load + filter 解析 + OrderBy/ThenBy」，
         // 只有之后的渲染格式不同（那是刻意的）。前置收敛为 TodoStore.LoadFiltered。
