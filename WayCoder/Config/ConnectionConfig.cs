@@ -373,6 +373,13 @@ public static partial class ConnectionConfig
         // connect 名：保持命名身份切换
         if (FindConnect(s) != null) { SetActiveConnect(isLarge, s, out message); return; }
 
+        // 命名连接名（等价于 `use <name>`）：`select default` / `/connect default` 的意图几乎总是
+        // 「切到名为 default 的那条命名连接」，而不是把 "default" 当作模型名去建一个假 connect。
+        // 少了这一条，上面两条解析都会落空，最终走「裸模型名」分支 —— 静默写出
+        // providerId/modelId="default" 的垃圾条目，并把主模型换成一个根本不存在的模型。
+        // 命名连接本身就是「大 + 小一起切」的语义，故不受 isLarge 影响。
+        if (FindConnection(s) != null) { ActivateConnection(s, out message); return; }
+
         if (!TryParseSpec(s, out var pid, out var mid, out var baseUrl))
         {
             message = $"无法识别指令「{s}」。用法: /connect <connectId | providerId.modelId | providerId/modelId | baseUrl:model | modelId>";
