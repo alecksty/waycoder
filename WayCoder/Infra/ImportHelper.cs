@@ -1,4 +1,5 @@
 using System.Text;
+using WayCoder.Tools;
 
 namespace WayCoder.Infra;
 
@@ -679,59 +680,22 @@ public static class ImportHelper
         }
     }
     /// <summary>将 MCP 服务器列表去重写入 mcp_servers.json</summary>
-    private static async Task<string> WriteMcpServersAsync(List<JNode> imported, StringBuilder sb)
+    private static Task<string> WriteMcpServersAsync(List<JNode> imported, StringBuilder sb)
     {
-        if (imported.Count == 0) return sb.ToString().Trim();
+        if (imported.Count == 0) return Task.FromResult(sb.ToString().Trim());
 
         var cwd = Environment.CurrentDirectory;
         var waycoderDir = Global.FindExistingConfigDir(cwd);
-        string targetDir;
-        if (waycoderDir != null)
-        {
-            targetDir = Path.Combine(cwd, waycoderDir);
-        }
-        else
-        {
-            targetDir = Path.Combine(cwd, ".waycoder");
-            Directory.CreateDirectory(targetDir);
-        }
-
+        var targetDir = waycoderDir != null ? Path.Combine(cwd, waycoderDir) : Path.Combine(cwd, ".waycoder");
         var mcpPath = Path.Combine(targetDir, "mcp_servers.json");
-        var existing = JNode.Array();
-        if (File.Exists(mcpPath))
-        {
-            try
-            {
-                var existingJson = Json.Parse(File.ReadAllText(mcpPath, Encoding.UTF8));
-                if (existingJson is { Kind: JKind.Array } arr)
-                {
-                    foreach (var item in arr.Items)
-                    {
-                        var comment = item?["_comment"]?.AsString() ?? "";
-                        if (!comment.Contains("示例"))
-                            existing.Add(item!.Clone()!);
-                    }
-                }
-            }
-            catch { }
-        }
 
-        var existingNames = existing.Items
-            .Select(e => e?["name"]?.AsString())
-            .Where(n => n != null)
-            .ToHashSet();
-
-        foreach (var item in imported)
-        {
-            var itemName = item["name"]?.AsString();
-            if (itemName != null && !existingNames.Contains(itemName))
-                existing.Add(item);
-        }
-
-        var jsonStr = existing.ToJson(true);
-        await File.WriteAllTextAsync(mcpPath, jsonStr, Encoding.UTF8);
-        sb.AppendLine($"  📝 已写入 {imported.Count} 个服务器 → {mcpPath}");
-        return sb.ToString().Trim();
+        // 读 → 去重 → 写 全部交给 McpConfigStore（该文件的唯一读写实现，原子写 + 无 BOM）。
+        // 此前这里与 McpClient.AddServerToConfig 各写一套，且**去重口径相反**（此处区分大小写）。
+        var added = McpConfigStore.TryAddRange(mcpPath, imported);
+        sb.AppendLine(added == 0
+            ? "  ⏭ MCP 服务器均已存在，未新增"
+            : $"  📝 已写入 {added} 个服务器 → {mcpPath}");
+        return Task.FromResult(sb.ToString().Trim());
     }
 
     /// <summary>

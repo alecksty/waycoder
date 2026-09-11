@@ -523,42 +523,16 @@ public static class McpManager
         var cwd = Environment.CurrentDirectory;
         var waycoderDir = Global.FindExistingConfigDir(cwd);
         // FindExistingConfigDir 只返回目录名（.waycoder/.corecoder），且可能命中祖先目录；
-        // 一律按 cwd 下同名目录写入，并确保目录存在（祖先目录命中时 cwd 下可能没有该目录）。
+        // 一律按 cwd 下同名目录写入（目录由 McpConfigStore.Save 的 EnsureDir 兜底创建）。
         var targetDir = Path.Combine(cwd, waycoderDir ?? ".waycoder");
-        Directory.CreateDirectory(targetDir);
-
         var mcpPath = Path.Combine(targetDir, "mcp_servers.json");
-        var existing = JNode.Array();
-        if (File.Exists(mcpPath))
-        {
-            try
-            {
-                var existingJson = Json.Parse(File.ReadAllText(mcpPath, Encoding.UTF8));
-                if (existingJson is { Kind: JKind.Array } arr)
-                {
-                    foreach (var item in arr.Items)
-                    {
-                        var comment = item?["_comment"]?.AsString() ?? "";
-                        if (!comment.Contains("示例"))
-                            existing.Add(item!.Clone()!);
-                    }
-                }
-            }
-            catch { /* 旧配置损坏则重建 */ }
-        }
 
-        var existingNames = existing.Items
-            .Select(e => e?["name"]?.AsString())
-            .Where(n => n != null)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        if (existingNames.Contains(name))
-            return (false, $"服务器 {name} 已存在配置中");
-
-        existing.Add(server);
         try
         {
-            File.WriteAllText(mcpPath, existing.ToJson(true), Encoding.UTF8);
-            return (true, mcpPath);
+            // 读 → 去重 → 写 全在 McpConfigStore（该文件的唯一读写实现，见其类注释）
+            return McpConfigStore.TryAdd(mcpPath, server, out var err)
+                ? (true, mcpPath)
+                : (false, err ?? "写入失败");
         }
         catch (Exception ex)
         {

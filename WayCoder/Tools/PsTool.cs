@@ -36,20 +36,9 @@ public class PsTool : ITool
     /// 本工具此前漏了。（非 Windows 走 /bin/bash，本就 UTF-8，`Apply` 自动跳过。）
     /// </summary>
     internal static ProcessStartInfo BuildPsi(string fileName, string args)
-    {
-        var psi = new ProcessStartInfo
-        {
-            FileName = fileName,
-            Arguments = args,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            RedirectStandardInput = true, // 不共享主控台 stdin（ProcUtil 启动后置 EOF，防 TUI ReadKey 竞态）
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-        WayCoder.Infra.ProcEncoding.Apply(psi);
-        return psi;
-    }
+        // 实现已收敛到 ProcUtil（重定向 + 主控台 stdin 隔离 + Windows OEM 解码），
+        // 此前 KillTool/PsTool 各一份逐字相同的实现，连 Apply 的修复都各做了一遍。
+        => WayCoder.Infra.ProcUtil.BuildPsi(fileName, args);
 
     private static async Task<string> Execute(string name, int top)
     {

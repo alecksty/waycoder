@@ -48,6 +48,9 @@ internal class StdioMcpTransport : McpTransport
             CreateNoWindow = true,
             WorkingDirectory = workingDirectory,
         };
+        // MCP server 常配成 `npx -y @xxx/server`，而 npx 在 Windows 上是 .cmd 包装器
+        // （输出 OEM 代码页字节）；直接跑 node / python 的则要保持 UTF-8 —— 按名字判断
+        WayCoder.Infra.ProcEncoding.ApplyIfConsoleWrapper(startInfo, command);
 
         if (env != null)
         {

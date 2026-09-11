@@ -390,7 +390,9 @@ public partial class Program
   }
 ]
 ";
-            File.WriteAllText(mcpPath, mcpTemplate, Encoding.UTF8);
+            // 原子写 + 无 BOM：这份文件用户会手编、外部工具（jq / python json.load）也会解析，
+            // 而 Encoding.UTF8 静态实例是**带 BOM** 的，凭空加 BOM 会让它们报错
+            Global.WriteAllTextAtomic(mcpPath, mcpTemplate);
             Console.WriteLine("✅ 创建 mcp_servers.json (MCP 服务器配置)");
         }
         else Console.WriteLine("⏭ mcp_servers.json 已存在");

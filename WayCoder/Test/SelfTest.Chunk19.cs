@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using WayCoder.Infra;
+using WayCoder.Tools;
 using WayCoder.UI.Cli.Arguments;
 using WayCoder.UI.TUI.Base;
 
@@ -578,6 +580,72 @@ public static partial class SelfTest
                 Config.Instance.BaseUrl = savedB;
                 Global.PersistDisabled = savedPersist;
                 ConnectionConfig.ClearCache();
+            }
+        }
+
+        Section("[进程编码判据：哪些程序需要 OEM 解码]");
+        // 「所有 cmd 启动点都要 ProcEncoding.Apply」是对的方向，但判据是「启动的是什么」：
+        // 只有 cmd.exe / .bat / .cmd / npm 系 shim 的重定向输出才是 OEM 字节；原生程序是 UTF-8，
+        // 套 OEM 反而乱码。此前这条判断散在十几个启动点各判各的，8 处该 Apply 的漏了。
+        {
+            Check("ProcEncoding: cmd.exe 判为控制台包装器（需 OEM 解码）",
+                ProcEncoding.IsConsoleWrapperName("cmd.exe"));
+            Check("ProcEncoding: npx / npm 判为包装器（npm 装的 .cmd shim）",
+                ProcEncoding.IsConsoleWrapperName("npx") && ProcEncoding.IsConsoleWrapperName("npm.cmd"));
+            Check("ProcEncoding: *.bat / *.cmd 判为包装器（大小写不敏感）",
+                ProcEncoding.IsConsoleWrapperName("run.bat") && ProcEncoding.IsConsoleWrapperName("Build.CMD"));
+            Check("ProcEncoding: 原生程序不套 OEM（git / dotnet / node / 绝对路径）",
+                !ProcEncoding.IsConsoleWrapperName("git")
+                && !ProcEncoding.IsConsoleWrapperName("/usr/bin/dotnet")
+                && !ProcEncoding.IsConsoleWrapperName("node"));
+            Check("ProcEncoding: 空名 / null 不误判",
+                !ProcEncoding.IsConsoleWrapperName("") && !ProcEncoding.IsConsoleWrapperName(null));
+            Check("ProcEncoding: 全路径也按文件名判断",
+                ProcEncoding.IsConsoleWrapperName(@"C:\Windows\System32\cmd.exe"));
+        }
+
+        Section("[MCP 配置存储：mcp_servers.json 唯一读写实现]");
+        // 此前三处各写一套「读 → 去重 → 写」，已漂移：去重一处忽略大小写、一处区分大小写；
+        // 且三处都是 File.WriteAllText(..., Encoding.UTF8) —— 非原子 + 凭空带 BOM。
+        {
+            var mcpTmp = Path.Combine(Path.GetTempPath(), "waycoder_mcp_" + Guid.NewGuid().ToString("N")[..6] + ".json");
+            try
+            {
+                Check("McpConfig: 文件不存在 → 空列表", !McpConfigStore.Load(mcpTmp).Items.Any());
+
+                // 模板里那条示例（_comment 含「示例」）不能被当成真服务器
+                File.WriteAllText(mcpTmp, """
+                [
+                  { "_comment": "MCP 服务器配置示例。", "name": "filesystem", "command": "npx" },
+                  { "name": "real-one", "command": "node" }
+                ]
+                """);
+                Check("McpConfig: 读时剔掉模板示例条目", McpConfigStore.Load(mcpTmp).Items.Count() == 1);
+
+                // 去重口径统一为「忽略大小写」——此前 McpClient 忽略、ImportHelper 区分，判定相反
+                var dup = McpConfigStore.TryAdd(mcpTmp,
+                    JNode.Object().Set("name", "REAL-ONE").Set("command", "node"), out var dupErr);
+                Check("McpConfig: 同名（忽略大小写）判为已存在，不重复写", !dup && dupErr != null);
+
+                Check("McpConfig: 新服务器写入成功",
+                    McpConfigStore.TryAdd(mcpTmp, JNode.Object().Set("name", "second").Set("command", "node"), out _));
+
+                var mcpBytes = File.ReadAllBytes(mcpTmp);
+                Check("McpConfig: 写出的文件无 BOM（jq / python json.load 可直接解析）",
+                    !(mcpBytes.Length >= 3 && mcpBytes[0] == 0xEF && mcpBytes[1] == 0xBB && mcpBytes[2] == 0xBF));
+
+                var batch = new List<JNode>
+                {
+                    JNode.Object().Set("name", "third").Set("command", "node"),
+                    JNode.Object().Set("name", "real-one").Set("command", "node"), // 已存在（大小写不同）
+                };
+                Check("McpConfig: 批量导入按同一口径去重（新增 1 条）", McpConfigStore.TryAddRange(mcpTmp, batch) == 1);
+                Check("McpConfig: 批量导入后总数正确（real-one, second, third）",
+                    McpConfigStore.Load(mcpTmp).Items.Count() == 3);
+            }
+            finally
+            {
+                try { File.Delete(mcpTmp); File.Delete(mcpTmp + ".tmp"); } catch { }
             }
         }
 
