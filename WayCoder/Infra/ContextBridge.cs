@@ -507,64 +507,29 @@ public static class ContextBridge
 
     static void ParseClaude(string file, List<(string, string)> chat, List<TodoItem> todos)
     {
-        try
+        // 解析走 ClaudeSessionParser（与 ImportHelper.ParseClaudeJsonl 共用唯一实现），
+        // 这里按 Kind 分派到各自的呈现：正文进对话、工具调用汇总、待办单独收集。
+        foreach (var e in ClaudeSessionParser.Parse(file))
         {
-            foreach (var raw in File.ReadLines(file, Encoding.UTF8))
+            switch (e.Kind)
             {
-                var node = Json.Parse(raw);
-                if (node == null) continue;
-                var type = node.GetString("type");
-                if (type == null) continue;
-
-                if (type == "user")
-                {
-                    if (node.GetBool("isSidechain")) continue; // 跳过侧链（子智能体）消息
-                    var text = ExtractText(node["message"]?["content"]);
-                    if (!string.IsNullOrWhiteSpace(text))
-                        AddChat(chat, "用户", text);
-                }
-                else if (type == "assistant")
-                {
-                    var content = node["message"]?["content"];
-                    if (content == null) continue;
-                    if (content.Kind == JKind.Array)
-                    {
-                        foreach (var block in content.Items)
-                        {
-                            var bt = block?.GetString("type");
-                            if (bt == "text")
-                            {
-                                var text = block?.GetString("text");
-                                if (!string.IsNullOrWhiteSpace(text))
-                                    AddChat(chat, "助手", text!);
-                            }
-                            else if (bt == "tool_use")
-                            {
-                                var name = block?.GetString("name") ?? "工具";
-                                var input = block?["input"];
-                                if (name.Contains("odo", StringComparison.OrdinalIgnoreCase))
-                                    CollectTodoArray(input?["todos"], todos);
-                                else
-                                    AddChat(chat, "工具", SummarizeTool(name, input));
-                            }
-                        }
-                    }
+                case "user":
+                    AddChat(chat, "用户", e.Text);
+                    break;
+                case "assistant":
+                    AddChat(chat, "助手", e.Text);
+                    break;
+                case "summary":
+                    AddChat(chat, "摘要", e.Text);
+                    break;
+                case "tool":
+                    if ((e.ToolName ?? "").Contains("odo", StringComparison.OrdinalIgnoreCase))
+                        CollectTodoArray(e.ToolInput?["todos"], todos);
                     else
-                    {
-                        var text = ExtractText(content);
-                        if (!string.IsNullOrWhiteSpace(text))
-                            AddChat(chat, "助手", text);
-                    }
-                }
-                else if (type == "summary")
-                {
-                    var summary = node.GetString("summary");
-                    if (!string.IsNullOrWhiteSpace(summary))
-                        AddChat(chat, "摘要", summary);
-                }
+                        AddChat(chat, "工具", SummarizeTool(e.ToolName ?? "工具", e.ToolInput));
+                    break;
             }
         }
-        catch { }
     }
 
     static void ParseCodex(string file, List<(string, string)> chat, List<TodoItem> todos)
@@ -832,25 +797,15 @@ public static class ContextBridge
     // 提取辅助
     // ─────────────────────────────────────────────────────────────
 
-    static string? ExtractText(JNode? content)
-    {
-        if (content == null) return null;
-        if (content.Kind == JKind.String) return content.AsString();
-        if (content.Kind == JKind.Array)
-        {
-            var sb = new StringBuilder();
-            foreach (var block in content.Items)
-            {
-                if (block?.GetString("type") == "text")
-                {
-                    var t = block.GetString("text");
-                    if (!string.IsNullOrWhiteSpace(t)) sb.AppendLine(t);
-                }
-            }
-            return sb.ToString().Trim();
-        }
-        return null;
-    }
+    /// <summary>
+    /// 提取会话 content 的纯文本。实现已收敛到 <see cref="ClaudeSessionParser.ExtractText"/>
+    /// （此前本文件、Claude 解析、ImportHelper 各有一份）。
+    ///
+    /// 相对旧版有一处语义变化（**是改进**）：空 content 数组旧版返回 `""`，会让标题变成空串；
+    /// 现在返回 null，调用处因此走文件名兜底分支
+    /// （见 <c>title ?? Path.GetFileNameWithoutExtension(file)</c>）。
+    /// </summary>
+    static string? ExtractText(JNode? content) => ClaudeSessionParser.ExtractText(content);
 
     static string ExtractTextCodex(JNode? content)
     {

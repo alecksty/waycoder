@@ -809,65 +809,18 @@ public static class ImportHelper
         }
     }
 
-    /// <summary>把 Claude Code JSONL 会话转换为 WayCoder 消息列表（{role, content}）。</summary>
+    /// <summary>把 Claude Code JSONL 会话转换为 WayCoder 消息列表（{role, content}）。
+    /// 解析走 <see cref="ClaudeSessionParser"/>（与 ContextBridge 共用唯一实现）；
+    /// 这里只要正文，工具调用与摘要不进导入的对话消息。</summary>
     static List<JNode> ParseClaudeJsonl(string file)
     {
         var messages = new List<JNode>();
-        foreach (var raw in File.ReadLines(file, Encoding.UTF8))
+        foreach (var e in ClaudeSessionParser.Parse(file))
         {
-            var node = Json.Parse(raw);
-            if (node == null) continue;
-            var type = node.GetString("type");
-            if (type == null) continue;
-
-            if (type == "user")
-            {
-                if (node.GetBool("isSidechain")) continue; // 跳过侧链（子智能体）
-                var text = ExtractClaudeText(node["message"]?["content"]);
-                if (!string.IsNullOrWhiteSpace(text))
-                    messages.Add(JNode.Object().Set("role", "user").Set("content", text));
-            }
-            else if (type == "assistant")
-            {
-                var content = node["message"]?["content"];
-                if (content == null) continue;
-                if (content.Kind == JKind.Array)
-                {
-                    foreach (var block in content.Items)
-                    {
-                        if (block?.GetString("type") == "text")
-                        {
-                            var text = block.GetString("text");
-                            if (!string.IsNullOrWhiteSpace(text))
-                                messages.Add(JNode.Object().Set("role", "assistant").Set("content", text));
-                        }
-                    }
-                }
-                else
-                {
-                    var text = ExtractClaudeText(content);
-                    if (!string.IsNullOrWhiteSpace(text))
-                        messages.Add(JNode.Object().Set("role", "assistant").Set("content", text));
-                }
-            }
+            if (e.Kind is not ("user" or "assistant")) continue;
+            messages.Add(JNode.Object().Set("role", e.Kind).Set("content", e.Text));
         }
         return messages;
-    }
-
-    /// <summary>提取 Claude Code content（text 字符串或 [{type:text,text}] 数组）中的纯文本。</summary>
-    static string? ExtractClaudeText(JNode? content)
-    {
-        if (content == null) return null;
-        if (content.Kind == JKind.String) return content.AsString();
-        if (content.Kind == JKind.Array)
-        {
-            var parts = new List<string>();
-            foreach (var block in content.Items)
-                if (block?.GetString("type") == "text" && block.GetString("text") is { } t)
-                    parts.Add(t);
-            return parts.Count > 0 ? string.Join("\n", parts) : null;
-        }
-        return content.AsString();
     }
 
     /// <summary>
