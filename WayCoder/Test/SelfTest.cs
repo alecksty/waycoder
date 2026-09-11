@@ -150,6 +150,7 @@ public static partial class SelfTest
         ["[Claude 会话解析"] = "config",
         ["[区间合并与转录构建"] = "config",
         ["[列表导航键表"] = "ui",
+        ["[ANSI 网格"] = "ui",
         ["[动态栏直写登记"] = "ui",
         // git
         ["[Git]"] = "git",         ["[Git "] = "git",         ["[Git PR]"] = "git",     ["[Git 大"] = "git",
