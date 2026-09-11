@@ -344,13 +344,8 @@ public static class DiffPreview
         /// <summary>鼠标滚轮滚动 diff 内容（每格 3 行），防止超出屏幕。</summary>
         public override bool OnMouse(InputEvent ev)
         {
-            if (ev.Type != InputType.Mouse) return false;
-
-            int absX = GetAbsoluteX();
-            int absY = GetAbsoluteY();
-            if (ev.MouseX < absX || ev.MouseX >= absX + Width ||
-                ev.MouseY < absY || ev.MouseY >= absY + Height)
-                return false;
+            // 同上：DiffView 被插进 TuiWindow 的 body 里，手写 GetAbsoluteX/Y 会漏窗口偏移
+            if (!MouseInBounds(ev, out _, out _)) return false;
 
             if (ev.MouseScrollUp) { ScrollBy(-3); return true; }
             if (ev.MouseScrollDown) { ScrollBy(3); return true; }

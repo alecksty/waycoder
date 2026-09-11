@@ -16,9 +16,27 @@ public static class TextEncoding
     /// <summary>检测结果：解码后的文本 + 编码显示名 + 写回时用的 <see cref="Encoding"/>。</summary>
     public readonly record struct Detected(string Text, string EncodingName, Encoding Encoding);
 
-    private static readonly byte[] Utf8Bom = { 0xEF, 0xBB, 0xBF };
-    private static readonly byte[] Utf16LeBom = { 0xFF, 0xFE };
-    private static readonly byte[] Utf16BeBom = { 0xFE, 0xFF };
+    /// <summary>识别 BOM 前缀 —— BOM 表的**唯一实现**（<see cref="Detect"/> 与 <see cref="Decode"/> 共用）。
+    /// 返回 (前缀字节数, 编码显示名, 写回用 Encoding)；无 BOM 返回 (0, "", null)。
+    ///
+    /// **顺序敏感**：UTF-32 LE 的 BOM 是 `FF FE 00 00`，必须先于 UTF-16 LE 的 `FF FE` 判定 ——
+    /// 否则会被当成 UTF-16 LE、余下字节解出一堆 NUL/乱码。此前 <see cref="Decode"/> 有 UTF-32 分支
+    /// 而 <see cref="Detect"/> **没有**，同一个 BOM 表写了两遍、只修了一处，正是「共享表没抽、两份各修」的典型：
+    /// UTF-32 文件经 Detect 打开会乱码，经 Decode 打开却正常。</summary>
+    private static (int Length, string Name, System.Text.Encoding? Enc) MatchBom(ReadOnlySpan<byte> b)
+    {
+        if (b.Length >= 4 && b[0] == 0x00 && b[1] == 0x00 && b[2] == 0xFE && b[3] == 0xFF)
+            return (4, "UTF-32 BE", new UTF32Encoding(bigEndian: true, byteOrderMark: true));
+        if (b.Length >= 4 && b[0] == 0xFF && b[1] == 0xFE && b[2] == 0x00 && b[3] == 0x00)
+            return (4, "UTF-32 LE", new UTF32Encoding(bigEndian: false, byteOrderMark: true));
+        if (b.Length >= 3 && b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF)
+            return (3, "UTF-8 BOM", new UTF8Encoding(true));
+        if (b.Length >= 2 && b[0] == 0xFE && b[1] == 0xFF)
+            return (2, "UTF-16 BE", Encoding.BigEndianUnicode);
+        if (b.Length >= 2 && b[0] == 0xFF && b[1] == 0xFE)
+            return (2, "UTF-16 LE", Encoding.Unicode);
+        return (0, "", null);
+    }
 
     /// <summary>检测二进制内容：前 8KB 含 NUL 字节即判定为二进制（read_file/转码共用）。</summary>
     public static bool IsBinaryContent(byte[] raw)
@@ -50,15 +68,10 @@ public static class TextEncoding
     /// <summary>从字节流识别编码并解码为文本。</summary>
     public static Detected Detect(byte[] bytes)
     {
-        // 1) UTF-8 BOM（EF BB BF）
-        if (bytes.Length >= 3 && bytes[0] == Utf8Bom[0] && bytes[1] == Utf8Bom[1] && bytes[2] == Utf8Bom[2])
-            return new Detected(new UTF8Encoding(false).GetString(bytes, 3, bytes.Length - 3), "UTF-8 BOM", new UTF8Encoding(true));
-
-        // 2) UTF-16 LE / BE BOM
-        if (bytes.Length >= 2 && bytes[0] == Utf16LeBom[0] && bytes[1] == Utf16LeBom[1])
-            return new Detected(Encoding.Unicode.GetString(bytes, 2, bytes.Length - 2), "UTF-16 LE", Encoding.Unicode);
-        if (bytes.Length >= 2 && bytes[0] == Utf16BeBom[0] && bytes[1] == Utf16BeBom[1])
-            return new Detected(Encoding.BigEndianUnicode.GetString(bytes, 2, bytes.Length - 2), "UTF-16 BE", Encoding.BigEndianUnicode);
+        // 1-2) BOM 前缀（UTF-32 / UTF-8 / UTF-16）—— 走唯一 BOM 表
+        var (bomLen, bomName, bomEnc) = MatchBom(bytes);
+        if (bomEnc != null)
+            return new Detected(bomEnc.GetString(bytes, bomLen, bytes.Length - bomLen), bomName, bomEnc);
 
         // 3) 无 BOM：严格 UTF-8（非法字节序列抛异常）→ 命中即 UTF-8
         var strict = new UTF8Encoding(false, throwOnInvalidBytes: true);
@@ -195,12 +208,7 @@ public static class TextEncoding
     /// 独立检测 BOM、不依赖编码实例是否声明 BOM（UTF8Encoding(false) 也照常跳过 UTF-8 BOM）。</summary>
     public static string Decode(byte[] bytes, Encoding encoding)
     {
-        int start = 0;
-        if (bytes.Length >= 4 && bytes[0] == 0x00 && bytes[1] == 0x00 && bytes[2] == 0xFE && bytes[3] == 0xFF) start = 4;      // UTF-32 BE
-        else if (bytes.Length >= 4 && bytes[0] == 0xFF && bytes[1] == 0xFE && bytes[2] == 0x00 && bytes[3] == 0x00) start = 4; // UTF-32 LE
-        else if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) start = 3;                     // UTF-8
-        else if (bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF) start = 2;                                          // UTF-16 BE
-        else if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) start = 2;                                          // UTF-16 LE
+        var (start, _, _) = MatchBom(bytes); // 顺序（UTF-32 先于 UTF-16）由共用表保证
         return encoding.GetString(bytes, start, bytes.Length - start);
     }
 }

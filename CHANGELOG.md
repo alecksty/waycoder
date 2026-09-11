@@ -1,5 +1,33 @@
 # 更新日志
 
+## v0.96.93 (2026-09-11) — 重复代码清理（C 级第二批）：BOM 表 / 鼠标命中
+
+4 文件，+45 / −35 行。两条都是「同一规则两份实现、只修了其中一处」。
+
+### 1. BOM 表：`Detect` 与 `Decode` 各写一遍，只有 `Decode` 修了 UTF-32
+
+`TextEncoding` 里同一套「BOM 字节序列 → 前缀长度」的表写了两遍：一遍用
+`Utf8Bom`/`Utf16LeBom`/`Utf16BeBom` 常量比较，一遍用行内字面量再写一次。
+漂移后果是**可复现的**：`Decode` 有 UTF-32 分支、`Detect` **没有**，而 UTF-32 LE 的 BOM 是
+`FF FE 00 00` —— 在 `Detect` 里会被 UTF-16 LE 的 `FF FE` 抢先命中，余下字节按 UTF-16 解出
+一堆 NUL / 乱码。于是**同一个 UTF-32 文件，经 `Decode` 打开正常、经 `Detect` 打开是乱码**。
+
+抽成唯一实现 `MatchBom(ReadOnlySpan<byte>)`（返回前缀长度 + 显示名 + 写回用 Encoding），
+两条路径共用。**顺序敏感**（UTF-32 的 4 字节 BOM 必须先于 UTF-16 的 2 字节判定）这件事现在只在
+一处表达。新增 2 条护栏：`Detect` 认 UTF-32 LE、且与 `Decode` 对同一输入的结论一致。
+
+### 2. 鼠标命中绕过 `MouseInBounds`
+
+`TuiRichEditor.OnMouse` 与 `DiffPreview.DiffView.OnMouse` 手写
+`GetAbsoluteX/Y` + 四则边界判断，而共享入口 `TuiControl.MouseInBounds`（基于渲染缓存
+`HitAbsX/HitAbsY`）已经有 13 处在用 —— 它的注释明确写着引入理由就是修
+「弹窗内点击错位：`GetAbsoluteX` 沿链累加漏窗口 X/Y」。这两处**恰好都在弹窗内**
+（`TuiRichEditor` 在 `editor.tui` 的 Dialog 里、`DiffView` 被插进 `TuiWindow` 的 body），
+正是那个坑的命中场景。改走 `MouseInBounds`，并把它返回的**相对坐标**直接用于后续的
+点击定位换算（与命中判断同源，比旧式 `ev.MouseX - absX` 更准）。
+
+**验证**：`--test` **5184 / 5184**（v0.96.92 为 5182）；桌面 / Gui / MAUI Android 三工程构建均 0 错误。
+
 ## v0.96.92 (2026-09-11) — 重复代码清理（C 级第一批）：HTTP 重定向 / 模态对话框样板 / 写文件两步
 
 7 文件改动 + 2 新增，**+67 / −247 行**。
