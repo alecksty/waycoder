@@ -231,16 +231,9 @@ public class MultiEditTool : ITool
         // Diff 预览：YOLO（畅通）自动放行不弹窗——下方统一生成的 unified diff 已进工具输出，聊天区仍显示对比（三端统一）。
         // 非 YOLO 时判据走 UxHelper.CanConfirmInline（TUI / 交互式终端），勿裸判重定向：stdin 被
         // 重定向也可能正跑着 TUI，那样逐 hunk 确认会被静默降级成自动应用。
-        var cfg = Config.Instance;
-        if (cfg.DiffPreview && UxHelper.CanConfirmInline
-            && PermissionManager.CurrentMode != PermissionManager.Mode.Yolo)
-        {
-            var (decision, accepted) = DiffPreview.Show(oldContent, newContent, path);
-            if (decision == DiffPreview.Decision.RejectAll)
-                return $"已取消编辑 {path}（用户拒绝变更）";
-            if (decision == DiffPreview.Decision.Partial && accepted != null)
-                newContent = DiffPreview.ApplyAccepted(oldContent, DiffPreview.BuildHunks(oldContent, newContent), accepted);
-        }
+        var (rejected, confirmed) = WritePipeline.ConfirmDiff(path, oldContent, newContent);
+        if (rejected) return $"已取消编辑 {path}（用户拒绝变更）";
+        newContent = confirmed;
 
         // 生成 diff 与记录变更须在恢复 CRLF 前（此时 oldContent/newContent 都是 LF，行尾一致）
         // 走 UnifiedDiff.Generate：此前这里那份函数名叫 EditFileTool_GenerateDiff、
@@ -248,9 +241,8 @@ public class MultiEditTool : ITool
         var diff = WayCoder.UI.Shared.UnifiedDiff.Generate(oldContent, newContent, path);
         EditFileTool.RecordChange(path, oldContent, newContent);
 
-        // CRLF 行尾保留：先归一化为 LF 再统一转 CRLF，避免把已有 \r\n 二次转成 \r\r\n
-        if (hasCrlf)
-            newContent = newContent.Replace("\r\n", "\n").Replace("\n", "\r\n");
+        // CRLF 行尾保留（共享实现，见 WritePipeline.RestoreCrlf）
+        newContent = WritePipeline.RestoreCrlf(newContent, hasCrlf);
 
         Global.WriteAllTextPreserveBom(path, newContent);
         FileTracker.RecordWrite(path);

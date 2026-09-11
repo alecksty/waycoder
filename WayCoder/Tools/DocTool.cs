@@ -190,26 +190,9 @@ public class DocTool : ITool
     /// 故这里不再单独 CheckDns（那会再次解析 DNS，重开 DNS 重绑定窗口）；CheckUrl 仅做
     /// 字面量 IP / 特殊主机名 / 内网后缀的提前拒绝（无 DNS 解析，无 TOCTOU）。
     /// </summary>
-    private static async Task<HttpResponseMessage> FetchWithSsgfCheckAsync(string url)
-    {
-        var currentUrl = url;
-        for (var redirect = 0; redirect < 5; redirect++)
-        {
-            var (safe, reason) = SsgfGuard.CheckUrl(currentUrl);
-            if (!safe) throw new SsgfBlockedException(reason!);
-
-            var response = await _client.GetAsync(currentUrl);
-            if (SsgfGuard.IsRedirect((int)response.StatusCode) && response.Headers.Location != null)
-            {
-                var nextUri = new Uri(new Uri(currentUrl), response.Headers.Location);
-                response.Dispose();
-                currentUrl = nextUri.AbsoluteUri;
-                continue;
-            }
-            return response;
-        }
-        throw new HttpRequestException("重定向次数过多");
-    }
+    private static Task<HttpResponseMessage> FetchWithSsgfCheckAsync(string url)
+        // checkDns: false —— 见上方注释（最终连接由 CreateSafeHandler 的 ConnectCallback 原子完成）
+        => SsgfRedirect.SendAsync(_client, HttpMethod.Get, url, checkDns: false);
 
     // ================================================================
     // 文档源建议

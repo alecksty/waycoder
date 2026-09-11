@@ -140,23 +140,8 @@ public static class UxHelper
     }
 
     private static string? ShowInputDialog(string prompt, string defaultValue, int timeoutMs)
-    {
-        string? result = null;
-        using var evt = new ManualResetEventSlim(false);
-        try
-        {
-            var win = TuiDialog.Input("输入", prompt, defaultValue, val =>
-            {
-                result = val;
-                evt.Set();
-            });
-            var screen = TuiManager.Instance?.ActiveScreen;
-            screen?.ShowWindow(win);
-            RenderWait(screen, evt, timeoutMs, win);
-        }
-        catch { evt.Set(); }
-        return result;
-    }
+        => RunModalDialog<string>((_, done) =>
+            TuiDialog.Input("输入", prompt, defaultValue, val => done(val)), timeoutMs);
 
     // ── 密码输入 ──
 
@@ -188,28 +173,10 @@ public static class UxHelper
     }
 
     private static string? ShowSecretDialog(string prompt, string defaultValue)
-    {
-        string? result = null;
-        using var evt = new ManualResetEventSlim(false);
-        try
-        {
-            var win = TuiDialog.Secret("输入密钥", prompt, defaultValue, val =>
-            {
-                result = val;
-                evt.Set();
-            },
-            onCancel: () =>
-            {
-                result = null;
-                evt.Set();
-            });
-            var screen = TuiManager.Instance?.ActiveScreen;
-            screen?.ShowWindow(win);
-            RenderWait(screen, evt, 30_000, win);
-        }
-        catch { evt.Set(); }
-        return result;
-    }
+        // 超时 30s 是这里原有的硬编码（其余对话框走各自传入的 timeoutMs）——显式保留
+        => RunModalDialog<string>((_, done) =>
+            TuiDialog.Secret("输入密钥", prompt, defaultValue, val => done(val),
+                onCancel: () => done(null)), 30_000);
 
     // ── 选择列表 ──
 
@@ -242,21 +209,10 @@ public static class UxHelper
     }
 
     private static string? ShowSelectDialog(string title, List<string> choices, int timeoutMs)
-    {
-        string? result = null;
-        using var evt = new ManualResetEventSlim(false);
-        try
-        {
-            var win = TuiDialog.Select(title, choices,
-                onSelect: idx => { result = idx >= 0 && idx < choices.Count ? choices[idx] : null; evt.Set(); },
-                onCancel: () => { result = null; evt.Set(); });
-            var screen = TuiManager.Instance?.ActiveScreen;
-            screen?.ShowWindow(win);
-            RenderWait(screen, evt, timeoutMs, win);
-        }
-        catch { evt.Set(); }
-        return result;
-    }
+        => RunModalDialog<string>((_, done) =>
+            TuiDialog.Select(title, choices,
+                onSelect: idx => done(idx >= 0 && idx < choices.Count ? choices[idx] : null),
+                onCancel: () => done(null)), timeoutMs);
 
     // ── 多选 ──
 
@@ -285,29 +241,20 @@ public static class UxHelper
     }
 
     private static List<string>? ShowMultiSelectDialog(string title, List<string> choices, int timeoutMs, bool preCheckAll = false)
-    {
-        List<string>? result = null;
-        using var evt = new ManualResetEventSlim(false);
-        try
+        => RunModalDialog<List<string>>((_, done) =>
         {
             var pre = preCheckAll ? Enumerable.Range(0, choices.Count).ToHashSet() : null;
-            var win = TuiDialog.MultiSelect(title, choices,
+            return TuiDialog.MultiSelect(title, choices,
                 onConfirm: indices =>
                 {
-                    result = new List<string>();
+                    var picked = new List<string>();
                     for (int i = 0; i < choices.Count; i++)
-                        if (indices.Contains(i)) result.Add(choices[i]);
-                    evt.Set();
+                        if (indices.Contains(i)) picked.Add(choices[i]);
+                    done(picked);
                 },
-                onCancel: () => { result = null; evt.Set(); },
+                onCancel: () => done(null),
                 preChecked: pre);
-            var screen = TuiManager.Instance?.ActiveScreen;
-            screen?.ShowWindow(win);
-            RenderWait(screen, evt, timeoutMs, win);
-        }
-        catch { evt.Set(); }
-        return result;
-    }
+        }, timeoutMs);
 
     // ── 提问（LLM ask_user_question）──
 
@@ -364,22 +311,11 @@ public static class UxHelper
     }
 
     private static List<int>? ShowAskDialog(string title, string message, List<string> options, bool multiSelect, int timeoutMs)
-    {
-        List<int>? result = null;
-        using var evt = new ManualResetEventSlim(false);
-        try
-        {
-            var win = TuiDialog.Ask(title, message, options, multiSelect,
-                onSelect: idx => { result = [idx]; evt.Set(); },
-                onMultiConfirm: picked => { result = picked.ToList(); evt.Set(); },
-                onCancel: () => { result = null; evt.Set(); });
-            var screen = TuiManager.Instance?.ActiveScreen;
-            screen?.ShowWindow(win);
-            RenderWait(screen, evt, timeoutMs, win);
-        }
-        catch { evt.Set(); }
-        return result;
-    }
+        => RunModalDialog<List<int>>((_, done) =>
+            TuiDialog.Ask(title, message, options, multiSelect,
+                onSelect: idx => done([idx]),
+                onMultiConfirm: picked => done(picked.ToList()),
+                onCancel: () => done(null)), timeoutMs);
 
     // ── 确认（权限） ──
 
@@ -407,32 +343,22 @@ public static class UxHelper
 
     private static int ShowConfirmDialog(string title, string message, bool allowAll, int timeoutMs)
     {
-        int result = 2; // 默认拒绝
-        using var evt = new ManualResetEventSlim(false);
-        try
+        // ⚠ TResult 必须取 int? 而**不是** int：RunModalDialog 是无约束泛型，对值类型
+        // `TResult?` 不退化为 Nullable<T> —— 用 int 的话「回调未触发」（超时 / 构建抛异常）
+        // 会退化成 default(int) = 0 = **允许**，权限弹窗在异常路径上就从「拒绝」翻成「允许」了。
+        // 取 int? 才能表达空态，末尾的 ?? 2 保住原来那句「默认拒绝」。
+        var r = RunModalDialog<int?>((_, done) =>
         {
-            var screen = TuiManager.Instance?.ActiveScreen;
-            TuiWindow win = allowAll
-                ? TuiDialog.Permission(title, message, r =>
+            if (allowAll)
+                return TuiDialog.Permission(title, message, res => done(res switch
                 {
-                    result = r switch
-                    {
-                        TuiDialog.EDialogResult.Yes => 0,
-                        TuiDialog.EDialogResult.Ok => 1,
-                        _ => 2
-                    };
-                    evt.Set();
-                })
-                : TuiDialog.Confirm(title, message, r =>
-                {
-                    result = r ? 0 : 2;
-                    evt.Set();
-                });
-            screen?.ShowWindow(win);
-            RenderWait(screen, evt, timeoutMs, win);
-        }
-        catch { evt.Set(); }
-        return result;
+                    TuiDialog.EDialogResult.Yes => 0,
+                    TuiDialog.EDialogResult.Ok => 1,
+                    _ => 2,
+                }));
+            return TuiDialog.Confirm(title, message, ok => done(ok ? 0 : 2));
+        }, timeoutMs);
+        return r ?? 2; // 未回调 → 拒绝（危险操作绝不因超时/异常被放行）
     }
 
     // ── 模态对话框样板收敛 ──
