@@ -10,12 +10,9 @@ namespace WayCoder;
 public sealed class JsonLogSink : ILogSink
 {
     private readonly string _directory;
-    private readonly string _appName;
     private readonly LogLevel _minLevel;
-    private readonly Lock _lock = new();
-
-    private StreamWriter? _writer;
-    private DateTime _currentDate;
+    /// <summary>句柄生命周期与日期轮转全在它手里（与 FileLogSink 共用唯一实现）。</summary>
+    private readonly RotatingFileWriter _file;
 
     /// <summary>槽名称。</summary>
     public string Name => "json";
@@ -35,9 +32,9 @@ public sealed class JsonLogSink : ILogSink
     public JsonLogSink(string directory, string appName = "app", LogLevel minLevel = LogLevel.Trace)
     {
         _directory = Path.GetFullPath(directory);
-        _appName = string.IsNullOrWhiteSpace(appName) ? "app" : appName;
         _minLevel = minLevel;
-        System.IO.Directory.CreateDirectory(_directory);
+        // NDJSON 逐条落盘，便于外部实时消费 —— 本 sink 不做按大小轮转
+        _file = new RotatingFileWriter(_directory, appName, ".jsonl", flushEveryWrite: true);
     }
 
     /// <summary>以单行 JSON 写出一条日志。</summary>
@@ -45,61 +42,13 @@ public sealed class JsonLogSink : ILogSink
     {
         if (entry.Level < _minLevel) return;
 
-        var json = entry.ToJson();
-        lock (_lock)
-        {
-            try
-            {
-                EnsureOpen(entry.Timestamp);
-                _writer!.Write(json);
-                _writer.Write('\n');
-                _writer.Flush(); // NDJSON 逐条落盘，便于外部实时消费
-            }
-            catch (IOException)
-            {
-                // 磁盘不可写时静默失败。
-            }
-        }
+        _file.Write(entry.ToJson() + "\n", entry.Timestamp);
     }
 
     /// <summary>刷盘。</summary>
-    public void Flush()
-    {
-        lock (_lock)
-        {
-            try { _writer?.Flush(); } catch (IOException) { /* 忽略 */ }
-        }
-    }
+    public void Flush() => _file.Flush();
 
     /// <summary>关闭并释放文件句柄。</summary>
-    public void Dispose()
-    {
-        lock (_lock)
-        {
-            try { _writer?.Flush(); } catch { /* 忽略 */ }
-            _writer?.Dispose();
-            _writer = null;
-        }
-    }
+    public void Dispose() => _file.Dispose();
 
-    private void EnsureOpen(DateTimeOffset ts)
-    {
-        var now = ts.LocalDateTime;
-        if (_writer is not null && now.Date != _currentDate)
-        {
-            _writer.Flush();
-            _writer.Dispose();
-            _writer = null;
-        }
-
-        if (_writer is null)
-        {
-            _currentDate = now.Date;
-            var name = $"{_appName}.{now:yyyyMMdd}.jsonl";
-            var path = System.IO.Path.Combine(_directory, name);
-            _writer = new StreamWriter(
-                new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read),
-                new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-        }
-    }
 }
