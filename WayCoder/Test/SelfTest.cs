@@ -343,6 +343,8 @@ public static partial class SelfTest
         TestChunk7(Section, Check, Fail);
 
         TestChunk8(Section, Check, Fail);
+        TestChunk8Dialog(Section, Check, Fail); // 由原 Chunk8 拆出（对话框重型渲染 + DiffPreview）
+        TestChunk8Ui(Section, Check, Fail);     // 由原 Chunk8 拆出（TuiControl/View/Flex/Screen/主题/表格…）
 
         TestChunk9(Section, Check, Fail);
 
