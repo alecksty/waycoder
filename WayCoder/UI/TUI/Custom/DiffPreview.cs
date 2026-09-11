@@ -432,127 +432,26 @@ public static class DiffPreview
     // ================================================================
 
     /// <summary>
-    /// 将旧/新内容拆分为 hunk 列表。
-    /// 使用简单的 LCS 行级 diff。
+    /// 将旧/新内容拆分为 hunk 列表 —— 适配自 <see cref="WayCoder.UI.Shared.UnifiedDiff"/>（唯一引擎）。
+    /// 引擎搬到 UI/Shared 是因为 MAUI 排除了 UI/TUI/**，留在本类里 Tools 在 MAUI 构建下引用不到、
+    /// 只能各抄一份（此前正是如此）。
     /// </summary>
     public static List<Hunk> BuildHunks(string oldContent, string newContent)
     {
-        var oldLines = oldContent.Replace("\r\n", "\n").Split('\n');
-        var newLines = newContent.Replace("\r\n", "\n").Split('\n');
-
-        // 简单逐行比较，分组为 hunks
-        var edits = ComputeLineEdits(oldLines, newLines);
-        var hunks = GroupIntoHunks(edits, oldLines, newLines, contextLines: 3);
-        return hunks;
-    }
-
-    private static List<(int OldIdx, int NewIdx, char Kind)> ComputeLineEdits(
-        string[] oldL, string[] newL)
-    {
-        var result = new List<(int, int, char)>();
-
-        // 使用简单的 Myers 式逐行比较
-        int oi = 0, ni = 0;
-        while (oi < oldL.Length || ni < newL.Length)
+        var blocks = WayCoder.UI.Shared.UnifiedDiff.Build(oldContent, newContent);
+        var hunks = new List<Hunk>(blocks.Count);
+        foreach (var b in blocks)
         {
-            if (oi < oldL.Length && ni < newL.Length && oldL[oi] == newL[ni])
+            var h = new Hunk
             {
-                result.Add((oi, ni, ' '));
-                oi++; ni++;
-            }
-            else
-            {
-                // 查找同步点
-                int syncOld = -1, syncNew = -1;
-                for (int so = oi; so < Math.Min(oi + 10, oldL.Length) && syncOld < 0; so++)
-                {
-                    for (int sn = ni; sn < Math.Min(ni + 10, newL.Length); sn++)
-                    {
-                        if (oldL[so] == newL[sn])
-                        { syncOld = so; syncNew = sn; break; }
-                    }
-                }
-
-                if (syncOld >= 0)
-                {
-                    // 删除行到同步点
-                    while (oi < syncOld) { result.Add((oi, -1, '-')); oi++; }
-                    // 添加行到同步点
-                    while (ni < syncNew) { result.Add((-1, ni, '+')); ni++; }
-                }
-                else
-                {
-                    // 无同步点：剩余全部不同
-                    if (oi < oldL.Length) { result.Add((oi, -1, '-')); oi++; }
-                    else if (ni < newL.Length) { result.Add((-1, ni, '+')); ni++; }
-                }
-            }
+                OldStart = b.OldStart, OldCount = b.OldCount,
+                NewStart = b.NewStart, NewCount = b.NewCount,
+                Header = b.Header,
+            };
+            foreach (var l in b.Lines)
+                h.Lines.Add(new HunkLine { Kind = l.Kind, Text = l.Text, OldLine = l.OldLine, NewLine = l.NewLine });
+            hunks.Add(h);
         }
-        return result;
-    }
-
-    private static List<Hunk> GroupIntoHunks(
-        List<(int OldIdx, int NewIdx, char Kind)> edits,
-        string[] oldL, string[] newL, int contextLines)
-    {
-        // 1. 收集变更块：连续非上下文行（Kind != ' '）的 [start,end) 区间
-        var blocks = new List<(int Start, int End)>();
-        int bi = 0;
-        while (bi < edits.Count)
-        {
-            while (bi < edits.Count && edits[bi].Kind == ' ') bi++;
-            if (bi >= edits.Count) break;
-            int s = bi;
-            while (bi < edits.Count && edits[bi].Kind != ' ') bi++;
-            blocks.Add((s, bi));
-        }
-
-        // 2. 每个块前后扩展 contextLines 上下文
-        var ranges = new List<(int S, int E)>();
-        foreach (var (bs, be) in blocks)
-            ranges.Add((Math.Max(0, bs - contextLines), Math.Min(edits.Count, be + contextLines)));
-
-        // 3. 合并重叠区间（变更相距 < 2*contextLines 时并成同一 hunk，避免重复行/重叠 hunk）
-        var merged = new List<(int S, int E)>();
-        foreach (var (s, e) in ranges)
-        {
-            if (merged.Count > 0 && s <= merged[^1].E)
-                merged[^1] = (merged[^1].S, Math.Max(merged[^1].E, e));
-            else
-                merged.Add((s, e));
-        }
-
-        // 4. 由合并后的区间构建 hunk
-        var hunks = new List<Hunk>();
-        foreach (var (hs, he) in merged)
-        {
-            var hunk = new Hunk();
-            int oldCount = 0, newCount = 0;
-
-            for (int j = hs; j < he; j++)
-            {
-                var (oi, ni, kind) = edits[j];
-                var text = kind switch
-                {
-                    '-' => (oi >= 0 && oi < oldL.Length) ? oldL[oi] : "",
-                    '+' => (ni >= 0 && ni < newL.Length) ? newL[ni] : "",
-                    _ => (oi >= 0 && oi < oldL.Length) ? oldL[oi] : "",
-                };
-                int oldLineNo = oi >= 0 ? oi + 1 : 0;
-                int newLineNo = ni >= 0 ? ni + 1 : 0;
-                hunk.Lines.Add(new HunkLine { Kind = kind, Text = text, OldLine = oldLineNo, NewLine = newLineNo });
-                if (kind == '-' || kind == ' ') oldCount++;
-                if (kind == '+' || kind == ' ') newCount++;
-            }
-
-            hunk.OldStart = hunk.Lines.FirstOrDefault(l => l.OldLine > 0)?.OldLine ?? 1;
-            hunk.NewStart = hunk.Lines.FirstOrDefault(l => l.NewLine > 0)?.NewLine ?? 1;
-            hunk.OldCount = oldCount;
-            hunk.NewCount = newCount;
-            hunk.Header = $"@@ -{hunk.OldStart},{hunk.OldCount} +{hunk.NewStart},{hunk.NewCount} @@";
-            hunks.Add(hunk);
-        }
-
         return hunks;
     }
 
@@ -560,28 +459,9 @@ public static class DiffPreview
     // 统一 Diff 生成（回退 + 调试）
     // ================================================================
 
+    /// <summary>渲染统一 diff 文本 —— 转调 <see cref="WayCoder.UI.Shared.UnifiedDiff.Generate"/>（唯一引擎）。</summary>
     public static string GenerateUnifiedDiff(string oldContent, string newContent, string filePath)
-    {
-        var oldLines = oldContent.Replace("\r\n", "\n").Split('\n');
-        var newLines = newContent.Replace("\r\n", "\n").Split('\n');
-        var sb = new StringBuilder();
-
-        sb.AppendLine($"--- a/{filePath}");
-        sb.AppendLine($"+++ b/{filePath}");
-
-        var hunks = BuildHunks(oldContent, newContent);
-        foreach (var h in hunks)
-        {
-            sb.AppendLine(h.Header);
-            foreach (var l in h.Lines)
-                sb.AppendLine($"{l.Kind}{l.Text}");
-        }
-
-        var result = sb.ToString();
-        if (result.Length > 3000)
-            result = ContextManager.TruncateByRunes(result, 2500) + "\n...（diff 已截断）\n";
-        return result;
-    }
+        => WayCoder.UI.Shared.UnifiedDiff.Generate(oldContent, newContent, filePath);
 
     /// <summary>
     /// 将接受的 hunks 应用到旧内容，生成最终内容。

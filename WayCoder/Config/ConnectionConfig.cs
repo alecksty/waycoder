@@ -449,16 +449,11 @@ public static partial class ConnectionConfig
     public static string FormatModel(string providerId, string modelId)
         => string.IsNullOrEmpty(providerId) ? (modelId ?? "") : $"({providerId}){modelId}";
 
-    /// <summary>按 base_url 反查已注册服务商；找不到返回 "custom"。</summary>
+    /// <summary>按 base_url 反查已注册服务商；找不到返回 "custom"。
+    /// 转调 <see cref="ModelCatalog.FindProviderByBaseUrl"/>（同一逻辑的规范化真源）——
+    /// 此前两个函数各写一遍，未命中一侧返回 null、这侧返回 "custom"。</summary>
     private static string InferProviderFromBaseUrl(string baseUrl)
-    {
-        var b = ModelCatalog.NormalizeBaseUrl(baseUrl);
-        foreach (var (key, val) in ModelCatalog.Providers)
-            if (!string.IsNullOrEmpty(val.DefaultBaseUrl)
-                && string.Equals(ModelCatalog.NormalizeBaseUrl(val.DefaultBaseUrl), b, StringComparison.OrdinalIgnoreCase))
-                return key;
-        return "custom";
-    }
+        => ModelCatalog.FindProviderByBaseUrl(baseUrl) ?? "custom";
 
     /// <summary>直接把当前激活连接的大/小 connect 切换为指定 connect 名。成功返回 true。</summary>
     public static bool SetActiveConnect(bool isLarge, string connectName, out string message)
@@ -626,13 +621,15 @@ public static partial class ConnectionConfig
     // ════════════════════════════════════════════════════════════
 
     /// <summary>解析某 providerId 的默认 base_url（baseUrl 与 providerId 唯一绑定）：
-    /// 服务商注册表地址优先，其次该服务商下首个模型的默认地址，最后 null。</summary>
+    /// 服务商注册表地址优先，其次该服务商下首个模型的默认地址，最后 null。
+    /// 注册表查询走 <see cref="ModelCatalog.BaseUrlOf"/>（含大小写不敏感兜底 —— 手写 TryGetValue
+    /// 对 providers.json 里手写的混合大小写 key 会落空）。</summary>
     public static string? ResolveBaseUrl(string providerId)
     {
         var pid = (providerId ?? "").Trim().ToLowerInvariant();
         if (pid.Length == 0) return null;
-        if (ModelCatalog.Providers.TryGetValue(pid, out var p) && !string.IsNullOrWhiteSpace(p.DefaultBaseUrl))
-            return p.DefaultBaseUrl;
+        var regUrl = ModelCatalog.BaseUrlOf(pid);
+        if (regUrl.Length > 0) return regUrl;
         var m = ModelCatalog.All.FirstOrDefault(x => x.ProviderId.Equals(pid, StringComparison.OrdinalIgnoreCase));
         return m?.DefaultBaseUrl;
     }

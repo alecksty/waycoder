@@ -218,7 +218,7 @@ public class ConnectionCommand : SlashCommand
         var agent = ProgramContext.Agent;
         if (agent != null)
         {
-            agent.ApplyRuntimeModel(cfg.Model, key, baseUrl);
+            agent.ApplyRuntimeModel(cfg.Model, smallModelId: null, key, baseUrl);
             agent.LlmClient.SmallModel = cfg.SmallModel;
         }
         screen.AddSystemMsg($"✅ {msg}" +
@@ -323,7 +323,7 @@ public class ConnectionCommand : SlashCommand
         var agent = ProgramContext.Agent;
         if (agent != null)
         {
-            agent.ApplyRuntimeModel(cfg.Model, key, baseUrl);
+            agent.ApplyRuntimeModel(cfg.Model, smallModelId: null, key, baseUrl);
             agent.LlmClient.SmallModel = cfg.SmallModel;
         }
         if (ProgramContext.LLM != null)

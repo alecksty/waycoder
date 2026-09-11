@@ -243,7 +243,9 @@ public class MultiEditTool : ITool
         }
 
         // 生成 diff 与记录变更须在恢复 CRLF 前（此时 oldContent/newContent 都是 LF，行尾一致）
-        var diff = EditFileTool_GenerateDiff(oldContent, newContent, path);
+        // 走 UnifiedDiff.Generate：此前这里那份函数名叫 EditFileTool_GenerateDiff、
+        // 注释写「复用 EditFileTool 逻辑」，实际是**逐字拷贝**（两份都只支持单块改动、无 @@ 头）。
+        var diff = WayCoder.UI.Shared.UnifiedDiff.Generate(oldContent, newContent, path);
         EditFileTool.RecordChange(path, oldContent, newContent);
 
         // CRLF 行尾保留：先归一化为 LF 再统一转 CRLF，避免把已有 \r\n 二次转成 \r\r\n
@@ -322,7 +324,7 @@ public class MultiEditTool : ITool
 
         if (edit.ReplaceAll)
         {
-            var count = CountOccurrences(content, edit.OldString);
+            var count = FileText.CountOccurrences(content, edit.OldString);
             if (count == 0)
                 return (null, $"未找到 old_string: \"{ContextManager.TruncateWithEllipsis(edit.OldString, 60, "...")}\"");
             return (content.Replace(edit.OldString, edit.NewString), null);
@@ -336,82 +338,11 @@ public class MultiEditTool : ITool
             // 检查唯一性
             var lastIdx = content.LastIndexOf(edit.OldString, StringComparison.Ordinal);
             if (idx != lastIdx)
-                return (null, $"old_string 出现了 {CountOccurrences(content, edit.OldString)} 次，请包含更多上下文以确保唯一性，或设置 replace_all=true");
+                return (null, $"old_string 出现了 {FileText.CountOccurrences(content, edit.OldString)} 次，请包含更多上下文以确保唯一性，或设置 replace_all=true");
 
             var newContent = content[..idx] + edit.NewString + content[(idx + edit.OldString.Length)..];
             return (newContent, null);
         }
-    }
-
-    private static int CountOccurrences(string text, string substring)
-    {
-        if (string.IsNullOrEmpty(substring)) return 0;
-        int count = 0, idx = 0;
-        while ((idx = text.IndexOf(substring, idx, StringComparison.Ordinal)) >= 0)
-        {
-            count++;
-            idx += substring.Length;
-        }
-        return count;
-    }
-
-    // ========================================================================
-    // Diff 生成（复用 EditFileTool 逻辑）
-    // ========================================================================
-
-    private static string EditFileTool_GenerateDiff(string old, string newText, string filename, int context = 3)
-    {
-        var oldLines = old.Split('\n');
-        var newLines = newText.Split('\n');
-
-        var sb = new StringBuilder();
-        var diffLines = GenerateDiffLines(oldLines, newLines, context);
-
-        sb.AppendLine($"--- a/{filename}");
-        sb.AppendLine($"+++ b/{filename}");
-
-        foreach (var dl in diffLines)
-            sb.AppendLine(dl);
-
-        var result = sb.ToString();
-        if (result.Length > 3000)
-            result = ContextManager.TruncateByRunes(result, 2500) + "\n...（diff 已截断）\n";
-
-        return result;
-    }
-
-    private static List<string> GenerateDiffLines(string[] old, string[] newText, int context)
-    {
-        var result = new List<string>();
-        int i = 0;
-        while (i < old.Length && i < newText.Length && old[i] == newText[i]) i++;
-        int changeStart = i;
-
-        int jOld = old.Length - 1, jNew = newText.Length - 1;
-        while (jOld > i && jNew > i && old[jOld] == newText[jNew])
-        {
-            jOld--;
-            jNew--;
-        }
-
-        var contextStart = Math.Max(0, changeStart - context);
-        var contextEndOld = Math.Min(old.Length, jOld + 1 + context);
-        var contextEndNew = Math.Min(newText.Length, jNew + 1 + context);
-
-        for (int line = contextStart; line < changeStart; line++)
-            result.Add($"  {old[line].TrimEnd('\r')}");
-
-        for (int line = changeStart; line <= jOld; line++)
-            result.Add($"-{old[line].TrimEnd('\r')}");
-
-        for (int line = changeStart; line <= jNew; line++)
-            result.Add($"+{newText[line].TrimEnd('\r')}");
-
-        var maxEnd = Math.Max(contextEndOld, contextEndNew);
-        for (int line = Math.Max(jOld, jNew) + 1; line < maxEnd && line < old.Length; line++)
-            result.Add($"  {old[line].TrimEnd('\r')}");
-
-        return result;
     }
 
     // ========================================================================

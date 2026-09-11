@@ -293,6 +293,26 @@ public static partial class SelfTest
         Check("diff Show 无变更直接放行",
             DiffPreview.Show(oldDoc, oldDoc, "t.txt").Decision == DiffPreview.Decision.AcceptAll);
 
+        // 多处相隔较远的改动 → 必须是**多个 hunk**。
+        // 此前 EditFileTool / MultiEditTool 各有一份逐字拷贝的私有实现（「首个差异行 → 末尾差异行」
+        // 一刀切），会把中间那一大段未改动的行也当成「删掉 + 重新加」，误导模型以为整段被重写。
+        {
+            var lines = Enumerable.Range(1, 60).Select(i => $"line{i}").ToList();
+            var oldMulti = string.Join("\n", lines);
+            lines[4] = "line5-CHANGED";
+            lines[54] = "line55-CHANGED";
+            var newMulti = string.Join("\n", lines);
+
+            var diff = WayCoder.UI.Shared.UnifiedDiff.Generate(oldMulti, newMulti, "m.txt");
+            Check("diff 多处改动拆成多个 hunk（而非整段删+加）",
+                System.Text.RegularExpressions.Regex.Matches(diff, "@@ -").Count == 2);
+            // 中间未改动的行应当**被省略**（不在任何 hunk 里），而不是被标成删除再重新加 ——
+            // 旧的单块实现在这里会输出 -line6 … -line54 一长串
+            Check("diff 略过未改动的中间段（不标成删除、也不重复添加）",
+                !diff.Contains("-line30") && !diff.Contains("+line30")
+                && diff.Contains(" line3") && diff.Contains(" line57"));
+        }
+
         Console.WriteLine();
 
         // ---- Bash 扩展 ----

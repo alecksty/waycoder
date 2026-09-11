@@ -79,14 +79,14 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         return arr.ToJson();
     }
 
-    /// <summary>供应商是否有可用 key（local/custom 无需 key）。</summary>
+    /// <summary>供应商是否有可用 key。
+    ///
+    /// 转调 <see cref="ApiKeyStore.HasKeyFor"/> —— 此前这里与 <see cref="SerializeState"/> 各写一份、
+    /// 都**只查 ApiKeyStore + 全局 ApiKey、不查环境变量**，而同文件的模型列表（<c>SerializeModels</c>）
+    /// 走的是 <c>HasKeyFor</c>（查环境变量）⇒ **同一个页面上「模型列表说有 key、供应商列表说没 key」**。
+    /// 传空 modelId：本判定的是「供应商级」有无 key，不涉及 WAYCODER_API_KEY 只对当前大小模型生效那条。</summary>
     public static bool ProviderHasKey(string providerId)
-    {
-        if (providerId is "local" or "custom") return true;
-        if (!string.IsNullOrEmpty(ApiKeyStore.Get(providerId))) return true;
-        if (!string.IsNullOrEmpty(Config.Instance.ApiKey)) return true;
-        return false;
-    }
+        => ApiKeyStore.HasKeyFor(providerId, "");
 
     /// <summary>归并变更序列化：[{sourceProviderId, targetProviderId, modelId, action}]。</summary>
     public static JNode SerializeReconcileChanges(IReadOnlyList<ModelCatalog.ReconcileChange>? changes)
@@ -107,9 +107,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     {
         var cfg = Config.Instance;
         var providerId = ConnectionConfig.ResolveActiveProviderId(cfg); // 优先 cfg.Provider，防同名模型反推错供应商
-        var hasKey = !string.IsNullOrEmpty(ApiKeyStore.Get(providerId))
-                     || !string.IsNullOrEmpty(cfg.ApiKey)
-                     || providerId is "local" or "custom";
+        // 同上：走 HasKeyFor（含环境变量），与同文件模型列表的判据保持同源
+        var hasKey = ApiKeyStore.HasKeyFor(providerId, cfg.Model);
 
         var slotArr = JNode.Array();
         for (int i = 0; i < slots.Length; i++)

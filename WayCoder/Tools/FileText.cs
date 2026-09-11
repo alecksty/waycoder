@@ -3,7 +3,7 @@ using System.Text;
 namespace WayCoder.Tools;
 
 /// <summary>
-/// 文件文本读取辅助 —— 读原始字节 + UTF-8 校验 + CRLF 检测/归一化，收敛 Edit/MultiEdit 等工具重复的读取样板。
+/// 文件文本辅助 —— 读原始字节 + UTF-8 校验 + CRLF 检测/归一化 + 子串计数，收敛 Edit/MultiEdit 等工具重复的样板。
 /// </summary>
 public static class FileText
 {
@@ -27,5 +27,21 @@ public static class FileText
         content = File.ReadAllText(path, Encoding.UTF8);
         if (hasCrlf) content = content.Replace("\r\n", "\n");
         return null;
+    }
+
+    /// <summary>子串在文本中出现次数（非重叠、区分大小写）。
+    ///
+    /// EditFileTool 与 MultiEditTool 各有一份**逐字相同**的私有实现 —— 而它是「唯一子串匹配」
+    /// 这一核心机制的合法性判据（0 次 = 找不到、≥2 次 = 要求更多上下文），判据分家迟早一处改一处漏。</summary>
+    public static int CountOccurrences(string text, string substring)
+    {
+        if (string.IsNullOrEmpty(substring)) return 0;
+        int count = 0, idx = 0;
+        while ((idx = text.IndexOf(substring, idx, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            idx += substring.Length;
+        }
+        return count;
     }
 }

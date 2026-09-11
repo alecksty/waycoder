@@ -216,14 +216,20 @@ public partial class MainWindow : Window
     {
         EconomyCombo.Items.Clear();
         PermCombo.Items.Clear();
-        foreach (var v in new[] { "关", "自动", "开", "极致" })
-            EconomyCombo.Items.Add(v);
+        // 从枚举派生（声明顺序即 (int) 索引，SelectedIndex 依赖它），文案走 UiText 唯一真源
+        foreach (EconomyMode m in Enum.GetValues<EconomyMode>())
+            EconomyCombo.Items.Add(UiText.EconomyName(m));
         EconomyCombo.SelectedIndex = (int)Config.Instance.EconomyMode;
 
         // 权限下拉：显示中文、Tag 存英文标识符（PermissionManager.SetMode 只认英文）。
         // 不能裸加字符串——否则 Perm_SelectionChanged 会把中文串传 SetMode，静默落回 Ask。
-        foreach (var (zh, en) in new[] { ("必问", "ask"), ("自动", "auto"), ("智能", "smartauto"), ("畅通", "yolo") })
-            PermCombo.Items.Add(new ComboBoxItem { Content = zh, Tag = en });
+        // 同样从枚举派生：Tag 用 UiText.PermName（英文标识）小写 —— 正是 SetMode 认的那几个串
+        foreach (PermissionManager.Mode m in Enum.GetValues<PermissionManager.Mode>())
+            PermCombo.Items.Add(new ComboBoxItem
+            {
+                Content = UiText.PermNameZh(m),
+                Tag = UiText.PermName(m).ToLowerInvariant(),
+            });
         PermCombo.SelectedIndex = (int)PermissionManager.CurrentMode;
     }
 

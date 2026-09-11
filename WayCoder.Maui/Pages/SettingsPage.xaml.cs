@@ -17,9 +17,11 @@ public partial class SettingsPage : ContentPage
     /// <summary>服务商下拉项（展示名 + 内部 id）。</summary>
     private sealed record ProviderOption(string Id, string DisplayName);
 
-    /// <summary>权限模式标签（索引与 <see cref="PermissionManager.Mode"/> 枚举顺序一致）。</summary>
+    /// <summary>权限模式标签（索引与 <see cref="PermissionManager.Mode"/> 枚举顺序一致）。
+    /// 从 <see cref="UiText.PermFull"/> 派生 —— 文案唯一真源，别再手维护一份数组
+    /// （此前手机上一套措辞、桌面又一套，同一个 Ask 有 5 种叫法）。</summary>
     private static readonly string[] PermModeLabels =
-        ["Ask（每次确认）", "Auto（改动必问）", "SmartAuto（危险必问）", "Yolo（不确认）"];
+        Enum.GetValues<PermissionManager.Mode>().Select(UiText.PermFull).ToArray();
 
     public SettingsPage()
     {

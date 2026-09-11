@@ -171,13 +171,10 @@ public static class AgentSlotConfig
         if (!string.IsNullOrEmpty(modelId))
         {
             var info = ModelCatalog.Find(modelId);
-            // 两层架构：provider 承载唯一地址（地址不同=不同服务商），模型用所属 provider 的地址连接
-            if (info != null
-                && ModelCatalog.Providers.TryGetValue(info.ProviderId, out var p)
-                && !string.IsNullOrEmpty(p.DefaultBaseUrl))
-                return p.DefaultBaseUrl;
-            if (info?.DefaultBaseUrl != null)
-                return info.DefaultBaseUrl;
+            // 两层架构：provider 承载唯一地址（地址不同=不同服务商），模型用所属 provider 的地址连接。
+            // 收口到 ModelCatalog.ResolveBaseUrl（注册表 → 模型目录，含大小写兜底）。
+            var resolved = ModelCatalog.ResolveBaseUrl(info, info?.ProviderId, null);
+            if (resolved != null) return resolved;
         }
         return Config.Instance.BaseUrl;
     }
@@ -291,9 +288,7 @@ public static class AgentSlotConfig
 
         // .env 可用 → 写回槽位配置持久化（含 provider / base-url，保证模型与端点匹配）
         var info = ModelCatalog.Find(envModel);
-        var envBaseUrl = (ModelCatalog.Providers.TryGetValue(envProvider, out var p) ? p.DefaultBaseUrl : null)
-            ?? info?.DefaultBaseUrl
-            ?? cfg.BaseUrl;
+        var envBaseUrl = ModelCatalog.ResolveBaseUrl(info, envProvider, cfg.BaseUrl);
         slot.LargeModel = envModel;
         slot.ApiKeyProviderId = envProvider;
         slot.BaseUrl = string.IsNullOrWhiteSpace(envBaseUrl) ? null : envBaseUrl;

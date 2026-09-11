@@ -1187,7 +1187,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         // 「切换模型 = 切换 connect」：统一入口同步扁平字段 + 持久化
         ConnectionConfig.ApplyModelChoice(effProviderId, modelId, isLarge: true, out _, effBaseUrl);
 
-        agent.ApplyRuntimeModel(modelId, key, effBaseUrl);
+        agent.ApplyRuntimeModel(modelId, smallModelId: null, key, effBaseUrl);
         return null;
     }
 

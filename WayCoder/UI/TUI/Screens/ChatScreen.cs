@@ -413,13 +413,7 @@ public partial class ChatScreen : TuiScreen
         string modelBar = ConnectionConfig.FormatModelChannel(channel,
             curProv ?? "?", curModel);
         string modeStr = WorkModeManager.Format(WorkModeManager.CurrentMode);
-        string economyStr = Config.Instance.EconomyMode switch
-        {
-            EconomyMode.On => "省钱",
-            EconomyMode.Auto => "自动",
-            EconomyMode.Extreme => "极致",
-            _ => "关闭",
-        };
+        string economyStr = UiText.EconomyShortName(Config.Instance.EconomyMode);
         // 权限模式（确认级别）：问答ACK/自动AUTO/智能SMART/畅通YOLO
         string permStr = PermissionManager.FormatMode();
 

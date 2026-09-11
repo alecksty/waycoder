@@ -39,7 +39,7 @@ public class ModelCommand : SlashCommand
             && ModelCatalog.Providers.TryGetValue(info.ProviderId, out var mp)
             && !string.IsNullOrEmpty(mp.DefaultBaseUrl)
             ? mp.DefaultBaseUrl : (info?.DefaultBaseUrl ?? cfg.BaseUrl);
-        agent.ApplyRuntimeModel(modelId, key, baseUrl);
+        agent.ApplyRuntimeModel(modelId, smallModelId: null, key, baseUrl);
     }
 
     public override Task ExecuteAsync(string args, ChatScreen screen)
