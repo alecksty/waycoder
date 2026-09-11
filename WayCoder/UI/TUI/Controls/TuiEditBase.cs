@@ -32,21 +32,11 @@ public abstract class TuiEditBase : TuiControl
         _showCursor = true;
     }
 
-    /// <summary>把点击的视觉列映射回行内字符列（Tab=4 / CJK 宽度感知，与 TuiRichEditor.VisualToCol 同语义）。
+    /// <summary>把点击的视觉列映射回行内字符列（实现已收敛到 <see cref="AnsiHelper.VisualColToCharIndex"/>，
+    /// 此前与 TuiRichEditor.VisualToCol 各写一份逐字相同的实现）。
     /// 鼠标点击定位光标用：line 为「已滚动到可视起点」的行文本，visualCol 相对该文本起点。</summary>
     protected static int VisualToCharCol(string line, int visualCol)
-    {
-        if (string.IsNullOrEmpty(line) || visualCol <= 0) return 0;
-        int v = 0, idx = 0;
-        foreach (var rune in line.EnumerateRunes())
-        {
-            int w = AnsiHelper.CharVisualWidth(rune);
-            if (visualCol < v + w) return idx;
-            v += w;
-            idx += rune.Utf16SequenceLength;
-        }
-        return line.Length;
-    }
+        => AnsiHelper.VisualColToCharIndex(line, visualCol);
 
     // ═══════════════════════════════════════════════════════════════
     // 抽象编辑原语 —— 子类实现

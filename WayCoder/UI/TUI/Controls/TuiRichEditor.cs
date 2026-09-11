@@ -515,20 +515,11 @@ public class TuiRichEditor : TuiEditBase
         return base.OnMouse(ev);
     }
 
-    /// <summary>把点击的视觉列（相对内容区起点）映射回缓冲区字符列（Tab/CJK 宽度感知）。</summary>
+    /// <summary>把点击的视觉列（相对内容区起点）映射回缓冲区字符列（Tab/CJK 宽度感知）。
+    /// 实现已收敛到 <see cref="AnsiHelper.VisualColToCharIndex"/>（此前与 TuiEditBase.VisualToCharCol
+    /// 各写一份逐字相同的实现，漂移即「同一点击位置在两个编辑器落到不同字符」）。</summary>
     internal static int VisualToCol(string line, int visualCol)
-    {
-        if (string.IsNullOrEmpty(line) || visualCol <= 0) return 0;
-        int v = 0, idx = 0;
-        foreach (var rune in line.EnumerateRunes())
-        {
-            int w = AnsiHelper.CharVisualWidth(rune);
-            if (visualCol < v + w) return idx;
-            v += w;
-            idx += rune.Utf16SequenceLength;
-        }
-        return line.Length;
-    }
+        => AnsiHelper.VisualColToCharIndex(line, visualCol);
 
     // ── 便捷方法 ──
 

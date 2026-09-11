@@ -143,6 +143,8 @@ public static partial class SelfTest
         ["[进程编码判据"] = "system",
         ["[文件锁"] = "agent",
         ["[导入源解析"] = "config",
+        ["[工具清单跨端同步"] = "tools",
+        ["[视觉列换算"] = "ui",
         ["[动态栏直写登记"] = "ui",
         // git
         ["[Git]"] = "git",         ["[Git "] = "git",         ["[Git PR]"] = "git",     ["[Git 大"] = "git",
