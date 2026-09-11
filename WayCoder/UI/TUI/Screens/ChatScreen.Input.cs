@@ -295,14 +295,7 @@ public partial class ChatScreen : TuiScreen
         else
             foreach (var s in mcpServers)
             {
-                var mark = s.Status switch
-                {
-                    McpServerStatus.Connected => "✅",
-                    McpServerStatus.Connecting => "⏳",
-                    McpServerStatus.Failed => "❌",
-                    _ => "❓",
-                };
-                var src = s.Source == "claude" ? "〔Claude〕" : "";
+                var mark = McpStatusIcon.Text(s.Status);var src = s.Source == "claude" ? "〔Claude〕" : "";
                 var mcpLine = $"  {mark} {s.Name}{src} [{s.Transport}] {s.ToolCount} 工具";
                 if (s.ResourceCount > 0) mcpLine += $" · {s.ResourceCount} 资源";
                 if (s.PromptCount > 0) mcpLine += $" · {s.PromptCount} 提示词";

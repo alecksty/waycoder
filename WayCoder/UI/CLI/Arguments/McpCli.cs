@@ -25,14 +25,7 @@ public static class McpCli
         Console.WriteLine($"MCP 服务器 ({servers.Count})");
         foreach (var s in servers)
         {
-            var mark = s.Status switch
-            {
-                McpServerStatus.Connected => "✅",
-                McpServerStatus.Connecting => "⏳",
-                McpServerStatus.Failed => "❌",
-                _ => "❓",
-            };
-            var src = s.Source == "claude" ? "〔Claude〕" : "";
+            var mark = McpStatusIcon.Text(s.Status);var src = s.Source == "claude" ? "〔Claude〕" : "";
             var line = $"{mark} {s.Name}{src} [{s.Transport}] {s.ToolCount} 工具";
             if (s.ResourceCount > 0) line += $" · {s.ResourceCount} 资源";
             if (s.PromptCount > 0) line += $" · {s.PromptCount} 提示词";

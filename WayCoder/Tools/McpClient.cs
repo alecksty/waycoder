@@ -413,13 +413,7 @@ public static class McpManager
             var sb = new StringBuilder();
             foreach (var st in _states.Values.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase))
             {
-                var mark = st.Status switch
-                {
-                    McpServerStatus.Connected => "✓",
-                    McpServerStatus.Connecting => "…",
-                    McpServerStatus.Failed => "✗",
-                    _ => "?",
-                };
+                var mark = McpStatusIcon.Text(st.Status);
                 sb.Append($"  {st.Name} {mark} {st.ToolCount} 工具");
                 if (st.ResourceCount > 0) sb.Append($" · {st.ResourceCount} 资源");
                 if (st.PromptCount > 0) sb.Append($" · {st.PromptCount} 提示词");
@@ -565,6 +559,36 @@ public static class McpManager
 // ============================================================
 // MCP 服务器状态模型
 // ============================================================
+
+/// <summary>
+/// MCP 服务器状态图标 —— **唯一真源**。
+///
+/// 此前 5 处各写一份 switch：TUI 侧栏（ChatScreen.Input）、`/mcp` 命令（McpCommand）、
+/// 命令行（McpCli）、连接状态汇总（McpClient.UpdateInfo）、Web（WebChat.Commands），
+/// 且**汇总那处用的是 ASCII 的 ✓…✗?**，与其余三处的 ✅⏳❌❓ 不一致 ——
+/// 同一个服务器状态，在 `/mcp` 里显示 ✅、在状态汇总里显示 ✓。
+/// Web 端的圆点（🟢🟡🔴）是端级样式，单列为 <see cref="Dot"/>，不再各自硬编码。
+/// </summary>
+public static class McpStatusIcon
+{
+    /// <summary>文本端图标（TUI / CLI / 工具输出）。</summary>
+    public static string Text(McpServerStatus s) => s switch
+    {
+        McpServerStatus.Connected => "✅",
+        McpServerStatus.Connecting => "⏳",
+        McpServerStatus.Failed => "❌",
+        _ => "❓",
+    };
+
+    /// <summary>Web 端圆点（浏览器界面的配色）。</summary>
+    public static string Dot(McpServerStatus s) => s switch
+    {
+        McpServerStatus.Connected => "🟢",
+        McpServerStatus.Connecting => "🟡",
+        McpServerStatus.Failed => "🔴",
+        _ => "⚪",
+    };
+}
 
 /// <summary>MCP 服务器连接状态。</summary>
 public enum McpServerStatus

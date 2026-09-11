@@ -584,6 +584,22 @@ public static partial class SelfTest
             }
         }
 
+        Section("[MCP 状态图标：唯一真源]");
+        // 此前 5 处各写一份 switch（TUI 侧栏 / /mcp 命令 / 命令行 / 连接状态汇总 / Web），
+        // 且汇总那处用 ASCII 的 ✓✗?、其余用 ✅⏳❌ ⇒ 同一状态在不同入口图标不同。
+        {
+            Check("MCP 图标: 文本端四态一致（Connected/Connecting/Failed/未知）",
+                McpStatusIcon.Text(McpServerStatus.Connected) == "✅"
+                && McpStatusIcon.Text(McpServerStatus.Connecting) == "⏳"
+                && McpStatusIcon.Text(McpServerStatus.Failed) == "❌"
+                && McpStatusIcon.Text((McpServerStatus)99) == "❓");
+            Check("MCP 图标: Web 端圆点四态一致",
+                McpStatusIcon.Dot(McpServerStatus.Connected) == "🟢"
+                && McpStatusIcon.Dot(McpServerStatus.Connecting) == "🟡"
+                && McpStatusIcon.Dot(McpServerStatus.Failed) == "🔴"
+                && McpStatusIcon.Dot((McpServerStatus)99) == "⚪");
+        }
+
         Section("[视觉列换算：编辑器唯一实现]");
         // TuiEditBase.VisualToCharCol 与 TuiRichEditor.VisualToCol 此前各写一份逐字相同的实现，
         // 漂移即「同一个点击位置在两个编辑器里落到不同字符上」。现在共用 AnsiHelper 那一份。

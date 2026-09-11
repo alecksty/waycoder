@@ -218,8 +218,7 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         sb.AppendLine();
         foreach (var s in servers)
         {
-            var icon = s.Status == McpServerStatus.Connected ? "🟢"
-                : s.Status == McpServerStatus.Connecting ? "🟡" : "🔴";
+            var icon = McpStatusIcon.Dot(s.Status); // 状态图标唯一真源（见 McpStatusIcon）
             var src = s.Source == "claude" ? "〔Claude〕" : "";
             sb.AppendLine($"- {icon} `{s.Name}`{src}（{s.Transport}）· {s.ToolCount} 工具");
             if (!string.IsNullOrEmpty(s.Error)) sb.AppendLine($"  - ⚠ {s.Error}");
