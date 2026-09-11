@@ -261,13 +261,6 @@ public static class SessionPicker
         if (!DateTime.TryParse(savedAt, out var dt))
             return savedAt.Length > 14 ? savedAt[..14] : savedAt;
 
-        var diff = DateTime.Now - dt;
-
-        if (diff.TotalSeconds < 60) return "刚刚";
-        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} 分钟前";
-        if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} 小时前";
-        if (diff.TotalDays < 7) return $"{(int)diff.TotalDays} 天前";
-        if (diff.TotalDays < 30) return $"{(int)(diff.TotalDays / 7)} 周前";
-        return dt.ToString("MM-dd HH:mm");
+        return UiText.RelativeTime(DateTime.Now, dt); // 阶梯唯一实现
     }
 }

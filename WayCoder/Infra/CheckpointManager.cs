@@ -461,16 +461,11 @@ public static class CheckpointManager
         return string.Join("\n", lines);
     }
 
-    /// <summary>把时间差格式化为易读相对时间（刚刚 / N 秒前 / N 分钟前 / N 小时前 / N 天前）。</summary>
+    /// <summary>把时间差格式化为易读相对时间 —— 阶梯走 <see cref="UiText.RelativeTime"/> 的唯一实现。
+    /// 传 withSeconds: true 保留本处原有的「N 秒前」档；顺带获得「N 周前」与超 30 天的日期兜底
+    /// （此前超 7 天一律「N 天前」，30 天前会显示「30 天前」）。</summary>
     private static string RelativeTime(DateTime now, DateTime past)
-    {
-        var delta = now - past;
-        if (delta.TotalSeconds < 10) return "刚刚";
-        if (delta.TotalSeconds < 60) return $"{(int)delta.TotalSeconds} 秒前";
-        if (delta.TotalMinutes < 60) return $"{(int)delta.TotalMinutes} 分钟前";
-        if (delta.TotalHours < 24) return $"{(int)delta.TotalHours} 小时前";
-        return $"{(int)delta.TotalDays} 天前";
-    }
+        => UiText.RelativeTime(now, past, withSeconds: true);
 
     /// <summary>
     /// 清空所有检查点。

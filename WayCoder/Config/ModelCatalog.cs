@@ -255,56 +255,45 @@ public static partial class ModelCatalog
         }
     }
 
+    /// <summary>
+    /// 从单个模型文件里移除某服务商的全部自定义模型，返回移除数。
+    ///
+    /// 本方法的两个调用点（新分类文件 / 旧 models.json）此前各写一遍这 14 行
+    /// （读文件 → 按 providerId 过滤 → 删空则删文件否则 SaveCustom），目前一致但改一处必忘另一处。
+    /// </summary>
+    private static int RemoveProviderFromFile(string path, string providerId)
+    {
+        if (!File.Exists(path)) return 0;
+
+        var models = ReadFile(path);
+        var toRemove = models
+            .Where(kv => kv.Value.ProviderId.Equals(providerId, StringComparison.OrdinalIgnoreCase))
+            .Select(kv => kv.Key)
+            .ToArray();
+        foreach (var id in toRemove) models.Remove(id);
+
+        // 文件删空后删除文件本身
+        if (toRemove.Length > 0)
+        {
+            if (models.Count == 0) TryDeleteFile(path);
+            else SaveCustom(models, path);
+        }
+        return toRemove.Length;
+    }
+
     /// <summary>删除某服务商下的所有自定义模型（删除对应分类文件或从旧 models.json 移除），返回删除数量。</summary>
     public static int RemoveCustomByProvider(string providerId)
     {
         lock (_lock)
         {
             var removed = 0;
-            // 新结构：直接删除该供应商的分类文件（全局+本地）
+            // 新结构：该供应商的分类文件（全局 + 本地）
             foreach (var local in new[] { false, true })
-            {
-                var file = ProviderFile(providerId, local);
-                if (File.Exists(file))
-                {
-                    var models = ReadFile(file);
-                    var toRemove = models
-                        .Where(kv => kv.Value.ProviderId.Equals(providerId, StringComparison.OrdinalIgnoreCase))
-                        .Select(kv => kv.Key)
-                        .ToArray();
-                    foreach (var id in toRemove)
-                    {
-                        models.Remove(id);
-                        removed++;
-                    }
-                    // 分类文件删空后删除文件本身
-                    if (toRemove.Length > 0)
-                    {
-                        if (models.Count == 0) TryDeleteFile(file);
-                        else SaveCustom(models, file);
-                    }
-                }
-            }
-            // 兼容旧 models.json：按 providerId 移除
+                removed += RemoveProviderFromFile(ProviderFile(providerId, local), providerId);
+            // 兼容旧 models.json
             foreach (var path in new[] { GlobalModelsPath, LocalModelsPath })
-            {
-                if (!File.Exists(path)) continue;
-                var models = ReadFile(path);
-                var toRemove = models
-                    .Where(kv => kv.Value.ProviderId.Equals(providerId, StringComparison.OrdinalIgnoreCase))
-                    .Select(kv => kv.Key)
-                    .ToArray();
-                foreach (var id in toRemove)
-                {
-                    models.Remove(id);
-                    removed++;
-                }
-                if (toRemove.Length > 0)
-                {
-                    if (models.Count == 0) TryDeleteFile(path);
-                    else SaveCustom(models, path);
-                }
-            }
+                removed += RemoveProviderFromFile(path, providerId);
+
             if (removed > 0) Invalidate();
             return removed;
         }

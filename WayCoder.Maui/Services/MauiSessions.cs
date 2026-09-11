@@ -135,11 +135,8 @@ public static class MauiSessions
     {
         if (!DateTime.TryParseExact(savedAt, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture,
                 DateTimeStyles.None, out var t)) return savedAt;
-        var span = DateTime.Now - t;
-        if (span.TotalSeconds < 60) return "刚刚";
-        if (span.TotalMinutes < 60) return $"{(int)span.TotalMinutes} 分钟前";
-        if (span.TotalHours < 24) return $"{(int)span.TotalHours} 小时前";
-        if (span.TotalDays < 7) return $"{(int)span.TotalDays} 天前";
-        return t.ToString("MM-dd HH:mm");
+        // 阶梯走唯一实现 —— 此前这里少一档「N 周前」，10 天前在手机上显示「10 天前」、
+        // 桌面显示「1 周前」，同一个时间两处说法不同
+        return UiText.RelativeTime(DateTime.Now, t);
     }
 }
