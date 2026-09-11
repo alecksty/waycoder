@@ -59,6 +59,20 @@ public static partial class SelfTest
             UiText.IsSessionBodyRole("user") && UiText.IsSessionBodyRole("assistant")
             && !UiText.IsSessionBodyRole("tool") && !UiText.IsSessionBodyRole("system") && !UiText.IsSessionBodyRole(""));
 
+        // 相对时间阶梯：三处（TUI 侧边栏 / 移动端会话列表 / 检查点列表）此前各写一遍，
+        // 移动端那份漏了「N 周前」⇒ 10 天前在手机上显示「10 天前」、桌面显示「1 周前」。
+        var t0 = new DateTime(2026, 1, 1, 12, 0, 0);
+        Check("RelativeTime: <60s → 刚刚", UiText.RelativeTime(t0.AddSeconds(30), t0) == "刚刚");
+        Check("RelativeTime: 5 分钟前", UiText.RelativeTime(t0.AddMinutes(5), t0) == "5 分钟前");
+        Check("RelativeTime: 3 小时前", UiText.RelativeTime(t0.AddHours(3), t0) == "3 小时前");
+        Check("RelativeTime: 2 天前", UiText.RelativeTime(t0.AddDays(2), t0) == "2 天前");
+        Check("RelativeTime: 10 天 → 1 周前（移动端此前显示「10 天前」）",
+            UiText.RelativeTime(t0.AddDays(10), t0) == "1 周前");
+        Check("RelativeTime: >30 天 → 日期兜底",
+            UiText.RelativeTime(t0.AddDays(40), t0) == t0.ToString("MM-dd HH:mm"));
+        Check("RelativeTime: withSeconds 保留秒档（检查点列表）",
+            UiText.RelativeTime(t0.AddSeconds(30), t0, withSeconds: true) == "30 秒前");
+
         Section("[输入 CSI 功能键映射]");
         // code-review finding #1 回归护栏：Windows VT 输入下裸 CSI 光标键/编辑键必须映射为对应
         // ConsoleKey，绝不可退化成裸 ESC（否则取消在跑 agent / 丢聊天草稿）。

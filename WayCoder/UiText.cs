@@ -72,6 +72,25 @@ public static class UiText
         _ => "必问ASK",
     };
 
+    /// <summary>相对时间（刚刚 / N 秒前 / N 分钟前 / N 小时前 / N 天前 / N 周前 / MM-dd HH:mm）。
+    ///
+    /// 三处各写一遍（TUI 侧边栏会话区 / 移动端会话列表 / 检查点列表）且**已经漂移**：
+    /// 移动端那份漏了「N 周前」分支 —— 10 天前在手机上是「10 天前」、在桌面是「1 周前」。
+    /// 秒级分支按调用方保留为可选（检查点列表要「N 秒前」，会话列表不需要）。
+    /// </summary>
+    /// <param name="withSeconds">是否显示「N 秒前」档（<10s 仍为「刚刚」）。</param>
+    public static string RelativeTime(DateTime now, DateTime past, bool withSeconds = false)
+    {
+        var d = now - past;
+        if (d.TotalSeconds < (withSeconds ? 10 : 60)) return "刚刚";
+        if (withSeconds && d.TotalSeconds < 60) return $"{(int)d.TotalSeconds} 秒前";
+        if (d.TotalMinutes < 60) return $"{(int)d.TotalMinutes} 分钟前";
+        if (d.TotalHours < 24) return $"{(int)d.TotalHours} 小时前";
+        if (d.TotalDays < 7) return $"{(int)d.TotalDays} 天前";
+        if (d.TotalDays < 30) return $"{(int)(d.TotalDays / 7)} 周前";
+        return past.ToString("MM-dd HH:mm");
+    }
+
     /// <summary>千分位/K 缩写（todo/上下文/token 统计）。</summary>
     public static string FormatK(int n) => n >= 1000 ? $"{n / 1000.0:F1}k" : n.ToString();
 
