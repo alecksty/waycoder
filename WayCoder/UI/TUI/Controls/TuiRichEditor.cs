@@ -478,13 +478,10 @@ public class TuiRichEditor : TuiEditBase
     public override bool OnMouse(InputEvent ev)
     {
         if (!IsEnabled) return false;
-        if (ev.Type != InputType.Mouse) return false;
-
-        int absX = GetAbsoluteX();
-        int absY = GetAbsoluteY();
-        if (ev.MouseX < absX || ev.MouseX >= absX + Width ||
-            ev.MouseY < absY || ev.MouseY >= absY + Height)
-            return false;
+        // 命中判断与坐标换算都走 MouseInBounds 返回的**相对坐标**（基于渲染缓存 HitAbsX/Y）——
+        // 此前手写 GetAbsoluteX/Y 沿链累加，会漏掉外层窗口的 X/Y 偏移；本控件正是在 editor.tui
+        // 的 Dialog 里，正踩那个「弹窗内点击错位」的坑。relX/relY 与旧式 ev.MouseX - absX 同义，但更准。
+        if (!MouseInBounds(ev, out int mouseRelX, out int mouseRelY)) return false;
 
         // 滚轮滚动（视口位移 → 全量重绘）
         if (ev.MouseScrollUp)
@@ -505,9 +502,8 @@ public class TuiRichEditor : TuiEditBase
         if (ev.MouseLeft)
         {
             OnFocusRequested?.Invoke();
-            int relY = ev.MouseY - absY;
-            int line = Math.Clamp(Core.Scroll + relY, 0, Math.Max(0, Core.Lines.Count - 1));
-            int relX = Math.Max(0, ev.MouseX - (absX + ContentStart));
+            int line = Math.Clamp(Core.Scroll + mouseRelY, 0, Math.Max(0, Core.Lines.Count - 1));
+            int relX = Math.Max(0, mouseRelX - ContentStart);
             string text = line < Core.Lines.Count ? Core.Lines[line].ToString() : "";
             Core.ClearSelection();
             Core.Cy = line;

@@ -113,6 +113,17 @@ public static partial class SelfTest
         // UTF-16 LE / BE BOM
         var dU16le = TextEncoding.Detect(Encoding.Unicode.GetPreamble().Concat(Encoding.Unicode.GetBytes("ab")).ToArray());
         Check("UTF-16 LE 识别", dU16le.EncodingName == "UTF-16 LE" && dU16le.Text == "ab");
+
+        // UTF-32 LE 的 BOM 是 FF FE 00 00 —— 必须**先于** UTF-16 LE 的 FF FE 判定。
+        // Detect 此前没有 UTF-32 分支（Decode 有），于是同一份 BOM 表写了两遍只修了一处：
+        // UTF-32 文件经 Detect 打开会被当成 UTF-16 LE、余下字节解出一堆 NUL/乱码。
+        var u32le = new UTF32Encoding(bigEndian: false, byteOrderMark: true).GetPreamble()
+            .Concat(Encoding.UTF32.GetBytes("你好")).ToArray();
+        var dU32 = TextEncoding.Detect(u32le);
+        Check("UTF-32 LE 识别（不被当成 UTF-16 LE 解出乱码）",
+            dU32.EncodingName == "UTF-32 LE" && dU32.Text == "你好");
+        Check("Decode 与 Detect 对 UTF-32 LE 结论一致",
+            TextEncoding.Decode(u32le, Encoding.UTF32) == "你好");
         var dU16be = TextEncoding.Detect(Encoding.BigEndianUnicode.GetPreamble().Concat(Encoding.BigEndianUnicode.GetBytes("ab")).ToArray());
         Check("UTF-16 BE 识别", dU16be.EncodingName == "UTF-16 BE" && dU16be.Text == "ab");
 
