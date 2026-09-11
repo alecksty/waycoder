@@ -50,7 +50,7 @@ public class WriteFileTool : ITool
         if (PathSafety.Guard(path) is { } guardErr) return guardErr;
 
         // 文件锁检查
-        var lockErr = FileLockManager.TryAcquireOrError(path, agentId, "请等待锁释放或使用其他文件名");
+        var lockErr = FileLockManager.TryAcquireOrError(path, agentId);
         if (lockErr != null) return lockErr;
 
         try

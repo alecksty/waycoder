@@ -497,4 +497,44 @@ public static partial class ModelCli
     }
 
     /// <summary>删除自定义模型（从全局+本地模型库移除）</summary>
+
+    /// <summary>
+    /// 「导入模型 / 导入供应商」的统一入口：解析 source 前缀后分派到在线或本地导入。
+    ///
+    /// `/model import &lt;source&gt;` 与 `/provider import &lt;source&gt;` 是同一件事，
+    /// 此前两个命令类里各写一份**逐字相同**的解析（连注释都只是措辞差异）——
+    /// 新增一个在线源或改一次源名规则就要改两处，漏一处就是「/model 能导入、/provider 不能」。
+    ///
+    /// 规则：`online [源名...]`（空格/逗号分隔）与 `allonline` → 在线多源；
+    /// 其余（空=auto / all / opencode / openclaw / crush / claude / codex / 逗号分隔多源 / 文件路径）→ 本地导入。
+    /// </summary>
+    /// <param name="report">进度与结果回显（各调用点传各自的 UI 通道）。</param>
+    /// <param name="source">用户输入的源说明。</param>
+    public static void ImportFromSource(Action<string> report, string source)
+    {
+        var s = (source ?? "").Trim();
+        if (IsOnlineSource(s))
+        {
+            report(ImportOnlineAll(ParseOnlineNames(s), report));
+            return;
+        }
+        report(string.IsNullOrWhiteSpace(s) || s.Equals("all", StringComparison.OrdinalIgnoreCase)
+            ? Import(null, report)
+            : Import(source, report));
+    }
+
+    /// <summary>source 是否指向「在线多源」导入（`online ...` / `allonline`）。</summary>
+    public static bool IsOnlineSource(string? source)
+    {
+        var s = (source ?? "").Trim();
+        return s.StartsWith("online", StringComparison.OrdinalIgnoreCase)
+            || s.Equals("allonline", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>`online a,b c` → ["a","b","c"]（空格/逗号分隔，去掉前缀词本身）；无源名返回空数组 = 全部在线源。</summary>
+    public static string[] ParseOnlineNames(string? source)
+        => (source ?? "").Trim()
+            .Replace(',', ' ')
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Skip(1).ToArray();
 }

@@ -58,7 +58,7 @@ public class MultiEditTool : ITool
             return validationError;
 
         // 文件锁
-        var lockErr = FileLockManager.TryAcquireOrError(path, agentId, "请等待锁释放");
+        var lockErr = FileLockManager.TryAcquireOrError(path, agentId);
         if (lockErr != null) return lockErr;
 
         try

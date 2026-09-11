@@ -137,7 +137,7 @@ public class FindReplaceTool : ITool
                         if (PathSafety.Guard(file) is { } blocked) { sb.AppendLine($"  {blocked}"); continue; }
 
                         // 文件锁（防多 Agent 并发改写同一文件）
-                        var lockErr = FileLockManager.TryAcquireOrError(file, agentId, "请等待锁释放");
+                        var lockErr = FileLockManager.TryAcquireOrError(file, agentId);
                         if (lockErr != null) { sb.AppendLine($"  ❌ {lockErr}"); continue; }
 
                         try

@@ -363,24 +363,8 @@ public class ModelCommand : SlashCommand
     }
 
     static void ImportModels(ChatScreen screen, string source)
-    {
-        // 在线多源：`/model import online [源名...]`（空格/逗号分隔，逐个导入）；`/model import allonline` = 全部在线源
-        var s = source.Trim();
-        if (s.StartsWith("online", StringComparison.OrdinalIgnoreCase)
-            || s.Equals("allonline", StringComparison.OrdinalIgnoreCase))
-        {
-            var names = s.Replace(',', ' ').Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Skip(1).ToArray();
-            screen.AddSystemMsg(ModelCli.ImportOnlineAll(names, msg => screen.AddSystemMsg(msg)));
-            return;
-        }
-        // 本地多源：复用 ModelCli.Import——source 为空→auto；all/opencode/openclaw/crush/claude/codex→指定来源；
-        // 逗号分隔可多源（如 `opencode,codex`）；否则视为文件路径
-        var result = string.IsNullOrWhiteSpace(s) || s.Equals("all", StringComparison.OrdinalIgnoreCase)
-            ? ModelCli.Import(null, msg => screen.AddSystemMsg(msg))
-            : ModelCli.Import(source, msg => screen.AddSystemMsg(msg));
-        screen.AddSystemMsg(result);
-    }
+        // 解析规则与 `/provider import` 完全同一份（此前两个命令类各写一遍），见 ModelCli.ImportFromSource
+        => ModelCli.ImportFromSource(msg => screen.AddSystemMsg(msg), source);
 
     /// <summary>
     /// /model #N <modelName> [apiKey] — convenient slot model assignment.

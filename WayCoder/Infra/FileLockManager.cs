@@ -59,9 +59,17 @@ public static class FileLockManager
     }
 
     /// <summary>
-    /// 尝试获取锁，失败返回统一错误文案（null=成功）。各写文件工具共用，消除逐字重复的锁检查块。
+    /// 锁冲突时给用户/智能体的统一处置提示。放在这里而不是各调用点各写一份 ——
+    /// 此前 7 个工具分裂成两种写法，且其中 4 处**根本没传** suffix ⇒ 同样撞锁，
+    /// 有的提示「请等待锁释放或使用其他文件名」、有的只有一句「文件被锁定」不说怎么办。
     /// </summary>
-    public static string? TryAcquireOrError(string filePath, string agentId = "main", string suffix = "")
+    public const string BusyHint = "请等待锁释放或使用其他文件名";
+
+    /// <summary>
+    /// 尝试获取锁，失败返回统一错误文案（null=成功）。各写文件工具共用，消除逐字重复的锁检查块。
+    /// 调用方**不必再传 suffix**（默认就是统一处置提示）。
+    /// </summary>
+    public static string? TryAcquireOrError(string filePath, string agentId = "main", string suffix = BusyHint)
         => TryAcquire(filePath, agentId)
             ? null
             : $"❌ 文件被锁定: {GetLockInfo(filePath)?.Status ?? "未知"}{(string.IsNullOrEmpty(suffix) ? "" : $" — {suffix}")}";

@@ -46,7 +46,7 @@ public class DownloadTool : ITool, ICancellableTool
         if (PathSafety.Guard(filePath) is { } guardErr) return guardErr;
 
         // 文件锁检查（对齐 write_file/edit_file，防多 Agent 并发写同一目标）
-        var lockErr = FileLockManager.TryAcquireOrError(filePath, agentId, "请等待锁释放或使用其他文件名");
+        var lockErr = FileLockManager.TryAcquireOrError(filePath, agentId);
         if (lockErr != null) return lockErr;
 
         // 确保目标目录存在
