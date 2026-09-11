@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using WayCoder.Infra;
 using WayCoder.Tools;
 using WayCoder.UI.Cli.Arguments;
+using WayCoder.UI.Shared;
 using WayCoder.UI.TUI.Base;
 
 namespace WayCoder;
@@ -580,6 +581,69 @@ public static partial class SelfTest
                 Config.Instance.BaseUrl = savedB;
                 Global.PersistDisabled = savedPersist;
                 ConnectionConfig.ClearCache();
+            }
+        }
+
+        Section("[视觉列换算：编辑器唯一实现]");
+        // TuiEditBase.VisualToCharCol 与 TuiRichEditor.VisualToCol 此前各写一份逐字相同的实现，
+        // 漂移即「同一个点击位置在两个编辑器里落到不同字符上」。现在共用 AnsiHelper 那一份。
+        {
+            Check("视觉列换算: ASCII 单宽", AnsiHelper.VisualColToCharIndex("abcdef", 3) == 3);
+            Check("视觉列换算: CJK 双宽（第 2 个视觉列落在首个汉字之后的索引 1）",
+                AnsiHelper.VisualColToCharIndex("中文abc", 2) == 1);
+            Check("视觉列换算: CJK 行内定位（视觉列 4 → 索引 2，即第二个汉字）",
+                AnsiHelper.VisualColToCharIndex("中文abc", 4) == 2);
+            Check("视觉列换算: Tab 按 4 展开（视觉列 3 仍属第一个 Tab → 索引 0）",
+                AnsiHelper.VisualColToCharIndex("\tabc", 3) == 0
+                && AnsiHelper.VisualColToCharIndex("\tabc", 4) == 1);
+            Check("视觉列换算: 0 或负列 → 0", AnsiHelper.VisualColToCharIndex("abc", 0) == 0
+                && AnsiHelper.VisualColToCharIndex("abc", -5) == 0);
+            Check("视觉列换算: 超出行宽 → 行末长度", AnsiHelper.VisualColToCharIndex("abc", 99) == 3);
+            Check("视觉列换算: 空行 → 0", AnsiHelper.VisualColToCharIndex("", 5) == 0);
+            Check("视觉列换算: emoji（代理对）后再定位不拆半",
+                AnsiHelper.VisualColToCharIndex("😀x", 2) == 2);
+        }
+
+        Section("[工具清单跨端同步（MAUI vs 桌面）]");
+        // 两份 ToolRegistry.cs 是**刻意分开**的（MAUI 版裁掉进程类工具，桌面版在 MAUI 的
+        // Exclude 清单里），但共享工具清单也各写一份 ⇒ 新增共享工具只加桌面侧时，
+        // 移动端**静默少一个工具**（有独立的 ToolRegistry，编译不会报错）。
+        // 这条护栏把「桌面 − MAUI == 已知进程类」钉死，漂移即红。
+        {
+            static string? FindRepoFile(string rel)
+            {
+                for (var d = new DirectoryInfo(Directory.GetCurrentDirectory()); d != null; d = d.Parent)
+                {
+                    var p = Path.Combine(d.FullName, rel);
+                    if (File.Exists(p)) return p;
+                }
+                return null;
+            }
+            static HashSet<string> ToolNames(string path) =>
+                System.Text.RegularExpressions.Regex.Matches(File.ReadAllText(path), @"new\s+(\w+Tool)\s*\(\s*\)")
+                    .Select(m => m.Groups[1].Value).ToHashSet(StringComparer.Ordinal);
+
+            var deskPath = FindRepoFile(Path.Combine("WayCoder", "Tools", "ToolRegistry.cs"));
+            var mauiPath = FindRepoFile(Path.Combine("WayCoder.Maui", "ToolRegistry.cs"));
+            if (deskPath == null || mauiPath == null)
+            {
+                // 打包/发布产物里没有源码 → 该护栏只在开发期生效，跳过不算失败
+                Check("工具清单: 无源码目录（打包环境），跳过跨端比对", true);
+            }
+            else
+            {
+                var desk = ToolNames(deskPath);
+                var maui = ToolNames(mauiPath);
+                // 移动端裁剪进程类工具是刻意的；判据是「差集恰好等于这批」
+                var desktopOnly = new HashSet<string>(StringComparer.Ordinal)
+                {
+                    "BashTool", "GitPRTool", "JobKillTool", "JobOutputTool", "KillTool",
+                    "LintTool", "LspTool", "PsTool", "ScreenshotTool", "TestTool",
+                };
+                Check("工具清单: MAUI 无独有工具（必须是桌面的真子集）",
+                    maui.All(desk.Contains));
+                Check("工具清单: 桌面 − MAUI 恰好是那批进程类工具（新增共享工具漏加一侧即红）",
+                    desk.Except(maui).OrderBy(x => x).SequenceEqual(desktopOnly.OrderBy(x => x)));
             }
         }
 

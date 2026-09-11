@@ -275,6 +275,29 @@ public static class AnsiHelper
     public static int CharVisualWidth(Rune rune)
         => rune.Value == '	' ? 4 : DisplayWidth(rune.ToString());
 
+    /// <summary>
+    /// 视觉列 → 行内 UTF-16 字符索引（Tab=4 / CJK 双宽感知）。鼠标点击定位光标、按视觉列取子串都靠它。
+    ///
+    /// **唯一实现**：此前 <c>TuiEditBase.VisualToCharCol</c> 与 <c>TuiRichEditor.VisualToCol</c>
+    /// 各写一份逐字相同的实现（连「与 XX 同语义」的注释都写了），两处一旦漂移（比如只给一处加
+    /// Tab 处理）就是「同一个点击位置在两个编辑器里落到不同字符上」。
+    /// </summary>
+    /// <param name="line">行文本（调用方保证已滚动到可视起点）</param>
+    /// <param name="visualCol">相对该行起点的视觉列；&lt;=0 返回 0</param>
+    public static int VisualColToCharIndex(string line, int visualCol)
+    {
+        if (string.IsNullOrEmpty(line) || visualCol <= 0) return 0;
+        int v = 0, idx = 0;
+        foreach (var rune in line.EnumerateRunes())
+        {
+            int w = CharVisualWidth(rune);
+            if (visualCol < v + w) return idx;
+            v += w;
+            idx += rune.Utf16SequenceLength;
+        }
+        return line.Length;
+    }
+
     // ── 边框字符映射 ──
 
     /// <summary>边框字符集：左上 右上 左下 右下 水平 垂直，上水平 下水平（默认同 H）</summary>
