@@ -583,6 +583,45 @@ public static partial class SelfTest
             }
         }
 
+        Section("[导入源解析：/model 与 /provider 共用一份]");
+        // `/model import <源>` 与 `/provider import <源>` 此前各写一份逐字相同的解析：
+        // 新增一个在线源、或改一次源名规则，就要改两处（漏一处 = 一个命令能导入、另一个不能）。
+        {
+            Check("导入源: online 判定（含前缀形式）",
+                ModelCli.IsOnlineSource("online") && ModelCli.IsOnlineSource("online opencode,claude")
+                && ModelCli.IsOnlineSource("  ONLINE  ") && ModelCli.IsOnlineSource("allonline"));
+            Check("导入源: 本地源不被误判为在线",
+                !ModelCli.IsOnlineSource("all") && !ModelCli.IsOnlineSource("") && !ModelCli.IsOnlineSource(null)
+                && !ModelCli.IsOnlineSource("opencode,codex"));
+            Check("导入源: 源名按空格/逗号切分且去掉前缀词",
+                ModelCli.ParseOnlineNames("online opencode,claude codex") is ["opencode", "claude", "codex"]);
+            Check("导入源: `online` 无源名 → 空数组（= 全部在线源）",
+                ModelCli.ParseOnlineNames("allonline").Length == 0);
+        }
+
+        Section("[文件锁：冲突提示文案唯一]");
+        // 此前 7 个写文件工具各自把处置提示写死在调用点，分裂成两种，其中 4 处干脆没传
+        // ⇒ 同样撞锁，有的提示「请等待锁释放或使用其他文件名」，有的只有「文件被锁定」。
+        {
+            var lockTmp = Path.Combine(Path.GetTempPath(), "waycoder_lock_" + Guid.NewGuid().ToString("N")[..6] + ".txt");
+            try
+            {
+                FileLockManager.ReleaseAll("__lockA__");
+                FileLockManager.ReleaseAll("__lockB__");
+                FileLockManager.TryAcquire(lockTmp, "__lockA__");
+                var lockErr = FileLockManager.TryAcquireOrError(lockTmp, "__lockB__");
+                Check("文件锁: 冲突提示含统一处置文案（调用点不再各写一份）",
+                    lockErr != null && lockErr.Contains(FileLockManager.BusyHint));
+                Check("文件锁: 同 agent 重入不算冲突",
+                    FileLockManager.TryAcquireOrError(lockTmp, "__lockA__") == null);
+            }
+            finally
+            {
+                FileLockManager.ReleaseAll("__lockA__");
+                FileLockManager.ReleaseAll("__lockB__");
+            }
+        }
+
         Section("[进程编码判据：哪些程序需要 OEM 解码]");
         // 「所有 cmd 启动点都要 ProcEncoding.Apply」是对的方向，但判据是「启动的是什么」：
         // 只有 cmd.exe / .bat / .cmd / npm 系 shim 的重定向输出才是 OEM 字节；原生程序是 UTF-8，

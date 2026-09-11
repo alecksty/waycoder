@@ -279,21 +279,6 @@ public class ProviderCommand : SlashCommand
     }
 
     static void ImportProviders(ChatScreen screen, string source)
-    {
-        // 在线多源：`/provider import online [源名...]` / `/provider import allonline` = 全部在线源
-        var s = source.Trim();
-        if (s.StartsWith("online", StringComparison.OrdinalIgnoreCase)
-            || s.Equals("allonline", StringComparison.OrdinalIgnoreCase))
-        {
-            var names = s.Replace(',', ' ').Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Skip(1).ToArray();
-            screen.AddSystemMsg(ModelCli.ImportOnlineAll(names, msg => screen.AddSystemMsg(msg)));
-            return;
-        }
-        // 本地多源：source 为空→auto，all/opencode/openclaw/crush→指定来源，逗号分隔多源；否则视为文件路径
-        var result = string.IsNullOrWhiteSpace(s) || s.Equals("all", StringComparison.OrdinalIgnoreCase)
-            ? ModelCli.Import(null, msg => screen.AddSystemMsg(msg))
-            : ModelCli.Import(source, msg => screen.AddSystemMsg(msg));
-        screen.AddSystemMsg(result);
-    }
+        // 解析规则与 `/model import` 完全同一份（此前两个命令类各写一遍），见 ModelCli.ImportFromSource
+        => ModelCli.ImportFromSource(msg => screen.AddSystemMsg(msg), source);
 }

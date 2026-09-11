@@ -68,7 +68,7 @@ public class ConvertEncodingTool : ITool
             return dstBlocked;
 
         // 文件锁：防多 Agent 并发修改冲突
-        var lockErr = FileLockManager.TryAcquireOrError(dstPath, agentId, "请等待锁释放或使用其他文件名");
+        var lockErr = FileLockManager.TryAcquireOrError(dstPath, agentId);
         if (lockErr != null) return lockErr;
 
         try

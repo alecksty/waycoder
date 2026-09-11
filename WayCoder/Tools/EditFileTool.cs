@@ -84,7 +84,7 @@ public class EditFileTool : ITool
         if (PathSafety.Guard(path) is { } guardErr) return guardErr;
 
         // 文件锁检查
-        var lockErr = FileLockManager.TryAcquireOrError(path, agentId, "请等待锁释放");
+        var lockErr = FileLockManager.TryAcquireOrError(path, agentId);
         if (lockErr != null) return lockErr;
 
         try

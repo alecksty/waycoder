@@ -61,7 +61,7 @@ public class NotebookEditTool : ITool
             return $"错误：{notebookPath} 不是 .ipynb 文件。notebook_edit 只能编辑 Jupyter Notebook。";
 
         // 文件锁
-        var lockErr = FileLockManager.TryAcquireOrError(path, agentId, "请等待锁释放");
+        var lockErr = FileLockManager.TryAcquireOrError(path, agentId);
         if (lockErr != null) return lockErr;
 
         try
