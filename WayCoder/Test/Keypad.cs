@@ -953,7 +953,16 @@ public static class Keypad
 
         public FrameBuffer(int rows, int cols)
         {
-            _rows = rows; _cols = cols;
+            // 尺寸保底**必须收口在这里**，不能留给调用方：`Apply` 里的 CUP/擦除都走
+            // Math.Clamp(x-1, 0, _cols-1)，而 Math.Clamp 在 min > max 时抛 ArgumentException；
+            // rows<0 更早一步在 new string[rows][] 就抛 OverflowException。三条调用路径
+            // （TuiAudit.AnsiToGrid、SelfTest.Chunk12、SelfTest.Chunk8）都无 try/catch，
+            // 一旦抛出就是整个 --test / --tui-audit 中断，而不是报一条 ❌。
+            // 此前 TuiAudit 那份手写解析自己带了这两行保底，改用它之后保底随之丢失（code-review #1）。
+            rows = Math.Max(rows, 1);   // 钳制参数本身：下面的数组分配用的是它，只改字段不够
+            cols = Math.Max(cols, 1);
+            _rows = rows;
+            _cols = cols;
             _cell = new string[rows][];
             _cont = new bool[rows][];
             _fg = new int[rows][];
@@ -1040,6 +1049,15 @@ public static class Keypad
 
                 if (_curR >= 0 && _curR < _rows && _curC >= 0 && _curC < _cols)
                 {
+                    // 落点若是**前一个宽字符的延续格** → 那个宽字符被打断。真实终端（xterm）会把它
+                    // 的首格清成空格，否则会留下「半个汉字 + 新字符」挤在 2 列跨度里（code-review #5：
+                    // `\x1b[1;1H中\x1b[1;2HX` 此前得到 "中X"，而真终端给 " X"）。
+                    if (_cont[_curR][_curC] && _curC > 0)
+                    {
+                        _cell[_curR][_curC - 1] = " ";
+                        _fg[_curR][_curC - 1] = 0;
+                        _bg[_curR][_curC - 1] = 0;
+                    }
                     _cell[_curR][_curC] = s;
                     _fg[_curR][_curC] = _curFg;
                     _bg[_curR][_curC] = _curBg;
@@ -1065,9 +1083,15 @@ public static class Keypad
         void EraseLine(int mode)
         {
             if (_curR < 0 || _curR >= _rows) return;
-            int from = 0, to = _cols - 1;
-            if (mode == 0) from = _curC;
-            else if (mode == 1) to = _curC;
+            // 列界必须在这里钳死：写字符的路径 `_curC += w` **不**钳到 _cols-1，所以满行写满后
+            // _curC == _cols（甚至因宽字符越过末列）。此时 EL1（`\x1b[1K`）/ ED1 会把 to==_cols，
+            // 下面的 _cell[_curR][_cols] 直接越界抛 IndexOutOfRangeException —— 而 TuiAudit
+            // 改接本模拟器后，K/J 从「一律忽略」变成「走这条路径」，于是这条潜在崩溃变得可达。
+            // 钳 to/from 是最小修法：不动 `_curC += w` 的推进语义（那会影响宽字符在末列的落位）。
+            int last = _cols - 1;
+            int from = 0, to = last;
+            if (mode == 0) from = Math.Clamp(_curC, 0, last);
+            else if (mode == 1) to = Math.Clamp(_curC, 0, last);
             for (int c = from; c <= to; c++)
             {
                 _cell[_curR][c] = " "; _cont[_curR][c] = false;

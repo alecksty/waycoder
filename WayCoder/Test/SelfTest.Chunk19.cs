@@ -597,6 +597,19 @@ public static partial class SelfTest
                 TuiAudit.AnsiToGrid("中文", 1, 10) is ["中文"]);
             Check("ANSI 网格: SGR 颜色序列不占格子",
                 TuiAudit.AnsiToGrid("\x1b[31m红\x1b[0m", 1, 10) is ["红"]);
+
+            // ── 以下五条钉的是「新旧实现结果**不同**」的语义 ──
+            // 上面三条对两版解析器同样成立（code-review #5），钉不住本次重构；这五条才是。
+            Check("ANSI 网格: 写到宽字符延续格 → 打断该宽字符（真终端把首格清成空格）",
+                TuiAudit.AnsiToGrid("\x1b[1;1H中\x1b[1;2HX", 1, 4) is [" X"]);
+            Check("ANSI 网格: EL0 从光标擦到行尾（K 序列；旧手写解析一律忽略）",
+                TuiAudit.AnsiToGrid("abcdef\x1b[3G\x1b[0K", 1, 10) is ["ab"]);
+            Check("ANSI 网格: 满行后 EL1 不越界且擦净（_curC==_cols 时 to 必须钳到末列）",
+                TuiAudit.AnsiToGrid(new string('x', 10) + "\x1b[1K", 1, 10).Count == 0);
+            Check("ANSI 网格: 光标保存/恢复（s/u；旧手写解析一律忽略）",
+                TuiAudit.AnsiToGrid("ab\x1b[s\x1b[1;1HX\x1b[uY", 1, 10) is ["XbY"]);
+            Check("ANSI 网格: 零尺寸入参不抛（构造函数钳到 1×1，防 Math.Clamp 的 min>max）",
+                TuiAudit.AnsiToGrid("x", 0, 0) is ["x"]);
         }
 
         Section("[列表导航键表：选择器共用]");

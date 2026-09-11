@@ -1,5 +1,4 @@
 using System.Text;
-using WayCoder.UI.Shared.Terminal;
 using WayCoder.Tools;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
