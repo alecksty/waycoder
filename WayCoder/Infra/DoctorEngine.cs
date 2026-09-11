@@ -321,7 +321,9 @@ public static class DoctorEngine
             AddOk(issues, "API Key", "当前模型已有可用密钥或无需密钥");
     }
 
-    private static void CheckErrorLogs(string cwd, List<DoctorIssue> issues)
+    /// <summary>扫描 cwd/logs 下的 error_*.log，统计 ERROR/FATAL 条数并取一条作示例预览。
+    /// `internal` 供自测直接喂一个临时 cwd 端到端覆盖「示例预览的截断是否 Rune 安全」。</summary>
+    internal static void CheckErrorLogs(string cwd, List<DoctorIssue> issues)
     {
         var logsDir = Path.Combine(cwd, "logs");
         if (!Directory.Exists(logsDir))
@@ -354,8 +356,10 @@ public static class DoctorEngine
 
             if (count > 0)
             {
-                var preview = sample?.Trim();
-                if (preview?.Length > 160) preview = preview[..160] + "…";
+                // 按 Rune 截断：这是**日志行**（本仓库日志含中文与 emoji），`preview[..160]` 是
+                // UTF-16 切片，截断点落在代理对中间会产出孤立代理项 → 用户看到 U+FFFD。
+                // 统一走 ContextManager.TruncateWithEllipsis（本文件同目录的 ContextBridge 早就用它）。
+                var preview = sample == null ? null : ContextManager.TruncateWithEllipsis(sample.Trim(), 160);
                 AddWarning(issues, "错误日志", $"最近日志含 {count} 条 ERROR/FATAL{(preview == null ? "" : $"，示例: {preview}")}");
             }
             else

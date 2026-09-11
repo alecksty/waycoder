@@ -1,5 +1,47 @@
 # 更新日志
 
+## v0.96.104 (2026-09-11) — Doctor 日志预览的 UTF-16 切片（截断点落在 emoji 上出 U+FFFD）
+
+2 文件，**+32 / −4 行**；自测 **+4 条护栏**（含一条端到端）。
+
+### 问题
+
+CLAUDE.md 有一条既有铁律：**「字符串截断必须按码点（Rune），禁止用 `[..N]` 任意索引切片」**
+—— emoji / CJK 扩展 B 是 UTF-16 代理对（2 个 `char`），切半会产出 U+FFFD。
+`DoctorEngine` 的「最近日志含 N 条 ERROR」示例预览**绕过了它**：
+
+```csharp
+if (preview?.Length > 160) preview = preview[..160] + "…";   // UTF-16 切片
+```
+
+这是**日志行**——本仓库自己的日志就含中文与 emoji（`✅ 创建 worktree …` 之类），
+截断点落在代理对中间就把 emoji 切成半个，用户看到 ``。
+
+同目录的 `ContextBridge` 早就走 `ContextManager.TruncateWithEllipsis`（Rune 安全），
+只有这里漏了 —— 又是本仓库最常见的那个形态：**助手已存在，调用点绕过去了**。
+
+### 修法
+
+改走 `ContextManager.TruncateWithEllipsis(sample.Trim(), 160)`；
+`CheckErrorLogs` 从 `private` 改 `internal`（注明「供自测喂临时 cwd」）以便端到端覆盖。
+
+### 验证
+
+新增 4 条断言，其中一条是**端到端**：真在临时目录造一份 `logs/error_*.log`
+（偏移刻意设计成 preview 下标 159 是 emoji 的高位代理），跑 `CheckErrorLogs`，
+断言**最终提示文案**里没有孤立代理 —— 这样才证伪得到调用点本身，而不只是测到 helper。
+**证伪过**：改回 `[..160]`，那条端到端断言立刻变红，另外三条（helper 级）仍绿，
+正说明「只测 helper 测不出调用点有没有绕过」。
+`--test` **5231 / 5231**；桌面 / Gui / MAUI Android 三工程构建均 0 错误。
+
+### 顺带核实（两处**不是** bug，未改）
+
+- `TuiRichEditor.TruncateByVw`：局部变量名叫 `bytePos`，但累加的是
+  `rune.Utf16SequenceLength` —— 是 UTF-16 索引不是字节偏移，`Substring(0, bytePos)` **正确**。
+  名字误导，但改它只是纯改名，没动。
+- `Git/WorktreeIsolation.SanitizeName`：先按 `[^a-zA-Z0-9一-鿿_-]` 过滤，emoji 已被滤掉，
+  剩下的全是 BMP 字符 ⇒ 后面的 `safe[..20]` 天然切不出代理对，安全。
+
 ## v0.96.103 (2026-09-11) — `notebook_edit` 给用户的 .ipynb 加 BOM（Jupyter 之后打不开）
 
 7 文件，**+48 / −8 行**；自测 **+2 条护栏**。
