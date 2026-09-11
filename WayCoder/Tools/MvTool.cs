@@ -107,7 +107,7 @@ public class MvTool : ITool
         }
         catch (Exception ex)
         {
-            return $"错误：mv: {ex.GetType().Name}: {ex.Message}";
+            return ToolErrors.ErrorOpPrefix("mv", ex);
         }
     }
 

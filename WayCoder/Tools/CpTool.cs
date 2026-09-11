@@ -88,7 +88,7 @@ public class CpTool : ITool
         }
         catch (Exception ex)
         {
-            return $"错误：cp: {ex.GetType().Name}: {ex.Message}";
+            return ToolErrors.ErrorOpPrefix("cp", ex);
         }
     }
 
