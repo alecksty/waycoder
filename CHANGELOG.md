@@ -1,5 +1,55 @@
 # 更新日志
 
+## v0.96.103 (2026-09-11) — `notebook_edit` 给用户的 .ipynb 加 BOM（Jupyter 之后打不开）
+
+7 文件，**+48 / −8 行**；自测 **+2 条护栏**。
+
+### 1. `notebook_edit` 写回时凭空加 BOM（数据完整性）
+
+`NotebookEditTool.WriteNotebook` 用 `File.WriteAllText(path, json, Encoding.UTF8)` 写用户的 notebook。
+**`Encoding.UTF8` 是带 BOM 的编码**（.NET 的静态实例 `encoderShouldEmitUTF8Identifier: true`），
+于是编辑一个**原本没有 BOM** 的 `.ipynb`，写回后就有了 `EF BB BF`。
+
+而 Jupyter / nbformat 读 notebook 走的是 `open(path, encoding='utf-8')` + `json.load`，
+**对 BOM 不容忍** —— 实测直接抛：
+
+```
+JSONDecodeError: Unexpected UTF-8 BOM (decode using utf-8-sig): line 1 column 1 (char 0)
+```
+
+即「用 WayCoder 改一下 notebook，Jupyter 就打不开了」。
+
+**改法**：走 `Global.WriteAllTextPreserveBom` —— 编辑路径的标准本就是它
+（`EditFileTool` / `MultiEditTool` 都走），只有这里漏了，且**方向是错的**：
+preserve-bom 是「原文件有 BOM 就保留、没有就不加」，而 `Encoding.UTF8` 是「无条件加」。
+
+### 2. 顺带：6 处配置/状态文件补齐原子写
+
+`Global.WriteAllTextAtomic` 已有 12 个调用点，但同目录、同角色的几个文件仍在裸写：
+
+| 文件 | 说明 |
+|---|---|
+| `Config/ModelCatalog.Providers.cs` | `providers.json` —— 与同目录的 `config.json`/`connections.json`（早已原子写）同级同为权威配置 |
+| `Config/AgentSlotConfig.cs` | 槽位配置 |
+| `Config/ThemeConfig.cs` | 主题配置 |
+| `Memory/StructuredMemory.cs` ×2 | **智能体自己的记忆正文 + `MEMORY.md` 索引** |
+| `Memory/KbIndex.cs` | 知识库条目正文 —— 同文件的 `StatePath`（:984）早就原子写，条目正文却漏了；同一份知识库一个原子一个不原子 |
+
+这 6 处的写法与 `WriteAllTextAtomic` **逐字节等价**（都是 UTF-8 无 BOM），
+所以换过去不改变任何读方的结果，只是把「崩溃/磁盘满留下半截文件 ⇒ 整份配置读不回来」
+这个窗口关掉。
+
+**未改动、如实记录**：`McpClient.cs` / `McpCache.cs` / `ImportHelper.cs` / `Program.Commands.cs`
+写这几处时显式传了 `Encoding.UTF8`（**带 BOM**，与上面第 1 条同一类问题），且仍是裸写。
+它们是另一批（含异步写，需要单独一个异步原子写入口 + 确认各读方容忍无 BOM），本版**没动**。
+
+### 验证
+
+新增 2 条断言：无 BOM 的 `.ipynb` 编辑后**仍无** BOM、带 BOM 的编辑后**保留** BOM。
+**证伪过** —— 把 `WriteNotebook` 改回 `Encoding.UTF8`，第一条立刻变红、第二条仍绿
+（`Encoding.UTF8` 无条件加 BOM，所以「保留」那条测不出问题），正是预期。
+`--test` **5227 / 5227**；桌面 / Gui / MAUI Android 三工程构建均 0 错误。
+
 ## v0.96.102 (2026-09-11) — `ps` / `kill` / 抓屏的 cmd 启动点漏了解码（中文系统必乱码）
 
 3 工具改动，**+92 / −23 行**；自测 **+3 条护栏**。

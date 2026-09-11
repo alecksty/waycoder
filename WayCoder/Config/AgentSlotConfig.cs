@@ -361,7 +361,8 @@ public static class AgentSlotConfig
                 .Set("uniformTemplate", SlotToNode(UniformTemplate))
                 .Set("slots", arr);
 
-            File.WriteAllText(FilePath, Json.Serialize(data, indent: true));
+            // 原子写：崩溃/磁盘满留下半截文件会让槽位配置整份读不回来
+            Global.WriteAllTextAtomic(FilePath, Json.Serialize(data, indent: true));
         }
         catch { /* 保存失败不崩溃 */ }
     }

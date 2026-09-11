@@ -230,11 +230,20 @@ public class NotebookEditTool : ITool
         cell["source"] = sourceArray;
     }
 
-    /// <summary>将 notebook JSON 写回磁盘</summary>
+    /// <summary>
+    /// 将 notebook JSON 写回磁盘。
+    ///
+    /// **必须走 <see cref="Global.WriteAllTextPreserveBom"/>，不能用 `Encoding.UTF8`**：
+    /// 后者是**带 BOM** 的编码，会给没 BOM 的 .ipynb 凭空加一个 EF BB BF。而 Jupyter/nbformat
+    /// 读 notebook 走的是 `open(path, encoding='utf-8')` + `json.load`，**对 BOM 不容忍** ——
+    /// 实测直接抛 `JSONDecodeError: Unexpected UTF-8 BOM (decode using utf-8-sig)`，
+    /// 即「用 WayCoder 改一下 notebook，Jupyter 就打不开了」。
+    /// 编辑路径的标准本就是 preserve-bom（EditFileTool/MultiEditTool 都走它），只有这里漏了。
+    /// </summary>
     private static void WriteNotebook(JNode root, string path)
     {
         var json = root.ToJson(true);
-        File.WriteAllText(path, json + "\n", Encoding.UTF8);
+        Global.WriteAllTextPreserveBom(path, json + "\n");
     }
 
     /// <summary>截断文本用于预览</summary>

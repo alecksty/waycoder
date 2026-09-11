@@ -114,7 +114,9 @@ public static class KbIndex
         sb.AppendLine("---");
         sb.AppendLine();
         sb.AppendLine(e.Content.Trim());
-        File.WriteAllText(e.FilePath, sb.ToString());
+        // 原子写：同文件的 StatePath（:984）早就走 WriteAllTextAtomic，条目正文却漏了 ——
+        // 同一份知识库一个原子一个不原子，半截条目正文会让该条再也读不回来
+        Global.WriteAllTextAtomic(e.FilePath, sb.ToString());
         e.UpdatedAt = now;
     }
 

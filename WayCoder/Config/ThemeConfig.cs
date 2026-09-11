@@ -197,7 +197,8 @@ public class ThemeConfig
   ""selFg"": {SelFg},
   ""selBg"": {SelBg}
 }}";
-            File.WriteAllText(ThemePath, json);
+            // 原子写：半截 theme.json 会让主题配置整份读不回来
+            Global.WriteAllTextAtomic(ThemePath, json);
             Instance = this;
         }
         catch { }
