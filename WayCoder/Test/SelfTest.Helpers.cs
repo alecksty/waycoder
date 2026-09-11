@@ -807,6 +807,22 @@ public static partial class SelfTest
         Check("ApiKey: URL 拒绝", !ConnectionConfig.IsPlausibleApiKey("https://example.com/v1"));
         Check("ApiKey: 含空白拒绝", !ConnectionConfig.IsPlausibleApiKey("sk-ab cd"));
         Check("ApiKey: 过短拒绝", !ConnectionConfig.IsPlausibleApiKey("short"));
+        // 地址反查兜底：用户在 providers.json 配了新网关（带 apiFormat）但没重新导入模型时，
+        // 目录里没有「该模型 + 该地址」的组合 —— 少了这条兜底就静默降级成 openai 格式。
+        ModelCatalog.Providers["__antprov_url__"] = new ModelCatalog.ProviderInfo(
+            "UrlProbe", "https://x.example.com", ApiFormat: "anthropic",
+            SupportsThinking: false, SupportsTools: false);
+        Check("ApiFormat: 地址反查 provider（目录无该模型+地址组合时不降级 openai）",
+            ModelCatalog.ResolveApiFormat("claude-sonnet-5", "https://x.example.com") == "anthropic");
+        // 网关级能力开关同样要能被反查到：否则会被「claude 家族 → 支持思考」的推断覆盖，
+        // 给不支持 thinking 的网关照发 thinking 参数（实测 opencode-zen 会因此请求失败）。
+        var consByUrl = ModelCatalog.ResolveModelCallConstraints("claude-sonnet-5", "https://x.example.com");
+        Check("能力约束: 地址反查的 supportsThinking=false 生效（不被模型家族推断覆盖）",
+            !consByUrl.SupportsThinking);
+        Check("能力约束: 地址反查的 supportsTools=false 生效", !consByUrl.SupportsTools);
+        ModelCatalog.Providers.Remove("__antprov_url__");
+        Check("ApiFormat: 地址反查不影响普通 OpenAI 兼容网关",
+            ModelCatalog.ResolveApiFormat("claude-sonnet-5", "https://openrouter.ai/api/v1") == "openai");
 
         // ── 2. 集成：Anthropic 原生（模拟 message_*/content_block_* SSE）──
         var server = new WayCoder.UI.Web.HttpServer(0);
