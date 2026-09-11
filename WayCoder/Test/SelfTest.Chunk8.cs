@@ -150,6 +150,100 @@ public static partial class SelfTest
         Console.WriteLine();
 
         // ================================================================
+        // TuiDialog 关闭协议：落 Result → 跑回调 → 触发 OnClosed，三件齐活
+        // ================================================================
+        Section("[TuiDialog 关闭协议]");
+
+        // 关一个模态窗必须按序做完三件事，缺一即坏事：
+        //   漏 OnClosed ⇒ 窗口永不关闭（渲染等待循环等不到事件，调用方一直挂着）；
+        //   漏 Result   ⇒ 调用方读到默认值（object? 的 -1 / int? 的 null），把「取消」读成「确认」；
+        //   回调跑在 Result 之前 ⇒ 被回调唤醒的调用方读到上一轮的旧值。
+        // 此前这三行在 TuiDialog 的 8 个构建器里手抄了 39 处（+TuiMenu 2 处），
+        // 现在只有 TuiWindow.Close 一个出口 —— 这组断言就是那个出口的合同。
+        static (bool Closed, object? Result) FireClose(TuiWindow w, ConsoleKey key)
+        {
+            bool closed = false;
+            w.OnClosed = () => closed = true;
+            w.KeyShortcuts[key]();   // 直接跑注册的快捷键体，等价于用户按下该键
+            return (closed, w.Result);
+        }
+
+        {
+            bool cbYes = false;
+            var (closed, res) = FireClose(TuiDialog.Confirm("确认", "继续?", r => cbYes = r), ConsoleKey.Y);
+            Check("关闭协议 Confirm/Y: Result=true、回调收到 true、已关窗", res is true && cbYes && closed);
+        }
+        {
+            bool cbNo = true;
+            var (closed, res) = FireClose(TuiDialog.Confirm("确认", "继续?", r => cbNo = r), ConsoleKey.Escape);
+            Check("关闭协议 Confirm/Esc: Result=false、回调收到 false、已关窗", res is false && !cbNo && closed);
+        }
+        {
+            TuiDialog.EDialogResult? cb3 = null;
+            var (closed, res) = FireClose(TuiDialog.Confirm3("三选", "?", r => cb3 = r), ConsoleKey.N);
+            Check("关闭协议 Confirm3/N: Result=No、回调一致、已关窗",
+                res is TuiDialog.EDialogResult.No && cb3 == TuiDialog.EDialogResult.No && closed);
+        }
+        {
+            TuiDialog.EDialogResult? cbPerm = null;
+            var (closed, res) = FireClose(TuiDialog.Permission("权限", "允许?", r => cbPerm = r), ConsoleKey.Y);
+            Check("关闭协议 Permission/Y: Result=Yes、回调一致、已关窗",
+                res is TuiDialog.EDialogResult.Yes && cbPerm == TuiDialog.EDialogResult.Yes && closed);
+        }
+        {
+            bool closed = false;
+            var w = TuiDialog.Info("信息", "内容");
+            w.OnClosed = () => closed = true;
+            w.KeyShortcuts[ConsoleKey.Enter]();
+            Check("关闭协议 Info/Enter: Result=Ok 且已关窗",
+                w.Result is TuiDialog.EDialogResult.Ok && closed);
+        }
+
+        // Esc 取消路径逐个走一遍 —— 走**屏幕真实路径**（ShowWindow + screen.OnKey），
+        // 不直接跑快捷键体：注册了 Esc 的窗口走 win.OnKey → win.Close()，
+        // 而消息框（Info/Success/Warn/Error）**没注册 Esc**，由 TuiScreen.OnKey 兜底
+        // 直接触发 OnClosed（Result 保持默认 -1、无人读）。两条路都必须真关窗 ——
+        // 按 Esc 关不掉对话框是致命的，而这条「没注册」的事实只有走屏幕路径才测得到。
+        (string Name, Func<TuiWindow> Make)[] escCases =
+        [
+            ("Info",        () => TuiDialog.Info("t", "m")),
+            ("Confirm",     () => TuiDialog.Confirm("t", "m", _ => { })),
+            ("Confirm3",    () => TuiDialog.Confirm3("t", "m", _ => { })),
+            ("Input",       () => TuiDialog.Input("t", "p", "", _ => { })),
+            ("InputLine",   () => TuiDialog.InputLine("t", "p", "", _ => { })),
+            ("Secret",      () => TuiDialog.Secret("t", "p", "", _ => { })),
+            ("FindReplace", () => TuiDialog.FindReplace("f", "r", new FindOptions(),
+                                (_, _) => { }, (_, _, _) => { }, (_, _, _) => { })),
+            ("Select",      () => TuiDialog.Select("t", ["A", "B"], _ => { })),
+            ("MultiSelect", () => TuiDialog.MultiSelect("t", ["A", "B"], _ => { })),
+            ("Ask",         () => TuiDialog.Ask("t", "m", ["A", "B"], false, _ => { }, _ => { })),
+            ("Permission",  () => TuiDialog.Permission("t", "m", _ => { })),
+        ];
+        {
+            var escScreen = new ChatScreen();
+            escScreen.Activate();
+            var escK = new ConsoleKeyInfo('', ConsoleKey.Escape, false, false, false);
+            try
+            {
+                foreach (var (name, make) in escCases)
+                {
+                    try
+                    {
+                        escScreen.ShowWindow(make());
+                        escScreen.OnKey(escK);
+                        bool gone = escScreen.Windows.Count == 0;
+                        Check($"关闭协议 {name}/Esc(屏幕路径): 已关窗", gone);
+                        if (!gone) escScreen.CloseAllModals(); // 防残留窗口污染后续用例
+                    }
+                    catch (Exception ex) { Check($"关闭协议 {name}/Esc: 异常 {ex.Message}", false); }
+                }
+            }
+            finally { escScreen.Deactivate(); }
+        }
+
+        Console.WriteLine();
+
+        // ================================================================
         // TuiProgress 测试
         // ================================================================
         Section("[TuiProgress]");

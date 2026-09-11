@@ -191,7 +191,7 @@ public static class DiffPreview
         void Finish(Decision d, HashSet<int>? a)
         {
             onDone(d, a);
-            win.OnClosed?.Invoke();
+            win.Close();
         }
 
         void OnY()

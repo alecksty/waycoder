@@ -162,6 +162,36 @@ public class TuiWindow : TuiBase
     public Action? OnClosed { get; set; }
 
     /// <summary>
+    /// 结束模态窗并交付结果 —— **关闭模态窗的唯一入口**。
+    ///
+    /// 关一个模态窗永远要按序做三件事：①写 <see cref="Result"/>（调用方读它取值）
+    /// ②跑调用方回调（对话框工厂的 <c>onResult</c>/<c>onConfirm</c>/<c>onCancel</c>…）
+    /// ③触发 <see cref="OnClosed"/>（驱动窗口出栈、唤醒渲染等待循环）。
+    /// **顺序不可换**：Result 必须先落 —— 回调正是唤醒等待线程的那一下，
+    /// 被唤醒的调用方可能立刻读 <c>win.Result</c>，先跑回调就会读到上一轮的旧值。
+    ///
+    /// 此前这三行在 <c>TuiDialog</c> 的 8 个构建器里手抄了 39 处（另加 <c>TuiMenu</c> 2 处），
+    /// 漏写任一行都没有任何编译期提示：
+    /// 漏 <c>OnClosed</c> ⇒ **窗口永不关闭、调用方一直挂着**（渲染等待循环等不到事件）；
+    /// 漏 <c>Result</c> ⇒ 调用方拿到默认值（<c>object?</c> 的 −1、<c>int?</c> 的 null），把「取消」读成「确认」。
+    /// </summary>
+    /// <param name="result">交付给调用方 <see cref="Result"/> 的值。</param>
+    /// <param name="callback">结果落地后才跑的调用方回调（须在回调里读 <c>win.Result</c> 时依赖此顺序）。</param>
+    public void Close(object? result, Action? callback = null)
+    {
+        Result = result;
+        callback?.Invoke();
+        OnClosed?.Invoke();
+    }
+
+    /// <summary>
+    /// 无结果的关闭 —— 结果只经调用方回调交付、不经 <see cref="Result"/> 的对话框走这条
+    /// （如查找替换框：按下「查找下一个」后关窗并回调，没有「返回值」这回事）。
+    /// 与 <see cref="Close(object?, Action?)"/> 一样是「关窗」的唯一形式，别再手写 <c>OnClosed?.Invoke()</c>。
+    /// </summary>
+    public void Close() => OnClosed?.Invoke();
+
+    /// <summary>
     /// 终端尺寸变化时重建对话框内容的回调。
     /// 由 TuiDialog 工厂方法设置，用于在 resize 时重新计算
     /// 控件尺寸和窗口大小，使其适配新的终端尺寸。

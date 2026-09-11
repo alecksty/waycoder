@@ -174,7 +174,7 @@ public static class TuiKeybindHelp
         void Close()
         {
             onDone();
-            win.OnClosed?.Invoke();
+            win.Close();
         }
 
         win.RegisterShortcut(ConsoleKey.Escape, Close);

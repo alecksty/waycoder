@@ -389,15 +389,15 @@ public static class UxHelper
     }
 
     /// <summary>
-    /// 统一「模态对话框完成」样板：回调结果置位事件 + 触发 OnClosed 关闭窗口。
+    /// 统一「模态对话框完成」样板：回调结果置位事件 + 关闭窗口。
     /// 各 Picker（ModelPicker/SessionPicker/CommandPalette/ReasoningPicker/FilePicker）的
     /// Finish 此前重复同一段「onDone(r); win.OnClosed?.Invoke();」，收敛到此单点。
+    /// 关窗动作本身委托给 <see cref="TuiWindow.Close(object?, Action?)"/> —— 全仓「关模态窗」
+    /// 只有那一个出口，这里只是它的类型化适配（picker 的结果走 <c>evt.Set()</c> 回调交付，
+    /// 不从 <c>win.Result</c> 读，写进去只是顺带，无副作用）。
     /// </summary>
     public static void FinishModal<TResult>(TuiWindow win, Action<TResult?> onDone, TResult? result)
-    {
-        onDone(result);
-        win.OnClosed?.Invoke();
-    }
+        => win.Close(result, () => onDone(result));
 
     /// <summary>屏幕版模态对话框样板：UI 线程直执 ShowWindow；后台线程经 screen.PostToUI 投递，
     /// RenderWait 保持原 readKeys 语义（后台线程只等待）。收敛 ChatScreen.Dialogs/Input 手写样板。
