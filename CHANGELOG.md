@@ -1,5 +1,65 @@
 # 更新日志
 
+## v0.96.92 (2026-09-11) — 重复代码清理（C 级第一批）：HTTP 重定向 / 模态对话框样板 / 写文件两步
+
+7 文件改动 + 2 新增，**+67 / −247 行**。
+
+### 1. `SsgfRedirect`：三份「跟随重定向 + 每跳 SSRF 校验」
+
+`FetchTool` / `DownloadTool` / `DocTool` 各写一份（约 40 行/份，连 doc 注释都几乎逐字相同），
+且已经漂移：**重定向预算是 5 / 10 / 5，无理由地不同** —— 同一句 `"重定向次数过多"` 之下，
+download 能吞 10 跳、fetch 只能 5 跳。现在预算必须显式传、差异摆在调用点上（download 传 10 并注明
+理由：下载链接经 CDN/镜像跳转往往比普通抓取多几跳）。
+
+DocTool 那条「不查 DNS」保留为显式参数 `checkDns: false` —— 它有明确理由：最终连接由
+`SsgfGuard.CreateSafeHandler` 的 ConnectCallback 原子完成「解析→校验→连接」，这里再 CheckDns
+会二次解析、重开 DNS 重绑定窗口。
+
+### 2. `UxHelper` 六个私有对话框收口到 `RunModalDialog`
+
+同文件 40 行外就有 `RunModalDialog<TResult>`（注释写着「各 Picker 此前重复约 8 份……收敛到此单点」），
+而 `ShowInputDialog` / `ShowSecretDialog` / `ShowSelectDialog` / `ShowMultiSelectDialog` /
+`ShowAskDialog` / `ShowConfirmDialog` **六个都没用它**，各自手写
+「result + ManualResetEventSlim + try/catch + ShowWindow + RenderWait」13~25 行，−146 行。
+
+**⚠ 迁移时最容易踩的坑（已在代码注释里写明）**：`ShowConfirmDialog` 取
+`RunModalDialog<int?>` 而**不是** `int`。`RunModalDialog<TResult>` 是无约束泛型，
+`TResult?` 对值类型**不退化为 `Nullable<T>`** —— 用 `int` 的话「回调未触发」（超时 / 构建抛异常）
+会静默退化成 `default(int) = 0 = **允许**`，**权限弹窗在异常路径上就从「拒绝」翻成「允许」**，
+而调用点文本一字未变。取 `int?` 才能表达空态，末尾 `?? 2` 保住原来那句「默认拒绝」。
+
+### 3. `WritePipeline`：写文件流水线里零风险的两步
+
+四个工具（`EditFileTool` / `MultiEditTool` / `WriteFileTool` / `DownloadTool`）各写了一遍
+「guard → lock → try/finally → 先读后改 → diff 确认 → CRLF → record → lint」，其中两段逐字重复：
+
+- **`ConfirmDiff`**：逐 hunk 确认。三处的守卫条件写法已经分叉
+  （`cfg.DiffPreview && CanConfirmInline && !Yolo` vs 先判 `cfg.DiffPreview` 再内层分 Yolo）——
+  当前语义等价，但改一处另两处不会跟着改，而 `CanConfirmInline` 那条注释特意写了
+  「勿裸判重定向」的教训。现在收敛成一份。
+- **`RestoreCrlf`**：CRLF 行尾恢复（两处连注释都逐字相同）。类注释写明调用时机要求：
+  必须在生成 diff / 记录变更**之后**（那时内容都还是 LF，否则逐行比较会把整文件误判为改动）。
+
+**没有抽整个流水线**（`FileWriteScope` 那种 `using` 式 guard+lock）：四处的异常路径语义并不相同
+（如 `DownloadTool` 取消时要先删半成品文件再 rethrow），收益不抵重构风险 —— 已在类注释里写明。
+
+### 4. Braille 帧集
+
+`TuiAnimatedText` 自己声明的 `SpinnerFrames` 与 `AgentStatusResolver.SpinnerFrames`
+（注释自称「经典 10 帧 Braille……四端共用」）逐字相同，改为引用唯一真源 ——
+帧集改名/增减时四端本该同步，抄一份就多一个「改一处漏一处、各端动画不同步」的入口。
+
+**验证**：`--test` **5182 / 5182**；桌面 / Gui / MAUI Android 三工程构建均 0 错误。
+
+**C 级仍未做**：`TuiListView : TuiScrollView`（滚动状态与方法重复约 50 行，且 `TuiListView`
+缺 `OnResize` 重钳偏移 —— resize 后可能越界）、`TuiDialog` 关闭协议 46 处
+（`win.Result =` 39 处 vs `OnClosed` 46 处 ⇒ 7 处只做一半，漏的那半边会让窗口不关 / 事件不置位 → 卡死）、
+内联滚动条 4 份、写文件流水线剩下的 guard+lock、日志 sink 日期轮转 3 份、
+BOM 表 2 份（`Detect` 缺 UTF-32 分支 ⇒ UTF-32LE 的 `FF FE 00 00` 会被当 UTF-16LE 解出乱码）、
+`ImportHelper` 的 Cursor/Cline 两份、Maui `Markup/` 三份高亮循环、鼠标命中绕过 `MouseInBounds`
+（`TuiRichEditor`/`DiffPreview` 恰好在弹窗内 → 命中 `HitAbsX` 记录的那个「点击错位」老坑）、
+目录上溯循环 3 份、`ToolErrors` 被 6 处手拼。
+
 ## v0.96.91 (2026-09-11) — 重复代码清理（下）：模型解析 / 模型切换 / diff 引擎 / 跨端文案 / key 判定
 
 接 v0.96.90（A 级 7 条真 bug + 三处单一真源收口），本版做完 B 级剩下 5 条。

@@ -152,61 +152,11 @@ public class FetchTool : ITool, ICancellableTool
         }
     }
 
-    /// <summary>
-    /// 发送请求并手动跟随重定向，每跳做 SSRF 校验（防重定向到内网/云元数据）。
-    /// SSRF 拦截时抛 <see cref="SsgfBlockedException"/>（不进入网络重试）。
-    /// 重定向后统一改用 GET（丢弃请求体），fetch 场景重定向目标多为网页。
-    /// </summary>
-    private static async Task<HttpResponseMessage> SendWithRedirectAsync(
+    /// <summary>发送请求并跟随重定向（每跳 SSRF 校验）—— 唯一实现见 <see cref="SsgfRedirect"/>。</summary>
+    private static Task<HttpResponseMessage> SendWithRedirectAsync(
         string method, string url, Dictionary<string, string>? headers, string? body, CancellationToken cancellationToken)
-    {
-        var currentUrl = url;
-        var currentMethod = method;
-
-        for (var redirect = 0; redirect < 5; redirect++)
-        {
-            // SSRF 校验：字面量 IP / 特殊主机名 + DNS 解析结果
-            var (safe, reason) = SsgfGuard.CheckUrl(currentUrl);
-            if (!safe) throw new SsgfBlockedException(reason!);
-            var dns = SsgfGuard.CheckDns(new Uri(currentUrl).Host);
-            if (!dns.safe) throw new SsgfBlockedException(dns.reason!);
-
-            var req = new HttpRequestMessage(new HttpMethod(currentMethod), currentUrl);
-
-            // 请求头（Content-Type 单独走请求体 mediaType，不能加进 request.Headers）
-            string? bodyContentType = null;
-            if (headers != null)
-            {
-                foreach (var (k, v) in headers)
-                {
-                    if (k.Equals("Content-Type", StringComparison.OrdinalIgnoreCase)) { bodyContentType = v; continue; }
-                    try { req.Headers.TryAddWithoutValidation(k, v); } catch { /* 跳过无效头 */ }
-                }
-            }
-
-            // 请求体（仅首次请求；重定向后改 GET 丢弃 body）
-            if (!string.IsNullOrEmpty(body) && redirect == 0)
-            {
-                req.Content = new StringContent(body, Encoding.UTF8);
-                req.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(bodyContentType ?? "application/json");
-            }
-
-            var response = await _client.SendAsync(req, cancellationToken);
-
-            if (SsgfGuard.IsRedirect((int)response.StatusCode) && response.Headers.Location != null)
-            {
-                var nextUri = new Uri(new Uri(currentUrl), response.Headers.Location);
-                response.Dispose();
-                currentUrl = nextUri.AbsoluteUri;
-                currentMethod = "GET";
-                continue;
-            }
-
-            return response;
-        }
-
-        throw new HttpRequestException("重定向次数过多");
-    }
+        => SsgfRedirect.SendAsync(_client, method, url, headers, body,
+            cancellationToken: cancellationToken);
 
     // ========================================================================
     // HTML 净化

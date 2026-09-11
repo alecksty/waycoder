@@ -27,7 +27,9 @@ public enum AnimatedTextMode
 /// </summary>
 public class TuiAnimatedText : TuiDisplayControl
 {
-    private static readonly string[] SpinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    // 引用跨端唯一真源，别再抄一份 —— 帧集改名/增减时四端（TUI/Web/GUI/Maui）必须同步，
+    // 抄一份就多一个「改一处漏一处、各端动画不同步」的入口
+    private static readonly string[] SpinnerFrames = AgentStatusResolver.SpinnerFrames;
 
     /// <summary>最小动画间隔（毫秒）。</summary>
     public const int MinFrameMs = 100;

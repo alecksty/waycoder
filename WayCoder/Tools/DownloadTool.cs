@@ -160,36 +160,14 @@ public class DownloadTool : ITool, ICancellableTool
     }
 
     /// <summary>
-    /// 发送请求并手动跟随重定向，每跳做 SSRF 校验（防重定向到内网/云元数据）。
-    /// SSRF 拦截时抛 <see cref="SsgfBlockedException"/>（不进入网络重试）。
+    /// 发送请求并跟随重定向 —— 唯一实现见 <see cref="SsgfRedirect"/>。
+    ///
+    /// 重定向预算显式传 10（而非默认 5）：下载链接经 CDN / 镜像跳转往往比普通抓取多几跳。
+    /// 此前这个 10 是硬编码在各自副本里的，与 fetch 的 5 无声地不同 —— 现在差异摆在调用点上。
     /// </summary>
-    private static async Task<HttpResponseMessage> SendWithRedirectAsync(HttpClient client, HttpMethod method, string url, CancellationToken cancellationToken)
-    {
-        var currentUrl = url;
-        var currentMethod = method;
-
-        for (var redirect = 0; redirect < 10; redirect++)
-        {
-            var (safe, reason) = SsgfGuard.CheckUrl(currentUrl);
-            if (!safe) throw new SsgfBlockedException(reason!);
-            var dns = SsgfGuard.CheckDns(new Uri(currentUrl).Host);
-            if (!dns.safe) throw new SsgfBlockedException(dns.reason!);
-
-            var response = await client.SendAsync(
-                new HttpRequestMessage(currentMethod, currentUrl), HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-
-            if (SsgfGuard.IsRedirect((int)response.StatusCode) && response.Headers.Location != null)
-            {
-                var nextUri = new Uri(new Uri(currentUrl), response.Headers.Location);
-                response.Dispose();
-                currentUrl = nextUri.AbsoluteUri;
-                currentMethod = HttpMethod.Get; // download 重定向后改 GET
-                continue;
-            }
-
-            return response;
-        }
-
-        throw new HttpRequestException("重定向次数过多");
-    }
+    private static Task<HttpResponseMessage> SendWithRedirectAsync(HttpClient client, HttpMethod method, string url, CancellationToken cancellationToken)
+        => SsgfRedirect.SendAsync(client, method, url,
+            completion: HttpCompletionOption.ResponseHeadersRead,
+            maxRedirects: 10,
+            cancellationToken: cancellationToken);
 }
