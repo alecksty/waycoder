@@ -287,17 +287,10 @@ public class TuiTableList : TuiListControl
         // 内联滚动条
         if (total > vis && vis > 0)
         {
-            var (barH, barPos) = TuiScrollMath.Bar(total, vis, ScrollOffset);
-            for (int i = 0; i < vis; i++)
-            {
-                var ch = (i >= barPos && i < barPos + barH) ? "█" : "│";
-                var fg = (i >= barPos && i < barPos + barH)
-                    ? TuiTheme.Current.SeekBarThumbFg
-                    : TuiTheme.Current.SeparatorFg;
-                var rb = new Terminal.RenderBuffer();
-                rb.Write(dataStart + i, absX + Width - 1, ch, fg: fg);
-                sb.Append(rb.ToString());
-            }
+            var rbBar = new Terminal.RenderBuffer();
+            TuiScrollMath.Paint(rbBar, dataStart, absX + Width - 1, vis, total, vis, ScrollOffset,
+                TuiTheme.Current.SeekBarThumbFg, TuiTheme.Current.SeparatorFg);
+            sb.Append(rbBar.ToString());
         }
     }
 

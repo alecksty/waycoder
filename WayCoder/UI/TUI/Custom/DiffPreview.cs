@@ -386,16 +386,13 @@ public static class DiffPreview
                     RenderUnifiedLine(sb, _lines[li], contentW, _currentHunk, _accepted, _syntax, absY + i, absX);
             }
 
-            // 右侧滚动条（▉ 滑块 + │ 轨道），提示内容可滚动、定位当前位置
+            // 右侧滚动条（█ 滑块 + │ 轨道），提示内容可滚动、定位当前位置
             if (showBar)
             {
-                var (barH, barPos) = TuiScrollMath.Bar(total, Height, _scrollOffset);
-                for (int i = 0; i < Height; i++)
-                {
-                    var ch = (i >= barPos && i < barPos + barH) ? "█" : "│";
-                    sb.Append(AnsiTty.CursorPos0(absY + i, absX + contentW));
-                    sb.Append(AnsiTty.SgrDim).Append(ch).Append(AnsiTty.SgrReset);
-                }
+                var rbBar = new RenderBuffer();
+                TuiScrollMath.Paint(rbBar, absY, absX + contentW, Height, total, Height,
+                    _scrollOffset, AnsiTty.StyleDim, AnsiTty.StyleDim);
+                sb.Append(rbBar.ToString());
             }
         }
     }

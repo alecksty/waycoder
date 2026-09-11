@@ -1,6 +1,10 @@
 using System.Text;
 using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.Tui.Edit;
+using ScrollMath = WayCoder.UI.Tui.TuiScrollMath;
+using Rbuf = WayCoder.UI.Shared.Terminal.RenderBuffer;
+using Ansi = WayCoder.UI.Shared.Terminal.AnsiTty;
+using Tty = WayCoder.UI.Shared.Terminal.Tty;
 
 namespace WayCoder;
 
@@ -10,10 +14,79 @@ public static partial class SelfTest
     {
         TestUiLint(Section, Check, Fail);
         TestTableList(Section, Check, Fail);
+        TestScrollMathPaint(Section, Check, Fail);
         TestTuiSpace(Section, Check, Fail);
         TestTextAreaSyntax(Section, Check, Fail);
         TestWindowButtonEnter(Section, Check, Fail);
         TestProviderPickerButtons(Section, Check, Fail);
+    }
+
+    // ── TuiScrollMath.Paint：四处内联滚动条（TuiList/TuiMenu/TuiTableList/DiffPreview）的唯一落笔实现 ──
+    private static void TestScrollMathPaint(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
+    {
+        Section("[TuiScrollMath 滚动条落笔]");
+        try
+        {
+            var prevSize = Tty.SizeOverride;
+            try
+            {
+                // RenderBuffer.Write 会按 Tty.Rows/Cols 裁剪越界写入（终端尺寸不确定时自测量不到东西），
+                // 固定成 24×80 让断言只依赖 Paint 自身的行为。
+                Tty.SizeOverride = (80, 24);
+
+                static string PaintBar(int total, int vis, int offset, int height = -1)
+                {
+                    var rb = new Rbuf();
+                    ScrollMath.Paint(rb, 0, 0, height < 0 ? vis : height, total, vis, offset,
+                        Ansi.StyleDim, Ansi.StyleDim);
+                    return rb.ToString();
+                }
+
+                // 每次 Write 只落一个字符，且样式码里不含 █/│ ⇒ 按出现顺序取出的字形序列就是逐行画面。
+                static string Picture(string ansi)
+                {
+                    var b = new StringBuilder();
+                    foreach (var ch in ansi)
+                        if (ch == '█' || ch == '│') b.Append(ch);
+                    return b.ToString();
+                }
+
+                static string Expected(int vis, int thumb, int pos)
+                {
+                    var b = new StringBuilder();
+                    for (int i = 0; i < vis; i++) b.Append(i >= pos && i < pos + thumb ? '█' : '│');
+                    return b.ToString();
+                }
+
+                var (topThumb, topPos) = ScrollMath.Bar(50, 10, 0);
+                Check("ScrollMath.Paint: 顶部画面与 Bar() 几何逐行一致",
+                    Picture(PaintBar(50, 10, 0)) == Expected(10, topThumb, topPos));
+
+                var (midThumb, midPos) = ScrollMath.Bar(50, 10, 20);
+                Check("ScrollMath.Paint: 滚到中间画面与 Bar() 几何逐行一致",
+                    Picture(PaintBar(50, 10, 20)) == Expected(10, midThumb, midPos));
+
+                var (endThumb, endPos) = ScrollMath.Bar(50, 10, 40);
+                var endPic = Picture(PaintBar(50, 10, 40));
+                Check("ScrollMath.Paint: 滚到底画面与 Bar() 几何逐行一致",
+                    endPic == Expected(10, endThumb, endPos));
+                Check("ScrollMath.Paint: 滚到底时滑块贴底（末行是滑块）", endPic.EndsWith("█"));
+
+                // 这里是唯一判「要不要画」的地方 —— 四个调用点此前各判一次，漏判即 Bar() 的
+                // Math.Clamp(min>max) 抛 ArgumentException（滑块长过视口时 (vis - thumb) 为负）。
+                Check("ScrollMath.Paint: 内容不超视口时零落笔（含 total<visible 不抛异常）",
+                    PaintBar(8, 10, 0).Length == 0);
+                Check("ScrollMath.Paint: total==visible 时零落笔", PaintBar(10, 10, 0).Length == 0);
+                Check("ScrollMath.Paint: 仅超 1 行也照常画（不越界、不抛）",
+                    Picture(PaintBar(11, 10, 0)).Length == 10);
+                Check("ScrollMath.Paint: height=0 时不落笔", PaintBar(50, 10, 0, 0).Length == 0);
+            }
+            finally { Tty.SizeOverride = prevSize; }
+        }
+        catch (Exception ex)
+        {
+            Fail($"TuiScrollMath 滚动条落笔: 异常 {ex.Message}");
+        }
     }
 
     // ── ProviderPicker 按钮快捷键：按钮可键盘触发（修复「有按钮无功能」）──

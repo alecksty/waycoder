@@ -1,5 +1,40 @@
 # 更新日志
 
+## v0.96.99 (2026-09-11) — 重复代码清理（C 级第八批）：内联滚动条落笔
+
+5 文件改动，**+54 / −40 行**；自测 **+8 条护栏**。
+
+### 内联滚动条 4 份 → `TuiScrollMath.Paint`
+
+`TuiList`（列表选单）、`TuiMenu`（滚动菜单）、`TuiTableList`（表格列表）、
+`DiffPreview`（diff 预览右侧）各写一遍「`Bar()` 取几何 → 逐行判滑块 → 写目标列」，
+四份**连字符字面量 `"█"` / `"│"` 都逐字相同**，只有两处正当差异：
+
+| 调用点 | 目标列 | 颜色来源 |
+|---|---|---|
+| `TuiList` | `absX + Width` | `fg: 2`（裸样式码） |
+| `TuiMenu` | `absX + ContentWidth` | `AnsiTty.StyleDim` |
+| `TuiTableList` | `absX + Width - 1` | 主题 `SeekBarThumbFg` / `SeparatorFg` |
+| `DiffPreview` | `absX + contentW` | `AnsiTty.SgrDim` 包裹 |
+
+目标列与颜色正是各控件的语义，故留作参数；几何仍由 `Bar()` 提供，
+新增的 `TuiScrollMath.Paint` 只负责落笔，字符提成 `ThumbChar` / `TrackChar` 两个常量。
+
+**顺带修掉一条潜在崩溃**：`Bar()` 在 `total <= vis` 时滑块长度会超过视口，
+`(long)(vis - thumb)` 变负会让 `Math.Clamp` 以 min > max 抛 `ArgumentException`。
+四处调用点此前**各判一次**同一个条件（`total > vis`），属于「四份守卫，漏一处即崩」——
+判据收进 `Paint` 内部，新增调用点不必再记得判。
+
+**行为不变**：`TuiList` 的 `fg: 2` 与 `AnsiTty.StyleDim` 同为 SGR 2 淡化
+（`RenderBuffer` 把 1..9 当样式码，8 是 conceal 不是 dim，见 v0.96.90 的 `AnsiTty.StyleDim`）；
+`DiffPreview` 改用 `RenderBuffer` 后逐字符末尾由 `SgrReset` 变 `StyleOffSeq(2)` = `ESC[22m`，
+只关淡化不清色，视觉一致且不再冲掉底色。
+
+**验证**：新增 8 条断言把「逐行画面 == `Bar()` 几何」钉死（顶部/中间/底部三档 + 界线档 +
+`height=0`），并**证伪过**——临时摘掉 `total <= visible` 守卫，2 条断言立刻变红。
+`--test` **5199 / 5199**；桌面 / Gui / MAUI Android 三工程构建均 0 错误。
+全仓 `? "█" : "│"` 已无残留。
+
 ## v0.96.98 (2026-09-11) — 重复代码清理（C 级第七批）：日志文件句柄生命周期
 
 2 文件改动 + 1 新增，**+16 / −145 行**。
