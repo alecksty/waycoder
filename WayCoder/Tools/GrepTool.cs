@@ -26,11 +26,9 @@ public class GrepTool : ITool
             .Set("literal_text", JNode.Param("boolean", "如果为 true，pattern 将被当做纯文本处理（自动转义正则特殊字符），默认 false")))
         .Set("required", JNode.Array("pattern"));
 
-    // 跳过这些目录以减少噪音
-    private static readonly HashSet<string> SkipDirs =
-    [
-        ".git", "node_modules", "__pycache__", ".venv", "venv", ".tox", "dist", "build",
-    ];
+    // 在权威跳过表（FileIgnoreManager）之上额外跳过的噪音目录（.git/node_modules/__pycache__
+    // 等已由权威表覆盖，这里只剩 grep 特有的 dist/build —— 它们是构建产物，grep 进不去更安静）。
+    private static readonly HashSet<string> ExtraSkipDirs = ["dist", "build"];
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
@@ -128,31 +126,16 @@ public class GrepTool : ITool
     /// <summary>逐目录递归收集文件，每个目录独立 try/catch —— 单个不可访问子目录
     /// 不再像 <c>Directory.GetFiles(..., AllDirectories)</c> 那样让整棵树搜索失败。</summary>
     private static void WalkRecursive(string dir, string searchPattern, List<string> results, int depth = 0)
-    {
-        if (results.Count >= 5000 || depth > 64) return; // 深度上限防符号链接环无限递归 → StackOverflow
-
-        try
-        {
-            foreach (var file in Directory.GetFiles(dir, searchPattern))
+        // 遍历骨架 + 结果上限 + 深度上限 + 跳过判断统一走 FileWalker（此前本类自写一份，
+    // 且同时用了 5000 与 Global.MaxGrepResults 两个不同的上限，后者才是配置项）
+        => FileWalker.Walk(dir, results, Global.MaxGrepResults,
+            (d, res) =>
             {
-                results.Add(file);
-                if (results.Count >= Global.MaxGrepResults) return;
-            }
-        }
-        catch
-        {
-            // 跳过无法访问的目录
-        }
-
-        string[] subDirs;
-        try { subDirs = Directory.GetDirectories(dir); }
-        catch { return; }
-
-        foreach (var sub in subDirs)
-        {
-            if (SkipDirs.Contains(Path.GetFileName(sub))) continue;
-            WalkRecursive(sub, searchPattern, results, depth + 1);
-            if (results.Count >= 5000) return;
-        }
-    }
+                foreach (var file in Directory.GetFiles(d, searchPattern))
+                {
+                    res.Add(file);
+                    if (res.Count >= Global.MaxGrepResults) return;
+                }
+            },
+            ExtraSkipDirs);
 }

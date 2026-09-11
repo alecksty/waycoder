@@ -48,14 +48,6 @@ public class TodoTool : ITool
             .Set("filter", JNode.Param("string", "状态过滤器，逗号分隔（list 操作可选）。如 'pending,in_progress'。")))
         .Set("required", JNode.Array("action"));
 
-    // ── 持久化路径 ──
-
-    private static string StorePath => Path.Combine(
-        CwdContext.Root, ".waycoder", "todos.json"); // cd 后基于被跟踪工作目录，而非进程启动目录
-
-    /// <summary>todos.json 读改写串行锁：多槽位 Agent 与 GUI 2s 定时器 / MAUI 状态栏并发读写时防撕裂/丢更新。</summary>
-    private static readonly object _fileLock = new();
-
     // ── 公共访问（兼容旧代码：SelfTest、ChatScreen 侧栏、TodoCommand）──
 
     /// <summary>任务条目的公共视图（用于 TUI 侧栏和外部查询）。</summary>
@@ -74,7 +66,7 @@ public class TodoTool : ITool
     {
         get
         {
-            var entries = LoadTodos();
+            var entries = TodoStore.Load();
             return entries.Select(e => new TodoItem
             {
                 Id = e.Id,
@@ -121,7 +113,7 @@ public class TodoTool : ITool
         if (id.Length > 64)
             return "错误：id 最长 64 字符";
 
-        var todos = LoadTodos();
+        var todos = TodoStore.Load();
         if (todos.Any(t => t.Id == id))
             return $"错误：任务 ID '{id}' 已存在。请使用 update 操作修改现有任务。";
 
@@ -132,7 +124,7 @@ public class TodoTool : ITool
         var desc = args.GetValueOrDefault("description")?.ToString() ?? "";
 
         // 解析依赖
-        var deps = ParseStringList(args, "deps");
+        var deps = TodoStore.ParseStringList(args, "deps");
 
         // 验证依赖存在
         var allIds = todos.Select(t => t.Id).ToHashSet();
@@ -140,7 +132,7 @@ public class TodoTool : ITool
         if (missing.Count > 0)
             return $"错误：依赖任务不存在: {string.Join(", ", missing)}。请先创建这些任务或移除无效依赖。";
 
-        var todo = new TodoEntry
+        var todo = new TodoStore.Entry
         {
             Id = id,
             Title = title,
@@ -150,7 +142,7 @@ public class TodoTool : ITool
             CreatedAt = DateTime.UtcNow,
         };
         todos.Add(todo);
-        SaveTodos(todos);
+        TodoStore.Save(todos);
 
         var depNote = deps.Count > 0 ? $"，依赖 [{string.Join(", ", deps)}]" : "";
         return $"✅ 创建任务 [{id}]: {title} | 状态={todo.Status}{depNote}";
@@ -164,7 +156,7 @@ public class TodoTool : ITool
         if (string.IsNullOrWhiteSpace(id))
             return "错误：update 需要 id 参数";
 
-        var todos = LoadTodos();
+        var todos = TodoStore.Load();
         var todo = todos.FirstOrDefault(t => t.Id == id);
         if (todo == null)
             return $"错误：任务 '{id}' 不存在。使用 list 查看所有任务。";
@@ -188,34 +180,21 @@ public class TodoTool : ITool
         // 更新状态
         if (args.TryGetValue("status", out var statusObj) && statusObj is string status && !string.IsNullOrWhiteSpace(status))
         {
-            var validStatuses = new[] { "pending", "in_progress", "completed", "cancelled", "blocked" };
-            if (!validStatuses.Contains(status))
-                return $"错误：无效状态 '{status}'，可用 {string.Join(", ", validStatuses)}";
+            if (!TodoStore.ValidStatuses.Contains(status))
+                return $"错误：无效状态 '{status}'，可用 {string.Join(", ", TodoStore.ValidStatuses)}";
 
             // 依赖检查：blocked→in_progress 需所有依赖已完成
             if (status == "in_progress" && todo.DependsOn.Count > 0)
             {
-                var incomplete = todo.DependsOn
-                    .Where(depId => !todos.Any(t => t.Id == depId && t.Status == "completed"))
-                    .ToList();
+                var incomplete = TodoStore.IncompleteDeps(todos, todo);
                 if (incomplete.Count > 0)
                     return $"⛔ 无法开始 [{id}]：依赖任务未完成 — {string.Join(", ", incomplete)}。请先完成依赖任务再重试。";
             }
 
-            // 完成任务时：自动解除依赖此任务的其他 blocked 任务
+            // 完成任务时：自动解除依赖此任务的其他 blocked 任务（共享实现，与 struct_todo 同源）
             if (status == "completed")
             {
-                var unblocked = new List<string>();
-                foreach (var t in todos.Where(t => t.Status == "blocked"))
-                {
-                    if (t.DependsOn.Contains(id) &&
-                        t.DependsOn.All(depId =>
-                            depId == id || todos.Any(t2 => t2.Id == depId && t2.Status == "completed")))
-                    {
-                        t.Status = "pending";
-                        unblocked.Add(t.Id);
-                    }
-                }
+                var unblocked = TodoStore.UnblockDependents(todos, id);
                 if (unblocked.Count > 0)
                     changes.Add($"解除阻塞: [{string.Join(", ", unblocked)}]");
             }
@@ -227,7 +206,7 @@ public class TodoTool : ITool
         if (changes.Count == 0)
             return $"ℹ️ 任务 [{id}] 无变更。请提供 title、description 或 status 参数。";
 
-        SaveTodos(todos);
+        TodoStore.Save(todos);
         return $"✅ 更新 [{id}] {todo.Title}: {string.Join(", ", changes)}";
     }
 
@@ -235,7 +214,7 @@ public class TodoTool : ITool
 
     private static string List(Dictionary<string, object?> args)
     {
-        var todos = LoadTodos();
+        var todos = TodoStore.Load();
         var filter = args.GetValueOrDefault("filter")?.ToString();
         if (!string.IsNullOrWhiteSpace(filter))
         {
@@ -251,16 +230,9 @@ public class TodoTool : ITool
         lines.Add("|----|------|------|------|");
 
         // 排序：in_progress 最前 → blocked → pending → completed/cancelled 最后
-        foreach (var t in todos.OrderBy(t => t.Status switch
-                 {
-                     "in_progress" => 0, "blocked" => 1, "pending" => 2, _ => 3
-                 }).ThenBy(t => t.CreatedAt))
+        foreach (var t in todos.OrderBy(t => TodoStore.Order(t.Status)).ThenBy(t => t.CreatedAt))
         {
-            var emoji = t.Status switch
-            {
-                "in_progress" => "🔄", "completed" => "✅", "blocked" => "🚫",
-                "cancelled" => "❌", _ => "⏳"
-            };
+            var emoji = TodoStore.Emoji(t.Status);
             var deps = t.DependsOn.Count > 0 ? string.Join(", ", t.DependsOn) : "—";
             lines.Add($"| `{t.Id}` | {emoji} {t.Status} | {t.Title} | {deps} |");
         }
@@ -275,7 +247,7 @@ public class TodoTool : ITool
         if (string.IsNullOrWhiteSpace(id))
             return "错误：delete 需要 id 参数";
 
-        var todos = LoadTodos();
+        var todos = TodoStore.Load();
         var removed = todos.RemoveAll(t => t.Id == id);
         if (removed == 0)
             return $"错误：任务 '{id}' 不存在。使用 list 查看所有任务。";
@@ -290,7 +262,7 @@ public class TodoTool : ITool
                 t.Status = "pending";
         }
 
-        SaveTodos(todos);
+        TodoStore.Save(todos);
 
         var extra = cleanedDeps > 0 ? $"（已从 {cleanedDeps} 个任务的依赖列表中移除）" : "";
         return $"🗑️ 已删除任务 [{id}] {extra}";
@@ -300,28 +272,14 @@ public class TodoTool : ITool
 
     private static string Clear()
     {
-        var todos = LoadTodos();
+        var todos = TodoStore.Load();
         var count = todos.Count;
         todos.Clear();
-        SaveTodos(todos);
+        TodoStore.Save(todos);
         return $"✅ 已清除 {count} 个任务";
     }
 
     // ── 辅助 ──
-
-    /// <summary>从参数字典中解析字符串列表（支持 JsonArray 和 IEnumerable）</summary>
-    private static List<string> ParseStringList(Dictionary<string, object?> args, string key)
-    {
-        var result = new List<string>();
-        if (!args.TryGetValue(key, out var obj) || obj == null) return result;
-
-        if (obj is JNode arr)
-            result.AddRange(arr.Items.Select(n => n.AsString() ?? "").Where(s => s != ""));
-        else if (obj is System.Collections.IEnumerable en)
-            result.AddRange(en.Cast<object>().Select(o => o?.ToString() ?? "").Where(s => s != ""));
-
-        return result;
-    }
 
     /// <summary>刷新 TUI 侧边栏 Todo 面板。
     /// 工具在 Agent 后台线程执行——RefreshSidePanel 投递到 UI 线程（PostToUI 非 UI 线程入队，渲染循环 PumpUIQueue 消费）。</summary>
@@ -335,85 +293,4 @@ public class TodoTool : ITool
         catch { /* 非 TUI 模式，静默忽略 */ }
     }
 
-    // ── 持久化 ──
-
-    private static List<TodoEntry> LoadTodos()
-    {
-        lock (_fileLock)
-        {
-            try
-            {
-                var path = StorePath;
-                if (!File.Exists(path)) return [];
-
-                var json = File.ReadAllText(path);
-                var node = Json.Parse(json);
-                if (node is { Kind: JKind.Array } arr)
-                {
-                    return arr.Items.Select(n => new TodoEntry
-                    {
-                        Id = n["id"]?.AsString() ?? "",
-                        Title = n["title"]?.AsString() ?? "",
-                        Description = n["description"]?.AsString() ?? "",
-                        Status = n["status"]?.AsString() ?? "pending",
-                        DependsOn = n["depends_on"]?.Items
-                            .Select(d => d.AsString() ?? "").Where(s => s != "").ToList() ?? [],
-                        CreatedAt = DateTime.TryParse(n["created_at"]?.AsString(), out var dt)
-                            ? dt : DateTime.UtcNow,
-                    }).ToList();
-                }
-            }
-            catch (Exception ex)
-            {
-                DebugLog.Log("todo", $"加载 todos.json 失败: {ex.Message}");
-            }
-            return [];
-        }
-    }
-
-    private static void SaveTodos(List<TodoEntry> todos)
-    {
-        lock (_fileLock)
-        {
-            try
-            {
-                Global.EnsureDir(StorePath);
-
-                var arr = JNode.Array();
-                foreach (var t in todos)
-                {
-                    var dependsOn = JNode.Array();
-                    foreach (var d in t.DependsOn)
-                        dependsOn.Add(d);
-
-                    arr.Add(JNode.Object()
-                        .Set("id", t.Id)
-                        .Set("title", t.Title)
-                        .Set("description", t.Description)
-                        .Set("status", t.Status)
-                        .Set("depends_on", dependsOn)
-                        .Set("created_at", t.CreatedAt.ToString("O")));
-                }
-
-                // 原子写：先写临时文件再 move 覆盖，避免读方读到半写文件（GUI 2s 定时器 / 多槽位 Agent 并发读）
-                Global.WriteAllTextAtomic(StorePath, arr.ToJson());
-            }
-            catch (Exception ex)
-            {
-                DebugLog.Log("todo", $"保存 todos.json 失败: {ex.Message}");
-            }
-        }
-    }
-
-    // ── 数据模型 ──
-
-    private class TodoEntry
-    {
-        public string Id { get; init; } = "";
-        public string Title { get; set; } = "";
-        public string Description { get; set; } = "";
-        public string Status { get; set; } = "pending";
-        public List<string> DependsOn { get; set; } = [];
-        public DateTime CreatedAt { get; set; }
-    }
 }

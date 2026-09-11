@@ -37,13 +37,11 @@ public class MvTool : ITool
             var srcPath = CwdContext.Resolve(src);
             var destPath = CwdContext.Resolve(dest);
 
-            // 敏感路径防护（src 防移动泄露密钥 + dest 防写入后门，含 symlink 解析）
-            var srcSensitive = PathSafety.CheckSensitive(srcPath);
-            if (srcSensitive != null)
-                return $"❌ 已阻止：{srcSensitive}（安全策略：敏感文件读写受保护）";
-            var destSensitive = PathSafety.CheckSensitive(destPath);
-            if (destSensitive != null)
-                return $"❌ 已阻止：{destSensitive}（安全策略：敏感文件读写受保护）";
+            // 两端都走完整守卫：mv 对 src 是**删除**（源文件被移走）、对 dest 是写入，
+            // 两处都要过沙箱。此前两端都只查敏感路径，漏了 SandboxManager.CheckWritable
+            // ⇒ 项目写边界下 mv 能把文件搬到项目根之外。
+            if (PathSafety.Guard(srcPath) is { } srcBlocked) return srcBlocked;
+            if (PathSafety.Guard(destPath) is { } destBlocked) return destBlocked;
 
             if (!File.Exists(srcPath) && !Directory.Exists(srcPath))
                 return $"错误：源不存在 — {srcPath}";

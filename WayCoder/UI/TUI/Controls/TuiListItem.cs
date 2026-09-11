@@ -146,37 +146,15 @@ public class TuiListItem : TuiVBox
         Layout();
     }
 
-    /// <summary>角色显示名（对齐模板角色头）</summary>
-    private static string RoleName(string role) => role switch
-    {
-        "user" => "用户",
-        "assistant" => "智能体",
-        "agent" => "智能体",
-        "system" => "系统",
-        "tool" => "工具",
-        _ => role
-    };
+    /// <summary>角色显示名 —— 单一真源见 <see cref="ChatRoleStyle"/>。</summary>
+    private static string RoleName(string role) => ChatRoleStyle.DisplayName(role);
 
-    /// <summary>角色文字色（用户/系统固定亮辉白，去彩色避免太花）</summary>
-    private static int RoleColor(string role) => role switch
-    {
-        "user" => WayCoder.UI.Shared.AnsiColors.BrightWhite,
-        "assistant" => TuiTheme.Current.ChatAssistantFg,
-        "agent" => TuiTheme.Current.ChatAssistantFg,
-        "system" => WayCoder.UI.Shared.AnsiColors.BrightWhite,
-        _ => TuiTheme.Current.ControlFg
-    };
+    /// <summary>角色文字色 —— 单一真源见 <see cref="ChatRoleStyle"/>。
+    /// 此前这里把 user/system 硬编码成亮白，使主题的 ChatUserFg/ChatSystemFg 成了无人读的死键。</summary>
+    private static int RoleColor(string role) => ChatRoleStyle.Fg(role);
 
-    /// <summary>角色图标色（用户/系统固定亮辉白）</summary>
-    private static int IconColor(string role) => role switch
-    {
-        "user" => WayCoder.UI.Shared.AnsiColors.BrightWhite,
-        "assistant" => TuiTheme.Current.IconAssistantFg,
-        "agent" => TuiTheme.Current.IconAssistantFg,
-        "system" => WayCoder.UI.Shared.AnsiColors.BrightWhite,
-        "tool" => TuiTheme.Current.IconToolFg,
-        _ => TuiTheme.Current.ControlFg
-    };
+    /// <summary>角色图标色 —— 单一真源见 <see cref="ChatRoleStyle"/>。</summary>
+    private static int IconColor(string role) => ChatRoleStyle.IconFg(role);
 
     /// <summary>
     /// 更新 Markdown 内容（用于流式追加）。超 <see cref="Global.MaxSingleMessageChars"/> 保留尾部窗口 + 滚动标记，

@@ -10,13 +10,15 @@ public static class GitRunner
 {
     static int DefaultTimeoutMs => Config.Instance.GitTimeoutSec * 1000;
 
-    static ProcessStartInfo BuildStartInfo(string args, string? cwd)
+    /// <summary>重定向三路 + 不共享主控台 stdin 的公共底座（两个重载共用，避免护栏漏改一处）。</summary>
+    static ProcessStartInfo BaseStartInfo(string? cwd)
     {
-        var psi = new ProcessStartInfo("git", args)
+        var psi = new ProcessStartInfo("git")
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            RedirectStandardInput = true, // 不共享主控台 stdin（防与 TUI 主循环抢控制台输入致 ReadKey 永久阻塞）
+            // 不共享主控台 stdin（防与 TUI 主循环抢控制台输入致 ReadKey 永久阻塞）
+            RedirectStandardInput = true,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
@@ -24,18 +26,17 @@ public static class GitRunner
         return psi;
     }
 
+    static ProcessStartInfo BuildStartInfo(string args, string? cwd)
+    {
+        var psi = BaseStartInfo(cwd);
+        psi.Arguments = args; // 整串形式：支持调用方自带的引号
+        return psi;
+    }
+
     /// <summary>按参数列表构造（安全：每个参数单独传递，不经字符串解析，防参数含引号/空格注入 git 选项）。</summary>
     static ProcessStartInfo BuildStartInfo(IReadOnlyList<string> args, string? cwd)
     {
-        var psi = new ProcessStartInfo("git")
-        {
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            RedirectStandardInput = true, // 不共享主控台 stdin（防与 TUI 主循环抢控制台输入致 ReadKey 永久阻塞）
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-        if (cwd != null) psi.WorkingDirectory = cwd;
+        var psi = BaseStartInfo(cwd);
         foreach (var a in args) psi.ArgumentList.Add(a);
         return psi;
     }

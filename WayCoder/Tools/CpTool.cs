@@ -37,13 +37,14 @@ public class CpTool : ITool
             var srcPath = CwdContext.Resolve(src);
             var destPath = CwdContext.Resolve(dest);
 
-            // 敏感路径防护（src 防复制泄露密钥 + dest 防写入后门，含 symlink 解析）
+            // src 只查敏感路径（**读**语义，与 read_file 一致：沙箱管的是「能写到哪」，
+            // 从项目外读一份文件进来不该被项目写边界拦住）；
+            // dest 走完整守卫（敏感 + 沙箱可写）—— 此前 dest 只查敏感，漏了沙箱 ⇒ 项目写边界下
+            // cp 能把文件写到项目根之外。
             var srcSensitive = PathSafety.CheckSensitive(srcPath);
             if (srcSensitive != null)
                 return $"❌ 已阻止：{srcSensitive}（安全策略：敏感文件读写受保护）";
-            var destSensitive = PathSafety.CheckSensitive(destPath);
-            if (destSensitive != null)
-                return $"❌ 已阻止：{destSensitive}（安全策略：敏感文件读写受保护）";
+            if (PathSafety.Guard(destPath) is { } destBlocked) return destBlocked;
 
             if (!File.Exists(srcPath) && !Directory.Exists(srcPath))
                 return $"错误：源不存在 — {srcPath}";

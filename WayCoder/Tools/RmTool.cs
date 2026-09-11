@@ -44,10 +44,10 @@ public class RmTool : ITool
         {
             var fullPath = CwdContext.Resolve(path); // cd 后相对路径基于被跟踪工作目录
 
-            // 敏感路径防护（SSH 密钥/shell 配置/系统凭据，防提示注入删除）
-            var sensitive = PathSafety.CheckSensitive(fullPath);
-            if (sensitive != null)
-                return $"❌ 已阻止：{sensitive}（安全策略：敏感文件读写受保护）";
+            // 敏感路径 + 沙箱可写走统一守卫。此前只查敏感路径，**漏了 SandboxManager.CheckWritable**
+            // ⇒ 项目写边界（移动端 / isProjectWrite）下 rm 能删到项目根之外，而 write_file/edit_file
+            // 不能 —— 同一条边界轴规则执行率只有一半。文案由 PathSafety.Guard 统一产出，别再手拼。
+            if (PathSafety.Guard(fullPath) is { } blocked) return blocked;
 
             // 安全检查
             foreach (var p in ProtectedPaths)

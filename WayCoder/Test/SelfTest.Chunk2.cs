@@ -87,6 +87,32 @@ public static partial class SelfTest
         Check("todo list", listResult.Contains("✅") && listResult.Contains("测试任务"));
         todoTool.ExecuteAsync(new() { ["action"] = "clear" }).Wait();
         Check("todo clear", TodoTool.Items.Count == 0);
+
+        // ---- struct_todo 与 todo 共享同一份 todos.json ----
+        // 两工具此前各写一套「读→改→写」，已双向漂移：状态词表分裂（struct_todo 不认 cancelled）、
+        // 持久化一个走原子写+锁、一个是裸 File.WriteAllText。这里锁住三条契约，防止再次分家。
+        var structTool = new StructTodoTool();
+        var stCreate = structTool.ExecuteAsync(new() { ["action"] = "create", ["id"] = "st-1", ["title"] = "结构任务" }).Result;
+        Check("struct_todo create", stCreate.Contains("创建") && TodoTool.Items.Count == 1);
+
+        // 已漂移点①：状态词表。todo 标的 cancelled 必须能被 struct_todo 认（此前会报「无效状态」）
+        var stCancel = structTool.ExecuteAsync(new() { ["action"] = "update", ["id"] = "st-1", ["status"] = "cancelled" }).Result;
+        Check("struct_todo 认 cancelled（与 todo 同一份状态词表）", stCancel.Contains("cancelled"));
+
+        // 已漂移点②：依赖缺失必须**拒绝创建**且说真话。此前它在 todos.Add 之前 return，
+        // 却回「任务已创建但依赖无效」——文案在骗模型，而两个工具在这条上语义相反。
+        var stBadDep = structTool.ExecuteAsync(new()
+        { ["action"] = "create", ["id"] = "st-2", ["title"] = "坏依赖", ["deps"] = new List<object> { "nope" } }).Result;
+        Check("struct_todo 依赖缺失 → 拒绝创建（不再声称已创建）",
+            stBadDep.Contains("错误") && !stBadDep.Contains("已创建")
+            && !TodoTool.Items.Any(t => t.Id == "st-2"));
+
+        // 跨工具可见：struct_todo 写的条目，todo 读得到（同一存储 = 同一个文件）
+        Check("两个工具共用同一存储（struct_todo 写 → todo 读得到）",
+            TodoTool.Items.Any(t => t.Id == "st-1" && t.Status == "cancelled"));
+
+        todoTool.ExecuteAsync(new() { ["action"] = "clear" }).Wait();
+        Check("struct_todo 条目也能被 todo clear 清掉（同一份文件）", TodoTool.Items.Count == 0);
         Console.WriteLine();
 
         // ---- 权限系统 ----

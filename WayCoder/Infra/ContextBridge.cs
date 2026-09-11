@@ -939,26 +939,10 @@ public static class ContextBridge
         return sb.ToString().Trim();
     }
 
-    static string RunGit(string cwd, string args)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo("git", args)
-            {
-                WorkingDirectory = cwd,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                RedirectStandardInput = true, // 不共享主控台 stdin（防与 TUI 主循环抢控制台输入致 ReadKey 永久阻塞 → 任务完成死机）
-                UseShellExecute = false,
-            };
-            using var p = Process.Start(psi);
-            if (p == null) return "";
-            var outp = p.StandardOutput.ReadToEnd();
-            p.WaitForExit();
-            return outp.Trim();
-        }
-        catch { return ""; }
-    }
+    /// <summary>转调 <see cref="GitRunner"/>（自述「所有 git 调用都应通过此类」）。
+    /// 手拼那版**没有超时**：git 卡在凭据提示/锁上会一直挂着，把调用方一起拖死；
+    /// GitRunner 统一带 GitTimeoutSec + ProcUtil 读超时 + KillTree 兜底。保留「失败返回空串」语义。</summary>
+    static string RunGit(string cwd, string args) => GitRunner.Output(args, cwd).Trim();
 
     // ─────────────────────────────────────────────────────────────
     // 通用辅助

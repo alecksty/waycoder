@@ -347,9 +347,9 @@ public partial class SettingsPage : ContentPage
         var baseUrl = string.IsNullOrWhiteSpace(baseUrlText)
             ? ModelCatalog.Providers.GetValueOrDefault(providerId)?.DefaultBaseUrl
             : baseUrlText.Trim();
-        var b = (baseUrl ?? "https://api.openai.com").TrimEnd('/');
-        if (b.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)) b = b[..^3].TrimEnd('/');
-        var endpoint = b + "/v1/chat/completions";
+        // 端点拼接走 LLM 的唯一实现（含 /v1beta/openai 特例）——此前手抄了一份不完整的，
+        // Gemini 会被拼成 .../openai/v1/chat/completions → 404 → 误报「Key 无效」
+        var endpoint = LLM.ResolveApiEndpoint(baseUrl, "/v1/chat/completions");
 
         var msgs = JNode.Array();
         msgs.Add(JNode.Object().Set("role", "user").Set("content", "hi"));

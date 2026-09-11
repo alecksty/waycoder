@@ -219,27 +219,15 @@ public static class ProjectInitAnalyzer
         if (info.GitBranch != null) sb.AppendLine($"- 分支: {info.GitBranch}");
         if (info.GitRemote != null) sb.AppendLine($"- Remote: {info.GitRemote}");
 
-        // best-effort：git status --porcelain 统计变更数（失败静默）
-        try
+        // best-effort：git status --porcelain 统计变更数（失败静默）。
+        // 走 GitRunner：手拼那版少了 RedirectStandardInput —— 而 GitRunner 的注释点明这道护栏是
+        // 「防与 TUI 主循环抢控制台 stdin → ReadKey 永久阻塞」，且它同样没有统一超时。
+        var (statusExit, statusOut, _) = GitRunner.Run("status --porcelain", info.ProjectRoot);
+        if (statusExit == 0)
         {
-            var psi = new System.Diagnostics.ProcessStartInfo("git", "status --porcelain")
-            {
-                WorkingDirectory = info.ProjectRoot,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            using var proc = System.Diagnostics.Process.Start(psi);
-            if (proc != null)
-            {
-                var output = proc.StandardOutput.ReadToEnd();
-                proc.WaitForExit(3000);
-                var changed = output.Split('\n').Count(l => l.Trim().Length > 0);
-                if (changed > 0) sb.AppendLine($"- 未提交变更: {changed} 个文件");
-            }
+            var changed = statusOut.Split('\n').Count(l => l.Trim().Length > 0);
+            if (changed > 0) sb.AppendLine($"- 未提交变更: {changed} 个文件");
         }
-        catch (Exception ex) { DebugLog.Log("init", $"git status 失败: {ex.Message}"); }
 
         return sb.Length > 0 ? sb.ToString() : "- 非 Git 仓库";
     }

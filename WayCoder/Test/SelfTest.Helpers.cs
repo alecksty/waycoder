@@ -1063,18 +1063,27 @@ public static partial class SelfTest
             var dotnetDir = Path.Combine(tmp, "dotnet");
             Directory.CreateDirectory(dotnetDir);
             File.WriteAllText(Path.Combine(dotnetDir, "App.csproj"), "<Project/>");
-            Check("init: dotnet 构建命令", ProjectInitializer.DetectBuildCommand(dotnetDir) == "dotnet build");
+            Check("init: dotnet 构建命令", ProjectInitializer.DetectBuildCommand(dotnetDir) == "dotnet build --nologo -v q");
             Check("init: dotnet 无 Tests 项目时无测试命令", ProjectInitializer.DetectTestCommand(dotnetDir) == null);
             File.WriteAllText(Path.Combine(dotnetDir, "App.Tests.csproj"), "<Project/>");
-            Check("init: dotnet 有 Tests 项目返回 dotnet test", ProjectInitializer.DetectTestCommand(dotnetDir) == "dotnet test");
+            Check("init: dotnet 有 Tests 项目返回 dotnet test", ProjectInitializer.DetectTestCommand(dotnetDir) == "dotnet test --nologo -v q");
 
             // Node.js
             var nodeDir = Path.Combine(tmp, "node");
             Directory.CreateDirectory(nodeDir);
             File.WriteAllText(Path.Combine(nodeDir, "package.json"),
                 "{\"scripts\":{\"test\":\"jest\",\"lint\":\"eslint .\"}}");
-            Check("init: npm 构建命令", ProjectInitializer.DetectBuildCommand(nodeDir) == "npm install && npm run build");
-            Check("init: npm 测试命令", ProjectInitializer.DetectTestCommand(nodeDir) == "npm test");
+            // npm 构建：统一后要求 package.json **显式声明 build 脚本**（此前无条件返回
+            // `npm install && npm run build`，对纯库项目是假的构建步骤；而 Agent 侧那份一直
+            // 是「仅当声明了 build」—— 两份答案不同，这里按统一后的语义锁）
+            Check("init: npm 无 build 脚本 → 无构建命令", ProjectInitializer.DetectBuildCommand(nodeDir) == null);
+            File.WriteAllText(Path.Combine(nodeDir, "package.json"),
+                "{\"scripts\":{\"test\":\"jest\",\"build\":\"tsc\"}}");
+            Check("init: npm 声明 build 脚本 → npm run build --silent",
+                ProjectInitializer.DetectBuildCommand(nodeDir) == "npm run build --silent");
+            File.WriteAllText(Path.Combine(nodeDir, "package.json"),
+                "{\"scripts\":{\"test\":\"jest\",\"lint\":\"eslint .\"}}");
+            Check("init: npm 测试命令", ProjectInitializer.DetectTestCommand(nodeDir) == "npm test --silent");
             Check("init: npm lint 命令", ProjectInitializer.DetectLintCommand(nodeDir) == "npm run lint");
 
             // Go
@@ -1088,13 +1097,13 @@ public static partial class SelfTest
             var rustDir = Path.Combine(tmp, "rust");
             Directory.CreateDirectory(rustDir);
             File.WriteAllText(Path.Combine(rustDir, "Cargo.toml"), "[package]\n");
-            Check("init: rust 测试命令", ProjectInitializer.DetectTestCommand(rustDir) == "cargo test");
+            Check("init: rust 测试命令", ProjectInitializer.DetectTestCommand(rustDir) == "cargo test -q");
 
             // Python
             var pyDir = Path.Combine(tmp, "python");
             Directory.CreateDirectory(pyDir);
             File.WriteAllText(Path.Combine(pyDir, "test_foo.py"), "def test(): pass\n");
-            Check("init: python 测试命令", ProjectInitializer.DetectTestCommand(pyDir) == "pytest");
+            Check("init: python 测试命令", ProjectInitializer.DetectTestCommand(pyDir) == "python -m pytest -q");
 
             // 未知项目：返回 null
             var emptyDir = Path.Combine(tmp, "empty");
