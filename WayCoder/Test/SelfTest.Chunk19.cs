@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using WayCoder.Infra;
 using WayCoder.Tools;
 using WayCoder.UI.Cli.Arguments;
+using WayCoder.UI.Cli.Commands;
 using WayCoder.UI.Shared;
 using WayCoder.UI.TUI.Base;
 
@@ -582,6 +583,36 @@ public static partial class SelfTest
                 Global.PersistDisabled = savedPersist;
                 ConnectionConfig.ClearCache();
             }
+        }
+
+        Section("[区间合并与转录构建：共用实现]");
+        {
+            // 区间合并：GitCore 的手写 git-diff hunk 与 UnifiedDiff 的 hunk 构建共用同一份
+            Check("区间合并: 重叠区间并成一段",
+                UnifiedDiff.MergeRanges([(0, 5), (3, 8)]).SequenceEqual([(0, 8)]));
+            Check("区间合并: 相接区间合并（s <= 上一段 E）",
+                UnifiedDiff.MergeRanges([(0, 3), (3, 6)]).SequenceEqual([(0, 6)]));
+            Check("区间合并: 不相邻保持独立",
+                UnifiedDiff.MergeRanges([(0, 2), (5, 7)]).SequenceEqual([(0, 2), (5, 7)]));
+            Check("区间合并: 空输入 → 空", UnifiedDiff.MergeRanges([]).Count == 0);
+            Check("区间合并: 单区间原样", UnifiedDiff.MergeRanges([(2, 4)]).SequenceEqual([(2, 4)]));
+
+            // 转录构建：/kb retro 与 /teach 此前各一份逐字相同实现（只有阈值不同）
+            var trMsgs = new List<JNode>
+            {
+                JNode.Object().Set("role", "user").Set("content", "问题"),
+                JNode.Object().Set("role", "assistant").Set("content", ""),      // 空正文跳过
+                JNode.Object().Set("role", "assistant").Set("content", "回答"),
+            };
+            var tr = CommandTextHelpers.BuildTranscript(trMsgs, 2000);
+            Check("转录构建: role 作标题、跳过空正文（只出 2 段）",
+                tr.Contains("## user") && tr.Contains("问题")
+                && tr.Contains("## assistant") && tr.Contains("回答")
+                && tr.Split("## ").Length == 3);
+            var trLong = CommandTextHelpers.BuildTranscript(
+                [JNode.Object().Set("role", "user").Set("content", new string('中', 100))], 10);
+            Check("转录构建: 超长按阈值截断且不拆半 CJK",
+                trLong.Contains(new string('中', 10)) && !trLong.Contains(new string('中', 11)));
         }
 
         Section("[Claude 会话解析：唯一实现]");

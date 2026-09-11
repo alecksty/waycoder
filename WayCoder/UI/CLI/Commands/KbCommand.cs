@@ -192,7 +192,7 @@ public class KbCommand : SlashCommand
     {
         var agent = ProgramContext.Agent;
         if (agent == null) { screen.AddSystemMsg("无活跃会话可复盘。"); return; }
-        var transcript = BuildTranscript(agent.SnapshotMessages());
+        var transcript = CommandTextHelpers.BuildTranscript(agent.SnapshotMessages(), 2000);
         if (transcript.Length < 50) { screen.AddSystemMsg("会话内容太少，暂不复盘。"); return; }
 
         screen.AddSystemMsg("🔁 正在复盘本次会话并提炼经验…");
@@ -202,21 +202,6 @@ public class KbCommand : SlashCommand
             : "复盘未提炼出新经验（可能是模型不可用或内容无要点）。");
     }
 
-    /// <summary>把会话消息拼成 role 前缀纯文本（供 LLM 复盘）。</summary>
-    static string BuildTranscript(List<JNode> messages)
-    {
-        var sb = new StringBuilder();
-        foreach (var m in messages)
-        {
-            var role = m["role"]?.AsString() ?? "?";
-            var content = m["content"]?.AsString() ?? "";
-            if (content.Length == 0) continue;
-            if (content.Length > 2000) content = ContextManager.TruncateByRunes(content, 2000);
-            sb.AppendLine($"## {role}");
-            sb.AppendLine(content);
-        }
-        return sb.ToString();
-    }
 
     static void Review(ChatScreen screen)
     {

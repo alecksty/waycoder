@@ -148,6 +148,7 @@ public static partial class SelfTest
         ["[MCP 状态图标"] = "tools",
         ["[任务列表"] = "tools",
         ["[Claude 会话解析"] = "config",
+        ["[区间合并与转录构建"] = "config",
         ["[动态栏直写登记"] = "ui",
         // git
         ["[Git]"] = "git",         ["[Git "] = "git",         ["[Git PR]"] = "git",     ["[Git 大"] = "git",

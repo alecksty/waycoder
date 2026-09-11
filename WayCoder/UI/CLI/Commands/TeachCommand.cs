@@ -60,7 +60,7 @@ public class TeachCommand : SlashCommand
         var agent = ProgramContext.Agent;
         if (agent == null) { screen.AddSystemMsg("无活跃会话可评估。"); return Task.CompletedTask; }
 
-        var transcript = BuildTranscript(agent.SnapshotMessages());
+        var transcript = CommandTextHelpers.BuildTranscript(agent.SnapshotMessages(), 1500);
         if (transcript.Length < 60) { screen.AddSystemMsg("会话内容太少（需至少一轮教学问答）。先 `/teach on` 后让 AI 讲解并答题。"); return Task.CompletedTask; }
 
         screen.AddSystemMsg("📝 正在评估本次教学问答…");
@@ -77,19 +77,4 @@ public class TeachCommand : SlashCommand
         return Task.CompletedTask;
     }
 
-    /// <summary>把会话消息拼成 role 前缀纯文本（供教学评估 LLM）。</summary>
-    static string BuildTranscript(List<JNode> messages)
-    {
-        var sb = new StringBuilder();
-        foreach (var m in messages)
-        {
-            var role = m["role"]?.AsString() ?? "?";
-            var content = m["content"]?.AsString() ?? "";
-            if (content.Length == 0) continue;
-            if (content.Length > 1500) content = ContextManager.TruncateByRunes(content, 1500);
-            sb.AppendLine($"## {role}");
-            sb.AppendLine(content);
-        }
-        return sb.ToString();
-    }
 }
