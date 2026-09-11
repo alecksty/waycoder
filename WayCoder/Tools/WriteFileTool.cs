@@ -77,7 +77,9 @@ public class WriteFileTool : ITool
 
                 // Diff 预览：开关开启且文件已存在时
                 //  - YOLO（畅通）：自动放行不弹窗，但把 diff 渲染进工具输出，聊天区仍显示源码对比（三端统一）
-                //  - 非 YOLO：仅非交互模式（管道/重定向/测试）跳过，交互态弹逐 hunk 确认窗
+                //  - 非 YOLO：有交互界面（TUI / 交互式终端）才弹逐 hunk 确认窗；没有界面（纯管道、
+                //    --json 桥、测试）跳过。判据走 UxHelper.CanConfirmInline，勿裸判重定向：
+                //    stdin 被重定向也可能正跑着 TUI。
                 var cfg = Config.Instance;
                 if (cfg.DiffPreview && oldContent != null)
                 {
@@ -85,7 +87,7 @@ public class WriteFileTool : ITool
                     {
                         diffMarkup = DiffPreview.RenderAsMarkup(oldContent, content, filePath);
                     }
-                    else if (!Console.IsInputRedirected && !Console.IsOutputRedirected)
+                    else if (UxHelper.CanConfirmInline)
                     {
                         var (decision, accepted) = DiffPreview.Show(oldContent, content, filePath);
                         if (decision == DiffPreview.Decision.RejectAll)

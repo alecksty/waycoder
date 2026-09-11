@@ -3,6 +3,7 @@ using WayCoder.Tools;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
 using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Screens;
 using WayCoder.UI.Web;
 using Arguments = WayCoder.UI.Cli.Arguments;
@@ -29,6 +30,16 @@ public partial class Program
 
     /// <summary>所有槽位任务的共享前缀（-pa 传入）</summary>
     private static string _pendingSlotPrefix = "";
+
+    /// <summary>
+    /// `--json` / `--output-format json`：stdout 只允许出现 <see cref="JsonResult"/> 对象（IDE 桥接契约）。
+    ///
+    /// 存成静态字段而非只在 Main 里当局部变量：命令行槽位任务（`-p1`~`-p0`）走的是 `RunReplAsync`
+    /// 那条路（此时 `prompt == null`），Main 里那个 `if (jsonMode) return await RunOnceJsonAsync(prompt)`
+    /// 覆盖不到 —— 判不出来的话 `waycoder --json -p1 "修复 bug" | jq -r .answer` 会拿到
+    /// 不可解析的 ANSI 文本外加退出码 0。
+    /// </summary>
+    private static bool _jsonMode;
 
     /// <summary>当前活跃槽位索引（供外部命令访问）</summary>
     public static int ActiveSlotIndex => _activeSlot;
@@ -219,7 +230,7 @@ public partial class Program
         string? economySpec = Arguments.CliArgRegistry.Get(parsed, "economy");
         // --output-format（Claude Code）/ --format（OpenCode）：json|stream-json 等同 --json
         var outFormat = Arguments.CliArgRegistry.Get(parsed, "output-format");
-        bool jsonMode = Arguments.CliArgRegistry.Has(parsed, "json") || outFormat is "json" or "stream-json";
+        bool jsonMode = _jsonMode = Arguments.CliArgRegistry.Has(parsed, "json") || outFormat is "json" or "stream-json";
 
         // --permission-mode bypassPermissions（Claude Code）→ yolo
         string? permissionMode = Arguments.CliArgRegistry.Get(parsed, "permission-mode");
@@ -272,7 +283,7 @@ public partial class Program
         // 标准输入管道模式：echo "prompt" | waycoder（槽位任务优先，不抢 stdin）
         if (prompt == null && _pendingSlotQueues.Count == 0 && Console.IsInputRedirected)
         {
-            var stdinText = Console.In.ReadToEnd().Trim();
+            var stdinText = ReadRedirectedPrompt();
             // 只有当 stdin 真正有内容时才作为管道输入
             if (!string.IsNullOrEmpty(stdinText))
             {
@@ -615,6 +626,92 @@ public partial class Program
     // ========================================================================
 
     /// <summary>
+    /// 首字节等待上限：管道已建但迟迟没有内容时，超过这个时间就放弃「它在喂提示词」的判断。
+    ///
+    /// 取值是在两种错误之间取衡：**短了**会把写得慢的真提示词当噪声丢掉（任务不执行），
+    /// **长了**会让「启动器递过来一个不写不关的管道」这种环境白等。丢任务更糟，所以偏长；
+    /// 而且放弃时不再静默（见下方 stderr 提示），用户至少知道发生了什么。
+    /// 常见情况（`< NUL`、`< 空文件`、`: | waycoder`）走的是 EOF 那条路，**立即返回，不等**。
+    /// </summary>
+    private const int StdinFirstByteTimeoutMs = 5000;
+
+    /// <summary>
+    /// 读被重定向的 stdin 作为一次性提示词。
+    ///
+    /// 不能直接 `Console.In.ReadToEnd()`：它要等 EOF，而「被别的程序拉起」恰恰是父进程给了管道
+    /// 却既不写也不关（Node/Electron `spawn` 的默认 stdio、IDE 集成、双击启动器）——那样会永远
+    /// 卡在这一行：没有窗口、没有任何提示、也没有退出码，比「静默退出 0」更难查。
+    ///
+    /// 判据是「**读到第一个字节** 或 **读到 EOF**，谁先到算谁」：
+    /// - 先到 EOF（空管道 / 立刻关闭的管道）→ 立即返回空串，不白等一个时限；
+    /// - 先到首字节 → 确认在用管道喂提示词，**此后不再设限**，一路阻塞到 EOF ——
+    ///   慢生产方（分批 echo、`curl` 慢、脚本 sleep 后才写）的内容不会被截断；
+    /// - 两者都没到 → 认定这不是喂提示词的管道，放弃并**在 stderr 说明**（不静默）。
+    ///
+    /// 时限**无条件**生效，不看「有没有界面可回退」：Unix 上 stdin 被重定向时
+    /// `CanUseFullScreen()` 恒 false（`/dev/tty` 没进 raw mode），若因「回退不了就死等」跳过时限，
+    /// 就正好保留了这次要消灭的那个 Unix 挂死。放弃后由调用方走它自己的路：有画布→开界面，
+    /// 没画布→报错 + 退出码 1。
+    ///
+    /// 实现上把「读」放到后台线程、时限加在**等待侧**：`Console.OpenStandardInput()` 拿到的不是
+    /// overlapped 句柄，`ReadAsync(..., token)` 取消不了已经发出的同步读（token 只在读之前被检查），
+    /// 写在读那一侧的超时根本不会到点。读线程是后台线程，放弃后它阻塞着既不挡进程退出、
+    /// 也不会偷偷把内容塞给谁。两个事件**故意不 Dispose**：放弃后那条线程可能仍在跑，
+    /// 对已释放的 `ManualResetEventSlim` 调 `Set()` 会抛，而异常出在线程的 finally 里
+    /// 就是未捕获异常 → 进程直接挂（比它要解决的问题更严重）。
+    /// </summary>
+    private static string ReadRedirectedPrompt()
+    {
+        var firstByte = new ManualResetEventSlim(false);
+        var finished = new ManualResetEventSlim(false);
+        string text = "";
+        var reader = new Thread(() =>
+        {
+            try { text = ReadAllStdin(firstByte); }
+            catch { /* 读失败当作没有提示词 */ }
+            try { finished.Set(); } catch { /* 事件不可用不影响主线程已返回的结果 */ }
+        }) { IsBackground = true, Name = "waycoder-stdin-prompt" };
+        reader.Start();
+
+        int signaled = WaitHandle.WaitAny(
+            [firstByte.WaitHandle, finished.WaitHandle], StdinFirstByteTimeoutMs);
+
+        if (signaled == WaitHandle.WaitTimeout)
+        {
+            Console.Error.WriteLine(
+                $"⚠ 标准输入是管道，但 {StdinFirstByteTimeoutMs / 1000} 秒内既没有内容也没有结束，按「没有提示词」继续。");
+            Console.Error.WriteLine("  若确实要用管道喂提示词，请改用 -p \"任务\" 显式指定（或先让生产方写出内容）。");
+            return "";
+        }
+
+        finished.Wait(); // 已确认有内容（或已 EOF）→ 等它读干净（已有内容时不再设限）
+        return text;
+    }
+
+    /// <summary>把重定向的 stdin 读干净（阻塞到 EOF）。读到第一个字节时置 <paramref name="firstByte"/>。
+    /// 按 `Console.InputEncoding` + BOM 探测解码，与原来 `Console.In`（StreamReader 同一套参数）一致，
+    /// 免得中文 / UTF-16 管道输入的解读方式被这次改动改变。</summary>
+    private static string ReadAllStdin(ManualResetEventSlim firstByte)
+    {
+        var stdin = Console.OpenStandardInput();
+        using var buf = new MemoryStream();
+        var chunk = new byte[8192];
+        while (true)
+        {
+            int n;
+            try { n = stdin.Read(chunk, 0, chunk.Length); }
+            catch (IOException) { break; } // 管道异常（写入方消失等）
+            if (n <= 0) break;             // EOF：写入方关闭，提示词结束
+            buf.Write(chunk, 0, n);
+            firstByte.Set();
+        }
+
+        using var sr = new StreamReader(new MemoryStream(buf.ToArray()),
+            Console.InputEncoding, detectEncodingFromByteOrderMarks: true);
+        return sr.ReadToEnd().Trim();
+    }
+
+    /// <summary>
     /// 一次性/管道模式下注册 SIGINT/SIGTERM 处理：中断时先保存会话再退出，
     /// 保证断点续传（auto.json）在管道模式下依然生效（Windows 无 POSIX 信号，跳过）。
     /// 引用保存在静态字段，防止被 GC 回收导致信号处理失效。
@@ -739,17 +836,36 @@ public partial class Program
     /// </summary>
     private static async Task<int> RunOnceJsonAsync(string prompt)
     {
+        using var cts = new CancellationTokenSource();
+        RegisterOnceModeSignalHandlers();
+
+        bool ok = await RunOneJsonCoreAsync(_agent!, _llm!, prompt, cts, "Program.RunOnceJson");
+
+        // JSON 模式也保存会话（AutoSaveSession 只写盘/日志，不污染 stdout）
+        AutoSaveSession();
+        return ok ? 0 : 1;
+    }
+
+    /// <summary>
+    /// 把一个提示词交给指定 Agent 跑完，往 stdout 写**一行** <see cref="JsonResult"/>（`--json` 桥接契约：
+    /// 一次任务一个对象），返回是否成功。
+    ///
+    /// 抽出来是因为「一次性 <c>-p</c>」与「命令行槽位任务 <c>-p1</c>~<c>-p0</c>」都要用它 ——
+    /// 后者此前走纯文本路径，`waycoder --json -p1 "修复 bug" | jq -r .answer` 会拿到不可解析的
+    /// ANSI 文本（见 Program.Repl.cs 的无界面分支）。日志标签分开只为定位来源。
+    /// </summary>
+    private static async Task<bool> RunOneJsonCoreAsync(Agent agent, LLM llm, string prompt,
+        CancellationTokenSource cts, string logTag)
+    {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         string? answer = null;
         bool success = false;
         string? error = null;
 
-        using var cts = new CancellationTokenSource();
-        RegisterOnceModeSignalHandlers();
         try
         {
-            _llm!.SnapshotTaskCost();
-            answer = await _agent!.ChatAsync(prompt, cancellationToken: cts.Token);
+            llm.SnapshotTaskCost();
+            answer = await agent.ChatAsync(prompt, cancellationToken: cts.Token);
             success = true;
         }
         catch (OperationCanceledException)
@@ -758,29 +874,25 @@ public partial class Program
         }
         catch (Exception ex)
         {
-            ErrorLog.Error("Program.RunOnceJson", $"一次性模式崩溃: {ex.Message}", ex);
+            ErrorLog.Error(logTag, $"一次性模式崩溃: {ex.Message}", ex);
             error = ex.Message;
         }
         finally
         {
             sw.Stop();
-            // JSON 模式也保存会话（AutoSaveSession 只写盘/日志，不污染 stdout）
-            AutoSaveSession();
         }
 
-        var result = JsonResult.Build(
+        Console.WriteLine(JsonResult.Build(
             success: success,
             answer: answer ?? "",
             error: error,
-            model: _llm!.Model,
-            promptTokens: _llm.TaskPromptTokens,
-            completionTokens: _llm.TaskCompletionTokens,
-            costUsd: _llm.TaskCost,
+            model: llm.Model,
+            promptTokens: llm.TaskPromptTokens,
+            completionTokens: llm.TaskCompletionTokens,
+            costUsd: llm.TaskCost,
             durationMs: sw.ElapsedMilliseconds,
-            changedFiles: EditFileTool.ChangedFiles);
-
-        Console.WriteLine(result.ToJson());
-        return success ? 0 : 1;
+            changedFiles: EditFileTool.ChangedFiles).ToJson());
+        return success;
     }
 
     // ========================================================================

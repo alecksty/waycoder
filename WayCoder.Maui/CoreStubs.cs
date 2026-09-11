@@ -471,6 +471,14 @@ namespace WayCoder.UI.Tui
         /// <summary>MAUI 无终端 TUI，恒 false。</summary>
         public static bool IsTuiMode => false;
 
+        /// <summary>「眼下有没有能应答逐条确认（逐 hunk diff / 权限）的终端界面」。
+        /// MAUI 没有终端，恒 false —— 移动端的交互确认走 WebInteraction 桥（见 AskUserQuestionTool），
+        /// 与终端那套不是一回事。
+        /// ⚠ 本类是**桩**：`WayCoder.Maui.csproj` 排除了 `../WayCoder/UI/TUI/**`（真 UxHelper 进不来）
+        /// 却编译 `Tools/**`，所以真 `UxHelper` 每加一个被 Tools 用到的成员，这里都要同步补一个 ——
+        /// 漏了就只在 MAUI 上 CS0117 编译失败（桌面 `dotnet build` 全绿，看不出来）。</summary>
+        public static bool CanConfirmInline => false;
+
         /// <summary>Web 模式的异步交互桥（MAUI 注入 MauiWebInteraction）。</summary>
         public interface IWebInteraction
         {

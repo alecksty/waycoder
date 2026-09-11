@@ -227,11 +227,10 @@ public class AskUserQuestionTool : ITool
     /// 仅当标准输入被重定向（管道 echo | waycoder、--json IDE 桥）才无用户，交由调用方自动作答兜底。
     /// </summary>
     private static bool CanAskUser()
-    {
-        if (UxHelper.IsTuiMode) return true;            // TUI 全屏客户端（含 YOLO）→ 弹框询问
-        if (UxHelper.WebInteraction != null) return true; // Web 浏览器用户 → 经 SSE 弹框询问
-        return !Console.IsInputRedirected && !Console.IsOutputRedirected; // 交互式终端 → 行内询问
-    }
+        // TUI 全屏客户端（含 YOLO）/ 交互式终端 → 弹框或行内询问（判据见 UxHelper.CanConfirmInline：
+        // 它认「stdin 被重定向但仍拿着键盘」的 TUI，故不能退化成裸判重定向）；
+        // Web 浏览器用户 → 经 SSE 弹框询问。
+        => UxHelper.CanConfirmInline || UxHelper.WebInteraction != null;
 
     /// <summary>
     /// 展示单个问题并等待回答。返回：

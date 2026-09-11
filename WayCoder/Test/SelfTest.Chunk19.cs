@@ -318,6 +318,11 @@ public static partial class SelfTest
 
                 // OnRender 补过的段必须刷新段缓存，否则紧随其后的 RenderDirect（同一帧内
                 // TuiManager.Render 写完帧就调 RenderAllDirect）会把同一段再写一遍。
+                //
+                // 这一块容易写成「空通过」假绿，两个坑都堵上：
+                //  ① 上面 finally 里的 OnDestroy 已把本栏摘出直写名单 —— 不重新登记，RenderDirect
+                //     根本不会跑，`direct` 恒为空字符串，断言「不含 🔤大3K」自然成立却什么都没测到。
+                //  ② 必须先正向确认「这一帧真的走了段级补写」，否则整行渲染碰巧不写该段也能绿。
                 var direct = new System.Text.StringBuilder();
                 var keepOut2 = Console.Out;
                 using (var sw = new StringWriter())
@@ -325,16 +330,63 @@ public static partial class SelfTest
                     Console.SetOut(sw);
                     try
                     {
+                        bar.RegisterDirectWrite(owner); // ① 重新入册（OnDestroy 摘掉了）
+                        owner.IsIncrementalUpdate = true; // 增量帧 → 走「只补变化段」那条路
                         bar.TokenDisplay = "🔤大3K";
-                        bar.Render(new System.Text.StringBuilder(), 0, 4, 0, 0, 60, 9); // OnRender 补右段
+                        var patch = new System.Text.StringBuilder();
+                        bar.Render(patch, 0, 4, 0, 0, 60, 9); // OnRender 补右段并刷新段缓存
+                        Check("分区刷新：改右段后 OnRender 确实走段级补写（非整行、不碰左/中段）",
+                            patch.ToString().Contains("🔤大3K")
+                            && !patch.ToString().Contains("空闲") && !patch.ToString().Contains("bash工具"));
+
                         sw.GetStringBuilder().Clear();
                         WayCoder.UI.Tui.Controls.TuiDynamicBar.RenderAllDirect();
                         direct.Append(sw.ToString());
                     }
-                    finally { Console.SetOut(keepOut2); }
+                    finally
+                    {
+                        Console.SetOut(keepOut2);
+                        owner.IsIncrementalUpdate = false;
+                        bar.OnDestroy(); // 别把本栏留在直写名单里跨用例污染 RenderAllDirect
+                    }
                 }
+                var directText = direct.ToString();
                 Check("分区刷新：OnRender 补过的段刷新缓存 → 同帧 RenderDirect 不重写该段",
-                    !direct.ToString().Contains("🔤大3K"));
+                    directText.Length > 0 && !directText.Contains("🔤大3K")); // ② 非空 = 直写真的跑了
+            }
+
+            // 「内容变了 → 只补变化段」与「显式标脏 → 整行重写」是两条相反的契约，此前没有任何
+            // 测试区分它们（两边都只断言 IsDirty，两种调用都为真）——于是把 SetContent 的兜底
+            // 改回覆写版 MarkDirty()（= 整行重写）能悄悄通过，而那会在模态遮挡期间每个 token
+            // 重刷整条底色、把遮罩抹掉。这里用「owner 不是活跃屏幕」制造直写不可用（无需真弹窗）。
+            {
+                var occl = new WayCoder.UI.Tui.Controls.TuiDynamicBar { Width = 60 };
+                var elsewhere = new WayCoder.UI.Tui.Screens.ChatScreen(); // 非活跃屏 ⇒ CanDirectWrite() = false
+                elsewhere.IsIncrementalUpdate = true;
+                var sinkBase = new System.Text.StringBuilder();
+                var sinkContent = new System.Text.StringBuilder();
+                var keepOut3 = Console.Out;
+                try
+                {
+                    Console.SetOut(TextWriter.Null);
+                    occl.RegisterDirectWrite(elsewhere);
+                    occl.LeftText = "空闲";
+                    occl.ToolText = "bash工具";
+                    occl.MarkRowInvalidated();                                  // 首帧：整行建立基线
+                    occl.Render(sinkBase, 0, 0, 0, 0, 60, 5);
+
+                    occl.TokenDisplay = "🔤大9K";                               // 内容变 → 兜底路径
+                    bool dirtied = occl.IsDirty;
+                    occl.Render(sinkContent, 0, 0, 0, 0, 60, 5);
+                    Console.SetOut(keepOut3);
+
+                    Check("分区刷新：遮挡/非活跃屏下内容变化仍标脏（内容不丢）", dirtied);
+                    Check("分区刷新：遮挡/非活跃屏下内容变化只做段级补写，不整行重写（不重刷底色抹掉遮罩）",
+                        sinkContent.ToString().Contains("🔤大9K")
+                        && !sinkContent.ToString().Contains("空闲")
+                        && !sinkContent.ToString().Contains("bash工具"));
+                }
+                finally { Console.SetOut(keepOut3); occl.OnDestroy(); }
             }
         }
 
@@ -358,6 +410,33 @@ public static partial class SelfTest
             Check("直写登记：销毁后自动从直写名单摘除（不写已销毁控件）", !bar.IsDirectWriteRegistered);
         }
 
+        // ⚠ 上面用的是**手写版** ChatScreen（自己 new 一个栏塞进 RootView），而用户实际跑的是
+        // **标记版** MarkupChatScreen —— 它覆写 BuildLayout 且不调 base，动态栏来自 chat.tui。
+        // 曾经那次致命回归恰恰是「登记只写进手写版」⇒ 默认界面直写整体失效、每帧整行重写（空闲一直闪），
+        // 而只测手写版的自测全绿。所以这里必须经**框架入口**推一个真·标记版屏幕来验。
+        {
+            var mgr = WayCoder.UI.TUI.Base.TuiManager.Instance;
+            Check("直写登记：测试前置（存在 TuiManager 实例）", mgr != null);
+            if (mgr != null)
+            {
+                int before = WayCoder.UI.Tui.Controls.TuiDynamicBar.RegisteredCount;
+                try
+                {
+                    var mk = new WayCoder.UI.Tui.Screens.MarkupChatScreen();
+                    mgr.PushScreen(mk);
+                    Check("直写登记：标记版界面经 PushScreen 后 dynamicBar 已认领（登记在框架侧，非手写 BuildLayout）",
+                        mk.DynamicBar != null && mk.DynamicBar.IsDirectWriteRegistered);
+                    mgr.PopScreen();
+                    Check("直写登记：PopScreen 后名单归还到推入前的数量（登记/退册成对，不泄漏）",
+                        WayCoder.UI.Tui.Controls.TuiDynamicBar.RegisteredCount == before);
+                }
+                catch (Exception ex)
+                {
+                    Check($"直写登记：标记版界面推入后认领动态栏（异常：{ex.Message}）", false);
+                }
+            }
+        }
+
         Section("[无参数启动界面：重定向 stdin 也能进 TUI]");
         // 「能不能开全屏界面」的判据不是「stdin 是否被重定向」，而是**有没有画布 + 拿不拿得到键盘**：
         // 被别的程序拉起 / 脚本调用 / `waycoder < 文件` 都可能让 stdin 是管道，而进程仍挂着可用控制台。
@@ -375,6 +454,37 @@ public static partial class SelfTest
             Check("启动判据：输出被重定向（没有画布）→ 不开", !Can(false, true, true, true));
             Check("启动判据：Unix 上 stdin 被重定向 → 不开（ReadKey 的 raw mode 绑在 stdin）",
                 !Can(true, false, true, false));
+
+            // ⚠ 能开界面 ≠ 会读键：读键泵线程走的是**另一条判据** HasKeyboard。上面那几条全绿，
+            // 泵仍可能永不启动 —— 那时 UI 起来了、画面在，但按键全无反应，且挂在泵线程上的心跳
+            // （spinner / 冻结看门狗 / CPU 采样）一起停摆，只有 Ctrl+C 能逃出去。这条正是本次漏掉的。
+            bool KB(bool sin, bool dev) => WayCoder.UI.TUI.Base.ConsoleDevice.HasKeyboard(sin, dev);
+
+            Check("读键闸门：stdin 接键盘 → 启动泵线程", KB(false, false));
+            Check("读键闸门：stdin 被重定向但从控制台设备拿到键盘（Windows CONIN$）→ 仍启动泵线程",
+                KB(true, true));
+            Check("读键闸门：stdin 被重定向且无控制台设备（手上只有空管道）→ 不启动（读它毫无意义）",
+                !KB(true, false));
+
+            // 上面只是纯谓词 —— 而自测进程本身就是「重定向 stdin」，谓词全绿也证明不了**闸门真的看了它**。
+            // 这里驱动真正的泵启动路径：把「已建好的源 + 有没有键盘通道」直接喂给 InputManager，
+            // 再看泵线程有没有起来。若有人把 EnsurePumpStarted 改回 `if (Console.IsInputRedirected) return;`
+            //（或反过来无条件启动），下面两条立刻红。
+            {
+                var withKeys = new WayCoder.UI.TUI.Base.InputManager();
+                withKeys.SetSourceForTest(new SilentCharSource(), hasKeySource: true);
+                withKeys.ReadInput(1); // 触发 EnsurePumpStarted
+                Check("读键闸门：有键盘通道 → 泵线程真的启动（不只是纯谓词成立）",
+                    withKeys.IsPumpRunningForTest);
+                withKeys.Dispose();
+
+                var noKeys = new WayCoder.UI.TUI.Base.InputManager();
+                noKeys.SetSourceForTest(new SilentCharSource(), hasKeySource: false);
+                noKeys.ReadInput(1);
+                Check("读键闸门：无键盘通道 → 泵线程不启动（不会去读空管道）",
+                    !noKeys.IsPumpRunningForTest);
+                noKeys.Dispose();
+            }
         }
 
         Section("[项目根解析边界（性能回归护栏）]");
@@ -476,5 +586,14 @@ public static partial class SelfTest
         public override void Flush() { }
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
         public override void SetLength(long value) => throw new NotSupportedException();
+    }
+
+    /// <summary>永不产出按键的字符源 —— 供「泵线程闸门」用例驱动真实的
+    /// <see cref="WayCoder.UI.TUI.Base.InputManager"/> 启动路径，而不触碰真实控制台。</summary>
+    private sealed class SilentCharSource : WayCoder.UI.TUI.Base.ICharSource
+    {
+        public bool HasInput => false;
+        public bool TryReadChar(out char c) { c = '\0'; return false; }
+        public bool TryReadKey(out ConsoleKeyInfo key) { key = default; return false; }
     }
 }

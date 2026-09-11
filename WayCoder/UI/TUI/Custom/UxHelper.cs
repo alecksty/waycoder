@@ -22,6 +22,18 @@ public static class UxHelper
         }
     }
 
+    /// <summary>
+    /// 眼下有能应答逐条确认的**交互界面**吗（权限确认 / 逐 hunk diff 预览 / 向用户提问，
+    /// 都是「停下来等人按一个键」的用法）。含 TUI 全屏界面与交互式终端。
+    ///
+    /// 判据不能退化成只看 `Console.IsInputRedirected`：stdin 被重定向**也可能**是有界面的
+    /// ——v0.96.88 起这种环境照常进 TUI（读键改从控制台设备取，见 <c>ConsoleDevice</c>）。
+    /// 只判重定向会把这些确认悄悄降级成「自动通过」，用户在非 YOLO 模式下被跳过逐 hunk 确认
+    /// 却毫无提示。Web 端由 SSE 交互桥单独处理（见 AskUserQuestionTool），不在此列。
+    /// </summary>
+    public static bool CanConfirmInline
+        => IsTuiMode || (!Console.IsInputRedirected && !Console.IsOutputRedirected);
+
     /// <summary>把 TuiMarkup 指定 id 的按钮接线到 action（多个 Picker 重复的 Wire 样板）。</summary>
     public static void Wire(TuiMarkupResult res, string id, Action action)
     {

@@ -123,10 +123,12 @@ public class EditFileTool : ITool
                 newContent = content.ReplaceFirst(oldString, newString);
             }
 
-            // Diff 预览：开关开启且非交互模式（管道/重定向/测试）时。
+            // Diff 预览：开关开启且眼下有交互界面时（TUI / 交互式终端）；没有界面（纯管道、
+            // --json 桥、测试）才跳过。判据走 UxHelper.CanConfirmInline 而非裸判重定向 ——
+            // stdin 被重定向也可能正跑着 TUI，那样会把逐 hunk 确认静默降级成自动应用。
             // YOLO（畅通）自动放行不弹窗——下方统一生成的 unified diff 已进工具输出，聊天区仍显示对比（三端统一）。
             var cfg = Config.Instance;
-            if (cfg.DiffPreview && !Console.IsInputRedirected && !Console.IsOutputRedirected
+            if (cfg.DiffPreview && UxHelper.CanConfirmInline
                 && PermissionManager.CurrentMode != PermissionManager.Mode.Yolo)
             {
                 var (decision, accepted) = DiffPreview.Show(content, newContent, filePath);

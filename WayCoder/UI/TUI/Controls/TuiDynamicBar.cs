@@ -54,6 +54,10 @@ public class TuiDynamicBar : TuiDisplayControl
     /// 每帧整行重写（表现：内容没变动态栏却一直闪），所以值得单独立一条契约。</summary>
     public bool IsDirectWriteRegistered => DirectWriters.Contains(this);
 
+    /// <summary>当前登记在册的动态栏总数（自测/诊断用）。比「某一栏在不在名单」更能锁住
+    /// 「PushScreen 登记 / PopScreen 归还」是否成对——只看单栏的话，漏登记与泄漏都测不出来。</summary>
+    public static int RegisteredCount => DirectWriters.Count;
+
     public override void OnDestroy()
     {
         DirectWriters.Remove(this);
@@ -177,36 +181,54 @@ public class TuiDynamicBar : TuiDisplayControl
     /// 内容属性赋值：值真变了才动作，且**优先走段级直写**而不是整条重绘。
     ///
     /// 动态栏分左/中/右三段，思考与流式期间持续跳变的只有右段的 token/花费/上下文；
-    /// 若一变值就 <see cref="MarkDirty"/>，整条（约 1/3 屏宽）会被重画，段级增量就没意义了。
-    /// 因此这里只在**直写不可用**时（被对话框遮挡 / 本栏不在活跃屏幕）才退回整行标脏，
-    /// 保证内容任何情况下都不会丢：遮挡解除时屏幕重绘 → OnRender 重新写入并刷新段缓存。
+    /// 若一变值就整行标脏，整条（约 1/3 屏宽）会被重画，段级增量就没意义了。
+    /// 因此直写不可用时（被对话框遮挡 / 本栏不在活跃屏幕）只让本栏进入渲染、
+    /// 由 OnRender 的段级分支补写变化的那一段。
     /// </summary>
     private void SetContent<T>(ref T field, T value)
     {
         if (EqualityComparer<T>.Default.Equals(field, value)) return;
         field = value;
-        // 直写可用 → 段级直写负责刷新（只重写变化的那一段），不必整行标脏；
-        // 不可用（被窗口遮挡 / 本栏不在活跃屏幕）→ 退回整行标脏兜底，内容绝不丢。
-        // 注意这里**不做节流**：内容真变了就该重画。真正防闪的是 OnRender 里的整行内容签名
+        // 直写可用 → 段级直写负责刷新（只重写变化的那一段），不必标脏；
+        // 不可用（被窗口遮挡 / 本栏不在活跃屏幕）→ 让本栏进渲染帧，OnRender 走「只补变化段」那条路。
+        // 这里**必须**用 MarkContentDirty（= 不置整行标志）而不是 MarkRowInvalidated/MarkDirty：
+        // 后者会整行重写 ⇒ 重刷整条底色，把浮层画在本行上的遮罩抹掉（「模态遮罩上打亮行」），
+        // 且每次 token/花费变化都整行重画 —— 正是 v0.96.88 要修掉的那个闪烁。
+        // 内容不会因此丢失：OnRender 每帧从当前状态重算三段文本，且遮挡解除后的首帧
+        // （`canDirect && _occludedLastFrame`）会强制整行重写一次把基线与缓存补回来。
+        // 注意这里**不做节流**：内容真变了就该重画。真正防闪的是 OnRender 里的段内容比对
         // ——「没变的内容不重绘」，而不是「变了的内容晚点重绘」。
-        if (!CanDirectWrite()) MarkDirty();
+        if (!CanDirectWrite()) MarkContentDirty();
     }
 
-    /// <summary>显式标脏 = 有人要求本栏重画。与「某一段内容变了」不同：这里无法确定
-    /// 本行的像素是否已被浮层/窗口擦过（`MarkDirtyInRect`、窗口关闭后的补绘都走这里），
-    /// 所以要求**整行**重写一次——只补变化段会让被擦过但内容未变的列留在错误状态。</summary>
-    public override void MarkDirty()
+    /// <summary>「内容变了」：只让本栏进渲染帧，**不**要求整行重写（OnRender 据此走段级补写）。</summary>
+    private void MarkContentDirty() => base.MarkDirty();
+
+    /// <summary>要求**整行**重写一次。
+    ///
+    /// 与「某一段内容变了」（<see cref="MarkContentDirty"/>）是两件事：这里无法确定本行的像素
+    /// 是否已被浮层/窗口擦过（`MarkDirtyInRect`、窗口关闭后的补绘、主题切换都走这里），
+    /// 只补变化段会让被擦过但内容未变的列留在错误状态。
+    ///
+    /// 给框架侧入口一个**名字即意图**的写法：`MarkDirty` 被本类覆写成「整行重写」后，
+    /// 两者只差一个 `base.` 前缀，读代码的人很容易把 `base.MarkDirty()`「简化」掉 —— 而那正是
+    /// v0.96.88 那个闪烁 bug 的成因，且调用点文本一字未变、难以察觉。见本类自测
+    /// 「内容变化只做段级补写，不整行重写」。</summary>
+    public void MarkRowInvalidated()
     {
         _rowInvalidated = true;
         base.MarkDirty();
     }
+
+    /// <summary>显式标脏 = 有人要求本栏重画 ⇒ 按**整行重写**处理（见 <see cref="MarkRowInvalidated"/>）。</summary>
+    public override void MarkDirty() => MarkRowInvalidated();
 
     /// <summary>强制重绘（`Invalidate` / `MarkDirtyInRect` 等框架侧入口）同样作废整行基线 ——
     /// 这些入口绕过 <see cref="MarkDirty"/> 直接置 `IsDirty`（`TuiControl.Invalidate`、`TuiScreen.MarkDirty`
     /// 里的 `RootView.IsDirty = true`），漏掉它们的话「已经脏了、但段内容没变」会写出零字节。</summary>
     public override void Invalidate()
     {
-        _rowInvalidated = true;
+        MarkRowInvalidated();
         base.Invalidate();
     }
 
