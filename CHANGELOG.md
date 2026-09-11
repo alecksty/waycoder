@@ -1,5 +1,151 @@
 # 更新日志
 
+## v0.96.89 (2026-09-11) — v0.96.88 的收尾：判据只换了一半 + 两轮 code-review 修复
+
+上一版把「能不能开全屏界面」的判据从 `Console.IsInputRedirected` 换成了
+`ConsoleDevice.CanUseFullScreen`，但**代码里其它地方仍把 `IsInputRedirected` 当作「非交互」**。
+这一版把那批漏网的判据全部收口；第 7 节是本轮改动**自身**被 code-review 复核后修掉的问题。
+
+### 1. 读键泵线程的闸门漏了（致命）
+
+**问题**：能开界面 ≠ 会读键。`InputManager.EnsurePumpStarted()` 与泵循环内的守卫仍以
+`Console.IsInputRedirected` 早退，而泵线程是字符源**唯一**的读者。于是 `waycoder < NUL`
+（或任何喂空管道的启动器）现在会进 TUI、建好 `WindowsCharSource(CONIN$)`、翻掉控制台模式 ——
+然后 `ReadInput()` 永远只返回 Timeout：**键盘、Esc、Ctrl+P/M、Tab、F1-F10、鼠标全部无效**，
+已在跑的读线程反把用户按键吞进无人消费的队列；挂在同一线程上的心跳（spinner 动画 /
+冻结看门狗 / CPU 采样）一起停摆。只有 Ctrl+C 能逃出去。
+
+- **新增纯逻辑判据** `ConsoleDevice.HasKeyboard(stdin被重定向, 是否来自控制台设备)`
+  = `!stdin被重定向 || 来自设备`；`InputManager.Init()` 按**实际建成的源**算出 `_hasKeySource`
+  （建源失败退回 Unix 源时按 Unix 语义重算），泵启动闸门与循环内守卫都改看它。
+
+### 2. 命令行槽位任务：三条独立缺陷
+
+`RunReplAsync` 是 `_pendingSlotQueues` 的**唯一**消费者，它需要画布；v0.96.88 的守卫把
+「stdout 被重定向」也一并拒了 ⇒ `waycoder -p1 "修复 bug" > run.log` 把任务投进队列后
+直接打印「没有可用的控制台」并返回 1，**任务从未执行**。而无界面路径本身还差三件事：
+
+- **没有画布 ≠ 没有工作**：抽出 `RunSlotQueuesHeadlessAsync()` 把队列跑完再退。
+- **每槽位身份绑定漏了**：`-p4 "记住：本仓库用 xunit"` 会经 `StructuredMemory.SlotMemoryDir`
+  把记忆写进 **slot_0**、并把 F4 的提示词拿去注入 F1 的记忆；`Agent.AgentId` 停在默认 `"main"`，
+  使 `_agent_id` 工具注入、FileLockManager 跨槽位冲突归属、`LLM.DrainImages(AgentId)` 全按
+  "main" 记账。新增 `EnsureSlotAgent(int)` 把三处槽位入口（SwitchAgentSlot / StartSlotTask /
+  队列投递）共有的绑定收成一份。
+- **恒返回 0 且不落盘**：`ProcessTextInput` 吞异常只打一行错误，方法末尾 `return 0` ⇒
+  key 过期时「打一行失败、退出码 0、`sessions/slotN/` 空着」，违反 CLI 铁律①（有错即报错退出，
+  绝不静默忽略）。现在 `ProcessTextInput` 返回成败，任一条失败即退 1，跑完 `AutoSaveSession()`。
+- **`--json` 契约被破坏**：Main 的 jsonMode 分支只覆盖 `prompt != null`，`-p1`~`-p0` 时
+  prompt 为 null ⇒ 会往 stdout 吐解码后的 ANSI 文本，`waycoder --json -p1 "…" | jq -r .answer`
+  拿到不可解析的内容。现在 `--json` + 槽位任务**不进 TUI**，改由
+  `RunOneJsonCoreAsync`（从 `RunOnceJsonAsync` 抽出，两条路径共用）每条任务输出一行
+  `JsonResult`；进度提示走 stderr，stdout 只有一个 JSON 对象。
+
+顺带把 TUI 内的投递循环与无界面路径合并到 `RunSlotQueuesAsync`（此前 headless 手抄了一份，
+上面「身份绑定漏了」正是抄丢的），以后改投递语义只有一处。
+
+### 3. `Console.In.ReadToEnd()` 阻塞 → 有界等待
+
+v0.96.88 的标题是「无参数即可进 TUI」，但「被别的程序拉起」这条场景根本走不到新代码：
+父进程给了管道却既不写也不关（Node/Electron `spawn` 的默认 stdio、IDE 集成、双击启动器）
+会让 `Main` 永远卡在读 stdin 上 —— 没有窗口、没有提示、也没有退出码。
+
+- 改为 `ReadRedirectedPrompt()`：判据是「**读到第一个字节** 或 **读到 EOF**，谁先到算谁」
+  （`WaitHandle.WaitAny`）——先到 EOF（`< NUL`、`< 空文件`、`: | waycoder`）**立即返回**，不白等；
+  先到首字节就确认在用管道喂提示词，**此后不再设限**一路阻塞到 EOF，慢生产方（分批 echo、
+  慢 `curl`、脚本 sleep 后才写）的内容不会被截断；两者都没到（5 秒）才认定不是喂提示词的管道，
+  放弃并**在 stderr 说明**，不再静默。
+- **时限无条件生效**，不看「有没有界面可回退」：Unix 上 stdin 被重定向时 `CanUseFullScreen()`
+  恒 false（`/dev/tty` 没进 raw mode），若因「回退不了就死等」跳过时限，就正好保留了这次要
+  消灭的 Unix 挂死；放弃后由调用方走它自己的路（有画布→开界面，没画布→报错 + 退出码 1）。
+- 读放在后台线程、时限加在**等待侧**：`Console.OpenStandardInput()` 不是 overlapped 句柄，
+  `ReadAsync(..., token)` 取消不了已经发出的同步读。两个事件**故意不 Dispose** ——
+  放弃后那条线程可能仍在跑，对已释放的 `ManualResetEventSlim` 调 `Set()` 会抛，
+  而异常出在线程的 finally 里就是未捕获异常 → 进程直接挂（比它要解决的问题更严重）。
+- 解码仍按 `Console.InputEncoding` + BOM 探测，与原来 `Console.In`（StreamReader 同一套参数）一致。
+
+### 4. 控制台模式与句柄生命周期
+
+- **Exit→Enter 往返不再丢 raw 模式**：输入裸 `!` 跑一条 shell 命令会 `Exit()`（把 CONIN$ 模式
+  还原成行缓冲 + 回显）再 `Enter()`，而施加模式原本只发生在一次性的 `Init()` 里 ⇒ 往返之后
+  按键要按回车才到、回显叠在 TUI 自绘上。现在 `TuiManager.Enter()` 每次调
+  `InputManager.ReapplyConsoleMode()`（用 `Init` 记下的**设备句柄**；stdin 被重定向时
+  无参 `WinConsoleMode.Enable()` 判重定向直接返回 false，够不到 CONIN$）。
+- **探测句柄不再泄漏**：`CanUseFullScreen()` 原来把四个实参一次求值，`hasConsoleDevice` 那一项
+  要真开一个 CONIN$ 句柄且从不释放 —— 每次 Windows 启动都漏一个（stdout 被重定向时根本用不上）。
+  改为逐项短路 + `HasConsoleDevice()` 探测后立即 Dispose。
+- **Dispose 顺序**：`InputManager.Dispose()` 先还原控制台模式再关字符源 —— `WinConsoleMode`
+  记下的句柄就是这条流，顺序反了会 `SetConsoleMode` 到已关闭（甚至已被系统复用）的句柄上，
+  恢复在 try/catch 里静默失败，终端被留在 raw 状态。
+- **进程终结兜底**：`WinConsoleMode` 静态构造注册 `ProcessExit` 钩子还原模式 —— TUI 因异常或
+  直接退出没走到 `TuiManager.Exit` 时，不至于把用户的 cmd/PowerShell 留在无回显状态。
+  （被强杀 `taskkill` / 崩溃无解，靠下次启动的清残留逻辑缓解。）
+- **`Dispose()` 里未守卫的 `Console.CursorVisible`**（本轮自测暴露的既有 bug）：`Init()` 有
+  「非交互环境没有控制台句柄」的守卫，`Dispose()` 没有 ⇒ 在 stdout 被重定向的进程里调用会抛
+  `IOException: 句柄无效`，**掀掉整个自测套件**（实测到过）。补上同样的守卫。
+
+### 5. DiffPreview 逐 hunk 确认被静默降级（四处）
+
+`EditFileTool` / `WriteFileTool` / `MultiEditTool`（两处）用
+`cfg.DiffPreview && !Console.IsInputRedirected && !Console.IsOutputRedirected` 判「是否弹窗」，
+把新的「TUI + 管道」环境判成非交互 ⇒ 开了 `/config DiffPreview true` 又经脚本/启动器启动的用户，
+在非 YOLO 模式下编辑被**直接落盘、无逐 hunk 确认**，且毫无提示。
+
+- 新增 `UxHelper.CanConfirmInline`（TUI 界面 / 交互式终端），四处统一改走它；
+  `AskUserQuestionTool.CanAskUser` 也改为复用它（同一判据单一来源，防两处漂移）。
+- ⚠ **它是 `WayCoder.Maui/CoreStubs.cs` 里同名桩类的一部分**：MAUI 工程排除了
+  `../WayCoder/UI/TUI/**`（真 UxHelper 进不来）却编译 `Tools/**`，所以真类每加一个被 Tools
+  用到的成员，桩里都要同步补一个 —— 漏了就**只在 MAUI 上 CS0117 编译失败**（桌面构建全绿，看不出来）。
+
+### 6. 动态栏：遮挡期间整行重写 + 命名歧义
+
+`SetContent()` 在 `CanDirectWrite()` 为假时仍调 `MarkDirty()`，而覆写版的 `MarkDirty()`
+会置 `_rowInvalidated` ⇒ 恰好在注释所说「只补段」的那些帧强制整行重写。模态对话框在场时
+agent 正在流式输出，每个 token / 费用 / 上下文变化都整行重刷底色，把遮罩画在本行上的像素抹掉
+（「模态遮罩上打亮行」），也就是上一版声称修掉的那条。
+
+- 拆成两个**名字即意图**的方法：`MarkContentDirty()`（内容变了，只进渲染帧、走段级补写）
+  与 `MarkRowInvalidated()`（框架侧 `MarkDirty`/`Invalidate`：无法确定本行是否被浮层擦过，
+  整行重写）。`SetContent` 走前者。此前两者只差一个 `base.` 前缀，读代码的人很容易「简化」掉
+  —— 那正是上面那个闪烁 bug 的成因，且调用点文本一字未变、难以察觉。
+- 内容不会丢：`OnRender` 每帧从当前状态重算三段文本，遮挡解除后的首帧会整行重写一次补回基线。
+
+### 7. 本轮改动被 code-review 复核后修掉的问题
+
+- **MAUI 编译中断**（本轮引入）：第五节那个 `CanConfirmInline` 忘了同步桩类 →
+  Android/iOS 工程 5 处 CS0117 编译失败。已补桩并实跑
+  `dotnet build WayCoder.Maui/WayCoder.Maui.csproj -f net10.0-android` 验证。
+- **空管道白等**：`firstByte` 只在读到字节时置位、EOF 不置位，而主线程先只看 `firstByte`
+  ⇒ `< NUL` / `< 空文件` / 立刻关闭的管道每次白等满一个时限（被替换的 `ReadToEnd()` 是立即返回的）。
+  已改 `WaitAny(firstByte, finished)`。
+- **慢生产方被静默丢弃**：首字节 2 秒后才到的提示词会被当噪声丢掉、任务不执行且毫无交代。
+  已放宽到 5 秒 + 放弃时打印说明（见第三节）。
+- **Unix 挂死没修**：`canFallBackToTui` 在 Unix 恒 false，原来的「有条件时限」等于没时限。
+  已改无条件（见第三节）。
+- **无界面路径的三条缺陷**（身份绑定 / 退出码 / `--json`）与**投递循环重复**：见第二节。
+
+### 8. 自测护栏（新增 19 条）
+
+- **读键闸门**：3 条纯谓词 + **2 条驱动真实泵启动路径**（`SetSourceForTest` 接缝 +
+  `IsPumpRunningForTest`）。后者是关键 —— 自测进程自己就是重定向 stdin，纯谓词全绿也证明不了
+  闸门真的看了 `_hasKeySource`。**已用「把闸门改回 `Console.IsInputRedirected`」实测反证**：
+  3 条谓词依旧全绿、2 条驱动用例立刻红。
+- **`--json` + 槽位任务**、**markup 屏直写登记**、**PopScreen 名单归还**、**遮挡期间段级补写
+  而非整行重写**（此前「内容变化」与「显式标脏」两条相反契约没有任何测试区分，两边都只断言
+  `IsDirty`，两种调用都为真）。
+
+**验证**：`--test` **5174 / 5174 全绿**（v0.96.88 为 5163）；MAUI Android 构建 0 错误；
+`echo "…" | waycoder --json` 的管道路径、`waycoder < NUL` 的无画布报错路径（退出码 1）、
+`--json -p1`（stdout 恰好一行 JSON、退出码 1、提示走 stderr）、`sleep 3 | waycoder`（等满 EOF）
+均实跑确认。
+
+**已知未修**：① `TuiStatusBar`/`TuiTitleBar` 仍无条件整行重绘金色渐变（同源闪因，未收口到
+机制层）；② `TuiScreen.Render` 的 dirty-rect 擦除落在 pass 1 之后，被擦的控件不一定被重绘；
+③ 读键闸门的「真机字节路径」仍需 `--keypad` 的 `RAWKEY:` 手工复验（`waycoder < NUL` 后按键
+是否真的生效）；④ `EnsureSlotAgent` 的每槽位绑定只有静态检查与「三处合并成一份」保证，
+没有自动化用例（自测进程里 `_llm` 未初始化，难以直接驱动槽位 Agent 创建）；
+⑤ 一次 `--test` 曾出现 `失败: 1` 但无 ❌ 行输出、其后连跑 6 次全绿，**未能复现**，
+疑似既有的计时敏感用例（Retry jitter / 项目检测 < 3s）偶发。
+
 ## v0.96.88 (2026-09-11) — 无参数即可进 TUI（stdin 被重定向时改读控制台设备）+ 动态栏直写登记的致命漏登记
 
 ### 1. 不带参数启动全屏界面

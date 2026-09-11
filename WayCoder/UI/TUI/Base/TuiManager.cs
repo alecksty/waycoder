@@ -173,6 +173,13 @@ public class TuiManager : IDisposable
         // 有 Windows/重定向守卫，macOS/Linux 直接 no-op（return false），不碰 kernel32。
         if (MouseEnabled) Tty.EnableMouseForTerminal();
         WinConsoleMode.Enable();
+        // Exit→Enter 往返（裸 `!` 跑 shell 命令后再进界面）里 Exit 刚用 Disable() 把控制台还原成
+        // 行缓冲 + 回显，而 Enable 只在 InputManager.Init 里施过一次 ⇒ 必须每次重进都再施一遍，
+        // 否则按键要按回车才到、回显叠在 TUI 自绘上。stdin 被重定向时无参 Enable() 作用不到
+        // CONIN$（它判重定向就返回 false），所以走 InputManager 记下的设备句柄。
+        // 用字段直取而非 Input 属性：属性会惰性创建 InputManager，而首次 Enter 时它还没建
+        // （真需要时 Init 里刚施过模式），只在已存在时补施即可。
+        _input?.ReapplyConsoleMode();
         (TW, TH) = (Tty.Cols, Tty.Rows);
         IsActive = true;
         // 进入备用屏后强制全刷新：否则 Render 读到上次残留的 _needsFullRefresh=false 走「无脏」路径

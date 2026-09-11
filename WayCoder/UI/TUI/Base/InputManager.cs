@@ -22,8 +22,19 @@ public class InputManager : IDisposable
 
     // ── 统一字符源：解析层透过它读键，与底层读取通道解耦 ──
     // Windows 用字节流实现（收 SGR 鼠标），macOS/Linux 用 Console.ReadKey 实现（真实 PTY 原生）。
-    // 在 Init() 按平台创建；非交互（stdin 重定向）不启动泵线程，注入键仍可用。
+    // 在 Init() 按平台创建；没有可读键盘通道（见 _hasKeySource）才不启动泵线程，注入键仍可用。
     private ICharSource? _charSource;
+
+    /// <summary>
+    /// 本次会话是否有真正可读的键盘通道（stdin 接键盘，或 Windows 下已打开 CONIN$）。
+    /// 由 Init 判定一次；泵线程启不启动只看它，**不看 `Console.IsInputRedirected`**
+    /// （重定向但读控制台设备时那条通路是好的，误判 = TUI 起来却按键全无反应 + 心跳停摆）。
+    /// </summary>
+    private bool _hasKeySource;
+
+    /// <summary>读键所用的控制台输入句柄（CONIN$；非设备源时为 Zero = 用 std stdin 句柄）。
+    /// TuiManager.Enter 每次重进界面时据此重施原始模式（Exit 刚把它还原成行缓冲 + 回显）。</summary>
+    private nint _deviceHandle;
 
     /// <summary>ESC 序列解析时暂读的非鼠标字符（保证 Alt+字母 等组合键不丢失）。注入键也走这里，主循环优先消费。</summary>
     private readonly ConcurrentQueue<ConsoleKeyInfo> _pendingKeys = new();
@@ -50,6 +61,22 @@ public class InputManager : IDisposable
 
     /// <summary>注入一个按键到输入队列（脚本测试用：阻塞式选择器 RenderWait 的 ReadInput 优先消费队列）。</summary>
     public void InjectKey(ConsoleKeyInfo key) => _pendingKeys.Enqueue(key);
+
+    /// <summary>泵线程是否已启动（自测/诊断用）。
+    ///
+    /// 单独立一条契约是因为「能开界面」与「会读键」是两条独立判据：闸门若按
+    /// `Console.IsInputRedirected` 早退，会出现「UI 起来了、画面在，但按键全无反应、
+    /// 心跳也停摆」——而只测纯谓词的自测给不出任何信号（自测进程自己就是重定向 stdin）。
+    /// 暴露它才测得到「闸门是否真的看了 _hasKeySource」。</summary>
+    internal bool IsPumpRunningForTest => Volatile.Read(ref _pumpRunning);
+
+    /// <summary>测试接缝：绕过 <see cref="Init"/> 的环境探测，直接指定字符源与「有没有可读键盘通道」，
+    /// 以便在重定向 stdin 的自测进程里验证泵线程闸门。</summary>
+    internal void SetSourceForTest(ICharSource source, bool hasKeySource)
+    {
+        _charSource = source;
+        _hasKeySource = hasKeySource;
+    }
 
     /// <summary>注册/注销泵线程时钟回调（统一输入源：读键 + 时钟都在泵线程）。null=注销。</summary>
     public void SetHeartbeat(Action? heartbeat) => Volatile.Write(ref _heartbeat, heartbeat);
@@ -136,18 +163,38 @@ public class InputManager : IDisposable
                 {
                     if (fromDevice)
                     {
-                        var h = (stream as FileStream)?.SafeFileHandle.DangerousGetHandle() ?? nint.Zero;
-                        WinConsoleMode.Enable(h); // 在 CONIN$ 句柄上开 VT 输入 + 关行缓冲/回显
+                        _deviceHandle = (stream as FileStream)?.SafeFileHandle.DangerousGetHandle() ?? nint.Zero;
+                        WinConsoleMode.Enable(_deviceHandle); // 在 CONIN$ 句柄上开 VT 输入 + 关行缓冲/回显
                     }
                     _charSource = new WindowsCharSource(stream);
                 }
-                catch { _charSource = new UnixCharSource(); }
+                catch { _charSource = new UnixCharSource(); fromDevice = false; }
+                // 键盘通道按「实际建成的源」判定：建源失败退回 Unix 源时，重定向就是真没键盘。
+                _hasKeySource = ConsoleDevice.HasKeyboard(Console.IsInputRedirected, fromDevice);
             }
             else
             {
                 _charSource = new UnixCharSource();
+                _hasKeySource = ConsoleDevice.HasKeyboard(Console.IsInputRedirected, false);
             }
         }
+    }
+
+    /// <summary>
+    /// 重新施加控制台原始输入模式（VT 输入 + 关行缓冲/回显）。
+    ///
+    /// 为什么需要：TUI 存在 Exit→Enter 往返——输入裸 `!` 跑一条 shell 命令、裸 `!` 弹提示等
+    /// 会 `TuiManager.Exit()` 还原终端，完事再 `Enter()` 进回来。而 `Exit()` 里的
+    /// `WinConsoleMode.Disable()` 已经把模式还原成「行缓冲 + 回显」，施加模式原本却只发生在
+    /// 一次性的 `Init()` 里 ⇒ 往返之后没人再开 VT / 关回显，表现为**按键要按回车才到达、
+    /// 且回显叠在 TUI 自绘上**。stdin 被重定向时更严重：这是唯一通路（无参
+    /// `WinConsoleMode.Enable()` 在重定向下直接返回 false，作用不到 CONIN$ 句柄）。
+    /// </summary>
+    public void ReapplyConsoleMode()
+    {
+        if (!OperatingSystem.IsWindows() || _charSource == null) return;
+        try { WinConsoleMode.Enable(_deviceHandle); }
+        catch { /* 失败不致命：降级为「能用但要按回车」 */ }
     }
 
     /// <summary>
@@ -204,9 +251,11 @@ public class InputManager : IDisposable
         lock (_pumpLock)
         {
             if (_pumpRunning) return;
-            // 管道/重定向/CI：stdin 不可交互则不启动读键线程（InjectKey 与 _pendingKeys 仍派上用场）。
-            // 注意只判 stdin：stdout 被管道（如 | tee）不影响键盘交互，仍需读键。
-            if (Console.IsInputRedirected) return;
+            // 没有可读的键盘通道才不启动读键线程（InjectKey 与 _pendingKeys 仍派上用场）。
+            // 判据是 Init 定下的 _hasKeySource，**不能改成 Console.IsInputRedirected**：
+            // 重定向但已从控制台设备（CONIN$）拿到键盘时也必须启动（见 CharSource.ConsoleDevice.HasKeyboard）。
+            // 注意只看键盘：stdout 被管道（如 | tee）不影响键盘交互，仍需读键。
+            if (!_hasKeySource) return;
             _pumpRunning = true;
             _pumpThread = new Thread(PumpKeys) { IsBackground = true, Name = "waycoder-input-pump" };
             _pumpThread.Start();
@@ -232,8 +281,6 @@ public class InputManager : IDisposable
                         try { heartbeat(); }
                         catch { /* 心跳单次失败忽略，下轮再试 */ }
                     }
-
-                    if (Console.IsInputRedirected) { Thread.Sleep(50); continue; }
 
                     // 统一字符源读键：Windows（字节流）或 macOS/Linux（Console.ReadKey）。
                     // 一个字符 = 码点；ESC(0x1B) 开走转义解析（SGR 鼠标/paste/Kitty/功能键），
@@ -776,6 +823,12 @@ public class InputManager : IDisposable
             }
         }
 
+        // 先还原控制台输入模式，再放掉字符源 —— WinConsoleMode 记下的句柄正是这条流
+        // （CONIN$ 场景下与 std stdin 不同）。顺序反了的话 SetConsoleMode 会打到已关闭、
+        // 甚至可能已被系统复用的句柄上，恢复在 try/catch 里静默失败，终端被留在 raw 状态
+        // （无回显、无行缓冲），用户看到的是「退出后输入框没回显了」。
+        try { WinConsoleMode.Disable(); } catch { /* 恢复失败不致命 */ }
+
         // 释放统一字符源（Windows 源后台读线程 + stdin 句柄）
         if (_charSource is WindowsCharSource wc)
         {
@@ -783,7 +836,11 @@ public class InputManager : IDisposable
         }
         _charSource = null;
 
-        Console.CursorVisible = true;
+        // 恢复光标：守卫与 Init 一致 —— 非交互环境（管道/重定向/测试）根本没有控制台句柄，
+        // 写 CursorVisible 会抛 `IOException: 句柄无效` 直接打断调用方（自测里实测到过：
+        // 在重定向 stdout 的进程里 Dispose 会掀掉整个套件）。
+        if (!Console.IsInputRedirected && !Console.IsOutputRedirected)
+            Console.CursorVisible = true;
     }
 }
 

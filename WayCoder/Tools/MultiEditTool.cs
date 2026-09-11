@@ -168,7 +168,7 @@ public class MultiEditTool : ITool
                 // YOLO 自动放行：新建文件全量新增渲染进工具输出，聊天区显示（三端统一）
                 diffMarkup = DiffPreview.RenderAsMarkup("", content, path);
             }
-            else if (!Console.IsInputRedirected && !Console.IsOutputRedirected)
+            else if (UxHelper.CanConfirmInline)
             {
                 var (decision, accepted) = DiffPreview.Show("", content, path);
                 if (decision == DiffPreview.Decision.RejectAll)
@@ -228,9 +228,11 @@ public class MultiEditTool : ITool
         if (oldContent == newContent)
             return "未做出任何修改 — 所有编辑应用后内容不变";
 
-        // Diff 预览：YOLO（畅通）自动放行不弹窗——下方统一生成的 unified diff 已进工具输出，聊天区仍显示对比（三端统一）
+        // Diff 预览：YOLO（畅通）自动放行不弹窗——下方统一生成的 unified diff 已进工具输出，聊天区仍显示对比（三端统一）。
+        // 非 YOLO 时判据走 UxHelper.CanConfirmInline（TUI / 交互式终端），勿裸判重定向：stdin 被
+        // 重定向也可能正跑着 TUI，那样逐 hunk 确认会被静默降级成自动应用。
         var cfg = Config.Instance;
-        if (cfg.DiffPreview && !Console.IsInputRedirected && !Console.IsOutputRedirected
+        if (cfg.DiffPreview && UxHelper.CanConfirmInline
             && PermissionManager.CurrentMode != PermissionManager.Mode.Yolo)
         {
             var (decision, accepted) = DiffPreview.Show(oldContent, newContent, path);

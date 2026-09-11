@@ -45,8 +45,9 @@ public partial class Program
     // 所以那条分支实际只剩「stdin 是空的」一种情况：读不到任何一行、静默退出（零输出、退出码 0）。
     // 现在这种情况改为启动全屏界面（读键走控制台设备），确实没有控制台时才报错退出。
 
-    /// <summary>纯文本聊天处理（管道/CLI 界面复用）：显示输入 → Agent 流式回复 → 工具调用行 → 异常兜底。</summary>
-    private static async Task ProcessTextInput(Agent agent, string input)
+    /// <summary>纯文本聊天处理（管道/CLI 界面复用）：显示输入 → Agent 流式回复 → 工具调用行 → 异常兜底。
+    /// 返回是否成功 —— 无界面槽位路径据此决定退出码（失败必须退非 0，见 RunSlotQueuesHeadlessAsync）。</summary>
+    private static async Task<bool> ProcessTextInput(Agent agent, string input)
     {
         Console.WriteLine();
         Console.WriteLine($"[2m🤖 {input}[0m");
@@ -58,11 +59,110 @@ public partial class Program
                 onToken: t => Console.Write(SpectreToAnsi(t)),
                 onTool: (name, brief) => Console.WriteLine($"\n[90m🔧 [{name}] {brief}[0m"));
             Console.WriteLine();
+            return true;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"\n[31m[✘ 错误][0m {ex.Message}");
+            return false;
         }
+    }
+
+    /// <summary>
+    /// 确保槽位 <paramref name="idx"/> 的 Agent 就绪，并完成**每槽位身份绑定**。
+    ///
+    /// 三处槽位入口（SwitchAgentSlot / StartSlotTask / 命令行队列投递）此前各写各的，命令行那条
+    /// 曾整个漏掉 —— 于是 `-p4 "记住：本仓库用 xunit"` 会经 `StructuredMemory.SlotMemoryDir`
+    /// 把记忆写进 **slot_0**、并把 F4 的提示词拿去注入 F1 的记忆；`Agent.AgentId` 停在默认
+    /// `"main"`，使 `_agent_id` 工具注入、FileLockManager 跨槽位冲突归属、`LLM.DrainImages(AgentId)`
+    /// 全按 "main" 记账。绑定项与 <see cref="SwitchAgentSlot"/> 同源，别再各写一份。
+    /// </summary>
+    private static Agent EnsureSlotAgent(int idx)
+    {
+        var slot = _slots[idx];
+        if (slot.Agent == null)
+        {
+            var slotLlm = GetSlotLlm(idx);
+            slot.Agent = new Agent(slotLlm,
+                maxContextTokens: ModelCatalog.ResolveContextWindow(slotLlm.Model, _config.MaxContextTokens),
+                maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
+        }
+
+        slot.Agent.AgentId = $"F{idx + 1}"; // 槽位标识，供文件锁跨槽位冲突检测
+        _agent = slot.Agent;
+        ProgramContext.Agent = slot.Agent;
+        // 本槽位的结构化记忆目录（AsyncLocal）：漏了就会读写别的槽位的记忆
+        StructuredMemory.CurrentSlotIndex = idx;
+        // 重绑子智能体父引用（所有 Agent 共享 AgentTool 实例）
+        foreach (var t in slot.Agent.Tools)
+        {
+            if (t is AgentTool agentTool) agentTool.ParentAgent = slot.Agent;
+        }
+        return slot.Agent;
+    }
+
+    /// <summary>
+    /// 走一遍命令行槽位任务队列（`--tui -p "任务"` / `-p1`~`-p0`），每条任务交给
+    /// <paramref name="deliver"/> 执行，返回**失败条数**。
+    ///
+    /// 这是两条消费路径的**唯一实现**：界面内投递（RunReplAsync）与无界面 headless
+    /// （RunSlotQueuesHeadlessAsync）。此前 headless 手抄了一份，抄的时候就漏掉了每槽位身份绑定
+    /// 与退出码 —— 所以合并回来，以后改投递语义只有这一处。
+    /// </summary>
+    /// <param name="deliver">执行一条任务，返回是否成功。</param>
+    /// <param name="onSlot">每个槽位开工前回调（(槽位索引, 任务数)），供两条路径各写各的提示。</param>
+    private static async Task<int> RunSlotQueuesAsync(
+        Func<int, Agent, string, Task<bool>> deliver, Action<int, int> onSlot)
+    {
+        // 槽位数组初始化：界面路径在 RunReplAsync 建画布之后做，无界面路径得自己来 —— 放这儿两边都覆盖
+        for (int i = 0; i < AgentSlot.Count; i++) _slots[i] ??= new AgentSlot();
+        if (_slots[0].Agent == null) _slots[0].Agent = _agent;
+
+        var prefix = string.IsNullOrWhiteSpace(_pendingSlotPrefix) ? "" : _pendingSlotPrefix + " ";
+        int failed = 0;
+        foreach (var (slotIdx, tasks) in _pendingSlotQueues.OrderBy(kv => kv.Key))
+        {
+            var agent = EnsureSlotAgent(slotIdx);
+            onSlot(slotIdx, tasks.Count);
+            foreach (var task in tasks)
+            {
+                if (!await deliver(slotIdx, agent, prefix + task)) failed++;
+            }
+        }
+        _pendingSlotQueues.Clear();
+        _pendingSlotPrefix = "";
+        return failed;
+    }
+
+    /// <summary>
+    /// 无全屏画布（或 `--json`）时执行命令行槽位任务。输出走 <see cref="ProcessTextInput"/> 的纯文本
+    /// 流式路径（与 --cli 同款），`--json` 时改为每条任务一行 <see cref="JsonResult"/>。
+    ///
+    /// 存在的理由：那些队列**只有 REPL 会消费**，而 REPL 需要画布；stdout 被重定向（`> run.log`）
+    /// 时画布没了，队列就被搁死、任务静默不执行（见调用点的注释）。
+    ///
+    /// 退出码与一次性 `-p` 对齐（CLI 铁律①「有错即报错退出，绝不静默忽略」）：任一条失败即退 1，
+    /// 否则成功也无人知晓；跑完还要 `AutoSaveSession()` 落盘，别让 `sessions/slotN/` 空着。
+    /// </summary>
+    private static async Task<int> RunSlotQueuesHeadlessAsync()
+    {
+        RegisterOnceModeSignalHandlers();
+
+        using var cts = new CancellationTokenSource();
+        int failed = await RunSlotQueuesAsync(
+            deliver: (slotIdx, agent, fullPrompt) => _jsonMode
+                // --json：stdout 只允许出现 JsonResult 对象（IDE 桥接契约），不能吐 ANSI 文本
+                ? RunOneJsonCoreAsync(agent, agent.LlmClient, fullPrompt, cts, $"Program.SlotJson.F{slotIdx + 1}")
+                : ProcessTextInput(agent, fullPrompt),
+            onSlot: (slotIdx, count) =>
+            {
+                // JSON 模式：stdout 只许出现 JsonResult 对象，进度提示一律走 stderr
+                var msg = $"📨 槽位 F{slotIdx + 1} 收到 {count} 个任务（命令行队列 · 无界面模式）";
+                if (_jsonMode) Console.Error.WriteLine(msg); else Console.WriteLine(msg);
+            });
+
+        AutoSaveSession();
+        return failed > 0 ? 1 : 0;
     }
 
     private static async Task<int> RunReplAsync(string? editFile = null)
@@ -74,9 +174,22 @@ public partial class Program
         // 读键改从控制台设备取（Windows CONIN$，见 InputManager/CharSource）。
         // 确实没有控制台（CI / 服务 / 输出也被重定向）时才不走 TUI —— 且必须说清为什么，
         // 此前是静默退出（零输出、退出码 0），用户完全看不出发生了什么。
+        // `--json` + 槽位任务：stdout 只允许出现 JsonResult 对象（IDE 桥接契约），所以不论
+        // 有没有画布都不能进 TUI —— 否则 `waycoder --json -p1 "修复 bug" | jq -r .answer`
+        // 拿到的是 ANSI 文本。
+        if (_jsonMode && _pendingSlotQueues.Count > 0) return await RunSlotQueuesHeadlessAsync();
+
         if (!ConsoleDevice.CanUseFullScreen())
         {
-            Console.Error.WriteLine("✘ 当前环境没有可用的控制台，无法启动全屏界面。");
+            // 没有画布 **不等于** 没有工作：命令行槽位任务（`--tui -p "任务"`、`-p1`~`-p0`）由本方法
+            // 下方那段投递循环消费，是它们**唯一**的消费者。直接 return 1 会让任务静默不执行
+            // ——`waycoder -p1 "修复 bug" > run.log` 或 `... | tee log` 正是这种（stdout 被重定向
+            // → 没有画布），用户以为在跑，实际什么都没发生。所以先无界面地把队列跑完。
+            if (_pendingSlotQueues.Count > 0) return await RunSlotQueuesHeadlessAsync();
+
+            Console.Error.WriteLine("✘ 当前环境没有可用的全屏画布，无法启动界面。");
+            if (Console.IsOutputRedirected)
+                Console.Error.WriteLine("  （标准输出被重定向 —— 全屏界面需要直接写终端）");
             Console.Error.WriteLine("  非交互用法：waycoder -p \"任务\"（一次性） · echo \"任务\" | waycoder（读管道执行）");
             Console.Error.WriteLine("  查看全部选项：waycoder -h");
             return 1; // 由 Main 透传：Main 末尾的 return 0 会盖掉 Environment.ExitCode，必须走返回值
@@ -264,41 +377,27 @@ public partial class Program
         };
 
         // ── 自动投递命令行槽位任务队列（-p1 ~ -p0，同一槽位可排队）──
-        foreach (var (slotIdx, tasks) in _pendingSlotQueues.OrderBy(kv => kv.Key))
-        {
-            // 切换到目标槽位
-            if (slotIdx != _activeSlot)
+        // 与无界面路径共用 RunSlotQueuesAsync（每槽位身份绑定、前缀规则、Clear 都在那里）
+        await RunSlotQueuesAsync(
+            deliver: async (slotIdx, agent, fullPrompt) =>
             {
-                SwitchAgentSlot(slotIdx, screen);
-                mgr.Render();
-            }
-
-            // 确保目标槽位有 Agent
-            if (_slots[slotIdx].Agent == null)
-            {
-                var slotLlm = GetSlotLlm(slotIdx);
-                _slots[slotIdx].Agent = new Agent(slotLlm, maxContextTokens: ModelCatalog.ResolveContextWindow(slotLlm.Model, _config.MaxContextTokens),
-                    maxBudgetUsd: _config.MaxBudgetUsd, autoCommit: _config.AutoGitCommit);
-                _agent = _slots[slotIdx].Agent;
-                ProgramContext.Agent = _agent;
-            }
-
-            var prefix = string.IsNullOrWhiteSpace(_pendingSlotPrefix)
-                ? "" : _pendingSlotPrefix + " ";
-
-            screen.AddSystemMsg($"📨 槽位 F{slotIdx + 1} 收到 {tasks.Count} 个任务（来自命令行）");
-            mgr.Render();
-
-            foreach (var task in tasks)
-            {
-                var fullPrompt = prefix + task;
+                // 切换到目标槽位：界面要跟着切，用户才看得到这个槽位的任务在跑
+                if (slotIdx != _activeSlot)
+                {
+                    SwitchAgentSlot(slotIdx, screen);
+                    mgr.Render();
+                }
                 screen.AddSystemMsg($"  → {fullPrompt.Truncate(80)}");
                 mgr.Render();
                 await ProcessUserInput(fullPrompt, screen);
-            }
-        }
-        _pendingSlotQueues.Clear();
-        _pendingSlotPrefix = "";
+                // 界面里的失败由聊天流呈现，不改进程退出码（与一次性 -p 的语义不同）
+                return true;
+            },
+            onSlot: (slotIdx, count) =>
+            {
+                screen.AddSystemMsg($"📨 槽位 F{slotIdx + 1} 收到 {count} 个任务（来自命令行）");
+                mgr.Render();
+            });
 
         // 启动时执行一次 OnResize，确保动态布局计算正确
         mgr.OnResize();

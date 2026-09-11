@@ -84,8 +84,37 @@ public static class ConsoleDevice
 
     /// <summary>按真实环境判断能否启动全屏界面。</summary>
     public static bool CanUseFullScreen()
-        => CanUseFullScreen(Console.IsInputRedirected, Console.IsOutputRedirected,
-            OperatingSystem.IsWindows() && TryOpen() != null, OperatingSystem.IsWindows());
+    {
+        // 逐项短路，勿写成「四个实参一次求值」：C# 会先求值全部实参，而 hasConsoleDevice 那一项
+        // 要真的开一个 CONIN$ 句柄 —— 无条件求值等于每次 Windows 启动都开一个控制台句柄再丢掉
+        // （stdout 重定向时根本用不上），而真正读键那次 OpenInput() 还会另开一个。见 HasConsoleDevice。
+        if (Console.IsOutputRedirected) return false;     // 没有画布
+        if (!Console.IsInputRedirected) return true;      // stdin 接键盘，不用碰控制台设备
+        if (!OperatingSystem.IsWindows()) return false;   // Unix：/dev/tty 没进 raw mode，按键要等回车
+        return HasConsoleDevice();
+    }
+
+    /// <summary>能否打开控制台输入设备（探测用：句柄当即释放，不作读键通道——真正的通道在 OpenInput）。
+    /// 探测与读键各开一次是有意的：读键那条流的生命周期归 InputManager。</summary>
+    private static bool HasConsoleDevice()
+    {
+        var probe = TryOpen();
+        if (probe == null) return false;
+        probe.Dispose();
+        return true;
+    }
+
+    /// <summary>
+    /// 本次会话是否有**真正可读的键盘通道** —— InputManager 据此决定启不启动后台读键泵线程。
+    ///
+    /// 不能用 <c>Console.IsInputRedirected</c> 代替：本类存在的意义恰恰是「stdin 被重定向仍可能拿得到
+    /// 键盘」。那种环境现在也会进 TUI（<see cref="CanUseFullScreen()"/>），若泵线程按重定向早退，
+    /// 结果是 **TUI 起来了但按键全无反应**，而且挂在泵线程上的心跳（spinner 动画 / 冻结看门狗 /
+    /// CPU 采样）一起停摆，只有 Ctrl+C 能逃出去。反之 <paramref name="fromDevice"/> 为 false
+    /// 且 stdin 被重定向 = 手上只有一个空管道，读它毫无意义，那才是真的该早退。
+    /// </summary>
+    public static bool HasKeyboard(bool stdinRedirected, bool fromDevice)
+        => !stdinRedirected || fromDevice;
 
     /// <summary>打开控制台输入设备（Windows `CONIN$` / Unix `/dev/tty`）；没有控制台则返回 null。</summary>
     public static Stream? TryOpen()

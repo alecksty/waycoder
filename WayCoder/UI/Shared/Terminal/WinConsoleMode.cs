@@ -33,6 +33,19 @@ public static partial class WinConsoleMode
     private static uint _origMode;
     private static nint _handle; // Enable 实际作用的句柄（CONIN$ 场景下与 std stdin 不同）
 
+    static WinConsoleMode()
+    {
+        // 进程正常终结（含 Environment.Exit / Main 返回）时兜底还原。
+        // 本类改的是**整个控制台输入缓冲区**的模式（`SetConsoleMode` 作用于 CONIN$ 即全控制台共享），
+        // 即用户那扇 cmd/PowerShell 窗口的行缓冲与回显。若 TUI 因异常或直接退出没走到
+        // TuiManager.Exit → Disable，父 shell 就被留在 raw、无回显状态。
+        // 被强杀（taskkill / 崩溃）时本钩子不会跑，那种情况无解，靠下次启动的清残留逻辑缓解。
+        AppDomain.CurrentDomain.ProcessExit += static (_, _) =>
+        {
+            try { Disable(); } catch { /* 退出路径，吞掉 */ }
+        };
+    }
+
     [LibraryImport("kernel32.dll", EntryPoint = "GetStdHandle", SetLastError = true)]
     private static partial nint GetStdHandle(int nStdHandle);
 
