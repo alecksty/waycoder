@@ -26,6 +26,31 @@ public class PsTool : ITool
         return await Execute(name, top);
     }
 
+    /// <summary>
+    /// 构造子进程 psi（internal 供自测断言解码设置）。
+    ///
+    /// **Windows 走 `cmd.exe /c tasklist`，必须过 `ProcEncoding.Apply`**：cmd.exe 及其子命令向
+    /// 重定向管道写的是**系统 OEM 代码页**字节（中文系统 GBK）。实测本机 `tasklist /NH` 输出里
+    /// 有 350 字节非 ASCII（如「微信开发者工具.exe」），按 UTF-8 解码在偏移 27928 处即失败 ⇒
+    /// 智能体看到的中文进程名全是乱码，照着拼进 `kill` 必然失败。这是 CLAUDE.md 的既有铁律，
+    /// 本工具此前漏了。（非 Windows 走 /bin/bash，本就 UTF-8，`Apply` 自动跳过。）
+    /// </summary>
+    internal static ProcessStartInfo BuildPsi(string fileName, string args)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = fileName,
+            Arguments = args,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            RedirectStandardInput = true, // 不共享主控台 stdin（ProcUtil 启动后置 EOF，防 TUI ReadKey 竞态）
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        WayCoder.Infra.ProcEncoding.Apply(psi);
+        return psi;
+    }
+
     private static async Task<string> Execute(string name, int top)
     {
         // top 钳制到 [1,1000]：负值使 head -n -1 忽略上限、head -n 0 输出空；无上限则 top+1 溢出为负
@@ -55,16 +80,7 @@ public class PsTool : ITool
                 args = $"-c \"{cmd}\"";
             }
 
-            var psi = new ProcessStartInfo
-            {
-                FileName = fileName,
-                Arguments = args,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                RedirectStandardInput = true, // 不共享主控台 stdin（ProcUtil 启动后置 EOF，防 TUI ReadKey 竞态）
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
+            var psi = BuildPsi(fileName, args);
 
             var r = await WayCoder.Infra.ProcUtil.RunAsync(psi, 10_000);
             if (r == null) return "错误：ps 命令超时（10s）";

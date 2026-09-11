@@ -181,7 +181,8 @@ public class ScreenshotTool : ITool
     {
         try
         {
-            var (exitCode, output) = RunProcess(cmd.Tool, cmd.Args);
+            // Windows 抓屏走 powershell（控制台工具，输出为 OEM 代码页）；Unix 的 import/screencapture 本就 UTF-8
+            var (exitCode, output) = RunProcess(cmd.Tool, cmd.Args, oemDecode: OperatingSystem.IsWindows());
             if (exitCode != 0 || !File.Exists(savePath))
                 return (false, $"抓屏失败（{cmd.Tool} exit={exitCode}）：{(string.IsNullOrWhiteSpace(output) ? "无输出" : output.Trim())}");
             return (true, "");
@@ -305,8 +306,13 @@ public class ScreenshotTool : ITool
         return null;
     }
 
-    /// <summary>运行一个外部命令，返回（退出码，合并输出）。参数用 ArgumentList 传，不经 shell 引号解析。</summary>
-    private static (int ExitCode, string Output) RunProcess(string fileName, string[] arguments)
+    /// <summary>运行一个外部命令，返回（退出码，合并输出）。参数用 ArgumentList 传，不经 shell 引号解析。
+    /// <paramref name="oemDecode"/>：该工具是否为「Windows 控制台工具」（cmd.exe / powershell）——
+    /// 它们向重定向管道写**系统 OEM 代码页**字节（实测中文系统下 `powershell -Command "Write-Output '中文'"` 输出
+    /// 非 UTF-8），须过 <see cref="WayCoder.Infra.ProcEncoding.Apply"/> 解码。**默认 false**：
+    /// tesseract 等现代工具写 UTF-8，套上 OEM 解码反而会把 OCR 出的中文解成乱码。</summary>
+    private static (int ExitCode, string Output) RunProcess(string fileName, string[] arguments,
+        bool oemDecode = false)
     {
         var psi = new ProcessStartInfo
         {
@@ -317,6 +323,7 @@ public class ScreenshotTool : ITool
             UseShellExecute = false,
             CreateNoWindow = true,
         };
+        if (oemDecode) WayCoder.Infra.ProcEncoding.Apply(psi);
         foreach (var a in arguments) psi.ArgumentList.Add(a);
         using var proc = Process.Start(psi);
         if (proc == null) return (-1, "");

@@ -41,6 +41,31 @@ public class KillTool : ITool
         return await Execute(hasPid, pid, hasName, name, force);
     }
 
+    /// <summary>
+    /// 构造子进程 psi（internal 供自测断言解码设置）。
+    ///
+    /// **Windows 走 `cmd.exe /c taskkill`，必须过 `ProcEncoding.Apply`**：cmd.exe 及其子命令向
+    /// 重定向管道写的是**系统 OEM 代码页**字节（中文系统 GBK），实测 `taskkill /PID 999999` 的输出
+    /// `错误: 没有找到进程 "999999"。` 就不是合法 UTF-8 —— 不设解码则智能体看到的是乱码，
+    /// 连「杀成功还是杀失败」都读不出来。这条是 CLAUDE.md 的既有铁律，本工具此前漏了。
+    /// （非 Windows 走 /bin/bash，本就 UTF-8，`Apply` 自动跳过。）
+    /// </summary>
+    internal static ProcessStartInfo BuildPsi(string fileName, string args)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = fileName,
+            Arguments = args,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            RedirectStandardInput = true, // 不共享主控台 stdin（ProcUtil 启动后置 EOF，防 TUI ReadKey 竞态）
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        WayCoder.Infra.ProcEncoding.Apply(psi);
+        return psi;
+    }
+
     private static async Task<string> Execute(bool hasPid, int pid, bool hasName, string name, bool force)
     {
         // 系统关键 PID 检查（优先于参数缺失检查）
@@ -92,16 +117,7 @@ public class KillTool : ITool
                 }
             }
 
-            var psi = new ProcessStartInfo
-            {
-                FileName = fileName,
-                Arguments = args,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                RedirectStandardInput = true, // 不共享主控台 stdin（ProcUtil 启动后置 EOF，防 TUI ReadKey 竞态）
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
+            var psi = BuildPsi(fileName, args);
 
             var r = await WayCoder.Infra.ProcUtil.RunAsync(psi, Config.Instance.KillTimeoutSec * 1000);
             if (r == null)
