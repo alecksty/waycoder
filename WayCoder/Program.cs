@@ -579,28 +579,9 @@ public partial class Program
             }
         }
 
-        // 浏览器聊天界面（--web [端口]，默认 9527）
-        if (webMode)
-        {
-            int webPort = 9527;
-            var portFromEnv = Environment.GetEnvironmentVariable("WAYCODER_WEB_PORT");
-            if (!string.IsNullOrEmpty(webPortSpec) && int.TryParse(webPortSpec, out var wp) && wp > 0 && wp < 65536)
-                webPort = wp;
-            else if (!string.IsNullOrEmpty(portFromEnv) && int.TryParse(portFromEnv, out var we) && we > 0 && we < 65536)
-                webPort = we;
-            await RunWebAsync(webPort);
-            return 0;
-        }
-
-        // CLI 文本界面（--cli，非全屏逐行交互；--tui 显式时优先默认 TUI）
-        if (cliMode && !tuiMode)
-        {
-            await RunCliReplAsync(editFile);
-            return 0;
-        }
-
         // --tui 显式且带 -p：提示词投递到槽位 0，走全屏 REPL（复用槽位自动投递机制），
-        // 而非 RunOnceAsync 一次性 spinner 模式——便于观察任务完成阶段的 TUI 渲染/死机。
+        // 而非默认的 CLI 纯文本一次性（CliOneShot）——便于观察任务完成阶段的 TUI 渲染/死机。
+        // 必须在 Decide 之前完成这步搬运：搬完 prompt 就是 null，判据才落回 Repl。
         if (tuiMode && !jsonMode && !string.IsNullOrEmpty(prompt))
         {
             if (!_pendingSlotQueues.TryGetValue(0, out var list))
@@ -609,16 +590,39 @@ public partial class Program
             prompt = null; // 交给 REPL 自动投递
         }
 
-        if (!string.IsNullOrEmpty(prompt))
+        // 界面分发唯一入口（判据见 StartupRouter，主自测覆盖）：
+        // **不带任何参数 = Repl = 全屏 TUI**，--web / --cli 才分流到别的界面。
+        switch (Arguments.StartupRouter.Decide(webMode, cliMode, tuiMode, jsonMode, !string.IsNullOrEmpty(prompt)))
         {
-            if (jsonMode)
-                return await RunOnceJsonAsync(prompt);
-            await RunOnceAsync(prompt);
-        }
-        else
-            return await RunReplAsync(editFile); // 界面起不来（无控制台）时透传非 0 退出码
+            case Arguments.StartupRoute.Web:
+                {
+                    // web 是浏览器界面，终端这边没有执行提示词的地方 —— 说清楚，别静默丢弃
+                    if (!string.IsNullOrEmpty(prompt))
+                        Console.Error.WriteLine("⚠ --web 是浏览器界面，-p 的提示词不在终端执行；请启动后在浏览器里输入。");
 
-        return 0;
+                    int webPort = 9527;
+                    var portFromEnv = Environment.GetEnvironmentVariable("WAYCODER_WEB_PORT");
+                    if (!string.IsNullOrEmpty(webPortSpec) && int.TryParse(webPortSpec, out var wp) && wp > 0 && wp < 65536)
+                        webPort = wp;
+                    else if (!string.IsNullOrEmpty(portFromEnv) && int.TryParse(portFromEnv, out var we) && we > 0 && we < 65536)
+                        webPort = we;
+                    await RunWebAsync(webPort);
+                    return 0;
+                }
+
+            case Arguments.StartupRoute.Cli:
+                await RunCliReplAsync(editFile);
+                return 0;
+
+            case Arguments.StartupRoute.CliOneShot:
+                return await RunOnceCliAsync(prompt!);
+
+            case Arguments.StartupRoute.OneShotJson:
+                return await RunOnceJsonAsync(prompt!);
+
+            default:
+                return await RunReplAsync(editFile); // 界面起不来（无控制台）时透传非 0 退出码
+        }
     }
 
     // ========================================================================
@@ -742,41 +746,40 @@ public partial class Program
         }
     }
 
-    private static async Task RunOnceAsync(string prompt)
+    /// <summary>
+    /// `-p "任务"` 的 CLI 纯文本路径：与 `--cli` 界面同源（同一个 <see cref="ProcessTextInput"/>），
+    /// **不带 spinner 等待动画** —— 输出可直接重定向到文件，被脚本 / CI / BatchRunner 子进程解析。
+    /// 跑完即退出，退出码反映成败（失败退 1，与「有错即报错退出」的 CLI 铁律一致）。
+    ///
+    /// 与旧的一次性模式（ChatWithStatusAsync + ⠋ spinner）的唯一区别就是输出形态：
+    /// 那版在等待 LLM 时用 `\r` 反复重写状态行，重定向到文件就是一串控制字符噪声。
+    /// </summary>
+    private static async Task<int> RunOnceCliAsync(string prompt)
     {
-        using var cts = new CancellationTokenSource();
         RegisterOnceModeSignalHandlers();
 
+        var agent = _agent;
+        if (agent == null)
+        {
+            Console.Error.WriteLine("Agent 未初始化");
+            return 1;
+        }
+
+        bool ok;
         try
         {
-            MarkupLine($"«dim»🤖 {E(prompt)}«/»");
-            await ChatWithStatusAsync(prompt, cts.Token);
-            Console.WriteLine();
-            AutoSaveSession();
-        }
-        catch (OperationCanceledException)
-        {
-            if (cts.IsCancellationRequested)
-            {
-                MarkupLine("\n«orange3»⚠ 已中断«/»");
-                AutoSaveSession();
-                Environment.Exit(130);
-            }
-            else
-            {
-                ErrorLog.Error("Program.RunOnce", $"LLM 请求超时（{Config.Instance.LlmHttpTimeoutSec}s）");
-                UxHelper.Error("请求超时", $"服务器 {Config.Instance.LlmHttpTimeoutSec}s 未响应，请检查网络或 API 配置");
-                AutoSaveSession();
-                Environment.Exit(1);
-            }
+            ok = await ProcessTextInput(agent, prompt);
         }
         catch (Exception ex)
         {
-            ErrorLog.Fatal("Program.RunOnce", $"一次性模式崩溃: {ex.Message}", ex);
-            UxHelper.Error("错误", ex.Message);
-            AutoSaveSession();
-            Environment.Exit(1);
+            // ProcessTextInput 内部已兜底异常；这一层防的是它之外的取消/中断，别让退出码失真
+            ErrorLog.Error("Program.RunOnceCli", $"CLI 一次性执行失败: {ex.Message}");
+            Console.WriteLine($"\n[✘ 错误] {ex.Message}");
+            ok = false;
         }
+
+        AutoSaveSession();
+        return ok ? 0 : 1;
     }
 
     // ========================================================================

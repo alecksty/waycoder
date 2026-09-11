@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using WayCoder.UI.Cli.Arguments;
 using WayCoder.UI.TUI.Base;
 
 namespace WayCoder;
@@ -499,6 +500,44 @@ public static partial class SelfTest
                     !noKeys.IsPumpRunningForTest);
                 noKeys.Dispose();
             }
+        }
+
+        Section("[启动界面分发：无参数 = 全屏 TUI]");
+        // 产品默认行为：`waycoder` 不带任何参数 → 全屏 TUI。此前这条只存在于 Main 里的一串 if 中，
+        // 没有任何测试钉住；判据写错（或给某开关加默认值）会让默认界面静默换掉而自测全绿。
+        {
+            StartupRoute Route(bool web, bool cli, bool tui, bool json, bool prompt)
+                => StartupRouter.Decide(web, cli, tui, json, prompt);
+
+            Check("分发：无参数 → Repl（全屏 TUI）", Route(false, false, false, false, false) == StartupRoute.Repl);
+            Check("分发：--tui 无参数 → 仍 Repl", Route(false, false, true, false, false) == StartupRoute.Repl);
+            Check("分发：--web → Web", Route(true, false, false, false, false) == StartupRoute.Web);
+            Check("分发：--cli → Cli", Route(false, true, false, false, false) == StartupRoute.Cli);
+            Check("分发：--cli --tui → Repl（--tui 压过 --cli）",
+                Route(false, true, true, false, false) == StartupRoute.Repl);
+
+            // -p 走 CLI 纯文本（与 --cli 同源输出，无 spinner）——不再是一次性 spinner 模式
+            Check("分发：-p → CliOneShot（CLI 纯文本，非全屏）",
+                Route(false, false, false, false, true) == StartupRoute.CliOneShot);
+            Check("分发：--json -p → OneShotJson（无界面）",
+                Route(false, false, false, true, true) == StartupRoute.OneShotJson);
+
+            // 显式指定界面优先
+            Check("分发：--cli -p → CliOneShot（指定 CLI，提示词照常执行，不被丢弃）",
+                Route(false, true, false, false, true) == StartupRoute.CliOneShot);
+            Check("分发：--web -p → Web（指定 web 优先；提示词由 Main 提示不在终端执行）",
+                Route(true, false, false, false, true) == StartupRoute.Web);
+
+            // --tui 带 -p 的搬运：Main 在调 Decide 前把 prompt 挪进槽位队列并置 null，
+            // 于是判据落到 Repl —— 这正是「--tui -p」与「-p」行为不同的原因。
+            Check("分发：--tui -p 经槽位搬运后（prompt=null）→ Repl",
+                Route(false, false, true, false, false) == StartupRoute.Repl);
+
+            // -p1~-p0 槽位任务：prompt 恒为 null（走 _pendingSlotQueues），判据落 Repl
+            Check("分发：-p1 槽位任务（prompt=null）→ Repl（进 TUI）",
+                Route(false, false, false, false, false) == StartupRoute.Repl);
+            Check("分发：-p1 槽位任务 + --json → Repl（JSON 由槽位无界面路径处理）",
+                Route(false, false, false, true, false) == StartupRoute.Repl);
         }
 
         Section("[项目根解析边界（性能回归护栏）]");

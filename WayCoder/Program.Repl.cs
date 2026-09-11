@@ -41,7 +41,7 @@ public partial class Program
     }
 
     // 注：原 RunPipeModeAsync（逐行读 stdin）已删除 —— 它只在「stdin 被重定向且没有提示词」时
-    // 才被调用，而这种输入早已被 Main 的 ReadToEnd 抢先读成 prompt（→ RunOnceAsync 一次性执行），
+    // 才被调用，而这种输入早已被 Main 的 ReadToEnd 抢先读成 prompt（→ CLI 纯文本一次性执行），
     // 所以那条分支实际只剩「stdin 是空的」一种情况：读不到任何一行、静默退出（零输出、退出码 0）。
     // 现在这种情况改为启动全屏界面（读键走控制台设备），确实没有控制台时才报错退出。
 

@@ -137,6 +137,7 @@ public static partial class SelfTest
         ["[TuiMouse]"] = "ui",
         ["[TuiDynamicBar"] = "ui", ["[动态栏分区刷新"] = "ui",
         ["[无参数启动界面"] = "system",
+        ["[启动界面分发"] = "system",
         ["[动态栏直写登记"] = "ui",
         // git
         ["[Git]"] = "git",         ["[Git "] = "git",         ["[Git PR]"] = "git",     ["[Git 大"] = "git",
