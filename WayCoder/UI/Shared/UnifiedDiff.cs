@@ -107,6 +107,26 @@ public static class UnifiedDiff
         return result;
     }
 
+    /// <summary>
+    /// 合并重叠或相接的区间（半开区间 <c>[S, E)</c>，要求按 S 递增传入）。
+    ///
+    /// **唯一实现**：<c>Git/GitCore</c> 的手写 git-diff hunk 构建与本文件的 hunk 构建
+    /// 此前各写一份**逐字相同**的合并循环 —— 而它们描述的是同一件事（变更块扩上下文后
+    /// 不许出现重叠 hunk）。两处漂移就会让「同一个文件改一次」在两种呈现里切出不同的 hunk 边界。
+    /// </summary>
+    public static List<(int S, int E)> MergeRanges(IEnumerable<(int S, int E)> ranges)
+    {
+        var merged = new List<(int S, int E)>();
+        foreach (var (s, e) in ranges)
+        {
+            if (merged.Count > 0 && s <= merged[^1].E)
+                merged[^1] = (merged[^1].S, Math.Max(merged[^1].E, e));
+            else
+                merged.Add((s, e));
+        }
+        return merged;
+    }
+
     /// <summary>把编辑序列按「变更块 + 前后上下文」分组为 hunk，重叠区间合并（相距 &lt; 2*context 并成一个）。</summary>
     public static List<Block> GroupIntoHunks(
         List<(int OldIdx, int NewIdx, char Kind)> edits,
@@ -130,14 +150,7 @@ public static class UnifiedDiff
             ranges.Add((Math.Max(0, bs - contextLines), Math.Min(edits.Count, be + contextLines)));
 
         // 3. 合并重叠区间（避免重复行 / 重叠 hunk）
-        var merged = new List<(int S, int E)>();
-        foreach (var (s, e) in ranges)
-        {
-            if (merged.Count > 0 && s <= merged[^1].E)
-                merged[^1] = (merged[^1].S, Math.Max(merged[^1].E, e));
-            else
-                merged.Add((s, e));
-        }
+        var merged = MergeRanges(ranges);
 
         // 4. 由区间构建 hunk
         var hunks = new List<Block>();

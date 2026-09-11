@@ -915,15 +915,8 @@ public static class GitCore
         foreach (var (s, e) in blocks)
             ranges.Add((Math.Max(0, s - context), Math.Min(edits.Count, e + context)));
 
-        var merged = new List<(int S, int E)>();
-        foreach (var (s, e) in ranges)
-        {
-            if (merged.Count > 0 && s <= merged[^1].E)
-                merged[^1] = (merged[^1].S, Math.Max(merged[^1].E, e));
-            else
-                merged.Add((s, e));
-        }
-        return merged;
+        // 合并重叠区间：与 UI/Shared/UnifiedDiff 的 hunk 构建共用同一份实现（同一件事）
+        return WayCoder.UI.Shared.UnifiedDiff.MergeRanges(ranges);
     }
 
     // ═══════════════════════════════════════════════════════════
