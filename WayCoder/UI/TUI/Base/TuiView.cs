@@ -170,17 +170,24 @@ public abstract class TuiView : TuiControl
     protected void MarkDirtyTree()
     {
         MarkDirty();
-        for (int i = 0; i < Children.Count; i++) // for + 重读 Count：防后台并发 AddItem 崩
-        {
-            if (Children[i] is TuiView v)
-            {
-                v.MarkDirtyTree();
-            }
-            else
-            {
-                Children[i].MarkDirty();
-            }
-        }
+        SetTreeDirty(this);
+    }
+
+    /// <summary>
+    /// 同 <see cref="MarkDirtyTree"/>，但**只置 IsDirty、不叫醒帧闸门** —— 供渲染帧内调用
+    /// （帧正在渲染，再叫醒 Manager 只会多排一帧空渲染）。<c>TuiListView.MarkTreeDirty</c> 走这条。
+    /// </summary>
+    protected void MarkDirtyTreeQuiet() => SetTreeDirty(this);
+
+    /// <summary>把指定节点及其全部后代置为脏（不叫醒帧闸门）。
+    /// 「只擦某段行区间、必须整棵子树补画」的窄路径也走这里（见 <c>TuiListView.MarkItemContentDirty</c>）：
+    /// <c>parentDirty</c> 只向下传播一层，只标容器会让叶子被擦掉后补不回来。</summary>
+    protected static void SetTreeDirty(TuiControl c)
+    {
+        c.IsDirty = true;
+        if (c is not TuiView v) return;
+        for (int i = 0; i < v.Children.Count; i++) // for + 重读 Count：防后台并发 AddItem 崩
+            SetTreeDirty(v.Children[i]);
     }
 
     /// <summary>

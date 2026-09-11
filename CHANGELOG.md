@@ -1,5 +1,44 @@
 # 更新日志
 
+## v0.96.100 (2026-09-11) — 重复代码清理（C 级第九批）：滚动状态机同源 + 列表视口复位
+
+4 文件改动 + 1 新增，**+56 / −172 行**；自测 **+6 条护栏**。
+
+### 1. 滚动状态机 2 份 → `TuiScrollable`（新基类）
+
+`TuiScrollView`（内容自适应高度的滚动视图）与 `TuiListView`（逐项滚动的列表视图）
+各持一份 `ScrollOffset` / `ContentHeight` / `IsAutoScrollToEnd` / 弃用别名 `AutoScroll`
+与 `ScrollUp` / `ScrollDown` / `ScrollToTop` / `ScrollToBottom` ——
+**四段方法体逐字节相同**，连「已在顶部/底部则 no-op（防闪屏）」的判据与注释都一致。
+
+差异只有一处：无参调用的默认步长（列表一格滚轮 3 行、滚动视图 1 行），
+提成 `<see cref="ScrollStepLines"/>` 虚属性（`TuiListView` 覆写为 3）。
+
+**为什么值得收**：这几个方法不是纯 getter，而是「跟底状态 + 边界 no-op + 标脏」三件事
+交织的状态机 —— `ScrollDown` 到边界要把 `IsAutoScrollToEnd` 置回 `true`（内容再增长时继续跟底），
+非边界置 `false`（用户手动滚上去了就别再自动跟底）。漏一处就是「滚一下就永久失去自动跟底」
+或「手动上翻一页又被拽回底部」，而两份各自演化时**没有任何编译期提示**。
+
+### 2. 顺带修掉 `TuiListView` 缺 `OnResize` 复位
+
+缩放 / 截图终端后视口变高，旧的 `ScrollOffset` 可能已越过新的 `ContentHeight - Height`，
+**偏移越界后列表停在空白区**。此前只有 `TuiScrollView` 覆写 `OnResize` 做了钳制，列表视图没有。
+判据收进 `TuiScrollable.OnResize`（`base.OnResize` = 布局 + 递归子控件，再加 `ClampScroll()`），
+两类同时具备。
+
+### 3. 树标脏两份 → `TuiView.SetTreeDirty`
+
+`TuiListView` 私有的 `SetTreeDirty` 递归与 `TuiView.MarkDirtyTree` 是**同一趟遍历**，
+唯一区别是前者只置 `IsDirty`、后者额外叫醒帧闸门（供渲染帧内调用，避免多排一帧空渲染）。
+现在共用 `TuiView.SetTreeDirty(节点)` 一个静态遍历，`MarkDirtyTree` / `MarkDirtyTreeQuiet` /
+`MarkItemContentDirty` 三条路径都走它。
+
+**验证**：新增 6 条断言（两类同源 + 步长 3/1 + 视口变高后 offset 钳回），
+并**证伪过**——摘掉 `ClampScroll()` 后两条「视口变高后 offset 被钳回」立刻变红；
+`TuiScrollView` 那条先因「内容增长自动跟底」顺带调位而**假绿**，已改成先 `Layout()` 固化
+`ContentHeight` 再 `ScrollUp(1)` 退出跟底，确保测的是钳制本身而非跟底副作用。
+`--test` **5206 / 5206**；桌面 / Gui / MAUI Android 三工程构建均 0 错误。
+
 ## v0.96.99 (2026-09-11) — 重复代码清理（C 级第八批）：内联滚动条落笔
 
 5 文件改动，**+54 / −40 行**；自测 **+8 条护栏**。
