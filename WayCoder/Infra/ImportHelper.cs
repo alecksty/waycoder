@@ -986,26 +986,11 @@ public static class ImportHelper
 
     /// <summary>向上搜索目录中的文件。FindInTree(cwd, ".cursor", "mcp.json") → 完整路径或 null</summary>
     private static string? FindInTree(string cwd, string dirName, string? fileName = null)
-    {
-        var dir = cwd;
-        while (dir != null)
+        => Global.WalkUpDirectories(cwd, dir =>
         {
-            if (fileName != null)
-            {
-                var path = Path.Combine(dir, dirName, fileName);
-                if (File.Exists(path)) return path;
-            }
-            else
-            {
-                var path = Path.Combine(dir, dirName);
-                if (File.Exists(path)) return path;
-            }
-            var parent = Path.GetDirectoryName(dir);
-            if (parent == dir) break;
-            dir = parent;
-        }
-        return null;
-    }
+            var path = fileName != null ? Path.Combine(dir, dirName, fileName) : Path.Combine(dir, dirName);
+            return File.Exists(path) ? path : null;
+        });
 
     /// <summary>去除 JSONC 注释（// 和 /* */），返回纯 JSON 字符串</summary>
 

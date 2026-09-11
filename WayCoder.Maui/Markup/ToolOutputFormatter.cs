@@ -79,14 +79,8 @@ public static class ToolOutputFormatter
     private static FormattedString RenderCode(string content, Syntax syntax, bool isDark)
     {
         var fs = new FormattedString();
-        var lines = content.Replace("\r\n", "\n").Split('\n');
-        for (int i = 0; i < lines.Length; i++)
-        {
-            foreach (var (text, color) in syntax.Tokenize(lines[i]))
-                MarkupToFormattedString.AppendSpan(fs, text, MarkupToFormattedString.ColorForToken(color, isDark), MarkupToFormattedString.MonoFont);
-            if (i < lines.Length - 1)
-                MarkupToFormattedString.AppendSpan(fs, "\n", MarkupToFormattedString.ColorForToken(0, isDark), MarkupToFormattedString.MonoFont);
-        }
+        // 共享实现（含「超大代码块降级纯文本」护栏——本处此前没有）
+        MarkupToFormattedString.AppendCodeLines(fs, content, syntax, isDark);
         return fs;
     }
 

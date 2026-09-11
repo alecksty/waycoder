@@ -88,7 +88,7 @@ public static class MarkupToFormattedString
             }
 
             // markdown 表格块：当前行以 | 开头，且下一行是分隔线（|---|---|）
-            if (line.TrimStart().StartsWith('|') && IsTableSeparator(lines, i + 1))
+            if (line.TrimStart().StartsWith('|') && MarkdownTable.IsSeparator(lines, i + 1))
             {
                 FlushInline();
                 var tbl = new List<string>();
@@ -108,31 +108,10 @@ public static class MarkupToFormattedString
         FlushInline();
     }
 
-    private static bool IsTableSeparator(string[] lines, int idx)
-    {
-        if (idx >= lines.Length) return false;
-        var s = lines[idx].Trim();
-        if (!s.StartsWith('|')) return false;
-        foreach (var c in s)
-            if (c is not ('|' or '-' or ':' or ' ' or '\t')) return false;
-        return s.Contains('-');
-    }
-
-    private static string[] ParseTableRow(string line)
-    {
-        var s = line.Trim();
-        if (s.StartsWith('|')) s = s[1..];
-        if (s.EndsWith('|')) s = s[..^1];
-        return s.Split('|').Select(c => c.Trim()).ToArray();
-    }
-
-    private static bool IsTableSeparatorRow(string[] cells)
-        => cells.Length > 0 && cells.All(c => c.All(ch => ch is '-' or ':' or ' ' or '\t'));
-
     /// <summary>markdown 表格 → 等宽对齐文本（列宽补齐 + Courier New 等宽 + 表头加粗）。</summary>
     private static void RenderTable(List<string> rawLines, FormattedString fs, bool isDark)
     {
-        var rows = rawLines.Select(ParseTableRow).ToList();
+        var rows = rawLines.Select(MarkdownTable.SplitRow).ToList();
         if (rows.Count < 2) { foreach (var l in rawLines) RenderInline(l + "\n", fs, isDark); return; }
 
         var cols = rows.Max(r => r.Length);
@@ -142,7 +121,7 @@ public static class MarkupToFormattedString
 
         for (int r = 0; r < rows.Count; r++)
         {
-            if (IsTableSeparatorRow(rows[r])) continue; // 跳过 |---|---| 分隔行
+            if (MarkdownTable.IsSeparatorRow(rows[r])) continue; // 跳过 |---|---| 分隔行
 
             var sb = new System.Text.StringBuilder("| ");
             for (int c = 0; c < cols; c++)
@@ -187,21 +166,32 @@ public static class MarkupToFormattedString
     /// <summary>代码块逐行 Tokenize 上色（每行间保留换行）。相邻同色 token 合并成单个 Span，
     /// 避免大代码块拆出上万 Span 导致移动端 Label 渲染卡死（ANR）。</summary>
     private static void RenderCode(string code, Syntax syntax, FormattedString fs, bool isDark)
+        => AppendCodeLines(fs, code, syntax, isDark);
+
+    /// <summary>
+    /// 代码块逐行 Tokenize 上色 —— **唯一实现**（三处调用：本类的 RenderCode、
+    /// <see cref="ToolOutputFormatter"/>、<see cref="MarkdownPreview"/>）。
+    /// 相邻同色 token 合并成单个 Span，避免大代码块拆出上万 Span 导致移动端渲染卡死（ANR）；
+    /// 超大代码块直接降级纯文本，防主线程长时间分词。
+    /// </summary>
+    /// <param name="monoFont">是否用等宽字体（命令行/代码块对齐）。预览页不需要，传 false。</param>
+    internal static void AppendCodeLines(FormattedString fs, string code, Syntax syntax, bool isDark,
+        bool monoFont = true)
     {
-        // 超大代码块降级纯文本，防主线程长时间分词/渲染
         if (code.Length > 100_000)
         {
             fs.Spans.Add(new Span { Text = code });
             return;
         }
 
+        var font = monoFont ? MonoFont : null;
         var lines = code.Replace("\r\n", "\n").Split('\n');
         for (int i = 0; i < lines.Length; i++)
         {
             foreach (var (text, color) in syntax.Tokenize(lines[i]))
-                AppendSpan(fs, text, ColorForToken(color, isDark), MonoFont);
+                AppendSpan(fs, text, ColorForToken(color, isDark), font);
             if (i < lines.Length - 1)
-                AppendSpan(fs, "\n", ColorForToken(0, isDark), MonoFont);
+                AppendSpan(fs, "\n", ColorForToken(0, isDark), font);
         }
     }
 

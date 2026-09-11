@@ -121,7 +121,7 @@ public static class Global
     /// <summary>应用全称</summary>
     public const string AppFullName = "WayCoder 道码·通用编程智能体";
     /// <summary>版本号</summary>
-    public const string Version = "v0.96.94";
+    public const string Version = "v0.96.95";
     /// <summary>应用名 + 版本号</summary>
     public static string AppNameVersion => $"{AppName} {Version} ({AppNameCN})";
 
@@ -339,39 +339,47 @@ public static class Global
         return ReadConfigPath(Home, segments);
     }
 
-    /// <summary>从 cwd 向上查找存在的配置目录，返回目录名（.waycoder / .corecoder），都不存在返回 null</summary>
-    public static string? FindExistingConfigDir(string cwd)
+    /// <summary>
+    /// 从 <paramref name="startDir"/> 起逐级**上溯**，对每个目录调用 <paramref name="probe"/>，
+    /// 返回首个非 null 结果；到盘根仍未命中返回 null。
+    ///
+    /// 三处「在祖先目录里找配置目录/配置文件的循环各自实现同一段代码（含同一句 `parent == dir` 的
+    /// 盘根终止判定）。**注意**：`Path.GetDirectoryName` 对盘根返回 null，故终止必须同时兜住
+    /// `parent == dir` 与 `parent == null` 两种形态——写这类循环时先想清楚边界在什么条件下才会触发
+    /// （`SkillsManager.FindSkillDirs` 就是因为边界只在 cwd 位于 home 之下时才成立，实际会爬到盘根）。
+    /// </summary>
+    public static string? WalkUpDirectories(string startDir, Func<string, string?> probe)
     {
-        var dir = cwd;
+        var dir = startDir;
         while (dir != null)
         {
-            foreach (var dirName in ConfigDirSearchOrder)
-            {
-                if (Directory.Exists(Path.Combine(dir, dirName)))
-                    return dirName;
-            }
+            if (probe(dir) is { } hit) return hit;
             var parent = Path.GetDirectoryName(dir);
-            if (parent == dir) break;
+            if (parent == dir || parent == null) break;
             dir = parent;
         }
         return null;
     }
 
+    /// <summary>从 cwd 向上查找存在的配置目录，返回目录名（.waycoder / .corecoder），都不存在返回 null</summary>
+    public static string? FindExistingConfigDir(string cwd)
+        => WalkUpDirectories(cwd, dir =>
+        {
+            foreach (var dirName in ConfigDirSearchOrder)
+                if (Directory.Exists(Path.Combine(dir, dirName)))
+                    return dirName;
+            return null;
+        });
+
     /// <summary>从 cwd 向上查找配置文件（如 mcp_servers.json），返回完整路径，未找到返回 null</summary>
     public static string? FindConfigFileInTree(string cwd, string relativePath)
-    {
-        var dir = cwd;
-        while (dir != null)
+        => WalkUpDirectories(cwd, dir =>
         {
             foreach (var dirName in ConfigDirSearchOrder)
             {
                 var candidate = Path.Combine(dir, dirName, relativePath);
                 if (File.Exists(candidate)) return candidate;
             }
-            var parent = Path.GetDirectoryName(dir);
-            if (parent == dir) break;
-            dir = parent;
-        }
-        return null;
-    }
+            return null;
+        });
 }

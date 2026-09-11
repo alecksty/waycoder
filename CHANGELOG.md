@@ -1,5 +1,33 @@
 # 更新日志
 
+## v0.96.95 (2026-09-11) — 重复代码清理（C 级第四批）：Maui Markup 三份高亮 / 目录上溯四处
+
+6 文件改动 + 1 新增，**+56 / −120 行**。
+
+### 1. Maui `Markup/`：表格解析与代码高亮各写了多份
+
+- **`MarkdownTable.cs`（新）**：`IsTableSeparator` 与单元格切分在两处**逐字相同**
+  （一边叫 `SplitCells`、一边叫 `ParseTableRow`），外加第三份 `IsSeparatorRow`。
+  两处「目前一致」，但表格判定分家会让预览页与聊天流对同一段 markdown 给出不同结果。
+- **`MarkupToFormattedString.AppendCodeLines`（新）**：代码块逐行 Tokenize 上色的循环写了**三遍**。
+  合并时发现三处**并不等价**：预览页那版不用等宽字体、且是「每行都补换行、最后再删掉」
+  （合并版天然不在末尾补）；聊天流那一版**缺「超大代码块降级纯文本」护栏** —— 而那道护栏
+  正是为防 `>100k` 字符主线程长时间分词（移动端 ANR）而加的。现在三处共用一份，护栏全覆盖。
+
+### 2. 目录上溯循环 4 处 → `Global.WalkUpDirectories`
+
+`FindExistingConfigDir`、`FindConfigFileInTree`、`ImportHelper.FindInTree`、`McpCache.FindCacheFile`
+各写了一遍同一个「逐级上溯 + `parent == dir` 盘根终止」。其中 `McpCache.FindCacheFile`
+其实就是 `Global.FindConfigFileInTree` —— 它下面那句注释
+「FindConfigFileInTree defined in Global.cs (shared with McpClient)」正说明作者知道，只是没去调。
+
+新助手的文档特意记下那条教训：**`Path.GetDirectoryName` 对盘根返回 null**，终止要同时兜住
+`parent == dir` 与 `parent == null`；并指向 `SkillsManager.FindSkillDirs` 那个
+「边界只在 cwd 位于 home 之下时才成立、实际会爬到盘根」的例子 ——
+**写这类循环前先想清楚边界在什么条件下才会触发**。
+
+**验证**：`--test` **5184 / 5184**；桌面 / Gui / MAUI Android 三工程构建均 0 错误。
+
 ## v0.96.94 (2026-09-11) — 重复代码清理（C 级第三批）：工具错误文案 + 自测框架失败行可见性
 
 8 文件，+38 / −8 行。附带定性并修掉了一个「失败 +1 却看不到是哪条」的自测框架缺陷，
