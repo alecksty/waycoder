@@ -13,12 +13,12 @@ class Waycoder < Formula
 
   on_arm do
     url "https://github.com/alecksty/waycoder/releases/download/v0.96.105/waycoder-v0.96.105-osx-arm64.tar.gz"
-    sha256 "874e1d865c9108d6ce08e39ffa3f94e3521dec667cfc459350b6dbbcb5b3b64c"
+    sha256 "5a9207cfa0bea6ec4a518e6448b24605bb9f90013e9c2c98de375b43929fab67"
   end
 
   on_intel do
     url "https://github.com/alecksty/waycoder/releases/download/v0.96.105/waycoder-v0.96.105-osx-x64.tar.gz"
-    sha256 "607b7df241b02cf0c4ff5b937e87ccec95d540de46874cfe7df6de924b8da22b"
+    sha256 "3cc85478ebe4e375bda7db537a1cfad533a0b72b21e56e301805fdceef581d7f"
   end
 
   def install

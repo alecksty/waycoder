@@ -86,7 +86,7 @@ LATEST_VER="$(ls -1 "$WINGET_BASE" | sort -V | tail -1)"
 NEW_DIR="$WINGET_BASE/$VER"
 
 if [[ "$LATEST_VER" == "$VER" ]]; then
-  warn "  winget manifest $VER 已存在，跳过生成（如需重生成请先删除 $NEW_DIR）"
+  warn "  winget manifest $VER 已存在，复用目录（sha256 仍按本次产物重填）"
 else
   rm -rf "$NEW_DIR"
   cp -r "$WINGET_BASE/$LATEST_VER" "$NEW_DIR"
@@ -96,12 +96,16 @@ else
   for f in "$NEW_DIR"/*.yaml; do
     sedi "s/$LATEST_VER_RE/$VER/g" "$f"
   done
-  # 填 sha256（按 Architecture 范围替换上一版真实 sha256，顺序：x64 → arm64）
-  INST="$NEW_DIR/Aleckstygit.WayCoder.installer.yaml"
-  sedi "/Architecture: x64/,/InstallerSha256:/s/InstallerSha256:.*/InstallerSha256: ${SHA[win-x64]}/" "$INST"
-  sedi "/Architecture: arm64/,/InstallerSha256:/s/InstallerSha256:.*/InstallerSha256: ${SHA[win-arm64]}/" "$INST"
   ok "  已生成 $NEW_DIR"
 fi
+
+# 填 sha256 —— 必须无条件执行（不论目录是新建还是复用）。
+# v0.96.105 事故根因：这段原先写在 else 分支里，版本目录已存在时整段跳过，
+# 清单于是留着上一轮构建的 sha，而 dist / Release 资产是新一轮构建的产物，
+# 三方哈希互不相同 → brew fetch 与 winget 安装全部校验失败。
+INST="$NEW_DIR/Aleckstygit.WayCoder.installer.yaml"
+sedi "/Architecture: x64/,/InstallerSha256:/s/InstallerSha256:.*/InstallerSha256: ${SHA[win-x64]}/" "$INST"
+sedi "/Architecture: arm64/,/InstallerSha256:/s/InstallerSha256:.*/InstallerSha256: ${SHA[win-arm64]}/" "$INST"
 
 if command -v winget >/dev/null 2>&1; then
   winget validate "$NEW_DIR" && ok "  winget validate 通过" || warn "  winget validate 有告警，请检查"
@@ -122,6 +126,31 @@ else
   sedi "/on_intel do/,/sha256 /s/sha256 \".*\"/sha256 \"${SHA[osx-x64]}\"/" "$FORMULA"
   ok "  已更新 $FORMULA → $VER"
 fi
+
+# ═══ 4.5 清单一致性自检 ═══
+# AOT 每轮构建的哈希都不同，清单一旦与 dist 脱节，安装端必失败且报错隐晦
+# （brew 只报「Formula reports different checksum」，看不出是清单陈旧）。
+# 这里把「生成」与「校验」绑死：回读清单里的 sha，必须等于本次产物哈希。
+verify_sha() {
+  local file="$1" expect="$2" label="$3"
+  if grep -q "$expect" "$file" 2>/dev/null; then
+    ok "  ✓ $label"
+  else
+    echo "❌ $label 不一致：$file 未包含本次产物 sha $expect" >&2
+    echo "   清单与 dist 已脱节，禁止上传（上传后安装端必然校验失败）。" >&2
+    echo "   处置：删除该清单文件/目录后重跑本脚本。" >&2
+    exit 1
+  fi
+}
+c "▶ 4.5/6 清单一致性自检…"
+verify_sha "$INST" "${SHA[win-x64]}" "winget win-x64"
+if grep -q "Architecture: arm64" "$INST" 2>/dev/null; then
+  verify_sha "$INST" "${SHA[win-arm64]}" "winget win-arm64"
+else
+  warn "  ⚠ winget manifest 缺 arm64 段 —— arm64 Windows 装不了，建议补上"
+fi
+verify_sha "$FORMULA" "${SHA[osx-arm64]}" "brew osx-arm64"
+verify_sha "$FORMULA" "${SHA[osx-x64]}" "brew osx-x64"
 
 # ═══ 5. apt ═══
 c "▶ 5/6 apt .deb…"
@@ -150,6 +179,11 @@ cat <<EOF
   ② GitHub Release（海外 mirror；winget/brew 清单 URL 指向 Gitee 可预测 release URL releases/download/<tag>/<file>）:
     走 Actions： git push github $VERSION
     或手动： https://github.com/alecksty/waycoder/releases/new?tag=$VERSION
+
+  ③ 上传后必须回验远端 == dist（清单 sha 只对 dist 负责，上传错文件同样会导致安装失败）:
+    gh release upload $VERSION dist/waycoder-$VERSION-* dist/SHA256SUMS.txt --clobber
+    gh release download $VERSION --pattern '*osx-arm64*' --clobber -D /tmp/vfy
+    shasum -a 256 /tmp/vfy/*.tar.gz | awk '{print \$1}' | grep -q "\$(grep osx-arm64 "$DIST/SHA256SUMS.txt" | awk '{print \$1}')" && echo "远端一致"
 EOF
 
 echo ""
