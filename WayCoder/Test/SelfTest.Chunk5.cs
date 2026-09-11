@@ -81,6 +81,29 @@ public static partial class SelfTest
                 ["new_source"] = "x",
             }).Result;
             Check("非 ipynb 文件拒绝", badResult.Contains("不是 .ipynb"));
+
+            // ── 编码：编辑 .ipynb 不能动 BOM ──
+            // .ipynb 的读方是 Jupyter/nbformat：`open(path, encoding='utf-8')` + `json.load`，
+            // 对 BOM **不容忍**（实测抛 `JSONDecodeError: Unexpected UTF-8 BOM`）。而
+            // `WriteNotebook` 此前用 `Encoding.UTF8`（**带 BOM** 的编码）写，于是「用 WayCoder 改一下
+            // notebook，Jupyter 就打不开了」。编辑路径的标准本是 preserve-bom（EditFileTool/
+            // MultiEditTool 都走 `Global.WriteAllTextPreserveBom`），只有这里漏了。
+            var nbBytes = File.ReadAllBytes(nbPath);
+            Check("notebook_edit 无 BOM 的文件编辑后仍无 BOM",
+                !(nbBytes.Length >= 3 && nbBytes[0] == 0xEF && nbBytes[1] == 0xBB && nbBytes[2] == 0xBF));
+
+            // 反向：原本带 BOM 的文件要保持带 BOM —— 不擅自改用户文件的编码
+            var nbBomPath = Path.Combine(nbTestDir, "bom.ipynb");
+            File.WriteAllText(nbBomPath, nb.ToJson(true), Encoding.UTF8); // Encoding.UTF8 = 带 BOM
+            notebookTool.ExecuteAsync(new Dictionary<string, object?>
+            {
+                ["notebook_path"] = nbBomPath,
+                ["cell_index"] = 0,
+                ["new_source"] = "print('x')",
+            }).Result.ToString();
+            var bomBytes = File.ReadAllBytes(nbBomPath);
+            Check("notebook_edit 原本带 BOM 的文件保留 BOM",
+                bomBytes.Length >= 3 && bomBytes[0] == 0xEF && bomBytes[1] == 0xBB && bomBytes[2] == 0xBF);
         }
         finally
         {

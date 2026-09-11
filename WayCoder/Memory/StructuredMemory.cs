@@ -446,7 +446,8 @@ public static class StructuredMemory
         if (string.IsNullOrWhiteSpace(path))
             path = NameToPath(entry.Name);
 
-        File.WriteAllText(path, sb.ToString());
+        // 原子写：这是智能体自己的记忆正文，半截文件 = 一条记忆直接损坏
+        Global.WriteAllTextAtomic(path, sb.ToString());
         entry.FilePath = path;
     }
 
@@ -520,7 +521,8 @@ public static class StructuredMemory
 
         try
         {
-            File.WriteAllText(IndexPath, sb.ToString());
+            // 原子写：MEMORY.md 是记忆索引，半截文件会让整个索引解析失败
+            Global.WriteAllTextAtomic(IndexPath, sb.ToString());
         }
         catch { }
     }

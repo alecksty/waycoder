@@ -142,7 +142,9 @@ public static partial class ModelCatalog
             sb.AppendLine("  }");
             sb.AppendLine("}");
             Global.EnsureDir(ProvidersJsonPath);
-            File.WriteAllText(ProvidersJsonPath, sb.ToString());
+            // 原子写：providers.json 与同目录的 config.json/connections.json 同为权威配置，
+            // 那几个早就走 WriteAllTextAtomic，这里漏了 —— 半截文件会让用户自定义供应商整份丢失
+            Global.WriteAllTextAtomic(ProvidersJsonPath, sb.ToString());
         }
         catch { }
     }
