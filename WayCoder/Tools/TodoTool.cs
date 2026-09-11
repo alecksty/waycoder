@@ -214,13 +214,8 @@ public class TodoTool : ITool
 
     private static string List(Dictionary<string, object?> args)
     {
-        var todos = TodoStore.Load();
-        var filter = args.GetValueOrDefault("filter")?.ToString();
-        if (!string.IsNullOrWhiteSpace(filter))
-        {
-            var statuses = filter.Split(',', StringSplitOptions.TrimEntries).ToHashSet();
-            todos = todos.Where(t => statuses.Contains(t.Status)).ToList();
-        }
+        // 加载 + filter + 排序的共同前置已收敛到 TodoStore.LoadFiltered（与 struct_todo 共用）
+        var todos = TodoStore.LoadFiltered(args.GetValueOrDefault("filter")?.ToString());
 
         if (todos.Count == 0)
             return "📋 任务列表为空。使用 create 操作创建新任务。";
@@ -229,8 +224,7 @@ public class TodoTool : ITool
         lines.Add("| ID | 状态 | 标题 | 依赖 |");
         lines.Add("|----|------|------|------|");
 
-        // 排序：in_progress 最前 → blocked → pending → completed/cancelled 最后
-        foreach (var t in todos.OrderBy(t => TodoStore.Order(t.Status)).ThenBy(t => t.CreatedAt))
+        foreach (var t in todos)
         {
             var emoji = TodoStore.Emoji(t.Status);
             var deps = t.DependsOn.Count > 0 ? string.Join(", ", t.DependsOn) : "—";

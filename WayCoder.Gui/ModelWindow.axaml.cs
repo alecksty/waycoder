@@ -366,20 +366,14 @@ public sealed partial class ModelWindow : Window
         Dispatcher.UIThread.Post(() => StatusText.Text = "扫描连通性…");
         try
         {
-            var probes = await Task.Run(ModelCli.TestList);
-            var dict = new Dictionary<string, ModelPicker.ScanStatus>();
-            foreach (var p in probes) dict[p.ProviderId] = ModelPicker.ProbeStatus(p);
-            Dispatcher.UIThread.Post(() =>
+            // 扫描 + UI 线程回投的共享实现（与 ProviderWindow.TestAllAsync 同一份）
+            await ProviderScanner.ScanAsync(dict =>
             {
                 _scanResult = dict;
                 var ok = dict.Count(x => x.Value == ModelPicker.ScanStatus.Connected);
                 StatusText.Text = $"{ok} 连通 / {dict.Count - ok} 不通";
                 RenderList(SearchBox.Text ?? "");
-            });
-        }
-        catch (Exception ex)
-        {
-            Dispatcher.UIThread.Post(() => StatusText.Text = "扫描失败: " + ex.Message);
+            }, msg => StatusText.Text = "扫描失败: " + msg);
         }
         finally { _busy = false; }
     }

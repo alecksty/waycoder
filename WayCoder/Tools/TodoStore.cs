@@ -90,6 +90,25 @@ internal static class TodoStore
         }
     }
 
+    /// <summary>
+    /// 按 filter 加载并排好序 —— `todo list` 与 `struct_todo list` 的**共同前置**。
+    ///
+    /// 此前两个工具的 List 各写一份逐字相同的「加载 + filter 解析 + OrderBy/ThenBy」，
+    /// 只有之后的**渲染格式**不同（汇总表 vs 结构化列表，那是刻意的差异，保留）。
+    /// filter 是逗号分隔的状态集（空/null = 全部）；状态词表见 <see cref="ValidStatuses"/>。
+    /// </summary>
+    internal static List<Entry> LoadFiltered(string? filter)
+    {
+        var todos = Load();
+        if (!string.IsNullOrWhiteSpace(filter))
+        {
+            var statuses = filter.Split(',', StringSplitOptions.TrimEntries).ToHashSet();
+            todos = todos.Where(t => statuses.Contains(t.Status)).ToList();
+        }
+        // 排序：进行中 → 阻塞 → 待办 → 已完成/已取消（见 Order），同档按创建时间
+        return todos.OrderBy(t => Order(t.Status)).ThenBy(t => t.CreatedAt).ToList();
+    }
+
     /// <summary>保存任务列表（**原子写** + 锁；读方不会读到半写文件）。</summary>
     internal static void Save(List<Entry> todos)
     {

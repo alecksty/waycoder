@@ -584,6 +584,42 @@ public static partial class SelfTest
             }
         }
 
+        Section("[任务列表：todo 与 struct_todo 共用前置]");
+        // 两个工具的 List 此前各写一份逐字相同的「Load + filter 解析 + OrderBy/ThenBy」，
+        // 只有之后的渲染格式不同（那是刻意的）。前置收敛为 TodoStore.LoadFiltered。
+        {
+            var savedCwdVal = CwdContext.Current.Value;
+            var todoTmp = Path.Combine(Path.GetTempPath(), "waycoder_todo_" + Guid.NewGuid().ToString("N")[..6]);
+            Directory.CreateDirectory(Path.Combine(todoTmp, ".waycoder"));
+            try
+            {
+                // StorePath 基于 CwdContext.Root → 把工作目录指到临时目录即可隔离真实 todos.json
+                CwdContext.Current.Value = todoTmp;
+                File.WriteAllText(Path.Combine(todoTmp, ".waycoder", "todos.json"), """
+                [
+                  { "id": "a", "title": "已完成", "status": "completed", "created_at": "2026-01-01T00:00:00Z" },
+                  { "id": "b", "title": "进行中", "status": "in_progress", "created_at": "2026-01-02T00:00:00Z" },
+                  { "id": "c", "title": "待办",   "status": "pending",     "created_at": "2026-01-03T00:00:00Z" }
+                ]
+                """);
+
+                var all = TodoStore.LoadFiltered(null);
+                Check("任务列表: 无 filter → 全部，按状态排序（进行中最前、已完成最后）",
+                    all.Count == 3 && all[0].Id == "b" && all[2].Id == "a");
+                var pending = TodoStore.LoadFiltered("pending");
+                Check("任务列表: filter 单状态", pending.Count == 1 && pending[0].Id == "c");
+                var multi = TodoStore.LoadFiltered("pending,completed");
+                Check("任务列表: filter 多状态（逗号分隔）",
+                    multi.Count == 2 && multi.All(t => t.Status is "pending" or "completed"));
+                Check("任务列表: filter 空白串等同全部", TodoStore.LoadFiltered("   ").Count == 3);
+            }
+            finally
+            {
+                CwdContext.Current.Value = savedCwdVal;
+                try { Directory.Delete(todoTmp, true); } catch { }
+            }
+        }
+
         Section("[MCP 状态图标：唯一真源]");
         // 此前 5 处各写一份 switch（TUI 侧栏 / /mcp 命令 / 命令行 / 连接状态汇总 / Web），
         // 且汇总那处用 ASCII 的 ✓✗?、其余用 ✅⏳❌ ⇒ 同一状态在不同入口图标不同。

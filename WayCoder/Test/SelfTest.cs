@@ -146,6 +146,7 @@ public static partial class SelfTest
         ["[工具清单跨端同步"] = "tools",
         ["[视觉列换算"] = "ui",
         ["[MCP 状态图标"] = "tools",
+        ["[任务列表"] = "tools",
         ["[动态栏直写登记"] = "ui",
         // git
         ["[Git]"] = "git",         ["[Git "] = "git",         ["[Git PR]"] = "git",     ["[Git 大"] = "git",
