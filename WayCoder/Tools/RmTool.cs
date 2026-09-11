@@ -82,7 +82,7 @@ public class RmTool : ITool
         }
         catch (Exception ex)
         {
-            return $"错误：rm: {ex.GetType().Name}: {ex.Message}";
+            return ToolErrors.ErrorOpPrefix("rm", ex);
         }
     }
 }

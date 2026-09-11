@@ -732,7 +732,16 @@ public static partial class SelfTest
         {
             Environment.CurrentDirectory = skillBaseDir;
             SkillsManager.Load();
-            Check("技能: 发现 2 个技能", SkillsManager.Skills.Count == 2);
+            // ⚠ 不能断言「恰好 2 个」：FindSkillDirs 从 cwd **一路向上**收集 `.claude/skills` /
+            // `.waycoder/skills`（`.claude` 那条是有意的 Claude Code 兼容），而它的终止条件是
+            // `dir == Global.Home` —— 只要 cwd 不在 Global.Home 之下（本测试的临时目录就不在），
+            // 该边界永不触发、循环会爬到盘根，于是扫到开发机上真实存在的 `~/.claude/skills`。
+            // 实测：环境里该目录有了内容后，这条断言就会稳定失败（且与代码改动无关）。
+            // 这里改为断言「本测试创建的两个技能确实被发现」+「没有重名」，与机器环境无关。
+            Check("技能: 发现本测试的两个技能（且无重名）",
+                SkillsManager.Skills.ContainsKey("my-skill")
+                && SkillsManager.Skills.ContainsKey("claude-skill")
+                && SkillsManager.Skills.Keys.Distinct().Count() == SkillsManager.Skills.Count);
             Check("技能: 包含 my-skill", SkillsManager.Skills.ContainsKey("my-skill"));
             Check("技能: 包含 claude-skill", SkillsManager.Skills.ContainsKey("claude-skill"));
             Check("技能: my-skill 名称正确", SkillsManager.Skills["my-skill"].Name == "my-skill");

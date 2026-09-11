@@ -194,6 +194,8 @@ public static partial class SelfTest
 
     private static bool RunWithFilter(HashSet<string>? filter)
     {
+        // 套件入口处的真实 stdout —— 见 Report 里「失败行直写它」的说明
+        var realOut = Console.Out;
         var passed = 0;
         var failed = 0;
         var _secEnabled = true;
@@ -219,8 +221,20 @@ public static partial class SelfTest
         }
 
         // 逐条打时间标签；前缀保持「  ✅ 名称」不变（可 grep），耗时贴行尾
-        void Report(string icon, string name, double ms) =>
-            Console.WriteLine($"  {icon} {name}  [{TagMs(ms)}]");
+        //
+        // ⚠ 失败行必须写到**真正的** stdout：不少测试用 `Console.SetOut(StringWriter)` 捕获输出
+        // （渲染/对话框/编码类），期间若有 Check 失败，❌ 会落进那个 StringWriter 被吞掉 ——
+        // 汇总里 `失败` 计数 +1 却看不到是哪一条。实测偶发过：连跑多次才出现一次「失败: 1」
+        // 且输出里没有任何 ❌ 行，排查时完全无从下手。现在失败行额外直写套件入口处捕获的真实 stdout。
+        void Report(string icon, string name, double ms)
+        {
+            var line = $"  {icon} {name}  [{TagMs(ms)}]";
+            if (icon == "❌" && !ReferenceEquals(Console.Out, realOut))
+            {
+                try { realOut.WriteLine(line); } catch { /* 真实 stdout 不可写时忽略 */ }
+            }
+            Console.WriteLine(line);
+        }
 
         void Section(string title)
         {
