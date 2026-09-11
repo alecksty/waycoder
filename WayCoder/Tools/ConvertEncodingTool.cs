@@ -61,17 +61,11 @@ public class ConvertEncodingTool : ITool
             ? srcPath
             : Path.GetFullPath(output, cwd);
 
-        if (!string.Equals(srcPath, dstPath, StringComparison.Ordinal))
-        {
-            var dstSensitive = PathSafety.CheckSensitive(dstPath);
-            if (dstSensitive != null)
-                return $"❌ 已阻止：{dstSensitive}（安全策略：敏感文件读写受保护）";
-        }
-
-        // 沙箱边界：项目写限（独立于权限模式）
-        var sandbox = SandboxManager.CheckWritable(dstPath);
-        if (sandbox != null)
-            return sandbox;
+        // 目标路径：敏感 + 沙箱边界一次走完（写语义）。此前拆成「先查敏感、再查沙箱」两步手写，
+        // 等于把 PathSafety.Guard 展开了一遍 —— 源路径仍只查敏感（读语义，与 read_file 一致）。
+        if (!string.Equals(srcPath, dstPath, StringComparison.Ordinal)
+            && PathSafety.Guard(dstPath) is { } dstBlocked)
+            return dstBlocked;
 
         // 文件锁：防多 Agent 并发修改冲突
         var lockErr = FileLockManager.TryAcquireOrError(dstPath, agentId, "请等待锁释放或使用其他文件名");

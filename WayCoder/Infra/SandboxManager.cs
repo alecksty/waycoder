@@ -118,17 +118,53 @@ public static class SandboxManager
     {
         if (!IsProjectWrite || string.IsNullOrWhiteSpace(path) || AllowedDirectory == null) return null;
 
-        string normalized;
+        string resolved;
         // 相对路径须基于被跟踪工作目录（CwdContext）解析，而非进程 cwd ——
         // 移动端 MAUI 上 cwd 锚到 App 私有目录（Global.Home），而文件工具的相对路径
         // 锚点是沙箱 workspace（CwdContext.Current），两者不同会导致相对路径写入被误判越界。
-        try { normalized = PathSafety.ResolveSymlinks(Tools.CwdContext.Resolve(path)).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar); }
+        try { resolved = Tools.CwdContext.Resolve(path); }
         catch { return null; }
 
-        var allowed = PathSafety.ResolveSymlinks(Path.GetFullPath(AllowedDirectory)).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        if (!normalized.StartsWith(allowed, StringComparison.OrdinalIgnoreCase))
-            return $"⛔ 沙箱（仅项目内写入）：路径在项目根外 — {path}";
-        return null;
+        return ContainmentReason(resolved) == null
+            ? null
+            : $"⛔ 沙箱（仅项目内写入）：路径在项目根外 — {path}";
+    }
+
+    /// <summary>
+    /// 「该路径是否被 <see cref="AllowedDirectory"/> 含住」的**唯一实现**，越界时返回规范化后的路径。
+    ///
+    /// 两条调用链（文件工具的 <see cref="CheckWritable"/> 与 bash 的 cd 逃逸检查
+    /// <see cref="CheckDirectoryEscape"/>）此前各写一遍，且**已经漂移**：前者走
+    /// <see cref="PathSafety.ResolveSymlinks"/>，后者只有 <c>Path.GetFullPath</c> ⇒
+    /// **cd 逃逸可被「项目内 symlink 指向项目外」绕过**（GetFullPath 只折叠 `./..`，不跟随链接，
+    /// 这点 <c>PathSafety.CheckSensitive</c> 的注释里已经写明）。
+    /// 两者还共有「前缀比较不是路径段边界」的缺陷（`/proj-evil` 会通过 `/proj` 的检查），一并在此修掉。
+    ///
+    /// 返回 null = 在界内（或无法判定）；非 null = 规范化后的越界路径。
+    /// </summary>
+    private static string? ContainmentReason(string absolutePath)
+    {
+        if (AllowedDirectory == null) return null;
+        try
+        {
+            var normalized = PathSafety.ResolveSymlinks(Path.GetFullPath(absolutePath))
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var allowed = PathSafety.ResolveSymlinks(Path.GetFullPath(AllowedDirectory))
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            return IsUnder(normalized, allowed) ? null : normalized;
+        }
+        catch { return null; }
+    }
+
+    /// <summary>路径**段**边界包含判断：相等，或 allowed 之后紧跟一个分隔符。
+    /// 裸 <c>StartsWith</c> 会把 <c>/proj-evil</c> 判成在 <c>/proj</c> 之内。</summary>
+    private static bool IsUnder(string path, string allowed)
+    {
+        if (path.Equals(allowed, StringComparison.OrdinalIgnoreCase)) return true;
+        if (!path.StartsWith(allowed, StringComparison.OrdinalIgnoreCase)) return false;
+        return path.Length > allowed.Length
+            && (path[allowed.Length] == Path.DirectorySeparatorChar
+                || path[allowed.Length] == Path.AltDirectorySeparatorChar);
     }
 
     /// <summary>
@@ -313,12 +349,9 @@ public static class SandboxManager
             }
             catch (Exception ex) { DebugLog.Log("SandboxManager", $"路径解析失败: {ex.Message}"); continue; }
 
-            // 规范化路径
-            var normalizedTarget = Path.GetFullPath(resolved).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var normalizedAllowed = Path.GetFullPath(AllowedDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-            if (!normalizedTarget.StartsWith(normalizedAllowed, StringComparison.OrdinalIgnoreCase))
-                return $"禁止 cd 到项目目录外：{target} → {normalizedTarget}";
+            // 越界判定走唯一实现（含 symlink 解析 + 路径段边界，见 ContainmentReason）
+            if (ContainmentReason(resolved) is { } escaped)
+                return $"禁止 cd 到项目目录外：{target} → {escaped}";
         }
 
         return null;

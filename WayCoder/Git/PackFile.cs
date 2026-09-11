@@ -36,18 +36,7 @@ internal static class PktLine
         => Write(s, Encoding.UTF8.GetBytes(text));
 
     /// <summary>读一行，返回 payload；flush-pkt 返回 null；EOF 返回 null。</summary>
-    public static byte[]? Read(Stream s)
-    {
-        var header = new byte[4];
-        if (!ReadExact(s, header, 4)) return null;
-        var len = Convert.ToInt32(Encoding.ASCII.GetString(header), 16);
-        if (len == 0) return null;             // flush-pkt
-        if (len < 4) throw new InvalidDataException($"非法 pkt-line 长度 {len}");
-        var payload = new byte[len - 4];
-        if (!ReadExact(s, payload, payload.Length))
-            throw new EndOfStreamException("pkt-line 数据截断");
-        return payload;
-    }
+    public static byte[]? Read(Stream s) => ReadFrame(s, tolerant: false);
 
     public static string? ReadString(Stream s)
     {
@@ -56,15 +45,32 @@ internal static class PktLine
     }
 
     /// <summary>
-    /// 宽容读一行（protocol v2 用）：len&lt;=1 返回 null —— flush(0000)、delim(0001)、
-    /// side-band 的 channel-0 结束标记等非数据帧一律视为流结束。EOF 返回 null。
+    /// 宽容读一行（protocol v2 用）：非数据帧（flush 0000 / delim 0001 / response-end 0002）
+    /// 一律视为流结束返回 null。EOF 返回 null。
     /// </summary>
-    public static byte[]? ReadTolerant(Stream s)
+    public static byte[]? ReadTolerant(Stream s) => ReadFrame(s, tolerant: true);
+
+    /// <summary>
+    /// pkt-line 帧读取的**唯一实现**（严格 / 宽容只差「短帧怎么处理」）。
+    ///
+    /// 非数据帧的判据必须是 `len &lt; 4`（合法数据帧最小 4 字节 = 空 payload），**不是** `len &lt;= 1`：
+    /// protocol v2 的 response-end-pkt 是 `0002`，此前宽容分支只判 `&lt;= 1` 便放行，
+    /// 于是 `new byte[len - 4]` 拿到 `new byte[-2]` 抛 **OverflowException**，把 clone / 抓包
+    /// 打成一个完全指不到 pkt-line 的错误（调用点正是 v2 主路径 GitRemote 的流式落盘与 DeSideband）。
+    /// </summary>
+    private static byte[]? ReadFrame(Stream s, bool tolerant)
     {
         var header = new byte[4];
         if (!ReadExact(s, header, 4)) return null;
         var len = Convert.ToInt32(Encoding.ASCII.GetString(header), 16);
-        if (len <= 1) return null;
+
+        if (len < 4)
+        {
+            if (tolerant) return null;   // 宽容：任何非数据帧都当流结束
+            if (len == 0) return null;   // 严格：flush-pkt 也是流结束
+            throw new InvalidDataException($"非法 pkt-line 长度 {len}");
+        }
+
         var payload = new byte[len - 4];
         if (!ReadExact(s, payload, payload.Length))
             throw new EndOfStreamException("pkt-line 数据截断");

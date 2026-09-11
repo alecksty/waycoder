@@ -624,22 +624,9 @@ public static class SystemPrompt
     {
         try
         {
-            // 检测是否在 git 仓库中
-            var psi = new ProcessStartInfo
-            {
-                FileName = "git",
-                Arguments = "rev-parse --git-dir",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                RedirectStandardInput = true, // 不共享主控台 stdin（防 TUI ReadKey 竞态）
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            using var testProcess = Process.Start(psi);
-            if (testProcess == null) return "";
-            ProcUtil.CloseStdin(testProcess);
-            testProcess.WaitForExit(5000);
-            if (testProcess.ExitCode != 0) return "";
+            // 检测是否在 git 仓库中。走 GitRunner（自述「所有 git 调用都应通过此类」）——
+            // 手拼 ProcessStartInfo 会丢掉统一超时与 ProcUtil 的读超时护栏。
+            if (GitRunner.Run("rev-parse --git-dir").ExitCode != 0) return "";
 
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("# Git 仓库状态");
@@ -685,40 +672,13 @@ public static class SystemPrompt
         }
     }
 
-    /// <summary>运行 git 命令并返回 stdout（去除首尾空白）</summary>
-    private static string RunGitCommand(string arguments)
-    {
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "git",
-                Arguments = arguments,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                RedirectStandardInput = true, // 不共享主控台 stdin（防 TUI ReadKey 竞态）
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            };
-            using var process = Process.Start(psi);
-            if (process == null) return "";
-            ProcUtil.CloseStdin(process);
-            // 先并发读 stdout/stderr 再等退出：stderr 写满 4KB 管道缓冲时进程阻塞，
-            // 先同步 ReadToEnd() stdout 会永久卡死（stderr 无人读，进程无法继续写 stdout）
-            var stdoutTask = process.StandardOutput.ReadToEndAsync();
-            _ = process.StandardError.ReadToEndAsync();
-            if (!process.WaitForExit(5000))
-            {
-                ProcUtil.KillTree(process);
-                return "";
-            }
-            return stdoutTask.GetAwaiter().GetResult().Trim();
-        }
-        catch
-        {
-            return "";
-        }
-    }
+    /// <summary>运行 git 命令并返回 stdout（去除首尾空白）。
+    ///
+    /// 转调 <see cref="GitRunner"/>：手拼的那版在超时后仍无界 `GetAwaiter().GetResult()` 等
+    /// stdout 读取完成（<c>ProcUtil</c> 的读超时正是为「孙进程继承管道 → ReadToEndAsync 永不 EOF」
+    /// 而设），而这条路径**每次构建系统提示词都会走**。GitRunner 统一带 GitTimeoutSec + 读超时。
+    /// 保留「失败返回空串」的原语义。</summary>
+    private static string RunGitCommand(string arguments) => GitRunner.Output(arguments).Trim();
 
     /// <summary>
     /// 检测用户消息是否包含"跳过探索"关键词。

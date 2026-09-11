@@ -63,8 +63,14 @@ public class LLM
     /// <summary>
     /// 解析 API 端点：BaseUrl 约定不含 /v1（自动追加路径）；
     /// 兼容用户误传 http://host:port/v1（剥离尾部 /v1 后再追加，避免 /v1/v1）。
+    ///
+    /// **public** 而非 private：移动端「测试 Key」也要拼同一个端点。此前它是 private，
+    /// `WayCoder.Maui/Pages/SettingsPage.xaml.cs` 只好手抄一份 —— 抄的时候漏了下面这条
+    /// `/v1beta/openai` 特例，于是 Gemini 走手机端测试 Key 会 POST 到
+    /// `.../v1beta/openai/v1/chat/completions`（404）→ 误报「Key 无效」，而真实对话是好的。
+    /// 拼接规则只此一份，别再复制。
     /// </summary>
-    private static string ResolveApiEndpoint(string? baseUrl, string path)
+    public static string ResolveApiEndpoint(string? baseUrl, string path)
     {
         var b = (baseUrl ?? "https://api.openai.com").TrimEnd('/');
         if (b.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))

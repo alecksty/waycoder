@@ -111,24 +111,15 @@ public class WcTool : ITool
     }
 
     private static void CollectFiles(string dir, string glob, List<string> files, int max, int depth = 0)
-    {
-        if (files.Count >= max || depth > 64) return; // 深度上限防符号链接环（ln -s . loop）无限递归 → StackOverflow
-        try
-        {
-            foreach (var f in Directory.GetFiles(dir, glob))
+        // 遍历骨架 + 深度上限 + 跳过判断统一走 FileWalker（此前自写一份跳过表，
+        // 既漏了权威表里的 target/vendor/.next 等，也与 grep 的集合不一致）
+        => FileWalker.Walk(dir, files, max,
+            (d, res) =>
             {
-                if (files.Count >= max) break;
-                if (!Path.GetFileName(f).StartsWith('.'))
-                    files.Add(f);
-            }
-            foreach (var d in Directory.GetDirectories(dir))
-            {
-                if (Path.GetFileName(d).StartsWith('.') || d.EndsWith("node_modules")
-                    || d.EndsWith(".git") || d.EndsWith("bin") || d.EndsWith("obj"))
-                    continue;
-                CollectFiles(d, glob, files, max, depth + 1);
-            }
-        }
-        catch { }
-    }
+                foreach (var f in Directory.GetFiles(d, glob))
+                {
+                    if (res.Count >= max) return;
+                    if (!Path.GetFileName(f).StartsWith('.')) res.Add(f);
+                }
+            });
 }

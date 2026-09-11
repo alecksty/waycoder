@@ -526,14 +526,8 @@ public static class TuiMarkdown
 
     /// <summary>获取角色对应的默认前景色（对齐 TuiListItem，统一走 TuiTheme）。
     /// 用户/系统消息固定亮辉白（去彩色，避免太花）；助手/工具保持主题色。</summary>
-    private static int FgForRole(string role) => role switch
-    {
-        "user" => AnsiColors.BrightWhite,
-        "assistant" => TuiTheme.Current.ChatAssistantFg,
-        "system" => AnsiColors.BrightWhite,
-        "tool" => TuiTheme.Current.ChatToolFg,
-        _ => TuiTheme.Current.ControlFg,   // agent / 未知角色
-    };
+    /// <summary>角色正文色 —— 单一真源见 <see cref="ChatRoleStyle"/>（此前本类与 TuiListItem 各有一张表，已漂移）。</summary>
+    private static int FgForRole(string role) => ChatRoleStyle.Fg(role);
 
     /// <summary>按语言名获取 Syntax 实例（代码块高亮）；无语言标签按内容探测，标签为文件名时按扩展名判断。</summary>
     private static Syntax GetSyntax(string lang, string code)

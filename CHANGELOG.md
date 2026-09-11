@@ -1,5 +1,128 @@
 # 更新日志
 
+## v0.96.90 (2026-09-11) — 全仓重复代码清理：7 条已致 bug 的重复 + 三处单一真源收口
+
+用 6 路并行区域审查 + 一份机械检测（479 个非测试文件、8 行窗口、跨文件重复 409 组）过了一遍
+全仓 137K 行 C#，合并去重后 33 条。**元结论：这个仓库不缺抽象，缺的是「采用」** —— 多数条目
+不是「没人写过这个助手」，而是助手就在旁边、调用点绕过去了（`GitRunner` 自称「所有 git 调用都应
+通过此类」被 4 处绕过；`PathSafety.Guard` 被 6 处绕过；`UiText` 建来就是为消重，零生产调用点；
+`RunModalDialog` 的注释写着「收敛约 8 份」，而同文件 40 行外有 6 个私有方法没用它）。
+
+本版做完「重复已造成真 bug」的 7 条 + 三处单一真源收口。
+
+### 1. 七条重复已经变成真 bug
+
+- **`PktLine` 短帧崩溃（Git，可打挂 clone）**：`ReadTolerant` 只判 `len <= 1` 就放行，而 protocol v2
+  的 response-end-pkt 是 `0002` ⇒ `new byte[len - 4]` 得到 `new byte[-2]` 抛 **OverflowException**，
+  错误信息完全指不到 pkt-line。抽出唯一实现 `ReadFrame`，非数据帧判据改为 `len < 4`
+  （合法数据帧最小 4 字节 = 空 payload）。
+- **沙箱 cd 逃逸（安全）**：`CheckWritable` 与 `CheckDirectoryEscape` 是同一策略两份实现，前者走
+  `PathSafety.ResolveSymlinks`、后者只有 `Path.GetFullPath`（只折叠 `./..` 不跟随链接）⇒
+  **「项目内 symlink 指向项目外」可绕过 cd 检查**，而同策略在 `CheckWritable` 拦得住。
+  两者还共有「前缀比较不是路径段边界」的缺陷（`/proj-evil` 通过 `/proj`）。抽出
+  `ContainmentReason` + `IsUnder`，两条链共用，两个缺陷一并修掉。
+- **四个工具没有沙箱边界（安全）**：`rm` / `cp`(dest) / `mv`(两端) / `convert_encoding`(dst) /
+  `find_replace` 手写 `CheckSensitive` 绕过 `PathSafety.Guard`，**因而漏掉 `SandboxManager.CheckWritable`**
+  ⇒ 项目写边界下这些命令能写到 `AllowedDirectory` 之外，而 `write_file`/`edit_file` 不能
+  （CLAUDE.md 的「边界轴」此前执行率 4/8）。全部改走 `Guard`，并把 `FindReplaceTool` 那句已经
+  漂移的文案（少了「安全策略：」一截）收敛回单一来源。
+  注：`cp`/`convert_encoding` 的 **src** 保留只查敏感路径 —— 读语义与 `read_file` 一致，
+  沙箱管的是「能写到哪」。
+- **`todo` / `struct_todo` 双向漂移（两个工具写同一份 `todos.json`）**：新增 `Tools/TodoStore.cs`
+  （读写锁 + `Global.WriteAllTextAtomic` + 状态词表 + 依赖图操作），两个工具都接过去
+  （`TodoTool` −161 行、`StructTodoTool` −134 行）。修掉三条：① **写盘耐久性**——`todo` 走原子写 +
+  锁，`struct_todo` 是裸 `File.WriteAllText`、全文无锁，可撕裂对方写出的文件；② **状态词表分裂**——
+  `struct_todo` 没有 `cancelled`，`todo` 标的它会被判「无效状态」；③ **文案在骗模型**——
+  `struct_todo` 依赖缺失时返回「任务已创建但依赖无效」，而代码在 `todos.Add` 之前就 return 了，
+  任务并没有被创建。顺带补上 `Global.MaxTodos`（此前 `struct_todo` 是无上限的那个口子）。
+- **手机端「测试 Key」误报「Key 无效」**：`LLM.ResolveApiEndpoint` 是 private，Maui 手抄了一份
+  不完整的、**漏了 `/v1beta/openai` 特例** ⇒ Gemini 被拼成 `.../openai/v1/chat/completions`（404），
+  而真实对话是好的。改为 public，Maui 转调。
+- **菜单滚动条与分隔线隐形**：`TuiMenu` 用 `fg: 8` 表达「暗」，但 `RenderBuffer.Write` 把 1..9 当
+  **样式码**（不是颜色码）⇒ `ESC[8m` = **SGR 8 conceal（隐藏字符）**，而 dim 是 SGR 2。
+  新增 `AnsiTty.StyleDim`（= 2）并替换三处。
+- **主题的 user/system 配色是死键**：`TuiListItem` 三张表 + `TuiMarkdown.FgForRole` 四份平行实现，
+  都把 user/system 硬编码成亮白，而主题 6 个变体共 24 处给 `ChatUserFg`/`ChatSystemFg`/`Icon*` 赋了值
+  —— **没有任何渲染器读它们**。漂移还有：`tool` 在 `TuiMarkdown` 取 `ChatToolFg`、在 `TuiListItem`
+  落 `_ =>` 取 `ControlFg` ⇒ 同一条工具消息的正文与角色名颜色不同源；`agent` 在两处映射也不同。
+  新增 `UI/TUI/ChatRoleStyle.cs` 作唯一真源，两处改调。
+
+### 2. `GitRunner` 收口（含一条每次都走的死锁路径）
+
+`GitRunner` 的类注释写着「消除项目中 8 处重复的 `Process.Start("git")` 模式。所有 git 调用都应通过
+此类」，但仍有 4 处自己拼：`Agent/SystemPrompt.cs`（两处）、`Infra/ContextBridge.cs`、
+`Infra/ProjectInitAnalyzer.cs`。漂移后果不是风格问题：
+
+- `SystemPrompt.RunGitCommand` 超时后**仍无界 `stdoutTask.GetAwaiter().GetResult()`** ——
+  而 `ProcUtil.AwaitReadWithTimeoutAsync` 正是为「孙进程继承管道 → `ReadToEndAsync` 永不 EOF」
+  而建；这条路径**每次构建系统提示词都要走**。
+- `ProjectInitAnalyzer` 少了 `RedirectStandardInput`（该字段的注释点明它是「防与 TUI 主循环抢
+  控制台 stdin → ReadKey 永久阻塞」的护栏）。
+- `ContextBridge.RunGit` 只有 `WaitForExit()`，没有统一超时与 `KillTree` 兜底。
+
+四处全部转调（保留各自「失败返回空串」的原语义）。顺带把 `GitRunner` 内部两份逐字重复的
+`BuildStartInfo` 合并到一个 `BaseStartInfo` 底座上 —— 否则那道 stdin 护栏改一处漏一处。
+**现在全仓已无手写的 git 进程。**
+
+### 3. `FileWalker`：三份递归遍历收口
+
+`GrepTool` / `WcTool` / `FindReplaceTool` 各写一份「逐目录 try/catch + 深度上限 + 跳过垃圾目录」，
+且三张跳过表**互不相同、也都不等于** `FileIgnoreManager` 的权威表（25 条）。后果是
+**「grep 查不到、find_replace 却改得到」**这类自相矛盾（grep 扫 `bin`/`obj`，find_replace 扫
+`dist`/`build`），以及三者都不跳 `target`/`vendor`/`packages`/`.next`/`coverage`。
+
+新增 `Tools/FileWalker.cs`：跳过判断以权威表为**底座**，各工具用 `extraSkipDirs` **显式**追加
+自己的噪音项（grep 的 `dist`/`build`）——「默认一致、允许显式追加」，不再允许整张表另写一份。
+顺带修掉 `ProjectInitializer.GlobAny` 的无预算 `EnumerateFiles(..., AllDirectories)` 与
+`rel.StartsWith("bin")` 前缀匹配（漏 `src/bin`、误伤 `binary…`）—— 那正是 CLAUDE.md 记的
+「home 下 12~36s」那类无界递归。
+
+### 4. 构建 / 测试命令探测收口
+
+同一套「marker 文件 → 命令」优先级链有两份实现，且**同一个仓库给出两种答案**：
+`dotnet test` vs `dotnet test --nologo -v q`、`npm test` vs `npm test --silent`、
+`pytest` vs `python -m pytest -q`、`cargo test` vs `cargo test -q`；npm 构建一侧无条件
+`npm install && npm run build`、另一侧仅当声明了 `build` 脚本。⇒ **`/init` 写进 AGENT.md 的命令
+与 Agent 自检实际执行的命令各说各话**。
+
+收口到 `ProjectInitializer.DetectTestCommand(root, userOverride)` / `DetectBuildCommand(root)`，
+`Agent.Feedback` 转调（用户覆盖 `Config.TestCommand` 仍在 Agent 侧取、作为最高优先级传入）。
+统一取**静默形式**，npm 构建要求显式声明 `build` 脚本。
+
+### 5. ⚠ 用户可见的行为变化
+
+1. **沙箱边界补全（第 1 节）会挡住操作**：项目写边界（移动端 / `isProjectWrite`）下，
+   `rm`/`cp`/`mv`/`convert_encoding`/`find_replace` 现在拒绝项目根之外的路径。桌面默认模式
+   **不受影响** —— `CheckWritable` 首行就 `!IsProjectWrite → return null`。
+2. **user/system 消息颜色现在跟随主题**（第 1 节最后一条）：此前硬编码亮白，6 个主题变体里那些
+   配色从未生效。这是主题作者的原意，但确实是可见变化。想改回固定亮白：把 `TuiTheme` 的
+   `ChatUserFg`/`ChatSystemFg`/`IconUserFg`/`IconSystemFg` 设成 `AnsiColors.BrightWhite` 即可。
+3. **菜单滚动条/分隔线从隐形变可见**（修 bug 的直接结果）。
+4. **`wc` / `find_replace` / `GlobAny` 的扫描范围变化**：现在会跳过权威表里的
+   `target`/`out`/`vendor`/`packages`/`.next`/`coverage` 等。在这些目录下跑 `wc` 结果会变。
+5. **`struct_todo` 语义补齐**：认 `cancelled`、有 `MaxTodos` 上限、依赖缺失时文案不再声称已创建
+   （行为仍是拒绝创建，只是文案与实现一致了）。
+6. **6 条既有自测断言按新语义更新**：它们锁的正是那两套矛盾答案中的旧一套。这不是「改测试凑绿」
+   —— 命令串是本版有意统一的，另新增一条「npm 无 build 脚本 → 无构建命令」。
+
+### 6. 自测护栏（+6 条，共 5180）
+
+`struct_todo` 此前**没有任何测试**。新增 5 条锁住本轮修的三条漂移：认 `cancelled`、
+依赖缺失拒绝创建且不说假话、跨工具共用同一存储（`struct_todo` 写 → `todo` 读得到 →
+`todo clear` 清得掉）。另加 1 条 npm 构建语义。
+
+**验证**：`--test` **5180 / 5180**（v0.96.89 为 5174）；桌面与 MAUI Android 构建均 0 错误。
+
+**本版未做（33 条中剩 20 条，按价值排序）**：① 模型地址/服务商判定 8 处内联（大小写兜底失效、
+未命中返回 null vs `"custom"` 不一）；② 模型切换收尾 `Agent.ApplyRuntimeModel` 被 TUI 五处绕过，
+其中运行时回退那条干脆不设 `SmallModel`（跨服务商回退后小模型压缩请求打到旧网关）+ 写槽位
+`SlotConfig` 的 40 行两份；③ diff 生成器两份逐字拷贝且**只支持单块改动、无 `@@` 头**（同文件两处
+相隔较远的小改动会被呈现成「删掉中间全部 + 重新加」，误导模型）；④ 权限/经济文案 6 套（同一个 Ask
+有 5 种叫法，`UiText` 零生产调用点）；⑤ Web 的 key 判定不查环境变量，与同文件另一处自相矛盾；
+⑥ C 级 20 余条，其中 `TuiListView : TuiScrollView`、`UxHelper` 六个对话框收口到 `RunModalDialog`
+（含「超时默认拒绝 vs 默认 null」这个会把权限弹窗从拒绝翻成允许的坑）、工具写文件流水线 4 份、
+三份 `SendWithRedirectAsync`（重定向预算 5/10/5）收益最大。
+
 ## v0.96.89 (2026-09-11) — v0.96.88 的收尾：判据只换了一半 + 两轮 code-review 修复
 
 上一版把「能不能开全屏界面」的判据从 `Console.IsInputRedirected` 换成了

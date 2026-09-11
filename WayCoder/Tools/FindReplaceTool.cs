@@ -132,13 +132,9 @@ public class FindReplaceTool : ITool
                     // 执行替换
                     if (hasReplacement && !dryRun)
                     {
-                        // 沙箱边界：项目写限（独立于权限模式）
-                        var sandbox = SandboxManager.CheckWritable(file);
-                        if (sandbox != null) { sb.AppendLine($"  ⛔ {sandbox}"); continue; }
-
-                        // 敏感路径防护（防批量改写 .env/id_rsa/.git/config 等敏感文件）
-                        var sensitive = PathSafety.CheckSensitive(file);
-                        if (sensitive != null) { sb.AppendLine($"  ❌ 已阻止：{sensitive}（敏感文件受保护）"); continue; }
+                        // 敏感 + 沙箱边界走统一守卫（此前把 Guard 手工展开成两步，且文案与
+                        // PathSafety.Guard 已经漂移 —— 少了「安全策略：」一截）。逐文件 continue 语义不变。
+                        if (PathSafety.Guard(file) is { } blocked) { sb.AppendLine($"  {blocked}"); continue; }
 
                         // 文件锁（防多 Agent 并发改写同一文件）
                         var lockErr = FileLockManager.TryAcquireOrError(file, agentId, "请等待锁释放");
@@ -197,36 +193,30 @@ public class FindReplaceTool : ITool
 
     private static void CollectFiles(string dir, string glob, List<string> files, ref int maxFiles, int depth = 0)
     {
-        if (maxFiles <= 0 || depth > 64) return; // 深度上限防符号链接环无限递归 → StackOverflow
-        try
-        {
-            // 跳过隐藏目录
-            foreach (var subDir in Directory.GetDirectories(dir))
+        // 遍历骨架 + 深度上限 + 跳过判断统一走 FileWalker。**注意**：本类的上限是「剩余额度」
+        // （ref maxFiles，边收边减），而 FileWalker 用的是绝对结果数，故先用一个局部列表收集、
+        // 收完再按剩余额度并入 —— 保持调用方「跨多次调用共享预算」的语义不变。
+        int budget = maxFiles;   // ref 参数不能进 lambda（CS1628），先落到局部
+        var collected = new List<string>();
+        FileWalker.Walk(dir, collected, budget,
+            (d, res) =>
             {
-                if (Path.GetFileName(subDir).StartsWith('.')) continue;
-                if (subDir.EndsWith("node_modules") || subDir.EndsWith(".git")
-                    || subDir.EndsWith("bin") || subDir.EndsWith("obj")
-                    || subDir.EndsWith("__pycache__") || subDir.EndsWith(".vs"))
-                    continue;
-                CollectFiles(subDir, glob, files, ref maxFiles, depth + 1);
-            }
-
-            foreach (var file in ExpandBraces(glob).SelectMany(p => Directory.GetFiles(dir, p)))
-            {
-                if (maxFiles <= 0) break;
-                if (Path.GetFileName(file).StartsWith('.')) continue;
-                // 仅处理文本文件（按扩展名粗略判断）
-                if (IsTextFile(file))
+                foreach (var file in ExpandBraces(glob).SelectMany(p => Directory.GetFiles(d, p)))
                 {
-                    if (!files.Contains(file)) // 花括号展开后可能重复命中同一文件，去重
-                    {
-                        files.Add(file);
-                        maxFiles--;
-                    }
+                    if (res.Count >= budget) return;
+                    if (Path.GetFileName(file).StartsWith('.')) continue;
+                    if (!IsTextFile(file)) continue;          // 仅处理文本文件（按扩展名粗略判断）
+                    if (files.Contains(file) || res.Contains(file)) continue; // 花括号展开后可能重复命中
+                    res.Add(file);
                 }
-            }
+            });
+
+        foreach (var f in collected)
+        {
+            if (maxFiles <= 0) break;
+            files.Add(f);
+            maxFiles--;
         }
-        catch { }
     }
 
     /// <summary>把 `*.{md,txt}` 花括号 glob 展开为多个 pattern（.NET 的 GetFiles 不认花括号，否则静默匹配 0 个）。</summary>

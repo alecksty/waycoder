@@ -191,91 +191,18 @@ public partial class Agent
         return (proc.ExitCode, output + errorOutput);
     }
 
-    /// <summary>检测当前项目的测试命令。优先用户指定的 TestCommand，否则按项目类型自动探测。</summary>
+    /// <summary>检测当前项目的测试命令 —— 转调 <see cref="ProjectInitializer.DetectTestCommand(string,string?)"/>
+    /// （唯一真源）。此前本类自写一份，与 `/init` 用的那份**已经给出不同答案**，
+    /// 于是 AGENT.md 里写的命令与这里实际执行的各说各话。
+    /// 用户显式指定的 <see cref="Config.TestCommand"/> 仍在这里取，作为最高优先级传入。</summary>
     private static string? DetectTestCommand()
-    {
-        var cwd = Directory.GetCurrentDirectory();
-
-        // 用户显式指定测试命令（测试驱动修复）：最高优先级
-        if (!string.IsNullOrWhiteSpace(Config.Instance.TestCommand))
-            return Config.Instance.TestCommand;
-
-        // WayCoder 自测 (内置 SelfTest)
-        if (File.Exists(Path.Combine(cwd, "SelfTest.cs")))
-            return "dotnet run -c Release -- --test";
-
-        // .NET 测试项目
-        var testProjects = Directory.GetFiles(cwd, "*.Tests.csproj", SearchOption.AllDirectories)
-            .Concat(Directory.GetFiles(cwd, "*.Test.csproj", SearchOption.AllDirectories)).ToArray();
-        if (testProjects.Length > 0)
-            return "dotnet test --nologo -v q";
-
-        // Node.js
-        if (File.Exists(Path.Combine(cwd, "package.json")))
-        {
-            try
-            {
-                var pkg = Json.Parse(
-                    File.ReadAllText(Path.Combine(cwd, "package.json")));
-                if (pkg?["scripts"]?["test"] != null)
-                    return "npm test --silent";
-            }
-            catch { }
-        }
-
-        // Go
-        if (File.Exists(Path.Combine(cwd, "go.mod")))
-            return "go test ./...";
-
-        // Rust
-        if (File.Exists(Path.Combine(cwd, "Cargo.toml")))
-            return "cargo test -q";
-
-        // Python
-        if (Directory.GetFiles(cwd, "test_*.py", SearchOption.AllDirectories).Any() ||
-            Directory.GetFiles(cwd, "*_test.py", SearchOption.AllDirectories).Any())
-            return "python -m pytest -q";
-
-        return null;
-    }
+        => ProjectInitializer.DetectTestCommand(Directory.GetCurrentDirectory(), Config.Instance.TestCommand);
 
     /// <summary>
     /// 检测当前项目的构建命令（修完必验证：无测试命令时回退到构建验证）。
     /// 与 <see cref="DetectTestCommand"/> 互补——测试优先，无测试才退构建。
     /// </summary>
+    /// <summary>检测构建命令 —— 转调 <see cref="ProjectInitializer.DetectBuildCommand"/>（唯一真源）。</summary>
     internal static string? DetectBuildCommand()
-    {
-        var cwd = Directory.GetCurrentDirectory();
-
-        // .NET：csproj / sln 直接构建
-        try
-        {
-            if (Directory.GetFiles(cwd, "*.csproj", SearchOption.TopDirectoryOnly).Any() ||
-                Directory.GetFiles(cwd, "*.sln", SearchOption.TopDirectoryOnly).Any())
-                return "dotnet build --nologo -v q";
-        }
-        catch { }
-
-        // Node.js：仅当 package.json 声明了 build 脚本
-        if (File.Exists(Path.Combine(cwd, "package.json")))
-        {
-            try
-            {
-                var pkg = Json.Parse(File.ReadAllText(Path.Combine(cwd, "package.json")));
-                if (pkg?["scripts"]?["build"] != null)
-                    return "npm run build --silent";
-            }
-            catch { }
-        }
-
-        // Go
-        if (File.Exists(Path.Combine(cwd, "go.mod")))
-            return "go build ./...";
-
-        // Rust
-        if (File.Exists(Path.Combine(cwd, "Cargo.toml")))
-            return "cargo build -q";
-
-        return null;
-    }
+        => ProjectInitializer.DetectBuildCommand(Directory.GetCurrentDirectory());
 }

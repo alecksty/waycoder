@@ -98,6 +98,16 @@ public static class AnsiTty
     public static readonly string SgrReset = $"{AnsiCharPrefix}{AnsiCharEscape}0m";
     public static readonly string SgrBold = $"{AnsiCharPrefix}{AnsiCharEscape}1m";
     public static readonly string SgrDim = $"{AnsiCharPrefix}{AnsiCharEscape}2m";
+
+    /// <summary>
+    /// 「调暗」在 <see cref="RenderBuffer.Write"/> 的 `fg:`/`bg:` 参数里的写法。
+    ///
+    /// ⚠ 那两个参数在 **1..9** 时被当作**样式码**（不是颜色码），所以这里必须用 2（SGR 2 = dim），
+    /// 写成 `fg: 8` 得到的是 **SGR 8 = conceal（隐藏字符）**，文字会直接不显示 ——
+    /// `TuiMenu` 的滚动条与分隔线正是这么写的，在支持 conceal 的终端上整条隐形。
+    /// 「想表达暗色」一律用这个常量，别再手写数字。
+    /// </summary>
+    public const int StyleDim = 2;
     public static readonly string SgrItalic = $"{AnsiCharPrefix}{AnsiCharEscape}3m";
     public static readonly string SgrUnderline = $"{AnsiCharPrefix}{AnsiCharEscape}4m";
     public static readonly string SgrBlink = $"{AnsiCharPrefix}{AnsiCharEscape}5m";

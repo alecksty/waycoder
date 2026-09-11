@@ -9,7 +9,7 @@ namespace WayCoder.Tools;
 public class StructTodoTool : ITool
 {
     public string Name => "struct_todo";
-    public string Description => "管理带依赖关系的结构化任务列表。操作：create(创建任务,可指定前置依赖), update(更新状态: pending/in_progress/completed/blocked), list(列出全部,可过滤状态), delete(删除)。支持依赖检测：blocked 状态的任务不会在其依赖完成前被标记为 in_progress。";
+    public string Description => "管理带依赖关系的结构化任务列表。操作：create(创建任务,可指定前置依赖), update(更新状态: pending/in_progress/completed/cancelled/blocked), list(列出全部,可过滤状态), delete(删除)。支持依赖检测：blocked 状态的任务不会在其依赖完成前被标记为 in_progress。";
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
@@ -22,7 +22,7 @@ public class StructTodoTool : ITool
             .Set("title", JNode.Param("string", "任务标题（create 必填）"))
             .Set("status", JNode.Object()
                 .Set("type", "string")
-                .Set("enum", JNode.Array("pending", "in_progress", "completed", "blocked"))
+                .Set("enum", JNode.Array("pending", "in_progress", "completed", "cancelled", "blocked"))
                 .Set("description", "任务状态（update 操作）"))
             .Set("deps", JNode.Object()
                 .Set("type", "array")
@@ -30,9 +30,6 @@ public class StructTodoTool : ITool
                 .Set("description", "前置依赖任务 ID 列表（create 操作可选）"))
             .Set("filter", JNode.Param("string", "状态过滤器，逗号分隔（list 操作可选）")))
         .Set("required", JNode.Array("action"));
-
-    private static string StorePath => Path.Combine(
-        CwdContext.Root, ".waycoder", "todos.json"); // cd 后基于被跟踪工作目录，而非进程启动目录
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
@@ -56,26 +53,23 @@ public class StructTodoTool : ITool
         if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(title))
             return "错误：create 需要 id 和 title 参数";
 
-        var todos = LoadTodos();
+        var todos = TodoStore.Load();
         if (todos.Any(t => t.Id == id))
             return $"错误：任务 ID '{id}' 已存在";
 
-        var deps = new List<string>();
-        if (args.TryGetValue("deps", out var depsObj) && depsObj != null)
-        {
-            if (depsObj is JNode arr)
-                deps.AddRange(arr.Items.Select(n => n.AsString() ?? "").Where(s => s != ""));
-            else if (depsObj is System.Collections.IEnumerable en)
-                deps.AddRange(en.Cast<object>().Select(o => o?.ToString() ?? "").Where(s => s != ""));
-        }
+        var deps = TodoStore.ParseStringList(args, "deps");
 
-        // 验证依赖存在
-        var allIds = todos.Select(t => t.Id).ToHashSet();
-        var missing = deps.Where(d => !allIds.Contains(d)).ToList();
+        // 依赖缺失 → 拒绝创建（与 todo 同语义）。此处此前返回的是「任务已创建但依赖无效」——
+        // 而代码在 todos.Add 之前就 return 了，任务并没有被创建，文案在骗模型。
+        var missing = TodoStore.MissingDeps(todos, deps);
         if (missing.Count > 0)
-            return $"警告：依赖任务不存在: {string.Join(", ", missing)}。任务已创建但依赖无效。";
+            return $"错误：依赖任务不存在: {string.Join(", ", missing)}。请先创建这些任务或移除无效依赖。";
 
-        var todo = new TodoItem
+        // 条数上限：两个工具写同一份文件，上限也该一致（否则 struct_todo 就是无上限的那个口子）
+        if (todos.Count >= Global.MaxTodos)
+            return $"错误：任务已达上限（{Global.MaxTodos} 条），请先删除一些任务。";
+
+        var todo = new TodoStore.Entry
         {
             Id = id,
             Title = title,
@@ -84,7 +78,7 @@ public class StructTodoTool : ITool
             CreatedAt = DateTime.UtcNow,
         };
         todos.Add(todo);
-        SaveTodos(todos);
+        TodoStore.Save(todos);
 
         return $"✅ 创建任务: [{id}] {title} (状态={todo.Status}, 依赖={deps.Count})";
     }
@@ -96,11 +90,10 @@ public class StructTodoTool : ITool
         if (string.IsNullOrWhiteSpace(id))
             return "错误：update 需要 id 参数";
 
-        var validStatuses = new[] { "pending", "in_progress", "completed", "blocked" };
-        if (status != null && !validStatuses.Contains(status))
-            return $"错误：无效状态 '{status}'，可用 {string.Join(", ", validStatuses)}";
+        if (status != null && !TodoStore.ValidStatuses.Contains(status))
+            return $"错误：无效状态 '{status}'，可用 {string.Join(", ", TodoStore.ValidStatuses)}";
 
-        var todos = LoadTodos();
+        var todos = TodoStore.Load();
         var todo = todos.FirstOrDefault(t => t.Id == id);
         if (todo == null)
             return $"错误：任务 '{id}' 不存在";
@@ -110,37 +103,25 @@ public class StructTodoTool : ITool
             // 依赖检查：blocked→in_progress 需要所有依赖已完成
             if (status == "in_progress" && todo.DependsOn.Count > 0)
             {
-                var incomplete = todo.DependsOn
-                    .Where(depId => !todos.Any(t => t.Id == depId && t.Status == "completed"))
-                    .ToList();
+                var incomplete = TodoStore.IncompleteDeps(todos, todo);
                 if (incomplete.Count > 0)
                     return $"⚠ 无法开始：依赖任务未完成: {string.Join(", ", incomplete)}。请先完成依赖任务。";
             }
 
-            // 完成时解除 block 者
+            // 完成时解除依赖它且依赖已齐的 blocked 任务（共享实现，与 todo 同源）
             if (status == "completed")
-            {
-                var blocked = todos.Where(t =>
-                    t.Status == "blocked" &&
-                    t.DependsOn.Contains(id) &&
-                    t.DependsOn.All(depId =>
-                        depId == id || todos.Any(t2 => t2.Id == depId && t2.Status == "completed")));
-                foreach (var b in blocked)
-                {
-                    b.Status = "pending";
-                }
-            }
+                TodoStore.UnblockDependents(todos, id);
 
             todo.Status = status;
         }
 
-        SaveTodos(todos);
+        TodoStore.Save(todos);
         return $"✅ 更新任务: [{id}] {todo.Title} → {todo.Status}";
     }
 
     private static string List(Dictionary<string, object?> args)
     {
-        var todos = LoadTodos();
+        var todos = TodoStore.Load();
         var filter = args.GetValueOrDefault("filter")?.ToString();
         if (!string.IsNullOrWhiteSpace(filter))
         {
@@ -151,15 +132,9 @@ public class StructTodoTool : ITool
         if (todos.Count == 0) return "📋 任务列表为空";
 
         var lines = new List<string> { $"📋 任务列表 ({todos.Count} 项)" };
-        foreach (var t in todos.OrderBy(t => t.Status switch
-                 {
-                     "in_progress" => 0, "blocked" => 1, "pending" => 2, "completed" => 3, _ => 4
-                 }).ThenBy(t => t.CreatedAt))
+        foreach (var t in todos.OrderBy(t => TodoStore.Order(t.Status)).ThenBy(t => t.CreatedAt))
         {
-            var emoji = t.Status switch
-            {
-                "in_progress" => "🔄", "completed" => "✅", "blocked" => "🚫", _ => "⏳"
-            };
+            var emoji = TodoStore.Emoji(t.Status);
             var deps = t.DependsOn.Count > 0 ? $" (依赖: {string.Join(", ", t.DependsOn)})" : "";
             lines.Add($"  {emoji} [{t.Id}] {t.Title}{deps}");
         }
@@ -171,7 +146,7 @@ public class StructTodoTool : ITool
         var id = args.GetValueOrDefault("id")?.ToString();
         if (string.IsNullOrWhiteSpace(id)) return "错误：delete 需要 id 参数";
 
-        var todos = LoadTodos();
+        var todos = TodoStore.Load();
         var removed = todos.RemoveAll(t => t.Id == id);
         if (removed == 0) return $"错误：任务 '{id}' 不存在";
 
@@ -179,65 +154,8 @@ public class StructTodoTool : ITool
         foreach (var t in todos)
             t.DependsOn.RemoveAll(d => d == id);
 
-        SaveTodos(todos);
+        TodoStore.Save(todos);
         return $"✅ 已删除任务: [{id}]";
     }
 
-    // ── 持久化 ──
-
-    private static List<TodoItem> LoadTodos()
-    {
-        try
-        {
-            if (!File.Exists(StorePath)) return [];
-            var json = File.ReadAllText(StorePath);
-            var node = Json.Parse(json);
-            if (node is { Kind: JKind.Array } arr)
-            {
-                return arr.Items.Select(n => new TodoItem
-                {
-                    Id = n["id"]?.AsString() ?? "",
-                    Title = n["title"]?.AsString() ?? "",
-                    Description = n["description"]?.AsString() ?? "",
-                    Status = n["status"]?.AsString() ?? "pending",
-                    DependsOn = n["depends_on"]?.Items
-                        .Select(d => d.AsString() ?? "").Where(s => s != "").ToList() ?? [],
-                    CreatedAt = DateTime.TryParse(n["created_at"]?.AsString(), out var dt) ? dt : DateTime.UtcNow,
-                }).ToList();
-            }
-        }
-        catch { /* 文件损坏，返回空列表 */ }
-        return [];
-    }
-
-    private static void SaveTodos(List<TodoItem> todos)
-    {
-        Global.EnsureDir(StorePath);
-        var arr = JNode.Array();
-        foreach (var t in todos)
-        {
-            var dependsOn = JNode.Array();
-            foreach (var d in t.DependsOn)
-                dependsOn.Add(d);
-
-            arr.Add(JNode.Object()
-                .Set("id", t.Id)
-                .Set("title", t.Title)
-                .Set("description", t.Description)
-                .Set("status", t.Status)
-                .Set("depends_on", dependsOn)
-                .Set("created_at", t.CreatedAt.ToString("O")));
-        }
-        File.WriteAllText(StorePath, arr.ToJson());
-    }
-
-    private class TodoItem
-    {
-        public string Id { get; init; } = "";
-        public string Title { get; set; } = "";
-        public string Description { get; set; } = "";
-        public string Status { get; set; } = "pending";
-        public List<string> DependsOn { get; set; } = [];
-        public DateTime CreatedAt { get; set; }
-    }
 }
