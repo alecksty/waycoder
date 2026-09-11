@@ -281,17 +281,12 @@ public static class TuiMenu
             // 滚动指示器
             if (items.Count > visH)
             {
-                var (barH, barPos) = TuiScrollMath.Bar(items.Count, visH, _state.ScrollOffset);
                 var maxScroll = Math.Max(0, items.Count - visH); // 供下方滚动百分比
 
-                for (int i = 0; i < visH; i++)
-                {
-                    var row = absY + i;
-                    var ch = (i >= barPos && i < barPos + barH) ? "█" : "│";
-                    var rb = new RenderBuffer();
-                    rb.Write(row, absX + _state.ContentWidth, ch, fg: AnsiTty.StyleDim);
-                    sb.Append(rb.ToString());
-                }
+                var rbBar = new RenderBuffer();
+                TuiScrollMath.Paint(rbBar, absY, absX + _state.ContentWidth, visH,
+                    items.Count, visH, _state.ScrollOffset, AnsiTty.StyleDim, AnsiTty.StyleDim);
+                sb.Append(rbBar.ToString());
 
                 // 滚动百分比
                 var pct = maxScroll > 0 ? _state.ScrollOffset * 100 / maxScroll : 0;

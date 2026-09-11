@@ -104,15 +104,8 @@ public class TuiList : TuiListControl
 
         // 滚动条
         if (totalItems > visRows)
-        {
-            var (barH, barPos) = TuiScrollMath.Bar(totalItems, visRows, ScrollOffset);
-            for (int i = 0; i < visRows; i++)
-            {
-                int row = absY + i;
-                var ch = (i >= barPos && i < barPos + barH) ? "█" : "│";
-                rb.Write(row, absX + Width, ch, fg: 2);
-            }
-        }
+            TuiScrollMath.Paint(rb, absY, absX + Width, visRows, totalItems, visRows,
+                ScrollOffset, Terminal.AnsiTty.StyleDim, Terminal.AnsiTty.StyleDim);
 
         sb.Append(rb.ToString());
     }
