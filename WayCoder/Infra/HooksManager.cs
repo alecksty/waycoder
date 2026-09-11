@@ -585,20 +585,22 @@ public static class HooksManager
                 envVars["WAYCODER_TOOL_RESULT"] = toolResult;
             }
 
-            using var proc = new Process
+            // hook 脚本常见 .bat / .cmd（Windows 上输出 OEM 代码页字节），而 .sh / 原生程序是
+            // UTF-8 —— 按「启动的是什么」决定是否套 OEM（判据收敛在 ProcEncoding）
+            var hookPsi = new ProcessStartInfo
             {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = fileName,
-                    Arguments = arguments,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    RedirectStandardInput = true, // 不共享主控台 stdin（防 TUI ReadKey 竞态）
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    WorkingDirectory = Environment.CurrentDirectory,
-                }
+                FileName = fileName,
+                Arguments = arguments,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                RedirectStandardInput = true, // 不共享主控台 stdin（防 TUI ReadKey 竞态）
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = Environment.CurrentDirectory,
             };
+            ProcEncoding.ApplyIfConsoleWrapper(hookPsi, fileName);
+
+            using var proc = new Process { StartInfo = hookPsi };
 
             foreach (var (key, value) in envVars)
                 proc.StartInfo.Environment[key] = value;

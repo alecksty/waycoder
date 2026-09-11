@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace WayCoder.Infra;
 
 /// <summary>
@@ -10,6 +12,32 @@ namespace WayCoder.Infra;
 /// </summary>
 public static class ProcUtil
 {
+    /// <summary>
+    /// 构造「捕获输出」型进程的启动参数 —— **进程启动样板的唯一实现**。
+    ///
+    /// 三件事一次做齐：重定向三路输出、不共享主控台 stdin（启动后置 EOF，防子进程抢 TUI 的
+    /// ReadKey）、Windows 上按 OEM 代码页解码（cmd 系包装器的中文输出）。
+    ///
+    /// 此前 <c>KillTool</c> 与 <c>PsTool</c> 各写一份**逐字相同**的实现，连「本工具此前漏了
+    /// ProcEncoding.Apply」这个修复都各做了一遍（todos.json、mcp_servers.json 之外的又一处
+    /// 「同一规则两处实现、只修其中一处」）。新增进程启动点请一律用它，别再抄第四份。
+    /// </summary>
+    public static ProcessStartInfo BuildPsi(string fileName, string args)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = fileName,
+            Arguments = args,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            RedirectStandardInput = true, // 不共享主控台 stdin（启动后置 EOF，防 TUI ReadKey 竞态）
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        ProcEncoding.Apply(psi);
+        return psi;
+    }
+
     /// <summary>
     /// 带超时等待读取任务完成。返回 null = 超时（孙进程持有管道，输出不可达）。
     /// readTask 的异常（进程被杀等）也归为 null。

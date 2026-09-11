@@ -139,6 +139,8 @@ public static partial class SelfTest
         ["[无参数启动界面"] = "system",
         ["[启动界面分发"] = "system",
         ["[连接解析"] = "config",
+        ["[MCP 配置存储"] = "config",
+        ["[进程编码判据"] = "system",
         ["[动态栏直写登记"] = "ui",
         // git
         ["[Git]"] = "git",         ["[Git "] = "git",         ["[Git PR]"] = "git",     ["[Git 大"] = "git",

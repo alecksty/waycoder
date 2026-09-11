@@ -62,4 +62,40 @@ public static partial class ProcEncoding
             if (psi.RedirectStandardError) psi.StandardErrorEncoding = enc;
         }
     }
+
+    /// <summary>
+    /// 该可执行文件在 Windows 上是否为「控制台包装器」—— 只有这类程序的**重定向输出**才是
+    /// OEM 代码页字节（cmd.exe / .bat / .cmd / npm 系列的 shim）。
+    ///
+    /// 判据是「**启动的是什么**」，不是「所有进程都套 OEM」：原生程序（git / node / dotnet /
+    /// gcc / 语言服务器 / sqlite3）输出 UTF-8，套上 OEM 反而把中文解成乱码。此前这条判断
+    /// 散在十几个进程启动点各判各的：8 处该 Apply 的没 Apply（含自更新启动 upgrade.bat、
+    /// LintTool 跑 npx、McpTransport 起 npx 型 server），而 KillTool / PsTool 又把同一份
+    /// 实现各写一遍。规则收敛到这里，新启动点调 <see cref="ApplyIfConsoleWrapper"/> 即可。
+    /// </summary>
+    /// <summary>纯名字判断（平台无关，主自测直接覆盖）：该可执行名是否属于控制台包装器。</summary>
+    public static bool IsConsoleWrapperName(string? fileName)
+    {
+        // 手动按两种分隔符取末段：Path.GetFileName 只认**当前平台**的分隔符，
+        // 传 Windows 路径（C:\Windows\System32\cmd.exe）在 Unix 上会整串返回、判不出来。
+        var raw = (fileName ?? "").Trim();
+        var cut = raw.LastIndexOfAny(['/', '\\']);
+        var n = (cut >= 0 ? raw[(cut + 1)..] : raw).ToLowerInvariant();
+        if (n.Length == 0) return false;
+        return n is "cmd" or "cmd.exe" or "command.com"
+            or "powershell" or "powershell.exe" or "pwsh" or "pwsh.exe"
+            or "npm" or "npm.cmd" or "npx" or "npx.cmd"
+            or "yarn" or "yarn.cmd" or "pnpm" or "pnpm.cmd"
+            || n.EndsWith(".bat") || n.EndsWith(".cmd");
+    }
+
+    /// <summary>Windows 上且属于控制台包装器 → 需要 OEM 解码（非 Windows 恒 false）。</summary>
+    public static bool IsWindowsConsoleWrapper(string? fileName)
+        => OperatingSystem.IsWindows() && IsConsoleWrapperName(fileName);
+
+    /// <summary>按「启动的是什么」决定是否套 OEM 解码（仅控制台包装器需要；原生程序保持 UTF-8）。</summary>
+    public static void ApplyIfConsoleWrapper(ProcessStartInfo psi, string? fileName)
+    {
+        if (IsWindowsConsoleWrapper(fileName)) Apply(psi);
+    }
 }

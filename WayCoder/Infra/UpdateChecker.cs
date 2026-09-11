@@ -445,14 +445,18 @@ public static class UpdateChecker
 
             try
             {
-                Process.Start(new ProcessStartInfo
+                var psi = new ProcessStartInfo
                 {
                     FileName = "cmd.exe",
                     Arguments = $"/c \"{batPath}\"",
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     RedirectStandardInput = true, // 不共享主控台 stdin（防子进程抢 TUI 控制台输入）
-                });
+                };
+                // cmd.exe 是控制台包装器：升级脚本里的中文（路径/提示）在 Windows 上输出的是
+                // OEM 代码页字节，不套 OEM 解码就是乱码。本文件其余 cmd 启动点都调了，这条漏了。
+                ProcEncoding.Apply(psi);
+                Process.Start(psi);
             }
             catch { /* 脚本启动失败时用户可手动运行 */ }
 

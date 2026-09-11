@@ -335,20 +335,23 @@ public class LintTool : ITool
     {
         try
         {
-            using var proc = new Process
+            // npm 系 CLI（npx / eslint / stylelint / markdownlint…）在 Windows 上其实是 .cmd 包装器，
+            // 重定向输出是 OEM 代码页字节；而 dotnet / gcc / go / ruff 等原生程序输出 UTF-8，
+            // 套 OEM 反而乱码 —— 判据收敛在 ProcEncoding.IsWindowsConsoleWrapper（按「启动的是什么」定）
+            var psi = new ProcessStartInfo
             {
-                StartInfo = new ProcessStartInfo
-                {
-                    FileName = cmd,
-                    Arguments = args,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    RedirectStandardInput = true, // 不共享主控台 stdin（ProcUtil 启动后置 EOF，防 TUI ReadKey 竞态）
-                    UseShellExecute = false,
-                    CreateNoWindow = true,
-                    WorkingDirectory = Environment.CurrentDirectory,
-                }
+                FileName = cmd,
+                Arguments = args,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                RedirectStandardInput = true, // 不共享主控台 stdin（ProcUtil 启动后置 EOF，防 TUI ReadKey 竞态）
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = Environment.CurrentDirectory,
             };
+            WayCoder.Infra.ProcEncoding.ApplyIfConsoleWrapper(psi, cmd);
+
+            using var proc = new Process { StartInfo = psi };
 
             var r = await WayCoder.Infra.ProcUtil.RunAsync(proc.StartInfo, Config.Instance.LintTimeoutSec * 1000);
             if (r == null) return $"Lint 超时（{Config.Instance.LintTimeoutSec} 秒）: {cmd} {args}";
