@@ -8,22 +8,16 @@ namespace WayCoder.UI.Tui.Controls;
 /// 列表视图 —— 可滚动的视图项列表。
 /// 每个项是任意 TuiControl（如 TuiMarkdown、TuiLabel）。
 /// 支持选择、滚动、键鼠导航。
+/// 滚动状态机（ScrollOffset / 四个滚动方法 / 跟底标志 / OnResize 钳制）在
+/// <see cref="TuiScrollable"/>，本类只管「逐项布局 + 选中态 + 键鼠导航」。
 /// </summary>
-public class TuiListView : TuiView
+public class TuiListView : TuiScrollable
 {
     /// <summary>当前选中项索引（-1 = 无选中）</summary>
     public int SelectedIndex { get; set; } = -1;
 
-    /// <summary>垂直滚动偏移（像素行）</summary>
-    public int ScrollOffset { get; set; }
-    /// <inheritdoc/>
-    public override int EffectiveScrollOffset => ScrollOffset;
-
-    /// <summary>是否自动滚到底部（内容增长时自动跟底）</summary>
-    public bool IsAutoScrollToEnd { get; set; } = true;
-    /// <summary>已弃用，请使用 IsAutoScrollToEnd</summary>
-    [Obsolete("请使用 IsAutoScrollToEnd")]
-    public bool AutoScroll { get => IsAutoScrollToEnd; set => IsAutoScrollToEnd = value; }
+    /// <summary>一「格」滚轮 / 无参 ScrollUp·ScrollDown 的步长（列表视图 3 行）。</summary>
+    public override int ScrollStepLines => 3;
 
     /// <summary>项间距</summary>
     public int ItemSpacing { get; set; }
@@ -94,16 +88,9 @@ public class TuiListView : TuiView
     /// 列表 OnRender 先整视口擦除背景再重绘脏叶子，故内容变化后须整棵子树标脏，否则被擦除的未变消息
     /// 不会重画而消失。供渲染帧内（如 <c>ChatScreen.FlushStreamingLayout</c>）调用：帧已在渲染中，
     /// 无需再唤醒 Manager，避免多排一帧空渲染。
+    /// 递归遍历本身收在 <see cref="TuiView.MarkDirtyTreeQuiet"/>，与 <c>MarkDirtyTree</c> 同一份实现。
     /// </summary>
-    public void MarkTreeDirty() => SetTreeDirty(this);
-
-    private static void SetTreeDirty(TuiControl c)
-    {
-        c.IsDirty = true;
-        if (c is TuiView view)
-            foreach (var child in view.Children)
-                SetTreeDirty(child);
-    }
+    public void MarkTreeDirty() => MarkDirtyTreeQuiet();
 
     /// <summary>清空所有项</summary>
     public void ClearItems()
@@ -120,9 +107,6 @@ public class TuiListView : TuiView
         index >= 0 && index < Children.Count ? Children[index] : null;
 
     // ── 布局 ──
-
-    /// <summary>内容总高度（布局后更新）</summary>
-    public int ContentHeight { get; private set; } = 1;
 
     /// <summary>重新计算所有项位置</summary>
     public void ReLayout()
@@ -145,60 +129,6 @@ public class TuiListView : TuiView
 
     /// <summary>实际可见区域高度（由父容器设置的视口）</summary>
     public int ViewportHeight => Height;
-
-    public void ScrollUp(int lines = 3)
-    {
-        int newOffset = Math.Max(0, ScrollOffset - lines);
-        if (newOffset == ScrollOffset && !IsAutoScrollToEnd) return; // 已在顶部，翻页无效（防闪屏）
-        ScrollOffset = newOffset;
-        IsAutoScrollToEnd = false;
-        MarkDirtyTree();
-    }
-
-    public void ScrollDown(int lines = 3)
-    {
-        int maxScroll = Math.Max(0, ContentHeight - Height);
-        int newOffset;
-        bool newAuto;
-        if (ScrollOffset + lines >= maxScroll)
-        {
-            newOffset = maxScroll;
-            newAuto = true;
-        }
-        else
-        {
-            newOffset = ScrollOffset + lines;
-            newAuto = false;
-        }
-        if (newOffset == ScrollOffset && newAuto == IsAutoScrollToEnd) return; // 已在底部，翻页无效（防闪屏）
-        ScrollOffset = newOffset;
-        IsAutoScrollToEnd = newAuto;
-        MarkDirtyTree();
-    }
-
-    /// <summary>钳制滚动偏移到有效范围（内容被裁剪删除后调用，防偏移越界）。</summary>
-    public void ClampScroll()
-    {
-        int maxScroll = Math.Max(0, ContentHeight - Height);
-        if (ScrollOffset > maxScroll) { ScrollOffset = maxScroll; MarkDirtyTree(); }
-    }
-
-    public void ScrollToTop()
-    {
-        if (ScrollOffset == 0 && !IsAutoScrollToEnd) return; // 已在顶部
-        ScrollOffset = 0;
-        IsAutoScrollToEnd = false;
-        MarkDirtyTree();
-    }
-
-    public void ScrollToBottom()
-    {
-        int newOffset = Math.Max(0, ContentHeight - Height);
-        if (ScrollOffset == newOffset && IsAutoScrollToEnd) return; // 已在底部
-        ScrollOffset = newOffset;
-        IsAutoScrollToEnd = true;
-        MarkDirtyTree();
-    }
 
     // ── 鼠标 ──
 

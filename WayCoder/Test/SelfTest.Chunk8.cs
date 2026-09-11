@@ -119,6 +119,34 @@ public static partial class SelfTest
         sv2.ScrollUp(1);
         Check("TuiScrollView 顶部再上翻不标脏", !sv2.Children[0].IsDirty);
 
+        // 滚动状态机同源：TuiScrollView / TuiListView 的 ScrollOffset + 四个滚动方法 + 跟底标志
+        // 收在 TuiScrollable，两类的差异只剩「无参步长」（列表 3 行/格、滚动视图 1 行）。
+        Check("TuiScrollable: ListView 一格步长=3", lv5.ScrollStepLines == 3);
+        Check("TuiScrollable: ScrollView 一格步长=1", sv2.ScrollStepLines == 1);
+        Check("TuiScrollable: 两类同源（共享同一状态机）",
+            lv5 is TuiScrollable && sv2 is TuiScrollable);
+
+        // 视口变高 → 旧 offset 越界，OnResize 必须重新钳制。此前只有 TuiScrollView 覆写了
+        // OnResize 做这件事，列表视图没有 ⇒ 缩放/截图后列表停在越界的空白区。
+        var lv6 = new TuiListView { Height = 4, Width = 60 };
+        for (int i = 0; i < 10; i++) lv6.AddItem(new TuiLabel("行" + i) { Height = 1 });
+        lv6.ScrollToBottom();
+        Check("TuiListView 视口 4 行时滚到底 offset=6", lv6.ScrollOffset == 6);
+        lv6.Height = 8;                       // 视口变高 → maxScroll 6→2
+        lv6.OnResize(60, 8);
+        Check("TuiListView 视口变高后 offset 被钳回 2", lv6.ScrollOffset == 2);
+
+        var sv3 = new TuiScrollView { Height = 4, Width = 60 };
+        for (int i = 0; i < 10; i++) sv3.Add(new TuiLabel("内容" + i) { Height = 1 });
+        sv3.Layout();                 // 先让 ContentHeight=10 成立：否则 OnResize 里的「内容增长自动跟底」
+                                      // 会顺带把 offset 调到新底部，掩盖真正要验的「钳制」这一步
+        sv3.ScrollToBottom();
+        sv3.ScrollUp(1);              // 退出跟底（用户手动上翻），offset=5
+        Check("TuiScrollView 退出跟底后 offset=5", sv3.ScrollOffset == 5);
+        sv3.Height = 8;
+        sv3.OnResize(60, 8);
+        Check("TuiScrollView 视口变高后 offset 同样被钳回 2", sv3.ScrollOffset == 2);
+
         Console.WriteLine();
 
         // ================================================================
