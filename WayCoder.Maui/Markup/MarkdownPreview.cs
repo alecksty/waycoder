@@ -39,12 +39,12 @@ public static class MarkdownPreview
             }
 
             // 表格：当前行以 | 开头，且下一行是分隔线（|---| 或 |-:|）
-            if (line.StartsWith('|') && IsTableSeparator(lines, i + 1))
+            if (line.StartsWith('|') && MarkdownTable.IsSeparator(lines, i + 1))
             {
                 var rows = new List<string[]>();
                 while (i < lines.Length && lines[i].TrimStart().StartsWith('|'))
                 {
-                    rows.Add(SplitCells(lines[i]));
+                    rows.Add(MarkdownTable.SplitRow(lines[i]));
                     i++;
                 }
                 stack.Add(RenderTable(rows, isDark));
@@ -123,27 +123,6 @@ public static class MarkdownPreview
         return stack;
     }
 
-    private static bool IsTableSeparator(string[] lines, int idx)
-    {
-        if (idx >= lines.Length) return false;
-        var s = lines[idx].Trim();
-        if (!s.StartsWith('|')) return false;
-        foreach (var c in s)
-        {
-            if (c is '|' or '-' or ':' or ' ' or '\t') continue;
-            return false;
-        }
-        return s.Contains('-');
-    }
-
-    private static string[] SplitCells(string line)
-    {
-        var s = line.Trim();
-        if (s.StartsWith('|')) s = s[1..];
-        if (s.EndsWith('|')) s = s[..^1];
-        return s.Split('|').Select(c => c.Trim()).ToArray();
-    }
-
     private static bool IsListItem(string line, out char marker)
     {
         var t = line.TrimStart();
@@ -215,13 +194,8 @@ public static class MarkdownPreview
     {
         var syntax = lang.Length > 0 ? Syntax.ByLanguage(lang) : Syntax.Detect(code) ?? Syntax.ByLanguage("");
         var fs = new FormattedString();
-        foreach (var raw in code.Replace("\r\n", "\n").Split('\n'))
-        {
-            foreach (var (text, color) in syntax.Tokenize(raw))
-                MarkupToFormattedString.AppendSpan(fs, text, MarkupToFormattedString.ColorForToken(color, isDark));
-            fs.Spans.Add(new Span { Text = "\n" });
-        }
-        if (fs.Spans.Count > 0 && fs.Spans[^1].Text == "\n") fs.Spans.RemoveAt(fs.Spans.Count - 1);
+        // 预览页不用等宽字体；共享实现天然不在末尾补换行（原写法是「每行都补、最后再删掉」）
+        MarkupToFormattedString.AppendCodeLines(fs, code, syntax, isDark, monoFont: false);
 
         return new Border
         {

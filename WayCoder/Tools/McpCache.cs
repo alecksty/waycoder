@@ -162,25 +162,10 @@ internal static class McpCache
         return $"{command}|{string.Join("|", args)}";
     }
 
+    /// <summary>定位 mcp_tool_cache.json —— 就是 Global.FindConfigFileInTree（此前本类把同一个
+    /// 上溯循环又抄了一遍，而下面那句注释「FindConfigFileInTree defined in Global.cs」正说明作者知道）。</summary>
     private static string? FindCacheFile()
-    {
-        var cwd = Environment.CurrentDirectory;
-        var dir = cwd;
-        while (dir != null)
-        {
-            foreach (var dirName in Global.ConfigDirSearchOrder)
-            {
-                var candidate = Path.Combine(dir, dirName, "mcp_tool_cache.json");
-                if (File.Exists(candidate)) return candidate;
-            }
-            var parent = Path.GetDirectoryName(dir);
-            if (parent == dir) break;
-            dir = parent;
-        }
-        return null;
-    }
-
-    // FindConfigFileInTree defined in Global.cs (shared with McpClient)
+        => Global.FindConfigFileInTree(Environment.CurrentDirectory, "mcp_tool_cache.json");
 }
 
 /// <summary>
