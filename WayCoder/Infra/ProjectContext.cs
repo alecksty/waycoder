@@ -106,8 +106,10 @@ public static class ProjectContext
         return results;
     }
 
-    /// <summary>操作系统用户主目录（不随 <see cref="Global.HomeOverride"/> 变化，用于兜住测试/嵌入式场景）。</summary>
-    private static readonly string UserProfileDir =
+    /// <summary>操作系统用户主目录（不随 <see cref="Global.HomeOverride"/> 变化，用于兜住测试/嵌入式场景）。
+    /// `internal` 供其它「从 cwd 向上」的循环当边界锚点（见 <c>SkillsManager.FindSkillDirs</c>）——
+    /// 用 <see cref="Global.Home"/> 当锚点在 `HomeOverride` 被改成临时目录时会失效。</summary>
+    internal static readonly string UserProfileDir =
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
     private static string FindProjectRoot()

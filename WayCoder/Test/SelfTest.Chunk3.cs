@@ -788,6 +788,39 @@ public static partial class SelfTest
         // 重新加载项目技能
         SkillsManager.Load();
 
+        // ── 用户级技能目录：home 不在 cwd 祖先链上时也必须纳入（v0.96.105）──
+        // 自测恰好就是「cwd 与 home 不同盘」这个场景：cwd 是仓库目录，而 Global.HomeOverride
+        // 指向临时目录 —— 旧实现靠上溯顺带命中 home，这里必然发现不了。
+        {
+            var homeSkillsRoot = Path.Combine(Global.Home, ".waycoder", "skills");
+            var homeSkillDir = Path.Combine(homeSkillsRoot, "home-skill");
+            try
+            {
+                Check("技能: 前提成立（home 不在 cwd 祖先链上）",
+                    !Environment.CurrentDirectory.StartsWith(Global.Home, StringComparison.OrdinalIgnoreCase)
+                    && !Global.Home.StartsWith(Environment.CurrentDirectory, StringComparison.OrdinalIgnoreCase));
+
+                Directory.CreateDirectory(homeSkillDir);
+                File.WriteAllText(Path.Combine(homeSkillDir, "SKILL.md"),
+                    "---\nname: home-skill\ndescription: 用户级技能\n---\n# Home Skill\n用户级正文");
+
+                var dirs = SkillsManager.FindSkillDirs();
+                Check("技能: FindSkillDirs 纳入用户级技能目录（home 不在链上时）",
+                    dirs.Any(d => d.StartsWith(Global.Home, StringComparison.OrdinalIgnoreCase)));
+
+                SkillsManager.Load();
+                Check("技能: 用户级技能被发现", SkillsManager.Skills.ContainsKey("home-skill"));
+                Check("技能: 用户级技能可作为 SkillTool 加载",
+                    new SkillTool().ExecuteAsync(new Dictionary<string, object?> { ["name"] = "home-skill" })
+                        .Result.Contains("用户级正文"));
+            }
+            finally
+            {
+                try { Directory.Delete(homeSkillDir, true); } catch { }
+                SkillsManager.Load(); // 还原技能表，免污染后续用例
+            }
+        }
+
         Console.WriteLine();
 
         // ---- 预算系统 ----

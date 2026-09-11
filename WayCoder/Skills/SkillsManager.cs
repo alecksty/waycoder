@@ -197,29 +197,57 @@ public static class SkillsManager
     // 内部实现
     // ========================================================================
 
-    /// <summary>查找所有技能目录（从 cwd 向上到 home）</summary>
-    private static List<string> FindSkillDirs()
+    /// <summary>
+    /// 查找所有技能目录。分两部分，**缺一不可**：
+    ///
+    /// ① **项目链**：从 cwd 逐级向上收集 `{ .waycoder, .corecoder, .claude, .cursor }/skills`，
+    ///    到用户主目录或盘根为止（主目录那一级**含**在链内）。
+    /// ② **用户级**：<see cref="Global.Home"/> 下的同名目录 —— 即使它**不在** cwd 的祖先链上也要纳入。
+    ///
+    /// **为什么必须显式写 ②**：原先只有 ①，指望上溯时顺带命中 home。但 `dir == home` 只在 cwd
+    /// 位于 home 之下时才成立 —— **cwd 与 home 不同盘**（D 盘项目 / C 盘用户目录，很常见）时
+    /// 该边界永不触发，循环直落盘根，用户自己的 `~/.claude/skills`、`~/.waycoder/skills`
+    /// **静默不加载**（现象：换到别的盘建项目，个人技能就「消失」了）。
+    ///
+    /// **边界为什么用 <see cref="ProjectContext.UserProfileDir"/> 而不只是 `Global.Home`**：
+    /// `Global.Home` 会被 `HomeOverride` 改成临时目录（自测/嵌入式），而它**根本不在 cwd 的祖先
+    /// 链上** ⇒ 等不到相等 ⇒ 上溯无界。这与 `ProjectContext.FindProjectRoot` 是同一类坑，
+    /// 那边的处置也是「home 与 UserProfileDir 两个边界都兜」。
+    ///
+    /// `internal` 供自测直接断言「home 不在 cwd 链上时是否仍被发现」。
+    /// </summary>
+    internal static List<string> FindSkillDirs()
     {
         var result = new List<string>();
-        var cwd = Environment.CurrentDirectory;
         var home = Global.Home;
 
-        var dir = cwd;
-        while (dir != null)
+        // ① 链：cwd → 上溯（含边界那一级）
+        var chain = new List<string>();
+        var dir = Environment.CurrentDirectory;
+        while (!string.IsNullOrEmpty(dir))
+        {
+            chain.Add(dir);
+            if (dir == home || dir == ProjectContext.UserProfileDir || dir == Path.GetPathRoot(dir))
+                break;
+            dir = Path.GetDirectoryName(dir);
+        }
+
+        // ② 用户级兜底：home 不在链上（不同盘）时补到**末尾**。
+        // 末尾 = 下面的 Reverse 之后排在最前 = 最先加载 = 优先级最低，与「home 恰好在祖先链顶端」
+        // 时的相对位置一致 —— 不改变既有的「本地目录覆盖通用目录」语义。
+        if (!string.IsNullOrEmpty(home) && !chain.Contains(home))
+            chain.Add(home);
+
+        foreach (var d in chain)
         {
             // 按优先顺序添加（.waycoder > .corecoder > .claude > .cursor）
             // .waycoder 和 .corecoder 是 WayCoder 专有目录，优先
             foreach (var name in new[] { ".waycoder", ".corecoder", ".claude", ".cursor" })
             {
-                var candidate = Path.Combine(dir, name, "skills");
+                var candidate = Path.Combine(d, name, "skills");
                 if (Directory.Exists(candidate) && !result.Contains(candidate))
                     result.Add(candidate);
             }
-
-            if (dir == home || dir == Path.GetPathRoot(dir) || string.IsNullOrEmpty(dir))
-                break;
-
-            dir = Path.GetDirectoryName(dir)!;
         }
 
         // 反转顺序：最顶层的最先加载，本地目录最后加载（可覆盖）
