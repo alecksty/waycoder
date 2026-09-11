@@ -15,6 +15,14 @@ namespace WayCoder.Infra;
 /// </summary>
 public static class ImportHelper
 {
+    /// <summary>「N 个: a, b, c（超过 5 个加省略号）」—— 导入来源列表的摘要文案。
+    ///
+    /// 同一串插值此前在五处各写一遍（Claude 插件 / OpenCode MCP / OpenCode 插件 / Cursor MCP / Cline MCP），
+    /// 且都写成 `{X.Count} 个: …{names.Count > 5 …}` —— 其中 X.Count 恒等于 names.Count（names 就是从它来的），
+    /// 两处一旦不一致就是隐患。</summary>
+    private static string SummarizeNames(IReadOnlyList<string> names)
+        => $"{names.Count} 个: {string.Join(", ", names.Take(5))}{(names.Count > 5 ? "…" : "")}";
+
     /// <summary>Claude Code 全局配置目录</summary>
     public static readonly string ClaudeHome = Path.Combine(
         Global.Home, ".claude");
@@ -93,7 +101,7 @@ public static class ImportHelper
                 {
                     var names = plugins.Entries.Select(p => p.Key).ToList();
                     items.Add(new ImportItem("🔌 MCP 服务器", "[Claude] 插件",
-                        $"{plugins.Count} 个: {string.Join(", ", names.Take(5))}{(names.Count > 5 ? "…" : "")}",
+                        SummarizeNames(names),
                         true));
                 }
             }
@@ -173,7 +181,7 @@ public static class ImportHelper
                 {
                     var names = enabled.Select(kv => kv.Key).ToList();
                     items.Add(new ImportItem("🔌 MCP 服务器", "[OpenCode] MCP",
-                        $"{enabled.Count} 个: {string.Join(", ", names.Take(5))}{(names.Count > 5 ? "…" : "")}",
+                        SummarizeNames(names),
                         true));
                 }
             }
@@ -185,7 +193,7 @@ public static class ImportHelper
                 var names = plugins.Items.Select(p => p.AsString() ?? "").Where(n => n != "").ToList();
                 if (names.Count > 0)
                     items.Add(new ImportItem("🧩 插件参考", "[OpenCode] 插件",
-                        $"{names.Count} 个: {string.Join(", ", names.Take(5))}{(names.Count > 5 ? "…" : "")}",
+                        SummarizeNames(names),
                         false)); // 仅供参考，不能直接导入
             }
         }
@@ -209,7 +217,7 @@ public static class ImportHelper
                 {
                     var names = servers.Entries.Select(s => s.Key).ToList();
                     items.Add(new ImportItem("🔌 MCP 服务器", "[Cursor] MCP",
-                        $"{servers.Count} 个: {string.Join(", ", names.Take(5))}{(names.Count > 5 ? "…" : "")}",
+                        SummarizeNames(names),
                         true));
                 }
             }
@@ -284,7 +292,7 @@ public static class ImportHelper
                     {
                         var names = servers.Entries.Select(s => s.Key).ToList();
                         items.Add(new ImportItem("🔌 MCP 服务器", "[Cline] MCP",
-                            $"{servers.Count} 个: {string.Join(", ", names.Take(5))}{(names.Count > 5 ? "…" : "")}",
+                            SummarizeNames(names),
                             true));
                     }
                 }
@@ -590,6 +598,47 @@ public static class ImportHelper
     }
 
     /// <summary>从 Cursor .cursor/mcp.json 导入 MCP 服务器</summary>
+    /// <summary>
+    /// 解析 <c>mcpServers</c> 配置 → 待写入的服务器条目 + 汇总日志 —— **唯一实现**。
+    ///
+    /// Cursor 与 Cline 两条导入路径此前各写一遍（约 35 行同构），且已经漂移：Cline 那侧
+    /// **只打印 command 不打印 args**，用户在导入报告里看不到实际参数。现在两条共用一份。
+    /// </summary>
+    private static (List<JNode> Imported, StringBuilder Log) ParseMcpServers(JNode servers, string sourceLabel)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"🔌 {sourceLabel} MCP 服务器:");
+
+        var imported = new List<JNode>();
+        foreach (var (name, config) in servers.Entries)
+        {
+            var command = config?["command"]?.AsString();
+            var args = config?["args"]?.Items
+                ?.Select(a => a?.AsString() ?? "").ToArray() ?? [];
+
+            if (string.IsNullOrEmpty(command))
+            {
+                sb.AppendLine($"  ⚠ {name} (无 command，跳过)");
+                continue;
+            }
+
+            sb.AppendLine(args.Length > 0
+                ? $"  ✅ {name} — {command} {string.Join(" ", args)}"
+                : $"  ✅ {name} — {command}");
+
+            var argsArr = JNode.Array();
+            foreach (var a in args) argsArr.Add(a);
+            imported.Add(JNode.Object()
+                .Set("name", name)
+                .Set("command", command)
+                .Set("args", argsArr)
+                .Set("env", JNode.Object())
+                .Set("_comment", $"从 {sourceLabel} 导入: {name}"));
+        }
+
+        return (imported, sb);
+    }
+
     private static async Task<string> ImportCursorMcpAsync()
     {
         var mcpPath = FindInTree(Environment.CurrentDirectory, ".cursor", "mcp.json");
@@ -597,38 +646,11 @@ public static class ImportHelper
 
         try
         {
-            var json = Json.Parse(File.ReadAllText(mcpPath, Encoding.UTF8));
-            var servers = json?["mcpServers"];
+            var servers = Json.Parse(File.ReadAllText(mcpPath, Encoding.UTF8))?["mcpServers"];
             if (servers == null || servers.Count == 0)
                 return "⏭ Cursor MCP: 无 mcpServers 配置";
 
-            var sb = new StringBuilder();
-            sb.AppendLine("🔌 Cursor MCP 服务器:");
-
-            var imported = new List<JNode>();
-            foreach (var (name, config) in servers.Entries)
-            {
-                var command = config?["command"]?.AsString();
-                var args = config?["args"]?.Items
-                    ?.Select(a => a?.AsString() ?? "").ToArray() ?? [];
-
-                if (string.IsNullOrEmpty(command))
-                {
-                    sb.AppendLine($"  ⚠ {name} (无 command，跳过)");
-                    continue;
-                }
-
-                sb.AppendLine($"  ✅ {name} — {command} {string.Join(" ", args)}");
-                var argsArr = JNode.Array();
-                foreach (var a in args) argsArr.Add(a);
-                imported.Add(JNode.Object()
-                    .Set("name", name)
-                    .Set("command", command)
-                    .Set("args", argsArr)
-                    .Set("env", JNode.Object())
-                    .Set("_comment", $"从 Cursor 导入: {name}"));
-            }
-
+            var (imported, sb) = ParseMcpServers(servers, "Cursor");
             return await WriteMcpServersAsync(imported, sb);
         }
         catch (Exception ex)
@@ -636,49 +658,19 @@ public static class ImportHelper
             return $"❌ Cursor MCP: 导入失败 — {ex.Message}";
         }
     }
-
     /// <summary>从 Cline mcp_settings.json 导入 MCP 服务器</summary>
     private static async Task<string> ImportClineMcpAsync()
     {
-        var clineHome = Path.Combine(
-            Global.Home, ".cline");
-        var mcpPath = Path.Combine(clineHome, "mcp_settings.json");
+        var mcpPath = Path.Combine(Global.Home, ".cline", "mcp_settings.json");
         if (!File.Exists(mcpPath)) return "⏭ Cline MCP: 未找到 ~/.cline/mcp_settings.json";
 
         try
         {
-            var json = Json.Parse(File.ReadAllText(mcpPath, Encoding.UTF8));
-            var servers = json?["mcpServers"];
+            var servers = Json.Parse(File.ReadAllText(mcpPath, Encoding.UTF8))?["mcpServers"];
             if (servers == null || servers.Count == 0)
                 return "⏭ Cline MCP: 无 mcpServers 配置";
 
-            var sb = new StringBuilder();
-            sb.AppendLine("🔌 Cline MCP 服务器:");
-
-            var imported = new List<JNode>();
-            foreach (var (name, config) in servers.Entries)
-            {
-                var command = config?["command"]?.AsString();
-                var args = config?["args"]?.Items
-                    ?.Select(a => a?.AsString() ?? "").ToArray() ?? [];
-
-                if (string.IsNullOrEmpty(command))
-                {
-                    sb.AppendLine($"  ⚠ {name} (无 command，跳过)");
-                    continue;
-                }
-
-                sb.AppendLine($"  ✅ {name} — {command}");
-                var argsArr = JNode.Array();
-                foreach (var a in args) argsArr.Add(a);
-                imported.Add(JNode.Object()
-                    .Set("name", name)
-                    .Set("command", command)
-                    .Set("args", argsArr)
-                    .Set("env", JNode.Object())
-                    .Set("_comment", $"从 Cline 导入: {name}"));
-            }
-
+            var (imported, sb) = ParseMcpServers(servers, "Cline");
             return await WriteMcpServersAsync(imported, sb);
         }
         catch (Exception ex)
@@ -686,7 +678,6 @@ public static class ImportHelper
             return $"❌ Cline MCP: 导入失败 — {ex.Message}";
         }
     }
-
     /// <summary>将 MCP 服务器列表去重写入 mcp_servers.json</summary>
     private static async Task<string> WriteMcpServersAsync(List<JNode> imported, StringBuilder sb)
     {

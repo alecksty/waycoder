@@ -1,5 +1,28 @@
 # 更新日志
 
+## v0.96.96 (2026-09-11) — 重复代码清理（C 级第五批）：ImportHelper 的 MCP 导入与摘要文案
+
+1 文件，**+59 / −68 行**。
+
+### 1. Cursor / Cline 的 MCP 导入各写一遍（约 35 行同构）
+
+抽 `ParseMcpServers(servers, sourceLabel)`，两个 `Import*McpAsync` 缩成
+「定位文件 → 解析 → 调它 → 写盘」四步。
+
+**修掉一处漂移**：Cline 那侧此前**只打印 command、不打印 args**，用户在导入报告里
+看不到实际参数（Cursor 那侧打印）。现在两条路径共用一份，报告格式一致。
+
+### 2. 五处同一串摘要插值
+
+`$"{X.Count} 个: {string.Join(", ", names.Take(5))}{(names.Count > 5 ? "…" : "")}"`
+在 Claude 插件 / OpenCode MCP / OpenCode 插件 / Cursor MCP / Cline MCP 各写一遍 ——
+抽 `SummarizeNames(names)`。
+
+顺带消掉一个隐患：原写法里 `X.Count` 与 `names.Count` 是**两个独立来源**，
+而 `names` 恰恰是从 `X` 派生的（五处当前都相等）——「N 个」与实际列出的条目一旦不一致就是 bug。
+
+**验证**：`--test` **5184 / 5184**；桌面 / Gui / MAUI Android 三工程构建均 0 错误。
+
 ## v0.96.95 (2026-09-11) — 重复代码清理（C 级第四批）：Maui Markup 三份高亮 / 目录上溯四处
 
 6 文件改动 + 1 新增，**+56 / −120 行**。
