@@ -1,5 +1,50 @@
 # 更新日志
 
+## v0.96.105 (2026-09-11) — 换盘建项目时个人技能「消失」（FindSkillDirs 边界失效）
+
+3 文件，**+49 / −12 行**；自测 **+4 条护栏**。
+
+### 问题
+
+`SkillsManager.FindSkillDirs` 从 cwd 逐级向上收集 `{ .waycoder, .corecoder, .claude, .cursor }/skills`，
+边界是 `dir == Global.Home` —— 而 **`Global.Home` 是用户主目录**（`SpecialFolder.UserProfile`）。
+
+只要 **cwd 不在 home 之下**（**D 盘建项目、C 盘放用户目录**，很常见），这个边界**永不触发**：
+循环直落盘根，`home` 那一级从来没被访问过 ⇒ 用户自己的 `~/.claude/skills`、
+`~/.waycoder/skills` **静默不加载**。
+
+**用户看到的现象**：在 C 盘建的项目里个人技能都在，换到 D 盘建项目，「我的技能全没了」。
+
+而 `Load()` 的文档注释写的恰恰是「从当前目录向上查找到 home 目录」——
+**文档说的和代码做的是两件事**。
+
+另外这条边界还有个更隐蔽的问题：`Global.Home` 会被 `HomeOverride` 改成临时目录
+（自测/嵌入式场景），那时它**根本不在 cwd 的祖先链上**，等不到相等 ⇒ 上溯无界。
+
+### 修法（两条一起上，缺一不可）
+
+1. **个人级技能目录无条件纳入**：`Global.Home` 不在祖先链上时**显式补到链尾**。
+   补在链尾是刻意的 —— 下面的 `Reverse()` 会让它排在最前 = 最先加载 = 优先级最低，
+   与「home 恰好在祖先链顶端」时的相对位置一致，**「本地目录覆盖通用目录」的语义不变**。
+2. **上溯边界锚在 `ProjectContext.UserProfileDir`**（**不随 `HomeOverride` 变化**，
+   已从 `private` 改 `internal`）与盘根，两个都兜 —— 与 `ProjectContext.FindProjectRoot`
+   同一处置（那里的注释早就写着「home 与 UserProfileDir 两个边界都兜」）。
+
+### 验证
+
+新增 4 条断言。**自测环境恰好就是「cwd 与 home 不同盘」这个场景**（cwd 是仓库目录，
+`Global.HomeOverride` 指向临时目录），所以这组用例在旧实现下必然红。
+**证伪过** —— 把「用户级兜底」那一步短路掉，其中 3 条立刻变红、第 4 条（前提校验）仍绿。
+`--test` **5235 / 5235**；桌面 / Gui / MAUI Android 三工程构建均 0 错误。
+
+### 一条**有意不修**的（如实记录）
+
+自测临时目录若恰好落在**真实用户主目录之下**（Windows 上 `Path.GetTempPath()` 就是
+`C:\Users\<你>\AppData\Local\Temp\...`），上溯经过 profile 那一级仍会收进开发机真实的
+`~/.claude/skills` —— 这是「用户在自己 home 下跑」的**正常语义**，不是缺陷。
+要消除只能把测试目录迁到 profile 之外，**不该往生产代码里塞测试专用的特例**。
+原断言保持环境无关（断言创建的两个技能被发现 + 无重名）即为此。
+
 ## v0.96.104 (2026-09-11) — Doctor 日志预览的 UTF-16 切片（截断点落在 emoji 上出 U+FFFD）
 
 2 文件，**+32 / −4 行**；自测 **+4 条护栏**（含一条端到端）。
