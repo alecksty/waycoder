@@ -157,7 +157,7 @@ public static partial class SelfTest
                     mgrR.PushScreen(chatR);
                     chatR.AddMessage(msgText, "user");
                     mgrR.Render();
-                    var fb = new Keypad.FrameBuffer(Tty.Rows, Tty.Cols);
+                    var fb = new FrameBuffer(Tty.Rows, Tty.Cols);
                     fb.Apply(mgrR.LastCleanFrame);
                     // 弹出提示栏（模拟输入 / 前缀）→ 收起，消息不应被擦成空白
                     chatR.ShowPromptBar(new List<PromptItem> { new() { Label = "测试项", Value = "x" } });
