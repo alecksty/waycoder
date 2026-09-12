@@ -1,0 +1,15 @@
+PackageIdentifier: Aleckstygit.WayCoder
+PackageVersion: 0.96.109
+InstallerLocale: zh-CN
+InstallerType: portable
+Commands:
+  - waycoder
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/alecksty/waycoder/releases/download/v0.96.109/waycoder-v0.96.109-win-x64.zip
+    InstallerSha256: 5430aebfc9da88f026a0b95039415559991b9bfd99789010deea6dc9da5778f7
+  - Architecture: arm64
+    InstallerUrl: https://github.com/alecksty/waycoder/releases/download/v0.96.109/waycoder-v0.96.109-win-arm64.zip
+    InstallerSha256: f84dfd4d63164c0454028eafc6fd05605951c04370766d17282567f01998826f
+ManifestType: installer
+ManifestVersion: 1.6.0
