@@ -295,6 +295,18 @@ public partial class MainWindow
         {
             FinalizeStreaming(slot); // 流式结束定稿
             _inReasoning[slot] = false; // 复位推理标记：中途停止未收到 «/» 时，下条回复才不会误入推理气泡
+            // 折叠状态收口：解绑当前工具组（下轮工具另起一组）、清内容间断标记；
+            // 未收到 «/» 就中断的思考也要把标题定稿，否则一直显示「思考中 Ns」
+            _toolGroup[slot] = null;
+            _interruptSinceTool[slot] = false;
+            foreach (var m in _messages[slot])
+                if (m is { Role: ChatRole.Reasoning, Streaming: true })
+                {
+                    m.Streaming = false;
+                    m.ThinkingDone = true;
+                    m.ThinkingSeconds = Math.Max(1, (int)Math.Round((DateTime.UtcNow - m.ThinkStart).TotalSeconds));
+                    RequestRender(m);
+                }
             if (firstUserMsg != null)
             {
                 // 任务完成：还原排队消息为纯文本（去掉「📤 发送中…」标记，防残留到 UI 与会话历史）
@@ -353,31 +365,50 @@ public partial class MainWindow
         AddMessage(slot, msg);
     }
 
-    /// <summary>追加工具消息（对齐 TUI onTool→FinishAgentMsg）。</summary>
+    /// <summary>
+    /// 追加工具调用（折叠成一行「🔧 工具调用:N 次」，明细点开看）—— 对齐 MAUI 的 _toolGroup 分组：
+    /// 工具到来先冻结正文段；自上个工具以来出现过内容（新思考块/新正文段）则**新开一组**。
+    /// </summary>
     private void AppendTool(int slot, string name, string brief)
     {
-        FinalizeStreaming(slot);
-        var msg = new ChatMessage(ChatRole.Tool);
-        msg.Text.Append($"🔧 [{name}] {brief}");
-        AddMessage(slot, msg);
+        FinalizeStreaming(slot); // 工具到来 = 正文段收尾（工具后新正文另起一段，与工具组按时间交错）
+        if (_toolGroup[slot] == null || _interruptSinceTool[slot])
+            _toolGroup[slot] = NewToolGroup(slot);
+        _interruptSinceTool[slot] = false;
+
+        _toolGroup[slot]!.ToolCalls.Add(new ToolCallItem
+        {
+            Name = WayCoder.UI.Shared.ToolDisplay.ShortName(name), // 显示名：edit_file→edit
+            Args = brief,                                          // Agent 侧已缩成短路径
+            Raw = ToolRegistry.IsRawOutput(name),                   // 按**真实名**判断（不受缩写影响）
+        });
+        _toolGroup[slot]!.View?.Render(); // 只重画那一行计数
     }
 
-    /// <summary>追加工具输出消息（保头保尾，对齐 TUI Snip 语义）。</summary>
+    private ChatMessage NewToolGroup(int slot)
+    {
+        var msg = new ChatMessage(ChatRole.Tool);
+        AddMessage(slot, msg);
+        return msg;
+    }
+
+    /// <summary>
+    /// 追加工具输出：**只进当前组最后一项的内存**，不新建气泡、不滚动。
+    /// 以前每个 chunk 都建一条 ToolOutput 气泡 + ScrollToEnd（一次大输出 = 成百上千条气泡 + 成百次强制滚动），
+    /// 这是 GUI 端「界面卡住」的主因；现在输出只在点开详情窗时渲染。
+    /// </summary>
     private void AppendToolOutput(int slot, string output)
     {
-        FinalizeStreaming(slot);
+        if (string.IsNullOrEmpty(output)) return;
+        var group = _toolGroup[slot];
+        if (group == null || group.ToolCalls.Count == 0) return;
+
         // 外部工具（bash / git / sqlite / 测试运行器…）的输出是进程原始字节，带裸 ANSI 转义序列。
-        // GUI 不做 ANSI 上色，但**必须先剥掉**，否则气泡里显示「[0;32m…」一坨乱码 ——
-        // 与 TUI（终端解释）/Web（ansiToHtml 解码）/移动端（同样剥掉）呈现同一份命令行文本。
+        // GUI 不做 ANSI 上色，但**必须先剥掉**，否则详情窗里是「[0;32m…」一坨乱码。
         if (output.Contains(WayCoder.UI.Shared.Terminal.AnsiTty.AnsiCharPrefix))
             output = WayCoder.UI.Shared.AnsiHelper.StripAnsi(output);
-        var truncated = output.Length > 2000
-            ? ContextManager.TruncateByRunes(output, 1000) + "\n…（截断，关键信息见尾）…\n" +
-              ContextManager.TruncateTailByRunes(output, 1000)
-            : output;
-        var msg = new ChatMessage(ChatRole.ToolOutput);
-        msg.Text.Append(truncated);
-        AddMessage(slot, msg);
+
+        AppendCapped(group.ToolCalls[^1].Detail, output);
     }
 
     /// <summary>取当前流式中的 assistant 消息（没有则新建），供 onToken 追加。</summary>
@@ -400,20 +431,45 @@ public partial class MainWindow
     {
         if (string.IsNullOrEmpty(token)) return;
 
-        if (token.Contains("«dim»")) _inReasoning[slot] = true;
+        if (token.Contains("«dim»"))
+        {
+            _inReasoning[slot] = true;
+            _interruptSinceTool[slot] = true; // 新思考块 = 内容间断 → 下个工具新开一组（对齐 MAUI）
+        }
         if (token.Contains("«/»"))
         {
             _inReasoning[slot] = false;
             foreach (var m in _messages[slot])
                 if (m is { Role: ChatRole.Reasoning, Streaming: true })
+                {
+                    // 思考块结束：标题定稿成「已思考 N 秒」
                     m.Streaming = false;
+                    m.ThinkingDone = true;
+                    m.ThinkingSeconds = Math.Max(1, (int)Math.Round((DateTime.UtcNow - m.ThinkStart).TotalSeconds));
+                    if (slot == _activeSlot) RequestRender(m);
+                }
         }
 
         var clean = token.Replace("«dim»", "").Replace("«/»", "");
         if (string.IsNullOrEmpty(clean)) return;
 
-        var msg = _inReasoning[slot] ? EnsureReasoning(slot) : EnsureAssistant(slot);
+        if (_inReasoning[slot])
+        {
+            // 思考：正文只进内存（气泡只显示一行「💭 思考中 Ns」），秒数变化时才重画那一行
+            var think = EnsureReasoning(slot);
+            AppendCapped(think.ReasoningBody, clean);
+            var secs = Math.Max(1, (int)Math.Round((DateTime.UtcNow - think.ThinkStart).TotalSeconds));
+            if (secs != think.ThinkingSeconds)
+            {
+                think.ThinkingSeconds = secs;
+                if (slot == _activeSlot) RequestRender(think);
+            }
+            return;
+        }
+
+        var msg = EnsureAssistant(slot);
         AppendCapped(msg.Text, clean);
+        _interruptSinceTool[slot] = true; // 正文段出现 = 内容间断 → 下个工具新开组
         if (slot != _activeSlot) return; // 非活跃槽位只累积，不渲染
         RequestRender(msg);
     }
@@ -441,7 +497,7 @@ public partial class MainWindow
         for (int i = list.Count - 1; i >= 0; i--)
             if (list[i].Role == ChatRole.Reasoning && list[i].Streaming)
                 return list[i];
-        var msg = new ChatMessage(ChatRole.Reasoning) { Streaming = true };
+        var msg = new ChatMessage(ChatRole.Reasoning) { Streaming = true, ThinkStart = DateTime.UtcNow };
         AddMessage(slot, msg);
         return msg;
     }
@@ -458,7 +514,7 @@ public partial class MainWindow
             var list = _messages[_activeSlot];
             var msg = target ?? (list.Count > 0 ? list[^1] : null);
             msg?.View?.Render();
-            ChatScroll.ScrollToEnd();
+            if (_followBottom) ChatScroll.ScrollToEnd(); // 用户上翻时不拽回底部
         }, DispatcherPriority.Background);
     }
 
@@ -469,7 +525,17 @@ public partial class MainWindow
         if (slot != _activeSlot) return;
         msg.View = new MessageBubble(msg);
         MessagesHost.Children.Add(msg.View);
-        Dispatcher.UIThread.Post(() => ChatScroll.ScrollToEnd(), DispatcherPriority.Background);
+        ScheduleScrollToEnd();
+    }
+
+    /// <summary>合帧滚动到底（且仅在用户未上翻时）—— 直接每次都 ScrollToEnd 会造成大量强制布局</summary>
+    private void ScheduleScrollToEnd()
+    {
+        if (!_followBottom) return;
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (_followBottom) ChatScroll.ScrollToEnd();
+        }, DispatcherPriority.Background);
     }
 
     /// <summary>单槽消息条数上限：超 MaxChatMessages 丢最旧（对齐 TUI PruneBuffered），同步移除对应气泡。</summary>

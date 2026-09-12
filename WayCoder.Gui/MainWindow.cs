@@ -40,6 +40,12 @@ public partial class MainWindow : Window
 
     /// <summary>各槽位是否在接收推理内容（«dim»…«/»，对齐 Web reasoning 分流）。</summary>
     private readonly bool[] _inReasoning = new bool[SlotCount];
+    /// <summary>当前工具调用组（折叠成一行「🔧 工具调用:N 次」；明细点开看）</summary>
+    private readonly ChatMessage?[] _toolGroup = new ChatMessage?[SlotCount];
+    /// <summary>自上个工具以来是否出现过内容（新思考块/新正文段）→ 下个工具新开一组（对齐 MAUI）</summary>
+    private readonly bool[] _interruptSinceTool = new bool[SlotCount];
+    /// <summary>自动跟底：用户上翻看历史时为 false，流式输出不再把视图拽回底部</summary>
+    private bool _followBottom = true;
 
     private DispatcherTimer? _rightTimer;
 
@@ -83,6 +89,14 @@ public partial class MainWindow : Window
 
         // 输入框 Enter 发送：由 ChatInputBox 覆写 OnKeyDown 提供（见该类注释说明为何不能在 XAML 挂 KeyDown）
         InputBox.SendRequested += OnInputSendRequested;
+
+        // 自动跟底闸门：用户往上翻看历史时不再被流式输出拽回底部（对齐 Web 的 followBottom）。
+        // 只读滚动状态，不触发额外滚动，因此不会造成「边读边滚」的抖动。
+        ChatScroll.ScrollChanged += (_, _) =>
+        {
+            var gap = ChatScroll.Extent.Height - ChatScroll.Offset.Y - ChatScroll.Viewport.Height;
+            _followBottom = gap < 40;
+        };
 
         // 输入卡下方显示当前工作目录（对齐 Web #cwd-bar）
         UpdateCwdBar();

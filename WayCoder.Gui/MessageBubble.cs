@@ -1,5 +1,6 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Markup.Xaml.MarkupExtensions;
 using Avalonia.Media;
@@ -41,6 +42,8 @@ public sealed class MessageBubble : Border
                 CornerRadius = new CornerRadius(CornerR, CornerR, CornerR, 4);
                 Padding = new Thickness(12, 8);
                 this[!BackgroundProperty] = new DynamicResourceExtension("ToolBubbleBgBrush");
+                Cursor = new Cursor(StandardCursorType.Hand); // 折叠组行：点开看每次调用
+                PointerPressed += OnBubbleClicked;
                 break;
 
             case ChatRole.ToolOutput:
@@ -61,11 +64,13 @@ public sealed class MessageBubble : Border
                 break;
 
             case ChatRole.Reasoning:
-                // 推理内容：淡色小字（对齐 Web .msg.reasoning）
+                // 推理内容：折叠成一行「💭 已思考 N 秒」（点开看全文），淡色小字
                 HorizontalAlignment = HorizontalAlignment.Left;
                 CornerRadius = new CornerRadius(CornerR);
                 Padding = new Thickness(6, 2);
                 _host.Opacity = 0.65;
+                Cursor = new Cursor(StandardCursorType.Hand);
+                PointerPressed += OnBubbleClicked;
                 break;
 
             default: // Assistant
@@ -98,7 +103,30 @@ public sealed class MessageBubble : Border
     public void Render()
     {
         _host.Children.Clear();
+
+        // 折叠行（工具调用组 / 思考）：只画一行，明细点开弹独立详情窗 ——
+        // 与 MAUI 的「🔧 工具调用:N 次」「💭 已思考 N 秒」同版式，也是不卡死的关键：
+        // 输出不再进聊天流，几百条 chunk 不会变成几百个气泡。
+        if (Message.IsToolGroup)
+        {
+            Message.Text.Clear();
+            Message.Text.Append(Message.GroupLine);
+        }
+        else if (Message.Role == ChatRole.Reasoning)
+        {
+            Message.Text.Clear();
+            Message.Text.Append(Message.ThinkingLine);
+        }
+
         foreach (var block in MarkdownBlocks.Build(Message.Text.ToString()))
             _host.Children.Add(block);
+    }
+
+    /// <summary>点开详情：工具组 → 每次调用详情；思考 → 推理全文（独立窗口，Esc 关闭）</summary>
+    private void OnBubbleClicked(object? sender, Avalonia.Input.PointerPressedEventArgs e)
+    {
+        var owner = TopLevel.GetTopLevel(this) as Window;
+        if (Message.IsToolGroup) ToolDetailWindow.ShowToolCalls(owner, Message);
+        else if (Message.Role == ChatRole.Reasoning) ToolDetailWindow.ShowThinking(owner, Message);
     }
 }
