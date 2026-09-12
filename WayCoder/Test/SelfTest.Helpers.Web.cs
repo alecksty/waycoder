@@ -845,6 +845,11 @@ public static partial class SelfTest
             && html.Contains("if (followBottom) messages.scrollTop = messages.scrollHeight"));
         var tokenFn = JsBody(html, "handleToken");
         Check("Prefix: 逐 token 路径不再直接 scroll()", tokenFn.Length > 0 && !tokenFn.Contains("scroll();"));
+        // ⚠ `«/»` 是**所有** «» 标记（颜色…）的统一结束符，不是思考块专用：
+        // 不在思考块里必须**原样保留**（否则标记失配、颜色错位），更不能把正文当思考吞掉 ——
+        // 曾经无条件 thinkAppend，用户实测「完全不聊天了，所有内容都是已思考 n 秒」。
+        Check("Prefix: 只在思考块内吃 «/»，否则原样留给 Markdown 配对",
+            tokenFn.Contains("else if (think) { endThink();") && tokenFn.Contains("emitTokenPiece('«/»')"));
         var histFn = JsBody(html, "renderHistoryChunked");
         Check("Prefix: 历史重放分帧（每帧 15 条 + rAF 续帧）",
             histFn.Contains("requestAnimationFrame(step)") && histFn.Contains("i + 15")

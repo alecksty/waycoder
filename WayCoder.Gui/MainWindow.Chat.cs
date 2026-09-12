@@ -431,12 +431,17 @@ public partial class MainWindow
     {
         if (string.IsNullOrEmpty(token)) return;
 
+        // ⚠ `«/»` 是**所有** «» 标记（颜色/粗体…）的统一结束符，不是思考块专用：
+        //   只在「当前确实在思考块里」时才把它当思考结束处理并吃掉，否则**原样保留**给
+        //   MarkdownInlines 配对（否则 `«cyan»…«/»` 的结束符被剥掉 → 标记失配、颜色渲染错位）。
+        //   Web 端曾因把它无条件当思考结束，把普通正文整段吞进思考气泡（用户实测「完全不聊天了」）。
+        bool wasReasoning = _inReasoning[slot];
         if (token.Contains("«dim»"))
         {
             _inReasoning[slot] = true;
             _interruptSinceTool[slot] = true; // 新思考块 = 内容间断 → 下个工具新开一组（对齐 MAUI）
         }
-        if (token.Contains("«/»"))
+        if (_inReasoning[slot] && token.Contains("«/»"))
         {
             _inReasoning[slot] = false;
             foreach (var m in _messages[slot])
@@ -450,7 +455,8 @@ public partial class MainWindow
                 }
         }
 
-        var clean = token.Replace("«dim»", "").Replace("«/»", "");
+        var clean = token.Replace("«dim»", "");
+        if (wasReasoning || token.Contains("«dim»")) clean = clean.Replace("«/»", ""); // 只吃思考块的结束符
         if (string.IsNullOrEmpty(clean)) return;
 
         if (_inReasoning[slot])
