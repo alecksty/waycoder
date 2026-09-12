@@ -1,5 +1,112 @@
 # 更新日志
 
+## v0.96.106 (2026-09-12) — 界面分发固化 · Anthropic 原生兼容 · 重复代码提炼
+
+25 提交 / 75 文件；自测 **5329 通过 / 0 失败**（较上版 **+67 条护栏**）。
+（diff 显示 `+10535 / −9464`，其中约一万行是**测试文件拆分**的搬迁，净新增约 500 行。）
+
+### 一、启动界面分发收成单一判据
+
+`Program.cs` 里一串 if 决定「无参数 / `-p` / `-p1` / `--web` / `--cli` / `--tui` 各进哪个界面」，
+**没有任何测试钉住** —— 判据写错就会静默换界面而自测全绿。现收敛为
+`UI/CLI/Arguments/StartupRouter.Decide(...)`：
+
+| 命令 | 界面 |
+|---|---|
+| 无参数 | 全屏 TUI |
+| `-p "任务"` | **CLI 纯文本**（与 `--cli` 同源、无 spinner 动画，输出可直接重定向 / 被 CI 解析） |
+| `-p1`~`-p0` | TUI（槽位任务） |
+| `--web`/`--cli`/`--tui` | **指定优先** |
+
+顺带修掉两处**提示词被静默丢弃**：`--cli -p` 现在照常执行；`--web -p` 在 stderr 说明
+「web 是浏览器界面，提示词不在终端执行」。
+
+### 二、Anthropic 原生协议
+
+**3 处必 400 的缺陷**（先加断言全红、再修）：
+
+- **角色未交替**：一轮发多个工具时，每条 tool 消息各生成一条 user 消息 → 出现连续 user，
+  Anthropic 直接拒（roles must alternate）。改为同角色合并进同一条消息，`tool_result` 因此
+  自然归到一条 user 里（也满足「必须在 content 最前」）
+- **空 text 块**：assistant 只带 tool_calls、content 为空串时补了 `text:""`，Anthropic 拒收
+  （must be non-empty）→ 空块丢弃
+- **thinking 硬约束**：开启 extended thinking 时 `temperature` 必须为 1、`budget_tokens` 须落在
+  `[1024, max_tokens)` —— 原先两者都会发出非法值
+
+**两处根因**（比上面三条更值钱）：
+
+- `ResolveApiFormat` / `ResolveModelCallConstraints` / `ResolveProviderTemperature` 都只用
+  「模型 + 地址」**精确匹配**。用户在 `providers.json` 新配网关（带 `apiFormat` /
+  `supportsThinking`）却没导入模型时，这些设置**全部读不到** ⇒ 协议静默降级成 openai
+  （请求打到 `/v1/chat/completions`）、能力回退「按模型名推断」（claude → 支持思考）。
+  新增 `ResolveProviderFor`（精确匹配落空后**按 baseUrl 反查注册表占用者**），三处共用。
+- LLM 的 HttpClient **没有 User-Agent** ⇒ opencode-zen 前置的 Cloudflare 直接 403（error code 1010）。
+  实测同一端点：空 UA → 403，`WayCoder/0.96.105` → 200。
+
+真机验证：`aihubmix-anthropic`（**thinking 正常渲染**）、`opencode-zen-anthropic`（该网关拒绝
+thinking，已在 provider 配置里关掉）走 `/v1/messages` 原生格式通过。
+
+### 三、连接解析：`select <命名连接名>`
+
+`--connect select default` 被当成**裸模型名**，静默建出 `providerId/modelId="default"` 的垃圾
+connect，并把主模型换成一个**根本不存在的模型**。`ApplySpec` 增加「命名连接名优先」判据
+（放在 `ApplySpec` 而非 `select` 分支，让 `/connect <名>` 快捷形式等所有入口一起受益）。
+
+### 四、重复代码提炼：14 处收敛为单一真源
+
+机械扫描（跨文件 8 行窗口）出 34 组候选，按「**是否已在产生风险**」逐组核实。其中 **5 处
+不只是重复，而是已在产生用户可见问题**：
+
+1. **`mcp_servers.json` 三份读改写** → `Tools/McpConfigStore.cs`：去重口径相反（一处忽略大小写、
+   一处区分）⇒ 同一份配置两边判定不同、导入写进重复条目；且三处都是
+   `File.WriteAllText(..., Encoding.UTF8)` —— **非原子写 + 凭空带 BOM**
+   （jq / `python json.load` 不容忍，与当初 NotebookEditTool 写坏 `.ipynb` 是同一类）
+2. **16 个进程启动点各判各的编码** → `ProcEncoding.IsConsoleWrapperName` + `ApplyIfConsoleWrapper`：
+   **8 处该处理 OEM 的漏了**（自更新跑 `cmd.exe`、LintTool 跑 `npx`、McpTransport 起 npx 型 server…）。
+   判据是反直觉的：**「所有启动点都调 Apply」是错的** —— cmd 系包装器才套 OEM，原生程序
+   （git/dotnet/gcc/语言服务器）输出 UTF-8，套上**反而**乱码
+3. **MCP 状态图标 5 套**（文档里记的是 3 套）→ `McpStatusIcon`：连接状态汇总那处用 ASCII `✓✗?`，
+   与其余三处的 `✅⏳❌` 不一致 —— 同一个状态在 `/mcp` 显示 ✅、在汇总里显示 ✓
+4. **Claude Code 会话解析两份 + 文本提取三份** → `Infra/ClaudeSessionParser.cs`：且已语义分化
+   （空 content 旧版返回 `""` 会让会话标题变空）
+5. **`KillTool`/`PsTool` 的 `BuildPsi` 逐字相同**（连「本工具此前漏了 Apply」这个修复都各做一遍）
+   → `ProcUtil.BuildPsi`
+
+其余收敛：锁冲突提示文案（7 处两种，其中 4 处**根本不告诉用户怎么办**）、
+`/model import` 与 `/provider import` 的源解析（逐字相同）、视觉列换算
+（`AnsiHelper.VisualColToCharIndex`）、diff 区间合并（`UnifiedDiff.MergeRanges`）、会话转录构建、
+列表导航键表（`TuiListNav`）、待办列表前置（`TodoStore.LoadFiltered`）、GUI 供应商扫描
+（`ProviderScanner`）、审计工具复用按键测试的 ANSI 模拟器。
+
+跨端工具清单（桌面 vs MAUI）**刻意分开**、无法合并，改为加护栏：断言
+「桌面 − MAUI == 已知进程类集合」，漂移即红。
+
+### 五、大文件拆分
+
+| 文件 | 前 | 后 |
+|---|---|---|
+| `Test/SelfTest.Helpers.cs` | 5968 行 / 122 方法 | **7 个文件**（Doc / Regression / Infra / Web / Context / Model + 保留） |
+| `Test/SelfTest.Chunk8.cs` | 2747 行（单方法 27 个 Section） | **3 个文件**（Chunk8 / Chunk8Dialog / Chunk8Ui） |
+
+均为纯移动（`SelfTest` 本就是 `partial class`），自测逐项一致。拆分中发现一处跨段依赖
+（`cols`/`rows` 定义在段 2、被段 3 使用），已让段 3 自带定义。
+
+### 六、code-review 6 条 findings（全部处理）
+
+- **尺寸保底丢失**：删掉 `TuiAudit` 手写解析时，它开头的 `rows/cols = Math.Max(…,1)` 一起没了，
+  而 `FrameBuffer` 不钳制尺寸 ⇒ 0 尺寸会让 `Math.Clamp(min>max)` 抛异常，三条调用路径都无
+  `try/catch` ⇒ **整个 `--test` / `--tui-audit` 中断**（而不是报一条 ❌）。已将钳制收口到构造函数
+- **`EraseLine(mode==1)` 满行越界**：`to = _curC` 不设限，而写字符路径 `_curC += w` 从不钳到
+  `_cols-1` ⇒ 满行 + `\x1b[1K` 越界。接上模拟器后这条路径从「不可达」变「可达」
+- **我加的三条断言对新旧实现都通过**（钉不住重构）→ 换成 5 条能区分的语义断言；顺带查出
+  一处**真实语义缺陷**：写字符落在宽字符延续格时没有打断该宽字符（新旧两版都给 `"中X"`，
+  而真实终端给 `" X"`）
+- **`FrameBuffer` 下沉到 `UI/Shared/Terminal/`**：原先嵌在 `Test/` 里，而 `Test/**` 被 Release
+  构建与 MAUI 双双排除 ⇒「唯一的 ANSI 屏幕模拟器」在发布版和移动端**根本不存在**
+- 补「生产 `FrameSnapshot` / 测试 `FrameBuffer` 两套解析器」的**对照用例**（此前无任何用例比较
+  两者）；`FrameSnapshot.Parse` 的完全委托待 Windows 侧验证（它在 WPF 预览的渲染路径上）
+- 删掉因解析器移除而死掉的 `using`
+
 ## v0.96.105 (2026-09-11) — 换盘建项目时个人技能「消失」（FindSkillDirs 边界失效）
 
 3 文件，**+49 / −12 行**；自测 **+4 条护栏**。
