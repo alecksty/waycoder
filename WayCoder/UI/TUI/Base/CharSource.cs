@@ -1,5 +1,7 @@
 using WayCoder.UI.Shared.Terminal;
 
+using System.Text;
+
 namespace WayCoder.UI.TUI.Base;
 
 /// <summary>
@@ -160,10 +162,14 @@ public sealed class WindowsCharSource : ICharSource, IDisposable
 
     public WindowsCharSource() : this(Console.OpenStandardInput()) { }
 
-    /// <summary>测试/自定义流注入构造（生产走无参 = Console 标准输入）。</summary>
-    public WindowsCharSource(Stream stdin)
+    /// <summary>测试/自定义流注入构造（生产走无参 = Console 标准输入）。
+    /// <paramref name="legacyOverride"/> / <paramref name="legacyCodePage"/> 显式指定回退解码
+    /// （不传则跟随 <see cref="WinConsoleMode"/> 的当前状态）。</summary>
+    public WindowsCharSource(Stream stdin, Encoding? legacyOverride = null, uint legacyCodePage = 0)
     {
         _stdin = stdin;
+        _legacyOverride = legacyOverride;
+        _legacyCpOverride = legacyCodePage;
         _reader = new Thread(ReadLoop) { IsBackground = true, Name = "waycoder-win-char-source" };
         _reader.Start();
     }
@@ -196,12 +202,19 @@ public sealed class WindowsCharSource : ICharSource, IDisposable
     // 丢弃起始字节/把半字符解成 U+FFFD）；代理对（emoji 等 >U+FFFF）解出两个 char，先返回高位、
     // 低位存 _pendingSurrogate 下次返回（原实现只取 s[0] 丢低位，code-review finding）。
     private readonly List<byte> _pending = new();
+    private readonly Queue<char> _pendingChars = new(); // 回退解码一次解出多个字符时的余量
     private char _pendingSurrogate;
+
+    /// <summary>严格 UTF-8：非法序列必须**抛**出来，才分得清「这是 UTF-8」还是「这是别的编码的字节」。
+    /// <c>Encoding.UTF8</c> 会用 U+FFFD 悄悄替换，那样「字节其实不是 UTF-8」这件事就看不见了 ——
+    /// 而那正是 TUI 打字乱码的判据（见 <see cref="TryLegacyDecode"/>）。</summary>
+    private static readonly System.Text.UTF8Encoding StrictUtf8 = new(false, true);
 
     public bool TryReadChar(out char c)
     {
         c = '\0';
         if (_pendingSurrogate != '\0') { c = _pendingSurrogate; _pendingSurrogate = '\0'; return true; }
+        if (_pendingChars.Count > 0) { c = _pendingChars.Dequeue(); return true; }
 
         if (_pending.Count == 0)
         {
@@ -214,9 +227,18 @@ public sealed class WindowsCharSource : ICharSource, IDisposable
         }
 
         byte lead = _pending[0];
-        if (lead < 0x80) { _pending.Clear(); c = (char)lead; return true; } // ASCII
+        if (lead < 0x80) { _pending.RemoveAt(0); c = (char)lead; return true; } // ASCII
 
-        // 从首字节估算续字节数；不足则留在 _pending 等下次（不丢、不产生 U+FFFD）。
+        // 输入字节的编码是**控制台的属性**（`GetConsoleCP`），不是逐串猜出来的 —— 按该页自己的
+        // 字节规则切分，切完直接解，不做「先试 UTF-8、不合法再换页」：那个顺序有两个坑，
+        // ① GBK 前导字节落在 UTF-8 的 3 字节区间（0xE0-0xEF）时会白等一个**永远不来**的第三字节
+        //    （表现：最后一个中文字卡住不出，要等下一个按键才补上）；
+        // ② 大量 GBK 双字节恰好是**合法 UTF-8**（`一` = D2 BB → 解成 U+04BB 之类），先试 UTF-8
+        //    会把它们静静地解成别的字符 —— 正是「乱码」最难查的那种形态。
+        var legacy = LegacyEncoding;
+        if (legacy != null) return TryLegacyDecode(legacy, ref c);
+
+        // UTF-8：从首字节估算续字节数；不足则留在 _pending 等下次（不丢、不产生 U+FFFD）。
         int expected = lead switch
         {
             >= 0xF0 => 3, >= 0xE0 => 2, >= 0xC0 => 1, _ => 0,
@@ -226,24 +248,69 @@ public sealed class WindowsCharSource : ICharSource, IDisposable
             if (!_bytes.TryDequeue(out var b)) return false; // 续字节未齐：等待下轮
             _pending.Add(b);
         }
-        var seq = _pending.ToArray();
-        _pending.Clear();
-        try
-        {
-            var s = System.Text.Encoding.UTF8.GetString(seq, 0, seq.Length);
-            if (s.Length == 0) return false;
-            if (s.Length == 2) // 代理对：高位先返回，低位缓存
-            {
-                c = s[0];
-                _pendingSurrogate = s[1];
-                return true;
-            }
-            c = s[0];
-            return true;
-        }
-        catch { /* 非法序列丢弃 */ }
+        if (TryUtf8(expected + 1, out c)) { _pending.RemoveRange(0, expected + 1); return true; }
+
+        // 非法 UTF-8 且没有别的页可依（输入页就是 UTF-8）：丢掉这 1 字节继续，不吐 U+FFFD 脏字符。
+        // 丢掉的那个字节此后会被后续的 lead 规则接着丢，不会卡住。
+        _pending.RemoveAt(0);
         return false;
     }
+
+    /// <summary>按 UTF-8 解 <c>_pending</c> 的前 count 字节；非法（含被切断的序列）返回 false。</summary>
+    private bool TryUtf8(int count, out char c)
+    {
+        c = '\0';
+        try
+        {
+            var s = StrictUtf8.GetString(_pending.ToArray(), 0, count);
+            if (s.Length == 0) return false;
+            c = s[0];
+            if (s.Length > 1) _pendingSurrogate = s[1]; // 代理对：低位下次返回
+            return true;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// 按「控制台输入代码页」的字节规则解码 —— 输入页不是 UTF-8 时（中文系统 936/GBK），conhost
+    /// 就是把非 ASCII 按键按**该页**编码后送进输入缓冲的：DBCS 用「前导字节 + 1 尾字节」，其余 1 字节。
+    /// 与 UTF-8 的字节数规则不同（GBK 一个汉字 2 字节，UTF-8 是 3），所以必须按页切而不是按 UTF-8 切。
+    ///
+    /// 正常路径不该走到这里：<c>WinConsoleMode.EnsureInputCodePage</c> 会把输入页切成 UTF-8。
+    /// 本方法是那道切换没生效（或 `!` 命令里 `chcp` 改回去）时的兜底 —— 宁可按原页解对，也不吐乱码。
+    /// </summary>
+    private bool TryLegacyDecode(Encoding enc, ref char c)
+    {
+        int need = WinConsoleMode.IsDbcsLead(LegacyCodePage, _pending[0]) ? 2 : 1;
+        while (_pending.Count < need)
+        {
+            if (!_bytes.TryDequeue(out var b)) return false; // 尾字节未齐：等下一轮
+            _pending.Add(b);
+        }
+        var s = enc.GetString([.. _pending.Take(need)]);
+        _pending.RemoveRange(0, need);
+        if (s.Length == 0) return false;
+        c = s[0];
+        // 该页也解不出来（尾字节非法）→ 丢弃、不把 U+FFFD 塞进输入框
+        if (c == '�') return false;
+        for (int i = 1; i < s.Length; i++) _pendingChars.Enqueue(s[i]); // 一次解出多字符：余量入队
+        return true;
+    }
+
+    /// <summary>
+    /// 回退解码用的编码。**生产走「跟随 WinConsoleMode 当前状态」**（每次解码现取，不缓存）——
+    /// 因为本源在 `InputManager.Init` 里创建，而 `WinConsoleMode.Enable` 要到 `TuiManager.Enter`
+    /// 才跑（重定向 stdin 那条路是 Init 里就跑，两条路顺序相反），构造时快照必然踩空。
+    /// 显式传参供测试注入。
+    /// </summary>
+    public Encoding? LegacyEncoding => _legacyOverride ?? WinConsoleMode.LegacyInputEncoding;
+
+    /// <summary>回退解码的代码页（判 DBCS 前导字节用）；显式传参优先，否则跟随 WinConsoleMode。</summary>
+    public uint LegacyCodePage => _legacyCpOverride != 0 ? _legacyCpOverride : WinConsoleMode.OriginalInputCodePage;
+
+    private readonly Encoding? _legacyOverride;
+    private readonly uint _legacyCpOverride;
+
 
     public bool TryReadKey(out ConsoleKeyInfo key)
     {
