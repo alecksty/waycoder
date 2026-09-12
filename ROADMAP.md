@@ -101,12 +101,12 @@
 | ✅ Diff-based Code Review | v0.16.2 | `git diff HEAD` 替代全文件内容 |
 | ✅ Checkpoint 持久化 | v0.16.2 | 磁盘恢复检查点列表，重启后 `/undo` 不丢失 |
 | ✅ AGENTS.md 支持 | v0.16.1 | 同时搜索 CLAUDE.md / AGENTS.md / .cursorrules |
-| ✅ 对话历史搜索 | v0.16.0 | `/history` + `Ctrl+Y` 交互搜索 |
+| ✅ 对话历史搜索 | v0.16.0 | `/history` + `Ctrl+F` 交互搜索（原 `Ctrl+Y`，已让回输入框重做） |
 | ✅ 用量统计面板 | v0.16.2 | `/stats` 模型/Token/花费/延迟全维度 |
 | ✅ 自定义提示词模板 | v0.16.0 | 扫描 `.waycoder/prompt.md` 及 `.waycoder/*.md` |
 | ✅ 项目初始化向导 | v0.16.0 | `waycoder --init` 创建配置目录和模板 |
 | ✅ 输入历史 | v0.16.0 | ↑↓ 200 条，去重相邻重复 |
-| ✅ 模型热键切换 | v0.16.0 | `Ctrl+M` 循环切换 4 个大模型 |
+| ✅ 模型热键切换 | v0.16.0 | `Ctrl+M` 打开模型选择框（原为循环切换，现经选择框切换） |
 | ✅ Tab 路径补全 | v0.16.0 | 最长公共前缀 + 候选列表 |
 | ✅ 自动 Test 循环 | v0.16.3 | `AppendTestFeedbackAsync` + 6 种构建系统 + 60s 防抖 |
 | ✅ Prompt 缓存追踪 | v0.17.0 | SHA256 本地检测 + /stats 面板展示节省量 |
