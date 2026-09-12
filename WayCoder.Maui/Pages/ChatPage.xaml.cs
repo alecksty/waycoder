@@ -790,6 +790,10 @@ public partial class ChatPage : ContentPage
                         }
                         else
                         {
+                            // 没有可见内容的碎片不建气泡：LLM 在每段正文开头送一口换行（如思考结束的
+                            // `"«/»\n"`）—— 光凭它建泡，「模型想完直接调工具」就会在工具行前留一个空泡
+                            // （用户实测 Web 端「很多空泡泡，没有任何内容」；判据四端同一份 VisibleText）
+                            if (seg == null && !WayCoder.UI.Shared.VisibleText.HasVisible(token)) return;
                             // 正文 token：惰性建段。工具打断后 seg 为 null，新正文在此另起气泡 → 与工具组交错
                             if (seg == null)
                             {

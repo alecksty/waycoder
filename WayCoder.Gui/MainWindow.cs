@@ -40,6 +40,9 @@ public partial class MainWindow : Window
 
     /// <summary>各槽位是否在接收推理内容（«dim»…«/»，对齐 Web reasoning 分流）。</summary>
     private readonly bool[] _inReasoning = new bool[SlotCount];
+    /// <summary>各槽位思考块内**未闭合**的 «» 标记层数（`«dim»` 算第 1 层）——推理里可以嵌别的
+    /// 标记（LLM 超长时注入 `«orange3»… 思考内容过长…«/»`），只有减到 0 才是思考块收尾。</summary>
+    private readonly int[] _reasoningDepth = new int[SlotCount];
     /// <summary>当前工具调用组（折叠成一行「🔧 工具调用:N 次」；明细点开看）</summary>
     private readonly ChatMessage?[] _toolGroup = new ChatMessage?[SlotCount];
     /// <summary>自上个工具以来是否出现过内容（新思考块/新正文段）→ 下个工具新开一组（对齐 MAUI）</summary>
@@ -296,9 +299,23 @@ public partial class MainWindow : Window
     /// </summary>
     private void FinalizeStreaming(int slot)
     {
-        foreach (var m in _messages[slot])
-            if (m.Streaming)
-                m.Streaming = false;
+        bool dropped = false;
+        var list = _messages[slot];
+        for (var i = list.Count - 1; i >= 0; i--)
+        {
+            var m = list[i];
+            if (!m.Streaming) continue;
+            m.Streaming = false;
+            // 没有任何可见内容的正文泡**不发**：只攒了空白/不可见字符，或被「发送时预建」后这轮
+            // 干脆没出正文（模型想完直接调工具）—— 用户实测「很多空泡泡，没有任何内容」。
+            // 判据与 Web 的 endSeg 一致（只有空白或不可见字符 = 没内容）。
+            if (m.Role == ChatRole.Assistant && !VisibleText.HasVisible(m.Text.ToString()))
+            {
+                list.RemoveAt(i);
+                dropped = true;
+            }
+        }
+        if (dropped) RebuildMessages(slot);
     }
 
     // ── 右侧数据面板（2s 定时刷新，对齐 Web /panel）──

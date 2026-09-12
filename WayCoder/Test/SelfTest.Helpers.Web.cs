@@ -849,7 +849,7 @@ public static partial class SelfTest
         // 不在思考块里必须**原样保留**（否则标记失配、颜色错位），更不能把正文当思考吞掉 ——
         // 曾经无条件 thinkAppend，用户实测「完全不聊天了，所有内容都是已思考 n 秒」。
         Check("Prefix: 只在思考块内吃 «/»，否则原样留给 Markdown 配对",
-            tokenFn.Contains("else if (think) { endThink();") && tokenFn.Contains("emitTokenPiece('«/»')"));
+            tokenFn.Contains("else if (think) {") && tokenFn.Contains("emitTokenPiece('«/»')"));
         var histFn = JsBody(html, "renderHistoryChunked");
         Check("Prefix: 历史重放分帧（每帧 15 条 + rAF 续帧）",
             histFn.Contains("requestAnimationFrame(step)") && histFn.Contains("i + 15")
@@ -871,6 +871,38 @@ public static partial class SelfTest
         var endThinkFn = JsBody(html, "endThink");
         Check("Prefix: 思考折叠成一行（思考中 Ns → 已思考 N 秒）",
             thinkFn.Contains("思考中 ") && endThinkFn.Contains("已思考 "));
+        // ── 回归：思考胶囊**各段自成一泡**（用户实测「老的思考气泡都很难点开」「各个段连在一起」）──
+        // 点击回调曾闭包捕获**可变的 think**：思考一结束 think 被置空 ⇒ 老胶囊读到 null ⇒ 抛错点不开；
+        // 新思考进行中时又会开到最新那块 ⇒ 所有胶囊像共用一块。必须捕获**自己那个块对象**。
+        var ensureThinkFn = JsBody(html, "ensureThink");
+        Check("Prefix: 思考胶囊捕获自己的块对象（不是可变的 think）",
+            ensureThinkFn.Contains("const block = {") && ensureThinkFn.Contains("showThinkDetail(block)")
+            && !ensureThinkFn.Contains("showThinkDetail(think)"));
+        // ── 回归：思考块按「层数」收尾，不是见到 «/» 就关 ──
+        // 推理里可嵌别的 «» 标记（LLM 超长时注入 `«orange3»… 思考内容过长…«/»`）；逐层配对才不会把
+        // 块内的 «/» 当收尾（否则其后的推理漏进正文段、还多出一个裸 «/»）。GUI 同规则（AppendToken）。
+        var handleTokenFn = JsBody(html, "handleToken");
+        Check("Prefix: 思考块逐层配对收尾（层数减到 0 才 endThink）",
+            html.Contains("function markupOpeners") && handleTokenFn.Contains("thinkDepth--")
+            && handleTokenFn.Contains("if (thinkDepth <= 0) endThink()"));
+        Check("Prefix: 推理前那口换行不另起正文段（否则空泡排在胶囊前面）",
+            handleTokenFn.Contains("if (useDim) { if (pre.trim()) emitTokenPiece(pre); }"));
+        Check("Prefix: 工具到来时思考块就地定稿（兜底，不依赖服务端补 «/»）",
+            toolStartFn.Contains("endThink()"));
+        // ── 回归：没有可见内容的正文泡不该发（用户实测「很多空泡泡，没有任何内容」）──
+        // 来源：LLM 每段正文开头送一口换行（思考结束就是 `"«/»\n"`）。光凭它建泡，
+        // 「模型想完直接调工具」（这轮没有正文）就会在工具行前留下一个空泡。
+        var segAppendFn = JsBody(html, "segAppend");
+        var endSegFn = JsBody(html, "endSeg");
+        Check("Prefix: 只有空白/不可见字符的碎片不建正文泡",
+            html.Contains("function isBlankText") && segAppendFn.Contains("if (isBlankText(s)) return;"));
+        Check("Prefix: 收尾时撤掉没有任何内容的空泡",
+            endSegFn.Contains("hasVisibleText(rendered)") && endSegFn.Contains("removeChild(segEl)"));
+        // 不可见字符表与 C# 侧 VisibleText 是同一份（跨语言各写一遍，改动必须两处同步）：
+        // 零宽空间/BOM/软连字符都在里面 —— 只判 trim() 是不够的
+        Check("Prefix: 不可见字符表含零宽/BOM/软连字符（不只是 trim）",
+            html.Contains("\\u200B-\\u200F") && html.Contains("\\uFEFF") && html.Contains("\\u00AD")
+            && html.Contains("\\uFE00-\\uFE0F"));
         Check("Prefix: raw 文本先剥 «» 内部标记再上色",
             html.Contains("function stripMarkupTags")
             && html.Contains("ansiToHtml(stripMarkupTags(text))"));

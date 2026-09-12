@@ -295,6 +295,7 @@ public partial class MainWindow
         {
             FinalizeStreaming(slot); // 流式结束定稿
             _inReasoning[slot] = false; // 复位推理标记：中途停止未收到 «/» 时，下条回复才不会误入推理气泡
+            _reasoningDepth[slot] = 0;
             // 折叠状态收口：解绑当前工具组（下轮工具另起一组）、清内容间断标记；
             // 未收到 «/» 就中断的思考也要把标题定稿，否则一直显示「思考中 Ns」
             _toolGroup[slot] = null;
@@ -412,7 +413,9 @@ public partial class MainWindow
     }
 
     /// <summary>取当前流式中的 assistant 消息（没有则新建），供 onToken 追加。</summary>
-    private ChatMessage EnsureAssistant(int slot)
+    /// <summary>当前流式正文泡；<paramref name="create"/> 为 false 时只探测不新建
+    /// （「没有可见内容的碎片不建泡」要用它判断「本来就没有泡」）。</summary>
+    private ChatMessage? EnsureAssistant(int slot, bool create = true)
     {
         var list = _messages[slot];
         for (var i = list.Count - 1; i >= 0; i--)
@@ -421,9 +424,27 @@ public partial class MainWindow
             if (list[i].Role == ChatRole.Assistant && list[i].Streaming) return list[i];
         }
 
+        if (!create) return null;
         var msg = new ChatMessage(ChatRole.Assistant) { Streaming = true };
         AddMessage(slot, msg);
         return msg;
+    }
+
+    /// <summary>数一段文本里**开启**的 «» 标记个数（`«x»`；不含思考开始符 `«dim»` 与结束符 `«/»`）。
+    /// 用于思考块的「层数」配对 —— `«/»` 只能关掉一层，见 <see cref="AppendToken"/>。</summary>
+    private static int CountMarkupOpeners(string s)
+    {
+        int n = 0;
+        for (int i = 0; i < s.Length; i++)
+        {
+            if (s[i] != '«') continue;
+            int end = s.IndexOf('»', i + 1);
+            if (end < 0) break; // 标记被切成两半：剩下半截不含完整标记
+            var body = s.AsSpan(i + 1, end - i - 1);
+            if (body.Length > 0 && body[0] != '/' && !body.SequenceEqual("dim")) n++;
+            i = end;
+        }
+        return n;
     }
 
     /// <summary>追加推理内容（«dim»/«/» 标记分流，对齐 Web reasoning 独立气泡）。</summary>
@@ -435,28 +456,49 @@ public partial class MainWindow
         //   只在「当前确实在思考块里」时才把它当思考结束处理并吃掉，否则**原样保留**给
         //   MarkdownInlines 配对（否则 `«cyan»…«/»` 的结束符被剥掉 → 标记失配、颜色渲染错位）。
         //   Web 端曾因把它无条件当思考结束，把普通正文整段吞进思考气泡（用户实测「完全不聊天了」）。
-        bool wasReasoning = _inReasoning[slot];
+        // ⚠ 第二条：**结束思考块要看层数，不是见到 `«/»` 就关** —— 推理里可以嵌别的标记
+        //   （LLM 超长时注入 `«orange3»… 思考内容过长…«/»`）。逐层配对才不会把块内的 `«/»`
+        //   当收尾：否则其后的推理漏进正文泡、还多出一个裸 `«/»`（Web 同规则，见 app.js handleToken）。
         if (token.Contains("«dim»"))
         {
             _inReasoning[slot] = true;
+            _reasoningDepth[slot] = 1;        // «dim» 自身算第 1 层
             _interruptSinceTool[slot] = true; // 新思考块 = 内容间断 → 下个工具新开一组（对齐 MAUI）
         }
+        else if (_inReasoning[slot])
+        {
+            _reasoningDepth[slot] += CountMarkupOpeners(token); // 块内嵌套的 «x» 各占一层
+        }
+
+        // 本 token 里的 «/» 逐层配对：减到 0 才是思考块**真正的**收尾
+        bool closesThink = false;
         if (_inReasoning[slot] && token.Contains("«/»"))
         {
-            _inReasoning[slot] = false;
-            foreach (var m in _messages[slot])
-                if (m is { Role: ChatRole.Reasoning, Streaming: true })
-                {
-                    // 思考块结束：标题定稿成「已思考 N 秒」
-                    m.Streaming = false;
-                    m.ThinkingDone = true;
-                    m.ThinkingSeconds = Math.Max(1, (int)Math.Round((DateTime.UtcNow - m.ThinkStart).TotalSeconds));
-                    if (slot == _activeSlot) RequestRender(m);
-                }
+            _reasoningDepth[slot] -= FileText.CountOccurrences(token, "«/»");
+            if (_reasoningDepth[slot] <= 0)
+            {
+                _reasoningDepth[slot] = 0;
+                _inReasoning[slot] = false;
+                closesThink = true;
+                foreach (var m in _messages[slot])
+                    if (m is { Role: ChatRole.Reasoning, Streaming: true })
+                    {
+                        // 思考块结束：标题定稿成「已思考 N 秒」
+                        m.Streaming = false;
+                        m.ThinkingDone = true;
+                        m.ThinkingSeconds = Math.Max(1, (int)Math.Round((DateTime.UtcNow - m.ThinkStart).TotalSeconds));
+                        if (slot == _activeSlot) RequestRender(m);
+                    }
+            }
         }
 
         var clean = token.Replace("«dim»", "");
-        if (wasReasoning || token.Contains("«dim»")) clean = clean.Replace("«/»", ""); // 只吃思考块的结束符
+        if (closesThink)
+        {
+            // 只吃**思考块自己那个**收尾符（最后一个 «/»）：块内嵌套标记的结束符要留着配对
+            int last = clean.LastIndexOf("«/»", StringComparison.Ordinal);
+            if (last >= 0) clean = clean.Remove(last, 3);
+        }
         if (string.IsNullOrEmpty(clean)) return;
 
         if (_inReasoning[slot])
@@ -473,7 +515,11 @@ public partial class MainWindow
             return;
         }
 
-        var msg = EnsureAssistant(slot);
+        // 没有可见内容的碎片不建气泡：LLM 在每段正文开头送一口换行（如思考结束的 `"«/»\n"`）。
+        // 光凭它建泡，「模型想完直接调工具」（这一轮没有正文）就会在工具行前留一个空泡 ——
+        // 用户实测 Web 端「很多空泡泡，没有任何内容」「只有空格或者不可见字符的泡泡，不发」（同规则）。
+        if (!VisibleText.HasVisible(clean) && EnsureAssistant(slot, create: false) == null) return;
+        var msg = EnsureAssistant(slot)!;
         AppendCapped(msg.Text, clean);
         _interruptSinceTool[slot] = true; // 正文段出现 = 内容间断 → 下个工具新开组
         if (slot != _activeSlot) return; // 非活跃槽位只累积，不渲染

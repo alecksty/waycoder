@@ -417,6 +417,35 @@ public static partial class SelfTest
             && ToolRegistry.IsRawOutput("bash"));
     }
 
+    /// <summary>
+    /// 「这段文本有没有可见内容」的唯一判据（四端共用）：只有空白或**不可见字符**的正文泡**不发**。
+    /// LLM 在每段正文开头送一口换行（思考结束那一下就是 `"«/»\n"`），光凭它建泡就会留下一个空气泡 ——
+    /// 用户实测 Web 端「很多空泡泡，没有任何内容」「只有空格或者不可见字符的泡泡，不发」。
+    /// </summary>
+    private static void TestVisibleText(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("[可见内容判据：空泡不发]");
+
+        Check("VisibleText: 空/null 没有内容",
+            !VisibleText.HasVisible(null) && !VisibleText.HasVisible(""));
+        Check("VisibleText: 纯空白没有内容", !VisibleText.HasVisible(" \t\r\n  "));
+        // 这几类是 .NET `char.IsWhiteSpace` **不认**的「占了码位却看不见」——
+        // 必须显式列出，否则「只有零宽空格」的气泡会被判成有内容（那张表与 Web 端 app.js 同一份）
+        Check("VisibleText: 零宽空格/连接词/方向标记没有内容",
+            !VisibleText.HasVisible("\u200B\u200C\u200D\u200E\u200F"));
+        Check("VisibleText: BOM / 软连字符 / 词连接符 / 阿拉伯字母标记没有内容",
+            !VisibleText.HasVisible("\uFEFF\u00AD\u2060\u061C"));
+        Check("VisibleText: 谚文/半宽填充符没有内容",
+            !VisibleText.HasVisible("\u3164\uFFA0\u115F\u1160"));
+        Check("VisibleText: 控制字符没有内容",
+            !VisibleText.HasVisible("\u0001\u0008\u001F\u007F\u009F"));
+        Check("VisibleText: 空白 + 零宽 + 变体选择符混合仍没有内容",
+            !VisibleText.HasVisible("\n" + "\u200B\uFE0F\u180E" + " \t"));
+        Check("VisibleText: 有可见字符就算有内容",
+            VisibleText.HasVisible("a") && VisibleText.HasVisible(" 中 ")
+            && VisibleText.HasVisible("\u200B" + "有") && VisibleText.HasVisible("。"));
+    }
+
     /// <summary>工具调用调度器（ToolCallScheduler）：ExecutionMode 分批 + 有界并发 + 工具模式标注。</summary>
     private static void TestToolScheduler(Action<string, bool> Check)
     {
