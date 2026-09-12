@@ -10,6 +10,9 @@ namespace WayCoder.Tools;
 /// </summary>
 public class LintTool : ITool
 {
+    /// <summary>eslint/tsc/dotnet 等 lint 进程的原始输出（带列号的诊断行）→ 命令行文本渲染</summary>
+    public bool RawOutput => true;
+
     public string Name => "lint";
     public string Description => "对指定文件或目录运行静态检查（lint/编译检查），返回错误和警告列表。支持 C#、Python、JS/TS、Go、Rust、Java、C/C++、Ruby、PHP、Swift、Kotlin、Lua、Shell、CSS、Vue 等。";
 

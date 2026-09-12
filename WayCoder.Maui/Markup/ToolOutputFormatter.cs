@@ -36,6 +36,13 @@ public static class ToolOutputFormatter
     {
         var fs = new FormattedString();
         if (string.IsNullOrEmpty(content)) return fs;
+
+        // 外部工具（bash / git / sqlite / 测试运行器 …）的输出是进程原始字节，可能带裸 ANSI 转义序列。
+        // 移动端不做 ANSI 上色，但**必须先剥掉**，否则详情页直接显示「[0;32m…」一坨乱码 ——
+        // TUI 交给终端解释、Web 走 ansiToHtml 解码，三端呈现同一份命令行文本。
+        if (content.Contains(WayCoder.UI.Shared.Terminal.AnsiTty.AnsiCharPrefix))
+            content = WayCoder.UI.Shared.AnsiHelper.StripAnsi(content);
+
         if (content.Length > 100_000) return MarkupToFormattedString.Convert(content, isDark);
 
         // 1) «» 中间格式（write/edit diff 已带色）直接解码

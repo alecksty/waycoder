@@ -8,6 +8,9 @@ namespace WayCoder.Tools;
 /// </summary>
 public class PsTool : ITool
 {
+    /// <summary>tasklist/ps 的原始输出 → 命令行文本渲染</summary>
+    public bool RawOutput => true;
+
     public string Name => "ps";
     public string Description => "列出当前正在运行的进程。可传 name 过滤进程名。返回 PID、进程名、内存占用。";
 

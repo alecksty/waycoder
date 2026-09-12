@@ -994,6 +994,23 @@ public static partial class SelfTest
 
         // ---- CJK 宽度计算 (AnsiHelper) ----
         Section("[CJK 宽度]");
+        // 裸 ANSI 剥离（外部工具输出：TUI 交给终端、Web 解成颜色、移动端必须先剥掉再进富文本）
+        Check("StripAnsi: 无转义原样返回", UI.Shared.AnsiHelper.StripAnsi("普通文本") == "普通文本");
+        Check("StripAnsi: SGR 颜色剥掉、正文保留",
+            UI.Shared.AnsiHelper.StripAnsi("\x1b[0;32m✅ ok\x1b[0m") == "✅ ok");
+        Check("StripAnsi: 连续多段颜色",
+            UI.Shared.AnsiHelper.StripAnsi("\x1b[1m粗\x1b[0m \x1b[31m红\x1b[0m") == "粗 红");
+        Check("StripAnsi: CJK 与换行不受影响",
+            UI.Shared.AnsiHelper.StripAnsi("\x1b[36m你好\n世界\x1b[0m") == "你好\n世界");
+        Check("StripAnsi: 光标控制序列（非 m 结尾）也剥掉",
+            UI.Shared.AnsiHelper.StripAnsi("a\x1b[2Kb\x1b[1Ac") == "abc");
+        Check("StripAnsi: OSC 标题（BEL 结尾）剥掉",
+            UI.Shared.AnsiHelper.StripAnsi("\x1b]0;标题\a正文") == "正文");
+        Check("StripAnsi: 被截断的序列不抛异常",
+            UI.Shared.AnsiHelper.StripAnsi("abc\x1b[") == "abc");
+        Check("StripAnsi: null / 空串安全",
+            UI.Shared.AnsiHelper.StripAnsi(null) == "" && UI.Shared.AnsiHelper.StripAnsi("") == "");
+
         Check("ASCII 宽度=1", UI.Shared.AnsiHelper.DisplayWidth("abc") == 3);
         Check("中文 宽度=2", UI.Shared.AnsiHelper.DisplayWidth("你好") == 4);
         Check("中英混合", UI.Shared.AnsiHelper.DisplayWidth("hi你好") == 6);

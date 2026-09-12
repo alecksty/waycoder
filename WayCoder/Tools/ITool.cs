@@ -22,6 +22,18 @@ public interface ITool
     /// <summary>工具名称，用于 LLM function calling</summary>
     string Name { get; }
 
+    /// <summary>
+    /// 输出是否为「外部进程的原始字节」（bash / git / sqlite / ps / 测试运行器 / lint / lsp …）。
+    ///
+    /// true 时**各端必须按命令行文本渲染**：UTF-8 编码、等宽字体、保留换行与列对齐，并解码裸 ANSI；
+    /// **不得当 markdown/富文本解析** —— shell 输出里的 `#`、`- `、`|` 会被渲染成标题/列表/表格，
+    /// 大字号标题 + 折叠的连续空格把等宽对齐全毁（Web 端实测：工具气泡与 `!` 直通气泡显示不一致）。
+    ///
+    /// 判据是「**输出从哪来**」：进程字节 → true；工具自产的结构化文本（«» 标记、diff、列表）→ false。
+    /// 这是唯一真源，前端据此分派，不要在前端再维护一份工具名单。
+    /// </summary>
+    bool RawOutput => false;
+
     /// <summary>工具描述</summary>
     string Description { get; }
 

@@ -6,6 +6,9 @@ namespace WayCoder.Tools;
 /// </summary>
 public class JobOutputTool : ITool
 {
+    /// <summary>后台任务输出＝shell 进程原始字节 → 命令行文本渲染</summary>
+    public bool RawOutput => true;
+
     public string Name => "job_output";
     public string Description => "读取后台运行任务的最新输出。使用 bash 的 run_in_background 参数启动的任务可通过此工具查询结果。";
 

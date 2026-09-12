@@ -10,6 +10,55 @@ namespace WayCoder.UI.Shared;
 /// </summary>
 public static class AnsiHelper
 {
+    // ---- 裸 ANSI 剥离 ----
+
+    /// <summary>
+    /// 剥掉裸 ANSI 转义序列（CSI 颜色/光标、OSC 标题等），保留可见正文。无转义时原样返回（快路径）。
+    ///
+    /// 用途：**外部进程的输出**（bash / git / sqlite / 测试运行器 …）带的是终端控制字节。
+    /// 各端呈现方式不同 —— CLI/TUI 直接透传给终端解释、Web 走 <c>ansiToHtml</c> 解成颜色、
+    /// 不支持的端（移动端富文本）必须先剥掉，否则页面上就是一坨「[0;32m…」乱码。
+    /// 「这算不算外部输出」的唯一真源是 <see cref="WayCoder.Tools.ITool.RawOutput"/>（前端按它分派）。
+    /// </summary>
+    public static string StripAnsi(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return text ?? "";
+        if (text.IndexOf(AnsiTty.AnsiCharPrefix) < 0) return text; // 绝大多数文本没有转义，避免无谓分配
+
+        var sb = new StringBuilder(text.Length);
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (text[i] != AnsiTty.AnsiCharPrefix) { sb.Append(text[i]); continue; }
+
+            i++;
+            if (i >= text.Length) break;
+
+            if (text[i] == AnsiTty.AnsiCharEscape)
+            {
+                // CSI：参数字节 0x30-0x3F / 中间字节 0x20-0x2F，终止字节 0x40-0x7E
+                i++;
+                while (i < text.Length && text[i] < '@') i++;
+                // 循环 i++ 跳过终止字节；序列被截断（i 越界）时循环自然结束
+            }
+            else if (text[i] == ']')
+            {
+                // OSC：内容直到 BEL 或 ST（ESC \）
+                i++;
+                while (i < text.Length && text[i] != '\a')
+                {
+                    if (text[i] == AnsiTty.AnsiCharPrefix && i + 1 < text.Length && text[i + 1] == '\\') break;
+                    i++;
+                }
+            }
+            else
+            {
+                // 其余转义（ESC ( B 这类字符集切换）：吃掉中间字节，终止字节由循环 i++ 跳过
+                while (i < text.Length && text[i] >= ' ' && text[i] <= '/') i++;
+            }
+        }
+        return sb.ToString();
+    }
+
     // ---- CJK 宽度 ----
 
     /// <summary>

@@ -74,7 +74,10 @@ select optgroup { background:var(--panel); color:var(--text); }
 .msg.reasoning { align-self:flex-start; color:var(--dim); font-size:12.5px; white-space:pre-wrap; word-break:break-word; padding:0 4px; max-width:88%; }
 .tool { align-self:flex-start; background:var(--tool); border:1px solid var(--border); border-radius:12px; padding:7px 13px; font-size:13px; color:var(--dim); }
 .tool b { color:#e8b34b; }
-.tool-output { align-self:stretch; background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:9px 13px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; white-space:pre-wrap; word-break:break-word; color:var(--text); max-height:320px; overflow-y:auto; flex-shrink:0; }
+/* 工具输出气泡与 `!` shell 气泡**同版式**（等宽 + pre-wrap 保换行与列对齐），只差高度上限：
+   工具输出可能很长（320px 滚动），shell 直通输出通常短。字号/行高/内距必须一致，
+   否则同一段 shell 文本在两条路下排版不同。 */
+.tool-output { align-self:stretch; background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:10px 14px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; line-height:1.5; white-space:pre-wrap; word-break:break-word; color:var(--text); max-height:320px; overflow-y:auto; flex-shrink:0; }
 .shell-output { align-self:stretch; background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:10px 14px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; line-height:1.5; white-space:pre-wrap; word-break:break-word; color:var(--text); flex-shrink:0; }
 
 /* ── Markdown 渲染 ── */

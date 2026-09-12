@@ -25,6 +25,9 @@ namespace WayCoder.Tools;
 /// </summary>
 public class ScreenshotTool : ITool
 {
+    /// <summary>终端截取的原始文本 / OCR 结果 → 命令行文本渲染</summary>
+    public bool RawOutput => true;
+
     public string Name => "screenshot";
     public string Description =>
         "抓取屏幕画面供自己查看。target 可选：console（默认，导出当前终端 TUI 纯文本画面，直接可读）；" +

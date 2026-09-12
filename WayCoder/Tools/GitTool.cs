@@ -8,6 +8,9 @@ namespace WayCoder.Tools;
 /// </summary>
 public class GitTool : ITool, ICancellableTool
 {
+    /// <summary>git 子进程的原始输出（status/log/diff 都是按列对齐的）→ 命令行文本渲染</summary>
+    public bool RawOutput => true;
+
     public string Name => "git";
     public string Description => "执行 Git 操作：status、log、diff、add、commit、branch、blame。自动检测仓库根目录。禁止 force push / hard reset。";
 

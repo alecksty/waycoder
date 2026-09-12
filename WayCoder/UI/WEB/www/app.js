@@ -16,6 +16,7 @@ const cq = (p) => p + (p.indexOf('?') >= 0 ? '&' : '?') + 'client=' + clientId;
 // ── 流指针（滚动 bug 修复：assistant 文本流 与 工具输出流 分离）──
 let assistantStreamEl = null;
 let toolOutputEl = null;
+let curToolRaw = false; // 当前工具输出是否为外部进程原始字节（服务端 tool 事件给）→ 决定气泡渲染方式
 let reasoningEl = null;
 let currentProvider = '';
 let hasKey = false;
@@ -114,7 +115,7 @@ function ensureToolOutput() {
   return toolOutputEl;
 }
 function endToolOutput() {
-  if (toolOutputEl) toolOutputEl.innerHTML = renderToolOutput(toolOutputEl.textContent);
+  if (toolOutputEl) toolOutputEl.innerHTML = renderToolOutput(toolOutputEl.textContent, curToolRaw);
   toolOutputEl = null;
 }
 function addReasoning() {
@@ -1643,11 +1644,31 @@ function highlightDiff(text) {
   return out.join('');
 }
 // 工具输出渲染：diff → 着色；含代码块 → Markdown（代码块语法高亮）；否则纯文本转义
-function renderToolOutput(text) {
+// 按「命令行文本」渲染：纯文本 + ANSI 上色 + 等宽 + 保换行与列对齐。
+// `raw` 由服务端在 tool 事件里给出（真源 ToolRegistry.IsRawOutput ← ITool.RawOutput），
+// 前端**不自备工具名单** —— 那种平行表改一处漏一处；另外只要文本里出现 ESC 也走这条路
+//（覆盖未声明 raw 却输出裸 ANSI 的工具）。raw 文本里的 «» 标记是内部格式，命令行视图不该露出，先剥掉。
+function stripMarkupTags(s) { return s.replace(/«[^»]*»/g, ''); }
+
+function renderToolOutput(text, raw) {
   if (!text) return '';
+  if (raw || text.indexOf('\x1b') >= 0) return ansiToHtml(stripMarkupTags(text));
   if (/^(---|\+\+\+|diff --git)/.test(text) || /\n(---|\+\+\+) /.test(text)) return highlightDiff(text);
   if (text.indexOf('```') >= 0) return mdToHtml(text);
   return markupToHtml(text);
+}
+
+// 流式期间也按 ANSI 解码（节流 ~120ms）：结束时的 renderToolOutput 只保证最终态，
+// 而 ANSI 的裸文本流式过程中是**不可读**的乱码（assistant 那种 markdown 裸文本尚可读，故它不节流）。
+// 注意 ansiToHtml 只加 <span> 且文本经 escapeHtml，innerHTML 赋值后 textContent 与原文**逐字相等**，
+// 所以 appendCapped 继续按 textContent 累积不受影响。
+let toolRenderTimer = null;
+function scheduleToolRender(el) {
+  if (toolRenderTimer) return;
+  toolRenderTimer = setTimeout(() => {
+    toolRenderTimer = null;
+    if (el && el.isConnected) el.innerHTML = ansiToHtml(el.textContent);
+  }, 120);
 }
 
 // ── Markdown 渲染（手搓、XSS 安全：先转义再结构化）──
@@ -1789,8 +1810,19 @@ function splitRow(line) {
 const es = new EventSource('/events?client=' + clientId);
 es.onerror = () => { /* 断线自动重连：服务端重放 history+state，isBusy 由 state 处理器按槽位 busy 复位 */ };
 es.addEventListener('token', e => { setBusy(true); handleToken(JSON.parse(e.data)); });
-es.addEventListener('tool', e => { setBusy(true); endReasoning(); finalizeAssistant(); endAssistantStream(); endToolOutput(); const d = JSON.parse(e.data); addTool(d.name, d.args); });
-es.addEventListener('tool_output', e => { appendCapped(ensureToolOutput(), JSON.parse(e.data)); scroll(); });
+es.addEventListener('tool', e => {
+  setBusy(true); endReasoning(); finalizeAssistant(); endAssistantStream();
+  endToolOutput();                       // 先收尾**上一个**气泡（curToolRaw 此刻仍是上一个工具的）
+  const d = JSON.parse(e.data);
+  curToolRaw = !!d.raw;
+  addTool(d.name, d.args);
+});
+es.addEventListener('tool_output', e => {
+  const el = ensureToolOutput();
+  appendCapped(el, JSON.parse(e.data));
+  if (el.textContent.indexOf('\x1b') >= 0) scheduleToolRender(el); // shell 裸 ANSI：流式也解码
+  scroll();
+});
 es.addEventListener('done', () => { setBusy(false); endReasoning(); finalizeAssistant(); endAssistantStream(); endToolOutput(); fetchPanel(); });
 es.addEventListener('interrupted', () => { setBusy(false); endReasoning(); finalizeAssistant(); endAssistantStream(); endToolOutput(); addMsg('system', '⚠ 已中断'); fetchPanel(); });
 es.addEventListener('failed', e => { setBusy(false); endReasoning(); finalizeAssistant(); endAssistantStream(); endToolOutput(); addMsg('system', '✘ ' + JSON.parse(e.data)); fetchPanel(); });
@@ -2051,7 +2083,9 @@ edArea.addEventListener('keydown', e => {
   if (e.key === 'Escape') { e.preventDefault(); closeEditor(); }
   else if (e.ctrlKey && (e.key === 's' || e.key === 'S')) { e.preventDefault(); doSave(); }
   else if (e.ctrlKey && (e.key === 'o' || e.key === 'O')) { e.preventDefault(); toggleTree(); }
-  else if (e.ctrlKey && (e.key === 'n' || e.key === 'N')) { e.preventDefault(); showEditorNewModal(); }
+  // 新建文件用 Alt+N 而非 Ctrl+N：Ctrl+N 是浏览器保留键（Chrome/Edge 直接开新窗口，
+  // 页面 preventDefault 拦不住），按下去只会多一个窗口、新建弹框永远不出现
+  else if (e.altKey && (e.key === 'n' || e.key === 'N')) { e.preventDefault(); showEditorNewModal(); }
   else if (e.ctrlKey && (e.key === 'f' || e.key === 'F')) { e.preventDefault(); showFindBar(); }
   else if (e.ctrlKey && (e.key === 'h' || e.key === 'H')) { e.preventDefault(); showFindBar(); edReplaceInput.focus(); }
 });

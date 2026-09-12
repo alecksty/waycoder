@@ -366,6 +366,11 @@ public partial class MainWindow
     private void AppendToolOutput(int slot, string output)
     {
         FinalizeStreaming(slot);
+        // 外部工具（bash / git / sqlite / 测试运行器…）的输出是进程原始字节，带裸 ANSI 转义序列。
+        // GUI 不做 ANSI 上色，但**必须先剥掉**，否则气泡里显示「[0;32m…」一坨乱码 ——
+        // 与 TUI（终端解释）/Web（ansiToHtml 解码）/移动端（同样剥掉）呈现同一份命令行文本。
+        if (output.Contains(WayCoder.UI.Shared.Terminal.AnsiTty.AnsiCharPrefix))
+            output = WayCoder.UI.Shared.AnsiHelper.StripAnsi(output);
         var truncated = output.Length > 2000
             ? ContextManager.TruncateByRunes(output, 1000) + "\n…（截断，关键信息见尾）…\n" +
               ContextManager.TruncateTailByRunes(output, 1000)

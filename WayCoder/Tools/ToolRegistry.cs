@@ -81,6 +81,17 @@ public static class ToolRegistry
     public static void InvalidateAllToolsCache() => _cachedAllTools = null;
 
     /// <summary>
+    /// 该工具的输出是否为「外部进程原始字节」（bash/git/sqlite/测试运行器…）—— 前端据此按命令行文本
+    /// 渲染（等宽 + 保换行 + 解码 ANSI）而非 markdown。
+    ///
+    /// 判据真源是工具自身的 <see cref="ITool.RawOutput"/>，这里只做按名查询：前端**不要再维护
+    /// 一份工具名单**（那种平行表正是本仓库反复踩的坑：改一处漏一处，且无编译期提示）。
+    /// 未知工具（MCP/插件）默认 false。
+    /// </summary>
+    public static bool IsRawOutput(string name)
+        => AllTools.FirstOrDefault(t => string.Equals(t.Name, name, StringComparison.Ordinal))?.RawOutput ?? false;
+
+    /// <summary>
     /// 子智能体禁止使用的工具名称集合。
     /// 子智能体不能管理进程、做危险删除或用户交互；但保留 bash（shell 权限），
     /// 由 PermissionManager 统一裁决：YOLO 模式直接放行、非 YOLO 模式逐条提问确认。

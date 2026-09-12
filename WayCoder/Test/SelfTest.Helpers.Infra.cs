@@ -342,6 +342,36 @@ public static partial class SelfTest
         Check("Retry: 无返回值版本执行", ran);
     }
 
+    /// <summary>
+    /// 外部工具输出格式：凡「输出是外部进程原始字节」的工具必须声明 <see cref="ITool.RawOutput"/>，
+    /// 前端据此按命令行文本渲染（UTF-8 / 等宽 / 保换行与列对齐 / 解码裸 ANSI），**不当 markdown 解析**。
+    /// 真源在工具自己身上，前端只按名查 <see cref="ToolRegistry.IsRawOutput"/> —— 不在前端维护平行名单。
+    /// </summary>
+    private static void TestRawOutputTools(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("[外部工具输出：命令行格式]");
+
+        // 起外部进程 / 读进程产物的工具 —— 输出都是按列对齐的控制台文本
+        string[] external =
+        [
+            "bash", "ps", "kill", "git", "git_pr", "sqlite",
+            "test", "lint", "lsp", "screenshot", "job_output",
+        ];
+        foreach (var n in external)
+            Check($"RawOutput: {n} 声明为命令行输出", ToolRegistry.IsRawOutput(n));
+
+        // 反向：自产结构化文本的工具不得误标 —— 它们靠 «» 标记 / diff 高亮 / 列表渲染
+        foreach (var n in new[] { "read_file", "write_file", "edit_file", "grep", "glob", "todo" })
+            Check($"RawOutput: {n} 不误标（自产富文本）", !ToolRegistry.IsRawOutput(n));
+
+        Check("RawOutput: 未知工具按 false（MCP / 插件默认）", !ToolRegistry.IsRawOutput("mcp__x__y"));
+        // 默认接口成员只能经接口访问（DIM 不在类上可见），所以这里显式转型 ——
+        // 这条同时钉住「不覆写即 false」这个默认值本身
+        Check("RawOutput: 接口默认 false（新增工具不写即富文本）",
+            !((ITool)new ReadFileTool()).RawOutput);
+        Check("RawOutput: bash 实工具覆写为 true", ((ITool)new BashTool()).RawOutput);
+    }
+
     /// <summary>工具调用调度器（ToolCallScheduler）：ExecutionMode 分批 + 有界并发 + 工具模式标注。</summary>
     private static void TestToolScheduler(Action<string, bool> Check)
     {
