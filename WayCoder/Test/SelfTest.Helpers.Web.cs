@@ -49,7 +49,7 @@ public static partial class SelfTest
         Check("Web: HTML 含 /chat", html.Contains("/chat"));
         Check("Web: HTML 含 /interrupt", html.Contains("/interrupt"));
         Check("Web: HTML 含 Markdown 渲染器", html.Contains("function mdToHtml"));
-        Check("Web: HTML 含 finalizeAssistant", html.Contains("function finalizeAssistant"));
+        Check("Web: HTML 含轮次收口 finishRound（原 finalizeAssistant）", html.Contains("function finishRound"));
         Check("Web: HTML 含流式态样式", html.Contains(".msg.assistant.streaming"));
         Check("Web: HTML 含权限模式下拉", html.Contains("id=\"perm-select\""));
         Check("Web: HTML 含权限模式切换", html.Contains("/perm"));
@@ -808,39 +808,94 @@ public static partial class SelfTest
         // shell 类工具（bash/ps/git…）输出带裸 ANSI，Web 端必须解码：此前工具气泡只走 markupToHtml，
         // ESC 序列被当正文印出 → 整个气泡一坨乱码。`!命令` 走 addShellOutput→ansiToHtml 所以正常，
         // 两条路显示不一致正是用户看到的现象。这里钉住分支存在、且**排在 diff/markdown 之前**。
-        var toolFnStart = html.IndexOf("function renderToolOutput", StringComparison.Ordinal);
-        var toolFn = toolFnStart >= 0
-            ? html.Substring(toolFnStart, Math.Min(700, html.Length - toolFnStart))
-            : "";
+        // 按大括号配平取函数体（不要用固定长度窗口 —— 函数一长就截断，断言会静默失效）
+        static string JsBody(string source, string name)
+        {
+            var i = source.IndexOf("function " + name, StringComparison.Ordinal);
+            if (i < 0) return "";
+            var b = source.IndexOf('{', i);
+            if (b < 0) return "";
+            int depth = 0;
+            for (int j = b; j < source.Length; j++)
+            {
+                if (source[j] == '{') depth++;
+                else if (source[j] == '}') { depth--; if (depth == 0) return source.Substring(i, j - i + 1); }
+            }
+            return "";
+        }
+        var toolFn = JsBody(html, "renderToolOutput");
         Check("Prefix: renderToolOutput 含 ANSI 分支（ESC → ansiToHtml）",
             toolFn.Contains("ansiToHtml") && toolFn.Contains("indexOf('\\x1b')"));
         Check("Prefix: ANSI 分支排在 diff/markdown 判别之前",
             toolFn.Contains("ansiToHtml") && toolFn.Contains("highlightDiff")
             && toolFn.IndexOf("ansiToHtml", StringComparison.Ordinal)
                < toolFn.IndexOf("highlightDiff", StringComparison.Ordinal));
-        Check("Prefix: 流式期也按 ANSI 节流重绘（否则跑的过程里气泡是乱码）",
-            html.Contains("function scheduleToolRender"));
-        // 外部工具（bash/git/sqlite/测试运行器…）的输出**不能进 markdown 解析**：`#`/`- `/`|`
-        // 会被渲染成标题/列表/表格，等宽列对齐全毁（与 `!` 直通的纯文本气泡显示不一致）。
-        // raw 标记由服务端 tool 事件给出（真源 ITool.RawOutput），前端**不得自备工具名单**。
-        Check("Prefix: 输出气泡按服务端 raw 标记分派（不再自备名单）",
-            html.Contains("renderToolOutput(toolOutputEl.textContent, curToolRaw)")
-            && html.Contains("curToolRaw = !!d.raw")
-            && !html.Contains("RAW_OUTPUT_TOOLS"));
+
+        // ── 流式追加不得让主线程卡死（「页面无响应」）──
+        // 旧路径每个 token 一次 `el.textContent += s`（重建整块文本节点）+ 紧跟 `scroll()`（读
+        // scrollHeight 强制同步重排）：一次 2000 token 的回复 = 2000 次整块重建 + 2000 次整页重排。
+        // 纯 JS 各步实测都不贵（见 scripts/_bench_web_render.cjs），贵的就是这两处 DOM 操作。
+        // 修复：文本节点 appendData（只追加新片段）+ 滚动合帧（每帧至多一次）+ 历史重放分帧。
+        var appendFn = JsBody(html, "appendCapped");
+        Check("Prefix: 流式追加走文本节点 appendData（不整块重建文本）",
+            html.Contains("function streamTextNode") && appendFn.Contains("node.appendData(s)")
+            && !appendFn.Contains("textContent +="));
+        Check("Prefix: 滚动合帧 + 自动跟底闸门",
+            html.Contains("function scheduleScroll")
+            && html.Contains("if (followBottom) messages.scrollTop = messages.scrollHeight"));
+        var tokenFn = JsBody(html, "handleToken");
+        Check("Prefix: 逐 token 路径不再直接 scroll()", tokenFn.Length > 0 && !tokenFn.Contains("scroll();"));
+        var histFn = JsBody(html, "renderHistoryChunked");
+        Check("Prefix: 历史重放分帧（每帧 15 条 + rAF 续帧）",
+            histFn.Contains("requestAnimationFrame(step)") && histFn.Contains("i + 15")
+            && html.Contains("renderHistoryChunked(list);"));
+        // ── 折叠：思考一行 / 工具调用一行（点开弹详情浮层）──
+        // 对齐 MAUI（ChatPage.xaml.cs 的 thinkMsg/_toolGroup/interruptSinceTool）：
+        // 聊天流里只留一行，明细（可能几十万字符）只在点开时渲染一次。
+        // 这同时把「工具输出逐 chunk 写 DOM」这条最重的路径整个拿掉了。
+        var toolOutFn = JsBody(html, "onToolOutput");
+        Check("Prefix: 工具输出只进内存、不写 DOM（折叠的核心收益）",
+            toolOutFn.Contains("it.out =") && !toolOutFn.Contains("innerHTML")
+            && !toolOutFn.Contains("appendChild"));
+        var toolStartFn = JsBody(html, "onToolStart");
+        Check("Prefix: 工具调用折叠成一行 + 分组判据（interruptSinceTool → 新开一组）",
+            toolStartFn.Contains("工具调用:")
+            && toolStartFn.Contains("interruptSinceTool")
+            && toolStartFn.Contains("endSeg()"));
+        var thinkFn = JsBody(html, "thinkAppend");
+        var endThinkFn = JsBody(html, "endThink");
+        Check("Prefix: 思考折叠成一行（思考中 Ns → 已思考 N 秒）",
+            thinkFn.Contains("思考中 ") && endThinkFn.Contains("已思考 "));
         Check("Prefix: raw 文本先剥 «» 内部标记再上色",
             html.Contains("function stripMarkupTags")
             && html.Contains("ansiToHtml(stripMarkupTags(text))"));
+        // 详情浮层：预算按项均分（对齐 MAUI ShareFor）+ 搜索过滤 + 点开才渲染
+        var detailFn = JsBody(html, "detailItemHtml");
+        Check("Prefix: 详情浮层按服务端 raw 标记渲染工具输出",
+            detailFn.Contains("renderToolOutput(out, it.raw)"));
+        Check("Prefix: 详情输出按项预算均分（不吃满 DOM）",
+            html.Contains("DETAIL_TOTAL_BUDGET") && detailFn.Contains("perItem"));
+        Check("Prefix: 详情浮层可搜索（工具按项过滤 / 思考按行过滤）",
+            html.Contains("function renderDetailBody") && html.Contains("function showToolDetail")
+            && JsBody(html, "showThinkDetail").Contains("indexOf(q) >= 0"));
+        Check("Prefix: 一轮结束收口（finishRound 定稿思考/正文、解绑组）",
+            JsBody(html, "finishRound").Contains("endThink()")
+            && html.Contains("es.addEventListener('done', () => { setBusy(false); finishRound();"));
         // raw 标记必须真的发到浏览器（否则前端只能猜）：bash→true、read_file→false
         var toolEvBash = WayCoder.UI.Web.WebChatServer.JsonTool("bash", "ls");
         var toolEvRead = WayCoder.UI.Web.WebChatServer.JsonTool("read_file", "a.cs");
         Check("Prefix: tool 事件带 raw 标记（bash=true / read_file=false）",
             toolEvBash.Contains("\"raw\":true") && toolEvRead.Contains("\"raw\":false"));
-        // 两个气泡版式必须一致（等宽 + pre-wrap + 同字号），只允许高度上限不同
-        var toolCss = html.Substring(Math.Max(0, html.IndexOf(".tool-output", StringComparison.Ordinal)), 400);
+        // 显示名单独发：前端显示 `edit(main.c)`，而按真实名的判断（raw）仍走 name
+        Check("Prefix: tool 事件带显示名 short（edit_file→edit）",
+            WayCoder.UI.Web.WebChatServer.JsonTool("edit_file", "main.c").Contains("\"short\":\"edit\""));
+        // `!` 直通气泡版式（工具输出气泡已折叠，只剩它一个等宽气泡）
         var shellCss = html.Substring(Math.Max(0, html.IndexOf(".shell-output", StringComparison.Ordinal)), 400);
-        Check("Prefix: 工具气泡与 shell 气泡同为等宽 + pre-wrap + 13px",
-            toolCss.Contains("ui-monospace") && toolCss.Contains("pre-wrap") && toolCss.Contains("font-size:13px")
-            && shellCss.Contains("ui-monospace") && shellCss.Contains("pre-wrap") && shellCss.Contains("font-size:13px"));
+        Check("Prefix: shell 气泡等宽 + pre-wrap + 13px",
+            shellCss.Contains("ui-monospace") && shellCss.Contains("pre-wrap") && shellCss.Contains("font-size:13px"));
+        // 服务端超时必须让前端把模态收掉（否则浮层永远挂着 = 用户眼里的「卡死」）
+        Check("Prefix: ask 超时广播 ask_closed + 前端收口",
+            html.Contains("ask_closed") && html.Contains("该提问已超时，已按默认继续"));
     }
 
     /// <summary>Web Diff 预览：ParseDiffAnswer/SerializeHunks 纯函数 + DiffPreview.Show Web 分支。</summary>

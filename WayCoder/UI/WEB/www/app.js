@@ -13,11 +13,20 @@ const keyModal = document.getElementById('key-modal');
 const clientId = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
 const cq = (p) => p + (p.indexOf('?') >= 0 ? '&' : '?') + 'client=' + clientId;
 
-// ── 流指针（滚动 bug 修复：assistant 文本流 与 工具输出流 分离）──
-let assistantStreamEl = null;
-let toolOutputEl = null;
-let curToolRaw = false; // 当前工具输出是否为外部进程原始字节（服务端 tool 事件给）→ 决定气泡渲染方式
-let reasoningEl = null;
+// ── 流指针 ──
+// 对齐 MAUI（ChatPage.xaml.cs 的 thinkMsg/_toolGroup/interruptSinceTool）：
+//   · 正文**分段**：工具或思考打断后另起一段（「AI1 / 工具组1 / AI2」按时间交错，不再堆在一个气泡里）
+//   · 思考折叠成一行「💭 思考中 Ns」→ 定稿「💭 已思考 N 秒」，点开看全文
+//   · 工具调用折叠成一行「🔧 工具调用:N 次」，点开看每次调用详情
+// 折叠不只是观感：**工具输出逐 chunk 写 DOM** 曾是 Web 端最重的路径（每个 chunk 一次布局），
+// 现在输出只在内存累积，点开详情时才渲染一次。
+let segEl = null;               // 当前正文段
+let think = null;               // 当前思考块 { el, buf, start, secs, lastShown }
+let toolGroup = null;           // 当前工具组 { el, items:[{name,args,raw,out}] }
+let interruptSinceTool = false; // 出现新思考块 / 新正文段 → 下个工具**新开一组**（否则连续工具并入同组）
+const DETAIL_TOTAL_BUDGET = 120000; // 详情浮层总预算（字符），按项数均分（对齐 MAUI ToolCallsDetailPage.ShareFor）
+const DETAIL_ITEM_MIN = 2000;
+const DETAIL_ITEM_MAX = 30000;
 let currentProvider = '';
 let hasKey = false;
 let isBusy = false;
@@ -68,8 +77,24 @@ setInterval(() => {
   statusSpinEl.textContent = SPINNER_FRAMES[statusSpinI];
 }, 100);
 
-function scroll() { messages.scrollTop = messages.scrollHeight; }
-function addMsg(role, text) {
+// ── 滚动：自动跟底 + 合帧 ──
+// ① 仅当用户已在底部附近才跟随（否则会把正在上翻的人拽回底部）；
+// ② **绝不在每个 token 上读 scrollHeight** —— 读它强制同步重排，一次长回复上千个 token
+//    就等于上千次整页重排，主线程被排满 ⇒ 浏览器弹「页面无响应」。统一走 scheduleScroll 合帧。
+let followBottom = true;
+function scroll() { if (followBottom) messages.scrollTop = messages.scrollHeight; }
+messages.addEventListener('scroll', () => {
+  followBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight < 40;
+}, { passive: true });
+
+let _scrollRaf = 0;
+function scheduleScroll() {
+  if (_scrollRaf) return;
+  _scrollRaf = requestAnimationFrame(() => { _scrollRaf = 0; scroll(); });
+}
+
+/// 建消息元素（不插入、不滚动）—— addMsg 与分帧历史重放共用
+function buildMsgEl(role, text) {
   const el = document.createElement('div');
   el.className = 'msg ' + role;
   if ((role === 'assistant' || role === 'cmd') && text) {
@@ -77,56 +102,190 @@ function addMsg(role, text) {
   } else {
     el.textContent = text;
   }
+  return el;
+}
+function addMsg(role, text, noScroll) {
+  const el = buildMsgEl(role, text);
   messages.appendChild(el);
   pruneMessagesDom(); // 消息元素条数上限：丢最旧 DOM 节点（防长会话 DOM 只增不减）
-  scroll();
+  if (!noScroll) scroll();
   return el;
 }
-function addTool(name, args) {
+// ── 折叠详情浮层（💭 思考全文 / 🔧 工具调用详情）──
+// 点开才渲染：聊天流里只留一行，详情（可能几十万字符）不进 DOM —— 这正是折叠带来的性能收益。
+// 单条输出按预算均分（对齐 MAUI ToolCallsDetailPage.ShareFor），避免「先到先得」把后序关键输出饿死。
+let detailCfg = null;   // { title(), search, render(q) -> html, live() }
+let detailTimer = null;
+
+function showThinkDetail(block) {
+  openDetailModal({
+    title: () => (block.secs ? '💭 已思考 ' + block.secs + ' 秒' : '💭 思考中…'),
+    search: true,
+    live: () => think === block, // 还在思考 → 每秒刷新（能看到进行中的半截）
+    render: (q) => {
+      const text = block.buf || '';
+      if (!q) return '<div class="think-body">' + (text ? escapeHtml(text) : '（暂无内容）') + '</div>';
+      const hit = text.split('\n').filter(l => l.toLowerCase().indexOf(q) >= 0);
+      return hit.length
+        ? '<div class="think-body">' + escapeHtml(hit.join('\n')) + '</div>'
+        : '<div class="detail-empty">无匹配行</div>';
+    },
+  });
+}
+
+function showToolDetail(group) {
+  const items = group.items;
+  const perItem = Math.max(DETAIL_ITEM_MIN,
+    Math.min(DETAIL_ITEM_MAX, Math.floor(DETAIL_TOTAL_BUDGET / Math.max(1, items.length))));
+  openDetailModal({
+    title: () => '🔧 工具调用详情 · ' + items.length + ' 次',
+    search: true,
+    live: null,
+    render: (q) => {
+      const shown = q
+        ? items.filter(it => (it.name + ' ' + it.args + ' ' + it.out).toLowerCase().indexOf(q) >= 0)
+        : items;
+      if (!shown.length) return '<div class="detail-empty">' + (q ? '无匹配调用' : '（无调用）') + '</div>';
+      return shown.map(it => detailItemHtml(it, items.indexOf(it), perItem)).join('');
+    },
+  });
+}
+
+function detailItemHtml(it, idx, perItem) {
+  const out = it.out || '';
+  let body;
+  if (!out) body = '<pre class="args">（暂无输出）</pre>';
+  else if (out.length <= perItem) body = '<pre class="out">' + renderToolOutput(out, it.raw) + '</pre>';
+  else body = '<pre class="out">' + renderToolOutput(out.slice(0, perItem), it.raw)
+    + '\n…（本条输出过长，仅显示前 ' + perItem + ' 字符）…</pre>';
+  // 显示名 `edit` + 短参数 `main.c`（服务端已缩写）；真实工具名只在内部判断用
+  return '<div class="detail-item"><h4>' + (idx + 1) + '. ' + escapeHtml(it.short) + '</h4>'
+    + '<pre class="args">' + escapeHtml(it.args) + '</pre>' + body + '</div>';
+}
+
+function openDetailModal(cfg) {
+  detailCfg = cfg;
+  const modal = document.getElementById('detail-modal');
+  const sb = document.getElementById('detail-search');
+  sb.hidden = !cfg.search;
+  sb.value = '';
+  sb.oninput = renderDetailBody;
+  renderDetailBody();
+  modal.classList.add('open');
+  if (detailTimer) { clearInterval(detailTimer); detailTimer = null; }
+  if (cfg.live) {
+    detailTimer = setInterval(() => {
+      if (!detailCfg || !detailCfg.live || !detailCfg.live()) {
+        clearInterval(detailTimer); detailTimer = null; return; // 思考结束 → 停止刷新（内容已定稿）
+      }
+      renderDetailBody();
+    }, 1000);
+  }
+}
+function renderDetailBody() {
+  if (!detailCfg) return;
+  document.getElementById('detail-title').textContent = detailCfg.title();
+  const q = (document.getElementById('detail-search').value || '').trim().toLowerCase();
+  document.getElementById('detail-body').innerHTML = detailCfg.render(q);
+}
+function closeDetailModal() {
+  detailCfg = null;
+  if (detailTimer) { clearInterval(detailTimer); detailTimer = null; }
+  const m = document.getElementById('detail-modal');
+  if (m) m.classList.remove('open');
+}
+
+// ── 折叠行（💭 / 🔧）：点开弹详情浮层 ──
+function pill(text, cls, onClick) {
   const el = document.createElement('div');
-  el.className = 'tool';
-  el.innerHTML = '🔧 <b>' + name + '</b> ' + (args || '');
+  el.className = 'pill ' + cls;
+  el.textContent = text;
+  el.addEventListener('click', onClick);
   messages.appendChild(el);
-  scroll();
-}
-function ensureAssistantStream() {
-  if (!assistantStreamEl) {
-    assistantStreamEl = addMsg('assistant', '');
-    assistantStreamEl.classList.add('streaming');
-  }
-  return assistantStreamEl;
-}
-function endAssistantStream() { assistantStreamEl = null; }
-function finalizeAssistant() {
-  if (assistantStreamEl) {
-    assistantStreamEl.classList.remove('streaming');
-    if (assistantStreamEl.textContent) {
-      assistantStreamEl.innerHTML = mdToHtml(assistantStreamEl.textContent);
-    }
-  }
-}
-function ensureToolOutput() {
-  if (!toolOutputEl) {
-    toolOutputEl = document.createElement('div');
-    toolOutputEl.className = 'tool-output';
-    messages.appendChild(toolOutputEl);
-    scroll();
-  }
-  return toolOutputEl;
-}
-function endToolOutput() {
-  if (toolOutputEl) toolOutputEl.innerHTML = renderToolOutput(toolOutputEl.textContent, curToolRaw);
-  toolOutputEl = null;
-}
-function addReasoning() {
-  const el = document.createElement('div');
-  el.className = 'msg reasoning';
-  messages.appendChild(el);
-  scroll();
+  scheduleScroll();
   return el;
 }
-function endReasoning() { reasoningEl = null; }
-function clearMessages() { messages.innerHTML = ''; assistantStreamEl = null; toolOutputEl = null; reasoningEl = null; }
+
+// ── 正文段 ──
+function segAppend(s) {
+  if (!segEl) {
+    segEl = addMsg('assistant', '', true); // 不逐段滚动，统一由 appendCapped 合帧
+    segEl.classList.add('streaming');
+    interruptSinceTool = true;             // 工具后出现正文 = 内容间断 → 下个工具新开组
+  }
+  appendCapped(segEl, s);
+}
+function endSeg() {
+  if (!segEl) return;
+  segEl.classList.remove('streaming');
+  const text = segEl.textContent;         // 定稿才做一次 markdown/高亮（流式期间保持纯文本）
+  if (text) segEl.innerHTML = mdToHtml(text);
+  segEl = null;
+}
+
+// ── 思考块（一行标题，正文只进内存）──
+function ensureThink() {
+  if (think) return think;
+  think = { el: null, buf: '', start: Date.now(), secs: 0, lastShown: 0 };
+  think.el = pill('💭 思考中…', 'thinking', () => showThinkDetail(think));
+  interruptSinceTool = true; // 新思考块 = 内容间断 → 下个工具新开组
+  return think;
+}
+function thinkAppend(s) {
+  ensureThink();
+  thinkAppendCapped(s);
+  const secs = Math.max(1, Math.round((Date.now() - think.start) / 1000));
+  if (secs !== think.lastShown) {
+    think.lastShown = secs;
+    think.el.textContent = '💭 思考中 ' + secs + 's';
+  }
+}
+function thinkAppendCapped(s) {
+  // 思考正文只保留尾部窗口（点开详情能看最近内容）—— 不设上限会让「边想边写」的长思考吃满内存
+  const max = MAX_MSG_CHARS;
+  const buf = think.buf + s;
+  think.buf = buf.length > max ? '… 已截断（显示最近内容）…\n' + tailCodePoints(buf, max) : buf;
+}
+function endThink() {
+  if (!think) return;
+  think.secs = Math.max(1, Math.round((Date.now() - think.start) / 1000));
+  think.el.textContent = '💭 已思考 ' + think.secs + ' 秒';
+  think.el.classList.remove('thinking');
+  think = null;
+}
+
+// ── 工具组（一行计数 + 组内逐项累积输出，输出不写 DOM）──
+function newToolGroup() {
+  const g = { items: [], el: null };
+  g.el = pill('🔧 工具调用:0 次', 'tools', () => showToolDetail(g));
+  return g;
+}
+function onToolStart(name, args, raw, short) {
+  endSeg();                                             // 工具到来：冻结当前正文段（工具后新正文另起一段）
+  if (toolGroup === null || interruptSinceTool) toolGroup = newToolGroup();
+  interruptSinceTool = false;
+  // short = 服务端给的显示名（edit_file→edit）；name 留着做按真实名的判断
+  toolGroup.items.push({ name: name, short: short || name, args: args || '', raw: !!raw, out: '' });
+  toolGroup.el.textContent = '🔧 工具调用:' + toolGroup.items.length + ' 次';
+  scheduleScroll();
+}
+function onToolOutput(chunk) {
+  if (!toolGroup || toolGroup.items.length === 0) return;
+  const it = toolGroup.items[toolGroup.items.length - 1];
+  const next = it.out + chunk;
+  it.out = next.length > MAX_MSG_CHARS
+    ? '… 已截断（显示最近内容）…\n' + tailCodePoints(next, MAX_MSG_CHARS)
+    : next;
+}
+
+/// 一轮结束（done / failed / interrupted / reset）：定稿思考与正文，解绑当前组
+function finishRound() {
+  endThink();
+  endSeg();
+  toolGroup = null;
+  interruptSinceTool = false;
+}
+function clearMessages() { messages.innerHTML = ''; segEl = null; think = null; toolGroup = null; interruptSinceTool = false; closeDetailModal(); }
 
 // ── 主题 ──
 function applyTheme(t) {
@@ -1266,6 +1425,9 @@ function send(fromButton) {
   hideSuggest();
   const text = normalizeFullWidth(input.value.trim());
   if (!text) return;
+  // 新一轮开始（且上一轮确已结束）：清掉折叠状态 —— done 事件偶尔会因重连丢失，
+  // 不清的话新一轮的工具会并进上一轮的组里。
+  if (!isBusy) finishRound();
   input.value = '';
   autoResizeInput();
   updateSendState();
@@ -1519,12 +1681,30 @@ function tailCodePoints(str, max) {
   }
   return out;
 }
+/// 流式元素的文本节点（懒建）。
+/// 追加一律走它的 `appendData`，**不要用 `el.textContent += s`** —— 后者每次都要重建整块文本
+/// 节点（O(n) 分配 + 整块重新布局），一次长回复上千个 token 就把主线程排满，
+/// 表现为「页面卡住一会，卡久了浏览器弹无响应警告」。
+/// 元素若被 innerHTML 渲染过（工具气泡的 ANSI 上色），其 textContent 即原文，可安全接续。
+function streamTextNode(el) {
+  let n = el.__textNode;
+  if (!n || n.parentNode !== el) {
+    const existing = el.textContent || '';
+    el.textContent = '';
+    n = document.createTextNode(existing);
+    el.appendChild(n);
+    el.__textNode = n;
+  }
+  return n;
+}
 function appendCapped(el, s) {
   s = String(s == null ? '' : s);
   if (!el) return;
-  var cur = el.textContent;
-  if (cur.length + s.length <= MAX_MSG_CHARS) { el.textContent += s; return; }
-  el.textContent = '… 已截断（显示最近内容，旧内容滚动省略）…\n' + tailCodePoints(cur + s, MAX_MSG_CHARS);
+  const node = streamTextNode(el);
+  const cur = node.data;
+  if (cur.length + s.length <= MAX_MSG_CHARS) node.appendData(s);
+  else node.data = '… 已截断（显示最近内容，旧内容滚动省略）…\n' + tailCodePoints(cur + s, MAX_MSG_CHARS);
+  scheduleScroll(); // 合帧滚动（不在这里读 scrollHeight）
 }
 // 消息元素条数上限（对齐 TUI/MAUI 的 MaxChatMessages 裁剪，防长会话 DOM 节点只增不减）
 const MAX_DOM_MSGS = 300;
@@ -1535,18 +1715,22 @@ function pruneMessagesDom() {
 // 推理内容按 «dim»…«/» 标记以淡色块显示（颜色变淡，不进正文 Markdown）
 function handleToken(s) {
   s = String(s == null ? '' : s);
+  // 思考块用 «dim»…«/» 包裹（可能被切成多个 token）：标记只切换「往哪写」，正文一律进内存
   if (s.indexOf('«dim»') >= 0 || s.indexOf('«/»') >= 0) {
-    if (s.indexOf('«dim»') >= 0 && !reasoningEl) reasoningEl = addReasoning();
+    if (s.indexOf('«dim»') >= 0) ensureThink(); // 先建块，标题立刻可见
     const rest = s.split('«dim»').join('').split('«/»').join('');
-    if (s.indexOf('«/»') >= 0) endReasoning();
-    if (rest.trim()) appendCapped(reasoningEl || ensureAssistantStream(), rest);
-    scroll();
-    return;
+    if (s.indexOf('«/»') >= 0) {
+      if (rest.trim()) thinkAppend(rest);
+      endThink();
+    } else if (rest.trim()) {
+      thinkAppend(rest);
+    }
+    scheduleScroll();
+    return; // 滚动已由 appendCapped / pill → scheduleScroll 合帧
   }
-  endToolOutput();
-  if (reasoningEl) appendCapped(reasoningEl, s);
-  else appendCapped(ensureAssistantStream(), s);
-  scroll();
+  // 无标记的 token：思考块开着就继续进思考（«dim» 与 «/» 可能分属不同 token），否则进正文段
+  if (think) thinkAppend(s);
+  else segAppend(s);
 }
 
 // ── 语法高亮（手搓 tokenizer，无 CDN，XSS 安全：先扫 token 再统一转义着色）──
@@ -1656,19 +1840,6 @@ function renderToolOutput(text, raw) {
   if (/^(---|\+\+\+|diff --git)/.test(text) || /\n(---|\+\+\+) /.test(text)) return highlightDiff(text);
   if (text.indexOf('```') >= 0) return mdToHtml(text);
   return markupToHtml(text);
-}
-
-// 流式期间也按 ANSI 解码（节流 ~120ms）：结束时的 renderToolOutput 只保证最终态，
-// 而 ANSI 的裸文本流式过程中是**不可读**的乱码（assistant 那种 markdown 裸文本尚可读，故它不节流）。
-// 注意 ansiToHtml 只加 <span> 且文本经 escapeHtml，innerHTML 赋值后 textContent 与原文**逐字相等**，
-// 所以 appendCapped 继续按 textContent 累积不受影响。
-let toolRenderTimer = null;
-function scheduleToolRender(el) {
-  if (toolRenderTimer) return;
-  toolRenderTimer = setTimeout(() => {
-    toolRenderTimer = null;
-    if (el && el.isConnected) el.innerHTML = ansiToHtml(el.textContent);
-  }, 120);
 }
 
 // ── Markdown 渲染（手搓、XSS 安全：先转义再结构化）──
@@ -1811,27 +1982,44 @@ const es = new EventSource('/events?client=' + clientId);
 es.onerror = () => { /* 断线自动重连：服务端重放 history+state，isBusy 由 state 处理器按槽位 busy 复位 */ };
 es.addEventListener('token', e => { setBusy(true); handleToken(JSON.parse(e.data)); });
 es.addEventListener('tool', e => {
-  setBusy(true); endReasoning(); finalizeAssistant(); endAssistantStream();
-  endToolOutput();                       // 先收尾**上一个**气泡（curToolRaw 此刻仍是上一个工具的）
+  setBusy(true);
   const d = JSON.parse(e.data);
-  curToolRaw = !!d.raw;
-  addTool(d.name, d.args);
+  onToolStart(d.name, d.args, d.raw, d.short); // 折叠成一行「🔧 工具调用:N 次」；参数与输出进详情
 });
 es.addEventListener('tool_output', e => {
-  const el = ensureToolOutput();
-  appendCapped(el, JSON.parse(e.data));
-  if (el.textContent.indexOf('\x1b') >= 0) scheduleToolRender(el); // shell 裸 ANSI：流式也解码
-  scroll();
+  onToolOutput(JSON.parse(e.data));     // 只进内存，不写 DOM（点开详情时才渲染）
 });
-es.addEventListener('done', () => { setBusy(false); endReasoning(); finalizeAssistant(); endAssistantStream(); endToolOutput(); fetchPanel(); });
-es.addEventListener('interrupted', () => { setBusy(false); endReasoning(); finalizeAssistant(); endAssistantStream(); endToolOutput(); addMsg('system', '⚠ 已中断'); fetchPanel(); });
-es.addEventListener('failed', e => { setBusy(false); endReasoning(); finalizeAssistant(); endAssistantStream(); endToolOutput(); addMsg('system', '✘ ' + JSON.parse(e.data)); fetchPanel(); });
+es.addEventListener('done', () => { setBusy(false); finishRound(); fetchPanel(); });
+es.addEventListener('interrupted', () => { setBusy(false); finishRound(); addMsg('system', '⚠ 已中断'); fetchPanel(); });
+es.addEventListener('failed', e => { setBusy(false); finishRound(); addMsg('system', '✘ ' + JSON.parse(e.data)); fetchPanel(); });
 es.addEventListener('history', e => {
   // history 是服务端完整权威状态：总是清空重载（修复 /reset/加载会话后旧消息残留）
   const list = JSON.parse(e.data);
   clearMessages();
-  list.forEach(m => addMsg(m.role === 'user' ? 'user' : 'assistant', m.content));
+  renderHistoryChunked(list);
 });
+
+// 历史重放**分帧**渲染：长会话（几百条 × mdToHtml + appendChild + scroll）一次同步做完，
+// 主线程会被占住若干秒 —— 用户看到的就是「页面卡住、连字都打不了、久了浏览器弹无响应」。
+// 每帧 15 条，让浏览器在批次之间有机会处理输入/滚动事件。
+// 插到「现有内容之前」：重连时可能正有一个进行中的流式气泡，历史不该跑到它后面去。
+function renderHistoryChunked(list) {
+  const anchor = messages.firstChild;
+  let i = 0;
+  const step = () => {
+    const end = Math.min(list.length, i + 15);
+    const frag = document.createDocumentFragment();
+    for (; i < end; i++) {
+      const m = list[i];
+      frag.appendChild(buildMsgEl(m.role === 'user' ? 'user' : 'assistant', m.content));
+    }
+    messages.insertBefore(frag, anchor || null);
+    pruneMessagesDom();
+    if (i < list.length) requestAnimationFrame(step);
+    else scroll();
+  };
+  requestAnimationFrame(step);
+}
 es.addEventListener('state', e => {
   const state = JSON.parse(e.data);
   currentProvider = state.provider;
@@ -1849,6 +2037,17 @@ es.addEventListener('state', e => {
 es.addEventListener('sessions', () => fetchSessions());
 es.addEventListener('system', e => { addMsg('system', JSON.parse(e.data)); });
 es.addEventListener('ask', e => showAsk(JSON.parse(e.data)));
+es.addEventListener('ask_closed', e => {
+  // 服务端超时收摊：关掉挂着的模态并说明「已按默认继续」。
+  // 不收口的话浮层会永远留着，用户点不动任何东西 —— 看着就是界面卡死。
+  const d = JSON.parse(e.data);
+  if (pendingAsk && pendingAsk.requestId === d.requestId) {
+    pendingAsk = null;
+    const modal = document.getElementById('ask-modal');
+    if (modal) modal.classList.remove('open');
+    addMsg('system', d.reason === 'timeout' ? '⏱ 该提问已超时，已按默认继续' : '该提问已取消');
+  }
+});
 es.addEventListener('compress', e => showCompress(JSON.parse(e.data)));
 es.addEventListener('status', e => setStatus(JSON.parse(e.data))); // 动态状态栏（思考/工具/压缩/等待/完成）
 es.addEventListener('import-progress', e => { // 在线导入进度（拉取→解析→写入→完成）实时显示，防「卡死感」
@@ -2065,6 +2264,11 @@ async function createNewFile() {
 }
 // ── 事件绑定 ──
 document.getElementById('editor-btn').addEventListener('click', () => openEditor(ed.path));
+document.getElementById('detail-close').addEventListener('click', closeDetailModal);
+document.addEventListener('keydown', e => {
+  // Esc 关详情浮层（编辑器/查找条各自有 Esc 处理，这里只管折叠详情）
+  if (e.key === 'Escape' && detailCfg) { e.preventDefault(); closeDetailModal(); }
+});
 document.getElementById('editor-close').addEventListener('click', closeEditor);
 document.getElementById('editor-save').addEventListener('click', doSave);
 document.getElementById('editor-tree-btn').addEventListener('click', toggleTree);

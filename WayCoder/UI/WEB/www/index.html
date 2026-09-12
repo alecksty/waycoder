@@ -242,6 +242,18 @@
     </div>
   </div>
 
+  <!-- 折叠详情浮层：💭 思考全文 / 🔧 工具调用详情（点开才渲染 —— 聊天流里只留一行） -->
+  <div class="modal" id="detail-modal">
+    <div class="modal-card diff">
+      <h2 id="detail-title"></h2>
+      <input type="text" id="detail-search" placeholder="搜索…" hidden />
+      <div id="detail-body"></div>
+      <div class="row">
+        <button class="btn ghost" id="detail-close">关闭 (Esc)</button>
+      </div>
+    </div>
+  </div>
+
   <!-- 内置代码编辑器（三端共享 EditorCore 模型；Web 端透明 textarea 叠 pre，保中文 IME） -->
   <div id="editor-overlay" hidden>
     <div class="editor-toolbar">
