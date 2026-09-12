@@ -204,33 +204,34 @@ public static class FreezeCapture
         {
             var path = Path.Combine(LogDir,
                 $"freeze_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
-            // 现场文本先组装（读 Agent/上下文状态，快），落盘与清理异步执行：
-            // 原同步 File.WriteAllText + CleanupOldDumps 在心跳线程上，慢盘/大日志目录会拖住心跳
-            // （冻结时心跳是唯一存活信号，被拖停 spinner 看起来更死）。
             var text = BuildDumpText(reason, lastActivity, staleMs);
-            _ = Task.Run(() =>
+            // 【同步落盘】原实现用 Task.Run 异步写（理由：慢盘不拖住心跳线程）。但**卡死时
+            // 线程池本身可能已被挂起** —— 实测现场：GC 暂停全部线程期间那个 Task 永不执行，
+            // 日志里只留下「现场已落盘: 」后面跟空路径，最需要现场时反而没有。
+            // 冻结 dump 是低频事件（>3s 才触发），同步写代价可接受；清理仍放后台。
+            try
             {
-                try
-                {
-                    File.WriteAllText(path, text, new UTF8Encoding(false));
-                    CleanupOldDumps();
-                }
-                catch { try { ErrorLog.Error("UI.Freeze", "现场落盘失败"); } catch { } }
-            });
+                File.WriteAllText(path, text, new UTF8Encoding(false));
+            }
+            catch { try { ErrorLog.Error("UI.Freeze", "现场落盘失败"); } catch { } }
+            _ = Task.Run(() => { try { CleanupOldDumps(); } catch { } });
 
             if (captureNativeStack)
             {
-                // native 栈追加进同一异步落盘链（等待主 dump 完成后追加）
-                _ = Task.Run(async () =>
+                // 【已移除「自己采样自己」】原实现调 CaptureNativeStackAsync()，在 macOS 上是
+                // `/usr/bin/sample <自己的PID> 1000` —— 而 sample 会**暂停整个进程**来采样，
+                // 与 .NET GC「暂停所有线程」正面冲突。实测卡死现场：主线程 100% 空转在 GC 的
+                // task_threads / thread_get_state 循环里，九个线程（含输入泵、TUI 心跳）全部
+                // 停摆且再也回不来（长任务后的 Render 阶段触发，进程 41 分钟无响应）。
+                // 改为写入手动采样指引：外部 shell 跑 sample 不涉及进程内自暂停，安全且同样有效。
+                try
                 {
-                    try
-                    {
-                        var native = await CaptureNativeStackAsync();
-                        if (!string.IsNullOrEmpty(native))
-                            File.AppendAllText(path, "\n[4] 原生线程栈 (best-effort)\n" + native);
-                    }
-                    catch { }
-                });
+                    File.AppendAllText(path,
+                        "\n[4] 原生线程栈：已移除「自己采样自己」——sample 会暂停本进程，"
+                        + "与 GC 的线程暂停冲突（实测致卡死）。\n"
+                        + $"    需要时在**另一个终端**执行：sample {Environment.ProcessId} 3 -file /tmp/wc_stack.txt\n");
+                }
+                catch { }
             }
             return path;
         }
@@ -312,67 +313,6 @@ public static class FreezeCapture
         else { try { st = provider() ?? new LiveState(); } catch { st = new LiveState(); } }
         lock (_cpuLock) st.CpuPercent = _cpuPercent; // CPU 由心跳线程采样写入，补填（不在 LiveStateProvider 内）
         return st;
-    }
-
-    // ── native 栈采集（best-effort，后台异步） ──
-    private static async Task<string> CaptureNativeStackAsync()
-    {
-        try
-        {
-            if (OperatingSystem.IsMacOS())
-            {
-                var psi = new System.Diagnostics.ProcessStartInfo("/usr/bin/sample", $"{Environment.ProcessId} 1000")
-                {
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                };
-                var r = await ProcUtil.RunAsync(psi, 8000);
-                if (r == null) return "(sample 超时/失败)";
-                // 截断前 800 行（主线程在最前）
-                var lines = (r.Value.Stdout ?? "").Split('\n');
-                return string.Join('\n', lines.Take(800));
-            }
-            if (OperatingSystem.IsLinux())
-            {
-                // gdb 优先，失败退 /proc 兜底
-                var gdbPsi = new System.Diagnostics.ProcessStartInfo("gdb",
-                    $"-batch -p {Environment.ProcessId} -ex \"thread apply all bt\"")
-                {
-                    RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false,
-                };
-                var g = await ProcUtil.RunAsync(gdbPsi, 8000);
-                if (g != null && !string.IsNullOrEmpty(g.Value.Stdout))
-                    return string.Join('\n', g.Value.Stdout.Split('\n').Take(400));
-
-                // /proc 兜底：每线程状态 + 等待通道
-                var sb = new StringBuilder();
-                try
-                {
-                    foreach (var t in Directory.GetDirectories($"/proc/{Environment.ProcessId}/task"))
-                    {
-                        try
-                        {
-                            var stat = File.ReadAllText(Path.Combine(t, "stat")).Split(' ');
-                            var wchan = File.ReadAllText(Path.Combine(t, "wchan")).Trim();
-                            sb.AppendLine($"  thread {Path.GetFileName(t)}: state={stat[2]} wchan={wchan}");
-                        }
-                        catch { }
-                    }
-                    return sb.ToString();
-                }
-                catch { return "(linux /proc 采集失败)"; }
-            }
-            if (OperatingSystem.IsWindows())
-            {
-                return "(Windows 无零依赖 native 栈；请手动 dotnet-dump/procdump。黑匣子+状态快照已足够定位阶段)";
-            }
-            return "(未知平台，跳过 native 栈)";
-        }
-        catch (Exception ex)
-        {
-            return $"(native 栈采集异常: {ex.Message})";
-        }
     }
 
     /// <summary>保留最新 20 个 freeze_*.txt，旧的删除（best-effort，放后台）。</summary>
