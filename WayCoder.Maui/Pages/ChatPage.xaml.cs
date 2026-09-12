@@ -829,7 +829,9 @@ public partial class ChatPage : ContentPage
                     interruptSinceTool = false;
                     _toolGroup.ToolCalls.Add(new ToolCallItem
                     {
-                        Name = name,
+                        // 显示名走缩写（edit_file→edit）；brief/Summary 已在 Agent 侧缩成短路径。
+                        // 详情页的语法高亮仍按真实 file_path 推语言 —— 那条走 Summary，不受影响。
+                        Name = WayCoder.UI.Shared.ToolDisplay.ShortName(name),
                         Summary = summary,
                         FilePath = ExtractFilePath(summary),
                         IsDark = isDark,

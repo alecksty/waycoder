@@ -372,6 +372,51 @@ public static partial class SelfTest
         Check("RawOutput: bash 实工具覆写为 true", ((ITool)new BashTool()).RawOutput);
     }
 
+    /// <summary>
+    /// 工具调用的**显示**缩写：`edit_file file_path=C:\a\b\c\d\main.c, old_string=…` → `edit(main.c)`。
+    /// 只改界面文案，不改传给工具的参数（参数照旧走 ToolCall.Arguments）。
+    /// </summary>
+    private static void TestToolDisplay(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("[工具显示缩写]");
+
+        Check("ToolDisplay: edit_file → edit",
+            ToolDisplay.ShortName("edit_file") == "edit");
+        Check("ToolDisplay: read_file/write_file → read/write",
+            ToolDisplay.ShortName("read_file") == "read" && ToolDisplay.ShortName("write_file") == "write");
+        Check("ToolDisplay: 未列名的工具原样（bash/git 不被改）",
+            ToolDisplay.ShortName("bash") == "bash" && ToolDisplay.ShortName("git") == "git");
+
+        Check("ToolDisplay: 绝对路径只留文件名",
+            ToolDisplay.ShortPath(@"C:\a\b\c\d\main.c") == "main.c"
+            && ToolDisplay.ShortPath("/usr/local/src/app/main.c") == "main.c");
+        Check("ToolDisplay: 短相对路径原样", ToolDisplay.ShortPath("src/main.c") == "src/main.c");
+        Check("ToolDisplay: 长相对路径保留末两段", ToolDisplay.ShortPath("a/b/c/d/main.c") == "…/d/main.c");
+        Check("ToolDisplay: null/空不炸", ToolDisplay.ShortPath(null) == "" && ToolDisplay.ShortPath("") == "");
+
+        // 用户给的例子：edit_file file_path=C:\a\b\c\d\main.c → edit(main.c)
+        var editArgs = new Dictionary<string, object?>
+        {
+            ["file_path"] = @"C:\a\b\c\d\main.c",
+            ["old_string"] = "旧的实现",
+            ["new_string"] = "新的实现",
+        };
+        Check("ToolDisplay: 只显示路径主参（丢掉 old/new_string）",
+            ToolDisplay.Line("edit_file", editArgs) == "edit(main.c)");
+        Check("ToolDisplay: 无路径主参时退回 k=v 摘要",
+            ToolDisplay.Line("bash", new Dictionary<string, object?> { ["command"] = "ls -la" }) == "bash(command=ls -la)");
+        Check("ToolDisplay: 多值主参逐项缩写",
+            ToolDisplay.Brief(new Dictionary<string, object?>
+            {
+                ["file_path"] = new List<object?> { @"C:\x\a.cs", "/y/b.cs" },
+            }) == "a.cs、b.cs");
+        Check("ToolDisplay: 空参数不拼出空括号", ToolDisplay.Line("read_file", null) == "read");
+        // 显示名只在显示层：按真实名做的能力判断不受影响
+        Check("ToolDisplay: 缩写不影响按真实名的能力查询",
+            !ToolRegistry.IsRawOutput(ToolDisplay.ShortName("edit_file"))
+            && ToolRegistry.IsRawOutput("bash"));
+    }
+
     /// <summary>工具调用调度器（ToolCallScheduler）：ExecutionMode 分批 + 有界并发 + 工具模式标注。</summary>
     private static void TestToolScheduler(Action<string, bool> Check)
     {
