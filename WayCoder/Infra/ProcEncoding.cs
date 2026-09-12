@@ -48,6 +48,21 @@ public static partial class ProcEncoding
         => output.Length > 0 && output[0] == '﻿' ? output[1..] : output;
 
     /// <summary>
+    /// 按代码页取编码（GBK/GB18030 等不在 .NET Core 内置，需先注册 CodePagesEncodingProvider）。
+    /// 非 Windows 或取不到返回 null —— 调用方据此决定「没有回退可用」。
+    ///
+    /// 用途：**控制台输入字节**的回退解码。conhost 在 VT 输入模式下按 `GetConsoleCP()` 编码非 ASCII
+    /// 按键字节（见 <c>WinConsoleMode.EnsureInputCodePage</c>），中文系统是 936(GBK)。
+    /// </summary>
+    public static Encoding? ForCodePage(uint codePage)
+    {
+        if (!OperatingSystem.IsWindows() || codePage == 0) return null;
+        try { Encoding.RegisterProvider(CodePagesEncodingProvider.Instance); } catch { }
+        try { return Encoding.GetEncoding((int)codePage); }
+        catch { return null; }
+    }
+
+    /// <summary>
     /// 为跨平台进程设置输出解码编码：Windows 用系统 OEM 代码页（正确解码 cmd.exe 的 GBK/GB18030 字节），
     /// Unix 保持默认 UTF-8。在构造 ProcessStartInfo 之后、Process.Start 之前调用。
     /// </summary>

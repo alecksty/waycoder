@@ -1,3 +1,6 @@
+using System.Text;
+using WayCoder.Infra;
+
 namespace WayCoder.UI.Shared.Terminal;
 
 /// <summary>
@@ -57,6 +60,70 @@ public static partial class WinConsoleMode
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool SetConsoleMode(nint hConsoleHandle, uint dwMode);
 
+    [LibraryImport("kernel32.dll", EntryPoint = "GetConsoleCP", SetLastError = true)]
+    private static partial uint GetConsoleCP();
+
+    [LibraryImport("kernel32.dll", EntryPoint = "SetConsoleCP", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool SetConsoleCP(uint wCodePageID);
+
+    [LibraryImport("kernel32.dll", EntryPoint = "IsDBCSLeadByteEx", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static partial bool IsDbcsLeadByteEx(uint codePage, byte testChar);
+
+    private const uint CP_UTF8 = 65001;
+
+    private static uint _origCp;            // 施加前的控制台输入代码页（0 = 未知/取不到）
+    private static bool _inputIsUtf8;       // 输入代码页是否**实际**已是 UTF-8
+    private static Encoding? _legacyInput;  // 非 UTF-8 时的回退解码（null = 不回退）
+
+    /// <summary>
+    /// 控制台输入字节当前**不是** UTF-8 时的回退解码编码（中文系统 = GBK）；已是 UTF-8 或取不到 → null。
+    /// 供 <c>WindowsCharSource</c> 在「字节不是合法 UTF-8」时按它重解 —— 见 <see cref="EnsureInputCodePage"/>。
+    /// </summary>
+    public static Encoding? LegacyInputEncoding => _inputIsUtf8 ? null : _legacyInput;
+
+    /// <summary>施加前的控制台输入代码页（0 = 未知）。回退解码要按它的字节规则切分 DBCS 字符。</summary>
+    public static uint OriginalInputCodePage => _origCp;
+
+    /// <summary>该代码页下此字节是否 DBCS 前导字节（需再吃 1 个尾字节）。非 Windows / 无代码页 → false。</summary>
+    public static bool IsDbcsLead(uint codePage, byte b)
+        => OperatingSystem.IsWindows() && codePage != 0 && IsDbcsLeadByteEx(codePage, b);
+
+    /// <summary>
+    /// 把**控制台输入代码页**切成 UTF-8，让 conhost 的 VT 输入字节按 UTF-8 交付。
+    ///
+    /// 为什么必须做：`WindowsCharSource` 是按 UTF-8 解码字节流的（状态化拼多字节字符），而 conhost
+    /// 在 VT 输入模式下**用 `GetConsoleCP()` 编码非 ASCII 按键**——中文系统该值是 936(GBK)，于是
+    /// 「打中文 → 输入缓冲里是 GBK 字节 → 按 UTF-8 解 → U+FFFD / 解成别的字符」= **TUI 里打字乱码**。
+    /// 注意 `Program.Main` 的 `Console.OutputEncoding = UTF8` 只调 `SetConsoleOutputCP`，
+    /// **输入侧完全没被改过**，所以「界面文字正常、自己打的字乱码」并存 —— 正是这个组合的症状。
+    /// （v0.96.74 前 Windows 走 `Console.ReadKey`，拿的是输入记录里的 UTF-16 字符、不经过字节编码，
+    /// 所以那时打中文是好的；改字节流之后才暴露。）
+    ///
+    /// 幂等且**每次进界面都重施**：裸 `!` 跑完 shell 命令 Exit→Enter 往返、或 `!chcp 936`，
+    /// 都会把输入页改回去（同 <c>ReapplyConsoleMode</c> 的道理）。
+    /// </summary>
+    private static void EnsureInputCodePage()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        try
+        {
+            var cp = GetConsoleCP();
+            if (_origCp == 0) _origCp = cp;   // 只记第一次（那才是真正的「原始」值）
+            if (cp != CP_UTF8) SetConsoleCP(CP_UTF8);
+            _inputIsUtf8 = GetConsoleCP() == CP_UTF8; // 以实际生效为准（SetConsoleCP 可能失败）
+            if (!_inputIsUtf8)
+            {
+                // 切不过去不致命（回退解码会兜住），但「打字乱码」的疑虑要能查 —— 记一行日志
+                DebugLog.Log("console", $"输入代码页仍是 {GetConsoleCP()}（切 UTF-8 失败）→ 走原页回退解码");
+            }
+        }
+        catch { _inputIsUtf8 = false; }
+        // 切成功 → 输入就是 UTF-8，不需要回退；没切成 → 按原页（取不到就用系统 OEM 页）回退解码
+        _legacyInput = _inputIsUtf8 ? null : (ProcEncoding.ForCodePage(_origCp) ?? ProcEncoding.OemEncoding);
+    }
+
     /// <summary>
     /// 启用 VT 输入并关闭 quick-edit。幂等：已启用/已保存原 mode 时直接返回 true。
     /// 非 Windows、stdin 被重定向、或控制台句柄不可得时静默失败（返回 false）——
@@ -73,7 +140,7 @@ public static partial class WinConsoleMode
     {
         if (!OperatingSystem.IsWindows()) return false;
         if (explicitHandle == nint.Zero && Console.IsInputRedirected) return false;
-        if (_saved) return true; // 已启用，幂等
+        if (_saved) { EnsureInputCodePage(); return true; } // 已启用：模式幂等，但输入页每次进界面重施
 
         var handle = explicitHandle != nint.Zero ? explicitHandle : GetStdHandle(STD_INPUT_HANDLE);
         if (handle == nint.Zero || handle == (nint)(-1)) return false;
@@ -87,17 +154,29 @@ public static partial class WinConsoleMode
         _origMode = mode;
         _handle = handle; // Disable 要作用在同一个句柄上（可能是 CONIN$ 而非 std stdin）
         _saved = true;
+        // 输入代码页与输入模式是一对：字节流按 UTF-8 解，输入页就必须是 UTF-8（否则中文按键乱码）
+        EnsureInputCodePage();
         return true;
     }
 
-    /// <summary>恢复原始控制台输入模式（退出 TUI 时调用）。未启用则 no-op。</summary>
+    /// <summary>恢复原始控制台输入模式与输入代码页（退出 TUI 时调用）。未启用则 no-op。</summary>
     public static void Disable()
     {
         if (!_saved) return;
         _saved = false;
         if (!OperatingSystem.IsWindows()) return;
         var handle = _handle != nint.Zero ? _handle : GetStdHandle(STD_INPUT_HANDLE);
-        if (handle == nint.Zero || handle == (nint)(-1)) return;
-        try { SetConsoleMode(handle, _origMode); } catch { /* 恢复失败不致命 */ }
+        if (handle != nint.Zero && handle != (nint)(-1))
+        {
+            try { SetConsoleMode(handle, _origMode); } catch { /* 恢复失败不致命 */ }
+        }
+        // 代码页是控制台全局的（与模式一样作用于用户那扇窗口），同样要还原；
+        // 留着 65001 会让父 shell 里的 cmd/批处理输出变样。
+        if (_origCp != 0)
+        {
+            try { SetConsoleCP(_origCp); } catch { /* 恢复失败不致命 */ }
+        }
+        _inputIsUtf8 = false;
+        _legacyInput = null;
     }
 }

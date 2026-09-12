@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text;
 using WayCoder.Infra;
 using WayCoder.Tools;
 using WayCoder.UI.Cli.Arguments;
@@ -253,6 +254,89 @@ public static partial class SelfTest
             feed.Feed([0x1E, (byte)'x']);
             var cx = ReadChar(src, feed);
             Check("RS 分隔符跳过、ASCII 直通", cx == 'x');
+        }
+
+        // ── 用户实测「TUI 输入的文字变成了乱码」：控制台输入代码页不是 UTF-8（中文系统 936）时，
+        //    conhost 在 VT 输入模式下按**该代码页**编码非 ASCII 按键字节，而字节流是按 UTF-8 解的
+        //    ⇒ 打中文得到 U+FFFD 或解成别的字符。修法两条：① WinConsoleMode.EnsureInputCodePage 把
+        //    输入页切成 UTF-8；② 切不成时按原页回退解码（本组用例钉的就是②这条兜底，真机没有控制台
+        //    没法在自测里验①）。样例覆盖 GBK 的三段前导字节：0x81-0xBF(A1B6《)、0xC0-0xDF(C4E3你)、
+        //    0xE0-0xEF(E946镕) —— 三段在 UTF-8 规则下的「期望字节数」各不相同（0/1/2），
+        //    正是回退路径最容易切错的地方。
+        Section("[控制台非 UTF-8 输入页：GBK 字节回退解码]");
+        {
+            var gbk = Encoding.GetEncoding(936); // 中文系统控制台默认输入页
+            const string sample = "你好世界《》啊测试中文镕";
+            var gbkBytes = gbk.GetBytes(sample);
+            Check("样例覆盖 GBK 三段前导字节（0x81-BF / C0-DF / E0-EF）",
+                gbkBytes.Any(b => b is >= 0x81 and <= 0xBF)
+                && gbkBytes.Any(b => b is >= 0xC0 and <= 0xDF)
+                && gbkBytes.Any(b => b is >= 0xE0 and <= 0xEF));
+
+            // ① 配了回退（= 输入页切不成的真机状态）→ 中文完整还原，一个 U+FFFD 都没有
+            using (var feed = new TestFeedStream())
+            using (var src = new WindowsCharSource(feed, gbk, 936))
+            {
+                feed.Feed(gbkBytes);
+                var got = new StringBuilder();
+                for (int i = 0; i < sample.Length; i++)
+                {
+                    var ch = ReadChar(src, feed);
+                    if (ch == null) break;
+                    got.Append(ch.Value);
+                }
+                Check("GBK 字节按原页还原为正确中文", got.ToString() == sample);
+                Check("还原过程中不出现 U+FFFD", !got.ToString().Contains('�'));
+            }
+
+            // ② 没配回退（非 Windows / 取不到代码页）→ 丢掉脏字节，绝不吐出 U+FFFD 混进输入框
+            using (var feed = new TestFeedStream())
+            using (var src = new WindowsCharSource(feed))
+            {
+                feed.Feed(gbkBytes);
+                var got = new StringBuilder();
+                for (int i = 0; i < sample.Length * 2; i++)
+                {
+                    if (src.TryReadChar(out var ch)) { got.Append(ch); continue; }
+                    if (!src.HasInput && feed.Length == 0) break;
+                    Thread.Sleep(2);
+                }
+                Check("无回退可用时不吐 U+FFFD（宁可丢字节）", !got.ToString().Contains('�'));
+            }
+
+            // ③ 合法 UTF-8 形状的 GBK 双字节**不得**被当成 UTF-8 解 —— 这是最难查的一类乱码：
+            //    `一` 的 GBK 字节是 D2 BB，而 D2 BB 恰好是合法 UTF-8（U+04BB "һ"）。
+            //    「先试 UTF-8、不合法再换页」的顺序会把它静静地解成 һ（看着像乱码但不报错）。
+            using (var feed = new TestFeedStream())
+            using (var src = new WindowsCharSource(feed, gbk, 936))
+            {
+                feed.Feed(gbk.GetBytes("一丁"));
+                var got = new StringBuilder();
+                for (int i = 0; i < 2; i++)
+                {
+                    var ch = ReadChar(src, feed);
+                    if (ch == null) break;
+                    got.Append(ch.Value);
+                }
+                Check("GBK 双字节即便形似合法 UTF-8 也按原页解（一丁）", got.ToString() == "一丁");
+                Check("原始字节确实是合法 UTF-8 形状（否则本用例没测到点上）",
+                    IsValidUtf8(gbk.GetBytes("一")));
+            }
+
+            // ④ 输入页是 UTF-8 时（回退为 null）走 UTF-8 解码，emoji 代理对照旧
+            using (var feed = new TestFeedStream())
+            using (var src = new WindowsCharSource(feed))
+            {
+                feed.Feed(Encoding.UTF8.GetBytes("中文😀"));
+                var got = new StringBuilder();
+                for (int i = 0; i < 4; i++)
+                {
+                    var ch = ReadChar(src, feed);
+                    if (ch == null) break;
+                    got.Append(ch.Value);
+                }
+                Check("UTF-8 输入页：中文与 emoji 代理对完整", got.ToString() == "中文😀");
+            }
         }
 
         Section("[TuiDynamicBar 按值标脏（与聊天区解耦护栏）]");
@@ -1029,6 +1113,14 @@ public static partial class SelfTest
             Thread.Sleep(2);
         }
         return null;
+    }
+
+    /// <summary>这串字节是否恰好也是**合法 UTF-8**（证明「形似 UTF-8 的 GBK 双字节」用例测到了点上：
+    /// `一` 的 GBK 字节 D2 BB 同时是合法 UTF-8 U+04BB，先试 UTF-8 的实现在这里会静静解错）。</summary>
+    private static bool IsValidUtf8(byte[] b)
+    {
+        try { _ = new UTF8Encoding(false, true).GetString(b); return true; }
+        catch { return false; }
     }
 
     private static char? ReadChar(WindowsCharSource src, TestFeedStream feed, bool allowEmpty = false)
