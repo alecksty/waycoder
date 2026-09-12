@@ -22,6 +22,7 @@ const cq = (p) => p + (p.indexOf('?') >= 0 ? '&' : '?') + 'client=' + clientId;
 // 现在输出只在内存累积，点开详情时才渲染一次。
 let segEl = null;               // 当前正文段
 let think = null;               // 当前思考块 { el, buf, start, secs, lastShown }
+let thinkDepth = 0;             // 思考块内**未闭合**的 «» 标记层数（«dim» 算第 1 层）
 let toolGroup = null;           // 当前工具组 { el, items:[{name,args,raw,out}] }
 let interruptSinceTool = false; // 出现新思考块 / 新正文段 → 下个工具**新开一组**（否则连续工具并入同组）
 const DETAIL_TOTAL_BUDGET = 120000; // 详情浮层总预算（字符），按项数均分（对齐 MAUI ToolCallsDetailPage.ShareFor）
@@ -123,7 +124,8 @@ function showThinkDetail(block) {
     search: true,
     live: () => think === block, // 还在思考 → 每秒刷新（能看到进行中的半截）
     render: (q) => {
-      const text = block.buf || '';
+      // 推理正文里可能嵌 «» 标记（如超长时那条「思考内容过长」）——详情里剥掉标签只留文字
+      const text = stripMarkupTags(block.buf || '');
       if (!q) return '<div class="think-body">' + (text ? escapeHtml(text) : '（暂无内容）') + '</div>';
       const hit = text.split('\n').filter(l => l.toLowerCase().indexOf(q) >= 0);
       return hit.length
@@ -207,8 +209,21 @@ function pill(text, cls, onClick) {
 }
 
 // ── 正文段 ──
+// 只有空白 / **不可见字符**（零宽空格、零宽连接词、BOM、软连字符、控制字符…）的正文 = 「没有内容」。
+// 判据与 C# 侧 `WayCoder/UI/Shared/VisibleText.cs` 一字对应（跨端同规则）。
+function isBlankText(s) {
+  return !String(s == null ? '' : s)
+    .replace(/[\s\u0000-\u001F\u007F-\u009F\u00AD\u061C\u115F-\u1160\u17B4-\u17B5\u180B-\u180E\u200B-\u200F\u2060-\u2064\u3164\uFE00-\uFE0F\uFEFF\uFFA0]/g, '');
+}
+/// 渲染结果里是否还有可见文字（剥掉 HTML 标签后再判）——判「这个泡是不是空的」的最终判据
+function hasVisibleText(html) { return !isBlankText(String(html == null ? '' : html).replace(/<[^>]*>/g, '')); }
+
 function segAppend(s) {
+  // 没有内容的碎片不建气泡：LLM 在每段正文开头送一口换行（如思考结束的 `"«/»\n"`）。
+  // 光凭它建泡，「想完直接调工具」（这一轮没有正文）就会在工具行前留一个空泡 ——
+  // 用户实测「很多空泡泡，没有任何内容」。碎片本身不丢：真正文到来时一起进同一个泡。
   if (!segEl) {
+    if (isBlankText(s)) return;
     segEl = addMsg('assistant', '', true); // 不逐段滚动，统一由 appendCapped 合帧
     segEl.classList.add('streaming');
     interruptSinceTool = true;             // 工具后出现正文 = 内容间断 → 下个工具新开组
@@ -218,18 +233,28 @@ function segAppend(s) {
 function endSeg() {
   if (!segEl) return;
   segEl.classList.remove('streaming');
-  const text = segEl.textContent;         // 定稿才做一次 markdown/高亮（流式期间保持纯文本）
-  if (text) segEl.innerHTML = mdToHtml(text);
+  const rendered = mdToHtml(segEl.textContent); // 定稿才做一次 markdown/高亮（流式期间保持纯文本）
+  // 「没有任何内容」的泡一律不留：只攒了空白/不可见字符、或渲染完只剩空标签（整段只有 «» 标记）
+  if (hasVisibleText(rendered)) segEl.innerHTML = rendered;
+  else messages.removeChild(segEl);
   segEl = null;
 }
 
 // ── 思考块（一行标题，正文只进内存）──
+// 一个 `«dim»…«/»` 对 = 一个思考胶囊（对齐 MAUI 的 ChatRole.Thinking 一泡泡一块）：
+// 各块**自成一泡、各自独立**，点开只显示自己那段推理。
 function ensureThink() {
   if (think) return think;
-  think = { el: null, buf: '', start: Date.now(), secs: 0, lastShown: 0 };
-  think.el = pill('💭 思考中…', 'thinking', () => showThinkDetail(think));
-  interruptSinceTool = true; // 新思考块 = 内容间断 → 下个工具新开组
-  return think;
+  // ⚠ 点击回调必须闭包捕获**这个块对象**，不能引用可变的 think：
+  // 思考结束（endThink）会把 think 置空，若回调读 think 就会拿到 null ⇒ 抛错、浮层点不开。
+  // 曾经所有胶囊共用 `think` 一个变量（点哪个都开最新那块 / 结束后一个都开不了），
+  // 用户实测「老的思考气泡都很难点开」「各个段连在一起」就是这条。
+  const block = { el: null, buf: '', start: Date.now(), secs: 0, lastShown: 0 };
+  block.el = pill('💭 思考中…', 'thinking', () => showThinkDetail(block));
+  think = block;
+  thinkDepth = 1;            // «dim» 自身算第 1 层
+  interruptSinceTool = true; // 新思考块 = 内容间断 → 下个工具新开组（对齐 MAUI）
+  return block;
 }
 function thinkAppend(s) {
   ensureThink();
@@ -252,6 +277,7 @@ function endThink() {
   think.el.textContent = '💭 已思考 ' + think.secs + ' 秒';
   think.el.classList.remove('thinking');
   think = null;
+  thinkDepth = 0;
 }
 
 // ── 工具组（一行计数 + 组内逐项累积输出，输出不写 DOM）──
@@ -261,7 +287,8 @@ function newToolGroup() {
   return g;
 }
 function onToolStart(name, args, raw, short) {
-  endSeg();                                             // 工具到来：冻结当前正文段（工具后新正文另起一段）
+  endThink();                                           // 工具到来：思考块就地定稿（服务端也会发 «/»，此处只是兜底）
+  endSeg();                                             // 冻结当前正文段（工具后新正文另起一段）
   if (toolGroup === null || interruptSinceTool) toolGroup = newToolGroup();
   interruptSinceTool = false;
   // short = 服务端给的显示名（edit_file→edit）；name 留着做按真实名的判断
@@ -285,7 +312,7 @@ function finishRound() {
   toolGroup = null;
   interruptSinceTool = false;
 }
-function clearMessages() { messages.innerHTML = ''; segEl = null; think = null; toolGroup = null; interruptSinceTool = false; closeDetailModal(); }
+function clearMessages() { messages.innerHTML = ''; segEl = null; think = null; thinkDepth = 0; toolGroup = null; interruptSinceTool = false; closeDetailModal(); }
 
 // ── 主题 ──
 function applyTheme(t) {
@@ -1478,7 +1505,8 @@ function send(fromButton) {
       .then(r => r.json())
       .then(res => {
         if (res && res.ok && res.handled) {
-          addMsg('cmd', res.output || '');
+          // 命令无输出（如 /cd 之类只改状态的）不发空泡 —— 但要有回执，否则用户以为没反应
+          addMsg('cmd', isBlankText(res.output) ? '✔ 已执行 ' + text.split(/\s+/)[0] : res.output);
           setBusy(false);
         } else {
           fetch(cq('/chat'), { method: 'POST', body: text }).catch(() => {});
@@ -1719,6 +1747,10 @@ function emitTokenPiece(text) {
   if (think) thinkAppend(text);
   else segAppend(text);
 }
+// 一段文本里**开启**的嵌套标记数（`«x»`，不含 `«dim»` 与结束符 `«/»`）——
+// 思考块里出现的颜色/样式标记（如「思考内容过长」那条 `«orange3»…«/»`）不该结束思考块。
+function markupOpeners(s) { return (s.match(/«(?!\/)[^«»]*»/g) || []).length; }
+
 // 一个 token 里可能同时含标记与正文（标记也可能被切成两个 token），按标记位置切开分别归位。
 //
 // ⚠ 关键：**不在思考块里时，`«/»` 必须原样保留** —— 它是**所有** «» 标记（颜色/粗体…）的
@@ -1726,6 +1758,10 @@ function emitTokenPiece(text) {
 // 的正文也当思考），于是任何带颜色的正文都被吞进思考气泡、显示成「已思考 N 秒」——
 // 用户实测「完全不聊天了，所有内容都是已思考 n 秒」就是这条。剥掉 `«/»` 还会让后端的
 // «cyan»…«/» 配对失配、颜色渲染错位。
+//
+// ⚠ 第二条：**结束思考块要看层数，不是见到 `«/»` 就关** —— 推理里可以嵌别的标记
+//（LLM 超长时注入 `«orange3»… 思考内容过长…«/»`）。逐层配对才不会把思考块里的 `«/»`
+// 当收尾：否则那之后的推理会漏进正文段、还多出一个裸 `«/»`。
 function handleToken(s) {
   s = String(s == null ? '' : s);
   let rest = s;
@@ -1735,9 +1771,20 @@ function handleToken(s) {
     if (dimAt < 0 && closeAt < 0) { emitTokenPiece(rest); return; }
     const useDim = dimAt >= 0 && (closeAt < 0 || dimAt < closeAt);
     const at = useDim ? dimAt : closeAt;
-    if (at > 0) emitTokenPiece(rest.slice(0, at)); // 标记之前的正文按「此刻是否在思考里」归位
+    if (at > 0) {
+      const pre = rest.slice(0, at);
+      // 推理前那一口换行（LLM 发 `"\n«dim»"`）不另起正文段 —— 否则空正文泡会排在思考胶囊**前面**
+      //（DOM 先建段、后插胶囊），视觉上思考胶囊与正文「连在一起」且顺序颠倒
+      if (useDim) { if (pre.trim()) emitTokenPiece(pre); }
+      else { if (think) thinkDepth += markupOpeners(pre); emitTokenPiece(pre); }
+    }
     if (useDim) { ensureThink(); rest = rest.slice(at + 5); }        // «dim» 长 5
-    else if (think) { endThink(); rest = rest.slice(at + 3); }        // «/» 长 3：关掉思考块
+    else if (think) {                                                 // «/» 长 3：逐层配对，关到底才结束
+      rest = rest.slice(at + 3);
+      thinkDepth--;
+      if (thinkDepth <= 0) endThink();
+      else emitTokenPiece('«/»');   // 只是思考块**内部**某个标记的结束符 → 留在推理正文里配对
+    }
     else { emitTokenPiece('«/»'); rest = rest.slice(at + 3); }        // 别的标记的结束符：留给 mdToHtml 配对
   }
 }
