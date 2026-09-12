@@ -1160,7 +1160,8 @@ public partial class ChatScreen : TuiScreen
     {
         lock (_chatLock)
         {
-            var content = $"  🔧 {toolName}({brief})";
+            // 工具名用显示缩写（edit_file→edit），brief 已在 Agent 侧缩成「最短路径/文件名」
+            var content = $"  🔧 {WayCoder.UI.Shared.ToolDisplay.ShortName(toolName)}({brief})";
             var msg = new ChatMsg { Role = "tool", Content = content, Indent = 1 };
             ChatMessages.Add(msg);
             AddMessage(content, "tool", indent: 1);

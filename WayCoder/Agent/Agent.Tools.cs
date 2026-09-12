@@ -123,7 +123,7 @@ public partial class Agent
             // 置位当前工具：冻结采集（FreezeCapture）从后台线程读，覆盖单/多/子智能体路径；
             // 工具真正开始跑才置位（权限拒绝/模式检查等前置返回不污染状态）。
             CurrentToolName = tc.Name;
-            CurrentToolBrief = FormatBrief(tc.Arguments, 80);
+            CurrentToolBrief = ToolDisplay.Brief(tc.Arguments); // 显示用缩写（全量参数另进轨迹日志）
             string result;
             try
             {
@@ -256,7 +256,7 @@ public partial class Agent
         if (toolCalls.Count == 1)
         {
             var tc = toolCalls[0];
-            onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
+            onTool?.Invoke(tc.Name, ToolDisplay.Brief(tc.Arguments));
             var result = await RunToolAndRecordAsync(tc, onToolOutput, cancellationToken);
             // 自动 lint 反馈闭环：写文件后立即检查，错误注入工具结果
             result = await AppendLintFeedbackAsync(tc, result);
@@ -278,7 +278,7 @@ public partial class Agent
             if (batch.Count == 1)
             {
                 var tc = batch[0];
-                onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
+                onTool?.Invoke(tc.Name, ToolDisplay.Brief(tc.Arguments));
                 // 单工具批次独占执行（write/edit 为 Exclusive）：传 onToolOutput，
                 // 使写文件内容展示与 bash 流式在多工具轮次中也生效（批次内无并发穿插）。
                 results[tc.Id] = await RunToolAndRecordAsync(tc, onToolOutput, cancellationToken);
@@ -289,7 +289,7 @@ public partial class Agent
                 using var sem = new SemaphoreSlim(ToolCallScheduler.MaxParallelism);
                 var tasks = batch.Select(async tc =>
                 {
-                    onTool?.Invoke(tc.Name, FormatBrief(tc.Arguments));
+                    onTool?.Invoke(tc.Name, ToolDisplay.Brief(tc.Arguments));
                     await sem.WaitAsync(cancellationToken);
                     try { return (tc, await RunToolAndRecordAsync(tc, null, cancellationToken)); }
                     finally { sem.Release(); }
