@@ -151,6 +151,7 @@ public static partial class SelfTest
         ["[区间合并与转录构建"] = "config",
         ["[列表导航键表"] = "ui",
         ["[ANSI 解析"] = "ui",
+        ["[冻结现场"] = "system",
         ["[ANSI 网格"] = "ui",
         ["[动态栏直写登记"] = "ui",
         // git

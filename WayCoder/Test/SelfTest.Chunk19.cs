@@ -748,6 +748,38 @@ public static partial class SelfTest
                 TuiAudit.AnsiToGrid("x", 0, 0) is ["x"]);
         }
 
+        Section("[冻结现场：同步落盘 + 不自采样]");
+        // 实测卡死现场（v0.96.109，长任务后 41 分钟无响应）：主线程 100% 空转在 .NET GC 的
+        // task_threads/thread_get_state 线程暂停循环里，全部线程停摆。而日志只留下
+        // 「主循环冻结 3087ms，最后活动: Render —— 现场已落盘: 」——路径是空的。
+        // 两个原因：① 落盘是 Task.Run 异步的，卡死时线程池已被挂起 ⇒ 永不执行；
+        // ② native 栈采集会 `/usr/bin/sample <自己的PID>`，让 sample 暂停本进程 —— 与 GC 的
+        // 线程暂停正面冲突，是这次死锁最可疑的触发点。两条都已修，这里钉住。
+        {
+            var savedFreeze = FreezeCapture.Enabled;
+            FreezeCapture.Enabled = true;
+            var dump = "";
+            try
+            {
+                dump = FreezeCapture.Trigger("Render", 3500);
+                Check("冻结现场: Trigger 同步返回已落盘的路径（不再因异步而为空）",
+                    !string.IsNullOrEmpty(dump) && File.Exists(dump));
+                if (!string.IsNullOrEmpty(dump) && File.Exists(dump))
+                {
+                    var text = File.ReadAllText(dump);
+                    Check("冻结现场: 说明已移除自采样并给出外部采样指引",
+                        text.Contains("已移除") && text.Contains("sample"));
+                }
+                Check("冻结现场: 不再自行启动 sample 进程（无自采样残留）",
+                    !File.Exists("/tmp/wc_stack.txt"));
+            }
+            finally
+            {
+                FreezeCapture.Enabled = savedFreeze;
+                try { if (!string.IsNullOrEmpty(dump)) File.Delete(dump); } catch { }
+            }
+        }
+
         Section("[ANSI 解析：生产与测试两套实现的对照]");
         // 生产侧 FrameSnapshot（WayCoder.Preview 渲染用，UI/TUI/Base）与测试侧 FrameBuffer
         // （按键/审计用）是同一件事的两套实现，此前**没有任何用例比较两者**（code-review #3）。
