@@ -208,7 +208,7 @@ public partial class Program
         var keyword = input.Length > 9 ? input[9..].Trim() : "";
         if (string.IsNullOrWhiteSpace(keyword))
         {
-            screen.AddSystemMsg("用法: /history <关键词> 或 Ctrl+R 交互搜索");
+            screen.AddSystemMsg("用法: /history <关键词> 或 Ctrl+F 交互搜索");
             return;
         }
 

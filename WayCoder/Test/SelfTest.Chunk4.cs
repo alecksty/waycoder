@@ -135,11 +135,29 @@ public static partial class SelfTest
         // Shift+Tab 已在 Windows 修好（Program.Repl.cs 认 Tab+Shift 修饰键），脚注不该再说它坏
         Check("快捷键表: 不再声称 Shift+Tab 在 Windows 失效",
             !kbPlain.Contains("Shift+Tab") || !kbPlain.Contains("Windows 下失效"));
-        // Ctrl+K 是两平台通用的模式切换别名，表里必须写出来，否则用户只知道 Shift+Tab
-        Check("快捷键表: 模式切换列出 Ctrl+K 别名", kbPlain.Contains("Ctrl+K"));
+        // Ctrl+K 不再是模式切换别名：它在输入框里是「删到行尾」（emacs kill-line），
+        // 全局别名会把它盖掉。模式切换有 Shift+Tab 与 /mode，不缺它。
+        Check("快捷键表: 简版不再把 Ctrl+K 当模式别名", !kbPlain.Contains("Ctrl+K"));
+        // 全局表（Ctrl+H 面板）也不得占用「系统/编辑键」：
+        //   Ctrl+X = 系统剪切、Ctrl+Y = 输入框重做、Ctrl+K = 输入框删到行尾
+        var allRows = TuiKeybindHelp.AllBindings.ToList();
+        var allText = string.Join("|", allRows.Select(b => b.Category + b.Key + b.Desc));
+        Check("快捷键表: 全局表列出 Ctrl+O 交换大小模型", allRows.Any(b => b.Key == "Ctrl+O"));
+        Check("快捷键表: 全局表列出 Ctrl+F 搜索历史", allRows.Any(b => b.Key == "Ctrl+F"));
+        Check("快捷键表: 全局表不占用 Ctrl+X（系统剪切）", !allText.Contains("Ctrl+X"));
+        Check("快捷键表: 全局表不占用 Ctrl+Y（输入框重做）", !allText.Contains("Ctrl+Y"));
+        Check("快捷键表: 全局表不占用 Ctrl+K（输入框删到行尾）", !allText.Contains("Ctrl+K"));
+        // 全表（Ctrl+H 面板）不得出现三键组合：Ctrl+Shift+X 在 Windows 上会被终端抢走
+        //（Windows Terminal 的命令面板/标签页）或丢修饰键（VT 字节流）。主题键原为
+        // Ctrl+Shift+F1/F2，现为 Ctrl+W。注意简版只筛 StartupKeys，量全表要走 AllBindings。
+        var allKeys = TuiKeybindHelp.AllBindings.Select(b => b.Key).ToList();
+        Check("快捷键表: 完整表含 Ctrl+W 主题键", allKeys.Contains("Ctrl+W"));
+        Check("快捷键表: 完整表无任何 Ctrl+Shift 三键组合",
+            allKeys.TrueForAll(k => !k.Contains("Ctrl+Shift")));
+        Check("快捷键表: 简版也不含三键组合", !kbPlain.Contains("Ctrl+Shift"));
 
         // ---- 模式切换键判定（REPL 主循环没法自测，判定抽到 InputEvent.IsModeSwitchKey）----
-        // 三个入口都得认：Unix 的 ESC[Z、Windows 的 Tab+Shift、通用 Ctrl+K
+        // 两个入口都得认：Unix 的 ESC[Z、Windows 的 Tab+Shift（原 Ctrl+K 别名已取消）
         static UI.TUI.Base.InputEvent KeyEv(ConsoleKey k, ConsoleModifiers mods = 0) => new()
         {
             Type = UI.TUI.Base.InputType.Key,
@@ -152,8 +170,8 @@ public static partial class SelfTest
             UI.TUI.Base.InputEvent.IsModeSwitchKey(new UI.TUI.Base.InputEvent { Type = UI.TUI.Base.InputType.ShiftTab }));
         Check("模式键: Windows Tab+Shift",
             UI.TUI.Base.InputEvent.IsModeSwitchKey(KeyEv(ConsoleKey.Tab, ConsoleModifiers.Shift)));
-        Check("模式键: Ctrl+K 别名",
-            UI.TUI.Base.InputEvent.IsModeSwitchKey(KeyEv(ConsoleKey.K, ConsoleModifiers.Control)));
+        Check("模式键: Ctrl+K 不再是模式键（让回输入框删到行尾）",
+            !UI.TUI.Base.InputEvent.IsModeSwitchKey(KeyEv(ConsoleKey.K, ConsoleModifiers.Control)));
         // 反向两条最要命：裸 Tab 抢走了就没法补全路径，裸 k 抢走了打字就切模式
         Check("模式键: 裸 Tab 放行（留给路径补全）",
             !UI.TUI.Base.InputEvent.IsModeSwitchKey(KeyEv(ConsoleKey.Tab)));
@@ -166,6 +184,84 @@ public static partial class SelfTest
         Check("模式键: 回车不算", !UI.TUI.Base.InputEvent.IsModeSwitchKey(KeyEv(ConsoleKey.Enter)));
         Check("模式键: 超时事件不算",
             !UI.TUI.Base.InputEvent.IsModeSwitchKey(new UI.TUI.Base.InputEvent { Type = UI.TUI.Base.InputType.Timeout }));
+
+        // ---- 连接切换键判定（同为 REPL 主循环，判定抽到 InputEvent.IsCycleConnectKey）----
+        // 原 Ctrl+Shift+M 改成纯 Ctrl+N：三键组合在 Windows 上不可靠（终端抢键 + VT 丢 Shift 修饰键）。
+        Check("连接键: Ctrl+N",
+            UI.TUI.Base.InputEvent.IsCycleConnectKey(KeyEv(ConsoleKey.N, ConsoleModifiers.Control)));
+        Check("连接键: 裸 n 放行（当普通字符打进输入框）",
+            !UI.TUI.Base.InputEvent.IsCycleConnectKey(KeyEv(ConsoleKey.N)));
+        Check("连接键: Ctrl+M 不算（那是模型选择）",
+            !UI.TUI.Base.InputEvent.IsCycleConnectKey(KeyEv(ConsoleKey.M, ConsoleModifiers.Control)));
+        Check("连接键: 原 Ctrl+Shift+M 不再生效（三键组合已弃用）",
+            !UI.TUI.Base.InputEvent.IsCycleConnectKey(KeyEv(ConsoleKey.M, ConsoleModifiers.Control | ConsoleModifiers.Shift)));
+        Check("连接键: 超时事件不算",
+            !UI.TUI.Base.InputEvent.IsCycleConnectKey(new UI.TUI.Base.InputEvent { Type = UI.TUI.Base.InputType.Timeout }));
+
+        // ---- 命令面板键位：Ctrl+U（纯 Ctrl 键），推理深度仍是 Ctrl+G ----
+        // 原绑 Ctrl+Shift+P（对齐 Claude Code/VS Code）在 Windows 上按不到：Windows Terminal 先
+        // 把该组合抢去开它自己的命令面板；即便不被抢，VT 字节流也拿不到 Shift 修饰键
+        //（CharSource.ToConsoleKeyInfo）→ 退化成 Ctrl+P＝权限循环。下面三条钉住：面板归 Ctrl+U、
+        // Ctrl+G 仍是推理深度（不许被新键顶掉）、Ctrl+Shift+P 不再开面板（防照竞品改回去）。
+        // 走 OnKey 真实分发（不是私有方法），与用户按键同一条路径。
+        {
+            var kbScreen = new ChatScreen();
+            kbScreen.Activate();
+            int paletteHits = 0, reasoningHits = 0;
+            kbScreen.OnOpenCommandPalette = () => paletteHits++;
+            kbScreen.OnReasoningEffort = () => reasoningHits++;
+
+            // OnKey 收的是 ConsoleKeyInfo（上面 KeyEv 造的 InputEvent 是泵线程那一层的）
+            static ConsoleKeyInfo K(ConsoleKey k, bool ctrl, bool shift = false)
+                => new('\0', k, shift, false, ctrl);
+
+            kbScreen.OnKey(K(ConsoleKey.U, ctrl: true));
+            Check("命令面板键: Ctrl+U 触发回调", paletteHits == 1);
+            Check("命令面板键: Ctrl+U 不误触推理深度", reasoningHits == 0);
+
+            kbScreen.OnKey(K(ConsoleKey.G, ctrl: true));
+            Check("命令面板键: Ctrl+G 仍是推理深度（未被顶掉）", reasoningHits == 1);
+            Check("命令面板键: Ctrl+G 不误触命令面板", paletteHits == 1);
+
+            kbScreen.OnKey(K(ConsoleKey.P, ctrl: true, shift: true));
+            Check("命令面板键: Ctrl+Shift+P 不再开面板（Windows 上到不了程序）", paletteHits == 1);
+
+            // 主题键：Ctrl+W 开对话框（会 AddWindow，可直接观测）；原 Ctrl+Shift+F1 不再开。
+            // 三键组合一律弃用——Windows Terminal 会抢 Ctrl+Shift+X 系、VT 字节流还会丢 Shift。
+            try
+            {
+                int winBefore = kbScreen.Windows.Count;
+                kbScreen.OnKey(K(ConsoleKey.W, ctrl: true));
+                Check("主题键: Ctrl+W 打开主题选择对话框", kbScreen.Windows.Count == winBefore + 1);
+
+                int winAfterW = kbScreen.Windows.Count;
+                kbScreen.OnKey(K(ConsoleKey.F1, ctrl: true, shift: true));
+                Check("主题键: 原 Ctrl+Shift+F1 不再打开对话框", kbScreen.Windows.Count == winAfterW);
+            }
+            catch (Exception ex)
+            {
+                Check($"主题键: Ctrl+W 打开对话框（异常：{ex.Message}）", false);
+            }
+
+            // 系统/编辑键必须按得到：全局层不再吃 Ctrl+K（删到行尾）与 Ctrl+Y（重做）。
+            // 走 screen.OnKey 真实路径 —— Ctrl+K 曾在这一层被「切模式」吃掉，
+            // Ctrl+Y 被「搜索历史」吃掉（想重做反而弹搜索框）。
+            // 必须另起干净屏幕：上面 Ctrl+W 已弹出对话框，HasModal=true 后按键全归对话框
+            //（OnKey 第 2 步就 return base.OnKey），再测输入框只会测到「被对话框吃掉」。
+            var editScreen = new ChatScreen();
+            editScreen.Activate();
+            var ins = editScreen.InputArea;
+            ins.Text = "abc def";
+            ins.CursorRow = 0;
+            ins.CursorCol = 3;
+            editScreen.OnKey(K(ConsoleKey.K, ctrl: true));
+            Check("输入框: Ctrl+K 删到行尾（未被全局层吃掉）", ins.Text == "abc");
+
+            int searchHits = 0;
+            editScreen.OnSearchHistory = _ => searchHits++;
+            editScreen.OnKey(K(ConsoleKey.Y, ctrl: true));
+            Check("输入框: Ctrl+Y 不再触发搜索历史（让回重做）", searchHits == 0);
+        }
         // 内联代码不再带底色：48 是扩展背景引导码，裸发会被终端渲染成刺眼亮绿
         var inlineCode = UI.Shared.MarkdownParser.ParseInline("路径 `D:\\a\\b` 结束", 0);
         Check("内联代码: 不写残缺背景码 48", inlineCode.TrueForAll(s => s.Bg != 48));

@@ -40,7 +40,7 @@ public static class CommandPalette
 
     /// <summary>
     /// 构建默认命令列表（功能菜单）：⚡ 界面组直达大多数界面/面板（带快捷键），
-    /// 🗂 命令组收录常用斜杠命令。供 Ctrl+Shift+P 命令面板使用，对标 Claude Code / VS Code 命令面板。
+    /// 🗂 命令组收录常用斜杠命令。供 Ctrl+U 命令面板使用，对标 Claude Code / VS Code 命令面板。
     /// 界面直达复用 ChatScreen 已暴露的回调与各 Picker 静态 Show；斜杠命令经 SlashCommandRegistry 按白名单精选。
     /// </summary>
     public static List<Command> BuildDefaultCommands(ChatScreen screen)
@@ -59,7 +59,7 @@ public static class CommandPalette
         if (screen.OnReasoningEffort != null)
             list.Add(new("reasoning", "推理深度", uiCat, "Ctrl+G", "切换推理深度", () => screen.OnReasoningEffort()));
         if (screen.OnSearchHistory != null)
-            list.Add(new("search", "搜索对话历史", uiCat, "Ctrl+Y", "关键词搜索对话历史",
+            list.Add(new("search", "搜索对话历史", uiCat, "Ctrl+F", "关键词搜索对话历史",
                 () => { var q = UxHelper.Ask("搜索对话历史"); if (!string.IsNullOrWhiteSpace(q)) screen.OnSearchHistory?.Invoke(q); }));
         if (screen.OnShowHelp != null)
             list.Add(new("help", "快捷键帮助", uiCat, "Ctrl+H", "打开快捷键速查面板", () => screen.OnShowHelp()));

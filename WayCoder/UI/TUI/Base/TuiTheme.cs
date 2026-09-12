@@ -433,13 +433,22 @@ public class TuiTheme
         CurrentPresetIndex = presetIndex;
     }
 
+    /// <summary>轮转顺序的唯一实现：预设环形前进一格。
+    /// <see cref="CycleNext"/>（应用并返回）与 <see cref="NextPresetName"/>（只算名字）共用，
+    /// 别在别处再排一遍顺序 —— `Presets`/`PresetNames`/`PresetKeys` 三张表必须一一对应。</summary>
+    private static int NextPresetIndex() => (CurrentPresetIndex + 1) % Presets.Length;
+
     /// <summary>轮转到下一个预设主题，返回新主题名称</summary>
     public static string CycleNext()
     {
-        var idx = (CurrentPresetIndex + 1) % Presets.Length;
+        var idx = NextPresetIndex();
         Apply(Presets[idx], idx);
         return PresetNames[idx];
     }
+
+    /// <summary>下一个预设主题名（**只算名字，不应用**）。供 `/theme next` 打字兜底 ——
+    /// 原来「Ctrl+Shift+F2 直接轮转」的快捷键已随三键组合取消。</summary>
+    public static string NextPresetName() => PresetNames[NextPresetIndex()];
 
     /// <summary>应用命名预设</summary>
     public static void ApplyDark() => Apply(Dark, 0);

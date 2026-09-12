@@ -53,7 +53,9 @@ public class HelpCommand : SlashCommand
         sb.Append("📋 **命令帮助**\n\n```\n");
         DumpBlock(sb, cmds, RowWidth(cmds) + 4);
         sb.Append("```\n\n");
-        sb.Append("快捷键: F1-F10 切换Agent | Ctrl+E 编辑器 | Ctrl+T 设置 | Ctrl+R 搜索 | Ctrl+M 切模型 | Ctrl+H 帮助 | Ctrl+B 面板 | Ctrl+Q 退出 | ↑↓ 历史");
+        // 这行是 /help 的尾部速查 —— 键位以 TuiKeybindHelp.Groups 为准，改键时同步（此前写着
+        // 「Ctrl+E 编辑器」「Ctrl+R 搜索」都不对：Ctrl+E=经济模式、Ctrl+R=同步二维码、搜索是 Ctrl+F）
+        sb.Append("快捷键: F1-F10 槽位 | Shift+Tab 模式 | Ctrl+P 权限 | Ctrl+E 经济 | Ctrl+M 模型 | Ctrl+N 换连接 | Ctrl+U 菜单 | Ctrl+F 搜索 | Ctrl+H 帮助 | Ctrl+B 面板 | Ctrl+C 退出（紧急 Ctrl+Q）");
 
         screen.AddMessage(sb.ToString(), "system");
         return Task.CompletedTask;

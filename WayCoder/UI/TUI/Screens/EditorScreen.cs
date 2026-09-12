@@ -348,9 +348,8 @@ public class EditorScreen : TuiScreen
             return base.OnKey(key);
 
         bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
-        bool shift = key.Modifiers.HasFlag(ConsoleModifiers.Shift);
 
-        // ── 全局快捷键（Ctrl+key）──
+        // ── 全局快捷键（Ctrl+key）：全表纯 Ctrl 键，无三键组合 ──
         if (ctrl)
         {
             switch (key.Key)
@@ -358,7 +357,8 @@ public class EditorScreen : TuiScreen
                 case ConsoleKey.B:
                     ToggleLeftPanel();
                     return true;
-                case ConsoleKey.O when shift:
+                // 切右面板 = 纯 Ctrl+O（原 Ctrl+Shift+O —— 三键组合在 Windows 上按不到，见跨平台铁律）
+                case ConsoleKey.O:
                     ToggleRightPanel();
                     return true;
                 case ConsoleKey.S:
@@ -367,7 +367,8 @@ public class EditorScreen : TuiScreen
                 case ConsoleKey.G:
                     HandleJump();
                     return true;
-                case ConsoleKey.F when shift:
+                // 搜光标处词 = Ctrl+W（原 Ctrl+Shift+F）。查找/替换仍是 Ctrl+F
+                case ConsoleKey.W:
                     SearchWordAtCursor();
                     return true;
                 case ConsoleKey.F:
@@ -393,10 +394,11 @@ public class EditorScreen : TuiScreen
             return true;
         }
 
-        // ── Ctrl+Tab / Ctrl+Shift+Tab 切换焦点（裸 Tab 交给编辑器插 4 空格）──
+        // ── Ctrl+Tab 循环切换焦点（裸 Tab 交给编辑器插 4 空格）──
+        // 原 Ctrl+Shift+Tab 反向切焦点随三键组合取消：三个面板单向循环一圈即回，反向键冗余
         if (key.Key == ConsoleKey.Tab && ctrl)
         {
-            CycleFocus(shift ? -1 : 1);
+            CycleFocus(1);
             return true;
         }
 
@@ -843,7 +845,7 @@ public class EditorScreen : TuiScreen
         ShowToast($"已跳到配对括号 · 第 {match.Value.Line + 1} 行", 1000);
     }
 
-    /// <summary>搜索光标处的标识符词（Ctrl+Shift+F），整词匹配 + 智能大小写。</summary>
+    /// <summary>搜索光标处的标识符词（Ctrl+W，原 Ctrl+Shift+F），整词匹配 + 智能大小写。</summary>
     private void SearchWordAtCursor()
     {
         string word = Core.WordAt(Core.Cy, Core.Cx);

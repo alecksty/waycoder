@@ -127,13 +127,15 @@ public static class DialogWalk
         _ => "跳过",
     };
 
+    /// <summary>走查用的样本命令 —— 快捷键列跟**真实键位**对齐（`TuiKeybindHelp.Groups` 为准），
+    /// 免得走查截图里印着「Ctrl+N 新建会话」这种与真键冲突的假提示。</summary>
     private static List<CommandPalette.Command> SampleCommands() =>
     [
-        new("new", "新建会话", "会话", "Ctrl+N", "开一个空会话", () => { }),
-        new("save", "保存会话", "会话", "Ctrl+S", "把当前对话存盘", () => { }),
+        new("new", "新建会话", "会话", "", "开一个空会话（无全局键）", () => { }),
+        new("save", "保存会话", "会话", "Ctrl+S", "打开会话列表", () => { }),
         new("model", "切换模型", "模型", "Ctrl+M", "打开模型选择器", () => { }),
-        new("theme", "切换主题", "外观", "", "在配色间轮换", () => { }),
-        new("quit", "退出", "系统", "Ctrl+D", "结束当前会话", () => { }),
+        new("theme", "切换主题", "外观", "Ctrl+W", "打开主题选择对话框", () => { }),
+        new("quit", "退出", "系统", "Ctrl+Q", "紧急退出（强制保存）", () => { }),
     ];
 
     // ── 窗口式对话框（返回 null = 自己弹完了，无需入链）──

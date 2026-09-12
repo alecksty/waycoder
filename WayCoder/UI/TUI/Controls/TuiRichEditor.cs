@@ -17,7 +17,7 @@ namespace WayCoder.UI.Tui.Controls;
 ///   Backspace/Delete — 删除 · Enter — 换行
 ///   Tab / Shift+Tab — 缩进 / 反缩进（选中态整块）
 ///   Ctrl+←/→ — 词级移动 · Ctrl+Backspace/Ctrl+Delete — 删词 · Ctrl+K — 删到行尾
-///   Ctrl+D — 重复行 · Ctrl+Shift+K — 删除整行 · Ctrl+E — 到行尾
+///   Ctrl+D — 重复行 · Ctrl+E — 到行尾（删整行用 Ctrl+X，无选区即整行剪切）
 ///   Ctrl+Z — 撤销 · Ctrl+Y — 重做
 ///   Ctrl+X/C/V — 剪切/复制/粘贴（无选区时整行）· Shift+Insert — 粘贴
 ///   Ctrl+A — 全选 · Ctrl+F — 搜索 · Ctrl+G — 跳转行 · Ctrl+S — 保存
@@ -437,7 +437,7 @@ public class TuiRichEditor : TuiEditBase
                 case ConsoleKey.LeftArrow: Core.MoveWord(-1); return true;
                 case ConsoleKey.RightArrow: Core.MoveWord(1); return true;
                 case ConsoleKey.Delete: Core.DeleteWordAfter(); return true;
-                case ConsoleKey.K when shift: Core.DeleteLine(); return true;
+                // Ctrl+Shift+K 删整行已取消（三键组合一律弃用；Ctrl+X 无选区时就是整行剪切，覆盖了它）
             }
         }
 

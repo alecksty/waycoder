@@ -608,26 +608,27 @@ public partial class ChatScreen : TuiScreen
     }
 
     /// <summary>
-    /// 全局快捷键（轴向层，一键一义）：Ctrl+B/R/Y/M/S/G/H/T/L/D、Ctrl+Shift+P、Ctrl+Shift+F1/F2、
-    /// F1-F10、Ctrl+Home/End/Up/Down。
+    /// 全局快捷键（轴向层，一键一义）：Ctrl+B/R/Y/M/S/G/H/T/L/D/U/W、
+    /// F1-F10、Ctrl+Home/End/Up/Down。全表**不含三键组合**（Ctrl+Shift+X 系在 Windows 上
+    /// 会被终端抢走或丢修饰键，见 <c>InputEvent.IsCycleConnectKey</c> 的说明）。
     /// 注意 Ctrl+P/E/Q/X（权限/经济/紧急退出/换大小模型）由 REPL 主循环截走（Program.Repl:416/474/484/502），
     /// 此处不重复绑定——避免「同一键两种含义」。
     /// </summary>
     private bool HandleGlobalShortcut(ConsoleKeyInfo key, bool ctrl, bool shift)
     {
-        // ── Ctrl+Shift+P 命令面板（对齐 Claude Code quickOpen / OpenCode）──
-        // 必须在 `if (ctrl)` 块之前：否则 case ConsoleKey.P 会先把它当 Ctrl+P 建议条处理。
-        if (ctrl && shift && key.Key == ConsoleKey.P)
-        {
-            OpenCommandPalette();
-            return true;
-        }
-
         // ── Ctrl 组合键 ──
         if (ctrl)
         {
             switch (key.Key)
             {
+                // 命令面板 = **纯 Ctrl+U**。原绑 Ctrl+Shift+P（对齐 Claude Code / VS Code），
+                // 但在 Windows 上按不到：Windows Terminal 先把 Ctrl+Shift+P 抢去开它自己的命令面板；
+                // 即便不被抢，VT 字节流也拿不到 Shift 修饰键（见 CharSource.ToConsoleKeyInfo），
+                // 会退化成 Ctrl+P＝权限循环（权限与命令面板串味）。同类键一律用纯 Ctrl+字母
+                // （快捷键跨平台铁律）。Ctrl+U 空闲：Ctrl+A/F/N 在输入框/对话框/编辑器各有归属。
+                case ConsoleKey.U:
+                    OpenCommandPalette();
+                    return true;
                 // Ctrl+E 已统一为「经济模式循环」（轴向层）——REPL 主循环 Program.Repl:484 在无弹窗时先截走；
                 // 编辑器经 /edit（Plan 模式只读走 --readonly）。此处不再绑定 Ctrl+E。
                 case ConsoleKey.T:
@@ -639,7 +640,9 @@ public partial class ChatScreen : TuiScreen
                 case ConsoleKey.R:
                     OnSyncQr?.Invoke(); // 生成同步二维码（手机扫码跨设备轮转）
                     return true;
-                case ConsoleKey.Y:
+                // 搜索对话历史 = Ctrl+F（find 惯例）。原为 Ctrl+Y —— 那是输入框的「重做」
+                //（TuiEditBase.HandleCtrlKey case Y），被全局盖掉后想重做反而弹搜索框。
+                case ConsoleKey.F:
                     var searchQuery = UxHelper.Ask("搜索对话历史");
                     if (!string.IsNullOrWhiteSpace(searchQuery))
                         OnSearchHistory?.Invoke("/history " + searchQuery);
@@ -655,6 +658,11 @@ public partial class ChatScreen : TuiScreen
                     return true;
                 case ConsoleKey.H:
                     OnShowHelp?.Invoke();
+                    return true;
+                // 主题选择对话框。原为 Ctrl+Shift+F1（弹框）/ Ctrl+Shift+F2（直接轮转下一个）——
+                // 三键组合一律弃用。轮转改为在对话框里 ↑↓ 选，另给 `/theme next` 打字兜底。
+                case ConsoleKey.W:
+                    ShowThemePicker();
                     return true;
                 // Ctrl+P 已统一为「权限模式循环」（轴向层，主循环 Program.Repl:474 先截走）；
                 // 建议条改由 `/`、`!`、`#`、`@` 前缀自动触发（CheckPrefixHints）。此处不再绑定 Ctrl+P。
@@ -679,20 +687,6 @@ public partial class ChatScreen : TuiScreen
                     return true;
                 case ConsoleKey.DownArrow:
                     ChatScrollDown(3);
-                    return true;
-            }
-        }
-
-        // ── Ctrl+Shift+F1 主题选择 / Ctrl+Shift+F2 直接轮转 ──
-        if (ctrl && shift)
-        {
-            switch (key.Key)
-            {
-                case ConsoleKey.F1:
-                    ShowThemePicker();
-                    return true;
-                case ConsoleKey.F2:
-                    CycleThemeDirect();
                     return true;
             }
         }

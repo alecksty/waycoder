@@ -41,12 +41,12 @@ public static class TuiKeybindHelp
             ("Home / End", "输入区行首 / 行尾"),
         ]),
         ("🔄 模式", [
-            ("Shift+Tab / Ctrl+K", "切模式 Build→Plan→Chat"),
+            ("Shift+Tab", "切模式 Build→Plan→Chat（或 /mode）"),
             ("Ctrl+P", "权限模式循环（Ask/Auto/SmartAuto/Yolo）"),
             ("Ctrl+E", "经济模式循环（关→自动→省→极致）"),
             ("Ctrl+M / /model", "打开模型选择对话框"),
-            ("Ctrl+Shift+M", "快速切换 connect（下一个）"),
-            ("Ctrl+Shift+P", "命令面板（对齐 Claude Code/OpenCode）"),
+            ("Ctrl+N", "快速切换 connect（下一个）"),
+            ("Ctrl+U", "命令面板（Windows 上 Ctrl+Shift+P 被终端抢键，故用纯 Ctrl 键）"),
             ("Ctrl+G", "切换推理深度"),
         ]),
         ("🧭 导航", [
@@ -54,9 +54,9 @@ public static class TuiKeybindHelp
             ("Ctrl+↑ / ↓", "聊天滚动 3 行"),
             ("PgUp / PgDn", "聊天列表翻页"),
             ("Ctrl+Home / End", "聊天跳到顶 / 底部"),
-            ("Ctrl+T / O", "打开设置"),
+            ("Ctrl+T", "打开设置"),
             ("Ctrl+B", "切换侧栏"),
-            ("Ctrl+X", "交换大小模型"),
+            ("Ctrl+O", "交换大小模型"),
         ]),
         ("🖱 鼠标", [
             ("左键点击", "选中/确认"),
@@ -67,10 +67,9 @@ public static class TuiKeybindHelp
         ("🛠 工具", [
             ("Ctrl+D", "Diff 预览修改文件"),
             ("Ctrl+R", "生成同步二维码（扫码跨设备）"),
-            ("Ctrl+Y", "搜索对话历史"),
+            ("Ctrl+F", "搜索对话历史"),
             ("Ctrl+H", "打开本帮助面板"),
-            ("Ctrl+Shift+F1", "主题选择对话框"),
-            ("Ctrl+Shift+F2", "轮转主题（下一个）"),
+            ("Ctrl+W", "主题选择对话框（轮转主题用 /theme next）"),
         ]),
     ];
 
@@ -83,10 +82,10 @@ public static class TuiKeybindHelp
     {
         "F1 - F10", "Esc", "Ctrl+Z", "Ctrl+C", "Ctrl+Q", "Ctrl+S",  // 全局
         "Enter", "Ctrl+V", "↑↓",                               // 编辑
-        "Shift+Tab / Ctrl+K", "Ctrl+M / /model",               // 模式
-        "Ctrl+P", "Ctrl+E", "Ctrl+Shift+M",                    // 模式：权限/经济/换连接
+        "Shift+Tab", "Ctrl+M / /model",                        // 模式
+        "Ctrl+P", "Ctrl+E", "Ctrl+N",                          // 模式：权限/经济/换连接
         "PgUp / PgDn", "Ctrl+B",                               // 导航
-        "Ctrl+R", "Ctrl+Y", "Ctrl+H",                          // 工具
+        "Ctrl+R", "Ctrl+F", "Ctrl+H",                          // 工具
     };
 
     /// <summary>
@@ -216,6 +215,12 @@ public static class TuiKeybindHelp
         sb.AppendLine("«grey»⚠ Unix 下 Ctrl+M / Ctrl+H 与 Enter / Backspace 同码收不到 → 用 /model、/help«/»");
         return sb.ToString().TrimEnd();
     }
+
+    /// <summary>完整键表的只读扁平视图（分类, 键, 说明）—— 供自测核对「一键一义」与
+    /// 「全表无三键组合」。内容真源就是上面 Groups；<see cref="GetHelpText"/> 只筛 StartupKeys
+    /// 出简版，看不到全表，所以核对全表必须走这里。</summary>
+    internal static IEnumerable<(string Category, string Key, string Desc)> AllBindings
+        => Groups.SelectMany(g => g.Bindings.Select(b => (g.Category, b.Key, b.Desc)));
 
     /// <summary>键名按显示宽度补齐到固定列宽（CJK 键名正确对齐）。</summary>
     private static string PadKey(string key, int width)
