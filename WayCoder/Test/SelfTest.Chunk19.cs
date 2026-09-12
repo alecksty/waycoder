@@ -4,6 +4,7 @@ using WayCoder.Tools;
 using WayCoder.UI.Cli.Arguments;
 using WayCoder.UI.Cli.Commands;
 using WayCoder.UI.Shared;
+using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.TUI.Base;
 using WayCoder.UI.TUI.Custom;
 
@@ -610,6 +611,30 @@ public static partial class SelfTest
                 TuiAudit.AnsiToGrid("ab\x1b[s\x1b[1;1HX\x1b[uY", 1, 10) is ["XbY"]);
             Check("ANSI 网格: 零尺寸入参不抛（构造函数钳到 1×1，防 Math.Clamp 的 min>max）",
                 TuiAudit.AnsiToGrid("x", 0, 0) is ["x"]);
+        }
+
+        Section("[ANSI 解析：生产与测试两套实现的对照]");
+        // 生产侧 FrameSnapshot（WayCoder.Preview 渲染用，UI/TUI/Base）与测试侧 FrameBuffer
+        // （按键/审计用）是同一件事的两套实现，此前**没有任何用例比较两者**（code-review #3）。
+        // 这里在两者的**共同能力范围**内对照（CUP 定位 + SGR + 普通/宽字符），
+        // 差异一旦出现（如宽字符延续格、零宽字符处理），这条会红。
+        {
+            // 注意 CSI 必须有终止符：`\x1b[2;3H`（H=CUP），写成 `\x1b[2;3中` 会让「中」被当成参数
+            // 的一部分继续扫描，两个解析器会一致地把它当普通文本（探测过一次，正是这条对照测试的价值）
+            var ansi = "A\x1b[2;3H中\x1b[3;1HB";   // 第 1 行 A；第 2 行第 3 列「中」；第 3 行 B
+            var fb = new FrameBuffer(4, 10);
+            fb.Apply(ansi);
+            var grid = fb.Dump();
+            var snap = FrameSnapshot.Capture(ansi, 0, 0, 10, 4);
+
+            Check("ANSI 对照: FrameBuffer 与 FrameSnapshot 均已解析",
+                grid.Count == 3 && snap != null);
+            Check("ANSI 对照: 第 1 行首格一致",
+                grid.Count == 3 && snap!.CharAt(0, 0) == "A");
+            Check("ANSI 对照: CUP 定位的宽字符一致",
+                grid.Count == 3 && grid[1] == "  中" && snap!.CharAt(1, 2) == "中");
+            Check("ANSI 对照: 第 3 行位置一致",
+                grid.Count == 3 && grid[2] == "B" && snap!.CharAt(2, 0) == "B");
         }
 
         Section("[列表导航键表：选择器共用]");
