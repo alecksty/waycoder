@@ -159,7 +159,15 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             BroadcastTo(_currentSlot.Value, "ask", payload.ToJson());
             var delay = Task.Delay(timeoutMs > 0 ? timeoutMs : 60_000);
             var winner = await Task.WhenAny(tcs.Task, delay);
-            if (winner == delay) return null; // 超时
+            if (winner == delay)
+            {
+                // 超时**必须让前端把模态收掉**：只 return null 的话服务端按「取消/默认」继续跑了，
+                // 而页面上那个浮层还挂着不动 —— 用户看到的就是「界面卡死」。
+                // （diff 预览确认框走的是同一条路，一并收口。）
+                BroadcastTo(_currentSlot.Value, "ask_closed",
+                    JNode.Object().Set("requestId", id).Set("reason", "timeout").ToJson());
+                return null;
+            }
             return await tcs.Task;
         }
         finally
@@ -345,6 +353,8 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     internal static string JsonTool(string name, string brief)
         => JNode.Object()
             .Set("name", HtmlEscape(name))
+            // 显示名单独给：`name` 要留给 IsRawOutput 之类的**按真实名**判断，前端显示用 short
+            .Set("short", HtmlEscape(WayCoder.UI.Shared.ToolDisplay.ShortName(name)))
             .Set("args", HtmlEscape(brief))
             .Set("raw", ToolRegistry.IsRawOutput(name))
             .ToJson();

@@ -72,12 +72,9 @@ select optgroup { background:var(--panel); color:var(--text); }
 .msg.system { align-self:center; color:var(--dim); font-size:13px; background:transparent; }
 .msg.cmd { align-self:stretch; max-width:100%; background:var(--panel); border:1px solid var(--border); border-left:3px solid var(--accent); border-radius:10px; white-space:normal; }
 .msg.reasoning { align-self:flex-start; color:var(--dim); font-size:12.5px; white-space:pre-wrap; word-break:break-word; padding:0 4px; max-width:88%; }
-.tool { align-self:flex-start; background:var(--tool); border:1px solid var(--border); border-radius:12px; padding:7px 13px; font-size:13px; color:var(--dim); }
-.tool b { color:#e8b34b; }
-/* 工具输出气泡与 `!` shell 气泡**同版式**（等宽 + pre-wrap 保换行与列对齐），只差高度上限：
-   工具输出可能很长（320px 滚动），shell 直通输出通常短。字号/行高/内距必须一致，
-   否则同一段 shell 文本在两条路下排版不同。 */
-.tool-output { align-self:stretch; background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:10px 14px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; line-height:1.5; white-space:pre-wrap; word-break:break-word; color:var(--text); max-height:320px; overflow-y:auto; flex-shrink:0; }
+/* `.tool` / `.tool-output` 已随「工具调用折叠成一行」下线：工具调用只留 `.pill` 一行，
+   输出进详情浮层（`.detail-item pre.out`）。`!` 直通输出仍是独立气泡 —— 用户主动执行、
+   内容通常短，直接展开更合用。 */
 .shell-output { align-self:stretch; background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:10px 14px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:13px; line-height:1.5; white-space:pre-wrap; word-break:break-word; color:var(--text); flex-shrink:0; }
 
 /* ── Markdown 渲染 ── */
@@ -207,6 +204,21 @@ select optgroup { background:var(--panel); color:var(--text); }
 .modal-card.diff { width:min(94vw, 980px); max-width:94vw; display:flex; flex-direction:column; overflow:hidden; }
 .modal-card.diff #ask-body { flex:1; min-height:0; overflow-y:auto; }
 .modal-card.diff #ask-actions { flex-shrink:0; padding-top:10px; }
+.modal-card.diff #detail-body { flex:1; min-height:0; overflow-y:auto; }
+
+/* ── 折叠行：💭 已思考 N 秒 / 🔧 工具调用:N 次（点开弹详情浮层）── */
+.pill { align-self:flex-start; display:inline-block; background:var(--panel2); border:1px solid var(--border); border-radius:999px; padding:3px 12px; font-size:12.5px; color:var(--dim); cursor:pointer; user-select:none; }
+.pill:hover { color:var(--text); border-color:var(--accent); }
+.pill.thinking { font-style:italic; opacity:.85; }
+
+/* ── 详情浮层内容（工具逐项 / 思考全文）：一律等宽 + 保换行 ── */
+.detail-item { border:1px solid var(--border); border-radius:10px; padding:8px 10px; margin-bottom:8px; background:var(--panel2); }
+.detail-item h4 { font-size:13px; margin:0 0 4px; color:var(--text); }
+.detail-item pre { margin:0; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px; white-space:pre-wrap; word-break:break-word; }
+.detail-item pre.args { color:var(--dim); margin-bottom:6px; }
+.detail-item pre.out { max-height:340px; overflow:auto; }
+.think-body { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12.5px; line-height:1.5; white-space:pre-wrap; word-break:break-word; color:var(--dim); }
+.detail-empty { color:var(--dim); font-size:12.5px; }
 .modal-card h2 { font-size:16px; margin-bottom:6px; }
 .modal-card p { font-size:13px; color:var(--dim); margin-bottom:12px; }
 .modal-card input[type="text"], .modal-card input[type="password"] { width:100%; height:37px; border-radius:11px; border:1px solid var(--border); background:var(--panel2); color:var(--text); font:inherit; padding:0 12px; outline:none; margin-bottom:12px; }
