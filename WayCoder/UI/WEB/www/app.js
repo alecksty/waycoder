@@ -1713,24 +1713,33 @@ function pruneMessagesDom() {
     messages.removeChild(messages.firstChild);
 }
 // 推理内容按 «dim»…«/» 标记以淡色块显示（颜色变淡，不进正文 Markdown）
+/// token 正文归位：思考块开着就进思考，否则进当前正文段
+function emitTokenPiece(text) {
+  if (!text) return;
+  if (think) thinkAppend(text);
+  else segAppend(text);
+}
+// 一个 token 里可能同时含标记与正文（标记也可能被切成两个 token），按标记位置切开分别归位。
+//
+// ⚠ 关键：**不在思考块里时，`«/»` 必须原样保留** —— 它是**所有** «» 标记（颜色/粗体…）的
+// 统一结束符，不是思考块专用的。曾经这里在 `«/»` 分支里无条件 thinkAppend（且把「不在思考里」
+// 的正文也当思考），于是任何带颜色的正文都被吞进思考气泡、显示成「已思考 N 秒」——
+// 用户实测「完全不聊天了，所有内容都是已思考 n 秒」就是这条。剥掉 `«/»` 还会让后端的
+// «cyan»…«/» 配对失配、颜色渲染错位。
 function handleToken(s) {
   s = String(s == null ? '' : s);
-  // 思考块用 «dim»…«/» 包裹（可能被切成多个 token）：标记只切换「往哪写」，正文一律进内存
-  if (s.indexOf('«dim»') >= 0 || s.indexOf('«/»') >= 0) {
-    if (s.indexOf('«dim»') >= 0) ensureThink(); // 先建块，标题立刻可见
-    const rest = s.split('«dim»').join('').split('«/»').join('');
-    if (s.indexOf('«/»') >= 0) {
-      if (rest.trim()) thinkAppend(rest);
-      endThink();
-    } else if (rest.trim()) {
-      thinkAppend(rest);
-    }
-    scheduleScroll();
-    return; // 滚动已由 appendCapped / pill → scheduleScroll 合帧
+  let rest = s;
+  while (rest.length > 0) {
+    const dimAt = rest.indexOf('«dim»');
+    const closeAt = rest.indexOf('«/»');
+    if (dimAt < 0 && closeAt < 0) { emitTokenPiece(rest); return; }
+    const useDim = dimAt >= 0 && (closeAt < 0 || dimAt < closeAt);
+    const at = useDim ? dimAt : closeAt;
+    if (at > 0) emitTokenPiece(rest.slice(0, at)); // 标记之前的正文按「此刻是否在思考里」归位
+    if (useDim) { ensureThink(); rest = rest.slice(at + 5); }        // «dim» 长 5
+    else if (think) { endThink(); rest = rest.slice(at + 3); }        // «/» 长 3：关掉思考块
+    else { emitTokenPiece('«/»'); rest = rest.slice(at + 3); }        // 别的标记的结束符：留给 mdToHtml 配对
   }
-  // 无标记的 token：思考块开着就继续进思考（«dim» 与 «/» 可能分属不同 token），否则进正文段
-  if (think) thinkAppend(s);
-  else segAppend(s);
 }
 
 // ── 语法高亮（手搓 tokenizer，无 CDN，XSS 安全：先扫 token 再统一转义着色）──

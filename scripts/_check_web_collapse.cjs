@@ -80,13 +80,14 @@ const parts = [
   v('MAX_MSG_CHARS'), v('DETAIL_TOTAL_BUDGET'), v('DETAIL_ITEM_MIN'), v('DETAIL_ITEM_MAX'),
   v('segEl'), v('think'), v('toolGroup'), v('interruptSinceTool'),
   v('LANG_KEYWORDS'), v('HIGHLIGHT_COMMON'), v('MARKUP_STYLES'), v('ANSI_FG'), v('ANSI_BG'),
-  fn('escapeHtml'), fn('markupToHtml'), fn('highlightCode'), fn('highlightDiff'), fn('splitRow'),
+  fn('escapeHtml'), fn('markupTokenStyle'), fn('markupToHtml'), fn('highlightCode'), fn('highlightDiff'), fn('splitRow'),
   fn('mdToHtml'), fn('ansiToHtml'), fn('stripMarkupTags'), fn('renderToolOutput'),
   v('MAX_DOM_MSGS'), fn('pruneMessagesDom'),
   fn('tailCodePoints'), fn('scroll'), fn('scheduleScroll'), fn('buildMsgEl'), fn('addMsg'),
   fn('streamTextNode'), fn('appendCapped'), fn('pill'), fn('segAppend'), fn('endSeg'),
   fn('ensureThink'), fn('thinkAppend'), fn('thinkAppendCapped'), fn('endThink'),
-  fn('newToolGroup'), fn('onToolStart'), fn('onToolOutput'), fn('finishRound'), fn('handleToken'),
+  fn('newToolGroup'), fn('onToolStart'), fn('onToolOutput'), fn('finishRound'),
+  fn('emitTokenPiece'), fn('handleToken'),
   fn('detailItemHtml'), fn('openDetailModal'), fn('renderDetailBody'), fn('closeDetailModal'),
 ];
 const api = new Function(parts.join('\n') + `
@@ -118,6 +119,21 @@ check('思考进行中标题为「思考中 Ns」', !!thinkEl && thinkEl.textCon
 
 api.handleToken('«/»');   // 思考块结束 → 标题定稿
 check('思考结束标题定稿为「已思考 N 秒」', !!thinkEl && /^💭 已思考 \d+ 秒$/.test(thinkEl.textContent));
+
+// ── 回归：普通正文**绝不能**被当成思考（用户实测「所有内容都是已思考 n 秒」）──
+// `«/»` 是所有 «» 标记的统一结束符，不是思考块专用。带颜色的正文必须进正文段。
+{
+  const before = messages.children.filter(c => c.className.includes('msg assistant')).length;
+  const thinkBefore = messages.children.filter(c => c.className.includes('pill') && c.textContent.startsWith('💭')).length;
+  api.handleToken('«cyan»这是一句普通正文«/»');
+  const after = messages.children.filter(c => c.className.includes('msg assistant')).length;
+  const thinkAfter = messages.children.filter(c => c.className.includes('pill') && c.textContent.startsWith('💭')).length;
+  check('带颜色标记的正文进正文段（不新建思考气泡）', after === before + 1 && thinkAfter === thinkBefore);
+  const lastSeg = messages.children.filter(c => c.className.includes('msg assistant')).pop();
+  check('正文内容完整（含标记，交给 mdToHtml 配对颜色）',
+    !!lastSeg && lastSeg.textContent.includes('这是一句普通正文'));
+  check('正文里的 «/» 未被吞掉（否则颜色配对失配）', !!lastSeg && lastSeg.textContent.includes('«/»'));
+}
 
 api.handleToken('我先读文件。');
 api.onToolStart('read_file', 'main.c', false, 'read');
