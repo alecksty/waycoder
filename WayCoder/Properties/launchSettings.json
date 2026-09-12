@@ -1,8 +1,7 @@
 {
   "profiles": {
     "WayCoder": {
-      "commandName": "Project",
-      "commandLineArgs": "\r\n\r\n"
+      "commandName": "Project"
     }
   }
 }

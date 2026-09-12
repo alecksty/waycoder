@@ -310,10 +310,35 @@ public static partial class SelfTest
             Arguments.CliArgRegistry.Parse(new[] { "--modle", "plan" }).ExitCode == 1);
         Check("位置参数（漏 -p）→ 退出码 1",
             Arguments.CliArgRegistry.Parse(new[] { "写个 hello" }).ExitCode == 1);
+        // 纯空白参数：来自**工具**而非人手 —— `dotnet run` 从 launchSettings.json 的
+        // commandLineArgs 残留里读到 "\r\n\r\n"、`waycoder "$PROMPT"` 变量为空、IDE 运行配置的空占位。
+        // 严格校验把这类空串当「位置参数」直接报错，结果 `dotnet run`（无参启动 TUI，本仓库常规入口）
+        // 起不来 —— 空串没有内容可丢，忽略即可；但不得因此放过真正的裸词（两者并存时仍要报错）。
+        Check("纯空白参数被忽略 → dotnet run 无参可进 TUI",
+            Arguments.CliArgRegistry.Parse(new[] { "\r\n\r\n" }).ExitCode == null
+            && Arguments.CliArgRegistry.Parse(new[] { "" }).ExitCode == null
+            && Arguments.CliArgRegistry.Parse(new[] { "  ", "\t" }).ExitCode == null);
+        Check("空白参数不掩盖真正的裸词错误",
+            Arguments.CliArgRegistry.Parse(new[] { "  ", "写个 hello" }).ExitCode == 1);
         Check("必需值缺失（--prompt 后面没东西）→ 退出码 1",
             Arguments.CliArgRegistry.Parse(new[] { "--prompt" }).ExitCode == 1);
         Check("= 形式但选项名未知 → 退出码 1",
             Arguments.CliArgRegistry.Parse(new[] { "--modle=plan" }).ExitCode == 1);
+        // 报错文案要把参数真身转义成一行：含换行的参数直接内插会打出几行空白，
+        // 用户只看到「无法识别的参数:」后面一片空，根本不知道是哪个参数出的问题。
+        // （Check 放在还原 Console.Error 之后 —— 捕获区里失败行会被吞掉。）
+        {
+            var savedErr = Console.Error;
+            var capturedErr = new StringWriter();
+            try
+            {
+                Console.SetError(capturedErr);
+                Arguments.CliArgRegistry.Parse(new[] { "写个\nhello" });
+            }
+            finally { Console.SetError(savedErr); }
+            Check("报错信息转义换行（不打出空白行）",
+                capturedErr.ToString().Contains("\"写个\\nhello\""));
+        }
         // 正对照：普通合法参数不得被误伤（ExitCode 仍为 null = 交给后续流程，不是「已处理可退出」）。
         // 注意别用 --model list 之类**终结型动作**做正对照：它们的 OnMatch 会返回 0 表示
         // 「已处理、可退出」，ExitCode 非 null 是正常语义，与「解析出错」不是一回事。
@@ -362,7 +387,7 @@ public static partial class SelfTest
         }
         Console.WriteLine();
 
-        // ---- 命令面板: 精选常用命令（Ctrl+Shift+P，对齐 Claude Code/OpenCode）----
+        // ---- 命令面板: 精选常用命令（Ctrl+U，对齐 Claude Code/OpenCode 的面板形态）----
         Section("[命令面板]");
         var paletteScreen = new ChatScreen();
         paletteScreen.OnCycleModel = () => { };
