@@ -1,6 +1,12 @@
 # C# build artifacts
 bin/
 obj/
+# 旁路构建输出（主 bin/ 被运行中的实例锁住时用 -p:OutputPath=bin2/ 等躲开）
+bin2/
+obj2/
+# 本地自测/构建的重定向日志（临时产物，别误提交）
+WayCoder/build.log
+WayCoder/test.log
 *.user
 .vs/
 *.DotSettings.user
