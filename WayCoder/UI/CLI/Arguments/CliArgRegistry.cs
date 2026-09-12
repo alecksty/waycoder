@@ -43,12 +43,18 @@ public static class CliArgRegistry
         {
             var arg = args[i];
 
+            // 纯空白参数一律忽略：它来自**工具**而非人手 —— `dotnet run` 读 launchSettings.json
+            // 里的 commandLineArgs 残留（本仓库曾是 "\r\n\r\n"，删掉 --tui-demo 时留下的）、
+            // `waycoder "$PROMPT"` 变量为空、IDE 运行配置的空占位。这类空串没有内容可丢，
+            // 与下面「有错即报错」并不冲突：那条铁律拦的是**有内容的裸词**（漏写 -p 的提示词）。
+            if (string.IsNullOrWhiteSpace(arg)) continue;
+
             // 位置参数：本 CLI 的用法是 waycoder [选项]，没有位置参数。裸词几乎都是「漏了选项名」
             // （如 waycoder "写个 hello" 少写 -p）——必须报错退出，绝不静默忽略：
             // 静默忽略会让用户以为提示词/选项生效了，实际程序以默认配置进了交互界面。
             if (!arg.StartsWith('-'))
                 return Fail(values,
-                    $"无法识别的参数: {arg}",
+                    $"无法识别的参数: {QuoteForMessage(arg)}",
                     "提示词要用 -p 显式指定：waycoder -p \"...\"");
 
             // 支持 --key=value 格式
@@ -113,6 +119,14 @@ public static class CliArgRegistry
 
         return (values, null);
     }
+
+    /// <summary>
+    /// 把参数真身转义成一行可读文本，供报错信息内插。
+    /// 直接内插含换行的参数会把提示冲散（实测 launchSettings 残留的 "\r\n\r\n" 打出三行空白，
+    /// 看不出问题出在**哪个**参数），转义后一行看完。
+    /// </summary>
+    private static string QuoteForMessage(string s)
+        => "\"" + s.Replace("\\", "\\\\").Replace("\r", "\\r").Replace("\n", "\\n").Replace("\t", "\\t") + "\"";
 
     /// <summary>
     /// 参数有错 → 打印错误并给出可执行的下一步，返回非 null 退出码让调用方**立即退出**（不启动程序）。
