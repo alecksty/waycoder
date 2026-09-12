@@ -1,3 +1,4 @@
+using WayCoder.UI.Shared.Terminal;
 using System.Text;
 using WayCoder.Tools;
 using WayCoder.UI.Shared;
@@ -140,7 +141,7 @@ public static class TuiAudit
     /// <summary>
     /// 把 ANSI 输出渲染成字符网格（固定 rows 行，末尾空行裁掉）。
     ///
-    /// 直接复用 <see cref="Keypad.FrameBuffer"/>（按键测试用的同一套 ANSI 屏幕模拟器）——
+    /// 直接复用 <see cref="FrameBuffer"/>（按键测试用的同一套 ANSI 屏幕模拟器）——
     /// 此前这里是**第二份手写解析**：只处理 CUP/\r\n\t/字符，而它的输出拼接逻辑
     /// （跳宽字符延续格 + TrimEnd + 裁末尾空行）与 FrameBuffer.Dump 逐字相同。
     /// 两套模拟器意味着「审计说渲染对了、按键测试说错了」这类自相矛盾的结论，
@@ -148,7 +149,7 @@ public static class TuiAudit
     /// </summary>
     internal static List<string> AnsiToGrid(string ansi, int rows, int cols)
     {
-        var fb = new Keypad.FrameBuffer(rows, cols);
+        var fb = new FrameBuffer(rows, cols);
         fb.Apply(ansi);
         return fb.Dump();
     }
