@@ -339,8 +339,15 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
     public static bool IsCrossSite(string? secFetchSite)
         => string.Equals(secFetchSite, "cross-site", StringComparison.OrdinalIgnoreCase);
 
-    private static string JsonTool(string name, string brief)
-        => JNode.Object().Set("name", HtmlEscape(name)).Set("args", HtmlEscape(brief)).ToJson();
+    /// <summary>工具事件载荷。raw=true ⇒ 该工具输出是外部进程原始字节，前端按命令行文本渲染
+    /// （等宽 + 保换行 + 解码裸 ANSI），**不得当 markdown 解析**。真源是 <see cref="ITool.RawOutput"/>，
+    /// 前端不再自备工具名单。internal 供自测断言「raw 真的发到了浏览器」。</summary>
+    internal static string JsonTool(string name, string brief)
+        => JNode.Object()
+            .Set("name", HtmlEscape(name))
+            .Set("args", HtmlEscape(brief))
+            .Set("raw", ToolRegistry.IsRawOutput(name))
+            .ToJson();
 
     /// <summary>SSE 客户端是否已满（纯逻辑，便于自测）。</summary>
     public static bool SseClientsFull(int count) => count >= MaxSseClients;

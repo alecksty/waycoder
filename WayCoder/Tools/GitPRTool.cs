@@ -14,6 +14,9 @@ namespace WayCoder.Tools;
 /// </summary>
 public class GitPRTool : ITool
 {
+    /// <summary>git/gh 子进程的原始输出 → 命令行文本渲染</summary>
+    public bool RawOutput => true;
+
     public string Name => "git_pr";
     public string Description => "创建 Pull Request：自动创建分支、推送并生成 PR 链接。支持 GitHub / Gitee。";
 

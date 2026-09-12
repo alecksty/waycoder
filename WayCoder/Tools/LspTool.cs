@@ -10,6 +10,9 @@ namespace WayCoder.Tools;
 /// </summary>
 public class LspTool : ITool
 {
+    /// <summary>语言服务器的原始应答 → 命令行文本渲染</summary>
+    public bool RawOutput => true;
+
     public string Name => "lsp";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
     public string Description => "代码智能导航：跳转定义(definition)、查找引用(references)、类型悬停(hover)、文档符号(symbols)。支持 C#/Python/JS/TS/Go/Rust/C/C++/Java/Kotlin/Ruby/PHP/Lua/Bash/Swift/Zig。";

@@ -804,6 +804,43 @@ public static partial class SelfTest
         Check("Prefix: HTML 含 splitRow", html.Contains("function splitRow"));
         Check("Prefix: HTML 含 MARKUP_STYLES", html.Contains("MARKUP_STYLES"));
         Check("Prefix: HTML 含表格对齐 text-align", html.Contains("text-align:"));
+
+        // shell 类工具（bash/ps/git…）输出带裸 ANSI，Web 端必须解码：此前工具气泡只走 markupToHtml，
+        // ESC 序列被当正文印出 → 整个气泡一坨乱码。`!命令` 走 addShellOutput→ansiToHtml 所以正常，
+        // 两条路显示不一致正是用户看到的现象。这里钉住分支存在、且**排在 diff/markdown 之前**。
+        var toolFnStart = html.IndexOf("function renderToolOutput", StringComparison.Ordinal);
+        var toolFn = toolFnStart >= 0
+            ? html.Substring(toolFnStart, Math.Min(700, html.Length - toolFnStart))
+            : "";
+        Check("Prefix: renderToolOutput 含 ANSI 分支（ESC → ansiToHtml）",
+            toolFn.Contains("ansiToHtml") && toolFn.Contains("indexOf('\\x1b')"));
+        Check("Prefix: ANSI 分支排在 diff/markdown 判别之前",
+            toolFn.Contains("ansiToHtml") && toolFn.Contains("highlightDiff")
+            && toolFn.IndexOf("ansiToHtml", StringComparison.Ordinal)
+               < toolFn.IndexOf("highlightDiff", StringComparison.Ordinal));
+        Check("Prefix: 流式期也按 ANSI 节流重绘（否则跑的过程里气泡是乱码）",
+            html.Contains("function scheduleToolRender"));
+        // 外部工具（bash/git/sqlite/测试运行器…）的输出**不能进 markdown 解析**：`#`/`- `/`|`
+        // 会被渲染成标题/列表/表格，等宽列对齐全毁（与 `!` 直通的纯文本气泡显示不一致）。
+        // raw 标记由服务端 tool 事件给出（真源 ITool.RawOutput），前端**不得自备工具名单**。
+        Check("Prefix: 输出气泡按服务端 raw 标记分派（不再自备名单）",
+            html.Contains("renderToolOutput(toolOutputEl.textContent, curToolRaw)")
+            && html.Contains("curToolRaw = !!d.raw")
+            && !html.Contains("RAW_OUTPUT_TOOLS"));
+        Check("Prefix: raw 文本先剥 «» 内部标记再上色",
+            html.Contains("function stripMarkupTags")
+            && html.Contains("ansiToHtml(stripMarkupTags(text))"));
+        // raw 标记必须真的发到浏览器（否则前端只能猜）：bash→true、read_file→false
+        var toolEvBash = WayCoder.UI.Web.WebChatServer.JsonTool("bash", "ls");
+        var toolEvRead = WayCoder.UI.Web.WebChatServer.JsonTool("read_file", "a.cs");
+        Check("Prefix: tool 事件带 raw 标记（bash=true / read_file=false）",
+            toolEvBash.Contains("\"raw\":true") && toolEvRead.Contains("\"raw\":false"));
+        // 两个气泡版式必须一致（等宽 + pre-wrap + 同字号），只允许高度上限不同
+        var toolCss = html.Substring(Math.Max(0, html.IndexOf(".tool-output", StringComparison.Ordinal)), 400);
+        var shellCss = html.Substring(Math.Max(0, html.IndexOf(".shell-output", StringComparison.Ordinal)), 400);
+        Check("Prefix: 工具气泡与 shell 气泡同为等宽 + pre-wrap + 13px",
+            toolCss.Contains("ui-monospace") && toolCss.Contains("pre-wrap") && toolCss.Contains("font-size:13px")
+            && shellCss.Contains("ui-monospace") && shellCss.Contains("pre-wrap") && shellCss.Contains("font-size:13px"));
     }
 
     /// <summary>Web Diff 预览：ParseDiffAnswer/SerializeHunks 纯函数 + DiffPreview.Show Web 分支。</summary>

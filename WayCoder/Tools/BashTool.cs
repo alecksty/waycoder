@@ -8,6 +8,9 @@ namespace WayCoder.Tools;
 /// </summary>
 public class BashTool : ITool, ICancellableTool
 {
+    /// <summary>输出是子进程原始字节 → 各端按命令行文本渲染（等宽/保换行/解码 ANSI），见 <see cref="ITool.RawOutput"/></summary>
+    public bool RawOutput => true;
+
     public string Name => "bash";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
     public string Description => "执行 Shell 命令。返回 stdout、stderr 和退出码。\n⚠ 禁止执行：网络下载工具(curl/wget/ssh)、包管理器安装(apt/pip/npm install 等)、权限提升(sudo/su)、系统修改。\n✅ 安全免确认：ls/cat/grep/find/git log/dotnet --version 等只读操作自动放行。";

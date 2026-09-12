@@ -9,6 +9,9 @@ namespace WayCoder.Tools;
 /// </summary>
 public class KillTool : ITool
 {
+    /// <summary>taskkill/kill 的原始输出 → 命令行文本渲染</summary>
+    public bool RawOutput => true;
+
     public string Name => "kill";
     public string Description => "终止指定进程。通过 PID 或进程名（如 'node'、'dotnet'）。禁止终止系统关键进程。";
 

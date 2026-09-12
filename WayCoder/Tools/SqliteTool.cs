@@ -10,6 +10,9 @@ namespace WayCoder.Tools;
 /// </summary>
 public class SqliteTool : ITool
 {
+    /// <summary>sqlite3 命令行客户端的原始输出（表格按列对齐）→ 命令行文本渲染</summary>
+    public bool RawOutput => true;
+
     public string Name => "sqlite";
     public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
     public string Description => "查询 SQLite 数据库：执行 SQL（SELECT/INSERT/UPDATE/DELETE 等）返回结果。需系统安装 sqlite3 命令行工具（macOS/Linux 通常预装）。";

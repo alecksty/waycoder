@@ -129,7 +129,8 @@ public static partial class SelfTest
         TestQrScanScreen(Check);      // 全屏扫码屏：布局计算/半块字符/quiet/放不下判定
         TestQrEncoder(Check);         // 手写 QR：版本/容量/掩码/几何结构自检
         TestQrDecoder(Check);         // 手写 QR 解码器：encode→RGBA/PNG→decode 闭环 + RS 纠错
-        TestToolScheduler(Check);     // 工具调度器：Parallel/Exclusive 分批 + 有界并发 + 顺序提交
+        TestToolScheduler(Check);     // 工具调度器：Parallel/Exclusive 分批 + 有界并发 +顺序提交
+        TestRawOutputTools(Section, Check); // 外部工具输出＝命令行格式（等宽/保换行/解码 ANSI，非 markdown）
         TestToolResultClassifier(Check); // 工具结果分类器：真实错误 vs 用户取消/安全阻止
         TestTrajectory(Check);         // 运行轨迹：截断纯函数 + JSONL 事件流落盘/读回
         TestPdf(Check);                // 手搓 PDF 解析器：结构解析 + 文本提取 + 编码 + 错误分支
@@ -650,6 +651,15 @@ public static partial class SelfTest
         // ! 命令中文输出强制 UTF-8（Windows chcp 65001 防 GBK 乱码）：端到端验证
         var zhOut = new BashTool().ExecuteUserShellAsync("echo 你好世界").Result;
         Check("! 命令中文输出无乱码", zhOut.Contains("你好世界"));
+
+        // Agent 的 bash 工具**同一条路**（都进 Execute → ProcEncoding.Apply），中文必须与 `!` 一致：
+        // 用户在 Web 端对比两条路时若出现「一条正常一条乱码」，根因只可能是渲染层而非解码层 ——
+        // 这条把解码层钉住，免得日后有人只在其中一条路上补编码处理。
+        var zhAgent = new BashTool()
+            .ExecuteStreamingAsync(new Dictionary<string, object?> { ["command"] = "echo 你好世界" }, _ => Task.CompletedTask)
+            .Result;
+        Check("bash 工具中文输出与 ! 直通一致（同一解码路径）",
+            zhAgent.Contains("你好世界") && !zhAgent.Contains('�'));
 
         // cwd 跟踪
         try
