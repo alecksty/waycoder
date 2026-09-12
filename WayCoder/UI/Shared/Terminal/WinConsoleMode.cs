@@ -86,9 +86,28 @@ public static partial class WinConsoleMode
     /// <summary>施加前的控制台输入代码页（0 = 未知）。回退解码要按它的字节规则切分 DBCS 字符。</summary>
     public static uint OriginalInputCodePage => _origCp;
 
-    /// <summary>该代码页下此字节是否 DBCS 前导字节（需再吃 1 个尾字节）。非 Windows / 无代码页 → false。</summary>
+    /// <summary>
+    /// 该代码页下此字节是否 DBCS 前导字节（需再吃 1 个尾字节）。
+    ///
+    /// Windows 走 kernel32 的 <c>IsDBCSLeadByteEx</c>；**非 Windows 上按已知 DBCS 代码页的
+    /// 前导字节范围纯逻辑判定**。这里刻意**不**用 <c>OperatingSystem.IsWindows()</c> 挡成恒 false：
+    /// 调用方（<c>WindowsCharSource</c> 的 legacy 回退）会在测试里显式注入代码页来验证**切分逻辑**
+    /// （`new WindowsCharSource(feed, gbk, 936)`），恒 false 会让双字节被逐字节拆开解成乱码 ——
+    /// 自测在 macOS 上正是这么红的（"GBK 字节按原页还原为正确中文"）。
+    /// 无代码页（0）→ false（无从判断，按单字节走）。
+    /// </summary>
     public static bool IsDbcsLead(uint codePage, byte b)
-        => OperatingSystem.IsWindows() && codePage != 0 && IsDbcsLeadByteEx(codePage, b);
+    {
+        if (codePage == 0) return false;
+        if (OperatingSystem.IsWindows()) return IsDbcsLeadByteEx(codePage, b);
+        // 非 Windows：kernel32 不可用，用离线表覆盖常见远东代码页
+        return codePage switch
+        {
+            932 => b is (>= 0x81 and <= 0x9F) or (>= 0xE0 and <= 0xFC), // Shift-JIS
+            936 or 949 or 950 => b is >= 0x81 and <= 0xFE,              // GBK / 韩文 UHC / Big5
+            _ => false,
+        };
+    }
 
     /// <summary>
     /// 把**控制台输入代码页**切成 UTF-8，让 conhost 的 VT 输入字节按 UTF-8 交付。
