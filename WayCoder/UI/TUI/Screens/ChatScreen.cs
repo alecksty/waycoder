@@ -67,7 +67,7 @@ public partial class ChatScreen : TuiScreen
     /// （code-behind 覆写）共用同一常量，避免两处静态文本漂移。
     /// </summary>
     protected const string ShortcutRowText =
-        "«dim»Shift+Tab 模式 · Ctrl+P 权限 · Ctrl+E 经济 · Ctrl+M 模型 · Ctrl+B 侧栏 · Ctrl+S 会话 · Ctrl+Shift+P 菜单 · Enter 发送 · ↑↓ 历史 · Tab 补全 · F1-F10 · Ctrl+H 帮助«/»";
+        "«dim»Shift+Tab 模式 · Ctrl+P 权限 · Ctrl+E 经济 · Ctrl+M 模型 · Ctrl+B 侧栏 · Ctrl+S 会话 · Ctrl+U 菜单 · Enter 发送 · ↑↓ 历史 · Tab 补全 · F1-F10 · Ctrl+H 帮助«/»";
 
     /// <summary>建议下拉面板</summary>
     public TuiVBox SuggestPanel { get; protected set; } = null!;
@@ -1374,7 +1374,7 @@ public partial class ChatScreen : TuiScreen
     /// <summary>回调：打开 diff 预览（/diff，Program.cs 注入，Ctrl+D）</summary>
     public Action? OnOpenDiff;
 
-    /// <summary>回调：打开命令面板（Ctrl+Shift+P，Program.Repl 注入）</summary>
+    /// <summary>回调：打开命令面板（Ctrl+U，Program.Repl 注入）</summary>
     public Action? OnOpenCommandPalette;
 
     /// <summary>回调：选择推理深度（Program.cs 注入）</summary>
@@ -1394,7 +1394,7 @@ public partial class ChatScreen : TuiScreen
         ShowWindow(win);
     }
 
-    /// <summary>Ctrl+Shift+P：打开命令面板（对齐 Claude Code quickOpen / OpenCode）。
+    /// <summary>Ctrl+U：打开命令面板（纯 Ctrl 键 —— 原 Ctrl+Shift+P 在 Windows 被终端抢键）。
     /// 走 OnOpenCommandPalette 回调（Program.Repl 接线，Keypad 可绑定标记验证）。</summary>
     private void OpenCommandPalette()
     {
@@ -1409,7 +1409,8 @@ public partial class ChatScreen : TuiScreen
         CommandPalette.Show(commands);
     }
 
-    /// <summary>Ctrl+Shift+F1：弹出主题选择对话框</summary>
+    /// <summary>Ctrl+W：弹出主题选择对话框（↑↓ 选、Enter 确认 —— 原来另配的「直接轮转下一个」
+    /// 快捷键 Ctrl+Shift+F2 已随三键组合一起取消，轮转改从对话框或 `/theme next` 走）</summary>
     private void ShowThemePicker()
     {
         var names = new List<string>(TuiTheme.PresetNames);
@@ -1423,14 +1424,6 @@ public partial class ChatScreen : TuiScreen
             }
         });
         ShowWindow(win);
-    }
-
-    /// <summary>Ctrl+Shift+F2：直接轮转到下一个主题</summary>
-    private void CycleThemeDirect()
-    {
-        var name = TuiTheme.CycleNext();
-        ApplyThemeToScreen();
-        ShowToast($"🎨 主题：{name}", 1500);
     }
 
     /// <summary>将当前主题颜色应用到屏幕各组件并强制重绘</summary>

@@ -369,7 +369,7 @@ public partial class Program
             var (cmd, args) = SlashCommandRegistry.Match("/diff");
             if (cmd != null) cmd.ExecuteAsync(args, screen).GetAwaiter().GetResult();
         };
-        // Ctrl+Shift+P → 命令面板（对齐 Claude Code quickOpen / OpenCode）
+        // Ctrl+U → 命令面板（原 Ctrl+Shift+P 在 Windows 被终端抢键，见 ChatScreen.HandleGlobalShortcut）
         screen.OnOpenCommandPalette = () =>
         {
             var cmds = WayCoder.UI.Tui.CommandPalette.BuildDefaultCommands(screen);
@@ -533,12 +533,14 @@ public partial class Program
             }
 
             // 窗口键：切换工作模式（Build → Plan → Chat）
-            // 判定见 InputEvent.IsModeSwitchKey —— Unix 的 ESC[Z / Windows 的 Tab+Shift / 通用 Ctrl+K
+            // 判定见 InputEvent.IsModeSwitchKey —— Unix 的 ESC[Z / Windows 的 Tab+Shift。
+            // 原「通用 Ctrl+K 别名」已取消：Ctrl+K 在输入框里是「删到行尾」（emacs kill-line），
+            // 全局别名把它盖掉了（一键一义：Shift+Tab 与 /mode 已够用）。
             // 槽位/Agent 模式同步 + 工具集刷新 + 状态栏由 ModeChanged 处理器统一完成
             if (onChatScreen && InputEvent.IsModeSwitchKey(ev))
             {
                 var newMode = WorkModeManager.CycleNext();
-                screen.AddSystemMsg($"工作模式: {WorkModeManager.Format(newMode)}（Shift+Tab / Ctrl+K 切换）");
+                screen.AddSystemMsg($"工作模式: {WorkModeManager.Format(newMode)}（Shift+Tab 切换，或 /mode）");
                 mgr.Render();
                 continue;
             }
@@ -606,8 +608,10 @@ public partial class Program
                 continue;
             }
 
-            // 窗口键：Ctrl+X 交换当前槽位的大小模型
-            if (onChatScreen && key.Key == ConsoleKey.X && ctrl)
+            // 窗口键：Ctrl+O 交换当前槽位的大小模型。
+            // 原来是 Ctrl+X —— 那是系统剪切键，且输入框自己也实现了 CutSelection（TuiEditBase），
+            // 被全局抢走后「按 Ctrl+X 想剪切、结果把大小模型换掉」（还会连带重配网关/Key）。
+            if (onChatScreen && key.Key == ConsoleKey.O && ctrl)
             {
                 // 交换 = 大小模型整套（模型 id + 服务商 + 网关 + KEY）整体互换：
                 // 新大模型继承原小模型的服务商/网关/Key，新小模型继承原大模型的。
@@ -682,8 +686,9 @@ public partial class Program
                 continue;
             }
 
-            // 窗口键：Ctrl+Shift+M 快速循环切换 connect（大模型）—— 创建多个 connect 后一键轮流切换
-            if (onChatScreen && key.Key == ConsoleKey.M && ctrl && key.Modifiers.HasFlag(ConsoleModifiers.Shift))
+            // 窗口键：Ctrl+N 快速循环切换 connect（大模型）—— 创建多个 connect 后一键轮流切换。
+            // 判定抽到 InputEvent.IsCycleConnectKey（REPL 主循环没法自测，同 IsModeSwitchKey 的处置）
+            if (onChatScreen && InputEvent.IsCycleConnectKey(ev))
             {
                 CycleConnect(screen);
                 mgr.Render();
@@ -702,7 +707,7 @@ public partial class Program
     }
 
     /// <summary>
-    /// Ctrl+Shift+M：快速循环切换 connect（大模型）。按一下切到 connect 注册表的下一个，
+    /// Ctrl+N：快速循环切换 connect（大模型）。按一下切到 connect 注册表的下一个，
     /// 重配运行时 LLM 并提示 `已切换至 (provider)model 模型（n/total）`。
     /// </summary>
     private static void CycleConnect(ChatScreen screen)
@@ -736,7 +741,7 @@ public partial class Program
         var agent = ProgramContext.Agent;
         // 切换连接 = 大/小一起切 → 走统一收尾（此前在这里手写四步，是 5 处绕过之一）
         agent?.ApplyRuntimeModel(cfg.Model, cfg.SmallModel, key, cfg.BaseUrl);
-        screen.AddSystemMsg($"✅ {msg}（{(idx + 1) % connects.Count + 1}/{connects.Count}，Ctrl+Shift+M 下一个）" +
+        screen.AddSystemMsg($"✅ {msg}（{(idx + 1) % connects.Count + 1}/{connects.Count}，Ctrl+N 下一个）" +
             (string.IsNullOrEmpty(key) ? "\n  ⚠ 该服务商尚未存 key（/provider apikey set <pid> <key>）" : ""));
         screen.RefreshModelStatus(); // 切换连接后刷新动态栏/模型栏显示（此前漏刷新 → 显示旧模型）
     }

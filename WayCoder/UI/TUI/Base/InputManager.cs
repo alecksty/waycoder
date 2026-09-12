@@ -226,7 +226,8 @@ public class InputManager : IDisposable
                 return new InputEvent { Type = InputType.Resize, Width = w, Height = h };
             }
 
-            // 先返回 ESC 序列解析时暂存的字符（如 Alt+x 的 'x'）与注入键，保证按键顺序
+            // 先返回 ESC 序列解析时暂存的字符与注入键，保证按键顺序
+            //（Alt+字符不在此列 —— 那条路现在自带 Alt 修饰键直接返回，见 TryParseEscapeSequence）
             if (_pendingKeys.TryDequeue(out var pk))
                 return new InputEvent { Type = InputType.Key, KeyInfo = pk };
 
@@ -316,7 +317,7 @@ public class InputManager : IDisposable
     /// - Bracketed paste AnsiTty.AnsiCharPrefix[200~ ... AnsiTty.AnsiCharPrefix[201~ → 返回 Paste 事件
     /// - Kitty 键盘协议 AnsiTty.AnsiCharPrefix[keycode;mod u → 返回 Key 事件
     /// - xterm 功能键 AnsiTty.AnsiCharPrefix[num;mod P/~ → 返回 Key 事件
-    /// - Alt+字符（AnsiTty.AnsiCharPrefix x）→ 字符退回 _pendingKeys，返回 null
+    /// - Alt+字符（AnsiTty.AnsiCharPrefix x）→ 返回带 Alt 修饰键的 Key 事件
     /// </summary>
     private InputEvent? TryParseEscapeSequence()
     {
@@ -341,10 +342,26 @@ public class InputManager : IDisposable
 
         if (bracket != AnsiTty.AnsiCharEscape)
         {
-            // Alt+字符 组合：AnsiTty.AnsiCharPrefix x —— 退回字符，AnsiTty.AnsiCharPrefix 单独作为 ESC 键返回。
-            // Windows 字节流层此字符已在 _charSource 读出；退回 pending 供 ReadInput 出队为普通键。
-            if (bracket != '\0') _pendingKeys.Enqueue(ToConsoleKeyInfo(bracket));
-            return null;
+            // Alt+字符：ESC + 字符（xterm 的 altSendsEscape —— Windows Terminal / iTerm / konsole
+            // 对 Alt+字母/数字/符号就是这么发的，前面 SS3 分支的 F1-F4 也曾落到这里）。
+            // **必须带 Alt 修饰键返回**。此前是「字符退回 _pendingKeys + ESC 单独作为 ESC 键返回」，
+            // 于是按 Alt+T 变成「**中断 Agent** + 往输入框打一个 t」—— Alt 组合键全部不可用，
+            // 还会误触中断（本次修）。与 Kitty 路径同语义（ParseKittyKeySequence 的 modifiers & 2）。
+            //
+            // 歧义窗口：ESC 后 20ms 内到达的字符算 Alt+字符 —— xterm 系终端的通用做法
+            //（人手连按 ESC 再打字远超 20ms；协商了 Kitty 键盘协议的终端本就走无歧义那条路）。
+            if (bracket != '\0')
+            {
+                var ck = ToConsoleKeyInfo(bracket);
+                return new InputEvent
+                {
+                    Type = InputType.Key,
+                    KeyInfo = new ConsoleKeyInfo(ck.KeyChar, ck.Key,
+                        ck.Modifiers.HasFlag(ConsoleModifiers.Shift), true,
+                        ck.Modifiers.HasFlag(ConsoleModifiers.Control)),
+                };
+            }
+            return null; // WaitForChar 超时拿不到字符 → 孤立 ESC，交上层当 ESC 处理
         }
 
         // \x1b[ 后无内容（极少见）→ 退回 '['，让 \x1b 单独作为 ESC 键
@@ -859,10 +876,12 @@ public enum InputType
 public class InputEvent
 {
     /// <summary>
-    /// 是否「切换工作模式」键。三个入口，因为 Shift+Tab 在两个平台上长得不一样：
+    /// 是否「切换工作模式」键。两个入口，因为 Shift+Tab 在两个平台上长得不一样：
     ///   Unix    终端发 ESC[Z → <see cref="InputType.ShiftTab"/>
     ///   Windows Console.ReadKey 给 ConsoleKey.Tab + Shift 修饰键，永远没有 ESC[Z
-    ///   Ctrl+K  两平台通用别名
+    /// 原先还有「Ctrl+K 通用别名」，已取消 —— Ctrl+K 在输入框里是「删到行尾」
+    ///（TuiEditBase.HandleCtrlKey，emacs kill-line），全局别名把它盖掉了；模式切换有
+    /// Shift+Tab 与 `/mode` 两条路，不缺它。
     /// 抽成纯函数是因为这个条件错过一次（只认第一种，Windows 上按 Shift+Tab 变成插 4 空格），
     /// REPL 主循环没法自测，判定逻辑放这儿能锁住 —— 尤其两条反向：
     /// 裸 Tab 必须放行给路径补全，裸 k 必须当普通字符打进输入框。
@@ -872,9 +891,22 @@ public class InputEvent
         if (ev.Type == InputType.ShiftTab) return true;
         if (ev.Type != InputType.Key) return false;
         var k = ev.KeyInfo;
-        if (k.Key == ConsoleKey.Tab && k.Modifiers.HasFlag(ConsoleModifiers.Shift)) return true;
-        if (k.Key == ConsoleKey.K && k.Modifiers.HasFlag(ConsoleModifiers.Control)) return true;
-        return false;
+        return k.Key == ConsoleKey.Tab && k.Modifiers.HasFlag(ConsoleModifiers.Shift);
+    }
+
+    /// <summary>
+    /// 是否「快速循环切换 connect」键：**纯 Ctrl+N**。
+    /// 原绑 Ctrl+Shift+M —— 三键组合在 Windows 上不可靠（终端可能把该组合抢走；即便送到，
+    /// VT 字节流也拿不到 Shift 修饰键，见 <c>CharSource.ToConsoleKeyInfo</c>），与命令面板的
+    /// Ctrl+Shift+P 同一处置：一律用纯 Ctrl+字母（快捷键跨平台铁律）。
+    /// 抽成纯函数与 <see cref="IsModeSwitchKey"/> 同理 —— REPL 主循环没法自测，判定放这儿能锁住，
+    /// 尤其两条反向：裸 n 必须当普通字符打进输入框、Ctrl+M（模型选择）不能被它抢走。
+    /// </summary>
+    public static bool IsCycleConnectKey(InputEvent ev)
+    {
+        if (ev.Type != InputType.Key) return false;
+        var k = ev.KeyInfo;
+        return k.Key == ConsoleKey.N && k.Modifiers.HasFlag(ConsoleModifiers.Control);
     }
 
     public InputType Type { get; set; }

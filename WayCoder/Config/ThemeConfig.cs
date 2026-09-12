@@ -204,6 +204,10 @@ public class ThemeConfig
         catch { }
     }
 
+    /// <summary>下一个主题预设名（顺序真源 = TuiTheme 的 8 预设，这里只做桥接）。
+    /// 供 `/theme next` 打字兜底 —— 原来「Ctrl+Shift+F2 直接轮转」的快捷键已随三键组合取消。</summary>
+    public static string NextPreset() => TuiTheme.NextPresetName();
+
     /// <summary>应用预设并保存，同步主界面。
     /// 统一配色真源为 TuiTheme（8 预设），ThemeConfig 只负责窗口级边框样式 + 持久化。</summary>
     public static void ApplyPreset(string name)

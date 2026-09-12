@@ -99,7 +99,7 @@ public static class ThemeVerify
         // ── 轮转测试 ──
         Console.WriteLine();
         Console.WriteLine(new string('═', 60));
-        Console.WriteLine("快捷键轮转测试 (Ctrl+Shift+F2):");
+        Console.WriteLine("主题轮转测试（界面按 Ctrl+W 开对话框选，或输入 /theme next）:");
         var saved = TuiTheme.Current;
         TuiTheme.Apply(TuiTheme.Dark, 0);
         for (int i = 0; i < 10; i++)

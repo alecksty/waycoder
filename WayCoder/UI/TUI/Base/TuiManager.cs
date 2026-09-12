@@ -119,7 +119,7 @@ public class TuiManager : IDisposable
             if (cpu > 70 && FreezeCapture.Enabled)
                 FreezeCapture.DumpNow($"CPU 高占用 {cpu:F0}%", UiLoopActivity, 0);
 
-            // 模型显示 5s 兜底同步：切换路径（/connect/Ctrl+Shift+M 等）可能漏刷新，
+            // 模型显示 5s 兜底同步：切换路径（/connect/Ctrl+N 等）可能漏刷新，
             // 心跳比较 active connect 快照，变了才刷新动态栏/模型栏（防每 5s 全屏闪烁）。
             var snap = $"{Config.Instance.Provider}|{Config.Instance.Model}|{Config.Instance.SmallProvider}|{Config.Instance.SmallModel}";
             if (snap != _lastModelSnapshot)

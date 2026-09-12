@@ -303,6 +303,10 @@ namespace WayCoder
         };
 
         public static void ApplyPreset(string name) { }
+
+        /// <summary>下一个预设名（`/theme next` 用）。移动端主题由 MAUI 原生管，切换是 no-op，
+        /// 这里只保证命令不炸 —— 与 ApplyPreset 的桩语义一致。</summary>
+        public static string NextPreset() => Presets.Keys.First();
     }
 
 }

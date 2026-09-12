@@ -138,14 +138,19 @@ public static partial class SelfTest
         using (var feed = new TestFeedStream())
         using (var src = new WindowsCharSource(feed))
         {
-            feed.Feed([0x01, 0x10, 0x1A]); // Ctrl+A / Ctrl+P / Ctrl+Z
+            feed.Feed([0x01, 0x10, 0x15, 0x1A]); // Ctrl+A / Ctrl+P / Ctrl+U / Ctrl+Z
             var ca = ReadKey(src, feed);
             var cp = ReadKey(src, feed);
+            var cu = ReadKey(src, feed);
             var cz = ReadKey(src, feed);
             Check("字节 0x01 → Ctrl+A",
                 ca?.Key == ConsoleKey.A && ca.Value.Modifiers.HasFlag(ConsoleModifiers.Control));
             Check("字节 0x10 → Ctrl+P（权限循环键）",
                 cp?.Key == ConsoleKey.P && cp.Value.Modifiers.HasFlag(ConsoleModifiers.Control));
+            // 命令面板键改纯 Ctrl+U 后必须走真机字节路径验证：Ctrl+Shift+P 那种组合在
+            // Windows 上根本到不了程序（见 ChatScreen.HandleGlobalShortcut 的说明）
+            Check("字节 0x15 → Ctrl+U（命令面板键）",
+                cu?.Key == ConsoleKey.U && cu.Value.Modifiers.HasFlag(ConsoleModifiers.Control));
             Check("字节 0x1A → Ctrl+Z（优雅暂停键）",
                 cz?.Key == ConsoleKey.Z && cz.Value.Modifiers.HasFlag(ConsoleModifiers.Control));
         }
@@ -159,6 +164,52 @@ public static partial class SelfTest
             var esc = ReadKey(src, feed);
             Check("Tab/Enter/ESC 语义不被 Ctrl 还原破坏",
                 tab?.Key == ConsoleKey.Tab && enter?.Key == ConsoleKey.Enter && esc?.Key == ConsoleKey.Escape);
+        }
+        // Alt+字符的合成发生在 InputManager 的**转义解析**（泵线程），
+        // 不在字节源那一层（字节源只做「字节 → ConsoleKeyInfo」）。所以必须驱动带转义解析的
+        // 真实读键路径（SetSourceForTest + ReadInput），否则测的是下面那一层，永远绿。
+        // 语义：xterm 系终端对 Alt+字母/数字/符号发 ESC + 字符（altSendsEscape）。
+        // 注意 ReadInput 首帧会先返回 Resize（尺寸未初始化），必须跳过非按键事件再断言。
+        static WayCoder.UI.TUI.Base.InputEvent? NextKey(WayCoder.UI.TUI.Base.InputManager m)
+        {
+            for (int i = 0; i < 30; i++)
+            {
+                var e = m.ReadInput(200);
+                if (e.Type == WayCoder.UI.TUI.Base.InputType.Key) return e;
+            }
+            return null;
+        }
+        {
+            using var feed = new TestFeedStream();
+            using var im = new WayCoder.UI.TUI.Base.InputManager();
+            im.SetSourceForTest(new WindowsCharSource(feed), hasKeySource: true);
+            feed.Feed([0x1B, (byte)'t', 0x1B, (byte)'1', 0x1B, (byte)'/']);
+            var altT = NextKey(im);
+            var altOne = NextKey(im);
+            var altSlash = NextKey(im);
+            Check("ESC+t → Alt+T（Alt 组合可用；此前拆成 ESC + 裸 t = 误触中断 Agent）",
+                altT != null && altT.KeyInfo.Key == ConsoleKey.T
+                && altT.KeyInfo.Modifiers.HasFlag(ConsoleModifiers.Alt));
+            Check("ESC+t → 不是 Escape（否则按 Alt+T 会中断 Agent）",
+                altT != null && altT.KeyInfo.Key != ConsoleKey.Escape);
+            Check("ESC+1 → Alt+1（数字可用）",
+                altOne != null && altOne.KeyInfo.Key == ConsoleKey.D1
+                && altOne.KeyInfo.Modifiers.HasFlag(ConsoleModifiers.Alt));
+            Check("ESC+/ → Alt+/（符号可用：KeyChar 保留）",
+                altSlash != null && altSlash.KeyInfo.KeyChar == '/'
+                && altSlash.KeyInfo.Modifiers.HasFlag(ConsoleModifiers.Alt));
+        }
+        {
+            // 反向：孤立 ESC（20ms 窗口内没有字符）必须仍是 ESC —— 它是「中断 Agent」的键，
+            // 一律当 Alt 会让这个最常用的取消键失灵。
+            using var feed = new TestFeedStream();
+            using var im = new WayCoder.UI.TUI.Base.InputManager();
+            im.SetSourceForTest(new WindowsCharSource(feed), hasKeySource: true);
+            feed.Feed([0x1B]);
+            var lone = NextKey(im);
+            Check("孤立 ESC → Escape（无后续字符，未被 Alt 化）",
+                lone != null && lone.KeyInfo.Key == ConsoleKey.Escape
+                && !lone.KeyInfo.Modifiers.HasFlag(ConsoleModifiers.Alt));
         }
         // InputManager 的字符转换须与字节流共用同一实现（修一处全端生效）
         Check("ToConsoleKeyInfo 与 MapToConsoleKey 同源（0x7F）",

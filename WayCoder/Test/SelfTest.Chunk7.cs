@@ -41,6 +41,38 @@ public static partial class SelfTest
         ThemeConfig.ApplyPreset("default");
         ThemeConfig.Instance.ApplyTo(tw);
         Check("ApplyTo 恢复默认", tw.BorderStyle == WindowBorder.Single);
+
+        // /theme next 轮转：名字取自 TuiTheme 的 8 预设（顺序真源），转一圈回到原点。
+        // 原来这条靠 Ctrl+Shift+F2 快捷键，组合键取消后改走打字命令，判定逻辑因此可测。
+        {
+            var savedIdx = TuiTheme.CurrentPresetIndex;
+            var start = TuiTheme.PresetNames[savedIdx];
+
+            // ① 纯函数部分（无副作用）：NextPresetName 只算名字，连调两次必须同值
+            var nextName = TuiTheme.NextPresetName();
+            Check("/theme next: 只算名字、无副作用（连调两次同结果）",
+                TuiTheme.NextPresetName() == nextName);
+            Check("/theme next: 名字可被归一化落到配色真源（ThemeConfig 桥接端到端）",
+                TuiTheme.NormalizeKey(ThemeConfig.NextPreset()) != null);
+            Check("/theme next: 只算名字，不改变当前主题",
+                TuiTheme.PresetNames[TuiTheme.CurrentPresetIndex] == start);
+
+            // ② 与 CycleNext 必须同一套顺序 —— 拆成两份实现时改一处漏另一处，这条立刻红
+            Check("/theme next: NextPresetName 与 CycleNext 同源", TuiTheme.CycleNext() == nextName);
+
+            // ③ 环形闭合：连转 8 次应走遍全部预设且回到起点（8 个后继即全集）
+            var idx0 = TuiTheme.CurrentPresetIndex;
+            var name0 = TuiTheme.PresetNames[idx0];
+            var seen = new List<string>();
+            for (int i = 0; i < TuiTheme.Presets.Length; i++) seen.Add(TuiTheme.CycleNext());
+            Check("/theme next: 一轮走遍全部预设且不重复",
+                seen.Count == TuiTheme.Presets.Length && seen.Distinct().Count() == seen.Count);
+            Check("/theme next: 环形闭合（转一圈回到起点）",
+                TuiTheme.CurrentPresetIndex == idx0 && TuiTheme.PresetNames[idx0] == name0);
+
+            ThemeConfig.ApplyPreset(start);
+            Check("/theme next: 复原原主题", TuiTheme.PresetNames[TuiTheme.CurrentPresetIndex] == start);
+        }
         Console.WriteLine();
 
         // ================================================================
@@ -925,6 +957,15 @@ public static partial class SelfTest
             tc.Cy = 0; tc.Cx = 2;
             te.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.Backspace, false, false, true));
             Check("Ctrl+Backspace 删前一词", tc.Lines[0].ToString() == "");
+
+            // Ctrl+Shift+K 删整行已取消（三键组合一律弃用），落到基类后等同 Ctrl+K（删到行尾）：
+            // 内容删到行尾、**行本身保留**（原 DeleteLine 会把整行也去掉、行数减一）。
+            // 删整行的入口由 Ctrl+X（无选区=整行剪切）承担。
+            tc.Cy = 1; tc.Cx = 4;
+            int linesBefore = tc.TotalLines;
+            te.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.K, true, false, true));
+            Check("Ctrl+Shift+K 不再删整行（改走 Ctrl+K 删到行尾，行数不变）",
+                tc.TotalLines == linesBefore && tc.Lines[1].ToString() == "aa b");
 
             // Ctrl+Left/Right 词级移动
             var tc2 = new EditorCore();

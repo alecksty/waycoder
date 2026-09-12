@@ -643,7 +643,7 @@ if (result != null)
             screen.AddMessage("🚫 推理深度选择已取消", "system");
     }
 
-    /// <summary>Ctrl+P — 命令面板（对标 Crush command palette）</summary>
+    /// <summary>Ctrl+U — 命令面板（对标 Crush command palette；原 Ctrl+Shift+P 在 Windows 被终端抢键）</summary>
     internal static void ShowCommandPaletteDemo(ChatScreen screen)
     {
         var commands = new List<CommandPalette.Command>
@@ -654,7 +654,7 @@ if (result != null)
                 () => screen.AddMessage("📋 执行：管理会话", "system")),
             new("reasoning", "🧠 推理深度", "模型", "Ctrl+G", "设置推理深度",
                 () => screen.AddMessage("📋 执行：推理深度", "system")),
-            new("file", "📁 打开文件", "文件", "Ctrl+O", "选择并打开文件",
+            new("file", "📁 打开文件", "文件", "", "选择并打开文件（无全局键；Ctrl+O 是交换大小模型）",
                 () => screen.AddMessage("📋 执行：打开文件", "system")),
             new("save", "💾 保存会话", "文件", "Ctrl+S", "保存当前会话到磁盘",
                 () => screen.AddMessage("📋 执行：保存会话", "system")),
@@ -666,8 +666,9 @@ if (result != null)
                 () => screen.AddMessage("📋 执行：帮助", "system")),
             new("quit", "🚪 退出", "系统", "Ctrl+Q", "退出 WayCoder",
                 () => screen.AddMessage("📋 执行：退出", "system")),
+            // 溢出夹具：快捷键列刻意填一个**合成**的长串（不是真实键位，只为撑宽度验证截断逻辑）
             new("longlabel", "🔧 这条命令标签故意写得特别长用于验证溢出截断", "测试",
-                "Ctrl+Shift+L", "这是一条同样非常长的描述文本，用来验证在较窄终端下标签、描述与快捷键三者都能正确截断而不撑破边框。",
+                "Ctrl+Shift+Alt+L（合成夹具）", "这是一条同样非常长的描述文本，用来验证在较窄终端下标签、描述与快捷键三者都能正确截断而不撑破边框。",
                 () => screen.AddMessage("📋 执行：长标签命令", "system")),
         };
         CommandPalette.Show(commands);
