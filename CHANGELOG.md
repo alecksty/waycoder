@@ -1,5 +1,94 @@
 # 更新日志
 
+## v0.96.107 (2026-09-12) — Web 不再卡死 · 思考/工具折叠 · 键位避让系统键 · 工具输出统一命令行格式
+
+10 提交 / 76 文件；自测 **5422 通过 / 0 失败**（较上版 **+93 条护栏**）。
+
+### 一、Web 界面卡死（用户实测：卡住一会，久了浏览器弹「页面无响应」）
+
+**先说结论：不是编码层、也不是渲染解析层，是 DOM 层。** 先用数据排除误判——
+把浏览器纯函数抠到 node 里实测（`scripts/_bench_web_render.cjs`）：ANSI 解码 4.9 万字符 **3.7ms**、
+markdown 渲染 12 万字符 **30ms**、字符串拼接可忽略。都便宜得不像元凶。
+
+真凶是每个流式 token 的两行代码：`el.textContent += s`（**重建整块文本节点**）紧随
+`scroll()`（读 `scrollHeight` → **强制同步重排整页**）。把**真实函数**跑在最小 DOM 桩上计数
+（`scripts/_bench_web_stream.cjs`）：
+
+| 场景 | 整块文本重建 | 强制重排 |
+|---|---|---|
+| 2000 token / 5 万字符（旧 → 新） | 2000 → **1** | 2000 → **1** |
+| 工具输出 400 chunk（旧 → 新） | 400 → **0** | 400 → **0** |
+
+修法三条：流式追加改走文本节点 `appendData`（只追加新片段）；滚动合帧（rAF，且只在用户
+已在底部时跟随，上翻看历史不会被拽回）；历史重放分帧（每帧 15 条）。
+
+另外两处「像卡死」的坑一并收口：**服务端 `ask`/`diff` 超时后前端浮层永远挂着**
+（服务端已按默认继续跑了，页面却点不动任何东西）→ 超时广播 `ask_closed`，前端收掉模态并提示。
+
+### 二、思考与工具折叠（Web / GUI 默认开，对齐 MAUI）
+
+- 💭 思考：一行 `思考中 Ns` → 定稿 `已思考 N 秒`，正文只进内存
+- 🔧 工具：一行 `工具调用:N 次`；分组边界照 MAUI（出现新思考块或新正文段 → 下个工具**新开一组**）
+- 点开才看详情：Web 弹模态浮层（可滚动 + 搜索，思考进行中每秒刷新）、GUI 开独立详情窗；
+  输出按项预算均分（120k ÷ 项数，clamp 2k–30k），对齐 MAUI 的 `ShareFor`，避免先到先得饿死后序输出
+- 顺带把正文**按工具边界分段**（AI1 / 工具组 / AI2 交错），单气泡体积受控
+- **GUI 同时修掉两处卡死**：工具输出不再每个 chunk 新建一条气泡（以前一次大输出 = 成百上千条
+  气泡 + 成百次强制滚动）；滚动加「自动跟底」闸门
+- TUI 复核后**不动**：它本来就是「每 delta 只标脏 + 渲染帧统一 flush + 内容级脏」，
+  外加单条上限与 auto 档 20 行折叠（用户已定：TUI 维持 detailed/auto/concise 三档）
+
+### 三、外部工具输出统一按命令行格式（UTF-8 / 等宽 / 保换行 / 解码 ANSI）
+
+Web 端实测：`!命令` 显示正常，bash 工具气泡却是**一坨乱码**。根因同样不在编码层——
+四条进程启动路径（agent 的 bash、`!` 直通、沙箱、持久 shell）本来就都调 `ProcEncoding.Apply`，
+C# 侧给到各端的是同一个正确 UTF-8 串；差别在**前端渲染**：`!` 走 `ansiToHtml`，
+工具输出走 `markupToHtml` ⇒ ① ESC 序列被当正文印出；② shell 输出里的 `#`/`- `/`|`
+被当 markdown 渲染成标题/列表/表格，大字号标题 + 折叠的连续空格把等宽列对齐全毁。
+
+判据做成**工具自己声明**（`ITool.RawOutput`，默认接口成员）：11 个「输出是外部进程原始字节」
+的工具声明 `true`（bash/git/git_pr/sqlite/ps/kill/test/lint/lsp/screenshot/job_output），
+`ToolRegistry.IsRawOutput(name)` 供按名查询，Web 事件带 `raw` 标记、前端据此分派 ——
+**前端不再自备工具名单**（那种平行表改一处漏一处）。移动端与 GUI 新增共享
+`AnsiHelper.StripAnsi`（含 CSI/OSC/截断序列处理）：不做上色但**绝不显示乱码**。
+
+### 四、工具行显示缩到最短（只改显示，不改参数）
+
+`edit_file file_path=C:\a\b\c\d\main.c, old_string=…` → **`edit(main.c)`**。
+
+新增共享 `ToolDisplay`（一处实现、四端共用）：名字缩写 `read_file→read` / `write_file→write` /
+`edit_file→edit`（另含 `multi_edit`/`notebook_edit→edit`、`find_replace→replace`）；
+路径取最短（绝对路径只留文件名、长相对路径留末两段）；参数摘要**只取路径主参**，
+丢掉 `old_string`/`new_string` 这类噪声。真实参数照旧走 `ToolCall.Arguments`，
+轨迹日志仍记全量，按真实名的能力判断（`IsRawOutput`）不受影响。
+
+### 五、键位避让系统键与三键组合
+
+**三键组合清零**（`Ctrl+Shift+字母` 在 Windows 上按不到：Windows Terminal 抢走 `Ctrl+Shift+P`
+开它自己的命令面板；即便不被抢，VT 字节流也拿不到 Shift 修饰键）：命令面板 → `Ctrl+U`、
+换 connect → `Ctrl+N`、主题 → `Ctrl+W`（轮转改 `/theme next`）；编辑器同批：
+`Ctrl+Shift+O`→`Ctrl+O`、`Ctrl+Shift+F`→`Ctrl+W`、取消 `Ctrl+Shift+K`（`Ctrl+X` 无选区即整行剪切）。
+
+**不占用系统剪切键与输入框自己的编辑键**：`Ctrl+X` 交换大小模型 → `Ctrl+O`、
+`Ctrl+Y` 搜索历史 → `Ctrl+F`、取消 `Ctrl+K` 切模式别名（让回「删到行尾」）。
+
+**`Alt+字母/数字/符号` 修好可用**：`ESC + 字符` 这条路此前把字符退回 pending、ESC 单独成键 ——
+按 `Alt+T` 会「**中断 Agent** + 往输入框打一个 t」，Alt 组合键全部不可用；现在带 Alt 修饰键返回。
+
+### 六、`dotnet run` 无参启动起不来
+
+`launchSettings.json` 的 `commandLineArgs` 是 `"\r\n\r\n"` —— 早年删掉 `--tui-demo` 时留下的尾巴，
+退化成一段纯空白；`dotnet run` 把它当**一个参数**传进来，而 v0.96.85 的严格校验把「裸位置参数」
+改成硬报错 ⇒ 本仓库常规入口直接起不来。删残留 + `Parse` 忽略纯空白参数（它来自工具而非人手），
+顺带把报错里的参数真身转义成一行（原来含换行的参数会把提示冲散，看不出是哪个参数）。
+
+### 七、其它
+
+- 全仓按键提示与说明文档同步（顺手修掉三处本来就写错的提示：`/help` 尾部的
+  「Ctrl+E 编辑器」「Ctrl+R 搜索」，以及键表里从没绑定过的 `Ctrl+T / O`）
+- 三个开发用诊断脚本入库：`scripts/_bench_web_render.cjs`、`_bench_web_stream.cjs`（DOM 操作计数）、
+  `_check_web_collapse.cjs`（拿真实 app.js 函数在 DOM 桩上跑完整一轮折叠流程，14 项断言）
+- `.gitignore` 补 `bin2/`/`obj2/` 与本地重定向日志
+
 ## v0.96.106 (2026-09-12) — 界面分发固化 · Anthropic 原生兼容 · 重复代码提炼
 
 25 提交 / 75 文件；自测 **5329 通过 / 0 失败**（较上版 **+67 条护栏**）。
