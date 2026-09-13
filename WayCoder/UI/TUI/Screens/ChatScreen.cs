@@ -1,5 +1,6 @@
 ﻿using System.Collections.Concurrent;
 using System.Text;
+using WayCoder.Tools;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.Shared;
@@ -282,6 +283,7 @@ public partial class ChatScreen : TuiScreen
         DynamicBar.Width = TW;
         // 常驻 CPU 占用%：从 CpuMonitor 读取最新采样值（心跳线程 5s 采样，此处每帧取最新）
         DynamicBar.CpuPercent = CpuMonitor.LastPercent;
+        DynamicBar.SubAgentCount = AgentTool.ActiveSubAgents; // 并行子智能体数（0=不显示）
 
         // 实时 token 消耗/花费/上下文：每帧从 Agent.LlmClient/Context 读取（getter-only 廉价计算）。
         // 流式/工具执行时 token 随 LLM 累计实时变化，本处每帧取最新 → 动态栏 250ms 节流显示。

@@ -165,6 +165,11 @@ public class TuiDynamicBar : TuiDisplayControl
     /// <summary>上下文占用百分比（null=不显示，常驻右段，绿→黄→红）</summary>
     public double? ContextPercent { get => _contextPercent; set => SetContent(ref _contextPercent, value); }
 
+    private int _subAgentCount;
+    /// <summary>正在运行的子智能体数（0 = 不显示）—— 只在真有子智能体时才占位，
+    /// 多数时候为 0，不该在右段留一块空白。</summary>
+    public int SubAgentCount { get => _subAgentCount; set => SetContent(ref _subAgentCount, value); }
+
     private double? _cpuPercent;
     /// <summary>CPU 占用百分比（null=不显示，常驻右段 ContextPercent 之后，绿→黄→红）</summary>
     public double? CpuPercent { get => _cpuPercent; set => SetContent(ref _cpuPercent, value); }
@@ -496,7 +501,10 @@ public class TuiDynamicBar : TuiDisplayControl
     /// 带绝对列是因为各分支列步进不同（进度条后留 4 列），只返回文本无法还原布局。
     /// <paramref name="startCol"/> = 右段文字起始绝对列。
     /// </summary>
-    private List<(int Col, string Text, int Fg)> BuildRightItems(int absX, int startCol)
+    /// <summary>构建右段各指标（列、文本、前景色）。internal 供自测直接断言 ——
+    /// 活跃屏幕上内容变化走**段级直写**（直接写终端、不进 LastCleanFrame），
+    /// 帧快照断言看不到它，只能从产出侧验。</summary>
+    internal List<(int Col, string Text, int Fg)> BuildRightItems(int absX, int startCol)
     {
         var items = new List<(int, string, int)>();
         int col = startCol;
@@ -535,6 +543,14 @@ public class TuiDynamicBar : TuiDisplayControl
         int rightEnd = absX + Width - 1;
         bool HasRoom(int extra) => col + extra <= rightEnd;
 
+        // 子智能体数（🤖）：只在有子智能体跑时显示，放最前 —— 靠后的项有 HasRoom 保护，
+        // 放前面能保证「正在并行干活」这个信息不被挤掉
+        if (SubAgentCount > 0 && HasRoom(5))
+        {
+            var subStr = $"🤖{SubAgentCount}";
+            items.Add((col, subStr, AnsiColors.Cyan));
+            col += AnsiHelper.DisplayWidth(subStr) + 1;
+        }
         if (ContextPercent.HasValue && HasRoom(7))
         {
             var pct = ContextPercent.Value;

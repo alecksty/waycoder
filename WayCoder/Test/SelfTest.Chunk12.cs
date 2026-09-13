@@ -1,3 +1,4 @@
+using WayCoder.Tools;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui.Controls;
@@ -326,6 +327,21 @@ public static partial class SelfTest
             var mixTxt = Flat(mixFence);
             Check("4 开 3 闭 + 前置说明：识别为代码块且不吞后续正文",
                 mixTxt.Contains("1 public class A") && !mixTxt.Contains("````csharp"));
+        }
+        Console.WriteLine();
+
+        // ── 动态栏：子智能体数（右段 🤖N）──
+        Section("[动态栏 · 子智能体数]");
+        {
+            var initial = AgentTool.ActiveSubAgents; // 没有子智能体在跑时应为 0
+            var db = new TuiDynamicBar { Width = 100 };
+            db.SubAgentCount = 3;
+            bool shown = db.BuildRightItems(0, 60).Any(i => i.Text.Contains("🤖3"));
+            db.SubAgentCount = 0;
+            bool hiddenWhenZero = !db.BuildRightItems(0, 60).Any(i => i.Text.Contains("🤖"));
+            Check("子智能体计数：空闲时为 0", initial == 0);
+            Check("动态栏右段：子智能体数 >0 时产出 🤖N", shown);
+            Check("动态栏右段：子智能体数 =0 时不占位", hiddenWhenZero);
         }
         Console.WriteLine();
 

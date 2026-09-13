@@ -39,6 +39,13 @@ public class AgentTool : ITool, ICancellableTool
     /// </summary>
     public Agent? ParentAgent { get; set; }
 
+    /// <summary>当前正在运行的子智能体数（并行批次里每个各算一个）——TUI 动态栏右段「🤖N」显示。
+    /// Interlocked：并行子智能体各在自己的线程上进出。</summary>
+    private static int _activeSubAgents;
+
+    /// <summary>正在运行的子智能体数（0 = 没有）。Volatile 读，供 UI 线程随时取值。</summary>
+    public static int ActiveSubAgents => Volatile.Read(ref _activeSubAgents);
+
     /// <summary>最大递归深度（从 Config.Instance.SubAgentMaxDepth 动态读取，可通过 WAYCODER_SUBAGENT_DEPTH 环境变量配置）</summary>
     public static int MaxDepth => Config.Instance.SubAgentMaxDepth;
 
@@ -383,15 +390,22 @@ public class AgentTool : ITool, ICancellableTool
     /// </summary>
     private async Task<string> RunSubAgentWithRetryAsync(string task, int depth, int maxDepth, CancellationToken cancellationToken)
     {
-        var retryCount = Config.Instance.SubAgentRetryCount;
-        var result = await RunSubAgentAsync(task, depth, maxDepth, cancellationToken);
-        for (int attempt = 0; attempt < retryCount && IsSubAgentFailure(result); attempt++)
+        // 活跃子智能体计数（动态栏右段 🤖N）——包在**整个重试周期**外：重试期间仍是同一个子智能体
+        // 在跑，计数不该中途归零再涨（那会让数字闪一下）。finally 保证异常/取消也减回去。
+        Interlocked.Increment(ref _activeSubAgents);
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            var retryTask = $"{task}\n\n（上次尝试失败，请换一种方法重新尝试：避免重复同样的错误）";
-            result = await RunSubAgentAsync(retryTask, depth, maxDepth, cancellationToken);
+            var retryCount = Config.Instance.SubAgentRetryCount;
+            var result = await RunSubAgentAsync(task, depth, maxDepth, cancellationToken);
+            for (int attempt = 0; attempt < retryCount && IsSubAgentFailure(result); attempt++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var retryTask = $"{task}\n\n（上次尝试失败，请换一种方法重新尝试：避免重复同样的错误）";
+                result = await RunSubAgentAsync(retryTask, depth, maxDepth, cancellationToken);
+            }
+            return result;
         }
-        return result;
+        finally { Interlocked.Decrement(ref _activeSubAgents); }
     }
 
     /// <summary>提取父智能体最近几轮对话作为上下文摘要。</summary>
