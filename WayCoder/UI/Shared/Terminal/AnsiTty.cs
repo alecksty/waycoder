@@ -99,6 +99,10 @@ public static class AnsiTty
     public static readonly string SgrBold = $"{AnsiCharPrefix}{AnsiCharEscape}1m";
     public static readonly string SgrDim = $"{AnsiCharPrefix}{AnsiCharEscape}2m";
 
+    /// <summary>关闭粗体（SGR 22）。**SGR 1 是粘性的** —— 不发这条就会一直生效到段尾之后，
+    /// 于是 `«bold»Edit«/»` 后面那段参数、乃至下一行都跟着变粗。</summary>
+    public static readonly string SgrNoBold = $"{AnsiCharPrefix}{AnsiCharEscape}22m";
+
     /// <summary>
     /// 「调暗」在 <see cref="RenderBuffer.Write"/> 的 `fg:`/`bg:` 参数里的写法。
     ///

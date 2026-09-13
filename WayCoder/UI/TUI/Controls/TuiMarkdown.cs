@@ -1,3 +1,4 @@
+using WayCoder.UI.Shared.Terminal;
 ﻿using System.Text;
 using OldMd = WayCoder.UI.Tui.TuiMarkdown;
 using WayCoder.UI.Shared;
@@ -90,6 +91,7 @@ public class TuiMarkdown : TuiDisplayControl, ILazyItem
                 col += Math.Max(0, (Width - totalVw) / 2);
             }
 
+            bool prevBold = false;
             foreach (var (text, fg, bg) in segments)
             {
                 if (string.IsNullOrEmpty(text)) continue;
@@ -97,9 +99,17 @@ public class TuiMarkdown : TuiDisplayControl, ILazyItem
                 int effFg = fg > 0 ? fg : (Fg > 0 ? Fg : defaultFg);
                 int effBg = bg > 0 ? bg : (Bg > 0 ? Bg : 0);
 
+                // SGR 1（粗体）是**粘性**的：不发 SGR 22 就一直生效到段尾之后 ——
+                // 工具行的 `«bold»Edit«/»` 之后那段参数会跟着变粗（用户实测「参数也被加粗了」）。
+                // 所以粗体段一结束就显式关掉，代码块等非粗体段同样受益。
+                bool bold = (effFg & AnsiTty.BoldFlag) != 0 || effFg == 1;
+                if (prevBold && !bold) sb.Append(AnsiTty.SgrNoBold);
+
                 WriteAt(sb, row, col, text, effFg, effBg);
                 col += AnsiHelper.DisplayWidth(text);
+                prevBold = bold;
             }
+            if (prevBold) sb.Append(AnsiTty.SgrNoBold); // 行尾兜底：别染到下一行
         }
     }
 

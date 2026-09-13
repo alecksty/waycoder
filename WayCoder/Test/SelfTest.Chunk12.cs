@@ -491,6 +491,13 @@ public static partial class SelfTest
             Check("工具标题：粗体渲染成 SGR 1",
                 AnsiTty.FgCode(208 | AnsiTty.BoldFlag).StartsWith("[1m"));
 
+            // SGR 1（粗体）是**粘性**的：粗体段结束必须显式 SGR 22，否则会染到后面的参数与下一行
+            // （用户实测「工具参数字体好像也被加粗了」）。代码块等非粗体段同样受益。
+            var mdCtl = new TuiMarkdown("«bold»粗体«/»正常文字", "assistant") { Width = 60, Height = 3 };
+            var mdSb = new StringBuilder();
+            mdCtl.Render(mdSb, 0, 0);
+            Check("渲染：粗体段结束后发 SGR 22（不染后段）", mdSb.ToString().Contains("\x1b[22m"));
+
             Check("工具标题：无参数时不带空括号",
                 ToolRendererFactory.FormatHeader("bash", "") == "💡 «bold»«orange»Bash«/»«/»");
 
