@@ -18,14 +18,19 @@
                 VerticalOptions="Center"
                 FontSize="13"
                 LineBreakMode="TailTruncation" />
+            <!-- ⚠ 必须显式接 Clicked：加了按钮却忘了接线 = 点了没反应（用户实测「没看到菜单」） -->
             <Button
                 x:Name="MenuBtn"
                 Grid.Column="1"
-                Text="⋯"
-                FontSize="17"
-                Padding="10,0"
-                HeightRequest="34"
-                BackgroundColor="Transparent"
+                Text="☰"
+                FontSize="19"
+                Padding="14,0"
+                HeightRequest="38"
+                WidthRequest="56"
+                CornerRadius="10"
+                TextColor="{AppThemeBinding Light=#222222, Dark=#EEEEEE}"
+                BackgroundColor="{AppThemeBinding Light=#EFEFF2, Dark=#2A2A2E}"
+                Clicked="OnMenuClicked"
                 SemanticProperties.Hint="编辑器菜单" />
         </Grid>
 
