@@ -61,6 +61,13 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     private float _charWidth = 8f;
     private bool _charWidthMeasured;
 
+    /// <summary>
+    /// CJK/全角字符的实测宽度。**不等于** 2 × <see cref="_charWidth"/> —— 等宽字体的中文
+    /// 未必正好是拉丁的两倍，按「占两列」推算会让中文行的光标位置差出一两个字符
+    /// （用户实测「插入位置错了一个字符」）。所以两者各量一次。
+    /// </summary>
+    private float _wideCharWidth = 16f;
+
     // ── 事件（交给页面接）──
 
     /// <summary>
@@ -420,8 +427,14 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // 只做一次，之后整帧都用它 —— 放到每帧测会平白多一次文本测量。
         if (!_charWidthMeasured)
         {
-            var size = canvas.GetStringSize("0", EditorTypography.CanvasFont, EditorTypography.FontSize);
-            if (size.Width > 0) { _charWidth = (float)size.Width; _charWidthMeasured = true; }
+            var ascii = canvas.GetStringSize("0", EditorTypography.CanvasFont, EditorTypography.FontSize);
+            var wide = canvas.GetStringSize("中", EditorTypography.CanvasFont, EditorTypography.FontSize);
+            if (ascii.Width > 0 && wide.Width > 0)
+            {
+                _charWidth = (float)ascii.Width;
+                _wideCharWidth = (float)wide.Width;
+                _charWidthMeasured = true;
+            }
         }
 
         // ① 光标行 / 选择行底色（在文字下面）
@@ -479,6 +492,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
     /// <summary>最近一帧的绘制耗时（ms）。状态栏显示它 —— 「卡不卡」要看数字。</summary>
     public double LastDrawMs { get; private set; }
+
+    /// <summary>诊断用：最近一次点击的画布坐标、画布高度、算出的行号。</summary>
+    public string LastHitDebug { get; private set; } = "";
 
     private long _pfFrom = -1, _pfTo = -1, _pfTicks;
 
@@ -808,6 +824,42 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         if (left > viewW - margin) _scrollX = caretX - viewW + margin;
         else if (left < margin) _scrollX = Math.Max(0, caretX - margin);
         Invalidate();
+    }
+
+    /// <summary>
+    /// 行内横坐标（pt，相对正文起点）→ 字符下标。
+    ///
+    /// **逐字累加实测宽度**，而不是「字符数 × 平均字宽」：中文与拉丁的宽度比不是整数，
+    /// 按比例算在中文行里会差出一两个字符（用户实测「插入位置错了一个字符」）。
+    /// 落在某个字符的前半 → 归到它前面；后半 → 归到它后面。
+    /// </summary>
+    public int CharIndexAtX(string line, float xInLine)
+    {
+        if (string.IsNullOrEmpty(line) || xInLine <= 0) return 0;
+
+        float acc = 0;
+        int idx = 0;
+        int col = 0;   // tab stop 用
+        foreach (var rune in line.EnumerateRunes())
+        {
+            float w;
+            if (rune.Value == '\t')
+            {
+                int next = (col / EditorTypography.TabColumns + 1) * EditorTypography.TabColumns;
+                w = (next - col) * _charWidth;
+                col = next;
+            }
+            else
+            {
+                w = RuneWidthApprox(rune) == 2 ? _wideCharWidth : _charWidth;
+                col++;
+            }
+
+            if (xInLine < acc + w / 2f) return idx;
+            acc += w;
+            idx += rune.Utf16SequenceLength;
+        }
+        return line.Length;
     }
 
     /// <summary>取一行的显示文本（供页面做查找高亮/状态栏）。</summary>

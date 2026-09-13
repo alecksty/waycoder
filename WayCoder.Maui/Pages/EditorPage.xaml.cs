@@ -384,25 +384,7 @@ public partial class EditorPage : ContentPage
     /// 两步：像素 → 视觉列 → 字符下标（后者认 CJK 占两列，中文行里按字符数直算会偏出几格）。
     /// </summary>
     private int ClickXToCharIndex(float xInLine, string line)
-    {
-        if (xInLine <= 0 || line.Length == 0) return 0;
-        float charW = Math.Max(1f, Canvas.CharWidth);
-        int visualCol = (int)Math.Round(xInLine / charW);
-        return Math.Clamp(
-            TextEditorMath.VisualColToSourceIndex(line, visualCol, RuneWidthApprox,
-                EditorTypography.TabColumns), 0, line.Length);
-    }
-
-    /// <summary>近似字宽：CJK/全角算 2 列，其余 1 列（与 AnsiString.CharWidth 同语义）。</summary>
-    private static int RuneWidthApprox(Rune r)
-    {
-        int cp = r.Value;
-        bool wide = cp >= 0x1100 && (cp <= 0x115F || cp >= 0x2E80 && cp <= 0xA4CF
-            || cp >= 0xAC00 && cp <= 0xD7A3 || cp >= 0xF900 && cp <= 0xFAFF
-            || cp >= 0xFE30 && cp <= 0xFE4F || cp >= 0xFF00 && cp <= 0xFF60
-            || cp >= 0xFFE0 && cp <= 0xFFE6);
-        return wide ? 2 : 1;
-    }
+        => Math.Clamp(Canvas.CharIndexAtX(line, xInLine), 0, line.Length);
 
     /// <summary>把输入框对齐到该行位置（用同一份行高与行号栏宽度算，避免错位）。</summary>
     private void PositionEditor(long oneBased)
