@@ -74,29 +74,20 @@ public class TuiStatusBar : TuiDisplayControl
                 _ => AnsiColors.BrightBlack
             };
 
-            string slotNum = (i + 1).ToString();
-            if (i == ActiveSlotIndex)
-            {
-                // 活跃槽位：白底黑字（不跟随渐变）
-                sb.Append(AnsiTty.CursorPos0(row, col));
-                sb.Append(AnsiTty.FgBgCode(AnsiColors.Black, AnsiColors.BgWhite));
-                sb.Append(slotNum);
-                sb.Append(AnsiTty.SgrReset);
-            }
-            else
-            {
-                ControlRenderer.WriteGradientTextAt(sb, row, col, slotNum,
-                    slotFg, gs, ge, absX, Width);
-            }
-            col += 1;
+            // 当前槽位用**方括号框住**（`1 [2] 3 …`）：白底/纯颜色在浅色主题与色盲下都不够明确，
+            // 括号是字形层面的区分，任何配色下都认得出。状态色仍由 slotFg 表达（绿=工作/黄=等权限/红=出错）。
+            // 第 10 个槽位显示成 `0` 而不是 `10`：个位等宽，槽位条不会因个位/两位混排而参差，
+            // 切槽位时后面的内容也不会左右抖；`…8 9 0` 也正好是数字行的常规写法（0 对应 F10）。
+            int slotNo = i == 9 ? 0 : i + 1;
+            string slotText = i == ActiveSlotIndex ? $"[{slotNo}]" : slotNo.ToString();
+            ControlRenderer.WriteGradientTextAt(sb, row, col, slotText,
+                slotFg, gs, ge, absX, Width);
+            col += AnsiHelper.DisplayWidth(slotText);
 
-            // 数字间空格
-            if (i < 9)
-            {
-                ControlRenderer.WriteGradientTextAt(sb, row, col, " ",
-                    dimFg, gs, ge, absX, Width);
-                col += 1;
-            }
+            // 槽位间空格（含最后一个，与后面中段留出间隔）
+            ControlRenderer.WriteGradientTextAt(sb, row, col, " ",
+                dimFg, gs, ge, absX, Width);
+            col += 1;
         }
 
         // 2.5 动画图标/工作模式/经济模式已移入动态栏与模型信息行（输入区下方），此处不再重复。

@@ -1,3 +1,4 @@
+using System.Text;
 using WayCoder.Tools;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
@@ -356,6 +357,32 @@ public static partial class SelfTest
             var geo2 = db2.ComputeGeometry(0, 100);
             Check("动态栏几何：中段明显宽于左段", geo2.MidWidth > 100 / 5);
             Check("动态栏几何：右段贴右边缘", items2.Count > 0 && geo2.RightItems.Count > 0);
+        }
+        Console.WriteLine();
+
+        // ── 底部状态栏：槽位用方括号框住当前 ──
+        Section("[状态栏 · 槽位]");
+        {
+            var bar = new TuiStatusBar { Width = 80, ActiveSlotIndex = 2 };
+            var sbb = new StringBuilder();
+            bar.Render(sbb, 0, 0);
+            var fbBar = new FrameBuffer(1, 80);
+            fbBar.Apply(sbb.ToString());
+            var barLine = fbBar.Dump().Count > 0 ? fbBar.Dump()[0] : "";
+            // 当前槽位（索引 2 → 第 3 个）用 [3] 框住；白底/颜色在浅色主题与色盲下都不够明确
+            Check("状态栏槽位：当前用 [3] 框住", barLine.Contains("[3]"));
+            Check("状态栏槽位：其余仍是裸数字（无多余括号）",
+                !barLine.Contains("[2]") && !barLine.Contains("[4]") && barLine.Contains("2"));
+            // 第 10 槽显示为 0（个位等宽，`…8 9 0`）
+            Check("状态栏槽位：第 10 槽显示为 0（等宽）",
+                barLine.Contains("9 0") && !barLine.Contains("10"));
+            var bar10 = new TuiStatusBar { Width = 80, ActiveSlotIndex = 9 };
+            var sb10 = new StringBuilder();
+            bar10.Render(sb10, 0, 0);
+            var fb10 = new FrameBuffer(1, 80);
+            fb10.Apply(sb10.ToString());
+            Check("状态栏槽位：第 10 槽激活时框住 [0]",
+                fb10.Dump().Count > 0 && fb10.Dump()[0].Contains("[0]"));
         }
         Console.WriteLine();
 
