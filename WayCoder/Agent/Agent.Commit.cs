@@ -180,14 +180,14 @@ public partial class Agent
         => mode == WorkMode.Plan && contentLength > 0;
 
     /// <summary>
-    /// 弹出计划审批确认框（Plan 模式）。返回 true 表示批准执行。
-    /// 非 TUI 环境（一次性模式 / 管道 / 测试）默认自动批准，避免阻塞。
+    /// 计划审批（Plan 模式）。返回 0=批准并自动接受编辑 / 1=批准但逐次确认 / 2=拒绝。
+    /// 非 TUI 环境（一次性模式 / 管道 / 测试）自动批准为 1（保持「不阻塞、也不放开权限」的旧行为）。
     /// </summary>
-    private bool PromptPlanApproval(string plan)
+    private int PromptPlanApproval(string plan)
     {
         var activeScreen = TuiManager.Instance.ActiveScreen as ChatScreen;
         if (activeScreen == null)
-            return true; // 非交互环境自动批准
+            return 1; // 非交互环境自动批准（逐次确认那一档）
 
         var summary = plan.Length > 160 ? ContextManager.TruncateByRunes(plan, 160) + "…" : plan;
         return activeScreen.ShowPlanApproval(summary, plan);

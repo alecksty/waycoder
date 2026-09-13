@@ -1,3 +1,4 @@
+using WayCoder.UI.Shared;
 using WayCoder.UI.TUI.Base;
 using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.TUI;
@@ -35,6 +36,16 @@ public class SettingsScreen : TuiScreen
     private int _itemIdx;
     private Config _config = null!;
     private bool _focusOnDetail;
+
+    /// <summary>
+    /// 就地展开的选项栏（select 类型设置项；null = 不在选择态）。
+    /// 用 <see cref="TuiPromptBar"/> —— 与聊天界面的行内选择同一控件（❯ 箭头 + 黄底高亮 + 每项一行说明），
+    /// 符合「设置也不弹窗、纯文字交互」：选项就展开在被编辑项下方，而不是另开一个窗口。
+    /// </summary>
+    private TuiPromptBar? _optionBar;
+
+    /// <summary>选项栏对应的设置项 key（应用时按它写值；不用 SettingDef 引用以免列表重建后指向旧对象）</summary>
+    private string? _optionKey;
 
     // ── 控件引用 ──
     private TuiTitleBar _header = null!;
@@ -168,6 +179,10 @@ public class SettingsScreen : TuiScreen
             _detailControls.Add(desc);
         }
 
+        // 就地展开的选项栏（select 编辑态）：钉在列表末尾，必须在 Layout() 之前 Add 才参与高度计算
+        if (_optionBar != null)
+            _detailPanel.Add(_optionBar);
+
         // 重建后 clamp 选中索引
         _itemIdx = Math.Clamp(_itemIdx, 0, Math.Max(0, items.Count - 1));
 
@@ -195,6 +210,37 @@ public class SettingsScreen : TuiScreen
         // 模态窗口优先
         if (HasModal)
             return base.OnKey(key);
+
+        // 选项栏展开时独占键位（就地选择：↑↓ 移动 / Enter 应用 / Esc 取消 / 数字直选）
+        if (_optionBar != null)
+        {
+            switch (key.Key)
+            {
+                case ConsoleKey.Escape:
+                    EndOptionSelect(); // 取消：不改值，只收起
+                    return true;
+                case ConsoleKey.UpArrow:
+                case ConsoleKey.DownArrow:
+                case ConsoleKey.Home:
+                case ConsoleKey.End:
+                case ConsoleKey.Enter: // Enter 触发 TuiPromptBar.OnSelect → 应用 + 收起
+                    _optionBar.OnKey(key);
+                    MarkDirty();
+                    return true;
+            }
+            if (key.KeyChar is >= '1' and <= '9')
+            {
+                var i = key.KeyChar - '1';
+                if (i < _optionBar.Items.Count)
+                {
+                    _optionBar.SelectedIndex = i;
+                    _optionBar.OnSelect?.Invoke(_optionBar.Items[i]);
+                }
+                return true;
+            }
+            // 其余键一律吞掉：避免误触发表格导航把选项栏甩在后面（选完才回到常规导航）
+            if (key.Key != ConsoleKey.Tab) return true;
+        }
 
         bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
         var items = GetCurrentItems();
@@ -404,12 +450,8 @@ public class SettingsScreen : TuiScreen
         }
         else if (setting.Type == "select" && setting.Options != null)
         {
-            ShowWindow(TuiDialog.Select(setting.Label, [.. setting.Options], idx =>
-            {
-                SetValue(setting.Key, setting.Options[idx]);
-                RebuildDetailPanel();
-                MarkDirty();
-            }));
+            // 就地展开选项（不弹窗）—— 对标 Claude Code /config：选项列在被编辑项下方，↑↓ 选、Enter 应用
+            BeginOptionSelect(setting);
         }
         else if (setting.Type == "toggle")
         {
@@ -434,6 +476,57 @@ public class SettingsScreen : TuiScreen
                     MarkDirty();
                 }));
         }
+    }
+
+    /// <summary>
+    /// 就地展开 select 选项栏（不弹窗）：选项列在详情末尾，❯ 指示 + 黄底高亮，当前值标「当前值」。
+    /// ↑↓/Home/End 移动、Enter 应用、Esc 取消、数字键 1..9 直选。
+    /// </summary>
+    private void BeginOptionSelect(SettingDef setting)
+    {
+        var opts = setting.Options!;
+        EndOptionSelect(); // 已展开别的项 → 先收起（同屏只留一个选项栏）
+
+        string cur = GetValue(setting.Key);
+        var idx = Array.IndexOf(opts, cur);
+        _optionKey = setting.Key;
+
+        _optionBar = new TuiPromptBar
+        {
+            Width = Math.Max(10, _detailPanel.Width - 2),
+            Height = opts.Length + 2, // 上下边框（Bg==0 边框模式）
+            Bg = 0,
+            ShowArrow = true,
+            HighlightBg = AnsiColors.BgYellow,
+            HighlightFg = AnsiColors.Black,
+            SelectedIndex = idx >= 0 ? idx : 0,
+            Items = [.. opts.Select((o, i) => new PromptItem
+            {
+                Kind = EPromptKind.Choice,
+                Label = $"{i + 1}. {o}",
+                // 标出当前值：用户一进来就知道「现在是哪个」，而不用先看上面那行 ▾
+                Detail = string.Equals(o, cur, StringComparison.OrdinalIgnoreCase) ? "当前值" : null,
+                ResultCode = i,
+            })],
+        };
+        _optionBar.OnSelect = item =>
+        {
+            SetValue(setting.Key, opts[item.ResultCode]);
+            EndOptionSelect(); // 应用后收起（内部会 Rebuild + MarkDirty）
+        };
+
+        RebuildDetailPanel();
+        MarkDirty();
+    }
+
+    /// <summary>收起就地选项栏（应用或取消后调用）。幂等。</summary>
+    private void EndOptionSelect()
+    {
+        if (_optionBar == null) return;
+        _optionBar = null;
+        _optionKey = null;
+        RebuildDetailPanel();
+        MarkDirty();
     }
 
     // ════════════════════════════════════════════════════════════════

@@ -439,7 +439,8 @@ namespace WayCoder.UI.Tui.Screens
 
         public bool ConfirmDialog(string title, string message) => false;
 
-        public bool ShowPlanApproval(string planSummary, string planDetail) => true;
+        /// <summary>计划审批桩：返回 1 = 批准但逐次确认（MAUI 无终端行内栏，与真实现非交互环境同档）。</summary>
+        public int ShowPlanApproval(string planSummary, string planDetail) => 1;
 
         /// <summary>权限确认桩：返回 0=允许（MAUI 真实确认走 UxHelper.WebInteraction，此分支 ActiveScreen 恒 null 不会命中）。</summary>
         public int ShowPermissionDialog(string toolName, string argsSummary, string argsDetail, bool isDangerous) => 0;
@@ -482,6 +483,15 @@ namespace WayCoder.UI.Tui
         /// 却编译 `Tools/**`，所以真 `UxHelper` 每加一个被 Tools 用到的成员，这里都要同步补一个 ——
         /// 漏了就只在 MAUI 上 CS0117 编译失败（桌面 `dotnet build` 全绿，看不出来）。</summary>
         public static bool CanConfirmInline => false;
+
+        /// <summary>行内问卷可用性桩：MAUI 无终端 TUI，恒 false（调用方回退到 WebInteraction 桥）。</summary>
+        public static bool CanRunInlineSurvey => false;
+
+        /// <summary>行内问卷桩（真实现见 UI/TUI/Custom/UxHelper.cs）：MAUI 无终端 TUI，
+        /// 交互确认走 WebInteraction 桥，此路恒返回 null（调用方回退到桥）。
+        /// ⚠ 真 UxHelper 每加一个被 Tools 用到的成员都要在这里补一个（见上文说明）。</summary>
+        public static WayCoder.UI.Shared.SurveyResult? RunInlineSurveyOnScreen(
+            List<WayCoder.UI.Shared.SurveyQuestion> questions, bool showTabs = false, int timeoutMs = 0) => null;
 
         /// <summary>Web 模式的异步交互桥（MAUI 注入 MauiWebInteraction）。</summary>
         public interface IWebInteraction

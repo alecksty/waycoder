@@ -1,0 +1,66 @@
+// 行内问卷 —— 多选一 / 多选多 / 横向标签页 / 分步骤
+// 运行：waycoder --keypad Test/scripts/inline_survey.txt
+
+// ── 横向标签页（←→ 翻页，页头是 ▶ 标签行）──
+INLINE:survey
+SNAP:问卷-第1页（页头 ▶ 权限 范围）
+KEY:Right
+SNAP:问卷-第2页（▶ 范围，多选 [ ]）
+KEY:Left
+SNAP:问卷-回第1页
+KEY:Down
+KEY:Enter
+SNAP:问卷-单选第2项后自动进第2页
+KEY:Space
+SNAP:问卷-勾选第1项
+KEY:Down
+KEY:Down
+KEY:Space
+SNAP:问卷-勾选第1、3项
+KEY:Enter
+SNAP:问卷-提交后（栏收起）
+
+// ── Tab 翻页 + 数字键（多选页=切换勾选，不是提交）──
+INLINE:survey
+KEY:Tab
+SNAP:问卷-Tab翻到第2页
+KEY:2
+SNAP:问卷-数字2切换第2项勾选
+KEY:1
+KEY:3
+SNAP:问卷-再切换第1、3项（三项全勾）
+KEY:2
+SNAP:问卷-再按2取消第2项
+KEY:Enter
+SNAP:问卷-Enter提交（应只剩第1、3项）
+
+// ── 分步骤（无标签行，页头「步骤 k/n」）──
+INLINE:step
+SNAP:分步骤-步骤1/2
+KEY:Enter
+SNAP:分步骤-步骤2/2
+KEY:Escape
+SNAP:分步骤-Esc取消（结果 null）
+
+// ── 「其他」自定义输入（模型给的选项未必覆盖用户想法）──
+INLINE:survey
+KEY:Down
+KEY:Down
+SNAP:问卷-选中「其他（自行输入）」
+KEY:Enter
+TEXT:自定义答案abc
+SNAP:问卷-输入态（选项栏已让位给输入框）
+KEY:Enter
+SNAP:问卷-提交自定义答案后进第2页
+KEY:Enter
+SNAP:问卷-第2页空选提交（结果含其他文本）
+
+// ── 跳过此题（末尾项，该题结果为空）──
+INLINE:survey
+KEY:Down
+KEY:Down
+KEY:Down
+SNAP:问卷-选中「跳过此题」
+KEY:Enter
+KEY:Enter
+SNAP:问卷-跳过后进第2页并空选提交

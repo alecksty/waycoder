@@ -157,7 +157,7 @@ public static partial class SelfTest
         Check("检测: 普通对话不命中", Syntax.Detect("今天天气不错,我们聊一下项目") == null);
         Check("检测: 空串不命中", Syntax.Detect("") == null);
 
-        // 渲染多色：C# 代码同时产出关键字青色(36)与字符串绿色(32)ANSI 前景码
+        // 渲染多色：C# 代码同时产出关键字色与字符串色的 ANSI 前景码（色值见 Syntax 配色表，勿硬编码序列）
         var ta = new TuiTextArea
         {
             Text = "namespace Demo { public class X { string s = \"hi\"; } }",
@@ -168,15 +168,16 @@ public static partial class SelfTest
         var sb = new StringBuilder();
         ta.Render(sb, 0, 0);
         var raw = sb.ToString();
-        Check("输入框高亮: 关键字青色码 \\x1b[36", raw.Contains("\x1b[36"));
-        Check("输入框高亮: 字符串绿色码 \\x1b[32", raw.Contains("\x1b[32"));
+        Check("输入框高亮: 关键字色码", raw.Contains(Ansi.FgCode(Syntax.Keyword)));
+        Check("输入框高亮: 字符串色码", raw.Contains(Ansi.FgCode(Syntax.Str)));
 
         // 关闭高亮 → 单色（无 token 色码）
         ta.SyntaxHighlight = false;
         var sb2 = new StringBuilder();
         ta.Render(sb2, 0, 0);
         Check("输入框高亮: 关闭后无 token 色码",
-            !sb2.ToString().Contains("\x1b[36") && !sb2.ToString().Contains("\x1b[32"));
+            !sb2.ToString().Contains(Ansi.FgCode(Syntax.Keyword))
+            && !sb2.ToString().Contains(Ansi.FgCode(Syntax.Str)));
     }
 
     // ── TuiSpace：空白占位控件（布局占位、什么都不画、不响应输入）──

@@ -827,6 +827,55 @@ class Matrix:
         PermissionManager.Reset();
         Check("Reset 后 Ask 模式恢复", PermissionManager.CurrentMode == PermissionManager.Mode.Ask);
 
+        // ---- 权限确认文案：文件级 diff ----
+        // 多行改动只看 ±80 字符的子串预览根本看不出改了哪些行 —— 改成「读原文件 → 应用替换 → 统一 diff」。
+        // 判据用**上下文行**：子串预览只含 old/new 本身，文件级 diff 会带 3 行上下文（此处即 class 声明行）。
+        var diffDir = Path.Combine(Path.GetTempPath(), "wc-perm-diff-" + Guid.NewGuid().ToString("N")[..8]);
+        Directory.CreateDirectory(diffDir);
+        try
+        {
+            var sample = Path.Combine(diffDir, "Sample.cs");
+            File.WriteAllText(sample, "public class A\n{\n    int x = 1;\n    int y = 2;\n}\n");
+
+            var editText = PermissionManager.FormatArgs("edit_file", new Dictionary<string, object?>
+            {
+                ["file_path"] = sample,
+                ["old_string"] = "int x = 1;",
+                ["new_string"] = "int x = 42;",
+            });
+            Check("权限提示 edit_file 给文件级 diff（带上下文行）",
+                editText.Contains("public class A") && editText.Contains("int x = 1;") && editText.Contains("int x = 42;"));
+
+            var writeText = PermissionManager.FormatArgs("write_file", new Dictionary<string, object?>
+            {
+                ["file_path"] = sample,
+                ["content"] = "public class A\n{\n    int x = 9;\n}\n",
+            });
+            Check("权限提示 write_file 覆盖时给 diff（带上下文行）",
+                writeText.Contains("public class A") && writeText.Contains("int x = 9;"));
+
+            // 读不到文件 → 退回子串预览（且不能因读文件失败把权限确认本身搞崩）
+            var missText = PermissionManager.FormatArgs("edit_file", new Dictionary<string, object?>
+            {
+                ["file_path"] = Path.Combine(diffDir, "nope.cs"),
+                ["old_string"] = "aaa",
+                ["new_string"] = "bbb",
+            });
+            Check("权限提示 edit_file 读不到文件退回子串预览",
+                missText.Contains("-aaa") && missText.Contains("+bbb"));
+
+            // 替换不生效（old_string 在文件里不存在）→ 同样退回子串预览
+            var noopText = PermissionManager.FormatArgs("edit_file", new Dictionary<string, object?>
+            {
+                ["file_path"] = sample,
+                ["old_string"] = "NOT-PRESENT-ANYWHERE",
+                ["new_string"] = "X",
+            });
+            Check("权限提示 edit_file 替换不生效时退回子串预览",
+                noopText.Contains("-NOT-PRESENT-ANYWHERE"));
+        }
+        finally { try { Directory.Delete(diffDir, true); } catch { } }
+
         // ---- AutoMode 智能分类器 ----
         Section("[AutoMode 智能分类器]");
 

@@ -37,6 +37,17 @@ public static class PermissionManager
     /// <summary>本轮已自动允许的工具调用 ID 集合（Auto / SmartAuto 模式用）。线程安全：并行子智能体 + 多槽位并发访问。</summary>
     private static readonly ThreadSafeStringSet AutoAllowed = new();
 
+    /// <summary>
+    /// 本会话内自动接受文件编辑 —— 计划审批选「批准并自动接受编辑」时置位。
+    /// **只管编辑类工具**：bash / rm / kill 这类危险操作照旧逐次确认，
+    /// 对齐竞品 auto-accept edits 的语义（「别再问我怎么改这个文件」≠「什么都能跑」）。
+    /// </summary>
+    public static volatile bool AllowEditsThisSession;
+
+    /// <summary>自动接受编辑所覆盖的工具（新增编辑类工具时记得加进来）</summary>
+    private static bool IsEditTool(string toolName)
+        => toolName is "edit_file" or "write_file" or "multi_edit";
+
     /// <summary>串行化确认弹框：并行子智能体并发请求 shell 权限时逐个排队，避免抢键盘/渲染竞态。</summary>
     private static readonly SemaphoreSlim ConfirmLock = new(1, 1);
 
@@ -78,6 +89,10 @@ public static class PermissionManager
         if (CurrentMode == Mode.Yolo)
             return true;
 
+        // 计划已批准 + 选了「自动接受编辑」→ 编辑类工具不再逐次确认
+        if (AllowEditsThisSession && IsEditTool(toolName))
+            return true;
+
         // Bash 安全只读命令：自动放行（对标 crush safeCommands 白名单）
         if (toolName == "bash" && args.TryGetValue("command", out var cmdObj) &&
             cmdObj is string cmdStr && BashGuard.IsSafeReadOnly(cmdStr))
@@ -103,8 +118,10 @@ public static class PermissionManager
                 if (AutoAllowed.Contains(autoKey))
                     return true;
 
-                var allowed = await ShowConfirmDialog(toolName, args, isDangerous: false);
-                if (allowed)
+                var (allowed, code) = await ShowConfirmDialog(toolName, args, isDangerous: false);
+                // 只有「全部允许」(1) 才记账 —— 此前不看结果码，选「仅本次允许」也会被记进
+                // AutoAllowed，与选项文案正好相反（用户以为只放行了这一次，实际整个会话不再问）。
+                if (allowed && code == 1)
                     AutoAllowed.Add(autoKey);
                 return allowed;
             }
@@ -112,7 +129,7 @@ public static class PermissionManager
             // Dangerous → 每次确认，追踪连续阻止
             if (risk == AutoModeClassifier.RiskLevel.Dangerous)
             {
-                var allowed = await ShowConfirmDialog(toolName, args, isDangerous: true);
+                var (allowed, _) = await ShowConfirmDialog(toolName, args, isDangerous: true);
                 if (allowed)
                     AutoModeClassifier.RecordDangerousAllow();
                 else
@@ -130,13 +147,15 @@ public static class PermissionManager
             return true;
 
         // 危险/修改操作逐次确认
-        return await ShowConfirmDialog(toolName, args, isDangerous: true);
+        var (ok, _) = await ShowConfirmDialog(toolName, args, isDangerous: true);
+        return ok;
     }
 
     /// <summary>
-    /// 显示确认对话框。返回 true 表示用户允许。
+    /// 显示确认对话框。返回 <c>(是否允许, 结果码)</c> —— 结果码 0=允许 1=全部允许 2=拒绝，
+    /// 调用方需要区分「仅本次」与「本会话不再问」来决定要不要写 AutoAllowed（见 SmartAuto Cautious 分支）。
     /// </summary>
-    private static async Task<bool> ShowConfirmDialog(string toolName, Dictionary<string, object?> args, bool isDangerous)
+    private static async Task<(bool Allowed, int Code)> ShowConfirmDialog(string toolName, Dictionary<string, object?> args, bool isDangerous)
     {
         // 串行化：并行子智能体并发请求确认时逐个弹框，避免抢键盘/渲染竞态
         await ConfirmLock.WaitAsync();
@@ -192,7 +211,7 @@ public static class PermissionManager
             }
             PendingPermissionTool = null; // 解决后清空
             PermissionPromptResolved?.Invoke(toolName);
-            return result switch { 0 => true, 1 => true, _ => false };
+            return (result is 0 or 1, result);
         }
         finally
         {
@@ -207,6 +226,7 @@ public static class PermissionManager
     {
         AutoAllowed.Clear();
         AutoModeClassifier.Reset();
+        AllowEditsThisSession = false; // 计划批准带来的自动接受不跨轮/不跨模式残留
     }
 
     /// <summary>循环切换到下一个权限模式（问答→自动→智能→畅通→问答）。返回新模式。</summary>
@@ -305,7 +325,34 @@ public static class PermissionManager
         return key;
     }
 
-    private static string FormatArgs(string toolName, Dictionary<string, object?> args)
+    /// <summary>读文件全文供 diff 用；读不到（不存在/无权限/超 2MB，大文件读进来只为生成确认文案不划算）返回空串。</summary>
+    private static string ReadAllTextSafe(string path)
+    {
+        try
+        {
+            var fi = new FileInfo(path);
+            if (!fi.Exists || fi.Length > 2 * 1024 * 1024) return "";
+            return File.ReadAllText(path);
+        }
+        catch { return ""; }
+    }
+
+    /// <summary>
+    /// 文件级 unified diff（权限确认展示用）。内容相同返回空串；出错返回 null（调用方退回子串预览）。
+    /// <see cref="UnifiedDiff.Generate"/> 内部已按 2500 字符截断，长改动不会撑爆确认框。
+    /// </summary>
+    private static string? TryBuildFileDiff(string path, string oldContent, string newContent)
+    {
+        if (oldContent == newContent) return "";
+        try { return UnifiedDiff.Generate(oldContent, newContent, path); }
+        catch (Exception ex)
+        {
+            DebugLog.Log("perm", $"生成文件级 diff 失败: {ex.Message}");
+            return null;
+        }
+    }
+
+    internal static string FormatArgs(string toolName, Dictionary<string, object?> args)
     {
         switch (toolName)
         {
@@ -319,19 +366,36 @@ public static class PermissionManager
                 if (toolName == "write_file")
                 {
                     var content = args.GetValueOrDefault("content")?.ToString() ?? "";
-                    var lines = content.Count(c => c == '\n') + 1;
+                    var lineCount = content.Count(c => c == '\n') + 1;
                     var exists = File.Exists(fp);
-                    var existsNote = exists ? $" (覆盖已有 {new FileInfo(fp).Length} 字节)" : " (新建)";
-                    result += existsNote + $"\n内容: {lines} 行";
-                    var preview = content.Length > 100 ? ContextManager.TruncateByRunes(content, 100) + "..." : content;
-                    result += $"\n预览: {AnsiHelper.Esc(preview.Replace("\n", "\\n"))}";
+                    result += exists ? $" (覆盖已有 {new FileInfo(fp).Length} 字节)" : " (新建)";
+                    result += $"\n内容: {lineCount} 行";
+                    // 覆盖已有文件 → 给**文件级 diff**（原来是前 100 字符预览，看不出改了哪些行）
+                    var overwriteDiff = exists ? TryBuildFileDiff(fp, ReadAllTextSafe(fp), content) : null;
+                    if (!string.IsNullOrEmpty(overwriteDiff)) result += "\n" + overwriteDiff;
+                    else
+                    {
+                        var preview = content.Length > 100 ? ContextManager.TruncateByRunes(content, 100) + "..." : content;
+                        result += $"\n预览: {AnsiHelper.Esc(preview.Replace("\n", "\\n"))}";
+                    }
                 }
                 if (toolName == "edit_file")
                 {
                     var old = args.GetValueOrDefault("old_string")?.ToString() ?? "";
-                    var n = args.GetValueOrDefault("new_string")?.ToString() ?? "";
-                    result += $"\n-{AnsiHelper.Esc(old.Length > 80 ? ContextManager.TruncateByRunes(old, 80) + "..." : old)}";
-                    result += $"\n+{AnsiHelper.Esc(n.Length > 80 ? ContextManager.TruncateByRunes(n, 80) + "..." : n)}";
+                    var newStr = args.GetValueOrDefault("new_string")?.ToString() ?? "";
+                    // 文件级 diff：读原文件 → 应用这次替换 → 与改后内容对比。这样多行改动能看清整片上下文，
+                    // 而不是只看到 ±80 字符的一小截（对标 Claude Code / Crush 的权限框：让你看清改什么再批）。
+                    var original = ReadAllTextSafe(fp);
+                    var editDiff = original.Length > 0 ? TryBuildFileDiff(fp, original, original.Replace(old, newStr)) : null;
+                    if (!string.IsNullOrEmpty(editDiff)) result += "\n" + editDiff;
+                    else
+                    {
+                        // 读不到文件（新建/越权/过大/编码）或内容没变 → 退回子串预览，至少让用户看到替换内容
+                        var oldShow = old.Length > 80 ? ContextManager.TruncateByRunes(old, 80) + "..." : old;
+                        var newShow = newStr.Length > 80 ? ContextManager.TruncateByRunes(newStr, 80) + "..." : newStr;
+                        result += $"\n-{AnsiHelper.Esc(oldShow)}";
+                        result += $"\n+{AnsiHelper.Esc(newShow)}";
+                    }
                 }
                 return result;
             case "convert_encoding":

@@ -221,7 +221,11 @@ public static partial class SelfTest
         }
 
         Section("[Syntax ANSI 契约]");
-        var allowed = new HashSet<int> { 0, 2, 31, 32, 33, 34, 35, 36, 41, 103 };
+        // token 色值必须落在「各端渲染器都认」的码域内：0=默认 / 2=变暗样式码 / 16..255=256 色盘
+        // （16 色 30-37、90-97 与诊断背景 41、103 都是 256 色盘的子集，故一并覆盖）。
+        // 消费方只有两个：MAUI 的 MarkupToFormattedString.ColorForToken（256 色走 FromXterm256）、
+        // TUI 的 RenderBuffer（FgCode 对 ≥16 走 38;5;N）。加新色前先确认这两处认。
+        static bool AllowedColor(int c) => c is 0 or 2 || c is >= 16 and <= 255;
         var samples = new (string Lang, string Line)[]
         {
             ("csharp", "public static void Main(string[] args) { var x = 42; /* 注释 */ }"),
@@ -238,10 +242,10 @@ public static partial class SelfTest
             var tokens = Syntax.ByLanguage(lang).Tokenize(line);
             foreach (var (_, color) in tokens)
             {
-                if (!allowed.Contains(color)) { contractOk = false; break; }
+                if (!AllowedColor(color)) { contractOk = false; break; }
             }
         }
-        Check("Tokenize 色值 ∈ {0,2,31..36,41,103}（跨端映射契约）", contractOk);
+        Check("Tokenize 色值 ∈ {0,2,16..255}（跨端映射契约）", contractOk);
         // 空串返回 1 个占位 token（空格, Default），不崩溃
         var empty = Syntax.ByLanguage("csharp").Tokenize("");
         Check("空串 Tokenize 返回占位 token 不崩溃", empty.Count == 1 && empty[0].Color == 0);

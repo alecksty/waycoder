@@ -1,5 +1,104 @@
 # 更新日志
 
+## v0.96.111 (2026-09-13) — 行内问答（去弹窗）+ 代码配色对标竞品 + 六项交互差距修复
+
+26 文件；自测 **5480 通过 / 0 失败**（**+27 条护栏**）。
+
+### 一、行内问答：CLI/TUI 不再弹窗
+
+对标 Claude Code 的 permission prompt，把确认类交互从「居中模态弹框」改成「输入框下方的
+文字选择栏」——❯ 箭头指示、选中行黄底、每项一行说明：
+
+```
+╭──────────────────────────────────────────────────────────────╮
+│ ▶ 权限    范围                                                │
+│     读取              只读文件                                │
+│     写入              修改文件                                │
+│     其他（自行输入）  输入自定义答案                           │
+│ ❯  跳过此题          不作答，直接下一题                        │
+╰──────────────────────────────────────────────────────────────╯
+  ↑↓ 选择 · Enter 确认 · Esc 取消 · Y/N/A 单键 · 多选 Space 勾选 · ←→/Tab 翻页
+```
+
+- **位置**：输入框**下方**（`InputBotBorder` 与 `ModelInfoRow` 之间）。不放上方是因为那里与
+  `/ @ ! #` 前缀提示共用 `InputArea.KeyHook`、且是「Enter 回填输入框」的语义，放一起必打架。
+- **不阻塞主循环**：`UxHelper.RunInlineChoiceOnScreen` 走 `RenderWait(win: null)` ——
+  后台 Agent 线程只 `Sleep` 等事件，渲染与键路由仍归常驻主循环（顺带绕开 `win.Screen == null`
+  那条过早返回的判据）。
+- **键位**：`↑↓/Home/End` 移动、`Enter` 确认、`Esc` 拒绝、`Y/N/A` 单键、`1-9` 直选。
+
+**四种形态**由「题目数 × MultiSelect × 是否显示标签页」组合而成，不再各写一套：
+
+| 形态 | 触发 |
+|---|---|
+| 多选一 | 单题 + 单选（权限确认） |
+| 多选多 | `Space` 勾选，`[x]`/`[ ]` 前缀 |
+| 横向多页 | 多题 + `showTabs` → 页头 `▶ 权限  范围`，`←→`/`Tab` 翻页 |
+| 分步骤 | 多题 + 无标签 → 页头 `步骤 1/2 · 标题`，`Enter` 逐步推进 |
+
+已改行内的入口：权限确认、计划审批、粘贴确认、通用确认、退出确认、设置页 select 项
+（就地展开，不再 `TuiDialog.Select`）。`ask_user_question` 在 TUI 下也改成一次问完所有题目。
+
+**Web / GUI / MAUI 仍走弹框**（有意为之，不是没做）：分界点就是
+`TuiManager.Instance.ActiveScreen is ChatScreen` —— Web/GUI 不 `PushScreen`、MAUI 的
+`TuiManager` 桩 `ActiveScreen` 恒 null，三端一律落到 `UxHelper.WebInteraction` 桥。
+
+### 二、代码配色对标 One Dark / Crush
+
+`Syntax` 从标准 16 色（青/绿/黄/品红）换成 **256 色**的柔和中间调：关键字紫 `#c678dd`、
+字符串柔绿 `#98c379`、注释暗灰 `#5c6370`、JSON 键粉红、数字橙、标签蓝。常量改为**语义名**
+（`Keyword`/`Str`/`Comment`/…），旧颜色名保留为别名，调色只动一处。
+
+顺带修一个跨端老问题：MAUI 的 `ColorForToken` 只认 16 色 + 真彩，**256 色一律 fallback
+成默认色**（代码高亮全灰），此前是「用到哪个色往表里补哪个」必然漏 —— 改成 xterm 256
+调色板算法（6×6×6 立方 + 24 级灰阶）全覆盖，四个端从此一致。
+
+### 三、六项交互差距修复
+
+① **「仅本次允许」被误记**：`SmartAuto` 的 Cautious 分支只看了 `allowed`（bool）、没看结果码，
+   于是 0（仅本次）和 1（全部允许）**都会被写进 `AutoAllowed`** —— 与选项文案正好相反。
+   `ShowConfirmDialog` 改返回 `(bool, int)`，只有 `code == 1` 才记账。
+
+② **问卷「其他（自行输入）」**：模型的选项未必覆盖用户想法。选中后收起选项栏、**复用输入框**
+   （键位照常流进输入框，只在 Enter/Esc 上拦），结果用 `SurveyResult(Picks, Others)` 回传。
+   踩坑：Enter 会被 `HandleSpecial` 的「发送消息」先截走（输入态时选项栏已收起、
+   `InlineChoiceVisible` 为假）—— 表现是「打完自定义答案一按回车，答案当成聊天消息发了出去」。
+
+③ **权限确认给文件级 diff**：`edit_file`/`write_file` 改走 `UnifiedDiff.Generate`
+   （读原文件 → 应用替换 → 统一 diff），取代原来各截 80 字符的 `-old/+new`。
+   读不到文件/替换不生效时退回子串预览。这条是**四端共享**的：Web/GUI/MAUI 的弹框也一并受益。
+
+④ **栏内常驻快捷键提示行**：`shortcutRow` 在行内栏可见时切为选择栏键位，隐藏时还原 ——
+   否则键位只活在 Ctrl+H 帮助面板里，第一次遇到权限确认的人不知道能按 Y/N/A。
+
+⑤ **计划审批三态**：`批准并自动接受编辑` / `批准，但每次编辑都问我` / `继续规划`。
+   前者置 `PermissionManager.AllowEditsThisSession`，**只放开** `edit_file`/`write_file`/`multi_edit`
+   —— bash、rm、kill 照旧逐次确认（对齐竞品 auto-accept edits 的语义）。
+
+⑥ **问卷「跳过此题」**：单选页末尾追加（多选页空选本身就是跳过，不重复占行），该题结果为空列表。
+
+### 四、keypad 新增 `INLINE:` 指令
+
+`Test/Keypad.cs` 加 `INLINE:perm / permdanger / survey / step`：刻意直接调
+`ChatScreen.ShowInlineChoice/Survey` 而**不**走 UxHelper 的 `RunInline*` —— 后者会
+`RenderWait` 阻塞到用户作答，脚本再也走不到后面的 `SNAP`。配 `Test/scripts/inline_perm.txt`
+与 `inline_survey.txt` 逐帧截图 + 结果码回放。
+
+**它抓出了 3 个自测断言覆盖不到的渲染缺陷**（都是逐帧看画面才暴露的）：
+
+- `TuiPromptBar` 的填充右界是 `Width-3`（不含右框内侧列）→ 旧帧画在那里的 `─` 没人覆盖，
+  框内右下永久留半截横线
+- 页头行只写了文本，**没按普通内容行渲染边框 + 整行填充** → 动态栏的 spinner 和 `⚡ 0%` 粘在页头行上
+- 换页改变 `Height` → 下方兄弟控件整体位移，但增量渲染只重绘「自己标脏」的控件
+  → 上边框被上一帧的页头文本啃出豁口 `╭─── ─ ───── ─ ───╮`。改走 `TuiManager.RequestFullRefresh()`
+
+另修一处行为不一致：`1-9` 数字键原先只在问卷里有效（帮助面板却写了「直接选中第 N 项」）；
+问卷多选页的数字键原本会直接提交（等于永远只能勾中一项），改为「切换勾选」。
+
+> 工作区 CRLF 提醒：本次用 python 批量改的几个文件把 CRLF 写成了 LF，`git diff --stat`
+> 一度虚高到 6537/5123 行。按 index 行尾（`git ls-files --eol` 的 `i/crlf w/lf`）逐文件
+> 归一化后回到 1539/125。**任何批量改文件的脚本之后都要核对 `git diff --numstat`**。
+
 ## v0.96.110 (2026-09-12) — 长任务完成后卡死（冻结现场采集与 GC 线程暂停互锁）
 
 2 文件；自测 **5453 通过 / 0 失败**（**+3 条护栏**）。

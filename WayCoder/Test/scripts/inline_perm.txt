@@ -1,0 +1,35 @@
+// 行内权限确认（不弹窗）—— ❯ 箭头 + 黄底高亮 + 每项一行说明
+// 运行：waycoder --keypad Test/scripts/inline_perm.txt
+
+INLINE:perm
+SNAP:权限-初始（第1项选中）
+KEY:Down
+SNAP:权限-移到第2项
+KEY:Down
+KEY:Down
+SNAP:权限-末尾不越界（仍停在第3项）
+KEY:Up
+KEY:Enter
+SNAP:权限-Enter确认后（栏收起，聊天区还原）
+
+// 危险操作：只有两项（不给"全部允许"），单键 A 应被忽略
+INLINE:permdanger
+SNAP:危险操作-两项
+KEY:a
+SNAP:危险操作-按A无效（仍在栏中，未提交）
+KEY:Escape
+SNAP:危险操作-Esc拒绝
+
+// 单键快捷
+INLINE:perm
+KEY:n
+SNAP:权限-N键拒绝
+
+INLINE:perm
+KEY:y
+SNAP:权限-Y键允许（第1项）
+
+// 数字直选
+INLINE:perm
+KEY:3
+SNAP:权限-数字3直选拒绝

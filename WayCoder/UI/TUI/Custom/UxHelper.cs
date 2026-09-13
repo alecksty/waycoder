@@ -1,3 +1,4 @@
+using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
@@ -417,6 +418,76 @@ public static class UxHelper
             RenderWait(screen, evt, timeoutMs, win, readKeys: readKeys);
         }
         catch { evt.Set(); }
+        return result;
+    }
+
+    /// <summary>
+    /// 行内选择（输入框下方的文字选项，**不弹窗**）—— 返回选中项的 <see cref="PromptItem.ResultCode"/>。
+    /// 未应答 / 超时 / 异常一律返回 2（拒绝），与 <see cref="ChatScreen.ShowPermissionDialog"/> 的 <c>?? 2</c> 同语义。
+    ///
+    /// 为什么不复用 <see cref="RunModalDialogOnScreen{TResult}"/>：那条路必须 ShowWindow（真弹出窗口）。
+    /// 本路走 <see cref="ChatScreen.ShowInlineChoice"/>，给 RenderWait 传 <c>win: null</c> ——
+    /// 顺带绕开它开头「<c>win.Screen == null</c> 就 break」那条判据（win 为 null 时不执行，
+    /// 而该判据对后台线程发起的弹窗会让它瞬间返回「拒绝」），且行内栏没有窗口可关，超时兜底也无事可做。
+    ///
+    /// 线程语义：调用方是后台 Agent 线程时只等待（渲染/读键归常驻主循环），UI 线程时接管循环 —— 全由 RenderWait 判定。
+    /// </summary>
+    public static int RunInlineChoiceOnScreen(ChatScreen screen, List<PromptItem> items, int timeoutMs = 0)
+    {
+        var result = 2; // 默认拒绝
+        using var evt = new ManualResetEventSlim(false);
+        // evt 可能在本方法返回（已 Dispose）后仍被回调碰到 —— 超时退出时行内栏还挂在屏幕上，
+        // 用户之后按 Enter 仍会走到这里。ManualResetEventSlim.Set() 对已释放实例抛 ObjectDisposedException，
+        // 而那是 UI 线程上的未捕获异常 = 崩。故 Set 一律包 try。
+        void Done(int code) { result = code; try { evt.Set(); } catch { /* 已释放 = 本次结果已无人等待 */ } }
+
+        try
+        {
+            // UI 线程直执（PostToUI 对 UI 线程是同步调用）；后台线程投递到 UI 线程挂栏
+            screen.PostToUI(() => screen.ShowInlineChoice(items, Done));
+            RenderWait(screen, evt, timeoutMs, win: null);
+        }
+        catch { try { evt.Set(); } catch { } }
+
+        // 收尾：超时/异常路径下回调没跑，行内栏会一直挂在输入框下方 —— 投递收起（幂等，
+        // 顺带清掉未消费的回调，见 ChatScreen.HideInlineChoice；已正常应答时这里是 no-op）。
+        screen.PostToUI(screen.HideInlineChoice);
+        return result;
+    }
+
+    /// <summary>
+    /// 行内问卷（**不弹窗**）：多问题一次问完，每题单选或多选；多题时可选横向标签页（showTabs）或分步骤。
+    /// 返回按题目顺序的「选中索引列表」；取消 / 超时 / 异常返回 null。
+    ///
+    /// 与 <see cref="RunInlineChoiceOnScreen"/> 同一套线程语义与非阻塞原理（win: null，渲染与读键归常驻主循环），
+    /// 区别只是题目多于一页。无 TUI 界面（ActiveScreen 不是 ChatScreen）时返回 null，调用方自行回退。
+    /// </summary>
+    /// <summary>
+    /// 眼下有没有能承载行内问卷的 TUI 屏幕（有 → <see cref="RunInlineSurveyOnScreen"/> 会真的展示）。
+    /// 调用方用它区分「无界面（该回退到逐题/Web 路径）」与「用户取消（返回 null，不该再问一遍）」——
+    /// 这两种情形 <see cref="RunInlineSurveyOnScreen"/> 的返回值都是 null，光看返回值分不开。
+    /// </summary>
+    public static bool CanRunInlineSurvey => TuiManager.Instance.ActiveScreen is ChatScreen;
+
+    public static SurveyResult? RunInlineSurveyOnScreen(
+        List<SurveyQuestion> questions, bool showTabs = false, int timeoutMs = 0)
+    {
+        var screen = TuiManager.Instance.ActiveScreen as ChatScreen;
+        if (screen == null || questions.Count == 0) return null;
+
+        SurveyResult? result = null;
+        using var evt = new ManualResetEventSlim(false);
+        // 同 RunInlineChoiceOnScreen：evt 可能在返回（已释放）后被回调碰到 —— Set 一律包 try
+        void Done(SurveyResult? r) { result = r; try { evt.Set(); } catch { } }
+
+        try
+        {
+            screen.PostToUI(() => screen.ShowInlineSurvey(questions, Done, showTabs));
+            RenderWait(screen, evt, timeoutMs, win: null);
+        }
+        catch { try { evt.Set(); } catch { } }
+
+        screen.PostToUI(screen.HideInlineChoice); // 超时/异常路径兜底收起（幂等）
         return result;
     }
 

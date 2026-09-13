@@ -146,7 +146,7 @@ WayCoder/
 - **模型选择对话框**：`ModelPicker.Show()` 全屏 ANSI 直写，21+ 模型按供应商分组，Tab 切大/小模型，实时搜索过滤，Ctrl+M 打开（对标 Crush models.go）
 - **按钮组 + 独立滚动条**：`TuiButtonGroup` 水平/垂直布局 + Tab 导航 + 字母快捷键（对标 Crush button.go）；`TuiScrollbar` 拖拽滑块 + 鼠标滚轮 + 自动隐藏（对标 Crush scrollbar.go）
 - **文件选择 + 命令面板**：`FilePicker.Show()` 目录浏览 + 文件搜索（对标 Crush filepicker）；`CommandPalette.Show()` 分类分组 + 模糊搜索 + 快捷键显示
-- **行内权限确认**：`InlinePermission` 控件在聊天流中嵌入黄色交互确认块，Y/N/A/D 快捷键，参数着色（bash绿/path青），展开折叠详情（对标 Crush inline permission）
+- **行内权限确认**：`ChatScreen.InlineChoice`（一个 `TuiPromptBar` 实例）钉在**输入框下方**，❯ 箭头 + 黄底高亮 + 每项一行说明；键位 ↑↓/Home/End 移动、Enter 确认、Esc 拒绝、Y/N/A 单键、1-9 直选、多选 Space 勾选、多题 ←→/Tab 翻页，栏下方常驻键位提示行。**权限确认 / 计划审批 / 粘贴确认 / 通用确认 / 退出确认 / 设置页 select 全走它，CLI/TUI 不再弹框**（Web/GUI/MAUI 仍弹框，分界点是 `TuiManager.ActiveScreen is ChatScreen`，见 CLAUDE.md）。旧 `InlinePermission`（聊天流内嵌黄块）是死代码，已无生产调用
 - **多行输入 + 历史**：`TuiDialog.Input()` 升级为 TuiTextArea 多行，`TuiInputHistory` 按字段名 50 条历史 + AOT 安全文本持久化
 - **粘贴确认**：ChatScreen 和 TuiChatInput 粘贴超长(>500字符)或多行(>3行)时弹出确认
 - **结构化记忆**：`.corecoder/memory/*.md` frontmatter 多文件 + MEMORY.md 索引，`memory` 工具与系统提示词注入均走结构化格式，首次使用自动从旧 memory.md 迁移
