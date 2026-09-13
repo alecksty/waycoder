@@ -1,3 +1,7 @@
+using System.Text;
+using WayCoder.UI.Shared;
+using WayCoder.UI.Shared.Terminal;
+
 namespace WayCoder.UI.TUI.Renderers;
 
 /// <summary>
@@ -54,10 +58,62 @@ public static class ToolRendererFactory
     /// 图标不统一（✏️📝💻📖🔍🤖⚙）、名称大小写也不一，在聊天流里一眼扫不出「这是工具调用」。
     /// 现在图标统一、名称首字母大写并**加粗染橙**、参数降为灰色 —— 与下面的内容行拉开层次。
     /// </summary>
-    public static string FormatHeader(string toolName, string brief)
+    public static string FormatHeader(string toolName, string brief, int maxWidth = 0)
     {
         var head = $"💡 «bold»«orange»{DisplayName(toolName)}«/»«/»";
-        return string.IsNullOrWhiteSpace(brief) ? head : head + $"«grey»({brief})«/»";
+        if (string.IsNullOrWhiteSpace(brief)) return head;
+
+        int nameW = DisplayName(toolName).Length; // 名称是 ASCII（PascalCase 工具名），字数即列数
+        int headW = 2 + 1 + nameW;                // 💡(宽 2) + 空格 + 名称
+        int need = headW + 2 + AnsiHelper.DisplayWidth(brief) + 1; // 前后括号各 1 列
+        if (maxWidth <= 0 || need <= maxWidth)
+            return head + $"«grey»({brief})«/»";
+
+        // 超宽 → 参数**折行而不是截断**（bash 命令、文件路径截掉就看不全了）。
+        // 两个要点：① 折行在**标记之外** —— «grey» 必须整段保留，按显示宽硬切会切出字面量；
+        //          ② 每行**各自闭合** —— plainText 路径是逐行解析 «» 的，跨行标记对不上。
+        int indentW = headW + 1;                        // 与「(」之后的那一列对齐
+        int lineW = Math.Max(8, maxWidth - indentW);
+        var sb = new StringBuilder(head).Append("«grey»(");
+        var rest = brief;
+        while (rest.Length > 0 && lineW >= 2)
+        {
+            int take = TakeByWidth(rest, lineW);
+            if (take <= 0) break;                       // 首字符就超宽 → 防死循环
+            // 优先在空格/路径分隔符处断行（不在单词中间切）：`…--option value` / `dir/file.cs`
+            // 这种在分隔符后断开读起来自然得多。回退距离超过行宽 1/3 就不回退 ——
+            // 否则一个长单词后面跟着空格会把上一行折得只剩几个字符。
+            if (take < rest.Length)
+            {
+                int brk = rest.LastIndexOfAny([' ', '/', '\\', ','], take - 1, take);
+                if (brk > 0 && take - brk <= lineW / 3) take = brk + 1;
+            }
+            sb.Append(rest[..take]);
+            rest = rest[take..];
+            if (rest.Length == 0) break;
+            sb.Append("«/»\n").Append(new string(' ', indentW)).Append("«grey»");
+            lineW = Math.Max(8, maxWidth - indentW);
+        }
+        sb.Append(")«/»");
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// 按显示宽度取「不切断宽字符」的最大前缀长度（返回 UTF-16 单元数）。
+    /// 不用 <see cref="AnsiHelper.TruncateByWidth"/> —— 那个会补省略号，折行时每段都带「…」就错了。
+    /// 按 Rune 遍历，CJK/emoji（宽 2）不会被从中间切开。
+    /// </summary>
+    internal static int TakeByWidth(string s, int maxWidth)
+    {
+        int w = 0, i = 0;
+        foreach (var r in s.EnumerateRunes())
+        {
+            int rw = AnsiString.CharWidth(r);
+            if (w + rw > maxWidth) break;
+            w += rw;
+            i += r.Utf16SequenceLength;
+        }
+        return i;
     }
 
     /// <summary>

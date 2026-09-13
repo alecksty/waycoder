@@ -850,9 +850,17 @@ public static partial class SelfTest
             var longBrief = string.Join(" ", Enumerable.Repeat("这是一个很长的工具参数片段用于验证截取", 10));
             tscr.AddToolProgress("bash", longBrief);
             var stored = tscr.ChatMessages.LastOrDefault(m => m.Role == "tool");
-            var tw = AnsiHelper.DisplayWidth(stored?.Content ?? "");
-            Check($"工具消息: 参数按聊天区宽截取({tw}≤76)", stored != null && tw <= 76);
-            Check("工具消息: 截断时带省略号", tw == 76 ? stored!.Content.Contains('…') : stored!.Content.Contains('…') || tw < 76);
+            // 参数从「按宽截断」改为**折行不截断**（bash 命令/路径截掉尾巴就看不全了）：
+            // 断言改成「参数一字不少 + 确实折了行 + 没有省略号」
+            var storedText = stored?.Content ?? "";
+            static string Squash2(string v) => new(v.Where(c => !char.IsWhiteSpace(c)).ToArray());
+            // 比的是**渲染后**的文本：stored.Content 里带 «grey» 等标记，折行处还会插「«/»\n缩进«grey»」，
+            // 直接在里面找参数子串必然失败 —— 那是标记不是丢字。
+            var rSegs = UI.Tui.TuiMarkdown.RenderMessage(storedText, "tool", 80, plainText: true);
+            var rTxt = string.Concat(rSegs.SelectMany(x => x).Select(x => x.Text));
+            Check("工具消息: 超长参数完整保留（不截断）", Squash2(rTxt).Contains(Squash2(longBrief)));
+            Check("工具消息: 超长参数折行", storedText.Contains('\n'));
+            Check("工具消息: 折行后不带省略号", !storedText.Contains('…'));
             // 短参数不被截（原本就不该动）
             tscr.ChatMessages.Clear();
             tscr.AddToolProgress("bash", "echo hello");

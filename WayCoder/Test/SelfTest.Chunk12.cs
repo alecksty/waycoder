@@ -392,6 +392,20 @@ public static partial class SelfTest
             Check("工具标题：名称渲染成橙色", ttFlat.Any(x => x.Fg == AnsiColors.Orange));
             Check("工具标题：参数渲染成灰色", ttFlat.Any(x => x.Fg == AnsiColors.BrightBlack));
 
+            // 参数超宽 → 折行而非截断；宽字符不从中间切断；每行不超宽
+            var longBrief = "src/很长的中文目录名/AnotherLongPath/文件.cs --option value";
+            var wrapped = ToolRendererFactory.FormatHeader("read_file", longBrief, 40);
+            Check("工具标题：超宽参数折行（有换行、无省略号）",
+                wrapped.Contains('\n') && !wrapped.Contains('…'));
+            var wSegs = UI.Tui.TuiMarkdown.RenderMessage(wrapped, "tool", 40, plainText: true);
+            var wTxt = string.Concat(wSegs.SelectMany(x => x).Select(x => x.Text));
+            // 折行会插入换行与缩进空格，比较前都去掉空白
+            static string Squash(string v) => new(v.Where(c => !char.IsWhiteSpace(c)).ToArray());
+            Check("工具标题：折行后参数完整（一个字符都不丢）", Squash(wTxt).Contains(Squash(longBrief)));
+            Check("工具标题：折行后每行不超宽",
+                wSegs.All(r => r.Sum(x => AnsiHelper.DisplayWidth(x.Text)) <= 40));
+            Check("工具标题：宽字符不从中间切断", !wTxt.Contains('\uFFFD'));
+
             Check("工具标题：无参数时不带空括号",
                 ToolRendererFactory.FormatHeader("bash", "") == "💡 «bold»«orange»Bash«/»«/»");
 

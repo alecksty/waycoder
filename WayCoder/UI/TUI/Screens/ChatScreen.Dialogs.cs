@@ -30,18 +30,15 @@ public partial class ChatScreen : TuiScreen
     /// <summary>添加工具调用进度（嵌套子消息：工具输出归属在 assistant 消息下）。线程安全。</summary>
     public void AddToolProgress(string toolName, string brief)
     {
+        // 参数**完整显示**：超宽时在 FormatHeader 里折行，不再截断 ——
+        // bash 命令、文件路径截掉尾巴就看不全了。可用宽 = 聊天区宽 - 6：
+        // 条目内宽是 list-4（左右 padding 各 1 + 列表自身 2），再留 2 列余量防右缘贴边。
+        int avail = Math.Max(30, ChatList.Width - 6);
         // 不在这里手写缩进：条目缩进由 AddMessage(indent: 1) 统一加 —— 手写会与内容行
         // （同样 indent:1，但没有手写前缀）差出 2 列，工具行和它的输出看着对不齐。
-        string label = ToolRendererFactory.FormatHeader(toolName, brief);
+        string label = ToolRendererFactory.FormatHeader(toolName, brief, avail);
         lock (_chatLock)
         {
-            // 参数摘要按聊天区宽度截取（减一点留边距），不再依赖调用方提前砍短 ——
-            // 之前调用方硬截 57 字符，bash 命令/文件路径一眼看不全参数。
-            // 注意：bash 走 shellBlock 渲染会再前缀「│ 」（2 显示列），标题可用宽必须再减 2，
-            // 否则长命令头超出 item 体内宽被右裁 2 列。item 体内宽 = (list-2)-padding(1+1) = list-4，故用 list-6。
-            int avail = Math.Max(30, ChatList.Width - 6);
-            if (AnsiHelper.DisplayWidth(label) > avail)
-                label = AnsiHelper.TruncateByWidth(label, avail);
             // 标题行**不走 shellBlock**：ShellBlock 的渲染路径故意不解码 «»（bash 输出是 OS 原文，
             // 那里的 «» 只是普通字符）—— 而标题是我们自己生成的 «bold»«yellow»Edit«/» 标记，
             // 跟着一起不解码就会把标记原样打在屏幕上（实测 `│ 🔧 «bold»«yellow»Bash«/»…`）。
