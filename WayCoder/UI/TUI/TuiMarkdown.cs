@@ -67,6 +67,7 @@ public static class TuiMarkdown
                 AddContentLine(segments, line, defaultFg, isDiff, codeSyntax, decodeMarkup: !shellBlock);
                 result.Add(segments);
             }
+            FillRowBackgrounds(result, maxWidth);
             return result;
         }
 
@@ -123,8 +124,34 @@ public static class TuiMarkdown
             // 消息内部节点间不加空行（消息间空行由 TuiListView.ItemSpacing 统一控制）
         }
 
-        return result.Count > 0 ? result
-            : new List<List<(string, int, int)>> { new() { (content, FgForRole(role), 0) } };
+        if (result.Count == 0)
+            return new List<List<(string, int, int)>> { new() { (content, FgForRole(role), 0) } };
+        FillRowBackgrounds(result, maxWidth);
+        return result;
+    }
+
+    /// <summary>
+    /// 把**有底色的行**的底色铺到行尾（右对齐到渲染宽度）。
+    ///
+    /// 竞品的代码块与 diff 底色都是铺满整行的；只裹住文字会在右侧留一段断口 ——
+    /// diff 的红绿底尤其明显，看着像没画完。取行内**第一个非零背景色**作为该行底色
+    /// （同一行的段落底色本就一致，混合底色只有 +++ / --- 头那种单段行）。
+    /// 已超宽的行不补（长行本来就会折行）。
+    /// </summary>
+    private static void FillRowBackgrounds(List<List<(string Text, int Fg, int Bg)>> rows, int maxWidth)
+    {
+        if (maxWidth <= 0) return;
+        foreach (var row in rows)
+        {
+            int bg = 0, used = 0;
+            foreach (var (text, _, segBg) in row)
+            {
+                if (bg == 0 && segBg > 0) bg = segBg;
+                used += AnsiHelper.DisplayWidth(text);
+            }
+            if (bg == 0 || used >= maxWidth) continue;
+            row.Add((new string(' ', maxWidth - used), 0, bg));
+        }
     }
 
     /// <summary>

@@ -137,6 +137,11 @@
  [1] 2 3 4 5 6 7 8 9 0        📁 ~/Desktop/source/mycoder/my-coder/WayCoder
 ```
 
+**代码块 / diff 的底色铺满整行**：此前底色只裹住文字，右侧留一段断口 —— diff 的红绿底尤其明显，
+看着像没画完。现在在 `RenderMessage` 出口统一把**有底色的行**补空格到渲染宽度（竞品的代码块与
+diff 底色都是铺满整行的）。取行内**第一个非零背景色**作为该行底色，已超宽的行不补（长行本就会折行）。
+两条出口 —— 工具输出的纯文本路径与 markdown 代码块路径 —— 都收口到同一个 `FillRowBackgrounds`。
+
 ### 四、六项交互差距修复
 
 ① **「仅本次允许」被误记**：`SmartAuto` 的 Cautious 分支只看了 `allowed`（bool）、没看结果码，

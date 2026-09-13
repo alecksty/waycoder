@@ -277,6 +277,16 @@ public static partial class SelfTest
                 "public class A { }\npublic class B { }\n",
                 "public class A { int x = 1; }\npublic class B { }\n", "/tmp/A.cs");
             Check("diff：+ 行有暗绿背景", editBg.Contains("bg:#0e2a17"));
+
+            // 底色铺满行尾（右对齐到渲染宽度）——竞品都是这样，只裹住文字会在右侧留断口
+            var diffRows = UI.Tui.TuiMarkdown.RenderMessage(
+                "@@ -1 +1 @@\n+public class A { }\n", "tool", 40, plainText: true);
+            var plusRow = diffRows.FirstOrDefault(r => string.Concat(r.Select(x => x.Text)).Contains("public class A"));
+            int plusRowW = plusRow?.Sum(x => AnsiHelper.DisplayWidth(x.Text)) ?? 0;
+            Check("diff：+ 行底色铺满到渲染宽度", plusRowW == 40);
+            var plainRows = UI.Tui.TuiMarkdown.RenderMessage("普通一行文字", "tool", 40, plainText: true);
+            Check("普通文本行不补底色（无背景）",
+                plainRows.All(r => r.All(x => x.Bg == 0)));
             // 上下文行的行号段后紧跟语法色段（行号灰 «grey»   2  «/» + 代码 «fg:#..»public«/»）
             Check("diff：上下文行代码也上语法色",
                 editBg.Split('\n').Any(l => l.Contains("   2  «/»") && l.Contains("fg:#")));
