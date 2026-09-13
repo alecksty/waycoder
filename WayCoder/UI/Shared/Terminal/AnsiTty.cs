@@ -150,6 +150,35 @@ public static class AnsiTty
     /// <summary>将 RGB 编码为内部 TrueColor 颜色码（≥0x1000000），可透传给 FgCode/BgCode</summary>
     public static int RgbCode(int r, int g, int b) => 0x1000000 | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | (b & 0xFF);
 
+    /// <summary>
+    /// xterm 256 色码（16-255）→ RGB：16-231 是 6×6×6 立方（每级 0/95/135/175/215/255），
+    /// 232-255 是 24 级灰阶。16 以下的标准 16 色由各端自己的配色表决定，这里不覆盖（返回黑）。
+    ///
+    /// 为什么需要换算：<c>Syntax</c> 的语法配色是 **256 色码**，而 «» 中间格式只认命名色与真彩
+    /// （<c>«fg:#rrggbb»</c>）—— 要让「非 TUI 直写」的路径（工具输出的 diff 展示、Web、MAUI）
+    /// 也吃到同一套语法色，就得把 256 色换算成 hex。MAUI 的
+    /// <c>MarkupToFormattedString.FromXterm256</c> 也走这里（此前各写一份，必然漂移）。
+    /// </summary>
+    public static (byte R, byte G, byte B) Xterm256ToRgb(int code)
+    {
+        if (code is < 16 or > 255) return (0, 0, 0);
+        if (code < 232)
+        {
+            int n = code - 16;
+            return (Level(n / 36), Level((n / 6) % 6), Level(n % 6));
+            static byte Level(int v) => (byte)(v == 0 ? 0 : 55 + v * 40);
+        }
+        var gray = (byte)(8 + (code - 232) * 10);
+        return (gray, gray, gray);
+    }
+
+    /// <summary>xterm 256 色码 → «» 标记写法 <c>#rrggbb</c></summary>
+    public static string Xterm256ToHex(int code)
+    {
+        var (r, g, b) = Xterm256ToRgb(code);
+        return $"#{r:x2}{g:x2}{b:x2}";
+    }
+
     /// <summary>从 TrueColor 颜色码解码 RGB 分量</summary>
     public static (int r, int g, int b) DecodeRgb(int code)
     {

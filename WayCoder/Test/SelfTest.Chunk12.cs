@@ -244,6 +244,31 @@ public static partial class SelfTest
             var prose = UI.Tui.TuiMarkdown.RenderMessage("```\nThis is a note and it has no code in it.\n```", "assistant", 80);
             Check("通用表不误色散文（in/is/and 不在表内）",
                 !prose.SelectMany(l => l).Any(s => s.Fg == Syntax.Keyword));
+
+            // ── 工具输出（write / edit 贴出的代码）：靠**文件后缀**定语言 ──
+            // 这类代码没有语言标注，但文件路径一定有 —— 比内容启发式准得多。
+            var addedCs = WayCoder.UI.Tui.ContentDiffFormatter.FormatAddedContent(
+                "public class A { return 1; }", "/tmp/A.cs");
+            Check("写文件展示：按 .cs 后缀上语法色", addedCs.Contains("fg:#"));
+            Check("写文件展示：行号与 + 标记仍在", addedCs.Contains(" +«/»"));
+            var addedPy = WayCoder.UI.Tui.ContentDiffFormatter.FormatAddedContent(
+                "def f():\n    return 1", "/tmp/a.py");
+            Check("写文件展示：按 .py 后缀上语法色", addedPy.Contains("fg:#"));
+            var addedTxt = WayCoder.UI.Tui.ContentDiffFormatter.FormatAddedContent(
+                "hello world", "/tmp/a.txt");
+            Check("写文件展示：.txt 不上色（关键字表为空）", !addedTxt.Contains("fg:#"));
+
+            var editCs = WayCoder.UI.Tui.ContentDiffFormatter.FormatEditContent(
+                "public class A { }\n", "public class A { int x = 1; }\n", "/tmp/A.cs");
+            Check("编辑展示：+ 行代码上语法色", editCs.Contains("fg:#"));
+
+            var markupInCode = WayCoder.UI.Tui.ContentDiffFormatter.FormatAddedContent(
+                "var s = \"«red»\";", "/tmp/A.cs");
+            Check("代码含 «» 字面量时不上色（标记无转义机制）", !markupInCode.Contains("fg:#"));
+
+            // 端到端：256 色语法值 → «fg:#rrggbb» → 渲染成真彩 ANSI（三端都认真彩标记）
+            var cdfSegs = UI.Tui.TuiMarkdown.RenderMessage(addedCs, "tool", 80);
+            Check("工具输出的语法色渲染成真彩 ANSI", cdfSegs.SelectMany(l => l).Any(s => s.Fg >= 0x1000000));
         }
         Console.WriteLine();
 

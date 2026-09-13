@@ -868,21 +868,23 @@ public static partial class SelfTest
             // 全量新增：3 行内容（结尾 \n 的空行应去掉）
             var added = ContentDiffFormatter.FormatAddedContent("a\nb\nc\n", "x.cs");
             Check("ContentDiff: 头行含路径与行数", added.StartsWith("«bright green»x.cs · 3 行«/»"));
-            Check("ContentDiff: 行号+标记", added.Contains("   1 +a") && added.Contains("   2 +b") && added.Contains("   3 +c"));
-            Check("ContentDiff: 绿色包裹每行", added.Contains("«bright green»   1 +a«/»"));
+            // 行号与 +/- 标记各成一段（代码部分再按语法上色，见下「后缀定语言」组）——
+            // 原先整行一个 «bright green» 包到底，那样代码就没法上语法色了
+            Check("ContentDiff: 行号+标记", added.Contains("   1 +«/»a") && added.Contains("   2 +«/»b") && added.Contains("   3 +«/»c"));
+            Check("ContentDiff: 绿色包裹行号与标记", added.Contains("«bright green»   1 +«/»"));
             Check("ContentDiff: 无尾部换行", !added.EndsWith("\n"));
 
             // 编辑 diff：old "a\nb\nc" → new "a\nX\nc"（第 2 行 b→X）
             var edit = ContentDiffFormatter.FormatEditContent("a\nb\nc", "a\nX\nc", "x.cs");
             Check("ContentDiff: 头行 +N/-M", edit.Contains("· +1/-1 行"));
             Check("ContentDiff: 含 hunk 头", edit.Contains("@@"));
-            Check("ContentDiff: 删除行红色", edit.Contains("«bright red»   2 -b«/»"));
-            Check("ContentDiff: 新增行绿色", edit.Contains("«bright green»   2 +X«/»"));
+            Check("ContentDiff: 删除行红色", edit.Contains("«bright red»   2 -«/»b"));
+            Check("ContentDiff: 新增行绿色", edit.Contains("«bright green»   2 +«/»X"));
             Check("ContentDiff: 上下文灰色", edit.Contains("«grey»   1  a«/»") && edit.Contains("«grey»   3  c«/»"));
 
             // CRLF 归一化：\r\n 拆行不花屏
             var crlf = ContentDiffFormatter.FormatAddedContent("a\r\nb\r\n", "win.cs");
-            Check("ContentDiff: CRLF 归一化", crlf.Contains("1 +a") && crlf.Contains("2 +b") && !crlf.Contains('\r'));
+            Check("ContentDiff: CRLF 归一化", crlf.Contains("1 +«/»a") && crlf.Contains("2 +«/»b") && !crlf.Contains('\r'));
 
             // maxLines 截断：头行 + 5 行 + 截断提示 = 7 行
             var big = string.Join("\n", Enumerable.Range(1, 3000).Select(i => $"line{i}")) + "\n";

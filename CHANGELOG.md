@@ -66,6 +66,17 @@
   刻意**剔掉** `in` / `is` / `as` / `and` / `or` / `not` / `from` / `do` / `end` 这类英文常用词，
   散文、日志、表格因此基本不会被误上色。
 
+**工具输出也上色（write / edit 贴出的代码）**：这类代码**没有语言标注**，但文件路径一定有 ——
+改按 `Syntax.ForFile(filePath)` 的**扩展名**定语言，比内容启发式准得多。`ContentDiffFormatter`
+原先把每行整体包成 `«bright green»` / `«bright red»`（代码因此没法再上语法色），现在改为
+「**行号与 +/- 标记保持 diff 语义色 + 代码部分逐 token 上真彩**」——真彩写法 `«fg:#rrggbb»`
+四端都认，256 色→hex 的换算收在新增的 `AnsiTty.Xterm256ToRgb/ToHex`（MAUI 原先自己写了一份
+`FromXterm256`，改走同一个实现）。上下文行保持整体灰（未改动的行不该抢眼）；行内含 `«»`
+字面量时整行不上色（标记语法没有转义机制）。
+
+> 这正好解释了「**diff 弹窗颜色是对的、聊天列表里的不对**」：弹窗（`DiffPreview`）本来就在用
+> `Syntax` 上色，而聊天列表这条路径（`ContentDiffFormatter`）没接上。
+
 ### 三、六项交互差距修复
 
 ① **「仅本次允许」被误记**：`SmartAuto` 的 Cautious 分支只看了 `allowed`（bool）、没看结果码，

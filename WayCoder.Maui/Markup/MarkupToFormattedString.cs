@@ -2,6 +2,8 @@ using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui.Edit;
+// 只取 AnsiTty，别 using 整个 Terminal 命名空间 —— 那里也有个 Color，会与 Maui.Graphics.Color 撞名
+using AnsiTty = WayCoder.UI.Shared.Terminal.AnsiTty;
 
 namespace WayCoder.Maui.Markup;
 
@@ -249,14 +251,8 @@ public static class MarkupToFormattedString
     /// </summary>
     internal static Color FromXterm256(int code)
     {
-        if (code < 232)
-        {
-            int n = code - 16;
-            int r = n / 36, g = (n / 6) % 6, b = n % 6;
-            return Color.FromRgb(Level(r), Level(g), Level(b));
-            static byte Level(int v) => (byte)(v == 0 ? 0 : 55 + v * 40);
-        }
-        var gray = (byte)(8 + (code - 232) * 10);
-        return Color.FromRgb(gray, gray, gray);
+        // 换算的唯一实现在主工程 AnsiTty（Web/TUI 侧也用它把 256 色塞进 «fg:#rrggbb» 标记）
+        var (r, g, b) = AnsiTty.Xterm256ToRgb(code);
+        return Color.FromRgb(r, g, b);
     }
 }

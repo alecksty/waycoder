@@ -1,4 +1,6 @@
 using System.Text;
+using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.Tui.Edit;
 
 namespace WayCoder.UI.Tui;
 
@@ -23,9 +25,10 @@ public static class ContentDiffFormatter
         int count = Math.Min(total, maxLines);
 
         var sb = new StringBuilder();
+        var syntax = SyntaxFor(filePath);
         sb.Append("«bright green»").Append(filePath).Append(" · ").Append(total).Append(" 行«/»\n");
         for (int i = 0; i < count; i++)
-            sb.Append("«bright green»").Append($"{i + 1,4} +").Append(lines[i]).Append("«/»\n");
+            sb.Append("«bright green»").Append($"{i + 1,4} +«/»").Append(Colorize(lines[i], syntax)).Append('\n');
         AppendTruncated(sb, count);
         return sb.ToString().TrimEnd('\n');
     }
@@ -47,6 +50,7 @@ public static class ContentDiffFormatter
             }
 
         var sb = new StringBuilder();
+        var syntax = SyntaxFor(filePath);
         sb.Append("«bright green»").Append(filePath).Append(" · +").Append(added).Append("/-").Append(removed).Append(" 行«/»\n");
 
         int shown = 0;
@@ -63,11 +67,13 @@ public static class ContentDiffFormatter
                 shown++;
                 switch (l.Kind)
                 {
+                    // +/- 行：行号与标记保持 diff 语义色，**代码本身**按语法上色；
+                    // 上下文行保持整体灰（未改动的行不该抢眼，这是 diff 的层次）
                     case '+':
-                        sb.Append("«bright green»").Append($"{l.NewLine,4} +").Append(l.Text).Append("«/»\n");
+                        sb.Append("«bright green»").Append($"{l.NewLine,4} +«/»").Append(Colorize(l.Text, syntax)).Append('\n');
                         break;
                     case '-':
-                        sb.Append("«bright red»").Append($"{l.OldLine,4} -").Append(l.Text).Append("«/»\n");
+                        sb.Append("«bright red»").Append($"{l.OldLine,4} -«/»").Append(Colorize(l.Text, syntax)).Append('\n');
                         break;
                     default: // 上下文
                         sb.Append("«grey»").Append($"{l.OldLine,4}  ").Append(l.Text).Append("«/»\n");
@@ -76,6 +82,39 @@ public static class ContentDiffFormatter
             }
         }
         return sb.ToString().TrimEnd('\n');
+    }
+
+    /// <summary>
+    /// 按文件后缀取语法定义（认不出返回 null）。
+    /// 工具输出就是靠这个拿到语言的：write / edit 贴出来的代码**没有语言标注**，
+    /// 但**文件路径一定有** —— 按扩展名判比内容启发式（<see cref="Syntax.Detect"/>）准得多。
+    /// </summary>
+    private static Syntax? SyntaxFor(string filePath)
+    {
+        var s = Syntax.ForFile(filePath);
+        return s.Keywords.Count == 0 ? null : s; // Plain（.txt / .md / 未知扩展名）关键字表为空 → 不上色
+    }
+
+    /// <summary>
+    /// 代码按语法上色，产出 «fg:#rrggbb» 分段；行号与 +/- 标记由调用方另加（保持 diff 语义）。
+    ///
+    /// 两个刻意的不作为：
+    /// ① 行内含 «» 字面量时整行不上色 —— 标记语法没有转义机制，硬塞会把解析器带偏；
+    /// ② 非 256 色值（标准 16 色 / 样式码）不上色 —— Syntax 只用 256 色，
+    ///    遇到别的值说明来路不对，宁可不色也别错色。
+    /// </summary>
+    private static string Colorize(string code, Syntax? syntax)
+    {
+        if (syntax == null || code.Length == 0) return code;
+        if (code.Contains('«') || code.Contains('»')) return code;
+
+        var sb = new StringBuilder(code.Length + 16);
+        foreach (var (text, color) in syntax.Tokenize(code))
+        {
+            if (color is < 16 or > 255) { sb.Append(text); continue; } // 0 = 默认前景（含样式码）
+            sb.Append("«fg:").Append(AnsiTty.Xterm256ToHex(color)).Append('»').Append(text).Append("«/»");
+        }
+        return sb.ToString();
     }
 
     /// <summary>拆行前归一化行尾（CRLF/CR→LF），否则行内 \r 会让终端光标跳行首花屏。</summary>
