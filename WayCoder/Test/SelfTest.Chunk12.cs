@@ -440,7 +440,8 @@ public static partial class SelfTest
             var ttSegs = UI.Tui.TuiMarkdown.RenderMessage(
                 ToolRendererFactory.FormatHeader("edit_file", "a.cs"), "tool", 40, plainText: true);
             var ttFlat = ttSegs.SelectMany(x => x).ToList();
-            Check("工具标题：名称渲染成橙色", ttFlat.Any(x => x.Fg == AnsiColors.Orange));
+            Check("工具标题：名称渲染成橙色（剥掉粗体位后）",
+                ttFlat.Any(x => (x.Fg & ~AnsiTty.BoldFlag) == AnsiColors.Orange));
             Check("工具标题：参数渲染成灰色", ttFlat.Any(x => x.Fg == AnsiColors.BrightBlack));
 
             // 参数超宽 → 折行而非截断；宽字符不从中间切断；每行不超宽
@@ -462,6 +463,26 @@ public static partial class SelfTest
                 ToolRendererFactory.FormatHeader("bash", "dotnet build -c Release", 200).Contains("fg:#"));
             Check("工具标题：非 bash 参数仍是灰色",
                 !ToolRendererFactory.FormatHeader("read_file", "src/Foo.cs", 200).Contains("fg:#"));
+
+            // 括号里只留参数值，不带 `key=`（参数名对用户没信息量，还挤占本就不宽的一行）
+            var td3 = new Dictionary<string, object?> { ["pattern"] = "TODO", ["glob"] = "*.cs" };
+            var brief3 = ToolDisplay.Brief(td3);
+            Check("工具摘要：多参数不带参数名",
+                !brief3.Contains("pattern=") && !brief3.Contains("glob=") && brief3.Contains("TODO"));
+            var tdPath = new Dictionary<string, object?> { ["file_path"] = "/a/b/c/main.cs" };
+            Check("工具摘要：路径类参数只给缩写路径",
+                ToolDisplay.Brief(tdPath) == "main.cs");
+
+            // 括号内容默认不截断：工具行按控件宽折行、允许多行（截断会把 bash 命令切得没法看）
+            var longVal = ToolDisplay.Brief(new Dictionary<string, object?> { ["pattern"] = new string('x', 300) });
+            Check("工具摘要：默认不截断（长度不受限）", longVal.Length == 300);
+
+            // 粗体不丢：段模型 (Text,Fg,Bg) 没有样式通道，«bold» 被编进颜色高位
+            // （此前直接置 color=1，会被内层的 «orange» 覆盖 ⇒ 用户看到「加粗没起作用」）
+            Check("工具标题：名称段带粗体位",
+                ttFlat.Any(x => (x.Fg & AnsiTty.BoldFlag) != 0));
+            Check("工具标题：粗体渲染成 SGR 1",
+                AnsiTty.FgCode(208 | AnsiTty.BoldFlag).StartsWith("[1m"));
 
             Check("工具标题：无参数时不带空括号",
                 ToolRendererFactory.FormatHeader("bash", "") == "💡 «bold»«orange»Bash«/»«/»");

@@ -913,10 +913,12 @@ public static partial class SelfTest
         Check("ParseInline «dim» 淡化=2", dimMk.Any(r => r.Color == 2 && r.Text == "淡化"));
         Check("ParseInline «/» 复位回默认色", dimMk.Any(r => r.Text == "正常" && r.Color == 0));
 
-        Check("ParseInline «bold» 粗体=1",
-            MarkdownParser.ParseInline("«bold»加粗«/»").Any(r => r.Color == 1));
-        Check("ParseInline «bright» 加亮=1",
-            MarkdownParser.ParseInline("«bright»加亮«/»").Any(r => r.Color == 1));
+        // «bold» 现在编进颜色高位（AnsiTty.BoldFlag）—— 段模型 (Text,Color,Bg) 没有样式通道，
+        // 直接置 1 会被内层的颜色码覆盖（`«bold»«red»x«/»«/»` 解析完只剩红色）
+        Check("ParseInline «bold» 带粗体位",
+            MarkdownParser.ParseInline("«bold»加粗«/»").Any(r => (r.Color & AnsiTty.BoldFlag) != 0));
+        Check("ParseInline «bright» 带粗体位",
+            MarkdownParser.ParseInline("«bright»加亮«/»").Any(r => (r.Color & AnsiTty.BoldFlag) != 0));
         Check("ParseInline «italic» 斜体=3",
             MarkdownParser.ParseInline("«italic»斜体«/»").Any(r => r.Color == 3));
         Check("ParseInline «underline» 下划线=4",
@@ -958,9 +960,9 @@ public static partial class SelfTest
         var nestedMk = MarkdownParser.ParseInline("«bold»粗«red»红«/»粗«/»");
         Check("ParseInline 嵌套 bold→red→bold 弹栈",
             nestedMk.Count == 3
-            && nestedMk[0].Color == 1 && nestedMk[0].Text == "粗"
-            && nestedMk[1].Color == 31 && nestedMk[1].Text == "红"
-            && nestedMk[2].Color == 1 && nestedMk[2].Text == "粗");
+            && (nestedMk[0].Color & AnsiTty.BoldFlag) != 0 && nestedMk[0].Text == "粗"
+            && (nestedMk[1].Color & ~AnsiTty.BoldFlag) == 31 && nestedMk[1].Text == "红"
+            && (nestedMk[2].Color & AnsiTty.BoldFlag) != 0 && nestedMk[2].Text == "粗");
 
         // 块级跨行（含空行）：«dim»…«/» 包裹多行推理内容，样式贯穿且保留空行
         var blk = WayCoder.UI.Tui.TuiMarkdown.RenderMessage("«dim»第一行\n\n第二行«/»\n正常", "assistant", 80);

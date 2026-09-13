@@ -150,7 +150,10 @@ public static class MarkupToFormattedString
         {
             var span = new Span { Text = text, TextColor = ResolveFg(color, defaultColor, dimColor) };
 
-            switch (color)
+            // 粗体位（AnsiTty.BoldFlag）：«bold»«orange» 这类嵌套解析后是 `色值 | BoldFlag`
+            if (color == 1 || (color & WayCoder.UI.Shared.Terminal.AnsiTty.BoldFlag) != 0)
+                span.FontAttributes = FontAttributes.Bold;
+            switch (color & ~WayCoder.UI.Shared.Terminal.AnsiTty.BoldFlag)
             {
                 case 1: span.FontAttributes = FontAttributes.Bold; break;        // bold/bright
                 case 3: span.FontAttributes = FontAttributes.Italic; break;      // italic
@@ -226,6 +229,9 @@ public static class MarkupToFormattedString
     private static Color ResolveFg(int code, Color fallback, Color dim)
     {
         if (code == 2) return dim; // dim/faint
+        // 先剥粗体位再解析：那个位是 MarkdownParser 用来把「粗体 + 颜色」塞进同一个 int 的，
+        // 不剥的话 `≥0x1000000` 的真彩分支会把它当成一个巨大的 RGB 值解出乱色。
+        code &= ~WayCoder.UI.Shared.Terminal.AnsiTty.BoldFlag;
         return ResolveColor(code, fallback);
     }
 

@@ -238,9 +238,18 @@ public static class AnsiTty
     // ═══════════════════════════════════════════════════════════════
 
     /// <summary>根据颜色码生成前景序列（自动识别：标准 ANSI 30-37/90-97 → 256色 → TrueColor）</summary>
+    /// <summary>
+    /// 粗体位（与颜色码共用一个 int）：<c>color | BoldFlag</c> 表示「这个颜色还要加粗」。
+    /// 中间格式的段模型是 <c>(Text, Fg, Bg)</c> 三元组、没有独立的样式通道，而
+    /// <c>«bold»«orange»x«/»«/»</c> 这种嵌套里内层的颜色会把外层的样式码覆盖掉
+    /// （解析栈只存 Fg/Bg）—— 把粗体挪到高位就不用改所有段的消费方。
+    /// </summary>
+    public const int BoldFlag = 0x2000000;
+
     public static string FgCode(int code)
     {
         if (code <= 0) return "";
+        if ((code & BoldFlag) != 0) return SgrBold + FgCode(code & ~BoldFlag);
         if (code >= 0x1000000)
         {
             int rgb = code - 0x1000000;
@@ -274,6 +283,7 @@ public static class AnsiTty
     /// <summary>前景+背景组合（自动识别类型）</summary>
     public static string FgBgCode(int fg, int bg)
     {
+        if ((fg & BoldFlag) != 0) return SgrBold + FgBgCode(fg & ~BoldFlag, bg);
         if (fg <= 0 && bg <= 0) return "";
         if (fg <= 0) return BgCode(bg);
         if (bg <= 0) return FgCode(fg);

@@ -403,8 +403,9 @@ public static partial class SelfTest
         };
         Check("ToolDisplay: 只显示路径主参（丢掉 old/new_string）",
             ToolDisplay.Line("edit_file", editArgs) == "edit(main.c)");
-        Check("ToolDisplay: 无路径主参时退回 k=v 摘要",
-            ToolDisplay.Line("bash", new Dictionary<string, object?> { ["command"] = "ls -la" }) == "bash(command=ls -la)");
+        // 括号里只给值、不带参数名（参数名对用户没信息量，还挤占本就不宽的一行）
+        Check("ToolDisplay: 无路径主参时退回纯值摘要",
+            ToolDisplay.Line("bash", new Dictionary<string, object?> { ["command"] = "ls -la" }) == "bash(ls -la)");
         Check("ToolDisplay: 多值主参逐项缩写",
             ToolDisplay.Brief(new Dictionary<string, object?>
             {

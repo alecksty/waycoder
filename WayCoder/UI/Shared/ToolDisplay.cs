@@ -66,7 +66,9 @@ public static class ToolDisplay
     /// 否则退回紧凑的 `k=v, k=v` 摘要（截断到 maxLen）—— 与轨迹日志用的
     /// <c>Agent.FormatBrief</c> 刻意分开：日志要全量，界面要短。
     /// </summary>
-    public static string Brief(IReadOnlyDictionary<string, object?>? args, int maxLen = 60)
+    /// <param name="maxLen">截断长度；**默认 0 = 不截断** —— 工具行现在按控件宽度**折行**、允许多行显示
+    /// （截断会把 bash 命令、长路径切得没法看）。只有需要「一行内留短」的场合才显式传值。</param>
+    public static string Brief(IReadOnlyDictionary<string, object?>? args, int maxLen = 0)
     {
         if (args == null || args.Count == 0) return "";
 
@@ -80,17 +82,28 @@ public static class ToolDisplay
                 {
                     var many = EnumerateStrings(kv.Value).Select(ShortPath).Where(s => s.Length > 0).ToList();
                     if (many.Count == 0) continue;
-                    return Truncate(string.Join("、", many), maxLen);
+                    return Cut(string.Join("、", many), maxLen);
                 }
                 var raw = ValueText(kv.Value);
                 if (raw.Length == 0) continue;
-                return Truncate(ShortPath(raw), maxLen);
+                return Cut(ShortPath(raw), maxLen);
             }
         }
 
-        var joined = string.Join(", ", args.Select(kv => $"{kv.Key}={ValueText(kv.Value)}"));
-        return Truncate(joined, maxLen);
+        // 只给**值**，不带 `key=` —— 参数名对用户没有信息量（他知道自己刚让 AI 做什么），
+        // 而 `pattern=…, glob=…` 这种前缀会把本来就不宽的一行挤满。值里的路径同样缩写，
+        // 否则多参数时又会退化成 `C:\a\b\c\d\e\f.cs` 一长串。
+        var joined = string.Join(", ", args
+            .Select(kv => ValueText(kv.Value))
+            .Where(v => v.Length > 0)
+            .Select(ShortPath));
+        return Cut(joined, maxLen);
     }
+
+    /// <summary>按 maxLen 截断；maxLen &lt;= 0 表示**不截断**（工具行改为折行多行显示后，
+    /// 默认不再限制长度，只有显式要求「一行内留短」的调用方才会传值）。</summary>
+    private static string Cut(string text, int maxLen)
+        => maxLen > 0 ? Truncate(text, maxLen) : text;
 
     /// <summary>工具行文案：`edit(main.c)`（各端工具行统一用它）</summary>
     public static string Line(string? tool, IReadOnlyDictionary<string, object?>? args)

@@ -300,7 +300,11 @@ public static class MarkdownParser
                     {
                         Flush();
                         styleStack.Push((curColor, curBg));
-                        if (isBg) curBg = code; else curColor = code;
+                        // «bold» 编进颜色高位（见 AnsiTty.BoldFlag）—— 直接置 curColor=1 会被
+                        // 内层的颜色码覆盖（`«bold»«orange»` 解析完只剩 orange），加粗就丢了
+                        if (isBg) curBg = code;
+                        else if (code == 1) curColor |= Terminal.AnsiTty.BoldFlag;
+                        else curColor = (curColor & Terminal.AnsiTty.BoldFlag) | code;
                         i = close + 1;
                         continue;
                     }
@@ -360,7 +364,11 @@ public static class MarkdownParser
                     {
                         FlushCurrent();
                         styleStack.Push((curColor, curBg));
-                        if (isBg) curBg = code; else curColor = code;
+                        // «bold» 编进颜色高位（见 AnsiTty.BoldFlag）—— 直接置 curColor=1 会被
+                        // 内层的颜色码覆盖（`«bold»«orange»` 解析完只剩 orange），加粗就丢了
+                        if (isBg) curBg = code;
+                        else if (code == 1) curColor |= Terminal.AnsiTty.BoldFlag;
+                        else curColor = (curColor & Terminal.AnsiTty.BoldFlag) | code;
                         i = close + 1;
                         continue;
                     }
