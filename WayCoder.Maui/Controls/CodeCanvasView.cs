@@ -151,7 +151,35 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         long count = _doc?.LineCount ?? 0;
         float maxFirst = Math.Max(0, count - VisibleLines);
         _firstLine = Math.Clamp(_firstLine, 0, maxFirst);
-        if (_scrollX < 0) _scrollX = 0;
+
+        // 横向也要有上限：此前只挡了小于 0，往左可以无限滚 —— 一直拖下去所有文字都会被
+        // 推出画布外，屏幕上只剩行号栏（实测「横向滚一下就啥都看不见了」）。
+        _scrollX = Math.Clamp(_scrollX, 0, ComputeMaxScrollX());
+    }
+
+    /// <summary>
+    /// 横向可滚的最大偏移：按**可见行**里最长的那条算。
+    /// 遍历全文件找最长行太贵（100MB 是几百万行），而横向滚动本来就只关心眼前这一屏。
+    /// </summary>
+    private float ComputeMaxScrollX()
+    {
+        if (_doc == null) return 0;
+        float viewW = Math.Max(40f, (float)Width - GutterWidth() - EditorTypography.TextLeftPad);
+        float charW = Math.Max(1f, _charWidth);
+
+        long first = Math.Max(0, (long)_firstLine - 1);
+        long last = Math.Min(first + VisibleLines + 2, _doc.LineCount);
+        float maxWidth = 0;
+        for (long i = first; i < last; i++)
+        {
+            var line = _doc.GetLine(i);
+            if (line == null) continue;
+            // 用字符数 × 字宽估算（CJK 会略宽于估算，留点余量就够，不必逐字素量宽）
+            float w = TextEditorMath.SourceIndexToVisualCol(line, line.Length, RuneWidthApprox,
+                EditorTypography.TabColumns) * charW;
+            if (w > maxWidth) maxWidth = w;
+        }
+        return Math.Max(0, maxWidth - viewW + 24);
     }
 
     // ── 触摸 ──
