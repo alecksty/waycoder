@@ -1,3 +1,4 @@
+using WayCoder.UI.Shared;
 using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
@@ -38,6 +39,13 @@ public class MarkupChatScreen : ChatScreen
             DynamicBar = _markup.Find<TuiDynamicBar>("dynamicBar") ?? throw Missing("dynamicBar");
             InputTopBorder = _markup.Find<TuiSeparator>("inputTopBorder") ?? throw Missing("inputTopBorder");
             InputBotBorder = _markup.Find<TuiSeparator>("inputBotBorder") ?? throw Missing("inputBotBorder");
+            // 行内选择栏（权限/计划审批就地选择）——标记里只声明 id/尺寸，
+            // 呈现属性（❯ 箭头 + 黄底黑字）标记解析器不认，故在 code-behind 设。
+            // 必须与基类 BuildLayout 里那份同值，否则默认界面（标记版）与兜底界面观感不一致。
+            InlineChoice = _markup.Find<TuiPromptBar>("inlineChoice") ?? throw Missing("inlineChoice");
+            InlineChoice.ShowArrow = true;
+            InlineChoice.HighlightBg = AnsiColors.BgYellow;
+            InlineChoice.HighlightFg = AnsiColors.Black;
             ModelInfoRow = _markup.Find<TuiSmartLabel>("modelInfoRow"); // 可空：动态栏放得下模型信息时整行隐藏
             _shortcutRow = _markup.Find<TuiSmartLabel>("shortcutRow"); // 模式栏下方快捷键行
             if (_shortcutRow != null)

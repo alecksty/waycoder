@@ -69,6 +69,54 @@ public class AskUserQuestionTool : ITool
             if (!CanAskUser())
                 return "无法询问用户：当前为非交互环境（无终端/Web 用户可应答），请自行决定。";
 
+            // ── TUI 行内问卷：全部题目一次问完（多题 = 横向标签页或分步骤），不再逐题弹窗 ──
+            // 仅当每题都有选项时才走（无选项 = 需要文本输入，那不是选择题，交回逐题路径）。
+            if (UxHelper.CanRunInlineSurvey && questions.All(q => q.Options.Count > 0))
+            {
+                var survey = questions.Select(q => new SurveyQuestion(
+                    q.Header, q.Question,
+                    [.. q.Options.Select(o => new SurveyOption(
+                        o.Label, string.IsNullOrEmpty(o.Description) ? null : o.Description))],
+                    q.MultiSelect)).ToList();
+
+                // 多题给横向标签行（←→/Tab 翻页）；单题就是普通一栏
+                var picked = UxHelper.RunInlineSurveyOnScreen(survey, showTabs: questions.Count > 1);
+
+                if (picked == null)
+                {
+                    // 已确认「有行内界面」还拿到 null ⇒ 用户按 Esc 取消（不是无界面）→ 整份标已取消，
+                    // 不再走下面逐题路径重问一遍。
+                    foreach (var q in questions)
+                        answers[q.Header] = JNode.From("已取消");
+                    return answers.ToJson();
+                }
+
+                for (var i = 0; i < questions.Count; i++)
+                {
+                    var q = questions[i];
+                    var indices = i < picked.Picks.Count ? picked.Picks[i] : [];
+                    var other = i < picked.Others.Count ? picked.Others[i] : null;
+                    if (q.MultiSelect)
+                    {
+                        var arr = JNode.Array();
+                        foreach (var idx in indices)
+                            if (idx >= 0 && idx < q.Options.Count) // -1 = 「其他」，文本单独并进来
+                                arr.Add(q.Options[idx].Label);
+                        if (other != null) arr.Add(other);
+                        answers[q.Header] = arr; // 空数组 = 明确「都不选」
+                    }
+                    else
+                    {
+                        answers[q.Header] = other != null
+                            ? JNode.From(other) // 用户自定义答案
+                            : indices.Count > 0 && indices[0] >= 0 && indices[0] < q.Options.Count
+                                ? JNode.From(q.Options[indices[0]].Label)
+                                : JNode.From((string?)null);
+                    }
+                }
+                return answers.ToJson();
+            }
+
             foreach (var q in questions)
             {
                 object? answer;

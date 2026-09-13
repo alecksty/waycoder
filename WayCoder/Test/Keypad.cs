@@ -49,6 +49,58 @@ namespace WayCoder;
 /// </summary>
 public static class Keypad
 {
+    /// <summary>
+    /// 行内选择/问卷演示（`INLINE:perm` / `permdanger` / `survey` / `step`）。
+    /// 刻意直接调 <see cref="ChatScreen.ShowInlineChoice"/> / <see cref="ChatScreen.ShowInlineSurvey"/>
+    /// 而**不**走 UxHelper 的 RunInline* —— 后者会 RenderWait 阻塞到用户作答，脚本没法在展示态抓帧。
+    /// </summary>
+    private static void ShowInlineDemo(TextWriter orig, ChatScreen screen, string kind)
+    {
+        switch (kind)
+        {
+            case "perm":
+                screen.ShowInlineChoice(
+                [
+                    new PromptItem { Kind = EPromptKind.Choice, Label = "1. 允许", Detail = "仅本次执行", ResultCode = 0 },
+                    new PromptItem { Kind = EPromptKind.Choice, Label = "2. 全部允许", Detail = "本会话内不再询问同类操作", ResultCode = 1 },
+                    new PromptItem { Kind = EPromptKind.Choice, Label = "3. 拒绝", Detail = "取消本次操作", ResultCode = 2 },
+                ], code => Emit(orig, $"# 行内权限选择结果 = {code}"));
+                break;
+
+            case "permdanger":
+                screen.ShowInlineChoice(
+                [
+                    new PromptItem { Kind = EPromptKind.Choice, Label = "1. 允许", Detail = "仅本次执行", ResultCode = 0, IsDangerous = true },
+                    new PromptItem { Kind = EPromptKind.Choice, Label = "2. 拒绝", Detail = "取消本次操作", ResultCode = 2, IsDangerous = true },
+                ], code => Emit(orig, $"# 行内危险操作选择结果 = {code}（A 键应被忽略）"));
+                break;
+
+            case "step":
+                screen.ShowInlineSurvey(DemoSurvey(),
+                    r => Emit(orig, "# 问卷(分步骤)结果 = " + FmtSurvey(r)), showTabs: false);
+                break;
+
+            default: // survey
+                screen.ShowInlineSurvey(DemoSurvey(),
+                    r => Emit(orig, "# 问卷(横向标签页)结果 = " + FmtSurvey(r)), showTabs: true);
+                break;
+        }
+    }
+
+    /// <summary>演示问卷：一题单选 + 一题多选（覆盖两种形态）</summary>
+    private static List<SurveyQuestion> DemoSurvey() =>
+    [
+        new("权限", "允许哪些操作？",
+            [new SurveyOption("读取", "只读文件"), new SurveyOption("写入", "修改文件")], false),
+        new("范围", "作用范围？",
+            [new SurveyOption("本次"), new SurveyOption("本会话"), new SurveyOption("总是")], true),
+    ];
+
+    private static string FmtSurvey(SurveyResult? r)
+        => r == null ? "null（已取消）"
+         : string.Join(" | ", r.Picks.Select((p, i) =>
+             "[" + string.Join(",", p) + "]" + (r.Others[i] != null ? "(其他:" + r.Others[i] + ")" : "")));
+
     public static int Run(string scriptPath)
     {
         if (!File.Exists(scriptPath))
@@ -133,6 +185,12 @@ public static class Keypad
                             mgr.Input.InjectKey(ik);
                         else
                             Emit(orig, $"# (第 {step} 行) 无法识别的按键: {value}");
+                        break;
+
+                    case "INLINE":
+                        // 行内选择栏 / 问卷演示 —— 只挂栏**不等待**（UxHelper 那条路会阻塞在 RenderWait，
+                        // 脚本就再也走不到后面的 SNAP 了）。结果经回调打印成 `# …` 行。
+                        ShowInlineDemo(orig, screen, value.Trim());
                         break;
 
                     case "DIRTY":

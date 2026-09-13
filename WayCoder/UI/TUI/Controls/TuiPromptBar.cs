@@ -40,6 +40,31 @@ public class TuiPromptBar : TuiBorderedControl
     /// <summary>边框/分隔线颜色</summary>
     public int SeparatorColor { get; set; } = AnsiColors.BrightBlack;
 
+    /// <summary>
+    /// 选中行的前景色。默认 <see cref="AnsiColors.BgBrightBlue"/> 是**历史值**——
+    /// 早先把背景色常量当前景色用（亮蓝字配黑底），改默认值会影响既有 `PromptBar` 观感，故保留。
+    /// 行内选择（<see cref="EPromptKind.Choice"/>）传黑字配黄底。
+    /// </summary>
+    public int HighlightFg { get; set; } = AnsiColors.BgBrightBlue;
+
+    /// <summary>选中行的底色（0 = 不填充，即历史行为）。行内选择传 <see cref="AnsiColors.BgYellow"/>。</summary>
+    public int HighlightBg { get; set; } = 0;
+
+    /// <summary>选中行是否加 <c>❯ </c> 箭头指示（非选中行补等宽空格对齐）。</summary>
+    public bool ShowArrow { get; set; } = false;
+
+    /// <summary>多选模式：每项前缀 <c>[x] </c>/<c>[ ] </c> 勾选框，Space 切换（Enter 仍是提交）。</summary>
+    public bool MultiSelect { get; set; } = false;
+
+    /// <summary>
+    /// 页头文本（多页问卷的横向标签行 / 分步骤的「步骤 k/n」），非空时占 1 行、排在选项之上。
+    /// 由调用方负责把它算进 <see cref="Height"/>（本控件只按它少渲染一行选项）。
+    /// </summary>
+    public string HeaderText { get; set; } = "";
+
+    /// <summary>页头前景色</summary>
+    public int HeaderFg { get; set; } = AnsiColors.BrightYellow;
+
     #endregion
 
     public TuiPromptBar()
@@ -56,10 +81,12 @@ public class TuiPromptBar : TuiBorderedControl
     protected override void OnRender(StringBuilder sb, int absX, int absY)
     {
         var bordered = Bg == 0;
+        // 页头占 1 行（多页问卷的标签行 / 步骤行），选项行数相应减 1
+        var headerRows = string.IsNullOrEmpty(HeaderText) ? 0 : 1;
         // 实际可见行数 = 高度减去边框/分隔线后能容纳的行数，受 MaxVisible 封顶。
         // 不能用 MaxVisible 硬算：ShowPromptBar 把 Height 设为「条目数+边框」，条目少时按
         // MaxVisible(8) 渲染会把空行和底边框画到控件下方（盖住动态栏/分隔线）造成花屏。
-        var visibleCount = Math.Min(MaxVisible, Math.Max(0, Height - (bordered ? 2 : 1)));
+        var visibleCount = Math.Min(MaxVisible, Math.Max(0, Height - headerRows - (bordered ? 2 : 1)));
 
         var fg = Fg > 0 ? Fg : TuiTheme.Current.ControlFg;
         var borderFg = SeparatorColor;
@@ -71,26 +98,52 @@ public class TuiPromptBar : TuiBorderedControl
             WriteBorder(sb, absY, absX, bc.TL, bc.HT, bc.TR, Width, borderFg);
         }
 
-        var contentStartY = bordered ? absY + 1 : absY;
+        var contentStartY = (bordered ? absY + 1 : absY) + headerRows; // 页头行之下才是选项
         var leftPad = bordered ? 1 : 0; // 边框内缩
 
         var fillLeft = Math.Max(absX + 1, ClipLeft);
+        // 右界取「右框内侧列」且**含**它：只填到 Width-3 会漏掉 Width-2 那一列，
+        // 旧帧在那里写过分隔线「─」时新帧不覆盖 → 框内右下永久留半截横线（--keypad 帧可见）。
         var fillRight = Math.Min(absX + Width - 2, ClipRight);
-        var strSpaces = new string(' ', Math.Max(0, fillRight - fillLeft)); // 负值（左缘被裁过右缘）防崩溃
+        var strSpaces = new string(' ', Math.Max(0, fillRight - fillLeft + 1)); // 负值（左缘被裁过右缘）防崩溃
+
+        // ── 箭头列（行内选择用）：选中行 ❯，非选中行补等宽空格保持后续列对齐 ──
+        var arrowCol = absX + 1 + leftPad;
+        var arrowW = ShowArrow ? AnsiHelper.DisplayWidth("❯") + 1 : 0; // +1 = 箭头后的空格
 
         // ── 对齐列：详情统一从「图标+标签」最宽处后的固定列开始，避免长短不齐 ──
-        var labelStartCol = absX + 1 + leftPad;
+        var labelStartCol = absX + 1 + leftPad + arrowW;
         var contentMaxCol = absX + Width - 1; // 右框内缘列
         var maxPrefixVW = 0;
         for (var ai = 0; ai < Items.Count; ai++)
         {
             var it = Items[ai];
-            var pv = AnsiHelper.DisplayWidth(it.Icon + " ") + AnsiHelper.DisplayWidth(it.Label);
+            var pv = AnsiHelper.DisplayWidth(PrefixOf(it)) + AnsiHelper.DisplayWidth(it.Label);
             if (pv > maxPrefixVW) maxPrefixVW = pv;
         }
         // 至少留 3 列给 " 详情"，防止对齐把详情挤出右框
         var maxPrefixAllowed = Math.Max(0, contentMaxCol - labelStartCol - 3);
         if (maxPrefixVW > maxPrefixAllowed) maxPrefixVW = maxPrefixAllowed;
+
+        // ── 页头（多页问卷的标签行 / 分步骤的「步骤 k/n」）──
+        // 必须与普通内容行**同构**：左右边框 + 内容区整行填充 + 文本。
+        // 只写文本不填充会让上一帧留在该行的内容露出来（典型是动态栏直写留下的 spinner 与
+        // 百分比粘在页头行上，--keypad 帧可见）；不写边框则整行像个豁口。
+        if (headerRows > 0)
+        {
+            var headRow = contentStartY - 1;
+            var maxW = Math.Max(1, contentMaxCol - labelStartCol);
+            var htext = AnsiHelper.DisplayWidth(HeaderText) > maxW
+                ? AnsiHelper.TruncateByWidth(HeaderText, maxW)
+                : HeaderText;
+            var hbBg = Bg > 0 ? Bg : AnsiColors.BgBlack;
+            var hb = new RenderBuffer();
+            if (bordered) hb.Write(headRow, absX, bc.V, fg: borderFg, bg: hbBg);
+            if (strSpaces.Length > 0) hb.Write(headRow, fillLeft, strSpaces, bg: hbBg);
+            hb.Write(headRow, labelStartCol - arrowW, htext, fg: HeaderFg, bg: hbBg);
+            if (bordered) hb.Write(headRow, absX + Width - 1, bc.V, fg: borderFg, bg: hbBg);
+            sb.Append(hb.ToString());
+        }
 
         // ── 列表行（只渲染实际条目，不预留空行；高度由 ShowPromptBar 按条目数设定）──
         for (var i = 0; i < visibleCount; i++)
@@ -106,18 +159,19 @@ public class TuiPromptBar : TuiBorderedControl
             if (hasItem)
             {
                 var item = Items[pos % Items.Count];
-                var itemFg = sel ? AnsiColors.BgBrightBlue : fg;
+                var itemFg = sel ? HighlightFg : fg;
 
-                var rowBg = AnsiColors.BgBlack; //TuiTheme.Current.WindowBg;
+                // 选中行底色：显式配置优先，未配置则保持历史行为（恒黑底 + 亮色前景表选中）
+                var rowBg = sel && HighlightBg > 0 ? HighlightBg : AnsiColors.BgBlack;
                 // ? (sel ? highlightBg : 0)
                 // : (sel ? highlightBg : (Bg > 0 ? Bg : TuiTheme.Current.WindowBg));
 
                 // Bg>0 模式下全行填充
                 if (!bordered)
                 {
-                    if (fillLeft < fillRight)
+                    if (strSpaces.Length > 0)
                     {
-                        rb.Write(row, fillLeft, new string(' ', fillRight - fillLeft), itemFg, rowBg);
+                        rb.Write(row, fillLeft, strSpaces, itemFg, rowBg);
                     }
                 }
                 else if (sel)
@@ -133,12 +187,17 @@ public class TuiPromptBar : TuiBorderedControl
                 }
 
                 // 行背景填充（先于图标写入，避免把图标列擦成空格）
-                if (fillLeft < fillRight)
+                if (strSpaces.Length > 0)
                     rb.Write(row, fillLeft, strSpaces, bg: Bg > 0 ? Bg : rowBg);
+
+                // 箭头（必须写在背景填充**之后**：填充从 fillLeft 起笔，会把这列擦成空格）
+                if (ShowArrow)
+                    rb.Write(row, arrowCol, sel ? "❯ " : new string(' ', arrowW),
+                        fg: itemFg, bg: rowBg);
 
                 // 图标 + 标签（补位对齐）+ 详情
                 var col = labelStartCol;
-                var iconStr = item.Icon + " ";
+                var iconStr = PrefixOf(item);
                 var iconVW = AnsiHelper.DisplayWidth(iconStr);
                 rb.Write(row, col, iconStr, fg: itemFg, bg: rowBg > 0 || !bordered ? rowBg : 0);
                 col += iconVW;
@@ -202,7 +261,7 @@ public class TuiPromptBar : TuiBorderedControl
         }
         else
         {
-            var sepRow = absY + visibleCount * ItemHeight;
+            var sepRow = contentStartY + visibleCount * ItemHeight;
             if (sepRow < ClipBottom)
             {
                 var fillBg = Bg > 0 ? Bg : TuiTheme.Current.WindowBg;
@@ -212,6 +271,13 @@ public class TuiPromptBar : TuiBorderedControl
             }
         }
     }
+
+    /// <summary>
+    /// 条目在「图标位」实际渲染的前缀：多选模式是勾选框，否则是图标+空格。
+    /// 渲染与对齐列计算必须共用同一份 —— 各写一遍就会错列（详情列左右横跳）。
+    /// </summary>
+    private string PrefixOf(PromptItem it)
+        => MultiSelect ? (it.Checked ? "[x] " : "[ ] ") : it.Icon + " ";
 
     /// <summary>
     /// 渲染边框。
@@ -341,6 +407,16 @@ public class TuiPromptBar : TuiBorderedControl
                 SelectedIndex = Items.Count - 1;
                 UpdateSelectedIndex(SelectedIndex);
                 return true;
+
+            // 多选：Space 切换勾选（Enter 仍是提交，避免「按回车只勾了一项」）
+            case ConsoleKey.Spacebar:
+                if (MultiSelect && SelectedIndex >= 0 && SelectedIndex < Items.Count)
+                {
+                    Items[SelectedIndex].Checked = !Items[SelectedIndex].Checked;
+                    return true;
+                }
+
+                return false;
 
             case ConsoleKey.Enter:
                 if (SelectedIndex >= 0 && SelectedIndex < Items.Count)

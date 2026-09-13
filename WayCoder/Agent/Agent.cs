@@ -755,13 +755,19 @@ public partial class Agent
                 // 而是就地弹出审批框：批准 → 切回建造模式继续执行；拒绝 → 停止。
                 if (ShouldPromptPlanApproval(WorkMode, contentLen))
                 {
-                    if (PromptPlanApproval(resp.Content!))
+                    var approval = PromptPlanApproval(resp.Content!);
+                    if (approval is 0 or 1)
                     {
+                        // 0 = 批准并自动接受编辑（本会话内改写文件不再逐次问；bash/rm 等危险操作照旧确认）
+                        if (approval == 0)
+                            PermissionManager.AllowEditsThisSession = true;
                         WorkMode = WorkMode.Build;
                         OnWorkModeChanged?.Invoke(WorkMode.Build);
                         AddMessage(JNode.Object()
                             .Set("role", "user")
-                            .Set("content", "✅ 计划已获批准。现在切换到建造模式，按上述计划逐步执行，完成后汇报结果。"));
+                            .Set("content", approval == 0
+                                ? "✅ 计划已获批准（本会话内自动接受文件编辑；删除、命令执行等仍会询问）。现在切换到建造模式，按上述计划逐步执行，完成后汇报结果。"
+                                : "✅ 计划已获批准。现在切换到建造模式，按上述计划逐步执行，完成后汇报结果。"));
                         _analysisOnlyStreak = 0;
                         _talksCodeStreak = 0;
                         continue;

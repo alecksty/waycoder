@@ -5,6 +5,7 @@ using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui.Controls;
+using WayCoder.UI.Tui.Edit;
 using WayCoder.UI.Tui.Screens;
 
 namespace WayCoder;
@@ -301,12 +302,12 @@ public static partial class SelfTest
         Check("markdown: system 消息渲染反引号为代码", !mdSys.Contains('`') && mdSys.Contains("x"));
         Check("markdown: system 消息渲染加粗", !mdSys.Contains('*') && mdSys.Contains("y"));
 
-        // 代码块语法高亮：C# 代码块应产出多色 token（关键字青 36 ≠ 字符串绿 32 ≠ 数字黄 33）
+        // 代码块语法高亮：C# 代码块应产出多色 token（关键字紫 ≠ 字符串绿 ≠ 数字橙，见 Syntax 配色表）
         var cbSegs = UI.Tui.TuiMarkdown.RenderMessage(
             "```csharp\nstring s = \"hi\";\nvar n = 42;\n```", "assistant", 80);
         var cbColors = cbSegs.SelectMany(l => l).Where(s => s.Fg > 0).Select(s => s.Fg).Distinct().ToList();
         Check("代码块高亮: 产出多种颜色", cbColors.Count >= 3);
-        Check("代码块高亮: 含关键字青色(36)", cbColors.Contains(36));
+        Check("代码块高亮: 含关键字色", cbColors.Contains(Syntax.Keyword));
 
         // 4 反引号围栏（````js，AI 在内容含 ``` 时常用）：语言标签不得残留多余反引号（旧 bug：lang="`js"）
         var fence4 = UI.Tui.TuiMarkdown.RenderMessage(

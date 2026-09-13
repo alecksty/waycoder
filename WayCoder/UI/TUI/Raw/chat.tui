@@ -54,6 +54,11 @@
               placeholder="输入消息… (Enter 发送, Ctrl+Enter 换行)" showLineNumbers="false" />
     <Separator id="inputBotBorder" height="1" lineChar="─" />
 
+    <!-- 行内选择栏（权限确认/计划审批/通用确认就地选择，不弹窗）：默认隐藏，ShowInlineChoice 显示。
+         呈现属性 showArrow / highlightBg / highlightFg 由 MarkupChatScreen code-behind 设置
+         （与基类 BuildLayout 同源，两处必须一致，否则默认界面与兜底界面观感不同） -->
+    <PromptBar id="inlineChoice" height="0" visible="false" maxVisible="8" />
+
     <!-- 模型/模式信息行：工作模式/经济模式/大模型/小模型，内容由 code-behind 每帧填充；灰字不抢眼 -->
     <SmartLabel id="modelInfoRow" height="1" visible="false" fg="white" align="center" />
 

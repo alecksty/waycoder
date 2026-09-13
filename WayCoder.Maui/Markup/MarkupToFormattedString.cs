@@ -232,8 +232,31 @@ public static class MarkupToFormattedString
     {
         if (code >= 0x1000000) // 真彩 RGB（AnsiTty.RgbCode = 0x1000000 | r<<16 | g<<8 | b）
             return Color.FromRgb((code >> 16) & 0xFF, (code >> 8) & 0xFF, code & 0xFF);
-        if (code >= 30 && AnsiRgb.TryGetValue(code, out var hex))
+        if (AnsiRgb.TryGetValue(code, out var hex)) // 16 色走显式表（Windows Terminal 配色）
             return Color.FromArgb(hex);
+        if (code is >= 16 and <= 255) // 256 色盘：走 xterm 算法，别逐色补表（补必漏）
+            return FromXterm256(code);
         return fallback; // 样式码 1-9 或未知 → 默认色
+    }
+
+    /// <summary>
+    /// xterm 256 色盘 → RGB：16-231 是 6×6×6 RGB 立方（每级 0/95/135/175/215/255），
+    /// 232-255 是 24 级灰阶（8 起、步长 10）。
+    ///
+    /// 为什么要算法而不是继续往 <see cref="AnsiRgb"/> 里补条目：主工程的语法高亮用 256 色
+    /// （见 <c>Syntax.Keyword</c> 等），逐色补表意味着「主工程每换一次配色，移动端就整片失色」——
+    /// 补漏之前 256 色一律落进 fallback（默认色），代码高亮全灰。
+    /// </summary>
+    internal static Color FromXterm256(int code)
+    {
+        if (code < 232)
+        {
+            int n = code - 16;
+            int r = n / 36, g = (n / 6) % 6, b = n % 6;
+            return Color.FromRgb(Level(r), Level(g), Level(b));
+            static byte Level(int v) => (byte)(v == 0 ? 0 : 55 + v * 40);
+        }
+        var gray = (byte)(8 + (code - 232) * 10);
+        return Color.FromRgb(gray, gray, gray);
     }
 }

@@ -1,3 +1,4 @@
+using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui.Controls;
 using WayCoder.UI.Tui.Screens;
@@ -8,6 +9,14 @@ namespace WayCoder;
 
 public static partial class SelfTest
 {
+    /// <summary>把当前屏幕帧解释成文本行 —— 复用按键测试那套 FrameBuffer 模拟器，勿再手写 ANSI 解析。</summary>
+    private static List<string> FrameLines(TuiManager mgr)
+    {
+        var fb = new FrameBuffer(Tty.Rows, Tty.Cols);
+        fb.Apply(mgr.LastCleanFrame);
+        return fb.Dump();
+    }
+
     private static void TestChunk12(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
     {
         Section("[TuiMarkup 新标签]");
@@ -79,13 +88,14 @@ public static partial class SelfTest
             Check("chat.tui Screen 根", main.Screen != null);
             Check("chat.tui RootView 非空", main.Screen?.RootView != null);
             int childCount = main.Screen?.RootView?.Children.Count ?? 0;
-            Check("chat.tui RootView 子节点=12", childCount == 12); // 模式栏下 shortcutRow（快捷键行）
+            Check("chat.tui RootView 子节点=13", childCount == 13); // 模式栏下 shortcutRow（快捷键行）+ inlineChoice（行内选择栏）
 
             Check("chat.tui titleBar", main.Find<TuiTitleBar>("titleBar") != null);
             Check("chat.tui chatList", main.Find<TuiListView>("chatList") != null);
             Check("chat.tui sidePanel", main.Find<TuiSidePanel>("sidePanel") != null);
             Check("chat.tui suggestPanel", main.Find<TuiVBox>("suggestPanel") != null);
             Check("chat.tui promptBar", main.Find<TuiPromptBar>("promptBar") != null);
+            Check("chat.tui inlineChoice(行内选择栏)", main.Find<TuiPromptBar>("inlineChoice") != null);
             Check("chat.tui dynamicBar", main.Find<TuiDynamicBar>("dynamicBar") != null);
             Check("chat.tui inputArea", main.Find<TuiTextArea>("inputArea") != null);
             Check("chat.tui statusBar", main.Find<TuiStatusBar>("statusBar") != null);
@@ -180,6 +190,253 @@ public static partial class SelfTest
                 Tty.SizeOverride = savedSz;
             }
             Check("提示栏开合后聊天消息保留", msgPresent);
+        }
+        Console.WriteLine();
+
+        // ── 行内选择栏（权限确认/计划审批就地选择，不弹窗）──
+        // 用「走真实屏幕路径」的方式测（mgr.PushScreen + screen.OnKey），不直接调 KeyHook ——
+        // 直接调体会绕开 OnKey 的优先级编排（行内栏必须优先于建议面板/提示栏），测不出抢键失序。
+        Section("[行内选择栏]");
+        {
+            var savedSzI = Tty.SizeOverride;
+            Tty.SizeOverride = (100, 30);
+            var mgrI = TuiManager.Instance;
+            bool enteredI = false;
+            int chatHFull = 0, chatHShrunk = 0;
+            int downCode = -1, escCode = -1, yCode = -1;
+            bool msgKept = false, arrowShown = false, wired = false;
+            var msgText = "行内选择回归标记ABC";
+            try
+            {
+                var prevOut = Console.Out;
+                Console.SetOut(TextWriter.Null); // 抑制 Enter/Render 屏幕输出（LastCleanFrame 仍填充）
+                try
+                {
+                    if (!mgrI.IsActive) { mgrI.Enter(); enteredI = true; }
+                    var chatI = new MarkupChatScreen();
+                    mgrI.PushScreen(chatI);
+                    chatI.AddMessage(msgText, "user");
+                    mgrI.Render();
+                    chatHFull = chatI.ChatList.Height;
+
+                    List<PromptItem> Choices(params (string Label, int Code)[] spec)
+                        => spec.Select(s => new PromptItem
+                        {
+                            Kind = EPromptKind.Choice /* 无图标，序号在 Label 里 */,
+                            Label = s.Label,
+                            ResultCode = s.Code,
+                        }).ToList();
+
+                    // ① 3 项（非危险）→ 占行 = 3 + 上下边框(2) = 5，聊天区相应减 5
+                    int? result = null;
+                    chatI.ShowInlineChoice(
+                        Choices(("1. 允许", 0), ("2. 全部允许", 1), ("3. 拒绝", 2)), c => result = c);
+                    mgrI.Render();
+                    chatHShrunk = chatI.ChatList.Height;
+
+                    // ② ↓ 移动一次 + Enter → 第 2 项的结果码 1
+                    chatI.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+                    // 抓一帧**显示态**（Enter 之前）：选中那行有 ❯ 箭头、未选中那行没有 ——
+                    // 端到端验渲染，而不只是验属性（属性对了但渲染漏写箭头的事发生过）。
+                    mgrI.Render();
+                    var fbSel = new FrameBuffer(Tty.Rows, Tty.Cols);
+                    fbSel.Apply(mgrI.LastCleanFrame);
+                    var linesSel = fbSel.Dump();
+                    arrowShown = linesSel.Any(l => l.Contains('❯') && l.Contains("2. 全部允许"))
+                              && linesSel.Any(l => l.Contains("1. 允许") && !l.Contains('❯'));
+                    // 标记版接线：❯ 箭头 + 黄底黑字（chat.tui 只声明结构，这三个呈现属性在 code-behind 设）
+                    wired = chatI.InlineChoice.ShowArrow
+                         && chatI.InlineChoice.HighlightBg == AnsiColors.BgYellow
+                         && chatI.InlineChoice.HighlightFg == AnsiColors.Black;
+
+                    chatI.OnKey(new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false));
+                    downCode = result ?? -1;
+
+                    // ③ Esc = 拒绝（2）
+                    result = null;
+                    chatI.ShowInlineChoice(Choices(("1. 允许", 0), ("2. 拒绝", 2)), c => result = c);
+                    mgrI.Render();
+                    chatI.OnKey(new ConsoleKeyInfo('\x1b', ConsoleKey.Escape, false, false, false));
+                    escCode = result ?? -1;
+
+                    // ④ Y 单键 = 允许（0）
+                    result = null;
+                    chatI.ShowInlineChoice(Choices(("1. 允许", 0), ("2. 拒绝", 2)), c => result = c);
+                    mgrI.Render();
+                    chatI.OnKey(new ConsoleKeyInfo('y', ConsoleKey.Y, false, false, false));
+                    yCode = result ?? -1;
+
+                    mgrI.Render();
+                    var fbI = new FrameBuffer(Tty.Rows, Tty.Cols);
+                    fbI.Apply(mgrI.LastCleanFrame);
+                    msgKept = fbI.Dump().Any(l => l.Contains(msgText));
+                    mgrI.PopScreen();
+                }
+                finally { Console.SetOut(prevOut); }
+            }
+            catch (Exception ex)
+            {
+                Check($"行内选择栏渲染异常: {ex.Message}", false);
+            }
+            finally
+            {
+                if (enteredI) { try { mgrI.Exit(); } catch { } }
+                Tty.SizeOverride = savedSzI;
+            }
+            // Check 一律放在 SetOut 捕获区之外：捕获区内失败行会被吞进 TextWriter.Null
+            Check("行内选择栏：显示后聊天区高度减 5（3 项+上下边框）", chatHFull - chatHShrunk == 5);
+            Check("行内选择栏：↓+Enter 返回第 2 项结果码 1", downCode == 1);
+            Check("行内选择栏：Esc 返回拒绝码 2", escCode == 2);
+            Check("行内选择栏：Y 单键返回允许码 0", yCode == 0);
+            Check("行内选择栏：收起后聊天消息仍在（MarkTreeDirty 账）", msgKept);
+            Check("行内选择栏：选中行 ❯ 箭头、未选中行无箭头", arrowShown);
+            Check("行内选择栏：标记版接线（❯ + 黄底黑字）", wired);
+        }
+        Console.WriteLine();
+
+        // ── 行内问卷：多选一 / 多选多 / 横向标签页 / 分步骤 ──
+        Section("[行内问卷]");
+        {
+            var savedSzQ = Tty.SizeOverride;
+            Tty.SizeOverride = (100, 30);
+            var mgrQ = TuiManager.Instance;
+            bool enteredQ = false;
+            int hFull = 0, hPage1 = 0, hMulti = 0;
+            bool tabsShown = false, stepShown = false, page2Shown = false, page1BackShown = false;
+            bool checksShown = false, checkedShown = false;
+            bool headBordered = false, borderIntact = false;
+            SurveyResult? multi = null, cancelled = null, paged = null, otherResult = null, skipResult = null;
+            bool inOther = false;
+            try
+            {
+                var prevOut = Console.Out;
+                Console.SetOut(TextWriter.Null);
+                try
+                {
+                    if (!mgrQ.IsActive) { mgrQ.Enter(); enteredQ = true; }
+                    var chatQ = new MarkupChatScreen();
+                    mgrQ.PushScreen(chatQ);
+                    mgrQ.Render();
+                    hFull = chatQ.ChatList.Height;
+
+                    var twoQ = new List<SurveyQuestion>
+                    {
+                        // 高度账断言用的问卷：显式关掉「其他/跳过」两个附加项，行数只跟选项数走
+                        new("权限", "允许哪些操作？",
+                            [new SurveyOption("读取", "只读文件"), new SurveyOption("写入", "修改文件")], false,
+                            AllowOther: false, AllowSkip: false),
+                        new("范围", "作用范围？",
+                            [new SurveyOption("本次"), new SurveyOption("本会话"), new SurveyOption("总是")], true,
+                            AllowOther: false, AllowSkip: false),
+                    };
+                    // 单题问卷（默认带附加项）→ 选项 = 读取 / 写入 / 其他 / 跳过
+                    var otherQ = new List<SurveyQuestion>
+                    {
+                        new("权限", "允许哪些操作？",
+                            [new SurveyOption("读取", "只读文件"), new SurveyOption("写入", "修改文件")], false),
+                    };
+
+                    // ① 横向标签页：页头 1 行 + 第 1 页 2 选项 + 上下边框 2 = 5 行
+                    multi = null;
+                    chatQ.ShowInlineSurvey(twoQ, r => multi = r, showTabs: true);
+                    mgrQ.Render();
+                    hPage1 = chatQ.ChatList.Height;
+                    tabsShown = FrameLines(mgrQ).Any(l => l.Contains("▶ 权限") && l.Contains("范围"));
+
+                    // 第 1 页（单选）↓ 选「写入」→ Enter 进第 2 页（多选，3 项 → 高度 1+3+2=6）
+                    chatQ.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+                    chatQ.OnKey(new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false));
+                    mgrQ.Render();
+                    hMulti = chatQ.ChatList.Height;
+                    var linesMulti = FrameLines(mgrQ);
+                    checksShown = linesMulti.Any(l => l.Contains("[ ]")) && !linesMulti.Any(l => l.Contains("[x]"));
+
+                    // 第 2 页（多选）勾「本次」(idx 0) 与「总是」(idx 2)：Space / ↓↓ Space
+                    chatQ.OnKey(new ConsoleKeyInfo(' ', ConsoleKey.Spacebar, false, false, false));
+                    chatQ.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+                    chatQ.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+                    chatQ.OnKey(new ConsoleKeyInfo(' ', ConsoleKey.Spacebar, false, false, false));
+                    mgrQ.Render();
+                    checkedShown = FrameLines(mgrQ).Count(l => l.Contains("[x]")) == 2;
+                    chatQ.OnKey(new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false)); // 最后一页 → 提交
+
+                    // ② 分步骤（无标签行）：页头显示「步骤 1/2」
+                    cancelled = null;
+                    chatQ.ShowInlineSurvey(twoQ, r => cancelled = r, showTabs: false);
+                    mgrQ.Render();
+                    stepShown = FrameLines(mgrQ).Any(l => l.Contains("步骤 1/2"));
+                    // 页头行必须是完整的「框内行」：左右边框都在（曾漏渲染边框 + 整行填充，
+                    // 表现为动态栏残留粘在页头行上 —— --keypad 帧抓到）
+                    var headLine = FrameLines(mgrQ).FirstOrDefault(l => l.Contains("步骤 1/2"));
+                    headBordered = headLine != null
+                        && headLine.TrimStart().StartsWith('│') && headLine.TrimEnd().EndsWith('│');
+                    // 上边框中间必须清一色 ─：换页改变高度 → 下方兄弟位移，若没请求全屏重绘，
+                    // 上一帧内容会把边框啃出豁口（`╭─── ─ ───── ─ ───╮`）
+                    var topBorder = FrameLines(mgrQ).FirstOrDefault(l => l.Contains('╭'));
+                    borderIntact = topBorder != null
+                        && topBorder.Trim().StartsWith('╭') && topBorder.Trim().EndsWith('╮')
+                        && topBorder.Count(c => c == '─') == topBorder.Trim().Length - 2;
+                    chatQ.OnKey(new ConsoleKeyInfo('\x1b', ConsoleKey.Escape, false, false, false)); // 取消
+
+                    // ③ ←→ 翻页
+                    paged = null;
+                    chatQ.ShowInlineSurvey(twoQ, r => paged = r, showTabs: true);
+                    chatQ.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.RightArrow, false, false, false));
+                    mgrQ.Render();
+                    page2Shown = FrameLines(mgrQ).Any(l => l.Contains("▶ 范围"));
+                    chatQ.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.LeftArrow, false, false, false));
+                    mgrQ.Render();
+                    page1BackShown = FrameLines(mgrQ).Any(l => l.Contains("▶ 权限"));
+                    chatQ.OnKey(new ConsoleKeyInfo('\x1b', ConsoleKey.Escape, false, false, false));
+
+                    // ④「其他」自定义输入：↓↓ 到「其他」→ Enter 进输入态 → 打字 → Enter 提交（单题即完成）
+                    otherResult = null;
+                    chatQ.ShowInlineSurvey(otherQ, r => otherResult = r, showTabs: false);
+                    chatQ.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+                    chatQ.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+                    chatQ.OnKey(new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false));
+                    inOther = chatQ.InlineSurveyVisible && !chatQ.InlineChoiceVisible; // 选项栏让位给输入框
+                    foreach (var ch in "自定义XYZ")
+                        chatQ.OnKey(new ConsoleKeyInfo(ch, ConsoleKey.A, false, false, false));
+                    chatQ.OnKey(new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false)); // 提交自定义答案 → 完成
+
+                    // ⑤ 跳过此题：↓↓↓ 到末尾的「跳过」项 → Enter（该题结果为空列表）
+                    skipResult = null;
+                    chatQ.ShowInlineSurvey(otherQ, r => skipResult = r, showTabs: false);
+                    chatQ.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+                    chatQ.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+                    chatQ.OnKey(new ConsoleKeyInfo('\0', ConsoleKey.DownArrow, false, false, false));
+                    chatQ.OnKey(new ConsoleKeyInfo('\r', ConsoleKey.Enter, false, false, false));
+                    mgrQ.PopScreen();
+                }
+                finally { Console.SetOut(prevOut); }
+            }
+            catch (Exception ex)
+            {
+                Check($"行内问卷渲染异常: {ex.Message}", false);
+            }
+            finally
+            {
+                if (enteredQ) { try { mgrQ.Exit(); } catch { } }
+                Tty.SizeOverride = savedSzQ;
+            }
+            Check("问卷：单选页占行 = 页头1+选项2+边框2", hFull - hPage1 == 5);
+            Check("问卷：多选页占行 = 页头1+选项3+边框2", hFull - hMulti == 6);
+            Check("问卷：横向标签行显示 ▶ 当前页 + 其余标题", tabsShown);
+            Check("问卷：多选页渲染 [ ] 勾选框", checksShown);
+            Check("问卷：Space 勾选两项后渲染两个 [x]", checkedShown);
+            Check("问卷：单选页选第 2 项 → 结果 [1]", multi?.Picks is [[1], [0, 2]]);
+            Check("问卷：分步骤页头显示「步骤 1/2」", stepShown);
+            Check("问卷：页头行含左右边框（非豁口）", headBordered);
+            Check("问卷：换页后上边框完整（无上一帧残留豁口）", borderIntact);
+            Check("问卷：Esc 取消 → 结果 null", cancelled == null);
+            Check("问卷：→ 翻到第 2 页、← 回到第 1 页", page2Shown && page1BackShown);
+            Check("问卷：翻页后取消 → 结果 null", paged == null);
+            Check("问卷：「其他」项转入输入态（选项栏让位给输入框）", inOther);
+            Check("问卷：自定义答案进结果（索引 -1 + 文本）",
+                otherResult?.Picks.Count > 0 && otherResult.Picks[0] is [-1]
+                && otherResult.Others[0] == "自定义XYZ");
+            Check("问卷：「跳过此题」→ 该题结果为空列表", skipResult?.Picks.Count > 0 && skipResult.Picks[0] is []);
         }
         Console.WriteLine();
 

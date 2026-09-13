@@ -1065,8 +1065,8 @@ public static partial class SelfTest
         var cSyntax = Syntax.ForFile("test.c");
         Check("C 语法注册", cSyntax.Name == "C/C++");
         var cTokens = cSyntax.Tokenize("int main() { return 0; }");
-        Check("C int=青色", cTokens.Any(t => t.Text == "int" && t.Color == Syntax.Cyan));
-        Check("C return=青色", cTokens.Any(t => t.Text == "return" && t.Color == Syntax.Cyan));
+        Check("C int=关键字色", cTokens.Any(t => t.Text == "int" && t.Color == Syntax.Keyword));
+        Check("C return=关键字色", cTokens.Any(t => t.Text == "return" && t.Color == Syntax.Keyword));
         Check("C 数字=黄色", cTokens.Any(t => t.Text == "0" && t.Color == Syntax.Yellow));
         var cStr = cSyntax.Tokenize("char *s = \"hello\"; // note");
         Check("C 字符串=绿色", cStr.Any(t => t.Text == "\"hello\"" && t.Color == Syntax.Green));

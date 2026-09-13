@@ -1072,13 +1072,13 @@ public static partial class SelfTest
         Check("C# 语法名称", csSyn.Name == "C#");
         var csTokens = csSyn.Tokenize("public class Program {");
         Check("C# Tokenize 非空", csTokens.Count > 0);
-        Check("C# public=青色", csTokens.Any(t => t.Text == "public" && t.Color == Syntax.Cyan));
-        Check("C# class=青色", csTokens.Any(t => t.Text == "class" && t.Color == Syntax.Cyan));
+        Check("C# public=关键字色", csTokens.Any(t => t.Text == "public" && t.Color == Syntax.Keyword));
+        Check("C# class=关键字色", csTokens.Any(t => t.Text == "class" && t.Color == Syntax.Keyword));
 
         var jsSyn = Syntax.ForFile("test.js");
         Check("JS 语法名称", jsSyn.Name == "JavaScript");
         var jsTokens = jsSyn.Tokenize("const x = 42;");
-        Check("JS const=青色", jsTokens.Any(t => t.Text == "const" && t.Color == Syntax.Cyan));
+        Check("JS const=关键字色", jsTokens.Any(t => t.Text == "const" && t.Color == Syntax.Keyword));
         Check("JS 数字=黄色", jsTokens.Any(t => t.Text == "42" && t.Color == Syntax.Yellow));
 
         // 字符串和注释高亮

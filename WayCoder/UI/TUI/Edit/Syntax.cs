@@ -16,13 +16,27 @@ public class Syntax
     /// <summary>该语言用 // 作单行注释（C 系语言）</summary>
     public bool SlashComments => Name is "C#" or "JavaScript" or "Java" or "C/C++" or "Go" or "Rust" or "Swift" or "Kotlin" or "PHP" or "Vue";
 
-    // ANSI 颜色码
-    public const int Cyan = 36;
-    public const int Green = 32;
-    public const int Yellow = 33;
-    public const int Magenta = 35;
-    public const int Blue = 34;
-    public const int Dim = 2;
+    // ── 代码配色（256 色，对标 One Dark / Crush(glamour) 的暗色主题）──
+    // 语义名优先：调色只动这一处，调用点按「这是什么」引用，不再出现「Cyan 其实是紫色」这种名不符实。
+    // 之前用标准 16 色（青/绿/黄/品红），在暗色终端里刺眼且层次差；256 色能取到柔和的中间调。
+    public const int Keyword = 176;   // 紫   #c678dd —— 关键字 / 控制流
+    public const int Str     = 114;   // 柔绿 #98c379 —— 字符串字面量
+    public const int Comment = 241;   // 暗灰 #5c6370 —— 注释
+    public const int Key     = 210;   // 粉红 #e06c75 —— JSON/字典的键名
+    public const int Number  = 173;   // 橙   #d19a66 —— 数字 / Markdown 标题标记
+    public const int Type    = 75;    // 蓝   #61afef —— XML/HTML 标签、标题正文
+
+    // 旧颜色名（兼容保留，值已指向上面的语义色；新代码请用语义名）
+    public const int Cyan = Type;
+    public const int Green = Str;
+    public const int Yellow = Number;
+    public const int Magenta = Key;
+    public const int Blue = Type;
+
+    /// <summary>注释色。原名 <c>Dim</c> 用的是 SGR 2「变暗」样式码，而非颜色码 ——
+    /// 样式码在 256 色主题里不可控（各终端暗淡程度不一），改为固定暗灰更稳。</summary>
+    public const int Dim = Comment;
+
     public const int Red = 31;
     public const int Default = 0;
 
@@ -129,8 +143,8 @@ public class Syntax
             {
                 int j = i;
                 while (j < line.Length && line[j] == '#') j++;
-                tokens.Add((line[i..j], Yellow));
-                if (j < line.Length) tokens.Add((line[j..], Cyan));
+                tokens.Add((line[i..j], Number));
+                if (j < line.Length) tokens.Add((line[j..], Type));
                 i = line.Length;
                 continue;
             }
@@ -140,7 +154,7 @@ public class Syntax
             {
                 var end = line.IndexOf('`', i + 1);
                 if (end < 0) end = line.Length - 1;
-                tokens.Add((line[i..(end + 1)], Green));
+                tokens.Add((line[i..(end + 1)], Str));
                 i = end + 1;
                 continue;
             }
@@ -149,8 +163,8 @@ public class Syntax
             if (Name == "XML/HTML" && line[i] == '<')
             {
                 var end = line.IndexOf('>', i);
-                if (end < 0) { tokens.Add((line[i..], Cyan)); i = line.Length; }
-                else { tokens.Add((line[i..(end + 1)], Cyan)); i = end + 1; }
+                if (end < 0) { tokens.Add((line[i..], Type)); i = line.Length; }
+                else { tokens.Add((line[i..(end + 1)], Type)); i = end + 1; }
                 continue;
             }
 
@@ -161,7 +175,7 @@ public class Syntax
                 if (end < 0) end = line.Length - 1;
                 int k = end + 1;
                 while (k < line.Length && line[k] == ' ') k++;
-                int color = k < line.Length && line[k] == ':' ? Magenta : Green;
+                int color = k < line.Length && line[k] == ':' ? Key : Str;
                 tokens.Add((line[i..(end + 1)], color));
                 i = end + 1;
                 continue;
@@ -172,7 +186,7 @@ public class Syntax
             {
                 var end = FindStringEnd(line, i, '"');
                 if (end < 0) end = line.Length - 1;
-                tokens.Add((line[i..(end + 1)], Green));
+                tokens.Add((line[i..(end + 1)], Str));
                 i = end + 1;
                 continue;
             }
@@ -182,7 +196,7 @@ public class Syntax
             {
                 var end = FindStringEnd(line, i, '\'');
                 if (end < 0) end = line.Length - 1;
-                tokens.Add((line[i..(end + 1)], Green));
+                tokens.Add((line[i..(end + 1)], Str));
                 i = end + 1;
                 continue;
             }
@@ -190,7 +204,7 @@ public class Syntax
             // 单行注释 //
             if (SlashComments && i + 1 < line.Length && line[i] == '/' && line[i + 1] == '/')
             {
-                tokens.Add((line[i..], Dim));
+                tokens.Add((line[i..], Comment));
                 i = line.Length;
                 continue;
             }
@@ -198,7 +212,7 @@ public class Syntax
             // 单行注释 #
             if (HashComments && line[i] == '#')
             {
-                tokens.Add((line[i..], Dim));
+                tokens.Add((line[i..], Comment));
                 i = line.Length;
                 continue;
             }
@@ -209,7 +223,7 @@ public class Syntax
                 var start = i;
                 while (i < line.Length && (char.IsDigit(line[i]) || line[i] == '.' || line[i] == 'x' || line[i] == 'f'))
                     i++;
-                tokens.Add((line[start..i], Yellow));
+                tokens.Add((line[start..i], Number));
                 continue;
             }
 
@@ -221,7 +235,7 @@ public class Syntax
                 while (i < line.Length && (char.IsLetterOrDigit(line[i]) || line[i] == '_' || (allowDash && line[i] == '-')))
                     i++;
                 var word = line[start..i];
-                tokens.Add((word, Keywords.Contains(word) ? Cyan : Default));
+                tokens.Add((word, Keywords.Contains(word) ? Keyword : Default));
                 continue;
             }
 

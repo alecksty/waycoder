@@ -77,16 +77,20 @@ public partial class ChatScreen : TuiScreen
         MarkDirty();
     }
 
-    /// <summary>粘贴确认：超长(>500字符)或多行(>3行)弹确认框，返回是否放行（false=取消）。PasteAsync 与 HandleBracketedPaste 共用。</summary>
+    /// <summary>粘贴确认：超长(&gt;500字符)或多行(&gt;3行)时行内确认（不弹窗），返回是否放行（false=取消）。
+    /// PasteAsync 与 HandleBracketedPaste 共用；UI 线程调用（粘贴事件路径）。</summary>
     private bool ConfirmPaste(string text, string[] lines)
     {
         if (text.Length <= 500 && lines.Length <= 3) return true;
         var preview = text.Length > 200 ? ContextManager.TruncateByRunes(text, 200) + "..." : text;
-        var confirmed = UxHelper.RunModalDialogOnScreen<bool>(this,
-            onDone => TuiDialog.Confirm("粘贴确认",
-                $"将粘贴 {lines.Length} 行 / {text.Length} 字符:\n{preview}",
-                r => onDone(r)));
-        return confirmed ?? false;
+        // 预览进聊天流（多行内容行内栏放不下）
+        AddSystemMsg($"📋 粘贴确认 · {lines.Length} 行 / {text.Length} 字符\n{preview}");
+
+        return UxHelper.RunInlineChoiceOnScreen(this,
+        [
+            new PromptItem { Kind = EPromptKind.Choice, Label = "1. 粘贴", Detail = "插入到输入框", ResultCode = 0 },
+            new PromptItem { Kind = EPromptKind.Choice, Label = "2. 取消", Detail = "丢弃这段内容", ResultCode = 2 },
+        ]) == 0;
     }
 
     // ── 输入操作 ──
@@ -397,6 +401,507 @@ public partial class ChatScreen : TuiScreen
         MarkDirty();
     }
 
+    // ── 行内选择栏（权限确认 / 计划审批 / 通用确认就地决定，不弹窗）──
+    //
+    // 与 PromptBar 共用 InputArea.KeyHook，约定「同一时刻只有一个 Active」：
+    // ShowInlineChoice 会先 HidePromptBar（反之 HideInlineChoice 清钩子时 PromptBar 必已隐藏）。
+
+    /// <summary>行内选择栏是否可见</summary>
+    public bool InlineChoiceVisible => InlineChoice?.Visible == true;
+
+    /// <summary>
+    /// 行内栏上次生效的高度（-1 = 尚未显示过）。
+    ///
+    /// 高度一变，**下方所有兄弟控件整体位移**（模式行 / 快捷键行 / 状态栏），而增量渲染只重绘
+    /// 「自己标脏了」的控件 —— 位置被挪走的那些不重绘，旧像素就留在屏幕上。实测症状：问卷翻页后
+    /// 上边框被上一帧的页头文本啃出豁口（`╭─── ─ ───── ─ ───╮`），--keypad 帧可见。
+    /// 故高度变化时必须请求全屏重绘（不闪烁，只是让控件逐一覆盖重画）。
+    /// </summary>
+    private int _inlineChoiceLastHeight = -1;
+
+    /// <summary>设置行内栏高度，高度变化时顺带请求全屏重绘（理由见 <see cref="_inlineChoiceLastHeight"/>）</summary>
+    private void ApplyInlineChoiceHeight(int h)
+    {
+        InlineChoice.Height = h;
+        if (h == _inlineChoiceLastHeight) return;
+        _inlineChoiceLastHeight = h;
+        TuiManager.RequestFullRefresh();
+    }
+
+    /// <summary>本次行内选择的完成回调（null = 无待决选择）</summary>
+    private Action<int>? _inlineChoiceDone;
+
+    /// <summary>最近一次结果码。初值 2 = 拒绝 —— 未应答/超时/异常一律默认拒绝（同 ShowPermissionDialog 的 ?? 2）。</summary>
+    private volatile int _inlineChoiceResult = 2;
+
+    /// <summary>最近一次行内选择的结果码（供后台等待线程在收起后读取）</summary>
+    public int LastInlineChoiceResult => _inlineChoiceResult;
+
+    /// <summary>
+    /// 在输入框**下方**就地显示选择项并接管键位（↑↓/Home/End 移动、Enter 确认、Esc 拒绝、Y/N/A 单键）。
+    /// 线程安全：只改字段，实际渲染由常驻主循环负责 —— 后台 Agent 线程调用它不会阻塞主循环
+    /// （配 <c>UxHelper.RunInlineChoiceOnScreen</c> 等待结果）。
+    /// </summary>
+    public void ShowInlineChoice(List<PromptItem> items, Action<int> onDone)
+    {
+        if (items.Count == 0) { onDone(2); return; }
+
+        HidePromptBar(); // 先让位：两者共用 InputArea.KeyHook
+        _survey = null;  // 与问卷互斥（同一把 KeyHook 只归一个）
+        _surveyDone = null;
+        _surveyPicked = null;
+        // 复位问卷留下的借用态：残留会让权限确认带上勾选框/页头（正常流程下 HideInlineChoice
+        // 已复位，这里是「问卷未收干净就被确认岔开」的兜底）
+        InlineChoice.MultiSelect = false;
+        InlineChoice.HeaderText = "";
+
+        _inlineChoiceDone = onDone;
+        _inlineChoiceResult = 2; // 未应答即拒绝
+
+        InlineChoice.Items = items;
+        InlineChoice.SelectedIndex = 0;
+        InlineChoice.ViewIndex = 0;
+        InlineChoice.Visible = true;
+        // 高度随条目数（与 ShowPromptBar 同一套账：边框模式 +2、填充模式 +1）
+        var extra = InlineChoice.Bg == 0 ? 2 : 1;
+        ApplyInlineChoiceHeight(Math.Min(items.Count, InlineChoice.MaxVisible) + extra);
+        SyncShortcutRow(); // 快捷键行切成行内栏键位（第一次用的人唯一的提示处）
+
+        InputArea.KeyHook = InlineChoiceKeyHook;
+
+        // 本栏一出现 chatH 就变 → 必须 MarkTreeDirty 整树标脏（理由同 ShowPromptBar：
+        // 只标容器时消息子项因 parentDirty=false 不重画，收起后聊天区永久空白）。
+        ChatList.MarkTreeDirty();
+        MarkDirty();
+    }
+
+    /// <summary>收起行内选择栏（不动结果码 —— 结果只由 <see cref="ResolveInlineChoice"/> 写）。</summary>
+    public void HideInlineChoice()
+    {
+        if (InlineChoice == null || !InlineChoice.Visible) return;
+
+        InlineChoice.Visible = false;
+        ApplyInlineChoiceHeight(0);
+        InlineChoice.Items.Clear();
+        InlineChoice.SelectedIndex = -1;
+        InlineChoice.ViewIndex = 0;
+        // 复位借用态：本控件在「权限确认 / 问卷」之间轮流复用，漏复位会让下次确认带上勾选框或页头
+        InlineChoice.MultiSelect = false;
+        InlineChoice.HeaderText = "";
+        // 问卷态一并作废：超时路径不走 ResolveSurvey，残留会让下次按键误入问卷分支
+        _survey = null;
+        _surveyDone = null;
+        _surveyPicked = null;
+        _surveyOthers = null;
+        _surveyCheckedSnapshot = null;
+        _surveyOtherInput = false;
+        _surveyPage = 0;
+        _inlineChoiceDone = null; // 清未消费回调：超时后用户再按 Enter 不该再回到已返回的调用方
+        InputArea.KeyHook = null; // 此时 PromptBar 必已隐藏（见本节首注释）
+        SyncShortcutRow();       // 提示行还原成全局键位表
+        ChatList.MarkTreeDirty();
+        MarkDirty();
+    }
+
+    /// <summary>结束行内选择：收起 + 回调结果码。重复调用只第一次生效（回调已置 null）。</summary>
+    private void ResolveInlineChoice(int code)
+    {
+        var done = _inlineChoiceDone;
+        _inlineChoiceDone = null;
+        _inlineChoiceResult = code;
+        HideInlineChoice();
+        done?.Invoke(code);
+    }
+
+    /// <summary>当前选中项的 ResultCode（越界/未选 = 2 拒绝）</summary>
+    private int CurrentInlineResultCode()
+    {
+        var i = InlineChoice.SelectedIndex;
+        if (i < 0 || i >= InlineChoice.Items.Count) return 2;
+        return InlineChoice.Items[i].ResultCode;
+    }
+
+    /// <summary>当前选中项是否危险操作（危险项不提供 A=全部允许）</summary>
+    private bool CurrentInlineIsDangerous()
+    {
+        var i = InlineChoice.SelectedIndex;
+        return i >= 0 && i < InlineChoice.Items.Count && InlineChoice.Items[i].IsDangerous;
+    }
+
+    /// <summary>行内选择栏的按键钩子（挂在 InputArea 上）</summary>
+    private bool InlineChoiceKeyHook(ConsoleKeyInfo key)
+    {
+        if (_surveyOtherInput) return InlineOtherKeyHook(key); // 「其他」输入态：只拦 Enter/Esc，其余放行给输入框
+        if (!InlineChoiceVisible) return false;
+        // 问卷态另有一套键位（←→/Tab 翻页、Enter 逐步推进），先分流再走单选那套
+        if (_survey != null) return SurveyKeyHook(key);
+
+        switch (key.Key)
+        {
+            case ConsoleKey.Escape:
+                ResolveInlineChoice(2); // Esc = 拒绝（随时可逃，对齐竞品）
+                return true;
+            case ConsoleKey.UpArrow:
+            case ConsoleKey.DownArrow:
+            case ConsoleKey.Home:
+            case ConsoleKey.End:
+                InlineChoice.OnKey(key);
+                MarkDirty();
+                return true;
+            case ConsoleKey.Enter:
+                ResolveInlineChoice(CurrentInlineResultCode());
+                return true;
+        }
+
+        // 单键快捷：Y=允许 / N=拒绝 / A=全部允许（危险操作不给 A）
+        if (key.KeyChar is 'y' or 'Y') { ResolveInlineChoice(0); return true; }
+        if (key.KeyChar is 'n' or 'N') { ResolveInlineChoice(2); return true; }
+        if (key.KeyChar is 'a' or 'A' && !CurrentInlineIsDangerous()) { ResolveInlineChoice(1); return true; }
+
+        // 数字键 1..9 = 直接选中该项并提交（与问卷同一手感；帮助面板「1 - 9 直接选中第 N 项」两处都兑现）
+        if (key.KeyChar is >= '1' and <= '9')
+        {
+            var i = key.KeyChar - '1';
+            if (i < InlineChoice.Items.Count)
+            {
+                InlineChoice.SelectedIndex = i;
+                ResolveInlineChoice(CurrentInlineResultCode());
+            }
+            return true;
+        }
+
+        // 其余键一律吞掉：别透传给输入框 —— 一打字就触发前缀提示，PromptBar 会来抢同一个
+        // KeyHook，变成「确认框和输入建议打架」。待决期间输入区不接受输入。
+        return true;
+    }
+
+    // ── 行内问卷（多问题：横向标签页 / 分步骤；每题单选或多选）──
+    //
+    // 与权限确认共用 InlineChoice 控件（同一把 KeyHook 同时只归一个）：在单栏之上多了
+    // 「多页 + 多选」，形态由题目数 / MultiSelect / showTabs 三者决定（见 SurveyQuestion 注释）。
+
+    /// <summary>当前问卷题目（null = 不在问卷态）</summary>
+    private List<SurveyQuestion>? _survey;
+
+    /// <summary>当前页索引</summary>
+    private int _surveyPage;
+
+    /// <summary>每页已选索引（多选题可有多个）</summary>
+    private List<HashSet<int>>? _surveyPicked;
+
+    /// <summary>是否显示横向标签行（false = 分步骤，页头显示「步骤 k/n」）</summary>
+    private bool _surveyTabs;
+
+    /// <summary>每题的自定义答案（选了「其他」才有文本；与题目一一对应，null = 该题没用「其他」）</summary>
+    private List<string?>? _surveyOthers;
+
+    /// <summary>「其他」输入态：复用输入框，键入放行、Enter 提交、Esc 退回选项</summary>
+    private bool _surveyOtherInput;
+
+    /// <summary>「其他」输入往返期间的勾选快照（多选页勾选只活在控件 Items 里，
+    /// 重建选项列表时会按 picked 还原而丢掉刚勾的项，故往返前后用快照兜住）</summary>
+    private List<bool>? _surveyCheckedSnapshot;
+
+    /// <summary>问卷完成回调（null = 无待决问卷）</summary>
+    private Action<SurveyResult?>? _surveyDone;
+
+    /// <summary>最近一次问卷结果（取消 = null）。供等待线程在收起后读取。</summary>
+    private volatile SurveyResult? _surveyResult;
+
+    /// <summary>问卷是否进行中</summary>
+    public bool InlineSurveyVisible => _survey != null;
+
+    /// <summary>最近一次问卷结果（取消/超时 = null）</summary>
+    public SurveyResult? LastSurveyResult => _surveyResult;
+
+    /// <summary>
+    /// 显示行内问卷（**不弹窗**）—— 由 <c>UxHelper.RunInlineSurveyOnScreen</c> 调用，UI 线程也可直接调。
+    /// 每题一页：↑↓ 选项、Space 勾选（多选）、Enter 提交本页并前进、←→/Tab 翻页（多题）、Esc 取消、
+    /// 数字键 1..9 直选并提交。
+    /// </summary>
+    public void ShowInlineSurvey(List<SurveyQuestion> questions, Action<SurveyResult?> onDone, bool showTabs = false)
+    {
+        if (questions.Count == 0) { onDone(null); return; }
+
+        HidePromptBar();
+        _inlineChoiceDone = null; // 与单选/确认互斥（同一把 KeyHook）
+
+        _survey = questions;
+        _surveyTabs = showTabs;
+        _surveyPage = 0;
+        _surveyPicked = [.. questions.Select(_ => new HashSet<int>())];
+        _surveyOthers = [.. questions.Select(_ => (string?)null)];
+        _surveyCheckedSnapshot = null;
+        _surveyOtherInput = false;
+        _surveyDone = onDone;
+        _surveyResult = null;
+
+        RenderSurveyPage();
+    }
+
+    /// <summary>把当前页渲染进 InlineChoice（页头 + 选项 + 勾选态）</summary>
+    private void RenderSurveyPage()
+    {
+        if (_survey == null) return;
+        var q = _survey[_surveyPage];
+        var picked = _surveyPicked![_surveyPage];
+
+        InlineChoice.MultiSelect = q.MultiSelect;
+        InlineChoice.HeaderText = _survey.Count > 1
+            ? (_surveyTabs ? BuildSurveyTabHeader() : $"步骤 {_surveyPage + 1}/{_survey.Count} · {q.Title}")
+            : "";
+        var items = q.Options.Select((o, i) => new PromptItem
+        {
+            Kind = EPromptKind.Choice,
+            Label = o.Label,
+            Detail = o.Description,
+            ResultCode = i,
+            Checked = picked.Contains(i),
+            IsOther = o.IsOther,
+        }).ToList();
+        // 「其他（自行输入）」：模型给的选项未必覆盖用户想法，末尾自动补一个入口（竞品默认有）
+        if (q.AllowOther && !items.Any(it => it.IsOther))
+            items.Add(new PromptItem
+            {
+                Kind = EPromptKind.Choice,
+                Label = "其他（自行输入）",
+                Detail = "输入自定义答案",
+                IsOther = true,
+                ResultCode = -1,
+            });
+        // 「跳过此题」：单选页才有意义（多选页空选本身就是跳过，再来一行是噪音）
+        if (q.AllowSkip && !q.MultiSelect)
+            items.Add(new PromptItem
+            {
+                Kind = EPromptKind.Choice,
+                Label = "跳过此题",
+                Detail = "不作答，直接下一题",
+                IsSkip = true,
+                ResultCode = -2,
+            });
+        // 「其他」输入往返后恢复勾选态（见 _surveyCheckedSnapshot）
+        if (_surveyCheckedSnapshot is { } snap && snap.Count == items.Count)
+            for (var i = 0; i < items.Count; i++) items[i].Checked = snap[i];
+        InlineChoice.Items = items;
+        InlineChoice.SelectedIndex = InlineChoice.Items.Count > 0 ? 0 : -1;
+        InlineChoice.ViewIndex = 0;
+        InlineChoice.Visible = true;
+        // 高度 = 页头(0/1) + 选项数 + 边框（与 ShowPromptBar / ShowInlineChoice 同一套账）
+        var extra = InlineChoice.Bg == 0 ? 2 : 1;
+        var headerRows = string.IsNullOrEmpty(InlineChoice.HeaderText) ? 0 : 1;
+        ApplyInlineChoiceHeight(headerRows + Math.Min(InlineChoice.Items.Count, InlineChoice.MaxVisible) + extra);
+        SyncShortcutRow();
+
+        InputArea.KeyHook = InlineChoiceKeyHook;
+        ChatList.MarkTreeDirty(); // chatH 变了必须整树标脏（同 ShowInlineChoice）
+        MarkDirty();
+    }
+
+    /// <summary>横向标签行：`▶ 标题` 标当前页，其余平铺（一屏扫完总共有几问）</summary>
+    private string BuildSurveyTabHeader()
+    {
+        var parts = new List<string>();
+        // 非当前页按「▶ 」的**显示宽**补空格（▶ 是宽字符，硬写两个空格会差一列、标签列歪）
+        var markW = AnsiHelper.DisplayWidth("▶ ");
+        for (var i = 0; i < _survey!.Count; i++)
+        {
+            var t = string.IsNullOrEmpty(_survey[i].Title) ? $"问题{i + 1}" : _survey[i].Title;
+            parts.Add(i == _surveyPage ? "▶ " + t : new string(' ', markW) + t);
+        }
+        return string.Join("  ", parts);
+    }
+
+    /// <summary>问卷键位：←→/Tab 翻页、↑↓ 选项、Space 勾选、Enter 提交本页并前进、Esc 取消、数字直选</summary>
+    private bool SurveyKeyHook(ConsoleKeyInfo key)
+    {
+        switch (key.Key)
+        {
+            case ConsoleKey.Escape:
+                ResolveSurvey(null); // 取消 = 整份作废（不是「本页跳过」）
+                return true;
+
+            case ConsoleKey.LeftArrow:
+            case ConsoleKey.RightArrow:
+            case ConsoleKey.Tab:
+                if (_survey!.Count > 1)
+                {
+                    var d = key.Key == ConsoleKey.LeftArrow ? -1 : 1;
+                    _surveyPage = (_surveyPage + d + _survey.Count) % _survey.Count;
+                    RenderSurveyPage();
+                }
+                return true;
+
+            case ConsoleKey.UpArrow:
+            case ConsoleKey.DownArrow:
+            case ConsoleKey.Home:
+            case ConsoleKey.End:
+            case ConsoleKey.Spacebar: // 多选勾选交给 TuiPromptBar 自己处理
+                InlineChoice.OnKey(key);
+                MarkDirty();
+                return true;
+
+            case ConsoleKey.Enter:
+                if (CurrentSurveyItemIsOther()) BeginSurveyOther();
+                else CommitSurveyPage();
+                return true;
+        }
+
+        if (key.KeyChar is >= '1' and <= '9')
+        {
+            var i = key.KeyChar - '1';
+            if (i < InlineChoice.Items.Count)
+            {
+                InlineChoice.SelectedIndex = i;
+                if (_survey![_surveyPage].MultiSelect)
+                    // 多选页：数字 = 切换该项勾选（等价 Space，省去先移光标）。
+                    // 不能在这里提交 —— 多选本来就要选好几项，一键提交等于永远只能勾中一个。
+                    InlineChoice.Items[i].Checked = !InlineChoice.Items[i].Checked;
+                else if (InlineChoice.Items[i].IsOther)
+                    BeginSurveyOther(); // 数字点到「其他」= 进自定义输入，不是提交
+                else
+                    CommitSurveyPage();
+                MarkDirty();
+            }
+            return true;
+        }
+
+        return true; // 独占键位（同单选栏：透传会触发前缀提示来抢同一把 KeyHook）
+    }
+
+    /// <summary>提交当前页：记录选中 → 前进一页；已是最后一页则整份完成</summary>
+    private void CommitSurveyPage()
+    {
+        if (_survey == null || _surveyPicked == null) return;
+        var q = _survey[_surveyPage];
+        var picked = _surveyPicked[_surveyPage];
+
+        // 多选勾了「其他」但还没输入 → 先去要答案，回来再提交（否则 -1 没有对应文本）
+        if (q.MultiSelect && _surveyOthers![_surveyPage] == null
+            && InlineChoice.Items.Any(it => it.IsOther && it.Checked))
+        {
+            BeginSurveyOther();
+            return;
+        }
+
+        if (q.MultiSelect)
+        {
+            picked.Clear();
+            for (var i = 0; i < InlineChoice.Items.Count; i++)
+                if (InlineChoice.Items[i].Checked)
+                    picked.Add(InlineChoice.Items[i].IsOther ? -1 : i); // -1 = 「其他」，文本在 _surveyOthers
+            // 允许「一个都不勾」——那是明确的「都不选」，不是没作答
+        }
+        else
+        {
+            var sel = InlineChoice.SelectedIndex;
+            if (sel < 0 || sel >= InlineChoice.Items.Count) return; // 无有效选中 → 不误提交
+            picked.Clear();
+            // 跳过 = 保持空（结果里这一题就是空列表）；「其他」记 -1（文本在 _surveyOthers）
+            if (InlineChoice.Items[sel].IsOther) picked.Add(-1);
+            else if (!InlineChoice.Items[sel].IsSkip) picked.Add(sel);
+        }
+        _surveyCheckedSnapshot = null; // 本页已定案，快照使命结束
+
+        if (_surveyPage < _survey.Count - 1)
+        {
+            _surveyPage++;
+            RenderSurveyPage(); // 分步骤：Enter 直接推进下一步（横向多页时也能这么走）
+        }
+        else
+        {
+            var results = new SurveyResult(
+                [.. _surveyPicked.Select(s => s.OrderBy(x => x).ToList())],
+                [.. _surveyOthers!]);
+            ResolveSurvey(results);
+        }
+    }
+
+    /// <summary>结束问卷：收起 + 回调结果（重复调用只第一次生效）</summary>
+    private void ResolveSurvey(SurveyResult? result)
+    {
+        var done = _surveyDone;
+        _survey = null;
+        _surveyDone = null;
+        _surveyPicked = null;
+        _surveyOthers = null;
+        _surveyCheckedSnapshot = null;
+        _surveyOtherInput = false;
+        _surveyPage = 0;
+        _surveyResult = result;
+        HideInlineChoice();
+        done?.Invoke(result);
+    }
+
+    // ── 问卷「其他」自定义输入 ──
+    //
+    // 复用输入框而不是另造输入控件：用户本来就熟悉它（光标/粘贴/多行/历史都在），
+    // 而 KeyHook 返回 false 就能让按键照常流进输入框，只在 Enter/Esc 上拦一下。
+
+    /// <summary>当前选中的是不是「其他」项</summary>
+    private bool CurrentSurveyItemIsOther()
+    {
+        var i = InlineChoice.SelectedIndex;
+        return i >= 0 && i < InlineChoice.Items.Count && InlineChoice.Items[i].IsOther;
+    }
+
+    /// <summary>进入「其他」输入态：收起选项栏 → 清空输入框 → 键入放行、Enter 提交、Esc 退回</summary>
+    private void BeginSurveyOther()
+    {
+        _surveyOtherInput = true;
+        // 记下勾选态（多选页往返期间不能丢），再收起选项栏把屏幕让给输入框
+        _surveyCheckedSnapshot = [.. InlineChoice.Items.Select(it => it.Checked)];
+        InlineChoice.Visible = false;
+        ApplyInlineChoiceHeight(0);
+        SetInput("");
+        InputArea.KeyHook = InlineOtherKeyHook;
+        InputArea.Focused = true;
+        AddSystemMsg("✎ 请输入自定义答案：Enter 提交 · Esc 返回选项");
+        MarkDirty();
+    }
+
+    /// <summary>「其他」输入态的按键钩子 —— 只拦 Esc/Enter，其余放行给输入框正常编辑</summary>
+    private bool InlineOtherKeyHook(ConsoleKeyInfo key)
+    {
+        if (!_surveyOtherInput) return false;
+
+        if (key.Key == ConsoleKey.Escape)
+        {
+            CancelSurveyOther();
+            return true;
+        }
+        if (key.Key == ConsoleKey.Enter)
+        {
+            var text = GetInputText().Trim();
+            if (text.Length == 0) return true; // 空输入不提交（继续编辑，或按 Esc 退回选项）
+            CommitSurveyOther(text);
+            return true;
+        }
+        return false; // 其余键交给输入框
+    }
+
+    /// <summary>提交自定义答案：记为本题的「其他」文本，再前进/收尾</summary>
+    private void CommitSurveyOther(string text)
+    {
+        if (_survey == null || _surveyOthers == null) return;
+        _surveyOtherInput = false;
+        _surveyOthers[_surveyPage] = text;
+        SetInput("");
+        RenderSurveyPage();
+        // 复选到「其他」项再提交：RenderSurveyPage 会把选中重置回第一项，
+        // 不指明就会被记成「选了第一项」，而用户的答案其实是这段自定义文本。
+        var otherIdx = InlineChoice.Items.FindIndex(it => it.IsOther);
+        if (otherIdx >= 0) InlineChoice.SelectedIndex = otherIdx;
+        CommitSurveyPage();
+    }
+
+    /// <summary>取消自定义输入：退回选项栏，不改任何选择</summary>
+    private void CancelSurveyOther()
+    {
+        _surveyOtherInput = false;
+        SetInput("");
+        RenderSurveyPage();
+    }
+
     /// <summary>挂载在 InputArea 上的按键钩子：↑↓/Enter/Esc 导航提示栏</summary>
     private bool PromptKeyHook(ConsoleKeyInfo key)
     {
@@ -533,10 +1038,18 @@ public partial class ChatScreen : TuiScreen
         bool ctrl = key.Modifiers.HasFlag(ConsoleModifiers.Control);
         bool shift = key.Modifiers.HasFlag(ConsoleModifiers.Shift);
 
-        // ── 1. 建议面板可见 → 建议导航（始终优先）──
+        // ── 1. 行内选择栏可见 → 独占键盘（权限确认 / 计划审批 / 通用确认）──
+        //     放在建议面板**之前**：输入 `/` 弹出的建议面板可能与后台发起的权限确认同时在场，
+        //     而确认框是「Agent 卡在那里等回答」的一方，必须先答。有模态窗时让位（模态更优先）。
+        // 「其他」输入态时选项栏已收起（InlineChoiceVisible=false），但它同样要抢在
+        // HandleSpecial 的「Enter = 发送消息」之前 —— 否则用户打完自定义答案一按回车，
+        // 答案会当成聊天消息发出去，问卷永远走不完。
+        if (!HasModal && (InlineChoiceVisible || _surveyOtherInput) && InlineChoiceKeyHook(key)) return true;
+
+        // ── 2. 建议面板可见 → 建议导航（始终优先）──
         if (HandleSuggestPanelKey(key, ctrl, shift)) return true;
 
-        // ── 2. 模态窗口优先 ──
+        // ── 3. 模态窗口优先 ──
         if (HasModal) return base.OnKey(key);
 
         // ── 2.5. 提示栏可见 → 提示栏导航（↑↓/Enter/Esc/Tab），优先于聊天滚动/提交/历史 ──

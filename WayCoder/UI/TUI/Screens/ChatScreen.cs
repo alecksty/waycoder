@@ -38,6 +38,15 @@ public partial class ChatScreen : TuiScreen
     /// <summary>提示栏（输入框上方）</summary>
     public TuiPromptBar PromptBar { get; protected set; } = null!;
 
+    /// <summary>
+    /// 行内选择栏（输入框**下方**，与 <see cref="PromptBar"/> 分时占用 InputArea.KeyHook）。
+    ///
+    /// 用途与 PromptBar 恰相反：PromptBar 是「输入提示」（Enter = 回填输入框，随输入变化刷新），
+    /// 本控件是「做决定」（权限确认 / 计划审批 / 通用确认，Enter = 产出结果码，独占键位不被输入打断）；
+    /// 位置也相反 —— 提示在上方（贴近被补全的输入），决定在下方（贴近 ModelInfoRow 那片待决状态区）。
+    /// </summary>
+    public TuiPromptBar InlineChoice { get; protected set; } = null!;
+
     /// <summary>前缀提示钩子注册表：前缀符号 → 提示项生成器（触发提示框）。</summary>
     private readonly Dictionary<char, Func<string, List<PromptItem>>> _prefixHintHooks = new();
 
@@ -453,6 +462,24 @@ public partial class ChatScreen : TuiScreen
         SetModelInfoRow(true, rowStr);
     }
 
+    /// <summary>
+    /// 行内选择栏可见时的快捷键提示 —— 常驻在栏下方那一行（对标 Claude Code 的
+    /// "Esc to cancel · 1/2/3 to choose"）。不这样做的话，键位只活在 Ctrl+H 帮助面板里，
+    /// 第一次遇到权限确认的人根本不知道能按 Y/N/A。
+    /// </summary>
+    protected const string InlineShortcutText =
+        "↑↓ 选择 · Enter 确认 · Esc 取消 · Y/N/A 单键 · 多选 Space 勾选 · ←→/Tab 翻页";
+
+    /// <summary>按行内栏可见性切换快捷键提示行文案（显隐由 <see cref="SetModelInfoRow"/> 跟随）</summary>
+    protected void SyncShortcutRow()
+    {
+        if (_shortcutRow == null) return;
+        var want = InlineChoiceVisible ? InlineShortcutText : ShortcutRowText;
+        if (_shortcutRow.Text == want) return;
+        _shortcutRow.Text = want;
+        _shortcutRow.MarkDirty();
+    }
+
     /// <summary>设置模型信息行可见性与内容；可见性变了重排，文本变了也要标脏该行——
     /// 否则增量渲染不重绘它，切换模型后状态栏上方这行会一直显示旧模型。</summary>
     private void SetModelInfoRow(bool visible, string text)
@@ -461,8 +488,9 @@ public partial class ChatScreen : TuiScreen
         if (row == null) return;
         bool visChanged = row.Visible != visible;
         row.Visible = visible;
-        // 下方快捷键行/空行可见性跟随（模式栏显示时才占位）
-        if (_shortcutRow != null) _shortcutRow.Visible = visible;
+        // 下方快捷键行/空行可见性跟随（模式栏显示时才占位）；行内选择栏可见时快捷键行必须留着 ——
+        // 那里正显示着选择栏的键位说明，是第一次用它的人唯一能看到的提示。
+        if (_shortcutRow != null) _shortcutRow.Visible = visible || InlineChoiceVisible;
         if (_modelInfoSpacer != null) _modelInfoSpacer.Visible = visible;
         bool textChanged = row.Text != text;
         if (textChanged) row.Text = text;
@@ -618,8 +646,10 @@ public partial class ChatScreen : TuiScreen
         int modelRows = ModelInfoRow is { Visible: true }
             ? 1 + (_shortcutRow?.Visible == true ? 1 : 0) + (_modelInfoSpacer != null ? 1 : 0)
             : 0;
+        // 行内选择栏占行（输入区下分隔线与模式栏之间）——按可见性计 0/计高度，同 modelRows 的写法
+        int inlineH = InlineChoice?.Visible == true ? InlineChoice.Height : 0;
         chatH = Math.Max(1, TH - 1 - promptH - 1 - 1 - 1 - inputH - 1 - progressH - 1
-                            - modelRows); // TH - title - prompt - spacer(1) - dynamicBar(1) - topBorder - input - botBorder - progress - [模式栏/快捷键/空行] - status
+                            - modelRows - inlineH); // TH - title - prompt - spacer(1) - dynamicBar(1) - topBorder - input - botBorder - progress - [模式栏/快捷键/空行] - [行内选择栏] - status
     }
 
     /// <summary>应用动态尺寸到各子视图（Render / OnResize 共用）。</summary>
@@ -632,6 +662,7 @@ public partial class ChatScreen : TuiScreen
         // 提示栏只做聊天列表一样宽：侧栏可见时收窄到 TW-panelW，不覆盖侧栏 →
         // 收起提示栏只需重绘聊天区，不用刷新聊天区以外的区域（避免侧栏残留/额外重绘）。
         PromptBar.Width = panelW > 0 ? TW - panelW : TW;
+        if (InlineChoice != null) InlineChoice.Width = panelW > 0 ? TW - panelW : TW;
         InputTopBorder.Width = TW;
         InputBotBorder.Width = TW;
         ChatList.Width = panelW > 0 ? TW - panelW : TW;
@@ -789,6 +820,19 @@ public partial class ChatScreen : TuiScreen
             LineChar = "─", LineColor = TuiTheme.Current.SeparatorFg
         };
         RootView.Add(InputBotBorder);
+
+        // ── 行内选择栏（输入区下方，默认隐藏；权限/计划审批就地选择，不弹窗）──
+        InlineChoice = new TuiPromptBar
+        {
+            Width = TW,
+            Height = 0,
+            Visible = false,
+            Bg = 0,
+            ShowArrow = true,                            // ❯ 指示选中行
+            HighlightBg = AnsiColors.BgYellow,           // 黄底
+            HighlightFg = AnsiColors.Black,              // 黑字（黄底上可读）
+        };
+        RootView.Add(InlineChoice);
 
         // ── 模型/模式信息行（输入区下方、状态栏上方）──
         // TuiSmartLabel：SyncModelInfo 用 «tag» 分段着色（权限/模式彩字、模型名加粗），
@@ -1384,15 +1428,16 @@ public partial class ChatScreen : TuiScreen
     /// <summary>回调：搜索历史（Program.cs 注入，参数=查询字符串）</summary>
     public Action<string>? OnSearchHistory;
 
-    /// <summary>显示退出确认对话框</summary>
+    /// <summary>退出确认 —— 输入框下方行内选择（不弹窗）。UI 线程调用（Esc/退出键处理路径）。</summary>
     private void ShowExitConfirmDialog()
     {
-        var win = TuiDialog.Confirm("退出 WayCoder", "确定要退出道码吗？", confirmed =>
-        {
-            if (confirmed)
-                EnqueueSubmission(AnsiTty.SgrReset); // 特殊标记：退出请求
-        });
-        ShowWindow(win);
+        var ok = UxHelper.RunInlineChoiceOnScreen(this,
+        [
+            new PromptItem { Kind = EPromptKind.Choice, Label = "1. 退出", Detail = "结束本次会话", ResultCode = 0 },
+            new PromptItem { Kind = EPromptKind.Choice, Label = "2. 取消", Detail = "留在道码继续", ResultCode = 2 },
+        ]) == 0;
+        if (ok)
+            EnqueueSubmission(AnsiTty.SgrReset); // 特殊标记：退出请求
     }
 
     /// <summary>Ctrl+U：打开命令面板（纯 Ctrl 键 —— 原 Ctrl+Shift+P 在 Windows 被终端抢键）。

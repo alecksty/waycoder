@@ -40,6 +40,17 @@ public static class TuiKeybindHelp
             ("←→", "输入区光标移动"),
             ("Home / End", "输入区行首 / 行尾"),
         ]),
+        // 行内选择栏（输入框下方，不弹窗）：权限确认 / 计划审批 / 粘贴确认 / 向用户提问都用这套键。
+        // 权限确认另有 Y/N/A 单键；多选问卷用 Space 勾选；多题问卷用 ←→/Tab 翻页或 Enter 逐步推进。
+        ("📋 行内选择", [
+            ("↑↓ / Home / End", "在选项间移动"),
+            ("Enter", "确认 / 问卷下一步"),
+            ("Esc", "拒绝 / 取消"),
+            ("Y / N / A", "允许 / 拒绝 / 全部允许（权限确认）"),
+            ("Space", "勾选 / 取消勾选（多选）"),
+            ("←→ / Tab", "翻页（多题问卷）"),
+            ("1 - 9", "直选第 N 项（多选页则切换勾选）"),
+        ]),
         ("🔄 模式", [
             ("Shift+Tab", "切模式 Build→Plan→Chat（或 /mode）"),
             ("Ctrl+P", "权限模式循环（Ask/Auto/SmartAuto/Yolo）"),
@@ -78,6 +89,15 @@ public static class TuiKeybindHelp
     /// 用键名做筛选：与 Groups 保持单一事实源，加新键默认只进完整版，要进启动版再来这里登记。
     /// 注意「↑↓」在编辑（历史）与导航（滚动）各出现一次，筛的是键名，两条会一起进简版——正好都要。
     /// </summary>
+    /// <summary>
+    /// 不进启动简版的**分类** —— 这些键只在特定上下文里有效（选择栏可见时才认），
+    /// 混进「启动速查」是误导：没有选择栏时按 Esc 是「中断 Agent」，不是「拒绝」。
+    /// </summary>
+    private static readonly HashSet<string> StartupExcludedCategories = new(StringComparer.Ordinal)
+    {
+        "📋 行内选择",
+    };
+
     private static readonly HashSet<string> StartupKeys = new(StringComparer.Ordinal)
     {
         "F1 - F10", "Esc", "Ctrl+Z", "Ctrl+C", "Ctrl+Q", "Ctrl+S",  // 全局
@@ -204,6 +224,8 @@ public static class TuiKeybindHelp
         sb.AppendLine("«grey»" + rule + "«/»");
         foreach (var (cat, bindings) in Groups)
         {
+            // 上下文相关的分类整体不进简版（见 StartupExcludedCategories）
+            if (StartupExcludedCategories.Contains(cat)) continue;
             var important = bindings.Where(b => StartupKeys.Contains(b.Key)).ToList();
             if (important.Count == 0) continue; // 整类不显示（如鼠标：点按拖拽人人都会，不占启动位）
             sb.AppendLine("«grey»" + cat + "«/»");
