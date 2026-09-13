@@ -49,6 +49,17 @@ public partial class EditorPage : ContentPage
         Canvas.LineLongPressed += OnLineLongPressed;
         Canvas.SelectionChanged += (_, _) => UpdateStatus();
         Canvas.ViewChanged += UpdateStatus;
+        // 双指捏合缩放字号（与菜单里的加大/缩小共用同一套「改了要重测字宽」的收尾）
+        Canvas.PinchZoomed += size =>
+        {
+            EditorTypography.FontSize = Math.Clamp(MathF.Round(size),
+                EditorTypography.MinFontSize, EditorTypography.MaxFontSize);
+            MauiEditorStore.SetFontSize(EditorTypography.FontSize);
+            LineEditor.FontSize = EditorTypography.FontSize;
+            LineEditor.HeightRequest = EditorTypography.LineHeight;
+            Canvas.ResetTypography();
+            ShowToast($"字号 {EditorTypography.FontSize:F0}");
+        };
         // 一滑动就结束编辑：编辑态下浮着一个输入框，滚动会让它和自绘的行对不上；
         // 而且滑动本身就意味着「我要浏览」——先把这一行提交掉再滚，最省心。
         Canvas.ScrollingStarted += () => { if (_editLine >= 0) CommitEditingLine(); };

@@ -96,6 +96,13 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     public event Action? ViewChanged;
 
     /// <summary>
+    /// 双指捏合请求的字号（pt）。手势由触摸事件里的多点信息驱动 ——
+    /// <c>GraphicsView</c> 已经把平台的触摸转发过来了，再叠 <c>PinchGestureRecognizer</c>
+    /// 等于同一手势被两套代码处理（同 Start/Drag/End 那条注释的道理）。
+    /// </summary>
+    public event Action<float>? PinchZoomed;
+
+    /// <summary>
     /// **开始拖动**时触发（真正移动了才算，单击不算）。
     /// 页面据此结束当前行的编辑：编辑态下浮着一个输入框，一滚动它就和自绘的行对不上，
     /// 而「滑动」本身就是「我要浏览，不是在打字」——先收尾再滚，比一边编辑一边滚可靠得多。
@@ -216,6 +223,8 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
     private float _lastX, _lastY;
     private bool _dragging, _moved, _longPress;
+    private float _pinchStartDist;
+    private float _pinchStartFontSize;
     private long _downTicks;
     private float _downX, _downY;
 
@@ -252,6 +261,22 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     private void OnDrag(object? sender, TouchEventArgs e)
     {
         if (!_dragging || e.Touches.Length == 0) return;
+
+        // 双指 = 缩放字号（不滚动）
+        if (e.Touches.Length >= 2)
+        {
+            float d = Distance(e.Touches[0], e.Touches[1]);
+            if (d <= 1) return;
+            if (_pinchStartDist <= 0)
+            {
+                _pinchStartDist = d;
+                _pinchStartFontSize = EditorTypography.FontSize;
+                return;
+            }
+            PinchZoomed?.Invoke(_pinchStartFontSize * (d / _pinchStartDist));
+            return;
+        }
+
         var p = e.Touches[0];
         float dx = p.X - _lastX, dy = p.Y - _lastY;
         _lastX = p.X;
@@ -277,9 +302,19 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         ThrottledInvalidate();
     }
 
+    private static float Distance(PointF a, PointF b)
+    {
+        float dx = a.X - b.X, dy = a.Y - b.Y;
+        return MathF.Sqrt(dx * dx + dy * dy);
+    }
+
     private void OnEnd(object? sender, TouchEventArgs e)
     {
+        bool wasPinching = _pinchStartDist > 0;
+        _pinchStartDist = 0;
         _dragging = false;
+        if (wasPinching) { _moved = true; return; }   // 捏合结束：不触发 tap / 惯性
+
         long elapsed = Environment.TickCount64 - _downTicks;
 
         long hitLine = (long)(_firstLine + (_lastY - EditorTypography.VerticalPad) / EditorTypography.LineHeight);
