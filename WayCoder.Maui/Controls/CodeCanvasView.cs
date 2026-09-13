@@ -692,6 +692,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             new AttributedTextRun(0, label.Length, new TextAttributes
             {
                 [TextAttribute.Color] = color.ToHex(),
+                [TextAttribute.FontName] = EditorTypography.FontFamilyName,
             }),
         ]);
         if (_gutterCache.Count < 512) _gutterCache[key] = attr;
@@ -793,6 +794,10 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             runs.Add(new AttributedTextRun(offset, len, new TextAttributes
             {
                 [TextAttribute.Color] = MarkupToFormattedString.ColorForToken(color, _isDark).ToHex(),
+                // ⚠ 必须显式给字体名：不给就落到平台默认字体（比例字体），
+                // 而我们是按 monospace 量宽度来算光标位置的 —— 两者不一致会逐字累积偏差
+                // （用户实测「越往右越偏得多」）。
+                [TextAttribute.FontName] = EditorTypography.FontFamilyName,
             }));
             offset += len;
         }
