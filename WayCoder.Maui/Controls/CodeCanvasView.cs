@@ -68,6 +68,16 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// </summary>
     private float _wideCharWidth = 16f;
 
+    /// <summary>
+    /// 逐码点的实测宽度缓存（只收集非 ASCII）。
+    ///
+    /// 光标定位原先按「CJK 算两列」推算 —— 但**同一个字体里不同汉字的宽度未必相同**，
+    /// 全角标点更是另一回事，于是中文行的光标和输入位置会对不上（用户实测：
+    /// 「汉字光标定位和输入位置对不上，英文数字基本正确」）。ASCII 仍用统一的
+    /// <see cref="_charWidth"/>（等宽字体下必然相等），其余字符各量各的。
+    /// </summary>
+    private readonly Dictionary<int, float> _runeWidths = [];
+
     // ── 事件（交给页面接）──
 
     /// <summary>
@@ -126,6 +136,19 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     }
 
     public void SetDark(bool isDark) { _isDark = isDark; Invalidate(); }
+
+    /// <summary>
+    /// 排版变了（字号调整）：字宽与行高都得重新实测。行缓存不用清 —— 它存的是
+    /// 「文本 + 颜色 run」，位置是绘制时按新的行高算的。
+    /// </summary>
+    public void ResetTypography()
+    {
+        _charWidthMeasured = false;
+        _runeWidths.Clear();   // 字号变了，之前量的宽度全部作废
+        _scrollX = 0;
+        ClampScroll();
+        Invalidate();
+    }
 
     /// <summary>当前光标行（1-based；-1 = 无）。</summary>
     public long CaretLine => _caretLine < 0 ? -1 : _caretLine + 1;
@@ -469,6 +492,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             }
             else if (line.Length > 0)
             {
+                CacheRuneWidths(canvas, line);   // 顺手把非 ASCII 字符的真实宽度收进缓存
                 canvas.DrawText(editing ? BuildAttributed(line) : GetAttributed(i, line),
                     textX, y + EditorTypography.TextBaselineOffset, 1_000_000f, lineH);
             }
@@ -826,6 +850,35 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         Invalidate();
     }
 
+    /// <summary>把一行里非 ASCII 字符的真实宽度收进缓存（每个码点只测一次）。</summary>
+    private void CacheRuneWidths(ICanvas canvas, string line)
+    {
+        foreach (var r in line.EnumerateRunes())
+        {
+            if (r.Value < 0x80) continue;                      // ASCII 用统一的 _charWidth
+            if (_runeWidths.ContainsKey(r.Value)) continue;
+            var size = canvas.GetStringSize(r.ToString(),
+                EditorTypography.CanvasFont, EditorTypography.FontSize);
+            if (size.Width > 0) _runeWidths[r.Value] = (float)size.Width;
+        }
+    }
+
+    /// <summary>某个字符的绘制宽度（优先用实测值，未测到时退回近似）。</summary>
+    private float RuneWidth(Rune r, ref int charCol)
+    {
+        if (r.Value == '\t')
+        {
+            int next = (charCol / EditorTypography.TabColumns + 1) * EditorTypography.TabColumns;
+            float w = (next - charCol) * _charWidth;
+            charCol = next;
+            return w;
+        }
+        charCol++;
+        if (r.Value < 0x80) return _charWidth;
+        if (_runeWidths.TryGetValue(r.Value, out var measured)) return measured;
+        return RuneWidthApprox(r) == 2 ? _wideCharWidth : _charWidth;
+    }
+
     /// <summary>
     /// 行内横坐标（pt，相对正文起点）→ 字符下标。
     ///
@@ -842,19 +895,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         int col = 0;   // tab stop 用
         foreach (var rune in line.EnumerateRunes())
         {
-            float w;
-            if (rune.Value == '\t')
-            {
-                int next = (col / EditorTypography.TabColumns + 1) * EditorTypography.TabColumns;
-                w = (next - col) * _charWidth;
-                col = next;
-            }
-            else
-            {
-                w = RuneWidthApprox(rune) == 2 ? _wideCharWidth : _charWidth;
-                col++;
-            }
-
+            float w = RuneWidth(rune, ref col);
             if (xInLine < acc + w / 2f) return idx;
             acc += w;
             idx += rune.Utf16SequenceLength;

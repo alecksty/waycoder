@@ -83,6 +83,130 @@ public partial class EditorPage : ContentPage
         };
     }
 
+    // ── 右上角菜单 ──
+
+    private async void OnMenuClicked(object? sender, EventArgs e)
+    {
+        CommitEditingLine();   // 先把正在编辑的行落盘，再弹菜单（弹菜单会失焦）
+
+        int fs = (int)EditorTypography.FontSize;
+        // 工具栏那 7 个图标也一并收进来：工具栏是「一眼可见」，菜单是「全都在这里」——
+        // 功能一多，图标按钮就会挤成一片看不出谁是谁，不如给一个完整的清单入口。
+        var choice = await DisplayActionSheetAsync("编辑器", "取消", null,
+            "💾  保存",
+            "📄  另存为…",
+            "✨  新建文件…",
+            "✎  切换 编辑/只读",
+            "↶  撤销",
+            "↷  重做",
+            "🔍  查找…",
+            "🔢  跳到行…",
+            "📖  大纲…",
+            "👁  Markdown 预览",
+            "📋  全选并复制",
+            $"🔠  加大字体（当前 {fs}）",
+            "🔡  缩小字体",
+            "↩️  重置字号");
+
+        switch (choice)
+        {
+            case "💾  保存": await SaveAsync(); break;
+            case "📄  另存为…": await SaveAsAsync(); break;
+            case "✨  新建文件…": await NewFileAsync(); break;
+            case "✎  切换 编辑/只读": OnEditClicked(this, EventArgs.Empty); break;
+            case "↶  撤销": OnUndoClicked(this, EventArgs.Empty); break;
+            case "↷  重做": OnRedoClicked(this, EventArgs.Empty); break;
+            case "🔍  查找…": OnFindClicked(this, EventArgs.Empty); break;
+            case "🔢  跳到行…": await GoToLineAsync(); break;
+            case "📖  大纲…": OnOutlineClicked(this, EventArgs.Empty); break;
+            case "👁  Markdown 预览": OnPreviewClicked(this, EventArgs.Empty); break;
+            case "📋  全选并复制": await CopyAllAsync(); break;
+            case var c when c != null && c.StartsWith("🔠"): AdjustFontSize(+1); break;
+            case "🔡  缩小字体": AdjustFontSize(-1); break;
+            case "↩️  重置字号": AdjustFontSize(0); break;
+        }
+    }
+
+    /// <summary>调字号（0 = 重置为默认）。排版常量是全局的，改完要让画布重测字宽、输入框跟着变。</summary>
+    private void AdjustFontSize(int delta)
+    {
+        EditorTypography.FontSize = delta == 0
+            ? 13f
+            : Math.Clamp(EditorTypography.FontSize + delta,
+                EditorTypography.MinFontSize, EditorTypography.MaxFontSize);
+
+        MauiEditorStore.SetFontSize(EditorTypography.FontSize);
+
+        // 输入框与画布必须同步：两者字号/行高不一致就会错位（这正是当初改成单层自绘要解决的问题）
+        LineEditor.FontSize = EditorTypography.FontSize;
+        LineEditor.HeightRequest = EditorTypography.LineHeight;
+        Canvas.ResetTypography();
+
+        ShowToast($"字号 {EditorTypography.FontSize:F0}");
+    }
+
+    private async Task SaveAsAsync()
+    {
+        if (_editable == null) { await DisplayAlertAsync("另存为", "只读文件不能另存", "关闭"); return; }
+
+        var current = Path.GetFileName(_relPath);
+        var name = await DisplayPromptAsync("另存为", "新文件名（可带子目录）",
+            accept: "保存", cancel: "取消", initialValue: current, maxLength: 200);
+        if (string.IsNullOrWhiteSpace(name)) return;
+        name = name.Trim();
+
+        try
+        {
+            SandboxFsService.WriteTextAtomic(name, _editable.ReadAll(),
+                _doc?.Encoding ?? new UTF8Encoding(false), _doc?.UsesCrlf ?? false);
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlertAsync("另存为失败", ex.Message, "关闭");
+            return;
+        }
+
+        _relPath = name;
+        _fullPath = SandboxFsService.ResolveInSandbox(name) ?? "";
+        _modified = false;
+        FileLabel.Text = name;
+        Title = Path.GetFileName(name);
+        UpdateStatus();
+        ShowToast($"已另存为 {name}");
+    }
+
+    private async Task NewFileAsync()
+    {
+        var name = await DisplayPromptAsync("新建文件", "文件名（可带子目录，如 src/a.cs）",
+            accept: "创建", cancel: "取消", maxLength: 200);
+        if (string.IsNullOrWhiteSpace(name)) return;
+        name = name.Trim();
+
+        try
+        {
+            SandboxFsService.WriteTextAtomic(name, "", new UTF8Encoding(false), crlf: false);
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlertAsync("新建失败", ex.Message, "关闭");
+            return;
+        }
+        await LoadAsync(name);
+    }
+
+    private async Task GoToLineAsync()
+    {
+        if (_doc == null) return;
+        var input = await DisplayPromptAsync("跳到行", $"行号（1 ~ {_doc.LineCount:N0}）",
+            accept: "跳转", cancel: "取消", keyboard: Keyboard.Numeric, maxLength: 12);
+        if (!long.TryParse(input, out var line)) return;
+
+        line = Math.Clamp(line, 1, Math.Max(1, _doc.LineCount));
+        Canvas.ScrollToLine(line, center: true);
+        Canvas.SetCaretLine(line);
+        UpdateStatus();
+    }
+
     // ── 加载 ──
 
     private async Task LoadAsync(string relPath)
@@ -118,6 +242,10 @@ public partial class EditorPage : ContentPage
         _modified = false;
         _editLine = -1;
         LineEditor.IsVisible = false;
+
+        EditorTypography.FontSize = MauiEditorStore.FontSize;   // 套用上次调的字号
+        LineEditor.FontSize = EditorTypography.FontSize;
+        LineEditor.HeightRequest = EditorTypography.LineHeight;
 
         bool dark = Application.Current?.RequestedTheme == AppTheme.Dark;
         Canvas.SetDocument(_doc, relPath, dark, _canEdit);
@@ -188,7 +316,9 @@ public partial class EditorPage : ContentPage
         SetReadOnly(!_readOnly);
     }
 
-    private async void OnSaveClicked(object? sender, EventArgs e)
+    private async void OnSaveClicked(object? sender, EventArgs e) => await SaveAsync();
+
+    private async Task SaveAsync()
     {
         if (_editable == null || _fullPath.Length == 0) return;
         CommitEditingLine();

@@ -8,15 +8,26 @@
 
     <Grid RowDefinitions="Auto,Auto,*,Auto">
 
-        <!-- 文件名 -->
-        <Label
-            Grid.Row="0"
-            x:Name="FileLabel"
-            Text=""
-            VerticalOptions="Center"
-            FontSize="13"
-            Padding="8,4,8,0"
-            LineBreakMode="TailTruncation" />
+        <!-- 文件名 + 菜单（菜单放在右上角：字号/保存/另存为/新建这些不是每时每刻都用，
+             但一旦要调就得翻工具栏去找，放这里一眼可见） -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="8,4,4,0">
+            <Label
+                x:Name="FileLabel"
+                Grid.Column="0"
+                Text=""
+                VerticalOptions="Center"
+                FontSize="13"
+                LineBreakMode="TailTruncation" />
+            <Button
+                x:Name="MenuBtn"
+                Grid.Column="1"
+                Text="⋯"
+                FontSize="17"
+                Padding="10,0"
+                HeightRequest="34"
+                BackgroundColor="Transparent"
+                SemanticProperties.Hint="编辑器菜单" />
+        </Grid>
 
         <!-- 编辑工具条（SVG 图标按钮）：撤销 / 重做 / 查找 / 大纲 / 预览(源码) / 编辑(只读↔可写) / 保存 -->
         <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*,*,*" Padding="8,2" ColumnSpacing="4">

@@ -26,14 +26,19 @@ internal static class EditorTypography
         "Courier New";
 #endif
 
-    /// <summary>字号（磅）。</summary>
-    public const float FontSize = 13f;
+    /// <summary>字号（磅）。可在编辑器菜单里调（加大/缩小/重置），并持久化。</summary>
+    public static float FontSize { get; set; } = 13f;
+
+    /// <summary>字号可调范围 —— 太小看不清，太大一屏放不下几行。</summary>
+    public const float MinFontSize = 9f;
+    public const float MaxFontSize = 28f;
 
     /// <summary>
     /// 行高（磅）—— **固定值，不用平台行高**：自绘的行位置必须能被「第 N 行 → y 坐标」
     /// 精确算出来（否则点击定位、光标跟随、波浪线全都对不上）。
+    /// 由字号派生，所以调字号时它会自动跟着变（取整避免累积出半像素的错位）。
     /// </summary>
-    public const float LineHeight = 18f;
+    public static float LineHeight => MathF.Round(FontSize * 1.40f);
 
     /// <summary>行号栏与文字之间的留白。</summary>
     public const float GutterRightPad = 8f;

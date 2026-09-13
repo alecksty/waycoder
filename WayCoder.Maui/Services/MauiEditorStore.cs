@@ -21,6 +21,15 @@ public static class MauiEditorStore
 
     public static long ReadOnlyMaxBytes => _readOnlyMaxBytes;
 
+    /// <summary>编辑器字号（磅）。</summary>
+    public static float FontSize { get; private set; } = 13f;
+
+    public static void SetFontSize(float size)
+    {
+        FontSize = Math.Clamp(size, 9f, 28f);
+        Save();
+    }
+
     /// <summary>制表符宽度（列）。</summary>
     public static int TabColumns { get; private set; } = 4;
 
@@ -36,6 +45,8 @@ public static class MauiEditorStore
             if (root == null) return;
             long mb = (long)root.GetNumber("readOnlyMaxMB");
             if (mb > 0) _readOnlyMaxBytes = mb * 1024 * 1024;
+            double fs = root.GetNumber("fontSize");
+            if (fs >= 9 && fs <= 28) FontSize = (float)fs;
             int tab = (int)root.GetNumber("tabColumns");
             if (tab is >= 1 and <= 16) TabColumns = tab;
             ShowDebugHud = root.GetBool("debugHud");
@@ -62,6 +73,7 @@ public static class MauiEditorStore
         {
             var root = JNode.Object();
             root.Set("readOnlyMaxMB", (int)(_readOnlyMaxBytes / (1024 * 1024)));
+            root.Set("fontSize", (double)FontSize);
             root.Set("tabColumns", TabColumns);
             root.Set("debugHud", ShowDebugHud);
             Global.WriteAllTextAtomic(StorePath, root.ToJson());
