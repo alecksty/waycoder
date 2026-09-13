@@ -14,6 +14,11 @@ public static class MauiProgram
 			{
 				fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
 				fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+				// 编辑器等宽字体：**自带**，不让平台 fallback。
+				// 起因：用 "monospace" 时中文没有字形，测量路径与渲染路径各 fallback 各的，
+				// 两边量出的中文宽度差了近一倍（测量 ≈9.8dp vs 渲染 ≈16.8dp），
+				// 点击定位因此随非 ASCII 字符累积偏移。
+				fonts.AddFont("SarasaMonoSC-Regular.ttf", "SarasaMonoSC");   // 别名须与 EditorTypography.FontFamilyName 一致
 			});
 
 #if ANDROID

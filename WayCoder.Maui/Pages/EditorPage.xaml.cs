@@ -749,7 +749,7 @@ public partial class EditorPage : ContentPage
 #if DEBUG
                          // 定位「点击位置与渲染不一致」用的读数：只在调试构建里出现
                          + $" · X{Canvas.ScrollX:F0}/{Canvas.MaxScrollX:F0}"
-                         + $" · w{Canvas.CharWidth:F1} {Canvas.MeasureProbe} {Canvas.BarDebug}"
+                         + $" · {Canvas.TapProbe}"
 #endif
                          ;
     }

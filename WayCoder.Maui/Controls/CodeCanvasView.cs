@@ -74,6 +74,21 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// <summary>诊断：画布实际类型 + 用它量一个字符的原始结果（两者都是 0 说明这个 canvas 不支持测量）。</summary>
     public string MeasureProbe { get; private set; } = "?";
 
+    /// <summary>诊断：平台路径实际用的密度（用于和「屏幕物理宽 ÷ 控件 dp 宽」比对）。</summary>
+    public float ProbeDensity { get; private set; }
+
+#if DEBUG
+    /// <summary>
+    /// 诊断：上一次点击的**完整换算链** —— 点击屏幕坐标 → 行内横坐标 xInLine → 平台引擎算出的字符下标
+    /// → 再反算该下标处的横坐标。
+    ///
+    /// 分辨偏差出在哪一段：`x…→i…` 若就不对，是坐标换算（density/gutter/_scrollX）错了；
+    /// `i…→x…` 若与前者对不上，是我们建的 StaticLayout 与画布自绘的实际字体不一致。
+    /// 两种原因修法完全不同 —— 没有这串数字只能靠看截图猜，而目测误差比偏差本身还大。
+    /// </summary>
+    public string TapProbe { get; private set; } = "-";
+#endif
+
     /// <summary>字宽是**首次绘制时**才测出来的，而页面打开时状态栏就已经刷过一次 —— 不补一次通知，状态栏会永远停在「测量前的值」。</summary>
     private bool _measuredNotified;
 
@@ -164,10 +179,20 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// 排版变了（字号调整）：字宽与行高都得重新实测。行缓存不用清 —— 它存的是
     /// 「文本 + 颜色 run」，位置是绘制时按新的行高算的。
     /// </summary>
+    /// <summary>作废平台布局缓存（字号/字体变了就作废）。</summary>
+    private void InvalidatePlatformLayout()
+    {
+#if ANDROID
+        _androidLayout = null;
+        _androidLayoutLine = null;
+#endif
+    }
+
     public void ResetTypography()
     {
         _charWidthMeasured = false;
         _runeWidths.Clear();   // 字号变了，之前量的宽度全部作废
+        InvalidatePlatformLayout();
         _scrollX = 0;
         ClampScroll();
         Invalidate();
@@ -393,6 +418,19 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
                 SelectionChanged?.Invoke(a + 1, b + 1);
             }
             float xInLine = _lastX - GutterWidth() - EditorTypography.TextLeftPad + _scrollX;
+#if DEBUG
+            var tapLine = _doc?.GetLine(line) ?? "";
+            if (tapLine.Length > 0)
+            {
+                int ci = CharIndexAtX(tapLine, xInLine);
+                // 真实 scale = 屏幕物理宽 ÷ 控件 dp 宽；与平台路径用的密度不同 ⇒ 字号喂错了
+                float realScale = Width > 0
+                    ? (float)(Microsoft.Maui.Devices.DeviceDisplay.MainDisplayInfo.Width / Width) : 0;
+                TapProbe = $"x{xInLine:F0}→i{ci}→x{MeasurePrefixWidth(tapLine, ci):F0}"
+                         + $"/L{tapLine.Length} W{MeasurePrefixWidth(tapLine, tapLine.Length):F0}"
+                         + $" d{ProbeDensity:F2}/r{realScale:F2} w{Width:F0}";
+            }
+#endif
             LineTapped?.Invoke(line + 1, xInLine);
             ViewChanged?.Invoke();
             Invalidate();
@@ -774,7 +812,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             new AttributedTextRun(0, label.Length, new TextAttributes
             {
                 [TextAttribute.Color] = color.ToHex(),
-                [TextAttribute.FontName] = EditorTypography.FontFamilyName,
+                [TextAttribute.FontName] = EditorTypography.CanvasFontName,
             }),
         ]);
         if (_gutterCache.Count < 512) _gutterCache[key] = attr;
@@ -880,7 +918,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
                 // ⚠ 必须显式给字体名：不给就落到平台默认字体（比例字体），
                 // 而我们是按 monospace 量宽度来算光标位置的 —— 两者不一致会逐字累积偏差
                 // （用户实测「越往右越偏得多」）。
-                [TextAttribute.FontName] = EditorTypography.FontFamilyName,
+                [TextAttribute.FontName] = EditorTypography.CanvasFontName,
             }));
             offset += len;
         }
@@ -1200,6 +1238,10 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // 也就是说「每个字符的 advance 之和」并不等于字体的实际排布，累加出来的总宽偏小，
         // 横向滚动上限跟着偏小 ⇒ 拖到最右也到不了行尾、点击位置越往右偏得越多。
         // 直接量前缀，量的字体/字号与 DrawText 的 run 属性同源，就不存在这层换算误差。
+        // 首选平台布局引擎（与渲染同源）
+        float platform = PrefixWidthPlatform(line, limit);
+        if (platform >= 0) return platform;
+
         if (_measureCanvas != null && limit <= WholeMeasureMaxChars)
         {
             try
@@ -1222,6 +1264,98 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         return acc;
     }
 
+    // ── 平台文本布局引擎 ────────────────────────────────────────────────
+    //
+    // **为什么不用自己算的字宽**：AOSP 在 `TextLine` 里明确指出，**对子串单独测量 ≠ 该字符
+    // 在整行里的推进量** —— 字形替换（fallback）、连字、BiDi 都会让两者不等，
+    // 所以 Android 的光标定位走 `Layout#getOffsetForHorizontal`，而它的内部用的是
+    // `getRunAdvance`（在整行上下文里求推进量），不是「量一段子串」。
+    // 我们原先拿 `GetStringSize(line[..n])` 当行内位置，正是被否掉的那一种：
+    // 纯 ASCII 看不出来（monospace 无字形替换），中文/emoji 一行就现形。
+    //
+    // 这里直接建平台的 `StaticLayout` 来问，量出来的就是渲染时真正用的那份布局。
+
+#if ANDROID
+    private Android.Text.StaticLayout? _androidLayout;
+    private Android.Text.TextPaint? _androidPaint;
+    private string? _androidLayoutLine;
+    private float _androidLayoutSize;
+
+    /// <summary>显示屏密度：MAUI 侧坐标是 dp，而平台的 Paint/Canvas 按物理像素工作。</summary>
+    private static float PlatformDensity
+        => (float)Microsoft.Maui.Devices.DeviceDisplay.MainDisplayInfo.Density;
+
+    private Android.Text.StaticLayout? EnsureAndroidLayout(string line)
+    {
+        float size = EditorTypography.FontSize;
+        bool hit = _androidLayout != null && _androidLayoutLine == line && _androidLayoutSize == size;
+        if (hit) return _androidLayout;
+
+        try
+        {
+            float density = PlatformDensity;
+            ProbeDensity = density;
+            if (_androidPaint == null)
+            {
+                _androidPaint = new Android.Text.TextPaint();
+                _androidPaint.AntiAlias = true;
+            }
+            _androidPaint.TextSize = size * density;
+            // Paint.Typeface 是只读属性，必须走 SetTypeface。
+            //
+            // ⚠ 必须用 CreateFromAsset 而**不是** Create(name, style)：后者只认
+            // **系统字体族名**（monospace / sans-serif 这类），喂打包进 APK 的资产文件名
+            // 匹配不到就**静默回落**成默认字体 —— 表现是渲染用了新字体、测量还是老字体，
+            // 两边又对不上（实测整行宽只从 105 挪到 102，而画面上明显变宽了）。
+            _androidPaint.SetTypeface(Android.Graphics.Typeface.CreateFromAsset(
+                Android.App.Application.Context.Assets, EditorTypography.CanvasFontName));
+
+            // 宽度给足，避免把一行折成多行（我们自己做横向滚动，不要平台的换行）
+            float width = Math.Max(1f, (line.Length + 8) * size * density);
+            var builder = Android.Text.StaticLayout.Builder
+                .Obtain(line, 0, line.Length, _androidPaint, (int)width);
+            builder.SetIncludePad(false);
+            builder.SetLineSpacing(0f, 1f);
+
+            _androidLayout = builder.Build();
+            _androidLayoutLine = line;
+            _androidLayoutSize = size;
+            return _androidLayout;
+        }
+        catch
+        {
+            _androidLayout = null;   // 建不出来就退回自己算
+            return null;
+        }
+    }
+
+    /// <summary>点击横坐标（dp，相对正文起点）→ 字符下标。返回 -1 表示平台路径不可用。</summary>
+    private int CharIndexAtXPlatform(string line, float xInLine)
+    {
+        var layout = EnsureAndroidLayout(line);
+        if (layout == null) return -1;
+        try
+        {
+            int off = layout.GetOffsetForHorizontal(0, xInLine * PlatformDensity);
+            return Math.Clamp(off, 0, line.Length);
+        }
+        catch { return -1; }
+    }
+
+    /// <summary>第 charIndex 个码元处的横坐标（dp，相对正文起点）。返回 -1 表示不可用。</summary>
+    private float PrefixWidthPlatform(string line, int charIndex)
+    {
+        var layout = EnsureAndroidLayout(line);
+        if (layout == null) return -1;
+        try
+        {
+            float x = layout.GetPrimaryHorizontal(charIndex);
+            return x / PlatformDensity;
+        }
+        catch { return -1; }
+    }
+#endif
+
     /// <summary>走「整段前缀测量」的字符数上限 —— 再长就退回累加，免得为一条超长行分配整段字符串。</summary>
     private const int WholeMeasureMaxChars = 8192;
 
@@ -1235,6 +1369,10 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     public int CharIndexAtX(string line, float xInLine)
     {
         if (string.IsNullOrEmpty(line) || xInLine <= 0) return 0;
+
+        // 首选平台文本布局引擎：它与渲染同源，不存在「子串测量 ≠ 行内推进量」的换算误差
+        int platform = CharIndexAtXPlatform(line, xInLine);
+        if (platform >= 0) return platform;
 
         // 与 MeasurePrefixWidth 同源：**二分找「前缀宽度 ≤ x」的最大下标**。
         // 一次前缀测量就与绘制逐字对齐，不必再靠「近似字宽」推算；

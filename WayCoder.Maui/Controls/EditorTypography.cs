@@ -18,12 +18,29 @@ namespace WayCoder.Maui.Controls;
 /// </summary>
 internal static class EditorTypography
 {
-    /// <summary>画布与输入框共用的等宽字体名（按平台取，见类型注释）。</summary>
-    public const string FontFamilyName =
+    /// <summary>
+    /// **Controls 侧**（Entry / Label）用的字体别名 —— 即 MauiProgram 里 AddFont 注册的那个。
+    ///
+    /// 编辑器自带 Sarasa Mono SC：它中英文严格等宽，且**中文恰好占 1em = 拉丁的 2 倍**，
+    /// 与终端「中文算 2 列」的语义天然对齐。换掉系统 "monospace" 的原因是它没有中文字形，
+    /// 中文靠平台 fallback，而**测量与渲染两条路径 fallback 到的字体并不一致**
+    /// （实测同一条中文，测量 ≈9.8dp、渲染 ≈16.8dp），点击定位就会越往右越偏。
+    /// </summary>
+    public const string FontFamilyName = "SarasaMonoSC";
+
+    /// <summary>
+    /// **Graphics 侧**（`Font` / `Typeface` / `AttributedText` 的 run）用的字体名。
+    ///
+    /// 与 Controls 是**两套互不知情的解析器**：Android 走资产文件名，iOS 走 PostScript 名 ——
+    /// 写错不会抛异常，只会静默回落成平台默认字体，而回落的那份宽度与测量又对不上。
+    /// </summary>
+    public const string CanvasFontName =
 #if ANDROID
-        "monospace";
+        "SarasaMonoSC-Regular.ttf";
+#elif IOS
+        "SarasaMonoSC-Regular";
 #else
-        "Courier New";
+        "SarasaMonoSC";
 #endif
 
     /// <summary>字号（磅）。可在编辑器菜单里调（加大/缩小/重置），并持久化。</summary>
@@ -65,7 +82,7 @@ internal static class EditorTypography
     public const int MaxTokenizeChars = 4096;
 
     /// <summary>Graphics 侧的字体对象（Controls 侧用 <see cref="FontFamilyName"/> 字符串即可）。</summary>
-    public static readonly Microsoft.Maui.Graphics.Font CanvasFont = new(FontFamilyName);
+    public static readonly Microsoft.Maui.Graphics.Font CanvasFont = new(CanvasFontName);
 
     /// <summary>行号栏前景色。</summary>
     public static readonly Color GutterFg = Color.FromArgb("#8A8A8E");
