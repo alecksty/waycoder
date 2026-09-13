@@ -147,6 +147,71 @@ public static class SandboxFsService
     }
 
     /// <summary>写文本到沙箱内；encoding 非空按该编码写回（保真 GB18030/BOM），空则复用旧 BOM 保留策略。路径越界抛异常。</summary>
+    /// <summary>
+    /// 打开前的轻量探测：**只读头部 8KB** 判「是不是文本」、以及大致是什么编码。
+    ///
+    /// 之所以要单独有这个方法：旧实现在 FilesPage 里调 <c>ReadText</c>（= <c>File.ReadAllText</c>）
+    /// 做「二进制检测」，而它对**已存在的文件从不返回 null**（要么给出带替换符的字符串，要么抛异常）
+    /// —— 那段检测实际是死代码，代价却是打开任何文件都先全量读一遍，进编辑器再读第二遍。
+    /// </summary>
+    public static (bool IsText, string Reason, string EncodingName, long SizeBytes) ProbeText(string relPath)
+    {
+        var full = ResolveInSandbox(relPath);
+        if (full == null || !File.Exists(full)) return (false, "文件不存在", "", 0);
+
+        var info = new FileInfo(full);
+        if (info.Length == 0) return (true, "", "UTF-8", 0);
+
+        try
+        {
+            var probe = new byte[(int)Math.Min(8192, info.Length)];
+            using (var fs = new FileStream(full, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            {
+                int got = 0;
+                while (got < probe.Length)
+                {
+                    int n = fs.Read(probe, got, probe.Length - got);
+                    if (n <= 0) break;
+                    got += n;
+                }
+                if (got < probe.Length) Array.Resize(ref probe, got);
+            }
+
+            if (TextEncoding.IsBinaryContent(probe)) return (false, "二进制文件", "", info.Length);
+
+            var (_, bomName, bomEnc) = TextEncoding.MatchBom(probe);
+            var name = bomEnc != null ? bomName
+                : WayCoder.Infra.TextSourceFactory.IsValidUtf8Prefix(probe, 0) ? "UTF-8" : "GB18030";
+            return (true, "", name, info.Length);
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message, "", info.Length);
+        }
+    }
+
+    /// <summary>
+    /// 原子保存：先写同目录的 <c>.tmp</c> 再 rename 覆盖。
+    ///
+    /// 直接 <c>File.WriteAllText</c> 覆盖是「先截断再写」——写入中途崩溃/磁盘满，**原文件也没了**
+    /// （半截文件覆盖掉全量内容）。编辑器尤其吃这个亏：大文件的写入窗口很长。
+    /// 编码按打开时探测到的原样写回，避免把 GB18030 文件悄悄转成 UTF-8。
+    /// </summary>
+    public static void WriteTextAtomic(string relPath, string content, Encoding encoding, bool crlf)
+    {
+        var full = ResolveInSandbox(relPath) ?? throw new InvalidOperationException($"路径越界：{relPath}");
+        var parent = Path.GetDirectoryName(full);
+        if (!string.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
+
+        var text = crlf
+            ? content.Replace("\r\n", "\n").Replace("\n", "\r\n")
+            : content.Replace("\r\n", "\n");
+
+        var tmp = full + ".tmp";
+        TextEncoding.WriteFile(tmp, text, encoding);
+        File.Move(tmp, full, overwrite: true);
+    }
+
     public static void WriteText(string relPath, string content, Encoding? encoding = null)
     {
         var full = ResolveInSandbox(relPath) ?? throw new InvalidOperationException($"路径越界：{relPath}");

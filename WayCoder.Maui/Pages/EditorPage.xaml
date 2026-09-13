@@ -3,6 +3,7 @@
     x:Class="WayCoder.Maui.Pages.EditorPage"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:ctl="clr-namespace:WayCoder.Maui.Controls"
     Title="编辑器">
 
     <Grid RowDefinitions="Auto,Auto,*,Auto">
@@ -76,54 +77,44 @@
                 SemanticProperties.Hint="保存" />
         </Grid>
 
-        <!-- 编辑/预览区（触控软键盘）：
-             源码 = 透明文字 Editor 叠加高亮 Label（语法高亮「透明叠加」方案）。
-             Editor 文字透明、光标保留、不自动换行（横向滚动）；高亮 Label 同 FontFamily/FontSize
-             对齐、LineBreakMode=NoWrap + IsClippedToBounds 裁剪，横向滚动靠 EditText ScrollChanged
-             平移 TranslationX 同步（EditorPage.xaml.cs HandlerChanged 挂载）。
-             左侧行号栏与代码同处纵向 ScrollView → 纵向同步滚动，横向固定不随代码滚动。
-             markdown 文件点「预览」切换预览区（MarkdownPreview 渲染，表格等成块显示）。 -->
+        <!-- 内容区：自绘画布 + 浮动的单行输入 + Markdown 预览。
+             **所有行由 CodeCanvasView 自行绘制**（虚拟滚动，只画可见的几十行），
+             **只有光标所在行在编辑时**浮一个原生 Entry 叠在该行位置上 ——
+             这样 IME、软键盘、选区、系统复制粘贴全部复用平台能力，而渲染始终虚拟化。
+             每帧代价与文件大小无关，所以 100MB 也能打开、能滚（改造前是整份塞进原生 Editor）。 -->
         <Grid Grid.Row="2">
-            <ScrollView x:Name="EditorScroll" HorizontalScrollBarVisibility="Never">
-                <Grid ColumnDefinitions="Auto,*" VerticalOptions="Start">
-                    <Label
-                        x:Name="LineNumbers"
-                        FontFamily="Courier New"
-                        FontSize="14"
-                        Padding="8,7,4,6"
-                        HorizontalTextAlignment="End"
-                        VerticalOptions="Start"
-                        TextColor="{AppThemeBinding Light=#999999, Dark=#666666}"
-                        IsVisible="False" />
-                    <!-- 内容区：HighlightLayer 按内容高度驱动（Start），Editor 填满同高。
-                         不设 IsClippedToBounds——此前裁剪会把内容压到一行只显示首行（行号外层溢出却全显示）；
-                         横向裁剪交给外层 ScrollView 视口，横向滚动靠 EditorPage 的 TranslationX 平移同步。 -->
-                    <Grid Grid.Column="1" VerticalOptions="Start">
-                        <!-- 高亮层：LineBreakMode 不能用 NoWrap——它会让 FormattedString 里的 \n 不换行，
-                             内容并成一行只有首行可见（行号 Label 未设 NoWrap 所以正常分行）。
-                             宽度靠 UpdateHighlight 按最大行宽设的 WidthRequest 约束，长行不换行、\n 正常分行。 -->
-                        <Label
-                            x:Name="HighlightLayer"
-                            FontFamily="Courier New"
-                            FontSize="14"
-                            Padding="4,6"
-                            HorizontalOptions="Start"
-                            VerticalOptions="Start"
-                            IsVisible="False" />
-                        <Editor
-                            x:Name="CodeEditor"
-                            StyleId="code-editor"
-                            TextChanged="OnTextChanged"
-                            FontFamily="Courier New"
-                            FontSize="14"
-                            HorizontalOptions="Fill"
-                            VerticalOptions="Fill" />
-                    </Grid>
-                </Grid>
-            </ScrollView>
+            <ctl:CodeCanvasView x:Name="Canvas" />
+
+            <!-- 单行编辑框：字体/字号/内边距全部取自 EditorTypography（与画布同一份常量），
+                 否则切换编辑的瞬间两者会错位。垂直位置靠 TranslationY 对齐到当前行。 -->
+            <Entry
+                x:Name="LineEditor"
+                IsVisible="False"
+                VerticalOptions="Start"
+                HorizontalOptions="Fill"
+                ReturnType="Done"
+                Completed="OnLineEditorCompleted"
+                TextChanged="OnLineEditorTextChanged"
+                Unfocused="OnLineEditorUnfocused" />
+
             <ScrollView x:Name="PreviewScroll" IsVisible="False">
                 <VerticalStackLayout x:Name="PreviewContent" />
             </ScrollView>
+
+            <!-- 打开中遮罩：大文件要顺序扫一遍建行索引（100MB 在百毫秒~数秒级），
+                 这期间没有任何反馈的话，用户会以为是「没点到」或者「卡死了」。
+                 放在内容区最上层，盖住画布与输入框。 -->
+            <Grid x:Name="LoadingMask" IsVisible="False" BackgroundColor="#99000000">
+                <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="12">
+                    <ActivityIndicator IsRunning="True" Color="White" />
+                    <Label
+                        x:Name="LoadingText"
+                        Text="文件打开中…"
+                        TextColor="White"
+                        FontSize="14"
+                        HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Grid>
         </Grid>
 
         <!-- 状态栏：行列 / 字符数 / 修改标记 -->

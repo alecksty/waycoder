@@ -139,10 +139,15 @@ public partial class FilesPage : ContentPage
     private async Task OpenInEditorAsync(SandboxFsService.FsEntry entry)
     {
         var rel = SandboxFsService.ToRelative(entry.FullPath) ?? entry.Name;
-        // 二进制文件（ReadText 返回 null）提示，文本文件进入编辑器
-        if (SandboxFsService.ReadText(rel) == null)
+
+        // 只探头部 8KB 判「是不是文本」，**不要**先全量读一遍再交给编辑器读第二遍。
+        // 旧实现在这里调 ReadText（= File.ReadAllText），而它只对「不存在/路径越界」返回 null ——
+        // 对已存在的二进制文件从不返回 null，所以那段「二进制检测」其实是死代码，
+        // 代价是打开任何文件都要先全量读一次（大文件就是双倍 IO + 双倍峰值内存）。
+        var probe = SandboxFsService.ProbeText(rel);
+        if (!probe.IsText)
         {
-            await DisplayAlertAsync("无法打开", $"无法读取 {entry.Name}（可能是二进制文件）", "关闭");
+            await DisplayAlertAsync("无法打开", $"无法在编辑器中打开 {entry.Name}（{probe.Reason}）", "关闭");
             return;
         }
 

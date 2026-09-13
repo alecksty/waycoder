@@ -23,7 +23,9 @@ public static class TextEncoding
     /// 否则会被当成 UTF-16 LE、余下字节解出一堆 NUL/乱码。此前 <see cref="Decode"/> 有 UTF-32 分支
     /// 而 <see cref="Detect"/> **没有**，同一个 BOM 表写了两遍、只修了一处，正是「共享表没抽、两份各修」的典型：
     /// UTF-32 文件经 Detect 打开会乱码，经 Decode 打开却正常。</summary>
-    private static (int Length, string Name, System.Text.Encoding? Enc) MatchBom(ReadOnlySpan<byte> b)
+    /// public 供 <see cref="LargeTextFile"/> 复用：大文件只读头部采样判编码，
+    /// 不能为了探测把整份读进内存，但 BOM 表必须仍是这一份（抄第二份就是「同一张表两处各修」的老路）。
+    public static (int Length, string Name, System.Text.Encoding? Enc) MatchBom(ReadOnlySpan<byte> b)
     {
         if (b.Length >= 4 && b[0] == 0x00 && b[1] == 0x00 && b[2] == 0xFE && b[3] == 0xFF)
             return (4, "UTF-32 BE", new UTF32Encoding(bigEndian: true, byteOrderMark: true));

@@ -241,6 +241,9 @@ public static class MauiBootstrap
         //     McpCache 同步加载缓存工具，Agent 懒建时 ToolRegistry.AllTools 已含 MCP 工具。
         McpManager.Init();
 
+        // 9.5) 编辑器设置（只读阈值 / tab 宽度 / 调试 HUD）—— 必须在任何 EditorPage 打开前加载
+        try { Services.MauiEditorStore.Load(); } catch { }
+
         // 10) 恢复上次的工作/权限/经济模式（手机无快捷键，记住用户选择，下次直接生效）
         try
         {

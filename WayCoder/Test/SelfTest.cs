@@ -372,6 +372,8 @@ public static partial class SelfTest
 
         TestChunk20(Section, Check, Fail);
 
+        TestChunk21(Section, Check, Fail);
+
         // 清理 ConnectConfig 测试隔离
         ConnectionConfig.FilePathOverride = null;
         ConnectionConfig.ClearCache();
