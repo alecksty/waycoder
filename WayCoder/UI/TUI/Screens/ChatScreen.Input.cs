@@ -194,7 +194,7 @@ public partial class ChatScreen : TuiScreen
         _sidePanelStamp = stamp;
         RefreshSidePanel();
         SidePanel.Sections = SidePanelSections;
-        SidePanel.MarkDirty();   // 叶子控件不标脏，增量渲染这一帧就会跳过它
+        SidePanel.MarkDirty(); // 侧栏 OnRender 先擦后画 → 一次标脏即整块重绘
     }
 
     private string _sidePanelStamp = "";

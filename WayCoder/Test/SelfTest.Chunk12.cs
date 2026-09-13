@@ -577,6 +577,28 @@ public static partial class SelfTest
         }
         Console.WriteLine();
 
+        // ── 侧栏：内容变化后整块重绘 ──
+        Section("[侧栏 · 整块重绘]");
+        {
+            var sp = new TuiSidePanel { Width = 30, Height = 8, PanelVisible = true, BorderWidth = 1 };
+            sp.Sections = [new PanelSection { Title = "甲", Lines = ["一", "二", "三"] }];
+            var sbA = new StringBuilder();
+            sp.Render(sbA, 0, 0);
+
+            // 内容变少：若不清块，第二帧的「三」会留在屏上 —— 用户实测的「布局乱了」
+            sp.Sections = [new PanelSection { Title = "甲", Lines = ["一"] }];
+            var sbB = new StringBuilder();
+            sp.Render(sbB, 0, 0);
+
+            var fbSP = new FrameBuffer(8, 30);
+            fbSP.Apply(sbA.ToString());
+            fbSP.Apply(sbB.ToString());
+            var spLines = fbSP.Dump();
+            Check("侧栏：内容变少后旧行不残留（整块重绘）", !spLines.Any(l => l.Contains("三")));
+            Check("侧栏：新内容仍在", spLines.Any(l => l.Contains("一")));
+        }
+        Console.WriteLine();
+
         // ── 行内选择栏（权限确认/计划审批就地选择，不弹窗）──
         // 用「走真实屏幕路径」的方式测（mgr.PushScreen + screen.OnKey），不直接调 KeyHook ——
         // 直接调体会绕开 OnKey 的优先级编排（行内栏必须优先于建议面板/提示栏），测不出抢键失序。

@@ -682,7 +682,9 @@ public partial class ChatScreen : TuiScreen
         {
             SidePanel.Sections = SidePanelSections;
             if (FocusedWindow == null)
-                SidePanel.MarkDirty(); // 无弹窗才标脏重绘（弹窗在场侧栏被遮罩，且避免与弹窗渲染竞争）
+                // 标脏即可：TuiSidePanel.OnRender 现在是「先整块擦、再全量画」，
+                // 所以一次 MarkDirty 就等于整个侧栏重绘（一个分区高度变化会让后面全部位移）
+                SidePanel.MarkDirty();
         }
     }
 

@@ -52,6 +52,21 @@ public class TuiSidePanel : TuiBorderedControl
         int borderCol = absX;
         int contentX = absX + BorderWidth;
 
+        // ── 先整块擦掉整个面板 ──
+        // 侧栏是「**一个分区高度变化 → 后面所有分区整体位移**」的典型，而增量渲染只重绘
+        // 「自己标脏」的控件，被挪走位置的旧像素会留在屏上（错位 + 残影）。
+        // 每次重绘都先擦后画，配合调用方的 MarkTreeDirty（整棵子树标脏）才能彻底干净。
+        {
+            var clear = new RenderBuffer();
+            for (int r = 0; r < Height; r++)
+            {
+                int screenRow = absY + r;
+                if (screenRow < ClipTop || screenRow >= ClipBottom) continue;
+                clear.Write(screenRow, absX, new string(' ', Width), bg: bg);
+            }
+            sb.Append(clear.ToString());
+        }
+
         // ── 左边框竖线 ──
         for (int r = 0; r < Height; r++)
         {
