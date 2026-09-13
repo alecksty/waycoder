@@ -262,8 +262,15 @@ public static partial class SelfTest
                 cs3.Tokenize("f(x)").Any(t => t.Text == "f" && t.Color == Syntax.Function));
             Check("语法：类型名着色（首字母大写）",
                 cs3.Tokenize("var x = Foo;").Any(t => t.Text == "Foo" && t.Color == Syntax.TypeName));
-            Check("语法：普通标识符保持默认色（不整屏着色）",
-                cs3.Tokenize("var abc = 1;").Any(t => t.Text == "abc" && t.Color == Syntax.Default));
+            // 普通标识符给**明确的亮灰**而非 Default(0)：0 = 用终端默认前景，而暗色终端的
+            // 默认前景本身就偏暗，会和注释（238 暗灰）糊成一片 —— 用户实测「标识符和注释一样」
+            Check("语法：标识符与注释颜色分得开",
+                Syntax.Identifier != Syntax.Comment && Syntax.Identifier > Syntax.Comment);
+            Check("语法：普通标识符用亮灰（不是 Default）",
+                cs3.Tokenize("var abc = 1;").Any(t => t.Text == "abc" && t.Color == Syntax.Identifier));
+            // 纯文本仍不上色（连标识符色也不给）
+            Check("语法：纯文本的标识符不上色",
+                Syntax.ByLanguage("text").Tokenize("hello world").All(t => t.Color == Syntax.Default));
 
             // Windows 批处理：独立语言（注释是 REM/::，变量是 %VAR%，与 Shell 的 #/$VAR 两套）
             Check("语法：.bat 识别为批处理", Syntax.ForFile("run.bat").Name == Syntax.BatchName);

@@ -36,7 +36,9 @@ public class Syntax
     // 之前用标准 16 色（青/绿/黄/品红），在暗色终端里刺眼且层次差；256 色能取到柔和的中间调。
     public const int Keyword = 176;   // 紫   #c678dd —— 关键字 / 控制流
     public const int Str     = 114;   // 柔绿 #98c379 —— 字符串字面量
-    public const int Comment = 241;   // 暗灰 #5c6370 —— 注释
+    public const int Comment = 241;   // 暗灰 #5c6370 —— 注释（保持 One Dark 原值，仍清晰可读）
+    public const int Identifier = 253; // 亮灰 #dadada —— 普通标识符（变量/字段/参数）
+                                       // 与注释相差 12 级灰阶（241 vs 253），暗背景下对比明显
     public const int Key     = 210;   // 粉红 #e06c75 —— JSON/字典的键名
     public const int Number  = 173;   // 橙   #d19a66 —— 数字 / Markdown 标题标记
     public const int Type    = 75;    // 蓝   #61afef —— XML/HTML 标签、标题正文
@@ -299,7 +301,9 @@ public class Syntax
                 while (i < line.Length && (char.IsLetterOrDigit(line[i]) || line[i] == '_' || (allowDash && line[i] == '-')))
                     i++;
                 var word = line[start..i];
-                int wcolor = Default;
+                // 普通标识符给**明确的亮灰**而不是 Default(0)：0 表示「用终端默认前景」，
+                // 而暗色终端的默认前景本身就偏暗，会和注释（238 暗灰）糊成一片、分不出代码与注释。
+                int wcolor = HighlightSymbols ? Identifier : Default;
                 if (Keywords.Contains(word)) wcolor = Keyword;
                 else if (HighlightSymbols)
                 {
