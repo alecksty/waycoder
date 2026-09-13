@@ -467,8 +467,11 @@ public static class TuiMarkdown
     // ================================================================
 
     /// <summary>按视觉宽度折行。保留原始换行：`\n` 是行分隔符（先按行拆，再各自折行），
-    /// 否则多行消息会被当作一个长段落按宽度折，行数被压缩、条目高度不足 → 长内容显示不全/滚不动。</summary>
-    private static List<string> WrapText(string text, int maxVw)
+    /// 否则多行消息会被当作一个长段落按宽度折，行数被压缩、条目高度不足 → 长内容显示不全/滚不动。
+    ///
+    /// public 供 <c>ThinkDetail</c> 复用：纯文本分支（<c>AddContentLine</c>）本身**不折行**，
+    /// 长段落会被 <c>WriteAt</c> 的右侧裁剪成「…」——思考详情窗要的是能读的原文，必须自己先折好。</summary>
+    public static List<string> WrapText(string text, int maxVw)
     {
         var lines = new List<string>();
         if (string.IsNullOrEmpty(text)) { lines.Add(""); return lines; }

@@ -22,6 +22,11 @@ venv/
 key-apis.txt
 key*.txt
 
+# Android 签名私钥（自签名 keystore，本机持有即可，勿提交；
+# 团队要共用同一签名就删掉这两行、并把 keystore 一起纳入版本管理）
+*.keystore
+*.jks
+
 # WayCoder
 .corecoder_history
 

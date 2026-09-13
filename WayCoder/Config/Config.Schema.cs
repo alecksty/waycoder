@@ -495,6 +495,12 @@ public partial class Config
               c => c.MaxChatMessages.ToString(),
               (c, v) => c.MaxChatMessages = Math.Clamp(int.Parse(v), 100, 10_000), "1000"),
 
+            P("MaxChatLines",      null,                         null,
+              "聊天显示行数", "🔧 系统", "聊天区总行数上限（50~20000，0=不限制），超过自动丢最旧显示项到 80% 低水位（会话仍在、文件持久化，仅显示层裁剪保流畅）",
+              "number", null, 8,
+              c => c.MaxChatLines.ToString(),
+              (c, v) => c.MaxChatLines = Math.Clamp(int.Parse(v), 0, 20_000), "500"),
+
             P("MaxCodePreviewLines",null,                       null,
               "代码预览行数", "🔧 系统", "聊天代码块预览行数上限（10~1000），超过保留头尾中间折叠省略",
               "number", null, 8,

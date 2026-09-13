@@ -564,6 +564,7 @@ public class SettingsScreen : TuiScreen
         "WriteContentView"   => _config.WriteContentView ? "true" : "false",
         "MouseEnabled"       => _config.MouseEnabled ? "true" : "false",
         "MaxChatMessages"    => _config.MaxChatMessages.ToString(),
+        "MaxChatLines"       => _config.MaxChatLines.ToString(),
         "MaxCodePreviewLines" => _config.MaxCodePreviewLines.ToString(),
         "ToolTimeoutSec"     => _config.ToolTimeoutSec.ToString(),
         "LintTimeoutSec"     => _config.LintTimeoutSec.ToString(),
@@ -647,6 +648,7 @@ public class SettingsScreen : TuiScreen
             case "WriteContentView":   _config.WriteContentView = bool.TryParse(value, out var wcv) && wcv; break;
             case "MouseEnabled":       _config.MouseEnabled = bool.TryParse(value, out var me) && me; break;
             case "MaxChatMessages":    if (int.TryParse(value, out var mcm)) _config.MaxChatMessages = Math.Clamp(mcm, 100, 10_000); break;
+            case "MaxChatLines":       if (int.TryParse(value, out var maxLineVal)) _config.MaxChatLines = Math.Clamp(maxLineVal, 0, 20_000); break;
             case "MaxCodePreviewLines": if (int.TryParse(value, out var mcl)) _config.MaxCodePreviewLines = Math.Clamp(mcl, 10, 1000); break;
             case "ToolTimeoutSec":     if (int.TryParse(value, out var v3)) _config.ToolTimeoutSec = v3; break;
             case "LintTimeoutSec":     if (int.TryParse(value, out var v4)) _config.LintTimeoutSec = v4; break;

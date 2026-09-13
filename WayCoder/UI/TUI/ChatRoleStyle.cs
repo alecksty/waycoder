@@ -23,6 +23,7 @@ public static class ChatRoleStyle
         "assistant" or "agent" => "智能体",
         "system" => "系统",
         "tool" => "工具",
+        "think" => "思考",
         _ => role,
     };
 
@@ -33,6 +34,8 @@ public static class ChatRoleStyle
         "assistant" or "agent" => TuiTheme.Current.ChatAssistantFg,
         "system" => TuiTheme.Current.ChatSystemFg,
         "tool" => TuiTheme.Current.ChatToolFg,
+        // 思考折叠行：暗灰（与推理正文「淡色呈现」的语义一致，不抢正文的注意力）
+        "think" => TuiTheme.Current.ChatToolFg,
         _ => TuiTheme.Current.ControlFg,
     };
 
@@ -43,6 +46,7 @@ public static class ChatRoleStyle
         "assistant" or "agent" => TuiTheme.Current.IconAssistantFg,
         "system" => TuiTheme.Current.IconSystemFg,
         "tool" => TuiTheme.Current.IconToolFg,
+        "think" => TuiTheme.Current.IconToolFg,
         _ => TuiTheme.Current.ControlFg,
     };
 }

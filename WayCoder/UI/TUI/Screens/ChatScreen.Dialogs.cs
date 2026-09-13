@@ -30,6 +30,9 @@ public partial class ChatScreen : TuiScreen
     /// <summary>添加工具调用进度（嵌套子消息：工具输出归属在 assistant 消息下）。线程安全。</summary>
     public void AddToolProgress(string toolName, string brief)
     {
+        // 工具到来 = 思考块就地定稿（对齐 Web 的 onToolStart → endThink 兜底）
+        FoldThink();
+
         // 参数**完整显示**：超宽时在 FormatHeader 里折行，不再截断 ——
         // bash 命令、文件路径截掉尾巴就看不全了。可用宽 = 聊天区宽 - 6：
         // 条目内宽是 list-4（左右 padding 各 1 + 列表自身 2），再留 2 列余量防右缘贴边。

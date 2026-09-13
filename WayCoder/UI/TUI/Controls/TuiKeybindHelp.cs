@@ -81,6 +81,7 @@ public static class TuiKeybindHelp
             ("Ctrl+F", "搜索对话历史"),
             ("Ctrl+H", "打开本帮助面板"),
             ("Ctrl+W", "主题选择对话框（轮转主题用 /theme next）"),
+            ("Alt+T", "查看最近一条思考的全文（思考在聊天区折叠成一行，点它也可以）"),
         ]),
     ];
 

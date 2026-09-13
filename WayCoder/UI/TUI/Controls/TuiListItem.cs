@@ -57,6 +57,17 @@ public class TuiListItem : TuiVBox
     /// <summary>嵌套层级（0=顶层；>0 时作为子消息续接无角色头并左缩进）</summary>
     public int Indent { get; set; }
 
+    /// <summary>
+    /// 思考正文（仅 Role=="think" 的折叠行使用）。**不进 <see cref="MarkdownContent"/>** ——
+    /// 进了就会参与渲染，折叠的意义就没了。它只跟着条目走，供点击时弹详情窗口；
+    /// 带上它是为了让**非标记版 resize 路径**（<c>ChatScreen.CaptureChatItems</c> 按字段重建项）
+    /// 不会把正文弄丢。
+    /// </summary>
+    public string? DetailText { get; set; }
+
+    /// <summary>思考耗时（秒，Role=="think" 用）。0 = 未定稿/无正文。</summary>
+    public int ThinkingSeconds { get; set; }
+
     /// <summary>内容横向对齐（默认左对齐）</summary>
     public EHAlign ContentAlign { get; set; } = EHAlign.Left;
 

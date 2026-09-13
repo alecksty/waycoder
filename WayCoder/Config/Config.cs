@@ -239,6 +239,9 @@ public partial class Config
     /// <summary>聊天区显示消息总 token 上限：超过后自动丢弃最旧消息（按单条估算 token 累计）。
     /// 防止单条工具输出巨大时，即使条数未超限，显示层总内容仍过大导致渲染卡死。</summary>
     public int MaxChatTokens { get; set; } = 200_000;
+    /// <summary>聊天区**总行数**上限（0=不限制）：超过后自动丢最旧显示项到低水位。
+    /// 条数上限管不住「一条顶几百行」的消息，而列表布局/渲染/滚动的开销是按行数走的。</summary>
+    public int MaxChatLines { get; set; } = 500;
     /// <summary>聊天代码块预览行数上限：超过后保留头尾、中间折叠省略</summary>
     public int MaxCodePreviewLines { get; set; } = 500;
     public bool DesktopNotifications { get; set; } = false;

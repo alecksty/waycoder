@@ -3,6 +3,7 @@ using System.Text;
 using WayCoder.Tools;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui.Controls;
+using WayCoder.UI.Tui.Custom;
 using WayCoder.UI.Shared;
 using WayCoder.UI.TUI.Base;
 
@@ -193,6 +194,33 @@ public partial class ChatScreen : TuiScreen
 
     /// <summary>待另起的输出块是否走 shell 竖线样式（bash）</summary>
     private bool _pendingToolShell;
+
+    // ── 思考折叠（对齐 Web/MAUI：一行「💭 已思考 N 秒」，正文不进渲染层，点开看全文）──
+
+    /// <summary>思考流解析器：把 token 流按 «dim»…«/» 拆成思考/正文两路（规则单源见 ThinkStreamParser）。</summary>
+    private readonly ThinkStreamParser _thinkParser = new();
+
+    /// <summary>思考标题行（「💭 思考中 Ns」→ 定稿「💭 已思考 N 秒」）</summary>
+    private TuiListItem? _thinkTitleItem;
+
+    /// <summary>思考正文行（思考中实时滚动可见；定稿时整项从 ChatList 移除）</summary>
+    private TuiListItem? _thinkBodyItem;
+
+    /// <summary>思考消息（正文存 <see cref="ChatMsg.Reasoning"/>，供切槽位重建与点开查看）</summary>
+    private ChatMsg? _thinkMsg;
+
+    /// <summary>本次思考起点（TickCount64）</summary>
+    private long _thinkStartTicks;
+
+    /// <summary>已显示的整秒数（每整秒才改一次标题行，避免逐帧重解析）</summary>
+    private int _thinkShownSecs = -1;
+
+    /// <summary>
+    /// 本轮 assistant 正文项（**懒创建**）。
+    /// 用引用而非「ChatList 最后一项」：思考行会插在它前面，工具行会插在它后面，
+    /// 末项未必是正文项 —— 按末项追加会把答案写进「已思考 N 秒」那行。
+    /// </summary>
+    private TuiListItem? _streamItem;
 
     /// <summary>当前正在执行的工具名（null=无工具在执行），用于动态栏显示</summary>
     private string? _currentToolName;
@@ -589,6 +617,14 @@ public partial class ChatScreen : TuiScreen
     /// <summary>终端尺寸变化——重建完整布局，保留输入状态和全部聊天消息</summary>
     public override void OnResize(int newW, int newH)
     {
+        // 重建路径（手写版）会换掉 ChatList 里的全部项对象 ⇒ 思考就地定稿（正文收进 ChatMsg，仍可点开），
+        // 流式正文引用作废。标记版保留项对象（只 ResizeContent），故思考可继续、引用仍有效。
+        if (!BuildLayoutPreservesChatItems)
+        {
+            FoldThink();
+            _streamItem = null;
+        }
+
         var inputText = InputArea?.Text ?? "";
         int cursorRow = InputArea?.CursorRow ?? 0;
         int cursorCol = InputArea?.CursorCol ?? 0;
@@ -605,8 +641,12 @@ public partial class ChatScreen : TuiScreen
         // 恢复聊天消息：非保留路径走 AddMessage 重灌（自动处理续接/纯文本）；保留路径只按新宽重建项内容
         if (savedMessages != null)
         {
-            foreach (var (role, content, centered, indent, shellBlock) in savedMessages)
-                AddMessage(content, role, centered, indent, shellBlock);
+            foreach (var s in savedMessages)
+            {
+                // 思考行必须走 AddThinkMsg：它没有 MarkdownContent 正文，走 AddMessage 会退化成一条普通消息
+                if (s.Role == "think") AddThinkMsg(s.Content, s.DetailText, s.ThinkingSeconds);
+                else AddMessage(s.Content, s.Role, s.Centered, s.Indent, s.ShellBlock);
+            }
         }
         else if (BuildLayoutPreservesChatItems)
         {
@@ -633,16 +673,24 @@ public partial class ChatScreen : TuiScreen
         }
     }
 
-    /// <summary>捕获当前 ChatList 的消息数据（Role/Content/Centered/Indent/ShellBlock）。</summary>
-    private List<(string Role, string Content, bool Centered, int Indent, bool ShellBlock)>? CaptureChatItems()
+    /// <summary>resize 重灌时的聊天项快照（非标记版路径会重建全部项对象，
+    /// 思考正文不在 <see cref="TuiListItem.MarkdownContent"/> 里，必须单独带上，否则一改窗口大小就丢了）。</summary>
+    private readonly record struct ChatItemSnap(
+        string Role, string Content, bool Centered, int Indent, bool ShellBlock,
+        string? DetailText, int ThinkingSeconds);
+
+    /// <summary>捕获当前 ChatList 的消息数据（Role/Content/Centered/Indent/ShellBlock + 思考正文）。</summary>
+    private List<ChatItemSnap>? CaptureChatItems()
     {
         if (ChatList == null) return null;
-        var saved = new List<(string Role, string Content, bool Centered, int Indent, bool ShellBlock)>();
+        var saved = new List<ChatItemSnap>();
         for (int i = 0; i < ChatList.ItemCount; i++)
         {
             var item = ChatList.GetItem(i) as TuiListItem;
             if (item != null)
-                saved.Add((item.Role, item.MarkdownContent, item.ContentAlign == EHAlign.Center, item.Indent, item.IsShellBlock));
+                saved.Add(new ChatItemSnap(item.Role, item.MarkdownContent,
+                    item.ContentAlign == EHAlign.Center, item.Indent, item.IsShellBlock,
+                    item.DetailText, item.ThinkingSeconds));
         }
 
         return saved;
@@ -720,6 +768,40 @@ public partial class ChatScreen : TuiScreen
                 if (!string.IsNullOrWhiteSpace(text))
                     OnSubmit?.Invoke(text);
             };
+        // 聊天项左键激活（两个 BuildLayout 共用此处接线，否则手写版与标记版漂移）
+        if (ChatList != null)
+            ChatList.OnItemActivated = OnChatItemActivated;
+    }
+
+    /// <summary>
+    /// 聊天项被点击：只有「已定稿且有正文」的思考行打开详情窗，其余项不响应。
+    /// 无论是否弹窗都要清掉选中态 —— 点击会把它设为 SelectedIndex，而
+    /// <c>TuiListView.OnRender</c> 会把选中项强行滚进视野，与聊天的自动跟底打架
+    /// （表现为「点一下思考行，视口跳到别处」）。
+    /// </summary>
+    public void OnChatItemActivated(int index)
+    {
+        var item = ChatList.GetItem(index) as TuiListItem;
+        ChatList.SelectedIndex = -1;
+        ChatList.MarkDirty();
+        if (item is not { Role: "think" }) return;
+        if (string.IsNullOrEmpty(item.DetailText)) return; // 没有正文的思考行（或还在思考中）不弹窗
+        ThinkDetail.Show(this, item.DetailText, item.ThinkingSeconds);
+    }
+
+    /// <summary>打开最近一条「已定稿且有正文」的思考的详情窗（Alt+T）。无此消息时返回 false。</summary>
+    public bool ShowLastThinkDetail()
+    {
+        for (int i = ChatList.ItemCount - 1; i >= 0; i--)
+        {
+            if (ChatList.GetItem(i) is TuiListItem { Role: "think" } item
+                && !string.IsNullOrEmpty(item.DetailText))
+            {
+                ThinkDetail.Show(this, item.DetailText, item.ThinkingSeconds);
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>
@@ -956,7 +1038,8 @@ public partial class ChatScreen : TuiScreen
     {
         int max = Config.Instance.MaxChatMessages;
         int maxTokens = Config.Instance.MaxChatTokens;
-        if (max <= 0 && maxTokens <= 0) return;
+        int maxLines = Config.Instance.MaxChatLines;
+        if (max <= 0 && maxTokens <= 0 && maxLines <= 0) return;
 
         // 条数超限：丢最旧的**显示项**。
         // ⚠ 不能顺手删 ChatMessages —— 那是槽位的消息列表（会话保存与切槽位重放的来源），
@@ -991,6 +1074,27 @@ public partial class ChatScreen : TuiScreen
             }
         }
 
+        // 行数超限：丢最旧显示项到**低水位**（80%）。
+        // 用低水位而非「刚超就删一条」：每次删项都要 ReLayout 整表（O(n) 重算所有项坐标），
+        // 逐条删的代价比不裁还高；滞回后每加几十条才动一次。
+        // 判据是 ChatList.ContentHeight（ReLayout 维护的内容总行数，含项间距）—— 按行数而非条数，
+        // 才管得住「一条消息顶几百行」（条数上限 1000 对此无感）。
+        // **流式进行中跳过**：那时删项会把用户正在读的内容整段抽走（最后一项就是流式项，
+        // 删到只剩它 = 历史全清），而流式本身有单条字符上限兜着，不会失控。
+        if (maxLines > 0 && ChatList.Height > 0
+            && !(ChatMessages.Count > 0 && ChatMessages[^1].Streaming))
+        {
+            int lowWater = Math.Max(1, maxLines * 4 / 5);
+            while (ChatList.ItemCount > 1 && ChatList.ContentHeight > lowWater)
+            {
+                int removedH = (ChatList.GetItem(0)?.Height ?? 0) + ChatList.ItemSpacing;
+                ChatList.RemoveItem(0);
+                // 最旧项上方的内容被抽走：偏移不减会让视口整体跳位（TuiListView 不自动钳制）
+                if (ChatList.ScrollOffset > 0)
+                    ChatList.ScrollOffset = Math.Max(0, ChatList.ScrollOffset - removedH);
+            }
+        }
+
         // 裁剪后滚动偏移可能越界（最旧项被删），钳制到有效范围
         if (ChatList.ScrollOffset > 0)
             ChatList.ClampScroll();
@@ -1017,6 +1121,8 @@ public partial class ChatScreen : TuiScreen
 
         var last = ChatList.GetItem(ChatList.ItemCount - 1) as TuiListItem;
         if (last == null) return;
+        // 思考行是折叠产物，不接受流式追加（工具输出落到它上面会把「已思考 N 秒」撑成一大块）
+        if (last.Role == "think") return;
 
         // 检测错误输出，自动切换为红色
         if (last.IsPlainText && !last.Body.IsError && IsErrorOutput(delta))
@@ -1118,6 +1224,10 @@ public partial class ChatScreen : TuiScreen
     /// <summary>清空聊天</summary>
     public virtual void ClearChat()
     {
+        // 先清思考状态：ClearItems 会把所有项脱离控件树，留着引用的话下一轮 token 会写进孤儿对象
+        _thinkParser.Reset();
+        ResetThinkState();
+        _streamItem = null;
         ChatList.ClearItems();
     }
 
@@ -1172,16 +1282,19 @@ public partial class ChatScreen : TuiScreen
         {
             var msg = new ChatMsg { Role = "assistant", Content = "", Streaming = true };
             ChatMessages.Add(msg);
-            // 在 ChatList 中添加空白占位项
-            var item = new TuiListItem("assistant", "", ChatList.Width - 2);
-            item.SetTime(DateTime.Now);
-            ChatList.AddItem(item);
+            // 不建占位项：正文项由首个可见正文片段懒创建（见 AppendToStreamItem）。
+            // 这样它天然排在思考行**之后** —— 先建空占位项的话，思考行会插在它下面，
+            // 而思考结束后的正文又追加进这项，屏幕上就成了「正文在思考行上方」。
+            _streamItem = null;
         }
 
         MarkDirty();
     }
 
-    /// <summary>追加 token 到流式消息。线程安全：可从后台线程调用。</summary>
+    /// <summary>
+    /// 追加 token 到流式消息。线程安全：可从后台线程调用。
+    /// 经 <see cref="ThinkStreamParser"/> 分流：「推理」片段进思考块（定稿后折叠成一行），其余进正文。
+    /// </summary>
     public void AppendToken(string delta)
     {
         lock (_chatLock)
@@ -1189,9 +1302,201 @@ public partial class ChatScreen : TuiScreen
             if (ChatMessages.Count == 0) return;
             var last = ChatMessages[^1];
             if (!last.Streaming) return;
-            last.Content = CapMessageContent(last.Content, delta); // 单条上限防撑爆
-            AppendToLast(delta);
+            _thinkParser.Feed(delta,
+                onBody: AppendToStreamItem,
+                onThink: AppendToThinkItem,
+                onThinkStart: StartThinkBlock,
+                onThinkEnd: () => FoldThink(resetParser: false));
         }
+    }
+
+    /// <summary>
+    /// 追加正文片段（<see cref="AppendToken"/> 的正文路）。纯空白片段只进 ChatMsg、
+    /// 不进渲染层 —— 对齐 Web 的 <c>isBlankText</c>：思考收尾那口 <c>"\n"</c> 不该在思考行下面留个空泡。
+    /// </summary>
+    private void AppendToStreamItem(string piece)
+    {
+        if (ChatMessages.Count > 0 && ChatMessages[^1].Role == "assistant")
+            ChatMessages[^1].Content = CapMessageContent(ChatMessages[^1].Content, piece);
+
+        if (!VisibleText.HasVisible(piece)) return;
+
+        // 引用失效（resize 重建 / 清空 / 切会话后控件已脱离树）时重建一项，等价于旧行为（每次取末项）
+        if (_streamItem == null || _streamItem.Parent == null)
+        {
+            _streamItem = new TuiListItem("assistant", "", ChatList.Width - 2);
+            _streamItem.SetTime(DateTime.Now);
+            ChatList.AddItem(_streamItem);
+        }
+        _streamItem.AppendContent(piece);
+        QueueStreamLayout();
+    }
+
+    /// <summary>追加思考片段（<see cref="AppendToken"/> 的思考路）：正文只进内存与该行，定稿时整行移除。</summary>
+    private void AppendToThinkItem(string piece)
+    {
+        if (_thinkMsg == null) return;
+        _thinkMsg.Reasoning = CapMessageContent(_thinkMsg.Reasoning ?? "", piece);
+        _thinkBodyItem?.AppendContent(piece);
+        QueueStreamLayout();
+    }
+
+    /// <summary>
+    /// 思考块开始：建标题行 + 正文行，并把思考消息插到流式 assistant 消息**之前**。
+    /// </summary>
+    private void StartThinkBlock()
+    {
+        // 防御：上一块若没正常收尾（异常/中断），先收干净，避免两块并存。
+        // ⚠ 必须 resetParser: false —— 这个回调是解析器**刚把深度置 1 之后**才发的，
+        // 顺手 Reset 一下就把「正在思考」抹平了，紧随其后的整段推理会被判成正文。
+        FoldThink(resetParser: false);
+        // 上一轮工具的输出块语义就地收尾：该标志由 AddToolProgress 置位、只被 AppendToLast 消费，
+        // 而 read_file/grep 这类工具根本不发 onToolOutput ⇒ 它会一直挂着。改造后正文走
+        // AppendToStreamItem（不再经 AppendToLast），所以它此刻误伤不到正文；这行是**显式收尾**，
+        // 免得将来正文路径改回去时又踩「下一轮首个 token 被当成工具输出另起一条 tool 消息」。
+        _pendingToolBody = false;
+        _streamItem = null;       // 冻结当前正文段：思考后的正文另起一项，位置才对（否则会追加到思考行上方那项里）
+
+        _thinkStartTicks = Environment.TickCount64;
+        _thinkShownSecs = -1;
+
+        var msg = new ChatMsg { Role = "think", Content = "💭 思考中 0s", Indent = 1 };
+        // 必须插在流式 assistant 消息之前：AppendToken 依赖 ChatMessages[^1] 是流式 assistant，
+        // 把它 Add 到末尾会让后续 token 被静默丢弃
+        ChatMessages.Insert(Math.Max(0, ChatMessages.Count - 1), msg);
+        _thinkMsg = msg;
+
+        _thinkTitleItem = AddThinkItem("💭 思考中 0s");
+        _thinkBodyItem = AddThinkItem("");
+    }
+
+    /// <summary>建一条思考相关列表项（无角色头 + 缩进，与工具子消息同层级）。
+    /// 正文/标题都按「纯文本 + 解析 «» 标记」渲染（推理是原始文本，走 Markdown 解析既慢又会被符号带偏）。</summary>
+    private TuiListItem AddThinkItem(string content)
+    {
+        var item = new TuiListItem("think", content, ChatList.Width - 2,
+            continuation: true, isPlainText: true) { Indent = 1 };
+        ChatList.AddItem(item);
+        return item;
+    }
+
+    /// <summary>
+    /// 思考定稿折叠：正文行从聊天区**移除**（正文只留在内存与 ChatMsg 里，点开详情窗看），
+    /// 标题行改写「💭 已思考 N 秒」。整块没有任何推理内容时连标题行一起撤掉（不留空痕迹）。
+    /// </summary>
+    /// <param name="resetParser">是否复位解析器。自然收尾（«/» 层数归零）传 false；
+    /// 异常兜底传 true —— 否则解析器仍以为在思考中，下次 <c>«dim»</c> 不会再触发「思考开始」。</param>
+    public void FoldThink(bool resetParser = true)
+    {
+        if (resetParser) _thinkParser.Reset();
+
+        var title = _thinkTitleItem;
+        var body = _thinkBodyItem;
+        var msg = _thinkMsg;
+        ResetThinkState();
+        if (title == null && body == null) return;
+
+        int secs = Math.Max(1, (int)Math.Round((Environment.TickCount64 - _thinkStartTicks) / 1000.0));
+        string? reasoning = msg?.Reasoning;
+        bool hasBody = !string.IsNullOrWhiteSpace(reasoning);
+        if (msg != null) msg.ThinkingSeconds = secs;
+
+        // 正文行按**引用**定位后移除 —— 不能缓存索引：清空/切槽位/resize 都会换掉 ChatList 里的控件对象
+        if (body != null)
+        {
+            int idx = IndexOfChatItem(body);
+            if (idx >= 0)
+            {
+                int removedH = body.Height + ChatList.ItemSpacing;
+                ChatList.RemoveItem(idx);
+                // 删除后其后的项整体上移：偏移不减会让视口跳位或露出空白（TuiListView 不自动钳制）
+                if (ChatList.IsAutoScrollToEnd) ChatList.ScrollToBottom();
+                else
+                {
+                    ChatList.ScrollOffset = Math.Max(0, ChatList.ScrollOffset - removedH);
+                    ChatList.ClampScroll();
+                }
+            }
+        }
+
+        int titleIdx = title == null ? -1 : IndexOfChatItem(title);
+        if (titleIdx >= 0 && hasBody && title != null)
+        {
+            title.MarkdownContent = $"💭 已思考 {secs} 秒";
+            title.ThinkingSeconds = secs;
+            title.DetailText = reasoning;
+            title.Body.Content = title.MarkdownContent;
+            title.Body.Invalidate();
+            title.ReLayout();
+            title.MarkDirty();
+            if (msg != null) msg.Content = title.MarkdownContent;
+        }
+        else if (titleIdx >= 0)
+        {
+            // 整块没有推理内容（模型直接出正文）：撤掉标题行，不占屏
+            ChatList.RemoveItem(titleIdx);
+            if (msg != null)
+            {
+                int mi = ChatMessages.IndexOf(msg);
+                if (mi >= 0) ChatMessages.RemoveAt(mi);
+            }
+        }
+
+        ChatList.MarkTreeDirty(); // 定稿删除会让后续项位移，必须整棵标脏（窄路径只适用于末尾追加）
+        _scrollToBottomPending = ChatList.IsAutoScrollToEnd;
+    }
+
+    /// <summary>清空思考块的四个引用（不碰 ChatList，供清表/重建路径复用）。</summary>
+    private void ResetThinkState()
+    {
+        _thinkTitleItem = null;
+        _thinkBodyItem = null;
+        _thinkMsg = null;
+        _thinkShownSecs = -1;
+    }
+
+    /// <summary>按**引用**在聊天列表里定位项（-1 = 已不在列表）。</summary>
+    private int IndexOfChatItem(TuiListItem item)
+    {
+        for (int i = 0; i < ChatList.ItemCount; i++)
+            if (ReferenceEquals(ChatList.GetItem(i), item)) return i;
+        return -1;
+    }
+
+    /// <summary>
+    /// 思考标题行的秒数刷新（每帧调用）：只在整秒变化时改，且只脏这一行 ——
+    /// 不引入定时器（Agent 执行期渲染循环本身约 30ms 一帧），也不动正文行。
+    /// 刻意**不**走 <see cref="QueueStreamLayout"/>：那会把滚动拽回底部，用户上翻看历史时每秒被拽一次。
+    /// </summary>
+    private void SyncThinkTitle()
+    {
+        if (_thinkTitleItem == null || _thinkMsg == null) return;
+        int secs = Math.Max(1, (int)Math.Round((Environment.TickCount64 - _thinkStartTicks) / 1000.0));
+        if (secs == _thinkShownSecs) return;
+        _thinkShownSecs = secs;
+
+        var text = $"💭 思考中 {secs}s";
+        _thinkMsg.Content = text;
+        _thinkTitleItem.MarkdownContent = text;
+        _thinkTitleItem.Body.Content = text;
+        _thinkTitleItem.Body.Invalidate();
+        _thinkTitleItem.Body.EnsureParsed();
+        _thinkTitleItem.ReLayout();
+        // 标题行恒为 1 行高，其后各项不会位移 ⇒ 内容级脏窄路径安全（只擦这一行，不整片重绘）
+        int idx = IndexOfChatItem(_thinkTitleItem);
+        if (idx >= 0) ChatList.MarkItemContentDirty(idx);
+        else _thinkTitleItem.MarkDirty();
+    }
+
+    /// <summary>
+    /// 重建一条**已定稿**的思考行（槽位切换 / 会话重放 / 终端 resize 重灌）。
+    /// 只重建「💭 已思考 N 秒」这一行，正文留给详情窗 —— 与实时路径定稿后的形态一致。
+    /// </summary>
+    public void AddThinkMsg(string content, string? reasoning, int seconds)
+    {
+        var item = AddThinkItem(content);
+        item.DetailText = reasoning;
+        item.ThinkingSeconds = seconds;
     }
 
     /// <summary>单条流式消息内容截断：超过 <see cref="Global.MaxSingleMessageChars"/> 保留尾部窗口 + 滚动标记，
@@ -1227,6 +1532,9 @@ public partial class ChatScreen : TuiScreen
             last.Streaming = false;
         }
 
+        // 本轮结束：思考块若还开着（被中断 / 模型只思考没出正文）就地定稿，
+        // 否则正文行会永远挂在聊天区里，`«/»` 也再不会到来
+        FoldThink();
         MarkDirty();
     }
 
@@ -1371,6 +1679,9 @@ public partial class ChatScreen : TuiScreen
 
         // ── 输入框上下横线随前缀变色（/ 命令 青 · ! shell 红 · @ 品红 · # 灰）──
         SyncInputBorderColor();
+
+        // ── 思考标题秒数刷新（整秒才改，只脏标题那一行）──
+        SyncThinkTitle();
 
         // ── 流式 flush：先解析本帧待处理的流式追加（合并 delta），再布局（高度正确）──
         FlushStreamingLayout();

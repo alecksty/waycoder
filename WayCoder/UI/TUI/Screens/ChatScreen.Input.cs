@@ -1129,6 +1129,22 @@ public partial class ChatScreen : TuiScreen
     /// </summary>
     private bool HandleGlobalShortcut(ConsoleKeyInfo key, bool ctrl, bool shift)
     {
+        // ── Alt 组合键 ──
+        // xterm 系终端对 Alt+字母发 ESC+字符，InputManager.TryParseEscapeSequence 会带 Alt 修饰键返回。
+        // 用 Alt 是因为纯 Ctrl 字母位已经被占满（Ctrl+N 换 connect、Ctrl+O 交换大小模型）。
+        if ((key.Modifiers & ConsoleModifiers.Alt) != 0)
+        {
+            switch (key.Key)
+            {
+                // Alt+T：看最近一条思考的详情。思考在聊天区折叠成一行（鼠标点它也能开），
+                // 这是键盘路径的入口 —— 列表的 Enter/↑↓ 都被输入框与提交占了，走不到 TuiListView。
+                case ConsoleKey.T:
+                    if (!ShowLastThinkDetail())
+                        ShowToast("没有可查看的思考内容", 1500);
+                    return true;
+            }
+        }
+
         // ── Ctrl 组合键 ──
         if (ctrl)
         {

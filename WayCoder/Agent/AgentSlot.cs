@@ -42,6 +42,12 @@ public class AgentSlot
     public List<string> RecentFiles { get; } = [];
     public bool SidePanelVisible;
 
+    // ── 思考折叠（与 ChatScreen 同构）。非活跃槽位的 token 不进控件树，只落到 ChatMsg：
+    //    思考定稿后正文留在 ChatMsg.Reasoning（切回来点开可看），渲染层只留一行「💭 已思考 N 秒」。──
+    private readonly ThinkStreamParser _thinkParser = new();
+    private ChatMsg? _thinkMsg;
+    private long _thinkStartTicks;
+
     /// <summary>该槽位的工作目录（独立于其他槽位；Agent cd 后持久化，下次任务从该目录开始）。null=进程启动目录。</summary>
     public string? WorkingDirectory { get; set; }
 
@@ -92,17 +98,69 @@ public class AgentSlot
     /// <summary>缓冲：开始一段 Agent 流式回复（占位消息）。</summary>
     public void BufferedStartStream()
     {
+        FoldThinkBuffered(); // 上一轮若没收尾，先定稿，避免两条思考消息并存
         ChatMessages.Add(new ChatMsg { Role = "assistant", Content = "", Streaming = true });
         PruneBuffered();
     }
 
-    /// <summary>缓冲：追加 token 到流式消息（无流式消息则自动新建）。</summary>
+    /// <summary>缓冲：追加 token 到流式消息（无流式消息则自动新建）。
+    /// 经解析器分流 —— 与活跃槽位同一套规则（否则切回来正文里躺着裸 «dim»/«/»）。</summary>
     public void BufferedAppendToken(string delta)
     {
         if (ChatMessages.Count == 0 || !ChatMessages[^1].Streaming)
             ChatMessages.Add(new ChatMsg { Role = "assistant", Content = "", Streaming = true });
-        var last = ChatMessages[^1];
-        last.Content = CapSingleMessage(last.Content, delta); // 单条上限防撑爆
+
+        _thinkParser.Feed(delta,
+            onBody: AppendToStreamBuffered,
+            onThink: AppendToThinkBuffered,
+            onThinkStart: StartThinkBuffered,
+            onThinkEnd: () => FoldThinkBuffered());
+    }
+
+    /// <summary>缓冲：正文片段落到流式 assistant 消息。</summary>
+    private void AppendToStreamBuffered(string piece)
+    {
+        if (ChatMessages.Count == 0 || !ChatMessages[^1].Streaming) return;
+        ChatMessages[^1].Content = CapSingleMessage(ChatMessages[^1].Content, piece);
+    }
+
+    /// <summary>缓冲：思考片段只进 ChatMsg.Reasoning（渲染层切回来时才有一行标题）。</summary>
+    private void AppendToThinkBuffered(string piece)
+    {
+        if (_thinkMsg == null) return;
+        _thinkMsg.Reasoning = CapSingleMessage(_thinkMsg.Reasoning ?? "", piece);
+    }
+
+    /// <summary>缓冲：思考块开始 —— 思考消息插到流式 assistant 消息**之前**（与 ChatScreen 同一约定）。</summary>
+    private void StartThinkBuffered()
+    {
+        // resetParser: false —— 本回调由解析器在深度置 1 之后发出，Reset 会把「正在思考」抹平
+        FoldThinkBuffered(resetParser: false);
+        var msg = new ChatMsg { Role = "think", Content = "💭 思考中 0s", Indent = 1 };
+        ChatMessages.Insert(Math.Max(0, ChatMessages.Count - 1), msg);
+        _thinkMsg = msg;
+        _thinkStartTicks = Environment.TickCount64;
+    }
+
+    /// <summary>缓冲：思考定稿 —— 改写标题 + 记耗时；整块没有推理内容则直接撤掉这条消息。</summary>
+    /// <param name="resetParser">是否复位解析器（见 <see cref="ChatScreen.FoldThink"/> 同名参数：
+    /// 从「思考开始」回调里调时必须传 false）。</param>
+    private void FoldThinkBuffered(bool resetParser = true)
+    {
+        if (resetParser) _thinkParser.Reset();
+        var msg = _thinkMsg;
+        _thinkMsg = null;
+        if (msg == null) return;
+
+        if (string.IsNullOrWhiteSpace(msg.Reasoning))
+        {
+            ChatMessages.Remove(msg);
+            return;
+        }
+
+        int secs = Math.Max(1, (int)Math.Round((Environment.TickCount64 - _thinkStartTicks) / 1000.0));
+        msg.Content = $"💭 已思考 {secs} 秒";
+        msg.ThinkingSeconds = secs;
     }
 
     /// <summary>缓冲：结束 Agent 流式回复。</summary>
@@ -110,6 +168,7 @@ public class AgentSlot
     {
         if (ChatMessages.Count == 0) return;
         ChatMessages[^1].Streaming = false;
+        FoldThinkBuffered(); // 本轮结束：被中断/只思考没出正文时也要定稿
     }
 
     /// <summary>缓冲：追加文本到最后一条消息（工具流式输出）。</summary>
@@ -117,12 +176,14 @@ public class AgentSlot
     {
         if (ChatMessages.Count == 0) return;
         var last = ChatMessages[^1];
+        if (last.Role == "think") return; // 思考行是折叠产物，不接受流式追加（与 ChatScreen.AppendToLast 同规则）
         last.Content = CapSingleMessage(last.Content, delta);
     }
 
     /// <summary>缓冲：追加一条普通消息（system/tool 等）。indent&gt;0 为嵌套子消息。</summary>
     public void BufferedAddMsg(string role, string content, int indent = 0)
     {
+        FoldThinkBuffered(); // 工具/系统消息到来 = 思考就地定稿（对齐 ChatScreen.AddToolProgress）
         ChatMessages.Add(new ChatMsg { Role = role, Content = content, Indent = indent });
         PruneBuffered();
     }
@@ -154,6 +215,9 @@ public class AgentSlot
     /// </summary>
     public void SaveFrom(ChatScreen screen)
     {
+        // 切走前把正在进行的思考就地定稿：行内标题还停在「💭 思考中 0s」的话，
+        // 切回来重建出的就是一条永远显示「思考中」的死行。
+        screen.FoldThink();
         ChatMessages.Clear();
         ChatMessages.AddRange(screen.ChatMessages);
         InputText = screen.InputArea.Text;
@@ -176,9 +240,14 @@ public class AgentSlot
         screen.ChatMessages.Clear();
         screen.ChatMessages.AddRange(ChatMessages);
 
-        // 重建聊天列表项；ShellBlock 持久化在 ChatMsg，重放时一并传递（bash 竖线 gutter 不丢）
+        // 重建聊天列表项；ShellBlock 持久化在 ChatMsg，重放时一并传递（bash 竖线 gutter 不丢）。
+        // 思考行走 AddThinkMsg：它重建的是「已思考 N 秒」一行（正文留在 Reasoning 里点开可看），
+        // 走 AddMessage 会退化成一条普通消息。
         foreach (var msg in ChatMessages)
-            screen.AddMessage(msg.Content, msg.Role, msg.Centered, msg.Indent, msg.ShellBlock);
+        {
+            if (msg.Role == "think") screen.AddThinkMsg(msg.Content, msg.Reasoning, msg.ThinkingSeconds);
+            else screen.AddMessage(msg.Content, msg.Role, msg.Centered, msg.Indent, msg.ShellBlock);
+        }
 
         // 恢复输入状态
         screen.InputArea.Text = InputText;

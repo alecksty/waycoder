@@ -1,0 +1,16 @@
+<!-- 思考详情 —— 配合 ThinkDetail code-behind。
+     聊天流里思考只留一行「💭 已思考 N 秒」，正文（可能上万字符）不参与渲染与布局；
+     点开那一行才在这里滚动查看（对齐 Web 的思考浮层 / MAUI 的 ReasoningDetailPage）。
+     正文控件由 code-behind 创建后 Add 进 thinkScroll（与 settings.tui 同一模式：
+     标记声明结构，内容由代码填）。 -->
+<Dialog title="思考详情" border="solid" borderColor="info" mask="true"
+        minWidth="40" minHeight="8" width="80" height="20"
+        gradient="true" gradientStart="#00e6ff" gradientEnd="#0064dc">
+  <VBox id="body" spacing="1">
+    <!-- flex=1：正文吃掉按钮行以外的全部高度（漏了它 ScrollView 会塌成 1 行，只显示第一行正文） -->
+    <ScrollView id="thinkScroll" flex="1" autoScroll="false" />
+    <HBox align="center" spacing="2">
+      <Button id="btnClose" text="关闭(Esc)" />
+    </HBox>
+  </VBox>
+</Dialog>

@@ -1,0 +1,67 @@
+# 聊天区满行数下的追加与翻页 —— 「填满 500 条后继续加、上下翻会不会卡」
+#
+# 用法：waycoder --keypad Test/scripts/chat_perf.txt
+#
+# 判读要点：
+#   ① FILL:600 之后 FILL 逐条走真实 AddMessage→PruneChatHistory，
+#      行数应被 MaxChatLines(500) 钳在低水位 400 行上下（看 SNAP 的实际消息条数）；
+#   ② FRAMES 的 rows 应只落在聊天区行段内（不该出现标题栏第 1 行、状态栏末行）：
+#      出现即「有东西把整屏拖进了重绘」；
+#   ③ 稳态帧（没有新内容）字节数应很小 —— 只有动态栏 spinner 直写 + 输入区光标；
+#   ④ SCROLL 帧的字节数应只与一屏聊天区相当，且**不随会话变长而增长**（这正是要守的性质）。
+#
+# 注：脚本命令**不支持行尾注释**（整行会被当参数解析），注释一律单独成行。
+
+FILL:500
+FILL:500
+SNAP:满行数
+FRAMES:6
+
+SCROLL:down
+SCROLL:down
+SCROLL:down
+SCROLL:down
+FRAMES:6
+
+SCROLL:up
+SCROLL:up
+FRAMES:6
+SNAP:上翻后
+
+SCROLL:down
+SCROLL:down
+SCROLL:down
+SCROLL:down
+SCROLL:down
+SCROLL:down
+FRAMES:6
+
+STREAM:追加一条新消息，看满行数下继续追加的帧开销
+FRAMES:6
+STREAM:再来一条
+FRAMES:6
+SNAP:追加后
+
+# ── 思考折叠：真实 token 序列（\n 是脚本里的转义，会被还原成换行）──
+# 判读：思考中应出现「💭 思考中 Ns」标题行 + 正文行（正文实时可见）；
+#       «/» 之后正文行整行消失，只剩「💭 已思考 N 秒」一行 —— 这就是折叠的收益。
+STREAM:\n«dim»
+STREAM:先看用户的问题，这是个关于折叠的验证
+STREAM:，推理内容不该留在滚动区里占行数。
+FRAMES:3
+SNAP:思考中
+STREAM:推理收尾。
+STREAM:«/»\n
+FRAMES:3
+SNAP:思考折叠后
+
+# 打开思考详情窗的两条入口：鼠标点那一行（左键）与 Alt+T（键盘）
+# 判读：窗口里应是**按窗口宽折好行的推理原文**（不是被裁成「…」的半句），标题为「已思考 N 秒」。
+MOUSE:5,14
+FRAMES:3
+SNAP:点击思考行
+KEY:Escape
+FRAMES:2
+KEY:ALT+T
+FRAMES:3
+SNAP:思考详情窗
