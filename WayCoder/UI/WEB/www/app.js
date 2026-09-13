@@ -1868,6 +1868,15 @@ function highlightCode(code, lang) {
       else out += escapeHtml(word);
       i = j; continue;
     }
+    // 运算符（连续同类合并：== != => && 各算一段）—— 与主工程 Syntax.Operator 对齐
+    if ('+-*/%=!<>&|^~?'.indexOf(c) >= 0) {
+      let j = i; while (j < n && '+-*/%=!<>&|^~?'.indexOf(code[j]) >= 0) j++;
+      out += '<span class="tok-op">' + escapeHtml(code.slice(i, j)) + '</span>'; i = j; continue;
+    }
+    // 括号与标点 —— 与主工程 Syntax.Bracket 对齐
+    if ('()[]{}.,;:'.indexOf(c) >= 0) {
+      out += '<span class="tok-paren">' + escapeHtml(c) + '</span>'; i++; continue;
+    }
     out += escapeHtml(c); i++;
   }
   return out;

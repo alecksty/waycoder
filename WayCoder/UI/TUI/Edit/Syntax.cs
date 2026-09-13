@@ -10,6 +10,12 @@ public class Syntax
     public string Name { get; init; } = "";
     public HashSet<string> Keywords { get; init; } = [];
 
+    /// <summary>
+    /// 是否给运算符/括号/标点上色。**纯文本（Plain）为 false** —— 否则散文里的破折号、括号、
+    /// 冒号会整篇变色，比不上色还难看；代码语言一律开。
+    /// </summary>
+    public bool HighlightSymbols { get; init; } = true;
+
     /// <summary>该语言用 # 作单行注释（Python/Shell/Ruby/YAML/PHP）</summary>
     public bool HashComments => Name is "Python" or "Shell" or "Ruby" or "YAML" or "PHP" or GenericName;
 
@@ -28,6 +34,8 @@ public class Syntax
     public const int Key     = 210;   // 粉红 #e06c75 —— JSON/字典的键名
     public const int Number  = 173;   // 橙   #d19a66 —— 数字 / Markdown 标题标记
     public const int Type    = 75;    // 蓝   #61afef —— XML/HTML 标签、标题正文
+    public const int Operator = 73;   // 青   #5fafaf —— 运算符 = == != < > + - * / && || =>
+    public const int Bracket  = 145;  // 蓝灰 #afafaf —— 括号 () [] {} 与标点 , ; : .
 
     // 旧颜色名（兼容保留，值已指向上面的语义色；新代码请用语义名）
     public const int Cyan = Type;
@@ -130,6 +138,10 @@ public class Syntax
 
         return null;
     }
+
+    /// <summary>运算符字符 —— 连续同类合并成一段（`=>` 是一个 token 而不是两个）</summary>
+    private static bool IsOperatorChar(char c)
+        => c is '+' or '-' or '*' or '/' or '%' or '=' or '!' or '<' or '>' or '&' or '|' or '^' or '~' or '?';
 
     /// <summary>将一行文本拆分为 (text, ansiColor) 的 token 序列</summary>
     public List<(string Text, int Color)> Tokenize(string line)
@@ -242,6 +254,23 @@ public class Syntax
                     i++;
                 var word = line[start..i];
                 tokens.Add((word, Keywords.Contains(word) ? Keyword : Default));
+                continue;
+            }
+
+            // 运算符（连续同类合并成一段：`==` `!=` `->` `&&` `=>` 各算一个 token）
+            if (HighlightSymbols && IsOperatorChar(line[i]))
+            {
+                var os = i;
+                while (i < line.Length && IsOperatorChar(line[i])) i++;
+                tokens.Add((line[os..i], Operator));
+                continue;
+            }
+
+            // 括号与标点
+            if (HighlightSymbols && line[i] is '(' or ')' or '[' or ']' or '{' or '}' or ',' or ';' or ':')
+            {
+                tokens.Add((line[i].ToString(), Bracket));
+                i++;
                 continue;
             }
 
@@ -529,6 +558,7 @@ public class Syntax
     {
         Name = "纯文本",
         Keywords = [],
+        HighlightSymbols = false, // 散文里的括号/破折号不该变成代码色
     };
 
     /// <summary>

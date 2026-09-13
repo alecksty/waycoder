@@ -240,6 +240,23 @@ public static partial class SelfTest
             Check("代码块语言 ```C# 大小写不敏感", Syntax.ByLanguage("C#").Name == "C#");
             Check("不认识的标签走通用表（而非整块白）", Syntax.ByLanguage("brainfuck").Name == Syntax.GenericName);
             Check("```text 显式纯文本仍不上色", Syntax.ByLanguage("text").Name == "纯文本");
+
+            // 运算符与括号标点也上色（此前只有关键字/字符串/注释/数字）
+            var symSyn = Syntax.ForFile("a.cs");
+            Check("语法：运算符着色",
+                symSyn.Tokenize("a = b + c;").Any(t => t.Text == "=" && t.Color == Syntax.Operator));
+            Check("语法：多字符运算符合并成一段",
+                symSyn.Tokenize("x != y").Any(t => t.Text == "!=" && t.Color == Syntax.Operator));
+            Check("语法：括号着色",
+                symSyn.Tokenize("f(x)").Any(t => t.Text == "(" && t.Color == Syntax.Bracket));
+            Check("语法：逗号分号着色",
+                symSyn.Tokenize("a, b;").Any(t => t.Text == "," && t.Color == Syntax.Bracket));
+            // 纯文本不色符号：散文里的括号、破折号、冒号不该变成代码色
+            Check("语法：纯文本不着色符号",
+                !Syntax.ByLanguage("text").Tokenize("a - b (c)").Any(t => t.Color == Syntax.Operator));
+            // 通用兜底（无语言标签的代码块）仍要色符号
+            Check("语法：通用表也色符号",
+                Syntax.Generic().Tokenize("a = (b)").Any(t => t.Color == Syntax.Operator));
             var noTag = UI.Tui.TuiMarkdown.RenderMessage("```\npublic class A { return null; }\n```", "assistant", 80);
             Check("无语言标签代码块：关键字仍上色（通用表兜底）",
                 noTag.SelectMany(l => l).Any(s => s.Fg == Syntax.Keyword));
