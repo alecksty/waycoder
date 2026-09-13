@@ -342,6 +342,20 @@ public static partial class SelfTest
             Check("子智能体计数：空闲时为 0", initial == 0);
             Check("动态栏右段：子智能体数 >0 时产出 🤖N", shown);
             Check("动态栏右段：子智能体数 =0 时不占位", hiddenWhenZero);
+
+            // 右对齐：末项右端贴住控件右边缘（absX + Width - 1）
+            var db2 = new TuiDynamicBar { Width = 100 };
+            db2.CpuPercent = 12;
+            db2.TokenDisplay = "🔤大12K 小3K";
+            db2.CostDisplay = "¥0.42";
+            var items2 = db2.BuildRightItems(0, 50);
+            int lastEnd = items2[^1].Col + AnsiHelper.DisplayWidth(items2[^1].Text) - 1;
+            Check("动态栏右段：末项贴右边缘（右对齐）", lastEnd == 99);
+
+            // 几何：左段压到 1/5、中段吃掉剩余（工具命令优先放得下）
+            var geo2 = db2.ComputeGeometry(0, 100);
+            Check("动态栏几何：中段明显宽于左段", geo2.MidWidth > 100 / 5);
+            Check("动态栏几何：右段贴右边缘", items2.Count > 0 && geo2.RightItems.Count > 0);
         }
         Console.WriteLine();
 

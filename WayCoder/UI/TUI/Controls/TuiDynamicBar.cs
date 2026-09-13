@@ -87,29 +87,26 @@ public class TuiDynamicBar : TuiDisplayControl
         //    token/花费/上下文——此前任何一个数字变一下就要整行重画。
         if (_barWidth > 0)
         {
-            int midStart = _barAbsX + _barWidth / 3;
-            int rightStart = _barAbsX + _barWidth * 2 / 3;
-            int rightEnd = _barAbsX + _barWidth - 1; // 与 BuildRightItems 的右段终点一致
+            var geo = ComputeGeometry(_barAbsX, _barWidth);
+            int rightEnd = _barAbsX + _barWidth - 1;
 
-            var left = BuildLeftSegment();
-            if (!string.Equals(left, _lastLeft, StringComparison.Ordinal))
+            if (!string.Equals(geo.Left, _lastLeft, StringComparison.Ordinal))
             {
-                WriteSegment(sb, _spinnerY, _barAbsX + 3, midStart - (_barAbsX + 3), left, LeftTextFg());
-                _lastLeft = left;
+                WriteSegment(sb, _spinnerY, _barAbsX + 3, geo.MidStart - (_barAbsX + 3), geo.Left, LeftTextFg());
+                _lastLeft = geo.Left;
             }
 
-            var middle = BuildMiddleSegment();
-            if (!string.Equals(middle, _lastMiddle, StringComparison.Ordinal))
+            if (!string.Equals(geo.Middle, _lastMiddle, StringComparison.Ordinal))
             {
-                WriteSegment(sb, _spinnerY, midStart + 2, rightStart - (midStart + 2), middle, AnsiColors.Grey);
-                _lastMiddle = middle;
+                WriteSegment(sb, _spinnerY, geo.MidStart + 2, geo.MidWidth, geo.Middle, AnsiColors.Grey);
+                _lastMiddle = geo.Middle;
             }
 
-            var rightItems = BuildRightItems(_barAbsX, rightStart + 2);
-            var rightSig = RightSignature(rightItems);
+            var rightSig = RightSignature(geo.RightItems);
             if (!string.Equals(rightSig, _lastRight, StringComparison.Ordinal))
             {
-                WriteRightSegment(sb, _spinnerY, rightItems, rightStart + 2, rightEnd);
+                if (geo.RightItems.Count > 0)
+                    WriteRightSegment(sb, _spinnerY, geo.RightItems, geo.RightItems[0].Col, rightEnd);
                 _lastRight = rightSig;
             }
         }
@@ -294,8 +291,8 @@ public class TuiDynamicBar : TuiDisplayControl
 
         int left = Math.Max(absX, ClipLeft);
         int right = Math.Min(absX + Width, ClipRight);
-        int midStart = absX + Width / 3;
-        int rightStart = absX + Width * 2 / 3;
+        var geo = ComputeGeometry(absX, Width);
+        int midStart = geo.MidStart;
 
         // 本帧要「整行重写」还是「只补变化的区段」：
         //   ① 首帧 / 全屏重绘 / 切屏（清屏后段缓存坐标已失效）；
@@ -321,9 +318,9 @@ public class TuiDynamicBar : TuiDisplayControl
         };
 
         // 本帧三段内容（写入与比对同源，不会漂移）
-        var leftStr = BuildLeftSegment();
-        var toolDisplay = BuildMiddleSegment();
-        var rightItems = BuildRightItems(absX, rightStart + 2);
+        var leftStr = geo.Left;
+        var toolDisplay = geo.Middle;
+        var rightItems = geo.RightItems;
         var rightSig = RightSignature(rightItems);
 
         if (!wholeRow)
@@ -343,12 +340,13 @@ public class TuiDynamicBar : TuiDisplayControl
             }                        // 会认为「还没写」把同一段再写一遍（同帧重复写）
             if (!string.Equals(toolDisplay, _lastMiddle, StringComparison.Ordinal))
             {
-                WriteSegment(patch, absY, midStart + 2, rightStart - (midStart + 2), toolDisplay, AnsiColors.Grey);
+                WriteSegment(patch, absY, midStart + 2, geo.MidWidth, toolDisplay, AnsiColors.Grey);
                 _lastMiddle = toolDisplay;
             }
             if (!string.Equals(rightSig, _lastRight, StringComparison.Ordinal))
             {
-                WriteRightSegment(patch, absY, rightItems, rightStart + 2, absX + Width - 1);
+                if (rightItems.Count > 0)
+                    WriteRightSegment(patch, absY, rightItems, rightItems[0].Col, absX + Width - 1);
                 _lastRight = rightSig;
             }
             sb.Append(patch.ToString());
@@ -426,19 +424,45 @@ public class TuiDynamicBar : TuiDisplayControl
     }
 
     /// <summary>左段最终写入文本（按左段可用宽度截断）。</summary>
-    private string BuildLeftSegment()
+    private string BuildLeftSegment(int maxWidth)
     {
-        int leftWidth = Math.Min(AnsiHelper.DisplayWidth(BuildLeftRaw()), Width / 3 - 3);
-        return leftWidth > 0 ? AnsiHelper.TruncateByWidth(BuildLeftRaw(), leftWidth) : "";
+        var raw = BuildLeftRaw();
+        int w = Math.Min(AnsiHelper.DisplayWidth(raw), Math.Max(0, maxWidth));
+        return w > 0 ? AnsiHelper.TruncateByWidth(raw, w) : "";
     }
 
-    /// <summary>中段最终写入文本（工具/任务，按中段宽度截断）。</summary>
-    private string BuildMiddleSegment()
+    /// <summary>中段最终写入文本（工具/任务，按中段宽度截断）。宽度由几何函数给 —— 中段要尽可能宽，
+    /// 放的是 bash 命令这类长文本，固定 1/3 根本不够。</summary>
+    private string BuildMiddleSegment(int midWidth)
     {
         var t = ToolText;
-        int midWidth = Width / 3 - 4;
         if (string.IsNullOrEmpty(t) || midWidth <= 0) return "";
         return AnsiHelper.DisplayWidth(t) > midWidth ? AnsiHelper.TruncateByWidth(t, midWidth) : t;
+    }
+
+    /// <summary>
+    /// 三段几何 —— OnRender（整行/段渲染）与 RenderDirect（直写）**共用这一份**。
+    /// 两边各算一份的后果：直写位置与整行渲染位置对不上，表现为内容串位／闪烁。
+    ///
+    /// 布局：左段只要放得下状态文字（「思考中」「等待确认」），压到 1/5；
+    /// 中段放工具命令（常很长），吃掉剩余全部宽度；右段按内容宽度**右对齐**贴右边缘，不占固定比例。
+    /// </summary>
+    internal (int MidStart, int MidWidth, List<(int Col, string Text, int Fg)> RightItems, string Left, string Middle)
+        ComputeGeometry(int absX, int width)
+    {
+        int leftMaxW = Math.Max(8, width / 5 - 3);
+        var left = BuildLeftSegment(leftMaxW);
+        int midStart = absX + 3 + AnsiHelper.DisplayWidth(left) + 1;
+
+        // 右段最低只占到「一半宽」：再往左就把中段的工具命令压没了。
+        // 这一条只依赖 width 与 midStart（不依赖中段宽度），所以不存在循环依赖。
+        int rightMinCol = Math.Max(absX + width / 2 + 2, midStart + 10);
+        var rightItems = BuildRightItems(absX, rightMinCol);
+
+        int midRight = rightItems.Count > 0 ? rightItems[0].Col - 2 : absX + width - 1;
+        int midWidth = Math.Max(6, midRight - midStart - 1);
+        var middle = BuildMiddleSegment(midWidth);
+        return (midStart, midWidth, rightItems, left, middle);
     }
 
     /// <summary>左段颜色（Error 红，其余橙）。</summary>
@@ -504,16 +528,17 @@ public class TuiDynamicBar : TuiDisplayControl
     /// <summary>构建右段各指标（列、文本、前景色）。internal 供自测直接断言 ——
     /// 活跃屏幕上内容变化走**段级直写**（直接写终端、不进 LastCleanFrame），
     /// 帧快照断言看不到它，只能从产出侧验。</summary>
-    internal List<(int Col, string Text, int Fg)> BuildRightItems(int absX, int startCol)
+    internal List<(int Col, string Text, int Fg)> BuildRightItems(int absX, int minCol)
     {
-        var items = new List<(int, string, int)>();
-        int col = startCol;
+        var items = new List<(int Col, string Text, int Fg)>();
+        int col = minCol;
+        int rightEnd = absX + Width - 1;
 
-        // ── 进度条（压缩中）──
+        // ── 进度条（压缩中）── 这一档要占满可用宽度，从左起排，不参与右对齐
         if (ProgressPercent.HasValue)
         {
             var pct = ProgressPercent.Value;
-            int barW = Math.Min(14, Width - (col - absX) - 4);
+            int barW = Math.Min(14, rightEnd - col - 3);
             if (barW > 0)
             {
                 int filled = Math.Clamp((int)Math.Round(barW * pct / 100.0), 0, barW);
@@ -526,62 +551,58 @@ public class TuiDynamicBar : TuiDisplayControl
             return items;
         }
 
-        // ── 进度标签 ──
+        // ── 进度标签 ── 同上，左起
         if (!string.IsNullOrEmpty(ProgressLabel))
         {
             var label = ProgressLabel;
-            int maxW = Width - (col - absX);
+            int maxW = rightEnd - col + 1;
             if (AnsiHelper.DisplayWidth(label) > maxW)
                 label = AnsiHelper.TruncateByWidth(label, maxW);
             items.Add((col, label, AnsiColors.BrightBlack));
             return items;
         }
 
-        // ── 常驻指标流（空闲/思考/工具态均显示，绿→黄→红）──
-        // 右段空间有限（约 1/3 宽）：信息多时靠后的项（🔤/¥）丢最靠前的（📦 已省略，
-        // 上下文 token 量用 📊 占比表达，不重复）。宽度保护防溢出到分隔线。
-        int rightEnd = absX + Width - 1;
-        bool HasRoom(int extra) => col + extra <= rightEnd;
-
-        // 子智能体数（🤖）：只在有子智能体跑时显示，放最前 —— 靠后的项有 HasRoom 保护，
-        // 放前面能保证「正在并行干活」这个信息不被挤掉
-        if (SubAgentCount > 0 && HasRoom(5))
-        {
-            var subStr = $"🤖{SubAgentCount}";
-            items.Add((col, subStr, AnsiColors.Cyan));
-            col += AnsiHelper.DisplayWidth(subStr) + 1;
-        }
-        if (ContextPercent.HasValue && HasRoom(7))
+        // ── 常驻指标流：**右对齐**（紧贴右边缘）──
+        // 内容宽度不定，左起排会在右边留一块空白；右对齐后终端窗户变宽也只是左边空隙变大。
+        // 优先级按数组顺序（靠前的优先保留）：放不下的丢后面的（与原先 HasRoom 的语义一致）。
+        var metrics = new List<(string Text, int Fg)>();
+        if (SubAgentCount > 0)
+            metrics.Add(($"🤖{SubAgentCount}", AnsiColors.Cyan));
+        if (ContextPercent.HasValue)
         {
             var pct = ContextPercent.Value;
-            var fg = pct switch { < 30 => AnsiColors.Green, < 70 => AnsiColors.Yellow, _ => AnsiColors.Red };
-            var ctxStr = $"📊{pct,3:F0}%"; // 紧凑：去空格
-            items.Add((col, ctxStr, fg));
-            col += AnsiHelper.DisplayWidth(ctxStr) + 1;
+            metrics.Add(($"📊{pct,3:F0}%",
+                pct switch { < 30 => AnsiColors.Green, < 70 => AnsiColors.Yellow, _ => AnsiColors.Red }));
         }
-        // CPU 占用%（⚡ 前缀区分；阈值 <50 绿 <70 黄 ≥70 红）
-        if (CpuPercent.HasValue && HasRoom(6))
+        if (CpuPercent.HasValue)
         {
             var cp = CpuPercent.Value;
-            var fg = cp switch { < 50 => AnsiColors.Green, < 70 => AnsiColors.Yellow, _ => AnsiColors.Red };
-            var s = $"⚡{cp,3:F0}%"; // 紧凑：去空格
-            items.Add((col, s, fg));
-            col += AnsiHelper.DisplayWidth(s) + 1;
+            metrics.Add(($"⚡{cp,3:F0}%",
+                cp switch { < 50 => AnsiColors.Green, < 70 => AnsiColors.Yellow, _ => AnsiColors.Red }));
         }
-        // token 消耗（🔤）：剩余宽度不足时截断
-        if (!string.IsNullOrEmpty(TokenDisplay) && col < rightEnd)
-        {
-            var td = TokenDisplay;
-            int avail = rightEnd - col;
-            if (AnsiHelper.DisplayWidth(td) > avail)
-                td = AnsiHelper.TruncateByWidth(td, avail);
-            items.Add((col, td, AnsiColors.Grey));
-            col += AnsiHelper.DisplayWidth(td) + 1;
-        }
-        // 花费（¥）
-        if (!string.IsNullOrEmpty(CostDisplay) && HasRoom(7))
-            items.Add((col, CostDisplay, AnsiColors.Yellow));
+        if (!string.IsNullOrEmpty(TokenDisplay))
+            metrics.Add((TokenDisplay, AnsiColors.Grey));
+        if (!string.IsNullOrEmpty(CostDisplay))
+            metrics.Add((CostDisplay, AnsiColors.Yellow));
 
+        foreach (var (text, fg) in metrics)
+        {
+            int w = AnsiHelper.DisplayWidth(text);
+            if (col + w - 1 > rightEnd) break; // 放不下 → 丢掉这一项及更靠后的
+            items.Add((col, text, fg));
+            col += w + 1;
+        }
+
+        // 整体右移到贴边：逐项列号平移同一个量，项间距不变
+        if (items.Count > 0)
+        {
+            int lastW = AnsiHelper.DisplayWidth(items[^1].Text);
+            int shift = rightEnd - (items[^1].Col + lastW - 1);
+            if (shift > 0)
+                for (int i = 0; i < items.Count; i++)
+                    items[i] = (items[i].Col + shift, items[i].Text, items[i].Fg);
+        }
         return items;
     }
+
 }
