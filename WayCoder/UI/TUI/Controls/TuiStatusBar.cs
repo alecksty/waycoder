@@ -119,15 +119,20 @@ public class TuiStatusBar : TuiDisplayControl
             : absX + Width;
 
         // 4. 中间：路径信息（cwd + 分支），缺省回退快捷键提示
+        //    **居中**显示 —— 左槽位条与右 Token 都不动，路径在两者之间的剩余区间里居中；
+        //    区间不足时按「保尾部」截断（路径要保住项目名，不能保头）。
         var midText = !string.IsNullOrEmpty(PathText) ? PathText : HintText;
         if (!string.IsNullOrEmpty(midText))
         {
-            col += 2;
-            int avail = rightCol - col;
-            if (avail > 0)
-                midText = TruncateTailByWidth(midText, avail);
-            ControlRenderer.WriteGradientTextAt(sb, row, col, midText,
-                dimFg, gs, ge, absX, Width);
+            int midLeft = col + 2;              // 槽位条之后留 2 列
+            int midAvail = rightCol - midLeft;
+            if (midAvail > 0)
+            {
+                midText = TruncateTailByWidth(midText, midAvail);
+                int midCol = midLeft + Math.Max(0, (midAvail - AnsiHelper.DisplayWidth(midText)) / 2);
+                ControlRenderer.WriteGradientTextAt(sb, row, midCol, midText,
+                    dimFg, gs, ge, absX, Width);
+            }
         }
 
         // 5. 右侧渲染
