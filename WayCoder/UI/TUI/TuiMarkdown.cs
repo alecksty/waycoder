@@ -533,7 +533,10 @@ public static class TuiMarkdown
     private static Syntax GetSyntax(string lang, string code)
     {
         if (string.IsNullOrWhiteSpace(lang))
-            return Syntax.Detect(code) ?? Syntax.ByLanguage("");
+            // 没写语言标签：先按内容启发式认，认不出就用**通用关键词表**兜底。
+            // 不要退回 Plain —— 它的关键字表是空的，整块只剩字符串/注释有色、关键字全白，
+            // 用户看到的就是「代码块没有语法高亮」（AI 回复的代码块经常不带标签）。
+            return Syntax.Detect(code) ?? Syntax.Generic();
 
         var syntax = Syntax.ByLanguage(lang);
         // 语言标签可能是文件名（test.cs / foo.py / main.rs），规范名不认识时按扩展名判断

@@ -11,10 +11,13 @@ public class Syntax
     public HashSet<string> Keywords { get; init; } = [];
 
     /// <summary>该语言用 # 作单行注释（Python/Shell/Ruby/YAML/PHP）</summary>
-    public bool HashComments => Name is "Python" or "Shell" or "Ruby" or "YAML" or "PHP";
+    public bool HashComments => Name is "Python" or "Shell" or "Ruby" or "YAML" or "PHP" or GenericName;
 
     /// <summary>该语言用 // 作单行注释（C 系语言）</summary>
-    public bool SlashComments => Name is "C#" or "JavaScript" or "Java" or "C/C++" or "Go" or "Rust" or "Swift" or "Kotlin" or "PHP" or "Vue";
+    public bool SlashComments => Name is "C#" or "JavaScript" or "Java" or "C/C++" or "Go" or "Rust" or "Swift" or "Kotlin" or "PHP" or "Vue" or GenericName;
+
+    /// <summary>通用兜底语言的名字（<see cref="Generic"/>）—— 注释识别要认它</summary>
+    internal const string GenericName = "通用";
 
     // ── 代码配色（256 色，对标 One Dark / Crush(glamour) 的暗色主题）──
     // 语义名优先：调色只动这一处，调用点按「这是什么」引用，不再出现「Cyan 其实是紫色」这种名不符实。
@@ -47,18 +50,19 @@ public class Syntax
     /// <summary>根据语言名选择语法定义（用于代码块高亮）</summary>
     public static Syntax ByLanguage(string lang) => (lang.ToLowerInvariant()) switch
     {
-        "csharp" or "cs" => CSharp(),
-        "javascript" or "js" => JavaScript(),
+        // 别名按「模型/用户实际会写的标签」补 —— 例如 ```c# 很常见，原先不在表里会整块落到 Plain()
+        "csharp" or "cs" or "c#" => CSharp(),
+        "javascript" or "js" or "jsx" => JavaScript(),
         "typescript" or "ts" or "tsx" => JavaScript(),
-        "python" or "py" => Python(),
+        "python" or "py" or "python3" => Python(),
         "go" or "golang" => Go(),
         "rust" or "rs" => Rust(),
         "java" => Java(),
-        "c" or "cpp" or "c++" or "h" => Cpp(),
+        "c" or "cpp" or "c++" or "h" or "hpp" or "cc" => Cpp(),
         "json" => Json(),
-        "xml" or "html" or "svg" => Xml(),
+        "xml" or "html" or "svg" or "htm" => Xml(),
         "markdown" or "md" => Markdown(),
-        "shell" or "sh" or "bash" or "zsh" => Shell(),
+        "shell" or "sh" or "bash" or "zsh" or "console" or "shell-session" => Shell(),
         "yaml" or "yml" => Yaml(),
         "sql" => Sql(),
         "css" or "scss" => Css(),
@@ -67,7 +71,9 @@ public class Syntax
         "swift" => Swift(),
         "kotlin" or "kt" or "kts" => Kotlin(),
         "vue" => Vue(),
-        _ => Plain(),
+        // 显式声明是纯文本/日志 → 保持不上色（模型说了这是文本，别硬套关键字）
+        "text" or "txt" or "plain" or "plaintext" or "log" or "output" => Plain(),
+        _ => Generic(), // 不认识的语言标签 → 通用关键词表兜底，总好过整块白
     };
 
     /// <summary>根据文件扩展名选择语法定义</summary>
@@ -523,5 +529,38 @@ public class Syntax
     {
         Name = "纯文本",
         Keywords = [],
+    };
+
+    /// <summary>
+    /// 通用兜底 —— 语言标签不认识、或压根没写标签且启发式没认出来时用。
+    ///
+    /// 为什么不退回 <see cref="Plain"/>：Plain 的关键字表是**空的** ⇒ 整块代码只有字符串/注释/数字
+    /// 有色、关键字一片白，看起来就是「根本没高亮」（AI 回复的代码块**经常不带语言标签**，
+    /// 保守的 <see cref="Detect"/> 又认不出小块片段）。
+    ///
+    /// 词表刻意**剔掉** in / is / as / and / or / not / from / do / end / then 这类英文常用词 ——
+    /// 留下的都是几乎只出现在代码里的词，散文/日志/表格因此基本不会被误上色。
+    /// </summary>
+    public static Syntax Generic() => new()
+    {
+        Name = GenericName,
+        Keywords =
+        [
+            // 声明 / 修饰
+            "public", "private", "protected", "internal", "static", "final", "const", "let", "var",
+            "readonly", "virtual", "override", "abstract", "sealed", "async", "await", "yield",
+            "export", "default", "namespace", "using", "import", "include", "require", "package", "module",
+            // 类型 / 结构
+            "class", "struct", "interface", "enum", "record", "type", "def", "func", "function",
+            "lambda", "template", "typename", "extends", "implements", "new", "this", "self", "super",
+            // 控制流
+            "if", "else", "elif", "switch", "case", "break", "continue", "return", "goto",
+            "for", "while", "foreach", "loop", "match", "when", "try", "catch", "except", "finally",
+            "throw", "raise", "assert", "defer", "panic", "recover",
+            // 字面量
+            "null", "nil", "none", "true", "false", "undefined", "void",
+            // 常见入口
+            "print", "println", "echo", "printf", "console", "main",
+        ],
     };
 }
