@@ -68,6 +68,22 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// </summary>
     private float _wideCharWidth = 16f;
 
+    /// <summary>最近一次绘制用的画布 —— 仅供缓存未命中时补测字宽（量宽不依赖画布状态）。</summary>
+    private ICanvas? _measureCanvas;
+
+    /// <summary>诊断：画布实际类型 + 用它量一个字符的原始结果（两者都是 0 说明这个 canvas 不支持测量）。</summary>
+    public string MeasureProbe { get; private set; } = "?";
+
+    /// <summary>字宽是**首次绘制时**才测出来的，而页面打开时状态栏就已经刷过一次 —— 不补一次通知，状态栏会永远停在「测量前的值」。</summary>
+    private bool _measuredNotified;
+
+    /// <summary>
+    /// 最近一次绘制用的画布尺寸。滚动条的几何必须**与绘制同源** ——
+    /// <see cref="VisualElement.Height"/> 在绘制之外读到的值与绘制时用的不一定相同（时机差），
+    /// 两个尺寸各算一次就会「看到的滑块」和「点得中的滑块」错位，甚至画到屏幕外。
+    /// </summary>
+    private float _drawW, _drawH;
+
     /// <summary>
     /// 逐码点的实测宽度缓存（只收集非 ASCII）。
     ///
@@ -117,7 +133,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         StartInteraction += OnStart;
         DragInteraction += OnDrag;
         EndInteraction += OnEnd;
-        CancelInteraction += (_, _) => { _dragging = false; _longPress = false; };
+        CancelInteraction += (_, _) => { _dragging = false; _longPress = false; _dragBar = Bar.None; };
     }
 
     // ── 外部设置 ──
@@ -202,7 +218,6 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     {
         if (_doc == null) return 0;
         float viewW = Math.Max(40f, (float)Width - GutterWidth() - EditorTypography.TextLeftPad);
-        float charW = Math.Max(1f, _charWidth);
 
         long first = Math.Max(0, (long)_firstLine - 1);
         long last = Math.Min(first + VisibleLines + 2, _doc.LineCount);
@@ -211,9 +226,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         {
             var line = _doc.GetLine(i);
             if (line == null) continue;
-            // 用字符数 × 字宽估算（CJK 会略宽于估算，留点余量就够，不必逐字素量宽）
-            float w = TextEditorMath.SourceIndexToVisualCol(line, line.Length, RuneWidthApprox,
-                EditorTypography.TabColumns) * charW;
+            // 实测宽度（与绘制同一套）。按「视觉列 × 单字宽」估算会让中文行严重偏短，
+            // 横向就滚不到真正的行尾。
+            float w = MeasurePrefixWidth(line, line.Length);
             if (w > maxWidth) maxWidth = w;
         }
         return Math.Max(0, maxWidth - viewW + 24);
@@ -241,6 +256,19 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _samples.Clear();
         _samples.Enqueue((_downTicks, p.Y, p.X));
         StopFling();
+
+        // 按在滚动条上 → 这一手势归滚动条，不当成内容拖拽（也就不会触发惯性/长按选择）。
+        // 按在滑块上保持抓取偏移（不跳），按在轨道上视作「跳到此处」。
+        { var (bw, bh) = BarCanvas(); _dragBar = HitBar(p.X, p.Y, bw, bh); }
+        if (_dragBar != Bar.None)
+        {
+            var (start, len) = _dragBar == Bar.Vertical
+                ? VerticalThumb((float)Height) : HorizontalThumb((float)Width);
+            float pos = _dragBar == Bar.Vertical ? p.Y : p.X;
+            _barGrab = pos >= start && pos <= start + len ? pos - start : len / 2f;
+            _dragging = false;
+            Invalidate();   // 立刻画粗版，让「按住了」有即时反馈
+        }
     }
 
     /// <summary>
@@ -260,7 +288,21 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
     private void OnDrag(object? sender, TouchEventArgs e)
     {
-        if (!_dragging || e.Touches.Length == 0) return;
+        if (e.Touches.Length == 0) return;
+
+        // 拖滚动条：整条路都归它（不进内容拖拽、不攒惯性速度）
+        if (_dragBar != Bar.None)
+        {
+            if (e.Touches.Length >= 2) return;   // 双指只在内容编辑区起缩放作用
+            var tp = e.Touches[0];
+            if (_dragBar == Bar.Vertical) DragBarVertical(tp.Y);
+            else DragBarHorizontal(tp.X);
+            ClampScroll();
+            ThrottledInvalidate();
+            return;
+        }
+
+        if (!_dragging) return;
 
         // 双指 = 缩放字号（不滚动）
         if (e.Touches.Length >= 2)
@@ -314,6 +356,15 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _pinchStartDist = 0;
         _dragging = false;
         if (wasPinching) { _moved = true; return; }   // 捏合结束：不触发 tap / 惯性
+
+        if (_dragBar != Bar.None)
+        {
+            _dragBar = Bar.None;
+            _moved = true;          // 拖过滚动条 ⇒ 不是 tap，也不进长按选择
+            ViewChanged?.Invoke();  // 状态栏跟着刷新（拖滚动条同样是「视口变了」）
+            Invalidate();           // 回到细版
+            return;
+        }
 
         long elapsed = Environment.TickCount64 - _downTicks;
 
@@ -480,17 +531,42 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
         canvas.Font = EditorTypography.CanvasFont;
         canvas.FontSize = EditorTypography.FontSize;
+        _measureCanvas = canvas;   // 供绘制之外的路径补测字宽（见 RuneWidth）
+        _drawW = w;
+        _drawH = h;
+        try
+        {
+            double probe = canvas.GetStringSize("0", EditorTypography.CanvasFont,
+                EditorTypography.FontSize).Width;
+            // 触摸坐标是相对本控件的；把画布尺寸和最后一次按下的坐标一起报出来，
+            // 才能判断「滚动条热区为什么没命中」
+#if DEBUG
+            // 探针每次绘制都要量一遍整行，1K 字符的行并不便宜 —— 只在调试构建里算。
+            // 用途：比对「逐字累加」与「整行一次测量」是否一致（不一致就说明宽度模型有偏）。
+            var l0 = _doc?.GetLine((long)first);
+            float sum = l0 == null ? 0 : MeasurePrefixWidth(l0, l0.Length);
+            float whole = l0 == null ? 0 : (float)canvas.GetStringSize(l0,
+                EditorTypography.CanvasFont, EditorTypography.FontSize).Width;
+            MeasureProbe = $"sum{sum:F0}/whole{whole:F0} ratio{(whole > 0 ? sum / whole : 0):F2}";
+#endif
+        }
+        catch (Exception ex) { MeasureProbe = "ERR:" + ex.GetType().Name; }
 
         // 实测一次字符宽（等宽字体下 "0" 的宽度就是所有 ASCII 的宽度）。
         // 只做一次，之后整帧都用它 —— 放到每帧测会平白多一次文本测量。
+        //
+        // **必须用纯 advance，不能用 GetStringSize 的原始返回值**：后者除了字形推进量，
+        // 还带一份**与字数无关的平台测量余量**。把它当「一个字多宽」再逐字符累加，
+        // 等于每加一个字就多算一份余量 —— 实测 1K 字符的行上点行尾，光标插到了行中间
+        // （偏出十几个字符）。见 AdvanceOf。
         if (!_charWidthMeasured)
         {
-            var ascii = canvas.GetStringSize("0", EditorTypography.CanvasFont, EditorTypography.FontSize);
-            var wide = canvas.GetStringSize("中", EditorTypography.CanvasFont, EditorTypography.FontSize);
-            if (ascii.Width > 0 && wide.Width > 0)
+            float ascii = AdvanceOf(canvas, new Rune('0'));
+            float wide = AdvanceOf(canvas, new Rune('中'));
+            if (ascii > 0 && wide > 0)
             {
-                _charWidth = (float)ascii.Width;
-                _wideCharWidth = (float)wide.Width;
+                _charWidth = ascii;
+                _wideCharWidth = wide;
                 _charWidthMeasured = true;
             }
         }
@@ -541,7 +617,15 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // ③ 行号栏（最后画，压住横向滚出去的正文）
         DrawGutter(canvas, first, last, gutterW, h, lineH);
 
+        DrawScrollbars(canvas, w, h);   // 最上层：HUD 之前，免得被正文覆盖
         if (ShowDebugHud) DrawDebug(canvas, w, h, first, last, gutterW, lineH);
+
+        // 首帧画完，字宽/行数这些「测量后才准」的值才算数 —— 通知一次让状态栏补上
+        if (!_measuredNotified && _charWidthMeasured)
+        {
+            _measuredNotified = true;
+            ViewChanged?.Invoke();
+        }
 
         RequestPrefetch(first - 40, last + 40);
 
@@ -640,9 +724,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     private void DrawCaret(ICanvas canvas, string line, float textX, float y, float lineH)
     {
         int col = Math.Clamp(EditingCursor, 0, line.Length);
-        int visualCol = TextEditorMath.SourceIndexToVisualCol(line, col, RuneWidthApprox,
-            EditorTypography.TabColumns);
-        float x = textX + visualCol * Math.Max(1f, _charWidth);
+        float x = textX + MeasurePrefixWidth(line, col);
 
         // 深色底用纯白、浅色底用纯黑：系统那个光标跟随主题色（Android 上是 Material 紫），
         // 在深色代码背景上很不起眼。这里明确取对比度最高的两色，并加粗到一目了然。
@@ -726,8 +808,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
         var line = _doc?.GetLine(lineIndex) ?? "";
         int from = Math.Max(0, worst.Column - 1);
-        float x0 = textX + from * _charWidth;
-        float width = Math.Min(WaveMaxWidth, Math.Max(24f, Math.Max(1, line.Length - from) * _charWidth));
+        float x0 = textX + MeasurePrefixWidth(line, from);
+        float width = Math.Min(WaveMaxWidth, Math.Max(24f,
+            MeasurePrefixWidth(line, line.Length) - MeasurePrefixWidth(line, from)));
         float baseY = y + lineH - 3f;
 
         canvas.StrokeColor = worst.Severity switch
@@ -855,6 +938,132 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     private readonly Stopwatch _drawWatch = new();
     private double _lastDrawMs;
 
+    // ── 滚动条（自绘；内容超出视口才出现，按住变粗、松手变细）──────────────
+
+    private enum Bar { None, Vertical, Horizontal }
+
+    /// <summary>当前被按住/拖动的那条滚动条（<see cref="Bar.None"/> = 没在拖）。</summary>
+    private Bar _dragBar = Bar.None;
+
+    /// <summary>按住滑块那一刻的抓取偏移 —— 没有它，手指刚按下滑块就会「跳」到手指位置。</summary>
+    private float _barGrab;
+
+    /// <summary>
+    /// 纵向滑块的（起点, 长度），坐标是画布纵向。
+    /// **绘制与命中测试共用这一份** —— 各算一份的话，「看到的滑块」和「点得中的滑块」会错位。
+    /// </summary>
+    /// <summary>滚动条几何用的画布尺寸：优先用最近一次绘制的（与画出来的那条同源），没画过才退回布局尺寸。</summary>
+    private (float W, float H) BarCanvas()
+        => (_drawW > 0 ? _drawW : (float)Width, _drawH > 0 ? _drawH : (float)Height);
+
+    private (float Start, float Length) VerticalThumb(float h)
+    {
+        float track = Math.Max(1f, h - 2 * EditorTypography.BarMargin);
+        long total = _doc?.LineCount ?? 0;
+        if (total <= 0) return (EditorTypography.BarMargin, track);
+
+        float len = Math.Max(EditorTypography.BarMinThumb,
+            track * Math.Clamp((float)VisibleLines / total, 0f, 1f));
+        long scrollable = Math.Max(1, total - VisibleLines);
+        float t = Math.Clamp((float)_firstLine / scrollable, 0f, 1f);
+        return (EditorTypography.BarMargin + (track - len) * t, len);
+    }
+
+    /// <summary>
+    /// 横向轨道：(起点, 可用长度)。
+    ///
+    /// 起点从**行号栏右侧**开始，不贴屏幕左缘：那里是系统的边缘返回手势区，
+    /// 滑块停在最左时手指按上去会被系统截走 —— 实测「拖滚动条直接退出了编辑器」。
+    /// 顺带也符合直觉：行号栏不参与横滚。
+    /// </summary>
+    private (float Left, float Track) HorizontalTrack(float w)
+    {
+        float left = GutterWidth() + EditorTypography.BarMargin;
+        return (left, Math.Max(1f, w - left - EditorTypography.BarMargin));
+    }
+
+    /// <summary>横向滑块的（起点, 长度），坐标是画布横向。</summary>
+    private (float Start, float Length) HorizontalThumb(float w)
+    {
+        var (left, track) = HorizontalTrack(w);
+        float maxX = ComputeMaxScrollX();
+        if (maxX <= 0) return (left, track);
+
+        // 可见内容宽 / 总内容宽 —— 与纵向同一个「视口占内容的比例」语义
+        float viewW = Math.Max(40f, w - GutterWidth());
+        float len = Math.Max(EditorTypography.BarMinThumb,
+            track * Math.Clamp(viewW / (viewW + maxX), 0f, 1f));
+        float t = Math.Clamp(_scrollX / maxX, 0f, 1f);
+        return (left + (track - len) * t, len);
+    }
+
+    /// <summary>触摸点落在哪条滚动条上。热区比视觉宽得多（不然 2.5pt 的条手指点不中）。</summary>
+    private Bar HitBar(float x, float y, float w, float h)
+    {
+        // 右下角两条重叠时**横向优先**：纵向还能靠拖动内容代替，横向没有别的办法
+        if (ComputeMaxScrollX() > 0
+            && y >= h - EditorTypography.BarMargin - EditorTypography.BarTouchSlop)
+            return Bar.Horizontal;
+
+        if (_doc != null && _doc.LineCount > VisibleLines
+            && x >= w - EditorTypography.BarMargin - EditorTypography.BarTouchSlop)
+            return Bar.Vertical;
+
+        return Bar.None;
+    }
+
+    /// <summary>按位置滚动纵向（t ∈ [0,1] → 首个可见行）。</summary>
+    private void DragBarVertical(float y)
+    {
+        long total = _doc?.LineCount ?? 0;
+        if (total <= VisibleLines) return;
+
+        float h = (float)Height;
+        float track = Math.Max(1f, h - 2 * EditorTypography.BarMargin);
+        var (_, len) = VerticalThumb(h);
+        float t = Math.Clamp(
+            (y - _barGrab - EditorTypography.BarMargin) / Math.Max(1f, track - len), 0f, 1f);
+        _firstLine = t * (total - VisibleLines);
+    }
+
+    /// <summary>按位置滚动横向。</summary>
+    private void DragBarHorizontal(float x)
+    {
+        float w = (float)Width;
+        float maxX = ComputeMaxScrollX();
+        if (maxX <= 0) return;
+
+        var (left, track) = HorizontalTrack(w);
+        var (_, len) = HorizontalThumb(w);
+        float t = Math.Clamp((x - _barGrab - left) / Math.Max(1f, track - len), 0f, 1f);
+        _scrollX = t * maxX;
+    }
+
+    /// <summary>
+    /// 自绘两条滚动条：**内容超出视口才出现**；按住/拖动时变粗变浓，松手回到细淡。
+    /// </summary>
+    private void DrawScrollbars(ICanvas canvas, float w, float h)
+    {
+        bool active = _dragBar != Bar.None;
+        float thick = active ? EditorTypography.BarThick : EditorTypography.BarThin;
+
+        canvas.FillColor = _isDark
+            ? (active ? EditorTypography.BarActiveDark : EditorTypography.BarIdleDark)
+            : (active ? EditorTypography.BarActive : EditorTypography.BarIdle);
+
+        if (_doc != null && _doc.LineCount > VisibleLines)
+        {
+            var (y, len) = VerticalThumb(h);
+            canvas.FillRoundedRectangle(w - EditorTypography.BarMargin - thick, y, thick, len, thick / 2);
+        }
+
+        if (ComputeMaxScrollX() > 0)
+        {
+            var (x, len) = HorizontalThumb(w);
+            canvas.FillRoundedRectangle(x, h - EditorTypography.BarMargin - thick, len, thick, thick / 2);
+        }
+    }
+
     private void DrawDebug(ICanvas canvas, float w, float h, long first, long last, float gutterW, float lineH)
     {
         // 等宽自检：等宽字体下 "i" 与 "W" 必须一样宽，否则说明字体回落成了比例字体
@@ -862,12 +1071,15 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         var sw = canvas.GetStringSize("W", EditorTypography.CanvasFont, EditorTypography.FontSize);
         bool mono = Math.Abs(si.Width - sw.Width) < 0.01f;
 
-        var text = $"行 {first + 1}-{last}/{_doc?.LineCount} · 帧 {_lastDrawMs:F1}ms · 缓存 {_lineCache.Count}"
-                 + $" · {_doc?.EncodingName} · {(mono ? "等宽✓" : "非等宽✗")}";
+        // 刻意极短：长文本会被 DrawString 折行/溢出，反而把要看的数字挤没
+        var text = $"X{_scrollX:F0}/{ComputeMaxScrollX():F0} w{_charWidth:F1}/{_wideCharWidth:F1}"
+                 + $" {_dragBar} H{_drawH:F0} d({_downX:F0},{_downY:F0}) w{_drawW:F0}";
         canvas.FontSize = 10;
         canvas.FontColor = Colors.White;
-        canvas.FillColor = Color.FromArgb("#000000AA");
-        canvas.FillRectangle(0, 0, Math.Min(w, text.Length * 6f + 12), 18);
+        // MAUI 的 Color.FromArgb 按 #AARRGGBB 解析 —— 写成 #000000AA 的话 alpha=0x00，
+        // 整个 HUD 是透明的（此前一直「看不见」就是这个原因）。
+        canvas.FillColor = Color.FromArgb("#EE000000");
+        canvas.FillRectangle(0, 0, w, 18);   // 占满宽度：截断的宽度框会把关键数字挡住
         canvas.DrawString(text, 6, 2, HorizontalAlignment.Left);
     }
 
@@ -880,7 +1092,8 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         if (EditingLine < 0) return;
 
         float gutter = GutterWidth();
-        float caretX = gutter + EditorTypography.TextLeftPad + EditingCursor * Math.Max(1f, _charWidth);
+        float caretX = gutter + EditorTypography.TextLeftPad
+            + MeasurePrefixWidth(EditingText, EditingCursor);
         float viewW = Math.Max(40f, (float)Width - gutter);
         float margin = 48f;
 
@@ -890,6 +1103,34 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         Invalidate();
     }
 
+    /// <summary>测量纯 advance 时的重复次数：够长以摊薄浮点误差，又不至于每次测量太贵。</summary>
+    private const int AdvanceSampleCount = 10;
+
+    /// <summary>
+    /// 单个字符的**纯 advance**（pt）—— 从 <c>GetStringSize</c> 的结果里减掉那份与字数无关的固定余量。
+    ///
+    /// 直接拿 <c>GetStringSize("0")</c> 当字宽是错的：那个值 = 推进量 + 平台测量余量，
+    /// 而余量**每累加一次就多算一份**。列宽本身只错一点点，但 1K 个字符的行上会累积成
+    /// 「点行尾却插到行中间」；行号栏、波浪线、横向滚动上限全都跟着偏。
+    ///
+    /// 用「n 个字 − 1 个字」再除以 n−1：常量项相减抵消，剩下的正好是推进量。
+    /// 量的是<b>与绘制同一个字体、同一个字号</b>（<see cref="EditorTypography.CanvasFont"/> /
+    /// <see cref="EditorTypography.FontSize"/>），所以它就是要跟的列宽。
+    /// </summary>
+    private static float AdvanceOf(ICanvas canvas, Rune r)
+    {
+        var one = r.ToString();
+        var many = string.Concat(Enumerable.Repeat(one, AdvanceSampleCount));
+
+        double w1 = canvas.GetStringSize(one, EditorTypography.CanvasFont, EditorTypography.FontSize).Width;
+        double wn = canvas.GetStringSize(many, EditorTypography.CanvasFont, EditorTypography.FontSize).Width;
+        if (wn <= 0) return 0;
+
+        float advance = (float)((wn - w1) / (AdvanceSampleCount - 1));
+        // 极端情况下两个测量值一样大（余量项主导）→ 退回平均值，总比 0 好（0 会被下游当「无宽度」）
+        return advance > 0 ? advance : (float)(wn / AdvanceSampleCount);
+    }
+
     /// <summary>把一行里非 ASCII 字符的真实宽度收进缓存（每个码点只测一次）。</summary>
     private void CacheRuneWidths(ICanvas canvas, string line)
     {
@@ -897,9 +1138,8 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         {
             if (r.Value < 0x80) continue;                      // ASCII 用统一的 _charWidth
             if (_runeWidths.ContainsKey(r.Value)) continue;
-            var size = canvas.GetStringSize(r.ToString(),
-                EditorTypography.CanvasFont, EditorTypography.FontSize);
-            if (size.Width > 0) _runeWidths[r.Value] = (float)size.Width;
+            float adv = AdvanceOf(canvas, r);
+            if (adv > 0) _runeWidths[r.Value] = adv;
         }
     }
 
@@ -916,8 +1156,74 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         charCol++;
         if (r.Value < 0x80) return _charWidth;
         if (_runeWidths.TryGetValue(r.Value, out var measured)) return measured;
+
+        // 没量过就**现在量**：绘制路径每行都会 CacheRuneWidths，但光标定位 / 点击可能落在
+        // 还没绘制过的行上（比如刚跳转过去的行）。退回「近似列宽 × 单字宽」会让**同一个字符
+        // 在光标那里和文字那里宽度不同**，中英混排行里越往右偏得越多。
+        // 量的字体与画文字用的 run 属性同源（同一个 CanvasFont / FontSize），所以必然吻合。
+        if (_measureCanvas != null)
+        {
+            try
+            {
+                float adv = AdvanceOf(_measureCanvas, r);
+                if (adv > 0)
+                {
+                    _runeWidths[r.Value] = adv;
+                    return adv;
+                }
+            }
+            catch { /* 画布已失效就退回近似值，下次绘制会补上 */ }
+        }
         return RuneWidthApprox(r) == 2 ? _wideCharWidth : _charWidth;
     }
+
+    /// <summary>
+    /// 行内第 <paramref name="charIndex"/> 个 UTF-16 码元之前的**显示宽度**（pt）。
+    ///
+    /// 「字符位置 → 横坐标」在整个控件里**只此一处**：逐码点走 <see cref="RuneWidth"/>，
+    /// 而它量的是**与绘制同一个字体、同一个字号**下的真实宽度（<c>GetStringSize</c> 传的
+    /// <see cref="EditorTypography.CanvasFont"/>/<see cref="EditorTypography.FontSize"/>，
+    /// 与 <c>DrawText</c> 的 run 属性出自同一份 <see cref="EditorTypography"/>）。
+    ///
+    /// 绝不按「字符数 × 单字宽」估：等宽字体里中文的实测宽度**不是** ASCII 宽的整数倍
+    /// （手机上比 2 倍窄、比 1 倍宽），估出来的位置在中英混排行里会越往右偏得越多，
+    /// 表现为「插入位置错了一个字符」「光标越往右越偏」。
+    /// </summary>
+    public float MeasurePrefixWidth(string? line, int charIndex)
+    {
+        if (string.IsNullOrEmpty(line) || charIndex <= 0) return 0;
+
+        int limit = Math.Min(charIndex, line.Length);
+
+        // **整段一次测量**，而不是逐字符累加。
+        // 实测（1K 字符中英 emoji 混排行）：逐字累加 9771 vs 整行 10512 —— 差 7%。
+        // 也就是说「每个字符的 advance 之和」并不等于字体的实际排布，累加出来的总宽偏小，
+        // 横向滚动上限跟着偏小 ⇒ 拖到最右也到不了行尾、点击位置越往右偏得越多。
+        // 直接量前缀，量的字体/字号与 DrawText 的 run 属性同源，就不存在这层换算误差。
+        if (_measureCanvas != null && limit <= WholeMeasureMaxChars)
+        {
+            try
+            {
+                return (float)_measureCanvas.GetStringSize(line[..limit],
+                    EditorTypography.CanvasFont, EditorTypography.FontSize).Width;
+            }
+            catch { /* 量失败就退回累加 */ }
+        }
+
+        // 超长行 / 还没画过：退回逐字符累加（不精确，但不会为一条 4MB 的行分配整段前缀）
+        float acc = 0;
+        int idx = 0, col = 0;
+        foreach (var rune in line.EnumerateRunes())
+        {
+            if (idx >= limit) break;
+            acc += RuneWidth(rune, ref col);
+            idx += rune.Utf16SequenceLength;
+        }
+        return acc;
+    }
+
+    /// <summary>走「整段前缀测量」的字符数上限 —— 再长就退回累加，免得为一条超长行分配整段字符串。</summary>
+    private const int WholeMeasureMaxChars = 8192;
 
     /// <summary>
     /// 行内横坐标（pt，相对正文起点）→ 字符下标。
@@ -929,6 +1235,12 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     public int CharIndexAtX(string line, float xInLine)
     {
         if (string.IsNullOrEmpty(line) || xInLine <= 0) return 0;
+
+        // 与 MeasurePrefixWidth 同源：**二分找「前缀宽度 ≤ x」的最大下标**。
+        // 一次前缀测量就与绘制逐字对齐，不必再靠「近似字宽」推算；
+        // 逐字累加那条老路（同样本文件里差 7%）只留给超长行兜底。
+        if (_measureCanvas != null && line.Length <= WholeMeasureMaxChars)
+            return CharIndexAtXByPrefix(line, xInLine);
 
         float acc = 0;
         int idx = 0;
@@ -943,9 +1255,33 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         return line.Length;
     }
 
+    /// <summary>二分前缀测量定位。落在字符前半归它、后半归下一个（与逐字累加同语义）。</summary>
+    private int CharIndexAtXByPrefix(string line, float xInLine)
+    {
+        int lo = 0, hi = line.Length;
+        while (lo < hi)
+        {
+            int mid = lo + (hi - lo) / 2;
+            // 对齐到码点边界：切在代理对中间的话量出来的是半个字符
+            if (mid > 0 && mid < line.Length && char.IsLowSurrogate(line[mid])) mid++;
+            if (mid <= lo) mid = lo + 1;
+            if (mid > hi) break;
+
+            if (MeasurePrefixWidth(line, mid) <= xInLine) lo = mid;
+            else hi = mid - 1;
+        }
+        return lo;
+    }
+
     /// <summary>取一行的显示文本（供页面做查找高亮/状态栏）。</summary>
     public string? GetLineText(long oneBased) => _doc?.GetLine(oneBased - 1);
 
     /// <summary>测量等宽字符宽度（首个 Draw 之后才准）。</summary>
     public float CharWidth => _charWidth;
+
+    // ── 诊断（状态栏用；HUD 画在画布上会和首行正文重叠，字看不清）──
+    public float WideCharWidth => _wideCharWidth;
+    public float ScrollX => _scrollX;
+    public float MaxScrollX => ComputeMaxScrollX();
+    public string BarDebug => _dragBar.ToString();
 }

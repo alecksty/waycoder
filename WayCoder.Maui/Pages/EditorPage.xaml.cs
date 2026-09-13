@@ -746,7 +746,12 @@ public partial class EditorPage : ContentPage
         var sel = Canvas.HasSelection ? $" · 已选 {Canvas.SelectionChangedRange}" : "";
         StatusLabel.Text = $"{mark}{_doc.EncodingName} · {ro} · {_doc.LineCount:N0} 行 · "
                          + $"{FormatSize(_fileBytes)} · 光标 L{Math.Max(1, Canvas.CaretLine)}{sel}"
-                         + $" · 帧 {Canvas.LastDrawMs:F1}ms";
+#if DEBUG
+                         // 定位「点击位置与渲染不一致」用的读数：只在调试构建里出现
+                         + $" · X{Canvas.ScrollX:F0}/{Canvas.MaxScrollX:F0}"
+                         + $" · w{Canvas.CharWidth:F1} {Canvas.MeasureProbe} {Canvas.BarDebug}"
+#endif
+                         ;
     }
 
     /// <summary>

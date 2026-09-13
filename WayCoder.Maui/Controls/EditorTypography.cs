@@ -81,6 +81,24 @@ internal static class EditorTypography
     // 当前行高亮是**长期停在屏幕上**的东西，压得越低越不累眼睛：
     // 它的作用是「让你知道光标在哪」，不是「吸引注意力」。实测 9% 白已经嫌刺眼。
     public static readonly Color SelectionBg = Color.FromArgb("#403B82F6");        // 蓝 25%
+    /// <summary>滚动条：静止时淡、按住/拖动时浓（就是「点一下变大变明显」的那半）。</summary>
+    public static readonly Color BarIdle = Color.FromArgb("#33000000");
+    public static readonly Color BarIdleDark = Color.FromArgb("#33FFFFFF");
+    public static readonly Color BarActive = Color.FromArgb("#99000000");
+    public static readonly Color BarActiveDark = Color.FromArgb("#99FFFFFF");
+
+    /// <summary>滚动条几何 —— 绘制与命中测试<b>共用这一份</b>，否则「看到的滑块」和「点得中的滑块」会错位。</summary>
+    public const float BarThin = 2.5f;        // 常态：细
+    public const float BarThick = 6f;         // 按住/拖动：粗
+    /// <summary>
+    /// 距画布边缘的留白。**不能太小**：画布的 Height 一直算到页面内容区的底边，
+    /// 而底部紧挨着的就是状态栏那一行 —— 留白 3pt 时滚动条正好被状态栏压在底下，
+    /// 表现为「加了滚动条却看不见、也点不中」。
+    /// </summary>
+    public const float BarMargin = 16f;
+    public const float BarMinThumb = 28f;     // 滑块最短长度（百万行文件里否则细到看不见）
+    public const float BarTouchSlop = 20f;    // 触摸热区比视觉宽，否则手指根本点不中 2.5pt 的条
+
     public static readonly Color ErrorWave = Color.FromArgb("#E5484D");
     public static readonly Color WarnWave = Color.FromArgb("#F5A524");
     public static readonly Color InfoWave = Color.FromArgb("#3B82F6");
