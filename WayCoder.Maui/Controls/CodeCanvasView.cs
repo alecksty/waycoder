@@ -558,6 +558,103 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
     // ── 绘制 ──
 
+#if DEBUG
+    private bool _widthProbeDone;
+
+    /// <summary>
+    /// 宽度自检：把「测量」与「渲染」摆在同一行日志里。
+    ///
+    /// 点击定位的偏差全在「量出来的宽度」与「画出来的宽度」不一致上，而这两个数
+    /// 在屏幕上用肉眼是比不出来的（渲染的墨迹右端与标尺位置差几个像素，看着都像「差不多」）。
+    /// 所以直接把逐字符的实测值打到 logcat，再拿真机截图量墨迹，两者一对就定性了。
+    /// </summary>
+    private void LogWidthProbe(ICanvas canvas)
+    {
+        try
+        {
+            float fs = EditorTypography.FontSize;
+            float d = (float)Microsoft.Maui.Devices.DeviceDisplay.MainDisplayInfo.Density;
+            string M(string t, float size) =>
+                $"[{t}]={canvas.GetStringSize(t, EditorTypography.CanvasFont, size).Width:F2}";
+
+            var line0 = _doc?.GetLine(0) ?? "";
+            var sb = new System.Text.StringBuilder();
+            sb.Append($"fs={fs} density={d} ");
+            sb.Append(M("a", fs)).Append(' ').Append(M("中", fs)).Append(' ');
+            sb.Append(M("W", fs)).Append(' ').Append(M("|", fs)).Append(' ');
+            sb.Append(M("中", fs * d)).Append(' ').Append(M("a", fs * d)).Append(' ');
+            sb.Append(M("aB3|END", fs)).Append(' ').Append(M("中文，。！", fs)).Append(' ');
+            // 逐个字符 + 逐前缀：整串比「逐字之和」少，就定位到具体是哪个字被吞掉了
+            sb.Append(M("文", fs)).Append(' ').Append(M("，", fs)).Append(' ');
+            sb.Append(M("。", fs)).Append(' ').Append(M("！", fs)).Append(' ');
+            sb.Append(M("中文", fs)).Append(' ').Append(M("中文，", fs)).Append(' ');
+            sb.Append(M("中文，。", fs)).Append(' ').Append(M("中中", fs)).Append(' ');
+            sb.Append(M("，，", fs)).Append(' ').Append(M("。。", fs)).Append(' ');
+            sb.Append(M("！！", fs)).Append(' ').Append(M("中 ", fs)).Append(' ');
+            sb.Append(M("中 x", fs)).Append(' ');
+            sb.Append($"line0=[{line0}] W={canvas.GetStringSize(line0, EditorTypography.CanvasFont, fs).Width:F2}");
+            // 对照实验：按**渲染那套构造**（SpannableString + TypefaceSpan + 废弃构造器）测同一批串，
+            // 看能不能消掉「紧跟全角标点的全角标点只剩半个宽」这个偏差。
+            foreach (var t in new[] { "中文，。！", "，，", "aB3|END", line0 })
+                sb.Append($"[alt:{t}]={AltMeasure(t, fs):F2} ");
+            sb.Append($"[altOne:，，]={AltMeasureOne("，，", fs):F2} ");
+            // 决定性一问：这个「标点压缩」是**字号相关**的吗？
+            // 若在 13 下是 52、在 26 下是 104（=52×2），说明压缩恒定 ⇒ 渲染必然是别的字号；
+            // 若在 26 下是 130（=65×2），说明压缩随字号消失 ⇒ 渲染用的就是大字号。
+            foreach (var sz in new[] { 26f, 34.125f, 52f })
+                sb.Append($"[ord@{sz}]={canvas.GetStringSize("中文，。！", EditorTypography.CanvasFont, sz).Width:F2} ");
+
+            Android.Util.Log.Info("WCW", sb.ToString());
+        }
+        catch (Exception ex) { Android.Util.Log.Info("WCW", "ERR " + ex.Message); }
+    }
+
+    /// <summary>
+    /// 对照测量：按**渲染那条路径的构造**建布局再取宽度。
+    ///
+    /// MAUI 的 <c>GetStringSize</c> 用的是 <c>TextLayoutUtils.CreateLayout</c>（Builder + 裸字符串），
+    /// 而 <c>PlatformCanvas.DrawText</c> 用的是 <c>CreateLayoutForSpannedString</c>（废弃构造器 +
+    /// SpannableString/TypefaceSpan）。两者对「紧邻全角标点」的处理实测不同，这个对照就是为了定位它。
+    /// </summary>
+    private static float AltMeasure(string text, float fontSize)
+    {
+        try
+        {
+            var paint = new Android.Text.TextPaint { TextSize = fontSize };
+            paint.SetTypeface(Microsoft.Maui.Graphics.Platform.FontExtensions.ToTypeface(EditorTypography.CanvasFont));
+            var span = new Android.Text.SpannableString(text);
+            span.SetSpan(new Android.Text.Style.TypefaceSpan(EditorTypography.CanvasFontName),
+                0, text.Length, Android.Text.SpanTypes.ExclusiveExclusive);
+#pragma warning disable CS0618
+            var layout = new Android.Text.StaticLayout(span, paint, int.MaxValue,
+                Android.Text.Layout.Alignment.AlignNormal, 1.0f, 0.0f, false);
+#pragma warning restore CS0618
+            float w = layout.GetLineWidth(0);
+            layout.Dispose();
+            return w;
+        }
+        catch (Exception ex) { Android.Util.Log.Info("WCW", "altERR " + ex.Message); return -1; }
+    }
+
+    /// <summary>同 <see cref="AltMeasure"/>，但不加 TypefaceSpan —— 用来区分「是 span 的锅」还是「是构造器的锅」。</summary>
+    private static float AltMeasureOne(string text, float fontSize)
+    {
+        try
+        {
+            var paint = new Android.Text.TextPaint { TextSize = fontSize };
+            paint.SetTypeface(Microsoft.Maui.Graphics.Platform.FontExtensions.ToTypeface(EditorTypography.CanvasFont));
+#pragma warning disable CS0618
+            var layout = new Android.Text.StaticLayout(text, paint, int.MaxValue,
+                Android.Text.Layout.Alignment.AlignNormal, 1.0f, 0.0f, false);
+#pragma warning restore CS0618
+            float w = layout.GetLineWidth(0);
+            layout.Dispose();
+            return w;
+        }
+        catch (Exception ex) { Android.Util.Log.Info("WCW", "altERR " + ex.Message); return -1; }
+    }
+#endif
+
     public void Draw(ICanvas canvas, RectF dirtyRect)
     {
         float w = (float)Width, h = (float)Height;
@@ -584,6 +681,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         {
             double probe = canvas.GetStringSize("0", EditorTypography.CanvasFont,
                 EditorTypography.FontSize).Width;
+#if DEBUG
+            if (!_widthProbeDone) { _widthProbeDone = true; LogWidthProbe(canvas); }
+#endif
             // 触摸坐标是相对本控件的；把画布尺寸和最后一次按下的坐标一起报出来，
             // 才能判断「滚动条热区为什么没命中」
 #if DEBUG
