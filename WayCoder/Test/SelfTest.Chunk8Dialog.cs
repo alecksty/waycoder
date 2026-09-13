@@ -880,7 +880,7 @@ public static partial class SelfTest
             Check("ContentDiff: 含 hunk 头", edit.Contains("@@"));
             Check("ContentDiff: 删除行红色", edit.Contains("«bright red»   2 -«/»b"));
             Check("ContentDiff: 新增行绿色", edit.Contains("«bright green»   2 +«/»X"));
-            Check("ContentDiff: 上下文灰色", edit.Contains("«grey»   1  a«/»") && edit.Contains("«grey»   3  c«/»"));
+            Check("ContentDiff: 上下文灰色", edit.Contains("«grey»   1  «/»a") && edit.Contains("«grey»   3  «/»c"));
 
             // CRLF 归一化：\r\n 拆行不花屏
             var crlf = ContentDiffFormatter.FormatAddedContent("a\r\nb\r\n", "win.cs");

@@ -126,24 +126,18 @@ public static class MarkdownParser
                 }
             }
 
-            // 代码块 ```lang\n...\n```
-            if (line.TrimStart().StartsWith("```", StringComparison.Ordinal))
+            // 代码块 ```lang\n...\n```（含「反引号写少了」的容错，判据见 CodeFence）
+            if (CodeFence.TryOpen(line, out var fenceLang, out var fenceTicks))
             {
-                // 围栏由连续反引号组成（可 3 个以上——AI 在内容含 ``` 时常用 4 个），
-                // 语言标签从围栏结束后取，避免把多余反引号带进标签（旧 bug：````js → lang="`js"）
-                var fenceLine = line.TrimStart();
-                int fenceEnd = 0;
-                while (fenceEnd < fenceLine.Length && fenceLine[fenceEnd] == '`') fenceEnd++;
-                var lang = fenceLine[fenceEnd..].Trim();
                 var sb = new System.Text.StringBuilder();
                 i++;
                 while (i < lines.Length)
                 {
-                    if (lines[i].TrimStart().StartsWith("```", StringComparison.Ordinal)) { i++; break; }
+                    if (CodeFence.IsClose(lines[i], fenceTicks)) { i++; break; }
                     sb.AppendLine(lines[i]);
                     i++;
                 }
-                nodes.Add(new MdCodeBlock { Language = lang, Code = sb.ToString().TrimEnd(), StartLine = 0 });
+                nodes.Add(new MdCodeBlock { Language = fenceLang, Code = sb.ToString().TrimEnd(), StartLine = 0 });
                 continue;
             }
 
@@ -235,7 +229,10 @@ public static class MarkdownParser
             {
                 var paraSb = new System.Text.StringBuilder();
                 while (i < lines.Length && !string.IsNullOrWhiteSpace(lines[i])
-                    && !lines[i].TrimStart().StartsWith("```", StringComparison.Ordinal)
+                    // 围栏行终止段落 —— 判据必须与上面的开栏分支同源（CodeFence）：
+                    // 硬编码 StartsWith("```") 时，「先一句说明、再贴代码」的围栏会被当段落续行吃掉
+                    // （而模型最常就是这么写的：`说明：\n`csharp\n…）
+                    && !CodeFence.TryOpen(lines[i], out _, out _)
                     && !lines[i].TrimStart().StartsWith('|')
                     && !lines[i].TrimStart().StartsWith('#')
                     && !lines[i].TrimStart().StartsWith('>')

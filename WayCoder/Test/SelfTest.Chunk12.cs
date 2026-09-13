@@ -269,6 +269,50 @@ public static partial class SelfTest
             // 端到端：256 色语法值 → «fg:#rrggbb» → 渲染成真彩 ANSI（三端都认真彩标记）
             var cdfSegs = UI.Tui.TuiMarkdown.RenderMessage(addedCs, "tool", 80);
             Check("工具输出的语法色渲染成真彩 ANSI", cdfSegs.SelectMany(l => l).Any(s => s.Fg >= 0x1000000));
+
+            // diff：+/- 行铺底色（对标竞品），上下文行无底色但**代码同样上语法色**
+            var editBg = WayCoder.UI.Tui.ContentDiffFormatter.FormatEditContent(
+                "public class A { }\npublic class B { }\n",
+                "public class A { int x = 1; }\npublic class B { }\n", "/tmp/A.cs");
+            Check("diff：+ 行有暗绿背景", editBg.Contains("bg:#0e2a17"));
+            // 上下文行的行号段后紧跟语法色段（行号灰 «grey»   2  «/» + 代码 «fg:#..»public«/»）
+            Check("diff：上下文行代码也上语法色",
+                editBg.Split('\n').Any(l => l.Contains("   2  «/»") && l.Contains("fg:#")));
+
+            // ── 容错围栏：模型把 ``` 写成 ` 或 `` 的情况 ──
+            // 判据本身是纯逻辑，直接测比透过渲染间接验灵敏得多
+            Check("CodeFence: 单反引号+语言名 → 开栏",
+                CodeFence.TryOpen("`csharp", out var fl1, out var ft1) && fl1 == "csharp" && ft1 == 1);
+            Check("CodeFence: 双反引号+语言名 → 开栏",
+                CodeFence.TryOpen("``py", out var fl2, out var ft2) && fl2 == "py" && ft2 == 2);
+            Check("CodeFence: 标准三反引号",
+                CodeFence.TryOpen("```js", out _, out var ft3) && ft3 == 3);
+            Check("CodeFence: 四反引号围栏仍认", CodeFence.TryOpen("````xml", out _, out var ft4) && ft4 == 4);
+            Check("CodeFence: 普通正文行不是开栏", !CodeFence.TryOpen("这是正文段落", out _, out _));
+            Check("CodeFence: 行内代码 `foo bar`（含空格）不算开栏",
+                !CodeFence.TryOpen("`foo bar`", out _, out _));
+            Check("CodeFence: 闭栏要整行纯反引号",
+                CodeFence.IsClose("`", 1) && !CodeFence.IsClose("`x", 1) && CodeFence.IsClose("````", 3));
+
+            // 渲染级：单/双反引号的多行块真的被当代码块（关键字上色）
+            // 判据用**结构性事实**（代码块渲染会带行号、语言标签不再含反引号），
+            // 不用「有没有关键字色」——行内代码也可能被上某种色，那种断言会假阳性
+            static string Flat(List<List<(string Text, int Fg, int Bg)>> rows)
+                => string.Concat(rows.SelectMany(r => r).Select(s => s.Text));
+            var shortFence = UI.Tui.TuiMarkdown.RenderMessage(
+                "`csharp\npublic class A { return 1; }\n`", "assistant", 80);
+            var shortTxt = Flat(shortFence);
+            Check("单反引号围栏：识别为代码块（带行号、标签无残余反引号）",
+                shortTxt.Contains("1 public class A") && !shortTxt.Contains("`csharp"));
+            // 前置说明行的情况（keypad 实测里就是这种）：围栏不在首行
+            var fenced2 = UI.Tui.TuiMarkdown.RenderMessage(
+                "说明文字：\n`csharp\npublic class A { return 1; }\n`", "assistant", 80);
+            Check("前置说明行后的单反引号围栏也识别", Flat(fenced2).Contains("1 public class A"));
+            var doubleFence = UI.Tui.TuiMarkdown.RenderMessage(
+                "``py\ndef f(): return 1\n``", "assistant", 80);
+            var doubleTxt = Flat(doubleFence);
+            Check("双反引号围栏：识别为代码块（带行号、标签无残余反引号）",
+                doubleTxt.Contains("1 def f()") && !doubleTxt.Contains("``py"));
         }
         Console.WriteLine();
 

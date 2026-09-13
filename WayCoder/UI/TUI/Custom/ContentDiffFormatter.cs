@@ -67,22 +67,31 @@ public static class ContentDiffFormatter
                 shown++;
                 switch (l.Kind)
                 {
-                    // +/- 行：行号与标记保持 diff 语义色，**代码本身**按语法上色；
-                    // 上下文行保持整体灰（未改动的行不该抢眼，这是 diff 的层次）
+                    // 三种行都是「行号/标记用 diff 语义色 + 代码按语法上色」，区别只在有没有背景：
+                    //   +/- 行铺暗绿/暗红底（对标 Claude Code / Crush 的 diff，扫读时一眼分得清增删）
+                    //   上下文行无底色（未改动的行不该抢眼），但**代码同样上语法色**
+                    // 嵌套写法：先开 bg（外层），内层各段 fg 自己开合，行尾再关 bg —— «» 是按栈配对的
                     case '+':
-                        sb.Append("«bright green»").Append($"{l.NewLine,4} +«/»").Append(Colorize(l.Text, syntax)).Append('\n');
+                        sb.Append(AddedBg).Append("«bright green»").Append($"{l.NewLine,4} +«/»")
+                          .Append(Colorize(l.Text, syntax)).Append("«/»\n");
                         break;
                     case '-':
-                        sb.Append("«bright red»").Append($"{l.OldLine,4} -«/»").Append(Colorize(l.Text, syntax)).Append('\n');
+                        sb.Append(RemovedBg).Append("«bright red»").Append($"{l.OldLine,4} -«/»")
+                          .Append(Colorize(l.Text, syntax)).Append("«/»\n");
                         break;
                     default: // 上下文
-                        sb.Append("«grey»").Append($"{l.OldLine,4}  ").Append(l.Text).Append("«/»\n");
+                        sb.Append("«grey»").Append($"{l.OldLine,4}  «/»")
+                          .Append(Colorize(l.Text, syntax)).Append('\n');
                         break;
                 }
             }
         }
         return sb.ToString().TrimEnd('\n');
     }
+
+    /// <summary>增/删行的整行底色（暗绿 / 暗红）—— 对标 Claude Code 与 Crush 的 diff 观感</summary>
+    private const string AddedBg = "«bg:#0e2a17»";
+    private const string RemovedBg = "«bg:#2c1417»";
 
     /// <summary>
     /// 按文件后缀取语法定义（认不出返回 null）。

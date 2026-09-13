@@ -68,19 +68,18 @@ public static class MarkupToFormattedString
         {
             var line = lines[i];
 
-            // 围栏代码块 ```lang
-            if (line.TrimStart().StartsWith("```"))
+            // 围栏代码块 ```lang（判据与 TUI 共用 CodeFence，含反引号写少了的容错）
+            if (CodeFence.TryOpen(line, out var lang, out var ticks))
             {
                 FlushInline();
-                var lang = line.TrimStart()[3..].Trim();
                 var code = new System.Text.StringBuilder();
                 i++;
-                while (i < lines.Length && !lines[i].TrimStart().StartsWith("```"))
+                while (i < lines.Length && !CodeFence.IsClose(lines[i], ticks))
                 {
                     code.AppendLine(lines[i]);
                     i++;
                 }
-                i++; // 跳过闭合 ```（可能越界=未闭合）
+                i++; // 跳过闭合围栏（可能越界=未闭合）
                 var syntax = lang.Length > 0 ? Syntax.ByLanguage(lang) : Syntax.Detect(code.ToString()) ?? Syntax.ByLanguage("");
                 if (syntax.Name != "纯文本")
                     RenderCode(code.ToString().TrimEnd('\n'), syntax, fs, isDark);
