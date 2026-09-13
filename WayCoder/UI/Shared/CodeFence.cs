@@ -57,7 +57,11 @@ public static class CodeFence
     public static bool IsClose(string line, int ticks)
     {
         var t = line.Trim();
-        if (t.Length < ticks) return false;
+        // 标准形态（开栏 ≥3）放宽到「3 个起即可」—— 模型常有 4 个开、3 个闭的写法，
+        // 按标准 markdown 的「闭栏不少于开栏」会找不到闭合，把后面所有正文都吞进代码块。
+        // 容错形态（开栏 1-2）要求个数不少于开栏：那边本就宽松，再放宽会让行内代码行提前闭合。
+        var need = System.Math.Min(ticks, StandardTicks);
+        if (t.Length < need) return false;
         foreach (var c in t)
             if (c != '`') return false;
         return true;

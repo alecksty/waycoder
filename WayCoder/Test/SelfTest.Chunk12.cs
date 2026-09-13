@@ -293,6 +293,11 @@ public static partial class SelfTest
                 !CodeFence.TryOpen("`foo bar`", out _, out _));
             Check("CodeFence: 闭栏要整行纯反引号",
                 CodeFence.IsClose("`", 1) && !CodeFence.IsClose("`x", 1) && CodeFence.IsClose("````", 3));
+            // 实测里出现过的三种围栏：1 个、3 个、4 个反引号；开闭数量还可能不一致
+            Check("CodeFence: 4 开 4 闭", CodeFence.IsClose("````", 4));
+            Check("CodeFence: 4 开 3 闭也认（模型常有，否则会吞掉后面所有正文）",
+                CodeFence.IsClose("```", 4));
+            Check("CodeFence: 闭栏带杂字不认", !CodeFence.IsClose("``` x", 3));
 
             // 渲染级：单/双反引号的多行块真的被当代码块（关键字上色）
             // 判据用**结构性事实**（代码块渲染会带行号、语言标签不再含反引号），
@@ -313,6 +318,14 @@ public static partial class SelfTest
             var doubleTxt = Flat(doubleFence);
             Check("双反引号围栏：识别为代码块（带行号、标签无残余反引号）",
                 doubleTxt.Contains("1 def f()") && !doubleTxt.Contains("``py"));
+            var fourFence = UI.Tui.TuiMarkdown.RenderMessage(
+                "````csharp\npublic class A { return 1; }\n````", "assistant", 80);
+            Check("4 反引号围栏：识别为代码块", Flat(fourFence).Contains("1 public class A"));
+            var mixFence = UI.Tui.TuiMarkdown.RenderMessage(
+                "说明：\n````csharp\npublic class A { return 1; }\n```", "assistant", 80);
+            var mixTxt = Flat(mixFence);
+            Check("4 开 3 闭 + 前置说明：识别为代码块且不吞后续正文",
+                mixTxt.Contains("1 public class A") && !mixTxt.Contains("````csharp"));
         }
         Console.WriteLine();
 
