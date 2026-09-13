@@ -1,6 +1,7 @@
 using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
 using WayCoder.UI.Tui.Controls;
+using WayCoder.UI.Tui.Edit;
 using WayCoder.UI.Tui.Screens;
 using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
@@ -190,6 +191,59 @@ public static partial class SelfTest
                 Tty.SizeOverride = savedSz;
             }
             Check("提示栏开合后聊天消息保留", msgPresent);
+        }
+        Console.WriteLine();
+
+        // ── 聊天区代码块语法高亮（走完整渲染路径：AddMessage → ChatList → TuiMarkdown → ANSI）──
+        // 只测 TuiMarkdown.RenderMessage 的返回段是不够的：颜色可能在后续节点包装/裁剪里丢掉。
+        Section("[聊天区代码块高亮]");
+        {
+            var savedSzC = Tty.SizeOverride;
+            Tty.SizeOverride = (100, 30);
+            var mgrC = TuiManager.Instance;
+            bool enteredC = false;
+            bool keyColor = false, strColor = false;
+            try
+            {
+                var prevOut = Console.Out;
+                Console.SetOut(TextWriter.Null);
+                try
+                {
+                    if (!mgrC.IsActive) { mgrC.Enter(); enteredC = true; }
+                    var chatC = new MarkupChatScreen();
+                    mgrC.PushScreen(chatC);
+                    chatC.AddMessage("```csharp\npublic class Demo { string s = \"hi\"; return 42; }\n```", "assistant");
+                    mgrC.Render();
+                    var raw = mgrC.LastCleanFrame;
+                    keyColor = raw.Contains(AnsiTty.FgCode(Syntax.Keyword));
+                    strColor = raw.Contains(AnsiTty.FgCode(Syntax.Str));
+                    mgrC.PopScreen();
+                }
+                finally { Console.SetOut(prevOut); }
+            }
+            catch (Exception ex)
+            {
+                Check($"聊天区代码块渲染异常: {ex.Message}", false);
+            }
+            finally
+            {
+                if (enteredC) { try { mgrC.Exit(); } catch { } }
+                Tty.SizeOverride = savedSzC;
+            }
+            Check("聊天区代码块：关键字色出现在渲染输出", keyColor);
+            Check("聊天区代码块：字符串色出现在渲染输出", strColor);
+            // ```c# 是模型最常写的标签之一，此前不在 ByLanguage 表里 → 整块落到 Plain（看不出高亮）
+            Check("代码块语言 ```c# 认得（别名表）", Syntax.ByLanguage("c#").Name == "C#");
+            Check("代码块语言 ```C# 大小写不敏感", Syntax.ByLanguage("C#").Name == "C#");
+            Check("不认识的标签走通用表（而非整块白）", Syntax.ByLanguage("brainfuck").Name == Syntax.GenericName);
+            Check("```text 显式纯文本仍不上色", Syntax.ByLanguage("text").Name == "纯文本");
+            var noTag = UI.Tui.TuiMarkdown.RenderMessage("```\npublic class A { return null; }\n```", "assistant", 80);
+            Check("无语言标签代码块：关键字仍上色（通用表兜底）",
+                noTag.SelectMany(l => l).Any(s => s.Fg == Syntax.Keyword));
+            // 通用表刻意剔掉英文常用词，散文不该被误上色
+            var prose = UI.Tui.TuiMarkdown.RenderMessage("```\nThis is a note and it has no code in it.\n```", "assistant", 80);
+            Check("通用表不误色散文（in/is/and 不在表内）",
+                !prose.SelectMany(l => l).Any(s => s.Fg == Syntax.Keyword));
         }
         Console.WriteLine();
 
