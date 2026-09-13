@@ -152,6 +152,19 @@
   会紧贴标题（`🔧 Edit(a.cs)  +public class A…`）。现在标题之后的首个输出块**另起一条消息**
   （`_pendingToolBody` 懒创建 —— 无输出的工具不会白多一个空气泡）
 
+**keypad 实测又抓到两个**（为它加了 `TOOL:` / `TOOLOUT:` 两条指令，此前 keypad 驱动不了工具行）：
+
+- **bash 的标题行把 «» 标记原样打了出来**：
+  `│ 🔧 «bold»«yellow»Bash«/»«/»«grey»(dotnet build -c Release)«/»` ——
+  `AddToolProgress` 给标题行也设了 `ShellBlock = toolName == "bash"`，而 ShellBlock 的渲染路径
+  **故意不解码 «»**（bash 输出是 OS 原文，那里的 `«`/`»` 只是普通字符）。标题是我们自己生成的
+  标记，不该走那条路 —— **竖线 gutter 只属于内容行**（由 `_pendingToolShell` 决定）。
+- **缩进差 2 列**：标题 label 里手写了 `"  "` 前缀，而 `AddMessage(indent: 1)` 还会再加一次，
+  于是标题 4 列、内容 2 列，看着对不齐。手写前缀去掉，缩进统一由 `indent` 加。
+
+> 这两条自测都测不到：前者的触发条件是「bash 工具」（自测里用的是 edit_file），
+> 后者要看**画面**才知道差 2 列。**「格式对不对」这类问题，keypad 逐帧看比断言快得多。**
+
 **代码块 / diff 的底色铺满整行**：此前底色只裹住文字，右侧留一段断口 —— diff 的红绿底尤其明显，
 看着像没画完。现在在 `RenderMessage` 出口统一把**有底色的行**补空格到渲染宽度（竞品的代码块与
 diff 底色都是铺满整行的）。取行内**第一个非零背景色**作为该行底色，已超宽的行不补（长行本就会折行）。

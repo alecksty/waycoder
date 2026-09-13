@@ -30,7 +30,9 @@ public partial class ChatScreen : TuiScreen
     /// <summary>添加工具调用进度（嵌套子消息：工具输出归属在 assistant 消息下）。线程安全。</summary>
     public void AddToolProgress(string toolName, string brief)
     {
-        string label = $"  {ToolRendererFactory.FormatHeader(toolName, brief)}";
+        // 不在这里手写缩进：条目缩进由 AddMessage(indent: 1) 统一加 —— 手写会与内容行
+        // （同样 indent:1，但没有手写前缀）差出 2 列，工具行和它的输出看着对不齐。
+        string label = ToolRendererFactory.FormatHeader(toolName, brief);
         lock (_chatLock)
         {
             // 参数摘要按聊天区宽度截取（减一点留边距），不再依赖调用方提前砍短 ——
@@ -40,11 +42,13 @@ public partial class ChatScreen : TuiScreen
             int avail = Math.Max(30, ChatList.Width - 6);
             if (AnsiHelper.DisplayWidth(label) > avail)
                 label = AnsiHelper.TruncateByWidth(label, avail);
-            var msg = new ChatMsg { Role = "tool", Content = label, Indent = 1, ShellBlock = toolName == "bash" };
+            // 标题行**不走 shellBlock**：ShellBlock 的渲染路径故意不解码 «»（bash 输出是 OS 原文，
+            // 那里的 «» 只是普通字符）—— 而标题是我们自己生成的 «bold»«yellow»Edit«/» 标记，
+            // 跟着一起不解码就会把标记原样打在屏幕上（实测 `│ 🔧 «bold»«yellow»Bash«/»…`）。
+            // 竖线 gutter 只属于**内容行**，由下面的 _pendingToolShell 决定。
+            var msg = new ChatMsg { Role = "tool", Content = label, Indent = 1, ShellBlock = false };
             ChatMessages.Add(msg);
-            // bash 输出走等宽竖线控制台块（模拟终端滚动区），其他工具保持普通纯文本。
-            // ShellBlock 持久化到 ChatMsg：切换槽位/恢复会话重放时忠实重建竖线 gutter。
-            AddMessage(label, "tool", indent: 1, shellBlock: toolName == "bash");
+            AddMessage(label, "tool", indent: 1, shellBlock: false);
         }
         _toolOutputLineCount = 0;
         // 标题行已就位，其输出首个块要**另起一条消息**（见 AppendToLast）——

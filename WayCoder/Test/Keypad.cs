@@ -187,6 +187,20 @@ public static class Keypad
                             Emit(orig, $"# (第 {step} 行) 无法识别的按键: {value}");
                         break;
 
+                    case "TOOL":
+                        // 工具标题行 —— 走 AddToolProgress 的真实路径（🔧 Edit(参数) 格式）
+                        {
+                            var tp = value.Split(':', 2);
+                            screen.AddToolProgress(tp[0].Trim(), tp.Length > 1 ? tp[1].Trim() : "");
+                        }
+                        break;
+
+                    case "TOOLOUT":
+                        // 工具输出 —— 与真实调用一致：每行自带换行（Program.Repl 传的是 line + "\n"）；
+                        // 首个块会另起一条消息（见 ChatScreen._pendingToolBody）
+                        screen.AppendToLast(value.Replace("\\n", "\n") + "\n");
+                        break;
+
                     case "INLINE":
                         // 行内选择栏 / 问卷演示 —— 只挂栏**不等待**（UxHelper 那条路会阻塞在 RenderWait，
                         // 脚本就再也走不到后面的 SNAP 了）。结果经回调打印成 `# …` 行。

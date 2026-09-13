@@ -394,7 +394,7 @@ public static partial class SelfTest
             var mgrT = TuiManager.Instance;
             bool enteredT = false;
             int before = 0, after = 0;
-            bool bodyOwn = false;
+            bool bodyOwn = false, titleNotShell = false;
             try
             {
                 var prevOut = Console.Out;
@@ -414,6 +414,14 @@ public static partial class SelfTest
                     bodyOwn = after == before + 1
                            && body != null && body.MarkdownContent.Contains("public class A")
                            && title != null && !title.MarkdownContent.Contains("public class A");
+                    // bash 的**标题行**不能走 shellBlock —— 那条渲染路径故意不解码 «»
+                    // （bash 输出是 OS 原文，那里的 «» 只是普通字符），而标题是我们生成的
+                    // «bold»«yellow»Bash«/» 标记，跟着不解码就会把标记原样打在屏幕上
+                    // （实测 `│ 🔧 «bold»«yellow»Bash«/»…`，正是 --keypad 抓到的）。
+                    var chatB = new MarkupChatScreen();
+                    mgrT.PushScreen(chatB);
+                    chatB.AddToolProgress("bash", "ls");
+                    titleNotShell = chatB.ChatMessages.Count > 0 && !chatB.ChatMessages[^1].ShellBlock;
                     mgrT.PopScreen();
                 }
                 finally { Console.SetOut(prevOut); }
@@ -425,6 +433,7 @@ public static partial class SelfTest
                 Tty.SizeOverride = savedSzT;
             }
             Check("工具输出另起一条消息（不与标题同行）", bodyOwn);
+            Check("工具标题行不走 shellBlock（bash 的 «» 标记要能解码）", titleNotShell);
         }
         Console.WriteLine();
 

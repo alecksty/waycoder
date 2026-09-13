@@ -1462,7 +1462,7 @@ public partial class Program
 
         // 与 ChatScreen.AddToolProgress 一致的渲染头（非活跃缓冲也保持相同样式）
         static string ToolLabel(string name, string brief)
-            => $"  {ToolRendererFactory.FormatHeader(name, brief)}";
+            => ToolRendererFactory.FormatHeader(name, brief); // 缩进由 AddMessage(indent:1) 统一加
 
         // 回退链首项用槽位实际模型（llm.Model），而非全局 _config.Model——
         // 否则槽位模型与 .env 不一致时，首项/失败消息会显示错误模型（如 mimo-v2.5）。
