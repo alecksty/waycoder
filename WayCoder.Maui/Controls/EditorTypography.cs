@@ -45,14 +45,13 @@ internal static class EditorTypography
     public const float VerticalPad = 2f;
 
     /// <summary>
-    /// 「行顶 → 文本落笔点」的补偿量。
+    /// 「行顶 → 文本落笔点」的补偿量，**实测为 0**：<c>ICanvas.DrawText</c> 的 y 就是行顶。
     ///
-    /// <c>ICanvas.DrawText</c> 的 y 在各平台都**不是**行顶：Android 端实测落在基线上
-    /// （后果是第 1 行被画到画布上方、看不见，而后面的行因为行高 18 &gt; 字号 13 而看不出来），
-    /// iOS 端又是另一套。所以这里统一补偿一次 —— 绘图处只用 <see cref="LineHeight"/> 算行顶，
-    /// 落笔时再加上这个常量。真机若发现整体偏高/偏低，**只调这一个数**。
+    /// 这里曾经放过 12（当时从「第 1 行看不见」反推出 y 落在基线上），结果**所有文字被整体
+    /// 下推半行**，高亮条却停在行顶，用户实测「光标行背景卡在两行中间」——反推错了。
+    /// 留着这个常量是为了将来真在某个平台上遇到偏移时**只改这一个数**，别再散到绘图循环里。
     /// </summary>
-    public const float TextBaselineOffset = 12f;
+    public const float TextBaselineOffset = 0f;
 
     /// <summary>制表符宽度（列）。</summary>
     public const int TabColumns = 4;

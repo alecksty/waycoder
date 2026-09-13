@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 using Microsoft.Maui.Graphics.Text;
 using WayCoder.Infra;
 using WayCoder.Maui.Markup;
@@ -52,13 +53,21 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     private readonly Dictionary<long, IAttributedText> _lineCache = new();
     private readonly List<long> _cacheOrder = [];
 
-    /// <summary>等宽字体的单字符宽度（惰性实测一次；用它算行号栏宽度与横向滚动范围）。</summary>
+    /// <summary>
+    /// 等宽字体的单字符宽度（pt）。**必须在第一次绘制时实测**：行号栏宽度、点击→字符下标换算、
+    /// 自绘光标位置、超长行窗口化全都依赖它，用猜的初值会一路偏下去。
+    /// （曾经只在调试 HUD 里测，而 HUD 默认关闭 ⇒ 从没测过，点击定位就总是偏几个字符。）
+    /// </summary>
     private float _charWidth = 8f;
+    private bool _charWidthMeasured;
 
     // ── 事件（交给页面接）──
 
-    /// <summary>单击某一行（1-based 行号）。</summary>
-    public event Action<long>? LineTapped;
+    /// <summary>
+    /// 单击某一行（1-based 行号 + **行内横坐标**，pt，相对正文左边缘、已含横向滚动）。
+    /// 带上横坐标是为了能把输入光标定位到**点到的那一格**，而不是一律落在行尾。
+    /// </summary>
+    public event Action<long, float>? LineTapped;
 
     /// <summary>长按某一行（1-based）——只读模式下弹出复制/选择菜单的入口。</summary>
     public event Action<long>? LineLongPressed;
@@ -68,6 +77,13 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
     /// <summary>滚动/内容变化（页面据此更新状态栏）。</summary>
     public event Action? ViewChanged;
+
+    /// <summary>
+    /// **开始拖动**时触发（真正移动了才算，单击不算）。
+    /// 页面据此结束当前行的编辑：编辑态下浮着一个输入框，一滚动它就和自绘的行对不上，
+    /// 而「滑动」本身就是「我要浏览，不是在打字」——先收尾再滚，比一边编辑一边滚可靠得多。
+    /// </summary>
+    public event Action? ScrollingStarted;
 
     public CodeCanvasView()
     {
@@ -183,7 +199,11 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _lastX = p.X;
         _lastY = p.Y;
 
-        if (Math.Abs(p.X - _downX) > 8 || Math.Abs(p.Y - _downY) > 8) _moved = true;
+        if (!_moved && (Math.Abs(p.X - _downX) > 8 || Math.Abs(p.Y - _downY) > 8))
+        {
+            _moved = true;
+            ScrollingStarted?.Invoke();   // 开始拖动 ⇒ 让页面先结束编辑（见事件注释）
+        }
 
         // 采样最近一段的触摸点（见 StartFling：松手速度只能从这里算，
         // 用「总位移」估出来的既不是速度也不是任何有意义的量）
@@ -228,7 +248,8 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
                 var (a, b) = _selAnchor <= _selEnd ? (_selAnchor, _selEnd) : (_selEnd, _selAnchor);
                 SelectionChanged?.Invoke(a + 1, b + 1);
             }
-            LineTapped?.Invoke(line + 1);
+            float xInLine = _lastX - GutterWidth() - EditorTypography.TextLeftPad + _scrollX;
+            LineTapped?.Invoke(line + 1, xInLine);
             ViewChanged?.Invoke();
             Invalidate();
             return;
@@ -367,6 +388,14 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         canvas.Font = EditorTypography.CanvasFont;
         canvas.FontSize = EditorTypography.FontSize;
 
+        // 实测一次字符宽（等宽字体下 "0" 的宽度就是所有 ASCII 的宽度）。
+        // 只做一次，之后整帧都用它 —— 放到每帧测会平白多一次文本测量。
+        if (!_charWidthMeasured)
+        {
+            var size = canvas.GetStringSize("0", EditorTypography.CanvasFont, EditorTypography.FontSize);
+            if (size.Width > 0) { _charWidth = (float)size.Width; _charWidthMeasured = true; }
+        }
+
         // ① 光标行 / 选择行底色（在文字下面）
         DrawLineBackgrounds(canvas, first, last, gutterW, w, lineH);
 
@@ -460,9 +489,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             bool caret = i == _caretLine;
             if (!selected && !caret) continue;
 
-            // 高亮条与文字**必须是同一个 y**：文字落笔点带了 TextBaselineOffset，
-            // 条少了这个偏移就会整体偏上一截（用户实测「黄条没对齐行」）。
-            float y = LineY(i, lineH) + EditorTypography.TextBaselineOffset - AscentApprox;
+            // 高亮条与文字用**同一个 y**（都是行顶）。二者曾经因为一处算了基线补偿、
+            // 另一处没算而差开半行 —— 现在两边都直接取行顶，没有第二套算法。
+            float y = LineY(i, lineH) + EditorTypography.TextBaselineOffset;
             canvas.FillColor = selected
                 ? EditorTypography.SelectionBg
                 : (_isDark ? EditorTypography.CaretLineBgDark : EditorTypography.CaretLineBg);
@@ -496,6 +525,41 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     }
 
     /// <summary>
+    /// 自绘光标。
+    ///
+    /// **为什么必须自绘**：光标本来交给原生 <c>Entry</c> 画，但它的位置取决于平台自己的
+    /// 内边距与行内对齐（Android 的 EditText 单行默认垂直居中），我们算不出、也就对不齐 ——
+    /// 实测表现就是「光标在光标行的下方乱飘」。用 <c>Entry.setCursorVisible(false)</c> 把系统
+    /// 光标藏掉、改由画布画，它的位置就只由行高与列宽决定，和文字出自同一套计算。
+    ///
+    /// 横向按**视觉列**定位（CJK 占两列）而不是字符数：中文行里两者差一倍。
+    /// </summary>
+    private void DrawCaret(ICanvas canvas, string line, float textX, float y, float lineH)
+    {
+        int col = Math.Clamp(EditingCursor, 0, line.Length);
+        int visualCol = TextEditorMath.SourceIndexToVisualCol(line, col, RuneWidthApprox,
+            EditorTypography.TabColumns);
+        float x = textX + visualCol * Math.Max(1f, _charWidth);
+
+        // 深色底用纯白、浅色底用纯黑：系统那个光标跟随主题色（Android 上是 Material 紫），
+        // 在深色代码背景上很不起眼。这里明确取对比度最高的两色，并加粗到一目了然。
+        canvas.StrokeColor = _isDark ? Colors.White : Colors.Black;
+        canvas.StrokeSize = 2.5f;
+        canvas.DrawLine(x, y + 2, x, y + lineH - 3);
+    }
+
+    /// <summary>自绘用的近似字宽：CJK/全角算 2 列，其余 1 列（与 AnsiString.CharWidth 同语义）。</summary>
+    private static int RuneWidthApprox(Rune r)
+    {
+        int cp = r.Value;
+        bool wide = cp >= 0x1100 && (cp <= 0x115F || cp >= 0x2E80 && cp <= 0xA4CF
+            || cp >= 0xAC00 && cp <= 0xD7A3 || cp >= 0xF900 && cp <= 0xFAFF
+            || cp >= 0xFE30 && cp <= 0xFE4F || cp >= 0xFF00 && cp <= 0xFF60
+            || cp >= 0xFFE0 && cp <= 0xFFE6);
+        return wide ? 2 : 1;
+    }
+
+    /// <summary>
     /// 把一行裁到「当前横向可见的那几列」，返回 (片段, 片段起点的 x)。
     /// 只给**超长行**用（普通行走按行号缓存的正路）。
     /// </summary>
@@ -510,19 +574,6 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         int len = Math.Min(cols, line.Length - start);
         if (len <= 0) return ("", textX);
         return (line.Substring(start, len), textX + start * charW);
-    }
-
-    /// <summary>
-    /// 自绘光标。横向位置按字符宽近似（CJK 会偏一点，但打字时光标就在插入点附近，够用）；
-    /// 精确到像素需要逐字素量宽，那会让每帧多出一次文本测量。
-    /// </summary>
-    private void DrawCaret(ICanvas canvas, string line, float textX, float y, float lineH)
-    {
-        int col = Math.Clamp(EditingCursor, 0, line.Length);
-        float x = textX + col * Math.Max(1f, _charWidth);
-        canvas.StrokeColor = _isDark ? Colors.White : Colors.Black;
-        canvas.StrokeSize = 1.5f;
-        canvas.DrawLine(x, y + 2, x, y + lineH - 2);
     }
 
     private readonly Dictionary<string, IAttributedText> _gutterCache = [];
@@ -702,7 +753,6 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         var si = canvas.GetStringSize("i", EditorTypography.CanvasFont, EditorTypography.FontSize);
         var sw = canvas.GetStringSize("W", EditorTypography.CanvasFont, EditorTypography.FontSize);
         bool mono = Math.Abs(si.Width - sw.Width) < 0.01f;
-        _charWidth = si.Width > 0 ? si.Width : _charWidth;
 
         var text = $"行 {first + 1}-{last}/{_doc?.LineCount} · 帧 {_lastDrawMs:F1}ms · 缓存 {_lineCache.Count}"
                  + $" · {_doc?.EncodingName} · {(mono ? "等宽✓" : "非等宽✗")}";
@@ -712,9 +762,6 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         canvas.FillRectangle(0, 0, Math.Min(w, text.Length * 6f + 12), 18);
         canvas.DrawString(text, 6, 2, HorizontalAlignment.Left);
     }
-
-    /// <summary>字体的近似 ascent（用于把「基线」换算成「行顶」）。</summary>
-    private static float AscentApprox => EditorTypography.FontSize * 0.92f;
 
     /// <summary>
     /// 保证编辑光标落在横向视野内。编辑长行时不做这件事，打着打着光标就跑出屏幕了

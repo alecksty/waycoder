@@ -28,9 +28,45 @@ public partial class SettingsPage : ContentPage
         InitializeComponent();
     }
 
+    /// <summary>可编辑上限的候选档位（MB）。0 只是占位，实际不允许 0。</summary>
+    private static readonly int[] EditorLimitOptions = [1, 2, 4, 8, 16, 32];
+
+    private bool _loadingEditorSettings;
+
+    /// <summary>把编辑器设置填进控件（只在进入页面时做，避免覆盖用户正在改的值）。</summary>
+    private void LoadEditorSettings()
+    {
+        _loadingEditorSettings = true;
+        try
+        {
+            int mb = (int)(Services.MauiEditorStore.ReadOnlyMaxBytes / (1024 * 1024));
+            int idx = Array.IndexOf(EditorLimitOptions, mb);
+            if (idx < 0) idx = 1;   // 默认 2MB
+            EditorLimitPicker.ItemsSource = EditorLimitOptions.Select(m => $"{m} MB").ToList();
+            EditorLimitPicker.SelectedIndex = idx;
+            EditorDebugSwitch.IsToggled = Services.MauiEditorStore.ShowDebugHud;
+        }
+        finally { _loadingEditorSettings = false; }
+    }
+
+    private void OnEditorLimitChanged(object? sender, EventArgs e)
+    {
+        if (_loadingEditorSettings) return;
+        int idx = EditorLimitPicker.SelectedIndex;
+        if (idx < 0 || idx >= EditorLimitOptions.Length) return;
+        Services.MauiEditorStore.SetReadOnlyMaxMB(EditorLimitOptions[idx]);
+    }
+
+    private void OnEditorDebugToggled(object? sender, ToggledEventArgs e)
+    {
+        if (_loadingEditorSettings) return;
+        Services.MauiEditorStore.SetDebugHud(e.Value);
+    }
+
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        LoadEditorSettings();
         LoadConfig();
     }
 

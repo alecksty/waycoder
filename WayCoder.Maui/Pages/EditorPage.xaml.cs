@@ -49,6 +49,9 @@ public partial class EditorPage : ContentPage
         Canvas.LineLongPressed += OnLineLongPressed;
         Canvas.SelectionChanged += (_, _) => UpdateStatus();
         Canvas.ViewChanged += UpdateStatus;
+        // 一滑动就结束编辑：编辑态下浮着一个输入框，滚动会让它和自绘的行对不上；
+        // 而且滑动本身就意味着「我要浏览」——先把这一行提交掉再滚，最省心。
+        Canvas.ScrollingStarted += () => { if (_editLine >= 0) CommitEditingLine(); };
         Canvas.ShowDebugHud = MauiEditorStore.ShowDebugHud;
 
         // 输入框与画布共用同一份排版常量：字体族/字号/行高/内边距只要有一处不同，
@@ -61,6 +64,23 @@ public partial class EditorPage : ContentPage
         // Entry 保留下来只为了三件事——IME 组合输入、软键盘、系统复制粘贴菜单。
         // 两层都显示文字的话，各自的行高/内边距规则不同，必然错位。
         LineEditor.TextColor = Colors.Transparent;
+
+        // 系统光标也藏掉：它由平台按自己的内边距/行内对齐绘制，我们算不出它的位置，
+        // 实测就是「在光标行的下方乱飘」。光标改由画布自绘（见 CodeCanvasView.DrawCaret），
+        // 于是它的位置和文字出自同一套计算。Entry 仍然负责 IME 与软键盘。
+        LineEditor.HandlerChanged += (_, _) =>
+        {
+#if ANDROID
+            if (LineEditor.Handler?.PlatformView is Android.Widget.EditText et)
+            {
+                et.SetCursorVisible(false);
+                et.SetBackgroundColor(Android.Graphics.Color.Transparent);
+            }
+#elif IOS
+            if (LineEditor.Handler?.PlatformView is UIKit.UITextField tf)
+                tf.TintColor = UIKit.UIColor.Clear;
+#endif
+        };
     }
 
     // ── 加载 ──
@@ -219,10 +239,10 @@ public partial class EditorPage : ContentPage
 
     // ── 单击 / 长按 ──
 
-    private void OnLineTapped(long line)
+    private void OnLineTapped(long line, float xInLine)
     {
         Canvas.SetCaretLine(line);
-        if (_canEdit && !_readOnly) BeginEditLine(line);
+        if (_canEdit && !_readOnly) BeginEditLine(line, xInLine);
         UpdateStatus();
     }
 
@@ -276,11 +296,18 @@ public partial class EditorPage : ContentPage
 
     // ── 单行编辑 ──
 
-    private void BeginEditLine(long oneBased)
+    private void BeginEditLine(long oneBased, float xInLine = -1f)
     {
         if (_editable == null || _readOnly) return;
         if (_editLine == oneBased - 1 && LineEditor.IsVisible)
         {
+            // 已经在编辑这一行：只把光标挪到点到的位置（不重建、不打断 IME）
+            if (xInLine > 0)
+            {
+                LineEditor.CursorPosition = ClickXToCharIndex(xInLine, LineEditor.Text ?? "");
+                Canvas.EditingCursor = LineEditor.CursorPosition;
+                Canvas.EnsureCaretVisible();
+            }
             LineEditor.Focus();
             return;
         }
@@ -296,12 +323,21 @@ public partial class EditorPage : ContentPage
 
         Canvas.EditingLine = oneBased;
         Canvas.EditingText = LineEditor.Text ?? "";
-        Canvas.EditingCursor = 0;
+
+        // 把「点在哪一格」换算成字符下标。
+        // 先把横坐标换成**视觉列**，再经 VisualColToSourceIndex 换成字符下标 ——
+        // 后者认 CJK 占两列（中文行里直接按字符数算会偏出好几格）。
+        int col = ClickXToCharIndex(xInLine, LineEditor.Text ?? "");
+        LineEditor.CursorPosition = Math.Clamp(col, 0, (LineEditor.Text ?? "").Length);
+        Canvas.EditingCursor = LineEditor.CursorPosition;
         Canvas.SetCaretLine(oneBased);
         PositionEditor(oneBased);
         LineEditor.IsVisible = true;
         LineEditor.Focus();
         StartCaretSync();
+        // 把这一行带到可视区中部：软键盘占掉下半屏，贴着底部编辑会看不见自己在打什么，
+        // 系统也可能为了「让焦点控件可见」而自行滚动页面（那会让画布坐标和实际显示错开）。
+        _ = EnsureEditorVisibleAsync(oneBased);
         Canvas.Invalidate();
         UpdateStatus();
     }
@@ -328,6 +364,44 @@ public partial class EditorPage : ContentPage
         if (pos == Canvas.EditingCursor) return;   // 没变就不重绘
         Canvas.EditingCursor = pos;
         Canvas.EnsureCaretVisible();               // 长行时把光标带进视野
+    }
+
+    /// <summary>
+    /// 编辑期间保证该行可见：先滚到中部，等软键盘把布局撑开（AdjustResize）之后再校一次。
+    /// 键盘高度在 Focus 那一刻还没到，只做一次的话算出来的是「键盘弹出前」的位置。
+    /// </summary>
+    private async Task EnsureEditorVisibleAsync(long oneBased)
+    {
+        Canvas.ScrollToLine(oneBased, center: true);
+        await Task.Delay(260);
+        if (_editLine != oneBased - 1) return;   // 期间已经切走/提交了
+        PositionEditor(oneBased);
+        Canvas.ScrollToLine(oneBased, center: true);
+    }
+
+    /// <summary>
+    /// 点击的横坐标（pt）→ 该行内的字符下标。
+    /// 两步：像素 → 视觉列 → 字符下标（后者认 CJK 占两列，中文行里按字符数直算会偏出几格）。
+    /// </summary>
+    private int ClickXToCharIndex(float xInLine, string line)
+    {
+        if (xInLine <= 0 || line.Length == 0) return 0;
+        float charW = Math.Max(1f, Canvas.CharWidth);
+        int visualCol = (int)Math.Round(xInLine / charW);
+        return Math.Clamp(
+            TextEditorMath.VisualColToSourceIndex(line, visualCol, RuneWidthApprox,
+                EditorTypography.TabColumns), 0, line.Length);
+    }
+
+    /// <summary>近似字宽：CJK/全角算 2 列，其余 1 列（与 AnsiString.CharWidth 同语义）。</summary>
+    private static int RuneWidthApprox(Rune r)
+    {
+        int cp = r.Value;
+        bool wide = cp >= 0x1100 && (cp <= 0x115F || cp >= 0x2E80 && cp <= 0xA4CF
+            || cp >= 0xAC00 && cp <= 0xD7A3 || cp >= 0xF900 && cp <= 0xFAFF
+            || cp >= 0xFE30 && cp <= 0xFE4F || cp >= 0xFF00 && cp <= 0xFF60
+            || cp >= 0xFFE0 && cp <= 0xFFE6);
+        return wide ? 2 : 1;
     }
 
     /// <summary>把输入框对齐到该行位置（用同一份行高与行号栏宽度算，避免错位）。</summary>

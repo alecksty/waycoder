@@ -116,6 +116,23 @@
                 </VerticalStackLayout>
             </Border>
 
+            <!-- ═══ 编辑器 ═══ -->
+            <Label Text="编辑器" FontSize="12" FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0" Margin="0,4,0,0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="12" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Padding="12,8" Spacing="6">
+                    <Label Text="可编辑上限：超过这个大小的文件以只读打开（照样能看能滚，但改不了）。编辑要把内容读进内存，调得越大越容易卡 —— 手机上不建议超过 8MB。"
+                           FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="EditorLimitPicker" Title="可编辑上限" SelectedIndexChanged="OnEditorLimitChanged" />
+                    <Label Text="调试 HUD（显示可见行区间 / 帧耗时 / 缓存命中 / 等宽自检）"
+                           FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Switch x:Name="EditorDebugSwitch" Toggled="OnEditorDebugToggled" />
+                </VerticalStackLayout>
+            </Border>
+
             <!-- ═══ 参数 ═══ -->
             <Label Text="参数" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
