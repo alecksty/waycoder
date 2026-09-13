@@ -254,6 +254,39 @@ public static partial class SelfTest
             // 纯文本不色符号：散文里的括号、破折号、冒号不该变成代码色
             Check("语法：纯文本不着色符号",
                 !Syntax.ByLanguage("text").Tokenize("a - b (c)").Any(t => t.Color == Syntax.Operator));
+            // 字符字面量独立于字符串；标识符按「函数 / 类型名 / 普通」三档分类
+            var cs3 = Syntax.ForFile("a.cs");
+            Check("语法：字符字面量独立着色（与字符串分开）",
+                cs3.Tokenize("a = 'x';").Any(t => t.Text == "'x'" && t.Color == Syntax.Char));
+            Check("语法：函数名着色（后跟括号）",
+                cs3.Tokenize("f(x)").Any(t => t.Text == "f" && t.Color == Syntax.Function));
+            Check("语法：类型名着色（首字母大写）",
+                cs3.Tokenize("var x = Foo;").Any(t => t.Text == "Foo" && t.Color == Syntax.TypeName));
+            Check("语法：普通标识符保持默认色（不整屏着色）",
+                cs3.Tokenize("var abc = 1;").Any(t => t.Text == "abc" && t.Color == Syntax.Default));
+
+            // Windows 批处理：独立语言（注释是 REM/::，变量是 %VAR%，与 Shell 的 #/$VAR 两套）
+            Check("语法：.bat 识别为批处理", Syntax.ForFile("run.bat").Name == Syntax.BatchName);
+            Check("语法：.cmd 识别为批处理", Syntax.ForFile("run.cmd").Name == Syntax.BatchName);
+            var bat = Syntax.ByLanguage("bat");
+            Check("语法：批处理关键字着色",
+                bat.Tokenize("if exist x goto end").Any(t => t.Text == "if" && t.Color == Syntax.Keyword));
+            Check("语法：批处理 REM 注释", bat.Tokenize("REM 这是注释").Any(t => t.Color == Syntax.Comment));
+            Check("语法：批处理 :: 注释", bat.Tokenize(":: 也是注释").Any(t => t.Color == Syntax.Comment));
+            Check("语法：批处理 %VAR% 变量",
+                bat.Tokenize("echo %PATH%").Any(t => t.Text == "%PATH%" && t.Color == Syntax.Variable));
+
+            // Linux shell：关键字扩充 + $VAR / ${VAR}
+            var sh = Syntax.ByLanguage("bash");
+            Check("语法：shell 关键字扩充（until/select/coproc 等）",
+                sh.Tokenize("until select coproc").Count(t => t.Color == Syntax.Keyword) == 3);
+            Check("语法：shell $VAR 变量",
+                sh.Tokenize("echo $HOME").Any(t => t.Text == "$HOME" && t.Color == Syntax.Variable));
+            Check("语法：shell ${VAR} 变量",
+                sh.Tokenize("echo ${HOME}").Any(t => t.Text == "${HOME}" && t.Color == Syntax.Variable));
+            Check("语法：shell 不把 % 当变量（两套语法不串）",
+                !sh.Tokenize("echo 100%").Any(t => t.Color == Syntax.Variable));
+
             // 通用兜底（无语言标签的代码块）仍要色符号
             Check("语法：通用表也色符号",
                 Syntax.Generic().Tokenize("a = (b)").Any(t => t.Color == Syntax.Operator));
@@ -392,9 +425,10 @@ public static partial class SelfTest
         Section("[工具行]");
         {
             // 图标统一 🔧、名称 PascalCase、加粗染黄、参数灰色括起来
+            // 括号与每段参数各自包标记（bash 的参数还要按 shell 语法上色，所以不能再整段一个 «grey»）
+            var hdr = ToolRendererFactory.FormatHeader("edit_file", "a.cs");
             Check("工具标题：统一图标与格式",
-                ToolRendererFactory.FormatHeader("edit_file", "a.cs")
-                    == "💡 «bold»«orange»Edit«/»«/»«grey»(a.cs)«/»");
+                hdr.StartsWith("💡 «bold»«orange»Edit«/»«/»") && hdr.Contains("(«/»") && hdr.EndsWith("«grey»)«/»"));
             Check("工具标题：read_file → Read（去 _file 后缀）",
                 ToolRendererFactory.DisplayName("read_file") == "Read");
             Check("工具标题：write_file → Write",
@@ -422,6 +456,12 @@ public static partial class SelfTest
             Check("工具标题：折行后每行不超宽",
                 wSegs.All(r => r.Sum(x => AnsiHelper.DisplayWidth(x.Text)) <= 40));
             Check("工具标题：宽字符不从中间切断", !wTxt.Contains('\uFFFD'));
+
+            // bash 的参数就是一条 shell 命令行 → 按 Shell 语法上色；其他工具的 brief 是路径/描述，保持统一灰
+            Check("工具标题：bash 参数按 shell 语法上色",
+                ToolRendererFactory.FormatHeader("bash", "dotnet build -c Release", 200).Contains("fg:#"));
+            Check("工具标题：非 bash 参数仍是灰色",
+                !ToolRendererFactory.FormatHeader("read_file", "src/Foo.cs", 200).Contains("fg:#"));
 
             Check("工具标题：无参数时不带空括号",
                 ToolRendererFactory.FormatHeader("bash", "") == "💡 «bold»«orange»Bash«/»«/»");

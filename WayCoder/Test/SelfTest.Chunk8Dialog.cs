@@ -865,7 +865,10 @@ public static partial class SelfTest
             tscr.ChatMessages.Clear();
             tscr.AddToolProgress("bash", "echo hello");
             var shortMsg = tscr.ChatMessages.LastOrDefault(m => m.Role == "tool");
-            Check("工具消息: 短参数原样保留", shortMsg != null && shortMsg.Content.Contains("echo hello"));
+            // bash 的参数现在按 shell 语法上色（会插 «fg:#..» 标记），比渲染后的文本才靠谱
+            var shortSegs = UI.Tui.TuiMarkdown.RenderMessage(shortMsg?.Content ?? "", "tool", 80, plainText: true);
+            var shortTxt = string.Concat(shortSegs.SelectMany(x => x).Select(x => x.Text));
+            Check("工具消息: 短参数原样保留", shortTxt.Contains("echo hello"));
             tscr.Deactivate();
         }
 
@@ -887,7 +890,9 @@ public static partial class SelfTest
             Check("ContentDiff: 头行 +N/-M", edit.Contains("· +1/-1 行"));
             Check("ContentDiff: 含 hunk 头", edit.Contains("@@"));
             Check("ContentDiff: 删除行红色", edit.Contains("«bright red»   2 -«/»b"));
-            Check("ContentDiff: 新增行绿色", edit.Contains("«bright green»   2 +«/»X"));
+            // 只断行号与标记那一段：后面的代码会按语法上色（`X` 首字母大写 → 类型名色），
+            // 把它一起断进来就等于假设「代码不上色」
+            Check("ContentDiff: 新增行绿色", edit.Contains("«bright green»   2 +«/»"));
             Check("ContentDiff: 上下文灰色", edit.Contains("«grey»   1  «/»a") && edit.Contains("«grey»   3  «/»c"));
 
             // CRLF 归一化：\r\n 拆行不花屏

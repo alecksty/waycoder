@@ -1849,7 +1849,13 @@ function highlightCode(code, lang) {
       out += '<span class="tok-com">' + escapeHtml(code.slice(i, j)) + '</span>'; i = j; continue;
     }
     // 字符串
-    if (c === '"' || c === "'" || c === '`') {
+    // 单引号 → 字符字面量（与主工程 Syntax.Char 对齐，比字符串略深）
+    if (c === "'") {
+      const q = c; let j = i + 1;
+      while (j < n) { if (code[j] === '\\') { j += 2; continue; } if (code[j] === q) { j++; break; } j++; }
+      out += '<span class="tok-char">' + escapeHtml(code.slice(i, j)) + '</span>'; i = j; continue;
+    }
+    if (c === '"' || c === '`') {
       const q = c; let j = i + 1;
       while (j < n) { if (code[j] === '\\') { j += 2; continue; } if (code[j] === q) { j++; break; } j++; }
       out += '<span class="tok-str">' + escapeHtml(code.slice(i, j)) + '</span>'; i = j; continue;
@@ -1865,6 +1871,8 @@ function highlightCode(code, lang) {
       const word = code.slice(i, j);
       if (kw.has(word)) out += '<span class="tok-kw">' + escapeHtml(word) + '</span>';
       else if (code[j] === '(') out += '<span class="tok-fn">' + escapeHtml(word) + '</span>';
+      // 首字母大写 → 类型/类/常量名（其余标识符保持默认前景，不整屏着色）
+      else if (/^[A-Z]/.test(word)) out += '<span class="tok-type">' + escapeHtml(word) + '</span>';
       else out += escapeHtml(word);
       i = j; continue;
     }

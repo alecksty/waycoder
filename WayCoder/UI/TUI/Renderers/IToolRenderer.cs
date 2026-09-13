@@ -1,6 +1,7 @@
 using System.Text;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Shared.Terminal;
+using WayCoder.UI.Tui.Edit;
 
 namespace WayCoder.UI.TUI.Renderers;
 
@@ -63,18 +64,22 @@ public static class ToolRendererFactory
         var head = $"💡 «bold»«orange»{DisplayName(toolName)}«/»«/»";
         if (string.IsNullOrWhiteSpace(brief)) return head;
 
+        // bash 的参数就是一条 shell 命令行 → 按 Shell 语法上色（选项 `-c`、引号、`$VAR`、管道都认得出）；
+        // 其他工具的 brief 是路径/描述，统一灰色即可。
+        var argSyntax = toolName == "bash" ? Syntax.ByLanguage("bash") : null;
+
         int nameW = DisplayName(toolName).Length; // 名称是 ASCII（PascalCase 工具名），字数即列数
         int headW = 2 + 1 + nameW;                // 💡(宽 2) + 空格 + 名称
         int need = headW + 2 + AnsiHelper.DisplayWidth(brief) + 1; // 前后括号各 1 列
         if (maxWidth <= 0 || need <= maxWidth)
-            return head + $"«grey»({brief})«/»";
+            return head + "«grey»(«/»" + Paint(brief, argSyntax) + "«grey»)«/»";
 
         // 超宽 → 参数**折行而不是截断**（bash 命令、文件路径截掉就看不全了）。
         // 两个要点：① 折行在**标记之外** —— «grey» 必须整段保留，按显示宽硬切会切出字面量；
         //          ② 每行**各自闭合** —— plainText 路径是逐行解析 «» 的，跨行标记对不上。
         int indentW = headW + 1;                        // 与「(」之后的那一列对齐
         int lineW = Math.Max(8, maxWidth - indentW);
-        var sb = new StringBuilder(head).Append("«grey»(");
+        var sb = new StringBuilder(head).Append("«grey»(«/»");
         var rest = brief;
         while (rest.Length > 0 && lineW >= 2)
         {
@@ -88,14 +93,25 @@ public static class ToolRendererFactory
                 int brk = rest.LastIndexOfAny([' ', '/', '\\', ','], take - 1, take);
                 if (brk > 0 && take - brk <= lineW / 3) take = brk + 1;
             }
-            sb.Append(rest[..take]);
+            sb.Append(Paint(rest[..take], argSyntax));
             rest = rest[take..];
             if (rest.Length == 0) break;
-            sb.Append("«/»\n").Append(new string(' ', indentW)).Append("«grey»");
+            sb.Append('\n').Append(new string(' ', indentW));
             lineW = Math.Max(8, maxWidth - indentW);
         }
-        sb.Append(")«/»");
+        sb.Append("«grey»)«/»");
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// 给一段文本上色：有语法定义走逐 token 语法色，否则整体灰。
+    /// 含 «» 字面量时不做语法上色（标记语法没有转义机制，会与生成的标记打架）—— 退回灰色。
+    /// </summary>
+    private static string Paint(string text, Syntax? syntax)
+    {
+        if (syntax == null || text.Contains('«') || text.Contains('»'))
+            return $"«grey»{text}«/»";
+        return UI.Tui.ContentDiffFormatter.Colorize(text, syntax);
     }
 
     /// <summary>

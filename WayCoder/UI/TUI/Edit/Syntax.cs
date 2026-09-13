@@ -19,6 +19,12 @@ public class Syntax
     /// <summary>该语言用 # 作单行注释（Python/Shell/Ruby/YAML/PHP）</summary>
     public bool HashComments => Name is "Python" or "Shell" or "Ruby" or "YAML" or "PHP" or GenericName;
 
+    /// <summary>Windows 批处理的注释名（`REM` / 行首 `::`）与语言名</summary>
+    public const string BatchName = "Windows 批处理";
+
+    /// <summary>该语言用 `REM` / 行首 `::` 作单行注释（Windows 批处理）</summary>
+    public bool BatchComments => Name is BatchName;
+
     /// <summary>该语言用 // 作单行注释（C 系语言）</summary>
     public bool SlashComments => Name is "C#" or "JavaScript" or "Java" or "C/C++" or "Go" or "Rust" or "Swift" or "Kotlin" or "PHP" or "Vue" or GenericName;
 
@@ -36,6 +42,10 @@ public class Syntax
     public const int Type    = 75;    // 蓝   #61afef —— XML/HTML 标签、标题正文
     public const int Operator = 73;   // 青   #5fafaf —— 运算符 = == != < > + - * / && || =>
     public const int Bracket  = 145;  // 蓝灰 #afafaf —— 括号 () [] {} 与标点 , ; : .
+    public const int Char      = 108; // 深绿 #87af87 —— 字符字面量 'a'（与字符串同色系、略深以便区分）
+    public const int Function  = 75;  // 蓝   #61afef —— 后跟 ( 的标识符（函数 / 方法调用）
+    public const int TypeName  = 180; // 黄褐 #d7af87 —— 首字母大写的标识符（类型 / 类 / 常量名）
+    public const int Variable  = 174; // 柔红 #d78787 —— 变量引用 $VAR / ${VAR} / %VAR%
 
     // 旧颜色名（兼容保留，值已指向上面的语义色；新代码请用语义名）
     public const int Cyan = Type;
@@ -71,6 +81,7 @@ public class Syntax
         "xml" or "html" or "svg" or "htm" => Xml(),
         "markdown" or "md" => Markdown(),
         "shell" or "sh" or "bash" or "zsh" or "console" or "shell-session" => Shell(),
+        "bat" or "batch" or "cmd" or "dosbatch" => Batch(),
         "yaml" or "yml" => Yaml(),
         "sql" => Sql(),
         "css" or "scss" => Css(),
@@ -101,6 +112,7 @@ public class Syntax
             ".xml" or ".html" or ".htm" or ".svg" or ".tui" => Xml(),
             ".md" or ".mdx" => Markdown(),
             ".sh" or ".bash" or ".zsh" => Shell(),
+            ".bat" or ".cmd" => Batch(),
             ".yml" or ".yaml" => Yaml(),
             ".sql" => Sql(),
             ".css" or ".scss" => Css(),
@@ -209,13 +221,47 @@ public class Syntax
                 continue;
             }
 
-            // 单引号字符串 '...'
+            // 单引号：字符字面量 'a'（C 系）—— 用比字符串略深的绿区分，`'a'` 与 `"abc"` 一眼分得开
             if (line[i] == '\'')
             {
                 var end = FindStringEnd(line, i, '\'');
                 if (end < 0) end = line.Length - 1;
-                tokens.Add((line[i..(end + 1)], Str));
+                tokens.Add((line[i..(end + 1)], Char));
                 i = end + 1;
+                continue;
+            }
+
+            // 批处理注释：`REM ...` 或行首 `::`
+            if (BatchComments && i == 0 &&
+                (line.StartsWith("REM ", StringComparison.OrdinalIgnoreCase) ||
+                 line.StartsWith("rem\t", StringComparison.OrdinalIgnoreCase) ||
+                 line.StartsWith("::", StringComparison.Ordinal)))
+            {
+                tokens.Add((line, Comment));
+                break;
+            }
+
+            // 变量引用：Shell 的 $VAR / ${VAR}，批处理的 %VAR%；两者都只认「自己那套」语言，
+            // 否则 `100%` 这种百分号会被误当变量头。
+            if (HighlightSymbols && line[i] == '$' && i + 1 < line.Length
+                && (char.IsLetter(line[i + 1]) || line[i + 1] == '_' || line[i + 1] == '{')
+                && Name is not BatchName)
+            {
+                var vs = i;
+                i++;
+                if (line[i] == '{') { while (i < line.Length && line[i] != '}') i++; if (i < line.Length) i++; }
+                else while (i < line.Length && (char.IsLetterOrDigit(line[i]) || line[i] == '_')) i++;
+                tokens.Add((line[vs..i], Variable));
+                continue;
+            }
+            if (HighlightSymbols && Name is BatchName && line[i] == '%' && i + 1 < line.Length
+                && (char.IsLetter(line[i + 1]) || char.IsDigit(line[i + 1]) || line[i + 1] == '*'))
+            {
+                var vs = i;
+                i++;
+                while (i < line.Length && line[i] != '%') i++;
+                if (i < line.Length) i++;
+                tokens.Add((line[vs..i], Variable));
                 continue;
             }
 
@@ -253,7 +299,19 @@ public class Syntax
                 while (i < line.Length && (char.IsLetterOrDigit(line[i]) || line[i] == '_' || (allowDash && line[i] == '-')))
                     i++;
                 var word = line[start..i];
-                tokens.Add((word, Keywords.Contains(word) ? Keyword : Default));
+                int wcolor = Default;
+                if (Keywords.Contains(word)) wcolor = Keyword;
+                else if (HighlightSymbols)
+                {
+                    // 标识符分类 —— **不能所有标识符都上色**（那整屏都是彩的，反而看不出重点），
+                    // 只挑两类有信息量的：后跟 `(` 的是函数/方法调用；首字母大写的是类型/类/常量名。
+                    // 其余（局部变量、字段）保持默认前景 —— 这正是编辑器里「代码看着有层次」的来源。
+                    int k = i;
+                    while (k < line.Length && line[k] == ' ') k++;
+                    if (k < line.Length && line[k] == '(') wcolor = Function;
+                    else if (char.IsUpper(word[0])) wcolor = TypeName;
+                }
+                tokens.Add((word, wcolor));
                 continue;
             }
 
@@ -422,10 +480,39 @@ public class Syntax
     {
         Name = "Shell",
         Keywords = [
+            // 语法结构
             "if","then","else","elif","fi","case","esac","for","while","until","do",
-            "done","in","function","return","exit","export","local","readonly","declare",
-            "source","echo","cd","ls","rm","mv","cp","mkdir","cat","grep","sed","awk",
-            "git","docker","npm","curl","wget","ssh","chmod","chown",
+            "done","in","function","select","time","coproc",
+            // 声明 / 作用域
+            "return","exit","export","local","readonly","declare","typeset","unset",
+            "shift","set","source","alias","unalias","trap","eval","exec","builtin","command","let",
+            // 常用内建 / 工具
+            "echo","printf","read","test","cd","pwd","ls","rm","mv","cp","mkdir","rmdir","touch",
+            "cat","head","tail","grep","egrep","sed","awk","sort","uniq","wc","cut","tr","find","xargs",
+            "chmod","chown","chgrp","ln","df","du","ps","kill","killall","jobs","bg","fg","wait","sleep",
+            "git","docker","npm","yarn","pnpm","python","node","make","curl","wget","ssh","scp","rsync",
+            "tar","gzip","zip","unzip","env","which","type","history","ulimit","umask",
+        ],
+    };
+
+    /// <summary>
+    /// Windows 批处理（.bat / .cmd）—— 注释用 `REM` 或行首 `::`，变量用 `%VAR%`，
+    /// 与 Shell 的 `#` 注释 / `$VAR` 是两套语法，不能混用同一个定义。
+    /// </summary>
+    private static Syntax Batch() => new()
+    {
+        Name = BatchName,
+        Keywords = [
+            // 控制流
+            "if","else","for","in","do","goto","call","exit","pause","choice","start",
+            // 变量与作用域
+            "set","setlocal","endlocal","shift","defined","exist","errorlevel",
+            // 比较运算符（批处理里是关键字形态）
+            "equ","neq","lss","leq","gtr","geq","not",
+            // 常用命令
+            "echo","rem","cd","chdir","md","mkdir","rd","rmdir","dir","copy","move","del","erase",
+            "ren","rename","type","find","findstr","more","sort","attrib","xcopy","robocopy",
+            "tasklist","taskkill","ping","ipconfig","net","sc","reg","wmic","powershell",
         ],
     };
 

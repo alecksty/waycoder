@@ -112,7 +112,8 @@ public static class ContentDiffFormatter
     /// ② 非 256 色值（标准 16 色 / 样式码）不上色 —— Syntax 只用 256 色，
     ///    遇到别的值说明来路不对，宁可不色也别错色。
     /// </summary>
-    private static string Colorize(string code, Syntax? syntax)
+    /// <summary>（internal 供 <c>ToolRendererFactory</c> 复用：bash 工具行的参数按 shell 语法上色）</summary>
+    internal static string Colorize(string code, Syntax? syntax)
     {
         if (syntax == null || code.Length == 0) return code;
         if (code.Contains('«') || code.Contains('»')) return code;
