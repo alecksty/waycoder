@@ -26,7 +26,12 @@ internal static class EditorTypography
     /// 中文靠平台 fallback，而**测量与渲染两条路径 fallback 到的字体并不一致**
     /// （实测同一条中文，测量 ≈9.8dp、渲染 ≈16.8dp），点击定位就会越往右越偏。
     /// </summary>
-    public const string FontFamilyName = "SarasaMonoSC";
+    public const string FontFamilyName =
+#if ANDROID
+        "monospace";
+#else
+        "Courier New";
+#endif
 
     /// <summary>
     /// **Graphics 侧**（`Font` / `Typeface` / `AttributedText` 的 run）用的字体名。
@@ -34,14 +39,7 @@ internal static class EditorTypography
     /// 与 Controls 是**两套互不知情的解析器**：Android 走资产文件名，iOS 走 PostScript 名 ——
     /// 写错不会抛异常，只会静默回落成平台默认字体，而回落的那份宽度与测量又对不上。
     /// </summary>
-    public const string CanvasFontName =
-#if ANDROID
-        "SarasaMonoSC-Regular.ttf";
-#elif IOS
-        "SarasaMonoSC-Regular";
-#else
-        "SarasaMonoSC";
-#endif
+    public const string CanvasFontName = FontFamilyName;
 
     /// <summary>字号（磅）。可在编辑器菜单里调（加大/缩小/重置），并持久化。</summary>
     public static float FontSize { get; set; } = 13f;

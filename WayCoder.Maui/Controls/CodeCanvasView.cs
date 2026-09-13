@@ -77,6 +77,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// <summary>诊断：平台路径实际用的密度（用于和「屏幕物理宽 ÷ 控件 dp 宽」比对）。</summary>
     public float ProbeDensity { get; private set; }
 
+    /// <summary>诊断：打包字体是否真的加载到了（拿不到就是静默回落成默认字体）。</summary>
+    public string ProbeTypeface { get; private set; } = "-";
+
 #if DEBUG
     /// <summary>
     /// 诊断：上一次点击的**完整换算链** —— 点击屏幕坐标 → 行内横坐标 xInLine → 平台引擎算出的字符下标
@@ -426,9 +429,14 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
                 // 真实 scale = 屏幕物理宽 ÷ 控件 dp 宽；与平台路径用的密度不同 ⇒ 字号喂错了
                 float realScale = Width > 0
                     ? (float)(Microsoft.Maui.Devices.DeviceDisplay.MainDisplayInfo.Width / Width) : 0;
-                TapProbe = $"x{xInLine:F0}→i{ci}→x{MeasurePrefixWidth(tapLine, ci):F0}"
-                         + $"/L{tapLine.Length} W{MeasurePrefixWidth(tapLine, tapLine.Length):F0}"
-                         + $" d{ProbeDensity:F2}/r{realScale:F2} w{Width:F0}";
+                // G = MAUI Graphics 的 GetStringSize（用 CanvasFont 这个名字解析）；
+                // W 来自平台 StaticLayout（用 CreateFromAsset 拿到的 Typeface）。
+                // 两者不等 ⇒ Graphics 侧解析不到资产名、也在回落，渲染与测量仍不同源。
+                float g = _measureCanvas == null ? -1f
+                    : (float)_measureCanvas.GetStringSize(tapLine, EditorTypography.CanvasFont,
+                        EditorTypography.FontSize).Width;
+                TapProbe = $"x{xInLine:F0}→i{ci} W{MeasurePrefixWidth(tapLine, tapLine.Length):F0}"
+                         + $"/L{tapLine.Length} G{g:F0} tf:{ProbeTypeface}";
             }
 #endif
             LineTapped?.Invoke(line + 1, xInLine);
@@ -655,6 +663,22 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // ③ 行号栏（最后画，压住横向滚出去的正文）
         DrawGutter(canvas, first, last, gutterW, h, lineH);
 
+#if DEBUG
+        // 调试标尺：在**测量出来的行尾**画一条竖线。
+        // 用途：分辨「测量比渲染小」还是「xInLine 换算错」—— 看线压在哪就知道，
+        // 不用再靠截图数格子（目测误差比偏差本身还大，前面已经栽过一次）。
+        {
+            var rulerLine = _doc?.GetLine(first);
+            if (rulerLine is { Length: > 0 })
+            {
+                float endX = gutterW + EditorTypography.TextLeftPad
+                    + MeasurePrefixWidth(rulerLine, rulerLine.Length) - _scrollX;
+                canvas.StrokeColor = Colors.Red;
+                canvas.StrokeSize = 1f;
+                canvas.DrawLine(endX, 0, endX, lineH * 3);
+            }
+        }
+#endif
         DrawScrollbars(canvas, w, h);   // 最上层：HUD 之前，免得被正文覆盖
         if (ShowDebugHud) DrawDebug(canvas, w, h, first, last, gutterW, lineH);
 
@@ -1295,6 +1319,11 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         {
             float density = PlatformDensity;
             ProbeDensity = density;
+            // 诊断：CreateFromAsset 到底拿到没有 —— 拿不到就是 Typeface.Default（也等价于静默回落）
+            var want = Android.Graphics.Typeface.CreateFromAsset(
+                Android.App.Application.Context.Assets, EditorTypography.CanvasFontName);
+            ProbeTypeface = want == null ? "asset=null"
+                : (want.Equals(Android.Graphics.Typeface.Default) ? "==DEFAULT" : "ok");
             if (_androidPaint == null)
             {
                 _androidPaint = new Android.Text.TextPaint();
@@ -1303,12 +1332,19 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             _androidPaint.TextSize = size * density;
             // Paint.Typeface 是只读属性，必须走 SetTypeface。
             //
-            // ⚠ 必须用 CreateFromAsset 而**不是** Create(name, style)：后者只认
-            // **系统字体族名**（monospace / sans-serif 这类），喂打包进 APK 的资产文件名
-            // 匹配不到就**静默回落**成默认字体 —— 表现是渲染用了新字体、测量还是老字体，
-            // 两边又对不上（实测整行宽只从 105 挪到 102，而画面上明显变宽了）。
-            _androidPaint.SetTypeface(Android.Graphics.Typeface.CreateFromAsset(
-                Android.App.Application.Context.Assets, EditorTypography.CanvasFontName));
+            // ⚠⚠ **必须用 Typeface.Create(name, style)，不能改用 CreateFromAsset**。
+            // 原因在渲染那一侧：MAUI 把 `AttributedText` 的 run 字体名转成的是
+            // **Android 原生的 `TypefaceSpan(string familyName)`**
+            // （见 Graphics/Platforms/Android/Text/AttributedTextExtensions.cs），
+            // 而它内部同样是 `Typeface.Create(familyName, style)` —— **只认系统族名**，
+            // 且**没有 asset 重载**、MAUI 也没留传 `Typeface` 的口子。
+            //
+            // 所以画布上的文字实际上只能用系统字体族名渲染；我们这边要是拿
+            // `CreateFromAsset` 加载打包字体去测，就变成「测量用一种字体、渲染用另一种」
+            // —— 实测整行宽差约 16%（红标尺直接量出来的），点击定位随之偏移。
+            // **测量与渲染必须走同一个解析路径**，这比"选一个更好的字体"重要得多。
+            _androidPaint.SetTypeface(Android.Graphics.Typeface.Create(
+                EditorTypography.CanvasFontName, Android.Graphics.TypefaceStyle.Normal));
 
             // 宽度给足，避免把一行折成多行（我们自己做横向滚动，不要平台的换行）
             float width = Math.Max(1f, (line.Length + 8) * size * density);
@@ -1332,6 +1368,10 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// <summary>点击横坐标（dp，相对正文起点）→ 字符下标。返回 -1 表示平台路径不可用。</summary>
     private int CharIndexAtXPlatform(string line, float xInLine)
     {
+        // 暂时停用：平台 StaticLayout 与 MAUI 的渲染路径（SpannableString + FontPaint）
+        // 对同一族名的解析结果不同，实测差约 13%。在没做到「与渲染逐字节同源」之前，
+        // 宁可走 MAUI 自己的 GetStringSize（与画布文字同一条路）。
+        if (true) return -1;
         var layout = EnsureAndroidLayout(line);
         if (layout == null) return -1;
         try
@@ -1345,6 +1385,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// <summary>第 charIndex 个码元处的横坐标（dp，相对正文起点）。返回 -1 表示不可用。</summary>
     private float PrefixWidthPlatform(string line, int charIndex)
     {
+        if (true) return -1;   // 同上：见 CharIndexAtXPlatform 的注释
         var layout = EnsureAndroidLayout(line);
         if (layout == null) return -1;
         try
