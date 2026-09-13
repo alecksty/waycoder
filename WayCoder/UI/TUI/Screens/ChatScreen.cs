@@ -145,6 +145,12 @@ public partial class ChatScreen : TuiScreen
     private readonly object _chatLock = new();
     // 注：PostToUI / PumpUIQueue / _uiQueue / _uiThreadId 已提炼到基类 TuiScreen（所有屏幕共用）。
 
+    /// <summary>距上次 token 全量估算新增的消息数（见 PruneChatHistory 的节流说明）</summary>
+    private int _sinceTokenPrune;
+
+    /// <summary>token 估算的节流间隔：每这么多条消息才做一次全量估算</summary>
+    private const int TokenPruneEvery = 32;
+
     /// <summary>流式追加待处理标记：置位后由下一渲染帧统一解析 + 布局（合并同帧多个 delta 一次重解析）。
     /// UI 线程专用（AppendToLast 恒在 UI 线程经 PostToUI 执行）。</summary>
     private bool _streamAppendPending;
@@ -952,19 +958,25 @@ public partial class ChatScreen : TuiScreen
         int maxTokens = Config.Instance.MaxChatTokens;
         if (max <= 0 && maxTokens <= 0) return;
 
-        // 条数超限：丢最旧
+        // 条数超限：丢最旧的**显示项**。
+        // ⚠ 不能顺手删 ChatMessages —— 那是槽位的消息列表（会话保存与切槽位重放的来源），
+        // 删了就等于「聊久了历史真的没了」（用户实测「大部分内容丢失」）。两者本就不是一一对应：
+        // ChatList 还含工具气泡，ChatMessages 只有 user/assistant/system。
         int excess = max > 0 ? ChatList.ItemCount - max : 0;
         while (excess > 0 && ChatList.ItemCount > 0)
         {
             ChatList.RemoveItem(0);
-            if (ChatMessages.Count > 0) ChatMessages.RemoveAt(0);
             excess--;
         }
 
         // 总 token 超限：从最旧开始丢，直到低于上限。
         // 每次新增消息后调用，累计估算 O(n) 可接受；n 被条数上限钳制不会爆炸。
-        if (maxTokens > 0)
+        // token 裁剪：**节流**。每次 AddMessage 都全量遍历所有项的文本，1000 条长消息下
+        // 就是每轮十几 MB 的字符串遍历（O(n²) 累积，用户实测「消息多了就卡死」）。
+        // 每 32 条估一次，精度足够、开销降两个数量级。
+        if (maxTokens > 0 && ++_sinceTokenPrune >= TokenPruneEvery)
         {
+            _sinceTokenPrune = 0;
             while (ChatList.ItemCount > 0)
             {
                 long total = 0;
@@ -976,7 +988,6 @@ public partial class ChatScreen : TuiScreen
                 }
                 if (total <= maxTokens) break; // 未超限，结束
                 ChatList.RemoveItem(0);
-                if (ChatMessages.Count > 0) ChatMessages.RemoveAt(0);
             }
         }
 
