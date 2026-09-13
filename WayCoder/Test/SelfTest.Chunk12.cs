@@ -377,15 +377,23 @@ public static partial class SelfTest
             // 图标统一 🔧、名称 PascalCase、加粗染黄、参数灰色括起来
             Check("工具标题：统一图标与格式",
                 ToolRendererFactory.FormatHeader("edit_file", "a.cs")
-                    == "🔧 «bold»«yellow»Edit«/»«/»«grey»(a.cs)«/»");
+                    == "💡 «bold»«orange»Edit«/»«/»«grey»(a.cs)«/»");
             Check("工具标题：read_file → Read（去 _file 后缀）",
                 ToolRendererFactory.DisplayName("read_file") == "Read");
             Check("工具标题：write_file → Write",
                 ToolRendererFactory.DisplayName("write_file") == "Write");
             Check("工具标题：multi_edit → MultiEdit（snake→Pascal）",
                 ToolRendererFactory.DisplayName("multi_edit") == "MultiEdit");
+            // «orange» 必须真的解出橙色：色名写错（或某端色表没登记）会整段**无色**而不是报错，
+            // Web 端此前就只登记了 orange3 没有 orange —— 这类「静默失色」只能靠解出来的色值发现
+            var ttSegs = UI.Tui.TuiMarkdown.RenderMessage(
+                ToolRendererFactory.FormatHeader("edit_file", "a.cs"), "tool", 40, plainText: true);
+            var ttFlat = ttSegs.SelectMany(x => x).ToList();
+            Check("工具标题：名称渲染成橙色", ttFlat.Any(x => x.Fg == AnsiColors.Orange));
+            Check("工具标题：参数渲染成灰色", ttFlat.Any(x => x.Fg == AnsiColors.BrightBlack));
+
             Check("工具标题：无参数时不带空括号",
-                ToolRendererFactory.FormatHeader("bash", "") == "🔧 «bold»«yellow»Bash«/»«/»");
+                ToolRendererFactory.FormatHeader("bash", "") == "💡 «bold»«orange»Bash«/»«/»");
 
             // 输出另起一条消息（不与标题同行）—— 接在后面时首行会紧贴标题
             Section("[工具行 · 输出另起]");

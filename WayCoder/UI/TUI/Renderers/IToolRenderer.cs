@@ -52,11 +52,11 @@ public static class ToolRendererFactory
     ///
     /// 各渲染器此前各写一套「emoji + 小写名 + 参数」（`✏️ edit x` / `📝 write x` / `💻 bash x` …）：
     /// 图标不统一（✏️📝💻📖🔍🤖⚙）、名称大小写也不一，在聊天流里一眼扫不出「这是工具调用」。
-    /// 现在图标统一、名称首字母大写并**加粗染黄**、参数降为灰色 —— 与下面的内容行拉开层次。
+    /// 现在图标统一、名称首字母大写并**加粗染橙**、参数降为灰色 —— 与下面的内容行拉开层次。
     /// </summary>
     public static string FormatHeader(string toolName, string brief)
     {
-        var head = $"🔧 «bold»«yellow»{DisplayName(toolName)}«/»«/»";
+        var head = $"💡 «bold»«orange»{DisplayName(toolName)}«/»«/»";
         return string.IsNullOrWhiteSpace(brief) ? head : head + $"«grey»({brief})«/»";
     }
 

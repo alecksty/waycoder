@@ -1635,7 +1635,7 @@ function ansiToHtml(text) {
 const MARKUP_STYLES = {
   'red': 'color:#ff7b72;', 'green': 'color:#3fb950;', 'yellow': 'color:#d29922;',
   'cyan': 'color:#39c5cf;', 'blue': 'color:#58a6ff;', 'magenta': 'color:#bc8cff;',
-  'white': 'color:#c9d1d9;', 'orange3': 'color:#d29922;', 'grey': 'color:#6e7681;',
+  'white': 'color:#c9d1d9;', 'orange3': 'color:#d29922;', 'orange': 'color:#ff8700;', 'grey': 'color:#6e7681;',
   'dim': 'opacity:.6;', 'bold': 'font-weight:700;',
   'underline': 'text-decoration:underline;', 'italic': 'font-style:italic;',
 };
