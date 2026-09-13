@@ -1,5 +1,47 @@
 # 更新日志
 
+## v0.96.115 (2026-09-14) — 编辑器：点击偏移根因定位（**未修复**）+ 调试标尺
+
+### 根因（已确认）
+
+点击定位随非 ASCII 字符累积偏移。根因是**测量的宽度与渲染的宽度不是同一把尺子**，
+红标尺实测差约 **19%**。三层证据：
+
+1. **纯 ASCII 行准确、混排行偏移** ⇒ 偏的是非 ASCII 字符，不是「累积误差」（早先那个判断是错的）
+2. **MAUI 在 Android 上渲染 `AttributedText` 只能走 `TypefaceSpan(系统族名)`**
+   （见 `dotnet/maui` 的 `Graphics/Platforms/Android/Text/AttributedTextExtensions.cs`）——
+   它内部是 `Typeface.Create(family, style)`，**只认系统字体族名、没有 asset 重载**，
+   MAUI 也没留传 `Typeface` 的口子。⇒ **打包字体在这个 API 下根本用不上**
+3. **两条测量路径（自建 `StaticLayout`、MAUI 的 `GetStringSize`）结果一致**，
+   但都与渲染差约 19% —— 所以不是「哪条路径没生效」，是两条都不同源
+
+### 排除掉的假设（都是拿读数证伪的，不是猜的）
+
+- **密度换算**：平台密度 2.62 与「屏幕物理宽 ÷ 控件 dp 宽」的 2.62 完全一致
+- **字体没打进 APK**：字体确实在 `assets/SarasaMonoSC-Regular.ttf`（与 OpenSans 并列）
+- **字母宽度累加算法**：换成整段前缀测量后 sum/whole 已是 1.00
+
+### 新增工具：调试标尺（`#if DEBUG`）
+
+在「测量出来的行尾」画一条红色竖线。**它不依赖目测** —— 线的位置由程序算、
+行尾由渲染产生，两者之差就是真实偏差。此前十几轮靠截图数格子得出的
+「偏了 1 个字符 / 2 个字符」等结论**都不可靠**（目测误差比偏差本身还大），
+这个工具就是为了替掉那种判断方式。**后续修这个问题都应该先看这条线。**
+
+### 当前怀疑（尚未验证）
+
+19% ≈ 字号差一档。渲染用的是 `CurrentState.FontPaint`，其 `TextSize` 来自
+`PlatformCanvasState.ScaledFontSize`；若它在我们把 `canvas.FontSize` 设为 13（dp）
+之后又按密度缩了一次，渲染字号就会比测量用的大，差值比例正好对得上。
+下一步：读 `PlatformCanvasState.cs` 看 `ScaledFontSize` 的定义。
+
+### 附带说明
+
+内置的 Sarasa Mono SC（24MB）目前在 **Android 上用不上**（见根因 2），先保留，
+等「自绘渲染」方案启用 —— 那需要绕开 `AttributedText`，自己建
+`SpannableString` + `StaticLayout` 并**同时用于绘制与测量**，才谈得上真正同源。
+
+
 ## v0.96.114 (2026-09-13) — 编辑器：滚动条 + 双指缩放 + 宽度链路重构
 
 ### 一、滚动条（自绘）
