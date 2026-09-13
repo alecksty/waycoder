@@ -7,6 +7,7 @@ using WayCoder.UI.Tui.Edit;
 using WayCoder.UI.Tui.Screens;
 using WayCoder.UI.TUI;
 using WayCoder.UI.TUI.Base;
+using WayCoder.UI.TUI.Renderers;
 
 namespace WayCoder;
 
@@ -367,6 +368,63 @@ public static partial class SelfTest
             var geo2 = db2.ComputeGeometry(0, 100);
             Check("动态栏几何：中段明显宽于左段", geo2.MidWidth > 100 / 5);
             Check("动态栏几何：右段贴右边缘", items2.Count > 0 && geo2.RightItems.Count > 0);
+        }
+        Console.WriteLine();
+
+        // ── 工具行：统一标题 + 内容另起一条消息 ──
+        Section("[工具行]");
+        {
+            // 图标统一 🔧、名称 PascalCase、加粗染黄、参数灰色括起来
+            Check("工具标题：统一图标与格式",
+                ToolRendererFactory.FormatHeader("edit_file", "a.cs")
+                    == "🔧 «bold»«yellow»Edit«/»«/»«grey»(a.cs)«/»");
+            Check("工具标题：read_file → Read（去 _file 后缀）",
+                ToolRendererFactory.DisplayName("read_file") == "Read");
+            Check("工具标题：write_file → Write",
+                ToolRendererFactory.DisplayName("write_file") == "Write");
+            Check("工具标题：multi_edit → MultiEdit（snake→Pascal）",
+                ToolRendererFactory.DisplayName("multi_edit") == "MultiEdit");
+            Check("工具标题：无参数时不带空括号",
+                ToolRendererFactory.FormatHeader("bash", "") == "🔧 «bold»«yellow»Bash«/»«/»");
+
+            // 输出另起一条消息（不与标题同行）—— 接在后面时首行会紧贴标题
+            Section("[工具行 · 输出另起]");
+            var savedSzT = Tty.SizeOverride;
+            Tty.SizeOverride = (100, 30);
+            var mgrT = TuiManager.Instance;
+            bool enteredT = false;
+            int before = 0, after = 0;
+            bool bodyOwn = false;
+            try
+            {
+                var prevOut = Console.Out;
+                Console.SetOut(TextWriter.Null);
+                try
+                {
+                    if (!mgrT.IsActive) { mgrT.Enter(); enteredT = true; }
+                    var chatT = new MarkupChatScreen();
+                    mgrT.PushScreen(chatT);
+                    chatT.AddToolProgress("edit_file", "a.cs");
+                    // 判据用 ChatList 项数：追加到现有项时不变，另起一条才会 +1 —— 后者正是「分开」
+                    before = chatT.ChatList.ItemCount;
+                    chatT.AppendToLast("+public class A { }");
+                    after = chatT.ChatList.ItemCount;
+                    var body = chatT.ChatList.GetItem(after - 1) as TuiListItem;
+                    var title = chatT.ChatList.GetItem(after - 2) as TuiListItem;
+                    bodyOwn = after == before + 1
+                           && body != null && body.MarkdownContent.Contains("public class A")
+                           && title != null && !title.MarkdownContent.Contains("public class A");
+                    mgrT.PopScreen();
+                }
+                finally { Console.SetOut(prevOut); }
+            }
+            catch (Exception ex) { Check($"工具行测试异常: {ex.Message}", false); }
+            finally
+            {
+                if (enteredT) { try { mgrT.Exit(); } catch { } }
+                Tty.SizeOverride = savedSzT;
+            }
+            Check("工具输出另起一条消息（不与标题同行）", bodyOwn);
         }
         Console.WriteLine();
 

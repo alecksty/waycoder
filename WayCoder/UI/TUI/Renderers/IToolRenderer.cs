@@ -47,6 +47,38 @@ public static class ToolRendererFactory
         _renderers[alias] = renderer;
     }
 
+    /// <summary>
+    /// 统一的工具行标题：`🔧 Edit(参数)`。
+    ///
+    /// 各渲染器此前各写一套「emoji + 小写名 + 参数」（`✏️ edit x` / `📝 write x` / `💻 bash x` …）：
+    /// 图标不统一（✏️📝💻📖🔍🤖⚙）、名称大小写也不一，在聊天流里一眼扫不出「这是工具调用」。
+    /// 现在图标统一、名称首字母大写并**加粗染黄**、参数降为灰色 —— 与下面的内容行拉开层次。
+    /// </summary>
+    public static string FormatHeader(string toolName, string brief)
+    {
+        var head = $"🔧 «bold»«yellow»{DisplayName(toolName)}«/»«/»";
+        return string.IsNullOrWhiteSpace(brief) ? head : head + $"«grey»({brief})«/»";
+    }
+
+    /// <summary>
+    /// 工具显示名：去掉 `_file` 后缀后把 snake_case 转 PascalCase。
+    /// （`edit_file` → `Edit`、`read_file` → `Read`、`multi_edit` → `MultiEdit`；
+    ///  `_file` 后缀去掉是因为 Read/Write/Edit 更像动作名，也比 ReadFile 短。）
+    /// </summary>
+    internal static string DisplayName(string toolName)
+    {
+        var n = toolName.EndsWith("_file", StringComparison.Ordinal) ? toolName[..^5] : toolName;
+        var sb = new System.Text.StringBuilder(n.Length);
+        bool up = true;
+        foreach (var c in n)
+        {
+            if (c is '_' or '-') { up = true; continue; }
+            sb.Append(up ? char.ToUpperInvariant(c) : c);
+            up = false;
+        }
+        return sb.Length > 0 ? sb.ToString() : toolName;
+    }
+
     public static IToolRenderer Get(string toolName)
     {
         // 去掉 mcp_ 前缀后匹配

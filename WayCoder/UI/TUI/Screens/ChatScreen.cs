@@ -182,6 +182,12 @@ public partial class ChatScreen : TuiScreen
     /// <summary>当前工具调用已流式输出的行数（用于 auto 模式折叠）</summary>
     private int _toolOutputLineCount;
 
+    /// <summary>工具标题行已加、其输出还没到 —— 首个输出块要另起一条消息（见 <see cref="AppendToLast"/>）</summary>
+    private bool _pendingToolBody;
+
+    /// <summary>待另起的输出块是否走 shell 竖线样式（bash）</summary>
+    private bool _pendingToolShell;
+
     /// <summary>当前正在执行的工具名（null=无工具在执行），用于动态栏显示</summary>
     private string? _currentToolName;
 
@@ -986,6 +992,16 @@ public partial class ChatScreen : TuiScreen
     /// <summary>追加文本到最后一条消息（流式输出）。线程安全：可从后台线程调用。</summary>
     public void AppendToLast(string delta)
     {
+        // 工具输出首次到达：为它**另起一条消息**，不要接在刚加的工具标题行后面 ——
+        // 接在后面时多行输出的首行会紧贴标题（`🔧 Edit(x.cs)  +public class A…`），
+        // 看起来「工具行和内容行混在一起」。
+        if (_pendingToolBody)
+        {
+            _pendingToolBody = false;
+            AddMessage(delta, "tool", indent: 1, shellBlock: _pendingToolShell);
+            return;
+        }
+
         var last = ChatList.GetItem(ChatList.ItemCount - 1) as TuiListItem;
         if (last == null) return;
 

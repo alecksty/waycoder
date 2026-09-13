@@ -30,8 +30,7 @@ public partial class ChatScreen : TuiScreen
     /// <summary>添加工具调用进度（嵌套子消息：工具输出归属在 assistant 消息下）。线程安全。</summary>
     public void AddToolProgress(string toolName, string brief)
     {
-        var renderer = ToolRendererFactory.Get(toolName);
-        string label = $"  {renderer.FormatHeader(brief)}";
+        string label = $"  {ToolRendererFactory.FormatHeader(toolName, brief)}";
         lock (_chatLock)
         {
             // 参数摘要按聊天区宽度截取（减一点留边距），不再依赖调用方提前砍短 ——
@@ -48,6 +47,10 @@ public partial class ChatScreen : TuiScreen
             AddMessage(label, "tool", indent: 1, shellBlock: toolName == "bash");
         }
         _toolOutputLineCount = 0;
+        // 标题行已就位，其输出首个块要**另起一条消息**（见 AppendToLast）——
+        // 直接接在后面时多行输出的首行会紧贴标题，看起来「工具行和内容混在一起」。
+        _pendingToolBody = true;
+        _pendingToolShell = toolName == "bash";
     }
 
     /// <summary>同步 Todo 数据到侧栏</summary>
