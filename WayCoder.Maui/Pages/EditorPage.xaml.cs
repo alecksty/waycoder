@@ -67,8 +67,12 @@ public partial class EditorPage : ContentPage
         Canvas.PinchZoomed += size => ApplyFontSize(size, persist: false, toast: false);
         Canvas.PinchEnded += () =>
         {
+            // 正在编辑时缩放 ⇒ 松手就把字号对齐到整数（见 SnapFontSizeForEditing）。
+            // 不在这里弹提示：紧接着那条「字号 N」报的就是对齐后的值，弹两条反而乱。
+            if (_editLine >= 0) SnapFontSizeForEditing(toast: false);
+
             MauiEditorStore.SetFontSize(EditorTypography.FontSize);   // 手势结束才落盘一次
-            ShowToast($"字号 {EditorTypography.FontSize:F0}");
+            ShowToast($"字号 {EditorTypography.FontSize:0.#}");
         };
         // 一滑动就结束编辑：编辑态下浮着一个输入框，滚动会让它和自绘的行对不上；
         // 而且滑动本身就意味着「我要浏览」——先把这一行提交掉再滚，最省心。
@@ -584,9 +588,37 @@ public partial class EditorPage : ContentPage
 
     // ── 单行编辑 ──
 
+    /// <summary>
+    /// **要打字了，就把字号落到最近的整数**（用户提的折中，v0.96.139）。
+    ///
+    /// 起因（用户实测）：**整数号下光标正好落在字与字的格线上，非整数号下会压进字里**
+    /// （「24 字号没问题，不是整数的却有问题」）。根因是平台**绘制**时对每个字形的推进量
+    /// 取了整，而我们的尺子（`MeasureAdvances`）用的是排版报的小数 —— 两者只在
+    /// 「字号 × 0.5 × 屏幕密度」落到整数上时重合。详见那个方法的注释。
+    ///
+    /// 用户给的解法比「去跟平台的取整较劲」干净得多：**缩放保持无极**（阅读/浏览时任意小数号，
+    /// 这也是他明确要的），**只在进入编辑态时对齐到整数** —— 编辑时「光标落在格线上」是硬需求，
+    /// 读书时不是。于是既不用限制缩放粒度，也不用改宽度模型。
+    /// </summary>
+    private void SnapFontSizeForEditing(bool toast = true)
+    {
+        float cur = EditorTypography.FontSize;
+        float snapped = MathF.Round(cur);
+        if (MathF.Abs(snapped - cur) < 0.01f) return;
+
+        ApplyFontSize(snapped, persist: true, toast: false);
+        // 明确告诉用户字号被对齐了 —— 否则「一点编辑文字就变大/变小」会像 bug。
+        // 捏合路径传 false：那边紧接着会报「字号 N」，已经把结果说清楚了，别弹两条。
+        if (toast) ShowToast($"字号已对齐到 {snapped:F0}（编辑时用整数号，光标才对得准）");
+    }
+
     private void BeginEditLine(long oneBased, float xInLine = -1f)
     {
         if (_editable == null || _readOnly) return;
+
+        // ⚠ 放在所有分支之前：已经在编辑这一行、只是挪光标时同样要对齐
+        SnapFontSizeForEditing();
+
         if (_editLine == oneBased - 1 && LineEditor.IsVisible)
         {
             // 已经在编辑这一行：只把光标挪到点到的位置（不重建、不打断 IME）
