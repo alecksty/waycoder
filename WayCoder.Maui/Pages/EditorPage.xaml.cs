@@ -51,7 +51,14 @@ public partial class EditorPage : ContentPage
         Canvas.SelectionChanged += (_, _) => { UpdateStatus(); UpdateSelectionBar(); };
         // 视口一变，条子要跟着选区走（滚出视口时收起来）—— 不跟就会停在原地，
         // 而选区已经滚走了，看着像「操作条在乱飘」
-        Canvas.ViewChanged += () => { UpdateStatus(); UpdateSelectionBar(); };
+        Canvas.ViewChanged += () =>
+        {
+            UpdateStatus();
+            UpdateSelectionBar();
+            // 编辑中滚动了：把浮动的输入框挪到编辑行的新位置（两个轴都由 PositionEditor 管）。
+            // 不结束编辑 —— 光标是自绘的，滚动不该把它抹掉。
+            if (_editLine >= 0) PositionEditor(_editLine + 1);
+        };
         // 双指捏合缩放字号，与菜单里的加大/缩小走**同一个** ApplyFontSize
         // （此前这两处是两份几乎逐行相同的拷贝，只改一处就会出现「捏合好了、菜单还是老样子」）。
         //
@@ -76,7 +83,10 @@ public partial class EditorPage : ContentPage
         };
         // 一滑动就结束编辑：编辑态下浮着一个输入框，滚动会让它和自绘的行对不上；
         // 而且滑动本身就意味着「我要浏览」——先把这一行提交掉再滚，最省心。
-        Canvas.ScrollingStarted += () => { if (_editLine >= 0) CommitEditingLine(); };
+        // **滚动不再结束编辑**（原来这行是 CommitEditingLine）。
+        // 光标已经是自绘的、跟着文字走，没有「控件叠加上去对不上」的顾虑了：
+        // 点一下把光标放好之后，滚多远、缩多少，光标都还在它该在的位置；
+        // 滚出屏幕自然看不见，滚回来又在了。浮动的输入框由 PositionEditor 跟着走。
         Canvas.ShowDebugHud = MauiEditorStore.ShowDebugHud;
 
         // 输入框与画布共用同一份排版常量：字体族/字号/行高/内边距只要有一处不同，
@@ -727,7 +737,15 @@ public partial class EditorPage : ContentPage
     private void PositionEditor(long oneBased)
     {
         float y = Canvas.LineScreenY(oneBased, (float)Canvas.Height) ?? -1;
-        if (y < 0) return;
+        if (y < 0)
+        {
+            // 编辑行滚出屏幕了：**只把浮动的输入框藏起来，不结束编辑**。
+            // 光标是画布自绘的，跟着文字走 —— 出屏自然看不见，滚回来就还在。
+            // （原来这里只是 return，输入框会停在屏幕边上压着别的行。）
+            LineEditor.IsVisible = false;
+            return;
+        }
+        LineEditor.IsVisible = true;
         LineEditor.TranslationY = y;
         LineEditor.Margin = new Thickness(
             Canvas.GutterWidthPx + EditorTypography.TextLeftPad - Canvas.ScrollX, 0, 0, 0);
