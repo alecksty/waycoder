@@ -55,9 +55,10 @@ public partial class EditorPage : ContentPage
         {
             UpdateStatus();
             UpdateSelectionBar();
-            // 编辑中滚动了：把浮动的输入框挪到编辑行的新位置（两个轴都由 PositionEditor 管）。
-            // 不结束编辑 —— 光标是自绘的，滚动不该把它抹掉。
-            if (_editLine >= 0) PositionEditor(_editLine + 1);
+            // 编辑中滚动**不挪输入框**：它是全透明的，只用来换出软键盘，
+            // 自带光标一概不用 ⇒ 它浮在屏幕哪个位置都不影响观感。
+            // 每帧去挪它反而要更新一个原生控件布局，长列表滚动会掉帧。
+            // 输入法候选窗因此可能浮在旧位置 —— 纯外观，可接受。
         };
         // 双指捏合缩放字号，与菜单里的加大/缩小走**同一个** ApplyFontSize
         // （此前这两处是两份几乎逐行相同的拷贝，只改一处就会出现「捏合好了、菜单还是老样子」）。
@@ -737,15 +738,10 @@ public partial class EditorPage : ContentPage
     private void PositionEditor(long oneBased)
     {
         float y = Canvas.LineScreenY(oneBased, (float)Canvas.Height) ?? -1;
-        if (y < 0)
-        {
-            // 编辑行滚出屏幕了：**只把浮动的输入框藏起来，不结束编辑**。
-            // 光标是画布自绘的，跟着文字走 —— 出屏自然看不见，滚回来就还在。
-            // （原来这里只是 return，输入框会停在屏幕边上压着别的行。）
-            LineEditor.IsVisible = false;
-            return;
-        }
-        LineEditor.IsVisible = true;
+        // 看不见就**什么都不做**，尤其**不要 IsVisible = false**：
+        // 那会让输入框失焦、软键盘收起来 —— 正好破坏「滚着也能打字」。
+        // 它本来就是全透明的，留在原地不占视觉。
+        if (y < 0) return;
         LineEditor.TranslationY = y;
         LineEditor.Margin = new Thickness(
             Canvas.GutterWidthPx + EditorTypography.TextLeftPad - Canvas.ScrollX, 0, 0, 0);
