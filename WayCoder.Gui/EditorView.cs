@@ -20,8 +20,7 @@ namespace WayCoder.UI.Gui;
 /// </summary>
 public class EditorView : Control
 {
-    private static readonly FontFamily Mono = new("Menlo,Consolas,monospace");
-    private static readonly Typeface Typeface = new(Mono);
+    private static readonly Typeface Typeface = GuiFonts.MonoTypeface;
     private const double FontSize = 13;
     private const double LineHeight = 19.5;
     private const double Padding = 8;

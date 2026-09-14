@@ -26,7 +26,7 @@ public static class MarkdownInlines
         _ => null,
     };
 
-    private static readonly FontFamily MonoFont = new("Menlo,Consolas,monospace");
+    private static readonly FontFamily MonoFont = GuiFonts.Mono;
 
     /// <summary>把 markdown 渲染进目标 InlineCollection。</summary>
     public static void RenderTo(InlineCollection target, string markdown)

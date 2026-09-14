@@ -177,7 +177,7 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
                 var head = new TextBlock
                 {
                     Text = h.Header,
-                    FontFamily = new FontFamily("Menlo,Consolas,monospace"),
+                    FontFamily = GuiFonts.Mono,
                     FontSize = 12,
                     FontWeight = FontWeight.Bold,
                     Foreground = GuiColors.DiffHdr,
@@ -188,7 +188,7 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
                     content.Children.Add(new TextBlock
                     {
                         Text = l.Kind + l.Text,
-                        FontFamily = new FontFamily("Menlo,Consolas,monospace"),
+                        FontFamily = GuiFonts.Mono,
                         FontSize = 12,
                         Foreground = GuiColors.DiffFor(l.Kind),
                     });
@@ -284,7 +284,7 @@ public sealed class GuiInteraction : UxHelper.IWebInteraction
     private static Control BuildPermissionBody(string toolName, string message)
     {
         var tb = new SelectableTextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 13 };
-        var mono = new FontFamily("Menlo,Consolas,monospace");
+        var mono = GuiFonts.Mono;
 
         if (toolName == "bash" && message.StartsWith("命令: "))
         {

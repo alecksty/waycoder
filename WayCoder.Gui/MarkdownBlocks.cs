@@ -13,7 +13,7 @@ namespace WayCoder.UI.Gui;
 /// </summary>
 public static class MarkdownBlocks
 {
-    private static readonly FontFamily Mono = new("Menlo,Consolas,monospace");
+    private static readonly FontFamily Mono = GuiFonts.Mono;
 
     /// <summary>从主题取色（深/浅随 RequestedThemeVariant 切换）。</summary>
     private static Color Text => GuiColors.TextColor;

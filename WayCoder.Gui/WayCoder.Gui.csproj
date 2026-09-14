@@ -42,6 +42,17 @@
              Exclude="../WayCoder/Program*.cs;../WayCoder/SlashCommand.cs;../WayCoder/Test/**/*.cs;../WayCoder/UI/CLI/**/*.cs;../WayCoder/Plugins/**/*.cs;../WayCoder/Properties/**/*.cs;../WayCoder/bin/**/*.cs;../WayCoder/obj/**/*.cs;../WayCoder/WayEngine/**/*.cs;../WayCoder/game/**/*.cs;../WayCoder/games/**/*.cs;../WayCoder/lottery/**/*.cs;../WayCoder/subs/**/*.cs;../WayCoder/works/**/*.cs;../WayCoder/SnakeGame/**/*.cs;../WayCoder/demo/**/*.cs;../WayCoder/UI/WEB/WebAssets.Generated.cs" />
   </ItemGroup>
 
+  <!--
+    编辑器内嵌字体：**必须用「拉丁 0.5em、汉字 1em」的等宽字体**。
+    网格模型的列宽是「字号 ÷ 2」，而 Menlo/Monaco/SF Mono 这类拉丁等宽字体步进是 0.6em，
+    与网格对不上（会重演 MAUI 那八轮的「两把尺子」）。
+    文件**链接**自 WayCoder.Maui/Resources/Fonts/，仓库里不存第二份二进制。
+  -->
+  <ItemGroup>
+    <AvaloniaResource Include="..\WayCoder.Maui\Resources\Fonts\SarasaMonoSC-Regular.ttf"
+                      Link="Assets\Fonts\SarasaMonoSC-Regular.ttf" />
+  </ItemGroup>
+
   <ItemGroup>
     <Folder Include="Style\Language\" />
   </ItemGroup>

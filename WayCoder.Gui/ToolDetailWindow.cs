@@ -22,7 +22,7 @@ public sealed class ToolDetailWindow : Window
     private const int ItemMin = 2_000;
     private const int ItemMax = 30_000;
 
-    private static readonly FontFamily Mono = new("Cascadia Mono,Consolas,Menlo,monospace");
+    private static readonly FontFamily Mono = GuiFonts.Mono;
 
     private readonly ChatMessage _msg;
     private readonly bool _thinking;
