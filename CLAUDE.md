@@ -309,6 +309,14 @@ WayCoder 的模式参考 Claude Code / OpenAI Codex / Crush / Aider 划分为**�
 
 8. **输出代码必须完整可编译**：涉及权限的代码必须输出完整样板（manifest 声明 + 运行时检查 + 拒绝降级），**不得省略**任何权限相关样板。
 
+> **打 APK 必须带签名参数，否则装不上已装的 App（v0.96.136 实测）**：`WayCoder.Maui/build-apk.sh` 是 **Mac 专用**，Windows 上直接照抄会失败；而**裸 `dotnet publish -f net10.0-android -c Release` 用的是默认 debug 密钥**，与仓库里 `waycoder.keystore` 签出来的**不是同一个证书** ⇒ `adb install -r` 报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE: signatures do not match`。**此时千万别顺手 `adb uninstall`** —— 那会把手机上的 API Key、会话、workspace 一起删掉（数据全在 app 私有目录里，外部存储那套要用户先在设置里开）。正解是**照 `build-apk.sh` 的参数重打**（密钥/alias/密码都是 `waycoder`，见该脚本注释）。Windows 上可用的一条完整命令：
+> ```
+> dotnet publish WayCoder.Maui/WayCoder.Maui.csproj -f net10.0-android -c Release \
+>   -p:AndroidPackageFormat=apk -p:AndroidKeyStore=true \
+>   -p:AndroidSigningKeyStore="<仓库>/WayCoder.Maui/waycoder.keystore" \
+>   -p:AndroidSigningKeyAlias=waycoder -p:AndroidSigningKeyPass=waycoder -p:AndroidSigningStorePass=waycoder
+> ```
+
 ## 添加新工具 (C# 版)
 
 1. 在 `Tools/` 创建类，实现 `ITool` 接口
