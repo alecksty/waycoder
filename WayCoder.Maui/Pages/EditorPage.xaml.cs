@@ -416,6 +416,11 @@ public partial class EditorPage : ContentPage
             return;
         }
         SetReadOnly(!_readOnly);
+        // ⚠ 用工具栏这支笔切进编辑态时**也要对齐字号**（v0.96.142）。
+        // 上一版只把对齐加在 `BeginEditLine`（点某一行那条路）里，于是「先点笔、再点行」或者
+        // 「笔切进来时字号还是小数」这两种走法全都漏过去了 —— 实测截图上就是「编辑模式开着、
+        // 字号仍是 13.7」，而小数号下光标会有一个恒定的几像素偏移、切进前一个字形里。
+        if (!_readOnly) SnapFontSizeForEditing();
     }
 
     private async void OnSaveClicked(object? sender, EventArgs e) => await SaveAsync();

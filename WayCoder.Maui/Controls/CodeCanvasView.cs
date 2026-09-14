@@ -2471,7 +2471,14 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // **「一个字形推进多少」这个长度**，字号本身仍然连续可取 —— 字号每变一点，
         // 排版和这个长度都跟着变；只是这个长度落在与渲染同一张网格上。
         // 换句话说：**平台画多宽，我们就按多宽算**。
-        float d = (float)Microsoft.Maui.Devices.DeviceDisplay.MainDisplayInfo.Density;
+        // ⚠ 比例取「**屏幕物理宽 ÷ 控件 dp 宽**」，而不是 `MainDisplayInfo.Density`。
+        // 这两者**并不总是相等** —— 本文件 `OnEnd` 里那段调试探针早就写着
+        // 「真实 scale = 屏幕物理宽 ÷ 控件 dp 宽；与平台路径用的密度不同 ⇒ 字号喂错了」。
+        // 拿密度当比例吸附，在两者不等的机器上会**按错的格子吸附**、反而引入偏差
+        // （模拟器上两者恰好相等，所以拿模拟器测是看不出来的）。
+        float d = Width > 0.5f && Microsoft.Maui.Devices.DeviceDisplay.MainDisplayInfo.Width > 0
+            ? (float)(Microsoft.Maui.Devices.DeviceDisplay.MainDisplayInfo.Width / Width)
+            : (float)Microsoft.Maui.Devices.DeviceDisplay.MainDisplayInfo.Density;
         if (d > 0.01f)
         {
             lat = MathF.Round(lat * d) / d;
