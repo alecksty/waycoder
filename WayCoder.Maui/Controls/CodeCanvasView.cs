@@ -577,6 +577,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     }
 #endif
 
+    /// <summary>字体自检只做一次（跨平台，见 Draw）。</summary>
+    private bool _fontChecked;
+
     public void Draw(ICanvas canvas, RectF dirtyRect)
     {
         float w = (float)Width, h = (float)Height;
@@ -603,6 +606,29 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         {
             double probe = canvas.GetStringSize("0", EditorTypography.CanvasFont,
                 EditorTypography.FontSize).Width;
+#if DEBUG
+            // 字体自检（一次性，跨平台）：**证明打包字体真的加载上了**。
+            //
+            // 字体名写错时平台**不报错**，只是静默回落成系统比例字体 —— 而定位走的是
+            // 2 列网格 ⇒ 渲染比例、定位网格，症状就是「光标对不上位置」。
+            // iOS 上正是这么栽的：CanvasFontName 写成了 SarasaMonoSC-Regular，
+            // 而 UIFont.FromName 要的是 PostScript 名 Sarasa-Mono-SC-Regular。
+            // 判据用字体自己的设计比例：半角 = 字号÷2、全角 = 字号。
+            if (!_fontChecked)
+            {
+                _fontChecked = true;
+                try
+                {
+                    float half = EditorTypography.HalfWidth, full = EditorTypography.FontSize;
+                    float advA = (float)canvas.GetStringSize("a", EditorTypography.CanvasFont, full).Width;
+                    float advWide = (float)canvas.GetStringSize("中", EditorTypography.CanvasFont, full).Width;
+                    bool ok = Math.Abs(advA - half) < 1.0f && Math.Abs(advWide - full) < 1.0f;
+                    string tag = ok ? "[字体自检] OK  内嵌 Sarasa 已加载" : "[字体自检] ❌ 字体回落了！检查 CanvasFontName";
+                    System.Diagnostics.Debug.WriteLine($"{tag} a={advA:F2}(期望 {half:F2}) 中={advWide:F2}(期望 {full:F2}) 名={EditorTypography.CanvasFontName}");
+                }
+                catch { }
+            }
+#endif
 #if DEBUG && ANDROID
             if (!_widthProbeDone && ShowDebugHud) { _widthProbeDone = true; LogWidthProbe(canvas); }
 #endif

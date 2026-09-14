@@ -1,5 +1,51 @@
 # 更新日志
 
+## v0.96.127 (2026-09-14) — 修 iOS 光标对不上位置（字体名写错，静默回落）
+
+### 症状与根因
+
+iOS 上光标与文字对不上位置。根因是 **`CanvasFontName` 的 iOS 分支写错了字体名**
+⇒ `UIFont.FromName` 返回 null ⇒ **静默回落成系统比例字体** ⇒ 渲染按比例走、
+而定位按「汉字 = 2 列」的网格走，两者必然错开。
+
+**这个字体有三个互不相同的名字，之前只对了一个**（都是从 TTF 的 `name` 表读出来的）：
+
+| 用途 | 正确值 | 之前写的 |
+|---|---|---|
+| 家族名（nameID 1/16） | `Sarasa Mono SC` | — |
+| **PostScript 名（nameID 6）** | **`Sarasa-Mono-SC-Regular`** | ❌ `SarasaMonoSC-Regular` |
+| Android 资产文件名 | `SarasaMonoSC-Regular.ttf` | ✅ 对的 |
+
+MAUI 在 iOS 上三条路**都要 PostScript 名**（已核对 `Graphics/Platforms/MaciOS/FontExtensions.cs`）：
+
+```csharp
+public static CGFont ToCGFont(this IFont font) => CGFont.CreateWithFontName(font.Name);
+public static CTFont ToCTFont(this IFont font, ...) => new CTFont(font.Name, ...);
+PlatformFont.FromName(font?.Name ?? DefaultFontName, ...)   // UIFont.FromName
+```
+
+### 修法
+
+`EditorTypography.CanvasFontName` 的 iOS 分支改成 PostScript 名 `Sarasa-Mono-SC-Regular`，
+并把三个名字的对应关系写进文档注释（**别再互相顶替**）。
+
+### 加了跨平台字体自检
+
+`CodeCanvasView.Draw` 里一次性检查（`#if DEBUG`）：量半角/全角的实宽与
+`字号÷2`/`字号` 比，不符就打出
+
+```
+[字体自检] ❌ 字体回落了！检查 CanvasFontName a=… 中=… 名=…
+```
+
+**这类错误平台不抛异常**，只有主动量才知道 —— 和 GUI 侧 `GuiFonts.Verify()` 是同一套纪律。
+iOS 上不便反复迭代，这道自检是必要的。
+
+### 验证状态
+
+Android / iOS 两个目标 **0 错误**。
+**iOS 实机行为尚未复验**（模拟器触控自动化还不稳），待办见下。
+
 ## v0.96.126 (2026-09-14) — GUI 编辑器换内嵌等宽字体（改造·第三步）
 
 ### 为什么必须换字体：它不是审美问题，是网格的地基

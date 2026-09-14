@@ -36,8 +36,18 @@ internal static class EditorTypography
     ///
     /// Android 走资产名：<c>FontExtensions.ToTypeface</c> 会先试 <c>Typeface.CreateFromAsset</c>，
     /// 所以**这里必须带扩展名**（资产就叫 <c>SarasaMonoSC-Regular.ttf</c>）；iOS 走
-    /// <c>UIFont.FromName</c>，要 PostScript 名（不带扩展名）。写错都不抛异常，只会静默回落成
+    /// <c>UIFont.FromName</c> / <c>CTFontCreateWithName</c> / <c>CGFontCreateWithFontName</c>，
+    /// 三者**都要 PostScript 名**（<c>name</c> 表 nameID 6）。写错都不抛异常，只会静默回落成
     /// 平台默认的**比例字体**，宽度与测量对不上。
+    ///
+    /// ⚠ **这个字体的三个名字互不相同，别互相顶替**（都是从 TTF 的 <c>name</c> 表读出来的）：
+    /// <list type="bullet">
+    /// <item>家族名（nameID 1/16）= <c>Sarasa Mono SC</c> —— 带空格</item>
+    /// <item>PostScript 名（nameID 6）= <c>Sarasa-Mono-SC-Regular</c> —— **带连字符，iOS 要的是这个**</item>
+    /// <item>Android 资产文件名 = <c>SarasaMonoSC-Regular.ttf</c> —— 不带连字符、带扩展名</item>
+    /// </list>
+    /// iOS 分支曾写成 <c>SarasaMonoSC-Regular</c>（看着像，其实三个都不是）⇒ <c>UIFont.FromName</c>
+    /// 返回 null、静默回落成比例字体，而定位走的是 2 列网格 ⇒ **渲染比例、定位网格，光标对不上位置**。
     ///
     /// ⚠ 这个名字**只对「画布自己的字体」有效**。`AttributedText` 的 run 上若写了 FontName，
     /// MAUI 会把它变成 <c>TypefaceSpan(族名)</c> —— 那个 API **只认系统字体族名、没有 asset 重载**
@@ -47,9 +57,11 @@ internal static class EditorTypography
     /// </summary>
     public const string CanvasFontName =
 #if ANDROID
-        "SarasaMonoSC-Regular.ttf";
+        "SarasaMonoSC-Regular.ttf";      // 资产文件名（CreateFromAsset 按这个名字找）
+#elif IOS
+        "Sarasa-Mono-SC-Regular";        // PostScript 名（UIFont.FromName 按这个名字找）
 #else
-        "SarasaMonoSC-Regular";
+        "Sarasa-Mono-SC-Regular";
 #endif
 
     /// <summary>
