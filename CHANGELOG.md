@@ -1,5 +1,40 @@
 # 更新日志
 
+## v0.96.121 (2026-09-14) — 修掉 iOS 构建被诊断探针弄坏的问题
+
+**iOS 目标一直是编译不过的，而且是我自己弄坏的**：v0.96.116 加的宽度自检探针
+（`AltMeasure` / `AltMeasureOne`）套在 `#if DEBUG` 里，却**没有 `#if ANDROID`** ——
+里面全是 `Android.*` 与 Android-only 的 `FontExtensions.ToTypeface`，
+于是 `net10.0-ios` 下 15 个编译错误。
+
+- 两个对照测量方法**删除**（一次性的 A/B 实验，结论已经落到 v0.96.117 的修复里）
+- `LogWidthProbe` 收进 `#if DEBUG && ANDROID`（它输出走 `Android.Util.Log`）
+- 探针里那批针对「全角标点压缩」的逐字符项也删了，只留
+  「整串 vs 单字之和」这一条 —— 将来换字体/升 MAUI 时一眼能看出字有没有被吞
+
+**教训**：给 MAUI 加 `#if DEBUG` 的诊断代码时，别忘了平台守卫 ——
+桌面构建全绿看不出来（同 `CoreStubs.cs` 那条），只有真去编 iOS 才现形。
+
+### iOS 编译结果
+
+`dotnet build WayCoder.Maui.csproj -f net10.0-ios -p:RuntimeIdentifier=iossimulator-arm64`
+→ **0 错误**。
+
+### iOS 运行：未跑通，但原因是工具链而非代码
+
+模拟器上启动即崩，日志：
+
+```
+Microsoft.iOS: The static registrar map for Microsoft.iOS is invalid.
+It was built using a runtime with hash bf48bb9d..., but the current runtime
+was built with hash ac895e19...
+→ System.ArgumentNullException at UIWindow.set_RootViewController
+```
+
+静态注册器与运行时的哈希对不上 —— 属 **iOS 工作负载/运行时包不同步**的环境问题，
+与本轮改动无关（代码编译通过即为止损点）。待修：清理 `obj`/`bin` 后
+`dotnet workload repair` 或重装对应 runtime pack。
+
 ## v0.96.120 (2026-09-14) — 编辑器：清掉平台布局死代码（-255 行）+ 中点判定修正
 
 ### 删掉的东西（净 -255 行，1671 → ~1416）
