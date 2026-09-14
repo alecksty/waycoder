@@ -8,6 +8,7 @@ using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
+using WayCoder.Infra;
 using WayCoder.UI.Tui.Edit;
 
 namespace WayCoder.UI.Gui;
@@ -24,6 +25,15 @@ public class EditorView : Control
     private const double FontSize = 13;
     private const double LineHeight = 19.5;
     private const double Padding = 8;
+
+    /// <summary>
+    /// 半角列宽 —— **用字体的设计值（字号 ÷ 2），不用实测值**。
+    ///
+    /// 位置一律由列号算出、不看字体度量：只要测量与渲染是两条路径就必然差一点
+    /// （平台会把行宽取整、字形 fallback 也各走各的），误差只能压小压不掉。
+    /// MAUI 那边为此折腾了八轮，最终结论就是这条（见 TextEditorMath 的网格段）。
+    /// </summary>
+    private const double HalfWidth = FontSize / 2;
     private const int GutterWidth = 52;
     private const int TabSize = 4;
     private EditorCore? _core;
@@ -131,10 +141,14 @@ public class EditorView : Control
             // 语法高亮：tab 展开 4 空格渲染（不改缓冲），token 偏移映射到展开串；横向滚动裁剪
             var (display, spans) = ExpandLine(lineText, _core.Syntax.Tokenize(lineText));
             var ft = MakeText(display, _text);
-            foreach (var (start, len, color) in spans)
+            // 裁剪判据**两边必须同单位**：横向滚动是像素，而 span 给的是**列号**。
+            // 此前拿字符下标去比像素值，横滚之后该跳的不跳、该画的不画。
+            var firstCol = TextEditorMath.XToColumn((float)_hScroll, (float)HalfWidth);
+            var lastCol = TextEditorMath.XToColumn((float)(_hScroll + Bounds.Width), (float)HalfWidth);
+            foreach (var (start, len, col, cols, color) in spans)
             {
-                if (start + len <= (int)_hScroll) continue;            // 完全在视口左侧
-                if (start >= (int)_hScroll + Bounds.Width) break;      // 已过视口右侧
+                if (col + cols <= firstCol) continue;      // 完全在视口左侧
+                if (col >= lastCol) break;                 // 已过视口右侧
                 ft.SetForegroundBrush(SyntaxBrushMap.ForFg(color, _text), start, len);
             }
             dc.DrawText(ft, new Point(TextX, y));
@@ -200,30 +214,55 @@ public class EditorView : Control
     /// <summary>文本起始 x（gutter 后 + 左内边距 - 横向滚动）。</summary>
     private double TextX => GutterWidth + Padding - _hScroll;
 
-    /// <summary>tab 展开后的文本宽度（光标/选区定位用，与渲染一致）。</summary>
-    private double TextWidth(string line, int col)
-    {
-        col = Math.Clamp(col, 0, line.Length);
-        var prefix = new System.Text.StringBuilder(col + 4);
-        for (var i = 0; i < col; i++)
-            prefix.Append(line[i] == '\t' ? "    " : line[i]);
-        return MakeText(prefix.ToString(), _text).Width;
-    }
+    /// <summary>
+    /// 第 <paramref name="col"/> 个码元之前的显示宽度 —— 走共享网格，**不量字体**。
+    ///
+    /// 原先是对前缀建一个 <see cref="FormattedText"/> 取 <c>Width</c>：一条 1029 字符的行，
+    /// 光光标定位每帧就要建上千个 FormattedText。网格换算是纯算术，且与 MAUI 自绘画布共用
+    /// 同一份实现（<see cref="TextEditorMath"/>），两端不可能各算各的。
+    /// </summary>
+    private static double TextWidth(string line, int col)
+        => TextEditorMath.ColumnsToX(
+               TextEditorMath.MeasureColumns(line, Math.Clamp(col, 0, line.Length), TabSize),
+               (float)HalfWidth);
 
-    /// <summary>把缓冲行 + token 展开为「显示串 + (起点,长度,色值) 跨度」（tab → 4 空格，不改缓冲）。</summary>
-    private static (string Display, List<(int Start, int Len, int Color)> Spans) ExpandLine(
+    /// <summary>
+    /// 把缓冲行 + token 展开为「显示串 + (起点, 长度, 起始列, 占几列, 色值) 跨度」。
+    ///
+    /// 三处修正（都是原来按 <c>char</c> 遍历留下的）：
+    /// ① **tab 按列位展开**（原来一律当 4 个空格，列位 2 上的 tab 该补 2 格却补了 4 格）；
+    /// ② **按 Rune 走**，代理对（emoji）不再被当成两个字符各算一列；
+    /// ③ 顺带产出**起始列与列数** —— 渲染侧要靠它做同单位的裁剪（见 Render），
+    ///    而列号在推进时顺手就算出来了，不必再量一遍。
+    /// </summary>
+    private static (string Display, List<(int Start, int Len, int Col, int Cols, int Color)> Spans) ExpandLine(
         string line, List<(string Text, int Color)> tokens)
     {
         var display = new System.Text.StringBuilder(line.Length + 8);
-        foreach (var ch in line) display.Append(ch == '\t' ? "    " : ch);
-        var spans = new List<(int, int, int)>(tokens.Count);
+        var spans = new List<(int, int, int, int, int)>(tokens.Count);
         var dispPos = 0;
+        var col = 0;
         foreach (var (text, color) in tokens)
         {
-            var w = 0;
-            foreach (var ch in text) w += ch == '\t' ? TabSize : 1;
-            if (w > 0) spans.Add((dispPos, w, color));
-            dispPos += w;
+            var startPos = dispPos;
+            var startCol = col;
+            foreach (var r in text.EnumerateRunes())
+            {
+                if (r.Value == '\t')
+                {
+                    var next = (col / TabSize + 1) * TabSize;
+                    display.Append(' ', next - col);
+                    dispPos += next - col;
+                    col = next;
+                }
+                else
+                {
+                    display.Append(r.ToString());
+                    dispPos += r.Utf16SequenceLength;
+                    col += WayCoder.UI.Shared.Terminal.AnsiString.CharWidth(r);
+                }
+            }
+            if (dispPos > startPos) spans.Add((startPos, dispPos - startPos, startCol, col - startCol, color));
         }
         return (display.ToString(), spans);
     }
@@ -300,25 +339,16 @@ public class EditorView : Control
         }
     }
 
-    /// <summary>把点击 x 折算为缓冲列（按字符宽度走，CJK 双宽，tab 按 4 空格）。</summary>
-    private int VisualToCol(string line, double x)
-    {
-        if (x <= 0) return 0;
-        double acc = 0;
-        for (var i = 0; i < line.Length; i++)
-        {
-            var w = CharWidth(line[i]) * (line[i] == '\t' ? TabSize : 1);
-            if (acc + w / 2 >= x) return i;
-            acc += w;
-        }
-        return line.Length;
-    }
-
-    private double CharWidth(char c)
-    {
-        var ft = MakeText(c.ToString(), _text);
-        return ft.Width;
-    }
+    /// <summary>
+    /// 把点击 x 折算为缓冲下标 —— 走共享网格，**不量字体**。
+    ///
+    /// 这里原来是「第二把尺子」：对**每个字符**单独建一个 <see cref="FormattedText"/> 累加宽度，
+    /// 与渲染那条路必然差一点（CJK 宽窄、fallback 字形、tab 展开规则各走各的）。
+    /// 现在与绘制同用一个列号模型：落在字符前半归它、后半归它之后。
+    /// </summary>
+    private static int VisualToCol(string line, double x)
+        => TextEditorMath.ColumnToCharIndex(line,
+               TextEditorMath.XToColumn((float)x, (float)HalfWidth), TabSize);
 
     private async void CopySelectionAsync()
     {

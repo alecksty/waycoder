@@ -1,5 +1,46 @@
 # 更新日志
 
+## v0.96.125 (2026-09-14) — GUI 编辑器换成网格定位（改造·第二步）
+
+### 删掉「第二把尺子」
+
+`EditorView` 原先自带一套字宽模型：`CharWidth(char)` 对**每个字符**单独建一个
+`FormattedText` 取 `Width`，`VisualToCol` 按它累加、`TextWidth` 对前缀建串再量。
+一条 1029 字符的行，**光光标定位每帧就要建上千个 FormattedText** —— 这是本轮最大的开销。
+
+现在三处全部改走共享网格（`TextEditorMath` + `AnsiString.CharWidth`）：
+
+- `TextWidth(line, col)` → `ColumnsToX(MeasureColumns(...))`，纯算术，不再 new 任何文本布局
+- `VisualToCol(line, x)` → `ColumnToCharIndex(line, XToColumn(x, HalfWidth))`
+- 新增 `HalfWidth = FontSize / 2` 常量（字体设计值，不用实测值）
+- `CharWidth(char)` 整个删除
+
+### 修掉三个按 `char` 遍历留下的 bug
+
+`ExpandLine` 重写（改按 Rune 走）：
+
+1. **tab 按列位展开** —— 原来一律当 4 个空格，列位 2 上的 tab 该补 2 格却补了 4 格，
+   于是**显示串与列号模型对不上**，横滚和点击都会偏
+2. **代理对不再被当成两个字符** —— emoji 原先被算成 2 列（两个 char 各 1 列），
+   恰好凑对，但中间态会算错；现在按 Rune 走
+3. 顺带产出**起始列与列数**，供渲染侧做同单位裁剪
+
+### 修掉横向裁剪的单位 bug
+
+`Render` 里原本是 `if (start + len <= (int)_hScroll) continue;` —— 拿 **span 的字符下标**
+去比 **`_hScroll` 的像素值**，两个单位。横滚之后该跳的不跳、该画的不画。
+现在两边都换算成**列号**再比。
+
+### 验证
+
+`dotnet build WayCoder.Gui` → **0 错误 0 警告**。
+
+### 还没做
+
+**行缓存**（每行的 token 段 + `FormattedText` 复用）是计划里性能收益的另一半 ——
+现在每帧仍对每个可见行重跑 `Tokenize` + `new FormattedText`。
+抓手已找好：`EditorCore.LastChange (Start, End)?` **已存在但 GUI 完全没用**。
+
 ## v0.96.124 (2026-09-14) — 网格换算下沉到共享层（GUI 编辑器改造·第一步）
 
 GUI（Avalonia）编辑器要重做渲染层，第一步先把**定位真源**统一掉 —— 否则又会变成
