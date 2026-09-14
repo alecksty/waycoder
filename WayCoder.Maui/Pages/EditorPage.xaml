@@ -6,7 +6,10 @@
     xmlns:ctl="clr-namespace:WayCoder.Maui.Controls"
     Title="编辑器">
 
-    <Grid RowDefinitions="Auto,Auto,*,Auto">
+    <!-- x:Name：软键盘弹出时按 IME inset 往它加底部内边距（见 EditorPage.xaml.cs 的 HookImeInsets）。
+         Android 15+ 的 edge-to-edge 下 WindowSoftInputMode=AdjustResize 已经失效，
+         「把内容区压矮」这件事只能自己还原。 -->
+    <Grid x:Name="RootGrid" RowDefinitions="Auto,Auto,*,Auto">
 
         <!-- 文件名 + 菜单（菜单放在右上角：字号/保存/另存为/新建这些不是每时每刻都用，
              但一旦要调就得翻工具栏去找，放这里一眼可见） -->

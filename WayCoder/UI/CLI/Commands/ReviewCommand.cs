@@ -33,7 +33,7 @@ public class ReviewCommand : SlashCommand
     /// <summary>MAUI 无 git（GitRunner 排除），用修改文件列表的简化审查；桌面端用 ReviewMode（git diff）。</summary>
     private static string BuildReviewPrompt()
     {
-#if ANDROID || IOS
+#if ANDROID || IOS || MACCATALYST || WINDOWS
         var files = WayCoder.Tools.EditFileTool.ChangedFiles;
         var sb = new StringBuilder("请审查以下修改的文件：\n");
         foreach (var f in files)

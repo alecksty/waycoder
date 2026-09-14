@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="WayCoder.Maui.Pages.ShellPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="命令行">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- 顶栏：当前工作目录。
+             **必须显示**：`cd` 之后工作目录会变，不显示的话用户不知道下一条命令在哪儿跑
+             （桌面端是靠提示符体现的，这里没有真 TTY，只能自己画一行）。 -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="12,8,8,2" ColumnSpacing="8">
+            <Label
+                x:Name="CwdLabel"
+                Grid.Column="0"
+                FontSize="11"
+                LineBreakMode="MiddleTruncation"
+                VerticalOptions="Center"
+                TextColor="{AppThemeBinding Light=#6B6B70, Dark=#9A9A9E}" />
+            <Button
+                x:Name="ClearBtn"
+                Grid.Column="1"
+                Text="清屏"
+                FontSize="13"
+                Padding="14,4"
+                HeightRequest="34"
+                CornerRadius="8"
+                Clicked="OnClearClicked" />
+        </Grid>
+
+        <!-- 输出区：**等宽 + 纯文本**，刻意不做富文本着色 ——
+             一条命令的输出轻松上万字符，拆成 Span 会让滚动卡死
+             （移动端编辑器那轮踩过：相邻同色 Span 合并 + 超大降级纯文本才压住 ANR）。
+             这里直接就是那个「降级形态」，量级再大也不用再降。 -->
+        <ScrollView Grid.Row="1" x:Name="OutputScroll" Padding="12,4">
+            <Label
+                x:Name="OutputLabel"
+                FontSize="12"
+                LineBreakMode="WordWrap" />
+        </ScrollView>
+
+        <!-- 输入区：$ 提示符 + 输入框 + 历史 + 运行。
+             手机上软键盘没有可靠的方向键，所以历史做成了按钮而不是 ↑/↓ 按键。 -->
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto,Auto" Padding="12,6,8,8" ColumnSpacing="6">
+            <Label
+                x:Name="PromptLabel"
+                Grid.Column="0"
+                Text="$"
+                FontSize="14"
+                VerticalOptions="Center" />
+            <!-- ⚠ `Keyboard="Plain"` 是**必须的**，不是样式偏好：
+                 Android 输入法默认**自动首字母大写**，`cd /sdcard` 会被送成 `CD /sdcard`，
+                 而 shell 的命令名是大小写敏感的 ⇒ 直接 `exit 127: CD: not found`。
+                 实测踩到（真机上每条命令都被大写）。Plain = 关掉大写/纠错/联想三件套。 -->
+            <Entry
+                x:Name="CmdEntry"
+                Grid.Column="1"
+                Placeholder="输入 shell 命令…"
+                FontSize="13"
+                Keyboard="Plain"
+                IsSpellCheckEnabled="False"
+                IsTextPredictionEnabled="False"
+                ReturnType="Go"
+                Completed="OnRunRequested" />
+            <Button
+                x:Name="HistUpBtn"
+                Grid.Column="2"
+                Text="↑"
+                FontSize="14"
+                Padding="12,4"
+                HeightRequest="38"
+                CornerRadius="8"
+                Clicked="OnHistoryUpClicked" />
+            <Button
+                x:Name="RunBtn"
+                Grid.Column="3"
+                Text="运行"
+                FontSize="13"
+                Padding="16,4"
+                HeightRequest="38"
+                CornerRadius="8"
+                Clicked="OnRunRequested" />
+        </Grid>
+    </Grid>
+</ContentPage>

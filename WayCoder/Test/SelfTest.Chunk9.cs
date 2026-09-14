@@ -723,6 +723,16 @@ public static partial class SelfTest
         Check("BashGuard 拦截 dotnet new", dnBlocked);
         var (dbBlocked, _) = BashGuard.CheckBanned("dotnet build -c Release");
         Check("BashGuard 不误伤 dotnet build", !dbBlocked);
+
+        // ── Android 专有高危命令（手机上有真 shell 之后才需要拦的那批）──
+        var (pmBlocked, _) = BashGuard.CheckBanned("pm disable-user com.android.systemui");
+        Check("BashGuard 拦 pm disable（停错系统组件手机进不去界面）", pmBlocked);
+        var (amBlocked, _) = BashGuard.CheckBanned("am force-stop com.android.chrome");
+        Check("BashGuard 拦 am force-stop", amBlocked);
+        var (setBlocked, _) = BashGuard.CheckBanned("settings put global airplane_mode_on 1");
+        Check("BashGuard 拦 settings put", setBlocked);
+        var (lsBlocked, _) = BashGuard.CheckBanned("ls -la /sdcard");
+        Check("BashGuard 不误伤普通 ls（桌面命令名与 Android 高危名不冲突）", !lsBlocked);
         Check("子智能体纪律含「禁止创建」", SystemPrompt.SubAgentDiscipline.Contains("禁止创建"));
         Check("子智能体纪律含「自测」", SystemPrompt.SubAgentDiscipline.Contains("自测"));
         var baseLLM = new LLM("test-model", "key");

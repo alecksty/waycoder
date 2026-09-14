@@ -14,6 +14,12 @@ public static class ToolRegistry
 {
     public static readonly List<ITool> BuiltinTools =
     [
+#if ANDROID
+        // **真 shell，只有 Android 有**。iOS 上不给模型看见这个工具 ——
+        // 那边留着的是 CoreStubs 的「不支持」桩，注册进去只会让模型反复调用一个必然失败的入口
+        // （桩的 Description 也写着「移动端不支持」，收进工具有害无益）。
+        new BashTool(),
+#endif
         new GitTool(),
         new ReadFileTool(),
         new WriteFileTool(),

@@ -1,5 +1,196 @@
 # 更新日志
 
+## v0.96.152 (2026-09-15) — 手机版有 shell 了：命令行页面 + 把桌面的 BashTool 接回 Android
+
+用户：「当前的手机版，有了 ai，有了 git，有了编辑器，还缺个 shell，缺个编译器。」
+编译器那块用他的 `vml` 项目后续集成，**本轮只做 shell**。
+
+### 关键实测：Android 上 `Process.Start` 是**真实现** —— 这条决定了整个方案
+
+桌面那个 `BashTool`（498 行，含 `BashGuard` 三层拦截、取消即杀进程树、超时迁移后台、
+流式增量截断）**一行都没重写** —— 它只是被 csproj 排除在外、配了个「移动端不支持」的桩。
+能不能复用的唯一疑点是 `Process.Start` 在 Android 上到底可用不可用。
+
+查证方式（不是猜）：从 Android 的 Mono 运行时包里读
+`Microsoft.NETCore.App.Runtime.Mono.android-arm64/…/System.Diagnostics.Process.dll`（126KB），
+里面搜到 `<ForkAndExecProcess>g____PInvoke` 与入口 `SystemNative_WaitPidExitedNoHang`
+—— 走的是 System.Native PAL 的 `fork/exec`，**是真实现**（纯抛异常的桩只有十几 KB）。
+它唯一不支持的 `UseShellExecute`（程序集里有那句字面量）恰好没被用到（`BashTool` 写的是 false）。
+⇒ 直接复用，**不需要给 Android 另造一套 Java `Runtime.exec` 的执行器**。
+
+### 四处硬编码的 shell 路径（本仓库排第一的那类坑）
+
+```
+BashTool.cs:182 / PersistentShell.cs:97 / BackgroundTask.cs:112 / SandboxManager.cs:253
+```
+四处都是 `IsWindows ? "cmd.exe" : "/bin/bash"`。桌面三平台看不出问题，
+而**手机上两个都没有** —— 只有 `/system/bin/sh`（mksh）。
+收敛成 `WayCoder/Infra/ShellPath.cs`（`Resolve` / `BuildArgs` / `PersistentArgs`），
+每条规则都拆成「纯函数 + 无参包装」两半，于是**三条平台分支在桌面上就能全部钉住**
+（自测没法假装自己是 Android）。桌面行为逐字未变，自测有断言锁住转义规则。
+
+`PersistentArgs` 单独一支：Android 必须传空 —— `--noprofile/--norc` 是 **bash 专有**的，
+喂给 mksh 会以「未知选项」启动失败。
+
+### 平台条件编译（本仓库**首次**用「按平台条件 include 源文件」）
+
+Android 才编真 `BashTool`，`CoreStubs.cs` 的桩包 `#if !ANDROID` —— 两边同名同命名空间，
+同时参与编译就是 CS0101。
+
+⚠ 一个坑：把 `BashTool.cs` 从 csproj 的 Exclude 里**移走**是不够的 ——
+`Include="../WayCoder/**/*.cs"` 那个通配会把它收回来，和条件 include 撞成
+**NETSDK1022「重复的 Compile 项」**。正确姿势是**留在 Exclude 里**、只由条件 include 放行。
+
+三平台全部 0 错误：Android 真实现 / iOS + MacCatalyst 桩
+（iOS 的 `fork/exec` 被沙箱**物理拒绝**，没有配置能绕 —— 那是终点不是待办）。
+
+### 新增「命令行」页面（第 5 个 Tab）
+
+输出区（等宽纯文本）+ `$` 提示符输入框 + 历史按钮 + 运行，顶栏常显 `cwd`。
+刻意**不做**真 TTY：手机上既没有 pty 也没有 terminfo，套上去就掉进「转义序列要自己解、
+全屏程序要自己渲染」的无底洞；要的只是「能敲命令、能看输出、能知道自己在哪个目录」。
+输出区**直接就是纯文本**（不做富文本着色）—— 移动端编辑器那轮踩过 ANR，
+这里是那个「超大降级形态」本身，量级再大也不用再降。
+
+走 `ExecuteUserShellAsync`（桌面 `!` 直通那条）：**用户自己敲的**语义，
+跳过面向 AI 的黑名单，保留绝对红线。
+
+`BashGuard` 另补一组 **Android 专有高危命令**：`pm disable` 能停掉系统组件
+（含桌面/输入法，停错了手机进不去界面）、`am force-stop`、`settings put`、`svc`、`wm`、`input`
+—— 桌面那几张表一个都没覆盖到它们。**只管模型发起的调用**；用户在命令行页自己敲的不拦。
+
+### 实测（Android 16 模拟器）
+
+| 项 | 结果 |
+|---|---|
+| `ls -l` | ✅ 真实输出，cwd = `/storage/emulated/0/waycoder/workspace` |
+| `head -2 kbtest.txt` | ✅ **中文正常，无乱码**（`ProcEncoding.Apply` 非 Windows 自动 no-op，Android 本就是 UTF-8） |
+| 错误路径 | ✅ `[stderr]` + `[退出码: 127]` 都显示 |
+| 沙箱边界 | ✅ `cd /sdcard` 被拦（在 workspace 外），cwd 正确保持不变 |
+
+**实测才暴露的真 bug：安卓输入法自动首字母大写。** `cd /sdcard` 被送成 `CD /sdcard`
+⇒ `exit 127: CD: not found`。终端里这条是**致命**的（每条命令都会大写），
+修法是 `Keyboard="Plain"` + 关纠错/联想。这类东西在桌面上永远测不出来。
+
+⚠ 未验干净的一条：`cd` 的**成功**分支（cwd 真的变了）没演示成功 ——
+该 workspace 下没有子目录可进，而用 `mkdir T && cd T` 时 `&&` 被 `adb shell`
+的转义吃掉了（测试工具问题，非产品）。
+
+## v0.96.151 (2026-09-15) — 原生跑 macOS（MacCatalyst）+ 配好 Windows 目标；顺带在 Apple 平台验掉了字体的旧账
+
+用户：「继续使用 macosx 来测试」「还可以生成 window 版本吧」。
+
+### macOS：加一个 TFM 不够，还有三处平台守卫
+
+`maui-maccatalyst` 工作负载装好后加了 `net10.0-maccatalyst`，但**构建立刻挂在 TUI 类型上** ——
+三处 `#if ANDROID || IOS` 在 Catalyst 上落到 `#else`（桌面 TUI 那条路）：
+
+- `UI/CLI/Commands/InitCommand.cs` —— `Program.RunWithUiLoop` / `ChatScreen.StartAgentMsg` / `FinishAgentMsg`
+- `UI/CLI/Commands/ReviewCommand.cs` —— `ReviewMode`
+- `MauiProgram.cs` —— 内层 `#elif IOS` 在 Catalyst 上留了个**空块**（透明文字那位）
+
+三处补成 `|| MACCATALYST` 后原生跑起来（App Sandbox 开着，workspace 落在容器里，与移动端语义一致）。
+`ANDROID`/`IOS` 在 `||` 链里照旧短路命中，两端的既有分支**逐字未变**。
+
+### 一条**之前只在 Android 上验过**的结论，这次在 Apple 平台钉住了
+
+造了 5 个**正好 1000 显示列**的测试文件（1000 数字 / 1000 拉丁 / 500 汉字 / 500 emoji / 混排），
+逐个打开读状态栏的最大横向滚动 —— **五个全部报 `X0/6731`，分毫不差**。
+
+这一条同时证明两件事：① **内嵌 Sarasa 在 Apple 平台上加载成功** ——
+这正是 iOS「光标对不上位置」的根因（`CanvasFontName` 要 PostScript 名），当时只验了 Android 一支、
+iOS 从没在运行时验过；字体一旦回落成**比例字体**，汉字就不可能是拉丁的**恰好 2 倍**。
+② 宽度模型精确：汉字/emoji 占 2 列这条网格与字体设计天然对齐。
+
+### 一次我自己的误判，写下来免得重犯
+
+在 Catalyst 上用 `osascript click at` **合成点击**点画布，光标不动。
+我一路排查（按钮点击有效、事件挂载无条件、`IsEnabled` 无人动过、探针确实编进程序集、
+并在 `Draw` 里放一条日志证明 Console 通路正常），最后定性成「`GraphicsView` 在 Catalyst 上收不到鼠标」。
+**结论是错的** —— 用户拿真实鼠标一点就正常。
+
+教训：**合成输入驱动不了的东西，不等于那东西坏了**。判据应该是「同一个合成点击能不能驱动
+同窗口的别的控件」——能，只能说明「差异存在」，**不能**说明差异在谁身上。
+（这条与 v0.96.150 那条「先看图再动手」是同一类错误的两面：都是**把推断当成了实测**。）
+
+### Windows：MAUI 只能在 Windows 上构建，但 Avalonia 那版可以
+
+官方确认 **WinUI 3 的构建链（XAML 编译器 / MakePri / WindowsAppSDK 任务）是 Windows 专有的**，
+macOS 上连评估那个 TFM 都会失败。所以：
+
+- **MAUI 的 Windows 目标**：加了**按宿主 OS 条件**的 TFM（`IsOSPlatform('windows')` 才追加
+  `net10.0-windows10.0.19041.0`），本地构建流程一个字不受影响；另把三处平台守卫补上 `|| WINDOWS`，
+  并把 `EditorTypography` 的 Windows 分支指向**族名**（资产名/PostScript 名分别是 Android/iOS 专有的解析器）。
+  **出包要在 Windows 机器或 CI 的 `windows-latest` 上做** —— 本机验不了，这条如实标注了。
+- **Avalonia 的 `WayCoder.Gui`**：标准桌面工程，**在这台 Mac 上直接交叉发布出了 Windows 版**
+  （`dotnet publish -r win-x64 --self-contained -p:PublishSingleFile=true` → `waycoder-gui.exe`，113MB）。
+  这是「现在就想要一个 Windows GUI」的那条路，代价是它和 MAUI 是两套 UI 代码。
+
+顺带查过五个 `#else` 分支在 Windows 上会不会编不过：两处 `MauiBootstrap` 是 `return null/false`
+的安全兜底、`GitSyncPage`/`SettingsPage` 是「当前平台不支持」的提示，**都能编过**；
+真正会挂的只有 `InitCommand`/`ReviewCommand` 那类掉进 TUI 分支的。
+
+## v0.96.150 (2026-09-14) — 软键盘挡住光标：Android 15+ 的 `adjustResize` 已经失效，改为自己接 IME inset
+
+用户报：「点一条靠下的行，键盘刚弹出来就把光标挡住了，这时应该往上滚动露出光标。」
+
+### 真因不是「没滚动」，是**窗口根本没被压矮**
+
+`MainActivity` 上一直写着 `WindowSoftInputMode=AdjustResize`，注释里还专门写了「必须靠它」。
+但真机 `uiautomator dump` 前后一比：**页面平台视图在键盘弹出前后都是 `(0,0)-(1080,2202)`**，
+画布一点没变 —— 键盘只是盖上来，没有把布局压矮。
+
+官方行为变更证实了这条：**Android 15（API 35）起，targetSdk ≥ 35 的应用强制 edge-to-edge，
+`adjustResize` 不再缩放窗口**，它现在只负责「让应用能收到 IME inset」，剩下的要应用自己按
+`WindowInsetsCompat.Type.ime()` 调整布局。所以这不是配置写错了，是那条路被系统封了。
+
+### 改法：把「窗口被压矮」这件事自己还原出来
+
+1. `EditorPage` 在**画布的平台视图**上挂 `ViewCompat.SetOnApplyWindowInsetsListener`
+   （挂画布而不是页面：页面视图上已经有 MAUI 自己的安全区监听，覆盖它会连带弄坏页面的 inset 处理；
+   画布是叶子视图，MAUI 不管它）。**inset 原样传下去、不消费** —— 它是窗口级的，
+   吃掉会让别的控件一起失去内边距。
+2. 拿到键盘高度后换算成**根布局的底部内边距**（`RootGrid.Padding`），于是画布真的变矮了。
+   **选「压矮布局」而不是「在滚动数学里减去键盘高度」**：压矮之后画布的高度、命中测试、
+   滚动边界、绘制范围全部照旧，只多一条下面的钩子；后者要同时维护「两个高度」，
+   正是本仓库反复踩的「同一件事两处实现」。
+3. `CodeCanvasView.OnSizeAllocated`：视口**变矮**时把光标行顶回视口（`ScrollToLine`，
+   最小滚动 —— 露得全就不动），变高时只收口边界、不无端跳一下。
+
+### 用户报的那句「刚好弹出键盘」= 触发点选错了
+
+原来 `EnsureEditorVisibleAsync` 是「点完**等 260ms** 再滚一次」。键盘动画在 200~400ms 之间，
+这个数是猜的：猜早了算的还是**旧视口**（那一行判定为可见 ⇒ 一个字都不滚，等于没做），
+猜晚了用户已经看着自己被挡住 —— 正好就是「刚好弹出键盘时挡住」。
+现在触发点是**真实的高度变化**，与键盘动画耗时无关，那条 `Task.Delay` 已删。
+
+### 三条踩坑（都是「量了才知道」）
+
+1. **`ime()` 不要再顺手扣掉导航栏**。网上通行做法是 `ime().bottom - systemBars().bottom`
+   （官方文档也写了 ime「may include」导航栏），我照做了一版，**反而错了**：
+   实测行号栏结束于 y=1453、状态栏 1453~1517、键盘上沿 **1517** —— `ime()` 报的就是 1517，
+   本机**没**算进导航栏；扣掉 64px 后内容区被多顶上去一截，状态栏直接掉到键盘底下。
+   **判断依据别靠肉眼看缩放截图**（我第一版就是这么误判的）：扫一列像素看行号栏底色
+   `#F2F2F4` 在哪一行结束，就得到内容区的真实下沿。
+2. **跨版本会压两遍**。`adjustResize` 只在 Android 15+ 失效；同一份 APK 装到 Android 14
+   及更早的机器上那条老路照常生效，我们再补一次就是压两遍（编辑区被挤成一条缝）。
+   判据**不写「系统版本 ≥ N」**（那是在猜系统行为），而是直接量：键盘弹出后页面
+   还是满高 ⇒ 系统没管，我们补；已经明显矮了 ⇒ 系统管了，一个字不加。
+3. 三处 Android 绑定细节：`WindowInsetsCompat.Type` 是**嵌套类型**（`var t = ...Type;`
+   再 `t.Ime()` 报 CS0119，只能全限定写）；`GetInsets()` 返回**可空的** `Insets?`
+   （直接点 `.Bottom` 报 CS8602，要 `?.Bottom ?? 0`）；`OnApplyWindowInsets` 的
+   参数/返回在绑定里都是可空的（`null` 直接返回，否则 CS8767）。
+
+### 验证（Android 16 模拟器，逐像素 + UI 树双读数）
+
+| 场景 | 结果 |
+|---|---|
+| 点**靠下**的行（y=2000，光标落 L28） | 画布 `(0,537)-(1080,2126)` → `(0,537)-(1080,1453)`；状态栏完整可见；**L28 被滚进视口底部** |
+| 点**靠上**的行（y=700，光标落 L15） | 画布同样变矮，但**首行仍是 12、一行都没滚**（L15 本来就在视口里）—— 最小滚动原则保住 |
+| 返回键收起键盘 | 画布完整复位回 `(0,537)-(1080,2126)` |
+
+内容区下沿与键盘上沿**严丝合缝**（1516 vs 1517），既没有多余空带、也没有元素被盖住。
+
 ## v0.96.149 (2026-09-14) — 查明「红色大光标」= 调试标尺（**无代码改动**）
 
 用户报「输入框有个红色大光标」，截图一看：**是调试标尺**，不是输入框的光标。

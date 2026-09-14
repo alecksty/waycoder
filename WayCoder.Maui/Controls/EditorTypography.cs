@@ -58,7 +58,13 @@ internal static class EditorTypography
 #elif IOS
         "Sarasa-Mono-SC-Regular";        // PostScript 名（UIFont.FromName 按这个名字找）
 #else
-        "Sarasa-Mono-SC-Regular";
+        // Windows（WinUI 3）：按**族名**解析（`CanvasTextFormat.FontFamily`），
+        // 不用资产文件名、也不用 PostScript 名 —— 那两条分别是 Android / iOS 专有的解析器。
+        // ⚠ **这条没在 Windows 上验过**（本机是 macOS，构建不了 WinUI 3）。
+        //   验证方法：跑起来看 `CodeCanvasView.Draw` 的 `[字体自检]`，或直接量
+        //   「500 个汉字」与「1000 个拉丁」两种文件的最大横向滚动是不是同一个数
+        //   （是 ⇒ 汉字恰好 2 列，字体对；不是 ⇒ 回落成比例字体了）。
+        "Sarasa Mono SC";                // 族名（nameID 1/16）
 #endif
 
     /// <summary>

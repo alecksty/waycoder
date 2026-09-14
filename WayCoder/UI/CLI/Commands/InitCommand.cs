@@ -38,7 +38,7 @@ public class InitCommand : SlashCommand
             }
         }
 
-#if ANDROID || IOS
+#if ANDROID || IOS || MACCATALYST || WINDOWS
         // MAUI 无 Program.RunWithUiLoop / ChatScreen.StartAgentMsg 等桌面 API：LLM 生成仅桌面端可用，移动端用静态模板
         WriteFallback(info, fileName, target, screen, "MAUI 用静态模板");
         return;

@@ -52,6 +52,12 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     private float _velocityY, _velocityX;
     private IDispatcherTimer? _fling;
 
+    /// <summary>
+    /// 上一次布局分配的**高度** —— 用来识别「视口大小变了」（软键盘弹出/收起、旋转、分屏）。
+    /// 初值 0 且首帧必定更高，所以第一次布局不会被误判成收缩。
+    /// </summary>
+    private double _lastHeight;
+
     // ── 选择与光标 ──
 
     private long _caretLine = -1;
@@ -357,6 +363,38 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     {
         _caretLine = oneBased - 1;
         Invalidate();
+    }
+
+    /// <summary>
+    /// 视口大小变了 —— **这是「软键盘挡住光标」的唯一正确触发点**。
+    ///
+    /// 点一行靠下的位置时键盘还没弹，视口是满屏 ⇒ 那一行的判定是「露得全」，一个字都不滚；
+    /// 等键盘把画布压掉半屏，它就被盖住了。此前靠 `EnsureEditorVisibleAsync` 里「点完等 260ms
+    /// 再滚一次」猜时机 —— 键盘动画在 200~400ms 之间，这个数是猜的：猜早了算的还是旧视口
+    /// （等于没做），猜晚了用户已经看着自己被挡住。改成由**真实的高度变化**驱动，
+    /// 与键盘动画耗时无关。
+    ///
+    /// 只对**变矮**做回收（变高 = 收起键盘/旋转到横屏，光标只会更露，不该无端跳一下），
+    /// 但纵向边界两种情况**都要收口**：视口变高时 `count - VisibleLines` 变小，
+    /// 旧的 `_firstLine` 可能已经越界。
+    /// </summary>
+    protected override void OnSizeAllocated(double width, double height)
+    {
+        base.OnSizeAllocated(width, height);
+
+        if (Math.Abs(height - _lastHeight) < 0.5) return;   // 宽度变化不改行数，横向另有收口
+        bool shrank = height < _lastHeight;
+        _lastHeight = height;
+
+        // ⚠ **必须排到下一次调度再算**：本回调里 `Height` 还没有落到控件上（新值只在参数里），
+        // 而 ScrollToLine / ClampScroll 都读 `Height` —— 直接调等于拿旧视口算，白跑一趟。
+        Dispatcher.Dispatch(() =>
+        {
+            ClampScroll();
+            if (shrank && _caretLine >= 0) ScrollToLine(_caretLine + 1);
+            EnsureCaretVisible();   // 横向：编辑长行时同理（非编辑态自身立即返回）
+            Invalidate();
+        });
     }
 
     private void ClampScroll()

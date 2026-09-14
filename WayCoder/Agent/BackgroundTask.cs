@@ -109,10 +109,8 @@ public static class BackgroundTaskManager
         {
             var psi = new ProcessStartInfo
             {
-                FileName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "cmd.exe" : "/bin/bash",
-                Arguments = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                    ? $"/c \"{task.Command}\""
-                    : $"-c \"{task.Command.Replace("\"", "\\\"")}\"",
+                FileName = ShellPath.Resolve(),
+                Arguments = ShellPath.BuildArgs(task.Command),
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 RedirectStandardInput = true, // 不共享主控台 stdin（防 TUI ReadKey 竞态）

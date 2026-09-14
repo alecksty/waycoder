@@ -22,6 +22,14 @@
             </Tab.Icon>
             <ShellContent ContentTemplate="{DataTemplate pages:ChatPage}" Route="chat" Shell.NavBarIsVisible="False" />
         </Tab>
+        <!-- 命令行 Tab：模拟终端的 shell 页。
+             iOS 上会礼貌拒绝（那边没有 shell 进程），Android 上走真 /system/bin/sh。 -->
+        <Tab Title="命令行">
+            <Tab.Icon>
+                <FontImageSource Glyph="⌨️" />
+            </Tab.Icon>
+            <ShellContent ContentTemplate="{DataTemplate pages:ShellPage}" Route="shell" Shell.NavBarIsVisible="False" />
+        </Tab>
         <!-- 文件 Tab：沙箱文件浏览 -->
         <Tab Title="文件">
             <Tab.Icon>

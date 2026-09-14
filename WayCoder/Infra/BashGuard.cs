@@ -57,9 +57,25 @@ public static class BashGuard
         "ifconfig", "route", "ip", "netstat",
     };
 
+    /// <summary>
+    /// **Android 专有的高危命令** —— 上面那几张表是桌面取向的，一个都没覆盖到它们：
+    /// 桌面上这些命令要么不存在、要么无伤大雅，而在手机上它们直接改系统状态 ——
+    /// `pm disable` 能停掉系统组件（含桌面/输入法，停错了手机就进不去界面）、
+    /// `am force-stop` 能强停任意应用、`settings put` 能改写全局设置、
+    /// `svc` 能开关数据/WiFi、`wm` 能改分辨率与密度、`input` 能注入任意点击滑动。
+    ///
+    /// ⚠ 这张表只管**模型发起**的 bash（<c>CheckBanned</c> 那条路）；
+    /// 用户在「命令行」页自己敲的走 <c>ExecuteUserShellAsync</c>，与桌面 `!` 直通同语义 ——
+    /// 那是有意放行的（自己敲的就是自己的决定），只保留绝对红线。
+    /// </summary>
+    private static readonly HashSet<string> BannedAndroidDanger = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "pm", "am", "svc", "wm", "settings", "monkey", "dpm", "input",
+    };
+
     /// <summary>合并所有禁用命令（不含别名）</summary>
     private static readonly HashSet<string> AllBanned = [..BannedNetwork, ..BannedSystem,
-        ..BannedPackageManagers, ..BannedSysMod, ..BannedNetConfig];
+        ..BannedPackageManagers, ..BannedSysMod, ..BannedNetConfig, ..BannedAndroidDanger];
 
     /// <summary>危险命令的别名映射</summary>
     private static readonly Dictionary<string, string> BannedAliases = new(StringComparer.OrdinalIgnoreCase)

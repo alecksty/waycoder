@@ -1,7 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net10.0-android;net10.0-ios</TargetFrameworks>
+		<TargetFrameworks>net10.0-android;net10.0-ios;net10.0-maccatalyst</TargetFrameworks>
+		<!-- Windows（WinUI 3）**只能在 Windows 上构建**：它的构建链是 Windows 专有的 PE 可执行文件
+		     （XAML 编译器 / MakePri / WindowsAppSDK 的那些 task），别的 OS 上连评估这个 TFM 都会失败。
+		     所以按宿主 OS 条件追加 —— macOS/Linux 上 `dotnet build` 连看都看不到它，
+		     本地正常的构建流程一个字都不受影响。
+		     ⚠ 这也意味着**改这个 TFM 相关的东西在本机验证不了**，只能靠 CI 或 Windows 机器。 -->
+		<TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);net10.0-windows10.0.19041.0</TargetFrameworks>
 
 		<!-- Note for MacCatalyst:
 		The default runtime is maccatalyst-x64, except in Release config, in which case the default is maccatalyst-x64;maccatalyst-arm64.
@@ -135,8 +141,24 @@
 	        ContentDiffFormatter（纯逻辑 diff 格式化）。
 	-->
 	<ItemGroup>
-		<Compile Include="../WayCoder/**/*.cs" Exclude="../WayCoder/Program*.cs;../WayCoder/Test/**/*.cs;../WayCoder/UI/CLI/Arguments/**/*.cs;../WayCoder/Plugins/**/*.cs;../WayCoder/Properties/**/*.cs;../WayCoder/bin/**/*.cs;../WayCoder/obj/**/*.cs;../WayCoder/WayEngine/**/*.cs;../WayCoder/game/**/*.cs;../WayCoder/games/**/*.cs;../WayCoder/lottery/**/*.cs;../WayCoder/subs/**/*.cs;../WayCoder/works/**/*.cs;../WayCoder/SnakeGame/**/*.cs;../WayCoder/UI/WEB/WebAssets.Generated.cs;../WayCoder/UI/TUI/**/*.cs;../WayCoder/UI/CLI/Commands/SyncQrCommand.cs;../WayCoder/UI/WEB/**/*.cs;../WayCoder/Batch/**/*.cs;../WayCoder/Watch/**/*.cs;../WayCoder/Git/WorktreeIsolation.cs;../WayCoder/Git/GitRunner.cs;../WayCoder/Tools/ToolRegistry.cs;../WayCoder/Tools/BashTool.cs;../WayCoder/Tools/GitTool.cs;../WayCoder/Tools/GitPRTool.cs;../WayCoder/Tools/LspTool.cs;../WayCoder/Tools/LintTool.cs;../WayCoder/Tools/PsTool.cs;../WayCoder/Tools/KillTool.cs;../WayCoder/Tools/ScreenshotTool.cs;../WayCoder/Tools/SqliteTool.cs;../WayCoder/Tools/TestTool.cs;../WayCoder/Tools/JobOutputTool.cs;../WayCoder/Tools/JobKillTool.cs;../WayCoder/Config/ThemeConfig.cs;../WayCoder/Agent/AgentSlot.cs;../WayCoder/demo/**/*.cs" />
+		<Compile Include="../WayCoder/**/*.cs" Exclude="../WayCoder/Program*.cs;../WayCoder/Test/**/*.cs;../WayCoder/UI/CLI/Arguments/**/*.cs;../WayCoder/Plugins/**/*.cs;../WayCoder/Properties/**/*.cs;../WayCoder/bin/**/*.cs;../WayCoder/obj/**/*.cs;../WayCoder/WayEngine/**/*.cs;../WayCoder/game/**/*.cs;../WayCoder/games/**/*.cs;../WayCoder/lottery/**/*.cs;../WayCoder/subs/**/*.cs;../WayCoder/works/**/*.cs;../WayCoder/SnakeGame/**/*.cs;../WayCoder/UI/WEB/WebAssets.Generated.cs;../WayCoder/UI/TUI/**/*.cs;../WayCoder/UI/CLI/Commands/SyncQrCommand.cs;../WayCoder/UI/WEB/**/*.cs;../WayCoder/Batch/**/*.cs;../WayCoder/Watch/**/*.cs;../WayCoder/Git/GitRunner.cs;../WayCoder/Tools/ToolRegistry.cs;../WayCoder/Tools/BashTool.cs;../WayCoder/Tools/GitTool.cs;../WayCoder/Tools/GitPRTool.cs;../WayCoder/Tools/LspTool.cs;../WayCoder/Tools/LintTool.cs;../WayCoder/Tools/PsTool.cs;../WayCoder/Tools/KillTool.cs;../WayCoder/Tools/ScreenshotTool.cs;../WayCoder/Tools/SqliteTool.cs;../WayCoder/Tools/TestTool.cs;../WayCoder/Tools/JobOutputTool.cs;../WayCoder/Tools/JobKillTool.cs;../WayCoder/Config/ThemeConfig.cs;../WayCoder/Agent/AgentSlot.cs;../WayCoder/demo/**/*.cs" />
 		<Compile Include="../WayCoder/UI/TUI/Edit/**/*.cs" />
+		<!--
+		  **真 BashTool 只在 Android 上编译**（桌面那个 498 行的实现，一行都没重写）。
+		  iOS / MacCatalyst 不编它，改用 CoreStubs.cs 里的「不支持」桩 ——
+		  iOS 的沙箱**物理拒绝 fork/exec**，真实现拉起来只会抛。
+
+		  Android 为什么可以：`Process.Start` 在 .NET for Android 上是**真实现**
+		  （Mono 运行时包里 System.Diagnostics.Process.dll 有 SystemNative_ForkAndExecProcess
+		  的 P/Invoke，126KB 不是抛异常的桩）；它唯一不支持的 `UseShellExecute`
+		  恰好没被用到（BashTool 写的是 false）。
+
+		  ⚠ 这是本仓库**第一次**用「按平台条件 include 源文件」这个模式（此前的 Condition
+		  都只用在属性级）。之所以必须用它：真实现与桩**同名同命名空间**
+		  （WayCoder.Tools.BashTool），两者不能同时参与编译（CS0101）。
+		-->
+		<Compile Include="../WayCoder/Tools/BashTool.cs"
+		         Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'" />
 		<Compile Include="../WayCoder/UI/TUI/Custom/ContentDiffFormatter.cs" />
 	</ItemGroup>
 

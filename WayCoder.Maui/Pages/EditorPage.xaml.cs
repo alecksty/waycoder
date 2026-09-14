@@ -141,6 +141,9 @@ public partial class EditorPage : ContentPage
         {
             if (LineEditor.Handler?.PlatformView is Android.Widget.EditText et) HidePlatformCaret(et);
         };
+
+        // 键盘遮挡 → 压矮内容区。Handler 同样是懒创建的。
+        Canvas.HandlerChanged += (_, _) => HookImeInsets();
 #endif
     }
 
@@ -161,6 +164,136 @@ public partial class EditorPage : ContentPage
             blank.SetBounds(0, 0, 0, 0);
             et.TextCursorDrawable = blank;   // API 29+ 才有 setTextCursorDrawable
         }
+    }
+    /// <summary>
+    /// 软键盘 inset 的接收器 —— **Android 15+ 上「键盘避让」只能自己接**。
+    ///
+    /// 起因（真机实测，Android 16 / targetSdk 36）：<c>MainActivity</c> 上的
+    /// `WindowSoftInputMode=AdjustResize` **在 edge-to-edge 下已经失效** ——
+    /// 键盘弹出前后 dump 出来的页面平台视图是同一个 `(0,0)-(1080,2202)`，画布一点没被压矮，
+    /// 于是「点一条靠下的行 → 键盘盖住光标 → 什么都不滚」。官方说法是 15 起 `adjustResize`
+    /// 被 deprecated，应用要自己读 `WindowInsets.Type.ime()`。
+    ///
+    /// ⚠ 返回值**原样传下去、不消费**：inset 是窗口级的，吃掉它会让别的控件一起失去自己的内边距。
+    /// </summary>
+    private sealed class ImeInsetListener : Java.Lang.Object, AndroidX.Core.View.IOnApplyWindowInsetsListener
+    {
+        private readonly Action<int> _onImeBottomPx;
+        public ImeInsetListener(Action<int> onImeBottomPx) => _onImeBottomPx = onImeBottomPx;
+
+        public AndroidX.Core.View.WindowInsetsCompat? OnApplyWindowInsets(
+            Android.Views.View? v, AndroidX.Core.View.WindowInsetsCompat? insets)
+        {
+            if (insets == null) return null;
+            // Java 绑定类型的可空性流分析在这儿不收敛（下面两处 `GetInsets` 会报 CS8602），
+            // 上面那行已经判过了，这里显式收一个非空别名。
+            var ins = insets!;
+
+            int bottom = 0;
+            try
+            {
+                // ⚠ `WindowInsetsCompat.Type` 在这里是个**嵌套类型**，`Ime()` 是它上面的
+                // 静态方法 —— 先 `var t = ...Type;` 再 `t.Ime()` 编不过（CS0119「是一个类型」），
+                // 只能全限定写。`GetInsets` 返回的是**可空的** `AndroidX.Core.Graphics.Insets?`
+                // （不是 int），直接点 `.Bottom` 会报 CS8602。
+                bottom = ins.GetInsets(AndroidX.Core.View.WindowInsetsCompat.Type.Ime())?.Bottom ?? 0;
+
+                // ⚠ **这个值不要再「顺手扣掉导航栏」**。
+                // 网上的通行做法是 `ime().bottom - systemBars().bottom`（官方文档也写了
+                // ime「may include」导航栏），我照做了一版，结果**反而错了**：
+                // 实测（模拟器 Android 16）行号栏结束于 y=1453、状态栏 1453~1517、键盘上沿 1517
+                // —— `ime()` 报的就是 1517，**本来就没算进导航栏**；扣掉 64px 之后内容区被多顶
+                // 上去一截，状态栏直接掉到键盘底下（截图逐像素比对确认）。
+                // 判断依据别靠肉眼看缩放截图：扫一行像素看行号栏底色 (#F2F2F4) 在哪一行结束，
+                // 就得到内容区的真实下沿。
+            }
+            catch { /* 取不到就当没有键盘 —— 不该因为避让失败把页面搞崩 */ }
+            try { _onImeBottomPx(bottom); } catch { }
+            return insets;
+        }
+    }
+
+    private ImeInsetListener? _imeListener;
+    private double _imePadPt = -1;
+
+    /// <summary>
+    /// **没有键盘时**页面平台视图的高度（px）—— 用来判断「系统自己有没有把页面压矮」，
+    /// 见 <see cref="ApplyImePad"/>。初值 -1 = 还没量到基线。
+    /// </summary>
+    private int _pageHeightNoIme = -1;
+
+    /// <summary>
+    /// 挂上软键盘 inset 监听，并把遮挡高度换算成根布局的**底部内边距** ——
+    /// 也就是把「窗口被键盘压矮」这件事还原出来。
+    ///
+    /// 之所以选「压矮布局」而不是「只在滚动数学里减去键盘高度」：压矮之后画布的高度、
+    /// 命中测试、滚动边界、绘制范围**全部照旧**，只多了一条
+    /// <c>CodeCanvasView.OnSizeAllocated</c>（变矮 → 把光标行顶回视口）。
+    /// 若改成在滚动数学里减，就得同时维护「两个高度」——画的时候用大的、算边界用小的，
+    /// 正是本仓库反复踩的「同一件事两处实现」。
+    ///
+    /// 挂在**画布**的平台视图上而不是页面自己的：页面视图上已经有 MAUI 自己的 inset 监听
+    /// （安全区那套），覆盖它会连带把页面的 inset 处理弄坏；画布是叶子视图，MAUI 不管它。
+    /// </summary>
+    private void HookImeInsets()
+    {
+        if (Canvas.Handler?.PlatformView is not Android.Views.View plat) return;
+
+        _imeListener ??= new ImeInsetListener(ApplyImePad);
+        AndroidX.Core.View.ViewCompat.SetOnApplyWindowInsetsListener(plat, _imeListener);
+        // 监听器是布局之后才挂上的，主动请求一次派发；不然要等下一次窗口变化才拿得到 inset。
+        AndroidX.Core.View.ViewCompat.RequestApplyInsets(plat);
+    }
+
+    /// <summary>把键盘遮挡的高度（px）换成根布局的底部内边距（pt）。</summary>
+    private void ApplyImePad(int imeBottomPx)
+    {
+        if (Handler?.PlatformView is not Android.Views.View pageView) return;
+
+        double density = DeviceDisplay.MainDisplayInfo.Density;
+        if (density <= 0) return;
+
+        // 没有键盘：记下「满高」基线，并把内边距归零。
+        if (imeBottomPx <= 0)
+        {
+            _pageHeightNoIme = pageView.Height;
+            SetPad(0);
+            return;
+        }
+
+        // **系统自己压矮了没有？**
+        //
+        // `adjustResize` 只在 **Android 15+（targetSdk ≥ 35，强制 edge-to-edge）** 上失效；
+        // 同一份 APK 装到 Android 14 及更早的机器上，那条老路**照常生效**、页面已经被系统
+        // 压矮了 —— 这时我们再补一次就是**压两遍**（编辑区被挤成一条缝）。
+        //
+        // 所以判据不写「系统版本 ≥ N」（那是在猜系统的行为），而是**直接量**：
+        // 键盘弹出后页面还是满高 ⇒ 系统没管，我们自己补；已经明显矮了 ⇒ 系统管了，一个字不加。
+        if (_pageHeightNoIme > 0 && pageView.Height < _pageHeightNoIme - 8) { SetPad(0); return; }
+
+        // 键盘上沿在窗口里的 y = 窗口高 − 键盘高。
+        var root = pageView.RootView as Android.Views.View;
+        double windowH = (root?.Height ?? pageView.Height) / density;
+        double imeTop = windowH - imeBottomPx / density;
+
+        // 页面自己下沿在窗口里的 y。**必须用它、不能用窗口高** —— 页面底下还压着 Shell 的
+        // 标签栏（实测 210px ≈ 76pt），它本来就不属于页面、本来就被键盘盖着，
+        // 算进内边距等于白白丢掉一截编辑区。
+        var loc = new int[2];
+        pageView.GetLocationInWindow(loc);
+        double pageBottom = (loc[1] + pageView.Height) / density;
+
+        SetPad(Math.Max(0, pageBottom - imeTop));
+    }
+
+    /// <summary>设根布局的底部内边距（pt）。值没变就一个字都不动 —— 键盘动画会连发很多次回调。</summary>
+    private void SetPad(double pad)
+    {
+        if (Math.Abs(pad - _imePadPt) < 0.5) return;
+        _imePadPt = pad;
+
+        // 排到下一拍再改布局：回调本身处在 inset 派发过程里，就地改布局会嵌套触发一次布局。
+        MainThread.BeginInvokeOnMainThread(() => RootGrid.Padding = new Thickness(0, 0, 0, pad));
     }
 #endif
 
@@ -679,7 +812,7 @@ public partial class EditorPage : ContentPage
         StartCaretSync();
         // 把这一行带到可视区中部：软键盘占掉下半屏，贴着底部编辑会看不见自己在打什么，
         // 系统也可能为了「让焦点控件可见」而自行滚动页面（那会让画布坐标和实际显示错开）。
-        _ = EnsureEditorVisibleAsync(oneBased);
+        EnsureEditorVisible(oneBased);
         Canvas.Invalidate();
         UpdateStatus();
     }
@@ -712,17 +845,18 @@ public partial class EditorPage : ContentPage
     }
 
     /// <summary>
-    /// 编辑期间保证该行可见：先滚到中部，等软键盘把布局撑开（AdjustResize）之后再校一次。
-    /// 键盘高度在 Focus 那一刻还没到，只做一次的话算出来的是「键盘弹出前」的位置。
+    /// 编辑期间保证该行可见。
+    ///
+    /// **不需要在这里等软键盘** —— 键盘把画布压矮的那一刻由 <c>CodeCanvasView.OnSizeAllocated</c>
+    /// 兜住：视口一变矮它就把光标行顶回视口内。这里只管「键盘已经在屏幕上」的那种情况
+    /// （点了另一条本来就露着的行 → 一个字都不动）。
+    ///
+    /// 此前这里是「等 260ms 再滚一次」：那是在猜键盘动画的时长，猜早了算的还是旧视口
+    /// （等于没做），猜晚了用户已经看着自己被挡住 —— 实测就是「刚好弹出键盘时挡住光标」。
+    /// 触发点换成真实的高度变化之后，这条就没有存在理由了。
     /// </summary>
-    private async Task EnsureEditorVisibleAsync(long oneBased)
-    {
-        Canvas.ScrollToLine(oneBased);   // 最小滚动：露得全就一个字都不动
-        await Task.Delay(260);
-        if (_editLine != oneBased - 1) return;   // 期间已经切走/提交了
-        PositionEditor(oneBased);
-        Canvas.ScrollToLine(oneBased);   // 最小滚动：露得全就一个字都不动
-    }
+    private void EnsureEditorVisible(long oneBased)
+        => Canvas.ScrollToLine(oneBased);   // 最小滚动：露得全就一个字都不动
 
     /// <summary>
     /// 点击的横坐标（pt）→ 该行内的字符下标。

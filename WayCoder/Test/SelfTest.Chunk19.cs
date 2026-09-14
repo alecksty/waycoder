@@ -986,10 +986,14 @@ public static partial class SelfTest
             {
                 var desk = ToolNames(deskPath);
                 var maui = ToolNames(mauiPath);
-                // 移动端裁剪进程类工具是刻意的；判据是「差集恰好等于这批」
+                // 移动端裁剪进程类工具是刻意的；判据是「差集恰好等于这批」。
+                // ⚠ `BashTool` **已从这里移出**：Android 上把它接回来了（手机有真 shell，
+                // 走 /system/bin/sh），iOS 仍是 CoreStubs 的桩 —— MAUI 版清单里那行在
+                // `#if ANDROID` 里，但本护栏是**读源码文本**的（正则不认条件编译），
+                // 所以它按「移动端已有」计，差集里不再出现。
                 var desktopOnly = new HashSet<string>(StringComparer.Ordinal)
                 {
-                    "BashTool", "GitPRTool", "JobKillTool", "JobOutputTool", "KillTool",
+                    "GitPRTool", "JobKillTool", "JobOutputTool", "KillTool",
                     "LintTool", "LspTool", "PsTool", "ScreenshotTool", "TestTool",
                 };
                 Check("工具清单: MAUI 无独有工具（必须是桌面的真子集）",

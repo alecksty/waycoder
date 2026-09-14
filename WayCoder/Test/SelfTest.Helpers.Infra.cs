@@ -1356,5 +1356,28 @@ public static partial class SelfTest
         Check("Xml: DOM Attr", dom.GetAttr("k") == "v");
         Check("Xml: DOM Add", dom.Find("child") != null);
     }
+    /// <summary>shell 路径真源测试 —— 三平台分支 + 参数拼接与「收敛前」逐字一致</summary>
+    private static void TestShellPath(Action<string, bool> Check)
+    {
+        // 1. 三条平台分支：**纯函数版**，所以在桌面上也能全部钉住（不必真有那台机器）
+        Check("ShellPath: Windows", ShellPath.ResolveFor(isWindows: true, isAndroid: false) == "cmd.exe");
+        Check("ShellPath: Android", ShellPath.ResolveFor(isWindows: false, isAndroid: true) == "/system/bin/sh");
+        Check("ShellPath: Linux/macOS", ShellPath.ResolveFor(isWindows: false, isAndroid: false) == "/bin/bash");
+
+        // 2. 无参包装与当前平台一致（自测机器不可能是 Android）
+        Check("ShellPath: 本机解析与平台一致",
+            ShellPath.Resolve() == (OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/bash"));
+
+        // 3. 参数拼接：转义规则必须与收敛前逐字相同（只挪位置、不改行为）
+        Check("ShellPath: Unix 普通命令", ShellPath.BuildArgsFor("ls -la", false) == "-c \"ls -la\"");
+        Check("ShellPath: Unix 内层引号转义", ShellPath.BuildArgsFor("echo \"hi\"", false) == "-c \"echo \\\"hi\\\"\"");
+        Check("ShellPath: Windows 不转义内层引号", ShellPath.BuildArgsFor("echo \"hi\"", true) == "/c \"echo \"hi\"\"");
+
+        // 4. 长驻 shell 参数：**Android 必须是空串** —— --noprofile/--norc 是 bash 专有选项，
+        //    喂给 Android 的 mksh 会直接以「未知选项」启动失败。
+        Check("ShellPath: 长驻 Windows", ShellPath.PersistentArgsFor(true, false) == "/Q");
+        Check("ShellPath: 长驻 Android 不给 bash 专有选项", ShellPath.PersistentArgsFor(false, true) == "");
+        Check("ShellPath: 长驻 Unix", ShellPath.PersistentArgsFor(false, false) == "--noprofile --norc");
+    }
 
 }

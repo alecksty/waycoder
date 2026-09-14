@@ -91,12 +91,11 @@ public sealed class PersistentShell : IDisposable
             _proc = null;
         }
 
-        var isWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
         var psi = new ProcessStartInfo
         {
-            FileName = isWindows ? "cmd.exe" : "/bin/bash",
+            FileName = ShellPath.Resolve(),
             // bash：不加载 profile/rc（干净、无交互 prompt）；cmd：/Q 关闭回显
-            Arguments = isWindows ? "/Q" : "--noprofile --norc",
+            Arguments = ShellPath.PersistentArgs(),
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,

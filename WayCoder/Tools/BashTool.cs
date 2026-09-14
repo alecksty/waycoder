@@ -179,10 +179,8 @@ public class BashTool : ITool, ICancellableTool
             {
                 psi = new ProcessStartInfo
                 {
-                    FileName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "cmd.exe" : "/bin/bash",
-                    Arguments = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                        ? $"/c \"{command}\""
-                        : $"-c \"{command.Replace("\"", "\\\"")}\"",
+                    FileName = WayCoder.Infra.ShellPath.Resolve(),
+                    Arguments = WayCoder.Infra.ShellPath.BuildArgs(command),
                     WorkingDirectory = cwd,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,

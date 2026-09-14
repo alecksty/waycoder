@@ -76,7 +76,7 @@ public static class MauiProgram
 		}
 #endif
 
-#if ANDROID || IOS
+#if ANDROID || IOS || MACCATALYST
 		// 编辑器「透明文字叠加」语法高亮：仅 CodeEditor（StyleId="code-editor"）文字透明、光标保留；
 		// 底层由 EditorPage 的高亮 Label（FormattedString）显示着色文本。
 		EditorHandler.Mapper.AppendToMapping("TransparentText", (handler, view) =>
@@ -90,7 +90,7 @@ public static class MauiProgram
 				handler.PlatformView.TextCursorDrawable = new Android.Graphics.Drawables.ColorDrawable(
 					isDark ? Android.Graphics.Color.White : Android.Graphics.Color.Black);
 			}
-#elif IOS
+#elif IOS || MACCATALYST
 			handler.PlatformView.TextColor = UIKit.UIColor.Clear;
 			var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
 			handler.PlatformView.TintColor = isDark ? UIKit.UIColor.White : UIKit.UIColor.Black;

@@ -21,6 +21,14 @@ using System.Text;
 
 namespace WayCoder.Tools
 {
+#if ANDROID
+    // ⚠ **Android 上没有这个桩** —— 它换成 `WayCoder/Tools/BashTool.cs` 那个真实现
+    // （由 csproj 按平台条件 include 进来）。两边同名同命名空间，同时参与编译就是 CS0101，
+    // 所以桩必须跟着平台条件一起消失。
+    //
+    // 为什么只有 Android 有真 shell：iOS 的沙箱**物理拒绝 fork/exec**（没有配置能绕），
+    // 真实现拉起来只会抛；Android 上 `Process.Start` 是好的 —— 见 csproj 里那段注释的实测依据。
+#else
     /// <summary>
     /// bash 工具桩：移动端无 shell 进程（iOS 禁 Process.Start），所有命令降级为不支持提示。
     /// 保留类型是为了满足 <c>Agent.Tools.cs</c> 的 <c>tool is BashTool</c> 流式特判
@@ -52,6 +60,7 @@ namespace WayCoder.Tools
             => "⚠️ 移动端不支持 bash 工具：本 App 独立运行于手机沙箱，无本地 shell 进程（iOS 物理禁止 Process.Start）。" +
                "请改用 read_file / write_file / edit_file / glob / grep 等文件工具完成操作。";
     }
+#endif
 
     /// <summary>
     /// lint 工具桩：移动端无 linter 进程。保留 <c>DetectLanguage</c> 静态方法

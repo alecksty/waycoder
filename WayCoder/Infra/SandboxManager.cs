@@ -250,10 +250,8 @@ public static class SandboxManager
     {
         var psi = new ProcessStartInfo
         {
-            FileName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "cmd.exe" : "/bin/bash",
-            Arguments = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                ? $"/c \"{command}\""
-                : $"-c \"{command.Replace("\"", "\\\"")}\"",
+            FileName = ShellPath.Resolve(),
+            Arguments = ShellPath.BuildArgs(command),
             WorkingDirectory = AllowedDirectory ?? cwd,
             RedirectStandardOutput = true,
             RedirectStandardError = true,

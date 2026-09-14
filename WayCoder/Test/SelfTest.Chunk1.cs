@@ -79,6 +79,8 @@ public static partial class SelfTest
         TestGoalGuard(Check);
         // 状态栏路径信息（git 分支探测 + cwd 格式化）测试
         TestPathStatus(Check);
+        // shell 路径真源（三平台分支 + 参数拼接）测试
+        TestShellPath(Check);
         // 省 token 模式测试（EconomyMode 开关）
         TestEconomyMode(Check);
         // 省钱模式工具精简测试（Off=全量 / 开=去重复 / 开的越大越精简）
