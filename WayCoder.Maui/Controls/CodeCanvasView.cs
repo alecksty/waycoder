@@ -2471,18 +2471,27 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // **「一个字形推进多少」这个长度**，字号本身仍然连续可取 —— 字号每变一点，
         // 排版和这个长度都跟着变；只是这个长度落在与渲染同一张网格上。
         // 换句话说：**平台画多宽，我们就按多宽算**。
-        // ⚠ 比例取「**屏幕物理宽 ÷ 控件 dp 宽**」，而不是 `MainDisplayInfo.Density`。
-        // 这两者**并不总是相等** —— 本文件 `OnEnd` 里那段调试探针早就写着
-        // 「真实 scale = 屏幕物理宽 ÷ 控件 dp 宽；与平台路径用的密度不同 ⇒ 字号喂错了」。
-        // 拿密度当比例吸附，在两者不等的机器上会**按错的格子吸附**、反而引入偏差
-        // （模拟器上两者恰好相等，所以拿模拟器测是看不出来的）。
-        float d = Width > 0.5f && Microsoft.Maui.Devices.DeviceDisplay.MainDisplayInfo.Width > 0
+        // ⚠ **不能用「实测值」去吸附，要用「字体设计值」**（v0.96.143 定的）。
+        //
+        // 平台的绘制规则是：**每个字形的推进量 = round(字体设计值 × 屏幕比例) 个设备像素**。
+        // 而 `GetStringSize` 报的是排版算出来的小数，并且**实测比设计值偏大** ——
+        // 用户手机（字号 37、比例 2.75）：实测报 18.8dp（=51.7px），而画出来的是
+        // **整整 51.000px**（一行 19 个 H、相邻墨迹中点差全是 51），设计值 18.5dp×2.75 = 50.88 → round = 51 ✓。
+        // 拿偏大的实测值去吸附就得到 52px ⇒ **每字多 1px**，到第 10 列就偏 10px（半个格子），
+        // 光标于是落进字格里 —— 这正是用户反复反馈的「压在字母上」。
+        //
+        // 所以这里反过来：**从设计值算，吸到设备像素网格**。
+        // 两端实测吻合：模拟器（14 号 / 比例 2.625）→ 18px ✓；用户手机（37 号 / 2.75）→ 51px ✓。
+        //
+        // 比例取「屏幕物理宽 ÷ 控件 dp 宽」而不是 `MainDisplayInfo.Density` —— 本文件 `OnEnd`
+        // 里的调试探针早就写着这两者并不总是相等（「与平台路径用的密度不同 ⇒ 字号喂错了」）。
+        float scale = Width > 0.5f && Microsoft.Maui.Devices.DeviceDisplay.MainDisplayInfo.Width > 0
             ? (float)(Microsoft.Maui.Devices.DeviceDisplay.MainDisplayInfo.Width / Width)
             : (float)Microsoft.Maui.Devices.DeviceDisplay.MainDisplayInfo.Density;
-        if (d > 0.01f)
+        if (scale > 0.01f)
         {
-            lat = MathF.Round(lat * d) / d;
-            wide = MathF.Round(wide * d) / d;
+            lat = MathF.Round(EditorTypography.HalfWidth * scale) / scale;
+            wide = MathF.Round(EditorTypography.FullWidth * scale) / scale;
         }
 #endif
 

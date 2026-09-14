@@ -67,6 +67,9 @@ internal static class EditorTypography
     /// </summary>
     public static float HalfWidth => FontSize * 0.5f;
 
+    /// <summary>全角字符宽度（汉字/全角标点）—— Sarasa Mono 的汉字推进量恰好 1em。</summary>
+    public static float FullWidth => FontSize;
+
     private static float _fontSize = DefaultFontSize;
 
     /// <summary>默认字号（偶数 —— 见 <see cref="FontSize"/> 的说明）。</summary>
