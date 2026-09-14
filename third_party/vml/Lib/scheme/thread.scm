@@ -1,0 +1,5 @@
+;; VML 线程扩展库 — Scheme (OS 模式)
+(define (thread-create entry stack-size) (asm "SYSCALL 300") 0)
+(define (thread-exit) (asm "SYSCALL 301"))
+(define (thread-join tid) (asm "SYSCALL 302") 0)
+(define (thread-yield) (asm "SYSCALL 303") 0)

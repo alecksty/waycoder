@@ -1,0 +1,194 @@
+﻿; IBM-PC-5150寄存器定义
+; 生成自: IBM/Personal Computer/IBM-PC-5150
+; 版本: 1.0
+; 日期: 2026-04-16
+; 作者: VML Team
+; 描述: Original IBM Personal Computer Model 5150
+
+; CPU架构: x86
+; 位宽: 16位
+; 时钟频率: 4772727 Hz
+
+; 寄存器定义
+; Accumulator Register
+.equ AX, 0x0
+
+; Base Register
+.equ BX, 0x1
+
+; Count Register
+.equ CX, 0x2
+
+; Data Register
+.equ DX, 0x3
+
+; Source Index
+.equ SI, 0x4
+
+; Destination Index
+.equ DI, 0x5
+
+; Base Pointer
+.equ BP, 0x6
+
+; Stack Pointer
+.equ SP, 0x7
+
+; Code Segment
+.equ CS, 0x8
+
+; Data Segment
+.equ DS, 0x9
+
+; Extra Segment
+.equ ES, 0xA
+
+; Stack Segment
+.equ SS, 0xB
+
+; Instruction Pointer
+.equ IP, 0xC
+
+; Flags Register
+.equ FLAGS, 0xD
+.equ FLAGS_CF, 0  ; Carry Flag
+.equ FLAGS_PF, 2  ; Parity Flag
+.equ FLAGS_AF, 4  ; Auxiliary Carry Flag
+.equ FLAGS_ZF, 6  ; Zero Flag
+.equ FLAGS_SF, 7  ; Sign Flag
+.equ FLAGS_TF, 8  ; Trap Flag
+.equ FLAGS_IF, 9  ; Interrupt Enable Flag
+.equ FLAGS_DF, 10  ; Direction Flag
+.equ FLAGS_OF, 11  ; Overflow Flag
+
+; 内存段定义
+; BIOS ROM
+.equ BIOS_START, 0xF0000
+.equ BIOS_END, 0xFFFFF
+.equ BIOS_SIZE, 65536
+
+; Video Memory
+.equ VIDEO_START, 0xB8000
+.equ VIDEO_END, 0xBFFFF
+.equ VIDEO_SIZE, 32768
+
+; Conventional Memory (640KB)
+.equ CONVENTIONAL_START, 0x00000
+.equ CONVENTIONAL_END, 0x9FFFF
+.equ CONVENTIONAL_SIZE, 640
+
+; Extended Memory (64KB)
+.equ EXTENDED_START, 0x100000
+.equ EXTENDED_END, 0x10FFFF
+.equ EXTENDED_SIZE, 64
+
+; 外设定义
+; Programmable Interrupt Controller
+.equ PIC_BASE, 0x20
+.equ PIC_PIC1_CMD, 0x20
+.equ PIC_PIC1_DATA, 0x21
+.equ PIC_PIC2_CMD, 0xA0
+.equ PIC_PIC2_DATA, 0xA1
+
+; Programmable Interval Timer
+.equ PIT_BASE, 0x40
+.equ PIT_PIT_CH0, 0x40
+.equ PIT_PIT_CH1, 0x41
+.equ PIT_PIT_CH2, 0x42
+.equ PIT_PIT_CTRL, 0x43
+
+; Programmable Peripheral Interface
+.equ PPI_BASE, 0x60
+.equ PPI_PPI_PA, 0x60
+.equ PPI_PPI_PB, 0x61
+.equ PPI_PPI_PC, 0x62
+.equ PPI_PPI_CTRL, 0x63
+
+; Direct Memory Access Controller
+.equ DMA_BASE, 0x00
+.equ DMA_DMA_CH0_ADDR, 0x00
+.equ DMA_DMA_CH0_COUNT, 0x01
+.equ DMA_DMA_CMD, 0x08
+.equ DMA_DMA_MASK, 0x0A
+.equ DMA_DMA_MODE, 0x0B
+
+; Color Graphics Adapter
+.equ CGA_BASE, 0x3D4
+.equ CGA_CGA_INDEX, 0x3D4
+.equ CGA_CGA_DATA, 0x3D5
+.equ CGA_CGA_MODE, 0x3D8
+.equ CGA_CGA_COLOR, 0x3D9
+
+; 中断向量定义
+.equ DIVIDE_ERROR_VECTOR, 0  ; Divide Error
+.equ SINGLE_STEP_VECTOR, 1  ; Single Step
+.equ NMI_VECTOR, 2  ; Non-Maskable Interrupt
+.equ BREAKPOINT_VECTOR, 3  ; Breakpoint
+.equ OVERFLOW_VECTOR, 4  ; Overflow
+.equ PRINT_SCREEN_VECTOR, 5  ; Print Screen
+.equ IRQ0_VECTOR, 8  ; Timer Interrupt
+.equ IRQ1_VECTOR, 9  ; Keyboard Interrupt
+.equ IRQ2_VECTOR, 10  ; Cascade (8259A)
+.equ IRQ3_VECTOR, 11  ; COM2
+.equ IRQ4_VECTOR, 12  ; COM1
+.equ IRQ5_VECTOR, 13  ; LPT2
+.equ IRQ6_VECTOR, 14  ; Floppy Disk
+.equ IRQ7_VECTOR, 15  ; LPT1
+.equ IRQ8_VECTOR, 16  ; Real Time Clock
+.equ IRQ11_VECTOR, 19  ; Reserved
+.equ IRQ13_VECTOR, 21  ; Coprocessor
+.equ IRQ15_VECTOR, 31  ; Reserved
+
+; 引脚定义
+.equ PIN_VCC, 1  ; +5V Power Supply
+.equ PIN_GND, 2  ; Ground
+.equ PIN_RESET, 3  ; System Reset
+.equ PIN_CLK, 4  ; System Clock (4.77MHz)
+.equ PIN_READY, 5  ; CPU Ready Signal
+.equ PIN_NMI, 6  ; Non-Maskable Interrupt
+.equ PIN_INTR, 7  ; Interrupt Request
+.equ PIN_HLDA, 8  ; Hold Acknowledge
+.equ PIN_HOLD, 9  ; Hold Request
+.equ PIN_MEMR, 10  ; Memory Read
+.equ PIN_MEMW, 11  ; Memory Write
+.equ PIN_IOR, 12  ; I/O Read
+.equ PIN_IOW, 13  ; I/O Write
+.equ PIN_ALE, 14  ; Address Latch Enable
+.equ PIN_DTR, 15  ; Data Terminal Ready (Serial)
+.equ PIN_RTS, 16  ; Request To Send (Serial)
+.equ PIN_CTS, 17  ; Clear To Send (Serial)
+.equ PIN_DSR, 18  ; Data Set Ready (Serial)
+.equ PIN_RI, 19  ; Ring Indicator (Serial)
+.equ PIN_DCD, 20  ; Data Carrier Detect (Serial)
+
+; 宏定义
+.macro ibm_pc_5150_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+ibm_pc_5150_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

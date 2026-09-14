@@ -1,0 +1,1 @@
+using VMLPlugins.Interfaces; using VMLAssembler; namespace VMLTranslators { public class TranslatorDotNETPlugin : TranslatorPlugin<TranslatorDotNET> { public TranslatorDotNETPlugin() : base("DotNET", ".NET CIL 虚拟机", "32", ".il") { } } }

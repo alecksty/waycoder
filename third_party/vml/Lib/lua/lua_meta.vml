@@ -1,0 +1,431 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+
+.text
+lua_binop:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #24
+        MOVE R0 [R12+16]
+        PUSH R0
+        MOVE R0 #4
+        POP R1
+        SUB R1 R0
+        MOVE R0 R1
+        MOVE [R12-4] R0
+        MOVE R0 [R12-4]
+        MOVE R0 @0
+        MOVE [R12-8] R0
+        MOVE R0 [R12-8]
+        PUSH R0
+        MOVE R0 #0
+        POP R1
+        CMP R1 R0
+        JNE L64520002
+        MOVE R0 #0
+        JMP L64520003
+L64520002:
+        MOVE R0 #1
+L64520003:
+        CMP R0 #0
+        JZ sta_64520000
+sta_64520000:
+sta_64520001:
+        MOVE R0 [R12+12]
+        PUSH R0
+        MOVE R0 #1
+        POP R1
+        CMP R1 R0
+        JE L64520006
+        MOVE R0 #0
+        JMP L64520007
+L64520006:
+        MOVE R0 #1
+L64520007:
+        CMP R0 #0
+        JZ sta_64520004
+        MOVE R0 [R12+16]
+        PUSH R0
+        MOVE R0 [R12+20]
+        POP R1
+        ADD R1 R0
+        MOVE R0 R1
+        JMP L64520008
+sta_64520004:
+sta_64520005:
+        MOVE R0 [R12+12]
+        PUSH R0
+        MOVE R0 #2
+        POP R1
+        CMP R1 R0
+        JE L64520011
+        MOVE R0 #0
+        JMP L64520012
+L64520011:
+        MOVE R0 #1
+L64520012:
+        CMP R0 #0
+        JZ sta_64520009
+        MOVE R0 [R12+16]
+        PUSH R0
+        MOVE R0 [R12+20]
+        POP R1
+        SUB R1 R0
+        MOVE R0 R1
+        JMP L64520008
+sta_64520009:
+sta_64520010:
+        MOVE R0 [R12+12]
+        PUSH R0
+        MOVE R0 #3
+        POP R1
+        CMP R1 R0
+        JE L64520015
+        MOVE R0 #0
+        JMP L64520016
+L64520015:
+        MOVE R0 #1
+L64520016:
+        CMP R0 #0
+        JZ sta_64520013
+        MOVE R0 [R12+16]
+        PUSH R0
+        MOVE R0 [R12+20]
+        POP R1
+        MUL R1 R0
+        MOVE R0 R1
+        JMP L64520008
+sta_64520013:
+sta_64520014:
+        MOVE R0 [R12+12]
+        PUSH R0
+        MOVE R0 #4
+        POP R1
+        CMP R1 R0
+        JE L64520019
+        MOVE R0 #0
+        JMP L64520020
+L64520019:
+        MOVE R0 #1
+L64520020:
+        CMP R0 #0
+        JZ sta_64520017
+        MOVE R0 [R12+20]
+        PUSH R0
+        MOVE R0 #0
+        POP R1
+        CMP R1 R0
+        JE L64520023
+        MOVE R0 #0
+        JMP L64520024
+L64520023:
+        MOVE R0 #1
+L64520024:
+        CMP R0 #0
+        JZ sta_64520021
+        MOVE R0 #0
+        JMP L64520008
+sta_64520021:
+sta_64520022:
+        MOVE R0 [R12+16]
+        PUSH R0
+        MOVE R0 [R12+20]
+        POP R1
+        DIV R1 R0
+        MOVE R0 R1
+        JMP L64520008
+sta_64520017:
+sta_64520018:
+        MOVE R0 [R12+12]
+        PUSH R0
+        MOVE R0 #5
+        POP R1
+        CMP R1 R0
+        JE L64520027
+        MOVE R0 #0
+        JMP L64520028
+L64520027:
+        MOVE R0 #1
+L64520028:
+        CMP R0 #0
+        JZ sta_64520025
+        MOVE R0 [R12+20]
+        PUSH R0
+        MOVE R0 #0
+        POP R1
+        CMP R1 R0
+        JE L64520031
+        MOVE R0 #0
+        JMP L64520032
+L64520031:
+        MOVE R0 #1
+L64520032:
+        CMP R0 #0
+        JZ sta_64520029
+        MOVE R0 #0
+        JMP L64520008
+sta_64520029:
+sta_64520030:
+        MOVE R0 [R12+16]
+        PUSH R0
+        MOVE R0 [R12+20]
+        POP R1
+        MOD R1 R0
+        MOVE R0 R1
+        JMP L64520008
+sta_64520025:
+sta_64520026:
+        MOVE R0 [R12+12]
+        PUSH R0
+        MOVE R0 #6
+        POP R1
+        CMP R1 R0
+        JE L64520035
+        MOVE R0 #0
+        JMP L64520036
+L64520035:
+        MOVE R0 #1
+L64520036:
+        CMP R0 #0
+        JZ sta_64520033
+        MOVE R0 #1
+        MOVE [R12-12] R0
+        MOVE R0 [R12+20]
+        MOVE [R12-16] R0
+        MOVE R0 [R12-16]
+        PUSH R0
+        MOVE R0 #0
+        POP R1
+        CMP R1 R0
+        JL L64520039
+        MOVE R0 #0
+        JMP L64520040
+L64520039:
+        MOVE R0 #1
+L64520040:
+        CMP R0 #0
+        JZ sta_64520037
+        MOVE R0 #0
+        JMP L64520008
+sta_64520037:
+sta_64520038:
+sta_64520041:
+        MOVE R2 #0
+        MOVE R0 [R12-16]
+        PUSH R0
+        MOVE R0 #0
+        POP R1
+        CMP R1 R0
+        JG L64520043
+        MOVE R0 #0
+        JMP L64520044
+L64520043:
+        MOVE R0 #1
+L64520044:
+        CMP R0 #0
+        JZ sta_64520042
+        MOVE R0 [R12-12]
+        PUSH R0
+        MOVE R0 [R12+16]
+        POP R1
+        MUL R1 R0
+        MOVE R0 R1
+        MOVE [R12-12] R0
+        MOVE R0 [R12-16]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        MOVE [R12-16] R0
+        MOVE R0 R1
+        JMP sta_64520041
+sta_64520042:
+        MOVE R0 [R12-12]
+        JMP L64520008
+sta_64520033:
+sta_64520034:
+        MOVE R0 #0
+        JMP L64520008
+L64520008:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        MOVE R1 @13
+        ADD R13 #16
+        PUSH R1
+        RET
+lua_compare_mt:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        MOVE R0 [R12+12]
+        PUSH R0
+        MOVE R0 #1
+        POP R1
+        CMP R1 R0
+        JE L64520047
+        MOVE R0 #0
+        JMP L64520048
+L64520047:
+        MOVE R0 #1
+L64520048:
+        CMP R0 #0
+        JZ sta_64520045
+        MOVE R0 [R12+16]
+        PUSH R0
+        MOVE R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JE L64520049
+        MOVE R0 #0
+        JMP L64520050
+L64520049:
+        MOVE R0 #1
+L64520050:
+        TEST R0 R0
+        JZ L64520051
+        MOVE R0 #1
+        JMP L64520052
+L64520051:
+        MOVE R0 #0
+L64520052:
+        JMP L64520053
+sta_64520045:
+sta_64520046:
+        MOVE R0 [R12+12]
+        PUSH R0
+        MOVE R0 #2
+        POP R1
+        CMP R1 R0
+        JE L64520056
+        MOVE R0 #0
+        JMP L64520057
+L64520056:
+        MOVE R0 #1
+L64520057:
+        CMP R0 #0
+        JZ sta_64520054
+        MOVE R0 [R12+16]
+        PUSH R0
+        MOVE R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL L64520058
+        MOVE R0 #0
+        JMP L64520059
+L64520058:
+        MOVE R0 #1
+L64520059:
+        TEST R0 R0
+        JZ L64520060
+        MOVE R0 #1
+        JMP L64520061
+L64520060:
+        MOVE R0 #0
+L64520061:
+        JMP L64520053
+sta_64520054:
+sta_64520055:
+        MOVE R0 [R12+12]
+        PUSH R0
+        MOVE R0 #3
+        POP R1
+        CMP R1 R0
+        JE L64520064
+        MOVE R0 #0
+        JMP L64520065
+L64520064:
+        MOVE R0 #1
+L64520065:
+        CMP R0 #0
+        JZ sta_64520062
+        MOVE R0 [R12+16]
+        PUSH R0
+        MOVE R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JLE L64520066
+        MOVE R0 #0
+        JMP L64520067
+L64520066:
+        MOVE R0 #1
+L64520067:
+        TEST R0 R0
+        JZ L64520068
+        MOVE R0 #1
+        JMP L64520069
+L64520068:
+        MOVE R0 #0
+L64520069:
+        JMP L64520053
+sta_64520062:
+sta_64520063:
+        MOVE R0 #0
+        JMP L64520053
+L64520053:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        MOVE R1 @13
+        ADD R13 #16
+        PUSH R1
+        RET
+lua_print1:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SYSCALL #6
+        MOVE [R12-4] R0
+        MOVE R13 R12
+        POP R12
+        POP R15
+        MOVE R1 @13
+        ADD R13 #8
+        PUSH R1
+        RET
+lua_sleep:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SYSCALL #52
+        MOVE [R12-4] R0
+        MOVE R13 R12
+        POP R12
+        POP R15
+        MOVE R1 @13
+        ADD R13 #8
+        PUSH R1
+        RET
+lua_clear:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SYSCALL #74
+        MOVE [R12-4] R0
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lua_print_str:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SYSCALL #1
+        MOVE [R12-4] R0
+        MOVE R13 R12
+        POP R12
+        POP R15
+        MOVE R1 @13
+        ADD R13 #8
+        PUSH R1
+        RET
+lua_print:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET

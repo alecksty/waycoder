@@ -1,0 +1,10 @@
+' VML 互斥锁扩展库 — BASIC (OS 模式)
+DECLARE FUNCTION MutexCreate() AS INTEGER
+    asm("SYSCALL 310") : MutexCreate = 0
+END FUNCTION
+DECLARE FUNCTION MutexLock(id AS INTEGER) AS INTEGER
+    asm("SYSCALL 311") : MutexLock = 0
+END FUNCTION
+DECLARE FUNCTION MutexUnlock(id AS INTEGER) AS INTEGER
+    asm("SYSCALL 312") : MutexUnlock = 0
+END FUNCTION

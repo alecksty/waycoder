@@ -1,0 +1,57 @@
+﻿; TB6612寄存器定义
+; 生成自: Toshiba/Motor/TB6612
+; 版本: 1.0
+; 日期: 2026-05-06
+; 作者: VML Team
+; 描述: TB6612FNG Dual DC Motor Driver (1.2A continuous, 3.2A peak, 2.5V-13.5V)
+
+; CPU架构: Motor
+; 位宽: 8位
+; 时钟频率: 100000 Hz
+
+; 外设定义
+; TB6612 Dual Motor Driver (2.5V-13.5V, 1.2A/3.2A peak)
+.equ TB6612_BASE, 0x00
+.equ TB6612_MOTOR_A, 0x00
+.equ TB6612_MOTOR_A_AIN1, 0  ; Motor A input 1
+.equ TB6612_MOTOR_A_AIN2, 1  ; Motor A input 2
+.equ TB6612_MOTOR_A_PWMA, 2  ; Motor A PWM enable
+.equ TB6612_MOTOR_B, 0x01
+.equ TB6612_MOTOR_B_BIN1, 0  ; Motor B input 1
+.equ TB6612_MOTOR_B_BIN2, 1  ; Motor B input 2
+.equ TB6612_MOTOR_B_PWMB, 2  ; Motor B PWM enable
+.equ TB6612_SPEED_A, 0x02
+.equ TB6612_SPEED_B, 0x04
+.equ TB6612_STBY, 0x06
+
+; 宏定义
+.macro tb6612_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+tb6612_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

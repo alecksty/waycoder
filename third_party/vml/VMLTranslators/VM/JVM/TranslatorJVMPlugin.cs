@@ -1,0 +1,1 @@
+using VMLPlugins.Interfaces; using VMLAssembler; namespace VMLTranslators { public class TranslatorJVMPlugin : TranslatorPlugin<TranslatorJVM> { public TranslatorJVMPlugin() : base("JVM", "Java虚拟机 (Jasmin)", "32", ".j") { } } }

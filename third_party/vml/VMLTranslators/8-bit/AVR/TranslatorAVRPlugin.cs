@@ -1,0 +1,1 @@
+using VMLPlugins.Interfaces; using VMLAssembler; namespace VMLTranslators { public class TranslatorAVRPlugin : TranslatorPlugin<TranslatorAVR> { public TranslatorAVRPlugin() : base("AVR", "AVR 8位微控制器", "8", ".avr.asm") { } } }

@@ -1,0 +1,37 @@
+﻿/**
+ * MFRC522 寄存器定义
+ * 生成自: NXP/RFID/MFRC522
+ * 版本: 1.0
+ */
+export const mfrc522 = {
+  // CPU: RFID, 8位, 10000000 Hz
+
+  // 内存段
+  // 64-byte FIFO buffer
+  FIFO_START: 0x00,
+  FIFO_END: 0x3F,
+  FIFO_SIZE: 64,
+
+  // 外设定义
+  // MFRC522 NFC Reader (SPI, 3.3V, 13.56MHz)
+  MFRC522_BASE: 0x00,
+  MFRC522_CMD: 0x00000001,
+  MFRC522_COM_IRQ: 0x00000004,
+  MFRC522_COM_IRQ_TX_IRQ: 6,  // Transmitter interrupt
+  MFRC522_COM_IRQ_RX_IRQ: 5,  // Receiver interrupt
+  MFRC522_COM_IRQ_IDLE_IRQ: 4,  // Idle interrupt
+  MFRC522_COM_IRQ_TIMER_IRQ: 0,  // Timer interrupt
+  MFRC522_COM_IRQ_EN: 0x00000005,
+  MFRC522_ERROR: 0x00000006,
+  MFRC522_STATUS2: 0x00000008,
+  MFRC522_FIFO_DATA: 0x00000009,
+  MFRC522_FIFO_LEVEL: 0x0000000A,
+  MFRC522_TX_CTRL: 0x00000014,
+  MFRC522_TX_ASK: 0x00000015,
+  MFRC522_MODE: 0x00000011,
+  MFRC522_VERSION: 0x00000037,
+
+  init: function() {
+    // 硬件初始化
+  }
+};

@@ -1,0 +1,5 @@
+BEGIN
+  NETWORK 1
+  LD X0
+  OUT Y0
+END

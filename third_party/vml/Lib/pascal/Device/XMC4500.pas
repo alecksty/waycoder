@@ -1,0 +1,143 @@
+﻿unit xmc4500;
+
+interface
+
+// XMC4500寄存器定义
+// 生成自: Infineon/XMC4000/XMC4500
+// 版本: 1.0
+// 日期: 2026-04-28
+// 作者: VML Team
+// 描述: 32-bit ARM Cortex-M4 Industrial MCU with 1MB Flash, 160KB RAM, 120MHz
+
+// CPU架构: ARM-Cortex-M4
+// 位宽: 32位
+// 时钟频率: 120000000 Hz
+
+const
+
+  // 寄存器定义
+  R0 = 0x00;
+
+  R1 = 0x04;
+
+  R2 = 0x08;
+
+  R3 = 0x0C;
+
+  R4 = 0x10;
+
+  R5 = 0x14;
+
+  SP = 0x34;
+
+  LR = 0x38;
+
+  PC = 0x3C;
+
+  // 内存段定义
+  FLASH_START = 0x08000000;
+  FLASH_END = 0x080FFFFF;
+  FLASH_SIZE = 1048576;
+
+  SRAM_START = 0x1FF00000;
+  SRAM_END = 0x1FF0FFFF;
+  SRAM_SIZE = 65536;
+
+  // Communication Memory
+  SRAM_COM_START = 0x20000000;
+  SRAM_COM_END = 0x20007FFF;
+  SRAM_COM_SIZE = 32768;
+
+  // CPU SRAM
+  SRAM_CPU_START = 0x20010000;
+  SRAM_CPU_END = 0x2001FFFF;
+  SRAM_CPU_SIZE = 65536;
+
+  PERIPHERAL_START = 0x40000000;
+  PERIPHERAL_END = 0x4FFFFFFF;
+  PERIPHERAL_SIZE = 268435456;
+
+  // 外设定义
+  // System Control Unit
+  SCU_BASE = 0x40020000;
+  SCU_CLKCR = 0x00;
+  SCU_CLKCR_PCLK_SEL = 0;  // CPU clock selection
+  SCU_CLKCR_FBKDIV = 16;  // Feedback divider
+  SCU_PLLCONFIG = 0x04;
+  SCU_OSCHPCTRL = 0x08;
+  SCU_CGATSET0 = 0x20;
+  SCU_CGATSET0_CG_GATE_GPIO = 4;  // GPIO gate enable
+  SCU_CGATCLR0 = 0x24;
+
+  // Port 0
+  PORT0_BASE = 0x48000000;
+  PORT0_OUT = 0x00;
+  PORT0_OMR = 0x04;
+  PORT0_IOCR0 = 0x10;
+  PORT0_IOCR4 = 0x14;
+  PORT0_IOCR8 = 0x18;
+  PORT0_IOCR12 = 0x1C;
+  PORT0_IN = 0x24;
+
+  // Port 1
+  PORT1_BASE = 0x48010000;
+  PORT1_OUT = 0x00;
+  PORT1_OMR = 0x04;
+  PORT1_IOCR0 = 0x10;
+  PORT1_IOCR4 = 0x14;
+  PORT1_IOCR8 = 0x18;
+  PORT1_IOCR12 = 0x1C;
+  PORT1_IN = 0x24;
+
+  // Port 2
+  PORT2_BASE = 0x48020000;
+  PORT2_OUT = 0x00;
+  PORT2_OMR = 0x04;
+  PORT2_IOCR0 = 0x10;
+  PORT2_IOCR4 = 0x14;
+  PORT2_IN = 0x24;
+
+  // Universal Serial Interface 0 (UART)
+  USIC0_BASE = 0x48030000;
+  USIC0_CCR = 0x00;
+  USIC0_PCR = 0x04;
+  USIC0_RBUF = 0x08;
+  USIC0_TBUF = 0x0C;
+  USIC0_BRG = 0x10;
+
+  // 中断向量定义
+  RESET_VECTOR = 0;  // 
+  SVCALL_VECTOR = 11;  // 
+  USIC0_SR0_VECTOR = 12;  // USIC0 Service Request 0
+
+type
+  TXMC4500 = record
+    // 设备状态记录
+  end;
+
+// 设备初始化函数
+procedure xmc4500_init;
+
+// 常用函数
+function read_register(addr: Word): Byte;
+procedure write_register(addr: Word; value: Byte);
+
+implementation
+
+procedure xmc4500_init;
+begin
+  // 初始化代码
+end;
+
+function read_register(addr: Word): Byte;
+begin
+  // 读取寄存器值
+  Result := 0;
+end;
+
+procedure write_register(addr: Word; value: Byte);
+begin
+  // 写入寄存器值
+end;
+
+end.

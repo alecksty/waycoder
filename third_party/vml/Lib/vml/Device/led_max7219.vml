@@ -1,0 +1,59 @@
+﻿; MAX7219寄存器定义
+; 生成自: Maxim/LED/MAX7219
+; 版本: 1.0
+; 日期: 2026-05-06
+; 作者: VML Team
+; 描述: MAX7219 8-Digit LED Display Driver (SPI, daisy-chainable, 8x8 matrix)
+
+; CPU架构: LED
+; 位宽: 8位
+; 时钟频率: 10000000 Hz
+
+; 外设定义
+; MAX7219 8-Digit/8x8 Matrix Driver (4.0V-5.5V, DIP-24)
+.equ MAX7219_BASE, 0x00
+.equ MAX7219_DIGIT0, 0x01
+.equ MAX7219_DIGIT1, 0x02
+.equ MAX7219_DIGIT2, 0x03
+.equ MAX7219_DIGIT3, 0x04
+.equ MAX7219_DIGIT4, 0x05
+.equ MAX7219_DIGIT5, 0x06
+.equ MAX7219_DIGIT6, 0x07
+.equ MAX7219_DIGIT7, 0x08
+.equ MAX7219_DECODE, 0x09
+.equ MAX7219_INTENSITY, 0x0A
+.equ MAX7219_SCAN_LIMIT, 0x0B
+.equ MAX7219_SHUTDOWN, 0x0C
+.equ MAX7219_TEST, 0x0F
+
+; 宏定义
+.macro max7219_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+max7219_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

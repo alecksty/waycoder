@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Authors>施探宇;alecksty</Authors>
+    <Company>深圳市探索智能科技有限公司</Company>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Library</OutputType>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <Compile Remove="MixedLanguageRuntime.cs" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="MixedLanguage.csproj" />
+  </ItemGroup>
+</Project>

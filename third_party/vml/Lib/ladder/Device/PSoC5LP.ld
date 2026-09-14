@@ -1,0 +1,68 @@
+﻿(*
+ * CY8C5888LTI-LP097梯形图定义
+ * 生成自: Cypress (Infineon)/PSoC/CY8C5888LTI-LP097
+ * 版本: 1.0
+ * 日期: 2026-04-29
+ * 作者: VML Team
+ * 描述: 32-bit ARM Cortex-M3 PSoC 5LP with 256KB Flash, 64KB SRAM, 80MHz, UDB
+ * CPU架构: ARM-Cortex-M3
+ * 位宽: 32位
+ * 时钟频率: 80000000 Hz
+ *)
+
+PROGRAM CY8C5888LTI_LP097
+VAR
+
+    (* 输入变量 *)
+
+    (* 输出变量 *)
+
+    (* 内存变量 *)
+
+    (* 外设变量 *)
+    (* SCB UART (可编程) *)
+    UART_BASE AT %MW0x40050000 : WORD;
+    UART_CTRL AT %MW0x00 : DWORD;
+    UART_STATUS AT %MW0x04 : DWORD;
+    UART_TX_DATA AT %MW0x08 : DWORD;
+    UART_RX_DATA AT %MW0x0C : DWORD;
+    (* SCB I2C *)
+    I2C_BASE AT %MW0x40051000 : WORD;
+    I2C_CTRL AT %MW0x00 : DWORD;
+    I2C_STATUS AT %MW0x04 : DWORD;
+    I2C_TX_DATA AT %MW0x08 : DWORD;
+    I2C_RX_DATA AT %MW0x0C : DWORD;
+    (* TCPWM 定时器 *)
+    TIMER_BASE AT %MW0x40060000 : WORD;
+    TIMER_CTRL AT %MW0x00 : DWORD;
+    TIMER_STATUS AT %MW0x04 : DWORD;
+    TIMER_CNT AT %MW0x08 : DWORD;
+    TIMER_PERIOD AT %MW0x0C : DWORD;
+    TIMER_CC AT %MW0x10 : DWORD;
+    (* DelSig ADC 20-bit *)
+    ADC_BASE AT %MW0x40100000 : WORD;
+    ADC_CTRL AT %MW0x00 : DWORD;
+    ADC_STATUS AT %MW0x04 : DWORD;
+    ADC_DATA AT %MW0x08 : DWORD;
+    ADC_CLOCK AT %MW0x10 : DWORD;
+    (* GPIO 端口 *)
+    GPIO_BASE AT %MW0x40040000 : WORD;
+    GPIO_DR AT %MW0x00 : DWORD;
+    GPIO_PS AT %MW0x04 : DWORD;
+    GPIO_IE AT %MW0x08 : DWORD;
+    GPIO_DM AT %MW0x0C : DWORD;
+    (* USB 控制器 *)
+    USB_BASE AT %MW0x40080000 : WORD;
+    USB_CR0 AT %MW0x00 : DWORD;
+    USB_CR1 AT %MW0x04 : DWORD;
+    USB_STAT AT %MW0x08 : DWORD;
+
+END_VAR
+
+BEGIN
+    (* CY8C5888LTI-LP097初始化梯形图 *)
+    (* 网络 1: 设备初始化 *)
+    [初始化完成]
+
+    (* 网络 2: 输入监控示例 *)
+END_PROGRAM

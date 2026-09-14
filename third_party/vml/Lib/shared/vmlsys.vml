@@ -1,0 +1,911 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+_vml_result_int: .word 0
+_vml_result_str: .word 0
+
+.text
+vml_print_str:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #1
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_print_int:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #6
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_print_char:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #4
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_print_float:
+        push R15
+        push R12
+        move R12 R13
+        i2f R0 R0
+        movef [R12+12] R0
+        syscall #8
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_print_hex:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #10
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_newline:
+        push R15
+        push R12
+        move R12 R13
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_print_wstr:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #391
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_print_ustr:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #393
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_alloc:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #40
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800000
+L18800000:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_free:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #41
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_mem_copy:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        syscall #11
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800001
+L18800001:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_mem_fill:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        syscall #12
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800002
+L18800002:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_mem_compare:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        syscall #13
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800003
+L18800003:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_random:
+        push R15
+        push R12
+        move R12 R13
+        syscall #50
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800004
+L18800004:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_seed:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #51
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_sleep_ms:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #52
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_get_tick:
+        push R15
+        push R12
+        move R12 R13
+        syscall #53
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800005
+L18800005:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_get_timestamp:
+        push R15
+        push R12
+        move R12 R13
+        syscall #54
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800006
+L18800006:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_get_date:
+        push R15
+        push R12
+        move R12 R13
+        syscall #55
+        move [_vml_result_str] R0
+        move R0 [_vml_result_str]
+        jmp L18800007
+L18800007:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_get_time:
+        push R15
+        push R12
+        move R12 R13
+        syscall #56
+        move [_vml_result_str] R0
+        move R0 [_vml_result_str]
+        jmp L18800008
+L18800008:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_beep:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        syscall #57
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_get_config:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #60
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800009
+L18800009:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_get_info:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #59
+        move [_vml_result_str] R0
+        move R0 [_vml_result_str]
+        jmp L18800010
+L18800010:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_get_platform:
+        push R15
+        push R12
+        move R12 R13
+        syscall #374
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800011
+L18800011:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_debug_print:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #70
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_debug_int:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #71
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_assert:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        syscall #72
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_device_open:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #100
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800012
+L18800012:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_device_close:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #101
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800013
+L18800013:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_device_read:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        syscall #102
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800014
+L18800014:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_device_write:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        syscall #103
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800015
+L18800015:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_device_control:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        syscall #104
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800016
+L18800016:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_file_open:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        syscall #110
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800017
+L18800017:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_file_close:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #111
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800018
+L18800018:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_file_read:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        syscall #112
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800019
+L18800019:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_file_write:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        syscall #113
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800020
+L18800020:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_file_size:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move R0 #0
+        move [R12-4] R0
+        syscall #114
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800021
+L18800021:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_file_seek:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move R0 #1
+        move [R12-4] R0
+        syscall #114
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800022
+L18800022:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_file_tell:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move R0 #2
+        move [R12-4] R0
+        syscall #114
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800023
+L18800023:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_mkdir:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #340
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800024
+L18800024:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_remove:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #341
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800025
+L18800025:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_rename:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        syscall #342
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800026
+L18800026:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_readdir:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        syscall #343
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800027
+L18800027:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_stat:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        syscall #344
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800028
+L18800028:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_get_env:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #360
+        move [_vml_result_str] R0
+        move R0 [_vml_result_str]
+        jmp L18800029
+L18800029:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_set_env:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        syscall #361
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800030
+L18800030:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_exit:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #3
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_get_pid:
+        push R15
+        push R12
+        move R12 R13
+        syscall #322
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800031
+L18800031:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_thread_create:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        syscall #300
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800032
+L18800032:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_thread_exit:
+        push R15
+        push R12
+        move R12 R13
+        syscall #301
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_thread_yield:
+        push R15
+        push R12
+        move R12 R13
+        syscall #303
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_mutex_create:
+        push R15
+        push R12
+        move R12 R13
+        syscall #310
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800033
+L18800033:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_mutex_lock:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #311
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800034
+L18800034:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_mutex_unlock:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #312
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800035
+L18800035:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_cond_create:
+        push R15
+        push R12
+        move R12 R13
+        syscall #313
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800036
+L18800036:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_cond_wait:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        syscall #314
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800037
+L18800037:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_cond_signal:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #315
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800038
+L18800038:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_cond_broadcast:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #316
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800039
+L18800039:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_exec:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #320
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800040
+L18800040:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_socket_create:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        syscall #330
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800041
+L18800041:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_socket_connect:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        syscall #334
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800042
+L18800042:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_socket_send:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        syscall #335
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800043
+L18800043:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_socket_recv:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        syscall #336
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800044
+L18800044:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_socket_close:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #337
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800045
+L18800045:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_dns_resolve:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #338
+        move [_vml_result_str] R0
+        move R0 [_vml_result_str]
+        jmp L18800046
+L18800046:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_screenshot:
+        push R15
+        push R12
+        move R12 R13
+        syscall #200
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_syscall5:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move [_vml_result_int] R0
+        move R0 [R12+12]
+        move [_vml_result_int] R0
+        move R5 [_vml_result_int]
+        move R0 [R12+16]
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        syscall R5
+        move [_vml_result_int] R0
+        move R0 [_vml_result_int]
+        jmp L18800047
+L18800047:
+        move R13 R12
+        pop R12
+        pop R15
+        ret

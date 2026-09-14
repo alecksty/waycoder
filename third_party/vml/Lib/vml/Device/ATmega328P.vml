@@ -1,0 +1,363 @@
+﻿; ATmega328P寄存器定义
+; 生成自: Atmel/AVR/ATmega328P
+; 版本: 1.0
+; 日期: 2026-04-16
+; 作者: VML Team
+; 描述: 8-bit AVR microcontroller with 32KB Flash, 2KB SRAM, 1KB EEPROM
+
+; CPU架构: AVR
+; 位宽: 8位
+; 时钟频率: 16000000 Hz
+
+; 寄存器定义
+; General Purpose Register 0
+.equ R0, 0x00
+
+; General Purpose Register 1
+.equ R1, 0x01
+
+; General Purpose Register 2
+.equ R2, 0x02
+
+; General Purpose Register 3
+.equ R3, 0x03
+
+; General Purpose Register 4
+.equ R4, 0x04
+
+; General Purpose Register 5
+.equ R5, 0x05
+
+; General Purpose Register 6
+.equ R6, 0x06
+
+; General Purpose Register 7
+.equ R7, 0x07
+
+; General Purpose Register 8
+.equ R8, 0x08
+
+; General Purpose Register 9
+.equ R9, 0x09
+
+; General Purpose Register 10
+.equ R10, 0x0A
+
+; General Purpose Register 11
+.equ R11, 0x0B
+
+; General Purpose Register 12
+.equ R12, 0x0C
+
+; General Purpose Register 13
+.equ R13, 0x0D
+
+; General Purpose Register 14
+.equ R14, 0x0E
+
+; General Purpose Register 15
+.equ R15, 0x0F
+
+; General Purpose Register 16
+.equ R16, 0x10
+
+; General Purpose Register 17
+.equ R17, 0x11
+
+; General Purpose Register 18
+.equ R18, 0x12
+
+; General Purpose Register 19
+.equ R19, 0x13
+
+; General Purpose Register 20
+.equ R20, 0x14
+
+; General Purpose Register 21
+.equ R21, 0x15
+
+; General Purpose Register 22
+.equ R22, 0x16
+
+; General Purpose Register 23
+.equ R23, 0x17
+
+; General Purpose Register 24
+.equ R24, 0x18
+
+; General Purpose Register 25
+.equ R25, 0x19
+
+; General Purpose Register 26 (XL)
+.equ R26, 0x1A
+
+; General Purpose Register 27 (XH)
+.equ R27, 0x1B
+
+; General Purpose Register 28 (YL)
+.equ R28, 0x1C
+
+; General Purpose Register 29 (YH)
+.equ R29, 0x1D
+
+; General Purpose Register 30 (ZL)
+.equ R30, 0x1E
+
+; General Purpose Register 31 (ZH)
+.equ R31, 0x1F
+
+; Stack Pointer Low
+.equ SPL, 0x5D
+
+; Stack Pointer High
+.equ SPH, 0x5E
+
+; Status Register
+.equ SREG, 0x5F
+.equ SREG_C, 0  ; Carry Flag
+.equ SREG_Z, 1  ; Zero Flag
+.equ SREG_N, 2  ; Negative Flag
+.equ SREG_V, 3  ; Two's Complement Overflow Flag
+.equ SREG_S, 4  ; Sign Flag (N ⊕ V)
+.equ SREG_H, 5  ; Half Carry Flag
+.equ SREG_T, 6  ; Transfer Bit
+.equ SREG_I, 7  ; Global Interrupt Enable
+
+; 内存段定义
+; Program Flash Memory
+.equ FLASH_START, 0x0000
+.equ FLASH_END, 0x7FFF
+.equ FLASH_SIZE, 32768
+
+; Static RAM
+.equ SRAM_START, 0x0100
+.equ SRAM_END, 0x08FF
+.equ SRAM_SIZE, 2048
+
+; EEPROM
+.equ EEPROM_START, 0x0000
+.equ EEPROM_END, 0x03FF
+.equ EEPROM_SIZE, 1024
+
+; I/O Registers
+.equ IO_START, 0x00
+.equ IO_END, 0x3F
+.equ IO_SIZE, 64
+
+; Extended I/O Registers
+.equ EXTIO_START, 0x40
+.equ EXTIO_END, 0xFF
+.equ EXTIO_SIZE, 192
+
+; 外设定义
+; Port B Data Register
+.equ PORTB_BASE, 0x23
+.equ PORTB_PORTB, 0x25
+.equ PORTB_DDRB, 0x24
+.equ PORTB_PINB, 0x23
+.equ PORTB_PB0, 0  ; Port B, bit 0
+.equ PORTB_PB1, 1  ; Port B, bit 1
+.equ PORTB_PB2, 2  ; Port B, bit 2
+.equ PORTB_PB3, 3  ; Port B, bit 3
+.equ PORTB_PB4, 4  ; Port B, bit 4
+.equ PORTB_PB5, 5  ; Port B, bit 5
+.equ PORTB_PB6, 6  ; Port B, bit 6
+.equ PORTB_PB7, 7  ; Port B, bit 7
+
+; Port C Data Register
+.equ PORTC_BASE, 0x26
+.equ PORTC_PORTC, 0x28
+.equ PORTC_DDRC, 0x27
+.equ PORTC_PINC, 0x26
+.equ PORTC_PC0, 0  ; Port C, bit 0
+.equ PORTC_PC1, 1  ; Port C, bit 1
+.equ PORTC_PC2, 2  ; Port C, bit 2
+.equ PORTC_PC3, 3  ; Port C, bit 3
+.equ PORTC_PC4, 4  ; Port C, bit 4
+.equ PORTC_PC5, 5  ; Port C, bit 5
+.equ PORTC_PC6, 6  ; Port C, bit 6
+
+; Port D Data Register
+.equ PORTD_BASE, 0x29
+.equ PORTD_PORTD, 0x2B
+.equ PORTD_DDRD, 0x2A
+.equ PORTD_PIND, 0x29
+.equ PORTD_PD0, 0  ; Port D, bit 0
+.equ PORTD_PD1, 1  ; Port D, bit 1
+.equ PORTD_PD2, 2  ; Port D, bit 2
+.equ PORTD_PD3, 3  ; Port D, bit 3
+.equ PORTD_PD4, 4  ; Port D, bit 4
+.equ PORTD_PD5, 5  ; Port D, bit 5
+.equ PORTD_PD6, 6  ; Port D, bit 6
+.equ PORTD_PD7, 7  ; Port D, bit 7
+
+; 8-bit Timer/Counter0
+.equ TIMER0_BASE, 0x44
+.equ TIMER0_TCCR0A, 0x44
+.equ TIMER0_TCCR0A_WGM00, 0  ; Waveform Generation Mode
+.equ TIMER0_TCCR0A_WGM01, 1  ; Waveform Generation Mode
+.equ TIMER0_TCCR0A_COM0B0, 4  ; Compare Output Mode for Channel B
+.equ TIMER0_TCCR0A_COM0B1, 5  ; Compare Output Mode for Channel B
+.equ TIMER0_TCCR0A_COM0A0, 6  ; Compare Output Mode for Channel A
+.equ TIMER0_TCCR0A_COM0A1, 7  ; Compare Output Mode for Channel A
+.equ TIMER0_TCCR0B, 0x45
+.equ TIMER0_TCCR0B_CS00, 0  ; Clock Select
+.equ TIMER0_TCCR0B_CS01, 1  ; Clock Select
+.equ TIMER0_TCCR0B_CS02, 2  ; Clock Select
+.equ TIMER0_TCCR0B_WGM02, 3  ; Waveform Generation Mode
+.equ TIMER0_TCCR0B_FOC0B, 6  ; Force Output Compare B
+.equ TIMER0_TCCR0B_FOC0A, 7  ; Force Output Compare A
+.equ TIMER0_TCNT0, 0x46
+.equ TIMER0_OCR0A, 0x47
+.equ TIMER0_OCR0B, 0x48
+.equ TIMER0_TIMSK0, 0x6E
+.equ TIMER0_TIMSK0_TOIE0, 0  ; Timer/Counter0 Overflow Interrupt Enable
+.equ TIMER0_TIMSK0_OCIE0A, 1  ; Timer/Counter0 Output Compare A Match Interrupt Enable
+.equ TIMER0_TIMSK0_OCIE0B, 2  ; Timer/Counter0 Output Compare B Match Interrupt Enable
+.equ TIMER0_TIFR0, 0x35
+.equ TIMER0_TIFR0_TOV0, 0  ; Timer/Counter0 Overflow Flag
+.equ TIMER0_TIFR0_OCF0A, 1  ; Output Compare Flag 0A
+.equ TIMER0_TIFR0_OCF0B, 2  ; Output Compare Flag 0B
+
+; Universal Synchronous/Asynchronous Receiver/Transmitter
+.equ USART0_BASE, 0xC0
+.equ USART0_UDR0, 0xC6
+.equ USART0_UCSR0A, 0xC0
+.equ USART0_UCSR0A_MPCM0, 0  ; Multi-processor Communication Mode
+.equ USART0_UCSR0A_U2X0, 1  ; Double the USART Transmission Speed
+.equ USART0_UCSR0A_UPE0, 2  ; Parity Error
+.equ USART0_UCSR0A_DOR0, 3  ; Data OverRun
+.equ USART0_UCSR0A_FE0, 4  ; Frame Error
+.equ USART0_UCSR0A_UDRE0, 5  ; USART Data Register Empty
+.equ USART0_UCSR0A_TXC0, 6  ; USART Transmit Complete
+.equ USART0_UCSR0A_RXC0, 7  ; USART Receive Complete
+.equ USART0_UCSR0B, 0xC1
+.equ USART0_UCSR0B_TXB80, 0  ; Transmit Data Bit 8
+.equ USART0_UCSR0B_RXB80, 1  ; Receive Data Bit 8
+.equ USART0_UCSR0B_UCSZ02, 2  ; Character Size
+.equ USART0_UCSR0B_TXEN0, 3  ; Transmitter Enable
+.equ USART0_UCSR0B_RXEN0, 4  ; Receiver Enable
+.equ USART0_UCSR0B_UDRIE0, 5  ; USART Data Register Empty Interrupt Enable
+.equ USART0_UCSR0B_TXCIE0, 6  ; TX Complete Interrupt Enable
+.equ USART0_UCSR0B_RXCIE0, 7  ; RX Complete Interrupt Enable
+.equ USART0_UCSR0C, 0xC2
+.equ USART0_UCSR0C_UCPOL0, 0  ; Clock Polarity
+.equ USART0_UCSR0C_UCSZ00, 1  ; Character Size
+.equ USART0_UCSR0C_UCSZ01, 2  ; Character Size
+.equ USART0_UCSR0C_USBS0, 3  ; Stop Bit Select
+.equ USART0_UCSR0C_UPM00, 4  ; Parity Mode
+.equ USART0_UCSR0C_UPM01, 5  ; Parity Mode
+.equ USART0_UCSR0C_UMSEL00, 6  ; USART Mode Select
+.equ USART0_UCSR0C_UMSEL01, 7  ; USART Mode Select
+.equ USART0_UBRR0, 0xC4
+
+; Analog-to-Digital Converter
+.equ ADC_BASE, 0x78
+.equ ADC_ADMUX, 0x7C
+.equ ADC_ADMUX_MUX0, 0  ; Analog Channel Selection
+.equ ADC_ADMUX_MUX1, 1  ; Analog Channel Selection
+.equ ADC_ADMUX_MUX2, 2  ; Analog Channel Selection
+.equ ADC_ADMUX_MUX3, 3  ; Analog Channel Selection
+.equ ADC_ADMUX_ADLAR, 5  ; ADC Left Adjust Result
+.equ ADC_ADMUX_REFS0, 6  ; Reference Selection
+.equ ADC_ADMUX_REFS1, 7  ; Reference Selection
+.equ ADC_ADCSRA, 0x7A
+.equ ADC_ADCSRA_ADPS0, 0  ; ADC Prescaler Select
+.equ ADC_ADCSRA_ADPS1, 1  ; ADC Prescaler Select
+.equ ADC_ADCSRA_ADPS2, 2  ; ADC Prescaler Select
+.equ ADC_ADCSRA_ADIE, 3  ; ADC Interrupt Enable
+.equ ADC_ADCSRA_ADIF, 4  ; ADC Interrupt Flag
+.equ ADC_ADCSRA_ADATE, 5  ; ADC Auto Trigger Enable
+.equ ADC_ADCSRA_ADSC, 6  ; ADC Start Conversion
+.equ ADC_ADCSRA_ADEN, 7  ; ADC Enable
+.equ ADC_ADCH, 0x79
+.equ ADC_ADCL, 0x78
+
+; 中断向量定义
+.equ INT0_VECTOR, 1  ; External Interrupt Request 0
+.equ INT1_VECTOR, 2  ; External Interrupt Request 1
+.equ PCINT0_VECTOR, 3  ; Pin Change Interrupt Request 0
+.equ PCINT1_VECTOR, 4  ; Pin Change Interrupt Request 1
+.equ PCINT2_VECTOR, 5  ; Pin Change Interrupt Request 2
+.equ WDT_VECTOR, 6  ; Watchdog Time-out Interrupt
+.equ TIMER2_COMPA_VECTOR, 7  ; Timer/Counter2 Compare Match A
+.equ TIMER2_COMPB_VECTOR, 8  ; Timer/Counter2 Compare Match B
+.equ TIMER2_OVF_VECTOR, 9  ; Timer/Counter2 Overflow
+.equ TIMER1_CAPT_VECTOR, 10  ; Timer/Counter1 Capture Event
+.equ TIMER1_COMPA_VECTOR, 11  ; Timer/Counter1 Compare Match A
+.equ TIMER1_COMPB_VECTOR, 12  ; Timer/Counter1 Compare Match B
+.equ TIMER1_OVF_VECTOR, 13  ; Timer/Counter1 Overflow
+.equ TIMER0_COMPA_VECTOR, 14  ; Timer/Counter0 Compare Match A
+.equ TIMER0_COMPB_VECTOR, 15  ; Timer/Counter0 Compare Match B
+.equ TIMER0_OVF_VECTOR, 16  ; Timer/Counter0 Overflow
+.equ SPI_STC_VECTOR, 17  ; SPI Serial Transfer Complete
+.equ USART_RX_VECTOR, 18  ; USART Rx Complete
+.equ USART_UDRE_VECTOR, 19  ; USART Data Register Empty
+.equ USART_TX_VECTOR, 20  ; USART Tx Complete
+.equ ADC_VECTOR, 21  ; ADC Conversion Complete
+.equ EE_READY_VECTOR, 22  ; EEPROM Ready
+.equ ANALOG_COMP_VECTOR, 23  ; Analog Comparator
+.equ TWI_VECTOR, 24  ; Two-wire Serial Interface
+.equ SPM_READY_VECTOR, 25  ; Store Program Memory Ready
+
+; 引脚定义
+.equ PIN_PC6, 1  ; Reset Pin
+.equ PIN_PD0, 2  ; Digital I/O, RX (USART)
+.equ PIN_PD1, 3  ; Digital I/O, TX (USART)
+.equ PIN_PD2, 4  ; Digital I/O, INT0
+.equ PIN_PD3, 5  ; Digital I/O, INT1, OC2B
+.equ PIN_PD4, 6  ; Digital I/O, T0, XCK
+.equ PIN_VCC, 7  ; Supply Voltage
+.equ PIN_GND, 8  ; Ground
+.equ PIN_PB6, 9  ; Digital I/O, XTAL1
+.equ PIN_PB7, 10  ; Digital I/O, XTAL2
+.equ PIN_PD5, 11  ; Digital I/O, T1, OC0B
+.equ PIN_PD6, 12  ; Digital I/O, AIN0, OC0A
+.equ PIN_PD7, 13  ; Digital I/O, AIN1
+.equ PIN_PB0, 14  ; Digital I/O, ICP1, CLKO
+.equ PIN_PB1, 15  ; Digital I/O, OC1A
+.equ PIN_PB2, 16  ; Digital I/O, SS, OC1B
+.equ PIN_PB3, 17  ; Digital I/O, MOSI, OC2A
+.equ PIN_PB4, 18  ; Digital I/O, MISO
+.equ PIN_PB5, 19  ; Digital I/O, SCK
+.equ PIN_AVCC, 20  ; Supply Voltage for ADC
+.equ PIN_AREF, 21  ; Analog Reference
+.equ PIN_GND, 22  ; Ground
+.equ PIN_PC0, 23  ; Digital I/O, ADC0
+.equ PIN_PC1, 24  ; Digital I/O, ADC1
+.equ PIN_PC2, 25  ; Digital I/O, ADC2
+.equ PIN_PC3, 26  ; Digital I/O, ADC3
+.equ PIN_PC4, 27  ; Digital I/O, ADC4, SDA
+.equ PIN_PC5, 28  ; Digital I/O, ADC5, SCL
+
+; 宏定义
+.macro atmega328p_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+atmega328p_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

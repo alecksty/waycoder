@@ -1,0 +1,52 @@
+﻿; ULN2003寄存器定义
+; 生成自: ST/TI/Motor/ULN2003
+; 版本: 1.0
+; 日期: 2026-05-06
+; 作者: VML Team
+; 描述: ULN2003 7-Channel Darlington Driver + 28BYJ-48 Stepper Motor (5V)
+
+; CPU架构: Motor
+; 位宽: 8位
+; 时钟频率: 0 Hz
+
+; 外设定义
+; ULN2003 + 28BYJ-48 Stepper (5V, 64:1 gear, 5.625°/step)
+.equ ULN2003_BASE, 0x00
+.equ ULN2003_STEPPER, 0x00
+.equ ULN2003_STEP_MODE, 0x01
+.equ ULN2003_STEPS, 0x02
+.equ ULN2003_DELAY_MS, 0x04
+.equ ULN2003_POSITION, 0x05
+.equ ULN2003_DIRECTION, 0x07
+
+; 宏定义
+.macro uln2003_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+uln2003_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

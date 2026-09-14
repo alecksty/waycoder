@@ -1,0 +1,16 @@
+#param lib("file")
+#param lib("os")
+#param lib("printf")
+#param lib("scanf")
+#param lib("convert")
+#param lib("string")
+#param lib("math")
+#param lib("io")
+#param lib("ctype")
+#param lib("bitops")
+#param lib("util")
+#param lib("float")
+#param lib("memory")
+// VML C Language-Specific Built-in Library
+// 非共享函数 → builtins_c.c (语言独享)
+// TODO: 添加 C 语言特有内置函数

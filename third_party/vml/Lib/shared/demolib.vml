@@ -1,0 +1,245 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+
+.text
+demolib_add:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        add R1 R0
+        move R0 R1
+        jmp L68660000
+L68660000:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+demolib_sub:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        jmp L68660001
+L68660001:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+demolib_mul:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        jmp L68660002
+L68660002:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+demolib_div:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L68660005
+        move R0 #0
+        jmp _L68660006
+_L68660005:
+        move R0 #1
+_L68660006:
+        cmp R0 #0
+        jz sta_68660003
+        move R0 #0
+        jmp L68660007
+sta_68660003:
+sta_68660004:
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        div R1 R0
+        move R0 R1
+        jmp L68660007
+L68660007:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+demolib_fact:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        pop R1
+        cmp R1 R0
+        jle _L68660010
+        move R0 #0
+        jmp _L68660011
+_L68660010:
+        move R0 #1
+_L68660011:
+        cmp R0 #0
+        jz sta_68660008
+        move R0 #1
+        jmp L68660012
+sta_68660008:
+sta_68660009:
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        call demolib_fact
+        pop R1
+        mul R1 R0
+        move R0 R1
+        jmp L68660012
+L68660012:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+demolib_fib:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jle _L68660015
+        move R0 #0
+        jmp _L68660016
+_L68660015:
+        move R0 #1
+_L68660016:
+        cmp R0 #0
+        jz sta_68660013
+        move R0 #0
+        jmp L68660017
+sta_68660013:
+sta_68660014:
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        pop R1
+        cmp R1 R0
+        je _L68660020
+        move R0 #0
+        jmp _L68660021
+_L68660020:
+        move R0 #1
+_L68660021:
+        cmp R0 #0
+        jz sta_68660018
+        move R0 #1
+        jmp L68660017
+sta_68660018:
+sta_68660019:
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        call demolib_fib
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 #2
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        call demolib_fib
+        pop R1
+        add R1 R0
+        move R0 R1
+        jmp L68660017
+L68660017:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+demolib_square:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+12]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        jmp L68660022
+L68660022:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+demolib_negate:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        move R0 [R12+12]
+        neg R0 R0
+        jmp L68660023
+L68660023:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret

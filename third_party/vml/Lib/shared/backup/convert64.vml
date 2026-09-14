@@ -1,0 +1,1364 @@
+.data
+flt_19190146: .word 1092616192
+
+.text
+ltoa:
+; -------------------------------------------
+; source   : int ltoa(long value,char* dst)
+; function : ltoa
+; param   : long value
+; param   : char* dst
+; return   : int
+; --------------------------------------------
+ltoa:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #21
+        move R0 #0
+        move [R12-4] R0
+        move R0 #0
+        move [R12-12] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L19190002
+        move R0 #0
+        jmp _L19190003
+_L19190002:
+        move R0 #1
+_L19190003:
+        cmp R0 #0
+        jz sta_19190000
+        move R0 #1
+        move [R12-12] R0
+        move R0 [R12+12]
+        move R0 [R12+12]
+        neg R0 R0
+        move [R12+12] R0
+sta_19190000:
+sta_19190001:
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L19190006
+        move R0 #0
+        jmp _L19190007
+_L19190006:
+        move R0 #1
+_L19190007:
+        cmp R0 #0
+        jz sta_19190004
+        move R0 #48
+        move R11 R0
+        move R0 [R12+20]
+        push R0
+        move R0 #0
+        mul R0 #1
+        pop R10
+        add R0 R10
+        moveb [R0] R11
+        move R0 #0
+        move R9 R0
+        move R0 [R12+20]
+        push R0
+        move R0 #1
+        mul R0 #1
+        pop R8
+        add R0 R8
+        moveb [R0] R9
+        move R0 #1
+        jmp L19190008
+sta_19190004:
+sta_19190005:
+sta_19190009:
+        move R2 #0
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L19190011
+        move R0 #0
+        jmp _L19190012
+_L19190011:
+        move R0 #1
+_L19190012:
+        cmp R0 #0
+        jz sta_19190010
+        move R0 #48
+        pushb R0
+        move R0 [R12+12]
+        push R0
+        move R0 #10
+        pop R1
+        mod R1 R0
+        move R0 R1
+        l2i R0 R0
+        popb R1
+        add R1 R0
+        moveb R0 R1
+        move R7 R0
+        move R0 [R12+20]
+        push R0
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        mul R0 #1
+        pop R6
+        add R0 R6
+        moveb [R0] R7
+        move R0 [R12+12]
+        push R0
+        move R0 #10
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12+12] R0
+        jmp sta_19190009
+sta_19190010:
+        move R0 [R12-12]
+        cmp R0 #0
+        jz sta_19190013
+        move R0 #45
+        move R5 R0
+        move R0 [R12+20]
+        push R0
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        mul R0 #1
+        pop R4
+        add R0 R4
+        moveb [R0] R5
+sta_19190013:
+sta_19190014:
+        move R0 #0
+        move R3 R0
+        move R0 [R12+20]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R2
+        add R0 R2
+        moveb [R0] R3
+        move R0 #0
+        move [R12-8] R0
+sta_19190015:
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #2
+        pop R1
+        div R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L19190018
+        move R0 #0
+        jmp _L19190019
+_L19190018:
+        move R0 #1
+_L19190019:
+        cmp R0 #0
+        jz sta_19190017
+        move R0 [R12+20]
+        push R0
+        move R0 [R12-8]
+        mul R0 #1
+        pop R1
+        add R0 R1
+        moveb R0 [R0]
+        sextb R0 R0
+        moveb [R12-13] R0
+        move R0 [R12+20]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        mul R0 #1
+        pop R10
+        add R0 R10
+        moveb R0 [R0]
+        sextb R0 R0
+        move R11 R0
+        move R0 [R12+20]
+        push R0
+        move R0 [R12-8]
+        mul R0 #1
+        pop R8
+        add R0 R8
+        moveb [R0] R11
+        moveb R0 [R12-13]
+        sextb R0 R0
+        move R9 R0
+        move R0 [R12+20]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        mul R0 #1
+        pop R6
+        add R0 R6
+        moveb [R0] R9
+sta_19190016:
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        jmp sta_19190015
+sta_19190017:
+        move R0 [R12-4]
+        jmp L19190008
+L19190008:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+atol:
+; -------------------------------------------
+; source   : long atol(const char* s)
+; function : atol
+; param   : const char* s
+; return   : long
+; --------------------------------------------
+atol:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #24
+        move R0 #0
+        i2l R0 R0
+        move [R12-8] R0
+        move R0 #1
+        move [R12-12] R0
+        move R0 #0
+        move [R12-16] R0
+sta_19190020:
+        move R2 #0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-16]
+        mul R0 #1
+        pop R7
+        add R0 R7
+        moveb R0 [R0]
+        sextb R0 R0
+        pushb R0
+        move R0 #32
+        popb R1
+        cmp R1 R0
+        je _L19190025
+        move R0 #0
+        jmp _L19190026
+_L19190025:
+        move R0 #1
+_L19190026:
+        test R0 R0
+        jnz _L19190022
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-16]
+        mul R0 #1
+        pop R4
+        add R0 R4
+        moveb R0 [R0]
+        sextb R0 R0
+        pushb R0
+        move R0 #9
+        popb R1
+        cmp R1 R0
+        je _L19190027
+        move R0 #0
+        jmp _L19190028
+_L19190027:
+        move R0 #1
+_L19190028:
+        test R0 R0
+        jz _L19190023
+_L19190022:
+        move R0 #1
+        jmp _L19190024
+_L19190023:
+        move R0 #0
+_L19190024:
+        cmp R0 #0
+        jz sta_19190021
+        move R0 [R12-16]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-16] R0
+        move R0 R1
+        jmp sta_19190020
+sta_19190021:
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-16]
+        mul R0 #1
+        pop R5
+        add R0 R5
+        moveb R0 [R0]
+        sextb R0 R0
+        pushb R0
+        move R0 #45
+        popb R1
+        cmp R1 R0
+        je _L19190031
+        move R0 #0
+        jmp _L19190032
+_L19190031:
+        move R0 #1
+_L19190032:
+        cmp R0 #0
+        jz sta_19190029
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        move [R12-12] R0
+        move R0 [R12-16]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-16] R0
+        move R0 R1
+        jmp sta_19190030
+sta_19190029:
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-16]
+        mul R0 #1
+        pop R2
+        add R0 R2
+        moveb R0 [R0]
+        sextb R0 R0
+        pushb R0
+        move R0 #43
+        popb R1
+        cmp R1 R0
+        je _L19190035
+        move R0 #0
+        jmp _L19190036
+_L19190035:
+        move R0 #1
+_L19190036:
+        cmp R0 #0
+        jz sta_19190033
+        move R0 [R12-16]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-16] R0
+        move R0 R1
+sta_19190033:
+sta_19190034:
+sta_19190030:
+sta_19190037:
+        move R2 #0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-16]
+        mul R0 #1
+        pop R3
+        add R0 R3
+        moveb R0 [R0]
+        sextb R0 R0
+        pushb R0
+        move R0 #48
+        popb R1
+        cmp R1 R0
+        jge _L19190041
+        move R0 #0
+        jmp _L19190042
+_L19190041:
+        move R0 #1
+_L19190042:
+        test R0 R0
+        jz _L19190039
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-16]
+        mul R0 #1
+        pop R1
+        add R0 R1
+        moveb R0 [R0]
+        sextb R0 R0
+        pushb R0
+        move R0 #57
+        popb R1
+        cmp R1 R0
+        jle _L19190043
+        move R0 #0
+        jmp _L19190044
+_L19190043:
+        move R0 #1
+_L19190044:
+        test R0 R0
+        jz _L19190039
+        move R0 #1
+        jmp _L19190040
+_L19190039:
+        move R0 #0
+_L19190040:
+        cmp R0 #0
+        jz sta_19190038
+        move R0 [R12-8]
+        push R0
+        move R0 #10
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-16]
+        mul R0 #1
+        pop R10
+        add R0 R10
+        moveb R0 [R0]
+        sextb R0 R0
+        pushb R0
+        move R0 #48
+        popb R1
+        sub R1 R0
+        moveb R0 R1
+        i2l R0 R0
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+        move R0 [R12-16]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-16] R0
+        move R0 R1
+        jmp sta_19190037
+sta_19190038:
+        move R0 [R12-12]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        jmp L19190045
+L19190045:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+ltoa_hex:
+; -------------------------------------------
+; source   : int ltoa_hex(long value,char* dst)
+; function : ltoa_hex
+; param   : long value
+; param   : char* dst
+; return   : int
+; --------------------------------------------
+ltoa_hex:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #36
+        move R0 #0
+        move [R12-4] R0
+        move R0 #0
+        move [R12-12] R0
+        move R0 [R12+12]
+        move [R12-20] R0
+        move R0 #60
+        move [R12-24] R0
+sta_19190046:
+        move R0 [R12-24]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jge _L19190049
+        move R0 #0
+        jmp _L19190050
+_L19190049:
+        move R0 #1
+_L19190050:
+        cmp R0 #0
+        jz sta_19190048
+        move R0 [R12-20]
+        push R0
+        move R0 [R12-24]
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 #15
+        pop R1
+        and R1 R0
+        move R0 R1
+        l2i R0 R0
+        move [R12-28] R0
+        move R0 [R12-28]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L19190059
+        move R0 #0
+        jmp _L19190060
+_L19190059:
+        move R0 #1
+_L19190060:
+        test R0 R0
+        jnz _L19190056
+        move R0 [R12-12]
+        test R0 R0
+        jz _L19190057
+_L19190056:
+        move R0 #1
+        jmp _L19190058
+_L19190057:
+        move R0 #0
+_L19190058:
+        test R0 R0
+        jnz _L19190053
+        move R0 [R12-24]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L19190061
+        move R0 #0
+        jmp _L19190062
+_L19190061:
+        move R0 #1
+_L19190062:
+        test R0 R0
+        jz _L19190054
+_L19190053:
+        move R0 #1
+        jmp _L19190055
+_L19190054:
+        move R0 #0
+_L19190055:
+        cmp R0 #0
+        jz sta_19190051
+        move R0 [R12-28]
+        push R0
+        move R0 #10
+        pop R1
+        cmp R1 R0
+        jl _L19190063
+        move R0 #0
+        jmp _L19190064
+_L19190063:
+        move R0 #1
+_L19190064:
+        test R0 R0
+        jz _L19190065
+        move R0 #48
+        push R0
+        move R0 [R12-28]
+        pop R1
+        add R1 R0
+        move R0 R1
+        jmp _L19190066
+_L19190065:
+        move R0 #65
+        push R0
+        move R0 [R12-28]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #10
+        pop R1
+        sub R1 R0
+        move R0 R1
+_L19190066:
+        move R8 R0
+        move R0 [R12+20]
+        push R0
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        mul R0 #1
+        pop R11
+        add R0 R11
+        moveb [R0] R8
+        move R0 #1
+        move [R12-12] R0
+sta_19190051:
+sta_19190052:
+sta_19190047:
+        move R0 [R12-24]
+        push R0
+        move R0 #4
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-24] R0
+        jmp sta_19190046
+sta_19190048:
+        move R0 #0
+        move R6 R0
+        move R0 [R12+20]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R9
+        add R0 R9
+        moveb [R0] R6
+        move R0 [R12-4]
+        jmp L19190067
+L19190067:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+atol_hex:
+; -------------------------------------------
+; source   : long atol_hex(const char* s)
+; function : atol_hex
+; param   : const char* s
+; return   : long
+; --------------------------------------------
+atol_hex:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #21
+        move R0 #0
+        i2l R0 R0
+        move [R12-8] R0
+        move R0 #0
+        move [R12-12] R0
+sta_19190068:
+        move R2 #0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-12]
+        mul R0 #1
+        pop R7
+        add R0 R7
+        moveb R0 [R0]
+        sextb R0 R0
+        pushb R0
+        move R0 #32
+        popb R1
+        cmp R1 R0
+        je _L19190073
+        move R0 #0
+        jmp _L19190074
+_L19190073:
+        move R0 #1
+_L19190074:
+        test R0 R0
+        jnz _L19190070
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-12]
+        mul R0 #1
+        pop R4
+        add R0 R4
+        moveb R0 [R0]
+        sextb R0 R0
+        pushb R0
+        move R0 #9
+        popb R1
+        cmp R1 R0
+        je _L19190075
+        move R0 #0
+        jmp _L19190076
+_L19190075:
+        move R0 #1
+_L19190076:
+        test R0 R0
+        jz _L19190071
+_L19190070:
+        move R0 #1
+        jmp _L19190072
+_L19190071:
+        move R0 #0
+_L19190072:
+        cmp R0 #0
+        jz sta_19190069
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_19190068
+sta_19190069:
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-12]
+        mul R0 #1
+        pop R5
+        add R0 R5
+        moveb R0 [R0]
+        sextb R0 R0
+        pushb R0
+        move R0 #48
+        popb R1
+        cmp R1 R0
+        je _L19190081
+        move R0 #0
+        jmp _L19190082
+_L19190081:
+        move R0 #1
+_L19190082:
+        test R0 R0
+        jz _L19190079
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-12]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #1
+        pop R2
+        add R0 R2
+        moveb R0 [R0]
+        sextb R0 R0
+        pushb R0
+        move R0 #120
+        popb R1
+        cmp R1 R0
+        je _L19190086
+        move R0 #0
+        jmp _L19190087
+_L19190086:
+        move R0 #1
+_L19190087:
+        test R0 R0
+        jnz _L19190083
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-12]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #1
+        pop R3
+        add R0 R3
+        moveb R0 [R0]
+        sextb R0 R0
+        pushb R0
+        move R0 #88
+        popb R1
+        cmp R1 R0
+        je _L19190088
+        move R0 #0
+        jmp _L19190089
+_L19190088:
+        move R0 #1
+_L19190089:
+        test R0 R0
+        jz _L19190084
+_L19190083:
+        move R0 #1
+        jmp _L19190085
+_L19190084:
+        move R0 #0
+_L19190085:
+        test R0 R0
+        jz _L19190079
+        move R0 #1
+        jmp _L19190080
+_L19190079:
+        move R0 #0
+_L19190080:
+        cmp R0 #0
+        jz sta_19190077
+        move R0 [R12-12]
+        push R0
+        move R0 #2
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-12] R0
+sta_19190077:
+sta_19190078:
+sta_19190090:
+        move R2 #0
+        move R0 #1
+        cmp R0 #0
+        jz sta_19190091
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-12]
+        mul R0 #1
+        pop R1
+        add R0 R1
+        moveb R0 [R0]
+        sextb R0 R0
+        moveb [R12-13] R0
+        moveb R0 [R12-13]
+        sextb R0 R0
+        pushb R0
+        move R0 #48
+        popb R1
+        cmp R1 R0
+        jge _L19190096
+        move R0 #0
+        jmp _L19190097
+_L19190096:
+        move R0 #1
+_L19190097:
+        test R0 R0
+        jz _L19190094
+        moveb R0 [R12-13]
+        sextb R0 R0
+        pushb R0
+        move R0 #57
+        popb R1
+        cmp R1 R0
+        jle _L19190098
+        move R0 #0
+        jmp _L19190099
+_L19190098:
+        move R0 #1
+_L19190099:
+        test R0 R0
+        jz _L19190094
+        move R0 #1
+        jmp _L19190095
+_L19190094:
+        move R0 #0
+_L19190095:
+        cmp R0 #0
+        jz sta_19190092
+        move R0 [R12-8]
+        push R0
+        move R0 #16
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        moveb R0 [R12-13]
+        sextb R0 R0
+        pushb R0
+        move R0 #48
+        popb R1
+        sub R1 R0
+        moveb R0 R1
+        i2l R0 R0
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+        jmp sta_19190093
+sta_19190092:
+        moveb R0 [R12-13]
+        sextb R0 R0
+        pushb R0
+        move R0 #97
+        popb R1
+        cmp R1 R0
+        jge _L19190104
+        move R0 #0
+        jmp _L19190105
+_L19190104:
+        move R0 #1
+_L19190105:
+        test R0 R0
+        jz _L19190102
+        moveb R0 [R12-13]
+        sextb R0 R0
+        pushb R0
+        move R0 #102
+        popb R1
+        cmp R1 R0
+        jle _L19190106
+        move R0 #0
+        jmp _L19190107
+_L19190106:
+        move R0 #1
+_L19190107:
+        test R0 R0
+        jz _L19190102
+        move R0 #1
+        jmp _L19190103
+_L19190102:
+        move R0 #0
+_L19190103:
+        cmp R0 #0
+        jz sta_19190100
+        move R0 [R12-8]
+        push R0
+        move R0 #16
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        moveb R0 [R12-13]
+        sextb R0 R0
+        pushb R0
+        move R0 #97
+        popb R1
+        sub R1 R0
+        moveb R0 R1
+        push R0
+        move R0 #10
+        pop R1
+        add R1 R0
+        move R0 R1
+        i2l R0 R0
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+        jmp sta_19190101
+sta_19190100:
+        moveb R0 [R12-13]
+        sextb R0 R0
+        pushb R0
+        move R0 #65
+        popb R1
+        cmp R1 R0
+        jge _L19190112
+        move R0 #0
+        jmp _L19190113
+_L19190112:
+        move R0 #1
+_L19190113:
+        test R0 R0
+        jz _L19190110
+        moveb R0 [R12-13]
+        sextb R0 R0
+        pushb R0
+        move R0 #70
+        popb R1
+        cmp R1 R0
+        jle _L19190114
+        move R0 #0
+        jmp _L19190115
+_L19190114:
+        move R0 #1
+_L19190115:
+        test R0 R0
+        jz _L19190110
+        move R0 #1
+        jmp _L19190111
+_L19190110:
+        move R0 #0
+_L19190111:
+        cmp R0 #0
+        jz sta_19190108
+        move R0 [R12-8]
+        push R0
+        move R0 #16
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        moveb R0 [R12-13]
+        sextb R0 R0
+        pushb R0
+        move R0 #65
+        popb R1
+        sub R1 R0
+        moveb R0 R1
+        push R0
+        move R0 #10
+        pop R1
+        add R1 R0
+        move R0 R1
+        i2l R0 R0
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+        jmp sta_19190109
+sta_19190108:
+        jmp sta_19190091
+sta_19190109:
+sta_19190101:
+sta_19190093:
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_19190090
+sta_19190091:
+        move R0 [R12-8]
+        jmp L19190116
+L19190116:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+dtoa:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int dtoa(double value,int precision,char* dst)
+; function : dtoa
+; param   : double value
+; param   : int precision
+; param   : char* dst
+; return   : int
+; --------------------------------------------
+dtoa:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #56
+        move R0 #0
+        move [R12-4] R0
+        moved R0 [R12+12]
+        dpush R0
+        move R0 #0
+        i2d R0 R0
+        dpop R1
+        dcmp R1 R0
+        jl _L19190119
+        move R0 #0
+        jmp _L19190120
+_L19190119:
+        move R0 #1
+_L19190120:
+        cmp R0 #0
+        jz sta_19190117
+        move R0 #45
+        move R10 R0
+        move R0 [R12+24]
+        push R0
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        mul R0 #1
+        pop R11
+        add R0 R11
+        moveb [R0] R10
+        moved R0 [R12+12]
+        moved R0 [R12+12]
+        dneg R0 R0
+        moved [R12+12] R0
+sta_19190117:
+sta_19190118:
+        moved R0 [R12+12]
+        d2l R0 R0
+        move [R12-16] R0
+        moved R0 [R12+12]
+        dpush R0
+        move R0 [R12-16]
+        l2d R0 R0
+        dpop R1
+        dsub R0 R1 R0
+        moved [R12-24] R0
+        move R0 [R12-4]
+        move [R12-28] R0
+        move R0 [R12-16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L19190123
+        move R0 #0
+        jmp _L19190124
+_L19190123:
+        move R0 #1
+_L19190124:
+        cmp R0 #0
+        jz sta_19190121
+        move R0 #48
+        move R8 R0
+        move R0 [R12+24]
+        push R0
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        mul R0 #1
+        pop R9
+        add R0 R9
+        moveb [R0] R8
+        jmp sta_19190122
+sta_19190121:
+        move R0 [R12-4]
+        move [R12-32] R0
+sta_19190125:
+        move R2 #0
+        move R0 [R12-16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L19190127
+        move R0 #0
+        jmp _L19190128
+_L19190127:
+        move R0 #1
+_L19190128:
+        cmp R0 #0
+        jz sta_19190126
+        move R0 #48
+        pushb R0
+        move R0 [R12-16]
+        push R0
+        move R0 #10
+        pop R1
+        mod R1 R0
+        move R0 R1
+        l2i R0 R0
+        popb R1
+        add R1 R0
+        moveb R0 R1
+        move R6 R0
+        move R0 [R12+24]
+        push R0
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        mul R0 #1
+        pop R7
+        add R0 R7
+        moveb [R0] R6
+        move R0 [R12-16]
+        push R0
+        move R0 #10
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-16] R0
+        jmp sta_19190125
+sta_19190126:
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-36] R0
+sta_19190129:
+        move R2 #0
+        move R0 [R12-32]
+        push R0
+        move R0 [R12-36]
+        pop R1
+        cmp R1 R0
+        jl _L19190131
+        move R0 #0
+        jmp _L19190132
+_L19190131:
+        move R0 #1
+_L19190132:
+        cmp R0 #0
+        jz sta_19190130
+        move R0 [R12+24]
+        push R0
+        move R0 [R12-32]
+        mul R0 #1
+        pop R4
+        add R0 R4
+        moveb R0 [R0]
+        sextb R0 R0
+        moveb [R12-37] R0
+        move R0 [R12+24]
+        push R0
+        move R0 [R12-36]
+        mul R0 #1
+        pop R5
+        add R0 R5
+        moveb R0 [R0]
+        sextb R0 R0
+        move R2 R0
+        move R0 [R12+24]
+        push R0
+        move R0 [R12-32]
+        mul R0 #1
+        pop R3
+        add R0 R3
+        moveb [R0] R2
+        moveb R0 [R12-37]
+        sextb R0 R0
+        move R1 R0
+        move R0 [R12+24]
+        push R0
+        move R0 [R12-36]
+        mul R0 #1
+        pop R11
+        add R0 R11
+        moveb [R0] R1
+        move R0 [R12-32]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-32] R0
+        move R0 R1
+        move R0 [R12-36]
+        move R1 R0
+        sub R0 R0 #1
+        move [R12-36] R0
+        move R0 R1
+        jmp sta_19190129
+sta_19190130:
+sta_19190122:
+        move R0 [R12+20]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L19190135
+        move R0 #0
+        jmp _L19190136
+_L19190135:
+        move R0 #1
+_L19190136:
+        cmp R0 #0
+        jz sta_19190133
+        move R0 #46
+        move R10 R0
+        move R0 [R12+24]
+        push R0
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        mul R0 #1
+        pop R9
+        add R0 R9
+        moveb [R0] R10
+        move R0 #0
+        move [R12-44] R0
+sta_19190137:
+        move R0 [R12-44]
+        push R0
+        move R0 [R12+20]
+        pop R1
+        cmp R1 R0
+        jl _L19190142
+        move R0 #0
+        jmp _L19190143
+_L19190142:
+        move R0 #1
+_L19190143:
+        test R0 R0
+        jz _L19190140
+        move R0 [R12-44]
+        push R0
+        move R0 #15
+        pop R1
+        cmp R1 R0
+        jl _L19190144
+        move R0 #0
+        jmp _L19190145
+_L19190144:
+        move R0 #1
+_L19190145:
+        test R0 R0
+        jz _L19190140
+        move R0 #1
+        jmp _L19190141
+_L19190140:
+        move R0 #0
+_L19190141:
+        cmp R0 #0
+        jz sta_19190139
+        moved R0 [R12-24]
+        dpush R0
+        movef R0 [flt_19190146]
+        dpop R1
+        dmul R0 R1 R0
+        moved [R12-24] R0
+        moved R0 [R12-24]
+        d2i R0 R0
+        move [R12-48] R0
+        move R0 #48
+        pushb R0
+        move R0 [R12-48]
+        popb R1
+        add R1 R0
+        moveb R0 R1
+        move R8 R0
+        move R0 [R12+24]
+        push R0
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        mul R0 #1
+        pop R7
+        add R0 R7
+        moveb [R0] R8
+        moved R0 [R12-24]
+        dpush R0
+        move R0 [R12-48]
+        i2d R0 R0
+        dpop R1
+        dsub R0 R1 R0
+        moved [R12-24] R0
+sta_19190138:
+        move R0 [R12-44]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-44] R0
+        move R0 R1
+        jmp sta_19190137
+sta_19190139:
+sta_19190133:
+sta_19190134:
+        move R0 #0
+        move R6 R0
+        move R0 [R12+24]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R4
+        add R0 R4
+        moveb [R0] R6
+        move R0 [R12-4]
+        jmp L19190147
+L19190147:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #16
+        push R1
+        ret

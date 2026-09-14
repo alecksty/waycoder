@@ -1,0 +1,40 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+
+.text
+wscanf:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #1032
+        move R0 #1
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R2 R0
+        push R0
+        move R0 [R12+12]
+        move R1 R0
+        push R0
+        move R0 R12
+        sub R0 #1024
+        push R0
+        call wcstombs
+        add R13 #12
+        move R0 R12
+        sub R0 #1024
+        push R0
+        call scanf
+        add R13 #4
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret

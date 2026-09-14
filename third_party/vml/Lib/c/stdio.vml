@@ -1,0 +1,5084 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+L1370119: .string "0x"
+L1370152: .string "(null)"
+L1370324: .string "0x"
+L1370377: .string "(null)"
+
+.text
+sprintf:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #100
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 #0
+        move [R12-4] R0
+        move R0 #0
+        move [R12-8] R0
+        move R0 [R12+16]
+        move [R12-12] R0
+        move R0 [R12+20]
+        move R11 R0
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R10 #0
+        push R10
+        move R0 #0
+        pop R10
+        move R10 R0
+        move R0 R10
+        mul R0 #4
+        pop R9
+        add R0 R9
+        move @0 R11
+        move R0 [R12+24]
+        move R8 R0
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R7 #0
+        push R7
+        move R0 #1
+        pop R7
+        move R7 R0
+        move R0 R7
+        mul R0 #4
+        pop R6
+        add R0 R6
+        move @0 R8
+        move R0 [R12+28]
+        move R5 R0
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R4 #0
+        push R4
+        move R0 #2
+        pop R4
+        move R4 R0
+        move R0 R4
+        mul R0 #4
+        pop R3
+        add R0 R3
+        move @0 R5
+        move R0 [R12+32]
+        move R2 R0
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R1 #0
+        push R1
+        move R0 #3
+        pop R1
+        move R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R10
+        add R0 R10
+        move @0 R2
+        move R0 [R12+36]
+        move R9 R0
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R11 #0
+        push R11
+        move R0 #4
+        pop R11
+        move R11 R0
+        move R0 R11
+        mul R0 #4
+        pop R7
+        add R0 R7
+        move @0 R9
+        move R0 [R12+40]
+        move R6 R0
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R8 #0
+        push R8
+        move R0 #5
+        pop R8
+        move R8 R0
+        move R0 R8
+        mul R0 #4
+        pop R4
+        add R0 R4
+        move @0 R6
+        move R0 [R12+44]
+        move R3 R0
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R5 #0
+        push R5
+        move R0 #6
+        pop R5
+        move R5 R0
+        move R0 R5
+        mul R0 #4
+        pop R1
+        add R0 R1
+        move @0 R3
+        move R0 [R12+48]
+        move R10 R0
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R2 #0
+        push R2
+        move R0 #7
+        pop R2
+        move R2 R0
+        move R0 R2
+        mul R0 #4
+        pop R11
+        add R0 R11
+        move @0 R10
+        move R0 #0
+        move [R12-48] R0
+sta_1370000:
+        move R2 #0
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        cmp R0 #0
+        jz sta_1370001
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #37
+        popb R1
+        cmp R1 R0
+        je _L1370004
+        move R0 #0
+        jmp _L1370005
+_L1370004:
+        move R0 #1
+_L1370005:
+        cmp R0 #0
+        jz sta_1370002
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L1370008
+        move R0 #0
+        jmp _L1370009
+_L1370008:
+        move R0 #1
+_L1370009:
+        cmp R0 #0
+        jz sta_1370006
+        jmp sta_1370001
+sta_1370006:
+sta_1370007:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #37
+        popb R1
+        cmp R1 R0
+        je _L1370012
+        move R0 #0
+        jmp _L1370013
+_L1370012:
+        move R0 #1
+_L1370013:
+        cmp R0 #0
+        jz sta_1370010
+        move R0 #37
+        move R7 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R9
+        add R0 R9
+        moveb @0 R7
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_1370000
+sta_1370010:
+sta_1370011:
+        move R0 #0
+        move [R12-52] R0
+        move R0 [R12-48]
+        push R0
+        move R0 #8
+        pop R1
+        cmp R1 R0
+        jl _L1370016
+        move R0 #0
+        jmp _L1370017
+_L1370016:
+        move R0 #1
+_L1370017:
+        cmp R0 #0
+        jz sta_1370014
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R8 #0
+        push R8
+        move R0 [R12-48]
+        pop R8
+        move R8 R0
+        move R0 R8
+        mul R0 #4
+        pop R4
+        add R0 R4
+        move R0 @0
+        move [R12-52] R0
+        move R0 [R12-48]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-48] R0
+        move R0 R1
+sta_1370014:
+sta_1370015:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #100
+        popb R1
+        cmp R1 R0
+        je _L1370023
+        move R0 #0
+        jmp _L1370024
+_L1370023:
+        move R0 #1
+_L1370024:
+        test R0 R0
+        jnz _L1370020
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #105
+        popb R1
+        cmp R1 R0
+        je _L1370025
+        move R0 #0
+        jmp _L1370026
+_L1370025:
+        move R0 #1
+_L1370026:
+        test R0 R0
+        jz _L1370021
+_L1370020:
+        move R0 #1
+        jmp _L1370022
+_L1370021:
+        move R0 #0
+_L1370022:
+        cmp R0 #0
+        jz sta_1370018
+        move R0 [R12-52]
+        move [R12-56] R0
+        move R0 #0
+        move [R12-60] R0
+        move R0 #0
+        move [R12-64] R0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L1370029
+        move R0 #0
+        jmp _L1370030
+_L1370029:
+        move R0 #1
+_L1370030:
+        cmp R0 #0
+        jz sta_1370027
+        move R0 #45
+        move R6 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R5
+        add R0 R5
+        moveb @0 R6
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-60]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-60] R0
+        move R0 R1
+        move R0 [R12-56]
+        move R0 [R12-56]
+        neg R0 R0
+        move [R12-56] R0
+sta_1370027:
+sta_1370028:
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L1370033
+        move R0 #0
+        jmp _L1370034
+_L1370033:
+        move R0 #1
+_L1370034:
+        cmp R0 #0
+        jz sta_1370031
+        move R0 #48
+        move R1 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R3
+        add R0 R3
+        moveb @0 R1
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-60]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_1370000
+sta_1370031:
+sta_1370032:
+sta_1370035:
+        move R2 #0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370037
+        move R0 #0
+        jmp _L1370038
+_L1370037:
+        move R0 #1
+_L1370038:
+        cmp R0 #0
+        jz sta_1370036
+        move R0 #48
+        push R0
+        move R0 [R12-56]
+        push R0
+        move R0 #10
+        pop R1
+        mod R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R2 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R11 #0
+        push R11
+        move R0 [R12-64]
+        pop R11
+        move R11 R0
+        move R0 R11
+        mul R0 #1
+        pop R10
+        add R0 R10
+        moveb @0 R2
+        move R0 [R12-64]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-56]
+        push R0
+        move R0 #10
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-56] R0
+        jmp sta_1370035
+sta_1370036:
+        move R0 [R12-60]
+        push R0
+        move R0 [R12-64]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-60] R0
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-60]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+sta_1370039:
+        move R2 #0
+        move R0 [R12-64]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370041
+        move R0 #0
+        jmp _L1370042
+_L1370041:
+        move R0 #1
+_L1370042:
+        cmp R0 #0
+        jz sta_1370040
+        move R0 [R12-64]
+        move R1 R0
+        sub R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R9 #0
+        push R9
+        move R0 [R12-64]
+        pop R9
+        move R9 R0
+        move R0 R9
+        mul R0 #1
+        pop R7
+        add R0 R7
+        moveb R0 @0
+        sextb R0 R0
+        move R8 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R4
+        add R0 R4
+        moveb @0 R8
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_1370039
+sta_1370040:
+        jmp sta_1370019
+sta_1370018:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #117
+        popb R1
+        cmp R1 R0
+        je _L1370045
+        move R0 #0
+        jmp _L1370046
+_L1370045:
+        move R0 #1
+_L1370046:
+        cmp R0 #0
+        jz sta_1370043
+        move R0 [R12-52]
+        move [R12-56] R0
+        move R0 #0
+        move [R12-64] R0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L1370049
+        move R0 #0
+        jmp _L1370050
+_L1370049:
+        move R0 #1
+_L1370050:
+        cmp R0 #0
+        jz sta_1370047
+        move R0 #48
+        move R5 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R6
+        add R0 R6
+        moveb @0 R5
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_1370000
+sta_1370047:
+sta_1370048:
+sta_1370051:
+        move R2 #0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370053
+        move R0 #0
+        jmp _L1370054
+_L1370053:
+        move R0 #1
+_L1370054:
+        cmp R0 #0
+        jz sta_1370052
+        move R0 #48
+        push R0
+        move R0 [R12-56]
+        push R0
+        move R0 #10
+        pop R1
+        mod R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R3 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R1 #0
+        push R1
+        move R0 [R12-64]
+        pop R1
+        move R1 R0
+        move R0 R1
+        mul R0 #1
+        pop R11
+        add R0 R11
+        moveb @0 R3
+        move R0 [R12-64]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-56]
+        push R0
+        move R0 #10
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-56] R0
+        jmp sta_1370051
+sta_1370052:
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-64]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+sta_1370055:
+        move R2 #0
+        move R0 [R12-64]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370057
+        move R0 #0
+        jmp _L1370058
+_L1370057:
+        move R0 #1
+_L1370058:
+        cmp R0 #0
+        jz sta_1370056
+        move R0 [R12-64]
+        move R1 R0
+        sub R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R10 #0
+        push R10
+        move R0 [R12-64]
+        pop R10
+        move R10 R0
+        move R0 R10
+        mul R0 #1
+        pop R2
+        add R0 R2
+        moveb R0 @0
+        sextb R0 R0
+        move R9 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R7
+        add R0 R7
+        moveb @0 R9
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_1370055
+sta_1370056:
+        jmp sta_1370044
+sta_1370043:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #120
+        popb R1
+        cmp R1 R0
+        je _L1370061
+        move R0 #0
+        jmp _L1370062
+_L1370061:
+        move R0 #1
+_L1370062:
+        cmp R0 #0
+        jz sta_1370059
+        move R0 [R12-52]
+        move [R12-56] R0
+        move R0 #0
+        move [R12-64] R0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L1370065
+        move R0 #0
+        jmp _L1370066
+_L1370065:
+        move R0 #1
+_L1370066:
+        cmp R0 #0
+        jz sta_1370063
+        move R0 #48
+        move R4 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R8
+        add R0 R8
+        moveb @0 R4
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_1370000
+sta_1370063:
+sta_1370064:
+sta_1370067:
+        move R2 #0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370069
+        move R0 #0
+        jmp _L1370070
+_L1370069:
+        move R0 #1
+_L1370070:
+        cmp R0 #0
+        jz sta_1370068
+        move R0 [R12-56]
+        push R0
+        move R0 #15
+        pop R1
+        and R1 R0
+        move R0 R1
+        move [R12-80] R0
+        move R0 [R12-80]
+        push R0
+        move R0 #10
+        pop R1
+        cmp R1 R0
+        jl _L1370073
+        move R0 #0
+        jmp _L1370074
+_L1370073:
+        move R0 #1
+_L1370074:
+        cmp R0 #0
+        jz sta_1370071
+        move R0 #48
+        push R0
+        move R0 [R12-80]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R6 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R5 #0
+        push R5
+        move R0 [R12-64]
+        pop R5
+        move R5 R0
+        move R0 R5
+        mul R0 #1
+        pop R1
+        add R0 R1
+        moveb @0 R6
+        jmp sta_1370072
+sta_1370071:
+        move R0 #97
+        push R0
+        move R0 [R12-80]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #10
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R11 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R3 #0
+        push R3
+        move R0 [R12-64]
+        pop R3
+        move R3 R0
+        move R0 R3
+        mul R0 #1
+        pop R10
+        add R0 R10
+        moveb @0 R11
+sta_1370072:
+        move R0 [R12-64]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-56]
+        push R0
+        move R0 #4
+        pop R1
+        shr R1 R0
+        move R0 R1
+        move [R12-56] R0
+        jmp sta_1370067
+sta_1370068:
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-64]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+sta_1370075:
+        move R2 #0
+        move R0 [R12-64]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370077
+        move R0 #0
+        jmp _L1370078
+_L1370077:
+        move R0 #1
+_L1370078:
+        cmp R0 #0
+        jz sta_1370076
+        move R0 [R12-64]
+        move R1 R0
+        sub R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R2 #0
+        push R2
+        move R0 [R12-64]
+        pop R2
+        move R2 R0
+        move R0 R2
+        mul R0 #1
+        pop R7
+        add R0 R7
+        moveb R0 @0
+        sextb R0 R0
+        move R9 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R8
+        add R0 R8
+        moveb @0 R9
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_1370075
+sta_1370076:
+        jmp sta_1370060
+sta_1370059:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #88
+        popb R1
+        cmp R1 R0
+        je _L1370081
+        move R0 #0
+        jmp _L1370082
+_L1370081:
+        move R0 #1
+_L1370082:
+        cmp R0 #0
+        jz sta_1370079
+        move R0 [R12-52]
+        move [R12-56] R0
+        move R0 #0
+        move [R12-64] R0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L1370085
+        move R0 #0
+        jmp _L1370086
+_L1370085:
+        move R0 #1
+_L1370086:
+        cmp R0 #0
+        jz sta_1370083
+        move R0 #48
+        move R4 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R5
+        add R0 R5
+        moveb @0 R4
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_1370000
+sta_1370083:
+sta_1370084:
+sta_1370087:
+        move R2 #0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370089
+        move R0 #0
+        jmp _L1370090
+_L1370089:
+        move R0 #1
+_L1370090:
+        cmp R0 #0
+        jz sta_1370088
+        move R0 [R12-56]
+        push R0
+        move R0 #15
+        pop R1
+        and R1 R0
+        move R0 R1
+        move [R12-80] R0
+        move R0 [R12-80]
+        push R0
+        move R0 #10
+        pop R1
+        cmp R1 R0
+        jl _L1370093
+        move R0 #0
+        jmp _L1370094
+_L1370093:
+        move R0 #1
+_L1370094:
+        cmp R0 #0
+        jz sta_1370091
+        move R0 #48
+        push R0
+        move R0 [R12-80]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R1 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R6 #0
+        push R6
+        move R0 [R12-64]
+        pop R6
+        move R6 R0
+        move R0 R6
+        mul R0 #1
+        pop R3
+        add R0 R3
+        moveb @0 R1
+        jmp sta_1370092
+sta_1370091:
+        move R0 #65
+        push R0
+        move R0 [R12-80]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #10
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R10 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R11 #0
+        push R11
+        move R0 [R12-64]
+        pop R11
+        move R11 R0
+        move R0 R11
+        mul R0 #1
+        pop R2
+        add R0 R2
+        moveb @0 R10
+sta_1370092:
+        move R0 [R12-64]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-56]
+        push R0
+        move R0 #4
+        pop R1
+        shr R1 R0
+        move R0 R1
+        move [R12-56] R0
+        jmp sta_1370087
+sta_1370088:
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-64]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+sta_1370095:
+        move R2 #0
+        move R0 [R12-64]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370097
+        move R0 #0
+        jmp _L1370098
+_L1370097:
+        move R0 #1
+_L1370098:
+        cmp R0 #0
+        jz sta_1370096
+        move R0 [R12-64]
+        move R1 R0
+        sub R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R7 #0
+        push R7
+        move R0 [R12-64]
+        pop R7
+        move R7 R0
+        move R0 R7
+        mul R0 #1
+        pop R8
+        add R0 R8
+        moveb R0 @0
+        sextb R0 R0
+        move R9 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R5
+        add R0 R5
+        moveb @0 R9
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_1370095
+sta_1370096:
+        jmp sta_1370080
+sta_1370079:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #111
+        popb R1
+        cmp R1 R0
+        je _L1370101
+        move R0 #0
+        jmp _L1370102
+_L1370101:
+        move R0 #1
+_L1370102:
+        cmp R0 #0
+        jz sta_1370099
+        move R0 [R12-52]
+        move [R12-56] R0
+        move R0 #0
+        move [R12-64] R0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L1370105
+        move R0 #0
+        jmp _L1370106
+_L1370105:
+        move R0 #1
+_L1370106:
+        cmp R0 #0
+        jz sta_1370103
+        move R0 #48
+        move R4 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R6
+        add R0 R6
+        moveb @0 R4
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_1370000
+sta_1370103:
+sta_1370104:
+sta_1370107:
+        move R2 #0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370109
+        move R0 #0
+        jmp _L1370110
+_L1370109:
+        move R0 #1
+_L1370110:
+        cmp R0 #0
+        jz sta_1370108
+        move R0 #48
+        push R0
+        move R0 [R12-56]
+        push R0
+        move R0 #7
+        pop R1
+        and R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R3 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R1 #0
+        push R1
+        move R0 [R12-64]
+        pop R1
+        move R1 R0
+        move R0 R1
+        mul R0 #1
+        pop R11
+        add R0 R11
+        moveb @0 R3
+        move R0 [R12-64]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-56]
+        push R0
+        move R0 #3
+        pop R1
+        shr R1 R0
+        move R0 R1
+        move [R12-56] R0
+        jmp sta_1370107
+sta_1370108:
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-64]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+sta_1370111:
+        move R2 #0
+        move R0 [R12-64]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370113
+        move R0 #0
+        jmp _L1370114
+_L1370113:
+        move R0 #1
+_L1370114:
+        cmp R0 #0
+        jz sta_1370112
+        move R0 [R12-64]
+        move R1 R0
+        sub R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R2 #0
+        push R2
+        move R0 [R12-64]
+        pop R2
+        move R2 R0
+        move R0 R2
+        mul R0 #1
+        pop R10
+        add R0 R10
+        moveb R0 @0
+        sextb R0 R0
+        move R7 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R8
+        add R0 R8
+        moveb @0 R7
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_1370111
+sta_1370112:
+        jmp sta_1370100
+sta_1370099:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #112
+        popb R1
+        cmp R1 R0
+        je _L1370117
+        move R0 #0
+        jmp _L1370118
+_L1370117:
+        move R0 #1
+_L1370118:
+        cmp R0 #0
+        jz sta_1370115
+        move R0 L1370119
+        move [R12-84] R0
+sta_1370120:
+        move R2 #0
+        move R0 [R12-84]
+        moveb R0 @0
+        sextb R0 R0
+        cmp R0 #0
+        jz sta_1370121
+        move R0 [R12-84]
+        moveb R0 @0
+        sextb R0 R0
+        move R5 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R9
+        add R0 R9
+        moveb @0 R5
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-84]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-84] R0
+        move R0 R1
+        jmp sta_1370120
+sta_1370121:
+        move R0 [R12-52]
+        move [R12-56] R0
+        move R0 #0
+        move [R12-64] R0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L1370124
+        move R0 #0
+        jmp _L1370125
+_L1370124:
+        move R0 #1
+_L1370125:
+        cmp R0 #0
+        jz sta_1370122
+        move R0 #48
+        move R6 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R4
+        add R0 R4
+        moveb @0 R6
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        jmp sta_1370123
+sta_1370122:
+sta_1370126:
+        move R2 #0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370128
+        move R0 #0
+        jmp _L1370129
+_L1370128:
+        move R0 #1
+_L1370129:
+        cmp R0 #0
+        jz sta_1370127
+        move R0 [R12-56]
+        push R0
+        move R0 #15
+        pop R1
+        and R1 R0
+        move R0 R1
+        move [R12-80] R0
+        move R0 [R12-80]
+        push R0
+        move R0 #10
+        pop R1
+        cmp R1 R0
+        jl _L1370132
+        move R0 #0
+        jmp _L1370133
+_L1370132:
+        move R0 #1
+_L1370133:
+        cmp R0 #0
+        jz sta_1370130
+        move R0 #48
+        push R0
+        move R0 [R12-80]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R1 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R11 #0
+        push R11
+        move R0 [R12-64]
+        pop R11
+        move R11 R0
+        move R0 R11
+        mul R0 #1
+        pop R3
+        add R0 R3
+        moveb @0 R1
+        jmp sta_1370131
+sta_1370130:
+        move R0 #97
+        push R0
+        move R0 [R12-80]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #10
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R2 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R10 #0
+        push R10
+        move R0 [R12-64]
+        pop R10
+        move R10 R0
+        move R0 R10
+        mul R0 #1
+        pop R8
+        add R0 R8
+        moveb @0 R2
+sta_1370131:
+        move R0 [R12-64]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-56]
+        push R0
+        move R0 #4
+        pop R1
+        shr R1 R0
+        move R0 R1
+        move [R12-56] R0
+        jmp sta_1370126
+sta_1370127:
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-64]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+sta_1370134:
+        move R2 #0
+        move R0 [R12-64]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370136
+        move R0 #0
+        jmp _L1370137
+_L1370136:
+        move R0 #1
+_L1370137:
+        cmp R0 #0
+        jz sta_1370135
+        move R0 [R12-64]
+        move R1 R0
+        sub R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R7 #0
+        push R7
+        move R0 [R12-64]
+        pop R7
+        move R7 R0
+        move R0 R7
+        mul R0 #1
+        pop R9
+        add R0 R9
+        moveb R0 @0
+        sextb R0 R0
+        move R5 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R4
+        add R0 R4
+        moveb @0 R5
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_1370134
+sta_1370135:
+sta_1370123:
+        jmp sta_1370116
+sta_1370115:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #99
+        popb R1
+        cmp R1 R0
+        je _L1370140
+        move R0 #0
+        jmp _L1370141
+_L1370140:
+        move R0 #1
+_L1370141:
+        cmp R0 #0
+        jz sta_1370138
+        move R0 [R12-52]
+        move R6 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R11
+        add R0 R11
+        moveb @0 R6
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        jmp sta_1370139
+sta_1370138:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #115
+        popb R1
+        cmp R1 R0
+        je _L1370144
+        move R0 #0
+        jmp _L1370145
+_L1370144:
+        move R0 #1
+_L1370145:
+        cmp R0 #0
+        jz sta_1370142
+        move R0 [R12-52]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jne _L1370148
+        move R0 #0
+        jmp _L1370149
+_L1370148:
+        move R0 #1
+_L1370149:
+        cmp R0 #0
+        jz sta_1370146
+        move R0 [R12-52]
+        move [R12-88] R0
+sta_1370150:
+        move R2 #0
+        move R0 [R12-88]
+        moveb R0 @0
+        sextb R0 R0
+        cmp R0 #0
+        jz sta_1370151
+        move R0 [R12-88]
+        moveb R0 @0
+        sextb R0 R0
+        move R3 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R1
+        add R0 R1
+        moveb @0 R3
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-88]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-88] R0
+        move R0 R1
+        jmp sta_1370150
+sta_1370151:
+        jmp sta_1370147
+sta_1370146:
+        move R0 L1370152
+        move [R12-92] R0
+sta_1370153:
+        move R2 #0
+        move R0 [R12-92]
+        moveb R0 @0
+        sextb R0 R0
+        cmp R0 #0
+        jz sta_1370154
+        move R0 [R12-92]
+        moveb R0 @0
+        sextb R0 R0
+        move R10 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R8
+        add R0 R8
+        moveb @0 R10
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-92]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-92] R0
+        move R0 R1
+        jmp sta_1370153
+sta_1370154:
+sta_1370147:
+        jmp sta_1370143
+sta_1370142:
+        move R0 #37
+        move R2 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R7
+        add R0 R7
+        moveb @0 R2
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        move R9 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R4
+        add R0 R4
+        moveb @0 R9
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        push R0
+        move R0 #2
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+sta_1370143:
+sta_1370139:
+sta_1370116:
+sta_1370100:
+sta_1370080:
+sta_1370060:
+sta_1370044:
+sta_1370019:
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_1370003
+sta_1370002:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        move R5 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R11
+        add R0 R11
+        moveb @0 R5
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+sta_1370003:
+        jmp sta_1370000
+sta_1370001:
+        move R0 #0
+        move R6 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R1
+        add R0 R1
+        moveb @0 R6
+        move R0 [R12-8]
+        jmp L1370155
+L1370155:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+printf:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #524
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+44]
+        move R10 R0
+        push R0
+        move R0 [R12+40]
+        move R9 R0
+        push R0
+        move R0 [R12+36]
+        move R8 R0
+        push R0
+        move R0 [R12+32]
+        move R7 R0
+        push R0
+        move R0 [R12+28]
+        move R6 R0
+        push R0
+        move R0 [R12+24]
+        move R5 R0
+        push R0
+        move R0 [R12+20]
+        move R4 R0
+        push R0
+        move R0 [R12+16]
+        move R3 R0
+        push R0
+        move R0 [R12+12]
+        move R2 R0
+        push R0
+        move R0 #512
+        move R1 R0
+        push R0
+        move R0 R12
+        sub R0 #512
+        push R0
+        call snprintf
+        add R13 #44
+        move [R12-516] R0
+        move R0 R12
+        sub R0 #512
+        push R0
+        call puts
+        add R13 #4
+        move R0 [R12-516]
+        jmp L1370156
+L1370156:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+snprintf:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #100
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 #0
+        move [R12-4] R0
+        move R0 #0
+        move [R12-8] R0
+        move R0 [R12+20]
+        move [R12-12] R0
+        move R0 [R12+24]
+        move R3 R0
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R8 #0
+        push R8
+        move R0 #0
+        pop R8
+        move R8 R0
+        move R0 R8
+        mul R0 #4
+        pop R10
+        add R0 R10
+        move @0 R3
+        move R0 [R12+28]
+        move R7 R0
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R2 #0
+        push R2
+        move R0 #1
+        pop R2
+        move R2 R0
+        move R0 R2
+        mul R0 #4
+        pop R4
+        add R0 R4
+        move @0 R7
+        move R0 [R12+32]
+        move R9 R0
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R11 #0
+        push R11
+        move R0 #2
+        pop R11
+        move R11 R0
+        move R0 R11
+        mul R0 #4
+        pop R5
+        add R0 R5
+        move @0 R9
+        move R0 [R12+36]
+        move R1 R0
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R6 #0
+        push R6
+        move R0 #3
+        pop R6
+        move R6 R0
+        move R0 R6
+        mul R0 #4
+        pop R8
+        add R0 R8
+        move @0 R1
+        move R0 [R12+40]
+        move R10 R0
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R3 #0
+        push R3
+        move R0 #4
+        pop R3
+        move R3 R0
+        move R0 R3
+        mul R0 #4
+        pop R2
+        add R0 R2
+        move @0 R10
+        move R0 [R12+44]
+        move R4 R0
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R7 #0
+        push R7
+        move R0 #5
+        pop R7
+        move R7 R0
+        move R0 R7
+        mul R0 #4
+        pop R11
+        add R0 R11
+        move @0 R4
+        move R0 [R12+48]
+        move R5 R0
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R9 #0
+        push R9
+        move R0 #6
+        pop R9
+        move R9 R0
+        move R0 R9
+        mul R0 #4
+        pop R6
+        add R0 R6
+        move @0 R5
+        move R0 [R12+52]
+        move R8 R0
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R1 #0
+        push R1
+        move R0 #7
+        pop R1
+        move R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R3
+        add R0 R3
+        move @0 R8
+        move R0 #0
+        move [R12-48] R0
+sta_1370157:
+        move R2 #0
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        cmp R0 #0
+        jz sta_1370158
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #37
+        popb R1
+        cmp R1 R0
+        je _L1370161
+        move R0 #0
+        jmp _L1370162
+_L1370161:
+        move R0 #1
+_L1370162:
+        cmp R0 #0
+        jz sta_1370159
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L1370165
+        move R0 #0
+        jmp _L1370166
+_L1370165:
+        move R0 #1
+_L1370166:
+        cmp R0 #0
+        jz sta_1370163
+        jmp sta_1370158
+sta_1370163:
+sta_1370164:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #37
+        popb R1
+        cmp R1 R0
+        je _L1370169
+        move R0 #0
+        jmp _L1370170
+_L1370169:
+        move R0 #1
+_L1370170:
+        cmp R0 #0
+        jz sta_1370167
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370173
+        move R0 #0
+        jmp _L1370174
+_L1370173:
+        move R0 #1
+_L1370174:
+        cmp R0 #0
+        jz sta_1370171
+        move R0 #37
+        move R2 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R10
+        add R0 R10
+        moveb @0 R2
+sta_1370171:
+sta_1370172:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_1370157
+sta_1370167:
+sta_1370168:
+        move R0 #0
+        move [R12-52] R0
+        move R0 [R12-48]
+        push R0
+        move R0 #8
+        pop R1
+        cmp R1 R0
+        jl _L1370177
+        move R0 #0
+        jmp _L1370178
+_L1370177:
+        move R0 #1
+_L1370178:
+        cmp R0 #0
+        jz sta_1370175
+        move R0 R12
+        sub R0 #44
+        push R0
+        move R7 #0
+        push R7
+        move R0 [R12-48]
+        pop R7
+        move R7 R0
+        move R0 R7
+        mul R0 #4
+        pop R11
+        add R0 R11
+        move R0 @0
+        move [R12-52] R0
+        move R0 [R12-48]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-48] R0
+        move R0 R1
+sta_1370175:
+sta_1370176:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #100
+        popb R1
+        cmp R1 R0
+        je _L1370184
+        move R0 #0
+        jmp _L1370185
+_L1370184:
+        move R0 #1
+_L1370185:
+        test R0 R0
+        jnz _L1370181
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #105
+        popb R1
+        cmp R1 R0
+        je _L1370186
+        move R0 #0
+        jmp _L1370187
+_L1370186:
+        move R0 #1
+_L1370187:
+        test R0 R0
+        jz _L1370182
+_L1370181:
+        move R0 #1
+        jmp _L1370183
+_L1370182:
+        move R0 #0
+_L1370183:
+        cmp R0 #0
+        jz sta_1370179
+        move R0 [R12-52]
+        move [R12-56] R0
+        move R0 #0
+        move [R12-60] R0
+        move R0 #0
+        move [R12-64] R0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L1370190
+        move R0 #0
+        jmp _L1370191
+_L1370190:
+        move R0 #1
+_L1370191:
+        cmp R0 #0
+        jz sta_1370188
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370194
+        move R0 #0
+        jmp _L1370195
+_L1370194:
+        move R0 #1
+_L1370195:
+        cmp R0 #0
+        jz sta_1370192
+        move R0 #45
+        move R4 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R9
+        add R0 R9
+        moveb @0 R4
+sta_1370192:
+sta_1370193:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-60]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-60] R0
+        move R0 R1
+        move R0 [R12-56]
+        move R0 [R12-56]
+        neg R0 R0
+        move [R12-56] R0
+sta_1370188:
+sta_1370189:
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L1370198
+        move R0 #0
+        jmp _L1370199
+_L1370198:
+        move R0 #1
+_L1370199:
+        cmp R0 #0
+        jz sta_1370196
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370202
+        move R0 #0
+        jmp _L1370203
+_L1370202:
+        move R0 #1
+_L1370203:
+        cmp R0 #0
+        jz sta_1370200
+        move R0 #48
+        move R6 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R5
+        add R0 R5
+        moveb @0 R6
+sta_1370200:
+sta_1370201:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-60]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_1370157
+sta_1370196:
+sta_1370197:
+sta_1370204:
+        move R2 #0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370206
+        move R0 #0
+        jmp _L1370207
+_L1370206:
+        move R0 #1
+_L1370207:
+        cmp R0 #0
+        jz sta_1370205
+        move R0 #48
+        push R0
+        move R0 [R12-56]
+        push R0
+        move R0 #10
+        pop R1
+        mod R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R1 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R3 #0
+        push R3
+        move R0 [R12-64]
+        pop R3
+        move R3 R0
+        move R0 R3
+        mul R0 #1
+        pop R8
+        add R0 R8
+        moveb @0 R1
+        move R0 [R12-64]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-56]
+        push R0
+        move R0 #10
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-56] R0
+        jmp sta_1370204
+sta_1370205:
+        move R0 [R12-60]
+        push R0
+        move R0 [R12-64]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-60] R0
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-60]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+sta_1370208:
+        move R2 #0
+        move R0 [R12-64]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370210
+        move R0 #0
+        jmp _L1370211
+_L1370210:
+        move R0 #1
+_L1370211:
+        cmp R0 #0
+        jz sta_1370209
+        move R0 [R12-64]
+        move R1 R0
+        sub R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370214
+        move R0 #0
+        jmp _L1370215
+_L1370214:
+        move R0 #1
+_L1370215:
+        cmp R0 #0
+        jz sta_1370212
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R10 #0
+        push R10
+        move R0 [R12-64]
+        pop R10
+        move R10 R0
+        move R0 R10
+        mul R0 #1
+        pop R2
+        add R0 R2
+        moveb R0 @0
+        sextb R0 R0
+        move R7 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R11
+        add R0 R11
+        moveb @0 R7
+sta_1370212:
+sta_1370213:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_1370208
+sta_1370209:
+        jmp sta_1370180
+sta_1370179:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #117
+        popb R1
+        cmp R1 R0
+        je _L1370218
+        move R0 #0
+        jmp _L1370219
+_L1370218:
+        move R0 #1
+_L1370219:
+        cmp R0 #0
+        jz sta_1370216
+        move R0 [R12-52]
+        move [R12-56] R0
+        move R0 #0
+        move [R12-64] R0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L1370222
+        move R0 #0
+        jmp _L1370223
+_L1370222:
+        move R0 #1
+_L1370223:
+        cmp R0 #0
+        jz sta_1370220
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370226
+        move R0 #0
+        jmp _L1370227
+_L1370226:
+        move R0 #1
+_L1370227:
+        cmp R0 #0
+        jz sta_1370224
+        move R0 #48
+        move R9 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R4
+        add R0 R4
+        moveb @0 R9
+sta_1370224:
+sta_1370225:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_1370157
+sta_1370220:
+sta_1370221:
+sta_1370228:
+        move R2 #0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370230
+        move R0 #0
+        jmp _L1370231
+_L1370230:
+        move R0 #1
+_L1370231:
+        cmp R0 #0
+        jz sta_1370229
+        move R0 #48
+        push R0
+        move R0 [R12-56]
+        push R0
+        move R0 #10
+        pop R1
+        mod R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R5 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R6 #0
+        push R6
+        move R0 [R12-64]
+        pop R6
+        move R6 R0
+        move R0 R6
+        mul R0 #1
+        pop R3
+        add R0 R3
+        moveb @0 R5
+        move R0 [R12-64]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-56]
+        push R0
+        move R0 #10
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-56] R0
+        jmp sta_1370228
+sta_1370229:
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-64]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+sta_1370232:
+        move R2 #0
+        move R0 [R12-64]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370234
+        move R0 #0
+        jmp _L1370235
+_L1370234:
+        move R0 #1
+_L1370235:
+        cmp R0 #0
+        jz sta_1370233
+        move R0 [R12-64]
+        move R1 R0
+        sub R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370238
+        move R0 #0
+        jmp _L1370239
+_L1370238:
+        move R0 #1
+_L1370239:
+        cmp R0 #0
+        jz sta_1370236
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R8 #0
+        push R8
+        move R0 [R12-64]
+        pop R8
+        move R8 R0
+        move R0 R8
+        mul R0 #1
+        pop R1
+        add R0 R1
+        moveb R0 @0
+        sextb R0 R0
+        move R10 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R2
+        add R0 R2
+        moveb @0 R10
+sta_1370236:
+sta_1370237:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_1370232
+sta_1370233:
+        jmp sta_1370217
+sta_1370216:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #120
+        popb R1
+        cmp R1 R0
+        je _L1370242
+        move R0 #0
+        jmp _L1370243
+_L1370242:
+        move R0 #1
+_L1370243:
+        cmp R0 #0
+        jz sta_1370240
+        move R0 [R12-52]
+        move [R12-56] R0
+        move R0 #0
+        move [R12-64] R0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L1370246
+        move R0 #0
+        jmp _L1370247
+_L1370246:
+        move R0 #1
+_L1370247:
+        cmp R0 #0
+        jz sta_1370244
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370250
+        move R0 #0
+        jmp _L1370251
+_L1370250:
+        move R0 #1
+_L1370251:
+        cmp R0 #0
+        jz sta_1370248
+        move R0 #48
+        move R11 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R7
+        add R0 R7
+        moveb @0 R11
+sta_1370248:
+sta_1370249:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_1370157
+sta_1370244:
+sta_1370245:
+sta_1370252:
+        move R2 #0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370254
+        move R0 #0
+        jmp _L1370255
+_L1370254:
+        move R0 #1
+_L1370255:
+        cmp R0 #0
+        jz sta_1370253
+        move R0 [R12-56]
+        push R0
+        move R0 #15
+        pop R1
+        and R1 R0
+        move R0 R1
+        move [R12-80] R0
+        move R0 [R12-80]
+        push R0
+        move R0 #10
+        pop R1
+        cmp R1 R0
+        jl _L1370258
+        move R0 #0
+        jmp _L1370259
+_L1370258:
+        move R0 #1
+_L1370259:
+        cmp R0 #0
+        jz sta_1370256
+        move R0 #48
+        push R0
+        move R0 [R12-80]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R4 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R9 #0
+        push R9
+        move R0 [R12-64]
+        pop R9
+        move R9 R0
+        move R0 R9
+        mul R0 #1
+        pop R6
+        add R0 R6
+        moveb @0 R4
+        jmp sta_1370257
+sta_1370256:
+        move R0 #97
+        push R0
+        move R0 [R12-80]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #10
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R3 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R5 #0
+        push R5
+        move R0 [R12-64]
+        pop R5
+        move R5 R0
+        move R0 R5
+        mul R0 #1
+        pop R8
+        add R0 R8
+        moveb @0 R3
+sta_1370257:
+        move R0 [R12-64]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-56]
+        push R0
+        move R0 #4
+        pop R1
+        shr R1 R0
+        move R0 R1
+        move [R12-56] R0
+        jmp sta_1370252
+sta_1370253:
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-64]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+sta_1370260:
+        move R2 #0
+        move R0 [R12-64]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370262
+        move R0 #0
+        jmp _L1370263
+_L1370262:
+        move R0 #1
+_L1370263:
+        cmp R0 #0
+        jz sta_1370261
+        move R0 [R12-64]
+        move R1 R0
+        sub R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370266
+        move R0 #0
+        jmp _L1370267
+_L1370266:
+        move R0 #1
+_L1370267:
+        cmp R0 #0
+        jz sta_1370264
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R1 #0
+        push R1
+        move R0 [R12-64]
+        pop R1
+        move R1 R0
+        move R0 R1
+        mul R0 #1
+        pop R2
+        add R0 R2
+        moveb R0 @0
+        sextb R0 R0
+        move R10 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R7
+        add R0 R7
+        moveb @0 R10
+sta_1370264:
+sta_1370265:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_1370260
+sta_1370261:
+        jmp sta_1370241
+sta_1370240:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #88
+        popb R1
+        cmp R1 R0
+        je _L1370270
+        move R0 #0
+        jmp _L1370271
+_L1370270:
+        move R0 #1
+_L1370271:
+        cmp R0 #0
+        jz sta_1370268
+        move R0 [R12-52]
+        move [R12-56] R0
+        move R0 #0
+        move [R12-64] R0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L1370274
+        move R0 #0
+        jmp _L1370275
+_L1370274:
+        move R0 #1
+_L1370275:
+        cmp R0 #0
+        jz sta_1370272
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370278
+        move R0 #0
+        jmp _L1370279
+_L1370278:
+        move R0 #1
+_L1370279:
+        cmp R0 #0
+        jz sta_1370276
+        move R0 #48
+        move R11 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R9
+        add R0 R9
+        moveb @0 R11
+sta_1370276:
+sta_1370277:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_1370157
+sta_1370272:
+sta_1370273:
+sta_1370280:
+        move R2 #0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370282
+        move R0 #0
+        jmp _L1370283
+_L1370282:
+        move R0 #1
+_L1370283:
+        cmp R0 #0
+        jz sta_1370281
+        move R0 [R12-56]
+        push R0
+        move R0 #15
+        pop R1
+        and R1 R0
+        move R0 R1
+        move [R12-80] R0
+        move R0 [R12-80]
+        push R0
+        move R0 #10
+        pop R1
+        cmp R1 R0
+        jl _L1370286
+        move R0 #0
+        jmp _L1370287
+_L1370286:
+        move R0 #1
+_L1370287:
+        cmp R0 #0
+        jz sta_1370284
+        move R0 #48
+        push R0
+        move R0 [R12-80]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R6 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R4 #0
+        push R4
+        move R0 [R12-64]
+        pop R4
+        move R4 R0
+        move R0 R4
+        mul R0 #1
+        pop R5
+        add R0 R5
+        moveb @0 R6
+        jmp sta_1370285
+sta_1370284:
+        move R0 #65
+        push R0
+        move R0 [R12-80]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #10
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R8 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R3 #0
+        push R3
+        move R0 [R12-64]
+        pop R3
+        move R3 R0
+        move R0 R3
+        mul R0 #1
+        pop R1
+        add R0 R1
+        moveb @0 R8
+sta_1370285:
+        move R0 [R12-64]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-56]
+        push R0
+        move R0 #4
+        pop R1
+        shr R1 R0
+        move R0 R1
+        move [R12-56] R0
+        jmp sta_1370280
+sta_1370281:
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-64]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+sta_1370288:
+        move R2 #0
+        move R0 [R12-64]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370290
+        move R0 #0
+        jmp _L1370291
+_L1370290:
+        move R0 #1
+_L1370291:
+        cmp R0 #0
+        jz sta_1370289
+        move R0 [R12-64]
+        move R1 R0
+        sub R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370294
+        move R0 #0
+        jmp _L1370295
+_L1370294:
+        move R0 #1
+_L1370295:
+        cmp R0 #0
+        jz sta_1370292
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R2 #0
+        push R2
+        move R0 [R12-64]
+        pop R2
+        move R2 R0
+        move R0 R2
+        mul R0 #1
+        pop R7
+        add R0 R7
+        moveb R0 @0
+        sextb R0 R0
+        move R10 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R9
+        add R0 R9
+        moveb @0 R10
+sta_1370292:
+sta_1370293:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_1370288
+sta_1370289:
+        jmp sta_1370269
+sta_1370268:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #111
+        popb R1
+        cmp R1 R0
+        je _L1370298
+        move R0 #0
+        jmp _L1370299
+_L1370298:
+        move R0 #1
+_L1370299:
+        cmp R0 #0
+        jz sta_1370296
+        move R0 [R12-52]
+        move [R12-56] R0
+        move R0 #0
+        move [R12-64] R0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L1370302
+        move R0 #0
+        jmp _L1370303
+_L1370302:
+        move R0 #1
+_L1370303:
+        cmp R0 #0
+        jz sta_1370300
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370306
+        move R0 #0
+        jmp _L1370307
+_L1370306:
+        move R0 #1
+_L1370307:
+        cmp R0 #0
+        jz sta_1370304
+        move R0 #48
+        move R11 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R4
+        add R0 R4
+        moveb @0 R11
+sta_1370304:
+sta_1370305:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_1370157
+sta_1370300:
+sta_1370301:
+sta_1370308:
+        move R2 #0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370310
+        move R0 #0
+        jmp _L1370311
+_L1370310:
+        move R0 #1
+_L1370311:
+        cmp R0 #0
+        jz sta_1370309
+        move R0 #48
+        push R0
+        move R0 [R12-56]
+        push R0
+        move R0 #7
+        pop R1
+        and R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R5 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R6 #0
+        push R6
+        move R0 [R12-64]
+        pop R6
+        move R6 R0
+        move R0 R6
+        mul R0 #1
+        pop R3
+        add R0 R3
+        moveb @0 R5
+        move R0 [R12-64]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-56]
+        push R0
+        move R0 #3
+        pop R1
+        shr R1 R0
+        move R0 R1
+        move [R12-56] R0
+        jmp sta_1370308
+sta_1370309:
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-64]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+sta_1370312:
+        move R2 #0
+        move R0 [R12-64]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370314
+        move R0 #0
+        jmp _L1370315
+_L1370314:
+        move R0 #1
+_L1370315:
+        cmp R0 #0
+        jz sta_1370313
+        move R0 [R12-64]
+        move R1 R0
+        sub R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370318
+        move R0 #0
+        jmp _L1370319
+_L1370318:
+        move R0 #1
+_L1370319:
+        cmp R0 #0
+        jz sta_1370316
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R1 #0
+        push R1
+        move R0 [R12-64]
+        pop R1
+        move R1 R0
+        move R0 R1
+        mul R0 #1
+        pop R8
+        add R0 R8
+        moveb R0 @0
+        sextb R0 R0
+        move R2 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R7
+        add R0 R7
+        moveb @0 R2
+sta_1370316:
+sta_1370317:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_1370312
+sta_1370313:
+        jmp sta_1370297
+sta_1370296:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #112
+        popb R1
+        cmp R1 R0
+        je _L1370322
+        move R0 #0
+        jmp _L1370323
+_L1370322:
+        move R0 #1
+_L1370323:
+        cmp R0 #0
+        jz sta_1370320
+        move R0 L1370324
+        move [R12-84] R0
+sta_1370325:
+        move R2 #0
+        move R0 [R12-84]
+        moveb R0 @0
+        sextb R0 R0
+        cmp R0 #0
+        jz sta_1370326
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370329
+        move R0 #0
+        jmp _L1370330
+_L1370329:
+        move R0 #1
+_L1370330:
+        cmp R0 #0
+        jz sta_1370327
+        move R0 [R12-84]
+        moveb R0 @0
+        sextb R0 R0
+        move R9 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R10
+        add R0 R10
+        moveb @0 R9
+sta_1370327:
+sta_1370328:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-84]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-84] R0
+        move R0 R1
+        jmp sta_1370325
+sta_1370326:
+        move R0 [R12-52]
+        move [R12-56] R0
+        move R0 #0
+        move [R12-64] R0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L1370333
+        move R0 #0
+        jmp _L1370334
+_L1370333:
+        move R0 #1
+_L1370334:
+        cmp R0 #0
+        jz sta_1370331
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370337
+        move R0 #0
+        jmp _L1370338
+_L1370337:
+        move R0 #1
+_L1370338:
+        cmp R0 #0
+        jz sta_1370335
+        move R0 #48
+        move R4 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R11
+        add R0 R11
+        moveb @0 R4
+sta_1370335:
+sta_1370336:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        jmp sta_1370332
+sta_1370331:
+sta_1370339:
+        move R2 #0
+        move R0 [R12-56]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370341
+        move R0 #0
+        jmp _L1370342
+_L1370341:
+        move R0 #1
+_L1370342:
+        cmp R0 #0
+        jz sta_1370340
+        move R0 [R12-56]
+        push R0
+        move R0 #15
+        pop R1
+        and R1 R0
+        move R0 R1
+        move [R12-80] R0
+        move R0 [R12-80]
+        push R0
+        move R0 #10
+        pop R1
+        cmp R1 R0
+        jl _L1370345
+        move R0 #0
+        jmp _L1370346
+_L1370345:
+        move R0 #1
+_L1370346:
+        cmp R0 #0
+        jz sta_1370343
+        move R0 #48
+        push R0
+        move R0 [R12-80]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R6 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R3 #0
+        push R3
+        move R0 [R12-64]
+        pop R3
+        move R3 R0
+        move R0 R3
+        mul R0 #1
+        pop R5
+        add R0 R5
+        moveb @0 R6
+        jmp sta_1370344
+sta_1370343:
+        move R0 #97
+        push R0
+        move R0 [R12-80]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #10
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R1 R0
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R8 #0
+        push R8
+        move R0 [R12-64]
+        pop R8
+        move R8 R0
+        move R0 R8
+        mul R0 #1
+        pop R7
+        add R0 R7
+        moveb @0 R1
+sta_1370344:
+        move R0 [R12-64]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-56]
+        push R0
+        move R0 #4
+        pop R1
+        shr R1 R0
+        move R0 R1
+        move [R12-56] R0
+        jmp sta_1370339
+sta_1370340:
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-64]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+sta_1370347:
+        move R2 #0
+        move R0 [R12-64]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370349
+        move R0 #0
+        jmp _L1370350
+_L1370349:
+        move R0 #1
+_L1370350:
+        cmp R0 #0
+        jz sta_1370348
+        move R0 [R12-64]
+        move R1 R0
+        sub R0 R0 #1
+        move [R12-64] R0
+        move R0 R1
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370353
+        move R0 #0
+        jmp _L1370354
+_L1370353:
+        move R0 #1
+_L1370354:
+        cmp R0 #0
+        jz sta_1370351
+        move R0 R12
+        sub R0 #76
+        push R0
+        move R2 #0
+        push R2
+        move R0 [R12-64]
+        pop R2
+        move R2 R0
+        move R0 R2
+        mul R0 #1
+        pop R10
+        add R0 R10
+        moveb R0 @0
+        sextb R0 R0
+        move R9 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R11
+        add R0 R11
+        moveb @0 R9
+sta_1370351:
+sta_1370352:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_1370347
+sta_1370348:
+sta_1370332:
+        jmp sta_1370321
+sta_1370320:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #99
+        popb R1
+        cmp R1 R0
+        je _L1370357
+        move R0 #0
+        jmp _L1370358
+_L1370357:
+        move R0 #1
+_L1370358:
+        cmp R0 #0
+        jz sta_1370355
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370361
+        move R0 #0
+        jmp _L1370362
+_L1370361:
+        move R0 #1
+_L1370362:
+        cmp R0 #0
+        jz sta_1370359
+        move R0 [R12-52]
+        move R4 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R3
+        add R0 R3
+        moveb @0 R4
+sta_1370359:
+sta_1370360:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        jmp sta_1370356
+sta_1370355:
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #115
+        popb R1
+        cmp R1 R0
+        je _L1370365
+        move R0 #0
+        jmp _L1370366
+_L1370365:
+        move R0 #1
+_L1370366:
+        cmp R0 #0
+        jz sta_1370363
+        move R0 [R12-52]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jne _L1370369
+        move R0 #0
+        jmp _L1370370
+_L1370369:
+        move R0 #1
+_L1370370:
+        cmp R0 #0
+        jz sta_1370367
+        move R0 [R12-52]
+        move [R12-88] R0
+sta_1370371:
+        move R2 #0
+        move R0 [R12-88]
+        moveb R0 @0
+        sextb R0 R0
+        cmp R0 #0
+        jz sta_1370372
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370375
+        move R0 #0
+        jmp _L1370376
+_L1370375:
+        move R0 #1
+_L1370376:
+        cmp R0 #0
+        jz sta_1370373
+        move R0 [R12-88]
+        moveb R0 @0
+        sextb R0 R0
+        move R5 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R6
+        add R0 R6
+        moveb @0 R5
+sta_1370373:
+sta_1370374:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-88]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-88] R0
+        move R0 R1
+        jmp sta_1370371
+sta_1370372:
+        jmp sta_1370368
+sta_1370367:
+        move R0 L1370377
+        move [R12-92] R0
+sta_1370378:
+        move R2 #0
+        move R0 [R12-92]
+        moveb R0 @0
+        sextb R0 R0
+        cmp R0 #0
+        jz sta_1370379
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370382
+        move R0 #0
+        jmp _L1370383
+_L1370382:
+        move R0 #1
+_L1370383:
+        cmp R0 #0
+        jz sta_1370380
+        move R0 [R12-92]
+        moveb R0 @0
+        sextb R0 R0
+        move R8 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R7
+        add R0 R7
+        moveb @0 R8
+sta_1370380:
+sta_1370381:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-92]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-92] R0
+        move R0 R1
+        jmp sta_1370378
+sta_1370379:
+sta_1370368:
+        jmp sta_1370364
+sta_1370363:
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370386
+        move R0 #0
+        jmp _L1370387
+_L1370386:
+        move R0 #1
+_L1370387:
+        cmp R0 #0
+        jz sta_1370384
+        move R0 #37
+        move R1 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R2
+        add R0 R2
+        moveb @0 R1
+sta_1370384:
+sta_1370385:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370390
+        move R0 #0
+        jmp _L1370391
+_L1370390:
+        move R0 #1
+_L1370391:
+        cmp R0 #0
+        jz sta_1370388
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        move R10 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R11
+        add R0 R11
+        moveb @0 R10
+sta_1370388:
+sta_1370389:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        push R0
+        move R0 #2
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+sta_1370364:
+sta_1370356:
+sta_1370321:
+sta_1370297:
+sta_1370269:
+sta_1370241:
+sta_1370217:
+sta_1370180:
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_1370160
+sta_1370159:
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L1370394
+        move R0 #0
+        jmp _L1370395
+_L1370394:
+        move R0 #1
+_L1370395:
+        cmp R0 #0
+        jz sta_1370392
+        move R0 [R12-12]
+        moveb R0 @0
+        sextb R0 R0
+        move R9 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R3
+        add R0 R3
+        moveb @0 R9
+sta_1370392:
+sta_1370393:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+sta_1370160:
+        jmp sta_1370157
+sta_1370158:
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        cmp R1 R0
+        jl _L1370398
+        move R0 #0
+        jmp _L1370399
+_L1370398:
+        move R0 #1
+_L1370399:
+        cmp R0 #0
+        jz sta_1370396
+        move R0 #0
+        move R4 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        mul R0 #1
+        pop R6
+        add R0 R6
+        moveb @0 R4
+        jmp sta_1370397
+sta_1370396:
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370402
+        move R0 #0
+        jmp _L1370403
+_L1370402:
+        move R0 #1
+_L1370403:
+        cmp R0 #0
+        jz sta_1370400
+        move R0 #0
+        move R5 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        mul R0 #1
+        pop R7
+        add R0 R7
+        moveb @0 R5
+sta_1370400:
+sta_1370401:
+sta_1370397:
+        move R0 [R12-8]
+        jmp L1370404
+L1370404:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+sscanf:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #72
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+20]
+        move R8 R0
+        move R0 R12
+        sub R0 #32
+        push R0
+        move R2 #0
+        push R2
+        move R0 #0
+        pop R2
+        move R2 R0
+        move R0 R2
+        mul R0 #4
+        pop R1
+        add R0 R1
+        move @0 R8
+        move R0 [R12+24]
+        move R11 R0
+        move R0 R12
+        sub R0 #32
+        push R0
+        move R10 #0
+        push R10
+        move R0 #1
+        pop R10
+        move R10 R0
+        move R0 R10
+        mul R0 #4
+        pop R3
+        add R0 R3
+        move @0 R11
+        move R0 [R12+28]
+        move R9 R0
+        move R0 R12
+        sub R0 #32
+        push R0
+        move R6 #0
+        push R6
+        move R0 #2
+        pop R6
+        move R6 R0
+        move R0 R6
+        mul R0 #4
+        pop R4
+        add R0 R4
+        move @0 R9
+        move R0 [R12+32]
+        move R7 R0
+        move R0 R12
+        sub R0 #32
+        push R0
+        move R5 #0
+        push R5
+        move R0 #3
+        pop R5
+        move R5 R0
+        move R0 R5
+        mul R0 #4
+        pop R2
+        add R0 R2
+        move @0 R7
+        move R0 [R12+36]
+        move R1 R0
+        move R0 R12
+        sub R0 #32
+        push R0
+        move R8 #0
+        push R8
+        move R0 #4
+        pop R8
+        move R8 R0
+        move R0 R8
+        mul R0 #4
+        pop R10
+        add R0 R10
+        move @0 R1
+        move R0 [R12+40]
+        move R3 R0
+        move R0 R12
+        sub R0 #32
+        push R0
+        move R11 #0
+        push R11
+        move R0 #5
+        pop R11
+        move R11 R0
+        move R0 R11
+        mul R0 #4
+        pop R6
+        add R0 R6
+        move @0 R3
+        move R0 [R12+44]
+        move R4 R0
+        move R0 R12
+        sub R0 #32
+        push R0
+        move R9 #0
+        push R9
+        move R0 #6
+        pop R9
+        move R9 R0
+        move R0 R9
+        mul R0 #4
+        pop R5
+        add R0 R5
+        move @0 R4
+        move R0 [R12+48]
+        move R2 R0
+        move R0 R12
+        sub R0 #32
+        push R0
+        move R7 #0
+        push R7
+        move R0 #7
+        pop R7
+        move R7 R0
+        move R0 R7
+        mul R0 #4
+        pop R8
+        add R0 R8
+        move @0 R2
+        move R0 #0
+        move [R12-36] R0
+        move R0 #0
+        move [R12-40] R0
+        move R0 [R12+12]
+        move [R12-44] R0
+        move R0 [R12+16]
+        move [R12-48] R0
+sta_1370405:
+        move R2 #0
+        move R0 [R12-48]
+        moveb R0 @0
+        sextb R0 R0
+        cmp R0 #0
+        jz sta_1370406
+        move R0 [R12-48]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #37
+        popb R1
+        cmp R1 R0
+        je _L1370409
+        move R0 #0
+        jmp _L1370410
+_L1370409:
+        move R0 #1
+_L1370410:
+        cmp R0 #0
+        jz sta_1370407
+        move R0 [R12-48]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-48] R0
+        move R0 R1
+        move R0 [R12-48]
+        moveb R0 @0
+        sextb R0 R0
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L1370413
+        move R0 #0
+        jmp _L1370414
+_L1370413:
+        move R0 #1
+_L1370414:
+        cmp R0 #0
+        jz sta_1370411
+        jmp sta_1370406
+sta_1370411:
+sta_1370412:
+        move R0 [R12-48]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #37
+        popb R1
+        cmp R1 R0
+        je _L1370417
+        move R0 #0
+        jmp _L1370418
+_L1370417:
+        move R0 #1
+_L1370418:
+        cmp R0 #0
+        jz sta_1370415
+        move R0 [R12-48]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-48] R0
+        move R0 R1
+        move R0 [R12-44]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-44] R0
+        move R0 R1
+        jmp sta_1370405
+sta_1370415:
+sta_1370416:
+sta_1370419:
+        move R2 #0
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #32
+        popb R1
+        cmp R1 R0
+        je _L1370427
+        move R0 #0
+        jmp _L1370428
+_L1370427:
+        move R0 #1
+_L1370428:
+        test R0 R0
+        jnz _L1370424
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #9
+        popb R1
+        cmp R1 R0
+        je _L1370429
+        move R0 #0
+        jmp _L1370430
+_L1370429:
+        move R0 #1
+_L1370430:
+        test R0 R0
+        jz _L1370425
+_L1370424:
+        move R0 #1
+        jmp _L1370426
+_L1370425:
+        move R0 #0
+_L1370426:
+        test R0 R0
+        jnz _L1370421
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #10
+        popb R1
+        cmp R1 R0
+        je _L1370431
+        move R0 #0
+        jmp _L1370432
+_L1370431:
+        move R0 #1
+_L1370432:
+        test R0 R0
+        jz _L1370422
+_L1370421:
+        move R0 #1
+        jmp _L1370423
+_L1370422:
+        move R0 #0
+_L1370423:
+        cmp R0 #0
+        jz sta_1370420
+        move R0 [R12-44]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-44] R0
+        move R0 R1
+        jmp sta_1370419
+sta_1370420:
+        move R0 [R12-48]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #100
+        popb R1
+        cmp R1 R0
+        je _L1370435
+        move R0 #0
+        jmp _L1370436
+_L1370435:
+        move R0 #1
+_L1370436:
+        cmp R0 #0
+        jz sta_1370433
+        move R0 #1
+        move [R12-52] R0
+        move R0 #0
+        move [R12-56] R0
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #45
+        popb R1
+        cmp R1 R0
+        je _L1370439
+        move R0 #0
+        jmp _L1370440
+_L1370439:
+        move R0 #1
+_L1370440:
+        cmp R0 #0
+        jz sta_1370437
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        move [R12-52] R0
+        move R0 [R12-44]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-44] R0
+        move R0 R1
+        jmp sta_1370438
+sta_1370437:
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #43
+        popb R1
+        cmp R1 R0
+        je _L1370443
+        move R0 #0
+        jmp _L1370444
+_L1370443:
+        move R0 #1
+_L1370444:
+        cmp R0 #0
+        jz sta_1370441
+        move R0 [R12-44]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-44] R0
+        move R0 R1
+sta_1370441:
+sta_1370442:
+sta_1370438:
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #48
+        popb R1
+        cmp R1 R0
+        jl _L1370450
+        move R0 #0
+        jmp _L1370451
+_L1370450:
+        move R0 #1
+_L1370451:
+        test R0 R0
+        jnz _L1370447
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #57
+        popb R1
+        cmp R1 R0
+        jg _L1370452
+        move R0 #0
+        jmp _L1370453
+_L1370452:
+        move R0 #1
+_L1370453:
+        test R0 R0
+        jz _L1370448
+_L1370447:
+        move R0 #1
+        jmp _L1370449
+_L1370448:
+        move R0 #0
+_L1370449:
+        cmp R0 #0
+        jz sta_1370445
+        jmp sta_1370406
+sta_1370445:
+sta_1370446:
+sta_1370454:
+        move R2 #0
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #48
+        popb R1
+        cmp R1 R0
+        jge _L1370458
+        move R0 #0
+        jmp _L1370459
+_L1370458:
+        move R0 #1
+_L1370459:
+        test R0 R0
+        jz _L1370456
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #57
+        popb R1
+        cmp R1 R0
+        jle _L1370460
+        move R0 #0
+        jmp _L1370461
+_L1370460:
+        move R0 #1
+_L1370461:
+        test R0 R0
+        jz _L1370456
+        move R0 #1
+        jmp _L1370457
+_L1370456:
+        move R0 #0
+_L1370457:
+        cmp R0 #0
+        jz sta_1370455
+        move R0 [R12-56]
+        push R0
+        move R0 #10
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #48
+        popb R1
+        sub R1 R0
+        moveb R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-56] R0
+        move R0 [R12-44]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-44] R0
+        move R0 R1
+        jmp sta_1370454
+sta_1370455:
+        move R0 [R12-36]
+        push R0
+        move R0 #8
+        pop R1
+        cmp R1 R0
+        jl _L1370466
+        move R0 #0
+        jmp _L1370467
+_L1370466:
+        move R0 #1
+_L1370467:
+        test R0 R0
+        jz _L1370464
+        move R0 R12
+        sub R0 #32
+        push R0
+        move R10 #0
+        push R10
+        move R0 [R12-36]
+        pop R10
+        move R10 R0
+        move R0 R10
+        mul R0 #4
+        pop R1
+        add R0 R1
+        move R0 @0
+        test R0 R0
+        jz _L1370464
+        move R0 #1
+        jmp _L1370465
+_L1370464:
+        move R0 #0
+_L1370465:
+        cmp R0 #0
+        jz sta_1370462
+        move R0 R12
+        sub R0 #32
+        push R0
+        move R6 #0
+        push R6
+        move R0 [R12-36]
+        pop R6
+        move R6 R0
+        move R0 R6
+        mul R0 #4
+        pop R3
+        add R0 R3
+        move R0 @0
+        move R11 R0
+        move R0 [R12-52]
+        push R0
+        move R0 [R12-56]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move @11 R0
+        move R0 [R12-40]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-40] R0
+        move R0 R1
+sta_1370462:
+sta_1370463:
+        move R0 [R12-36]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-36] R0
+        move R0 R1
+        jmp sta_1370434
+sta_1370433:
+        move R0 [R12-48]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #120
+        popb R1
+        cmp R1 R0
+        je _L1370473
+        move R0 #0
+        jmp _L1370474
+_L1370473:
+        move R0 #1
+_L1370474:
+        test R0 R0
+        jnz _L1370470
+        move R0 [R12-48]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #88
+        popb R1
+        cmp R1 R0
+        je _L1370475
+        move R0 #0
+        jmp _L1370476
+_L1370475:
+        move R0 #1
+_L1370476:
+        test R0 R0
+        jz _L1370471
+_L1370470:
+        move R0 #1
+        jmp _L1370472
+_L1370471:
+        move R0 #0
+_L1370472:
+        cmp R0 #0
+        jz sta_1370468
+        move R0 #0
+        move [R12-56] R0
+        move R0 #0
+        move [R12-60] R0
+        move R0 #1
+        move [R12-64] R0
+sta_1370477:
+        move R2 #0
+        move R0 [R12-64]
+        cmp R0 #0
+        jz sta_1370478
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #48
+        popb R1
+        cmp R1 R0
+        jge _L1370483
+        move R0 #0
+        jmp _L1370484
+_L1370483:
+        move R0 #1
+_L1370484:
+        test R0 R0
+        jz _L1370481
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #57
+        popb R1
+        cmp R1 R0
+        jle _L1370485
+        move R0 #0
+        jmp _L1370486
+_L1370485:
+        move R0 #1
+_L1370486:
+        test R0 R0
+        jz _L1370481
+        move R0 #1
+        jmp _L1370482
+_L1370481:
+        move R0 #0
+_L1370482:
+        cmp R0 #0
+        jz sta_1370479
+        move R0 [R12-56]
+        push R0
+        move R0 #4
+        pop R1
+        shl R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #48
+        popb R1
+        sub R1 R0
+        moveb R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        move [R12-56] R0
+        move R0 [R12-44]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-44] R0
+        move R0 R1
+        move R0 [R12-60]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-60] R0
+        move R0 R1
+        jmp sta_1370480
+sta_1370479:
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #97
+        popb R1
+        cmp R1 R0
+        jge _L1370491
+        move R0 #0
+        jmp _L1370492
+_L1370491:
+        move R0 #1
+_L1370492:
+        test R0 R0
+        jz _L1370489
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #102
+        popb R1
+        cmp R1 R0
+        jle _L1370493
+        move R0 #0
+        jmp _L1370494
+_L1370493:
+        move R0 #1
+_L1370494:
+        test R0 R0
+        jz _L1370489
+        move R0 #1
+        jmp _L1370490
+_L1370489:
+        move R0 #0
+_L1370490:
+        cmp R0 #0
+        jz sta_1370487
+        move R0 [R12-56]
+        push R0
+        move R0 #4
+        pop R1
+        shl R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #97
+        popb R1
+        sub R1 R0
+        moveb R0 R1
+        push R0
+        move R0 #10
+        pop R1
+        add R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        move [R12-56] R0
+        move R0 [R12-44]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-44] R0
+        move R0 R1
+        move R0 [R12-60]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-60] R0
+        move R0 R1
+        jmp sta_1370488
+sta_1370487:
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #65
+        popb R1
+        cmp R1 R0
+        jge _L1370499
+        move R0 #0
+        jmp _L1370500
+_L1370499:
+        move R0 #1
+_L1370500:
+        test R0 R0
+        jz _L1370497
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #70
+        popb R1
+        cmp R1 R0
+        jle _L1370501
+        move R0 #0
+        jmp _L1370502
+_L1370501:
+        move R0 #1
+_L1370502:
+        test R0 R0
+        jz _L1370497
+        move R0 #1
+        jmp _L1370498
+_L1370497:
+        move R0 #0
+_L1370498:
+        cmp R0 #0
+        jz sta_1370495
+        move R0 [R12-56]
+        push R0
+        move R0 #4
+        pop R1
+        shl R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #65
+        popb R1
+        sub R1 R0
+        moveb R0 R1
+        push R0
+        move R0 #10
+        pop R1
+        add R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        move [R12-56] R0
+        move R0 [R12-44]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-44] R0
+        move R0 R1
+        move R0 [R12-60]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-60] R0
+        move R0 R1
+        jmp sta_1370496
+sta_1370495:
+        move R0 #0
+        move [R12-64] R0
+sta_1370496:
+sta_1370488:
+sta_1370480:
+        jmp sta_1370477
+sta_1370478:
+        move R0 [R12-60]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L1370509
+        move R0 #0
+        jmp _L1370510
+_L1370509:
+        move R0 #1
+_L1370510:
+        test R0 R0
+        jz _L1370507
+        move R0 [R12-36]
+        push R0
+        move R0 #8
+        pop R1
+        cmp R1 R0
+        jl _L1370511
+        move R0 #0
+        jmp _L1370512
+_L1370511:
+        move R0 #1
+_L1370512:
+        test R0 R0
+        jz _L1370507
+        move R0 #1
+        jmp _L1370508
+_L1370507:
+        move R0 #0
+_L1370508:
+        test R0 R0
+        jz _L1370505
+        move R0 R12
+        sub R0 #32
+        push R0
+        move R9 #0
+        push R9
+        move R0 [R12-36]
+        pop R9
+        move R9 R0
+        move R0 R9
+        mul R0 #4
+        pop R5
+        add R0 R5
+        move R0 @0
+        test R0 R0
+        jz _L1370505
+        move R0 #1
+        jmp _L1370506
+_L1370505:
+        move R0 #0
+_L1370506:
+        cmp R0 #0
+        jz sta_1370503
+        move R0 R12
+        sub R0 #32
+        push R0
+        move R7 #0
+        push R7
+        move R0 [R12-36]
+        pop R7
+        move R7 R0
+        move R0 R7
+        mul R0 #4
+        pop R8
+        add R0 R8
+        move R0 @0
+        move R4 R0
+        move R0 [R12-56]
+        move @4 R0
+        move R0 [R12-40]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-40] R0
+        move R0 R1
+sta_1370503:
+sta_1370504:
+        move R0 [R12-36]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-36] R0
+        move R0 R1
+        jmp sta_1370469
+sta_1370468:
+        jmp sta_1370406
+sta_1370469:
+sta_1370434:
+        move R0 [R12-48]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-48] R0
+        move R0 R1
+        jmp sta_1370408
+sta_1370407:
+        move R0 [R12-48]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #32
+        popb R1
+        cmp R1 R0
+        je _L1370518
+        move R0 #0
+        jmp _L1370519
+_L1370518:
+        move R0 #1
+_L1370519:
+        test R0 R0
+        jnz _L1370515
+        move R0 [R12-48]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #9
+        popb R1
+        cmp R1 R0
+        je _L1370520
+        move R0 #0
+        jmp _L1370521
+_L1370520:
+        move R0 #1
+_L1370521:
+        test R0 R0
+        jz _L1370516
+_L1370515:
+        move R0 #1
+        jmp _L1370517
+_L1370516:
+        move R0 #0
+_L1370517:
+        cmp R0 #0
+        jz sta_1370513
+sta_1370522:
+        move R2 #0
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #32
+        popb R1
+        cmp R1 R0
+        je _L1370527
+        move R0 #0
+        jmp _L1370528
+_L1370527:
+        move R0 #1
+_L1370528:
+        test R0 R0
+        jnz _L1370524
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #9
+        popb R1
+        cmp R1 R0
+        je _L1370529
+        move R0 #0
+        jmp _L1370530
+_L1370529:
+        move R0 #1
+_L1370530:
+        test R0 R0
+        jz _L1370525
+_L1370524:
+        move R0 #1
+        jmp _L1370526
+_L1370525:
+        move R0 #0
+_L1370526:
+        cmp R0 #0
+        jz sta_1370523
+        move R0 [R12-44]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-44] R0
+        move R0 R1
+        jmp sta_1370522
+sta_1370523:
+        move R0 [R12-48]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-48] R0
+        move R0 R1
+        jmp sta_1370514
+sta_1370513:
+        move R0 [R12-48]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 [R12-44]
+        moveb R0 @0
+        sextb R0 R0
+        popb R1
+        cmp R1 R0
+        je _L1370533
+        move R0 #0
+        jmp _L1370534
+_L1370533:
+        move R0 #1
+_L1370534:
+        cmp R0 #0
+        jz sta_1370531
+        move R0 [R12-48]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-48] R0
+        move R0 R1
+        move R0 [R12-44]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-44] R0
+        move R0 R1
+        jmp sta_1370532
+sta_1370531:
+        jmp sta_1370406
+sta_1370532:
+sta_1370514:
+sta_1370408:
+        jmp sta_1370405
+sta_1370406:
+        move R0 [R12-40]
+        jmp L1370535
+L1370535:
+        move R13 R12
+        pop R12
+        pop R15
+        ret

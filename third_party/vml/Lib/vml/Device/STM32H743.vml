@@ -1,0 +1,168 @@
+﻿; STM32H743寄存器定义
+; 生成自: STMicroelectronics/STM32/STM32H743
+; 版本: 1.0
+; 日期: 2026-04-28
+; 作者: VML Team
+; 描述: 32-bit ARM Cortex-M7 MCU with 2MB Flash, 1MB RAM, 400MHz
+
+; CPU架构: ARM-Cortex-M7
+; 位宽: 32位
+; 时钟频率: 400000000 Hz
+
+; 寄存器定义
+.equ R0, 0x00
+
+.equ R1, 0x04
+
+.equ R2, 0x08
+
+.equ R3, 0x0C
+
+.equ R4, 0x10
+
+.equ R5, 0x14
+
+.equ SP, 0x34
+
+.equ LR, 0x38
+
+.equ PC, 0x3C
+
+; 内存段定义
+.equ FLASH_START, 0x08000000
+.equ FLASH_END, 0x081FFFFF
+.equ FLASH_SIZE, 2097152
+
+; DTCM RAM
+.equ DTCM_START, 0x20000000
+.equ DTCM_END, 0x2001FFFF
+.equ DTCM_SIZE, 131072
+
+; ITCM RAM
+.equ ITCM_START, 0x00000000
+.equ ITCM_END, 0x0000FFFF
+.equ ITCM_SIZE, 65536
+
+; AXI SRAM
+.equ SRAM_AXI_START, 0x24000000
+.equ SRAM_AXI_END, 0x2407FFFF
+.equ SRAM_AXI_SIZE, 524288
+
+; SRAM1-3
+.equ SRAM_SRAM_START, 0x30000000
+.equ SRAM_SRAM_END, 0x3003FFFF
+.equ SRAM_SRAM_SIZE, 262144
+
+.equ PERIPHERAL_START, 0x40000000
+.equ PERIPHERAL_END, 0x4FFFFFFF
+.equ PERIPHERAL_SIZE, 268435456
+
+; 外设定义
+; Reset and Clock Control
+.equ RCC_BASE, 0x58024400
+.equ RCC_CR, 0x00
+.equ RCC_CFGR, 0x04
+.equ RCC_PLL1CFGR, 0x0C
+.equ RCC_AHB1ENR, 0x30
+.equ RCC_AHB1ENR_GPIOAEN, 0  ; GPIOA clock enable
+.equ RCC_AHB1ENR_GPIOBEN, 1  ; GPIOB clock enable
+.equ RCC_AHB1ENR_GPIOCEN, 2  ; GPIOC clock enable
+.equ RCC_AHB1ENR_GPIODEN, 3  ; GPIOD clock enable
+.equ RCC_AHB1ENR_GPIOEEN, 4  ; GPIOE clock enable
+.equ RCC_AHB1ENR_DMA1EN, 21  ; DMA1 clock enable
+.equ RCC_AHB1ENR_DMA2EN, 22  ; DMA2 clock enable
+.equ RCC_AHB2ENR, 0x34
+.equ RCC_AHB4ENR, 0x3C
+.equ RCC_APB1LENR, 0x50
+.equ RCC_APB2ENR, 0x58
+
+; General Purpose I/O Port A
+.equ GPIOA_BASE, 0x58020000
+.equ GPIOA_MODER, 0x00
+.equ GPIOA_OTYPER, 0x04
+.equ GPIOA_OSPEEDR, 0x08
+.equ GPIOA_PUPDR, 0x0C
+.equ GPIOA_IDR, 0x10
+.equ GPIOA_ODR, 0x14
+.equ GPIOA_BSRR, 0x18
+.equ GPIOA_BRR, 0x28
+
+; General Purpose I/O Port B
+.equ GPIOB_BASE, 0x58020400
+.equ GPIOB_MODER, 0x00
+.equ GPIOB_OTYPER, 0x04
+.equ GPIOB_OSPEEDR, 0x08
+.equ GPIOB_PUPDR, 0x0C
+.equ GPIOB_IDR, 0x10
+.equ GPIOB_ODR, 0x14
+.equ GPIOB_BSRR, 0x18
+.equ GPIOB_BRR, 0x28
+
+; General Purpose I/O Port C
+.equ GPIOC_BASE, 0x58020800
+.equ GPIOC_MODER, 0x00
+.equ GPIOC_OTYPER, 0x04
+.equ GPIOC_IDR, 0x10
+.equ GPIOC_ODR, 0x14
+.equ GPIOC_BSRR, 0x18
+
+; General Purpose I/O Port D
+.equ GPIOD_BASE, 0x58020C00
+.equ GPIOD_MODER, 0x00
+.equ GPIOD_OTYPER, 0x04
+.equ GPIOD_IDR, 0x10
+.equ GPIOD_ODR, 0x14
+.equ GPIOD_BSRR, 0x18
+
+; General Purpose I/O Port E
+.equ GPIOE_BASE, 0x58021000
+.equ GPIOE_MODER, 0x00
+.equ GPIOE_OTYPER, 0x04
+.equ GPIOE_IDR, 0x10
+.equ GPIOE_ODR, 0x14
+.equ GPIOE_BSRR, 0x18
+
+; USART1
+.equ USART1_BASE, 0x40011000
+.equ USART1_CR1, 0x00
+.equ USART1_BRR, 0x0C
+.equ USART1_RDR, 0x24
+.equ USART1_TDR, 0x28
+
+; 中断向量定义
+.equ RESET_VECTOR, 0  ; 
+.equ SVCALL_VECTOR, 11  ; 
+.equ SYSTICK_VECTOR, 15  ; 
+.equ USART1_VECTOR, 56  ; USART1 Global Interrupt
+
+; 宏定义
+.macro stm32h743_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+stm32h743_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

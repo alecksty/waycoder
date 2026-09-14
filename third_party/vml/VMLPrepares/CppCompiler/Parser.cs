@@ -1,0 +1,1082 @@
+using CompilerBase;
+using VMLPlugins;
+
+namespace CppCompiler
+{
+    public partial class Parser : ParserBase<Token, TokenType>
+    {
+        private int _anonCount;
+        private bool _isMCU;
+        private List<ClassMember> _pendingMembers = new();
+
+        protected override TokenType GetTokenType(Token token) => token.Type;
+
+        public Parser(List<Token> tokens, bool isMCU = true) : base(tokens) { _anonCount = 0; _isMCU = isMCU; }
+
+        public Program Parse()
+        {
+            var program = new Program();
+            while (!IsAtEnd)
+            {
+                var decl = ParseDeclaration();
+                if (decl != null) program.Declarations.Add(decl);
+                else Advance();
+            }
+            return program;
+        }
+
+        // Top-level declarations
+        private ASTNode? ParseDeclaration()
+        {
+            // 处理调用约定属性: __cdecl, __stdcall, __fastcall
+            CallingConvention? pendingConvention = null;
+            if (Check(TokenType.STDCALL)) { Advance(); pendingConvention = CallingConvention.Stdcall; }
+            else if (Check(TokenType.FASTCALL)) { Advance(); pendingConvention = CallingConvention.Fastcall; }
+            else if (Check(TokenType.CDECL)) { Advance(); pendingConvention = CallingConvention.Cdecl; }
+
+            ASTNode? result;
+            if (Match(TokenType.TYPEDEF)) result = ParseTypedef();
+            else if (Match(TokenType.NAMESPACE)) result = ParseNamespace();
+            else if (Match(TokenType.USING)) result = ParseUsing();
+            else if (Match(TokenType.CLASS)) result = ParseClass();
+            else if (Match(TokenType.STRUCT)) result = ParseStructLike(); // struct also
+            else if (Match(TokenType.ENUM)) result = ParseEnum();
+            else if (Match(TokenType.UNION)) result = ParseUnion();
+            else if (Match(TokenType.CONSTEXPR)) { result = ParseDeclaration(); }
+            else if (Match(TokenType.STATIC_ASSERT)) { SkipTo(TokenType.SEMICOLON); if (Check(TokenType.SEMICOLON)) Advance(); result = null; }
+            else if (Match(TokenType.NOEXCEPT)) { result = ParseDeclaration(); } // skip noexcept specifier
+            else if (Match(TokenType.TEMPLATE)) { result = ParseTemplateDeclaration(); }
+            else if (Match(TokenType.EXTERN)) { result = ParseExternBlock(); }
+            else if (Match(TokenType.FRIEND)) { result = ParseFriendDeclaration(); }
+            else if (IsTypeToken()) result = ParseFunctionOrVariable();
+            else if (Check(TokenType.IDENTIFIER))
+            {
+                int save = _pos;
+                string name = Cur.Value;
+                Advance();
+                if (Match(TokenType.LPAREN)) { _pos = save; result = ParseFunction(); }
+                else if (Match(TokenType.SCOPE_RESOLVE))
+                {
+                    _pos = save;
+                    result = ParseFunctionOrVariable();
+                }
+                else { _pos = save; result = ParseFunctionOrVariable(); }
+            }
+            else result = null;
+
+            // Apply pending convention to function declarations
+            if (pendingConvention.HasValue && result is FunctionDecl fd)
+                fd.Convention = pendingConvention.Value;
+
+            return result;
+        }
+
+        private ASTNode? ParseFriendDeclaration()
+        {
+            // friend class Foo; 或 friend ReturnType func(params);
+            // 简化处理：解析但不生成任何特殊代码
+            if (Match(TokenType.CLASS))
+            {
+                Expect(TokenType.IDENTIFIER);
+                Expect(TokenType.SEMICOLON);
+                return new VariableDecl { Type = "friend_class", Name = "_dummy" };
+            }
+            if (IsTypeToken())
+            {
+                string type = ParseType();
+                string name = Expect(TokenType.IDENTIFIER).Value;
+                if (Match(TokenType.LPAREN))
+                {
+                    // friend 函数声明
+                    while (!Check(TokenType.RPAREN) && !IsAtEnd)
+                    {
+                        string pt = ParseType();
+                        if (!Check(TokenType.RPAREN))
+                            Expect(TokenType.IDENTIFIER);
+                        if (!Match(TokenType.COMMA)) break;
+                    }
+                    Expect(TokenType.RPAREN);
+                }
+                Expect(TokenType.SEMICOLON);
+                return new FunctionDecl { Name = name, ReturnType = type, IsMember = false };
+            }
+            // 跳过未知的 friend 声明
+            SkipTo(TokenType.SEMICOLON);
+            if (Match(TokenType.SEMICOLON)) { }
+            return new VariableDecl { Type = "friend", Name = "_dummy" };
+        }
+
+        private ASTNode? ParseTypedef()
+        {
+            // typedef existing_type new_name;
+            // typedef struct { ... } new_name;
+            if (Match(TokenType.STRUCT))
+            {
+                // typedef struct { ... } Name; or typedef struct Name { ... } Alias;
+                var cd = ParseStructLikeBody();
+                if (cd != null)
+                {
+                    string alias = Expect(TokenType.IDENTIFIER).Value;
+                    Expect(TokenType.SEMICOLON);
+                }
+                else
+                {
+                    string alias = Expect(TokenType.IDENTIFIER).Value;
+                    Expect(TokenType.SEMICOLON);
+                }
+                return new VariableDecl { Type = "typedef", Name = "_dummy" };
+            }
+            // typedef existing_type new_name;
+            string type = ParseType();
+            string name = Expect(TokenType.IDENTIFIER).Value;
+            Expect(TokenType.SEMICOLON);
+            return new VariableDecl { Type = "typedef", Name = "_dummy" };
+        }
+
+        private ASTNode? ParseStructLike()
+        {
+            // struct { ... } x; — anonymous struct with variable
+            if (Check(TokenType.LBRACE))
+            {
+                var cd = ParseStructLikeBody();
+                if (cd != null && !IsAtEnd && (Check(TokenType.IDENTIFIER) || Check(TokenType.STAR)))
+                {
+                    string varName = Expect(TokenType.IDENTIFIER).Value;
+                    while (Match(TokenType.STAR)) varName += "*";
+                    Expect(TokenType.SEMICOLON);
+                    return new VariableDecl { Type = cd.Name, Name = varName };
+                }
+                return cd;
+            }
+            // named struct: struct Name {...} OR struct Name var; OR struct Name func(...);
+            if (Check(TokenType.IDENTIFIER))
+            {
+                string name = Advance().Value;
+                // struct Name {...} — definition
+                if (Check(TokenType.LBRACE) || Check(TokenType.COLON))
+                    return ParseClassBody(name);
+                // struct Name; — forward declaration
+                if (Check(TokenType.SEMICOLON))
+                {
+                    Advance();
+                    return new ClassDecl { Name = name };
+                }
+                // struct Name var/func — variable or function using previously declared struct type
+                // Push back the name so ParseFunctionOrVariable() can consume it
+                _pos--;
+                return ParseFunctionOrVariable();
+            }
+            return ParseClass(); // fallback
+        }
+
+        private ClassDecl? ParseStructLikeBody()
+        {
+            if (!Check(TokenType.LBRACE)) return null;
+            string anonName = "_anon_" + (_anonCount++);
+            Expect(TokenType.LBRACE, "StructLikeBody");
+            var cd = new ClassDecl { Name = anonName, CurrentAccess = AccessSpec.Public };
+            while (!Check(TokenType.RBRACE) && !IsAtEnd)
+            {
+                var member = ParseClassMember(cd.CurrentAccess);
+                if (member != null) { cd.Members.Add(member); cd.Members.AddRange(_pendingMembers); _pendingMembers.Clear(); }
+                else Advance();
+            }
+            Expect(TokenType.RBRACE);
+            return cd;
+        }
+
+        private ASTNode ParseNamespace()
+        {
+            string name = Expect(TokenType.IDENTIFIER).Value;
+            Expect(TokenType.LBRACE, "Namespace");
+            var ns = new NamespaceDecl { Name = name };
+            while (!Check(TokenType.RBRACE) && !IsAtEnd)
+            {
+                var d = ParseDeclaration();
+                if (d != null) ns.Members.Add(d);
+            }
+            Expect(TokenType.RBRACE);
+            return ns;
+        }
+
+        private ASTNode ParseUsing()
+        {
+            if (Match(TokenType.NAMESPACE))
+            {
+                string name = "";
+                while (Check(TokenType.IDENTIFIER))
+                {
+                    name += Cur.Value; Advance();
+                    if (Match(TokenType.SCOPE_RESOLVE)) name += "::";
+                }
+                Expect(TokenType.SEMICOLON);
+                return new UsingDecl { NamespaceName = name };
+            }
+            SkipTo(TokenType.SEMICOLON);
+            return null;
+        }
+
+        private ASTNode ParseClass()
+        {
+            string name = Expect(TokenType.IDENTIFIER).Value;
+            return ParseClassBody(name);
+        }
+
+        private ClassDecl ParseClassBody(string name)
+        {
+            string? baseClass = null;
+            if (Match(TokenType.COLON))
+            {
+                if (Match(TokenType.PUBLIC, TokenType.PRIVATE, TokenType.PROTECTED)) { }
+                if (Check(TokenType.IDENTIFIER)) baseClass = Cur.Value;
+                SkipTo(TokenType.LBRACE);
+            }
+            Expect(TokenType.LBRACE, "Class");
+            var cd = new ClassDecl { Name = name, BaseClass = baseClass };
+            while (!Check(TokenType.RBRACE) && !IsAtEnd)
+            {
+                if (Match(TokenType.PUBLIC)) { cd.CurrentAccess = AccessSpec.Public; continue; }
+                if (Match(TokenType.PRIVATE)) { cd.CurrentAccess = AccessSpec.Private; continue; }
+                if (Match(TokenType.PROTECTED)) { cd.CurrentAccess = AccessSpec.Protected; continue; }
+                var member = ParseClassMember(cd.CurrentAccess);
+                if (member != null) { cd.Members.Add(member); cd.Members.AddRange(_pendingMembers); _pendingMembers.Clear(); }
+                else Advance();
+            }
+            Expect(TokenType.RBRACE);
+            Expect(TokenType.SEMICOLON);
+            return cd;
+        }
+
+        private ClassMember? ParseClassMember(AccessSpec access, bool isVirtual = false, bool isStatic = false)
+        {
+            if (Match(TokenType.TEMPLATE)) { SkipTemplate(); return null; }
+            if (Check(TokenType.IDENTIFIER) && Cur.Value == "virtual")
+            { Advance(); return ParseClassMember(access, true, isStatic); }
+            if (Check(TokenType.IDENTIFIER) && Cur.Value == "static")
+            { Advance(); return ParseClassMember(access, isVirtual, true); }
+            // 调用约定属性
+            CallingConvention? pendingConvention = null;
+            if (Check(TokenType.STDCALL)) { Advance(); pendingConvention = CallingConvention.Stdcall; }
+            else if (Check(TokenType.FASTCALL)) { Advance(); pendingConvention = CallingConvention.Fastcall; }
+            else if (Check(TokenType.CDECL)) { Advance(); pendingConvention = CallingConvention.Cdecl; }
+            // friend 声明：跳过，返回 null（非成员声明不计入类成员）
+            if (Match(TokenType.FRIEND)) { ParseFriendDeclaration(); return null; }
+
+            if (!IsTypeToken() && !Check(TokenType.IDENTIFIER) && !Check(TokenType.TILDE)) return null;
+            bool isDestructor = Match(TokenType.TILDE);
+            bool isType = IsTypeToken();
+            string type = "";
+            bool isCtor = false;
+            if (isDestructor) type = "void";
+            else if (isType) type = ParseType();
+            else if (Check(TokenType.IDENTIFIER))
+            {
+                type = Cur.Value; Advance();
+            }
+            string name;
+            if (Match(TokenType.OPERATOR))
+            {
+                // 运算符重载: ReturnType operator+(params)
+                name = "operator" + ParseOperatorSymbol();
+                isCtor = false;
+            }
+            else if (Check(TokenType.LPAREN))
+            {
+                // Constructor: the "type" is actually the class name
+                name = type;
+                type = "";
+                isCtor = true;
+            }
+            else
+            {
+                name = Expect(TokenType.IDENTIFIER).Value;
+                isCtor = false;
+            }
+            if (Match(TokenType.LPAREN))
+            {
+                var func = new FunctionDecl { Name = name, ReturnType = type, IsMember = true, IsVirtual = isVirtual };
+                if (pendingConvention.HasValue) func.Convention = pendingConvention.Value;
+                if (!Check(TokenType.RPAREN))
+                {
+                    do
+                    {
+                        string pt = ParseType();
+                        bool isRef = Match(TokenType.AMPERSAND);
+                        if (isRef) pt += "&";
+                        string pn = Expect(TokenType.IDENTIFIER).Value;
+                        // 处理数组参数: argv[] → *argv
+                        while (Match(TokenType.LBRACKET))
+                        {
+                            pt += "*";
+                            if (!Check(TokenType.RBRACKET)) SkipTo(TokenType.RBRACKET);
+                            Expect(TokenType.RBRACKET);
+                        }
+                    func.Parameters.Add(new Parameter { Type = pt, Name = pn, IsReference = isRef });
+                    } while (Match(TokenType.COMMA));
+                }
+                Expect(TokenType.RPAREN);
+                if (Match(TokenType.CONST)) func.IsConst = true;
+                if (Match(TokenType.OVERRIDE)) func.IsOverride = true;
+                // 构造函数初始化列表: : member1(val1), member2(val2)
+                if (Match(TokenType.COLON))
+                {
+                    while (!Check(TokenType.LBRACE) && !IsAtEnd)
+                    {
+                        if (Check(TokenType.IDENTIFIER))
+                        {
+                            string memberName = Advance().Value;
+                            if (Match(TokenType.LPAREN))
+                            {
+                                var val = ParseExpression();
+                                if (Check(TokenType.RPAREN)) Advance();
+                                func.InitList.Add(new InitEntry { MemberName = memberName, Value = val });
+                            }
+                            if (!Match(TokenType.COMMA)) break;
+                        }
+                        else break;
+                    }
+                }
+                // Check for = 0 (pure virtual)
+                if (Match(TokenType.ASSIGN))
+                {
+                    Expect(TokenType.NUMBER); // skip 0
+                    Expect(TokenType.SEMICOLON);
+                }
+                else if (Match(TokenType.LBRACE))
+                {
+                    func.Body = ParseBlock();
+                }
+                else if (Check(TokenType.SEMICOLON))
+                {
+                    Expect(TokenType.SEMICOLON);
+                }
+                else
+                {
+                    // 容错: 跳过无法识别的标记到 ; 或 {
+                    while (!Check(TokenType.SEMICOLON) && !Check(TokenType.LBRACE) && !IsAtEnd)
+                        Advance();
+                    if (Match(TokenType.LBRACE))
+                        func.Body = ParseBlock();
+                    else if (Check(TokenType.SEMICOLON))
+                        Advance();
+                }
+                if (isDestructor) return new ClassMember { Access = access, Name = "~" + name, IsDestructor = true, Method = func, IsStatic = isStatic };
+                if (isCtor || name == type || (isVirtual && isDestructor))
+                    return new ClassMember { Access = access, Name = name, IsConstructor = true, Method = func, IsVirtual = isVirtual, IsStatic = isStatic };
+                return new ClassMember { Access = access, Name = name, IsMethod = true, Method = func, IsVirtual = isVirtual, IsStatic = isStatic };
+            }
+            Expr? init = null;
+            if (Match(TokenType.ASSIGN)) init = ParseExpression();
+            
+            // 处理逗号分隔的多个成员: int x, y;
+            if (Match(TokenType.COMMA))
+            {
+                // 第一个成员正常返回, 额外成员通过字段传递给调用方
+                // 这里解析额外的名称
+                string nextName = Expect(TokenType.IDENTIFIER).Value;
+                Expr? nextInit = null;
+                if (Match(TokenType.ASSIGN)) nextInit = ParseExpression();
+                _pendingMembers.Add(new ClassMember { Access = access, Type = type, Name = nextName, Initializer = nextInit, IsStatic = isStatic });
+                // 可能还有更多
+                while (Match(TokenType.COMMA))
+                {
+                    string an = Expect(TokenType.IDENTIFIER).Value;
+                    Expr? ai = null;
+                    if (Match(TokenType.ASSIGN)) ai = ParseExpression();
+                    _pendingMembers.Add(new ClassMember { Access = access, Type = type, Name = an, Initializer = ai, IsStatic = isStatic });
+                }
+            }
+            
+            Expect(TokenType.SEMICOLON);
+            return new ClassMember { Access = access, Type = type, Name = name, Initializer = init, IsStatic = isStatic };
+        }
+
+        // Simplified: parse function or variable
+        private ASTNode? ParseFunctionOrVariable()
+        {
+            string type = ParseType();
+            // 处理引用: int& name
+            bool isRef = Match(TokenType.AMPERSAND);
+            string name;
+            if (Match(TokenType.OPERATOR))
+            {
+                // 运算符重载: operator+, operator-, operator* 等
+                name = "operator" + ParseOperatorSymbol();
+                if (Match(TokenType.LPAREN)) return ParseFunctionBody(type, name);
+            }
+            else if (Check(TokenType.IDENTIFIER))
+                name = Advance().Value;
+            else
+                name = Expect(TokenType.IDENTIFIER).Value;
+            if (Match(TokenType.LPAREN)) return ParseFunctionBody(type, name);
+            // Parse comma-separated variables: int a, b = 5, c;
+            var vars = new List<VariableDecl>();
+            vars.Add(ParseVariableDeclarator(type, name, isRef));
+            while (Match(TokenType.COMMA))
+            {
+                bool ref2 = Match(TokenType.AMPERSAND);
+                string n = Expect(TokenType.IDENTIFIER).Value;
+                vars.Add(ParseVariableDeclarator(type, n, ref2));
+            }
+            Expect(TokenType.SEMICOLON);
+            return vars.Count == 1 ? vars[0] : new MultiVarDecl { Variables = vars };
+        }
+
+        private VariableDecl ParseVariableDeclarator(string type, string name, bool isReference = false)
+        {
+            var dimensions = new List<Expr?>();
+            bool isArray = false;
+            while (Match(TokenType.LBRACKET))
+            {
+                isArray = true;
+                if (!Check(TokenType.RBRACKET)) dimensions.Add(ParseExpression());
+                else dimensions.Add(null);
+                Expect(TokenType.RBRACKET);
+            }
+            Expr? arraySize = null;
+            if (isArray && dimensions.Count > 0 && dimensions[0] != null)
+                arraySize = new IntLiteral { Value = ComputeTotalElements(dimensions) };
+            Expr? init = null;
+            if (Match(TokenType.ASSIGN))
+            {
+                if (Check(TokenType.LBRACE)) init = ParseInitializerList();
+                else init = ParseExpression();
+            }
+            return new VariableDecl { Type = type, Name = name, Initializer = init, ArraySize = arraySize, IsArray = isArray, Dimensions = dimensions, IsReference = isReference };
+        }
+
+        private int ComputeTotalElements(List<Expr?> dims)
+        {
+            int total = 1;
+            foreach (var d in dims)
+            {
+                if (d is IntLiteral il) total *= il.Value;
+                else total *= 1;
+            }
+            return total;
+        }
+
+        private ASTNode ParseFunction(string? knownType = null, string? knownName = null)
+        {
+            string type = knownType ?? ParseType();
+            string name = knownName ?? Expect(TokenType.IDENTIFIER).Value;
+            Expect(TokenType.LPAREN);
+            return ParseFunctionBody(type, name);
+        }
+
+        private FunctionDecl ParseFunctionBody(string type, string name)
+        {
+            var func = new FunctionDecl { Name = name, ReturnType = type };
+            if (!Check(TokenType.RPAREN))
+            {
+                do
+                {
+                    string pt = ParseType();
+                    bool isRef = Match(TokenType.AMPERSAND);
+                    if (isRef) pt += "&";
+                    while (Match(TokenType.RESTRICT)) { pt += " restrict"; }
+                    string pn;
+                    // Function pointer parameter: type (*name)(params)
+                    if (Match(TokenType.LPAREN) && Match(TokenType.STAR))
+                    {
+                        pn = Expect(TokenType.IDENTIFIER).Value;
+                        Expect(TokenType.RPAREN);
+                        pt += "*";
+                        // Skip the function pointer's parameter list (params)
+                        if (Match(TokenType.LPAREN))
+                        {
+                            int depth = 1;
+                            while (depth > 0 && !IsAtEnd)
+                            {
+                                if (Match(TokenType.LPAREN)) depth++;
+                                else if (Match(TokenType.RPAREN)) depth--;
+                                else Advance();
+                            }
+                        }
+                    }
+                    else
+                    {
+                        pn = Expect(TokenType.IDENTIFIER).Value;
+                        // 处理数组参数: argv[] → *argv
+                        while (Match(TokenType.LBRACKET))
+                        {
+                            pt += "*";
+                            if (!Check(TokenType.RBRACKET)) SkipTo(TokenType.RBRACKET);
+                            Expect(TokenType.RBRACKET);
+                        }
+                    }
+                    func.Parameters.Add(new Parameter { Type = pt, Name = pn, IsReference = isRef });
+                } while (Match(TokenType.COMMA));
+            }
+            Expect(TokenType.RPAREN);
+            // 构造函数初始化列表: : member1(val1), member2(val2)
+            if (Match(TokenType.COLON))
+            {
+                while (!Check(TokenType.LBRACE) && !IsAtEnd)
+                {
+                    string memberName = Expect(TokenType.IDENTIFIER).Value;
+                    Expect(TokenType.LPAREN);
+                    var val = ParseExpression();
+                    Expect(TokenType.RPAREN);
+                    func.InitList.Add(new InitEntry { MemberName = memberName, Value = val });
+                    if (!Match(TokenType.COMMA)) break;
+                }
+            }
+            if (Match(TokenType.LBRACE))
+            {
+                func.Body = ParseBlock();
+            }
+            else { Expect(TokenType.SEMICOLON); }
+            return func;
+        }
+
+        private ASTNode ParseEnum()
+        {
+            string name = Expect(TokenType.IDENTIFIER).Value;
+            Expect(TokenType.LBRACE, "Enum");
+            var ed = new EnumDecl { Name = name };
+            int val = 0;
+            while (!Check(TokenType.RBRACE) && !IsAtEnd)
+            {
+                string mname = Expect(TokenType.IDENTIFIER).Value;
+                if (Match(TokenType.ASSIGN))
+                {
+                    if (GetTokenType(Cur) == TokenType.NUMBER)
+                        val = int.Parse(Advance().Value);
+                    else if (GetTokenType(Cur) == TokenType.MINUS)
+                    {
+                        Advance();
+                        val = -int.Parse(Expect(TokenType.NUMBER).Value);
+                    }
+                }
+                ed.Members.Add(new EnumMember { Name = mname, Value = val });
+                val++;
+                if (!Match(TokenType.COMMA) && !Check(TokenType.RBRACE))
+                    break;
+            }
+            Expect(TokenType.RBRACE);
+            Expect(TokenType.SEMICOLON);
+            return ed;
+        }
+
+        private ASTNode ParseUnion()
+        {
+            string name = Expect(TokenType.IDENTIFIER).Value;
+            Expect(TokenType.LBRACE, "Union");
+            var ud = new UnionDecl { Name = name };
+            while (!Check(TokenType.RBRACE) && !IsAtEnd)
+            {
+                string mtype = ParseType();
+                do
+                {
+                    string mname = Expect(TokenType.IDENTIFIER).Value;
+                    Expr? init = null;
+                    if (Match(TokenType.ASSIGN))
+                        init = ParseExpression();
+                    ud.Members.Add(new ClassMember
+                    {
+                        Type = mtype,
+                        Name = mname,
+                        Initializer = init,
+                        Access = AccessSpec.Public
+                    });
+                } while (Match(TokenType.COMMA));
+                Expect(TokenType.SEMICOLON);
+            }
+            Expect(TokenType.RBRACE);
+            Expect(TokenType.SEMICOLON);
+            return ud;
+        }
+
+        /// Parse template declaration: template<typename T, ...> class/struct Name { ... };
+        private ASTNode? ParseTemplateDeclaration()
+        {
+            // Parse template parameters: <typename T, class U, ...>
+            var typeParams = new List<string>();
+            if (Match(TokenType.LT))
+            {
+                while (!Check(TokenType.GT) && !IsAtEnd)
+                {
+                    if (Match(TokenType.TYPENAME, TokenType.CLASS))
+                    {
+                        if (Check(TokenType.IDENTIFIER))
+                            typeParams.Add(Advance().Value);
+                    }
+                    else if (Match(TokenType.IDENTIFIER))
+                    {
+                        typeParams.Add(Previous().Value);
+                    }
+                    if (!Match(TokenType.COMMA)) break;
+                }
+                Expect(TokenType.GT, "TemplateDeclaration: expected '>' after template parameters");
+            }
+            else if (Match(TokenType.TYPENAME, TokenType.CLASS))
+            {
+                if (Check(TokenType.IDENTIFIER))
+                    typeParams.Add(Advance().Value);
+            }
+
+            // Parse the class/struct/function that follows
+            if (Match(TokenType.CLASS, TokenType.STRUCT))
+            {
+                string name = Expect(TokenType.IDENTIFIER).Value;
+                string? baseClass = null;
+                if (Match(TokenType.COLON))
+                {
+                    if (Match(TokenType.PUBLIC, TokenType.PRIVATE, TokenType.PROTECTED)) { }
+                    if (Check(TokenType.IDENTIFIER)) baseClass = Cur.Value;
+                    SkipTo(TokenType.LBRACE);
+                }
+                Expect(TokenType.LBRACE, "TemplateClass");
+                var tcd = new TemplateClassDecl { Name = name, BaseClass = baseClass };
+                tcd.TypeParams.AddRange(typeParams);
+
+                while (!Check(TokenType.RBRACE) && !IsAtEnd)
+                {
+                    if (Match(TokenType.PUBLIC)) { continue; }
+                    if (Match(TokenType.PRIVATE)) { continue; }
+                    if (Match(TokenType.PROTECTED)) { continue; }
+                    var member = ParseTemplateClassMember(typeParams);
+                    if (member != null) { tcd.Members.Add(member); tcd.Members.AddRange(_pendingMembers); _pendingMembers.Clear(); }
+                    else Advance();
+                }
+                Expect(TokenType.RBRACE);
+                Expect(TokenType.SEMICOLON);
+                return tcd;
+            }
+
+            // Template function: template<typename T, ...> R f(params) { ... }
+            if (IsTypeToken() || Check(TokenType.IDENTIFIER) || Check(TokenType.AUTO))
+            {
+                // 返回类型可能是模板参数 T 或 auto（自动推导）
+                string returnType;
+                if (Check(TokenType.AUTO))
+                {
+                    Advance();
+                    returnType = "auto";
+                }
+                else if (Check(TokenType.IDENTIFIER) && typeParams.Contains(Cur.Value))
+                {
+                    returnType = Advance().Value; // 模板参数类型: T
+                }
+                else
+                {
+                    returnType = ParseType();
+                }
+
+                // 函数名（可能是模板参数返回类型 T 后直接跟函数名）
+                string name = Expect(TokenType.IDENTIFIER).Value;
+                Expect(TokenType.LPAREN, "TemplateFunction: expected '('");
+                var tfd = new TemplateFunctionDecl { Name = name, ReturnType = returnType };
+                tfd.TypeParams.AddRange(typeParams);
+
+                // 解析参数列表（参数类型可能是模板参数 T）
+                if (!Check(TokenType.RPAREN))
+                {
+                    do
+                    {
+                        string pt;
+                        if (Check(TokenType.IDENTIFIER) && typeParams.Contains(Cur.Value))
+                            pt = Advance().Value;
+                        else if (IsTypeToken())
+                            pt = ParseType();
+                        else if (Check(TokenType.IDENTIFIER))
+                            pt = ParseType();
+                        else
+                            pt = "int";
+                        bool isRef = Match(TokenType.AMPERSAND);
+                        if (isRef) pt += "&";
+                        while (Match(TokenType.STAR)) pt += "*";
+                        string pn = Expect(TokenType.IDENTIFIER).Value;
+                        tfd.Parameters.Add(new Parameter { Type = pt, Name = pn, IsReference = isRef });
+                    } while (Match(TokenType.COMMA));
+                }
+                Expect(TokenType.RPAREN, "TemplateFunction: expected ')'");
+
+                // 函数体
+                if (Match(TokenType.LBRACE))
+                {
+                    tfd.Body = ParseBlock();
+                }
+                else if (Match(TokenType.SEMICOLON))
+                {
+                    // 仅声明，无定义
+                    return null;
+                }
+                else
+                {
+                    Expect(TokenType.LBRACE, "TemplateFunction: expected '{'");
+                }
+                return tfd;
+            }
+
+            return null;
+        }
+
+        /// Parse a class member within a template class, where type params like T/U are valid types
+        private ClassMember? ParseTemplateClassMember(List<string> typeParams)
+        {
+            if (Check(TokenType.IDENTIFIER) && Cur.Value == "virtual")
+            { Advance(); }
+            if (Check(TokenType.IDENTIFIER) && Cur.Value == "static")
+            { Advance(); }
+
+            if (!IsTypeToken() && !IsTemplateParam(typeParams) && !Check(TokenType.TILDE) && !Check(TokenType.IDENTIFIER)) return null;
+
+            bool isDestructor = Match(TokenType.TILDE);
+            string type = "";
+            if (isDestructor) type = "void";
+            else if (IsTypeToken() || IsTemplateParam(typeParams)) type = ParseTypeOrTemplateParam(typeParams);
+            else if (Check(TokenType.IDENTIFIER))
+            {
+                string id = Cur.Value;
+                if (typeParams.Contains(id)) type = Advance().Value;
+                else type = ParseType();
+            }
+
+            string name;
+            if (Check(TokenType.LPAREN))
+            {
+                name = type; // Constructor
+                type = "";
+            }
+            else
+            {
+                name = Expect(TokenType.IDENTIFIER).Value;
+            }
+
+            if (Match(TokenType.LPAREN))
+            {
+                var func = new FunctionDecl { Name = name, ReturnType = type, IsMember = true };
+                if (!Check(TokenType.RPAREN))
+                {
+                    do
+                    {
+                        string pt;
+                        if (IsTypeToken() || IsTemplateParam(typeParams))
+                            pt = ParseTypeOrTemplateParam(typeParams);
+                        else
+                            pt = ParseType();
+                        bool isRef = Match(TokenType.AMPERSAND);
+                        if (isRef) pt += "&";
+                        string pn = Expect(TokenType.IDENTIFIER).Value;
+                        func.Parameters.Add(new Parameter { Type = pt, Name = pn, IsReference = isRef });
+                    } while (Match(TokenType.COMMA));
+                }
+                Expect(TokenType.RPAREN);
+                if (Match(TokenType.CONST)) func.IsConst = true;
+                if (Match(TokenType.OVERRIDE)) func.IsOverride = true;
+                // 构造函数初始化列表: : member1(val1), member2(val2)
+                if (Match(TokenType.COLON))
+                {
+                    while (!Check(TokenType.LBRACE) && !IsAtEnd)
+                    {
+                        if (Check(TokenType.IDENTIFIER))
+                        {
+                            string memberName = Advance().Value;
+                            if (Match(TokenType.LPAREN))
+                            {
+                                ParseExpression();
+                                if (Check(TokenType.RPAREN)) Advance();
+                                func.InitList.Add(new InitEntry { MemberName = memberName, Value = null! });
+                            }
+                            if (!Match(TokenType.COMMA)) break;
+                        }
+                        else break;
+                    }
+                }
+                if (Match(TokenType.LBRACE))
+                    func.Body = ParseBlock();
+                else
+                    Expect(TokenType.SEMICOLON);
+
+                if (isDestructor)
+                    return new ClassMember { Access = AccessSpec.Private, Name = "~" + name, IsDestructor = true, Method = func };
+                return new ClassMember { Access = AccessSpec.Private, Name = name, IsMethod = true, Method = func };
+            }
+
+            // Data member
+            Expr? init = null;
+            if (Match(TokenType.ASSIGN)) init = ParseExpression();
+            if (Match(TokenType.COMMA))
+            {
+                string nextName = Expect(TokenType.IDENTIFIER).Value;
+                Expr? nextInit = null;
+                if (Match(TokenType.ASSIGN)) nextInit = ParseExpression();
+                _pendingMembers.Add(new ClassMember { Access = AccessSpec.Private, Type = type, Name = nextName, Initializer = nextInit });
+                while (Match(TokenType.COMMA))
+                {
+                    string an = Expect(TokenType.IDENTIFIER).Value;
+                    Expr? ai = null;
+                    if (Match(TokenType.ASSIGN)) ai = ParseExpression();
+                    _pendingMembers.Add(new ClassMember { Access = AccessSpec.Private, Type = type, Name = an, Initializer = ai });
+                }
+            }
+            Expect(TokenType.SEMICOLON);
+            return new ClassMember { Access = AccessSpec.Private, Type = type, Name = name, Initializer = init };
+        }
+
+        private bool IsTemplateParam(List<string> typeParams)
+        {
+            return Check(TokenType.IDENTIFIER) && typeParams.Contains(Cur.Value);
+        }
+
+        private string ParseTypeOrTemplateParam(List<string> typeParams)
+        {
+            if (IsTemplateParam(typeParams))
+                return Advance().Value;
+            return ParseType();
+        }
+
+        // Statements
+        public Stmt ParseStatement()
+        {
+            // label: identifier followed by colon
+            if (GetTokenType(Cur) == TokenType.IDENTIFIER)
+            {
+                int nextPos = _pos + 1;
+                if (nextPos < _tokens.Count && _tokens[nextPos].Type == TokenType.COLON)
+                {
+                    string label = Advance().Value;
+                    Expect(TokenType.COLON);
+                    return new LabelStmt { Name = label };
+                }
+            }
+            if (Match(TokenType.LBRACE)) return ParseBlock();
+            if (Match(TokenType.IF)) return ParseIf();
+            if (Match(TokenType.WHILE)) return ParseWhile();
+            if (Match(TokenType.GOTO))
+            {
+                string target = Expect(TokenType.IDENTIFIER).Value;
+                Expect(TokenType.SEMICOLON);
+                return new GotoStmt { Target = target };
+            }
+            if (Match(TokenType.FOR)) return ParseFor();
+            if (Match(TokenType.DO)) return ParseDoWhile();
+            if (Match(TokenType.SWITCH)) return ParseSwitch();
+            if (Match(TokenType.RETURN)) return ParseReturn();
+            if (Match(TokenType.BREAK)) { Expect(TokenType.SEMICOLON); return new BreakStmt(); }
+            if (Match(TokenType.CONTINUE)) { Expect(TokenType.SEMICOLON); return new ContinueStmt(); }
+            if (Match(TokenType.TRY))
+            {
+                if (_isMCU) WarningEmitter.Emit("cpp", "MCU模式: try/catch异常处理被忽略（不支持异常）");
+                Expect(TokenType.LBRACE, "expected '{' after try");
+                var body = ParseBlock();
+                var ts = new TryStmt { Body = body };
+                while (Match(TokenType.CATCH))
+                {
+                    var cc = new CatchClause();
+                    if (Match(TokenType.LPAREN))
+                    {
+                        if (Check(TokenType.IDENTIFIER) || IsTypeToken())
+                        {
+                            string ct = ParseType();
+                            cc.ExceptionType = ct;
+                            if (Check(TokenType.IDENTIFIER) && Cur.Value != ")")
+                                cc.VariableName = Expect(TokenType.IDENTIFIER).Value;
+                        }
+                        Expect(TokenType.RPAREN);
+                    }
+                    Expect(TokenType.LBRACE, "expected '{' after catch");
+                    cc.Body = ParseBlock();
+                    ts.Catches.Add(cc);
+                }
+                return ts;
+            }
+            if (Match(TokenType.THROW))
+            {
+                if (_isMCU) WarningEmitter.Emit("cpp", "MCU模式: throw被忽略（不支持异常）");
+                Expr? val = null;
+                if (!Check(TokenType.SEMICOLON)) val = ParseExpression();
+                Expect(TokenType.SEMICOLON);
+                return new ThrowStmt { Expression = val };
+            }
+            if (Match(TokenType.ASM))
+            {
+                Expect(TokenType.LPAREN, "expected '(' after asm");
+                string code = Expect(TokenType.STRING).Value;
+                Expect(TokenType.RPAREN, "expected ')'");
+                Expect(TokenType.SEMICOLON, "expected ';'");
+                return new AsmStmt { Code = code };
+            }
+            // constexpr variable declaration
+            if (Match(TokenType.CONSTEXPR)) { return ParseVarDeclStmt(); }
+            // Structured binding: auto [x, y] = expr;
+            if (Match(TokenType.AUTO) && Check(TokenType.LBRACKET))
+            {
+                Expect(TokenType.LBRACKET);
+                var names = new List<string>();
+                do { names.Add(Expect(TokenType.IDENTIFIER).Value); } while (Match(TokenType.COMMA));
+                Expect(TokenType.RBRACKET);
+                Expect(TokenType.ASSIGN);
+                var expr = ParseExpression();
+                Expect(TokenType.SEMICOLON);
+                // For now, assign whole value to first variable
+                if (names.Count > 0)
+                {
+                    var assign = new AssignExpr { Target = new IdentExpr { Name = names[0] }, Value = expr };
+                    return new ExprStmt { Expression = assign };
+                }
+                return null;
+            }
+            if (IsVarDecl()) return ParseVarDeclStmt();
+            return ParseExprStmt();
+        }
+
+        private bool IsVarDecl()
+        {
+            if (IsTypeToken()) return true;
+            if (Check(TokenType.IDENTIFIER))
+            {
+                int save = _pos;
+                Advance();
+                // Handle namespace-qualified types: std::vector<int> v;
+                if (Check(TokenType.SCOPE_RESOLVE))
+                {
+                    Advance(); // consume ::
+                    if (Check(TokenType.IDENTIFIER))
+                    {
+                        Advance(); // consume inner identifier
+                        // Skip template args if present
+                        if (Check(TokenType.LT))
+                        {
+                            int depth = 1;
+                            Advance(); // consume <
+                            while (depth > 0 && !IsAtEnd)
+                            {
+                                if (Match(TokenType.LT)) depth++;
+                                else if (Match(TokenType.GT)) depth--;
+                                else if (Match(TokenType.RSHIFT)) { depth -= 2; if (depth <= 0) break; }
+                                else Advance();
+                            }
+                        }
+                        bool result = Check(TokenType.IDENTIFIER) || Check(TokenType.STAR) || Check(TokenType.AMPERSAND);
+                        _pos = save;
+                        return result;
+                    }
+                    _pos = save;
+                    return false;
+                }
+                // Handle template type without namespace: Container<int> v;
+                if (Check(TokenType.LT))
+                {
+                    int depth = 1;
+                    Advance(); // consume <
+                    while (depth > 0 && !IsAtEnd)
+                    {
+                        if (Match(TokenType.LT)) depth++;
+                        else if (Match(TokenType.GT)) depth--;
+                        else if (Match(TokenType.RSHIFT)) { depth -= 2; if (depth <= 0) break; }
+                        else Advance();
+                    }
+                    bool result = Check(TokenType.IDENTIFIER) || Check(TokenType.STAR) || Check(TokenType.AMPERSAND);
+                    _pos = save;
+                    return result;
+                }
+                bool simpleResult = Check(TokenType.IDENTIFIER) || Check(TokenType.STAR) || Check(TokenType.AMPERSAND);
+                _pos = save;
+                return simpleResult;
+            }
+            return false;
+        }
+
+        public BlockStmt ParseBlock()
+        {
+            var block = new BlockStmt();
+            while (!Check(TokenType.RBRACE) && !IsAtEnd)
+            {
+                var s = ParseStatement();
+                if (s != null) block.Statements.Add(s);
+            }
+            Expect(TokenType.RBRACE);
+            return block;
+        }
+
+        private Stmt ParseVarDeclStmt()
+        {
+            string type = ParseType();
+            return ParseVarDeclList(type);
+        }
+        private void SkipTo(params TokenType[] types)
+        {
+            while (!Check(types) && !IsAtEnd) Advance();
+        }
+
+        // Helpers
+        private new bool Match(params TokenType[] types)
+        {
+            foreach (var t in types)
+            {
+                if (GetTokenType(Cur) == t) { _pos++; return true; }
+            }
+            return false;
+        }
+
+        private new bool Check(params TokenType[] types) => types.Contains(GetTokenType(Cur));
+
+        private new Token Expect(TokenType type, string msg = "")
+        {
+            if (GetTokenType(Cur) != type)
+                throw Error($"Expected {type} but got {GetTokenType(Cur)} ('{Cur.Value}') at line {Cur.Line}: {msg}");
+            return Advance();
+        }
+
+        private string ParseOperatorSymbol()
+        {
+            if (Match(TokenType.PLUS)) return "+";
+            if (Match(TokenType.MINUS)) return "-";
+            if (Match(TokenType.STAR)) return "*";
+            if (Match(TokenType.SLASH)) return "/";
+            if (Match(TokenType.PERCENT)) return "%";
+            if (Match(TokenType.ASSIGN)) return "=";
+            if (Match(TokenType.EQ)) return "==";
+            if (Match(TokenType.NE)) return "!=";
+            if (Match(TokenType.LT)) return "<";
+            if (Match(TokenType.GT)) return ">";
+            if (Match(TokenType.LE)) return "<=";
+            if (Match(TokenType.GE)) return ">=";
+            if (Match(TokenType.AND)) return "&&";
+            if (Match(TokenType.OR)) return "||";
+            if (Match(TokenType.NOT)) return "!";
+            if (Match(TokenType.AMPERSAND)) return "&";
+            if (Match(TokenType.PIPE)) return "|";
+            if (Match(TokenType.CARET)) return "^";
+            if (Match(TokenType.INCREMENT)) return "++";
+            if (Match(TokenType.DECREMENT)) return "--";
+            if (Match(TokenType.LSHIFT)) return "<<";
+            if (Match(TokenType.RSHIFT)) return ">>";
+            if (Match(TokenType.LSHIFT_ASSIGN)) return "<<=";
+            if (Match(TokenType.RSHIFT_ASSIGN)) return ">>=";
+            if (Match(TokenType.ADD_ASSIGN)) return "+=";
+            if (Match(TokenType.SUB_ASSIGN)) return "-=";
+            if (Match(TokenType.MUL_ASSIGN)) return "*=";
+            if (Match(TokenType.DIV_ASSIGN)) return "/=";
+            if (Match(TokenType.MOD_ASSIGN)) return "%=";
+            if (Match(TokenType.AND_ASSIGN)) return "&=";
+            if (Match(TokenType.OR_ASSIGN)) return "|=";
+            if (Match(TokenType.XOR_ASSIGN)) return "^=";
+            if (Match(TokenType.LBRACKET) && Match(TokenType.RBRACKET)) return "[]";
+            if (Match(TokenType.LPAREN) && Match(TokenType.RPAREN)) return "()";
+            if (Match(TokenType.COMMA)) return ",";
+            if (Match(TokenType.ARROW)) return "->";
+            if (Match(TokenType.NEW)) return "new";
+            if (Match(TokenType.DELETE)) return "delete";
+            return Advance().Value;
+        }
+
+        private new Token Advance()
+        {
+            var t = Cur;
+            _pos++;
+            return t;
+        }
+
+        private new Token Previous() => _tokens[_pos - 1];
+
+        private new bool Match(TokenType type)
+        {
+            if (GetTokenType(Cur) == type) { Advance(); return true; }
+            return false;
+        }
+    }
+}

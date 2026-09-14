@@ -1,0 +1,340 @@
+﻿; ATtiny85寄存器定义
+; 生成自: Microchip/AVR/ATtiny85
+; 版本: 1.0
+; 日期: 2026-04-16
+; 作者: VML Team
+; 描述: 8-bit AVR microcontroller with 8KB Flash, 512B SRAM, 512B EEPROM
+
+; CPU架构: AVR
+; 位宽: 8位
+; 时钟频率: 1000000 Hz
+
+; 寄存器定义
+; General Purpose Register 0
+.equ R0, 0x00
+
+; General Purpose Register 1
+.equ R1, 0x01
+
+; General Purpose Register 2
+.equ R2, 0x02
+
+; General Purpose Register 3
+.equ R3, 0x03
+
+; General Purpose Register 4
+.equ R4, 0x04
+
+; General Purpose Register 5
+.equ R5, 0x05
+
+; General Purpose Register 6
+.equ R6, 0x06
+
+; General Purpose Register 7
+.equ R7, 0x07
+
+; General Purpose Register 8
+.equ R8, 0x08
+
+; General Purpose Register 9
+.equ R9, 0x09
+
+; General Purpose Register 10
+.equ R10, 0x0A
+
+; General Purpose Register 11
+.equ R11, 0x0B
+
+; General Purpose Register 12
+.equ R12, 0x0C
+
+; General Purpose Register 13
+.equ R13, 0x0D
+
+; General Purpose Register 14
+.equ R14, 0x0E
+
+; General Purpose Register 15
+.equ R15, 0x0F
+
+; General Purpose Register 16
+.equ R16, 0x10
+
+; General Purpose Register 17
+.equ R17, 0x11
+
+; General Purpose Register 18
+.equ R18, 0x12
+
+; General Purpose Register 19
+.equ R19, 0x13
+
+; General Purpose Register 20
+.equ R20, 0x14
+
+; General Purpose Register 21
+.equ R21, 0x15
+
+; General Purpose Register 22
+.equ R22, 0x16
+
+; General Purpose Register 23
+.equ R23, 0x17
+
+; General Purpose Register 24
+.equ R24, 0x18
+
+; General Purpose Register 25
+.equ R25, 0x19
+
+; Register pair X (R27:R26)
+.equ X, 0x1A
+
+; Register pair Y (R29:R28)
+.equ Y, 0x1C
+
+; Register pair Z (R31:R30)
+.equ Z, 0x1E
+
+; Stack Pointer
+.equ SP, 0x3D
+
+; Status Register
+.equ SREG, 0x3F
+.equ SREG_C, 0  ; Carry Flag
+.equ SREG_Z, 1  ; Zero Flag
+.equ SREG_N, 2  ; Negative Flag
+.equ SREG_V, 3  ; Two's Complement Overflow Flag
+.equ SREG_S, 4  ; Sign Flag (N xor V)
+.equ SREG_H, 5  ; Half Carry Flag
+.equ SREG_T, 6  ; Transfer Bit
+.equ SREG_I, 7  ; Global Interrupt Enable
+
+; 内存段定义
+; Program Flash (8KB)
+.equ FLASH_START, 0x0000
+.equ FLASH_END, 0x1FFF
+.equ FLASH_SIZE, 8192
+
+; Internal SRAM (512B)
+.equ SRAM_START, 0x0060
+.equ SRAM_END, 0x025F
+.equ SRAM_SIZE, 512
+
+; EEPROM (512B)
+.equ EEPROM_START, 0x0000
+.equ EEPROM_END, 0x01FF
+.equ EEPROM_SIZE, 512
+
+; I/O Registers
+.equ IO_START, 0x00
+.equ IO_END, 0x3F
+.equ IO_SIZE, 64
+
+; 外设定义
+; Port A
+.equ PORTA_BASE, 0x20
+.equ PORTA_PINA, 0x20
+.equ PORTA_DDRA, 0x21
+.equ PORTA_PORTA, 0x22
+
+; Port B
+.equ PORTB_BASE, 0x18
+.equ PORTB_PINB, 0x16
+.equ PORTB_DDRB, 0x17
+.equ PORTB_PORTB, 0x18
+
+; Timer/Counter0
+.equ TIPO_BASE, 0x20
+.equ TIPO_TCCR0A, 0x20
+.equ TIPO_TCCR0A_WGM00, 0  ; Waveform Generation Mode
+.equ TIPO_TCCR0A_WGM01, 1  ; Waveform Generation Mode
+.equ TIPO_TCCR0A_COM0B0, 4  ; Compare Output Mode B
+.equ TIPO_TCCR0A_COM0B1, 5  ; Compare Output Mode B
+.equ TIPO_TCCR0A_COM0A0, 6  ; Compare Output Mode A
+.equ TIPO_TCCR0A_COM0A1, 7  ; Compare Output Mode A
+.equ TIPO_TCCR0B, 0x21
+.equ TIPO_TCCR0B_CS00, 0  ; Clock Select
+.equ TIPO_TCCR0B_CS01, 1  ; Clock Select
+.equ TIPO_TCCR0B_CS02, 2  ; Clock Select
+.equ TIPO_TCCR0B_WGM02, 3  ; Waveform Generation Mode
+.equ TIPO_TCCR0B_FOC0B, 6  ; Force Output Compare B
+.equ TIPO_TCCR0B_FOC0A, 7  ; Force Output Compare A
+.equ TIPO_TCNT0, 0x22
+.equ TIPO_OCR0A, 0x23
+.equ TIPO_OCR0B, 0x24
+.equ TIPO_TIMSK, 0x39
+.equ TIPO_TIMSK_TOIE0, 0  ; Timer/Counter0 Overflow Interrupt Enable
+.equ TIPO_TIMSK_OCIE0A, 1  ; Output Compare A Match Interrupt Enable
+.equ TIPO_TIMSK_OCIE0B, 2  ; Output Compare B Match Interrupt Enable
+.equ TIPO_TIFR, 0x38
+.equ TIPO_TIFR_TOV0, 0  ; Timer/Counter0 Overflow Flag
+.equ TIPO_TIFR_OCF0A, 1  ; Output Compare A Flag
+.equ TIPO_TIFR_OCF0B, 2  ; Output Compare B Flag
+
+; Timer/Counter1
+.equ TMR1_BASE, 0x28
+.equ TMR1_TCCR1A, 0x28
+.equ TMR1_TCCR1A_PCM1, 0  ; PWM Mode
+.equ TMR1_TCCR1A_COM1A, 0  ; Compare Output Mode A
+.equ TMR1_TCCR1A_COM1B, 0  ; Compare Output Mode B
+.equ TMR1_TCCR1A_WG13, 1  ; Waveform Generation Mode
+.equ TMR1_TCCR1A_WG10, 0  ; Waveform Generation Mode
+.equ TMR1_TCCR1B, 0x29
+.equ TMR1_TCCR1B_CTC1, 7  ; Clear Timer on Compare
+.equ TMR1_TCCR1B_WGM13, 4  ; Waveform Generation Mode
+.equ TMR1_TCCR1B_WGM12, 3  ; Waveform Generation Mode
+.equ TMR1_TCCR1B_CS1, 0  ; Clock Select
+.equ TMR1_TCNT1, 0x2A
+.equ TMR1_OCR1A, 0x2C
+.equ TMR1_OCR1B, 0x2E
+.equ TMR1_OCR1C, 0x30
+.equ TMR1_TIMSK1, 0x33
+.equ TMR1_TIFR1, 0x32
+
+; ADC Multiplexer
+.equ ADMUX_BASE, 0x12
+.equ ADMUX_ADMUX, 0x12
+.equ ADMUX_ADMUX_MUX, 0  ; Analog Channel Selection
+.equ ADMUX_ADMUX_ADLAR, 5  ; ADC Left Adjust Result
+.equ ADMUX_ADMUX_REFS, 0  ; Reference Selection
+.equ ADMUX_ADCSRA, 0x13
+.equ ADMUX_ADCSRA_ADPS, 0  ; ADC Prescaler Select
+.equ ADMUX_ADCSRA_ADIE, 3  ; ADC Interrupt Enable
+.equ ADMUX_ADCSRA_ADIF, 4  ; ADC Interrupt Flag
+.equ ADMUX_ADCSRA_ADATE, 5  ; ADC Auto Trigger Enable
+.equ ADMUX_ADCSRA_ADSC, 6  ; ADC Start Conversion
+.equ ADMUX_ADCSRA_ADEN, 7  ; ADC Enable
+.equ ADMUX_ADCH, 0x14
+.equ ADMUX_ADCL, 0x15
+
+; Universal Serial Interface
+.equ USI_BASE, 0x18
+.equ USI_USIDR, 0x18
+.equ USI_USISR, 0x19
+.equ USI_USISR_USICNT, 0  ; Counter
+.equ USI_USISR_USIDC, 4  ; Data Register
+.equ USI_USISR_USIPF, 5  ; Stop Cond Flag
+.equ USI_USISR_USIOV, 6  ; Overflow Flag
+.equ USI_USISR_USISIF, 7  ; Start Cond Interrupt Flag
+.equ USI_USICR, 0x1A
+.equ USI_USICR_USICS, 0  ; Clock Source Select
+.equ USI_USICR_USISCL, 2  ; SCL strobe
+.equ USI_USICR_USIOW, 3  ; SDA output override
+.equ USI_USICR_USIOE, 4  ; Output Enable
+.equ USI_USICR_USISRE, 5  ; Start Recognition Enable
+.equ USI_USICR_USIORE, 6  ; Stop Recognition Enable
+.equ USI_USICR_USIGIE, 7  ; Global Interrupt Enable
+.equ USI_USIPORT, 0x1B
+
+; MCU Control
+.equ MCUCR_BASE, 0x35
+.equ MCUCR_MCUCR, 0x35
+.equ MCUCR_MCUCR_ISC, 0  ; Interrupt Sense Control
+.equ MCUCR_MCUCR_SE, 4  ; Sleep Enable
+.equ MCUCR_MCUCR_SM, 0  ; Sleep Mode
+.equ MCUCR_MCUCSR, 0x36
+.equ MCUCR_MCUCSR_PORF, 0  ; Power-on Reset Flag
+.equ MCUCR_MCUCSR_EXTRF, 1  ; External Reset Flag
+.equ MCUCR_MCUCSR_WDRF, 2  ; Watchdog Reset Flag
+.equ MCUCR_MCUCSR_BORF, 4  ; Brown-out Reset Flag
+
+; Watchdog Timer
+.equ WDTCR_BASE, 0x21
+.equ WDTCR_WDTCR, 0x21
+.equ WDTCR_WDTCR_WDP, 0  ; Watchdog Prescaler
+.equ WDTCR_WDTCR_WDE, 3  ; Watchdog Enable
+.equ WDTCR_WDTCR_WDIE, 4  ; Watchdog Interrupt Enable
+
+; EEPROM
+.equ EEPR_BASE, 0x1C
+.equ EEPR_EEAR, 0x1E
+.equ EEPR_EEDR, 0x1D
+.equ EEPR_EECR, 0x1F
+.equ EEPR_EECR_EEPM, 0  ; EEPROM Programming Mode
+.equ EEPR_EECR_EERIE, 3  ; EEPROM Ready Interrupt Enable
+.equ EEPR_EECR_EEWE, 2  ; EEPROM Write Enable
+.equ EEPR_EECR_EEMWE, 1  ; EEPROM Master Write Enable
+.equ EEPR_EECR_EERE, 0  ; EEPROM Read Enable
+
+; External Interrupt
+.equ GIMSK_BASE, 0x3B
+.equ GIMSK_GIMSK, 0x3B
+.equ GIMSK_GIMSK_INT0, 0  ; External Interrupt Request 0 Enable
+.equ GIMSK_GIMSK_PCIE, 1  ; Pin Change Interrupt Enable
+.equ GIMSK_GIFR, 0x3C
+.equ GIMSK_GIFR_INTF0, 0  ; External Interrupt Flag 0
+.equ GIMSK_GIFR_PCIF, 1  ; Pin Change Interrupt Flag
+
+; Pin Change Mask
+.equ PCMSK_BASE, 0x15
+.equ PCMSK_PCMSK, 0x15
+
+; Store Program Memory
+.equ SPMCSR_BASE, 0x37
+.equ SPMCSR_SPMCSR, 0x37
+.equ SPMCSR_SPMCSR_SPMCR, 0  ; SPM Mode
+.equ SPMCSR_SPMCSR_PGERS, 1  ; Page Erase
+.equ SPMCSR_SPMCSR_PGWRT, 2  ; Page Write
+.equ SPMCSR_SPMCSR_BLBSET, 3  ; Boot Lock Bits Set
+.equ SPMCSR_SPMCSR_RWWSRE, 4  ; Read-While-Read Strobe Enable
+.equ SPMCSR_SPMCSR_SIGRD, 5  ; Signature Row Read
+.equ SPMCSR_SPMCSR_SPMEN, 7  ; SPM Enable
+
+; 中断向量定义
+.equ RESET_VECTOR, 0  ; External Reset, Power-on Reset, Brown-out Reset
+.equ INT0_VECTOR, 1  ; External Interrupt Request 0
+.equ PCINT0_VECTOR, 2  ; Pin Change
+.equ WDT_VECTOR, 3  ; Watchdog Timeout
+.equ TIM1_COMPA_VECTOR, 4  ; Timer/Counter1 Compare Match A
+.equ TIM1_OVF_VECTOR, 5  ; Timer/Counter1 Overflow
+.equ TIM0_COMPA_VECTOR, 6  ; Timer/Counter0 Compare Match A
+.equ TIM0_OVF_VECTOR, 7  ; Timer/Counter0 Overflow
+.equ SPI_STC_VECTOR, 8  ; SPI Serial Transfer Complete
+.equ ADC_VECTOR, 9  ; ADC Conversion Complete
+.equ USI_START_VECTOR, 10  ; USI Start Condition
+.equ USI_OVF_VECTOR, 11  ; USI Overflow
+.equ EE_READY_VECTOR, 12  ; EEPROM Ready
+
+; 引脚定义
+.equ PIN_PB5, 1  ; RESET - ADC0 - dW
+.equ PIN_PB3, 2  ; XTAL1 - CLKI - ADC3
+.equ PIN_PB4, 3  ; XTAL2 - ADC2
+.equ PIN_PB0, 4  ; MOSI - AI - ADC0 - T0 - INT0
+.equ PIN_PB1, 5  ; MISO - AI - ADC1 - OC1A - INT1
+.equ PIN_PB2, 6  ; SCK - AI - ADC3 - OC1B
+.equ PIN_VCC, 7  ; Supply Voltage
+.equ PIN_GND, 8  ; Ground
+
+; 宏定义
+.macro attiny85_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+attiny85_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

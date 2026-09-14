@@ -1,0 +1,57 @@
+﻿; NEO6M寄存器定义
+; 生成自: u-blox/GPS/NEO6M
+; 版本: 1.0
+; 日期: 2026-05-06
+; 作者: VML Team
+; 描述: NEO-6M GPS Module (UART, 50-channel, -162dBm tracking)
+
+; CPU架构: GPS
+; 位宽: 8位
+; 时钟频率: 9600 Hz
+
+; 外设定义
+; NEO-6M GPS Module (UART 9600bps, 3.3V-5V)
+.equ NEO6M_BASE, 0x00
+.equ NEO6M_LATITUDE, 0x00
+.equ NEO6M_LONGITUDE, 0x04
+.equ NEO6M_ALTITUDE, 0x08
+.equ NEO6M_SPEED, 0x0C
+.equ NEO6M_HEADING, 0x0E
+.equ NEO6M_SATELLITES, 0x10
+.equ NEO6M_HDOP, 0x11
+.equ NEO6M_FIX_TYPE, 0x13
+.equ NEO6M_DATE, 0x14
+.equ NEO6M_TIME, 0x18
+.equ NEO6M_VALID, 0x1C
+
+; 宏定义
+.macro neo6m_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+neo6m_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

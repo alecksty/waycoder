@@ -1,0 +1,73 @@
+; C Standard Library Minimal Version
+; C语言标准库最小版本 - 使用共享库
+
+; 共享库函数别名定义
+
+; IO函数
+LABEL putchar
+    JMP shared_putchar
+
+LABEL puts
+    JMP shared_puts
+
+LABEL getchar
+    JMP shared_getchar
+
+LABEL kb_hit
+    JMP shared_kb_hit
+
+LABEL vga_clear
+    JMP shared_clear_screen
+
+; 字符串函数
+LABEL strlen
+    JMP shared_strlen
+
+LABEL strcpy
+    JMP shared_strcpy
+
+LABEL strcmp
+    JMP shared_strcmp
+
+LABEL strcat
+    JMP shared_strcat
+
+; 内存函数
+LABEL memset
+    JMP shared_memset
+
+LABEL memcpy
+    JMP shared_memcpy
+
+; 数学函数
+LABEL abs
+    JMP shared_abs
+
+; 工具函数
+LABEL atoi
+    JMP shared_atoi
+
+; 字符类型函数
+LABEL isdigit
+    JMP shared_is_digit
+
+LABEL isalpha
+    JMP shared_is_alpha
+
+LABEL toupper
+    JMP shared_to_upper
+
+LABEL tolower
+    JMP shared_to_lower
+
+; C语言特有函数（简单实现）
+LABEL strncpy
+    ; 简单实现 - 实际项目中使用完整实现
+    JMP shared_strcpy
+
+LABEL strncmp
+    ; 简单实现
+    JMP shared_strcmp
+
+LABEL strchr
+    JMP shared_strchr

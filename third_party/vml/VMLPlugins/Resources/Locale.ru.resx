@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="lang_name" xml:space="preserve"><value>Русский</value></data>
+  <data name="tool.description" xml:space="preserve"><value>VML Toolchain — Многоязычный компилятор и кроссплатформенный инструмент</value></data>
+  <data name="tool.usage" xml:space="preserve"><value>Использование: {0} [опции] &lt;вход&gt; [выход]</value></data>
+  <data name="help.title" xml:space="preserve"><value>Использование: vmltool [опции] &lt;файлы...&gt;</value></data>
+  <data name="help.short.usage" xml:space="preserve"><value>Использование: vmltool [опции] &lt;файлы...&gt;</value></data>
+  <data name="help.short.hint" xml:space="preserve"><value>vmltool -h для подробной справки</value></data>
+  <data name="help.option" xml:space="preserve"><value>-h, --help               Показать справку</value></data>
+  <data name="version.option" xml:space="preserve"><value>-V, --version            Показать версию</value></data>
+  <data name="debug.option" xml:space="preserve"><value>-g, --debug              Включить отладочную информацию</value></data>
+  <data name="output.option" xml:space="preserve"><value>-o, --output &lt;файл&gt;      Выходной файл</value></data>
+  <data name="target.option" xml:space="preserve"><value>-t, --target &lt;арх&gt;       Целевая архитектура (x86/arm-cm/avr/8051/riscv/mips/6502/z80/...)</value></data>
+  <data name="format.option" xml:space="preserve"><value>-f, --format &lt;фмт&gt;       Формат вывода (hex/elf/exe/bin/s19/dump)</value></data>
+  <data name="include.option" xml:space="preserve"><value>-I, --include &lt;путь&gt;     Добавить путь поиска заголовков</value></data>
+  <data name="lib.option" xml:space="preserve"><value>-L, --library &lt;путь&gt;     Добавить путь поиска библиотек</value></data>
+  <data name="lang.option" xml:space="preserve"><value>-x, --lang &lt;язык&gt;        Исходный язык (c/basic/pascal/python/lua/forth/go/rust/java/js/swift/cs/cpp/ladder)</value></data>
+  <data name="mode.option" xml:space="preserve"><value>--mode &lt;mcu|os&gt;          Режим выполнения (mcu=bare-metal, os=полная система)</value></data>
+  <data name="ram.option" xml:space="preserve"><value>--ram &lt;k|m|g&gt;            Уровень ОЗУ (k=КБ, m=МБ, g=ГБ)</value></data>
+  <data name="stack.option" xml:space="preserve"><value>--stack-size &lt;байт&gt;       Размер стека в байтах</value></data>
+  <data name="compiling" xml:space="preserve"><value>Компиляция {0} ...</value></data>
+  <data name="compiled" xml:space="preserve"><value>Скомпилировано → {0} ({1} инструкций)</value></data>
+  <data name="compile.error" xml:space="preserve"><value>Ошибка компиляции: {0}</value></data>
+  <data name="file.notfound" xml:space="preserve"><value>Файл не найден: {0}</value></data>
+  <data name="unknown.format" xml:space="preserve"><value>Неизвестный формат вывода</value></data>
+  <data name="running" xml:space="preserve"><value>Выполнение...</value></data>
+  <data name="program.completed" xml:space="preserve"><value>Программа завершена.</value></data>
+  <data name="nocompiler" xml:space="preserve"><value>Компилятор для файлов &apos;{0}&apos; не найден</value></data>
+  <data name="syntax.error" xml:space="preserve"><value>Синтаксическая ошибка в строке {0}: {1}</value></data>
+  <data name="undefined.var" xml:space="preserve"><value>Неопределённая переменная &apos;{0}&apos;</value></data>
+  <data name="func.redefined" xml:space="preserve"><value>Функция &apos;{0}&apos; уже определена</value></data>
+  <data name="type.mismatch" xml:space="preserve"><value>Несоответствие типов: ожидалось {0}, получено {1}</value></data>
+  <data name="expect.token" xml:space="preserve"><value>Ожидалось {0}, получено {1}</value></data>
+  <data name="expect.identifier" xml:space="preserve"><value>Ожидался идентификатор в {0}</value></data>
+  <data name="unsupported.type" xml:space="preserve"><value>Неподдерживаемый тип: {0}</value></data>
+  <data name="unsupported.expr" xml:space="preserve"><value>Неподдерживаемое выражение: {0}</value></data>
+  <data name="not.implemented" xml:space="preserve"><value>Не реализовано: {0}</value></data>
+  <data name="mcu.skipped" xml:space="preserve"><value>[MCU] Пропущено {0}: {1}</value></data>
+  <data name="v2h.description" xml:space="preserve"><value>VMLToHex — Конвертер VML в прошивку МК</value></data>
+  <data name="v2h.usage" xml:space="preserve"><value>Использование: vml2hex [опции] &lt;вход&gt; -arch &lt;арх&gt;</value></data>
+  <data name="arch.option" xml:space="preserve"><value>--arch, -a &lt;арх&gt;         Целевая архитектура</value></data>
+  <data name="baseaddr.option" xml:space="preserve"><value>--base, -b &lt;адрес&gt;       Базовый адрес кода</value></data>
+  <data name="bios.option" xml:space="preserve"><value>--bios                   Связать аппаратный BIOS (по умолчанию)</value></data>
+  <data name="assembling" xml:space="preserve"><value>Ассемблирование для {0} ...</value></data>
+  <data name="output.format" xml:space="preserve"><value>Вывод: {0} ({1} байт)</value></data>
+  <data name="emulator.title" xml:space="preserve"><value>Консольный эмулятор VML</value></data>
+  <data name="loading" xml:space="preserve"><value>Загрузка: {0}</value></data>
+  <data name="load.success" xml:space="preserve"><value>Загрузка успешна.</value></data>
+  <data name="device.info" xml:space="preserve"><value>Устройство: {0} | Режим: {1} | ОЗУ: {2}КБ | Дисплей: {3}</value></data>
+  <data name="vga.mode" xml:space="preserve"><value>Режим VGA: {0}</value></data>
+  <data name="step.mode" xml:space="preserve"><value>Пошаговый режим — Enter для шага, Q для выхода</value></data>
+  <data name="recording" xml:space="preserve"><value>Запись аудио в {0} ...</value></data>
+  <data name="recording.started" xml:space="preserve"><value>Запись начата: {0}</value></data>
+  <data name="recording.finished" xml:space="preserve"><value>Запись завершена: {1}с → {0}</value></data>
+  <data name="screenshot.saved" xml:space="preserve"><value>Скриншот сохранён: {0}</value></data>
+  <data name="key.script.started" xml:space="preserve"><value>Скрипт клавиш запущен: {0}</value></data>
+  <data name="unknown.cmd" xml:space="preserve"><value>Неизвестная команда: {0}</value></data>
+  <data name="help.section.actions" xml:space="preserve"><value>Действия (совместимо с GCC):</value></data>
+  <data name="help.action.compile" xml:space="preserve"><value>Компиляция исходников в VML</value></data>
+  <data name="help.action.to_asm" xml:space="preserve"><value>Компиляция в ассемблер</value></data>
+  <data name="help.action.preprocess" xml:space="preserve"><value>Только препроцессинг C</value></data>
+  <data name="help.action.assemble" xml:space="preserve"><value>Ассемблирование VML в бинарный</value></data>
+  <data name="help.action.translate" xml:space="preserve"><value>Трансляция VML в целевой ассемблер</value></data>
+  <data name="help.action.link" xml:space="preserve"><value>Линковка нескольких файлов VML</value></data>
+  <data name="help.action.run" xml:space="preserve"><value>Запуск программы VML</value></data>
+  <data name="help.action.exe" xml:space="preserve"><value>Упаковка в исполняемый файл</value></data>
+  <data name="help.section.common" xml:space="preserve"><value>Основные опции:</value></data>
+  <data name="help.opt.output" xml:space="preserve"><value>Выходной файл (совместимо с GCC)</value></data>
+  <data name="help.opt.lang" xml:space="preserve"><value>Исходный язык (автоопределение)</value></data>
+  <data name="help.opt.target" xml:space="preserve"><value>Целевая архитектура (по умолчанию x86)</value></data>
+  <data name="help.opt.format" xml:space="preserve"><value>Формат вывода</value></data>
+  <data name="help.opt.optimize" xml:space="preserve"><value>Уровень оптимизации (по умолчанию -O0)</value></data>
+  <data name="help.opt.dump" xml:space="preserve"><value>Дамп инструкций</value></data>
+  <data name="help.opt.savetemps" xml:space="preserve"><value>Сохранять промежуточные файлы</value></data>
+  <data name="help.section.gcc" xml:space="preserve"><value>Флаги совместимости GCC:</value></data>
+  <data name="help.opt.define" xml:space="preserve"><value>Определить макрос</value></data>
+  <data name="help.opt.undef" xml:space="preserve"><value>Отменить макрос</value></data>
+  <data name="help.opt.include" xml:space="preserve"><value>Путь поиска заголовков</value></data>
+  <data name="help.opt.library" xml:space="preserve"><value>Путь поиска библиотек</value></data>
+  <data name="help.opt.linklib" xml:space="preserve"><value>Линковка библиотеки</value></data>
+  <data name="help.opt.std" xml:space="preserve"><value>Стандарт языка</value></data>
+  <data name="help.opt.debug" xml:space="preserve"><value>Отладочная информация</value></data>
+  <data name="help.opt.warn" xml:space="preserve"><value>Управление предупреждениями</value></data>
+  <data name="help.opt.linkmode" xml:space="preserve"><value>Режим линковки</value></data>
+  <data name="help.section.target" xml:space="preserve"><value>Конфигурация цели:</value></data>
+  <data name="help.opt.mode" xml:space="preserve"><value>Режим выполнения (по умолчанию mcu)</value></data>
+  <data name="help.opt.ram" xml:space="preserve"><value>Уровень памяти (по умолчанию m)</value></data>
+  <data name="help.opt.stack" xml:space="preserve"><value>Размер стека</value></data>
+  <data name="help.opt.runtime" xml:space="preserve"><value>Среда выполнения EXE</value></data>
+  <data name="help.section.other" xml:space="preserve"><value>Прочее:</value></data>
+  <data name="help.opt.help" xml:space="preserve"><value>Показать эту справку</value></data>
+  <data name="help.opt.version" xml:space="preserve"><value>Информация о версии</value></data>
+  <data name="help.opt.verbose" xml:space="preserve"><value>Подробный вывод</value></data>
+  <data name="help.opt.repl" xml:space="preserve"><value>Интерактивный REPL VML</value></data>
+  <data name="help.opt.plugins" xml:space="preserve"><value>Список зарегистрированных плагинов</value></data>
+  <data name="help.opt.lang_ui" xml:space="preserve"><value>Сменить язык интерфейса (VML_LANG=en)</value></data>
+  <data name="help.section.examples" xml:space="preserve"><value>Примеры (14 языков определяются по расширению):</value></data>
+  <data name="help.example.c" xml:space="preserve"><value>C → VML</value></data>
+  <data name="help.example.hex" xml:space="preserve"><value>VML → HEX</value></data>
+  <data name="help.compilers" xml:space="preserve"><value>{0} компиляторов + {1} трансляторов</value></data>
+  <data name="help.plugins_title" xml:space="preserve"><value>Зарегистрированные плагины</value></data>
+  <data name="help.frontends" xml:space="preserve"><value>Фронтенд-компиляторы ({0}):</value></data>
+  <data name="help.backends" xml:space="preserve"><value>Бэкенд-трансляторы ({0}):</value></data>
+  <data name="help.opt.soft_float" xml:space="preserve"><value>Использовать программную библиотеку float</value></data>
+  <data name="help.opt.no_float" xml:space="preserve"><value>Отключить поддержку float</value></data>
+  <data name="help.opt.int64" xml:space="preserve"><value>64-бит: native(по умолчанию)/library/нет</value></data>
+</root>

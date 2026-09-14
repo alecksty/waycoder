@@ -1,0 +1,2851 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+
+.text
+pascal_wcslen:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        LOAD R0 #0
+        STORE R0 [R12-4]
+sta_70320000:
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #2
+        POP R11
+        ADD R0 R11
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE L70320002
+        MOVE R0 #0
+        JMP L70320003
+L70320002:
+        MOVE R0 #1
+L70320003:
+        CMP R0 #0
+        JZ sta_70320001
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP sta_70320000
+sta_70320001:
+        LOAD R0 [R12-4]
+        JMP L70320004
+L70320004:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_wcscmp:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+sta_70320005:
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        TEST R0 R0
+        JZ L70320007
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSHH R0
+        LOAD R0 [R12+16]
+        LOADH R0 [R0]
+        POPH R1
+        CMP R1 R0
+        JE L70320009
+        MOVE R0 #0
+        JMP L70320010
+L70320009:
+        MOVE R0 #1
+L70320010:
+        TEST R0 R0
+        JZ L70320007
+        MOVE R0 #1
+        JMP L70320008
+L70320007:
+        MOVE R0 #0
+L70320008:
+        CMP R0 #0
+        JZ sta_70320006
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        JMP sta_70320005
+sta_70320006:
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOADH R0 [R0]
+        POP R1
+        SUB R1 R0
+        MOVE R0 R1
+        JMP L70320011
+L70320011:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_wcsncmp:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+20]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE L70320014
+        MOVE R0 #0
+        JMP L70320015
+L70320014:
+        MOVE R0 #1
+L70320015:
+        CMP R0 #0
+        JZ sta_70320012
+        LOAD R0 #0
+        JMP L70320016
+sta_70320012:
+sta_70320013:
+sta_70320017:
+        LOAD R0 [R12+20]
+        LOAD R0 [R12+20]
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        TEST R0 R0
+        JZ L70320021
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        TEST R0 R0
+        JZ L70320021
+        MOVE R0 #1
+        JMP L70320022
+L70320021:
+        MOVE R0 #0
+L70320022:
+        TEST R0 R0
+        JZ L70320019
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSHH R0
+        LOAD R0 [R12+16]
+        LOADH R0 [R0]
+        POPH R1
+        CMP R1 R0
+        JE L70320023
+        MOVE R0 #0
+        JMP L70320024
+L70320023:
+        MOVE R0 #1
+L70320024:
+        TEST R0 R0
+        JZ L70320019
+        MOVE R0 #1
+        JMP L70320020
+L70320019:
+        MOVE R0 #0
+L70320020:
+        CMP R0 #0
+        JZ sta_70320018
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        JMP sta_70320017
+sta_70320018:
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOADH R0 [R0]
+        POP R1
+        SUB R1 R0
+        MOVE R0 R1
+        JMP L70320016
+L70320016:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_wcscpy:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+sta_70320025:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R10 R0
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        LOADH R0 [R0]
+        STOREH R0 [R10]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE L70320027
+        MOVE R0 #0
+        JMP L70320028
+L70320027:
+        MOVE R0 #1
+L70320028:
+        CMP R0 #0
+        JZ sta_70320026
+        JMP sta_70320025
+sta_70320026:
+        LOAD R0 [R12+12]
+        JMP L70320029
+L70320029:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_wcsncpy:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 #0
+        STORE R0 [R12-4]
+sta_70320030:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL L70320035
+        MOVE R0 #0
+        JMP L70320036
+L70320035:
+        MOVE R0 #1
+L70320036:
+        TEST R0 R0
+        JZ L70320033
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #2
+        POP R9
+        ADD R0 R9
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE L70320037
+        MOVE R0 #0
+        JMP L70320038
+L70320037:
+        MOVE R0 #1
+L70320038:
+        TEST R0 R0
+        JZ L70320033
+        MOVE R0 #1
+        JMP L70320034
+L70320033:
+        MOVE R0 #0
+L70320034:
+        CMP R0 #0
+        JZ sta_70320032
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #2
+        POP R8
+        ADD R0 R8
+        LOADH R0 [R0]
+        MOVE R7 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #2
+        POP R6
+        ADD R0 R6
+        STOREH R7 [R0]
+sta_70320031:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP sta_70320030
+sta_70320032:
+sta_70320039:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL L70320042
+        MOVE R0 #0
+        JMP L70320043
+L70320042:
+        MOVE R0 #1
+L70320043:
+        CMP R0 #0
+        JZ sta_70320041
+        LOAD R0 #0
+        MOVE R5 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #2
+        POP R4
+        ADD R0 R4
+        STOREH R5 [R0]
+sta_70320040:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP sta_70320039
+sta_70320041:
+        LOAD R0 [R12+12]
+        JMP L70320044
+L70320044:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_wcscat:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+sta_70320045:
+        LOAD R0 [R12-4]
+        LOADH R0 [R0]
+        CMP R0 #0
+        JZ sta_70320046
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP sta_70320045
+sta_70320046:
+sta_70320047:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R3 R0
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        LOADH R0 [R0]
+        STOREH R0 [R3]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE L70320049
+        MOVE R0 #0
+        JMP L70320050
+L70320049:
+        MOVE R0 #1
+L70320050:
+        CMP R0 #0
+        JZ sta_70320048
+        JMP sta_70320047
+sta_70320048:
+        LOAD R0 [R12+12]
+        JMP L70320051
+L70320051:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_wcsncat:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #16
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+        LOAD R0 #0
+        STORE R0 [R12-8]
+sta_70320052:
+        LOAD R0 [R12-4]
+        LOADH R0 [R0]
+        CMP R0 #0
+        JZ sta_70320053
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP sta_70320052
+sta_70320053:
+sta_70320054:
+        LOAD R0 [R12-8]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL L70320058
+        MOVE R0 #0
+        JMP L70320059
+L70320058:
+        MOVE R0 #1
+L70320059:
+        TEST R0 R0
+        JZ L70320056
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-8]
+        MUL R0 #2
+        POP R2
+        ADD R0 R2
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE L70320060
+        MOVE R0 #0
+        JMP L70320061
+L70320060:
+        MOVE R0 #1
+L70320061:
+        TEST R0 R0
+        JZ L70320056
+        MOVE R0 #1
+        JMP L70320057
+L70320056:
+        MOVE R0 #0
+L70320057:
+        CMP R0 #0
+        JZ sta_70320055
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R1 R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-8]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-8]
+        MOVE R0 R1
+        MUL R0 #2
+        POP R11
+        ADD R0 R11
+        LOADH R0 [R0]
+        STOREH R0 [R1]
+        JMP sta_70320054
+sta_70320055:
+        LOAD R0 [R12-4]
+        MOVE R10 R0
+        LOAD R0 #0
+        STOREH R0 [R10]
+        LOAD R0 [R12+12]
+        JMP L70320062
+L70320062:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_wcschr:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+sta_70320063:
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        CMP R0 #0
+        JZ sta_70320064
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSHH R0
+        LOADH R0 [R12+16]
+        POPH R1
+        CMP R1 R0
+        JE L70320067
+        MOVE R0 #0
+        JMP L70320068
+L70320067:
+        MOVE R0 #1
+L70320068:
+        CMP R0 #0
+        JZ sta_70320065
+        LOAD R0 [R12+12]
+        JMP L70320069
+sta_70320065:
+sta_70320066:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP sta_70320063
+sta_70320064:
+        LOADH R0 [R12+16]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE L70320070
+        MOVE R0 #0
+        JMP L70320071
+L70320070:
+        MOVE R0 #1
+L70320071:
+        TEST R0 R0
+        JZ L70320072
+        LOAD R0 [R12+12]
+        JMP L70320073
+L70320072:
+        LOAD R0 #0
+L70320073:
+        JMP L70320069
+L70320069:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_wcsrchr:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 #0
+        STORE R0 [R12-4]
+sta_70320074:
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        CMP R0 #0
+        JZ sta_70320075
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSHH R0
+        LOADH R0 [R12+16]
+        POPH R1
+        CMP R1 R0
+        JE L70320078
+        MOVE R0 #0
+        JMP L70320079
+L70320078:
+        MOVE R0 #1
+L70320079:
+        CMP R0 #0
+        JZ sta_70320076
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+sta_70320076:
+sta_70320077:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP sta_70320074
+sta_70320075:
+        LOADH R0 [R12+16]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE L70320080
+        MOVE R0 #0
+        JMP L70320081
+L70320080:
+        MOVE R0 #1
+L70320081:
+        TEST R0 R0
+        JZ L70320082
+        LOAD R0 [R12+12]
+        JMP L70320083
+L70320082:
+        LOAD R0 [R12-4]
+L70320083:
+        JMP L70320084
+L70320084:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_wcsstr:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #16
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 [R12+16]
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE L70320087
+        MOVE R0 #0
+        JMP L70320088
+L70320087:
+        MOVE R0 #1
+L70320088:
+        CMP R0 #0
+        JZ sta_70320085
+        LOAD R0 [R12+12]
+        JMP L70320089
+sta_70320085:
+sta_70320086:
+sta_70320090:
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        CMP R0 #0
+        JZ sta_70320091
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+        LOAD R0 [R12+16]
+        STORE R0 [R12-8]
+sta_70320092:
+        LOAD R0 [R12-4]
+        LOADH R0 [R0]
+        TEST R0 R0
+        JZ L70320096
+        LOAD R0 [R12-8]
+        LOADH R0 [R0]
+        TEST R0 R0
+        JZ L70320096
+        MOVE R0 #1
+        JMP L70320097
+L70320096:
+        MOVE R0 #0
+L70320097:
+        TEST R0 R0
+        JZ L70320094
+        LOAD R0 [R12-4]
+        LOADH R0 [R0]
+        PUSHH R0
+        LOAD R0 [R12-8]
+        LOADH R0 [R0]
+        POPH R1
+        CMP R1 R0
+        JE L70320098
+        MOVE R0 #0
+        JMP L70320099
+L70320098:
+        MOVE R0 #1
+L70320099:
+        TEST R0 R0
+        JZ L70320094
+        MOVE R0 #1
+        JMP L70320095
+L70320094:
+        MOVE R0 #0
+L70320095:
+        CMP R0 #0
+        JZ sta_70320093
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        LOAD R0 [R12-8]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-8]
+        MOVE R0 R1
+        JMP sta_70320092
+sta_70320093:
+        LOAD R0 [R12-8]
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE L70320102
+        MOVE R0 #0
+        JMP L70320103
+L70320102:
+        MOVE R0 #1
+L70320103:
+        CMP R0 #0
+        JZ sta_70320100
+        LOAD R0 [R12+12]
+        JMP L70320089
+sta_70320100:
+sta_70320101:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP sta_70320090
+sta_70320091:
+        LOAD R0 #0
+        JMP L70320089
+L70320089:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_wcsspn:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #20
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 #0
+        STORE R0 [R12-4]
+sta_70320104:
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        CMP R0 #0
+        JZ sta_70320105
+        LOAD R0 [R12+16]
+        STORE R0 [R12-8]
+        LOAD R0 #0
+        STORE R0 [R12-12]
+sta_70320106:
+        LOAD R0 [R12-8]
+        LOADH R0 [R0]
+        CMP R0 #0
+        JZ sta_70320107
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSHH R0
+        LOAD R0 [R12-8]
+        LOADH R0 [R0]
+        POPH R1
+        CMP R1 R0
+        JE L70320110
+        MOVE R0 #0
+        JMP L70320111
+L70320110:
+        MOVE R0 #1
+L70320111:
+        CMP R0 #0
+        JZ sta_70320108
+        LOAD R0 #1
+        STORE R0 [R12-12]
+        JMP sta_70320107
+sta_70320108:
+sta_70320109:
+        LOAD R0 [R12-8]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-8]
+        MOVE R0 R1
+        JMP sta_70320106
+sta_70320107:
+        LOAD R0 [R12-12]
+        LOAD R0 [R12-12]
+        TEST R0 R0
+        JZ L70320114
+        MOVE R0 #0
+        JMP L70320115
+L70320114:
+        MOVE R0 #1
+L70320115:
+        CMP R0 #0
+        JZ sta_70320112
+        JMP sta_70320105
+sta_70320112:
+sta_70320113:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP sta_70320104
+sta_70320105:
+        LOAD R0 [R12-4]
+        JMP L70320116
+L70320116:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_wcscspn:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #16
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 #0
+        STORE R0 [R12-4]
+sta_70320117:
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        CMP R0 #0
+        JZ sta_70320118
+        LOAD R0 [R12+16]
+        STORE R0 [R12-8]
+sta_70320119:
+        LOAD R0 [R12-8]
+        LOADH R0 [R0]
+        CMP R0 #0
+        JZ sta_70320120
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSHH R0
+        LOAD R0 [R12-8]
+        LOADH R0 [R0]
+        POPH R1
+        CMP R1 R0
+        JE L70320123
+        MOVE R0 #0
+        JMP L70320124
+L70320123:
+        MOVE R0 #1
+L70320124:
+        CMP R0 #0
+        JZ sta_70320121
+        LOAD R0 [R12-4]
+        JMP L70320125
+sta_70320121:
+sta_70320122:
+        LOAD R0 [R12-8]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-8]
+        MOVE R0 R1
+        JMP sta_70320119
+sta_70320120:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP sta_70320117
+sta_70320118:
+        LOAD R0 [R12-4]
+        JMP L70320125
+L70320125:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_wmemcpy:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+sta_70320126:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ sta_70320127
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R9 R0
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        LOADH R0 [R0]
+        STOREH R0 [R9]
+        JMP sta_70320126
+sta_70320127:
+        LOAD R0 [R12+12]
+        JMP L70320128
+L70320128:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_wmemset:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+sta_70320129:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ sta_70320130
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R8 R0
+        LOADH R0 [R12+16]
+        STOREH R0 [R8]
+        JMP sta_70320129
+sta_70320130:
+        LOAD R0 [R12+12]
+        JMP L70320131
+L70320131:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_wmemmove:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+16]
+        POP R1
+        CMP R1 R0
+        JL L70320134
+        MOVE R0 #0
+        JMP L70320135
+L70320134:
+        MOVE R0 #1
+L70320135:
+        CMP R0 #0
+        JZ sta_70320132
+sta_70320136:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ sta_70320137
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R6 R0
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        LOADH R0 [R0]
+        STOREH R0 [R6]
+        JMP sta_70320136
+sta_70320137:
+        JMP sta_70320133
+sta_70320132:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        MUL R0 R0 #2
+        POP R1
+        ADD R1 R0
+        MOVE R0 R1
+        STORE R0 [R12-4]
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12+20]
+        MUL R0 R0 #2
+        POP R1
+        ADD R1 R0
+        MOVE R0 R1
+        STORE R0 [R12+16]
+sta_70320138:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ sta_70320139
+        LOAD R0 [R12-4]
+        LOAD R0 [R12-4]
+        SUB R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R7 R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R12+16]
+        SUB R0 R0 #2
+        STORE R0 [R12+16]
+        LOADH R0 [R0]
+        STOREH R0 [R7]
+        JMP sta_70320138
+sta_70320139:
+sta_70320133:
+        LOAD R0 [R12+12]
+        JMP L70320140
+L70320140:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_wmemcmp:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+sta_70320141:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ sta_70320142
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSHH R0
+        LOAD R0 [R12+16]
+        LOADH R0 [R0]
+        POPH R1
+        CMP R1 R0
+        JNE L70320145
+        MOVE R0 #0
+        JMP L70320146
+L70320145:
+        MOVE R0 #1
+L70320146:
+        CMP R0 #0
+        JZ sta_70320143
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOADH R0 [R0]
+        POP R1
+        SUB R1 R0
+        MOVE R0 R1
+        JMP L70320147
+sta_70320143:
+sta_70320144:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        JMP sta_70320141
+sta_70320142:
+        LOAD R0 #0
+        JMP L70320147
+L70320147:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wcslen:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        LOAD R0 #0
+        STORE R0 [R12-4]
+lib_wchar_sta_13730000:
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #2
+        POP R11
+        ADD R0 R11
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE lib_wchar_L13730002
+        MOVE R0 #0
+        JMP lib_wchar_L13730003
+lib_wchar_L13730002:
+        MOVE R0 #1
+lib_wchar_L13730003:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730001
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730000
+lib_wchar_sta_13730001:
+        LOAD R0 [R12-4]
+        JMP lib_wchar_L13730004
+lib_wchar_L13730004:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wcscmp:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+lib_wchar_sta_13730005:
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        TEST R0 R0
+        JZ lib_wchar_L13730007
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSHH R0
+        LOAD R0 [R12+16]
+        LOADH R0 [R0]
+        POPH R1
+        CMP R1 R0
+        JE lib_wchar_L13730009
+        MOVE R0 #0
+        JMP lib_wchar_L13730010
+lib_wchar_L13730009:
+        MOVE R0 #1
+lib_wchar_L13730010:
+        TEST R0 R0
+        JZ lib_wchar_L13730007
+        MOVE R0 #1
+        JMP lib_wchar_L13730008
+lib_wchar_L13730007:
+        MOVE R0 #0
+lib_wchar_L13730008:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730006
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730005
+lib_wchar_sta_13730006:
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOADH R0 [R0]
+        POP R1
+        SUB R1 R0
+        MOVE R0 R1
+        JMP lib_wchar_L13730011
+lib_wchar_L13730011:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wcsncmp:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+20]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE lib_wchar_L13730014
+        MOVE R0 #0
+        JMP lib_wchar_L13730015
+lib_wchar_L13730014:
+        MOVE R0 #1
+lib_wchar_L13730015:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730012
+        LOAD R0 #0
+        JMP lib_wchar_L13730016
+lib_wchar_sta_13730012:
+lib_wchar_sta_13730013:
+lib_wchar_sta_13730017:
+        LOAD R0 [R12+20]
+        LOAD R0 [R12+20]
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        TEST R0 R0
+        JZ lib_wchar_L13730021
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        TEST R0 R0
+        JZ lib_wchar_L13730021
+        MOVE R0 #1
+        JMP lib_wchar_L13730022
+lib_wchar_L13730021:
+        MOVE R0 #0
+lib_wchar_L13730022:
+        TEST R0 R0
+        JZ lib_wchar_L13730019
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSHH R0
+        LOAD R0 [R12+16]
+        LOADH R0 [R0]
+        POPH R1
+        CMP R1 R0
+        JE lib_wchar_L13730023
+        MOVE R0 #0
+        JMP lib_wchar_L13730024
+lib_wchar_L13730023:
+        MOVE R0 #1
+lib_wchar_L13730024:
+        TEST R0 R0
+        JZ lib_wchar_L13730019
+        MOVE R0 #1
+        JMP lib_wchar_L13730020
+lib_wchar_L13730019:
+        MOVE R0 #0
+lib_wchar_L13730020:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730018
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730017
+lib_wchar_sta_13730018:
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOADH R0 [R0]
+        POP R1
+        SUB R1 R0
+        MOVE R0 R1
+        JMP lib_wchar_L13730016
+lib_wchar_L13730016:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wcscpy:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+lib_wchar_sta_13730025:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R10 R0
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        LOADH R0 [R0]
+        STOREH R0 [R10]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE lib_wchar_L13730027
+        MOVE R0 #0
+        JMP lib_wchar_L13730028
+lib_wchar_L13730027:
+        MOVE R0 #1
+lib_wchar_L13730028:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730026
+        JMP lib_wchar_sta_13730025
+lib_wchar_sta_13730026:
+        LOAD R0 [R12+12]
+        JMP lib_wchar_L13730029
+lib_wchar_L13730029:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wcsncpy:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 #0
+        STORE R0 [R12-4]
+lib_wchar_sta_13730030:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL lib_wchar_L13730035
+        MOVE R0 #0
+        JMP lib_wchar_L13730036
+lib_wchar_L13730035:
+        MOVE R0 #1
+lib_wchar_L13730036:
+        TEST R0 R0
+        JZ lib_wchar_L13730033
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #2
+        POP R9
+        ADD R0 R9
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE lib_wchar_L13730037
+        MOVE R0 #0
+        JMP lib_wchar_L13730038
+lib_wchar_L13730037:
+        MOVE R0 #1
+lib_wchar_L13730038:
+        TEST R0 R0
+        JZ lib_wchar_L13730033
+        MOVE R0 #1
+        JMP lib_wchar_L13730034
+lib_wchar_L13730033:
+        MOVE R0 #0
+lib_wchar_L13730034:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730032
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #2
+        POP R8
+        ADD R0 R8
+        LOADH R0 [R0]
+        MOVE R7 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #2
+        POP R6
+        ADD R0 R6
+        STOREH R7 [R0]
+lib_wchar_sta_13730031:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730030
+lib_wchar_sta_13730032:
+lib_wchar_sta_13730039:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL lib_wchar_L13730042
+        MOVE R0 #0
+        JMP lib_wchar_L13730043
+lib_wchar_L13730042:
+        MOVE R0 #1
+lib_wchar_L13730043:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730041
+        LOAD R0 #0
+        MOVE R5 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #2
+        POP R4
+        ADD R0 R4
+        STOREH R5 [R0]
+lib_wchar_sta_13730040:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730039
+lib_wchar_sta_13730041:
+        LOAD R0 [R12+12]
+        JMP lib_wchar_L13730044
+lib_wchar_L13730044:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wcscat:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+lib_wchar_sta_13730045:
+        LOAD R0 [R12-4]
+        LOADH R0 [R0]
+        CMP R0 #0
+        JZ lib_wchar_sta_13730046
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730045
+lib_wchar_sta_13730046:
+lib_wchar_sta_13730047:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R3 R0
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        LOADH R0 [R0]
+        STOREH R0 [R3]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE lib_wchar_L13730049
+        MOVE R0 #0
+        JMP lib_wchar_L13730050
+lib_wchar_L13730049:
+        MOVE R0 #1
+lib_wchar_L13730050:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730048
+        JMP lib_wchar_sta_13730047
+lib_wchar_sta_13730048:
+        LOAD R0 [R12+12]
+        JMP lib_wchar_L13730051
+lib_wchar_L13730051:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wcsncat:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #16
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+        LOAD R0 #0
+        STORE R0 [R12-8]
+lib_wchar_sta_13730052:
+        LOAD R0 [R12-4]
+        LOADH R0 [R0]
+        CMP R0 #0
+        JZ lib_wchar_sta_13730053
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730052
+lib_wchar_sta_13730053:
+lib_wchar_sta_13730054:
+        LOAD R0 [R12-8]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL lib_wchar_L13730058
+        MOVE R0 #0
+        JMP lib_wchar_L13730059
+lib_wchar_L13730058:
+        MOVE R0 #1
+lib_wchar_L13730059:
+        TEST R0 R0
+        JZ lib_wchar_L13730056
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-8]
+        MUL R0 #2
+        POP R2
+        ADD R0 R2
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE lib_wchar_L13730060
+        MOVE R0 #0
+        JMP lib_wchar_L13730061
+lib_wchar_L13730060:
+        MOVE R0 #1
+lib_wchar_L13730061:
+        TEST R0 R0
+        JZ lib_wchar_L13730056
+        MOVE R0 #1
+        JMP lib_wchar_L13730057
+lib_wchar_L13730056:
+        MOVE R0 #0
+lib_wchar_L13730057:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730055
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R1 R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-8]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-8]
+        MOVE R0 R1
+        MUL R0 #2
+        POP R11
+        ADD R0 R11
+        LOADH R0 [R0]
+        STOREH R0 [R1]
+        JMP lib_wchar_sta_13730054
+lib_wchar_sta_13730055:
+        LOAD R0 [R12-4]
+        MOVE R10 R0
+        LOAD R0 #0
+        STOREH R0 [R10]
+        LOAD R0 [R12+12]
+        JMP lib_wchar_L13730062
+lib_wchar_L13730062:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wcschr:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+lib_wchar_sta_13730063:
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE lib_wchar_L13730065
+        MOVE R0 #0
+        JMP lib_wchar_L13730066
+lib_wchar_L13730065:
+        MOVE R0 #1
+lib_wchar_L13730066:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730064
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSHH R0
+        LOADH R0 [R12+16]
+        POPH R1
+        CMP R1 R0
+        JE lib_wchar_L13730069
+        MOVE R0 #0
+        JMP lib_wchar_L13730070
+lib_wchar_L13730069:
+        MOVE R0 #1
+lib_wchar_L13730070:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730067
+        LOAD R0 [R12+12]
+        JMP lib_wchar_L13730071
+lib_wchar_sta_13730067:
+lib_wchar_sta_13730068:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730063
+lib_wchar_sta_13730064:
+        LOADH R0 [R12+16]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE lib_wchar_L13730072
+        MOVE R0 #0
+        JMP lib_wchar_L13730073
+lib_wchar_L13730072:
+        MOVE R0 #1
+lib_wchar_L13730073:
+        TEST R0 R0
+        JZ lib_wchar_L13730074
+        LOAD R0 [R12+12]
+        JMP lib_wchar_L13730075
+lib_wchar_L13730074:
+        LOAD R0 #0
+lib_wchar_L13730075:
+        JMP lib_wchar_L13730071
+lib_wchar_L13730071:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wcsrchr:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 #0
+        STORE R0 [R12-4]
+lib_wchar_sta_13730076:
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE lib_wchar_L13730078
+        MOVE R0 #0
+        JMP lib_wchar_L13730079
+lib_wchar_L13730078:
+        MOVE R0 #1
+lib_wchar_L13730079:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730077
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSHH R0
+        LOADH R0 [R12+16]
+        POPH R1
+        CMP R1 R0
+        JE lib_wchar_L13730082
+        MOVE R0 #0
+        JMP lib_wchar_L13730083
+lib_wchar_L13730082:
+        MOVE R0 #1
+lib_wchar_L13730083:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730080
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+lib_wchar_sta_13730080:
+lib_wchar_sta_13730081:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730076
+lib_wchar_sta_13730077:
+        LOADH R0 [R12+16]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE lib_wchar_L13730084
+        MOVE R0 #0
+        JMP lib_wchar_L13730085
+lib_wchar_L13730084:
+        MOVE R0 #1
+lib_wchar_L13730085:
+        TEST R0 R0
+        JZ lib_wchar_L13730086
+        LOAD R0 [R12+12]
+        JMP lib_wchar_L13730087
+lib_wchar_L13730086:
+        LOAD R0 [R12-4]
+lib_wchar_L13730087:
+        JMP lib_wchar_L13730088
+lib_wchar_L13730088:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wcsstr:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #16
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 [R12+16]
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE lib_wchar_L13730091
+        MOVE R0 #0
+        JMP lib_wchar_L13730092
+lib_wchar_L13730091:
+        MOVE R0 #1
+lib_wchar_L13730092:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730089
+        LOAD R0 [R12+12]
+        JMP lib_wchar_L13730093
+lib_wchar_sta_13730089:
+lib_wchar_sta_13730090:
+lib_wchar_sta_13730094:
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        CMP R0 #0
+        JZ lib_wchar_sta_13730095
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+        LOAD R0 [R12+16]
+        STORE R0 [R12-8]
+lib_wchar_sta_13730096:
+        LOAD R0 [R12-4]
+        LOADH R0 [R0]
+        TEST R0 R0
+        JZ lib_wchar_L13730100
+        LOAD R0 [R12-8]
+        LOADH R0 [R0]
+        TEST R0 R0
+        JZ lib_wchar_L13730100
+        MOVE R0 #1
+        JMP lib_wchar_L13730101
+lib_wchar_L13730100:
+        MOVE R0 #0
+lib_wchar_L13730101:
+        TEST R0 R0
+        JZ lib_wchar_L13730098
+        LOAD R0 [R12-4]
+        LOADH R0 [R0]
+        PUSHH R0
+        LOAD R0 [R12-8]
+        LOADH R0 [R0]
+        POPH R1
+        CMP R1 R0
+        JE lib_wchar_L13730102
+        MOVE R0 #0
+        JMP lib_wchar_L13730103
+lib_wchar_L13730102:
+        MOVE R0 #1
+lib_wchar_L13730103:
+        TEST R0 R0
+        JZ lib_wchar_L13730098
+        MOVE R0 #1
+        JMP lib_wchar_L13730099
+lib_wchar_L13730098:
+        MOVE R0 #0
+lib_wchar_L13730099:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730097
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        LOAD R0 [R12-8]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-8]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730096
+lib_wchar_sta_13730097:
+        LOAD R0 [R12-8]
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE lib_wchar_L13730106
+        MOVE R0 #0
+        JMP lib_wchar_L13730107
+lib_wchar_L13730106:
+        MOVE R0 #1
+lib_wchar_L13730107:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730104
+        LOAD R0 [R12+12]
+        JMP lib_wchar_L13730093
+lib_wchar_sta_13730104:
+lib_wchar_sta_13730105:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730094
+lib_wchar_sta_13730095:
+        LOAD R0 #0
+        JMP lib_wchar_L13730093
+lib_wchar_L13730093:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wcsspn:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #20
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 #0
+        STORE R0 [R12-4]
+lib_wchar_sta_13730108:
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        CMP R0 #0
+        JZ lib_wchar_sta_13730109
+        LOAD R0 [R12+16]
+        STORE R0 [R12-8]
+        LOAD R0 #0
+        STORE R0 [R12-12]
+lib_wchar_sta_13730110:
+        LOAD R0 [R12-8]
+        LOADH R0 [R0]
+        CMP R0 #0
+        JZ lib_wchar_sta_13730111
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSHH R0
+        LOAD R0 [R12-8]
+        LOADH R0 [R0]
+        POPH R1
+        CMP R1 R0
+        JE lib_wchar_L13730114
+        MOVE R0 #0
+        JMP lib_wchar_L13730115
+lib_wchar_L13730114:
+        MOVE R0 #1
+lib_wchar_L13730115:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730112
+        LOAD R0 #1
+        STORE R0 [R12-12]
+        JMP lib_wchar_sta_13730111
+lib_wchar_sta_13730112:
+lib_wchar_sta_13730113:
+        LOAD R0 [R12-8]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-8]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730110
+lib_wchar_sta_13730111:
+        LOAD R0 [R12-12]
+        LOAD R0 [R12-12]
+        TEST R0 R0
+        JZ lib_wchar_L13730118
+        MOVE R0 #0
+        JMP lib_wchar_L13730119
+lib_wchar_L13730118:
+        MOVE R0 #1
+lib_wchar_L13730119:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730116
+        JMP lib_wchar_sta_13730109
+lib_wchar_sta_13730116:
+lib_wchar_sta_13730117:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730108
+lib_wchar_sta_13730109:
+        LOAD R0 [R12-4]
+        JMP lib_wchar_L13730120
+lib_wchar_L13730120:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wcscspn:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #16
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 #0
+        STORE R0 [R12-4]
+lib_wchar_sta_13730121:
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        CMP R0 #0
+        JZ lib_wchar_sta_13730122
+        LOAD R0 [R12+16]
+        STORE R0 [R12-8]
+lib_wchar_sta_13730123:
+        LOAD R0 [R12-8]
+        LOADH R0 [R0]
+        CMP R0 #0
+        JZ lib_wchar_sta_13730124
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSHH R0
+        LOAD R0 [R12-8]
+        LOADH R0 [R0]
+        POPH R1
+        CMP R1 R0
+        JE lib_wchar_L13730127
+        MOVE R0 #0
+        JMP lib_wchar_L13730128
+lib_wchar_L13730127:
+        MOVE R0 #1
+lib_wchar_L13730128:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730125
+        LOAD R0 [R12-4]
+        JMP lib_wchar_L13730129
+lib_wchar_sta_13730125:
+lib_wchar_sta_13730126:
+        LOAD R0 [R12-8]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-8]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730123
+lib_wchar_sta_13730124:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730121
+lib_wchar_sta_13730122:
+        LOAD R0 [R12-4]
+        JMP lib_wchar_L13730129
+lib_wchar_L13730129:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wmemcpy:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+lib_wchar_sta_13730130:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ lib_wchar_sta_13730131
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R9 R0
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        LOADH R0 [R0]
+        STOREH R0 [R9]
+        JMP lib_wchar_sta_13730130
+lib_wchar_sta_13730131:
+        LOAD R0 [R12+12]
+        JMP lib_wchar_L13730132
+lib_wchar_L13730132:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wmemset:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+lib_wchar_sta_13730133:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ lib_wchar_sta_13730134
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R8 R0
+        LOADH R0 [R12+16]
+        STOREH R0 [R8]
+        JMP lib_wchar_sta_13730133
+lib_wchar_sta_13730134:
+        LOAD R0 [R12+12]
+        JMP lib_wchar_L13730135
+lib_wchar_L13730135:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wmemmove:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+16]
+        POP R1
+        CMP R1 R0
+        JL lib_wchar_L13730138
+        MOVE R0 #0
+        JMP lib_wchar_L13730139
+lib_wchar_L13730138:
+        MOVE R0 #1
+lib_wchar_L13730139:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730136
+lib_wchar_sta_13730140:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ lib_wchar_sta_13730141
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R6 R0
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        LOADH R0 [R0]
+        STOREH R0 [R6]
+        JMP lib_wchar_sta_13730140
+lib_wchar_sta_13730141:
+        JMP lib_wchar_sta_13730137
+lib_wchar_sta_13730136:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        MUL R0 R0 #2
+        POP R1
+        ADD R1 R0
+        MOVE R0 R1
+        STORE R0 [R12-4]
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12+20]
+        MUL R0 R0 #2
+        POP R1
+        ADD R1 R0
+        MOVE R0 R1
+        STORE R0 [R12+16]
+lib_wchar_sta_13730142:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ lib_wchar_sta_13730143
+        LOAD R0 [R12-4]
+        LOAD R0 [R12-4]
+        SUB R0 R0 #2
+        STORE R0 [R12-4]
+        MOVE R7 R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R12+16]
+        SUB R0 R0 #2
+        STORE R0 [R12+16]
+        LOADH R0 [R0]
+        STOREH R0 [R7]
+        JMP lib_wchar_sta_13730142
+lib_wchar_sta_13730143:
+lib_wchar_sta_13730137:
+        LOAD R0 [R12+12]
+        JMP lib_wchar_L13730144
+lib_wchar_L13730144:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wmemcmp:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+lib_wchar_sta_13730145:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ lib_wchar_sta_13730146
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSHH R0
+        LOAD R0 [R12+16]
+        LOADH R0 [R0]
+        POPH R1
+        CMP R1 R0
+        JNE lib_wchar_L13730149
+        MOVE R0 #0
+        JMP lib_wchar_L13730150
+lib_wchar_L13730149:
+        MOVE R0 #1
+lib_wchar_L13730150:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730147
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOADH R0 [R0]
+        POP R1
+        SUB R1 R0
+        MOVE R0 R1
+        JMP lib_wchar_L13730151
+lib_wchar_sta_13730147:
+lib_wchar_sta_13730148:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730145
+lib_wchar_sta_13730146:
+        LOAD R0 #0
+        JMP lib_wchar_L13730151
+lib_wchar_L13730151:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wctomb:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOADH R0 [R12+16]
+        PUSH R0
+        LOAD R0 #128
+        POP R1
+        CMP R1 R0
+        JL lib_wchar_L13730154
+        MOVE R0 #0
+        JMP lib_wchar_L13730155
+lib_wchar_L13730154:
+        MOVE R0 #1
+lib_wchar_L13730155:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730152
+        LOADH R0 [R12+16]
+        MOVE R4 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 #0
+        MUL R0 #1
+        POP R5
+        ADD R0 R5
+        STOREB R4 [R0]
+        LOAD R0 #1
+        JMP lib_wchar_L13730156
+        JMP lib_wchar_sta_13730153
+lib_wchar_sta_13730152:
+        LOADH R0 [R12+16]
+        PUSH R0
+        LOAD R0 #2048
+        POP R1
+        CMP R1 R0
+        JL lib_wchar_L13730159
+        MOVE R0 #0
+        JMP lib_wchar_L13730160
+lib_wchar_L13730159:
+        MOVE R0 #1
+lib_wchar_L13730160:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730157
+        LOAD R0 #192
+        PUSH R0
+        LOADH R0 [R12+16]
+        PUSH R0
+        LOAD R0 #6
+        POP R1
+        SHR R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        MOVE R3 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 #0
+        MUL R0 #1
+        POP R2
+        ADD R0 R2
+        STOREB R3 [R0]
+        LOAD R0 #128
+        PUSH R0
+        LOADH R0 [R12+16]
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        MOVE R11 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 #1
+        MUL R0 #1
+        POP R1
+        ADD R0 R1
+        STOREB R11 [R0]
+        LOAD R0 #2
+        JMP lib_wchar_L13730156
+        JMP lib_wchar_sta_13730158
+lib_wchar_sta_13730157:
+        LOAD R0 #224
+        PUSH R0
+        LOADH R0 [R12+16]
+        PUSH R0
+        LOAD R0 #12
+        POP R1
+        SHR R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        MOVE R10 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 #0
+        MUL R0 #1
+        POP R9
+        ADD R0 R9
+        STOREB R10 [R0]
+        LOAD R0 #128
+        PUSH R0
+        LOADH R0 [R12+16]
+        PUSH R0
+        LOAD R0 #6
+        POP R1
+        SHR R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        MOVE R8 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 #1
+        MUL R0 #1
+        POP R6
+        ADD R0 R6
+        STOREB R8 [R0]
+        LOAD R0 #128
+        PUSH R0
+        LOADH R0 [R12+16]
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        MOVE R7 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 #2
+        MUL R0 #1
+        POP R5
+        ADD R0 R5
+        STOREB R7 [R0]
+        LOAD R0 #3
+        JMP lib_wchar_L13730156
+lib_wchar_sta_13730158:
+lib_wchar_sta_13730153:
+lib_wchar_L13730156:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_mbtowc:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #9
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #0
+        MUL R0 #1
+        POP R4
+        ADD R0 R4
+        LOADB R0 [R0]
+        STOREB R0 [R12-1]
+        LOADB R0 [R12-1]
+        PUSH R0
+        LOAD R0 #128
+        POP R1
+        CMP R1 R0
+        JL lib_wchar_L13730163
+        MOVE R0 #0
+        JMP lib_wchar_L13730164
+lib_wchar_L13730163:
+        MOVE R0 #1
+lib_wchar_L13730164:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730161
+        LOAD R0 [R12+12]
+        MOVE R2 R0
+        LOADB R0 [R12-1]
+        STOREH R0 [R2]
+        LOAD R0 #1
+        JMP lib_wchar_L13730165
+        JMP lib_wchar_sta_13730162
+lib_wchar_sta_13730161:
+        LOADB R0 [R12-1]
+        PUSH R0
+        LOAD R0 #224
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #192
+        POP R1
+        CMP R1 R0
+        JE lib_wchar_L13730168
+        MOVE R0 #0
+        JMP lib_wchar_L13730169
+lib_wchar_L13730168:
+        MOVE R0 #1
+lib_wchar_L13730169:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730166
+        LOAD R0 [R12+12]
+        MOVE R3 R0
+        LOADB R0 [R12-1]
+        PUSH R0
+        LOAD R0 #31
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #6
+        POP R1
+        SHL R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #1
+        MUL R0 #1
+        POP R1
+        ADD R0 R1
+        LOADB R0 [R0]
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        STOREH R0 [R3]
+        LOAD R0 #2
+        JMP lib_wchar_L13730165
+        JMP lib_wchar_sta_13730167
+lib_wchar_sta_13730166:
+        LOADB R0 [R12-1]
+        PUSH R0
+        LOAD R0 #240
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #224
+        POP R1
+        CMP R1 R0
+        JE lib_wchar_L13730172
+        MOVE R0 #0
+        JMP lib_wchar_L13730173
+lib_wchar_L13730172:
+        MOVE R0 #1
+lib_wchar_L13730173:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730170
+        LOAD R0 [R12+12]
+        MOVE R11 R0
+        LOADB R0 [R12-1]
+        PUSH R0
+        LOAD R0 #15
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #12
+        POP R1
+        SHL R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #1
+        MUL R0 #1
+        POP R9
+        ADD R0 R9
+        LOADB R0 [R0]
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #6
+        POP R1
+        SHL R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #2
+        MUL R0 #1
+        POP R10
+        ADD R0 R10
+        LOADB R0 [R0]
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        STOREH R0 [R11]
+        LOAD R0 #3
+        JMP lib_wchar_L13730165
+lib_wchar_sta_13730170:
+lib_wchar_sta_13730171:
+lib_wchar_sta_13730167:
+lib_wchar_sta_13730162:
+        LOAD R0 #1
+        LOAD R0 #1
+        NEG R0 R0
+        JMP lib_wchar_L13730165
+lib_wchar_L13730165:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_wcstombs:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #24
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 #0
+        STORE R0 [R12-4]
+lib_wchar_sta_13730174:
+        LOAD R0 [R12+16]
+        LOADH R0 [R0]
+        CMP R0 #0
+        JZ lib_wchar_sta_13730175
+        LOAD R0 [R12+16]
+        LOADH R0 [R0]
+        MOVE R1 R0
+        PUSH R0
+        MOVE R0 R12
+        SUB R0 #8
+        PUSH R0
+        CALL lib_wchar_wctomb
+        ADD R13 #8
+        STORE R0 [R12-12]
+        LOAD R0 [R12-12]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JL lib_wchar_L13730181
+        MOVE R0 #0
+        JMP lib_wchar_L13730182
+lib_wchar_L13730181:
+        MOVE R0 #1
+lib_wchar_L13730182:
+        TEST R0 R0
+        JNZ lib_wchar_L13730178
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12-12]
+        POP R1
+        ADD R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JGE lib_wchar_L13730183
+        MOVE R0 #0
+        JMP lib_wchar_L13730184
+lib_wchar_L13730183:
+        MOVE R0 #1
+lib_wchar_L13730184:
+        TEST R0 R0
+        JZ lib_wchar_L13730179
+lib_wchar_L13730178:
+        MOVE R0 #1
+        JMP lib_wchar_L13730180
+lib_wchar_L13730179:
+        MOVE R0 #0
+lib_wchar_L13730180:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730176
+        JMP lib_wchar_sta_13730175
+lib_wchar_sta_13730176:
+lib_wchar_sta_13730177:
+        LOAD R0 #0
+        STORE R0 [R12-16]
+lib_wchar_sta_13730185:
+        LOAD R0 [R12-16]
+        PUSH R0
+        LOAD R0 [R12-12]
+        POP R1
+        CMP R1 R0
+        JL lib_wchar_L13730188
+        MOVE R0 #0
+        JMP lib_wchar_L13730189
+lib_wchar_L13730188:
+        MOVE R0 #1
+lib_wchar_L13730189:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730187
+        MOVE R0 R12
+        SUB R0 #8
+        PUSH R0
+        MOVE R6 #0
+        PUSH R6
+        LOAD R0 [R12-16]
+        POP R6
+        MOVE R6 R0
+        MOVE R0 R6
+        MUL R0 #1
+        POP R8
+        ADD R0 R8
+        LOADB R0 [R0]
+        MOVE R5 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MUL R0 #1
+        POP R7
+        ADD R0 R7
+        STOREB R5 [R0]
+lib_wchar_sta_13730186:
+        LOAD R0 [R12-16]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-16]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730185
+lib_wchar_sta_13730187:
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730174
+lib_wchar_sta_13730175:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL lib_wchar_L13730192
+        MOVE R0 #0
+        JMP lib_wchar_L13730193
+lib_wchar_L13730192:
+        MOVE R0 #1
+lib_wchar_L13730193:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730190
+        LOAD R0 #0
+        MOVE R4 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #1
+        POP R2
+        ADD R0 R2
+        STOREB R4 [R0]
+lib_wchar_sta_13730190:
+lib_wchar_sta_13730191:
+        LOAD R0 [R12-4]
+        JMP lib_wchar_L13730194
+lib_wchar_L13730194:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_wchar_mbstowcs:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #16
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 #0
+        STORE R0 [R12-4]
+lib_wchar_sta_13730195:
+        LOAD R0 [R12+16]
+        LOADB R0 [R0]
+        TEST R0 R0
+        JZ lib_wchar_L13730197
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        PUSH R0
+        LOAD R0 #1
+        POP R1
+        SUB R1 R0
+        MOVE R0 R1
+        POP R1
+        CMP R1 R0
+        JL lib_wchar_L13730199
+        MOVE R0 #0
+        JMP lib_wchar_L13730200
+lib_wchar_L13730199:
+        MOVE R0 #1
+lib_wchar_L13730200:
+        TEST R0 R0
+        JZ lib_wchar_L13730197
+        MOVE R0 #1
+        JMP lib_wchar_L13730198
+lib_wchar_L13730197:
+        MOVE R0 #0
+lib_wchar_L13730198:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730196
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        PUSH R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #2
+        POP R1
+        ADD R0 R1
+        PUSH R0
+        CALL lib_wchar_mbtowc
+        ADD R13 #8
+        STORE R0 [R12-8]
+        LOAD R0 [R12-8]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JL lib_wchar_L13730203
+        MOVE R0 #0
+        JMP lib_wchar_L13730204
+lib_wchar_L13730203:
+        MOVE R0 #1
+lib_wchar_L13730204:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730201
+        JMP lib_wchar_sta_13730196
+lib_wchar_sta_13730201:
+lib_wchar_sta_13730202:
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-8]
+        POP R1
+        ADD R1 R0
+        MOVE R0 R1
+        STORE R0 [R12+16]
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP lib_wchar_sta_13730195
+lib_wchar_sta_13730196:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL lib_wchar_L13730207
+        MOVE R0 #0
+        JMP lib_wchar_L13730208
+lib_wchar_L13730207:
+        MOVE R0 #1
+lib_wchar_L13730208:
+        CMP R0 #0
+        JZ lib_wchar_sta_13730205
+        LOAD R0 #0
+        MOVE R3 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #2
+        POP R9
+        ADD R0 R9
+        STOREH R3 [R0]
+lib_wchar_sta_13730205:
+lib_wchar_sta_13730206:
+        LOAD R0 [R12-4]
+        JMP lib_wchar_L13730209
+lib_wchar_L13730209:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET

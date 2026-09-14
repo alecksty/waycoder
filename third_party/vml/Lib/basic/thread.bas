@@ -1,0 +1,13 @@
+' VML 线程扩展库 — BASIC (OS 模式)
+DECLARE FUNCTION ThreadCreate(entry AS INTEGER, stackSize AS INTEGER) AS INTEGER
+    asm("SYSCALL 300") : ThreadCreate = 0
+END FUNCTION
+DECLARE SUB ThreadExit()
+    asm("SYSCALL 301")
+END SUB
+DECLARE FUNCTION ThreadJoin(tid AS INTEGER) AS INTEGER
+    asm("SYSCALL 302") : ThreadJoin = 0
+END FUNCTION
+DECLARE FUNCTION ThreadYield() AS INTEGER
+    asm("SYSCALL 303") : ThreadYield = 0
+END FUNCTION

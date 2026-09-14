@@ -1,0 +1,359 @@
+﻿# NeoGeo-68000 设备定义 - Ruby 模块
+# 生成自: SNK/M68K/NeoGeo-68000
+# 版本: 1.0
+# 日期: 2026-04-16
+# 作者: VML Team
+# 描述: SNK Neo Geo AES main processor - Motorola 68000 @ 12MHz + Z80 @ 4MHz (audio coprocessor)
+# CPU架构: MC68000
+# 位宽: 32位
+# 时钟频率: 12000000 Hz
+
+module NeoGeo_68000
+
+  # 寄存器地址定义
+  D0_ADDR = 0x00  # Data Register 0
+  D1_ADDR = 0x04  # Data Register 1
+  D2_ADDR = 0x08  # Data Register 2
+  D3_ADDR = 0x0C  # Data Register 3
+  D4_ADDR = 0x10  # Data Register 4
+  D5_ADDR = 0x14  # Data Register 5
+  D6_ADDR = 0x18  # Data Register 6
+  D7_ADDR = 0x1C  # Data Register 7
+  A0_ADDR = 0x20  # Address Register 0
+  A1_ADDR = 0x24  # Address Register 1
+  A2_ADDR = 0x28  # Address Register 2
+  A3_ADDR = 0x2C  # Address Register 3
+  A4_ADDR = 0x30  # Address Register 4
+  A5_ADDR = 0x34  # Address Register 5
+  A6_ADDR = 0x38  # Address Register 6
+  A7_ADDR = 0x3C  # User Stack Pointer (USP)
+  SP_ADDR = 0x3C  # Supervisor Stack Pointer (SSP)
+  PC_ADDR = 0x40  # Program Counter
+  SR_ADDR = 0x44  # Status Register
+  SR_C_BIT = 0  # Carry
+  SR_V_BIT = 1  # Overflow
+  SR_Z_BIT = 2  # Zero
+  SR_N_BIT = 3  # Negative
+  SR_X_BIT = 4  # Extend
+  SR_I0_BIT = 8  # Interrupt Mask 0
+  SR_I1_BIT = 9  # Interrupt Mask 1
+  SR_I2_BIT = 10  # Interrupt Mask 2
+  SR_M_BIT = 11  # Master/Interrupt
+  SR_S_BIT = 13  # Supervisor/User
+  SR_T0_BIT = 14  # Trace Mode 0
+  SR_T1_BIT = 15  # Trace Mode 1
+
+  # 内存段定义
+  WORK_RAM_START = 0x100000
+  WORK_RAM_END = 0x10FFFF
+  WORK_RAM_SIZE = 65536  # Work RAM (64KB)
+  BACKUP_RAM_START = 0x200000
+  BACKUP_RAM_END = 0x20FFFF
+  BACKUP_RAM_SIZE = 65536  # Backup SRAM (battery-backed, 64KB)
+  FIX_ROM_START = 0x000000
+  FIX_ROM_END = 0x07FFFF
+  FIX_ROM_SIZE = 524288  # Fix Layer ROM (512KB)
+  SPR_ROM_START = 0x400000
+  SPR_ROM_END = 0x4FFFFF
+  SPR_ROM_SIZE = 1048576  # Sprite ROM (up to 1MB)
+  AUDIO_ROM_START = 0x800000
+  AUDIO_ROM_END = 0x80FFFF
+  AUDIO_ROM_SIZE = 65536  # Audio ROM (up to 64KB)
+  CART_ROM_START = 0xC00000
+  CART_ROM_END = 0xC7FFFF
+  CART_ROM_SIZE = 524288  # Cartridge ROM (up to 512KB, expandable)
+  IO_AREA_START = 0x300000
+  IO_AREA_END = 0x3FFFFF
+  IO_AREA_SIZE = 1048576  # I/O Area (VDP, YM2610, Z80 port, etc.)
+  Z80_RAM_START = 0x10000
+  Z80_RAM_END = 0x107FF
+  Z80_RAM_SIZE = 2048  # Z80 Work RAM (2KB)
+
+  # 外设定义
+  # Z80 Audio Coprocessor @ 4MHz
+  Z80_BASE = 0x300000
+  Z80_Z80_A_ADDR = 0x00
+  Z80_Z80_F_ADDR = 0x01
+  Z80_Z80_B_ADDR = 0x02
+  Z80_Z80_C_ADDR = 0x03
+  Z80_Z80_D_ADDR = 0x04
+  Z80_Z80_E_ADDR = 0x05
+  Z80_Z80_H_ADDR = 0x06
+  Z80_Z80_L_ADDR = 0x07
+  Z80_Z80_AF_ADDR = 0x08
+  Z80_Z80_BC_ADDR = 0x0A
+  Z80_Z80_DE_ADDR = 0x0C
+  Z80_Z80_HL_ADDR = 0x0E
+  Z80_Z80_IX_ADDR = 0x10
+  Z80_Z80_IY_ADDR = 0x12
+  Z80_Z80_SP_ADDR = 0x14
+  Z80_Z80_PC_ADDR = 0x16
+  Z80_Z80_I_ADDR = 0x18
+  Z80_Z80_R_ADDR = 0x19
+  Z80_Z80_IM_ADDR = 0x1A
+  Z80_Z80_BUSREQ_ADDR = 0x1E
+  Z80_Z80_RESET_ADDR = 0x1F
+  # Yamaha YM2610 FM + ADPCM Audio Generator
+  YM2610_BASE = 0x300000
+  YM2610_YM_ADDR_A0_ADDR = 0x00
+  YM2610_YM_DATA_A0_ADDR = 0x01
+  YM2610_YM_ADDR_A1_ADDR = 0x02
+  YM2610_YM_DATA_A1_ADDR = 0x03
+  YM2610_YM_ADDR_B0_ADDR = 0x04
+  YM2610_YM_DATA_B0_ADDR = 0x05
+  YM2610_YM_TEST_ADDR = 0x08
+  YM2610_YM_FM_CH0_FREQ_L_ADDR = 0xA0
+  YM2610_YM_FM_CH0_FREQ_H_ADDR = 0xA4
+  YM2610_YM_FM_CH1_FREQ_L_ADDR = 0xA1
+  YM2610_YM_FM_CH1_FREQ_H_ADDR = 0xA5
+  YM2610_YM_FM_CH2_FREQ_L_ADDR = 0xA2
+  YM2610_YM_FM_CH2_FREQ_H_ADDR = 0xA6
+  YM2610_YM_FM_CH3_FREQ_L_ADDR = 0xA3
+  YM2610_YM_FM_CH3_FREQ_H_ADDR = 0xA7
+  YM2610_YM_FM_KEY_ON_ADDR = 0x28
+  YM2610_YM_FM_CH0_ALG_ADDR = 0xB0
+  YM2610_YM_FM_CH1_ALG_ADDR = 0xB1
+  YM2610_YM_FM_CH2_ALG_ADDR = 0xB2
+  YM2610_YM_FM_CH3_ALG_ADDR = 0xB3
+  YM2610_YM_FM_TIMER_H_ADDR = 0x24
+  YM2610_YM_FM_TIMER_L_ADDR = 0x25
+  YM2610_YM_FM_TIMER_CTRL_ADDR = 0x27
+  YM2610_YM_FM_TIMER_CTRL_TIMER_A_START_BIT = 0  # Timer A Start
+  YM2610_YM_FM_TIMER_CTRL_TIMER_B_START_BIT = 1  # Timer B Start
+  YM2610_YM_FM_TIMER_CTRL_LOAD_A_BIT = 2  # Load Timer A
+  YM2610_YM_FM_TIMER_CTRL_LOAD_B_BIT = 3  # Load Timer B
+  YM2610_YM_FM_TIMER_CTRL_IRQ_EN_A_BIT = 4  # Timer A IRQ Enable
+  YM2610_YM_FM_TIMER_CTRL_IRQ_EN_B_BIT = 5  # Timer B IRQ Enable
+  YM2610_YM_FM_TIMER_CTRL_CSM_MODE_BIT = 7  # CSM Mode (auto Key-On after timer A)
+  YM2610_YM_FM_CH0_DETUNE_ADDR = 0x30
+  YM2610_YM_FM_CH0_MUL_ADDR = 0x30
+  YM2610_YM_FM_CH0_TL_ADDR = 0x40
+  YM2610_YM_FM_CH0_KS_AR_ADDR = 0x50
+  YM2610_YM_FM_CH0_AM_DR_ADDR = 0x60
+  YM2610_YM_FM_CH0_SR_ADDR = 0x70
+  YM2610_YM_FM_CH0_RR_SL_ADDR = 0x80
+  YM2610_YM_FM_CH0_SSG_ADDR = 0x90
+  YM2610_YM_SSG_CHA_FREQ_L_ADDR = 0x00
+  YM2610_YM_SSG_CHA_FREQ_H_ADDR = 0x01
+  YM2610_YM_SSG_CHB_FREQ_L_ADDR = 0x02
+  YM2610_YM_SSG_CHB_FREQ_H_ADDR = 0x03
+  YM2610_YM_SSG_CHC_FREQ_L_ADDR = 0x04
+  YM2610_YM_SSG_CHC_FREQ_H_ADDR = 0x05
+  YM2610_YM_SSG_CHA_VOL_ADDR = 0x08
+  YM2610_YM_SSG_CHB_VOL_ADDR = 0x09
+  YM2610_YM_SSG_CHC_VOL_ADDR = 0x0A
+  YM2610_YM_SSG_MIXER_ADDR = 0x07
+  YM2610_YM_SSG_ENV_FREQ_L_ADDR = 0x0B
+  YM2610_YM_SSG_ENV_FREQ_H_ADDR = 0x0C
+  YM2610_YM_SSG_ENV_SHAPE_ADDR = 0x0D
+  YM2610_YM_SSG_IO_A_ADDR = 0x0E
+  YM2610_YM_SSG_IO_B_ADDR = 0x0F
+  YM2610_YM_ADPCM_STATUS_ADDR = 0x10
+  YM2610_YM_ADPCM_START_ADDR = 0x11
+  YM2610_YM_ADPCM_END_ADDR = 0x12
+  YM2610_YM_ADPCM_VOL_L_ADDR = 0x13
+  YM2610_YM_ADPCM_VOL_R_ADDR = 0x14
+  YM2610_YM_DELTA_N_L_ADDR = 0x15
+  YM2610_YM_DELTA_N_H_ADDR = 0x16
+  YM2610_YM_ADPCM_B_START_ADDR = 0x18
+  YM2610_YM_ADPCM_B_END_ADDR = 0x19
+  YM2610_YM_ADPCM_B_VOL_ADDR = 0x1A
+  YM2610_YM_ADPCM_B_CTRL_ADDR = 0x1B
+  # Neo Geo VDP (Video Display Processor)
+  YGV628_BASE = 0x3C0000
+  YGV628_VRAM_ADDR_L_ADDR = 0x00
+  YGV628_VRAM_ADDR_H_ADDR = 0x01
+  YGV628_VRAM_DATA_ADDR = 0x02
+  YGV628_VRAM_READ_ADDR = 0x03
+  YGV628_CRAM_ADDR_ADDR = 0x04
+  YGV628_CRAM_DATA_ADDR = 0x05
+  YGV628_VDP_STATUS_ADDR = 0x06
+  YGV628_VDP_STATUS_VBLANK_BIT = 0  # V-Blank Flag
+  YGV628_VDP_STATUS_FIELD_BIT = 1  # Field (0=even, 1=odd for interlace)
+  YGV628_VDP_STATUS_ODD_FIELD_BIT = 1  # Odd Field Flag
+  YGV628_VDP_STATUS_DMA_BUSY_BIT = 2  # DMA Busy
+  YGV628_VDP_STATUS_SPRITE_OVERFLOW_BIT = 3  # Sprite Overflow (more than 16 per line)
+  YGV628_VDP_STATUS_SPRITE_COLLISION_BIT = 4  # Sprite Collision
+  YGV628_VDP_CTRL_ADDR = 0x07
+  YGV628_VDP_CTRL_VRAM_INC_BIT = 0  # VRAM Auto-Increment (0=+1, 1=+2)
+  YGV628_VDP_CTRL_ROW_SCROLL_BIT = 1  # Row Scroll Mode
+  YGV628_VDP_CTRL_COL_SCROLL_BIT = 2  # Column Scroll Mode
+  YGV628_VDP_CTRL_FIX_DISP_BIT = 3  # Fix Layer Display
+  YGV628_VDP_CTRL_SPR_DISP_BIT = 4  # Sprite Layer Display
+  YGV628_VDP_CTRL_SCROLL2_DISP_BIT = 5  # Scroll Layer 2 Display
+  YGV628_VDP_CTRL_SCROLL1_DISP_BIT = 6  # Scroll Layer 1 Display
+  YGV628_VDP_CTRL_DMA_ENABLE_BIT = 7  # DMA Enable
+  YGV628_SCROLL1_BASE_ADDR = 0x08
+  YGV628_SCROLL2_BASE_ADDR = 0x0A
+  YGV628_SPR_BASE_ADDR = 0x0C
+  YGV628_SPR_COUNT_ADDR = 0x0E
+  YGV628_WINDOW_X_ADDR = 0x10
+  YGV628_WINDOW_Y_ADDR = 0x11
+  YGV628_WINDOW_W_ADDR = 0x12
+  YGV628_WINDOW_H_ADDR = 0x13
+  YGV628_LINE_SCROLL_L_ADDR = 0x14
+  YGV628_LINE_SCROLL_H_ADDR = 0x15
+  YGV628_RASTER_COMP_ADDR = 0x16
+  YGV628_H_TIMING_ADDR = 0x18
+  YGV628_V_TIMING_ADDR = 0x19
+  YGV628_DMA_SRC_L_ADDR = 0x1A
+  YGV628_DMA_SRC_H_ADDR = 0x1B
+  YGV628_DMA_SRC_B_ADDR = 0x1C
+  YGV628_DMA_DEST_L_ADDR = 0x1D
+  YGV628_DMA_DEST_H_ADDR = 0x1E
+  YGV628_DMA_COUNT_ADDR = 0x1F
+  # Neo Geo System Driver / Controller
+  NEODRIVER_BASE = 0x310000
+  NEODRIVER_PDI0_ADDR = 0x00
+  NEODRIVER_PDI0_UP_BIT = 0  # Up (0=pressed)
+  NEODRIVER_PDI0_DOWN_BIT = 1  # Down (0=pressed)
+  NEODRIVER_PDI0_LEFT_BIT = 2  # Left (0=pressed)
+  NEODRIVER_PDI0_RIGHT_BIT = 3  # Right (0=pressed)
+  NEODRIVER_PDI0_A_BIT = 4  # A Button (0=pressed)
+  NEODRIVER_PDI0_B_BIT = 5  # B Button (0=pressed)
+  NEODRIVER_PDI0_C_BIT = 6  # C Button (0=pressed)
+  NEODRIVER_PDI0_D_BIT = 7  # D Button (0=pressed)
+  NEODRIVER_PDI1_ADDR = 0x01
+  NEODRIVER_PDI2_ADDR = 0x02
+  NEODRIVER_PDI3_ADDR = 0x03
+  NEODRIVER_PDO0_ADDR = 0x04
+  NEODRIVER_PDO1_ADDR = 0x05
+  NEODRIVER_PDO2_ADDR = 0x06
+  NEODRIVER_PDO3_ADDR = 0x07
+  NEODRIVER_DIPSEL1_ADDR = 0x08
+  NEODRIVER_DIPSEL1_COIN_SELECT_BIT = 0  # Coin Select (0=common, 1=1 coin 1 credit)
+  NEODRIVER_DIPSEL1_FREE_PLAY_BIT = 1  # Free Play
+  NEODRIVER_DIPSEL1_DEMO_SOUND_BIT = 2  # Demo Sound
+  NEODRIVER_DIPSEL1_CHIP_MODE_BIT = 3  # Chip Mode (0=AES, 1=MVS)
+  NEODRIVER_DIPSEL1_CONTROLLER_TYPE_BIT = 4  # Controller Type (0=standard, 1=keyboard)
+  NEODRIVER_DIPSEL2_ADDR = 0x09
+  NEODRIVER_DIPSEL3_ADDR = 0x0A
+  NEODRIVER_DIPSEL4_ADDR = 0x0B
+  NEODRIVER_SYSCTRL_ADDR = 0x0C
+  NEODRIVER_SYSCTRL_RTSEL_BIT = 0  # Real Time Switch Select
+  NEODRIVER_SYSCTRL_RESERVED0_BIT = 1  # Reserved
+  NEODRIVER_SYSCTRL_SCC_BIT = 2  # System Clock Control
+  NEODRIVER_SYSCTRL_PHEN_BIT = 3  # PHEN (bus timing)
+  NEODRIVER_SYSCTRL_PCK2_BIT = 4  # PCK2 (bus timing)
+  NEODRIVER_SYSCTRL_PCK1_BIT = 5  # PCK1 (bus timing)
+  NEODRIVER_SYSCTRL_CKDIV2_BIT = 6  # Clock Divide by 2
+  NEODRIVER_SYSCTRL_FEFIX_BIT = 7  # FE Fix
+  NEODRIVER_IRQMASK_ADDR = 0x0D
+  NEODRIVER_IRQMASK_VBLANK_MASK_BIT = 0  # V-Blank Interrupt Mask
+  NEODRIVER_IRQMASK_HBLANK_MASK_BIT = 1  # H-Blank Interrupt Mask
+  NEODRIVER_IRQMASK_VECTOR_IN_MASK_BIT = 2  # Vector In (from Z80) Mask
+  NEODRIVER_IRQMASK_SYSTEM_IN_MASK_BIT = 3  # System Input (JAMMA) Mask
+  NEODRIVER_IRQFLAG_ADDR = 0x0E
+  NEODRIVER_SECAM_MODE_ADDR = 0x0F
+  # Controller Port 1
+  CONTROLLER1_BASE = 0x310000
+  CONTROLLER1_PDI0_ADDR = 0x00
+  # Controller Port 2
+  CONTROLLER2_BASE = 0x310001
+  CONTROLLER2_PDI1_ADDR = 0x00
+  # Memory Card Interface
+  MEMORY_CARD_BASE = 0x320000
+  MEMORY_CARD_CARD_DATA_ADDR = 0x00
+  MEMORY_CARD_CARD_STATUS_ADDR = 0x01
+  MEMORY_CARD_CARD_STATUS_INSERTED_BIT = 0  # Card Inserted (0=yes)
+  MEMORY_CARD_CARD_STATUS_WRITE_PROTECT_BIT = 1  # Write Protected (0=yes)
+  MEMORY_CARD_CARD_STATUS_READY_BIT = 2  # Ready for I/O
+  MEMORY_CARD_CARD_CTRL_ADDR = 0x02
+  # Cartridge Bank Switching
+  CART_BANK_BASE = 0x2FFFF0
+  CART_BANK_BANK_REG_ADDR = 0x00
+
+  # 中断向量定义
+  INT_RESET_SP = 1  # Reset Initial Stack Pointer
+  INT_RESET_PC = 2  # Reset Initial PC
+  INT_BUS_ERROR = 3  # Bus Error
+  INT_ADDRESS_ERROR = 4  # Address Error
+  INT_ILLEGAL_INSTR = 5  # Illegal Instruction
+  INT_ZERO_DIVIDE = 6  # Zero Divide
+  INT_CHK_EXCEPTION = 7  # CHK Exception
+  INT_TRAPV = 8  # TRAPV Exception
+  INT_PRIVILEGE = 9  # Privilege Violation
+  INT_TRACE = 10  # Trace
+  INT_LINE_A = 11  # Line 1010 Emulator
+  INT_LINE_F = 12  # Line 1111 Emulator
+  INT_IRQ1 = 24  # H-Blank / VDP Interrupt (raster)
+  INT_IRQ2 = 25  # V-Blank / Frame End Interrupt
+  INT_IRQ3 = 26  # System Controller / Z80 Vector In
+  INT_IRQ4 = 27  # JAMMA / System Input
+  INT_IRQ5 = 28  # Z80 Interrupt Request
+  INT_TRAP0 = 32  # TRAP #0 (system call)
+  INT_TRAP1 = 33  # TRAP #1
+
+  # 引脚定义
+  PIN_VCC = 1  # Power Supply (5V)
+  PIN_GND = 2  # Ground
+  PIN_CLK = 3  # System Clock (12MHz for 68K)
+  PIN_RESET = 4  # Reset (active low)
+  PIN_HALT = 5  # Halt (stops CPU)
+  PIN_NMI = 6  # Non-Maskable Interrupt
+  PIN_IPL0 = 7  # Interrupt Priority Level 0
+  PIN_IPL1 = 8  # Interrupt Priority Level 1
+  PIN_IPL2 = 9  # Interrupt Priority Level 2
+  PIN_DTACK = 10  # Data Acknowledge (active low)
+  PIN_BERR = 11  # Bus Error (active low)
+  PIN_BR = 12  # Bus Request (active low)
+  PIN_BG = 13  # Bus Grant (active low)
+  PIN_A0 = 14  # Address Bus Bit 0
+  PIN_A1 = 15  # Address Bus Bit 1
+  PIN_A2 = 16  # Address Bus Bit 2
+  PIN_A3 = 17  # Address Bus Bit 3
+  PIN_A4 = 18  # Address Bus Bit 4
+  PIN_A5 = 19  # Address Bus Bit 5
+  PIN_A6 = 20  # Address Bus Bit 6
+  PIN_A7 = 21  # Address Bus Bit 7
+  PIN_A8 = 22  # Address Bus Bit 8
+  PIN_A9 = 23  # Address Bus Bit 9
+  PIN_A10 = 24  # Address Bus Bit 10
+  PIN_A11 = 25  # Address Bus Bit 11
+  PIN_A12 = 26  # Address Bus Bit 12
+  PIN_A13 = 27  # Address Bus Bit 13
+  PIN_A14 = 28  # Address Bus Bit 14
+  PIN_A15 = 29  # Address Bus Bit 15
+  PIN_A16 = 30  # Address Bus Bit 16
+  PIN_A17 = 31  # Address Bus Bit 17
+  PIN_A18 = 32  # Address Bus Bit 18
+  PIN_A19 = 33  # Address Bus Bit 19
+  PIN_A20 = 34  # Address Bus Bit 20
+  PIN_A21 = 35  # Address Bus Bit 21
+  PIN_A22 = 36  # Address Bus Bit 22
+  PIN_A23 = 37  # Address Bus Bit 23
+  PIN_D0 = 38  # Data Bus Bit 0
+  PIN_D1 = 39  # Data Bus Bit 1
+  PIN_D2 = 40  # Data Bus Bit 2
+  PIN_D3 = 41  # Data Bus Bit 3
+  PIN_D4 = 42  # Data Bus Bit 4
+  PIN_D5 = 43  # Data Bus Bit 5
+  PIN_D6 = 44  # Data Bus Bit 6
+  PIN_D7 = 45  # Data Bus Bit 7
+  PIN_D8 = 46  # Data Bus Bit 8
+  PIN_D9 = 47  # Data Bus Bit 9
+  PIN_D10 = 48  # Data Bus Bit 10
+  PIN_D11 = 49  # Data Bus Bit 11
+  PIN_D12 = 50  # Data Bus Bit 12
+  PIN_D13 = 51  # Data Bus Bit 13
+  PIN_D14 = 52  # Data Bus Bit 14
+  PIN_D15 = 53  # Data Bus Bit 15
+  PIN_AS = 54  # Address Strobe (active low)
+  PIN_UDS = 55  # Upper Data Strobe (active low)
+  PIN_LDS = 56  # Lower Data Strobe (active low)
+  PIN_R_W = 57  # Read/Write (1=Read, 0=Write)
+  PIN_FC0 = 58  # Function Code 0
+  PIN_FC1 = 59  # Function Code 1
+  PIN_FC2 = 60  # Function Code 2
+  PIN_E = 61  # E Clock (Enable, for Z80 sync)
+  PIN_VPA = 62  # Valid Peripheral Address (for Z80 I/O)
+  PIN_VM = 63  # Valid Memory (for Z80 memory access)
+  PIN_BKGR = 64  # Background Audio Mix (analog output)
+  PIN_AUDIO_OUT = 65  # Main Audio Output (Left)
+  PIN_AUDIO_R = 66  # Audio Right Channel
+  PIN_VIDEO_R = 67  # Video Output Red
+  PIN_VIDEO_G = 68  # Video Output Green
+  PIN_VIDEO_B = 69  # Video Output Blue
+  PIN_SYNC = 70  # Video Sync
+
+end

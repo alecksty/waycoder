@@ -1,0 +1,198 @@
+﻿' MSX1寄存器定义
+' 生成自: Various (ASCII/Awanaga/MSX Association)/MSX/MSX1
+' 版本: 1.0
+' 日期: 2026-04-17
+' 作者: VML Team
+' 描述: MSX - Standardized 8-bit home computer with Z80A CPU, TMS9918A graphics, and AY-3-8910 audio
+
+' CPU架构: Z80A
+' 位宽: 8位
+' 时钟频率: 3579545 Hz
+
+' 寄存器定义
+' Accumulator
+CONST A = 0x00
+
+' Flags
+CONST F = 0x01
+CONST F_C = 0  ' Carry
+CONST F_N = 1  ' Subtract
+CONST F_PV = 2  ' Parity/Overflow
+CONST F_H = 4  ' Half Carry
+CONST F_Z = 6  ' Zero
+CONST F_S = 7  ' Sign
+
+' B Register
+CONST B = 0x02
+
+' C Register
+CONST C = 0x03
+
+' D Register
+CONST D = 0x04
+
+' E Register
+CONST E = 0x05
+
+' H Register
+CONST H = 0x06
+
+' L Register
+CONST L = 0x07
+
+' Alternate AF
+CONST AF = 0x08
+
+' Alternate BC
+CONST BC = 0x0A
+
+' Alternate DE
+CONST DE = 0x0C
+
+' Alternate HL
+CONST HL = 0x0E
+
+' Interrupt Vector
+CONST I = 0x10
+
+' Refresh
+CONST R = 0x11
+
+' Index X
+CONST IX = 0x12
+
+' Index Y (usually = 0xF38F)
+CONST IY = 0x14
+
+' Stack Pointer
+CONST SP = 0x16
+
+' Program Counter
+CONST PC = 0x18
+
+' 内存段定义
+' Cartridge/SUB-ROM / Main-ROM
+CONST SLOT0_ROM_START = 0x0000
+CONST SLOT0_ROM_END = 0x7FFF
+CONST SLOT0_ROM_SIZE = 32768
+
+' MSX-BIOS ROM
+CONST SYSROM_START = 0x0000
+CONST SYSROM_END = 0x3FFF
+CONST SYSROM_SIZE = 16384
+
+' Extension ROM (cartridge)
+CONST EXTROM_START = 0x4000
+CONST EXTROM_END = 0x7FFF
+CONST EXTROM_SIZE = 16384
+
+' Main RAM (32KB working area)
+CONST MAIN_RAM_START = 0x4000
+CONST MAIN_RAM_END = 0xC000
+CONST MAIN_RAM_SIZE = 32768
+
+' Work RAM (16KB)
+CONST WORK_RAM_START = 0xC000
+CONST WORK_RAM_END = 0xFFFF
+CONST WORK_RAM_SIZE = 16384
+
+' System variables area
+CONST SYSVAR_START = 0xF000
+CONST SYSVAR_END = 0xFCA0
+CONST SYSVAR_SIZE = 3232
+
+' Slot-mapped memory
+CONST SLOTS_START = 0x8000
+CONST SLOTS_END = 0xFFFF
+CONST SLOTS_SIZE = 32768
+
+' 外设定义
+' TMS9918A Video Display Processor
+CONST VDP_BASE = 0x98
+CONST VDP_VDP_REG0 = 0x99
+CONST VDP_VDP_REG1 = 0x99
+CONST VDP_VDP_REG2 = 0x99
+CONST VDP_VDP_REG3 = 0x99
+CONST VDP_VDP_REG4 = 0x99
+CONST VDP_VDP_REG5 = 0x99
+CONST VDP_VDP_REG6 = 0x99
+CONST VDP_VDP_REG7 = 0x99
+CONST VDP_VDP_STATUS = 0x99
+CONST VDP_VDP_DATA = 0x98
+CONST VDP_VDP_POT = 0x98
+
+' AY-3-8910 Programmable Sound Generator
+CONST PSG_BASE = 0xA0
+CONST PSG_PSG_REG = 0xA1
+CONST PSG_PSG_DATA = 0xA3
+CONST PSG_FREQ_A_LO = 0xA0
+CONST PSG_FREQ_A_HI = 0xA1
+CONST PSG_FREQ_B_LO = 0xA2
+CONST PSG_FREQ_B_HI = 0xA3
+CONST PSG_FREQ_C_LO = 0xA4
+CONST PSG_FREQ_C_HI = 0xA5
+CONST PSG_NOISE_FREQ = 0xA6
+CONST PSG_ENABLE = 0xA7
+CONST PSG_VOL_A = 0xA8
+CONST PSG_VOL_B = 0xA9
+CONST PSG_VOL_C = 0xAA
+CONST PSG_ENV_FREQ_LO = 0xAB
+CONST PSG_ENV_FREQ_HI = 0xAC
+CONST PSG_ENV_SHAPE = 0xAD
+CONST PSG_PORT_A = 0xAE
+CONST PSG_PORT_B = 0xAF
+
+' PPI 8255 Programmable Peripheral Interface
+CONST PPI_BASE = 0xA8
+CONST PPI_PPI_PA = 0xA8
+CONST PPI_PPI_PB = 0xA9
+CONST PPI_PPI_PC = 0xAA
+CONST PPI_PPI_CTRL = 0xAB
+
+' MSX Slot Expansion System
+CONST SLOTEXP_BASE = 0x0000
+CONST SLOTEXP_SLOT0 = 0xFCC0
+CONST SLOTEXP_SLOT1 = 0xFCC1
+CONST SLOTEXP_SLOT2 = 0xFCC2
+CONST SLOTEXP_SLOT3 = 0xFCC3
+CONST SLOTEXP_EXPTBL0 = 0xFCC4
+CONST SLOTEXP_EXPTBL1 = 0xFCC5
+CONST SLOTEXP_EXPTBL2 = 0xFCC6
+CONST SLOTEXP_EXPTBL3 = 0xFCC7
+
+' 中断向量定义
+CONST RESET_VECTOR = 0  ' Power-on / Reset
+CONST NMI_VECTOR = 1  ' Non-Maskable Interrupt
+CONST INT_VECTOR = 2  ' VDP Vertical Interrupt (frame)
+
+' 引脚定义
+CONST PIN_VCC = 1  ' +5V Power
+CONST PIN_GND = 2  ' Ground
+CONST PIN_CLK = 3  ' Z80 Clock (3.58MHz)
+CONST PIN_A0_A15 = 4  ' Address Bus
+CONST PIN_D0_D7 = 5  ' Data Bus
+CONST PIN_MREQ = 6  ' Memory Request
+CONST PIN_IORQ = 7  ' I/O Request
+CONST PIN_RD = 8  ' Read
+CONST PIN_WR = 9  ' Write
+CONST PIN_INT = 10  ' Interrupt Request
+CONST PIN_NMI = 11  ' Non-Maskable Interrupt
+CONST PIN_RESET = 12  ' Reset
+CONST PIN_SLTSL = 13  ' Slot select (for memory mapping)
+CONST PIN_WAIT = 14  ' Wait (for slow I/O)
+
+' 设备初始化子程序
+SUB msx1_init()
+    ' 初始化代码
+END SUB
+
+' 常用函数
+FUNCTION read_register(addr AS INTEGER) AS INTEGER
+    ' 读取寄存器值
+    RETURN PEEK(addr)
+END FUNCTION
+
+SUB write_register(addr AS INTEGER, value AS INTEGER)
+    ' 写入寄存器值
+    POKE addr, value
+END SUB

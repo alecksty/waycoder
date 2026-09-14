@@ -1,0 +1,1 @@
+using VMLPlugins.Interfaces; using VMLAssembler; namespace VMLTranslators { public class TranslatorRISCVPlugin : TranslatorPlugin<TranslatorRISCV> { public TranslatorRISCVPlugin() : base("RISC-V", "RISC-V 32位处理器", "32", ".riscv.asm") { } } }

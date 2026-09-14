@@ -1,0 +1,787 @@
+.data
+
+.text
+thread_create:
+; -------------------------------------------
+; source   : int thread_create(void* fn,int stack_size)
+; function : thread_create
+; param   : void* fn
+; param   : int stack_size
+; return   : int
+; --------------------------------------------
+thread_create:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #300
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560000
+L35560000:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+thread_exit:
+; -------------------------------------------
+; source   : void thread_exit()
+; function : thread_exit
+; return   : void
+; --------------------------------------------
+thread_exit:
+        push R15
+        push R12
+        move R12 R13
+        syscall #301
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+thread_join:
+; -------------------------------------------
+; source   : int thread_join(int tid)
+; function : thread_join
+; param   : int tid
+; return   : int
+; --------------------------------------------
+thread_join:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #302
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560001
+L35560001:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+thread_yield:
+; -------------------------------------------
+; source   : void thread_yield()
+; function : thread_yield
+; return   : void
+; --------------------------------------------
+thread_yield:
+        push R15
+        push R12
+        move R12 R13
+        syscall #303
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+thread_sleep:
+; -------------------------------------------
+; source   : void thread_sleep(int ms)
+; function : thread_sleep
+; param   : int ms
+; return   : void
+; --------------------------------------------
+thread_sleep:
+        push R15
+        push R12
+        move R12 R13
+        syscall #304
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+mutex_create:
+; -------------------------------------------
+; source   : int mutex_create()
+; function : mutex_create
+; return   : int
+; --------------------------------------------
+mutex_create:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #310
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560002
+L35560002:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+mutex_lock:
+; -------------------------------------------
+; source   : int mutex_lock(int id)
+; function : mutex_lock
+; param   : int id
+; return   : int
+; --------------------------------------------
+mutex_lock:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #311
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560003
+L35560003:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+mutex_unlock:
+; -------------------------------------------
+; source   : int mutex_unlock(int id)
+; function : mutex_unlock
+; param   : int id
+; return   : int
+; --------------------------------------------
+mutex_unlock:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #312
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560004
+L35560004:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+cond_create:
+; -------------------------------------------
+; source   : int cond_create()
+; function : cond_create
+; return   : int
+; --------------------------------------------
+cond_create:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #313
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560005
+L35560005:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+cond_wait:
+; -------------------------------------------
+; source   : int cond_wait(int cond,int mutex)
+; function : cond_wait
+; param   : int cond
+; param   : int mutex
+; return   : int
+; --------------------------------------------
+cond_wait:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #314
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560006
+L35560006:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+cond_signal:
+; -------------------------------------------
+; source   : int cond_signal(int cond)
+; function : cond_signal
+; param   : int cond
+; return   : int
+; --------------------------------------------
+cond_signal:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #315
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560007
+L35560007:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+cond_broadcast:
+; -------------------------------------------
+; source   : int cond_broadcast(int cond)
+; function : cond_broadcast
+; param   : int cond
+; return   : int
+; --------------------------------------------
+cond_broadcast:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #316
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560008
+L35560008:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+exec:
+; -------------------------------------------
+; source   : int exec(const char* path)
+; function : exec
+; param   : const char* path
+; return   : int
+; --------------------------------------------
+exec:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        syscall #320
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560009
+L35560009:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+process_exit:
+; -------------------------------------------
+; source   : void process_exit(int code)
+; function : process_exit
+; param   : int code
+; return   : void
+; --------------------------------------------
+process_exit:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #321
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+get_pid:
+; -------------------------------------------
+; source   : int get_pid()
+; function : get_pid
+; return   : int
+; --------------------------------------------
+get_pid:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #322
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560010
+L35560010:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+socket_create:
+; -------------------------------------------
+; source   : int socket_create(int domain,int type)
+; function : socket_create
+; param   : int domain
+; param   : int type
+; return   : int
+; --------------------------------------------
+socket_create:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #330
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560011
+L35560011:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+socket_bind:
+; -------------------------------------------
+; source   : int socket_bind(int fd,int port)
+; function : socket_bind
+; param   : int fd
+; param   : int port
+; return   : int
+; --------------------------------------------
+socket_bind:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #331
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560012
+L35560012:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+socket_listen:
+; -------------------------------------------
+; source   : int socket_listen(int fd,int backlog)
+; function : socket_listen
+; param   : int fd
+; param   : int backlog
+; return   : int
+; --------------------------------------------
+socket_listen:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #332
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560013
+L35560013:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+socket_accept:
+; -------------------------------------------
+; source   : int socket_accept(int fd)
+; function : socket_accept
+; param   : int fd
+; return   : int
+; --------------------------------------------
+socket_accept:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #333
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560014
+L35560014:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+socket_connect:
+; -------------------------------------------
+; source   : int socket_connect(int fd,const char* addr,int port)
+; function : socket_connect
+; param   : int fd
+; param   : const char* addr
+; param   : int port
+; return   : int
+; --------------------------------------------
+socket_connect:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #334
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560015
+L35560015:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #16
+        push R1
+        ret
+socket_send:
+; -------------------------------------------
+; source   : int socket_send(int fd,const void* buf,int len)
+; function : socket_send
+; param   : int fd
+; param   : const void* buf
+; param   : int len
+; return   : int
+; --------------------------------------------
+socket_send:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #335
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560016
+L35560016:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #16
+        push R1
+        ret
+socket_recv:
+; -------------------------------------------
+; source   : int socket_recv(int fd,void* buf,int len)
+; function : socket_recv
+; param   : int fd
+; param   : void* buf
+; param   : int len
+; return   : int
+; --------------------------------------------
+socket_recv:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #336
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560017
+L35560017:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #16
+        push R1
+        ret
+socket_close:
+; -------------------------------------------
+; source   : int socket_close(int fd)
+; function : socket_close
+; param   : int fd
+; return   : int
+; --------------------------------------------
+socket_close:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #337
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560018
+L35560018:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+mkdir:
+; -------------------------------------------
+; source   : int mkdir(const char* path)
+; function : mkdir
+; param   : const char* path
+; return   : int
+; --------------------------------------------
+mkdir:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #340
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560019
+L35560019:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+remove_file:
+; -------------------------------------------
+; source   : int remove_file(const char* path)
+; function : remove_file
+; param   : const char* path
+; return   : int
+; --------------------------------------------
+remove_file:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #341
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560020
+L35560020:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+rename_file:
+; -------------------------------------------
+; source   : int rename_file(const char* old,const char* new)
+; function : rename_file
+; param   : const char* old
+; param   : const char* new
+; return   : int
+; --------------------------------------------
+rename_file:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #342
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560021
+L35560021:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+read_dir:
+; -------------------------------------------
+; source   : int read_dir(const char* path,void* buf)
+; function : read_dir
+; param   : const char* path
+; param   : void* buf
+; return   : int
+; --------------------------------------------
+read_dir:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        syscall #343
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560022
+L35560022:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+file_stat:
+; -------------------------------------------
+; source   : int file_stat(const char* path,void* buf)
+; function : file_stat
+; param   : const char* path
+; param   : void* buf
+; return   : int
+; --------------------------------------------
+file_stat:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        syscall #344
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560023
+L35560023:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+get_env:
+; -------------------------------------------
+; source   : char* get_env(const char* name)
+; function : get_env
+; param   : const char* name
+; return   : char*
+; --------------------------------------------
+get_env:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        syscall #360
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560024
+L35560024:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+set_env:
+; -------------------------------------------
+; source   : void set_env(const char* name,const char* val)
+; function : set_env
+; param   : const char* name
+; param   : const char* val
+; return   : void
+; --------------------------------------------
+set_env:
+        push R15
+        push R12
+        move R12 R13
+        syscall #361
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+get_args:
+; -------------------------------------------
+; source   : int get_args(void* buf)
+; function : get_args
+; param   : void* buf
+; return   : int
+; --------------------------------------------
+get_args:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        syscall #362
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560025
+L35560025:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+signal:
+; -------------------------------------------
+; source   : int signal(int signum,void* handler)
+; function : signal
+; param   : int signum
+; param   : void* handler
+; return   : int
+; --------------------------------------------
+signal:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #350
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560026
+L35560026:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+type_of:
+; -------------------------------------------
+; source   : int type_of(void* addr)
+; function : type_of
+; param   : void* addr
+; return   : int
+; --------------------------------------------
+type_of:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #380
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560027
+L35560027:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+type_name:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int type_name(int type_id,char* buf)
+; function : type_name
+; param   : int type_id
+; param   : char* buf
+; return   : int
+; --------------------------------------------
+type_name:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #381
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560028
+L35560028:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret

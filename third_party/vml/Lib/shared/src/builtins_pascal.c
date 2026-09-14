@@ -1,0 +1,16 @@
+#param lib("file")
+#param lib("os")
+#param lib("crt")
+#param lib("convert")
+#param lib("string")
+#param lib("math")
+#param lib("printf")
+#param lib("io")
+#param lib("ctype")
+#param lib("bitops")
+#param lib("util")
+#param lib("float")
+#param lib("memory")
+// VML Pascal Language-Specific Built-in Library
+// 非共享函数 → builtins_pascal.c (语言独享)
+// TODO: 添加 Pascal 语言特有内置函数

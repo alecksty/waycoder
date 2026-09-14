@@ -1,0 +1,2 @@
+In ExecuteLoad, add debug output before GetAddress:
+Console.WriteLine($"  LOAD: src={src}, R14={registers[14]}, R13={registers[13]}, SP={sp}");

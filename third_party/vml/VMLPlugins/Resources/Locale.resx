@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="lang_name" xml:space="preserve"><value>English</value></data>
+  <data name="tool.description" xml:space="preserve"><value>VML Toolchain — Multi-language compiler &amp; cross-platform tool</value></data>
+  <data name="tool.usage" xml:space="preserve"><value>Usage: {0} [options] &lt;input&gt; [output]</value></data>
+  <data name="help.title" xml:space="preserve"><value>Usage: vmltool [options] &lt;files...&gt;</value></data>
+  <data name="help.short.usage" xml:space="preserve"><value>Usage: vmltool [options] &lt;files...&gt;</value></data>
+  <data name="help.short.hint" xml:space="preserve"><value>vmltool -h for detailed help</value></data>
+  <data name="help.option" xml:space="preserve"><value>-h, --help               Show this help and exit</value></data>
+  <data name="version.option" xml:space="preserve"><value>-V, --version            Show version info</value></data>
+  <data name="debug.option" xml:space="preserve"><value>-g, --debug              Include debug information</value></data>
+  <data name="output.option" xml:space="preserve"><value>-o, --output &lt;file&gt;      Output file</value></data>
+  <data name="target.option" xml:space="preserve"><value>-t, --target &lt;arch&gt;      Target architecture (x86/arm-cm/avr/8051/riscv/mips/6502/z80/...)</value></data>
+  <data name="format.option" xml:space="preserve"><value>-f, --format &lt;fmt&gt;       Output format (hex/elf/exe/bin/s19/dump)</value></data>
+  <data name="include.option" xml:space="preserve"><value>-I, --include &lt;path&gt;     Add include search path</value></data>
+  <data name="lib.option" xml:space="preserve"><value>-L, --library &lt;path&gt;     Add library search path</value></data>
+  <data name="lang.option" xml:space="preserve"><value>-x, --lang &lt;lang&gt;        Source language (c/basic/pascal/python/lua/forth/go/rust/java/js/swift/cs/cpp/ladder)</value></data>
+  <data name="mode.option" xml:space="preserve"><value>--mode &lt;mcu|os&gt;          Run mode (mcu=bare-metal, os=full-system)</value></data>
+  <data name="ram.option" xml:space="preserve"><value>--ram &lt;k|m|g&gt;            RAM level (k=KB, m=MB, g=GB)</value></data>
+  <data name="stack.option" xml:space="preserve"><value>--stack-size &lt;bytes&gt;      Stack size in bytes</value></data>
+  <data name="compiling" xml:space="preserve"><value>Compiling {0} ...</value></data>
+  <data name="compiled" xml:space="preserve"><value>Compiled OK → {0} ({1} instructions)</value></data>
+  <data name="compile.error" xml:space="preserve"><value>Compile error: {0}</value></data>
+  <data name="file.notfound" xml:space="preserve"><value>File not found: {0}</value></data>
+  <data name="unknown.format" xml:space="preserve"><value>Unknown output format</value></data>
+  <data name="running" xml:space="preserve"><value>Running...</value></data>
+  <data name="program.completed" xml:space="preserve"><value>Program completed successfully.</value></data>
+  <data name="nocompiler" xml:space="preserve"><value>No compiler found for &apos;{0}&apos; files</value></data>
+  <data name="syntax.error" xml:space="preserve"><value>Syntax error at line {0}: {1}</value></data>
+  <data name="undefined.var" xml:space="preserve"><value>Undefined variable &apos;{0}&apos;</value></data>
+  <data name="func.redefined" xml:space="preserve"><value>Function &apos;{0}&apos; already defined</value></data>
+  <data name="type.mismatch" xml:space="preserve"><value>Type mismatch: expected {0}, got {1}</value></data>
+  <data name="expect.token" xml:space="preserve"><value>Expected {0}, got {1}</value></data>
+  <data name="expect.identifier" xml:space="preserve"><value>Expected identifier in {0}</value></data>
+  <data name="unsupported.type" xml:space="preserve"><value>Unsupported type: {0}</value></data>
+  <data name="unsupported.expr" xml:space="preserve"><value>Unsupported expression: {0}</value></data>
+  <data name="not.implemented" xml:space="preserve"><value>Not implemented: {0}</value></data>
+  <data name="mcu.skipped" xml:space="preserve"><value>[MCU] Skipped {0}: {1}</value></data>
+  <data name="v2h.description" xml:space="preserve"><value>VMLToHex — VML to MCU firmware converter</value></data>
+  <data name="v2h.usage" xml:space="preserve"><value>Usage: vml2hex [options] &lt;input&gt; -arch &lt;arch&gt;</value></data>
+  <data name="arch.option" xml:space="preserve"><value>--arch, -a &lt;arch&gt;        Target architecture (avr/8051/arm-cm/x86/riscv/mips/6502/z80/...)</value></data>
+  <data name="baseaddr.option" xml:space="preserve"><value>--base, -b &lt;addr&gt;        Base address for code</value></data>
+  <data name="bios.option" xml:space="preserve"><value>--bios                   Link hardware BIOS (default)</value></data>
+  <data name="assembling" xml:space="preserve"><value>Assembling for {0} ...</value></data>
+  <data name="output.format" xml:space="preserve"><value>Output: {0} ({1} bytes)</value></data>
+  <data name="emulator.title" xml:space="preserve"><value>VML Console Emulator</value></data>
+  <data name="loading" xml:space="preserve"><value>Loading: {0}</value></data>
+  <data name="load.success" xml:space="preserve"><value>Load successful.</value></data>
+  <data name="device.info" xml:space="preserve"><value>Device: {0} | Mode: {1} | RAM: {2}KB | Display: {3}</value></data>
+  <data name="vga.mode" xml:space="preserve"><value>VGA mode: {0}</value></data>
+  <data name="step.mode" xml:space="preserve"><value>Step mode active — press Enter to step, Q to quit</value></data>
+  <data name="recording" xml:space="preserve"><value>Recording audio to {0} ...</value></data>
+  <data name="recording.started" xml:space="preserve"><value>Audio recording started: {0}</value></data>
+  <data name="recording.finished" xml:space="preserve"><value>Audio recording finished: {1}s → {0}</value></data>
+  <data name="screenshot.saved" xml:space="preserve"><value>Screenshot saved: {0}</value></data>
+  <data name="key.script.started" xml:space="preserve"><value>Key script started: {0}</value></data>
+  <data name="unknown.cmd" xml:space="preserve"><value>Unknown command: {0}</value></data>
+  <data name="help.section.actions" xml:space="preserve"><value>Actions (GCC-compatible):</value></data>
+  <data name="help.action.compile" xml:space="preserve"><value>Compile source to VML</value></data>
+  <data name="help.action.to_asm" xml:space="preserve"><value>Compile to assembly (no assemble)</value></data>
+  <data name="help.action.preprocess" xml:space="preserve"><value>Preprocess C source only</value></data>
+  <data name="help.action.assemble" xml:space="preserve"><value>Assemble VML to binary</value></data>
+  <data name="help.action.translate" xml:space="preserve"><value>Translate VML to target assembly</value></data>
+  <data name="help.action.link" xml:space="preserve"><value>Link multiple VML files</value></data>
+  <data name="help.action.run" xml:space="preserve"><value>Run VML program</value></data>
+  <data name="help.action.exe" xml:space="preserve"><value>Pack as standalone executable</value></data>
+  <data name="help.section.common" xml:space="preserve"><value>Common options:</value></data>
+  <data name="help.opt.output" xml:space="preserve"><value>Output file (GCC compatible)</value></data>
+  <data name="help.opt.lang" xml:space="preserve"><value>Source language (auto-detect)</value></data>
+  <data name="help.opt.target" xml:space="preserve"><value>Target architecture (default x86)</value></data>
+  <data name="help.opt.format" xml:space="preserve"><value>Output format (hex/elf/exe/bin/s19/dump)</value></data>
+  <data name="help.opt.optimize" xml:space="preserve"><value>Optimization level (default -O0)</value></data>
+  <data name="help.opt.dump" xml:space="preserve"><value>Instruction dump</value></data>
+  <data name="help.opt.savetemps" xml:space="preserve"><value>Save intermediate files</value></data>
+  <data name="help.section.gcc" xml:space="preserve"><value>GCC-compatible flags:</value></data>
+  <data name="help.opt.define" xml:space="preserve"><value>Define macro</value></data>
+  <data name="help.opt.undef" xml:space="preserve"><value>Undefine macro</value></data>
+  <data name="help.opt.include" xml:space="preserve"><value>Include search path</value></data>
+  <data name="help.opt.library" xml:space="preserve"><value>Library search path</value></data>
+  <data name="help.opt.linklib" xml:space="preserve"><value>Link library</value></data>
+  <data name="help.opt.std" xml:space="preserve"><value>Language standard</value></data>
+  <data name="help.opt.debug" xml:space="preserve"><value>Debug info</value></data>
+  <data name="help.opt.warn" xml:space="preserve"><value>Warning control</value></data>
+  <data name="help.opt.linkmode" xml:space="preserve"><value>Link mode</value></data>
+  <data name="help.section.target" xml:space="preserve"><value>Target configuration:</value></data>
+  <data name="help.opt.mode" xml:space="preserve"><value>Run mode (default mcu)</value></data>
+  <data name="help.opt.ram" xml:space="preserve"><value>Memory level (default m)</value></data>
+  <data name="help.opt.stack" xml:space="preserve"><value>Stack size</value></data>
+  <data name="help.opt.runtime" xml:space="preserve"><value>EXE target runtime</value></data>
+  <data name="help.section.other" xml:space="preserve"><value>Other:</value></data>
+  <data name="help.opt.help" xml:space="preserve"><value>Show this help</value></data>
+  <data name="help.opt.version" xml:space="preserve"><value>Version info</value></data>
+  <data name="help.opt.verbose" xml:space="preserve"><value>Verbose output</value></data>
+  <data name="help.opt.repl" xml:space="preserve"><value>VML interactive REPL</value></data>
+  <data name="help.opt.plugins" xml:space="preserve"><value>List registered plugins</value></data>
+  <data name="help.opt.lang_ui" xml:space="preserve"><value>Switch UI language (VML_LANG=en)</value></data>
+  <data name="help.section.examples" xml:space="preserve"><value>Examples (14 languages auto-detected by extension):</value></data>
+  <data name="help.example.c" xml:space="preserve"><value>C → VML</value></data>
+  <data name="help.example.hex" xml:space="preserve"><value>VML → HEX</value></data>
+  <data name="help.compilers" xml:space="preserve"><value>{0} compilers + {1} translators</value></data>
+  <data name="help.plugins_title" xml:space="preserve"><value>Registered Plugins</value></data>
+  <data name="help.frontends" xml:space="preserve"><value>Frontend compilers ({0}):</value></data>
+  <data name="help.backends" xml:space="preserve"><value>Backend translators ({0}):</value></data>
+  <data name="help.opt.soft_float" xml:space="preserve"><value>Use software float library</value></data>
+  <data name="help.opt.no_float" xml:space="preserve"><value>Disable float support</value></data>
+  <data name="help.opt.int64" xml:space="preserve"><value>64-bit: native(default)/library/none</value></data>
+</root>

@@ -1,0 +1,10 @@
+# VML EEPROM 扩展库 — Ladder
+# 需显式 include eeprom.ld
+
+[EEPROM_READ]
+SYSCALL 106
+RET
+
+[EEPROM_WRITE]
+SYSCALL 107
+RET

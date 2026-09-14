@@ -1,0 +1,129 @@
+﻿; STM32L073寄存器定义
+; 生成自: STMicroelectronics/STM32/STM32L073
+; 版本: 1.0
+; 日期: 2026-04-28
+; 作者: VML Team
+; 描述: 32-bit ARM Cortex-M0+ Ultra-Low-Power MCU with 192KB Flash, 20KB RAM, 32MHz
+
+; CPU架构: ARM-Cortex-M0+
+; 位宽: 32位
+; 时钟频率: 32000000 Hz
+
+; 寄存器定义
+.equ R0, 0x00
+
+.equ R1, 0x04
+
+.equ R2, 0x08
+
+.equ R3, 0x0C
+
+.equ SP, 0x34
+
+.equ LR, 0x38
+
+.equ PC, 0x3C
+
+; 内存段定义
+.equ FLASH_START, 0x08000000
+.equ FLASH_END, 0x0802FFFF
+.equ FLASH_SIZE, 196608
+
+.equ SRAM_START, 0x20000000
+.equ SRAM_END, 0x20004FFF
+.equ SRAM_SIZE, 20480
+
+.equ PERIPHERAL_START, 0x40000000
+.equ PERIPHERAL_END, 0x4002FFFF
+.equ PERIPHERAL_SIZE, 196608
+
+; 外设定义
+; Reset and Clock Control
+.equ RCC_BASE, 0x40020000
+.equ RCC_CR, 0x00
+.equ RCC_CFGR, 0x04
+.equ RCC_AHBENR, 0x1C
+.equ RCC_AHBENR_GPIOAEN, 17  ; GPIOA clock enable
+.equ RCC_AHBENR_GPIOBEN, 18  ; GPIOB clock enable
+.equ RCC_AHBENR_GPIOCEN, 19  ; GPIOC clock enable
+.equ RCC_APB1ENR, 0x20
+
+; General Purpose I/O Port A
+.equ GPIOA_BASE, 0x50000000
+.equ GPIOA_MODER, 0x00
+.equ GPIOA_OTYPER, 0x04
+.equ GPIOA_OSPEEDR, 0x08
+.equ GPIOA_PUPDR, 0x0C
+.equ GPIOA_IDR, 0x10
+.equ GPIOA_ODR, 0x14
+.equ GPIOA_BSRR, 0x18
+.equ GPIOA_BRR, 0x28
+
+; General Purpose I/O Port B
+.equ GPIOB_BASE, 0x50000400
+.equ GPIOB_MODER, 0x00
+.equ GPIOB_OTYPER, 0x04
+.equ GPIOB_OSPEEDR, 0x08
+.equ GPIOB_PUPDR, 0x0C
+.equ GPIOB_IDR, 0x10
+.equ GPIOB_ODR, 0x14
+.equ GPIOB_BSRR, 0x18
+.equ GPIOB_BRR, 0x28
+
+; General Purpose I/O Port C
+.equ GPIOC_BASE, 0x50000800
+.equ GPIOC_MODER, 0x00
+.equ GPIOC_OTYPER, 0x04
+.equ GPIOC_IDR, 0x10
+.equ GPIOC_ODR, 0x14
+.equ GPIOC_BSRR, 0x18
+
+; General Purpose I/O Port D
+.equ GPIOD_BASE, 0x50000C00
+.equ GPIOD_MODER, 0x00
+.equ GPIOD_IDR, 0x10
+.equ GPIOD_ODR, 0x14
+.equ GPIOD_BSRR, 0x18
+
+; General Purpose I/O Port E
+.equ GPIOE_BASE, 0x50001000
+.equ GPIOE_MODER, 0x00
+.equ GPIOE_IDR, 0x10
+.equ GPIOE_ODR, 0x14
+.equ GPIOE_BSRR, 0x18
+
+; 中断向量定义
+.equ RESET_VECTOR, 0  ; 
+.equ SVCALL_VECTOR, 11  ; 
+
+; 宏定义
+.macro stm32l073_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+stm32l073_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

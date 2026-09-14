@@ -1,0 +1,14 @@
+# VML 调试扩展库 — Ladder
+# 需显式 include debug.ld
+
+[DEBUG_PRINT]
+SYSCALL 70
+RET
+
+[DEBUG_PRINT_INT]
+SYSCALL 71
+RET
+
+[ASSERT]
+SYSCALL 72
+RET

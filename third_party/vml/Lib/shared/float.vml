@@ -1,0 +1,61 @@
+
+.data
+
+.text
+putfloat:
+; -------------------------------------------
+; source   : void putfloat(float f)
+; function : putfloat
+; param   : float f
+; return   : void
+; --------------------------------------------
+putfloat:
+        push R15
+        push R12
+        move R12 R13
+        syscall #8
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+getfloat:
+; -------------------------------------------
+; source   : void getfloat()
+; function : getfloat
+; return   : void
+; --------------------------------------------
+getfloat:
+        push R15
+        push R12
+        move R12 R13
+        syscall #9
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+puthex:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : void puthex(int val)
+; function : puthex
+; param   : int val
+; return   : void
+; --------------------------------------------
+puthex:
+        push R15
+        push R12
+        move R12 R13
+        syscall #10
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret

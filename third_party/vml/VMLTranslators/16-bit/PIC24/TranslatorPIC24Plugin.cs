@@ -1,0 +1,1 @@
+using VMLPlugins.Interfaces; using VMLAssembler; namespace VMLTranslators { public class TranslatorPIC24Plugin : TranslatorPlugin<TranslatorPIC24> { public TranslatorPIC24Plugin() : base("PIC24", "PIC24 16位微控制器", "16", ".pic24.asm") { } } }

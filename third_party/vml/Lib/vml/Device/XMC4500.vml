@@ -1,0 +1,137 @@
+﻿; XMC4500寄存器定义
+; 生成自: Infineon/XMC4000/XMC4500
+; 版本: 1.0
+; 日期: 2026-04-28
+; 作者: VML Team
+; 描述: 32-bit ARM Cortex-M4 Industrial MCU with 1MB Flash, 160KB RAM, 120MHz
+
+; CPU架构: ARM-Cortex-M4
+; 位宽: 32位
+; 时钟频率: 120000000 Hz
+
+; 寄存器定义
+.equ R0, 0x00
+
+.equ R1, 0x04
+
+.equ R2, 0x08
+
+.equ R3, 0x0C
+
+.equ R4, 0x10
+
+.equ R5, 0x14
+
+.equ SP, 0x34
+
+.equ LR, 0x38
+
+.equ PC, 0x3C
+
+; 内存段定义
+.equ FLASH_START, 0x08000000
+.equ FLASH_END, 0x080FFFFF
+.equ FLASH_SIZE, 1048576
+
+.equ SRAM_START, 0x1FF00000
+.equ SRAM_END, 0x1FF0FFFF
+.equ SRAM_SIZE, 65536
+
+; Communication Memory
+.equ SRAM_COM_START, 0x20000000
+.equ SRAM_COM_END, 0x20007FFF
+.equ SRAM_COM_SIZE, 32768
+
+; CPU SRAM
+.equ SRAM_CPU_START, 0x20010000
+.equ SRAM_CPU_END, 0x2001FFFF
+.equ SRAM_CPU_SIZE, 65536
+
+.equ PERIPHERAL_START, 0x40000000
+.equ PERIPHERAL_END, 0x4FFFFFFF
+.equ PERIPHERAL_SIZE, 268435456
+
+; 外设定义
+; System Control Unit
+.equ SCU_BASE, 0x40020000
+.equ SCU_CLKCR, 0x00
+.equ SCU_CLKCR_PCLK_SEL, 0  ; CPU clock selection
+.equ SCU_CLKCR_FBKDIV, 16  ; Feedback divider
+.equ SCU_PLLCONFIG, 0x04
+.equ SCU_OSCHPCTRL, 0x08
+.equ SCU_CGATSET0, 0x20
+.equ SCU_CGATSET0_CG_GATE_GPIO, 4  ; GPIO gate enable
+.equ SCU_CGATCLR0, 0x24
+
+; Port 0
+.equ PORT0_BASE, 0x48000000
+.equ PORT0_OUT, 0x00
+.equ PORT0_OMR, 0x04
+.equ PORT0_IOCR0, 0x10
+.equ PORT0_IOCR4, 0x14
+.equ PORT0_IOCR8, 0x18
+.equ PORT0_IOCR12, 0x1C
+.equ PORT0_IN, 0x24
+
+; Port 1
+.equ PORT1_BASE, 0x48010000
+.equ PORT1_OUT, 0x00
+.equ PORT1_OMR, 0x04
+.equ PORT1_IOCR0, 0x10
+.equ PORT1_IOCR4, 0x14
+.equ PORT1_IOCR8, 0x18
+.equ PORT1_IOCR12, 0x1C
+.equ PORT1_IN, 0x24
+
+; Port 2
+.equ PORT2_BASE, 0x48020000
+.equ PORT2_OUT, 0x00
+.equ PORT2_OMR, 0x04
+.equ PORT2_IOCR0, 0x10
+.equ PORT2_IOCR4, 0x14
+.equ PORT2_IN, 0x24
+
+; Universal Serial Interface 0 (UART)
+.equ USIC0_BASE, 0x48030000
+.equ USIC0_CCR, 0x00
+.equ USIC0_PCR, 0x04
+.equ USIC0_RBUF, 0x08
+.equ USIC0_TBUF, 0x0C
+.equ USIC0_BRG, 0x10
+
+; 中断向量定义
+.equ RESET_VECTOR, 0  ; 
+.equ SVCALL_VECTOR, 11  ; 
+.equ USIC0_SR0_VECTOR, 12  ; USIC0 Service Request 0
+
+; 宏定义
+.macro xmc4500_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+xmc4500_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

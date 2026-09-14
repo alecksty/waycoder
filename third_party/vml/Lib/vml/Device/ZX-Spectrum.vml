@@ -1,0 +1,147 @@
+﻿; ZX-Spectrum寄存器定义
+; 生成自: Sinclair Research/ZX Spectrum/ZX-Spectrum
+; 版本: 1.0
+; 日期: 2026-04-17
+; 作者: VML Team
+; 描述: ZX Spectrum 48K home computer with Z80 CPU, 48KB RAM, and color graphics
+
+; CPU架构: Zilog Z80
+; 位宽: 8位
+; 时钟频率: 3500000 Hz
+
+; 寄存器定义
+; Accumulator
+.equ A, 0
+
+; Flags
+.equ F, 0
+
+; B
+.equ B, 0
+
+; C
+.equ C, 0
+
+; D
+.equ D, 0
+
+; E
+.equ E, 0
+
+; H
+.equ H, 0
+
+; L
+.equ L, 0
+
+; Index Register X
+.equ IX, 0
+
+; Index Register Y
+.equ IY, 0
+
+; Stack Pointer
+.equ SP, 0
+
+; Program Counter
+.equ PC, 0
+
+; Interrupt Vector
+.equ I, 0
+
+; Memory Refresh
+.equ R, 0
+
+; Alternate AF
+.equ AF, 0
+
+; Alternate BC
+.equ BC, 0
+
+; Alternate DE
+.equ DE, 0
+
+; Alternate HL
+.equ HL, 0
+
+; 外设定义
+; Uncommitted Logic Array (video and I/O)
+.equ ULA_BASE, 
+.equ ULA_ULA_PORT_FE, 0xFE
+.equ ULA_ULA_BORDER, 0xFE
+.equ ULA_ULA_BEEPER, 0xFE
+.equ ULA_ULA_MIC, 0xFE
+
+; General Instruments AY-3-8912 sound chip
+.equ AY_3_8912_BASE, 
+.equ AY_3_8912_AY_REG_SEL, 0xFFFD
+.equ AY_3_8912_AY_DATA, 0xBFFD
+.equ AY_3_8912_AY_READ, 0xFFFD
+
+; 40-key rubber keyboard
+.equ KEYBOARD_BASE, 
+.equ KEYBOARD_KEY_ROW0, 0xFEFE
+.equ KEYBOARD_KEY_ROW1, 0xFDFE
+.equ KEYBOARD_KEY_ROW2, 0xFBFE
+.equ KEYBOARD_KEY_ROW3, 0xF7FE
+.equ KEYBOARD_KEY_ROW4, 0xEFFE
+.equ KEYBOARD_KEY_ROW5, 0xDFFE
+.equ KEYBOARD_KEY_ROW6, 0xBFFE
+.equ KEYBOARD_KEY_ROW7, 0x7FFE
+
+; Kempston joystick interface
+.equ KEMPSTON_BASE, 
+.equ KEMPSTON_KEMPSTON_JOY, 0x1F
+
+; ZX Interface 1 (RS-232 and Microdrive)
+.equ INTERFACE1_BASE, 
+.equ INTERFACE1_IF1_STATUS, 0x1FFD
+.equ INTERFACE1_IF1_DATA, 0x3FFD
+
+; ZX Interface 2 (joystick and ROM cartridge)
+.equ INTERFACE2_BASE, 
+.equ INTERFACE2_IF2_JOY1, 0x1F
+.equ INTERFACE2_IF2_JOY2, 0x37
+
+; 中断向量定义
+.equ IM1_VECTOR, 56  ; Interrupt Mode 1
+.equ RST_00_VECTOR, 0  ; Restart 00h
+.equ RST_08_VECTOR, 8  ; Restart 08h
+.equ RST_10_VECTOR, 16  ; Restart 10h
+.equ RST_18_VECTOR, 24  ; Restart 18h
+.equ RST_20_VECTOR, 32  ; Restart 20h
+.equ RST_28_VECTOR, 40  ; Restart 28h
+.equ RST_30_VECTOR, 48  ; Restart 30h
+.equ RST_38_VECTOR, 56  ; Restart 38h
+
+; 宏定义
+.macro zx_spectrum_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+zx_spectrum_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

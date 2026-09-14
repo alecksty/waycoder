@@ -1,0 +1,3 @@
+; Auto-generated — dart stdio_funcs module
+.linked "../shared/printf.vml"
+.linked "../shared/scanf.vml"

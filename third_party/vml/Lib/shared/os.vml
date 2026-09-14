@@ -1,0 +1,540 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+
+.text
+thread_create:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #300
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560000
+L35560000:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+thread_exit:
+        push R15
+        push R12
+        move R12 R13
+        syscall #301
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+thread_join:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #302
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560001
+L35560001:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+thread_yield:
+        push R15
+        push R12
+        move R12 R13
+        syscall #303
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+thread_sleep:
+        push R15
+        push R12
+        move R12 R13
+        syscall #304
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+mutex_create:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #310
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560002
+L35560002:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+mutex_lock:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #311
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560003
+L35560003:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+mutex_unlock:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #312
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560004
+L35560004:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+cond_create:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #313
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560005
+L35560005:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+cond_wait:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #314
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560006
+L35560006:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+cond_signal:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #315
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560007
+L35560007:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+cond_broadcast:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #316
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560008
+L35560008:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+exec:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        syscall #320
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560009
+L35560009:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+process_exit:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #321
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+get_pid:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #322
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560010
+L35560010:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+socket_create:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #330
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560011
+L35560011:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+socket_bind:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #331
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560012
+L35560012:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+socket_listen:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #332
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560013
+L35560013:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+socket_accept:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #333
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560014
+L35560014:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+socket_connect:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #334
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560015
+L35560015:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #16
+        push R1
+        ret
+socket_send:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #335
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560016
+L35560016:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #16
+        push R1
+        ret
+socket_recv:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #336
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560017
+L35560017:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #16
+        push R1
+        ret
+socket_close:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #337
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560018
+L35560018:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+mkdir:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #340
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560019
+L35560019:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+remove_file:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #341
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560020
+L35560020:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+rename_file:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #342
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560021
+L35560021:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+read_dir:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        syscall #343
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560022
+L35560022:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+file_stat:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        syscall #344
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560023
+L35560023:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+get_env:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        syscall #360
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560024
+L35560024:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+set_env:
+        push R15
+        push R12
+        move R12 R13
+        syscall #361
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+get_args:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        syscall #362
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560025
+L35560025:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+signal:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #350
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560026
+L35560026:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+type_of:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #380
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560027
+L35560027:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+type_name:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #381
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L35560028
+L35560028:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret

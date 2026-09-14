@@ -1,0 +1,132 @@
+
+.data
+
+.text
+dev_open:
+; -------------------------------------------
+; source   : int dev_open(const char* name)
+; function : dev_open
+; param   : const char* name
+; return   : int
+; --------------------------------------------
+dev_open:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #100
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L71620000
+L71620000:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+dev_close:
+; -------------------------------------------
+; source   : int dev_close(int handle)
+; function : dev_close
+; param   : int handle
+; return   : int
+; --------------------------------------------
+dev_close:
+        push R15
+        push R12
+        move R12 R13
+        syscall #101
+        move [R12-4] R0
+        move R0 #0
+        jmp L71620001
+L71620001:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+dev_read:
+; -------------------------------------------
+; source   : int dev_read(int handle,void* buf,int offset,int count)
+; function : dev_read
+; param   : int handle
+; param   : void* buf
+; param   : int offset
+; param   : int count
+; return   : int
+; --------------------------------------------
+dev_read:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #102
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L71620002
+L71620002:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #20
+        push R1
+        ret
+dev_write:
+; -------------------------------------------
+; source   : int dev_write(int handle,const void* buf,int offset,int count)
+; function : dev_write
+; param   : int handle
+; param   : const void* buf
+; param   : int offset
+; param   : int count
+; return   : int
+; --------------------------------------------
+dev_write:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #103
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L71620003
+L71620003:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #20
+        push R1
+        ret
+dev_control:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int dev_control(int handle,int cmd,int data)
+; function : dev_control
+; param   : int handle
+; param   : int cmd
+; param   : int data
+; return   : int
+; --------------------------------------------
+dev_control:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #104
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L71620004
+L71620004:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #16
+        push R1
+        ret

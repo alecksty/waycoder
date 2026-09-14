@@ -1,0 +1,113 @@
+﻿// ESP8266 设备定义 - Objective-C 头文件
+// 生成自: Espressif Systems/ESP8266/ESP8266
+// 版本: 
+// 日期: 
+// 作者: 
+// 描述: Espressif ESP8266 Wi-Fi SoC with integrated TCP/IP stack
+// CPU架构: Xtensa LX106
+// 位宽: 0位
+// 时钟频率: 0 Hz
+
+#ifndef ESP8266_DEVICE_H
+#define ESP8266_DEVICE_H
+
+#import <Foundation/Foundation.h>
+
+// 外设定义
+// Wi-Fi 802.11 b/g/n
+#define WIFI_BASE 
+#define WIFI_WIFI_MAC_ADDR 0x60000800
+#define WIFI_WIFI_MODE_ADDR 0x60000804
+#define WIFI_WIFI_CHANNEL_ADDR 0x60000808
+#define WIFI_WIFI_RATE_ADDR 0x6000080C
+// Universal Asynchronous Receiver/Transmitter 0
+#define UART0_BASE 
+#define UART0_UART0_FIFO_ADDR 0x60000000
+#define UART0_UART0_INT_RAW_ADDR 0x60000004
+#define UART0_UART0_INT_ST_ADDR 0x60000008
+#define UART0_UART0_INT_ENA_ADDR 0x6000000C
+#define UART0_UART0_INT_CLR_ADDR 0x60000010
+#define UART0_UART0_CLKDIV_ADDR 0x60000014
+#define UART0_UART0_AUTOBAUD_ADDR 0x60000018
+#define UART0_UART0_STATUS_ADDR 0x6000001C
+#define UART0_UART0_CONF0_ADDR 0x60000020
+#define UART0_UART0_CONF1_ADDR 0x60000024
+#define UART0_UART0_LOWPULSE_ADDR 0x60000028
+#define UART0_UART0_HIGHPULSE_ADDR 0x6000002C
+#define UART0_UART0_RXD_CNT_ADDR 0x60000030
+// Serial Peripheral Interface
+#define SPI_BASE 
+#define SPI_SPI_CMD_ADDR 0x60000200
+#define SPI_SPI_ADDR_ADDR 0x60000204
+#define SPI_SPI_CTRL_ADDR 0x60000208
+#define SPI_SPI_RD_STATUS_ADDR 0x6000020C
+#define SPI_SPI_CTRL2_ADDR 0x60000210
+#define SPI_SPI_CLOCK_ADDR 0x60000214
+#define SPI_SPI_USER_ADDR 0x60000218
+#define SPI_SPI_USER1_ADDR 0x6000021C
+#define SPI_SPI_USER2_ADDR 0x60000220
+#define SPI_SPI_W0_ADDR 0x60000280
+// Inter-Integrated Circuit
+#define I2C_BASE 
+#define I2C_I2C_SCL_LOW_ADDR 0x60000C00
+#define I2C_I2C_SCL_HIGH_ADDR 0x60000C04
+#define I2C_I2C_SDA_HOLD_ADDR 0x60000C08
+#define I2C_I2C_SCL_START_HOLD_ADDR 0x60000C0C
+#define I2C_I2C_SCL_STOP_HOLD_ADDR 0x60000C10
+#define I2C_I2C_INT_RAW_ADDR 0x60000C14
+#define I2C_I2C_INT_ST_ADDR 0x60000C18
+#define I2C_I2C_INT_ENA_ADDR 0x60000C1C
+#define I2C_I2C_INT_CLR_ADDR 0x60000C20
+#define I2C_I2C_CMD_ADDR 0x60000C24
+#define I2C_I2C_FIFO_DATA_ADDR 0x60000C28
+#define I2C_I2C_FIFO_CNT_ADDR 0x60000C2C
+// General Purpose I/O
+#define GPIO_BASE 
+#define GPIO_GPIO_OUT_ADDR 0x60000300
+#define GPIO_GPIO_OUT_W1TS_ADDR 0x60000304
+#define GPIO_GPIO_OUT_W1TC_ADDR 0x60000308
+#define GPIO_GPIO_ENABLE_ADDR 0x6000030C
+#define GPIO_GPIO_ENABLE_W1TS_ADDR 0x60000310
+#define GPIO_GPIO_ENABLE_W1TC_ADDR 0x60000314
+#define GPIO_GPIO_IN_ADDR 0x60000318
+#define GPIO_GPIO_STATUS_ADDR 0x6000031C
+#define GPIO_GPIO_STATUS_W1TS_ADDR 0x60000320
+#define GPIO_GPIO_STATUS_W1TC_ADDR 0x60000324
+#define GPIO_GPIO_PIN_ADDR 0x60000328
+// Hardware Timer
+#define TIMER_BASE 
+#define TIMER_TIMER_LOAD_ADDR 0x60000600
+#define TIMER_TIMER_COUNT_ADDR 0x60000604
+#define TIMER_TIMER_CTRL_ADDR 0x60000608
+#define TIMER_TIMER_INT_ADDR 0x6000060C
+#define TIMER_TIMER_ALARM_ADDR 0x60000610
+// Analog-to-Digital Converter
+#define ADC_BASE 
+#define ADC_ADC_CTRL_ADDR 0x60000E00
+#define ADC_ADC_DATA_ADDR 0x60000E04
+// Pulse Width Modulation
+#define PWM_BASE 
+#define PWM_PWM_CTRL_ADDR 0x60000F00
+#define PWM_PWM_PERIOD_ADDR 0x60000F04
+#define PWM_PWM_DUTY_ADDR 0x60000F08
+
+// 中断向量定义
+#define INT_NMI 1  // Non-maskable interrupt
+#define INT_LEVEL1 3  // Level 1 interrupt
+#define INT_LEVEL2 4  // Level 2 interrupt
+#define INT_LEVEL3 5  // Level 3 interrupt
+#define INT_LEVEL4 6  // Level 4 interrupt
+#define INT_LEVEL5 7  // Level 5 interrupt
+#define INT_TIMER0 8  // Timer 0 interrupt
+#define INT_TIMER1 9  // Timer 1 interrupt
+#define INT_UART0 10  // UART0 interrupt
+#define INT_UART1 11  // UART1 interrupt
+#define INT_GPIO 12  // GPIO interrupt
+#define INT_PWM 13  // PWM interrupt
+#define INT_I2C 14  // I2C interrupt
+#define INT_SPI 15  // SPI interrupt
+#define INT_ADC 16  // ADC interrupt
+#define INT_WIFI 17  // Wi-Fi interrupt
+#define INT_RTC 18  // RTC interrupt
+
+#endif /* ESP8266_DEVICE_H */

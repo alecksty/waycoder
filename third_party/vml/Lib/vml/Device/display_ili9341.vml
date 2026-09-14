@@ -1,0 +1,63 @@
+﻿; ILI9341寄存器定义
+; 生成自: Ilitek/Display/ILI9341
+; 版本: 1.0
+; 日期: 2026-05-06
+; 作者: VML Team
+; 描述: ILI9341 2.8" 240x320 TFT LCD Display (SPI, 18-bit color, touch)
+
+; CPU架构: Display
+; 位宽: 18位
+; 时钟频率: 20000000 Hz
+
+; 内存段定义
+; Graphics RAM (240x320x18bit)
+.equ GRAM_START, 0x00
+.equ GRAM_END, 0xBCFF
+.equ GRAM_SIZE, 156672
+
+; 外设定义
+; ILI9341 240x320 TFT (SPI, 3.3V, 2.8inch)
+.equ ILI9341_BASE, 0x00
+.equ ILI9341_CMD, 0x00
+.equ ILI9341_DATA, 0x01
+.equ ILI9341_COL_START, 0x2A
+.equ ILI9341_PAGE_START, 0x2B
+.equ ILI9341_WRITE_RAM, 0x2C
+.equ ILI9341_MADCTL, 0x36
+.equ ILI9341_PIXFMT, 0x3A
+.equ ILI9341_FRMCTL, 0xB1
+.equ ILI9341_GAMMA, 0x26
+.equ ILI9341_SLEEP_OUT, 0x11
+.equ ILI9341_DISP_ON, 0x29
+
+; 宏定义
+.macro ili9341_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+ili9341_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

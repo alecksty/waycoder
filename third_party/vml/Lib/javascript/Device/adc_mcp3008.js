@@ -1,0 +1,26 @@
+﻿/**
+ * MCP3008 寄存器定义
+ * 生成自: Microchip/ADC/MCP3008
+ * 版本: 1.0
+ */
+export const mcp3008 = {
+  // CPU: ADC, 10位, 1350000 Hz
+
+  // 外设定义
+  // MCP3008 10-bit 8-ch ADC (SPI, 2.7V-5.5V, DIP-16)
+  MCP3008_BASE: 0x00,
+  MCP3008_CH0: 0x00000000,
+  MCP3008_CH1: 0x00000001,
+  MCP3008_CH2: 0x00000002,
+  MCP3008_CH3: 0x00000003,
+  MCP3008_CH4: 0x00000004,
+  MCP3008_CH5: 0x00000005,
+  MCP3008_CH6: 0x00000006,
+  MCP3008_CH7: 0x00000007,
+  MCP3008_DIFF_01: 0x00000008,
+  MCP3008_DIFF_23: 0x00000009,
+
+  init: function() {
+    // 硬件初始化
+  }
+};

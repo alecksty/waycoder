@@ -1,0 +1,40 @@
+﻿' MCP3008寄存器定义
+' 生成自: Microchip/ADC/MCP3008
+' 版本: 1.0
+' 日期: 2026-05-06
+' 作者: VML Team
+' 描述: MCP3008 10-bit SPI ADC (8-channel, 200ksps)
+
+' CPU架构: ADC
+' 位宽: 10位
+' 时钟频率: 1350000 Hz
+
+' 外设定义
+' MCP3008 10-bit 8-ch ADC (SPI, 2.7V-5.5V, DIP-16)
+CONST MCP3008_BASE = 0x00
+CONST MCP3008_CH0 = 0x00
+CONST MCP3008_CH1 = 0x01
+CONST MCP3008_CH2 = 0x02
+CONST MCP3008_CH3 = 0x03
+CONST MCP3008_CH4 = 0x04
+CONST MCP3008_CH5 = 0x05
+CONST MCP3008_CH6 = 0x06
+CONST MCP3008_CH7 = 0x07
+CONST MCP3008_DIFF_01 = 0x08
+CONST MCP3008_DIFF_23 = 0x09
+
+' 设备初始化子程序
+SUB mcp3008_init()
+    ' 初始化代码
+END SUB
+
+' 常用函数
+FUNCTION read_register(addr AS INTEGER) AS INTEGER
+    ' 读取寄存器值
+    RETURN PEEK(addr)
+END FUNCTION
+
+SUB write_register(addr AS INTEGER, value AS INTEGER)
+    ' 写入寄存器值
+    POKE addr, value
+END SUB

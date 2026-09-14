@@ -1,0 +1,11 @@
+<Project>
+  <PropertyGroup>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <NoWarn>$(NoWarn);CS8632</NoWarn>
+    <Version>1.66.51</Version>
+    <AvaloniaVersion>11.3.12</AvaloniaVersion>
+    <!-- UTF-8 全局 -->
+    <NeutralLanguage>zh-CN</NeutralLanguage>
+    <SatelliteResourceLanguages>zh-CN;zh-TW;en;fr;es;ru;ar</SatelliteResourceLanguages>
+  </PropertyGroup>
+</Project>

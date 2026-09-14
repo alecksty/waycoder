@@ -1,0 +1,3 @@
+; Auto-generated — d stdio module
+.linked "../shared/io.vml"
+.linked "stdio_funcs.vml"

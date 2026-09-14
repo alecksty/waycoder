@@ -1,0 +1,1293 @@
+
+.linked "builtins.vml"
+.data
+
+.text
+set:
+; -------------------------------------------
+; source   : int set(int value,int n)
+; function : set
+; param   : int value
+; param   : int n
+; return   : int
+; --------------------------------------------
+set:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L78960005
+        move R0 #0
+        jmp _L78960006
+_L78960005:
+        move R0 #1
+_L78960006:
+        test R0 R0
+        jnz _L78960002
+        move R0 [R12+16]
+        push R0
+        move R0 #31
+        pop R1
+        cmp R1 R0
+        jg _L78960007
+        move R0 #0
+        jmp _L78960008
+_L78960007:
+        move R0 #1
+_L78960008:
+        test R0 R0
+        jz _L78960003
+_L78960002:
+        move R0 #1
+        jmp _L78960004
+_L78960003:
+        move R0 #0
+_L78960004:
+        cmp R0 #0
+        jz sta_78960000
+        move R0 [R12+12]
+        jmp L78960009
+sta_78960000:
+sta_78960001:
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        jmp L78960009
+L78960009:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+clear:
+; -------------------------------------------
+; source   : int clear(int value,int n)
+; function : clear
+; param   : int value
+; param   : int n
+; return   : int
+; --------------------------------------------
+clear:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L78960015
+        move R0 #0
+        jmp _L78960016
+_L78960015:
+        move R0 #1
+_L78960016:
+        test R0 R0
+        jnz _L78960012
+        move R0 [R12+16]
+        push R0
+        move R0 #31
+        pop R1
+        cmp R1 R0
+        jg _L78960017
+        move R0 #0
+        jmp _L78960018
+_L78960017:
+        move R0 #1
+_L78960018:
+        test R0 R0
+        jz _L78960013
+_L78960012:
+        move R0 #1
+        jmp _L78960014
+_L78960013:
+        move R0 #0
+_L78960014:
+        cmp R0 #0
+        jz sta_78960010
+        move R0 [R12+12]
+        jmp L78960019
+sta_78960010:
+sta_78960011:
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        not R0
+        pop R1
+        and R1 R0
+        move R0 R1
+        jmp L78960019
+L78960019:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+toggle:
+; -------------------------------------------
+; source   : int toggle(int value,int n)
+; function : toggle
+; param   : int value
+; param   : int n
+; return   : int
+; --------------------------------------------
+toggle:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L78960025
+        move R0 #0
+        jmp _L78960026
+_L78960025:
+        move R0 #1
+_L78960026:
+        test R0 R0
+        jnz _L78960022
+        move R0 [R12+16]
+        push R0
+        move R0 #31
+        pop R1
+        cmp R1 R0
+        jg _L78960027
+        move R0 #0
+        jmp _L78960028
+_L78960027:
+        move R0 #1
+_L78960028:
+        test R0 R0
+        jz _L78960023
+_L78960022:
+        move R0 #1
+        jmp _L78960024
+_L78960023:
+        move R0 #0
+_L78960024:
+        cmp R0 #0
+        jz sta_78960020
+        move R0 [R12+12]
+        jmp L78960029
+sta_78960020:
+sta_78960021:
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        xor R1 R0
+        move R0 R1
+        jmp L78960029
+L78960029:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+test:
+; -------------------------------------------
+; source   : int test(int value,int n)
+; function : test
+; param   : int value
+; param   : int n
+; return   : int
+; --------------------------------------------
+test:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L78960035
+        move R0 #0
+        jmp _L78960036
+_L78960035:
+        move R0 #1
+_L78960036:
+        test R0 R0
+        jnz _L78960032
+        move R0 [R12+16]
+        push R0
+        move R0 #31
+        pop R1
+        cmp R1 R0
+        jg _L78960037
+        move R0 #0
+        jmp _L78960038
+_L78960037:
+        move R0 #1
+_L78960038:
+        test R0 R0
+        jz _L78960033
+_L78960032:
+        move R0 #1
+        jmp _L78960034
+_L78960033:
+        move R0 #0
+_L78960034:
+        cmp R0 #0
+        jz sta_78960030
+        move R0 #0
+        jmp L78960039
+sta_78960030:
+sta_78960031:
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        and R1 R0
+        move R0 R1
+        jmp L78960039
+L78960039:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+count:
+; -------------------------------------------
+; source   : int count(int value)
+; function : count
+; param   : int value
+; return   : int
+; --------------------------------------------
+count:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 #1431655765
+        pop R1
+        and R1 R0
+        move R0 R1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #858993459
+        pop R1
+        and R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #2
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 #858993459
+        pop R1
+        and R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #4
+        pop R1
+        shr R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #252645135
+        pop R1
+        and R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #8
+        pop R1
+        shr R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #16
+        pop R1
+        shr R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #63
+        pop R1
+        and R1 R0
+        move R0 R1
+        jmp L78960040
+L78960040:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+reverse:
+; -------------------------------------------
+; source   : int reverse(int value)
+; function : reverse
+; param   : int value
+; return   : int
+; --------------------------------------------
+reverse:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #-1431655766
+        pop R1
+        and R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #1431655765
+        pop R1
+        and R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #-858993460
+        pop R1
+        and R1 R0
+        move R0 R1
+        push R0
+        move R0 #2
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #858993459
+        pop R1
+        and R1 R0
+        move R0 R1
+        push R0
+        move R0 #2
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #-252645136
+        pop R1
+        and R1 R0
+        move R0 R1
+        push R0
+        move R0 #4
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #252645135
+        pop R1
+        and R1 R0
+        move R0 R1
+        push R0
+        move R0 #4
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #-16711936
+        pop R1
+        and R1 R0
+        move R0 R1
+        push R0
+        move R0 #8
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #16711935
+        pop R1
+        and R1 R0
+        move R0 R1
+        push R0
+        move R0 #8
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #16
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #16
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        jmp L78960041
+L78960041:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+rotate_left:
+; -------------------------------------------
+; source   : int rotate_left(int value,int n)
+; function : rotate_left
+; param   : int value
+; param   : int n
+; return   : int
+; --------------------------------------------
+rotate_left:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        move [R12-4] R0
+        move R0 [R12+16]
+        push R0
+        move R0 #31
+        pop R1
+        and R1 R0
+        move R0 R1
+        move [R12+16] R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #32
+        push R0
+        move R0 [R12+16]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        shr R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        jmp L78960042
+L78960042:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+rotate_right:
+; -------------------------------------------
+; source   : int rotate_right(int value,int n)
+; function : rotate_right
+; param   : int value
+; param   : int n
+; return   : int
+; --------------------------------------------
+rotate_right:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        move [R12-4] R0
+        move R0 [R12+16]
+        push R0
+        move R0 #31
+        pop R1
+        and R1 R0
+        move R0 R1
+        move [R12+16] R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #32
+        push R0
+        move R0 [R12+16]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        jmp L78960043
+L78960043:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+lowest_set:
+; -------------------------------------------
+; source   : int lowest_set(int value)
+; function : lowest_set
+; param   : int value
+; return   : int
+; --------------------------------------------
+lowest_set:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L78960046
+        move R0 #0
+        jmp _L78960047
+_L78960046:
+        move R0 #1
+_L78960047:
+        cmp R0 #0
+        jz sta_78960044
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        jmp L78960048
+sta_78960044:
+sta_78960045:
+        move R0 #0
+        move [R12-4] R0
+sta_78960049:
+        move R2 #0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        pop R1
+        and R1 R0
+        move R0 R1
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L78960051
+        move R0 #0
+        jmp _L78960052
+_L78960051:
+        move R0 #1
+_L78960052:
+        cmp R0 #0
+        jz sta_78960050
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        pop R1
+        shr R1 R0
+        move R0 R1
+        move [R12+12] R0
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_78960049
+sta_78960050:
+        move R0 [R12-4]
+        jmp L78960048
+L78960048:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+highest_set:
+; -------------------------------------------
+; source   : int highest_set(int value)
+; function : highest_set
+; param   : int value
+; return   : int
+; --------------------------------------------
+highest_set:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L78960055
+        move R0 #0
+        jmp _L78960056
+_L78960055:
+        move R0 #1
+_L78960056:
+        cmp R0 #0
+        jz sta_78960053
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        jmp L78960057
+sta_78960053:
+sta_78960054:
+        move R0 #31
+        move [R12-4] R0
+        move R0 [R12+12]
+        move [R12-8] R0
+sta_78960058:
+        move R2 #0
+        move R0 [R12-8]
+        push R0
+        move R0 #-2147483648
+        pop R1
+        and R1 R0
+        move R0 R1
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L78960060
+        move R0 #0
+        jmp _L78960061
+_L78960060:
+        move R0 #1
+_L78960061:
+        cmp R0 #0
+        jz sta_78960059
+        move R0 [R12-8]
+        push R0
+        move R0 #1
+        pop R1
+        shl R1 R0
+        move R0 R1
+        move [R12-8] R0
+        move R0 [R12-4]
+        move R1 R0
+        sub R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_78960058
+sta_78960059:
+        move R0 [R12-4]
+        jmp L78960057
+L78960057:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+mask:
+; -------------------------------------------
+; source   : int mask(int n)
+; function : mask
+; param   : int n
+; return   : int
+; --------------------------------------------
+mask:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jle _L78960064
+        move R0 #0
+        jmp _L78960065
+_L78960064:
+        move R0 #1
+_L78960065:
+        cmp R0 #0
+        jz sta_78960062
+        move R0 #0
+        jmp L78960066
+sta_78960062:
+sta_78960063:
+        move R0 [R12+12]
+        push R0
+        move R0 #32
+        pop R1
+        cmp R1 R0
+        jge _L78960069
+        move R0 #0
+        jmp _L78960070
+_L78960069:
+        move R0 #1
+_L78960070:
+        cmp R0 #0
+        jz sta_78960067
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        jmp L78960066
+sta_78960067:
+sta_78960068:
+        move R0 #1
+        push R0
+        move R0 [R12+12]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        jmp L78960066
+L78960066:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+extract:
+; -------------------------------------------
+; source   : int extract(int value,int start,int len)
+; function : extract
+; param   : int value
+; param   : int start
+; param   : int len
+; return   : int
+; --------------------------------------------
+extract:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L78960079
+        move R0 #0
+        jmp _L78960080
+_L78960079:
+        move R0 #1
+_L78960080:
+        test R0 R0
+        jnz _L78960076
+        move R0 [R12+20]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jle _L78960081
+        move R0 #0
+        jmp _L78960082
+_L78960081:
+        move R0 #1
+_L78960082:
+        test R0 R0
+        jz _L78960077
+_L78960076:
+        move R0 #1
+        jmp _L78960078
+_L78960077:
+        move R0 #0
+_L78960078:
+        test R0 R0
+        jnz _L78960073
+        move R0 [R12+16]
+        push R0
+        move R0 [R12+20]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #32
+        pop R1
+        cmp R1 R0
+        jg _L78960083
+        move R0 #0
+        jmp _L78960084
+_L78960083:
+        move R0 #1
+_L78960084:
+        test R0 R0
+        jz _L78960074
+_L78960073:
+        move R0 #1
+        jmp _L78960075
+_L78960074:
+        move R0 #0
+_L78960075:
+        cmp R0 #0
+        jz sta_78960071
+        move R0 #0
+        jmp L78960085
+sta_78960071:
+sta_78960072:
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        push R0
+        move R0 [R12+20]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        and R1 R0
+        move R0 R1
+        jmp L78960085
+L78960085:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #16
+        push R1
+        ret
+insert:
+; -------------------------------------------
+; source   : int insert(int value,int field,int start,int len)
+; function : insert
+; param   : int value
+; param   : int field
+; param   : int start
+; param   : int len
+; return   : int
+; --------------------------------------------
+insert:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+20]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L78960094
+        move R0 #0
+        jmp _L78960095
+_L78960094:
+        move R0 #1
+_L78960095:
+        test R0 R0
+        jnz _L78960091
+        move R0 [R12+24]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jle _L78960096
+        move R0 #0
+        jmp _L78960097
+_L78960096:
+        move R0 #1
+_L78960097:
+        test R0 R0
+        jz _L78960092
+_L78960091:
+        move R0 #1
+        jmp _L78960093
+_L78960092:
+        move R0 #0
+_L78960093:
+        test R0 R0
+        jnz _L78960088
+        move R0 [R12+20]
+        push R0
+        move R0 [R12+24]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #32
+        pop R1
+        cmp R1 R0
+        jg _L78960098
+        move R0 #0
+        jmp _L78960099
+_L78960098:
+        move R0 #1
+_L78960099:
+        test R0 R0
+        jz _L78960089
+_L78960088:
+        move R0 #1
+        jmp _L78960090
+_L78960089:
+        move R0 #0
+_L78960090:
+        cmp R0 #0
+        jz sta_78960086
+        move R0 [R12+12]
+        jmp L78960100
+sta_78960086:
+sta_78960087:
+        move R0 #1
+        push R0
+        move R0 [R12+24]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12+20]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        not R0
+        pop R1
+        and R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        push R0
+        move R0 [R12+24]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        and R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12+20]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        jmp L78960100
+L78960100:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #20
+        push R1
+        ret
+is_power_of_two:
+; -------------------------------------------
+; source   : int is_power_of_two(int x)
+; function : is_power_of_two
+; param   : int x
+; return   : int
+; --------------------------------------------
+is_power_of_two:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L78960103
+        move R0 #0
+        jmp _L78960104
+_L78960103:
+        move R0 #1
+_L78960104:
+        test R0 R0
+        jz _L78960101
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        and R1 R0
+        move R0 R1
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L78960105
+        move R0 #0
+        jmp _L78960106
+_L78960105:
+        move R0 #1
+_L78960106:
+        test R0 R0
+        jz _L78960101
+        move R0 #1
+        jmp _L78960102
+_L78960101:
+        move R0 #0
+_L78960102:
+        test R0 R0
+        jz _L78960107
+        move R0 #1
+        jmp _L78960108
+_L78960107:
+        move R0 #0
+_L78960108:
+        jmp L78960109
+L78960109:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+next_power_of_two:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int next_power_of_two(int x)
+; function : next_power_of_two
+; param   : int x
+; return   : int
+; --------------------------------------------
+next_power_of_two:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jle _L78960112
+        move R0 #0
+        jmp _L78960113
+_L78960112:
+        move R0 #1
+_L78960113:
+        cmp R0 #0
+        jz sta_78960110
+        move R0 #1
+        jmp L78960114
+sta_78960110:
+sta_78960111:
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        pop R1
+        shr R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #2
+        pop R1
+        shr R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #4
+        pop R1
+        shr R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #8
+        pop R1
+        shr R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #16
+        pop R1
+        shr R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        jmp L78960114
+L78960114:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret

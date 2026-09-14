@@ -1,0 +1,1 @@
+using VMLPlugins.Interfaces; using VMLAssembler; namespace VMLTranslators { public class TranslatorMSP430Plugin : TranslatorPlugin<TranslatorMSP430> { public TranslatorMSP430Plugin() : base("MSP430", "MSP430 16位微控制器", "16", ".msp430.asm") { } } }

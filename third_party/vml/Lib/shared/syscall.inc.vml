@@ -1,0 +1,103 @@
+; VML 系统调用号定义
+; 使用: .linked "syscall.inc.vml"
+; 然后: LOAD R0, #SYS_OUTPUTSTR; SYSCALL SYS_BASE_IO
+
+; ======== 基础 I/O (1-10) ========
+.const SYS_OUTPUTSTR,   1   ; R0=字符串地址 → 输出字符串
+.const SYS_INPUTSTR,    2   ; R0=缓冲区 → 输入字符串
+.const SYS_EXIT,        3   ; 退出程序
+.const SYS_OUTPUTCHAR,  4   ; R0=字符 → 输出字符(同时写VGA)
+.const SYS_INPUTCHAR,   5   ; → R0=字符
+.const SYS_OUTPUTINT,   6   ; R0=整数 → 输出十进制
+.const SYS_INPUTINT,    7   ; → R0=整数
+.const SYS_OUTPUTFLOAT, 8   ; F0=浮点 → 输出浮点数
+.const SYS_INPUTFLOAT,  9   ; → F0=浮点数
+.const SYS_OUTPUTHEX,   10  ; R0=整数 → 输出十六进制(0x....)
+
+; ======== 内存管理 (40-41) ========
+.const SYS_ALLOC,       40  ; R0=大小 → R0=地址
+.const SYS_FREE,        41  ; R0=地址 → 释放内存
+
+; ======== 随机数 (50-51) ========
+.const SYS_RANDOM,      50  ; → R0=随机整数
+.const SYS_SEED,        51  ; R0=种子 → 设置随机种子
+
+; ======== 时间 (52-56) ========
+.const SYS_SLEEP,       52  ; R0=ms → 休眠
+.const SYS_GETTICK,     53  ; → R0=ms(自启动)
+.const SYS_GETDATETIME, 54  ; → R0=Unix时间戳(秒)
+.const SYS_GETDATE,     55  ; → R0=日期字符串"YYYY-MM-DD"
+.const SYS_GETTIME,     56  ; → R0=时间字符串"HH:mm:ss"
+
+; ======== 系统配置 (60) ========
+.const SYS_GETCONFIG,   60  ; R0=类型 → R0=地址/值
+
+; GetConfig 类型码
+; --- VGA/显示 (0-9) ---
+.const CFG_VGA_FB,      0   ; VGA帧缓冲基址
+.const CFG_VGA_TEXTFB,  1   ; 文本帧缓冲(同0)
+.const CFG_CURSOR_ROW,  2   ; 光标行寄存器地址
+.const CFG_CURSOR_COL,  3   ; 光标列寄存器地址
+.const CFG_FG_COLOR,    4   ; 前景色寄存器地址
+.const CFG_BG_COLOR,    5   ; 背景色寄存器地址
+.const CFG_VGA_MODE,    6   ; VGA模式寄存器地址
+.const CFG_MEM_SIZE,    7   ; 总内存大小(字节)
+.const CFG_DISP_WIDTH,  8   ; 显示宽度
+.const CFG_DISP_HEIGHT, 9   ; 显示高度
+; --- 系统信息 (10-19) ---
+.const CFG_CONFIG_VER,  10  ; 配置接口版本
+.const CFG_STACK_BASE,  11  ; 栈区起始地址
+.const CFG_STACK_SIZE,  12  ; 栈区大小
+.const CFG_HEAP_START,  13  ; 堆分配起始地址
+; --- 外设地址 (20-24) ---
+.const CFG_KBD_DATA,    20  ; 键盘数据寄存器
+.const CFG_KBD_STATUS,  21  ; 键盘状态寄存器
+.const CFG_MOUSE_X,     22  ; 鼠标X坐标
+.const CFG_MOUSE_Y,     23  ; 鼠标Y坐标
+.const CFG_MOUSE_BTN,   24  ; 鼠标按钮
+; --- BASIC/QB兼容 (30-39) ---
+.const CFG_TURTLE_X,    30  ; Turtle X
+.const CFG_TURTLE_Y,    31  ; Turtle Y
+.const CFG_TURTLE_COLOR,32  ; Turtle颜色
+.const CFG_TURTLE_SCALE,33  ; Turtle缩放
+.const CFG_TURTLE_ANGLE,34  ; Turtle角度
+.const CFG_QB_PAL,      35  ; QB 16色调色板
+.const CFG_QB_PAL256,   36  ; QB 256色调色板
+.const CFG_BASIC_ERRTB, 37  ; BASIC错误表
+.const CFG_BASIC_ERRFL, 38  ; BASIC错误标志
+.const CFG_BASIC_DPTR,  39  ; BASIC DATA指针
+
+; ======== 调试 (70-72) ========
+.const SYS_DEBUGPRINT,  70  ; R0=字符串 → 输出到stderr
+.const SYS_DEBUGINT,    71  ; R0=整数 → 输出到stderr
+.const SYS_ASSERT,      72  ; R0=条件,R1=消息 → 断言
+
+; ======== 设备操作 (100-104) ========
+.const SYS_DEVOPEN,     100 ; R0=设备名 → R0=句柄
+.const SYS_DEVCLOSE,    101 ; R0=句柄 → 关闭设备
+.const SYS_DEVREAD,     102 ; R0=句柄,R1=缓冲,R2=大小 → R0=读取数
+.const SYS_DEVWRITE,    103 ; R0=句柄,R1=数据,R2=大小 → R0=写入数
+.const SYS_DEVCONTROL,  104 ; R0=句柄,R1=命令,R2=数据 → R0=结果
+
+; ======== 文件操作 (110-114) ========
+.const SYS_FILEOPEN,    110 ; R0=文件名,R1=模式 → R0=句柄
+.const SYS_FILECLOSE,   111 ; R0=句柄 → 关闭
+.const SYS_FILEREAD,    112 ; R0=句柄,R1=缓冲,R2=大小 → R0=读取数
+.const SYS_FILEWRITE,   113 ; R0=句柄,R1=数据,R2=大小 → R0=写入数
+.const SYS_FILECONTROL, 114 ; R0=句柄,R1=命令,R2=数据 → R0=结果
+; 文件控制命令:
+.const FCTL_GETSIZE,    0   ; 获取文件大小
+.const FCTL_SEEK,       1   ; 定位 R2=偏移
+.const FCTL_GETPOS,     2   ; 获取位置
+.const FCTL_TRUNCATE,   3   ; 截断 R2=新大小
+
+; ======== 打印机 (200-208) ========
+.const SYS_PRNOPEN,     200 ; 打开打印机
+.const SYS_PRNCLOSE,    201 ; 关闭打印机
+.const SYS_PRNWRITESTR, 202 ; R1=字符串 → 打印
+.const SYS_PRNWRITECHAR,203 ; R1=字符 → 打印
+.const SYS_PRNSTATUS,   204 ; → R0=状态
+.const SYS_PRNNL,       205 ; 换行
+.const SYS_PRNFF,       206 ; 换页
+.const SYS_PRNCLRBUF,   207 ; 清缓冲
+.const SYS_PRNGETCONT,  208 ; R1=缓冲 → R0=字节数

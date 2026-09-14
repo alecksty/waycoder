@@ -1,0 +1,375 @@
+
+.data
+
+.text
+bit_and:
+; -------------------------------------------
+; source   : int bit_and(int a,int b)
+; function : bit_and
+; param   : int a
+; param   : int b
+; return   : int
+; --------------------------------------------
+bit_and:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        and R1 R0
+        move R0 R1
+        jmp L47790000
+L47790000:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+bit_or:
+; -------------------------------------------
+; source   : int bit_or(int a,int b)
+; function : bit_or
+; param   : int a
+; param   : int b
+; return   : int
+; --------------------------------------------
+bit_or:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        or R1 R0
+        move R0 R1
+        jmp L47790001
+L47790001:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+bit_xor:
+; -------------------------------------------
+; source   : int bit_xor(int a,int b)
+; function : bit_xor
+; param   : int a
+; param   : int b
+; return   : int
+; --------------------------------------------
+bit_xor:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        xor R1 R0
+        move R0 R1
+        jmp L47790002
+L47790002:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+bit_not:
+; -------------------------------------------
+; source   : int bit_not(int a)
+; function : bit_not
+; param   : int a
+; return   : int
+; --------------------------------------------
+bit_not:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        not R0
+        jmp L47790003
+L47790003:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+bit_shl:
+; -------------------------------------------
+; source   : int bit_shl(int a,int bits)
+; function : bit_shl
+; param   : int a
+; param   : int bits
+; return   : int
+; --------------------------------------------
+bit_shl:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        jmp L47790004
+L47790004:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+bit_shr:
+; -------------------------------------------
+; source   : int bit_shr(int a,int bits)
+; function : bit_shr
+; param   : int a
+; param   : int bits
+; return   : int
+; --------------------------------------------
+bit_shr:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shr R1 R0
+        move R0 R1
+        jmp L47790005
+L47790005:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+rol:
+; -------------------------------------------
+; source   : int rol(int val,int bits)
+; function : rol
+; param   : int val
+; param   : int bits
+; return   : int
+; --------------------------------------------
+rol:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 #32
+        push R0
+        move R0 [R12+16]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        shr R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        jmp L47790006
+L47790006:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+ror:
+; -------------------------------------------
+; source   : int ror(int val,int bits)
+; function : ror
+; param   : int val
+; param   : int bits
+; return   : int
+; --------------------------------------------
+ror:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 #32
+        push R0
+        move R0 [R12+16]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        jmp L47790007
+L47790007:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+bit_set:
+; -------------------------------------------
+; source   : int bit_set(int val,int bit)
+; function : bit_set
+; param   : int val
+; param   : int bit
+; return   : int
+; --------------------------------------------
+bit_set:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        jmp L47790008
+L47790008:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+bit_clear:
+; -------------------------------------------
+; source   : int bit_clear(int val,int bit)
+; function : bit_clear
+; param   : int val
+; param   : int bit
+; return   : int
+; --------------------------------------------
+bit_clear:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        not R0
+        pop R1
+        and R1 R0
+        move R0 R1
+        jmp L47790009
+L47790009:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+bit_toggle:
+; -------------------------------------------
+; source   : int bit_toggle(int val,int bit)
+; function : bit_toggle
+; param   : int val
+; param   : int bit
+; return   : int
+; --------------------------------------------
+bit_toggle:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        xor R1 R0
+        move R0 R1
+        jmp L47790010
+L47790010:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+bit_test:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int bit_test(int val,int bit)
+; function : bit_test
+; param   : int val
+; param   : int bit
+; return   : int
+; --------------------------------------------
+bit_test:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        and R1 R0
+        move R0 R1
+        jmp L47790011
+L47790011:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret

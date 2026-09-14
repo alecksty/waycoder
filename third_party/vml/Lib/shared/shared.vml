@@ -1,0 +1,3 @@
+; shared.vml — 共享运行时基础函数 (peek/poke 等)
+; 由 builtins.vml 提供实际实现
+.linked "builtins.vml"

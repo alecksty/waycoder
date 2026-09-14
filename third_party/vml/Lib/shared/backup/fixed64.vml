@@ -1,0 +1,387 @@
+.data
+
+.text
+lfixed_mul64:
+; -------------------------------------------
+; source   : long lfixed_mul64(long a,long b)
+; function : lfixed_mul64
+; param   : long a
+; param   : long b
+; return   : long
+; --------------------------------------------
+lfixed_mul64:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #56
+        move R0 [R12+12]
+        push R0
+        move R0 #32
+        pop R1
+        shr R1 R0
+        move R0 R1
+        move [R12-8] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #-1
+        pop R1
+        and R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12+20]
+        push R0
+        move R0 #32
+        pop R1
+        shr R1 R0
+        move R0 R1
+        move [R12-24] R0
+        move R0 [R12+20]
+        push R0
+        move R0 #-1
+        pop R1
+        and R1 R0
+        move R0 R1
+        move [R12-32] R0
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-32]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-16]
+        push R0
+        move R0 [R12-24]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-40] R0
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-24]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #32
+        pop R1
+        shl R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-16]
+        push R0
+        move R0 [R12-32]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #32
+        push R0
+        move R0 [R12-40]
+        pop R1
+        add R1 R0
+        move R0 R1
+        pop R1
+        shr R1 R0
+        move R0 R1
+        move [R12-48] R0
+        move R0 [R12-48]
+        jmp L49580000
+L49580000:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+lfixed_div64:
+; -------------------------------------------
+; source   : long lfixed_div64(long a,long b)
+; function : lfixed_div64
+; param   : long a
+; param   : long b
+; return   : long
+; --------------------------------------------
+lfixed_div64:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #24
+        move R0 [R12+20]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L49580003
+        move R0 #0
+        jmp _L49580004
+_L49580003:
+        move R0 #1
+_L49580004:
+        cmp R0 #0
+        jz sta_49580001
+        move R0 #0
+        jmp L49580005
+sta_49580001:
+sta_49580002:
+        move R0 #1
+        move [R12-4] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L49580008
+        move R0 #0
+        jmp _L49580009
+_L49580008:
+        move R0 #1
+_L49580009:
+        cmp R0 #0
+        jz sta_49580006
+        move R0 [R12+12]
+        move R0 [R12+12]
+        neg R0 R0
+        move [R12+12] R0
+        move R0 [R12-4]
+        move R0 [R12-4]
+        neg R0 R0
+        move [R12-4] R0
+sta_49580006:
+sta_49580007:
+        move R0 [R12+20]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L49580012
+        move R0 #0
+        jmp _L49580013
+_L49580012:
+        move R0 #1
+_L49580013:
+        cmp R0 #0
+        jz sta_49580010
+        move R0 [R12+20]
+        move R0 [R12+20]
+        neg R0 R0
+        move [R12+20] R0
+        move R0 [R12-4]
+        move R0 [R12-4]
+        neg R0 R0
+        move [R12-4] R0
+sta_49580010:
+sta_49580011:
+        move R0 #0
+        i2l R0 R0
+        move [R12-12] R0
+        move R0 #0
+        move [R12-16] R0
+sta_49580014:
+        move R0 [R12-16]
+        push R0
+        move R0 #64
+        pop R1
+        cmp R1 R0
+        jl _L49580017
+        move R0 #0
+        jmp _L49580018
+_L49580017:
+        move R0 #1
+_L49580018:
+        cmp R0 #0
+        jz sta_49580016
+        move R0 [R12-12]
+        push R0
+        move R0 #1
+        pop R1
+        shl R1 R0
+        move R0 R1
+        move [R12-12] R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+20]
+        pop R1
+        cmp R1 R0
+        jge _L49580021
+        move R0 #0
+        jmp _L49580022
+_L49580021:
+        move R0 #1
+_L49580022:
+        cmp R0 #0
+        jz sta_49580019
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+20]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12+12] R0
+        move R0 [R12-12]
+        push R0
+        move R0 #1
+        pop R1
+        or R1 R0
+        move R0 R1
+        move [R12-12] R0
+sta_49580019:
+sta_49580020:
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        pop R1
+        shl R1 R0
+        move R0 R1
+        move [R12+12] R0
+sta_49580015:
+        move R0 [R12-16]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-16] R0
+        move R0 R1
+        jmp sta_49580014
+sta_49580016:
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-12]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        jmp L49580005
+L49580005:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+lfixed_from_int64:
+; -------------------------------------------
+; source   : long lfixed_from_int64(long value)
+; function : lfixed_from_int64
+; param   : long value
+; return   : long
+; --------------------------------------------
+lfixed_from_int64:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #32
+        pop R1
+        shl R1 R0
+        move R0 R1
+        jmp L49580023
+L49580023:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+lfixed_to_int64:
+; -------------------------------------------
+; source   : long lfixed_to_int64(long value)
+; function : lfixed_to_int64
+; param   : long value
+; return   : long
+; --------------------------------------------
+lfixed_to_int64:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #32
+        pop R1
+        shr R1 R0
+        move R0 R1
+        jmp L49580024
+L49580024:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+lfixed_to_int_round64:
+; -------------------------------------------
+; source   : long lfixed_to_int_round64(long value)
+; function : lfixed_to_int_round64
+; param   : long value
+; return   : long
+; --------------------------------------------
+lfixed_to_int_round64:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        push R0
+        move R0 #31
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #32
+        pop R1
+        shr R1 R0
+        move R0 R1
+        jmp L49580025
+L49580025:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+lfixed_to_double:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : double lfixed_to_double(long value)
+; function : lfixed_to_double
+; param   : long value
+; return   : double
+; --------------------------------------------
+lfixed_to_double:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        l2d R0 R0
+        dpush R0
+        move R0 #1
+        push R0
+        move R0 #32
+        pop R1
+        shl R1 R0
+        move R0 R1
+        l2d R0 R0
+        dpop R1
+        ddiv R0 R1 R0
+        jmp L49580026
+L49580026:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret

@@ -1,0 +1,137 @@
+.data
+
+.text
+shared_getconfig:
+; -------------------------------------------
+; source   : int getconfig(int type)
+; function : getconfig
+; param   : int type
+; return   : int
+; --------------------------------------------
+shared_getconfig:
+        push R15
+        push R12
+        move R12 R13
+        asm "SYSCALL 60"
+        move R0 #0
+        jmp L98610000
+L98610000:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+shared_random:
+; -------------------------------------------
+; source   : int random()
+; function : random
+; return   : int
+; --------------------------------------------
+shared_random:
+        push R15
+        push R12
+        move R12 R13
+        asm "SYSCALL 50"
+        move R0 #0
+        jmp L98610001
+L98610001:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+shared_srand:
+; -------------------------------------------
+; source   : void srand(int seed)
+; function : srand
+; param   : int seed
+; return   : void
+; --------------------------------------------
+shared_srand:
+        push R15
+        push R12
+        move R12 R13
+        asm "SYSCALL 51"
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+shared_datetime:
+; -------------------------------------------
+; source   : int datetime()
+; function : datetime
+; return   : int
+; --------------------------------------------
+shared_datetime:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        asm "SYSCALL 54"
+        move R0 [R12-4]
+        jmp L98610002
+L98610002:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+shared_get_date:
+; -------------------------------------------
+; source   : const char* get_date()
+; function : get_date
+; return   : const char*
+; --------------------------------------------
+shared_get_date:
+        push R15
+        push R12
+        move R12 R13
+        asm "SYSCALL 55"
+        move R0 #0
+        jmp L98610003
+L98610003:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+shared_get_time:
+; -------------------------------------------
+; source   : const char* get_time()
+; function : get_time
+; return   : const char*
+; --------------------------------------------
+shared_get_time:
+        push R15
+        push R12
+        move R12 R13
+        asm "SYSCALL 56"
+        move R0 #0
+        jmp L98610004
+L98610004:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+shared_exit:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : void exit(int code)
+; function : exit
+; param   : int code
+; return   : void
+; --------------------------------------------
+shared_exit:
+        push R15
+        push R12
+        move R12 R13
+        asm "SYSCALL 3"
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret

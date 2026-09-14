@@ -1,0 +1,427 @@
+﻿; STM32F103C8T6寄存器定义
+; 生成自: STMicroelectronics/STM32/STM32F103C8T6
+; 版本: 1.0
+; 日期: 2026-04-16
+; 作者: VML Team
+; 描述: 32-bit ARM Cortex-M3 MCU with 64KB Flash, 20KB RAM, 72MHz
+
+; CPU架构: ARM-Cortex-M3
+; 位宽: 32位
+; 时钟频率: 72000000 Hz
+
+; 寄存器定义
+; General Purpose Register 0
+.equ R0, 0x00
+
+; General Purpose Register 1
+.equ R1, 0x04
+
+; General Purpose Register 2
+.equ R2, 0x08
+
+; General Purpose Register 3
+.equ R3, 0x0C
+
+; General Purpose Register 4
+.equ R4, 0x10
+
+; General Purpose Register 5
+.equ R5, 0x14
+
+; General Purpose Register 6
+.equ R6, 0x18
+
+; General Purpose Register 7
+.equ R7, 0x1C
+
+; General Purpose Register 8
+.equ R8, 0x20
+
+; General Purpose Register 9
+.equ R9, 0x24
+
+; General Purpose Register 10
+.equ R10, 0x28
+
+; General Purpose Register 11
+.equ R11, 0x2C
+
+; General Purpose Register 12
+.equ R12, 0x30
+
+; Stack Pointer
+.equ SP, 0x34
+
+; Link Register
+.equ LR, 0x38
+
+; Program Counter
+.equ PC, 0x3C
+
+; Program Status Register
+.equ XPSR, 0x40
+
+; 内存段定义
+; Main Flash Memory (64KB)
+.equ FLASH_START, 0x08000000
+.equ FLASH_END, 0x0800FFFF
+.equ FLASH_SIZE, 65536
+
+; System Memory (2KB)
+.equ SYSTEM_MEMORY_START, 0x1FFFF000
+.equ SYSTEM_MEMORY_END, 0x1FFFF7FF
+.equ SYSTEM_MEMORY_SIZE, 2048
+
+; SRAM (20KB)
+.equ SRAM_START, 0x20000000
+.equ SRAM_END, 0x20004FFF
+.equ SRAM_SIZE, 20480
+
+; Peripheral Registers
+.equ PERIPHERAL_START, 0x40000000
+.equ PERIPHERAL_END, 0x40023FFF
+.equ PERIPHERAL_SIZE, 143360
+
+; Core Peripheral Registers
+.equ CORTEX_M_START, 0xE0000000
+.equ CORTEX_M_END, 0xE00FFFFF
+.equ CORTEX_M_SIZE, 1048576
+
+; 外设定义
+; Reset and Clock Control
+.equ RCC_BASE, 0x40021000
+.equ RCC_CR, 0x00
+.equ RCC_CFGR, 0x04
+.equ RCC_APB2ENR, 0x18
+.equ RCC_APB1ENR, 0x1C
+
+; GPIO Port A
+.equ GPIOA_BASE, 0x40010800
+.equ GPIOA_CRL, 0x00
+.equ GPIOA_CRH, 0x04
+.equ GPIOA_IDR, 0x08
+.equ GPIOA_ODR, 0x0C
+.equ GPIOA_BSRR, 0x10
+.equ GPIOA_BRR, 0x14
+.equ GPIOA_LCKR, 0x18
+
+; GPIO Port B
+.equ GPIOB_BASE, 0x40010C00
+.equ GPIOB_CRL, 0x00
+.equ GPIOB_CRH, 0x04
+.equ GPIOB_IDR, 0x08
+.equ GPIOB_ODR, 0x0C
+.equ GPIOB_BSRR, 0x10
+.equ GPIOB_BRR, 0x14
+
+; GPIO Port C
+.equ GPIOC_BASE, 0x40011000
+.equ GPIOC_CRL, 0x00
+.equ GPIOC_CRH, 0x04
+.equ GPIOC_IDR, 0x08
+.equ GPIOC_ODR, 0x0C
+.equ GPIOC_BSRR, 0x10
+
+; USART 1
+.equ USART1_BASE, 0x40013800
+.equ USART1_SR, 0x00
+.equ USART1_DR, 0x04
+.equ USART1_BRR, 0x08
+.equ USART1_CR1, 0x0C
+.equ USART1_CR2, 0x10
+.equ USART1_CR3, 0x14
+.equ USART1_GTPR, 0x18
+
+; USART 2
+.equ USART2_BASE, 0x40004400
+.equ USART2_SR, 0x00
+.equ USART2_DR, 0x04
+.equ USART2_BRR, 0x08
+.equ USART2_CR1, 0x0C
+
+; SPI 1
+.equ SPI1_BASE, 0x40013000
+.equ SPI1_CR1, 0x00
+.equ SPI1_CR2, 0x04
+.equ SPI1_SR, 0x08
+.equ SPI1_DR, 0x0C
+
+; SPI 2
+.equ SPI2_BASE, 0x40003800
+.equ SPI2_CR1, 0x00
+.equ SPI2_CR2, 0x04
+.equ SPI2_SR, 0x08
+.equ SPI2_DR, 0x0C
+
+; I2C 1
+.equ I2C1_BASE, 0x40005400
+.equ I2C1_CR1, 0x00
+.equ I2C1_CR2, 0x04
+.equ I2C1_SR1, 0x08
+.equ I2C1_SR2, 0x0C
+.equ I2C1_DR, 0x10
+.equ I2C1_CCR, 0x14
+.equ I2C1_TRISE, 0x18
+
+; I2C 2
+.equ I2C2_BASE, 0x40005800
+.equ I2C2_CR1, 0x00
+.equ I2C2_CR2, 0x04
+.equ I2C2_SR1, 0x08
+.equ I2C2_SR2, 0x0C
+.equ I2C2_DR, 0x10
+.equ I2C2_CCR, 0x14
+
+; Advanced Timer 1
+.equ TIM1_BASE, 0x40012C00
+.equ TIM1_CR1, 0x00
+.equ TIM1_CR2, 0x04
+.equ TIM1_SMCR, 0x08
+.equ TIM1_DIER, 0x0C
+.equ TIM1_SR, 0x10
+.equ TIM1_EGR, 0x14
+.equ TIM1_CCMR1, 0x18
+.equ TIM1_CCMR2, 0x1C
+.equ TIM1_CCER, 0x20
+.equ TIM1_CNT, 0x24
+.equ TIM1_PSC, 0x28
+.equ TIM1_ARR, 0x2C
+.equ TIM1_RCR, 0x30
+.equ TIM1_CCR1, 0x34
+.equ TIM1_CCR2, 0x38
+.equ TIM1_CCR3, 0x3C
+.equ TIM1_CCR4, 0x40
+.equ TIM1_BDTR, 0x44
+
+; General Purpose Timer 2
+.equ TIM2_BASE, 0x40000400
+.equ TIM2_CR1, 0x00
+.equ TIM2_CNT, 0x24
+.equ TIM2_PSC, 0x28
+.equ TIM2_ARR, 0x2C
+.equ TIM2_CCR1, 0x34
+.equ TIM2_CCR2, 0x38
+.equ TIM2_CCR3, 0x3C
+.equ TIM2_CCR4, 0x40
+
+; General Purpose Timer 3
+.equ TIM3_BASE, 0x40000400
+.equ TIM3_CR1, 0x00
+.equ TIM3_CNT, 0x24
+.equ TIM3_ARR, 0x2C
+.equ TIM3_CCR1, 0x34
+.equ TIM3_CCR2, 0x38
+.equ TIM3_CCR3, 0x3C
+.equ TIM3_CCR4, 0x40
+
+; General Purpose Timer 4
+.equ TIM4_BASE, 0x40000800
+.equ TIM4_CR1, 0x00
+.equ TIM4_CNT, 0x24
+.equ TIM4_ARR, 0x2C
+.equ TIM4_CCR1, 0x34
+.equ TIM4_CCR2, 0x38
+.equ TIM4_CCR3, 0x3C
+.equ TIM4_CCR4, 0x40
+
+; ADC 1
+.equ ADC1_BASE, 0x40012400
+.equ ADC1_SR, 0x00
+.equ ADC1_CR1, 0x04
+.equ ADC1_CR2, 0x08
+.equ ADC1_SMPR1, 0x0C
+.equ ADC1_SMPR2, 0x10
+.equ ADC1_JOFR1, 0x14
+.equ ADC1_JOFR2, 0x18
+.equ ADC1_JOFR3, 0x1C
+.equ ADC1_JOFR4, 0x20
+.equ ADC1_HTR, 0x24
+.equ ADC1_LTR, 0x28
+.equ ADC1_SQRT1, 0x2C
+.equ ADC1_SQRT2, 0x30
+.equ ADC1_SQRT3, 0x34
+.equ ADC1_JSQR, 0x38
+.equ ADC1_JDR1, 0x3C
+.equ ADC1_JDR2, 0x40
+.equ ADC1_JDR3, 0x44
+.equ ADC1_JDR4, 0x48
+.equ ADC1_DR, 0x4C
+
+; DMA Controller 1
+.equ DMA1_BASE, 0x40020000
+.equ DMA1_ISR, 0x00
+.equ DMA1_IFCR, 0x04
+.equ DMA1_CCR1, 0x08
+.equ DMA1_CNDTR1, 0x0C
+.equ DMA1_CPAR1, 0x10
+.equ DMA1_CMAR1, 0x14
+.equ DMA1_CCR2, 0x1C
+.equ DMA1_CNDTR2, 0x20
+.equ DMA1_CPAR2, 0x24
+.equ DMA1_CMAR2, 0x28
+
+; Power Control
+.equ PWR_BASE, 0x40007000
+.equ PWR_CR, 0x00
+.equ PWR_CSR, 0x04
+
+; Backup Registers
+.equ BKP_BASE, 0x40006C00
+.equ BKP_DR1, 0x04
+.equ BKP_DR2, 0x08
+.equ BKP_CSR, 0x2C
+
+; Window Watchdog
+.equ WWDG_BASE, 0x40002C00
+.equ WWDG_CR, 0x00
+.equ WWDG_CFR, 0x04
+.equ WWDG_SR, 0x08
+
+; Independent Watchdog
+.equ IWDG_BASE, 0x40003000
+.equ IWDG_KR, 0x00
+.equ IWDG_PR, 0x04
+.equ IWDG_RLR, 0x08
+
+; External Interrupt/Event Controller
+.equ EXTI_BASE, 0x40010400
+.equ EXTI_IMR, 0x00
+.equ EXTI_EMR, 0x04
+.equ EXTI_RTSR, 0x08
+.equ EXTI_FTSR, 0x0C
+.equ EXTI_SWIER, 0x10
+.equ EXTI_PR, 0x14
+
+; Alternate Function IO
+.equ AFIO_BASE, 0x40010000
+.equ AFIO_EVCR, 0x00
+.equ AFIO_MAPR, 0x04
+.equ AFIO_EXTICR1, 0x08
+.equ AFIO_EXTICR2, 0x0C
+.equ AFIO_EXTICR3, 0x10
+.equ AFIO_MAPR2, 0x1C
+
+; 中断向量定义
+.equ WWDG_VECTOR, 0  ; Window Watchdog Interrupt
+.equ PVD_VECTOR, 1  ; PVD through EXTI Line detection
+.equ TAMPER_VECTOR, 2  ; Tamper Interrupt
+.equ RTC_VECTOR, 3  ; RTC Global Interrupt
+.equ FLASH_VECTOR, 4  ; FLASH Global Interrupt
+.equ RCC_VECTOR, 5  ; RCC Global Interrupt
+.equ EXTI0_VECTOR, 6  ; EXTI Line 0 Interrupt
+.equ EXTI1_VECTOR, 7  ; EXTI Line 1 Interrupt
+.equ EXTI2_VECTOR, 8  ; EXTI Line 2 Interrupt
+.equ EXTI3_VECTOR, 9  ; EXTI Line 3 Interrupt
+.equ EXTI4_VECTOR, 10  ; EXTI Line 4 Interrupt
+.equ DMA1_CHANNEL1_VECTOR, 11  ; DMA1 Channel 1 Interrupt
+.equ DMA1_CHANNEL2_VECTOR, 12  ; DMA1 Channel 2 Interrupt
+.equ DMA1_CHANNEL3_VECTOR, 13  ; DMA1 Channel 3 Interrupt
+.equ DMA1_CHANNEL4_VECTOR, 14  ; DMA1 Channel 4 Interrupt
+.equ DMA1_CHANNEL5_VECTOR, 15  ; DMA1 Channel 5 Interrupt
+.equ DMA1_CHANNEL6_VECTOR, 16  ; DMA1 Channel 6 Interrupt
+.equ DMA1_CHANNEL7_VECTOR, 17  ; DMA1 Channel 7 Interrupt
+.equ ADC1_2_VECTOR, 18  ; ADC1 and ADC2 Global Interrupt
+.equ USB_HP_CAN_TX_VECTOR, 19  ; USB HP/CAN TX Interrupts
+.equ USB_LP_CAN_RX0_VECTOR, 20  ; USB LP/CAN RX0 Interrupt
+.equ CAN_RX1_VECTOR, 21  ; CAN RX1 Interrupt
+.equ CAN_SCE_VECTOR, 22  ; CAN SCE Interrupt
+.equ EXTI9_5_VECTOR, 23  ; EXTI Line 9..5 Interrupt
+.equ TIM1_BRK_VECTOR, 25  ; TIM1 Break Interrupt
+.equ TIM1_UP_VECTOR, 26  ; TIM1 Update Interrupt
+.equ TIM1_TRG_COM_VECTOR, 27  ; TIM1 Trigger and Commutation
+.equ TIM1_CC_VECTOR, 28  ; TIM1 Capture Compare Interrupt
+.equ TIM2_VECTOR, 29  ; TIM2 Global Interrupt
+.equ TIM3_VECTOR, 30  ; TIM3 Global Interrupt
+.equ TIM4_VECTOR, 31  ; TIM4 Global Interrupt
+.equ I2C1_EV_VECTOR, 32  ; I2C1 Event Interrupt
+.equ I2C1_ER_VECTOR, 33  ; I2C1 Error Interrupt
+.equ I2C2_EV_VECTOR, 34  ; I2C2 Event Interrupt
+.equ I2C2_ER_VECTOR, 35  ; I2C2 Error Interrupt
+.equ SPI1_VECTOR, 35  ; SPI1 Global Interrupt
+.equ SPI2_VECTOR, 36  ; SPI2 Global Interrupt
+.equ USART1_VECTOR, 37  ; USART1 Global Interrupt
+.equ USART2_VECTOR, 38  ; USART2 Global Interrupt
+.equ USART3_VECTOR, 39  ; USART3 Global Interrupt
+.equ EXTI15_10_VECTOR, 40  ; EXTI Line 15..10 Interrupt
+.equ RTCALARM_VECTOR, 41  ; RTC Alarm through EXTI
+.equ USBWAKEUP_VECTOR, 42  ; USB Wakeup from suspend
+
+; 引脚定义
+.equ PIN_VBAT, 1  ; Battery Supply
+.equ PIN_PC13, 2  ; GPIO Port C Pin 13
+.equ PIN_PC14, 3  ; GPIO Port C Pin 14
+.equ PIN_PC15, 4  ; GPIO Port C Pin 15
+.equ PIN_PD0, 5  ; GPIO Port D Pin 0
+.equ PIN_PD1, 6  ; GPIO Port D Pin 1
+.equ PIN_NRST, 7  ; Reset
+.equ PIN_VSSA, 8  ; Analog Ground
+.equ PIN_VDDA, 9  ; Analog Supply
+.equ PIN_PA0, 10  ; GPIO Port A Pin 0 / ADC1_IN0
+.equ PIN_PA1, 11  ; GPIO Port A Pin 1 / ADC1_IN1
+.equ PIN_PA2, 12  ; GPIO Port A Pin 2 / ADC1_IN2 / USART2_TX
+.equ PIN_PA3, 13  ; GPIO Port A Pin 3 / ADC1_IN3 / USART2_RX
+.equ PIN_PA4, 14  ; GPIO Port A Pin 4 / DAC_OUT1 / SPI1_NSS
+.equ PIN_PA5, 15  ; GPIO Port A Pin 5 / DAC_OUT2 / SPI1_SCK
+.equ PIN_PA6, 16  ; GPIO Port A Pin 6 / ADC1_IN6 / SPI1_MISO / TIM3_CH1
+.equ PIN_PA7, 17  ; GPIO Port A Pin 7 / ADC1_IN7 / SPI1_MOSI / TIM3_CH2
+.equ PIN_PB0, 18  ; GPIO Port B Pin 0 / ADC1_IN8 / TIM3_CH3
+.equ PIN_PB1, 19  ; GPIO Port B Pin 1 / ADC1_IN9 / TIM3_CH4
+.equ PIN_PB2, 20  ; GPIO Port B Pin 2
+.equ PIN_PB10, 21  ; GPIO Port B Pin 10 / I2C2_SCL / USART3_TX
+.equ PIN_PB11, 22  ; GPIO Port B Pin 11 / I2C2_SDA / USART3_RX
+.equ PIN_VSS, 23  ; Ground
+.equ PIN_VDD, 24  ; Digital Supply
+.equ PIN_PB12, 25  ; GPIO Port B Pin 12 / SPI2_NSS / I2C2_SMBA
+.equ PIN_PB13, 26  ; GPIO Port B Pin 13 / SPI2_SCK / USART3_CK
+.equ PIN_PB14, 27  ; GPIO Port B Pin 14 / SPI2_MISO / USART3_RTS
+.equ PIN_PB15, 28  ; GPIO Port B Pin 15 / SPI2_MOSI / USART3_CTS
+.equ PIN_PA8, 29  ; GPIO Port A Pin 8 / USART1_CK / TIM1_CH1 / MCO
+.equ PIN_PA9, 30  ; GPIO Port A Pin 9 / USART1_TX / TIM1_CH2
+.equ PIN_PA10, 31  ; GPIO Port A Pin 10 / USART1_RX / TIM1_CH3
+.equ PIN_PA11, 32  ; GPIO Port A Pin 11 / USART1_CT / TIM1_CH4 / CAN_RX
+.equ PIN_PA12, 33  ; GPIO Port A Pin 12 / USART1_RT / TIM1_ETR / CAN_TX
+.equ PIN_PA13, 34  ; JTMS/SWDIO
+.equ PIN_PA14, 37  ; JTCK/SWCLK
+.equ PIN_PA15, 38  ; GPIO Port A Pin 15 / JTDI / TIM2_CH1_ETR / SPI1_NSS
+.equ PIN_PB3, 39  ; GPIO Port B Pin 3 / JTDO / TIM2_CH2 / SPI1_SCK
+.equ PIN_PB4, 40  ; GPIO Port B Pin 4 / JNTRST / TIM3_CH1 / SPI1_MISO
+.equ PIN_PB5, 41  ; GPIO Port B Pin 5 / TIM3_CH2 / SPI1_MOSI / I2C1_SMBA
+.equ PIN_PB6, 42  ; GPIO Port B Pin 6 / TIM4_CH1 / I2C1_SCL / USART1_TX
+.equ PIN_PB7, 43  ; GPIO Port B Pin 7 / TIM4_CH2 / I2C1_SDA / USART1_RX
+.equ PIN_BOOT0, 44  ; Boot Selection
+.equ PIN_PB8, 45  ; GPIO Port B Pin 8 / TIM4_CH3 / I2C1_SCL / CAN_RX
+.equ PIN_PB9, 46  ; GPIO Port B Pin 9 / TIM4_CH4 / I2C1_SDA / CAN_TX
+.equ PIN_VSS, 47  ; Ground
+.equ PIN_VDD, 48  ; Digital Supply
+
+; 宏定义
+.macro stm32f103c8t6_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+stm32f103c8t6_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

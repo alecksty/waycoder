@@ -1,0 +1,316 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+
+.text
+GetDate:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+        syscall #55
+        move [R12-4] R0
+        move R0 #0
+        move R0 @0
+        move [R12-4] R0
+        move R0 [R12+12]
+        cmp R0 #0
+        jz sta_96560000
+        move _vml_result_int R0
+        move R0 [R12+12]
+        move R11 R0
+        move R0 #0
+        move @11 R0
+sta_96560000:
+sta_96560001:
+        move R0 [R12+12]
+        move R10 R0
+        move R0 #2026
+        move @10 R0
+        move R0 [R12+16]
+        move R9 R0
+        move R0 #8
+        move @9 R0
+        move R0 [R12+20]
+        move R8 R0
+        move R0 #1
+        move @8 R0
+        move R0 [R12+24]
+        cmp R0 #0
+        jz sta_96560002
+        move R0 [R12+24]
+        move R7 R0
+        move R0 #6
+        move @7 R0
+sta_96560002:
+sta_96560003:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #20
+        push R1
+        ret
+GetTime:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #56
+        move [R12-4] R0
+        move _vml_result_int R0
+        move R0 #0
+        move [R12-4] R0
+        move R0 [R12+12]
+        cmp R0 #0
+        jz sta_96560004
+        move R0 [R12+12]
+        move R6 R0
+        move R0 [R12-4]
+        push R0
+        move R0 #16
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 #255
+        pop R1
+        and R1 R0
+        move R0 R1
+        move @6 R0
+sta_96560004:
+sta_96560005:
+        move R0 [R12+16]
+        cmp R0 #0
+        jz sta_96560006
+        move R0 [R12+16]
+        move R5 R0
+        move R0 [R12-4]
+        push R0
+        move R0 #8
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 #255
+        pop R1
+        and R1 R0
+        move R0 R1
+        move @5 R0
+sta_96560006:
+sta_96560007:
+        move R0 [R12+20]
+        cmp R0 #0
+        jz sta_96560008
+        move R0 [R12+20]
+        move R4 R0
+        move R0 [R12-4]
+        push R0
+        move R0 #255
+        pop R1
+        and R1 R0
+        move R0 R1
+        move @4 R0
+sta_96560008:
+sta_96560009:
+        move R0 [R12+24]
+        cmp R0 #0
+        jz sta_96560010
+        move R0 [R12+24]
+        move R3 R0
+        move R0 #0
+        move @3 R0
+sta_96560010:
+sta_96560011:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #20
+        push R1
+        ret
+DosVersion:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #1792
+        jmp L96560012
+L96560012:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+DiskFree:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #65535
+        jmp L96560013
+L96560013:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+DiskSize:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #65535
+        jmp L96560014
+L96560014:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+FindFirst:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #0
+        jmp L96560015
+L96560015:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #16
+        push R1
+        ret
+FindNext:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #0
+        jmp L96560016
+L96560016:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+FindClose:
+        push R15
+        push R12
+        move R12 R13
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+EnvCount:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #0
+        jmp L96560017
+L96560017:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+EnvStr:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #0
+        jmp L96560018
+L96560018:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+GetEnv:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #0
+        jmp L96560019
+L96560019:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+Exec:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        jmp L96560020
+L96560020:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+SwapVectors:
+        push R15
+        push R12
+        move R12 R13
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+GetIntVec:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+16]
+        cmp R0 #0
+        jz sta_96560021
+        move R0 [R12+16]
+        move R2 R0
+        move R0 #0
+        move @2 R0
+sta_96560021:
+sta_96560022:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+SetIntVec:
+        push R15
+        push R12
+        move R12 R13
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+DosExitCode:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #0
+        jmp L96560023
+L96560023:
+        move R13 R12
+        pop R12
+        pop R15
+        ret

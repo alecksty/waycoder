@@ -1,0 +1,13 @@
+﻿; fortran standard library
+.linked  "builtin.vml"
+.linked  "../shared/string.vml"
+.linked  "../shared/math.vml"
+.linked  "../shared/io.vml"
+.linked  "../shared/file.vml"
+.linked  "../shared/printf.vml"
+.linked  "../shared/ctype.vml"
+.linked  "../shared/bitops.vml"
+.linked  "../shared/convert.vml"
+.linked  "../shared/memory.vml"
+.linked  "../shared/util.vml"
+.linked  "../shared/readline.vml"

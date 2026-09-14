@@ -1,0 +1,1 @@
+using VMLPlugins.Interfaces; using VMLAssembler; namespace VMLTranslators { public class TranslatorPowerPCPlugin : TranslatorPlugin<TranslatorPowerPC> { public TranslatorPowerPCPlugin() : base("PowerPC", "PowerPC 32位处理器", "32", ".ppc.asm") { } } }

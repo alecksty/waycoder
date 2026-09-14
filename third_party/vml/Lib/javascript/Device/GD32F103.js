@@ -1,0 +1,89 @@
+﻿/**
+ * GD32F103 寄存器定义
+ * 生成自: GigaDevice/GD32/GD32F103
+ * 版本: 1.0
+ */
+export const gd32f103 = {
+  // CPU: ARM-Cortex-M3, 32位, 108000000 Hz
+
+  // 寄存器定义
+  R0: 0x00,
+  R1: 0x04,
+  R2: 0x08,
+  R3: 0x0C,
+  R4: 0x10,
+  R5: 0x14,
+  SP: 0x34,
+  LR: 0x38,
+  PC: 0x3C,
+
+  // 内存段
+  flash_START: 0x08000000,
+  flash_END: 0x0801FFFF,
+  flash_SIZE: 131072,
+  sram_START: 0x20000000,
+  sram_END: 0x20004FFF,
+  sram_SIZE: 20480,
+  peripheral_START: 0x40000000,
+  peripheral_END: 0x4003FFFF,
+  peripheral_SIZE: 262144,
+
+  // 外设定义
+  // Reset and Clock Control
+  RCC_BASE: 0x40021000,
+  RCC_CTLR: 0x40021000,
+  RCC_CFGR0: 0x40021004,
+  RCC_APB2PCENR: 0x40021018,
+  RCC_APB2PCENR_IOPAEN: 2,  // GPIOA clock enable
+  RCC_APB2PCENR_IOPBEN: 3,  // GPIOB clock enable
+  RCC_APB2PCENR_IOPCEN: 4,  // GPIOC clock enable
+  RCC_APB2PCENR_USART0EN: 14,  // USART0 clock enable
+  RCC_APB1PCENR: 0x4002101C,
+  RCC_APB1PCENR_USART1EN: 17,  // USART1 clock enable
+  // General Purpose I/O Port A
+  GPIOA_BASE: 0x40010800,
+  GPIOA_CTL0: 0x40010800,
+  GPIOA_CTL1: 0x40010804,
+  GPIOA_ISTAT: 0x40010808,
+  GPIOA_OCTL: 0x4001080C,
+  GPIOA_BOP: 0x40010810,
+  GPIOA_BC: 0x40010814,
+  // General Purpose I/O Port B
+  GPIOB_BASE: 0x40010C00,
+  GPIOB_CTL0: 0x40010C00,
+  GPIOB_CTL1: 0x40010C04,
+  GPIOB_ISTAT: 0x40010C08,
+  GPIOB_OCTL: 0x40010C0C,
+  GPIOB_BOP: 0x40010C10,
+  GPIOB_BC: 0x40010C14,
+  // General Purpose I/O Port C
+  GPIOC_BASE: 0x40011000,
+  GPIOC_CTL0: 0x40011000,
+  GPIOC_CTL1: 0x40011004,
+  GPIOC_ISTAT: 0x40011008,
+  GPIOC_OCTL: 0x4001100C,
+  GPIOC_BOP: 0x40011010,
+  GPIOC_BC: 0x40011014,
+  // USART0
+  USART0_BASE: 0x40013800,
+  USART0_STATR: 0x40013800,
+  USART0_DATAR: 0x40013804,
+  USART0_BRR: 0x40013808,
+  USART0_CTLR1: 0x4001380C,
+  // USART1
+  USART1_BASE: 0x40004400,
+  USART1_STATR: 0x40004400,
+  USART1_DATAR: 0x40004404,
+  USART1_BRR: 0x40004408,
+  USART1_CTLR1: 0x4000440C,
+
+  // 中断向量
+  IRQ_Reset: 0,  // 
+  IRQ_SVCall: 11,  // 
+  IRQ_USART0: 25,  // USART0 Global Interrupt
+  IRQ_USART1: 37,  // USART1 Global Interrupt
+
+  init: function() {
+    // 硬件初始化
+  }
+};

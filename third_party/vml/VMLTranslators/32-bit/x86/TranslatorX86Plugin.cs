@@ -1,0 +1,1 @@
+using VMLPlugins.Interfaces; using VMLAssembler; namespace VMLTranslators { public class TranslatorX86Plugin : TranslatorPlugin<TranslatorX86> { public TranslatorX86Plugin() : base("x86", "x86 32位处理器", "32", ".x86.asm") { } } }

@@ -1,0 +1,95 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+
+.text
+getconfig:
+        push R15
+        push R12
+        move R12 R13
+        syscall #60
+        move R0 #0
+        jmp L98610000
+L98610000:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+random:
+        push R15
+        push R12
+        move R12 R13
+        syscall #50
+        move R0 #0
+        jmp L98610001
+L98610001:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+srand:
+        push R15
+        push R12
+        move R12 R13
+        syscall #51
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+datetime:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #54
+        move R0 [R12-4]
+        jmp L98610002
+L98610002:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+get_date:
+        push R15
+        push R12
+        move R12 R13
+        syscall #55
+        move R0 #0
+        jmp L98610003
+L98610003:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+get_time:
+        push R15
+        push R12
+        move R12 R13
+        syscall #56
+        move R0 #0
+        jmp L98610004
+L98610004:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+exit:
+        push R15
+        push R12
+        move R12 R13
+        syscall #3
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret

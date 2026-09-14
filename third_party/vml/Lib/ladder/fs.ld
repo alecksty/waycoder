@@ -1,0 +1,22 @@
+# VML 文件系统扩展库 — Ladder (OS 模式)
+# 需显式 include fs.ld
+
+[FS_MKDIR]
+SYSCALL 340
+RET
+
+[FS_REMOVE]
+SYSCALL 341
+RET
+
+[FS_RENAME]
+SYSCALL 342
+RET
+
+[FS_READDIR]
+SYSCALL 343
+RET
+
+[FS_STAT]
+SYSCALL 344
+RET

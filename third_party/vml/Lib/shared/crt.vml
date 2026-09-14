@@ -1,0 +1,1105 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+_crt_x: .word 0
+_crt_y: .word 0
+_crt_fg: .word 0
+_crt_bg: .word 0
+_crt_wx1: .word 0
+_crt_wy1: .word 0
+_crt_wx2: .word 0
+_crt_wy2: .word 0
+_crt_tmp1: .word 0
+_crt_tmp2: .word 0
+_ansi_fg:
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+_ansi_bg:
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+
+.text
+_crt_init_maps:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #30
+        move R11 R0
+        move R0 _ansi_fg
+        push R0
+        move R10 #0
+        push R10
+        move R0 #0
+        pop R10
+        move R10 R0
+        move R0 R10
+        mul R0 #4
+        pop R9
+        add R0 R9
+        move @0 R11
+        move R0 #40
+        move R8 R0
+        move R0 _ansi_bg
+        push R0
+        move R7 #0
+        push R7
+        move R0 #0
+        pop R7
+        move R7 R0
+        move R0 R7
+        mul R0 #4
+        pop R6
+        add R0 R6
+        move @0 R8
+        move R0 #34
+        move R5 R0
+        move R0 _ansi_fg
+        push R0
+        move R4 #0
+        push R4
+        move R0 #1
+        pop R4
+        move R4 R0
+        move R0 R4
+        mul R0 #4
+        pop R3
+        add R0 R3
+        move @0 R5
+        move R0 #44
+        move R2 R0
+        move R0 _ansi_bg
+        push R0
+        move R1 #0
+        push R1
+        move R0 #1
+        pop R1
+        move R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R10
+        add R0 R10
+        move @0 R2
+        move R0 #32
+        move R9 R0
+        move R0 _ansi_fg
+        push R0
+        move R11 #0
+        push R11
+        move R0 #2
+        pop R11
+        move R11 R0
+        move R0 R11
+        mul R0 #4
+        pop R7
+        add R0 R7
+        move @0 R9
+        move R0 #42
+        move R6 R0
+        move R0 _ansi_bg
+        push R0
+        move R8 #0
+        push R8
+        move R0 #2
+        pop R8
+        move R8 R0
+        move R0 R8
+        mul R0 #4
+        pop R4
+        add R0 R4
+        move @0 R6
+        move R0 #36
+        move R3 R0
+        move R0 _ansi_fg
+        push R0
+        move R5 #0
+        push R5
+        move R0 #3
+        pop R5
+        move R5 R0
+        move R0 R5
+        mul R0 #4
+        pop R1
+        add R0 R1
+        move @0 R3
+        move R0 #46
+        move R10 R0
+        move R0 _ansi_bg
+        push R0
+        move R2 #0
+        push R2
+        move R0 #3
+        pop R2
+        move R2 R0
+        move R0 R2
+        mul R0 #4
+        pop R11
+        add R0 R11
+        move @0 R10
+        move R0 #31
+        move R7 R0
+        move R0 _ansi_fg
+        push R0
+        move R9 #0
+        push R9
+        move R0 #4
+        pop R9
+        move R9 R0
+        move R0 R9
+        mul R0 #4
+        pop R8
+        add R0 R8
+        move @0 R7
+        move R0 #41
+        move R4 R0
+        move R0 _ansi_bg
+        push R0
+        move R6 #0
+        push R6
+        move R0 #4
+        pop R6
+        move R6 R0
+        move R0 R6
+        mul R0 #4
+        pop R5
+        add R0 R5
+        move @0 R4
+        move R0 #35
+        move R1 R0
+        move R0 _ansi_fg
+        push R0
+        move R3 #0
+        push R3
+        move R0 #5
+        pop R3
+        move R3 R0
+        move R0 R3
+        mul R0 #4
+        pop R2
+        add R0 R2
+        move @0 R1
+        move R0 #45
+        move R11 R0
+        move R0 _ansi_bg
+        push R0
+        move R10 #0
+        push R10
+        move R0 #5
+        pop R10
+        move R10 R0
+        move R0 R10
+        mul R0 #4
+        pop R9
+        add R0 R9
+        move @0 R11
+        move R0 #33
+        move R8 R0
+        move R0 _ansi_fg
+        push R0
+        move R7 #0
+        push R7
+        move R0 #6
+        pop R7
+        move R7 R0
+        move R0 R7
+        mul R0 #4
+        pop R6
+        add R0 R6
+        move @0 R8
+        move R0 #43
+        move R5 R0
+        move R0 _ansi_bg
+        push R0
+        move R4 #0
+        push R4
+        move R0 #6
+        pop R4
+        move R4 R0
+        move R0 R4
+        mul R0 #4
+        pop R3
+        add R0 R3
+        move @0 R5
+        move R0 #37
+        move R2 R0
+        move R0 _ansi_fg
+        push R0
+        move R1 #0
+        push R1
+        move R0 #7
+        pop R1
+        move R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R10
+        add R0 R10
+        move @0 R2
+        move R0 #47
+        move R9 R0
+        move R0 _ansi_bg
+        push R0
+        move R11 #0
+        push R11
+        move R0 #7
+        pop R11
+        move R11 R0
+        move R0 R11
+        mul R0 #4
+        pop R7
+        add R0 R7
+        move @0 R9
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_INIT:
+        push R15
+        push R12
+        move R12 R13
+        call _crt_init_maps
+        move R0 #7
+        move [_crt_fg] R0
+        move R0 #0
+        move [_crt_bg] R0
+        move R0 #1
+        move [_crt_wx1] R0
+        move R0 #1
+        move [_crt_wy1] R0
+        move R0 #80
+        move [_crt_wx2] R0
+        move R0 #25
+        move [_crt_wy2] R0
+        move R0 #1
+        move [_crt_x] R0
+        move R0 #1
+        move [_crt_y] R0
+        call CRT_CLRSCR
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_CLRSCR:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_crt_wx2]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L87890002
+        move R0 #0
+        jmp _L87890003
+_L87890002:
+        move R0 #1
+_L87890003:
+        cmp R0 #0
+        jz sta_87890000
+        call _crt_init_maps
+        move R0 #7
+        move [_crt_fg] R0
+        move R0 #0
+        move [_crt_bg] R0
+        move R0 #1
+        move [_crt_wx1] R0
+        move R0 #1
+        move [_crt_wy1] R0
+        move R0 #80
+        move [_crt_wx2] R0
+        move R0 #25
+        move [_crt_wy2] R0
+sta_87890000:
+sta_87890001:
+        move R0 #27
+        syscall #400
+        move R0 #91
+        syscall #400
+        move R0 #50
+        syscall #400
+        move R0 #74
+        syscall #400
+        move R0 #27
+        syscall #400
+        move R0 #91
+        syscall #400
+        move R0 #72
+        syscall #400
+        move R0 #1
+        move [_crt_x] R0
+        move R0 #1
+        move [_crt_y] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_CLREOL:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #27
+        syscall #400
+        move R0 #91
+        syscall #400
+        move R0 #75
+        syscall #400
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_GOTOXY:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [_crt_tmp1] R0
+        move [_crt_tmp2] R1
+        move R0 [_crt_tmp1]
+        push R0
+        move R0 [_crt_wx1]
+        pop R1
+        cmp R1 R0
+        jl _L87890006
+        move R0 #0
+        jmp _L87890007
+_L87890006:
+        move R0 #1
+_L87890007:
+        cmp R0 #0
+        jz sta_87890004
+        move R0 [_crt_wx1]
+        move [_crt_tmp1] R0
+sta_87890004:
+sta_87890005:
+        move R0 [_crt_tmp1]
+        push R0
+        move R0 [_crt_wx2]
+        pop R1
+        cmp R1 R0
+        jg _L87890010
+        move R0 #0
+        jmp _L87890011
+_L87890010:
+        move R0 #1
+_L87890011:
+        cmp R0 #0
+        jz sta_87890008
+        move R0 [_crt_wx2]
+        move [_crt_tmp1] R0
+sta_87890008:
+sta_87890009:
+        move R0 [_crt_tmp2]
+        push R0
+        move R0 [_crt_wy1]
+        pop R1
+        cmp R1 R0
+        jl _L87890014
+        move R0 #0
+        jmp _L87890015
+_L87890014:
+        move R0 #1
+_L87890015:
+        cmp R0 #0
+        jz sta_87890012
+        move R0 [_crt_wy1]
+        move [_crt_tmp2] R0
+sta_87890012:
+sta_87890013:
+        move R0 [_crt_tmp2]
+        push R0
+        move R0 [_crt_wy2]
+        pop R1
+        cmp R1 R0
+        jg _L87890018
+        move R0 #0
+        jmp _L87890019
+_L87890018:
+        move R0 #1
+_L87890019:
+        cmp R0 #0
+        jz sta_87890016
+        move R0 [_crt_wy2]
+        move [_crt_tmp2] R0
+sta_87890016:
+sta_87890017:
+        move R0 [_crt_tmp1]
+        move [_crt_x] R0
+        move R0 [_crt_tmp2]
+        move [_crt_y] R0
+        move R0 #27
+        syscall #400
+        move R0 #91
+        syscall #400
+        move R0 [_crt_tmp2]
+        syscall #402
+        move R0 #59
+        syscall #400
+        move R0 [_crt_tmp1]
+        syscall #402
+        move R0 #72
+        syscall #400
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_WHEREX:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_crt_x]
+        jmp L87890020
+L87890020:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_WHEREY:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_crt_y]
+        jmp L87890021
+L87890021:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_TEXTCOLOR:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [_crt_tmp1] R0
+        move R0 [_crt_tmp1]
+        push R0
+        move R0 #15
+        pop R1
+        and R1 R0
+        move R0 R1
+        move [R12+12] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #7
+        pop R1
+        and R1 R0
+        move R0 R1
+        move [_crt_fg] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #7
+        pop R1
+        cmp R1 R0
+        jg _L87890024
+        move R0 #0
+        jmp _L87890025
+_L87890024:
+        move R0 #1
+_L87890025:
+        cmp R0 #0
+        jz sta_87890022
+        move R0 #27
+        syscall #400
+        move R0 #91
+        syscall #400
+        move R0 #49
+        syscall #400
+        move R0 #109
+        syscall #400
+sta_87890022:
+sta_87890023:
+        move R0 #27
+        syscall #400
+        move R0 #91
+        syscall #400
+        move R0 [_crt_fg]
+        move R1 R0
+        push R1
+        move R0 #0
+        pop R1
+        cmp R0 R1
+        je sta_87890028
+        push R1
+        move R0 #1
+        pop R1
+        cmp R0 R1
+        je sta_87890029
+        push R1
+        move R0 #2
+        pop R1
+        cmp R0 R1
+        je sta_87890030
+        push R1
+        move R0 #3
+        pop R1
+        cmp R0 R1
+        je sta_87890031
+        push R1
+        move R0 #4
+        pop R1
+        cmp R0 R1
+        je sta_87890032
+        push R1
+        move R0 #5
+        pop R1
+        cmp R0 R1
+        je sta_87890033
+        push R1
+        move R0 #6
+        pop R1
+        cmp R0 R1
+        je sta_87890034
+        jmp sta_87890027
+sta_87890028:
+        move R0 #30
+        move [_crt_tmp1] R0
+        jmp sta_87890026
+sta_87890029:
+        move R0 #34
+        move [_crt_tmp1] R0
+        jmp sta_87890026
+sta_87890030:
+        move R0 #32
+        move [_crt_tmp1] R0
+        jmp sta_87890026
+sta_87890031:
+        move R0 #36
+        move [_crt_tmp1] R0
+        jmp sta_87890026
+sta_87890032:
+        move R0 #31
+        move [_crt_tmp1] R0
+        jmp sta_87890026
+sta_87890033:
+        move R0 #35
+        move [_crt_tmp1] R0
+        jmp sta_87890026
+sta_87890034:
+        move R0 #33
+        move [_crt_tmp1] R0
+        jmp sta_87890026
+sta_87890027:
+        move R0 #37
+        move [_crt_tmp1] R0
+        jmp sta_87890026
+sta_87890026:
+        move R0 [_crt_tmp1]
+        syscall #402
+        move R0 #109
+        syscall #400
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_TEXTBACKGROUND:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [_crt_tmp1] R0
+        move R0 [_crt_tmp1]
+        push R0
+        move R0 #7
+        pop R1
+        and R1 R0
+        move R0 R1
+        move [R12+12] R0
+        move R0 [R12+12]
+        move [_crt_bg] R0
+        move R0 #27
+        syscall #400
+        move R0 #91
+        syscall #400
+        move R1 _ansi_bg
+        move R2 [_crt_bg]
+        mul R2 #4
+        add R1 R2
+        move R0 @1
+        syscall #402
+        move R0 #109
+        syscall #400
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_WINDOW:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move [_crt_tmp1] R0
+        move [_crt_tmp2] R1
+        move R0 [_crt_tmp1]
+        move [R12+12] R0
+        move R0 [_crt_tmp2]
+        move [R12+16] R0
+        move [_crt_tmp1] R2
+        move [_crt_tmp2] R3
+        move R0 [_crt_tmp1]
+        move [R12+20] R0
+        move R0 [_crt_tmp2]
+        move [R12+24] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        pop R1
+        cmp R1 R0
+        jl _L87890037
+        move R0 #0
+        jmp _L87890038
+_L87890037:
+        move R0 #1
+_L87890038:
+        cmp R0 #0
+        jz sta_87890035
+        move R0 #1
+        move [R12+12] R0
+sta_87890035:
+sta_87890036:
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+20]
+        pop R1
+        cmp R1 R0
+        jg _L87890041
+        move R0 #0
+        jmp _L87890042
+_L87890041:
+        move R0 #1
+_L87890042:
+        cmp R0 #0
+        jz sta_87890039
+        move R0 #1
+        move [R12+12] R0
+sta_87890039:
+sta_87890040:
+        move R0 [R12+20]
+        push R0
+        move R0 #80
+        pop R1
+        cmp R1 R0
+        jg _L87890045
+        move R0 #0
+        jmp _L87890046
+_L87890045:
+        move R0 #1
+_L87890046:
+        cmp R0 #0
+        jz sta_87890043
+        move R0 #80
+        move [R12+20] R0
+sta_87890043:
+sta_87890044:
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        pop R1
+        cmp R1 R0
+        jl _L87890049
+        move R0 #0
+        jmp _L87890050
+_L87890049:
+        move R0 #1
+_L87890050:
+        cmp R0 #0
+        jz sta_87890047
+        move R0 #1
+        move [R12+16] R0
+sta_87890047:
+sta_87890048:
+        move R0 [R12+16]
+        push R0
+        move R0 [R12+24]
+        pop R1
+        cmp R1 R0
+        jg _L87890053
+        move R0 #0
+        jmp _L87890054
+_L87890053:
+        move R0 #1
+_L87890054:
+        cmp R0 #0
+        jz sta_87890051
+        move R0 #1
+        move [R12+16] R0
+sta_87890051:
+sta_87890052:
+        move R0 [R12+24]
+        push R0
+        move R0 #25
+        pop R1
+        cmp R1 R0
+        jg _L87890057
+        move R0 #0
+        jmp _L87890058
+_L87890057:
+        move R0 #1
+_L87890058:
+        cmp R0 #0
+        jz sta_87890055
+        move R0 #25
+        move [R12+24] R0
+sta_87890055:
+sta_87890056:
+        move R0 [R12+12]
+        move [_crt_wx1] R0
+        move R0 [R12+16]
+        move [_crt_wy1] R0
+        move R0 [R12+20]
+        move [_crt_wx2] R0
+        move R0 [R12+24]
+        move [_crt_wy2] R0
+        move R0 #27
+        syscall #400
+        move R0 #91
+        syscall #400
+        move R0 [_crt_wy1]
+        syscall #402
+        move R0 #59
+        syscall #400
+        move R0 [_crt_wy2]
+        syscall #402
+        move R0 #114
+        syscall #400
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call CRT_GOTOXY
+        add R13 #8
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_KEYPRESSED:
+        push R15
+        push R12
+        move R12 R13
+        syscall #5
+        move [_crt_tmp1] R0
+        move R0 [_crt_tmp1]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jne _L87890059
+        move R0 #0
+        jmp _L87890060
+_L87890059:
+        move R0 #1
+_L87890060:
+        jmp L87890061
+L87890061:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_READKEY:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #1
+        syscall #5
+        move [_crt_tmp1] R0
+        move R0 [_crt_tmp1]
+        jmp L87890062
+L87890062:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_DELAY:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #52
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_SOUND:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #57
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_NOSOUND:
+        push R15
+        push R12
+        move R12 R13
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_NORMVIDEO:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #27
+        syscall #400
+        move R0 #91
+        syscall #400
+        move R0 #48
+        syscall #400
+        move R0 #109
+        syscall #400
+        move R0 #7
+        move [_crt_fg] R0
+        move R0 #0
+        move [_crt_bg] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_HIGHVIDEO:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #27
+        syscall #400
+        move R0 #91
+        syscall #400
+        move R0 #49
+        syscall #400
+        move R0 #109
+        syscall #400
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_LOWVIDEO:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #27
+        syscall #400
+        move R0 #91
+        syscall #400
+        move R0 #50
+        syscall #400
+        move R0 #109
+        syscall #400
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_INSLINE:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #27
+        syscall #400
+        move R0 #91
+        syscall #400
+        move R0 #76
+        syscall #400
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_DELLINE:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #27
+        syscall #400
+        move R0 #91
+        syscall #400
+        move R0 #77
+        syscall #400
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_CURSORON:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #27
+        syscall #400
+        move R0 #91
+        syscall #400
+        move R0 #63
+        syscall #400
+        move R0 #50
+        syscall #400
+        move R0 #53
+        syscall #400
+        move R0 #104
+        syscall #400
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_CURSOROFF:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #27
+        syscall #400
+        move R0 #91
+        syscall #400
+        move R0 #63
+        syscall #400
+        move R0 #50
+        syscall #400
+        move R0 #53
+        syscall #400
+        move R0 #108
+        syscall #400
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_WRITE_CHAR:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [_crt_tmp1] R0
+        move R0 [_crt_tmp1]
+        move [R12+12] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #10
+        pop R1
+        cmp R1 R0
+        je _L87890065
+        move R0 #0
+        jmp _L87890066
+_L87890065:
+        move R0 #1
+_L87890066:
+        cmp R0 #0
+        jz sta_87890063
+        move R0 [_crt_y]
+        move R1 R0
+        add R0 R0 #1
+        move [_crt_y] R0
+        move R0 R1
+        move R0 [_crt_wx1]
+        move [_crt_x] R0
+        move R0 [_crt_y]
+        push R0
+        move R0 [_crt_wy2]
+        pop R1
+        cmp R1 R0
+        jg _L87890069
+        move R0 #0
+        jmp _L87890070
+_L87890069:
+        move R0 #1
+_L87890070:
+        cmp R0 #0
+        jz sta_87890067
+        move R0 [_crt_wy2]
+        move [_crt_y] R0
+sta_87890067:
+sta_87890068:
+        jmp sta_87890064
+sta_87890063:
+        move R0 [R12+12]
+        push R0
+        move R0 #13
+        pop R1
+        cmp R1 R0
+        je _L87890073
+        move R0 #0
+        jmp _L87890074
+_L87890073:
+        move R0 #1
+_L87890074:
+        cmp R0 #0
+        jz sta_87890071
+        move R0 [_crt_wx1]
+        move [_crt_x] R0
+        jmp sta_87890072
+sta_87890071:
+        move R0 [R12+12]
+        push R0
+        move R0 #32
+        pop R1
+        cmp R1 R0
+        jge _L87890077
+        move R0 #0
+        jmp _L87890078
+_L87890077:
+        move R0 #1
+_L87890078:
+        cmp R0 #0
+        jz sta_87890075
+        move R0 [_crt_tmp1]
+        syscall #400
+        move R0 [_crt_x]
+        move R1 R0
+        add R0 R0 #1
+        move [_crt_x] R0
+        move R0 R1
+        move R0 [_crt_x]
+        push R0
+        move R0 [_crt_wx2]
+        pop R1
+        cmp R1 R0
+        jg _L87890081
+        move R0 #0
+        jmp _L87890082
+_L87890081:
+        move R0 #1
+_L87890082:
+        cmp R0 #0
+        jz sta_87890079
+        move R0 [_crt_wx1]
+        move [_crt_x] R0
+        move R0 [_crt_y]
+        move R1 R0
+        add R0 R0 #1
+        move [_crt_y] R0
+        move R0 R1
+sta_87890079:
+sta_87890080:
+sta_87890075:
+sta_87890076:
+sta_87890072:
+sta_87890064:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+CRT_WRITE_STRING:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #401
+        move R0 [_crt_y]
+        move R1 R0
+        add R0 R0 #1
+        move [_crt_y] R0
+        move R0 R1
+        move R0 [_crt_wx1]
+        move [_crt_x] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret

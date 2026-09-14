@@ -1,0 +1,110 @@
+﻿//
+// Commodore-64 Register Definitions
+// Generated from: Commodore 64 home computer with MOS 6510 CPU, 64KB RAM, and SID sound chip
+// Version: 1.0
+// Date: 2026-04-17
+//
+
+import Foundation
+
+// MARK: - VIC-II (Video Interface Chip II)
+let VIC-II_VIC_CTRL1: UInt8 = 0x0xD011
+let VIC-II_VIC_CTRL2: UInt8 = 0x0xD016
+let VIC-II_VIC_RASTER: UInt8 = 0x0xD012
+let VIC-II_VIC_MEMPTR: UInt8 = 0x0xD018
+let VIC-II_VIC_IRQ: UInt8 = 0x0xD019
+let VIC-II_VIC_IRQMASK: UInt8 = 0x0xD01A
+let VIC-II_VIC_BORDER: UInt8 = 0x0xD020
+let VIC-II_VIC_BG0: UInt8 = 0x0xD021
+let VIC-II_VIC_BG1: UInt8 = 0x0xD022
+let VIC-II_VIC_BG2: UInt8 = 0x0xD023
+let VIC-II_VIC_BG3: UInt8 = 0x0xD024
+let VIC-II_VIC_SPRITE0_X: UInt8 = 0x0xD000
+let VIC-II_VIC_SPRITE0_Y: UInt8 = 0x0xD001
+let VIC-II_VIC_SPRITE1_X: UInt8 = 0x0xD002
+let VIC-II_VIC_SPRITE1_Y: UInt8 = 0x0xD003
+
+// MARK: - SID (Sound Interface Device (6581))
+let SID_SID_VOICE1_FREQ_LO: UInt8 = 0x0xD400
+let SID_SID_VOICE1_FREQ_HI: UInt8 = 0x0xD401
+let SID_SID_VOICE1_PW_LO: UInt8 = 0x0xD402
+let SID_SID_VOICE1_PW_HI: UInt8 = 0x0xD403
+let SID_SID_VOICE1_CTRL: UInt8 = 0x0xD404
+let SID_SID_VOICE1_AD: UInt8 = 0x0xD405
+let SID_SID_VOICE1_SR: UInt8 = 0x0xD406
+let SID_SID_VOICE2_FREQ_LO: UInt8 = 0x0xD407
+let SID_SID_VOICE2_FREQ_HI: UInt8 = 0x0xD408
+let SID_SID_VOICE2_PW_LO: UInt8 = 0x0xD409
+let SID_SID_VOICE2_PW_HI: UInt8 = 0x0xD40A
+let SID_SID_VOICE2_CTRL: UInt8 = 0x0xD40B
+let SID_SID_VOICE2_AD: UInt8 = 0x0xD40C
+let SID_SID_VOICE2_SR: UInt8 = 0x0xD40D
+let SID_SID_VOICE3_FREQ_LO: UInt8 = 0x0xD40E
+let SID_SID_VOICE3_FREQ_HI: UInt8 = 0x0xD40F
+let SID_SID_VOICE3_PW_LO: UInt8 = 0x0xD410
+let SID_SID_VOICE3_PW_HI: UInt8 = 0x0xD411
+let SID_SID_VOICE3_CTRL: UInt8 = 0x0xD412
+let SID_SID_VOICE3_AD: UInt8 = 0x0xD413
+let SID_SID_VOICE3_SR: UInt8 = 0x0xD414
+let SID_SID_FILTER_CUTOFF_LO: UInt8 = 0x0xD415
+let SID_SID_FILTER_CUTOFF_HI: UInt8 = 0x0xD416
+let SID_SID_FILTER_CTRL: UInt8 = 0x0xD417
+let SID_SID_VOLUME: UInt8 = 0x0xD418
+let SID_SID_POTX: UInt8 = 0x0xD419
+let SID_SID_POTY: UInt8 = 0x0xD41A
+let SID_SID_OSC3: UInt8 = 0x0xD41B
+let SID_SID_ENV3: UInt8 = 0x0xD41C
+
+// MARK: - CIA1 (Complex Interface Adapter 1 (6526))
+let CIA1_CIA1_PRA: UInt8 = 0x0xDC00
+let CIA1_CIA1_PRB: UInt8 = 0x0xDC01
+let CIA1_CIA1_DDRA: UInt8 = 0x0xDC02
+let CIA1_CIA1_DDRB: UInt8 = 0x0xDC03
+let CIA1_CIA1_TALO: UInt8 = 0x0xDC04
+let CIA1_CIA1_TAHI: UInt8 = 0x0xDC05
+let CIA1_CIA1_TBLO: UInt8 = 0x0xDC06
+let CIA1_CIA1_TBHI: UInt8 = 0x0xDC07
+let CIA1_CIA1_TODTEN: UInt8 = 0x0xDC08
+let CIA1_CIA1_TODSEC: UInt8 = 0x0xDC09
+let CIA1_CIA1_TODMIN: UInt8 = 0x0xDC0A
+let CIA1_CIA1_TODHR: UInt8 = 0x0xDC0B
+let CIA1_CIA1_SDR: UInt8 = 0x0xDC0C
+let CIA1_CIA1_ICR: UInt8 = 0x0xDC0D
+let CIA1_CIA1_CRA: UInt8 = 0x0xDC0E
+let CIA1_CIA1_CRB: UInt8 = 0x0xDC0F
+
+// MARK: - CIA2 (Complex Interface Adapter 2 (6526))
+let CIA2_CIA2_PRA: UInt8 = 0x0xDD00
+let CIA2_CIA2_PRB: UInt8 = 0x0xDD01
+let CIA2_CIA2_DDRA: UInt8 = 0x0xDD02
+let CIA2_CIA2_DDRB: UInt8 = 0x0xDD03
+let CIA2_CIA2_TALO: UInt8 = 0x0xDD04
+let CIA2_CIA2_TAHI: UInt8 = 0x0xDD05
+let CIA2_CIA2_TBLO: UInt8 = 0x0xDD06
+let CIA2_CIA2_TBHI: UInt8 = 0x0xDD07
+let CIA2_CIA2_TODTEN: UInt8 = 0x0xDD08
+let CIA2_CIA2_TODSEC: UInt8 = 0x0xDD09
+let CIA2_CIA2_TODMIN: UInt8 = 0x0xDD0A
+let CIA2_CIA2_TODHR: UInt8 = 0x0xDD0B
+let CIA2_CIA2_SDR: UInt8 = 0x0xDD0C
+let CIA2_CIA2_ICR: UInt8 = 0x0xDD0D
+let CIA2_CIA2_CRA: UInt8 = 0x0xDD0E
+let CIA2_CIA2_CRB: UInt8 = 0x0xDD0F
+
+// MARK: - Interrupt Vectors
+let IRQ_IRQ: Int = 65532
+let IRQ_NMI: Int = 65534
+let IRQ_RESET: Int = 65526
+
+// MARK: - Memory Segments
+
+// MARK: - Device Functions
+func commodore_64_init() {
+}
+
+func read_register(_ addr: UInt32) -> UInt32 {
+    return 0
+}
+
+func write_register(_ addr: UInt32, _ value: UInt32) {
+}

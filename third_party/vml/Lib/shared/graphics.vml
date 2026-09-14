@@ -1,0 +1,6551 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+_gfx_fb: .word 0
+_gfx_w: .word 0
+_gfx_h: .word 0
+_vml_result_int: .word 0
+font8x16:
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 24
+    .word 60
+    .word 60
+    .word 60
+    .word 24
+    .word 24
+    .word 24
+    .word 0
+    .word 24
+    .word 24
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 102
+    .word 102
+    .word 102
+    .word 36
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 108
+    .word 108
+    .word 254
+    .word 108
+    .word 108
+    .word 108
+    .word 254
+    .word 108
+    .word 108
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 24
+    .word 24
+    .word 124
+    .word 198
+    .word 194
+    .word 192
+    .word 124
+    .word 6
+    .word 6
+    .word 134
+    .word 198
+    .word 124
+    .word 24
+    .word 24
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 194
+    .word 198
+    .word 12
+    .word 24
+    .word 48
+    .word 96
+    .word 198
+    .word 134
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 56
+    .word 108
+    .word 108
+    .word 56
+    .word 118
+    .word 220
+    .word 204
+    .word 204
+    .word 204
+    .word 118
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 48
+    .word 48
+    .word 48
+    .word 96
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 12
+    .word 24
+    .word 48
+    .word 48
+    .word 48
+    .word 48
+    .word 48
+    .word 48
+    .word 24
+    .word 12
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 48
+    .word 24
+    .word 12
+    .word 12
+    .word 12
+    .word 12
+    .word 12
+    .word 12
+    .word 24
+    .word 48
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 102
+    .word 60
+    .word 255
+    .word 60
+    .word 102
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 24
+    .word 24
+    .word 126
+    .word 24
+    .word 24
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 24
+    .word 24
+    .word 24
+    .word 48
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 254
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 24
+    .word 24
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 2
+    .word 6
+    .word 12
+    .word 24
+    .word 48
+    .word 96
+    .word 192
+    .word 128
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 60
+    .word 102
+    .word 195
+    .word 195
+    .word 219
+    .word 219
+    .word 195
+    .word 195
+    .word 102
+    .word 60
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 24
+    .word 56
+    .word 120
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 126
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 124
+    .word 198
+    .word 6
+    .word 12
+    .word 24
+    .word 48
+    .word 96
+    .word 192
+    .word 198
+    .word 254
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 124
+    .word 198
+    .word 6
+    .word 6
+    .word 60
+    .word 6
+    .word 6
+    .word 6
+    .word 198
+    .word 124
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 12
+    .word 28
+    .word 60
+    .word 108
+    .word 204
+    .word 254
+    .word 12
+    .word 12
+    .word 12
+    .word 30
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 254
+    .word 192
+    .word 192
+    .word 192
+    .word 252
+    .word 6
+    .word 6
+    .word 6
+    .word 198
+    .word 124
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 56
+    .word 96
+    .word 192
+    .word 192
+    .word 252
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 124
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 254
+    .word 198
+    .word 6
+    .word 6
+    .word 12
+    .word 24
+    .word 48
+    .word 48
+    .word 48
+    .word 48
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 124
+    .word 198
+    .word 198
+    .word 198
+    .word 124
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 124
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 124
+    .word 198
+    .word 198
+    .word 198
+    .word 126
+    .word 6
+    .word 6
+    .word 6
+    .word 12
+    .word 120
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 24
+    .word 24
+    .word 0
+    .word 0
+    .word 0
+    .word 24
+    .word 24
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 24
+    .word 24
+    .word 0
+    .word 0
+    .word 0
+    .word 24
+    .word 24
+    .word 48
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 6
+    .word 12
+    .word 24
+    .word 48
+    .word 96
+    .word 48
+    .word 24
+    .word 12
+    .word 6
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 126
+    .word 0
+    .word 0
+    .word 126
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 96
+    .word 48
+    .word 24
+    .word 12
+    .word 6
+    .word 12
+    .word 24
+    .word 48
+    .word 96
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 124
+    .word 198
+    .word 198
+    .word 12
+    .word 24
+    .word 24
+    .word 24
+    .word 0
+    .word 24
+    .word 24
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 124
+    .word 198
+    .word 198
+    .word 222
+    .word 222
+    .word 222
+    .word 220
+    .word 192
+    .word 124
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 16
+    .word 56
+    .word 108
+    .word 198
+    .word 198
+    .word 254
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 252
+    .word 102
+    .word 102
+    .word 102
+    .word 124
+    .word 102
+    .word 102
+    .word 102
+    .word 102
+    .word 252
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 60
+    .word 102
+    .word 194
+    .word 192
+    .word 192
+    .word 192
+    .word 192
+    .word 194
+    .word 102
+    .word 60
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 248
+    .word 108
+    .word 102
+    .word 102
+    .word 102
+    .word 102
+    .word 102
+    .word 102
+    .word 108
+    .word 248
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 254
+    .word 102
+    .word 98
+    .word 104
+    .word 120
+    .word 104
+    .word 96
+    .word 98
+    .word 102
+    .word 254
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 254
+    .word 102
+    .word 98
+    .word 104
+    .word 120
+    .word 104
+    .word 96
+    .word 96
+    .word 96
+    .word 240
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 60
+    .word 102
+    .word 194
+    .word 192
+    .word 192
+    .word 222
+    .word 198
+    .word 198
+    .word 102
+    .word 58
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 254
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 60
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 60
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 30
+    .word 12
+    .word 12
+    .word 12
+    .word 12
+    .word 12
+    .word 204
+    .word 204
+    .word 204
+    .word 120
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 230
+    .word 102
+    .word 102
+    .word 108
+    .word 120
+    .word 120
+    .word 108
+    .word 102
+    .word 102
+    .word 230
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 240
+    .word 96
+    .word 96
+    .word 96
+    .word 96
+    .word 96
+    .word 96
+    .word 98
+    .word 102
+    .word 254
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 195
+    .word 231
+    .word 255
+    .word 255
+    .word 219
+    .word 195
+    .word 195
+    .word 195
+    .word 195
+    .word 195
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 198
+    .word 230
+    .word 246
+    .word 254
+    .word 222
+    .word 206
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 124
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 124
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 252
+    .word 102
+    .word 102
+    .word 102
+    .word 124
+    .word 96
+    .word 96
+    .word 96
+    .word 96
+    .word 240
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 124
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 214
+    .word 222
+    .word 124
+    .word 12
+    .word 14
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 252
+    .word 102
+    .word 102
+    .word 102
+    .word 124
+    .word 108
+    .word 102
+    .word 102
+    .word 102
+    .word 230
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 124
+    .word 198
+    .word 198
+    .word 96
+    .word 56
+    .word 12
+    .word 6
+    .word 198
+    .word 198
+    .word 124
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 255
+    .word 219
+    .word 153
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 60
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 124
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 195
+    .word 195
+    .word 195
+    .word 195
+    .word 195
+    .word 195
+    .word 195
+    .word 102
+    .word 60
+    .word 24
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 195
+    .word 195
+    .word 195
+    .word 195
+    .word 195
+    .word 219
+    .word 219
+    .word 255
+    .word 102
+    .word 102
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 195
+    .word 195
+    .word 102
+    .word 60
+    .word 24
+    .word 24
+    .word 60
+    .word 102
+    .word 195
+    .word 195
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 195
+    .word 195
+    .word 195
+    .word 102
+    .word 60
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 60
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 255
+    .word 195
+    .word 134
+    .word 12
+    .word 24
+    .word 48
+    .word 96
+    .word 193
+    .word 195
+    .word 255
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 60
+    .word 48
+    .word 48
+    .word 48
+    .word 48
+    .word 48
+    .word 48
+    .word 48
+    .word 48
+    .word 60
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 128
+    .word 192
+    .word 224
+    .word 112
+    .word 56
+    .word 28
+    .word 14
+    .word 6
+    .word 2
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 60
+    .word 12
+    .word 12
+    .word 12
+    .word 12
+    .word 12
+    .word 12
+    .word 12
+    .word 12
+    .word 60
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 16
+    .word 56
+    .word 108
+    .word 198
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 255
+    .word 0
+    .word 0
+    .word 48
+    .word 48
+    .word 24
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 120
+    .word 12
+    .word 124
+    .word 204
+    .word 204
+    .word 204
+    .word 118
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 224
+    .word 96
+    .word 96
+    .word 120
+    .word 108
+    .word 102
+    .word 102
+    .word 102
+    .word 102
+    .word 124
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 124
+    .word 198
+    .word 192
+    .word 192
+    .word 192
+    .word 198
+    .word 124
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 28
+    .word 12
+    .word 12
+    .word 60
+    .word 108
+    .word 204
+    .word 204
+    .word 204
+    .word 204
+    .word 118
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 124
+    .word 198
+    .word 254
+    .word 192
+    .word 192
+    .word 198
+    .word 124
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 56
+    .word 108
+    .word 100
+    .word 96
+    .word 240
+    .word 96
+    .word 96
+    .word 96
+    .word 96
+    .word 240
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 118
+    .word 204
+    .word 204
+    .word 204
+    .word 204
+    .word 204
+    .word 124
+    .word 12
+    .word 204
+    .word 120
+    .word 0
+    .word 0
+    .word 0
+    .word 224
+    .word 96
+    .word 96
+    .word 108
+    .word 118
+    .word 102
+    .word 102
+    .word 102
+    .word 102
+    .word 230
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 24
+    .word 24
+    .word 0
+    .word 56
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 60
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 6
+    .word 6
+    .word 0
+    .word 14
+    .word 6
+    .word 6
+    .word 6
+    .word 6
+    .word 6
+    .word 6
+    .word 102
+    .word 102
+    .word 60
+    .word 0
+    .word 0
+    .word 0
+    .word 224
+    .word 96
+    .word 96
+    .word 102
+    .word 108
+    .word 120
+    .word 120
+    .word 108
+    .word 102
+    .word 230
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 56
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 60
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 230
+    .word 255
+    .word 219
+    .word 219
+    .word 219
+    .word 219
+    .word 219
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 220
+    .word 102
+    .word 102
+    .word 102
+    .word 102
+    .word 102
+    .word 102
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 124
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 124
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 220
+    .word 102
+    .word 102
+    .word 102
+    .word 102
+    .word 102
+    .word 124
+    .word 96
+    .word 96
+    .word 240
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 118
+    .word 204
+    .word 204
+    .word 204
+    .word 204
+    .word 204
+    .word 124
+    .word 12
+    .word 12
+    .word 30
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 220
+    .word 118
+    .word 102
+    .word 96
+    .word 96
+    .word 96
+    .word 240
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 124
+    .word 198
+    .word 96
+    .word 56
+    .word 12
+    .word 198
+    .word 124
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 16
+    .word 48
+    .word 48
+    .word 252
+    .word 48
+    .word 48
+    .word 48
+    .word 48
+    .word 54
+    .word 28
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 204
+    .word 204
+    .word 204
+    .word 204
+    .word 204
+    .word 204
+    .word 118
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 195
+    .word 195
+    .word 195
+    .word 195
+    .word 102
+    .word 60
+    .word 24
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 195
+    .word 195
+    .word 195
+    .word 219
+    .word 219
+    .word 255
+    .word 102
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 195
+    .word 102
+    .word 60
+    .word 24
+    .word 60
+    .word 102
+    .word 195
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 198
+    .word 126
+    .word 6
+    .word 12
+    .word 248
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 254
+    .word 204
+    .word 24
+    .word 48
+    .word 96
+    .word 198
+    .word 254
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 14
+    .word 24
+    .word 24
+    .word 24
+    .word 112
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 14
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 0
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 112
+    .word 24
+    .word 24
+    .word 24
+    .word 14
+    .word 24
+    .word 24
+    .word 24
+    .word 24
+    .word 112
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 118
+    .word 220
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+_flood_sx:
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+_flood_sy:
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+
+.text
+_gfx_refresh_cache:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 #1
+        syscall #60
+        move _gfx_fb R0
+        move R0 #28656
+        moveb R0 @0
+        sextb R0 R0
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L69550002
+        move R0 #0
+        jmp _L69550003
+_L69550002:
+        move R0 #1
+_L69550003:
+        cmp R0 #0
+        jz sta_69550000
+        move R0 #80
+        move [_gfx_w] R0
+        move R0 #25
+        move [_gfx_h] R0
+        jmp sta_69550001
+sta_69550000:
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        pop R1
+        cmp R1 R0
+        je _L69550006
+        move R0 #0
+        jmp _L69550007
+_L69550006:
+        move R0 #1
+_L69550007:
+        cmp R0 #0
+        jz sta_69550004
+        move R0 #320
+        move [_gfx_w] R0
+        move R0 #200
+        move [_gfx_h] R0
+        jmp sta_69550005
+sta_69550004:
+        move R0 [R12-4]
+        push R0
+        move R0 #2
+        pop R1
+        cmp R1 R0
+        je _L69550010
+        move R0 #0
+        jmp _L69550011
+_L69550010:
+        move R0 #1
+_L69550011:
+        cmp R0 #0
+        jz sta_69550008
+        move R0 #640
+        move [_gfx_w] R0
+        move R0 #200
+        move [_gfx_h] R0
+        jmp sta_69550009
+sta_69550008:
+        move R0 [R12-4]
+        push R0
+        move R0 #3
+        pop R1
+        cmp R1 R0
+        je _L69550014
+        move R0 #0
+        jmp _L69550015
+_L69550014:
+        move R0 #1
+_L69550015:
+        cmp R0 #0
+        jz sta_69550012
+        move R0 #720
+        move [_gfx_w] R0
+        move R0 #400
+        move [_gfx_h] R0
+        jmp sta_69550013
+sta_69550012:
+        move R0 [R12-4]
+        push R0
+        move R0 #7
+        pop R1
+        cmp R1 R0
+        je _L69550018
+        move R0 #0
+        jmp _L69550019
+_L69550018:
+        move R0 #1
+_L69550019:
+        cmp R0 #0
+        jz sta_69550016
+        move R0 #320
+        move [_gfx_w] R0
+        move R0 #200
+        move [_gfx_h] R0
+        jmp sta_69550017
+sta_69550016:
+        move R0 [R12-4]
+        push R0
+        move R0 #8
+        pop R1
+        cmp R1 R0
+        je _L69550022
+        move R0 #0
+        jmp _L69550023
+_L69550022:
+        move R0 #1
+_L69550023:
+        cmp R0 #0
+        jz sta_69550020
+        move R0 #640
+        move [_gfx_w] R0
+        move R0 #200
+        move [_gfx_h] R0
+        jmp sta_69550021
+sta_69550020:
+        move R0 [R12-4]
+        push R0
+        move R0 #9
+        pop R1
+        cmp R1 R0
+        je _L69550026
+        move R0 #0
+        jmp _L69550027
+_L69550026:
+        move R0 #1
+_L69550027:
+        cmp R0 #0
+        jz sta_69550024
+        move R0 #640
+        move [_gfx_w] R0
+        move R0 #350
+        move [_gfx_h] R0
+        jmp sta_69550025
+sta_69550024:
+        move R0 [R12-4]
+        push R0
+        move R0 #10
+        pop R1
+        cmp R1 R0
+        je _L69550030
+        move R0 #0
+        jmp _L69550031
+_L69550030:
+        move R0 #1
+_L69550031:
+        cmp R0 #0
+        jz sta_69550028
+        move R0 #640
+        move [_gfx_w] R0
+        move R0 #350
+        move [_gfx_h] R0
+        jmp sta_69550029
+sta_69550028:
+        move R0 [R12-4]
+        push R0
+        move R0 #11
+        pop R1
+        cmp R1 R0
+        je _L69550034
+        move R0 #0
+        jmp _L69550035
+_L69550034:
+        move R0 #1
+_L69550035:
+        cmp R0 #0
+        jz sta_69550032
+        move R0 #640
+        move [_gfx_w] R0
+        move R0 #480
+        move [_gfx_h] R0
+        jmp sta_69550033
+sta_69550032:
+        move R0 [R12-4]
+        push R0
+        move R0 #12
+        pop R1
+        cmp R1 R0
+        je _L69550038
+        move R0 #0
+        jmp _L69550039
+_L69550038:
+        move R0 #1
+_L69550039:
+        cmp R0 #0
+        jz sta_69550036
+        move R0 #640
+        move [_gfx_w] R0
+        move R0 #480
+        move [_gfx_h] R0
+        jmp sta_69550037
+sta_69550036:
+        move R0 [R12-4]
+        push R0
+        move R0 #13
+        pop R1
+        cmp R1 R0
+        je _L69550042
+        move R0 #0
+        jmp _L69550043
+_L69550042:
+        move R0 #1
+_L69550043:
+        cmp R0 #0
+        jz sta_69550040
+        move R0 #320
+        move [_gfx_w] R0
+        move R0 #200
+        move [_gfx_h] R0
+        jmp sta_69550041
+sta_69550040:
+        move R0 [R12-4]
+        push R0
+        move R0 #14
+        pop R1
+        cmp R1 R0
+        je _L69550046
+        move R0 #0
+        jmp _L69550047
+_L69550046:
+        move R0 #1
+_L69550047:
+        cmp R0 #0
+        jz sta_69550044
+        move R0 #640
+        move [_gfx_w] R0
+        move R0 #480
+        move [_gfx_h] R0
+        jmp sta_69550045
+sta_69550044:
+        move R0 [R12-4]
+        push R0
+        move R0 #15
+        pop R1
+        cmp R1 R0
+        je _L69550050
+        move R0 #0
+        jmp _L69550051
+_L69550050:
+        move R0 #1
+_L69550051:
+        cmp R0 #0
+        jz sta_69550048
+        move R0 #800
+        move [_gfx_w] R0
+        move R0 #600
+        move [_gfx_h] R0
+        jmp sta_69550049
+sta_69550048:
+        move R0 #320
+        move [_gfx_w] R0
+        move R0 #200
+        move [_gfx_h] R0
+sta_69550049:
+sta_69550045:
+sta_69550041:
+sta_69550037:
+sta_69550033:
+sta_69550029:
+sta_69550025:
+sta_69550021:
+sta_69550017:
+sta_69550013:
+sta_69550009:
+sta_69550005:
+sta_69550001:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+get_config:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #60
+        move _vml_result_int R0
+        move R0 [_vml_result_int]
+        jmp L69550052
+L69550052:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_fb:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_gfx_fb]
+        jmp L69550053
+L69550053:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_w:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_gfx_w]
+        jmp L69550054
+L69550054:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_h:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_gfx_h]
+        jmp L69550055
+L69550055:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_screen:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L69550058
+        move R0 #0
+        jmp _L69550059
+_L69550058:
+        move R0 #1
+_L69550059:
+        cmp R0 #0
+        jz sta_69550056
+        move R0 #28656
+        moveb R0 @0
+        sextb R0 R0
+        jmp L69550060
+sta_69550056:
+sta_69550057:
+        move R4 #28656
+        move R0 [R12+12]
+        moveb @4 R0
+        move R0 #1
+        moveb [R4+3] R0
+        call _gfx_refresh_cache
+        move R0 [R12+12]
+        jmp L69550060
+L69550060:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_width:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_gfx_w]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jle _L69550063
+        move R0 #0
+        jmp _L69550064
+_L69550063:
+        move R0 #1
+_L69550064:
+        cmp R0 #0
+        jz sta_69550061
+        call _gfx_refresh_cache
+sta_69550061:
+sta_69550062:
+        move R0 [_gfx_w]
+        jmp L69550065
+L69550065:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_height:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_gfx_w]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jle _L69550068
+        move R0 #0
+        jmp _L69550069
+_L69550068:
+        move R0 #1
+_L69550069:
+        cmp R0 #0
+        jz sta_69550066
+        call _gfx_refresh_cache
+sta_69550066:
+sta_69550067:
+        move R0 [_gfx_h]
+        jmp L69550070
+L69550070:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_depth:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 #28656
+        moveb R0 @0
+        sextb R0 R0
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L69550073
+        move R0 #0
+        jmp _L69550074
+_L69550073:
+        move R0 #1
+_L69550074:
+        cmp R0 #0
+        jz sta_69550071
+        move R0 #4
+        jmp L69550075
+sta_69550071:
+sta_69550072:
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        pop R1
+        cmp R1 R0
+        je _L69550078
+        move R0 #0
+        jmp _L69550079
+_L69550078:
+        move R0 #1
+_L69550079:
+        cmp R0 #0
+        jz sta_69550076
+        move R0 #2
+        jmp L69550075
+sta_69550076:
+sta_69550077:
+        move R0 [R12-4]
+        push R0
+        move R0 #2
+        pop R1
+        cmp R1 R0
+        je _L69550082
+        move R0 #0
+        jmp _L69550083
+_L69550082:
+        move R0 #1
+_L69550083:
+        cmp R0 #0
+        jz sta_69550080
+        move R0 #1
+        jmp L69550075
+sta_69550080:
+sta_69550081:
+        move R0 [R12-4]
+        push R0
+        move R0 #7
+        pop R1
+        cmp R1 R0
+        je _L69550086
+        move R0 #0
+        jmp _L69550087
+_L69550086:
+        move R0 #1
+_L69550087:
+        cmp R0 #0
+        jz sta_69550084
+        move R0 #4
+        jmp L69550075
+sta_69550084:
+sta_69550085:
+        move R0 [R12-4]
+        push R0
+        move R0 #8
+        pop R1
+        cmp R1 R0
+        je _L69550090
+        move R0 #0
+        jmp _L69550091
+_L69550090:
+        move R0 #1
+_L69550091:
+        cmp R0 #0
+        jz sta_69550088
+        move R0 #4
+        jmp L69550075
+sta_69550088:
+sta_69550089:
+        move R0 [R12-4]
+        push R0
+        move R0 #9
+        pop R1
+        cmp R1 R0
+        je _L69550094
+        move R0 #0
+        jmp _L69550095
+_L69550094:
+        move R0 #1
+_L69550095:
+        cmp R0 #0
+        jz sta_69550092
+        move R0 #4
+        jmp L69550075
+sta_69550092:
+sta_69550093:
+        move R0 [R12-4]
+        push R0
+        move R0 #10
+        pop R1
+        cmp R1 R0
+        je _L69550098
+        move R0 #0
+        jmp _L69550099
+_L69550098:
+        move R0 #1
+_L69550099:
+        cmp R0 #0
+        jz sta_69550096
+        move R0 #2
+        jmp L69550075
+sta_69550096:
+sta_69550097:
+        move R0 [R12-4]
+        push R0
+        move R0 #11
+        pop R1
+        cmp R1 R0
+        je _L69550102
+        move R0 #0
+        jmp _L69550103
+_L69550102:
+        move R0 #1
+_L69550103:
+        cmp R0 #0
+        jz sta_69550100
+        move R0 #1
+        jmp L69550075
+sta_69550100:
+sta_69550101:
+        move R0 [R12-4]
+        push R0
+        move R0 #12
+        pop R1
+        cmp R1 R0
+        je _L69550106
+        move R0 #0
+        jmp _L69550107
+_L69550106:
+        move R0 #1
+_L69550107:
+        cmp R0 #0
+        jz sta_69550104
+        move R0 #4
+        jmp L69550075
+sta_69550104:
+sta_69550105:
+        move R0 [R12-4]
+        push R0
+        move R0 #13
+        pop R1
+        cmp R1 R0
+        je _L69550110
+        move R0 #0
+        jmp _L69550111
+_L69550110:
+        move R0 #1
+_L69550111:
+        cmp R0 #0
+        jz sta_69550108
+        move R0 #8
+        jmp L69550075
+sta_69550108:
+sta_69550109:
+        move R0 [R12-4]
+        push R0
+        move R0 #14
+        pop R1
+        cmp R1 R0
+        je _L69550114
+        move R0 #0
+        jmp _L69550115
+_L69550114:
+        move R0 #1
+_L69550115:
+        cmp R0 #0
+        jz sta_69550112
+        move R0 #8
+        jmp L69550075
+sta_69550112:
+sta_69550113:
+        move R0 [R12-4]
+        push R0
+        move R0 #15
+        pop R1
+        cmp R1 R0
+        je _L69550118
+        move R0 #0
+        jmp _L69550119
+_L69550118:
+        move R0 #1
+_L69550119:
+        cmp R0 #0
+        jz sta_69550116
+        move R0 #8
+        jmp L69550075
+sta_69550116:
+sta_69550117:
+        move R0 #1
+        jmp L69550075
+L69550075:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_palette:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        push R4
+        push R5
+        move R4 [R12+12]
+        mul R4 #3
+        move R5 #30720
+        add R4 R5
+        move R5 [R12+16]
+        moveb @4 R5
+        move R5 [R12+20]
+        moveb [R4+1] R5
+        move R5 [R12+24]
+        moveb [R4+2] R5
+        pop R5
+        pop R4
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_palette_get:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move R4 [R12+12]
+        mul R4 #3
+        move R5 #30720
+        add R4 R5
+        moveb R5 @4
+        move _vml_result_int R5
+        moveb R5 [R4+1]
+        move _vml_result_int R5
+        moveb R5 [R4+2]
+        move _vml_result_int R5
+        move R0 [_vml_result_int]
+        jmp L69550120
+L69550120:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+_putpixel:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move R0 [_gfx_w]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jle _L69550123
+        move R0 #0
+        jmp _L69550124
+_L69550123:
+        move R0 #1
+_L69550124:
+        cmp R0 #0
+        jz sta_69550121
+        call _gfx_refresh_cache
+sta_69550121:
+sta_69550122:
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L69550136
+        move R0 #0
+        jmp _L69550137
+_L69550136:
+        move R0 #1
+_L69550137:
+        test R0 R0
+        jnz _L69550133
+        move R0 [R12+12]
+        push R0
+        move R0 [_gfx_w]
+        pop R1
+        cmp R1 R0
+        jge _L69550138
+        move R0 #0
+        jmp _L69550139
+_L69550138:
+        move R0 #1
+_L69550139:
+        test R0 R0
+        jz _L69550134
+_L69550133:
+        move R0 #1
+        jmp _L69550135
+_L69550134:
+        move R0 #0
+_L69550135:
+        test R0 R0
+        jnz _L69550130
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L69550140
+        move R0 #0
+        jmp _L69550141
+_L69550140:
+        move R0 #1
+_L69550141:
+        test R0 R0
+        jz _L69550131
+_L69550130:
+        move R0 #1
+        jmp _L69550132
+_L69550131:
+        move R0 #0
+_L69550132:
+        test R0 R0
+        jnz _L69550127
+        move R0 [R12+16]
+        push R0
+        move R0 [_gfx_h]
+        pop R1
+        cmp R1 R0
+        jge _L69550142
+        move R0 #0
+        jmp _L69550143
+_L69550142:
+        move R0 #1
+_L69550143:
+        test R0 R0
+        jz _L69550128
+_L69550127:
+        move R0 #1
+        jmp _L69550129
+_L69550128:
+        move R0 #0
+_L69550129:
+        cmp R0 #0
+        jz sta_69550125
+        jmp L69550144
+sta_69550125:
+sta_69550126:
+        move _vml_result_int R4
+        move R4 [R12+16]
+        move R0 [_gfx_w]
+        mul R4 R0
+        move R0 [R12+12]
+        add R4 R0
+        move R0 [_gfx_fb]
+        add R4 R0
+        move R0 [R12+20]
+        moveb @4 R0
+        move R4 _vml_result_int
+L69550144:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+_getpixel:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move R0 [_gfx_w]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jle _L69550147
+        move R0 #0
+        jmp _L69550148
+_L69550147:
+        move R0 #1
+_L69550148:
+        cmp R0 #0
+        jz sta_69550145
+        call _gfx_refresh_cache
+sta_69550145:
+sta_69550146:
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L69550160
+        move R0 #0
+        jmp _L69550161
+_L69550160:
+        move R0 #1
+_L69550161:
+        test R0 R0
+        jnz _L69550157
+        move R0 [R12+12]
+        push R0
+        move R0 [_gfx_w]
+        pop R1
+        cmp R1 R0
+        jge _L69550162
+        move R0 #0
+        jmp _L69550163
+_L69550162:
+        move R0 #1
+_L69550163:
+        test R0 R0
+        jz _L69550158
+_L69550157:
+        move R0 #1
+        jmp _L69550159
+_L69550158:
+        move R0 #0
+_L69550159:
+        test R0 R0
+        jnz _L69550154
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L69550164
+        move R0 #0
+        jmp _L69550165
+_L69550164:
+        move R0 #1
+_L69550165:
+        test R0 R0
+        jz _L69550155
+_L69550154:
+        move R0 #1
+        jmp _L69550156
+_L69550155:
+        move R0 #0
+_L69550156:
+        test R0 R0
+        jnz _L69550151
+        move R0 [R12+16]
+        push R0
+        move R0 [_gfx_h]
+        pop R1
+        cmp R1 R0
+        jge _L69550166
+        move R0 #0
+        jmp _L69550167
+_L69550166:
+        move R0 #1
+_L69550167:
+        test R0 R0
+        jz _L69550152
+_L69550151:
+        move R0 #1
+        jmp _L69550153
+_L69550152:
+        move R0 #0
+_L69550153:
+        cmp R0 #0
+        jz sta_69550149
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        jmp L69550168
+sta_69550149:
+sta_69550150:
+        move _vml_result_int R4
+        move R4 [R12+16]
+        move R0 [_gfx_w]
+        mul R4 R0
+        move R0 [R12+12]
+        add R4 R0
+        move R0 [_gfx_fb]
+        add R4 R0
+        moveb R0 @4
+        move R4 _vml_result_int
+L69550168:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_pset:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move R0 [R12+20]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call _putpixel
+        add R13 #12
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_point:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call _getpixel
+        add R13 #8
+        jmp L69550169
+L69550169:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_cls:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #0
+        push R0
+        call gfx_cls_color
+        add R13 #4
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_cls_color:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+        move [R12+12] R0
+        move R0 [_gfx_w]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jle _L69550172
+        move R0 #0
+        jmp _L69550173
+_L69550172:
+        move R0 #1
+_L69550173:
+        cmp R0 #0
+        jz sta_69550170
+        call _gfx_refresh_cache
+sta_69550170:
+sta_69550171:
+        move R0 [_gfx_w]
+        push R0
+        move R0 [_gfx_h]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 #0
+        move [R12-8] R0
+sta_69550174:
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        cmp R1 R0
+        jl _L69550177
+        move R0 #0
+        jmp _L69550178
+_L69550177:
+        move R0 #1
+_L69550178:
+        cmp R0 #0
+        jz sta_69550176
+        move R0 [R12+12]
+        move R1 R0
+        push R0
+        move R0 [R12-8]
+        push R0
+        call _putpixel_fast
+        add R13 #8
+sta_69550175:
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        jmp sta_69550174
+sta_69550176:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+_putpixel_fast:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        push R4
+        push R5
+        move R4 [_gfx_fb]
+        move R5 [R12+12]
+        add R4 R5
+        move R5 [R12+16]
+        moveb @4 R5
+        pop R5
+        pop R4
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_line:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #32
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move _vml_result_int R4
+        move R0 [_vml_result_int]
+        move [R12+28] R0
+        move R0 [R12+20]
+        push R0
+        move R0 [R12+12]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L69550181
+        move R0 #0
+        jmp _L69550182
+_L69550181:
+        move R0 #1
+_L69550182:
+        cmp R0 #0
+        jz sta_69550179
+        move R0 [R12-4]
+        move R0 [R12-4]
+        neg R0 R0
+        move [R12-4] R0
+sta_69550179:
+sta_69550180:
+        move R0 [R12+24]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-8] R0
+        move R0 [R12-8]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L69550185
+        move R0 #0
+        jmp _L69550186
+_L69550185:
+        move R0 #1
+_L69550186:
+        cmp R0 #0
+        jz sta_69550183
+        move R0 [R12-8]
+        move R0 [R12-8]
+        neg R0 R0
+        move [R12-8] R0
+sta_69550183:
+sta_69550184:
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+20]
+        pop R1
+        cmp R1 R0
+        jl _L69550187
+        move R0 #0
+        jmp _L69550188
+_L69550187:
+        move R0 #1
+_L69550188:
+        test R0 R0
+        jz _L69550189
+        move R0 #1
+        jmp _L69550190
+_L69550189:
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+_L69550190:
+        move [R12-12] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12+24]
+        pop R1
+        cmp R1 R0
+        jl _L69550191
+        move R0 #0
+        jmp _L69550192
+_L69550191:
+        move R0 #1
+_L69550192:
+        test R0 R0
+        jz _L69550193
+        move R0 #1
+        jmp _L69550194
+_L69550193:
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+_L69550194:
+        move [R12-16] R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-20] R0
+sta_69550195:
+        move R2 #0
+        move R0 #1
+        cmp R0 #0
+        jz sta_69550196
+        move R0 [R12+28]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+20]
+        pop R1
+        cmp R1 R0
+        je _L69550201
+        move R0 #0
+        jmp _L69550202
+_L69550201:
+        move R0 #1
+_L69550202:
+        test R0 R0
+        jz _L69550199
+        move R0 [R12+16]
+        push R0
+        move R0 [R12+24]
+        pop R1
+        cmp R1 R0
+        je _L69550203
+        move R0 #0
+        jmp _L69550204
+_L69550203:
+        move R0 #1
+_L69550204:
+        test R0 R0
+        jz _L69550199
+        move R0 #1
+        jmp _L69550200
+_L69550199:
+        move R0 #0
+_L69550200:
+        cmp R0 #0
+        jz sta_69550197
+        jmp sta_69550196
+sta_69550197:
+sta_69550198:
+        move R0 #2
+        push R0
+        move R0 [R12-20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-24] R0
+        move R0 [R12-24]
+        push R0
+        move R0 [R12-8]
+        move R0 [R12-8]
+        neg R0 R0
+        pop R1
+        cmp R1 R0
+        jg _L69550207
+        move R0 #0
+        jmp _L69550208
+_L69550207:
+        move R0 #1
+_L69550208:
+        cmp R0 #0
+        jz sta_69550205
+        move R0 [R12-20]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-20] R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-12]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12+12] R0
+sta_69550205:
+sta_69550206:
+        move R0 [R12-24]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        cmp R1 R0
+        jl _L69550211
+        move R0 #0
+        jmp _L69550212
+_L69550211:
+        move R0 #1
+_L69550212:
+        cmp R0 #0
+        jz sta_69550209
+        move R0 [R12-20]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-20] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-16]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12+16] R0
+sta_69550209:
+sta_69550210:
+        jmp sta_69550195
+sta_69550196:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_rect:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+28]
+        move R4 R0
+        push R0
+        move R0 [R12+16]
+        move R3 R0
+        push R0
+        move R0 [R12+20]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_line
+        add R13 #20
+        move R0 [R12+28]
+        move R4 R0
+        push R0
+        move R0 [R12+24]
+        move R3 R0
+        push R0
+        move R0 [R12+20]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+20]
+        push R0
+        call gfx_line
+        add R13 #20
+        move R0 [R12+28]
+        move R4 R0
+        push R0
+        move R0 [R12+24]
+        move R3 R0
+        push R0
+        move R0 [R12+12]
+        move R2 R0
+        push R0
+        move R0 [R12+24]
+        move R1 R0
+        push R0
+        move R0 [R12+20]
+        push R0
+        call gfx_line
+        add R13 #20
+        move R0 [R12+28]
+        move R4 R0
+        push R0
+        move R0 [R12+16]
+        move R3 R0
+        push R0
+        move R0 [R12+12]
+        move R2 R0
+        push R0
+        move R0 [R12+24]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_line
+        add R13 #20
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_rect_fill:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #20
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+20]
+        pop R1
+        cmp R1 R0
+        jg _L69550215
+        move R0 #0
+        jmp _L69550216
+_L69550215:
+        move R0 #1
+_L69550216:
+        cmp R0 #0
+        jz sta_69550213
+        move R0 [R12+12]
+        move [R12-12] R0
+        move R0 [R12+20]
+        move [R12+12] R0
+        move R0 [R12-12]
+        move [R12+20] R0
+sta_69550213:
+sta_69550214:
+        move R0 [R12+16]
+        push R0
+        move R0 [R12+24]
+        pop R1
+        cmp R1 R0
+        jg _L69550219
+        move R0 #0
+        jmp _L69550220
+_L69550219:
+        move R0 #1
+_L69550220:
+        cmp R0 #0
+        jz sta_69550217
+        move R0 [R12+16]
+        move [R12-12] R0
+        move R0 [R12+24]
+        move [R12+16] R0
+        move R0 [R12-12]
+        move [R12+24] R0
+sta_69550217:
+sta_69550218:
+        move R0 [R12+16]
+        move [R12-8] R0
+sta_69550221:
+        move R0 [R12-8]
+        push R0
+        move R0 [R12+24]
+        pop R1
+        cmp R1 R0
+        jle _L69550224
+        move R0 #0
+        jmp _L69550225
+_L69550224:
+        move R0 #1
+_L69550225:
+        cmp R0 #0
+        jz sta_69550223
+        move R0 [R12+12]
+        move [R12-4] R0
+sta_69550226:
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+20]
+        pop R1
+        cmp R1 R0
+        jle _L69550229
+        move R0 #0
+        jmp _L69550230
+_L69550229:
+        move R0 #1
+_L69550230:
+        cmp R0 #0
+        jz sta_69550228
+        move R0 [R12+28]
+        move R2 R0
+        push R0
+        move R0 [R12-8]
+        move R1 R0
+        push R0
+        move R0 [R12-4]
+        push R0
+        call _putpixel
+        add R13 #12
+sta_69550227:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_69550226
+sta_69550228:
+sta_69550222:
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        jmp sta_69550221
+sta_69550223:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_circle:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #28
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 #0
+        move [R12-4] R0
+        move R0 [R12+20]
+        move [R12-8] R0
+        move R0 #3
+        push R0
+        move R0 #2
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-12] R0
+sta_69550231:
+        move R2 #0
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        cmp R1 R0
+        jge _L69550233
+        move R0 #0
+        jmp _L69550234
+_L69550233:
+        move R0 #1
+_L69550234:
+        cmp R0 #0
+        jz sta_69550232
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-20] R0
+        move R0 [R12+24]
+        move R2 R0
+        push R0
+        move R0 [R12-20]
+        move R1 R0
+        push R0
+        move R0 [R12-16]
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-20] R0
+        move R0 [R12+24]
+        move R2 R0
+        push R0
+        move R0 [R12-20]
+        move R1 R0
+        push R0
+        move R0 [R12-16]
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-20] R0
+        move R0 [R12+24]
+        move R2 R0
+        push R0
+        move R0 [R12-20]
+        move R1 R0
+        push R0
+        move R0 [R12-16]
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-20] R0
+        move R0 [R12+24]
+        move R2 R0
+        push R0
+        move R0 [R12-20]
+        move R1 R0
+        push R0
+        move R0 [R12-16]
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-20] R0
+        move R0 [R12+24]
+        move R2 R0
+        push R0
+        move R0 [R12-20]
+        move R1 R0
+        push R0
+        move R0 [R12-16]
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-20] R0
+        move R0 [R12+24]
+        move R2 R0
+        push R0
+        move R0 [R12-20]
+        move R1 R0
+        push R0
+        move R0 [R12-16]
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-20] R0
+        move R0 [R12+24]
+        move R2 R0
+        push R0
+        move R0 [R12-20]
+        move R1 R0
+        push R0
+        move R0 [R12-16]
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-20] R0
+        move R0 [R12+24]
+        move R2 R0
+        push R0
+        move R0 [R12-20]
+        move R1 R0
+        push R0
+        move R0 [R12-16]
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L69550237
+        move R0 #0
+        jmp _L69550238
+_L69550237:
+        move R0 #1
+_L69550238:
+        cmp R0 #0
+        jz sta_69550235
+        move R0 [R12-8]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-8] R0
+        move R0 [R12-12]
+        push R0
+        move R0 #4
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #10
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-12] R0
+        jmp sta_69550236
+sta_69550235:
+        move R0 [R12-12]
+        push R0
+        move R0 #4
+        push R0
+        move R0 [R12-4]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #6
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-12] R0
+sta_69550236:
+        jmp sta_69550231
+sta_69550232:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_circle_fill:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #24
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 #0
+        move [R12-4] R0
+        move R0 [R12+20]
+        move [R12-8] R0
+        move R0 #3
+        push R0
+        move R0 #2
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-12] R0
+sta_69550239:
+        move R2 #0
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        cmp R1 R0
+        jge _L69550241
+        move R0 #0
+        jmp _L69550242
+_L69550241:
+        move R0 #1
+_L69550242:
+        cmp R0 #0
+        jz sta_69550240
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-16] R0
+sta_69550243:
+        move R2 #0
+        move R0 [R12-16]
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jle _L69550245
+        move R0 #0
+        jmp _L69550246
+_L69550245:
+        move R0 #1
+_L69550246:
+        cmp R0 #0
+        jz sta_69550244
+        move R0 [R12+24]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R1 R0
+        push R0
+        move R0 [R12-16]
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12+24]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R1 R0
+        push R0
+        move R0 [R12-16]
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12-16]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-16] R0
+        jmp sta_69550243
+sta_69550244:
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-16] R0
+sta_69550247:
+        move R2 #0
+        move R0 [R12-16]
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jle _L69550249
+        move R0 #0
+        jmp _L69550250
+_L69550249:
+        move R0 #1
+_L69550250:
+        cmp R0 #0
+        jz sta_69550248
+        move R0 [R12+24]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R1 R0
+        push R0
+        move R0 [R12-16]
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12+24]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R1 R0
+        push R0
+        move R0 [R12-16]
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12-16]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-16] R0
+        jmp sta_69550247
+sta_69550248:
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L69550253
+        move R0 #0
+        jmp _L69550254
+_L69550253:
+        move R0 #1
+_L69550254:
+        cmp R0 #0
+        jz sta_69550251
+        move R0 [R12-8]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-8] R0
+        move R0 [R12-12]
+        push R0
+        move R0 #4
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #10
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-12] R0
+        jmp sta_69550252
+sta_69550251:
+        move R0 [R12-12]
+        push R0
+        move R0 #4
+        push R0
+        move R0 [R12-4]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #6
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-12] R0
+sta_69550252:
+        jmp sta_69550239
+sta_69550240:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_arc:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #48
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+24]
+        push R0
+        move R0 [R12+28]
+        pop R1
+        cmp R1 R0
+        jg _L69550257
+        move R0 #0
+        jmp _L69550258
+_L69550257:
+        move R0 #1
+_L69550258:
+        cmp R0 #0
+        jz sta_69550255
+        move R0 [R12+24]
+        move [R12-8] R0
+        move R0 [R12+28]
+        move [R12+24] R0
+        move R0 [R12-8]
+        move [R12+28] R0
+sta_69550255:
+sta_69550256:
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        move [R12-12] R0
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        move [R12-16] R0
+        move R0 [R12+24]
+        move [R12-4] R0
+sta_69550259:
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+28]
+        pop R1
+        cmp R1 R0
+        jle _L69550262
+        move R0 #0
+        jmp _L69550263
+_L69550262:
+        move R0 #1
+_L69550263:
+        cmp R0 #0
+        jz sta_69550261
+        move R0 [R12-4]
+        push R0
+        move R0 #1144
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #65536
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-20] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #360
+        pop R1
+        mod R1 R0
+        move R0 R1
+        move [R12-24] R0
+        move R0 [R12-24]
+        push R0
+        move R0 #90
+        pop R1
+        cmp R1 R0
+        jle _L69550266
+        move R0 #0
+        jmp _L69550267
+_L69550266:
+        move R0 #1
+_L69550267:
+        cmp R0 #0
+        jz sta_69550264
+        move R0 #90
+        push R0
+        move R0 [R12-24]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #90
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-28] R0
+        move R0 [R12-24]
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #90
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-32] R0
+        jmp sta_69550265
+sta_69550264:
+        move R0 [R12-24]
+        push R0
+        move R0 #180
+        pop R1
+        cmp R1 R0
+        jle _L69550270
+        move R0 #0
+        jmp _L69550271
+_L69550270:
+        move R0 #1
+_L69550271:
+        cmp R0 #0
+        jz sta_69550268
+        move R0 [R12-24]
+        push R0
+        move R0 #90
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R0 [R12-24]
+        push R0
+        move R0 #90
+        pop R1
+        sub R1 R0
+        move R0 R1
+        neg R0 R0
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #90
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-28] R0
+        move R0 #180
+        push R0
+        move R0 [R12-24]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #90
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-32] R0
+        jmp sta_69550269
+sta_69550268:
+        move R0 [R12-24]
+        push R0
+        move R0 #270
+        pop R1
+        cmp R1 R0
+        jle _L69550274
+        move R0 #0
+        jmp _L69550275
+_L69550274:
+        move R0 #1
+_L69550275:
+        cmp R0 #0
+        jz sta_69550272
+        move R0 #270
+        push R0
+        move R0 [R12-24]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R0 #270
+        push R0
+        move R0 [R12-24]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        neg R0 R0
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #90
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-28] R0
+        move R0 [R12-24]
+        push R0
+        move R0 #180
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R0 [R12-24]
+        push R0
+        move R0 #180
+        pop R1
+        sub R1 R0
+        move R0 R1
+        neg R0 R0
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #90
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-32] R0
+        jmp sta_69550273
+sta_69550272:
+        move R0 [R12-24]
+        push R0
+        move R0 #270
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #90
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-28] R0
+        move R0 #360
+        push R0
+        move R0 [R12-24]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R0 #360
+        push R0
+        move R0 [R12-24]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        neg R0 R0
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #90
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-32] R0
+sta_69550273:
+sta_69550269:
+sta_69550265:
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-28]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-36] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-32]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-40] R0
+        move R0 [R12+32]
+        move R2 R0
+        push R0
+        move R0 [R12-40]
+        move R1 R0
+        push R0
+        move R0 [R12-36]
+        push R0
+        call _putpixel
+        add R13 #12
+sta_69550260:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_69550259
+sta_69550261:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_ellipse:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #56
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 #0
+        move [R12-4] R0
+        move R0 [R12+24]
+        move [R12-8] R0
+        move R0 [R12+20]
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-12] R0
+        move R0 [R12+24]
+        push R0
+        move R0 [R12+24]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 #2
+        push R0
+        move R0 [R12-12]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-20] R0
+        move R0 #2
+        push R0
+        move R0 [R12-16]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-24] R0
+        move R0 #0
+        move [R12-28] R0
+        move R0 [R12-20]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-32] R0
+        move R0 [R12-16]
+        push R0
+        move R0 [R12-12]
+        push R0
+        move R0 [R12+24]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-12]
+        push R0
+        move R0 #4
+        pop R1
+        div R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-36] R0
+sta_69550276:
+        move R2 #0
+        move R0 [R12-28]
+        push R0
+        move R0 [R12-32]
+        pop R1
+        cmp R1 R0
+        jl _L69550278
+        move R0 #0
+        jmp _L69550279
+_L69550278:
+        move R0 #1
+_L69550279:
+        cmp R0 #0
+        jz sta_69550277
+        move R0 [R12+28]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12+28]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12+28]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12+28]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-28]
+        push R0
+        move R0 [R12-24]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-28] R0
+        move R0 [R12-36]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L69550282
+        move R0 #0
+        jmp _L69550283
+_L69550282:
+        move R0 #1
+_L69550283:
+        cmp R0 #0
+        jz sta_69550280
+        move R0 [R12-36]
+        push R0
+        move R0 [R12-16]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-28]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-36] R0
+        jmp sta_69550281
+sta_69550280:
+        move R0 [R12-8]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-8] R0
+        move R0 [R12-32]
+        push R0
+        move R0 [R12-20]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-32] R0
+        move R0 [R12-36]
+        push R0
+        move R0 [R12-16]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-28]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-32]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-36] R0
+sta_69550281:
+        jmp sta_69550276
+sta_69550277:
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-40] R0
+        move R0 [R12-8]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-44] R0
+        move R0 [R12-44]
+        push R0
+        move R0 [R12-44]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-48] R0
+        move R0 [R12-16]
+        push R0
+        move R0 [R12-40]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-36] R0
+        move R0 [R12-36]
+        push R0
+        move R0 [R12-12]
+        push R0
+        move R0 [R12-48]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-36] R0
+        move R0 [R12-36]
+        push R0
+        move R0 [R12-12]
+        push R0
+        move R0 [R12-16]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-36] R0
+sta_69550284:
+        move R2 #0
+        move R0 [R12-8]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jge _L69550286
+        move R0 #0
+        jmp _L69550287
+_L69550286:
+        move R0 #1
+_L69550287:
+        cmp R0 #0
+        jz sta_69550285
+        move R0 [R12+28]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12+28]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12+28]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12+28]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12-8]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-8] R0
+        move R0 [R12-32]
+        push R0
+        move R0 [R12-20]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-32] R0
+        move R0 [R12-36]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L69550290
+        move R0 #0
+        jmp _L69550291
+_L69550290:
+        move R0 #1
+_L69550291:
+        cmp R0 #0
+        jz sta_69550288
+        move R0 [R12-36]
+        push R0
+        move R0 [R12-12]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-32]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-36] R0
+        jmp sta_69550289
+sta_69550288:
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-28]
+        push R0
+        move R0 [R12-24]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-28] R0
+        move R0 [R12-36]
+        push R0
+        move R0 [R12-12]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-32]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-28]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-36] R0
+sta_69550289:
+        jmp sta_69550284
+sta_69550285:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_ellipse_fill:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #72
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 #0
+        move [R12-4] R0
+        move R0 [R12+24]
+        move [R12-8] R0
+        move R0 [R12+20]
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-12] R0
+        move R0 [R12+24]
+        push R0
+        move R0 [R12+24]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 #2
+        push R0
+        move R0 [R12-12]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-20] R0
+        move R0 #2
+        push R0
+        move R0 [R12-16]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-24] R0
+        move R0 #0
+        move [R12-28] R0
+        move R0 [R12-20]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-32] R0
+        move R0 [R12-16]
+        push R0
+        move R0 [R12-12]
+        push R0
+        move R0 [R12+24]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-12]
+        push R0
+        move R0 #4
+        pop R1
+        div R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-36] R0
+sta_69550292:
+        move R2 #0
+        move R0 [R12-28]
+        push R0
+        move R0 [R12-32]
+        pop R1
+        cmp R1 R0
+        jl _L69550294
+        move R0 #0
+        jmp _L69550295
+_L69550294:
+        move R0 #1
+_L69550295:
+        cmp R0 #0
+        jz sta_69550293
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-40] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-44] R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-48] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-52] R0
+        move R0 [R12+28]
+        move R4 R0
+        push R0
+        move R0 [R12-52]
+        move R3 R0
+        push R0
+        move R0 [R12-48]
+        move R2 R0
+        push R0
+        move R0 [R12-44]
+        move R1 R0
+        push R0
+        move R0 [R12-40]
+        push R0
+        call gfx_line
+        add R13 #20
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-40] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-44] R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-48] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-52] R0
+        move R0 [R12+28]
+        move R4 R0
+        push R0
+        move R0 [R12-52]
+        move R3 R0
+        push R0
+        move R0 [R12-48]
+        move R2 R0
+        push R0
+        move R0 [R12-44]
+        move R1 R0
+        push R0
+        move R0 [R12-40]
+        push R0
+        call gfx_line
+        add R13 #20
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-28]
+        push R0
+        move R0 [R12-24]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-28] R0
+        move R0 [R12-36]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L69550298
+        move R0 #0
+        jmp _L69550299
+_L69550298:
+        move R0 #1
+_L69550299:
+        cmp R0 #0
+        jz sta_69550296
+        move R0 [R12-36]
+        push R0
+        move R0 [R12-16]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-28]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-36] R0
+        jmp sta_69550297
+sta_69550296:
+        move R0 [R12-8]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-8] R0
+        move R0 [R12-32]
+        push R0
+        move R0 [R12-20]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-32] R0
+        move R0 [R12-36]
+        push R0
+        move R0 [R12-16]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-28]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-32]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-36] R0
+sta_69550297:
+        jmp sta_69550292
+sta_69550293:
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-56] R0
+        move R0 [R12-8]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-60] R0
+        move R0 [R12-60]
+        push R0
+        move R0 [R12-60]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-64] R0
+        move R0 [R12-16]
+        push R0
+        move R0 [R12-56]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-36] R0
+        move R0 [R12-36]
+        push R0
+        move R0 [R12-12]
+        push R0
+        move R0 [R12-64]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-36] R0
+        move R0 [R12-36]
+        push R0
+        move R0 [R12-12]
+        push R0
+        move R0 [R12-16]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-36] R0
+sta_69550300:
+        move R2 #0
+        move R0 [R12-8]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jge _L69550302
+        move R0 #0
+        jmp _L69550303
+_L69550302:
+        move R0 #1
+_L69550303:
+        cmp R0 #0
+        jz sta_69550301
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-40] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-44] R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-48] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-52] R0
+        move R0 [R12+28]
+        move R4 R0
+        push R0
+        move R0 [R12-52]
+        move R3 R0
+        push R0
+        move R0 [R12-48]
+        move R2 R0
+        push R0
+        move R0 [R12-44]
+        move R1 R0
+        push R0
+        move R0 [R12-40]
+        push R0
+        call gfx_line
+        add R13 #20
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-40] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-44] R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-48] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-52] R0
+        move R0 [R12+28]
+        move R4 R0
+        push R0
+        move R0 [R12-52]
+        move R3 R0
+        push R0
+        move R0 [R12-48]
+        move R2 R0
+        push R0
+        move R0 [R12-44]
+        move R1 R0
+        push R0
+        move R0 [R12-40]
+        push R0
+        call gfx_line
+        add R13 #20
+        move R0 [R12-8]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-8] R0
+        move R0 [R12-32]
+        push R0
+        move R0 [R12-20]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-32] R0
+        move R0 [R12-36]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L69550306
+        move R0 #0
+        jmp _L69550307
+_L69550306:
+        move R0 #1
+_L69550307:
+        cmp R0 #0
+        jz sta_69550304
+        move R0 [R12-36]
+        push R0
+        move R0 [R12-12]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-32]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-36] R0
+        jmp sta_69550305
+sta_69550304:
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-28]
+        push R0
+        move R0 [R12-24]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-28] R0
+        move R0 [R12-36]
+        push R0
+        move R0 [R12-12]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-32]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-28]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-36] R0
+sta_69550305:
+        jmp sta_69550300
+sta_69550301:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_sector_fill:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #28
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+24]
+        push R0
+        move R0 [R12+28]
+        pop R1
+        cmp R1 R0
+        jg _L69550310
+        move R0 #0
+        jmp _L69550311
+_L69550310:
+        move R0 #1
+_L69550311:
+        cmp R0 #0
+        jz sta_69550308
+        move R0 [R12+24]
+        move [R12-8] R0
+        move R0 [R12+28]
+        move [R12+24] R0
+        move R0 [R12-8]
+        move [R12+28] R0
+sta_69550308:
+sta_69550309:
+        move R0 [R12+24]
+        move [R12-4] R0
+sta_69550312:
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+28]
+        pop R1
+        cmp R1 R0
+        jle _L69550315
+        move R0 #0
+        jmp _L69550316
+_L69550315:
+        move R0 #1
+_L69550316:
+        cmp R0 #0
+        jz sta_69550314
+        move R0 [R12-4]
+        push R0
+        move R0 #360
+        pop R1
+        mod R1 R0
+        move R0 R1
+        move [R12-12] R0
+        move R0 [R12-12]
+        push R0
+        move R0 #90
+        pop R1
+        cmp R1 R0
+        jle _L69550319
+        move R0 #0
+        jmp _L69550320
+_L69550319:
+        move R0 #1
+_L69550320:
+        cmp R0 #0
+        jz sta_69550317
+        move R0 #90
+        push R0
+        move R0 [R12-12]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #90
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12-12]
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #90
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-20] R0
+        jmp sta_69550318
+sta_69550317:
+        move R0 [R12-12]
+        push R0
+        move R0 #180
+        pop R1
+        cmp R1 R0
+        jle _L69550323
+        move R0 #0
+        jmp _L69550324
+_L69550323:
+        move R0 #1
+_L69550324:
+        cmp R0 #0
+        jz sta_69550321
+        move R0 [R12-12]
+        push R0
+        move R0 #90
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R0 [R12-12]
+        push R0
+        move R0 #90
+        pop R1
+        sub R1 R0
+        move R0 R1
+        neg R0 R0
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #90
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 #180
+        push R0
+        move R0 [R12-12]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #90
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-20] R0
+        jmp sta_69550322
+sta_69550321:
+        move R0 [R12-12]
+        push R0
+        move R0 #270
+        pop R1
+        cmp R1 R0
+        jle _L69550327
+        move R0 #0
+        jmp _L69550328
+_L69550327:
+        move R0 #1
+_L69550328:
+        cmp R0 #0
+        jz sta_69550325
+        move R0 #270
+        push R0
+        move R0 [R12-12]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R0 #270
+        push R0
+        move R0 [R12-12]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        neg R0 R0
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #90
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12-12]
+        push R0
+        move R0 #180
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R0 [R12-12]
+        push R0
+        move R0 #180
+        pop R1
+        sub R1 R0
+        move R0 R1
+        neg R0 R0
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #90
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-20] R0
+        jmp sta_69550326
+sta_69550325:
+        move R0 [R12-12]
+        push R0
+        move R0 #270
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #90
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 #360
+        push R0
+        move R0 [R12-12]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R0 #360
+        push R0
+        move R0 [R12-12]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        neg R0 R0
+        push R0
+        move R0 [R12+20]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #90
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-20] R0
+sta_69550326:
+sta_69550322:
+sta_69550318:
+        move R0 [R12+32]
+        move R4 R0
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-20]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R3 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-16]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_line
+        add R13 #20
+sta_69550313:
+        move R0 [R12-4]
+        push R0
+        move R0 #2
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-4] R0
+        jmp sta_69550312
+sta_69550314:
+        move R0 [R12+32]
+        move R5 R0
+        push R0
+        move R0 [R12+28]
+        move R4 R0
+        push R0
+        move R0 [R12+24]
+        move R3 R0
+        push R0
+        move R0 [R12+20]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_arc
+        add R13 #24
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_print:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 #1
+        move R4 R0
+        push R0
+        move R0 [R12+24]
+        move R3 R0
+        push R0
+        move R0 [R12+20]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_print_scale
+        add R13 #20
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_print_scale:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #52
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+12]
+        move [R12-4] R0
+        move R0 [R12+12]
+        move [R12-8] R0
+        move R0 [R12+16]
+        move [R12-12] R0
+        move R0 #0
+        move [R12-16] R0
+sta_69550329:
+        move R2 #0
+        move R0 [R12+20]
+        push R0
+        move R0 [R12-16]
+        mul R0 #1
+        pop R11
+        add R0 R11
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 #0
+        popb R1
+        cmp R1 R0
+        jne _L69550331
+        move R0 #0
+        jmp _L69550332
+_L69550331:
+        move R0 #1
+_L69550332:
+        cmp R0 #0
+        jz sta_69550330
+        move R0 [R12+20]
+        push R0
+        move R0 [R12-16]
+        mul R0 #1
+        pop R10
+        add R0 R10
+        moveb R0 @0
+        sextb R0 R0
+        moveb [R12-17] R0
+        moveb R0 [R12-17]
+        sextb R0 R0
+        pushb R0
+        move R0 #10
+        popb R1
+        cmp R1 R0
+        je _L69550335
+        move R0 #0
+        jmp _L69550336
+_L69550335:
+        move R0 #1
+_L69550336:
+        cmp R0 #0
+        jz sta_69550333
+        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-12]
+        push R0
+        move R0 #16
+        push R0
+        move R0 [R12+28]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-12] R0
+        move R0 [R12-16]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-16] R0
+        move R0 R1
+        jmp sta_69550329
+sta_69550333:
+sta_69550334:
+        moveb R0 [R12-17]
+        sextb R0 R0
+        push R0
+        move R0 #32
+        pop R1
+        cmp R1 R0
+        jl _L69550342
+        move R0 #0
+        jmp _L69550343
+_L69550342:
+        move R0 #1
+_L69550343:
+        test R0 R0
+        jnz _L69550339
+        moveb R0 [R12-17]
+        sextb R0 R0
+        push R0
+        move R0 #126
+        pop R1
+        cmp R1 R0
+        jg _L69550344
+        move R0 #0
+        jmp _L69550345
+_L69550344:
+        move R0 #1
+_L69550345:
+        test R0 R0
+        jz _L69550340
+_L69550339:
+        move R0 #1
+        jmp _L69550341
+_L69550340:
+        move R0 #0
+_L69550341:
+        cmp R0 #0
+        jz sta_69550337
+        move R0 #32
+        moveb [R12-17] R0
+sta_69550337:
+sta_69550338:
+        moveb R0 [R12-17]
+        sextb R0 R0
+        push R0
+        move R0 #32
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 #16
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-24] R0
+        move R0 #0
+        move [R12-28] R0
+sta_69550346:
+        move R0 [R12-28]
+        push R0
+        move R0 #16
+        pop R1
+        cmp R1 R0
+        jl _L69550349
+        move R0 #0
+        jmp _L69550350
+_L69550349:
+        move R0 #1
+_L69550350:
+        cmp R0 #0
+        jz sta_69550348
+        move R0 font8x16
+        push R0
+        move R9 #0
+        push R9
+        move R0 [R12-24]
+        push R0
+        move R0 [R12-28]
+        pop R1
+        add R1 R0
+        move R0 R1
+        pop R9
+        move R9 R0
+        move R0 R9
+        mul R0 #1
+        pop R8
+        add R0 R8
+        move R0 @0
+        moveb [R12-33] R0
+        move R0 #0
+        move [R12-32] R0
+sta_69550351:
+        move R0 [R12-32]
+        push R0
+        move R0 #8
+        pop R1
+        cmp R1 R0
+        jl _L69550354
+        move R0 #0
+        jmp _L69550355
+_L69550354:
+        move R0 #1
+_L69550355:
+        cmp R0 #0
+        jz sta_69550353
+        moveb R0 [R12-33]
+        push R0
+        move R0 #128
+        push R0
+        move R0 [R12-32]
+        pop R1
+        shr R1 R0
+        move R0 R1
+        pop R1
+        and R1 R0
+        move R0 R1
+        cmp R0 #0
+        jz sta_69550356
+        move R0 #0
+        move [R12-40] R0
+sta_69550358:
+        move R0 [R12-40]
+        push R0
+        move R0 [R12+28]
+        pop R1
+        cmp R1 R0
+        jl _L69550361
+        move R0 #0
+        jmp _L69550362
+_L69550361:
+        move R0 #1
+_L69550362:
+        cmp R0 #0
+        jz sta_69550360
+        move R0 #0
+        move [R12-44] R0
+sta_69550363:
+        move R0 [R12-44]
+        push R0
+        move R0 [R12+28]
+        pop R1
+        cmp R1 R0
+        jl _L69550366
+        move R0 #0
+        jmp _L69550367
+_L69550366:
+        move R0 #1
+_L69550367:
+        cmp R0 #0
+        jz sta_69550365
+        move R0 [R12+24]
+        move R2 R0
+        push R0
+        move R0 [R12-12]
+        push R0
+        move R0 [R12-28]
+        push R0
+        move R0 [R12+28]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-44]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R1 R0
+        push R0
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-32]
+        push R0
+        move R0 [R12+28]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-40]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        call _putpixel
+        add R13 #12
+sta_69550364:
+        move R0 [R12-44]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-44] R0
+        move R0 R1
+        jmp sta_69550363
+sta_69550365:
+sta_69550359:
+        move R0 [R12-40]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-40] R0
+        move R0 R1
+        jmp sta_69550358
+sta_69550360:
+sta_69550356:
+sta_69550357:
+sta_69550352:
+        move R0 [R12-32]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-32] R0
+        move R0 R1
+        jmp sta_69550351
+sta_69550353:
+sta_69550347:
+        move R0 [R12-28]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-28] R0
+        move R0 R1
+        jmp sta_69550346
+sta_69550348:
+        move R0 [R12-8]
+        push R0
+        move R0 #8
+        push R0
+        move R0 [R12+28]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+        move R0 [R12-16]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-16] R0
+        move R0 R1
+        jmp sta_69550329
+sta_69550330:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_flood_fill:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #32
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 #0
+        move [R12-4] R0
+        call gfx_w
+        move [R12-8] R0
+        call gfx_h
+        move [R12-12] R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call _getpixel
+        add R13 #8
+        move [R12-16] R0
+        move R0 [R12-16]
+        push R0
+        move R0 [R12+20]
+        pop R1
+        cmp R1 R0
+        je _L69550373
+        move R0 #0
+        jmp _L69550374
+_L69550373:
+        move R0 #1
+_L69550374:
+        test R0 R0
+        jnz _L69550370
+        move R0 [R12-16]
+        push R0
+        move R0 [R12+24]
+        pop R1
+        cmp R1 R0
+        je _L69550375
+        move R0 #0
+        jmp _L69550376
+_L69550375:
+        move R0 #1
+_L69550376:
+        test R0 R0
+        jz _L69550371
+_L69550370:
+        move R0 #1
+        jmp _L69550372
+_L69550371:
+        move R0 #0
+_L69550372:
+        cmp R0 #0
+        jz sta_69550368
+        jmp L69550377
+sta_69550368:
+sta_69550369:
+        move R0 [R12+12]
+        move R7 R0
+        move R0 _flood_sx
+        push R0
+        move R6 #0
+        push R6
+        move R0 [R12-4]
+        pop R6
+        move R6 R0
+        move R0 R6
+        mul R0 #4
+        pop R5
+        add R0 R5
+        move @0 R7
+        move R0 [R12+16]
+        move R4 R0
+        move R0 _flood_sy
+        push R0
+        move R3 #0
+        push R3
+        move R0 [R12-4]
+        pop R3
+        move R3 R0
+        move R0 R3
+        mul R0 #4
+        pop R2
+        add R0 R2
+        move @0 R4
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+sta_69550378:
+        move R2 #0
+        move R0 [R12-4]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L69550382
+        move R0 #0
+        jmp _L69550383
+_L69550382:
+        move R0 #1
+_L69550383:
+        test R0 R0
+        jz _L69550380
+        move R0 [R12-4]
+        push R0
+        move R0 #256
+        pop R1
+        cmp R1 R0
+        jl _L69550384
+        move R0 #0
+        jmp _L69550385
+_L69550384:
+        move R0 #1
+_L69550385:
+        test R0 R0
+        jz _L69550380
+        move R0 #1
+        jmp _L69550381
+_L69550380:
+        move R0 #0
+_L69550381:
+        cmp R0 #0
+        jz sta_69550379
+        move R0 [R12-4]
+        move R1 R0
+        sub R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 _flood_sx
+        push R0
+        move R1 #0
+        push R1
+        move R0 [R12-4]
+        pop R1
+        move R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R11
+        add R0 R11
+        move R0 @0
+        move [R12-20] R0
+        move R0 _flood_sy
+        push R0
+        move R10 #0
+        push R10
+        move R0 [R12-4]
+        pop R10
+        move R10 R0
+        move R0 R10
+        mul R0 #4
+        pop R9
+        add R0 R9
+        move R0 @0
+        move [R12-24] R0
+        move R0 [R12-20]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L69550397
+        move R0 #0
+        jmp _L69550398
+_L69550397:
+        move R0 #1
+_L69550398:
+        test R0 R0
+        jnz _L69550394
+        move R0 [R12-20]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        cmp R1 R0
+        jge _L69550399
+        move R0 #0
+        jmp _L69550400
+_L69550399:
+        move R0 #1
+_L69550400:
+        test R0 R0
+        jz _L69550395
+_L69550394:
+        move R0 #1
+        jmp _L69550396
+_L69550395:
+        move R0 #0
+_L69550396:
+        test R0 R0
+        jnz _L69550391
+        move R0 [R12-24]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L69550401
+        move R0 #0
+        jmp _L69550402
+_L69550401:
+        move R0 #1
+_L69550402:
+        test R0 R0
+        jz _L69550392
+_L69550391:
+        move R0 #1
+        jmp _L69550393
+_L69550392:
+        move R0 #0
+_L69550393:
+        test R0 R0
+        jnz _L69550388
+        move R0 [R12-24]
+        push R0
+        move R0 [R12-12]
+        pop R1
+        cmp R1 R0
+        jge _L69550403
+        move R0 #0
+        jmp _L69550404
+_L69550403:
+        move R0 #1
+_L69550404:
+        test R0 R0
+        jz _L69550389
+_L69550388:
+        move R0 #1
+        jmp _L69550390
+_L69550389:
+        move R0 #0
+_L69550390:
+        cmp R0 #0
+        jz sta_69550386
+        jmp sta_69550378
+sta_69550386:
+sta_69550387:
+        move R0 [R12-24]
+        move R1 R0
+        push R0
+        move R0 [R12-20]
+        push R0
+        call _getpixel
+        add R13 #8
+        push R0
+        move R0 [R12-16]
+        pop R1
+        cmp R1 R0
+        jne _L69550407
+        move R0 #0
+        jmp _L69550408
+_L69550407:
+        move R0 #1
+_L69550408:
+        cmp R0 #0
+        jz sta_69550405
+        jmp sta_69550378
+sta_69550405:
+sta_69550406:
+        move R0 [R12+20]
+        move R2 R0
+        push R0
+        move R0 [R12-24]
+        move R1 R0
+        push R0
+        move R0 [R12-20]
+        push R0
+        call _putpixel
+        add R13 #12
+        move R0 [R12-4]
+        push R0
+        move R0 #4
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #256
+        pop R1
+        cmp R1 R0
+        jl _L69550411
+        move R0 #0
+        jmp _L69550412
+_L69550411:
+        move R0 #1
+_L69550412:
+        cmp R0 #0
+        jz sta_69550409
+        move R0 [R12-20]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R8 R0
+        move R0 _flood_sx
+        push R0
+        move R6 #0
+        push R6
+        move R0 [R12-4]
+        pop R6
+        move R6 R0
+        move R0 R6
+        mul R0 #4
+        pop R5
+        add R0 R5
+        move @0 R8
+        move R0 [R12-24]
+        move R7 R0
+        move R0 _flood_sy
+        push R0
+        move R3 #0
+        push R3
+        move R0 [R12-4]
+        pop R3
+        move R3 R0
+        move R0 R3
+        mul R0 #4
+        pop R2
+        add R0 R2
+        move @0 R7
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-20]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R4 R0
+        move R0 _flood_sx
+        push R0
+        move R1 #0
+        push R1
+        move R0 [R12-4]
+        pop R1
+        move R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R11
+        add R0 R11
+        move @0 R4
+        move R0 [R12-24]
+        move R10 R0
+        move R0 _flood_sy
+        push R0
+        move R9 #0
+        push R9
+        move R0 [R12-4]
+        pop R9
+        move R9 R0
+        move R0 R9
+        mul R0 #4
+        pop R6
+        add R0 R6
+        move @0 R10
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-20]
+        move R5 R0
+        move R0 _flood_sx
+        push R0
+        move R8 #0
+        push R8
+        move R0 [R12-4]
+        pop R8
+        move R8 R0
+        move R0 R8
+        mul R0 #4
+        pop R3
+        add R0 R3
+        move @0 R5
+        move R0 [R12-24]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R2 R0
+        move R0 _flood_sy
+        push R0
+        move R7 #0
+        push R7
+        move R0 [R12-4]
+        pop R7
+        move R7 R0
+        move R0 R7
+        mul R0 #4
+        pop R1
+        add R0 R1
+        move @0 R2
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12-20]
+        move R11 R0
+        move R0 _flood_sx
+        push R0
+        move R4 #0
+        push R4
+        move R0 [R12-4]
+        pop R4
+        move R4 R0
+        move R0 R4
+        mul R0 #4
+        pop R9
+        add R0 R9
+        move @0 R11
+        move R0 [R12-24]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move R6 R0
+        move R0 _flood_sy
+        push R0
+        move R10 #0
+        push R10
+        move R0 [R12-4]
+        pop R10
+        move R10 R0
+        move R0 R10
+        mul R0 #4
+        pop R8
+        add R0 R8
+        move @0 R6
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+sta_69550409:
+sta_69550410:
+        jmp sta_69550378
+sta_69550379:
+L69550377:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_screenshot:
+        push R15
+        push R12
+        move R12 R13
+        syscall #200
+        move _vml_result_int R0
+        move R0 [_vml_result_int]
+        jmp L69550413
+L69550413:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_put_image:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        syscall #201
+        move _vml_result_int R0
+        move R0 [_vml_result_int]
+        jmp L69550414
+L69550414:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_get_image:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        syscall #202
+        move _vml_result_int R0
+        move R0 [_vml_result_int]
+        jmp L69550415
+L69550415:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+gfx_viewport:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        syscall #203
+        move _vml_result_int R0
+        move R0 [_vml_result_int]
+        jmp L69550416
+L69550416:
+        move R13 R12
+        pop R12
+        pop R15
+        ret

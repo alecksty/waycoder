@@ -1,0 +1,62 @@
+﻿; NRF24L01寄存器定义
+; 生成自: Nordic/RF/NRF24L01
+; 版本: 1.0
+; 日期: 2026-05-06
+; 作者: VML Team
+; 描述: nRF24L01+ 2.4GHz RF Transceiver (SPI, 2Mbps, 125-channel, 6-pipe)
+
+; CPU架构: RF
+; 位宽: 8位
+; 时钟频率: 10000000 Hz
+
+; 外设定义
+; nRF24L01+ 2.4GHz Transceiver (SPI, 1.9V-3.6V)
+.equ NRF24L01_BASE, 0x00
+.equ NRF24L01_CONFIG, 0x00
+.equ NRF24L01_CONFIG_PWR_UP, 1  ; Power up (1=on)
+.equ NRF24L01_CONFIG_PRIM_RX, 0  ; Primary RX mode (1=RX, 0=TX)
+.equ NRF24L01_EN_AA, 0x01
+.equ NRF24L01_EN_RXADDR, 0x02
+.equ NRF24L01_SETUP_AW, 0x03
+.equ NRF24L01_SETUP_RETR, 0x04
+.equ NRF24L01_RF_CH, 0x05
+.equ NRF24L01_RF_SETUP, 0x06
+.equ NRF24L01_RF_SETUP_RF_PWR, 1  ; TX power: 00=-18dBm,01=-12dBm,10=-6dBm,11=0dBm
+.equ NRF24L01_RF_SETUP_RF_DR, 3  ; Data rate: 0=1Mbps,1=2Mbps
+.equ NRF24L01_STATUS, 0x07
+.equ NRF24L01_RX_PW_P0, 0x11
+.equ NRF24L01_FIFO_STATUS, 0x17
+.equ NRF24L01_TX_PAYLOAD, 0xA0
+.equ NRF24L01_RX_PAYLOAD, 0x61
+
+; 宏定义
+.macro nrf24l01_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+nrf24l01_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

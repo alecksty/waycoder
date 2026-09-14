@@ -1,0 +1,495 @@
+﻿; ESP32-WROOM-32寄存器定义
+; 生成自: Espressif/ESP32/ESP32-WROOM-32
+; 版本: 1.0
+; 日期: 2026-04-16
+; 作者: VML Team
+; 描述: Dual-core Xtensa LX6 Wi-Fi and Bluetooth/BLE SoC with 4MB Flash
+
+; CPU架构: Xtensa-LX6
+; 位宽: 32位
+; 时钟频率: 160000000 Hz
+
+; 寄存器定义
+; Program Counter
+.equ PC, 0x00000000
+
+; General Purpose Register 0
+.equ A0, 0x00000004
+
+; Stack Pointer
+.equ A1, 0x00000008
+
+; General Purpose Register 2
+.equ A2, 0x0000000C
+
+; General Purpose Register 3
+.equ A3, 0x00000010
+
+; General Purpose Register 4
+.equ A4, 0x00000014
+
+; General Purpose Register 5
+.equ A5, 0x00000018
+
+; General Purpose Register 6
+.equ A6, 0x0000001C
+
+; General Purpose Register 7
+.equ A7, 0x00000020
+
+; General Purpose Register 8
+.equ A8, 0x00000024
+
+; General Purpose Register 9
+.equ A9, 0x00000028
+
+; General Purpose Register 10
+.equ A10, 0x0000002C
+
+; General Purpose Register 11
+.equ A11, 0x00000030
+
+; General Purpose Register 12
+.equ A12, 0x00000034
+
+; General Purpose Register 13
+.equ A13, 0x00000038
+
+; General Purpose Register 14
+.equ A14, 0x0000003C
+
+; General Purpose Register 15
+.equ A15, 0x00000040
+
+; Special Address Register 1
+.equ SAREG1, 0x00000044
+
+; Special Address Register 2
+.equ SAREG2, 0x00000048
+
+; Loop Beginning
+.equ LBEG, 0x0000004C
+
+; Loop End
+.equ LEND, 0x00000050
+
+; Loop Counter
+.equ LCOUNT, 0x00000054
+
+; Processor Status
+.equ PS, 0x00000058
+
+; Window Base
+.equ WINDOWBASE, 0x0000005C
+
+; Window Start
+.equ WINDOWSTART, 0x00000060
+
+; Page Table Base
+.equ PTEBASE, 0x00000064
+
+; Page Table Entry Size
+.equ PTESIZE, 0x00000068
+
+; Special Compare 1
+.equ SCOMPARE1, 0x0000006C
+
+; Atomic Operation Control
+.equ ATOMCTL, 0x00000070
+
+; Data Destination Register
+.equ DDR, 0x00000074
+
+; 内存段定义
+; ROM (224KB)
+.equ ROM_START, 0x40000000
+.equ ROM_END, 0x4003FFFF
+.equ ROM_SIZE, 262144
+
+; SRAM (320KB total)
+.equ SRAM_START, 0x3FF00000
+.equ SRAM_END, 0x3FF7FFFF
+.equ SRAM_SIZE, 524288
+
+; DRAM0 (128KB)
+.equ DRAM0_START, 0x3FF80000
+.equ DRAM0_END, 0x3FF9FFFF
+.equ DRAM0_SIZE, 131072
+
+; IRAM0
+.equ IRAM0_START, 0x40000000
+.equ IRAM0_END, 0x401FFFFF
+.equ IRAM0_SIZE, 2097152
+
+; External Flash (4MB)
+.equ FLASH_START, 0x40200000
+.equ FLASH_END, 0x405FFFFF
+.equ FLASH_SIZE, 4194304
+
+; Peripheral Registers
+.equ PERIPHERAL_START, 0x3FF00000
+.equ PERIPHERAL_END, 0x3FFBFFFF
+.equ PERIPHERAL_SIZE, 786432
+
+; GPIO
+.equ GPIO_START, 0x3FF44000
+.equ GPIO_END, 0x3FF44FFF
+.equ GPIO_SIZE, 4096
+
+; 外设定义
+; GPIO
+.equ GPIO_BASE, 0x3FF44000
+.equ GPIO_OUT, 0x0000
+.equ GPIO_OUT_W1TS, 0x0008
+.equ GPIO_OUT_W1TC, 0x000C
+.equ GPIO_IN, 0x003C
+.equ GPIO_STATUS, 0x0024
+.equ GPIO_STATUS_W1TS, 0x0028
+.equ GPIO_STATUS_W1TC, 0x002C
+.equ GPIO_PIN, 0x0040
+.equ GPIO_ENABLE, 0x0020
+.equ GPIO_STRAP, 0x0038
+.equ GPIO_IN_NEXT, 0x0044
+
+; RTC GPIO
+.equ RTC_GPIO_BASE, 0x3FF48000
+.equ RTC_GPIO_OUT, 0x0000
+.equ RTC_GPIO_OUT_W1TS, 0x0008
+.equ RTC_GPIO_OUT_W1TC, 0x000C
+.equ RTC_GPIO_IN, 0x0044
+.equ RTC_GPIO_STATUS, 0x0024
+.equ RTC_GPIO_PIN, 0x0048
+.equ RTC_GPIO_ENABLE, 0x0020
+
+; IO MUX
+.equ IO_MUX_BASE, 0x3FF49000
+.equ IO_MUX_GPIO0, 0x0000
+.equ IO_MUX_GPIO1, 0x0004
+.equ IO_MUX_GPIO2, 0x0008
+.equ IO_MUX_GPIO3, 0x000C
+.equ IO_MUX_GPIO4, 0x0010
+.equ IO_MUX_GPIO5, 0x0014
+.equ IO_MUX_GPIO6, 0x0018
+.equ IO_MUX_GPIO7, 0x001C
+.equ IO_MUX_GPIO8, 0x0020
+.equ IO_MUX_GPIO9, 0x0024
+.equ IO_MUX_GPIO10, 0x0028
+.equ IO_MUX_GPIO11, 0x002C
+.equ IO_MUX_GPIO12, 0x0030
+.equ IO_MUX_GPIO13, 0x0034
+.equ IO_MUX_GPIO14, 0x0038
+.equ IO_MUX_GPIO15, 0x003C
+.equ IO_MUX_GPIO16, 0x0040
+.equ IO_MUX_GPIO17, 0x0044
+.equ IO_MUX_GPIO18, 0x0048
+.equ IO_MUX_GPIO19, 0x004C
+.equ IO_MUX_GPIO20, 0x0050
+.equ IO_MUX_GPIO21, 0x0054
+.equ IO_MUX_GPIO22, 0x0058
+.equ IO_MUX_GPIO23, 0x005C
+.equ IO_MUX_GPIO24, 0x0060
+.equ IO_MUX_GPIO25, 0x0064
+.equ IO_MUX_GPIO26, 0x0068
+.equ IO_MUX_GPIO27, 0x006C
+
+; UART 0
+.equ UART0_BASE, 0x3FF40000
+.equ UART0_FIFO, 0x0000
+.equ UART0_INT_RAW, 0x0004
+.equ UART0_INT_ST, 0x0008
+.equ UART0_INT_ENA, 0x000C
+.equ UART0_INT_CLR, 0x0010
+.equ UART0_CONF0, 0x0020
+.equ UART0_CONF1, 0x0024
+.equ UART0_LOWPULSE, 0x0028
+.equ UART0_HIGHPULSE, 0x002C
+.equ UART0_PULSE_CNT, 0x0030
+.equ UART0_DATE, 0x0078
+.equ UART0_AHB_BIT, 0x007C
+
+; UART 1
+.equ UART1_BASE, 0x3FF50000
+.equ UART1_FIFO, 0x0000
+.equ UART1_INT_RAW, 0x0004
+.equ UART1_INT_ST, 0x0008
+.equ UART1_INT_ENA, 0x000C
+.equ UART1_INT_CLR, 0x0010
+.equ UART1_CONF0, 0x0020
+.equ UART1_CONF1, 0x0024
+
+; UART 2
+.equ UART2_BASE, 0x3FF6E000
+.equ UART2_FIFO, 0x0000
+.equ UART2_INT_RAW, 0x0004
+.equ UART2_INT_ST, 0x0008
+.equ UART2_INT_ENA, 0x000C
+.equ UART2_INT_CLR, 0x0010
+.equ UART2_CONF0, 0x0020
+.equ UART2_CONF1, 0x0024
+
+; SPI0 (Flash)
+.equ SPI0_BASE, 0x3FF42000
+.equ SPI0_CMD, 0x0000
+.equ SPI0_ADDR, 0x0004
+.equ SPI0_CONTROL, 0x0008
+.equ SPI0_CONTROL1, 0x000C
+.equ SPI0_STATUS, 0x0010
+.equ SPI0_STATUS1, 0x0014
+.equ SPI0_DATA, 0x0020
+.equ SPI0_USER, 0x003C
+.equ SPI0_USER1, 0x0040
+.equ SPI0_USER2, 0x0044
+.equ SPI0_PIN, 0x0048
+.equ SPI0_SLAVE, 0x004C
+.equ SPI0_CACHE_FLASH, 0x0050
+.equ SPI0_CLOCK, 0x0058
+.equ SPI0_FIFO, 0x0060
+
+; SPI1
+.equ SPI1_BASE, 0x3FF43000
+.equ SPI1_CMD, 0x0000
+.equ SPI1_ADDR, 0x0004
+.equ SPI1_CONTROL, 0x0008
+.equ SPI1_STATUS, 0x0010
+.equ SPI1_DATA, 0x0020
+.equ SPI1_USER, 0x003C
+.equ SPI1_CLOCK, 0x0058
+
+; SPI2 (HSPI)
+.equ SPI2_BASE, 0x3FF64000
+.equ SPI2_CMD, 0x0000
+.equ SPI2_ADDR, 0x0004
+.equ SPI2_CONTROL, 0x0008
+.equ SPI2_STATUS, 0x0010
+.equ SPI2_DATA, 0x0020
+.equ SPI2_USER, 0x003C
+.equ SPI2_CLOCK, 0x0058
+.equ SPI2_FIFO, 0x0060
+
+; I2C 0
+.equ I2C0_BASE, 0x3FF53000
+.equ I2C0_SCL_START, 0x0000
+.equ I2C0_SCL_LOW, 0x0004
+.equ I2C0_SDA_START, 0x0008
+.equ I2C0_SDA_LOW, 0x000C
+.equ I2C0_INT_ENA, 0x0010
+.equ I2C0_INT_CLR, 0x0014
+.equ I2C0_INT_RAW, 0x0018
+.equ I2C0_INT_STATUS, 0x001C
+.equ I2C0_SCL_HIGH_PERIOD, 0x0020
+.equ I2C0_SCL_HIGH_PERIOD_S, 0x0024
+.equ I2C0_SCL_START_HOLD, 0x0028
+.equ I2C0_SDA_START_HOLD, 0x002C
+.equ I2C0_SCL_LAST_HOLD, 0x0030
+.equ I2C0_SCL_WAIT_PERIOD, 0x0034
+.equ I2C0_CTR, 0x0050
+.equ I2C0_STATUS, 0x0054
+.equ I2C0_FINISH_INT_ENA, 0x0058
+.equ I2C0_COMMAND0, 0x0060
+.equ I2C0_COMMAND1, 0x0064
+.equ I2C0_COMMAND2, 0x0068
+.equ I2C0_COMMAND3, 0x006C
+.equ I2C0_DATA, 0x0080
+
+; I2C 1
+.equ I2C1_BASE, 0x3FF67000
+.equ I2C1_CTR, 0x0050
+.equ I2C1_DATA, 0x0080
+.equ I2C1_COMMAND0, 0x0060
+.equ I2C1_COMMAND1, 0x0064
+
+; Timer Group 0
+.equ TIMG0_BASE, 0x3FF5F000
+.equ TIMG0_T0CONFIG, 0x0000
+.equ TIMG0_T0LO, 0x0004
+.equ TIMG0_T0HI, 0x0008
+.equ TIMG0_T0UPDATE, 0x000C
+.equ TIMG0_T0ALARM, 0x0010
+.equ TIMG0_T0LOAD, 0x0014
+.equ TIMG0_T0LOAD_REG, 0x0018
+
+; Timer Group 1
+.equ TIMG1_BASE, 0x3FF60000
+.equ TIMG1_T0CONFIG, 0x0000
+.equ TIMG1_T0LO, 0x0004
+.equ TIMG1_T0HI, 0x0008
+.equ TIMG1_T0ALARM, 0x0010
+.equ TIMG1_T0LOAD, 0x0014
+
+; Motor Control PWM 0
+.equ PWM0_BASE, 0x3FF59000
+.equ PWM0_CNT, 0x0000
+.equ PWM0_PERIOD, 0x0004
+.equ PWM0_DUTY, 0x0008
+.equ PWM0_CONFIG0, 0x0010
+.equ PWM0_CONFIG1, 0x0014
+.equ PWM0_CONFIG2, 0x0018
+.equ PWM0_UPDATE, 0x0020
+
+; Motor Control PWM 1
+.equ PWM1_BASE, 0x3FF5A000
+.equ PWM1_CNT, 0x0000
+.equ PWM1_PERIOD, 0x0004
+.equ PWM1_DUTY, 0x0008
+
+; LED PWM Controller
+.equ LEDC_BASE, 0x3FF59000
+.equ LEDC_CONFIG0, 0x0000
+.equ LEDC_HPOINT0, 0x0018
+.equ LEDC_DUTY0, 0x001C
+.equ LEDC_HPOINT1, 0x0028
+.equ LEDC_DUTY1, 0x002C
+.equ LEDC_HPOINT2, 0x0038
+.equ LEDC_DUTY2, 0x003C
+.equ LEDC_HPOINT3, 0x0048
+.equ LEDC_DUTY3, 0x004C
+.equ LEDC_TIMER0_CONF, 0x0000
+.equ LEDC_TIMER0_LOAD, 0x0004
+
+; RTC Controller
+.equ RTC_BASE, 0x3FF48000
+.equ RTC_RTC_CNTL, 0x0000
+.equ RTC_RTC_TIMER, 0x000C
+.equ RTC_RTC_UPDATE, 0x0010
+.equ RTC_RTC_STATE0, 0x0080
+
+; Wi-Fi
+.equ WIFI_BASE, 0x3FFAE000
+.equ WIFI_MAC, 0x0000
+.equ WIFI_CONFIG, 0x0100
+
+; Bluetooth/BLE
+.equ BT_BASE, 0x3FFB0000
+.equ BT_CONFIG, 0x0000
+
+; SHA Hardware Accelerator
+.equ SHA_BASE, 0x3FF67000
+.equ SHA_MODE, 0x0000
+.equ SHA_DATA, 0x0004
+.equ SHA_HASH, 0x0008
+
+; AES Hardware Accelerator
+.equ AES_BASE, 0x3FF68000
+.equ AES_KEY, 0x0000
+.equ AES_DATA_IN, 0x0004
+.equ AES_DATA_OUT, 0x0008
+.equ AES_MODE, 0x000C
+
+; Random Number Generator
+.equ RNG_BASE, 0x3FF75000
+.equ RNG_DATA, 0x0000
+
+; eFuse Controller
+.equ EFUSE_BASE, 0x3FF5A000
+.equ EFUSE_DATA0, 0x0000
+.equ EFUSE_DATA1, 0x0004
+.equ EFUSE_DATA2, 0x0008
+.equ EFUSE_DATA3, 0x000C
+
+; 中断向量定义
+.equ NMI_VECTOR, 0  ; Non-maskable interrupt
+.equ SYS_SOFT_VECTOR, 1  ; Software interrupt
+.equ TIMER_INTR0_VECTOR, 2  ; Hardware timer 0
+.equ TIMER_INTR1_VECTOR, 3  ; Hardware timer 1
+.equ TIMER_INTR2_VECTOR, 4  ; Hardware timer 2
+.equ TIMER_GROUP0_VECTOR, 5  ; TG0 interrupt
+.equ TIMER_GROUP1_VECTOR, 6  ; TG1 interrupt
+.equ GPIO_VECTOR, 7  ; GPIO interrupt
+.equ GPIO_NMI_VECTOR, 8  ; GPIO NMI interrupt
+.equ SPI0_VECTOR, 9  ; SPI0 interrupt
+.equ SPI1_VECTOR, 10  ; SPI1 interrupt
+.equ SPI2_VECTOR, 11  ; SPI2 interrupt
+.equ I2C0_VECTOR, 12  ; I2C0 interrupt
+.equ I2C1_VECTOR, 13  ; I2C1 interrupt
+.equ UART0_VECTOR, 14  ; UART0 interrupt
+.equ UART1_VECTOR, 15  ; UART1 interrupt
+.equ UART2_VECTOR, 16  ; UART2 interrupt
+.equ WDT_VECTOR, 17  ; Watchdog interrupt
+.equ RTC_VECTOR, 18  ; RTC interrupt
+.equ PWM0_VECTOR, 19  ; PWM0 interrupt
+.equ PWM1_VECTOR, 20  ; PWM1 interrupt
+.equ LEDC_VECTOR, 21  ; LEDC interrupt
+.equ TOUCH_VECTOR, 22  ; Touch sensor interrupt
+.equ SARADC_VECTOR, 23  ; SARADC interrupt
+.equ MAX_VECTOR, 24  ; No. of CPU interrupts
+.equ CORE_INTR0_VECTOR, 25  ; Core 0 interrupt 0
+.equ CORE_INTR1_VECTOR, 26  ; Core 0 interrupt 1
+.equ CORE_INTR2_VECTOR, 27  ; Core 0 interrupt 2
+.equ CORE_INTR3_VECTOR, 28  ; Core 0 interrupt 3
+.equ CORE_INTR4_VECTOR, 29  ; Core 0 interrupt 4
+.equ CORE_INTR5_VECTOR, 30  ; Core 0 interrupt 5
+.equ CORE_INTR6_VECTOR, 31  ; Core 0 interrupt 6
+.equ GPIO_INTERRUPT_VECTOR, 32  ; GPIO interrupt
+.equ GPIO_INTERRUPT_NMI_VECTOR, 33  ; GPIO NMI interrupt
+
+; 引脚定义
+.equ PIN_VDD, 1  ; 3.3V Power Supply
+.equ PIN_EN, 2  ; Enable ( CHIP_PU )
+.equ PIN_SENSOR_VP, 3  ; GPIO36 - ADC1_CH0 - SENSOR_VP
+.equ PIN_SENSOR_VN, 4  ; GPIO37 - ADC1_CH1 - SENSOR_VN
+.equ PIN_IO34, 5  ; GPIO34 - ADC1_CH6
+.equ PIN_IO35, 6  ; GPIO35 - ADC1_CH7
+.equ PIN_IO32, 7  ; GPIO32 - ADC1_CH4 - TOUCH_CH9
+.equ PIN_IO33, 8  ; GPIO33 - ADC1_CH5 - TOUCH_CH8
+.equ PIN_IO25, 9  ; GPIO25 - DAC1 - ADC2_CH8
+.equ PIN_IO26, 10  ; GPIO26 - DAC2 - ADC2_CH9
+.equ PIN_IO27, 11  ; GPIO27 - TOUCH_CH7 - ADC2_CH7
+.equ PIN_IO14, 12  ; GPIO14 - ADC2_CH6 - TOUCH_CH6 - HSPI CLK
+.equ PIN_IO12, 13  ; GPIO12 - ADC2_CH5 - TOUCH_CH5 - HSPI Q
+.equ PIN_GND, 14  ; Ground
+.equ PIN_IO13, 15  ; GPIO13 - ADC2_CH4 - TOUCH_CH4 - HSPI D
+.equ PIN_SD2, 16  ; GPIO9 - SD_DATA2
+.equ PIN_SD3, 17  ; GPIO10 - SD_DATA3
+.equ PIN_CMD, 18  ; GPIO11 - SD_CMD
+.equ PIN_CLK, 19  ; GPIO6 - SD_CLK
+.equ PIN_SD0, 20  ; GPIO7 - SD_DATA0
+.equ PIN_SD1, 21  ; GPIO8 - SD_DATA1
+.equ PIN_IO15, 22  ; GPIO15 - ADC2_CH3 - TOUCH_CH3 - VSPID
+.equ PIN_IO2, 23  ; GPIO2 - ADC2_CH2 - TOUCH_CH2 - I2C SDA
+.equ PIN_IO0, 24  ; GPIO0 - ADC2_CH1 - TOUCH_CH0 - I2C SCL
+.equ PIN_IO4, 25  ; GPIO4 - ADC2_CH0 - TOUCH_CH1
+.equ PIN_IO16, 26  ; GPIO16 - HSPI WP
+.equ PIN_IO17, 27  ; GPIO17 - HSPI HD
+.equ PIN_IO5, 28  ; GPIO5 - HSPI CS0
+.equ PIN_IO18, 29  ; GPIO18 - VSPICLK
+.equ PIN_IO19, 30  ; GPIO19 - VSPIQ
+.equ PIN_NC, 31  ; Not Connected
+.equ PIN_IO21, 32  ; GPIO21
+.equ PIN_RXD0, 33  ; GPIO3 - U0RXD
+.equ PIN_TXD0, 34  ; GPIO1 - U0TXD
+.equ PIN_IO22, 35  ; GPIO22
+.equ PIN_IO23, 36  ; GPIO23 - VSPID
+.equ PIN_GND, 37  ; Ground
+.equ PIN_GND, 38  ; Ground
+
+; 宏定义
+.macro esp32_wroom_32_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+esp32_wroom_32_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

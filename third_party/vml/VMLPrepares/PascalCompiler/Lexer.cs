@@ -1,0 +1,549 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using CompilerBase;
+
+namespace PascalCompiler
+{
+    /// <summary>
+    /// Pascal 语言词法分析器
+    /// </summary>
+    public class Lexer : LexerBase
+    {
+
+        /// <summary>通过 {$param lib(...)} 或 (*$param lib(...)*) 收集的库名列表</summary>
+        public List<string> ParamLibraries = new();
+        /// <summary>通过 {$param path(...)} 或 (*$param path(...)*) 收集的路径列表</summary>
+        public List<string> ParamPaths = new();
+
+        private static readonly Dictionary<string, TokenType> keywords = new Dictionary<string, TokenType>
+        {
+            // 程序结构关键字
+            { "program", TokenType.PROGRAM },
+            { "unit", TokenType.UNIT },
+            { "interface", TokenType.INTERFACE },
+            { "implementation", TokenType.IMPLEMENTATION },
+            { "uses", TokenType.USES },
+            { "var", TokenType.VAR },
+            { "const", TokenType.CONST },
+            { "type", TokenType.TYPE },
+            { "begin", TokenType.BEGIN },
+            { "end", TokenType.END },
+            
+            // 类型关键字
+            { "integer", TokenType.INTEGER },
+            { "real", TokenType.REAL },
+            { "boolean", TokenType.BOOLEAN },
+            { "char", TokenType.CHAR },
+            { "string", TokenType.STRING },
+            { "array", TokenType.ARRAY },
+            { "of", TokenType.OF },
+            { "record", TokenType.RECORD },
+            { "set", TokenType.SET },
+            
+            // 控制流关键字
+            { "if", TokenType.IF },
+            { "then", TokenType.THEN },
+            { "else", TokenType.ELSE },
+            { "while", TokenType.WHILE },
+            { "do", TokenType.DO },
+            { "for", TokenType.FOR },
+            { "to", TokenType.TO },
+            { "downto", TokenType.DOWNTO },
+            { "repeat", TokenType.REPEAT },
+            { "until", TokenType.UNTIL },
+            { "case", TokenType.CASE },
+            { "otherwise", TokenType.OTHERWISE },
+            { "break", TokenType.BREAK },
+            { "continue", TokenType.CONTINUE },
+            { "with", TokenType.WITH },
+            { "goto", TokenType.GOTO },
+            { "label", TokenType.LABEL },
+            
+            // 过程函数关键字
+            { "function", TokenType.FUNCTION },
+            { "procedure", TokenType.PROCEDURE },
+            { "forward", TokenType.FORWARD },
+            
+            // 布尔值
+            { "true", TokenType.TRUE },
+            { "false", TokenType.FALSE },
+            { "nil", TokenType.NIL },
+            
+            // 运算符关键字
+            { "and", TokenType.AND },
+            { "or", TokenType.OR },
+            { "not", TokenType.NOT },
+            { "div", TokenType.DIV },
+            { "mod", TokenType.MOD },
+            { "xor", TokenType.XOR },
+            { "shl", TokenType.SHL },
+            { "shr", TokenType.SHR },
+            
+            // 参数方向
+            { "in", TokenType.IN },
+            { "out", TokenType.OUT },
+            { "inout", TokenType.INOUT },
+            
+            // 文件类型关键字
+            { "file", TokenType.FILE },
+            { "text", TokenType.TEXT },
+            { "textfile", TokenType.TEXT },
+
+            // Delphi/FreePascal OOP 关键字 (v1.66.32+)
+            { "class", TokenType.CLASS },
+            { "object", TokenType.OBJECT },
+            { "constructor", TokenType.CONSTRUCTOR },
+            { "destructor", TokenType.DESTRUCTOR },
+            { "property", TokenType.PROPERTY },
+            { "inherited", TokenType.INHERITED },
+            { "virtual", TokenType.VIRTUAL },
+            { "override", TokenType.OVERRIDE },
+            { "abstract", TokenType.ABSTRACT },
+            { "dynamic", TokenType.DYNAMIC },
+            { "try", TokenType.TRY },
+            { "except", TokenType.EXCEPT },
+            { "finally", TokenType.FINALLY },
+            { "raise", TokenType.RAISE },
+            { "as", TokenType.AS },
+            { "is", TokenType.IS }
+        };
+
+        public Lexer(string source) : base(source) { }
+
+
+
+
+        private void SkipComment()
+        {
+            if (Peek() == '{')
+            {
+                Advance();
+                int contentStart = _pos;
+                while (true)
+                {
+                    char ch = Peek();
+                    if (ch == '\0') Error("未结束的注释");
+                    if (ch == '}')
+                    {
+                        string content = _source.Substring(contentStart, _pos - contentStart).Trim();
+                        Advance();
+                        if (content.StartsWith("$param"))
+                            ParseParamDirective(content);
+                        break;
+                    }
+                    Advance();
+                }
+            }
+            else if (Peek() == '(' && Peek(1) == '*')
+            {
+                Advance(); // (
+                Advance(); // *
+                int contentStart = _pos;
+                while (true)
+                {
+                    char ch = Peek();
+                    if (ch == '\0') Error("未结束的注释");
+                    if (ch == '*' && Peek(1) == ')')
+                    {
+                        string content = _source.Substring(contentStart, _pos - contentStart).Trim();
+                        Advance(); // *
+                        Advance(); // )
+                        if (content.StartsWith("$param"))
+                            ParseParamDirective(content);
+                        break;
+                    }
+                    Advance();
+                }
+            }
+        }
+
+        private void ParseParamDirective(string content)
+        {
+            string rest = content.Substring("$param".Length).Trim();
+            int parenOpen = rest.IndexOf('(');
+            int parenClose = rest.LastIndexOf(')');
+            if (parenOpen < 0 || parenClose < 0 || parenClose <= parenOpen) return;
+
+            string func = rest.Substring(0, parenOpen).Trim().ToLowerInvariant();
+            string arg = rest.Substring(parenOpen + 1, parenClose - parenOpen - 1).Trim();
+
+            if (arg.Length >= 2 &&
+                ((arg.StartsWith('"') && arg.EndsWith('"')) ||
+                 (arg.StartsWith('\'') && arg.EndsWith('\''))))
+            {
+                arg = arg.Substring(1, arg.Length - 2);
+            }
+
+            switch (func)
+            {
+                case "lib":
+                    if (!arg.EndsWith(".vml", StringComparison.OrdinalIgnoreCase) &&
+                        !arg.Contains('/') && !arg.Contains('\\'))
+                        arg += ".vml";
+                    if (!ParamLibraries.Contains(arg))
+                        ParamLibraries.Add(arg);
+                    break;
+                case "path":
+                    if (!ParamPaths.Contains(arg))
+                        ParamPaths.Add(arg);
+                    break;
+            }
+        }
+
+
+        private new Token ReadIdentifier()
+        {
+            int startLine = _line;
+            int startCol = _col;
+            StringBuilder value = new StringBuilder();
+
+            while (char.IsLetterOrDigit(Peek()) || Peek() == '_' || IsChineseChar(Peek()))
+            {
+                value.Append(Advance());
+            }
+
+            string identifier = value.ToString().ToLower();
+            TokenType tokenType = keywords.ContainsKey(identifier) ? keywords[identifier] : TokenType.IDENTIFIER;
+            
+            return new Token(tokenType, value.ToString(), startLine, startCol);
+        }
+
+        private Token ReadHexNumber()
+        {
+            int startLine = _line;
+            int startCol = _col;
+            StringBuilder sb = new StringBuilder("$");
+            Advance(); // skip $
+            while (char.IsDigit(Peek()) || (Peek() >= 'A' && Peek() <= 'F') || (Peek() >= 'a' && Peek() <= 'f'))
+            {
+                sb.Append(Advance());
+            }
+            string hexStr = sb.ToString();
+            int hexVal = Convert.ToInt32(hexStr.Substring(1), 16);
+            return new Token(TokenType.INTEGER_LITERAL, (long)hexVal, startLine, startCol);
+        }
+
+        private new Token ReadNumber()
+        {
+            int startLine = _line;
+            int startCol = _col;
+            StringBuilder value = new StringBuilder();
+
+            // 读取整数部分
+            while (char.IsDigit(Peek()))
+            {
+                value.Append(Advance());
+            }
+
+            // 检查是否有小数部分
+            if (Peek() == '.')
+            {
+                char nextChar = Peek(1);
+                // 如果下一个字符也是'.'，那么这是范围操作符，不是小数部分
+                if (nextChar == '.')
+                {
+                    // 返回整数字面量，'.'留给后面的范围操作符处理
+                    return new Token(TokenType.INTEGER_LITERAL, long.Parse(value.ToString()), startLine, startCol);
+                }
+                else if (char.IsDigit(nextChar))
+                {
+                    // 这是小数部分
+                    value.Append(Advance());
+                    while (char.IsDigit(Peek()))
+                    {
+                        value.Append(Advance());
+                    }
+                    return new Token(TokenType.REAL_LITERAL, double.Parse(value.ToString()), startLine, startCol);
+                }
+                else
+                {
+                    // 单独的'.'，可能是记录字段访问或程序结束
+                    // 返回整数字面量，'.'留给后面的操作符处理
+                    return new Token(TokenType.INTEGER_LITERAL, long.Parse(value.ToString()), startLine, startCol);
+                }
+            }
+
+            return new Token(TokenType.INTEGER_LITERAL, long.Parse(value.ToString()), startLine, startCol);
+        }
+
+        private Token ReadString()
+        {
+            int startLine = _line;
+            int startCol = _col;
+            Advance(); // 跳过起始引号
+            StringBuilder value = new StringBuilder();
+
+            while (true)
+            {
+                char ch = Peek();
+                if (ch == '\0')
+                {
+                    Error("未结束的字符串");
+                }
+                if (ch == '"')
+                {
+                    Advance();
+                    break;
+                }
+
+                // 处理转义字符
+                if (ch == '\\')
+                {
+                    Advance();
+                    char escapeCh = Advance();
+                    switch (escapeCh)
+                    {
+                        case 'n': value.Append('\n'); break;
+                        case 't': value.Append('\t'); break;
+                        case 'r': value.Append('\r'); break;
+                        case '\\': value.Append('\\'); break;
+                        case '"': value.Append('"'); break;
+                        default: value.Append(escapeCh); break;
+                    }
+                }
+                else
+                {
+                    value.Append(ch);
+                    Advance();
+                }
+            }
+
+            return new Token(TokenType.STRING_LITERAL, value.ToString(), startLine, startCol);
+        }
+
+        private Token ReadPascalString()
+        {
+            int startLine = _line;
+            int startCol = _col;
+            Advance(); // 跳过起始单引号
+            StringBuilder value = new StringBuilder();
+
+            while (true)
+            {
+                char ch = Peek();
+                if (ch == '\0')
+                {
+                    Error("未结束的字符串");
+                }
+                if (ch == '\'')
+                {
+                    Advance();
+                    // 检查是否是两个连续的单引号（表示转义的单引号）
+                    if (Peek() == '\'')
+                    {
+                        value.Append('\'');
+                        Advance();
+                        continue;
+                    }
+                    break;
+                }
+
+                // 处理转义字符（Pascal中通常不支持转义，但我们可以支持基本转义）
+                if (ch == '\\')
+                {
+                    Advance();
+                    char escapeCh = Advance();
+                    switch (escapeCh)
+                    {
+                        case 'n': value.Append('\n'); break;
+                        case 't': value.Append('\t'); break;
+                        case 'r': value.Append('\r'); break;
+                        case '\\': value.Append('\\'); break;
+                        case '\'': value.Append('\''); break;
+                        default: value.Append(escapeCh); break;
+                    }
+                }
+                else
+                {
+                    value.Append(ch);
+                    Advance();
+                }
+            }
+
+            // 如果字符串长度为1，则视为字符字面量
+            if (value.Length == 1)
+            {
+                return new Token(TokenType.CHAR_LITERAL, value[0], startLine, startCol);
+            }
+            else
+            {
+                return new Token(TokenType.STRING_LITERAL, value.ToString(), startLine, startCol);
+            }
+        }
+
+        private Token ReadCharEscape()
+        {
+            int startLine = _line;
+            int startCol = _col;
+            Advance(); // 跳过'#'字符
+            
+            // 读取数字
+            StringBuilder value = new StringBuilder();
+            while (char.IsDigit(Peek()))
+            {
+                value.Append(Advance());
+            }
+            
+            if (value.Length == 0)
+            {
+                Error("字符转义需要数字");
+            }
+            
+            int charCode = int.Parse(value.ToString());
+            if (charCode < 0 || charCode > 255)
+            {
+                Error($"无效的字符代码: {charCode}");
+            }
+            
+            return new Token(TokenType.CHAR_LITERAL, (char)charCode, startLine, startCol);
+        }
+
+        private new void Error(string message)
+        {
+            throw new ParseException(ErrorCode.Lexer_UnknownCharacter, $"词法错误在第{_line}行{_col}列：{message}");
+        }
+
+        public List<Token> Tokenize()
+        {
+            List<Token> tokens = new List<Token>();
+
+            while (_pos < _source.Length)
+            {
+                SkipWhitespace();
+
+                char current = Peek();
+                if (current == '\0')
+                {
+                    break;
+                }
+
+                // 跳过注释
+                if (current == '{' || (current == '(' && Peek(1) == '*'))
+                {
+                    SkipComment();
+                    continue;
+                }
+
+                // 标识符或关键字
+                if (char.IsLetter(current) || current == '_' || IsChineseChar(current))
+                {
+                    tokens.Add(ReadIdentifier());
+                    continue;
+                }
+
+                // Pascal字符转义（#数字）
+                if (current == '#')
+                {
+                    tokens.Add(ReadCharEscape());
+                    continue;
+                }
+
+                // Pascal 十六进制: $FF
+                if (current == '$')
+                {
+                    tokens.Add(ReadHexNumber());
+                    continue;
+                }
+
+                // 数字
+                if (char.IsDigit(current))
+                {
+                    tokens.Add(ReadNumber());
+                    continue;
+                }
+
+                // Pascal 字符串（使用单引号）
+                if (current == '\'')
+                {
+                    tokens.Add(ReadPascalString());
+                    continue;
+                }
+
+                // C风格字符串（双引号）- 保留用于兼容性
+                if (current == '"')
+                {
+                    tokens.Add(ReadString());
+                    continue;
+                }
+
+                // 运算符和分隔符
+                int startLine = _line;
+                int startCol = _col;
+
+                // 双字符运算符
+                char next = Peek(1);
+                if (current == ':' && next == '=')
+                {
+                    Advance(); // :
+                    Advance(); // =
+                    tokens.Add(new Token(TokenType.ASSIGN, ":=", startLine, startCol));
+                }
+                else if (current == '<' && next == '>')
+                {
+                    Advance(); // <
+                    Advance(); // >
+                    tokens.Add(new Token(TokenType.NOT_EQUALS, "<>", startLine, startCol));
+                }
+                else if (current == '<' && next == '=')
+                {
+                    Advance(); // <
+                    Advance(); // =
+                    tokens.Add(new Token(TokenType.LESS_EQUAL, "<=", startLine, startCol));
+                }
+                else if (current == '>' && next == '=')
+                {
+                    Advance(); // >
+                    Advance(); // =
+                    tokens.Add(new Token(TokenType.GREATER_EQUAL, ">=", startLine, startCol));
+                }
+                else if (current == '.' && next == '.')
+                {
+                    Advance(); // .
+                    Advance(); // .
+                    tokens.Add(new Token(TokenType.RANGE, "..", startLine, startCol));
+                }
+                else
+                {
+                    // 单字符运算符
+                    Advance();
+                    switch (current)
+                    {
+                        case '+': tokens.Add(new Token(TokenType.PLUS, "+", startLine, startCol)); break;
+                        case '-': tokens.Add(new Token(TokenType.MINUS, "-", startLine, startCol)); break;
+                        case '*': tokens.Add(new Token(TokenType.STAR, "*", startLine, startCol)); break;
+                        case '/': tokens.Add(new Token(TokenType.SLASH, "/", startLine, startCol)); break;
+                        case '=': tokens.Add(new Token(TokenType.EQUALS, "=", startLine, startCol)); break;
+                        case '<': tokens.Add(new Token(TokenType.LESS_THAN, "<", startLine, startCol)); break;
+                        case '>': tokens.Add(new Token(TokenType.GREATER_THAN, ">", startLine, startCol)); break;
+                        case '(': tokens.Add(new Token(TokenType.LPAREN, "(", startLine, startCol)); break;
+                        case ')': tokens.Add(new Token(TokenType.RPAREN, ")", startLine, startCol)); break;
+                        case '[': tokens.Add(new Token(TokenType.LBRACKET, "[", startLine, startCol)); break;
+                        case ']': tokens.Add(new Token(TokenType.RBRACKET, "]", startLine, startCol)); break;
+                        case '.': tokens.Add(new Token(TokenType.DOT, ".", startLine, startCol)); break;
+                        case ',': tokens.Add(new Token(TokenType.COMMA, ",", startLine, startCol)); break;
+                        case ':': tokens.Add(new Token(TokenType.COLON, ":", startLine, startCol)); break;
+                        case ';': tokens.Add(new Token(TokenType.SEMICOLON, ";", startLine, startCol)); break;
+                        case '^': tokens.Add(new Token(TokenType.CARET, "^", startLine, startCol)); break;
+                        case '@': tokens.Add(new Token(TokenType.AT, "@", startLine, startCol)); break;
+                        case '|': tokens.Add(new Token(TokenType.PIPE, "|", startLine, startCol)); break;
+                        case '\\': tokens.Add(new Token(TokenType.BACKSLASH, "\\", startLine, startCol)); break;
+                        default:
+                            // 跳过 CP/M EOF 标记 (0x1A) 和 null 字节 (v1.66.33)
+                            if (current == '\x1A' || current == '\0')
+                                break;
+                            // 忽略不可打印的控制字符 (v1.66.33)
+                            if (current < 32 && current != '\n' && current != '\r' && current != '\t')
+                                break;
+                            Error($"未知字符: {current}");
+                            break;
+                    }
+                }
+            }
+
+            // 添加 EOF 标记
+            tokens.Add(new Token(TokenType.EOF, null, _line, _col));
+            return tokens;
+        }
+    }
+}

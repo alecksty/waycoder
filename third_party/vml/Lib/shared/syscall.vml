@@ -1,0 +1,7 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+
+.text

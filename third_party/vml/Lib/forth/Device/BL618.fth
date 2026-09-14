@@ -1,0 +1,343 @@
+﻿\ BL618设备定义 - Forth文件
+\ 生成自: Bouffalo Lab/BL6/BL618
+\ 版本: 1.0
+\ 日期: 2026-04-28
+\ 作者: VML Team
+\ 描述: 32-bit RISC-V RV32IMAFC WiFi6 + BLE SoC with 4MB Flash, 512KB SRAM, 480MHz
+\ CPU架构: RISC-V
+\ 位宽: 32位
+\ 时钟频率: 320000000 Hz
+
+\ =========================================
+\ BL618设备定义
+\ =========================================
+
+\ 设备信息
+: DEVICE-NAME   S" BL618" ;
+: MANUFACTURER  S" Bouffalo Lab" ;
+: FAMILY        S" BL6" ;
+: VERSION       S" 1.0" ;
+: ARCHITECTURE  S" RISC-V" ;
+32 CONSTANT BITS
+320000000 CONSTANT CLOCK-FREQ
+
+\ 寄存器地址定义
+0x04 CONSTANT X1  \ Return Address
+0x08 CONSTANT X2  \ Stack Pointer (SP)
+0x0C CONSTANT X3  \ Global Pointer (GP)
+0x20 CONSTANT X8  \ Frame Pointer (FP)
+0x28 CONSTANT X10  \ Function Argument (A0)
+0x2C CONSTANT X11  \ Function Argument (A1)
+0x3C CONSTANT PC  \ Program Counter
+
+\ 内存段定义
+0x20000000 CONSTANT FLASH-START
+0x203FFFFF CONSTANT FLASH-END
+4194304 CONSTANT FLASH-SIZE  \ 
+0x22000000 CONSTANT SRAM_HPSYS-START
+0x22003FFF CONSTANT SRAM_HPSYS-END
+16384 CONSTANT SRAM_HPSYS-SIZE  \ 
+0x22010000 CONSTANT SRAM_DTCM-START
+0x22017FFF CONSTANT SRAM_DTCM-END
+32768 CONSTANT SRAM_DTCM-SIZE  \ DTCM
+0x22020000 CONSTANT SRAM_SYS-START
+0x2208FFFF CONSTANT SRAM_SYS-END
+458752 CONSTANT SRAM_SYS-SIZE  \ 
+0x30000000 CONSTANT PERIPHERAL-START
+0x300FFFFF CONSTANT PERIPHERAL-END
+1048576 CONSTANT PERIPHERAL-SIZE  \ 
+
+\ 外设定义
+\ Global Control (Clock and Reset)
+0x30000000 CONSTANT GLB-BASE
+0x10 CONSTANT GLB-GLB_CLK_EN
+6 CONSTANT GLB-GLB_CLK_EN-GPIO_CLK_EN  \ GPIO clock enable
+12 CONSTANT GLB-GLB_CLK_EN-UART0_CLK_EN  \ UART0 clock enable
+0x14 CONSTANT GLB-GLB_SYS_CLK_CTRL
+0x1C CONSTANT GLB-GLB_PLL_CTRL
+\ GPIO Port A
+0x30007000 CONSTANT GPIO_P0-BASE
+0x00 CONSTANT GPIO_P0-GPIO_CFG0
+0x04 CONSTANT GPIO_P0-GPIO_CFG1
+0x08 CONSTANT GPIO_P0-GPIO_OE
+0x0C CONSTANT GPIO_P0-GPIO_OUT
+0x10 CONSTANT GPIO_P0-GPIO_IN
+0x14 CONSTANT GPIO_P0-GPIO_SET
+0x18 CONSTANT GPIO_P0-GPIO_CLR
+0x1C CONSTANT GPIO_P0-GPIO_TOG
+\ GPIO Port B
+0x30007200 CONSTANT GPIO_P1-BASE
+0x00 CONSTANT GPIO_P1-GPIO_CFG0
+0x04 CONSTANT GPIO_P1-GPIO_CFG1
+0x08 CONSTANT GPIO_P1-GPIO_OE
+0x0C CONSTANT GPIO_P1-GPIO_OUT
+0x10 CONSTANT GPIO_P1-GPIO_IN
+0x14 CONSTANT GPIO_P1-GPIO_SET
+0x18 CONSTANT GPIO_P1-GPIO_CLR
+0x1C CONSTANT GPIO_P1-GPIO_TOG
+\ UART 0
+0x30002000 CONSTANT UART0-BASE
+0x00 CONSTANT UART0-UART_CR
+0x04 CONSTANT UART0-UART_BRR
+0x08 CONSTANT UART0-UART_TDR
+0x0C CONSTANT UART0-UART_RDR
+0x10 CONSTANT UART0-UART_SR
+
+\ 中断向量定义
+1 CONSTANT INT-RESET  \ 
+3 CONSTANT INT-MACHINESOFTWARE  \ 
+7 CONSTANT INT-MACHINETIMER  \ 
+11 CONSTANT INT-MACHINEEXTERNAL  \ 
+20 CONSTANT INT-UART0  \ UART0 Interrupt
+
+\ =========================================
+\ 寄存器访问字
+\ =========================================
+
+\ 通用寄存器访问
+: X1@ ( -- n ) X1 L@ ;
+: X1! ( n -- ) X1 L! ;
+
+: X2@ ( -- n ) X2 L@ ;
+: X2! ( n -- ) X2 L! ;
+
+: X3@ ( -- n ) X3 L@ ;
+: X3! ( n -- ) X3 L! ;
+
+: X8@ ( -- n ) X8 L@ ;
+: X8! ( n -- ) X8 L! ;
+
+: X10@ ( -- n ) X10 L@ ;
+: X10! ( n -- ) X10 L! ;
+
+: X11@ ( -- n ) X11 L@ ;
+: X11! ( n -- ) X11 L! ;
+
+: PC@ ( -- n ) PC L@ ;
+: PC! ( n -- ) PC L! ;
+
+\ 外设访问
+\ GLB外设
+: GLB-GLB_CLK_EN@ ( -- n ) GLB-GLB_CLK_EN L@ ;
+: GLB-GLB_CLK_EN! ( n -- ) GLB-GLB_CLK_EN L! ;
+: GLB-GLB_CLK_EN-GPIO_CLK_EN@ ( -- flag ) GLB-GLB_CLK_EN@ 6 BIT@ ;
+: GLB-GLB_CLK_EN-GPIO_CLK_EN! ( flag -- ) GLB-GLB_CLK_EN@ 6 BIT! GLB-GLB_CLK_EN! ;
+: GLB-GLB_CLK_EN-UART0_CLK_EN@ ( -- flag ) GLB-GLB_CLK_EN@ 12 BIT@ ;
+: GLB-GLB_CLK_EN-UART0_CLK_EN! ( flag -- ) GLB-GLB_CLK_EN@ 12 BIT! GLB-GLB_CLK_EN! ;
+: GLB-GLB_SYS_CLK_CTRL@ ( -- n ) GLB-GLB_SYS_CLK_CTRL L@ ;
+: GLB-GLB_SYS_CLK_CTRL! ( n -- ) GLB-GLB_SYS_CLK_CTRL L! ;
+: GLB-GLB_PLL_CTRL@ ( -- n ) GLB-GLB_PLL_CTRL L@ ;
+: GLB-GLB_PLL_CTRL! ( n -- ) GLB-GLB_PLL_CTRL L! ;
+
+\ GPIO_P0外设
+: GPIO_P0-GPIO_CFG0@ ( -- n ) GPIO_P0-GPIO_CFG0 L@ ;
+: GPIO_P0-GPIO_CFG0! ( n -- ) GPIO_P0-GPIO_CFG0 L! ;
+: GPIO_P0-GPIO_CFG1@ ( -- n ) GPIO_P0-GPIO_CFG1 L@ ;
+: GPIO_P0-GPIO_CFG1! ( n -- ) GPIO_P0-GPIO_CFG1 L! ;
+: GPIO_P0-GPIO_OE@ ( -- n ) GPIO_P0-GPIO_OE L@ ;
+: GPIO_P0-GPIO_OE! ( n -- ) GPIO_P0-GPIO_OE L! ;
+: GPIO_P0-GPIO_OUT@ ( -- n ) GPIO_P0-GPIO_OUT L@ ;
+: GPIO_P0-GPIO_OUT! ( n -- ) GPIO_P0-GPIO_OUT L! ;
+: GPIO_P0-GPIO_IN@ ( -- n ) GPIO_P0-GPIO_IN L@ ;
+: GPIO_P0-GPIO_IN! ( n -- ) GPIO_P0-GPIO_IN L! ;
+: GPIO_P0-GPIO_SET@ ( -- n ) GPIO_P0-GPIO_SET L@ ;
+: GPIO_P0-GPIO_SET! ( n -- ) GPIO_P0-GPIO_SET L! ;
+: GPIO_P0-GPIO_CLR@ ( -- n ) GPIO_P0-GPIO_CLR L@ ;
+: GPIO_P0-GPIO_CLR! ( n -- ) GPIO_P0-GPIO_CLR L! ;
+: GPIO_P0-GPIO_TOG@ ( -- n ) GPIO_P0-GPIO_TOG L@ ;
+: GPIO_P0-GPIO_TOG! ( n -- ) GPIO_P0-GPIO_TOG L! ;
+
+\ GPIO_P1外设
+: GPIO_P1-GPIO_CFG0@ ( -- n ) GPIO_P1-GPIO_CFG0 L@ ;
+: GPIO_P1-GPIO_CFG0! ( n -- ) GPIO_P1-GPIO_CFG0 L! ;
+: GPIO_P1-GPIO_CFG1@ ( -- n ) GPIO_P1-GPIO_CFG1 L@ ;
+: GPIO_P1-GPIO_CFG1! ( n -- ) GPIO_P1-GPIO_CFG1 L! ;
+: GPIO_P1-GPIO_OE@ ( -- n ) GPIO_P1-GPIO_OE L@ ;
+: GPIO_P1-GPIO_OE! ( n -- ) GPIO_P1-GPIO_OE L! ;
+: GPIO_P1-GPIO_OUT@ ( -- n ) GPIO_P1-GPIO_OUT L@ ;
+: GPIO_P1-GPIO_OUT! ( n -- ) GPIO_P1-GPIO_OUT L! ;
+: GPIO_P1-GPIO_IN@ ( -- n ) GPIO_P1-GPIO_IN L@ ;
+: GPIO_P1-GPIO_IN! ( n -- ) GPIO_P1-GPIO_IN L! ;
+: GPIO_P1-GPIO_SET@ ( -- n ) GPIO_P1-GPIO_SET L@ ;
+: GPIO_P1-GPIO_SET! ( n -- ) GPIO_P1-GPIO_SET L! ;
+: GPIO_P1-GPIO_CLR@ ( -- n ) GPIO_P1-GPIO_CLR L@ ;
+: GPIO_P1-GPIO_CLR! ( n -- ) GPIO_P1-GPIO_CLR L! ;
+: GPIO_P1-GPIO_TOG@ ( -- n ) GPIO_P1-GPIO_TOG L@ ;
+: GPIO_P1-GPIO_TOG! ( n -- ) GPIO_P1-GPIO_TOG L! ;
+
+\ UART0外设
+: UART0-UART_CR@ ( -- n ) UART0-UART_CR L@ ;
+: UART0-UART_CR! ( n -- ) UART0-UART_CR L! ;
+: UART0-UART_BRR@ ( -- n ) UART0-UART_BRR L@ ;
+: UART0-UART_BRR! ( n -- ) UART0-UART_BRR L! ;
+: UART0-UART_TDR@ ( -- n ) UART0-UART_TDR L@ ;
+: UART0-UART_TDR! ( n -- ) UART0-UART_TDR L! ;
+: UART0-UART_RDR@ ( -- n ) UART0-UART_RDR L@ ;
+: UART0-UART_RDR! ( n -- ) UART0-UART_RDR L! ;
+: UART0-UART_SR@ ( -- n ) UART0-UART_SR L@ ;
+: UART0-UART_SR! ( n -- ) UART0-UART_SR L! ;
+
+\ =========================================
+\ 设备初始化
+\ =========================================
+
+: BL618-INIT ( -- )
+  \ 初始化BL618设备
+  ." 初始化BL618..." CR
+
+  \ 初始化寄存器
+  0 X1!  \ Return Address
+  0 X2!  \ Stack Pointer (SP)
+  0 X3!  \ Global Pointer (GP)
+  0 X8!  \ Frame Pointer (FP)
+  0 X10!  \ Function Argument (A0)
+  0 X11!  \ Function Argument (A1)
+  0 PC!  \ Program Counter
+
+  \ 初始化外设
+  \ 初始化GLB
+  0 GLB-GLB_CLK_EN!  \ GLB_CLK_EN寄存器
+  0 GLB-GLB_SYS_CLK_CTRL!  \ GLB_SYS_CLK_CTRL寄存器
+  0 GLB-GLB_PLL_CTRL!  \ GLB_PLL_CTRL寄存器
+  \ 初始化GPIO_P0
+  0 GPIO_P0-GPIO_CFG0!  \ GPIO_CFG0寄存器
+  0 GPIO_P0-GPIO_CFG1!  \ GPIO_CFG1寄存器
+  0 GPIO_P0-GPIO_OE!  \ GPIO_OE寄存器
+  0 GPIO_P0-GPIO_OUT!  \ GPIO_OUT寄存器
+  0 GPIO_P0-GPIO_IN!  \ GPIO_IN寄存器
+  0 GPIO_P0-GPIO_SET!  \ GPIO_SET寄存器
+  0 GPIO_P0-GPIO_CLR!  \ GPIO_CLR寄存器
+  0 GPIO_P0-GPIO_TOG!  \ GPIO_TOG寄存器
+  \ 初始化GPIO_P1
+  0 GPIO_P1-GPIO_CFG0!  \ GPIO_CFG0寄存器
+  0 GPIO_P1-GPIO_CFG1!  \ GPIO_CFG1寄存器
+  0 GPIO_P1-GPIO_OE!  \ GPIO_OE寄存器
+  0 GPIO_P1-GPIO_OUT!  \ GPIO_OUT寄存器
+  0 GPIO_P1-GPIO_IN!  \ GPIO_IN寄存器
+  0 GPIO_P1-GPIO_SET!  \ GPIO_SET寄存器
+  0 GPIO_P1-GPIO_CLR!  \ GPIO_CLR寄存器
+  0 GPIO_P1-GPIO_TOG!  \ GPIO_TOG寄存器
+  \ 初始化UART0
+  0 UART0-UART_CR!  \ UART_CR寄存器
+  0 UART0-UART_BRR!  \ UART_BRR寄存器
+  0 UART0-UART_TDR!  \ UART_TDR寄存器
+  0 UART0-UART_RDR!  \ UART_RDR寄存器
+  0 UART0-UART_SR!  \ UART_SR寄存器
+
+  ." BL618初始化完成" CR
+;
+
+\ =========================================
+\ 设备信息显示
+\ =========================================
+
+: .DEVICE-INFO ( -- )
+  CR
+  ." 设备: " DEVICE-NAME TYPE CR
+  ." 厂商: " MANUFACTURER TYPE CR
+  ." 系列: " FAMILY TYPE CR
+  ." 版本: " VERSION TYPE CR
+  ." 架构: " ARCHITECTURE TYPE CR
+  ." 位宽: " BITS . CR
+  ." 时钟: " CLOCK-FREQ . ." Hz" CR
+;
+
+: .REGISTERS ( -- )
+  CR ." 寄存器状态:" CR
+  ." ----------" CR
+  X1@ X1 .R 8 .R SPACE ."  x1: " X1@ .
+  X2@ X2 .R 8 .R SPACE ."  x2: " X2@ .
+  X3@ X3 .R 8 .R SPACE ."  x3: " X3@ .
+  X8@ X8 .R 8 .R SPACE ."  x8: " X8@ .
+  X10@ X10 .R 8 .R SPACE ."  x10: " X10@ .
+  X11@ X11 .R 8 .R SPACE ."  x11: " X11@ .
+  PC@ PC .R 8 .R SPACE ."  pc: " PC@ .
+;
+
+\ =========================================
+\ 中断处理
+\ =========================================
+
+\ 
+: INT-RESET-HANDLER ( -- )
+  ." Reset中断处理" CR
+  \ 添加具体的中断处理代码
+;
+
+: INT-RESET-ENABLE ( -- )
+  INT-RESET INT-ENABLE
+;
+
+: INT-RESET-DISABLE ( -- )
+  INT-RESET INT-DISABLE
+;
+
+\ 
+: INT-MACHINESOFTWARE-HANDLER ( -- )
+  ." MachineSoftware中断处理" CR
+  \ 添加具体的中断处理代码
+;
+
+: INT-MACHINESOFTWARE-ENABLE ( -- )
+  INT-MACHINESOFTWARE INT-ENABLE
+;
+
+: INT-MACHINESOFTWARE-DISABLE ( -- )
+  INT-MACHINESOFTWARE INT-DISABLE
+;
+
+\ 
+: INT-MACHINETIMER-HANDLER ( -- )
+  ." MachineTimer中断处理" CR
+  \ 添加具体的中断处理代码
+;
+
+: INT-MACHINETIMER-ENABLE ( -- )
+  INT-MACHINETIMER INT-ENABLE
+;
+
+: INT-MACHINETIMER-DISABLE ( -- )
+  INT-MACHINETIMER INT-DISABLE
+;
+
+\ 
+: INT-MACHINEEXTERNAL-HANDLER ( -- )
+  ." MachineExternal中断处理" CR
+  \ 添加具体的中断处理代码
+;
+
+: INT-MACHINEEXTERNAL-ENABLE ( -- )
+  INT-MACHINEEXTERNAL INT-ENABLE
+;
+
+: INT-MACHINEEXTERNAL-DISABLE ( -- )
+  INT-MACHINEEXTERNAL INT-DISABLE
+;
+
+\ UART0 Interrupt
+: INT-UART0-HANDLER ( -- )
+  ." UART0中断处理" CR
+  \ 添加具体的中断处理代码
+;
+
+: INT-UART0-ENABLE ( -- )
+  INT-UART0 INT-ENABLE
+;
+
+: INT-UART0-DISABLE ( -- )
+  INT-UART0 INT-DISABLE
+;
+
+\ =========================================
+\ 示例程序
+\ =========================================
+
+: EXAMPLE ( -- )
+  BL618-INIT
+  .DEVICE-INFO
+  .REGISTERS
+  CR ." 示例程序运行完成" CR
+;
+
+\ 自动运行示例
+( EXAMPLE )

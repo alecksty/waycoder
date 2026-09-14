@@ -1,0 +1,15 @@
+' VML 全类型转换库 — BASIC 声明 (v1.66.44)
+' 用法: #include "conv.bas"
+
+DECLARE FUNCTION int_to_str$ (val AS INTEGER)
+DECLARE FUNCTION str_to_int% (s AS STRING)
+DECLARE FUNCTION long_to_str$ (l AS LONG)
+DECLARE FUNCTION str_to_long&& (s AS STRING)
+DECLARE FUNCTION float_to_str$ (f AS SINGLE)
+DECLARE FUNCTION str_to_float! (s AS STRING)
+DECLARE FUNCTION double_to_str$ (d AS DOUBLE)
+DECLARE FUNCTION str_to_double# (s AS STRING)
+DECLARE FUNCTION bool_to_str$ (b AS INTEGER)
+DECLARE FUNCTION str_to_bool% (s AS STRING)
+DECLARE FUNCTION char_to_str$ (c AS STRING)
+DECLARE FUNCTION str_to_char$ (s AS STRING)

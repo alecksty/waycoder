@@ -1,0 +1,386 @@
+.data
+L35090000: .string "0x"
+
+.text
+printx_int32:
+; -------------------------------------------
+; source   : void printx_int32(int val)
+; function : printx_int32
+; param   : int val
+; return   : void
+; --------------------------------------------
+printx_int32:
+        push R15
+        push R12
+        move R12 R13
+        syscall #6
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+printlnx_int32:
+; -------------------------------------------
+; source   : void printlnx_int32(int val)
+; function : printlnx_int32
+; param   : int val
+; return   : void
+; --------------------------------------------
+printlnx_int32:
+        push R15
+        push R12
+        move R12 R13
+        syscall #6
+        move [R12-4] R0
+        asm "LOAD R0 #10"
+        syscall #4
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+printx_string:
+; -------------------------------------------
+; source   : void printx_string(const char* str)
+; function : printx_string
+; param   : const char* str
+; return   : void
+; --------------------------------------------
+printx_string:
+        push R15
+        push R12
+        move R12 R13
+        syscall #1
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+printlnx_string:
+; -------------------------------------------
+; source   : void printlnx_string(const char* str)
+; function : printlnx_string
+; param   : const char* str
+; return   : void
+; --------------------------------------------
+printlnx_string:
+        push R15
+        push R12
+        move R12 R13
+        syscall #1
+        move [R12-4] R0
+        asm "LOAD R0 #10"
+        syscall #4
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+printx_wstring:
+; -------------------------------------------
+; source   : void printx_wstring(const unsigned short* wstr)
+; function : printx_wstring
+; param   : const unsigned short* wstr
+; return   : void
+; --------------------------------------------
+printx_wstring:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #1032
+        move R0 #1023
+        move R2 R0
+        push R0
+        move R0 [R12+12]
+        move R1 R0
+        push R0
+        move R0 R12
+        sub R0 #1024
+        push R0
+        call wcstombs
+        add R13 #12
+        move R0 R12
+        sub R0 #1024
+        push R0
+        call shared_print_str
+        add R13 #4
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+printlnx_wstring:
+; -------------------------------------------
+; source   : void printlnx_wstring(const unsigned short* wstr)
+; function : printlnx_wstring
+; param   : const unsigned short* wstr
+; return   : void
+; --------------------------------------------
+printlnx_wstring:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #1032
+        move R0 #1023
+        move R2 R0
+        push R0
+        move R0 [R12+12]
+        move R1 R0
+        push R0
+        move R0 R12
+        sub R0 #1024
+        push R0
+        call wcstombs
+        add R13 #12
+        move R0 R12
+        sub R0 #1024
+        push R0
+        call shared_print_str
+        add R13 #4
+        move R0 #10
+        push R0
+        call shared_putchar
+        add R13 #4
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+printx_ustring:
+; -------------------------------------------
+; source   : void printx_ustring(const unsigned int* ustr)
+; function : printx_ustring
+; param   : const unsigned int* ustr
+; return   : void
+; --------------------------------------------
+printx_ustring:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #1032
+        move R0 #1023
+        move R2 R0
+        push R0
+        move R0 R12
+        sub R0 #1024
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call ucs_to_utf8
+        add R13 #12
+        move R0 R12
+        sub R0 #1024
+        push R0
+        call shared_print_str
+        add R13 #4
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+printlnx_ustring:
+; -------------------------------------------
+; source   : void printlnx_ustring(const unsigned int* ustr)
+; function : printlnx_ustring
+; param   : const unsigned int* ustr
+; return   : void
+; --------------------------------------------
+printlnx_ustring:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #1032
+        move R0 #1023
+        move R2 R0
+        push R0
+        move R0 R12
+        sub R0 #1024
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call ucs_to_utf8
+        add R13 #12
+        move R0 R12
+        sub R0 #1024
+        push R0
+        call shared_print_str
+        add R13 #4
+        move R0 #10
+        push R0
+        call shared_putchar
+        add R13 #4
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+printx_float32:
+; -------------------------------------------
+; source   : void printx_float32(float val)
+; function : printx_float32
+; param   : float val
+; return   : void
+; --------------------------------------------
+printx_float32:
+        push R15
+        push R12
+        move R12 R13
+        syscall #8
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+printlnx_float32:
+; -------------------------------------------
+; source   : void printlnx_float32(float val)
+; function : printlnx_float32
+; param   : float val
+; return   : void
+; --------------------------------------------
+printlnx_float32:
+        push R15
+        push R12
+        move R12 R13
+        syscall #8
+        move [R12-4] R0
+        asm "LOAD R0 #10"
+        syscall #4
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+printx_float64:
+; -------------------------------------------
+; source   : void printx_float64(double val)
+; function : printx_float64
+; param   : double val
+; return   : void
+; --------------------------------------------
+printx_float64:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        moved R0 [R12+12]
+        d2f R0 R0
+        movef [R12-4] R0
+        syscall #8
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+printlnx_float64:
+; -------------------------------------------
+; source   : void printlnx_float64(double val)
+; function : printlnx_float64
+; param   : double val
+; return   : void
+; --------------------------------------------
+printlnx_float64:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        moved R0 [R12+12]
+        d2f R0 R0
+        movef [R12-4] R0
+        syscall #8
+        move [R12-4] R0
+        asm "LOAD R0 #10"
+        syscall #4
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+printx_int64_hex:
+; -------------------------------------------
+; source   : void printx_int64_hex(int hi,int lo)
+; function : printx_int64_hex
+; param   : int hi
+; param   : int lo
+; return   : void
+; --------------------------------------------
+printx_int64_hex:
+        push R15
+        push R12
+        move R12 R13
+        move R0 L35090000
+        push R0
+        call shared_print_str
+        add R13 #4
+        move R0 [R12+12]
+        push R0
+        call shared_print_int
+        add R13 #4
+        move R0 #95
+        push R0
+        call shared_putchar
+        add R13 #4
+        move R0 [R12+16]
+        push R0
+        call shared_print_int
+        add R13 #4
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+printx_nl:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : void printx_nl()
+; function : printx_nl
+; return   : void
+; --------------------------------------------
+printx_nl:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #10
+        push R0
+        call shared_putchar
+        add R13 #4
+        move R13 R12
+        pop R12
+        pop R15
+        ret

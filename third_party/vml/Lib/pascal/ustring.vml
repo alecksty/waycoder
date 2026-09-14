@@ -1,0 +1,3683 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+
+.text
+pascal_ucslen:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        LOAD R0 #0
+        STORE R0 [R12-4]
+sta_3300000:
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #4
+        POP R11
+        ADD R0 R11
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE L3300002
+        MOVE R0 #0
+        JMP L3300003
+L3300002:
+        MOVE R0 #1
+L3300003:
+        CMP R0 #0
+        JZ sta_3300001
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP sta_3300000
+sta_3300001:
+        LOAD R0 [R12-4]
+        JMP L3300004
+L3300004:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_ucscmp:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+sta_3300005:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        TEST R0 R0
+        JZ L3300007
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JE L3300009
+        MOVE R0 #0
+        JMP L3300010
+L3300009:
+        MOVE R0 #1
+L3300010:
+        TEST R0 R0
+        JZ L3300007
+        MOVE R0 #1
+        JMP L3300008
+L3300007:
+        MOVE R0 #0
+L3300008:
+        CMP R0 #0
+        JZ sta_3300006
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        JMP sta_3300005
+sta_3300006:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JE L3300013
+        MOVE R0 #0
+        JMP L3300014
+L3300013:
+        MOVE R0 #1
+L3300014:
+        CMP R0 #0
+        JZ sta_3300011
+        LOAD R0 #0
+        JMP L3300015
+sta_3300011:
+sta_3300012:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JL L3300016
+        MOVE R0 #0
+        JMP L3300017
+L3300016:
+        MOVE R0 #1
+L3300017:
+        TEST R0 R0
+        JZ L3300018
+        LOAD R0 #1
+        LOAD R0 #1
+        NEG R0 R0
+        JMP L3300019
+L3300018:
+        LOAD R0 #1
+L3300019:
+        JMP L3300015
+L3300015:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_ucsncmp:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+20]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE L3300022
+        MOVE R0 #0
+        JMP L3300023
+L3300022:
+        MOVE R0 #1
+L3300023:
+        CMP R0 #0
+        JZ sta_3300020
+        LOAD R0 #0
+        JMP L3300024
+sta_3300020:
+sta_3300021:
+sta_3300025:
+        LOAD R0 [R12+20]
+        LOAD R0 [R12+20]
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        TEST R0 R0
+        JZ L3300029
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        TEST R0 R0
+        JZ L3300029
+        MOVE R0 #1
+        JMP L3300030
+L3300029:
+        MOVE R0 #0
+L3300030:
+        TEST R0 R0
+        JZ L3300027
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JE L3300031
+        MOVE R0 #0
+        JMP L3300032
+L3300031:
+        MOVE R0 #1
+L3300032:
+        TEST R0 R0
+        JZ L3300027
+        MOVE R0 #1
+        JMP L3300028
+L3300027:
+        MOVE R0 #0
+L3300028:
+        CMP R0 #0
+        JZ sta_3300026
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        JMP sta_3300025
+sta_3300026:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JE L3300035
+        MOVE R0 #0
+        JMP L3300036
+L3300035:
+        MOVE R0 #1
+L3300036:
+        CMP R0 #0
+        JZ sta_3300033
+        LOAD R0 #0
+        JMP L3300024
+sta_3300033:
+sta_3300034:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JL L3300037
+        MOVE R0 #0
+        JMP L3300038
+L3300037:
+        MOVE R0 #1
+L3300038:
+        TEST R0 R0
+        JZ L3300039
+        LOAD R0 #1
+        LOAD R0 #1
+        NEG R0 R0
+        JMP L3300040
+L3300039:
+        LOAD R0 #1
+L3300040:
+        JMP L3300024
+L3300024:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_ucscpy:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+sta_3300041:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R10 R0
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        LOAD R0 [R0]
+        STORE R0 [R10]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE L3300043
+        MOVE R0 #0
+        JMP L3300044
+L3300043:
+        MOVE R0 #1
+L3300044:
+        CMP R0 #0
+        JZ sta_3300042
+        JMP sta_3300041
+sta_3300042:
+        LOAD R0 [R12+12]
+        JMP L3300045
+L3300045:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_ucsncpy:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 #0
+        STORE R0 [R12-4]
+sta_3300046:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL L3300051
+        MOVE R0 #0
+        JMP L3300052
+L3300051:
+        MOVE R0 #1
+L3300052:
+        TEST R0 R0
+        JZ L3300049
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #4
+        POP R9
+        ADD R0 R9
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE L3300053
+        MOVE R0 #0
+        JMP L3300054
+L3300053:
+        MOVE R0 #1
+L3300054:
+        TEST R0 R0
+        JZ L3300049
+        MOVE R0 #1
+        JMP L3300050
+L3300049:
+        MOVE R0 #0
+L3300050:
+        CMP R0 #0
+        JZ sta_3300048
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #4
+        POP R8
+        ADD R0 R8
+        LOAD R0 [R0]
+        MOVE R7 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #4
+        POP R6
+        ADD R0 R6
+        STORE R7 [R0]
+sta_3300047:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP sta_3300046
+sta_3300048:
+sta_3300055:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL L3300058
+        MOVE R0 #0
+        JMP L3300059
+L3300058:
+        MOVE R0 #1
+L3300059:
+        CMP R0 #0
+        JZ sta_3300057
+        LOAD R0 #0
+        MOVE R5 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #4
+        POP R4
+        ADD R0 R4
+        STORE R5 [R0]
+sta_3300056:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP sta_3300055
+sta_3300057:
+        LOAD R0 [R12+12]
+        JMP L3300060
+L3300060:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_ucscat:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+sta_3300061:
+        LOAD R0 [R12-4]
+        LOAD R0 [R0]
+        CMP R0 #0
+        JZ sta_3300062
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP sta_3300061
+sta_3300062:
+sta_3300063:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R3 R0
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        LOAD R0 [R0]
+        STORE R0 [R3]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE L3300065
+        MOVE R0 #0
+        JMP L3300066
+L3300065:
+        MOVE R0 #1
+L3300066:
+        CMP R0 #0
+        JZ sta_3300064
+        JMP sta_3300063
+sta_3300064:
+        LOAD R0 [R12+12]
+        JMP L3300067
+L3300067:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_ucsncat:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #16
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+        LOAD R0 #0
+        STORE R0 [R12-8]
+sta_3300068:
+        LOAD R0 [R12-4]
+        LOAD R0 [R0]
+        CMP R0 #0
+        JZ sta_3300069
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP sta_3300068
+sta_3300069:
+sta_3300070:
+        LOAD R0 [R12-8]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL L3300074
+        MOVE R0 #0
+        JMP L3300075
+L3300074:
+        MOVE R0 #1
+L3300075:
+        TEST R0 R0
+        JZ L3300072
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-8]
+        MUL R0 #4
+        POP R2
+        ADD R0 R2
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE L3300076
+        MOVE R0 #0
+        JMP L3300077
+L3300076:
+        MOVE R0 #1
+L3300077:
+        TEST R0 R0
+        JZ L3300072
+        MOVE R0 #1
+        JMP L3300073
+L3300072:
+        MOVE R0 #0
+L3300073:
+        CMP R0 #0
+        JZ sta_3300071
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R1 R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-8]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-8]
+        MOVE R0 R1
+        MUL R0 #4
+        POP R11
+        ADD R0 R11
+        LOAD R0 [R0]
+        STORE R0 [R1]
+        JMP sta_3300070
+sta_3300071:
+        LOAD R0 [R12-4]
+        MOVE R10 R0
+        LOAD R0 #0
+        STORE R0 [R10]
+        LOAD R0 [R12+12]
+        JMP L3300078
+L3300078:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_ucschr:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+sta_3300079:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        CMP R0 #0
+        JZ sta_3300080
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        POP R1
+        CMP R1 R0
+        JE L3300083
+        MOVE R0 #0
+        JMP L3300084
+L3300083:
+        MOVE R0 #1
+L3300084:
+        CMP R0 #0
+        JZ sta_3300081
+        LOAD R0 [R12+12]
+        JMP L3300085
+sta_3300081:
+sta_3300082:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP sta_3300079
+sta_3300080:
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE L3300086
+        MOVE R0 #0
+        JMP L3300087
+L3300086:
+        MOVE R0 #1
+L3300087:
+        TEST R0 R0
+        JZ L3300088
+        LOAD R0 [R12+12]
+        JMP L3300089
+L3300088:
+        LOAD R0 #0
+L3300089:
+        JMP L3300085
+L3300085:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_ucsrchr:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 #0
+        STORE R0 [R12-4]
+sta_3300090:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        CMP R0 #0
+        JZ sta_3300091
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        POP R1
+        CMP R1 R0
+        JE L3300094
+        MOVE R0 #0
+        JMP L3300095
+L3300094:
+        MOVE R0 #1
+L3300095:
+        CMP R0 #0
+        JZ sta_3300092
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+sta_3300092:
+sta_3300093:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP sta_3300090
+sta_3300091:
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE L3300096
+        MOVE R0 #0
+        JMP L3300097
+L3300096:
+        MOVE R0 #1
+L3300097:
+        TEST R0 R0
+        JZ L3300098
+        LOAD R0 [R12+12]
+        JMP L3300099
+L3300098:
+        LOAD R0 [R12-4]
+L3300099:
+        JMP L3300100
+L3300100:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_ucsstr:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #16
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE L3300103
+        MOVE R0 #0
+        JMP L3300104
+L3300103:
+        MOVE R0 #1
+L3300104:
+        CMP R0 #0
+        JZ sta_3300101
+        LOAD R0 [R12+12]
+        JMP L3300105
+sta_3300101:
+sta_3300102:
+sta_3300106:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        CMP R0 #0
+        JZ sta_3300107
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+        LOAD R0 [R12+16]
+        STORE R0 [R12-8]
+sta_3300108:
+        LOAD R0 [R12-4]
+        LOAD R0 [R0]
+        TEST R0 R0
+        JZ L3300112
+        LOAD R0 [R12-8]
+        LOAD R0 [R0]
+        TEST R0 R0
+        JZ L3300112
+        MOVE R0 #1
+        JMP L3300113
+L3300112:
+        MOVE R0 #0
+L3300113:
+        TEST R0 R0
+        JZ L3300110
+        LOAD R0 [R12-4]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12-8]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JE L3300114
+        MOVE R0 #0
+        JMP L3300115
+L3300114:
+        MOVE R0 #1
+L3300115:
+        TEST R0 R0
+        JZ L3300110
+        MOVE R0 #1
+        JMP L3300111
+L3300110:
+        MOVE R0 #0
+L3300111:
+        CMP R0 #0
+        JZ sta_3300109
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        LOAD R0 [R12-8]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-8]
+        MOVE R0 R1
+        JMP sta_3300108
+sta_3300109:
+        LOAD R0 [R12-8]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE L3300118
+        MOVE R0 #0
+        JMP L3300119
+L3300118:
+        MOVE R0 #1
+L3300119:
+        CMP R0 #0
+        JZ sta_3300116
+        LOAD R0 [R12+12]
+        JMP L3300105
+sta_3300116:
+sta_3300117:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP sta_3300106
+sta_3300107:
+        LOAD R0 #0
+        JMP L3300105
+L3300105:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_ucsspn:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #20
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 #0
+        STORE R0 [R12-4]
+sta_3300120:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        CMP R0 #0
+        JZ sta_3300121
+        LOAD R0 [R12+16]
+        STORE R0 [R12-8]
+        LOAD R0 #0
+        STORE R0 [R12-12]
+sta_3300122:
+        LOAD R0 [R12-8]
+        LOAD R0 [R0]
+        CMP R0 #0
+        JZ sta_3300123
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12-8]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JE L3300126
+        MOVE R0 #0
+        JMP L3300127
+L3300126:
+        MOVE R0 #1
+L3300127:
+        CMP R0 #0
+        JZ sta_3300124
+        LOAD R0 #1
+        STORE R0 [R12-12]
+        JMP sta_3300123
+sta_3300124:
+sta_3300125:
+        LOAD R0 [R12-8]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-8]
+        MOVE R0 R1
+        JMP sta_3300122
+sta_3300123:
+        LOAD R0 [R12-12]
+        LOAD R0 [R12-12]
+        TEST R0 R0
+        JZ L3300130
+        MOVE R0 #0
+        JMP L3300131
+L3300130:
+        MOVE R0 #1
+L3300131:
+        CMP R0 #0
+        JZ sta_3300128
+        JMP sta_3300121
+sta_3300128:
+sta_3300129:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP sta_3300120
+sta_3300121:
+        LOAD R0 [R12-4]
+        JMP L3300132
+L3300132:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_ucscspn:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #16
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 #0
+        STORE R0 [R12-4]
+sta_3300133:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        CMP R0 #0
+        JZ sta_3300134
+        LOAD R0 [R12+16]
+        STORE R0 [R12-8]
+sta_3300135:
+        LOAD R0 [R12-8]
+        LOAD R0 [R0]
+        CMP R0 #0
+        JZ sta_3300136
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12-8]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JE L3300139
+        MOVE R0 #0
+        JMP L3300140
+L3300139:
+        MOVE R0 #1
+L3300140:
+        CMP R0 #0
+        JZ sta_3300137
+        LOAD R0 [R12-4]
+        JMP L3300141
+sta_3300137:
+sta_3300138:
+        LOAD R0 [R12-8]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-8]
+        MOVE R0 R1
+        JMP sta_3300135
+sta_3300136:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP sta_3300133
+sta_3300134:
+        LOAD R0 [R12-4]
+        JMP L3300141
+L3300141:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_umemcpy:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+sta_3300142:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ sta_3300143
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R9 R0
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        LOAD R0 [R0]
+        STORE R0 [R9]
+        JMP sta_3300142
+sta_3300143:
+        LOAD R0 [R12+12]
+        JMP L3300144
+L3300144:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_umemset:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+sta_3300145:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ sta_3300146
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R8 R0
+        LOAD R0 [R12+16]
+        STORE R0 [R8]
+        JMP sta_3300145
+sta_3300146:
+        LOAD R0 [R12+12]
+        JMP L3300147
+L3300147:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_umemmove:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+16]
+        POP R1
+        CMP R1 R0
+        JL L3300150
+        MOVE R0 #0
+        JMP L3300151
+L3300150:
+        MOVE R0 #1
+L3300151:
+        CMP R0 #0
+        JZ sta_3300148
+sta_3300152:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ sta_3300153
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R6 R0
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        LOAD R0 [R0]
+        STORE R0 [R6]
+        JMP sta_3300152
+sta_3300153:
+        JMP sta_3300149
+sta_3300148:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        MUL R0 R0 #4
+        POP R1
+        ADD R1 R0
+        MOVE R0 R1
+        STORE R0 [R12-4]
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12+20]
+        MUL R0 R0 #4
+        POP R1
+        ADD R1 R0
+        MOVE R0 R1
+        STORE R0 [R12+16]
+sta_3300154:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ sta_3300155
+        LOAD R0 [R12-4]
+        LOAD R0 [R12-4]
+        SUB R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R7 R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R12+16]
+        SUB R0 R0 #4
+        STORE R0 [R12+16]
+        LOAD R0 [R0]
+        STORE R0 [R7]
+        JMP sta_3300154
+sta_3300155:
+sta_3300149:
+        LOAD R0 [R12+12]
+        JMP L3300156
+L3300156:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+pascal_umemcmp:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+sta_3300157:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ sta_3300158
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JNE L3300161
+        MOVE R0 #0
+        JMP L3300162
+L3300161:
+        MOVE R0 #1
+L3300162:
+        CMP R0 #0
+        JZ sta_3300159
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JL L3300165
+        MOVE R0 #0
+        JMP L3300166
+L3300165:
+        MOVE R0 #1
+L3300166:
+        CMP R0 #0
+        JZ sta_3300163
+        LOAD R0 #1
+        LOAD R0 #1
+        NEG R0 R0
+        JMP L3300167
+sta_3300163:
+sta_3300164:
+        LOAD R0 #1
+        JMP L3300167
+sta_3300159:
+sta_3300160:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        JMP sta_3300157
+sta_3300158:
+        LOAD R0 #0
+        JMP L3300167
+L3300167:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_ucslen:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        LOAD R0 #0
+        STORE R0 [R12-4]
+lib_uchar_sta_43310000:
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #4
+        POP R11
+        ADD R0 R11
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE lib_uchar_L43310002
+        MOVE R0 #0
+        JMP lib_uchar_L43310003
+lib_uchar_L43310002:
+        MOVE R0 #1
+lib_uchar_L43310003:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310001
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310000
+lib_uchar_sta_43310001:
+        LOAD R0 [R12-4]
+        JMP lib_uchar_L43310004
+lib_uchar_L43310004:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_ucscmp:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+lib_uchar_sta_43310005:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        TEST R0 R0
+        JZ lib_uchar_L43310007
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JE lib_uchar_L43310009
+        MOVE R0 #0
+        JMP lib_uchar_L43310010
+lib_uchar_L43310009:
+        MOVE R0 #1
+lib_uchar_L43310010:
+        TEST R0 R0
+        JZ lib_uchar_L43310007
+        MOVE R0 #1
+        JMP lib_uchar_L43310008
+lib_uchar_L43310007:
+        MOVE R0 #0
+lib_uchar_L43310008:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310006
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310005
+lib_uchar_sta_43310006:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JE lib_uchar_L43310013
+        MOVE R0 #0
+        JMP lib_uchar_L43310014
+lib_uchar_L43310013:
+        MOVE R0 #1
+lib_uchar_L43310014:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310011
+        LOAD R0 #0
+        JMP lib_uchar_L43310015
+lib_uchar_sta_43310011:
+lib_uchar_sta_43310012:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310016
+        MOVE R0 #0
+        JMP lib_uchar_L43310017
+lib_uchar_L43310016:
+        MOVE R0 #1
+lib_uchar_L43310017:
+        TEST R0 R0
+        JZ lib_uchar_L43310018
+        LOAD R0 #1
+        LOAD R0 #1
+        NEG R0 R0
+        JMP lib_uchar_L43310019
+lib_uchar_L43310018:
+        LOAD R0 #1
+lib_uchar_L43310019:
+        JMP lib_uchar_L43310015
+lib_uchar_L43310015:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_ucsncmp:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+20]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE lib_uchar_L43310022
+        MOVE R0 #0
+        JMP lib_uchar_L43310023
+lib_uchar_L43310022:
+        MOVE R0 #1
+lib_uchar_L43310023:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310020
+        LOAD R0 #0
+        JMP lib_uchar_L43310024
+lib_uchar_sta_43310020:
+lib_uchar_sta_43310021:
+lib_uchar_sta_43310025:
+        LOAD R0 [R12+20]
+        LOAD R0 [R12+20]
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        TEST R0 R0
+        JZ lib_uchar_L43310029
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        TEST R0 R0
+        JZ lib_uchar_L43310029
+        MOVE R0 #1
+        JMP lib_uchar_L43310030
+lib_uchar_L43310029:
+        MOVE R0 #0
+lib_uchar_L43310030:
+        TEST R0 R0
+        JZ lib_uchar_L43310027
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JE lib_uchar_L43310031
+        MOVE R0 #0
+        JMP lib_uchar_L43310032
+lib_uchar_L43310031:
+        MOVE R0 #1
+lib_uchar_L43310032:
+        TEST R0 R0
+        JZ lib_uchar_L43310027
+        MOVE R0 #1
+        JMP lib_uchar_L43310028
+lib_uchar_L43310027:
+        MOVE R0 #0
+lib_uchar_L43310028:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310026
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310025
+lib_uchar_sta_43310026:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JE lib_uchar_L43310035
+        MOVE R0 #0
+        JMP lib_uchar_L43310036
+lib_uchar_L43310035:
+        MOVE R0 #1
+lib_uchar_L43310036:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310033
+        LOAD R0 #0
+        JMP lib_uchar_L43310024
+lib_uchar_sta_43310033:
+lib_uchar_sta_43310034:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310037
+        MOVE R0 #0
+        JMP lib_uchar_L43310038
+lib_uchar_L43310037:
+        MOVE R0 #1
+lib_uchar_L43310038:
+        TEST R0 R0
+        JZ lib_uchar_L43310039
+        LOAD R0 #1
+        LOAD R0 #1
+        NEG R0 R0
+        JMP lib_uchar_L43310040
+lib_uchar_L43310039:
+        LOAD R0 #1
+lib_uchar_L43310040:
+        JMP lib_uchar_L43310024
+lib_uchar_L43310024:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_ucscpy:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+lib_uchar_sta_43310041:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R10 R0
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        LOAD R0 [R0]
+        STORE R0 [R10]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE lib_uchar_L43310043
+        MOVE R0 #0
+        JMP lib_uchar_L43310044
+lib_uchar_L43310043:
+        MOVE R0 #1
+lib_uchar_L43310044:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310042
+        JMP lib_uchar_sta_43310041
+lib_uchar_sta_43310042:
+        LOAD R0 [R12+12]
+        JMP lib_uchar_L43310045
+lib_uchar_L43310045:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_ucsncpy:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 #0
+        STORE R0 [R12-4]
+lib_uchar_sta_43310046:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310051
+        MOVE R0 #0
+        JMP lib_uchar_L43310052
+lib_uchar_L43310051:
+        MOVE R0 #1
+lib_uchar_L43310052:
+        TEST R0 R0
+        JZ lib_uchar_L43310049
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #4
+        POP R9
+        ADD R0 R9
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE lib_uchar_L43310053
+        MOVE R0 #0
+        JMP lib_uchar_L43310054
+lib_uchar_L43310053:
+        MOVE R0 #1
+lib_uchar_L43310054:
+        TEST R0 R0
+        JZ lib_uchar_L43310049
+        MOVE R0 #1
+        JMP lib_uchar_L43310050
+lib_uchar_L43310049:
+        MOVE R0 #0
+lib_uchar_L43310050:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310048
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #4
+        POP R8
+        ADD R0 R8
+        LOAD R0 [R0]
+        MOVE R7 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #4
+        POP R6
+        ADD R0 R6
+        STORE R7 [R0]
+lib_uchar_sta_43310047:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310046
+lib_uchar_sta_43310048:
+lib_uchar_sta_43310055:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310058
+        MOVE R0 #0
+        JMP lib_uchar_L43310059
+lib_uchar_L43310058:
+        MOVE R0 #1
+lib_uchar_L43310059:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310057
+        LOAD R0 #0
+        MOVE R5 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #4
+        POP R4
+        ADD R0 R4
+        STORE R5 [R0]
+lib_uchar_sta_43310056:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310055
+lib_uchar_sta_43310057:
+        LOAD R0 [R12+12]
+        JMP lib_uchar_L43310060
+lib_uchar_L43310060:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_ucscat:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+lib_uchar_sta_43310061:
+        LOAD R0 [R12-4]
+        LOAD R0 [R0]
+        CMP R0 #0
+        JZ lib_uchar_sta_43310062
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310061
+lib_uchar_sta_43310062:
+lib_uchar_sta_43310063:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R3 R0
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        LOAD R0 [R0]
+        STORE R0 [R3]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE lib_uchar_L43310065
+        MOVE R0 #0
+        JMP lib_uchar_L43310066
+lib_uchar_L43310065:
+        MOVE R0 #1
+lib_uchar_L43310066:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310064
+        JMP lib_uchar_sta_43310063
+lib_uchar_sta_43310064:
+        LOAD R0 [R12+12]
+        JMP lib_uchar_L43310067
+lib_uchar_L43310067:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_ucsncat:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #16
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+        LOAD R0 #0
+        STORE R0 [R12-8]
+lib_uchar_sta_43310068:
+        LOAD R0 [R12-4]
+        LOAD R0 [R0]
+        CMP R0 #0
+        JZ lib_uchar_sta_43310069
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310068
+lib_uchar_sta_43310069:
+lib_uchar_sta_43310070:
+        LOAD R0 [R12-8]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310074
+        MOVE R0 #0
+        JMP lib_uchar_L43310075
+lib_uchar_L43310074:
+        MOVE R0 #1
+lib_uchar_L43310075:
+        TEST R0 R0
+        JZ lib_uchar_L43310072
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-8]
+        MUL R0 #4
+        POP R2
+        ADD R0 R2
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE lib_uchar_L43310076
+        MOVE R0 #0
+        JMP lib_uchar_L43310077
+lib_uchar_L43310076:
+        MOVE R0 #1
+lib_uchar_L43310077:
+        TEST R0 R0
+        JZ lib_uchar_L43310072
+        MOVE R0 #1
+        JMP lib_uchar_L43310073
+lib_uchar_L43310072:
+        MOVE R0 #0
+lib_uchar_L43310073:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310071
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R1 R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-8]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-8]
+        MOVE R0 R1
+        MUL R0 #4
+        POP R11
+        ADD R0 R11
+        LOAD R0 [R0]
+        STORE R0 [R1]
+        JMP lib_uchar_sta_43310070
+lib_uchar_sta_43310071:
+        LOAD R0 [R12-4]
+        MOVE R10 R0
+        LOAD R0 #0
+        STORE R0 [R10]
+        LOAD R0 [R12+12]
+        JMP lib_uchar_L43310078
+lib_uchar_L43310078:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_ucschr:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+lib_uchar_sta_43310079:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE lib_uchar_L43310081
+        MOVE R0 #0
+        JMP lib_uchar_L43310082
+lib_uchar_L43310081:
+        MOVE R0 #1
+lib_uchar_L43310082:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310080
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        POP R1
+        CMP R1 R0
+        JE lib_uchar_L43310085
+        MOVE R0 #0
+        JMP lib_uchar_L43310086
+lib_uchar_L43310085:
+        MOVE R0 #1
+lib_uchar_L43310086:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310083
+        LOAD R0 [R12+12]
+        JMP lib_uchar_L43310087
+lib_uchar_sta_43310083:
+lib_uchar_sta_43310084:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310079
+lib_uchar_sta_43310080:
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE lib_uchar_L43310088
+        MOVE R0 #0
+        JMP lib_uchar_L43310089
+lib_uchar_L43310088:
+        MOVE R0 #1
+lib_uchar_L43310089:
+        TEST R0 R0
+        JZ lib_uchar_L43310090
+        LOAD R0 [R12+12]
+        JMP lib_uchar_L43310091
+lib_uchar_L43310090:
+        LOAD R0 #0
+lib_uchar_L43310091:
+        JMP lib_uchar_L43310087
+lib_uchar_L43310087:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_ucsrchr:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 #0
+        STORE R0 [R12-4]
+lib_uchar_sta_43310092:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JNE lib_uchar_L43310094
+        MOVE R0 #0
+        JMP lib_uchar_L43310095
+lib_uchar_L43310094:
+        MOVE R0 #1
+lib_uchar_L43310095:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310093
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        POP R1
+        CMP R1 R0
+        JE lib_uchar_L43310098
+        MOVE R0 #0
+        JMP lib_uchar_L43310099
+lib_uchar_L43310098:
+        MOVE R0 #1
+lib_uchar_L43310099:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310096
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+lib_uchar_sta_43310096:
+lib_uchar_sta_43310097:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310092
+lib_uchar_sta_43310093:
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE lib_uchar_L43310100
+        MOVE R0 #0
+        JMP lib_uchar_L43310101
+lib_uchar_L43310100:
+        MOVE R0 #1
+lib_uchar_L43310101:
+        TEST R0 R0
+        JZ lib_uchar_L43310102
+        LOAD R0 [R12+12]
+        JMP lib_uchar_L43310103
+lib_uchar_L43310102:
+        LOAD R0 [R12-4]
+lib_uchar_L43310103:
+        JMP lib_uchar_L43310104
+lib_uchar_L43310104:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_ucsstr:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #16
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE lib_uchar_L43310107
+        MOVE R0 #0
+        JMP lib_uchar_L43310108
+lib_uchar_L43310107:
+        MOVE R0 #1
+lib_uchar_L43310108:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310105
+        LOAD R0 [R12+12]
+        JMP lib_uchar_L43310109
+lib_uchar_sta_43310105:
+lib_uchar_sta_43310106:
+lib_uchar_sta_43310110:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        CMP R0 #0
+        JZ lib_uchar_sta_43310111
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+        LOAD R0 [R12+16]
+        STORE R0 [R12-8]
+lib_uchar_sta_43310112:
+        LOAD R0 [R12-4]
+        LOAD R0 [R0]
+        TEST R0 R0
+        JZ lib_uchar_L43310116
+        LOAD R0 [R12-8]
+        LOAD R0 [R0]
+        TEST R0 R0
+        JZ lib_uchar_L43310116
+        MOVE R0 #1
+        JMP lib_uchar_L43310117
+lib_uchar_L43310116:
+        MOVE R0 #0
+lib_uchar_L43310117:
+        TEST R0 R0
+        JZ lib_uchar_L43310114
+        LOAD R0 [R12-4]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12-8]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JE lib_uchar_L43310118
+        MOVE R0 #0
+        JMP lib_uchar_L43310119
+lib_uchar_L43310118:
+        MOVE R0 #1
+lib_uchar_L43310119:
+        TEST R0 R0
+        JZ lib_uchar_L43310114
+        MOVE R0 #1
+        JMP lib_uchar_L43310115
+lib_uchar_L43310114:
+        MOVE R0 #0
+lib_uchar_L43310115:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310113
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        LOAD R0 [R12-8]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-8]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310112
+lib_uchar_sta_43310113:
+        LOAD R0 [R12-8]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JE lib_uchar_L43310122
+        MOVE R0 #0
+        JMP lib_uchar_L43310123
+lib_uchar_L43310122:
+        MOVE R0 #1
+lib_uchar_L43310123:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310120
+        LOAD R0 [R12+12]
+        JMP lib_uchar_L43310109
+lib_uchar_sta_43310120:
+lib_uchar_sta_43310121:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310110
+lib_uchar_sta_43310111:
+        LOAD R0 #0
+        JMP lib_uchar_L43310109
+lib_uchar_L43310109:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_ucsspn:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #20
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 #0
+        STORE R0 [R12-4]
+lib_uchar_sta_43310124:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        CMP R0 #0
+        JZ lib_uchar_sta_43310125
+        LOAD R0 [R12+16]
+        STORE R0 [R12-8]
+        LOAD R0 #0
+        STORE R0 [R12-12]
+lib_uchar_sta_43310126:
+        LOAD R0 [R12-8]
+        LOAD R0 [R0]
+        CMP R0 #0
+        JZ lib_uchar_sta_43310127
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12-8]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JE lib_uchar_L43310130
+        MOVE R0 #0
+        JMP lib_uchar_L43310131
+lib_uchar_L43310130:
+        MOVE R0 #1
+lib_uchar_L43310131:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310128
+        LOAD R0 #1
+        STORE R0 [R12-12]
+        JMP lib_uchar_sta_43310127
+lib_uchar_sta_43310128:
+lib_uchar_sta_43310129:
+        LOAD R0 [R12-8]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-8]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310126
+lib_uchar_sta_43310127:
+        LOAD R0 [R12-12]
+        LOAD R0 [R12-12]
+        TEST R0 R0
+        JZ lib_uchar_L43310134
+        MOVE R0 #0
+        JMP lib_uchar_L43310135
+lib_uchar_L43310134:
+        MOVE R0 #1
+lib_uchar_L43310135:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310132
+        JMP lib_uchar_sta_43310125
+lib_uchar_sta_43310132:
+lib_uchar_sta_43310133:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310124
+lib_uchar_sta_43310125:
+        LOAD R0 [R12-4]
+        JMP lib_uchar_L43310136
+lib_uchar_L43310136:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_ucscspn:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #16
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 #0
+        STORE R0 [R12-4]
+lib_uchar_sta_43310137:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        CMP R0 #0
+        JZ lib_uchar_sta_43310138
+        LOAD R0 [R12+16]
+        STORE R0 [R12-8]
+lib_uchar_sta_43310139:
+        LOAD R0 [R12-8]
+        LOAD R0 [R0]
+        CMP R0 #0
+        JZ lib_uchar_sta_43310140
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12-8]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JE lib_uchar_L43310143
+        MOVE R0 #0
+        JMP lib_uchar_L43310144
+lib_uchar_L43310143:
+        MOVE R0 #1
+lib_uchar_L43310144:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310141
+        LOAD R0 [R12-4]
+        JMP lib_uchar_L43310145
+lib_uchar_sta_43310141:
+lib_uchar_sta_43310142:
+        LOAD R0 [R12-8]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-8]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310139
+lib_uchar_sta_43310140:
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310137
+lib_uchar_sta_43310138:
+        LOAD R0 [R12-4]
+        JMP lib_uchar_L43310145
+lib_uchar_L43310145:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_umemcpy:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+lib_uchar_sta_43310146:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ lib_uchar_sta_43310147
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R9 R0
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        LOAD R0 [R0]
+        STORE R0 [R9]
+        JMP lib_uchar_sta_43310146
+lib_uchar_sta_43310147:
+        LOAD R0 [R12+12]
+        JMP lib_uchar_L43310148
+lib_uchar_L43310148:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_umemset:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+lib_uchar_sta_43310149:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ lib_uchar_sta_43310150
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R8 R0
+        LOAD R0 [R12+16]
+        STORE R0 [R8]
+        JMP lib_uchar_sta_43310149
+lib_uchar_sta_43310150:
+        LOAD R0 [R12+12]
+        JMP lib_uchar_L43310151
+lib_uchar_L43310151:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_umemmove:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #12
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 [R12+12]
+        STORE R0 [R12-4]
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+16]
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310154
+        MOVE R0 #0
+        JMP lib_uchar_L43310155
+lib_uchar_L43310154:
+        MOVE R0 #1
+lib_uchar_L43310155:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310152
+lib_uchar_sta_43310156:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ lib_uchar_sta_43310157
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MOVE R6 R0
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        LOAD R0 [R0]
+        STORE R0 [R6]
+        JMP lib_uchar_sta_43310156
+lib_uchar_sta_43310157:
+        JMP lib_uchar_sta_43310153
+lib_uchar_sta_43310152:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        MUL R0 R0 #4
+        POP R1
+        ADD R1 R0
+        MOVE R0 R1
+        STORE R0 [R12-4]
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12+20]
+        MUL R0 R0 #4
+        POP R1
+        ADD R1 R0
+        MOVE R0 R1
+        STORE R0 [R12+16]
+lib_uchar_sta_43310158:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ lib_uchar_sta_43310159
+        LOAD R0 [R12-4]
+        LOAD R0 [R12-4]
+        SUB R0 R0 #4
+        STORE R0 [R12-4]
+        MOVE R7 R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R12+16]
+        SUB R0 R0 #4
+        STORE R0 [R12+16]
+        LOAD R0 [R0]
+        STORE R0 [R7]
+        JMP lib_uchar_sta_43310158
+lib_uchar_sta_43310159:
+lib_uchar_sta_43310153:
+        LOAD R0 [R12+12]
+        JMP lib_uchar_L43310160
+lib_uchar_L43310160:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_umemcmp:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+lib_uchar_sta_43310161:
+        LOAD R0 [R12+20]
+        MOVE R1 R0
+        SUB R0 R0 #1
+        STORE R0 [R12+20]
+        MOVE R0 R1
+        CMP R0 #0
+        JZ lib_uchar_sta_43310162
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JNE lib_uchar_L43310165
+        MOVE R0 #0
+        JMP lib_uchar_L43310166
+lib_uchar_L43310165:
+        MOVE R0 #1
+lib_uchar_L43310166:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310163
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 [R12+16]
+        LOAD R0 [R0]
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310169
+        MOVE R0 #0
+        JMP lib_uchar_L43310170
+lib_uchar_L43310169:
+        MOVE R0 #1
+lib_uchar_L43310170:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310167
+        LOAD R0 #1
+        LOAD R0 #1
+        NEG R0 R0
+        JMP lib_uchar_L43310171
+lib_uchar_sta_43310167:
+lib_uchar_sta_43310168:
+        LOAD R0 #1
+        JMP lib_uchar_L43310171
+lib_uchar_sta_43310163:
+lib_uchar_sta_43310164:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        LOAD R0 [R12+16]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+16]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310161
+lib_uchar_sta_43310162:
+        LOAD R0 #0
+        JMP lib_uchar_L43310171
+lib_uchar_L43310171:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_c32tombs:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #128
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310174
+        MOVE R0 #0
+        JMP lib_uchar_L43310175
+lib_uchar_L43310174:
+        MOVE R0 #1
+lib_uchar_L43310175:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310172
+        LOAD R0 [R12+16]
+        MOVE R4 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 #0
+        MUL R0 #1
+        POP R5
+        ADD R0 R5
+        STOREB R4 [R0]
+        LOAD R0 #1
+        JMP lib_uchar_L43310176
+        JMP lib_uchar_sta_43310173
+lib_uchar_sta_43310172:
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #2048
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310179
+        MOVE R0 #0
+        JMP lib_uchar_L43310180
+lib_uchar_L43310179:
+        MOVE R0 #1
+lib_uchar_L43310180:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310177
+        LOAD R0 #192
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #6
+        POP R1
+        SHR R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        MOVE R3 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 #0
+        MUL R0 #1
+        POP R2
+        ADD R0 R2
+        STOREB R3 [R0]
+        LOAD R0 #128
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        MOVE R11 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 #1
+        MUL R0 #1
+        POP R1
+        ADD R0 R1
+        STOREB R11 [R0]
+        LOAD R0 #2
+        JMP lib_uchar_L43310176
+        JMP lib_uchar_sta_43310178
+lib_uchar_sta_43310177:
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #65536
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310183
+        MOVE R0 #0
+        JMP lib_uchar_L43310184
+lib_uchar_L43310183:
+        MOVE R0 #1
+lib_uchar_L43310184:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310181
+        LOAD R0 #224
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #12
+        POP R1
+        SHR R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        MOVE R10 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 #0
+        MUL R0 #1
+        POP R9
+        ADD R0 R9
+        STOREB R10 [R0]
+        LOAD R0 #128
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #6
+        POP R1
+        SHR R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        MOVE R8 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 #1
+        MUL R0 #1
+        POP R6
+        ADD R0 R6
+        STOREB R8 [R0]
+        LOAD R0 #128
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        MOVE R7 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 #2
+        MUL R0 #1
+        POP R5
+        ADD R0 R5
+        STOREB R7 [R0]
+        LOAD R0 #3
+        JMP lib_uchar_L43310176
+        JMP lib_uchar_sta_43310182
+lib_uchar_sta_43310181:
+        LOAD R0 #240
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #18
+        POP R1
+        SHR R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        MOVE R4 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 #0
+        MUL R0 #1
+        POP R2
+        ADD R0 R2
+        STOREB R4 [R0]
+        LOAD R0 #128
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #12
+        POP R1
+        SHR R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        MOVE R3 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 #1
+        MUL R0 #1
+        POP R1
+        ADD R0 R1
+        STOREB R3 [R0]
+        LOAD R0 #128
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #6
+        POP R1
+        SHR R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        MOVE R11 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 #2
+        MUL R0 #1
+        POP R9
+        ADD R0 R9
+        STOREB R11 [R0]
+        LOAD R0 #128
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        MOVE R10 R0
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 #3
+        MUL R0 #1
+        POP R6
+        ADD R0 R6
+        STOREB R10 [R0]
+        LOAD R0 #4
+        JMP lib_uchar_L43310176
+lib_uchar_sta_43310182:
+lib_uchar_sta_43310178:
+lib_uchar_sta_43310173:
+lib_uchar_L43310176:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_mbtoc32:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #9
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #0
+        MUL R0 #1
+        POP R8
+        ADD R0 R8
+        LOADB R0 [R0]
+        STOREB R0 [R12-1]
+        LOADB R0 [R12-1]
+        PUSH R0
+        LOAD R0 #128
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310187
+        MOVE R0 #0
+        JMP lib_uchar_L43310188
+lib_uchar_L43310187:
+        MOVE R0 #1
+lib_uchar_L43310188:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310185
+        LOAD R0 [R12+12]
+        MOVE R5 R0
+        LOADB R0 [R12-1]
+        STORE R0 [R5]
+        LOAD R0 #1
+        JMP lib_uchar_L43310189
+        JMP lib_uchar_sta_43310186
+lib_uchar_sta_43310185:
+        LOADB R0 [R12-1]
+        PUSH R0
+        LOAD R0 #224
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #192
+        POP R1
+        CMP R1 R0
+        JE lib_uchar_L43310192
+        MOVE R0 #0
+        JMP lib_uchar_L43310193
+lib_uchar_L43310192:
+        MOVE R0 #1
+lib_uchar_L43310193:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310190
+        LOAD R0 [R12+12]
+        MOVE R7 R0
+        LOADB R0 [R12-1]
+        PUSH R0
+        LOAD R0 #31
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #6
+        POP R1
+        SHL R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #1
+        MUL R0 #1
+        POP R2
+        ADD R0 R2
+        LOADB R0 [R0]
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        STORE R0 [R7]
+        LOAD R0 #2
+        JMP lib_uchar_L43310189
+        JMP lib_uchar_sta_43310191
+lib_uchar_sta_43310190:
+        LOADB R0 [R12-1]
+        PUSH R0
+        LOAD R0 #240
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #224
+        POP R1
+        CMP R1 R0
+        JE lib_uchar_L43310196
+        MOVE R0 #0
+        JMP lib_uchar_L43310197
+lib_uchar_L43310196:
+        MOVE R0 #1
+lib_uchar_L43310197:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310194
+        LOAD R0 [R12+12]
+        MOVE R4 R0
+        LOADB R0 [R12-1]
+        PUSH R0
+        LOAD R0 #15
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #12
+        POP R1
+        SHL R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #1
+        MUL R0 #1
+        POP R1
+        ADD R0 R1
+        LOADB R0 [R0]
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #6
+        POP R1
+        SHL R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #2
+        MUL R0 #1
+        POP R3
+        ADD R0 R3
+        LOADB R0 [R0]
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        STORE R0 [R4]
+        LOAD R0 #3
+        JMP lib_uchar_L43310189
+        JMP lib_uchar_sta_43310195
+lib_uchar_sta_43310194:
+        LOADB R0 [R12-1]
+        PUSH R0
+        LOAD R0 #248
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #240
+        POP R1
+        CMP R1 R0
+        JE lib_uchar_L43310200
+        MOVE R0 #0
+        JMP lib_uchar_L43310201
+lib_uchar_L43310200:
+        MOVE R0 #1
+lib_uchar_L43310201:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310198
+        LOAD R0 [R12+12]
+        MOVE R9 R0
+        LOADB R0 [R12-1]
+        PUSH R0
+        LOAD R0 #7
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #18
+        POP R1
+        SHL R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #1
+        MUL R0 #1
+        POP R11
+        ADD R0 R11
+        LOADB R0 [R0]
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #12
+        POP R1
+        SHL R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #2
+        MUL R0 #1
+        POP R6
+        ADD R0 R6
+        LOADB R0 [R0]
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #6
+        POP R1
+        SHL R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 #3
+        MUL R0 #1
+        POP R10
+        ADD R0 R10
+        LOADB R0 [R0]
+        PUSH R0
+        LOAD R0 #63
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        STORE R0 [R9]
+        LOAD R0 #4
+        JMP lib_uchar_L43310189
+lib_uchar_sta_43310198:
+lib_uchar_sta_43310199:
+lib_uchar_sta_43310195:
+lib_uchar_sta_43310191:
+lib_uchar_sta_43310186:
+        LOAD R0 #1
+        LOAD R0 #1
+        NEG R0 R0
+        JMP lib_uchar_L43310189
+lib_uchar_L43310189:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_ucs_to_utf8:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #28
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 #0
+        STORE R0 [R12-4]
+lib_uchar_sta_43310202:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        CMP R0 #0
+        JZ lib_uchar_sta_43310203
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        MOVE R1 R0
+        PUSH R0
+        MOVE R0 R12
+        SUB R0 #12
+        PUSH R0
+        CALL lib_uchar_c32tombs
+        ADD R13 #8
+        STORE R0 [R12-16]
+        LOAD R0 [R12-16]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310209
+        MOVE R0 #0
+        JMP lib_uchar_L43310210
+lib_uchar_L43310209:
+        MOVE R0 #1
+lib_uchar_L43310210:
+        TEST R0 R0
+        JNZ lib_uchar_L43310206
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12-16]
+        POP R1
+        ADD R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JGE lib_uchar_L43310211
+        MOVE R0 #0
+        JMP lib_uchar_L43310212
+lib_uchar_L43310211:
+        MOVE R0 #1
+lib_uchar_L43310212:
+        TEST R0 R0
+        JZ lib_uchar_L43310207
+lib_uchar_L43310206:
+        MOVE R0 #1
+        JMP lib_uchar_L43310208
+lib_uchar_L43310207:
+        MOVE R0 #0
+lib_uchar_L43310208:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310204
+        JMP lib_uchar_sta_43310203
+lib_uchar_sta_43310204:
+lib_uchar_sta_43310205:
+        LOAD R0 #0
+        STORE R0 [R12-20]
+lib_uchar_sta_43310213:
+        LOAD R0 [R12-20]
+        PUSH R0
+        LOAD R0 [R12-16]
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310216
+        MOVE R0 #0
+        JMP lib_uchar_L43310217
+lib_uchar_L43310216:
+        MOVE R0 #1
+lib_uchar_L43310217:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310215
+        MOVE R0 R12
+        SUB R0 #12
+        PUSH R0
+        MOVE R8 #0
+        PUSH R8
+        LOAD R0 [R12-20]
+        POP R8
+        MOVE R8 R0
+        MOVE R0 R8
+        MUL R0 #1
+        POP R5
+        ADD R0 R5
+        LOADB R0 [R0]
+        MOVE R2 R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MUL R0 #1
+        POP R7
+        ADD R0 R7
+        STOREB R2 [R0]
+lib_uchar_sta_43310214:
+        LOAD R0 [R12-20]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-20]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310213
+lib_uchar_sta_43310215:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310202
+lib_uchar_sta_43310203:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310220
+        MOVE R0 #0
+        JMP lib_uchar_L43310221
+lib_uchar_L43310220:
+        MOVE R0 #1
+lib_uchar_L43310221:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310218
+        LOAD R0 #0
+        MOVE R1 R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #1
+        POP R3
+        ADD R0 R3
+        STOREB R1 [R0]
+lib_uchar_sta_43310218:
+lib_uchar_sta_43310219:
+        LOAD R0 [R12-4]
+        JMP lib_uchar_L43310222
+lib_uchar_L43310222:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_utf8_to_ucs:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #16
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 #0
+        STORE R0 [R12-4]
+lib_uchar_sta_43310223:
+        LOAD R0 [R12+12]
+        LOADB R0 [R0]
+        TEST R0 R0
+        JZ lib_uchar_L43310225
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        PUSH R0
+        LOAD R0 #1
+        POP R1
+        SUB R1 R0
+        MOVE R0 R1
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310227
+        MOVE R0 #0
+        JMP lib_uchar_L43310228
+lib_uchar_L43310227:
+        MOVE R0 #1
+lib_uchar_L43310228:
+        TEST R0 R0
+        JZ lib_uchar_L43310225
+        MOVE R0 #1
+        JMP lib_uchar_L43310226
+lib_uchar_L43310225:
+        MOVE R0 #0
+lib_uchar_L43310226:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310224
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        PUSH R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #4
+        POP R4
+        ADD R0 R4
+        PUSH R0
+        CALL lib_uchar_mbtoc32
+        ADD R13 #8
+        STORE R0 [R12-8]
+        LOAD R0 [R12-8]
+        PUSH R0
+        LOAD R0 #0
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310231
+        MOVE R0 #0
+        JMP lib_uchar_L43310232
+lib_uchar_L43310231:
+        MOVE R0 #1
+lib_uchar_L43310232:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310229
+        JMP lib_uchar_sta_43310224
+lib_uchar_sta_43310229:
+lib_uchar_sta_43310230:
+        LOAD R0 [R12+12]
+        PUSH R0
+        LOAD R0 [R12-8]
+        POP R1
+        ADD R1 R0
+        MOVE R0 R1
+        STORE R0 [R12+12]
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310223
+lib_uchar_sta_43310224:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310235
+        MOVE R0 #0
+        JMP lib_uchar_L43310236
+lib_uchar_L43310235:
+        MOVE R0 #1
+lib_uchar_L43310236:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310233
+        LOAD R0 #0
+        MOVE R11 R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #4
+        POP R6
+        ADD R0 R6
+        STORE R11 [R0]
+lib_uchar_sta_43310233:
+lib_uchar_sta_43310234:
+        LOAD R0 [R12-4]
+        JMP lib_uchar_L43310237
+lib_uchar_L43310237:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_ucs_to_wcs:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #16
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 #0
+        STORE R0 [R12-4]
+lib_uchar_sta_43310238:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        TEST R0 R0
+        JZ lib_uchar_L43310240
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        PUSH R0
+        LOAD R0 #1
+        POP R1
+        SUB R1 R0
+        MOVE R0 R1
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310242
+        MOVE R0 #0
+        JMP lib_uchar_L43310243
+lib_uchar_L43310242:
+        MOVE R0 #1
+lib_uchar_L43310243:
+        TEST R0 R0
+        JZ lib_uchar_L43310240
+        MOVE R0 #1
+        JMP lib_uchar_L43310241
+lib_uchar_L43310240:
+        MOVE R0 #0
+lib_uchar_L43310241:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310239
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 #65535
+        POP R1
+        CMP R1 R0
+        JLE lib_uchar_L43310246
+        MOVE R0 #0
+        JMP lib_uchar_L43310247
+lib_uchar_L43310246:
+        MOVE R0 #1
+lib_uchar_L43310247:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310244
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        MOVE R10 R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MUL R0 #2
+        POP R9
+        ADD R0 R9
+        STOREH R10 [R0]
+        JMP lib_uchar_sta_43310245
+lib_uchar_sta_43310244:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 #1
+        POP R1
+        ADD R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 [R12+20]
+        PUSH R0
+        LOAD R0 #1
+        POP R1
+        SUB R1 R0
+        MOVE R0 R1
+        POP R1
+        CMP R1 R0
+        JGE lib_uchar_L43310250
+        MOVE R0 #0
+        JMP lib_uchar_L43310251
+lib_uchar_L43310250:
+        MOVE R0 #1
+lib_uchar_L43310251:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310248
+        JMP lib_uchar_sta_43310239
+lib_uchar_sta_43310248:
+lib_uchar_sta_43310249:
+        LOAD R0 [R12+12]
+        LOAD R0 [R0]
+        PUSH R0
+        LOAD R0 #65536
+        POP R1
+        SUB R1 R0
+        MOVE R0 R1
+        STORE R0 [R12-8]
+        LOAD R0 #55296
+        PUSH R0
+        LOAD R0 [R12-8]
+        PUSH R0
+        LOAD R0 #10
+        POP R1
+        SHR R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        MOVE R8 R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MUL R0 #2
+        POP R5
+        ADD R0 R5
+        STOREH R8 [R0]
+        LOAD R0 #56320
+        PUSH R0
+        LOAD R0 [R12-8]
+        PUSH R0
+        LOAD R0 #1023
+        POP R1
+        AND R1 R0
+        MOVE R0 R1
+        POP R1
+        OR R1 R0
+        MOVE R0 R1
+        MOVE R7 R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MUL R0 #2
+        POP R2
+        ADD R0 R2
+        STOREH R7 [R0]
+lib_uchar_sta_43310245:
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #4
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310238
+lib_uchar_sta_43310239:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310254
+        MOVE R0 #0
+        JMP lib_uchar_L43310255
+lib_uchar_L43310254:
+        MOVE R0 #1
+lib_uchar_L43310255:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310252
+        LOAD R0 #0
+        MOVE R3 R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #2
+        POP R1
+        ADD R0 R1
+        STOREH R3 [R0]
+lib_uchar_sta_43310252:
+lib_uchar_sta_43310253:
+        LOAD R0 [R12-4]
+        JMP lib_uchar_L43310256
+lib_uchar_L43310256:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_uchar_wcs_to_ucs:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #16
+        STORE [R12+12] R0
+        STORE [R12+16] R1
+        STORE [R12+20] R2
+        LOAD R0 #0
+        STORE R0 [R12-4]
+lib_uchar_sta_43310257:
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        TEST R0 R0
+        JZ lib_uchar_L43310259
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        PUSH R0
+        LOAD R0 #1
+        POP R1
+        SUB R1 R0
+        MOVE R0 R1
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310261
+        MOVE R0 #0
+        JMP lib_uchar_L43310262
+lib_uchar_L43310261:
+        MOVE R0 #1
+lib_uchar_L43310262:
+        TEST R0 R0
+        JZ lib_uchar_L43310259
+        MOVE R0 #1
+        JMP lib_uchar_L43310260
+lib_uchar_L43310259:
+        MOVE R0 #0
+lib_uchar_L43310260:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310258
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        STOREH R0 [R12-6]
+        LOADH R0 [R12-6]
+        PUSH R0
+        LOAD R0 #55296
+        POP R1
+        CMP R1 R0
+        JGE lib_uchar_L43310267
+        MOVE R0 #0
+        JMP lib_uchar_L43310268
+lib_uchar_L43310267:
+        MOVE R0 #1
+lib_uchar_L43310268:
+        TEST R0 R0
+        JZ lib_uchar_L43310265
+        LOADH R0 [R12-6]
+        PUSH R0
+        LOAD R0 #56319
+        POP R1
+        CMP R1 R0
+        JLE lib_uchar_L43310269
+        MOVE R0 #0
+        JMP lib_uchar_L43310270
+lib_uchar_L43310269:
+        MOVE R0 #1
+lib_uchar_L43310270:
+        TEST R0 R0
+        JZ lib_uchar_L43310265
+        MOVE R0 #1
+        JMP lib_uchar_L43310266
+lib_uchar_L43310265:
+        MOVE R0 #0
+lib_uchar_L43310266:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310263
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        LOAD R0 [R12+12]
+        LOADH R0 [R0]
+        STOREH R0 [R12-8]
+        LOADH R0 [R12-8]
+        PUSH R0
+        LOAD R0 #56320
+        POP R1
+        CMP R1 R0
+        JGE lib_uchar_L43310275
+        MOVE R0 #0
+        JMP lib_uchar_L43310276
+lib_uchar_L43310275:
+        MOVE R0 #1
+lib_uchar_L43310276:
+        TEST R0 R0
+        JZ lib_uchar_L43310273
+        LOADH R0 [R12-8]
+        PUSH R0
+        LOAD R0 #57343
+        POP R1
+        CMP R1 R0
+        JLE lib_uchar_L43310277
+        MOVE R0 #0
+        JMP lib_uchar_L43310278
+lib_uchar_L43310277:
+        MOVE R0 #1
+lib_uchar_L43310278:
+        TEST R0 R0
+        JZ lib_uchar_L43310273
+        MOVE R0 #1
+        JMP lib_uchar_L43310274
+lib_uchar_L43310273:
+        MOVE R0 #0
+lib_uchar_L43310274:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310271
+        LOAD R0 #65536
+        PUSH R0
+        LOADH R0 [R12-6]
+        PUSH R0
+        LOAD R0 #55296
+        POP R1
+        SUB R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOAD R0 #10
+        POP R1
+        SHL R1 R0
+        MOVE R0 R1
+        POP R1
+        ADD R1 R0
+        MOVE R0 R1
+        PUSH R0
+        LOADH R0 [R12-8]
+        PUSH R0
+        LOAD R0 #56320
+        POP R1
+        SUB R1 R0
+        MOVE R0 R1
+        POP R1
+        ADD R1 R0
+        MOVE R0 R1
+        MOVE R4 R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MUL R0 #4
+        POP R6
+        ADD R0 R6
+        STORE R4 [R0]
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310257
+lib_uchar_sta_43310271:
+lib_uchar_sta_43310272:
+        LOADH R0 [R12-6]
+        MOVE R11 R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MUL R0 #4
+        POP R9
+        ADD R0 R9
+        STORE R11 [R0]
+        JMP lib_uchar_sta_43310264
+lib_uchar_sta_43310263:
+        LOADH R0 [R12-6]
+        PUSH R0
+        LOAD R0 #56320
+        POP R1
+        CMP R1 R0
+        JGE lib_uchar_L43310283
+        MOVE R0 #0
+        JMP lib_uchar_L43310284
+lib_uchar_L43310283:
+        MOVE R0 #1
+lib_uchar_L43310284:
+        TEST R0 R0
+        JZ lib_uchar_L43310281
+        LOADH R0 [R12-6]
+        PUSH R0
+        LOAD R0 #57343
+        POP R1
+        CMP R1 R0
+        JLE lib_uchar_L43310285
+        MOVE R0 #0
+        JMP lib_uchar_L43310286
+lib_uchar_L43310285:
+        MOVE R0 #1
+lib_uchar_L43310286:
+        TEST R0 R0
+        JZ lib_uchar_L43310281
+        MOVE R0 #1
+        JMP lib_uchar_L43310282
+lib_uchar_L43310281:
+        MOVE R0 #0
+lib_uchar_L43310282:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310279
+        LOADH R0 [R12-6]
+        MOVE R10 R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MUL R0 #4
+        POP R5
+        ADD R0 R5
+        STORE R10 [R0]
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+        JMP lib_uchar_sta_43310280
+lib_uchar_sta_43310279:
+        LOADH R0 [R12-6]
+        MOVE R8 R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MOVE R1 R0
+        ADD R0 R0 #1
+        STORE R0 [R12-4]
+        MOVE R0 R1
+        MUL R0 #4
+        POP R2
+        ADD R0 R2
+        STORE R8 [R0]
+        LOAD R0 [R12+12]
+        MOVE R1 R0
+        ADD R0 R0 #2
+        STORE R0 [R12+12]
+        MOVE R0 R1
+lib_uchar_sta_43310280:
+lib_uchar_sta_43310264:
+        JMP lib_uchar_sta_43310257
+lib_uchar_sta_43310258:
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12+20]
+        POP R1
+        CMP R1 R0
+        JL lib_uchar_L43310289
+        MOVE R0 #0
+        JMP lib_uchar_L43310290
+lib_uchar_L43310289:
+        MOVE R0 #1
+lib_uchar_L43310290:
+        CMP R0 #0
+        JZ lib_uchar_sta_43310287
+        LOAD R0 #0
+        MOVE R7 R0
+        LOAD R0 [R12+16]
+        PUSH R0
+        LOAD R0 [R12-4]
+        MUL R0 #4
+        POP R1
+        ADD R0 R1
+        STORE R7 [R0]
+lib_uchar_sta_43310287:
+lib_uchar_sta_43310288:
+        LOAD R0 [R12-4]
+        JMP lib_uchar_L43310291
+lib_uchar_L43310291:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET

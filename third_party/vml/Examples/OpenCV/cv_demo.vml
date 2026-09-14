@@ -1,0 +1,60 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+lib_path: .string "ocv_display"
+name_demo: .string "ocv_demo"
+
+.text
+main:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        CALL lib_ocv_display_ocv_demo
+        JMP L0
+        SYSCALL #3
+L0:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+lib_ocv_display_LADDER_OCV_DEMO:
+lib_ocv_display_word_ocv_demo:
+lib_ocv_display_method_ocv_demo:
+lib_ocv_display_sub_ocv_demo:
+lib_ocv_display_func_ocv_demo:
+lib_ocv_display_ocv_demo_impl:
+lib_ocv_display_ocv_demo:
+        LOAD R0 #57392
+        LOAD [R0] R1
+        LOAD R2 #1
+        CMP R1 R2
+        JZ lib_ocv_display_call_demo
+        LOAD R0 lib_path
+        SYSCALL #370
+        CMP R0 #0
+        JGE lib_ocv_display_dl_ok
+        JMP ocv_init_done
+lib_ocv_display_dl_ok:
+        LOAD R12 #57344
+        STORE [R12] R0
+        LOAD R12 #57348
+        LOAD R0 [57344]
+        LOAD R1 name_demo
+        SYSCALL #371
+        STORE [R12] R0
+        LOAD R0 #1
+        LOAD R12 #57392
+        STORE [R12] R0
+        LOAD R12 #57856
+        LOAD R10 #0
+        STORE [R12] R10
+lib_ocv_display_call_demo:
+        LOAD R0 [57348]
+        LOAD R1 #57376
+        LOAD R2 #57856
+        LOAD R3 #0
+        LOAD R4 #0
+        SYSCALL #376
+        RET

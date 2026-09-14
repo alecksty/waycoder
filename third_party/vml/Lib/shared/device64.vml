@@ -1,0 +1,63 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+
+.text
+ldev_read64:
+        push R15
+        push R12
+        move R12 R13
+        movel R0 [R12+28]
+        l2i R0 R0
+        move R3 R0
+        push R0
+        movel R0 [R12+20]
+        l2i R0 R0
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call dev_read
+        add R13 #16
+        jmp L5480000
+L5480000:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #20
+        push R1
+        ret
+ldev_write64:
+        push R15
+        push R12
+        move R12 R13
+        movel R0 [R12+28]
+        l2i R0 R0
+        move R3 R0
+        push R0
+        movel R0 [R12+20]
+        l2i R0 R0
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call dev_write
+        add R13 #16
+        jmp L5480001
+L5480001:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #20
+        push R1
+        ret

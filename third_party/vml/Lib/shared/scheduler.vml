@@ -1,0 +1,1021 @@
+
+.linked "swtimer.vml"
+.data
+
+.text
+init:
+; -------------------------------------------
+; source   : void init(int* tasks)
+; function : init
+; param   : int* tasks
+; return   : void
+; --------------------------------------------
+init:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L4690002
+        move R0 #0
+        jmp _L4690003
+_L4690002:
+        move R0 #1
+_L4690003:
+        cmp R0 #0
+        jz sta_4690000
+        jmp L4690004
+sta_4690000:
+sta_4690001:
+        move R0 #0
+        move [R12-4] R0
+sta_4690005:
+        move R0 [R12-4]
+        push R0
+        move R0 #8
+        pop R1
+        cmp R1 R0
+        jl _L4690008
+        move R0 #0
+        jmp _L4690009
+_L4690008:
+        move R0 #1
+_L4690009:
+        cmp R0 #0
+        jz sta_4690007
+        move R0 #0
+        move R11 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R10
+        add R0 R10
+        move [R0] R11
+        move R0 #0
+        move R9 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R8
+        add R0 R8
+        move [R0] R9
+        move R0 #0
+        move R7 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #2
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R6
+        add R0 R6
+        move [R0] R7
+        move R0 #0
+        move R5 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #3
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R4
+        add R0 R4
+        move [R0] R5
+        move R0 #0
+        move R3 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #4
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R2
+        add R0 R2
+        move [R0] R3
+sta_4690006:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_4690005
+sta_4690007:
+L4690004:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+add_task:
+; -------------------------------------------
+; source   : int add_task(int* tasks,int period,int priority,int func_addr,int state_ptr)
+; function : add_task
+; param   : int* tasks
+; param   : int period
+; param   : int priority
+; param   : int func_addr
+; param   : int state_ptr
+; return   : int
+; --------------------------------------------
+add_task:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L4690015
+        move R0 #0
+        jmp _L4690016
+_L4690015:
+        move R0 #1
+_L4690016:
+        test R0 R0
+        jnz _L4690012
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jle _L4690017
+        move R0 #0
+        jmp _L4690018
+_L4690017:
+        move R0 #1
+_L4690018:
+        test R0 R0
+        jz _L4690013
+_L4690012:
+        move R0 #1
+        jmp _L4690014
+_L4690013:
+        move R0 #0
+_L4690014:
+        cmp R0 #0
+        jz sta_4690010
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        jmp L4690019
+sta_4690010:
+sta_4690011:
+        move R0 #0
+        move [R12-4] R0
+sta_4690020:
+        move R0 [R12-4]
+        push R0
+        move R0 #8
+        pop R1
+        cmp R1 R0
+        jl _L4690023
+        move R0 #0
+        jmp _L4690024
+_L4690023:
+        move R0 #1
+_L4690024:
+        cmp R0 #0
+        jz sta_4690022
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #4
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R1
+        add R0 R1
+        move R0 [R0]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L4690027
+        move R0 #0
+        jmp _L4690028
+_L4690027:
+        move R0 #1
+_L4690028:
+        cmp R0 #0
+        jz sta_4690025
+        move R0 [R12+16]
+        move R10 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R11
+        add R0 R11
+        move [R0] R10
+        move R0 #0
+        move R8 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R9
+        add R0 R9
+        move [R0] R8
+        move R0 [R12+24]
+        move R6 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #2
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R7
+        add R0 R7
+        move [R0] R6
+        move R0 [R12+28]
+        move R4 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #3
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R5
+        add R0 R5
+        move [R0] R4
+        move R0 [R12+20]
+        move R2 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #4
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R3
+        add R0 R3
+        move [R0] R2
+        move R0 [R12-4]
+        jmp L4690019
+sta_4690025:
+sta_4690026:
+sta_4690021:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_4690020
+sta_4690022:
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        jmp L4690019
+L4690019:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #24
+        push R1
+        ret
+task:
+; -------------------------------------------
+; source   : void task(int* tasks,int task_id)
+; function : task
+; param   : int* tasks
+; param   : int task_id
+; return   : void
+; --------------------------------------------
+task:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L4690037
+        move R0 #0
+        jmp _L4690038
+_L4690037:
+        move R0 #1
+_L4690038:
+        test R0 R0
+        jnz _L4690034
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L4690039
+        move R0 #0
+        jmp _L4690040
+_L4690039:
+        move R0 #1
+_L4690040:
+        test R0 R0
+        jz _L4690035
+_L4690034:
+        move R0 #1
+        jmp _L4690036
+_L4690035:
+        move R0 #0
+_L4690036:
+        test R0 R0
+        jnz _L4690031
+        move R0 [R12+16]
+        push R0
+        move R0 #8
+        pop R1
+        cmp R1 R0
+        jge _L4690041
+        move R0 #0
+        jmp _L4690042
+_L4690041:
+        move R0 #1
+_L4690042:
+        test R0 R0
+        jz _L4690032
+_L4690031:
+        move R0 #1
+        jmp _L4690033
+_L4690032:
+        move R0 #0
+_L4690033:
+        cmp R0 #0
+        jz sta_4690029
+        jmp L4690043
+sta_4690029:
+sta_4690030:
+        move R0 #0
+        move R1 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #4
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R11
+        add R0 R11
+        move [R0] R1
+L4690043:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+set_period:
+; -------------------------------------------
+; source   : void set_period(int* tasks,int task_id,int period)
+; function : set_period
+; param   : int* tasks
+; param   : int task_id
+; param   : int period
+; return   : void
+; --------------------------------------------
+set_period:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L4690055
+        move R0 #0
+        jmp _L4690056
+_L4690055:
+        move R0 #1
+_L4690056:
+        test R0 R0
+        jnz _L4690052
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L4690057
+        move R0 #0
+        jmp _L4690058
+_L4690057:
+        move R0 #1
+_L4690058:
+        test R0 R0
+        jz _L4690053
+_L4690052:
+        move R0 #1
+        jmp _L4690054
+_L4690053:
+        move R0 #0
+_L4690054:
+        test R0 R0
+        jnz _L4690049
+        move R0 [R12+16]
+        push R0
+        move R0 #8
+        pop R1
+        cmp R1 R0
+        jge _L4690059
+        move R0 #0
+        jmp _L4690060
+_L4690059:
+        move R0 #1
+_L4690060:
+        test R0 R0
+        jz _L4690050
+_L4690049:
+        move R0 #1
+        jmp _L4690051
+_L4690050:
+        move R0 #0
+_L4690051:
+        test R0 R0
+        jnz _L4690046
+        move R0 [R12+20]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jle _L4690061
+        move R0 #0
+        jmp _L4690062
+_L4690061:
+        move R0 #1
+_L4690062:
+        test R0 R0
+        jz _L4690047
+_L4690046:
+        move R0 #1
+        jmp _L4690048
+_L4690047:
+        move R0 #0
+_L4690048:
+        cmp R0 #0
+        jz sta_4690044
+        jmp L4690063
+sta_4690044:
+sta_4690045:
+        move R0 [R12+20]
+        move R10 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R9
+        add R0 R9
+        move [R0] R10
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R8
+        add R0 R8
+        move R0 [R0]
+        push R0
+        move R0 [R12+20]
+        pop R1
+        cmp R1 R0
+        jg _L4690066
+        move R0 #0
+        jmp _L4690067
+_L4690066:
+        move R0 #1
+_L4690067:
+        cmp R0 #0
+        jz sta_4690064
+        move R0 [R12+20]
+        move R7 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R6
+        add R0 R6
+        move [R0] R7
+sta_4690064:
+sta_4690065:
+L4690063:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #16
+        push R1
+        ret
+run:
+; -------------------------------------------
+; source   : int run(int* tasks)
+; function : run
+; param   : int* tasks
+; return   : int
+; --------------------------------------------
+run:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #24
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L4690070
+        move R0 #0
+        jmp _L4690071
+_L4690070:
+        move R0 #1
+_L4690071:
+        cmp R0 #0
+        jz sta_4690068
+        move R0 #0
+        jmp L4690072
+sta_4690068:
+sta_4690069:
+        move R0 #0
+        move [R12-4] R0
+        move R0 #0
+        move [R12-8] R0
+sta_4690073:
+        move R0 [R12-8]
+        push R0
+        move R0 #8
+        pop R1
+        cmp R1 R0
+        jl _L4690076
+        move R0 #0
+        jmp _L4690077
+_L4690076:
+        move R0 #1
+_L4690077:
+        cmp R0 #0
+        jz sta_4690075
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-8]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #4
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R5
+        add R0 R5
+        move R0 [R0]
+        move [R12-12] R0
+        move R0 [R12-12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L4690080
+        move R0 #0
+        jmp _L4690081
+_L4690080:
+        move R0 #1
+_L4690081:
+        cmp R0 #0
+        jz sta_4690078
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-8]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R4
+        add R0 R4
+        move R0 [R0]
+        move [R12-16] R0
+        move R0 [R12-16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L4690084
+        move R0 #0
+        jmp _L4690085
+_L4690084:
+        move R0 #1
+_L4690085:
+        cmp R0 #0
+        jz sta_4690082
+        move R0 [R12-16]
+        move R1 R0
+        sub R0 R0 #1
+        move [R12-16] R0
+        move R0 R1
+sta_4690082:
+sta_4690083:
+        move R0 [R12-16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jle _L4690088
+        move R0 #0
+        jmp _L4690089
+_L4690088:
+        move R0 #1
+_L4690089:
+        cmp R0 #0
+        jz sta_4690086
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        push R0
+        move R0 [R12-8]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-8]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R3
+        add R0 R3
+        move R0 [R0]
+        move [R12-16] R0
+sta_4690086:
+sta_4690087:
+        move R0 [R12-16]
+        move R2 R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-8]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R11
+        add R0 R11
+        move [R0] R2
+sta_4690078:
+sta_4690079:
+sta_4690074:
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        jmp sta_4690073
+sta_4690075:
+        move R0 [R12-4]
+        jmp L4690072
+L4690072:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+get_func:
+; -------------------------------------------
+; source   : int get_func(int* tasks,int task_id)
+; function : get_func
+; param   : int* tasks
+; param   : int task_id
+; return   : int
+; --------------------------------------------
+get_func:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L4690098
+        move R0 #0
+        jmp _L4690099
+_L4690098:
+        move R0 #1
+_L4690099:
+        test R0 R0
+        jnz _L4690095
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L4690100
+        move R0 #0
+        jmp _L4690101
+_L4690100:
+        move R0 #1
+_L4690101:
+        test R0 R0
+        jz _L4690096
+_L4690095:
+        move R0 #1
+        jmp _L4690097
+_L4690096:
+        move R0 #0
+_L4690097:
+        test R0 R0
+        jnz _L4690092
+        move R0 [R12+16]
+        push R0
+        move R0 #8
+        pop R1
+        cmp R1 R0
+        jge _L4690102
+        move R0 #0
+        jmp _L4690103
+_L4690102:
+        move R0 #1
+_L4690103:
+        test R0 R0
+        jz _L4690093
+_L4690092:
+        move R0 #1
+        jmp _L4690094
+_L4690093:
+        move R0 #0
+_L4690094:
+        cmp R0 #0
+        jz sta_4690090
+        move R0 #0
+        jmp L4690104
+sta_4690090:
+sta_4690091:
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #2
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R1
+        add R0 R1
+        move R0 [R0]
+        jmp L4690104
+L4690104:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+get_state:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int get_state(int* tasks,int task_id)
+; function : get_state
+; param   : int* tasks
+; param   : int task_id
+; return   : int
+; --------------------------------------------
+get_state:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L4690113
+        move R0 #0
+        jmp _L4690114
+_L4690113:
+        move R0 #1
+_L4690114:
+        test R0 R0
+        jnz _L4690110
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L4690115
+        move R0 #0
+        jmp _L4690116
+_L4690115:
+        move R0 #1
+_L4690116:
+        test R0 R0
+        jz _L4690111
+_L4690110:
+        move R0 #1
+        jmp _L4690112
+_L4690111:
+        move R0 #0
+_L4690112:
+        test R0 R0
+        jnz _L4690107
+        move R0 [R12+16]
+        push R0
+        move R0 #8
+        pop R1
+        cmp R1 R0
+        jge _L4690117
+        move R0 #0
+        jmp _L4690118
+_L4690117:
+        move R0 #1
+_L4690118:
+        test R0 R0
+        jz _L4690108
+_L4690107:
+        move R0 #1
+        jmp _L4690109
+_L4690108:
+        move R0 #0
+_L4690109:
+        cmp R0 #0
+        jz sta_4690105
+        move R0 #0
+        jmp L4690119
+sta_4690105:
+sta_4690106:
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #5
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #3
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R9
+        add R0 R9
+        move R0 [R0]
+        jmp L4690119
+L4690119:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret

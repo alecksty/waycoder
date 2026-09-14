@@ -1,0 +1,28 @@
+﻿! MCP3008 设备定义 - Fortran 模块
+! 生成自: Microchip/ADC/MCP3008
+! 版本: 1.0
+! 日期: 2026-05-06
+! 作者: VML Team
+! 描述: MCP3008 10-bit SPI ADC (8-channel, 200ksps)
+! CPU架构: ADC
+! 位宽: 10位
+! 时钟频率: 1350000 Hz
+
+module mcp3008_device
+  implicit none
+
+  ! 外设定义
+  ! MCP3008 10-bit 8-ch ADC (SPI, 2.7V-5.5V, DIP-16)
+  integer, parameter :: MCP3008_BASE = 0x00
+  integer, parameter :: MCP3008_CH0_ADDR = 0x00
+  integer, parameter :: MCP3008_CH1_ADDR = 0x01
+  integer, parameter :: MCP3008_CH2_ADDR = 0x02
+  integer, parameter :: MCP3008_CH3_ADDR = 0x03
+  integer, parameter :: MCP3008_CH4_ADDR = 0x04
+  integer, parameter :: MCP3008_CH5_ADDR = 0x05
+  integer, parameter :: MCP3008_CH6_ADDR = 0x06
+  integer, parameter :: MCP3008_CH7_ADDR = 0x07
+  integer, parameter :: MCP3008_DIFF_01_ADDR = 0x08
+  integer, parameter :: MCP3008_DIFF_23_ADDR = 0x09
+
+end module mcp3008_device

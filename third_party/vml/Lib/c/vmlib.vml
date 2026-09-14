@@ -1,0 +1,200 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.linked "math.vml"
+.linked "ctype.vml"
+.linked "file.vml"
+.linked "graphics.vml"
+.linked "network.vml"
+.linked "os.vml"
+.linked "device.vml"
+.linked "convert.vml"
+.linked "bitops.vml"
+.linked "util.vml"
+.linked "softfloat.vml"
+.linked "softint64.vml"
+.linked "softdouble.vml"
+.linked "readline.vml"
+.linked "vga_text.vml"
+.data
+
+.text
+puts:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move R0 [R12+12]
+        syscall #1
+        move [R12-4] R0
+        move R0 #10
+        syscall #4
+        move [R12-4] R0
+        move R0 #0
+        jmp L98380000
+L98380000:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+strlen:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move R0 #0
+        move [R12-4] R0
+sta_98380001:
+        move R2 #0
+        move R0 [R12+12]
+        moveb R0 @0
+        sextb R0 R0
+        cmp R0 #0
+        jz sta_98380002
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R0 [R12+12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12+12] R0
+        move R0 R1
+        jmp sta_98380001
+sta_98380002:
+        move R0 [R12-4]
+        jmp L98380003
+L98380003:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+strcpy:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move R0 [R12+12]
+        move [R12-4] R0
+sta_98380004:
+        move R2 #0
+        move R0 [R12+16]
+        moveb R0 @0
+        sextb R0 R0
+        cmp R0 #0
+        jz sta_98380005
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        move R11 R0
+        move R0 [R12+16]
+        move R1 R0
+        add R0 R0 #1
+        move [R12+16] R0
+        move R0 R1
+        moveb R0 @0
+        sextb R0 R0
+        moveb @11 R0
+        jmp sta_98380004
+sta_98380005:
+        move R0 [R12-4]
+        move R10 R0
+        move R0 #0
+        moveb @10 R0
+        move R0 [R12+12]
+        jmp L98380006
+L98380006:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+strcmp:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+sta_98380007:
+        move R2 #0
+        move R0 [R12+12]
+        moveb R0 @0
+        sextb R0 R0
+        test R0 R0
+        jz _L98380009
+        move R0 [R12+16]
+        moveb R0 @0
+        sextb R0 R0
+        test R0 R0
+        jz _L98380009
+        move R0 #1
+        jmp _L98380010
+_L98380009:
+        move R0 #0
+_L98380010:
+        cmp R0 #0
+        jz sta_98380008
+        move R0 [R12+12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 [R12+16]
+        moveb R0 @0
+        sextb R0 R0
+        popb R1
+        cmp R1 R0
+        jne _L98380013
+        move R0 #0
+        jmp _L98380014
+_L98380013:
+        move R0 #1
+_L98380014:
+        cmp R0 #0
+        jz sta_98380011
+        move R0 [R12+12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 [R12+16]
+        moveb R0 @0
+        sextb R0 R0
+        popb R1
+        sub R1 R0
+        moveb R0 R1
+        jmp L98380015
+sta_98380011:
+sta_98380012:
+        move R0 [R12+12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12+12] R0
+        move R0 R1
+        move R0 [R12+16]
+        move R1 R0
+        add R0 R0 #1
+        move [R12+16] R0
+        move R0 R1
+        jmp sta_98380007
+sta_98380008:
+        move R0 [R12+12]
+        moveb R0 @0
+        sextb R0 R0
+        pushb R0
+        move R0 [R12+16]
+        moveb R0 @0
+        sextb R0 R0
+        popb R1
+        sub R1 R0
+        moveb R0 R1
+        jmp L98380015
+L98380015:
+        move R13 R12
+        pop R12
+        pop R15
+        ret

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Authors>施探宇;alecksty</Authors>
+    <Company>深圳市探索智能科技有限公司</Company>
+    <OutputType>Library</OutputType>
+    <!-- Native AOT 自包含发布 -->
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>ObjCCompiler</AssemblyName>
+    <RootNamespace>ObjCCompiler</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\VMLAssembler\VMLAssembler.csproj" />
+    <ProjectReference Include="..\..\VMLPlugins\VMLPlugins.csproj" />
+    <ProjectReference Include="..\CompilerBase\CompilerBase.csproj" />
+    <ProjectReference Include="..\CCompiler\CCompiler.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,1 @@
+using VMLPlugins.Interfaces; using VMLAssembler; namespace VMLTranslators { public class TranslatorARMCMPlugin : TranslatorPlugin<TranslatorARMCM> { public TranslatorARMCMPlugin() : base("ARM-CM", "ARM Cortex-M 32位微控制器", "32", ".arm-cm.asm") { } } }

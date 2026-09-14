@@ -1,0 +1,184 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+_vml_result_int: .word 0
+_vml_result_str: .word 0
+L67230002: .string "true"
+L67230003: .string "false"
+
+.text
+vml_print_str:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #1
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_print_int:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #6
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_print_hex:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #10
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_putchar:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #4
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_newline:
+        push R15
+        push R12
+        move R12 R13
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_print_float:
+        push R15
+        push R12
+        move R12 R13
+        i2f R0 R0
+        movef [R12+12] R0
+        syscall #8
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_print_double:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        i2d R16 R0
+        moved [R12+12] R16
+        moved R0 [R12+12]
+        d2f R0 R0
+        movef [R12-4] R0
+        syscall #8
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_print_long:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        movel R0 [R12+12]
+        move [R12-4] R0
+        syscall #6
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_print_bool:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move R0 [R12+12]
+        cmp R0 #0
+        jz sta_67230000
+        move R0 L67230002
+        push R0
+        call vml_print_str
+        add R13 #4
+        jmp sta_67230001
+sta_67230000:
+        move R0 L67230003
+        push R0
+        call vml_print_str
+        add R13 #4
+sta_67230001:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_getconfig:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #60
+        move _vml_result_int R0
+        move R0 [_vml_result_int]
+        jmp L67230004
+L67230004:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_random:
+        push R15
+        push R12
+        move R12 R13
+        syscall #50
+        move _vml_result_int R0
+        move R0 [_vml_result_int]
+        jmp L67230005
+L67230005:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_get_date:
+        push R15
+        push R12
+        move R12 R13
+        syscall #55
+        move _vml_result_str R0
+        move R0 [_vml_result_str]
+        jmp L67230006
+L67230006:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_get_time:
+        push R15
+        push R12
+        move R12 R13
+        syscall #56
+        move _vml_result_str R0
+        move R0 [_vml_result_str]
+        jmp L67230007
+L67230007:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+vml_exit:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        syscall #3
+        move R13 R12
+        pop R12
+        pop R15
+        ret

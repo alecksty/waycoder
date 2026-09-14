@@ -1,0 +1,1 @@
+using VMLPlugins.Interfaces; using VMLAssembler; namespace VMLTranslators { public class Translator6502Plugin : TranslatorPlugin<Translator6502> { public Translator6502Plugin() : base("6502", "6502 8位微处理器", "8", ".6502.asm") { } } }

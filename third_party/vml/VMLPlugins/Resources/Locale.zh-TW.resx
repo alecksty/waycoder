@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="lang_name" xml:space="preserve"><value>繁體中文</value></data>
+  <data name="tool.description" xml:space="preserve"><value>VML 工具鏈 — 多語言編譯器 &amp; 跨平台工具</value></data>
+  <data name="tool.usage" xml:space="preserve"><value>用法: {0} [選項] &lt;輸入檔案&gt; [輸出檔案]</value></data>
+  <data name="help.title" xml:space="preserve"><value>用法: vmltool [選項] &lt;檔案...&gt;</value></data>
+  <data name="help.short.usage" xml:space="preserve"><value>用法: vmltool [選項] &lt;檔案...&gt;</value></data>
+  <data name="help.short.hint" xml:space="preserve"><value>vmltool -h 檢視詳細說明</value></data>
+  <data name="help.option" xml:space="preserve"><value>-h, --help               顯示說明</value></data>
+  <data name="version.option" xml:space="preserve"><value>-V, --version            顯示版本資訊</value></data>
+  <data name="debug.option" xml:space="preserve"><value>-g, --debug              包含除錯資訊</value></data>
+  <data name="output.option" xml:space="preserve"><value>-o, --output &lt;檔案&gt;      輸出檔案</value></data>
+  <data name="target.option" xml:space="preserve"><value>-t, --target &lt;架構&gt;      目標架構 (x86/arm-cm/avr/8051/riscv/mips/6502/z80/...)</value></data>
+  <data name="format.option" xml:space="preserve"><value>-f, --format &lt;格式&gt;      輸出格式 (hex/elf/exe/bin/s19/dump)</value></data>
+  <data name="include.option" xml:space="preserve"><value>-I, --include &lt;路徑&gt;     新增標頭檔搜尋路徑</value></data>
+  <data name="lib.option" xml:space="preserve"><value>-L, --library &lt;路徑&gt;     新增程式庫搜尋路徑</value></data>
+  <data name="lang.option" xml:space="preserve"><value>-x, --lang &lt;語言&gt;        原始碼語言 (c/basic/pascal/python/lua/forth/go/rust/java/js/swift/cs/cpp/ladder)</value></data>
+  <data name="mode.option" xml:space="preserve"><value>--mode &lt;mcu|os&gt;          執行模式 (mcu=裸機, os=全系統)</value></data>
+  <data name="ram.option" xml:space="preserve"><value>--ram &lt;k|m|g&gt;            記憶體級別 (k=KB級, m=MB級, g=GB級)</value></data>
+  <data name="stack.option" xml:space="preserve"><value>--stack-size &lt;位元組&gt;    堆疊大小(位元組)</value></data>
+  <data name="compiling" xml:space="preserve"><value>正在編譯 {0} ...</value></data>
+  <data name="compiled" xml:space="preserve"><value>編譯成功 → {0} ({1} 條指令)</value></data>
+  <data name="compile.error" xml:space="preserve"><value>編譯錯誤: {0}</value></data>
+  <data name="file.notfound" xml:space="preserve"><value>檔案未找到: {0}</value></data>
+  <data name="unknown.format" xml:space="preserve"><value>未知輸出格式</value></data>
+  <data name="running" xml:space="preserve"><value>正在執行...</value></data>
+  <data name="program.completed" xml:space="preserve"><value>程式執行完畢。</value></data>
+  <data name="nocompiler" xml:space="preserve"><value>未找到 &apos;{0}&apos; 檔案的編譯器</value></data>
+  <data name="syntax.error" xml:space="preserve"><value>第 {0} 行語法錯誤: {1}</value></data>
+  <data name="undefined.var" xml:space="preserve"><value>未定義的變數 &apos;{0}&apos;</value></data>
+  <data name="func.redefined" xml:space="preserve"><value>函式 &apos;{0}&apos; 重複定義</value></data>
+  <data name="type.mismatch" xml:space="preserve"><value>型別不符: 期望 {0}，實際 {1}</value></data>
+  <data name="expect.token" xml:space="preserve"><value>期望 {0}，得到 {1}</value></data>
+  <data name="expect.identifier" xml:space="preserve"><value>在 {0} 中期望識別碼</value></data>
+  <data name="unsupported.type" xml:space="preserve"><value>不支援的型別: {0}</value></data>
+  <data name="unsupported.expr" xml:space="preserve"><value>不支援的運算式: {0}</value></data>
+  <data name="not.implemented" xml:space="preserve"><value>尚未實作: {0}</value></data>
+  <data name="mcu.skipped" xml:space="preserve"><value>[MCU] 跳過 {0}: {1}</value></data>
+  <data name="v2h.description" xml:space="preserve"><value>VMLToHex — VML 轉 MCU 韌體轉換器</value></data>
+  <data name="v2h.usage" xml:space="preserve"><value>用法: vml2hex [選項] &lt;輸入&gt; -arch &lt;架構&gt;</value></data>
+  <data name="arch.option" xml:space="preserve"><value>--arch, -a &lt;架構&gt;        目標架構 (avr/8051/arm-cm/x86/riscv/mips/6502/z80/...)</value></data>
+  <data name="baseaddr.option" xml:space="preserve"><value>--base, -b &lt;位址&gt;        程式碼基底位址</value></data>
+  <data name="bios.option" xml:space="preserve"><value>--bios                   連結硬體BIOS (預設)</value></data>
+  <data name="assembling" xml:space="preserve"><value>正在為 {0} 組譯 ...</value></data>
+  <data name="output.format" xml:space="preserve"><value>輸出: {0} ({1} 位元組)</value></data>
+  <data name="emulator.title" xml:space="preserve"><value>VML 主控台模擬器</value></data>
+  <data name="loading" xml:space="preserve"><value>載入中: {0}</value></data>
+  <data name="load.success" xml:space="preserve"><value>載入成功。</value></data>
+  <data name="device.info" xml:space="preserve"><value>裝置: {0} | 模式: {1} | RAM: {2}KB | 顯示: {3}</value></data>
+  <data name="vga.mode" xml:space="preserve"><value>VGA 模式: {0}</value></data>
+  <data name="step.mode" xml:space="preserve"><value>單步模式 — 按 Enter 步進，按 Q 退出</value></data>
+  <data name="recording" xml:space="preserve"><value>正在錄音到 {0} ...</value></data>
+  <data name="recording.started" xml:space="preserve"><value>開始錄音: {0}</value></data>
+  <data name="recording.finished" xml:space="preserve"><value>錄音完成: {1}秒 → {0}</value></data>
+  <data name="screenshot.saved" xml:space="preserve"><value>截圖已儲存: {0}</value></data>
+  <data name="key.script.started" xml:space="preserve"><value>按鍵腳本已啟動: {0}</value></data>
+  <data name="unknown.cmd" xml:space="preserve"><value>未知指令: {0}</value></data>
+  <data name="help.section.actions" xml:space="preserve"><value>操作控制 (GCC 相容):</value></data>
+  <data name="help.action.compile" xml:space="preserve"><value>編譯原始碼到 VML (不連結)</value></data>
+  <data name="help.action.to_asm" xml:space="preserve"><value>編譯到目標組語 (不組譯)</value></data>
+  <data name="help.action.preprocess" xml:space="preserve"><value>僅預處理 C 原始碼</value></data>
+  <data name="help.action.assemble" xml:space="preserve"><value>組譯 VML 到二進位</value></data>
+  <data name="help.action.translate" xml:space="preserve"><value>翻譯 VML 到目標組語</value></data>
+  <data name="help.action.link" xml:space="preserve"><value>連結多個 VML 檔案</value></data>
+  <data name="help.action.run" xml:space="preserve"><value>執行 VML 程式</value></data>
+  <data name="help.action.exe" xml:space="preserve"><value>打包為獨立執行檔</value></data>
+  <data name="help.section.common" xml:space="preserve"><value>常用選項:</value></data>
+  <data name="help.opt.output" xml:space="preserve"><value>輸出檔案 (GCC 相容)</value></data>
+  <data name="help.opt.lang" xml:space="preserve"><value>指定原始碼語言 (預設自動偵測)</value></data>
+  <data name="help.opt.target" xml:space="preserve"><value>目標架構 (預設 x86)</value></data>
+  <data name="help.opt.format" xml:space="preserve"><value>輸出格式 (hex/elf/exe/bin/s19/dump)</value></data>
+  <data name="help.opt.optimize" xml:space="preserve"><value>最佳化等級 (預設 -O0)</value></data>
+  <data name="help.opt.dump" xml:space="preserve"><value>指令 dump</value></data>
+  <data name="help.opt.savetemps" xml:space="preserve"><value>保留中間檔案</value></data>
+  <data name="help.section.gcc" xml:space="preserve"><value>GCC 相容標誌:</value></data>
+  <data name="help.opt.define" xml:space="preserve"><value>預定義巨集</value></data>
+  <data name="help.opt.undef" xml:space="preserve"><value>取消巨集定義</value></data>
+  <data name="help.opt.include" xml:space="preserve"><value>標頭檔搜尋路徑</value></data>
+  <data name="help.opt.library" xml:space="preserve"><value>程式庫搜尋路徑</value></data>
+  <data name="help.opt.linklib" xml:space="preserve"><value>連結程式庫</value></data>
+  <data name="help.opt.std" xml:space="preserve"><value>語言標準</value></data>
+  <data name="help.opt.debug" xml:space="preserve"><value>除錯資訊</value></data>
+  <data name="help.opt.warn" xml:space="preserve"><value>警告控制</value></data>
+  <data name="help.opt.linkmode" xml:space="preserve"><value>連結方式</value></data>
+  <data name="help.section.target" xml:space="preserve"><value>目標配置:</value></data>
+  <data name="help.opt.mode" xml:space="preserve"><value>執行模式 (預設 mcu)</value></data>
+  <data name="help.opt.ram" xml:space="preserve"><value>記憶體級別 (預設 m)</value></data>
+  <data name="help.opt.stack" xml:space="preserve"><value>堆疊大小</value></data>
+  <data name="help.opt.runtime" xml:space="preserve"><value>EXE 打包目標執行環境</value></data>
+  <data name="help.section.other" xml:space="preserve"><value>其他:</value></data>
+  <data name="help.opt.help" xml:space="preserve"><value>說明</value></data>
+  <data name="help.opt.version" xml:space="preserve"><value>版本資訊</value></data>
+  <data name="help.opt.verbose" xml:space="preserve"><value>詳細輸出</value></data>
+  <data name="help.opt.repl" xml:space="preserve"><value>VML 互動環境</value></data>
+  <data name="help.opt.plugins" xml:space="preserve"><value>檢視已註冊外掛</value></data>
+  <data name="help.opt.lang_ui" xml:space="preserve"><value>切換介面為英文 (VML_LANG=en)</value></data>
+  <data name="help.section.examples" xml:space="preserve"><value>範例 (14種語言自動根據副檔名識別):</value></data>
+  <data name="help.example.c" xml:space="preserve"><value>C → VML</value></data>
+  <data name="help.example.hex" xml:space="preserve"><value>VML → HEX</value></data>
+  <data name="help.compilers" xml:space="preserve"><value>{0} 個編譯器 + {1} 個翻譯器</value></data>
+  <data name="help.plugins_title" xml:space="preserve"><value>已註冊外掛</value></data>
+  <data name="help.frontends" xml:space="preserve"><value>前端編譯器 ({0}):</value></data>
+  <data name="help.backends" xml:space="preserve"><value>後端翻譯器 ({0}):</value></data>
+  <data name="help.opt.soft_float" xml:space="preserve"><value>使用軟浮點庫模擬浮點運算</value></data>
+  <data name="help.opt.no_float" xml:space="preserve"><value>關閉浮點支援</value></data>
+  <data name="help.opt.int64" xml:space="preserve"><value>64位元模式: native(預設)/library(程式庫模擬)/none(關閉)</value></data>
+</root>

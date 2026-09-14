@@ -1,0 +1,472 @@
+# VML 汇编语言规范
+
+> **版本**：v2.0 | **日期**：2026-07-06 | **修订者**：深圳市探索智能科技有限公司 | 对齐 OpCode.cs v1.66.4
+
+## 概述
+
+VML（Virtual Machine Language）是一种虚拟机汇编语言，是 VML 工具链的统一中间表示（IR）。所有前端编译器（C/BASIC/Pascal 等）都将源代码编译为 VML 汇编，再由 VMLAssembler 汇编为二进制 VMB 格式，最后由 VMLRuntime 解释执行。
+
+---
+
+## 伪指令
+
+伪指令（Pseudo-Op）以 `.` 开头，用于定义程序元数据而非生成指令。
+
+### `.entry` — 程序入口
+
+```
+.entry main
+```
+
+定义程序入口点标签名。默认为 `main`。运行时从此标签处开始执行。
+
+### `.stack` — 栈配置
+
+```
+.stack 0xFFFFC                    ; 单参数：栈顶地址
+.stack 0x10000, 0x10000           ; 双参数：栈基址, 栈大小
+```
+
+- **单参数形式**：指定栈顶地址（栈向下增长）。`0` 表示使用默认值（`memorySize - 4`）。
+- **双参数形式**：指定栈基址（栈底）和栈大小。运行时自动计算栈顶 = 基址 + 大小，并保护该内存区域。
+
+### `.vectors` — 中断向量表
+
+```
+.vectors 0x0000
+```
+
+定义中断向量表基址。每个向量占 4 字节，存储中断服务程序的入口地址。
+如未指定，默认为 0x0000。
+
+### `.data` / `.text` — 段切换
+
+```
+.data
+; 数据定义在此
+
+.text
+; 代码在此
+```
+
+切换当前段。`.data` 用于定义全局变量和常量，`.text` 用于程序代码。
+
+### `.include` — 文件包含
+
+```
+.linked  "Lib/shared/shared.vml"
+```
+
+在当前位置插入另一个 VML 文件的内容。支持嵌套包含。
+
+### `.word` / `.byte` / `.halfword` / `.dword` — 数据定义
+
+```
+label: .word 42              ; 32 位整数
+label: .byte 0xFF            ; 8 位整数
+label: .halfword 0x1234      ; 16 位整数
+label: .dword 0x12345678     ; 64 位整数
+```
+
+在数据段中定义带标签的常量数据。
+
+### `.string` / `.wstring` / `.ustring` — 字符串定义
+
+```
+msg:  .string  "Hello\n"     ; 8位字节字符串 (UTF-8), 以 0x00 终止
+wmsg: .wstring "你好"        ; 16位宽字符串 (UTF-16LE), 以 0x0000 终止
+umsg: .ustring "🎉"          ; 32位Unicode字符串 (UTF-32LE), 以 0x00000000 终止
+```
+
+定义字符串常量。支持转义序列：`\n`, `\t`, `\r`, `\\`, `\"`, `\'`。
+
+| 伪指令 | 宽度 | 终止符 | 编码 |
+|--------|:----:|--------|------|
+| `.string` | 8-bit | `0x00` | UTF-8 字节序列 |
+| `.wstring` | 16-bit | `0x0000` | UTF-16LE |
+| `.ustring` | 32-bit | `0x00000000` | UTF-32LE |
+
+### `.const` — 常量定义
+
+```
+MAX: .const 100
+PI:  .const 3.14159
+```
+
+定义编译期常量，存储在独立的常量段中，可在表达式中使用。
+
+### `global` — 导出标签
+
+```
+global main
+global my_function
+```
+
+导出标签，使其对其他模块/文件可见（链接器使用）。
+
+### `.SPEED` — CPU 模拟速度
+
+```
+.SPEED 0          ; 全速运行，无指令延时（默认）
+.SPEED 1M         ; 1,000,000 指令/秒
+.SPEED 500K       ; 500,000 指令/秒
+```
+
+控制 VML 运行时指令执行速率。`M` 后缀 = ×1,000,000，`K` 后缀 = ×1,000。值为 0 时全速运行。
+
+### `.org` — 位置控制
+
+```
+.org 0x0800       ; 后续代码定位到地址 0x0800
+```
+
+设置当前汇编位置到指定地址，中间填充 NOP 指令。用于固定地址的中断向量表、bootloader 等场景。
+
+### `.align` — 对齐
+
+```
+.align 4          ; 4 字节对齐
+.align 8          ; 8 字节对齐
+```
+
+在当前位置插入 NOP 指令（代码段）或零字节（数据段），直到地址对齐到指定字节边界。对齐值必须是 2 的幂。
+
+### `.equ` — 符号常量
+
+```
+.equ BUFFER_SIZE 256      ; 格式1: .equ NAME VALUE
+MAX_COUNT .equ 100        ; 格式2: NAME .equ VALUE
+```
+
+定义汇编期符号常量，可在后续指令和条件汇编中引用。值使用十进制或十六进制（`0x` 前缀）。
+
+### `.if` / `.elif` / `.else` / `.endif` — 条件汇编
+
+```
+.equ DEBUG 1
+
+.if DEBUG               ; 符号已定义且非零则为真
+    MOVE R0, #1
+.elif RELEASE == 0       ; 等于比较
+    MOVE R0, #2
+.else
+    MOVE R0, #3
+.endif
+```
+
+根据编译期常量条件选择性汇编代码块。支持嵌套。支持 `==` 和 `!=` 比较运算符。
+
+### `.chipasm` — 架构专属内联汇编
+
+```
+.chipasm "RISCV", "li a0, 10"
+.chipasm "ARM", "movs r0, #0"
+.chipasm "MIPS", "li $v0, 10"
+.chipasm "6502", "LDA #$FF"
+```
+
+在 VML 代码中嵌入指定架构的汇编代码。翻译器在翻译到匹配架构时直接输出该代码作为目标汇编，翻译到其他架构时忽略或生成注释。
+
+- 第一参数：架构名称（不区分大小写）
+- 第二参数：要输出的汇编代码文本
+
+**C 编译器对应关键字**：`__chipasm__("arch", "code")`
+
+```c
+__chipasm__("RISCV", "li t0, 100");
+__chipasm__("6502", "STA $0200");
+```
+
+### `.macro` / `.endm` — 宏定义
+
+```
+.macro ADD3 dst, src
+    ADD dst, src
+    ADD dst, src
+.endm
+```
+
+定义可复用的指令序列。宏调用：`ADD3 R0, R1`
+
+---
+
+## 指令集
+
+VML 定义了 100+ 个操作码（OpCode），分为以下类别：
+
+| 类别 | 指令 | 说明 |
+|------|------|------|
+| 数据传送 | MOVE, MOVEH, MOVEB, MOVEF, MOVED, MOVEL, PUSH, PUSHH, PUSHB, PUSHW, POP, POPH, POPB, POPW, FPUSH, FPOP, DPUSH, DPOP, PUSHL, POPL | 统一 MOVE 系列 |
+| 算术运算 | ADD, SUB, MUL, DIV, MOD, INC, DEC, NEG | 32位整数 |
+| 64位算术 | ADDL, SUBL, MULL, DIVL, MODL, NEGL, CMPL | 64位长整数 |
+| 位运算 | AND, OR, XOR, NOT, SHL, SHR | 32位位运算 |
+| 旋转 | ROL, ROR | 循环左移/右移 |
+| 64位位运算 | ANDL, ORL, XORL, NOTL, SHLL, SHRL | 64位位运算 |
+| 可变移位 | SHLV, SHRV, ZERO | 可变移位量 |
+| 比较 | CMP, TEST | 32位比较 |
+| 条件移动 | CMOVZ, CMOVNZ | 条件移动（ZF标志） |
+| 符号扩展 | SEXTB, SEXTH | 8/16位符号扩展 |
+| 跳转 | JMP, JZ, JNZ, JE, JNE, JG, JL, JGE, JLE | 条件/无条件 |
+| 调用 | CALL, RET | 函数调用 |
+| 系统调用 | SYSCALL | 系统服务 |
+| 中断 | CLI, STI, INT, IRET | 中断控制 |
+| 标志 | CLC, STC | 进位标志 |
+| 栈帧 | ENTER, LEAVE | 栈帧管理 |
+| 浮点单精度 | FADD, FSUB, FMUL, FDIV, FCMP, FNEG, MOVEF, I2F, F2I, F2D, D2F | 32位浮点 |
+| 浮点双精度 | DADD, DSUB, DMUL, DDIV, DCMP, DNEG, MOVED, I2D, D2I | 64位浮点 |
+| 64位转换 | I2L, L2I, F2L, L2F, D2L, L2D | 长整数类型转换 |
+| 中断/异常 | THROW, CATCH, ENDCATCH | 异常处理 |
+| 调试/伪指令 | BREAK, DUMP, TRACE, ASM, CHIPASM, LABEL | 调试与元编程 |
+| 其他 | NOP, HALT | 空操作/停机 |
+
+> **v1.65.167+**: LOAD/STORE/LEA/FLOAD/FSTORE/DLOAD/DSTORE/LOADH/LOADB/STOREH/STOREB 已彻底删除。统一使用 MOVE/MOVEB/MOVEH/MOVEF/MOVED/MOVEL。
+
+---
+
+## 寄存器
+
+### 通用寄存器（16个，32位）
+
+| 寄存器 | 别名 | 用途 |
+|--------|------|------|
+| R0 | A0/ACC | 累加器、返回值、第一个参数 |
+| R1 | A1 | 第二个参数 |
+| R2 | A2 | 第三个参数 |
+| R3 | A3 | 第四个参数 |
+| R4-R7 | T0-T3 | 通用、调用者保存 |
+| R8-R11 | S0-S3 | 通用、调用者保存 |
+| R12 | BP/FP | 基址指针、被调用者保存 |
+| R13 | SP | 栈指针（向下增长） |
+| R14 | LR | 链接寄存器（被调用者保存） |
+| R15 | RA | 返回地址（由 CALL/RET 自动管理） |
+
+### 浮点寄存器（16个，32位单精度）
+
+| 寄存器 | 用途 |
+|--------|------|
+| F0 | 浮点返回值、第一个浮点参数 |
+| F1-F3 | 浮点参数 |
+| F4-F15 | 浮点通用寄存器（调用者保存） |
+
+### 双精度寄存器（8个，64位）
+
+| 寄存器 | 用途 |
+|--------|------|
+| D0 | 双精度返回值、第一个双精度参数 |
+| D1-D3 | 双精度参数 |
+| D4-D7 | 双精度通用寄存器（调用者保存） |
+
+### 长整数寄存器（8个，64位）
+
+| 寄存器 | 用途 |
+|--------|------|
+| L0 | 长整数返回值、第一个长整数参数 |
+| L1-L3 | 长整数参数 |
+| L4-L7 | 长整数通用寄存器（调用者保存） |
+
+---
+
+## 操作数
+
+| 类型 | 语法 | 示例 |
+|------|------|------|
+| 寄存器 | `Rn` | `R0`, `R13`, `F0`, `D0`, `L0` |
+| 立即数 | `#n` | `#42`, `#0xFF` |
+| 内存 | `[addr]` | `[0x1000]`, `[R0]`, `[R0+4]`, `[R12+8]` |
+| 标签 | `name` | `loop`, `main` |
+| 间接 | `@reg` | `@R0`, `@[0x1000]` |
+
+### MOVE 统一数据传送
+
+MOVE 是 VML 的统一数据传送指令，根据操作数组合自动实现**寄存器复制**、**内存加载**、**内存存储**、**取标签地址**四种语义。
+
+| src \ dst | REGISTER | MEMORY | 语义 |
+|-----------|----------|--------|------|
+| REGISTER | `MOVE R0, R1` — 寄存器复制 | `MOVE [R12-4], R0` — 存储 reg→mem | STORE |
+| IMMEDIATE | `MOVE R0, #42` — 加载立即数 | `MOVE [0x1000], #42` — 立即数写内存 | STORE |
+| MEMORY | `MOVE R0, [R12-4]` — 加载 mem→reg | — (不可内存→内存) | LOAD |
+| LABEL | `MOVE R0, main` — 取地址 LEA | `MOVE [var], main` — 存函数指针 | LEA |
+
+**示例：**
+```asm
+; 寄存器复制
+MOVE R1, R0              ; R1 = R0
+MOVE R13, #0xFFFF        ; SP = 0xFFFF
+
+; 内存加载 (替代旧 LOAD)
+MOVE R0, [0x1000]        ; R0 = MEM[0x1000]
+MOVE R0, [R12]           ; R0 = MEM[R12]
+MOVE R0, [R12-4]         ; R0 = MEM[R12-4]
+
+; 内存存储 (替代旧 STORE)
+MOVE [R12-4], R0         ; MEM[R12-4] = R0
+MOVE [R13+4], R0         ; MEM[R13+4] = R0
+MOVE [0xB8000], #65      ; MEM[0xB8000] = 'A'
+
+; 取标签地址 (替代旧 LEA)
+MOVE R0, main            ; R0 = main 函数地址
+MOVE R0, str_const       ; R0 = 字符串常量地址
+
+; 浮点/双精度/长整数
+MOVEF F0, #3.14          ; 浮点加载
+MOVED D0, [R12-8]        ; 双精度加载
+MOVEL L0, [R12-8]        ; 长整数加载
+MOVEF [R12-4], F0        ; 浮点存储
+MOVED [R12-8], D0        ; 双精度存储
+MOVEL [R12-8], L0        ; 长整数存储
+```
+
+### MOVEH / MOVEB — 16位/8位数据传送
+
+```
+MOVEH R0, [0x1000]       ; 加载16位（零扩展）
+MOVEH [R12-2], R0        ; 存储16位
+MOVEB R0, [0x1000]       ; 加载8位（零扩展）
+MOVEB [R12-1], R0        ; 存储8位
+```
+
+---
+
+## 内存布局
+
+| 区域 | 地址范围 | 说明 |
+|------|---------|------|
+| 代码段 | 0x00000000+ | 程序指令，可由 `.entry` 指定入口 |
+| 常量段 | 0x00008000+ | `.const` 定义的编译时常量 |
+| 数据段 | 0x00010000+ | 全局变量、字符串常量 |
+| 堆 | 数据段之后 | 动态分配（SYSCALL 40/41） |
+| 栈 | 配置决定 | 向下增长，由 `.stack` 配置 |
+
+---
+
+## 调用约定 (CCv2)
+
+VML 采用 CCv2 寄存器优先调用约定，前 4 个标量参数通过寄存器传递，其余通过栈传递。
+
+### 寄存器分配
+
+| 寄存器 | CCv2 角色 | 说明 |
+|--------|-----------|------|
+| R0 | arg0 / 返回值 | 第 1 个参数 + 函数返回值 |
+| R1 | arg1 | 第 2 个参数 |
+| R2 | arg2 | 第 3 个参数 |
+| R3 | arg3 | 第 4 个参数 |
+| R4-R11 | 临时 (调用者保存) | 编译器自由分配 |
+| R12 | BP (被调用者保存) | 帧指针 |
+| R13 | SP | 栈指针 |
+| R14 | LR (被调用者保存) | 链接寄存器 |
+| R15 | RA (被调用者保存) | 返回地址寄存器 |
+
+### 调用者职责
+
+1. 前 4 个参数通过 R0-R3 传递（`MOVE Ri, #val`）
+2. 第 5+ 个参数从右到左压栈（`PUSH`）
+3. 执行 `CALL`
+4. 调用后清理栈上的额外参数：`ADD R13, #(参数数-4)*4`
+5. 从 R0（整数）或 F0（浮点）获取返回值
+
+### 被调用者职责
+
+1. 保存 RA（`PUSH R15`）和 BP（`PUSH R12`）
+2. 设置帧指针：`MOVE R12, R13`
+3. 分配局部变量空间：`SUB R13, #N`
+4. 将寄存器参数保存到栈帧：arg0 在 `[R12+12]`, arg1 在 `[R12+16]`, arg2 在 `[R12+20]`, arg3 在 `[R12+24]`
+5. 第 5+ 个参数在 `[R12+28]` 及以上
+6. 返回值放入 R0（整数）或 F0（浮点）
+7. 恢复 SP：`ADD R13, #N`（释放局部变量）
+8. 恢复 BP（`POP R12`）和 RA（`POP R15`）
+9. 执行 `RET`
+
+### 示例
+
+```asm
+; int add(int a, int b, int c, int d, int e) — 5 个参数
+LABEL add
+    PUSH R15              ; 保存 RA
+    PUSH R12              ; 保存 BP
+    MOVE R12, R13         ; 设置帧指针
+    SUB R13, #8           ; 局部变量
+    MOVE [R12+12], R0     ; a
+    MOVE [R12+16], R1     ; b
+    MOVE [R12+20], R2     ; c
+    MOVE [R12+24], R3     ; d
+    ; e 在 [R12+28] 栈上
+    MOVE R0, [R12+12]     ; R0 = a
+    MOVE R1, [R12+16]     ; R1 = b
+    ADD R0, R1
+    MOVE R1, [R12+20]     ; R1 = c
+    ADD R0, R1
+    MOVE R1, [R12+24]     ; R1 = d
+    ADD R0, R1
+    MOVE R1, [R12+28]     ; R1 = e
+    ADD R0, R1
+    ADD R13, #8
+    POP R12
+    POP R15
+    RET
+
+; 调用 add(3, 5, 7, 9, 11)
+    MOVE R0, #3           ; arg0
+    MOVE R1, #5           ; arg1
+    MOVE R2, #7           ; arg2
+    MOVE R3, #9           ; arg3
+    MOVE R0, #11          ; arg4
+    PUSH R0               ; 额外参数压栈
+    CALL add
+    ADD R13, #4           ; 清理 1 个额外参数
+    ; R0 = 35
+```
+
+---
+
+## 64位长整数指令
+
+VML v1.65.197+ 支持完整的 64 位长整数操作，使用 L0-L7 寄存器。
+
+### 算术
+```asm
+ADDL L0, L1, L2          ; L0 = L1 + L2
+SUBL L0, L1, L2          ; L0 = L1 - L2
+MULL L0, L1, L2          ; L0 = L1 * L2
+DIVL L0, L1, L2          ; L0 = L1 / L2
+MODL L0, L1, L2          ; L0 = L1 % L2
+NEGL L0, L1              ; L0 = -L1
+CMPL L0, L1              ; 比较 L0 和 L1, 设置标志位
+```
+
+### 位运算
+```asm
+ANDL L0, L1, L2          ; L0 = L1 & L2
+ORL  L0, L1, L2          ; L0 = L1 | L2
+XORL L0, L1, L2          ; L0 = L1 ^ L2
+NOTL L0, L1              ; L0 = ~L1
+SHLL L0, L1, L2          ; L0 = L1 << L2 (L2 取低6位)
+SHRL L0, L1, L2          ; L0 = L1 >> L2 (L2 取低6位)
+```
+
+### 数据传送
+```asm
+MOVEL L0, [R12-8]        ; 从内存加载64位
+MOVEL [R12-8], L0        ; 存储64位到内存
+PUSHL L0                 ; 64位压栈（独立长整数栈）
+POPL  L0                 ; 64位弹栈
+```
+
+### 类型转换
+```asm
+I2L L0, R1               ; int32 → long64
+L2I R0, L1               ; long64 → int32
+F2L L0, F1               ; float → long64
+L2F F0, L1               ; long64 → float
+D2L L0, D1               ; double → long64
+L2D D0, L1               ; long64 → double
+```
+
+---
+
+## 64位版本历史
+
+| 版本 | 日期 | 变更 |
+|------|------|------|
+| 2.0 | 2026-07-06 | 全面修订：删除所有 LOAD/STORE/LEA 残留引用，统一 MOVE 系列；寄存器扩展 F0-F15/D0-D7/L0-L7；新增 64 位指令文档；新增 .halfword/.wstring/.ustring/.SPEED/global 伪指令；修正 R14=LR |
+| 1.0 | 2026-04-11 | 初始版本 |

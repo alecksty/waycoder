@@ -1,0 +1,87 @@
+﻿/**
+ * STM32G431 寄存器定义
+ * 生成自: STMicroelectronics/STM32/STM32G431
+ * 版本: 1.0
+ */
+export const stm32g431 = {
+  // CPU: ARM-Cortex-M4, 32位, 170000000 Hz
+
+  // 寄存器定义
+  R0: 0x00,
+  R1: 0x04,
+  R2: 0x08,
+  R3: 0x0C,
+  R4: 0x10,
+  R5: 0x14,
+  SP: 0x34,
+  LR: 0x38,
+  PC: 0x3C,
+
+  // 内存段
+  flash_START: 0x08000000,
+  flash_END: 0x0801FFFF,
+  flash_SIZE: 131072,
+  sram_START: 0x20000000,
+  sram_END: 0x20007FFF,
+  sram_SIZE: 32768,
+  peripheral_START: 0x40000000,
+  peripheral_END: 0x4007FFFF,
+  peripheral_SIZE: 524288,
+
+  // 外设定义
+  // Reset and Clock Control
+  RCC_BASE: 0x40021000,
+  RCC_CR: 0x40021000,
+  RCC_CFGR: 0x40021008,
+  RCC_PLLCFGR: 0x4002100C,
+  RCC_AHB1ENR: 0x40021038,
+  RCC_AHB1ENR_GPIOAEN: 0,  // GPIOA clock enable
+  RCC_AHB1ENR_GPIOBEN: 1,  // GPIOB clock enable
+  RCC_AHB1ENR_GPIOCEN: 2,  // GPIOC clock enable
+  RCC_AHB1ENR_DMA1EN: 24,  // DMA1 clock enable
+  RCC_AHB1ENR_DMA2EN: 25,  // DMA2 clock enable
+  RCC_APB1ENR1: 0x40021058,
+  RCC_APB2ENR: 0x40021060,
+  // General Purpose I/O Port A
+  GPIOA_BASE: 0x48000000,
+  GPIOA_MODER: 0x48000000,
+  GPIOA_OTYPER: 0x48000004,
+  GPIOA_OSPEEDR: 0x48000008,
+  GPIOA_PUPDR: 0x4800000C,
+  GPIOA_IDR: 0x48000010,
+  GPIOA_ODR: 0x48000014,
+  GPIOA_BSRR: 0x48000018,
+  GPIOA_BRR: 0x48000028,
+  // General Purpose I/O Port B
+  GPIOB_BASE: 0x48000400,
+  GPIOB_MODER: 0x48000400,
+  GPIOB_OTYPER: 0x48000404,
+  GPIOB_OSPEEDR: 0x48000408,
+  GPIOB_PUPDR: 0x4800040C,
+  GPIOB_IDR: 0x48000410,
+  GPIOB_ODR: 0x48000414,
+  GPIOB_BSRR: 0x48000418,
+  GPIOB_BRR: 0x48000428,
+  // General Purpose I/O Port C
+  GPIOC_BASE: 0x48000800,
+  GPIOC_MODER: 0x48000800,
+  GPIOC_OTYPER: 0x48000804,
+  GPIOC_IDR: 0x48000810,
+  GPIOC_ODR: 0x48000814,
+  GPIOC_BSRR: 0x48000818,
+  // USART1
+  USART1_BASE: 0x40013800,
+  USART1_CR1: 0x40013800,
+  USART1_BRR: 0x4001380C,
+  USART1_RDR: 0x40013824,
+  USART1_TDR: 0x40013828,
+
+  // 中断向量
+  IRQ_Reset: 0,  // 
+  IRQ_SVCall: 11,  // 
+  IRQ_USART1: 37,  // USART1 Global Interrupt
+
+  init: function() {
+    // 硬件初始化
+  }
+};

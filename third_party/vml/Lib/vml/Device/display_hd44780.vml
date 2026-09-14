@@ -1,0 +1,65 @@
+﻿; HD44780寄存器定义
+; 生成自: Hitachi/Display/HD44780
+; 版本: 1.0
+; 日期: 2026-05-06
+; 作者: VML Team
+; 描述: HD44780 16x2 Character LCD Controller (4-bit/8-bit parallel or I2C via PCF8574)
+
+; CPU架构: Display
+; 位宽: 8位
+; 时钟频率: 0 Hz
+
+; 内存段定义
+; Display Data RAM (80 bytes, 2 lines)
+.equ DDRAM_START, 0x00
+.equ DDRAM_END, 0x4F
+.equ DDRAM_SIZE, 80
+
+; Character Generator RAM (8 custom chars x 8 bytes)
+.equ CGRAM_START, 0x00
+.equ CGRAM_END, 0x3F
+.equ CGRAM_SIZE, 64
+
+; 外设定义
+; HD44780 16x2 LCD (0x27/0x3F I2C, 5V)
+.equ HD44780_BASE, 0x27
+.equ HD44780_CMD, 0x00
+.equ HD44780_DATA, 0x01
+.equ HD44780_CTRL_RS, 0x00
+.equ HD44780_CTRL_RW, 0x01
+.equ HD44780_CTRL_EN, 0x02
+.equ HD44780_CTRL_BL, 0x03
+.equ HD44780_ADDR_DDRAM, 0x80
+.equ HD44780_ADDR_CGRAM, 0x40
+
+; 宏定义
+.macro hd44780_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+hd44780_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

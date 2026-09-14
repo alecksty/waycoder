@@ -1,0 +1,244 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+__cmd_offset: .word 0
+
+.text
+cmd_write:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move R0 #20480
+        push R0
+        move R0 [__cmd_offset]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        move R11 R0
+        move R0 [R12+12]
+        move @11 R0
+        move R0 [__cmd_offset]
+        push R0
+        move R0 #4
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [__cmd_offset] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+browser_clear:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move R0 #1
+        push R0
+        call cmd_write
+        add R13 #4
+        move R0 #3
+        push R0
+        call cmd_write
+        add R13 #4
+        move R0 [R12+12]
+        push R0
+        call cmd_write
+        add R13 #4
+        move R0 [R12+16]
+        push R0
+        call cmd_write
+        add R13 #4
+        move R0 [R12+20]
+        push R0
+        call cmd_write
+        add R13 #4
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+browser_color:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move R0 #5
+        push R0
+        call cmd_write
+        add R13 #4
+        move R0 #3
+        push R0
+        call cmd_write
+        add R13 #4
+        move R0 [R12+12]
+        push R0
+        call cmd_write
+        add R13 #4
+        move R0 [R12+16]
+        push R0
+        call cmd_write
+        add R13 #4
+        move R0 [R12+20]
+        push R0
+        call cmd_write
+        add R13 #4
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+browser_fill_polygon:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move R0 #2
+        push R0
+        call cmd_write
+        add R13 #4
+        move R0 [R12+12]
+        push R0
+        move R0 #2
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        call cmd_write
+        add R13 #4
+        move R0 #0
+        move [R12-4] R0
+sta_9900000:
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 #2
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L9900003
+        move R0 #0
+        jmp _L9900004
+_L9900003:
+        move R0 #1
+_L9900004:
+        cmp R0 #0
+        jz sta_9900002
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-4]
+        mul R0 #4
+        pop R10
+        add R0 R10
+        move R0 @0
+        push R0
+        call cmd_write
+        add R13 #4
+sta_9900001:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_9900000
+sta_9900002:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+browser_draw_polygon:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move R0 #3
+        push R0
+        call cmd_write
+        add R13 #4
+        move R0 [R12+12]
+        push R0
+        move R0 #2
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        call cmd_write
+        add R13 #4
+        move R0 #0
+        move [R12-4] R0
+sta_9900005:
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 #2
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L9900008
+        move R0 #0
+        jmp _L9900009
+_L9900008:
+        move R0 #1
+_L9900009:
+        cmp R0 #0
+        jz sta_9900007
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-4]
+        mul R0 #4
+        pop R9
+        add R0 R9
+        move R0 @0
+        push R0
+        call cmd_write
+        add R13 #4
+sta_9900006:
+        move R0 [R12-4]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-4] R0
+        move R0 R1
+        jmp sta_9900005
+sta_9900007:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+browser_flush:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #4
+        push R0
+        call cmd_write
+        add R13 #4
+        move R0 #0
+        push R0
+        call cmd_write
+        add R13 #4
+        move R0 #0
+        push R0
+        call cmd_write
+        add R13 #4
+        move R13 R12
+        pop R12
+        pop R15
+        ret

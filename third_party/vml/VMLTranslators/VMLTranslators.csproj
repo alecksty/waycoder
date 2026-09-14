@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\VMLAssembler\VMLAssembler.csproj" />
+    <ProjectReference Include="..\VMLPlugins\VMLPlugins.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <Authors>施探宇;alecksty</Authors>
+    <Company>深圳市探索智能科技有限公司</Company>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 基础类文件 -->
+    <Compile Include="BaseTranslator.cs" />
+    <Compile Include="TranslatedProgram.cs" />
+    <Compile Include="TranslatorFactory.cs" />
+    <Compile Include="BaseTranslatorPlugin.cs" />
+    <Compile Include="TranslatorPlugin.cs" />
+    <Compile Include="Translator8bit.cs" />
+    <Compile Include="Translator16bit.cs" />
+    <Compile Include="Translator32bit.cs" />
+    <Compile Include="TranslatorVM.cs" />
+    
+    <!-- 8位架构转译器 -->
+    <!-- 16位MCU转译器 -->
+    <Compile Include="16-bit\MSP430\TranslatorMSP430.cs" />
+    <Compile Include="16-bit\MSP430\TranslatorMSP430Plugin.cs" />
+    <Compile Include="16-bit\PIC24\TranslatorPIC24.cs" />
+    <Compile Include="16-bit\PIC24\TranslatorPIC24Plugin.cs" />
+
+    <Compile Include="8-bit\6502\Translator6502.cs" />
+    <Compile Include="8-bit\6502\Translator6502Plugin.cs" />
+    <Compile Include="8-bit\Z80\TranslatorZ80.cs" />
+    <Compile Include="8-bit\Z80\TranslatorZ80Plugin.cs" />
+    <Compile Include="8-bit\8051\Translator8051.cs" />
+    <Compile Include="8-bit\8051\Translator8051Plugin.cs" />
+    <Compile Include="8-bit\AVR\TranslatorAVR.cs" />
+    <Compile Include="8-bit\AVR\TranslatorAVRPlugin.cs" />
+    <Compile Include="8-bit\PIC\TranslatorPIC.cs" />
+    <Compile Include="8-bit\PIC\TranslatorPICPlugin.cs" />
+    
+    <!-- 32位架构转译器 -->
+    <Compile Include="32-bit\ARM-CM\TranslatorARMCM.cs" />
+    <Compile Include="32-bit\ARM-CM\TranslatorARMCMPlugin.cs" />
+    <Compile Include="32-bit\MIPS\TranslatorMIPS.cs" />
+    <Compile Include="32-bit\MIPS\TranslatorMIPSPlugin.cs" />
+    <Compile Include="32-bit\RISC-V\TranslatorRISCV.cs" />
+    <Compile Include="32-bit\RISC-V\TranslatorRISCVPlugin.cs" />
+    <Compile Include="32-bit\x86\TranslatorX86.cs" />
+    <Compile Include="32-bit\x86\TranslatorX86Plugin.cs" />
+    <Compile Include="32-bit\68000\Translator68000.cs" />
+    <Compile Include="32-bit\68000\Translator68000Plugin.cs" />
+    <Compile Include="32-bit\SPARC\TranslatorSPARC.cs" />
+    <Compile Include="32-bit\SPARC\TranslatorSPARCPlugin.cs" />
+    <Compile Include="32-bit\PowerPC\TranslatorPowerPC.cs" />
+    <Compile Include="32-bit\PowerPC\TranslatorPowerPCPlugin.cs" />
+    
+    <!-- 虚拟机架构转译器 -->
+    <Compile Include="VM\JVM\TranslatorJVM.cs" />
+    <Compile Include="VM\JVM\TranslatorJVMPlugin.cs" />
+    <Compile Include="VM\DotNET\TranslatorDotNET.cs" />
+    <Compile Include="VM\DotNET\TranslatorDotNETPlugin.cs" />
+    <Compile Include="VM\Wasm\TranslatorWasm.cs" />
+    <Compile Include="VM\Wasm\TranslatorWasm.Instructions.cs" />
+    <Compile Include="VM\Wasm\TranslatorWasmPlugin.cs" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,97 @@
+.data
+
+.text
+__gpio_pinmode:
+; -------------------------------------------
+; source   : void __gpio_pinmode(int pin,int mode)
+; function : __gpio_pinmode
+; param   : int pin
+; param   : int mode
+; return   : void
+; --------------------------------------------
+__gpio_pinmode:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+__gpio_digitalwrite:
+; -------------------------------------------
+; source   : void __gpio_digitalwrite(int pin,int value)
+; function : __gpio_digitalwrite
+; param   : int pin
+; param   : int value
+; return   : void
+; --------------------------------------------
+__gpio_digitalwrite:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+__gpio_digitalread:
+; -------------------------------------------
+; source   : int __gpio_digitalread(int pin)
+; function : __gpio_digitalread
+; param   : int pin
+; return   : int
+; --------------------------------------------
+__gpio_digitalread:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move R0 #0
+        jmp L94710000
+L94710000:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+__gpio_bload:
+; -------------------------------------------
+; source   : void __gpio_bload(const char* filename,int addr)
+; function : __gpio_bload
+; param   : const char* filename
+; param   : int addr
+; return   : void
+; --------------------------------------------
+__gpio_bload:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+__gpio_bsave:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : void __gpio_bsave(const char* filename,int addr,int size)
+; function : __gpio_bsave
+; param   : const char* filename
+; param   : int addr
+; param   : int size
+; return   : void
+; --------------------------------------------
+__gpio_bsave:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move R13 R12
+        pop R12
+        pop R15
+        ret

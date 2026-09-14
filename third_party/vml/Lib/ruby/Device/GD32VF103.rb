@@ -1,0 +1,83 @@
+﻿# GD32VF103 设备定义 - Ruby 模块
+# 生成自: GigaDevice/GD32/GD32VF103
+# 版本: 1.0
+# 日期: 2026-04-28
+# 作者: VML Team
+# 描述: 32-bit RISC-V RV32IMAC MCU with 128KB Flash, 32KB RAM, 108MHz, STM32F103 compatible
+# CPU架构: RISC-V
+# 位宽: 32位
+# 时钟频率: 108000000 Hz
+
+module GD32VF103
+
+  # 寄存器地址定义
+  X1_ADDR = 0x04  # Return Address
+  X2_ADDR = 0x08  # Stack Pointer (SP)
+  X3_ADDR = 0x0C  # Global Pointer (GP)
+  X8_ADDR = 0x20  # Frame Pointer (FP)
+  X10_ADDR = 0x28  # Function Argument (A0)
+  X11_ADDR = 0x2C  # Function Argument (A1)
+  PC_ADDR = 0x3C  # Program Counter
+
+  # 内存段定义
+  FLASH_START = 0x08000000
+  FLASH_END = 0x0801FFFF
+  FLASH_SIZE = 131072  # 
+  SRAM_START = 0x20000000
+  SRAM_END = 0x20007FFF
+  SRAM_SIZE = 32768  # 
+  PERIPHERAL_START = 0x40000000
+  PERIPHERAL_END = 0x4003FFFF
+  PERIPHERAL_SIZE = 262144  # 
+
+  # 外设定义
+  # Reset and Clock Control
+  RCU_BASE = 0x40021000
+  RCU_CTL_ADDR = 0x00
+  RCU_CFG0_ADDR = 0x04
+  RCU_CFG1_ADDR = 0x08
+  RCU_APB2EN_ADDR = 0x18
+  RCU_APB2EN_PAEN_BIT = 2  # GPIOA enable
+  RCU_APB2EN_PBEN_BIT = 3  # GPIOB enable
+  RCU_APB2EN_PCEN_BIT = 4  # GPIOC enable
+  RCU_APB2EN_USART0EN_BIT = 14  # USART0 enable
+  RCU_APB1EN_ADDR = 0x1C
+  # General Purpose I/O Port A
+  GPIOA_BASE = 0x40010800
+  GPIOA_CTL0_ADDR = 0x00
+  GPIOA_CTL1_ADDR = 0x04
+  GPIOA_ISTAT_ADDR = 0x08
+  GPIOA_OCTL_ADDR = 0x0C
+  GPIOA_BOP_ADDR = 0x10
+  GPIOA_BC_ADDR = 0x14
+  # General Purpose I/O Port B
+  GPIOB_BASE = 0x40010C00
+  GPIOB_CTL0_ADDR = 0x00
+  GPIOB_CTL1_ADDR = 0x04
+  GPIOB_ISTAT_ADDR = 0x08
+  GPIOB_OCTL_ADDR = 0x0C
+  GPIOB_BOP_ADDR = 0x10
+  GPIOB_BC_ADDR = 0x14
+  # General Purpose I/O Port C
+  GPIOC_BASE = 0x40011000
+  GPIOC_CTL0_ADDR = 0x00
+  GPIOC_CTL1_ADDR = 0x04
+  GPIOC_ISTAT_ADDR = 0x08
+  GPIOC_OCTL_ADDR = 0x0C
+  GPIOC_BOP_ADDR = 0x10
+  GPIOC_BC_ADDR = 0x14
+  # USART0
+  USART0_BASE = 0x40013800
+  USART0_STATR_ADDR = 0x00
+  USART0_DATAR_ADDR = 0x04
+  USART0_BRR_ADDR = 0x08
+  USART0_CTLR1_ADDR = 0x0C
+
+  # 中断向量定义
+  INT_RESET = 1  # 
+  INT_MACHINESOFTWARE = 3  # 
+  INT_MACHINETIMER = 7  # 
+  INT_MACHINEEXTERNAL = 11  # 
+  INT_USART0 = 25  # USART0 Global Interrupt
+
+end

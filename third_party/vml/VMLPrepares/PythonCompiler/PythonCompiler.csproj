@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\VMLAssembler\VMLAssembler.csproj" />
+    <ProjectReference Include="..\..\VMLPlugins\VMLPlugins.csproj" />
+    <ProjectReference Include="..\CompilerBase\CompilerBase.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="._LANGUAGE_SPEC.md" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <Authors>施探宇;alecksty</Authors>
+    <Company>深圳市探索智能科技有限公司</Company>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <OutputType>Library</OutputType>
+    <!-- Native AOT 自包含发布 -->
+  </PropertyGroup>
+
+</Project>

@@ -1,5 +1,6 @@
 using System.Text;
 using WayCoder.Maui.Controls;
+using WayCoder.Maui.Services;
 using WayCoder.Tools;
 
 namespace WayCoder.Maui.Pages;
@@ -81,6 +82,15 @@ public partial class ShellPage : ContentPage
         SetBusy(true);
         try
         {
+            // **`vml` 开头的命令不走 shell** —— 转交给进程内的 VML 虚拟机。
+            // 这是手机上跑编译/模拟的唯一可行形态：iOS 根本没有 shell，
+            // Android 也不该为了编译一段程序去起进程（W^X 那条路还得另塞 jniLibs）。
+            if (cmd == "vml" || cmd.StartsWith("vml ", StringComparison.Ordinal))
+            {
+                Append(await RunVmlAsync(cmd) + "\n\n");
+                return;
+            }
+
             // ⚠ **不要包 `Task.Run`**：`CwdContext` 是 `AsyncLocal`，`cd` 的更新只在
             // 当前异步上下文里生效，丢到线程池上跑完就传不回来了 —— 表现是 `cd /sdcard` 之后
             // cwd 永远还显示初始值。桌面 `!` 直通也是直接 await 的。
@@ -95,6 +105,37 @@ public partial class ShellPage : ContentPage
         {
             SetBusy(false);
             RefreshCwd();   // `cd` 之后 cwd 变了，顶栏要跟着动
+        }
+    }
+
+    /// <summary>处理 <c>vml</c> 子命令（进程内执行，不经过 shell）。</summary>
+    private static async Task<string> RunVmlAsync(string cmd)
+    {
+        var rest = cmd.Length <= 3 ? "" : cmd[3..].Trim();
+        try
+        {
+            if (rest.Length == 0 || rest == "help")
+                return "用法：\n  vml test            跑内置的自检程序\n"
+                     + "  vml run <文件.vml>  汇编并运行一个 VML 文件";
+
+            if (rest == "test")
+                return await Task.Run(() => MauiVml.RunAssembly(MauiVml.HelloWorldAsm));
+
+            if (rest.StartsWith("run ", StringComparison.Ordinal))
+            {
+                var path = rest[4..].Trim();
+                var full = CwdContext.Resolve(path);
+                if (!File.Exists(full)) return $"⚠️ 找不到文件：{full}";
+                var src = await File.ReadAllTextAsync(full);
+                return await Task.Run(() => MauiVml.RunAssembly(src));
+            }
+
+            return $"⚠️ 不认识的 vml 子命令：{rest}（敲 `vml` 看用法）";
+        }
+        catch (Exception ex)
+        {
+            // 汇编错误、VM 超时、被链接器裁掉…都在这里兜住，别让页面崩
+            return $"⚠️ VML 执行失败：{ex.GetType().Name}: {ex.Message}";
         }
     }
 

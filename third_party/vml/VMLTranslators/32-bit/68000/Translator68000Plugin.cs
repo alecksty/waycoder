@@ -1,0 +1,1 @@
+using VMLPlugins.Interfaces; using VMLAssembler; namespace VMLTranslators { public class Translator68000Plugin : TranslatorPlugin<Translator68000> { public Translator68000Plugin() : base("68000", "Motorola 68000 32位处理器", "32", ".68k.asm") { } } }

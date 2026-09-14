@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<package>
+  <metadata>
+    <id>VMLAssembler</id>
+    <version>1.62.2</version>
+    <title>VML Toolchain Core</title>
+    <authors>施探宇;alecksty</authors>
+    <description>VML (Virtual Machine Language) assembler, runtime, and multi-language compiler toolchain. Supports 14 programming language frontends and 14 CPU architecture backends.</description>
+    <tags>vm virtual-machine compiler assembler vml 6502 z80 arm riscv mips</tags>
+    <projectUrl>https://gitee.com/aleckstygit/vml</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+  </metadata>
+  <files>
+    <file src="bin/Release/net10.0/VMLAssembler.dll" target="lib/net10.0/VMLAssembler.dll" />
+    <file src="bin/Release/net10.0/VMLRuntime.dll" target="lib/net10.0/VMLRuntime.dll" />
+  </files>
+</package>

@@ -1,0 +1,768 @@
+.data
+
+.text
+lmoving_avg_init64:
+; -------------------------------------------
+; source   : long lmoving_avg_init64(long window_size,long* buffer,long* state)
+; function : lmoving_avg_init64
+; param   : long window_size
+; param   : long* buffer
+; param   : long* state
+; return   : long
+; --------------------------------------------
+lmoving_avg_init64:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+        move R0 [R12+12]
+        move R11 R0
+        move R0 [R12+24]
+        push R0
+        move R0 #0
+        mul R0 #8
+        pop R10
+        add R0 R10
+        move [R0] R11
+        move R0 #0
+        move R9 R0
+        move R0 [R12+24]
+        push R0
+        move R0 #1
+        mul R0 #8
+        pop R8
+        add R0 R8
+        move [R0] R9
+        move R0 #0
+        move R7 R0
+        move R0 [R12+24]
+        push R0
+        move R0 #2
+        mul R0 #8
+        pop R6
+        add R0 R6
+        move [R0] R7
+        move R0 [R12+20]
+        i2l R0 R0
+        move R5 R0
+        move R0 [R12+24]
+        push R0
+        move R0 #3
+        mul R0 #8
+        pop R4
+        add R0 R4
+        move [R0] R5
+        move R0 #0
+        i2l R0 R0
+        move [R12-8] R0
+sta_67100000:
+        move R0 [R12-8]
+        push R0
+        move R0 [R12+12]
+        pop R1
+        cmp R1 R0
+        jl _L67100005
+        move R0 #0
+        jmp _L67100006
+_L67100005:
+        move R0 #1
+_L67100006:
+        test R0 R0
+        jz _L67100003
+        move R0 [R12-8]
+        push R0
+        move R0 #64
+        pop R1
+        cmp R1 R0
+        jl _L67100007
+        move R0 #0
+        jmp _L67100008
+_L67100007:
+        move R0 #1
+_L67100008:
+        test R0 R0
+        jz _L67100003
+        move R0 #1
+        jmp _L67100004
+_L67100003:
+        move R0 #0
+_L67100004:
+        cmp R0 #0
+        jz sta_67100002
+        move R0 #0
+        move R3 R0
+        move R0 [R12+20]
+        push R0
+        move R0 [R12-8]
+        mul R0 #8
+        pop R2
+        add R0 R2
+        move [R0] R3
+sta_67100001:
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        jmp sta_67100000
+sta_67100002:
+        move R0 #1
+        jmp L67100009
+L67100009:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #16
+        push R1
+        ret
+lmoving_avg_update64:
+; -------------------------------------------
+; source   : long lmoving_avg_update64(long* state,long new_value)
+; function : lmoving_avg_update64
+; param   : long* state
+; param   : long new_value
+; return   : long
+; --------------------------------------------
+lmoving_avg_update64:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #44
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #8
+        pop R1
+        add R0 R1
+        move R0 [R0]
+        move [R12-8] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #8
+        pop R10
+        add R0 R10
+        move R0 [R0]
+        move [R12-16] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #2
+        mul R0 #8
+        pop R11
+        add R0 R11
+        move R0 [R0]
+        move [R12-24] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #3
+        mul R0 #8
+        pop R8
+        add R0 R8
+        move R0 [R0]
+        l2i R0 R0
+        move [R12-28] R0
+        move R0 [R12-24]
+        push R0
+        move R0 [R12-28]
+        push R0
+        move R0 [R12-16]
+        mul R0 #8
+        pop R9
+        add R0 R9
+        move R0 [R0]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-24] R0
+        move R0 [R12+16]
+        move R6 R0
+        move R0 [R12-28]
+        push R0
+        move R0 [R12-16]
+        mul R0 #8
+        pop R7
+        add R0 R7
+        move [R0] R6
+        move R0 [R12-24]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-24] R0
+        move R0 [R12-16]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-8]
+        pop R1
+        mod R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #3
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #8
+        pop R4
+        add R0 R4
+        move R0 [R0]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        cmp R1 R0
+        jl _L67100012
+        move R0 #0
+        jmp _L67100013
+_L67100012:
+        move R0 #1
+_L67100013:
+        cmp R0 #0
+        jz sta_67100010
+        move R0 [R12+12]
+        push R0
+        move R0 #3
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #8
+        pop R2
+        add R0 R2
+        move R5 R0
+        move R0 [R5]
+        move R3 R0
+        move R0 [R5]
+        add R0 R0 #1
+        move [R5] R0
+        move R0 R3
+sta_67100010:
+sta_67100011:
+        move R0 [R12-16]
+        move R1 R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #8
+        pop R10
+        add R0 R10
+        move [R0] R1
+        move R0 [R12-24]
+        move R11 R0
+        move R0 [R12+12]
+        push R0
+        move R0 #2
+        mul R0 #8
+        pop R8
+        add R0 R8
+        move [R0] R11
+        move R0 [R12+12]
+        push R0
+        move R0 #3
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        mul R0 #8
+        pop R9
+        add R0 R9
+        move R0 [R0]
+        move [R12-36] R0
+        move R0 [R12-36]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jle _L67100016
+        move R0 #0
+        jmp _L67100017
+_L67100016:
+        move R0 #1
+_L67100017:
+        cmp R0 #0
+        jz sta_67100014
+        move R0 [R12-8]
+        move [R12-36] R0
+sta_67100014:
+sta_67100015:
+        move R0 [R12-24]
+        push R0
+        move R0 [R12-36]
+        pop R1
+        div R1 R0
+        move R0 R1
+        jmp L67100018
+L67100018:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+lema_init64:
+; -------------------------------------------
+; source   : long lema_init64(long* state)
+; function : lema_init64
+; param   : long* state
+; return   : long
+; --------------------------------------------
+lema_init64:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #0
+        move R7 R0
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #8
+        pop R6
+        add R0 R6
+        move [R0] R7
+        move R0 #0
+        move R4 R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #8
+        pop R2
+        add R0 R2
+        move [R0] R4
+        move R0 #1
+        jmp L67100019
+L67100019:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+lema_update64:
+; -------------------------------------------
+; source   : long lema_update64(long* state,long value,long alpha)
+; function : lema_update64
+; param   : long* state
+; param   : long value
+; param   : long alpha
+; return   : long
+; --------------------------------------------
+lema_update64:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #24
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #8
+        pop R3
+        add R0 R3
+        move R0 [R0]
+        move [R12-8] R0
+        move R0 [R12-8]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12+24]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #1000
+        pop R1
+        div R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12-16]
+        move R5 R0
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #8
+        pop R10
+        add R0 R10
+        move [R0] R5
+        move R0 [R12-16]
+        jmp L67100020
+L67100020:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #16
+        push R1
+        ret
+lkalman_init64:
+; -------------------------------------------
+; source   : void lkalman_init64(long* state,long initial_value,long process_noise,long measure_noise)
+; function : lkalman_init64
+; param   : long* state
+; param   : long initial_value
+; param   : long process_noise
+; param   : long measure_noise
+; return   : void
+; --------------------------------------------
+lkalman_init64:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+16]
+        move R1 R0
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #8
+        pop R8
+        add R0 R8
+        move [R0] R1
+        move R0 #1000
+        move R11 R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #8
+        pop R9
+        add R0 R9
+        move [R0] R11
+        move R0 [R12+24]
+        move R6 R0
+        move R0 [R12+12]
+        push R0
+        move R0 #2
+        mul R0 #8
+        pop R7
+        add R0 R7
+        move [R0] R6
+        move R0 [R12+32]
+        move R2 R0
+        move R0 [R12+12]
+        push R0
+        move R0 #3
+        mul R0 #8
+        pop R4
+        add R0 R4
+        move [R0] R2
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #20
+        push R1
+        ret
+lkalman_update64:
+; -------------------------------------------
+; source   : long lkalman_update64(long* state,long measurement)
+; function : lkalman_update64
+; param   : long* state
+; param   : long measurement
+; return   : long
+; --------------------------------------------
+lkalman_update64:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #48
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #8
+        pop R3
+        add R0 R3
+        move R0 [R0]
+        move [R12-8] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #8
+        pop R10
+        add R0 R10
+        move R0 [R0]
+        move [R12-16] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #2
+        mul R0 #8
+        pop R5
+        add R0 R5
+        move R0 [R0]
+        move [R12-24] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #3
+        mul R0 #8
+        pop R8
+        add R0 R8
+        move R0 [R0]
+        move [R12-32] R0
+        move R0 [R12-16]
+        push R0
+        move R0 [R12-24]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12-16]
+        push R0
+        move R0 #1000
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-16]
+        push R0
+        move R0 [R12-32]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L67100021
+        move R0 #0
+        jmp _L67100022
+_L67100021:
+        move R0 #1
+_L67100022:
+        test R0 R0
+        jz _L67100023
+        move R0 [R12-32]
+        jmp _L67100024
+_L67100023:
+        move R0 #1
+_L67100024:
+        pop R1
+        add R1 R0
+        move R0 R1
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-40] R0
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-40]
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #1000
+        pop R1
+        div R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+        move R0 #1000
+        push R0
+        move R0 [R12-40]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-16]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #1000
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12-8]
+        move R1 R0
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #8
+        pop R9
+        add R0 R9
+        move [R0] R1
+        move R0 [R12-16]
+        move R11 R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #8
+        pop R7
+        add R0 R7
+        move [R0] R11
+        move R0 [R12-8]
+        jmp L67100025
+L67100025:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+ldeadband64:
+; -------------------------------------------
+; source   : long ldeadband64(long value,long threshold)
+; function : ldeadband64
+; param   : long value
+; param   : long threshold
+; return   : long
+; --------------------------------------------
+ldeadband64:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+20]
+        pop R1
+        cmp R1 R0
+        jl _L67100030
+        move R0 #0
+        jmp _L67100031
+_L67100030:
+        move R0 #1
+_L67100031:
+        test R0 R0
+        jz _L67100028
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+20]
+        move R0 [R12+20]
+        neg R0 R0
+        pop R1
+        cmp R1 R0
+        jg _L67100032
+        move R0 #0
+        jmp _L67100033
+_L67100032:
+        move R0 #1
+_L67100033:
+        test R0 R0
+        jz _L67100028
+        move R0 #1
+        jmp _L67100029
+_L67100028:
+        move R0 #0
+_L67100029:
+        cmp R0 #0
+        jz sta_67100026
+        move R0 #0
+        jmp L67100034
+sta_67100026:
+sta_67100027:
+        move R0 [R12+12]
+        jmp L67100034
+L67100034:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+lhysteresis64:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : long lhysteresis64(long* state,long input,long on_threshold,long off_threshold)
+; function : lhysteresis64
+; param   : long* state
+; param   : long input
+; param   : long on_threshold
+; param   : long off_threshold
+; return   : long
+; --------------------------------------------
+lhysteresis64:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+16]
+        push R0
+        move R0 [R12+24]
+        pop R1
+        cmp R1 R0
+        jg _L67100037
+        move R0 #0
+        jmp _L67100038
+_L67100037:
+        move R0 #1
+_L67100038:
+        cmp R0 #0
+        jz sta_67100035
+        move R0 #1
+        move R6 R0
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #8
+        pop R4
+        add R0 R4
+        move [R0] R6
+        move R0 #1
+        jmp L67100039
+sta_67100035:
+sta_67100036:
+        move R0 [R12+16]
+        push R0
+        move R0 [R12+32]
+        pop R1
+        cmp R1 R0
+        jl _L67100042
+        move R0 #0
+        jmp _L67100043
+_L67100042:
+        move R0 #1
+_L67100043:
+        cmp R0 #0
+        jz sta_67100040
+        move R0 #0
+        move R2 R0
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #8
+        pop R3
+        add R0 R3
+        move [R0] R2
+        move R0 #0
+        jmp L67100039
+sta_67100040:
+sta_67100041:
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #8
+        pop R10
+        add R0 R10
+        move R0 [R0]
+        jmp L67100039
+L67100039:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #20
+        push R1
+        ret

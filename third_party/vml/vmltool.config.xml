@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<VMLToolConfig>
+  <!-- ═══════════════════════════════════════════
+   运行模式: mcu (微控制器安全子集) / os (完整操作系统)
+   ═══════════════════════════════════════════ -->
+  <Mode>mcu</Mode>
+
+  <!-- ═══════════════════════════════════════════
+   数值处理: none (不支持) / soft (软件库) / hard (硬件指令)
+   MCU 默认 hard (硬件浮点/64位指令)
+   ═══════════════════════════════════════════ -->
+  <Float32>hard</Float32>
+  <Float64>hard</Float64>
+  <Int64>hard</Int64>
+
+  <!-- ═══════════════════════════════════════════
+   优化与调试
+   ═══════════════════════════════════════════ -->
+  <OptimizationLevel>0</OptimizationLevel>     <!-- -O0/-O1/-O2/-Os -->
+  <WarningLevel>0</WarningLevel>               <!-- 0=none, 1=-Wall, 2=-Wextra -->
+  <WarningsAsErrors>false</WarningsAsErrors>   <!-- -Werror -->
+  <Debug>false</Debug>                         <!-- 调试信息: 编译器诊断/变量统计/警告详情 -->
+  <GcSections>true</GcSections>               <!-- 链接时死代码消除 -->
+
+  <!-- ═══════════════════════════════════════════
+   内存配置
+   ═══════════════════════════════════════════ -->
+  <MemoryLevel>RAM_M</MemoryLevel>              <!-- RAM_K / RAM_M / RAM_G -->
+  <StackSize>0</StackSize>                      <!-- 0=自动, >0=指定字节数 -->
+
+  <!-- ═══════════════════════════════════════════
+   链接模式
+   ═══════════════════════════════════════════ -->
+  <StaticLink>false</StaticLink>                <!-- -static 静态链接 -->
+  <SharedLink>false</SharedLink>                <!-- -shared 动态链接 -->
+  <AutoIncludeStdLib>true</AutoIncludeStdLib>   <!-- 自动包含标准库 -->
+  <UseSharedLibrary>true</UseSharedLibrary>     <!-- 使用共享库 -->
+
+  <!-- ═══════════════════════════════════════════
+   输出控制
+   ═══════════════════════════════════════════ -->
+  <OutputFormat></OutputFormat>                 <!-- hex/elf/exe/bin/s19 (空=自动) -->
+  <SourceComment>true</SourceComment>           <!-- 转译输出包含源注释 -->
+  <SaveTemps>false</SaveTemps>                 <!-- 保留中间文件 -->
+
+  <!-- ═══════════════════════════════════════════
+   路径配置
+   ═══════════════════════════════════════════ -->
+  <SharedPath>Lib/shared</SharedPath>
+  <LibPath>Lib</LibPath>
+  <OutputPath></OutputPath>
+  <IncludePaths>                       <!-- -I 包含路径 -->
+  </IncludePaths>
+  <Defines>                             <!-- -D 预定义宏 -->
+  </Defines>
+
+  <!-- ═══════════════════════════════════════════
+   语言方言 / 标准 / 包含路径
+   ═══════════════════════════════════════════ -->
+  <LanguageStandard></LanguageStandard>         <!-- c99/c11/c17/c++20 等 -->
+  <BasicDialect>qbasic</BasicDialect>           <!-- qbasic / turbobasic / purebasic / chipbasic / gwbasic / powerbasic / visualbasic / freebasic -->
+  <PascalDialect>turbo</PascalDialect>          <!-- turbo / delphi / freepascal / standard -->
+  <CIncludePaths>                               <!-- C/C++ 头文件搜索路径 -->
+    <Path>Lib/c</Path>
+    <Path>Lib/shared/src</Path>
+  </CIncludePaths>
+
+  <!-- ═══════════════════════════════════════════
+   全局默认链接库 (所有语言)
+   ═══════════════════════════════════════════ -->
+  <DefaultLibs>
+    <Lib>builtins.vml</Lib>
+  </DefaultLibs>
+
+  <!-- ═══════════════════════════════════════════
+   各语言配置 (libs = 额外链接库, 逗号分隔)
+   ═══════════════════════════════════════════ -->
+  <Languages>
+    <!-- C-like: 保留 asm() -->
+    <Language Name="c"       Libs="builtins.vml,crt.vml" />
+    <Language Name="cpp"     Libs="builtins.vml,crt.vml" />
+    <Language Name="objc"    Libs="builtins.vml,crt.vml" />
+
+    <!-- QBasic 方言 -->
+    <Language Name="basic"   Libs="builtins.vml,crt.vml" />
+
+    <!-- Pascal 方言 -->
+    <Language Name="pascal"  Libs="builtins.vml,crt.vml" />
+
+    <!-- 脚本语言 -->
+    <Language Name="python"     Libs="" />
+    <Language Name="lua"        Libs="" />
+    <Language Name="javascript" Libs="" />
+    <Language Name="ruby"       Libs="" />
+
+    <!-- 系统语言 -->
+    <Language Name="rust"    Libs="" />
+    <Language Name="go"      Libs="" />
+    <Language Name="java"    Libs="" />
+    <Language Name="csharp"  Libs="" />
+    <Language Name="swift"   Libs="" />
+    <Language Name="kotlin"  Libs="" />
+    <Language Name="d"       Libs="" />
+
+    <!-- 函数式 / 领域语言 -->
+    <Language Name="scheme"  Libs="" />
+    <Language Name="forth"   Libs="" />
+    <Language Name="ladder"  Libs="" />
+    <Language Name="dart"    Libs="" />
+    <Language Name="fortran" Libs="" />
+    <Language Name="r"       Libs="" />
+
+    <!-- VML 汇编 -->
+    <Language Name="vml"     Libs="crt.vml" />
+
+    <!-- 未知语言默认 -->
+    <Language Name="default" Libs="crt.vml" />
+  </Languages>
+</VMLToolConfig>

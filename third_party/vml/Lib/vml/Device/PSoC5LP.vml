@@ -1,0 +1,85 @@
+﻿; CY8C5888LTI-LP097寄存器定义
+; 生成自: Cypress (Infineon)/PSoC/CY8C5888LTI-LP097
+; 版本: 1.0
+; 日期: 2026-04-29
+; 作者: VML Team
+; 描述: 32-bit ARM Cortex-M3 PSoC 5LP with 256KB Flash, 64KB SRAM, 80MHz, UDB
+
+; CPU架构: ARM-Cortex-M3
+; 位宽: 32位
+; 时钟频率: 80000000 Hz
+
+; 外设定义
+; SCB UART (可编程)
+.equ UART_BASE, 0x40050000
+.equ UART_CTRL, 0x00
+.equ UART_STATUS, 0x04
+.equ UART_TX_DATA, 0x08
+.equ UART_RX_DATA, 0x0C
+
+; SCB I2C
+.equ I2C_BASE, 0x40051000
+.equ I2C_CTRL, 0x00
+.equ I2C_STATUS, 0x04
+.equ I2C_TX_DATA, 0x08
+.equ I2C_RX_DATA, 0x0C
+
+; TCPWM 定时器
+.equ TIMER_BASE, 0x40060000
+.equ TIMER_CTRL, 0x00
+.equ TIMER_STATUS, 0x04
+.equ TIMER_CNT, 0x08
+.equ TIMER_PERIOD, 0x0C
+.equ TIMER_CC, 0x10
+
+; DelSig ADC 20-bit
+.equ ADC_BASE, 0x40100000
+.equ ADC_CTRL, 0x00
+.equ ADC_STATUS, 0x04
+.equ ADC_DATA, 0x08
+.equ ADC_CLOCK, 0x10
+
+; GPIO 端口
+.equ GPIO_BASE, 0x40040000
+.equ GPIO_DR, 0x00
+.equ GPIO_PS, 0x04
+.equ GPIO_IE, 0x08
+.equ GPIO_DM, 0x0C
+
+; USB 控制器
+.equ USB_BASE, 0x40080000
+.equ USB_CR0, 0x00
+.equ USB_CR1, 0x04
+.equ USB_STAT, 0x08
+
+; 宏定义
+.macro cy8c5888lti_lp097_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+cy8c5888lti_lp097_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

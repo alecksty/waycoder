@@ -1,0 +1,122 @@
+﻿; Intel 80286寄存器定义
+; 生成自: Intel/x86/Intel 80286
+; 版本: 
+; 日期: 
+; 作者: 
+; 描述: Intel 80286 16-bit microprocessor with memory management and protection
+
+; CPU架构: x86-16
+; 位宽: 0位
+; 时钟频率: 0 Hz
+
+; 外设定义
+; Programmable Interrupt Controller
+.equ _8259A_BASE, 
+.equ _8259A_ICW1, 0x20
+.equ _8259A_ICW2, 0x21
+.equ _8259A_ICW3, 0x21
+.equ _8259A_ICW4, 0x21
+.equ _8259A_OCW1, 0x21
+.equ _8259A_OCW2, 0x20
+.equ _8259A_OCW3, 0x20
+
+; Programmable Interval Timer
+.equ _8253_BASE, 
+.equ _8253_COUNTER0, 0x40
+.equ _8253_COUNTER1, 0x41
+.equ _8253_COUNTER2, 0x42
+.equ _8253_CONTROL, 0x43
+
+; Programmable Peripheral Interface
+.equ _8255_BASE, 
+.equ _8255_PORTA, 0x60
+.equ _8255_PORTB, 0x61
+.equ _8255_PORTC, 0x62
+.equ _8255_CONTROL, 0x63
+
+; Direct Memory Access Controller
+.equ _8237_BASE, 
+.equ _8237_CHANNEL0, 0x00
+.equ _8237_CHANNEL1, 0x02
+.equ _8237_CHANNEL2, 0x04
+.equ _8237_CHANNEL3, 0x06
+.equ _8237_STATUS, 0x08
+.equ _8237_COMMAND, 0x08
+.equ _8237_REQUEST, 0x09
+.equ _8237_MASK, 0x0A
+.equ _8237_MODE, 0x0B
+.equ _8237_FLIPFLOP, 0x0C
+.equ _8237_TEMP, 0x0D
+.equ _8237_MASTERCLEAR, 0x0D
+.equ _8237_MASKALL, 0x0F
+
+; Keyboard Controller
+.equ _8042_BASE, 
+.equ _8042_DATA, 0x60
+.equ _8042_STATUS, 0x64
+
+; 中断向量定义
+.equ DIVIDE_ERROR_VECTOR, 0  ; Division by zero or overflow
+.equ DEBUG_EXCEPTION_VECTOR, 1  ; Single-step or debug register access
+.equ NMI_VECTOR, 2  ; Non-maskable interrupt
+.equ BREAKPOINT_VECTOR, 3  ; INT 3 instruction
+.equ OVERFLOW_VECTOR, 4  ; INTO instruction with OF=1
+.equ BOUNDS_CHECK_VECTOR, 5  ; BOUND instruction
+.equ INVALID_OPCODE_VECTOR, 6  ; Undefined opcode
+.equ COPROCESSOR_NOT_AVAILABLE_VECTOR, 7  ; No math coprocessor
+.equ DOUBLE_FAULT_VECTOR, 8  ; Two exceptions in handler
+.equ COPROCESSOR_SEGMENT_OVERRUN_VECTOR, 9  ; Coprocessor operand beyond segment
+.equ INVALID_TSS_VECTOR, 10  ; Invalid Task State Segment
+.equ SEGMENT_NOT_PRESENT_VECTOR, 11  ; Segment not present
+.equ STACK_FAULT_VECTOR, 12  ; Stack segment limit violation
+.equ GENERAL_PROTECTION_VECTOR, 13  ; Memory access violation
+.equ PAGE_FAULT_VECTOR, 14  ; Page not present (386+)
+.equ COPROCESSOR_ERROR_VECTOR, 16  ; Math coprocessor error
+.equ IRQ0_VECTOR, 32  ; Timer interrupt
+.equ IRQ1_VECTOR, 33  ; Keyboard interrupt
+.equ IRQ2_VECTOR, 34  ; Cascade to IRQ8-15
+.equ IRQ3_VECTOR, 35  ; COM2 interrupt
+.equ IRQ4_VECTOR, 36  ; COM1 interrupt
+.equ IRQ5_VECTOR, 37  ; LPT2 interrupt
+.equ IRQ6_VECTOR, 38  ; Floppy disk interrupt
+.equ IRQ7_VECTOR, 39  ; LPT1 interrupt
+.equ IRQ8_VECTOR, 40  ; Real-time clock interrupt
+.equ IRQ9_VECTOR, 41  ; Redirected IRQ2
+.equ IRQ10_VECTOR, 42  ; Reserved
+.equ IRQ11_VECTOR, 43  ; Reserved
+.equ IRQ12_VECTOR, 44  ; PS/2 mouse interrupt
+.equ IRQ13_VECTOR, 45  ; Coprocessor interrupt
+.equ IRQ14_VECTOR, 46  ; Primary IDE interrupt
+.equ IRQ15_VECTOR, 47  ; Secondary IDE interrupt
+
+; 宏定义
+.macro intel_80286_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+intel_80286_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

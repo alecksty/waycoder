@@ -1,0 +1,375 @@
+﻿// ESP32-WROOM-32 设备定义 - Objective-C 头文件
+// 生成自: Espressif/ESP32/ESP32-WROOM-32
+// 版本: 1.0
+// 日期: 2026-04-16
+// 作者: VML Team
+// 描述: Dual-core Xtensa LX6 Wi-Fi and Bluetooth/BLE SoC with 4MB Flash
+// CPU架构: Xtensa-LX6
+// 位宽: 32位
+// 时钟频率: 160000000 Hz
+
+#ifndef ESP32-WROOM-32_DEVICE_H
+#define ESP32-WROOM-32_DEVICE_H
+
+#import <Foundation/Foundation.h>
+
+// 寄存器地址定义
+#define PC_ADDR 0x00000000  // Program Counter
+#define A0_ADDR 0x00000004  // General Purpose Register 0
+#define A1_ADDR 0x00000008  // Stack Pointer
+#define A2_ADDR 0x0000000C  // General Purpose Register 2
+#define A3_ADDR 0x00000010  // General Purpose Register 3
+#define A4_ADDR 0x00000014  // General Purpose Register 4
+#define A5_ADDR 0x00000018  // General Purpose Register 5
+#define A6_ADDR 0x0000001C  // General Purpose Register 6
+#define A7_ADDR 0x00000020  // General Purpose Register 7
+#define A8_ADDR 0x00000024  // General Purpose Register 8
+#define A9_ADDR 0x00000028  // General Purpose Register 9
+#define A10_ADDR 0x0000002C  // General Purpose Register 10
+#define A11_ADDR 0x00000030  // General Purpose Register 11
+#define A12_ADDR 0x00000034  // General Purpose Register 12
+#define A13_ADDR 0x00000038  // General Purpose Register 13
+#define A14_ADDR 0x0000003C  // General Purpose Register 14
+#define A15_ADDR 0x00000040  // General Purpose Register 15
+#define SAREG1_ADDR 0x00000044  // Special Address Register 1
+#define SAREG2_ADDR 0x00000048  // Special Address Register 2
+#define LBEG_ADDR 0x0000004C  // Loop Beginning
+#define LEND_ADDR 0x00000050  // Loop End
+#define LCOUNT_ADDR 0x00000054  // Loop Counter
+#define PS_ADDR 0x00000058  // Processor Status
+#define WINDOWBASE_ADDR 0x0000005C  // Window Base
+#define WINDOWSTART_ADDR 0x00000060  // Window Start
+#define PTEBASE_ADDR 0x00000064  // Page Table Base
+#define PTESIZE_ADDR 0x00000068  // Page Table Entry Size
+#define SCOMPARE1_ADDR 0x0000006C  // Special Compare 1
+#define ATOMCTL_ADDR 0x00000070  // Atomic Operation Control
+#define DDR_ADDR 0x00000074  // Data Destination Register
+
+// 内存段定义
+#define ROM_START 0x40000000
+#define ROM_END 0x4003FFFF
+#define ROM_SIZE 262144  // ROM (224KB)
+#define SRAM_START 0x3FF00000
+#define SRAM_END 0x3FF7FFFF
+#define SRAM_SIZE 524288  // SRAM (320KB total)
+#define DRAM0_START 0x3FF80000
+#define DRAM0_END 0x3FF9FFFF
+#define DRAM0_SIZE 131072  // DRAM0 (128KB)
+#define IRAM0_START 0x40000000
+#define IRAM0_END 0x401FFFFF
+#define IRAM0_SIZE 2097152  // IRAM0
+#define FLASH_START 0x40200000
+#define FLASH_END 0x405FFFFF
+#define FLASH_SIZE 4194304  // External Flash (4MB)
+#define PERIPHERAL_START 0x3FF00000
+#define PERIPHERAL_END 0x3FFBFFFF
+#define PERIPHERAL_SIZE 786432  // Peripheral Registers
+#define GPIO_START 0x3FF44000
+#define GPIO_END 0x3FF44FFF
+#define GPIO_SIZE 4096  // GPIO
+
+// 外设定义
+// GPIO
+#define GPIO_BASE 0x3FF44000
+#define GPIO_OUT_ADDR 0x0000
+#define GPIO_OUT_W1TS_ADDR 0x0008
+#define GPIO_OUT_W1TC_ADDR 0x000C
+#define GPIO_IN_ADDR 0x003C
+#define GPIO_STATUS_ADDR 0x0024
+#define GPIO_STATUS_W1TS_ADDR 0x0028
+#define GPIO_STATUS_W1TC_ADDR 0x002C
+#define GPIO_PIN_ADDR 0x0040
+#define GPIO_ENABLE_ADDR 0x0020
+#define GPIO_STRAP_ADDR 0x0038
+#define GPIO_IN_NEXT_ADDR 0x0044
+// RTC GPIO
+#define RTC_GPIO_BASE 0x3FF48000
+#define RTC_GPIO_OUT_ADDR 0x0000
+#define RTC_GPIO_OUT_W1TS_ADDR 0x0008
+#define RTC_GPIO_OUT_W1TC_ADDR 0x000C
+#define RTC_GPIO_IN_ADDR 0x0044
+#define RTC_GPIO_STATUS_ADDR 0x0024
+#define RTC_GPIO_PIN_ADDR 0x0048
+#define RTC_GPIO_ENABLE_ADDR 0x0020
+// IO MUX
+#define IO_MUX_BASE 0x3FF49000
+#define IO_MUX_GPIO0_ADDR 0x0000
+#define IO_MUX_GPIO1_ADDR 0x0004
+#define IO_MUX_GPIO2_ADDR 0x0008
+#define IO_MUX_GPIO3_ADDR 0x000C
+#define IO_MUX_GPIO4_ADDR 0x0010
+#define IO_MUX_GPIO5_ADDR 0x0014
+#define IO_MUX_GPIO6_ADDR 0x0018
+#define IO_MUX_GPIO7_ADDR 0x001C
+#define IO_MUX_GPIO8_ADDR 0x0020
+#define IO_MUX_GPIO9_ADDR 0x0024
+#define IO_MUX_GPIO10_ADDR 0x0028
+#define IO_MUX_GPIO11_ADDR 0x002C
+#define IO_MUX_GPIO12_ADDR 0x0030
+#define IO_MUX_GPIO13_ADDR 0x0034
+#define IO_MUX_GPIO14_ADDR 0x0038
+#define IO_MUX_GPIO15_ADDR 0x003C
+#define IO_MUX_GPIO16_ADDR 0x0040
+#define IO_MUX_GPIO17_ADDR 0x0044
+#define IO_MUX_GPIO18_ADDR 0x0048
+#define IO_MUX_GPIO19_ADDR 0x004C
+#define IO_MUX_GPIO20_ADDR 0x0050
+#define IO_MUX_GPIO21_ADDR 0x0054
+#define IO_MUX_GPIO22_ADDR 0x0058
+#define IO_MUX_GPIO23_ADDR 0x005C
+#define IO_MUX_GPIO24_ADDR 0x0060
+#define IO_MUX_GPIO25_ADDR 0x0064
+#define IO_MUX_GPIO26_ADDR 0x0068
+#define IO_MUX_GPIO27_ADDR 0x006C
+// UART 0
+#define UART0_BASE 0x3FF40000
+#define UART0_FIFO_ADDR 0x0000
+#define UART0_INT_RAW_ADDR 0x0004
+#define UART0_INT_ST_ADDR 0x0008
+#define UART0_INT_ENA_ADDR 0x000C
+#define UART0_INT_CLR_ADDR 0x0010
+#define UART0_CONF0_ADDR 0x0020
+#define UART0_CONF1_ADDR 0x0024
+#define UART0_LOWPULSE_ADDR 0x0028
+#define UART0_HIGHPULSE_ADDR 0x002C
+#define UART0_PULSE_CNT_ADDR 0x0030
+#define UART0_DATE_ADDR 0x0078
+#define UART0_AHB_BIT_ADDR 0x007C
+// UART 1
+#define UART1_BASE 0x3FF50000
+#define UART1_FIFO_ADDR 0x0000
+#define UART1_INT_RAW_ADDR 0x0004
+#define UART1_INT_ST_ADDR 0x0008
+#define UART1_INT_ENA_ADDR 0x000C
+#define UART1_INT_CLR_ADDR 0x0010
+#define UART1_CONF0_ADDR 0x0020
+#define UART1_CONF1_ADDR 0x0024
+// UART 2
+#define UART2_BASE 0x3FF6E000
+#define UART2_FIFO_ADDR 0x0000
+#define UART2_INT_RAW_ADDR 0x0004
+#define UART2_INT_ST_ADDR 0x0008
+#define UART2_INT_ENA_ADDR 0x000C
+#define UART2_INT_CLR_ADDR 0x0010
+#define UART2_CONF0_ADDR 0x0020
+#define UART2_CONF1_ADDR 0x0024
+// SPI0 (Flash)
+#define SPI0_BASE 0x3FF42000
+#define SPI0_CMD_ADDR 0x0000
+#define SPI0_ADDR_ADDR 0x0004
+#define SPI0_CONTROL_ADDR 0x0008
+#define SPI0_CONTROL1_ADDR 0x000C
+#define SPI0_STATUS_ADDR 0x0010
+#define SPI0_STATUS1_ADDR 0x0014
+#define SPI0_DATA_ADDR 0x0020
+#define SPI0_USER_ADDR 0x003C
+#define SPI0_USER1_ADDR 0x0040
+#define SPI0_USER2_ADDR 0x0044
+#define SPI0_PIN_ADDR 0x0048
+#define SPI0_SLAVE_ADDR 0x004C
+#define SPI0_CACHE_FLASH_ADDR 0x0050
+#define SPI0_CLOCK_ADDR 0x0058
+#define SPI0_FIFO_ADDR 0x0060
+// SPI1
+#define SPI1_BASE 0x3FF43000
+#define SPI1_CMD_ADDR 0x0000
+#define SPI1_ADDR_ADDR 0x0004
+#define SPI1_CONTROL_ADDR 0x0008
+#define SPI1_STATUS_ADDR 0x0010
+#define SPI1_DATA_ADDR 0x0020
+#define SPI1_USER_ADDR 0x003C
+#define SPI1_CLOCK_ADDR 0x0058
+// SPI2 (HSPI)
+#define SPI2_BASE 0x3FF64000
+#define SPI2_CMD_ADDR 0x0000
+#define SPI2_ADDR_ADDR 0x0004
+#define SPI2_CONTROL_ADDR 0x0008
+#define SPI2_STATUS_ADDR 0x0010
+#define SPI2_DATA_ADDR 0x0020
+#define SPI2_USER_ADDR 0x003C
+#define SPI2_CLOCK_ADDR 0x0058
+#define SPI2_FIFO_ADDR 0x0060
+// I2C 0
+#define I2C0_BASE 0x3FF53000
+#define I2C0_SCL_START_ADDR 0x0000
+#define I2C0_SCL_LOW_ADDR 0x0004
+#define I2C0_SDA_START_ADDR 0x0008
+#define I2C0_SDA_LOW_ADDR 0x000C
+#define I2C0_INT_ENA_ADDR 0x0010
+#define I2C0_INT_CLR_ADDR 0x0014
+#define I2C0_INT_RAW_ADDR 0x0018
+#define I2C0_INT_STATUS_ADDR 0x001C
+#define I2C0_SCL_HIGH_PERIOD_ADDR 0x0020
+#define I2C0_SCL_HIGH_PERIOD_S_ADDR 0x0024
+#define I2C0_SCL_START_HOLD_ADDR 0x0028
+#define I2C0_SDA_START_HOLD_ADDR 0x002C
+#define I2C0_SCL_LAST_HOLD_ADDR 0x0030
+#define I2C0_SCL_WAIT_PERIOD_ADDR 0x0034
+#define I2C0_CTR_ADDR 0x0050
+#define I2C0_STATUS_ADDR 0x0054
+#define I2C0_FINISH_INT_ENA_ADDR 0x0058
+#define I2C0_COMMAND0_ADDR 0x0060
+#define I2C0_COMMAND1_ADDR 0x0064
+#define I2C0_COMMAND2_ADDR 0x0068
+#define I2C0_COMMAND3_ADDR 0x006C
+#define I2C0_DATA_ADDR 0x0080
+// I2C 1
+#define I2C1_BASE 0x3FF67000
+#define I2C1_CTR_ADDR 0x0050
+#define I2C1_DATA_ADDR 0x0080
+#define I2C1_COMMAND0_ADDR 0x0060
+#define I2C1_COMMAND1_ADDR 0x0064
+// Timer Group 0
+#define TIMG0_BASE 0x3FF5F000
+#define TIMG0_T0CONFIG_ADDR 0x0000
+#define TIMG0_T0LO_ADDR 0x0004
+#define TIMG0_T0HI_ADDR 0x0008
+#define TIMG0_T0UPDATE_ADDR 0x000C
+#define TIMG0_T0ALARM_ADDR 0x0010
+#define TIMG0_T0LOAD_ADDR 0x0014
+#define TIMG0_T0LOAD_REG_ADDR 0x0018
+// Timer Group 1
+#define TIMG1_BASE 0x3FF60000
+#define TIMG1_T0CONFIG_ADDR 0x0000
+#define TIMG1_T0LO_ADDR 0x0004
+#define TIMG1_T0HI_ADDR 0x0008
+#define TIMG1_T0ALARM_ADDR 0x0010
+#define TIMG1_T0LOAD_ADDR 0x0014
+// Motor Control PWM 0
+#define PWM0_BASE 0x3FF59000
+#define PWM0_CNT_ADDR 0x0000
+#define PWM0_PERIOD_ADDR 0x0004
+#define PWM0_DUTY_ADDR 0x0008
+#define PWM0_CONFIG0_ADDR 0x0010
+#define PWM0_CONFIG1_ADDR 0x0014
+#define PWM0_CONFIG2_ADDR 0x0018
+#define PWM0_UPDATE_ADDR 0x0020
+// Motor Control PWM 1
+#define PWM1_BASE 0x3FF5A000
+#define PWM1_CNT_ADDR 0x0000
+#define PWM1_PERIOD_ADDR 0x0004
+#define PWM1_DUTY_ADDR 0x0008
+// LED PWM Controller
+#define LEDC_BASE 0x3FF59000
+#define LEDC_CONFIG0_ADDR 0x0000
+#define LEDC_HPOINT0_ADDR 0x0018
+#define LEDC_DUTY0_ADDR 0x001C
+#define LEDC_HPOINT1_ADDR 0x0028
+#define LEDC_DUTY1_ADDR 0x002C
+#define LEDC_HPOINT2_ADDR 0x0038
+#define LEDC_DUTY2_ADDR 0x003C
+#define LEDC_HPOINT3_ADDR 0x0048
+#define LEDC_DUTY3_ADDR 0x004C
+#define LEDC_TIMER0_CONF_ADDR 0x0000
+#define LEDC_TIMER0_LOAD_ADDR 0x0004
+// RTC Controller
+#define RTC_BASE 0x3FF48000
+#define RTC_RTC_CNTL_ADDR 0x0000
+#define RTC_RTC_TIMER_ADDR 0x000C
+#define RTC_RTC_UPDATE_ADDR 0x0010
+#define RTC_RTC_STATE0_ADDR 0x0080
+// Wi-Fi
+#define WIFI_BASE 0x3FFAE000
+#define WIFI_MAC_ADDR 0x0000
+#define WIFI_CONFIG_ADDR 0x0100
+// Bluetooth/BLE
+#define BT_BASE 0x3FFB0000
+#define BT_CONFIG_ADDR 0x0000
+// SHA Hardware Accelerator
+#define SHA_BASE 0x3FF67000
+#define SHA_MODE_ADDR 0x0000
+#define SHA_DATA_ADDR 0x0004
+#define SHA_HASH_ADDR 0x0008
+// AES Hardware Accelerator
+#define AES_BASE 0x3FF68000
+#define AES_KEY_ADDR 0x0000
+#define AES_DATA_IN_ADDR 0x0004
+#define AES_DATA_OUT_ADDR 0x0008
+#define AES_MODE_ADDR 0x000C
+// Random Number Generator
+#define RNG_BASE 0x3FF75000
+#define RNG_DATA_ADDR 0x0000
+// eFuse Controller
+#define EFUSE_BASE 0x3FF5A000
+#define EFUSE_DATA0_ADDR 0x0000
+#define EFUSE_DATA1_ADDR 0x0004
+#define EFUSE_DATA2_ADDR 0x0008
+#define EFUSE_DATA3_ADDR 0x000C
+
+// 中断向量定义
+#define INT_NMI 0  // Non-maskable interrupt
+#define INT_SYS_SOFT 1  // Software interrupt
+#define INT_TIMER_INTR0 2  // Hardware timer 0
+#define INT_TIMER_INTR1 3  // Hardware timer 1
+#define INT_TIMER_INTR2 4  // Hardware timer 2
+#define INT_TIMER_GROUP0 5  // TG0 interrupt
+#define INT_TIMER_GROUP1 6  // TG1 interrupt
+#define INT_GPIO 7  // GPIO interrupt
+#define INT_GPIO_NMI 8  // GPIO NMI interrupt
+#define INT_SPI0 9  // SPI0 interrupt
+#define INT_SPI1 10  // SPI1 interrupt
+#define INT_SPI2 11  // SPI2 interrupt
+#define INT_I2C0 12  // I2C0 interrupt
+#define INT_I2C1 13  // I2C1 interrupt
+#define INT_UART0 14  // UART0 interrupt
+#define INT_UART1 15  // UART1 interrupt
+#define INT_UART2 16  // UART2 interrupt
+#define INT_WDT 17  // Watchdog interrupt
+#define INT_RTC 18  // RTC interrupt
+#define INT_PWM0 19  // PWM0 interrupt
+#define INT_PWM1 20  // PWM1 interrupt
+#define INT_LEDC 21  // LEDC interrupt
+#define INT_TOUCH 22  // Touch sensor interrupt
+#define INT_SARADC 23  // SARADC interrupt
+#define INT_MAX 24  // No. of CPU interrupts
+#define INT_CORE_INTR0 25  // Core 0 interrupt 0
+#define INT_CORE_INTR1 26  // Core 0 interrupt 1
+#define INT_CORE_INTR2 27  // Core 0 interrupt 2
+#define INT_CORE_INTR3 28  // Core 0 interrupt 3
+#define INT_CORE_INTR4 29  // Core 0 interrupt 4
+#define INT_CORE_INTR5 30  // Core 0 interrupt 5
+#define INT_CORE_INTR6 31  // Core 0 interrupt 6
+#define INT_GPIO_INTERRUPT 32  // GPIO interrupt
+#define INT_GPIO_INTERRUPT_NMI 33  // GPIO NMI interrupt
+
+// 引脚定义
+#define PIN_VDD 1  // 3.3V Power Supply
+#define PIN_EN 2  // Enable ( CHIP_PU )
+#define PIN_SENSOR_VP 3  // GPIO36 - ADC1_CH0 - SENSOR_VP
+#define PIN_SENSOR_VN 4  // GPIO37 - ADC1_CH1 - SENSOR_VN
+#define PIN_IO34 5  // GPIO34 - ADC1_CH6
+#define PIN_IO35 6  // GPIO35 - ADC1_CH7
+#define PIN_IO32 7  // GPIO32 - ADC1_CH4 - TOUCH_CH9
+#define PIN_IO33 8  // GPIO33 - ADC1_CH5 - TOUCH_CH8
+#define PIN_IO25 9  // GPIO25 - DAC1 - ADC2_CH8
+#define PIN_IO26 10  // GPIO26 - DAC2 - ADC2_CH9
+#define PIN_IO27 11  // GPIO27 - TOUCH_CH7 - ADC2_CH7
+#define PIN_IO14 12  // GPIO14 - ADC2_CH6 - TOUCH_CH6 - HSPI CLK
+#define PIN_IO12 13  // GPIO12 - ADC2_CH5 - TOUCH_CH5 - HSPI Q
+#define PIN_GND 14  // Ground
+#define PIN_IO13 15  // GPIO13 - ADC2_CH4 - TOUCH_CH4 - HSPI D
+#define PIN_SD2 16  // GPIO9 - SD_DATA2
+#define PIN_SD3 17  // GPIO10 - SD_DATA3
+#define PIN_CMD 18  // GPIO11 - SD_CMD
+#define PIN_CLK 19  // GPIO6 - SD_CLK
+#define PIN_SD0 20  // GPIO7 - SD_DATA0
+#define PIN_SD1 21  // GPIO8 - SD_DATA1
+#define PIN_IO15 22  // GPIO15 - ADC2_CH3 - TOUCH_CH3 - VSPID
+#define PIN_IO2 23  // GPIO2 - ADC2_CH2 - TOUCH_CH2 - I2C SDA
+#define PIN_IO0 24  // GPIO0 - ADC2_CH1 - TOUCH_CH0 - I2C SCL
+#define PIN_IO4 25  // GPIO4 - ADC2_CH0 - TOUCH_CH1
+#define PIN_IO16 26  // GPIO16 - HSPI WP
+#define PIN_IO17 27  // GPIO17 - HSPI HD
+#define PIN_IO5 28  // GPIO5 - HSPI CS0
+#define PIN_IO18 29  // GPIO18 - VSPICLK
+#define PIN_IO19 30  // GPIO19 - VSPIQ
+#define PIN_NC 31  // Not Connected
+#define PIN_IO21 32  // GPIO21
+#define PIN_RXD0 33  // GPIO3 - U0RXD
+#define PIN_TXD0 34  // GPIO1 - U0TXD
+#define PIN_IO22 35  // GPIO22
+#define PIN_IO23 36  // GPIO23 - VSPID
+#define PIN_GND 37  // Ground
+#define PIN_GND 38  // Ground
+
+#endif /* ESP32-WROOM-32_DEVICE_H */

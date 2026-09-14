@@ -1,0 +1,78 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Authors>施探宇;alecksty</Authors>
+    <Company>深圳市探索智能科技有限公司</Company>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- NuGet Tool 打包 -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>vmltool</ToolCommandName>
+    <PackageId>VMLToolchain</PackageId>
+    <Description>VML Toolchain — 22-language compiler to VML IR, 18 backends. Compile C/BASIC/Python/Go/Rust/... to MCU firmware.</Description>
+    <PackageTags>compiler;vml;mcu;embedded;cross-compiler;multi-language;avr;arm-cm;8051</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://gitee.com/aleckstygit/vml</PackageProjectUrl>
+    <RepositoryUrl>https://gitee.com/aleckstygit/vml.git</RepositoryUrl>
+
+    <!-- 静态链接模式：true 将所有编译器/翻译器直接链接进 vmltool -->
+    <StaticLink>true</StaticLink>
+    <DefineConstants Condition="'$(StaticLink)' == 'true'">$(DefineConstants);STATIC_LINK</DefineConstants>
+
+    <!-- Native AOT 发布配置 (STATIC_LINK 模式下可用) -->
+    <!-- 启用: dotnet publish VMLTool/VMLTool.csproj -c Release -r <rid> -->
+    <OptimizationPreference>Speed</OptimizationPreference>
+    <!-- 编译器项目是 Exe (非自包含), AOT 发布需绕过引用校验 -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+    <!-- 禁止 trim 分析器警告: VMLPlugins 的 Assembly.LoadFrom 在 STATIC_LINK 下不被调用;
+         VMLRuntime 的 Reflection.Emit FFI 已改为延迟初始化, AOT 下自动降级 -->
+    <NoWarn>$(NoWarn);IL2104;IL2026;IL2055;IL2111;IL3050;IL3052;IL3053</NoWarn>
+  </PropertyGroup>
+
+  <!-- 静态链接模式：定义编译常量 + 添加所有编译器/转译器项目引用 -->
+  <Choose>
+    <When Condition="'$(StaticLink)' == 'true'">
+      <ItemGroup>
+        <!-- CompilerBase -->
+        <ProjectReference Include="..\VMLPrepares\CompilerBase\CompilerBase.csproj" />
+        <!-- Compilers -->
+        <ProjectReference Include="..\VMLPrepares\CCompiler\CCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\BasicCompiler\BasicCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\PascalCompiler\PascalCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\PythonCompiler\PythonCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\LuaCompiler\LuaCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\ForthCompiler\ForthCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\RustCompiler\RustCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\GoCompiler\GoCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\LadderCompiler\LadderCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\CSharpCompiler\CSharpCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\JavaCompiler\JavaCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\JavaScriptCompiler\JavaScriptCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\SwiftCompiler\SwiftCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\CppCompiler\CppCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\KotlinCompiler\KotlinCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\SchemeCompiler\SchemeCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\RubyCompiler\RubyCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\DartCompiler\DartCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\ObjCCompiler\ObjCCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\RCompiler\RCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\DCompiler\DCompiler.csproj" />
+        <ProjectReference Include="..\VMLPrepares\FortranCompiler\FortranCompiler.csproj" />
+        <!-- Translators -->
+        <ProjectReference Include="..\VMLTranslators\VMLTranslators.csproj" />
+      </ItemGroup>
+    </When>
+  </Choose>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VMLAssembler\VMLAssembler.csproj" />
+    <ProjectReference Include="..\VMLPlugins\VMLPlugins.csproj" />
+    <ProjectReference Include="..\VMLRuntime\VMLRuntime.csproj" />
+    <ProjectReference Include="..\VMLTranslators\VMLTranslators.csproj" />
+    <ProjectReference Include="..\VMLToHex\VMLToHex.csproj" />
+  </ItemGroup>
+
+</Project>

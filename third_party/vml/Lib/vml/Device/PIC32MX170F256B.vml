@@ -1,0 +1,116 @@
+﻿; PIC32MX170F256B寄存器定义
+; 生成自: Microchip/PIC32/PIC32MX170F256B
+; 版本: 1.0
+; 日期: 2026-04-28
+; 作者: VML Team
+; 描述: 32-bit MIPS32 M4K MCU with 256KB Flash, 64KB RAM, 50MHz
+
+; CPU架构: MIPS32-M4K
+; 位宽: 32位
+; 时钟频率: 50000000 Hz
+
+; 寄存器定义
+; Hard-wired zero
+.equ _0, 0x00
+
+; AT
+.equ _1, 0x04
+
+; V0
+.equ _2, 0x08
+
+; V1
+.equ _3, 0x0C
+
+; A0
+.equ _4, 0x10
+
+; A1
+.equ _5, 0x14
+
+; Stack Pointer (SP)
+.equ _29, 0x74
+
+; Return Address (RA)
+.equ _31, 0x7C
+
+; Program Counter
+.equ PC, 0x80
+
+; 内存段定义
+; Program Flash
+.equ FLASH_START, 0x9D000000
+.equ FLASH_END, 0x9D03FFFF
+.equ FLASH_SIZE, 262144
+
+.equ SRAM_START, 0xA0000000
+.equ SRAM_END, 0xA000FFFF
+.equ SRAM_SIZE, 65536
+
+.equ PERIPHERAL_START, 0xBF800000
+.equ PERIPHERAL_END, 0xBF8FFFFF
+.equ PERIPHERAL_SIZE, 1048576
+
+; Boot Flash
+.equ BOOTFLASH_START, 0xBFC00000
+.equ BOOTFLASH_END, 0xBFC02FFF
+.equ BOOTFLASH_SIZE, 12288
+
+; 外设定义
+; General Purpose I/O Port A
+.equ PORTA_BASE, 0xBF886000
+.equ PORTA_TRISA, 0x00
+.equ PORTA_PORTA, 0x10
+.equ PORTA_LATA, 0x20
+.equ PORTA_ODCA, 0x30
+
+; General Purpose I/O Port B
+.equ PORTB_BASE, 0xBF886100
+.equ PORTB_TRISB, 0x00
+.equ PORTB_PORTB, 0x10
+.equ PORTB_LATB, 0x20
+.equ PORTB_ODCB, 0x30
+
+; UART1
+.equ UART1_BASE, 0xBF822000
+.equ UART1_UXMODE, 0x00
+.equ UART1_UXSTA, 0x04
+.equ UART1_UXTXREG, 0x08
+.equ UART1_UXRXREG, 0x0C
+.equ UART1_UXBRG, 0x10
+
+; 中断向量定义
+.equ RESET_VECTOR, 0  ; 
+.equ UART1_VECTOR, 8  ; UART1 Interrupt
+
+; 宏定义
+.macro pic32mx170f256b_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+pic32mx170f256b_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

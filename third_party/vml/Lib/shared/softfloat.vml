@@ -1,0 +1,355 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+
+.text
+__vml_float_add:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        add R1 R0
+        move R0 R1
+        jmp L13420000
+L13420000:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+__vml_float_sub:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        jmp L13420001
+L13420001:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+__vml_float_mul:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #28
+        move [R12+12] R0
+        move [R12+16] R1
+        move R0 [R12+12]
+        push R0
+        move R0 #65535
+        pop R1
+        and R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #16
+        pop R1
+        shr R1 R0
+        move R0 R1
+        move [R12-8] R0
+        move R0 [R12+16]
+        push R0
+        move R0 #65535
+        pop R1
+        and R1 R0
+        move R0 R1
+        move [R12-12] R0
+        move R0 [R12+16]
+        push R0
+        move R0 #16
+        pop R1
+        shr R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-16]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-12]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-20] R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-12]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #15
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-20]
+        push R0
+        move R0 #15
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 #16
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-20]
+        push R0
+        move R0 #17
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-8]
+        push R0
+        move R0 [R12-16]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #17
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        jmp L13420002
+L13420002:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+__vml_float_div:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        div R1 R0
+        move R0 R1
+        push R0
+        move R0 #15
+        pop R1
+        shl R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        mod R1 R0
+        move R0 R1
+        push R0
+        move R0 #15
+        pop R1
+        shl R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12+16]
+        pop R1
+        div R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        jmp L13420003
+L13420003:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+__vml_int2float:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #15
+        pop R1
+        shl R1 R0
+        move R0 R1
+        jmp L13420004
+L13420004:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+__vml_float2int:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jge _L13420005
+        move R0 #0
+        jmp _L13420006
+_L13420005:
+        move R0 #1
+_L13420006:
+        test R0 R0
+        jz _L13420007
+        move R0 [R12+12]
+        push R0
+        move R0 #16384
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #15
+        pop R1
+        shr R1 R0
+        move R0 R1
+        jmp _L13420008
+_L13420007:
+        move R0 [R12+12]
+        push R0
+        move R0 #16384
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 #15
+        pop R1
+        shr R1 R0
+        move R0 R1
+_L13420008:
+        jmp L13420009
+L13420009:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+__vml_float_neg:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move R0 [R12+12]
+        move R0 [R12+12]
+        neg R0 R0
+        jmp L13420010
+L13420010:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+__vml_float_abs:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jge _L13420011
+        move R0 #0
+        jmp _L13420012
+_L13420011:
+        move R0 #1
+_L13420012:
+        test R0 R0
+        jz _L13420013
+        move R0 [R12+12]
+        jmp _L13420014
+_L13420013:
+        move R0 [R12+12]
+        move R0 [R12+12]
+        neg R0 R0
+_L13420014:
+        jmp L13420015
+L13420015:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+__vml_float_cmp:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        move [R12+16] R1
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        cmp R1 R0
+        jl _L13420018
+        move R0 #0
+        jmp _L13420019
+_L13420018:
+        move R0 #1
+_L13420019:
+        cmp R0 #0
+        jz sta_13420016
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        jmp L13420020
+sta_13420016:
+sta_13420017:
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        cmp R1 R0
+        jg _L13420023
+        move R0 #0
+        jmp _L13420024
+_L13420023:
+        move R0 #1
+_L13420024:
+        cmp R0 #0
+        jz sta_13420021
+        move R0 #1
+        jmp L13420020
+sta_13420021:
+sta_13420022:
+        move R0 #0
+        jmp L13420020
+L13420020:
+        move R13 R12
+        pop R12
+        pop R15
+        ret

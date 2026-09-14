@@ -1,0 +1,214 @@
+﻿; MSX1寄存器定义
+; 生成自: Various (ASCII/Awanaga/MSX Association)/MSX/MSX1
+; 版本: 1.0
+; 日期: 2026-04-17
+; 作者: VML Team
+; 描述: MSX - Standardized 8-bit home computer with Z80A CPU, TMS9918A graphics, and AY-3-8910 audio
+
+; CPU架构: Z80A
+; 位宽: 8位
+; 时钟频率: 3579545 Hz
+
+; 寄存器定义
+; Accumulator
+.equ A, 0x00
+
+; Flags
+.equ F, 0x01
+.equ F_C, 0  ; Carry
+.equ F_N, 1  ; Subtract
+.equ F_PV, 2  ; Parity/Overflow
+.equ F_H, 4  ; Half Carry
+.equ F_Z, 6  ; Zero
+.equ F_S, 7  ; Sign
+
+; B Register
+.equ B, 0x02
+
+; C Register
+.equ C, 0x03
+
+; D Register
+.equ D, 0x04
+
+; E Register
+.equ E, 0x05
+
+; H Register
+.equ H, 0x06
+
+; L Register
+.equ L, 0x07
+
+; Alternate AF
+.equ AF, 0x08
+
+; Alternate BC
+.equ BC, 0x0A
+
+; Alternate DE
+.equ DE, 0x0C
+
+; Alternate HL
+.equ HL, 0x0E
+
+; Interrupt Vector
+.equ I, 0x10
+
+; Refresh
+.equ R, 0x11
+
+; Index X
+.equ IX, 0x12
+
+; Index Y (usually = 0xF38F)
+.equ IY, 0x14
+
+; Stack Pointer
+.equ SP, 0x16
+
+; Program Counter
+.equ PC, 0x18
+
+; 内存段定义
+; Cartridge/SUB-ROM / Main-ROM
+.equ SLOT0_ROM_START, 0x0000
+.equ SLOT0_ROM_END, 0x7FFF
+.equ SLOT0_ROM_SIZE, 32768
+
+; MSX-BIOS ROM
+.equ SYSROM_START, 0x0000
+.equ SYSROM_END, 0x3FFF
+.equ SYSROM_SIZE, 16384
+
+; Extension ROM (cartridge)
+.equ EXTROM_START, 0x4000
+.equ EXTROM_END, 0x7FFF
+.equ EXTROM_SIZE, 16384
+
+; Main RAM (32KB working area)
+.equ MAIN_RAM_START, 0x4000
+.equ MAIN_RAM_END, 0xC000
+.equ MAIN_RAM_SIZE, 32768
+
+; Work RAM (16KB)
+.equ WORK_RAM_START, 0xC000
+.equ WORK_RAM_END, 0xFFFF
+.equ WORK_RAM_SIZE, 16384
+
+; System variables area
+.equ SYSVAR_START, 0xF000
+.equ SYSVAR_END, 0xFCA0
+.equ SYSVAR_SIZE, 3232
+
+; Slot-mapped memory
+.equ SLOTS_START, 0x8000
+.equ SLOTS_END, 0xFFFF
+.equ SLOTS_SIZE, 32768
+
+; 外设定义
+; TMS9918A Video Display Processor
+.equ VDP_BASE, 0x98
+.equ VDP_VDP_REG0, 0x99
+.equ VDP_VDP_REG1, 0x99
+.equ VDP_VDP_REG2, 0x99
+.equ VDP_VDP_REG3, 0x99
+.equ VDP_VDP_REG4, 0x99
+.equ VDP_VDP_REG5, 0x99
+.equ VDP_VDP_REG6, 0x99
+.equ VDP_VDP_REG7, 0x99
+.equ VDP_VDP_STATUS, 0x99
+.equ VDP_VDP_DATA, 0x98
+.equ VDP_VDP_POT, 0x98
+
+; AY-3-8910 Programmable Sound Generator
+.equ PSG_BASE, 0xA0
+.equ PSG_PSG_REG, 0xA1
+.equ PSG_PSG_DATA, 0xA3
+.equ PSG_FREQ_A_LO, 0xA0
+.equ PSG_FREQ_A_HI, 0xA1
+.equ PSG_FREQ_B_LO, 0xA2
+.equ PSG_FREQ_B_HI, 0xA3
+.equ PSG_FREQ_C_LO, 0xA4
+.equ PSG_FREQ_C_HI, 0xA5
+.equ PSG_NOISE_FREQ, 0xA6
+.equ PSG_ENABLE, 0xA7
+.equ PSG_VOL_A, 0xA8
+.equ PSG_VOL_B, 0xA9
+.equ PSG_VOL_C, 0xAA
+.equ PSG_ENV_FREQ_LO, 0xAB
+.equ PSG_ENV_FREQ_HI, 0xAC
+.equ PSG_ENV_SHAPE, 0xAD
+.equ PSG_PORT_A, 0xAE
+.equ PSG_PORT_B, 0xAF
+
+; PPI 8255 Programmable Peripheral Interface
+.equ PPI_BASE, 0xA8
+.equ PPI_PPI_PA, 0xA8
+.equ PPI_PPI_PB, 0xA9
+.equ PPI_PPI_PC, 0xAA
+.equ PPI_PPI_CTRL, 0xAB
+
+; MSX Slot Expansion System
+.equ SLOTEXP_BASE, 0x0000
+.equ SLOTEXP_SLOT0, 0xFCC0
+.equ SLOTEXP_SLOT1, 0xFCC1
+.equ SLOTEXP_SLOT2, 0xFCC2
+.equ SLOTEXP_SLOT3, 0xFCC3
+.equ SLOTEXP_EXPTBL0, 0xFCC4
+.equ SLOTEXP_EXPTBL1, 0xFCC5
+.equ SLOTEXP_EXPTBL2, 0xFCC6
+.equ SLOTEXP_EXPTBL3, 0xFCC7
+
+; 中断向量定义
+.equ RESET_VECTOR, 0  ; Power-on / Reset
+.equ NMI_VECTOR, 1  ; Non-Maskable Interrupt
+.equ INT_VECTOR, 2  ; VDP Vertical Interrupt (frame)
+
+; 引脚定义
+.equ PIN_VCC, 1  ; +5V Power
+.equ PIN_GND, 2  ; Ground
+.equ PIN_CLK, 3  ; Z80 Clock (3.58MHz)
+.equ PIN_A0_A15, 4  ; Address Bus
+.equ PIN_D0_D7, 5  ; Data Bus
+.equ PIN_MREQ, 6  ; Memory Request
+.equ PIN_IORQ, 7  ; I/O Request
+.equ PIN_RD, 8  ; Read
+.equ PIN_WR, 9  ; Write
+.equ PIN_INT, 10  ; Interrupt Request
+.equ PIN_NMI, 11  ; Non-Maskable Interrupt
+.equ PIN_RESET, 12  ; Reset
+.equ PIN_SLTSL, 13  ; Slot select (for memory mapping)
+.equ PIN_WAIT, 14  ; Wait (for slow I/O)
+
+; 宏定义
+.macro msx1_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+msx1_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

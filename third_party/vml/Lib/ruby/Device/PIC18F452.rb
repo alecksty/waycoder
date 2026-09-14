@@ -1,0 +1,106 @@
+﻿# PIC18F452 设备定义 - Ruby 模块
+# 生成自: Microchip Technology/PIC18/PIC18F452
+# 版本: 1.0
+# 日期: 2026-04-17
+# 作者: VML Team
+# 描述: PIC18F452 8-bit microcontroller with 32KB Flash, 1.5KB RAM, 256B EEPROM
+# CPU架构: PIC18
+# 位宽: 8位
+# 时钟频率: 20000000 Hz
+
+module PIC18F452
+
+  # 寄存器地址定义
+  WREG_ADDR = 0xFE8  # Working Register
+  STATUS_ADDR = 0xFD8  # Status Register
+  BSR_ADDR = 0xFE0  # Bank Select Register
+  PCL_ADDR = 0xFF9  # Program Counter Low
+  PCLATH_ADDR = 0xFFA  # Program Counter Latch High
+  PCLATU_ADDR = 0xFFB  # Program Counter Latch Upper
+  TOSU_ADDR = 0xFFF  # Top of Stack Upper
+  TOSH_ADDR = 0xFFE  # Top of Stack High
+  TOSL_ADDR = 0xFFD  # Top of Stack Low
+
+  # 外设定义
+  # Port A
+  PORTA_BASE = 
+  PORTA_PORTA_ADDR = 0xF80
+  PORTA_TRISA_ADDR = 0xF92
+  PORTA_LATA_ADDR = 0xF89
+  # Port B
+  PORTB_BASE = 
+  PORTB_PORTB_ADDR = 0xF81
+  PORTB_TRISB_ADDR = 0xF93
+  PORTB_LATB_ADDR = 0xF8A
+  # Port C
+  PORTC_BASE = 
+  PORTC_PORTC_ADDR = 0xF82
+  PORTC_TRISC_ADDR = 0xF94
+  PORTC_LATC_ADDR = 0xF8B
+  # Port D
+  PORTD_BASE = 
+  PORTD_PORTD_ADDR = 0xF83
+  PORTD_TRISD_ADDR = 0xF95
+  PORTD_LATD_ADDR = 0xF8C
+  # Port E
+  PORTE_BASE = 
+  PORTE_PORTE_ADDR = 0xF84
+  PORTE_TRISE_ADDR = 0xF96
+  PORTE_LATE_ADDR = 0xF8D
+  # Timer0
+  TMR0_BASE = 
+  TMR0_TMR0L_ADDR = 0xFD6
+  TMR0_TMR0H_ADDR = 0xFD7
+  TMR0_T0CON_ADDR = 0xFD5
+  # Timer1
+  TMR1_BASE = 
+  TMR1_TMR1L_ADDR = 0xFCE
+  TMR1_TMR1H_ADDR = 0xFCF
+  TMR1_T1CON_ADDR = 0xFCD
+  # Timer2
+  TMR2_BASE = 
+  TMR2_TMR2_ADDR = 0xFCC
+  TMR2_PR2_ADDR = 0xFCB
+  TMR2_T2CON_ADDR = 0xFCA
+  # Timer3
+  TMR3_BASE = 
+  TMR3_TMR3L_ADDR = 0xFB2
+  TMR3_TMR3H_ADDR = 0xFB3
+  TMR3_T3CON_ADDR = 0xFB1
+  # Analog-to-Digital Converter
+  ADC_BASE = 
+  ADC_ADRESL_ADDR = 0xFC3
+  ADC_ADRESH_ADDR = 0xFC4
+  ADC_ADCON0_ADDR = 0xFC2
+  ADC_ADCON1_ADDR = 0xFC1
+  # Universal Synchronous Asynchronous Receiver Transmitter
+  USART_BASE = 
+  USART_TXREG_ADDR = 0xFAC
+  USART_RCREG_ADDR = 0xFAB
+  USART_SPBRG_ADDR = 0xFAF
+  USART_TXSTA_ADDR = 0xFAD
+  USART_RCSTA_ADDR = 0xFAE
+  # Synchronous Serial Port
+  SSP_BASE = 
+  SSP_SSPBUF_ADDR = 0xFC9
+  SSP_SSPADD_ADDR = 0xFC8
+  SSP_SSPSTAT_ADDR = 0xFC7
+  SSP_SSPCON1_ADDR = 0xFC6
+  SSP_SSPCON2_ADDR = 0xFC5
+  # Capture/Compare/PWM 1
+  CCP1_BASE = 
+  CCP1_CCPR1L_ADDR = 0xFBE
+  CCP1_CCPR1H_ADDR = 0xFBF
+  CCP1_CCP1CON_ADDR = 0xFBD
+  # Capture/Compare/PWM 2
+  CCP2_BASE = 
+  CCP2_CCPR2L_ADDR = 0xFBA
+  CCP2_CCPR2H_ADDR = 0xFBB
+  CCP2_CCP2CON_ADDR = 0xFB9
+
+  # 中断向量定义
+  INT_HIGH_PRIORITY = 8  # High priority interrupt
+  INT_LOW_PRIORITY = 24  # Low priority interrupt
+  INT_RESET = 0  # Reset vector
+
+end

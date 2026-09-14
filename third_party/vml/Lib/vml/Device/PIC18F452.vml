@@ -1,0 +1,165 @@
+﻿; PIC18F452寄存器定义
+; 生成自: Microchip Technology/PIC18/PIC18F452
+; 版本: 1.0
+; 日期: 2026-04-17
+; 作者: VML Team
+; 描述: PIC18F452 8-bit microcontroller with 32KB Flash, 1.5KB RAM, 256B EEPROM
+
+; CPU架构: PIC18
+; 位宽: 8位
+; 时钟频率: 20000000 Hz
+
+; 寄存器定义
+; Working Register
+.equ WREG, 0xFE8
+
+; Status Register
+.equ STATUS, 0xFD8
+
+; Bank Select Register
+.equ BSR, 0xFE0
+
+; Program Counter Low
+.equ PCL, 0xFF9
+
+; Program Counter Latch High
+.equ PCLATH, 0xFFA
+
+; Program Counter Latch Upper
+.equ PCLATU, 0xFFB
+
+; Top of Stack Upper
+.equ TOSU, 0xFFF
+
+; Top of Stack High
+.equ TOSH, 0xFFE
+
+; Top of Stack Low
+.equ TOSL, 0xFFD
+
+; 外设定义
+; Port A
+.equ PORTA_BASE, 
+.equ PORTA_PORTA, 0xF80
+.equ PORTA_TRISA, 0xF92
+.equ PORTA_LATA, 0xF89
+
+; Port B
+.equ PORTB_BASE, 
+.equ PORTB_PORTB, 0xF81
+.equ PORTB_TRISB, 0xF93
+.equ PORTB_LATB, 0xF8A
+
+; Port C
+.equ PORTC_BASE, 
+.equ PORTC_PORTC, 0xF82
+.equ PORTC_TRISC, 0xF94
+.equ PORTC_LATC, 0xF8B
+
+; Port D
+.equ PORTD_BASE, 
+.equ PORTD_PORTD, 0xF83
+.equ PORTD_TRISD, 0xF95
+.equ PORTD_LATD, 0xF8C
+
+; Port E
+.equ PORTE_BASE, 
+.equ PORTE_PORTE, 0xF84
+.equ PORTE_TRISE, 0xF96
+.equ PORTE_LATE, 0xF8D
+
+; Timer0
+.equ TMR0_BASE, 
+.equ TMR0_TMR0L, 0xFD6
+.equ TMR0_TMR0H, 0xFD7
+.equ TMR0_T0CON, 0xFD5
+
+; Timer1
+.equ TMR1_BASE, 
+.equ TMR1_TMR1L, 0xFCE
+.equ TMR1_TMR1H, 0xFCF
+.equ TMR1_T1CON, 0xFCD
+
+; Timer2
+.equ TMR2_BASE, 
+.equ TMR2_TMR2, 0xFCC
+.equ TMR2_PR2, 0xFCB
+.equ TMR2_T2CON, 0xFCA
+
+; Timer3
+.equ TMR3_BASE, 
+.equ TMR3_TMR3L, 0xFB2
+.equ TMR3_TMR3H, 0xFB3
+.equ TMR3_T3CON, 0xFB1
+
+; Analog-to-Digital Converter
+.equ ADC_BASE, 
+.equ ADC_ADRESL, 0xFC3
+.equ ADC_ADRESH, 0xFC4
+.equ ADC_ADCON0, 0xFC2
+.equ ADC_ADCON1, 0xFC1
+
+; Universal Synchronous Asynchronous Receiver Transmitter
+.equ USART_BASE, 
+.equ USART_TXREG, 0xFAC
+.equ USART_RCREG, 0xFAB
+.equ USART_SPBRG, 0xFAF
+.equ USART_TXSTA, 0xFAD
+.equ USART_RCSTA, 0xFAE
+
+; Synchronous Serial Port
+.equ SSP_BASE, 
+.equ SSP_SSPBUF, 0xFC9
+.equ SSP_SSPADD, 0xFC8
+.equ SSP_SSPSTAT, 0xFC7
+.equ SSP_SSPCON1, 0xFC6
+.equ SSP_SSPCON2, 0xFC5
+
+; Capture/Compare/PWM 1
+.equ CCP1_BASE, 
+.equ CCP1_CCPR1L, 0xFBE
+.equ CCP1_CCPR1H, 0xFBF
+.equ CCP1_CCP1CON, 0xFBD
+
+; Capture/Compare/PWM 2
+.equ CCP2_BASE, 
+.equ CCP2_CCPR2L, 0xFBA
+.equ CCP2_CCPR2H, 0xFBB
+.equ CCP2_CCP2CON, 0xFB9
+
+; 中断向量定义
+.equ HIGH_PRIORITY_VECTOR, 8  ; High priority interrupt
+.equ LOW_PRIORITY_VECTOR, 24  ; Low priority interrupt
+.equ RESET_VECTOR, 0  ; Reset vector
+
+; 宏定义
+.macro pic18f452_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+pic18f452_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

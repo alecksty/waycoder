@@ -1,0 +1,67 @@
+﻿; DS18B20寄存器定义
+; 生成自: Maxim/Dallas/Sensor/DS18B20
+; 版本: 1.0
+; 日期: 2026-05-06
+; 作者: VML Team
+; 描述: Programmable Resolution 1-Wire Digital Thermometer
+
+; CPU架构: Sensor
+; 位宽: 8位
+; 时钟频率: 100000 Hz
+
+; 内存段定义
+; Scratchpad memory (9 bytes)
+.equ SCRATCHPAD_START, 0x00
+.equ SCRATCHPAD_END, 0x08
+.equ SCRATCHPAD_SIZE, 9
+
+; EEPROM (TH, TL, config bytes)
+.equ EEPROM_START, 0x00
+.equ EEPROM_END, 0x02
+.equ EEPROM_SIZE, 3
+
+; 外设定义
+; DS18B20 1-Wire Thermometer (3.0V-5.5V, TO-92)
+.equ DS18B20_BASE, 0x00
+.equ DS18B20_TEMP_LSB, 0x00
+.equ DS18B20_TEMP_MSB, 0x01
+.equ DS18B20_TH_REG, 0x02
+.equ DS18B20_TL_REG, 0x03
+.equ DS18B20_CONFIG, 0x04
+.equ DS18B20_CONFIG_R0, 5  ; Resolution select bit 0
+.equ DS18B20_CONFIG_R1, 6  ; Resolution select bit 1 (00=9bit,10=10bit,01=11bit,11=12bit)
+.equ DS18B20_COUNT_REMAIN, 0x06
+.equ DS18B20_COUNT_PER_C, 0x07
+.equ DS18B20_CRC, 0x08
+
+; 宏定义
+.macro ds18b20_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+ds18b20_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

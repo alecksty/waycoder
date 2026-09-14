@@ -1,0 +1,228 @@
+﻿; Macintosh-128K寄存器定义
+; 生成自: Apple Computer/Macintosh/Macintosh-128K
+; 版本: 1.0
+; 日期: 2026-04-17
+; 作者: VML Team
+; 描述: Apple Macintosh 128K - First Macintosh - Motorola 68000, 128KB RAM, 512x342 display
+
+; CPU架构: MC68000
+; 位宽: 32位
+; 时钟频率: 7833600 Hz
+
+; 寄存器定义
+; Data Register 0
+.equ D0, 0x00
+
+; Data Register 1
+.equ D1, 0x04
+
+; Data Register 2
+.equ D2, 0x08
+
+; Data Register 3
+.equ D3, 0x0C
+
+; Data Register 4
+.equ D4, 0x10
+
+; Data Register 5
+.equ D5, 0x14
+
+; Data Register 6
+.equ D6, 0x18
+
+; Data Register 7
+.equ D7, 0x1C
+
+; Address Register 0
+.equ A0, 0x20
+
+; Address Register 1
+.equ A1, 0x24
+
+; Address Register 2
+.equ A2, 0x28
+
+; Address Register 3
+.equ A3, 0x2C
+
+; Address Register 4
+.equ A4, 0x30
+
+; Address Register 5
+.equ A5, 0x34
+
+; Address Register 6
+.equ A6, 0x38
+
+; Stack Pointer (USP)
+.equ A7, 0x3C
+
+; Program Counter
+.equ PC, 0x40
+
+; Status Register
+.equ SR, 0x44
+.equ SR_C, 0  ; Carry
+.equ SR_V, 1  ; Overflow
+.equ SR_Z, 2  ; Zero
+.equ SR_N, 3  ; Negative
+.equ SR_X, 4  ; Extend
+.equ SR_I0, 8  ; Interrupt Mask 0
+.equ SR_I1, 9  ; Interrupt Mask 1
+.equ SR_I2, 10  ; Interrupt Mask 2
+.equ SR_S, 13  ; Supervisor/User
+.equ SR_T0, 14  ; Trace Mode 0
+.equ SR_T1, 15  ; Trace Mode 1
+
+; 内存段定义
+; Main RAM (128KB unified)
+.equ RAM_START, 0x000000
+.equ RAM_END, 0x01FFFF
+.equ RAM_SIZE, 131072
+
+; Mac ROM (128KB)
+.equ ROM_START, 0x40000000
+.equ ROM_END, 0x4001FFFF
+.equ ROM_SIZE, 131072
+
+; Screen bitmap (512x342x1 = 21792 bytes)
+.equ FRAMEBUFFER_START, 0x00400000
+.equ FRAMEBUFFER_END, 0x00400555
+.equ FRAMEBUFFER_SIZE, 1366
+
+; Shadow screen (double-buffering)
+.equ FRAMEBUFFER2_START, 0x00410000
+.equ FRAMEBUFFER2_END, 0x00410555
+.equ FRAMEBUFFER2_SIZE, 1366
+
+; VIA 6522 (I/O)
+.equ VIA_START, 0x00E00000
+.equ VIA_END, 0x00E0FFFF
+.equ VIA_SIZE, 4096
+
+; SCC 8530 (serial)
+.equ SCC_START, 0x00F00000
+.equ SCC_END, 0x00F0FFFF
+.equ SCC_SIZE, 4096
+
+; ADB bus
+.equ ADB_START, 0x01600000
+.equ ADB_END, 0x0160FFFF
+.equ ADB_SIZE, 4096
+
+; IWM floppy controller
+.equ IWM_START, 0x01E00000
+.equ IWM_END, 0x01E0FFFF
+.equ IWM_SIZE, 4096
+
+; 外设定义
+; Versatile Interface Adapter 6522
+.equ VIA_BASE, 0xE00000
+.equ VIA_ORB, 0xE00000
+.equ VIA_ORA, 0xE00002
+.equ VIA_DDRB, 0xE00004
+.equ VIA_DDRA, 0xE00006
+.equ VIA_T1C_L, 0xE00008
+.equ VIA_T1C_H, 0xE0000A
+.equ VIA_T1L_L, 0xE0000C
+.equ VIA_T1L_H, 0xE0000E
+.equ VIA_T2C_L, 0xE00010
+.equ VIA_T2C_H, 0xE00012
+.equ VIA_SR, 0xE00014
+.equ VIA_ACR, 0xE00016
+.equ VIA_PCR, 0xE00018
+.equ VIA_IFR, 0xE0001E
+.equ VIA_IER, 0xE0001E
+
+; SCC 8530 Serial Communications Controller
+.equ SCC_BASE, 0xF00000
+.equ SCC_SCC_CHA_B, 0xF00000
+.equ SCC_SCC_CHA_C, 0xF00002
+.equ SCC_SCC_CHB_D, 0xF00004
+.equ SCC_SCC_CHB_CT, 0xF00006
+
+; Integrated Woz Machine - Floppy Disk Controller
+.equ IWM_BASE, 0x1E00000
+.equ IWM_IWM_DATA, 0x1E00000
+.equ IWM_IWM_MODE, 0x1E00008
+.equ IWM_IWM_Q6L, 0x1E00020
+.equ IWM_IWM_Q7L, 0x1E00022
+.equ IWM_IWM_Q6R, 0x1E00024
+.equ IWM_IWM_Q7R, 0x1E00026
+
+; Video Graphics Controller (custom Apple chip)
+.equ VGC_BASE, 0x00F20000
+.equ VGC_VGC_MODE, 0x00F20000
+.equ VGC_VGC_START_HI, 0x00F20002
+.equ VGC_VGC_START_LO, 0x00F20004
+
+; Apple Desktop Bus
+.equ ADB_BASE, 0x01600000
+.equ ADB_ADB_DATA, 0x01600000
+.equ ADB_ADB_STATUS, 0x01600004
+.equ ADB_ADB_CMD, 0x01600008
+
+; 中断向量定义
+.equ RESET_VECTOR, 1  ; Reset Initial SP
+.equ RESET_PC_VECTOR, 2  ; Reset Initial PC
+.equ IRQ1_VECTOR, 24  ; VIA interrupt (level 1)
+.equ IRQ2_VECTOR, 25  ; SCC interrupt (level 2)
+.equ IRQ3_VECTOR, 26  ; ADB / VIA (level 3)
+.equ IRQ4_VECTOR, 27  ; ADB / VIA (level 4)
+
+; 引脚定义
+.equ PIN_VCC, 1  ; +5V Power
+.equ PIN_GND, 2  ; Ground
+.equ PIN_CLK, 3  ; 16MHz master clock / 7.83MHz CPU clock
+.equ PIN_FC0, 4  ; Function Code 0
+.equ PIN_FC1, 5  ; Function Code 1
+.equ PIN_FC2, 6  ; Function Code 2
+.equ PIN_AS, 7  ; Address Strobe
+.equ PIN_UDS, 8  ; Upper Data Strobe
+.equ PIN_LDS, 9  ; Lower Data Strobe
+.equ PIN_RWB, 10  ; Read/Write
+.equ PIN_DTACK, 11  ; Data Acknowledge
+.equ PIN_BERR, 12  ; Bus Error
+.equ PIN_BR, 13  ; Bus Request
+.equ PIN_BG, 14  ; Bus Grant
+.equ PIN_BGACK, 15  ; Bus Grant Acknowledge
+.equ PIN_IPL0, 16  ; Interrupt Priority 0
+.equ PIN_IPL1, 17  ; Interrupt Priority 1
+.equ PIN_IPL2, 18  ; Interrupt Priority 2
+.equ PIN_RESET, 19  ; Reset
+.equ PIN_HALT, 20  ; Halt
+.equ PIN_A1_A23, 21  ; Address Bus (24-bit)
+.equ PIN_D0_D15, 22  ; Data Bus (16-bit)
+
+; 宏定义
+.macro macintosh_128k_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+macintosh_128k_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

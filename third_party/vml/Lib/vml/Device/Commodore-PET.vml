@@ -1,0 +1,121 @@
+﻿; Commodore-PET寄存器定义
+; 生成自: Commodore International/PET/Commodore-PET
+; 版本: 1.0
+; 日期: 2026-04-17
+; 作者: VML Team
+; 描述: Commodore PET 2001 personal computer with MOS 6502 CPU and built-in monitor
+
+; CPU架构: MOS 6502
+; 位宽: 8位
+; 时钟频率: 1000000 Hz
+
+; 寄存器定义
+; Accumulator
+.equ A, 0
+
+; Index Register X
+.equ X, 0
+
+; Index Register Y
+.equ Y, 0
+
+; Stack Pointer
+.equ SP, 0
+
+; Program Counter
+.equ PC, 0
+
+; Status Register
+.equ P, 0
+
+; 外设定义
+; Peripheral Interface Adapter 1 (6520)
+.equ PIA1_BASE, 
+.equ PIA1_PIA1_DDRA, 0xE810
+.equ PIA1_PIA1_ORA, 0xE811
+.equ PIA1_PIA1_DDRB, 0xE812
+.equ PIA1_PIA1_ORB, 0xE813
+.equ PIA1_PIA1_CRA, 0xE814
+.equ PIA1_PIA1_CRB, 0xE815
+
+; Peripheral Interface Adapter 2 (6520)
+.equ PIA2_BASE, 
+.equ PIA2_PIA2_DDRA, 0xE820
+.equ PIA2_PIA2_ORA, 0xE821
+.equ PIA2_PIA2_DDRB, 0xE822
+.equ PIA2_PIA2_ORB, 0xE823
+.equ PIA2_PIA2_CRA, 0xE824
+.equ PIA2_PIA2_CRB, 0xE825
+
+; Versatile Interface Adapter (6522)
+.equ VIA_BASE, 
+.equ VIA_VIA_ORB, 0xE840
+.equ VIA_VIA_ORA, 0xE841
+.equ VIA_VIA_DDRB, 0xE842
+.equ VIA_VIA_DDRA, 0xE843
+.equ VIA_VIA_T1CL, 0xE844
+.equ VIA_VIA_T1CH, 0xE845
+.equ VIA_VIA_T1LL, 0xE846
+.equ VIA_VIA_T1LH, 0xE847
+.equ VIA_VIA_T2CL, 0xE848
+.equ VIA_VIA_T2CH, 0xE849
+.equ VIA_VIA_SR, 0xE84A
+.equ VIA_VIA_ACR, 0xE84B
+.equ VIA_VIA_PCR, 0xE84C
+.equ VIA_VIA_IFR, 0xE84D
+.equ VIA_VIA_IER, 0xE84E
+
+; CRT Controller (6545)
+.equ CRTC_BASE, 
+.equ CRTC_CRTC_ADDR, 0xE880
+.equ CRTC_CRTC_DATA, 0xE881
+
+; Cassette tape interface
+.equ CASSETTE_BASE, 
+.equ CASSETTE_CASS_MOTOR, 0xE840
+.equ CASSETTE_CASS_WRITE, 0xE842
+.equ CASSETTE_CASS_READ, 0xE812
+
+; IEEE-488 bus interface
+.equ IEEE488_BASE, 
+.equ IEEE488_IEEE_DATA, 0xE801
+.equ IEEE488_IEEE_STATUS, 0xE802
+.equ IEEE488_IEEE_CONTROL, 0xE803
+
+; 中断向量定义
+.equ NMI_VECTOR, 65526  ; Non-maskable interrupt
+.equ RESET_VECTOR, 65528  ; Reset vector
+.equ IRQ_VECTOR, 65530  ; Interrupt request
+.equ BRK_VECTOR, 65532  ; Break instruction
+
+; 宏定义
+.macro commodore_pet_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+commodore_pet_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

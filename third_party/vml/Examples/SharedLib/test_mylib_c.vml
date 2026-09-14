@@ -1,0 +1,58 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+L0: .string "Hello from mylib!"
+
+.text
+main:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int main()
+; function : main
+; return   : int
+; --------------------------------------------
+main:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        SUB R13 #20
+        LOAD R0 #2
+        MOVE R1 R0
+        PUSH R0
+        LOAD R0 #1
+        PUSH R0
+        CALL my_add
+        ADD R13 #8
+        STORE R0 [R12-4]
+        LOAD R0 #2
+        MOVE R2 R0
+        PUSH R0
+        LOAD R0 #3
+        MOVE R1 R0
+        PUSH R0
+        LOAD R0 #1
+        PUSH R0
+        CALL my_max
+        ADD R13 #12
+        STORE R0 [R12-8]
+        LOAD R0 L0
+        PUSH R0
+        CALL my_print
+        ADD R13 #4
+        CALL my_version
+        STORE R0 [R12-12]
+        LOAD R0 [R12-4]
+        PUSH R0
+        LOAD R0 [R12-8]
+        POP R1
+        ADD R1 R0
+        MOVE R0 R1
+        JMP L1
+        SYSCALL #3
+L1:
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET

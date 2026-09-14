@@ -1,0 +1,15 @@
+# VML 全类型转换库 — R 包装器 (v1.66.44)
+# 用法: source("conv.r")
+
+int_to_str <- function(val) .conv_call("int_to_str", val)
+str_to_int <- function(s) .conv_call("str_to_int", s)
+long_to_str <- function(val) .conv_call("long_to_str", val)
+str_to_long <- function(s) .conv_call("str_to_long", s)
+float_to_str <- function(f) .conv_call("float_to_str", f)
+str_to_float <- function(s) .conv_call("str_to_float", s)
+double_to_str <- function(d) .conv_call("double_to_str", d)
+str_to_double <- function(s) .conv_call("str_to_double", s)
+bool_to_str <- function(b) .conv_call("bool_to_str", as.integer(b))
+str_to_bool <- function(s) .conv_call("str_to_bool", s) != 0
+char_to_str <- function(c) .conv_call("char_to_str", utf8ToInt(c))
+str_to_char <- function(s) intToUtf8(.conv_call("str_to_char", s))

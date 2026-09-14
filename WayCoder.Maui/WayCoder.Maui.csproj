@@ -130,6 +130,37 @@
 	</ItemGroup>
 
 	<!--
+	  VML（用户自己的编译器+翻译器+虚拟机，纯 C# / .NET 10）以**库**的形式并入，
+	  在进程内调用 —— 不是把它编成可执行文件丢进 shell 跑。
+
+	  为什么不走进程：① iOS 的 fork/exec 被沙箱物理拒绝，这条路永远上不了 iOS；
+	  ② Android 10+ 的 W^X 让 app 私有目录里的文件不可 exec，得塞 jniLibs 当 .so；
+	  ③ 自包含运行时几百 MB。托管代码链进来这三条全没有。
+
+	  路径走属性且**只在存在时才引用**：VML 是独立仓库（在 WayCoder 之外的目录），
+	  别人 clone 这个仓库时它不存在 —— 不这么写会让所有人的构建直接挂掉。
+	  本机开发可用 -p:VmlRoot=<路径> 覆盖。
+	-->
+	<ItemGroup>
+		<!-- VML 已经**复制进本仓库**（third_party/vml/，来源与同步方式见那里的 README）。
+		     这里只引用「跑一段 VML 程序」真正需要的两个项目。
+		     ⚠ 不要引用 VMLPrepares 下那 25 个前端编译器 —— 它们是按需加的，
+		        全量引用会拖慢构建，而命令行页现在只用到汇编器 + 运行时。 -->
+		<ProjectReference Include="../third_party/vml/VMLAssembler/VMLAssembler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLRuntime/VMLRuntime.csproj" />
+
+		<!-- **VMLTool 是「一套工具编所有类型文件」的集成主体** —— 扩展名→语言的派发
+		     （Program.Compile.cs:55/105）、include/library 路径、标准库链接、导出应用都在它那儿。
+		     引它一个就够：它自己传递引用了 22 个前端编译器 + VMLTranslators + VMLToHex。
+
+		     ⚠ 这四个本地适配（都在 third_party/vml/，由 sync.sh 重新施加）是它能被引用的前提：
+		       OutputType Exe→Library（否则 NETSDK1150）、去 StartupObject（否则 CS2017）、
+		       去 RuntimeIdentifiers（否则 NETSDK1047：它的列表里没有 android-arm64）、
+		       去 PublishAot（AOT 发布需要 RID，而我们只要它的代码）。 -->
+		<ProjectReference Include="../third_party/vml/VMLTool/VMLTool.csproj" />
+	</ItemGroup>
+
+	<!--
 	  抽库：复用主项目核心源码（Agent/LLM/Tools/Infra/Memory/UI 等）。
 	  排除（GUI 基线之上增排）：
 	    CLI 入口/命令层、测试/演示、编译期插件、误置游戏目录、Properties —— 同 GUI。

@@ -1,0 +1,254 @@
+
+.data
+
+.text
+net_connect:
+; -------------------------------------------
+; source   : int net_connect(const char* host,int port)
+; function : net_connect
+; param   : const char* host
+; param   : int port
+; return   : int
+; --------------------------------------------
+net_connect:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+        asm "LOAD R0 #2"
+        asm "LOAD R1 #1"
+        syscall #330
+        move [R12-4] R0
+        asm "MOVE fd, R0"
+        move R0 [R12-4]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L52300002
+        move R0 #0
+        jmp _L52300003
+_L52300002:
+        move R0 #1
+_L52300003:
+        cmp R0 #0
+        jz sta_52300000
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        jmp L52300004
+sta_52300000:
+sta_52300001:
+        asm "MOVE R0, fd"
+        asm "MOVE R1, host"
+        asm "MOVE R2, port"
+        syscall #334
+        move [R12-4] R0
+        asm "MOVE result, R0"
+        move R0 [R12-8]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L52300007
+        move R0 #0
+        jmp _L52300008
+_L52300007:
+        move R0 #1
+_L52300008:
+        cmp R0 #0
+        jz sta_52300005
+        asm "MOVE R0, fd"
+        syscall #337
+        move [R12-4] R0
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        jmp L52300004
+sta_52300005:
+sta_52300006:
+        move R0 [R12-4]
+        jmp L52300004
+L52300004:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+net_send:
+; -------------------------------------------
+; source   : int net_send(int fd,void* data,int len)
+; function : net_send
+; param   : int fd
+; param   : void* data
+; param   : int len
+; return   : int
+; --------------------------------------------
+net_send:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #335
+        move [R12-4] R0
+        asm "MOVE result, R0"
+        move R0 [R12-4]
+        jmp L52300009
+L52300009:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #16
+        push R1
+        ret
+net_recv:
+; -------------------------------------------
+; source   : int net_recv(int fd,void* buf,int max_len)
+; function : net_recv
+; param   : int fd
+; param   : void* buf
+; param   : int max_len
+; return   : int
+; --------------------------------------------
+net_recv:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #336
+        move [R12-4] R0
+        asm "MOVE result, R0"
+        move R0 [R12-4]
+        jmp L52300010
+L52300010:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #16
+        push R1
+        ret
+net_close:
+; -------------------------------------------
+; source   : void net_close(int fd)
+; function : net_close
+; param   : int fd
+; return   : void
+; --------------------------------------------
+net_close:
+        push R15
+        push R12
+        move R12 R13
+        syscall #337
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+net_listen:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int net_listen(int port)
+; function : net_listen
+; param   : int port
+; return   : int
+; --------------------------------------------
+net_listen:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+        asm "LOAD R0 #2"
+        asm "LOAD R1 #1"
+        syscall #330
+        move [R12-4] R0
+        asm "MOVE fd, R0"
+        move R0 [R12-4]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L52300013
+        move R0 #0
+        jmp _L52300014
+_L52300013:
+        move R0 #1
+_L52300014:
+        cmp R0 #0
+        jz sta_52300011
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        jmp L52300015
+sta_52300011:
+sta_52300012:
+        asm "MOVE R0, fd"
+        asm "MOVE R1, port"
+        syscall #331
+        move [R12-4] R0
+        asm "MOVE result, R0"
+        move R0 [R12-8]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L52300018
+        move R0 #0
+        jmp _L52300019
+_L52300018:
+        move R0 #1
+_L52300019:
+        cmp R0 #0
+        jz sta_52300016
+        asm "MOVE R0, fd"
+        syscall #337
+        move [R12-4] R0
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        jmp L52300015
+sta_52300016:
+sta_52300017:
+        asm "MOVE R0, fd"
+        asm "LOAD R1 #5"
+        syscall #332
+        move [R12-4] R0
+        asm "MOVE result, R0"
+        move R0 [R12-8]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L52300022
+        move R0 #0
+        jmp _L52300023
+_L52300022:
+        move R0 #1
+_L52300023:
+        cmp R0 #0
+        jz sta_52300020
+        asm "MOVE R0, fd"
+        syscall #337
+        move [R12-4] R0
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        jmp L52300015
+sta_52300020:
+sta_52300021:
+        move R0 [R12-4]
+        jmp L52300015
+L52300015:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret

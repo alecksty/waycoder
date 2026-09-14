@@ -1,0 +1,374 @@
+.data
+
+.text
+shared_bit_and:
+; -------------------------------------------
+; source   : int shared_bit_and(int a,int b)
+; function : shared_bit_and
+; param   : int a
+; param   : int b
+; return   : int
+; --------------------------------------------
+shared_bit_and:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        and R1 R0
+        move R0 R1
+        jmp L47790000
+L47790000:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+shared_bit_or:
+; -------------------------------------------
+; source   : int shared_bit_or(int a,int b)
+; function : shared_bit_or
+; param   : int a
+; param   : int b
+; return   : int
+; --------------------------------------------
+shared_bit_or:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        or R1 R0
+        move R0 R1
+        jmp L47790001
+L47790001:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+shared_bit_xor:
+; -------------------------------------------
+; source   : int shared_bit_xor(int a,int b)
+; function : shared_bit_xor
+; param   : int a
+; param   : int b
+; return   : int
+; --------------------------------------------
+shared_bit_xor:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        xor R1 R0
+        move R0 R1
+        jmp L47790002
+L47790002:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+shared_bit_not:
+; -------------------------------------------
+; source   : int shared_bit_not(int a)
+; function : shared_bit_not
+; param   : int a
+; return   : int
+; --------------------------------------------
+shared_bit_not:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        not R0
+        jmp L47790003
+L47790003:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+shared_bit_shl:
+; -------------------------------------------
+; source   : int shared_bit_shl(int a,int bits)
+; function : shared_bit_shl
+; param   : int a
+; param   : int bits
+; return   : int
+; --------------------------------------------
+shared_bit_shl:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        jmp L47790004
+L47790004:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+shared_bit_shr:
+; -------------------------------------------
+; source   : int shared_bit_shr(int a,int bits)
+; function : shared_bit_shr
+; param   : int a
+; param   : int bits
+; return   : int
+; --------------------------------------------
+shared_bit_shr:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shr R1 R0
+        move R0 R1
+        jmp L47790005
+L47790005:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+shared_rol:
+; -------------------------------------------
+; source   : int shared_rol(int val,int bits)
+; function : shared_rol
+; param   : int val
+; param   : int bits
+; return   : int
+; --------------------------------------------
+shared_rol:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 #32
+        push R0
+        move R0 [R12+16]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        shr R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        jmp L47790006
+L47790006:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+shared_ror:
+; -------------------------------------------
+; source   : int shared_ror(int val,int bits)
+; function : shared_ror
+; param   : int val
+; param   : int bits
+; return   : int
+; --------------------------------------------
+shared_ror:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 #32
+        push R0
+        move R0 [R12+16]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        jmp L47790007
+L47790007:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+shared_bit_set:
+; -------------------------------------------
+; source   : int shared_bit_set(int val,int bit)
+; function : shared_bit_set
+; param   : int val
+; param   : int bit
+; return   : int
+; --------------------------------------------
+shared_bit_set:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        jmp L47790008
+L47790008:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+shared_bit_clear:
+; -------------------------------------------
+; source   : int shared_bit_clear(int val,int bit)
+; function : shared_bit_clear
+; param   : int val
+; param   : int bit
+; return   : int
+; --------------------------------------------
+shared_bit_clear:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        not R0
+        pop R1
+        and R1 R0
+        move R0 R1
+        jmp L47790009
+L47790009:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+shared_bit_toggle:
+; -------------------------------------------
+; source   : int shared_bit_toggle(int val,int bit)
+; function : shared_bit_toggle
+; param   : int val
+; param   : int bit
+; return   : int
+; --------------------------------------------
+shared_bit_toggle:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        xor R1 R0
+        move R0 R1
+        jmp L47790010
+L47790010:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+shared_bit_test:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int shared_bit_test(int val,int bit)
+; function : shared_bit_test
+; param   : int val
+; param   : int bit
+; return   : int
+; --------------------------------------------
+shared_bit_test:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        shr R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        and R1 R0
+        move R0 R1
+        jmp L47790011
+L47790011:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret

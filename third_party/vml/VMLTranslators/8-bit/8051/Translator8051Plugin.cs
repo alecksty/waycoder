@@ -1,0 +1,1 @@
+using VMLPlugins.Interfaces; using VMLAssembler; namespace VMLTranslators { public class Translator8051Plugin : TranslatorPlugin<Translator8051> { public Translator8051Plugin() : base("8051", "8051 8位微控制器", "8", ".8051.asm") { } } }

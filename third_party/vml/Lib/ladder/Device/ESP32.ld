@@ -1,0 +1,367 @@
+﻿(*
+ * ESP32-WROOM-32梯形图定义
+ * 生成自: Espressif/ESP32/ESP32-WROOM-32
+ * 版本: 1.0
+ * 日期: 2026-04-16
+ * 作者: VML Team
+ * 描述: Dual-core Xtensa LX6 Wi-Fi and Bluetooth/BLE SoC with 4MB Flash
+ * CPU架构: Xtensa-LX6
+ * 位宽: 32位
+ * 时钟频率: 160000000 Hz
+ *)
+
+PROGRAM ESP32_WROOM_32
+VAR
+
+    (* 输入变量 *)
+
+    (* 输出变量 *)
+
+    (* 内存变量 *)
+    PC AT %M0x00000000 : DWORD; (* Program Counter *)
+    A0 AT %M0x00000004 : DWORD; (* General Purpose Register 0 *)
+    A1 AT %M0x00000008 : DWORD; (* Stack Pointer *)
+    A2 AT %M0x0000000C : DWORD; (* General Purpose Register 2 *)
+    A3 AT %M0x00000010 : DWORD; (* General Purpose Register 3 *)
+    A4 AT %M0x00000014 : DWORD; (* General Purpose Register 4 *)
+    A5 AT %M0x00000018 : DWORD; (* General Purpose Register 5 *)
+    A6 AT %M0x0000001C : DWORD; (* General Purpose Register 6 *)
+    A7 AT %M0x00000020 : DWORD; (* General Purpose Register 7 *)
+    A8 AT %M0x00000024 : DWORD; (* General Purpose Register 8 *)
+    A9 AT %M0x00000028 : DWORD; (* General Purpose Register 9 *)
+    A10 AT %M0x0000002C : DWORD; (* General Purpose Register 10 *)
+    A11 AT %M0x00000030 : DWORD; (* General Purpose Register 11 *)
+    A12 AT %M0x00000034 : DWORD; (* General Purpose Register 12 *)
+    A13 AT %M0x00000038 : DWORD; (* General Purpose Register 13 *)
+    A14 AT %M0x0000003C : DWORD; (* General Purpose Register 14 *)
+    A15 AT %M0x00000040 : DWORD; (* General Purpose Register 15 *)
+    SAREG1 AT %M0x00000044 : DWORD; (* Special Address Register 1 *)
+    SAREG2 AT %M0x00000048 : DWORD; (* Special Address Register 2 *)
+    LBEG AT %M0x0000004C : DWORD; (* Loop Beginning *)
+    LEND AT %M0x00000050 : DWORD; (* Loop End *)
+    LCOUNT AT %M0x00000054 : DWORD; (* Loop Counter *)
+    PS AT %M0x00000058 : DWORD; (* Processor Status *)
+    WINDOWBASE AT %M0x0000005C : DWORD; (* Window Base *)
+    WINDOWSTART AT %M0x00000060 : DWORD; (* Window Start *)
+    PTEBASE AT %M0x00000064 : DWORD; (* Page Table Base *)
+    PTESIZE AT %M0x00000068 : DWORD; (* Page Table Entry Size *)
+    SCOMPARE1 AT %M0x0000006C : DWORD; (* Special Compare 1 *)
+    ATOMCTL AT %M0x00000070 : DWORD; (* Atomic Operation Control *)
+    DDR AT %M0x00000074 : DWORD; (* Data Destination Register *)
+
+    (* 外设变量 *)
+    (* GPIO *)
+    GPIO_BASE AT %MW0x3FF44000 : WORD;
+    GPIO_OUT AT %MW0x0000 : DWORD;
+    GPIO_OUT_W1TS AT %MW0x0008 : DWORD;
+    GPIO_OUT_W1TC AT %MW0x000C : DWORD;
+    GPIO_IN AT %MW0x003C : DWORD;
+    GPIO_STATUS AT %MW0x0024 : DWORD;
+    GPIO_STATUS_W1TS AT %MW0x0028 : DWORD;
+    GPIO_STATUS_W1TC AT %MW0x002C : DWORD;
+    GPIO_PIN AT %MW0x0040 : DWORD;
+    GPIO_ENABLE AT %MW0x0020 : DWORD;
+    GPIO_STRAP AT %MW0x0038 : DWORD;
+    GPIO_IN_NEXT AT %MW0x0044 : DWORD;
+    (* RTC GPIO *)
+    RTC_GPIO_BASE AT %MW0x3FF48000 : WORD;
+    RTC_GPIO_OUT AT %MW0x0000 : DWORD;
+    RTC_GPIO_OUT_W1TS AT %MW0x0008 : DWORD;
+    RTC_GPIO_OUT_W1TC AT %MW0x000C : DWORD;
+    RTC_GPIO_IN AT %MW0x0044 : DWORD;
+    RTC_GPIO_STATUS AT %MW0x0024 : DWORD;
+    RTC_GPIO_PIN AT %MW0x0048 : DWORD;
+    RTC_GPIO_ENABLE AT %MW0x0020 : DWORD;
+    (* IO MUX *)
+    IO_MUX_BASE AT %MW0x3FF49000 : WORD;
+    IO_MUX_GPIO0 AT %MW0x0000 : DWORD;
+    IO_MUX_GPIO1 AT %MW0x0004 : DWORD;
+    IO_MUX_GPIO2 AT %MW0x0008 : DWORD;
+    IO_MUX_GPIO3 AT %MW0x000C : DWORD;
+    IO_MUX_GPIO4 AT %MW0x0010 : DWORD;
+    IO_MUX_GPIO5 AT %MW0x0014 : DWORD;
+    IO_MUX_GPIO6 AT %MW0x0018 : DWORD;
+    IO_MUX_GPIO7 AT %MW0x001C : DWORD;
+    IO_MUX_GPIO8 AT %MW0x0020 : DWORD;
+    IO_MUX_GPIO9 AT %MW0x0024 : DWORD;
+    IO_MUX_GPIO10 AT %MW0x0028 : DWORD;
+    IO_MUX_GPIO11 AT %MW0x002C : DWORD;
+    IO_MUX_GPIO12 AT %MW0x0030 : DWORD;
+    IO_MUX_GPIO13 AT %MW0x0034 : DWORD;
+    IO_MUX_GPIO14 AT %MW0x0038 : DWORD;
+    IO_MUX_GPIO15 AT %MW0x003C : DWORD;
+    IO_MUX_GPIO16 AT %MW0x0040 : DWORD;
+    IO_MUX_GPIO17 AT %MW0x0044 : DWORD;
+    IO_MUX_GPIO18 AT %MW0x0048 : DWORD;
+    IO_MUX_GPIO19 AT %MW0x004C : DWORD;
+    IO_MUX_GPIO20 AT %MW0x0050 : DWORD;
+    IO_MUX_GPIO21 AT %MW0x0054 : DWORD;
+    IO_MUX_GPIO22 AT %MW0x0058 : DWORD;
+    IO_MUX_GPIO23 AT %MW0x005C : DWORD;
+    IO_MUX_GPIO24 AT %MW0x0060 : DWORD;
+    IO_MUX_GPIO25 AT %MW0x0064 : DWORD;
+    IO_MUX_GPIO26 AT %MW0x0068 : DWORD;
+    IO_MUX_GPIO27 AT %MW0x006C : DWORD;
+    (* UART 0 *)
+    UART0_BASE AT %MW0x3FF40000 : WORD;
+    UART0_FIFO AT %MW0x0000 : DWORD;
+    UART0_INT_RAW AT %MW0x0004 : DWORD;
+    UART0_INT_ST AT %MW0x0008 : DWORD;
+    UART0_INT_ENA AT %MW0x000C : DWORD;
+    UART0_INT_CLR AT %MW0x0010 : DWORD;
+    UART0_CONF0 AT %MW0x0020 : DWORD;
+    UART0_CONF1 AT %MW0x0024 : DWORD;
+    UART0_LOWPULSE AT %MW0x0028 : DWORD;
+    UART0_HIGHPULSE AT %MW0x002C : DWORD;
+    UART0_PULSE_CNT AT %MW0x0030 : DWORD;
+    UART0_DATE AT %MW0x0078 : DWORD;
+    UART0_AHB_BIT AT %MW0x007C : DWORD;
+    (* UART 1 *)
+    UART1_BASE AT %MW0x3FF50000 : WORD;
+    UART1_FIFO AT %MW0x0000 : DWORD;
+    UART1_INT_RAW AT %MW0x0004 : DWORD;
+    UART1_INT_ST AT %MW0x0008 : DWORD;
+    UART1_INT_ENA AT %MW0x000C : DWORD;
+    UART1_INT_CLR AT %MW0x0010 : DWORD;
+    UART1_CONF0 AT %MW0x0020 : DWORD;
+    UART1_CONF1 AT %MW0x0024 : DWORD;
+    (* UART 2 *)
+    UART2_BASE AT %MW0x3FF6E000 : WORD;
+    UART2_FIFO AT %MW0x0000 : DWORD;
+    UART2_INT_RAW AT %MW0x0004 : DWORD;
+    UART2_INT_ST AT %MW0x0008 : DWORD;
+    UART2_INT_ENA AT %MW0x000C : DWORD;
+    UART2_INT_CLR AT %MW0x0010 : DWORD;
+    UART2_CONF0 AT %MW0x0020 : DWORD;
+    UART2_CONF1 AT %MW0x0024 : DWORD;
+    (* SPI0 (Flash) *)
+    SPI0_BASE AT %MW0x3FF42000 : WORD;
+    SPI0_CMD AT %MW0x0000 : DWORD;
+    SPI0_ADDR AT %MW0x0004 : DWORD;
+    SPI0_CONTROL AT %MW0x0008 : DWORD;
+    SPI0_CONTROL1 AT %MW0x000C : DWORD;
+    SPI0_STATUS AT %MW0x0010 : DWORD;
+    SPI0_STATUS1 AT %MW0x0014 : DWORD;
+    SPI0_DATA AT %MW0x0020 : DWORD;
+    SPI0_USER AT %MW0x003C : DWORD;
+    SPI0_USER1 AT %MW0x0040 : DWORD;
+    SPI0_USER2 AT %MW0x0044 : DWORD;
+    SPI0_PIN AT %MW0x0048 : DWORD;
+    SPI0_SLAVE AT %MW0x004C : DWORD;
+    SPI0_CACHE_FLASH AT %MW0x0050 : DWORD;
+    SPI0_CLOCK AT %MW0x0058 : DWORD;
+    SPI0_FIFO AT %MW0x0060 : DWORD;
+    (* SPI1 *)
+    SPI1_BASE AT %MW0x3FF43000 : WORD;
+    SPI1_CMD AT %MW0x0000 : DWORD;
+    SPI1_ADDR AT %MW0x0004 : DWORD;
+    SPI1_CONTROL AT %MW0x0008 : DWORD;
+    SPI1_STATUS AT %MW0x0010 : DWORD;
+    SPI1_DATA AT %MW0x0020 : DWORD;
+    SPI1_USER AT %MW0x003C : DWORD;
+    SPI1_CLOCK AT %MW0x0058 : DWORD;
+    (* SPI2 (HSPI) *)
+    SPI2_BASE AT %MW0x3FF64000 : WORD;
+    SPI2_CMD AT %MW0x0000 : DWORD;
+    SPI2_ADDR AT %MW0x0004 : DWORD;
+    SPI2_CONTROL AT %MW0x0008 : DWORD;
+    SPI2_STATUS AT %MW0x0010 : DWORD;
+    SPI2_DATA AT %MW0x0020 : DWORD;
+    SPI2_USER AT %MW0x003C : DWORD;
+    SPI2_CLOCK AT %MW0x0058 : DWORD;
+    SPI2_FIFO AT %MW0x0060 : DWORD;
+    (* I2C 0 *)
+    I2C0_BASE AT %MW0x3FF53000 : WORD;
+    I2C0_SCL_START AT %MW0x0000 : DWORD;
+    I2C0_SCL_LOW AT %MW0x0004 : DWORD;
+    I2C0_SDA_START AT %MW0x0008 : DWORD;
+    I2C0_SDA_LOW AT %MW0x000C : DWORD;
+    I2C0_INT_ENA AT %MW0x0010 : DWORD;
+    I2C0_INT_CLR AT %MW0x0014 : DWORD;
+    I2C0_INT_RAW AT %MW0x0018 : DWORD;
+    I2C0_INT_STATUS AT %MW0x001C : DWORD;
+    I2C0_SCL_HIGH_PERIOD AT %MW0x0020 : DWORD;
+    I2C0_SCL_HIGH_PERIOD_S AT %MW0x0024 : DWORD;
+    I2C0_SCL_START_HOLD AT %MW0x0028 : DWORD;
+    I2C0_SDA_START_HOLD AT %MW0x002C : DWORD;
+    I2C0_SCL_LAST_HOLD AT %MW0x0030 : DWORD;
+    I2C0_SCL_WAIT_PERIOD AT %MW0x0034 : DWORD;
+    I2C0_CTR AT %MW0x0050 : DWORD;
+    I2C0_STATUS AT %MW0x0054 : DWORD;
+    I2C0_FINISH_INT_ENA AT %MW0x0058 : DWORD;
+    I2C0_COMMAND0 AT %MW0x0060 : DWORD;
+    I2C0_COMMAND1 AT %MW0x0064 : DWORD;
+    I2C0_COMMAND2 AT %MW0x0068 : DWORD;
+    I2C0_COMMAND3 AT %MW0x006C : DWORD;
+    I2C0_DATA AT %MW0x0080 : DWORD;
+    (* I2C 1 *)
+    I2C1_BASE AT %MW0x3FF67000 : WORD;
+    I2C1_CTR AT %MW0x0050 : DWORD;
+    I2C1_DATA AT %MW0x0080 : DWORD;
+    I2C1_COMMAND0 AT %MW0x0060 : DWORD;
+    I2C1_COMMAND1 AT %MW0x0064 : DWORD;
+    (* Timer Group 0 *)
+    TIMG0_BASE AT %MW0x3FF5F000 : WORD;
+    TIMG0_T0CONFIG AT %MW0x0000 : DWORD;
+    TIMG0_T0LO AT %MW0x0004 : DWORD;
+    TIMG0_T0HI AT %MW0x0008 : DWORD;
+    TIMG0_T0UPDATE AT %MW0x000C : DWORD;
+    TIMG0_T0ALARM AT %MW0x0010 : DWORD;
+    TIMG0_T0LOAD AT %MW0x0014 : DWORD;
+    TIMG0_T0LOAD_REG AT %MW0x0018 : DWORD;
+    (* Timer Group 1 *)
+    TIMG1_BASE AT %MW0x3FF60000 : WORD;
+    TIMG1_T0CONFIG AT %MW0x0000 : DWORD;
+    TIMG1_T0LO AT %MW0x0004 : DWORD;
+    TIMG1_T0HI AT %MW0x0008 : DWORD;
+    TIMG1_T0ALARM AT %MW0x0010 : DWORD;
+    TIMG1_T0LOAD AT %MW0x0014 : DWORD;
+    (* Motor Control PWM 0 *)
+    PWM0_BASE AT %MW0x3FF59000 : WORD;
+    PWM0_CNT AT %MW0x0000 : DWORD;
+    PWM0_PERIOD AT %MW0x0004 : DWORD;
+    PWM0_DUTY AT %MW0x0008 : DWORD;
+    PWM0_CONFIG0 AT %MW0x0010 : DWORD;
+    PWM0_CONFIG1 AT %MW0x0014 : DWORD;
+    PWM0_CONFIG2 AT %MW0x0018 : DWORD;
+    PWM0_UPDATE AT %MW0x0020 : DWORD;
+    (* Motor Control PWM 1 *)
+    PWM1_BASE AT %MW0x3FF5A000 : WORD;
+    PWM1_CNT AT %MW0x0000 : DWORD;
+    PWM1_PERIOD AT %MW0x0004 : DWORD;
+    PWM1_DUTY AT %MW0x0008 : DWORD;
+    (* LED PWM Controller *)
+    LEDC_BASE AT %MW0x3FF59000 : WORD;
+    LEDC_CONFIG0 AT %MW0x0000 : DWORD;
+    LEDC_HPOINT0 AT %MW0x0018 : DWORD;
+    LEDC_DUTY0 AT %MW0x001C : DWORD;
+    LEDC_HPOINT1 AT %MW0x0028 : DWORD;
+    LEDC_DUTY1 AT %MW0x002C : DWORD;
+    LEDC_HPOINT2 AT %MW0x0038 : DWORD;
+    LEDC_DUTY2 AT %MW0x003C : DWORD;
+    LEDC_HPOINT3 AT %MW0x0048 : DWORD;
+    LEDC_DUTY3 AT %MW0x004C : DWORD;
+    LEDC_TIMER0_CONF AT %MW0x0000 : DWORD;
+    LEDC_TIMER0_LOAD AT %MW0x0004 : DWORD;
+    (* RTC Controller *)
+    RTC_BASE AT %MW0x3FF48000 : WORD;
+    RTC_RTC_CNTL AT %MW0x0000 : DWORD;
+    RTC_RTC_TIMER AT %MW0x000C : DWORD;
+    RTC_RTC_UPDATE AT %MW0x0010 : DWORD;
+    RTC_RTC_STATE0 AT %MW0x0080 : DWORD;
+    (* Wi-Fi *)
+    WIFI_BASE AT %MW0x3FFAE000 : WORD;
+    WIFI_MAC AT %MW0x0000 : DWORD;
+    WIFI_CONFIG AT %MW0x0100 : DWORD;
+    (* Bluetooth/BLE *)
+    BT_BASE AT %MW0x3FFB0000 : WORD;
+    BT_CONFIG AT %MW0x0000 : DWORD;
+    (* SHA Hardware Accelerator *)
+    SHA_BASE AT %MW0x3FF67000 : WORD;
+    SHA_MODE AT %MW0x0000 : DWORD;
+    SHA_DATA AT %MW0x0004 : DWORD;
+    SHA_HASH AT %MW0x0008 : DWORD;
+    (* AES Hardware Accelerator *)
+    AES_BASE AT %MW0x3FF68000 : WORD;
+    AES_KEY AT %MW0x0000 : DWORD;
+    AES_DATA_IN AT %MW0x0004 : DWORD;
+    AES_DATA_OUT AT %MW0x0008 : DWORD;
+    AES_MODE AT %MW0x000C : DWORD;
+    (* Random Number Generator *)
+    RNG_BASE AT %MW0x3FF75000 : WORD;
+    RNG_DATA AT %MW0x0000 : DWORD;
+    (* eFuse Controller *)
+    EFUSE_BASE AT %MW0x3FF5A000 : WORD;
+    EFUSE_DATA0 AT %MW0x0000 : DWORD;
+    EFUSE_DATA1 AT %MW0x0004 : DWORD;
+    EFUSE_DATA2 AT %MW0x0008 : DWORD;
+    EFUSE_DATA3 AT %MW0x000C : DWORD;
+
+    (* 中断变量 *)
+    INT_NMI : BOOL; (* Non-maskable interrupt *)
+    INT_SYS_SOFT : BOOL; (* Software interrupt *)
+    INT_TIMER_INTR0 : BOOL; (* Hardware timer 0 *)
+    INT_TIMER_INTR1 : BOOL; (* Hardware timer 1 *)
+    INT_TIMER_INTR2 : BOOL; (* Hardware timer 2 *)
+    INT_TIMER_GROUP0 : BOOL; (* TG0 interrupt *)
+    INT_TIMER_GROUP1 : BOOL; (* TG1 interrupt *)
+    INT_GPIO : BOOL; (* GPIO interrupt *)
+    INT_GPIO_NMI : BOOL; (* GPIO NMI interrupt *)
+    INT_SPI0 : BOOL; (* SPI0 interrupt *)
+    INT_SPI1 : BOOL; (* SPI1 interrupt *)
+    INT_SPI2 : BOOL; (* SPI2 interrupt *)
+    INT_I2C0 : BOOL; (* I2C0 interrupt *)
+    INT_I2C1 : BOOL; (* I2C1 interrupt *)
+    INT_UART0 : BOOL; (* UART0 interrupt *)
+    INT_UART1 : BOOL; (* UART1 interrupt *)
+    INT_UART2 : BOOL; (* UART2 interrupt *)
+    INT_WDT : BOOL; (* Watchdog interrupt *)
+    INT_RTC : BOOL; (* RTC interrupt *)
+    INT_PWM0 : BOOL; (* PWM0 interrupt *)
+    INT_PWM1 : BOOL; (* PWM1 interrupt *)
+    INT_LEDC : BOOL; (* LEDC interrupt *)
+    INT_TOUCH : BOOL; (* Touch sensor interrupt *)
+    INT_SARADC : BOOL; (* SARADC interrupt *)
+    INT_MAX : BOOL; (* No. of CPU interrupts *)
+    INT_CORE_INTR0 : BOOL; (* Core 0 interrupt 0 *)
+    INT_CORE_INTR1 : BOOL; (* Core 0 interrupt 1 *)
+    INT_CORE_INTR2 : BOOL; (* Core 0 interrupt 2 *)
+    INT_CORE_INTR3 : BOOL; (* Core 0 interrupt 3 *)
+    INT_CORE_INTR4 : BOOL; (* Core 0 interrupt 4 *)
+    INT_CORE_INTR5 : BOOL; (* Core 0 interrupt 5 *)
+    INT_CORE_INTR6 : BOOL; (* Core 0 interrupt 6 *)
+    INT_GPIO_INTERRUPT : BOOL; (* GPIO interrupt *)
+    INT_GPIO_INTERRUPT_NMI : BOOL; (* GPIO NMI interrupt *)
+
+END_VAR
+
+BEGIN
+    (* ESP32-WROOM-32初始化梯形图 *)
+    (* 网络 1: 设备初始化 *)
+    [初始化完成]
+
+    (* 网络 2: 输入监控示例 *)
+    (* 网络 3: 寄存器监控 *)
+    --|PC>0|--(监控灯)--
+    --|A0>0|--(监控灯)--
+    --|A1>0|--(监控灯)--
+    --|A2>0|--(监控灯)--
+    --|A3>0|--(监控灯)--
+
+    (* 网络 4: 中断处理 *)
+    --|INT_NMI|--[中断处理]--
+    --|INT_SYS_SOFT|--[中断处理]--
+    --|INT_TIMER_INTR0|--[中断处理]--
+    --|INT_TIMER_INTR1|--[中断处理]--
+    --|INT_TIMER_INTR2|--[中断处理]--
+    --|INT_TIMER_GROUP0|--[中断处理]--
+    --|INT_TIMER_GROUP1|--[中断处理]--
+    --|INT_GPIO|--[中断处理]--
+    --|INT_GPIO_NMI|--[中断处理]--
+    --|INT_SPI0|--[中断处理]--
+    --|INT_SPI1|--[中断处理]--
+    --|INT_SPI2|--[中断处理]--
+    --|INT_I2C0|--[中断处理]--
+    --|INT_I2C1|--[中断处理]--
+    --|INT_UART0|--[中断处理]--
+    --|INT_UART1|--[中断处理]--
+    --|INT_UART2|--[中断处理]--
+    --|INT_WDT|--[中断处理]--
+    --|INT_RTC|--[中断处理]--
+    --|INT_PWM0|--[中断处理]--
+    --|INT_PWM1|--[中断处理]--
+    --|INT_LEDC|--[中断处理]--
+    --|INT_TOUCH|--[中断处理]--
+    --|INT_SARADC|--[中断处理]--
+    --|INT_MAX|--[中断处理]--
+    --|INT_CORE_INTR0|--[中断处理]--
+    --|INT_CORE_INTR1|--[中断处理]--
+    --|INT_CORE_INTR2|--[中断处理]--
+    --|INT_CORE_INTR3|--[中断处理]--
+    --|INT_CORE_INTR4|--[中断处理]--
+    --|INT_CORE_INTR5|--[中断处理]--
+    --|INT_CORE_INTR6|--[中断处理]--
+    --|INT_GPIO_INTERRUPT|--[中断处理]--
+    --|INT_GPIO_INTERRUPT_NMI|--[中断处理]--
+
+END_PROGRAM

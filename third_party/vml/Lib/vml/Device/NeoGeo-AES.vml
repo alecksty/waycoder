@@ -1,0 +1,447 @@
+﻿; NeoGeo-68000寄存器定义
+; 生成自: SNK/M68K/NeoGeo-68000
+; 版本: 1.0
+; 日期: 2026-04-16
+; 作者: VML Team
+; 描述: SNK Neo Geo AES main processor - Motorola 68000 @ 12MHz + Z80 @ 4MHz (audio coprocessor)
+
+; CPU架构: MC68000
+; 位宽: 32位
+; 时钟频率: 12000000 Hz
+
+; 寄存器定义
+; Data Register 0
+.equ D0, 0x00
+
+; Data Register 1
+.equ D1, 0x04
+
+; Data Register 2
+.equ D2, 0x08
+
+; Data Register 3
+.equ D3, 0x0C
+
+; Data Register 4
+.equ D4, 0x10
+
+; Data Register 5
+.equ D5, 0x14
+
+; Data Register 6
+.equ D6, 0x18
+
+; Data Register 7
+.equ D7, 0x1C
+
+; Address Register 0
+.equ A0, 0x20
+
+; Address Register 1
+.equ A1, 0x24
+
+; Address Register 2
+.equ A2, 0x28
+
+; Address Register 3
+.equ A3, 0x2C
+
+; Address Register 4
+.equ A4, 0x30
+
+; Address Register 5
+.equ A5, 0x34
+
+; Address Register 6
+.equ A6, 0x38
+
+; User Stack Pointer (USP)
+.equ A7, 0x3C
+
+; Supervisor Stack Pointer (SSP)
+.equ SP, 0x3C
+
+; Program Counter
+.equ PC, 0x40
+
+; Status Register
+.equ SR, 0x44
+.equ SR_C, 0  ; Carry
+.equ SR_V, 1  ; Overflow
+.equ SR_Z, 2  ; Zero
+.equ SR_N, 3  ; Negative
+.equ SR_X, 4  ; Extend
+.equ SR_I0, 8  ; Interrupt Mask 0
+.equ SR_I1, 9  ; Interrupt Mask 1
+.equ SR_I2, 10  ; Interrupt Mask 2
+.equ SR_M, 11  ; Master/Interrupt
+.equ SR_S, 13  ; Supervisor/User
+.equ SR_T0, 14  ; Trace Mode 0
+.equ SR_T1, 15  ; Trace Mode 1
+
+; 内存段定义
+; Work RAM (64KB)
+.equ WORK_RAM_START, 0x100000
+.equ WORK_RAM_END, 0x10FFFF
+.equ WORK_RAM_SIZE, 65536
+
+; Backup SRAM (battery-backed, 64KB)
+.equ BACKUP_RAM_START, 0x200000
+.equ BACKUP_RAM_END, 0x20FFFF
+.equ BACKUP_RAM_SIZE, 65536
+
+; Fix Layer ROM (512KB)
+.equ FIX_ROM_START, 0x000000
+.equ FIX_ROM_END, 0x07FFFF
+.equ FIX_ROM_SIZE, 524288
+
+; Sprite ROM (up to 1MB)
+.equ SPR_ROM_START, 0x400000
+.equ SPR_ROM_END, 0x4FFFFF
+.equ SPR_ROM_SIZE, 1048576
+
+; Audio ROM (up to 64KB)
+.equ AUDIO_ROM_START, 0x800000
+.equ AUDIO_ROM_END, 0x80FFFF
+.equ AUDIO_ROM_SIZE, 65536
+
+; Cartridge ROM (up to 512KB, expandable)
+.equ CART_ROM_START, 0xC00000
+.equ CART_ROM_END, 0xC7FFFF
+.equ CART_ROM_SIZE, 524288
+
+; I/O Area (VDP, YM2610, Z80 port, etc.)
+.equ IO_AREA_START, 0x300000
+.equ IO_AREA_END, 0x3FFFFF
+.equ IO_AREA_SIZE, 1048576
+
+; Z80 Work RAM (2KB)
+.equ Z80_RAM_START, 0x10000
+.equ Z80_RAM_END, 0x107FF
+.equ Z80_RAM_SIZE, 2048
+
+; 外设定义
+; Z80 Audio Coprocessor @ 4MHz
+.equ Z80_BASE, 0x300000
+.equ Z80_Z80_A, 0x00
+.equ Z80_Z80_F, 0x01
+.equ Z80_Z80_B, 0x02
+.equ Z80_Z80_C, 0x03
+.equ Z80_Z80_D, 0x04
+.equ Z80_Z80_E, 0x05
+.equ Z80_Z80_H, 0x06
+.equ Z80_Z80_L, 0x07
+.equ Z80_Z80_AF, 0x08
+.equ Z80_Z80_BC, 0x0A
+.equ Z80_Z80_DE, 0x0C
+.equ Z80_Z80_HL, 0x0E
+.equ Z80_Z80_IX, 0x10
+.equ Z80_Z80_IY, 0x12
+.equ Z80_Z80_SP, 0x14
+.equ Z80_Z80_PC, 0x16
+.equ Z80_Z80_I, 0x18
+.equ Z80_Z80_R, 0x19
+.equ Z80_Z80_IM, 0x1A
+.equ Z80_Z80_BUSREQ, 0x1E
+.equ Z80_Z80_RESET, 0x1F
+
+; Yamaha YM2610 FM + ADPCM Audio Generator
+.equ YM2610_BASE, 0x300000
+.equ YM2610_YM_ADDR_A0, 0x00
+.equ YM2610_YM_DATA_A0, 0x01
+.equ YM2610_YM_ADDR_A1, 0x02
+.equ YM2610_YM_DATA_A1, 0x03
+.equ YM2610_YM_ADDR_B0, 0x04
+.equ YM2610_YM_DATA_B0, 0x05
+.equ YM2610_YM_TEST, 0x08
+.equ YM2610_YM_FM_CH0_FREQ_L, 0xA0
+.equ YM2610_YM_FM_CH0_FREQ_H, 0xA4
+.equ YM2610_YM_FM_CH1_FREQ_L, 0xA1
+.equ YM2610_YM_FM_CH1_FREQ_H, 0xA5
+.equ YM2610_YM_FM_CH2_FREQ_L, 0xA2
+.equ YM2610_YM_FM_CH2_FREQ_H, 0xA6
+.equ YM2610_YM_FM_CH3_FREQ_L, 0xA3
+.equ YM2610_YM_FM_CH3_FREQ_H, 0xA7
+.equ YM2610_YM_FM_KEY_ON, 0x28
+.equ YM2610_YM_FM_CH0_ALG, 0xB0
+.equ YM2610_YM_FM_CH1_ALG, 0xB1
+.equ YM2610_YM_FM_CH2_ALG, 0xB2
+.equ YM2610_YM_FM_CH3_ALG, 0xB3
+.equ YM2610_YM_FM_TIMER_H, 0x24
+.equ YM2610_YM_FM_TIMER_L, 0x25
+.equ YM2610_YM_FM_TIMER_CTRL, 0x27
+.equ YM2610_YM_FM_TIMER_CTRL_TIMER_A_START, 0  ; Timer A Start
+.equ YM2610_YM_FM_TIMER_CTRL_TIMER_B_START, 1  ; Timer B Start
+.equ YM2610_YM_FM_TIMER_CTRL_LOAD_A, 2  ; Load Timer A
+.equ YM2610_YM_FM_TIMER_CTRL_LOAD_B, 3  ; Load Timer B
+.equ YM2610_YM_FM_TIMER_CTRL_IRQ_EN_A, 4  ; Timer A IRQ Enable
+.equ YM2610_YM_FM_TIMER_CTRL_IRQ_EN_B, 5  ; Timer B IRQ Enable
+.equ YM2610_YM_FM_TIMER_CTRL_CSM_MODE, 7  ; CSM Mode (auto Key-On after timer A)
+.equ YM2610_YM_FM_CH0_DETUNE, 0x30
+.equ YM2610_YM_FM_CH0_MUL, 0x30
+.equ YM2610_YM_FM_CH0_TL, 0x40
+.equ YM2610_YM_FM_CH0_KS_AR, 0x50
+.equ YM2610_YM_FM_CH0_AM_DR, 0x60
+.equ YM2610_YM_FM_CH0_SR, 0x70
+.equ YM2610_YM_FM_CH0_RR_SL, 0x80
+.equ YM2610_YM_FM_CH0_SSG, 0x90
+.equ YM2610_YM_SSG_CHA_FREQ_L, 0x00
+.equ YM2610_YM_SSG_CHA_FREQ_H, 0x01
+.equ YM2610_YM_SSG_CHB_FREQ_L, 0x02
+.equ YM2610_YM_SSG_CHB_FREQ_H, 0x03
+.equ YM2610_YM_SSG_CHC_FREQ_L, 0x04
+.equ YM2610_YM_SSG_CHC_FREQ_H, 0x05
+.equ YM2610_YM_SSG_CHA_VOL, 0x08
+.equ YM2610_YM_SSG_CHB_VOL, 0x09
+.equ YM2610_YM_SSG_CHC_VOL, 0x0A
+.equ YM2610_YM_SSG_MIXER, 0x07
+.equ YM2610_YM_SSG_ENV_FREQ_L, 0x0B
+.equ YM2610_YM_SSG_ENV_FREQ_H, 0x0C
+.equ YM2610_YM_SSG_ENV_SHAPE, 0x0D
+.equ YM2610_YM_SSG_IO_A, 0x0E
+.equ YM2610_YM_SSG_IO_B, 0x0F
+.equ YM2610_YM_ADPCM_STATUS, 0x10
+.equ YM2610_YM_ADPCM_START, 0x11
+.equ YM2610_YM_ADPCM_END, 0x12
+.equ YM2610_YM_ADPCM_VOL_L, 0x13
+.equ YM2610_YM_ADPCM_VOL_R, 0x14
+.equ YM2610_YM_DELTA_N_L, 0x15
+.equ YM2610_YM_DELTA_N_H, 0x16
+.equ YM2610_YM_ADPCM_B_START, 0x18
+.equ YM2610_YM_ADPCM_B_END, 0x19
+.equ YM2610_YM_ADPCM_B_VOL, 0x1A
+.equ YM2610_YM_ADPCM_B_CTRL, 0x1B
+
+; Neo Geo VDP (Video Display Processor)
+.equ YGV628_BASE, 0x3C0000
+.equ YGV628_VRAM_ADDR_L, 0x00
+.equ YGV628_VRAM_ADDR_H, 0x01
+.equ YGV628_VRAM_DATA, 0x02
+.equ YGV628_VRAM_READ, 0x03
+.equ YGV628_CRAM_ADDR, 0x04
+.equ YGV628_CRAM_DATA, 0x05
+.equ YGV628_VDP_STATUS, 0x06
+.equ YGV628_VDP_STATUS_VBLANK, 0  ; V-Blank Flag
+.equ YGV628_VDP_STATUS_FIELD, 1  ; Field (0=even, 1=odd for interlace)
+.equ YGV628_VDP_STATUS_ODD_FIELD, 1  ; Odd Field Flag
+.equ YGV628_VDP_STATUS_DMA_BUSY, 2  ; DMA Busy
+.equ YGV628_VDP_STATUS_SPRITE_OVERFLOW, 3  ; Sprite Overflow (more than 16 per line)
+.equ YGV628_VDP_STATUS_SPRITE_COLLISION, 4  ; Sprite Collision
+.equ YGV628_VDP_CTRL, 0x07
+.equ YGV628_VDP_CTRL_VRAM_INC, 0  ; VRAM Auto-Increment (0=+1, 1=+2)
+.equ YGV628_VDP_CTRL_ROW_SCROLL, 1  ; Row Scroll Mode
+.equ YGV628_VDP_CTRL_COL_SCROLL, 2  ; Column Scroll Mode
+.equ YGV628_VDP_CTRL_FIX_DISP, 3  ; Fix Layer Display
+.equ YGV628_VDP_CTRL_SPR_DISP, 4  ; Sprite Layer Display
+.equ YGV628_VDP_CTRL_SCROLL2_DISP, 5  ; Scroll Layer 2 Display
+.equ YGV628_VDP_CTRL_SCROLL1_DISP, 6  ; Scroll Layer 1 Display
+.equ YGV628_VDP_CTRL_DMA_ENABLE, 7  ; DMA Enable
+.equ YGV628_SCROLL1_BASE, 0x08
+.equ YGV628_SCROLL2_BASE, 0x0A
+.equ YGV628_SPR_BASE, 0x0C
+.equ YGV628_SPR_COUNT, 0x0E
+.equ YGV628_WINDOW_X, 0x10
+.equ YGV628_WINDOW_Y, 0x11
+.equ YGV628_WINDOW_W, 0x12
+.equ YGV628_WINDOW_H, 0x13
+.equ YGV628_LINE_SCROLL_L, 0x14
+.equ YGV628_LINE_SCROLL_H, 0x15
+.equ YGV628_RASTER_COMP, 0x16
+.equ YGV628_H_TIMING, 0x18
+.equ YGV628_V_TIMING, 0x19
+.equ YGV628_DMA_SRC_L, 0x1A
+.equ YGV628_DMA_SRC_H, 0x1B
+.equ YGV628_DMA_SRC_B, 0x1C
+.equ YGV628_DMA_DEST_L, 0x1D
+.equ YGV628_DMA_DEST_H, 0x1E
+.equ YGV628_DMA_COUNT, 0x1F
+
+; Neo Geo System Driver / Controller
+.equ NEODRIVER_BASE, 0x310000
+.equ NEODRIVER_PDI0, 0x00
+.equ NEODRIVER_PDI0_UP, 0  ; Up (0=pressed)
+.equ NEODRIVER_PDI0_DOWN, 1  ; Down (0=pressed)
+.equ NEODRIVER_PDI0_LEFT, 2  ; Left (0=pressed)
+.equ NEODRIVER_PDI0_RIGHT, 3  ; Right (0=pressed)
+.equ NEODRIVER_PDI0_A, 4  ; A Button (0=pressed)
+.equ NEODRIVER_PDI0_B, 5  ; B Button (0=pressed)
+.equ NEODRIVER_PDI0_C, 6  ; C Button (0=pressed)
+.equ NEODRIVER_PDI0_D, 7  ; D Button (0=pressed)
+.equ NEODRIVER_PDI1, 0x01
+.equ NEODRIVER_PDI2, 0x02
+.equ NEODRIVER_PDI3, 0x03
+.equ NEODRIVER_PDO0, 0x04
+.equ NEODRIVER_PDO1, 0x05
+.equ NEODRIVER_PDO2, 0x06
+.equ NEODRIVER_PDO3, 0x07
+.equ NEODRIVER_DIPSEL1, 0x08
+.equ NEODRIVER_DIPSEL1_COIN_SELECT, 0  ; Coin Select (0=common, 1=1 coin 1 credit)
+.equ NEODRIVER_DIPSEL1_FREE_PLAY, 1  ; Free Play
+.equ NEODRIVER_DIPSEL1_DEMO_SOUND, 2  ; Demo Sound
+.equ NEODRIVER_DIPSEL1_CHIP_MODE, 3  ; Chip Mode (0=AES, 1=MVS)
+.equ NEODRIVER_DIPSEL1_CONTROLLER_TYPE, 4  ; Controller Type (0=standard, 1=keyboard)
+.equ NEODRIVER_DIPSEL2, 0x09
+.equ NEODRIVER_DIPSEL3, 0x0A
+.equ NEODRIVER_DIPSEL4, 0x0B
+.equ NEODRIVER_SYSCTRL, 0x0C
+.equ NEODRIVER_SYSCTRL_RTSEL, 0  ; Real Time Switch Select
+.equ NEODRIVER_SYSCTRL_RESERVED0, 1  ; Reserved
+.equ NEODRIVER_SYSCTRL_SCC, 2  ; System Clock Control
+.equ NEODRIVER_SYSCTRL_PHEN, 3  ; PHEN (bus timing)
+.equ NEODRIVER_SYSCTRL_PCK2, 4  ; PCK2 (bus timing)
+.equ NEODRIVER_SYSCTRL_PCK1, 5  ; PCK1 (bus timing)
+.equ NEODRIVER_SYSCTRL_CKDIV2, 6  ; Clock Divide by 2
+.equ NEODRIVER_SYSCTRL_FEFIX, 7  ; FE Fix
+.equ NEODRIVER_IRQMASK, 0x0D
+.equ NEODRIVER_IRQMASK_VBLANK_MASK, 0  ; V-Blank Interrupt Mask
+.equ NEODRIVER_IRQMASK_HBLANK_MASK, 1  ; H-Blank Interrupt Mask
+.equ NEODRIVER_IRQMASK_VECTOR_IN_MASK, 2  ; Vector In (from Z80) Mask
+.equ NEODRIVER_IRQMASK_SYSTEM_IN_MASK, 3  ; System Input (JAMMA) Mask
+.equ NEODRIVER_IRQFLAG, 0x0E
+.equ NEODRIVER_SECAM_MODE, 0x0F
+
+; Controller Port 1
+.equ CONTROLLER1_BASE, 0x310000
+.equ CONTROLLER1_PDI0, 0x00
+
+; Controller Port 2
+.equ CONTROLLER2_BASE, 0x310001
+.equ CONTROLLER2_PDI1, 0x00
+
+; Memory Card Interface
+.equ MEMORY_CARD_BASE, 0x320000
+.equ MEMORY_CARD_CARD_DATA, 0x00
+.equ MEMORY_CARD_CARD_STATUS, 0x01
+.equ MEMORY_CARD_CARD_STATUS_INSERTED, 0  ; Card Inserted (0=yes)
+.equ MEMORY_CARD_CARD_STATUS_WRITE_PROTECT, 1  ; Write Protected (0=yes)
+.equ MEMORY_CARD_CARD_STATUS_READY, 2  ; Ready for I/O
+.equ MEMORY_CARD_CARD_CTRL, 0x02
+
+; Cartridge Bank Switching
+.equ CART_BANK_BASE, 0x2FFFF0
+.equ CART_BANK_BANK_REG, 0x00
+
+; 中断向量定义
+.equ RESET_SP_VECTOR, 1  ; Reset Initial Stack Pointer
+.equ RESET_PC_VECTOR, 2  ; Reset Initial PC
+.equ BUS_ERROR_VECTOR, 3  ; Bus Error
+.equ ADDRESS_ERROR_VECTOR, 4  ; Address Error
+.equ ILLEGAL_INSTR_VECTOR, 5  ; Illegal Instruction
+.equ ZERO_DIVIDE_VECTOR, 6  ; Zero Divide
+.equ CHK_EXCEPTION_VECTOR, 7  ; CHK Exception
+.equ TRAPV_VECTOR, 8  ; TRAPV Exception
+.equ PRIVILEGE_VECTOR, 9  ; Privilege Violation
+.equ TRACE_VECTOR, 10  ; Trace
+.equ LINE_A_VECTOR, 11  ; Line 1010 Emulator
+.equ LINE_F_VECTOR, 12  ; Line 1111 Emulator
+.equ IRQ1_VECTOR, 24  ; H-Blank / VDP Interrupt (raster)
+.equ IRQ2_VECTOR, 25  ; V-Blank / Frame End Interrupt
+.equ IRQ3_VECTOR, 26  ; System Controller / Z80 Vector In
+.equ IRQ4_VECTOR, 27  ; JAMMA / System Input
+.equ IRQ5_VECTOR, 28  ; Z80 Interrupt Request
+.equ TRAP0_VECTOR, 32  ; TRAP #0 (system call)
+.equ TRAP1_VECTOR, 33  ; TRAP #1
+
+; 引脚定义
+.equ PIN_VCC, 1  ; Power Supply (5V)
+.equ PIN_GND, 2  ; Ground
+.equ PIN_CLK, 3  ; System Clock (12MHz for 68K)
+.equ PIN_RESET, 4  ; Reset (active low)
+.equ PIN_HALT, 5  ; Halt (stops CPU)
+.equ PIN_NMI, 6  ; Non-Maskable Interrupt
+.equ PIN_IPL0, 7  ; Interrupt Priority Level 0
+.equ PIN_IPL1, 8  ; Interrupt Priority Level 1
+.equ PIN_IPL2, 9  ; Interrupt Priority Level 2
+.equ PIN_DTACK, 10  ; Data Acknowledge (active low)
+.equ PIN_BERR, 11  ; Bus Error (active low)
+.equ PIN_BR, 12  ; Bus Request (active low)
+.equ PIN_BG, 13  ; Bus Grant (active low)
+.equ PIN_A0, 14  ; Address Bus Bit 0
+.equ PIN_A1, 15  ; Address Bus Bit 1
+.equ PIN_A2, 16  ; Address Bus Bit 2
+.equ PIN_A3, 17  ; Address Bus Bit 3
+.equ PIN_A4, 18  ; Address Bus Bit 4
+.equ PIN_A5, 19  ; Address Bus Bit 5
+.equ PIN_A6, 20  ; Address Bus Bit 6
+.equ PIN_A7, 21  ; Address Bus Bit 7
+.equ PIN_A8, 22  ; Address Bus Bit 8
+.equ PIN_A9, 23  ; Address Bus Bit 9
+.equ PIN_A10, 24  ; Address Bus Bit 10
+.equ PIN_A11, 25  ; Address Bus Bit 11
+.equ PIN_A12, 26  ; Address Bus Bit 12
+.equ PIN_A13, 27  ; Address Bus Bit 13
+.equ PIN_A14, 28  ; Address Bus Bit 14
+.equ PIN_A15, 29  ; Address Bus Bit 15
+.equ PIN_A16, 30  ; Address Bus Bit 16
+.equ PIN_A17, 31  ; Address Bus Bit 17
+.equ PIN_A18, 32  ; Address Bus Bit 18
+.equ PIN_A19, 33  ; Address Bus Bit 19
+.equ PIN_A20, 34  ; Address Bus Bit 20
+.equ PIN_A21, 35  ; Address Bus Bit 21
+.equ PIN_A22, 36  ; Address Bus Bit 22
+.equ PIN_A23, 37  ; Address Bus Bit 23
+.equ PIN_D0, 38  ; Data Bus Bit 0
+.equ PIN_D1, 39  ; Data Bus Bit 1
+.equ PIN_D2, 40  ; Data Bus Bit 2
+.equ PIN_D3, 41  ; Data Bus Bit 3
+.equ PIN_D4, 42  ; Data Bus Bit 4
+.equ PIN_D5, 43  ; Data Bus Bit 5
+.equ PIN_D6, 44  ; Data Bus Bit 6
+.equ PIN_D7, 45  ; Data Bus Bit 7
+.equ PIN_D8, 46  ; Data Bus Bit 8
+.equ PIN_D9, 47  ; Data Bus Bit 9
+.equ PIN_D10, 48  ; Data Bus Bit 10
+.equ PIN_D11, 49  ; Data Bus Bit 11
+.equ PIN_D12, 50  ; Data Bus Bit 12
+.equ PIN_D13, 51  ; Data Bus Bit 13
+.equ PIN_D14, 52  ; Data Bus Bit 14
+.equ PIN_D15, 53  ; Data Bus Bit 15
+.equ PIN_AS, 54  ; Address Strobe (active low)
+.equ PIN_UDS, 55  ; Upper Data Strobe (active low)
+.equ PIN_LDS, 56  ; Lower Data Strobe (active low)
+.equ PIN_R_W, 57  ; Read/Write (1=Read, 0=Write)
+.equ PIN_FC0, 58  ; Function Code 0
+.equ PIN_FC1, 59  ; Function Code 1
+.equ PIN_FC2, 60  ; Function Code 2
+.equ PIN_E, 61  ; E Clock (Enable, for Z80 sync)
+.equ PIN_VPA, 62  ; Valid Peripheral Address (for Z80 I/O)
+.equ PIN_VM, 63  ; Valid Memory (for Z80 memory access)
+.equ PIN_BKGR, 64  ; Background Audio Mix (analog output)
+.equ PIN_AUDIO_OUT, 65  ; Main Audio Output (Left)
+.equ PIN_AUDIO_R, 66  ; Audio Right Channel
+.equ PIN_VIDEO_R, 67  ; Video Output Red
+.equ PIN_VIDEO_G, 68  ; Video Output Green
+.equ PIN_VIDEO_B, 69  ; Video Output Blue
+.equ PIN_SYNC, 70  ; Video Sync
+
+; 宏定义
+.macro neogeo_68000_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+neogeo_68000_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

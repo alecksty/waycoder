@@ -1,0 +1,8 @@
+# VML 进程扩展库 — Ladder (OS 模式)
+[EXEC]
+SYSCALL 320
+RET
+
+[GET_PID]
+SYSCALL 322
+RET

@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="lang_name" xml:space="preserve"><value>العربية</value></data>
+  <data name="tool.description" xml:space="preserve"><value>VML Toolchain — مترجم متعدد اللغات وأداة متعددة المنصات</value></data>
+  <data name="tool.usage" xml:space="preserve"><value>الاستخدام: {0} [خيارات] &lt;مدخل&gt; [مخرج]</value></data>
+  <data name="help.title" xml:space="preserve"><value>الاستخدام: vmltool [خيارات] &lt;ملفات...&gt;</value></data>
+  <data name="help.short.usage" xml:space="preserve"><value>الاستخدام: vmltool [خيارات] &lt;ملفات...&gt;</value></data>
+  <data name="help.short.hint" xml:space="preserve"><value>vmltool -h للمساعدة المفصلة</value></data>
+  <data name="help.option" xml:space="preserve"><value>-h, --help               عرض المساعدة</value></data>
+  <data name="version.option" xml:space="preserve"><value>-V, --version            عرض الإصدار</value></data>
+  <data name="debug.option" xml:space="preserve"><value>-g, --debug              تضمين معلومات التصحيح</value></data>
+  <data name="output.option" xml:space="preserve"><value>-o, --output &lt;ملف&gt;       ملف الإخراج</value></data>
+  <data name="target.option" xml:space="preserve"><value>-t, --target &lt;معمارية&gt;   المعمارية المستهدفة (x86/arm-cm/avr/8051/riscv/mips/6502/z80/...)</value></data>
+  <data name="format.option" xml:space="preserve"><value>-f, --format &lt;صيغة&gt;      صيغة الإخراج (hex/elf/exe/bin/s19/dump)</value></data>
+  <data name="include.option" xml:space="preserve"><value>-I, --include &lt;مسار&gt;     إضافة مسار بحث الملفات الرأسية</value></data>
+  <data name="lib.option" xml:space="preserve"><value>-L, --library &lt;مسار&gt;     إضافة مسار بحث المكتبات</value></data>
+  <data name="lang.option" xml:space="preserve"><value>-x, --lang &lt;لغة&gt;         لغة المصدر (c/basic/pascal/python/lua/forth/go/rust/java/js/swift/cs/cpp/ladder)</value></data>
+  <data name="mode.option" xml:space="preserve"><value>--mode &lt;mcu|os&gt;          وضع التشغيل (mcu=متحكم, os=نظام كامل)</value></data>
+  <data name="ram.option" xml:space="preserve"><value>--ram &lt;k|m|g&gt;            مستوى الذاكرة (k=كيلوبايت, m=ميجابايت, g=جيجابايت)</value></data>
+  <data name="stack.option" xml:space="preserve"><value>--stack-size &lt;بايت&gt;       حجم المكدس بالبايت</value></data>
+  <data name="compiling" xml:space="preserve"><value>جاري الترجمة {0} ...</value></data>
+  <data name="compiled" xml:space="preserve"><value>تمت الترجمة → {0} ({1} تعليمة)</value></data>
+  <data name="compile.error" xml:space="preserve"><value>خطأ في الترجمة: {0}</value></data>
+  <data name="file.notfound" xml:space="preserve"><value>الملف غير موجود: {0}</value></data>
+  <data name="unknown.format" xml:space="preserve"><value>صيغة إخراج غير معروفة</value></data>
+  <data name="running" xml:space="preserve"><value>جاري التشغيل...</value></data>
+  <data name="program.completed" xml:space="preserve"><value>اكتمل البرنامج.</value></data>
+  <data name="nocompiler" xml:space="preserve"><value>لم يتم العثور على مترجم لملفات &apos;{0}&apos;</value></data>
+  <data name="syntax.error" xml:space="preserve"><value>خطأ نحوي في السطر {0}: {1}</value></data>
+  <data name="undefined.var" xml:space="preserve"><value>متغير غير معرف &apos;{0}&apos;</value></data>
+  <data name="func.redefined" xml:space="preserve"><value>الدالة &apos;{0}&apos; معرفة مسبقاً</value></data>
+  <data name="type.mismatch" xml:space="preserve"><value>عدم تطابق النوع: المتوقع {0}، المستلم {1}</value></data>
+  <data name="expect.token" xml:space="preserve"><value>متوقع {0}، تم استلام {1}</value></data>
+  <data name="expect.identifier" xml:space="preserve"><value>متوقع معرف في {0}</value></data>
+  <data name="unsupported.type" xml:space="preserve"><value>نوع غير مدعوم: {0}</value></data>
+  <data name="unsupported.expr" xml:space="preserve"><value>تعبير غير مدعوم: {0}</value></data>
+  <data name="not.implemented" xml:space="preserve"><value>غير منفذ: {0}</value></data>
+  <data name="mcu.skipped" xml:space="preserve"><value>[MCU] تم تخطي {0}: {1}</value></data>
+  <data name="v2h.description" xml:space="preserve"><value>VMLToHex — محول VML إلى برنامج متحكم ثابت</value></data>
+  <data name="v2h.usage" xml:space="preserve"><value>الاستخدام: vml2hex [خيارات] &lt;مدخل&gt; -arch &lt;معمارية&gt;</value></data>
+  <data name="arch.option" xml:space="preserve"><value>--arch, -a &lt;معمارية&gt;     المعمارية المستهدفة</value></data>
+  <data name="baseaddr.option" xml:space="preserve"><value>--base, -b &lt;عنوان&gt;       العنوان الأساسي للكود</value></data>
+  <data name="bios.option" xml:space="preserve"><value>--bios                   ربط BIOS الجهاز (افتراضي)</value></data>
+  <data name="assembling" xml:space="preserve"><value>جاري التجميع لـ {0} ...</value></data>
+  <data name="output.format" xml:space="preserve"><value>الإخراج: {0} ({1} بايت)</value></data>
+  <data name="emulator.title" xml:space="preserve"><value>محاكي طرفية VML</value></data>
+  <data name="loading" xml:space="preserve"><value>جاري التحميل: {0}</value></data>
+  <data name="load.success" xml:space="preserve"><value>تم التحميل بنجاح.</value></data>
+  <data name="device.info" xml:space="preserve"><value>الجهاز: {0} | الوضع: {1} | الذاكرة: {2}ك.ب | العرض: {3}</value></data>
+  <data name="vga.mode" xml:space="preserve"><value>وضع VGA: {0}</value></data>
+  <data name="step.mode" xml:space="preserve"><value>وضع الخطوة — Enter للتقدم، Q للخروج</value></data>
+  <data name="recording" xml:space="preserve"><value>جاري تسجيل الصوت إلى {0} ...</value></data>
+  <data name="recording.started" xml:space="preserve"><value>بدأ التسجيل: {0}</value></data>
+  <data name="recording.finished" xml:space="preserve"><value>انتهى التسجيل: {1}ث → {0}</value></data>
+  <data name="screenshot.saved" xml:space="preserve"><value>تم حفظ لقطة الشاشة: {0}</value></data>
+  <data name="key.script.started" xml:space="preserve"><value>تم تشغيل سكريبت المفاتيح: {0}</value></data>
+  <data name="unknown.cmd" xml:space="preserve"><value>أمر غير معروف: {0}</value></data>
+  <data name="help.section.actions" xml:space="preserve"><value>الإجراءات (متوافقة مع GCC):</value></data>
+  <data name="help.action.compile" xml:space="preserve"><value>ترجمة المصدر إلى VML</value></data>
+  <data name="help.action.to_asm" xml:space="preserve"><value>ترجمة إلى لغة التجميع</value></data>
+  <data name="help.action.preprocess" xml:space="preserve"><value>معالجة مسبقة للمصدر C فقط</value></data>
+  <data name="help.action.assemble" xml:space="preserve"><value>تجميع VML إلى ثنائي</value></data>
+  <data name="help.action.translate" xml:space="preserve"><value>ترجمة VML إلى لغة التجميع المستهدفة</value></data>
+  <data name="help.action.link" xml:space="preserve"><value>ربط ملفات VML متعددة</value></data>
+  <data name="help.action.run" xml:space="preserve"><value>تشغيل برنامج VML</value></data>
+  <data name="help.action.exe" xml:space="preserve"><value>حزم كملف تنفيذي مستقل</value></data>
+  <data name="help.section.common" xml:space="preserve"><value>خيارات شائعة:</value></data>
+  <data name="help.opt.output" xml:space="preserve"><value>ملف الإخراج (متوافق مع GCC)</value></data>
+  <data name="help.opt.lang" xml:space="preserve"><value>لغة المصدر (كشف تلقائي)</value></data>
+  <data name="help.opt.target" xml:space="preserve"><value>المعمارية المستهدفة (افتراضي x86)</value></data>
+  <data name="help.opt.format" xml:space="preserve"><value>صيغة الإخراج</value></data>
+  <data name="help.opt.optimize" xml:space="preserve"><value>مستوى التحسين (افتراضي -O0)</value></data>
+  <data name="help.opt.dump" xml:space="preserve"><value>تفريغ التعليمات</value></data>
+  <data name="help.opt.savetemps" xml:space="preserve"><value>الاحتفاظ بالملفات الوسيطة</value></data>
+  <data name="help.section.gcc" xml:space="preserve"><value>خيارات متوافقة مع GCC:</value></data>
+  <data name="help.opt.define" xml:space="preserve"><value>تعريف ماكرو</value></data>
+  <data name="help.opt.undef" xml:space="preserve"><value>إلغاء تعريف ماكرو</value></data>
+  <data name="help.opt.include" xml:space="preserve"><value>مسار بحث الملفات الرأسية</value></data>
+  <data name="help.opt.library" xml:space="preserve"><value>مسار بحث المكتبات</value></data>
+  <data name="help.opt.linklib" xml:space="preserve"><value>ربط مكتبة</value></data>
+  <data name="help.opt.std" xml:space="preserve"><value>معيار اللغة</value></data>
+  <data name="help.opt.debug" xml:space="preserve"><value>معلومات التصحيح</value></data>
+  <data name="help.opt.warn" xml:space="preserve"><value>التحكم بالتحذيرات</value></data>
+  <data name="help.opt.linkmode" xml:space="preserve"><value>وضع الربط</value></data>
+  <data name="help.section.target" xml:space="preserve"><value>إعدادات الهدف:</value></data>
+  <data name="help.opt.mode" xml:space="preserve"><value>وضع التشغيل (افتراضي mcu)</value></data>
+  <data name="help.opt.ram" xml:space="preserve"><value>مستوى الذاكرة (افتراضي m)</value></data>
+  <data name="help.opt.stack" xml:space="preserve"><value>حجم المكدس</value></data>
+  <data name="help.opt.runtime" xml:space="preserve"><value>بيئة تشغيل EXE</value></data>
+  <data name="help.section.other" xml:space="preserve"><value>أخرى:</value></data>
+  <data name="help.opt.help" xml:space="preserve"><value>عرض هذه المساعدة</value></data>
+  <data name="help.opt.version" xml:space="preserve"><value>معلومات الإصدار</value></data>
+  <data name="help.opt.verbose" xml:space="preserve"><value>إخراج مفصل</value></data>
+  <data name="help.opt.repl" xml:space="preserve"><value>REPL تفاعلي VML</value></data>
+  <data name="help.opt.plugins" xml:space="preserve"><value>عرض الملحقات المسجلة</value></data>
+  <data name="help.opt.lang_ui" xml:space="preserve"><value>تغيير لغة الواجهة (VML_LANG=en)</value></data>
+  <data name="help.section.examples" xml:space="preserve"><value>أمثلة (14 لغة يتم اكتشافها تلقائياً بالامتداد):</value></data>
+  <data name="help.example.c" xml:space="preserve"><value>C → VML</value></data>
+  <data name="help.example.hex" xml:space="preserve"><value>VML → HEX</value></data>
+  <data name="help.compilers" xml:space="preserve"><value>{0} مترجم + {1} مترجم خلفي</value></data>
+  <data name="help.plugins_title" xml:space="preserve"><value>الملحقات المسجلة</value></data>
+  <data name="help.frontends" xml:space="preserve"><value>مترجمات الواجهة الأمامية ({0}):</value></data>
+  <data name="help.backends" xml:space="preserve"><value>مترجمات الواجهة الخلفية ({0}):</value></data>
+  <data name="help.opt.soft_float" xml:space="preserve"><value>استخدام مكتبة الفاصلة العائمة البرمجية</value></data>
+  <data name="help.opt.no_float" xml:space="preserve"><value>تعطيل دعم الفاصلة العائمة</value></data>
+  <data name="help.opt.int64" xml:space="preserve"><value>64-بت: native(افتراضي)/library/لا شيء</value></data>
+</root>

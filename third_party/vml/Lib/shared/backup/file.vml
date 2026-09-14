@@ -1,0 +1,203 @@
+.data
+
+.text
+shared_fopen:
+; -------------------------------------------
+; source   : int fopen(const char* path,int mode)
+; function : fopen
+; param   : const char* path
+; param   : int mode
+; return   : int
+; --------------------------------------------
+shared_fopen:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #110
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L30360000
+L30360000:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+shared_fclose:
+; -------------------------------------------
+; source   : int fclose(int handle)
+; function : fclose
+; param   : int handle
+; return   : int
+; --------------------------------------------
+shared_fclose:
+        push R15
+        push R12
+        move R12 R13
+        syscall #111
+        move [R12-4] R0
+        move R0 #0
+        jmp L30360001
+L30360001:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+shared_fread:
+; -------------------------------------------
+; source   : int fread(int handle,void* buf,int count)
+; function : fread
+; param   : int handle
+; param   : void* buf
+; param   : int count
+; return   : int
+; --------------------------------------------
+shared_fread:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #112
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L30360002
+L30360002:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #16
+        push R1
+        ret
+shared_fwrite:
+; -------------------------------------------
+; source   : int fwrite(int handle,const void* buf,int count)
+; function : fwrite
+; param   : int handle
+; param   : const void* buf
+; param   : int count
+; return   : int
+; --------------------------------------------
+shared_fwrite:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #113
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L30360003
+L30360003:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #16
+        push R1
+        ret
+shared_fseek:
+; -------------------------------------------
+; source   : int fseek(int handle,int offset,int whence)
+; function : fseek
+; param   : int handle
+; param   : int offset
+; param   : int whence
+; return   : int
+; --------------------------------------------
+shared_fseek:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #114
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L30360004
+L30360004:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #16
+        push R1
+        ret
+shared_ftell:
+; -------------------------------------------
+; source   : int ftell(int handle)
+; function : ftell
+; param   : int handle
+; return   : int
+; --------------------------------------------
+shared_ftell:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #114
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L30360005
+L30360005:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+shared_fsize:
+; -------------------------------------------
+; source   : int fsize(int handle)
+; function : fsize
+; param   : int handle
+; return   : int
+; --------------------------------------------
+shared_fsize:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #114
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L30360006
+L30360006:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+shared_ftruncate:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int ftruncate(int handle,int size)
+; function : ftruncate
+; param   : int handle
+; param   : int size
+; return   : int
+; --------------------------------------------
+shared_ftruncate:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #114
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L30360007
+L30360007:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret

@@ -1,0 +1,1 @@
+using VMLPlugins.Interfaces; using VMLAssembler; namespace VMLTranslators { public class TranslatorWasmPlugin : TranslatorPlugin<TranslatorWasm> { public TranslatorWasmPlugin() : base("Wasm", "WebAssembly 虚拟机", "32", ".wat") { } } }

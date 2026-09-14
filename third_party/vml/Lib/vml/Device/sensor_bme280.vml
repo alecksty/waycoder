@@ -1,0 +1,55 @@
+﻿; BME280寄存器定义
+; 生成自: Bosch/Sensor/BME280
+; 版本: 1.0
+; 日期: 2026-05-06
+; 作者: VML Team
+; 描述: BME280 Combined Humidity, Pressure, and Temperature Sensor (I2C/SPI)
+
+; CPU架构: Sensor
+; 位宽: 8位
+; 时钟频率: 400000 Hz
+
+; 外设定义
+; BME280 Environmental Sensor (0x76/0x77, 1.71V-3.6V)
+.equ BME280_BASE, 0x76
+.equ BME280_CHIP_ID, 0xD0
+.equ BME280_RESET, 0xE0
+.equ BME280_CTRL_HUM, 0xF2
+.equ BME280_STATUS, 0xF3
+.equ BME280_CTRL_MEAS, 0xF4
+.equ BME280_CONFIG, 0xF5
+.equ BME280_PRESS, 0xF7
+.equ BME280_TEMP, 0xFA
+.equ BME280_HUM, 0xFD
+
+; 宏定义
+.macro bme280_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+bme280_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

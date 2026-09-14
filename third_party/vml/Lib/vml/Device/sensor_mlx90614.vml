@@ -1,0 +1,58 @@
+﻿; MLX90614寄存器定义
+; 生成自: Melexis/Sensor/MLX90614
+; 版本: 1.0
+; 日期: 2026-05-06
+; 作者: VML Team
+; 描述: MLX90614 Infrared Thermometer (I2C, non-contact, -70 to +380°C, 17-bit)
+
+; CPU架构: Sensor
+; 位宽: 17位
+; 时钟频率: 100000 Hz
+
+; 内存段定义
+; Internal EEPROM (calibration data)
+.equ EEPROM_START, 0x00
+.equ EEPROM_END, 0x1F
+.equ EEPROM_SIZE, 32
+
+; 外设定义
+; MLX90614 IR Thermometer (0x5A, 3V-5V, TO-39)
+.equ MLX90614_BASE, 0x5A
+.equ MLX90614_T_AMBIENT, 0x06
+.equ MLX90614_T_OBJECT1, 0x07
+.equ MLX90614_T_OBJECT2, 0x08
+.equ MLX90614_RAW_IR1, 0x04
+.equ MLX90614_RAW_IR2, 0x05
+.equ MLX90614_EMISSIVITY, 0x04
+
+; 宏定义
+.macro mlx90614_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+mlx90614_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

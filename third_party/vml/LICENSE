@@ -1,0 +1,111 @@
+VML 混合编程系统 — 参考学习许可证
+======================================
+
+版权所有 (c) 2026 aleck (Shi Tianyu). 保留所有权利.
+
+本软件及其相关文档文件（"软件"）的版权归版权持有人独家所有。
+
+
+授权条款
+--------
+
+1. 版权持有人商业使用
+   版权持有人保留对本软件的全部商业使用权，包括但不限于：
+   (a) 将软件用于商业项目和产品；
+   (b) 销售、许可、分发软件的商业版本；
+   (c) 将软件集成到商业服务中；
+   (d) 以任何形式进行商业化运作。
+
+2. 非版权持有人使用限制
+   非版权持有人（"您"）仅在满足以下全部条件时被授权使用本软件：
+
+   (a) 参考学习 — 您可以阅读、研究、学习本软件的源代码和设计思想；
+   (b) 非商业用途 — 您不得将本软件或其衍生作品用于任何商业目的，
+       包括但不限于商业产品、商业服务、商业培训、商业咨询；
+   (c) 保留版权声明 — 您在使用或引用本软件的任何部分时，
+       必须保留完整的版权声明和本许可证文件；
+   (d) 禁止再许可 — 您不得将本软件的全部或部分重新授权给第三方；
+   (e) 教育研究 — 高等院校、科研机构的教学和非商业研究可以使用本软件，
+       但公开发表的成果须注明引用来源。
+
+3. 明确禁止的行为
+   未经版权持有人事先书面许可，任何人不得：
+   (a) 将本软件或其衍生作品用于任何商业项目或产品；
+   (b) 销售、出租、转让本软件或其衍生作品；
+   (c) 将本软件作为商业服务（SaaS/PaaS/IaaS）的核心组件提供给第三方；
+   (d) 移除或修改本软件中的版权声明、商标或作者署名。
+
+4. 贡献
+   向本软件提交贡献（Pull Request、补丁等）即表示您同意将贡献的版权转让给
+   版权持有人。贡献者保留署名权，但版权持有人拥有贡献内容的全部使用权。
+
+5. 免责声明
+   本软件按"原样"提供，不提供任何明示或暗示的保证，包括但不限于适销性、
+   特定用途适用性和非侵权的保证。在任何情况下，版权持有人均不对因使用本
+   软件而产生的任何索赔、损害或其他责任负责。
+
+6. 终止
+   如违反本许可证的任何条款，您的授权将自动终止。终止后您必须销毁所有
+   本软件的副本及其组成部分。
+
+
+商业授权
+--------
+
+如需将本软件用于商业目的，请联系版权持有人获取商业授权：
+  Email: alecksty@163.com
+
+
+VML Multi-Language Compiler System — Reference & Learning License
+==================================================================
+
+Copyright (c) 2026 aleck (Shi Tianyu). All Rights Reserved.
+
+This software and associated documentation files (the "Software") are the
+exclusive intellectual property of the copyright holder.
+
+LICENSE TERMS
+-------------
+
+1. Copyright Holder Commercial Rights
+   The copyright holder retains all commercial rights to the Software,
+   including but not limited to selling, licensing, distributing commercial
+   versions, and integrating into commercial services.
+
+2. Non-Copyright Holder Usage Restrictions
+   You (non-copyright holder) may use the Software ONLY under these conditions:
+
+   (a) Reference & Learning — you may read, study, and learn from the source
+       code and design concepts;
+   (b) Non-Commercial — you may NOT use the Software or derivative works for
+       any commercial purpose;
+   (c) Attribution — you must retain all copyright notices and this license;
+   (d) No Sublicensing — you may not sublicense the Software to third parties;
+   (e) Education & Research — academic institutions may use the Software for
+       teaching and non-commercial research with proper attribution.
+
+3. Prohibited Actions
+   Without prior written permission from the copyright holder:
+   (a) Commercial use of the Software or derivatives in any form;
+   (b) Sale, rental, or transfer of the Software or derivatives;
+   (c) Use as core component of commercial services (SaaS/PaaS/IaaS);
+   (d) Removal or modification of copyright notices or attribution.
+
+4. Contributions
+   By submitting contributions, you agree to transfer copyright of your
+   contributions to the copyright holder. Contributors retain moral rights
+   (attribution), while the copyright holder owns full usage rights.
+
+5. Disclaimer
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+
+6. Termination
+   Your license terminates automatically upon violation. You must destroy
+   all copies of the Software upon termination.
+
+
+COMMERCIAL LICENSING
+--------------------
+
+For commercial use, please contact the copyright holder:
+  Email: alecksty@163.com

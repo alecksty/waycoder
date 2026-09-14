@@ -1,0 +1,140 @@
+﻿; ATtiny13寄存器定义
+; 生成自: Atmel/AVR/ATtiny13
+; 版本: 1.0
+; 日期: 2026-04-28
+; 作者: VML Team
+; 描述: 8-bit AVR MCU with 1KB Flash, 64B RAM, 64B EEPROM, 20MHz, tiny
+
+; CPU架构: AVR
+; 位宽: 8位
+; 时钟频率: 20000000 Hz
+
+; 寄存器定义
+.equ R0, 0x00
+
+.equ R1, 0x01
+
+.equ R2, 0x02
+
+.equ R16, 0x10
+
+.equ R17, 0x11
+
+; XL
+.equ R26, 0x1A
+
+; XH
+.equ R27, 0x1B
+
+; YL
+.equ R28, 0x1C
+
+; YH
+.equ R29, 0x1D
+
+; ZL
+.equ R30, 0x1E
+
+; ZH
+.equ R31, 0x1F
+
+; Stack Pointer Low
+.equ SPL, 0x5D
+
+; Stack Pointer High
+.equ SPH, 0x5E
+
+; Status Register
+.equ SREG, 0x5F
+
+; 内存段定义
+.equ FLASH_START, 0x0000
+.equ FLASH_END, 0x03FF
+.equ FLASH_SIZE, 1024
+
+.equ SRAM_START, 0x0060
+.equ SRAM_END, 0x009F
+.equ SRAM_SIZE, 64
+
+.equ EEPROM_START, 0x0000
+.equ EEPROM_END, 0x003F
+.equ EEPROM_SIZE, 64
+
+.equ IO_START, 0x00
+.equ IO_END, 0x1F
+.equ IO_SIZE, 32
+
+.equ EXTIO_START, 0x20
+.equ EXTIO_END, 0x5F
+.equ EXTIO_SIZE, 64
+
+; 外设定义
+; Port B (only port)
+.equ PORTB_BASE, 0x18
+.equ PORTB_DDRB, 0x17
+.equ PORTB_PORTB, 0x18
+.equ PORTB_PINB, 0x19
+.equ PORTB_PB0, 0  ; Port B bit 0
+.equ PORTB_PB1, 1  ; Port B bit 1
+.equ PORTB_PB2, 2  ; Port B bit 2
+.equ PORTB_PB3, 3  ; Port B bit 3
+.equ PORTB_PB4, 4  ; Port B bit 4
+.equ PORTB_PB5, 5  ; Port B bit 5
+
+; 8-bit Timer/Counter0
+.equ TIMER0_BASE, 0x33
+.equ TIMER0_TCCR0A, 0x33
+.equ TIMER0_TCCR0B, 0x33
+.equ TIMER0_TCNT0, 0x32
+.equ TIMER0_OCR0A, 0x36
+.equ TIMER0_OCR0B, 0x35
+.equ TIMER0_TIMSK0, 0x39
+.equ TIMER0_TIFR0, 0x38
+
+; Analog-to-Digital
+.equ ADC_BASE, 0x04
+.equ ADC_ADMUX, 0x07
+.equ ADC_ADCSRA, 0x06
+.equ ADC_ADCL, 0x04
+.equ ADC_ADCH, 0x05
+
+; 中断向量定义
+.equ RESET_VECTOR, 1  ; 
+.equ INT0_VECTOR, 2  ; External Interrupt 0
+.equ PCINT0_VECTOR, 3  ; Pin Change Interrupt
+.equ TIM0_OVF_VECTOR, 4  ; Timer0 Overflow
+.equ TIM0_COMPA_VECTOR, 5  ; Timer0 Compare A
+.equ WDT_VECTOR, 6  ; Watchdog Timeout
+.equ ADC_VECTOR, 7  ; ADC Conversion Complete
+
+; 宏定义
+.macro attiny13_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+attiny13_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

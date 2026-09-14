@@ -1,0 +1,18 @@
+
+.linked "file.vml"
+.linked "os.vml"
+.linked "crt.vml"
+.linked "basiclib.vml"
+.linked "convert.vml"
+.linked "string.vml"
+.linked "math.vml"
+.linked "printf.vml"
+.linked "io.vml"
+.linked "ctype.vml"
+.linked "bitops.vml"
+.linked "util.vml"
+.linked "float.vml"
+.linked "memory.vml"
+.data
+
+.text

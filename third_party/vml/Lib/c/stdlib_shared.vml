@@ -1,0 +1,183 @@
+; C Standard Library with Shared Functions
+; C语言标准库 - 使用共享函数版本
+;
+; 这个版本使用共享库中的通用函数实现
+; 只包含C语言特有的函数，通用函数通过共享库提供
+
+.data
+; C标准库特定数据
+
+.text
+; C标准库函数
+
+; ============================================
+; 共享函数引用
+; ============================================
+
+; 输入输出函数
+LABEL putchar
+    JMP shared_putchar
+
+	LABEL puts
+	    JMP shared_puts
+
+LABEL getchar
+    JMP shared_getchar
+
+LABEL kb_hit
+    JMP shared_kb_hit
+
+LABEL vga_clear
+    JMP shared_clear_screen
+
+; 字符串处理函数
+LABEL strlen
+    JMP shared_strlen
+
+LABEL strcpy
+    JMP shared_strcpy
+
+LABEL strcmp
+    JMP shared_strcmp
+
+LABEL strcat
+    JMP shared_strcat
+
+; 内存操作函数
+LABEL memset
+    JMP shared_memset
+
+LABEL memcpy
+    JMP shared_memcpy
+
+; 数学函数
+LABEL abs
+    JMP shared_abs
+
+; 工具函数
+LABEL atoi
+    JMP shared_atoi
+
+; 字符处理函数
+LABEL isdigit
+    JMP shared_is_digit
+
+LABEL isalpha
+    JMP shared_is_alpha
+
+LABEL toupper
+    JMP shared_to_upper
+
+LABEL tolower
+    JMP shared_to_lower
+
+; ============================================
+; C语言特有函数 → 跳转到共享库 (Lib/shared/src/*.c 编译)
+; ============================================
+
+; 字符串扩展 — 见 Lib/shared/src/string.c
+LABEL strncpy
+    JMP shared_strncpy
+
+LABEL strncmp
+    JMP shared_strncmp
+
+LABEL strchr
+    JMP shared_strchr
+
+LABEL strstr
+    JMP shared_strstr
+
+; 内存扩展 — 见 Lib/shared/src/memory.c
+LABEL memcmp
+    JMP shared_memcmp
+
+LABEL memmove
+    JMP shared_memmove
+
+; 字符分类扩展 — 见 Lib/shared/src/ctype.c
+LABEL isalnum
+    JMP shared_isalnum
+
+LABEL isspace
+    JMP shared_isspace
+
+LABEL isupper
+    JMP shared_isupper
+
+LABEL islower
+    JMP shared_islower
+
+LABEL isxdigit
+    JMP shared_isxdigit
+
+LABEL ispunct
+    JMP shared_ispunct
+
+LABEL isprint
+    JMP shared_isprint
+
+LABEL iscntrl
+    JMP shared_iscntrl
+
+; ============================================
+; 文件操作函数 (跳转到共享库)
+; ============================================
+
+; fopen - 打开文件
+; R0: 文件名地址
+; R1: 打开模式 (0=只读, 1=只写, 2=读写)
+; 返回: 文件句柄 (>=0) 或错误码 (<0)
+LABEL fopen
+    JMP shared_fopen
+
+; fclose - 关闭文件
+; R0: 文件句柄
+; 返回: 0=成功, -1=失败
+LABEL fclose
+    JMP shared_fclose
+
+; fread - 读取文件
+; R0: 文件句柄
+; R1: 缓冲区地址
+; R2: 要读取的字节数
+; 返回: 实际读取的字节数 (>=0) 或错误码 (<0)
+LABEL fread
+    JMP shared_fread
+
+; fwrite - 写入文件
+; R0: 文件句柄
+; R1: 数据地址
+; R2: 要写入的字节数
+; 返回: 实际写入的字节数 (>=0) 或错误码 (<0)
+LABEL fwrite
+    JMP shared_fwrite
+
+; fseek - 设置文件位置
+; R0: 文件句柄
+; R1: 偏移量
+; 返回: 0=成功, -1=失败
+LABEL fseek
+    JMP shared_fseek
+
+; ftell - 获取文件位置
+; R0: 文件句柄
+; 返回: 文件位置 (>=0) 或错误码 (<0)
+LABEL ftell
+    JMP shared_ftell
+
+; fsize - 获取文件大小
+; R0: 文件句柄
+; 返回: 文件大小 (>=0) 或错误码 (<0)
+LABEL fsize
+    JMP shared_fsize
+
+; ftruncate - 截断文件
+; R0: 文件句柄
+; R1: 新大小
+; 返回: 0=成功, -1=失败
+LABEL ftruncate
+    JMP shared_ftruncate
+
+; printf — see Lib/c/src/printf.c (C source) → Lib/c/stdio_funcs.vml (compiled, --no-link)
+; Included via IncludeProcessor.GetStandardLibraryIncludes for C language

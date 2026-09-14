@@ -1,0 +1,1 @@
+using VMLPlugins.Interfaces; using VMLAssembler; namespace VMLTranslators { public class TranslatorMIPSPlugin : TranslatorPlugin<TranslatorMIPS> { public TranslatorMIPSPlugin() : base("MIPS", "MIPS 32位处理器", "32", ".mips.asm") { } } }

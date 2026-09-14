@@ -1,0 +1,872 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+g_pos: .word 0
+g_current: .word 0
+
+.text
+is_digit:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        moveb R0 [R12+12]
+        sextb R0 R0
+        pushb R0
+        move R0 #48
+        popb R1
+        cmp R1 R0
+        jge _L67060002
+        move R0 #0
+        jmp _L67060003
+_L67060002:
+        move R0 #1
+_L67060003:
+        test R0 R0
+        jz _L67060000
+        moveb R0 [R12+12]
+        sextb R0 R0
+        pushb R0
+        move R0 #57
+        popb R1
+        cmp R1 R0
+        jle _L67060004
+        move R0 #0
+        jmp _L67060005
+_L67060004:
+        move R0 #1
+_L67060005:
+        test R0 R0
+        jz _L67060000
+        move R0 #1
+        jmp _L67060001
+_L67060000:
+        move R0 #0
+_L67060001:
+        jmp L67060006
+L67060006:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+is_hex_digit:
+        push R15
+        push R12
+        move R12 R13
+        move [R12+12] R0
+        moveb R0 [R12+12]
+        sextb R0 R0
+        pushb R0
+        move R0 #48
+        popb R1
+        cmp R1 R0
+        jge _L67060015
+        move R0 #0
+        jmp _L67060016
+_L67060015:
+        move R0 #1
+_L67060016:
+        test R0 R0
+        jz _L67060013
+        moveb R0 [R12+12]
+        sextb R0 R0
+        pushb R0
+        move R0 #57
+        popb R1
+        cmp R1 R0
+        jle _L67060017
+        move R0 #0
+        jmp _L67060018
+_L67060017:
+        move R0 #1
+_L67060018:
+        test R0 R0
+        jz _L67060013
+        move R0 #1
+        jmp _L67060014
+_L67060013:
+        move R0 #0
+_L67060014:
+        test R0 R0
+        jnz _L67060010
+        moveb R0 [R12+12]
+        sextb R0 R0
+        pushb R0
+        move R0 #97
+        popb R1
+        cmp R1 R0
+        jge _L67060021
+        move R0 #0
+        jmp _L67060022
+_L67060021:
+        move R0 #1
+_L67060022:
+        test R0 R0
+        jz _L67060019
+        moveb R0 [R12+12]
+        sextb R0 R0
+        pushb R0
+        move R0 #102
+        popb R1
+        cmp R1 R0
+        jle _L67060023
+        move R0 #0
+        jmp _L67060024
+_L67060023:
+        move R0 #1
+_L67060024:
+        test R0 R0
+        jz _L67060019
+        move R0 #1
+        jmp _L67060020
+_L67060019:
+        move R0 #0
+_L67060020:
+        test R0 R0
+        jz _L67060011
+_L67060010:
+        move R0 #1
+        jmp _L67060012
+_L67060011:
+        move R0 #0
+_L67060012:
+        test R0 R0
+        jnz _L67060007
+        moveb R0 [R12+12]
+        sextb R0 R0
+        pushb R0
+        move R0 #65
+        popb R1
+        cmp R1 R0
+        jge _L67060027
+        move R0 #0
+        jmp _L67060028
+_L67060027:
+        move R0 #1
+_L67060028:
+        test R0 R0
+        jz _L67060025
+        moveb R0 [R12+12]
+        sextb R0 R0
+        pushb R0
+        move R0 #70
+        popb R1
+        cmp R1 R0
+        jle _L67060029
+        move R0 #0
+        jmp _L67060030
+_L67060029:
+        move R0 #1
+_L67060030:
+        test R0 R0
+        jz _L67060025
+        move R0 #1
+        jmp _L67060026
+_L67060025:
+        move R0 #0
+_L67060026:
+        test R0 R0
+        jz _L67060008
+_L67060007:
+        move R0 #1
+        jmp _L67060009
+_L67060008:
+        move R0 #0
+_L67060009:
+        jmp L67060031
+L67060031:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+skip_spaces:
+        push R15
+        push R12
+        move R12 R13
+sta_67060032:
+        move R2 #0
+        move R0 [g_pos]
+        move R0 @0
+        push R0
+        move R0 #32
+        pop R1
+        cmp R1 R0
+        je _L67060043
+        move R0 #0
+        jmp _L67060044
+_L67060043:
+        move R0 #1
+_L67060044:
+        test R0 R0
+        jnz _L67060040
+        move R0 [g_pos]
+        move R0 @0
+        push R0
+        move R0 #9
+        pop R1
+        cmp R1 R0
+        je _L67060045
+        move R0 #0
+        jmp _L67060046
+_L67060045:
+        move R0 #1
+_L67060046:
+        test R0 R0
+        jz _L67060041
+_L67060040:
+        move R0 #1
+        jmp _L67060042
+_L67060041:
+        move R0 #0
+_L67060042:
+        test R0 R0
+        jnz _L67060037
+        move R0 [g_pos]
+        move R0 @0
+        push R0
+        move R0 #10
+        pop R1
+        cmp R1 R0
+        je _L67060047
+        move R0 #0
+        jmp _L67060048
+_L67060047:
+        move R0 #1
+_L67060048:
+        test R0 R0
+        jz _L67060038
+_L67060037:
+        move R0 #1
+        jmp _L67060039
+_L67060038:
+        move R0 #0
+_L67060039:
+        test R0 R0
+        jnz _L67060034
+        move R0 [g_pos]
+        move R0 @0
+        push R0
+        move R0 #13
+        pop R1
+        cmp R1 R0
+        je _L67060049
+        move R0 #0
+        jmp _L67060050
+_L67060049:
+        move R0 #1
+_L67060050:
+        test R0 R0
+        jz _L67060035
+_L67060034:
+        move R0 #1
+        jmp _L67060036
+_L67060035:
+        move R0 #0
+_L67060036:
+        cmp R0 #0
+        jz sta_67060033
+        move R0 [g_pos]
+        move R1 R0
+        add R0 R0 #1
+        move [g_pos] R0
+        move R0 R1
+        jmp sta_67060032
+sta_67060033:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+next_token:
+        push R15
+        push R12
+        move R12 R13
+        call skip_spaces
+        move R0 [g_pos]
+        move R0 @0
+        move [g_current] R0
+        move R0 [g_current]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jne _L67060053
+        move R0 #0
+        jmp _L67060054
+_L67060053:
+        move R0 #1
+_L67060054:
+        cmp R0 #0
+        jz sta_67060051
+        move R0 [g_pos]
+        move R1 R0
+        add R0 R0 #1
+        move [g_pos] R0
+        move R0 R1
+sta_67060051:
+sta_67060052:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+parse_factor:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #13
+        move R0 #0
+        move [R12-4] R0
+        call skip_spaces
+        move R0 [g_pos]
+        move R0 @0
+        push R0
+        move R0 #40
+        pop R1
+        cmp R1 R0
+        je _L67060057
+        move R0 #0
+        jmp _L67060058
+_L67060057:
+        move R0 #1
+_L67060058:
+        cmp R0 #0
+        jz sta_67060055
+        move R0 [g_pos]
+        move R1 R0
+        add R0 R0 #1
+        move [g_pos] R0
+        move R0 R1
+        call parse_expr
+        move [R12-4] R0
+        call skip_spaces
+        move R0 [g_pos]
+        move R0 @0
+        push R0
+        move R0 #41
+        pop R1
+        cmp R1 R0
+        je _L67060061
+        move R0 #0
+        jmp _L67060062
+_L67060061:
+        move R0 #1
+_L67060062:
+        cmp R0 #0
+        jz sta_67060059
+        move R0 [g_pos]
+        move R1 R0
+        add R0 R0 #1
+        move [g_pos] R0
+        move R0 R1
+sta_67060059:
+sta_67060060:
+        move R0 [R12-4]
+        jmp L67060063
+sta_67060055:
+sta_67060056:
+        move R0 [g_pos]
+        move R0 @0
+        push R0
+        move R0 #45
+        pop R1
+        cmp R1 R0
+        je _L67060066
+        move R0 #0
+        jmp _L67060067
+_L67060066:
+        move R0 #1
+_L67060067:
+        cmp R0 #0
+        jz sta_67060064
+        move R0 [g_pos]
+        move R1 R0
+        add R0 R0 #1
+        move [g_pos] R0
+        move R0 R1
+        call parse_factor
+        call parse_factor
+        neg R0 R0
+        jmp L67060063
+sta_67060064:
+sta_67060065:
+        move R0 [g_pos]
+        move R0 @0
+        push R0
+        move R0 #48
+        pop R1
+        cmp R1 R0
+        je _L67060072
+        move R0 #0
+        jmp _L67060073
+_L67060072:
+        move R0 #1
+_L67060073:
+        test R0 R0
+        jz _L67060070
+        move R0 [g_pos]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R0 @0
+        push R0
+        move R0 #120
+        pop R1
+        cmp R1 R0
+        je _L67060077
+        move R0 #0
+        jmp _L67060078
+_L67060077:
+        move R0 #1
+_L67060078:
+        test R0 R0
+        jnz _L67060074
+        move R0 [g_pos]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R0 @0
+        push R0
+        move R0 #88
+        pop R1
+        cmp R1 R0
+        je _L67060079
+        move R0 #0
+        jmp _L67060080
+_L67060079:
+        move R0 #1
+_L67060080:
+        test R0 R0
+        jz _L67060075
+_L67060074:
+        move R0 #1
+        jmp _L67060076
+_L67060075:
+        move R0 #0
+_L67060076:
+        test R0 R0
+        jz _L67060070
+        move R0 #1
+        jmp _L67060071
+_L67060070:
+        move R0 #0
+_L67060071:
+        cmp R0 #0
+        jz sta_67060068
+        move R0 [g_pos]
+        push R0
+        move R0 #2
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [g_pos] R0
+sta_67060081:
+        move R2 #0
+        move R0 [g_pos]
+        move R0 @0
+        push R0
+        call is_hex_digit
+        add R13 #4
+        cmp R0 #0
+        jz sta_67060082
+        move R0 [g_pos]
+        move R0 @0
+        moveb [R12-5] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #16
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        moveb R0 [R12-5]
+        sextb R0 R0
+        pushb R0
+        move R0 #97
+        popb R1
+        cmp R1 R0
+        jge _L67060083
+        move R0 #0
+        jmp _L67060084
+_L67060083:
+        move R0 #1
+_L67060084:
+        test R0 R0
+        jz _L67060085
+        moveb R0 [R12-5]
+        sextb R0 R0
+        pushb R0
+        move R0 #97
+        popb R1
+        sub R1 R0
+        moveb R0 R1
+        push R0
+        move R0 #10
+        pop R1
+        add R1 R0
+        move R0 R1
+        jmp _L67060086
+_L67060085:
+        moveb R0 [R12-5]
+        sextb R0 R0
+        pushb R0
+        move R0 #65
+        popb R1
+        cmp R1 R0
+        jge _L67060087
+        move R0 #0
+        jmp _L67060088
+_L67060087:
+        move R0 #1
+_L67060088:
+        test R0 R0
+        jz _L67060089
+        moveb R0 [R12-5]
+        sextb R0 R0
+        pushb R0
+        move R0 #65
+        popb R1
+        sub R1 R0
+        moveb R0 R1
+        push R0
+        move R0 #10
+        pop R1
+        add R1 R0
+        move R0 R1
+        jmp _L67060090
+_L67060089:
+        moveb R0 [R12-5]
+        sextb R0 R0
+        pushb R0
+        move R0 #48
+        popb R1
+        sub R1 R0
+        moveb R0 R1
+_L67060090:
+_L67060086:
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [g_pos]
+        move R1 R0
+        add R0 R0 #1
+        move [g_pos] R0
+        move R0 R1
+        jmp sta_67060081
+sta_67060082:
+        move R0 [R12-4]
+        jmp L67060063
+sta_67060068:
+sta_67060069:
+sta_67060091:
+        move R2 #0
+        move R0 [g_pos]
+        move R0 @0
+        push R0
+        call is_digit
+        add R13 #4
+        cmp R0 #0
+        jz sta_67060092
+        move R0 [R12-4]
+        push R0
+        move R0 #10
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 [g_pos]
+        move R0 @0
+        push R0
+        move R0 #48
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [g_pos]
+        move R1 R0
+        add R0 R0 #1
+        move [g_pos] R0
+        move R0 R1
+        jmp sta_67060091
+sta_67060092:
+        move R0 [R12-4]
+        jmp L67060063
+L67060063:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+parse_term:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #20
+        call parse_factor
+        move [R12-4] R0
+        call skip_spaces
+sta_67060093:
+        move R2 #0
+        move R0 [g_pos]
+        move R0 @0
+        push R0
+        move R0 #42
+        pop R1
+        cmp R1 R0
+        je _L67060098
+        move R0 #0
+        jmp _L67060099
+_L67060098:
+        move R0 #1
+_L67060099:
+        test R0 R0
+        jnz _L67060095
+        move R0 [g_pos]
+        move R0 @0
+        push R0
+        move R0 #47
+        pop R1
+        cmp R1 R0
+        je _L67060100
+        move R0 #0
+        jmp _L67060101
+_L67060100:
+        move R0 #1
+_L67060101:
+        test R0 R0
+        jz _L67060096
+_L67060095:
+        move R0 #1
+        jmp _L67060097
+_L67060096:
+        move R0 #0
+_L67060097:
+        cmp R0 #0
+        jz sta_67060094
+        move R0 [g_pos]
+        move R0 @0
+        moveb [R12-5] R0
+        move R0 [g_pos]
+        move R1 R0
+        add R0 R0 #1
+        move [g_pos] R0
+        move R0 R1
+        call parse_factor
+        move [R12-12] R0
+        moveb R0 [R12-5]
+        sextb R0 R0
+        pushb R0
+        move R0 #42
+        popb R1
+        cmp R1 R0
+        je _L67060104
+        move R0 #0
+        jmp _L67060105
+_L67060104:
+        move R0 #1
+_L67060105:
+        cmp R0 #0
+        jz sta_67060102
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-12]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-4] R0
+        jmp sta_67060103
+sta_67060102:
+        move R0 [R12-12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L67060108
+        move R0 #0
+        jmp _L67060109
+_L67060108:
+        move R0 #1
+_L67060109:
+        cmp R0 #0
+        jz sta_67060106
+        move R0 #0
+        jmp L67060110
+sta_67060106:
+sta_67060107:
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-12]
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-4] R0
+sta_67060103:
+        call skip_spaces
+        jmp sta_67060093
+sta_67060094:
+        move R0 [R12-4]
+        jmp L67060110
+L67060110:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+parse_expr:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #20
+        call parse_term
+        move [R12-4] R0
+        call skip_spaces
+sta_67060111:
+        move R2 #0
+        move R0 [g_pos]
+        move R0 @0
+        push R0
+        move R0 #43
+        pop R1
+        cmp R1 R0
+        je _L67060116
+        move R0 #0
+        jmp _L67060117
+_L67060116:
+        move R0 #1
+_L67060117:
+        test R0 R0
+        jnz _L67060113
+        move R0 [g_pos]
+        move R0 @0
+        push R0
+        move R0 #45
+        pop R1
+        cmp R1 R0
+        je _L67060118
+        move R0 #0
+        jmp _L67060119
+_L67060118:
+        move R0 #1
+_L67060119:
+        test R0 R0
+        jz _L67060114
+_L67060113:
+        move R0 #1
+        jmp _L67060115
+_L67060114:
+        move R0 #0
+_L67060115:
+        cmp R0 #0
+        jz sta_67060112
+        move R0 [g_pos]
+        move R0 @0
+        moveb [R12-5] R0
+        move R0 [g_pos]
+        move R1 R0
+        add R0 R0 #1
+        move [g_pos] R0
+        move R0 R1
+        call parse_term
+        move [R12-12] R0
+        moveb R0 [R12-5]
+        sextb R0 R0
+        pushb R0
+        move R0 #43
+        popb R1
+        cmp R1 R0
+        je _L67060122
+        move R0 #0
+        jmp _L67060123
+_L67060122:
+        move R0 #1
+_L67060123:
+        cmp R0 #0
+        jz sta_67060120
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-12]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-4] R0
+        jmp sta_67060121
+sta_67060120:
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-12]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-4] R0
+sta_67060121:
+        call skip_spaces
+        jmp sta_67060111
+sta_67060112:
+        move R0 [R12-4]
+        jmp L67060124
+L67060124:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+parserexp:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L67060127
+        move R0 #0
+        jmp _L67060128
+_L67060127:
+        move R0 #1
+_L67060128:
+        cmp R0 #0
+        jz sta_67060125
+        move R0 #0
+        jmp L67060129
+sta_67060125:
+sta_67060126:
+        move R0 [R12+12]
+        move [g_pos] R0
+        call skip_spaces
+        move R0 [g_pos]
+        move R0 @0
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L67060132
+        move R0 #0
+        jmp _L67060133
+_L67060132:
+        move R0 #1
+_L67060133:
+        cmp R0 #0
+        jz sta_67060130
+        move R0 #0
+        jmp L67060129
+sta_67060130:
+sta_67060131:
+        call parse_expr
+        move [R12-4] R0
+        move R0 [R12-4]
+        jmp L67060129
+L67060129:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret

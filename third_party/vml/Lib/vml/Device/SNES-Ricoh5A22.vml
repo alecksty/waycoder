@@ -1,0 +1,441 @@
+﻿; Ricoh-5A22寄存器定义
+; 生成自: Ricoh/MOS-6502/Ricoh-5A22
+; 版本: 1.0
+; 日期: 2026-04-16
+; 作者: VML Team
+; 描述: Super Nintendo Entertainment System (SNES) main processor - 16-bit 6502 variant with enhanced capabilities
+
+; CPU架构: Ricoh-5A22
+; 位宽: 16位
+; 时钟频率: 3580000 Hz
+
+; 寄存器定义
+; Accumulator (8-bit, expandable to 16-bit)
+.equ A, 0x00
+
+; Accumulator high byte when 16-bit
+.equ B, 0x01
+
+; X Index Register (8/16-bit)
+.equ X, 0x02
+
+; Y Index Register (8/16-bit)
+.equ Y, 0x03
+
+; Stack Pointer (8-bit, banked)
+.equ SP, 0x04
+
+; Program Counter (16-bit)
+.equ PC, 0x06
+
+; Direct Page Register
+.equ D, 0x08
+
+; Processor Status
+.equ P, 0x0A
+.equ P_N, 0  ; Negative
+.equ P_V, 1  ; Overflow
+.equ P_M, 2  ; Memory/Accumulator Select (0=16-bit, 1=8-bit)
+.equ P_X, 3  ; Index Select (0=16-bit, 1=8-bit)
+.equ P_B, 4  ; Break
+.equ P_D, 5  ; Decimal Mode
+.equ P_I, 6  ; Interrupt Disable
+.equ P_Z, 7  ; Zero
+.equ P_C, 8  ; Carry
+
+; 内存段定义
+; Work RAM (128KB internal)
+.equ WRAM_START, 0x7E0000
+.equ WRAM_END, 0x7FFFFF
+.equ WRAM_SIZE, 131072
+
+; Save RAM / Cartridge SRAM
+.equ SRAM_START, 0x600000
+.equ SRAM_END, 0x6FFFFF
+.equ SRAM_SIZE, 1048576
+
+; Cartridge ROM (LoROM/HiROM mapping)
+.equ CART_ROM_START, 0x800000
+.equ CART_ROM_END, 0xFFFFFF
+.equ CART_ROM_SIZE, 8388608
+
+; PPU1 Registers (background)
+.equ PPU1_REGS_START, 0x2100
+.equ PPU1_REGS_END, 0x213F
+.equ PPU1_REGS_SIZE, 64
+
+; PPU2 Registers (sprites)
+.equ PPU2_REGS_START, 0x2140
+.equ PPU2_REGS_END, 0x217F
+.equ PPU2_REGS_SIZE, 64
+
+; PPU3 Registers (extra)
+.equ PPU3_REGS_START, 0x2180
+.equ PPU3_REGS_END, 0x21FF
+.equ PPU3_REGS_SIZE, 128
+
+; APU I/O Registers
+.equ APU_REGS_START, 0x2140
+.equ APU_REGS_END, 0x217F
+.equ APU_REGS_SIZE, 64
+
+; CPU I/O Ports
+.equ CPU_IO_START, 0x2000
+.equ CPU_IO_END, 0x20FF
+.equ CPU_IO_SIZE, 256
+
+; DMA Channel Registers
+.equ DMA_REGS_START, 0x4300
+.equ DMA_REGS_END, 0x437F
+.equ DMA_REGS_SIZE, 128
+
+; HDMA Channel Registers
+.equ HDMA_REGS_START, 0x4380
+.equ HDMA_REGS_END, 0x43FF
+.equ HDMA_REGS_SIZE, 128
+
+; 外设定义
+; Picture Processing Unit 1 - Background Rendering
+.equ PPU1_BASE, 0x2100
+.equ PPU1_INIDISP, 0x2100
+.equ PPU1_OBSEL, 0x2101
+.equ PPU1_OAMADDL, 0x2102
+.equ PPU1_OAMADDH, 0x2103
+.equ PPU1_OAMDATA, 0x2104
+.equ PPU1_BGMODE, 0x2105
+.equ PPU1_MOSAIC, 0x2106
+.equ PPU1_BG1SC, 0x2107
+.equ PPU1_BG2SC, 0x2108
+.equ PPU1_BG3SC, 0x2109
+.equ PPU1_BG4SC, 0x210A
+.equ PPU1_BG12NBA, 0x210B
+.equ PPU1_BG34NBA, 0x210C
+.equ PPU1_BG1HOFS, 0x210D
+.equ PPU1_BG1VOFS, 0x210E
+.equ PPU1_BG2HOFS, 0x210F
+.equ PPU1_BG2VOFS, 0x2110
+.equ PPU1_BG3HOFS, 0x2111
+.equ PPU1_BG3VOFS, 0x2112
+.equ PPU1_BG4HOFS, 0x2113
+.equ PPU1_BG4VOFS, 0x2114
+.equ PPU1_VMAIN, 0x2115
+.equ PPU1_VMADDL, 0x2116
+.equ PPU1_VMADDH, 0x2117
+.equ PPU1_VMDATAL, 0x2118
+.equ PPU1_VMDATAH, 0x2119
+.equ PPU1_M7SEL, 0x211A
+.equ PPU1_M7A, 0x211B
+.equ PPU1_M7B, 0x211C
+.equ PPU1_M7C, 0x211D
+.equ PPU1_M7D, 0x211E
+.equ PPU1_M7X, 0x211F
+.equ PPU1_M7Y, 0x2120
+.equ PPU1_CGADD, 0x2121
+.equ PPU1_CGDATA, 0x2122
+.equ PPU1_W12SEL, 0x2123
+.equ PPU1_W34SEL, 0x2124
+.equ PPU1_WOBJSEL, 0x2125
+.equ PPU1_WH0, 0x2126
+.equ PPU1_WH1, 0x2127
+.equ PPU1_WH2, 0x2128
+.equ PPU1_WH3, 0x2129
+.equ PPU1_WBGLOG, 0x212A
+.equ PPU1_WOBJLOG, 0x212B
+.equ PPU1_TM, 0x212C
+.equ PPU1_TS, 0x212D
+.equ PPU1_TMW, 0x212E
+.equ PPU1_TSW, 0x212F
+.equ PPU1_CGSWSEL, 0x2130
+.equ PPU1_CGADSUB, 0x2131
+.equ PPU1_SETINI, 0x2133
+
+; Picture Processing Unit 2 - Sprite Rendering
+.equ PPU2_BASE, 0x2140
+.equ PPU2_OAMDATAREAD, 0x2138
+.equ PPU2_VMDATAREAD, 0x2139
+.equ PPU2_VMDATAHREAD, 0x213A
+.equ PPU2_CGDATAREAD, 0x213B
+.equ PPU2_OPHCT, 0x213C
+.equ PPU2_OPVCT, 0x213D
+.equ PPU2_STAT78, 0x213F
+
+; Sony SPC700 Audio CPU (8-bit)
+.equ SPC700_BASE, 0x00
+.equ SPC700_PC, 0x00
+.equ SPC700_A, 0x02
+.equ SPC700_X, 0x03
+.equ SPC700_Y, 0x04
+.equ SPC700_SP, 0x05
+.equ SPC700_PSW, 0x06
+.equ SPC700_TEST, 0x0F
+
+; S-DSP Audio DSP (8-channel ADPCM)
+.equ DSP_BASE, 0x00
+.equ DSP_MVOL_L, 0x0C
+.equ DSP_MVOL_R, 0x1C
+.equ DSP_EVOL_L, 0x2C
+.equ DSP_EVOL_R, 0x3C
+.equ DSP_KON, 0x4C
+.equ DSP_KOFF, 0x5C
+.equ DSP_KONKOFF, 0x4D
+.equ DSP_FLG, 0x6C
+.equ DSP_ENDX, 0x7D
+.equ DSP_EBUST, 0x6D
+.equ DSP_EDL, 0x7D
+.equ DSP_ENV0, 0x00
+.equ DSP_OUT0, 0x1C
+.equ DSP_ENV1, 0x01
+.equ DSP_OUT1, 0x2C
+.equ DSP_ENV2, 0x02
+.equ DSP_OUT2, 0x3C
+.equ DSP_ENV3, 0x03
+.equ DSP_OUT3, 0x4C
+.equ DSP_ENV4, 0x04
+.equ DSP_OUT4, 0x5C
+.equ DSP_ENV5, 0x05
+.equ DSP_OUT5, 0x6C
+.equ DSP_ENV6, 0x06
+.equ DSP_OUT6, 0x7C
+.equ DSP_ENV7, 0x07
+.equ DSP_OUT7, 0x0D
+.equ DSP_V0SRC, 0x08
+.equ DSP_V1SRC, 0x09
+.equ DSP_V2SRC, 0x0A
+.equ DSP_V3SRC, 0x0B
+.equ DSP_V4SRC, 0x18
+.equ DSP_V5SRC, 0x19
+.equ DSP_V6SRC, 0x1A
+.equ DSP_V7SRC, 0x1B
+.equ DSP_V0PITCHL, 0x02
+.equ DSP_V0PITCHH, 0x03
+.equ DSP_V1PITCHL, 0x12
+.equ DSP_V1PITCHH, 0x13
+.equ DSP_V2PITCHL, 0x22
+.equ DSP_V2PITCHH, 0x23
+.equ DSP_V3PITCHL, 0x32
+.equ DSP_V3PITCHH, 0x33
+.equ DSP_V4PITCHL, 0x42
+.equ DSP_V4PITCHH, 0x43
+.equ DSP_V5PITCHL, 0x52
+.equ DSP_V5PITCHH, 0x53
+.equ DSP_V6PITCHL, 0x62
+.equ DSP_V6PITCHH, 0x63
+.equ DSP_V7PITCHL, 0x72
+.equ DSP_V7PITCHH, 0x73
+.equ DSP_V0ADSR0, 0x04
+.equ DSP_V0ADSR1, 0x05
+.equ DSP_V0ADSR2, 0x06
+.equ DSP_V1ADSR0, 0x14
+.equ DSP_V1ADSR1, 0x15
+.equ DSP_V1ADSR2, 0x16
+.equ DSP_V2ADSR0, 0x24
+.equ DSP_V2ADSR1, 0x25
+.equ DSP_V2ADSR2, 0x26
+.equ DSP_V3ADSR0, 0x34
+.equ DSP_V3ADSR1, 0x35
+.equ DSP_V3ADSR2, 0x36
+.equ DSP_V4ADSR0, 0x44
+.equ DSP_V4ADSR1, 0x45
+.equ DSP_V4ADSR2, 0x46
+.equ DSP_V5ADSR0, 0x54
+.equ DSP_V5ADSR1, 0x55
+.equ DSP_V5ADSR2, 0x56
+.equ DSP_V6ADSR0, 0x64
+.equ DSP_V6ADSR1, 0x65
+.equ DSP_V6ADSR2, 0x66
+.equ DSP_V7ADSR0, 0x74
+.equ DSP_V7ADSR1, 0x75
+.equ DSP_V7ADSR2, 0x76
+.equ DSP_V0GAIN, 0x07
+.equ DSP_V1GAIN, 0x17
+.equ DSP_V2GAIN, 0x27
+.equ DSP_V3GAIN, 0x37
+.equ DSP_V4GAIN, 0x47
+.equ DSP_V5GAIN, 0x57
+.equ DSP_V6GAIN, 0x67
+.equ DSP_V7GAIN, 0x77
+.equ DSP_V0WAVE, 0x0D
+.equ DSP_V1WAVE, 0x1D
+.equ DSP_V2WAVE, 0x2D
+.equ DSP_V3WAVE, 0x3D
+.equ DSP_V4WAVE, 0x4D
+.equ DSP_V5WAVE, 0x5D
+.equ DSP_V6WAVE, 0x6D
+.equ DSP_V7WAVE, 0x7D
+
+; Direct Memory Access Controller
+.equ DMA_BASE, 0x4300
+.equ DMA_DMAP0, 0x4300
+.equ DMA_BBAD0, 0x4301
+.equ DMA_A1T0L, 0x4302
+.equ DMA_A1T0H, 0x4303
+.equ DMA_A1B0, 0x4304
+.equ DMA_DAS0L, 0x4305
+.equ DMA_DAS0H, 0x4306
+.equ DMA_DASB0, 0x4307
+.equ DMA_A2A0, 0x4308
+.equ DMA_A2A1, 0x4309
+.equ DMA_A2B0, 0x430A
+.equ DMA_NTT0, 0x430B
+.equ DMA_DMAP1, 0x4310
+.equ DMA_BBAD1, 0x4311
+.equ DMA_A1T1L, 0x4312
+.equ DMA_A1T1H, 0x4313
+.equ DMA_A1B1, 0x4314
+.equ DMA_DAS1L, 0x4315
+.equ DMA_DAS1H, 0x4316
+.equ DMA_DASB1, 0x4317
+.equ DMA_DMAP2, 0x4320
+.equ DMA_BBAD2, 0x4321
+.equ DMA_A1T2L, 0x4322
+.equ DMA_A1T2H, 0x4323
+.equ DMA_A1B2, 0x4324
+.equ DMA_DAS2L, 0x4325
+.equ DMA_DAS2H, 0x4326
+.equ DMA_DASB2, 0x4327
+.equ DMA_DMAP3, 0x4330
+.equ DMA_BBAD3, 0x4331
+.equ DMA_A1T3L, 0x4332
+.equ DMA_A1T3H, 0x4333
+.equ DMA_A1B3, 0x4334
+.equ DMA_DAS3L, 0x4335
+.equ DMA_DAS3H, 0x4336
+.equ DMA_DASB3, 0x4337
+.equ DMA_MDMAEN, 0x4350
+
+; Horizontal DMA (scanline-based)
+.equ HDMA_BASE, 0x4380
+.equ HDMA_HDMAP0, 0x4380
+.equ HDMA_HBAD0, 0x4381
+.equ HDMA_A1T0L, 0x4382
+.equ HDMA_A1T0H, 0x4383
+.equ HDMA_A1B0, 0x4384
+.equ HDMA_DAS0L, 0x4385
+.equ HDMA_DAS0H, 0x4386
+.equ HDMA_HDMAP1, 0x4388
+.equ HDMA_HBAD1, 0x4389
+.equ HDMA_A1T1L, 0x438A
+.equ HDMA_A1T1H, 0x438B
+.equ HDMA_A1B1, 0x438C
+.equ HDMA_DAS1L, 0x438D
+.equ HDMA_DAS1H, 0x438E
+.equ HDMA_HDMAP2, 0x4390
+.equ HDMA_HBAD2, 0x4391
+.equ HDMA_A1T2L, 0x4392
+.equ HDMA_A1T2H, 0x4393
+.equ HDMA_A1B2, 0x4394
+.equ HDMA_DAS2L, 0x4395
+.equ HDMA_DAS2H, 0x4396
+.equ HDMA_HDMAP3, 0x4398
+.equ HDMA_HBAD3, 0x4399
+.equ HDMA_A1T3L, 0x439A
+.equ HDMA_A1T3H, 0x439B
+.equ HDMA_A1B3, 0x439C
+.equ HDMA_DAS3L, 0x439D
+.equ HDMA_DAS3H, 0x439E
+.equ HDMA_HDMAEN, 0x43F0
+
+; Controller Port 1
+.equ CONTROLLER1_BASE, 0x4016
+.equ CONTROLLER1_JOYPAD1, 0x4016
+.equ CONTROLLER1_JOYSTROBE, 0x4016
+
+; Controller Port 2
+.equ CONTROLLER2_BASE, 0x4017
+.equ CONTROLLER2_JOYPAD2, 0x4017
+.equ CONTROLLER2_RDNMI, 0x4210
+.equ CONTROLLER2_TIMEUP, 0x4211
+.equ CONTROLLER2_HVBJOY, 0x4212
+
+; Timer / IRQ Control
+.equ TIMER_BASE, 0x4200
+.equ TIMER_NMITIMEN, 0x4200
+.equ TIMER_NMITIMEN_VBLANK_NMI, 7  ; V-Blank NMI Enable
+.equ TIMER_NMITIMEN_HTIMER_EN, 4  ; H-Counter IRQ Enable
+.equ TIMER_NMITIMEN_VTIMER_EN, 5  ; V-Counter IRQ Enable
+.equ TIMER_WRI00, 0x4201
+.equ TIMER_HTIMEL, 0x4202
+.equ TIMER_HTIMEH, 0x4203
+.equ TIMER_VTIMEL, 0x4204
+.equ TIMER_VTIMEH, 0x4205
+.equ TIMER_MEMSEL, 0x420D
+
+; 中断向量定义
+.equ RESET_VECTOR, 0  ; Reset
+.equ NMI_VECTOR, 1  ; Non-Maskable Interrupt (V-Blank)
+.equ IRQ_VECTOR, 2  ; IRQ / BRK (Timer, HDMA, Controller)
+.equ TIMER_IRQ_VECTOR, 3  ; H/V Counter Timer IRQ
+
+; 引脚定义
+.equ PIN_VCC, 1  ; Power Supply
+.equ PIN_GND, 2  ; Ground
+.equ PIN_CLK, 3  ; System Clock Input (21.47727 MHz)
+.equ PIN_RESET, 4  ; Reset Signal
+.equ PIN_NMI, 5  ; Non-Maskable Interrupt
+.equ PIN_IRQ, 6  ; Interrupt Request
+.equ PIN_RDY, 7  ; Ready / Wait State
+.equ PIN_AB0, 8  ; Address Bus Bit 0
+.equ PIN_AB1, 9  ; Address Bus Bit 1
+.equ PIN_AB2, 10  ; Address Bus Bit 2
+.equ PIN_AB3, 11  ; Address Bus Bit 3
+.equ PIN_AB4, 12  ; Address Bus Bit 4
+.equ PIN_AB5, 13  ; Address Bus Bit 5
+.equ PIN_AB6, 14  ; Address Bus Bit 6
+.equ PIN_AB7, 15  ; Address Bus Bit 7
+.equ PIN_AB8, 16  ; Address Bus Bit 8
+.equ PIN_AB9, 17  ; Address Bus Bit 9
+.equ PIN_AB10, 18  ; Address Bus Bit 10
+.equ PIN_AB11, 19  ; Address Bus Bit 11
+.equ PIN_AB12, 20  ; Address Bus Bit 12
+.equ PIN_AB13, 21  ; Address Bus Bit 13
+.equ PIN_AB14, 22  ; Address Bus Bit 14
+.equ PIN_AB15, 23  ; Address Bus Bit 15
+.equ PIN_AB16, 24  ; Address Bus Bit 16
+.equ PIN_AB17, 25  ; Address Bus Bit 17
+.equ PIN_AB18, 26  ; Address Bus Bit 18
+.equ PIN_AB19, 27  ; Address Bus Bit 19
+.equ PIN_AB20, 28  ; Address Bus Bit 20
+.equ PIN_AB21, 29  ; Address Bus Bit 21
+.equ PIN_AB22, 30  ; Address Bus Bit 22
+.equ PIN_AB23, 31  ; Address Bus Bit 23
+.equ PIN_DB0, 32  ; Data Bus Bit 0
+.equ PIN_DB1, 33  ; Data Bus Bit 1
+.equ PIN_DB2, 34  ; Data Bus Bit 2
+.equ PIN_DB3, 35  ; Data Bus Bit 3
+.equ PIN_DB4, 36  ; Data Bus Bit 4
+.equ PIN_DB5, 37  ; Data Bus Bit 5
+.equ PIN_DB6, 38  ; Data Bus Bit 6
+.equ PIN_DB7, 39  ; Data Bus Bit 7
+.equ PIN_PHI, 40  ; Phase Out Clock
+
+; 宏定义
+.macro ricoh_5a22_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+ricoh_5a22_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

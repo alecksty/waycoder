@@ -1,0 +1,91 @@
+﻿/**
+ * XMC4500 寄存器定义
+ * 生成自: Infineon/XMC4000/XMC4500
+ * 版本: 1.0
+ */
+export const xmc4500 = {
+  // CPU: ARM-Cortex-M4, 32位, 120000000 Hz
+
+  // 寄存器定义
+  R0: 0x00,
+  R1: 0x04,
+  R2: 0x08,
+  R3: 0x0C,
+  R4: 0x10,
+  R5: 0x14,
+  SP: 0x34,
+  LR: 0x38,
+  PC: 0x3C,
+
+  // 内存段
+  flash_START: 0x08000000,
+  flash_END: 0x080FFFFF,
+  flash_SIZE: 1048576,
+  sram_START: 0x1FF00000,
+  sram_END: 0x1FF0FFFF,
+  sram_SIZE: 65536,
+  // Communication Memory
+  sram_com_START: 0x20000000,
+  sram_com_END: 0x20007FFF,
+  sram_com_SIZE: 32768,
+  // CPU SRAM
+  sram_cpu_START: 0x20010000,
+  sram_cpu_END: 0x2001FFFF,
+  sram_cpu_SIZE: 65536,
+  peripheral_START: 0x40000000,
+  peripheral_END: 0x4FFFFFFF,
+  peripheral_SIZE: 268435456,
+
+  // 外设定义
+  // System Control Unit
+  SCU_BASE: 0x40020000,
+  SCU_CLKCR: 0x40020000,
+  SCU_CLKCR_PCLK_SEL: 0,  // CPU clock selection
+  SCU_CLKCR_FBKDIV: 16,  // Feedback divider
+  SCU_PLLCONFIG: 0x40020004,
+  SCU_OSCHPCTRL: 0x40020008,
+  SCU_CGATSET0: 0x40020020,
+  SCU_CGATSET0_CG_GATE_GPIO: 4,  // GPIO gate enable
+  SCU_CGATCLR0: 0x40020024,
+  // Port 0
+  PORT0_BASE: 0x48000000,
+  PORT0_OUT: 0x48000000,
+  PORT0_OMR: 0x48000004,
+  PORT0_IOCR0: 0x48000010,
+  PORT0_IOCR4: 0x48000014,
+  PORT0_IOCR8: 0x48000018,
+  PORT0_IOCR12: 0x4800001C,
+  PORT0_IN: 0x48000024,
+  // Port 1
+  PORT1_BASE: 0x48010000,
+  PORT1_OUT: 0x48010000,
+  PORT1_OMR: 0x48010004,
+  PORT1_IOCR0: 0x48010010,
+  PORT1_IOCR4: 0x48010014,
+  PORT1_IOCR8: 0x48010018,
+  PORT1_IOCR12: 0x4801001C,
+  PORT1_IN: 0x48010024,
+  // Port 2
+  PORT2_BASE: 0x48020000,
+  PORT2_OUT: 0x48020000,
+  PORT2_OMR: 0x48020004,
+  PORT2_IOCR0: 0x48020010,
+  PORT2_IOCR4: 0x48020014,
+  PORT2_IN: 0x48020024,
+  // Universal Serial Interface 0 (UART)
+  USIC0_BASE: 0x48030000,
+  USIC0_CCR: 0x48030000,
+  USIC0_PCR: 0x48030004,
+  USIC0_RBUF: 0x48030008,
+  USIC0_TBUF: 0x4803000C,
+  USIC0_BRG: 0x48030010,
+
+  // 中断向量
+  IRQ_Reset: 0,  // 
+  IRQ_SVCall: 11,  // 
+  IRQ_USIC0_SR0: 12,  // USIC0 Service Request 0
+
+  init: function() {
+    // 硬件初始化
+  }
+};

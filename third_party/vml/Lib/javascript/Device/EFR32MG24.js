@@ -1,0 +1,79 @@
+﻿/**
+ * EFR32MG24 寄存器定义
+ * 生成自: Silicon Labs/EFR32/EFR32MG24
+ * 版本: 1.0
+ */
+export const efr32mg24 = {
+  // CPU: ARM-Cortex-M33, 32位, 78000000 Hz
+
+  // 寄存器定义
+  R0: 0x00,
+  R1: 0x04,
+  R2: 0x08,
+  R3: 0x0C,
+  R4: 0x10,
+  R5: 0x14,
+  SP: 0x34,
+  LR: 0x38,
+  PC: 0x3C,
+
+  // 内存段
+  flash_START: 0x08000000,
+  flash_END: 0x0817FFFF,
+  flash_SIZE: 1572864,
+  sram_START: 0x20000000,
+  sram_END: 0x2003FFFF,
+  sram_SIZE: 262144,
+  peripheral_START: 0x40000000,
+  peripheral_END: 0x4007FFFF,
+  peripheral_SIZE: 524288,
+
+  // 外设定义
+  // Clock Management Unit
+  CMU_BASE: 0x40080000,
+  CMU_CTRL: 0x40080000,
+  CMU_HFCORECLKCFG: 0x40080008,
+  CMU_HFPERCLKEN0: 0x40080010,
+  CMU_HFPERCLKEN0_GPIOEN: 4,  // GPIO clock enable
+  CMU_HFPERCLKEN0_USART0EN: 12,  // USART0 clock enable
+  CMU_HFPERCLKEN0_USART1EN: 13,  // USART1 clock enable
+  CMU_LFBCLKEN0: 0x40080020,
+  // GPIO Controller
+  GPIO_BASE: 0x40088000,
+  GPIO_PORT_A_CTRL: 0x40088000,
+  GPIO_PORT_B_CTRL: 0x40088004,
+  GPIO_PORT_C_CTRL: 0x40088008,
+  GPIO_PORT_D_CTRL: 0x4008800C,
+  GPIO_MODEL: 0x40088010,
+  GPIO_MODEH: 0x40088014,
+  GPIO_DOUT: 0x4008801C,
+  GPIO_DOUTSET: 0x40088020,
+  GPIO_DOUTCLR: 0x40088024,
+  GPIO_DOUTTGL: 0x40088028,
+  GPIO_DIN: 0x4008802C,
+  // GPIO Port A extended
+  GPIO_PA_BASE: 0x40088400,
+  GPIO_PA_PA_CFG: 0x40088400,
+  GPIO_PA_PA_PINOUT: 0x40088404,
+  // GPIO Port B extended
+  GPIO_PB_BASE: 0x40088800,
+  GPIO_PB_PB_CFG: 0x40088800,
+  // USART 0
+  USART0_BASE: 0x40060000,
+  USART0_CTRL: 0x40060000,
+  USART0_CMD: 0x40060004,
+  USART0_STATUS: 0x40060008,
+  USART0_RXDATA: 0x4006000C,
+  USART0_TXDATA: 0x40060010,
+  USART0_CLKDIV: 0x40060014,
+
+  // 中断向量
+  IRQ_Reset: 0,  // 
+  IRQ_SVCall: 11,  // 
+  IRQ_USART0_RX: 12,  // USART0 Receive Interrupt
+  IRQ_USART0_TX: 13,  // USART0 Transmit Interrupt
+
+  init: function() {
+    // 硬件初始化
+  }
+};

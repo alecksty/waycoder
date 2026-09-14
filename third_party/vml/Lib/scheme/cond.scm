@@ -1,0 +1,5 @@
+;; VML 条件变量扩展库 — Scheme (OS 模式)
+(define (cond-create) (asm "SYSCALL 313") 0)
+(define (cond-wait cond-id mutex-id) (asm "SYSCALL 314") 0)
+(define (cond-signal cond-id) (asm "SYSCALL 315") 0)
+(define (cond-broadcast cond-id) (asm "SYSCALL 316") 0)

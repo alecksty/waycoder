@@ -1,0 +1,23 @@
+; VML Shared Library Simple Version
+; 共享库简化版本 - 不包含.linked指令
+
+; 包含文件操作函数
+.linked "file.vml"
+
+; 包含IO函数
+.linked "io.vml"
+
+; 包含字符串函数
+.linked "string.vml"
+
+; 包含内存函数
+.linked "memory.vml"
+
+; 包含数学函数
+.linked "math.vml"
+
+; 包含工具函数
+.linked "util.vml"
+
+; 包含字符类型函数
+.linked "ctype.vml"

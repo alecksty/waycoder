@@ -1,0 +1,793 @@
+.data
+flt_57480009: .word 1199570944
+flt_57480011: .word 1199570944
+
+.text
+fixed_mul:
+; -------------------------------------------
+; source   : int mul(int a,int b)
+; function : mul
+; param   : int a
+; param   : int b
+; return   : int
+; --------------------------------------------
+fixed_mul:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #16
+        pop R1
+        shr R1 R0
+        move R0 R1
+        jmp L57480000
+L57480000:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+fixed_div:
+; -------------------------------------------
+; source   : int div(int a,int b)
+; function : div
+; param   : int a
+; param   : int b
+; return   : int
+; --------------------------------------------
+fixed_div:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L57480003
+        move R0 #0
+        jmp _L57480004
+_L57480003:
+        move R0 #1
+_L57480004:
+        cmp R0 #0
+        jz sta_57480001
+        move R0 #2147483647
+        jmp L57480005
+sta_57480001:
+sta_57480002:
+        move R0 [R12+12]
+        push R0
+        move R0 #16
+        pop R1
+        shl R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        div R1 R0
+        move R0 R1
+        jmp L57480005
+L57480005:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret
+fixed_from_int:
+; -------------------------------------------
+; source   : int from_int(int value)
+; function : from_int
+; param   : int value
+; return   : int
+; --------------------------------------------
+fixed_from_int:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #16
+        pop R1
+        shl R1 R0
+        move R0 R1
+        jmp L57480006
+L57480006:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+fixed_to_int:
+; -------------------------------------------
+; source   : int to_int(int value)
+; function : to_int
+; param   : int value
+; return   : int
+; --------------------------------------------
+fixed_to_int:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #16
+        pop R1
+        shr R1 R0
+        move R0 R1
+        jmp L57480007
+L57480007:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+fixed_to_int_round:
+; -------------------------------------------
+; source   : int to_int_round(int value)
+; function : to_int_round
+; param   : int value
+; return   : int
+; --------------------------------------------
+fixed_to_int_round:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #32768
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #16
+        pop R1
+        shr R1 R0
+        move R0 R1
+        jmp L57480008
+L57480008:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+fixed_from_float:
+; -------------------------------------------
+; source   : int from_float(float f)
+; function : from_float
+; param   : float f
+; return   : int
+; --------------------------------------------
+fixed_from_float:
+        push R15
+        push R12
+        move R12 R13
+        movef R0 [R12+12]
+        fpush R0
+        movef R0 [flt_57480009]
+        fpop R1
+        fmul R0 R1 R0
+        f2i R0 R0
+        jmp L57480010
+L57480010:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+fixed_to_float:
+; -------------------------------------------
+; source   : float to_float(int value)
+; function : to_float
+; param   : int value
+; return   : float
+; --------------------------------------------
+fixed_to_float:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        i2f R0 R0
+        fpush R0
+        movef R0 [flt_57480011]
+        fpop R1
+        fdiv R0 R1 R0
+        jmp L57480012
+L57480012:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+fixed_sqrt:
+; -------------------------------------------
+; source   : int sqrt(int value)
+; function : sqrt
+; param   : int value
+; return   : int
+; --------------------------------------------
+fixed_sqrt:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #20
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jle _L57480015
+        move R0 #0
+        jmp _L57480016
+_L57480015:
+        move R0 #1
+_L57480016:
+        cmp R0 #0
+        jz sta_57480013
+        move R0 #0
+        jmp L57480017
+sta_57480013:
+sta_57480014:
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        pop R1
+        shr R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        pop R1
+        cmp R1 R0
+        jl _L57480020
+        move R0 #0
+        jmp _L57480021
+_L57480020:
+        move R0 #1
+_L57480021:
+        cmp R0 #0
+        jz sta_57480018
+        move R0 #1
+        move [R12-4] R0
+sta_57480018:
+sta_57480019:
+        move R0 #0
+        move [R12-8] R0
+sta_57480022:
+        move R0 [R12-8]
+        push R0
+        move R0 #10
+        pop R1
+        cmp R1 R0
+        jl _L57480025
+        move R0 #0
+        jmp _L57480026
+_L57480025:
+        move R0 #1
+_L57480026:
+        cmp R0 #0
+        jz sta_57480024
+        move R0 [R12-4]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L57480027
+        move R0 #0
+        jmp _L57480028
+_L57480027:
+        move R0 #1
+_L57480028:
+        test R0 R0
+        jz _L57480029
+        move R0 [R12+12]
+        push R0
+        move R0 #16
+        pop R1
+        shl R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-4]
+        pop R1
+        div R1 R0
+        move R0 R1
+        push R0
+        move R0 #16
+        pop R1
+        shr R1 R0
+        move R0 R1
+        jmp _L57480030
+_L57480029:
+        move R0 #0
+_L57480030:
+        move [R12-12] R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-12]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        shr R1 R0
+        move R0 R1
+        move [R12-4] R0
+sta_57480023:
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        jmp sta_57480022
+sta_57480024:
+        move R0 [R12-4]
+        jmp L57480017
+L57480017:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+fixed_sin:
+; -------------------------------------------
+; source   : int sin(int rad_q16)
+; function : sin
+; param   : int rad_q16
+; return   : int
+; --------------------------------------------
+fixed_sin:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #52
+        move R0 #205887
+        move [R12-4] R0
+        move R0 #411775
+        move [R12-8] R0
+sta_57480031:
+        move R2 #0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        cmp R1 R0
+        jg _L57480033
+        move R0 #0
+        jmp _L57480034
+_L57480033:
+        move R0 #1
+_L57480034:
+        cmp R0 #0
+        jz sta_57480032
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12+12] R0
+        jmp sta_57480031
+sta_57480032:
+sta_57480035:
+        move R2 #0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        move R0 [R12-4]
+        neg R0 R0
+        pop R1
+        cmp R1 R0
+        jl _L57480037
+        move R0 #0
+        jmp _L57480038
+_L57480037:
+        move R0 #1
+_L57480038:
+        cmp R0 #0
+        jz sta_57480036
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12+12] R0
+        jmp sta_57480035
+sta_57480036:
+        move R0 [R12+12]
+        move [R12-12] R0
+        move R0 [R12-12]
+        push R0
+        move R0 [R12-12]
+        push R0
+        call fixed_mul
+        move [R12-16] R0
+        move R0 [R12-16]
+        push R0
+        move R0 [R12-12]
+        push R0
+        call fixed_mul
+        move [R12-20] R0
+        move R0 [R12-12]
+        move [R12-24] R0
+        move R0 [R12-20]
+        push R0
+        move R0 #6
+        pop R1
+        div R1 R0
+        move R0 R1
+        move R0 [R12-20]
+        push R0
+        move R0 #6
+        pop R1
+        div R1 R0
+        move R0 R1
+        neg R0 R0
+        move [R12-28] R0
+        move R0 [R12-20]
+        push R0
+        move R0 [R12-16]
+        push R0
+        call fixed_mul
+        move [R12-32] R0
+        move R0 [R12-32]
+        push R0
+        move R0 #120
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-36] R0
+        move R0 [R12-32]
+        push R0
+        move R0 [R12-16]
+        push R0
+        call fixed_mul
+        move [R12-40] R0
+        move R0 [R12-40]
+        push R0
+        move R0 #5040
+        pop R1
+        div R1 R0
+        move R0 R1
+        move R0 [R12-40]
+        push R0
+        move R0 #5040
+        pop R1
+        div R1 R0
+        move R0 R1
+        neg R0 R0
+        move [R12-44] R0
+        move R0 [R12-24]
+        push R0
+        move R0 [R12-28]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-36]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-44]
+        pop R1
+        add R1 R0
+        move R0 R1
+        jmp L57480039
+L57480039:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+fixed_cos:
+; -------------------------------------------
+; source   : int cos(int rad_q16)
+; function : cos
+; param   : int rad_q16
+; return   : int
+; --------------------------------------------
+fixed_cos:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 #102944
+        move [R12-4] R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-4]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        call fixed_sin
+        jmp L57480040
+L57480040:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #8
+        push R1
+        ret
+fixed_atan2:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int atan2(int y,int x)
+; function : atan2
+; param   : int y
+; param   : int x
+; return   : int
+; --------------------------------------------
+fixed_atan2:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #36
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L57480043
+        move R0 #0
+        jmp _L57480044
+_L57480043:
+        move R0 #1
+_L57480044:
+        cmp R0 #0
+        jz sta_57480041
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L57480047
+        move R0 #0
+        jmp _L57480048
+_L57480047:
+        move R0 #1
+_L57480048:
+        cmp R0 #0
+        jz sta_57480045
+        move R0 #102944
+        jmp L57480049
+sta_57480045:
+sta_57480046:
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L57480052
+        move R0 #0
+        jmp _L57480053
+_L57480052:
+        move R0 #1
+_L57480053:
+        cmp R0 #0
+        jz sta_57480050
+        move R0 #102944
+        move R0 #102944
+        neg R0 R0
+        jmp L57480049
+sta_57480050:
+sta_57480051:
+        move R0 #0
+        jmp L57480049
+sta_57480041:
+sta_57480042:
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jge _L57480054
+        move R0 #0
+        jmp _L57480055
+_L57480054:
+        move R0 #1
+_L57480055:
+        test R0 R0
+        jz _L57480056
+        move R0 [R12+12]
+        jmp _L57480057
+_L57480056:
+        move R0 [R12+12]
+        move R0 [R12+12]
+        neg R0 R0
+_L57480057:
+        move [R12-4] R0
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jge _L57480058
+        move R0 #0
+        jmp _L57480059
+_L57480058:
+        move R0 #1
+_L57480059:
+        test R0 R0
+        jz _L57480060
+        move R0 [R12+16]
+        jmp _L57480061
+_L57480060:
+        move R0 [R12+16]
+        move R0 [R12+16]
+        neg R0 R0
+_L57480061:
+        move [R12-8] R0
+        move R0 [R12-8]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L57480062
+        move R0 #0
+        jmp _L57480063
+_L57480062:
+        move R0 #1
+_L57480063:
+        test R0 R0
+        jz _L57480064
+        move R0 [R12-4]
+        push R0
+        move R0 #16
+        pop R1
+        shl R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-8]
+        pop R1
+        div R1 R0
+        move R0 R1
+        jmp _L57480065
+_L57480064:
+        move R0 #2147483647
+_L57480065:
+        move [R12-12] R0
+        move R0 [R12-12]
+        move [R12-16] R0
+        move R0 [R12-16]
+        push R0
+        move R0 [R12-16]
+        push R0
+        call fixed_mul
+        move [R12-20] R0
+        move R0 #65536
+        push R0
+        move R0 [R12-20]
+        push R0
+        move R0 #28
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #100
+        pop R1
+        div R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-24] R0
+        move R0 [R12-24]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L57480066
+        move R0 #0
+        jmp _L57480067
+_L57480066:
+        move R0 #1
+_L57480067:
+        test R0 R0
+        jz _L57480068
+        move R0 [R12-16]
+        push R0
+        move R0 #16
+        pop R1
+        shl R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-24]
+        pop R1
+        div R1 R0
+        move R0 R1
+        jmp _L57480069
+_L57480068:
+        move R0 #102944
+_L57480069:
+        move [R12-28] R0
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L57480072
+        move R0 #0
+        jmp _L57480073
+_L57480072:
+        move R0 #1
+_L57480073:
+        cmp R0 #0
+        jz sta_57480070
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jge _L57480074
+        move R0 #0
+        jmp _L57480075
+_L57480074:
+        move R0 #1
+_L57480075:
+        test R0 R0
+        jz _L57480076
+        move R0 #205887
+        push R0
+        move R0 [R12-28]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        jmp _L57480077
+_L57480076:
+        move R0 #205887
+        move R0 #205887
+        neg R0 R0
+        push R0
+        move R0 [R12-28]
+        pop R1
+        add R1 R0
+        move R0 R1
+_L57480077:
+        move [R12-28] R0
+sta_57480070:
+sta_57480071:
+        move R0 [R12-28]
+        jmp L57480049
+L57480049:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 [R13]
+        add R13 #12
+        push R1
+        ret

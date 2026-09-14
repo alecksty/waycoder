@@ -1,0 +1,201 @@
+﻿/**
+ * Commodore-64 寄存器定义
+ * 生成自: Commodore/C64/Commodore-64
+ * 版本: 1.0
+ */
+export const commodore_64 = {
+  // CPU: MOS-6510, 8位, 1022727 Hz
+
+  // 寄存器定义
+  // Accumulator
+  A: 0x00,
+  // X Index Register
+  X: 0x01,
+  // Y Index Register
+  Y: 0x02,
+  // Stack Pointer
+  SP: 0x03,
+  // Program Counter
+  PC: 0x04,
+  // Processor Status
+  P: 0x06,
+  P_C: 0,  // Carry Flag
+  P_Z: 1,  // Zero Flag
+  P_I: 2,  // Interrupt Disable
+  P_D: 3,  // Decimal Mode
+  P_B: 4,  // Break Flag
+  P_U: 5,  // Unused
+  P_V: 6,  // Overflow Flag
+  P_N: 7,  // Negative Flag
+  // I/O Port (6510 only: DDR + data)
+  PORT: 0x00,
+
+  // 内存段
+  // 64KB main RAM
+  ram_START: 0x0000,
+  ram_END: 0xFFFF,
+  ram_SIZE: 65536,
+  // BASIC interpreter ROM
+  basic_rom_START: 0xA000,
+  basic_rom_END: 0xBFFF,
+  basic_rom_SIZE: 8192,
+  // KERNAL operating system ROM
+  kernal_rom_START: 0xE000,
+  kernal_rom_END: 0xFFFF,
+  kernal_rom_SIZE: 8192,
+  // Character generator ROM
+  char_rom_START: 0xD000,
+  char_rom_END: 0xDFFF,
+  char_rom_SIZE: 4096,
+  // I/O + RAM window (switchable)
+  io_ram_START: 0xD000,
+  io_ram_END: 0xDFFF,
+  io_ram_SIZE: 4096,
+
+  // 外设定义
+  // Video Interface Chip II - 6567/6569
+  VICII_BASE: 0xD000,
+  VICII_SP0X: 0x0001A000,
+  VICII_SP0Y: 0x0001A001,
+  VICII_SP1X: 0x0001A002,
+  VICII_SP1Y: 0x0001A003,
+  VICII_SP2X: 0x0001A004,
+  VICII_SP2Y: 0x0001A005,
+  VICII_SP3X: 0x0001A006,
+  VICII_SP3Y: 0x0001A007,
+  VICII_SP4X: 0x0001A008,
+  VICII_SP4Y: 0x0001A009,
+  VICII_SP5X: 0x0001A00A,
+  VICII_SP5Y: 0x0001A00B,
+  VICII_SP6X: 0x0001A00C,
+  VICII_SP6Y: 0x0001A00D,
+  VICII_SP7X: 0x0001A00E,
+  VICII_SP7Y: 0x0001A00F,
+  VICII_MSIGX: 0x0001A010,
+  VICII_SCROLY: 0x0001A011,
+  VICII_SCROLX: 0x0001A016,
+  VICII_YPSTOP: 0x0001A012,
+  VICII_LPX: 0x0001A013,
+  VICII_LPY: 0x0001A014,
+  VICII_SPENA: 0x0001A015,
+  VICII_CSPMC: 0x0001A017,
+  VICII_MM0: 0x0001A018,
+  VICII_VM01: 0x0001A016,
+  VICII_VICBAS: 0x0001A018,
+  VICII_IRQMASK: 0x0001A019,
+  VICII_IRQST: 0x0001A01A,
+  VICII_SPBGPR: 0x0001A01B,
+  VICII_SPMC: 0x0001A01C,
+  VICII_SP1C: 0x0001A025,
+  VICII_SP2C: 0x0001A026,
+  VICII_SPBC: 0x0001A027,
+  VICII_SP1C0: 0x0001A028,
+  VICII_SP2C0: 0x0001A029,
+  VICII_SP3C0: 0x0001A02A,
+  VICII_SP4C0: 0x0001A02B,
+  VICII_SP5C0: 0x0001A02C,
+  VICII_SP6C0: 0x0001A02D,
+  VICII_SP7C0: 0x0001A02E,
+  VICII_REG_FD: 0x0001A01D,
+  VICII_BGCOL0: 0x0001A021,
+  VICII_BGCOL1: 0x0001A022,
+  VICII_BGCOL2: 0x0001A023,
+  VICII_BGCOL3: 0x0001A024,
+  // Sound Interface Device 6581/8580
+  SID_BASE: 0xD400,
+  SID_FREQ1LO: 0x0001A800,
+  SID_FREQ1HI: 0x0001A801,
+  SID_PW1LO: 0x0001A802,
+  SID_PW1HI: 0x0001A803,
+  SID_CR1: 0x0001A804,
+  SID_AD1: 0x0001A805,
+  SID_SR1: 0x0001A806,
+  SID_FREQ2LO: 0x0001A807,
+  SID_FREQ2HI: 0x0001A808,
+  SID_PW2LO: 0x0001A809,
+  SID_PW2HI: 0x0001A80A,
+  SID_CR2: 0x0001A80B,
+  SID_AD2: 0x0001A80C,
+  SID_SR2: 0x0001A80D,
+  SID_FREQ3LO: 0x0001A80E,
+  SID_FREQ3HI: 0x0001A80F,
+  SID_PW3LO: 0x0001A810,
+  SID_PW3HI: 0x0001A811,
+  SID_CR3: 0x0001A812,
+  SID_AD3: 0x0001A813,
+  SID_SR3: 0x0001A814,
+  SID_FCH: 0x0001A815,
+  SID_FCL: 0x0001A816,
+  SID_RES_FLT: 0x0001A817,
+  SID_VOLUME: 0x0001A818,
+  SID_POTX: 0x0001A819,
+  SID_POTY: 0x0001A81A,
+  SID_OSC3: 0x0001A81B,
+  SID_ENV3: 0x0001A81C,
+  // Complex Interface Adapter 1 - Keyboard/Serial
+  CIA1_BASE: 0xDC00,
+  CIA1_PRA: 0x0001B800,
+  CIA1_PRB: 0x0001B801,
+  CIA1_DDRA: 0x0001B802,
+  CIA1_DDRB: 0x0001B803,
+  CIA1_TA_LO: 0x0001B804,
+  CIA1_TA_HI: 0x0001B805,
+  CIA1_TB_LO: 0x0001B806,
+  CIA1_TB_HI: 0x0001B807,
+  CIA1_TOD_TENTH: 0x0001B808,
+  CIA1_TOD_SEC: 0x0001B809,
+  CIA1_TOD_MIN: 0x0001B80A,
+  CIA1_TOD_HR: 0x0001B80B,
+  CIA1_SDR: 0x0001B80C,
+  CIA1_ICR: 0x0001B80D,
+  CIA1_CRA: 0x0001B80E,
+  CIA1_CRB: 0x0001B80F,
+  // Complex Interface Adapter 2 - Serial/Bus
+  CIA2_BASE: 0xDD00,
+  CIA2_PRA: 0x0001BA00,
+  CIA2_PRB: 0x0001BA01,
+  CIA2_DDRA: 0x0001BA02,
+  CIA2_DDRB: 0x0001BA03,
+  CIA2_TA_LO: 0x0001BA04,
+  CIA2_TA_HI: 0x0001BA05,
+  CIA2_TB_LO: 0x0001BA06,
+  CIA2_TB_HI: 0x0001BA07,
+  CIA2_TOD_TENTH: 0x0001BA08,
+  CIA2_TOD_SEC: 0x0001BA09,
+  CIA2_TOD_MIN: 0x0001BA0A,
+  CIA2_TOD_HR: 0x0001BA0B,
+  CIA2_SDR: 0x0001BA0C,
+  CIA2_ICR: 0x0001BA0D,
+  CIA2_CRA: 0x0001BA0E,
+  CIA2_CRB: 0x0001BA0F,
+  // Color RAM (4-bit per char cell)
+  COLORRAM_BASE: 0xD800,
+  COLORRAM_COLOR: 0x0001B000,
+  // IEC Serial Bus (via CIA1)
+  IEC_BASE: 0xDC00,
+  IEC_IEC_DATA: 0x0001B800,
+  IEC_IEC_CLOCK: 0x0001B801,
+
+  // 中断向量
+  IRQ_RESET: 0,  // Power-on / Reset
+  IRQ_NMI: 1,  // Non-Maskable Interrupt
+  IRQ_IRQ: 2,  // IRQ (VIC raster / CIA timer)
+
+  // 引脚定义
+  PIN_VCC: 1,  // +5V Power
+  PIN_GND: 2,  // Ground
+  PIN_RESET: 3,  // System Reset
+  PIN_CLK: 4,  // System Clock (~1MHz)
+  PIN_DOTCLK: 5,  // VIC Dot Clock (8MHz NTSC / 7.8MHz PAL)
+  PIN_AEC: 6,  // Address Enable Control (VIC steals cycles)
+  PIN_BA: 7,  // Bus Available (from VIC)
+  PIN_IRQ: 8,  // Interrupt Request
+  PIN_NMI: 9,  // Non-Maskable Interrupt
+  PIN_RWB: 10,  // Read/Write
+  PIN_A0-A15: 11,  // Address Bus
+  PIN_D0-D7: 12,  // Data Bus
+
+  init: function() {
+    // 硬件初始化
+  }
+};

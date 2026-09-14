@@ -1,0 +1,22 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+
+.text
+ldatetime64:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        call datetime
+        move [R12-4] R0
+        move R0 [R12-4]
+        i2l R0 R0
+        jmp L34490000
+L34490000:
+        move R13 R12
+        pop R12
+        pop R15
+        ret

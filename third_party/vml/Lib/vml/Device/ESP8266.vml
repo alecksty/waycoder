@@ -1,0 +1,146 @@
+﻿; ESP8266寄存器定义
+; 生成自: Espressif Systems/ESP8266/ESP8266
+; 版本: 
+; 日期: 
+; 作者: 
+; 描述: Espressif ESP8266 Wi-Fi SoC with integrated TCP/IP stack
+
+; CPU架构: Xtensa LX106
+; 位宽: 0位
+; 时钟频率: 0 Hz
+
+; 外设定义
+; Wi-Fi 802.11 b/g/n
+.equ WIFI_BASE, 
+.equ WIFI_WIFI_MAC, 0x60000800
+.equ WIFI_WIFI_MODE, 0x60000804
+.equ WIFI_WIFI_CHANNEL, 0x60000808
+.equ WIFI_WIFI_RATE, 0x6000080C
+
+; Universal Asynchronous Receiver/Transmitter 0
+.equ UART0_BASE, 
+.equ UART0_UART0_FIFO, 0x60000000
+.equ UART0_UART0_INT_RAW, 0x60000004
+.equ UART0_UART0_INT_ST, 0x60000008
+.equ UART0_UART0_INT_ENA, 0x6000000C
+.equ UART0_UART0_INT_CLR, 0x60000010
+.equ UART0_UART0_CLKDIV, 0x60000014
+.equ UART0_UART0_AUTOBAUD, 0x60000018
+.equ UART0_UART0_STATUS, 0x6000001C
+.equ UART0_UART0_CONF0, 0x60000020
+.equ UART0_UART0_CONF1, 0x60000024
+.equ UART0_UART0_LOWPULSE, 0x60000028
+.equ UART0_UART0_HIGHPULSE, 0x6000002C
+.equ UART0_UART0_RXD_CNT, 0x60000030
+
+; Serial Peripheral Interface
+.equ SPI_BASE, 
+.equ SPI_SPI_CMD, 0x60000200
+.equ SPI_SPI_ADDR, 0x60000204
+.equ SPI_SPI_CTRL, 0x60000208
+.equ SPI_SPI_RD_STATUS, 0x6000020C
+.equ SPI_SPI_CTRL2, 0x60000210
+.equ SPI_SPI_CLOCK, 0x60000214
+.equ SPI_SPI_USER, 0x60000218
+.equ SPI_SPI_USER1, 0x6000021C
+.equ SPI_SPI_USER2, 0x60000220
+.equ SPI_SPI_W0, 0x60000280
+
+; Inter-Integrated Circuit
+.equ I2C_BASE, 
+.equ I2C_I2C_SCL_LOW, 0x60000C00
+.equ I2C_I2C_SCL_HIGH, 0x60000C04
+.equ I2C_I2C_SDA_HOLD, 0x60000C08
+.equ I2C_I2C_SCL_START_HOLD, 0x60000C0C
+.equ I2C_I2C_SCL_STOP_HOLD, 0x60000C10
+.equ I2C_I2C_INT_RAW, 0x60000C14
+.equ I2C_I2C_INT_ST, 0x60000C18
+.equ I2C_I2C_INT_ENA, 0x60000C1C
+.equ I2C_I2C_INT_CLR, 0x60000C20
+.equ I2C_I2C_CMD, 0x60000C24
+.equ I2C_I2C_FIFO_DATA, 0x60000C28
+.equ I2C_I2C_FIFO_CNT, 0x60000C2C
+
+; General Purpose I/O
+.equ GPIO_BASE, 
+.equ GPIO_GPIO_OUT, 0x60000300
+.equ GPIO_GPIO_OUT_W1TS, 0x60000304
+.equ GPIO_GPIO_OUT_W1TC, 0x60000308
+.equ GPIO_GPIO_ENABLE, 0x6000030C
+.equ GPIO_GPIO_ENABLE_W1TS, 0x60000310
+.equ GPIO_GPIO_ENABLE_W1TC, 0x60000314
+.equ GPIO_GPIO_IN, 0x60000318
+.equ GPIO_GPIO_STATUS, 0x6000031C
+.equ GPIO_GPIO_STATUS_W1TS, 0x60000320
+.equ GPIO_GPIO_STATUS_W1TC, 0x60000324
+.equ GPIO_GPIO_PIN, 0x60000328
+
+; Hardware Timer
+.equ TIMER_BASE, 
+.equ TIMER_TIMER_LOAD, 0x60000600
+.equ TIMER_TIMER_COUNT, 0x60000604
+.equ TIMER_TIMER_CTRL, 0x60000608
+.equ TIMER_TIMER_INT, 0x6000060C
+.equ TIMER_TIMER_ALARM, 0x60000610
+
+; Analog-to-Digital Converter
+.equ ADC_BASE, 
+.equ ADC_ADC_CTRL, 0x60000E00
+.equ ADC_ADC_DATA, 0x60000E04
+
+; Pulse Width Modulation
+.equ PWM_BASE, 
+.equ PWM_PWM_CTRL, 0x60000F00
+.equ PWM_PWM_PERIOD, 0x60000F04
+.equ PWM_PWM_DUTY, 0x60000F08
+
+; 中断向量定义
+.equ NMI_VECTOR, 1  ; Non-maskable interrupt
+.equ LEVEL1_VECTOR, 3  ; Level 1 interrupt
+.equ LEVEL2_VECTOR, 4  ; Level 2 interrupt
+.equ LEVEL3_VECTOR, 5  ; Level 3 interrupt
+.equ LEVEL4_VECTOR, 6  ; Level 4 interrupt
+.equ LEVEL5_VECTOR, 7  ; Level 5 interrupt
+.equ TIMER0_VECTOR, 8  ; Timer 0 interrupt
+.equ TIMER1_VECTOR, 9  ; Timer 1 interrupt
+.equ UART0_VECTOR, 10  ; UART0 interrupt
+.equ UART1_VECTOR, 11  ; UART1 interrupt
+.equ GPIO_VECTOR, 12  ; GPIO interrupt
+.equ PWM_VECTOR, 13  ; PWM interrupt
+.equ I2C_VECTOR, 14  ; I2C interrupt
+.equ SPI_VECTOR, 15  ; SPI interrupt
+.equ ADC_VECTOR, 16  ; ADC interrupt
+.equ WIFI_VECTOR, 17  ; Wi-Fi interrupt
+.equ RTC_VECTOR, 18  ; RTC interrupt
+
+; 宏定义
+.macro esp8266_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+esp8266_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

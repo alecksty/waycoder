@@ -1,0 +1,19 @@
+﻿# SG90 设备定义 - R 脚本
+# 生成自: Tower Pro/Motor/SG90
+# 版本: 1.0
+# 日期: 2026-05-06
+# 作者: VML Team
+# 描述: SG90 Micro Servo Motor (0-180°, 4.8V-6V)
+# CPU架构: Motor
+# 位宽: 8位
+# 时钟频率: 0 Hz
+
+# 外设定义
+# SG90 Micro Servo (500-2500us pulse, 50Hz)
+SG90_BASE <- 0x00
+SG90_ANGLE_ADDR <- 0x00
+SG90_PULSE_MIN_ADDR <- 0x01
+SG90_PULSE_MAX_ADDR <- 0x03
+SG90_CURRENT_ANGLE_ADDR <- 0x05
+SG90_SPEED_ADDR <- 0x06
+

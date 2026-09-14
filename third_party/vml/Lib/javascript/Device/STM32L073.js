@@ -1,0 +1,86 @@
+﻿/**
+ * STM32L073 寄存器定义
+ * 生成自: STMicroelectronics/STM32/STM32L073
+ * 版本: 1.0
+ */
+export const stm32l073 = {
+  // CPU: ARM-Cortex-M0+, 32位, 32000000 Hz
+
+  // 寄存器定义
+  R0: 0x00,
+  R1: 0x04,
+  R2: 0x08,
+  R3: 0x0C,
+  SP: 0x34,
+  LR: 0x38,
+  PC: 0x3C,
+
+  // 内存段
+  flash_START: 0x08000000,
+  flash_END: 0x0802FFFF,
+  flash_SIZE: 196608,
+  sram_START: 0x20000000,
+  sram_END: 0x20004FFF,
+  sram_SIZE: 20480,
+  peripheral_START: 0x40000000,
+  peripheral_END: 0x4002FFFF,
+  peripheral_SIZE: 196608,
+
+  // 外设定义
+  // Reset and Clock Control
+  RCC_BASE: 0x40020000,
+  RCC_CR: 0x40020000,
+  RCC_CFGR: 0x40020004,
+  RCC_AHBENR: 0x4002001C,
+  RCC_AHBENR_GPIOAEN: 17,  // GPIOA clock enable
+  RCC_AHBENR_GPIOBEN: 18,  // GPIOB clock enable
+  RCC_AHBENR_GPIOCEN: 19,  // GPIOC clock enable
+  RCC_APB1ENR: 0x40020020,
+  // General Purpose I/O Port A
+  GPIOA_BASE: 0x50000000,
+  GPIOA_MODER: 0x50000000,
+  GPIOA_OTYPER: 0x50000004,
+  GPIOA_OSPEEDR: 0x50000008,
+  GPIOA_PUPDR: 0x5000000C,
+  GPIOA_IDR: 0x50000010,
+  GPIOA_ODR: 0x50000014,
+  GPIOA_BSRR: 0x50000018,
+  GPIOA_BRR: 0x50000028,
+  // General Purpose I/O Port B
+  GPIOB_BASE: 0x50000400,
+  GPIOB_MODER: 0x50000400,
+  GPIOB_OTYPER: 0x50000404,
+  GPIOB_OSPEEDR: 0x50000408,
+  GPIOB_PUPDR: 0x5000040C,
+  GPIOB_IDR: 0x50000410,
+  GPIOB_ODR: 0x50000414,
+  GPIOB_BSRR: 0x50000418,
+  GPIOB_BRR: 0x50000428,
+  // General Purpose I/O Port C
+  GPIOC_BASE: 0x50000800,
+  GPIOC_MODER: 0x50000800,
+  GPIOC_OTYPER: 0x50000804,
+  GPIOC_IDR: 0x50000810,
+  GPIOC_ODR: 0x50000814,
+  GPIOC_BSRR: 0x50000818,
+  // General Purpose I/O Port D
+  GPIOD_BASE: 0x50000C00,
+  GPIOD_MODER: 0x50000C00,
+  GPIOD_IDR: 0x50000C10,
+  GPIOD_ODR: 0x50000C14,
+  GPIOD_BSRR: 0x50000C18,
+  // General Purpose I/O Port E
+  GPIOE_BASE: 0x50001000,
+  GPIOE_MODER: 0x50001000,
+  GPIOE_IDR: 0x50001010,
+  GPIOE_ODR: 0x50001014,
+  GPIOE_BSRR: 0x50001018,
+
+  // 中断向量
+  IRQ_Reset: 0,  // 
+  IRQ_SVCall: 11,  // 
+
+  init: function() {
+    // 硬件初始化
+  }
+};

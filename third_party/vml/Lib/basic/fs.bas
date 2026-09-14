@@ -1,0 +1,27 @@
+' VML 文件系统扩展库 — BASIC (OS 模式)
+' 需显式 import fs
+
+DECLARE FUNCTION FsMkdir(path AS STRING) AS INTEGER
+    asm("SYSCALL 340")
+    FsMkdir = 0
+END FUNCTION
+
+DECLARE FUNCTION FsRemove(path AS STRING) AS INTEGER
+    asm("SYSCALL 341")
+    FsRemove = 0
+END FUNCTION
+
+DECLARE FUNCTION FsRename(oldPath AS STRING, newPath AS STRING) AS INTEGER
+    asm("SYSCALL 342")
+    FsRename = 0
+END FUNCTION
+
+DECLARE FUNCTION FsReaddir(path AS STRING, buffer AS STRING) AS INTEGER
+    asm("SYSCALL 343")
+    FsReaddir = 0
+END FUNCTION
+
+DECLARE FUNCTION FsStat(path AS STRING, info AS STRING) AS INTEGER
+    asm("SYSCALL 344")
+    FsStat = 0
+END FUNCTION

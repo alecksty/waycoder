@@ -1,0 +1,15 @@
+#param lib("file")
+#param lib("os")
+#param lib("convert")
+#param lib("string")
+#param lib("math")
+#param lib("printf")
+#param lib("io")
+#param lib("ctype")
+#param lib("bitops")
+#param lib("util")
+#param lib("float")
+#param lib("memory")
+// VML Ruby Language-Specific Built-in Library
+// 非共享函数 → builtins_ruby.c (语言独享)
+// TODO: 添加 Ruby 语言特有内置函数

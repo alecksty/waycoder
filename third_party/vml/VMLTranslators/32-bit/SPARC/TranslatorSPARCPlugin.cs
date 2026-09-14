@@ -1,0 +1,1 @@
+using VMLPlugins.Interfaces; using VMLAssembler; namespace VMLTranslators { public class TranslatorSPARCPlugin : TranslatorPlugin<TranslatorSPARC> { public TranslatorSPARCPlugin() : base("SPARC", "SPARC 32位处理器", "32", ".sparc.asm") { } } }

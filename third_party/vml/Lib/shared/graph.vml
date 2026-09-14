@@ -1,0 +1,1033 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+_bgi_color: .word 15
+_bgi_bgcolor: .word 0
+_bgi_fill_pattern: .word 1
+_bgi_fill_color: .word 15
+L56300026: .string "VGA"
+L56300028: .string "640x480x16"
+L56300036: .string "OK"
+
+.text
+InitGraph:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #20
+        move R0 [R12+12]
+        test R0 R0
+        jz _L56300000
+        move R0 [R12+12]
+        move R0 @0
+        jmp _L56300001
+_L56300000:
+        move R0 #0
+_L56300001:
+        move [R12-4] R0
+        move R0 [R12+16]
+        test R0 R0
+        jz _L56300002
+        move R0 [R12+16]
+        move R0 @0
+        jmp _L56300003
+_L56300002:
+        move R0 #2
+_L56300003:
+        move [R12-8] R0
+        move R0 #12
+        move [R12-12] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L56300006
+        move R0 #0
+        jmp _L56300007
+_L56300006:
+        move R0 #1
+_L56300007:
+        cmp R0 #0
+        jz sta_56300004
+        move R0 #12
+        move [R12-12] R0
+        jmp sta_56300005
+sta_56300004:
+        move R0 [R12-4]
+        push R0
+        move R0 #9
+        pop R1
+        cmp R1 R0
+        je _L56300010
+        move R0 #0
+        jmp _L56300011
+_L56300010:
+        move R0 #1
+_L56300011:
+        cmp R0 #0
+        jz sta_56300008
+        move R0 [R12-8]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L56300014
+        move R0 #0
+        jmp _L56300015
+_L56300014:
+        move R0 #1
+_L56300015:
+        cmp R0 #0
+        jz sta_56300012
+        move R0 #8
+        move [R12-12] R0
+        jmp sta_56300013
+sta_56300012:
+        move R0 [R12-8]
+        push R0
+        move R0 #1
+        pop R1
+        cmp R1 R0
+        je _L56300018
+        move R0 #0
+        jmp _L56300019
+_L56300018:
+        move R0 #1
+_L56300019:
+        cmp R0 #0
+        jz sta_56300016
+        move R0 #9
+        move [R12-12] R0
+        jmp sta_56300017
+sta_56300016:
+        move R0 #12
+        move [R12-12] R0
+sta_56300017:
+sta_56300013:
+sta_56300008:
+sta_56300009:
+sta_56300005:
+        move R0 [R12-12]
+        push R0
+        call gfx_screen
+        add R13 #4
+        move R0 [_bgi_bgcolor]
+        push R0
+        call gfx_cls_color
+        add R13 #4
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #16
+        push R1
+        ret
+CloseGraph:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #0
+        push R0
+        call gfx_screen
+        add R13 #4
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+DetectGraph:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        cmp R0 #0
+        jz sta_56300020
+        move R0 [R12+12]
+        move R11 R0
+        move R0 #9
+        move @11 R0
+sta_56300020:
+sta_56300021:
+        move R0 [R12+16]
+        cmp R0 #0
+        jz sta_56300022
+        move R0 [R12+16]
+        move R10 R0
+        move R0 #2
+        move @10 R0
+sta_56300022:
+sta_56300023:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+GetMaxX:
+        push R15
+        push R12
+        move R12 R13
+        call gfx_width
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        jmp L56300024
+L56300024:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+GetMaxY:
+        push R15
+        push R12
+        move R12 R13
+        call gfx_height
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        jmp L56300025
+L56300025:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+GetDriverName:
+        push R15
+        push R12
+        move R12 R13
+        move R0 L56300026
+        jmp L56300027
+L56300027:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+GetModeName:
+        push R15
+        push R12
+        move R12 R13
+        move R0 L56300028
+        jmp L56300029
+L56300029:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+SetColor:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        move [_bgi_color] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+GetColor:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_color]
+        jmp L56300030
+L56300030:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+SetBkColor:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        move [_bgi_bgcolor] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+GetBkColor:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_bgcolor]
+        jmp L56300031
+L56300031:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+SetRGBPalette:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+24]
+        move R3 R0
+        push R0
+        move R0 [R12+20]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_palette
+        add R13 #16
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #20
+        push R1
+        ret
+PutPixel:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+20]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_pset
+        add R13 #12
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #16
+        push R1
+        ret
+GetPixel:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_point
+        add R13 #8
+        jmp L56300032
+L56300032:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+Line:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_color]
+        move R4 R0
+        push R0
+        move R0 [R12+24]
+        move R3 R0
+        push R0
+        move R0 [R12+20]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_line
+        add R13 #20
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #20
+        push R1
+        ret
+LineTo:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_color]
+        move R4 R0
+        push R0
+        move R0 [R12+16]
+        move R3 R0
+        push R0
+        move R0 [R12+12]
+        move R2 R0
+        push R0
+        move R0 #0
+        move R1 R0
+        push R0
+        move R0 #0
+        push R0
+        call gfx_line
+        add R13 #20
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+LineRel:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_color]
+        move R4 R0
+        push R0
+        move R0 [R12+16]
+        move R3 R0
+        push R0
+        move R0 [R12+12]
+        move R2 R0
+        push R0
+        move R0 #0
+        move R1 R0
+        push R0
+        move R0 #0
+        push R0
+        call gfx_line
+        add R13 #20
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+Rectangle:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_color]
+        move R4 R0
+        push R0
+        move R0 [R12+24]
+        move R3 R0
+        push R0
+        move R0 [R12+20]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_rect
+        add R13 #20
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #20
+        push R1
+        ret
+Bar:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_fill_color]
+        move R4 R0
+        push R0
+        move R0 [R12+24]
+        move R3 R0
+        push R0
+        move R0 [R12+20]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_rect_fill
+        add R13 #20
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #20
+        push R1
+        ret
+Bar3D:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_fill_color]
+        move R4 R0
+        push R0
+        move R0 [R12+24]
+        move R3 R0
+        push R0
+        move R0 [R12+20]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_rect_fill
+        add R13 #20
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #28
+        push R1
+        ret
+Circle:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_color]
+        move R3 R0
+        push R0
+        move R0 [R12+20]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_circle
+        add R13 #16
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #16
+        push R1
+        ret
+FillCircle:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_fill_color]
+        move R3 R0
+        push R0
+        move R0 [R12+20]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_circle_fill
+        add R13 #16
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #16
+        push R1
+        ret
+Ellipse:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_color]
+        move R4 R0
+        push R0
+        move R0 [R12+32]
+        move R3 R0
+        push R0
+        move R0 [R12+28]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_ellipse
+        add R13 #20
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #28
+        push R1
+        ret
+FillEllipse:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_fill_color]
+        move R4 R0
+        push R0
+        move R0 [R12+24]
+        move R3 R0
+        push R0
+        move R0 [R12+20]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_ellipse_fill
+        add R13 #20
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #20
+        push R1
+        ret
+Arc:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_color]
+        move R5 R0
+        push R0
+        move R0 [R12+24]
+        move R4 R0
+        push R0
+        move R0 [R12+20]
+        move R3 R0
+        push R0
+        move R0 [R12+28]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_arc
+        add R13 #24
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #24
+        push R1
+        ret
+PieSlice:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_fill_color]
+        move R5 R0
+        push R0
+        move R0 [R12+24]
+        move R4 R0
+        push R0
+        move R0 [R12+20]
+        move R3 R0
+        push R0
+        move R0 [R12+28]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_sector_fill
+        add R13 #24
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #24
+        push R1
+        ret
+SetFillStyle:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        move [_bgi_fill_pattern] R0
+        move R0 [R12+16]
+        move [_bgi_fill_color] R0
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+SetLineStyle:
+        push R15
+        push R12
+        move R12 R13
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #16
+        push R1
+        ret
+ClearDevice:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_bgcolor]
+        push R0
+        call gfx_cls_color
+        add R13 #4
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ClearViewPort:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_bgcolor]
+        push R0
+        call gfx_cls_color
+        add R13 #4
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+SetViewPort:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+24]
+        move R3 R0
+        push R0
+        move R0 [R12+20]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_viewport
+        add R13 #16
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #24
+        push R1
+        ret
+OutText:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_color]
+        move R3 R0
+        push R0
+        move R0 [R12+12]
+        move R2 R0
+        push R0
+        move R0 #0
+        move R1 R0
+        push R0
+        move R0 #0
+        push R0
+        call gfx_print
+        add R13 #16
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+OutTextXY:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [_bgi_color]
+        move R3 R0
+        push R0
+        move R0 [R12+20]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_print
+        add R13 #16
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #16
+        push R1
+        ret
+FloodFill:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+20]
+        move R3 R0
+        push R0
+        move R0 [_bgi_fill_color]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_flood_fill
+        add R13 #16
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #16
+        push R1
+        ret
+ImageSize:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+        move R0 [R12+20]
+        push R0
+        move R0 [R12+12]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-4] R0
+        move R0 [R12+24]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
+        move R0 [R12-4]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #4
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #4
+        pop R1
+        add R1 R0
+        move R0 R1
+        jmp L56300033
+L56300033:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #20
+        push R1
+        ret
+GetImage:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+28]
+        move R4 R0
+        push R0
+        move R0 [R12+24]
+        push R0
+        move R0 [R12+16]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R3 R0
+        push R0
+        move R0 [R12+20]
+        push R0
+        move R0 [R12+12]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_get_image
+        add R13 #20
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #24
+        push R1
+        ret
+PutImage:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #24
+        move R0 [R12+20]
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R9
+        add R0 R9
+        move R0 @0
+        move [R12-8] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R8
+        add R0 R8
+        move R0 @0
+        move [R12-12] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #1
+        mul R0 R0 #4
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12-16]
+        move R4 R0
+        push R0
+        move R0 [R12-12]
+        move R3 R0
+        push R0
+        move R0 [R12-8]
+        move R2 R0
+        push R0
+        move R0 [R12+16]
+        move R1 R0
+        push R0
+        move R0 [R12+12]
+        push R0
+        call gfx_put_image
+        add R13 #20
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #20
+        push R1
+        ret
+GetPaletteSize:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #256
+        jmp L56300034
+L56300034:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+GetPalette:
+        push R15
+        push R12
+        move R12 R13
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+GetDefaultPalette:
+        push R15
+        push R12
+        move R12 R13
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+GraphResult:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #0
+        jmp L56300035
+L56300035:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+GraphErrorMsg:
+        push R15
+        push R12
+        move R12 R13
+        move R0 L56300036
+        jmp L56300037
+L56300037:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+RestoreCrtMode:
+        push R15
+        push R12
+        move R12 R13
+        move R0 #0
+        push R0
+        call gfx_screen
+        add R13 #4
+        move R13 R12
+        pop R12
+        pop R15
+        ret

@@ -1,0 +1,140 @@
+﻿(*
+ * Commodore-64梯形图定义
+ * 生成自: Commodore International/Commodore 64/Commodore-64
+ * 版本: 1.0
+ * 日期: 2026-04-17
+ * 作者: VML Team
+ * 描述: Commodore 64 home computer with MOS 6510 CPU, 64KB RAM, and SID sound chip
+ * CPU架构: MOS 6510
+ * 位宽: 8位
+ * 时钟频率: 985248 Hz
+ *)
+
+PROGRAM Commodore_64
+VAR
+
+    (* 输入变量 *)
+
+    (* 输出变量 *)
+
+    (* 内存变量 *)
+    A AT %M0 : BYTE; (* Accumulator *)
+    X AT %M0 : BYTE; (* Index Register X *)
+    Y AT %M0 : BYTE; (* Index Register Y *)
+    SP AT %M0 : BYTE; (* Stack Pointer *)
+    PC AT %M0 : WORD; (* Program Counter *)
+    P AT %M0 : BYTE; (* Status Register *)
+    PORT AT %M1 : BYTE; (* I/O Port (6510 specific) *)
+
+    (* 外设变量 *)
+    (* Video Interface Chip II *)
+    VIC_II_BASE AT %MW : WORD;
+    VIC_II_VIC_CTRL1 AT %MW0xD011 : BYTE;
+    VIC_II_VIC_CTRL2 AT %MW0xD016 : BYTE;
+    VIC_II_VIC_RASTER AT %MW0xD012 : BYTE;
+    VIC_II_VIC_MEMPTR AT %MW0xD018 : BYTE;
+    VIC_II_VIC_IRQ AT %MW0xD019 : BYTE;
+    VIC_II_VIC_IRQMASK AT %MW0xD01A : BYTE;
+    VIC_II_VIC_BORDER AT %MW0xD020 : BYTE;
+    VIC_II_VIC_BG0 AT %MW0xD021 : BYTE;
+    VIC_II_VIC_BG1 AT %MW0xD022 : BYTE;
+    VIC_II_VIC_BG2 AT %MW0xD023 : BYTE;
+    VIC_II_VIC_BG3 AT %MW0xD024 : BYTE;
+    VIC_II_VIC_SPRITE0_X AT %MW0xD000 : BYTE;
+    VIC_II_VIC_SPRITE0_Y AT %MW0xD001 : BYTE;
+    VIC_II_VIC_SPRITE1_X AT %MW0xD002 : BYTE;
+    VIC_II_VIC_SPRITE1_Y AT %MW0xD003 : BYTE;
+    (* Sound Interface Device (6581) *)
+    SID_BASE AT %MW : WORD;
+    SID_SID_VOICE1_FREQ_LO AT %MW0xD400 : BYTE;
+    SID_SID_VOICE1_FREQ_HI AT %MW0xD401 : BYTE;
+    SID_SID_VOICE1_PW_LO AT %MW0xD402 : BYTE;
+    SID_SID_VOICE1_PW_HI AT %MW0xD403 : BYTE;
+    SID_SID_VOICE1_CTRL AT %MW0xD404 : BYTE;
+    SID_SID_VOICE1_AD AT %MW0xD405 : BYTE;
+    SID_SID_VOICE1_SR AT %MW0xD406 : BYTE;
+    SID_SID_VOICE2_FREQ_LO AT %MW0xD407 : BYTE;
+    SID_SID_VOICE2_FREQ_HI AT %MW0xD408 : BYTE;
+    SID_SID_VOICE2_PW_LO AT %MW0xD409 : BYTE;
+    SID_SID_VOICE2_PW_HI AT %MW0xD40A : BYTE;
+    SID_SID_VOICE2_CTRL AT %MW0xD40B : BYTE;
+    SID_SID_VOICE2_AD AT %MW0xD40C : BYTE;
+    SID_SID_VOICE2_SR AT %MW0xD40D : BYTE;
+    SID_SID_VOICE3_FREQ_LO AT %MW0xD40E : BYTE;
+    SID_SID_VOICE3_FREQ_HI AT %MW0xD40F : BYTE;
+    SID_SID_VOICE3_PW_LO AT %MW0xD410 : BYTE;
+    SID_SID_VOICE3_PW_HI AT %MW0xD411 : BYTE;
+    SID_SID_VOICE3_CTRL AT %MW0xD412 : BYTE;
+    SID_SID_VOICE3_AD AT %MW0xD413 : BYTE;
+    SID_SID_VOICE3_SR AT %MW0xD414 : BYTE;
+    SID_SID_FILTER_CUTOFF_LO AT %MW0xD415 : BYTE;
+    SID_SID_FILTER_CUTOFF_HI AT %MW0xD416 : BYTE;
+    SID_SID_FILTER_CTRL AT %MW0xD417 : BYTE;
+    SID_SID_VOLUME AT %MW0xD418 : BYTE;
+    SID_SID_POTX AT %MW0xD419 : BYTE;
+    SID_SID_POTY AT %MW0xD41A : BYTE;
+    SID_SID_OSC3 AT %MW0xD41B : BYTE;
+    SID_SID_ENV3 AT %MW0xD41C : BYTE;
+    (* Complex Interface Adapter 1 (6526) *)
+    CIA1_BASE AT %MW : WORD;
+    CIA1_CIA1_PRA AT %MW0xDC00 : BYTE;
+    CIA1_CIA1_PRB AT %MW0xDC01 : BYTE;
+    CIA1_CIA1_DDRA AT %MW0xDC02 : BYTE;
+    CIA1_CIA1_DDRB AT %MW0xDC03 : BYTE;
+    CIA1_CIA1_TALO AT %MW0xDC04 : BYTE;
+    CIA1_CIA1_TAHI AT %MW0xDC05 : BYTE;
+    CIA1_CIA1_TBLO AT %MW0xDC06 : BYTE;
+    CIA1_CIA1_TBHI AT %MW0xDC07 : BYTE;
+    CIA1_CIA1_TODTEN AT %MW0xDC08 : BYTE;
+    CIA1_CIA1_TODSEC AT %MW0xDC09 : BYTE;
+    CIA1_CIA1_TODMIN AT %MW0xDC0A : BYTE;
+    CIA1_CIA1_TODHR AT %MW0xDC0B : BYTE;
+    CIA1_CIA1_SDR AT %MW0xDC0C : BYTE;
+    CIA1_CIA1_ICR AT %MW0xDC0D : BYTE;
+    CIA1_CIA1_CRA AT %MW0xDC0E : BYTE;
+    CIA1_CIA1_CRB AT %MW0xDC0F : BYTE;
+    (* Complex Interface Adapter 2 (6526) *)
+    CIA2_BASE AT %MW : WORD;
+    CIA2_CIA2_PRA AT %MW0xDD00 : BYTE;
+    CIA2_CIA2_PRB AT %MW0xDD01 : BYTE;
+    CIA2_CIA2_DDRA AT %MW0xDD02 : BYTE;
+    CIA2_CIA2_DDRB AT %MW0xDD03 : BYTE;
+    CIA2_CIA2_TALO AT %MW0xDD04 : BYTE;
+    CIA2_CIA2_TAHI AT %MW0xDD05 : BYTE;
+    CIA2_CIA2_TBLO AT %MW0xDD06 : BYTE;
+    CIA2_CIA2_TBHI AT %MW0xDD07 : BYTE;
+    CIA2_CIA2_TODTEN AT %MW0xDD08 : BYTE;
+    CIA2_CIA2_TODSEC AT %MW0xDD09 : BYTE;
+    CIA2_CIA2_TODMIN AT %MW0xDD0A : BYTE;
+    CIA2_CIA2_TODHR AT %MW0xDD0B : BYTE;
+    CIA2_CIA2_SDR AT %MW0xDD0C : BYTE;
+    CIA2_CIA2_ICR AT %MW0xDD0D : BYTE;
+    CIA2_CIA2_CRA AT %MW0xDD0E : BYTE;
+    CIA2_CIA2_CRB AT %MW0xDD0F : BYTE;
+
+    (* 中断变量 *)
+    INT_IRQ : BOOL; (* Maskable Interrupt *)
+    INT_NMI : BOOL; (* Non-Maskable Interrupt *)
+    INT_RESET : BOOL; (* Reset Vector *)
+
+END_VAR
+
+BEGIN
+    (* Commodore-64初始化梯形图 *)
+    (* 网络 1: 设备初始化 *)
+    [初始化完成]
+
+    (* 网络 2: 输入监控示例 *)
+    (* 网络 3: 寄存器监控 *)
+    --|A>0|--(监控灯)--
+    --|X>0|--(监控灯)--
+    --|Y>0|--(监控灯)--
+    --|SP>0|--(监控灯)--
+    --|PC>0|--(监控灯)--
+
+    (* 网络 4: 中断处理 *)
+    --|INT_IRQ|--[中断处理]--
+    --|INT_NMI|--[中断处理]--
+    --|INT_RESET|--[中断处理]--
+
+END_PROGRAM

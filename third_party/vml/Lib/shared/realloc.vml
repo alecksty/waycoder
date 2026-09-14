@@ -1,0 +1,96 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+
+.text
+realloc:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L50740002
+        move R0 #0
+        jmp _L50740003
+_L50740002:
+        move R0 #1
+_L50740003:
+        cmp R0 #0
+        jz sta_50740000
+        move R0 [R12+16]
+        push R0
+        call vml_alloc
+        add R13 #4
+        jmp L50740004
+sta_50740000:
+sta_50740001:
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        je _L50740007
+        move R0 #0
+        jmp _L50740008
+_L50740007:
+        move R0 #1
+_L50740008:
+        cmp R0 #0
+        jz sta_50740005
+        move R0 [R12+12]
+        push R0
+        call vml_free
+        add R13 #4
+        move R0 #0
+        jmp L50740004
+sta_50740005:
+sta_50740006:
+        move R0 [R12+16]
+        push R0
+        call vml_alloc
+        add R13 #4
+        move [R12-4] R0
+        move R0 [R12-4]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jne _L50740011
+        move R0 #0
+        jmp _L50740012
+_L50740011:
+        move R0 #1
+_L50740012:
+        cmp R0 #0
+        jz sta_50740009
+        move R0 [R12+16]
+        move R2 R0
+        push R0
+        move R0 [R12+12]
+        move R1 R0
+        push R0
+        move R0 [R12-4]
+        push R0
+        call memcpy
+        add R13 #12
+        move R0 [R12+12]
+        push R0
+        call vml_free
+        add R13 #4
+sta_50740009:
+sta_50740010:
+        move R0 [R12-4]
+        jmp L50740004
+L50740004:
+        move R13 R12
+        pop R12
+        pop R15
+        ret

@@ -1,0 +1,17 @@
+' VML 环境变量扩展库 — BASIC (OS 模式)
+' 需显式 import env
+
+DECLARE FUNCTION GetEnv(name AS STRING) AS STRING
+    asm("SYSCALL 360")
+    GetEnv = ""
+END FUNCTION
+
+DECLARE FUNCTION SetEnv(name AS STRING, value AS STRING) AS INTEGER
+    asm("SYSCALL 361")
+    SetEnv = 0
+END FUNCTION
+
+DECLARE FUNCTION GetArgs(buffer AS STRING) AS INTEGER
+    asm("SYSCALL 362")
+    GetArgs = 0
+END FUNCTION

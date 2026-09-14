@@ -1,0 +1,35 @@
+﻿// SSD1306 设备定义 - Objective-C 头文件
+// 生成自: Solomon Systech/Display/SSD1306
+// 版本: 1.0
+// 日期: 2026-05-06
+// 作者: VML Team
+// 描述: SSD1306 128x64 OLED Display Controller (I2C/SPI)
+// CPU架构: Display
+// 位宽: 8位
+// 时钟频率: 400000 Hz
+
+#ifndef SSD1306_DEVICE_H
+#define SSD1306_DEVICE_H
+
+#import <Foundation/Foundation.h>
+
+// 内存段定义
+#define GDDRAM_START 0x00
+#define GDDRAM_END 0x3FF
+#define GDDRAM_SIZE 1024  // Graphic Display Data RAM (128x64 = 1024 bytes)
+
+// 外设定义
+// SSD1306 128x64 OLED (0x3C/0x3D I2C, 3.3V-5V)
+#define SSD1306_BASE 0x3C
+#define SSD1306_CMD_ADDR 0x00
+#define SSD1306_DATA_ADDR 0x40
+#define SSD1306_DISPLAY_OFF_ADDR 0xAE
+#define SSD1306_DISPLAY_ON_ADDR 0xAF
+#define SSD1306_CONTRAST_ADDR 0x81
+#define SSD1306_SEG_REMAP_ADDR 0xA1
+#define SSD1306_COM_SCAN_ADDR 0xC8
+#define SSD1306_ADDR_MODE_ADDR 0x20
+#define SSD1306_COL_START_ADDR 0x21
+#define SSD1306_PAGE_START_ADDR 0x22
+
+#endif /* SSD1306_DEVICE_H */

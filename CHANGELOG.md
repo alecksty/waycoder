@@ -1,5 +1,74 @@
 # 更新日志
 
+## v0.96.153 (2026-09-15) — VML 并入本仓库：手机端进程内跑编译器 + 运行时
+
+用户：「vml 要怎么做才可以在手机端 shell 里面使用？」→ 摸底后**问题性质变了**，
+最终按「**源码复制进本仓库**」并入，见 `third_party/vml/README.md`。
+
+### 关键判断：不该编成可执行文件丢进 shell，而该链进 App
+
+VML 是**纯 C# / .NET 10**（106 个 .cs / 34K 行），OS 依赖收在极窄的接缝里
+（`VMLRuntime.Syscall.OS.cs` 511 行，唯一逃生口是一处 `Process.Start`）。
+
+进程外那条路三条全踩：① **iOS 的 `fork/exec` 被沙箱物理拒绝** —— 永远上不了 iOS；
+② Android 10+ 的 W^X 让 app 私有目录里的文件不可 exec，得塞 `jniLibs` 当 `.so`；
+③ 自包含 .NET 运行时几百 MB。托管代码链进来，这三条全没有。
+
+**实测（Android 16 模拟器）**：命令行页敲 `vml test` → `Hello, VML!`。
+汇编器 + 虚拟机全部在 App 进程内跑完，**没起任何进程**；APK 只涨 **212 KB**。
+
+### 四处本地适配（`third_party/vml/sync.sh` 会在同步上游后重新施加）
+
+vendored 副本里改了 25 个 csproj，**不改就编不过**：
+
+| 适配 | 不改会报 |
+|---|---|
+| `OutputType` Exe → Library（25 个）| **NETSDK1150**：非自包含的可执行文件不能由自包含可执行文件引用 |
+| 去掉 `StartupObject`（19 个）| **CS2017**：生成模块或库时无法指定 /main |
+| 去掉 `RuntimeIdentifiers`（24 个）| **NETSDK1047**：它的列表里没有 `android-arm64` |
+| 去掉 `PublishAot`（25 个）| AOT 发布要求 RID；我们只要它们的代码 |
+
+其余文件**一行未改** —— 改动越少，`rsync` 覆盖式同步越干净。
+
+第一处和第二处是**连锁**的：为了能被自包含应用引用而把 Exe 改成 Library，就撞上了 `/main` 冲突。
+
+### NETSDK1047 的根因（值得记）
+
+那 22 个前端编译器是纯 `net10.0` 项目，而 MAUI Android 带着
+`RuntimeIdentifier=android-arm64` 的全局属性流进 `ProjectReference`。
+根因是 `CCompiler.csproj` 那类文件里写死的
+`<RuntimeIdentifiers>win-x64;linux-x64;osx-x64;osx-arm64</RuntimeIdentifiers>` ——
+**列表里没有 android-arm64**，加上 `PublishAot=true` 又强制要 RID。
+两者去掉后，`VMLTool` 可以正常引用（它传递带入 22 个编译器 + 翻译器），
+构建 0 错误、23 个编译器 DLL 进产物。
+
+### 安全边界：**永远只用 `mode:"mcu"`**
+
+`mode:"os"`（`privilegeLevel=0`）会放开 syscall 300-376：线程/互斥量、Socket/DNS、
+mkdir/stat/readdir、以及 **Exec（syscall 320 → `Process.Start`）**。
+MCU 模式下它们全部返回 `SYSCALL_PERMISSION_DENIED`。
+
+模式是**宿主侧参数、VML 程序自己改不了** ⇒ `MauiVml` 里写死 `mode: "mcu"`，
+那三层 OS/FFI 就是死代码。**没有去删 `Syscall.OS.cs` / `.FFI.cs`** —— 删了只是删死代码
+（1.3K 行，在 63MB 的 APK 里可忽略），却要在 `sync.sh` 里加一步「同步后删文件」，
+**那是最脆的一类本地适配**（上游一改文件结构就静默失效）。
+
+### 三条移动端须知（写进 README，别凭直觉改）
+
+1. **`AndroidLinkMode` 默认 `SdkOnly`** = 用户程序集不参与裁剪，VML 的反射路径靠这个才活着。
+   谁改成 `Full` 或把 `TrimMode` 改成 `full`，都可能打断 `PluginManager` 的 `Assembly.LoadFrom`。改之前先跑 `vml test`。
+2. **AOT 开着**（`RunAOTCompilation=true`）⇒ `Reflection.Emit` 不可用，影响面只有 FFI 那一层，
+   且它自带 `RuntimeFeature.IsDynamicCodeSupported` 兜底 ⇒ 表现为「FFI 不可用」而**不是崩溃**。
+3. **每次运行前必须 `DeviceManager.Instance.Reset()`** —— 单例，跨运行保留状态，不重置会串 MMIO 地址。
+
+### 未完成（如实记，别当成已做）
+
+- **接上编译器后还没在真机复验** —— 跑通 `vml test` 的那版只引了汇编器 + 运行时
+- **高级语言编译入口未接** —— 命令行页现在只有 `vml test` / `vml run <文件.vml>`（汇编）；
+  跑 `hello.c` 要接 `VMLTool` 的编译流水线（`CompileFileWithIncludes → AssembleWithIncludes → LinkLibraries → ApplyExports`）。
+  注意 **`Compile(string)` 那个重载不链标准库**，少了流水线会「编译过了、跑起来找不到 stdlib 函数」
+- **VML 尚未注册为 AI 工具** —— 用户提的用途是「让 AI 编译验证自己写的代码」，那步还没做
+
 ## v0.96.152 (2026-09-15) — 手机版有 shell 了：命令行页面 + 把桌面的 BashTool 接回 Android
 
 用户：「当前的手机版，有了 ai，有了 git，有了编辑器，还缺个 shell，缺个编译器。」

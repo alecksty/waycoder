@@ -1,0 +1,1141 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using VMLAssembler;
+using CompilerBase;
+
+namespace LuaCompiler
+{
+    public partial class CodeGenerator : TypedCodeGen<LuaType>
+    {
+        private void GenerateFunctionDefinition(FunctionDefinitionNode node)
+        {
+            string afterFuncLabel = $"func_end_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+            Sta!.EmitJump(afterFuncLabel);
+
+            // 函数级注释
+            Emit(OpCode.NOP, new List<Operand>(), "; --------------------------------------------");
+            var sourceDecl = $"function {node.Name}(";
+            for (var i = 0; i < node.Parameters.Count; i++)
+            {
+                sourceDecl += node.Parameters[i];
+                if (i < node.Parameters.Count - 1) sourceDecl += ",";
+            }
+            sourceDecl += ")";
+            instructions.Add(new Instruction(OpCode.NOP, [], 0, $"; source   : {sourceDecl}"));
+            instructions.Add(new Instruction(OpCode.NOP, [], 0, $"; function : {node.Name}"));
+            foreach (var param in node.Parameters)
+            {
+                instructions.Add(new Instruction(OpCode.NOP, [], 0, $"; param   : {param}"));
+            }
+            instructions.Add(new Instruction(OpCode.NOP, [], 0, "; return   : ..."));
+            Emit(OpCode.NOP, new List<Operand>(), "; --------------------------------------------");
+
+            // 函数标签
+            string funcLabel = $"func_{SanitizeFunctionName(node.Name)}";
+            AddLabel(funcLabel);
+            
+            // 函数序言: 保存帧指针
+            instructions.Add(new Instruction(OpCode.PUSH,
+                new List<Operand> { new Operand(OperandType.REGISTER, 12) },
+                instructions.Count));
+            instructions.Add(new Instruction(OpCode.MOVE,
+                new List<Operand> {
+                    new Operand(OperandType.REGISTER, 12),
+                    new Operand(OperandType.REGISTER, 13)
+                }, instructions.Count));
+            
+            // 保存参数到栈帧(CCv2: 第一个参数在R0)
+            // 注意: [R12+0]是保存的R12值，参数从[R12-4]开始
+            nextStackOffset = 4; // 跳过[R12+0](保存的帧指针)
+            for (int pi = 0; pi < node.Parameters.Count; pi++)
+            {
+                string pname = node.Parameters[pi];
+                if (!symbolTable.ContainsKey(pname))
+                {
+                    symbolTable[pname] = nextStackOffset;
+                    nextStackOffset += 4;
+                }
+                if (pi == 0)
+                {
+                    int off = symbolTable[pname];
+                    instructions.Add(new Instruction(OpCode.MOVE,
+                        new List<Operand> {
+                            new Operand(OperandType.MEMORY, $"R12-{off}"),
+                            new Operand(OperandType.REGISTER, 0)
+                        }, instructions.Count));
+                }
+            }
+            // 分配栈空间给参数
+            if (node.Parameters.Count > 0)
+            {
+                instructions.Add(new Instruction(OpCode.SUB,
+                    new List<Operand> {
+                        new Operand(OperandType.REGISTER, 13),
+                        new Operand(OperandType.IMMEDIATE, node.Parameters.Count * 4)
+                    }, instructions.Count));
+            }
+            
+            // 生成函数体
+            foreach (var stmt in node.Body)
+            {
+                GenerateStatement(stmt);
+            }
+            
+            // 函数尾声: 恢复帧指针并返回
+            instructions.Add(new Instruction(OpCode.MOVE,
+                new List<Operand> {
+                    new Operand(OperandType.REGISTER, 13),
+                    new Operand(OperandType.REGISTER, 12)
+                }, instructions.Count));
+            instructions.Add(new Instruction(OpCode.POP,
+                new List<Operand> { new Operand(OperandType.REGISTER, 12) },
+                instructions.Count));
+            Sta!.EmitReturn();
+
+            AddLabel(afterFuncLabel);
+        }
+        
+        private void GenerateIfStatement(IfStatementNode node)
+        {
+            var branches = new List<(System.Action, System.Action)>();
+            foreach (var (condition, body) in node.Conditions)
+            {
+                var c = condition;
+                var b = body;
+                branches.Add((() => GenerateExpression(c), () =>
+                {
+                    foreach (var stmt in b) GenerateStatement(stmt);
+                }));
+            }
+
+            Sta!.EmitIfChain(branches,
+                node.ElseBody != null && node.ElseBody.Count > 0
+                    ? () => { foreach (var stmt in node.ElseBody) GenerateStatement(stmt); }
+                    : null);
+        }
+        
+        private void GenerateWhileStatement(WhileStatementNode node)
+        {
+            Sta!.EmitWhile(
+                () => GenerateExpression(node.Condition),
+                () => { foreach (var stmt in node.Body) GenerateStatement(stmt); });
+        }
+
+        private void GenerateRepeatStatement(RepeatStatementNode node)
+        {
+            Sta!.EmitDoWhile(
+                () => { foreach (var stmt in node.Body) GenerateStatement(stmt); },
+                () => GenerateExpression(node.Condition));
+        }
+        
+        private void GenerateForStatement(ForStatementNode node)
+        {
+            string startLabel = $"for_start_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+            string endLabel = $"for_end_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+            Sta!.PushLoopLabels(endLabel, null);
+
+            // 初始化变量
+            GenerateExpression(node.Start);
+            string varLabel = $"var_{node.Variable}";
+            if (!dataSection.ContainsKey(varLabel))
+            {
+                dataSection[varLabel] = 0;
+            }
+            // 存储初始值到变量（GenerateExpression结果在R0中）
+            instructions.Add(new Instruction(OpCode.MOVE, 
+                new List<Operand> { 
+                    new Operand(OperandType.LABEL, varLabel),
+                    new Operand(OperandType.REGISTER, 0)
+                }, 
+                instructions.Count));
+            
+            // 循环开始标签
+            AddLabel(startLabel);
+            
+            // 检查循环条件
+            // 加载当前值
+            instructions.Add(new Instruction(OpCode.MOVE, 
+                new List<Operand> { 
+                    new Operand(OperandType.REGISTER, 1),
+                    new Operand(OperandType.LABEL, varLabel)
+                }, 
+                instructions.Count));
+            
+            // 加载结束值
+            GenerateExpression(node.End);
+            
+            // 比较当前值 <= 结束值
+            instructions.Add(new Instruction(OpCode.CMP, 
+                new List<Operand> { 
+                    new Operand(OperandType.REGISTER, 1),
+                    new Operand(OperandType.REGISTER, 0)
+                }, 
+                instructions.Count));
+            instructions.Add(new Instruction(OpCode.JG, 
+                new List<Operand> { 
+                    new Operand(OperandType.LABEL, endLabel)
+                }, 
+                instructions.Count));
+            
+            // 保存R1（循环计数器）并在循环体后恢复
+            instructions.Add(new Instruction(OpCode.PUSH, 
+                new List<Operand> { new Operand(OperandType.REGISTER, 1) }, 
+                instructions.Count));
+            
+            foreach (var stmt in node.Body)
+            {
+                GenerateStatement(stmt);
+            }
+            
+            instructions.Add(new Instruction(OpCode.POP, 
+                new List<Operand> { new Operand(OperandType.REGISTER, 1) }, 
+                instructions.Count));
+            
+            // 增加步长
+            if (node.Step != null)
+            {
+                GenerateExpression(node.Step);
+                instructions.Add(new Instruction(OpCode.ADD, 
+                    new List<Operand> { 
+                        new Operand(OperandType.REGISTER, 1),
+                        new Operand(OperandType.REGISTER, 1),
+                        new Operand(OperandType.REGISTER, 0)
+                    }, 
+                    instructions.Count));
+            }
+            else
+            {
+                // 默认步长为1
+                instructions.Add(new Instruction(OpCode.ADD, 
+                    new List<Operand> { 
+                        new Operand(OperandType.REGISTER, 1),
+                        new Operand(OperandType.REGISTER, 1),
+                        new Operand(OperandType.IMMEDIATE, 1)
+                    }, 
+                    instructions.Count));
+            }
+            
+            // 保存新值
+            instructions.Add(new Instruction(OpCode.MOVE, 
+                new List<Operand> { 
+                    new Operand(OperandType.LABEL, varLabel),
+                    new Operand(OperandType.REGISTER, 1)
+                }, 
+                instructions.Count));
+            
+            // 跳回循环开始
+            Sta!.EmitJump(startLabel);
+            
+            // 循环结束标签
+            AddLabel(endLabel);
+            Sta!.PopLoopLabels();
+        }
+
+        private void GenerateForInStatement(ForInStatementNode node)
+        {
+            string uid = Guid.NewGuid().ToString("N").Substring(0, 8);
+            string loopLabel = $"forin_{uid}";
+            string endLabel = $"forin_end_{uid}";
+            Sta!.PushLoopLabels(endLabel, null);
+
+            // 计算迭代器表达式（如 pairs(t)），结果在 R0
+            GenerateExpression(node.IteratorExpr);
+
+            // 保存迭代器状态到局部变量
+            string valVar = node.Variables.Count > 1 ? node.Variables[1] : node.Variables[0];
+            string idxVar = node.Variables[0];
+
+            // 初始化 key = nil (0)
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 0)]));
+
+            // 循环开始
+            AddLabel(loopLabel);
+
+            // 调用迭代器 next(state, key) → key, val
+            // For simplicity, iterate from 1..N using a counter for ipairs-like behavior
+            instructions.Add(new Instruction(OpCode.ADD,
+                [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 1)]));
+
+            // 尝试从表地址 + key*4 加载值
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0")]));
+
+            // 检查是否为 nil (0)
+            instructions.Add(new Instruction(OpCode.CMP,
+                [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0)]));
+            instructions.Add(new Instruction(OpCode.JE,
+                [new Operand(OperandType.LABEL, endLabel)]));
+
+            // 赋值到循环变量
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 1)])); // key
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, 0)])); // val
+
+            // 循环体
+            foreach (var stmt in node.Body)
+                GenerateStatement(stmt);
+
+            // 跳回
+            Sta!.EmitJump(loopLabel);
+
+            // 结束
+            AddLabel(endLabel);
+            Sta!.PopLoopLabels();
+        }
+
+        private void GenerateReturnStatement(ReturnStatementNode node)
+        {
+            if (node.Values != null && node.Values.Count > 0)
+            {
+                // 生成返回值到R0
+                GenerateExpression(node.Values[0]);
+            }
+            else
+            {
+                // 默认返回0
+                instructions.Add(new Instruction(OpCode.MOVE, 
+                    new List<Operand> { 
+                        new Operand(OperandType.REGISTER, 0),
+                        new Operand(OperandType.IMMEDIATE, 0)
+                    }, 
+                    instructions.Count));
+            }
+            
+            // 恢复帧指针并返回
+            instructions.Add(new Instruction(OpCode.MOVE,
+                new List<Operand> {
+                    new Operand(OperandType.REGISTER, 13),
+                    new Operand(OperandType.REGISTER, 12)
+                }, instructions.Count));
+            instructions.Add(new Instruction(OpCode.POP,
+                new List<Operand> { new Operand(OperandType.REGISTER, 12) },
+                instructions.Count));
+            Sta!.EmitReturn();
+        }
+        
+        private static readonly Dictionary<string, string> LuaBuiltinFunctions = new()
+        {
+            { "print", "lua_print" },
+            { "type", "lua_type" },
+            { "tonumber", "lua_tonumber" },
+            { "tostring", "lua_tostring" },
+            { "pairs", "lua_pairs" },
+            { "ipairs", "lua_ipairs" },
+            { "next", "lua_next" },
+            { "clear", "lua_clear" },
+            { "sleep", "lua_sleep" },
+            { "io.read", "io_read" },
+            { "io.write", "io_write" },
+            { "io.open", "io_open" },
+            { "io.close", "io_close" },
+            { "io.seek", "io_seek" },
+            { "os.exit", "os_exit" },
+            { "os.time", "os_time" },
+            { "string.len", "string_len" },
+            { "string.sub", "string_sub" },
+            { "string.find", "string_find" },
+            { "string.upper", "string_upper" },
+            { "string.lower", "string_lower" },
+            { "string.reverse", "string_reverse" },
+            { "string.rep", "string_rep" },
+            { "string.char", "string_char" },
+            { "string.byte", "string_byte" },
+            { "table.insert", "table_insert" },
+            { "table.remove", "table_remove" },
+            { "table.concat", "table_concat" },
+            { "table.sort", "table_sort" },
+            { "math.abs", "math_abs" },
+            { "math.max", "math_max" },
+            { "math.min", "math_min" },
+            { "math.floor", "math_floor" },
+            { "math.ceil", "math_ceil" },
+            { "math.sqrt", "math_sqrt" },
+            { "math.pow", "math_pow" },
+            { "math.exp", "math_exp" },
+            { "math.log", "math_log" },
+            { "math.sin", "math_sin" },
+            { "math.cos", "math_cos" },
+            { "math.tan", "math_tan" },
+            { "math.asin", "math_asin" },
+            { "math.acos", "math_acos" },
+            { "math.atan", "math_atan" },
+            { "math.random", "math_random" },
+            { "math.randomseed", "math_randomseed" },
+            { "math.pi", "math_pi" },
+            { "string.format", "string_format" },
+            { "string.match", "string_match" },
+            { "string.gmatch", "string_gmatch" },
+            { "string.gsub", "string_gsub" },
+            { "require", "lua_require" },
+            { "module", "lua_module" },
+            { "package.path", "lua_package_path" },
+            { "setmetatable", "lua_setmetatable" },
+            { "getmetatable", "lua_getmetatable" },
+            { "coroutine.create", "coroutine_create" },
+            { "coroutine.resume", "coroutine_resume" },
+            { "coroutine.yield", "coroutine_yield" },
+            // MCU bit operations
+            { "peek", "peek" },
+            { "poke", "poke" },
+            { "bit_and", "bit_and" },
+            { "bit_or", "bit_or" },
+            { "bit_xor", "bit_xor" },
+            { "bit_not", "bit_not" },
+            { "bit_shl", "bit_shl" },
+            { "bit_shr", "bit_shr" },
+            { "coroutine.status", "coroutine_status" },
+            { "coroutine.wrap", "coroutine_wrap" },
+            { "file.read", "file_read" },
+            { "file.write", "file_write" },
+            { "file.seek", "file_seek" },
+        };
+
+        private string SanitizeFunctionName(string name)
+        {
+            return name.Replace('.', '_').Replace(':', '_');
+        }
+
+        private bool TryResolveFunctionName(ASTNode function, out string name)
+        {
+            if (function is IdentifierNode identifier)
+            {
+                name = identifier.Name;
+                return true;
+            }
+
+            if (function is TableAccessNode tableAccess &&
+                tableAccess.Key is ConstantNode key && key.Type == "string" && key.Value is string keyName &&
+                TryResolveFunctionName(tableAccess.Table, out string tableName))
+            {
+                name = $"{tableName}.{keyName}";
+                return true;
+            }
+
+            name = string.Empty;
+            return false;
+        }
+
+        private void GenerateFunctionExpression(FunctionExpressionNode node)
+        {
+            GenerateFunctionDefinition(new FunctionDefinitionNode(node.GeneratedName, node.Parameters, node.Body, true, node.Line, node.Column));
+            instructions.Add(new Instruction(OpCode.MOVE,
+                new List<Operand> {
+                    new Operand(OperandType.REGISTER, 0),
+                    new Operand(OperandType.IMMEDIATE, 0)
+                },
+                instructions.Count));
+        }
+
+        private void GenerateFunctionCall(FunctionCallNode node)
+        {
+            // 提前检查内置函数（避免生成参数代码）
+            if (TryResolveFunctionName(node.Function, out string funcName))
+            {
+                if (funcName == "chipasm" && node.Arguments.Count >= 2)
+                    return;
+                // asm() 已移除 — 仅限 C/ObjC/C++ 语言使用，Lua 通过 Lib/shared/vmlsys.c 调用系统功能
+            }
+
+            // 生成参数
+            if (node.Arguments != null)
+            {
+                for (int i = 0; i < node.Arguments.Count; i++)
+                {
+                    GenerateExpression(node.Arguments[i]);
+                    
+                    // 保存参数到栈
+                    int offset = (i + 1) * 4;
+                    instructions.Add(new Instruction(OpCode.MOVE, 
+                        new List<Operand> { 
+                            new Operand(OperandType.MEMORY, $"R13-{offset}"),
+                            new Operand(OperandType.REGISTER, 0)
+                        }, 
+                        instructions.Count));
+                }
+
+                int registerArgCount = Math.Min(node.Arguments.Count, 4);
+                for (int i = 0; i < registerArgCount; i++)
+                {
+                    int offset = (i + 1) * 4;
+                    instructions.Add(new Instruction(OpCode.MOVE,
+                        new List<Operand> {
+                            new Operand(OperandType.REGISTER, i),
+                            new Operand(OperandType.MEMORY, $"R13-{offset}")
+                        },
+                        instructions.Count));
+                }
+            }
+            
+            // 调用函数
+            if (TryResolveFunctionName(node.Function, out string functionName))
+            {
+                if (functionName == "print" && node.Arguments.Count >= 1)
+                {
+                    // MCU print: iterate arguments, output via SYSCALL / library (v1.66.41: add float support)
+                    for (int i = 0; i < node.Arguments.Count; i++)
+                    {
+                        var arg = node.Arguments[i];
+                        GenerateExpression(arg); // R0 = value/address
+                        // String literals → SYSCALL #1 (OutputString)
+                        if (arg is ConstantNode cn && cn.Type == "string")
+                            instructions.Add(new(OpCode.SYSCALL, [new Operand(OperandType.IMMEDIATE, 1)]));
+                        // Function returning string → SYSCALL #1
+                        else if (arg is FunctionCallNode fcn && TryResolveFunctionName(fcn.Function, out var retName) && IsStringReturningFunc(retName))
+                            instructions.Add(new(OpCode.SYSCALL, [new Operand(OperandType.IMMEDIATE, 1)]));
+                        // Float → vml_print_float
+                        else if (arg is ConstantNode cnf && cnf.Type == "number" && cnf.Value is double)
+                            EmitPrintFloat();
+                        else
+                        {
+                            instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                            instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "lua_print1")])); // print single value (int/char/bool)
+                        }
+                    }
+                    // newline
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 10)]));
+                    instructions.Add(new(OpCode.SYSCALL, [new Operand(OperandType.IMMEDIATE, 4)])); // putchar '\n'
+                    return;
+                }
+                if (functionName == "string.len" && node.Arguments.Count >= 1)
+                {
+                    EmitStrLen(() => GenerateExpression(node.Arguments[0]));
+                    return;
+                }
+                if (functionName == "string.byte" && node.Arguments.Count >= 1)
+                {
+                    // CALL shared_str_charat(str, index) — __stdcall: PUSH right-to-left
+                    if (node.Arguments.Count >= 2)
+                        GenerateExpression(node.Arguments[1]);  // R0 = index (1-based)
+                    else
+                        instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 1)]));
+                    instructions.Add(new(OpCode.SUB, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 1)])); // 1-based → 0-based
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)])); // PUSH index (2nd param)
+                    GenerateExpression(node.Arguments[0]);  // R0 = string ptr
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)])); // PUSH str (1st param)
+                    instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "str_charat")]));
+                    return;
+                }
+                if (functionName == "tonumber")
+                {
+                    // CALL shared_atoi — 字符串→整数
+                    if (node.Arguments.Count >= 1) {
+                        GenerateExpression(node.Arguments[0]); // R0 = string ptr
+                        instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                        instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "atoi")]));
+                        instructions.Add(new(OpCode.ADD, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 4)]));
+                    }
+                    return;
+                }
+                if (functionName == "tostring")
+                {
+                    // CALL shared_itoa — 整数→字符串
+                    // C栈传参(右→左): PUSH buffer → PUSH value → CALL
+                    if (node.Arguments.Count >= 1) {
+                        GenerateExpression(node.Arguments[0]); // R0 = value
+                        instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)])); // save value
+                        instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 12)]));
+                        instructions.Add(new(OpCode.SYSCALL, [new Operand(OperandType.IMMEDIATE, 40)])); // malloc 12 → buffer
+                        instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)])); // PUSH buffer (右参)
+                        // value is still on stack at [R13+4]
+                        instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R13+4")])); // R0 = value
+                        instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.MEMORY, "R13+4"), new Operand(OperandType.REGISTER, 0)])); // move value to [R13+4]
+                        instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "itoa")]));
+                        instructions.Add(new(OpCode.ADD, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 8)])); // clean 2 params
+                    }
+                    return;
+                }
+                // 数学库函数
+                if (functionName == "math.abs" && node.Arguments.Count >= 1) {
+                    // CALL shared_abs (__stdcall: PUSH arg, callee cleans stack)
+                    GenerateExpression(node.Arguments[0]);  // R0 = value
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "abs")]));
+                    return;
+                }
+                if (functionName == "math.pow" && node.Arguments.Count >= 2) {
+                    // CALL shared_ipow(base, exp) — C栈传参 (右→左)
+                    GenerateExpression(node.Arguments[1]); // R0 = exp
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    GenerateExpression(node.Arguments[0]); // R0 = base
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "ipow")]));
+                    return;
+                }
+                if (functionName == "math.floor" && node.Arguments.Count >= 1) {
+                    GenerateExpression(node.Arguments[0]); // floor is a no-op for integers
+                    return;
+                }
+                if (functionName == "math.ceil" && node.Arguments.Count >= 1) {
+                    GenerateExpression(node.Arguments[0]); // ceil is a no-op for integers
+                    return;
+                }
+                if (functionName == "math.sqrt" && node.Arguments.Count >= 1) {
+                    // CALL shared_isqrt — 整数平方根
+                    GenerateExpression(node.Arguments[0]); // R0 = n
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "isqrt")]));
+                    instructions.Add(new(OpCode.ADD, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 4)]));
+                    return;
+                }
+                if (functionName == "math.min" && node.Arguments.Count >= 2) {
+                    // CALL shared_min (__stdcall: PUSH b, PUSH a)
+                    GenerateExpression(node.Arguments[1]);  // R0 = b
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    GenerateExpression(node.Arguments[0]);  // R0 = a
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "min")]));
+                    return;
+                }
+                if (functionName == "math.max" && node.Arguments.Count >= 2) {
+                    // CALL shared_max (__stdcall: PUSH b, PUSH a)
+                    GenerateExpression(node.Arguments[1]);  // R0 = b
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    GenerateExpression(node.Arguments[0]);  // R0 = a
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "max")]));
+                    return;
+                }
+                if (functionName.StartsWith("peek") && node.Arguments.Count >= 1)
+                {
+                    string runtimeFn = "vml_" + functionName;
+                    GenerateExpression(node.Arguments[0]);  // addr
+                    instructions.Add(new Instruction(OpCode.CALL, new List<Operand> { new Operand(OperandType.LABEL, runtimeFn) }));
+                    return;
+                }
+                if (functionName.StartsWith("poke") && node.Arguments.Count >= 2)
+                {
+                    string runtimeFn = "vml_" + functionName;
+                    GenerateExpression(node.Arguments[0]);  // addr
+                    instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
+                    GenerateExpression(node.Arguments[1]);  // val
+                    instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 1) }));
+                    instructions.Add(new Instruction(OpCode.CALL, new List<Operand> { new Operand(OperandType.LABEL, runtimeFn) }));
+                    return;
+                }
+                if (functionName == "chipasm" && node.Arguments.Count >= 2)
+                {
+                    // chipasm("arch", "code") — emit CHIPASM instruction
+                    return;
+                }
+                // asm() 已移除 — 仅限 C/ObjC/C++ 语言使用，Lua 通过 Lib/shared/vmlsys.c 调用系统功能
+                if (functionName == "dofile" && node.Arguments.Count >= 1)
+                {
+                    // dofile("filename.lua") — compile-time file inclusion
+                    // Returns the result of the last statement in the included file
+                    if (node.Arguments[0] is ConstantNode dofileCn && dofileCn.Type == "string" && dofileCn.Value is string dofileName)
+                    {
+                        try
+                        {
+                            string basePath = Path.GetFullPath(SourceDirectory ?? ".");
+                            string fullPath = Path.GetFullPath(Path.Combine(basePath, dofileName));
+                            if (File.Exists(fullPath))
+                            {
+                                var included = LuaCompiler.CompileFile(fullPath, autoLinkStdLib: false);
+                                MergeProgram(included);
+                            }
+                        }
+                        catch { }
+                    }
+                    return;
+                }
+                if (functionName == "pcall" && node.Arguments.Count >= 1)
+                {
+                    // pcall(f, ...) — protected call
+                    if (!VMLPlugins.CompilerOptionsContext.Current.IsMCU)
+                    {
+                        string catchLabel = $"pcall_catch_{labelCounter}";
+                        string endLabel = $"pcall_end_{labelCounter++}";
+                        instructions.Add(new Instruction(OpCode.MOVE, [Reg(0), new Operand(OperandType.IMMEDIATE, 1)])); // R0 = true (success)
+                        instructions.Add(new Instruction(OpCode.CATCH, [new Operand(OperandType.LABEL, catchLabel)]));
+                        // Call the function: evaluate f, push args, CALL
+                        GenerateExpression(node.Arguments[0]); // R0 = function
+                        instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
+                        for (int ai = 1; ai < node.Arguments.Count; ai++)
+                        {
+                            GenerateExpression(node.Arguments[ai]);
+                            instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
+                        }
+                        // Pop function address from stack and call
+                        instructions.Add(new Instruction(OpCode.POP, [Reg(1)])); // R1 = func addr
+                        instructions.Add(new Instruction(OpCode.CALL, [Reg(1)]));
+                        instructions.Add(new Instruction(OpCode.ADD, [Reg(13), new Operand(OperandType.IMMEDIATE, (node.Arguments.Count - 1) * 4)]));
+                        instructions.Add(new Instruction(OpCode.JMP, [new Operand(OperandType.LABEL, endLabel)]));
+                        labels[catchLabel] = instructions.Count;
+                        instructions.Add(new Instruction(OpCode.MOVE, [Reg(0), new Operand(OperandType.IMMEDIATE, 0)])); // R0 = false (error)
+                        instructions.Add(new Instruction(OpCode.ENDCATCH, []));
+                        labels[endLabel] = instructions.Count;
+                    }
+                    else
+                    {
+                        // MCU: just call directly, no protection
+                        GenerateExpression(node.Arguments[0]);
+                        instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
+                        for (int ai = 1; ai < node.Arguments.Count; ai++)
+                        {
+                            GenerateExpression(node.Arguments[ai]);
+                            instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
+                        }
+                        instructions.Add(new Instruction(OpCode.POP, [Reg(1)]));
+                        instructions.Add(new Instruction(OpCode.CALL, [Reg(1)]));
+                        instructions.Add(new Instruction(OpCode.ADD, [Reg(13), new Operand(OperandType.IMMEDIATE, (node.Arguments.Count - 1) * 4)]));
+                    }
+                    return;
+                }
+                if (functionName == "loadfile" && node.Arguments.Count >= 1)
+                {
+                    // loadfile("filename.lua") — compile-time load, returns a placeholder
+                    // For now, returns nil (0) — full implementation requires runtime compilation
+                    instructions.Add(new Instruction(OpCode.MOVE,
+                        new List<Operand> {
+                            new Operand(OperandType.REGISTER, 0),
+                            new Operand(OperandType.IMMEDIATE, 0)
+                        }, instructions.Count));
+                    return;
+                }
+                // table.sort(arr) — inline bubble sort (MCU-compatible, no GC/threads needed)
+                if (functionName == "table.sort" && node.Arguments.Count >= 1)
+                {
+                    int tsLbl = _nextMathLabel++;
+                    string tsOuter = $"tsort_o_{tsLbl}", tsInner = $"tsort_i_{tsLbl}";
+                    string tsDone = $"tsort_d_{tsLbl}", tsNoSwap = $"tsort_ns_{tsLbl}";
+                    // R0 = table ptr (saved to stack), R1 = count
+                    GenerateExpression(node.Arguments[0]);  // R0 = table ptr
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 4), new Operand(OperandType.REGISTER, 0)])); // R4 = table ptr
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R4")])); // R1 = count
+                    // R2 = outer i, R3 = limit = count-1
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, 1)]));
+                    instructions.Add(new(OpCode.SUB, [new Operand(OperandType.REGISTER, 3), new Operand(OperandType.IMMEDIATE, 1)])); // R3 = count-1
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 0)])); // i = 0
+                    AddLabel(tsOuter);
+                    instructions.Add(new(OpCode.CMP, [new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 3)]));
+                    instructions.Add(new(OpCode.JGE, [new Operand(OperandType.LABEL, tsDone)]));
+                    // R5 = j = 0, R6 = inner limit = count-1-i
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 3)]));
+                    instructions.Add(new(OpCode.SUB, [new Operand(OperandType.REGISTER, 6), new Operand(OperandType.REGISTER, 2)])); // R6 = count-1-i
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 5), new Operand(OperandType.IMMEDIATE, 0)])); // j = 0
+                    AddLabel(tsInner);
+                    instructions.Add(new(OpCode.CMP, [new Operand(OperandType.REGISTER, 5), new Operand(OperandType.REGISTER, 6)]));
+                    instructions.Add(new(OpCode.JGE, [new Operand(OperandType.LABEL, $"{tsOuter}_nx")]));
+                    // R7 = &table + 8 + j*8  (offset past count, then skip key to value)
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 7), new Operand(OperandType.REGISTER, 5)]));
+                    instructions.Add(new(OpCode.SHL, [new Operand(OperandType.REGISTER, 7), new Operand(OperandType.IMMEDIATE, 3)])); // j*8
+                    instructions.Add(new(OpCode.ADD, [new Operand(OperandType.REGISTER, 7), new Operand(OperandType.IMMEDIATE, 8)])); // +8
+                    instructions.Add(new(OpCode.ADD, [new Operand(OperandType.REGISTER, 7), new Operand(OperandType.REGISTER, 4)])); // +table
+                    // R8 = val[j], R9 = val[j+1]
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 8), new Operand(OperandType.MEMORY, "R7")]));
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 9), new Operand(OperandType.MEMORY, "R7+8")]));
+                    instructions.Add(new(OpCode.CMP, [new Operand(OperandType.REGISTER, 8), new Operand(OperandType.REGISTER, 9)]));
+                    instructions.Add(new(OpCode.JLE, [new Operand(OperandType.LABEL, tsNoSwap)]));
+                    // swap: *(R7) = R9, *(R7+8) = R8
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.MEMORY, "R7"), new Operand(OperandType.REGISTER, 9)]));
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.MEMORY, "R7+8"), new Operand(OperandType.REGISTER, 8)]));
+                    AddLabel(tsNoSwap);
+                    instructions.Add(new(OpCode.INC, [new Operand(OperandType.REGISTER, 5)])); // j++
+                    instructions.Add(new(OpCode.JMP, [new Operand(OperandType.LABEL, tsInner)]));
+                    AddLabel($"{tsOuter}_nx");
+                    instructions.Add(new(OpCode.INC, [new Operand(OperandType.REGISTER, 2)])); // i++
+                    instructions.Add(new(OpCode.JMP, [new Operand(OperandType.LABEL, tsOuter)]));
+                    AddLabel(tsDone);
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 4)])); // return table
+                    return;
+                }
+                // setmetatable(t, mt) — inline: store mt at [t - 4] (metatable slot)
+                if (functionName == "setmetatable" && node.Arguments.Count >= 2)
+                {
+                    GenerateExpression(node.Arguments[1]); // R0 = mt
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    GenerateExpression(node.Arguments[0]); // R0 = t
+                    instructions.Add(new(OpCode.POP, [new Operand(OperandType.REGISTER, 1)])); // R1 = mt
+                    instructions.Add(new(OpCode.MOVE,
+                        [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R0-4")]));
+                    // Return t (R0 already holds t)
+                    return;
+                }
+                // getmetatable(t) — inline: load from [t - 4]
+                if (functionName == "getmetatable" && node.Arguments.Count >= 1)
+                {
+                    GenerateExpression(node.Arguments[0]); // R0 = t
+                    instructions.Add(new(OpCode.MOVE,
+                        [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0-4")]));
+                    return;
+                }
+                // string.reverse/upper/lower/rep → CALL shared C string library (栈缓冲区, MCU兼容)
+                if ((functionName == "string.reverse" || functionName == "string.upper" || functionName == "string.lower") && node.Arguments.Count >= 1)
+                {
+                    string sharedFn = functionName == "string.reverse" ? "strrev" : functionName == "string.upper" ? "str_toupper" : "str_tolower";
+                    GenerateExpression(node.Arguments[0]); // R0 = src
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)])); // src on C stack
+                    instructions.Add(new(OpCode.SUB, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 256)])); // alloc dst[256]
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 13)])); // R1 = dst
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 1)])); // dst on C stack
+                    instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, sharedFn)]));
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1)])); // return dst
+                    instructions.Add(new(OpCode.ADD, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 264)])); // clean stack
+                    return;
+                }
+                if (functionName == "string.sub" && node.Arguments.Count >= 2)
+                {
+                    // shared_str_substr(dst, src, pos, count): pos = 1-based → 0-based
+                    GenerateExpression(node.Arguments[2]); // R0 = count (or nil → use big number)
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)])); // count
+                    GenerateExpression(node.Arguments[1]); // R0 = pos (1-based)
+                    instructions.Add(new(OpCode.SUB, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 1)])); // 1-based→0-based
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)])); // pos
+                    GenerateExpression(node.Arguments[0]); // R0 = src
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)])); // src
+                    instructions.Add(new(OpCode.SUB, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 256)])); // alloc dst
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 13)])); // R1 = dst
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 1)])); // dst
+                    instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "str_substr")]));
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1)]));
+                    instructions.Add(new(OpCode.ADD, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 272)])); // clean
+                    return;
+                }
+                if (functionName == "string.char" && node.Arguments.Count >= 1)
+                {
+                    // Generate single char: just the ASCII code → store in 1-byte buffer
+                    GenerateExpression(node.Arguments[0]); // R0 = char code
+                    instructions.Add(new(OpCode.SUB, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 4)])); // 4-byte buffer
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 13)]));
+                    instructions.Add(new(OpCode.MOVEB, [new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0)]));
+                    instructions.Add(new(OpCode.MOVEB, [new Operand(OperandType.MEMORY, "R1+1"), new Operand(OperandType.REGISTER, 0)])); // null terminator
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1)]));
+                    return;
+                }
+                if (functionName == "table.insert" && node.Arguments.Count >= 2)
+                {
+                    // CALL arr_push(table, value)
+                    GenerateExpression(node.Arguments[1]); // R0 = value
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    GenerateExpression(node.Arguments[0]); // R0 = table
+                    instructions.Add(new(OpCode.POP, [new Operand(OperandType.REGISTER, 1)])); // R1 = value
+                    instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "arr_push")]));
+                    return;
+                }
+                if (functionName == "table.remove" && node.Arguments.Count >= 1)
+                {
+                    // CALL arr_pop(table) → R0 = removed value
+                    GenerateExpression(node.Arguments[0]); // R0 = table
+                    instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "arr_pop")]));
+                    return;
+                }
+                if (functionName == "math.gcd" && node.Arguments.Count >= 2)
+                {
+                    GenerateExpression(node.Arguments[1]);
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    GenerateExpression(node.Arguments[0]);
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "gcd")]));
+                    return;
+                }
+                if (functionName == "math.lcm" && node.Arguments.Count >= 2)
+                {
+                    GenerateExpression(node.Arguments[1]);
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    GenerateExpression(node.Arguments[0]);
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "lcm")]));
+                    return;
+                }
+                if (functionName == "string.format" && node.Arguments.Count >= 2)
+                {
+                    // 基础支持: string.format("%d", n) → CALL shared_itoa
+                    // string.format("%s", s) → 直接返回字符串
+                    GenerateExpression(node.Arguments[1]); // R0 = arg
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new(OpCode.SUB, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 32)])); // alloc buf
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 13)])); // R1 = buf
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 1)])); // buf
+                    instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "itoa")]));
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1)]));
+                    instructions.Add(new(OpCode.ADD, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 40)])); // clean
+                    return;
+                }
+                if (functionName == "io.write" && node.Arguments.Count >= 1)
+                {
+                    // MCU io.write: output string via SYSCALL 1
+                    GenerateExpression(node.Arguments[0]); // R0 = string
+                    instructions.Add(new(OpCode.SYSCALL, [new Operand(OperandType.IMMEDIATE, 1)])); // OutputString
+                    return;
+                }
+                if (functionName == "io.read" && node.Arguments.Count >= 0)
+                {
+                    // MCU io.read: read line via SYSCALL 2 → R0 = buffer address
+                    instructions.Add(new(OpCode.SUB, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 256)])); // alloc buffer
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 13)]));
+                    instructions.Add(new(OpCode.SYSCALL, [new Operand(OperandType.IMMEDIATE, 2)])); // InputString
+                    return;
+                }
+                if (functionName == "os.time" && node.Arguments.Count >= 0)
+                {
+                    EmitGetTick();
+                    return;
+                }
+                if (functionName == "os.exit" && node.Arguments.Count >= 1)
+                {
+                    GenerateExpression(node.Arguments[0]); // R0 = exit code
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "exit")]));
+                    return;
+                }
+                if (functionName == "string.find" && node.Arguments.Count >= 2)
+                {
+                    // CALL shared_strstr(haystack, needle) → R0 = pointer to first match or 0
+                    GenerateExpression(node.Arguments[1]); // R0 = needle
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    GenerateExpression(node.Arguments[0]); // R0 = haystack
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+                    instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "strstr")]));
+                    // Convert pointer to 1-based index or nil=0
+                    string sfFound = $"sf_{Guid.NewGuid():N}"[..6];
+                    string sfEnd = $"sf_{Guid.NewGuid():N}"[..6];
+                    instructions.Add(new(OpCode.CMP, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0)]));
+                    instructions.Add(new(OpCode.JE, [new Operand(OperandType.LABEL, sfFound)]));
+                    AddLabel(sfFound);
+                    return;
+                }
+                if (functionName == "string.rep" && node.Arguments.Count >= 2)
+                {
+                    // shared_str_repeat(dst, src, n) → R0 = len
+                    GenerateExpression(node.Arguments[1]); // R0 = n
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)])); // n on stack
+                    GenerateExpression(node.Arguments[0]); // R0 = src
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)])); // src
+                    instructions.Add(new(OpCode.SUB, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 256)])); // alloc dst
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 13)])); // R1 = dst
+                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 1)])); // dst
+                    instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "str_repeat")]));
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1)]));
+                    instructions.Add(new(OpCode.ADD, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 268)])); // clean stack (12 args + 256 buf)
+                    return;
+                }
+                string funcLabel;
+                if (LuaBuiltinFunctions.TryGetValue(functionName, out string mappedLabel))
+                {
+                    funcLabel = mappedLabel;
+                }
+                else
+                {
+                    funcLabel = $"func_{SanitizeFunctionName(functionName)}";
+                }
+                instructions.Add(new Instruction(OpCode.CALL, 
+                    new List<Operand> { 
+                        new Operand(OperandType.LABEL, funcLabel)
+                    }, 
+                    instructions.Count));
+            }
+            else
+            {
+                // 其他函数表达式暂不支持
+                throw new CompilationException(ErrorCode.CodeGen_UnsupportedExpression, "不支持的函数调用表达式");
+            }
+        }
+        
+        private void GenerateTableConstructor(TableConstructorNode node)
+        {
+            // 新格式: [metatable(4), count(4), key1(4), val1(4), key2(4), val2(4), ...]
+            // metatable在负偏移(ptr-4), 返回ptr使现有运行时兼容
+            int totalSlots = node.Fields.Count * 2 + 1 + 1; // +1 for metatable slot
+            int bytes = totalSlots * 4;
+
+            // 分配内存
+            instructions.Add(new Instruction(OpCode.MOVE,
+                new List<Operand> {
+                    new Operand(OperandType.REGISTER, 0),
+                    new Operand(OperandType.IMMEDIATE, bytes.ToString())
+                },
+                instructions.Count));
+            instructions.Add(new Instruction(OpCode.SYSCALL,
+                new List<Operand> { new Operand(OperandType.IMMEDIATE, 40) },
+                instructions.Count));
+            // R2 = raw ptr (metatable at [R2+0], count at [R2+4], ...)
+            instructions.Add(new Instruction(OpCode.MOVE,
+                new List<Operand> {
+                    new Operand(OperandType.REGISTER, 2),
+                    new Operand(OperandType.REGISTER, 0)
+                },
+                instructions.Count));
+
+            // 存储 metatable = nil (0) at [R2 + 0]
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0)]));
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.MEMORY, "R2"), new Operand(OperandType.REGISTER, 0)]));
+
+            // 存储元素数量 at [R2 + 4]
+            instructions.Add(new Instruction(OpCode.MOVE,
+                new List<Operand> {
+                    new Operand(OperandType.REGISTER, 0),
+                    new Operand(OperandType.IMMEDIATE, node.Fields.Count.ToString())
+                },
+                instructions.Count));
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.MEMORY, "R2+4"), new Operand(OperandType.REGISTER, 0)]));
+
+            // 存储 key-value 对 (偏移量 +4 相对于原布局)
+            int slotIndex = 0;
+            foreach (var field in node.Fields)
+            {
+                int baseOffset = 8 + slotIndex * 8; // metatable(4)+count(4) + slot*(key+val)
+
+                // 存储 key
+                if (field.Key != null)
+                {
+                    GenerateExpression(field.Key);
+                }
+                else
+                {
+                    instructions.Add(new Instruction(OpCode.MOVE,
+                        new List<Operand> {
+                            new Operand(OperandType.REGISTER, 0),
+                            new Operand(OperandType.IMMEDIATE, (slotIndex + 1).ToString())
+                        },
+                        instructions.Count));
+                }
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    [new Operand(OperandType.MEMORY, $"R2+{baseOffset}"), new Operand(OperandType.REGISTER, 0)]));
+
+                // 存储 value
+                GenerateExpression(field.Value);
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    [new Operand(OperandType.MEMORY, $"R2+{baseOffset + 4}"), new Operand(OperandType.REGISTER, 0)]));
+
+                slotIndex++;
+            }
+
+            // Return table pointer = raw ptr + 4 (skip metatable slot, points to count)
+            // This maintains backward compatibility with lua_table_get/set runtime
+            instructions.Add(new Instruction(OpCode.ADD,
+                [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 4)]));
+        }
+
+        private void GenerateTableAccess(TableAccessNode node)
+        {
+            GenerateExpression(node.Table);
+            instructions.Add(new Instruction(OpCode.MOVE,
+                new List<Operand> {
+                    new Operand(OperandType.REGISTER, 1),
+                    new Operand(OperandType.REGISTER, 0)
+                },
+                instructions.Count));
+            GenerateExpression(node.Key);
+            instructions.Add(new Instruction(OpCode.MOVE,
+                new List<Operand> {
+                    new Operand(OperandType.REGISTER, 2),
+                    new Operand(OperandType.REGISTER, 0)
+                },
+                instructions.Count));
+            instructions.Add(new Instruction(OpCode.CALL,
+                new List<Operand> { new Operand(OperandType.LABEL, "lua_table_get") },
+                instructions.Count));
+            // __index metatable fallback: if result is nil, check metatable
+            string mtEnd = NewLabel();
+            instructions.Add(new(OpCode.JNZ, [Reg(0), new Operand(OperandType.LABEL, mtEnd)])); // found, skip
+            // Load metatable from [R1-4] (table pointer - 4)
+            instructions.Add(new(OpCode.MOVE, [Reg(3), new Operand(OperandType.MEMORY, "R1-4")])); // R3 = metatable
+            instructions.Add(new(OpCode.JZ, [Reg(3), new Operand(OperandType.LABEL, mtEnd)])); // no metatable, return nil
+            // Look up __index in metatable: lua_table_get(metatable, "__index")
+            instructions.Add(new(OpCode.PUSH, [Reg(1)])); // save table
+            instructions.Add(new(OpCode.PUSH, [Reg(2)])); // save key
+            string idxStrLabel = AddStringCached("__index");
+            instructions.Add(new(OpCode.MOVE, [Reg(1), Reg(3)])); // R1 = metatable
+            instructions.Add(new(OpCode.MOVE, [Reg(2), new Operand(OperandType.LABEL, idxStrLabel)])); // R2 = "__index"
+            instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "lua_table_get")]));
+            string mtNoIndex = NewLabel();
+            instructions.Add(new(OpCode.JZ, [Reg(0), new Operand(OperandType.LABEL, mtNoIndex)])); // no __index
+            // __index found, use it as fallback table: lua_table_get(__index, key)
+            instructions.Add(new(OpCode.MOVE, [Reg(1), Reg(0)])); // R1 = __index table
+            instructions.Add(new(OpCode.POP, [Reg(2)])); // R2 = key
+            instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "lua_table_get")]));
+            instructions.Add(new(OpCode.ADD, [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, 4)])); // pop saved table
+            instructions.Add(new(OpCode.JMP, [new Operand(OperandType.LABEL, mtEnd)]));
+            // Cleanup for no-__index case: pop saved regs, return nil
+            AddLabel(mtNoIndex);
+            instructions.Add(new(OpCode.ADD, [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, 8)])); // pop key + table
+            AddRI(OpCode.MOVE, 0, 0); // return nil
+            AddLabel(mtEnd);
+        }
+
+        /// <summary>
+        /// 将另一个 VmlProgram 的指令、标签和数据段合并到当前程序中
+        /// 用于 dofile 编译时文件包含
+        /// </summary>
+        private void MergeProgram(VmlProgram other)
+        {
+            if (other == null || other.Instructions == null || other.Instructions.Count == 0)
+                return;
+
+            int baseIndex = instructions.Count;
+            string labelPrefix = $"dofile_{Guid.NewGuid().ToString("N").Substring(0, 8)}_";
+
+            // 1. 合并数据段（避免键名冲突，跳过已存在的键）
+            if (other.DataSection != null)
+            {
+                foreach (var kvp in other.DataSection)
+                {
+                    if (!dataSection.ContainsKey(kvp.Key))
+                        dataSection[kvp.Key] = kvp.Value;
+                }
+            }
+
+            // 2. 合并常量段
+            if (other.Constants != null)
+            {
+                foreach (var kvp in other.Constants)
+                {
+                    if (!constants.ContainsKey(kvp.Key))
+                        constants[kvp.Key] = kvp.Value;
+                }
+            }
+
+            // 3. 合并标签（加上偏移量，并重命名以避免冲突）
+            var labelMap = new Dictionary<string, string>();
+            if (other.Labels != null)
+            {
+                foreach (var kvp in other.Labels)
+                {
+                    // 跳过 main 和入口标签
+                    if (kvp.Key == "main" || kvp.Key == other.EntryPoint)
+                        continue;
+                    string newName = labelPrefix + kvp.Key;
+                    labels[newName] = baseIndex + kvp.Value;
+                    labelMap[kvp.Key] = newName;
+                }
+            }
+
+            // 4. 合并指令（重写其中的标签引用）
+            foreach (var instr in other.Instructions)
+            {
+                // 跳过旧入口标签（main）
+                if (instr.Opcode == OpCode.LABEL && instr.Operands.Count > 0)
+                {
+                    object? labelVal = instr.Operands[0].Value;
+                    if (labelVal is string lblStr && (lblStr == "main" || lblStr == other.EntryPoint))
+                        continue; // 跳过旧入口标签，不重复添加
+                }
+
+                var newInstr = new Instruction(instr.Opcode,
+                    new List<Operand>(instr.Operands.Select(op =>
+                    {
+                        // 重写 LABEL 类型的操作数（跳转目标）
+                        if (op.Type == OperandType.LABEL && op.Value is string lblName)
+                        {
+                            // 检查是否是用户定义的标签（通过 labelMap）
+                            if (labelMap.TryGetValue(lblName, out string mappedName))
+                                return new Operand(OperandType.LABEL, mappedName);
+                        }
+                        return new Operand(op.Type, op.Value);
+                    })),
+                    instructions.Count);
+
+                instructions.Add(newInstr);
+            }
+        }
+    }
+}
+

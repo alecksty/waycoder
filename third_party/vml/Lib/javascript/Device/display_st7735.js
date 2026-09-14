@@ -1,0 +1,32 @@
+﻿/**
+ * ST7735 寄存器定义
+ * 生成自: Sitronix/Display/ST7735
+ * 版本: 1.0
+ */
+export const st7735 = {
+  // CPU: Display, 16位, 16000000 Hz
+
+  // 内存段
+  // Graphics RAM (128x160x16bit)
+  GRAM_START: 0x00,
+  GRAM_END: 0x4FFF,
+  GRAM_SIZE: 20480,
+
+  // 外设定义
+  // ST7735 128x160 TFT (SPI, 3.3V-5V)
+  ST7735_BASE: 0x00,
+  ST7735_CMD: 0x00000000,
+  ST7735_DATA: 0x00000001,
+  ST7735_COL_START: 0x0000002A,
+  ST7735_ROW_START: 0x0000002B,
+  ST7735_WRITE_RAM: 0x0000002C,
+  ST7735_MADCTL: 0x00000036,
+  ST7735_COLMOD: 0x0000003A,
+  ST7735_INVON: 0x00000021,
+  ST7735_SLEEP_OUT: 0x00000011,
+  ST7735_DISP_ON: 0x00000029,
+
+  init: function() {
+    // 硬件初始化
+  }
+};

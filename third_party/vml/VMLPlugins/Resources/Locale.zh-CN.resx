@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="lang_name" xml:space="preserve"><value>中文</value></data>
+  <data name="tool.description" xml:space="preserve"><value>VML 工具链 — 多语言编译器 &amp; 跨平台工具</value></data>
+  <data name="tool.usage" xml:space="preserve"><value>用法: {0} [选项] &lt;输入文件&gt; [输出文件]</value></data>
+  <data name="help.title" xml:space="preserve"><value>用法: vmltool [选项] &lt;文件...&gt;</value></data>
+  <data name="help.short.usage" xml:space="preserve"><value>用法: vmltool [选项] &lt;文件...&gt;</value></data>
+  <data name="help.short.hint" xml:space="preserve"><value>vmltool -h 查看详细帮助</value></data>
+  <data name="help.option" xml:space="preserve"><value>-h, --help               显示帮助</value></data>
+  <data name="version.option" xml:space="preserve"><value>-V, --version            显示版本信息</value></data>
+  <data name="debug.option" xml:space="preserve"><value>-g, --debug              包含调试信息</value></data>
+  <data name="output.option" xml:space="preserve"><value>-o, --output &lt;文件&gt;      输出文件</value></data>
+  <data name="target.option" xml:space="preserve"><value>-t, --target &lt;架构&gt;      目标架构 (x86/arm-cm/avr/8051/riscv/mips/6502/z80/...)</value></data>
+  <data name="format.option" xml:space="preserve"><value>-f, --format &lt;格式&gt;      输出格式 (hex/elf/exe/bin/s19/dump)</value></data>
+  <data name="include.option" xml:space="preserve"><value>-I, --include &lt;路径&gt;     添加头文件搜索路径</value></data>
+  <data name="lib.option" xml:space="preserve"><value>-L, --library &lt;路径&gt;     添加库搜索路径</value></data>
+  <data name="lang.option" xml:space="preserve"><value>-x, --lang &lt;语言&gt;        源码语言 (c/basic/pascal/python/lua/forth/go/rust/java/js/swift/cs/cpp/ladder)</value></data>
+  <data name="mode.option" xml:space="preserve"><value>--mode &lt;mcu|os&gt;          运行模式 (mcu=裸机, os=全系统)</value></data>
+  <data name="ram.option" xml:space="preserve"><value>--ram &lt;k|m|g&gt;            内存级别 (k=KB级, m=MB级, g=GB级)</value></data>
+  <data name="stack.option" xml:space="preserve"><value>--stack-size &lt;字节&gt;      栈大小(字节)</value></data>
+  <data name="compiling" xml:space="preserve"><value>正在编译 {0} ...</value></data>
+  <data name="compiled" xml:space="preserve"><value>编译成功 → {0} ({1} 条指令)</value></data>
+  <data name="compile.error" xml:space="preserve"><value>编译错误: {0}</value></data>
+  <data name="file.notfound" xml:space="preserve"><value>文件未找到: {0}</value></data>
+  <data name="unknown.format" xml:space="preserve"><value>未知输出格式</value></data>
+  <data name="running" xml:space="preserve"><value>正在运行...</value></data>
+  <data name="program.completed" xml:space="preserve"><value>程序执行完毕。</value></data>
+  <data name="nocompiler" xml:space="preserve"><value>未找到 &apos;{0}&apos; 文件的编译器</value></data>
+  <data name="syntax.error" xml:space="preserve"><value>第 {0} 行语法错误: {1}</value></data>
+  <data name="undefined.var" xml:space="preserve"><value>未定义的变量 &apos;{0}&apos;</value></data>
+  <data name="func.redefined" xml:space="preserve"><value>函数 &apos;{0}&apos; 重复定义</value></data>
+  <data name="type.mismatch" xml:space="preserve"><value>类型不匹配: 期望 {0}，实际 {1}</value></data>
+  <data name="expect.token" xml:space="preserve"><value>期望 {0}，得到 {1}</value></data>
+  <data name="expect.identifier" xml:space="preserve"><value>在 {0} 中期望标识符</value></data>
+  <data name="unsupported.type" xml:space="preserve"><value>不支持的类型: {0}</value></data>
+  <data name="unsupported.expr" xml:space="preserve"><value>不支持的表达式: {0}</value></data>
+  <data name="not.implemented" xml:space="preserve"><value>尚未实现: {0}</value></data>
+  <data name="mcu.skipped" xml:space="preserve"><value>[MCU] 跳过 {0}: {1}</value></data>
+  <data name="v2h.description" xml:space="preserve"><value>VMLToHex — VML 转 MCU 固件转换器</value></data>
+  <data name="v2h.usage" xml:space="preserve"><value>用法: vml2hex [选项] &lt;输入&gt; -arch &lt;架构&gt;</value></data>
+  <data name="arch.option" xml:space="preserve"><value>--arch, -a &lt;架构&gt;        目标架构 (avr/8051/arm-cm/x86/riscv/mips/6502/z80/...)</value></data>
+  <data name="baseaddr.option" xml:space="preserve"><value>--base, -b &lt;地址&gt;        代码基地址</value></data>
+  <data name="bios.option" xml:space="preserve"><value>--bios                   链接硬件BIOS (默认)</value></data>
+  <data name="assembling" xml:space="preserve"><value>正在为 {0} 汇编 ...</value></data>
+  <data name="output.format" xml:space="preserve"><value>输出: {0} ({1} 字节)</value></data>
+  <data name="emulator.title" xml:space="preserve"><value>VML 控制台模拟器</value></data>
+  <data name="loading" xml:space="preserve"><value>加载中: {0}</value></data>
+  <data name="load.success" xml:space="preserve"><value>加载成功。</value></data>
+  <data name="device.info" xml:space="preserve"><value>设备: {0} | 模式: {1} | RAM: {2}KB | 显示: {3}</value></data>
+  <data name="vga.mode" xml:space="preserve"><value>VGA 模式: {0}</value></data>
+  <data name="step.mode" xml:space="preserve"><value>单步模式 — 按 Enter 步进，按 Q 退出</value></data>
+  <data name="recording" xml:space="preserve"><value>正在录音到 {0} ...</value></data>
+  <data name="recording.started" xml:space="preserve"><value>开始录音: {0}</value></data>
+  <data name="recording.finished" xml:space="preserve"><value>录音完成: {1}秒 → {0}</value></data>
+  <data name="screenshot.saved" xml:space="preserve"><value>截图已保存: {0}</value></data>
+  <data name="key.script.started" xml:space="preserve"><value>按键脚本已启动: {0}</value></data>
+  <data name="unknown.cmd" xml:space="preserve"><value>未知命令: {0}</value></data>
+  <data name="help.section.actions" xml:space="preserve"><value>操作控制 (GCC 兼容):</value></data>
+  <data name="help.action.compile" xml:space="preserve"><value>编译源码到 VML (不链接)</value></data>
+  <data name="help.action.to_asm" xml:space="preserve"><value>编译到目标汇编 (不汇编)</value></data>
+  <data name="help.action.preprocess" xml:space="preserve"><value>仅预处理 C 源码</value></data>
+  <data name="help.action.assemble" xml:space="preserve"><value>汇编 VML 到二进制</value></data>
+  <data name="help.action.translate" xml:space="preserve"><value>翻译 VML 到目标汇编</value></data>
+  <data name="help.action.link" xml:space="preserve"><value>链接多个 VML 文件</value></data>
+  <data name="help.action.run" xml:space="preserve"><value>运行 VML 程序</value></data>
+  <data name="help.action.exe" xml:space="preserve"><value>打包为独立可执行文件</value></data>
+  <data name="help.section.common" xml:space="preserve"><value>常用选项:</value></data>
+  <data name="help.opt.output" xml:space="preserve"><value>输出文件 (GCC 兼容)</value></data>
+  <data name="help.opt.lang" xml:space="preserve"><value>指定源码语言 (默认自动检测)</value></data>
+  <data name="help.opt.target" xml:space="preserve"><value>目标架构 (默认 x86)</value></data>
+  <data name="help.opt.format" xml:space="preserve"><value>输出格式 (hex/elf/exe/bin/s19/dump)</value></data>
+  <data name="help.opt.optimize" xml:space="preserve"><value>优化等级 (默认 -O0)</value></data>
+  <data name="help.opt.dump" xml:space="preserve"><value>指令 dump</value></data>
+  <data name="help.opt.savetemps" xml:space="preserve"><value>保留中间文件</value></data>
+  <data name="help.section.gcc" xml:space="preserve"><value>GCC 兼容标志:</value></data>
+  <data name="help.opt.define" xml:space="preserve"><value>预定义宏</value></data>
+  <data name="help.opt.undef" xml:space="preserve"><value>取消宏定义</value></data>
+  <data name="help.opt.include" xml:space="preserve"><value>头文件搜索路径</value></data>
+  <data name="help.opt.library" xml:space="preserve"><value>库搜索路径</value></data>
+  <data name="help.opt.linklib" xml:space="preserve"><value>链接库</value></data>
+  <data name="help.opt.std" xml:space="preserve"><value>语言标准</value></data>
+  <data name="help.opt.debug" xml:space="preserve"><value>调试信息</value></data>
+  <data name="help.opt.warn" xml:space="preserve"><value>警告控制</value></data>
+  <data name="help.opt.linkmode" xml:space="preserve"><value>链接方式</value></data>
+  <data name="help.section.target" xml:space="preserve"><value>目标配置:</value></data>
+  <data name="help.opt.mode" xml:space="preserve"><value>运行模式 (默认 mcu)</value></data>
+  <data name="help.opt.ram" xml:space="preserve"><value>内存级别 (默认 m)</value></data>
+  <data name="help.opt.stack" xml:space="preserve"><value>栈大小</value></data>
+  <data name="help.opt.runtime" xml:space="preserve"><value>EXE 打包目标运行时</value></data>
+  <data name="help.section.other" xml:space="preserve"><value>其他:</value></data>
+  <data name="help.opt.help" xml:space="preserve"><value>帮助</value></data>
+  <data name="help.opt.version" xml:space="preserve"><value>版本信息</value></data>
+  <data name="help.opt.verbose" xml:space="preserve"><value>详细输出</value></data>
+  <data name="help.opt.repl" xml:space="preserve"><value>VML 交互环境</value></data>
+  <data name="help.opt.plugins" xml:space="preserve"><value>查看已注册插件</value></data>
+  <data name="help.opt.lang_ui" xml:space="preserve"><value>切换界面为英文 (VML_LANG=en)</value></data>
+  <data name="help.section.examples" xml:space="preserve"><value>示例 (14种语言自动根据扩展名识别):</value></data>
+  <data name="help.example.c" xml:space="preserve"><value>C → VML</value></data>
+  <data name="help.example.hex" xml:space="preserve"><value>VML → HEX</value></data>
+  <data name="help.compilers" xml:space="preserve"><value>{0} 个编译器 + {1} 个翻译器</value></data>
+  <data name="help.plugins_title" xml:space="preserve"><value>已注册插件</value></data>
+  <data name="help.frontends" xml:space="preserve"><value>前端编译器 ({0}):</value></data>
+  <data name="help.backends" xml:space="preserve"><value>后端翻译器 ({0}):</value></data>
+  <data name="help.opt.soft_float" xml:space="preserve"><value>使用软浮点库模拟浮点运算</value></data>
+  <data name="help.opt.no_float" xml:space="preserve"><value>关闭浮点支持</value></data>
+  <data name="help.opt.int64" xml:space="preserve"><value>64位模式: native(默认)/library(库模拟)/none(关闭)</value></data>
+</root>

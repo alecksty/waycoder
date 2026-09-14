@@ -1,0 +1,213 @@
+﻿; Apple-IIe寄存器定义
+; 生成自: Apple Computer/Apple II/Apple-IIe
+; 版本: 1.0
+; 日期: 2026-04-17
+; 作者: VML Team
+; 描述: Apple II Enhanced - 8-bit personal computer with MOS 6502 CPU
+
+; CPU架构: MOS-6502
+; 位宽: 8位
+; 时钟频率: 1021800 Hz
+
+; 寄存器定义
+; Accumulator
+.equ A, 0x00
+
+; X Index Register
+.equ X, 0x01
+
+; Y Index Register
+.equ Y, 0x02
+
+; Stack Pointer
+.equ SP, 0x03
+
+; Program Counter
+.equ PC, 0x04
+
+; Processor Status
+.equ P, 0x06
+.equ P_C, 0  ; Carry Flag
+.equ P_Z, 1  ; Zero Flag
+.equ P_I, 2  ; Interrupt Disable
+.equ P_D, 3  ; Decimal Mode
+.equ P_B, 4  ; Break Command
+.equ P_U, 5  ; Unused
+.equ P_V, 6  ; Overflow Flag
+.equ P_N, 7  ; Negative Flag
+
+; 内存段定义
+; Main RAM (48KB base, up to 64KB with slot RAM)
+.equ MAIN_RAM_START, 0x0000
+.equ MAIN_RAM_END, 0xBFFF
+.equ MAIN_RAM_SIZE, 49152
+
+; Text screen buffer (40x24)
+.equ TEXT_RAM_START, 0x0400
+.equ TEXT_RAM_END, 0x07FF
+.equ TEXT_RAM_SIZE, 1024
+
+; High-resolution graphics buffer
+.equ HIRES_RAM_START, 0x2000
+.equ HIRES_RAM_END, 0x5FFF
+.equ HIRES_RAM_SIZE, 16384
+
+; 80-column text auxiliary RAM
+.equ AUX_RAM_START, 0x0400
+.equ AUX_RAM_END, 0x09FF
+.equ AUX_RAM_SIZE, 1536
+
+; Monitor ROM (applesoft/Integer)
+.equ MONITOR_ROM_START, 0xC100
+.equ MONITOR_ROM_END, 0xCFFF
+.equ MONITOR_ROM_SIZE, 3840
+
+; Applesoft BASIC ROM
+.equ BASIC_ROM_START, 0xD000
+.equ BASIC_ROM_END, 0xFFFF
+.equ BASIC_ROM_SIZE, 12288
+
+; Expansion Slot ROM
+.equ SLOT_ROM_START, 0xC100
+.equ SLOT_ROM_END, 0xC7FF
+.equ SLOT_ROM_SIZE, 768
+
+; I/O Select (slot space)
+.equ MMIO_START, 0xC080
+.equ MMIO_END, 0xC0FF
+.equ MMIO_SIZE, 128
+
+; 外设定义
+; Versatile Interface Adapter (6522)
+.equ VIA_BASE, 0xC000
+.equ VIA_ORB, 0xC000
+.equ VIA_ORA, 0xC001
+.equ VIA_DDRB, 0xC002
+.equ VIA_DDRA, 0xC003
+.equ VIA_T1C, 0xC004
+.equ VIA_T1L, 0xC006
+.equ VIA_T2C, 0xC008
+.equ VIA_SR, 0xC00A
+.equ VIA_ACR, 0xC00B
+.equ VIA_PCR, 0xC00C
+.equ VIA_IFG, 0xC00D
+.equ VIA_IER, 0xC00E
+.equ VIA_ORA_NH, 0xC00F
+
+; Peripheral Interface Adapter (6520)
+.equ PIA_BASE, 0xC010
+.equ PIA_PA, 0xC010
+.equ PIA_PB, 0xC011
+.equ PIA_DDRA, 0xC012
+.equ PIA_DDRB, 0xC013
+.equ PIA_CA1, 0xC014
+.equ PIA_CA2, 0xC015
+.equ PIA_CB1, 0xC016
+.equ PIA_CB2, 0xC017
+
+; Keyboard (via PIA)
+.equ KBD_BASE, 0xC000
+.equ KBD_KEYDATA, 0xC000
+.equ KBD_KEYSTROBE, 0xC010
+.equ KBD_KBDCTRL, 0xC025
+.equ KBD_KBDERR, 0xC026
+
+; Speaker
+.equ SPEAKER_BASE, 0xC030
+.equ SPEAKER_SPKR, 0xC030
+
+; Game I/O Port
+.equ GAME_PORT_BASE, 0xC050
+.equ GAME_PORT_GAME_SW0, 0xC061
+.equ GAME_PORT_GAME_SW1, 0xC062
+.equ GAME_PORT_GAME_AN0, 0xC064
+.equ GAME_PORT_GAME_AN1, 0xC065
+.equ GAME_PORT_GAME_AN2, 0xC066
+.equ GAME_PORT_GAME_AN3, 0xC067
+.equ GAME_PORT_GAME_TRIG, 0xC070
+
+; Disk II Controller
+.equ DISKII_BASE, 0xC0E0
+.equ DISKII_PHASE0, 0xC0E0
+.equ DISKII_PHASE1, 0xC0E1
+.equ DISKII_PHASE2, 0xC0E2
+.equ DISKII_PHASE3, 0xC0E3
+.equ DISKII_Q6L, 0xC0EC
+.equ DISKII_Q7L, 0xC0ED
+.equ DISKII_Q6R, 0xC0EE
+.equ DISKII_Q7R, 0xC0EF
+
+; Video Display Generator
+.equ VIDEO_BASE, 0xC050
+.equ VIDEO_TXTCLR, 0xC050
+.equ VIDEO_MIXCLR, 0xC051
+.equ VIDEO_TXTPAGE2, 0xC054
+.equ VIDEO_TXTPAGE1, 0xC055
+.equ VIDEO_LORES, 0xC056
+.equ VIDEO_HIRES, 0xC057
+.equ VIDEO_DHIRESON, 0xC05E
+.equ VIDEO_AN0, 0xC058
+.equ VIDEO_AN1, 0xC059
+.equ VIDEO_AN2, 0xC05A
+.equ VIDEO_AN3, 0xC05B
+.equ VIDEO__80STORE, 0xC000
+
+; RAM Read/Write Control
+.equ RAMRD_BASE, 0xC080
+.equ RAMRD_INTCXROM, 0xCFFF
+
+; 中断向量定义
+.equ RESET_VECTOR, 0  ; Power-on Reset
+.equ NMI_VECTOR, 1  ; Non-Maskable Interrupt (from VIA)
+.equ IRQ_VECTOR, 2  ; IRQ from VIA/timer/slot
+.equ BRK_VECTOR, 3  ; BRK Instruction
+
+; 引脚定义
+.equ PIN_VCC, 1  ; +5V Power
+.equ PIN_GND, 2  ; Ground
+.equ PIN_RESET, 3  ; System Reset
+.equ PIN_CLK, 4  ; System Clock (1.023MHz NTSC)
+.equ PIN_RDY, 5  ; CPU Ready
+.equ PIN_NMI, 6  ; Non-Maskable Interrupt
+.equ PIN_IRQ, 7  ; Interrupt Request
+.equ PIN_SO, 8  ; Set Overflow
+.equ PIN_RWB, 9  ; Read/Write Bar
+.equ PIN_SYNC, 10  ; Instruction Sync
+.equ PIN_A0_A15, 11  ; Address Bus (16-bit)
+.equ PIN_D0_D7, 12  ; Data Bus (8-bit)
+.equ PIN_PHASE0, 13  ; Phase 0 (4MHz system)
+.equ PIN_PHASE1, 14  ; Phase 1
+.equ PIN_PHASE2, 15  ; Phase 2
+.equ PIN_PHASE3, 16  ; Phase 3
+
+; 宏定义
+.macro apple_iie_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+apple_iie_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET

@@ -1,0 +1,1631 @@
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+flt_43840004: .word 786163455
+flt_43840007: .word 786163455
+flt_43840008: .word 786163455
+flt_43840011: .word 0
+flt_43840012: .word 0
+flt_43840016: .word 0
+flt_43840019: .word 0
+flt_43840021: .word 1056964608
+flt_43840022: .word 1056964608
+flt_43840028: .word 1056964608
+flt_43840033: .word 897988541
+flt_43840036: .word 897988541
+flt_43840041: .word 0
+flt_43840044: .word 1065353216
+flt_43840045: .word 1049582633
+flt_43840049: .word 0
+flt_43840052: .word 1065353216
+flt_43840053: .word 1049582633
+flt_43840056: .word 0
+flt_43840059: .word 1078530011
+flt_43840060: .word 1078530011
+flt_43840063: .word 0
+flt_43840066: .word 1070141402
+flt_43840069: .word 0
+flt_43840072: .word 1070141402
+flt_43840073: .word 1070141402
+flt_43840074: .word 0
+flt_43840075: .word 1065353216
+flt_43840076: .word 1056964608
+flt_43840077: .word 1026206388
+flt_43840078: .word 985009002
+flt_43840079: .word 1065353216
+flt_43840080: .word 1056964608
+flt_43840081: .word 1042983617
+flt_43840082: .word 1026206388
+flt_43840084: .word 1042983617
+flt_43840085: .word 1007192197
+flt_43840086: .word 1065353216
+flt_43840087: .word 1056964608
+flt_43840088: .word 1042983617
+flt_43840089: .word 1026206388
+flt_43840091: .word 1073741824
+flt_43840094: .word 786163455
+flt_43840097: .word 0
+flt_43840098: .word 0
+flt_43840102: .word 0
+flt_43840105: .word 1056964608
+flt_43840108: .word 0
+flt_43840111: .word 1056964608
+flt_43840112: .word 1056964608
+flt_43840118: .word 1056964608
+flt_43840119: .word 0
+flt_43840120: .word 786163455
+flt_43840125: .word 1073741824
+flt_43840126: .word 0
+flt_43840127: .word 1056964608
+flt_43840130: .word 0
+flt_43840133: .word 1056964608
+flt_43840134: .word 1056964608
+flt_43840140: .word 1056964608
+flt_43840141: .word 0
+flt_43840146: .word 0
+flt_43840147: .word 786163455
+flt_43840152: .word 1073741824
+flt_43840153: .word 0
+
+.text
+cadd:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R11
+        add R0 R11
+        movef R0 @0
+        fpush R0
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R10
+        add R0 R10
+        movef R0 @0
+        fpop R1
+        fadd R0 R1 R0
+        move R9 R0
+        move R0 [R12+20]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R8
+        add R0 R8
+        movef @0 R9
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R7
+        add R0 R7
+        movef R0 @0
+        fpush R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R6
+        add R0 R6
+        movef R0 @0
+        fpop R1
+        fadd R0 R1 R0
+        move R5 R0
+        move R0 [R12+20]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R4
+        add R0 R4
+        movef @0 R5
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #16
+        push R1
+        ret
+csub:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R3
+        add R0 R3
+        movef R0 @0
+        fpush R0
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R2
+        add R0 R2
+        movef R0 @0
+        fpop R1
+        fsub R0 R1 R0
+        move R1 R0
+        move R0 [R12+20]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R11
+        add R0 R11
+        movef @0 R1
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R10
+        add R0 R10
+        movef R0 @0
+        fpush R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R8
+        add R0 R8
+        movef R0 @0
+        fpop R1
+        fsub R0 R1 R0
+        move R9 R0
+        move R0 [R12+20]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R7
+        add R0 R7
+        movef @0 R9
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #16
+        push R1
+        ret
+cmul:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R6
+        add R0 R6
+        movef R0 @0
+        fpush R0
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R4
+        add R0 R4
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R5
+        add R0 R5
+        movef R0 @0
+        fpush R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R3
+        add R0 R3
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fsub R0 R1 R0
+        move R2 R0
+        move R0 [R12+20]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R11
+        add R0 R11
+        movef @0 R2
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R1
+        add R0 R1
+        movef R0 @0
+        fpush R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R10
+        add R0 R10
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R8
+        add R0 R8
+        movef R0 @0
+        fpush R0
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R7
+        add R0 R7
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fadd R0 R1 R0
+        move R9 R0
+        move R0 [R12+20]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R6
+        add R0 R6
+        movef @0 R9
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #16
+        push R1
+        ret
+cdiv:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R4
+        add R0 R4
+        movef R0 @0
+        fpush R0
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R5
+        add R0 R5
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R3
+        add R0 R3
+        movef R0 @0
+        fpush R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R11
+        add R0 R11
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fadd R0 R1 R0
+        movef [R12-4] R0
+        movef R0 [R12-4]
+        fpush R0
+        movef R0 [flt_43840004]
+        fpop R1
+        fcmp R1 R0
+        jl _L43840005
+        move R0 #0
+        jmp _L43840006
+_L43840005:
+        move R0 #1
+_L43840006:
+        test R0 R0
+        jz _L43840002
+        movef R0 [R12-4]
+        fpush R0
+        movef R0 [flt_43840007]
+        movef R0 [flt_43840008]
+        fneg R0 R0
+        fpop R1
+        fcmp R1 R0
+        jg _L43840009
+        move R0 #0
+        jmp _L43840010
+_L43840009:
+        move R0 #1
+_L43840010:
+        test R0 R0
+        jz _L43840002
+        move R0 #1
+        jmp _L43840003
+_L43840002:
+        move R0 #0
+_L43840003:
+        cmp R0 #0
+        jz sta_43840000
+        movef R0 [flt_43840011]
+        move R2 R0
+        move R0 [R12+20]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R1
+        add R0 R1
+        movef @0 R2
+        movef R0 [flt_43840012]
+        move R10 R0
+        move R0 [R12+20]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R8
+        add R0 R8
+        movef @0 R10
+        jmp L43840013
+sta_43840000:
+sta_43840001:
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R7
+        add R0 R7
+        movef R0 @0
+        fpush R0
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R6
+        add R0 R6
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R9
+        add R0 R9
+        movef R0 @0
+        fpush R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R4
+        add R0 R4
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fadd R0 R1 R0
+        fpush R0
+        movef R0 [R12-4]
+        fpop R1
+        fdiv R0 R1 R0
+        move R5 R0
+        move R0 [R12+20]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R3
+        add R0 R3
+        movef @0 R5
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R11
+        add R0 R11
+        movef R0 @0
+        fpush R0
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R1
+        add R0 R1
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R2
+        add R0 R2
+        movef R0 @0
+        fpush R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R8
+        add R0 R8
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fsub R0 R1 R0
+        fpush R0
+        movef R0 [R12-4]
+        fpop R1
+        fdiv R0 R1 R0
+        move R10 R0
+        move R0 [R12+20]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R7
+        add R0 R7
+        movef @0 R10
+L43840013:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #16
+        push R1
+        ret
+complex_abs:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #24
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R6
+        add R0 R6
+        movef R0 @0
+        fpush R0
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R9
+        add R0 R9
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R4
+        add R0 R4
+        movef R0 @0
+        fpush R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R3
+        add R0 R3
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fadd R0 R1 R0
+        movef [R12-4] R0
+        movef R0 [R12-4]
+        fpush R0
+        movef R0 [flt_43840016]
+        fpop R1
+        fcmp R1 R0
+        jle _L43840017
+        move R0 #0
+        jmp _L43840018
+_L43840017:
+        move R0 #1
+_L43840018:
+        cmp R0 #0
+        jz sta_43840014
+        movef R0 [flt_43840019]
+        jmp L43840020
+sta_43840014:
+sta_43840015:
+        movef R0 [R12-4]
+        fpush R0
+        movef R0 [flt_43840021]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840022]
+        fpop R1
+        fadd R0 R1 R0
+        movef [R12-8] R0
+        move R0 #0
+        move [R12-16] R0
+sta_43840023:
+        move R0 [R12-16]
+        push R0
+        move R0 #10
+        pop R1
+        cmp R1 R0
+        jl _L43840026
+        move R0 #0
+        jmp _L43840027
+_L43840026:
+        move R0 #1
+_L43840027:
+        cmp R0 #0
+        jz sta_43840025
+        movef R0 [R12-8]
+        movef [R12-12] R0
+        movef R0 [R12-8]
+        fpush R0
+        movef R0 [R12-4]
+        fpush R0
+        movef R0 [R12-8]
+        fpop R1
+        fdiv R0 R1 R0
+        fpop R1
+        fadd R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840028]
+        fpop R1
+        fmul R0 R1 R0
+        movef [R12-8] R0
+        movef R0 [R12-8]
+        fpush R0
+        movef R0 [R12-12]
+        fpush R0
+        movef R0 [flt_43840033]
+        fpop R1
+        fsub R0 R1 R0
+        fpop R1
+        fcmp R1 R0
+        jge _L43840034
+        move R0 #0
+        jmp _L43840035
+_L43840034:
+        move R0 #1
+_L43840035:
+        test R0 R0
+        jz _L43840031
+        movef R0 [R12-8]
+        fpush R0
+        movef R0 [R12-12]
+        fpush R0
+        movef R0 [flt_43840036]
+        fpop R1
+        fadd R0 R1 R0
+        fpop R1
+        fcmp R1 R0
+        jle _L43840037
+        move R0 #0
+        jmp _L43840038
+_L43840037:
+        move R0 #1
+_L43840038:
+        test R0 R0
+        jz _L43840031
+        move R0 #1
+        jmp _L43840032
+_L43840031:
+        move R0 #0
+_L43840032:
+        cmp R0 #0
+        jz sta_43840029
+        jmp sta_43840025
+sta_43840029:
+sta_43840030:
+sta_43840024:
+        move R0 [R12-16]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-16] R0
+        move R0 R1
+        jmp sta_43840023
+sta_43840025:
+        movef R0 [R12-8]
+        jmp L43840020
+L43840020:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+complex_arg:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #24
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R5
+        add R0 R5
+        movef R0 @0
+        movef [R12-4] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R11
+        add R0 R11
+        movef R0 @0
+        movef [R12-8] R0
+        movef R0 [R12-4]
+        fpush R0
+        movef R0 [flt_43840041]
+        fpop R1
+        fcmp R1 R0
+        jg _L43840042
+        move R0 #0
+        jmp _L43840043
+_L43840042:
+        move R0 #1
+_L43840043:
+        cmp R0 #0
+        jz sta_43840039
+        movef R0 [R12-8]
+        fpush R0
+        movef R0 [R12-4]
+        fpop R1
+        fdiv R0 R1 R0
+        movef [R12-12] R0
+        movef R0 [R12-12]
+        fpush R0
+        movef R0 [flt_43840044]
+        fpush R0
+        movef R0 [flt_43840045]
+        fpush R0
+        movef R0 [R12-12]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [R12-12]
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fadd R0 R1 R0
+        fpop R1
+        fdiv R0 R1 R0
+        jmp L43840046
+sta_43840039:
+sta_43840040:
+        movef R0 [R12-4]
+        fpush R0
+        movef R0 [flt_43840049]
+        fpop R1
+        fcmp R1 R0
+        jl _L43840050
+        move R0 #0
+        jmp _L43840051
+_L43840050:
+        move R0 #1
+_L43840051:
+        cmp R0 #0
+        jz sta_43840047
+        movef R0 [R12-8]
+        fpush R0
+        movef R0 [R12-4]
+        fpop R1
+        fdiv R0 R1 R0
+        movef [R12-12] R0
+        movef R0 [R12-12]
+        fpush R0
+        movef R0 [flt_43840052]
+        fpush R0
+        movef R0 [flt_43840053]
+        fpush R0
+        movef R0 [R12-12]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [R12-12]
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fadd R0 R1 R0
+        fpop R1
+        fdiv R0 R1 R0
+        movef [R12-16] R0
+        movef R0 [R12-8]
+        fpush R0
+        movef R0 [flt_43840056]
+        fpop R1
+        fcmp R1 R0
+        jge _L43840057
+        move R0 #0
+        jmp _L43840058
+_L43840057:
+        move R0 #1
+_L43840058:
+        cmp R0 #0
+        jz sta_43840054
+        movef R0 [R12-16]
+        fpush R0
+        movef R0 [flt_43840059]
+        fpop R1
+        fadd R0 R1 R0
+        jmp L43840046
+sta_43840054:
+sta_43840055:
+        movef R0 [R12-16]
+        fpush R0
+        movef R0 [flt_43840060]
+        fpop R1
+        fsub R0 R1 R0
+        jmp L43840046
+sta_43840047:
+sta_43840048:
+        movef R0 [R12-8]
+        fpush R0
+        movef R0 [flt_43840063]
+        fpop R1
+        fcmp R1 R0
+        jg _L43840064
+        move R0 #0
+        jmp _L43840065
+_L43840064:
+        move R0 #1
+_L43840065:
+        cmp R0 #0
+        jz sta_43840061
+        movef R0 [flt_43840066]
+        jmp L43840046
+sta_43840061:
+sta_43840062:
+        movef R0 [R12-8]
+        fpush R0
+        movef R0 [flt_43840069]
+        fpop R1
+        fcmp R1 R0
+        jl _L43840070
+        move R0 #0
+        jmp _L43840071
+_L43840070:
+        move R0 #1
+_L43840071:
+        cmp R0 #0
+        jz sta_43840067
+        movef R0 [flt_43840072]
+        movef R0 [flt_43840073]
+        fneg R0 R0
+        jmp L43840046
+sta_43840067:
+sta_43840068:
+        movef R0 [flt_43840074]
+        jmp L43840046
+L43840046:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #8
+        push R1
+        ret
+cconj:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R1
+        add R0 R1
+        movef R0 @0
+        move R2 R0
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R8
+        add R0 R8
+        movef @0 R2
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R7
+        add R0 R7
+        movef R0 @0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R10
+        add R0 R10
+        movef R0 @0
+        fneg R0 R0
+        move R6 R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R9
+        add R0 R9
+        movef @0 R6
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+cneg:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R4
+        add R0 R4
+        movef R0 @0
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R3
+        add R0 R3
+        movef R0 @0
+        fneg R0 R0
+        move R5 R0
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R11
+        add R0 R11
+        movef @0 R5
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R1
+        add R0 R1
+        movef R0 @0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R8
+        add R0 R8
+        movef R0 @0
+        fneg R0 R0
+        move R2 R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R7
+        add R0 R7
+        movef @0 R2
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+cexp_re:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #20
+        movef R0 [R12+16]
+        fpush R0
+        movef R0 [R12+16]
+        fpop R1
+        fmul R0 R1 R0
+        movef [R12-4] R0
+        movef R0 [flt_43840075]
+        fpush R0
+        movef R0 [R12-4]
+        fpush R0
+        movef R0 [flt_43840076]
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fsub R0 R1 R0
+        fpush R0
+        movef R0 [R12-4]
+        fpush R0
+        movef R0 [R12-4]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840077]
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fadd R0 R1 R0
+        fpush R0
+        movef R0 [R12-4]
+        fpush R0
+        movef R0 [R12-4]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [R12-4]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840078]
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fsub R0 R1 R0
+        movef [R12-8] R0
+        movef R0 [flt_43840079]
+        fpush R0
+        movef R0 [R12+12]
+        fpop R1
+        fadd R0 R1 R0
+        fpush R0
+        movef R0 [R12+12]
+        fpush R0
+        movef R0 [R12+12]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840080]
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fadd R0 R1 R0
+        fpush R0
+        movef R0 [R12+12]
+        fpush R0
+        movef R0 [R12+12]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [R12+12]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840081]
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fadd R0 R1 R0
+        fpush R0
+        movef R0 [R12+12]
+        fpush R0
+        movef R0 [R12+12]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [R12+12]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [R12+12]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840082]
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fadd R0 R1 R0
+        movef [R12-12] R0
+        movef R0 [R12-12]
+        fpush R0
+        movef R0 [R12-8]
+        fpop R1
+        fmul R0 R1 R0
+        jmp L43840083
+L43840083:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+cexp_im:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #20
+        movef R0 [R12+16]
+        fpush R0
+        movef R0 [R12+16]
+        fpop R1
+        fmul R0 R1 R0
+        movef [R12-4] R0
+        movef R0 [R12+16]
+        fpush R0
+        movef R0 [R12+16]
+        fpush R0
+        movef R0 [R12-4]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840084]
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fsub R0 R1 R0
+        fpush R0
+        movef R0 [R12+16]
+        fpush R0
+        movef R0 [R12-4]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [R12-4]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840085]
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fadd R0 R1 R0
+        movef [R12-8] R0
+        movef R0 [flt_43840086]
+        fpush R0
+        movef R0 [R12+12]
+        fpop R1
+        fadd R0 R1 R0
+        fpush R0
+        movef R0 [R12+12]
+        fpush R0
+        movef R0 [R12+12]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840087]
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fadd R0 R1 R0
+        fpush R0
+        movef R0 [R12+12]
+        fpush R0
+        movef R0 [R12+12]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [R12+12]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840088]
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fadd R0 R1 R0
+        fpush R0
+        movef R0 [R12+12]
+        fpush R0
+        movef R0 [R12+12]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [R12+12]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [R12+12]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840089]
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fadd R0 R1 R0
+        movef [R12-12] R0
+        movef R0 [R12-12]
+        fpush R0
+        movef R0 [R12-8]
+        fpop R1
+        fmul R0 R1 R0
+        jmp L43840090
+L43840090:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+csqr:
+        push R15
+        push R12
+        move R12 R13
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R10
+        add R0 R10
+        movef R0 @0
+        fpush R0
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R9
+        add R0 R9
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R6
+        add R0 R6
+        movef R0 @0
+        fpush R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R4
+        add R0 R4
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fsub R0 R1 R0
+        move R3 R0
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R11
+        add R0 R11
+        movef @0 R3
+        movef R0 [flt_43840091]
+        fpush R0
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R5
+        add R0 R5
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R1
+        add R0 R1
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        move R8 R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R7
+        add R0 R7
+        movef @0 R8
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret
+csqrt:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #32
+        move R0 [R12+12]
+        push R0
+        call complex_abs
+        movef [R12-4] R0
+        movef R0 [R12-4]
+        fpush R0
+        movef R0 [flt_43840094]
+        fpop R1
+        fcmp R1 R0
+        jl _L43840095
+        move R0 #0
+        jmp _L43840096
+_L43840095:
+        move R0 #1
+_L43840096:
+        cmp R0 #0
+        jz sta_43840092
+        movef R0 [flt_43840097]
+        move R2 R0
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R10
+        add R0 R10
+        movef @0 R2
+        movef R0 [flt_43840098]
+        move R9 R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R6
+        add R0 R6
+        movef @0 R9
+        jmp L43840099
+sta_43840092:
+sta_43840093:
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R4
+        add R0 R4
+        movef R0 @0
+        movef [R12-8] R0
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R11
+        add R0 R11
+        movef R0 @0
+        movef [R12-12] R0
+        movef R0 [R12-8]
+        fpush R0
+        movef R0 [flt_43840102]
+        fpop R1
+        fcmp R1 R0
+        jge _L43840103
+        move R0 #0
+        jmp _L43840104
+_L43840103:
+        move R0 #1
+_L43840104:
+        cmp R0 #0
+        jz sta_43840100
+        movef R0 [R12-4]
+        fpush R0
+        movef R0 [R12-8]
+        fpop R1
+        fadd R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840105]
+        fpop R1
+        fmul R0 R1 R0
+        movef [R12-16] R0
+        movef R0 [R12-16]
+        fpush R0
+        movef R0 [flt_43840108]
+        fpop R1
+        fcmp R1 R0
+        jg _L43840109
+        move R0 #0
+        jmp _L43840110
+_L43840109:
+        move R0 #1
+_L43840110:
+        cmp R0 #0
+        jz sta_43840106
+        movef R0 [R12-16]
+        fpush R0
+        movef R0 [flt_43840111]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840112]
+        fpop R1
+        fadd R0 R1 R0
+        movef [R12-20] R0
+        move R0 #0
+        move [R12-24] R0
+sta_43840113:
+        move R0 [R12-24]
+        push R0
+        move R0 #8
+        pop R1
+        cmp R1 R0
+        jl _L43840116
+        move R0 #0
+        jmp _L43840117
+_L43840116:
+        move R0 #1
+_L43840117:
+        cmp R0 #0
+        jz sta_43840115
+        movef R0 [R12-20]
+        fpush R0
+        movef R0 [R12-16]
+        fpush R0
+        movef R0 [R12-20]
+        fpop R1
+        fdiv R0 R1 R0
+        fpop R1
+        fadd R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840118]
+        fpop R1
+        fmul R0 R1 R0
+        movef [R12-20] R0
+sta_43840114:
+        move R0 [R12-24]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-24] R0
+        move R0 R1
+        jmp sta_43840113
+sta_43840115:
+        movef R0 [R12-20]
+        move R3 R0
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R5
+        add R0 R5
+        movef @0 R3
+        jmp sta_43840107
+sta_43840106:
+        movef R0 [flt_43840119]
+        move R1 R0
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R7
+        add R0 R7
+        movef @0 R1
+sta_43840107:
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R8
+        add R0 R8
+        movef R0 @0
+        fpush R0
+        movef R0 [flt_43840120]
+        fpop R1
+        fcmp R1 R0
+        jg _L43840121
+        move R0 #0
+        jmp _L43840122
+_L43840121:
+        move R0 #1
+_L43840122:
+        test R0 R0
+        jz _L43840123
+        movef R0 [R12-12]
+        fpush R0
+        movef R0 [flt_43840125]
+        fpush R0
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R10
+        add R0 R10
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fdiv R0 R1 R0
+        jmp _L43840124
+_L43840123:
+        movef R0 [flt_43840126]
+_L43840124:
+        move R2 R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R6
+        add R0 R6
+        movef @0 R2
+        jmp sta_43840101
+sta_43840100:
+        movef R0 [R12-4]
+        fpush R0
+        movef R0 [R12-8]
+        fpop R1
+        fsub R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840127]
+        fpop R1
+        fmul R0 R1 R0
+        movef [R12-16] R0
+        movef R0 [R12-16]
+        fpush R0
+        movef R0 [flt_43840130]
+        fpop R1
+        fcmp R1 R0
+        jg _L43840131
+        move R0 #0
+        jmp _L43840132
+_L43840131:
+        move R0 #1
+_L43840132:
+        cmp R0 #0
+        jz sta_43840128
+        movef R0 [R12-16]
+        fpush R0
+        movef R0 [flt_43840133]
+        fpop R1
+        fmul R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840134]
+        fpop R1
+        fadd R0 R1 R0
+        movef [R12-20] R0
+        move R0 #0
+        move [R12-24] R0
+sta_43840135:
+        move R0 [R12-24]
+        push R0
+        move R0 #8
+        pop R1
+        cmp R1 R0
+        jl _L43840138
+        move R0 #0
+        jmp _L43840139
+_L43840138:
+        move R0 #1
+_L43840139:
+        cmp R0 #0
+        jz sta_43840137
+        movef R0 [R12-20]
+        fpush R0
+        movef R0 [R12-16]
+        fpush R0
+        movef R0 [R12-20]
+        fpop R1
+        fdiv R0 R1 R0
+        fpop R1
+        fadd R0 R1 R0
+        fpush R0
+        movef R0 [flt_43840140]
+        fpop R1
+        fmul R0 R1 R0
+        movef [R12-20] R0
+sta_43840136:
+        move R0 [R12-24]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-24] R0
+        move R0 R1
+        jmp sta_43840135
+sta_43840137:
+        movef R0 [R12-12]
+        fpush R0
+        movef R0 [flt_43840141]
+        fpop R1
+        fcmp R1 R0
+        jge _L43840142
+        move R0 #0
+        jmp _L43840143
+_L43840142:
+        move R0 #1
+_L43840143:
+        test R0 R0
+        jz _L43840144
+        movef R0 [R12-20]
+        jmp _L43840145
+_L43840144:
+        movef R0 [R12-20]
+        movef R0 [R12-20]
+        fneg R0 R0
+_L43840145:
+        move R9 R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R4
+        add R0 R4
+        movef @0 R9
+        jmp sta_43840129
+sta_43840128:
+        movef R0 [flt_43840146]
+        move R11 R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R5
+        add R0 R5
+        movef @0 R11
+sta_43840129:
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R3
+        add R0 R3
+        movef R0 @0
+        fpush R0
+        movef R0 [flt_43840147]
+        fpop R1
+        fcmp R1 R0
+        jg _L43840148
+        move R0 #0
+        jmp _L43840149
+_L43840148:
+        move R0 #1
+_L43840149:
+        test R0 R0
+        jz _L43840150
+        movef R0 [R12-12]
+        fpush R0
+        movef R0 [flt_43840152]
+        fpush R0
+        move R0 [R12+16]
+        push R0
+        move R0 #1
+        mul R0 #4
+        pop R7
+        add R0 R7
+        movef R0 @0
+        fpop R1
+        fmul R0 R1 R0
+        fpop R1
+        fdiv R0 R1 R0
+        jmp _L43840151
+_L43840150:
+        movef R0 [flt_43840153]
+_L43840151:
+        move R1 R0
+        move R0 [R12+16]
+        push R0
+        move R0 #0
+        mul R0 #4
+        pop R8
+        add R0 R8
+        movef @0 R1
+sta_43840101:
+L43840099:
+        move R13 R12
+        pop R12
+        pop R15
+        move R1 @13
+        add R13 #12
+        push R1
+        ret

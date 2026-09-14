@@ -1,0 +1,17 @@
+#param lib("file")
+#param lib("os")
+#param lib("crt")
+#param lib("basiclib")
+#param lib("convert")
+#param lib("string")
+#param lib("math")
+#param lib("printf")
+#param lib("io")
+#param lib("ctype")
+#param lib("bitops")
+#param lib("util")
+#param lib("float")
+#param lib("memory")
+// VML BASIC Language-Specific Built-in Library
+// 非共享函数 → builtins_basic.c (语言独享)
+// TODO: 添加 BASIC 语言特有内置函数

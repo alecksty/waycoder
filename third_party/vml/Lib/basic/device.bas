@@ -1,0 +1,238 @@
+' ============================================
+' BASIC 设备接口库
+' 提供统一的设备操作函数
+' ============================================
+
+' 设备常量
+CONST DEVICE_CONSOLE = 0
+CONST DEVICE_VGA = 1
+CONST DEVICE_KEYBOARD = 2
+CONST DEVICE_MOUSE = 3
+CONST DEVICE_TIMER = 4
+CONST DEVICE_RTC = 5
+CONST DEVICE_FILESYSTEM = 6
+
+' 设备控制命令
+CONST CONSOLE_CMD_GET_INFO = 0
+CONST CONSOLE_CMD_CLEAR_SCREEN = 1
+CONST CONSOLE_CMD_SET_CURSOR = 2
+CONST CONSOLE_CMD_GET_CURSOR = 3
+
+CONST VGA_CMD_GET_INFO = 0
+CONST VGA_CMD_CLEAR_SCREEN = 1
+CONST VGA_CMD_SET_PIXEL = 2
+CONST VGA_CMD_DRAW_CHAR = 3
+CONST VGA_CMD_DRAW_STRING = 4
+CONST VGA_CMD_SET_MODE = 5
+CONST VGA_CMD_GET_MEMORY = 6
+
+CONST KEYBOARD_CMD_GET_STATUS = 0
+CONST KEYBOARD_CMD_CHECK_KEY = 1
+CONST KEYBOARD_CMD_CLEAR_BUFFER = 2
+CONST KEYBOARD_CMD_SET_LEDS = 3
+
+CONST MOUSE_CMD_GET_STATUS = 0
+CONST MOUSE_CMD_SET_POSITION = 1
+CONST MOUSE_CMD_SET_BUTTONS = 2
+CONST MOUSE_CMD_SET_WHEEL = 3
+CONST MOUSE_CMD_SIMULATE_MOVE = 4
+CONST MOUSE_CMD_SIMULATE_CLICK = 5
+
+' ============================================
+' 设备操作函数
+' ============================================
+
+' 打开设备
+FUNCTION DEV_OPEN(NAME$)
+    ' 使用SYSCALL 100打开设备
+    ' 返回值：设备句柄
+    ASM "LOAD R0, NAME$"
+    ASM "SYSCALL 100"
+    ASM "MOV DEV_OPEN, R1"
+END FUNCTION
+
+' 关闭设备
+FUNCTION DEV_CLOSE(HANDLE)
+    ' 使用SYSCALL 101关闭设备
+    ' 返回值：执行结果
+    ASM "LOAD R0, HANDLE"
+    ASM "SYSCALL 101"
+    ASM "MOV DEV_CLOSE, R0"
+END FUNCTION
+
+' 写入设备
+FUNCTION DEV_WRITE(HANDLE, BUFFER$, OFFSET, COUNT)
+    ' 使用SYSCALL 103写入设备
+    ' 返回值：实际写入的字节数
+    ASM "LOAD R0, HANDLE"
+    ASM "LOAD R1, BUFFER$"
+    ASM "LOAD R2, COUNT"
+    ASM "SYSCALL 103"
+    ASM "MOV DEV_WRITE, R0"
+END FUNCTION
+
+' 控制设备
+FUNCTION DEV_CONTROL(HANDLE, COMMAND, DATA$, LENGTH)
+    ' 使用SYSCALL 104控制设备
+    ' 返回值：执行结果
+    ASM "LOAD R0, HANDLE"
+    ASM "LOAD R1, COMMAND"
+    ASM "LOAD R2, DATA$"
+    ASM "LOAD R3, LENGTH"
+    ASM "SYSCALL 104"
+    ASM "MOV DEV_CONTROL, R0"
+END FUNCTION
+
+' ============================================
+' 便捷函数
+' ============================================
+
+' 控制台输出
+SUB DEV_CONSOLE_PRINT(TEXT$)
+    HANDLE = DEV_OPEN("console")
+    IF HANDLE >= 0 THEN
+        CALL DEV_WRITE(HANDLE, TEXT$, 0, LEN(TEXT$))
+        CALL DEV_CLOSE(HANDLE)
+    END IF
+END SUB
+
+' VGA清屏
+SUB DEV_VGA_CLEAR()
+    HANDLE = DEV_OPEN("vga")
+    IF HANDLE >= 0 THEN
+        CALL DEV_CONTROL(HANDLE, VGA_CMD_CLEAR_SCREEN, "", 0)
+        CALL DEV_CLOSE(HANDLE)
+    END IF
+END SUB
+
+' VGA绘制字符
+SUB DEV_VGA_DRAW_CHAR(X, Y, CHAR$, COLOR)
+    HANDLE = DEV_OPEN("vga")
+    IF HANDLE >= 0 THEN
+        ' 准备数据：x, y, char, color
+        DATA$ = CHR$(X) + CHR$(Y) + CHAR$ + CHR$(COLOR)
+        CALL DEV_CONTROL(HANDLE, VGA_CMD_DRAW_CHAR, DATA$, 4)
+        CALL DEV_CLOSE(HANDLE)
+    END IF
+END SUB
+
+' VGA绘制字符串
+SUB DEV_VGA_DRAW_STRING(X, Y, TEXT$, COLOR)
+    HANDLE = DEV_OPEN("vga")
+    IF HANDLE >= 0 THEN
+        ' 准备数据：x, y, color, text...
+        DATA$ = CHR$(X) + CHR$(Y) + CHR$(COLOR) + TEXT$
+        CALL DEV_CONTROL(HANDLE, VGA_CMD_DRAW_STRING, DATA$, 3 + LEN(TEXT$))
+        CALL DEV_CLOSE(HANDLE)
+    END IF
+END SUB
+
+' 检查键盘
+FUNCTION DEV_KEYBOARD_CHECK()
+    HANDLE = DEV_OPEN("kbd")
+    IF HANDLE >= 0 THEN
+        STATUS = 0
+        CALL DEV_CONTROL(HANDLE, KEYBOARD_CMD_CHECK_KEY, CHR$(STATUS), 1)
+        CALL DEV_CLOSE(HANDLE)
+        DEV_KEYBOARD_CHECK = STATUS
+    ELSE
+        DEV_KEYBOARD_CHECK = -1
+    END IF
+END FUNCTION
+
+' 获取鼠标位置
+SUB DEV_MOUSE_GET_POSITION(X, Y)
+    HANDLE = DEV_OPEN("mouse")
+    IF HANDLE >= 0 THEN
+        DATA$ = STRING$(10, " ")
+        CALL DEV_CONTROL(HANDLE, MOUSE_CMD_GET_STATUS, DATA$, 10)
+        CALL DEV_CLOSE(HANDLE)
+        ' 解析数据
+        X = ASC(MID$(DATA$, 1, 1)) + ASC(MID$(DATA$, 2, 1)) * 256
+        Y = ASC(MID$(DATA$, 5, 1)) + ASC(MID$(DATA$, 6, 1)) * 256
+    ELSE
+        X = 0
+        Y = 0
+    END IF
+END SUB
+
+' 获取RTC时间字符串
+FUNCTION DEV_RTC_GET_TIME_STRING$()
+    HANDLE = DEV_OPEN("rtc")
+    IF HANDLE >= 0 THEN
+        BUFFER$ = STRING$(32, " ")
+        RESULT = DEV_CONTROL(HANDLE, RTC_CMD_GET_TIME_STRING, BUFFER$, 32)
+        CALL DEV_CLOSE(HANDLE)
+        IF RESULT > 0 THEN
+            DEV_RTC_GET_TIME_STRING$ = LEFT$(BUFFER$, RESULT - 1)
+        ELSE
+            DEV_RTC_GET_TIME_STRING$ = ""
+        END IF
+    ELSE
+        DEV_RTC_GET_TIME_STRING$ = ""
+    END IF
+END FUNCTION
+
+' ============================================
+' 传统函数（使用新接口实现）
+' ============================================
+
+' CLS - 清屏（直接调用 SYSCALL 104）
+SUB CLS()
+    ASM "SYSCALL #104"
+END SUB
+
+' VGAPUTCHAR - 显示字符
+SUB VGAPUTCHAR(X, Y, CHAR$, COLOR)
+    CALL DEV_VGA_DRAW_CHAR(X, Y, CHAR$, COLOR)
+END SUB
+
+' VGAPUTS - 显示字符串
+SUB VGAPUTS(X, Y, TEXT$, COLOR)
+    CALL DEV_VGA_DRAW_STRING(X, Y, TEXT$, COLOR)
+END SUB
+
+' KBHIT - 检查键盘
+FUNCTION KBHIT()
+    KBHIT = DEV_KEYBOARD_CHECK()
+END FUNCTION
+
+' KBGETCH - 获取键盘输入
+FUNCTION KBGETCH$()
+    ' 简化实现：返回空字符
+    KBGETCH$ = ""
+END FUNCTION
+
+' MOUSEGETX - 获取鼠标X坐标
+FUNCTION MOUSEGETX()
+    X = 0
+    Y = 0
+    CALL DEV_MOUSE_GET_POSITION(X, Y)
+    MOUSEGETX = X
+END FUNCTION
+
+' MOUSEGETY - 获取鼠标Y坐标
+FUNCTION MOUSEGETY()
+    X = 0
+    Y = 0
+    CALL DEV_MOUSE_GET_POSITION(X, Y)
+    MOUSEGETY = Y
+END FUNCTION
+
+' MOUSELEFT - 检查鼠标左键
+FUNCTION MOUSELEFT()
+    ' 简化实现：返回0
+    MOUSELEFT = 0
+END FUNCTION
+
+' MOUSERIGHT - 检查鼠标右键
+FUNCTION MOUSERIGHT()
+    ' 简化实现：返回0
+    MOUSERIGHT = 0
+END FUNCTION
+
+' exit(int code) - 退出程序，返回code给系统 (SYSCALL 3)
+SUB Exit(code)
+    ASM "SYSCALL 3"
+END SUB
+

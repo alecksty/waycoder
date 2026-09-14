@@ -1,0 +1,46 @@
+﻿' SSD1306寄存器定义
+' 生成自: Solomon Systech/Display/SSD1306
+' 版本: 1.0
+' 日期: 2026-05-06
+' 作者: VML Team
+' 描述: SSD1306 128x64 OLED Display Controller (I2C/SPI)
+
+' CPU架构: Display
+' 位宽: 8位
+' 时钟频率: 400000 Hz
+
+' 内存段定义
+' Graphic Display Data RAM (128x64 = 1024 bytes)
+CONST GDDRAM_START = 0x00
+CONST GDDRAM_END = 0x3FF
+CONST GDDRAM_SIZE = 1024
+
+' 外设定义
+' SSD1306 128x64 OLED (0x3C/0x3D I2C, 3.3V-5V)
+CONST SSD1306_BASE = 0x3C
+CONST SSD1306_CMD = 0x00
+CONST SSD1306_DATA = 0x40
+CONST SSD1306_DISPLAY_OFF = 0xAE
+CONST SSD1306_DISPLAY_ON = 0xAF
+CONST SSD1306_CONTRAST = 0x81
+CONST SSD1306_SEG_REMAP = 0xA1
+CONST SSD1306_COM_SCAN = 0xC8
+CONST SSD1306_ADDR_MODE = 0x20
+CONST SSD1306_COL_START = 0x21
+CONST SSD1306_PAGE_START = 0x22
+
+' 设备初始化子程序
+SUB ssd1306_init()
+    ' 初始化代码
+END SUB
+
+' 常用函数
+FUNCTION read_register(addr AS INTEGER) AS INTEGER
+    ' 读取寄存器值
+    RETURN PEEK(addr)
+END FUNCTION
+
+SUB write_register(addr AS INTEGER, value AS INTEGER)
+    ' 写入寄存器值
+    POKE addr, value
+END SUB

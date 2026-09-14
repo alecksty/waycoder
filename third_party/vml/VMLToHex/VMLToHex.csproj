@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Authors>施探宇;alecksty</Authors>
+    <Company>深圳市探索智能科技有限公司</Company>
+    <OutputType>Library</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <AssemblyName>vml2hex</AssemblyName>
+    <RootNamespace>VMLToHex</RootNamespace>
+    <!-- Native AOT 发布配置 -->
+    <OptimizationPreference>Speed</OptimizationPreference>
+    <!-- 编译器项目是 Exe (非自包含), AOT 发布需绕过引用校验 -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+    <!-- VMLPlugins/VMLRuntime 在 VMLToHex 路径中不被调用, 安全抑制 -->
+    <NoWarn>$(NoWarn);IL2104;IL2026;IL2055;IL3050</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\VMLAssembler\VMLAssembler.csproj" />
+    <ProjectReference Include="..\VMLRuntime\VMLRuntime.csproj" />
+    <ProjectReference Include="..\VMLTranslators\VMLTranslators.csproj" />
+    <ProjectReference Include="..\VMLPlugins\VMLPlugins.csproj" />
+    <!-- 内置编译器，无需 Plugins 目录 -->
+    <ProjectReference Include="..\VMLPrepares\CCompiler\CCompiler.csproj" />
+    <ProjectReference Include="..\VMLPrepares\BasicCompiler\BasicCompiler.csproj" />
+    <ProjectReference Include="..\VMLPrepares\JavaScriptCompiler\JavaScriptCompiler.csproj" />
+    <ProjectReference Include="..\VMLPrepares\PythonCompiler\PythonCompiler.csproj" />
+    <ProjectReference Include="..\VMLPrepares\LuaCompiler\LuaCompiler.csproj" />
+    <ProjectReference Include="..\VMLPrepares\PascalCompiler\PascalCompiler.csproj" />
+    <ProjectReference Include="..\VMLPrepares\ForthCompiler\ForthCompiler.csproj" />
+    <ProjectReference Include="..\VMLPrepares\GoCompiler\GoCompiler.csproj" />
+    <ProjectReference Include="..\VMLPrepares\RustCompiler\RustCompiler.csproj" />
+    <ProjectReference Include="..\VMLPrepares\LadderCompiler\LadderCompiler.csproj" />
+    <ProjectReference Include="..\VMLPrepares\CppCompiler\CppCompiler.csproj" />
+    <ProjectReference Include="..\VMLPrepares\CSharpCompiler\CSharpCompiler.csproj" />
+    <ProjectReference Include="..\VMLPrepares\JavaCompiler\JavaCompiler.csproj" />
+    <ProjectReference Include="..\VMLPrepares\SwiftCompiler\SwiftCompiler.csproj" />
+    <ProjectReference Include="..\VMLPrepares\KotlinCompiler\KotlinCompiler.csproj" />
+    <ProjectReference Include="..\VMLPrepares\SchemeCompiler\SchemeCompiler.csproj" />
+    <ProjectReference Include="..\VMLPrepares\CompilerBase\CompilerBase.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,1 @@
+using VMLPlugins.Interfaces; using VMLAssembler; namespace VMLTranslators { public class TranslatorZ80Plugin : TranslatorPlugin<TranslatorZ80> { public TranslatorZ80Plugin() : base("Z80", "Z80 8位微处理器", "8", ".z80.asm") { } } }

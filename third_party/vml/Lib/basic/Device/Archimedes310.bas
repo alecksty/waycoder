@@ -1,0 +1,206 @@
+﻿' Acorn-Archimedes-A310寄存器定义
+' 生成自: Acorn Computers/Archimedes/Acorn-Archimedes-A310
+' 版本: 1.0
+' 日期: 2026-04-17
+' 作者: VML Team
+' 描述: Acorn Archimedes A310 - First ARM-based home computer with RISC OS, ARM250 @ 26MHz
+
+' CPU架构: ARM250
+' 位宽: 32位
+' 时钟频率: 26000000 Hz
+
+' 寄存器定义
+' General Purpose Register 0
+CONST R0 = 0x00
+
+' General Purpose Register 1
+CONST R1 = 0x04
+
+' General Purpose Register 2
+CONST R2 = 0x08
+
+' General Purpose Register 3
+CONST R3 = 0x0C
+
+' General Purpose Register 4
+CONST R4 = 0x10
+
+' General Purpose Register 5
+CONST R5 = 0x14
+
+' General Purpose Register 6
+CONST R6 = 0x18
+
+' General Purpose Register 7
+CONST R7 = 0x1C
+
+' General Purpose Register 8
+CONST R8 = 0x20
+
+' General Purpose Register 9
+CONST R9 = 0x24
+
+' General Purpose Register 10
+CONST R10 = 0x28
+
+' General Purpose Register 11 (fp)
+CONST R11 = 0x2C
+
+' General Purpose Register 12
+CONST R12 = 0x30
+
+' Stack Pointer (R13)
+CONST SP = 0x34
+
+' Link Register (R14)
+CONST LR = 0x38
+
+' Program Counter (R15)
+CONST PC = 0x3C
+
+' Processor Status Register
+CONST PSR = 0x40
+CONST PSR_MODE = 0  ' Mode bits (0-4)
+CONST PSR_T = 5  ' Thumb state
+CONST PSR_F = 6  ' FIQ disable
+CONST PSR_I = 7  ' IRQ disable
+CONST PSR_V = 28  ' Overflow
+CONST PSR_C = 29  ' Carry
+CONST PSR_Z = 30  ' Zero
+CONST PSR_N = 31  ' Negative
+
+' 内存段定义
+' RISC OS ROM (512KB)
+CONST ROM_START = 0x00000000
+CONST ROM_END = 0x0007FFFF
+CONST ROM_SIZE = 524288
+
+' Main RAM (up to 4MB)
+CONST RAM_START = 0x00080000
+CONST RAM_END = 0x003FFFFF
+CONST RAM_SIZE = 3932160
+
+' Video RAM (4MB, VIDC)
+CONST VRAM_START = 0x00400000
+CONST VRAM_END = 0x007FFFFF
+CONST VRAM_SIZE = 4194304
+
+' I/O controller (IOC)
+CONST IO_START = 0x03000000
+CONST IO_END = 0x0301FFFF
+CONST IO_SIZE = 131072
+
+' Memory Controller (MEMC)
+CONST MEMC_START = 0x03200000
+CONST MEMC_END = 0x0320FFFF
+CONST MEMC_SIZE = 4096
+
+' Video Controller (VIDC)
+CONST VIDC_START = 0x03400000
+CONST VIDC_END = 0x0340FFFF
+CONST VIDC_SIZE = 4096
+
+' I/O and Memory DMA
+CONST IOMD_START = 0x03300000
+CONST IOMD_END = 0x0330FFFF
+CONST IOMD_SIZE = 4096
+
+' 外设定义
+' I/O Controller (IOC) - Interrupt/Keyboard/RTC
+CONST IOC_BASE = 0x03000000
+CONST IOC_IOC_TIMER1 = 0x03000000
+CONST IOC_IOC_TIMER2 = 0x03000004
+CONST IOC_IOC_IOSEL = 0x03000008
+CONST IOC_IOC_IRQST = 0x0300000C
+CONST IOC_IOC_IRQLATCH = 0x03000010
+CONST IOC_IOC_FIQST = 0x03000014
+CONST IOC_IOC_FIQEN = 0x03000018
+CONST IOC_IOC_IRQEN = 0x0300001C
+CONST IOC_IOC_KBDDATA = 0x03000020
+CONST IOC_IOC_KBDCR = 0x03000024
+CONST IOC_IOC_RTCDR = 0x03000028
+CONST IOC_IOC_RTCCR = 0x0300002C
+CONST IOC_IOC_PRST = 0x03000030
+CONST IOC_IOC_PORTA = 0x03000034
+CONST IOC_IOC_PORTB = 0x03000038
+CONST IOC_IOC_PORTC = 0x0300003C
+
+' Memory Controller (MEMC1)
+CONST MEMC_BASE = 0x03200000
+CONST MEMC_MEMC_PT = 0x03200000
+CONST MEMC_MEMC_CTRL = 0x03200004
+CONST MEMC_MEMC_DRAM = 0x03200008
+CONST MEMC_MEMC_ERR = 0x0320000C
+
+' Video Controller - VIDC1
+CONST VIDC_BASE = 0x03400000
+CONST VIDC_VIDC_PALETTE = 0x03400000
+CONST VIDC_VIDC_STARTL = 0x03400004
+CONST VIDC_VIDC_STARTH = 0x03400008
+CONST VIDC_VIDC_CONFIG = 0x0340000C
+CONST VIDC_VIDC_HDISP = 0x03400010
+CONST VIDC_VIDC_VDISP = 0x03400014
+CONST VIDC_VIDC_HSYNC = 0x03400018
+CONST VIDC_VIDC_VSYNC = 0x0340001C
+CONST VIDC_VIDC_BORDER = 0x03400020
+CONST VIDC_VIDC_CURSOR = 0x03400024
+CONST VIDC_VIDC_SOUND = 0x03400028
+
+' Intel 82710 Floppy Disk Controller
+CONST FDC_BASE = 0x03010000
+CONST FDC_FDC_STATUS = 0x03010000
+CONST FDC_FDC_COMMAND = 0x03010000
+CONST FDC_FDC_TRACK = 0x03010004
+CONST FDC_FDC_SECTOR = 0x03010008
+CONST FDC_FDC_DATA = 0x0301000C
+
+' Serial Port (via IOC)
+CONST SERIAL_BASE = 0x03010010
+CONST SERIAL_SERIAL_TX = 0x03010010
+CONST SERIAL_SERIAL_RX = 0x03010014
+CONST SERIAL_SERIAL_CTRL = 0x03010018
+
+' 中断向量定义
+CONST RESET_VECTOR = 0  ' Reset
+CONST UND_VECTOR = 1  ' Undefined instruction
+CONST SWI_VECTOR = 2  ' Software Interrupt (SWI/SVC)
+CONST PABORT_VECTOR = 3  ' Prefetch Abort
+CONST DABORT_VECTOR = 4  ' Data Abort
+CONST ADDRESS_VECTOR = 5  ' Address Exception
+CONST IRQ_VECTOR = 6  ' IRQ interrupt (IOC)
+CONST FIQ_VECTOR = 7  ' FIQ interrupt (VIDC)
+
+' 引脚定义
+CONST PIN_VCC = 1  ' +5V Power
+CONST PIN_GND = 2  ' Ground
+CONST PIN_CLK = 3  ' ARM clock (26MHz)
+CONST PIN_NRESET = 4  ' Reset (active low)
+CONST PIN_NMREQ = 5  ' Memory Request (active low)
+CONST PIN_NIORQ = 6  ' I/O Request (active low)
+CONST PIN_NRW = 7  ' Read/Write (0=write, 1=read)
+CONST PIN_MAS0 = 8  ' Master address bit 0
+CONST PIN_MAS1 = 9  ' Master address bit 1
+CONST PIN_MAS2 = 10  ' Master address bit 2
+CONST PIN_LOCK = 11  ' Bus lock
+CONST PIN_NMREQ = 12  ' Memory request (active low)
+CONST PIN_NWAIT = 13  ' Wait state (active low)
+CONST PIN_NIRQLINE = 14  ' IRQ line (active low)
+CONST PIN_NFIRQLINE = 15  ' FIQ line (active low)
+CONST PIN_A1_A25 = 16  ' Address Bus (26-bit)
+CONST PIN_D0_D31 = 17  ' Data Bus (32-bit)
+
+' 设备初始化子程序
+SUB acorn_archimedes_a310_init()
+    ' 初始化代码
+END SUB
+
+' 常用函数
+FUNCTION read_register(addr AS INTEGER) AS INTEGER
+    ' 读取寄存器值
+    RETURN PEEK(addr)
+END FUNCTION
+
+SUB write_register(addr AS INTEGER, value AS INTEGER)
+    ' 写入寄存器值
+    POKE addr, value
+END SUB

@@ -1,0 +1,142 @@
+﻿; TMS320F280049寄存器定义
+; 生成自: Texas Instruments/C2000/TMS320F280049
+; 版本: 1.0
+; 日期: 2026-04-28
+; 作者: VML Team
+; 描述: 32-bit C28x DSP + CLA MCU with 256KB Flash, 100KB RAM, 100MHz
+
+; CPU架构: C28x-DSP
+; 位宽: 32位
+; 时钟频率: 100000000 Hz
+
+; 寄存器定义
+; Accumulator Low
+.equ AL, 0x00
+
+; Accumulator High
+.equ AH, 0x02
+
+; Product High
+.equ PH, 0x04
+
+; Product Low
+.equ PL, 0x06
+
+; Temporary Register
+.equ TREG, 0x08
+
+.equ AR0, 0x0A
+
+.equ AR1, 0x0C
+
+; Status 0
+.equ ST0, 0x20
+
+; Status 1
+.equ ST1, 0x22
+
+; Program Counter
+.equ PC, 0x24
+
+; Stack Pointer
+.equ SP, 0x26
+
+; 内存段定义
+.equ FLASH_START, 0x080000
+.equ FLASH_END, 0x0BFFFF
+.equ FLASH_SIZE, 262144
+
+; Local Shared RAM
+.equ SRAM_LS_START, 0x008000
+.equ SRAM_LS_END, 0x00BFFF
+.equ SRAM_LS_SIZE, 16384
+
+; Global Shared RAM
+.equ SRAM_GS_START, 0x00C000
+.equ SRAM_GS_END, 0x01FFFF
+.equ SRAM_GS_SIZE, 81920
+
+.equ PERIPHERAL_START, 0x400000
+.equ PERIPHERAL_END, 0x40FFFF
+.equ PERIPHERAL_SIZE, 65536
+
+; 外设定义
+; PLL Clock Control
+.equ PLL_BASE, 0x5C10
+.equ PLL_SYSPLLCTL1, 0x00
+.equ PLL_SYSPLLCTL2, 0x02
+.equ PLL_CLKSRCCTL1, 0x04
+.equ PLL_CLKSRCCTL2, 0x06
+
+; GPIO Control Registers
+.equ GPIO_CTRL_BASE, 0x7C00
+.equ GPIO_CTRL_GPACTRL, 0x00
+.equ GPIO_CTRL_GPAQSEL1, 0x02
+.equ GPIO_CTRL_GPAQSEL2, 0x04
+.equ GPIO_CTRL_GPAMUX1, 0x06
+.equ GPIO_CTRL_GPAMUX2, 0x08
+.equ GPIO_CTRL_GPADIR, 0x0A
+.equ GPIO_CTRL_GPAPUD, 0x0C
+
+; GPIO Data Registers
+.equ GPIO_DATA_BASE, 0x7F00
+.equ GPIO_DATA_GPADAT, 0x00
+.equ GPIO_DATA_GPASET, 0x02
+.equ GPIO_DATA_GPACLEAR, 0x04
+.equ GPIO_DATA_GPATOGGLE, 0x06
+.equ GPIO_DATA_GPBDAT, 0x08
+.equ GPIO_DATA_GPBSET, 0x0A
+.equ GPIO_DATA_GPBCLEAR, 0x0C
+.equ GPIO_DATA_GPBTOGGLE, 0x0E
+
+; GPIO B Control
+.equ GPIO_B_CTRL_BASE, 0x7C20
+.equ GPIO_B_CTRL_GPBMUX1, 0x00
+.equ GPIO_B_CTRL_GPBMUX2, 0x02
+.equ GPIO_B_CTRL_GPBDIR, 0x04
+.equ GPIO_B_CTRL_GPBPUD, 0x06
+
+; SCI-A UART
+.equ SCI_A_BASE, 0x7320
+.equ SCI_A_SCICCR, 0x00
+.equ SCI_A_SCICTL1, 0x02
+.equ SCI_A_SCIBAUD, 0x04
+.equ SCI_A_SCIRXBUF, 0x0A
+.equ SCI_A_SCITXBUF, 0x0C
+
+; 中断向量定义
+.equ RESET_VECTOR, 1  ; 
+.equ SCIA_RX_VECTOR, 8  ; SCI-A Receive Interrupt
+.equ SCIA_TX_VECTOR, 9  ; SCI-A Transmit Interrupt
+
+; 宏定义
+.macro tms320f280049_init
+    ; 设备初始化代码
+.endm
+
+.macro read_register reg_addr
+    ; 读取寄存器值到R0
+    LOAD R0, [\reg_addr]
+.endm
+
+.macro write_register reg_addr, value
+    ; 将值写入寄存器
+    LOAD R1, \value
+    STORE [\reg_addr], R1
+.endm
+
+; 常用函数
+tms320f280049_init_proc:
+    ; 设备初始化过程
+    RET
+
+read_register_proc:
+    ; 参数: R0 = 寄存器地址
+    ; 返回: R0 = 寄存器值
+    LOAD R0, [R0]
+    RET
+
+write_register_proc:
+    ; 参数: R0 = 寄存器地址, R1 = 值
+    STORE [R0], R1
+    RET
