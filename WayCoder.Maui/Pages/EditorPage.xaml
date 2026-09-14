@@ -103,8 +103,11 @@
 
             <!-- 单行编辑框：字体/字号/内边距全部取自 EditorTypography（与画布同一份常量），
                  否则切换编辑的瞬间两者会错位。垂直位置靠 TranslationY 对齐到当前行。 -->
+            <!-- StyleId：MauiProgram 里那两处「关掉平台选中浮层」的 mapper 是全局静态的，
+                 靠它把作用范围限到这一个输入框（否则全 App 18 个 Entry 的粘贴一起没了）。 -->
             <Entry
                 x:Name="LineEditor"
+                StyleId="code-line-editor"
                 IsVisible="False"
                 VerticalOptions="Start"
                 HorizontalOptions="Fill"

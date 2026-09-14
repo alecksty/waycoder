@@ -518,6 +518,8 @@ public partial class EditorPage : ContentPage
         var text = Canvas.GetSelectedText();
         if (text.Length == 0) { ShowToast("没有选中内容"); return; }
         // 剪贴板仍走系统（那是**数据**通道，不是 UI）；复制完收起选区，与桌面编辑器一致
+        // ⚠ 大文件里没读进内存的行拿不到 —— 如实说，别报一个「已复制 N 字符」让人以为复制全了
+        if (Canvas.SelectedTextTruncated) ShowToast("选区太大，只复制了能读到的部分", 2600);
         await CopyTextAsync(text);
         Canvas.ClearSelection();
         UpdateSelectionBar();
@@ -536,8 +538,12 @@ public partial class EditorPage : ContentPage
         if (string.IsNullOrEmpty(text)) { ShowToast("剪贴板是空的"); return; }
         if (!_canEdit || _readOnly) { ShowToast("只读文件不能粘贴"); return; }
 
+        // ⚠ 用上面算好的 `line`（已经夹到 ≥1），**别把 `Canvas.CaretLine` 直接传进去** ——
+        // 它可能是 -1（比如刚 SetDocument 过、选区被静默清掉），那样 `BeginEditLine(-1)` 会把
+        // `_editLine` 设成 -2，随后 TextChanged/Commit 都因为 `_editLine < 0` 提前返回 ——
+        // 文字被静默丢掉，而输入框是透明的，屏幕上什么异常都看不到。
         long line = Canvas.CaretLine > 0 ? Canvas.CaretLine : 1;
-        if (_editLine != line - 1) BeginEditLine(Canvas.CaretLine);
+        if (_editLine != line - 1) BeginEditLine(line);
         await Task.Delay(60);   // 等输入框就位（BeginEditLine 里也有等待，这里兜一层）
         int at = Math.Clamp(LineEditor.CursorPosition, 0, (LineEditor.Text ?? "").Length);
         var cur = LineEditor.Text ?? "";

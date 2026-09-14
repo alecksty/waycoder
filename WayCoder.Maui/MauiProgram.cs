@@ -43,14 +43,26 @@ public static class MauiProgram
 		EntryHandler.Mapper.AppendToMapping("NoExtractIme", (handler, view) => ApplyNoExtractIme(handler.PlatformView));
 		EditorHandler.Mapper.AppendToMapping("NoExtractIme", (handler, view) => ApplyNoExtractIme(handler.PlatformView));
 
-		// **关掉平台的「选中操作」浮层**（长按弹出的 复制/粘贴/全选 工具条）。
-		// 编辑器自带选区与操作条（见 EditorPage 的 SelectionBar），平台再弹一个就变成两套 UI、
-		// 而且那套的锚点是按平台自己那层输入框算的 —— 与自绘正文差一点就「看着对不上」。
-		// 回调返回 true = 这个 ActionMode **已被消费**（不显示），这是 Android 官方的关闭方式。
+		// **关掉平台的「选中操作」浮层**（长按弹出的 剪切/复制/粘贴/全选 工具条）——**只对编辑器那一层**。
+		//
+		// ⚠ 两条都踩过：
+		// ① **`onCreateActionMode` 返回 `false` 才是「不创建」**。返回 `true` 是「创建」——
+		//    一开始写反了，于是工具条照弹，只是每个菜单项都被 `onActionItemClicked` 吃掉，
+		//    变成一条**点不动的**工具条，比不弹还糟。
+		// ② **这两个 mapper 是全局静态的**（`EntryHandler.Mapper`），不判 StyleId 就会把 App 里
+		//    **所有** Entry 的复制/粘贴一起废掉 —— 聊天输入框、API Key、仓库地址… 而它们**只有**
+		//    系统那一套粘贴入口（`Clipboard.*` 在 EditorPage 之外没有出现）。同文件上面的
+		//    `TransparentText` 就是判 `StyleId` 的，照它写。
 		EntryHandler.Mapper.AppendToMapping("NoSelectionToolbar", (handler, view) =>
-			handler.PlatformView.CustomSelectionActionModeCallback = new SuppressActionMode());
+		{
+			if (view is Microsoft.Maui.Controls.Element el && el.StyleId == EditorLineStyleId)
+				handler.PlatformView.CustomSelectionActionModeCallback = new SuppressActionMode();
+		});
 		EditorHandler.Mapper.AppendToMapping("NoSelectionToolbar", (handler, view) =>
-			handler.PlatformView.CustomSelectionActionModeCallback = new SuppressActionMode());
+		{
+			if (view is Microsoft.Maui.Controls.Element el && el.StyleId == EditorLineStyleId)
+				handler.PlatformView.CustomSelectionActionModeCallback = new SuppressActionMode();
+		});
 
 		static void ApplyNoExtractIme(Android.Widget.TextView view)
 		{
@@ -91,8 +103,14 @@ public static class MauiProgram
 
 #if ANDROID
 	/// <summary>
-	/// 把平台的「选中操作」浮层（长按弹出的 复制/粘贴/全选 工具条）**吃掉** ——
-	/// 三个回调一律返回 true（= 已消费），于是它不弹。
+	/// 给编辑器的浮动输入框打的标记 —— 只有带这个 StyleId 的 Entry 才关掉平台的选中浮层
+	/// （见 <c>NoSelectionToolbar</c> 那两处 mapper 的注释：mapper 是全局的，不判 StyleId 会误伤全 App）。
+	/// </summary>
+	internal const string EditorLineStyleId = "code-line-editor";
+
+	/// <summary>
+	/// 平台「选中操作」浮层的回调：**`OnCreateActionMode` 返回 false = 不创建**，
+	/// 于是那条工具条根本不出现。
 	///
 	/// 存在的理由：编辑器的选区与操作条是自己的（见 <c>EditorPage.SelectionBar</c>），
 	/// 平台再弹一套就变成两套 UI；而且那套的锚点是按平台自己那层输入框算的，
@@ -100,8 +118,8 @@ public static class MauiProgram
 	/// </summary>
 	sealed class SuppressActionMode : Java.Lang.Object, Android.Views.ActionMode.ICallback
 	{
-		public bool OnCreateActionMode(Android.Views.ActionMode? mode, Android.Views.IMenu? menu) => true;
-		public bool OnPrepareActionMode(Android.Views.ActionMode? mode, Android.Views.IMenu? menu) => true;
+		public bool OnCreateActionMode(Android.Views.ActionMode? mode, Android.Views.IMenu? menu) => false;
+		public bool OnPrepareActionMode(Android.Views.ActionMode? mode, Android.Views.IMenu? menu) => false;
 		public bool OnActionItemClicked(Android.Views.ActionMode? mode, Android.Views.IMenuItem? item) => true;
 		public void OnDestroyActionMode(Android.Views.ActionMode? mode) { }
 	}

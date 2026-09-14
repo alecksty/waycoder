@@ -204,7 +204,14 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             _dragHandle = 0;
             _selecting = false;
             _longPressTimer?.Stop();
+
+            // 捏合被系统打断（来电、切走 App、父容器截走触摸）时**必须当成一次正常结束**：
+            // 目标字号在 PinchZoomed 里已经落进 EditorTypography 了，而「落盘 + 提示」那类一次性
+            // 收尾只在 PinchEnded 做 —— 只清 _pinchStartDist 的话，屏幕上字号明明变了、
+            // 下次打开又变回去（用户视角就是「改了没保存」），而且连个提示都没有。
+            bool wasPinching = _pinchStartDist > 0;
             _pinchStartDist = 0;
+            if (wasPinching) PinchEnded?.Invoke();
         };
     }
 
@@ -265,8 +272,13 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // 的偏移 ≈ 旧偏移 × (新字号 / 旧字号)。纵向（_firstLine 是行号，与字号无关）本来就不动。
         float oldSize = _scrollFontSize > 0.5f ? _scrollFontSize : EditorTypography.FontSize;
         _scrollX = Math.Max(0f, _scrollX * (EditorTypography.FontSize / oldSize));
+        // ⚠ **必须把基准改成新字号**。捏合期间每接受一档就调一次本函数 —— 不更新的话
+        // 每次都在拿「文档打开时那个字号」当基准，比例是**连乘**的（∏(sᵢ/s₀) 而不是 s/s₀），
+        // 缩放几下就被 ClampScroll 甩到行尾，而且缩回去也回不来。
+        _scrollFontSize = EditorTypography.FontSize;
 
         _charWidthMeasured = false;   // 推进量要按新字号重量（MeasureAdvances）
+        _lineWidths.Clear();          // 行宽也随字号变 —— 不清则 MaxScrollX 还是旧值（长行尾巴滚不到）
         ClampScroll();
         Invalidate();
     }
@@ -423,6 +435,11 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
         long line = (long)(_firstLine + (_downY - EditorTypography.VerticalPad) / EditorTypography.LineHeight);
         line = Math.Clamp(line, 0, Math.Max(0, _doc.LineCount - 1));
+
+        // **先通知页面收尾**（它要 CommitEditingLine），再选词。
+        // 不通知的话：正在编辑的那一行只活在浮动输入框/EditingText 里，而 `GetSelectedText`
+        // 读的是 `_doc.GetLine()` —— 长按后复制会**复制到编辑前的旧文本**，屏幕上却是新的。
+        LineLongPressed?.Invoke(line + 1);
         SelectWordAt(line, _downX - GutterWidth() - EditorTypography.TextLeftPad + _scrollX);
     }
 
@@ -431,12 +448,20 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// （每行一次原生 StaticLayout）。逐事件重绘等于把同样的活干两到四遍，滚动就会发涩。
     /// 压到 ~60fps 后，位置照样每次都更新，只是合并到下一帧一起画。
     /// </summary>
+    /// <summary>
+    /// 视口变了：按帧率节流地**重绘 + 通知页面**。
+    ///
+    /// ⚠ 通知不能只在手势结束时发 —— 选区操作条要跟着选区走（滚出视口就收起来），
+    /// 只发一次的话条子会停在原处「乱飘」，而那个「滚出视口就隐藏」的判据永远不会被求值。
+    /// 触摸事件可达 240Hz，所以和重绘共用同一道 16ms 闸门。
+    /// </summary>
     private void ThrottledInvalidate()
     {
         long now = Environment.TickCount64;
         if (now - _lastPaintTicks < 16) return;
         _lastPaintTicks = now;
         Invalidate();
+        ViewChanged?.Invoke();
     }
 
     private long _lastPaintTicks;
@@ -657,7 +682,13 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         }
         _samples.Clear();
 
-        if (Math.Abs(_velocityY) < MinFlingVelocity && Math.Abs(_velocityX) < MinFlingVelocity) return;
+        // 慢速松手（不触发惯性）—— 行号数字由 Draw 里的「本帧还在动就再排一帧」负责补回来
+        // （见那边的注释：滚动的最后一帧恰好还在动时，没有后续帧是行号永不回来的根因）。
+        if (Math.Abs(_velocityY) < MinFlingVelocity && Math.Abs(_velocityX) < MinFlingVelocity)
+        {
+            StopFling();
+            return;
+        }
 
         _fling ??= Dispatcher.CreateTimer();
         _fling.Interval = TimeSpan.FromMilliseconds(16);
@@ -832,9 +863,16 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         => SelectionChanged?.Invoke(HasSelection ? Math.Min(_selALine, _selBLine) + 1 : 0,
                                     HasSelection ? Math.Max(_selALine, _selBLine) + 1 : 0);
 
+    /// <summary>复制选区的字符数上限 —— 与「全选并复制」同一个口径，防超大只读文件上一把复制出几百 MB。</summary>
+    public const int MaxCopyChars = 2_000_000;
+
+    /// <summary>上一次 <see cref="GetSelectedText"/> 是否因为太长被截断（页面据此提示用户）。</summary>
+    public bool SelectedTextTruncated { get; private set; }
+
     /// <summary>选中文本（**原样的行内容**，含 tab；跨行用 <c>\n</c> 连接）。无选区返回空串。</summary>
     public string GetSelectedText()
     {
+        SelectedTextTruncated = false;
         if (_doc == null || !HasSelection) return "";
 
         // 归一化：A 在 B 之前（按行、再按列）
@@ -848,12 +886,26 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         sb.Append(Slice(_doc.GetLine(la), ca, int.MaxValue));
         for (long i = la + 1; i < lb && i < _doc.LineCount; i++)
         {
-            sb.Append('\n');
+            // ⚠ 超出上限就**停**（而不是继续拼空行）：只读大文件的内容不在内存里，
+            // `GetLine` 对 LRU 窗口之外的行返回 null —— 继续拼下去会得到一份
+            // 「行数对、内容几乎全空」的假文本，还报「已复制 N 字符」。
+            if (sb.Length >= MaxCopyChars) { SelectedTextTruncated = true; break; }
             var mid = _doc.GetLine(i);
-            if (mid != null) sb.Append(mid);
+            if (mid == null)
+            {
+                // 不在缓存里：请一行（这是**用户主动复制**，不是渲染路径，等得起）
+                _ = _doc.PrefetchAsync(i, i);
+                SelectedTextTruncated = true;   // 本行拿不到 —— 让页面如实提示，别假装复制全了
+                continue;
+            }
+            sb.Append('\n');
+            sb.Append(mid);
         }
-        sb.Append('\n');
-        sb.Append(Slice(_doc.GetLine(lb), 0, cb));
+        if (!SelectedTextTruncated)
+        {
+            sb.Append('\n');
+            sb.Append(Slice(_doc.GetLine(lb), 0, cb));
+        }
         return sb.ToString();
 
         static string Slice(string? s, int from, int to)
@@ -881,8 +933,11 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     private static int WordClass(char c)
     {
         if (char.IsWhiteSpace(c)) return 0;
-        if (char.IsLetterOrDigit(c) || c == '_') return 1;
+        // ⚠ **CJK 必须先判**：`char.IsLetterOrDigit('中')` 是 **true**（汉字是 Unicode 字母类 Lo），
+        // 放在后面的话第 2 类永远轮不到汉字 —— 长按 `value中文名` 会把整串当成一个词，
+        // 而注释与更新日志写的都是「CJK 单独一类」。
         if (c >= 0x2E80 && c <= 0x9FFF) return 2;      // CJK（按码元判够用：区外没有代理对）
+        if (char.IsLetterOrDigit(c) || c == '_') return 1;
         return 3;
     }
 
@@ -1070,6 +1125,15 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _lastDrawnScrollX = _scrollX;
         DrawGutter(canvas, first, last, gutterW, h, lineH, withNumbers: !viewMoving);
 
+        // 本帧视口还在动 ⇒ 跳过了行号数字 ⇒ **再排一帧**。
+        //
+        // 不做这件事的话，滚动的**最后一帧恰好「还在动」**，而之后没有任何东西会再触发绘制
+        // （惯性计时器已停、也没有后续触摸）—— 行号栏就永久停在一条没有数字的灰边上，
+        // 直到某个无关事件（点击、进编辑）恰好重画才回来。实测就是这样。
+        //
+        // 只排一帧、且下一帧位姿没再变就自然收敛（那时 viewMoving 为假，不再排）。
+        if (viewMoving) Dispatcher.Dispatch(Invalidate);
+
 #if DEBUG
         // 调试标尺：在**测量出来的行尾**画一条竖线（仅在调试 HUD 打开时）。
         //
@@ -1227,8 +1291,10 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// <summary>
     /// 上次更新 <see cref="_scrollX"/> 时的字号。改字号时用它把横向偏移**按比例**换算到新字号
     /// （见 <see cref="ResetTypography"/>）—— 否则缩放会把视口拽回最左边。
+    /// **每次换算完必须就地更新**，否则比例会连乘。
     /// </summary>
     private float _scrollFontSize;
+
 
 #if ANDROID
     /// <summary>「平台排版 == 网格」的自检只做一次（见 Draw 里那段）。</summary>
