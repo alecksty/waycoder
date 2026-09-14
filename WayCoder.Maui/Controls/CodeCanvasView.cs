@@ -917,15 +917,15 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     }
 
     /// <summary>自绘用的近似字宽：CJK/全角算 2 列，其余 1 列（与 AnsiString.CharWidth 同语义）。</summary>
-    private static int RuneWidthApprox(Rune r)
-    {
-        int cp = r.Value;
-        bool wide = cp >= 0x1100 && (cp <= 0x115F || cp >= 0x2E80 && cp <= 0xA4CF
-            || cp >= 0xAC00 && cp <= 0xD7A3 || cp >= 0xF900 && cp <= 0xFAFF
-            || cp >= 0xFE30 && cp <= 0xFE4F || cp >= 0xFF00 && cp <= 0xFF60
-            || cp >= 0xFFE0 && cp <= 0xFFE6);
-        return wide ? 2 : 1;
-    }
+    /// <summary>
+    /// 字符占几列 —— **委托给全仓唯一的宽度真源** <see cref="AnsiString.CharWidth"/>。
+    ///
+    /// 这里曾经有一张自己手写的宽字符表，代价是它把 **emoji 判成 1 列**（表里没有
+    /// 0x1F000 段），而真源判 2 列（`cp is >= 0x1F000 and <= 0x1FAFF`）。一行 1029 字符的
+    /// 测试串里有 114 个 emoji，光这一项就累计偏出 114 列 —— 「同一规则两处实现、
+    /// 只改了一处」这个仓库里反复出现的形态，这次是摊在宽度表上。
+    /// </summary>
+    private static int RuneWidthApprox(Rune r) => WayCoder.UI.Shared.Terminal.AnsiString.CharWidth(r);
 
     /// <summary>
     /// 把一行裁到「当前横向可见的那几列」，返回 (片段, 片段起点的 x)。
