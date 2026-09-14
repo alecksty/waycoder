@@ -90,16 +90,21 @@ public partial class EditorPage : ContentPage
         // 滚出屏幕自然看不见，滚回来又在了。浮动的输入框由 PositionEditor 跟着走。
         Canvas.ShowDebugHud = MauiEditorStore.ShowDebugHud;
 
+        // 输入框只是个「换出软键盘」的代理，**它自带的光标要关掉** ——
+        // 那是平台画的（Android 上红色/蓝色竖条），时不时冒出来看着像「光标乱跳」。
+        // Handler 是懒创建的，所以挂在 HandlerChanged 上而不是这里。
+        LineEditor.HandlerChanged += (_, _) => HidePlatformCaret();
+
         // 输入框与画布共用同一份排版常量：字体族/字号/行高/内边距只要有一处不同，
         // 切换编辑的瞬间就会跳一下。
         LineEditor.FontFamily = EditorTypography.FontFamilyName;
         LineEditor.FontSize = EditorTypography.FontSize;
-        LineEditor.HeightRequest = EditorTypography.LineHeight;
+        LineEditor.HeightRequest = 1;
         // ⚠ HeightRequest 只是「请求」，**不是上限**：Entry 在 VerticalOptions=Start 下会按内容
         // 自然高度撑开（13pt 加 EditText 默认内边距实测约 3 个行高），于是它的选区高亮变成
         // 一条跨 3 行的矩形、两个选择手柄落到编辑行下方两行去。文字与光标都是画布画的，
         // 所以只有高亮/手柄会暴露这个失真。MaximumHeightRequest 才是真正的钳制。
-        LineEditor.MaximumHeightRequest = EditorTypography.LineHeight;
+        LineEditor.MaximumHeightRequest = 1;
         LineEditor.BackgroundColor = Colors.Transparent;
         // 文字也透明：这一行由画布自绘（见 CodeCanvasView.EditingLine 的注释）。
         // Entry 保留下来只为了三件事——IME 组合输入、软键盘、系统复制粘贴菜单。
@@ -239,12 +244,12 @@ public partial class EditorPage : ContentPage
 
         // 输入框与画布必须同步：两者字号/行高不一致就会错位（这正是当初改成单层自绘要解决的问题）
         LineEditor.FontSize = snapped;
-        LineEditor.HeightRequest = EditorTypography.LineHeight;
+        LineEditor.HeightRequest = 1;
         // ⚠ HeightRequest 只是「请求」，**不是上限**：Entry 在 VerticalOptions=Start 下会按内容
         // 自然高度撑开（13pt 加 EditText 默认内边距实测约 3 个行高），于是它的选区高亮变成
         // 一条跨 3 行的矩形、两个选择手柄落到编辑行下方两行去。文字与光标都是画布画的，
         // 所以只有高亮/手柄会暴露这个失真。MaximumHeightRequest 才是真正的钳制。
-        LineEditor.MaximumHeightRequest = EditorTypography.LineHeight;
+        LineEditor.MaximumHeightRequest = 1;
         Canvas.ResetTypography();
 
         // 菜单路径弹轻提示（它过 2 秒会自己把状态栏恢复成 UpdateStatus）；
@@ -353,12 +358,12 @@ public partial class EditorPage : ContentPage
 
         EditorTypography.FontSize = MauiEditorStore.FontSize;   // 套用上次调的字号
         LineEditor.FontSize = EditorTypography.FontSize;
-        LineEditor.HeightRequest = EditorTypography.LineHeight;
+        LineEditor.HeightRequest = 1;
         // ⚠ HeightRequest 只是「请求」，**不是上限**：Entry 在 VerticalOptions=Start 下会按内容
         // 自然高度撑开（13pt 加 EditText 默认内边距实测约 3 个行高），于是它的选区高亮变成
         // 一条跨 3 行的矩形、两个选择手柄落到编辑行下方两行去。文字与光标都是画布画的，
         // 所以只有高亮/手柄会暴露这个失真。MaximumHeightRequest 才是真正的钳制。
-        LineEditor.MaximumHeightRequest = EditorTypography.LineHeight;
+        LineEditor.MaximumHeightRequest = 1;
 
         bool dark = Application.Current?.RequestedTheme == AppTheme.Dark;
         Canvas.SetDocument(_doc, relPath, dark, _canEdit);
@@ -737,14 +742,14 @@ public partial class EditorPage : ContentPage
     /// </summary>
     private void PositionEditor(long oneBased)
     {
-        float y = Canvas.LineScreenY(oneBased, (float)Canvas.Height) ?? -1;
-        // 看不见就**什么都不做**，尤其**不要 IsVisible = false**：
-        // 那会让输入框失焦、软键盘收起来 —— 正好破坏「滚着也能打字」。
-        // 它本来就是全透明的，留在原地不占视觉。
-        if (y < 0) return;
-        LineEditor.TranslationY = y;
-        LineEditor.Margin = new Thickness(
-            Canvas.GutterWidthPx + EditorTypography.TextLeftPad - Canvas.ScrollX, 0, 0, 0);
+        // **输入框钉死在顶部，不跟任何东西走。**
+        //
+        // 它只是个「换出软键盘」的代理：全透明、1px 高、自带光标已关掉（见 HidePlatformCaret）。
+        // 既然自带光标一概不用、内容也全透明，那它浮在屏幕哪个位置就都不影响观感 ——
+        // 而**跟着文字走反而有害**：它的原生光标会时不时冒出来（用户实测红色光标乱跳），
+        // 而且每帧挪它要更新原生控件布局，长列表滚动会掉帧。钉死就都没了。
+        LineEditor.TranslationY = 0;
+        LineEditor.Margin = new Thickness(0);
     }
 
     private void CommitEditingLine()
@@ -977,5 +982,23 @@ public partial class EditorPage : ContentPage
     {
         StatusLabel.Text = message;
         Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(ms), UpdateStatus);
+    }
+    /// <summary>
+    /// 把输入框在平台侧彻底抹掉：**关自带光标 + 透明背景 + 透明选中高亮**。
+    ///
+    /// 这个 <c>Entry</c> 只负责换出软键盘，文字与光标**全部由画布自绘** ——
+    /// 它的任何原生视觉残留都会和画布上的自绘光标打架（用户实测「红色光标跳出来」）。
+    /// 高度也固定成 1px（见 XAML；不用 0，怕平台侧算布局时报错），钉在顶部不动。
+    /// </summary>
+    private void HidePlatformCaret()
+    {
+#if ANDROID
+        if (LineEditor.Handler?.PlatformView is Android.Widget.EditText et)
+        {
+            et.SetCursorVisible(false);
+            et.SetBackgroundColor(Android.Graphics.Color.Transparent);
+            et.SetHighlightColor(Android.Graphics.Color.Transparent);
+        }
+#endif
     }
 }

@@ -118,6 +118,8 @@
                 StyleId="code-line-editor"
                 IsVisible="False"
                 VerticalOptions="Start"
+                HeightRequest="1"
+                MaximumHeightRequest="1"
                 HorizontalOptions="Fill"
                 ReturnType="Done"
                 Completed="OnLineEditorCompleted"
