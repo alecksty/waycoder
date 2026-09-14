@@ -719,12 +719,13 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// 调大 <see cref="FlingFriction"/> 会同时把距离和**时长**一起拉长（尾巴慢慢飘，正是他不想要的）；
     /// 而放大初速只按比例放大**第一秒**的位移，时长基本不变
     /// （时长 = ln(v_stop / v0) / ln(friction)，v0 翻倍只是把对数里的一项挪一点）。
-    /// 实测量级：轻扫一下第一秒从约 23 行变成约 39 行，而滑行时长 2.37s → 2.47s（几乎不变）。
+    /// 实测量级：轻扫一下第一秒从约 23 行变成约 60 行（1.7 倍时是 39 行，用户实测「还不够」，
+    /// 于是加到 2.6），而滑行时长 2.37s → 2.6s（几乎不变）。
     ///
     /// 放大**放在起步阈值判断之后** —— 否则 30pt/s 的轻扫会被放大成 51 而越过门槛，
     /// 等于顺手把起步门槛降低了，那是另一个改动。
     /// </summary>
-    private const float FlingLaunchGain = 1.7f;
+    private const float FlingLaunchGain = 2.6f;
 
     /// <summary>
     /// 每帧速度保留比例 —— **滑多远由它决定**：总位移 = 初速 × dt / 行高 ÷ (1 − friction)。
@@ -1548,6 +1549,11 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// </summary>
     private void DrawCaret(ICanvas canvas, string line, float textX, float y, float lineH)
     {
+        // 闪烁的「灭」半周期：整根不画。
+        // ⚠ 只在这里返回、**不要**连带跳过别的绘制 —— 光标是叠在正文上的最后一层，
+        // 它不画不代表这一帧不用画（行底色、选区、行号栏都还得画）。
+        if (!_caretOn) return;
+
         int col = Math.Clamp(EditingCursor, 0, line.Length);
         float x = textX + MeasurePrefixWidth(line, col);
 
@@ -1560,9 +1566,16 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // 字号 8 时半角格子只有 **11px**，6.9px 的光标占了格子大半，左右各压到相邻字形上
         // ——用户看到的就是「光标叠在 s 字母上」。它本身**位置是对的**（落在字符边界、
         // 与 MeasurePrefixWidth 同源），纯粹是太胖，把「在间隔里」画成了「压在字上」。
-        // 取格子宽度的 1/4，并夹在「看得见」与「别太胖」之间：
-        // 字号 8 → 1.2pt（约 3.3px，格子 11px）、14 → 1.75pt（4.6px，格子 19px）、20 → 2.5pt。
-        canvas.StrokeSize = Math.Clamp(_charWidth * 0.25f, 1.2f, 2.5f);
+        // 取格子宽度的 1/5，并夹在「看得见」与「别太胖」之间：
+        // 字号 8 → 1.0pt（约 2.8px，格子 11px）、14 → 1.4pt、24 → 2.0pt（5.5px，格子 33px）。
+        //
+        // ⚠ 上限**不能大**：光标是**居中画在格线上**的（与 MeasurePrefixWidth 同源，位置本来就是对的），
+        // 于是它左右各伸出一半宽度。而 `P`/`H` 这类**左竖笔紧贴格线**的字形，左留白几乎是 0 ——
+        // 光标一胖就把那根竖笔整个盖住，用户看到的就是「光标完全压在 P 上面」。
+        // 所以宽度要小于「两个字形之间的空隙」，而不是「格子的某个比例」：
+        // 实测本字体在字号 24 下字形两侧留白各约 4px，2pt(5.5px) 居中 → 单侧 2.8px，正好塞得下。
+        // （v0.96.137 第一次改成 0.25 并夹 2.5pt 上限，字号 24 时被上限吃满 ⇒ 等于没改。）
+        canvas.StrokeSize = Math.Clamp(_charWidth * 0.2f, 1f, 2f);
         canvas.DrawLine(x, y + 2, x, y + lineH - 3);
     }
 
@@ -1908,6 +1921,22 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             Microsoft.Maui.Graphics.Platform.FontExtensions.ToTypeface(EditorTypography.CanvasFont)
             ?? Android.Graphics.Typeface.Default);
         paint.TextSize = fontSize;
+
+        // ⚠ **必须开亚像素定位，否则光标会沿行漂进字里**（v0.96.137 的根因）。
+        //
+        // 不开这个标志时，平台在**定位**每个字形时会把推进量**取整到整数设备像素**；
+        // 而 `GetStringSize`（= `Layout.GetLineWidth`）报的是**未取整**的小数 ——
+        // 于是「测量的尺子」和「渲染的尺子」每字差一点点，**沿行累积**：
+        // 实测（模拟器 420dpi、字号 14）排版报 18.375px，画出来的栅距却是**正好 18px**
+        // （一行 40 个 H，相邻墨迹起点差全是 18）；到第 16 个字就差 6px、行尾差 15px
+        // ⇒ 光标落在**字符格里**而不是格与格的边界上（用户实测「光标完全压在 P 上面」，
+        // 且「**有些字号是可以的**」：`字号 × 0.5 × 屏幕密度` 恰好落在整数上时就不差）。
+        //
+        // 修法**不是**把我们的尺子也取整 —— 那等于替用户决定缩放的粒度，
+        // 用户明确反对（「文字宽度不要取整，这样无法无极缩放」）。正解是**让渲染别再取整**：
+        // 开了亚像素定位，平台画出来的推进量就是那个小数（18.375），与量到的**同源**，
+        // 任何字号（含小数）都逐字对齐，而且字形定位本身也更精细。
+        paint.SubpixelText = true;
         return paint;
     }
 #endif
@@ -1968,13 +1997,86 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// 结果是两层各按自己的规则算位置（画布用「行顶+基线补偿」，Entry 用它自己的内边距），
     /// 必然错位。现在 <c>Entry</c> 只作为**输入法通道**存在（文字透明），显示层只有一套。
     /// </summary>
-    public long EditingLine { get; set; } = -1;
+    private long _editingLine = -1;
+
+    /// <summary>
+    /// 正在编辑的那一行（1-based；-1 = 没在编辑）。
+    /// 进/出编辑态时顺带开关**光标闪烁**（见 <see cref="OnCaretBlink"/>）。
+    /// </summary>
+    public long EditingLine
+    {
+        get => _editingLine;
+        set
+        {
+            if (_editingLine == value) return;
+            _editingLine = value;
+            if (value >= 0) StartCaretBlink();
+            else StopCaretBlink();
+        }
+    }
 
     /// <summary>编辑行的当前文本（由页面的输入框实时同步过来）。</summary>
     public string? EditingText { get; set; }
 
-    /// <summary>编辑行的光标位置（UTF-16 码元下标）。</summary>
-    public int EditingCursor { get; set; }
+    private int _editingCursor;
+
+    /// <summary>
+    /// 编辑行的光标位置（UTF-16 码元下标）。
+    /// 光标一移动就把闪烁**重置成「亮」并重新计时** —— 与系统编辑器一致：
+    /// 打字/移动之后应该立刻看得见光标，而不是运气不好正赶上「灭」的那半秒。
+    /// </summary>
+    public int EditingCursor
+    {
+        get => _editingCursor;
+        set
+        {
+            if (_editingCursor == value) return;
+            _editingCursor = value;
+            RestartCaretBlink();
+        }
+    }
+
+    // ── 光标闪烁 ──
+
+    private IDispatcherTimer? _caretBlink;
+    private bool _caretOn = true;
+
+    /// <summary>闪烁半周期（ms）—— 与 Android/桌面编辑器一致，500ms 亮 / 500ms 灭。</summary>
+    private const int CaretBlinkMs = 500;
+
+    private void StartCaretBlink()
+    {
+        _caretOn = true;
+        _caretBlink ??= Dispatcher.CreateTimer();
+        _caretBlink.Interval = TimeSpan.FromMilliseconds(CaretBlinkMs);
+        _caretBlink.Tick -= OnCaretBlink;
+        _caretBlink.Tick += OnCaretBlink;
+        _caretBlink.Start();
+        Invalidate();
+    }
+
+    private void StopCaretBlink()
+    {
+        _caretBlink?.Stop();
+        _caretOn = true;      // 下次进编辑态时从「亮」开始
+    }
+
+    /// <summary>把闪烁相位推回「亮」并重新计时（光标移动 / 打字时调）。</summary>
+    private void RestartCaretBlink()
+    {
+        if (_editingLine < 0 || _caretBlink is null) return;
+        _caretOn = true;
+        _caretBlink.Stop();
+        _caretBlink.Start();
+        Invalidate();
+    }
+
+    private void OnCaretBlink(object? sender, EventArgs e)
+    {
+        _caretOn = !_caretOn;
+        // 只重画，不改内容 —— 用非节流的 Invalidate：闪烁本身就是「这一帧必须画」
+        Invalidate();
+    }
 
     /// <summary>行号栏宽度（pt）——浮动的输入框左边界要对齐到它。</summary>
     public float GutterWidthPx => GutterWidth();
@@ -2140,10 +2242,13 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // ——卡顿看峰值，均值会把偶发的长帧平掉。每次手指按下峰值清零，所以「滑一下然后看数」
         // 就是这一段手势的真实表现。
         // 注意：HUD 自己每帧要量两次字宽（等宽自检），开着 HUD 的数比关着略高一点。
+        // ⚠ **整串必须短于 512**：`DrawString(text, x, y, HorizontalAlignment.Left)` 那个重载
+        // 内部把边界写死成 512，超了会**折行** —— 而 HUD 底色带只有 18 高，第二行看不见、
+        // 第一行被顶掉一半（加了分段耗时字段之后就踩到了：读不到 `w` 实测推进量）。
+        // 所以这里只留调性能时真正要看的量，拖拽诊断那几个字段（H/d/w）挪走。
         var text = $"{LastDrawMs:F1}ms 峰{_drawMsPeak:F1} X{_scrollX:F0}/{ComputeMaxScrollX():F0}"
-                 + $" w{_charWidth:F1}/{_wideCharWidth:F1}"
-                 + $" 底{_tBg:F1}文{_tText:F1}号{_tGutter:F1} 行{last - first}"
-                 + $" {_dragBar} H{_drawH:F0} d({_downX:F0},{_downY:F0}) w{_drawW:F0}";
+                 + $" w{_charWidth:F2}/{_wideCharWidth:F2}"
+                 + $" 底{_tBg:F1}文{_tText:F1}号{_tGutter:F1} 行{last - first} {_dragBar}";
         canvas.FontSize = 10;
         canvas.FontColor = Colors.White;
         // MAUI 的 Color.FromArgb 按 #AARRGGBB 解析 —— 写成 #000000AA 的话 alpha=0x00，
