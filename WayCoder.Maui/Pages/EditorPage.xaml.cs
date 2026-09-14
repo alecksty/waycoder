@@ -629,8 +629,9 @@ public partial class EditorPage : ContentPage
             // 已经在编辑这一行：只把光标挪到点到的位置（不重建、不打断 IME）
             if (xInLine > 0)
             {
-                LineEditor.CursorPosition = ClickXToCharIndex(xInLine, LineEditor.Text ?? "");
-                Canvas.EditingCursor = LineEditor.CursorPosition;
+                int tapCol = ClickXToCharIndex(xInLine, LineEditor.Text ?? "");
+                LineEditor.CursorPosition = Math.Clamp(tapCol, 0, (LineEditor.Text ?? "").Length);
+                Canvas.EditingCursor = tapCol;       // 用我们算出的列，不回读平台值
                 Canvas.EnsureCaretVisible();
             }
             LineEditor.Focus();
@@ -670,8 +671,11 @@ public partial class EditorPage : ContentPage
     private IDispatcherTimer? _caretSync;
 
     /// <summary>
-    /// 光标位置同步：<c>Entry</c> 没有「光标移动」事件，用户在框内点一下换位置时自绘光标不会动。
-    /// 轻量轮询解决，且**只在值真的变了才重绘**，不会变成定时刷屏。
+    /// 光标位置同步：<c>Entry</c> 没有「光标移动」事件，**输入法**改光标（打完一个字往右挪、
+    /// 组合态取消等）时自绘光标不会动。轻量轮询解决，且**只在值真的变了才重绘**，不会变成定时刷屏。
+    ///
+    /// ⚠ 手指点位置**不走这条路**（输入框压在画布底下、收不到触摸，见 EditorPage.xaml）：
+    /// 点哪儿由画布自己算，算完直接写 <c>Canvas.EditingCursor</c>。这里只管输入法那一侧。
     /// </summary>
     private void StartCaretSync()
     {

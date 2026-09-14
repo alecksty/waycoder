@@ -95,14 +95,22 @@
 
         <!-- 内容区：自绘画布 + 浮动的单行输入 + Markdown 预览。
              **所有行由 CodeCanvasView 自行绘制**（虚拟滚动，只画可见的几十行），
-             **只有光标所在行在编辑时**浮一个原生 Entry 叠在该行位置上 ——
-             这样 IME、软键盘、选区、系统复制粘贴全部复用平台能力，而渲染始终虚拟化。
+             只有光标所在行在编辑时挂一个原生 Entry ——
+             这样 IME、软键盘、系统剪贴板全部复用平台能力，而渲染始终虚拟化。
              每帧代价与文件大小无关，所以 100MB 也能打开、能滚（改造前是整份塞进原生 Editor）。 -->
         <Grid Grid.Row="2">
-            <ctl:CodeCanvasView x:Name="Canvas" />
-
             <!-- 单行编辑框：字体/字号/内边距全部取自 EditorTypography（与画布同一份常量），
-                 否则切换编辑的瞬间两者会错位。垂直位置靠 TranslationY 对齐到当前行。 -->
+                 否则切换编辑的瞬间两者会错位。垂直位置靠 TranslationY 对齐到当前行。
+
+                 ⚠ **它必须声明在画布之前（= 压在画布底下），绝不能盖在画布上**。
+                 盖在上面时，手指点在「正在编辑的那一行」会被这个 EditText 接走，而
+                 x→字符下标由**平台自己的排版 + 它内部自己的横向滚动**决定，与我们这套
+                 「逐字形推进量」的网格毫无关系（两者每格差不到 1px，但沿行累积，到第 80 列
+                 就差出一整格，且它内部滚动随光标位置变化 ⇒ 偏差还会跳变）。表现就是
+                 **手点的地方和光标落点差出好几格、越靠右越明显**（用户实测）。
+                 压在底下则所有触摸都归画布，点哪儿由 `CharIndexAtX` 一把尺子决定；
+                 而它的系统光标/手柄/放大镜也被不透明的画布盖住，正好一并看不见了。
+                 它自己仍然能被 `Focus()` 聚焦（IME 照常），只是不再接收触摸。 -->
             <!-- StyleId：MauiProgram 里那两处「关掉平台选中浮层」的 mapper 是全局静态的，
                  靠它把作用范围限到这一个输入框（否则全 App 18 个 Entry 的粘贴一起没了）。 -->
             <Entry
@@ -115,6 +123,8 @@
                 Completed="OnLineEditorCompleted"
                 TextChanged="OnLineEditorTextChanged"
                 Unfocused="OnLineEditorUnfocused" />
+
+            <ctl:CodeCanvasView x:Name="Canvas" />
 
             <ScrollView x:Name="PreviewScroll" IsVisible="False">
                 <VerticalStackLayout x:Name="PreviewContent" />

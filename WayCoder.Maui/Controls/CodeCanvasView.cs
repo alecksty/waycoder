@@ -2337,6 +2337,11 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         float left = caretX - _scrollX;
         if (left > viewW - margin) _scrollX = caretX - viewW + margin;
         else if (left < margin) _scrollX = Math.Max(0, caretX - margin);
+
+        // ⚠ 上面两式**自己不带边界**，算出来的可能是负数或超过行尾 —— 收口到 ClampScroll，
+        // 边界守卫只有那一处实现（否则点一次行尾就永久「滚过头」，屏幕上留着一段空白边，
+        // 实测 X3504/3412 就是这样来的）。
+        ClampScroll();
         Invalidate();
     }
 
