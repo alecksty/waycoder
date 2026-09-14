@@ -159,6 +159,28 @@ public static partial class SelfTest
                 Check("编辑器数学: 反向映射一致",
                     TextEditorMath.SourceIndexToVisualCol("中abc", 1, W) == 2);
 
+                // ── 网格（列）模型：GUI（Avalonia）与 MAUI 自绘画布共用的定位真源 ──
+                // 这层能被桌面自测覆盖，正是把它下沉到共享目录（而不是各端抄一份）的主要收益。
+                Check("网格: 半角 1 列", TextEditorMath.MeasureColumns("abc", 3) == 3);
+                Check("网格: 全角 2 列", TextEditorMath.MeasureColumns("中文", 2) == 4);
+                Check("网格: 中英混排 1+2+1", TextEditorMath.MeasureColumns("a中b", 3) == 4);
+                Check("网格: emoji 算 2 列（真源有 0x1F000 段，本地手写表曾漏掉）",
+                    TextEditorMath.MeasureColumns("😀", 2) == 2);
+                Check("网格: 下标落在代理对中间算整字（不劈开）",
+                    TextEditorMath.MeasureColumns("😀x", 1) == 2);
+                Check("网格: tab 补到下一个 4 的倍数", TextEditorMath.MeasureColumns("ab\tc", 3) == 4);
+                Check("网格: 列 → x", TextEditorMath.ColumnsToX(4, 6.5f) == 26f);
+                Check("网格: x → 连续列（刻意不取整）",
+                    Math.Abs(TextEditorMath.XToColumn(29.69f, 6.5f) - 4.5677f) < 0.001f);
+
+                // 中点判定：全角字占 2 列，左半边归它之前、右半边归它之后。
+                // 取整到最近列会让「格子内部靠右的一点」掉到下一格边界上（点哪儿都往后跳一格）。
+                Check("网格: 全角字前半 → 归它之前", TextEditorMath.ColumnToCharIndex("中a", 0.9f) == 0);
+                Check("网格: 全角字后半 → 归它之后", TextEditorMath.ColumnToCharIndex("中a", 1.6f) == 1);
+                Check("网格: 末尾之后夹到行尾", TextEditorMath.ColumnToCharIndex("中a", 99f) == 2);
+                Check("网格: 零宽字符不占格（组合符）",
+                    TextEditorMath.MeasureColumns("a\u0301b", 3) == 2);
+
                 // 超长行的可见窗口
                 var (win, idx) = TextEditorMath.WindowByColumns("abcdefghij", 3, 4, W);
                 Check($"编辑器数学: 可见窗口 [{win}] 起点 {idx}", win == "defg" && idx == 3);

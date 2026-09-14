@@ -153,4 +153,74 @@ public static class TextEditorMath
         => frictionPerSecond is > 0 and < 1
             ? v0 / Math.Log(1.0 / frictionPerSecond)
             : 0;
+    // ══ 网格（列）模型 —— 定位的唯一真源 ═══════════════════════════════════
+    //
+    // 「字符位置 ↔ 横坐标」在整个项目里**只此一份**：GUI（Avalonia 自绘）与 MAUI（自绘
+    // 画布）共用它，所以两端的光标定位、点击命中、横向滚动上限不可能各算各的。
+    //
+    // 立场是「**尺子只有一把，就是我们自己**」—— 位置由列号算出，**不看字体度量**。
+    // MAUI 那边为此折腾了八轮：只要测量与渲染是两条路径就必然差一点（行宽被平台取整、
+    // 全角标点被压缩、字体解析分两条路），把偏差从 24px 压到 1.5px 之后问题依然在，
+    // 因为「两把尺子」这件事本身还在。改自绘的控件请一律走这里，别再自己量字宽。
+
+    /// <summary>行内第 <paramref name="charIndex"/> 个 UTF-16 码元之前占多少**列**。</summary>
+    public static int MeasureColumns(string? line, int charIndex, int tabColumns = 4,
+        Func<Rune, int>? widthOf = null)
+    {
+        if (string.IsNullOrEmpty(line) || charIndex <= 0) return 0;
+        int limit = Math.Min(charIndex, line.Length);
+        int col = 0, idx = 0;
+        foreach (var r in line.EnumerateRunes())
+        {
+            if (idx >= limit) break;
+            col += r.Value == '\t'
+                ? (col / tabColumns + 1) * tabColumns - col
+                : WidthOf(r, widthOf);
+            idx += r.Utf16SequenceLength;
+        }
+        return col;
+    }
+
+    /// <summary>列 → 横坐标（相对正文左端）。<paramref name="halfWidth"/> 是半角列宽（= 字号 ÷ 2）。</summary>
+    public static float ColumnsToX(int columns, float halfWidth) => columns * halfWidth;
+
+    /// <summary>
+    /// 横坐标 → **连续列位置**（不做取整）。
+    ///
+    /// 刻意保留小数：取整会把「格子内部靠右的一点」推到下一个格子的边界上，
+    /// 于是 `！`（11–13 列）右半边的点击被算成「下一个字符之前」—— 点哪儿都往后跳一格。
+    /// **中点判定必须拿到未取整的位置才做得对**（见 <see cref="ColumnToCharIndex"/>）。
+    /// </summary>
+    public static float XToColumn(float x, float halfWidth)
+        => x <= 0 ? 0 : x / Math.Max(0.5f, halfWidth);
+
+    /// <summary>
+    /// 连续列位置 → 行内 UTF-16 码元下标。
+    ///
+    /// **落在字符前半归它前面、后半归它后面** —— 与「点字定位光标」的直觉一致。
+    /// 全角字符因此不会被劈开：整格 2 列，中点在第 1.5 列处，左半边一律归到它之前。
+    /// </summary>
+    public static int ColumnToCharIndex(string? line, float column, int tabColumns = 4,
+        Func<Rune, int>? widthOf = null)
+    {
+        if (string.IsNullOrEmpty(line) || column <= 0) return 0;
+        float col = 0;
+        int idx = 0;
+        foreach (var r in line.EnumerateRunes())
+        {
+            float w = r.Value == '\t'
+                ? (col / tabColumns + 1) * tabColumns - col
+                : WidthOf(r, widthOf);
+            if (w <= 0) { idx += r.Utf16SequenceLength; continue; }   // 零宽字符不占格
+            if (column < col + w)
+                return column < col + w / 2f ? idx : idx + r.Utf16SequenceLength;
+            col += w;
+            idx += r.Utf16SequenceLength;
+        }
+        return idx;
+    }
+
+    /// <summary>宽字符判定 —— 默认走全仓唯一真源（CJK/emoji=2，半角=1，零宽/组合=0）。</summary>
+    private static int WidthOf(Rune r, Func<Rune, int>? widthOf)
+        => (widthOf ?? WayCoder.UI.Shared.Terminal.AnsiString.CharWidth)(r);
 }
