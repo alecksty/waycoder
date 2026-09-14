@@ -96,19 +96,50 @@ public partial class EditorPage : ContentPage
 #if ANDROID
             if (LineEditor.Handler?.PlatformView is Android.Widget.EditText et)
             {
-                et.SetCursorVisible(false);
-                et.SetBackgroundColor(Android.Graphics.Color.Transparent);
+                HidePlatformCaret(et);
                 // **左右内边距清零**：输入框的文字原点是「外边距 + 内边距」，而画布正文的原点是
                 // 「行号栏 + 正文左内边距 − 横向滚动」。内边距留着，系统的光标/选择手柄/复制粘贴
                 // 浮层就会整体再多偏一个内边距的量。上下不动（行高另有一套钳制）。
                 et.SetPadding(0, et.PaddingTop, 0, et.PaddingBottom);
+                // 选区底色也交给画布画（画布按整行铺底色）。系统再画一层的话，
+                // 两层底色会错开一点，看着像重影。
+                et.SetHighlightColor(Android.Graphics.Color.Transparent);   // 绑定里 HighlightColor 只有 getter
             }
 #elif IOS
             if (LineEditor.Handler?.PlatformView is UIKit.UITextField tf)
                 tf.TintColor = UIKit.UIColor.Clear;
 #endif
         };
+#if ANDROID
+        // 光标**只由画布画**（见 CodeCanvasView.DrawCaret）—— 系统的插入光标一个都不留。
+        // 每次获得焦点都重申一遍：`setCursorVisible(false)` 会被平台的焦点流程重新打开
+        // （EditText 拿到焦点默认就要显示光标），只在 HandlerChanged 里设一次是不够的。
+        LineEditor.Focused += (_, _) =>
+        {
+            if (LineEditor.Handler?.PlatformView is Android.Widget.EditText et) HidePlatformCaret(et);
+        };
+#endif
     }
+
+#if ANDROID
+    /// <summary>
+    /// 把平台的插入光标彻底藏掉：**光禁显示不够，还要把光标画笔换成全透明** ——
+    /// 平台在获得焦点/重新布局时会按自己的规则把 `CursorVisible` 置回 true，
+    /// 那时如果光标画笔还在，屏幕上就会冒出**第二个**光标（与画布自绘的那个错开一点，
+    /// 看着就是「光标位置不对」）。两道一起上才稳。
+    /// </summary>
+    private static void HidePlatformCaret(Android.Widget.EditText et)
+    {
+        et.SetCursorVisible(false);
+        et.SetBackgroundColor(Android.Graphics.Color.Transparent);
+        if (OperatingSystem.IsAndroidVersionAtLeast(29) && et.TextCursorDrawable != null)
+        {
+            var blank = new Android.Graphics.Drawables.ColorDrawable(Android.Graphics.Color.Transparent);
+            blank.SetBounds(0, 0, 0, 0);
+            et.TextCursorDrawable = blank;   // API 29+ 才有 setTextCursorDrawable
+        }
+    }
+#endif
 
     // ── 右上角菜单 ──
 

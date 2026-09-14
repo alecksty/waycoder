@@ -13,14 +13,55 @@ public static class TextEditorMath
 {
     /// <summary>把制表符展开成空格（对齐下一个 tab stop）。没有 tab 时原样返回、不分配。</summary>
     public static string ExpandTabs(string line, int tabColumns = 4)
-    {
-        if (string.IsNullOrEmpty(line) || line.IndexOf('\t') < 0) return line;
-        if (tabColumns <= 0) return line.Replace("\t", "");
+        => ExpandTabsWithMap(line, tabColumns).Text;
 
-        var sb = new StringBuilder(line.Length + 8);
-        int col = 0;
+    /// <summary>
+    /// 展开 tab，**并给出「原串下标 → 展开后下标」的映射**（长度 = `line.Length + 1`，
+    /// 末项 = 展开后的长度）。
+    ///
+    /// 两件事必须在**同一次遍历**里算出来，理由有两条、都是踩过的：
+    ///
+    /// ① **tab 的推进规则只能有一份实现**。画布画的是展开后的串，而光标/点击/选区要按**原串**
+    ///    的下标定位；两处各写一套规则，就会漂移 —— 而且必然在「tab 前面有中文/emoji」时暴露。
+    ///    这里曾经就分裂过：本函数按**字符数**推进 tab stop（CJK 也只算 1），
+    ///    <see cref="MeasureColumns"/> 按**显示格**推进（CJK 算 2），于是同一行
+    ///    「画出来的宽度」与「点击算出来的位置」差出一格，表现就是「点 tab 后面那段落错位置」。
+    ///
+    /// ② 现在统一按**显示格**推进（半角 1 格、全角 2 格，判据是与 <see cref="MeasureColumns"/>
+    ///    同一个 <c>AnsiString.CharWidth</c>）：一个 tab 在视觉上永远补齐到下一个 4 的倍数格 ——
+    ///    也就是「tab 相当于 4 个空格」这句话的字面意思（全角字符占 2 格，所以它前面那个 tab
+    ///    补的空格数会相应少，落点仍在同一列上）。
+    ///
+    /// 映射的语义：`Map[i]` = 第 i 个 UTF-16 码元**在展开串里的起点**。代理对的两个 char 指向
+    /// 同一位置（码元中间不是合法的光标位置，归到该字形之前）。调用方拿 `Map[charIndex]` 去切
+    /// 展开串，就与画布画的那一串**完全同源**。
+    /// </summary>
+    public static (string Text, int[] Map) ExpandTabsWithMap(string line, int tabColumns = 4,
+        Func<Rune, int>? widthOf = null)
+    {
+        int n = line?.Length ?? 0;
+        var map = new int[n + 1];
+
+        // 无 tab：不分配、映射就是恒等
+        if (string.IsNullOrEmpty(line) || line.IndexOf('\t') < 0)
+        {
+            for (int i = 0; i <= n; i++) map[i] = i;
+            return (line ?? "", map);
+        }
+        if (tabColumns <= 0)   // 与原行为一致：非正 tab 宽 = 把 tab 删掉
+        {
+            var stripped = line.Replace("\t", "");
+            int w = 0;
+            for (int i = 0; i < n; i++) { map[i] = w; if (line[i] != '\t') w++; }
+            map[n] = w;
+            return (stripped, map);
+        }
+
+        var sb = new StringBuilder(n + 8);
+        int col = 0, idx = 0;
         foreach (var rune in line.EnumerateRunes())
         {
+            map[idx] = sb.Length;
             if (rune.Value == '\t')
             {
                 int next = (col / tabColumns + 1) * tabColumns;
@@ -30,11 +71,20 @@ public static class TextEditorMath
             else
             {
                 sb.Append(rune.ToString());
-                // tab stop 按**字符**列推进（与 VS Code 等主流编辑器一致），不是按显示宽度
-                col++;
+                col += Math.Max(0, WidthOf(rune, widthOf));   // 按**显示格**推进（全角 2 格）
             }
+
+            idx += rune.Utf16SequenceLength;
+            // 代理对的**后半个 char**：指向该字形之后，与 <see cref="MeasureColumns"/> 的
+            // 「下标落在代理对中间时算整个字形」保持一致（见那边的遍历）。
+            // 码元中间本来不是合法的光标位置，但两条路径必须给同一个答案 —— 否则同一个下标
+            // 「点击算出来的位置」与「画出来的宽度」会差一个字形宽。
+            if (rune.Utf16SequenceLength == 2 && idx <= n) map[idx - 1] = sb.Length;
         }
-        return sb.ToString();
+        map[n] = sb.Length;
+        // 兜底：任何没填到的下标沿用前一个（理论上只有 n 需要，防将来改遍历时不填满）
+        for (int i = 1; i <= n; i++) if (map[i] < map[i - 1]) map[i] = map[i - 1];
+        return (sb.ToString(), map);
     }
 
     /// <summary>视觉列（显示列，CJK 占 2）→ 源字符索引（UTF-16 码元位置，可直接做 string 下标）。</summary>

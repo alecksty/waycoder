@@ -151,6 +151,43 @@ public static partial class SelfTest
                 Check("编辑器数学: tab 按字符列推进（对齐 tab stop）",
                     TextEditorMath.ExpandTabs("ab\tc") == "ab  c");
 
+                // ── tab stop 按**显示格**推进（半角 1 格、全角 2 格）──
+                // 这是「画出来的宽度」与「点击/光标算出来的位置」同源的关键：画布画的是**展开串**，
+                // 而光标/点击按**原串**下标定位，两边必须共用「展开 + 下标映射」那一次遍历的结果。
+                // 旧实现按**字符数**推进（CJK 也只算 1），而 MeasureColumns 按显示格推进 ——
+                // 两套规则只要 tab 前面有中文就差一格，表现就是「点 tab 后面那段，光标落错位置」。
+                Check("tab: 中文占 2 格 ⇒ 它后面那个 tab 补到第 4 格（2 空格，不是 3）",
+                    TextEditorMath.ExpandTabs("中\tx") == "中  x");
+                Check("tab: 行首 tab 仍是 4 空格", TextEditorMath.ExpandTabs("\tx") == "    x");
+
+                var (tabExp, tabMap) = TextEditorMath.ExpandTabsWithMap("中\tx");
+                Check("tab 映射: 末项等于展开后长度", tabMap[^1] == tabExp.Length);
+                bool mapMonotone = true;
+                for (int i = 1; i < tabMap.Length; i++)
+                    if (tabMap[i] < tabMap[i - 1]) mapMonotone = false;
+                Check("tab 映射: 单调不减", mapMonotone);
+                var (plainExp, plainMap) = TextEditorMath.ExpandTabsWithMap("abc");
+                Check("tab 映射: 无 tab 时是恒等映射",
+                    plainExp == "abc" && plainMap[0] == 0 && plainMap[1] == 1 && plainMap[3] == 3);
+
+                // **不变量**：原串第 i 个字符之前的显示列数 == 展开串前 map[i] 个字符的显示列数。
+                // 这就是「画出来的宽度」与「点击算出来的位置」同源的形式化表述，
+                // 破了它就会出现「所见与所点差一格」——混排 + 多个 tab + emoji 一起上。
+                {
+                    const string tabLine = "ab中\tcd\te\U0001F600f";
+                    var (e, m) = TextEditorMath.ExpandTabsWithMap(tabLine, 4, W);
+                    int badAt = -1, badA = 0, badB = 0;
+                    for (int i = 0; i <= tabLine.Length; i++)
+                    {
+                        int a = TextEditorMath.MeasureColumns(tabLine, i, 4, W);
+                        int b = TextEditorMath.MeasureColumns(e, m[i], 4, W);
+                        if (a != b) { badAt = i; badA = a; badB = b; break; }
+                    }
+                    Check($"tab 不变量: 原串列数 == 展开串同位置列数"
+                        + $"（首个不一致 i={badAt} 原={badA} 展开={badB} map={string.Join(",", m)}）",
+                        badAt < 0);
+                }
+
                 Check("编辑器数学: 视觉列 0 → 索引 0", TextEditorMath.VisualColToSourceIndex("中abc", 0, W) == 0);
                 Check("编辑器数学: CJK 占 2 列 → 视觉列 2 落到下一字符",
                     TextEditorMath.VisualColToSourceIndex("中abc", 2, W) == 1);

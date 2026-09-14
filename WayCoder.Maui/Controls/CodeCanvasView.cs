@@ -856,16 +856,32 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         if (!_widthAuditDone && _doc != null && first < _doc.LineCount)
         {
             _widthAuditDone = true;
-            string probeText = "";
-            for (long i = first; i < Math.Min(first + 40, _doc.LineCount); i++)
+            // **要挑到「难的那几行」**：只拿一条纯 ASCII 行来验，等于没验到 emoji / CJK / tab
+            // 这三条分支（它们各有各的字体与推进量）。所以最多挑 4 条：带 emoji 的、带 tab 的、
+            // 带中文的、以及第一条较长的 —— 每条都跑一遍可加性。
+            var probes = new List<string>();
+            long scanTo = Math.Min(first + 60, _doc.LineCount);
+            for (long i = first; i < scanTo && probes.Count < 4; i++)
             {
                 var l = _doc.GetLine(i);
-                if (l is { Length: > 60 }) { probeText = l; break; }
+                if (string.IsNullOrEmpty(l) || l.Length < 12) continue;
+                bool hasEmoji = false, hasTab = l.Contains('\t'), hasCjk = false;
+                foreach (var r in l.EnumerateRunes())
+                {
+                    int cp = r.Value;
+                    if (cp is >= 0x1F000 and <= 0x1FAFF or >= 0x2600 and <= 0x27BF
+                        or >= 0x2B00 and <= 0x2BFF or >= 0x23E9 and <= 0x23F3) hasEmoji = true;
+                    if (cp is >= 0x4E00 and <= 0x9FFF) hasCjk = true;
+                }
+                bool want = hasEmoji || hasTab || hasCjk || (l.Length > 60 && probes.Count == 0);
+                if (!want) continue;
+                if (probes.Any(p => p == l)) continue;
+                probes.Add(l);
             }
-            if (probeText.Length > 0)
+            double worst = 0;
+            foreach (var probeText in probes)
             {
                 var disp = TextEditorMath.ExpandTabs(probeText, EditorTypography.TabColumns);
-                double worst = 0;
                 foreach (float size in new[] { 8f, 12f, 13f, 16f, 28f, 30f })
                 {
                     // 该字号下的实测推进量（与 MeasureAdvances 同源，但这里是临时量、不写入字段）
@@ -875,22 +891,42 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
                     {
                         var prefix = RunePrefix(disp, n);
                         if (prefix.Length == 0) continue;
-                        // 我们逐字累加会算出的宽度（按同一套半角/全角判据）
-                        float mine = 0;
+                        // 我们逐字累加会算出的宽度：半角 / 打包字体的全角 / 其它宽字符（逐个实测）
+                        float wide = 0, mine = 0;
                         foreach (var r in prefix.EnumerateRunes())
-                            mine += WayCoder.UI.Shared.Terminal.AnsiString.CharWidth(r) > 1
-                                ? (float)canvas.GetStringSize("中", EditorTypography.CanvasFont, size).Width
-                                : lat;
+                        {
+                            int cw = WayCoder.UI.Shared.Terminal.AnsiString.CharWidth(r);
+                            if (cw <= 0) continue;
+                            if (cw == 1) { mine += lat; continue; }
+                            if (IsPackedFontWide(r))
+                            {
+                                if (wide <= 0)
+                                    wide = (float)canvas.GetStringSize("中", EditorTypography.CanvasFont, size).Width;
+                                mine += wide;
+                            }
+                            else
+                                mine += (float)canvas.GetStringSize(r.ToString(),
+                                    EditorTypography.CanvasFont, size).Width;
+                        }
                         float platW = (float)canvas.GetStringSize(prefix,
                             EditorTypography.CanvasFont, size).Width;
                         worst = Math.Max(worst, Math.Abs(platW - mine));
                     }
                 }
-                bool ok = worst < 1.5;
-                Android.Util.Log.Info("WCFONT",
-                    $"{(ok ? "[排版自检] OK" : "[排版自检] ❌ 推进量不可加！")} "
-                    + $"逐字累加 vs 平台排版 最大偏差={worst:F2}px 字号={EditorTypography.FontSize:F1}");
             }
+            bool ok = worst < 1.5;
+            // emoji 与 CJK **是不是同一个推进量**：不是的话就说明它们由不同字体渲染，
+            // 「宽字符一律按全角宽算」会错 —— 这正是 AdvanceOf 里要分两档、逐个实测的理由。
+            float cjkAdv = (float)canvas.GetStringSize("中", EditorTypography.CanvasFont,
+                EditorTypography.FontSize).Width;
+            float emojiAdv = (float)canvas.GetStringSize("😀", EditorTypography.CanvasFont,
+                EditorTypography.FontSize).Width;
+            string emojiNote = Math.Abs(emojiAdv - cjkAdv) < 0.01f
+                ? "同宽" : "**不同宽 ⇒ 必须实测**";
+            Android.Util.Log.Info("WCFONT",
+                $"{(ok ? "[排版自检] OK" : "[排版自检] ❌ 推进量不可加！")} "
+                + $"逐字累加 vs 平台排版 最大偏差={worst:F2}px 探针行={probes.Count} 字号={EditorTypography.FontSize:F1} "
+                + $"中={cjkAdv:F2} 😀={emojiAdv:F2}（{emojiNote}）");
         }
 #endif
 
@@ -917,6 +953,13 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// </summary>
     private float _lastDrawnFirstLine;
     private float _lastDrawnScrollX;
+
+    /// <summary>
+    /// 「非打包字体的宽字符」的实测推进量缓存（emoji 等，按码点）。改字号时清空（见 <see cref="MeasureAdvances"/>）。
+    /// 上限存在的意义只是防病态输入把内存撑爆 —— 正常文件里这类字符是个位数。
+    /// </summary>
+    private const int MaxAdvanceCache = 4096;
+    private readonly Dictionary<int, float> _advanceCache = [];
 
     /// <summary>
     /// 上次更新 <see cref="_scrollX"/> 时的字号。改字号时用它把横向偏移**按比例**换算到新字号
@@ -1509,12 +1552,24 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         if (string.IsNullOrEmpty(line) || charIndex <= 0) return 0;
 
         int limit = Math.Min(charIndex, line.Length);
+
+        // **先展开 tab、再累加** —— 展开后的串就是画布实际绘制的那一串，于是
+        // 「画出来的宽度」与「光标落在哪」不可能再用两套 tab 规则（那是本文件踩过的坑）。
+        var (expanded, map) = TextEditorMath.ExpandTabsWithMap(line, EditorTypography.TabColumns);
+        return AdvancePrefix(expanded, map[limit]);
+    }
+
+    /// <summary>展开串里前 <paramref name="expandedIndex"/> 个码元的横坐标（纯累加，不含 tab）。</summary>
+    private float AdvancePrefix(string expanded, int expandedIndex)
+    {
+        if (expandedIndex <= 0 || expanded.Length == 0) return 0;
+        int limit = Math.Min(expandedIndex, expanded.Length);
         float x = 0;
         int i = 0;
-        foreach (var r in line.EnumerateRunes())
+        foreach (var r in expanded.EnumerateRunes())
         {
             if (i >= limit) break;
-            x += AdvanceOf(r, x);
+            x += r.Value == '\t' ? 0 : AdvanceOf(r);
             i += r.Utf16SequenceLength;
         }
         return x;
@@ -1534,19 +1589,37 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     {
         if (string.IsNullOrEmpty(line) || xInLine <= 0) return 0;
 
-        // **<see cref="MeasurePrefixWidth"/> 的逆**：同样逐字形累加实测推进量。
-        // 落在一个字形格子的**前半** → 归到它前面；后半 → 归到它后面。
-        // 两边必须用同一套推进量，否则「点哪儿」与「光标画哪儿」会差一格。
+        // **<see cref="MeasurePrefixWidth"/> 的逆**：同样先展开 tab，在展开串上逐字形累加实测推进量
+        // （落在一个字形格子的**前半** → 归它前面，后半 → 归它后面），再把展开下标映射回原串下标。
+        // 两边共用「展开 + 映射」这一条路，所以点哪儿与光标画哪儿不可能差一格。
+        var (expanded, map) = TextEditorMath.ExpandTabsWithMap(line, EditorTypography.TabColumns);
+        if (expanded.Length == 0) return 0;
+
         float x = 0;
-        int i = 0;
-        foreach (var r in line.EnumerateRunes())
+        int i = 0, hit = expanded.Length;
+        foreach (var r in expanded.EnumerateRunes())
         {
-            float adv = AdvanceOf(r, x);
-            if (xInLine < x + adv * 0.5f) return i;
+            float adv = r.Value == '\t' ? 0 : AdvanceOf(r);
+            if (xInLine < x + adv * 0.5f) { hit = i; break; }
             x += adv;
             i += r.Utf16SequenceLength;
         }
-        return line.Length;
+        return SourceIndexOf(map, hit, line.Length);
+    }
+
+    /// <summary>
+    /// 展开串下标 → 原串下标：取**最后一个**满足 `map[i] &lt;= expandedIndex` 的 i
+    /// （map 单调不减，所以这就是「该展开位置所属的那个原字符」）。
+    /// </summary>
+    private static int SourceIndexOf(int[] map, int expandedIndex, int lineLength)
+    {
+        int lo = 0, hi = lineLength;
+        while (lo < hi)
+        {
+            int mid = (lo + hi + 1) / 2;
+            if (map[mid] <= expandedIndex) lo = mid; else hi = mid - 1;
+        }
+        return lo;
     }
 
     /// <summary>
@@ -1576,20 +1649,66 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
         _charWidth = lat;
         _wideCharWidth = wide;
+        _advanceCache.Clear();   // 字号变了，非打包字体字符的推进量也得重量
     }
 
     /// <summary>
-    /// 单个码元占多宽。半角/全角的判据与列模型**同一个**（<c>AnsiString.CharWidth</c>，
-    /// 全仓唯一真源）；Tab 推进到下一个 tab stop，与 <c>ExpandTabs</c> 的列语义一致。
+    /// 单个码元占多宽。
+    ///
+    /// **这里没有 tab 分支是故意的**：调用方一律先把行交给
+    /// <see cref="TextEditorMath.ExpandTabsWithMap"/>，在展开后的串上累加 —— tab 的推进规则
+    /// 因此只有那一处实现（见那边关于「曾经两套 tab 规则、中文后面跟 tab 就差一格」的注释）。
+    ///
+    /// ⚠ **不能简单地把「宽字符」都当成同一个宽度**。`AnsiString.CharWidth` 把 CJK 与
+    /// **emoji / 杂项符号**都判成 2 列，但打包的 Sarasa **没有 emoji 字形** —— 那些字符是平台用
+    /// **回落字体**（Noto Color Emoji）画的，推进量不一定等于 Sarasa 的全角推进量。
+    /// 一律按 `_wideCharWidth` 算，光标在 emoji 之后就会偏（正是「有时还是不对」的那一类）。
+    ///
+    /// 所以分两档：**确定在 Sarasa 里**的 CJK/全角区间直接用实测全角宽（快路径，不测量）；
+    /// 其余宽字符**逐个实测并缓存**（emoji 每个码点只量一次），拿到的就是平台真正在用的推进量。
     /// </summary>
-    private float AdvanceOf(Rune r, float currentX)
+    private float AdvanceOf(Rune r)
     {
-        if (r.Value == '\t')
+        int w = WayCoder.UI.Shared.Terminal.AnsiString.CharWidth(r);
+        if (w <= 0) return 0;
+        if (w == 1) return _charWidth;
+        if (IsPackedFontWide(r)) return _wideCharWidth;
+
+        if (_advanceCache.TryGetValue(r.Value, out var cached)) return cached;
+
+        float measured = 0;
+        try
         {
-            float stop = EditorTypography.TabColumns * _charWidth;
-            return stop <= 0 ? 0 : (MathF.Floor(currentX / stop) + 1) * stop - currentX;
+            if (_measureCanvas != null)
+                measured = (float)_measureCanvas.GetStringSize(r.ToString(),
+                    EditorTypography.CanvasFont, EditorTypography.FontSize).Width;
         }
-        return WayCoder.UI.Shared.Terminal.AnsiString.CharWidth(r) > 1 ? _wideCharWidth : _charWidth;
+        catch { measured = 0; }
+        if (measured <= 0) measured = _wideCharWidth;   // 量不到就退回全角宽，绝不返回 0（会让整行算崩）
+
+        if (_advanceCache.Count < MaxAdvanceCache) _advanceCache[r.Value] = measured;
+        return measured;
+    }
+
+    /// <summary>
+    /// 该宽字符**确定由打包字体（Sarasa Mono SC）渲染**吗？—— 是的话推进量就是实测的全角宽。
+    ///
+    /// 列的都是 CJK / 全角字形区间（与 <c>AnsiString.CharWidth</c> 里判 2 列的范围取交集）。
+    /// 剩下的宽字符（emoji、杂项符号、dingbats…）不在内 —— 它们可能是回落字体画的，得实测。
+    /// </summary>
+    private static bool IsPackedFontWide(Rune r)
+    {
+        int cp = r.Value;
+        return cp is >= 0x1100 and <= 0x115F      // 韩文字母
+            or >= 0x2E80 and <= 0xA4CF            // CJK 部首 ~ 彝文
+            or >= 0xA960 and <= 0xA97C            // 韩文扩展
+            or >= 0xAC00 and <= 0xD7A3            // 韩文音节
+            or >= 0xF900 and <= 0xFAFF            // CJK 兼容汉字
+            or >= 0xFE10 and <= 0xFE19            // 竖排标点
+            or >= 0xFE30 and <= 0xFE6F            // CJK 兼容标点
+            or >= 0xFF01 and <= 0xFF60            // 全角 ASCII
+            or >= 0xFFE0 and <= 0xFFE6            // 全角符号
+            or >= 0x20000 and <= 0x3FFFD;         // CJK 扩展 B+
     }
 
     /// <summary>取一行的显示文本（供页面做查找高亮/状态栏）。</summary>
