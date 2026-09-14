@@ -306,6 +306,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         if (_isDark == isDark) return;
         _isDark = isDark;
         ClearLineCache();
+        ClearGutterCache();   // 行号的颜色也烘进了 span，换主题必须重建
         DisposeEditingRuns();
         Invalidate();
     }
@@ -1198,26 +1199,12 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
         // ③ 行号栏（最后画 —— 它会盖掉光标行底色横跨过来的那一段）
         //
-        // **视口正在移动的这一帧不画行号数字**。理由是最小字号下的账：
-        // 每可见行要两次平台文本绘制（正文一次、行号一次），而 `DrawText` 每次都得新建
-        // `StaticLayout`（`ICanvas` 没有缓存入口）—— 字号 8 时一屏 50 多行，行号栏就是其中一半。
-        // 滚动中数字本来也看不清，等停下再补：**判据是「本帧滚动位置与上帧是否相同」**，
-        // 不依赖手势状态机（拖拽/惯性/程序滚动三条路都自动覆盖），停下后的下一帧位姿不变 ⇒ 数字回来。
-        bool viewMoving = Math.Abs(_firstLine - _lastDrawnFirstLine) > 0.01f
-                          || Math.Abs(_scrollX - _lastDrawnScrollX) > 0.01f;
-        _lastDrawnFirstLine = _firstLine;
-        _lastDrawnScrollX = _scrollX;
-        DrawGutter(canvas, first, last, gutterW, h, lineH, withNumbers: !viewMoving);
+        // **行号始终画**（v0.96.141 起）。这里原先有一句「视口在动的这一帧跳过数字」的优化，
+        // 判据是「本帧位姿与上帧是否相同」；省下的时间不多，代价却是**数字一直在闪**
+        // （用户实测反馈「行号容易闪烁，还是一直显示比较好」）。现在行号与正文共用同一套
+        // **缓存排版**（见 TryDrawGutterCached），一次编译反复绘制 ⇒ 不闪，而且比以前更快。
+        DrawGutter(canvas, first, last, gutterW, h, lineH);
         _tGutter = (float)_drawWatch.Elapsed.TotalMilliseconds - _tBg - _tText;
-
-        // 本帧视口还在动 ⇒ 跳过了行号数字 ⇒ **再排一帧**。
-        //
-        // 不做这件事的话，滚动的**最后一帧恰好「还在动」**，而之后没有任何东西会再触发绘制
-        // （惯性计时器已停、也没有后续触摸）—— 行号栏就永久停在一条没有数字的灰边上，
-        // 直到某个无关事件（点击、进编辑）恰好重画才回来。实测就是这样。
-        //
-        // 只排一帧、且下一帧位姿没再变就自然收敛（那时 viewMoving 为假，不再排）。
-        if (viewMoving) Dispatcher.Dispatch(Invalidate);
 
 #if DEBUG
         // 调试标尺：在**测量出来的行尾**画一条竖线（仅在调试 HUD 打开时）。
@@ -1358,13 +1345,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// <summary>本次手势期间的**最差**一帧（每次手指按下清零）——卡顿看峰值，不看均值。</summary>
     private double _drawMsPeak;
 
-    /// <summary>
-    /// 上一帧画的是哪个视口位姿（首个可见行 + 横向偏移）—— 用来判断「本帧视口是否在动」，
-    /// 决定行号数字要不要跳过（见 <see cref="DrawGutter"/> 的 <c>withNumbers</c>）。
-    /// 初值取 0 与构造函数里的初始位姿一致，所以**第一帧算「没动」**、正常画行号。
-    /// </summary>
-    private float _lastDrawnFirstLine;
-    private float _lastDrawnScrollX;
+    // （原先这里有 _lastDrawnFirstLine/_lastDrawnScrollX 两个字段，用来判断「本帧视口是否在动」
+    //  从而跳过行号数字。v0.96.141 起行号**始终画**、并改用缓存排版，这套判断连同字段一起删了。
+    //  「跳过绘制」这类优化一旦去掉触发它的理由，留下的字段就是纯粹的误导。）
 
     /// <summary>
     /// 「非打包字体的宽字符」的实测推进量缓存（emoji 等，按码点）。改字号时清空（见 <see cref="MeasureAdvances"/>）。
@@ -1502,22 +1485,57 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// 是否画行号**数字**。视口正在移动（本帧滚动位置与上帧不同）时传 false ——
     /// 见 <see cref="Draw"/> 里对 <c>_lastDrawnFirstLine</c> 的说明。
     /// </param>
-    private void DrawGutter(ICanvas canvas, long first, long last, float gutterW, float h, float lineH,
-        bool withNumbers)
+    private sealed class GutterEntry
     {
-        // 底色**始终画**：只跳数字，不跳行号栏本身 —— 否则滚动时左边缘会露出一条与正文同色的
-        // 空白，看着像界面在抖。滚动中行号栏保持是「一条安静的灰边」，停下再补上数字。
+        public IAttributedText Text = null!;
+#if ANDROID
+        public Android.Text.StaticLayout? Layout;
+        public Android.Text.SpannableString? Span;
+        public float FontSize;
+#endif
+    }
+
+#if ANDROID
+    /// <summary>行号用缓存排版绘制；拿不到原生画布/画不成时返回 false（调用方回退 DrawText）。</summary>
+    private static bool TryDrawGutterCached(ICanvas canvas, GutterEntry entry, float x, float y)
+    {
+        if (canvas is not Microsoft.Maui.Graphics.Platform.PlatformCanvas pc) return false;
+        var native = pc.Canvas;
+        if (native is null) return false;
+
+        float size = EditorTypography.FontSize - 1;   // 行号比正文小一号
+        if (entry.Layout is null || Math.Abs(entry.FontSize - size) > 0.01f)
+        {
+            entry.Layout?.Dispose();
+            entry.Span?.Dispose();
+            entry.Span = BuildSpannable(entry.Text);
+            if (entry.Span is null) return false;
+            entry.Layout = new Android.Text.StaticLayout(entry.Span, BuildTextPaint(size),
+                int.MaxValue, Android.Text.Layout.Alignment.AlignNormal, 1.0f, 0.0f, false);
+            entry.FontSize = size;
+        }
+
+        native.Save();
+        native.Translate(x, y);
+        entry.Layout!.Draw(native);
+        native.Restore();
+        return true;
+    }
+#endif
+
+    private void DrawGutter(ICanvas canvas, long first, long last, float gutterW, float h, float lineH)
+    {
         canvas.FillColor = _isDark ? EditorTypography.GutterBgDark : EditorTypography.GutterBg;
         canvas.FillRectangle(0, 0, gutterW, h);
-        if (!withNumbers) return;
 
-        // 字号比正文小一号（行号是辅助信息，不该和代码抢注意力）。
+        // ⚠ **行号始终画，不要再「滚动时跳过」**（v0.96.141 改回来）。
         //
-        // ⚠ **不要在这里设 `canvas.Font`**：`CanvasFont` 是 static readonly，正文前已经设过，
-        // 这里再设一遍是纯冗余 —— 而它并不是免费的：`PlatformCanvasState.Font` 的写入会让字体族
-        // 解析作废，下一次 `FontPaint` 访问就要重走 `FontExtensions.ToTypeface()`（那条路**没有缓存**）。
-        // 每次重解析 = 把打包字体读一遍。字体压缩进 APK 时每次 ~110ms（见 csproj 里
-        // `AndroidStoreUncompressedFileExtensions` 的注释），那是编辑器卡顿的真身。
+        // 那是 v0.96.130 为省时间做的：每行一次平台文本绘制，字号 8 时一屏 50 多行、
+        // 行号栏占其中一半。但**代价是数字一直在闪** —— 判据是「本帧视口位姿与上帧是否相同」，
+        // 于是惯性滚动期间数字忽有忽无，视觉上比省下的那点时间糟得多（用户实测反馈）。
+        // 真正的解法不是「少画」而是「别每帧重排版」：行号字符串高度重复（就那几十个数字），
+        // 现在与正文走**同一套缓存排版**（见 GutterEntry），一次编译反复绘制 ⇒
+        // 既不闪、又比原来快。
         canvas.FontSize = EditorTypography.FontSize - 1;
         canvas.SaveState();
         canvas.ClipRectangle(0, 0, gutterW, h);
@@ -1529,10 +1547,14 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             var color = i == _caretLine
                 ? (_isDark ? Colors.White : Colors.Black)
                 : EditorTypography.GutterFg;
-            // 行号也用 DrawText 而非 DrawString：两者的 y 语义在平台上并不一致
-            // （DrawString/Android 是 em 底、iOS 是基线），混用会让行号与代码整体错开。
-            canvas.DrawText(GutterAttributed(label, color), x, y + EditorTypography.TextBaselineOffset,
-                1_000_000f, lineH);
+            var entry = GutterEntryFor(label, color);
+            // 与正文同一条路：能拿到原生画布就用**缓存好的排版**画，否则回退到 DrawText。
+            // （行号也用排版而非 DrawString：两者的 y 语义在平台上并不一致
+            //  —— DrawString/Android 是 em 底、iOS 是基线 —— 混用会让行号与代码整体错开。）
+#if ANDROID
+            if (TryDrawGutterCached(canvas, entry, x, y + EditorTypography.TextBaselineOffset)) continue;
+#endif
+            canvas.DrawText(entry.Text, x, y + EditorTypography.TextBaselineOffset, 1_000_000f, lineH);
         }
         canvas.RestoreState();
     }
@@ -1549,11 +1571,6 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// </summary>
     private void DrawCaret(ICanvas canvas, string line, float textX, float y, float lineH)
     {
-        // 闪烁的「灭」半周期：整根不画。
-        // ⚠ 只在这里返回、**不要**连带跳过别的绘制 —— 光标是叠在正文上的最后一层，
-        // 它不画不代表这一帧不用画（行底色、选区、行号栏都还得画）。
-        if (!_caretOn) return;
-
         int col = Math.Clamp(EditingCursor, 0, line.Length);
         float x = textX + MeasurePrefixWidth(line, col);
 
@@ -1581,6 +1598,11 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // **调试标记：光标两头的小三角，不闪烁**（用户提的：截屏时得能稳定看到光标在哪）。
         // 只在调试 HUD 打开时画，正式用户看不到。颜色刻意用洋红 —— 语法高亮与选区都不用这个色，
         // 于是「按颜色找光标」在截屏分析里是一行代码的事，不受闪烁相位影响。
+        // ⚠ **三角标记必须在闪烁判断之外**（用户实测踩到过）：一开始把
+        // `if (!_caretOn) return;` 写在函数开头，于是「灭」的半周期整个函数提前返回、
+        // **标记也一起没了** —— 而标记存在的全部意义就是「截屏时一定看得到光标」。
+        // 现在只有那根竖线受 `_caretOn` 约束。
+        //
         // 开关是「设置 → 编辑器 → 调试 HUD」：用户自己就能打开，打开后截屏里稳定看得到光标在哪
         if (ShowDebugHud) DrawCaretMarkers(canvas, x, y, lineH);
     }
@@ -1604,10 +1626,16 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         canvas.FillPath(bottom);
     }
 
-    private readonly Dictionary<string, IAttributedText> _gutterCache = [];
+    private readonly Dictionary<string, GutterEntry> _gutterCache = [];
 
-    /// <summary>行号的带色文本（按「文本+颜色」缓存 —— 行号字符串高度重复，逐帧重建毫无必要）。</summary>
-    private IAttributedText GutterAttributed(string label, Color color)
+    /// <summary>
+    /// 行号的带色文本（按「文本+颜色」缓存 —— 行号字符串高度重复，逐帧重建毫无必要），
+    /// Android 上连**平台排版**一起缓存（见 <see cref="TryDrawGutterCached"/>）。
+    ///
+    /// ⚠ 缓存里现在**含字号相关的排版** ⇒ 改字号要清（见 <see cref="MeasureAdvances"/>）。
+    /// 在只缓存 `AttributedText` 的年代它是字号无关的，那条注释已经不作数了。
+    /// </summary>
+    private GutterEntry GutterEntryFor(string label, Color color)
     {
         var key = label + "|" + color.ToHex();
         if (_gutterCache.TryGetValue(key, out var cached)) return cached;
@@ -1618,18 +1646,27 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // 只会**静默回落成平台默认的比例字体** —— 行号数字于是不是等宽的（右对齐的位数会歪）。
         // 不写则布局回落用 `canvas.Font`（= EditorTypography.CanvasFont），走的才是
         // `CreateFromAsset` 分支、能加载打包字体。
-        //
-        // 附带的好处：不写 FontName，这份缓存就**只跟文本+颜色绑定**，不受字号影响；
-        // 而写进去的 FontName 会让每次 `DrawText` 都去做一次注定失败的族名解析。
-        var attr = new AttributedText(label,
-        [
-            new AttributedTextRun(0, label.Length, new TextAttributes
-            {
-                [TextAttribute.Color] = color.ToHex(),
-            }),
-        ]);
-        if (_gutterCache.Count < 512) _gutterCache[key] = attr;
-        return attr;
+        var entry = new GutterEntry
+        {
+            Text = new AttributedText(label,
+            [
+                new AttributedTextRun(0, label.Length, new TextAttributes
+                {
+                    [TextAttribute.Color] = color.ToHex(),
+                }),
+            ]),
+        };
+        if (_gutterCache.Count < 512) _gutterCache[key] = entry;
+        return entry;
+    }
+
+    /// <summary>清空行号缓存（连排版一起释放）。改字号 / 换主题时调。</summary>
+    private void ClearGutterCache()
+    {
+#if ANDROID
+        foreach (var e in _gutterCache.Values) { e.Layout?.Dispose(); e.Span?.Dispose(); }
+#endif
+        _gutterCache.Clear();
     }
 
     /// <summary>尚未加载的行：画一个占位符，绝不在这里等 IO（滚动会被拖成一顿一顿的）。</summary>
@@ -2445,6 +2482,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _charWidth = lat;
         _wideCharWidth = wide;
         _advanceCache.Clear();   // 字号变了，非打包字体字符的推进量也得重量
+        ClearGutterCache();      // 行号缓存里也挂着按字号编好的排版
     }
 
     /// <summary>
