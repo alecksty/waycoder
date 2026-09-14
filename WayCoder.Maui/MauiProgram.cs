@@ -32,6 +32,27 @@ public static class MauiProgram
 		{
 			handler.PlatformView.Background = null;
 		});
+
+		// **横屏不要弹「全屏输入」**：横屏可用高度小，Android 的输入法会切到「抽取式编辑」
+		// （extract mode）—— 整个屏幕变成一块编辑区，正在编辑的上下文被彻底盖住
+		// （用户实测：一横屏，输入区就完全被挡住看不见了）。
+		//
+		// flagNoExtractUi 明确拒绝抽取式编辑界面，flagNoFullscreen 拒绝全屏模式，两个都上。
+		// **必须 `|=` 而不是赋值**：MAUI 会用 ImeOptions 表达 ReturnType（例如 Done），
+		// 直接赋值会把它覆盖掉，回车键就变成了换行。
+		EntryHandler.Mapper.AppendToMapping("NoExtractIme", (handler, view) => ApplyNoExtractIme(handler.PlatformView));
+		EditorHandler.Mapper.AppendToMapping("NoExtractIme", (handler, view) => ApplyNoExtractIme(handler.PlatformView));
+
+		static void ApplyNoExtractIme(Android.Widget.TextView view)
+		{
+			// ⚠ 绑定把 `ImeOptions` 暴露成 `ImeAction` 枚举，而 flag 位与动作位**共用同一个 int**，
+			// 所以只能转成 int 来或 —— 直接 `|=` 编译不过。
+			int opts = (int)view.ImeOptions;
+			opts |= (int)Android.Views.InputMethods.ImeFlags.NoExtractUi;
+			if (OperatingSystem.IsAndroidVersionAtLeast(26))
+				opts |= (int)Android.Views.InputMethods.ImeFlags.NoFullscreen;
+			view.ImeOptions = (Android.Views.InputMethods.ImeAction)opts;
+		}
 #endif
 
 #if ANDROID || IOS

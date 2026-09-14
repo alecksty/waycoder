@@ -49,20 +49,22 @@ public partial class EditorPage : ContentPage
         Canvas.LineLongPressed += OnLineLongPressed;
         Canvas.SelectionChanged += (_, _) => UpdateStatus();
         Canvas.ViewChanged += UpdateStatus;
-        // 双指捏合缩放字号（与菜单里的加大/缩小共用同一套「改了要重测字宽」的收尾）
-        Canvas.PinchZoomed += size =>
+        // 双指捏合缩放字号，与菜单里的加大/缩小走**同一个** ApplyFontSize
+        // （此前这两处是两份几乎逐行相同的拷贝，只改一处就会出现「捏合好了、菜单还是老样子」）。
+        //
+        // 两个关键点：
+        // ① 手势期间**不落盘、不弹提示** —— 触摸事件在 Android 上可达 120~240Hz，而
+        //    SetFontSize 会同步写文件（JSON + 临时文件 + File.Move）、ShowToast 会排一个
+        //    延迟任务。这类一次性收尾统一挪到 PinchEnded。
+        // ② ApplyFontSize 内部「字号没变就直接返回」—— 捏合给的是一串密集的浮点值，
+        //    相邻两次常常只差千分之几，在那里被挡掉才是缩放不卡的关键。
+        //    （夹取区间由 ApplyFontSize 统一做，这里不必再处理。）
+        //    字号**连续可取**：定位走的是平台实测推进量，不是「列号 × 半列宽」，
+        //    所以小数号也能做到渲染与光标逐字对齐（见 CodeCanvasView.MeasureAdvances）。
+        Canvas.PinchZoomed += size => ApplyFontSize(size, persist: false, toast: false);
+        Canvas.PinchEnded += () =>
         {
-            EditorTypography.FontSize = Math.Clamp(MathF.Round(size),
-                EditorTypography.MinFontSize, EditorTypography.MaxFontSize);
-            MauiEditorStore.SetFontSize(EditorTypography.FontSize);
-            LineEditor.FontSize = EditorTypography.FontSize;
-            LineEditor.HeightRequest = EditorTypography.LineHeight;
-        // ⚠ HeightRequest 只是「请求」，**不是上限**：Entry 在 VerticalOptions=Start 下会按内容
-        // 自然高度撑开（13pt 加 EditText 默认内边距实测约 3 个行高），于是它的选区高亮变成
-        // 一条跨 3 行的矩形、两个选择手柄落到编辑行下方两行去。文字与光标都是画布画的，
-        // 所以只有高亮/手柄会暴露这个失真。MaximumHeightRequest 才是真正的钳制。
-        LineEditor.MaximumHeightRequest = EditorTypography.LineHeight;
-            Canvas.ResetTypography();
+            MauiEditorStore.SetFontSize(EditorTypography.FontSize);   // 手势结束才落盘一次
             ShowToast($"字号 {EditorTypography.FontSize:F0}");
         };
         // 一滑动就结束编辑：编辑态下浮着一个输入框，滚动会让它和自绘的行对不上；
@@ -110,7 +112,8 @@ public partial class EditorPage : ContentPage
     {
         CommitEditingLine();   // 先把正在编辑的行落盘，再弹菜单（弹菜单会失焦）
 
-        int fs = (int)EditorTypography.FontSize;
+        // 字号可以是小数（捏合给的是连续值），所以这里按一位小数显示，别截成整数
+        string fs = $"{EditorTypography.FontSize:0.#}";
         // 工具栏那 7 个图标也一并收进来：工具栏是「一眼可见」，菜单是「全都在这里」——
         // 功能一多，图标按钮就会挤成一片看不出谁是谁，不如给一个完整的清单入口。
         var choice = await DisplayActionSheetAsync("编辑器", "取消", null,
@@ -148,18 +151,41 @@ public partial class EditorPage : ContentPage
         }
     }
 
-    /// <summary>调字号（0 = 重置为默认）。排版常量是全局的，改完要让画布重测字宽、输入框跟着变。</summary>
+    /// <summary>调字号（0 = 重置为默认）。步长 <see cref="EditorTypography.FontStep"/>；捏合那条路没有档位、连续取值。</summary>
     private void AdjustFontSize(int delta)
-    {
-        EditorTypography.FontSize = delta == 0
-            ? 13f
-            : Math.Clamp(EditorTypography.FontSize + delta,
-                EditorTypography.MinFontSize, EditorTypography.MaxFontSize);
+        => ApplyFontSize(delta == 0
+                ? EditorTypography.DefaultFontSize
+                : EditorTypography.FontSize + delta * EditorTypography.FontStep,
+            persist: true, toast: true);
 
-        MauiEditorStore.SetFontSize(EditorTypography.FontSize);
+    /// <summary>
+    /// **改字号的唯一入口** —— 捏合、菜单「加大/缩小/重置」全部走这里。
+    ///
+    /// 排版常量是全局的，改完要让画布重测字宽、浮动的输入框跟着变；这套收尾只此一份，
+    /// 免得「捏合」与「菜单」各写一遍然后漂移（此前就是两份几乎逐行相同的拷贝，
+    /// 而注释还写着「共用同一套收尾」）。
+    ///
+    /// <paramref name="persist"/> = 是否立刻落盘：捏合期间传 false（每个触摸事件写一次文件会卡），
+    /// 由 <c>Canvas.PinchEnded</c> 在手势结束补一次。
+    /// </summary>
+    private void ApplyFontSize(float size, bool persist, bool toast)
+    {
+        // ⚠ **先夹取、再判断「变了没有」** —— 顺序不能反。
+        // 拿未夹取的值去比：越界时（比如已到 96 还继续放大）会与当前值不等而放行，
+        // 排版层却夹回 96 ⇒ 画布没变、输入框却真的被写成越界值，两边错开。
+        // 夹取规则的真源在 EditorTypography.ClampFontSize（那边 setter 也用它），这里不要另写一份。
+        float snapped = EditorTypography.ClampFontSize(size);
+
+        // **没变就直接返回** —— 缩放不卡的关键。捏合事件频率可达 120~240Hz，相邻两次
+        // 常常只差千分之几。不挡掉的话，下面那串「三个布局属性 + 整屏重排 + 重测字宽」
+        // 会照着触摸频率白做几百遍。
+        if (Math.Abs(snapped - EditorTypography.FontSize) < 0.01f) return;
+
+        EditorTypography.FontSize = snapped;
+        if (persist) MauiEditorStore.SetFontSize(snapped);
 
         // 输入框与画布必须同步：两者字号/行高不一致就会错位（这正是当初改成单层自绘要解决的问题）
-        LineEditor.FontSize = EditorTypography.FontSize;
+        LineEditor.FontSize = snapped;
         LineEditor.HeightRequest = EditorTypography.LineHeight;
         // ⚠ HeightRequest 只是「请求」，**不是上限**：Entry 在 VerticalOptions=Start 下会按内容
         // 自然高度撑开（13pt 加 EditText 默认内边距实测约 3 个行高），于是它的选区高亮变成
@@ -168,7 +194,10 @@ public partial class EditorPage : ContentPage
         LineEditor.MaximumHeightRequest = EditorTypography.LineHeight;
         Canvas.ResetTypography();
 
-        ShowToast($"字号 {EditorTypography.FontSize:F0}");
+        // 菜单路径弹轻提示（它过 2 秒会自己把状态栏恢复成 UpdateStatus）；
+        // 捏合路径没有提示，得自己刷一下状态栏 —— 否则要等下一次光标/滚动事件才看到新字号。
+        if (toast) ShowToast($"字号 {snapped:F0}");
+        else UpdateStatus();
     }
 
     private async Task SaveAsAsync()
@@ -764,8 +793,10 @@ public partial class EditorPage : ContentPage
         var mark = _modified ? "● " : "";
         var ro = _canEdit ? (_readOnly ? "只读" : "编辑") : "只读";
         var sel = Canvas.HasSelection ? $" · 已选 {Canvas.SelectionChangedRange}" : "";
+        // 字号紧跟在光标行右边：捏合缩放时要能**看着数字调**（「到底放大到几号了」此前只能靠手感）。
         StatusLabel.Text = $"{mark}{_doc.EncodingName} · {ro} · {_doc.LineCount:N0} 行 · "
-                         + $"{FormatSize(_fileBytes)} · 光标 L{Math.Max(1, Canvas.CaretLine)}{sel}"
+                         + $"{FormatSize(_fileBytes)} · 光标 L{Math.Max(1, Canvas.CaretLine)}"
+                         + $" · 字号{EditorTypography.FontSize:F1}{sel}"
 #if DEBUG
                          // 定位「点击位置与渲染不一致」用的读数：只在调试构建里出现
                          + $" · X{Canvas.ScrollX:F0}/{Canvas.MaxScrollX:F0}"

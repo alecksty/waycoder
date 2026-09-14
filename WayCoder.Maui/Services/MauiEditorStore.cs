@@ -21,12 +21,18 @@ public static class MauiEditorStore
 
     public static long ReadOnlyMaxBytes => _readOnlyMaxBytes;
 
-    /// <summary>编辑器字号（磅）。</summary>
-    public static float FontSize { get; private set; } = 13f;
+    /// <summary>编辑器字号（磅）。默认值与真源一致（<see cref="Controls.EditorTypography.DefaultFontSize"/>）。</summary>
+    public static float FontSize { get; private set; } = Controls.EditorTypography.DefaultFontSize;
 
+    /// <summary>
+    /// 字号上下限取 <see cref="Controls.EditorTypography"/> 的**那一对常量**，不在这里另写一份
+    /// —— 这里原先硬编码 9/28，与排版层的 9/28 是两份平行拷贝，改一处就会「捏合能到 6、
+    /// 存盘又被夹回 9」这种半生效的怪状。
+    /// </summary>
     public static void SetFontSize(float size)
     {
-        FontSize = Math.Clamp(size, 9f, 28f);
+        FontSize = Math.Clamp(size,
+            Controls.EditorTypography.MinFontSize, Controls.EditorTypography.MaxFontSize);
         Save();
     }
 
@@ -46,7 +52,8 @@ public static class MauiEditorStore
             long mb = (long)root.GetNumber("readOnlyMaxMB");
             if (mb > 0) _readOnlyMaxBytes = mb * 1024 * 1024;
             double fs = root.GetNumber("fontSize");
-            if (fs >= 9 && fs <= 28) FontSize = (float)fs;
+            if (fs >= Controls.EditorTypography.MinFontSize && fs <= Controls.EditorTypography.MaxFontSize)
+                FontSize = (float)fs;
             int tab = (int)root.GetNumber("tabColumns");
             if (tab is >= 1 and <= 16) TabColumns = tab;
             ShowDebugHud = root.GetBool("debugHud");

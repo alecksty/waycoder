@@ -1,5 +1,116 @@
 # 更新日志
 
+## v0.96.129 (2026-09-14) — 编辑器定位改用**平台实测推进量**（撤销「偶数号」限制，缩放恢复平滑）
+
+### 上一版为什么只允许偶数号
+
+v0.96.128 之后「整行一次绘制」依赖一条等式：**平台排版 == 我们的网格**。而测出来的平台行为是：
+
+> **Android 把每个字形的推进量取整到整数**，我们的网格用的是精确的 0.5em。
+
+于是在**半列宽是整数**（即字号为偶数）时两边逐字相等，半列宽是 x.5 时平台每个半角字形多算 0.5。
+当年正好在追「光标对不上位置」，就把字号限制成偶数档（实测偶数号整行偏差 0.00px，
+**奇数 13 号同行差 53.5px** —— 一帧里那 107 列的行）。
+
+代价立刻显出来了：**捏合每档 2 磅，手感发跳**（「只能整数缩放，反而像卡顿」）。
+
+### 换立场：位置不再由「列 × 半列宽」算，直接累加平台实测推进量
+
+- `CodeCanvasView.MeasureAdvances()`：量半角（`"0"`）与全角（`"中"`）各一个字符的
+  `GetStringSize` 宽度 —— **量出来的就是渲染在用的那把尺子**，不用设计值推算。
+- `MeasurePrefixWidth`（字符下标 → x）与 `CharIndexAtX`（x → 字符下标）改成**逐字形累加 / 反查**，
+  两者互为逆、共用同一套推进量。Tab 仍按 tab stop 推进（与 `ExpandTabs` 同语义）。
+- 半角/全角判据仍走 `AnsiString.CharWidth`（全仓唯一真源），不另立一套。
+
+**偶数限制随之撤销**：`FontSize` 连续可取，捏合的浮点值直接用，菜单步长 1。
+「列」这个概念只留给 tab stop 与状态栏显示，位置一律由推进量决定。
+
+### 不变量自检证明这条等式对任何字号都成立
+
+`CodeCanvasView` 里的一次性自检（`logcat -s WCFONT`）拿「逐字累加」与「平台整段排版」对比：
+
+```
+[排版自检] OK 逐字累加 vs 平台排版 最大偏差=0.00px
+```
+
+字号 8 / 12 / **13** / 16 / 28 / 30，前缀 30 / 60 / 120 码元 —— **包括被旧结论判死的奇数 13 号**。
+（`GetStringSize` 走 `PlatformStringSizeService`，是无界排版取 `GetLineWidth(i)` 的真实浮点宽，
+不是被取整的假值；早期把它误当成「折行后的宽度」，绕了一段弯路。）
+
+### 顺带
+
+- **横屏不再弹「全屏输入法」**：Android 的抽取式编辑（extract mode）会整屏盖住输入区。
+  `Entry`/`Editor` 两个 handler 都加 `flagNoExtractUi` + `flagNoFullscreen`，
+  并且**用 `|=` 而不是赋值**（MAUI 拿 `ImeOptions` 表达 `ReturnType`，赋值会把 Done 覆盖掉）。
+- **字号范围 8–96**（6 号实测已看不出单词形状）、步长 1。
+- **状态栏在「光标 L…」右侧显示字号**（`· 字号13.5`），捏合时能看着数字调。
+- 横向滚动上限、行号栏宽度也收编到同一把尺子。
+
+## v0.96.128 (2026-09-14) — 修移动端编辑器「滑动/缩放卡顿」的真身：字体被压缩进 APK，每帧解压 25MB
+
+### 症状
+
+滑动/缩放时每帧约 **250ms（≈4fps）**，手感是「一顿一顿」。`dumpsys gfxinfo` 对照：
+95th 250ms / 99th 450ms / janky **4.10%**。
+
+### 怎么定位的
+
+在 `Draw` 里塞分段计时打 logcat（底色 / `canvas.Font` / `canvas.FontSize` / 行底 / 正文 / 行号栏），
+靠**排除法**逼近：
+
+| 观察 | 结论 |
+|---|---|
+| `canvas.Font = X` 耗时 **0.0ms** | 设字体本身不要钱 |
+| 紧跟的 `canvas.FontSize = X` 耗 **~110ms** | 钱花在这一句上 |
+| **同一个字号再设一遍只有 0.0ms** | 是**一次性**开销（字体族解析），不是 `setTextSize` |
+| 正文那一段（几百次 `DrawText`）只有 7~50ms | 画字本身不慢 |
+
+去读 MAUI 源码，`PlatformCanvasState.FontPaint` 的 getter 会在 `_typefaceInvalid` 时调
+`Microsoft.Maui.Graphics.Platform.FontExtensions.ToTypeface()` —— **那条路没有任何缓存**：
+
+```csharp
+var id = context.Resources.GetIdentifier(font.Name, "font", context.PackageName);
+if (!TryLoadTypefaceFromAsset(font.Name, out typeface)) { context.Assets.List(""); }
+typeface = Typeface.CreateFromAsset(Aapplication.Context.Assets, filename);   // ← 每次重新解析
+```
+
+而我们的资产是 **25.5MB 的 CJK 字体**，且**在 APK 里是 Deflate 压缩的**（`unzip -v`：
+`Defl:N 25541448 → 12818382`）⇒ `CreateFromAsset` 每次都要**把 25.5MB 解压一遍**。
+一帧解压**两次**（行号栏前一次、正文前一次）≈ 220ms，正好是整帧的开销。
+
+### 修法
+
+```xml
+<AndroidStoreUncompressedFileExtensions>.ttf;.otf</AndroidStoreUncompressedFileExtensions>
+```
+
+资产改成 `Stored` 打包（验证过 APK 里是 `Stored ... 0%`），Android 可直接 mmap，解析代价随之崩掉。
+**不压缩打包是这一版的关键，别删那一行** —— 删了不报错，只是慢，而且只在真机滚动时才看得出来。
+
+同批一起做的（都属于「一帧里少做无谓的事」）：
+
+- 行号栏**不再重复设 `canvas.Font`**（`CanvasFont` 是 static readonly，正文前已设过；而任何一次
+  `Font` 写入都会让字体族解析作废、下次重解析）。
+- **整行一次 `DrawText`**：原先按语法段逐段画（一行十几次调用），现改成一行一次、语法色是同一串里的多个 run。
+- 行缓存从「缓存整行 `AttributedText`」扩成**整行的绘制对象**（分词/切 run/取色一次性建好，滚动时零重算）。
+- 删掉每帧一次的 `GetStringSize("0")`（结果赋给了一个**从未被读取**的局部变量）。
+
+### 结果
+
+| 分段 | 修前 | 修后 |
+|---|---|---|
+| 字体族解析 | **112.8ms** | **0.3ms** |
+| 行号栏 | **115.3ms** | **2.4ms** |
+| 整帧 | **~250ms（4fps）** | **~31–56ms** |
+
+### 还没解决的（诚实记录）
+
+**小字号（≤10）滑动仍偏卡**：`framestats` 拆开是 `布局 0.1ms / 绘制 51.9ms / GPU 5.6ms`
+—— 卡在我们的绘制路径。每可见行要两次平台文本绘制（正文 + 行号），而 `DrawText` 每次都要新建
+`StaticLayout`（`ICanvas` 没有缓存入口）。字号 8 时一屏约 2 倍于字号 14 的行数，于是**行数把它吃回去了**
+（每行成本 1.8ms → 0.96ms，但行数 24 → 54）。
+下一步在做与不做之间有取舍：**滑动中先不画行号，停下再补**（约省一半），需用户拍板。
+
 ## v0.96.127 (2026-09-14) — 修 iOS 光标对不上位置（字体名写错，静默回落）
 
 ### 症状与根因

@@ -27,9 +27,13 @@ namespace WayCoder.Maui.Controls;
 ///   `TypefaceSpan(族名)`，而那个 API 只认系统字体族名、没有 asset 重载 —— 打包字体
 ///   喂进去静默回落成比例字体，「汉字 = 2 列」立刻不成立。不写则布局回落用 `canvas.Font`，
 ///   走的是 <c>FontExtensions.ToTypeface</c> 的 <c>CreateFromAsset</c> 分支，能加载打包字体。
-///   详见 <see cref="EditorTypography.CanvasFontName"/> 与 <c>BuildAttributed</c>。
-/// - **列宽用字体的设计值（`FontSize × 0.5`），不用实测值**：Android 会把行宽取整
-///   （13pt 时拉丁真值 6.5 报成 7），照实测值定位每个拉丁字符多算 0.5pt。
+///   详见 <see cref="EditorTypography.CanvasFontName"/> 与 <c>BuildLineRuns</c>。
+/// - **定位用平台实测推进量，不用设计值**（<see cref="MeasureAdvances"/>）：Android 把**每个字形的
+///   推进量取整**，13 号下半角真值 6.5 实际按 7 走 —— 用设计值定位等于拿一把平台没在用的尺子，
+///   长行会越往右越偏（实测 107 列差 53.5px）。逐字形累加实测推进量 ⇒ 与渲染同源，任何字号都对得上。
+/// - **整行一次 <c>DrawText</c>**（<see cref="DrawLineRuns"/>）：语法色是同一串里的多个 run。
+///   早先按网格逐段画是为了「每段重新按回网格、截断取整误差」；改用实测推进量之后误差不存在了，
+///   于是可以把一行十几次调用收成 1 次（小字号下屏上几百行，这一下差十几倍）。
 /// </summary>
 public sealed class CodeCanvasView : GraphicsView, IDrawable
 {
@@ -57,8 +61,36 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     // ── 行渲染缓存 ──
 
     private const int MaxCachedLines = 512;
-    private readonly Dictionary<long, IAttributedText> _lineCache = new();
+
+    /// <summary>
+    /// 一行的**绘制几何**——按行号缓存，建一次、每帧复用。
+    ///
+    /// 只缓存整行 <c>AttributedText</c> 是不够的：分词每帧都重做一遍的话，滚动时全烧在 CPU 上。
+    /// 这里把「整行的带色文本对象」（= 分词 + 切 run + 取色 + new 对象）一次建好，
+    /// 绘制循环里只剩一次 <c>DrawText</c>。
+    ///
+    /// **缓存是字体无关的**（颜色与文本都不含字号）⇒ 调字号**不必**清这份缓存。
+    /// 只有**文本变了**才清（见 <see cref="InvalidateLine"/> / <see cref="InvalidateAll"/>）。
+    /// </summary>
+    private sealed class LineRuns
+    {
+        /// <summary>整行一次的带色文本（语法色是它内部的多个 run）。空行 / 无内容为 null。</summary>
+        public IAttributedText? Whole;
+
+        /// <summary>空行（什么都不画）—— 共用一个实例，免得每个空行都建一个对象。</summary>
+        public static readonly LineRuns Empty = new();
+    }
+
+    private readonly Dictionary<long, LineRuns> _lineCache = new();
     private readonly List<long> _cacheOrder = [];
+
+    /// <summary>
+    /// 每行的**显示总宽**——只给 <see cref="ComputeMaxScrollX"/> 用（横向滚动上限）。
+    ///
+    /// 量与光标定位同一把尺子（<see cref="MeasurePrefixWidth"/>，逐字形累加实测推进量），
+    /// 所以「能滚到的最右边」正好是「行尾文字所在处」，不会差一截。
+    /// </summary>
+    private readonly Dictionary<long, float> _lineWidths = [];
 
     /// <summary>
     /// 等宽字体的单字符宽度（pt）。**必须在第一次绘制时实测**：行号栏宽度、点击→字符下标换算、
@@ -140,6 +172,15 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// </summary>
     public event Action? ScrollingStarted;
 
+    /// <summary>
+    /// **捏合结束**（手指离开）时触发一次。
+    ///
+    /// 存在的理由：缩放期间字号每变一档都要重排，而「落盘 + 提示」这类**一次性收尾**
+    /// 不该跟着每个触摸事件做（Android 上可达 120~240Hz）。页面据此把
+    /// <c>MauiEditorStore.SetFontSize</c>（同步写文件）与 Toast 合并到手势结束再做一次。
+    /// </summary>
+    public event Action? PinchEnded;
+
     public CodeCanvasView()
     {
         Drawable = this;
@@ -165,6 +206,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _syntax = doc == null ? null : Syntax.ForFile(filePath);
         _lineCache.Clear();
         _cacheOrder.Clear();
+        _lineWidths.Clear();
+        _editingRuns = null;
+        _editingRunsFor = null;
         _firstLine = 0;
         _scrollX = 0;
         _velocityX = _velocityY = 0;
@@ -173,7 +217,24 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         Invalidate();
     }
 
-    public void SetDark(bool isDark) { _isDark = isDark; Invalidate(); }
+    /// <summary>
+    /// 切亮/暗配色。
+    ///
+    /// ⚠ 必须**连行缓存一起清**：缓存里的每个段都烘进了当时的配色（<c>BuildLineRuns</c> 按
+    /// <c>_isDark</c> 取色），只 <c>Invalidate()</c> 的话正文会保留旧主题的颜色直到缓存被淘汰。
+    /// 目前主题是在 <see cref="SetDocument"/> 时一次性传进来的（那条路本来就会清缓存），
+    /// 所以这个方法是给「运行中切主题」预留的 —— 保持它自身正确，别留成陷阱。
+    /// </summary>
+    public void SetDark(bool isDark)
+    {
+        if (_isDark == isDark) return;
+        _isDark = isDark;
+        _lineCache.Clear();
+        _cacheOrder.Clear();
+        _editingRuns = null;
+        _editingRunsFor = null;
+        Invalidate();
+    }
 
     public void ResetTypography()
     {
@@ -236,12 +297,26 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         {
             var line = _doc.GetLine(i);
             if (line == null) continue;
-            // 实测宽度（与绘制同一套）。按「视觉列 × 单字宽」估算会让中文行严重偏短，
-            // 横向就滚不到真正的行尾。
-            float w = MeasurePrefixWidth(line, line.Length);
+            // 实测宽度，**与光标/点击同一把尺子**（MeasurePrefixWidth 逐字形累加实测推进量）。
+            // 按「视觉列 × 半列宽」估算会让中文行严重偏短，横向就滚不到真正的行尾。
+            //
+            // 走记忆化：本函数**每个触摸事件都要跑一遍**（ClampScroll ← OnDrag），
+            // 而累加要逐码点扫描 —— 不缓存就是手指一动按 240Hz 重扫整屏字符。
+            float w = LineWidth(i, line);
             if (w > maxWidth) maxWidth = w;
         }
         return Math.Max(0, maxWidth - viewW + 24);
+    }
+
+    /// <summary>某行的显示总宽（按行号记忆化）。</summary>
+    private float LineWidth(long index, string line)
+    {
+        if (_lineWidths.TryGetValue(index, out var w)) return w;
+        w = MeasurePrefixWidth(line, line.Length);
+        // 纯记忆化：无界增长不如整体清空（重建一次比维护 LRU 便宜得多）
+        if (_lineWidths.Count >= MaxCachedLines) _lineWidths.Clear();
+        _lineWidths[index] = w;
+        return w;
     }
 
     // ── 触摸 ──
@@ -266,6 +341,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _samples.Clear();
         _samples.Enqueue((_downTicks, p.Y, p.X));
         StopFling();
+        _drawMsPeak = 0;   // 新手势 ⇒ 重新开始记最差帧
 
         // 按在滚动条上 → 这一手势归滚动条，不当成内容拖拽（也就不会触发惯性/长按选择）。
         // 按在滑块上保持抓取偏移（不跳），按在轨道上视作「跳到此处」。
@@ -365,7 +441,12 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         bool wasPinching = _pinchStartDist > 0;
         _pinchStartDist = 0;
         _dragging = false;
-        if (wasPinching) { _moved = true; return; }   // 捏合结束：不触发 tap / 惯性
+        if (wasPinching)
+        {
+            _moved = true;          // 捏合结束 ⇒ 不是 tap，也不进长按选择
+            PinchEnded?.Invoke();   // 一次性的收尾（落盘 / 提示）挪到这里做
+            return;
+        }
 
         if (_dragBar != Bar.None)
         {
@@ -604,8 +685,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _drawH = h;
         try
         {
-            double probe = canvas.GetStringSize("0", EditorTypography.CanvasFont,
-                EditorTypography.FontSize).Width;
+            // 这里原先每次绘制都调一次 GetStringSize("0") 量「一个字符多宽」，结果赋给一个
+            // **从未被读取**的局部变量 —— 白烧一次平台文本测量（Release 下这个 try 里就只剩它）。
+            // 字宽现在直接用字体设计值（见下方 _charWidthMeasured 块），不需要测。
 #if DEBUG
             // 字体自检（一次性，跨平台）：**证明打包字体真的加载上了**。
             //
@@ -646,24 +728,11 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         }
         catch (Exception ex) { MeasureProbe = "ERR:" + ex.GetType().Name; }
 
-        // 实测一次字符宽（等宽字体下 "0" 的宽度就是所有 ASCII 的宽度）。
-        // 只做一次，之后整帧都用它 —— 放到每帧测会平白多一次文本测量。
-        //
-        // **必须用纯 advance，不能用 GetStringSize 的原始返回值**：后者除了字形推进量，
-        // 还带一份**与字数无关的平台测量余量**。把它当「一个字多宽」再逐字符累加，
-        // 等于每加一个字就多算一份余量 —— 实测 1K 字符的行上点行尾，光标插到了行中间
+        // 量一次**平台真实推进量**（半角 / 全角各一个）。只做一次，之后整帧都用它
+        // —— 放到每帧测会平白多两次文本测量。
         if (!_charWidthMeasured)
         {
-            // **用字体的设计值，不用实测值。**
-            //
-            // Sarasa Mono 的拉丁推进量恰好 0.5em、汉字恰好 1em（这正是选它的原因：
-            // 「汉字 = 2 列」的网格与字体设计天然对齐）。而 `GetStringSize` 给出的行宽是
-            // **取整**过的 —— 13pt 时拉丁真值 6.5 会报成 7，照它定位等于每个拉丁字符多算
-            // 0.5pt：一行 7 个拉丁就是 3.5pt，实测红标尺比墨迹右端多出约 9px，正是这个数。
-            //
-            // 字体是我们自己打包的，度量是已知事实，没有理由去「量一个被取整过的近似值」。
-            _charWidth = EditorTypography.HalfWidth;
-            _wideCharWidth = EditorTypography.FontSize;
+            MeasureAdvances(canvas);
             _charWidthMeasured = true;
         }
 
@@ -672,8 +741,13 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
         // ② 正文（裁剪在行号栏右侧，横向滚动只影响这一层）
         float textX = gutterW + EditorTypography.TextLeftPad - _scrollX;
+        // 本文件有没有诊断 —— **只查一次**。DrawDiagnosticWave 是每行每帧都要查一次表的
+        // （内部走 LINQ `.Where().ToList()`，没数据时也要分配一个空 List），
+        // 而移动端压根没有诊断数据源（依赖 LintTool，MAUI 里是桩，见 CLAUDE.md）⇒ 整段空跑。
+        bool hasDiags = HasDiagnostics();
         canvas.SaveState();
         canvas.ClipRectangle(gutterW, 0, Math.Max(0, w - gutterW), h);
+
         for (long i = first; i < last; i++)
         {
             float y = LineY(i, lineH);
@@ -699,18 +773,19 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             }
             else if (line.Length > 0)
             {
-                // 逐段按网格列定位绘制（见 DrawGridRuns）—— 位置由我们算，不听字体的
-                DrawGridRuns(canvas, editing ? BuildAttributed(line) : GetAttributed(i, line),
+                // 整行一次绘制（见 DrawLineRuns —— 位置由网格与平台共同保证一致）。
+                // 几何来自行缓存（编辑行走 EditingRuns，它只在击键时失效）。
+                DrawLineRuns(canvas, editing ? EditingRuns(line) : GetLineRuns(i, line),
                     textX, y, lineH);
             }
 
             if (editing) DrawCaret(canvas, line, textX, y, lineH);
 
-            DrawDiagnosticWave(canvas, i, y, textX, lineH);
+            if (hasDiags) DrawDiagnosticWave(canvas, i, y, textX, lineH);
         }
         canvas.RestoreState();
 
-        // ③ 行号栏（最后画，压住横向滚出去的正文）
+        // ③ 行号栏（最后画 —— 它会盖掉光标行底色横跨过来的那一段）
         DrawGutter(canvas, first, last, gutterW, h, lineH);
 
 #if DEBUG
@@ -744,12 +819,94 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
         RequestPrefetch(first - 40, last + 40);
 
+#if ANDROID
+        // 【不变量自检·一次性】校验光标定位用的那把尺子与平台渲染**真的是同一把**。
+        //
+        // 定位现在是「逐字形累加平台实测推进量」（MeasureAdvances 量半角/全角各一个字符）。
+        // 这条等式成立要求**推进量可加**：N 个字形的排版宽度 == N × 单个字形的推进量。
+        // 若平台只在「整行」上取整（而不是逐字形），可加性就会破，我们逐字累加就会越加越偏
+        // —— 那正是这行自检要抓的。
+        //
+        // 早期版本测的是「平台排版 == 列网格」，得出过一条结论：**Android 逐字形取整**，
+        // 于是只有偶数号两边才相等（实测偶数号 0.00px、13 号 53.5px）。定位改成实测推进量之后
+        // 这条限制不再需要 —— 但**先分别验两种字号**，别默认它对所有字号都成立。
+        //
+        // ⚠ 量短前缀、别拿整行去量：`GetStringSize` 走 `PlatformStringSizeService`，是无界排版
+        // （`boundedWidth: null` ⇒ 宽 int.MaxValue，**不会折行**）取 `GetLineWidth(i)` 的真实浮点宽，
+        // 所以它报的是真值。用前缀是为了专门看「前 N 个字」这一段。
+        if (!_widthAuditDone && _doc != null && first < _doc.LineCount)
+        {
+            _widthAuditDone = true;
+            string probeText = "";
+            for (long i = first; i < Math.Min(first + 40, _doc.LineCount); i++)
+            {
+                var l = _doc.GetLine(i);
+                if (l is { Length: > 60 }) { probeText = l; break; }
+            }
+            if (probeText.Length > 0)
+            {
+                var disp = TextEditorMath.ExpandTabs(probeText, EditorTypography.TabColumns);
+                double worst = 0;
+                foreach (float size in new[] { 8f, 12f, 13f, 16f, 28f, 30f })
+                {
+                    // 该字号下的实测推进量（与 MeasureAdvances 同源，但这里是临时量、不写入字段）
+                    float lat = (float)canvas.GetStringSize("0", EditorTypography.CanvasFont, size).Width;
+                    if (lat <= 0) continue;
+                    foreach (int n in new[] { 30, 60, 120 })
+                    {
+                        var prefix = RunePrefix(disp, n);
+                        if (prefix.Length == 0) continue;
+                        // 我们逐字累加会算出的宽度（按同一套半角/全角判据）
+                        float mine = 0;
+                        foreach (var r in prefix.EnumerateRunes())
+                            mine += WayCoder.UI.Shared.Terminal.AnsiString.CharWidth(r) > 1
+                                ? (float)canvas.GetStringSize("中", EditorTypography.CanvasFont, size).Width
+                                : lat;
+                        float platW = (float)canvas.GetStringSize(prefix,
+                            EditorTypography.CanvasFont, size).Width;
+                        worst = Math.Max(worst, Math.Abs(platW - mine));
+                    }
+                }
+                bool ok = worst < 1.5;
+                Android.Util.Log.Info("WCFONT",
+                    $"{(ok ? "[排版自检] OK" : "[排版自检] ❌ 推进量不可加！")} "
+                    + $"逐字累加 vs 平台排版 最大偏差={worst:F2}px 字号={EditorTypography.FontSize:F1}");
+            }
+        }
+#endif
+
         _drawWatch.Stop();
         LastDrawMs = _drawWatch.Elapsed.TotalMilliseconds;
+        if (LastDrawMs > _drawMsPeak) _drawMsPeak = LastDrawMs;
     }
 
-    /// <summary>最近一帧的绘制耗时（ms）。状态栏显示它 —— 「卡不卡」要看数字。</summary>
+    /// <summary>
+    /// 最近一帧的**本控件绘制耗时**（ms）—— 只计 <see cref="Draw"/> 内部，不含平台合成。
+    ///
+    /// 这是调性能时唯一该看的数：gfxinfo 报的是整帧（含合成/GPU），分不出「是我们慢」
+    /// 还是「别处慢」。开「设置 → 编辑器调试 HUD」后它显示在画布顶部，滚动/缩放时是活的。
+    /// </summary>
     public double LastDrawMs { get; private set; }
+
+    /// <summary>本次手势期间的**最差**一帧（每次手指按下清零）——卡顿看峰值，不看均值。</summary>
+    private double _drawMsPeak;
+
+#if ANDROID
+    /// <summary>「平台排版 == 网格」的自检只做一次（见 Draw 里那段）。</summary>
+    private bool _widthAuditDone;
+
+    /// <summary>取前 n 个**码元**（不是 char —— 代理对不能被劈开）。</summary>
+    private static string RunePrefix(string s, int runes)
+    {
+        int taken = 0, end = 0;
+        foreach (var r in s.EnumerateRunes())
+        {
+            if (taken++ >= runes) break;
+            end += r.Utf16SequenceLength;
+        }
+        return end >= s.Length ? s : s[..end];
+    }
+#endif
 
     /// <summary>诊断用：最近一次点击的画布坐标、画布高度、算出的行号。</summary>
     public string LastHitDebug { get; private set; } = "";
@@ -806,7 +963,13 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         canvas.FillColor = _isDark ? EditorTypography.GutterBgDark : EditorTypography.GutterBg;
         canvas.FillRectangle(0, 0, gutterW, h);
 
-        canvas.Font = EditorTypography.CanvasFont;
+        // 字号比正文小一号（行号是辅助信息，不该和代码抢注意力）。
+        //
+        // ⚠ **不要在这里设 `canvas.Font`**：`CanvasFont` 是 static readonly，正文前已经设过，
+        // 这里再设一遍是纯冗余 —— 而它并不是免费的：`PlatformCanvasState.Font` 的写入会让字体族
+        // 解析作废，下一次 `FontPaint` 访问就要重走 `FontExtensions.ToTypeface()`（那条路**没有缓存**）。
+        // 每次重解析 = 把打包字体读一遍。字体压缩进 APK 时每次 ~110ms（见 csproj 里
+        // `AndroidStoreUncompressedFileExtensions` 的注释），那是编辑器卡顿的真身。
         canvas.FontSize = EditorTypography.FontSize - 1;
         canvas.SaveState();
         canvas.ClipRectangle(0, 0, gutterW, h);
@@ -856,12 +1019,20 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         var key = label + "|" + color.ToHex();
         if (_gutterCache.TryGetValue(key, out var cached)) return cached;
 
+        // ⚠ 这里**不能**写 FontName —— 与正文段同一条铁律（见 BuildLineRuns 的长注释）：
+        // run 上写 FontName 会被 MAUI 变成 Android 的 `TypefaceSpan(族名)`，而那个 API 只认
+        // **系统字体族名、没有 asset 重载**，喂资产名 `SarasaMonoSC-Regular.ttf` 进去解析不到，
+        // 只会**静默回落成平台默认的比例字体** —— 行号数字于是不是等宽的（右对齐的位数会歪）。
+        // 不写则布局回落用 `canvas.Font`（= EditorTypography.CanvasFont），走的才是
+        // `CreateFromAsset` 分支、能加载打包字体。
+        //
+        // 附带的好处：不写 FontName，这份缓存就**只跟文本+颜色绑定**，不受字号影响；
+        // 而写进去的 FontName 会让每次 `DrawText` 都去做一次注定失败的族名解析。
         var attr = new AttributedText(label,
         [
             new AttributedTextRun(0, label.Length, new TextAttributes
             {
                 [TextAttribute.Color] = color.ToHex(),
-                [TextAttribute.FontName] = EditorTypography.CanvasFontName,
             }),
         ]);
         if (_gutterCache.Count < 512) _gutterCache[key] = attr;
@@ -871,6 +1042,17 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// <summary>尚未加载的行：画一个占位符，绝不在这里等 IO（滚动会被拖成一顿一顿的）。</summary>
     private static void DrawPending(ICanvas canvas, float x, float y, float lineH)
         => canvas.DrawString("⋯", x, y, HorizontalAlignment.Left);
+
+    /// <summary>
+    /// 本文件是否存在诊断 —— 给绘制循环做**整段短路**用（每帧只查一次，而不是每行查一次）。
+    /// 空路径、无数据源（移动端就是这种）、查询异常一律判为「没有」。
+    /// </summary>
+    private bool HasDiagnostics()
+    {
+        if (_filePath.Length == 0) return false;
+        try { return DiagnosticManager.GetAll(_filePath).Count > 0; }
+        catch { return false; }
+    }
 
     /// <summary>
     /// 语法错误波浪线 —— 在该行文字下方画一段三角波。
@@ -921,11 +1103,11 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
     // ── 行渲染（带缓存的唯一实现）──
 
-    private IAttributedText GetAttributed(long index, string line)
+    private LineRuns GetLineRuns(long index, string line)
     {
         if (_lineCache.TryGetValue(index, out var cached)) return cached;
 
-        var attr = BuildAttributed(line);
+        var runs = BuildLineRuns(line);
         if (_lineCache.Count >= MaxCachedLines)
         {
             // 简单 FIFO 淘汰：滚动时被淘汰的正好是最久没看的那批
@@ -933,12 +1115,12 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             for (int i = 0; i < drop; i++) _lineCache.Remove(_cacheOrder[i]);
             _cacheOrder.RemoveRange(0, drop);
         }
-        _lineCache[index] = attr;
+        _lineCache[index] = runs;
         _cacheOrder.Add(index);
-        return attr;
+        return runs;
     }
 
-    /// <summary>把一行文本变成带颜色 run 的 <see cref="IAttributedText"/>。</summary>
+    /// <summary>把一行切成「可直接绘制」的段：段文本 + 段起点列号 + 段带色对象（见 <see cref="LineRuns"/>）。</summary>
     /// <summary>
     /// 把一行裁到「当前横向可见的那几列」，返回 (片段, 片段起点的 x)。
     /// 只给**超长行**用（普通行走按行号缓存的正路）。
@@ -956,14 +1138,16 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         return (line.Substring(start, len), textX + start * charW);
     }
 
-    private IAttributedText BuildAttributed(string line)
+    private LineRuns BuildLineRuns(string line)
     {
+        var display = TextEditorMath.ExpandTabs(line, EditorTypography.TabColumns);
+        if (display.Length == 0) return LineRuns.Empty;   // 空行：什么都不画
+
         // 超长行跳过分词：minified 行上跑 tokenizer 会把一帧拖到几百毫秒，
         // 而且这类行本来也没什么「语法」可高亮。
-        if (line.Length > EditorTypography.MaxTokenizeChars)
-            return new AttributedText(line, []);
+        // （普通路径下这类行在 Draw 里就被 ClipToViewport 接走了，这里是兜底。）
+        if (line.Length > EditorTypography.MaxTokenizeChars) return Single(display);
 
-        var display = TextEditorMath.ExpandTabs(line, EditorTypography.TabColumns);
         var tokens = _syntax?.Tokenize(display) ?? [];
         var runs = new List<IAttributedTextRun>(tokens.Count);
         int offset = 0;
@@ -994,53 +1178,51 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             }));
             offset += len;
         }
-        return new AttributedText(display, runs);
+
+        // 一个色 run 都没切出来（无分词器 / tokenizer 不给内容）：整行素色画。
+        return new LineRuns { Whole = new AttributedText(display, runs) };
+    }
+
+    /// <summary>一整行作为无 run 的素文本（超长行的兜底路径）。</summary>
+    private static LineRuns Single(string text)
+        => new() { Whole = new AttributedText(text, []) };
+
+    /// <summary>
+    /// 画一行 —— **整行一次 <c>DrawText</c>**，语法色是它内部的多个 run。
+    ///
+    /// 早先这里是「按网格列逐段定位、一段一次 DrawText」（v0.96.118 的做法），那时是**对的**：
+    /// 平台把每个字形的推进量**取整到整数**，而网格用精确的 0.5em，两者会越走越远
+    /// （实测奇数号下一行 107 列能差出 53.5px）—— 逐段定位就是靠「每段重新按回网格」截断误差。
+    ///
+    /// 改成一次画完的依据是一条实测结论：**字号为偶数 ⇒ 半列宽是整数 ⇒ 平台的推进量与网格
+    /// 逐字完全相等（4/6/8/12/16/28/30 号下整行偏差都是 0.00px）**。等式一成立就没有「两把尺子」，
+    /// 整行交给平台排版与按网格定位是同一个结果，而调用次数从「一行十几个」降到 **1**
+    /// —— 正文是滚动时唯一的大头，小字号下屏上几百行，这一下就是十几倍的差距。
+    ///
+    /// ⚠ 两条前提，**别单独推翻**：① <see cref="EditorTypography.FontSize"/> 只允许偶数
+    /// （在那边的 setter 里夹住）；② run 上不写 <c>TextAttribute.FontName</c>
+    /// （见 <see cref="BuildLineRuns"/> 的长注释）。任一条破了，这里就会「渲染按平台、光标按网格」。
+    /// </summary>
+    private static void DrawLineRuns(ICanvas canvas, LineRuns runs, float textX, float y, float lineH)
+    {
+        if (runs.Whole is null) return;
+        canvas.DrawText(runs.Whole, textX, y + EditorTypography.TextBaselineOffset, 1_000_000f, lineH);
     }
 
     /// <summary>
-    /// 按**网格列**逐段绘制一行 —— 「绘制字符串」这一步不交给平台的整行排版。
-    ///
-    /// 每段的起点 x 一律 = 该段起始字符的**列号 × 列宽**（<see cref="TextEditorMath.MeasureColumns"/> +
-    /// <see cref="TextEditorMath.ColumnsToX"/>），而不是让平台排版从行首一路推进过来。于是：
-    ///
-    /// - 字体一个字符实际多宽**不影响光标落在哪** —— 定位与绘制同用一套列号；
-    /// - 即使某个字形与列宽有差（行宽取整、fallback 字形、全角标点被压缩…），
-    ///   **误差也不会跨段累积** —— 每段都被重新按回网格。此前那种「一路修测量」
-    ///   的做法只能把偏差压小，压不掉「两把尺子」这件事本身。
-    ///
-    /// 段的划分直接复用语法上色已有的 token run（本来就是为分段着色而切的），
-    /// 所以这一步不额外增加分词开销。
+    /// 编辑中的那一行也走缓存 —— 它的文本只在**击键时**变，而先前是逐帧 <c>BuildAttributed</c>
+    /// 重建（重新分词 + 重切段 + 重算列号）。整份文本作键，击键即失效、不动时零成本。
     /// </summary>
-    private void DrawGridRuns(ICanvas canvas, IAttributedText attr, float textX, float y, float lineH)
+    private LineRuns EditingRuns(string line)
     {
-        var text = attr.Text;
-        if (string.IsNullOrEmpty(text)) return;
-        float drawY = y + EditorTypography.TextBaselineOffset;
-
-        // 没有 run（超长行 / 空行）：整行一次画，起点仍在网格上
-        if (attr.Runs == null || attr.Runs.Count == 0)
-        {
-            canvas.DrawText(new AttributedText(text, []), textX, drawY, 1_000_000f, lineH);
-            return;
-        }
-
-        foreach (var run in attr.Runs)
-        {
-            int start = run.Start, len = run.Length;
-            if (len <= 0 || start < 0 || start + len > text.Length) continue;
-
-            float x = textX + TextEditorMath.ColumnsToX(
-                TextEditorMath.MeasureColumns(text, start, EditorTypography.TabColumns),
-                EditorTypography.HalfWidth);   // ← 强行按到网格列上
-
-            // 颜色随 run 的 attributes 一起带过去 —— 不另读颜色属性，少一处平台差异面
-            var seg = run.Attributes == null
-                ? new AttributedText(text.Substring(start, len), [])
-                : new AttributedText(text.Substring(start, len),
-                    [new AttributedTextRun(0, len, run.Attributes)]);
-            canvas.DrawText(seg, x, drawY, 1_000_000f, lineH);
-        }
+        if (_editingRuns is not null && _editingRunsFor == line) return _editingRuns;
+        _editingRuns = BuildLineRuns(line);
+        _editingRunsFor = line;
+        return _editingRuns;
     }
+
+    private LineRuns? _editingRuns;
+    private string? _editingRunsFor;
 
     /// <summary>清掉某行的渲染缓存（该行被编辑后调用）。</summary>
     public void InvalidateLine(long oneBased)
@@ -1048,6 +1230,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         long idx = oneBased - 1;
         _lineCache.Remove(idx);
         _cacheOrder.Remove(idx);
+        _lineWidths.Remove(idx);        // 列数缓存与行内容绑定，一并失效
+        _editingRuns = null;          // 编辑行的段几何也失效（文本可能正是这一行）
+        _editingRunsFor = null;
         Invalidate();
     }
 
@@ -1056,6 +1241,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     {
         _lineCache.Clear();
         _cacheOrder.Clear();
+        _lineWidths.Clear();
+        _editingRuns = null;
+        _editingRunsFor = null;
         Invalidate();
     }
 
@@ -1091,7 +1279,6 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     public bool ShowDebugHud { get; set; }
 
     private readonly Stopwatch _drawWatch = new();
-    private double _lastDrawMs;
 
     // ── 滚动条（自绘；内容超出视口才出现，按住变粗、松手变细）──────────────
 
@@ -1226,8 +1413,13 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         var sw = canvas.GetStringSize("W", EditorTypography.CanvasFont, EditorTypography.FontSize);
         bool mono = Math.Abs(si.Width - sw.Width) < 0.01f;
 
-        // 刻意极短：长文本会被 DrawString 折行/溢出，反而把要看的数字挤没
-        var text = $"X{_scrollX:F0}/{ComputeMaxScrollX():F0} w{_charWidth:F1}/{_wideCharWidth:F1}"
+        // 刻意极短：长文本会被 DrawString 折行/溢出，反而把要看的数字挤没。
+        // **帧耗时放最前面**（调性能时它是要看的那个数）：`帧` 是本帧、`峰` 是本次手势最差那帧
+        // ——卡顿看峰值，均值会把偶发的长帧平掉。每次手指按下峰值清零，所以「滑一下然后看数」
+        // 就是这一段手势的真实表现。
+        // 注意：HUD 自己每帧要量两次字宽（等宽自检），开着 HUD 的数比关着略高一点。
+        var text = $"{LastDrawMs:F1}ms 峰{_drawMsPeak:F1} X{_scrollX:F0}/{ComputeMaxScrollX():F0}"
+                 + $" w{_charWidth:F1}/{_wideCharWidth:F1}"
                  + $" {_dragBar} H{_drawH:F0} d({_downX:F0},{_downY:F0}) w{_drawW:F0}";
         canvas.FontSize = 10;
         canvas.FontColor = Colors.White;
@@ -1261,23 +1453,30 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// <summary>
     /// 行内第 <paramref name="charIndex"/> 个 UTF-16 码元之前的**显示宽度**（pt）。
     ///
-    /// 实现已经下沉到 <see cref="TextEditorMath.MeasureColumns"/> —— 与 GUI（Avalonia 自绘）
-    /// 共用同一份网格换算，两端不可能各算各的。
+    /// **逐字形累加平台实测推进量**（<see cref="MeasureAdvances"/>），而不是「列号 × 半列宽」。
     ///
-    /// 这里**不再量字体**：位置由列号算出（半角 1 列、全角 2 列），字体一个字符多宽都不影响
-    /// 光标落在哪。此前按字体实测推进量定位，必然与渲染差一点（行宽被平台取整、全角标点被
-    /// 压缩、字体解析分两条路），偏差只能压小、压不掉。
+    /// 为什么必须按实测推进量走：Android 会把**每个字形的推进量取整**，于是 13 号下半角的真实
+    /// 推进是 7 而不是设计值 6.5 —— 实测每个半角字形差 0.5，一行 107 列能差出 **53.5px**。
+    /// 用设计值定位等于拿一把**平台没在用的尺子**：文字按平台的排、光标按我们的网格走，
+    /// 长行越往右越对不上。实测推进量则与渲染同源 ⇒ 任何字号（含小数）都逐字对齐。
+    ///
+    /// （GUI/Avalonia 的自绘编辑器仍走 <see cref="TextEditorMath"/> 的列网格 —— 那边的文字栈
+    /// 是否也取整未被验证过，不能想当然跟着改。）
     /// </summary>
     public float MeasurePrefixWidth(string? line, int charIndex)
     {
         if (string.IsNullOrEmpty(line) || charIndex <= 0) return 0;
 
         int limit = Math.Min(charIndex, line.Length);
-
-        // 网格模型：列数由我们自己算，不问字体、不量子串。
-        return TextEditorMath.ColumnsToX(
-            TextEditorMath.MeasureColumns(line, limit, EditorTypography.TabColumns),
-            EditorTypography.HalfWidth);
+        float x = 0;
+        int i = 0;
+        foreach (var r in line.EnumerateRunes())
+        {
+            if (i >= limit) break;
+            x += AdvanceOf(r, x);
+            i += r.Utf16SequenceLength;
+        }
+        return x;
     }
 
 
@@ -1294,13 +1493,62 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     {
         if (string.IsNullOrEmpty(line) || xInLine <= 0) return 0;
 
+        // **<see cref="MeasurePrefixWidth"/> 的逆**：同样逐字形累加实测推进量。
+        // 落在一个字形格子的**前半** → 归到它前面；后半 → 归到它后面。
+        // 两边必须用同一套推进量，否则「点哪儿」与「光标画哪儿」会差一格。
+        float x = 0;
+        int i = 0;
+        foreach (var r in line.EnumerateRunes())
+        {
+            float adv = AdvanceOf(r, x);
+            if (xInLine < x + adv * 0.5f) return i;
+            x += adv;
+            i += r.Utf16SequenceLength;
+        }
+        return line.Length;
+    }
 
-        // 与 MeasurePrefixWidth 同源：先换算成列，再让列去找字符。
-        // x 落在某个字符的格子前半 → 归它、后半 → 归下一个（XToColumn 四舍五入到最近列，
-        // 全角字符的「中点」自然落在一又二分之一列处，语义与逐字累加那版一致）。
-        return TextEditorMath.ColumnToCharIndex(line,
-            TextEditorMath.XToColumn(xInLine, EditorTypography.HalfWidth),
-            EditorTypography.TabColumns);
+    /// <summary>
+    /// 量出**平台真实推进量**：半角一个字符多宽、全角一个字符多宽。
+    ///
+    /// 不能用设计值（`FontSize × 0.5`）：Android 把每个字形的推进量**取整**，
+    /// 13 号下半角真实推进是 7 而非 6.5（实测每个半角字形 +0.5）。量出来的才是渲染在用的那把尺子。
+    ///
+    /// 量两个字符就够：代码里的字符按宽度只有两档（半角 / 全角），Tab 另有 tab stop 规则。
+    /// 字号一变就要重量（<see cref="ResetTypography"/> 会清掉 <c>_charWidthMeasured</c>）。
+    /// </summary>
+    private void MeasureAdvances(ICanvas canvas)
+    {
+        float lat, wide;
+        try
+        {
+            lat = (float)canvas.GetStringSize("0", EditorTypography.CanvasFont,
+                EditorTypography.FontSize).Width;
+            wide = (float)canvas.GetStringSize("中", EditorTypography.CanvasFont,
+                EditorTypography.FontSize).Width;
+        }
+        catch { lat = 0; wide = 0; }
+
+        // 量不到就退回设计值 —— 宁可差一点，也不能让字宽变成 0（除零会把整屏算崩）
+        if (lat <= 0) lat = Math.Max(1f, EditorTypography.HalfWidth);
+        if (wide < lat) wide = lat * 2f;
+
+        _charWidth = lat;
+        _wideCharWidth = wide;
+    }
+
+    /// <summary>
+    /// 单个码元占多宽。半角/全角的判据与列模型**同一个**（<c>AnsiString.CharWidth</c>，
+    /// 全仓唯一真源）；Tab 推进到下一个 tab stop，与 <c>ExpandTabs</c> 的列语义一致。
+    /// </summary>
+    private float AdvanceOf(Rune r, float currentX)
+    {
+        if (r.Value == '\t')
+        {
+            float stop = EditorTypography.TabColumns * _charWidth;
+            return stop <= 0 ? 0 : (MathF.Floor(currentX / stop) + 1) * stop - currentX;
+        }
+        return WayCoder.UI.Shared.Terminal.AnsiString.CharWidth(r) > 1 ? _wideCharWidth : _charWidth;
     }
 
     /// <summary>取一行的显示文本（供页面做查找高亮/状态栏）。</summary>

@@ -6,28 +6,25 @@ namespace WayCoder.Maui.Controls;
 /// 编辑器排版常量的**单一真源** —— 自绘画布与浮动的单行输入框必须取同一份值，
 /// 否则两者在切换的瞬间会跳一下（字号差 0.5、内边距差 2px 都看得出来）。
 ///
-/// **字体只用一个等宽族**，且按平台取名：
-/// - Android 用 <c>monospace</c>：<c>FontManager.Android</c> 只认
-///   <c>monospace</c>/<c>sans-serif</c>/<c>serif</c>，其它名字走 <c>Typeface.Create</c> 失败后
-///   **静默回落成 Roboto（比例字体）** —— 这正是改造前 `"Courier New"` 在 Android 上的实际下场。
-/// - iOS 用 <c>Courier New</c>：反过来 iOS 上 <c>UIFont.FromName("monospace")</c> 拿不到，
-///   会回落成系统比例字体。
+/// **字体只用一个等宽族**（内嵌的 Sarasa Mono SC），按平台取**不同的名字** —— 见
+/// <see cref="CanvasFontName"/>，那三个名字互不相同、写错只静默回落，不报错。
 ///
-/// 两端各自都拿到**真正的等宽字体**；中文由平台 fallback 补齐字形，其宽度不保证正好 2 列，
-/// 所以列宽一律**实测**（见 <see cref="MeasureAdvance"/>），不按「CJK=2」推算。
+/// 之所以不用系统 <c>monospace</c>：它没有中文字形，中文靠平台 fallback，而**测量与渲染
+/// 两条 fallback 到的字体并不一致**（实测同一条中文，测量 ≈9.8dp、渲染 ≈16.8dp），
+/// 点击定位就会越往右越偏。
+///
+/// ⚠ 列宽**不实测**，直接用字体设计值（见 <see cref="HalfWidth"/>）—— 这里曾写着「列宽一律实测」，
+/// 那是被 v0.96.117 推翻的旧结论：平台把行宽**取整**（13pt 时拉丁真值 6.5 报成 7），
+/// 照实测值定位会让每个拉丁字符多算 0.5pt。Sarasa 的拉丁恰好 0.5em、汉字恰好 1em，
+/// 设计值与「汉字 = 2 列」的网格天然对齐，量出来反而是个近似值。
 /// </summary>
 internal static class EditorTypography
 {
     /// <summary>
-    /// **Controls 侧**（Entry / Label）用的字体别名 —— 即 MauiProgram 里 AddFont 注册的那个。
+    /// **Controls 侧**（Entry / Label）用的字体别名 —— 即 MauiProgram 里 <c>AddFont</c> 注册的那个。
     ///
     /// 编辑器自带 Sarasa Mono SC：它中英文严格等宽，且**中文恰好占 1em = 拉丁的 2 倍**，
-    /// 与终端「中文算 2 列」的语义天然对齐。换掉系统 "monospace" 的原因是它没有中文字形，
-    /// 中文靠平台 fallback，而**测量与渲染两条路径 fallback 到的字体并不一致**
-    /// （实测同一条中文，测量 ≈9.8dp、渲染 ≈16.8dp），点击定位就会越往右越偏。
-    /// </summary>
-    /// <summary>
-    /// **Controls 侧**（Entry / Label）用的字体别名 —— 即 MauiProgram 里 <c>AddFont</c> 注册的那个。
+    /// 与终端「中文算 2 列」的语义天然对齐。
     /// </summary>
     public const string FontFamilyName = "SarasaMonoSC";
 
@@ -53,7 +50,7 @@ internal static class EditorTypography
     /// MAUI 会把它变成 <c>TypefaceSpan(族名)</c> —— 那个 API **只认系统字体族名、没有 asset 重载**
     /// （见 `dotnet/maui` 的 `Graphics/Platforms/Android/Text/AttributedTextExtensions.cs`），
     /// 资产名喂进去只会悄悄回落。所以 run 上**不写** FontName，让布局回落用画布的字体 —— 见
-    /// <c>CodeCanvasView.BuildAttributed</c>。
+    /// <c>CodeCanvasView.BuildLineRuns</c>。
     /// </summary>
     public const string CanvasFontName =
 #if ANDROID
@@ -70,12 +67,51 @@ internal static class EditorTypography
     /// </summary>
     public static float HalfWidth => FontSize * 0.5f;
 
-    /// <summary>字号（磅）。可在编辑器菜单里调（加大/缩小/重置），并持久化。</summary>
-    public static float FontSize { get; set; } = 13f;
+    private static float _fontSize = DefaultFontSize;
 
-    /// <summary>字号可调范围 —— 太小看不清，太大一屏放不下几行。</summary>
-    public const float MinFontSize = 9f;
-    public const float MaxFontSize = 28f;
+    /// <summary>默认字号（偶数 —— 见 <see cref="FontSize"/> 的说明）。</summary>
+    public const float DefaultFontSize = 14f;
+
+    /// <summary>
+    /// 字号（磅）。可在编辑器菜单里调（加大/缩小/重置），并持久化。**连续可取**（捏合给小数也行）。
+    ///
+    /// 曾经这里只允许偶数 —— 那是因为定位走「列号 × 半列宽」的网格，而 **Android 把每个字形的
+    /// 推进量取整**：偶数号下半列宽是整数、两边逐字相等（实测偏差 0.00px），奇数号下每个半角字形
+    /// 差 0.5（一行 107 列累计 53.5px）。后来定位改成**逐字形累加平台实测推进量**
+    /// （<c>CodeCanvasView.MeasureAdvances</c>），与渲染同源 ⇒ 任何字号都对得上，这个限制就撤了。
+    ///
+    /// ⚠ 撤掉限制的前提是那条改动还在：**别把定位改回「列号 × 设计半列宽」**，
+    /// 否则奇数号/小数号的偏差会立刻回来。
+    /// </summary>
+    public static float FontSize
+    {
+        get => _fontSize;
+        set => _fontSize = ClampFontSize(value);
+    }
+
+    /// <summary>字号步进 —— 菜单「加大 / 缩小」按这个走。</summary>
+    public const float FontStep = 1f;
+
+    /// <summary>
+    /// 把任意字号夹到合法区间。**不再吸附到整数或偶数** —— 见 <see cref="FontSize"/> 的长注释。
+    ///
+    /// 单独立成纯函数，是为了让「夹取」这条规则**只有一处实现**：<see cref="FontSize"/> 的 setter
+    /// 与编辑器页面（它得**先夹取、再判断「变了没有」**）都调它。两边各写一遍就会出现
+    /// 「按钮按了没反应」或「输入框字号与画布不一致」这类半生效的怪状。
+    /// </summary>
+    public static float ClampFontSize(float size)
+        => Math.Clamp(size, MinFontSize, MaxFontSize);
+
+    /// <summary>
+    /// 字号可调范围。**捏合缩放用这一对**（`EditorPage.ApplyFontSize` 夹取）。
+    /// 8 是下限（用户实测 6 号已经看不出单词形状了，只能看到一片灰），
+    /// 96 是「一屏只剩一两行」的放大上限 —— 手机上看代码时两头都用得上
+    /// （整屏鸟瞰 / 逐字看清），中间由捏合连续过渡。
+    ///
+    /// ⚠ 两端都必须是**偶数**（见 <see cref="FontSize"/>）。
+    /// </summary>
+    public const float MinFontSize = 8f;
+    public const float MaxFontSize = 96f;
 
     /// <summary>
     /// 行高（磅）—— **固定值，不用平台行高**：自绘的行位置必须能被「第 N 行 → y 坐标」
@@ -132,16 +168,18 @@ internal static class EditorTypography
     public static readonly Color BarActiveDark = Color.FromArgb("#99FFFFFF");
 
     /// <summary>滚动条几何 —— 绘制与命中测试<b>共用这一份</b>，否则「看到的滑块」和「点得中的滑块」会错位。</summary>
-    public const float BarThin = 2.5f;        // 常态：细
-    public const float BarThick = 6f;         // 按住/拖动：粗
+    // 宽度是用户的直接反馈调上来的：2.5pt 在手机上细到几乎看不见，也就无从瞄准。
+    // 5/10 是「一眼能看见、又不压住正文」的折中（正文有 24pt 的横向余量，见 ComputeMaxScrollX）。
+    public const float BarThin = 5f;          // 常态
+    public const float BarThick = 10f;        // 按住/拖动：明显变粗，给出「抓住了」的反馈
     /// <summary>
     /// 距画布边缘的留白。**不能太小**：画布的 Height 一直算到页面内容区的底边，
     /// 而底部紧挨着的就是状态栏那一行 —— 留白 3pt 时滚动条正好被状态栏压在底下，
     /// 表现为「加了滚动条却看不见、也点不中」。
     /// </summary>
     public const float BarMargin = 16f;
-    public const float BarMinThumb = 28f;     // 滑块最短长度（百万行文件里否则细到看不见）
-    public const float BarTouchSlop = 20f;    // 触摸热区比视觉宽，否则手指根本点不中 2.5pt 的条
+    public const float BarMinThumb = 40f;     // 滑块最短长度（百万行文件里否则细到捏不住）
+    public const float BarTouchSlop = 20f;    // 触摸热区比视觉再宽一圈，手指不必压在条上也能拖
 
     public static readonly Color ErrorWave = Color.FromArgb("#E5484D");
     public static readonly Color WarnWave = Color.FromArgb("#F5A524");
