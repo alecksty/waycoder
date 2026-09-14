@@ -57,6 +57,11 @@ public partial class EditorPage : ContentPage
             MauiEditorStore.SetFontSize(EditorTypography.FontSize);
             LineEditor.FontSize = EditorTypography.FontSize;
             LineEditor.HeightRequest = EditorTypography.LineHeight;
+        // ⚠ HeightRequest 只是「请求」，**不是上限**：Entry 在 VerticalOptions=Start 下会按内容
+        // 自然高度撑开（13pt 加 EditText 默认内边距实测约 3 个行高），于是它的选区高亮变成
+        // 一条跨 3 行的矩形、两个选择手柄落到编辑行下方两行去。文字与光标都是画布画的，
+        // 所以只有高亮/手柄会暴露这个失真。MaximumHeightRequest 才是真正的钳制。
+        LineEditor.MaximumHeightRequest = EditorTypography.LineHeight;
             Canvas.ResetTypography();
             ShowToast($"字号 {EditorTypography.FontSize:F0}");
         };
@@ -70,6 +75,11 @@ public partial class EditorPage : ContentPage
         LineEditor.FontFamily = EditorTypography.FontFamilyName;
         LineEditor.FontSize = EditorTypography.FontSize;
         LineEditor.HeightRequest = EditorTypography.LineHeight;
+        // ⚠ HeightRequest 只是「请求」，**不是上限**：Entry 在 VerticalOptions=Start 下会按内容
+        // 自然高度撑开（13pt 加 EditText 默认内边距实测约 3 个行高），于是它的选区高亮变成
+        // 一条跨 3 行的矩形、两个选择手柄落到编辑行下方两行去。文字与光标都是画布画的，
+        // 所以只有高亮/手柄会暴露这个失真。MaximumHeightRequest 才是真正的钳制。
+        LineEditor.MaximumHeightRequest = EditorTypography.LineHeight;
         LineEditor.BackgroundColor = Colors.Transparent;
         // 文字也透明：这一行由画布自绘（见 CodeCanvasView.EditingLine 的注释）。
         // Entry 保留下来只为了三件事——IME 组合输入、软键盘、系统复制粘贴菜单。
@@ -151,6 +161,11 @@ public partial class EditorPage : ContentPage
         // 输入框与画布必须同步：两者字号/行高不一致就会错位（这正是当初改成单层自绘要解决的问题）
         LineEditor.FontSize = EditorTypography.FontSize;
         LineEditor.HeightRequest = EditorTypography.LineHeight;
+        // ⚠ HeightRequest 只是「请求」，**不是上限**：Entry 在 VerticalOptions=Start 下会按内容
+        // 自然高度撑开（13pt 加 EditText 默认内边距实测约 3 个行高），于是它的选区高亮变成
+        // 一条跨 3 行的矩形、两个选择手柄落到编辑行下方两行去。文字与光标都是画布画的，
+        // 所以只有高亮/手柄会暴露这个失真。MaximumHeightRequest 才是真正的钳制。
+        LineEditor.MaximumHeightRequest = EditorTypography.LineHeight;
         Canvas.ResetTypography();
 
         ShowToast($"字号 {EditorTypography.FontSize:F0}");
@@ -257,6 +272,11 @@ public partial class EditorPage : ContentPage
         EditorTypography.FontSize = MauiEditorStore.FontSize;   // 套用上次调的字号
         LineEditor.FontSize = EditorTypography.FontSize;
         LineEditor.HeightRequest = EditorTypography.LineHeight;
+        // ⚠ HeightRequest 只是「请求」，**不是上限**：Entry 在 VerticalOptions=Start 下会按内容
+        // 自然高度撑开（13pt 加 EditText 默认内边距实测约 3 个行高），于是它的选区高亮变成
+        // 一条跨 3 行的矩形、两个选择手柄落到编辑行下方两行去。文字与光标都是画布画的，
+        // 所以只有高亮/手柄会暴露这个失真。MaximumHeightRequest 才是真正的钳制。
+        LineEditor.MaximumHeightRequest = EditorTypography.LineHeight;
 
         bool dark = Application.Current?.RequestedTheme == AppTheme.Dark;
         Canvas.SetDocument(_doc, relPath, dark, _canEdit);
