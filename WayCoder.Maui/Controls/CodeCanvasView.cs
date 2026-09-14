@@ -700,13 +700,41 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// <summary>算松手速度用的时间窗：只取最近这段时间内的触摸点。</summary>
     private const long VelocityWindowMs = 100;
 
-    /// <summary>惯性停止阈值（pt/s）——低于它就看不出在动了。</summary>
+    /// <summary>惯性**起步**阈值（pt/s）——低于它就不触发惯性，内容停在手指松开的位置。</summary>
     private const float MinFlingVelocity = 40f;
 
     /// <summary>
-    /// 每帧速度保留比例 —— **滑多远由它决定**：总位移 = 初速 × dt / 行高 / (1 − friction)。
+    /// 惯性**收手**阈值（pt/s）——低于它就停止滑行。
+    ///
+    /// 与起步阈值分开是有意的：调「滑多远」的手感时，**起步门槛不该跟着动**
+    /// （把起步门槛一起抬高 = 轻扫一下干脆不滑了，那是另一码事）。
+    /// 60 的意思：速度掉到看不太出来时就收手，别留一段「几乎不动却还在飘」的尾巴。
+    /// </summary>
+    private const float FlingStopVelocity = 60f;
+
+    /// <summary>
+    /// 松手速度 → 滑行初速的**放大倍数**（v0.96.137 新增）。
+    ///
+    /// 用户要的是「**松手后第一秒滑得更远，但不是持续时间变长**」——这两件事对应的旋钮不同：
+    /// 调大 <see cref="FlingFriction"/> 会同时把距离和**时长**一起拉长（尾巴慢慢飘，正是他不想要的）；
+    /// 而放大初速只按比例放大**第一秒**的位移，时长基本不变
+    /// （时长 = ln(v_stop / v0) / ln(friction)，v0 翻倍只是把对数里的一项挪一点）。
+    /// 实测量级：轻扫一下第一秒从约 23 行变成约 39 行，而滑行时长 2.37s → 2.47s（几乎不变）。
+    ///
+    /// 放大**放在起步阈值判断之后** —— 否则 30pt/s 的轻扫会被放大成 51 而越过门槛，
+    /// 等于顺手把起步门槛降低了，那是另一个改动。
+    /// </summary>
+    private const float FlingLaunchGain = 1.7f;
+
+    /// <summary>
+    /// 每帧速度保留比例 —— **滑多远由它决定**：总位移 = 初速 × dt / 行高 ÷ (1 − friction)。
     /// 0.98 ⇒ 约 50 倍单帧位移（0.95 ⇒ 20 倍，0.97 ⇒ 33 倍）。
-    /// 这个数直接决定手感（实测调过两轮），改动前先按上式估一下。
+    /// 这个数直接决定手感（实测调过两轮），改动前先按上式估一下 —— **它是个除法**，
+    /// 从 0.98 挪到 0.99 就是翻倍，别看着「只差 0.01」就随手调。
+    ///
+    /// ⚠ **它同时决定「滑多久」**（时长 = ln(v_stop/v0)/ln(friction)），而用户要的是
+    /// 「第一秒滑得更远、但别拖更久」⇒ 那件事由 <see cref="FlingLaunchGain"/> 负责，**别调这里**。
+    /// v0.96.137 一度把它改成 0.99，实测就是「尾巴变长」而不是「起步更快」，已改回。
     /// </summary>
     private const float FlingFriction = 0.98f;
 
@@ -739,6 +767,10 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             return;
         }
 
+        // 过了门槛才放大（见 FlingLaunchGain 的注释：放在门槛之前等于顺手把门槛降低了）
+        _velocityY *= FlingLaunchGain;
+        _velocityX *= FlingLaunchGain;
+
         _fling ??= Dispatcher.CreateTimer();
         _fling.Interval = TimeSpan.FromMilliseconds(16);
         _fling.Tick -= OnFlingTick;
@@ -756,7 +788,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         ClampScroll();
         ThrottledInvalidate();
 
-        if (Math.Abs(_velocityY) < MinFlingVelocity && Math.Abs(_velocityX) < MinFlingVelocity) StopFling();
+        if (Math.Abs(_velocityY) < FlingStopVelocity && Math.Abs(_velocityX) < FlingStopVelocity) StopFling();
     }
 
     private void StopFling()
@@ -1520,9 +1552,17 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         float x = textX + MeasurePrefixWidth(line, col);
 
         // 深色底用纯白、浅色底用纯黑：系统那个光标跟随主题色（Android 上是 Material 紫），
-        // 在深色代码背景上很不起眼。这里明确取对比度最高的两色，并加粗到一目了然。
+        // 在深色代码背景上很不起眼。这里明确取对比度最高的两色。
         canvas.StrokeColor = _isDark ? Colors.White : Colors.Black;
-        canvas.StrokeSize = 2.5f;
+
+        // ⚠ **光标宽度必须跟着「一个字符多宽」走，不能写死。**
+        // 原先固定 2.5pt（≈6.9px）是按正文字号的手感定的，但格子宽度是随字号缩的：
+        // 字号 8 时半角格子只有 **11px**，6.9px 的光标占了格子大半，左右各压到相邻字形上
+        // ——用户看到的就是「光标叠在 s 字母上」。它本身**位置是对的**（落在字符边界、
+        // 与 MeasurePrefixWidth 同源），纯粹是太胖，把「在间隔里」画成了「压在字上」。
+        // 取格子宽度的 1/4，并夹在「看得见」与「别太胖」之间：
+        // 字号 8 → 1.2pt（约 3.3px，格子 11px）、14 → 1.75pt（4.6px，格子 19px）、20 → 2.5pt。
+        canvas.StrokeSize = Math.Clamp(_charWidth * 0.25f, 1.2f, 2.5f);
         canvas.DrawLine(x, y + 2, x, y + lineH - 3);
     }
 
