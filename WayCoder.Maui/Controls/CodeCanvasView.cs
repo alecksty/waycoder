@@ -23,6 +23,13 @@ namespace WayCoder.Maui.Controls;
 /// - 滚动自己做（不用 <c>ScrollView</c> 包巨型画布）：250 万行 × 18pt 的内容高度远超
 ///   View 尺寸上限，而且 Android 滚动时子 View 不重绘。
 /// - 行高固定、不算平台行高：「第 N 行 → y」必须能精确算出来。
+/// - **run 上不写 `TextAttribute.FontName`**：写了会被 MAUI 变成 Android 的
+///   `TypefaceSpan(族名)`，而那个 API 只认系统字体族名、没有 asset 重载 —— 打包字体
+///   喂进去静默回落成比例字体，「汉字 = 2 列」立刻不成立。不写则布局回落用 `canvas.Font`，
+///   走的是 <c>FontExtensions.ToTypeface</c> 的 <c>CreateFromAsset</c> 分支，能加载打包字体。
+///   详见 <see cref="EditorTypography.CanvasFontName"/> 与 <c>BuildAttributed</c>。
+/// - **列宽用字体的设计值（`FontSize × 0.5`），不用实测值**：Android 会把行宽取整
+///   （13pt 时拉丁真值 6.5 报成 7），照实测值定位每个拉丁字符多算 0.5pt。
 /// </summary>
 public sealed class CodeCanvasView : GraphicsView, IDrawable
 {
@@ -601,6 +608,14 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             // 决定性一问：这个「标点压缩」是**字号相关**的吗？
             // 若在 13 下是 52、在 26 下是 104（=52×2），说明压缩恒定 ⇒ 渲染必然是别的字号；
             // 若在 26 下是 130（=65×2），说明压缩随字号消失 ⇒ 渲染用的就是大字号。
+            // 网格方案的前提：内置 Sarasa 能否在**分段绘制这条路**（Font.ToTypeface → 有 asset 分支）
+            // 下加载，且中英恰好是 1em : 0.5em（= 2 列 : 1 列）。
+            var sarasa = new Microsoft.Maui.Graphics.Font("SarasaMonoSC-Regular.ttf");
+            string S(string t) => $"[S:{t}]={canvas.GetStringSize(t, sarasa, fs).Width:F2}";
+            sb.Append(S("a")).Append(' ').Append(S("W")).Append(' ')
+              .Append(S("中")).Append(' ').Append(S("a中")).Append(' ')
+              .Append(S("中文，。！")).Append(' ');
+
             foreach (var sz in new[] { 26f, 34.125f, 52f })
                 sb.Append($"[ord@{sz}]={canvas.GetStringSize("中文，。！", EditorTypography.CanvasFont, sz).Width:F2} ");
 
@@ -682,7 +697,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             double probe = canvas.GetStringSize("0", EditorTypography.CanvasFont,
                 EditorTypography.FontSize).Width;
 #if DEBUG
-            if (!_widthProbeDone) { _widthProbeDone = true; LogWidthProbe(canvas); }
+            if (!_widthProbeDone && ShowDebugHud) { _widthProbeDone = true; LogWidthProbe(canvas); }
 #endif
             // 触摸坐标是相对本控件的；把画布尺寸和最后一次按下的坐标一起报出来，
             // 才能判断「滚动条热区为什么没命中」
@@ -707,14 +722,17 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // （偏出十几个字符）。见 AdvanceOf。
         if (!_charWidthMeasured)
         {
-            float ascii = AdvanceOf(canvas, new Rune('0'));
-            float wide = AdvanceOf(canvas, new Rune('中'));
-            if (ascii > 0 && wide > 0)
-            {
-                _charWidth = ascii;
-                _wideCharWidth = wide;
-                _charWidthMeasured = true;
-            }
+            // **用字体的设计值，不用实测值。**
+            //
+            // Sarasa Mono 的拉丁推进量恰好 0.5em、汉字恰好 1em（这正是选它的原因：
+            // 「汉字 = 2 列」的网格与字体设计天然对齐）。而 `GetStringSize` 给出的行宽是
+            // **取整**过的 —— 13pt 时拉丁真值 6.5 会报成 7，照它定位等于每个拉丁字符多算
+            // 0.5pt：一行 7 个拉丁就是 3.5pt，实测红标尺比墨迹右端多出约 9px，正是这个数。
+            //
+            // 字体是我们自己打包的，度量是已知事实，没有理由去「量一个被取整过的近似值」。
+            _charWidth = EditorTypography.HalfWidth;
+            _wideCharWidth = EditorTypography.FontSize;
+            _charWidthMeasured = true;
         }
 
         // ① 光标行 / 选择行底色（在文字下面）
@@ -764,9 +782,12 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         DrawGutter(canvas, first, last, gutterW, h, lineH);
 
 #if DEBUG
-        // 调试标尺：在**测量出来的行尾**画一条竖线。
-        // 用途：分辨「测量比渲染小」还是「xInLine 换算错」—— 看线压在哪就知道，
-        // 不用再靠截图数格子（目测误差比偏差本身还大，前面已经栽过一次）。
+        // 调试标尺：在**测量出来的行尾**画一条竖线（仅在调试 HUD 打开时）。
+        //
+        // 它的价值在于**把「偏了多少」从目测变成可量** —— 前面正是靠它（配合截图取墨迹列）
+        // 定位到「测量比渲染窄」，也是靠它验证了修复（偏差 24.5px → 1.5px）。
+        // 保留不删：这类「两边看着都差不多、实际差一截」的问题，肉眼比不出来。
+        if (ShowDebugHud)
         {
             var rulerLine = _doc?.GetLine(first);
             if (rulerLine is { Length: > 0 })
@@ -1039,10 +1060,16 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             runs.Add(new AttributedTextRun(offset, len, new TextAttributes
             {
                 [TextAttribute.Color] = MarkupToFormattedString.ColorForToken(color, _isDark).ToHex(),
-                // ⚠ 必须显式给字体名：不给就落到平台默认字体（比例字体），
-                // 而我们是按 monospace 量宽度来算光标位置的 —— 两者不一致会逐字累积偏差
-                // （用户实测「越往右越偏得多」）。
-                [TextAttribute.FontName] = EditorTypography.CanvasFontName,
+                // ⚠ **这里刻意不写 FontName**。写了的话 MAUI 会把它变成 Android 的
+                // `TypefaceSpan(族名)` —— 那个 API 只认**系统字体族名**、没有 asset 重载
+                // （见 `Graphics/Platforms/Android/Text/AttributedTextExtensions.cs`），
+                // 我们的资产名喂进去解析不到，只会**静默回落成平台默认的比例字体**：
+                // 中文与拉丁的宽度比就不再是 2:1，而测量那边量的是打包字体 ⇒ 越往右越偏。
+                //
+                // 不给 FontName，run 就没有 TypefaceSpan，布局回落用 `FontPaint` 的字体，
+                // 而那正是 `canvas.Font`（= EditorTypography.CanvasFont）：它走的是
+                // `FontExtensions.ToTypeface` 的 **`CreateFromAsset` 分支**，打包字体在这里能加载。
+                // 于是「绘制用的字体」与「测量的字体」是同一个 —— 这才是同源。
             }));
             offset += len;
         }

@@ -26,20 +26,37 @@ internal static class EditorTypography
     /// 中文靠平台 fallback，而**测量与渲染两条路径 fallback 到的字体并不一致**
     /// （实测同一条中文，测量 ≈9.8dp、渲染 ≈16.8dp），点击定位就会越往右越偏。
     /// </summary>
-    public const string FontFamilyName =
+    /// <summary>
+    /// **Controls 侧**（Entry / Label）用的字体别名 —— 即 MauiProgram 里 <c>AddFont</c> 注册的那个。
+    /// </summary>
+    public const string FontFamilyName = "SarasaMonoSC";
+
+    /// <summary>
+    /// **Graphics 侧**（<c>Font</c> / <c>Typeface</c>）用的字体名 —— 与 Controls 是**两套互不知情的解析器**。
+    ///
+    /// Android 走资产名：<c>FontExtensions.ToTypeface</c> 会先试 <c>Typeface.CreateFromAsset</c>，
+    /// 所以**这里必须带扩展名**（资产就叫 <c>SarasaMonoSC-Regular.ttf</c>）；iOS 走
+    /// <c>UIFont.FromName</c>，要 PostScript 名（不带扩展名）。写错都不抛异常，只会静默回落成
+    /// 平台默认的**比例字体**，宽度与测量对不上。
+    ///
+    /// ⚠ 这个名字**只对「画布自己的字体」有效**。`AttributedText` 的 run 上若写了 FontName，
+    /// MAUI 会把它变成 <c>TypefaceSpan(族名)</c> —— 那个 API **只认系统字体族名、没有 asset 重载**
+    /// （见 `dotnet/maui` 的 `Graphics/Platforms/Android/Text/AttributedTextExtensions.cs`），
+    /// 资产名喂进去只会悄悄回落。所以 run 上**不写** FontName，让布局回落用画布的字体 —— 见
+    /// <c>CodeCanvasView.BuildAttributed</c>。
+    /// </summary>
+    public const string CanvasFontName =
 #if ANDROID
-        "monospace";
+        "SarasaMonoSC-Regular.ttf";
 #else
-        "Courier New";
+        "SarasaMonoSC-Regular";
 #endif
 
     /// <summary>
-    /// **Graphics 侧**（`Font` / `Typeface` / `AttributedText` 的 run）用的字体名。
-    ///
-    /// 与 Controls 是**两套互不知情的解析器**：Android 走资产文件名，iOS 走 PostScript 名 ——
-    /// 写错不会抛异常，只会静默回落成平台默认字体，而回落的那份宽度与测量又对不上。
+    /// 半角字符宽度（列宽）—— Sarasa Mono 的拉丁字形推进量**恰好是 0.5em**，
+    /// 汉字恰好 1em，所以「汉字 = 2 列」这台网格与字体设计天然对齐，不需要额外推算。
     /// </summary>
-    public const string CanvasFontName = FontFamilyName;
+    public static float HalfWidth => FontSize * 0.5f;
 
     /// <summary>字号（磅）。可在编辑器菜单里调（加大/缩小/重置），并持久化。</summary>
     public static float FontSize { get; set; } = 13f;
