@@ -211,6 +211,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _editingRunsFor = null;
         _firstLine = 0;
         _scrollX = 0;
+        _scrollFontSize = EditorTypography.FontSize;   // 与 _scrollX 成对（见 ResetTypography）
         _velocityX = _velocityY = 0;
         _caretLine = -1;
         _selAnchor = _selEnd = -1;
@@ -238,8 +239,16 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
     public void ResetTypography()
     {
-        _charWidthMeasured = false;
-        _scrollX = 0;
+        // ⚠ **横向滚动要按比例接过去，不能清零**。
+        // 清零的表现就是「明明滚到了行中间，一缩放就被拽回最左边」—— 因为横向偏移是**像素**，
+        // 字号一变它的含义就变了；但「清零」不是解法，「换算」才是。
+        //
+        // 推进量与字号成正比（平台的逐字形取整只是零头），所以「原来停在左边第几列」在新字号下
+        // 的偏移 ≈ 旧偏移 × (新字号 / 旧字号)。纵向（_firstLine 是行号，与字号无关）本来就不动。
+        float oldSize = _scrollFontSize > 0.5f ? _scrollFontSize : EditorTypography.FontSize;
+        _scrollX = Math.Max(0f, _scrollX * (EditorTypography.FontSize / oldSize));
+
+        _charWidthMeasured = false;   // 推进量要按新字号重量（MeasureAdvances）
         ClampScroll();
         Invalidate();
     }
@@ -786,7 +795,17 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         canvas.RestoreState();
 
         // ③ 行号栏（最后画 —— 它会盖掉光标行底色横跨过来的那一段）
-        DrawGutter(canvas, first, last, gutterW, h, lineH);
+        //
+        // **视口正在移动的这一帧不画行号数字**。理由是最小字号下的账：
+        // 每可见行要两次平台文本绘制（正文一次、行号一次），而 `DrawText` 每次都得新建
+        // `StaticLayout`（`ICanvas` 没有缓存入口）—— 字号 8 时一屏 50 多行，行号栏就是其中一半。
+        // 滚动中数字本来也看不清，等停下再补：**判据是「本帧滚动位置与上帧是否相同」**，
+        // 不依赖手势状态机（拖拽/惯性/程序滚动三条路都自动覆盖），停下后的下一帧位姿不变 ⇒ 数字回来。
+        bool viewMoving = Math.Abs(_firstLine - _lastDrawnFirstLine) > 0.01f
+                          || Math.Abs(_scrollX - _lastDrawnScrollX) > 0.01f;
+        _lastDrawnFirstLine = _firstLine;
+        _lastDrawnScrollX = _scrollX;
+        DrawGutter(canvas, first, last, gutterW, h, lineH, withNumbers: !viewMoving);
 
 #if DEBUG
         // 调试标尺：在**测量出来的行尾**画一条竖线（仅在调试 HUD 打开时）。
@@ -891,6 +910,20 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// <summary>本次手势期间的**最差**一帧（每次手指按下清零）——卡顿看峰值，不看均值。</summary>
     private double _drawMsPeak;
 
+    /// <summary>
+    /// 上一帧画的是哪个视口位姿（首个可见行 + 横向偏移）—— 用来判断「本帧视口是否在动」，
+    /// 决定行号数字要不要跳过（见 <see cref="DrawGutter"/> 的 <c>withNumbers</c>）。
+    /// 初值取 0 与构造函数里的初始位姿一致，所以**第一帧算「没动」**、正常画行号。
+    /// </summary>
+    private float _lastDrawnFirstLine;
+    private float _lastDrawnScrollX;
+
+    /// <summary>
+    /// 上次更新 <see cref="_scrollX"/> 时的字号。改字号时用它把横向偏移**按比例**换算到新字号
+    /// （见 <see cref="ResetTypography"/>）—— 否则缩放会把视口拽回最左边。
+    /// </summary>
+    private float _scrollFontSize;
+
 #if ANDROID
     /// <summary>「平台排版 == 网格」的自检只做一次（见 Draw 里那段）。</summary>
     private bool _widthAuditDone;
@@ -958,10 +991,18 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         }
     }
 
-    private void DrawGutter(ICanvas canvas, long first, long last, float gutterW, float h, float lineH)
+    /// <param name="withNumbers">
+    /// 是否画行号**数字**。视口正在移动（本帧滚动位置与上帧不同）时传 false ——
+    /// 见 <see cref="Draw"/> 里对 <c>_lastDrawnFirstLine</c> 的说明。
+    /// </param>
+    private void DrawGutter(ICanvas canvas, long first, long last, float gutterW, float h, float lineH,
+        bool withNumbers)
     {
+        // 底色**始终画**：只跳数字，不跳行号栏本身 —— 否则滚动时左边缘会露出一条与正文同色的
+        // 空白，看着像界面在抖。滚动中行号栏保持是「一条安静的灰边」，停下再补上数字。
         canvas.FillColor = _isDark ? EditorTypography.GutterBgDark : EditorTypography.GutterBg;
         canvas.FillRectangle(0, 0, gutterW, h);
+        if (!withNumbers) return;
 
         // 字号比正文小一号（行号是辅助信息，不该和代码抢注意力）。
         //

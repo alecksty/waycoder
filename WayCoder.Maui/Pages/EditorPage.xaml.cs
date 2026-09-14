@@ -98,6 +98,10 @@ public partial class EditorPage : ContentPage
             {
                 et.SetCursorVisible(false);
                 et.SetBackgroundColor(Android.Graphics.Color.Transparent);
+                // **左右内边距清零**：输入框的文字原点是「外边距 + 内边距」，而画布正文的原点是
+                // 「行号栏 + 正文左内边距 − 横向滚动」。内边距留着，系统的光标/选择手柄/复制粘贴
+                // 浮层就会整体再多偏一个内边距的量。上下不动（行高另有一套钳制）。
+                et.SetPadding(0, et.PaddingTop, 0, et.PaddingBottom);
             }
 #elif IOS
             if (LineEditor.Handler?.PlatformView is UIKit.UITextField tf)
@@ -576,13 +580,22 @@ public partial class EditorPage : ContentPage
     private int ClickXToCharIndex(float xInLine, string line)
         => Math.Clamp(Canvas.CharIndexAtX(line, xInLine), 0, line.Length);
 
-    /// <summary>把输入框对齐到该行位置（用同一份行高与行号栏宽度算，避免错位）。</summary>
+    /// <summary>
+    /// 把输入框对齐到该行位置（用同一份行高与行号栏宽度算，避免错位）。
+    ///
+    /// ⚠ 横向要**和画布正文的起点逐项对齐**：`行号栏 + 正文左内边距 − 横向滚动`
+    /// （见 <c>CodeCanvasView</c> 里 `textX` 的算法）。只写「行号栏宽度」是不够的 ——
+    /// 横向一滚，输入框的文字原点就与画布差出整个滚动量，而**系统自己的光标、选择手柄、
+    /// 复制/粘贴浮层都是按输入框内部坐标定位的**（我们只把它的文字和光标画成透明的），
+    /// 于是它们全都跟着偏 —— 这正是「选择/复制粘贴位置不对」的来源。
+    /// </summary>
     private void PositionEditor(long oneBased)
     {
         float y = Canvas.LineScreenY(oneBased, (float)Canvas.Height) ?? -1;
         if (y < 0) return;
         LineEditor.TranslationY = y;
-        LineEditor.Margin = new Thickness(Canvas.GutterWidthPx, 0, 0, 0);
+        LineEditor.Margin = new Thickness(
+            Canvas.GutterWidthPx + EditorTypography.TextLeftPad - Canvas.ScrollX, 0, 0, 0);
     }
 
     private void CommitEditingLine()
