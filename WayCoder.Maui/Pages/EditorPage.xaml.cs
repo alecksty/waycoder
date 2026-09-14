@@ -899,7 +899,9 @@ public partial class EditorPage : ContentPage
 
         var mark = _modified ? "● " : "";
         var ro = _canEdit ? (_readOnly ? "只读" : "编辑") : "只读";
-        var sel = Canvas.HasSelection ? $" · 已选 {Canvas.SelectionChangedRange}" : "";
+        // 加 "L" 前缀：`SelectionChangedRange` 给的是**行区间**（"398" 或 "398-405"），
+        // 光写「已选 398」会被读成「选了 398 个字符」—— 紧挨着的「光标 L398」就是这个格式。
+        var sel = Canvas.HasSelection ? $" · 已选 L{Canvas.SelectionChangedRange}" : "";
         // 字号紧跟在光标行右边：捏合缩放时要能**看着数字调**（「到底放大到几号了」此前只能靠手感）。
         StatusLabel.Text = $"{mark}{_doc.EncodingName} · {ro} · {_doc.LineCount:N0} 行 · "
                          + $"{FormatSize(_fileBytes)} · 光标 L{Math.Max(1, Canvas.CaretLine)}"

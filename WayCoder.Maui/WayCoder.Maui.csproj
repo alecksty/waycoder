@@ -48,9 +48,33 @@
 		<!-- App Identifier -->
 		<ApplicationId>com.companyname.waycoder.maui</ApplicationId>
 
-		<!-- Versions -->
-		<ApplicationDisplayVersion>0.96.135</ApplicationDisplayVersion>
-		<ApplicationVersion>121</ApplicationVersion>
+		<!-- Versions —— **从 Global.cs 推导，不在这里手写**。
+		     起因：这两个字段和 `WayCoder/Config/Global.cs` 的 `Global.Version` 是**同一份事实的两处拷贝**，
+		     而 `scripts/release.sh` 的 VERSION 恰恰是从 **Global.cs** 里 sed 出来的 ⇒ 桌面端打出来的包
+		     是 Global.Version、Android 包是 ApplicationDisplayVersion。两边一旦漏同步（v0.96.128~134
+		     连续 8 版只改了这里）就会出现「设置里显示 0.96.135、About 页和 TUI 标题栏显示 0.96.127」
+		     这种自相矛盾，而且**构建全绿**，只有人眼看才发现。现在唯一真源 = Global.cs。
+		     `ApplicationVersion`（供 Android 的 versionCode）一并推导：major*1000000+minor*10000+patch
+		     —— 只要单调递增即可（当前 0.96.135 → 960135，远大于旧的 121），不要再手工维护一个计数器。
+		     ⚠ **每段的位宽必须大于该段的取值上限**：一开始写的是 `minor*100+patch`，而 patch 已经到
+		     135 > 100 ⇒ 0.96.135 算成 9735，**高于** 0.97.0 的 9700 —— 一次 minor 升级会让
+		     versionCode 变小，Android 直接拒绝覆盖安装（"version downgrade"）。 -->
+		<_GlobalCsPath>$(MSBuildThisFileDirectory)../WayCoder/Config/Global.cs</_GlobalCsPath>
+		<_GlobalCsText Condition="Exists('$(_GlobalCsPath)')">$([System.IO.File]::ReadAllText('$(_GlobalCsPath)'))</_GlobalCsText>
+		<_VerMajor>$([System.Text.RegularExpressions.Regex]::Match($(_GlobalCsText), 'Version\s*=\s*"v(\d+)\.').Groups[1].Value)</_VerMajor>
+		<_VerMinor>$([System.Text.RegularExpressions.Regex]::Match($(_GlobalCsText), 'Version\s*=\s*"v\d+\.(\d+)\.').Groups[1].Value)</_VerMinor>
+		<_VerPatch>$([System.Text.RegularExpressions.Regex]::Match($(_GlobalCsText), 'Version\s*=\s*"v[\d.]+?\.(\d+)"').Groups[1].Value)</_VerPatch>
+		<!-- 数值运算只喂**已确认非空**的值（空串喂给 [MSBuild]::Multiply 会在**属性求值阶段**就抛
+		     MSB4186，那条报错完全看不出是版本号没解析出来）。这里退化成 0，把「解析失败」留给
+		     下面那个 Target 用能读懂的话报。 -->
+		<_VerMajorNum Condition="'$(_VerMajor)' != ''">$(_VerMajor)</_VerMajorNum>
+		<_VerMajorNum Condition="'$(_VerMajor)' == ''">0</_VerMajorNum>
+		<_VerMinorNum Condition="'$(_VerMinor)' != ''">$(_VerMinor)</_VerMinorNum>
+		<_VerMinorNum Condition="'$(_VerMinor)' == ''">0</_VerMinorNum>
+		<_VerPatchNum Condition="'$(_VerPatch)' != ''">$(_VerPatch)</_VerPatchNum>
+		<_VerPatchNum Condition="'$(_VerPatch)' == ''">0</_VerPatchNum>
+		<ApplicationDisplayVersion>$(_VerMajor).$(_VerMinor).$(_VerPatch)</ApplicationDisplayVersion>
+		<ApplicationVersion>$([MSBuild]::Add($([MSBuild]::Add($([MSBuild]::Multiply($(_VerMajorNum), 1000000)), $([MSBuild]::Multiply($(_VerMinorNum), 10000)))), $(_VerPatchNum)))</ApplicationVersion>
 
 		<!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
 		<WindowsPackageType>None</WindowsPackageType>
@@ -115,5 +139,13 @@
 		<Compile Include="../WayCoder/UI/TUI/Edit/**/*.cs" />
 		<Compile Include="../WayCoder/UI/TUI/Custom/ContentDiffFormatter.cs" />
 	</ItemGroup>
+
+	<!-- 版本号解析失败要**当场炸掉**：正则一失效就会静默产出空版本号的包
+	     （Android 会构建失败或装出一个没有版本的应用），而「静默降级」正是上面 Version 那段
+	     注释里要根除的东西。（Target 必须挂在 Project 下，放进 PropertyGroup 里会报 MSB4066。） -->
+	<Target Name="VerifyAppVersionParsed" BeforeTargets="Build;Publish">
+		<Error Condition="'$(_VerPatch)' == '' or '$(_VerMajor)' == ''"
+		       Text="无法从 $(_GlobalCsPath) 解析版本号 —— 请确认 WayCoder/Config/Global.cs 里仍是 `public const string Version = &quot;vX.Y.Z&quot;;` 的写法。" />
+	</Target>
 
 </Project>

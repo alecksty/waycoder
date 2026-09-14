@@ -78,6 +78,30 @@
 
 两条都是「量级不大但白做」的优化项，等真机性能数字出来一起看。
 
+### ⑩ 模拟器验收时发现的两条（同版补记）
+
+**a) 版本号有**两个**真源，已经漂了 8 个版本。** —— 这是典型的「手工同步的平行表」：
+`scripts/release.sh:32` 的 `VERSION` 是从 **`WayCoder/Config/Global.cs` 的 `Global.Version`**
+里 sed 出来的，而 Android 包的版本来自 `WayCoder.Maui.csproj` 的 `ApplicationDisplayVersion`
+—— **同一份事实的两处拷贝**。v0.96.128~134 连续 8 版只改了 csproj（因为这几版都在改 MAUI 侧），
+于是 Android 包是 0.96.135、而首页/关于页/TUI 标题栏读 `Global.Version` 显示 **v0.96.127**、
+桌面端打出来的包也会是 v0.96.127 —— 而且**构建全绿**，只有装上手机用眼睛看才发现。
+修法：**真源只留 `Global.Version`**，csproj 用 MSBuild 属性函数从 Global.cs 正则解析
+（`System.IO.File::ReadAllText` + `Regex::Match`），`ApplicationVersion`（Android versionCode）
+一并推导为 `major*1000000+minor*10000+patch`；解析失败在 `BeforeTargets="Build;Publish"` 的
+Target 里**报可读错误**（否则会静默产出空版本号的包）。
+⚠ 位宽那条踩了一下：最初写的是 `minor*100+patch`，而 patch 已经到 135 > 100 ⇒ 0.96.135 算成
+**9735**，**高于** 0.97.0 的 9700 —— 一次 minor 升级会让 versionCode 变小，Android 直接拒绝覆盖安装。
+
+**b) 状态栏「已选 398」看着像选了 398 个字符。** —— `SelectionChangedRange` 给的是**行区间**，
+紧挨着的「光标 L398」用的就是 `L` 前缀，这里却没加。改成「已选 L398 / L398-405」，
+与左边同格式（这个数不改成字符数是有意的：跨几百行的选区要逐行读一遍，在每帧路径上不划算）。
+
+模拟器实测（`emulator-5554`，Android API 36）：惯性甩动停下后**不再触碰屏幕**，行号栏自动补回
+398~427（原先要等某个无关事件重绘）；编辑器长按只弹**我们自己的**操作条、无平台工具条；
+聊天输入框长按**仍然**弹系统的 剪切/复制/粘贴/分享（证明 StyleId 限定生效，没有误伤其余 18 个 Entry）；
+首页与 `dumpsys package` 的版本号均为 0.96.135。
+
 ## v0.96.134 (2026-09-14) — 选区手势收尾：打断时清干净 / 操作条跟着视口走
 
 ### ① 手势被系统打断时，本手势的状态没清干净
