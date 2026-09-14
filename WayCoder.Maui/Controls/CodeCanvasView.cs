@@ -1127,8 +1127,8 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             // 探针每次绘制都要量一遍整行，1K 字符的行并不便宜 —— 只在调试构建里算。
             // 用途：比对「逐字累加」与「整行一次测量」是否一致（不一致就说明宽度模型有偏）。
             var l0 = _doc?.GetLine((long)first);
-            float sum = l0 == null ? 0 : MeasurePrefixWidth(l0, l0.Length);
-            float whole = l0 == null ? 0 : (float)canvas.GetStringSize(l0,
+            float sum = (l0 == null || l0.Length > EditorTypography.MaxTokenizeChars) ? 0 : MeasurePrefixWidth(l0, l0.Length);
+            float whole = (l0 == null || l0.Length > EditorTypography.MaxTokenizeChars) ? 0 : (float)canvas.GetStringSize(l0,
                 EditorTypography.CanvasFont, EditorTypography.FontSize).Width;
             MeasureProbe = $"sum{sum:F0}/whole{whole:F0} ratio{(whole > 0 ? sum / whole : 0):F2}";
 #endif
@@ -1218,7 +1218,8 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             if (rulerLine is { Length: > 0 })
             {
                 float endX = gutterW + EditorTypography.TextLeftPad
-                    + MeasurePrefixWidth(rulerLine, rulerLine.Length) - _scrollX;
+                    + (rulerLine.Length > EditorTypography.MaxTokenizeChars ? 0f
+                        : MeasurePrefixWidth(rulerLine, rulerLine.Length)) - _scrollX;
                 canvas.StrokeColor = Colors.Red;
                 canvas.StrokeSize = 1f;
                 canvas.DrawLine(endX, 0, endX, lineH * 3);
@@ -2332,7 +2333,12 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         float caretX = gutter + EditorTypography.TextLeftPad
             + MeasurePrefixWidth(EditingText, EditingCursor);
         float viewW = Math.Max(40f, (float)Width - gutter);
-        float margin = 48f;
+        // **最小滚动：只在光标格真的露不全时才挪，且只挪到刚好露出来。**
+        //
+        // 原来这里是 48f（约 2.5 列）—— 后果是点一个本来就在屏幕里的字，屏幕也会横向
+        // 跳一下。原则是**屏幕适应光标，不是光标适应屏幕**：中间的字点了，一个字都不该动。
+        // 留「一列」余量，正对应「光标右边要还能显示下一个字符，否则左滚一格」。
+        float margin = EditorTypography.HalfWidth;
 
         float left = caretX - _scrollX;
         if (left > viewW - margin) _scrollX = caretX - viewW + margin;

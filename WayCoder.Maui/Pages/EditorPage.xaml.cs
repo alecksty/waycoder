@@ -701,11 +701,11 @@ public partial class EditorPage : ContentPage
     /// </summary>
     private async Task EnsureEditorVisibleAsync(long oneBased)
     {
-        Canvas.ScrollToLine(oneBased, center: true);
+        Canvas.ScrollToLine(oneBased);   // 最小滚动：露得全就一个字都不动
         await Task.Delay(260);
         if (_editLine != oneBased - 1) return;   // 期间已经切走/提交了
         PositionEditor(oneBased);
-        Canvas.ScrollToLine(oneBased, center: true);
+        Canvas.ScrollToLine(oneBased);   // 最小滚动：露得全就一个字都不动
     }
 
     /// <summary>
