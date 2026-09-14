@@ -1,5 +1,66 @@
 # 更新日志
 
+## v0.96.123 (2026-09-14) — iOS 在模拟器跑通 + 触控自动化打通（**无代码改动**）
+
+本轮只做验证，代码一行未改。两条经验值得留档，都是下次会再踩的。
+
+### 一、iOS「启动即崩」的根因是 `obj/` 残留，**不是工具链损坏**
+
+现象是模拟器上启动即崩于：
+
+```
+Microsoft.iOS: The static registrar map for Microsoft.iOS is invalid.
+It was built using a runtime with hash bf48bb9d..., but the current runtime
+was built with hash ac895e19...
+→ System.ArgumentNullException at UIWindow.set_RootViewController
+```
+
+此前判断为「iOS 工作负载/运行时包不同步（环境问题）」，**这个判断是错的**。
+真因是 **`obj/` 里残留着别的 SDK 版本编出来的中间产物**。清掉重编即可：
+
+```bash
+rm -rf obj/Debug/net10.0-ios bin/Debug/net10.0-ios
+dotnet build WayCoder.Maui.csproj -f net10.0-ios -c Debug -p:RuntimeIdentifier=iossimulator-arm64
+# → 0 错误；模拟器上道码 v0.96.122 首页正常渲染，进程常驻，无崩溃报告
+```
+
+**教训**：遇到「注册器哈希不匹配」这类**看起来像环境损坏**的报错，先清 `obj` 再怀疑工作负载 ——
+清 `obj` 是秒级的，`dotnet workload repair` 是分钟级的，且多半治不了这个。
+
+### 二、iOS 模拟器触控自动化：AppleScript + 坐标标定
+
+`xcrun simctl` 没有触控命令。可用 `osascript` 合成点击（**需要「辅助功能」权限**：
+
+`tell application "System Events" to click at {x, y}` —— 未授权时报 `-25204`）。
+
+**iPhone 17 = 402×874 pt @3x（1206×2622 px）**，Simulator 窗口内容区在窗口内**居中**：
+
+```
+屏幕坐标 = 窗口原点 + ((窗口宽 − 402)/2, (窗口高 − 874)/2) + (设备px ÷ 3)
+```
+
+实测标定成立（点 (330,934) 正确进了「文件」页）。脚本见 `/tmp/iostap.sh`。
+
+**验证落点的现成手段**：`click at` 会**返回被点中的那个 UI 元素** ——
+返回 `... of application process Terminal` 就说明坐标错到本会话窗口上了，
+返回 Simulator 的按钮名就说明点对了。不用截图猜。
+
+### 三、iOS 沙箱里的测试文件怎么放
+
+iOS app 有自己的沙箱，Android 的 `/sdcard/waycoder/workspace` 看不到：
+
+```bash
+C=$(xcrun simctl get_app_container <udid> com.companyname.waycoder.maui data)
+cp long1k.txt noemoji.txt "$C/Library/workspace/"
+```
+
+### 未完成
+
+- **点击不稳定**：同一坐标 (330,934) 第一次进了文件页，重试就点不动。
+  可能是 App 重启后首页滚动位置变化，或 Simulator 抢焦点 —— **没查清楚，不能当能用**
+- **iOS 编辑器未验证**：那两处一行没验过的地方仍在（`CanvasFontName` 的 PostScript 名分支、
+  `HalfWidth = FontSize × 0.5` 这个网格前提在 iOS 上是否成立）
+
 ## v0.96.122 (2026-09-14) — 编辑器：钳住浮动 Entry 的高度（选区高亮/手柄错位）
 
 ### 现象
