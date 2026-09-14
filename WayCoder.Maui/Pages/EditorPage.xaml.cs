@@ -49,7 +49,9 @@ public partial class EditorPage : ContentPage
         Canvas.LineLongPressed += OnLineLongPressed;
         // 选区一变就同时刷状态栏与**选区操作条**（选词/扩选/全选/清除都从画布发这个事件）
         Canvas.SelectionChanged += (_, _) => { UpdateStatus(); UpdateSelectionBar(); };
-        Canvas.ViewChanged += UpdateStatus;
+        // 视口一变，条子要跟着选区走（滚出视口时收起来）—— 不跟就会停在原地，
+        // 而选区已经滚走了，看着像「操作条在乱飘」
+        Canvas.ViewChanged += () => { UpdateStatus(); UpdateSelectionBar(); };
         // 双指捏合缩放字号，与菜单里的加大/缩小走**同一个** ApplyFontSize
         // （此前这两处是两份几乎逐行相同的拷贝，只改一处就会出现「捏合好了、菜单还是老样子」）。
         //
@@ -493,11 +495,19 @@ public partial class EditorPage : ContentPage
 
         SelPasteBtn.IsVisible = _canEdit && !_readOnly;   // 只读文件不给粘贴（免得看着像能改）
 
-        // 量一次条子宽度，再按选区左端摆放（尽量居中于选区所在行，靠边时贴边）
+        // 选区被滚出视口就把条子收起来 —— 内容区**不裁剪子控件**，条子会浮到工具栏/状态栏上去
+        float top = Canvas.SelectionTopY;
+        if (top < -EditorTypography.LineHeight || top > (float)Canvas.Height + EditorTypography.LineHeight)
+        {
+            SelectionBar.IsVisible = false;
+            return;
+        }
+
+        // 量一次条子宽度，再按选区左端摆放（靠边时贴边）
         double barW = SelectionBar.Width > 0 ? SelectionBar.Width : 240;
         double x = Math.Max(4, Math.Min(Canvas.GutterWidthPx + 8, Canvas.Width - barW - 4));
-        double y = Canvas.SelectionTopY - (SelectionBar.Height > 0 ? SelectionBar.Height : 40) - 6;
-        if (y < 4) y = Canvas.SelectionTopY + EditorTypography.LineHeight + 6;   // 顶部放不下就摆到下方
+        double y = top - (SelectionBar.Height > 0 ? SelectionBar.Height : 40) - 6;
+        if (y < 4) y = top + EditorTypography.LineHeight + 6;   // 顶部放不下就摆到下方
         SelectionBar.TranslationX = x;
         SelectionBar.TranslationY = y;
         SelectionBar.IsVisible = true;

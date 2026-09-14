@@ -193,7 +193,19 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         StartInteraction += OnStart;
         DragInteraction += OnDrag;
         EndInteraction += OnEnd;
-        CancelInteraction += (_, _) => { _dragging = false; _longPress = false; _dragBar = Bar.None; };
+        // 手势被系统取消（来电、切走 App、父容器截走触摸…）—— 必须把**本手势的每一个状态**都清掉：
+        // 漏一个 `_dragHandle`，之后任何一次拖动都会继续去挪那个手柄；漏 `_selecting`，
+        // 则下一次拖动变成「扩选」而不是滚动。这类标志「粘住」的症状是「莫名其妙开始选东西」，
+        // 而且只在被打断过之后才复现，最难查。
+        CancelInteraction += (_, _) =>
+        {
+            _dragging = false;
+            _dragBar = Bar.None;
+            _dragHandle = 0;
+            _selecting = false;
+            _longPressTimer?.Stop();
+            _pinchStartDist = 0;
+        };
     }
 
     // ── 外部设置 ──
@@ -337,7 +349,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     // ── 触摸 ──
 
     private float _lastX, _lastY;
-    private bool _dragging, _moved, _longPress;
+    private bool _dragging, _moved;
 
     /// <summary>长按判定用的单次定时器（见 <see cref="OnStart"/>：长按必须在手指还按着时判定）。</summary>
     private IDispatcherTimer? _longPressTimer;
@@ -358,7 +370,6 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _downTicks = Environment.TickCount64;
         _dragging = true;
         _moved = false;
-        _longPress = false;
         _samples.Clear();
         _samples.Enqueue((_downTicks, p.Y, p.X));
         StopFling();
@@ -387,7 +398,6 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             if (_dragHandle != 0)
             {
                 _dragging = false;      // 不是内容拖拽：不滚、不惯性
-                _longPress = true;      // 也不必再判长按
                 return;
             }
         }
@@ -408,7 +418,6 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         if (_moved || !_dragging || _dragBar != Bar.None || _doc == null) return;   // 已经滑走/松手/在拖滚动条
         if (_pinchStartDist > 0) return;                                           // 捏合中不算长按
 
-        _longPress = true;
         _selecting = true;                       // 后续 DragInteraction 走扩选
         StopFling();
 
