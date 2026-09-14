@@ -767,9 +767,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             }
             else if (line.Length > 0)
             {
-                CacheRuneWidths(canvas, line);   // 顺手把非 ASCII 字符的真实宽度收进缓存
-                canvas.DrawText(editing ? BuildAttributed(line) : GetAttributed(i, line),
-                    textX, y + EditorTypography.TextBaselineOffset, 1_000_000f, lineH);
+                // 逐段按网格列定位绘制（见 DrawGridRuns）—— 位置由我们算，不听字体的
+                DrawGridRuns(canvas, editing ? BuildAttributed(line) : GetAttributed(i, line),
+                    textX, y, lineH);
             }
 
             if (editing) DrawCaret(canvas, line, textX, y, lineH);
@@ -1076,6 +1076,49 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         return new AttributedText(display, runs);
     }
 
+    /// <summary>
+    /// 按**网格列**逐段绘制一行 —— 「绘制字符串」这一步不交给平台的整行排版。
+    ///
+    /// 每段的起点 x 一律 = 该段起始字符的**列号 × 列宽**（<see cref="MeasureColumns"/> +
+    /// <see cref="ColumnsToX"/>），而不是让平台排版从行首一路推进过来。于是：
+    ///
+    /// - 字体一个字符实际多宽**不影响光标落在哪** —— 定位与绘制同用一套列号；
+    /// - 即使某个字形与列宽有差（行宽取整、fallback 字形、全角标点被压缩…），
+    ///   **误差也不会跨段累积** —— 每段都被重新按回网格。此前那种「一路修测量」
+    ///   的做法只能把偏差压小，压不掉「两把尺子」这件事本身。
+    ///
+    /// 段的划分直接复用语法上色已有的 token run（本来就是为分段着色而切的），
+    /// 所以这一步不额外增加分词开销。
+    /// </summary>
+    private void DrawGridRuns(ICanvas canvas, IAttributedText attr, float textX, float y, float lineH)
+    {
+        var text = attr.Text;
+        if (string.IsNullOrEmpty(text)) return;
+        float drawY = y + EditorTypography.TextBaselineOffset;
+
+        // 没有 run（超长行 / 空行）：整行一次画，起点仍在网格上
+        if (attr.Runs == null || attr.Runs.Count == 0)
+        {
+            canvas.DrawText(new AttributedText(text, []), textX, drawY, 1_000_000f, lineH);
+            return;
+        }
+
+        foreach (var run in attr.Runs)
+        {
+            int start = run.Start, len = run.Length;
+            if (len <= 0 || start < 0 || start + len > text.Length) continue;
+
+            float x = textX + ColumnsToX(MeasureColumns(text, start));   // ← 强行按到网格列上
+
+            // 颜色随 run 的 attributes 一起带过去 —— 不另读颜色属性，少一处平台差异面
+            var seg = run.Attributes == null
+                ? new AttributedText(text.Substring(start, len), [])
+                : new AttributedText(text.Substring(start, len),
+                    [new AttributedTextRun(0, len, run.Attributes)]);
+            canvas.DrawText(seg, x, drawY, 1_000_000f, lineH);
+        }
+    }
+
     /// <summary>清掉某行的渲染缓存（该行被编辑后调用）。</summary>
     public void InvalidateLine(long oneBased)
     {
@@ -1366,6 +1409,59 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         return RuneWidthApprox(r) == 2 ? _wideCharWidth : _charWidth;
     }
 
+    // ══ 网格（列）模型 —— 定位的唯一真源 ═══════════════════════════════════
+    //
+    // **位置一律由我们自己算**：每个码点折算成列（半角 1 列、全角 2 列），再乘列宽。
+    // 这里**不查字体度量、不调 GetStringSize** —— 字体一个字符多宽不影响光标落在哪，
+    // 因为画的时候是把每段**强行放到它该在的列上**（见 DrawGridRuns）。
+    //
+    // 这条是踩出来的：此前定位查的是字体实测推进量，于是「测量报告的数」与「渲染落笔的
+    // 位置」必须严格相等才对，而它们在 Android 上永远差一点（行宽被取整、全角标点被压缩、
+    // 字体解析还分两条路）—— 一路修下来只是把偏差从 24px 压到 1.5px，仍然是「两把尺子」。
+    // 网格的立场是：**尺子只有一把，就是我们自己**。
+
+    /// <summary>行内第 <paramref name="charIndex"/> 个 UTF-16 码元之前占多少**列**。</summary>
+    public static int MeasureColumns(string? line, int charIndex)
+    {
+        if (string.IsNullOrEmpty(line) || charIndex <= 0) return 0;
+        int limit = Math.Min(charIndex, line.Length);
+        int col = 0, idx = 0;
+        foreach (var r in line.EnumerateRunes())
+        {
+            if (idx >= limit) break;
+            col += r.Value == '\t'
+                ? (col / EditorTypography.TabColumns + 1) * EditorTypography.TabColumns - col
+                : RuneWidthApprox(r);
+            idx += r.Utf16SequenceLength;
+        }
+        return col;
+    }
+
+    /// <summary>列 → 横坐标（相对正文左端）。</summary>
+    public static float ColumnsToX(int columns) => columns * EditorTypography.HalfWidth;
+
+    /// <summary>横坐标 → 列（四舍五入到最近的列）。</summary>
+    public static int XToColumn(float x)
+        => x <= 0 ? 0 : (int)Math.Round(x / Math.Max(0.5f, EditorTypography.HalfWidth));
+
+    /// <summary>列 → 行内 UTF-16 码元下标（落在全角字符中间时归到该字符）。</summary>
+    public static int ColumnToCharIndex(string? line, int column)
+    {
+        if (string.IsNullOrEmpty(line) || column <= 0) return 0;
+        int col = 0, idx = 0;
+        foreach (var r in line.EnumerateRunes())
+        {
+            int w = r.Value == '\t'
+                ? (col / EditorTypography.TabColumns + 1) * EditorTypography.TabColumns - col
+                : RuneWidthApprox(r);
+            if (col + w > column) return idx;      // 落在该字符内部 → 归到它（不劈开全角字符）
+            col += w;
+            idx += r.Utf16SequenceLength;
+            if (col == column) return idx;
+        }
+        return idx;
+    }
+
     /// <summary>
     /// 行内第 <paramref name="charIndex"/> 个 UTF-16 码元之前的**显示宽度**（pt）。
     ///
@@ -1393,26 +1489,8 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         float platform = PrefixWidthPlatform(line, limit);
         if (platform >= 0) return platform;
 
-        if (_measureCanvas != null && limit <= WholeMeasureMaxChars)
-        {
-            try
-            {
-                return (float)_measureCanvas.GetStringSize(line[..limit],
-                    EditorTypography.CanvasFont, EditorTypography.FontSize).Width;
-            }
-            catch { /* 量失败就退回累加 */ }
-        }
-
-        // 超长行 / 还没画过：退回逐字符累加（不精确，但不会为一条 4MB 的行分配整段前缀）
-        float acc = 0;
-        int idx = 0, col = 0;
-        foreach (var rune in line.EnumerateRunes())
-        {
-            if (idx >= limit) break;
-            acc += RuneWidth(rune, ref col);
-            idx += rune.Utf16SequenceLength;
-        }
-        return acc;
+        // 网格模型：票数由我们自己算，不问字体、不量子串。
+        return ColumnsToX(MeasureColumns(line, limit));
     }
 
     // ── 平台文本布局引擎 ────────────────────────────────────────────────
