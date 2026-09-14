@@ -1,5 +1,72 @@
 # 更新日志
 
+## v0.96.136 (2026-09-14) — 编辑器滚动卡顿：缓存平台排版（真机实测正文段 78ms → 21.9ms）
+
+「滑动卡顿」这个从 v0.96.128 就挂着的老问题，这一版在**真机上量清了**并做了根治。
+
+### 量：瓶颈到底在哪
+
+在小米 13 上装带分段计时的构建后，滑动时 HUD 直接给出三段耗时：
+
+| 段 | 55 行（字号 8） |
+|---|---|
+| 底色 | 0.4ms |
+| **正文** | **78.0ms** |
+| 行号栏 | 0.0ms（滚动中已跳过，v0.96.130 的优化生效） |
+
+而 `gfxinfo` 显示 **GPU 只占 2ms**、中位帧 42ms ⇒ 瓶颈 100% 在我们的 CPU 绘制路径，且就在正文那一段
+（1.42ms/行）。行号栏每个数字也是同样的 `DrawText`，却只要 0.2ms —— 差别在**每行语法 run 的数量**。
+
+### 根因（读 MAUI 源码确认）
+
+`PlatformCanvas.DrawText` 的实现是：
+`new SpannableString(...)` → 逐 run `SetSpan` → **`new StaticLayout(...)`** → `layout.Draw` → **`Dispose()`**。
+**每次调用都从头排版、画完立刻销毁，且 MAUI Graphics 里没有任何缓存缝合点**
+（`AttributedText` 是纯数据、`PlatformCanvas` 只有 `_canvas`/`_shader` 两个字段、`TextLayoutUtils` 是 internal）。
+一屏 55 行就是 55 次完整排版。
+
+### 改：把编译好的排版留下来复用
+
+- **`LineRuns` 上挂一份 `StaticLayout` 缓存**（行内容 + 字号不变就一直有效），
+  每帧只剩一次 `layout.Draw`。真机实测 **78.0ms → 21.9ms（3.6 倍）**，每行 1.42ms → 0.40ms
+  —— 这个数**比 MAUI 自己那条单 run 路径还快**（同一文件换 `.txt` 后缀走 Plain 高亮、每行只有 1 个 run，
+  实测 25.2ms）。
+- **能拿到原生画布是关键**：`Microsoft.Maui.Graphics.Platform.PlatformCanvas.Canvas` 是 **public** 的
+  （`get => _canvas;`）⇒ 在**同一张画布、同一个 z 位置**上画，外层「底色 → 正文 → 行号栏 → 手柄 → HUD」
+  的顺序一点没动，不需要自定义 handler、不需要改造渲染管线。
+- **paint 与 span 只能自己复刻**（`CurrentState.FontPaint` 是 protected、`TextLayoutUtils` 与
+  `AttributedTextExtensions` 是 internal，而本仓禁用反射）：按 MAUI 源码逐字复刻
+  `new TextPaint() + SetARGB(1,0,0,0) + AntiAlias + SetTypeface(font.ToTypeface()) + TextSize = 字号`，
+  span 只做 `ForegroundColorSpan`。`ScaleX` 恒为 1（只被 `canvas.Scale()` 改写，我们从不调）
+  ⇒ `TextSize` 就等于字号，与测量路径同源。
+- **失效条件多了一条，这是本版最容易漏的地方**：行缓存原先「与字号无关、调字号不必清」，
+  挂了排版之后**必须清** —— `ResetTypography` 现在走 `ClearLineCache()`。
+  释放只有 `DisposeLine()` 一个出口，**四个丢弃点**（FIFO 淘汰 / `InvalidateLine` / `InvalidateAll` /
+  换字号）全部走它，漏一个就是原生对象泄漏。
+- **安全网**：`CanCacheLayout` 只认「只有颜色」的 run —— 出现字体名/粗体/斜体/下划线/背景/上下标/
+  删除线/列表就整行回退到平台原路。将来谁往 run 上加了别的属性而忘了同步，是**变慢**而不是**静默丢样式**。
+
+### 验：渲染逐像素等价
+
+替换渲染路径最怕「看着差不多、其实差一点」（这个仓在光标对齐上已经栽过八轮），所以做了 A/B 逐像素比对：
+模拟器上同一文件、同字号、同滚动位置（强制停止后重新打开，位置确定），
+**优化前 / 优化后两版各取一张原始帧缓冲**（`screencap` 裸 RGBA，绕开 PNG 解码）：
+
+> **259 万像素里 581 个不同（0.0224%），且全部落在 y 50..77 的 Android 状态栏（时钟/图标）。
+> 编辑器正文、行号栏、工具栏、底部状态栏、导航栏 —— 0 像素差异。**
+
+即：自己复刻的 paint / span / layout 与 MAUI 原路径**逐像素一致**，对齐关系没有任何变化。
+
+另：Android 与 iOS 均 0 错误编译，桌面自测 5685 通过。
+
+### 遗留
+
+- **冷帧仍是 108ms**（换字号 / 刚打开文件时那一帧要重建一屏的排版）。滚动稳态已解决，这一次性卡顿还在。
+- **稳态帧 ~22–29ms**，还不是 60fps：剩下的钱花在 `layout.Draw` 本身与帧内其他部分（画布底色、裁剪、
+  滚动条、HUD）。行号栏的 55 次 `DrawText` 也可以同样缓存，是下一步最直接的收益点。
+- 有真机数据支撑的掉帧率（gfxinfo 中位帧 42ms → 38ms、掉帧 30% → 22%）**是在更苛刻的字号下测的**
+  （之前 23.8 号、现在 8 号，屏上行数 21 → 55），所以这个改善是被低估的。
+
 ## v0.96.135 (2026-09-14) — 上一版自查发现的 10 处问题（代码审查逐条核实后修复）
 
 对这一版**整段 diff**（v0.96.128~134，约 900 行）跑了一遍独立的代码审查，10 条全部核实成立。

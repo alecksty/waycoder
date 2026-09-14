@@ -73,8 +73,10 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// 这里把「整行的带色文本对象」（= 分词 + 切 run + 取色 + new 对象）一次建好，
     /// 绘制循环里只剩一次 <c>DrawText</c>。
     ///
-    /// **缓存是字体无关的**（颜色与文本都不含字号）⇒ 调字号**不必**清这份缓存。
-    /// 只有**文本变了**才清（见 <see cref="InvalidateLine"/> / <see cref="InvalidateAll"/>）。
+    /// **Android 上还缓存平台排版**（见 <see cref="NativeLayout"/>）—— 那份缓存**与字号绑定**，
+    /// 所以调字号**必须**把整份行缓存清掉（<see cref="ResetTypography"/>）。这一点与「文本变了才清」
+    /// 是两条不同的失效条件，先前这里写着「缓存是字体无关的、调字号不必清」，加了排版缓存之后
+    /// 那句话就不成立了。
     /// </summary>
     private sealed class LineRuns
     {
@@ -83,10 +85,60 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
         /// <summary>空行（什么都不画）—— 共用一个实例，免得每个空行都建一个对象。</summary>
         public static readonly LineRuns Empty = new();
+
+#if ANDROID
+        /// <summary>
+        /// 本行的**平台排版缓存**（Android）。见 <see cref="TryDrawCachedLayout"/>：
+        /// MAUI 的 <c>DrawText</c> 每次调用都无条件 <c>new StaticLayout(...)</c> 并随即 <c>Dispose</c>，
+        /// 没有任何缓存缝合点 —— 一屏 55 行、每行一次完整排版，实测就是 **78ms/帧**（真机小米 13）。
+        /// 这里把编译好的排版留着复用，绘制退化成一次 <c>layout.Draw</c>。
+        /// </summary>
+        public Android.Text.StaticLayout? NativeLayout;
+
+        /// <summary>排版所依赖的 <c>SpannableString</c> —— **不能 Dispose**：layout 画的时候还要读它。</summary>
+        public Android.Text.SpannableString? NativeSpan;
+
+        /// <summary>这份排版是按哪个字号编出来的。字号一变就得重编。</summary>
+        public float NativeFontSize;
+#endif
+    }
+
+    /// <summary>
+    /// 把一份平台排版连同它的 span 一起释放。
+    ///
+    /// 行缓存有**四个**丢弃点（淘汰 / <see cref="InvalidateLine"/> / <see cref="InvalidateAll"/> /
+    /// <see cref="ResetTypography"/> 走 <see cref="ClearLineCache"/>），漏一个就是原生对象泄漏 ——
+    /// 所以释放只有这一个出口。
+    ///
+    /// **非 Android 上退化成空操作**（那边没有排版缓存，走平台原路）：这样调用点就不必到处套
+    /// `#if ANDROID` —— 少一处守卫就少一次「只在某个平台上编译不过」的机会。
+    /// </summary>
+    private static void DisposeLine(LineRuns? runs)
+    {
+#if ANDROID
+        if (runs is null || ReferenceEquals(runs, LineRuns.Empty)) return;
+        runs.NativeLayout?.Dispose();
+        runs.NativeLayout = null;
+        runs.NativeSpan?.Dispose();
+        runs.NativeSpan = null;
+#endif
     }
 
     private readonly Dictionary<long, LineRuns> _lineCache = new();
     private readonly List<long> _cacheOrder = [];
+
+    /// <summary>
+    /// 清空整份行缓存（连排缓存一起释放）。
+    /// **所有丢弃点都必须走这里** —— 逐个 <c>Clear()</c> 的话，Android 上那些
+    /// <c>StaticLayout</c>/<c>SpannableString</c> 原生对象就没人释放了。
+    /// </summary>
+    private void ClearLineCache()
+    {
+        // ⚠ **先释放再 Clear** —— 反了就是遍历一个空字典，原生对象一个都没释放。
+        foreach (var runs in _lineCache.Values) DisposeLine(runs);
+        _lineCache.Clear();
+        _cacheOrder.Clear();
+    }
 
     /// <summary>
     /// 每行的**显示总宽**——只给 <see cref="ComputeMaxScrollX"/> 用（横向滚动上限）。
@@ -227,11 +279,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _isDark = isDark;
         _editable = editable;
         _syntax = doc == null ? null : Syntax.ForFile(filePath);
-        _lineCache.Clear();
-        _cacheOrder.Clear();
+        ClearLineCache();
         _lineWidths.Clear();
-        _editingRuns = null;
-        _editingRunsFor = null;
+        DisposeEditingRuns();
         _firstLine = 0;
         _scrollX = 0;
         _scrollFontSize = EditorTypography.FontSize;   // 与 _scrollX 成对（见 ResetTypography）
@@ -255,10 +305,8 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     {
         if (_isDark == isDark) return;
         _isDark = isDark;
-        _lineCache.Clear();
-        _cacheOrder.Clear();
-        _editingRuns = null;
-        _editingRunsFor = null;
+        ClearLineCache();
+        DisposeEditingRuns();
         Invalidate();
     }
 
@@ -279,6 +327,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
         _charWidthMeasured = false;   // 推进量要按新字号重量（MeasureAdvances）
         _lineWidths.Clear();          // 行宽也随字号变 —— 不清则 MaxScrollX 还是旧值（长行尾巴滚不到）
+        ClearLineCache();             // ⚠ 行缓存里挂着**按字号编好的平台排版**（见 LineRuns.NativeLayout）
         ClampScroll();
         Invalidate();
     }
@@ -1062,6 +1111,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
         // ① 光标行 / 选择行底色（在文字下面）
         DrawLineBackgrounds(canvas, first, last, gutterW, w, lineH);
+        _tBg = (float)_drawWatch.Elapsed.TotalMilliseconds;
 
         // ② 正文（裁剪在行号栏右侧，横向滚动只影响这一层）
         float textX = gutterW + EditorTypography.TextLeftPad - _scrollX;
@@ -1108,6 +1158,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             if (hasDiags) DrawDiagnosticWave(canvas, i, y, textX, lineH);
         }
         canvas.RestoreState();
+        _tText = (float)_drawWatch.Elapsed.TotalMilliseconds - _tBg;
 
         // 选区手柄画在正文之上（端点要能压住字），但在行号栏之下（别糊到行号上去）
         DrawSelectionHandles(canvas);
@@ -1124,6 +1175,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _lastDrawnFirstLine = _firstLine;
         _lastDrawnScrollX = _scrollX;
         DrawGutter(canvas, first, last, gutterW, h, lineH, withNumbers: !viewMoving);
+        _tGutter = (float)_drawWatch.Elapsed.TotalMilliseconds - _tBg - _tText;
 
         // 本帧视口还在动 ⇒ 跳过了行号数字 ⇒ **再排一帧**。
         //
@@ -1575,7 +1627,15 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         {
             // 简单 FIFO 淘汰：滚动时被淘汰的正好是最久没看的那批
             int drop = Math.Min(64, _cacheOrder.Count);
-            for (int i = 0; i < drop; i++) _lineCache.Remove(_cacheOrder[i]);
+            for (int i = 0; i < drop; i++)
+            {
+                long victim = _cacheOrder[i];
+                if (_lineCache.TryGetValue(victim, out var old))
+                {
+                    DisposeLine(old);   // 淘汰也要释放排版（原生对象不归 GC 的托管堆管）
+                    _lineCache.Remove(victim);
+                }
+            }
             _cacheOrder.RemoveRange(0, drop);
         }
         _lineCache[index] = runs;
@@ -1669,8 +1729,148 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     private static void DrawLineRuns(ICanvas canvas, LineRuns runs, float textX, float y, float lineH)
     {
         if (runs.Whole is null) return;
-        canvas.DrawText(runs.Whole, textX, y + EditorTypography.TextBaselineOffset, 1_000_000f, lineH);
+        float baseline = y + EditorTypography.TextBaselineOffset;
+#if ANDROID
+        if (TryDrawCachedLayout(canvas, runs, textX, baseline)) return;
+#endif
+        canvas.DrawText(runs.Whole, textX, baseline, 1_000_000f, lineH);
     }
+
+#if ANDROID
+    /// <summary>
+    /// 用**缓存的平台排版**画这一行，返回是否画成功（false ⇒ 调用方回退到 <c>canvas.DrawText</c>）。
+    ///
+    /// 存在的理由（真机实测）：`PlatformCanvas.DrawText` 的实现是
+    /// <c>new SpannableString(...)</c> → 逐 run <c>SetSpan</c> → <c>new StaticLayout(...)</c>
+    /// → <c>layout.Draw</c> → <c>Dispose()</c> —— **每次调用都从头排版一次，画完立刻销毁**。
+    /// 一屏 55 行就是 55 次完整排版：实测字号 8 时正文段 **78ms/帧**（行号栏才 11.7ms、
+    /// 底色 0.3ms —— 所以瓶颈就是「每行一次排版」这件事本身）。
+    /// 编译好的排版与行内容、字号绑定，而这两个在滚动时都不变 ⇒ 完全可以留着复用，
+    /// 每帧只剩一次 `layout.Draw`。
+    ///
+    /// **为什么能拿到原生画布**：`PlatformCanvas.Canvas` 是 public 的（`get => _canvas;`），
+    /// 而 `CodeCanvasView.Draw` 收到的正是那个 `PlatformCanvas` ⇒ 在**同一张画布、同一个 z 位置**
+    /// 上画，外层那条「底色 → 正文 → 行号栏 → 手柄 → HUD」的顺序一点不用动。
+    /// （`CurrentState.FontPaint` 是 protected、`TextLayoutUtils` 是 internal，两者都够不到，
+    ///  而本仓禁用反射 ⇒ 排版与 paint 只能自己按 MAUI 的源码逐字复刻，见下面两处引用。）
+    ///
+    /// **回退条件见 <see cref="CanCacheLayout"/>** —— 只认我们自己产出的「纯颜色 run」这一种形态，
+    /// 形态一变就走平台原路（宁可慢，不可画错）。
+    /// </summary>
+    private static bool TryDrawCachedLayout(ICanvas canvas, LineRuns runs, float x, float y)
+    {
+        if (canvas is not Microsoft.Maui.Graphics.Platform.PlatformCanvas pc) return false;
+        var native = pc.Canvas;
+        if (native is null) return false;
+
+        float size = EditorTypography.FontSize;
+        if (runs.NativeLayout is null || Math.Abs(runs.NativeFontSize - size) > 0.01f)
+        {
+            if (!CanCacheLayout(runs.Whole!)) return false;
+            DisposeLine(runs);
+            var span = BuildSpannable(runs.Whole!);
+            if (span is null) return false;
+            runs.NativeSpan = span;
+            runs.NativeLayout = new Android.Text.StaticLayout(span, BuildTextPaint(size),
+                int.MaxValue, Android.Text.Layout.Alignment.AlignNormal, 1.0f, 0.0f, false);
+            runs.NativeFontSize = size;
+        }
+
+        // 与 MAUI 的 DrawText 同一套落笔动作：Save → Translate(x, y) → Draw → Restore。
+        // （`GetOffsetsToDrawText` 在 VerticalAlignment.Top 下就是原样返回 (x, y)，所以直接平移。）
+        // Save/Restore 是必须的：外层给正文加过左右裁剪（裁掉行号栏那一列），平移不能带着裁剪一起丢。
+        native.Save();
+        native.Translate(x, y);
+        runs.NativeLayout!.Draw(native);
+        native.Restore();
+        return true;
+    }
+
+    /// <summary>
+    /// 这份 run 集合能不能安全地缓存排版 —— 只认「**只有颜色**」这一种形态。
+    ///
+    /// 我们自己产出的 run 只写 <c>TextAttribute.Color</c>（见 <see cref="BuildLineRuns"/>），
+    /// 而 MAUI 的 <c>HandleFormatRun</c> 还会处理字体名/粗体/斜体/下划线/背景/上下标/删除线/列表
+    /// 共 9 种 span —— 我们只复刻了颜色那一种。将来谁往 run 上加了别的属性而忘了同步这里，
+    /// 缓存版就会**静默丢样式**（屏幕上只是「粗体不见了」，不会报错）。
+    /// 与其留这个坑，不如判一下：出现任何非颜色属性就整个走平台原路 —— 慢一点，但一定对。
+    /// </summary>
+    private static bool CanCacheLayout(IAttributedText text)
+    {
+        foreach (var run in text.Runs)
+        {
+            var a = run.Attributes;
+            if (a is null) continue;
+            if (!string.IsNullOrEmpty(a.GetFontName())) return false;
+            if (a.GetBold() || a.GetItalic() || a.GetUnderline()) return false;
+            if (a.GetSubscript() || a.GetSuperscript()) return false;
+            if (a.GetStrikethrough() || a.GetUnorderedList()) return false;
+            if (!string.IsNullOrEmpty(a.GetBackgroundColor())) return false;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// 按 MAUI 的 <c>AttributedTextExtensions.AsSpannableString</c> 复刻（那个类是 internal，够不到）。
+    /// 只做颜色那一种 span —— 其余的由 <see cref="CanCacheLayout"/> 挡在外面。
+    /// </summary>
+    private static Android.Text.SpannableString? BuildSpannable(IAttributedText text)
+    {
+        if (string.IsNullOrEmpty(text.Text)) return null;
+        var span = new Android.Text.SpannableString(text.Text);
+        foreach (var run in text.Runs)
+        {
+            int start = run.Start;
+            int end = start + run.Length;
+            // 与 BuildLineRuns 同一条护栏：范围越界时 setSpan 抛 IndexOutOfBoundsException（原生崩溃）。
+            if (start < 0 || end > text.Text.Length || start >= end) continue;
+
+            var hex = run.Attributes?.GetForegroundColor();
+            if (string.IsNullOrEmpty(hex)) continue;
+
+            // `ToHex()` 的逆（run 上存的就是它）。解析不了就**整行**走平台原路 ——
+            // 半行有颜色、半行没有，比慢一点难查得多。
+            Microsoft.Maui.Graphics.Color parsed;
+            try { parsed = Microsoft.Maui.Graphics.Color.FromArgb(hex); }
+            catch { return null; }
+
+            int argb = Android.Graphics.Color.Argb(
+                (int)Math.Round(parsed.Alpha * 255),
+                (int)Math.Round(parsed.Red * 255),
+                (int)Math.Round(parsed.Green * 255),
+                (int)Math.Round(parsed.Blue * 255));
+            // ⚠ 这个 ctor 收的是 Android.Graphics.Color（绑定如此），不是 int ——
+            // 直接喂 int 会被解析成 Parcel 重载，报「无法从 int 转换为 Android.OS.Parcel」。
+            span.SetSpan(new Android.Text.Style.ForegroundColorSpan(new Android.Graphics.Color(argb)),
+                start, end, Android.Text.SpanTypes.ExclusiveExclusive);
+        }
+        return span;
+    }
+
+    /// <summary>
+    /// 复刻 `PlatformCanvasState.FontPaint` 的初始化（那份状态是 protected，够不到）：
+    /// <c>new TextPaint(); SetARGB(1,0,0,0); AntiAlias = true; SetTypeface(font.ToTypeface() ?? Default)</c>，
+    /// 加上 <c>FontSize</c> setter 里的 <c>TextSize = 字号 × ScaleX</c>。
+    ///
+    /// **`ScaleX` 恒为 1**：它只被 <c>canvas.Scale()</c> 改写（`PlatformCanvasState.Scale`），
+    /// 而本控件从不调 <c>Scale</c>（`DisplayScale` 只用于 pattern bitmap，与此无关）——
+    /// 所以 TextSize 就等于字号，与测量路径（`PlatformStringSizeService.GetStringSize` 也是
+    /// `new TextPaint { TextSize = fontSize }` + 同一个 ToTypeface）**同源**。
+    /// 这条等式是「渲染宽度 == 测量宽度」的前提，别想当然地往这里塞个 density 缩放。
+    /// </summary>
+    private static Android.Text.TextPaint BuildTextPaint(float fontSize)
+    {
+        var paint = new Android.Text.TextPaint();
+        paint.SetARGB(1, 0, 0, 0);
+        paint.AntiAlias = true;
+        // 扩展方法在 Microsoft.Maui.Graphics.Platform 下（本文件没有该 using，全限定调用）
+        paint.SetTypeface(
+            Microsoft.Maui.Graphics.Platform.FontExtensions.ToTypeface(EditorTypography.CanvasFont)
+            ?? Android.Graphics.Typeface.Default);
+        paint.TextSize = fontSize;
+        return paint;
+    }
+#endif
 
     /// <summary>
     /// 编辑中的那一行也走缓存 —— 它的文本只在**击键时**变，而先前是逐帧 <c>BuildAttributed</c>
@@ -1679,6 +1879,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     private LineRuns EditingRuns(string line)
     {
         if (_editingRuns is not null && _editingRunsFor == line) return _editingRuns;
+        DisposeLine(_editingRuns);   // 换掉的那份排版要释放
         _editingRuns = BuildLineRuns(line);
         _editingRunsFor = line;
         return _editingRuns;
@@ -1691,23 +1892,32 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     public void InvalidateLine(long oneBased)
     {
         long idx = oneBased - 1;
-        _lineCache.Remove(idx);
+        if (_lineCache.TryGetValue(idx, out var old))
+        {
+            DisposeLine(old);
+            _lineCache.Remove(idx);
+        }
         _cacheOrder.Remove(idx);
         _lineWidths.Remove(idx);        // 列数缓存与行内容绑定，一并失效
-        _editingRuns = null;          // 编辑行的段几何也失效（文本可能正是这一行）
-        _editingRunsFor = null;
+        DisposeEditingRuns();           // 编辑行的段几何也失效（文本可能正是这一行）
         Invalidate();
     }
 
     /// <summary>整份内容变了（撤销/重做/多行粘贴）——行数都可能变，缓存必须全清。</summary>
     public void InvalidateAll()
     {
-        _lineCache.Clear();
-        _cacheOrder.Clear();
+        ClearLineCache();
         _lineWidths.Clear();
+        DisposeEditingRuns();
+        Invalidate();
+    }
+
+    /// <summary>丢掉编辑行的段几何缓存（连排版一起释放）。</summary>
+    private void DisposeEditingRuns()
+    {
+        DisposeLine(_editingRuns);
         _editingRuns = null;
         _editingRunsFor = null;
-        Invalidate();
     }
 
     /// <summary>
@@ -1742,6 +1952,15 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     public bool ShowDebugHud { get; set; }
 
     private readonly Stopwatch _drawWatch = new();
+
+    // ── 分段耗时（本帧，ms）—— 定位「一帧到底花在哪」用 ──
+    //
+    // 起因：真机（小米 13）上字号 8 滑动，`峰` 116ms / 稳态 ~32ms，而 gfxinfo 的 GPU 只占 2ms
+    // ⇒ 瓶颈 100% 在 CPU 的绘制路径。但总量看不出该改哪儿：行号栏和正文各自都是
+    // 「每可见行一次平台文本绘制」（`DrawText` 每次新建 `StaticLayout`，`ICanvas` 无缓存入口），
+    // 而 ① 底色 ② 正文 ③ 行号栏 三段里的哪一段是主犯，只能拆开量。
+    // 这三段正好按绘制顺序串行，读一次 `_drawWatch` 的累计值做差即可，不用三个秒表。
+    private float _tBg, _tText, _tGutter;
 
     // ── 滚动条（自绘；内容超出视口才出现，按住变粗、松手变细）──────────────
 
@@ -1883,6 +2102,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // 注意：HUD 自己每帧要量两次字宽（等宽自检），开着 HUD 的数比关着略高一点。
         var text = $"{LastDrawMs:F1}ms 峰{_drawMsPeak:F1} X{_scrollX:F0}/{ComputeMaxScrollX():F0}"
                  + $" w{_charWidth:F1}/{_wideCharWidth:F1}"
+                 + $" 底{_tBg:F1}文{_tText:F1}号{_tGutter:F1} 行{last - first}"
                  + $" {_dragBar} H{_drawH:F0} d({_downX:F0},{_downY:F0}) w{_drawW:F0}";
         canvas.FontSize = 10;
         canvas.FontColor = Colors.White;
