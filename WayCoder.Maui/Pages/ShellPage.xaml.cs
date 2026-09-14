@@ -108,35 +108,26 @@ public partial class ShellPage : ContentPage
         }
     }
 
-    /// <summary>处理 <c>vml</c> 子命令（进程内执行，不经过 shell）。</summary>
+    /// <summary>
+    /// 处理 <c>vml</c> 子命令。
+    ///
+    /// ⚠ **走 <see cref="VmlTool"/> 而不是直接调 <c>MauiVml</c>** —— 让「用户在这儿敲的」
+    /// 与「AI 调工具」是**同一条路、同一个实现**。两份实现迟早会漂（本仓库排第一的坑），
+    /// 而且这样一来在页面上敲一遍就等于把工具也测了。
+    /// </summary>
     private static async Task<string> RunVmlAsync(string cmd)
     {
         var rest = cmd.Length <= 3 ? "" : cmd[3..].Trim();
-        try
-        {
-            if (rest.Length == 0 || rest == "help")
-                return "用法：\n  vml test            跑内置的自检程序\n"
-                     + "  vml run <文件.vml>  汇编并运行一个 VML 文件";
+        if (rest.Length == 0 || rest == "help")
+            return "用法：\n  vml test            跑内置的自检程序\n"
+                 + "  vml run <文件.vml>  汇编并运行一个 VML 文件";
 
-            if (rest == "test")
-                return await Task.Run(() => MauiVml.RunAssembly(MauiVml.HelloWorldAsm));
+        var args = new Dictionary<string, object?>();
+        if (rest == "test") args["source"] = MauiVml.HelloWorldAsm;
+        else if (rest.StartsWith("run ", StringComparison.Ordinal)) args["file_path"] = rest[4..].Trim();
+        else return $"⚠️ 不认识的 vml 子命令：{rest}（敲 `vml` 看用法）";
 
-            if (rest.StartsWith("run ", StringComparison.Ordinal))
-            {
-                var path = rest[4..].Trim();
-                var full = CwdContext.Resolve(path);
-                if (!File.Exists(full)) return $"⚠️ 找不到文件：{full}";
-                var src = await File.ReadAllTextAsync(full);
-                return await Task.Run(() => MauiVml.RunAssembly(src));
-            }
-
-            return $"⚠️ 不认识的 vml 子命令：{rest}（敲 `vml` 看用法）";
-        }
-        catch (Exception ex)
-        {
-            // 汇编错误、VM 超时、被链接器裁掉…都在这里兜住，别让页面崩
-            return $"⚠️ VML 执行失败：{ex.GetType().Name}: {ex.Message}";
-        }
+        return await new VmlTool().ExecuteAsync(args);
     }
 
     private void SetBusy(bool busy)

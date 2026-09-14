@@ -44,6 +44,8 @@ public static class ToolRegistry
         new WcTool(),
         new StatTool(),
         new PwdTool(),
+        // VML 工具链（进程内汇编 + 运行）—— **不加平台条件**：它不走进程，iOS 上同样可用。
+        new VmlTool(),
         new SkillTool(),
         new DocTool(),
         new NotebookEditTool(),

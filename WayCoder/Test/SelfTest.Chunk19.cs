@@ -996,8 +996,13 @@ public static partial class SelfTest
                     "GitPRTool", "JobKillTool", "JobOutputTool", "KillTool",
                     "LintTool", "LspTool", "PsTool", "ScreenshotTool", "TestTool",
                 };
-                Check("工具清单: MAUI 无独有工具（必须是桌面的真子集）",
-                    maui.All(desk.Contains));
+                // ⚠ 这条**曾经**是「MAUI ⊆ 桌面」。v0.96.153 起不再成立：
+                // `vml`（VML 工具链）是 **MAUI 独有**的 —— 桌面版没引用 third_party/vml。
+                // 它是进程内调用，iOS 上也能用；桌面端要加得先把 VML 也引进去。
+                // 所以判据改成「MAUI 独有的恰好是这一批」，而不是「一个都没有」。
+                var mauiOnly = new HashSet<string>(StringComparer.Ordinal) { "VmlTool" };
+                Check("工具清单: MAUI 独有工具恰好是那批（不让移动端悄悄多出工具）",
+                    maui.Except(desk).OrderBy(x => x).SequenceEqual(mauiOnly.OrderBy(x => x)));
                 Check("工具清单: 桌面 − MAUI 恰好是那批进程类工具（新增共享工具漏加一侧即红）",
                     desk.Except(maui).OrderBy(x => x).SequenceEqual(desktopOnly.OrderBy(x => x)));
             }
