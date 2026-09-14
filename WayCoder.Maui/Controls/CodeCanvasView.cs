@@ -1576,7 +1576,32 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // 实测本字体在字号 24 下字形两侧留白各约 4px，2pt(5.5px) 居中 → 单侧 2.8px，正好塞得下。
         // （v0.96.137 第一次改成 0.25 并夹 2.5pt 上限，字号 24 时被上限吃满 ⇒ 等于没改。）
         canvas.StrokeSize = Math.Clamp(_charWidth * 0.2f, 1f, 2f);
-        canvas.DrawLine(x, y + 2, x, y + lineH - 3);
+        if (_caretOn) canvas.DrawLine(x, y + 2, x, y + lineH - 3);
+
+        // **调试标记：光标两头的小三角，不闪烁**（用户提的：截屏时得能稳定看到光标在哪）。
+        // 只在调试 HUD 打开时画，正式用户看不到。颜色刻意用洋红 —— 语法高亮与选区都不用这个色，
+        // 于是「按颜色找光标」在截屏分析里是一行代码的事，不受闪烁相位影响。
+        // 开关是「设置 → 编辑器 → 调试 HUD」：用户自己就能打开，打开后截屏里稳定看得到光标在哪
+        if (ShowDebugHud) DrawCaretMarkers(canvas, x, y, lineH);
+    }
+
+    private static void DrawCaretMarkers(ICanvas canvas, float x, float y, float lineH)
+    {
+        canvas.FillColor = Colors.Magenta;
+        const float w = 4f, h = 5f;   // 半宽 / 高
+        var top = new PathF();
+        top.MoveTo(x, y + 2);            // 尖端指向光标顶端
+        top.LineTo(x - w, y + 2 - h);
+        top.LineTo(x + w, y + 2 - h);
+        top.Close();
+        canvas.FillPath(top);
+
+        var bottom = new PathF();
+        bottom.MoveTo(x, y + lineH - 3); // 尖端指向光标底端
+        bottom.LineTo(x - w, y + lineH - 3 + h);
+        bottom.LineTo(x + w, y + lineH - 3 + h);
+        bottom.Close();
+        canvas.FillPath(bottom);
     }
 
     private readonly Dictionary<string, IAttributedText> _gutterCache = [];
@@ -2390,6 +2415,32 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // 量不到就退回设计值 —— 宁可差一点，也不能让字宽变成 0（除零会把整屏算崩）
         if (lat <= 0) lat = Math.Max(1f, EditorTypography.HalfWidth);
         if (wide < lat) wide = lat * 2f;
+
+#if ANDROID
+        // ⚠ **把推进量吸附到「整数设备像素」，与渲染同格**（v0.96.140，光标压字的真根因）。
+        //
+        // 平台**绘制**时会把每个字形的推进量取整到整数设备像素（未开亚像素定位时），
+        // 而 `GetStringSize`（= `Layout.GetLineWidth`）报的是**未取整的小数**：
+        // 实测（模拟器 420dpi、字号 14）排版报 18.375px，**画出来的栅距精确 18.000px**
+        // （一行 40 个 H，相邻墨迹中点间距全是 18）。
+        // 于是每字差 0.375px、沿行累积 —— 到第 19 列就是 7px ≈ **半个格子**，
+        // 光标于是画在**字符格的中间**而不是格线上（用户实测「var 的光标压在 a 上面」）。
+        //
+        // 对齐的条件不是「字号是整数」（14 也是整数号，照样差），而是
+        // **「字号 × 0.5 × 屏幕密度」恰好落在整数上** —— 24 号在 2.75 密度下是 33.0px，
+        // 所以「24 没问题」，而 14 号在 2.625 下是 18.375px，就出问题。
+        //
+        // ⚠ 这**不是**「把字号取整」（那会毁掉无极缩放，用户明确反对）：吸附的是
+        // **「一个字形推进多少」这个长度**，字号本身仍然连续可取 —— 字号每变一点，
+        // 排版和这个长度都跟着变；只是这个长度落在与渲染同一张网格上。
+        // 换句话说：**平台画多宽，我们就按多宽算**。
+        float d = (float)Microsoft.Maui.Devices.DeviceDisplay.MainDisplayInfo.Density;
+        if (d > 0.01f)
+        {
+            lat = MathF.Round(lat * d) / d;
+            wide = MathF.Round(wide * d) / d;
+        }
+#endif
 
         _charWidth = lat;
         _wideCharWidth = wide;
