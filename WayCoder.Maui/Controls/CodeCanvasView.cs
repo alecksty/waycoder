@@ -341,6 +341,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
     /// <summary>长按判定用的单次定时器（见 <see cref="OnStart"/>：长按必须在手指还按着时判定）。</summary>
     private IDispatcherTimer? _longPressTimer;
+
+    /// <summary>本手势抓住的是哪个选区手柄（0 = 没有，1 = 起点，2 = 终点）。</summary>
+    private int _dragHandle;
     private float _pinchStartDist;
     private float _pinchStartFontSize;
     private long _downTicks;
@@ -377,6 +380,18 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // **长按定时器**：长按必须在「手指还按着」的时候就判定 —— 只在抬手时按耗时判断的话，
         // 就永远做不出「长按选中一个词，再拖着扩选」这个标准手势（抬手=手势结束，没得拖了）。
         // 500ms 内一动就取消（那是滑动，不是长按）。
+        // 按在选区手柄上 → 这一手势归手柄（调选区端点），不滚动、不长按
+        if (HasSelection)
+        {
+            _dragHandle = HitHandle(p.X, p.Y);
+            if (_dragHandle != 0)
+            {
+                _dragging = false;      // 不是内容拖拽：不滚、不惯性
+                _longPress = true;      // 也不必再判长按
+                return;
+            }
+        }
+
         _longPressTimer ??= Dispatcher.CreateTimer();
         _longPressTimer.Interval = TimeSpan.FromMilliseconds(500);
         _longPressTimer.IsRepeating = false;
@@ -430,6 +445,17 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             else DragBarHorizontal(tp.X);
             ClampScroll();
             ThrottledInvalidate();
+            return;
+        }
+
+        // 拖手柄：只调选区端点，不滚动、不触发长按
+        if (_dragHandle != 0)
+        {
+            var hp = e.Touches[0];
+            long hl = (long)(_firstLine + (hp.Y - EditorTypography.VerticalPad) / EditorTypography.LineHeight);
+            if (_doc != null) hl = Math.Clamp(hl, 0, Math.Max(0, _doc.LineCount - 1));
+            MoveSelectionHandle(_dragHandle, hl,
+                hp.X - GutterWidth() - EditorTypography.TextLeftPad + _scrollX);
             return;
         }
 
@@ -504,6 +530,14 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _pinchStartDist = 0;
         _dragging = false;
         _longPressTimer?.Stop();          // 抬手了，长按不再可能
+        if (_dragHandle != 0)
+        {
+            // 手柄拖完了：选区留着，交给页面刷新操作条位置
+            _dragHandle = 0;
+            ViewChanged?.Invoke();
+            Invalidate();
+            return;
+        }
         if (_selecting)
         {
             // 扩选手势结束：**选区留着**（交给页面弹操作条），只是不再是「拖动中」。
@@ -708,6 +742,61 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _selBCol = Math.Clamp(CharIndexAtX(text, xInLine), 0, text.Length);
         RaiseSelectionChanged();
         Invalidate();
+    }
+
+    /// <summary>
+    /// 拖动**某一个手柄**：<paramref name="which"/> 1 = 起点，2 = 终点。
+    ///
+    /// 手柄的意义是「手势结束之后还能调」—— 只有长按拖动的话，选区一旦定下来就只能
+    /// 重新长按再来一次，够不到「把左端再往左挪一点」这种最常见的微调。
+    /// </summary>
+    public void MoveSelectionHandle(int which, long line, float xInLine)
+    {
+        if (_selALine < 0) return;
+        var text = _doc?.GetLine(line);
+        if (text == null) return;
+        int col = Math.Clamp(CharIndexAtX(text, xInLine), 0, text.Length);
+        if (which == 1) { _selALine = line; _selACol = col; }
+        else { _selBLine = line; _selBCol = col; }
+        RaiseSelectionChanged();
+        Invalidate();
+    }
+
+    /// <summary>选区两端按「谁在前」归一化后的 (起点行/列, 终点行/列)。</summary>
+    private (long LA, int CA, long LB, int CB) NormalizedSelection()
+    {
+        bool aFirst = _selALine < _selBLine || (_selALine == _selBLine && _selACol <= _selBCol);
+        return aFirst
+            ? (_selALine, _selACol, _selBLine, _selBCol)
+            : (_selBLine, _selBCol, _selALine, _selACol);
+    }
+
+    /// <summary>
+    /// 两个手柄的屏幕位置（起点、终点）。**画在哪与点哪算命中共用这一个** ——
+    /// 各算一次就会出现「看到的和点得中的错开」（滚动条那边踩过同样的坑）。
+    /// </summary>
+    private ((float X, float Y) A, (float X, float Y) B)? HandlePositions()
+    {
+        if (!HasSelection || _doc == null) return null;
+        var (la, ca, lb, cb) = NormalizedSelection();
+        float lineH = EditorTypography.LineHeight;
+        float textX = GutterWidth() + EditorTypography.TextLeftPad - _scrollX;
+        return ((textX + MeasurePrefixWidth(_doc.GetLine(la), ca), LineY(la, lineH) + lineH - 2f),
+                (textX + MeasurePrefixWidth(_doc.GetLine(lb), cb), LineY(lb, lineH) + lineH - 2f));
+    }
+
+    /// <summary>按下的点是不是落在某个手柄上（热区比视觉半径大一截，手指才点得中）。</summary>
+    private int HitHandle(float x, float y)
+    {
+        var h = HandlePositions();
+        if (h == null) return 0;
+        float r = EditorTypography.HandleTouchRadius;
+        if (Dist2(x, y, h.Value.A.X, h.Value.A.Y) <= r * r) return 1;
+        if (Dist2(x, y, h.Value.B.X, h.Value.B.Y) <= r * r) return 2;
+        return 0;
+
+        static float Dist2(float ax, float ay, float bx, float by)
+        { float dx = ax - bx, dy = ay - by; return dx * dx + dy * dy; }
     }
 
     /// <summary>全选。</summary>
@@ -956,6 +1045,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         }
         canvas.RestoreState();
 
+        // 选区手柄画在正文之上（端点要能压住字），但在行号栏之下（别糊到行号上去）
+        DrawSelectionHandles(canvas);
+
         // ③ 行号栏（最后画 —— 它会盖掉光标行底色横跨过来的那一段）
         //
         // **视口正在移动的这一帧不画行号数字**。理由是最小字号下的账：
@@ -1184,11 +1276,8 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     private void DrawLineBackgrounds(ICanvas canvas, long first, long last,
         float gutterW, float w, float lineH)
     {
-        long selA = _selALine < 0 ? -1 : Math.Min(_selALine, _selBLine);
-        long selB = _selALine < 0 ? -1 : Math.Max(_selALine, _selBLine);
-        int colA = _selALine < 0 ? 0 : (_selALine <= _selBLine ? _selACol : _selBCol);
-        int colB = _selALine < 0 ? 0 : (_selALine <= _selBLine ? _selBCol : _selACol);
-        bool selActive = selA >= 0 && HasSelection;
+        bool selActive = HasSelection;
+        var (selA, colA, selB, colB) = selActive ? NormalizedSelection() : (-1L, 0, -1L, 0);
 
         float textX = gutterW + EditorTypography.TextLeftPad - _scrollX;
 
@@ -1221,6 +1310,33 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             canvas.FillRectangle(x0, y, Math.Max(1f, x1 - x0), lineH);
         }
     }
+
+    /// <summary>
+    /// 画选区两端的**手柄**（自己画的，不用平台的）。
+    ///
+    /// 位置全部来自 <see cref="HandlePositions"/> —— 与命中测试**同一份**计算，
+    /// 所以「看到的圆点」和「抓得住的圆点」永远重合。外圈白环是为了压在任何底色上都看得见。
+    /// </summary>
+    private void DrawSelectionHandles(ICanvas canvas)
+    {
+        if (!HasSelection) return;
+        var h = HandlePositions();
+        if (h is not { } hs) return;
+
+        float r = EditorTypography.HandleRadius;
+        foreach (var (x, y) in new[] { hs.A, hs.B })
+        {
+            // 视口外的端点不画（拖到屏外时它会跟着跑，画在屏外没有意义）
+            if (y < -lineHGuard || y > (float)Height + lineHGuard) continue;
+            canvas.FillColor = EditorTypography.HandleRing;
+            canvas.FillCircle(x, y, r + 1.6f);
+            canvas.FillColor = EditorTypography.HandleFill;
+            canvas.FillCircle(x, y, r);
+        }
+    }
+
+    /// <summary>手柄的可见性判据里那点余量（把行高另存一份没有意义，直接用行的两倍）。</summary>
+    private float lineHGuard => EditorTypography.LineHeight * 2f;
 
     /// <param name="withNumbers">
     /// 是否画行号**数字**。视口正在移动（本帧滚动位置与上帧不同）时传 false ——

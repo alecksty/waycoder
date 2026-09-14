@@ -181,6 +181,13 @@ internal static class EditorTypography
     public const float BarMinThumb = 40f;     // 滑块最短长度（百万行文件里否则细到捏不住）
     public const float BarTouchSlop = 20f;    // 触摸热区比视觉再宽一圈，手指不必压在条上也能拖
 
+    /// <summary>选区手柄的半径与触摸热区（热区远大于视觉半径 —— 手指点不中一个 6pt 的圆点）。</summary>
+    public const float HandleRadius = 6.5f;
+    public const float HandleTouchRadius = 22f;
+    /// <summary>手柄配色：外圈白环 + 实心，压在深色/浅色正文上都看得见。</summary>
+    public static readonly Color HandleFill = Color.FromArgb("#3B82F6");
+    public static readonly Color HandleRing = Color.FromArgb("#FFFFFF");
+
     public static readonly Color ErrorWave = Color.FromArgb("#E5484D");
     public static readonly Color WarnWave = Color.FromArgb("#F5A524");
     public static readonly Color InfoWave = Color.FromArgb("#3B82F6");
