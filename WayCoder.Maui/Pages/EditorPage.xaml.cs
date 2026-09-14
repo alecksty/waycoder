@@ -47,7 +47,8 @@ public partial class EditorPage : ContentPage
 
         Canvas.LineTapped += OnLineTapped;
         Canvas.LineLongPressed += OnLineLongPressed;
-        Canvas.SelectionChanged += (_, _) => UpdateStatus();
+        // 选区一变就同时刷状态栏与**选区操作条**（选词/扩选/全选/清除都从画布发这个事件）
+        Canvas.SelectionChanged += (_, _) => { UpdateStatus(); UpdateSelectionBar(); };
         Canvas.ViewChanged += UpdateStatus;
         // 双指捏合缩放字号，与菜单里的加大/缩小走**同一个** ApplyFontSize
         // （此前这两处是两份几乎逐行相同的拷贝，只改一处就会出现「捏合好了、菜单还是老样子」）。
@@ -471,30 +472,76 @@ public partial class EditorPage : ContentPage
         UpdateStatus();
     }
 
-    private async void OnLineLongPressed(long line)
+    /// <summary>
+    /// 长按回调 —— 现在**只用来收尾**：选词与扩选都由画布自己完成（见 <c>CodeCanvasView.OnLongPressTick</c>），
+    /// 这里弹我们自己的选区操作条。<c>line</c> 用不上（选区是画布的状态，不是这一行的）。
+    /// </summary>
+    private void OnLineLongPressed(long line)
     {
         CommitEditingLine();
-        if (_canEdit && !_readOnly)
+        UpdateSelectionBar();
+    }
+
+    /// <summary>把选区操作条摆到选区上方；没有选区就收起来。</summary>
+    private void UpdateSelectionBar()
+    {
+        if (!Canvas.HasSelection)
         {
-            BeginEditLine(line);   // 编辑模式下长按交给系统选择菜单
+            SelectionBar.IsVisible = false;
             return;
         }
 
-        var choice = await DisplayActionSheetAsync($"第 {line} 行", "取消", null,
-            "复制此行", "选择行范围", "全选并复制");
-        switch (choice)
-        {
-            case "复制此行":
-                await CopyTextAsync(Canvas.GetLineText(line) ?? "");
-                break;
-            case "选择行范围":
-                Canvas.BeginSelection();
-                ShowToast("点起始行，再点结束行", 2500);
-                break;
-            case "全选并复制":
-                await CopyAllAsync();
-                break;
-        }
+        SelPasteBtn.IsVisible = _canEdit && !_readOnly;   // 只读文件不给粘贴（免得看着像能改）
+
+        // 量一次条子宽度，再按选区左端摆放（尽量居中于选区所在行，靠边时贴边）
+        double barW = SelectionBar.Width > 0 ? SelectionBar.Width : 240;
+        double x = Math.Max(4, Math.Min(Canvas.GutterWidthPx + 8, Canvas.Width - barW - 4));
+        double y = Canvas.SelectionTopY - (SelectionBar.Height > 0 ? SelectionBar.Height : 40) - 6;
+        if (y < 4) y = Canvas.SelectionTopY + EditorTypography.LineHeight + 6;   // 顶部放不下就摆到下方
+        SelectionBar.TranslationX = x;
+        SelectionBar.TranslationY = y;
+        SelectionBar.IsVisible = true;
+    }
+
+    private async void OnSelCopyClicked(object? sender, EventArgs e)
+    {
+        var text = Canvas.GetSelectedText();
+        if (text.Length == 0) { ShowToast("没有选中内容"); return; }
+        // 剪贴板仍走系统（那是**数据**通道，不是 UI）；复制完收起选区，与桌面编辑器一致
+        await CopyTextAsync(text);
+        Canvas.ClearSelection();
+        UpdateSelectionBar();
+    }
+
+    private void OnSelAllClicked(object? sender, EventArgs e)
+    {
+        Canvas.SelectAll();
+        UpdateSelectionBar();
+    }
+
+    private async void OnSelPasteClicked(object? sender, EventArgs e)
+    {
+        // 粘贴到**正在编辑的那一行**的光标处；没在编辑就先进入该行编辑
+        var text = await Clipboard.GetTextAsync();
+        if (string.IsNullOrEmpty(text)) { ShowToast("剪贴板是空的"); return; }
+        if (!_canEdit || _readOnly) { ShowToast("只读文件不能粘贴"); return; }
+
+        long line = Canvas.CaretLine > 0 ? Canvas.CaretLine : 1;
+        if (_editLine != line - 1) BeginEditLine(Canvas.CaretLine);
+        await Task.Delay(60);   // 等输入框就位（BeginEditLine 里也有等待，这里兜一层）
+        int at = Math.Clamp(LineEditor.CursorPosition, 0, (LineEditor.Text ?? "").Length);
+        var cur = LineEditor.Text ?? "";
+        LineEditor.Text = cur[..at] + text + cur[at..];
+        LineEditor.CursorPosition = at + text.Length;
+        Canvas.EditingCursor = LineEditor.CursorPosition;
+        Canvas.ClearSelection();
+        UpdateSelectionBar();
+    }
+
+    private void OnSelCloseClicked(object? sender, EventArgs e)
+    {
+        Canvas.ClearSelection();
+        UpdateSelectionBar();
     }
 
     private async Task CopyTextAsync(string text)

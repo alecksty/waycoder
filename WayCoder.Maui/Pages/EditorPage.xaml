@@ -117,6 +117,33 @@
                 <VerticalStackLayout x:Name="PreviewContent" />
             </ScrollView>
 
+            <!-- 选区操作条 —— **我们自己画的**，不用平台的选中弹窗。
+                 平台那套（选择手柄 + 复制/粘贴浮层）所有坐标都是按它自己那层输入框算的，
+                 与我们自绘的正文只要差一点点就会「看起来对不上」；全自己做就没有第二个坐标系。
+                 长按选词 / 拖动扩选后由 UpdateSelectionBar 摆到选区上方。 -->
+            <Border x:Name="SelectionBar"
+                    IsVisible="False"
+                    ZIndex="20"
+                    VerticalOptions="Start"
+                    HorizontalOptions="Start"
+                    Padding="2"
+                    StrokeThickness="0"
+                    BackgroundColor="#EE2C2C2E">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </Border.StrokeShape>
+                <HorizontalStackLayout Spacing="0">
+                    <Button x:Name="SelCopyBtn" Text="复制" Clicked="OnSelCopyClicked"
+                            BackgroundColor="Transparent" TextColor="#FFFFFF" FontSize="13" Padding="10,4" />
+                    <Button x:Name="SelAllBtn" Text="全选" Clicked="OnSelAllClicked"
+                            BackgroundColor="Transparent" TextColor="#FFFFFF" FontSize="13" Padding="10,4" />
+                    <Button x:Name="SelPasteBtn" Text="粘贴" Clicked="OnSelPasteClicked"
+                            BackgroundColor="Transparent" TextColor="#FFFFFF" FontSize="13" Padding="10,4" />
+                    <Button x:Name="SelCloseBtn" Text="✕" Clicked="OnSelCloseClicked"
+                            BackgroundColor="Transparent" TextColor="#FFFFFF" FontSize="13" Padding="10,4" />
+                </HorizontalStackLayout>
+            </Border>
+
             <!-- 打开中遮罩：大文件要顺序扫一遍建行索引（100MB 在百毫秒~数秒级），
                  这期间没有任何反馈的话，用户会以为是「没点到」或者「卡死了」。
                  放在内容区最上层，盖住画布与输入框。 -->

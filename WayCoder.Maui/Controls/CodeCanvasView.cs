@@ -55,7 +55,11 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     // ── 选择与光标 ──
 
     private long _caretLine = -1;
-    private long _selAnchor = -1, _selEnd = -1;
+
+    /// <summary>
+    /// 长按已经成词、正在**拖动扩选**中。为 true 时拖动改的是选区端点（<see cref="ExtendSelectionTo"/>），
+    /// 而不是滚动视口 —— 一个手势里「长按」和「拖动」的语义要靠这个标志分开。
+    /// </summary>
     private bool _selecting;
 
     // ── 行渲染缓存 ──
@@ -214,7 +218,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _scrollFontSize = EditorTypography.FontSize;   // 与 _scrollX 成对（见 ResetTypography）
         _velocityX = _velocityY = 0;
         _caretLine = -1;
-        _selAnchor = _selEnd = -1;
+        _selALine = _selBLine = -1;
+        _selACol = _selBCol = 0;
+        _selecting = false;
         Invalidate();
     }
 
@@ -332,6 +338,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
     private float _lastX, _lastY;
     private bool _dragging, _moved, _longPress;
+
+    /// <summary>长按判定用的单次定时器（见 <see cref="OnStart"/>：长按必须在手指还按着时判定）。</summary>
+    private IDispatcherTimer? _longPressTimer;
     private float _pinchStartDist;
     private float _pinchStartFontSize;
     private long _downTicks;
@@ -364,6 +373,33 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             _dragging = false;
             Invalidate();   // 立刻画粗版，让「按住了」有即时反馈
         }
+
+        // **长按定时器**：长按必须在「手指还按着」的时候就判定 —— 只在抬手时按耗时判断的话，
+        // 就永远做不出「长按选中一个词，再拖着扩选」这个标准手势（抬手=手势结束，没得拖了）。
+        // 500ms 内一动就取消（那是滑动，不是长按）。
+        _longPressTimer ??= Dispatcher.CreateTimer();
+        _longPressTimer.Interval = TimeSpan.FromMilliseconds(500);
+        _longPressTimer.IsRepeating = false;
+        _longPressTimer.Tick -= OnLongPressTick;
+        _longPressTimer.Tick += OnLongPressTick;
+        _longPressTimer.Stop();
+        _longPressTimer.Start();
+    }
+
+    /// <summary>长按触发：选中落点处的词，并把后续拖动切到「扩选」而不是「滚动」。</summary>
+    private void OnLongPressTick(object? sender, EventArgs e)
+    {
+        _longPressTimer?.Stop();
+        if (_moved || !_dragging || _dragBar != Bar.None || _doc == null) return;   // 已经滑走/松手/在拖滚动条
+        if (_pinchStartDist > 0) return;                                           // 捏合中不算长按
+
+        _longPress = true;
+        _selecting = true;                       // 后续 DragInteraction 走扩选
+        StopFling();
+
+        long line = (long)(_firstLine + (_downY - EditorTypography.VerticalPad) / EditorTypography.LineHeight);
+        line = Math.Clamp(line, 0, Math.Max(0, _doc.LineCount - 1));
+        SelectWordAt(line, _downX - GutterWidth() - EditorTypography.TextLeftPad + _scrollX);
     }
 
     /// <summary>
@@ -422,7 +458,24 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         if (!_moved && (Math.Abs(p.X - _downX) > 8 || Math.Abs(p.Y - _downY) > 8))
         {
             _moved = true;
+            // 长按已经成词的拖动 = **扩选**，不是滚动 —— 选区固定住，只把活动端跟到手指。
+            if (_selecting)
+            {
+                long dl = (long)(_firstLine + (p.Y - EditorTypography.VerticalPad) / EditorTypography.LineHeight);
+                if (_doc != null) dl = Math.Clamp(dl, 0, Math.Max(0, _doc.LineCount - 1));
+                ExtendSelectionTo(dl, p.X - GutterWidth() - EditorTypography.TextLeftPad + _scrollX);
+                return;
+            }
             ScrollingStarted?.Invoke();   // 开始拖动 ⇒ 让页面先结束编辑（见事件注释）
+        }
+
+        // 扩选进行中：拖动只改选区端点，视口不动（否则一边选一边滚，选中的内容跟着跑）
+        if (_selecting)
+        {
+            long el = (long)(_firstLine + (p.Y - EditorTypography.VerticalPad) / EditorTypography.LineHeight);
+            if (_doc != null) el = Math.Clamp(el, 0, Math.Max(0, _doc.LineCount - 1));
+            ExtendSelectionTo(el, p.X - GutterWidth() - EditorTypography.TextLeftPad + _scrollX);
+            return;
         }
 
         // 采样最近一段的触摸点（见 StartFling：松手速度只能从这里算，
@@ -450,6 +503,17 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         bool wasPinching = _pinchStartDist > 0;
         _pinchStartDist = 0;
         _dragging = false;
+        _longPressTimer?.Stop();          // 抬手了，长按不再可能
+        if (_selecting)
+        {
+            // 扩选手势结束：**选区留着**（交给页面弹操作条），只是不再是「拖动中」。
+            // 不进下面的 tap/惯性分支 —— 这一手势从头到尾都是选词，不是点击也不是滑动。
+            _selecting = false;
+            _moved = true;
+            ViewChanged?.Invoke();
+            Invalidate();
+            return;
+        }
         if (wasPinching)
         {
             _moved = true;          // 捏合结束 ⇒ 不是 tap，也不进长按选择
@@ -471,27 +535,23 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         long hitLine = (long)(_firstLine + (_lastY - EditorTypography.VerticalPad) / EditorTypography.LineHeight);
         if (_doc != null) hitLine = Math.Clamp(hitLine, 0, Math.Max(0, _doc.LineCount - 1));
 
-        // 长按（未移动且超过 500ms）：只读模式下弹复制/选择菜单
-        if (!_moved && elapsed >= 500)
+        // 长按（未移动且超过 500ms）：**选词**。真正的长按在计时器里就已经处理过了
+        // （见 OnStart 的 _longPressTimer）—— 这里兜住「按满 500ms 但计时器还没跑完就抬手」
+        // 这一瞬间的边界（判定只差几毫秒，不该表现成「按了没反应」）。
+        if (!_moved && elapsed >= 400 && !_selecting)
         {
             _caretLine = hitLine;
-            LineLongPressed?.Invoke(hitLine + 1);
-            Invalidate();
+            SelectWordAt(hitLine, _lastX - GutterWidth() - EditorTypography.TextLeftPad + _scrollX);
             return;
         }
 
-        if (!_moved && elapsed < 500)
+        if (!_moved && elapsed < 400)
         {
-            // 单击：定位行
+            // 单击：定位行（并收起选区 —— 与桌面编辑器一致：点一下就是「不要选了」）
             long line = hitLine;
             _caretLine = line;
+            if (HasSelection) ClearSelection();
 
-            if (_selecting)
-            {
-                _selEnd = line;
-                var (a, b) = _selAnchor <= _selEnd ? (_selAnchor, _selEnd) : (_selEnd, _selAnchor);
-                SelectionChanged?.Invoke(a + 1, b + 1);
-            }
             float xInLine = _lastX - GutterWidth() - EditorTypography.TextLeftPad + _scrollX;
 #if DEBUG
             var tapLine = _doc?.GetLine(line) ?? "";
@@ -582,51 +642,153 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         _velocityX = _velocityY = 0;
     }
 
-    /// <summary>进入/退出「选择行」模式（长按触发，或工具栏按钮）。</summary>
-    public void BeginSelection()
+    // ── 选区（**字符级**：两个端点各是「行 + 行内码元下标」）──
+    //
+    // 换掉原先的「行级选区」（`_selAnchor/_selEnd` 是行号、底色整行铺）。行级那套是给
+    // 「长按 → 弹菜单 → 选行范围」用的，粒度太粗，而且那套菜单是**平台的**弹窗 ——
+    // 平台上任何「它自己算坐标」的东西都会和我们的自绘错开一点，所以选择与复制粘贴
+    // 一并改成自己做（见 EditorPage 的选区操作条）。
+
+    private long _selALine = -1;
+    private int _selACol;
+    private long _selBLine = -1;
+    private int _selBCol;
+
+    /// <summary>有没有**非空**选区（两端点重合 = 没有选中内容）。</summary>
+    public bool HasSelection => _selALine >= 0 && _selBLine >= 0
+        && (_selALine != _selBLine || _selACol != _selBCol);
+
+    /// <summary>选区上端所在行（1-based）—— 页面据此把操作条摆到选区上方。</summary>
+    public long SelectionTopLine => _selALine < 0 ? -1 : Math.Min(_selALine, _selBLine) + 1;
+
+    /// <summary>选区所在的**屏幕 y**（选区的上端行顶）—— 操作条定位用。</summary>
+    public float SelectionTopY => _selALine < 0
+        ? -1
+        : LineY(Math.Min(_selALine, _selBLine), EditorTypography.LineHeight);
+
+    /// <summary>
+    /// **选中落点处的词**（长按触发）—— 词 = 连续的同类字符（字母/数字/下划线算一类，
+    /// CJK 算一类，其余各自成词）。落在空白上则选整行。
+    /// 之后拖动改的是 <c>_selB*</c>（另一端固定不动），与桌面编辑器的习惯一致。
+    /// </summary>
+    public void SelectWordAt(long line, float xInLine)
     {
-        _selecting = true;
-        _selAnchor = _selEnd = _caretLine;
+        var text = _doc?.GetLine(line);
+        if (text == null) return;
+
+        int idx = Math.Clamp(CharIndexAtX(text, xInLine), 0, text.Length);
+        int a, b;
+        if (idx >= text.Length || IsWordBreak(text[idx]))
+        {
+            a = 0; b = text.Length;                    // 空白/行尾 → 整行（空行则无选区）
+        }
+        else
+        {
+            int cls = WordClass(text[idx]);
+            a = idx;
+            while (a > 0 && WordClass(text[a - 1]) == cls) a--;
+            b = idx;
+            while (b < text.Length && WordClass(text[b]) == cls) b++;
+        }
+
+        _selALine = line; _selACol = a;
+        _selBLine = line; _selBCol = b;
+        _caretLine = line;
+        RaiseSelectionChanged();
+        Invalidate();
+    }
+
+    /// <summary>拖动选区的活动端（长按之后拖动走这里）。</summary>
+    public void ExtendSelectionTo(long line, float xInLine)
+    {
+        if (_selALine < 0) return;
+        var text = _doc?.GetLine(line);
+        if (text == null) return;
+        _selBLine = line;
+        _selBCol = Math.Clamp(CharIndexAtX(text, xInLine), 0, text.Length);
+        RaiseSelectionChanged();
+        Invalidate();
+    }
+
+    /// <summary>全选。</summary>
+    public void SelectAll()
+    {
+        if (_doc == null || _doc.LineCount == 0) return;
+        long last = _doc.LineCount - 1;
+        _selALine = 0; _selACol = 0;
+        _selBLine = last; _selBCol = (_doc.GetLine(last) ?? "").Length;
+        RaiseSelectionChanged();
         Invalidate();
     }
 
     public void ClearSelection()
     {
-        _selecting = false;
-        _selAnchor = _selEnd = -1;
-        SelectionChanged?.Invoke(0, 0);
+        if (_selALine < 0) return;
+        _selALine = _selBLine = -1;
+        _selACol = _selBCol = 0;
+        RaiseSelectionChanged();
         Invalidate();
     }
 
-    /// <summary>取当前选中的行文本（闭区间，1-based）。无选择返回空串。</summary>
+    private void RaiseSelectionChanged()
+        => SelectionChanged?.Invoke(HasSelection ? Math.Min(_selALine, _selBLine) + 1 : 0,
+                                    HasSelection ? Math.Max(_selALine, _selBLine) + 1 : 0);
+
+    /// <summary>选中文本（**原样的行内容**，含 tab；跨行用 <c>\n</c> 连接）。无选区返回空串。</summary>
     public string GetSelectedText()
     {
-        if (_doc == null || _selAnchor < 0 || _selEnd < 0) return "";
-        long a = Math.Min(_selAnchor, _selEnd), b = Math.Max(_selAnchor, _selEnd);
+        if (_doc == null || !HasSelection) return "";
+
+        // 归一化：A 在 B 之前（按行、再按列）
+        long la = _selALine, lb = _selBLine;
+        int ca = _selACol, cb = _selBCol;
+        if (la > lb || (la == lb && ca > cb)) { (la, lb) = (lb, la); (ca, cb) = (cb, ca); }
+
+        if (la == lb) return Slice(_doc.GetLine(la), ca, cb);
+
         var sb = new System.Text.StringBuilder();
-        for (long i = a; i <= b && i < _doc.LineCount; i++)
+        sb.Append(Slice(_doc.GetLine(la), ca, int.MaxValue));
+        for (long i = la + 1; i < lb && i < _doc.LineCount; i++)
         {
-            var line = _doc.GetLine(i);
-            if (line == null) { _ = _doc.PrefetchAsync(i, i); continue; }
-            if (sb.Length > 0) sb.Append('\n');
-            sb.Append(line);
+            sb.Append('\n');
+            var mid = _doc.GetLine(i);
+            if (mid != null) sb.Append(mid);
         }
+        sb.Append('\n');
+        sb.Append(Slice(_doc.GetLine(lb), 0, cb));
         return sb.ToString();
+
+        static string Slice(string? s, int from, int to)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            from = Math.Clamp(from, 0, s.Length);
+            to = Math.Clamp(to, from, s.Length);
+            return s.Substring(from, to - from);
+        }
     }
 
-    public bool HasSelection => _selAnchor >= 0 && _selEnd >= 0;
-
-    /// <summary>选择范围的显示文本（「3」或「3-7」），无选择返回空串。状态栏用。</summary>
+    /// <summary>选区的显示文本（「3」或「3-7」行），无选区返回空串。状态栏用。</summary>
     public string SelectionChangedRange
     {
         get
         {
-            if (_selAnchor < 0 || _selEnd < 0) return "";
-            long a = Math.Min(_selAnchor, _selEnd) + 1;
-            long b = Math.Max(_selAnchor, _selEnd) + 1;
+            if (!HasSelection) return "";
+            long a = Math.Min(_selALine, _selBLine) + 1;
+            long b = Math.Max(_selALine, _selBLine) + 1;
             return a == b ? $"{a}" : $"{a}-{b}";
         }
     }
+
+    /// <summary>词的分类：0 = 空白/界外，1 = 字母数字下划线，2 = CJK，3 = 其它（各自成词）。</summary>
+    private static int WordClass(char c)
+    {
+        if (char.IsWhiteSpace(c)) return 0;
+        if (char.IsLetterOrDigit(c) || c == '_') return 1;
+        if (c >= 0x2E80 && c <= 0x9FFF) return 2;      // CJK（按码元判够用：区外没有代理对）
+        return 3;
+    }
+
+    private static bool IsWordBreak(char c) => WordClass(c) == 0;
 
     // ── 绘制 ──
 
@@ -1012,25 +1174,51 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     private float LineY(long line, float lineH)
         => EditorTypography.VerticalPad + (float)(line - _firstLine) * lineH;
 
+    /// <summary>
+    /// 光标行底色 + **字符级选区**底色（都在文字下面）。
+    ///
+    /// 选区按**字符跨度**铺，不是整行铺：起始列的左边不涂、结束列的右边不涂，
+    /// 起点/终点都取「字符格子的左边缘」—— 与光标同源（<see cref="MeasurePrefixWidth"/>），
+    /// 所以选区的边界与文字边界永远对得上。
+    /// </summary>
     private void DrawLineBackgrounds(ICanvas canvas, long first, long last,
         float gutterW, float w, float lineH)
     {
-        long selA = _selAnchor < 0 ? -1 : Math.Min(_selAnchor, _selEnd);
-        long selB = _selAnchor < 0 ? -1 : Math.Max(_selAnchor, _selEnd);
+        long selA = _selALine < 0 ? -1 : Math.Min(_selALine, _selBLine);
+        long selB = _selALine < 0 ? -1 : Math.Max(_selALine, _selBLine);
+        int colA = _selALine < 0 ? 0 : (_selALine <= _selBLine ? _selACol : _selBCol);
+        int colB = _selALine < 0 ? 0 : (_selALine <= _selBLine ? _selBCol : _selACol);
+        bool selActive = selA >= 0 && HasSelection;
+
+        float textX = gutterW + EditorTypography.TextLeftPad - _scrollX;
 
         for (long i = first; i < last; i++)
         {
-            bool selected = selA >= 0 && i >= selA && i <= selB;
             bool caret = i == _caretLine;
-            if (!selected && !caret) continue;
+            bool inSel = selActive && i >= selA && i <= selB;
+            if (!inSel && !caret) continue;
 
             // 高亮条与文字用**同一个 y**（都是行顶）。二者曾经因为一处算了基线补偿、
             // 另一处没算而差开半行 —— 现在两边都直接取行顶，没有第二套算法。
             float y = LineY(i, lineH) + EditorTypography.TextBaselineOffset;
-            canvas.FillColor = selected
-                ? EditorTypography.SelectionBg
-                : (_isDark ? EditorTypography.CaretLineBgDark : EditorTypography.CaretLineBg);
+            canvas.FillColor = _isDark ? EditorTypography.CaretLineBgDark : EditorTypography.CaretLineBg;
             canvas.FillRectangle(0, y, w, lineH);
+
+            if (!inSel) continue;
+
+            var line = _doc?.GetLine(i);
+            if (line == null) { canvas.FillColor = EditorTypography.SelectionBg;
+                canvas.FillRectangle(0, y, w, lineH); continue; }
+
+            int from = i == selA ? colA : 0;
+            int to = i == selB ? colB : line.Length;
+            if (to < from) (from, to) = (to, from);
+
+            float x0 = textX + MeasurePrefixWidth(line, from);
+            // 行尾/空行的选区给一个「一个字符宽」的最小可见段，否则选中空行时什么都看不见
+            float x1 = to > from ? textX + MeasurePrefixWidth(line, to) : x0 + _charWidth;
+            canvas.FillColor = EditorTypography.SelectionBg;
+            canvas.FillRectangle(x0, y, Math.Max(1f, x1 - x0), lineH);
         }
     }
 

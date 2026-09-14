@@ -43,6 +43,15 @@ public static class MauiProgram
 		EntryHandler.Mapper.AppendToMapping("NoExtractIme", (handler, view) => ApplyNoExtractIme(handler.PlatformView));
 		EditorHandler.Mapper.AppendToMapping("NoExtractIme", (handler, view) => ApplyNoExtractIme(handler.PlatformView));
 
+		// **关掉平台的「选中操作」浮层**（长按弹出的 复制/粘贴/全选 工具条）。
+		// 编辑器自带选区与操作条（见 EditorPage 的 SelectionBar），平台再弹一个就变成两套 UI、
+		// 而且那套的锚点是按平台自己那层输入框算的 —— 与自绘正文差一点就「看着对不上」。
+		// 回调返回 true = 这个 ActionMode **已被消费**（不显示），这是 Android 官方的关闭方式。
+		EntryHandler.Mapper.AppendToMapping("NoSelectionToolbar", (handler, view) =>
+			handler.PlatformView.CustomSelectionActionModeCallback = new SuppressActionMode());
+		EditorHandler.Mapper.AppendToMapping("NoSelectionToolbar", (handler, view) =>
+			handler.PlatformView.CustomSelectionActionModeCallback = new SuppressActionMode());
+
 		static void ApplyNoExtractIme(Android.Widget.TextView view)
 		{
 			// ⚠ 绑定把 `ImeOptions` 暴露成 `ImeAction` 枚举，而 flag 位与动作位**共用同一个 int**，
@@ -79,4 +88,22 @@ public static class MauiProgram
 
 		return builder.Build();
 	}
+
+#if ANDROID
+	/// <summary>
+	/// 把平台的「选中操作」浮层（长按弹出的 复制/粘贴/全选 工具条）**吃掉** ——
+	/// 三个回调一律返回 true（= 已消费），于是它不弹。
+	///
+	/// 存在的理由：编辑器的选区与操作条是自己的（见 <c>EditorPage.SelectionBar</c>），
+	/// 平台再弹一套就变成两套 UI；而且那套的锚点是按平台自己那层输入框算的，
+	/// 与自绘正文只要差一点就「看着对不上」。**少一个平台参与，就少一处坐标系不一致**。
+	/// </summary>
+	sealed class SuppressActionMode : Java.Lang.Object, Android.Views.ActionMode.ICallback
+	{
+		public bool OnCreateActionMode(Android.Views.ActionMode? mode, Android.Views.IMenu? menu) => true;
+		public bool OnPrepareActionMode(Android.Views.ActionMode? mode, Android.Views.IMenu? menu) => true;
+		public bool OnActionItemClicked(Android.Views.ActionMode? mode, Android.Views.IMenuItem? item) => true;
+		public void OnDestroyActionMode(Android.Views.ActionMode? mode) { }
+	}
+#endif
 }
