@@ -1,5 +1,41 @@
 # 更新日志
 
+## v0.96.120 (2026-09-14) — 编辑器：清掉平台布局死代码（-255 行）+ 中点判定修正
+
+### 删掉的东西（净 -255 行，1671 → ~1416）
+
+网格模型落地后，这一整套都不再有调用点，之前只是被 `if (true) return -1;` 停着：
+
+- **平台布局引擎整块**（`EnsureAndroidLayout` / `CharIndexAtXPlatform` /
+  `PrefixWidthPlatform` / `_androidLayout` / `_androidPaint` / `PlatformDensity`）
+- **宽度实测簇**（`AdvanceOf` / `CacheRuneWidths` / `RuneWidth` / `_runeWidths` /
+  `AdvanceSampleCount` / `WholeMeasureMaxChars`）
+- **二分前缀定位**（`CharIndexAtXByPrefix`）与 `CharIndexAtX` 里的逐字累加兜底
+- `InvalidatePlatformLayout` 及其调用
+
+`CharIndexAtX` 现在只剩一行：`ColumnToCharIndex(line, XToColumn(xInLine))`。
+
+### 顺带修掉一个我自己引入的回归
+
+`XToColumn` 原先**四舍五入到最近列**，于是「格子内部靠右的一点」被推到下一格的边界上 ——
+点 `！`（11–13 列）的右半边会算成「下一个字符之前」，**点哪儿都往后跳一格**。
+
+改成：`XToColumn` 返回**连续列位置（不取整）**，由 `ColumnToCharIndex` 做中点判定
+（前半归它、后半归它后面）。这也正是文件里那句注释原本就写着、而旧实现并没做到的语义。
+
+全角字符因此不会被劈开：整格 2 列，中点在第 1.5 列，左半边一律归到它之前。
+
+### 复验（1K 行 `long1k.txt`）
+
+| 点击 | xInLine | 列位置 | 命中 |
+|---|---|---|---|
+| x300 | 79 | 12.15 | `i8`（`！` 中点 12，右侧 → 其后）|
+| x600 | 193 | 29.69 | `i20`（😀 中点 29，右侧 → 其后）|
+| x900 | 307 | 47.23 | `i32`（`3` 中点 2.5，左侧 → 其前）|
+
+网格行宽 `W11134` 不变。插入复验：点 x600（= `i20`）输入 `X` → 落在 **😀 之后**，
+与报出下标一致；emoji 未被劈开，整行仍对齐。
+
 ## v0.96.119 (2026-09-14) — 编辑器：emoji 列宽修正 + 1K 行端到端验证
 
 ### 修掉一个真问题：本地宽字符表把 emoji 判成 1 列
