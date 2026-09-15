@@ -768,9 +768,14 @@ namespace BasicCompiler
                     }
                     else
                     {
-                        // Auto-create undefined global variable (QBasic behavior: default to 0)
-                        int varOffset = GetOrCreateVariable(ident.Name) * 4;
-                        instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), new Operand(OperandType.REGISTER, srcReg) }));
+                        // 模块级（全局）变量 —— 写静态区全局段，与 EmitLoadVar 的读侧对称。
+                        //
+                        // ⚠ 这里原来是 `R12+{8 + index*4}`：SUB 的 R12 是子帧，写进去等于丢在子帧里，
+                        //   而读侧已经改从全局段读 ⇒ **写读两边各写各的**：`counter = counter + 5`
+                        //   读回 0、写进子帧，永远不累加（实测 t8 得 0）；更糟的是循环变量不推进，
+                        //   表现为**死循环**（`draw_board` 里的 `WHILE i < BW` 就是这么卡住的）。
+                        GetOrCreateVariable(ident.Name);
+                        EmitStoreVar(ident.Name, srcReg);
                     }
                 }
             }
@@ -1140,14 +1145,14 @@ namespace BasicCompiler
                         else
                         {
                             GetOrCreateVariable(ident.Name);
-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, VarMemRef(ident.Name)) }));
+                            EmitLoadVar(reg, ident.Name);   // 全局变量走静态区全局段（见 EmitLoadVar）
                         }
                     }
                     else
                     {
                         // Auto-create undefined global variable (QBasic behavior: default to 0)
                         GetOrCreateVariable(ident.Name);
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, VarMemRef(ident.Name)) }));
+                        EmitLoadVar(reg, ident.Name);   // 全局变量走静态区全局段（见 EmitLoadVar）
                     }
                 }
             }
@@ -1352,29 +1357,25 @@ namespace BasicCompiler
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, offset) }));
                         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
                     }
-                    // 全局变量
+                    // 全局变量：**取静态区全局段的地址**（主程序与 SUB 共用同一份）
                     else if (variables.ContainsKey(ident.Name.ToLower()))
                     {
-                        string memRef = VarMemRef(ident.Name.ToLower());
-                        // 地址可能是绝对地址或 R12+offset
-                        if (memRef.StartsWith("R12"))
+                        if (_globalVars.Contains(ident.Name.ToLower()))
                         {
-                            int off = int.Parse(memRef.Substring(3));
-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, off) }));
-                            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
+                            EmitStaticAddr(reg, STATIC_GLOBALS_OFFSET + GetVarByteOffset(ident.Name.ToLower()));
                         }
                         else
                         {
-                            int absAddr = int.Parse(memRef);
-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, absAddr) }));
+                            int off = GetVarByteOffset(ident.Name.ToLower());
+                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 8 + off) }));
+                            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
                         }
                     }
                     else
                     {
                         // Auto-create undefined variable (QBasic behavior)
-                        int varOffset2 = GetOrCreateVariable(ident.Name) * 4;
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 8 + varOffset2) }));
-                        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
+                        GetOrCreateVariable(ident.Name);
+                        EmitStaticAddr(reg, STATIC_GLOBALS_OFFSET + GetVarByteOffset(ident.Name.ToLower()));
                     }
                 }
                 else

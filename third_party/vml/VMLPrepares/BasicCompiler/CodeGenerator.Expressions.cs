@@ -112,10 +112,13 @@ namespace BasicCompiler
                     }
                     return;
                 }
-                int varOffset = GetOrCreateVariable(ident.Name) * 4;
+                GetOrCreateVariable(ident.Name);
                 BasicType varType = GetVariableType(ident.Name);
-                OpCode loadOp = GetLoadInstruction(varType);
-                instructions.Add(new Instruction(loadOp, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}") }));
+                // 走 EmitLoadVar：全局变量（模块级）从静态区全局段读，SUB 局部/参数走 R12 相对。
+                // ⚠ 原来这里是就地拼 `R12+{8 + index*4}` —— 一来进不了全局段，
+                //   二来它按"索引×4"而 VarMemRef 按 GetVarByteOffset（Double/Long 算 8 字节），
+                //   同一处地址两套算法，有 8 字节类型就会漂。
+                EmitLoadVar(reg, ident.Name);
                 if (varType == BasicType.Single || varType == BasicType.Double)
                     _lastExprFloatType = varType;
             }

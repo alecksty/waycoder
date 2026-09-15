@@ -550,7 +550,7 @@ namespace BasicCompiler
                             // 全局变量
                             BasicType varType = GetVariableType(varKey);
                             OpCode storeOp = GetStoreInstruction(varType);
-                            instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, VarMemRef(varKey)), new Operand(OperandType.REGISTER, storeSrcReg) }));
+                            EmitStoreVar(varKey, storeSrcReg);   // 全局变量写静态区全局段
                         }
                         else
                         {
@@ -563,7 +563,7 @@ namespace BasicCompiler
                     // 全局变量赋值
                     BasicType varType = GetVariableType(varKey);
                     OpCode storeOp = GetStoreInstruction(varType);
-                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, VarMemRef(ident.Name)), new Operand(OperandType.REGISTER, storeSrcReg) }));
+                    EmitStoreVar(ident.Name, storeSrcReg);   // 全局变量写静态区全局段
                 }
             }
             else if (stmt.Variable is ArrayAccessExpression arrayAccess)
@@ -767,11 +767,8 @@ namespace BasicCompiler
                     }
                     else if (variables.ContainsKey(stmt.Variable.Name.ToLower()))
                     {
-                        // 全局变量
-                        int varOffset = variables[stmt.Variable.Name.ToLower()] * 4;
-                        BasicType varType = GetVariableType(stmt.Variable.Name.ToLower());
-                        OpCode storeOp = GetStoreInstruction(varType);
-                        instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), new Operand(OperandType.REGISTER, 0) }));
+                        // 全局变量（走全局段，见 EmitStoreVar）
+                        EmitStoreVar(stmt.Variable.Name.ToLower(), 0);
                     }
                     else
                     {
@@ -781,11 +778,8 @@ namespace BasicCompiler
             }
             else
             {
-                // 全局变量
-                int varOffset = variables[stmt.Variable.Name] * 4;
-                BasicType varType = GetVariableType(stmt.Variable.Name);
-                OpCode storeOp = GetStoreInstruction(varType);
-                instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), new Operand(OperandType.REGISTER, 0) }));
+                // 全局变量（走全局段，见 EmitStoreVar）
+                EmitStoreVar(stmt.Variable.Name, 0);
             }
 
             // 循环开始
@@ -815,8 +809,7 @@ namespace BasicCompiler
                     }
                     else if (variables.ContainsKey(stmt.Variable.Name.ToLower()))
                     {
-                        int varOffset = variables[stmt.Variable.Name.ToLower()] * 4;
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}") }));
+                        EmitLoadVar(0, stmt.Variable.Name.ToLower());   // 全局段（见 EmitLoadVar）
                     }
                     else
                         throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, $"变量 '{stmt.Variable.Name}' 未定义");
@@ -824,8 +817,7 @@ namespace BasicCompiler
             }
             else
             {
-                int varOffset = variables[stmt.Variable.Name] * 4;
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}") }));
+                EmitLoadVar(0, stmt.Variable.Name);   // 全局段（见 EmitLoadVar）
             }
             // 每次迭代重新计算结束值（循环体可能破坏 R1）
             if (currentSubName != null)
@@ -847,16 +839,28 @@ namespace BasicCompiler
             {
                 loopVarAddr = $"R12+{8 + variables[stmt.Variable.Name] * 4}";
             }
-            // PUSH loop variable onto stack
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loopVarAddr) }));
-            instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
+            // 循环体前后"保护/恢复循环变量"：**只对栈上的循环变量做**。
+            // 全局变量在静态区全局段，循环体改不到它；而且它的地址是动态算出来的、
+            // 没法像 R12/R14 那样预先写成字符串。跳过不影响语义。
+            bool loopVarOnStack = !_globalVars.Contains(stmt.Variable.Name.ToLower()) && !_globalVars.Contains(stmt.Variable.Name);
+            if (loopVarOnStack)
+            {
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loopVarAddr) }));
+                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
+            }
             foreach (var bodyStmt in stmt.Body)
             {
                 GenerateStatement(bodyStmt);
             }
-            // POP loop variable back from stack
-            instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loopVarAddr) }));
+            if (loopVarOnStack)
+            {
+                instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
+                // ⚠ **保持原样**：原来就是"读"而不是"写"（`MOVE R0, [loopVarAddr]`）。
+                // 我一度以为这是写反了、顺手改成"写回"，结果把 SUB 里的局部 FOR 循环改成了死循环
+                // （最小复现：SUB 里 DIM i + FOR i = 0 TO 3 + 局部数组赋值）。
+                // 看着像 bug 但不是 —— **没有证据就不要改语义**。
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loopVarAddr) }));
+            }
 
             // 增加步长 - 加载变量值
             if (currentSubName != null)
@@ -881,9 +885,7 @@ namespace BasicCompiler
                     }
                     else if (variables.ContainsKey(stmt.Variable.Name.ToLower()))
                     {
-                        // 全局变量
-                        int varOffset = variables[stmt.Variable.Name.ToLower()] * 4;
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}") }));
+                        EmitLoadVar(0, stmt.Variable.Name.ToLower());   // 全局段（见 EmitLoadVar）
                     }
                     else
                     {
@@ -893,9 +895,7 @@ namespace BasicCompiler
             }
             else
             {
-                // 全局变量
-                int varOffset = variables[stmt.Variable.Name] * 4;
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}") }));
+                EmitLoadVar(0, stmt.Variable.Name);   // 全局段（见 EmitLoadVar）
             }
             
             // 计算步长值
@@ -936,11 +936,7 @@ namespace BasicCompiler
                     }
                     else if (variables.ContainsKey(stmt.Variable.Name.ToLower()))
                     {
-                        // 全局变量
-                        int varOffset = variables[stmt.Variable.Name.ToLower()] * 4;
-                        BasicType varType = GetVariableType(stmt.Variable.Name.ToLower());
-                        OpCode storeOp = GetStoreInstruction(varType);
-                        instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), new Operand(OperandType.REGISTER, 0) }));
+                        EmitStoreVar(stmt.Variable.Name.ToLower(), 0);   // 全局段（见 EmitStoreVar）
                     }
                     else
                     {
@@ -950,11 +946,7 @@ namespace BasicCompiler
             }
             else
             {
-                // 全局变量
-                int varOffset = variables[stmt.Variable.Name] * 4;
-                BasicType varType = GetVariableType(stmt.Variable.Name);
-                OpCode storeOp = GetStoreInstruction(varType);
-                instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), new Operand(OperandType.REGISTER, 0) }));
+                EmitStoreVar(stmt.Variable.Name, 0);   // 全局段（见 EmitStoreVar）
             }
 
             // 跳回循环开始

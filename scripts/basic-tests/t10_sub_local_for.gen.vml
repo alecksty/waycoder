@@ -1,0 +1,486 @@
+.linked  "Lib/basic/builtin.vml"
+.linked  "D:\code-agents\WayCoder\third_party\vml\Lib\shared\builtins.vml"
+.linked  "D:\code-agents\WayCoder\third_party\vml\Lib\shared\crt.vml"
+.linked  "D:\code-agents\WayCoder\third_party\vml\Lib\shared\vmlui.vml"
+
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+str_data_label_4: .string "n="
+str_data_label_23: .string "\\n"
+
+.const
+true: .const -1
+false: .const 0
+
+.text
+main:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #256
+        move R0 #0
+        move R1 #0
+        move R2 #0
+        move R3 #0
+        move R4 #0
+        move R5 #0
+        move R0 #28672
+        syscall #40
+        move R1 #28628
+        move R1 [R1]
+        move R1 #20480
+        add R1 [R1]
+        move R2 #8192
+label_0:
+        cmp R2 #0
+        jle label_1
+        move R0 #0
+        move @1 R0
+        add R1 #4
+        sub R2 #4
+        jmp label_0
+label_1:
+        move R0 [R1]
+        move R0 #0
+        move R1 #28624
+        move R0 [R1]
+line_12:
+; 12: f()
+        call sub_f
+        move R0 [R12+8]
+        syscall #3
+; --------------------------------------------
+; source   : SUB f()
+; procedure: f
+; return   : (none)
+; --------------------------------------------:
+; --------------------------------------------
+sub_f:
+        enter #8
+        move R0 #0
+        move R0 [R12-4]
+        move R0 #0
+        move R0 [R12-8]
+; 4:     n = 0
+        move R0 #0
+        move R1 R0
+        move [R12-8] R1
+; 5:     FOR i = 0 TO 3
+        move R0 #0
+        move R0 [R12-4]
+label_2:
+        move R0 [R12-4]
+        move R1 #3
+        cmp R0 R1
+        jg label_3
+        move R1 [R12-8]
+        move R2 [R12-4]
+        move R0 R1
+        add R0 R2
+        move R1 R0
+        move [R12-8] R1
+        move R0 [R12-4]
+        move R1 #1
+        add R0 R1
+        move R0 [R12-4]
+        jmp label_2
+label_3:
+; 8:     PRINT "n="
+        move R0 str_data_label_4
+        syscall #1
+        move R5 #28656
+        move R5 [R5]
+        cmp R5 #255
+        je label_5
+        move R6 #-1
+        cmp R5 R6
+        je label_5
+        push R0
+        push R1
+        push R2
+        push R3
+        move R1 #28660
+        moveb R1 [R1]
+        move R2 #28664
+        moveb R2 [R2]
+        move R3 #28668
+        moveb R3 [R3]
+        mul R1 #80
+        add R1 R2
+        mul R1 #2
+        add R1 #753664
+        moveb R0 [R1]
+        add R1 #1
+        moveb R3 [R1]
+        move R1 #28664
+        moveb R1 [R1]
+        add R1 #1
+        cmp R1 #80
+        jl label_6
+        move R1 #0
+        move R2 #28660
+        moveb R2 [R2]
+        add R2 #1
+        move R3 #28660
+        moveb R2 [R3]
+label_6:
+        move R2 #28664
+        moveb R1 [R2]
+        pop R3
+        pop R2
+        pop R1
+        pop R0
+label_5:
+        move R0 #10
+        syscall #4
+        move R5 #28656
+        move R5 [R5]
+        cmp R5 #255
+        je label_7
+        move R6 #-1
+        cmp R5 R6
+        je label_7
+        push R0
+        push R1
+        push R2
+        push R3
+        move R1 #28660
+        moveb R1 [R1]
+        move R2 #28664
+        moveb R2 [R2]
+        move R3 #28668
+        moveb R3 [R3]
+        mul R1 #80
+        add R1 R2
+        mul R1 #2
+        add R1 #753664
+        moveb R0 [R1]
+        add R1 #1
+        moveb R3 [R1]
+        move R1 #28664
+        moveb R1 [R1]
+        add R1 #1
+        cmp R1 #80
+        jl label_8
+        move R1 #0
+        move R2 #28660
+        moveb R2 [R2]
+        add R2 #1
+        move R3 #28660
+        moveb R2 [R3]
+label_8:
+        move R2 #28664
+        moveb R1 [R2]
+        pop R3
+        pop R2
+        pop R1
+        pop R0
+label_7:
+; 9:     PRINT n
+        move R0 [R12-8]
+        move R1 R0
+        cmp R1 #0
+        jge label_9
+        move R0 #45
+        syscall #4
+        move R5 #28656
+        move R5 [R5]
+        cmp R5 #255
+        je label_14
+        move R6 #-1
+        cmp R5 R6
+        je label_14
+        push R0
+        push R1
+        push R2
+        push R3
+        move R1 #28660
+        moveb R1 [R1]
+        move R2 #28664
+        moveb R2 [R2]
+        move R3 #28668
+        moveb R3 [R3]
+        mul R1 #80
+        add R1 R2
+        mul R1 #2
+        add R1 #753664
+        moveb R0 [R1]
+        add R1 #1
+        moveb R3 [R1]
+        move R1 #28664
+        moveb R1 [R1]
+        add R1 #1
+        cmp R1 #80
+        jl label_15
+        move R1 #0
+        move R2 #28660
+        moveb R2 [R2]
+        add R2 #1
+        move R3 #28660
+        moveb R2 [R3]
+label_15:
+        move R2 #28664
+        moveb R1 [R2]
+        pop R3
+        pop R2
+        pop R1
+        pop R0
+label_14:
+        neg R1
+        jmp label_9
+label_9:
+        cmp R1 #0
+        jne label_16
+        move R0 #48
+        syscall #4
+        move R5 #28656
+        move R5 [R5]
+        cmp R5 #255
+        je label_17
+        move R6 #-1
+        cmp R5 R6
+        je label_17
+        push R0
+        push R1
+        push R2
+        push R3
+        move R1 #28660
+        moveb R1 [R1]
+        move R2 #28664
+        moveb R2 [R2]
+        move R3 #28668
+        moveb R3 [R3]
+        mul R1 #80
+        add R1 R2
+        mul R1 #2
+        add R1 #753664
+        moveb R0 [R1]
+        add R1 #1
+        moveb R3 [R1]
+        move R1 #28664
+        moveb R1 [R1]
+        add R1 #1
+        cmp R1 #80
+        jl label_18
+        move R1 #0
+        move R2 #28660
+        moveb R2 [R2]
+        add R2 #1
+        move R3 #28660
+        moveb R2 [R3]
+label_18:
+        move R2 #28664
+        moveb R1 [R2]
+        pop R3
+        pop R2
+        pop R1
+        pop R0
+label_17:
+        jmp label_11
+label_16:
+        move R4 #0
+label_10:
+        move R2 R1
+        mod R2 #10
+        add R2 #48
+        push R2
+        add R4 #1
+        move R3 #10
+        div R1 R3
+        cmp R1 #0
+        jne label_10
+label_12:
+        cmp R4 #0
+        jle label_13
+        pop R0
+        syscall #4
+        move R5 #28656
+        move R5 [R5]
+        cmp R5 #255
+        je label_19
+        move R6 #-1
+        cmp R5 R6
+        je label_19
+        push R0
+        push R1
+        push R2
+        push R3
+        move R1 #28660
+        moveb R1 [R1]
+        move R2 #28664
+        moveb R2 [R2]
+        move R3 #28668
+        moveb R3 [R3]
+        mul R1 #80
+        add R1 R2
+        mul R1 #2
+        add R1 #753664
+        moveb R0 [R1]
+        add R1 #1
+        moveb R3 [R1]
+        move R1 #28664
+        moveb R1 [R1]
+        add R1 #1
+        cmp R1 #80
+        jl label_20
+        move R1 #0
+        move R2 #28660
+        moveb R2 [R2]
+        add R2 #1
+        move R3 #28660
+        moveb R2 [R3]
+label_20:
+        move R2 #28664
+        moveb R1 [R2]
+        pop R3
+        pop R2
+        pop R1
+        pop R0
+label_19:
+        sub R4 #1
+        jmp label_12
+label_13:
+label_11:
+        move R0 #10
+        syscall #4
+        move R5 #28656
+        move R5 [R5]
+        cmp R5 #255
+        je label_21
+        move R6 #-1
+        cmp R5 R6
+        je label_21
+        push R0
+        push R1
+        push R2
+        push R3
+        move R1 #28660
+        moveb R1 [R1]
+        move R2 #28664
+        moveb R2 [R2]
+        move R3 #28668
+        moveb R3 [R3]
+        mul R1 #80
+        add R1 R2
+        mul R1 #2
+        add R1 #753664
+        moveb R0 [R1]
+        add R1 #1
+        moveb R3 [R1]
+        move R1 #28664
+        moveb R1 [R1]
+        add R1 #1
+        cmp R1 #80
+        jl label_22
+        move R1 #0
+        move R2 #28660
+        moveb R2 [R2]
+        add R2 #1
+        move R3 #28660
+        moveb R2 [R3]
+label_22:
+        move R2 #28664
+        moveb R1 [R2]
+        pop R3
+        pop R2
+        pop R1
+        pop R0
+label_21:
+; 10:     PRINT "\n"
+        move R0 str_data_label_23
+        syscall #1
+        move R5 #28656
+        move R5 [R5]
+        cmp R5 #255
+        je label_24
+        move R6 #-1
+        cmp R5 R6
+        je label_24
+        push R0
+        push R1
+        push R2
+        push R3
+        move R1 #28660
+        moveb R1 [R1]
+        move R2 #28664
+        moveb R2 [R2]
+        move R3 #28668
+        moveb R3 [R3]
+        mul R1 #80
+        add R1 R2
+        mul R1 #2
+        add R1 #753664
+        moveb R0 [R1]
+        add R1 #1
+        moveb R3 [R1]
+        move R1 #28664
+        moveb R1 [R1]
+        add R1 #1
+        cmp R1 #80
+        jl label_25
+        move R1 #0
+        move R2 #28660
+        moveb R2 [R2]
+        add R2 #1
+        move R3 #28660
+        moveb R2 [R3]
+label_25:
+        move R2 #28664
+        moveb R1 [R2]
+        pop R3
+        pop R2
+        pop R1
+        pop R0
+label_24:
+        move R0 #10
+        syscall #4
+        move R5 #28656
+        move R5 [R5]
+        cmp R5 #255
+        je label_26
+        move R6 #-1
+        cmp R5 R6
+        je label_26
+        push R0
+        push R1
+        push R2
+        push R3
+        move R1 #28660
+        moveb R1 [R1]
+        move R2 #28664
+        moveb R2 [R2]
+        move R3 #28668
+        moveb R3 [R3]
+        mul R1 #80
+        add R1 R2
+        mul R1 #2
+        add R1 #753664
+        moveb R0 [R1]
+        add R1 #1
+        moveb R3 [R1]
+        move R1 #28664
+        moveb R1 [R1]
+        add R1 #1
+        cmp R1 #80
+        jl label_27
+        move R1 #0
+        move R2 #28660
+        moveb R2 [R2]
+        add R2 #1
+        move R3 #28660
+        moveb R2 [R3]
+label_27:
+        move R2 #28664
+        moveb R1 [R2]
+        pop R3
+        pop R2
+        pop R1
+        pop R0
+label_26:
+        leave
+        ret
+vga_text_putchar:
+        ret

@@ -33,7 +33,10 @@ namespace BasicCompiler
         public const int STATIC_PAL_OFFSET    = 0x3000; // EGA palette (was StaticBase - 0x100)
         public const int STATIC_PAL13_OFFSET  = 0x3800; // VGA 256 palette (was StaticBase + 0x800)
         public const int STATIC_SOUND_OFFSET  = 0x4000; // Sound buffer (was StaticBase + 0x2000)
-        public const int STATIC_TOTAL_SIZE    = 0x5000; // 20KB total allocation
+        // 全局变量区：**追加在现有硬编码分区之后**（0x0000 DATA / 0x1000 文件句柄 / 0x3000 调色板
+        // / 0x3800 VGA 调色板 / 0x4000 声音），不动它们，免得重新编号引入新错。
+        public const int STATIC_GLOBALS_OFFSET = 0x5000;
+        public const int STATIC_TOTAL_SIZE    = 0x7000; // 原 0x5000；尾部 8KB(≈2048 个 int) 给全局变量
         public const int STATIC_BASE_ADDR     = 0x6FD4; // where the dynamic base pointer is stored
 
         // Backward-compat property for code that still uses StaticBase directly
@@ -79,6 +82,8 @@ namespace BasicCompiler
         private Dictionary<string, BasicType> variableTypes;
         private Dictionary<string, ArrayInfo> arrayVariables;
         private HashSet<string> _sharedVariables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>模块级变量（含 DIM SHARED）—— 放静态区的全局段，主程序与 SUB 共用同一份内存。</summary>
+        private HashSet<string> _globalVars = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>获取变量的内存引用字符串。SHARED 变量使用绝对地址, 普通变量使用 BP+offset</summary>
         private string VarMemRef(string varName)
@@ -87,6 +92,54 @@ namespace BasicCompiler
             if (_sharedVariables.Contains(varName))
                 return $"{StaticBase + 8 + offset}";
             return $"R12+{8 + offset}";
+        }
+
+        /// <summary>
+        /// 读变量到 <paramref name="reg"/>。**全局变量（模块级）走静态区的全局段**，用
+        /// <see cref="EmitStaticAddr"/> 就地算出绝对地址再间接读 —— 于是主程序与 SUB 指向同一块内存；
+        /// 其余（SUB 局部/参数）仍走 `R12+偏移` 的相对寻址。
+        ///
+        /// 为什么不"让某个寄存器长期存基址"：已确认 R7–R11 全被大量使用（33~123 处），
+        /// **没有空闲寄存器**可以专用；所以就地在目标寄存器里算地址，只用一个寄存器。
+        /// </summary>
+        private void EmitLoadVar(int reg, string name)
+        {
+            if (_globalVars.Contains(name))
+            {
+                EmitStaticAddr(reg, STATIC_GLOBALS_OFFSET + GetVarByteOffset(name));
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+                {
+                    new Operand(OperandType.REGISTER, reg), new Operand(OperandType.INDIRECT, reg)
+                }));
+                return;
+            }
+            instructions.Add(new Instruction(GetLoadInstruction(GetVariableType(name)), new List<Operand>
+            {
+                new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, VarMemRef(name))
+            }));
+        }
+
+        /// <summary>
+        /// 把 <paramref name="srcReg"/> 写进变量。全局变量同样写进静态区的全局段。
+        ///
+        /// 地址临时用 **R2**：调用点（Let 语句）把值放在 R0/R1（浮点用 R0、整数用 R1），
+        /// R2 在那一带本来就是拿来算地址的临时寄存器（见 `Statements.cs` 里 `MOVE R2,[R14+off]` 那段）。
+        /// </summary>
+        private void EmitStoreVar(string name, int srcReg)
+        {
+            if (_globalVars.Contains(name))
+            {
+                EmitStaticAddr(2, STATIC_GLOBALS_OFFSET + GetVarByteOffset(name));
+                instructions.Add(new Instruction(GetStoreInstruction(GetVariableType(name)), new List<Operand>
+                {
+                    new Operand(OperandType.INDIRECT, 2), new Operand(OperandType.REGISTER, srcReg)
+                }));
+                return;
+            }
+            instructions.Add(new Instruction(GetStoreInstruction(GetVariableType(name)), new List<Operand>
+            {
+                new Operand(OperandType.MEMORY, VarMemRef(name)), new Operand(OperandType.REGISTER, srcReg)
+            }));
         }
 
         /// <summary>获取变量类型对应的字节偏移步长 — 委托到 TypedCodeGen.GetTypeInfo</summary>
@@ -179,6 +232,9 @@ namespace BasicCompiler
             if (!variables.ContainsKey(name))
             {
                 variables[name] = variableCount;
+                // **模块级创建的变量就是全局变量** —— 放静态区全局段。SUB 的局部/参数在
+                // currentLocalVars 里、本来就不进 variables，所以不受影响。
+                if (currentSubName == null) _globalVars.Add(name);
                 // Double 和 Long 类型需要 8 字节，分配 2 个槽位
                 BasicType varType = GetVariableType(name);
                 int slots = (varType == BasicType.Double || varType == BasicType.Long) ? 2 : 1;
@@ -906,6 +962,29 @@ namespace BasicCompiler
             AddRI(OpCode.MOVE, 0, STATIC_TOTAL_SIZE);
             EmitAlloc();
             EmitStaticBase(1);
+
+            // 把**全局变量区清 0** —— BASIC 语义里"未初始化的变量是 0"，
+            // 而这块是 EmitAlloc 出来的裸内存（不保证是零）。清的范围只有全局段，
+            // DATA 区等由各自的初始化逻辑负责，不碰。
+            {
+                string zeroLoop = GenerateLabel();
+                string zeroDone = GenerateLabel();
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
+                    new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, STATIC_GLOBALS_OFFSET) }));
+                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> {
+                    new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R1") }));  // R1 已含基址
+                AddRI(OpCode.MOVE, 2, STATIC_TOTAL_SIZE - STATIC_GLOBALS_OFFSET);   // R2 = 剩余字节数
+                instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, zeroLoop) }));
+                AddRI(OpCode.CMP, 2, 0);
+                instructions.Add(new Instruction(OpCode.JLE, new List<Operand> { new Operand(OperandType.LABEL, zeroDone) }));
+                AddRI(OpCode.MOVE, 0, 0);
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
+                    new Operand(OperandType.INDIRECT, 1), new Operand(OperandType.REGISTER, 0) }));
+                AddRI(OpCode.ADD, 1, 4);
+                AddRI(OpCode.SUB, 2, 4);
+                instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, zeroLoop) }));
+                instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, zeroDone) }));
+            }
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
 
             // 初始化 DATA 指针 (offset 0 in static area)

@@ -38,7 +38,7 @@
                                               // 其它：MOVE [VarMemRef(name)], srcReg
    ```
 
-## 三、实施清单（逐点，改完逐个跑语料）
+## 三、实施清单（**已实施**，v0.96.169；语料 t4/t7/t8 全部转绿）
 
 - [ ] `CodeGenerator.cs`：加 `STATIC_GLOBALS_OFFSET`；`STATIC_TOTAL_SIZE` 0x5000 → 0x7000
 - [ ] `CodeGenerator.cs`：加 `HashSet<string> _globalVars`；在 `GetOrCreateVariable` 里按
