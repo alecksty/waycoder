@@ -858,8 +858,12 @@ public partial class EditorPage : ContentPage
         var text = _editable.GetLine(_editLine) ?? "";
 
         _committing = true;
-        // tip：制表符在 Entry 里无法与自绘保持一致的宽度，编辑时先展开成空格
-        LineEditor.Text = TextEditorMath.ExpandTabs(text, EditorTypography.TabColumns);
+        // **原样带进去，不展开 tab**（原来这里 ExpandTabs 成空格）。
+        // 展开的后果是「编辑一下，文件里的制表符就永久变成空格了」—— 用户明确要的是
+        // **真制表符**：1 个字符、删一次删掉整格、显示宽度走 TabColumns（4 列）。
+        // 展开这件事由**绘制侧**负责：`BuildLineRuns` 开头就是 ExpandTabs，所以 `	` 画出来
+        // 仍是 4 列宽；`MeasurePrefixWidth` / `CharIndexAtX` 也都先展开再映射，光标与点击同源。
+        LineEditor.Text = text;
         _committing = false;
 
         Canvas.EditingLine = oneBased;
@@ -980,11 +984,11 @@ public partial class EditorPage : ContentPage
     }
 
     /// <summary>
-    /// 插入一级缩进（Tab 键）。
+    /// 插入制表符（Tab 键）。
     ///
-    /// **插的是空格不是制表符** —— 与「编辑时把行内 tab 展开成空格」同一条口径
-    /// （见 <c>BeginEditLine</c>：制表符在 Entry 里无法与自绘保持一致的宽度）。
-    /// 宽度取 <see cref="EditorTypography.TabColumns"/>（= 4），与画布展开 tab 的列宽规则同源。
+    /// **插的是** <c>	</c> **这一个字符，不是 4 个空格**：用户要的是「删一次就把整格删掉」，
+    /// 而 4 个空格要按 4 次退格。显示宽度由绘制侧的 `ExpandTabs`（按
+    /// <see cref="EditorTypography.TabColumns"/> 对齐到下一个制表位）负责，所以屏幕上仍是 4 列。
     ///
     /// 走的是和粘贴同一条路：改 `LineEditor.Text` ⇒ `TextChanged` 回写模型 + 画布重绘，
     /// 不自己动 `_editable`（否则两处各写一份，迟早不一致）。
@@ -993,9 +997,8 @@ public partial class EditorPage : ContentPage
     {
         var cur = LineEditor.Text ?? "";
         int at = Math.Clamp(LineEditor.CursorPosition, 0, cur.Length);
-        var pad = new string(' ', EditorTypography.TabColumns);
-        LineEditor.Text = cur[..at] + pad + cur[at..];
-        LineEditor.CursorPosition = at + pad.Length;
+        LineEditor.Text = cur[..at] + "	" + cur[at..];
+        LineEditor.CursorPosition = at + 1;      // 制表符是 1 个字符
         Canvas.EditingCursor = LineEditor.CursorPosition;
         Canvas.EnsureCaretVisible();
     }

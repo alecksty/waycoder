@@ -55,14 +55,22 @@ WinUI 里画布不可聚焦，而只读态那个「输入框代理」是隐藏�
 一直是好的）。7 个静态图标 + 1 处运行时赋值（`EditBtn.Source = "icon_edit" / "icon_lock"`）
 一并补 `.png`。
 
-### ⑥ 编辑器支持 Tab 键（插入 4 空格缩进）
+### ⑥ 编辑器支持 Tab 键，且**保留真制表符**
 
-平台的 TextBox 在 `AcceptsReturn=false` 时拿 Tab 做**焦点导航** —— 一按焦点就跑了，连打字都断。
-现在在 `PreviewKeyDown` 里把 Tab 吃掉：编辑态插入 `<see cref="EditorTypography.TabColumns"/>`（=4）
-个空格，只读态只吞掉不移焦点。插的**是空格不是制表符**，与「编辑时把行内 tab 展开成空格」
-同一条口径；宽度也与画布展开 tab 的列宽规则同源（`ExpandTabs` 两处共用 `TabColumns`）。
+两件事：
 
-实测：行内 `usi|ng System;` 处按 Tab → `usi␣␣␣␣ng System;`，量得间距 4 列（字号 14 半角 7pt）。
+1. **Tab 键**：平台的 TextBox 在 `AcceptsReturn=false` 时拿 Tab 做**焦点导航** —— 一按焦点就
+   跑了，连打字都断。现在在 `PreviewKeyDown` 里把 Tab 吃掉，编辑态插入 `	`（只读态只吞掉
+   不移焦点）。
+2. **不再把 `	` 展开成空格**：原先载入待编辑行时会 `ExpandTabs`，把行内的真 tab 静默换成
+   4 个空格 —— 而 **Python 的缩进与三引号字符串里的制表符都是有语义的**，一编辑就永久改写
+   文件内容（这不是显示问题，是数据损坏）。现在原样带进输入框、原样提交回文件。
+
+显示宽度仍由**绘制侧**的 `ExpandTabs` 负责（对齐到 `TabColumns`=4），所以屏幕上还是 4 列；
+光标与点击定位本来就走 `ExpandTabsWithMap` 的映射，不受影响。
+
+实测：行内按 Tab 后存盘，文件第 3 行原始字节是 `b'usi	ng System;'` —— **1 个 0x09，不是
+4 个空格**；屏幕上仍是 4 列宽（字号 14 半角 7pt × 4）。
 
 ### 仓库维护
 
