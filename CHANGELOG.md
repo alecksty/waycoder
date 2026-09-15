@@ -55,22 +55,37 @@ WinUI 里画布不可聚焦，而只读态那个「输入框代理」是隐藏�
 一直是好的）。7 个静态图标 + 1 处运行时赋值（`EditBtn.Source = "icon_edit" / "icon_lock"`）
 一并补 `.png`。
 
-### ⑥ 编辑器支持 Tab 键，且**保留真制表符**
+### ⑥ Tab / Shift+Tab：**全平台一套标准**
 
-两件事：
+三件事一起做，四个平台（Windows / Android / iOS / MacCatalyst）行为一致：
 
-1. **Tab 键**：平台的 TextBox 在 `AcceptsReturn=false` 时拿 Tab 做**焦点导航** —— 一按焦点就
-   跑了，连打字都断。现在在 `PreviewKeyDown` 里把 Tab 吃掉，编辑态插入 `\t`（只读态只吞掉
-   不移焦点）。
-2. **不再把 `\t` 展开成空格**：原先载入待编辑行时会 `ExpandTabs`，把行内的真 tab 静默换成
-   4 个空格 —— 而 **Python 的缩进与三引号字符串里的制表符都是有语义的**，一编辑就永久改写
-   文件内容（这不是显示问题，是数据损坏）。现在原样带进输入框、原样提交回文件。
+1. **Tab 插的是真制表符**（`\t` 这一个字符），不是 4 个空格 —— 语义上必须是真制表符：
+   Python 的缩进与三引号字符串里的制表符都有意义，换成空格是**改坏代码**，不只是改显示。
+   视觉上仍是 4 列（展开由绘制侧 `ExpandTabs` 按 `TabColumns`=4 负责），删除也天然只删 1 个字符。
+2. **Shift+Tab 退一级缩进**：行首是制表符就删它一个，否则删最多 `TabColumns` 个前导空格；
+   没有缩进可退时**原样不动**（空按一下不该改变文件）。
+3. **载入待编辑行时不再 `ExpandTabs`**：原行为把行内真 tab 静默换成空格，一编辑就永久改写
+   文件内容 —— 这是数据损坏，不是显示问题。
 
-显示宽度仍由**绘制侧**的 `ExpandTabs` 负责（对齐到 `TabColumns`=4），所以屏幕上还是 4 列；
-光标与点击定位本来就走 `ExpandTabsWithMap` 的映射，不受影响。
+**键入口各平台不同，语义同一份代码**（`InsertIndent` / `DedentLine` / `ReplaceEditing` 放在
+跨平台区域，不在任何 `#if` 里）：
 
-实测：行内按 Tab 后存盘，文件第 3 行原始字节是 `b'usi\tng System;'` —— **1 个 0x09，不是
-4 个空格**；屏幕上仍是 4 列宽（字号 14 半角 7pt × 4）。
+| 平台 | 入口 | 为什么 |
+|---|---|---|
+| Windows | `TextBox.PreviewKeyDown` | 平台把 Tab 当**焦点导航**（AcceptsReturn=false 时移到下一控件），不截下来一按焦点就跑 |
+| Android | `EditText` 的 `OnKeyListener`（`View.KeyPress`） | 同上；该回调**早于** View 默认处理，正好截住。软键盘没有 Tab 键，接外接键盘才用得到 |
+| iOS / MacCatalyst | `UIKeyCommand` + 专用 `EntryHandler` | UIKit 里 Tab 是**命令键**（不走 `ShouldChangeCharacters`），而 key command 的 selector 必须由**控件自己的类**实现 ⇒ 只能给编辑器这一个输入框换成 `TabAwareTextField`（不动全局 Mapper） |
+
+**验证**（Windows 实机，读存盘字节）：
+
+| 操作 | 结果 |
+|---|---|
+| 行首按 Tab | 该行 tab 数 **1 → 2**（真 0x09，不是 4 空格） |
+| 按一次 Shift+Tab | 该行 tab 数 **1 → 0** |
+| 两次都存盘 | 文件字节确认，非仅屏幕 |
+
+Android / iOS / MacCatalyst 三端**只做了编译验证**（0 错误），**运行未验** —— Android 需外接键盘、
+iOS 需模拟器/真机接硬件键盘才能按到 Tab。
 
 ### 仓库维护
 

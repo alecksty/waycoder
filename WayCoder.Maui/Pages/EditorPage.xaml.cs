@@ -110,6 +110,14 @@ public partial class EditorPage : ContentPage
         // Entry 保留下来只为了三件事——IME 组合输入、软键盘、系统复制粘贴菜单。
         // 两层都显示文字的话，各自的行高/内边距规则不同，必然错位。
         LineEditor.TextColor = Colors.Transparent;
+#if IOS || MACCATALYST
+        // iOS/MacCatalyst 的**硬件键盘** Tab：UIKit 里 Tab 是「命令键」（不是字符），
+        // 只能通过 `UIKeyCommand` 接，而 key command 的 selector 必须**由控件自己的类实现** ——
+        // 没法给现成的 MauiTextField 实例挂。所以给编辑器**这一个**输入框换成专用 handler
+        // （不动全局 EntryHandler.Mapper，那会波及全 App 的 Entry）。
+        // 软键盘不需要它（没有 Tab 键），Android 那条走 KeyPress，Windows 走 PreviewKeyDown。
+        LineEditor.Handler = new TabAwareEntryHandler();
+#endif
 
         // 系统光标也藏掉：它由平台按自己的内边距/行内对齐绘制，我们算不出它的位置，
         // 实测就是「在光标行的下方乱飘」。光标改由画布自绘（见 CodeCanvasView.DrawCaret），
@@ -127,10 +135,21 @@ public partial class EditorPage : ContentPage
                 // 选区底色也交给画布画（画布按整行铺底色）。系统再画一层的话，
                 // 两层底色会错开一点，看着像重影。
                 et.SetHighlightColor(Android.Graphics.Color.Transparent);   // 绑定里 HighlightColor 只有 getter
+
+                // 硬件键盘的 Tab / Shift+Tab（**软键盘没有这两个键**，所以手机上是接外接键盘才用得到）。
+                // 平台默认把 Tab 当**焦点导航**（焦点一走，正在编辑的这一行就断了）——
+                // 在 OnKeyListener 里截下来，与 Windows 那条 `PreviewKeyDown` 是同一个语义。
+                et.KeyPress -= OnAndroidLineEditorKeyPress;
+                et.KeyPress += OnAndroidLineEditorKeyPress;
             }
-#elif IOS
+#elif IOS || MACCATALYST
             if (LineEditor.Handler?.PlatformView is UIKit.UITextField tf)
                 tf.TintColor = UIKit.UIColor.Clear;
+            if (LineEditor.Handler?.PlatformView is TabAwareTextField ttf)
+            {
+                ttf.TabPressed -= OnIosTabPressed;
+                ttf.TabPressed += OnIosTabPressed;
+            }
 #endif
 #if WINDOWS
             // 【Windows】键盘上下键得自己接：平台的单行 TextBox 对 Up/Down **什么都不做**
@@ -169,6 +188,19 @@ public partial class EditorPage : ContentPage
 #endif
     }
 
+#if IOS || MACCATALYST
+    /// <summary>
+    /// iOS / MacCatalyst 硬件键盘的 Tab / Shift+Tab —— 与 Windows、Android 同一个语义
+    /// （Tab 插制表符、Shift+Tab 退一级缩进）。只读态不动（iOS 上 Tab 本来也不做焦点导航）。
+    /// </summary>
+    private void OnIosTabPressed(bool shift)
+    {
+        if (_editLine < 0) return;
+        if (shift) DedentLine();
+        else InsertIndent();
+    }
+#endif
+
 #if ANDROID
     /// <summary>
     /// 把平台的插入光标彻底藏掉：**光禁显示不够，还要把光标画笔换成全透明** ——
@@ -187,6 +219,28 @@ public partial class EditorPage : ContentPage
             et.TextCursorDrawable = blank;   // API 29+ 才有 setTextCursorDrawable
         }
     }
+    /// <summary>
+    /// Android 硬件键盘的 Tab / Shift+Tab —— 与 Windows 的 <c>OnLineEditorPreviewKeyDown</c>
+    /// 同一条语义（Tab 插制表符、Shift+Tab 退缩进、只读态只吞掉不移焦点）。
+    ///
+    /// 走 `OnKeyListener`（<c>View.KeyPress</c> 事件）而不是 `DispatchKeyEvent`：这个回调**早于
+    /// View 的默认处理**，所以平台那套「Tab 移焦点」还没发生就被我们吃掉了。
+    /// </summary>
+    private void OnAndroidLineEditorKeyPress(object? sender, Android.Views.View.KeyEventArgs e)
+    {
+        var ke = e.Event;
+        if (ke is null) return;
+        // Down 与长按重复(Multiple)都算；Up 忽略，否则一次按键会做两遍
+        if (ke.Action != Android.Views.KeyEventActions.Down &&
+            ke.Action != Android.Views.KeyEventActions.Multiple) return;
+        if (ke.KeyCode != Android.Views.Keycode.Tab) return;
+
+        e.Handled = true;                                  // 先吃掉，别让它做焦点导航
+        if (_editLine < 0) return;                         // 只读态只吞掉
+        if (ke.IsShiftPressed) DedentLine();
+        else InsertIndent();
+    }
+
     /// <summary>
     /// 软键盘 inset 的接收器 —— **Android 15+ 上「键盘避让」只能自己接**。
     ///
@@ -809,6 +863,56 @@ public partial class EditorPage : ContentPage
     // ── 单行编辑 ──
 
     /// <summary>
+    /// 插入制表符（**所有平台的 Tab 都走这里**，标准一致；键入口见
+    /// <c>OnLineEditorPreviewKeyDown</c>（Windows）与 <c>OnAndroidLineEditorKeyPress</c>）。
+    ///
+    /// **插的是制表符这一个字符，不是 4 个空格** —— 语义上必须是真制表符：Python 的缩进与
+    /// 三引号字符串里的制表符都有意义，换成空格是**改坏代码**而不只是改显示。
+    /// 视觉上仍是 4 列：展开由绘制侧的 <c>ExpandTabs</c>（对齐到
+    /// <see cref="EditorTypography.TabColumns"/>）负责；删除也天然只删 1 个字符。
+    /// </summary>
+    private void InsertIndent() => ReplaceEditing((cur, at) => (cur[..at] + "\t" + cur[at..], at + 1));
+
+    /// <summary>
+    /// 退一级缩进（Shift+Tab，同样全平台共用）。
+    ///
+    /// 规则与主流编辑器一致、且**只动行首那一段**：行首是制表符就删它一个；否则删掉最多
+    /// <see cref="EditorTypography.TabColumns"/> 个前导空格（不足就删光）。没有缩进可退时
+    /// **原样返回**（不报错、也不插别的东西）—— 空按一下不该改变文件。
+    /// </summary>
+    private void DedentLine()
+    {
+        ReplaceEditing((cur, at) =>
+        {
+            int remove = cur.StartsWith("\t") ? 1 : 0;
+            if (remove == 0)
+                while (remove < EditorTypography.TabColumns && remove < cur.Length && cur[remove] == ' ')
+                    remove++;
+            if (remove == 0) return (cur, at);
+            return (cur[remove..], Math.Max(0, at - remove));
+        });
+    }
+
+    /// <summary>
+    /// 改「正在编辑的那一行」的文本并同步光标 —— Tab / Shift+Tab 共用的**唯一出口**。
+    ///
+    /// 走的是和粘贴同一条路（改 `LineEditor.Text` ⇒ `TextChanged` 回写模型 + 画布重绘），
+    /// 不自己动 `_editable`，否则两处各写一份迟早不一致。
+    /// 光标列在改文本**之后**按实际长度夹一次：越界会让画布与输入框各算各的，画到行外去。
+    /// </summary>
+    private void ReplaceEditing(Func<string, int, (string Text, int Caret)> change)
+    {
+        var cur = LineEditor.Text ?? "";
+        int at = Math.Clamp(LineEditor.CursorPosition, 0, cur.Length);
+        var (text, caret) = change(cur, at);
+        LineEditor.Text = text;
+        LineEditor.CursorPosition = Math.Clamp(caret, 0, text.Length);
+        Canvas.EditingCursor = LineEditor.CursorPosition;
+        Canvas.EnsureCaretVisible();
+    }
+
+
+    /// <summary>
     /// **要打字了，就把字号落到最近的整数**（用户提的折中，v0.96.139）。
     ///
     /// 起因（用户实测）：**整数号下光标正好落在字与字的格线上，非整数号下会压进字里**
@@ -977,31 +1081,26 @@ public partial class EditorPage : ContentPage
             // Tab **必须自己吃掉**：平台的 TextBox 拿它做焦点导航（AcceptsReturn=false 时 Tab
             // 移到下一个控件）—— 一按焦点就跑了，连打字都断。这里改成插入缩进。
             case Windows.System.VirtualKey.Tab:
-                e.Handled = true;
-                if (_editLine >= 0) InsertIndent();   // 只读态只吞掉，不移焦点
+                e.Handled = true;                     // 只读态只吞掉，不移焦点
+                if (_editLine >= 0)
+                {
+                    if (IsShiftDown()) DedentLine();  // Shift+Tab = 退一级缩进
+                    else InsertIndent();
+                }
                 break;
         }
     }
 
     /// <summary>
-    /// 插入制表符（Tab 键）。
+    /// Shift 是否按下（判断 Shift+Tab）。
     ///
-    /// **插的是** <c>	</c> **这一个字符，不是 4 个空格**：用户要的是「删一次就把整格删掉」，
-    /// 而 4 个空格要按 4 次退格。显示宽度由绘制侧的 `ExpandTabs`（按
-    /// <see cref="EditorTypography.TabColumns"/> 对齐到下一个制表位）负责，所以屏幕上仍是 4 列。
-    ///
-    /// 走的是和粘贴同一条路：改 `LineEditor.Text` ⇒ `TextChanged` 回写模型 + 画布重绘，
-    /// 不自己动 `_editable`（否则两处各写一份，迟早不一致）。
+    /// 用 `InputKeyboardSource` 而不是看 `KeyRoutedEventArgs` —— 后者**不带修饰键信息**
+    /// （只有 Key 与 KeyStatus），光看它分不出 Tab 与 Shift+Tab。
     /// </summary>
-    private void InsertIndent()
-    {
-        var cur = LineEditor.Text ?? "";
-        int at = Math.Clamp(LineEditor.CursorPosition, 0, cur.Length);
-        LineEditor.Text = cur[..at] + "	" + cur[at..];
-        LineEditor.CursorPosition = at + 1;      // 制表符是 1 个字符
-        Canvas.EditingCursor = LineEditor.CursorPosition;
-        Canvas.EnsureCaretVisible();
-    }
+    private static bool IsShiftDown()
+        => Microsoft.UI.Input.InputKeyboardSource
+            .GetKeyStateForCurrentThread(Windows.System.VirtualKey.Shift)
+            .HasFlag(Windows.UI.Core.CoreVirtualKeyStates.Down);
 
     /// <summary>只读态浏览光标的列长度（该行字符数）。</summary>
     private int LineLength(long oneBased)
@@ -1376,3 +1475,39 @@ public partial class EditorPage : ContentPage
 #endif
     }
 }
+
+#if IOS || MACCATALYST
+/// <summary>
+/// 带 Tab 键命令的输入框。UIKit 里 Tab 是**命令键**（不走 `ShouldChangeCharacters`），
+/// 要在 `KeyCommands` 里声明 `UIKeyCommand`，并由**控件自己的类**实现对应 selector ——
+/// 这就是它必须是子类、而不能靠 Mapper 打在现成实例上的原因。
+/// 修饰键要分别声明：`Shift+Tab` 是另一条 key command。
+/// </summary>
+internal sealed class TabAwareTextField : Microsoft.Maui.Platform.MauiTextField
+{
+    /// <summary>参数 = 是否按着 Shift。由页面订阅（见 EditorPage.OnIosTabPressed）。</summary>
+    public event Action<bool>? TabPressed;
+
+    public override UIKit.UIKeyCommand[]? KeyCommands =>
+    [
+        // ⚠ 没有 `UIKeyCommand.InputTab` 这个常量（.NET 绑定里只有 InputEscape/方向键那几个），
+        // 直接用字面量制表符。修饰键必须**分别声明**一条：Shift+Tab 是另一条 key command。
+        UIKit.UIKeyCommand.Create(new Foundation.NSString("\t"), 0,
+            new ObjCRuntime.Selector("wcTab:")),
+        UIKit.UIKeyCommand.Create(new Foundation.NSString("\t"), UIKit.UIKeyModifierFlags.Shift,
+            new ObjCRuntime.Selector("wcShiftTab:")),
+    ];
+
+    [Foundation.Export("wcTab:")]
+    public void OnTab(UIKit.UIKeyCommand command) => TabPressed?.Invoke(false);
+
+    [Foundation.Export("wcShiftTab:")]
+    public void OnShiftTab(UIKit.UIKeyCommand command) => TabPressed?.Invoke(true);
+}
+
+/// <summary>只服务编辑器那个输入框的 handler（用 CreatePlatformView 换成 TabAwareTextField）。</summary>
+internal sealed class TabAwareEntryHandler : Microsoft.Maui.Handlers.EntryHandler
+{
+    protected override Microsoft.Maui.Platform.MauiTextField CreatePlatformView() => new TabAwareTextField();
+}
+#endif
