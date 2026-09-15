@@ -225,6 +225,10 @@ public static class MauiBootstrap
         // 6b) 把随包的中文字体落到文件系统上（供画布文字渲染用）。
         EnsureBundledFonts();
 
+        // 6c) 把示例程序（经典小游戏等）解到工作区 `examples/`，用户开箱即可
+        //     `vml run examples/gomoku.c` 跑一个真程序。
+        EnsureExamples();
+
         // 7) 交互桥注入：权限确认 / AskUserQuestion / diff 确认走原生对话框（M5）
         UxHelper.WebInteraction = new MauiWebInteraction();
 
@@ -318,6 +322,61 @@ public static class MauiBootstrap
         {
             // 字体落不下来不该拦住启动：画布文字退化成豆腐块，其余功能照常
             ErrorLog.Error("MauiBootstrap", "释放内置字体失败", ex);
+        }
+    }
+
+    /// <summary>
+    /// 把随包的**示例程序**解到工作区 <c>examples/</c> 下（只做一次，靠一个标记文件判断）。
+    ///
+    /// 为什么解到**工作区**而不是留在 <c>Global.Home/vml/</c>：手机端的工作目录就是工作区，
+    /// 而沙箱只允许程序读写项目内 —— 放在 home 下的话用户得先 `cd` 出去，还会被沙箱拦。
+    /// 解到工作区，`vml run examples/gomoku.c` 直接就能跑，在「文件」页里也看得见。
+    ///
+    /// 直接读 APK 里的 `vml_lib.zip`（而不是等 VML 标准库解压）：示例要**开箱即用**，
+    /// 不能等用户第一次跑 VML 才出现。
+    /// </summary>
+    static void EnsureExamples()
+    {
+        try
+        {
+            var dir = Path.Combine(WorkspaceDir, "examples");
+            var marker = Path.Combine(dir, ".unpacked");
+
+            // 标记里存**版本号**而不是只看"文件在不在"：示例集随版本增删，
+            // 只判存在的话老用户永远看不到新示例、也留着一堆已被删掉的旧文件。
+            if (File.Exists(marker) && File.ReadAllText(marker).Trim() == WayCoder.Global.Version
+                && Directory.EnumerateFiles(dir).Any(f => Path.GetFileName(f) != ".unpacked"))
+                return;
+
+            // 重新解包时先清空（保留目录本身），保证目录内容与当前版本**一致**而不是累加
+            Directory.CreateDirectory(dir);
+            foreach (var f in Directory.EnumerateFiles(dir))
+            {
+                if (Path.GetFileName(f) == ".unpacked") continue;
+                try { File.Delete(f); } catch { /* 删不掉就留着，不值得为它中断 */ }
+            }
+
+            using var zipStream = FileSystem.OpenAppPackageFileAsync("vml_lib.zip").GetAwaiter().GetResult();
+            using var zip = new System.IO.Compression.ZipArchive(zipStream, System.IO.Compression.ZipArchiveMode.Read);
+
+            foreach (var e in zip.Entries)
+            {
+                // 只要 `Examples/` 下的，且**只平铺一层**（不带子目录，免得路径里混进语言名）
+                if (!e.FullName.StartsWith("Examples/", StringComparison.Ordinal)) continue;
+                var name = Path.GetFileName(e.FullName);
+                if (name.Length == 0) continue;
+
+                using var s = e.Open();
+                using var dst = File.Create(Path.Combine(dir, name));
+                s.CopyTo(dst);
+            }
+
+            File.WriteAllText(marker, WayCoder.Global.Version);
+        }
+        catch (Exception ex)
+        {
+            // 示例解不出来不该拦住启动
+            ErrorLog.Error("MauiBootstrap", "释放示例程序失败", ex);
         }
     }
 
