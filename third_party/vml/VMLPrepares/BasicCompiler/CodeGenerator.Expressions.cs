@@ -154,11 +154,14 @@ namespace BasicCompiler
                     case "-":
                     case "*":
                     case "/":
+                    case "\\":      // BASIC 的整除：与 `/` 同一条除法路径（VML 的 DIV 对整数就是整除）
                     case "MOD":
-                        OpCode arithmeticOp = binary.Operator == "MOD" ? OpCode.MOD : ExpressionManager.SelectArithmeticOp(binary.Operator, isFloat, resultType.IsDouble());
+                        OpCode arithmeticOp = binary.Operator == "MOD" ? OpCode.MOD
+                            : ExpressionManager.SelectArithmeticOp(
+                                binary.Operator == "\\" ? "/" : binary.Operator, isFloat, resultType.IsDouble());
                         if (!isFloat) {
                             if (rightReg == reg) {
-                                if (binary.Operator == "-" || binary.Operator == "/" || binary.Operator == "MOD") {
+                                if (binary.Operator == "-" || binary.Operator == "/" || binary.Operator == "\\" || binary.Operator == "MOD") {
                                     // Non-commutative: save right value (in reg) to R0 before MOVE clobbers it
                                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, reg) }));
                                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, leftReg) }));
@@ -572,11 +575,20 @@ namespace BasicCompiler
             
             if (forAssignment)
             {
+                // 赋值：把**地址**放到 R0，由 GenerateArrayAssignment 再往里存
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 2) }));
             }
             else
             {
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 2) }));
+                // 取值：**从地址里读出来**。
+                //
+                // ⚠ 这里原来写的是 `MOVE reg, R2` —— 那是把**地址本身**当成了元素值，
+                //   于是 `arr(2)` 读出来永远是一个栈地址（实测 65556 = 0x10014），
+                //   与"写没写进去"无关。读、写两条路各反了一次，叠在一起看着像"数组全是野值"。
+                //   正确写法是寄存器间接寻址 `MOVE reg, @R2`。
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
+                    new Operand(OperandType.REGISTER, reg),
+                    new Operand(OperandType.INDIRECT, 2) }));
             }
             
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, endLabel) }));
@@ -586,13 +598,22 @@ namespace BasicCompiler
         {
             // 保存值到R3
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, valueReg) }));
-            
+
             // 生成数组访问，获取地址到R0
             GenerateArrayAccess(arrayAccess, 0, true);
-            
-            // 存储值到地址 (R0包含地址，R3包含值)
-            // 假设数组元素是整数类型（默认）
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, 0) }));
+
+            // 把 R3 里的值**存进 R0 指向的地址**。
+            //
+            // ⚠ 这里原来是 `MOVE R3, R0` —— 方向反了：那是把**地址**写回 R3，
+            //   值根本没落到数组里，而地址留在 R3 里被后续代码当成"刚赋的值"。
+            //   现象极具迷惑性：`arr(2) = 7` 之后读 `arr(2)` 得到的是**一个栈地址**
+            //   （实测 65556 = 0x10014），看着像"数组读出来是野值"，其实**写就没生效**。
+            //
+            // 正确写法是寄存器间接寻址 `MOVE @R0, R3`（`@Rn` = 地址在 Rn 里，
+            // 见 OperandType.INDIRECT）。
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
+                new Operand(OperandType.INDIRECT, 0),
+                new Operand(OperandType.REGISTER, 3) }));
         }
 
         private string GenerateLabel()

@@ -113,6 +113,7 @@ namespace BasicCompiler
             if (expr == null) return null;
 
             while (Peek().Type == TokenType.MULTIPLY || Peek().Type == TokenType.DIVIDE
+                   || Peek().Type == TokenType.INT_DIVIDE
                    || Peek().Type == TokenType.EXPONENT || Peek().Type == TokenType.MOD_KW)
             {
                 string op = Peek().Value;

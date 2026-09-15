@@ -40,6 +40,14 @@ namespace BasicCompiler
         MINUS,       // -
         MULTIPLY,    // *
         DIVIDE,      // /
+        /// <summary>
+        /// `\` —— BASIC 的**整除**运算符（与 `/` 同优先级，结果取整）。
+        ///
+        /// ⚠ 原来**根本没有这个 token**：词法把它当"未知字符"发 ERROR，表达式解析
+        /// 走到那儿就停了 —— 于是 `c = 100 \ 20` 静默变成 `c = 100`（`\ 20` 整段被丢），
+        /// 而按 `\` 排版的代码（比如用格宽算坐标）会踩运行时"整数除零"。
+        /// </summary>
+        INT_DIVIDE,
         EXPONENT,    // ^
         EQUALS,      // =
         LESS,        // <

@@ -246,6 +246,13 @@ namespace BasicCompiler
                     tokens.Add(new Token(TokenType.DIVIDE, "/", _line, _col));
                     Advance();
                 }
+                else if (current == '\\')
+                {
+                    // `\` 整除。**必须有这一支** —— 否则它落进下面的"未知字符"分支发 ERROR，
+                    // 表达式解析到那儿就停，`a \ b` 静默只剩 `a`（实测 `100 \ 20` 得 100）。
+                    tokens.Add(new Token(TokenType.INT_DIVIDE, "\\", _line, _col));
+                    Advance();
+                }
                 else if (current == '<')
                 {
                     Advance();
