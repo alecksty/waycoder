@@ -1,0 +1,905 @@
+.linked  "Lib/c/builtin.vml"
+.linked  "D:\code-agents\WayCoder\third_party\vml\Lib\shared\builtins.vml"
+.linked  "D:\code-agents\WayCoder\third_party\vml\Lib\shared\crt.vml"
+.linked  "D:\code-agents\WayCoder\third_party\vml\Lib\shared\vmlui.vml"
+
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+_ui_msg_type: .word 0
+_ui_msg_a: .word 0
+_ui_msg_b: .word 0
+
+.text
+ui_dlg_msg:
+; -------------------------------------------
+; source   : int ui_dlg_msg(char* title,char* body,int style)
+; function : ui_dlg_msg
+; param   : char* title
+; param   : char* body
+; param   : int style
+; return   : int
+; --------------------------------------------
+ui_dlg_msg:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        syscall #500
+        move [R12-4] R0
+        jmp L2170000
+L2170000:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_dlg_select:
+; -------------------------------------------
+; source   : int ui_dlg_select(char* title,char* body,char* opts,int n,int def)
+; function : ui_dlg_select
+; param   : char* title
+; param   : char* body
+; param   : char* opts
+; param   : int n
+; param   : int def
+; return   : int
+; --------------------------------------------
+ui_dlg_select:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        move R4 [R12+28]
+        syscall #501
+        move [R12-4] R0
+        jmp L2170001
+L2170001:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_dlg_multi:
+; -------------------------------------------
+; source   : int ui_dlg_multi(char* title,char* body,char* opts,int n)
+; function : ui_dlg_multi
+; param   : char* title
+; param   : char* body
+; param   : char* opts
+; param   : int n
+; return   : int
+; --------------------------------------------
+ui_dlg_multi:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        syscall #502
+        move [R12-4] R0
+        jmp L2170002
+L2170002:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_dlg_input:
+; -------------------------------------------
+; source   : int ui_dlg_input(char* title,char* prompt,char* buf,int cap)
+; function : ui_dlg_input
+; param   : char* title
+; param   : char* prompt
+; param   : char* buf
+; param   : int cap
+; return   : int
+; --------------------------------------------
+ui_dlg_input:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        syscall #503
+        move [R12-4] R0
+        jmp L2170003
+L2170003:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_win_open:
+; -------------------------------------------
+; source   : int ui_win_open(char* title,int w,int h)
+; function : ui_win_open
+; param   : char* title
+; param   : int w
+; param   : int h
+; return   : int
+; --------------------------------------------
+ui_win_open:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        syscall #520
+        move [R12-4] R0
+        jmp L2170004
+L2170004:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_win_close:
+; -------------------------------------------
+; source   : int ui_win_close()
+; function : ui_win_close
+; return   : int
+; --------------------------------------------
+ui_win_close:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #521
+        move [R12-4] R0
+        jmp L2170005
+L2170005:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_win_closed:
+; -------------------------------------------
+; source   : int ui_win_closed()
+; function : ui_win_closed
+; return   : int
+; --------------------------------------------
+ui_win_closed:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #565
+        move [R12-4] R0
+        jmp L2170006
+L2170006:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_scr_w:
+; -------------------------------------------
+; source   : int ui_scr_w()
+; function : ui_scr_w
+; return   : int
+; --------------------------------------------
+ui_scr_w:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #566
+        move [R12-4] R0
+        jmp L2170007
+L2170007:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_scr_h:
+; -------------------------------------------
+; source   : int ui_scr_h()
+; function : ui_scr_h
+; return   : int
+; --------------------------------------------
+ui_scr_h:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #567
+        move [R12-4] R0
+        jmp L2170008
+L2170008:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_clear:
+; -------------------------------------------
+; source   : void ui_clear(int color)
+; function : ui_clear
+; param   : int color
+; return   : void
+; --------------------------------------------
+ui_clear:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move R0 [R12+12]
+        syscall #522
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_pixel:
+; -------------------------------------------
+; source   : void ui_pixel(int x,int y,int color)
+; function : ui_pixel
+; param   : int x
+; param   : int y
+; param   : int color
+; return   : void
+; --------------------------------------------
+ui_pixel:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        syscall #523
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_line:
+; -------------------------------------------
+; source   : void ui_line(int x1,int y1,int x2,int y2,int color,int lw)
+; function : ui_line
+; param   : int x1
+; param   : int y1
+; param   : int x2
+; param   : int y2
+; param   : int color
+; param   : int lw
+; return   : void
+; --------------------------------------------
+ui_line:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        move R4 [R12+28]
+        move R5 [R12+32]
+        syscall #524
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_rect:
+; -------------------------------------------
+; source   : void ui_rect(int x,int y,int w,int h,int color,int fill,int lw,int radius)
+; function : ui_rect
+; param   : int x
+; param   : int y
+; param   : int w
+; param   : int h
+; param   : int color
+; param   : int fill
+; param   : int lw
+; param   : int radius
+; return   : void
+; --------------------------------------------
+ui_rect:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        move R4 [R12+28]
+        move R5 [R12+32]
+        move R6 [R12+36]
+        move R7 [R12+40]
+        syscall #525
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_circle:
+; -------------------------------------------
+; source   : void ui_circle(int cx,int cy,int r,int color,int fill,int lw)
+; function : ui_circle
+; param   : int cx
+; param   : int cy
+; param   : int r
+; param   : int color
+; param   : int fill
+; param   : int lw
+; return   : void
+; --------------------------------------------
+ui_circle:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        move R4 [R12+28]
+        move R5 [R12+32]
+        syscall #526
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_ellipse:
+; -------------------------------------------
+; source   : void ui_ellipse(int cx,int cy,int rx,int ry,int color,int fill,int lw)
+; function : ui_ellipse
+; param   : int cx
+; param   : int cy
+; param   : int rx
+; param   : int ry
+; param   : int color
+; param   : int fill
+; param   : int lw
+; return   : void
+; --------------------------------------------
+ui_ellipse:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        move R4 [R12+28]
+        move R5 [R12+32]
+        move R6 [R12+36]
+        syscall #527
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_present:
+; -------------------------------------------
+; source   : void ui_present()
+; function : ui_present
+; return   : void
+; --------------------------------------------
+ui_present:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #531
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_text:
+; -------------------------------------------
+; source   : void ui_text(int x,int y,char* s,int color,int size,int anchor)
+; function : ui_text
+; param   : int x
+; param   : int y
+; param   : char* s
+; param   : int color
+; param   : int size
+; param   : int anchor
+; return   : void
+; --------------------------------------------
+ui_text:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        move R4 [R12+28]
+        move R5 [R12+32]
+        syscall #528
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_text_styled:
+; -------------------------------------------
+; source   : void ui_text_styled(int x,int y,char* s,int color,int size,int anchor,int style)
+; function : ui_text_styled
+; param   : int x
+; param   : int y
+; param   : char* s
+; param   : int color
+; param   : int size
+; param   : int anchor
+; param   : int style
+; return   : void
+; --------------------------------------------
+ui_text_styled:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        move R4 [R12+28]
+        move R5 [R12+32]
+        move R6 [R12+36]
+        syscall #528
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_set_font:
+; -------------------------------------------
+; source   : void ui_set_font(int size,int style,int color,int anchor)
+; function : ui_set_font
+; param   : int size
+; param   : int style
+; param   : int color
+; param   : int anchor
+; return   : void
+; --------------------------------------------
+ui_set_font:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        syscall #532
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_text_cur:
+; -------------------------------------------
+; source   : void ui_text_cur(int x,int y,char* s)
+; function : ui_text_cur
+; param   : int x
+; param   : int y
+; param   : char* s
+; return   : void
+; --------------------------------------------
+ui_text_cur:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        syscall #533
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_poll:
+; -------------------------------------------
+; source   : int ui_poll(int* msg)
+; function : ui_poll
+; param   : int* msg
+; return   : int
+; --------------------------------------------
+ui_poll:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move R0 [R12+12]
+        syscall #560
+        move [R12-4] R0
+        jmp L2170009
+L2170009:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_wait:
+; -------------------------------------------
+; source   : int ui_wait(int* msg,int timeout_ms)
+; function : ui_wait
+; param   : int* msg
+; param   : int timeout_ms
+; return   : int
+; --------------------------------------------
+ui_wait:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move R0 [R12+12]
+        move R1 [R12+16]
+        syscall #561
+        move [R12-4] R0
+        jmp L2170010
+L2170010:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_msg_count:
+; -------------------------------------------
+; source   : int ui_msg_count()
+; function : ui_msg_count
+; return   : int
+; --------------------------------------------
+ui_msg_count:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        syscall #562
+        move [R12-4] R0
+        jmp L2170011
+L2170011:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_wait_msg:
+; -------------------------------------------
+; source   : int ui_wait_msg(int timeout_ms)
+; function : ui_wait_msg
+; param   : int timeout_ms
+; return   : int
+; --------------------------------------------
+ui_wait_msg:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #32
+        move [R12+12] R0
+        move R0 R12
+        sub R0 #24
+        move [R12-8] R0
+        move R0 [R12-8]
+        move R1 [R12+12]
+        syscall #561
+        move [R12-4] R0
+        move [_ui_msg_type] R0
+        move R0 R12
+        sub R0 #24
+        push R0
+        move R11 #0
+        push R11
+        move R0 #1
+        pop R11
+        move R11 R0
+        move R0 R11
+        mul R0 #4
+        pop R10
+        add R0 R10
+        move R0 [R0]
+        move [_ui_msg_a] R0
+        move R0 R12
+        sub R0 #24
+        push R0
+        move R9 #0
+        push R9
+        move R0 #2
+        pop R9
+        move R9 R0
+        move R0 R9
+        mul R0 #4
+        pop R8
+        add R0 R8
+        move R0 [R0]
+        move [_ui_msg_b] R0
+        move R0 [_ui_msg_type]
+        jmp L2170012
+L2170012:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_poll_msg:
+; -------------------------------------------
+; source   : int ui_poll_msg()
+; function : ui_poll_msg
+; return   : int
+; --------------------------------------------
+ui_poll_msg:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #32
+        move R0 R12
+        sub R0 #24
+        move [R12-8] R0
+        move R0 [R12-8]
+        syscall #560
+        move [R12-4] R0
+        move [_ui_msg_type] R0
+        move R0 R12
+        sub R0 #24
+        push R0
+        move R7 #0
+        push R7
+        move R0 #1
+        pop R7
+        move R7 R0
+        move R0 R7
+        mul R0 #4
+        pop R6
+        add R0 R6
+        move R0 [R0]
+        move [_ui_msg_a] R0
+        move R0 R12
+        sub R0 #24
+        push R0
+        move R5 #0
+        push R5
+        move R0 #2
+        pop R5
+        move R5 R0
+        move R0 R5
+        mul R0 #4
+        pop R4
+        add R0 R4
+        move R0 [R0]
+        move [_ui_msg_b] R0
+        move R0 [_ui_msg_type]
+        jmp L2170013
+L2170013:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_msg_type:
+; -------------------------------------------
+; source   : int ui_msg_type()
+; function : ui_msg_type
+; return   : int
+; --------------------------------------------
+ui_msg_type:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [_ui_msg_type]
+        jmp L2170014
+L2170014:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_msg_a:
+; -------------------------------------------
+; source   : int ui_msg_a()
+; function : ui_msg_a
+; return   : int
+; --------------------------------------------
+ui_msg_a:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [_ui_msg_a]
+        jmp L2170015
+L2170015:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_msg_b:
+; -------------------------------------------
+; source   : int ui_msg_b()
+; function : ui_msg_b
+; return   : int
+; --------------------------------------------
+ui_msg_b:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [_ui_msg_b]
+        jmp L2170016
+L2170016:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_timer_set:
+; -------------------------------------------
+; source   : int ui_timer_set(int interval_ms,int tag)
+; function : ui_timer_set
+; param   : int interval_ms
+; param   : int tag
+; return   : int
+; --------------------------------------------
+ui_timer_set:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move R0 [R12+12]
+        move R1 [R12+16]
+        syscall #563
+        move [R12-4] R0
+        jmp L2170017
+L2170017:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_timer_kill:
+; -------------------------------------------
+; source   : int ui_timer_kill(int id)
+; function : ui_timer_kill
+; param   : int id
+; return   : int
+; --------------------------------------------
+ui_timer_kill:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move R0 [R12+12]
+        syscall #564
+        move [R12-4] R0
+        jmp L2170018
+L2170018:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_icon:
+; -------------------------------------------
+; source   : void ui_icon(int x,int y,char* name,int size,int color)
+; function : ui_icon
+; param   : int x
+; param   : int y
+; param   : char* name
+; param   : int size
+; param   : int color
+; return   : void
+; --------------------------------------------
+ui_icon:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        move R4 [R12+28]
+        syscall #529
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_image:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : void ui_image(int x,int y,char* path,int w,int h)
+; function : ui_image
+; param   : int x
+; param   : int y
+; param   : char* path
+; param   : int w
+; param   : int h
+; return   : void
+; --------------------------------------------
+ui_image:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move [R12+12] R0
+        move [R12+16] R1
+        move [R12+20] R2
+        move [R12+24] R3
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        move R4 [R12+28]
+        syscall #530
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret

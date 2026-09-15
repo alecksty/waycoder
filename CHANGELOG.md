@@ -1,5 +1,38 @@
 # 更新日志
 
+## v0.96.163 (2026-09-15) — UI syscall 提为**共享调用库**（各语言共用一份实现）
+
+原先 UI 接口的实现写在 `Lib/c/waycoder_ui.h` 里（头文件自带实现），**只有 C 能用** ——
+因为汇编级 syscall 只有 C/ObjC/C++ 能直接调（`asm()`），其余前端只能**按标签调 C 函数**。
+
+现在实现挪到 **`Lib/shared/src/vmlui.c`** → 编成 **`Lib/shared/vmlui.vml`**，
+由 `vmltool.config.xml` 挂到各语言的 `Libs`（C: `builtins+crt+vmlui`，Python: `vmlui`）。
+`Lib/c/waycoder_ui.h` 只剩声明与常量，`#include` 它不会让程序变大。
+**C 与其它前端从此共用同一份实现**（早先那样各写一遍正是本仓库排第一的坑）。
+
+顺带加了一组**面向不支持指针的语言**的取消息接口（`ui_wait_msg` / `ui_poll_msg` /
+`ui_msg_type` / `ui_msg_a` / `ui_msg_b`）—— C 里可以 `int msg[4]` 直接拿到地址，
+Python/BASIC 拿不到，也没有按 int 下标读内存的手段。
+
+C 侧回归：五子棋改走"声明头 + 链接共享库"后重编重跑，行为与之前一致（`#532/#533` 都在用）。
+
+> ### ⚠ 未完成：Python 版俄罗斯方块 —— 卡在 Python 前端，不在共享库
+>
+> 共享库这一层已经就绪，但 **Python 前端调不到它**：
+> `PythonCompiler/CodeGenerator.Expressions.cs:195` 的 `VisitCall` 是
+> `else if (labels.ContainsKey(callTarget)) Emit(CALL)` —— **只对本编译单元内见过的标签发 CALL**，
+> 不在表里的一律落进"内置函数"分支、**静默丢弃**。链进来的库（`vmlui.vml`）标签不在 `labels` 里，
+> 于是 `ui_win_open(...)` 编出来**一条 CALL 都没有**（实测：生成物里搜不到 `ui_` 也搜不到 `CALL`）。
+> 这正是 `Lib/python/*.py` 全用 `asm("CALL …")` 写的原因，而 **`asm` 在 Python 里是空操作**
+> （同文件 154 行注释：「asm() 仅限 C/ObjC/C++」）⇒ 那批绑定整体是死的。
+>
+> 另有两处 Python 前端短板（都实测过）：**列表不可靠**（`b.append(i*2)` 之后 `b[3]` 读出
+> 6649202 这种堆地址、嵌套列表索引全错），以及上面那个"未知函数静默丢弃"。
+>
+> **要往下走有两条路**：① 改 Python 前端的调用解析——未知函数**回退成按标签 CALL**
+> （而不是丢弃），这同时能让 `Lib/python/*.py` 那批绑定活过来；② 俄罗斯方块改用 C 写。
+> 两条都能做，但都是另一轮的事，先在此记明。
+
 ## v0.96.162 (2026-09-15) — 随包示例程序（经典小游戏）解到工作区
 
 示例源码（`Examples/` 下的经典小程序）随 `vml_lib.zip` 一起打进 APK，首次启动解到

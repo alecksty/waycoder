@@ -77,7 +77,7 @@
    ═══════════════════════════════════════════ -->
   <Languages>
     <!-- C-like: 保留 asm() -->
-    <Language Name="c"       Libs="builtins.vml,crt.vml" />
+    <Language Name="c"       Libs="builtins.vml,crt.vml,vmlui.vml" />
     <Language Name="cpp"     Libs="builtins.vml,crt.vml" />
     <Language Name="objc"    Libs="builtins.vml,crt.vml" />
 
@@ -88,7 +88,7 @@
     <Language Name="pascal"  Libs="builtins.vml,crt.vml" />
 
     <!-- 脚本语言 -->
-    <Language Name="python"     Libs="" />
+    <Language Name="python"     Libs="vmlui.vml" />
     <Language Name="lua"        Libs="" />
     <Language Name="javascript" Libs="" />
     <Language Name="ruby"       Libs="" />
