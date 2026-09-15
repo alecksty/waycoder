@@ -1,0 +1,210 @@
+diff --git a/third_party/vml/VMLRuntime/VMLRuntime.Syscall.cs b/third_party/vml/VMLRuntime/VMLRuntime.Syscall.cs
+index 451b3f19..7e162c64 100644
+--- a/third_party/vml/VMLRuntime/VMLRuntime.Syscall.cs
++++ b/third_party/vml/VMLRuntime/VMLRuntime.Syscall.cs
+@@ -334,130 +334,130 @@ namespace VMLRuntime
+                 // ======== OS模式扩展 SYSCALL (300+) ========
+                 // MCU模式(privilegeLevel>0)返回权限拒绝
+                 case 300: // ThreadCreate(fn_addr, stack_size) -> thread_id
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteThreadCreate();
+                     break;
+                 case 301: // ThreadExit()
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteThreadExit();
+                     break;
+                 case 302: // ThreadJoin(thread_id)
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteThreadJoin();
+                     break;
+                 case 303: // ThreadYield()
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     System.Threading.Thread.Yield();
+                     registers[0] = ErrorCodes.SUCCESS;
+                     break;
+                 // 304: ThreadSleep — 已删除，统一使用 Sleep(52)
+                 case 310: // MutexCreate() -> mutex_id
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteMutexCreate();
+                     break;
+                 case 311: // MutexLock(mutex_id)
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteMutexLock();
+                     break;
+                 case 312: // MutexUnlock(mutex_id)
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteMutexUnlock();
+                     break;
+                 case 313: // CondCreate() -> cond_id
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteCondCreate();
+                     break;
+                 case 314: // CondWait(cond_id, mutex_id)
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteCondWait();
+                     break;
+                 case 315: // CondSignal(cond_id)
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteCondSignal();
+                     break;
+                 case 316: // CondBroadcast(cond_id)
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteCondBroadcast();
+                     break;
+                 case 320: // Exec(path_addr) -> pid
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteExec();
+                     break;
+                 // 321: ProcessExit — 已删除，统一使用 Exit(3)
+                 case 322: // GetPID() -> pid
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     registers[0] = System.Diagnostics.Process.GetCurrentProcess().Id;
+                     break;
+                 case 330: // SocketCreate(domain, type) -> fd
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteSocketCreate();
+                     break;
+                 case 331: // SocketBind(fd, port)
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteSocketBind();
+                     break;
+                 case 332: // SocketListen(fd, backlog)
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteSocketListen();
+                     break;
+                 case 333: // SocketAccept(fd) -> client_fd
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteSocketAccept();
+                     break;
+                 case 334: // SocketConnect(fd, addr, port)
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteSocketConnect();
+                     break;
+                 case 335: // SocketSend(fd, buf, len) -> sent
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteSocketSend();
+                     break;
+                 case 336: // SocketRecv(fd, buf, len) -> received
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteSocketRecv();
+                     break;
+                 case 337: // SocketClose(fd)
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteSocketClose();
+                     break;
+                 case 338: // DnsResolve(hostname_addr) -> ip_addr
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteDnsResolve();
+                     break;
+                 case 340: // MkDir(path_addr)
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteMkDir();
+                     break;
+                 case 341: // Remove(path_addr)
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteRemove();
+                     break;
+                 case 342: // Rename(old_addr, new_addr)
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteRename();
+                     break;
+                 case 343: // ReadDir(path_addr, buf_addr) -> count
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteReadDir();
+                     break;
+                 case 344: // Stat(path_addr, buf_addr) -> 0/error
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteStat();
+                     break;
+                 case 350: // Signal(signum, handler_addr)
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     registers[0] = ErrorCodes.NOT_SUPPORTED;
+                     break;
+                 case 360: // GetEnv(name_addr) -> value_addr
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteGetEnv();
+                     break;
+                 case 361: // SetEnv(name_addr, value_addr)
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteSetEnv();
+                     break;
+                 case 362: // GetArgs(buf_addr) -> count
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     ExecuteGetArgs();
+                     break;
+                 case 370: // DLOpen(path_addr) -> handle
+@@ -482,11 +482,11 @@ namespace VMLRuntime
+                     ExecuteNativeCallEx();
+                     break;
+                 case 380: // TypeOf(addr) -> type_id
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     registers[0] = ErrorCodes.NOT_SUPPORTED;
+                     break;
+                 case 381: // TypeName(type_id, buf_addr) -> result
+-                    if (privilegeLevel > 0) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
++                    if (PrivilegeDenied(syscallNum)) { registers[0] = ErrorCodes.SYSCALL_PERMISSION_DENIED; break; }
+                     registers[0] = ErrorCodes.NOT_SUPPORTED;
+                     break;
+ 
+@@ -1225,6 +1225,29 @@ namespace VMLRuntime
+             registers[0] = result;
+         }
+         
++        /// <summary>
++        /// 宿主可**逐条放行**的 syscall 集合（默认空 = 与原来完全一致：MCU 模式一律拒绝）。
++        ///
++        /// 用途：手机端要放开**网络**（330+ 那一批）。它们本来就被写死的
++        /// `if (privilegeLevel > 0)` 挡着，而同时又**在 `UserAllowed` 白名单里** ——
++        /// 也就是说第一道门放行、第二道门拦住。这个集合就是给宿主在第二道门上的说法。
++        ///
++        /// ⚠ **Exec(320) 故意不放进来**：它同样在 `UserAllowed` 里、同样有 case 门控，
++        /// 一旦放行就是 `Process.Start` 起任意进程 —— 文件沙箱（`FileSystemRoot`）挡不住它，
++        /// 而那正是手机端最不该开的口子。
++        /// </summary>
++        public HashSet<int> HostAllowedSyscalls { get; } = new();
++
++        /// <summary>
++        /// MCU 模式的**第二道门**：默认拒绝，宿主要放行必须显式加进 <see cref="HostAllowedSyscalls"/>。
++        ///
++        /// 把 33 处写死的 `if (privilegeLevel > 0)` 收敛成这一个判据 —— 不收敛的话
++        /// 「哪些 syscall 在 MCU 下可用」就散在 33 个 case 里，加一条放行要改其中某一处，
++        /// 而**漏改不报错**，只是那条 syscall 永远用不了（现象是"我明明放行了却没生效"）。
++        /// </summary>
++        private bool PrivilegeDenied(int syscallNum)
++            => privilegeLevel > 0 && !HostAllowedSyscalls.Contains(syscallNum);
++
+         /// <summary>
+         /// 宿主注入的**文件系统根**（沙箱）。
+         ///

@@ -59,7 +59,13 @@
 
 | patch | 改了什么 | 不改的后果 |
 |---|---|---|
-| `0001-file-system-root.patch` | 给 `VmRuntime` 加 `FileSystemRoot`；`ExecuteFileOpen` 按它解析相对路径、拒绝越界路径 | 手机上 `open("a.txt","w")` 按**进程 CWD** 解析 ⇒ 报 `Read-only file system`，或**写到别的地方**（沙箱失守） |
+| `0001-local-adaptations.patch` ① | 给 `VmRuntime` 加 `FileSystemRoot`；`ExecuteFileOpen` 按它解析相对路径、拒绝越界路径 | 手机上 `open("a.txt","w")` 按**进程 CWD** 解析 ⇒ 报 `Read-only file system`，或**写到别的地方**（沙箱失守） |
+| `0001-local-adaptations.patch` ② | 把 **33 处**写死的 `if (privilegeLevel > 0) deny` 收敛成 `PrivilegeDenied(syscallNum)`，加宿主可设的 `HostAllowedSyscalls` | 手机端**没法只放开网络客户端那一半** —— 要么全封（现在这样），要么切 OS 模式（连 Exec 一起放开） |
+
+> ②的动机：那 33 个门控里，socket 那批（330+）本来就在 `UserAllowed` 白名单里，
+> 是**第二道门**把它们拦下的。不收敛的话「哪些 syscall 在 MCU 下可用」散在 33 个 case 里，
+> 加一条放行要改其中某一处，**漏改不报错**、只是那条永远不生效。
+> **Exec(320) 故意不放进 `HostAllowedSyscalls`** —— 放行它就是 `Process.Start` 起任意进程。
 
 > 这是**唯一**一处源码级改动。之所以只改了 `ExecuteFileOpen` 一行调用点：
 > `ExecuteFileRead/Write/Control` 操作的是已打开的 `FileStream` 句柄，不再解析路径。

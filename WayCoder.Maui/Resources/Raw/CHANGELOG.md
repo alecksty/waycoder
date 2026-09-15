@@ -1,5 +1,54 @@
 # 更新日志
 
+## v0.96.156 (2026-09-15) — 手机端 VML 放开网络（只放客户端） + 命令行页按行 scrollback
+
+### ① 33 处写死的门控收敛成「宿主可放行」
+
+MCU 模式的拒绝写在**两个地方**：入口白名单 `UserAllowed`，以及 **33 个 case 里各写一遍**
+`if (privilegeLevel > 0) { PERMISSION_DENIED; break; }`。麻烦在于 **socket 那一批（330+）
+本来就在 `UserAllowed` 里** —— 第一道门放行、第二道门拦住，所以"放开网络"绕不开那 33 处。
+
+收敛成一个判据：
+
+```csharp
+public HashSet<int> HostAllowedSyscalls { get; } = new();
+private bool PrivilegeDenied(int syscallNum)
+    => privilegeLevel > 0 && !HostAllowedSyscalls.Contains(syscallNum);
+```
+
+不收敛的话「哪些 syscall 在 MCU 下可用」散在 33 个 case 里，加一条放行要改其中某一处，
+**而漏改不报错** —— 只是那条永远不生效，现象是「我明明放行了却没反应」。
+
+### ② 只放客户端那一半，另外三类每条都有理由
+
+| | |
+|---|---|
+| **放行** | 330 SocketCreate / 334 SocketConnect / 335 SocketSend / 336 SocketRecv / 337 SocketClose / 338 DnsResolve |
+| **不放：服务端** | 331 Bind / 332 Listen / 333 Accept —— 手机是终端设备，一段 VML 程序不该在它上面开监听端口 |
+| **不放：目录与文件** | 340 MkDir / 341 Remove / 342 Rename / 343 ReadDir / 344 Stat —— ⚠ 它们走 `VMLRuntime.Syscall.OS.cs` 那条 OS 实现，**不经过 v0.96.155 设的 `FileSystemRoot` 沙箱**；放行等于把刚立起来的文件沙箱拆掉一半。要放行必须先把它们也接上沙箱 |
+| **不放：决定性危险** | 320 Exec（`Process.Start` 起任意进程）、370/371 DLOpen·DLSym（FFI）、361 SetEnv |
+
+**Exec 那条是关键**：它同样在 `UserAllowed` 里、同样有 case 门控 —— 只是**不在** `HostAllowedSyscalls`
+里，所以维持封禁。这也是**不选「切 OS 模式」**的原因：`mode: "os"` 零改动就让 330+ 全通，
+但它同时放开 Exec，还会激活中断/定时器子系统、并让文件 syscall 走那条绕开沙箱的 OS 实现 ——
+等于把文件沙箱拆一半。
+
+### ③ 命令行页 scrollback 改按行
+
+原按字符数上限（12 万字符），改 `MaxScrollbackLines = 256`（**行**），超了从最老的**整行**丢。
+终端里"滚出去"的单位本来就是行，按字符裁会把一行从中间劈开、留一条断头的半行。
+保留半行语义：末尾没换行的那段标 `_partial`，与上一段拼接而不是另起一行。
+（顺带删掉按字符切的 `TrimHead` 及其 UTF-16 代理对保护 —— 按整行丢天然安全。）
+
+### 固件与验证状态
+
+- patch 重新生成为 `third_party/vml/patches/0001-local-adaptations.patch`（210 行，含上述两组适配），
+  已验证「反向应用 → 重放 → 幂等」三步；README 本地适配表随之补行
+- 构建 0 错误。**但要如实说：本版的行为验证还欠着** ——
+  · 网络放行只做到编译通过，没跑过实际 socket 连接，也没验证 331/320 确实仍被拒
+  · 256 行 scrollback 的裁剪点没实测过（想用 `seq 1 300` 造超长输出，但 `uiautomator`
+    回读不到 300 行长的 Label 文本）
+
 ## v0.96.155 (2026-09-15) — 命令行页接上 C 等 22 种语言：编译链路口径错 + 文件沙箱 + 交互式 stdin
 
 承接 v0.96.153：上一版只通了纯 VML 汇编（`vml test`）。这一版把「一套工具编所有类型文件」

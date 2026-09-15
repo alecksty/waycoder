@@ -280,6 +280,23 @@ HALT
             FileSystemRoot = CwdContext.Root,
         };
 
+        // **网络：只放客户端那一半**（见 VMLRuntime 的 HostAllowedSyscalls）。
+        //
+        //   330 SocketCreate / 334 SocketConnect / 335 SocketSend / 336 SocketRecv
+        //   337 SocketClose / 338 DnsResolve
+        //
+        // **故意不给**的三类，每一条都有理由：
+        //   · 331 Bind / 332 Listen / 333 Accept —— 服务端。手机是终端设备，
+        //     一段 VML 程序不该在它上面开监听端口（这正是用户定的边界）。
+        //   · 340 MkDir / 341 Remove / 342 Rename / 343 ReadDir / 344 Stat —— 目录与文件。
+        //     ⚠ 它们走的是 `VMLRuntime.Syscall.OS.cs` 那条 OS 版本实现，**不经过**
+        //     上面设的 `FileSystemRoot` 沙箱 —— 放行等于把刚立起来的文件沙箱拆掉一半。
+        //     要放行必须先把它们也接上沙箱，那是另一件事。
+        //   · 320 Exec（`Process.Start` 任意进程）、370/371 DLOpen/DLSym（FFI）、
+        //     361 SetEnv（改进程环境变量）—— 手机端最不该开的口子，维持封禁。
+        foreach (var syscall in new[] { 330, 334, 335, 336, 337, 338 })
+            vm.HostAllowedSyscalls.Add(syscall);
+
         vm.LoadProgram(prog);
         vm.Run();
         return io.Text;
