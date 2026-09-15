@@ -48,10 +48,12 @@
 - [ ] **写**：`CodeGenerator.Statements.cs:553`、`:566`（模块级赋值）改走 `EmitStoreVar`
 - [ ] **读**：`CodeGenerator.Sub.cs:1143`、`:1150`（SUB 读）改走 `EmitLoadVar`
 - [ ] **写**：`CodeGenerator.Sub.cs:1358`（SUB 写）改走 `EmitStoreVar`
-- [ ] **主程序侧的读**：尚未定位到具体行（`CodeGenerator.Expressions.cs` 里另有一条路径，
-      不走 `VarMemRef`）——**动手前先把这一处找出来**，否则会只修一半：
-      主程序写进全局区、自己却从栈上读
-- [ ] 之后 `VarMemRef` 对全局变量应当**不再被调用**；留着它并用断言/注释说明"全局走 EmitLoadVar"
+- [ ] **主程序侧的读**：`CodeGenerator.Expressions.cs:117-120`。它**不走 `VarMemRef`**，
+      而是就地拼 `R12+{8 + varOffset}` —— 漏了这处就会"写进全局区、自己却从栈上读"，只修一半
+- [ ] ⚠ 同一处还有个**既有隐患**要一并处理：那里 `varOffset = GetOrCreateVariable(name) * 4`
+      是**按索引×4**，而 `VarMemRef` 用的是 `GetVarByteOffset`（按类型宽度累加，Double/Long 算 8 字节）
+      —— **同一件事两处算法**，程序里只要有 Double/Long 就会漂。统一到 `GetVarByteOffset`
+- [ ] 之后 `VarMemRef` 对全局变量应当**不再被调用**；留着它并用注释说明"全局走 EmitLoadVar"
 
 ## 四、验证
 
