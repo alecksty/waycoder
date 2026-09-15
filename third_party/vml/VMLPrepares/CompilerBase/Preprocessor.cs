@@ -314,6 +314,15 @@ namespace CompilerBase
                 if (line2.StartsWith("#"))
                 {
                     string[] dirParts = line2.Substring(1).Trim().Split(new[] { ' ', '\t' }, 2, StringSplitOptions.RemoveEmptyEntries);
+
+                    // ⚠ **光秃秃的 `#` 行不是预处理指令**，`dirParts` 会是**空数组**，
+                    // 下一行 `dirParts[0]` 直接 IndexOutOfRange **把整个编译打挂**。
+                    // 而 `#` 单独成行在 Python / BASIC / shell 里都是**合法注释**
+                    // （实测：Python 源里写一行 `#` 就让编译器抛未捕获异常）。
+                    // 空数组当"不是指令"处理，原样保留 —— 与"认不出来就当普通文本"一致。
+                    if (dirParts.Length == 0)
+                        continue;
+
                     string directive = dirParts[0].ToLower();
                     bool isCond = directive == "if" || directive == "ifdef" || directive == "ifndef"
                                   || directive == "else" || directive == "elif" || directive == "endif";

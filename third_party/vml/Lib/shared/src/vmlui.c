@@ -191,6 +191,36 @@ int ui_msg_type(void) { return _ui_msg_type; }
 int ui_msg_a(void) { return _ui_msg_a; }
 int ui_msg_b(void) { return _ui_msg_b; }
 
+/* ── 通用整数网格（给"没有可靠数组"的语言用）────────────────────────
+ *
+ * C 里棋盘就是 `int board[200]`，但实测 Python 前端的列表**读可以、写不生效**
+ * （`b[i] = v` 之后读回来还是 0），嵌套列表也错 —— 于是棋盘只能放在这边，
+ * 由调用方用整数下标读写：
+ *
+ *     ui_gclear()
+ *     ui_gset(3, 1)            # 第 3 格
+ *     v = ui_gget(3)
+ *
+ * 256 个 int 够放 10×20 的棋盘（200）+ 7 种方块的 4×4 位掩码（7）。
+ * 越界一律**安全失败**（写丢弃、读返回 0），不抛异常 —— 游戏代码里少一层边界判断。
+ */
+#define UI_GRID_N 256
+static int _ui_grid[UI_GRID_N];
+
+void ui_gclear(void) {
+    int i;
+    for (i = 0; i < UI_GRID_N; i = i + 1) _ui_grid[i] = 0;
+}
+
+void ui_gset(int idx, int val) {
+    if (idx >= 0 && idx < UI_GRID_N) _ui_grid[idx] = val;
+}
+
+int ui_gget(int idx) {
+    if (idx >= 0 && idx < UI_GRID_N) return _ui_grid[idx];
+    return 0;
+}
+
 /* 定时器：每隔 interval_ms 往队列投一条 VML_MSG_TIMER（A=id，B=tag）。 */
 int ui_timer_set(int interval_ms, int tag) {
     return asm("SYSCALL #563, ${interval_ms}, ${tag}");

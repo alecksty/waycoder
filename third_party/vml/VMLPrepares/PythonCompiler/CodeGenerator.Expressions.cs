@@ -413,6 +413,21 @@ namespace PythonCompiler
                         node.Args[0].Accept(this);
                         Emit(OpCode.CALL, new Operand(OperandType.LABEL, "vml_" + peekName));
                         break;
+
+                    default:
+                        // **不是内置函数 ⇒ 当成外部（库）函数，按标签直接 CALL。**
+                        //
+                        // ⚠ 这里原来是**静默丢弃**（switch 没命中就什么都不发）。后果很隐蔽：
+                        //   链进来的库（`vmltool.config.xml` 里各语言的 `Libs`，例如共享调用库
+                        //   `vmlui.vml`）标签不在编译期的 `labels` 表里，于是
+                        //   `ui_win_open(...)` 编出来**一条 CALL 都没有** —— 程序照跑、
+                        //   界面上什么都没有，也看不出哪儿错了（实测就是这样）。
+                        //
+                        //   「认不出来就报错」比「认不出来就装作没看见」好得多（CLI 那条铁律同理）：
+                        //   名字拼错的函数现在会在**链接期**报「未找到标签」，而不是凭空消失。
+                        //   参数已经按从右到左压好栈，与 C 库函数的 cdecl 约定一致，直接 CALL 即可。
+                        Emit(OpCode.CALL, new Operand(OperandType.LABEL, callTarget));
+                        break;
                 }
             }
 

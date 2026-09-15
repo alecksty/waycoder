@@ -713,12 +713,26 @@ namespace CCompiler
                 }
             }
 
-            // 计算寄存器参数个数（用于 fastcall 的偏移分配）
+            // 计算寄存器参数个数（决定序言要不要把 R0-R3 存回栈帧参数槽）
+            //
+            // ⚠ **cdecl 必须是 0**，这是"其它语言调得动 C 共享库"的关键。
+            //
+            // 序言里那段「把 R0-R3 存到 [R12+偏移]」是给 **CCv2**（`CallingConvention.C`，
+            // 前 4 个参数走寄存器）用的。它一旦对 cdecl 也生效，就会**用寄存器里那点残留
+            // 覆盖掉调用方压进来的真参数** —— 而 C 的 caller 恰好也顺手装了 R0-R3，
+            // 于是 C→C 一直"看着是对的"，问题只在**别的语言调过来**时才暴露：
+            // Python/BASIC 等前端是**只压栈**的（`VisitCall` 末尾统一 `ADD R13, n*4` 清栈，
+            // 与 cdecl 的"调用者清理"一致），寄存器里没有实参。
+            //
+            // 实测（Python 调共享库 `vmlui.vml`）：
+            //   `ui_rect(10,20,30,40,255,1,2,3)` → R0=10 ✓ 而 **R1/R2/R3 全是 0**
+            //   （R4-R7 却是对的 —— 第 5 个参数起才走栈，所以只有前 4 个被覆盖）。
+            // 表现就是"四个参数以内的库函数，只有第一个参数生效"。
             int regParamCount = function.Convention switch
             {
-                CallingConvention.Stdcall => 0,
+                CallingConvention.C => 4,           // CCv2: 前 4 个走寄存器
                 CallingConvention.Fastcall => 4,    // fastcall: R0-R3
-                _ => 4                              // CCv2: 最多4个寄存器参数
+                _ => 0                              // cdecl / stdcall / pascal: 全部走栈
             };
 
             // 分配参数偏移

@@ -110,6 +110,16 @@ void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int 
 void ui_set_font(int size, int style, int color, int anchor);
 void ui_text_cur(int x, int y, char* s);
 
+/* ── 不碰指针的消息读取 + 通用整数网格（非 C 语言用，C 也能用）── */
+int  ui_wait_msg(int timeout_ms);
+int  ui_poll_msg(void);
+int  ui_msg_type(void);
+int  ui_msg_a(void);
+int  ui_msg_b(void);
+void ui_gclear(void);
+void ui_gset(int idx, int val);
+int  ui_gget(int idx);
+
 /* ── 输入 ── */
 int  ui_poll(int* msg);
 int  ui_wait(int* msg, int timeout_ms);
