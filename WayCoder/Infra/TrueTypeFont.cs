@@ -37,10 +37,30 @@ public sealed class TrueTypeFont
     public int NumGlyphs => _numGlyphs;
     public int Ascent => _ascent;
 
+    /// <summary>
+    /// CSS 通用族名 / 空族名 —— 它们**永远匹配不到任何文件名**（<see cref="FontEntry.Family"/> 取的是
+    /// 文件名），所以对它们只能是"猜"。猜的时候有额外一条要求：**必须真有中文字形**。
+    ///
+    /// 为什么单列一类：`DrawFigure.FontFamily` 的默认值就是 <c>"sans-serif"</c>，也就是说
+    /// **所有没写族名的文字都走这条路**（`draw` 工具、VML 的 <c>ui_text</c> 全在内）。
+    /// </summary>
+    static bool IsGenericFamily(string key) => key.Length == 0
+        || key.Equals("sans-serif", StringComparison.OrdinalIgnoreCase)
+        || key.Equals("sans serif", StringComparison.OrdinalIgnoreCase)
+        || key.Equals("sansserif", StringComparison.OrdinalIgnoreCase)
+        || key.Equals("serif", StringComparison.OrdinalIgnoreCase)
+        || key.Equals("monospace", StringComparison.OrdinalIgnoreCase)
+        || key.Equals("system-ui", StringComparison.OrdinalIgnoreCase)
+        || key.Equals("default", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>按族名解析并加载系统字体；空族名用首选默认字体。找不到/失败返回 null。</summary>
     public static TrueTypeFont? Resolve(string? family)
     {
-        var key = string.IsNullOrWhiteSpace(family) ? "" : family.Trim();
+        var raw = string.IsNullOrWhiteSpace(family) ? "" : family.Trim();
+        // **"sans-serif" 这类通用名当空处理** —— 否则 Pick 会去文件名里找 "sansserif" 必然落空，
+        // 白白跳过首选表，直接掉进"随便挑一个能加载的"。
+        var generic = IsGenericFamily(raw);
+        var key = generic ? "" : raw;
         // 静态缓存非线程安全：多槽位并行（F1-F10 各跑一个 Agent）同时触发 DrawTool 文本渲染时
         // 并发读改写 _cache/_fontList 会破坏 Dictionary 内部状态。加锁串行化解析。
         lock (_cacheLock)
@@ -48,6 +68,8 @@ public sealed class TrueTypeFont
             if (_cache.TryGetValue(key, out var cached)) return cached;
 
             TrueTypeFont? result = null;
+            // 候选里第一个「能加载但画不出汉字」的 —— 全都不行时拿它兜底（有字总比没有强）。
+            TrueTypeFont? fallback = null;
             try
             {
                 _fontList ??= FontFinder.Find();
@@ -59,9 +81,21 @@ public sealed class TrueTypeFont
                 // 退化成豆腐块；其实列表里还有能用的 glyf 中文字体（随包的 Sarasa）。
                 foreach (var cand in Candidates(_fontList, key, entry))
                 {
-                    result = Load(File.ReadAllBytes(cand.Path));
-                    if (result != null) break;
+                    var t = Load(File.ReadAllBytes(cand.Path));
+                    if (t == null) continue;
+
+                    // **「能加载」不等于「有中文字形」**：实测某台 Windows 上
+                    // `HYZhongHeiTi-197`（一个只覆盖少量字形的试用水印字体）排在所有真正的中文字体
+                    // **之前**，能解析、能加载，但 `中` 落回 .notdef ⇒ 界面上每一个汉字都是一个空心方框。
+                    // 猜字体时（族名是空的或 `sans-serif` 这类通用名）就该要求它真能画出汉字，
+                    // 否则继续往后找；全都画不出才退回第一个能加载的。
+                    if (generic && t.GlyphIndex('中') == 0) { fallback ??= t; continue; }
+
+                    result = t;
+                    break;
                 }
+
+                result ??= fallback;
             }
             catch { result = null; }
             _cache[key] = result;
@@ -511,20 +545,70 @@ public sealed class TrueTypeFont
         // 不 clamp 的话双层循环会遍历天文数字像素（即使 BlendPixel 越界跳过，循环本身也 DoS）。
         int x0 = Math.Max(0, (int)Math.Floor(minX)), x1 = Math.Min(c.Width - 1, (int)Math.Ceiling(maxX));
         int y0 = Math.Max(0, (int)Math.Floor(minY)), y1 = Math.Min(c.Height - 1, (int)Math.Ceiling(maxY));
+        int wpx = x1 - x0 + 1;
+        if (wpx <= 0 || y1 < y0) return;
+
+        // ── 扫描线填充（**与逐点版本逐像素一致**，只是把重复计算提出来）──
+        //
+        // 原来是"每个像素 × 4×4 采样 × 每个采样点把**所有边**跑一遍"：
+        // 一个 51px 高的汉字 ≈ 2600 像素 × 16 × 150 条边 ≈ 620 万次内层运算。实测
+        // **12 个汉字串要 869ms（不开超采样）/ 7.2s（3× 超采样）** —— 手机端每个绘图帧
+        // 都要走这一遍，游戏直接卡死（`vmlhost --sim` 量出来的）。
+        //
+        // 关键观察：**同一条子扫描线上，所有采样点的 y 相同 ⇒ 与各边的相交情况相同**。
+        // 所以每条子扫描线只需求一次交点，再用**后缀和 + 单调游标**回答该行上所有采样点。
+        //
+        // 判据与 `Winding`/`Inside` 完全等价（非零环绕）：对一条边，令 lo=min(y1,y2)、hi=max(y1,y2)，
+        // 则它只在 `lo <= y < hi` 时有贡献，贡献方向 = 上边(y1<=y2) +1 / 下边 -1，
+        // 且**只在采样点位于交点左侧（x < xCross）时**计入 —— 于是
+        //   winding(x) = Σ_{xCross > x} dir
+        // 排序后就是后缀和。
+        var xa = new double[2048];
+        var da = new int[2048];
+        var suf = new int[2049];
+        var hits = new int[wpx];
         const int SS = 4;
+
         for (int py = y0; py <= y1; py++)
-            for (int px = x0; px <= x1; px++)
+        {
+            Array.Clear(hits, 0, wpx);
+            for (int sy = 0; sy < SS; sy++)
             {
-                int hits = 0;
-                for (int sy = 0; sy < SS; sy++)
+                double qy = py + (sy + 0.5) / SS;
+                int m = 0;
+                foreach (var poly in world)
+                {
+                    int n = poly.Length / 2;
+                    for (int i = 0; i < n; i++)
+                    {
+                        int j = (i + 1) % n;
+                        double y1v = poly[i * 2 + 1], y2v = poly[j * 2 + 1];
+                        double lo = y1v <= y2v ? y1v : y2v, hi = y1v <= y2v ? y2v : y1v;
+                        if (qy < lo || qy >= hi) continue;
+                        if (m == xa.Length) break;                 // 畸形字形兜底，不越界
+                        double x1v = poly[i * 2], x2v = poly[j * 2];
+                        xa[m] = x1v + (qy - y1v) / (y2v - y1v) * (x2v - x1v);
+                        da[m] = y1v <= y2v ? 1 : -1;
+                        m++;
+                    }
+                }
+                if (m == 0) continue;
+                Array.Sort(xa, da, 0, m);
+                suf[m] = 0;
+                for (int i = m - 1; i >= 0; i--) suf[i] = suf[i + 1] + da[i];
+
+                int ptr = 0;
+                for (int px = x0; px <= x1; px++)
                     for (int sx = 0; sx < SS; sx++)
                     {
                         double qx = px + (sx + 0.5) / SS;
-                        double qy = py + (sy + 0.5) / SS;
-                        if (Inside(world, qx, qy)) hits++;
+                        while (ptr < m && xa[ptr] <= qx) ptr++;
+                        if (suf[ptr] != 0) hits[px - x0]++;
                     }
-                if (hits > 0) c.BlendPixel(px, py, color, (double)hits / (SS * SS));
             }
+            for (int px = x0; px <= x1; px++)
+                if (hits[px - x0] > 0) c.BlendPixel(px, py, color, (double)hits[px - x0] / (SS * SS));
+        }
     }
 
     static bool Inside(List<double[]> world, double x, double y)

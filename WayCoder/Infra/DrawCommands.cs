@@ -207,6 +207,23 @@ internal static class DrawGeo
 /// <summary>多边形填充形状的共享光栅化（变换 + 渐变 + 描边）。</summary>
 internal static class DrawFill
 {
+    /// <summary>
+    /// "等比缩放 + 平移"（无旋转/错切、两轴同倍率）时取出倍率与平移量。
+    ///
+    /// 有这个接缝的理由：抗锯齿 = 整幅放大 3 倍再降采样，等于给每个图元挂 <c>Scale(3,3)</c>；
+    /// 而各图元一旦发现变换不是恒等，就退到 <c>FillTransformed</c> 那条**逐像素布尔判定**的路
+    /// （圆角矩形按 40 点多边形判、圆按距离判），代价是每像素一次 O(点数) —— 实测 120 个
+    /// 圆角矩形在 3× 下要 1.1 秒。等比缩放的形状缩完还是同一个形状，直接乘倍率走整数扫描线
+    /// 路径即可。恒等变换也走这条路（s=1、无平移），所以调用方**不必再单独判 IsIdentity**。
+    /// </summary>
+    public static bool TryScaled(Affine t, out double s, out double tx, out double ty)
+    {
+        s = 0; tx = t.E; ty = t.F;
+        if (!t.TryAxisScale(out var sx, out var sy) || sx != sy) return false;
+        s = sx;
+        return true;
+    }
+
     public static void Polygon(Canvas c, IReadOnlyList<double> pts, DrawFigure f)
     {
         if (f.Transform.IsIdentity && f.Gradient == null)
@@ -248,8 +265,9 @@ internal sealed class RectCommand : IDrawCommand
     public void Rasterize(Canvas c, DrawFigure f)
     {
         double x = f.Args[0], y = f.Args[1], w = f.Args[2], h = f.Args[3];
-        if (f.Transform.IsIdentity && f.Gradient == null)
-            c.FillRect((int)Math.Round(x), (int)Math.Round(y), (int)Math.Round(w), (int)Math.Round(h), f.Fill);
+        if (f.Gradient == null && DrawFill.TryScaled(f.Transform, out var s, out var tx, out var ty))
+            c.FillRect((int)Math.Round(tx + x * s), (int)Math.Round(ty + y * s),
+                (int)Math.Round(w * s), (int)Math.Round(h * s), f.Fill);
         else
             c.FillTransformed(f.Transform, x, y, x + w, y + h,
                 (lx, ly) => lx >= x && lx <= x + w && ly >= y && ly <= y + h, f.Fill, f.Gradient);
@@ -278,9 +296,9 @@ internal sealed class RoundRectCommand : IDrawCommand
     public void Rasterize(Canvas c, DrawFigure f)
     {
         double x = f.Args[0], y = f.Args[1], w = f.Args[2], h = f.Args[3], r = f.Args[4];
-        if (f.Transform.IsIdentity && f.Gradient == null)
+        if (f.Gradient == null && DrawFill.TryScaled(f.Transform, out var s, out var tx, out var ty))
         {
-            c.FillRoundRect(x, y, w, h, r, f.Fill);
+            c.FillRoundRect(tx + x * s, ty + y * s, w * s, h * s, r * s, f.Fill);
         }
         else
         {
@@ -313,8 +331,8 @@ internal sealed class CircleCommand : IDrawCommand
     public void Rasterize(Canvas c, DrawFigure f)
     {
         double cx = f.Args[0], cy = f.Args[1], r = f.Args[2];
-        if (f.Transform.IsIdentity && f.Gradient == null)
-            c.FillCircle(cx, cy, r, f.Fill);
+        if (f.Gradient == null && DrawFill.TryScaled(f.Transform, out var s, out var tx, out var ty))
+            c.FillCircle(tx + cx * s, ty + cy * s, r * s, f.Fill);
         else
             c.FillTransformed(f.Transform, cx - r, cy - r, cx + r, cy + r,
                 (lx, ly) => { double dx = lx - cx, dy = ly - cy; return dx * dx + dy * dy <= r * r; },
@@ -343,8 +361,8 @@ internal sealed class EllipseCommand : IDrawCommand
     public void Rasterize(Canvas c, DrawFigure f)
     {
         double cx = f.Args[0], cy = f.Args[1], rx = f.Args[2], ry = f.Args[3];
-        if (f.Transform.IsIdentity && f.Gradient == null)
-            c.FillEllipse(cx, cy, rx, ry, f.Fill);
+        if (f.Gradient == null && DrawFill.TryScaled(f.Transform, out var s, out var tx, out var ty))
+            c.FillEllipse(tx + cx * s, ty + cy * s, rx * s, ry * s, f.Fill);
         else
             c.FillTransformed(f.Transform, cx - rx, cy - ry, cx + rx, cy + ry,
                 (lx, ly) => { double dx = (lx - cx) / rx, dy = (ly - cy) / ry; return dx * dx + dy * dy <= 1; },
