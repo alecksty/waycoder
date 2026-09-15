@@ -5,8 +5,14 @@
 # 打进 APK 是 6 MB；而且 MAUI **没有「列出资产目录」的 API** —— 逐文件放进去
 # 就没法在运行时知道有哪些文件，必须先写死一份清单（又一张平行表）。
 #
-# zip 里的**顶层条目就是 `Lib/` 与 `vmltool.config.xml`** —— 与解压后
+# zip 里的**顶层条目是 `Lib/`、`vmltool.config.xml` 与 `Examples/`** —— 与解压后
 # `EnsureLibExtracted()` 期望的目录布局一一对应（它返回的 root 下面就是 Lib/）。
+# `Examples/` 是给 `MauiBootstrap.EnsureExamples()` 用的（它把 `Examples/` 下**平铺一层**
+# 解到 `<workspace>/examples/`，让用户与 AI 在手机上就有现成的示例程序可跑）。
+#
+# ⚠ **示例要打进去，光是放进 `Examples/` 目录不够** —— 这个脚本原先只打 Lib 与配置，
+#    于是 `EnsureExamples()` 一个条目都找不到、手机上没有示例（而桌面看目录一切正常）。
+# ⚠ `*.gen.vml` 是本地跑出来的中间产物（每个几十 KB），不进包。
 #
 # ⚠ `vmltool.config.xml` 必须打进去，少它整个链接阶段会被跳过（见 MauiVml 注释）。
 #
@@ -26,10 +32,46 @@ rm -f "$TMP"
 
 # -X 去掉多余的文件属性（否则同样的内容在 mac/linux 上产出的 zip 字节不同，
 #    指纹会跟着变、白解压一次；虽然不影响正确性，但没必要）
-( cd "$VML" && zip -q -r -X "$TMP" Lib vmltool.config.xml )
+if command -v zip >/dev/null 2>&1; then
+    ( cd "$VML" && zip -q -r -X "$TMP" Lib vmltool.config.xml Examples -x "Examples/*/*.gen.vml" )
+else
+    # 没有 `zip` 的机器（例如 Windows Git Bash 默认不带）走 Python —— 用**固定时间戳**
+    # 保证同样的内容每次产出同样的字节（与 `zip -X` 的意图一致）。
+    echo "ℹ 未找到 zip，改用 Python zipfile"
+    python - "$VML" "$TMP" <<'PY'
+import os, sys, zipfile
+root, out = sys.argv[1], sys.argv[2]
+skip = lambda rel: rel.startswith("Examples/") and rel.endswith(".gen.vml")
+with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+    def add(rel):
+        rel = rel.replace(os.sep, "/")
+        if skip(rel):
+            return
+        full = os.path.join(root, rel)
+        if os.path.isdir(full):
+            for name in sorted(os.listdir(full)):
+                add(rel + "/" + name)
+            return
+        info = zipfile.ZipInfo(rel, date_time=(1980, 1, 1, 0, 0, 0))
+        info.compress_type = zipfile.ZIP_DEFLATED
+        info.external_attr = 0o644 << 16
+        with open(full, "rb") as f:
+            z.writestr(info, f.read())
+    for top in ("Lib", "vmltool.config.xml", "Examples"):
+        add(top)
+PY
+fi
 
 mv -f "$TMP" "$OUT"
 
 echo "✔ $OUT"
-unzip -l "$OUT" | tail -2
-echo "  顶层条目：$(unzip -l "$OUT" | awk '{print $4}' | grep -v '^$' | cut -d/ -f1 | sort -u | grep -v '^Name$' | tr '\n' ' ')"
+ls -la "$OUT" | awk '{print "  大小: " $5 " 字节"}'
+echo "  顶层条目：$(python -c "
+import sys, zipfile
+print(' '.join(sorted({n.split('/')[0] for n in zipfile.ZipFile(sys.argv[1]).namelist()})))
+" "$OUT")"
+echo "  示例：$(python -c "
+import sys, zipfile
+ns=[n for n in zipfile.ZipFile(sys.argv[1]).namelist() if n.startswith('Examples/') and n.count('/')==2]
+print(len(ns), '个 →', ' '.join(sorted(ns)))
+" "$OUT")"
