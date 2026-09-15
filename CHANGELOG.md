@@ -55,6 +55,15 @@ WinUI 里画布不可聚焦，而只读态那个「输入框代理」是隐藏�
 一直是好的）。7 个静态图标 + 1 处运行时赋值（`EditBtn.Source = "icon_edit" / "icon_lock"`）
 一并补 `.png`。
 
+### ⑥ 编辑器支持 Tab 键（插入 4 空格缩进）
+
+平台的 TextBox 在 `AcceptsReturn=false` 时拿 Tab 做**焦点导航** —— 一按焦点就跑了，连打字都断。
+现在在 `PreviewKeyDown` 里把 Tab 吃掉：编辑态插入 `<see cref="EditorTypography.TabColumns"/>`（=4）
+个空格，只读态只吞掉不移焦点。插的**是空格不是制表符**，与「编辑时把行内 tab 展开成空格」
+同一条口径；宽度也与画布展开 tab 的列宽规则同源（`ExpandTabs` 两处共用 `TabColumns`）。
+
+实测：行内 `usi|ng System;` 处按 Tab → `usi␣␣␣␣ng System;`，量得间距 4 列（字号 14 半角 7pt）。
+
 ### 仓库维护
 
 - `scripts/clean.ps1` / `clean.sh`：补上此前**漏掉**的 `bin2`/`obj2`（主 `bin/` 被运行中实例锁住

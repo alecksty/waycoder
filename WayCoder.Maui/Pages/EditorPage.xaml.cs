@@ -970,7 +970,34 @@ public partial class EditorPage : ContentPage
             case Windows.System.VirtualKey.End:
                 if (_editLine < 0) { MoveBrowseCaret(0, toLineEnd: true); e.Handled = true; }
                 break;
+            // Tab **必须自己吃掉**：平台的 TextBox 拿它做焦点导航（AcceptsReturn=false 时 Tab
+            // 移到下一个控件）—— 一按焦点就跑了，连打字都断。这里改成插入缩进。
+            case Windows.System.VirtualKey.Tab:
+                e.Handled = true;
+                if (_editLine >= 0) InsertIndent();   // 只读态只吞掉，不移焦点
+                break;
         }
+    }
+
+    /// <summary>
+    /// 插入一级缩进（Tab 键）。
+    ///
+    /// **插的是空格不是制表符** —— 与「编辑时把行内 tab 展开成空格」同一条口径
+    /// （见 <c>BeginEditLine</c>：制表符在 Entry 里无法与自绘保持一致的宽度）。
+    /// 宽度取 <see cref="EditorTypography.TabColumns"/>（= 4），与画布展开 tab 的列宽规则同源。
+    ///
+    /// 走的是和粘贴同一条路：改 `LineEditor.Text` ⇒ `TextChanged` 回写模型 + 画布重绘，
+    /// 不自己动 `_editable`（否则两处各写一份，迟早不一致）。
+    /// </summary>
+    private void InsertIndent()
+    {
+        var cur = LineEditor.Text ?? "";
+        int at = Math.Clamp(LineEditor.CursorPosition, 0, cur.Length);
+        var pad = new string(' ', EditorTypography.TabColumns);
+        LineEditor.Text = cur[..at] + pad + cur[at..];
+        LineEditor.CursorPosition = at + pad.Length;
+        Canvas.EditingCursor = LineEditor.CursorPosition;
+        Canvas.EnsureCaretVisible();
     }
 
     /// <summary>只读态浏览光标的列长度（该行字符数）。</summary>
