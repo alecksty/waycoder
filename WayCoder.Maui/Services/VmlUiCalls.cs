@@ -114,7 +114,11 @@ internal sealed class VmlUiCalls : ISystemCallHandler
                 case VmlUi.DrawRect: Scene()?.AddRect(registers[0], registers[1], registers[2], registers[3], (uint)registers[4], registers[5] != 0, registers[6], registers[7]); TouchScene(); break;
                 case VmlUi.DrawCircle: Scene()?.AddCircle(registers[0], registers[1], registers[2], (uint)registers[3], registers[4] != 0, registers[5]); TouchScene(); break;
                 case VmlUi.DrawEllipse: Scene()?.AddEllipse(registers[0], registers[1], registers[2], registers[3], (uint)registers[4], registers[5] != 0, registers[6]); TouchScene(); break;
-                case VmlUi.DrawText: Scene()?.AddText(registers[0], registers[1], Str(memory, registers[2]), (uint)registers[3], registers[4], registers[5]); TouchScene(); break;
+                // 一次性文字：R6=样式位（粗/斜）。**R6 是后加的**，老程序不传就是 0=常规，
+                // 所以加它不破坏既有调用（寄存器默认 0）。
+                case VmlUi.DrawText: Scene()?.AddText(registers[0], registers[1], Str(memory, registers[2]), (uint)registers[3], registers[4], registers[5], registers[6]); TouchScene(); break;
+                case VmlUi.SetFont: SetFont(registers); break;
+                case VmlUi.Text: Scene()?.AddTextCurrent(registers[0], registers[1], Str(memory, registers[2])); TouchScene(); break;
                 case VmlUi.DrawIcon: Scene()?.AddIcon(registers[0], registers[1], Str(memory, registers[2]), registers[3], (uint)registers[4]); TouchScene(); break;
                 case VmlUi.DrawImage: Scene()?.AddImage(registers[0], registers[1], Str(memory, registers[2]), registers[3], registers[4]); TouchScene(); break;
                 case VmlUi.DrawPresent: TouchScene(); break;
@@ -164,11 +168,26 @@ internal sealed class VmlUiCalls : ISystemCallHandler
     }
 
     /// <summary>
-    /// 可用绘图区（绘图单位 = dp）。取设备显示信息喂给共享层的纯计算 —— 扣减规则只有那一处实现，
-    /// 这里不许再算一份（"同一规则两处实现"是本仓库的头号坑）。
+    /// **实测的绘图视口**（dp）—— 由 <c>DrawWindowPage</c> 量到自己的画布区之后写进来。
+    ///
+    /// 为什么要实测而不是按屏幕算：`AvailableArea` 只能扣一个**固定**的 chrome 高度，
+    /// 而真实占用（标题栏 + 手柄区 + 页面内边距）随设备与排版变。实测（1080×2400 模拟器）：
+    /// 按屏幕算出来 744dp，而画布实际只有 578dp —— 于是程序按 744 排版，**底部一百多 dp
+    /// 的内容（状态文字、计分板）全落在可视区外**，看着就像"没画出来"。
+    ///
+    /// 自纠正：第一次运行还没有实测值、先用估算；页面一量到就把真实值记下来，
+    /// 之后每次运行都按真实值排版（因此**第二次运行起就完全贴合**）。
+    /// </summary>
+    internal static (int Width, int Height)? MeasuredViewport;
+
+    /// <summary>
+    /// 可用绘图区（绘图单位 = dp）。**优先用实测视口**，没有才退回按屏幕估算 ——
+    /// 估算的扣减规则只有 <see cref="VmlUi.AvailableArea"/> 一处实现，这里不许再算一份
+    /// （"同一规则两处实现"是本仓库的头号坑）。
     /// </summary>
     private static (int Width, int Height) ScrArea()
     {
+        if (MeasuredViewport is { } vp && vp.Width > 0 && vp.Height > 0) return vp;
         try
         {
             var info = DeviceDisplay.MainDisplayInfo;
@@ -273,6 +292,21 @@ internal sealed class VmlUiCalls : ISystemCallHandler
         if (close != null) MainThread.InvokeOnMainThreadAsync(close).GetAwaiter().GetResult();
         _scene = null;
         return 0;
+    }
+
+    /// <summary>
+    /// 设置当前文字属性（字号 / 样式位 / 颜色 / 锚点）——`SET_FONT` 号段。
+    /// 属性存在**场景对象**上（每次开窗重置），程序不必自己维护这几个变量。
+    /// 字号钳到 [6, 200]：传 0 或负数会让排版算出零/负行高，后面整段文字都画不出来。
+    /// </summary>
+    private void SetFont(int[] r)
+    {
+        var s = Scene();
+        if (s == null) return;
+        s.FontSize = Math.Clamp(r[0], 6, 200);
+        s.FontStyle = r[1];
+        s.FontColor = (uint)r[2];
+        s.FontAnchor = r[3];
     }
 
     private VmlScene? Scene() => _scene;

@@ -489,7 +489,31 @@ public static partial class SelfTest
         var raster = PngDecoder.Decode(DrawRunner.ToPng(DrawRunner.Parse(px.BuildDsl())));
         Check("VmlScene 渲染: 空心矩形内部是背景色（透明填充未被画成白色）",
             raster.HexAt(18, 18).ToLowerInvariant() == "#101020");
-        Check("VmlScene 渲染: 空心矩形边框是黄色", raster.HexAt(8, 18).ToLowerInvariant() == "#ffcc00");
+        // ⚠ 这条取的是**边框边缘**的像素，而场景现在开了抗锯齿（3× 超采样 + 盒式降采样）
+        // —— 边缘像素必然与背景按覆盖率混色，**再断言精确十六进制就等于在断言"没有抗锯齿"**，
+        // 方向反了。这里改判"黄占绝对主导"：既仍然抓得住"边框被糊成白色/背景色"，
+        // 又不与抗锯齿冲突（混色后黄色分量依旧是压倒性的）。
+        // ⚠ **不要写死像素坐标。** 这条原来是 `HexAt(8, 18) == "#ffcc00"` —— 一个"描边正好压在
+        // 第 8 列"的假设，只在**没有抗锯齿**时成立。场景现在开了抗锯齿（3× 超采样 + 盒式降采样），
+        // 描边边缘按覆盖率与背景混色，实测 x=8 是 `#af8d0a`（约 69% 覆盖）、x=9 已经是纯背景
+        // ⇒ 写死坐标的断言就变成在断言"没有抗锯齿"，方向反了。
+        //
+        // 本意是"**这个空心矩形确实描了一圈黄边**"，所以扫一行找最黄的那个像素即可 ——
+        // 与描边落在哪一列无关，也照样抓得住"边框被糊成白色/背景色"。
+        int bestR = 0, bestG = 0, bestB = 0;
+        for (int sx = 0; sx < raster.Width; sx++)
+        {
+            var h = raster.HexAt(sx, 18);
+            int r = Convert.ToInt32(h.Substring(1, 2), 16);
+            int g = Convert.ToInt32(h.Substring(3, 2), 16);
+            int b = Convert.ToInt32(h.Substring(5, 2), 16);
+            if (r + g - b > bestR + bestG - bestB) { bestR = r; bestG = g; bestB = b; }
+        }
+        // 抗锯齿下细描边**可能没有任何一个像素是满覆盖的**（实测这一行最黄的也只有约 69% 覆盖），
+        // 所以判据是"黄占绝对主导"而非"等于纯黄"。这仍然能抓住原本要抓的两类错：
+        // 边框被画成白色（三通道都高）、或根本没描边（取到的是背景 #101020）。
+        Check($"VmlScene 渲染: 空心矩形边框是黄色（扫行取最黄像素，实测 #{bestR:x2}{bestG:x2}{bestB:x2}）",
+            bestR >= 150 && bestG >= 110 && bestB <= 40);
         Check("VmlScene 渲染: 实心圆圆心是青色", raster.HexAt(44, 32).ToLowerInvariant() == "#00c8ff");
         Check("VmlScene 渲染: 圆外仍是背景色", raster.HexAt(44, 8).ToLowerInvariant() == "#101020");
 
@@ -539,6 +563,157 @@ public static partial class SelfTest
         Check("VmlKeys: 沿用 Win32 虚拟键值",
             VmlKeys.Left == 37 && VmlKeys.Up == 38 && VmlKeys.Right == 39 && VmlKeys.Down == 40
             && VmlKeys.Enter == 13 && VmlKeys.Space == 32 && VmlKeys.Escape == 27);
+
+        TestShellCommands(Section, Check);
+        TestScrollBarMath(Section, Check);
+    }
+
+    // ═══ 命令行页：命令注册表 / 滚动条几何 ═══
+    // 两块都是纯逻辑（UI/Shared/ShellCommands.cs、ScrollBarMath.cs），页面只负责注册与摆位置。
+    // 这类代码的坑不在于"能不能跑"，而在于**边界**：帮助文本与命令表漂开、参数校验漏一边、
+    // 滑块能拖出轨道、内容刚好不超屏时滚动条赖着不走。
+
+    /// <summary>造一个注册表，执行体只把收到的参数记下来，便于断言"分派到了谁、给了什么参数"。</summary>
+    static ShellCommandRegistry MakeRegistry(List<string> calls)
+    {
+        var reg = new ShellCommandRegistry();
+        reg.Register(new ShellCommand("ping", "<文本>", "回显", "把参数原样回显。",
+            a => { calls.Add("ping:" + string.Join('|', a)); return Task.FromResult("pong"); },
+            MinArgs: 1, MaxArgs: 2));
+        reg.Register(new ShellCommand("noop", "", "什么都不做", "占用零参数场景。",
+            _ => { calls.Add("noop"); return Task.FromResult(""); }, MaxArgs: 0));
+        reg.Register(new ShellCommand("any", "[...]", "参数不限", "任意个参数都收。",
+            a => { calls.Add("any:" + a.Count); return Task.FromResult("ok"); }));
+        return reg;
+    }
+
+    static void TestShellCommands(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("命令行页 · 命令注册表");
+
+        var calls = new List<string>();
+        var reg = MakeRegistry(calls);
+
+        // 拆行
+        var (name, args) = ShellCommandRegistry.Split("  vml   run   a.c  ");
+        Check("ShellCmd.Split: 去多余空白，参数逐个拆开",
+            name == "vml" && args.Length == 2 && args[0] == "run" && args[1] == "a.c");
+        var (empty, none) = ShellCommandRegistry.Split("   ");
+        Check("ShellCmd.Split: 空行拆出空命令而不是抛", empty == "" && none.Length == 0);
+
+        // 认领边界：**不认识的必须返回 null**，页面据此交给 shell
+        Check("ShellCmd: 不认识的命令返回 null（放行给 shell）",
+            reg.Find("ls") == null && reg.Find(null) == null);
+
+        // 帮助开关
+        Check("ShellCmd: 识别 -h / --help / /?",
+            ShellCommandRegistry.IsHelpFlag("-h") && ShellCommandRegistry.IsHelpFlag("--help")
+            && ShellCommandRegistry.IsHelpFlag("/?"));
+        Check("ShellCmd: 普通参数不当成帮助开关（`ls -l` 不能被拦）",
+            !ShellCommandRegistry.IsHelpFlag("-l") && !ShellCommandRegistry.IsHelpFlag("run")
+            && !ShellCommandRegistry.HasHelpFlag(["run", "a.c"]));
+        Check("ShellCmd: 参数列表里能找到帮助开关",
+            ShellCommandRegistry.HasHelpFlag(["run", "-h"]));
+
+        // 用法文本从同一条记录推出来 —— 名字/参数格式/参数个数三处都不许另写
+        var ping = reg.Find("ping")!;
+        Check("ShellCmd: 用法行 = 名字 + 参数格式", ping.Usage == "ping <文本>");
+        Check("ShellCmd: 参数个数描述按上下界生成",
+            ping.ArgsRequirement == "1~2 个参数"
+            && reg.Find("noop")!.ArgsRequirement == "不带参数"
+            && reg.Find("any")!.ArgsRequirement == "参数不限");
+
+        var help = reg.HelpText();
+        Check("ShellCmd: 帮助列表覆盖每一条命令",
+            reg.Commands.All(c => help.Contains(c.Name, StringComparison.Ordinal)));
+        Check("ShellCmd: 帮助列表说明其余输入交给 shell（不冒充认识全部命令）",
+            help.Contains("shell", StringComparison.Ordinal));
+        Check("ShellCmd: 单条用法含参数格式与个数说明",
+            reg.UsageOf(ping).Contains("ping <文本>", StringComparison.Ordinal)
+            && reg.UsageOf(ping).Contains("1~2 个参数", StringComparison.Ordinal));
+
+        // 参数个数校验：少给/多给都要给出**带用法**的提示
+        Check("ShellCmd: 参数太少报错且带用法",
+            reg.Validate(ping, []) is { } e1 && e1.Contains("至少", StringComparison.Ordinal) && e1.Contains("用法", StringComparison.Ordinal));
+        Check("ShellCmd: 参数太多报错",
+            reg.Validate(ping, ["a", "b", "c"]) != null);
+        Check("ShellCmd: 参数个数合法时放行", reg.Validate(ping, ["a"]) == null);
+        Check("ShellCmd: MaxArgs=-1 表示不限，给多少都放行",
+            reg.Validate(reg.Find("any")!, ["1", "2", "3", "4", "5"]) == null);
+
+        // 分派链路
+        calls.Clear();
+        Check("ShellCmd: 分派执行并把参数原样交给执行体",
+            reg.DispatchAsync("ping hello").GetAwaiter().GetResult() == "pong"
+            && calls.Count == 1 && calls[0] == "ping:hello");
+        Check("ShellCmd: 不认识的行整条放行（返回 null 而不是空串）",
+            reg.DispatchAsync("ls -l /").GetAwaiter().GetResult() == null);
+
+        // helf 开关先于参数校验：`noop -h` 有 1 个参数、而 noop 不收参数，
+        // 先校验就会把"想看用法"报成"参数错了"
+        calls.Clear();
+        var noopHelp = reg.DispatchAsync("noop -h").GetAwaiter().GetResult();
+        Check("ShellCmd: -h 先于参数校验（零参命令也能看用法）",
+            noopHelp != null && noopHelp.Contains("noop", StringComparison.Ordinal) && calls.Count == 0);
+
+        calls.Clear();
+        var tooMany = reg.DispatchAsync("noop x").GetAwaiter().GetResult();
+        Check("ShellCmd: 参数超限时执行体不被调用",
+            tooMany != null && tooMany.Contains("不带参数", StringComparison.Ordinal) && calls.Count == 0);
+
+        // 重名注册后者覆盖 —— 插件/测试要能顶掉内置命令
+        reg.Register(new ShellCommand("ping", "<x>", "覆盖后", "覆盖后的说明。",
+            _ => Task.FromResult("v2")));
+        Check("ShellCmd: 重名注册以后注册的为准",
+            reg.DispatchAsync("ping z").GetAwaiter().GetResult() == "v2"
+            && reg.Commands.Count(c => c.Name == "ping") == 1);
+    }
+
+    static void TestScrollBarMath(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("命令行页 · 滚动条几何");
+
+        // 不超屏 → 不显示（用户明确要的语义）
+        Check("ScrollBarMath: 内容不超视口 → 不显示",
+            !ScrollBarMath.ShouldShow(100, 100) && !ScrollBarMath.ShouldShow(99, 100));
+        Check("ScrollBarMath: 容量差 <1px 也算不超（浮点抖动不该冒出滚动条）",
+            !ScrollBarMath.ShouldShow(100.5, 100));
+        Check("ScrollBarMath: 内容超视口 → 显示", ScrollBarMath.ShouldShow(200, 100));
+
+        // 滑块：两头都要夹住，绝不能超出轨道
+        var (top0, h0) = ScrollBarMath.Thumb(1000, 100, 0, 200);
+        Check("ScrollBarMath: 滚到顶 → 滑块贴顶", top0 == 0);
+        // 比例要挑一个**算出来大于 MinThumb** 的场合，否则量到的是夹住的 24 而不是比例
+        var (_, hProp) = ScrollBarMath.Thumb(1000, 400, 0, 200);
+        Check("ScrollBarMath: 滑块长度按视口/内容比例", Math.Abs(hProp - 200 * 400.0 / 1000) < 0.001);
+
+        var (topEnd, hEnd) = ScrollBarMath.Thumb(1000, 100, 900, 200);
+        Check("ScrollBarMath: 滚到底 → 滑块贴底不越界",
+            Math.Abs(topEnd + hEnd - 200) < 0.001);
+
+        // 内容只超一点点：比例接近 1，不夹上界滑块会比轨道还长
+        var (_, hTiny) = ScrollBarMath.Thumb(101, 100, 0, 200);
+        Check("ScrollBarMath: 刚超一点时滑块不超出轨道", hTiny <= 200);
+
+        // 超长内容：比例算出来会短到点不住，夹在最小长度
+        var (_, hHuge) = ScrollBarMath.Thumb(1_000_000, 100, 0, 200);
+        Check("ScrollBarMath: 极长内容时滑块不短于最小长度", hHuge >= ScrollBarMath.MinThumb);
+
+        // 逆运算：拖动滑块要能换算回滚动偏移（否则只能显示、拖不动）
+        Check("ScrollBarMath: 滑块顶端 ↔ 滚动偏移 互为逆运算",
+            Math.Abs(ScrollBarMath.OffsetForThumbTop(topEnd, 1000, 100, 200) - 900) < 0.001);
+        Check("ScrollBarMath: 逆运算在轨道外不炸（夹住而不是抛）",
+            ScrollBarMath.OffsetForThumbTop(-50, 1000, 100, 200) == 0
+            && Math.Abs(ScrollBarMath.OffsetForThumbTop(9999, 1000, 100, 200) - 900) < 0.001);
+
+        // 轨道还没量出来（转屏首帧 Height=0）不该除零
+        var (zTop, zH) = ScrollBarMath.Thumb(1000, 100, 0, 0);
+        Check("ScrollBarMath: 轨道长为 0 时返回 0（不除零）", zTop == 0 && zH == 0);
+
+        // 跟底判据：决定"新输出要不要自动滚" —— 用户往上翻时不能再拽他回底部
+        Check("ScrollBarMath: 贴底判为跟底", ScrollBarMath.IsAtBottom(1000, 100, 900));
+        Check("ScrollBarMath: 往上翻一屏就不跟底（用户正在看历史）",
+            !ScrollBarMath.IsAtBottom(1000, 100, 0));
     }
 
     static byte[] MakeSolid(int w, int h, int r, int g, int b)

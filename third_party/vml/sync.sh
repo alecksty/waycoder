@@ -14,6 +14,14 @@
 #   ① 0001-file-system-root.patch：给 VmRuntime 加 `FileSystemRoot` 沙箱根，
 #      并让 `ExecuteFileOpen` 按它解析/拒绝路径。不加**编得过、跑起来才出问题**
 #      （手机上 `open("a.txt","w")` 会落到进程 CWD，报 "Read-only file system" 或写到别处）。
+#   ② 0002-c-codegen-fixes.patch：C 前端两处**错误代码生成**（都是"编得过、跑起来才错"）：
+#      ① 参数寄存器早装载 —— cdecl 调用里 `MOVE Ri, R0` 在下一次实参求值前就做了，
+#         而求值会用 R0/R1 当临时寄存器，把已装好的参数冲掉。实参只要是带运算的表达式
+#         就会中招（`f(p+3*k, q+3*k, 3*k)` 的第二个参数算成第一个的值）。
+#      ② R12-4 撞车 —— asm 结果的暂存槽与**第一个局部变量**是同一个偏移，
+#         任何一条 asm 执行完都会把那个变量覆盖成上一条 syscall 的返回值。
+#         现象就是"传给手机端弹窗的字符串大多是空的/是乱码"。
+#      两处都带最小复现用例（见 patches 旁的注释）与实测记录（Lib/README-ui.md）。
 #
 # 之所以要脚本化：rsync 是覆盖式的，两类改动都会被冲掉。
 # 【B】用 patch 而不是"再抄一遍源码"：改动本身可 review、可 diff；

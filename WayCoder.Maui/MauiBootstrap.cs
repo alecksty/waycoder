@@ -222,6 +222,9 @@ public static class MauiBootstrap
         CwdContext.SetDefault(WorkspaceDir);
         CwdContext.PushScope(WorkspaceDir);
 
+        // 6b) 把随包的中文字体落到文件系统上（供画布文字渲染用）。
+        EnsureBundledFonts();
+
         // 7) 交互桥注入：权限确认 / AskUserQuestion / diff 确认走原生对话框（M5）
         UxHelper.WebInteraction = new MauiWebInteraction();
 
@@ -284,6 +287,40 @@ public static class MauiBootstrap
     /// 后台预热配置单例（Config.Instance 懒加载含重 IO：.env/schema/config.json/迁移/同步）。
     /// 首次进 SettingsPage 前调用，避免设置页首开卡顿；异常兜底不崩（设置页会重触发）。
     /// </summary>
+    /// <summary>
+    /// 把**随包的中文字体**（<c>Resources/Fonts/SarasaMonoSC-Regular.ttf</c>）复制到
+    /// <c>Global.Home/fonts/</c>，让 <see cref="WayCoder.Infra.FontFinder"/> 能按文件找到它。
+    ///
+    /// **为什么必须复制**：MAUI 的 `MauiFont` 打进去是 Android **asset**（只能经 asset API 读，
+    /// 没有文件路径），而画布文字走的是 `TrueTypeFont` —— 它只认**文件路径**。
+    ///
+    /// **为什么非要它**：Android 系统里唯一带中日韩字形的只有 `NotoSansCJK-*.ttc`，而那是
+    /// **CFF(OTF) 轮廓**，本仓库那个只支持 glyf 的 TrueType 解析器读不了（实测：找到 208 个
+    /// 系统字体，`Resolve` 却返回 null），结果是画布上的中文全渲染成豆腐块。
+    /// Sarasa 是 glyf 轮廓 + 全中文覆盖，正好补上这一块。
+    /// </summary>
+    static void EnsureBundledFonts()
+    {
+        try
+        {
+            var dir = Path.Combine(WayCoder.Global.Home, "fonts");
+            Directory.CreateDirectory(dir);
+            foreach (var name in new[] { "SarasaMonoSC-Regular.ttf" })
+            {
+                var dst = Path.Combine(dir, name);
+                if (File.Exists(dst) && new FileInfo(dst).Length > 0) continue;   // 已经落过
+                using var src = FileSystem.OpenAppPackageFileAsync(name).GetAwaiter().GetResult();
+                using var fs = File.Create(dst);
+                src.CopyTo(fs);
+            }
+        }
+        catch (Exception ex)
+        {
+            // 字体落不下来不该拦住启动：画布文字退化成豆腐块，其余功能照常
+            ErrorLog.Error("MauiBootstrap", "释放内置字体失败", ex);
+        }
+    }
+
     public static Task WarmupConfigAsync() => Task.Run(() =>
     {
         try { _ = Config.Instance; }

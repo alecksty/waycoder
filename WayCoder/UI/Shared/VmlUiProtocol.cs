@@ -64,6 +64,19 @@ public static class VmlUi
     /// <summary>提交本帧：→ 0（保留模式下宿主定时器也会刷，此调用用于让程序显式标记帧边界）。</summary>
     public const int DrawPresent = 531;
 
+    /// <summary>
+    /// 设置**当前文字属性**（供 <see cref="Text"/> 用）：R0=字号 R1=样式位(1=粗 2=斜) R2=颜色 R3=锚点 → 0。
+    ///
+    /// 与 <see cref="DrawText"/> 是"状态式 vs 一次性"两种写法，两者都留着：
+    /// · 状态式（本号 + <see cref="Text"/>）适合一次设好、连画很多行（菜单、对话框、计分板）；
+    /// · 一次性（<see cref="DrawText"/>）适合每行属性都不同的场合。
+    /// 属性存在**宿主侧**（不在 VML 内存里），所以程序不必自己维护这几个变量。
+    /// </summary>
+    public const int SetFont = 532;
+
+    /// <summary>用**当前文字属性**画一行字：R0=x R1=y R2=文本*(UTF-8, NUL 结尾) → 0（属性由 <see cref="SetFont"/> 设定）。</summary>
+    public const int Text = 533;
+
     // ── 输入（统一消息队列）──
     /// <summary>非阻塞取一条消息：R0=消息缓冲地址 → 消息类型，无消息返回 0。</summary>
     public const int MsgPoll = 560;
@@ -337,9 +350,37 @@ public sealed class VmlScene
     public void AddEllipse(int cx, int cy, int rx, int ry, uint color, bool filled, int width)
         => Add($"ellipse {cx} {cy} {rx} {ry}{Style(color, filled, width)}");
 
-    /// <summary>文字；<paramref name="anchor"/> 0=左 1=中 2=右。</summary>
-    public void AddText(int x, int y, string text, uint color, int fontSize, int anchor)
-        => Add($"text {x} {y} \"{Escape(text)}\" {fontSize} {Hex(color)} {AnchorName(anchor)}");
+    /// <summary>
+    /// 文字；<paramref name="anchor"/> 0=左 1=中 2=右，<paramref name="style"/> 见 <see cref="TextBold"/>/<see cref="TextItalic"/>。
+    ///
+    /// 文本按 **UTF-8** 从程序内存读出（宿主侧 <c>Str()</c> 就是 UTF-8 解码），
+    /// 这里只做两件事：转义成 DSL 字符串、把样式位翻成 DSL 关键字（`bold`/`italic`/`bi`）。
+    /// </summary>
+    public void AddText(int x, int y, string text, uint color, int fontSize, int anchor, int style = 0)
+    {
+        var w = (style & TextBold) != 0 ? "bold" : "";
+        var i = (style & TextItalic) != 0 ? "italic" : "";
+        var bi = (w.Length > 0 && i.Length > 0) ? " bi" : (w.Length > 0 ? " bold" : (i.Length > 0 ? " italic" : ""));
+        Add($"text {x} {y} \"{Escape(text)}\" {fontSize} {Hex(color)} {AnchorName(anchor)}{bi}");
+    }
+
+    /// <summary>当前文字属性（<see cref="SetFont"/> 设、<see cref="Text"/> 用）。宿主侧状态，不占 VML 内存。</summary>
+    public int FontSize { get; set; } = 16;
+    /// <summary>当前文字样式位（见 <see cref="TextBold"/>/<see cref="TextItalic"/>）。</summary>
+    public int FontStyle { get; set; }
+    /// <summary>当前文字颜色（0xAARRGGBB）。</summary>
+    public uint FontColor { get; set; } = 0xFFFFFFFF;
+    /// <summary>当前文字锚点（0=左 1=中 2=右）。</summary>
+    public int FontAnchor { get; set; }
+
+    /// <summary>按当前属性画一行字（<see cref="Text"/> 号段的实现体，放这里便于自测）。</summary>
+    public void AddTextCurrent(int x, int y, string text)
+        => AddText(x, y, text, FontColor, FontSize, FontAnchor, FontStyle);
+
+    /// <summary>文字样式位：粗体。</summary>
+    public const int TextBold = 1;
+    /// <summary>文字样式位：斜体。</summary>
+    public const int TextItalic = 2;
 
     /// <summary>
     /// 图标 —— 走 emoji 文本（DSL 里没有 sprite/图标指令）。
@@ -370,6 +411,13 @@ public sealed class VmlScene
     {
         var sb = new StringBuilder();
         sb.Append("canvas ").Append(Width).Append(' ').Append(Height).Append(' ').Append(Hex(Background)).Append('\n');
+
+        // **必须开抗锯齿。** 光栅器本身支持（`DrawDocument.Antialias` → 3× 超采样再盒式降采样），
+        // 但**默认是关的**，得由 DSL 显式打开。不开的后果全在"斜的、圆的、细的"东西上：
+        // 圆角矩形的四个角是锯齿、斜线是台阶、文字笔画边缘发毛 —— 画棋盘这种满屏圆角+斜线的
+        // 场景一眼就能看出来（用户报的"圆角需要做平滑处理"就是它）。
+        sb.Append("antialias\n");
+
         lock (_figures)
             foreach (var f in _figures)
                 sb.Append(f).Append('\n');

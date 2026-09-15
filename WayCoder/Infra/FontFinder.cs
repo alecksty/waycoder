@@ -32,6 +32,19 @@ public static class FontFinder
             dirs.Add("/Library/Fonts");
             if (!string.IsNullOrEmpty(home)) dirs.Add(Path.Combine(home, "Library", "Fonts"));
         }
+        else if (OperatingSystem.IsAndroid())
+        {
+            // ⚠ **Android 必须单列一支**：`OperatingSystem.IsLinux()` 在 Android 上返回 **false**，
+            // 于是它原来掉进下面的 Linux 分支、只找 `/usr/share/fonts` —— 那个目录在 Android 上
+            // 根本不存在 ⇒ **一个系统字体都找不到**，画布里的中文全渲染成豆腐块（实测）。
+            dirs.Add("/system/fonts");
+            dirs.Add("/system/fonts/noto");       // 部分 ROM 把 Noto 单独放一层
+            if (!string.IsNullOrEmpty(home))
+            {
+                dirs.Add(Path.Combine(home, "fonts"));      // 随包带进来的字体
+                dirs.Add(Path.Combine(home, "vml", "fonts"));
+            }
+        }
         else // Linux / 其它
         {
             dirs.Add("/usr/share/fonts");
@@ -53,7 +66,10 @@ public static class FontFinder
                 foreach (var file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
                 {
                     var ext = Path.GetExtension(file).ToLowerInvariant();
-                    if (ext is not (".ttf" or ".otf")) continue;
+                    // `.ttc` 是**字体集合**（Android 的中日韩字体基本都是它，如 NotoSansCJK-Regular.ttc）
+                    // —— 原来只认 .ttf/.otf，等于在 Android 上把唯一带中文字形的那几个全跳过了。
+                    // 解析侧按"取集合里第一个字体"处理（见 TrueTypeFont）。
+                    if (ext is not (".ttf" or ".otf" or ".ttc")) continue;
                     if (seen.Contains(file)) continue;
                     seen.Add(file);
                     result.Add(new FontEntry(Path.GetFileNameWithoutExtension(file), file));

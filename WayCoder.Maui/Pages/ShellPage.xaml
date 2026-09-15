@@ -32,13 +32,42 @@
         <!-- 输出区：**等宽 + 纯文本**，刻意不做富文本着色 ——
              一条命令的输出轻松上万字符，拆成 Span 会让滚动卡死
              （移动端编辑器那轮踩过：相邻同色 Span 合并 + 超大降级纯文本才压住 ANR）。
-             这里直接就是那个「降级形态」，量级再大也不用再降。 -->
-        <ScrollView Grid.Row="1" x:Name="OutputScroll" Padding="12,4">
-            <Label
-                x:Name="OutputLabel"
-                FontSize="12"
-                LineBreakMode="WordWrap" />
-        </ScrollView>
+             这里直接就是那个「降级形态」，量级再大也不用再降。
+
+             滚动条是**自己画的一条细轨**（不是 ScrollView 自带的）：系统那条在 Android 上
+             只在滑动时闪一下，输出长到几十屏时完全不知道自己在哪。它只在内容超出视口时出现
+             （判据是 ScrollBarMath.ShouldShow，几何也全在那边，页面里不重算一份）。 -->
+        <Grid Grid.Row="1">
+            <ScrollView
+                x:Name="OutputScroll"
+                Padding="12,4,16,4"
+                Scrolled="OnOutputScrolled">
+                <Label
+                    x:Name="OutputLabel"
+                    FontSize="12"
+                    LineBreakMode="WordWrap" />
+            </ScrollView>
+
+            <!-- 轨道：贴右边、上下留一点边距。IsVisible 由代码按内容高决定 -->
+            <Grid
+                x:Name="ScrollTrack"
+                IsVisible="False"
+                HorizontalOptions="End"
+                VerticalOptions="Fill"
+                Margin="0,6,3,6"
+                WidthRequest="6">
+                <BoxView
+                    x:Name="ScrollThumb"
+                    Color="{AppThemeBinding Light=#9A9AA0, Dark=#6E6E76}"
+                    HorizontalOptions="Fill"
+                    VerticalOptions="Start"
+                    HeightRequest="40" />
+                <Grid.GestureRecognizers>
+                    <PanGestureRecognizer PanUpdated="OnScrollThumbPan" />
+                    <TapGestureRecognizer Tapped="OnScrollTrackTapped" />
+                </Grid.GestureRecognizers>
+            </Grid>
+        </Grid>
 
         <!-- 输入区：$ 提示符 + 输入框 + 历史 + 运行。
              手机上软键盘没有可靠的方向键，所以历史做成了按钮而不是 ↑/↓ 按键。 -->

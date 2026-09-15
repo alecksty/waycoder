@@ -2,6 +2,7 @@ using System.Text;
 using WayCoder.Maui.Controls;
 using WayCoder.Maui.Services;
 using WayCoder.Tools;
+using WayCoder.UI.Shared;
 
 namespace WayCoder.Maui.Pages;
 
@@ -60,9 +61,14 @@ public partial class ShellPage : ContentPage
     /// <summary>正在等答案的那次读取；用户提交时由它把值交回 VM 线程。</summary>
     private TaskCompletionSource<string>? _stdinTcs;
 
+    /// <summary>本页认识的命令（加命令改 <see cref="BuildCommandRegistry"/> 一处即可）。</summary>
+    private readonly ShellCommandRegistry _commands;
+
     public ShellPage()
     {
         InitializeComponent();
+
+        _commands = BuildCommandRegistry();
 
         // 等宽字体取自编辑器那份常量（与自绘编辑器同一个族）——
         // 不在这里另写字面量，否则将来换字体又是一处「同一规则两处实现」。
@@ -70,10 +76,16 @@ public partial class ShellPage : ContentPage
         PromptLabel.FontFamily = EditorTypography.FontFamilyName;
         CmdEntry.FontFamily = EditorTypography.FontFamilyName;
 
-        // 输出区还挂一个手势：点空白处把焦点给输入框（省得每次都要去点那个窄窄的 Entry）
+        // 点输出区把焦点给输入框（省得每次都要去点那个窄窄的 Entry）。
+        //
+        // ⚠ **手势必须挂在内容 Label 上，不能挂在 ScrollView 上。**
+        // 挂在 ScrollView 上时，MAUI 会把手势监听装到 ScrollView 自己的平台视图上，
+        // Android 侧 ACTION_DOWN 被消费掉 ⇒ **整个输出区再也拖不动**（实测：滑动后
+        // 逐像素比对两张截屏，差异只落在底部导航栏，正文一个像素没动）。
+        // 挂在内容上是另一条路（事件先给子视图，拖拽仍由 ScrollView 接管）。
         var tap = new TapGestureRecognizer();
         tap.Tapped += (_, _) => CmdEntry.Focus();
-        OutputScroll.GestureRecognizers.Add(tap);
+        OutputLabel.GestureRecognizers.Add(tap);
 
         Append("WayCoder 命令行\n" +
                "输入 shell 命令后按「运行」（或回车）。`cd` 会改变下面的工作目录。\n\n");
@@ -84,6 +96,17 @@ public partial class ShellPage : ContentPage
     {
         base.OnAppearing();
         RefreshCwd();
+        Dispatcher.Dispatch(UpdateScrollBar);   // 回到本页时量一次（期间可能转过屏）
+    }
+
+    /// <summary>
+    /// 尺寸变了要重新量：视口变高可能让"本来超屏"变成"不超屏"，滚动条得跟着消失。
+    /// （只依赖 Scrolled 是不够的 —— 转屏后没有滚动事件，滚动条会赖着不走。）
+    /// </summary>
+    protected override void OnSizeAllocated(double width, double height)
+    {
+        base.OnSizeAllocated(width, height);
+        Dispatcher.Dispatch(UpdateScrollBar);
     }
 
     private void RefreshCwd() => CwdLabel.Text = "cwd: " + CwdContext.Root;
@@ -110,12 +133,13 @@ public partial class ShellPage : ContentPage
         SetBusy(true);
         try
         {
-            // **`vml` 开头的命令不走 shell** —— 转交给进程内的 VML 虚拟机。
-            // 这是手机上跑编译/模拟的唯一可行形态：iOS 根本没有 shell，
-            // Android 也不该为了编译一段程序去起进程（W^X 那条路还得另塞 jniLibs）。
-            if (cmd == "vml" || cmd.StartsWith("vml ", StringComparison.Ordinal))
+            // 页面自己的命令走注册表（`BuildCommandRegistry` 那一处登记）。
+            // **只要注册表不认识，就原样交给 shell** —— 分派逻辑只有这一处，
+            // 加命令改 `BuildCommandRegistry` 一行，help 列表/用法/参数校验全跟着变。
+            var handled = await _commands.DispatchAsync(cmd);
+            if (handled != null)
             {
-                Append(await RunVmlAsync(cmd) + "\n\n");
+                Append(handled.TrimEnd() + "\n\n");
                 return;
             }
 
@@ -135,6 +159,50 @@ public partial class ShellPage : ContentPage
             SetBusy(false);
             RefreshCwd();   // `cd` 之后 cwd 变了，顶栏要跟着动
         }
+    }
+
+    /// <summary>
+    /// 登记本页认识的全部命令 —— **加命令只改这里**。
+    ///
+    /// 每条记录同时带着「名字 / 参数格式 / 参数个数 / 说明 / 执行体」，
+    /// 所以 `help` 列表、`命令 -h` 用法、参数校验都是从同一条数据推出来的，不会互相漂。
+    /// </summary>
+    private ShellCommandRegistry BuildCommandRegistry()
+    {
+        var reg = new ShellCommandRegistry();
+
+        // help：不认参数时回列表（而不是报错），并明确指出"没这条命令"
+        reg.Register(new ShellCommand(
+            "help", "[命令]", "列出可用命令；给命令名则显示它的用法",
+            "不带参数列出全部命令；带命令名显示该命令的用法。任何命令都可以用 `命令 -h` 看用法。",
+            args =>
+            {
+                if (args.Count == 0) return Task.FromResult(reg.HelpText());
+                var c = reg.Find(args[0]);
+                return Task.FromResult(c != null
+                    ? reg.UsageOf(c)
+                    : $"⚠️ 没有这个命令：{args[0]}\n\n{reg.HelpText()}");
+            },
+            MaxArgs: 1));
+
+        // clear / cls：清空输出区（等同右上角「清屏」）
+        foreach (var name in new[] { "clear", "cls" })
+            reg.Register(new ShellCommand(
+                name, "", "清空上面的输出（等同右上角「清屏」）",
+                "把输出区的回滚缓冲整个丢掉，回到干净的一屏。",
+                _ => { MainThread.BeginInvokeOnMainThread(ClearOutput); return Task.FromResult(""); },
+                MaxArgs: 0));
+
+        // vml：不走 shell，转交进程内的虚拟机（iOS 没有 shell；Android 也不该为编译起进程）
+        reg.Register(new ShellCommand(
+            "vml", "test | run <文件> | help",
+            "跑 VML 程序：`test` 跑内置自检，`run` 按扩展名选编译器（.vml 直接汇编，其余 22 种语言）",
+            "编译并运行一段 VML。`vml test` 跑内置自检程序；`vml run <文件>` 按扩展名自动选前端编译器"
+            + "（`.vml` 走汇编，`.c`/`.py`/`.rs` 等 22 种语言走各自编译器）。"
+            + "路径相对下面显示的工作目录解析。",
+            args => RunVmlAsync(string.Join(' ', args.Prepend("vml")))));
+
+        return reg;
     }
 
     /// <summary>
@@ -239,14 +307,18 @@ public partial class ShellPage : ContentPage
         CmdEntry.CursorPosition = CmdEntry.Text.Length;
     }
 
-    private void OnClearClicked(object? sender, EventArgs e)
+    private void OnClearClicked(object? sender, EventArgs e) => ClearOutput();
+
+    /// <summary>清空输出（按钮与 <c>clear</c>/<c>cls</c> 命令共用这一份）。</summary>
+    private void ClearOutput()
     {
         _lines.Clear();
         _partial = false;
         OutputLabel.Text = "";
+        UpdateScrollBar();
     }
 
-    /// <summary>追加输出、按行裁剪、滚到底。</summary>
+    /// <summary>追加输出、按行裁剪、按需滚到底。</summary>
     private void Append(string text)
     {
         // 按 \n 切段并入缓冲：有换行的段落是**整行**，末尾没换行的那段是**半行**
@@ -265,14 +337,126 @@ public partial class ShellPage : ContentPage
         }
 
         TrimScrollback();
+
+        // **只有原本就贴着底，才跟着滚到底。**
+        //
+        // 原来是无条件弹到底 —— 一条命令持续吐输出（编译、下载、日志）时，
+        // 用户往回翻一屏都做不到：每次新输出都把他拽回最底下。
+        // 现在按终端的老规矩：贴底才跟随，一旦往上滚就"脱钩"，让用户安安静静看历史。
+        var follow = ScrollBarMath.IsAtBottom(ContentHeight, OutputScroll.Height, OutputScroll.ScrollY);
+
         OutputLabel.Text = string.Join("\n", _lines);
 
-        // 排到下一拍再滚：此刻刚换完 Text，布局还没算，ContentSize 还是旧的。
+        // 排到下一拍：此刻刚换完 Text，布局还没算，量出来的高度还是旧值
+        // （滚动条显不显示、滑块多长、能不能贴底，都得等新布局落定）。
         Dispatcher.Dispatch(() =>
         {
-            try { OutputScroll.ScrollToAsync(0, OutputScroll.ContentSize.Height, animated: false); }
-            catch { /* 页面正在销毁时滚动会抛，忽略 */ }
+            if (follow)
+            {
+                try { OutputScroll.ScrollToAsync(0, ContentHeight, animated: false); }
+                catch { /* 页面正在销毁时滚动会抛，忽略 */ }
+            }
+            UpdateScrollBar();
         });
+    }
+
+    /// <summary>
+    /// 输出内容的**真实高度** —— 取 Label 实测高度，**不能用 <c>ScrollView.ContentSize</c>**。
+    ///
+    /// 实测（模拟器，1080×2400）：Label 量出来 1750px，而 <c>ContentSize.Height</c> 报 ~3000px。
+    /// 按那个虚高的值滚，就会**滚过内容**：顶部被切掉、底部留一大片空白，
+    /// 而且"贴不贴底"的判据永远为真（因为偏移量正好停在那个虚高的底上），
+    /// 于是每次都往上多滚一截。用户看到的就是"输出是滚着的、但往回翻不动、上面还缺一块"。
+    ///
+    /// 顺带说明为什么滚动条滑块也偏大：Slider 长度按 `视口/内容` 算，
+    /// 分母虚高 ⇒ 滑块算出来偏短 —— 同一处错误连累两个地方，改这一处就都对了。
+    /// </summary>
+    private double ContentHeight => OutputLabel.Height;
+
+    // ── 输出区滚动条 ──────────────────────────────────────────────
+    //
+    // 几何一律走 `ScrollBarMath`（那一份是纯函数、有断言），这里只做"量一下、摆一下"。
+
+    /// <summary>滑块当前顶端位置（拖动时作为增量基准）。</summary>
+    private double _thumbTop;
+    private double _thumbHeight;
+    private double _panStartTop;
+    private bool _panningThumb;
+
+    /// <summary>重新量内容/视口，决定滚动条显不显示、滑块摆在哪。</summary>
+    private void UpdateScrollBar()
+    {
+        var content = ContentHeight;      // Label 实测高度，不是 ContentSize（见 ContentHeight 注释）
+        var viewport = OutputScroll.Height;
+
+        // 内容不超屏 → 整条藏起来（用户要的就是"不超屏不显示滚动条"）
+        if (!ScrollBarMath.ShouldShow(content, viewport))
+        {
+            ScrollTrack.IsVisible = false;
+            return;
+        }
+
+        ScrollTrack.IsVisible = true;
+        var track = ScrollTrack.Height > 0 ? ScrollTrack.Height : ScrollTrack.HeightRequest;
+        if (track <= 0) return;   // 布局还没量出来，等下一拍
+
+        var (top, height) = ScrollBarMath.Thumb(content, viewport, OutputScroll.ScrollY, track);
+        _thumbTop = top;
+        _thumbHeight = height;
+        ScrollThumb.HeightRequest = height;
+        ScrollThumb.TranslationY = top;
+    }
+
+    private void OnOutputScrolled(object? sender, ScrolledEventArgs e)
+    {
+        if (_panningThumb) return;   // 拖自己触发的滚动不用回写（回写会和手指打架）
+        UpdateScrollBar();
+    }
+
+    /// <summary>拖动滑块。</summary>
+    private void OnScrollThumbPan(object? sender, PanUpdatedEventArgs e)
+    {
+        var track = ScrollTrack.Height;
+        var content = ContentHeight;      // 同上：Label 实测高度
+        var viewport = OutputScroll.Height;
+        if (track <= 0) return;
+
+        switch (e.StatusType)
+        {
+            case GestureStatus.Started:
+                _panningThumb = true;
+                _panStartTop = _thumbTop;
+                break;
+
+            case GestureStatus.Running:
+            {
+                var top = _panStartTop + e.TotalY;
+                var offset = ScrollBarMath.OffsetForThumbTop(top, content, viewport, track);
+                try { OutputScroll.ScrollToAsync(0, offset, animated: false); }
+                catch { /* 页面正在销毁 */ }
+
+                // 手指拖出来的位置直接摆上去：不等 Scrolled 回调（拖动时要"跟手"）
+                var (t, h) = ScrollBarMath.Thumb(content, viewport, offset, track);
+                _thumbTop = t;
+                ScrollThumb.HeightRequest = h;
+                ScrollThumb.TranslationY = t;
+                break;
+            }
+
+            case GestureStatus.Completed:
+            case GestureStatus.Canceled:
+                _panningThumb = false;
+                UpdateScrollBar();
+                break;
+        }
+    }
+
+    /// <summary>点轨道空白处：翻一屏（不是跳到点击位置 —— 那在细轨道上太跳）。</summary>
+    private void OnScrollTrackTapped(object? sender, TappedEventArgs e)
+    {
+        var viewport = OutputScroll.Height;
+        try { OutputScroll.ScrollToAsync(0, OutputScroll.ScrollY + viewport * 0.9, animated: true); }
+        catch { /* 页面正在销毁 */ }
     }
 
     private void AddSegment(string segment, bool partial)

@@ -19,46 +19,55 @@
                TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
                HorizontalOptions="Center" Margin="12,8" />
 
-        <ScrollView Grid.Row="1" Orientation="Both">
-            <Image x:Name="CanvasImage" Aspect="AspectFit" Margin="8" />
+        <!-- 画布：**`GraphicsView` 就地重绘**，不是 `<Image>` 换 `Source`。
+             ⚠ 换 `Image.Source` 会先卸掉旧图再解码新图，中间必然空一拍 —— 那就是"闪"
+             （实测：把渲染从"每条图元一次"降到"每帧一次"之后仍然闪，说明问题不在**次数**，
+             而在**换了控件内容这件事本身**）。`GraphicsView` 由平台双缓冲：旧帧一直在屏上，
+             直到新帧画完才替换，中间不会露出背景色。 -->
+        <ScrollView Grid.Row="1" x:Name="CanvasScroll" Orientation="Both">
+            <GraphicsView x:Name="CanvasView" Margin="8" />
         </ScrollView>
 
-        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Padding="14,6,14,10" ColumnSpacing="10">
+        <!-- 手柄区：整体压小一档，让棋盘多占地方。
+             ⚠ **每列都要 Auto 且互不重叠** —— SELECT/START 原来靠 Padding 撑宽，
+             加上全局 Button 样式的 MinimumWidthRequest(44)，实际宽度超出中列、
+             压到左右两侧的方向键上（截图里能直接看到叠在一起）。 -->
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Padding="14,4,14,8" ColumnSpacing="6">
 
-            <!-- 左：十字方向键 -->
+            <!-- 左：十字方向键。**圆角方块**（角落 10 而不是半圆），比圆形更好按、也更像手柄 -->
             <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,Auto,Auto"
-                  RowSpacing="4" ColumnSpacing="4" VerticalOptions="Center">
+                  RowSpacing="3" ColumnSpacing="3" VerticalOptions="Center">
                 <Button Grid.Row="0" Grid.Column="1" x:Name="PadUp"    Text="↑" Clicked="OnPadUp"
-                        WidthRequest="52" HeightRequest="52" CornerRadius="26" Padding="0" FontSize="18" />
+                        WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="16" />
                 <Button Grid.Row="1" Grid.Column="0" x:Name="PadLeft"  Text="←" Clicked="OnPadLeft"
-                        WidthRequest="52" HeightRequest="52" CornerRadius="26" Padding="0" FontSize="18" />
+                        WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="16" />
                 <Button Grid.Row="1" Grid.Column="2" x:Name="PadRight" Text="→" Clicked="OnPadRight"
-                        WidthRequest="52" HeightRequest="52" CornerRadius="26" Padding="0" FontSize="18" />
+                        WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="16" />
                 <Button Grid.Row="2" Grid.Column="1" x:Name="PadDown"  Text="↓" Clicked="OnPadDown"
-                        WidthRequest="52" HeightRequest="52" CornerRadius="26" Padding="0" FontSize="18" />
+                        WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="16" />
             </Grid>
 
-            <!-- 中：SELECT / START（胶囊小键，别和方向键一样大抢占拇指）
-                 ⚠ 必须给 WidthRequest：只靠 Padding 撑宽时，全局 Button 样式的 MinimumWidthRequest(44)
-                 成了宽度上限，文字被裁成一个字母（实测显示成 "S"）。 -->
-            <VerticalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center" HorizontalOptions="Center">
+            <!-- 中：SELECT / START。小尺寸、上下排开，**不与两侧重叠**
+                 ⚠ 必须显式给 WidthRequest：全局 Button 样式的 MinimumWidthRequest(44)
+                 会在只靠 Padding 撑宽时变成宽度上限，文字被裁成一个字母。 -->
+            <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center" HorizontalOptions="Center">
                 <Button x:Name="BtnSelect" Text="SELECT" Clicked="OnSelect"
-                        FontSize="11" Padding="0,2" WidthRequest="92" HeightRequest="34" CornerRadius="17" />
+                        FontSize="10" Padding="0" WidthRequest="70" HeightRequest="28" CornerRadius="9" />
                 <Button x:Name="BtnStart"  Text="START"  Clicked="OnStart"
-                        FontSize="11" Padding="0,2" WidthRequest="92" HeightRequest="34" CornerRadius="17" />
+                        FontSize="10" Padding="0" WidthRequest="70" HeightRequest="28" CornerRadius="9" />
             </VerticalStackLayout>
 
             <!-- 右：X/Y/A/B 菱形（Y 上 X 左 B 右 A 下） -->
             <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,Auto,Auto"
-                  RowSpacing="4" ColumnSpacing="4" VerticalOptions="Center">
+                  RowSpacing="3" ColumnSpacing="3" VerticalOptions="Center">
                 <Button Grid.Row="0" Grid.Column="1" x:Name="FaceY" Text="Y" Clicked="OnFaceY"
-                        WidthRequest="52" HeightRequest="52" CornerRadius="26" Padding="0" FontSize="17" FontAttributes="Bold" />
+                        WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="15" FontAttributes="Bold" />
                 <Button Grid.Row="1" Grid.Column="0" x:Name="FaceX" Text="X" Clicked="OnFaceX"
-                        WidthRequest="52" HeightRequest="52" CornerRadius="26" Padding="0" FontSize="17" FontAttributes="Bold" />
+                        WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="15" FontAttributes="Bold" />
                 <Button Grid.Row="1" Grid.Column="2" x:Name="FaceB" Text="B" Clicked="OnFaceB"
-                        WidthRequest="52" HeightRequest="52" CornerRadius="26" Padding="0" FontSize="17" FontAttributes="Bold" />
+                        WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="15" FontAttributes="Bold" />
                 <Button Grid.Row="2" Grid.Column="1" x:Name="FaceA" Text="A" Clicked="OnFaceA"
-                        WidthRequest="52" HeightRequest="52" CornerRadius="26" Padding="0" FontSize="17" FontAttributes="Bold" />
+                        WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="15" FontAttributes="Bold" />
             </Grid>
         </Grid>
     </Grid>

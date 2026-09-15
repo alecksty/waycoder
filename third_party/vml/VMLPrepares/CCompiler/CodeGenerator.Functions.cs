@@ -640,8 +640,9 @@ namespace CCompiler
             //   return addr ← R12 + 8    (CALL压入)
             //   saved R15   ← R12 + 4    (PUSH R15)
             //   saved R12   ← R12 + 0    (PUSH R12, R12指向这里)
-            //   local 0     ← R12 - 4
-            //   local 1     ← R12 - 8
+            //   asm 结果槽  ← R12 - 4    (GenerateFunctionBody 里先占住的，见那里的注释)
+            //   local 0     ← R12 - 8
+            //   local 1     ← R12 - 12
             //   ...         ← SP
 
             // 标准序言: PUSH R15; PUSH R12; MOVE R12, R13
@@ -665,6 +666,27 @@ namespace CCompiler
             // 使用 VarMemManager 统一管理参数和局部变量分配
             Vars?.ResetLocals();
 
+            // ⚠ **R12-4 必须留给 asm 结果的暂存槽，不能分给用户变量。**
+            //
+            // `GenerateAsmStatement` 处理 `asm("SYSCALL #N")` 时，会在 SYSCALL 之后补一条
+            // `MOVE [R12-4], R0`（见 CodeGenerator.Statements.cs:115）把 syscall 的返回值存起来，
+            // 供 `x = asm(...)` 这类"asm 当表达式"的用法取用（CodeGenerator.Expressions.cs:17）。
+            // 而 VarMemManager 是从 0 往负方向分配的（`offset = Align(_localBottom - size, ...)`），
+            // **第一个局部变量正好落在 R12-4** —— 于是同一个槽被两处各用各的。
+            //
+            // 后果是**跨语句**的：任何一条 asm 执行完都会把 R12-4 覆盖成它自己的返回值，
+            // 于是"第一个声明的局部变量"在**后续**的 asm 里读到的是上一条 syscall 的返回值
+            // （实测：传字符串指针过去，宿主收到的 R0 = 10 = 前一条 `SYSCALL #4`(输出换行) 的返回值）。
+            // 现象就是用户看到的"弹窗里字符串大多是空的"。
+            //
+            // 注意"同一条 asm 内部"不受影响：`${a}, ${b}` 的装载全部发生在 syscall **之前**，
+            // 存回发生在**之后**，中间没有覆盖点 —— 所以只有跨语句才出问题，更难查。
+            //
+            // 这里先占住这个槽，用户局部变量从 R12-8 起分配。它与 BasicCompiler 的处置一致
+            // （`BasicCompiler/CodeGenerator.cs:884`：把 R12-4 到 R12-256 预留给临时变量/溢出槽），
+            // C 前端此前缺的就是这一步。
+            Vars?.AllocLocal("__asm_result_slot", 4);
+
             // 注册参数到符号表（参数编号 0,1,2...）
             // 栈帧布局 (R12 为基址):
             //   arg N-1     ← R12 + 12 + 4*(N-1)
@@ -672,8 +694,9 @@ namespace CCompiler
             //   return addr ← R12 + 8    (CALL压入)
             //   saved R15   ← R12 + 4    (PUSH R15)
             //   saved R12   ← R12 + 0    (PUSH R12, R12指向这里)
-            //   local 0     ← R12 - 4
-            //   local 1     ← R12 - 8
+            //   asm 结果槽  ← R12 - 4    (上面那句 AllocLocal 占住的，用户变量不占用)
+            //   local 0     ← R12 - 8
+            //   local 1     ← R12 - 12
             //   ...         ← SP
             hiddenReturnPtrOffset = -1;
 

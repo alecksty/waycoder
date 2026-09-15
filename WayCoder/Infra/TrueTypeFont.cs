@@ -52,12 +52,55 @@ public sealed class TrueTypeFont
             {
                 _fontList ??= FontFinder.Find();
                 var entry = Pick(_fontList, key);
-                if (entry != null) result = Load(File.ReadAllBytes(entry.Path));
+
+                // 首选字体**可能加载不了**（典型：Android 的中日韩字体是 CFF(OTF) 轮廓，
+                // 而本解析器只支持 glyf）—— 这时不能就此罢休，要继续往后找能用的。
+                // 实测踩过：挑了 `NotoSansCJK-Regular.ttc` → `Load` 返回 null → 整页文字
+                // 退化成豆腐块；其实列表里还有能用的 glyf 中文字体（随包的 Sarasa）。
+                foreach (var cand in Candidates(_fontList, key, entry))
+                {
+                    result = Load(File.ReadAllBytes(cand.Path));
+                    if (result != null) break;
+                }
             }
             catch { result = null; }
             _cache[key] = result;
             return result;
         }
+    }
+
+    /// <summary>
+    /// 文件名里带这些词的，认为**带中文字形** —— 没指定族名时的兜底要用它。
+    ///
+    /// 为什么需要这一层：`FontEntry.Family` 取的是**文件名去扩展名**（不是字体内部的家族名），
+    /// 所以 Android 的 `NotoSansCJK-Regular.ttc` 归一化后是 `notosanscjkregular`，
+    /// 与首选表里的 `notosanscjksc` **对不上**；对不上就退化成"取第一个"，
+    /// 而 `/system/fonts` 有两百多个文件、排在前面的多是纯拉丁字体 ⇒ 中文依旧渲染成豆腐块。
+    /// </summary>
+    static readonly string[] CjkHints =
+    {
+        "cjk", "notosanssc", "notosanstc", "droidsansfallback",
+        "pingfang", "yahei", "simhei", "simsun", "heiti", "songti", "wqy", "wenquanyi", "sarasa",
+    };
+
+    static bool LooksCjk(string family)
+    {
+        var n = FontFinder.Normalize(family);
+        foreach (var h in CjkHints) if (n.Contains(h, StringComparison.Ordinal)) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// 候选字体序列（按优先级）：首选 → 其余带中文字形的 → 剩下全部。
+    /// 调用方逐个尝试加载，**取第一个真能解析出来的** —— 单看"名字像不像"是不够的，
+    /// 解析器只支持 glyf 轮廓，而系统里的中日韩字体往往是 CFF（见 <see cref="Resolve"/> 注释）。
+    /// </summary>
+    static IEnumerable<FontEntry> Candidates(List<FontEntry> fonts, string family, FontEntry? primary)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (primary != null && seen.Add(primary.Path)) yield return primary;
+        foreach (var e in fonts) if (LooksCjk(e.Family) && seen.Add(e.Path)) yield return e;
+        foreach (var e in fonts) if (seen.Add(e.Path)) yield return e;
     }
 
     static FontEntry? Pick(List<FontEntry> fonts, string family)
@@ -68,6 +111,11 @@ public sealed class TrueTypeFont
             foreach (var pref in FontFinder.PreferredFamilies)
                 foreach (var e in fonts)
                     if (FontFinder.Normalize(e.Family) == FontFinder.Normalize(pref)) return e;
+
+            // 首选表没命中 → **先挑带中文字形的**，再退化到"任意一个"。
+            // 不这么做的话，一个中文字符都画不出来（而界面文案几乎全是中文）。
+            foreach (var e in fonts) if (LooksCjk(e.Family)) return e;
+
             return fonts[0];
         }
         var target = FontFinder.Normalize(family);
@@ -88,13 +136,31 @@ public sealed class TrueTypeFont
         {
             if (data.Length < 12) return null;
             uint version = BE32(data, 0);
+
+            // **`.ttc` 字体集合**：Android 的中日韩字体基本都是它（如 NotoSansCJK-Regular.ttc），
+            // 跳过它就等于在 Android 上没有可用的中文字形（文本渲染成豆腐块）。
+            //
+            // ⚠ **不能"切掉集合头再递归"**：TTC 里每张表的 `offset` 是**相对整个文件**的
+            // （OpenType 规范如此），把数组切一刀之后这些偏移全部失效、指到切片外面去。
+            // 正确做法是**只在原数组上换目录起点**，偏移保持原样。
+            //
+            // 取集合里的**第一个** —— 对"画布上渲染文字"这个用途足够（第一个通常是 Regular）。
+            int dirOff = 0;
+            if (version == 0x74746366) // 'ttcf'
+            {
+                if (data.Length < 16) return null;
+                dirOff = (int)BE32(data, 12);
+                if (dirOff <= 0 || dirOff + 12 > data.Length) return null;
+                version = BE32(data, dirOff);
+            }
+
             if (version == 0x4F54544F) return null; // 'OTTO' CFF 轮廓，不支持
             if (version != 0x00010000) return null; // 仅 TrueType
-            int numTables = BE16(data, 4);
+            int numTables = BE16(data, dirOff + 4);
             var tables = new Dictionary<string, (int Offset, int Length)>();
             for (int i = 0; i < numTables; i++)
             {
-                int off = 12 + i * 16;
+                int off = dirOff + 12 + i * 16;
                 if (off + 16 > data.Length) break;
                 string tag = Encoding.ASCII.GetString(data, off, 4);
                 int tOff = (int)BE32(data, off + 8);

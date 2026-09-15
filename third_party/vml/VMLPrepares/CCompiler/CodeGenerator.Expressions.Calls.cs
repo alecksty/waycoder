@@ -202,23 +202,54 @@ namespace CCompiler
             bool argsAlreadyPushed = false;
             if (callConv == CallingConvention.Cdecl)
             {
-                // cdecl: 全部参数从右到左压栈，调用者清理
-                // 同时将参数保存到 R1-R3 寄存器（R0 由最后推送保留）
-                for (int i = funcCall.Args.Count - 1; i >= 0; i--)
+                // cdecl: 全部参数从右到左压栈，调用者清理；前 4 个非结构体参数同时留在 R0-R3
+                // （callee 序言把 R0-R3 存回 [R12+12..] 覆盖掉栈上的那份，所以寄存器才是权威）。
+                //
+                // ⚠ **寄存器必须在所有实参求值完成之后才装载。**
+                //
+                // 原实现在循环里"边求值边 `MOVE Ri, R0`"，而**下一个**实参的求值会把 R0/R1
+                // 当临时寄存器用（表达式生成器用 R0/R1 做 push/pop 暂存，见任意表达式产物里的
+                // `PUSH R0 … POP R1`），于是已经把参数装进去的 Ri 被冲掉 —— 而且丢的是
+                // **先求值的那些**（从右到左，所以丢的是编号大的那个，表现得像"后面的参数
+                // 拿到了前面参数的值"）。
+                //
+                // 实测（`tests/argorder.c`）：`probe(p + 3*k, q + 3*k, 3*k)` 传出去是
+                // R0=101 R1=**101**(应为 113) R2=72 —— 第二个参数变成了第一个的值。
+                // 只要实参是**带运算的表达式**（不只是常量/变量），且它前面还有别的实参，就会中招；
+                // 五子棋的星位 `ui_circle(pad + 3*cell, padY + 3*cell, …)` 就是这么画歪的。
+                //
+                // 现在分两步：① 只求值 + 压栈，记下每个实参相对最终 R13 的偏移；
+                //             ② 压栈全部结束后，统一从栈上把 R0-R3 装回来。
+                // 第 ② 步读的就是第 ① 步压进去的值，与后面还有没有求值无关，天然免疫覆盖。
+                int argCount = funcCall.Args.Count;
+                var argSizes = new int[argCount];
+                for (int i = argCount - 1; i >= 0; i--)
                 {
                     if (isStructArg[i])
                     {
                         PushStructToStack(funcCall.Args[i], structArgSizes[i]);
+                        argSizes[i] = structArgSizes[i];
                         argSize += structArgSizes[i];
                     }
                     else
                     {
                         GenerateExpression(funcCall.Args[i]);
-                        // 保存参数到对应寄存器（从右到左，高编号参数先保存）
-                        if (i > 0)
-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, i), new Operand(OperandType.REGISTER, 0) }));
-                        argSize += EmitPushArg((isDoubleArg[i] || isLongArg[i]) ? 8 : 4, isFloatArg[i], isDoubleArg[i], isLongArg[i]);
+                        argSizes[i] = (isDoubleArg[i] || isLongArg[i]) ? 8 : 4;
+                        argSize += EmitPushArg(argSizes[i], isFloatArg[i], isDoubleArg[i], isLongArg[i]);
                     }
+                }
+                // 压栈是从右到左，所以 arg[k] 落在 [R13 + sum(size[0..k-1])]
+                int argOff = 0;
+                for (int i = 0; i < argCount && i < 4; i++)
+                {
+                    // 结构体参数不走寄存器（callee 序言也不按寄存器读它们），只推进偏移
+                    if (!isStructArg[i])
+                    {
+                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
+                            new Operand(OperandType.REGISTER, i),
+                            new Operand(OperandType.MEMORY, $"R13+{argOff}") }));
+                    }
+                    argOff += argSizes[i];
                 }
                 argsAlreadyPushed = true;
             }
