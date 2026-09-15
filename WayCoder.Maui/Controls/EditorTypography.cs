@@ -58,13 +58,18 @@ internal static class EditorTypography
 #elif IOS
         "Sarasa-Mono-SC-Regular";        // PostScript 名（UIFont.FromName 按这个名字找）
 #else
-        // Windows（WinUI 3）：按**族名**解析（`CanvasTextFormat.FontFamily`），
-        // 不用资产文件名、也不用 PostScript 名 —— 那两条分别是 Android / iOS 专有的解析器。
-        // ⚠ **这条没在 Windows 上验过**（本机是 macOS，构建不了 WinUI 3）。
-        //   验证方法：跑起来看 `CodeCanvasView.Draw` 的 `[字体自检]`，或直接量
-        //   「500 个汉字」与「1000 个拉丁」两种文件的最大横向滚动是不是同一个数
-        //   （是 ⇒ 汉字恰好 2 列，字体对；不是 ⇒ 回落成比例字体了）。
-        "Sarasa Mono SC";                // 族名（nameID 1/16）
+        // Windows（WinUI 3）：按**族名**解析（`CanvasTextFormat.FontFamily` 直接交给 DirectWrite
+        // 查**系统字体集合**），不用资产文件名、也不用 PostScript 名 —— 那两条是 Android / iOS 专有的解析器。
+        //
+        // 【2026-09-15 Windows 实测】随包的 Sarasa **在 Windows 上取不到**：它是资产、没装进系统，
+        // DirectWrite 找不到就静默换字体。所以这里用系统自带的 2:1 等宽字体（SimSun 系）：
+        // 实测 NSimSun/SimSun/MS Gothic/SimHei/KaiTi/FangSong 都是**精确的 半角=0.5em、全角=1em**
+        // （用渲染同引擎量：半角 7.00 / 全角 14.00 @ 字号 14）。
+        // ⚠ 别换回落底的族名（"Sarasa Mono SC"/Consolas/Cascadia 实测是 1.86/1.82/1.71，不是 2:1）
+        //   ——「汉字 = 2 列」的网格要求**恰好的 2:1**，差一点就沿行累积成错位。
+        // 想把打包的 Sarasa 真正用起来，得走 Win2D 的 `CanvasFontSet`（`W2DCanvas.Session` 是 public
+        // 的，可行），那是另一件事；在此之前系统 2:1 等宽字体是正确且够用的。
+        "NSimSun";
 #endif
 
     /// <summary>

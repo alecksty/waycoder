@@ -132,6 +132,28 @@ public partial class EditorPage : ContentPage
             if (LineEditor.Handler?.PlatformView is UIKit.UITextField tf)
                 tf.TintColor = UIKit.UIColor.Clear;
 #endif
+#if WINDOWS
+            // 【Windows】键盘上下键得自己接：平台的单行 TextBox 对 Up/Down **什么都不做**
+            // （手机上是靠平台 EditText 那条线把硬件键带进编辑逻辑的，Windows 没有这条线）。
+            // 用 PreviewKeyDown（隧道）而不是 KeyDown：先于 TextBox 的类处理器拿到。
+            if (LineEditor.Handler?.PlatformView is Microsoft.UI.Xaml.Controls.TextBox tb)
+            {
+                _winKeySink = tb;
+                tb.PreviewKeyDown -= OnLineEditorPreviewKeyDown;
+                tb.PreviewKeyDown += OnLineEditorPreviewKeyDown;
+
+                // ⚠ **焦点必须等 `Loaded` 再拿**：Handler 刚建好时控件还没进可视树，此刻
+                // `Focus()` 返回 false（实测 `loaded=False state=Unfocused`），键盘永远收不到。
+                tb.Loaded -= OnKeySinkLoaded;
+                tb.Loaded += OnKeySinkLoaded;
+
+                // ⚠ **禁掉 BringIntoView**：这个输入框是我们借来收键盘的「1px 透明代理」，
+                // 它一旦被聚焦，WinUI 默认会把它滚进视野 —— 那会连带把整页/画布滚一下，
+                // 表现就是「点一下光标闪一下就没了」。聚焦是我们要的，滚动不是。
+                tb.BringIntoViewRequested -= OnKeySinkBringIntoView;
+                tb.BringIntoViewRequested += OnKeySinkBringIntoView;
+            }
+#endif
         };
 #if ANDROID
         // 光标**只由画布画**（见 CodeCanvasView.DrawCaret）—— 系统的插入光标一个都不留。
@@ -502,6 +524,12 @@ public partial class EditorPage : ContentPage
         Canvas.SetDocument(_doc, relPath, dark, _canEdit);
         SetReadOnly(true);   // 打开一律先进只读（对齐旧行为：默认只读，手动解锁编辑）
         UpdateStatus();
+#if WINDOWS
+        // 打开即把键盘入口接上（只读态也一样）——否则在 Windows 上打开文件后按上下键毫无反应。
+        // 初始光标落在第 1 行，用户按上下就是从那里开始走。
+        Canvas.SetCaretLine(1);
+        EnsureKeySinkFocused();
+#endif
 
         if (!_canEdit)
             ShowToast($"大文件以只读方式打开（{FormatSize(_fileBytes)}），可流畅滚动查看");
@@ -544,8 +572,19 @@ public partial class EditorPage : ContentPage
     {
         _readOnly = readOnly;
         if (readOnly) CommitEditingLine();
+#if WINDOWS
+        // 【Windows】只读态下那个「键盘代理」输入框必须置为 IsReadOnly：
+        // 它是拿来收上下键的（画布不可聚焦），但**能打字的输入框会招来输入法** ——
+        // 实测只读浏览时中文 IME 的候选框直接弹在正文上（截图里那排「1正常 2支持…」）。
+        // 只读的 TextBox 照样能聚焦、照样收按键，只是不接受文本/不组合 IME。
+        LineEditor.IsReadOnly = readOnly;
+        if (readOnly) LineEditor.Text = "";   // 顺手清掉之前误落的字符（只读态不承载文本）
+#endif
 
-        EditBtn.Source = readOnly ? "icon_edit" : "icon_lock";
+        // ⚠ **扩展名不能省**：Windows 上 MAUI 直接拿这个名字去 `ms-appx:///<名>` 找文件，
+        // 而 resizetizer 产出的实际文件名是 `icon_edit.scale-100.png` —— 少了 `.png` 就什么都找不到
+        // （Android 的资源查找不看扩展名，所以手机上一直是好的）。实测这就是「工具条没有图标」的根因。
+        EditBtn.Source = readOnly ? "icon_edit.png" : "icon_lock.png";
         EditBtn.IsEnabled = _canEdit;
         EditBtn.Opacity = _canEdit ? 1 : 0.35;
         UndoBtn.IsEnabled = _canEdit && !readOnly;
@@ -629,8 +668,35 @@ public partial class EditorPage : ContentPage
     {
         Canvas.SetCaretLine(line);
         if (_canEdit && !_readOnly) BeginEditLine(line, xInLine);
+#if WINDOWS
+        else EnsureKeySinkFocused();   // 只读态点一下也要把键盘入口拿回来（点别处会丢焦点）
+#endif
         UpdateStatus();
     }
+
+#if WINDOWS
+    /// <summary>
+    /// 只读态也要有键盘入口。
+    ///
+    /// 画布（<c>GraphicsView</c>）在 WinUI 上不可聚焦，而 <c>LineEditor</c> 是这个页面上**唯一**
+    /// 收得到键盘的元素 —— 只读时它本来是隐藏的 ⇒ 上下键/翻页按下去没有任何东西收到，
+    /// 键盘导航整个失效（用户实测：「上下键无法移动光标」）。
+    /// 这里让它以「1px 高、文字与背景全透明」的形态保持可见并持有焦点：用户看不见它，
+    /// 只是借它拿按键（IME/软键盘只在编辑态用得上，只读态不牵扯）。
+    /// </summary>
+    private void EnsureKeySinkFocused()
+    {
+        if (!LineEditor.IsVisible)
+        {
+            LineEditor.Text = "";      // 只读态不承载文本；_editLine < 0 时 TextChanged 会早退
+            LineEditor.IsVisible = true;
+        }
+        // MAUI 的 Focus() 在控件已 Loaded 后就能成功；原生 Focus 再兜一道
+        // （Handler 刚建好时那一次实测两者都返回 False —— 那时控件还没进可视树）。
+        LineEditor.Focus();
+        _winKeySink?.Focus(Microsoft.UI.Xaml.FocusState.Programmatic);
+    }
+#endif
 
     /// <summary>
     /// 长按回调 —— 现在**只用来收尾**：选词与扩选都由画布自己完成（见 <c>CodeCanvasView.OnLongPressTick</c>），
@@ -810,6 +876,14 @@ public partial class EditorPage : ContentPage
         LineEditor.IsVisible = true;
         LineEditor.Focus();
         StartCaretSync();
+#if WINDOWS
+        // 上面这次同步 Focus 会被「点击自身的焦点处理」覆盖（见 OnLineEditorUnfocused 的注释），
+        // 所以下一拍再要一次 —— 那一次才真正拿得到。
+        Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(80), () =>
+        {
+            if (_editLine >= 0) EnsureKeySinkFocused();
+        });
+#endif
         // 把这一行带到可视区中部：软键盘占掉下半屏，贴着底部编辑会看不见自己在打什么，
         // 系统也可能为了「让焦点控件可见」而自行滚动页面（那会让画布坐标和实际显示错开）。
         EnsureEditorVisible(oneBased);
@@ -840,9 +914,128 @@ public partial class EditorPage : ContentPage
         if (_editLine < 0) { _caretSync?.Stop(); return; }
         int pos = LineEditor.CursorPosition;
         if (pos == Canvas.EditingCursor) return;   // 没变就不重绘
+#if WINDOWS
+        // 输入法/左右键把光标横向挪了 ⇒ 上下键的「目标列」作废，下次按上下要重新取当前列。
+        // （我们自己在 MoveCaretVertical 里写光标时，EditingCursor 同步写过 ⇒ 走上面的早退，不会误清。）
+        _verticalCol = -1;
+#endif
         Canvas.EditingCursor = pos;
         Canvas.EnsureCaretVisible();               // 长行时把光标带进视野
     }
+
+#if WINDOWS
+    /// <summary>上下键跨行时保留的目标列（字符下标）。-1 = 还没开始上下移动。</summary>
+    private int _verticalCol = -1;
+
+    /// <summary>承载键盘的输入框平台视图（页面上唯一收得到按键的元素）。</summary>
+    private Microsoft.UI.Xaml.Controls.TextBox? _winKeySink;
+
+    private void OnKeySinkLoaded(object sender, Microsoft.UI.Xaml.RoutedEventArgs e) => EnsureKeySinkFocused();
+
+    private static void OnKeySinkBringIntoView(
+        Microsoft.UI.Xaml.UIElement sender, Microsoft.UI.Xaml.BringIntoViewRequestedEventArgs e)
+        => e.Handled = true;   // 借来收键盘的代理不许把页面滚走
+
+    private void OnLineEditorPreviewKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Windows.System.VirtualKey.Up:
+                MoveCaretVertical(-1);
+                e.Handled = true;
+                break;
+            case Windows.System.VirtualKey.Down:
+                MoveCaretVertical(+1);
+                e.Handled = true;
+                break;
+            case Windows.System.VirtualKey.PageUp:
+                MoveCaretVertical(-(int)Math.Max(1, Canvas.VisibleLines - 1));
+                e.Handled = true;
+                break;
+            case Windows.System.VirtualKey.PageDown:
+                MoveCaretVertical(+(int)Math.Max(1, Canvas.VisibleLines - 1));
+                e.Handled = true;
+                break;
+            // 左右/Home/End **只在只读态自己处理**：编辑态那根是平台的输入框光标，
+            // 由 TextBox 自己管（SyncCaret 会把它的位置同步到画布），抢过来反而打断 IME。
+            case Windows.System.VirtualKey.Left:
+                if (_editLine < 0) { MoveBrowseCaret(-1); e.Handled = true; }
+                break;
+            case Windows.System.VirtualKey.Right:
+                if (_editLine < 0) { MoveBrowseCaret(+1); e.Handled = true; }
+                break;
+            case Windows.System.VirtualKey.Home:
+                if (_editLine < 0) { MoveBrowseCaret(0, toLineEdge: true); e.Handled = true; }
+                break;
+            case Windows.System.VirtualKey.End:
+                if (_editLine < 0) { MoveBrowseCaret(0, toLineEnd: true); e.Handled = true; }
+                break;
+        }
+    }
+
+    /// <summary>只读态浏览光标的列长度（该行字符数）。</summary>
+    private int LineLength(long oneBased)
+        => _doc?.GetLine(Math.Max(0, oneBased - 1))?.Length ?? 0;
+
+    /// <summary>只读态的横向移动 / Home / End —— 移动那根浏览竖线（编辑态不走这里）。</summary>
+    private void MoveBrowseCaret(int delta, bool toLineEdge = false, bool toLineEnd = false)
+    {
+        long line = Canvas.CaretLine;
+        if (line < 1) line = 1;
+
+        int len = LineLength(line);
+        int col = toLineEdge ? 0 : toLineEnd ? len : Math.Clamp(Canvas.CaretCol + delta, 0, len);
+        Canvas.SetCaretLine(line, col);
+        _verticalCol = -1;   // 横向动过 ⇒ 上下键的目标列重新取
+        UpdateStatus();
+    }
+
+    /// <summary>
+    /// 上下键跨行移动光标（Windows）。
+    ///
+    /// **两种模式都要管**：编辑态挪自绘的编辑光标（`BeginEditLine` 换行 + `EditingCursor` 定位），
+    /// 只读态挪浏览光标（`Canvas.SetCaretLine`）。只读态**不能**照抄编辑态那条路 ——
+    /// `BeginEditLine` 在 `_readOnly` 时第一行就 return，表现就是「按了没反应」。
+    ///
+    /// 列位用 <see cref="_verticalCol"/> 记住**开始上下移动时的那一列**：走过一行短行时它只被
+    /// 夹着用、不改写 —— 否则「长行 → 短行 → 再往下」会退化成短行的列，这是桌面编辑器的通行语义。
+    /// </summary>
+    private void MoveCaretVertical(int delta)
+    {
+        var doc = _doc;
+        if (doc == null || doc.LineCount == 0 || delta == 0) return;
+
+        long from = _editLine >= 0 ? _editLine + 1 : Canvas.CaretLine;
+        if (from < 1) from = 1;
+
+        if (_verticalCol < 0)
+            _verticalCol = _editLine >= 0
+                ? Math.Clamp(LineEditor.CursorPosition, 0, (LineEditor.Text ?? "").Length)
+                : Canvas.CaretCol;   // 只读态从浏览光标当前列接着走（不是恒从 0 开始）
+
+        long target = Math.Clamp(from + delta, 1L, doc.LineCount);
+        if (target == from) return;
+
+        if (_editLine >= 0)
+        {
+            BeginEditLine(target);                      // 会先提交当前行，再在新行上开编辑
+            var t = LineEditor.Text ?? "";
+            int col = Math.Clamp(_verticalCol, 0, t.Length);
+            LineEditor.CursorPosition = col;
+            Canvas.EditingCursor = col;
+        }
+        else
+        {
+            // 只读态：换行 + 目标列（短行上夹住，但 **_verticalCol 不改写** —— 这样
+            // 「长行 → 短行 → 再走回长行」能回到原来那一列，是桌面编辑器的通行语义）
+            Canvas.SetCaretLine(target, Math.Clamp(_verticalCol, 0, LineLength(target)));
+        }
+
+        Canvas.ScrollToLine(target);
+        Canvas.EnsureCaretVisible();
+        UpdateStatus();   // 状态栏那行「光标 L?:」要跟着键盘走，否则它一直停在旧行
+    }
+#endif
 
     /// <summary>
     /// 编辑期间保证该行可见。
@@ -964,7 +1157,24 @@ public partial class EditorPage : ContentPage
         BeginEditLine(line + 2);
     }
 
-    private void OnLineEditorUnfocused(object? sender, FocusEventArgs e) => CommitEditingLine();
+    private void OnLineEditorUnfocused(object? sender, FocusEventArgs e)
+    {
+#if WINDOWS
+        // 【Windows 真根因】点画布时，平台把焦点给页面里的 ScrollViewer —— 而且这步发生在
+        // 我们那次 `Focus()` **之后**（点击自身的焦点处理晚于回调）。于是输入框立刻失焦，
+        // 若在这里就地提交，编辑态会被自己拆掉：`LineEditor.IsVisible` 被置回 false（平台侧变
+        // Collapsed）、`_editLine=-1`，**此后所有按键都落空**（实测日志：真实焦点=ScrollViewer、
+        // entryIsVisible=False、按键一条不进）。
+        // 所以延后一拍再提交：这一拍里焦点若回到输入框（BeginEditLine 那边会再要一次），就撤销提交。
+        Dispatcher.DispatchDelayed(TimeSpan.FromMilliseconds(150), () =>
+        {
+            if (_editLine >= 0 && _winKeySink?.FocusState == Microsoft.UI.Xaml.FocusState.Unfocused)
+                CommitEditingLine();
+        });
+#else
+        CommitEditingLine();
+#endif
+    }
 
     // ── 查找 / 大纲 / 预览 ──
 

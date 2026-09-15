@@ -1,5 +1,79 @@
 # 更新日志
 
+## v0.96.158 (2026-09-15) — Windows 桌面版编辑器：闪退 / 定位尺子 / 键盘输入
+
+MAUI 的 Windows（WinUI 3）目标此前只做到「编译通过」，编辑器从没真跑起来过。这版把它跑通，
+四个问题都是**实测定位**、不是照猜改的（诊断日志落在 `%LOCALAPPDATA%\WayCoder.Maui.Diag\diag.log`）。
+
+### ① 打开编辑器直接闪退 —— Win2D 没有 `DrawText(IAttributedText)` 实现
+
+反编译核对：`Microsoft.Maui.Graphics.Win2D.W2DCanvas.DrawText(IAttributedText, …)` **只有一句
+`throw new NotImplementedException()`**。异常从 Win2D 的绘制回调逃出去，被 WinUI 包成 stowed
+exception（事件日志 `0xC000027B`，故障模块 `Microsoft.UI.Xaml.dll`）⇒ 进程当场终止。
+
+三处文本绘制（正文色段 / 超长行 / 行号栏）在 Windows 下改走唯一实现了的 `DrawString`：正文
+**逐色段自绘**，x 用与光标/命中测试同源的 `AdvancePrefix`；y 语义补一个字号（Win2D 的
+`DrawString` 把文字顶边放在 `y - FontSize`，而 `DrawText` 是左上锚定）。
+
+### ② 汉字后面的文字错位 —— 尺子与画笔不同源
+
+`GetStringSize` 在 Win2D 后端返回的数**既不是 0.5em 也不是 1em**：字号 14 时实测 `a=6.12`、
+`中=10.61`，连比例都不对；而渲染走的 `CanvasTextLayout` 量出来是**精确的 7.00 / 14.00**。
+定位（逐段绘制 x、光标 x、点击命中）全走这把错尺子 ⇒ 汉字之后越走越偏。
+
+改用**与渲染同引擎**的 `CanvasTextLayout.GetCaretPosition(1).X` 量推进量，字体自检随之从 ❌
+变 OK。同时纠正一条旧结论：Windows 上「字体回落」是**误判** —— 自检当时也用了那把错尺子，
+量什么字体都返回同一个错数。
+
+### ③ 上下键不动光标 —— 只读态页面上没有任何可聚焦元素
+
+WinUI 里画布不可聚焦，而只读态那个「输入框代理」是隐藏的 ⇒ **按键没有任何东西收得到**。
+现在只读态让它以 1px 透明形态保持可见并持有焦点，并接 `PreviewKeyDown`：↑↓/PageUp/PageDown
+跨行（**保留目标列** —— 短行上夹住但不改写，走回长行能回到原来那一列）、←→/Home/End 横向移动。
+只读态以前**根本没有光标图形**（只有一层 4% 白的行底色），现在画一根不闪烁的竖线。
+
+配套三条 Windows 专属坑：
+
+- **焦点必须等 `Loaded`**：Handler 刚建好时控件还没进可视树，此刻 `Focus()` 返回 false。
+- **禁掉 `BringIntoViewRequested`**：聚焦这个 1px 代理时 WinUI 默认把它滚进视野，连带把整页
+  滚一下 —— 表现就是「点一下光标闪一下就没了」。
+- **只读态置 `IsReadOnly`**：能打字的输入框会招来输入法，光标浏览时候选框直接弹在正文上。
+
+### ④ 打字完全进不去 —— 点画布把焦点抢给了 ScrollViewer
+
+点画布进编辑态时，WinUI 会把焦点给页面里的 `ScrollViewer`，**而这步晚于我们的点击回调** ——
+它覆盖掉 `BeginEditLine` 里那次同步 `Focus()`；输入框随即失焦，而 `Unfocused` 是**立刻
+`CommitEditingLine()`**，编辑态于是被自己拆掉（输入框隐藏、`_editLine=-1`），此后按键全落空。
+
+修法：失焦提交**延后一拍**（这一拍内焦点回到输入框就撤销提交），聚焦在下一拍**再要一次**。
+（两处都是 `#if WINDOWS`，Android/iOS 仍是原来的即时提交。）
+
+### ⑤ 工具栏图标不显示
+
+`Source="icon_undo"` **少了扩展名**：Windows 上 MAUI 直接拿这个名字去 `ms-appx:///<名>` 找文件，
+而 resizetizer 的实际产物是 `icon_undo.scale-100.png`（Android 的资源查找不看扩展名，所以手机
+一直是好的）。7 个静态图标 + 1 处运行时赋值（`EditBtn.Source = "icon_edit" / "icon_lock"`）
+一并补 `.png`。
+
+### 仓库维护
+
+- `scripts/clean.ps1` / `clean.sh`：补上此前**漏掉**的 `bin2`/`obj2`（主 `bin/` 被运行中实例锁住
+  时的旁路构建输出，实测占 89MB）、`*.apk`/`*.aab`、`__pycache__`、vscode-extension 的
+  `out/`/`*.vsix`；并写死「刻意不碰」清单 —— `third_party/vml/Lib/**/*.vml` 是 2224 个
+  **已跟踪**文件，vml 自带的 cleanup 会把它们删掉（那是上游语义，不是我们的）。
+- 历史重写剔除了早期误提交的构建产物（`CoreCoderSharp/obj|bin` 492 个对象 + 旧 `waycoder.exe`
+  + 根目录旧 `.deb`），`.git` 326MB → 150MB（余下约 95MB 是 apt 部署分支的 `.deb`，属正常内容）。
+  **所有提交哈希已变** —— 克隆过的副本需重新克隆，`git pull` 会因历史重写报错。
+
+### 仍未做（诚实标注）
+
+- 随包的 Sarasa 字体在 Windows 上**取不到**（Win2D 把族名交给 DirectWrite 查的是**系统**字体
+  集合）⇒ Windows 暂用系统 2:1 等宽字体（`NSimSun`，实测半角 7.00 / 全角 14.00 精确成立）。
+  要真正用上打包字体得走 Win2D 的 `CanvasFontSet`（`W2DCanvas.Session` 是 public，可行但未做）。
+- 编辑器页的**触控**路径（捏合缩放 / 长按选词 / 拖动扩选 / 选区操作条）在 Windows 上没验过。
+- Android / iOS 上这些改动**只做了编译验证**（改动集中在 `#if WINDOWS` 分支，非 Windows 走的
+  原路径未动），**实机未回归**。
+
 ## v0.96.157 (2026-09-15) — 补上 v0.96.156 欠的行为验证：网络真有往返、门控确按预期
 
 v0.96.156 里我写明了「网络放行只做到编译通过、没验证实际连通」。这一版把那步补上，

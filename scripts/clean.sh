@@ -1,15 +1,39 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════
 # WayCoder 清除编译垃圾
-# 用法: ./scripts/clean.sh [--dry-run|-n]
-# 说明: 删除 C# 项目的 bin/obj、.vs/.idea IDE 缓存、*.user 用户配置、
-#       node_modules 依赖、StarGo 五子棋的 MSVC 产物（x64/Release/Debug + exe/obj/ilk/pdb）、
-#       独立 publish 目录、MAUI 的 .gradle / .apk 产物、TestResults / BenchmarkDotNet.Artifacts /
-#       AppPackages / .store 测试打包产物、dist/ 下的陈旧发布产物
-#       —— 保留 dist/.waycoder 与项目 .waycoder 运行时用户数据；
-#       清理完成后自动 git gc --aggressive 压缩仓库（大仓库较慢，可用 --no-gc 跳过）。
+# 用法: ./scripts/clean.sh [--dry-run|-n] [--no-gc]
+#
+# 覆盖的工程：
+#   WayCoder/            主 CLI + TUI          —— bin/obj + 旁路输出 bin2/obj2
+#   WayCoder.Gui/        Avalonia GUI          —— bin/obj
+#   WayCoder.Maui/       .NET MAUI (Android/iOS) —— bin/obj、.gradle、*.apk/*.aab
+#   WayCoder.Preview/    预览宿主              —— bin/obj
+#   third_party/vml/     vendored VML 的 6 个 C# 工程 —— bin/obj
+#                        （**不**动它 Lib/ 下已跟踪的 .vml，见下方「刻意不碰」）
+#   vscode-extension/    VS Code 扩展 (TS)     —— node_modules、out/、*.vsix
+#   WayCoder/3d-game/    零构建前端游戏         —— 无构建产物（仅 __pycache__）
+#
+# 说明: 删除 C# 项目的 bin/obj、IDE 缓存 .vs/.idea、*.user/*.suo/*.binlog 用户配置、
+#       node_modules 依赖、StarGo 五子棋的 MSVC 产物、独立 publish 目录、
+#       MAUI 的 .gradle 与 *.apk/*.aab、Python 的 __pycache__/*.pyc/.venv/venv、
+#       vscode-extension 的 out/ 与 *.vsix、TestResults / BenchmarkDotNet.Artifacts /
+#       AppPackages / .store / verify_build / stress-test-output 测试产物、
+#       dist/ 下的陈旧发布产物；清理完成后自动 git gc --aggressive 压缩仓库。
+#
+#       关于 bin2/obj2：主 bin/ 被运行中的 exe 锁住时，构建会改用 -p:OutputPath=bin2/
+#       落到这里（见 .gitignore），属构建产物，一并清理。
+#
+# 刻意不碰（防误伤，勿加进来）：
+#   third_party/vml/Lib/**/*.vml  —— 2224 个文件是**已跟踪**的 vendored 源。vml 自带的
+#                                    Lib/cleanup.sh 会删掉它们（那是上游仓库的语义，
+#                                    在我们这边等于删源码并弄脏 git 状态）
+#   WayCoder/works/、WayCoder/saves/  —— 智能体工作区与存档，是用户数据不是垃圾
+#   logs/、.waycoder/、dist/.waycoder/、.claude/、.crush/、.codex/  —— 运行时与 AI 工具状态
+#   WayCoder.Maui/Resources/Raw/vml_lib.zip、WayCoder/UI/WEB/WebAssets.Generated.cs
+#                                    —— 已跟踪/被引用的产物，删了要重新生成才能构建
+#
 #       全部为 .gitignore 忽略的构建产物，不影响源码与 git 状态。
-#       --dry-run 只列出将删除项，不实际删除。
+#       --dry-run 只列出将删除项，不实际删除；--no-gc 跳过 gc。
 # ═══════════════════════════════════════════════════════════════
 set -uo pipefail
 
@@ -40,16 +64,21 @@ del() {
     fi
 }
 
-# 在脚本目录内安全查找构建目录（自动为多条件加括号，防 -o 优先级丢失）
-safe_find_dirs() {
-    # $1 = 匹配名称片段（如 "-name bin -o -name obj"），括号化后与 type/排除条件 AND
-    local match="$1"
-    find . -type d \( $match \) -not -path "./.git/*" -not -path "*/node_modules/*" -print0 2>/dev/null
+# 通用目录查找：$1 = find 的匹配表达式（已括号化），$2 = 额外排除（可选）
+find_dirs() {
+    local match="$1" extra="${2:-}"
+    find . -type d \( $match \) -not -path "./.git/*" -not -path "*/node_modules/*" $extra -print0 2>/dev/null
 }
 
-echo "── C# 构建产物 bin/obj ──"
+# 通用文件查找：$1 = find 的匹配表达式，$2 = 额外排除（可选）
+find_files() {
+    local match="$1" extra="${2:-}"
+    find . -type f \( $match \) -not -path "./.git/*" $extra -print0 2>/dev/null
+}
+
+echo "── C# 构建产物 bin/obj（含旁路 bin2/obj2）──"
 while IFS= read -r -d '' d; do del "$d"; done < \
-    <(safe_find_dirs "-name bin -o -name obj")
+    <(find_dirs "-name bin -o -name obj -o -name bin2 -o -name obj2")
 
 echo "── IDE 缓存 .vs ──"
 while IFS= read -r -d '' d; do del "$d"; done < \
@@ -60,10 +89,12 @@ while IFS= read -r -d '' d; do del "$d"; done < \
     <(find . -type d -name node_modules -not -path "./.git/*" -print0 2>/dev/null)
 
 echo "── StarGo 五子棋 MSVC 产物 ──"
-while IFS= read -r -d '' d; do del "$d"; done < \
-    <(find StarGo -type d \( -name x64 -o -name Release -o -name Debug -o -name Win32 \) -print0 2>/dev/null)
-while IFS= read -r -d '' f; do del "$f"; done < \
-    <(find StarGo -type f \( -name "*.exe" -o -name "*.obj" -o -name "*.ilk" -o -name "*.pdb" -o -name "*.lib" -o -name "*.exp" \) -print0 2>/dev/null)
+if [[ -d StarGo ]]; then
+    while IFS= read -r -d '' d; do del "$d"; done < \
+        <(find StarGo -type d \( -name x64 -o -name Release -o -name Debug -o -name Win32 \) -print0 2>/dev/null)
+    while IFS= read -r -d '' f; do del "$f"; done < \
+        <(find StarGo -type f \( -name "*.exe" -o -name "*.obj" -o -name "*.ilk" -o -name "*.pdb" -o -name "*.lib" -o -name "*.exp" \) -print0 2>/dev/null)
+fi
 
 echo "── JetBrains Rider/IntelliJ 缓存 .idea ──"
 while IFS= read -r -d '' d; do del "$d"; done < \
@@ -82,9 +113,29 @@ echo "── MAUI/Android Gradle 构建缓存 .gradle ──"
 while IFS= read -r -d '' d; do del "$d"; done < \
     <(find . -type d -name ".gradle" -not -path "./.git/*" -print0 2>/dev/null)
 
-echo "── 测试/打包产物 (TestResults / BenchmarkDotNet.Artifacts / AppPackages / .store) ──"
+echo "── MAUI/Android 打包产物 (*.apk / *.aab) ──"
+while IFS= read -r -d '' f; do del "$f"; done < \
+    <(find_files "-name '*.apk' -o -name '*.aab'")
+
+echo "── vscode-extension 产物 (out/ 与 *.vsix) ──"
+if [[ -d vscode-extension ]]; then
+    while IFS= read -r -d '' d; do del "$d"; done < \
+        <(find vscode-extension -type d -name out -not -path "*/node_modules/*" -print0 2>/dev/null)
+    while IFS= read -r -d '' f; do del "$f"; done < \
+        <(find vscode-extension -type f -name "*.vsix" -print0 2>/dev/null)
+fi
+
+echo "── Python 缓存 (__pycache__ / *.pyc / .venv / venv) ──"
 while IFS= read -r -d '' d; do del "$d"; done < \
-    <(find . -type d \( -name TestResults -o -name BenchmarkDotNet.Artifacts -o -name AppPackages -o -name ".store" \) \
+    <(find . -type d \( -name __pycache__ -o -name .venv -o -name venv \) \
+        -not -path "./.git/*" -not -path "*/node_modules/*" -print0 2>/dev/null)
+while IFS= read -r -d '' f; do del "$f"; done < \
+    <(find_files "-name '*.pyc'")
+
+echo "── 测试/打包产物 (TestResults / BenchmarkDotNet.Artifacts / AppPackages / .store / verify_build / stress-test-output) ──"
+while IFS= read -r -d '' d; do del "$d"; done < \
+    <(find . -type d \( -name TestResults -o -name BenchmarkDotNet.Artifacts -o -name AppPackages -o -name ".store" \
+        -o -name verify_build -o -name stress-test-output \) \
         -not -path "./.git/*" -not -path "*/bin/*" -not -path "*/obj/*" -print0 2>/dev/null)
 
 echo "── dist/ 陈旧发布产物（保留 .waycoder 用户数据）──"
@@ -125,4 +176,6 @@ else
     echo "───────────────────────────────────────────"
     echo "✅ 清理完成，释放约 ${FREED} MB。"
     echo "   （需重建：dotnet build 重新生成 bin/obj；扩展开发再 npm install）"
+    echo "   保留：third_party/vml/Lib/**/*.vml（已跟踪的 vendored 源）、"
+    echo "         WayCoder/works|saves、logs/、.waycoder/、dist/.waycoder、*.keystore"
 fi

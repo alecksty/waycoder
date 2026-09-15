@@ -41,7 +41,7 @@
         <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*,*,*" Padding="8,2" ColumnSpacing="4">
             <ImageButton
                 x:Name="UndoBtn"
-                Source="icon_undo"
+                Source="icon_undo.png"
                 BackgroundColor="Transparent"
                 Padding="8"
                 Clicked="OnUndoClicked"
@@ -49,7 +49,7 @@
             <ImageButton
                 x:Name="RedoBtn"
                 Grid.Column="1"
-                Source="icon_redo"
+                Source="icon_redo.png"
                 BackgroundColor="Transparent"
                 Padding="8"
                 Clicked="OnRedoClicked"
@@ -57,7 +57,7 @@
             <ImageButton
                 x:Name="FindBtn"
                 Grid.Column="2"
-                Source="icon_find"
+                Source="icon_find.png"
                 BackgroundColor="Transparent"
                 Padding="8"
                 Clicked="OnFindClicked"
@@ -65,7 +65,7 @@
             <ImageButton
                 x:Name="OutlineBtn"
                 Grid.Column="3"
-                Source="icon_outline"
+                Source="icon_outline.png"
                 BackgroundColor="Transparent"
                 Padding="8"
                 Clicked="OnOutlineClicked"
@@ -73,7 +73,7 @@
             <ImageButton
                 x:Name="PreviewBtn"
                 Grid.Column="4"
-                Source="icon_preview"
+                Source="icon_preview.png"
                 BackgroundColor="Transparent"
                 Padding="8"
                 Clicked="OnPreviewClicked"
@@ -81,7 +81,7 @@
             <ImageButton
                 x:Name="EditBtn"
                 Grid.Column="5"
-                Source="icon_edit"
+                Source="icon_edit.png"
                 BackgroundColor="Transparent"
                 Padding="8"
                 Clicked="OnEditClicked"
@@ -89,7 +89,7 @@
             <ImageButton
                 x:Name="SaveBtn"
                 Grid.Column="6"
-                Source="icon_save"
+                Source="icon_save.png"
                 BackgroundColor="Transparent"
                 Padding="8"
                 Clicked="OnSaveClicked"

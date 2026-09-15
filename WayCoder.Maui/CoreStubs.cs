@@ -56,6 +56,15 @@ namespace WayCoder.Tools
         public Task<string> ExecuteStreamingAsync(Dictionary<string, object?> arguments, Func<string, Task>? onLine, CancellationToken cancellationToken)
             => Task.FromResult(Unsupported());
 
+        /// <summary>
+        /// 「命令行」页（<c>Pages/ShellPage.xaml.cs</c>）的交互式执行入口。真实现只在 Android 上
+        /// 参与编译（csproj 的按平台条件 include），其余平台走这里 —— 而 ShellPage 是**无条件**
+        /// 调用它的，所以漏补这个方法就是「Android 构建全绿、iOS/maccatalyst/Windows 才 CS1061」。
+        /// 桩必须与真实现的公开面同步，加一个 public 成员就补一个。
+        /// </summary>
+        public Task<string> ExecuteUserShellAsync(string command, int timeoutSec = 120)
+            => Task.FromResult(Unsupported());
+
         private static string Unsupported()
             => "⚠️ 移动端不支持 bash 工具：本 App 独立运行于手机沙箱，无本地 shell 进程（iOS 物理禁止 Process.Start）。" +
                "请改用 read_file / write_file / edit_file / glob / grep 等文件工具完成操作。";

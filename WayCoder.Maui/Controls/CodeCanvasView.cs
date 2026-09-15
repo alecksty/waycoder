@@ -63,6 +63,13 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     private long _caretLine = -1;
 
     /// <summary>
+    /// 浏览光标（只读态那根<b>不闪烁</b>的竖线）所在列 —— 字符下标。
+    /// 与编辑态的 <see cref="EditingCursor"/> 是两套：后者属于平台输入框，
+    /// 前者只读浏览时也要有，否则「按上下键到底动没动」根本看不出来。
+    /// </summary>
+    private int _caretCol;
+
+    /// <summary>
     /// 长按已经成词、正在**拖动扩选**中。为 true 时拖动改的是选区端点（<see cref="ExtendSelectionTo"/>），
     /// 而不是滚动视口 —— 一个手势里「长按」和「拖动」的语义要靠这个标志分开。
     /// </summary>
@@ -91,6 +98,18 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
         /// <summary>空行（什么都不画）—— 共用一个实例，免得每个空行都建一个对象。</summary>
         public static readonly LineRuns Empty = new();
+
+#if WINDOWS
+        /// <summary>
+        /// 每段的（起点、长度、颜色）。**Windows 专用**：Win2D 后端没有
+        /// <c>DrawText(IAttributedText, …)</c> 的实现（那一支直接 throw，见
+        /// <see cref="DrawLineRuns"/> 的注释），只能逐段 <c>DrawString</c> —— 而逐段画就得知道
+        /// 每段画什么色、从哪个 x 起。颜色**直接存 <see cref="Color"/>**，不从
+        /// <c>TextAttribute.Color</c> 那个十六进制串每帧反解一遍（这是绘制热路径）。
+        /// null = 整行素色（<see cref="Single"/> 的超长行兜底）。
+        /// </summary>
+        public List<(int Start, int Length, Color Color)>? Segments;
+#endif
 
 #if ANDROID
         /// <summary>
@@ -359,11 +378,16 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         Invalidate();
     }
 
-    public void SetCaretLine(long oneBased)
+    public void SetCaretLine(long oneBased, int col = -1)
     {
         _caretLine = oneBased - 1;
+        // col < 0 ⇒ 只换行、列沿用（上下键跨行就是这么用的：短行上夹住、不改写目标列）
+        _caretCol = col >= 0 ? Math.Max(0, col) : Math.Max(0, _caretCol);
         Invalidate();
     }
+
+    /// <summary>浏览光标（只读态那根不闪的竖线）所在列 —— 字符下标。</summary>
+    public int CaretCol => _caretCol;
 
     /// <summary>
     /// 视口大小变了 —— **这是「软键盘挡住光标」的唯一正确触发点**。
@@ -709,6 +733,10 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             if (HasSelection) ClearSelection();
 
             float xInLine = _lastX - GutterWidth() - EditorTypography.TextLeftPad + _scrollX;
+
+            // 只读态那根浏览竖线也要跟着点击走 —— 它画在 `_caretCol` 上，
+            // 不更新的话「点哪儿」与「竖线在哪」就是两回事（点完竖线还在行首）。
+            _caretCol = CharIndexAtX(_doc?.GetLine(line) ?? "", xInLine);
 #if DEBUG
             var tapLine = _doc?.GetLine(line) ?? "";
             if (tapLine.Length > 0)
@@ -1147,11 +1175,18 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
                 try
                 {
                     float half = EditorTypography.HalfWidth, full = EditorTypography.FontSize;
+#if WINDOWS
+                    // 自检也必须用「渲染同引擎」的量法：`GetStringSize` 在 Win2D 上报的是错数，
+                    // 用它自检会把**合格的等宽字体误判成「回落」**（实测 NSimSun 明明精确 7/14）。
+                    var (advA, advWide) = MeasureAdvancesWin2D(canvas);
+#else
                     float advA = (float)canvas.GetStringSize("a", EditorTypography.CanvasFont, full).Width;
                     float advWide = (float)canvas.GetStringSize("中", EditorTypography.CanvasFont, full).Width;
+#endif
                     bool ok = Math.Abs(advA - half) < 1.0f && Math.Abs(advWide - full) < 1.0f;
                     string tag = ok ? "[字体自检] OK  内嵌 Sarasa 已加载" : "[字体自检] ❌ 字体回落了！检查 CanvasFontName";
                     System.Diagnostics.Debug.WriteLine($"{tag} a={advA:F2}(期望 {half:F2}) 中={advWide:F2}(期望 {full:F2}) 名={EditorTypography.CanvasFontName}");
+                    DiagLog.Write("字体自检", $"{tag} a={advA:F2}(期望 {half:F2}) 中={advWide:F2}(期望 {full:F2}) 名={EditorTypography.CanvasFontName}");
                 }
                 catch { }
             }
@@ -1214,8 +1249,17 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
                 // 整条塞进去的话每帧都要布局几万个字符，滚动必然卡死；而且这种行本来也不上色。
                 var (seg, segX) = ClipToViewport(line, textX);
                 if (seg.Length > 0)
+                {
+#if WINDOWS
+                    // 同上：Win2D 只有 DrawString 可用
+                    canvas.FontColor = MarkupToFormattedString.ColorForToken(0, _isDark);
+                    canvas.DrawString(seg, segX, Win2DStringY(y + EditorTypography.TextBaselineOffset),
+                        HorizontalAlignment.Left);
+#else
                     canvas.DrawText(new AttributedText(seg, []), segX,
                         y + EditorTypography.TextBaselineOffset, 1_000_000f, lineH);
+#endif
+                }
             }
             else if (line.Length > 0)
             {
@@ -1226,6 +1270,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             }
 
             if (editing) DrawCaret(canvas, line, textX, y, lineH);
+            else if (i == _caretLine) DrawBrowseCaret(canvas, line, textX, y, lineH);
 
             if (hasDiags) DrawDiagnosticWave(canvas, i, y, textX, lineH);
         }
@@ -1593,7 +1638,15 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 #if ANDROID
             if (TryDrawGutterCached(canvas, entry, x, y + EditorTypography.TextBaselineOffset)) continue;
 #endif
+#if WINDOWS
+            // Win2D 无 DrawText(IAttributedText) 实现 ⇒ 走 DrawString，y 要补一个字号
+            // （见 Win2DStringY）。行号是单色，直接设 FontColor 即可。
+            canvas.FontColor = color;
+            canvas.DrawString(entry.Text.Text ?? "", x,
+                Win2DStringY(y + EditorTypography.TextBaselineOffset), HorizontalAlignment.Left);
+#else
             canvas.DrawText(entry.Text, x, y + EditorTypography.TextBaselineOffset, 1_000_000f, lineH);
+#endif
         }
         canvas.RestoreState();
     }
@@ -1608,6 +1661,27 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     ///
     /// 横向按**视觉列**定位（CJK 占两列）而不是字符数：中文行里两者差一倍。
     /// </summary>
+    /// <summary>
+    /// **只读态的浏览光标**：一根**不闪烁**的竖线。
+    ///
+    /// 存在的理由（Windows 实机反馈）：以前只读态「光标」只是那一层
+    /// <c>CaretLineBgDark</c>（白 4%）的行底色 —— 深色代码底上等于看不见，
+    /// 于是「按上下键到底动没动」完全无法判断。行底色是「当前行」的弱提示，
+    /// 真正的「我在第几列」必须有这根线。
+    ///
+    /// **刻意不闪烁**（编辑态那根才闪）：浏览时闪一下没一下反而更难确认位置，
+    /// 而且这里的用途之一就是「截屏能看见」。
+    /// </summary>
+    private void DrawBrowseCaret(ICanvas canvas, string line, float textX, float y, float lineH)
+    {
+        int col = Math.Clamp(_caretCol, 0, line.Length);
+        float x = textX + MeasurePrefixWidth(line, col);
+
+        canvas.StrokeColor = _isDark ? Colors.White : Colors.Black;
+        canvas.StrokeSize = Math.Clamp(_charWidth * 0.2f, 1f, 2f);
+        canvas.DrawLine(x, y + 2, x, y + lineH - 3);
+    }
+
     private void DrawCaret(ICanvas canvas, string line, float textX, float y, float lineH)
     {
         int col = Math.Clamp(EditingCursor, 0, line.Length);
@@ -1827,6 +1901,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
         var tokens = _syntax?.Tokenize(display) ?? [];
         var runs = new List<IAttributedTextRun>(tokens.Count);
+#if WINDOWS
+        var segs = new List<(int Start, int Length, Color Color)>(tokens.Count);   // Windows 逐段自绘用
+#endif
         int offset = 0;
         foreach (var (text, color) in tokens)
         {
@@ -1853,11 +1930,18 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
                 // `FontExtensions.ToTypeface` 的 **`CreateFromAsset` 分支**，打包字体在这里能加载。
                 // 于是「绘制用的字体」与「测量的字体」是同一个 —— 这才是同源。
             }));
+#if WINDOWS
+            segs.Add((offset, len, MarkupToFormattedString.ColorForToken(color, _isDark)));
+#endif
             offset += len;
         }
 
         // 一个色 run 都没切出来（无分词器 / tokenizer 不给内容）：整行素色画。
-        return new LineRuns { Whole = new AttributedText(display, runs) };
+        var result = new LineRuns { Whole = new AttributedText(display, runs) };
+#if WINDOWS
+        result.Segments = segs;
+#endif
+        return result;
     }
 
     /// <summary>一整行作为无 run 的素文本（超长行的兜底路径）。</summary>
@@ -1880,15 +1964,54 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// （在那边的 setter 里夹住）；② run 上不写 <c>TextAttribute.FontName</c>
     /// （见 <see cref="BuildLineRuns"/> 的长注释）。任一条破了，这里就会「渲染按平台、光标按网格」。
     /// </summary>
-    private static void DrawLineRuns(ICanvas canvas, LineRuns runs, float textX, float y, float lineH)
+    private void DrawLineRuns(ICanvas canvas, LineRuns runs, float textX, float y, float lineH)
     {
         if (runs.Whole is null) return;
         float baseline = y + EditorTypography.TextBaselineOffset;
+#if WINDOWS
+        // 【Windows 专用】Win2D 后端**根本没有实现** `DrawText(IAttributedText, …)` ——
+        // `Microsoft.Maui.Graphics.Win2D.W2DCanvas` 里那一支就是一句
+        // `throw new NotImplementedException()`（已反编译核对）。异常从 Win2D 的绘制回调里
+        // 逃出去，被 WinUI 包成 stowed exception（事件日志 0xC000027B，故障模块
+        // Microsoft.UI.Xaml.dll），**进程当场闪退** —— 症状就是「打开编辑器先卡死再闪退」。
+        // Win2D 可用的只有两个 `DrawString` 重载，所以这里**逐色段自己定位绘制**。
+        //
+        // x 用的是**同一把尺子**（<see cref="AdvancePrefix"/>，与光标/点击命中同源），
+        // 所以这不是「渲染一套、定位一套」——段起点与自绘光标落在同一个坐标系里。
+        // 单段内部的字形间距由平台排版决定，与 Android 侧「实测推进量可加」是同一个前提。
+        if (runs.Segments is null || runs.Segments.Count == 0)
+        {
+            canvas.FontColor = MarkupToFormattedString.ColorForToken(0, _isDark);   // 素色 = 默认正文色
+            canvas.DrawString(runs.Whole.Text ?? "", textX, Win2DStringY(baseline), HorizontalAlignment.Left);
+            return;
+        }
+        var display = runs.Whole.Text ?? "";
+        foreach (var (start, len, color) in runs.Segments)
+        {
+            // run 范围越界就跳过（tokenizer 不保证总长等于源文本，Android 那边为此崩过）
+            if (len <= 0 || start < 0 || start + len > display.Length) continue;
+            canvas.FontColor = color;
+            canvas.DrawString(display.Substring(start, len),
+                textX + AdvancePrefix(display, start), Win2DStringY(baseline), HorizontalAlignment.Left);
+        }
+        return;
+#else
 #if ANDROID
         if (TryDrawCachedLayout(canvas, runs, textX, baseline)) return;
 #endif
         canvas.DrawText(runs.Whole, textX, baseline, 1_000_000f, lineH);
+#endif
     }
+
+#if WINDOWS
+    /// <summary>
+    /// Win2D 的 <c>DrawString(value, x, y, …)</c> 把文字**顶边**放在 <c>y - FontSize</c>
+    /// （<c>W2DCanvas</c>：`_rect.Y = y - FontSize` 且 `VerticalAlignment = Top`），而
+    /// <c>DrawText</c> 是**左上角锚定** —— 两者差整整一个字号。要让 Windows 的文字落在与
+    /// Android/iOS 相同的行位上，传下去的必须是「顶边 + 字号」。
+    /// </summary>
+    private static float Win2DStringY(float top) => top + EditorTypography.FontSize;
+#endif
 
 #if ANDROID
     /// <summary>
@@ -2486,9 +2609,60 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// 量两个字符就够：代码里的字符按宽度只有两档（半角 / 全角），Tab 另有 tab stop 规则。
     /// 字号一变就要重量（<see cref="ResetTypography"/> 会清掉 <c>_charWidthMeasured</c>）。
     /// </summary>
+#if WINDOWS
+    /// <summary>
+    /// 用 Win2D 的排版对象量「一个半角 / 一个全角」的推进量 —— **与 <c>DrawString</c> 同一个引擎**。
+    ///
+    /// `GetCaretPosition(1, false).X` 就是「第 1 个字符之后的落笔位置」，也就是该字形的推进量 ——
+    /// 渲染真正在用的那个数。返回 (0,0) 表示量不到（调用方退回设计值）。
+    ///
+    /// ⚠ 排版格式必须与 <c>W2DCanvas.DrawString</c> 里那句逐字一致（族名/字号/两个对齐），
+    /// 否则又是「两把尺子」——这正是本文件反复栽的那个坑。
+    /// </summary>
+    private static (float Half, float Wide) MeasureAdvancesWin2D(ICanvas canvas, string? family = null)
+    {
+        try
+        {
+            if (canvas is not Microsoft.Maui.Graphics.Win2D.W2DCanvas w2d) return (0f, 0f);
+
+            float One(string s)
+            {
+                using var layout = new Microsoft.Graphics.Canvas.Text.CanvasTextLayout(
+                    w2d.Session, s, BuildProbeFormat(family), 100000f, 200f);
+                return layout.GetCaretPosition(1, false).X;
+            }
+            return (One("0"), One("中"));
+        }
+        catch { return (0f, 0f); }
+    }
+
+    /// <summary>与 <c>W2DCanvas.DrawString</c> 内部那句 <c>ToCanvasTextFormat</c> 等价的排版格式。</summary>
+    private static Microsoft.Graphics.Canvas.Text.CanvasTextFormat BuildProbeFormat(string? family = null)
+        => new()
+        {
+            FontFamily = family ?? EditorTypography.CanvasFontName,
+            FontSize = EditorTypography.FontSize,
+            VerticalAlignment = Microsoft.Graphics.Canvas.Text.CanvasVerticalAlignment.Top,
+            HorizontalAlignment = Microsoft.Graphics.Canvas.Text.CanvasHorizontalAlignment.Left,
+        };
+#endif
+
     private void MeasureAdvances(ICanvas canvas)
     {
         float lat, wide;
+#if WINDOWS
+        // 【Windows 真根因】尺子必须用**与渲染同一个排版引擎**去量。
+        //
+        // `GetStringSize` 在 Win2D 后端上返回的数**既不是 0.5em 也不是 1em**：实测字号 14 时
+        // a=6.12、中=10.61，**连比例都不对**（6.12/7=0.874，10.61/14=0.758）。它自己另建排版对象，
+        // 而 `DrawString` 走的是 `W2DCanvas` 里那套（FontFamily=font.Name、VerticalAlignment=Top、
+        // HorizontalAlignment=Left）。同一个 NSimSun，用渲染那套量出来是**精确的 7.00 / 14.00**。
+        //
+        // 定位（逐段绘制 x、光标 x、点击命中）全走这把尺子 ⇒ 拿错的数定位，汉字之后必然越走越偏
+        // （用户实测：「汉字和英文衔接处容易偏」）——**与字体无关，换任何字体都治不好**。
+        // 早先把它误判成「字体回落」，是因为自检也用了这把错尺子（量什么字体都返回那个错数）。
+        (lat, wide) = MeasureAdvancesWin2D(canvas);
+#else
         try
         {
             lat = (float)canvas.GetStringSize("0", EditorTypography.CanvasFont,
@@ -2497,6 +2671,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
                 EditorTypography.FontSize).Width;
         }
         catch { lat = 0; wide = 0; }
+#endif
 
         // 量不到就退回设计值 —— 宁可差一点，也不能让字宽变成 0（除零会把整屏算崩）
         if (lat <= 0) lat = Math.Max(1f, EditorTypography.HalfWidth);
