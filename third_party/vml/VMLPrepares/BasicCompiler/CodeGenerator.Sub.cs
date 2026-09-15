@@ -162,6 +162,25 @@ namespace BasicCompiler
             return variables.ContainsKey(scopedName);
         }
 
+        /// <summary>
+        /// 这个名字是不是**模块级变量**（含 `DIM SHARED`）—— 是的话，SUB 内**不许**把它当局部变量。
+        ///
+        /// ⚠ 原来没有这一条：CollectLocalVariables 会把 SUB 里出现过的赋值目标统统登记成
+        /// 局部变量，而局部变量**未初始化就是 0** —— 于是模块级 `DIM BW` / `BW = 10` 在 SUB 里
+        /// 读出来是 **0**（实测）。任何"用全局常量排版"的写法（拿格宽算坐标之类）都会因此
+        /// 算错、甚至踩运行时除零。
+        ///
+        /// 模块级变量在 <c>variables</c> 里是**裸名**，STATIC 是 `子程序名__变量名`，
+        /// 用键的形状就能分开（见 <see cref="IsStaticVariable"/>）。
+        /// </summary>
+        private bool IsModuleVariable(string varName)
+        {
+            if (string.IsNullOrEmpty(varName)) return false;
+            string key = varName.ToLower();
+            if (currentSubName != null && key == currentSubName.ToLower()) return false;
+            return variables.ContainsKey(key);
+        }
+
         private void CollectLocalVariables(Statement stmt)
         {
             if (stmt is SequenceStatement seq)
@@ -178,7 +197,8 @@ namespace BasicCompiler
                     if (ident.Name.ToLower() != currentSubName.ToLower() &&
                         !currentLocalVars.ContainsKey(ident.Name.ToLower()) &&
                         !IsParameter(ident.Name.ToLower()) &&
-                        !IsStaticVariable(ident.Name.ToLower())) // STATIC vars already in globals
+                        !IsStaticVariable(ident.Name.ToLower()) &&
+                        !IsModuleVariable(ident.Name))   // 模块级变量不许被局部遮蔽
                     {
                         currentLocalVars[ident.Name.ToLower()] = currentLocalVarCount++;
                     }
@@ -200,7 +220,8 @@ namespace BasicCompiler
             {
                 if (!currentLocalVars.ContainsKey(forStmt.Variable.Name.ToLower()) &&
                     !IsParameter(forStmt.Variable.Name.ToLower()) &&
-                    !IsStaticVariable(forStmt.Variable.Name.ToLower())) // STATIC vars already in globals
+                    !IsStaticVariable(forStmt.Variable.Name.ToLower()) &&
+                    !IsModuleVariable(forStmt.Variable.Name))   // 模块级变量不许被局部遮蔽
                 {
                     currentLocalVars[forStmt.Variable.Name.ToLower()] = currentLocalVarCount++;
                 }
@@ -332,7 +353,8 @@ namespace BasicCompiler
                 if (!currentLocalVars.ContainsKey(ident.Name.ToLower()) &&
                     !variables.ContainsKey(ident.Name.ToLower()) &&
                     !IsParameter(ident.Name.ToLower()) &&
-                    !IsStaticVariable(ident.Name.ToLower())) // STATIC vars already in globals
+                    !IsStaticVariable(ident.Name.ToLower()) &&
+                    !IsModuleVariable(ident.Name))   // 模块级变量不许被局部遮蔽
                 {
                     currentLocalVars[ident.Name.ToLower()] = currentLocalVarCount++;
                 }
