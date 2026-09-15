@@ -129,4 +129,8 @@ int  ui_msg_count(void);
 int  ui_timer_set(int interval_ms, int tag);
 int  ui_timer_kill(int id);
 
+/* ── 随机数 / 计时（游戏用；实现走 VM 的 #50/#53，各语言共用一份）── */
+int  ui_rand(int n);      /* 0..n-1 */
+int  ui_tick(void);       /* VM 启动至今毫秒 */
+
 #endif /* WAYCODER_UI_H */

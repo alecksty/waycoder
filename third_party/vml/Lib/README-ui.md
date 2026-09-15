@@ -76,6 +76,16 @@
 键码沿用 **Win32 虚拟键值**（与 HTML `keyCode` 基本一致）：方向键 37–40、回车 13、空格 32、ESC 27
 （常量见 `UI/Shared/VmlUiProtocol.cs` 的 `VmlKeys`）。
 
+### 随机数与计时（游戏要用）
+
+这两个**不在 500–599 号段**里，走的是 VM 自带的 `#50` / `#53`。放在共享库里，是因为
+只有 C 能直接调 syscall，其它前端自己搓不出随机数（只能固定出子顺序）。
+
+| 函数 | 说明 |
+|---|---|
+| `int ui_rand(int n)` | 0..n-1 的随机数（n ≤ 0 返回 0） |
+| `int ui_tick(void)` | 自 VM 启动起的毫秒数（单调递增） |
+
 ## 最小可运行示例（VML 汇编）
 
 开一个窗口，画一个实心圆 + 一行字，等按键，然后关窗：
@@ -236,8 +246,16 @@ probe(p + 3 * k, q + 3 * k, 3 * k);   /* p=29 q=41 k=24 → 期望 101/113/72 */
 
 ## 各语言的封装状态
 
+**实现只有一份**：`Lib/shared/src/vmlui.c` → 编成 `Lib/shared/vmlui.vml`，由
+`vmltool.config.xml` 挂到各语言的 `Libs` 上。各语言侧只放**声明/包装**。
+
 | 语言 | 状态 |
 |---|---|
 | VML 汇编 | ✅ 上面的示例可直接跑 |
-| C | ✅ `Lib/c/waycoder_ui.h`（自带实现，`#include` 即用）；约定与校准见上一节 |
-| 其它前端 | 未做 |
+| C / C++ / ObjC | ✅ `#include <waycoder_ui.h>`（`Lib/c/`，只有声明，不增大程序）；约定与校准见上一节 |
+| Python / BASIC | ✅ 同一份 `vmlui.vml`（`vmltool.config.xml` 里已挂）—— 这两个前端**不能用内联 asm**，只能按标签调 C 函数，`Lib/shared/src/vmlui.c` 就是为它们写的（另有 `ui_wait_msg`/`ui_msg_a`/`ui_gset` 这类不碰指针的接口） |
+| 其它前端 | 未做（做法同上：加声明 + 确保 `vmlui.vml` 在该语言的 `Libs` 里） |
+
+> ⚠ 这个目录由 `third_party/vml/sync.sh` 从上游 VML 仓库同步，**本地改动下次同步会被覆盖** ——
+> 落地后要把 `Lib/shared/src/vmlui.c`、`Lib/shared/vmlui.vml`、`Lib/c/waycoder_ui.h`
+> 回灌上游仓库（或改 sync.sh 显式保留，但那是最脆的一类本地适配，优先回灌）。

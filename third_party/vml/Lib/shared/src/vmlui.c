@@ -314,6 +314,26 @@ int ui_timer_kill(int id) {
     return asm("SYSCALL #564, ${id}");
 }
 
+/* ── 随机数 / 计时（游戏要用，而只有 C 能直接调 #50/#53）──────
+ *
+ * 非 C 前端拿不到 syscall，游戏里的"下一个方块""洗牌"就只能自己搓一个劣质
+ * 伪随机（或者干脆固定顺序）。放这里一份，各语言共用同一个源。
+ */
+
+/* 0..n-1 的随机数（n<=0 返回 0）。 */
+int ui_rand(int n) {
+    int v;
+    if (n <= 0) return 0;
+    v = asm("SYSCALL #50");
+    /* #50 返回的是 32 位有符号随机数，负数取模在 C 里是负数 ⇒ 先归一到非负 */
+    return (v % n + n) % n;
+}
+
+/* 自 VM 启动起的毫秒数（单调递增，可作动画相位/超时基准）。 */
+int ui_tick(void) {
+    return asm("SYSCALL #53");
+}
+
 /* ── 图标 / 图片 ────────────────────────────────────────── */
 
 void ui_icon(int x, int y, char* name, int size, int color) {
