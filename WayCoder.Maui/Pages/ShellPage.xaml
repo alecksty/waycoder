@@ -5,7 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     Title="命令行">
 
-    <Grid RowDefinitions="Auto,*,Auto">
+    <Grid RowDefinitions="Auto,*,Auto,Auto">
 
         <!-- 顶栏：当前工作目录。
              **必须显示**：`cd` 之后工作目录会变，不显示的话用户不知道下一条命令在哪儿跑
@@ -81,6 +81,43 @@
                 HeightRequest="38"
                 CornerRadius="8"
                 Clicked="OnRunRequested" />
+        </Grid>
+
+        <!-- stdin 提示行：**只在程序真的在读输入时出现**（默认隐藏）。
+             这是"程序要输入时弹输入框"那个模型的落点 —— VML 程序调 read/scanf 时会阻塞，
+             宿主把这一行亮出来，用户填一行回车，值就喂给它，程序接着往下跑。
+             所以它不是"运行前先填完"那种一次性输入区，而是**跟着程序的节奏一问一答**。 -->
+        <Grid
+            x:Name="StdinPanel"
+            Grid.Row="3"
+            IsVisible="False"
+            ColumnDefinitions="Auto,*,Auto"
+            Padding="12,2,8,8"
+            ColumnSpacing="6">
+            <Label
+                Grid.Column="0"
+                Text="⌨ 等输入"
+                FontSize="12"
+                VerticalOptions="Center"
+                TextColor="{AppThemeBinding Light=#B4690E, Dark=#E0A030}" />
+            <Entry
+                x:Name="StdinEntry"
+                Grid.Column="1"
+                Placeholder="程序在等一行输入…"
+                FontSize="13"
+                Keyboard="Plain"
+                IsSpellCheckEnabled="False"
+                IsTextPredictionEnabled="False"
+                ReturnType="Go"
+                Completed="OnStdinSubmitted" />
+            <Button
+                Grid.Column="2"
+                Text="喂给它"
+                FontSize="13"
+                Padding="14,4"
+                HeightRequest="38"
+                CornerRadius="8"
+                Clicked="OnStdinSubmitted" />
         </Grid>
     </Grid>
 </ContentPage>

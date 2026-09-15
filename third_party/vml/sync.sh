@@ -2,12 +2,22 @@
 # 从上游 VML 仓库同步内置副本，并**重新施加本地适配**。
 #   用法: third_party/vml/sync.sh ~/Desktop/source/vml/vml
 #
-# 本地适配有四处于（不改会让 MAUI 编不过）：
+# 本地适配分两类：
+#
+# 【A】csproj 属性（不改会让 MAUI **编不过**）—— 由下面的 python 步骤重新施加：
 #   ① 25 个 csproj 的 OutputType: Exe → Library   （否则 NETSDK1150：自包含应用不能引用非自包含 Exe）
 #   ② 去掉 StartupObject（19 个）                （否则 CS2017：库不能指定 /main）
 #   ③ 去掉 RuntimeIdentifiers（24 个）           （否则 NETSDK1047：它的列表里没有 android-arm64）
 #   ④ 去掉 PublishAot（25 个）                   （AOT 发布要求 RID；我们只要它们的代码，不做 AOT 发布）
-# 之所以要脚本化：rsync 是覆盖式的，会把这两处改动冲掉。
+#
+# 【B】源码级适配 —— 由 patches/*.patch 重新施加（`git apply`）：
+#   ① 0001-file-system-root.patch：给 VmRuntime 加 `FileSystemRoot` 沙箱根，
+#      并让 `ExecuteFileOpen` 按它解析/拒绝路径。不加**编得过、跑起来才出问题**
+#      （手机上 `open("a.txt","w")` 会落到进程 CWD，报 "Read-only file system" 或写到别处）。
+#
+# 之所以要脚本化：rsync 是覆盖式的，两类改动都会被冲掉。
+# 【B】用 patch 而不是"再抄一遍源码"：改动本身可 review、可 diff；
+# 且 apply 失败会**直接退出**，不会让本地适配悄悄消失。
 set -euo pipefail
 UP="${1:?用法: sync.sh <上游 VML 仓库路径>}"
 DST="$(cd "$(dirname "$0")" && pwd)"
@@ -20,6 +30,23 @@ for f in VERSION LICENSE Directory.Build.props .editorconfig; do
 done
 [ -f "$UP/vmltool.config.xml" ] && cp "$UP/vmltool.config.xml" "$DST/"
 [ -f "$UP/README.md" ] && cp "$UP/README.md" "$DST/VML-README.md"
+
+# 【B】源码级适配：rsync 刚把它们冲掉了，逐条重放。
+# patch 里的路径是**仓库根相对**的（`a/third_party/vml/...`），所以用 `git -C "$ROOT"`。
+ROOT="$(cd "$DST/../.." && pwd)"
+for p in "$DST"/patches/*.patch; do
+  [ -f "$p" ] || continue
+  name="$(basename "$p")"
+  if git -C "$ROOT" apply --check "$p" 2>/dev/null; then
+    git -C "$ROOT" apply "$p"
+    echo "✔ 已施加 $name"
+  elif git -C "$ROOT" apply --check --reverse "$p" 2>/dev/null; then
+    echo "• $name 已在（跳过）"
+  else
+    echo "✘ $name 打不上 —— 多半是上游改了同一处，需要手工合并后重新生成 patch" >&2
+    exit 1
+  fi
+done
 
 python3 - "$DST" <<'PY'
 import os, re, sys

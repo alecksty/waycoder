@@ -59,6 +59,9 @@ verify_build/
 .crush/
 *.bak
 *.patch
+# 例外：vendored 副本的本地适配 patch **必须进仓库** —— 它是 sync.sh 重放适配的唯一来源，
+# 被忽略掉的话别人同步上游后 sync.sh 会直接报「patch 打不上」退出（或更糟：适配静默消失）。
+!third_party/vml/patches/*.patch
 excalidraw.log
 .waycoder/
 __pycache__/

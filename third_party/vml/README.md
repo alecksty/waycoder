@@ -36,17 +36,35 @@
 
 ## ⚠ 本地适配（同步上游后**必须重新施加**）
 
-为了能被 MAUI（自包含应用）引用，vendored 副本里改了 **25 个 csproj**：
+本地适配分两类，`sync.sh` 都会重新施加（`rsync` 是覆盖式的，不重放就丢）。
+
+### 【A】csproj 属性 —— 不改会**编不过**
+
+改了 **25 个 csproj**：
 
 | 改动 | 不改会报什么 |
 |---|---|
 | `<OutputType>Exe</OutputType>` → `Library` | **NETSDK1150**：非自包含的可执行文件不能由自包含可执行文件引用 |
 | 去掉 `<StartupObject>`（19 个）| **CS2017**：如果生成模块或库，则无法指定 /main |
+| 去掉 `<RuntimeIdentifiers>`（24 个）| **NETSDK1047**：它的列表里没有 `android-arm64` |
+| 去掉 `<PublishAot>`（25 个）| AOT 发布要求 RID；我们只要它们的代码，不做 AOT 发布 |
 
 各编译器原本是 `Exe` 是因为它们带 `Program.cs` 可以独立当 CLI 用；我们只要它们的**代码**，
 改 `Library` 后那个 `Main` 只是一个没人调用的方法，无副作用。
 
-**其余文件一行未改** —— 这是刻意的：改动越少，`rsync` 覆盖式同步就越干净。
+### 【B】源码级 —— 不改会**编得过、跑起来才出问题**
+
+改动固化成 [`patches/`](patches/) 里的 patch，`sync.sh` 用 `git apply` 重放；
+**打不上就直接退出**，不会让适配悄悄消失。
+
+| patch | 改了什么 | 不改的后果 |
+|---|---|---|
+| `0001-file-system-root.patch` | 给 `VmRuntime` 加 `FileSystemRoot`；`ExecuteFileOpen` 按它解析相对路径、拒绝越界路径 | 手机上 `open("a.txt","w")` 按**进程 CWD** 解析 ⇒ 报 `Read-only file system`，或**写到别的地方**（沙箱失守） |
+
+> 这是**唯一**一处源码级改动。之所以只改了 `ExecuteFileOpen` 一行调用点：
+> `ExecuteFileRead/Write/Control` 操作的是已打开的 `FileStream` 句柄，不再解析路径。
+> 全文件搜过 `new FileStream` / `File.` —— 只有这一处接用户给的路径
+> （其余是固定路径的 `/proc/cpuinfo` 之类）。**将来上游新增按路径开文件的地方要一起加沙箱检查。**
 
 ## 怎么同步上游
 

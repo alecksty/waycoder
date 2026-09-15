@@ -45,7 +45,11 @@ public class VmlTool : ITool
                 .Set("description", "要运行的 .vml 文件路径（与 source 二选一）"))
             .Set("timeout", JNode.Object()
                 .Set("type", "integer")
-                .Set("description", "超时秒数，默认 10，范围 1~60")));
+                .Set("description", "超时秒数，默认 10，范围 1~60"))
+            .Set("stdin", JNode.Object()
+                .Set("type", "string")
+                .Set("description", "预置给程序的标准输入（多行用 \\n 分隔）。程序读 stdin 时按行喂；"
+                                  + "读完之后再读会拿到空行。不填则程序读到空输入。")));
 
     public Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
@@ -55,28 +59,43 @@ public class VmlTool : ITool
         if (string.IsNullOrWhiteSpace(source) && string.IsNullOrWhiteSpace(filePath))
             return Task.FromResult("⚠️ 需要 `source`（VML 源码）或 `file_path`（.vml 文件路径）二者之一。");
 
-        // 读文件放在进后台线程之前：CwdContext 是 AsyncLocal，在别的线程上解析会拿到错的 cwd
-        string code;
-        if (!string.IsNullOrWhiteSpace(source))
-        {
-            code = source!;
-        }
-        else
-        {
-            var full = CwdContext.Resolve(filePath!);
-            if (!File.Exists(full)) return Task.FromResult($"⚠️ 找不到文件：{full}");
-            try { code = File.ReadAllText(full); }
-            catch (Exception ex) { return Task.FromResult($"⚠️ 读文件失败：{ex.Message}"); }
-        }
+        // **路径解析放在进后台线程之前**：CwdContext 是 AsyncLocal，在别的线程上解析会拿到错的 cwd。
+        // 解析完就把**绝对路径**交给 MauiVml.Run，那边不再碰 CwdContext。
+        var resolved = string.IsNullOrWhiteSpace(source) && !string.IsNullOrWhiteSpace(filePath)
+            ? CwdContext.Resolve(filePath!)
+            : null;
 
         var timeout = Math.Clamp(GetInt(arguments, "timeout", 10), 1, 60);
 
-        // VmRuntime.Run 是**同步阻塞**的，必须丢到后台线程，否则卡住整个 Agent 循环
+        // 汇编 / 编译的**派发不在这个工具里** —— 它是流水线的属性，不是工具的属性，
+        // 唯一实现在 `MauiVml.Run`（命令行页也走那条，见该方法的注释）。
+        //
+        // ⚠ 那条判据的方向**极易写反**（我写反过一次，两个症状都很迷惑）：写成
+        // 「没有源码就是汇编」会变成 —— 内联汇编被判成编译（`CwdContext.Resolve(null)`
+        // 抛 ArgumentNullException），而 `.c` 文件被判成汇编（**C 源码被喂给汇编器**，
+        // 产出一个空程序、不报错，用户看到的是「程序正常运行，就是没输出」）。
+        // 两者都不是"参数报错"，而是各自跑到别的分支上，所以特别难看出来。
+
+        // 编译/运行都是**同步阻塞**的，必须丢到后台线程，否则卡住整个 Agent 循环
+        // 预置 stdin：按行喂，读完之后再读给空行（不是 null —— 程序可能不判 EOF）。
+        // 用 Queue 而不是 index：`ReadString` 是**在 VM 线程上同步调用**的，
+        // 但 Queue 的出队本身也不保证线程安全，所以下面加了锁。
+        var stdinLines = (GetString(arguments, "stdin") ?? "")
+            .Replace("\r\n", "\n").Split('\n');
+        int stdinPos = 0;
+        var stdinLock = new object();
+        string? ReadLine()
+        {
+            lock (stdinLock)
+                return stdinPos < stdinLines.Length ? stdinLines[stdinPos++] : "";
+        }
+        var readLine = string.IsNullOrEmpty(GetString(arguments, "stdin")) ? (Func<string>?)null : ReadLine;
+
         return Task.Run(() =>
         {
             try
             {
-                var output = MauiVml.RunAssembly(code, timeout);
+                var output = MauiVml.Run(source, resolved, timeout, readLine);
                 if (string.IsNullOrEmpty(output)) return "（程序正常结束，没有输出）";
 
                 return output.Length <= MaxOutputChars
@@ -86,8 +105,16 @@ public class VmlTool : ITool
             }
             catch (Exception ex)
             {
-                // 汇编报错、VM 超时、被链接器裁掉的路径…都在这里兜住，别让 Agent 循环炸
-                return $"⚠️ VML 执行失败：{ex.GetType().Name}: {ex.Message}";
+                // 汇编报错、VM 超时、被链接器裁掉的路径…都在这里兜住，别让 Agent 循环炸。
+                //
+                // **必须带上堆栈**：只回 `类型: 消息` 在移动端几乎没法查 ——
+                // AOT/裁剪会把异常消息里的**资源键原文**漏出来（形如
+                // `ArgumentNull_Generic Arg_ParamName_Name, path`），光看那句话
+                // 连是哪个 API 抛的都判断不了，而真正的位置只在堆栈里。
+                // 截断到 1200 字符：够看到最上面几帧，又不至于把上下文撑爆。
+                var stack = ex.StackTrace ?? "(无堆栈)";
+                if (stack.Length > 1200) stack = stack[..1200] + " …";
+                return $"⚠️ VML 执行失败：{ex.GetType().Name}: {ex.Message}\n{stack}";
             }
         });
     }

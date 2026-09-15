@@ -1,0 +1,93 @@
+diff --git a/third_party/vml/VMLRuntime/VMLRuntime.Syscall.cs b/third_party/vml/VMLRuntime/VMLRuntime.Syscall.cs
+index afb95a4a..451b3f19 100644
+--- a/third_party/vml/VMLRuntime/VMLRuntime.Syscall.cs
++++ b/third_party/vml/VMLRuntime/VMLRuntime.Syscall.cs
+@@ -1225,12 +1225,66 @@ namespace VMLRuntime
+             registers[0] = result;
+         }
+         
++        /// <summary>
++        /// 宿主注入的**文件系统根**（沙箱）。
++        ///
++        /// 非空时：VML 程序请求的**相对路径**一律解析到它下面，**越界的路径一律拒绝**
++        /// （`ExecuteFileOpen` 返回 `FILE_ACCESS_DENIED`）。
++        /// 为空时：保持原行为 —— 相对**进程 CWD** 解析。
++        ///
++        /// 为什么需要这个接缝：`ExecuteFileOpen` 原本是 `new FileStream(fileName, ...)`，
++        /// 相对路径按**进程 CWD** 解析。桌面 CLI 里那没问题（从项目目录运行），但手机端
++        /// 进程 CWD 不是用户的 workspace ⇒ 一条 `open("a.txt", "w")` 会落到一个**只读**目录上，
++        /// 报「Read-only file system」，而调用方完全看不出是路径语义的问题。
++        /// 更糟的是它**不是**"写不进去"而是"写到别的地方"——那正是沙箱要防的事。
++        ///
++        /// ⚠ 这是本仓对 VML 的**本地适配**之一，`sync.sh` 同步上游后会丢，见
++        /// `third_party/vml/README.md` 的「本地适配」表。
++        /// </summary>
++        public string? FileSystemRoot { get; set; }
++
++        /// <summary>
++        /// 把 VML 程序给的路径解析成宿主真实路径；越界返回 null。
++        ///
++        /// 包含判断用**路径段边界**（`root + 分隔符` 前缀），不用裸 `StartsWith`：
++        /// 裸判会让 `/srv/proj-evil` 通过 `/srv/proj` 的检查。
++        /// 同名的判断在宿主侧也有（`SandboxManager.IsUnder`）—— 但那是另一个程序集，
++        /// VML 引不到，所以这里只能自己实现一份；两边改一处别忘了另一处。
++        /// </summary>
++        private string? ResolveSandboxedPath(string requested)
++        {
++            var root = FileSystemRoot;
++            if (string.IsNullOrEmpty(root)) return requested;   // 没设沙箱 → 原行为
++
++            if (string.IsNullOrEmpty(requested)) return null;
++
++            string fullRoot;
++            string candidate;
++            try
++            {
++                fullRoot = Path.GetFullPath(root);
++                candidate = Path.IsPathRooted(requested)
++                    ? Path.GetFullPath(requested)
++                    : Path.GetFullPath(Path.Combine(fullRoot, requested));
++            }
++            catch
++            {
++                return null;   // 路径里带非法字符（如 NUL）→ 当作越界
++            }
++
++            if (candidate.Equals(fullRoot, StringComparison.Ordinal)) return candidate;
++            if (candidate.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal))
++                return candidate;
++
++            return null;
++        }
++
+         /// <summary>
+         /// 打开文件
+         /// SYSCALL 110: 打开文件
+         /// R0: 文件名地址
+         /// R1: 打开模式 (0=只读, 1=只写, 2=读写)
+-        /// 返回: 文件句柄 (>=0) 或错误码 (<0)
++        /// 返回: 文件句柄 (>=0) 或错误码 (&lt;0)
+         /// </summary>
+         private void ExecuteFileOpen()
+         {
+@@ -1270,9 +1324,19 @@ namespace VMLRuntime
+                 
+                 // 打开文件
+                 if (TraceMode) Console.WriteLine($"DEBUG ExecuteFileOpen: 文件模式: {fileMode}, 访问权限: {fileAccess}");
++
++                // 宿主设了沙箱根就把路径钳进去（手机端：只允许 app 的 workspace）
++                var hostPath = ResolveSandboxedPath(fileName);
++                if (hostPath == null)
++                {
++                    if (TraceMode) Console.WriteLine($"DEBUG ExecuteFileOpen: 越界路径被拒: '{fileName}'");
++                    registers[0] = ErrorCodes.FILE_ACCESS_DENIED;
++                    return;
++                }
++
+                 try
+                 {
+-                    var stream = new FileStream(fileName, fileMode, fileAccess);
++                    var stream = new FileStream(hostPath, fileMode, fileAccess);
+                     int handle = _fileHandles.IndexOf(null);
+                     if (handle == -1) { handle = _fileHandles.Count; _fileHandles.Add(stream); }
+                     else _fileHandles[handle] = stream;

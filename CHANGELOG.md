@@ -1,5 +1,83 @@
 # 更新日志
 
+## v0.96.155 (2026-09-15) — 命令行页接上 C 等 22 种语言：编译链路口径错 + 文件沙箱 + 交互式 stdin
+
+承接 v0.96.153：上一版只通了纯 VML 汇编（`vml test`）。这一版把「一套工具编所有类型文件」
+真正接进 App —— **实测 Android 上 `vml run hello.c` → `HELLO-C-OK`**，`t.py`/`t.lua`/`t.js`
+同一份代码自动派发、各自跑通。
+
+### ① C 编不过的真因：三处口径错，全在 `MauiVml.CompileAndRun`
+
+| 错在哪 | 症状 |
+|---|---|
+| `VML_HOME` 从没设过 | 前端产物里的 `.linked "Lib/c/builtin.vml"` 是**相对路径**，链接器解析它要依次试「父库目录 → `VML_HOME` → CWD → 搜索路径」。手机上 CWD 是用户 workspace、不是 VML 根 ⇒ **整条标准库链断掉**，运行期报 `未找到标签: shared_puts`。上游 CLI 不设它是因为它"从 VML 根目录运行"，我们没有那个奢侈 |
+| 把**目录**当 `LibraryPaths` 传 | 链接器会把目录下**每个** `.vml` 全量挂上：同一个 hello.c，**给目录 93423 条指令、给库文件 36261 条**（上游 35329）。上游为此专门留了注释：「仅添加已解析的库文件，不添加目录路径（避免全库链接）」 |
+| 空清单传给 `LinkLibraries` | 它**首行就早退**（`if (Count == 0) return mainProgram;`），等于链接器一个字不干，且**不抛异常** —— 错误一路拖到运行期 |
+
+修法是照抄上游口径；库清单**不自己硬编码**（那是"平行表"），调上游的 `VmlToolConfig.ResolveLibs()`
+读 `vmltool.config.xml` 的 `DefaultLibs` + 各语言 `Libs`。
+
+### ② `isAssembly` 判据写反 —— 两个症状都极具误导性
+
+原判据 `string.IsNullOrWhiteSpace(source) || ext == ".vml"`（「没有源码就是汇编」）**正好是反的**：
+
+- 内联汇编（`vml test`，source 非空）→ 判成**编译** → `CwdContext.Resolve(null)` 抛 `ArgumentNullException`
+- `.c` 文件（source 为空）→ 判成**汇编** → **C 源码被喂给汇编器**，产出空程序、不报错 ⇒ 用户看到的是「程序正常运行，就是没输出」
+
+两者都不是"参数报错"，而是各自跑到别的分支上，所以特别难看出来。
+**修法不只是改方向，而是把派发抽出工具**：`MauiVml.Run(source, filePath, timeout, readLine)`
+是派发的**唯一实现**，`VmlTool`（AI 调用）与命令行页（用户敲）共用 —— 派发是流水线的属性，不是工具的属性。
+
+### ③ 文件沙箱（vendored 的第一处源码级适配）
+
+`ExecuteFileOpen` 原本 `new FileStream(fileName, ...)` **按进程 CWD 解析**：手机上那不是
+workspace、还常常是只读目录 ⇒ 报 `Read-only file system`。更该防的是另一半 —— 它不总是
+"写不进去"，也可能是**写到了别的地方**。
+
+给 `VmRuntime` 加 `FileSystemRoot`：相对路径解析到它下面，**越界一律 `FILE_ACCESS_DENIED`**
+（包含判断按**路径段边界**，裸 `StartsWith` 会让 `/srv/proj-evil` 通过 `/srv/proj` 的检查）。
+全文件搜过 `new FileStream`/`File.` —— **只有这一处接用户给的路径**（`FileRead/Write/Control`
+操作已打开的句柄，不再解析路径），所以只改一行调用点。
+
+实测：相对路径进沙箱、`../evil.txt` 与 `/etc/hosts` 都返回 `-202`、`/tmp/evil.txt` 未被创建。
+
+改动固化成 `third_party/vml/patches/0001-file-system-root.patch`，`sync.sh` 用 `git apply` 重放、
+**打不上直接退出**（本地适配不能悄悄消失）。README 的本地适配表随之分为【A】csproj 属性与【B】源码级。
+
+### ④ 交互式 stdin：一问一答，不阻塞主循环
+
+`CaptureIo` 持有**可阻塞的** `Func<string>`；命令行页在 VM 线程上阻塞，同时亮出「⌨ 等输入」行，
+用户填一行回车 → `TaskCompletionSource` 交回值 → 程序接着跑 → 输出区回显那行（像真终端）。
+`VmlTool` 另加 `stdin` 参数（AI 可预置输入，按行喂、读完给空行）。
+
+**一条硬约束**：VM 超时是 `Run()` 起就走的**墙钟** `CancellationTokenSource`，
+**等用户输入的时间也算在里面** —— 手机上一行敲几十秒很正常。故 `RunProgram` 的超时上限
+从 60 提到 600。真正的解法是"等输入时暂停计时"（要动 VML 的超时实现），**未做**，注释里标了。
+
+### ⑤ 命令行页 scrollback 改按行
+
+原按字符数上限（12 万字符），改 `MaxScrollbackLines = 256`（**行**），超了从最老的**整行**丢 ——
+终端里"滚出去"的单位本来就是行，按字符裁会把一行从中间劈开、留一条断头的半行。
+半行语义保留：末尾没换行的那段标记 `_partial`，与上一段拼接而不是另起一行。
+
+### 基础设施（顺手补的）
+
+- `scripts/make-vml-lib.sh` —— 原先 `vml_lib.zip` 是**手工打的**；现在脚本化并补上
+  **`vmltool.config.xml`**（少它整个链接阶段会被跳过）
+- 库重解压改用 **zip 内容指纹**判断，不再靠人记得改版本常量
+- 前端自检补「残留 `#include`」反判据（旧的只看 `.text`/`.entry`，会放行半成品）
+- `VmlTool` 的 catch **带上堆栈** —— 正是它原先只回「类型: 消息」让我第一轮只能猜 AOT；
+  移动端 AOT/裁剪会把异常资源键原文漏出来（`ArgumentNull_Generic Arg_ParamName_Name, path`），光看那句判断不了是哪个 API 抛的
+
+### 两条排查记录（都很贵）
+
+1. **「设备上 C 能编能跑但零输出」的两次误判**：先怀疑 AOT/裁剪（Release 特有），
+   实际真因是上面 ② 的判据写反 + 我建的 `hello.c` 是 **0 字节** ——
+   `echo$IFSaW50…` 里 `$IFSaW50…` 被 sh 当成未定义变量展开成空，`echo` 没参数、`base64 -d` 解了个空输入。
+   `wc -c hello.c` = `0` 是转折点。**「$IFS 后面紧跟字母会被并进变量名」，要写 `${IFS}`。**
+2. **「设备上 shell cwd 是只读」也是我搞错的** —— 那是 adb 的引号问题（重定向被 adb 自己的 shell 吃掉），
+   App 的 shell 一直正常、`cwd` 就是 workspace。
+
 ## v0.96.153 (2026-09-15) — VML 并入本仓库：手机端进程内跑编译器 + 运行时
 
 用户：「vml 要怎么做才可以在手机端 shell 里面使用？」→ 摸底后**问题性质变了**，
