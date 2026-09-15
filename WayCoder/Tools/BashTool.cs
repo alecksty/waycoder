@@ -490,7 +490,7 @@ public class BashTool : ITool, ICancellableTool
 
         if (changed)
         {
-            CwdContext.Current.Value = running;
+            CwdContext.Current = running;
         }
     }
 }

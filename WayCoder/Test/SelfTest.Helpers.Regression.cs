@@ -1004,8 +1004,8 @@ public static partial class SelfTest
         var cwdSub = Path.Combine(cwdDir, "sub");
         Directory.CreateDirectory(cwdSub);
         File.WriteAllText(Path.Combine(cwdSub, "hello.txt"), "hello world");
-        var oldCwd = CwdContext.Current.Value;
-        CwdContext.Current.Value = cwdDir;
+        var oldCwd = CwdContext.Current;
+        CwdContext.Current = cwdDir;
         try
         {
             var r = new ReadFileTool().ExecuteAsync(new Dictionary<string, object?> { ["file_path"] = "sub/hello.txt" }).GetAwaiter().GetResult();
@@ -1015,7 +1015,7 @@ public static partial class SelfTest
         }
         finally
         {
-            CwdContext.Current.Value = oldCwd!; // 恢复原值（null 时回到未设置状态）
+            CwdContext.Current = oldCwd; // 恢复原值（null 时回到未设置状态）
             try { Directory.Delete(cwdDir, true); } catch { }
         }
 
@@ -1189,7 +1189,7 @@ public static partial class SelfTest
         finally { try { Directory.Delete(tmp, true); } catch { } }
 
         // ── #2 CdTool ~ 仅前缀展开：`~user`/路径中段 ~ 不被全量替换 ──
-        var savedCwd = CwdContext.Current.Value;
+        var savedCwd = CwdContext.Current;
         try
         {
             var r1 = new CdTool().ExecuteAsync(new Dictionary<string, object?> { ["path"] = "~definitely_not_a_user" })
@@ -1199,7 +1199,7 @@ public static partial class SelfTest
             Check("cd: ~user 不展开(保持原样)", r1.Contains("~definitely_not_a_user")
                 && !r1.Contains(home + Path.DirectorySeparatorChar + "definitely_not_a_user"));
         }
-        finally { CwdContext.Current.Value = savedCwd!; }
+        finally { CwdContext.Current = savedCwd; }
     }
 
     /// <summary>v0.71.30 批次：CLI 多值累积 / 批处理目录穿越 / 版本溢出 / CJK 单字召回 / Web 畸形解码。</summary>

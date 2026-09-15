@@ -248,6 +248,14 @@ HALT
         // 见 ShellPage），不能沿用非交互那个 10~30 秒的口径。
         var io = new CaptureIo(readLine);
 
+        // 宿主 UI syscall（对话框 / 窗体绘图 / 输入，号段 500–599，见 UI/Shared/VmlUiProtocol.cs）。
+        // 两件事缺一不可：① 把号段加进运行时白名单（否则 mcu 模式下 dispatch 顶部就先拒了，
+        // 根本走不到处理器 —— 现象是"处理器注册了却永远不被调用"）；
+        // ② 把处理器挂到 VM 上（运行时会**先问处理器、再走内置 switch**）。
+        VmlUiCalls.EnsureReservedSyscallsAllowed();
+        var uiCalls = new VmlUiCalls();
+        uiCalls.Reset(); // 清上一轮的消息/定时器/场景
+
         // ⚠ **永远只用 "mcu" 模式，这是手机端的安全边界，不是默认值凑巧。**
         //
         // 切到 "os"（privilegeLevel=0）会放开 syscall 300-376：线程/互斥量、Socket/DNS、
@@ -268,6 +276,7 @@ HALT
             // 那要动 VML 的超时实现，留作后续；现阶段用宿主侧的可中断入口兜底。
             TimeoutSeconds = Math.Clamp(timeoutSeconds, 1, 600),
             ConsoleIO = io,
+            SystemCallHandler = uiCalls,
 
             // **文件沙箱根 = 当前工作目录**（手机上就是 app 的 workspace）。
             //

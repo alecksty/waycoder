@@ -301,7 +301,10 @@ public partial class Config
     public bool SandboxAllowNetwork { get; set; } = false;
 
     // ── Agent/SubAgent ──
-    public int MaxRounds { get; set; } = 50;
+    // 单次任务的工具调用轮次上限。默认 **200**（原为 50 —— 实测太短：手机端做一次
+    // 「clone → 改代码 → 编译调试 → 提交」就会撞上限而在任务中途停下，需要用户手动「继续」；
+    // 定位一个编译器行为问题也能轻松花掉 30+ 轮）。撞上限后仍有自动压缩 + 续跑兜底。
+    public int MaxRounds { get; set; } = 200;
     public int SubAgentMaxParallel { get; set; } = 4;
     public int SubAgentOutputMaxChars { get; set; } = 5000;
     // 子智能体第 0 层（顶层）最大工具调用轮次，每深一层减 5，下限 5。

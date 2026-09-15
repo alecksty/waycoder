@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="WayCoder.Maui.Pages.DrawWindowPage"
+             Title="VML 窗口"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBgLight}, Dark={StaticResource PageBgDark}}">
+
+    <!-- VML 程序开的窗口。布局三行：标题 / 画布 / 手柄。
+         底部的操控区按**游戏机手柄**排布 —— 而不是排成一排按钮：
+           · 左：十字方向键（四个方向在拇指自然落点上）
+           · 中：SELECT / START
+           · 右：X/Y/A/B 菱形（Y 上、X 左、B 右、A 下，与主流手柄一致）
+         手机没有物理键盘，不做成手柄的话「用方向键+动作键写的游戏」在真机上没法玩；
+         而排成一排时拇指要横跨整屏找键，做游戏时根本按不过来。 -->
+    <Grid RowDefinitions="Auto,*,Auto" Padding="0">
+
+        <Label x:Name="HeaderLabel" Grid.Row="0"
+               Text="VML 窗口" FontSize="15" FontAttributes="Bold"
+               TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
+               HorizontalOptions="Center" Margin="12,8" />
+
+        <ScrollView Grid.Row="1" Orientation="Both">
+            <Image x:Name="CanvasImage" Aspect="AspectFit" Margin="8" />
+        </ScrollView>
+
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Padding="14,6,14,10" ColumnSpacing="10">
+
+            <!-- 左：十字方向键 -->
+            <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,Auto,Auto"
+                  RowSpacing="4" ColumnSpacing="4" VerticalOptions="Center">
+                <Button Grid.Row="0" Grid.Column="1" x:Name="PadUp"    Text="↑" Clicked="OnPadUp"
+                        WidthRequest="52" HeightRequest="52" CornerRadius="26" Padding="0" FontSize="18" />
+                <Button Grid.Row="1" Grid.Column="0" x:Name="PadLeft"  Text="←" Clicked="OnPadLeft"
+                        WidthRequest="52" HeightRequest="52" CornerRadius="26" Padding="0" FontSize="18" />
+                <Button Grid.Row="1" Grid.Column="2" x:Name="PadRight" Text="→" Clicked="OnPadRight"
+                        WidthRequest="52" HeightRequest="52" CornerRadius="26" Padding="0" FontSize="18" />
+                <Button Grid.Row="2" Grid.Column="1" x:Name="PadDown"  Text="↓" Clicked="OnPadDown"
+                        WidthRequest="52" HeightRequest="52" CornerRadius="26" Padding="0" FontSize="18" />
+            </Grid>
+
+            <!-- 中：SELECT / START（胶囊小键，别和方向键一样大抢占拇指）
+                 ⚠ 必须给 WidthRequest：只靠 Padding 撑宽时，全局 Button 样式的 MinimumWidthRequest(44)
+                 成了宽度上限，文字被裁成一个字母（实测显示成 "S"）。 -->
+            <VerticalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center" HorizontalOptions="Center">
+                <Button x:Name="BtnSelect" Text="SELECT" Clicked="OnSelect"
+                        FontSize="11" Padding="0,2" WidthRequest="92" HeightRequest="34" CornerRadius="17" />
+                <Button x:Name="BtnStart"  Text="START"  Clicked="OnStart"
+                        FontSize="11" Padding="0,2" WidthRequest="92" HeightRequest="34" CornerRadius="17" />
+            </VerticalStackLayout>
+
+            <!-- 右：X/Y/A/B 菱形（Y 上 X 左 B 右 A 下） -->
+            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,Auto,Auto"
+                  RowSpacing="4" ColumnSpacing="4" VerticalOptions="Center">
+                <Button Grid.Row="0" Grid.Column="1" x:Name="FaceY" Text="Y" Clicked="OnFaceY"
+                        WidthRequest="52" HeightRequest="52" CornerRadius="26" Padding="0" FontSize="17" FontAttributes="Bold" />
+                <Button Grid.Row="1" Grid.Column="0" x:Name="FaceX" Text="X" Clicked="OnFaceX"
+                        WidthRequest="52" HeightRequest="52" CornerRadius="26" Padding="0" FontSize="17" FontAttributes="Bold" />
+                <Button Grid.Row="1" Grid.Column="2" x:Name="FaceB" Text="B" Clicked="OnFaceB"
+                        WidthRequest="52" HeightRequest="52" CornerRadius="26" Padding="0" FontSize="17" FontAttributes="Bold" />
+                <Button Grid.Row="2" Grid.Column="1" x:Name="FaceA" Text="A" Clicked="OnFaceA"
+                        WidthRequest="52" HeightRequest="52" CornerRadius="26" Padding="0" FontSize="17" FontAttributes="Bold" />
+            </Grid>
+        </Grid>
+    </Grid>
+</ContentPage>

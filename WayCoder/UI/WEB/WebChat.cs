@@ -59,6 +59,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         public string LastStatus = "";
         /// <summary>本轮任务完成时间戳（完成瞬态显示用，TickCount64）。</summary>
         public long CompleteAtTicks;
+        /// <summary>本页面（槽位）持久化的工作目录 —— Agent `cd` 后保存，下次任务从该目录起步。
+        /// 与 TUI 的 <c>AgentSlot.WorkingDirectory</c> 同义；每个页面的 cd 互不影响。</summary>
+        public string? WorkingDirectory;
     }
 
     /// <summary>SSE 客户端（写失败 = 断开）。</summary>
@@ -1075,6 +1078,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
         {
             _currentSlot.Value = slotIdx;
             StructuredMemory.CurrentSlotIndex = slotIdx; // 绑定本槽位记忆目录（AsyncLocal）
+            // 绑定本页面（槽位）自己的 cwd 作用域：`cd` 只影响本页面，不串到别的页面。
+            // 用槽位持久化的目录起步（首次为当前根目录），见 CwdContext 的「一个盒子 = 一个逻辑智能体」。
+            CwdContext.PushScope(slot.WorkingDirectory ?? CwdContext.Root);
             try
             {
                 var final = await agent.ChatAsync(
@@ -1104,6 +1110,9 @@ public sealed partial class WebChatServer : UxHelper.IWebInteraction
             }
             finally
             {
+                // 持久化本页面（槽位）的 cwd：Agent cd 后保存，下次任务从该目录起步。
+                slot.WorkingDirectory = CwdContext.Root;
+
                 // 摘除本轮 CTS 并置空闲也在 StartLock 内，与 Interrupt/下一次 StartSlotTask 互斥，
                 // 保证 slot.Cts 读写一致；若 Cts 已被 Interrupt 摘除（中断路径）则不重复 Dispose。
                 lock (slot.StartLock)

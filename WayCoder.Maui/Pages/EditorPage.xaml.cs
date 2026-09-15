@@ -29,6 +29,7 @@ public partial class EditorPage : ContentPage
     private readonly EditHistory _history = new();
 
     private bool _canEdit;                 // 文件够小，允许切到编辑模式
+    private bool _fileReadOnly;            // 文件自身的只读属性（文件系统决定，非用户可切）
     private bool _readOnly = true;         // 当前是否只读模式（默认只读）
     private bool _modified;
     private bool _committing;              // 提交编辑时抑制 TextChanged 回写
@@ -379,10 +380,14 @@ public partial class EditorPage : ContentPage
     {
         CommitEditingLine();   // 先把正在编辑的行落盘，再弹菜单（弹菜单会失焦）
 
-        // 字号可以是小数（捏合给的是连续值），所以这里按一位小数显示，别截成整数
-        string fs = $"{EditorTypography.FontSize:0.#}";
         // 工具栏那 7 个图标也一并收进来：工具栏是「一眼可见」，菜单是「全都在这里」——
         // 功能一多，图标按钮就会挤成一片看不出谁是谁，不如给一个完整的清单入口。
+        //
+        // ⚠ **字号缩放不在这里**（用户要求去掉：「菜单太长，反正可以手指操作」）。
+        //   捏合缩放本身就够用，而且它给的是连续值 —— 菜单里再摆一对「加大/缩小」
+        //   既重复又只能一磅一磅挪，纯属占位置。
+        //   但**「重置字号」留着**：捏合能缩放、**不能**精确回到默认值，而字号是持久化的
+        //   （MauiEditorStore），捏到 8 号或 96 号之后没有这条路就回不来了。
         var choice = await DisplayActionSheetAsync("编辑器", "取消", null,
             "💾  保存",
             "📄  另存为…",
@@ -395,9 +400,7 @@ public partial class EditorPage : ContentPage
             "📖  大纲…",
             "👁  Markdown 预览",
             "📋  全选并复制",
-            $"🔠  加大字体（当前 {fs}）",
-            "🔡  缩小字体",
-            "↩️  重置字号");
+            $"↩️  重置字号（当前 {EditorTypography.FontSize:0.#}）");
 
         switch (choice)
         {
@@ -412,21 +415,22 @@ public partial class EditorPage : ContentPage
             case "📖  大纲…": OnOutlineClicked(this, EventArgs.Empty); break;
             case "👁  Markdown 预览": OnPreviewClicked(this, EventArgs.Empty); break;
             case "📋  全选并复制": await CopyAllAsync(); break;
-            case var c when c != null && c.StartsWith("🔠"): AdjustFontSize(+1); break;
-            case "🔡  缩小字体": AdjustFontSize(-1); break;
-            case "↩️  重置字号": AdjustFontSize(0); break;
+            case var c when c != null && c.StartsWith("↩️"): ResetFontSize(); break;
         }
     }
 
-    /// <summary>调字号（0 = 重置为默认）。步长 <see cref="EditorTypography.FontStep"/>；捏合那条路没有档位、连续取值。</summary>
-    private void AdjustFontSize(int delta)
-        => ApplyFontSize(delta == 0
-                ? EditorTypography.DefaultFontSize
-                : EditorTypography.FontSize + delta * EditorTypography.FontStep,
-            persist: true, toast: true);
+    /// <summary>
+    /// 字号重置为默认值（菜单里唯一剩下的字号入口）。
+    ///
+    /// 菜单里原来的「加大 / 缩小」已按用户要求去掉（菜单太长，捏合缩放足够）；
+    /// 它们当时按 <see cref="EditorTypography.FontStep"/> 一磅一磅地挪，
+    /// 而捏合给的是连续值 —— 两者并存纯属重复。这条路保留是因为**捏合回不到精确的默认值**。
+    /// </summary>
+    private void ResetFontSize()
+        => ApplyFontSize(EditorTypography.DefaultFontSize, persist: true, toast: true);
 
     /// <summary>
-    /// **改字号的唯一入口** —— 捏合、菜单「加大/缩小/重置」全部走这里。
+    /// **改字号的唯一入口** —— 捏合缩放、菜单「重置字号」、编辑时对齐整数号全部走这里。
     ///
     /// 排版常量是全局的，改完要让画布重测字宽、浮动的输入框跟着变；这套收尾只此一份，
     /// 免得「捏合」与「菜单」各写一遍然后漂移（此前就是两份几乎逐行相同的拷贝，
@@ -490,6 +494,7 @@ public partial class EditorPage : ContentPage
 
         _relPath = name;
         _fullPath = SandboxFsService.ResolveInSandbox(name) ?? "";
+        _fileReadOnly = IsFileReadOnly(_fullPath);   // 另存为换了个文件，只读属性跟着换（刚写的这份必然可写）
         _modified = false;
         FileLabel.Text = name;
         Title = Path.GetFileName(name);
@@ -499,6 +504,11 @@ public partial class EditorPage : ContentPage
 
     private async Task NewFileAsync()
     {
+        // 建新文件会 LoadAsync 覆盖当前文档（`_modified` 随之清零）⇒ 有未保存改动必须先问，
+        // 否则「新建」一下当前那份改动就无声没了。问在**输入文件名之前**：先要到名字再被拦下
+        // 等于白填一次。
+        if (!await ConfirmUnsavedAsync()) return;
+
         var name = await DisplayPromptAsync("新建文件", "文件名（可带子目录，如 src/a.cs）",
             accept: "创建", cancel: "取消", maxLength: 200);
         if (string.IsNullOrWhiteSpace(name)) return;
@@ -545,6 +555,7 @@ public partial class EditorPage : ContentPage
         }
 
         _fileBytes = new FileInfo(_fullPath).Length;
+        _fileReadOnly = IsFileReadOnly(_fullPath);
 
         // 打开中遮罩：大文件要顺序扫一遍建行索引（100MB 在百毫秒~数秒级）。没有反馈的话，
         // 用户会以为是「没点到」或者「卡死了」——这也是打开大文件时最容易让人困惑的一段。
@@ -620,6 +631,67 @@ public partial class EditorPage : ContentPage
         _ => $"{b}B"
     };
 
+    /// <summary>
+    /// 文件的**只读属性**（不是「本页当前处于只读模式」——那是 <see cref="_readOnly"/>，
+    /// 是用户自己切的，随时能切回去；这个是文件系统说了算的，切不动）。
+    ///
+    /// 走 <see cref="File.GetAttributes"/> 就够，**不要另按平台写一套权限判断**：
+    /// Windows 上它就是「只读」属性；Unix（Android/iOS 也走这条）上 .NET 用
+    /// <c>access(W_OK)</c> 反推，文件没有写权限时报 <see cref="FileAttributes.ReadOnly"/> ——
+    /// 两边语义刚好对齐我们想要的「这文件能不能写」。
+    ///
+    /// 属性读不出来（路径越界/被 SELinux 挡）时**当可写**：宁可让保存那一步报真正的错，
+    /// 也不要凭一次读属性失败就把用户的编辑入口锁掉。
+    /// </summary>
+    private static bool IsFileReadOnly(string fullPath)
+    {
+        try { return File.GetAttributes(fullPath).HasFlag(FileAttributes.ReadOnly); }
+        catch { return false; }
+    }
+
+    // ── 离页前的未保存拦截 ──
+
+    /// <summary>本次导航已经问过并放行（避免「取消后再 Pop」被自己再拦一次）。</summary>
+    private bool _leaving;
+
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        if (Shell.Current != null) Shell.Current.Navigating += OnShellNavigating;
+    }
+
+    protected override void OnDisappearing()
+    {
+        if (Shell.Current != null) Shell.Current.Navigating -= OnShellNavigating;
+        base.OnDisappearing();
+    }
+
+    /// <summary>
+    /// 返回（导航栏箭头 / 系统返回键）时若文件改过而没保存，**先问一句**。
+    ///
+    /// 为什么挂 <c>Shell.Navigating</c> 而不是页面的 <c>OnBackButtonPressed</c>：后者只管
+    /// **系统返回键**，而屏幕上那个返回箭头走的是 Shell 自己的导航 —— 只挂前者的话，
+    /// 用户点箭头照样一路退出去，改动静默消失（这正是要防的那种丢数据）。
+    ///
+    /// <c>Navigating</c> 是**同步**事件，所以顺序必须是「先 <c>e.Cancel()</c> 拦下，再 await 问」：
+    /// 一旦 await 完再取消就已经晚了，页面早就退掉了。<c>CanCancel</c> 为假时拦不住
+    /// （Shell 明说这次不让取消），此时**不弹框** —— 弹了也留不住人，只会让用户以为「点了没用」。
+    /// </summary>
+    private async void OnShellNavigating(object? sender, ShellNavigatingEventArgs e)
+    {
+        if (_leaving || !_modified) return;
+        if (e.Source != ShellNavigationSource.Pop && e.Source != ShellNavigationSource.PopToRoot) return;
+        if (!e.CanCancel) return;
+
+        e.Cancel();
+
+        if (!await ConfirmUnsavedAsync()) return;   // 取消 ⇒ 留在编辑器里
+
+        _leaving = true;
+        try { await Shell.Current.Navigation.PopAsync(); }
+        finally { _leaving = false; }
+    }
+
     // ── 工具条 ──
 
     private void SetReadOnly(bool readOnly)
@@ -639,8 +711,11 @@ public partial class EditorPage : ContentPage
         // 而 resizetizer 产出的实际文件名是 `icon_edit.scale-100.png` —— 少了 `.png` 就什么都找不到
         // （Android 的资源查找不看扩展名，所以手机上一直是好的）。实测这就是「工具条没有图标」的根因。
         EditBtn.Source = readOnly ? "icon_edit.png" : "icon_lock.png";
-        EditBtn.IsEnabled = _canEdit;
-        EditBtn.Opacity = _canEdit ? 1 : 0.35;
+        // **按钮始终可点**：不能编辑的两种情形（超上限 / 文件只读）都要能**说清原因**。
+        // 禁用的话点击根本不触发，用户只会觉得「按了没反应」——那比一句拒绝的提示更糟。
+        // 视觉上仍按可编辑与否变淡，一眼能看出「这支笔现在不顶用」。
+        EditBtn.IsEnabled = true;
+        EditBtn.Opacity = _canEdit && !_fileReadOnly ? 1 : 0.35;
         UndoBtn.IsEnabled = _canEdit && !readOnly;
         RedoBtn.IsEnabled = _canEdit && !readOnly;
         SaveBtn.IsEnabled = _canEdit && !readOnly;
@@ -648,7 +723,7 @@ public partial class EditorPage : ContentPage
         UpdateStatus();
     }
 
-    private void OnEditClicked(object? sender, EventArgs e)
+    private async void OnEditClicked(object? sender, EventArgs e)
     {
         if (!_canEdit)
         {
@@ -657,6 +732,21 @@ public partial class EditorPage : ContentPage
                 "编辑需要把内容装进内存，再大就无法保证不闪退 —— 可在「设置 › 编辑器」里调高上限。", "知道了");
             return;
         }
+
+        // **文件自身是只读属性 ⇒ 直接拒绝**（用户要求）：这不是「本页当前只读」那种自己切的模式，
+        // 是文件系统不允许写。放进去编辑只会让人白改一场，最后存的时候才报错。
+        // 只拦「进编辑」这一个方向：已经在编辑态时按它是想退出，退出不该被拦。
+        if (!_readOnly && _fileReadOnly)
+        {
+            _ = DisplayAlertAsync("只读文件",
+                $"{_relPath}\n\n该文件是只读文件（文件属性为只读），不可编辑。", "知道了");
+            return;
+        }
+
+        // **退出编辑前先问「要不要保存」**（用户要求）。只读 → 编辑是进门，不必问。
+        // 选「取消」就留在编辑态（没问出结果就不许走），否则一次误触就丢掉整段改动。
+        if (!_readOnly && !await ConfirmUnsavedAsync()) return;
+
         SetReadOnly(!_readOnly);
         // ⚠ 用工具栏这支笔切进编辑态时**也要对齐字号**（v0.96.142）。
         // 上一版只把对齐加在 `BeginEditLine`（点某一行那条路）里，于是「先点笔、再点行」或者
@@ -665,11 +755,44 @@ public partial class EditorPage : ContentPage
         if (!_readOnly) SnapFontSizeForEditing();
     }
 
+    /// <summary>
+    /// 有未保存改动时问一句「要不要保存」。**返回 true = 可以继续往下走**（已保存 / 用户明确放弃），
+    /// false = 用户取消（调用方必须原样停下）。
+    ///
+    /// 三态而不是两态：<c>DisplayAlert</c> 只有两个按钮，而这里「保存」和「不保存」之外**必须**
+    /// 还能反悔 —— 弹窗本身可能是一次误触（点错图标、滑动碰到），没有「取消」就只能二选一，
+    /// 用户被迫在两个都会丢东西的选项里挑一个。
+    ///
+    /// ⚠ 「不保存」**不清 `_modified`**：这里只是离开编辑模式，缓冲区里那份改动还在，
+    /// 状态栏的 ● 也还亮着，回头再进编辑就能接着改、接着存。**只丢屏幕上那份、不丢内存里那份**
+    /// 是安全的方向；真把内存也清了，用户以为「没保存等于撤销了」，实际是「数据没了」。
+    /// </summary>
+    private async Task<bool> ConfirmUnsavedAsync()
+    {
+        if (!_modified) return true;
+        CommitEditingLine();   // 正在编辑的那一行还在输入框里，先落进缓冲区，否则「保存」会漏掉它
+
+        var choice = await DisplayActionSheetAsync("文件已修改", "取消", null, "保存", "不保存");
+        return choice switch
+        {
+            "保存" => await WriteBackAsync(),   // 存失败要拦下（WriteBackAsync 已弹过原因）
+            "不保存" => true,
+            _ => false,                          // 「取消」或被点遮罩关掉
+        };
+    }
+
     private async void OnSaveClicked(object? sender, EventArgs e) => await SaveAsync();
 
     private async Task SaveAsync()
     {
-        if (_editable == null || _fullPath.Length == 0) return;
+        if (await WriteBackAsync())
+            await DisplayAlertAsync("已保存", _relPath, "确定");
+    }
+
+    /// <summary>把缓冲区写回文件（<b>不弹成功提示</b>）。成功返回 true；失败弹一次原因并返回 false。</summary>
+    private async Task<bool> WriteBackAsync()
+    {
+        if (_editable == null || _fullPath.Length == 0) return false;
         CommitEditingLine();
         try
         {
@@ -678,11 +801,12 @@ public partial class EditorPage : ContentPage
                 _doc?.Encoding ?? new UTF8Encoding(false), _doc?.UsesCrlf ?? false);
             _modified = false;
             UpdateStatus();
-            await DisplayAlertAsync("已保存", _relPath, "确定");
+            return true;
         }
         catch (Exception ex)
         {
             await DisplayAlertAsync("保存失败", ex.Message, "关闭");
+            return false;
         }
     }
 

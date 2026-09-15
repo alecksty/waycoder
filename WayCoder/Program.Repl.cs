@@ -1399,8 +1399,9 @@ public partial class Program
             // 主线程后续切槽位不影响本任务读到的槽位值
             StructuredMemory.CurrentSlotIndex = slotIdx;
             // 绑定本槽位工作目录：用槽位持久化的 cwd 初始化（而非继承主线程 null→进程目录），
-            // 使每个槽位从自己的目录起步、互不影响；Agent cd 后在此 AsyncLocal 内生效
-            CwdContext.Current.Value = slot.WorkingDirectory ?? Directory.GetCurrentDirectory();
+            // 使每个槽位从自己的目录起步、互不影响。**开新作用域**（新盒子）而非只赋值：
+            // 一个盒子 = 一个槽位的 cwd，槽位内 Agent 的 cd 就改这个盒子（见 CwdContext 注释）。
+            CwdContext.PushScope(slot.WorkingDirectory ?? Directory.GetCurrentDirectory());
             try
             {
                 await RunSlotAgentAsync(slotIdx, userInput, capturedScreen, ct);
@@ -1412,8 +1413,9 @@ public partial class Program
             finally
             {
                 // 持久化本槽位工作目录：Agent cd 后保存，下次任务从该目录起步。
-                // 须在 AsyncLocal 仍绑定于本任务的 ExecutionContext 内读取，读到的是本槽位 Agent 顶层 cd 后的值
-                // （子智能体的 cd 已被 AgentTool 恢复，不会污染此值）
+                // 读到的是本槽位 Agent cd 之后的真实值 —— 本槽位的盒子由上面 PushScope 创建，
+                // 槽位内（含并行工具分支）的 cd 就地改这个盒子，所以这里读得到；
+                // 子智能体有自己的作用域，不会污染此值。
                 slot.WorkingDirectory = CwdContext.Root;
 
                 // 必须先摘除 Cts 再置 IsBusy=false：若反过来，二者之间 UI 线程看到 IsBusy=false

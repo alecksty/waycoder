@@ -75,10 +75,13 @@ public partial class ModelPickerPage : ContentPage
 
     private void RefreshSizeButtons()
     {
-        var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
-        var primary = isDark ? Color.FromArgb("#3A6EA5") : Color.FromArgb("#C9DFF5");
-        var plain = isDark ? Color.FromArgb("#1F1F2E") : Color.FromArgb("#E8E8ED");
-        BigBtn.BackgroundColor = _isBig ? primary : plain;
-        SmallBtn.BackgroundColor = _isBig ? plain : primary;
+        // 配色走 MauiUi.ToggleColors（唯一真源）：中性反色选中态，不再用各页自备的蓝色系字面量
+        var big = MauiUi.ToggleColors(_isBig);
+        BigBtn.BackgroundColor = big.Bg;
+        BigBtn.TextColor = big.Text;
+
+        var small = MauiUi.ToggleColors(!_isBig);
+        SmallBtn.BackgroundColor = small.Bg;
+        SmallBtn.TextColor = small.Text;
     }
 }

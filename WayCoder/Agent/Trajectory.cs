@@ -142,7 +142,11 @@ public sealed class Trajectory
                 .Set("data", data);
             lock (_lock)
             {
-                File.AppendAllText(_filePath, ev.ToJson() + "\n", Encoding.UTF8);
+                // **必须无 BOM**：.NET 的 `Encoding.UTF8` 静态实例是**带 BOM** 的，
+                // 首次创建该文件时 StreamWriter 会把 EF BB BF 写在最前面；而 .jsonl 的消费者
+                // 多是严格解析器（jq / python json.loads / 各类 trace 工具），它们**对 BOM 不容忍**，
+                // 会直接抛「Unexpected UTF-8 BOM」（实测：`json.loads` 读本文件第一行即失败）。
+                File.AppendAllText(_filePath, ev.ToJson() + "\n", Global.Utf8NoBom);
             }
         }
         catch { /* 轨迹写入失败不影响主流程 */ }

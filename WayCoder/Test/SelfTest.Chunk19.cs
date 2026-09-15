@@ -888,13 +888,13 @@ public static partial class SelfTest
         // 两个工具的 List 此前各写一份逐字相同的「Load + filter 解析 + OrderBy/ThenBy」，
         // 只有之后的渲染格式不同（那是刻意的）。前置收敛为 TodoStore.LoadFiltered。
         {
-            var savedCwdVal = CwdContext.Current.Value;
+            var savedCwdVal = CwdContext.Current;
             var todoTmp = Path.Combine(Path.GetTempPath(), "waycoder_todo_" + Guid.NewGuid().ToString("N")[..6]);
             Directory.CreateDirectory(Path.Combine(todoTmp, ".waycoder"));
             try
             {
                 // StorePath 基于 CwdContext.Root → 把工作目录指到临时目录即可隔离真实 todos.json
-                CwdContext.Current.Value = todoTmp;
+                CwdContext.Current = todoTmp;
                 File.WriteAllText(Path.Combine(todoTmp, ".waycoder", "todos.json"), """
                 [
                   { "id": "a", "title": "已完成", "status": "completed", "created_at": "2026-01-01T00:00:00Z" },
@@ -915,7 +915,7 @@ public static partial class SelfTest
             }
             finally
             {
-                CwdContext.Current.Value = savedCwdVal;
+                CwdContext.Current = savedCwdVal;
                 try { Directory.Delete(todoTmp, true); } catch { }
             }
         }

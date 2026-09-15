@@ -33,7 +33,15 @@ public class CdTool : ITool
 
             if (PathGuard.RequireDir(fullPath) is { } e) return Task.FromResult(e);
 
-            CwdContext.Current.Value = fullPath;
+            // 沙箱下不许切到项目外：写工具只在项目根内可写，切出去之后每一个写都会被拒，
+            // 表现为「cd 成功 → 编辑全失败」的半死状态（实测把 Agent 卡死在项目外的克隆目录里）。
+            // 拒绝要发生在**切换之前**，并给出可操作的提示。
+            if (SandboxManager.OutsideAllowed(fullPath) is { } outside)
+                return Task.FromResult(
+                    $"⛔ 沙箱（仅项目内）：不能切换到项目目录外 — {outside}\n"
+                    + "请在项目目录内操作（写/编辑/克隆都只允许在项目根以内）。");
+
+            CwdContext.Current = fullPath;
             return Task.FromResult($"✔ 工作目录: {fullPath}");
         }
         catch (Exception ex)

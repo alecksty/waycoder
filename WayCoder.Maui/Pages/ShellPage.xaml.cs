@@ -119,9 +119,10 @@ public partial class ShellPage : ContentPage
                 return;
             }
 
-            // ⚠ **不要包 `Task.Run`**：`CwdContext` 是 `AsyncLocal`，`cd` 的更新只在
-            // 当前异步上下文里生效，丢到线程池上跑完就传不回来了 —— 表现是 `cd /sdcard` 之后
-            // cwd 永远还显示初始值。桌面 `!` 直通也是直接 await 的。
+            // 直接 await（不额外包 `Task.Run`）：这里本就在后台异步链上，包一层毫无收益。
+            // （历史上这里必须这样写，因为 `CwdContext` 用 `AsyncLocal<string>` 直接存值，
+            //   `cd` 的写入传不回线程池之外；现在 CwdContext 存的是「盒子」、就地改内容，
+            //   cd 能跨任务边界回传，限制已不存在。）
             var result = await new BashTool().ExecuteUserShellAsync(cmd);
             Append(result.TrimEnd() + "\n\n");
         }

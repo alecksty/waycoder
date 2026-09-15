@@ -208,6 +208,45 @@ public static partial class SelfTest
         }
         finally { try { File.Delete(ftPersistFile); } catch { } }
         FileTracker.Reset();
+
+        // ---- FileTracker 必须逐出「自己的状态文件」（回归）----
+        // 老版本会把 file-tracker.json **自身**也存进追踪集，而它每次 Save 都被重写 ⇒
+        // 下次启动 Load 回来、又被判「外部修改」，形成一个**自我延续的假警报**
+        // （自己写自己，却报「被外部修改」）。
+        // 手机端实测：一轮任务里该警告出现 15 次，每次都在工具结果尾部注入一段与外部改动
+        // 毫无关系的噪音，既烧上下文又诱导模型去追查一个不存在的并发修改者。
+        // ⚠ 这条必须**从磁盘**注入老条目才测得到：RecordRead/RecordWrite 那两个入口已加守卫，
+        //   而漏掉的正是 Load 这条恢复路径（修了写入、没修持久化状态 = 等于没修）。
+        try
+        {
+            FileTracker.Reset();
+            var selfStore = Path.Combine(Environment.CurrentDirectory, ".waycoder", "file-tracker.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(selfStore)!);
+            var normalFile = Path.GetTempFileName();
+            File.WriteAllText(normalFile, "selftest_normal");
+            var normalHash = Convert.ToHexString(
+                System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(normalFile)));
+
+            // 模拟老版本落盘的内容：普通文件 + file-tracker.json 自身
+            var arr = JNode.Array();
+            arr.Add(JNode.Object().Set("path", normalFile)
+                .Set("hash", normalHash).Set("last_read", DateTime.UtcNow.ToString("O")));
+            arr.Add(JNode.Object().Set("path", selfStore)
+                .Set("hash", "DEADBEEF").Set("last_read", DateTime.UtcNow.ToString("O")));
+            File.WriteAllText(selfStore, arr.ToJson());
+
+            FileTracker.ReloadForTest();
+            Check("FileTracker: 老落盘数据里的自身状态文件被逐出",
+                !FileTracker.GetStatus(selfStore).isTracked);
+            Check("FileTracker: 普通文件仍正常追踪（逐出不误伤）",
+                FileTracker.GetStatus(normalFile).isTracked);
+            Check("FileTracker: 变更警告不含自身状态文件",
+                FileTracker.GetChangeWarning()?.Contains("file-tracker.json") != true);
+
+            try { File.Delete(normalFile); } catch { }
+        }
+        catch { Fail("FileTracker: 自身状态文件逐出"); }
+        FileTracker.Reset();
         Console.WriteLine();
 
         // ---- CLI 参数: 会话恢复别名 ----

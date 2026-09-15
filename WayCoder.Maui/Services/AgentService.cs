@@ -106,7 +106,11 @@ public sealed class AgentService
             WorkModeManager.Format(agent.WorkMode),
             perm,
             todoCount,
-            agent.Context.CumulativePromptTokens,
+            // **当前上下文占用**，不是会话累计量：累计量单调递增（一轮 50 次调用能到 200 万），
+            // 拿它当分子会显示成「上下文 2041.8k/1048.6k」这种 >100% 的无意义比值。
+            // LastPromptTokens = 最近一次请求的真实 prompt tokens（含 system + 工具定义 + 全部历史），
+            // 正是 ContextManager 用来判断「剩余窗口是否不足」的那个量（见其注释）。
+            agent.Context.LastPromptTokens,
             agent.Context.MaxTokens,
             llm.TaskPromptTokens,
             llm.TaskCompletionTokens,

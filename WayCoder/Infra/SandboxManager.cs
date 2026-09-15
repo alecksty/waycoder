@@ -156,6 +156,19 @@ public static class SandboxManager
         catch { return null; }
     }
 
+    /// <summary>
+    /// 公开的「该路径是否越出沙箱允许目录」判定：界内（或未沙箱、无法判定）返回 null，越界返回规范化路径。
+    ///
+    /// 用途：给**「先切目录、后写入」的工具**做前置拒绝。`cd` 此前不查沙箱，于是可以切到项目外，
+    /// 而写工具（write/edit/multiedit）仍然按项目根拦 ⇒ 出现**半死状态**：`cd` 成功、`git clone`
+    /// 也成功，然后每一次编辑都被「路径在项目根外」拒绝，Agent 只能在错误的地点反复重试。
+    /// 手机端实测：上一轮把 cwd 持久化到了 `waycoder/config`（工作区外），下一轮就在那里克隆，
+    /// 于是整轮卡死。判据本身就是 <see cref="ContainmentReason"/>（唯一实现，含 symlink 解析与
+    /// 路径段边界），不在这里另写一套。
+    /// </summary>
+    public static string? OutsideAllowed(string absolutePath)
+        => IsProjectWrite ? ContainmentReason(absolutePath) : null;
+
     /// <summary>路径**段**边界包含判断：相等，或 allowed 之后紧跟一个分隔符。
     /// 裸 <c>StartsWith</c> 会把 <c>/proj-evil</c> 判成在 <c>/proj</c> 之内。</summary>
     private static bool IsUnder(string path, string allowed)
@@ -374,6 +387,11 @@ public static class SandboxManager
         foreach (Match m in redirectPattern.Matches(command))
         {
             var path = m.Groups[1].Value.Trim('\'', '"');
+            // 正则按 `\S+` 捕获，会把紧跟其后的 shell 分隔符一并吃进来（`2>/dev/null;` → `/dev/null;`），
+            // 于是下面那句 `/dev/null` 豁免判等失败、再被 `/dev/` 前缀规则误判。
+            // 实测后果：`find … 2>/dev/null; echo …` 被整条拦成「禁止写入系统目录：/dev/null;」
+            // —— 最普通的静默重定向写法直接不可用（手机端 Agent 第一轮就撞上，白烧上下文找原因）。
+            path = path.TrimEnd(';', '&', '|', ')', '`', ',');
             if (string.IsNullOrEmpty(path) || path == "/dev/null") continue;
 
             foreach (var sysDir in systemDirs)

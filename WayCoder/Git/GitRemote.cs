@@ -173,7 +173,7 @@ public static class GitRemote
         var gitDir = Path.Combine(repoRoot, ".git");
         var url = GitCore.ReadRemoteUrl(gitDir, origin);
         if (url == null) return $"⚠ 未配置远程 {origin}。请先 /git remote add {origin} <url>";
-        var cred = GitCore.ReadCredential(gitDir);
+        var cred = GitCore.CredentialFor(gitDir, url); // 跨 host 不发凭证（见 CredentialFor 注释）
 
         var (newSha, objects) = await FetchObjectsAsync(gitDir, url, cred, branch, progress);
         if (newSha == null) return $"远端 {origin}/{branch} 不存在或已是最新。";
@@ -210,7 +210,7 @@ public static class GitRemote
         var gitDir = Path.Combine(repoRoot, ".git");
         var url = GitCore.ReadRemoteUrl(gitDir, origin);
         if (url == null) return $"⚠ 未配置远程 {origin}。请先 /git remote add {origin} <url>";
-        var cred = GitCore.ReadCredential(gitDir);
+        var cred = GitCore.CredentialFor(gitDir, url); // 跨 host 不发凭证（见 CredentialFor 注释）
 
         var newSha = GitCore.ReadHeadCommit(gitDir);
         if (newSha == null) return "⚠ 本地尚无提交，无法推送。";
@@ -236,11 +236,27 @@ public static class GitRemote
         var url = rest[0];
         var branch = rest.Length > 1 ? rest[1] : null;
 
+        // ⛔ **目标已是 git 仓库时拒绝克隆** —— 这道守卫必须在**最前面**。
+        //
+        // 原来的顺序是 `Init → WriteRemoteUrl("origin", url) → 联网 fetch`：写 remote 在联网**之前**，
+        // 而 repoRoot 就是「当前仓库」。于是「在已有仓库里敲一次 git clone」的后果是
+        // **把这个仓库的 origin 改成被克隆的 URL**，而且**克隆随后失败也照样改了**
+        // （真实踩到：手机端 Agent 在 way-coder 里 clone github.com/octocat/Hello-World 超时失败，
+        //  该仓库的 origin 已经被改写成 octocat/Hello-World —— 用户下次同步就会拉到错误的地方）。
+        // 真 git 也拒绝克隆进非空目录，这里对齐该语义并给出可操作的提示。
+        if (File.Exists(Path.Combine(repoRoot, ".git", "HEAD"))
+            || Directory.Exists(Path.Combine(repoRoot, ".git", "objects")))
+        {
+            return $"⛔ 目标目录已是 git 仓库，不能克隆覆盖：{repoRoot}\n"
+                 + "请改到空目录再克隆（新建一个子目录，或换一个工作目录），"
+                 + "否则会覆盖该仓库的 origin 配置。";
+        }
+
         progress?.Invoke("初始化仓库…");
         GitCore.Init(repoRoot);
         var gitDir = Path.Combine(repoRoot, ".git");
         GitCore.WriteRemoteUrl(gitDir, "origin", url);
-        var cred = GitCore.ReadCredential(gitDir);
+        var cred = GitCore.CredentialFor(gitDir, url); // 跨 host 不发凭证（见 CredentialFor 注释）
 
         // 未指定分支：探测远端默认分支（现代仓库多为 main，回退 master，再回退第一个）
         if (branch == null)

@@ -111,7 +111,7 @@ public static class MauiBootstrap
             WorkspaceDir = ext;
             WorkspaceExternal = true;
             SandboxManager.AllowedDirectory = ext;
-            CwdContext.Current.Value = ext;
+            CwdContext.PushScope(ext);
             try { Directory.SetCurrentDirectory(ext); } catch { }
 
             // 配置目录也切到外部 sdcard/waycoder/config（迁移旧的 .waycoder/config/session 等）
@@ -212,11 +212,34 @@ public static class MauiBootstrap
         SandboxManager.SetLevel("project");
         SandboxManager.AllowedDirectory = WorkspaceDir;
 
-        // 6) cwd 锚点 → workspace（read_file/write_file/edit_file/glob 等相对路径解析）
-        CwdContext.Current.Value = WorkspaceDir;
+        // 6) cwd 锚点 → workspace（read_file/write_file/edit_file/glob 等相对路径解析）。
+        //    **开新作用域**：这是 App 的根盒子，之后每个消息的 Agent 任务都继承它，
+        //    于是 `cd` 真正生效、且跨消息保持（在此之前 cd 是 no-op）。
+        //    同时设**进程级默认**：AsyncLocal 作用域按 async 流传播，而平台调起的回调
+        //    （UI 事件、切深浅色导致 Activity 重建后的新处理器）可能落在一条没继承到本盒子的
+        //    流里 —— 那时惰性新建的盒子必须按 workspace 播种，否则会回退到 `Global.Home`
+        //    （上面第 189 行把进程 cwd 设成了 config 目录），表现为 Agent 在工作区外乱写被沙箱拦死。
+        CwdContext.SetDefault(WorkspaceDir);
+        CwdContext.PushScope(WorkspaceDir);
 
         // 7) 交互桥注入：权限确认 / AskUserQuestion / diff 确认走原生对话框（M5）
         UxHelper.WebInteraction = new MauiWebInteraction();
+
+        // 7b) VML 程序开窗口的宿主接线：syscall 处理器只负责"要开一个窗口"，
+        //     真正导航到绘图页由这里注入（处理器不直接依赖 Shell，便于单测与复用）。
+        Services.VmlUiCalls.OpenWindowAsync = async scene =>
+        {
+            await MainThread.InvokeOnMainThreadAsync(async () =>
+            {
+                await Shell.Current.GoToAsync("drawwindow");
+                if (Shell.Current.CurrentPage is Pages.DrawWindowPage page) page.Attach(scene);
+            });
+        };
+        Services.VmlUiCalls.CloseWindowAsync = () =>
+            MainThread.InvokeOnMainThreadAsync(async () =>
+            {
+                if (Shell.Current.CurrentPage is Pages.DrawWindowPage) await Shell.Current.GoToAsync("..");
+            });
         UxHelper.OnNotify = (level, title, message) =>
         {
             // error 级别弹框告知用户（重要）；其余级别记录日志避免频繁打扰

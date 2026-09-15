@@ -156,7 +156,7 @@ public partial class Config
               "最大对话轮次", "⚙️ 参数", "每轮对话最大工具调用次数",
               "number", null, 5,
               c => c.MaxRounds.ToString(),
-              (c, v) => c.MaxRounds = Math.Clamp(int.Parse(v), 5, 500), "50"),
+              (c, v) => c.MaxRounds = Math.Clamp(int.Parse(v), 5, 500), "200"),
 
             P("BashOutputMaxChars", null,                             null,
               "Bash 输出上限", "⚙️ 参数", "Bash 输出截断阈值（字符数），0=不截断",

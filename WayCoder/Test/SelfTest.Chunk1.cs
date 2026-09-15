@@ -671,13 +671,118 @@ public static partial class SelfTest
             var testDir = Path.Combine(Path.GetTempPath(), "ct_" + Guid.NewGuid().ToString("N")[..6]);
             var subDir = Path.Combine(testDir, "a", "b");
             Directory.CreateDirectory(subDir);
-            CwdContext.Current.Value = null!; // 重置 AsyncLocal
+            CwdContext.PushScope(null); // 本用例自己的作用域
             BashTool.UpdateCwd($"cd {testDir} && cd a && cd b", testDir);
-            Check("bash cd 链式解析", CwdContext.Current.Value == Path.GetFullPath(subDir));
+            Check("bash cd 链式解析", CwdContext.Current == Path.GetFullPath(subDir));
             Directory.Delete(testDir, true);
-            CwdContext.Current.Value = null!; // 重置
+            CwdContext.PushScope(null); // 复位
         }
         catch { Fail("bash cd 链式解析"); }
+
+        // **cd 工具必须真的改动「后续工具看到的工作目录」—— 跨 async 派发边界**。
+        // 这是回归断言，钉住一个曾经从头错到尾的实现：CwdContext 原先直接
+        // `AsyncLocal<string?>` 存值，而 cd 是**在 async 被调方里**赋值的
+        // （Agent → RunToolAndRecordAsync → ExecuteToolAsync → tool.ExecuteAsync），
+        // AsyncLocal 的赋值只对当前上下文的子树可见、**传不回 await 上游的调用方**，
+        // 于是 cd 回一句「✔ 工作目录: …」而 pwd/ls/git 仍按旧目录解析 —— 一个只说好话的 no-op。
+        // 手机端实测形态：`cd vmltest` 成功 → 紧接着 `git init` 仍报「禁止在 workspace 根目录执行 git 操作」。
+        // 注意断言必须**跨任务/await 边界**才有意义：在本方法里直接调 CdTool 是同步路径，
+        // 无论实现对错都会通过（旧实现正是这样"测过"的）。
+        try
+        {
+            var cdRoot = Path.Combine(Path.GetTempPath(), "cdroot_" + Guid.NewGuid().ToString("N")[..6]);
+            var cdSub = Path.Combine(cdRoot, "sub");
+            Directory.CreateDirectory(cdSub);
+            var savedScope = CwdContext.Root;
+
+            CwdContext.PushScope(cdRoot); // 本用例自己的作用域
+            // 形如 Agent 的真实派发：外层 await 边界 + 内层 await 工具（工具本体是同步返回的 Task）
+            Task.Run(async () =>
+            {
+                await Task.Yield();
+                await new CdTool().ExecuteAsync(new Dictionary<string, object?> { ["path"] = "sub" });
+            }).GetAwaiter().GetResult();
+
+            Check("cd 跨 async 派发边界生效（回归：赋值须能传回调用方）",
+                CwdContext.Root == Path.GetFullPath(cdSub));
+
+            // 作用域隔离：内层**自己开新作用域**（= 槽位任务 / 子智能体的做法）后 cd，
+            // 外层读到的仍是自己的目录 —— 这正是「子智能体 cd 不污染父智能体」的机制。
+            // 注意：不 PushScope 的 Task.Run 是**共享**外层盒子的（所以上面第一条才能生效），
+            // 两条断言必须成对存在，否则容易把「共享」误当「隔离」。
+            CwdContext.PushScope(cdRoot); // 外层盒子 = cdRoot
+            Task.Run(async () =>
+            {
+                CwdContext.PushScope(cdRoot); // 内层开自己的盒子
+                await Task.Yield();
+                await new CdTool().ExecuteAsync(new Dictionary<string, object?> { ["path"] = "sub" });
+            }).GetAwaiter().GetResult();
+            Check("内层开新作用域后 cd 不回传外层（隔离）", CwdContext.Root == Path.GetFullPath(cdRoot));
+
+            CwdContext.PushScope(savedScope); // 复位
+            Directory.Delete(cdRoot, true);
+        }
+        catch { Fail("cd 跨 async 派发边界生效"); }
+
+        // **丢失作用域时必须回退「进程默认目录」，而不是进程 cwd**（回归）。
+        // AsyncLocal 作用域按 async 流传播，平台调起的回调（UI 事件、Activity 重建后的处理器）
+        // 可能落在一条没继承到盒子的流里。此时若按进程 cwd 播种，手机端就会拿到 `Global.Home`
+        // （= config 目录，见 MauiBootstrap 把进程 cwd 设成它的那行），Agent 于是在工作区外
+        // mkdir/cd/clone，随后每个写都被沙箱拒绝 —— 实测整轮卡死。
+        try
+        {
+            var defDir = Path.Combine(Path.GetTempPath(), "cwddef_" + Guid.NewGuid().ToString("N")[..6]);
+            Directory.CreateDirectory(defDir);
+            CwdContext.SetDefault(defDir);
+
+            string? seen = null;
+            using (var done = new ManualResetEventSlim(false))
+            {
+                // 不流经 ExecutionContext 的线程池回调 = 没继承到作用域盒子的上下文（忠实模拟）
+                ThreadPool.UnsafeQueueUserWorkItem(_ => { seen = CwdContext.Root; done.Set(); }, null);
+                done.Wait(TimeSpan.FromSeconds(5));
+            }
+            Check("丢失作用域时回退进程默认目录（而非进程 cwd）", seen == Path.GetFullPath(defDir));
+
+            CwdContext.SetDefault(null);
+            try { Directory.Delete(defDir, true); } catch { }
+        }
+        catch { Fail("丢失作用域时回退进程默认目录"); }
+
+        // **cd 不得越出沙箱**（回归）：写工具只在项目根内可写，而 cd 此前不查沙箱 ⇒
+        // 「cd 成功 → 之后每一次 write/edit 都被拒」的半死状态。
+        // 手机端实测：上一轮把 cwd 持久化到工作区外的 `waycoder/config`，下一轮就在那里
+        // 克隆测试仓库，然后所有编辑都被「路径在项目根外」挡住，整轮卡死。
+        try
+        {
+            var sbRoot = Path.Combine(Path.GetTempPath(), "cdsb_" + Guid.NewGuid().ToString("N")[..6]);
+            var sbOut = Path.Combine(Path.GetTempPath(), "cdout_" + Guid.NewGuid().ToString("N")[..6]);
+            Directory.CreateDirectory(sbRoot);
+            Directory.CreateDirectory(sbOut);
+            var savedScope2 = CwdContext.Root;
+            CwdContext.PushScope(sbRoot);
+            SandboxManager.SetLevel("project");
+            SandboxManager.AllowedDirectory = sbRoot;
+            try
+            {
+                var refused = new CdTool()
+                    .ExecuteAsync(new Dictionary<string, object?> { ["path"] = sbOut })
+                    .GetAwaiter().GetResult();
+                Check("cd 拒绝切出项目外（沙箱）", refused.Contains("不能切换到项目目录外"));
+                Check("cd 被拒后工作目录未变", CwdContext.Root == Path.GetFullPath(sbRoot));
+                Check("cd 项目内仍正常",
+                    new CdTool().ExecuteAsync(new Dictionary<string, object?> { ["path"] = "." })
+                        .GetAwaiter().GetResult().Contains("✔"));
+            }
+            finally
+            {
+                SandboxManager.Reset();
+                CwdContext.PushScope(savedScope2);
+                try { Directory.Delete(sbOut, true); } catch { }
+                try { Directory.Delete(sbRoot, true); } catch { }
+            }
+        }
+        catch { Fail("cd 拒绝切出项目外（沙箱）"); }
 
         // 持久 shell 会话
         var psBuild = PersistentShell.BuildCommand("echo hi", "MARK");

@@ -70,4 +70,19 @@
     <!-- 主文字 -->
     <Color x:Key="MainTextLight">#111111</Color>
     <Color x:Key="MainTextDark">#EEEEEE</Color>
+
+    <!-- ═══ 按钮（中性表面，随主题走 —— 不再用品牌蓝）═══
+         用户要求：系统风格统一 —— 暗色模式近黑底 + 白字，亮色模式近白底 + 黑字。
+         此前的按钮是 Primary 蓝底，在系统深/浅色下都显得突兀（"和系统风格不搭"）。
+         底色取与输入区/卡片同一族的灰（而非纯黑白），既能与页面背景区分开、
+         又不引入第二个强调色；选中态用「反色」（见 ButtonSelected*）。 -->
+    <Color x:Key="ButtonBgLight">#F2F3F7</Color>
+    <Color x:Key="ButtonBgDark">#1A1A20</Color>
+    <Color x:Key="ButtonTextLight">#111111</Color>
+    <Color x:Key="ButtonTextDark">#FFFFFF</Color>
+    <!-- 选中/激活态：亮色模式=近黑底白字，暗色模式=近白底黑字（反色，无需第二个强调色） -->
+    <Color x:Key="ButtonSelectedBgLight">#1C1C1E</Color>
+    <Color x:Key="ButtonSelectedBgDark">#F2F2F4</Color>
+    <Color x:Key="ButtonSelectedTextLight">#FFFFFF</Color>
+    <Color x:Key="ButtonSelectedTextDark">#111111</Color>
 </ResourceDictionary>

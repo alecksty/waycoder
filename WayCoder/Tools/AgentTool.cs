@@ -307,9 +307,12 @@ public class AgentTool : ITool, ICancellableTool
         // 子智能体轮次：随深度递减（顶层上限可配置）
         var subRounds = Math.Max(5, Config.Instance.SubAgentMaxRounds - depth * 5);
 
-        // 子智能体 cd 泄漏防护：CwdContext.Current 是 static AsyncLocal，子智能体内部 cd 会
-        // 沿同一 async 上下文回传污染父智能体 cwd（后续父 bash/edit 相对路径解析错）——执行前保存父值。
-        var parentCwd = CwdContext.Current.Value;
+        // 子智能体 cwd 隔离：开**新作用域**（新盒子），子智能体内部的 cd 只改它自己那个盒子。
+        // 隔离是结构性的、不需要「记下父值再恢复」：
+        //   · 本方法之后的调用（子智能体）继承新盒子 ⇒ 子智能体的 cd 不污染父；
+        //   · 对 AsyncLocal 的赋值不会回传到 await 上游的调用方（父智能体）⇒ 父的盒子根本没被碰过。
+        // 此前是「保存父值 → 跑 → 恢复」，那既多余、又在 cd 真正生效后变成「恢复的是子智能体的盒子」。
+        CwdContext.PushScope(CwdContext.Root);
 
         // 明文审计：预先构造任务全文与工具清单，供 finally 统一落盘（成功/失败/中断都留痕）
         var contextSummary = BuildParentContext(depth);
@@ -361,8 +364,7 @@ public class AgentTool : ITool, ICancellableTool
             _currentDepth.Value = depth;
             // 回收子智能体实例的花费统计到父智能体（Clone 后统计独立，否则会丢失）
             parent.LlmClient.MergeUsageFrom(subLLM);
-            // 恢复父智能体 cwd（子智能体 cd 污染防护）；父未设过 cwd 时回退进程目录
-            CwdContext.Current.Value = parentCwd ?? Directory.GetCurrentDirectory();
+            // cwd 无需在此恢复：子智能体跑在自己的作用域里（见上方 PushScope），父智能体的盒子全程未被碰过。
         }
     }
 

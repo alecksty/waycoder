@@ -200,6 +200,18 @@ public static partial class SelfTest
         var sw2 = SandboxManager.CheckSandboxViolation("echo x > output.txt", "/tmp");
         Check("沙箱允许写 output.txt", sw2 == null);
 
+        // `/dev/null` 豁免必须扛得住「后面紧跟 shell 分隔符」—— 这是最普通的静默重定向写法。
+        // 回归：重定向正则按 `\S+` 捕获，会把尾随的 `;`/`&&` 一起吃进来（`/dev/null;`），
+        // 判等失败后被 `/dev/` 前缀规则误判成「禁止写入系统目录」。
+        // 实测代价：手机端 Agent 第一轮 `find … 2>/dev/null; echo …` 就被整条拦下，
+        // 它只能换个写法重试 —— 白烧一轮上下文去猜「为什么连 /dev/null 都不让写」。
+        Check("沙箱放行 2>/dev/null;（分号不该被当成路径）",
+            SandboxManager.CheckSandboxViolation("find . -name x 2>/dev/null; echo done", "/tmp") == null);
+        Check("沙箱放行 2>/dev/null &&（&& 不该被当成路径）",
+            SandboxManager.CheckSandboxViolation("ls x 2>/dev/null && echo done", "/tmp") == null);
+        Check("沙箱仍拦真·系统目录写入（分号形态）",
+            SandboxManager.CheckSandboxViolation("echo x > /etc/passwd; echo done", "/tmp") != null);
+
         // 环境变量清理
         Check("MaxMemoryBytes 默认 1GB", SandboxManager.MaxMemoryBytes == 1024L * 1024 * 1024);
         Check("MaxCpuTimeSeconds 默认 300", SandboxManager.MaxCpuTimeSeconds == 300);
@@ -260,7 +272,7 @@ public static partial class SelfTest
             Directory.CreateDirectory(ws);
             SandboxManager.SetLevel("project");
             SandboxManager.AllowedDirectory = ws;
-            CwdContext.Current.Value = ws;
+            CwdContext.Current = ws;
             var oldCwd = Directory.GetCurrentDirectory();
             try
             {
@@ -272,7 +284,7 @@ public static partial class SelfTest
             finally
             {
                 Directory.SetCurrentDirectory(oldCwd);
-                CwdContext.Current.Value = null;
+                CwdContext.Current = null;
                 SandboxManager.Reset();
                 try { Directory.Delete(ws, true); } catch { }
             }

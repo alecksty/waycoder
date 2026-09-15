@@ -27,5 +27,7 @@ public partial class AppShell : Shell
         // 独立页（替代抽屉浮层，聊天页保持全宽无布局干扰）：会话历史 / 侧栏命令
         Routing.RegisterRoute("sessions", typeof(SessionHistoryPage));
         Routing.RegisterRoute("panel", typeof(CommandPanelPage));
+        // VML 程序开的绘图窗口（标题栏自带返回箭头；内容由宿主渲染，见 DrawWindowPage）
+        Routing.RegisterRoute("drawwindow", typeof(DrawWindowPage));
     }
 }

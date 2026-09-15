@@ -46,6 +46,7 @@ public static class FileTracker
 
                 var absPath = Path.GetFullPath(filePath);
                 if (!File.Exists(absPath)) return;
+                if (IsSelfStateFile(absPath)) return; // 自己的状态文件不追踪，见 IsSelfStateFile
 
                 // LRU 淘汰：超出上限时清理最久未读取的条目。
                 // 不能用 Tracked.Keys.FirstOrDefault()——Dictionary 覆盖已存在键不改变枚举顺序，
@@ -95,6 +96,7 @@ public static class FileTracker
 
                 var absPath = Path.GetFullPath(filePath);
                 if (!File.Exists(absPath)) return;
+                if (IsSelfStateFile(absPath)) return; // 自己的状态文件不追踪，见 IsSelfStateFile
 
                 // LRU 淘汰：写入新路径同样执行上限淘汰。此前 RecordWrite 只增不减，
                 // 大规模写入会令 Tracked/LastReadTimes 无界增长（违反 MaxTracked 上限）。
@@ -317,6 +319,12 @@ public static class FileTracker
                 var h = item["hash"]?.AsString();
                 if (string.IsNullOrEmpty(p) || string.IsNullOrEmpty(h)) continue;
 
+                // **逐出自己**：老版本写下的追踪集里可能已经含 file-tracker.json 自身，
+                // 而它会被每次 Save 重写 ⇒ 每次启动 Load 回来、又被判「外部修改」，
+                // 是个自我延续的假警报（只在 RecordRead/RecordWrite 加守卫挡不住它 ——
+                // 那条老条目是从**磁盘**恢复进来的，根本不经过那两个入口）。
+                if (IsSelfStateFile(Path.GetFullPath(p))) continue;
+
                 Tracked[p] = h;
                 if (DateTime.TryParse(item["last_read"]?.AsString(), null,
                         System.Globalization.DateTimeStyles.RoundtripKind, out var dt))
@@ -356,6 +364,19 @@ public static class FileTracker
             // 静默失败 — 持久化是尽力而为，内存追踪仍正常工作
         }
     }
+
+    /// <summary>
+    /// 是否是**本模块自己的状态文件**（<c>file-tracker.json</c>）—— 是则不追踪。
+    ///
+    /// 为什么必须排除：这个文件由 <see cref="Save"/> 在每次 RecordRead/RecordWrite 后重写，
+    /// 而 Agent 一旦读过它（例如 `grep -r` 扫配置目录时会顺带读到），它就进了追踪集，
+    /// 于是下次 Save 一写 → <see cref="GetChangeWarning"/> 立刻报「以下已读取的文件被外部修改：
+    /// …/file-tracker.json」。**这是自己改自己触发的假警报**，与「外部改动」毫无关系，
+    /// 却会在每一轮工具结果里注入一段噪音（手机端实测一轮任务里出现 5 次以上），
+    /// 既烧上下文又误导模型去追查一个不存在的并发修改者。
+    /// </summary>
+    private static bool IsSelfStateFile(string absPath)
+        => string.Equals(absPath, Path.GetFullPath(StorePath), StringComparison.OrdinalIgnoreCase);
 
     /// <summary>SHA256 哈希计算</summary>
     private static string ComputeHash(string filePath)

@@ -101,7 +101,10 @@ namespace WayCoder.Tools
     {
         public string Name => "git";
         public ToolExecutionMode ExecutionMode => ToolExecutionMode.Exclusive;
-        public string Description => "执行 Git 操作（纯 C# 实现）：init、add、commit、status、diff、log、branch、checkout、merge、pull、push、fetch、remote、clone、credential。";
+        public string Description => "执行 Git 操作（纯 C# 实现）：init、add、commit、status、diff、log、branch、checkout、merge、pull、push、fetch、remote、clone、credential。"
+            + "注意：① 所有操作都作用于**当前工作目录**（先用 cd 进到目标子目录，不能在 workspace 根目录操作）；"
+            + "② clone 要求目标目录**还不是 git 仓库**（否则会覆盖其 origin，工具会拒绝），先 mkdir 一个空目录再进去 clone；"
+            + "③ 不支持 ls-remote，测网络连通性请用 fetch 或 clone。";
         public JNode Parameters => JNode.Object()
             .Set("type", "object")
             .Set("properties", JNode.Object()
@@ -117,7 +120,7 @@ namespace WayCoder.Tools
                 return Task.FromResult("用法：git <init|add|commit|status|diff|log|branch|checkout|merge|pull|push|fetch|remote|clone|credential>");
             try
             {
-                var cwd = CwdContext.Current.Value ?? Directory.GetCurrentDirectory();
+                var cwd = CwdContext.Current ?? Directory.GetCurrentDirectory();
                 var repoRoot = WayCoder.Git.GitCore.FindRepoRoot(cwd);
 
                 // init / clone 可在仓库尚不存在时执行（以 cwd 为根创建仓库）
@@ -220,7 +223,7 @@ namespace WayCoder.Tools
 
         private static string ResolveDbPath(string database)
         {
-            var cwd = CwdContext.Current.Value ?? Directory.GetCurrentDirectory();
+            var cwd = CwdContext.Current ?? Directory.GetCurrentDirectory();
             try { return Path.GetFullPath(database, cwd); }
             catch { return database; }
         }

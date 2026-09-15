@@ -24,7 +24,7 @@ public class LintTool : ITool
     public async Task<string> ExecuteAsync(Dictionary<string, object?> arguments)
     {
         var rawPath = arguments.GetValueOrDefault("path")?.ToString();
-        var path = string.IsNullOrWhiteSpace(rawPath) ? (CwdContext.Current.Value ?? Environment.CurrentDirectory) : rawPath;
+        var path = string.IsNullOrWhiteSpace(rawPath) ? (CwdContext.Current ?? Environment.CurrentDirectory) : rawPath;
 
         // 解析相对路径
         if (!Path.IsPathRooted(path))

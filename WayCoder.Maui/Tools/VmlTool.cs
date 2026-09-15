@@ -59,8 +59,9 @@ public class VmlTool : ITool
         if (string.IsNullOrWhiteSpace(source) && string.IsNullOrWhiteSpace(filePath))
             return Task.FromResult("⚠️ 需要 `source`（VML 源码）或 `file_path`（.vml 文件路径）二者之一。");
 
-        // **路径解析放在进后台线程之前**：CwdContext 是 AsyncLocal，在别的线程上解析会拿到错的 cwd。
-        // 解析完就把**绝对路径**交给 MauiVml.Run，那边不再碰 CwdContext。
+        // 路径解析放在进后台线程之前，解析完把**绝对路径**交给 MauiVml.Run（那边不再碰 CwdContext）。
+        // 这是「进后台前定型」的写法，而不是被迫的绕行：CwdContext 现在存盒子、能跨线程回传，
+        // 但「本工具的语义 = 对本轮 cwd 取一次快照」仍然更清晰，也避免 VML 跑起来之后 cwd 被改。
         var resolved = string.IsNullOrWhiteSpace(source) && !string.IsNullOrWhiteSpace(filePath)
             ? CwdContext.Resolve(filePath!)
             : null;

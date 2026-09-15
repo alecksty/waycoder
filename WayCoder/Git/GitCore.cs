@@ -302,22 +302,42 @@ public static class GitCore
         if (staged.Count > 0)
         {
             sb.Append("\n「已暂存」\n");
-            foreach (var s in staged) sb.Append(s).Append('\n');
+            AppendStatusList(sb, staged);
         }
         if (unstaged.Count > 0)
         {
             sb.Append("\n「未暂存」\n");
-            foreach (var s in unstaged) sb.Append(s).Append('\n');
+            AppendStatusList(sb, unstaged);
         }
         if (untracked.Count > 0)
         {
             sb.Append("\n「未跟踪」\n");
-            foreach (var s in untracked) sb.Append("  ").Append(s).Append('\n');
+            AppendStatusList(sb, untracked, prefix: "  ");
         }
         if (staged.Count == 0 && unstaged.Count == 0 && untracked.Count == 0)
             sb.Append("\n工作区干净，无变更。\n");
 
         return sb.ToString().TrimEnd('\n');
+    }
+
+    /// <summary>
+    /// 追加一段状态列表，**超出上限只列前 N 条并给出总数**。
+    ///
+    /// 为什么必须封顶：`git status` 的条目数没有上界 —— 一个**尚无提交**的仓库里所有文件
+    /// 都是「未跟踪」，一个刚 `init` 的大项目就会把上万个路径全列出来。而这条输出是直接进
+    /// 模型上下文的：手机端实测在 `vml`（无提交）里跑一次 `git status`，单条工具结果让
+    /// 下一轮 prompt 从 23.6k **跳到 158.6k**（+135k tokens，约 500KB 文本），并且因为
+    /// 上下文裁剪只在达到阈值（1M 窗口的 50% = 500k）时批量触发，这份清单会**跟着每一轮
+    /// 重复发送**，整轮任务累计 prompt 因此到 670 万。
+    /// 前 N 条足以让模型知道「有哪些东西没跟踪」，其余用总数交代即可。
+    /// </summary>
+    private static void AppendStatusList(StringBuilder sb, List<string> items, string prefix = "")
+    {
+        const int max = 200;
+        var n = Math.Min(items.Count, max);
+        for (var i = 0; i < n; i++) sb.Append(prefix).Append(items[i]).Append('\n');
+        if (items.Count > n)
+            sb.Append(prefix).Append($"…（共 {items.Count} 条，此处只列前 {n} 条）\n");
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -1067,6 +1087,39 @@ public static class GitCore
         if (kv.TryGetValue("password", out var p)) return new GitCredential(u, p, false);
         return null;
     }
+
+    /// <summary>
+    /// 取「**这个 URL 适用**」的凭证 —— 绝不跨 host 发送。
+    ///
+    /// 为什么必须有这道闸门：此前是「仓库里存了凭证就无条件挂到任何 URL 的请求上」
+    /// （`ReadCredential` 的结果直接进 `Authorization: Basic`）。手机端实测后果有两条，
+    /// 一条是故障、一条是安全问题：
+    ///   ① 在 `way-coder`（origin = gitee）里执行 `git clone https://github.com/…`，
+    ///      请求把 **Gitee 的 token** 当 Basic 头发给了 GitHub ⇒ GitHub 回 **401**，
+    ///      表现为「公开仓库也克隆不了」（真实原因不是网络，是认证头被污染）。
+    ///   ② 同一个机制意味着 **A 站点的凭证会被发往 B 站点** —— 把 token 交给第三方主机。
+    ///
+    /// 归属判据：凭证是写在**某个仓库**里的，所以它的归属 host 取该仓库 origin 的 host。
+    /// 目标 URL 的 host 与之不符则**不发**；无 origin 可核对时同样不发
+    /// （缺凭证导致的失败是响亮的，把 token 发给错主机是无声的 —— 两者相权取其轻）。
+    /// </summary>
+    public static GitCredential? CredentialFor(string gitDir, string? url)
+    {
+        var cred = ReadCredential(gitDir);
+        if (cred == null) return null;
+
+        var targetHost = HostOf(url);
+        if (targetHost == null) return null;
+
+        var ownerHost = HostOf(ReadRemoteUrl(gitDir, "origin"));
+        if (ownerHost == null) return null;
+
+        return string.Equals(ownerHost, targetHost, StringComparison.OrdinalIgnoreCase) ? cred : null;
+    }
+
+    /// <summary>取 URL 的 host（小写不敏感比较由调用方按需处理）；非法/相对 URL 返回 null。</summary>
+    public static string? HostOf(string? url)
+        => Uri.TryCreate(url, UriKind.Absolute, out var u) && !string.IsNullOrEmpty(u.Host) ? u.Host : null;
 
     /// <summary>写凭证（明文存 .git/config；isToken=true 记 token 段，否则记 password 段）。</summary>
     public static void WriteCredential(string gitDir, string user, string secret, bool isToken = false)

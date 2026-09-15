@@ -1,6 +1,7 @@
 using System.Text;
 using WayCoder.Infra;
 using WayCoder.Tools;
+using WayCoder.UI.Shared;
 
 namespace WayCoder;
 
@@ -426,6 +427,118 @@ public static partial class SelfTest
         Check("icon windows 角落露白", winPng.HexAt(5, 5) == "#ffffff");
         Check("icon windows 顶部中部蓝", winPng.HexAt(128, 20) == "#0078d4");
         Console.WriteLine();
+
+        TestVmlUiProtocol(Section, Check);
+        Console.WriteLine();
+    }
+
+    // ═══ VML 手机端 UI 协议（对话框 / 窗体绘图 / 输入消息队列）═══
+    // 这一层是纯逻辑（UI/Shared/VmlUiProtocol.cs），宿主只负责把寄存器/内存翻成这里的模型。
+    // 真正容易出错的不是"能不能画出来"，而是三件事：① 号段的认领边界；② 生成的 DSL 是否落在
+    // 既有解析器的语义上（错了窗口里就是一片空白，且不报错）；③ 消息队列在"连投两条"时会不会漏。
+
+    static void TestVmlUiProtocol(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("[VML UI 协议]");
+
+        // ── 号段与认领判据 ──
+        Check("VmlUi: 认领 500–599", VmlUi.Handles(500) && VmlUi.Handles(599));
+        // **不认识必须放行** —— 处理器返回 true 就等于把那条内置 syscall 吞了
+        Check("VmlUi: 不认领内置号（1/320/402）", !VmlUi.Handles(1) && !VmlUi.Handles(320) && !VmlUi.Handles(402));
+        Check("VmlUi: 不认领段外相邻号（499/600）", !VmlUi.Handles(499) && !VmlUi.Handles(600));
+        Check("VmlUi: 保留段恰为 100 个且都在 500–599",
+            VmlUi.ReservedRange().Count() == 100 && VmlUi.ReservedRange().All(n => n is >= 500 and <= 599));
+
+        // ── 场景 → 绘图 DSL ──
+        // 关键不是"字符串长得对"，而是**生成的 DSL 能被既有解析器吃下**：
+        // 场景是保留模式的图元表，最终由 DrawRunner.Parse + ToPng 出图，
+        // 若这里生成的语法与解析器对不上，窗口里会是一片空白且**不报任何错**。
+        var scene = new VmlScene { Width = 100, Height = 80, Background = 0xFF112233 };
+        scene.AddLine(1, 2, 3, 4, 0xFFAABBCC, 3);
+        scene.AddRect(10, 10, 20, 20, 0xFF00FF00, filled: true, width: 0, radius: 0);
+        scene.AddRect(5, 5, 8, 8, 0xFFFF0000, filled: false, width: 2, radius: 4);
+        scene.AddCircle(50, 40, 10, 0xFF0000FF, filled: true, width: 0);
+        scene.AddText(7, 8, "标题", 0xFFFFFFFF, 16, 1);
+
+        var dsl = scene.BuildDsl();
+        Check("VmlScene: canvas 头带尺寸与背景", dsl.StartsWith("canvas 100 80 #FF112233"));
+        Check("VmlScene: line 带颜色与线宽", dsl.Contains("line 1 2 3 4 #FFAABBCC 3"));
+        // DSL 的样式规则是「第一个颜色=填充，第二个=描边」，所以空心图形必须先给一个全透明填充，
+        // 否则描边色会被解析成填充 → 画出一个"实心但颜色像描边"的图形
+        Check("VmlScene: 实心矩形只有一个颜色", dsl.Contains("rect 10 10 20 20 #FF00FF00"));
+        Check("VmlScene: 空心矩形先透明填充再描边",
+            dsl.Contains("roundrect 5 5 8 8 4 #00000000 #FFFF0000 2"));
+        Check("VmlScene: 圆角矩形走 roundrect", dsl.Contains("roundrect"));
+
+        var doc = DrawRunner.Parse(dsl);
+        Check("VmlScene: 生成的 DSL 可被既有解析器完整吃下（图元数一致、无解析错误）",
+            doc.Error == null && doc.Figures.Count == 5);
+
+        // 文字里的引号/换行必须转义 —— 原文里的引号会把一行 DSL 拆坏（后续图元整条消失）
+        var esc = new VmlScene();
+        esc.AddText(0, 0, "a\"b\nc", 0xFFFFFFFF, 12, 0);
+        Check("VmlScene: 文本引号/换行已转义（仍解析出 1 个图元）",
+            DrawRunner.Parse(esc.BuildDsl()).Figures.Count == 1);
+
+        // ── 真渲染：把场景出图后逐像素验（**这条才能抓住"空心图形被画成实心白"这类问题**）──
+        // 只验 DSL 字符串是不够的：语法对了但样式语义错了（例如透明填充被当成不透明），
+        // 字符串看不出任何异常，真机上却是"背景被糊成白色"。所以这里走完整渲染链再量像素。
+        var px = new VmlScene { Width = 64, Height = 48, Background = 0xFF101020 };
+        px.AddRect(8, 8, 20, 20, 0xFFFFCC00, filled: false, width: 2, radius: 0); // 空心黄框
+        px.AddCircle(44, 32, 8, 0xFF00C8FF, filled: true, width: 0);              // 实心青圆
+        var raster = PngDecoder.Decode(DrawRunner.ToPng(DrawRunner.Parse(px.BuildDsl())));
+        Check("VmlScene 渲染: 空心矩形内部是背景色（透明填充未被画成白色）",
+            raster.HexAt(18, 18).ToLowerInvariant() == "#101020");
+        Check("VmlScene 渲染: 空心矩形边框是黄色", raster.HexAt(8, 18).ToLowerInvariant() == "#ffcc00");
+        Check("VmlScene 渲染: 实心圆圆心是青色", raster.HexAt(44, 32).ToLowerInvariant() == "#00c8ff");
+        Check("VmlScene 渲染: 圆外仍是背景色", raster.HexAt(44, 8).ToLowerInvariant() == "#101020");
+
+        // ── 可用绘图区（程序据此开窗，避免超出屏幕）──
+        // 单位是 dp：设备像素 ÷ 密度，再扣掉导航栏/标题/方向键/留白。
+        // 扣减规则只有 VmlUi.AvailableArea 一处实现，宿主不许自己再算一份。
+        var area = VmlUi.AvailableArea(1080, 2400, 2.75);
+        Check("VmlUi.AvailableArea: 宽 = dp 宽 − 左右留白",
+            area.Width == (int)Math.Floor(1080 / 2.75) - 16);
+        Check("VmlUi.AvailableArea: 高 = dp 高 − 固定占用（导航+标题+方向键）",
+            area.Height == (int)Math.Floor(2400 / 2.75) - 170);
+        Check("VmlUi.AvailableArea: 密度非法时不炸（回退 1）",
+            VmlUi.AvailableArea(300, 400, 0).Width > 0);
+        Check("VmlUi.AvailableArea: 极小屏有下限（程序仍能布局）",
+            VmlUi.AvailableArea(10, 10, 4).Width >= 120 && VmlUi.AvailableArea(10, 10, 4).Height >= 120);
+
+        // ── 消息结构 ──
+        var mem = new byte[64];
+        new VmlMessage(VmlMsgType.TouchDown, 12, 34, 5678).WriteTo(mem, 4);
+        Check("VmlMessage: 小端写入 类型/A/B/时间戳",
+            System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(mem.AsSpan(4)) == (int)VmlMsgType.TouchDown
+            && System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(mem.AsSpan(8)) == 12
+            && System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(mem.AsSpan(12)) == 34
+            && System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(mem.AsSpan(16)) == 5678);
+        new VmlMessage(VmlMsgType.KeyDown, 1, 0, 0).WriteTo(mem, 60); // 末尾只剩 4 字节，放不下 16
+        Check("VmlMessage: 越界写入不抛异常", true);
+
+        // ── 消息队列 ──
+        var q = new VmlMessageQueue();
+        Check("VmlMessageQueue: 空队列 Count=0 / TryTake=null", q.Count == 0 && q.TryTake() == null);
+        q.Post(new VmlMessage(VmlMsgType.KeyDown, VmlKeys.Left, 0, 0));
+        Check("VmlMessageQueue: Post 后 Count=1 且 FIFO 取回", q.Count == 1 && q.TryTake()?.A == VmlKeys.Left);
+        Check("VmlMessageQueue: Take 超时返回 null（不永久阻塞）", q.Take(10) == null);
+
+        // 连投两条只 Release 一次信号量：**按信号量计数判断会漏掉第二条**
+        var q2 = new VmlMessageQueue();
+        q2.Post(new VmlMessage(VmlMsgType.KeyDown, 1, 0, 0));
+        q2.Post(new VmlMessage(VmlMsgType.KeyUp, 1, 0, 0));
+        var t1 = q2.Take(50);
+        var t2 = q2.Take(50);
+        Check("VmlMessageQueue: 连投两条都能取到（不漏消息）",
+            t1?.Type == VmlMsgType.KeyDown && t2?.Type == VmlMsgType.KeyUp);
+        q2.Clear();
+        Check("VmlMessageQueue: Clear 后为空且不残留信号量", q2.Count == 0 && q2.Take(5) == null);
+
+        // ── 键码约定（跨端唯一来源：绘制窗口的屏幕按键与包装库都引用它）──
+        Check("VmlKeys: 沿用 Win32 虚拟键值",
+            VmlKeys.Left == 37 && VmlKeys.Up == 38 && VmlKeys.Right == 39 && VmlKeys.Down == 40
+            && VmlKeys.Enter == 13 && VmlKeys.Space == 32 && VmlKeys.Escape == 27);
     }
 
     static byte[] MakeSolid(int w, int h, int r, int g, int b)

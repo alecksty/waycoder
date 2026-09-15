@@ -45,14 +45,13 @@ public partial class ProviderModelsPage : ContentPage
         Reload();
     }
 
-    /// <summary>更新模式按钮文字与高亮（编辑模式紫色、选择模式蓝色）。</summary>
+    /// <summary>更新模式按钮文字与高亮（中性反色：不再用紫/蓝两套字面色，见 MauiUi.ToggleColors）。</summary>
     private void UpdateModeButton()
     {
         ModeBtn.Text = _editMode ? "编辑模式" : "选择模式";
-        var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
-        ModeBtn.BackgroundColor = _editMode
-            ? (isDark ? Color.FromArgb("#5A3A6E") : Color.FromArgb("#EFE0F5"))
-            : (isDark ? Color.FromArgb("#3A6EA5") : Color.FromArgb("#C9DFF5"));
+        var c = MauiUi.ToggleColors(_editMode);
+        ModeBtn.BackgroundColor = c.Bg;
+        ModeBtn.TextColor = c.Text;
     }
 
     private void Reload()
@@ -91,11 +90,14 @@ public partial class ProviderModelsPage : ContentPage
 
     private void RefreshSizeButtons()
     {
-        var isDark = Application.Current?.RequestedTheme == AppTheme.Dark;
-        var on = isDark ? Color.FromArgb("#3A6EA5") : Color.FromArgb("#C9DFF5");
-        var off = isDark ? Color.FromArgb("#1F1F2E") : Color.FromArgb("#E8E8ED");
-        BigBtn.BackgroundColor = _isBig ? on : off;
-        SmallBtn.BackgroundColor = _isBig ? off : on;
+        // 配色走 MauiUi.ToggleColors（唯一真源）：中性反色选中态
+        var big = MauiUi.ToggleColors(_isBig);
+        BigBtn.BackgroundColor = big.Bg;
+        BigBtn.TextColor = big.Text;
+
+        var small = MauiUi.ToggleColors(!_isBig);
+        SmallBtn.BackgroundColor = small.Bg;
+        SmallBtn.TextColor = small.Text;
     }
 
     /// <summary>两个选中勾：大✓ 小✓ 分开显示（大小模型可能是同一个，不能靠图标合并区分）。

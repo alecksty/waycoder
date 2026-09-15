@@ -30,14 +30,41 @@ public sealed class Canvas
     public byte[] ToPng() => PngEncoder.Encode(Width, Height, Pixels);
 
     // ── 像素 ──
+    /// <summary>
+    /// 写像素（source-over 混合）。
+    ///
+    /// **必须按 alpha 混合，不能直接覆盖** —— 直接覆盖时「全透明填充」不是"不画"，而是把一个
+    /// 透明黑像素盖到画布上，等于**把底图打了个洞**：PNG 的 alpha 变 0，显示端透出来的是
+    /// 宿主背景（亮色主题下就是白底）。实测现象：VML 程序画的空心矩形内部整片变白，
+    /// 而不是露出画布背景色 —— 因为空心图形的实现就是"先铺一层全透明填充、再描边"。
+    ///
+    /// 不透明色（alpha=255）走原来的直接赋值快路径 ⇒ **既有渲染产物逐字节不变**，
+    /// 只有原本就有缺陷的半透明/全透明路径行为改变。
+    /// </summary>
     public void SetPixel(int x, int y, uint c)
     {
         if (x < 0 || y < 0 || x >= Width || y >= Height) return;
         var i = (y * Width + x) * 4;
-        Pixels[i] = ColorUtil.R(c);
-        Pixels[i + 1] = ColorUtil.G(c);
-        Pixels[i + 2] = ColorUtil.B(c);
-        Pixels[i + 3] = ColorUtil.A(c);
+        var a = ColorUtil.A(c);
+
+        if (a == 255)
+        {
+            Pixels[i] = ColorUtil.R(c);
+            Pixels[i + 1] = ColorUtil.G(c);
+            Pixels[i + 2] = ColorUtil.B(c);
+            Pixels[i + 3] = 255;
+            return;
+        }
+        if (a == 0) return; // 全透明 = 不画（保留底图）
+
+        // source-over：out = src·α + dst·(1-α)
+        double sa = a / 255.0, da = Pixels[i + 3] / 255.0;
+        double outA = sa + da * (1 - sa);
+        if (outA <= 0) return;
+        Pixels[i] = (byte)Math.Round((ColorUtil.R(c) * sa + Pixels[i] * da * (1 - sa)) / outA);
+        Pixels[i + 1] = (byte)Math.Round((ColorUtil.G(c) * sa + Pixels[i + 1] * da * (1 - sa)) / outA);
+        Pixels[i + 2] = (byte)Math.Round((ColorUtil.B(c) * sa + Pixels[i + 2] * da * (1 - sa)) / outA);
+        Pixels[i + 3] = (byte)Math.Round(outA * 255);
     }
 
     /// <summary>带 alpha 覆盖率混合到既有像素（用于字形/线条抗锯齿）。coverage ∈ [0,1]。</summary>

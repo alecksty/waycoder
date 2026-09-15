@@ -990,6 +990,66 @@ public static partial class SelfTest
         var gitLarge = new GitTool().ExecuteAsync(new() { ["command"] = "log --all --oneline" }).Result;
         Check("git log 全历史不死锁", gitLarge.Length > 0);
 
+        // ---- clone 不得覆盖已有仓库（手机端实测的事故）----
+        // 原实现顺序是 Init → WriteRemoteUrl("origin", url) → 联网 fetch：写 remote 在联网**之前**，
+        // 而 repoRoot 就是「当前仓库」。于是「在已有仓库里敲一次 git clone」= **把这个仓库的 origin
+        // 改成被克隆的 URL**，而且克隆随后失败也照样改了。真实踩到：Agent 在 way-coder 里
+        // clone github.com/octocat/Hello-World（超时失败），该仓库 origin 已被改成 octocat/Hello-World。
+        var cloneGuardDir = Path.Combine(Path.GetTempPath(), "cloneg_" + Guid.NewGuid().ToString("N")[..6]);
+        try
+        {
+            Directory.CreateDirectory(cloneGuardDir);
+            WayCoder.Git.GitCore.Init(cloneGuardDir);
+            var cgd = Path.Combine(cloneGuardDir, ".git");
+            WayCoder.Git.GitCore.WriteRemoteUrl(cgd, "origin", "https://gitee.com/example/keepme.git");
+
+            var r = WayCoder.Git.GitRemote.Clone(cloneGuardDir, ["https://github.com/octocat/Hello-World.git"]);
+            Check("git clone 拒绝覆盖已有仓库", r.Contains("已是 git 仓库"));
+            Check("git clone 被拒后 origin 未被改写",
+                WayCoder.Git.GitCore.ReadRemoteUrl(cgd, "origin") == "https://gitee.com/example/keepme.git");
+        }
+        finally { try { Directory.Delete(cloneGuardDir, true); } catch { } }
+
+        // ---- 凭证不得跨 host 发送 ----
+        // 手机端实测：在 origin=gitee 的仓库里 clone github → Gitee 的 token 被当 Basic 头
+        // 发给 GitHub ⇒ 公开仓库也报 401。这不只是故障，更是把 A 站凭证交给 B 站主机。
+        var credScopeDir = Path.Combine(Path.GetTempPath(), "cred_" + Guid.NewGuid().ToString("N")[..6]);
+        try
+        {
+            Directory.CreateDirectory(credScopeDir);
+            WayCoder.Git.GitCore.Init(credScopeDir);
+            var crd = Path.Combine(credScopeDir, ".git");
+            WayCoder.Git.GitCore.WriteRemoteUrl(crd, "origin", "https://gitee.com/me/repo.git");
+            WayCoder.Git.GitCore.WriteCredential(crd, "me", "secret-token", isToken: true);
+
+            Check("凭证: 同 host 正常取用",
+                WayCoder.Git.GitCore.CredentialFor(crd, "https://gitee.com/me/repo.git") != null);
+            Check("凭证: 不跨 host 发送（github 拿不到 gitee 的 token）",
+                WayCoder.Git.GitCore.CredentialFor(crd, "https://github.com/other/repo.git") == null);
+            Check("凭证: 无 origin 可核对时不发送（宁缺勿滥）",
+                WayCoder.Git.GitCore.CredentialFor(
+                    Path.Combine(Path.GetTempPath(), "nonexistent_" + Guid.NewGuid().ToString("N")[..6]),
+                    "https://gitee.com/me/repo.git") == null);
+        }
+        finally { try { Directory.Delete(credScopeDir, true); } catch { } }
+
+        // ---- status 条目封顶 ----
+        // 无提交的仓库里所有文件都是「未跟踪」，一个 init 过的大项目能把上万条路径灌进上下文。
+        // 手机端实测：`vml`（无提交）里跑一次 status，下一轮 prompt 从 23.6k 跳到 158.6k。
+        var statusCapDir = Path.Combine(Path.GetTempPath(), "statcap_" + Guid.NewGuid().ToString("N")[..6]);
+        try
+        {
+            Directory.CreateDirectory(statusCapDir);
+            WayCoder.Git.GitCore.Init(statusCapDir);
+            for (var i = 0; i < 260; i++)
+                File.WriteAllText(Path.Combine(statusCapDir, $"f{i:D3}.txt"), "x");
+
+            var st = WayCoder.Git.GitCore.Status(statusCapDir);
+            Check("git status 未跟踪列表封顶（给出总数）", st.Contains("此处只列前 200 条"));
+            Check("git status 封顶后体积可控（< 24KB）", st.Length < 24_000);
+        }
+        finally { try { Directory.Delete(statusCapDir, true); } catch { } }
+
         Console.WriteLine();
 
         // ---- CJK 宽度计算 (AnsiHelper) ----
