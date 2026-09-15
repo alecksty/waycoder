@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 深色模式：与页面背景 PageBgDark 一致，状态栏与正文无缝（用户要的就是这个）。
+         深色模式下 Android 用浅色状态栏图标，压在 #0E0E12 上清清楚楚。 -->
+    <color name="colorPrimary">#0E0E12</color>
+    <color name="colorPrimaryDark">#0E0E12</color>
+    <color name="colorAccent">#4A6CF7</color>
+</resources>

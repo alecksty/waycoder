@@ -9,11 +9,21 @@
     <!-- x:Name：软键盘弹出时按 IME inset 往它加底部内边距（见 EditorPage.xaml.cs 的 HookImeInsets）。
          Android 15+ 的 edge-to-edge 下 WindowSoftInputMode=AdjustResize 已经失效，
          「把内容区压矮」这件事只能自己还原。 -->
+    <!-- 编辑器菜单：**放在顶部导航栏里**（与返回箭头/标题同一行），不再占内容区的一行。
+         用户实测反馈「菜单按钮往上挪一行」——原来它和文件名挤在同一行、且方块比标题栏还高，
+         视觉上像是压在工具条那一行上。放进 ToolbarItems 就是 Android 标准的动作栏位置，
+         同时也把「文件名」那一行整行让给文件名（长路径不再被按钮挤掉）。 -->
+    <ContentPage.ToolbarItems>
+        <!-- ⚠ 必须显式接 Clicked：加了按钮却忘了接线 = 点了没反应（用户实测「没看到菜单」） -->
+        <ToolbarItem Text="☰" Order="Primary" Priority="0"
+                     Clicked="OnMenuClicked"
+                     SemanticProperties.Hint="编辑器菜单" />
+    </ContentPage.ToolbarItems>
+
     <Grid x:Name="RootGrid" RowDefinitions="Auto,Auto,*,Auto">
 
-        <!-- 文件名 + 菜单（菜单放在右上角：字号/保存/另存为/新建这些不是每时每刻都用，
-             但一旦要调就得翻工具栏去找，放这里一眼可见） -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="8,4,4,0">
+        <!-- 文件名（整行：菜单已挪到导航栏） -->
+        <Grid Grid.Row="0" ColumnDefinitions="*" Padding="8,4,8,0">
             <Label
                 x:Name="FileLabel"
                 Grid.Column="0"
@@ -21,20 +31,6 @@
                 VerticalOptions="Center"
                 FontSize="13"
                 LineBreakMode="TailTruncation" />
-            <!-- ⚠ 必须显式接 Clicked：加了按钮却忘了接线 = 点了没反应（用户实测「没看到菜单」） -->
-            <Button
-                x:Name="MenuBtn"
-                Grid.Column="1"
-                Text="☰"
-                FontSize="19"
-                Padding="14,0"
-                HeightRequest="38"
-                WidthRequest="56"
-                CornerRadius="10"
-                TextColor="{AppThemeBinding Light=#222222, Dark=#EEEEEE}"
-                BackgroundColor="{AppThemeBinding Light=#EFEFF2, Dark=#2A2A2E}"
-                Clicked="OnMenuClicked"
-                SemanticProperties.Hint="编辑器菜单" />
         </Grid>
 
         <!-- 编辑工具条（SVG 图标按钮）：撤销 / 重做 / 查找 / 大纲 / 预览(源码) / 编辑(只读↔可写) / 保存 -->

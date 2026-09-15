@@ -110,7 +110,10 @@
 		<!-- App Icon / Splash：使用 appicon.png（app.png 的 1024x1024 副本；四角透明保留，
 		     不设 Color 避免背景把透明角染黑；与 Resources\Images\app.png 分开避免重名） -->
 		<MauiIcon Include="Resources\AppIcon\appicon.png" />
-		<MauiSplashScreen Include="Resources\AppIcon\appicon.png" BaseSize="128,128" />
+		<!-- Color 决定**启动画面背景**（生成到 @color/maui_splash_color）。不写就是 MAUI 模板默认的
+		     #512BD4 紫 —— 用户反馈「启动时背景是紫的」就是它。取 App 的暗色页面背景 PageBgDark，
+		     与启动后的界面无缝衔接。 -->
+		<MauiSplashScreen Include="Resources\AppIcon\appicon.png" BaseSize="128,128" Color="#0E0E12" />
 
 		<!-- Images -->
 		<MauiImage Include="Resources\Images\*" />

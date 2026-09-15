@@ -87,6 +87,24 @@ WinUI 里画布不可聚焦，而只读态那个「输入框代理」是隐藏�
 Android / iOS / MacCatalyst 三端**只做了编译验证**（0 错误），**运行未验** —— Android 需外接键盘、
 iOS 需模拟器/真机接硬件键盘才能按到 Tab。
 
+### ⑦ 移动端外观：启动背景 / 状态栏 / 编辑器菜单按钮
+
+三条都是**系统级或布局级**的显式取值问题，MAUI 页面里的 `AppThemeBinding` 管不到：
+
+1. **启动画面背景去紫**：`<MauiSplashScreen>` 没写 `Color` ⇒ MAUI 模板默认 `#512BD4`（那套紫）。
+   补 `Color="#0E0E12"`（= 页面背景 `PageBgDark`），启动到界面无缝。
+2. **状态栏配色**：原来由 `Platforms/Android/Resources/values/colors.xml` 的模板值决定
+   （`colorPrimaryDark=#2B0B98` 紫）。改成**跟着明暗主题走**：
+   `values/colors.xml` 浅色用 `#FFFFFF`（Android 在浅色模式给状态栏配深色图标，底色必须是浅的
+   才看得见）、`values-night/colors.xml` 深色用 `#0E0E12`（配浅色图标）。`colorAccent` 取 App
+   自己的 `Primary #4A6CF7`，免得控件强调色跟着变。
+   ⚠ 一开始只改成深色一档，模拟器（浅色模式）里 **深色图标压黑底几乎看不见** —— 这才补的 night 资源。
+3. **编辑器菜单按钮上移一行**：`☰` 原来和文件名挤在内容区第一行（方块比标题栏还高，视觉上像压在
+   工具条上）。改为放进 `<ContentPage.ToolbarItems>`，即 Android 标准的**顶部动作栏**位置，
+   文件名那行整行让给文件名（长路径不再被按钮挤掉）。
+
+**验证**（Android 16 模拟器，实机截图 + 像素取样）：启动画面背景 `#0E0E12` ✓；深色模式状态栏
+黑底白图标 ✓、浅色模式白底深图标 ✓；编辑器导航栏右上角出现 `☰`、文件名整行显示 ✓。
 ### 仓库维护
 
 - `scripts/clean.ps1` / `clean.sh`：补上此前**漏掉**的 `bin2`/`obj2`（主 `bin/` 被运行中实例锁住

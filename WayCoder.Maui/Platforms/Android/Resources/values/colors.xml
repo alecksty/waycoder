@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#512BD4</color>
-    <color name="colorPrimaryDark">#2B0B98</color>
-    <color name="colorAccent">#2B0B98</color>
+    <!-- MAUI 模板默认是 #512BD4 / #2B0B98（那套紫），与本 App 的配色完全不搭。
+         这几个值管的是**系统级**外观（MAUI 页面里的 AppThemeBinding 管不到）：
+           colorPrimaryDark → **状态栏**
+           colorPrimary      → 操作模式(actionMode，即复制/粘贴浮条)背景
+           colorAccent       → 控件强调色（Switch 等），取 App 自己的 Primary 保持可见
+         ⚠ **必须跟着明暗主题走**：浅色模式下面板是白的，Android 会给状态栏配**深色图标**
+         （windowLightStatusBar 由 DayNight 主题按模式自动设），这时状态栏若是深色 → 图标看不见。
+         所以浅色用页面浅底 PageBgLight，深色那份在 values-night/colors.xml。 -->
+    <color name="colorPrimary">#FFFFFF</color>
+    <color name="colorPrimaryDark">#FFFFFF</color>
+    <color name="colorAccent">#4A6CF7</color>
 </resources>
