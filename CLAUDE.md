@@ -320,6 +320,13 @@ WayCoder 的模式参考 Claude Code / OpenAI Codex / Crush / Aider 划分为**�
 >   -p:AndroidSigningKeyStore="<仓库>/WayCoder.Maui/waycoder.keystore" \
 >   -p:AndroidSigningKeyAlias=waycoder -p:AndroidSigningKeyPass=waycoder -p:AndroidSigningStorePass=waycoder
 > ```
+>
+> **本机的 JDK / SDK 路径**（`JAVA_HOME` 与 `ANDROID_HOME` 都没设，必须显式给）：
+> `JAVA_HOME="C:\Program Files\Android\openjdk\jdk-21.0.8"`、`ANDROID_HOME=D:\Android\Sdk`（`apksigner`/`aapt2` 在 `D:\Android\Sdk\build-tools\37.0.0\`，它们也要 `JAVA_HOME`）。**改过 APK 里任何资产就要先删旧 APK 再 publish**，否则不会重签。
+>
+> **示例（`Examples/`）进包的规则**：`vml_lib.zip` 里打 `Lib/` + `vmltool.config.xml` + **`Examples/` 的 1~2 层**（`Examples/README.md` 与 `Examples/<语言>/<文件>`）。手机端 `MauiBootstrap.EnsureExamples()` 是**平铺**解包的（丢掉目录），所以：① 递归整棵树会把上游 stb/stm32 上千个文件糊进 `examples/` 一个目录、还重名互覆；② **加新示例/游戏就放 `Examples/<语言>/` 下，别建子目录**（子目录不会进包）；③ 光把文件放进 `Examples/` 不会自动到手机上，要重跑 `scripts/make-vml-lib.sh` 再重打 APK。真机验收：`adb shell ls /storage/emulated/0/waycoder/workspace/examples`（**工作区在外部存储，adb 直接可读**，比翻私有目录省事）。
+>
+> **真机跑 VML 程序不用写代码**：App 的「命令行」页敲 `vml run examples/tetris.c`（走 `VmlTool`，与 AI 调工具同一条流水线）。手机自带手柄（方向键 + SELECT/START + X/Y/A/B → Win32 虚拟键），**VML 程序的键盘分支直接认**。⚠ C 前端 + 汇编 + 链接 3.7 万条指令在手机上要**一分多钟**，别当成卡死。
 
 ## 添加新工具 (C# 版)
 
