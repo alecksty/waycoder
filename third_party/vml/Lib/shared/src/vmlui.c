@@ -221,6 +221,90 @@ int ui_gget(int idx) {
     return 0;
 }
 
+/* ── 方块几何（给"没有可靠位运算/数组"的语言用）────────────────────
+ *
+ * 7 种方块各 4 次旋转，每次 4 个格子。**位运算与旋转公式都放这里**：
+ * BASIC 只有 AND/OR、没有移位取位，Python 的列表读写也不可靠 ——
+ * 各前端只负责"拿坐标 → 画出来 / 判一下"，几何这一层共用一份。
+ *
+ *   ui_piece_init()                       一次，初始化形状表
+ *   ui_piece_cell(pid, rot, which)        第 which 个格子的坐标，打包为 x*16+y；无此格返回 -1
+ *
+ * `pid` 0..6，`rot` 0..3，`which` 0..3。
+ * 坐标以方块**左上角**为原点（4×4 包围盒内），调用方加上落点即可。
+ */
+static int _ui_piece_rot[7];     /* 当前 pid 的基准掩码在 _ui_grid 的槽位（见 ui_piece_init） */
+
+void ui_piece_init(void) {
+    /* 4×4 行优先位掩码，第 r 行第 c 位 = r*4+c */
+    ui_gset(MASK_AT + 0, 0x0066);   /* O */
+    ui_gset(MASK_AT + 1, 0x0F00);   /* I */
+    ui_gset(MASK_AT + 2, 0x006C);   /* S */
+    ui_gset(MASK_AT + 3, 0x00C6);   /* Z */
+    ui_gset(MASK_AT + 4, 0x00E4);   /* T */
+    ui_gset(MASK_AT + 5, 0x0062);   /* L */
+    ui_gset(MASK_AT + 6, 0x00E8);   /* J */
+    _ui_piece_rot[0] = MASK_AT + 0;
+    _ui_piece_rot[1] = MASK_AT + 1;
+    _ui_piece_rot[2] = MASK_AT + 2;
+    _ui_piece_rot[3] = MASK_AT + 3;
+    _ui_piece_rot[4] = MASK_AT + 4;
+    _ui_piece_rot[5] = MASK_AT + 5;
+    _ui_piece_rot[6] = MASK_AT + 6;
+}
+
+/* 4×4 掩码顺时针 90°：位 (r,c) → (c, 3-r) */
+static int _ui_rot90(int m) {
+    int out;
+    int r;
+    int c;
+    out = 0;
+    r = 0;
+    while (r < 4) {
+        c = 0;
+        while (c < 4) {
+            if ((m & (1 << (r * 4 + c))) != 0)
+                out = out | (1 << (c * 4 + (3 - r)));
+            c = c + 1;
+        }
+        r = r + 1;
+    }
+    return out;
+}
+
+int ui_piece_cell(int pid, int rot, int which) {
+    int m;
+    int k;
+    int r;
+    int c;
+    int n;
+
+    if (pid < 0 || pid > 6 || which < 0 || which > 3) return -1;
+
+    m = ui_gget(_ui_piece_rot[pid]);
+    k = rot % 4;
+    while (k > 0) {
+        m = _ui_rot90(m);
+        k = k - 1;
+    }
+
+    /* 数到第 which 个置位 */
+    n = 0;
+    r = 0;
+    while (r < 4) {
+        c = 0;
+        while (c < 4) {
+            if ((m & (1 << (r * 4 + c))) != 0) {
+                if (n == which) return c * 16 + r;
+                n = n + 1;
+            }
+            c = c + 1;
+        }
+        r = r + 1;
+    }
+    return -1;
+}
+
 /* 定时器：每隔 interval_ms 往队列投一条 VML_MSG_TIMER（A=id，B=tag）。 */
 int ui_timer_set(int interval_ms, int tag) {
     return asm("SYSCALL #563, ${interval_ms}, ${tag}");

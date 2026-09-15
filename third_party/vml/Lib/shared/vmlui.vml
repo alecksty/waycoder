@@ -268,6 +268,14 @@ _ui_grid:
     .word 0
     .word 0
     .word 0
+_ui_piece_rot:
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word 0
 
 .text
 ui_dlg_msg:
@@ -1181,6 +1189,652 @@ L2170038:
         pop R12
         pop R15
         ret
+ui_piece_init:
+; -------------------------------------------
+; source   : void ui_piece_init()
+; function : ui_piece_init
+; return   : void
+; --------------------------------------------
+ui_piece_init:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 #102
+        push R0
+        move R0 #0
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        call ui_gset
+        add R13 #8
+        move R0 #3840
+        push R0
+        move R0 #0
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        call ui_gset
+        add R13 #8
+        move R0 #108
+        push R0
+        move R0 #0
+        push R0
+        move R0 #2
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        call ui_gset
+        add R13 #8
+        move R0 #198
+        push R0
+        move R0 #0
+        push R0
+        move R0 #3
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        call ui_gset
+        add R13 #8
+        move R0 #228
+        push R0
+        move R0 #0
+        push R0
+        move R0 #4
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        call ui_gset
+        add R13 #8
+        move R0 #98
+        push R0
+        move R0 #0
+        push R0
+        move R0 #5
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        call ui_gset
+        add R13 #8
+        move R0 #232
+        push R0
+        move R0 #0
+        push R0
+        move R0 #6
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        call ui_gset
+        add R13 #8
+        move R0 #0
+        move R6 R0
+        move R0 _ui_piece_rot
+        push R0
+        move R5 #0
+        push R5
+        move R0 #0
+        pop R5
+        move R5 R0
+        move R0 R5
+        mul R0 #4
+        pop R4
+        add R0 R4
+        move [R0] R6
+        move R0 #0
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R2 R0
+        move R0 _ui_piece_rot
+        push R0
+        move R1 #0
+        push R1
+        move R0 #1
+        pop R1
+        move R1 R0
+        move R0 R1
+        mul R0 #4
+        pop R3
+        add R0 R3
+        move [R0] R2
+        move R0 #0
+        push R0
+        move R0 #2
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R10 R0
+        move R0 _ui_piece_rot
+        push R0
+        move R9 #0
+        push R9
+        move R0 #2
+        pop R9
+        move R9 R0
+        move R0 R9
+        mul R0 #4
+        pop R11
+        add R0 R11
+        move [R0] R10
+        move R0 #0
+        push R0
+        move R0 #3
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R8 R0
+        move R0 _ui_piece_rot
+        push R0
+        move R7 #0
+        push R7
+        move R0 #3
+        pop R7
+        move R7 R0
+        move R0 R7
+        mul R0 #4
+        pop R5
+        add R0 R5
+        move [R0] R8
+        move R0 #0
+        push R0
+        move R0 #4
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R4 R0
+        move R0 _ui_piece_rot
+        push R0
+        move R6 #0
+        push R6
+        move R0 #4
+        pop R6
+        move R6 R0
+        move R0 R6
+        mul R0 #4
+        pop R1
+        add R0 R1
+        move [R0] R4
+        move R0 #0
+        push R0
+        move R0 #5
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R3 R0
+        move R0 _ui_piece_rot
+        push R0
+        move R2 #0
+        push R2
+        move R0 #5
+        pop R2
+        move R2 R0
+        move R0 R2
+        mul R0 #4
+        pop R9
+        add R0 R9
+        move [R0] R3
+        move R0 #0
+        push R0
+        move R0 #6
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R11 R0
+        move R0 _ui_piece_rot
+        push R0
+        move R10 #0
+        push R10
+        move R0 #6
+        pop R10
+        move R10 R0
+        move R0 R10
+        mul R0 #4
+        pop R7
+        add R0 R7
+        move [R0] R11
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+_ui_rot90:
+; -------------------------------------------
+; source   : int _ui_rot90(int m)
+; function : _ui_rot90
+; param   : int m
+; return   : int
+; --------------------------------------------
+_ui_rot90:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #24
+        move R0 #0
+        move [R12-8] R0
+        move R0 #0
+        move [R12-12] R0
+sta_2170039:
+        move R2 #0
+        move R0 [R12-12]
+        push R0
+        move R0 #4
+        pop R1
+        cmp R1 R0
+        jl _L2170041
+        move R0 #0
+        jmp _L2170042
+_L2170041:
+        move R0 #1
+_L2170042:
+        cmp R0 #0
+        jz sta_2170040
+        move R0 #0
+        move [R12-16] R0
+sta_2170043:
+        move R2 #0
+        move R0 [R12-16]
+        push R0
+        move R0 #4
+        pop R1
+        cmp R1 R0
+        jl _L2170045
+        move R0 #0
+        jmp _L2170046
+_L2170045:
+        move R0 #1
+_L2170046:
+        cmp R0 #0
+        jz sta_2170044
+        move R0 [R12+12]
+        push R0
+        move R0 #1
+        push R0
+        move R0 [R12-12]
+        push R0
+        move R0 #4
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-16]
+        pop R1
+        add R1 R0
+        move R0 R1
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        and R1 R0
+        move R0 R1
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jne _L2170049
+        move R0 #0
+        jmp _L2170050
+_L2170049:
+        move R0 #1
+_L2170050:
+        cmp R0 #0
+        jz sta_2170047
+        move R0 [R12-8]
+        push R0
+        move R0 #1
+        push R0
+        move R0 [R12-16]
+        push R0
+        move R0 #4
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 #3
+        push R0
+        move R0 [R12-12]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        or R1 R0
+        move R0 R1
+        move [R12-8] R0
+sta_2170047:
+sta_2170048:
+        move R0 [R12-16]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-16] R0
+        jmp sta_2170043
+sta_2170044:
+        move R0 [R12-12]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-12] R0
+        jmp sta_2170039
+sta_2170040:
+        move R0 [R12-8]
+        jmp L2170051
+L2170051:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_piece_cell:
+; -------------------------------------------
+; source   : int ui_piece_cell(int pid,int rot,int which)
+; function : ui_piece_cell
+; param   : int pid
+; param   : int rot
+; param   : int which
+; return   : int
+; --------------------------------------------
+ui_piece_cell:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #32
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L2170063
+        move R0 #0
+        jmp _L2170064
+_L2170063:
+        move R0 #1
+_L2170064:
+        test R0 R0
+        jnz _L2170060
+        move R0 [R12+12]
+        push R0
+        move R0 #6
+        pop R1
+        cmp R1 R0
+        jg _L2170065
+        move R0 #0
+        jmp _L2170066
+_L2170065:
+        move R0 #1
+_L2170066:
+        test R0 R0
+        jz _L2170061
+_L2170060:
+        move R0 #1
+        jmp _L2170062
+_L2170061:
+        move R0 #0
+_L2170062:
+        test R0 R0
+        jnz _L2170057
+        move R0 [R12+20]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L2170067
+        move R0 #0
+        jmp _L2170068
+_L2170067:
+        move R0 #1
+_L2170068:
+        test R0 R0
+        jz _L2170058
+_L2170057:
+        move R0 #1
+        jmp _L2170059
+_L2170058:
+        move R0 #0
+_L2170059:
+        test R0 R0
+        jnz _L2170054
+        move R0 [R12+20]
+        push R0
+        move R0 #3
+        pop R1
+        cmp R1 R0
+        jg _L2170069
+        move R0 #0
+        jmp _L2170070
+_L2170069:
+        move R0 #1
+_L2170070:
+        test R0 R0
+        jz _L2170055
+_L2170054:
+        move R0 #1
+        jmp _L2170056
+_L2170055:
+        move R0 #0
+_L2170056:
+        cmp R0 #0
+        jz sta_2170052
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        jmp L2170071
+sta_2170052:
+sta_2170053:
+        move R0 _ui_piece_rot
+        push R0
+        move R5 #0
+        push R5
+        move R0 [R12+12]
+        pop R5
+        move R5 R0
+        move R0 R5
+        mul R0 #4
+        pop R8
+        add R0 R8
+        move R0 [R0]
+        push R0
+        move R0 [R13+0]
+        call ui_gget
+        add R13 #4
+        move [R12-8] R0
+        move R0 [R12+16]
+        push R0
+        move R0 #4
+        pop R1
+        mod R1 R0
+        move R0 R1
+        move [R12-12] R0
+sta_2170072:
+        move R2 #0
+        move R0 [R12-12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L2170074
+        move R0 #0
+        jmp _L2170075
+_L2170074:
+        move R0 #1
+_L2170075:
+        cmp R0 #0
+        jz sta_2170073
+        move R0 [R12-8]
+        push R0
+        move R0 [R13+0]
+        call _ui_rot90
+        add R13 #4
+        move [R12-8] R0
+        move R0 [R12-12]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-12] R0
+        jmp sta_2170072
+sta_2170073:
+        move R0 #0
+        move [R12-24] R0
+        move R0 #0
+        move [R12-16] R0
+sta_2170076:
+        move R2 #0
+        move R0 [R12-16]
+        push R0
+        move R0 #4
+        pop R1
+        cmp R1 R0
+        jl _L2170078
+        move R0 #0
+        jmp _L2170079
+_L2170078:
+        move R0 #1
+_L2170079:
+        cmp R0 #0
+        jz sta_2170077
+        move R0 #0
+        move [R12-20] R0
+sta_2170080:
+        move R2 #0
+        move R0 [R12-20]
+        push R0
+        move R0 #4
+        pop R1
+        cmp R1 R0
+        jl _L2170082
+        move R0 #0
+        jmp _L2170083
+_L2170082:
+        move R0 #1
+_L2170083:
+        cmp R0 #0
+        jz sta_2170081
+        move R0 [R12-8]
+        push R0
+        move R0 #1
+        push R0
+        move R0 [R12-16]
+        push R0
+        move R0 #4
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-20]
+        pop R1
+        add R1 R0
+        move R0 R1
+        pop R1
+        shl R1 R0
+        move R0 R1
+        pop R1
+        and R1 R0
+        move R0 R1
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jne _L2170086
+        move R0 #0
+        jmp _L2170087
+_L2170086:
+        move R0 #1
+_L2170087:
+        cmp R0 #0
+        jz sta_2170084
+        move R0 [R12-24]
+        push R0
+        move R0 [R12+20]
+        pop R1
+        cmp R1 R0
+        je _L2170090
+        move R0 #0
+        jmp _L2170091
+_L2170090:
+        move R0 #1
+_L2170091:
+        cmp R0 #0
+        jz sta_2170088
+        move R0 [R12-20]
+        push R0
+        move R0 #16
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-16]
+        pop R1
+        add R1 R0
+        move R0 R1
+        jmp L2170071
+sta_2170088:
+sta_2170089:
+        move R0 [R12-24]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-24] R0
+sta_2170084:
+sta_2170085:
+        move R0 [R12-20]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-20] R0
+        jmp sta_2170080
+sta_2170081:
+        move R0 [R12-16]
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-16] R0
+        jmp sta_2170076
+sta_2170077:
+        move R0 #1
+        move R0 #1
+        neg R0 R0
+        jmp L2170071
+L2170071:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
 ui_timer_set:
 ; -------------------------------------------
 ; source   : int ui_timer_set(int interval_ms,int tag)
@@ -1198,8 +1852,8 @@ ui_timer_set:
         move R1 [R12+16]
         syscall #563
         move [R12-4] R0
-        jmp L2170039
-L2170039:
+        jmp L2170092
+L2170092:
         move R13 R12
         pop R12
         pop R15
@@ -1219,8 +1873,8 @@ ui_timer_kill:
         move R0 [R12+12]
         syscall #564
         move [R12-4] R0
-        jmp L2170040
-L2170040:
+        jmp L2170093
+L2170093:
         move R13 R12
         pop R12
         pop R15

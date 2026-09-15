@@ -82,7 +82,7 @@
     <Language Name="objc"    Libs="builtins.vml,crt.vml" />
 
     <!-- QBasic 方言 -->
-    <Language Name="basic"   Libs="builtins.vml,crt.vml" />
+    <Language Name="basic"     Libs="builtins.vml,crt.vml,vmlui.vml" />
 
     <!-- Pascal 方言 -->
     <Language Name="pascal"  Libs="builtins.vml,crt.vml" />

@@ -117,6 +117,8 @@ int  ui_msg_type(void);
 int  ui_msg_a(void);
 int  ui_msg_b(void);
 void ui_gclear(void);
+void ui_piece_init(void);
+int  ui_piece_cell(int pid, int rot, int which);
 void ui_gset(int idx, int val);
 int  ui_gget(int idx);
 
