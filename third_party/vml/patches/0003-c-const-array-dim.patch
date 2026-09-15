@@ -1,0 +1,111 @@
+diff --git a/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs b/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs
+index ece861d8..970615f6 100644
+--- a/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs
++++ b/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs
+@@ -242,8 +242,8 @@ namespace CCompiler
+                                 else
+                                 {
+                                     var dimExpr = ParseExpression();
+-                                    if (dimExpr is NumberLiteral numLit && string.IsNullOrEmpty(numLit.Suffix))
+-                                        arraySize = (int)numLit.Value;
++                                    if (TryConstInt(dimExpr, out var dimVal))
++                                        arraySize = dimVal;
+                                     Expect(TokenType.RBRACKET);
+                                 }
+                             }
+diff --git a/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs b/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs
+index e94b9ce1..6700aa6b 100644
+--- a/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs
++++ b/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs
+@@ -938,10 +938,10 @@ namespace CCompiler
+                     // 先用 ParseExpression 解析整个维度（包括 + - * / 等二元运算）
+                     ASTNode dimExpr = ParseExpression();
+ 
+-                    // 如果是简单数字字面量，记录编译时常量维度
+-                    if (dimExpr is NumberLiteral numLit && string.IsNullOrEmpty(numLit.Suffix))
++                    // 能折成常量的（**含 `BW * BH` 这种宏 × 宏**）记为编译期维度 —— 只认
++                    // 裸字面量的话，`int b[BW*BH]` 会静默按 1 个元素分配（见 TryConstInt 注释）。
++                    if (TryConstInt(dimExpr, out var dim))
+                     {
+-                        int dim = int.Parse(numLit.Value.ToString());
+                         if (var.ArraySize == null) var.ArraySize = dim;
+                         else var.ArraySize *= dim;
+                         var.Dimensions.Add(dim);
+diff --git a/third_party/vml/VMLPrepares/CCompiler/Parser.cs b/third_party/vml/VMLPrepares/CCompiler/Parser.cs
+index 3037b2eb..f96192d9 100644
+--- a/third_party/vml/VMLPrepares/CCompiler/Parser.cs
++++ b/third_party/vml/VMLPrepares/CCompiler/Parser.cs
+@@ -45,5 +45,73 @@ namespace CCompiler
+             Advance();
+             return m;
+         }
++
++        /// <summary>
++        /// 把**常量表达式**折成整数（数组维度、枚举值这类"本该是编译期常量"的位置用它）。
++        ///
++        /// ## 为什么要有它
++        ///
++        /// 维度表达式是用 <c>ParseExpression</c> 解析的（所以 `MAX + 8` 这种写法能解析出来），
++        /// 但各调用点此前**只认裸的 <c>NumberLiteral</c>** —— 于是
++        /// <code>#define BW 10
++        /// #define BH 20
++        /// int b[BW * BH];   /* 宏展开后是 10 * 20，不是字面量 */</code>
++        /// 被判成"运行时维度"进 <c>VlaDimensions</c>，编译期尺寸留空 ⇒ **静默**按 1 个元素分配。
++        /// 之后所有 <c>b[i]</c> 都写到别的变量上：**编译不报错，跑起来数据全乱**，
++        /// 是最难查的一类。`Parser.Expressions.cs` 里那句注释"支持常量表达式如 MAXPATHSIZE + 8"
++        /// 说的就是这个意图，但那条路一直没实现。
++        ///
++        /// 只做**能在编译期算出唯一结果**的折叠：字面量、一元 +/−/!、以及两侧都是常量的
++        /// 算术/位运算。任何一样不确定就返回 false，调用方照旧走 VLA 路径（真 VLA 仍然支持）。
++        /// </summary>
++        private static bool TryConstInt(ASTNode? node, out int value)
++        {
++            value = 0;
++            if (node == null) return false;
++
++            if (node is NumberLiteral lit)
++            {
++                // 带 F/L 之类后缀的浮点字面量不算整数常量
++                if (!string.IsNullOrEmpty(lit.Suffix) && lit.Suffix.ToUpperInvariant().Contains('F')) return false;
++                try { value = System.Convert.ToInt32(lit.Value); }
++                catch { return false; }
++                return true;
++            }
++
++            if (node is UnaryOp un)
++            {
++                if (!TryConstInt(un.Operand, out var v)) return false;
++                switch (un.Op)
++                {
++                    case "+": value = v; return true;
++                    case "-": value = -v; return true;
++                    case "!": value = v == 0 ? 1 : 0; return true;
++                    case "~": value = ~v; return true;
++                    default: return false;
++                }
++            }
++
++            if (node is BinaryOp bin)
++            {
++                if (!TryConstInt(bin.Left, out var a) || !TryConstInt(bin.Right, out var b)) return false;
++                switch (bin.Op)
++                {
++                    case "+": value = a + b; return true;
++                    case "-": value = a - b; return true;
++                    case "*": value = a * b; return true;
++                    // 除零不折叠（交给运行时的报错路径，别在编译期造一个假值出来）
++                    case "/": if (b == 0) return false; value = a / b; return true;
++                    case "%": if (b == 0) return false; value = a % b; return true;
++                    case "<<": value = b >= 0 && b < 32 ? a << b : 0; return b >= 0 && b < 32;
++                    case ">>": value = b >= 0 && b < 32 ? a >> b : 0; return b >= 0 && b < 32;
++                    case "&": value = a & b; return true;
++                    case "|": value = a | b; return true;
++                    case "^": value = a ^ b; return true;
++                    default: return false;
++                }
++            }
++
++            return false;
++        }
+     }
+ }

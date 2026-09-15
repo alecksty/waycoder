@@ -242,8 +242,8 @@ namespace CCompiler
                                 else
                                 {
                                     var dimExpr = ParseExpression();
-                                    if (dimExpr is NumberLiteral numLit && string.IsNullOrEmpty(numLit.Suffix))
-                                        arraySize = (int)numLit.Value;
+                                    if (TryConstInt(dimExpr, out var dimVal))
+                                        arraySize = dimVal;
                                     Expect(TokenType.RBRACKET);
                                 }
                             }

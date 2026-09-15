@@ -938,10 +938,10 @@ namespace CCompiler
                     // 先用 ParseExpression 解析整个维度（包括 + - * / 等二元运算）
                     ASTNode dimExpr = ParseExpression();
 
-                    // 如果是简单数字字面量，记录编译时常量维度
-                    if (dimExpr is NumberLiteral numLit && string.IsNullOrEmpty(numLit.Suffix))
+                    // 能折成常量的（**含 `BW * BH` 这种宏 × 宏**）记为编译期维度 —— 只认
+                    // 裸字面量的话，`int b[BW*BH]` 会静默按 1 个元素分配（见 TryConstInt 注释）。
+                    if (TryConstInt(dimExpr, out var dim))
                     {
-                        int dim = int.Parse(numLit.Value.ToString());
                         if (var.ArraySize == null) var.ArraySize = dim;
                         else var.ArraySize *= dim;
                         var.Dimensions.Add(dim);
