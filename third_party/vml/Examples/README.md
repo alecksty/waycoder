@@ -1,7 +1,14 @@
 # 示例与游戏合集
 
-手机 App 启动时会把这些示例解包到 **`<工作区>/examples/`**（`MauiBootstrap.EnsureExamples`），
-在「文件」页点开就能编译运行：`vml run examples/xxx.c`。
+手机 App 启动时会把这些示例解包到 **`<工作区>/examples/<语言>/`**
+（`MauiBootstrap.EnsureExamples`），在「文件」页点开就能编译运行：
+
+```bash
+vml run examples/c/tetris.c        # 各语言各自一个目录：c/ python/ basic/ csharp/ java/ …
+```
+
+**目录就是语言**：`examples/` 下每个子目录是一种语言，目录里放该语言的示例 ——
+从前是平铺的（十来种语言堆在一个目录里，只能靠文件名猜语言），v0.96.184 起按语言分开。
 
 ## 游戏
 

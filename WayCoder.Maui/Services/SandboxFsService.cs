@@ -399,8 +399,8 @@ public static class SandboxFsService
     /// <summary>
     /// **显示用**缩写：沙箱根（工作区）内的绝对路径 → <c>~/…</c>。
     ///
-    /// 手机上的完整路径是 `/storage/emulated/0/waycoder/workspace/examples/gomoku.c` ——
-    /// 命令行页一行根本放不下，换行之后更是看不出重点。缩成 `~/examples/gomoku.c`，
+    /// 手机上的完整路径是 `/storage/emulated/0/waycoder/workspace/examples/c/gomoku.c` ——
+    /// 命令行页一行根本放不下，换行之后更是看不出重点。缩成 `~/examples/c/gomoku.c`，
     /// 一眼就知道是哪个文件、在哪一层。
     ///
     /// 认不出来（在根外）就**原样返回** —— 显示宁可长，也不能把路径显示错。
@@ -417,7 +417,7 @@ public static class SandboxFsService
             // ToRelative 要求「root + 分隔符」严格前缀 ⇒ **根自己**传进去返回 null
             //（原来这里用一条等值分支单独兜它）。而"根自己"恰恰是提示符最常见的输入
             //（`~>` 就是 `Abbreviate(工作区根)`），两条分支各判一次既啰嗦又容易只对一边
-            // —— 实测真机上就出过"`vml build ~/examples/x.c` 缩写对了、提示符却打出完整路径"。
+            // —— 实测真机上就出过"`vml build ~/examples/c/x.c` 缩写对了、提示符却打出完整路径"。
             if (full.Length < root.Length) return fullPath;              // 比根还短 ⇒ 不是根内路径
             if (full.Length == root.Length)
                 return string.Equals(full, root, StringComparison.OrdinalIgnoreCase) ? "~" : fullPath;

@@ -855,6 +855,13 @@ namespace CCompiler
                     Console.Error.WriteLine($"[SKIP] 跳过无法识别的顶层token: {Current().Type} at line {Current().OriginalLine}");
                     Advance();
                 }
+                } catch (ParseException ex) when (ex.Code == ErrorCode.Parser_UnexpectedToken) {
+                    // 明确的"本编译器不支持…"要**硬失败**，不能走下面的容错恢复（v0.96.183 / patches/0008）。
+                    // 恢复机制是为"看起来像笔误或残留"的输入准备的；而"不支持却编得过"会**静默产出错代码**
+                    // —— 复合字面量那次就是：地址没被算出来、编译通过不报错、程序画不出东西，
+                    // 只有把汇编打出来才看得见。这类错误必须终止编译，而不是记一行然后继续。
+                    // ⚠ 因此本错误码被约定为"不可恢复"：以后新增用法前，先确认它真该终止编译。
+                    throw;
                 } catch (System.Exception ex) {
                     Console.Error.WriteLine($"[RECOVER] 顶层解析异常恢复: {ex.Message}, 行{Current().OriginalLine}, brace深度={_braceDepth}");
                     // 恢复策略: 跳过至当前失败构造结束, 然后跳到下一个有效声明

@@ -1,0 +1,97 @@
+# 0008：不受支持的语法要**硬失败**，不能静默编出错代码
+
+## 现象（真机挖出来的）
+
+`ui_polygon((int[]){92,215,…}, 3, …)` 这种 C99 **复合字面量**，本前端**认得语法却产不出地址**：
+`Parser.Expressions.cs` 里那句 `// compound literal` 把 `{…}` 当成初始化列表返回，而
+`ArrayInitializer` 的代码生成**只挂在变量声明上**（`varDecl.Initializer is ArrayInitializer`）——
+表达式位置没有任何一处会算出它的地址。编出来的代码把上一个寄存器的值（正好是刚推入的
+"点数"）当成指针传给被调函数，宿主去地址 3 读坐标、越界就地停 ⇒ **静默什么都不画**。
+
+桌面把汇编打出来一眼可辨（同一句话两种写法）：
+
+    具名数组：  move R0 R12 / sub R0 #28 / push R0      ← 算出数组地址
+    复合字面量：move R0 #3    /                push R0   ← 把「点数」又推了一遍
+
+**而编译通过、不报错**，退出码 0。真机「图元体检」里 polygon/polyline 整格空白就是它
+（宿主侧另有一处参数读错位，已单独修）。
+
+## 改法
+
+① `Parser.Expressions.cs`：这个分支不再返回初始化列表，而是 `throw Error(...)`，
+   带行列号与源行，并告诉用户怎么改（具名局部数组）。
+② `Parser.Declarations.cs`：顶层那条 `catch (System.Exception)` 是**容错恢复**（跳过坏构造继续编），
+   对"笔误/残留"输入有用，但会把上面这条吞成一行 stderr 日志后**继续编**。
+   现在把 `Parser_UnexpectedToken` 约定为**不可恢复**：这个码在本仓库只有这一处使用，
+   语义就是"本编译器不支持…"，必须终止编译。
+
+## 为什么是报错，而不是把它实现出来
+
+让它成立需要在**表达式中间**开一个帧内临时槽，而"临时槽与局部变量撞车"正是 0002 修过的
+那类事故（asm 结果的暂存槽撞上第一个局部变量）。做对需要一遍真正的临时分配，
+不该在这个位置随手加一个 —— 报错比默默编坏便宜得多，用户立刻知道怎么绕。
+
+## 复现
+
+```c
+int a[6];
+a[0] = 92; a[1] = 215; a[2] = 148; a[3] = 215; a[4] = 120; a[5] = 172;
+ui_polygon(a, 3, 0xFF50C878, 0, 0, "");                  /* ✔ 正常 */
+ui_polygon((int[]){10,20,30,40,50,60}, 3, 0xFF00FF00, 0, 0, "");  /* ✘ 现在报错 */
+```
+
+diff --git a/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs b/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs
+index ece861d8..348825a8 100644
+--- a/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs
++++ b/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs
+@@ -855,6 +855,13 @@ namespace CCompiler
+                     Console.Error.WriteLine($"[SKIP] 跳过无法识别的顶层token: {Current().Type} at line {Current().OriginalLine}");
+                     Advance();
+                 }
++                } catch (ParseException ex) when (ex.Code == ErrorCode.Parser_UnexpectedToken) {
++                    // 明确的"本编译器不支持…"要**硬失败**，不能走下面的容错恢复（v0.96.183 / patches/0008）。
++                    // 恢复机制是为"看起来像笔误或残留"的输入准备的；而"不支持却编得过"会**静默产出错代码**
++                    // —— 复合字面量那次就是：地址没被算出来、编译通过不报错、程序画不出东西，
++                    // 只有把汇编打出来才看得见。这类错误必须终止编译，而不是记一行然后继续。
++                    // ⚠ 因此本错误码被约定为"不可恢复"：以后新增用法前，先确认它真该终止编译。
++                    throw;
+                 } catch (System.Exception ex) {
+                     Console.Error.WriteLine($"[RECOVER] 顶层解析异常恢复: {ex.Message}, 行{Current().OriginalLine}, brace深度={_braceDepth}");
+                     // 恢复策略: 跳过至当前失败构造结束, 然后跳到下一个有效声明
+
+diff --git a/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs b/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs
+index e94b9ce1..05c692fd 100644
+--- a/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs
++++ b/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs
+@@ -488,11 +488,28 @@ namespace CCompiler
+                     }
+ 
+                     Expect(TokenType.RPAREN);
+-                    // 如果后面是 { ... }，则是 compound literal
++                    // 如果后面是 { ... }，则是 compound literal —— **不支持，而且要响亮地停**
++                    // （v0.96.183 / patches/0008）。
++                    //
++                    // 原先这里是 `return ParseInitializerList();`，把初始化列表当表达式返回，
++                    // 但 `ArrayInitializer` 的**代码生成只挂在变量声明上**
++                    // （`varDecl.Initializer is ArrayInitializer`，见 CodeGenerator.Functions/Statements），
++                    // 表达式位置**没有任何一处会产出它的地址** ⇒ 编出来的代码把上一个寄存器的值
++                    // （正好是刚推入的"点数"）当成指针推给被调函数。实测：
++                    //   `ui_polygon((int[]){92,215,…}, 3, …)` 宿主收到 pts=3，去地址 3 读坐标、
++                    //   越界就地停 ⇒ **静默什么都不画**，而编译**通过、不报错**。
++                    // 桌面把汇编打出来一眼可辨：具名数组是 `move R0 R12 / sub R0 #28 / push R0`，
++                    // 复合字面量是 `move R0 #3 / push R0`。（真机 + 桌面两处验过，见 CHANGELOG v0.96.182）
++                    //
++                    // 为什么是报错而不是把它实现出来：要让它成立，得在**表达式中间**开一个帧内临时槽，
++                    // 而"临时槽与局部变量撞车"正是 0002 修过的那类事故（asm 结果的暂存槽撞上第一个
++                    // 局部变量）。做对需要一遍真正的临时分配，不该在这里随手加一个。
++                    // 这类"编得过、跑起来才错"的坑，报错比默默编坏便宜得多。
+                     if (Current().Type == TokenType.LBRACE)
+                     {
+-                        ASTNode init = ParseInitializerList();
+-                        return init; // compound literal → return initializer
++                        throw Error(ErrorCode.Parser_UnexpectedToken,
++                            "本编译器不支持复合字面量“(类型[]){…}”：请改用具名局部数组再传，"
++                            + "例如 int pts[6]; pts[0] = 92; … 然后传 pts");
+                     }
+                     ASTNode expr = ParseUnary();
+                     return new CastExpr(typeName, expr);

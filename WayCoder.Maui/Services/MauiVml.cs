@@ -385,6 +385,20 @@ HALT
             _ = compile.ContinueWith(static t => _ = t.Exception, TaskScheduler.Default);
             return (null, lang, "⏹ 编译已被停止。");
         }
+        catch (Exception compileError)
+        {
+            // 编译器抛异常 = **源码有问题**，要变成用户看得见的一句话（v0.96.183）。
+            // 上游前端有一条"顶层解析异常恢复"的容错路径，会把不少错误吞成一行 stderr 日志
+            // 然后照常编下去；而"本编译器不支持…"这类错误是**硬失败**的（patches/0008），
+            // 异常会一路穿到这里。若不接住，它落在 `Task.Run` 里就成了"未观察的任务异常"，
+            // 手机上表现为"点了没反应"—— 本仓已经踩过一次同型（见 CLAUDE.md 移动端十三期 ⑨b）。
+            // ⚠ 变量名不能叫 `ex`：外层作用域已有同名局部变量，CS0136（实测踩过）。
+            // ⚠ 还要**剥掉 AggregateException 的壳**：`Task<T>.Result` 会把内层异常包一层，
+            //   不剥的话真机上打出来是 `AggregateException_ctor_DefaultMessage (语法错误 …)`——
+            //   前面那段噪音正是用户第一眼看到的东西（真机截图看出来的，构建全绿）。
+            var inner = compileError is AggregateException agg ? agg.GetBaseException() : compileError;
+            return (null, lang, $"⚠️ 编译失败：{inner.Message}");
+        }
 
         // **自检：产物得像 VML 汇编。**
         // 上游那个「失败就静默原样返回」的行为会把所有编译错误伪装成汇编期的

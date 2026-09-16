@@ -488,11 +488,28 @@ namespace CCompiler
                     }
 
                     Expect(TokenType.RPAREN);
-                    // 如果后面是 { ... }，则是 compound literal
+                    // 如果后面是 { ... }，则是 compound literal —— **不支持，而且要响亮地停**
+                    // （v0.96.183 / patches/0008）。
+                    //
+                    // 原先这里是 `return ParseInitializerList();`，把初始化列表当表达式返回，
+                    // 但 `ArrayInitializer` 的**代码生成只挂在变量声明上**
+                    // （`varDecl.Initializer is ArrayInitializer`，见 CodeGenerator.Functions/Statements），
+                    // 表达式位置**没有任何一处会产出它的地址** ⇒ 编出来的代码把上一个寄存器的值
+                    // （正好是刚推入的"点数"）当成指针推给被调函数。实测：
+                    //   `ui_polygon((int[]){92,215,…}, 3, …)` 宿主收到 pts=3，去地址 3 读坐标、
+                    //   越界就地停 ⇒ **静默什么都不画**，而编译**通过、不报错**。
+                    // 桌面把汇编打出来一眼可辨：具名数组是 `move R0 R12 / sub R0 #28 / push R0`，
+                    // 复合字面量是 `move R0 #3 / push R0`。（真机 + 桌面两处验过，见 CHANGELOG v0.96.182）
+                    //
+                    // 为什么是报错而不是把它实现出来：要让它成立，得在**表达式中间**开一个帧内临时槽，
+                    // 而"临时槽与局部变量撞车"正是 0002 修过的那类事故（asm 结果的暂存槽撞上第一个
+                    // 局部变量）。做对需要一遍真正的临时分配，不该在这里随手加一个。
+                    // 这类"编得过、跑起来才错"的坑，报错比默默编坏便宜得多。
                     if (Current().Type == TokenType.LBRACE)
                     {
-                        ASTNode init = ParseInitializerList();
-                        return init; // compound literal → return initializer
+                        throw Error(ErrorCode.Parser_UnexpectedToken,
+                            "本编译器不支持复合字面量“(类型[]){…}”：请改用具名局部数组再传，"
+                            + "例如 int pts[6]; pts[0] = 92; … 然后传 pts");
                     }
                     ASTNode expr = ParseUnary();
                     return new CastExpr(typeName, expr);

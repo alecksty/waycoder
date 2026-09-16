@@ -225,8 +225,8 @@ public static class MauiBootstrap
         // 6b) 把随包的中文字体落到文件系统上（供画布文字渲染用）。
         EnsureBundledFonts();
 
-        // 6c) 把示例程序（经典小游戏等）解到工作区 `examples/`，用户开箱即可
-        //     `vml run examples/gomoku.c` 跑一个真程序。
+        // 6c) 把示例程序（经典小游戏等）按语言解到工作区 `examples/<语言>/`，用户开箱即可
+        //     `vml run examples/c/gomoku.c` 跑一个真程序。
         EnsureExamples();
 
         // 7) 交互桥注入：权限确认 / AskUserQuestion / diff 确认走原生对话框（M5）
@@ -326,14 +326,19 @@ public static class MauiBootstrap
     }
 
     /// <summary>
-    /// 把随包的**示例程序**解到工作区 <c>examples/</c> 下（只做一次，靠一个标记文件判断）。
+    /// 把随包的**示例程序**解到工作区 <c>examples/&lt;语言&gt;/</c> 下（只做一次，靠一个标记文件判断）。
     ///
     /// 为什么解到**工作区**而不是留在 <c>Global.Home/vml/</c>：手机端的工作目录就是工作区，
     /// 而沙箱只允许程序读写项目内 —— 放在 home 下的话用户得先 `cd` 出去，还会被沙箱拦。
-    /// 解到工作区，`vml run examples/gomoku.c` 直接就能跑，在「文件」页里也看得见。
+    /// 解到工作区，`vml run examples/c/gomoku.c` 直接就能跑，在「文件」页里也看得见。
     ///
     /// 直接读 APK 里的 `vml_lib.zip`（而不是等 VML 标准库解压）：示例要**开箱即用**，
     /// 不能等用户第一次跑 VML 才出现。
+    ///
+    /// **按语言分目录**（v0.96.184）：包里就是 `Examples/&lt;语言&gt;/&lt;文件&gt;`，解出来保持同形 ——
+    /// 从前是**平铺**的（丢掉目录名），于是二十来个示例（C/Python/BASIC/C#/Java/…）全堆在
+    /// `examples/` 一个目录里，混着十来种语言、看文件名猜语言。现在 `examples/c/tetris.c`。
+    /// ⚠ 路径变了：`vml run examples/tetris.c` → `vml run examples/c/tetris.c`。
     /// </summary>
     static void EnsureExamples()
     {
@@ -348,27 +353,46 @@ public static class MauiBootstrap
                 && Directory.EnumerateFiles(dir).Any(f => Path.GetFileName(f) != ".unpacked"))
                 return;
 
-            // 重新解包时先清空（保留目录本身），保证目录内容与当前版本**一致**而不是累加
+            using var zipStream = FileSystem.OpenAppPackageFileAsync("vml_lib.zip").GetAwaiter().GetResult();
+            using var zip = new System.IO.Compression.ZipArchive(zipStream, System.IO.Compression.ZipArchiveMode.Read);
+
+            // 先算出**这一次要落地的相对路径**，再决定清什么 —— 清空必须精确：
+            // ① 顶层散文件（v0.96.184 之前是平铺的，不清就是同一份示例两份：`tetris.c` + `c/tetris.c`）；
+            // ② 我们管理的语言子目录（内容要与当前版本一致，不能累加）。
+            // ⚠ 只清"包里有的那些"：用户自己在 examples/ 下建的目录不碰（那是他的文件）。
+            var rels = new List<(string Rel, System.IO.Compression.ZipArchiveEntry Entry)>();
+            foreach (var e in zip.Entries)
+            {
+                if (!e.FullName.StartsWith("Examples/", StringComparison.Ordinal)) continue;
+                var rel = e.FullName["Examples/".Length..];
+                if (rel.Length == 0 || rel.EndsWith("/", StringComparison.Ordinal)) continue;  // 目录条目
+                rels.Add((rel, e));
+            }
+            if (rels.Count == 0) return;
+
             Directory.CreateDirectory(dir);
-            foreach (var f in Directory.EnumerateFiles(dir))
+            foreach (var f in Directory.EnumerateFiles(dir))          // ① 顶层散文件
             {
                 if (Path.GetFileName(f) == ".unpacked") continue;
                 try { File.Delete(f); } catch { /* 删不掉就留着，不值得为它中断 */ }
             }
-
-            using var zipStream = FileSystem.OpenAppPackageFileAsync("vml_lib.zip").GetAwaiter().GetResult();
-            using var zip = new System.IO.Compression.ZipArchive(zipStream, System.IO.Compression.ZipArchiveMode.Read);
-
-            foreach (var e in zip.Entries)
+            // ② 语言子目录 —— 判据是"这个顶层段后面还有东西"（`c/tetris.c` 的 `c` 是目录；
+            //    `README.md` 没有下一段，是散文件，不在这一轮处理）
+            foreach (var sub in rels.Where(r => r.Rel.Contains('/'))
+                                    .Select(r => r.Rel.Split('/', 2)[0]).Distinct())
             {
-                // 只要 `Examples/` 下的，且**只平铺一层**（不带子目录，免得路径里混进语言名）
-                if (!e.FullName.StartsWith("Examples/", StringComparison.Ordinal)) continue;
-                var name = Path.GetFileName(e.FullName);
-                if (name.Length == 0) continue;
+                var p = Path.Combine(dir, sub);
+                if (Directory.Exists(p)) { try { Directory.Delete(p, recursive: true); } catch { } }
+            }
 
-                using var s = e.Open();
-                using var dst = File.Create(Path.Combine(dir, name));
-                s.CopyTo(dst);
+            foreach (var (rel, entry) in rels)
+            {
+                var dst = Path.Combine(dir, rel.Replace('/', Path.DirectorySeparatorChar));
+                var parent = Path.GetDirectoryName(dst);
+                if (!string.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
+                using var s = entry.Open();
+                using var f = File.Create(dst);
+                s.CopyTo(f);
             }
 
             File.WriteAllText(marker, WayCoder.Global.Version);

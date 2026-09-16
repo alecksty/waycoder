@@ -98,3 +98,6 @@ codes/
 *.aab
 *.apk
 sync-qr.png
+
+# VML 本地中间产物（Examples/ 下跑出来的汇编，按需重生，不进版本库）
+*.gen.vml

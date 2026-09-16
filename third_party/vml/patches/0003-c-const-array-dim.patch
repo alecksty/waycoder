@@ -2,8 +2,9 @@
 
 > ⚠ 本条于 v0.96.181 按 **vendor 基准**重新生成：原先只包了「那次修复」的几处，而这些文件自 vendor 以来**还有别的改动**（不在任何补丁里，两头都没兜住）。现在这条补丁 = 这些文件相对 vendor 的**全部**改动 —— 回灌上游时请把它们当一整块 review。
 
+
 diff --git a/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs b/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs
-index ece861d8..970615f6 100644
+index ece861d8..348825a8 100644
 --- a/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs
 +++ b/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs
 @@ -242,8 +242,8 @@ namespace CCompiler
@@ -17,11 +18,12 @@ index ece861d8..970615f6 100644
                                      Expect(TokenType.RBRACKET);
                                  }
                              }
+
 diff --git a/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs b/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs
-index e94b9ce1..6700aa6b 100644
+index e94b9ce1..05c692fd 100644
 --- a/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs
 +++ b/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs
-@@ -938,10 +938,10 @@ namespace CCompiler
+@@ -938,10 +955,10 @@ namespace CCompiler
                      // 先用 ParseExpression 解析整个维度（包括 + - * / 等二元运算）
                      ASTNode dimExpr = ParseExpression();
  
@@ -35,6 +37,8 @@ index e94b9ce1..6700aa6b 100644
                          if (var.ArraySize == null) var.ArraySize = dim;
                          else var.ArraySize *= dim;
                          var.Dimensions.Add(dim);
+
+
 diff --git a/third_party/vml/VMLPrepares/CCompiler/Parser.cs b/third_party/vml/VMLPrepares/CCompiler/Parser.cs
 index 3037b2eb..f96192d9 100644
 --- a/third_party/vml/VMLPrepares/CCompiler/Parser.cs
