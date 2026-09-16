@@ -728,6 +728,37 @@ namespace CCompiler
         /// <summary>
         /// 推断表达式类型
         /// </summary>
+        /// <summary>
+        /// 变量的 <see cref="ExprType"/> —— **局部与全局都要看，这是唯一一处判据**。
+        ///
+        /// ## 为什么必须是一个助手而不是两处各写一遍
+        ///
+        /// `variableTypes` 只装**局部**变量，全局变量在 `ast.Variables` 里。这个"先查局部、
+        /// 再回退全局声明"的口诀原先只有**取标识符值**那一条路写了
+        /// （`CodeGenerator.Expressions.cs` 的"优先从 variableTypes 获取，其次从 AST 全局变量声明"），
+        /// 而**数组下标**那条路（`InferExpressionType` 的 `ArrayAccess` 分支）只查了 `variableTypes`
+        /// 就直接 `return ExprType.Int` —— 于是：
+        ///
+        /// <code>char g[8];          /* 全局 */
+        /// int main() { g[0] = 'A'; if (g[0] == 'A') … }   /* 走的是 MOVE（32 位），不是 MOVEB */</code>
+        ///
+        /// 按 32 位读写 `char` 数组的后果是**编得过、跑起来值不对**：`g[0]='A'` 之后
+        /// `g[0]=='A'` 为 false（32 位读回来的是相邻几个字节拼成的 `0x??????41`）；
+        /// 写还会**越界**（`char g[8]` 的 `g[7]` 会写到数组外面 3 个字节）。
+        /// 局部数组一直是对的（`variableTypes` 里有），所以这个坑只在全局数组上冒头 ——
+        /// 实测四个格子：局部下标读/写 ✓、全局下标读/写 ✗（`.scratch/vmlhost/tests/globchar.c`）。
+        /// </summary>
+        private ExprType GetVarExprType(string name)
+        {
+            if (variableTypes.TryGetValue(name, out var t)) return t;
+            var globalVar = ast.Variables.FirstOrDefault(v => v.Name == name);
+            if (globalVar == null) return ExprType.Int;
+            var resolved = StringToExprType(globalVar.Type);
+            // 认不出的类型（自定义 struct 之类）**保持原来的 32 位语义** ——
+            // 这条回退路径的任务是"修好能认的那部分"，不是顺带改掉认不出的那部分。
+            return resolved == ExprType.Unknown ? ExprType.Int : resolved;
+        }
+
         private ExprType InferExpressionType(ASTNode node)
         {
             if (node is CharLiteral)
@@ -868,27 +899,26 @@ namespace CCompiler
             }
             if (node is ArrayAccess arrAcc && arrAcc.Array is Identifier arrId)
             {
-                // 从数组/指针类型推断元素类型
-                if (variableTypes.TryGetValue(arrId.Name, out var arrType))
+                // 从数组/指针类型推断元素类型。**局部与全局都要看** —— 只查 variableTypes
+                // （它只装局部变量）的话，全局数组会落到 `return ExprType.Int`，
+                // 于是 `char g[8]` 的 `g[0]` 按 **32 位** 读写（见 GetVarExprType 的注释）。
+                var arrType = GetVarExprType(arrId.Name);
+                if (IsPointerType(arrType))
                 {
-                    if (IsPointerType(arrType))
+                    // char* → char, int* → int
+                    return arrType switch
                     {
-                        // char* → char, int* → int
-                        return arrType switch
-                        {
-                            ExprType.CharPtr => ExprType.Char,
-                            ExprType.ShortPtr => ExprType.Short,
-                            ExprType.IntPtr => ExprType.Int,
-                            ExprType.LongPtr => ExprType.Long,
-                            ExprType.FloatPtr => ExprType.Float,
-                            ExprType.DoublePtr => ExprType.Double,
-                            ExprType.VoidPtr => ExprType.Char,
-                            _ => ExprType.Int
-                        };
-                    }
-                    return arrType; // 数组元素类型
+                        ExprType.CharPtr => ExprType.Char,
+                        ExprType.ShortPtr => ExprType.Short,
+                        ExprType.IntPtr => ExprType.Int,
+                        ExprType.LongPtr => ExprType.Long,
+                        ExprType.FloatPtr => ExprType.Float,
+                        ExprType.DoublePtr => ExprType.Double,
+                        ExprType.VoidPtr => ExprType.Char,
+                        _ => ExprType.Int
+                    };
                 }
-                return ExprType.Int;
+                return arrType; // 数组元素类型
             }
             if (node is ArrayAccess arrAcc2 && arrAcc2.Array is MemberAccess memberArr)
             {

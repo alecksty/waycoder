@@ -27,6 +27,12 @@
 #      **静默按 1 个元素分配**，之后所有下标都写到别的变量上（编得过、跑起来数据全乱）。
 #      修法是给数组维度接一个常量折叠器（字面量 / 一元 ±!~ / 常量算术与位运算）。
 #      复现用例 `.scratch/vmlhost/tests/arrdim.c`；`Examples/c/tetris.c` 的棋盘用的就是它。
+#   ④ 0004-c-global-array-elem-type.patch：C 前端的**全局 char/short 数组按 32 位读写**。
+#      `InferExpressionType(ArrayAccess)` 只查 `variableTypes`（只装局部变量），全局数组
+#      查不到就退化成 `ExprType.Int` ⇒ `char g[8]` 的 `g[0]` 走 MOVE（32 位）而不是 MOVEB。
+#      现象是「长度对、内容不对」（`g[0]='A'` 之后 `g[0]=='A'` 为 false），写还会越界。
+#      局部数组一直是对的，所以这个坑只在全局数组上冒头 —— 很容易误判成"局部数组传参坏了"。
+#      复现用例 `.scratch/vmlhost/tests/globchar.c`（判定绕过 stdio：每条结论用一个频率报出来）。
 #
 # 之所以要脚本化：rsync 是覆盖式的，两类改动都会被冲掉。
 # 【B】用 patch 而不是"再抄一遍源码"：改动本身可 review、可 diff；

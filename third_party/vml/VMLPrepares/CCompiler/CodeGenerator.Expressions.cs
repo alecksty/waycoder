@@ -114,13 +114,9 @@ namespace CCompiler
                 }
                 else
                 {
-                    // 获取变量类型: 优先从 variableTypes 获取，其次从 AST 全局变量声明
-                    ExprType varType;
-                    if (!variableTypes.TryGetValue(ident.Name, out varType))
-                    {
-                        var globalVar = ast.Variables.FirstOrDefault(v => v.Name == ident.Name);
-                        varType = globalVar != null ? StringToExprType(globalVar.Type) : ExprType.Int;
-                    }
+                    // 获取变量类型 —— 判据收在 `GetVarExprType` 一处（局部 + 全局），
+                    // 别在这里再抄一遍：数组下标那条路就是因为只查局部而按 32 位读写 char 数组。
+                    var varType = GetVarExprType(ident.Name);
                     var loadOp  = GetLoadInstruction(varType);
 
                     if (staticLocals.ContainsKey(ident.Name))
