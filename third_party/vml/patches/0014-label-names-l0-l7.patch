@@ -1,0 +1,71 @@
+# 0014：Go / Forth / C 前端 —— 同一处 `L{n}` 标签名（`L0`–`L7` 是长整数寄存器）
+
+> 与 patch 0013 的"一、"**是同一个洞**，只是落在别的文件里（本仓库的约定：同一个文件的改动
+> 只进一条补丁，所以按文件分成了两条）。详细机理见 0013 —— 这里只记结论与"为什么 C 也有份"。
+
+`$"L{labelCounter}"` 生成的标签在前 8 个恰好叫 `L0`…`L7`，而 `VMLAssembler.ParseOperand`
+把 `L<0..7>` 解析成 `OperandType.REGISTER(regNum + 24)`（= R24–R31）⇒ 条件跳转变成
+**"跳到寄存器"**，`ExecuteJmp` 只认 `LABEL`/`IMMEDIATE` ⇒ **静默不跳**、直接往下走。
+
+| 前端 | 文件 | 现象 |
+|---|---|---|
+| Go | `CodeGenerator.Core.cs` | **死循环**（带数组+循环的探针被 `--vmtimeout` 杀掉、一帧不出）——改成 `L_{n}` 后**出帧了** |
+| Pascal | （在 patch 0013）| 越界检查两条分支都不跳 ⇒ 落进"越界 → 退出" ⇒ 一帧不出 |
+| Forth | `CodeGenerator.cs` | 同形，未单独复现 |
+| C | `CodeGenerator.Expressions.Types.cs` | 同形。**C 一直在用所以没暴露** —— 它这个 `GenerateLabel()` 只在少数路径上用，而那几处的计数器恰好较大；但这是**运气**，不是设计 |
+
+基类 `CompilerBase.NewLabel()` 生成的是 `L_{n}`（带下划线，`int.TryParse` 失败）本就安全 ——
+这四条只是**没有跟着基类写**。
+
+## 验证
+
+Go 的探针（数组 + `for` 循环 + 读数组元素当矩形宽）：
+
+- **改前**：`VM execution cancelled`（死循环），无帧。
+- **改后**：出帧；`for i:=0;i<5;i++ { s = s + 1 }` ⇒ 宽度 **50 = 5×10** ✓ 循环正确。
+- ⚠ **但 Go 的数组读仍然是错的**：`a[2]`→8、`a[5]`→20、`a[7]`→28，**全是 `idx × 4`**
+  = **字节偏移**，不是元素值。这与 Swift 的 patch 0011 ③ 是同一个病（**"地址当值"族，本仓库第六次**），
+  Go 这一处**尚未修**。
+
+diff --git a/third_party/vml/VMLPrepares/CCompiler/CodeGenerator.Expressions.Types.cs b/third_party/vml/VMLPrepares/CCompiler/CodeGenerator.Expressions.Types.cs
+index b051b07b..c9f9387d 100644
+--- a/third_party/vml/VMLPrepares/CCompiler/CodeGenerator.Expressions.Types.cs
++++ b/third_party/vml/VMLPrepares/CCompiler/CodeGenerator.Expressions.Types.cs
+@@ -478,7 +478,8 @@ namespace CCompiler
+ 
+         private string GenerateLabel()
+         {
+-            var label = $"L{labelCounter}";
++            // `L_` 前缀不能省：`L0`–`L7` 会被汇编器当成**长整数寄存器**，跳转静默失效（v0.96.192）
++            var label = $"L_{labelCounter}";
+             labelCounter++;
+             return label;
+         }
+diff --git a/third_party/vml/VMLPrepares/ForthCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/ForthCompiler/CodeGenerator.cs
+index c469b146..272ef13f 100644
+--- a/third_party/vml/VMLPrepares/ForthCompiler/CodeGenerator.cs
++++ b/third_party/vml/VMLPrepares/ForthCompiler/CodeGenerator.cs
+@@ -42,7 +42,8 @@ namespace ForthCompiler
+ 
+         private string NewLabel()
+         {
+-            return $"L{labelCounter++}";
++            // `L_` 前缀不能省：`L0`–`L7` 会被汇编器当成**长整数寄存器**，跳转静默失效（v0.96.192）
++            return $"L_{labelCounter++}";
+         }
+ 
+         private static string MangleName(string name)
+diff --git a/third_party/vml/VMLPrepares/GoCompiler/CodeGenerator.Core.cs b/third_party/vml/VMLPrepares/GoCompiler/CodeGenerator.Core.cs
+index 75afe38a..d8dd30f0 100644
+--- a/third_party/vml/VMLPrepares/GoCompiler/CodeGenerator.Core.cs
++++ b/third_party/vml/VMLPrepares/GoCompiler/CodeGenerator.Core.cs
+@@ -170,7 +170,8 @@ namespace GoCompiler
+ 
+         private string NewLabel()
+         {
+-            return $"L{labelCounter++}";
++            // `L_` 前缀不能省：`L0`–`L7` 会被汇编器当成**长整数寄存器**，跳转静默失效（v0.96.192）
++            return $"L_{labelCounter++}";
+         }
+ 
+         #region 数据类型敏感指令选择方法

@@ -42,7 +42,8 @@ namespace ForthCompiler
 
         private string NewLabel()
         {
-            return $"L{labelCounter++}";
+            // `L_` 前缀不能省：`L0`–`L7` 会被汇编器当成**长整数寄存器**，跳转静默失效（v0.96.192）
+            return $"L_{labelCounter++}";
         }
 
         private static string MangleName(string name)

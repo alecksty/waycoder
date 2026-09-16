@@ -1,0 +1,97 @@
+# 0013：Pascal 前端 —— `L0`–`L7` 标签被当成**长整数寄存器**（条件跳转静默失效）+ 数组地址方向
+
+## 一、真因：标签名 `L0` 撞上了寄存器拼法（**这条才是"一帧不出"的原因**）
+
+`PascalCompiler/CodeGenerator.Misc.IO.cs` 的 `GenerateLabel()` 生的是 `$"L{labelCounter}"`
+⇒ 前 8 个标签正好叫 `L0`…`L7`。而 `VMLAssembler.ParseOperand` 里：
+
+```csharp
+// 长整数寄存器：L0-L7 (映射到 R24-R31，与运行时一致)
+if (operandStr.StartsWith("L", ...)) {
+    string regNumStr = operandStr.Substring(1);
+    if (int.TryParse(regNumStr, out int regNum) && regNum >= 0 && regNum <= 7)
+        return new Operand(OperandType.REGISTER, regNum + 24);
+}
+```
+
+⇒ **`jge L0` 编译成的是"跳到寄存器 R24"**，而 `ExecuteJmp` 只处理 `LABEL` 与 `IMMEDIATE`
+⇒ **静默什么都不做**，直接往下走。落到数组越界检查的"越界 → 退出"分支，程序连窗都没开
+就结束了：**一帧不出、没有任何报错、`--trace` 下 500–599 号段一次调用都没有**。
+
+### 为什么极难复现 / 为什么之前误判过
+
+- **只在标签编号 < 8 时冒头**：`L80190001` 这类大数字标签 `regNum <= 7` 不成立，
+  会落回标签分支 —— 所以 C 前端（标签是 `L80190001` 形态）一直是对的，
+  而 Pascal 的程序短、计数器还没到 8 就已经踩完了。
+- 基类 `CompilerBase.NewLabel()` 生成的是 **`L_{n}`（带下划线）**，`int.TryParse("_0")` 失败
+  ⇒ 安全。**只有自己拼 `$"L{n}"` 的四个前端中招**（Pascal / Go / Forth / C 的那一处，
+  见 patch 0014）。
+
+### 定位过程（这段本身值得记）
+
+1. 症状是"任何一次数组访问都不出帧"；二分到**写**那一步（写前后各开一次窗：前面出帧、后面不出）。
+2. 把两处越界早退换成**可区分的标记**（`syscall #590` / `#591`，`--trace` 会打号）
+   ⇒ **两个都触发了**，说明两条条件跳转**都没跳**。
+3. 把生成物里的标签整体改名（`L0` → `ZZ0`）再跑 ⇒ **立刻出帧**。**这一步定案。**
+4. ⚠ 中途我做过一个**无效实验**：手写汇编用 `L0` 当标签、量出来"跳了"，
+   于是以为跳转没问题 —— 实际那两条路径**都落到同一句** `move R0 #10`，
+   跳与不跳量出来都是 10。**判据必须让两种结果落在不同的地方。**
+
+## 二、数组元素地址方向（独立成立的一处）
+
+`CodeGenerator.Statements.cs` 里数组地址写的是 `base − (i − 下界) × 4`，
+而汇编器对数组块的布局是**向上**的（`labels[label] = currentAddress` 指向块的**第一个字**）
+⇒ 下标 = 下界时侥幸对（偏移 0），下标 ≥ 下界+1 就写到数组"前面"去了。已改成 `ADD`。
+
+⚠ **诚实交代**：这一处**不是**"一帧不出"的原因（改完症状不变），是先落进来的独立修正。
+真正修好它的是上面那条。
+
+## 验证
+
+`a: array[1..8] of integer; a[3] := 5; s := a[3];` → 画一条宽 `s*10` 的矩形，
+**解 PNG 逐像素量出宽度 50**（= 5×10），与期望一致。
+
+diff --git a/third_party/vml/VMLPrepares/PascalCompiler/CodeGenerator.Misc.IO.cs b/third_party/vml/VMLPrepares/PascalCompiler/CodeGenerator.Misc.IO.cs
+index e0d28aed..f7897d1d 100644
+--- a/third_party/vml/VMLPrepares/PascalCompiler/CodeGenerator.Misc.IO.cs
++++ b/third_party/vml/VMLPrepares/PascalCompiler/CodeGenerator.Misc.IO.cs
+@@ -326,7 +326,8 @@ namespace PascalCompiler
+ 
+         private string GenerateLabel()
+         {
+-            string label = $"L{labelCounter}";
++            // `L_` 前缀不能省：`L0`–`L7` 会被汇编器当成**长整数寄存器**，跳转静默失效（v0.96.192）
++            string label = $"L_{labelCounter}";
+             labelCounter++;
+             return label;
+         }
+diff --git a/third_party/vml/VMLPrepares/PascalCompiler/CodeGenerator.Statements.cs b/third_party/vml/VMLPrepares/PascalCompiler/CodeGenerator.Statements.cs
+index 953182df..8f873605 100644
+--- a/third_party/vml/VMLPrepares/PascalCompiler/CodeGenerator.Statements.cs
++++ b/third_party/vml/VMLPrepares/PascalCompiler/CodeGenerator.Statements.cs
+@@ -856,7 +856,14 @@ namespace PascalCompiler
+                         new Operand(OperandType.IMMEDIATE, 4)
+                     }));
+                     
+-                    instructions.Add(new Instruction(OpCode.SUB, new List<Operand>
++                    // ⚠ v0.96.191 修：这里原来是 `SUB R2, R0` —— **地址算反了方向**。
++                    //   数组块在数据段里是**向上**排的（汇编器 `labels[label] = currentAddress`
++                    //   指向块的第一个字），元素地址必须是 `base + (i - 下界) * 元素大小`。
++                    //   用 SUB 的后果：下标 = 下界时侥幸对（偏移 0），**下标 ≥ 下界+1 就写到数组
++                    //   "前面"去了** —— 实测 `a: array[1..8] of integer` 里 `a[3] := 5` 把 8 字节
++                    //   写到了数据段起点之前，程序随即跑飞：连 `ui_win_open` 都没调到、**一帧不出**。
++                    //   （诊断口径：`--trace` 下 500–599 号段一次调用都没有 ⇒ 根本没走到开窗。）
++                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand>
+                     {
+                         new Operand(OperandType.REGISTER, 2),
+                         new Operand(OperandType.REGISTER, 0)
+@@ -906,7 +913,8 @@ namespace PascalCompiler
+                         if (stride > 1)
+                             instructions.Add(new Instruction(OpCode.MUL, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, stride)]));
+                     }
+-                    instructions.Add(new Instruction(OpCode.SUB, [new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 0)]));
++                    // 同上：多维路径也是"基址 + 偏移"，不是减
++                    instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 0)]));
+                     instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 2)]));
+                 }
+             }
