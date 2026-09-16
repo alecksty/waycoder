@@ -192,7 +192,7 @@ namespace GoCompiler
                     if (name == "false")
                         return new BoolLiteral(false);
                     // 复合字面量: TypeName{key: val, ...}
-                    if (GetTokenType(Cur) == TokenType.LBRACE)
+                    if (_noCompositeLiteral == 0 && GetTokenType(Cur) == TokenType.LBRACE)
                     {
                         Advance(); // {
                         var lit = new CompositeLiteral();
@@ -378,7 +378,8 @@ namespace GoCompiler
                         // Point{X: 10} — 复合字面量（类型已解析为 expr）
                         // 排除纯 Identifier（避免 switch x{ 被误解析为复合字面量）
                         // pure Identifier 的复合字面量在 ParsePrimary 中处理
-                        if (expr is SelectorExpr || expr is IndexExpr)
+                        // 控制语句头部里一律不当复合字面量（见 _noCompositeLiteral）
+                        if (_noCompositeLiteral == 0 && (expr is SelectorExpr || expr is IndexExpr))
                         {
                             // 将当前表达式作为类型名构建复合字面量
                             string typeName = expr.ToString();

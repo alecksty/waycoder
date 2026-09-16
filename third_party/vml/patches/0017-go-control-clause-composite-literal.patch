@@ -1,0 +1,149 @@
+# 0017：Go 前端 —— 控制语句头部里的复合字面量（解析器把循环体当元素列表吃掉）
+
+> 承接 patch 0014/0015（`L{n}` 标签、数组三处、栈帧少算），这一条也是**写贪吃蛇时踩出来的**。
+
+## 症状：报错位置与真因完全不搭
+
+```
+解析错误: 语法错误 在第55行3列：Expected RBRACE, but got IF
+解析错误: 语法错误 在第100行3列：Expected RBRACE, but got IF
+解析错误: 语法错误 在第162行11列：Expected RBRACE, but got ASSIGN
+```
+
+四条报错**都指向 `if` 或赋值本身**，看起来像"循环体里不许先赋值再 `if`""不许嵌套 `if`"，
+于是第一轮把整份代码改成了"扁平风格 + 全局状态数组 + 无参函数"（能跑，但形状很难看）。
+**真因只有一个**：`for i < A[1] {` 里的那个 `{`。
+
+`Parser.Expressions.cs` 的 `ParseExpressionSuffix` 有一支：表达式后跟 `{` 就当**复合字面量**
+（`Point{X: 10}`），而它对 `IndexExpr` 与 `SelectorExpr` 一律放行 —— 于是 `A[1] {` 被当成
+`A[1]` 的复合字面量，**整个循环体被当元素列表吃进去**，吃到 `if` 就报"这里该是 `}`"。
+报错行号指着的那个 `if`，其实是"被吞掉的循环体里的第一条语句"。
+
+## 修法：控制语句头部里禁止复合字面量
+
+Go 规范本来就规定 `if`/`for`/`switch` 的头部（含 `for` 的 post）不允许出现复合字面量
+（否则 `if x == T{}` 二义）。所以加一个深度计数器 `_noCompositeLiteral`，在
+`ParseIfStatement` / `ParseForStatement` / `ParseSwitchStatement` 解析条件、`for` 的 init/post
+时置位，`ParsePrimary` 与 `ParseExpressionSuffix` 的复合字面量分支见到它就退让。
+
+## 修完之后实测（`.scratch/goprobe.go`，八个函数一次全过）
+
+带参函数 + 循环 + `if`、**嵌套循环**、**嵌套 `if`**、循环体里 `:=`、循环体里"先赋值再 `if`"、
+条件以 `A[...]` 结尾、带返回值 + 循环 —— 之前"文档里写着不能写"的那些形状**全部是这条 bug 的假象**。
+
+## 同时修正 `VMLPrepares/GoCompiler/CodeGenerator.Statements.cs` 的形参搬运（在 0015 里）
+
+形参只搬了第一个：函数序言写成"第一个参数在 R0 里"，实测**除末参外全是垃圾**。
+两处都要改：偏移少算了 CALL 自己压入的返回地址（应为 `[R14+8+4*i]`），
+且**操作数顺序写反**（`MOVE [栈槽], R0` 是把 R0 存回调用方的实参槽）。
+
+diff --git a/third_party/vml/VMLPrepares/GoCompiler/Parser.Core.cs b/third_party/vml/VMLPrepares/GoCompiler/Parser.Core.cs
+index eeefb0b9..f5be872f 100644
+--- a/third_party/vml/VMLPrepares/GoCompiler/Parser.Core.cs
++++ b/third_party/vml/VMLPrepares/GoCompiler/Parser.Core.cs
+@@ -8,8 +8,24 @@ namespace GoCompiler
+     {
+         private bool _isMCU;
+ 
++        /// <summary>
++        /// &gt;0 表示正在解析控制语句的头部（if/for/switch 的条件、for 的 post）。
++        /// Go 规范禁止在这里出现复合字面量 —— 否则 `for i &lt; A[1] {` 的那个 `{`
++        /// 会被当成 `A[1]` 的复合字面量，把整个循环体当元素列表吃掉，
++        /// 报错却是"Expected RBRACE, but got IF"（v0.96.195）。
++        /// </summary>
++        private int _noCompositeLiteral;
++
+         protected override TokenType GetTokenType(Token token) => token.Type;
+ 
++        /// <summary>按"不允许复合字面量"的规则解析控制语句头部里的表达式</summary>
++        private ASTNode ParseConditionExpr()
++        {
++            _noCompositeLiteral++;
++            try { return ParseExpression(); }
++            finally { _noCompositeLiteral--; }
++        }
++
+         public Parser(List<Token> tokens, bool isMCU = true) : base(tokens)
+         {
+             _isMCU = isMCU;
+diff --git a/third_party/vml/VMLPrepares/GoCompiler/Parser.Expressions.cs b/third_party/vml/VMLPrepares/GoCompiler/Parser.Expressions.cs
+index 7160e851..ebdd3419 100644
+--- a/third_party/vml/VMLPrepares/GoCompiler/Parser.Expressions.cs
++++ b/third_party/vml/VMLPrepares/GoCompiler/Parser.Expressions.cs
+@@ -192,7 +192,7 @@ namespace GoCompiler
+                     if (name == "false")
+                         return new BoolLiteral(false);
+                     // 复合字面量: TypeName{key: val, ...}
+-                    if (GetTokenType(Cur) == TokenType.LBRACE)
++                    if (_noCompositeLiteral == 0 && GetTokenType(Cur) == TokenType.LBRACE)
+                     {
+                         Advance(); // {
+                         var lit = new CompositeLiteral();
+@@ -378,7 +378,8 @@ namespace GoCompiler
+                         // Point{X: 10} — 复合字面量（类型已解析为 expr）
+                         // 排除纯 Identifier（避免 switch x{ 被误解析为复合字面量）
+                         // pure Identifier 的复合字面量在 ParsePrimary 中处理
+-                        if (expr is SelectorExpr || expr is IndexExpr)
++                        // 控制语句头部里一律不当复合字面量（见 _noCompositeLiteral）
++                        if (_noCompositeLiteral == 0 && (expr is SelectorExpr || expr is IndexExpr))
+                         {
+                             // 将当前表达式作为类型名构建复合字面量
+                             string typeName = expr.ToString();
+diff --git a/third_party/vml/VMLPrepares/GoCompiler/Parser.Statements.cs b/third_party/vml/VMLPrepares/GoCompiler/Parser.Statements.cs
+index 3f9a328c..a3fb0df4 100644
+--- a/third_party/vml/VMLPrepares/GoCompiler/Parser.Statements.cs
++++ b/third_party/vml/VMLPrepares/GoCompiler/Parser.Statements.cs
+@@ -1030,7 +1030,7 @@ namespace GoCompiler
+                 }
+                 else
+                 {
+-                    ifStmt.Condition = ParseExpression();
++                    ifStmt.Condition = ParseConditionExpr();
+                 }
+             }
+ 
+@@ -1044,7 +1044,7 @@ namespace GoCompiler
+                 }
+                 else
+                 {
+-                    ifStmt.Condition = ParseExpression();
++                    ifStmt.Condition = ParseConditionExpr();
+                 }
+             }
+ 
+@@ -1064,7 +1064,7 @@ namespace GoCompiler
+                 if (GetTokenType(Cur) == TokenType.IF)
+                 {
+                     Advance(); // consume IF
+-                    var elseIfCond = ParseExpression();
++                    var elseIfCond = ParseConditionExpr();
+                     SkipNewlines();
+                     var elseIfBody = ParseBlock();
+                     ifStmt.ElseIfBranches.Add((elseIfCond, elseIfBody));
+@@ -1171,7 +1171,7 @@ namespace GoCompiler
+                     }
+                     else
+                     {
+-                        forStmt.Init = ParseExpression();
++                        forStmt.Init = ParseConditionExpr();
+                     }
+                 }
+             }
+@@ -1196,7 +1196,7 @@ namespace GoCompiler
+                 }
+                 else
+                 {
+-                    forStmt.Condition = ParseExpression();
++                    forStmt.Condition = ParseConditionExpr();
+                 }
+                 // 检查是否还有;post
+                 if (GetTokenType(Cur) == TokenType.SEMICOLON)
+@@ -1235,7 +1235,7 @@ namespace GoCompiler
+                 }
+                 else
+                 {
+-                    switchStmt.Tag = ParseExpression();
++                    switchStmt.Tag = ParseConditionExpr();
+                 }
+             }
+ 

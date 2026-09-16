@@ -110,7 +110,7 @@ func count5() -> Int { var i = 0; var s = 0
 ⚠ 这一轮的诊断自己还栽过一次：量了**第一帧**（诊断画在第二次 `ui_present`，落在 `f001`），
 于是得出"三个诊断全 0"的假结论。**先确认量的是哪一帧，再下结论。**
 diff --git a/third_party/vml/VMLPrepares/SwiftCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/SwiftCompiler/CodeGenerator.cs
-index 8f283257..1360f7ea 100644
+index 8f283257..24349292 100644
 --- a/third_party/vml/VMLPrepares/SwiftCompiler/CodeGenerator.cs
 +++ b/third_party/vml/VMLPrepares/SwiftCompiler/CodeGenerator.cs
 @@ -62,20 +62,25 @@ namespace SwiftCompiler
@@ -305,7 +305,20 @@ index 8f283257..1360f7ea 100644
                  // 统一 store: dest-first 顺序 (MEMORY first for store)
                  instructions.Add(new Instruction(storeOp, [new Operand(OperandType.MEMORY, label), new Operand(OperandType.REGISTER, 0)]));
              }
-@@ -907,6 +1017,16 @@ namespace SwiftCompiler
+@@ -903,10 +1013,28 @@ namespace SwiftCompiler
+                 }
+                 else
+                 {
+-                    instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R14+{8 + (pi - 4) * 4}"), new Operand(OperandType.REGISTER, 0)]));
++                    // ⚠ v0.96.195 修：这一支原来有**两处**错，合起来让"第 5 个参数起全是第一个参数的值"：
++                    //   ① 偏移写成 `8 + (pi - 4) * 4`，仿佛"只有第 5 个起才在栈上"。实际调用方是
++                    //      **把全部实参一个不落压栈**的（前 4 个另外再装进 R0-R3），所以第 i 个实参
++                    //      在 `[R14 + 8 + 4*i]`（+4 返回地址、+4 保存的 R14）。
++                    //   ② **操作数写反**：写成 `MOVE [栈槽], R0`，而 `MOVE dest, src` 的 dest 在前
++                    //      ⇒ 那是"把 R0 存进调用方的实参槽"，等于用最后一个压栈的值（= 第 1 个实参）
++                    //      把 4 个实参槽全冲掉，本地变量随后拿到的当然是同一个值。
++                    //   症状：`overlap(0,0,10,10, 200,200,10,10)` 恒返回"相交"（bx/by 拿到的是 ax/ay=0）。
++                    instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R14+{8 + pi * 4}")]));
                      instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R14-{_localVarSize}"), new Operand(OperandType.REGISTER, 0)]));
                  }
              }
@@ -322,7 +335,7 @@ index 8f283257..1360f7ea 100644
              if (_localVarSize > 0)
                  instructions.Add(new Instruction(OpCode.SUB, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, _localVarSize + 8)]));
  
-@@ -1173,7 +1293,12 @@ namespace SwiftCompiler
+@@ -1173,7 +1301,12 @@ namespace SwiftCompiler
              EmitArrayElementOffset();
              AddInstruction(OpCode.POP, [Reg(1)]);
              AddInstruction(OpCode.ADD, [Reg(1), Reg(1), Reg(0)]);

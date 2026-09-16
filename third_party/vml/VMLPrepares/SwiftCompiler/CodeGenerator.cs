@@ -1013,7 +1013,15 @@ namespace SwiftCompiler
                 }
                 else
                 {
-                    instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R14+{8 + (pi - 4) * 4}"), new Operand(OperandType.REGISTER, 0)]));
+                    // ⚠ v0.96.195 修：这一支原来有**两处**错，合起来让"第 5 个参数起全是第一个参数的值"：
+                    //   ① 偏移写成 `8 + (pi - 4) * 4`，仿佛"只有第 5 个起才在栈上"。实际调用方是
+                    //      **把全部实参一个不落压栈**的（前 4 个另外再装进 R0-R3），所以第 i 个实参
+                    //      在 `[R14 + 8 + 4*i]`（+4 返回地址、+4 保存的 R14）。
+                    //   ② **操作数写反**：写成 `MOVE [栈槽], R0`，而 `MOVE dest, src` 的 dest 在前
+                    //      ⇒ 那是"把 R0 存进调用方的实参槽"，等于用最后一个压栈的值（= 第 1 个实参）
+                    //      把 4 个实参槽全冲掉，本地变量随后拿到的当然是同一个值。
+                    //   症状：`overlap(0,0,10,10, 200,200,10,10)` 恒返回"相交"（bx/by 拿到的是 ax/ay=0）。
+                    instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R14+{8 + pi * 4}")]));
                     instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R14-{_localVarSize}"), new Operand(OperandType.REGISTER, 0)]));
                 }
             }

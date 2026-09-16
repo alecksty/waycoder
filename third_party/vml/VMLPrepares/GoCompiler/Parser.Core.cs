@@ -8,7 +8,23 @@ namespace GoCompiler
     {
         private bool _isMCU;
 
+        /// <summary>
+        /// &gt;0 表示正在解析控制语句的头部（if/for/switch 的条件、for 的 post）。
+        /// Go 规范禁止在这里出现复合字面量 —— 否则 `for i &lt; A[1] {` 的那个 `{`
+        /// 会被当成 `A[1]` 的复合字面量，把整个循环体当元素列表吃掉，
+        /// 报错却是"Expected RBRACE, but got IF"（v0.96.195）。
+        /// </summary>
+        private int _noCompositeLiteral;
+
         protected override TokenType GetTokenType(Token token) => token.Type;
+
+        /// <summary>按"不允许复合字面量"的规则解析控制语句头部里的表达式</summary>
+        private ASTNode ParseConditionExpr()
+        {
+            _noCompositeLiteral++;
+            try { return ParseExpression(); }
+            finally { _noCompositeLiteral--; }
+        }
 
         public Parser(List<Token> tokens, bool isMCU = true) : base(tokens)
         {

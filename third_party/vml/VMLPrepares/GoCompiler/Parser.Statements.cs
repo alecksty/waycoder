@@ -1030,7 +1030,7 @@ namespace GoCompiler
                 }
                 else
                 {
-                    ifStmt.Condition = ParseExpression();
+                    ifStmt.Condition = ParseConditionExpr();
                 }
             }
 
@@ -1044,7 +1044,7 @@ namespace GoCompiler
                 }
                 else
                 {
-                    ifStmt.Condition = ParseExpression();
+                    ifStmt.Condition = ParseConditionExpr();
                 }
             }
 
@@ -1064,7 +1064,7 @@ namespace GoCompiler
                 if (GetTokenType(Cur) == TokenType.IF)
                 {
                     Advance(); // consume IF
-                    var elseIfCond = ParseExpression();
+                    var elseIfCond = ParseConditionExpr();
                     SkipNewlines();
                     var elseIfBody = ParseBlock();
                     ifStmt.ElseIfBranches.Add((elseIfCond, elseIfBody));
@@ -1171,7 +1171,7 @@ namespace GoCompiler
                     }
                     else
                     {
-                        forStmt.Init = ParseExpression();
+                        forStmt.Init = ParseConditionExpr();
                     }
                 }
             }
@@ -1196,7 +1196,7 @@ namespace GoCompiler
                 }
                 else
                 {
-                    forStmt.Condition = ParseExpression();
+                    forStmt.Condition = ParseConditionExpr();
                 }
                 // 检查是否还有;post
                 if (GetTokenType(Cur) == TokenType.SEMICOLON)
@@ -1235,7 +1235,7 @@ namespace GoCompiler
                 }
                 else
                 {
-                    switchStmt.Tag = ParseExpression();
+                    switchStmt.Tag = ParseConditionExpr();
                 }
             }
 

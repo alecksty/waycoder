@@ -156,31 +156,41 @@ namespace GoCompiler
             }, instructions.Count));
 
             // 注册参数到变量表并保存到栈帧
-            // 注意: [R14-0]是保存的R14值，参数从[R14-4]开始
+            // 栈帧布局（实测，见 .scratch/gp3.go / gp4.go 探针）：
+            //   [R14+0] = 保存的 R14（进入时 `push R14` 写在这里）
+            //   [R14+4] = **CALL 自己压入的返回地址**（ExecuteCall: sp-=4; SetMemory(sp, pc)）
+            //   [R14+8+4*i] = 调用方从右到左压入的第 i 个实参（最后一个形参在最低地址）
+            // 局部与形参副本从 [R14-4] 起向低地址增长。
+            // 少了那个返回地址的 4 字节，第一个形参就会读到返回地址、其余整体错位一格 ——
+            // 这正是"参数看起来全错位、最后一个形参却对"的成因。
             int paramSpace = 0;
-            localVarOffset = 4; // 跳过[R14-0] (保存的帧指针)
+            localVarOffset = 4; // 跳过 [R14+0] (保存的帧指针)
+            int argIndex = 0;
             for (int i = 0; i < function.Parameters.Count; i++)
             {
                 foreach (var name in function.Parameters[i].Names)
                 {
-                    variables[name] = localVarOffset;
+                    int off = localVarOffset;
+                    variables[name] = off;
                     _varTypes[name] = GoTypeEnum.Int;
                     Vars?.AllocParam(name, 4);  // 向 VarMemManager 注册以追踪统计
                     localVarOffset += 4;
                     paramSpace += 4;
-                }
-                // 第一个参数在R0中，保存到栈帧
-                if (i == 0)
-                {
-                    foreach (var name in function.Parameters[i].Names)
+                    // 每个形参都要搬进自己的栈槽。原实现只搬了 R0（= 最后压栈的那个值，
+                    // 恰好就是最后一个形参），于是**除末参外全是垃圾**。
+                    // VML 没有内存到内存的 MOVE，中间过一下 R0。
+                    int slot = 8 + 4 * argIndex;
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
                     {
-                        int off = variables[name];
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
-                        {
-                                                        Mem($"R14-{off}"),
-                            new Operand(OperandType.REGISTER, 0)
-                        }, instructions.Count));
-                    }
+                        new Operand(OperandType.REGISTER, 0),
+                        Mem($"R14+{slot}")
+                    }, instructions.Count));
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+                    {
+                        Mem($"R14-{off}"),
+                        new Operand(OperandType.REGISTER, 0)
+                    }, instructions.Count));
+                    argIndex++;
                 }
             }
 
