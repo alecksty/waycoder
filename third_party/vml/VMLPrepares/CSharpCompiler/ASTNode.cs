@@ -458,7 +458,19 @@ namespace CSharpCompiler
     public class ArrayLiteralExpression : Expression
     {
         public List<Expression> Elements { get; set; }
-        
+
+        /// <summary>
+        /// `new T[N]` 的**长度表达式**（`new T[]{…}` 时为 null，长度取 <see cref="Elements"/>）。
+        ///
+        /// 为什么不在这里就地折成元素个数：长度的合法写法包含**常量标识符**
+        /// （`static int[] sx = new int[MAXLEN];`），而常量表在**代码生成器**那边
+        /// （`RegisterStaticField` 把 `const` 字段折进了 `dataSection`）。
+        /// 解析阶段折不了就只能报错 —— 而这一轮实测过：报错会让整个类成员的解析降级，
+        /// 连**前面已经登记好的 `const` 初值一起丢掉**（`var_CW` 从 20 变成 0 ⇒ 除零崩溃）。
+        /// 故这里只**留着表达式**，交给 `GenerateArrayLiteral` 折。
+        /// </summary>
+        public Expression SizeExpr { get; set; }
+
         public ArrayLiteralExpression(List<Expression> elements = null)
         {
             Elements = elements ?? new List<Expression>();

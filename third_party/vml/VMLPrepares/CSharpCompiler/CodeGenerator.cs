@@ -224,6 +224,17 @@ namespace CSharpCompiler
                         if (member is VariableDeclStatement field)
                         {
                             RegisterStaticField(field);
+                            // ⚠ v0.96.190：字段初值若是数组（`static int[] sx = new int[N];`），
+                            //   **必须把"分配数组块 + 把块地址存进 var_sx"生成出来**。
+                            //   原来这里一律 `continue` —— 数组字段于是从来没有分配过
+                            //   （`RegisterStaticField` 拿 `FoldConst(数组字面量)` 折出 0），
+                            //   之后每一次 `sx[k]` 都从**地址 0 附近**读写，拿到的是低内存里的垃圾。
+                            //   表象极隐蔽：棋盘画得好好的（不碰数组），只有用数组的那部分
+                            //   （蛇身/食物占位）默默画到别处去。
+                            //   这段**要留到 `Main` 里发** —— 入口 `main` 就是 `Main` 的标签，
+                            //   在它之前发的指令全是死代码（与 Swift 的 patch 0011 ① 是同一类坑）。
+                            if (field.Initializer is ArrayLiteralExpression arrFieldInit)
+                                _staticArrayFieldInits.Add((field.Name, arrFieldInit));
                             continue;
                         }
                         GenerateStatement(member);
@@ -446,14 +457,28 @@ namespace CSharpCompiler
             instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.LABEL, idxLabel), new Operand(OperandType.REGISTER, 0)]));
 
             // 加载数组指针 → R1
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.LABEL, arrLabel)]));
+            // ⚠ v0.96.190 修：`MOVE Rd, LABEL x` 是 **LEA（取标签地址）**，不是"取标签里的值"！
+            //   这里要的是**刚才存进 arrLabel 的数组基址**，必须用 `MEMORY`（带标签名的
+            //   MEMORY 操作数才是"取那个位置的值"）。用 LABEL 拿到的是 `&arrLabel` 本身，
+            //   于是**写入的基址是 `&__asn_arr_N`、读取的基址是 `&__idx_arr_N`** —— 两者差
+            //   了 8 字节（中间还夹着 `__asn_idx_N` / `__idx_arr_N` 两个槽）
+            //   ⇒ **写进一个地方、又到另一个地方去读**，读回来永远是 0。
+            //   这与 patch 0010 修的"全局变量被读成标签地址"是同一个病（本仓库第五次）。
+            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, arrLabel)]));
             // 加载索引 → R0
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, idxLabel)]));
-            // R0 = index * 4 + 4
-            instructions.Add(new Instruction(OpCode.SHL, [new Operand(OperandType.IMMEDIATE, 2), new Operand(OperandType.REGISTER, 0)]));
-            instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.IMMEDIATE, 4), new Operand(OperandType.REGISTER, 0)]));
+            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, idxLabel)]));
+            // ⚠ v0.96.190 修（三处操作数顺序）。VM 的语义是 **dest 在前**：
+            //   · 3 操作数 `ADD Rd, Rs, Rt` → Rd = Rs + Rt
+            //   · 2 操作数 `ADD Rd, Rs`      → Rd = Rd + Rs
+            //   而 `ExecuteAdd` 只写 `if (dest.Type == OperandType.REGISTER)` —— **dest 是立即数时结果被丢弃**。
+            //   原来这里写的是 `SHL [#2, R0]` / `ADD [#4, R0]` ⇒ **两条全是空操作**（偏移没算），
+            //   接着 `ADD [R0, R1]` 又把和写进了 R0，而下一句读的是 `[R1]`（还是数组基址）
+            //   ⇒ **读数组元素永远读到数组头**。改完与 `EmitArrayElementOffset`（基类，寄存器在前）
+            //   和写入路径的 3 操作数形式一致。
+            instructions.Add(new Instruction(OpCode.SHL, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 2)]));
+            instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 4)]));
             // R1 = R1 + R0 → points to element
-            instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1)]));
+            instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0)]));
             // Load element → R0
             instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1")]));
         }
@@ -499,7 +524,9 @@ namespace CSharpCompiler
                 GenerateExpression(memberExpr.Object);
                 instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.LABEL, ptrLabel), new Operand(OperandType.REGISTER, 0)]));
                 // Load array_ptr → R1, then [R1] is length
-                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.LABEL, ptrLabel)]));
+                // ⚠ v0.96.190：同样是 LABEL(LEA) → MEMORY(取值) —— 用 LABEL 拿到的是
+                //   `&__lenptr_N` 而不是数组基址，`.Length` 于是恒不等于真实长度。
+                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, ptrLabel)]));
                 instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1")]));
                 return;
             }
@@ -592,12 +619,17 @@ namespace CSharpCompiler
                 if (assign.Value != null)
                     GenerateExpression(assign.Value);
 
-                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 2)]));
-                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.LABEL, arrLabel)]));
-                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, idxLabel)]));
-                instructions.Add(new Instruction(OpCode.SHL, [new Operand(OperandType.IMMEDIATE, 2), new Operand(OperandType.REGISTER, 0)]));
-                instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.IMMEDIATE, 4), new Operand(OperandType.REGISTER, 0)]));
-                instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1)]));
+                // ⚠ v0.96.190 修（与 `GenerateIndex` 同族，共四处操作数顺序）：
+                //   ① 这句原来是 `MOVE R0, R2` —— 反了（要的是"把值存进 R2"）；
+                //   ②③ `SHL [#2, R0]` / `ADD [#4, R0]` 是**空操作**（dest 不能是立即数）；
+                //   ④ `ADD [R0, R1]` 把和写进了 R0，而下一句存的是 `[R1]`（数组基址）
+                //      ⇒ **写数组元素永远写进数组头**，任意下标都落到同一个槽。
+                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 0)]));
+                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, arrLabel)]));
+                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, idxLabel)]));
+                instructions.Add(new Instruction(OpCode.SHL, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 2)]));
+                instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 4)]));
+                instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0)]));
                 instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 2)]));
                 return;
             }
@@ -682,6 +714,12 @@ namespace CSharpCompiler
         /// （在栈帧上分配），类字段走那条路会既进不了数据段、初值也丢掉。
         /// 类型仍记进 <c>_variableTypes</c>，否则后面的类型推断取不到它。
         /// </summary>
+        /// <summary>
+        /// 数组类型的静态字段（`static int[] sx = new int[N];`）—— 收集起来、到 `Main` 里再发。
+        /// 理由见 `ClassDeclaration` 分支里的注释：入口就是 `Main` 的标签，提前发等于死代码。
+        /// </summary>
+        private readonly List<(string Name, Expression Init)> _staticArrayFieldInits = new();
+
         private void RegisterStaticField(VariableDeclStatement field)
         {
             if (!_variableTypes.ContainsKey(field.Name))
@@ -816,8 +854,30 @@ namespace CSharpCompiler
                 localVarNames.Add(param.Name);
                 localVarOffsets[param.Name] = stackOff;
                 instructions.Add(new Instruction(OpCode.SUB, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 4)]));
-                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, Vars.FormatOffset(12 + pi * 4)), new Operand(OperandType.REGISTER, 0)]));
+                // ⚠ v0.96.190 修：这里原本写的是 `MOVE [R12+12+4i], R0` —— 而 `MOVE dest, src`
+                //    的 dest 在前，那是**把 R0 存进调用方的实参槽**，不是"把实参读进 R0"。
+                //    两个操作数写反的后果：实参槽被踩坏，而局部变量拿到的是**调用那一刻
+                //    R0 里恰好留着的东西**（= 调用点最后一个被求值的实参）。
+                //    症状极具误导性：`a1(x)` 侥幸对（调用点最后一句就是 `move R0 #10`，正好是 x），
+                //    `a2(x,y)` 的 y 变成 x ⇒ 两个矩形**完全重叠**（所以"看着只有一个"），
+                //    `a3(x,y,c)` 的 c 变成 x ⇒ 颜色近黑、在黑底上看不见。
+                //    实测判据：解 PNG 逐像素量四个矩形的 bbox，四个全对才算修好。
+                //    —— 与 Swift 的 `GenerateIndexAccess`（patch 0011）同一族：**操作数写反**。
+                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, Vars.FormatOffset(12 + pi * 4))]));
                 instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, Vars.FormatOffset(stackOff)), new Operand(OperandType.REGISTER, 0)]));
+            }
+
+            // 数组类型的静态字段在这里初始化（**必须在 Main 体内**，理由见
+            // `ClassDeclaration` 分支：入口就是 Main 的标签，提前发等于死代码）。
+            if (method.Name == "Main" && _staticArrayFieldInits.Count > 0)
+            {
+                foreach (var (fName, fInit) in _staticArrayFieldInits)
+                {
+                    GenerateExpression(fInit);                 // R0 = 数组块地址
+                    instructions.Add(new Instruction(OpCode.MOVE,
+                        [new Operand(OperandType.MEMORY, $"var_{fName}"), new Operand(OperandType.REGISTER, 0)]));
+                }
+                _staticArrayFieldInits.Clear();
             }
 
             GenerateBlock(method.Body);
@@ -1189,45 +1249,89 @@ namespace CSharpCompiler
             }
         }
         
+        /// <summary>
+        /// `new T[N]` 的长度：字面量，或**已登记的常量**（局部/字段/枚举）。
+        /// 折不出来就抛 —— 运行期长度需要分配器与边界这套支持，本编译器没有；
+        /// 与其静默给一个零长数组（"编得过、跑不对"，这一轮已经栽过三次），不如编不过。
+        /// </summary>
+        private int FoldArraySize(Expression sizeExpr)
+        {
+            if (sizeExpr is LiteralExpression lit && lit.Value is int n) return n;
+            if (sizeExpr is UnaryExpression u && u.Operator == TokenType.Minus)
+                return -FoldArraySize(u.Operand);
+            if (sizeExpr is VariableExpression ve)
+            {
+                string label = $"var_{ve.Name}";
+                if (dataSection.TryGetValue(label, out var v) && v is int iv) return iv;
+            }
+            throw new CodeGenerationException(ErrorCode.CodeGen_TypeMismatch,
+                "数组长度必须是编译期常量（`new T[N]` 的 N 只能是字面量或 const）");
+        }
+
         private void GenerateArrayLiteral(ArrayLiteralExpression arrayLiteral)
         {
             int arrId = labelCounter++;
-            // 数据段布局: [0]=pointer占位, [1]=length, [2..]=elements
             string ptrLabel = $"arr_ptr_{arrId}";
             string dataLabel = $"arr_data_{arrId}";
             dataSection[ptrLabel] = 0;
-            dataSection[dataLabel] = arrayLiteral.Elements.Count;
-            
-            // 预分配元素空间
-            for (int i = 0; i < arrayLiteral.Elements.Count; i++)
+
+            // ⚠ v0.96.190 重写：**改成与 Swift 前端完全同构的布局** ——
+            //   一个数据标签、内容是一个数组 `[count, e0, e1, …]`。
+            //   此前这里是"给每个元素各声明一个 `.word` 标签"（`arr_data_N_0`、`arr_data_N_1`…），
+            //   再靠 `MOVE R0, LABEL dataLabel` 拿基址、用 `base + i*4 + 4` 索引 ——
+            //   那**依赖"这些独立标签在内存里恰好按声明顺序连续"这个从未验证过的假设**。
+            //   Swift 那边之所以一直是对的，正是因为它是"一个标签装一整块"。
+            int count = arrayLiteral.Elements.Count;
+            // `new T[N]`：长度在 `SizeExpr` 里（常量**标识符**的写法必须在这里折 ——
+            // 常量表就在本类，`RegisterStaticField` 已把 `const` 字段折进了 `dataSection`）。
+            if (arrayLiteral.SizeExpr != null)
+                count = FoldArraySize(arrayLiteral.SizeExpr);
+            if (count < 0 || count > 65536)
+                throw new CodeGenerationException(ErrorCode.CodeGen_TypeMismatch,
+                    $"数组长度不合法: {count}（本编译器只支持编译期常量长度）");
+            var arrayData = new object[1 + count];
+            arrayData[0] = count;
+            // 常量元素静态折进数据段；`new T[N]` 没有元素表达式（长度在 SizeExpr 里）⇒ 全 0
+            int litCount = Math.Min(count, arrayLiteral.Elements.Count);
+            for (int i = 0; i < litCount; i++)
             {
-                dataSection[$"{dataLabel}_{i}"] = 0;
+                arrayData[1 + i] = (arrayLiteral.Elements[i] is LiteralExpression lit && lit.Value is int iv)
+                    ? iv : 0;
             }
-            
-            // 填充每个元素（运行时求值）
-            for (int i = 0; i < arrayLiteral.Elements.Count; i++)
+            dataSection[dataLabel] = arrayData;
+
+            // 非常量元素在运行时填进去：R1 = 基址 + (i+1)*4，再存 R0
+            // ⚠ 上界必须是 `Elements.Count` 而**不是** `count` —— `new T[N]` 的 `Elements` 是空的
+            //   （长度在 `SizeExpr` 里），拿 N 去索引会越界（实测：`Index was out of range`）。
+            int fillCount = Math.Min(count, arrayLiteral.Elements.Count);
+            for (int i = 0; i < fillCount; i++)
             {
+                if (arrayLiteral.Elements[i] is LiteralExpression l2 && l2.Value is int) continue;
                 GenerateExpression(arrayLiteral.Elements[i]);
                 instructions.Add(new Instruction(OpCode.MOVE, [
-                    new Operand(OperandType.LABEL, $"{dataLabel}_{i}"),
+                    new Operand(OperandType.REGISTER, 1),
+                    new Operand(OperandType.LABEL, dataLabel)
+                ]));
+                // 2 操作数 `ADD Rd, imm` → Rd = Rd + imm（dest 在前）
+                instructions.Add(new Instruction(OpCode.ADD, [
+                    new Operand(OperandType.REGISTER, 1),
+                    new Operand(OperandType.IMMEDIATE, (i + 1) * 4)
+                ]));
+                instructions.Add(new Instruction(OpCode.MOVE, [
+                    new Operand(OperandType.MEMORY, "R1"),
                     new Operand(OperandType.REGISTER, 0)
                 ]));
             }
-            
-            // R0 = array地址（指向dataLabel，即length所在位置）
+
+            // R0 = 数组块地址（[0]=count，[1..N]=元素）—— 索引一律用 `base + i*4 + 4`
             instructions.Add(new Instruction(OpCode.MOVE, [
                 new Operand(OperandType.REGISTER, 0),
                 new Operand(OperandType.LABEL, dataLabel)
             ]));
-            // 保存array指针
+            // 留档一份（有些旧路径按 `arr_ptr_N` 找）
             instructions.Add(new Instruction(OpCode.MOVE, [
                 new Operand(OperandType.LABEL, ptrLabel),
                 new Operand(OperandType.REGISTER, 0)
-            ]));
-            // R0恢复为array指针（供调用者使用）
-            instructions.Add(new Instruction(OpCode.MOVE, [
-                new Operand(OperandType.REGISTER, 0),
-                new Operand(OperandType.LABEL, ptrLabel)
             ]));
         }
         

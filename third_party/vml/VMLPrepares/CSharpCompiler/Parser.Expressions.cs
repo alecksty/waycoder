@@ -441,15 +441,24 @@ namespace CSharpCompiler
                 // new Type[N] — 数组类型
                 if (Match(TokenType.LeftBracket))
                 {
+                    Expression sizeExpr = null;
                     if (!Check(TokenType.RightBracket))
-                        ParseExpression();
+                        sizeExpr = ParseExpression();
                     Expect(TokenType.RightBracket, "Expected ']' after array type");
                     if (Match(TokenType.LeftBrace))
                     {
                         var arr = ParseArrayLiteral();
                         return arr;
                     }
-                    return new ArrayLiteralExpression(new List<Expression>());
+                    // ⚠ v0.96.190 修：原来这里是 `return new ArrayLiteralExpression(new List<Expression>())`
+                    //   —— **长度表达式被整个丢掉**。`GenerateArrayLiteral` 是按元素个数预留空间的
+                    //   （数据段里 `[count, e0, e1, …]` 一整块），于是 `new int[40]` 只留了
+                    //   count 一个字、**一个元素的空间都没有** ⇒ 读写全落到块外的相邻数据上。
+                    //   实测症状：`a[2] = 7; if (a[2] == 7)` **为假**，读回来恒是 0；
+                    //   `ui_rect(..., a[2]*10, ...)` 画出来是一条 1 像素的细线。
+                    //   现在把**长度表达式留给代码生成器**折（常量标识符只有那边认识 ——
+                    //   `RegisterStaticField` 已经把 `const` 字段折进了 `dataSection`）。
+                    return new ArrayLiteralExpression(new List<Expression>()) { SizeExpr = sizeExpr };
                 }
                 
                 // new Type() — 构造函数调用
