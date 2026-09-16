@@ -856,7 +856,14 @@ namespace PascalCompiler
                         new Operand(OperandType.IMMEDIATE, 4)
                     }));
                     
-                    instructions.Add(new Instruction(OpCode.SUB, new List<Operand>
+                    // ⚠ v0.96.191 修：这里原来是 `SUB R2, R0` —— **地址算反了方向**。
+                    //   数组块在数据段里是**向上**排的（汇编器 `labels[label] = currentAddress`
+                    //   指向块的第一个字），元素地址必须是 `base + (i - 下界) * 元素大小`。
+                    //   用 SUB 的后果：下标 = 下界时侥幸对（偏移 0），**下标 ≥ 下界+1 就写到数组
+                    //   "前面"去了** —— 实测 `a: array[1..8] of integer` 里 `a[3] := 5` 把 8 字节
+                    //   写到了数据段起点之前，程序随即跑飞：连 `ui_win_open` 都没调到、**一帧不出**。
+                    //   （诊断口径：`--trace` 下 500–599 号段一次调用都没有 ⇒ 根本没走到开窗。）
+                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand>
                     {
                         new Operand(OperandType.REGISTER, 2),
                         new Operand(OperandType.REGISTER, 0)
@@ -906,7 +913,8 @@ namespace PascalCompiler
                         if (stride > 1)
                             instructions.Add(new Instruction(OpCode.MUL, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, stride)]));
                     }
-                    instructions.Add(new Instruction(OpCode.SUB, [new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 0)]));
+                    // 同上：多维路径也是"基址 + 偏移"，不是减
+                    instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 0)]));
                     instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 2)]));
                 }
             }

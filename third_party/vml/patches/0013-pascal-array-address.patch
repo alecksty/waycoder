@@ -1,0 +1,88 @@
+# 0013：Pascal 前端 —— 数组元素地址算反了方向（`SUB` 应为 `ADD`）
+
+> ⚠ **这条改动本身是对的，但还不足以让 Pascal 能写游戏** —— 详见下面的"尚未解决"。
+> 之所以先落进来：它是**独立成立**的一处错误（方向就是反的），留着不会更糟；
+> 而且 PascalCompiler 此前**没有任何补丁覆盖**（这个文件改了就会被 `sync.sh` 冲掉）。
+
+## 现象
+
+```pascal
+var a: array[1..8] of integer;
+begin
+  a[3] := 5;          // 任何一次数组访问
+end.
+```
+
+编译链接全绿，但**一帧都不出**：`--trace` 下 500–599 号段**一次调用都没有** ⇒
+根本没走到 `ui_win_open`。二分得很干净：
+
+| 探针 | 结果 |
+|---|---|
+| 只声明数组、不碰它 | ✔ 出图（宽 50）|
+| 写 `a[1]` / `a[2]` / `a[3]` | ✘ 无帧 |
+| 写 + 读 | ✘ 无帧 |
+| 完全不声明数组 | ✔ 出图 |
+
+⇒ 是**写**这一步就跑飞了。
+
+## 根因（这一处）
+
+`CodeGenerator.Statements.cs` 里数组地址是这么算的：
+
+```
+move R0 R3        ; 下标
+sub R0 #<下界>
+mul R0 #4         ; (i - 下界) * 4
+sub R2 R0         ; ← 基址 **减** 偏移
+move R0 R2
+```
+
+而汇编器对数组块的布局是**向上**的（`VMLAssembler`：`labels[label] = currentAddress`，
+标签指向块的**第一个字**）⇒ 元素地址必须是 `base + (i - 下界) * 元素大小`。
+用减法时**下标 = 下界**侥幸对（偏移 0），**下标 ≥ 下界+1 就写到数组"前面"去了** ——
+数据段第一项被写在段首之前，程序随即跑飞。
+
+## 尚未解决（Pascal 仍然不能写游戏）
+
+改成 `ADD` 之后**症状不变**（还是无帧），说明这条路径上还有**第二个**缺陷，尚未定位。
+已排除的：
+
+- `cmp`/`jge`/`jle` 的语义 —— `SetFlags` 里 CMP 不带 carry ⇒ `cf` 恒 false，
+  `JL/JLE/JGE` 退化成 `SF`/`!SF`，**有符号语义是对的**（报告初版把这条当成"跳寄存器"，
+  但在当前树上**没有任何前端**把跳转目标写成寄存器，那段证据已不成立）；
+- 上下界检查本身 —— 两条分支的条件在 `a[1]`/`a[3]` 上都成立（按生成的汇编逐条核过）；
+- `move R0 <数组名>` 是 LEA（取标签地址）—— 手写汇编走同一条链（LEA + 存 + 取）不报错。
+
+下一步应从"**写指令序列里哪一条**让它跑飞"切进去（写前置/后置各打一次开关，
+看是哪一句之后开始出不来）。
+
+diff --git a/third_party/vml/VMLPrepares/PascalCompiler/CodeGenerator.Statements.cs b/third_party/vml/VMLPrepares/PascalCompiler/CodeGenerator.Statements.cs
+index 953182df..8f873605 100644
+--- a/third_party/vml/VMLPrepares/PascalCompiler/CodeGenerator.Statements.cs
++++ b/third_party/vml/VMLPrepares/PascalCompiler/CodeGenerator.Statements.cs
+@@ -856,7 +856,14 @@ namespace PascalCompiler
+                         new Operand(OperandType.IMMEDIATE, 4)
+                     }));
+                     
+-                    instructions.Add(new Instruction(OpCode.SUB, new List<Operand>
++                    // ⚠ v0.96.191 修：这里原来是 `SUB R2, R0` —— **地址算反了方向**。
++                    //   数组块在数据段里是**向上**排的（汇编器 `labels[label] = currentAddress`
++                    //   指向块的第一个字），元素地址必须是 `base + (i - 下界) * 元素大小`。
++                    //   用 SUB 的后果：下标 = 下界时侥幸对（偏移 0），**下标 ≥ 下界+1 就写到数组
++                    //   "前面"去了** —— 实测 `a: array[1..8] of integer` 里 `a[3] := 5` 把 8 字节
++                    //   写到了数据段起点之前，程序随即跑飞：连 `ui_win_open` 都没调到、**一帧不出**。
++                    //   （诊断口径：`--trace` 下 500–599 号段一次调用都没有 ⇒ 根本没走到开窗。）
++                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand>
+                     {
+                         new Operand(OperandType.REGISTER, 2),
+                         new Operand(OperandType.REGISTER, 0)
+@@ -906,7 +913,8 @@ namespace PascalCompiler
+                         if (stride > 1)
+                             instructions.Add(new Instruction(OpCode.MUL, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, stride)]));
+                     }
+-                    instructions.Add(new Instruction(OpCode.SUB, [new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 0)]));
++                    // 同上：多维路径也是"基址 + 偏移"，不是减
++                    instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 0)]));
+                     instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 2)]));
+                 }
+             }
