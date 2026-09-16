@@ -45,7 +45,10 @@ public static partial class SelfTest
             hollow.Fills.Count == 0 && hollow.Strokes.Count == 1);
         Check("矢量: 空心矩形描边闭合（首尾相连）", hollow.Strokes.Count == 1 && hollow.Strokes[0].Close);
 
-        // ── 渐变跟着填充一起下去（几何是归一化的，由落笔面按场景尺寸换算）──
+        // ── 渐变跟着填充一起下去（几何是"相对这张形状包围盒"的 0..1，落笔面**原样**交给平台）──
+        // ⚠ 这句注释原先写的是"由落笔面按场景尺寸换算" —— 那正是 v0.96.182 走弯路的那个错误前提
+        // （见 MauiVectorTarget.BuildPaint 的注释：换算方向对、但"相对谁归一化"错了）。
+        // 光栅侧 `nx = (lx - minX) / spanX`、SVG 侧 `objectBoundingBox`，都是相对形状的。
         var grad = Paint("gradient g linear #ff0000 #0000ff 0 0 1 0\nrect 0 0 100 50 @g");
         Check("矢量: 渐变填充把 Gradient 传给落笔面（不是烤成纯色）",
             grad.Fills.Count == 1 && grad.Fills[0].Gradient != null);

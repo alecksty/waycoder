@@ -498,9 +498,26 @@ internal sealed class VmlUiCalls : ISystemCallHandler
         }
         if (pts.Count < 4) return;
 
-        var grad = GradientIdOrNull(r, 5, mem);
-        if (close) Scene()?.AddPolygon(pts, (uint)r[3], filled: r[2] != 0 || grad != null, r[4], grad);
-        else Scene()?.AddPolyline(pts, (uint)r[3], r[4], grad);
+        // ⚠ **参数顺序按 C 头文件读，别按"看起来像"读**（v0.96.182 修）：
+        //   `ui_polygon (pts, count, fill色, stroke色, width, grad)`
+        //   `ui_polyline(pts, count, stroke色, width, grad)`
+        //   原先把 r[2] 当"填充开关"、r[3] 当颜色 —— 而 C 侧两个都是**颜色**（与 `ui_path` 的
+        //   `stroke`/`fill` 同一套口径）。后果是 `ui_polygon(pts,3,绿,0,0,"")` 取到颜色 0
+        //   （全透明）⇒ 多边形**什么都不画**；polyline 更离谱：把"线宽"当成了颜色。
+        //   真机图元体检抓到的（桌面映射自测看不出来：DSL 与几何全是对的）。
+        if (close)
+        {
+            var fillColor = (uint)r[2];
+            var strokeColor = (uint)r[3];
+            var grad = GradientIdOrNull(r, 5, mem);
+            // 只填不描的常见写法（stroke 传 0）也要能画：颜色取"给了的那个"
+            Scene()?.AddPolygon(pts, fillColor != 0 ? fillColor : strokeColor,
+                filled: fillColor != 0 || grad != null, r[4], grad);
+        }
+        else
+        {
+            Scene()?.AddPolyline(pts, (uint)r[2], r[3], GradientIdOrNull(r, 4, mem));
+        }
         TouchScene();
     }
 

@@ -62,7 +62,7 @@ internal sealed class MauiVectorTarget : IVectorTarget
 
         if (gradient != null)
         {
-            // 渐变按**整条路径的外接矩形**铺（平台刷子要一个 rect 来定位；与光栅侧的归一化几何同口径）
+            // 刷子矩形 = 这条路径的外接矩形；渐变坐标本身就是"相对这个矩形"的 0..1（见 BuildPaint）
             _canvas.SetFillPaint(BuildPaint(gradient), path.Bounds);
         }
         else
@@ -180,29 +180,43 @@ internal sealed class MauiVectorTarget : IVectorTarget
         return p;
     }
 
-    /// <summary>归一化渐变几何 → 平台刷子（按场景尺寸换算成绝对坐标）。</summary>
+    /// <summary>
+    /// 渐变几何 → 平台刷子（**原样透传**，不做任何坐标换算）。
+    ///
+    /// 我方 `Gradient` 的坐标是**相对「这张形状自己的包围盒」**归一化的 —— 这不是随手定的，
+    /// 有三处真源互相印证：光栅侧 `FillTransformed` 的 `nx = (lx - minX) / spanX`（局部包围盒）、
+    /// SVG 导出用 `objectBoundingBox`（`EmitGradient` 注释逐字如此）、`Gradient` 的字段注释。
+    /// 而 MAUI 的 `LinearGradientPaint` / `RadialGradientPaint` 要的**正好也是**「相对刷子矩形的
+    /// 0..1」（文档：*typically expressed in relative coordinates from (0,0) to (1,1)*；
+    /// 径向默认 center (0.5,0.5) / radius 0.5）⇒ 两者同源，直接给过去即可。
+    ///
+    /// ⚠ **这里我改错过两次，两条弯路都记下来**（因为"看着都对"）：
+    /// ① 起初把 `g.X1 * SceneWidth` 这类**绝对场景坐标**给平台 —— 平台只认 0..1，
+    ///    100 多的数被当成"远在形状之外" ⇒ 整块落在 t≈0 ⇒ **渲染成纯色**；
+    /// ② 于是"修"成「场景归一化 → 绝对 → 再按包围盒归一化」，这回数是对的、渐变也真出来了，
+    ///    但语义错了：场景级的渐变铺到小形状上变成**一段切片**（实测紫→蓝），
+    ///    而程序想要的是"这块的左边红、右边蓝"。**换算的方向对，前提（相对谁归一化）错**。
+    /// 教训：**先问"这个数相对谁归一化"，再动手算** —— 光栅侧一行除法就写着答案。
+    /// </summary>
     private Paint BuildPaint(Gradient g)
     {
         var a = Col(g.ColorA);
         var b = Col(g.ColorB);
+
         if (g.Radial)
         {
-            var cx = (float)(g.Cx * SceneWidth);
-            var cy = (float)(g.Cy * SceneHeight);
-            // 归一化半径按**长边**换算：圆在非方形画布上才不会被拉成椭圆（与光栅侧同一口径）
-            var r = (float)(g.R * Math.Max(SceneWidth, SceneHeight));
             return new RadialGradientPaint
             {
-                Center = new Point(cx, cy),
-                Radius = Math.Max(1, r),
+                Center = new Point((float)g.Cx, (float)g.Cy),
+                Radius = (float)Math.Max(1e-4, g.R),
                 StartColor = a,
                 EndColor = b,
             };
         }
         return new LinearGradientPaint
         {
-            StartPoint = new Point((float)(g.X1 * SceneWidth), (float)(g.Y1 * SceneHeight)),
-            EndPoint = new Point((float)(g.X2 * SceneWidth), (float)(g.Y2 * SceneHeight)),
+            StartPoint = new Point((float)g.X1, (float)g.Y1),
+            EndPoint = new Point((float)g.X2, (float)g.Y2),
             StartColor = a,
             EndColor = b,
         };

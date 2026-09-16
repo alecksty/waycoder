@@ -407,6 +407,32 @@ rsync 列表是 `VMLAssembler VMLRuntime VMLPlugins VMLPrepares VMLTool VMLTrans
 另：**给同步脚本加"符号存在性校验"** —— `apply` 的退出码只证明"补丁打上了"，
 证明不了"该有的东西都在"（上游整段删掉或改名时 apply 照样成功），所以按名字逐个查标签定义与头文件声明。
 
+⑲ **真机图元体检抓出的三层缺陷：宿主参数、前端代码生成、以及"相对谁归一化"（v0.96.182）**：
+矢量后端在**构建全绿 + 自测 5841 全绿 + Windows 桌面也验过**的情况下，上手机逐格体检
+（12 格，见 `Examples/c/draw_prims.c`）才发现 polygon / polyline 整格空白、线性渐变渲染成纯红。
+① **宿主按"C 头文件看着像"读参数**：`ui_polygon(pts,count,fill色,stroke色,width,grad)` 被读成
+`(pts,count,填充开关,颜色,…)` ⇒ 颜色取到 0（全透明）什么都不画；`ui_polyline` 更离谱，
+把线宽当成了颜色、把 `grad` 指针当成了线宽。**判据是 `Lib/shared/vmlui.vml` 里的包装函数**
+（`move R0 [R12+12]` … 逐条对应，比头文件还权威 —— 两边这次是一致的，但先看包装更保险）。
+② **`(int[]){…}` 复合字面量：前端认得语法，却不产出地址，而且不报错。** `Parser.Expressions.cs`
+里明写着 `if (Current().Type == LBRACE) return ParseInitializerList(); // compound literal`，
+但 `ArrayInitializer` 的代码生成只挂在**变量声明**上（`varDecl.Initializer is ArrayInitializer`）
+⇒ 表达式位置的地址没人算，编出来的代码把上一个寄存器（正好是"点数"）当指针推下去，
+宿主去地址 3 读坐标、越界就地停。**桌面把汇编打出来一眼可辨**：具名数组是
+`move R0 R12 / sub R0 #28 / push R0`，复合字面量是 `move R0 #3 / push R0`。
+同类"编得过、跑起来才错"的还有 0002/0003/0004 三条（都已成 patch）——**第五条候选**。
+③ **"这个数相对谁归一化"必须先查再算**：渐变几何我连续错了两轮 —— 先给绝对场景坐标
+（平台只认 0..1 ⇒ 塌成纯色），再"修"成"场景归一化 → 绝对 → 按包围盒归一化"（数对了、
+但语义变成"整幅渐变的一小段"，实测紫→蓝，而程序要的是"这块左红右蓝"）。
+正解是**原样透传**：我方 `Gradient` 本来就是"相对形状包围盒"的 0..1，与 MAUI 刷子要的
+"相对刷子矩形的 0..1"同源。**三处真源一直摆着**：光栅 `nx=(lx-minX)/spanX`、
+SVG `objectBoundingBox`、以及自测里早就钉住的"矩形左端偏红右端偏蓝"。
+**先问"相对谁归一化"，再看那行除法** —— 按想象算两轮，比查一次贵得多。
+④ **两条流程事实**：**`Examples/` 里加文件必须重跑 `scripts/make-vml-lib.sh` 再重打 APK**
+（`adb push` 进去的会被 App 下一次解压覆盖掉 —— 实测推完能跑、App 重启后文件就没了，
+时间戳整目录变成解压时刻）；**"改对一处"不等于修好**：宿主参数改完之后画面纹丝不动，
+这正是"没复现 ≠ 已修复"，要继续往下怀疑（这次是靠把汇编打出来才到底的）。
+
 ⑰ **两条"脚本改代码"的坑（本会话各踩一次，都是静默失败）**：① **`python` 的 `re.sub` 替换串漏了
 关键字** —— `("internal sealed ") + "partial " + ("RectCommand : IDrawCommand")` 把 `class` 吃掉了，
 文件写下去才发现（`grep` 回读立刻可见）；② **CRLF 没匹配上、替换静默失败** —— 本仓工作区是 CRLF
