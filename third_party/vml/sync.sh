@@ -45,6 +45,14 @@
 #      `7,7,8,8,9,9`（`c[1]` 读到 7、`c[2]` 读到 8）。零初值数组只是白占一倍内存，所以棋盘类
 #      程序一直看着正常，有初值的才露馅。修法只有一个词（`if` → `else if`）。
 #      最小复现：`.data` / `p1:` / 三行 `.word 7|8|9` 喂给 `Assemble`，看 `DataSection["p1"]`。
+#   ⑦ 0007-lib-ui-wrappers.patch：把 **`Lib/` 里我们加的那些包装**补成补丁。
+#      ⚠ rsync 列表**包含 `Lib`**（且带 `--delete`），而 0001–0006 只覆盖 VMLRuntime/VMLPrepares/
+#      VMLAssembler ⇒ 这些包装此前**没有任何补丁兜着**，跑一次本脚本就全没了
+#      （手机上的游戏与绘图接口会直接编不过）。包含：`ui_rand`/`ui_tick`、
+#      `ui_beep`/`ui_vibrate`/`ui_keep_on`/`ui_store_set`/`ui_store_get`、
+#      `ui_gradient`/`ui_path`/`ui_polygon`/`ui_polyline`/`ui_rect_grad`/`ui_circle_grad`。
+#      **这些同时也是欠给上游的**（新 syscall 的语义本就该在那边定义）—— 上游收了之后这条
+#      会自动走"已在（跳过）"分支。脚本末尾另有一道**符号存在性校验**兜底。
 #
 # 之所以要脚本化：rsync 是覆盖式的，两类改动都会被冲掉。
 # 【B】用 patch 而不是"再抄一遍源码"：改动本身可 review、可 diff；
@@ -102,5 +110,25 @@ for dirpath, dirnames, files in os.walk(root):
             open(p, 'w', encoding='utf-8', newline='').write(d4)
 print(f'本地适配已重新施加: OutputType {exe}, StartupObject {start}, RuntimeIdentifiers {rid}, PublishAot {aot}')
 PY
+# ── 收尾校验：`Lib/` 里那些**我们加的包装**必须都在 ────────────────────────────
+# rsync 覆盖 `Lib`，而"补丁打上了吗"只看 apply 的退出码 —— 万一上游改了同一处，
+# apply 会失败并退出（好事）；但**上游把整段删掉/换名**这类情况，
+# 我们要的是"响亮地停"，而不是同步完之后手机上一片编不过。
+SYMS="ui_beep ui_vibrate ui_keep_on ui_store_set ui_store_get ui_rand ui_tick ui_gradient ui_path ui_polygon ui_polyline ui_rect_grad ui_circle_grad"
+missing=""
+for s in $SYMS; do
+  grep -qE "^${s}:" "$DST/Lib/shared/vmlui.vml" 2>/dev/null || missing="$missing $s(vml)"
+  grep -qE "\b${s}[[:space:]]*\(" "$DST/Lib/c/waycoder_ui.h" 2>/dev/null || missing="$missing $s(h)"
+done
+if [ -n "$missing" ]; then
+  echo "✘ Lib 里缺这些包装：$missing" >&2
+  echo "  它们是**我们加的**（patches/0007-lib-ui-wrappers.patch）。两种可能：" >&2
+  echo "  ① 补丁没打上（上游改了同一处，需手工合并后重新生成 patch）；" >&2
+  echo "  ② 上游已经有它们但改名/换签名了 —— 那要跟着改我们的 Examples 与手机端。" >&2
+  echo "  ⚠ 这一条同时也是**欠给上游的**：提给上游 VML 仓库之后就不会再有这个问题。" >&2
+  exit 1
+fi
+echo "✔ Lib 包装齐全（$(echo $SYMS | wc -w) 个）"
+
 echo "同步完成。版本: $(head -c 40 "$DST/VERSION" 2>/dev/null | tr -d '\n')"
 echo "⚠ 别忘了更新 README.md 顶部的版本号与提交哈希。"

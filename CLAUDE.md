@@ -390,6 +390,19 @@ WayCoder/
 **`.ps1` 里的中文必须存成带 BOM 的 UTF-8**（PowerShell 5.1 否则按 ANSI 读，中文标识符直接变解析错误）。
 矢量后端两个平台的观感都核对过（Android 真机 + Windows 桌面），iOS/MacCatalyst 只到"我加的文件零错误"。
 
+⑱ **`sync.sh` 会覆盖哪些路径 = "哪些改动必须有补丁兜着"（v0.96.181）**：rsync 列表是
+`VMLAssembler VMLRuntime VMLPlugins VMLPrepares VMLTool VMLTranslators VMLToHex Lib`
+（**含 `Lib`，且带 `--delete`**；只排除 `bin/obj/Examples`）。而补丁原先只覆盖前三类里的源码 ⇒
+**`Lib/` 里加的 13 个包装（`ui_beep`/`ui_vibrate`/`ui_keep_on`/`ui_store_*`/`ui_rand`/`ui_tick` +
+534–539 的绘图包装）一直没有补丁，跑一次同步就全没了**（手机上的游戏直接编不过）。
+现补成 `patches/0007-lib-ui-wrappers.patch`（三段纯插入按时间拼接 —— 本仓库的 `third_party/vml`
+本来就来自上游同步，所以那些提交的**前缀状态 ≈ 上游状态**，diff 可直接当补丁）。
+两条可复用的做法：① **没有上游副本时怎么验补丁** —— 反过来打：`git apply --check --reverse`
+能打上就说明补丁与工作区逐字一致；② **给同步脚本加"符号存在性校验"** —— `apply` 的退出码
+只证明"补丁打上了"，证明不了"该有的东西都在"（上游整段删掉或改名时 apply 照样成功），
+所以脚本末尾按名字逐个查标签定义与头文件声明，缺一个就报错退出。**顺手记住这条判据：
+`sync.sh` 的 rsync 列表 = 必须进 `patches/` 的清单。**
+
 ⑰ **两条"脚本改代码"的坑（本会话各踩一次，都是静默失败）**：① **`python` 的 `re.sub` 替换串漏了
 关键字** —— `("internal sealed ") + "partial " + ("RectCommand : IDrawCommand")` 把 `class` 吃掉了，
 文件写下去才发现（`grep` 回读立刻可见）；② **CRLF 没匹配上、替换静默失败** —— 本仓工作区是 CRLF

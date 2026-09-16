@@ -1,0 +1,514 @@
+`Lib/` 里那些**我们加的包装**补成补丁（v0.96.181）
+
+## 为什么必须补这一条
+
+`sync.sh` 的 rsync 列表**包含 `Lib`**（且带 `--delete`），而 0001–0006 只覆盖
+`VMLRuntime` / `VMLPrepares` / `VMLAssembler` —— 也就是说，`Lib/` 里加的包装
+**此前没有任何补丁兜着**：跑一次 `sync.sh <上游>` 就全没了（手机上的游戏与绘图接口
+会直接编不过，或静默少掉功能）。这一条把它们补上。
+
+## 内容（三批，都是纯插入）
+
+| 来源提交 | 加了什么 |
+|---|---|
+| `9f8277e6` | `ui_rand` / `ui_tick`（+ `Lib/shared/src/vmlui.c` 的 C 实现 + `Lib/README-ui.md` 说明） |
+| `ebf38403` | `ui_beep` / `ui_vibrate` / `ui_keep_on` / `ui_store_set` / `ui_store_get` / `ui_store_del` |
+| `0658e7a4` | `ui_gradient` / `ui_path` / `ui_polygon` / `ui_polyline` / `ui_rect_grad` / `ui_circle_grad` |
+
+## 为什么这三个 diff 能当补丁用
+
+`third_party/vml` 本来就来自上游同步，所以这三个提交的**前缀状态 ≈ 上游状态**，
+它们的 diff 直接就是"上游 → 我们的状态"这段差。三段按时间顺序拼接，
+后一段的行号前提由前一段满足。
+
+⚠ **回灌上游这件事仍然欠着**：这个补丁只是让"上游还没有这些包装时，本地同步不会把它们冲掉"。
+真正的解法是把这些包装**提给上游 VML 仓库**（新 syscall 的语义本来就该在那边定义）——
+上游收了之后，这条补丁会自动走 `sync.sh` 的"已在（跳过）"分支。
+
+## 验证方式
+
+没有上游副本可对，所以做的是**反向检查**：`git apply --check --reverse` 能打上
+⇒ 补丁内容与我们当前工作区逐字一致（不多不少）。此外 `sync.sh` 末尾加了一道
+**符号存在性检查**：重放之后若这些包装不在，直接报错退出（把"静默丢失"变成"响亮地停"）。
+
+diff --git a/third_party/vml/Lib/README-ui.md b/third_party/vml/Lib/README-ui.md
+index c30ad325..2618322b 100644
+--- a/third_party/vml/Lib/README-ui.md
++++ b/third_party/vml/Lib/README-ui.md
+@@ -76,6 +76,16 @@
+ 键码沿用 **Win32 虚拟键值**（与 HTML `keyCode` 基本一致）：方向键 37–40、回车 13、空格 32、ESC 27
+ （常量见 `UI/Shared/VmlUiProtocol.cs` 的 `VmlKeys`）。
+ 
++### 随机数与计时（游戏要用）
++
++这两个**不在 500–599 号段**里，走的是 VM 自带的 `#50` / `#53`。放在共享库里，是因为
++只有 C 能直接调 syscall，其它前端自己搓不出随机数（只能固定出子顺序）。
++
++| 函数 | 说明 |
++|---|---|
++| `int ui_rand(int n)` | 0..n-1 的随机数（n ≤ 0 返回 0） |
++| `int ui_tick(void)` | 自 VM 启动起的毫秒数（单调递增） |
++
+ ## 最小可运行示例（VML 汇编）
+ 
+ 开一个窗口，画一个实心圆 + 一行字，等按键，然后关窗：
+@@ -236,8 +246,16 @@ probe(p + 3 * k, q + 3 * k, 3 * k);   /* p=29 q=41 k=24 → 期望 101/113/72 */
+ 
+ ## 各语言的封装状态
+ 
++**实现只有一份**：`Lib/shared/src/vmlui.c` → 编成 `Lib/shared/vmlui.vml`，由
++`vmltool.config.xml` 挂到各语言的 `Libs` 上。各语言侧只放**声明/包装**。
++
+ | 语言 | 状态 |
+ |---|---|
+ | VML 汇编 | ✅ 上面的示例可直接跑 |
+-| C | ✅ `Lib/c/waycoder_ui.h`（自带实现，`#include` 即用）；约定与校准见上一节 |
+-| 其它前端 | 未做 |
++| C / C++ / ObjC | ✅ `#include <waycoder_ui.h>`（`Lib/c/`，只有声明，不增大程序）；约定与校准见上一节 |
++| Python / BASIC | ✅ 同一份 `vmlui.vml`（`vmltool.config.xml` 里已挂）—— 这两个前端**不能用内联 asm**，只能按标签调 C 函数，`Lib/shared/src/vmlui.c` 就是为它们写的（另有 `ui_wait_msg`/`ui_msg_a`/`ui_gset` 这类不碰指针的接口） |
++| 其它前端 | 未做（做法同上：加声明 + 确保 `vmlui.vml` 在该语言的 `Libs` 里） |
++
++> ⚠ 这个目录由 `third_party/vml/sync.sh` 从上游 VML 仓库同步，**本地改动下次同步会被覆盖** ——
++> 落地后要把 `Lib/shared/src/vmlui.c`、`Lib/shared/vmlui.vml`、`Lib/c/waycoder_ui.h`
++> 回灌上游仓库（或改 sync.sh 显式保留，但那是最脆的一类本地适配，优先回灌）。
+diff --git a/third_party/vml/Lib/c/waycoder_ui.h b/third_party/vml/Lib/c/waycoder_ui.h
+index dd13e7ed..1bff2c66 100644
+--- a/third_party/vml/Lib/c/waycoder_ui.h
++++ b/third_party/vml/Lib/c/waycoder_ui.h
+@@ -129,4 +129,8 @@ int  ui_msg_count(void);
+ int  ui_timer_set(int interval_ms, int tag);
+ int  ui_timer_kill(int id);
+ 
++/* ── 随机数 / 计时（游戏用；实现走 VM 的 #50/#53，各语言共用一份）── */
++int  ui_rand(int n);      /* 0..n-1 */
++int  ui_tick(void);       /* VM 启动至今毫秒 */
++
+ #endif /* WAYCODER_UI_H */
+diff --git a/third_party/vml/Lib/shared/src/vmlui.c b/third_party/vml/Lib/shared/src/vmlui.c
+index cd8a966b..e9dc4f1d 100644
+--- a/third_party/vml/Lib/shared/src/vmlui.c
++++ b/third_party/vml/Lib/shared/src/vmlui.c
+@@ -314,6 +314,26 @@ int ui_timer_kill(int id) {
+     return asm("SYSCALL #564, ${id}");
+ }
+ 
++/* ── 随机数 / 计时（游戏要用，而只有 C 能直接调 #50/#53）──────
++ *
++ * 非 C 前端拿不到 syscall，游戏里的"下一个方块""洗牌"就只能自己搓一个劣质
++ * 伪随机（或者干脆固定顺序）。放这里一份，各语言共用同一个源。
++ */
++
++/* 0..n-1 的随机数（n<=0 返回 0）。 */
++int ui_rand(int n) {
++    int v;
++    if (n <= 0) return 0;
++    v = asm("SYSCALL #50");
++    /* #50 返回的是 32 位有符号随机数，负数取模在 C 里是负数 ⇒ 先归一到非负 */
++    return (v % n + n) % n;
++}
++
++/* 自 VM 启动起的毫秒数（单调递增，可作动画相位/超时基准）。 */
++int ui_tick(void) {
++    return asm("SYSCALL #53");
++}
++
+ /* ── 图标 / 图片 ────────────────────────────────────────── */
+ 
+ void ui_icon(int x, int y, char* name, int size, int color) {
+diff --git a/third_party/vml/Lib/shared/vmlui.vml b/third_party/vml/Lib/shared/vmlui.vml
+index 601eaa06..b1105458 100644
+--- a/third_party/vml/Lib/shared/vmlui.vml
++++ b/third_party/vml/Lib/shared/vmlui.vml
+@@ -1879,6 +1879,79 @@ L2170093:
+         pop R12
+         pop R15
+         ret
++ui_rand:
++; -------------------------------------------
++; source   : int ui_rand(int n)
++; function : ui_rand
++; param   : int n
++; return   : int
++; --------------------------------------------
++ui_rand:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #16
++        move R0 [R12+12]
++        push R0
++        move R0 #0
++        pop R1
++        cmp R1 R0
++        jle _L2170096
++        move R0 #0
++        jmp _L2170097
++_L2170096:
++        move R0 #1
++_L2170097:
++        cmp R0 #0
++        jz sta_2170094
++        move R0 #0
++        jmp L2170098
++sta_2170094:
++sta_2170095:
++        syscall #50
++        move [R12-4] R0
++        move [R12-8] R0
++        move R0 [R12-8]
++        push R0
++        move R0 [R12+12]
++        pop R1
++        mod R1 R0
++        move R0 R1
++        push R0
++        move R0 [R12+12]
++        pop R1
++        add R1 R0
++        move R0 R1
++        push R0
++        move R0 [R12+12]
++        pop R1
++        mod R1 R0
++        move R0 R1
++        jmp L2170098
++L2170098:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_tick:
++; -------------------------------------------
++; source   : int ui_tick()
++; function : ui_tick
++; return   : int
++; --------------------------------------------
++ui_tick:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        syscall #53
++        move [R12-4] R0
++        jmp L2170099
++L2170099:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
+ ui_icon:
+ ; -------------------------------------------
+ ; source   : void ui_icon(int x,int y,char* name,int size,int color)
+
+diff --git a/third_party/vml/Lib/c/waycoder_ui.h b/third_party/vml/Lib/c/waycoder_ui.h
+index 1bff2c66..856de65a 100644
+--- a/third_party/vml/Lib/c/waycoder_ui.h
++++ b/third_party/vml/Lib/c/waycoder_ui.h
+@@ -133,4 +133,13 @@ int  ui_timer_kill(int id);
+ int  ui_rand(int n);      /* 0..n-1 */
+ int  ui_tick(void);       /* VM 启动至今毫秒 */
+ 
++/* ── 手感：音效 / 震动 / 持久化 / 常亮 ──
++   音效走 **VM 内置的 #57 蜂鸣**（宿主把它接到真实音频，零素材、不必打包音频文件）。
++   这一组同样要提给上游 VML 仓库（Lib/ 会被 sync.sh 覆盖）。 */
++void ui_beep(int freq, int ms);              /* 合成音：频率 Hz + 时长 ms */
++void ui_vibrate(int ms);                     /* 震动一下（Android 需 VIBRATE 权限，normal 级） */
++void ui_keep_on(int on);                     /* 玩游戏时别熄屏：0 关 / 1 开 */
++void ui_store_set(char* key, char* value);   /* 写持久化键值（最高分/进度/设置） */
++int  ui_store_get(char* key, char* buf, int cap);  /* 读；返回长度，没有这条键返回 -1 */
++
+ #endif /* WAYCODER_UI_H */
+diff --git a/third_party/vml/Lib/shared/vmlui.vml b/third_party/vml/Lib/shared/vmlui.vml
+index b1105458..75ce9127 100644
+--- a/third_party/vml/Lib/shared/vmlui.vml
++++ b/third_party/vml/Lib/shared/vmlui.vml
+@@ -2007,3 +2007,121 @@ ui_image:
+         pop R12
+         pop R15
+         ret
++
++; ═══════════════════════════════════════════════════════════════
++; 手感：音效 / 震动 / 持久化 / 常亮（宿主保留号段 500–599 与 VM 内置 #57）
++;
++; ⚠ 这一组**必须提给上游 VML 仓库**：`Lib/` 是 sync.sh 从上游 rsync 同步下来的，
++;   只改本地的话下次同步就没了（与 ui_rand/ui_tick 同一处境）。
++; ⚠ 写法照抄 ui_timer_set：形参在栈上（arg_i = [R12+8+4*i]），搬进 R0..Rn 再 syscall。
++;   不要在 C 里用 `asm("MOVE R1 ${x}")` 直连 —— `${}` 展开时**总是先载入 R0**，
++;   第二个参数会把第一个覆盖掉（实测：`MOVE R0 ${freq}` + `MOVE R1 ${ms}` 生成的是
++;   `move R0 [R12+12]; move R0 [R12+16]; move R1 R0` —— freq 丢了）。
++; ═══════════════════════════════════════════════════════════════
++ui_beep:
++; -------------------------------------------
++; source   : void ui_beep(int freq,int ms)
++; function : ui_beep
++; param   : int freq  (Hz)
++; param   : int ms    (时长)
++; return   : void
++; 说明     : 合成音（VM 内置 #57 的蜂鸣，宿主接真实音频）。零素材：不必打包音频文件。
++; --------------------------------------------
++ui_beep:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        syscall #57
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_vibrate:
++; -------------------------------------------
++; source   : void ui_vibrate(int ms)
++; function : ui_vibrate
++; param   : int ms
++; return   : void
++; --------------------------------------------
++ui_vibrate:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 #0
++        syscall #545
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_keep_on:
++; -------------------------------------------
++; source   : void ui_keep_on(int on)
++; function : ui_keep_on
++; param   : int on    (0 关 / 1 开)
++; return   : void
++; 说明     : 玩游戏时别熄屏。
++; --------------------------------------------
++ui_keep_on:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        syscall #553
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_store_set:
++; -------------------------------------------
++; source   : void ui_store_set(char* key,char* value)
++; function : ui_store_set
++; param   : char* key
++; param   : char* value
++; return   : void
++; 说明     : 持久化键值（最高分/进度/设置）。键会加 `vml.` 前缀，与 App 自己的配置隔离。
++; --------------------------------------------
++ui_store_set:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        syscall #550
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_store_get:
++; -------------------------------------------
++; source   : int ui_store_get(char* key,char* buf,int cap)
++; function : ui_store_get
++; param   : char* key
++; param   : char* buf
++; param   : int cap
++; return   : int     (写入长度；没有这条键返回 -1)
++; --------------------------------------------
++ui_store_get:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        syscall #551
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
+
+diff --git a/third_party/vml/Lib/c/waycoder_ui.h b/third_party/vml/Lib/c/waycoder_ui.h
+index 856de65a..46113bf5 100644
+--- a/third_party/vml/Lib/c/waycoder_ui.h
++++ b/third_party/vml/Lib/c/waycoder_ui.h
+@@ -129,6 +129,30 @@ int  ui_msg_count(void);
+ int  ui_timer_set(int interval_ms, int tag);
+ int  ui_timer_kill(int id);
+ 
++/* ── 绘图增强（534–539，v0.96.176）：渐变刷子 / 路径与曲线 / 多边形 ──
++ *
++ * 这一组也是**本地加的**，同样要提给上游 VML 仓库（理由见文件末尾那段）。
++ * 坐标与颜色约定与既有绘图接口一致（dp、0xAARRGGBB）。 */
++
++/* 渐变刷子：id 之后用 ui_rect_grad / ui_circle_grad / ui_path 的 grad 参数按名引用。
++ * 几何是**归一化 0..1000 的整数**（千分之一）：线性给 x1,y1,x2,y2；径向给 cx,cy,r（第 4 个忽略）。
++ * 不想要自定义几何就传 0,0,1000,0（线性从左到右）或 500,500,500,0（径向居中）。 */
++void ui_gradient(char* id, int radial, int color_a, int color_b,
++                 int a1, int a2, int a3, int a4);
++
++/* 路径：d 是 **SVG path 语法**（M L H V C S Q T A Z，大小写区分绝对/相对）。
++ * stroke=描边色（0=不描边）、width=线宽、fill=填充色（0=不填充）、
++ * grad=渐变 id（非 0 时用它填充、忽略 fill）、cap=0平/1圆/2方、dash=0/1 虚线。 */
++void ui_path(char* d, int stroke, int width, int fill, char* grad, int cap, int dash);
++
++/* 多边形（自动闭合）/ 折线：pts 是 int 数组，**每两个 int 一个点**（x,y）；count 是**点数**。 */
++void ui_polygon(int* pts, int count, int fill, int stroke, int width, char* grad);
++void ui_polyline(int* pts, int count, int stroke, int width, char* grad);
++
++/* 渐变填充的矩形 / 圆（渐变按钮、渐变背景这类最常用） */
++void ui_rect_grad(int x, int y, int w, int h, char* grad, int radius);
++void ui_circle_grad(int cx, int cy, int r, char* grad);
++
+ /* ── 随机数 / 计时（游戏用；实现走 VM 的 #50/#53，各语言共用一份）── */
+ int  ui_rand(int n);      /* 0..n-1 */
+ int  ui_tick(void);       /* VM 启动至今毫秒 */
+diff --git a/third_party/vml/Lib/shared/vmlui.vml b/third_party/vml/Lib/shared/vmlui.vml
+index 75ce9127..f6e7eba2 100644
+--- a/third_party/vml/Lib/shared/vmlui.vml
++++ b/third_party/vml/Lib/shared/vmlui.vml
+@@ -2040,6 +2040,127 @@ ui_beep:
+         pop R12
+         pop R15
+         ret
++; ═══════════════════════════════════════════════════════════════
++; 绘图增强（534–539，v0.96.176）：渐变刷子 / 路径与曲线 / 多边形
++;
++; 写法照抄上面 ui_beep/ui_timer_set 那一组：形参在栈上（arg_i = [R12+8+4*i]），
++; 搬进 R0..Rn 再 syscall，返回值放 [R12-4]。
++; ⚠ 同样**必须提给上游 VML 仓库**（Lib/ 由 sync.sh 同步，只改本地下次就没了）。
++; ═══════════════════════════════════════════════════════════════
++ui_gradient:
++; -------------------------------------------
++; source   : void ui_gradient(char* id,int radial,int color_a,int color_b,int a1,int a2,int a3,int a4)
++; function : ui_gradient
++; return   : void
++; --------------------------------------------
++ui_gradient:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        move R5 [R12+32]
++        move R6 [R12+36]
++        move R7 [R12+40]
++        syscall #534
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_path:
++; -------------------------------------------
++; source   : void ui_path(char* d,int stroke,int width,int fill,char* grad,int cap,int dash)
++; function : ui_path
++; return   : void
++; --------------------------------------------
++ui_path:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        move R5 [R12+32]
++        move R6 [R12+36]
++        syscall #535
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_polygon:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        move R5 [R12+32]
++        syscall #536
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_polyline:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        syscall #537
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_rect_grad:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        move R5 [R12+32]
++        syscall #538
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_circle_grad:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        syscall #539
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
+ ui_vibrate:
+ ; -------------------------------------------
+ ; source   : void ui_vibrate(int ms)
