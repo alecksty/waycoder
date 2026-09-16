@@ -7,17 +7,10 @@
 
     <Grid RowDefinitions="Auto,*,Auto,Auto">
 
-        <!-- 顶栏：当前工作目录。
-             **必须显示**：`cd` 之后工作目录会变，不显示的话用户不知道下一条命令在哪儿跑
-             （桌面端是靠提示符体现的，这里没有真 TTY，只能自己画一行）。 -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="12,8,8,2" ColumnSpacing="8">
-            <Label
-                x:Name="CwdLabel"
-                Grid.Column="0"
-                FontSize="11"
-                LineBreakMode="MiddleTruncation"
-                VerticalOptions="Center"
-                TextColor="{AppThemeBinding Light=#6B6B70, Dark=#9A9A9E}" />
+        <!-- 顶栏：只剩「清屏」。
+             工作目录**改由输入行的提示符表示**（`~/examples>`）—— 它才是"我下一条命令在哪跑"
+             的唯一出处；原先这里还有一行 `cwd: …`，和提示符说同一件事，等于同一屏写两遍。 -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="12,8,8,2">
             <Button
                 x:Name="ClearBtn"
                 Grid.Column="1"
@@ -72,11 +65,14 @@
         <!-- 输入区：$ 提示符 + 输入框 + 历史 + 运行。
              手机上软键盘没有可靠的方向键，所以历史做成了按钮而不是 ↑/↓ 按键。 -->
         <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto,Auto" Padding="12,6,8,8" ColumnSpacing="6">
+            <!-- 提示符：空闲时是**缩写路径 + `>`**（`~/examples>`），运行中是 `⋯`。
+                 这一格就是全页唯一的状态灯 —— 用户在哪儿、有没有在跑，看它一眼就够。 -->
             <Label
                 x:Name="PromptLabel"
                 Grid.Column="0"
-                Text="$"
-                FontSize="14"
+                Text="~>"
+                FontSize="13"
+                LineBreakMode="NoWrap"
                 VerticalOptions="Center" />
             <!-- ⚠ `Keyboard="Plain"` 是**必须的**，不是样式偏好：
                  Android 输入法默认**自动首字母大写**，`cd /sdcard` 会被送成 `CD /sdcard`，

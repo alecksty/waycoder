@@ -5,34 +5,61 @@
              Title="VML 窗口"
              BackgroundColor="{AppThemeBinding Light={StaticResource PageBgLight}, Dark={StaticResource PageBgDark}}">
 
-    <!-- VML 程序开的窗口。布局三行：标题 / 画布 / 手柄。
+    <!-- VML 程序开的窗口。布局三行：画布 / 折叠条 / 手柄。
+         **标题只有一处**：Shell 的标题栏（代码里 `Title = scene.Title`）。
+         原来页面内还有一个 HeaderLabel 写着同一句话，屏幕上就是上下两个一样的标题 —— 已去掉。
          底部的操控区按**游戏机手柄**排布 —— 而不是排成一排按钮：
            · 左：十字方向键（四个方向在拇指自然落点上）
            · 中：SELECT / START
            · 右：X/Y/A/B 菱形（Y 上、X 左、B 右、A 下，与主流手柄一致）
          手机没有物理键盘，不做成手柄的话「用方向键+动作键写的游戏」在真机上没法玩；
-         而排成一排时拇指要横跨整屏找键，做游戏时根本按不过来。 -->
-    <Grid RowDefinitions="Auto,*,Auto" Padding="0">
-
-        <Label x:Name="HeaderLabel" Grid.Row="0"
-               Text="VML 窗口" FontSize="15" FontAttributes="Bold"
-               TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
-               HorizontalOptions="Center" Margin="12,8" />
+         而排成一排时拇指要横跨整屏找键，做游戏时根本按不过来。
+         手柄上方那条**折叠条**（点中间的箭头收起/展开手柄）是为了看长内容 ——
+         手柄区占掉约 150dp，收起后画布立刻多出这一截。 -->
+    <Grid RowDefinitions="*,Auto,Auto" Padding="0">
 
         <!-- 画布：**`GraphicsView` 就地重绘**，不是 `<Image>` 换 `Source`。
              ⚠ 换 `Image.Source` 会先卸掉旧图再解码新图，中间必然空一拍 —— 那就是"闪"
              （实测：把渲染从"每条图元一次"降到"每帧一次"之后仍然闪，说明问题不在**次数**，
              而在**换了控件内容这件事本身**）。`GraphicsView` 由平台双缓冲：旧帧一直在屏上，
              直到新帧画完才替换，中间不会露出背景色。 -->
-        <ScrollView Grid.Row="1" x:Name="CanvasScroll" Orientation="Both">
+        <ScrollView Grid.Row="0" x:Name="CanvasScroll" Orientation="Both">
             <GraphicsView x:Name="CanvasView" Margin="8" />
         </ScrollView>
+
+        <!-- 折叠条：左右两条细线 + 中间一个箭头按钮（点一下收起/展开手柄）。
+             没有它的话，手柄区是**永久占着**的 —— 而很多 VML 程序只是打印文本或画一张静态图，
+             根本用不到手柄，却要一直空掉屏幕底部那一块。 -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto,*" Padding="14,0" ColumnSpacing="8" HeightRequest="26">
+            <BoxView
+                Grid.Column="0"
+                HeightRequest="1"
+                VerticalOptions="Center"
+                Color="{AppThemeBinding Light={StaticResource BorderLineLight}, Dark={StaticResource BorderLineDark}}" />
+            <!-- 箭头 + 一句话说明「点下去会发生什么」—— 只画一个箭头的话，
+                 "▲ 是收起还是展开"得靠用户点一次才知道。 -->
+            <Button
+                x:Name="PadToggleBtn"
+                Grid.Column="1"
+                Text="▲ 收起手柄"
+                Clicked="OnTogglePad"
+                FontSize="12"
+                Padding="0"
+                WidthRequest="132"
+                HeightRequest="26"
+                CornerRadius="13" />
+            <BoxView
+                Grid.Column="2"
+                HeightRequest="1"
+                VerticalOptions="Center"
+                Color="{AppThemeBinding Light={StaticResource BorderLineLight}, Dark={StaticResource BorderLineDark}}" />
+        </Grid>
 
         <!-- 手柄区：整体压小一档，让棋盘多占地方。
              ⚠ **每列都要 Auto 且互不重叠** —— SELECT/START 原来靠 Padding 撑宽，
              加上全局 Button 样式的 MinimumWidthRequest(44)，实际宽度超出中列、
              压到左右两侧的方向键上（截图里能直接看到叠在一起）。 -->
-        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Padding="14,4,14,8" ColumnSpacing="6">
+        <Grid x:Name="PadArea" Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Padding="14,4,14,8" ColumnSpacing="6">
 
             <!-- 左：十字方向键。**圆角方块**（角落 10 而不是半圆），比圆形更好按、也更像手柄 -->
             <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,Auto,Auto"

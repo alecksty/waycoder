@@ -61,6 +61,25 @@ public partial class ShellPage : ContentPage
     /// <summary>正在等答案的那次读取；用户提交时由它把值交回 VM 线程。</summary>
     private TaskCompletionSource<string>? _stdinTcs;
 
+    /// <summary>
+    /// 当前这次 VML 运行的取消源（= 「强制停止」的手柄）。
+    ///
+    /// 只有 VML 运行才有它：VM 主循环每条指令查一次 token，取消是即时的；
+    /// 而普通 shell 命令（`dotnet build` 之类）**没有可用的中断入口**，
+    /// 所以"运行中不许返回"的拦截只对 VML 生效（见 <see cref="OnBackButtonPressed"/>）。
+    /// </summary>
+    private CancellationTokenSource? _runCts;
+
+    /// <summary>
+    /// 这次运行**彻底收干净**的信号（在 <see cref="ExecVmlAsync"/> 的 `finally` 最末尾置位）。
+    ///
+    /// 为什么不是直接 `await` 那个运行 Task：它和 `ExecVmlAsync` 里那句 `await task`
+    /// 挂在**同一个 Task 的完成回调**上，谁先恢复没有保证 —— 若我们这边先恢复，
+    /// 此刻 `_runCts` 还没被清空，重发的返回会撞上同一个拦截、再弹一次框。
+    /// 用"finally 最后一步"的信号，就把它钉成了确定顺序。
+    /// </summary>
+    private TaskCompletionSource? _runDone;
+
     /// <summary>本页认识的命令（加命令改 <see cref="BuildCommandRegistry"/> 一处即可）。</summary>
     private readonly ShellCommandRegistry _commands;
 
@@ -92,11 +111,154 @@ public partial class ShellPage : ContentPage
         RefreshCwd();
     }
 
+    /// <summary>
+    /// 文件页递过来的一件 VML 活：**跑**，或者**编**。
+    ///
+    /// 「在文件管理界面点，在命令行页出结果」是用户定的分工：文件页负责挑文件和做决策
+    /// （编到哪、要不要覆盖），命令行页负责执行与**显示输出** —— 编译错误、程序输出、
+    /// 运行时崩在哪一条，都是可能很长、要能滚的东西，塞进一个弹框里既看不全也留不住。
+    /// </summary>
+    /// <param name="Compile">true = 编译（产出下一级产物），false = 运行</param>
+    /// <param name="SourcePath">**绝对路径**（文件页所在的子目录不一定是本页的 cwd）</param>
+    /// <param name="OutputRel">编译产物的沙箱相对路径（运行时为 ""）</param>
+    internal sealed record PendingVmlJob(bool Compile, string SourcePath, string OutputRel);
+
+    /// <summary>
+    /// 跨页交接用的信箱 —— 文件页放，本页 <see cref="OnAppearing"/> 取。
+    ///
+    /// 为什么不"拼一条 <c>vml run xxx</c> 命令再喂给自己"：命令是**按空白切分**的
+    /// （见 <c>ShellCommandRegistry.Split</c>，它不做引号解析），路径里只要有空格就会断成两截，
+    /// 而带空格的文件名恰恰最常见。这里直接交路径对象，绕开文本那一层。
+    /// </summary>
+    internal static PendingVmlJob? PendingVml;
+
+    /// <summary>本页在 `AppShell.xaml` 里的 Route（`<ShellContent … Route="shell">`）。</summary>
+    private const string ShellRoute = "shell";
+
+    /// <summary>
+    /// 切到本页（命令行 Tab）。
+    ///
+    /// ⚠ **不要用 `Shell.Current.GoToAsync("//shell")`** —— 真机实测它直接抛
+    /// `ArgumentOutOfRangeException`（`IndexMustBeLess`），用户看到的是「无法打开命令行页」。
+    /// 原因：Shell 的绝对路由串要一路穿过 `TabBar → Tab → ShellContent` 三层，而
+    /// `AppShell.xaml` 里那几个 `<Tab>` **没有显式 `Route`**（MAUI 自动生成的），
+    /// `//<ShellContent 的 Route>` 这种写法在这里解析不到 —— 报的还不是"路由不存在"，
+    /// 是路由解析器内部越界，所以看错误信息也猜不到。
+    ///
+    /// 改成**直接指定 Shell 的当前项**：找到 `Route == "shell"` 的 ShellContent，
+    /// 把它的三层依次设为当前 —— 这就是点 Tab 时系统自己做的事，不经过任何路由字符串。
+    /// 切完同样会触发 `OnAppearing`，交接的活儿照跑。
+    /// </summary>
+    internal static bool SwitchToShellTab()
+    {
+        var shell = Shell.Current;
+        if (shell == null) return false;
+
+        foreach (var item in shell.Items)          // TabBar
+            foreach (var section in item.Items)     // Tab
+                foreach (var content in section.Items)   // ShellContent
+                    if (content.Route == ShellRoute)
+                    {
+                        shell.CurrentItem = item;
+                        item.CurrentItem = section;
+                        section.CurrentItem = content;
+                        return true;
+                    }
+        return false;
+    }
+
     protected override void OnAppearing()
     {
         base.OnAppearing();
         RefreshCwd();
         Dispatcher.Dispatch(UpdateScrollBar);   // 回到本页时量一次（期间可能转过屏）
+
+        // 文件页递过来的活：等本页真的显示出来再干（切 Tab 会走这里）。
+        if (Interlocked.Exchange(ref PendingVml, null) is { } job)
+            Dispatcher.Dispatch(() => _ = RunPendingVmlJobAsync(job));
+    }
+
+    private async Task RunPendingVmlJobAsync(PendingVmlJob job)
+    {
+        // 上一轮还在跑就不插队 —— VML 的 DeviceManager 是进程级单例，两轮并发会互相踩
+        // （见 VmlTool 的 ExecutionMode 注释）。这里只提示，不排队：用户再点一次即可。
+        if (_busy)
+        {
+            Append("⚠️ 上一条命令还在运行，等它结束再回文件页点一次。\n\n");
+            return;
+        }
+
+        // 异常由 RunWithPromptAsync（`RunFileAsync` / `CompileArtifactAsync` 都会走到它）兜住并打印。
+        // 不兜的话：这条链是 `Dispatcher.Dispatch(() => _ = RunPendingVmlJobAsync(job))` 起的，
+        // 那个 `_ = ` 把 Task 丢掉了，异常逃出去只会变成「未观察的任务异常」落进日志，
+        // **屏幕上什么也没有**（实测踩过：一个例子编译时抛 `未找到标签: asm`，
+        // 用户看到的就是"点了运行，然后什么都没发生"）。
+        if (job.Compile) await CompileArtifactAsync(job.SourcePath, job.OutputRel);
+        else await RunFileAsync(job.SourcePath);
+    }
+
+    /// <summary>
+    /// 装上「静默等待」提示钩子：解压标准库 / 前端编译这类**几秒钟屏幕一个字不变**的阶段，
+    /// 把它们的状态写进输出区（见 <see cref="MauiVml.OnProgress"/> 注释）。
+    ///
+    /// 回调**在后台线程上触发**（解压与编译都跑在 `Task.Run` 里），而 `Append` 动的是控件 ——
+    /// 必须切回主线程；用 `BeginInvokeOnMainThread` 而不是 `InvokeOnMainThread`：
+    /// 前者不阻塞调用方，免得把正在解压的那个线程反过来拖住。
+    ///
+    /// ⚠ **只在本次运行期间装着、`finally` 里清掉**：它是静态的，留着的话聊天那边跑个 VML
+    /// 也会往这一页冒提示。
+    /// </summary>
+    private void InstallVmlProgress()
+        => MauiVml.OnProgress = msg => MainThread.BeginInvokeOnMainThread(() => Append(msg + "\n"));
+
+    /// <summary>跑一个 VML 文件（复用 <see cref="ExecVmlAsync"/>，不另起一份执行体）。</summary>
+    private Task RunFileAsync(string absPath)
+        // 路径**缩写成 `~/…`** —— 文件页递过来的是绝对路径，原样打出来要占两行（用户点名要短）。
+        // 进度钩子（解压/编译提示）在 ExecVmlAsync 里装。
+        => RunWithPromptAsync($"vml run {SandboxFsService.Abbreviate(absPath)}",
+            () => ExecVmlAsync(null, absPath));
+
+    /// <summary>
+    /// 把源文件编成下一级产物写到沙箱里（`main.c` → `main.vml`、`main.vml` → `main.vmb`）。
+    ///
+    /// ⚠ **这里不做"要不要覆盖"的询问** —— 那是文件页的事：得在能看见文件列表的地方问，
+    /// 而且只有那边知道用户选的是"覆盖"还是"换个名字"。本方法假定目标路径已经定下来了。
+    /// </summary>
+    private Task CompileArtifactAsync(string absPath, string outRel)
+    {
+        var toVmb = outRel.EndsWith(".vmb", StringComparison.OrdinalIgnoreCase);
+        InstallVmlProgress();   // 首次编译同样会卡在解压标准库上，一样要报状态
+
+        return RunWithPromptAsync($"vml build {SandboxFsService.Abbreviate(absPath)} → {outRel}", async () =>
+        {
+            // 编译/汇编都是同步阻塞的（前端编译本身就吃 CPU），必须离开 UI 线程 —— 否则整页卡死。
+            var (note, error) = await Task.Run<(string? Note, string? Error)>(() =>
+            {
+                if (toVmb)
+                {
+                    var (bytes, err) = MauiVml.AssembleVmlToVmb(absPath);
+                    if (bytes == null) return (null, err);
+                    try { SandboxFsService.WriteBytesAtomic(outRel, bytes); }
+                    catch (Exception ex) { return (null, $"⚠️ 写入失败：{ex.Message}"); }
+                    return ($"{bytes.Length:#,0} 字节", null);
+                }
+
+                var (text, err2) = MauiVml.CompileToVml(absPath);
+                if (text == null) return (null, err2);
+                try
+                {
+                    // 原子写 + UTF-8 **不带 BOM**：产物动辄几十万字符，写到一半崩掉会留下半截文件；
+                    // 带 BOM 则会让汇编器认不出首行的 `.entry`。
+                    SandboxFsService.WriteTextAtomic(outRel, text, new System.Text.UTF8Encoding(false), crlf: false);
+                }
+                catch (Exception ex) { return (null, $"⚠️ 写入失败：{ex.Message}"); }
+                return ($"{text.Length:#,0} 字符", null);
+            });
+
+            return error != null
+                ? error
+                : $"✔ 已生成 {outRel}（{note}）\n回文件页点它选「VML 运行」即可执行。";
+        });
     }
 
     /// <summary>
@@ -109,7 +271,53 @@ public partial class ShellPage : ContentPage
         Dispatcher.Dispatch(UpdateScrollBar);
     }
 
-    private void RefreshCwd() => CwdLabel.Text = "cwd: " + CwdContext.Root;
+    /// <summary>
+    /// 提示符（**全页唯一的状态出处**）：<c>~&gt;</c> / <c>~/examples&gt;</c>。
+    ///
+    /// 路径用 <see cref="SandboxFsService.Abbreviate"/> 缩写（工作区根 = `~`）——
+    /// 手机上完整路径是 `/storage/emulated/0/waycoder/workspace/examples`，
+    /// 摆在输入框前面会把输入区挤没。
+    /// </summary>
+    private string Prompt => SandboxFsService.Abbreviate(CwdContext.Root) + ">";
+
+    /// <summary>
+    /// 刷新提示符。`cd` 之后工作目录会变，**必须跟着动** —— 不然用户不知道下一条命令在哪跑。
+    /// 运行中不刷（那时提示符是 `⋯`，见 <see cref="SetBusy"/>），跑完的收尾会再刷一次。
+    /// </summary>
+    private void RefreshCwd()
+    {
+        if (!_busy) PromptLabel.Text = Prompt;
+    }
+
+    /// <summary>
+    /// 跑一条命令的**统一外壳** —— 「运行中 / 已结束」的边界全靠它：
+    /// 起点写一行 <c>路径&gt; 命令</c>，终点再写一行空的 <c>路径&gt;</c> 表示"等下一个命令"。
+    ///
+    /// 三个入口（手敲的命令、文件页递来的运行、文件页递来的编译）共用这一份 ——
+    /// 各写一遍的话，总有一个会漏掉收尾提示符，用户就又分不清"跑完了没有"了。
+    /// </summary>
+    private async Task RunWithPromptAsync(string cmdLine, Func<Task<string>> body)
+    {
+        Append($"{Prompt} {cmdLine}\n");
+        SetBusy(true);
+        try
+        {
+            Append((await body()).TrimEnd() + "\n\n");
+        }
+        catch (Exception ex)
+        {
+            ErrorLog.Error("ShellPage", "命令执行失败", ex);
+            Append($"⚠️ 执行失败：{ex.GetType().Name}: {ex.Message}\n\n");
+        }
+        finally
+        {
+            // 顺序要紧：**先刷新 cwd、再置空闲** —— 提示符只在非忙碌时更新（见 RefreshCwd），
+            // 反过来的话打印出来的收尾提示符还是旧路径（`cd` 之后就当场打脸）。
+            RefreshCwd();
+            SetBusy(false);
+            Append(Prompt + "\n");   // 收尾的提示符：执行完了，等下一个命令
+        }
+    }
 
     private async void OnRunRequested(object? sender, EventArgs e)
     {
@@ -127,39 +335,20 @@ public partial class ShellPage : ContentPage
         await RunAsync(cmd);
     }
 
-    private async Task RunAsync(string cmd)
+    private Task RunAsync(string cmd) => RunWithPromptAsync(cmd, async () =>
     {
-        Append($"$ {cmd}\n");
-        SetBusy(true);
-        try
-        {
-            // 页面自己的命令走注册表（`BuildCommandRegistry` 那一处登记）。
-            // **只要注册表不认识，就原样交给 shell** —— 分派逻辑只有这一处，
-            // 加命令改 `BuildCommandRegistry` 一行，help 列表/用法/参数校验全跟着变。
-            var handled = await _commands.DispatchAsync(cmd);
-            if (handled != null)
-            {
-                Append(handled.TrimEnd() + "\n\n");
-                return;
-            }
+        // 页面自己的命令走注册表（`BuildCommandRegistry` 那一处登记）。
+        // **只要注册表不认识，就原样交给 shell** —— 分派逻辑只有这一处，
+        // 加命令改 `BuildCommandRegistry` 一行，help 列表/用法/参数校验全跟着变。
+        var handled = await _commands.DispatchAsync(cmd);
+        if (handled != null) return handled;
 
-            // 直接 await（不额外包 `Task.Run`）：这里本就在后台异步链上，包一层毫无收益。
-            // （历史上这里必须这样写，因为 `CwdContext` 用 `AsyncLocal<string>` 直接存值，
-            //   `cd` 的写入传不回线程池之外；现在 CwdContext 存的是「盒子」、就地改内容，
-            //   cd 能跨任务边界回传，限制已不存在。）
-            var result = await new BashTool().ExecuteUserShellAsync(cmd);
-            Append(result.TrimEnd() + "\n\n");
-        }
-        catch (Exception ex)
-        {
-            Append($"⚠️ 执行异常：{ex.Message}\n\n");
-        }
-        finally
-        {
-            SetBusy(false);
-            RefreshCwd();   // `cd` 之后 cwd 变了，顶栏要跟着动
-        }
-    }
+        // 直接 await（不额外包 `Task.Run`）：这里本就在后台异步链上，包一层毫无收益。
+        // （历史上这里必须这样写，因为 `CwdContext` 用 `AsyncLocal<string>` 直接存值，
+        //   `cd` 的写入传不回线程池之外；现在 CwdContext 存的是「盒子」、就地改内容，
+        //   cd 能跨任务边界回传，限制已不存在。）
+        return await new BashTool().ExecuteUserShellAsync(cmd);
+    });
 
     /// <summary>
     /// 登记本页认识的全部命令 —— **加命令只改这里**。
@@ -196,9 +385,9 @@ public partial class ShellPage : ContentPage
         // vml：不走 shell，转交进程内的虚拟机（iOS 没有 shell；Android 也不该为编译起进程）
         reg.Register(new ShellCommand(
             "vml", "test | run <文件> | help",
-            "跑 VML 程序：`test` 跑内置自检，`run` 按扩展名选编译器（.vml 直接汇编，其余 22 种语言）",
-            "编译并运行一段 VML。`vml test` 跑内置自检程序；`vml run <文件>` 按扩展名自动选前端编译器"
-            + "（`.vml` 走汇编，`.c`/`.py`/`.rs` 等 22 种语言走各自编译器）。"
+            "跑 VML 程序：`test` 跑内置自检，`run` 按扩展名派发（.vml 汇编 / .vmb 装载 / 其余 22 种语言编译）",
+            "编译并运行一段 VML。`vml test` 跑内置自检程序；`vml run <文件>` 按扩展名自动派发"
+            + "（`.vml` 走汇编，`.vmb` 直接装载字节码，`.c`/`.py`/`.rs` 等 22 种语言走各自前端编译器）。"
             + "路径相对下面显示的工作目录解析。",
             args => RunVmlAsync(string.Join(' ', args.Prepend("vml")))));
 
@@ -215,38 +404,93 @@ public partial class ShellPage : ContentPage
     private async Task<string> RunVmlAsync(string cmd)
     {
         var rest = cmd.Length <= 3 ? "" : cmd[3..].Trim();
-        if (rest.Length == 0 || rest == "help")
-            return "用法：\n  vml test            跑内置的自检程序\n"
-                 + "  vml run <文件>      .vml 走汇编，其余按扩展名自动选编译器（22 种语言）";
+        if (rest.Length == 0 || rest == "help") return VmlUsage;
 
-        string? source = null, file = null;
-        if (rest == "test")
-        {
-            source = MauiVml.HelloWorldAsm;
-        }
-        else if (rest.StartsWith("run ", StringComparison.Ordinal))
-        {
+        if (rest == "test") return await ExecVmlAsync(MauiVml.HelloWorldAsm, null);
+
+        if (rest.StartsWith("run ", StringComparison.Ordinal))
             // 路径在进后台线程**之前**解析（CwdContext 是 AsyncLocal）
-            file = CwdContext.Resolve(rest[4..].Trim());
-        }
-        else
-        {
-            return $"⚠️ 不认识的 vml 子命令：{rest}（敲 `vml` 看用法）";
-        }
+            return await ExecVmlAsync(null, CwdContext.Resolve(rest[4..].Trim()));
 
+        return $"⚠️ 不认识的 vml 子命令：{rest}（敲 `vml` 看用法）";
+    }
+
+    private const string VmlUsage =
+        "用法：\n  vml test            跑内置的自检程序\n"
+      + "  vml run <文件>      .vml 走汇编、.vmb 直接装载，"
+      + "其余按扩展名自动选编译器（22 种语言）";
+
+    /// <summary>
+    /// 真正跑一段 VML —— <c>vml run/test</c> 命令与文件页的「VML 运行」**共用这一份**
+    /// （两个入口各写一遍的话，文件页那份迟早会漏掉交互式输入或超时口径）。
+    /// </summary>
+    /// <param name="source">内联 VML 汇编（与 file 二选一）</param>
+    /// <param name="file">**已解析好的绝对路径**（命令行那条路走 CwdContext.Resolve，文件页直接给绝对路径）</param>
+    private async Task<string> ExecVmlAsync(string? source, string? file)
+    {
         // **走 `MauiVml.Run`，与 AI 调 `vml` 工具是同一条流水线、同一份派发**
         // （不给它第二份实现——本仓库排第一的坑就是"同一规则两处实现"）。
         // 区别只有两个：这里给得了**交互式输入源**、超时给得宽（见 InteractiveTimeoutSec）。
         _interactive = true;
+        _runCts = new CancellationTokenSource();
+        var cts = _runCts;
+        var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _runDone = done;
+        InstallVmlProgress();   // 这里是**本页所有 VML 运行**的唯一入口（文件页递的 + 手敲的）
         try
         {
-            return await Task.Run(() => MauiVml.Run(source, file, InteractiveTimeoutSec, ReadLineFromProgram));
+            return await Task.Run(() => MauiVml.Run(source, file, InteractiveTimeoutSec, ReadLineFromProgram, cts.Token));
         }
         finally
         {
             _interactive = false;
+            _runCts = null;
+            cts.Dispose();
+            MauiVml.OnProgress = null;
             StdinPanel.IsVisible = false;
+            // 顺序要紧：先摘掉信号（此时 `_runCts` 已经是 null），再放行等待方 ——
+            // 于是被唤醒的「强制停止」看到的必然是"已经停了"的状态。
+            _runDone = null;
+            done.TrySetResult();
         }
+    }
+
+    /// <summary>
+    /// **运行中不许直接离开**：先问「是否强制停止」——选"继续运行"就留在本页。
+    ///
+    /// 为什么必须拦：VML 程序可能是个死循环或一直在等输入，用户一按返回就把它丢在后台跑着
+    /// （VM 线程还在烧 CPU、还可能占着 DeviceManager 单例），下次再跑一个就互相踩。
+    /// 而 VML 的取消是即时的（主循环每条指令查 token），所以这里给得起一个真正的"停止"。
+    ///
+    /// ⚠ 只拦**VML 运行**（`_runCts` 非空）：普通 shell 命令没有中断入口，
+    /// 弹一个"强制停止"却停不掉是骗人；那种情况交给系统正常返回。
+    /// </summary>
+    protected override bool OnBackButtonPressed()
+    {
+        if (_runCts is null) return base.OnBackButtonPressed();
+        _ = ConfirmLeaveWhileRunningAsync();
+        return true;   // 这一次返回由我们接管（答不答应都不交给系统）
+    }
+
+    private async Task ConfirmLeaveWhileRunningAsync()
+    {
+        var stop = await DisplayAlertAsync("程序还在运行",
+            "VML 程序尚未结束。强制停止并离开吗？", "强制停止", "继续运行");
+        if (!stop) return;   // 「继续运行」= 不停止 = 不返回
+
+        Append("\n⏹ 正在强制停止…\n");
+        _runCts?.Cancel();
+
+        // **等那次运行真的收干净再放行**。不等的话 `_runCts` 还在，
+        // 重发的返回会撞上同一个拦截、又弹一次框（甚至无限套娃）。
+        if (_runDone is { } done) await done.Task;
+        Append("⏹ 已停止。\n\n");
+
+        // 现在才是"已经停止"状态，重发一次返回 —— 走的完全是系统原本那条路
+        // （Shell 自己决定是回上一个 Tab 还是退出应用），我们不去猜。
+#if ANDROID
+        (Platform.CurrentActivity as AndroidX.Activity.ComponentActivity)?.OnBackPressedDispatcher.OnBackPressed();
+#endif
     }
 
     /// <summary>VM 线程调用：把"程序要一行输入"变成页面上的一次问答，然后阻塞等答案。</summary>
@@ -289,12 +533,20 @@ public partial class ShellPage : ContentPage
         tcs.TrySetResult(line);
     }
 
+    /// <summary>
+    /// 置「运行中 / 空闲」。**提示符是这一对状态的主信号**：
+    /// 运行中显示 <c>⋯</c>（明确"在跑、别走开"），空闲显示 <c>路径&gt;</c>（明确"等你敲下一条"）。
+    ///
+    /// 光靠按钮上的「运行 / …」是不够的 —— 那个小按钮在屏幕右下角，
+    /// 而输入框前面那一格才是眼睛一直停着的地方（用户报的就是"看不出运行中和结束的边界"）。
+    /// </summary>
     private void SetBusy(bool busy)
     {
         _busy = busy;
         RunBtn.IsEnabled = !busy;
         RunBtn.Text = busy ? "…" : "运行";
         CmdEntry.IsEnabled = !busy;
+        PromptLabel.Text = busy ? "⋯" : Prompt;
     }
 
     private void OnHistoryUpClicked(object? sender, EventArgs e)

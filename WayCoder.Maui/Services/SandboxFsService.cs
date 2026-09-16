@@ -16,12 +16,50 @@ public static class SandboxFsService
     /// <summary>文件类型分类：源码/文本→编辑器，图片→预览页，音频/视频→系统播放器，未知→仅外部打开。</summary>
     public enum FileCategory { Source, Image, Audio, Video, Unknown }
 
+    /// <summary>
+    /// 文件在 **VML 这条线上的角色** —— 文件名配色与「VML 编译 / VML 运行」两个菜单项的**唯一判据**。
+    ///
+    /// 分四档而不是一个 bool，是因为「能不能编译」与「能不能运行」在这条链上**不是同一件事**：
+    /// 源文件两样都行，`.vml`（汇编）与 `.vmb`（字节码）只能运行，`.md`/`.json` 一样都不行。
+    /// </summary>
+    public enum VmlRole
+    {
+        /// <summary>与 VML 无关。</summary>
+        None,
+
+        /// <summary>VML 前端能编译的源文件（<c>.c</c>/<c>.py</c>/<c>.rs</c>…）—— 可编译、可运行。</summary>
+        Compilable,
+
+        /// <summary>VML 汇编源码（<c>.vml</c>）—— 直接汇编运行，不经前端；也可再汇编成 <c>.vmb</c>。</summary>
+        Assembly,
+
+        /// <summary>VML 字节码（<c>.vmb</c>）—— 终态产物，只能装载运行。</summary>
+        Binary,
+    }
+
+    /// <summary>
+    /// 判一个文件的 VML 角色。**「能不能编译」不在这里列扩展名表**，直接问
+    /// <see cref="MauiVml.CanCompile"/>（它读的是上游 22 个编译器各自的注册表）——
+    /// 自己再列一张就是本仓库头号坑「同一规则两处实现」。
+    /// </summary>
+    public static VmlRole DetectVmlRole(string path)
+    {
+        var ext = System.IO.Path.GetExtension(path);
+        if (ext.Equals(".vml", StringComparison.OrdinalIgnoreCase)) return VmlRole.Assembly;
+        if (ext.Equals(".vmb", StringComparison.OrdinalIgnoreCase)) return VmlRole.Binary;
+        return MauiVml.CanCompile(path) ? VmlRole.Compilable : VmlRole.None;
+    }
+
     private static readonly HashSet<string> SourceExts = new(StringComparer.OrdinalIgnoreCase)
     {
         ".cs",".js",".ts",".jsx",".tsx",".py",".go",".rs",".java",".c",".h",".cpp",".hpp",".cc",
         ".json",".xml",".html",".htm",".md",".mdx",".sh",".bash",".zsh",".yml",".yaml",".sql",
         ".css",".scss",".rb",".php",".swift",".kt",".kts",".vue",".txt",".log",".csv",".ini",
         ".toml",".conf",".csproj",".sln",".tui",".env",".gitignore",
+        // VML 汇编源码也是**文本源码**：不加这一条它会被判成"未知"，
+        // 连编辑器都打不开（只能用外部应用），而它恰恰是最该能改的那种文件。
+        // `.vmb` 故意不加 —— 那是二进制，进编辑器只会是一屏乱码。
+        ".vml",
     };
     private static readonly HashSet<string> ImageExts = new(StringComparer.OrdinalIgnoreCase)
         { ".png",".jpg",".jpeg",".gif",".webp",".bmp",".svg",".ico" };
@@ -65,6 +103,35 @@ public static class SandboxFsService
 
         /// <summary>文件类型分类（源码/文本/图片/音频/视频/未知）。</summary>
         public FileCategory Category { get; set; } = FileCategory.Unknown;
+
+        /// <summary>在 VML 这条线上的角色（决定文件名配色与 VML 菜单项）。</summary>
+        public VmlRole Vml { get; set; } = VmlRole.None;
+
+        /// <summary>
+        /// 文件名的颜色 —— **只给 VML 这条线上的文件上色，其余一律用主文字色**：
+        /// **能编译的源文件 = 绿，`.vml` = 橙，`.vmb` = 红**。
+        ///
+        /// 「其余不变色」是刻意的：颜色只用来标记"这个能编 / 能跑"，满屏彩色反而看不出重点
+        /// （README.md、.json 这类虽然也是源码，但 VML 编不了，就不该抢眼）。
+        ///
+        /// 取值全在 <c>Colors.xaml</c>（亮/暗成对），这里只做「角色 → 资源名」的映射 ——
+        /// 颜色值不散落在 C# 里。深浅色在**建列表时**就定下来（列表每次进页面重建，
+        /// 系统换深浅色会导致 Activity 重建，颜色自然跟着变）。
+        /// </summary>
+        public Color NameColor
+        {
+            get
+            {
+                var dark = MauiUi.IsDark;
+                return Vml switch
+                {
+                    VmlRole.Compilable => MauiUi.Res(dark ? "VmlSourceNameDark" : "VmlSourceNameLight"),
+                    VmlRole.Assembly => MauiUi.Res(dark ? "VmlAsmNameDark" : "VmlAsmNameLight"),
+                    VmlRole.Binary => MauiUi.Res(dark ? "VmlBinNameDark" : "VmlBinNameLight"),
+                    _ => MauiUi.Res(dark ? "MainTextDark" : "MainTextLight"),
+                };
+            }
+        }
 
         public string Icon => IsDirectory ? "📁" : CategoryIcon(Category);
         public string DisplaySize => IsDirectory ? "" : FormatSize(Size);
@@ -121,6 +188,7 @@ public static class SandboxFsService
                 Size = fi.Length,
                 Modified = fi.LastWriteTime,
                 Category = DetectCategory(file),
+                Vml = DetectVmlRole(file),
             });
         }
 
@@ -212,6 +280,23 @@ public static class SandboxFsService
         File.Move(tmp, full, overwrite: true);
     }
 
+    /// <summary>
+    /// 原子写二进制（先写同目录 <c>.tmp</c> 再 rename 覆盖）—— 与 <see cref="WriteTextAtomic"/> 同一口径。
+    ///
+    /// 为什么二进制也要原子：VML 的 <c>.vmb</c> 是"能直接装载执行"的东西，
+    /// 半截文件不会报"文件损坏"，而是装进去跑出乱七八糟的结果 —— 比文本更难查。
+    /// </summary>
+    public static void WriteBytesAtomic(string relPath, byte[] content)
+    {
+        var full = ResolveInSandbox(relPath) ?? throw new InvalidOperationException($"路径越界：{relPath}");
+        var parent = Path.GetDirectoryName(full);
+        if (!string.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
+
+        var tmp = full + ".tmp";
+        File.WriteAllBytes(tmp, content);
+        File.Move(tmp, full, overwrite: true);
+    }
+
     public static void WriteText(string relPath, string content, Encoding? encoding = null)
     {
         var full = ResolveInSandbox(relPath) ?? throw new InvalidOperationException($"路径越界：{relPath}");
@@ -249,6 +334,34 @@ public static class SandboxFsService
         await using var dst = File.Create(target);
         await src.CopyToAsync(dst);
         return file.FileName;
+    }
+
+    /// <summary>
+    /// **显示用**缩写：沙箱根（工作区）内的绝对路径 → <c>~/…</c>。
+    ///
+    /// 手机上的完整路径是 `/storage/emulated/0/waycoder/workspace/examples/gomoku.c` ——
+    /// 命令行页一行根本放不下，换行之后更是看不出重点。缩成 `~/examples/gomoku.c`，
+    /// 一眼就知道是哪个文件、在哪一层。
+    ///
+    /// 认不出来（在根外）就**原样返回** —— 显示宁可长，也不能把路径显示错。
+    /// 复用 <see cref="ToRelative"/>：相对路径怎么算只有那一份实现。
+    /// </summary>
+    public static string Abbreviate(string fullPath)
+    {
+        try
+        {
+            var root = Path.GetFullPath(Root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (string.Equals(Path.GetFullPath(fullPath).TrimEnd(Path.DirectorySeparatorChar), root,
+                    StringComparison.OrdinalIgnoreCase))
+                return "~";   // 就是工作区根本身（ToRelative 对它是 null，得单独兜）
+
+            var rel = ToRelative(fullPath);
+            return rel == null ? fullPath : "~/" + rel.Replace('\\', '/');
+        }
+        catch
+        {
+            return fullPath;   // 路径畸形就照原样显示，别在显示这条路上抛
+        }
     }
 
     /// <summary>计算某路径相对沙箱根的子路径（用于导航/面包屑）；越界返回 null。</summary>

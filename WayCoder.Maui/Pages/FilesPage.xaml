@@ -66,12 +66,16 @@
                             Text="{Binding Icon}"
                             FontSize="20"
                             VerticalOptions="Center" />
+                        <!-- 文件名配色按「在 VML 这条线上是什么角色」分档（红/黄/绿），
+                             取值与判据都在 SandboxFsService.FsEntry.NameColor / DetectVmlRole，
+                             这里只负责绑上去，不在这里写颜色。 -->
                         <Label
                             Grid.Column="1"
                             Text="{Binding Name}"
                             FontSize="14"
                             VerticalOptions="Center"
-                            LineBreakMode="TailTruncation" />
+                            LineBreakMode="TailTruncation"
+                            TextColor="{Binding NameColor}" />
                         <VerticalStackLayout Grid.Column="2" HorizontalOptions="End" Spacing="0">
                             <Label
                                 Text="{Binding DisplaySize}"

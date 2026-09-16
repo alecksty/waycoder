@@ -101,11 +101,15 @@ public partial class DrawWindowPage : ContentPage
 
     private readonly SceneCanvas _canvas = new();
 
-    /// <summary>由宿主在打开窗口时注入场景。</summary>
+    /// <summary>
+    /// 由宿主在打开窗口时注入场景。
+    ///
+    /// ⚠ 标题**只写 <see cref="Page.Title"/> 这一处**（= Shell 标题栏）。页面里原来还有一个
+    /// 自绘的 HeaderLabel 写同一句话，屏幕上就是上下两个一模一样的标题 —— 已删。
+    /// </summary>
     internal void Attach(VmlScene scene)
     {
         _scene = scene;
-        HeaderLabel.Text = scene.Title;
         Title = scene.Title;
         _renderedVersion = -1;
         // **首帧同步渲染**：异步那条路要等 40ms 的定时器，而实测「窗口一闪而过、什么也没看到」
@@ -322,6 +326,23 @@ public partial class DrawWindowPage : ContentPage
     private void OnStart(object? sender, EventArgs e) => PostKey(VmlKeys.Start);
     // SELECT 与 PAUSE 都映射到「SELECT 键」，中间区只留两个键（手柄上也就是这两个）
     private void OnSelect(object? sender, EventArgs e) => PostKey(VmlKeys.Select);
+
+    /// <summary>
+    /// 收起 / 展开手柄区（折叠条中间那个箭头）。
+    ///
+    /// 隐藏整块而不是去改行高：那一行是 `Auto`，`IsVisible=false` 之后自然塌成 0，
+    /// 画布（`*`）立刻吃掉腾出来的空间 —— 一个高度都不用自己算。
+    ///
+    /// ⚠ 画布高度变了，但 VML 程序**在开窗那一刻**就问过 `SCREEN_W/H` 并按它排好版了，
+    /// 之后它并不知道窗口变了（协议里没有"尺寸变化"这条消息）。所以折叠适合
+    /// 「先收起来再看」或「这个程序本来就不用手柄」，别指望跑着的游戏会跟着重排。
+    /// </summary>
+    private void OnTogglePad(object? sender, EventArgs e)
+    {
+        var collapse = PadArea.IsVisible;
+        PadArea.IsVisible = !collapse;
+        PadToggleBtn.Text = collapse ? "▼ 展开手柄" : "▲ 收起手柄";
+    }
 
     private static void PostKey(int code)
     {

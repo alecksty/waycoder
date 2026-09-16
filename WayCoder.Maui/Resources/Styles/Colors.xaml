@@ -71,6 +71,22 @@
     <Color x:Key="MainTextLight">#111111</Color>
     <Color x:Key="MainTextDark">#EEEEEE</Color>
 
+    <!-- ═══ 文件页的文件名配色（只在 VML 这条线上的文件才上色，其余用主文字色）═══
+         一眼分清"这个文件在 VML 这条线上是什么"：
+           · 能被 VML 前端编译的源文件（.c/.py/.rs…）→ 绿
+           · .vml（汇编源码）                        → 橙
+           · .vmb（字节码，编译产物）                → 红
+         一般文件（含 README.md / .json 这类**不是 VML 源**的源码）**一律不变色** ——
+         满屏彩色反而看不出重点，颜色只用来标记"这个能编/能跑"。
+         三档都取低饱和的暗色（亮色模式）/ 提亮过的（暗色模式）—— 深色底上纯红纯绿会刺眼，
+         浅色底上亮色会看不清。 -->
+    <Color x:Key="VmlSourceNameLight">#1B7F3B</Color>
+    <Color x:Key="VmlSourceNameDark">#5FD07F</Color>
+    <Color x:Key="VmlAsmNameLight">#C25E00</Color>
+    <Color x:Key="VmlAsmNameDark">#FFA657</Color>
+    <Color x:Key="VmlBinNameLight">#C62828</Color>
+    <Color x:Key="VmlBinNameDark">#FF7B72</Color>
+
     <!-- ═══ 按钮（中性表面，随主题走 —— 不再用品牌蓝）═══
          用户要求：系统风格统一 —— 暗色模式近黑底 + 白字，亮色模式近白底 + 黑字。
          此前的按钮是 Primary 蓝底，在系统深/浅色下都显得突兀（"和系统风格不搭"）。

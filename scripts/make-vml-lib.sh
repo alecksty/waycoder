@@ -24,8 +24,11 @@
 #
 # ⚠ `vmltool.config.xml` 必须打进去，少它整个链接阶段会被跳过（见 MauiVml 注释）。
 #
-# ⚠ 改完这个 zip 不用去改 `MauiVml.LibVersion` —— 那边用 zip 的**内容指纹**
-#    判断要不要重新解压（改了文件指纹自然变）。`LibVersion` 只是给人看的。
+# ⚠ 改完这个 zip 不用去改 `MauiVml.LibVersion` —— 那边用**内容指纹**判断要不要重新解压
+#    （改了文件指纹自然变，不改就不解压）。`LibVersion` 只是写进标记给人看的。
+#    指纹落在随包的 `Resources/Raw/vml_lib.hash` 里，由本脚本末尾算出（算法见那段注释）。
+#    **app 侧的解压位置是 App 私有目录（`AppDataDirectory/vml`）**，与 `Global.Home` 无关 ——
+#    那个位置会随「所有文件访问」权限跳，标记跟着跳就等于每次授权都白解压一遍。
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -88,6 +91,36 @@ PY
 fi
 
 mv -f "$TMP" "$OUT"
+
+# ── 随包的**内容指纹**（`vml_lib.hash`）────────────────────────────────────
+#
+# 解压判据用它。为什么不是直接哈希 zip：zip 里带着**文件时间戳**，同一份内容重新打一次包
+# 字节就不一样（本脚本虽然尽量固定时间戳，但 `zip -X` 只管得住扩展属性那部分），
+# 于是"内容没变却白解压 39 MB"。
+#
+# 所以这份指纹按「条目名 + 长度 + 内容」算，**完全不看时间戳** ⇒ 内容一样指纹就一样。
+# 读回来的成本也从 6 MB 降到几十字节（应用每次启动都会读一次）。
+#
+# ⚠ 消费方是 `MauiVml.LibFingerprint()`，只有那一处。改这里的算法必须同步改那边，
+#    否则老包会反复解压（那边读不到/读不出就退回哈希整个 zip，不会崩，只是慢）。
+HASH_OUT="$ROOT/WayCoder.Maui/Resources/Raw/vml_lib.hash"
+python - "$OUT" "$HASH_OUT" <<'PY'
+import sys, zipfile, hashlib
+zip_path, out = sys.argv[1], sys.argv[2]
+h = hashlib.sha256()
+with zipfile.ZipFile(zip_path) as z:
+    for name in sorted(z.namelist()):
+        if name.endswith('/'):
+            continue
+        data = z.read(name)
+        h.update(name.encode('utf-8')); h.update(b'\0')
+        h.update(str(len(data)).encode()); h.update(b'\0')
+        h.update(data)
+digest = h.hexdigest()
+with open(out, "w", encoding="utf-8", newline="\n") as f:
+    f.write(digest)
+print("  指纹:", digest)
+PY
 
 echo "✔ $OUT"
 ls -la "$OUT" | awk '{print "  大小: " $5 " 字节"}'

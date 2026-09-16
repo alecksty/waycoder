@@ -32,7 +32,8 @@ public class VmlTool : ITool
         "汇编并运行一段 VML 程序，返回它的输出。VML 是本机内置的虚拟机汇编语言" +
         "（VMLToolchain 工具链：22 种高级语言 → VML 汇编 → 虚拟机执行）。" +
         "用来**验证一段 VML 汇编能否跑通**、看它的实际输出。" +
-        "参数二选一：source 直接给源码，或 file_path 给一个 .vml 文件路径。";
+        "参数二选一：source 直接给源码，或 file_path 给一个文件路径" +
+        "（按扩展名派发：.vml 汇编、.vmb 装载字节码、其余 22 种语言编译）。";
 
     public JNode Parameters => JNode.Object()
         .Set("type", "object")
@@ -42,7 +43,7 @@ public class VmlTool : ITool
                 .Set("description", "VML 汇编源码"))
             .Set("file_path", JNode.Object()
                 .Set("type", "string")
-                .Set("description", "要运行的 .vml 文件路径（与 source 二选一）"))
+                .Set("description", "要运行的 .vml / .vmb 文件路径，或 .c/.py/.rs 等源文件（与 source 二选一）"))
             .Set("timeout", JNode.Object()
                 .Set("type", "integer")
                 .Set("description", "超时秒数，默认 10，范围 1~60"))

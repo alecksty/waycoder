@@ -1,5 +1,107 @@
 # 更新日志
 
+## v0.96.171 (2026-09-16) — 手机端文件页接上 VML：编译/运行两个入口 + 文件名分色；命令行页状态可辨；VML 窗口去重标题、手柄可收起
+
+用户的方向是「**在文件管理界面直接操作**，比在命令行页敲命令简单好用多了」—— 这一版把 VML
+这条链整个搬到文件页的菜单上，执行过程与结果仍落在命令行页（那里本来就有交互输入、回滚缓冲、
+可中断的运行）。**全程真机验证**（Xiaomi 13，逐项截图 + 逐像素量色）。
+
+### 文件页
+
+- **文件名按「在 VML 这条线上是什么」分色**：能编译的源文件（`.c`/`.py`/`.rs`…）**绿**、
+  `.vml` **橙**、`.vmb` **红**；**其余文件（含 README.md 这类 VML 编不了的源码）一律不变色** ——
+  颜色只用来标记"这个能编 / 能跑"，满屏彩色反而看不出重点。
+  「能编译的扩展名」直接问上游那 22 个编译器的注册表（`GetAllFrontendCompilers().SupportedExtensions`），
+  **不另列一张表**（上游加一门语言这里自动跟上）。判据收在 `SandboxFsService.DetectVmlRole`
+  （四档 `None/Compilable/Assembly/Binary`），配色值在 `Colors.xaml`（亮/暗成对）。
+- **菜单按角色给入口**：源文件 →「VML 编译」（产出 `main.vml`）+「VML 运行」；`.vml` →
+  「VML 编译」（产出 `main.vmb`）+「VML 运行」；`.vmb` → 只有「VML 运行」（已是终态）。
+  产物名走唯一那份规则 `MauiVml.NextArtifact`，与上游 CLI 的默认产物同名同形
+  （`vmltool main.c` 写的就是 `main.vml`）。
+- **同名产物已存在时问「覆盖 / 重命名 / 取消」三选** —— 不是「确定要覆盖吗」两选：产物正好是
+  用户可以手改的文件，静默覆盖不可逆；只给两选则想保旧产物的人只能退出去改名再回来。
+
+### 命令行页
+
+- **运行时报错要看得见**：VML 运行时的报错（`内存错误(PC=…)`/`标签错误`/`未预期崩溃` + 16 个寄存器
+  dump）全部走 `Console.Error`、`Permission denied: syscall N` 与 `VM execution cancelled` 走
+  `Console.Out`，而手机上那是**一个看不见的流** —— 这正是"程序明明崩了、用户只看到没有输出"的根因。
+  现在运行期间把两个流接到内存里并进返回值（`Console.SetOut/SetError` 是进程级的，用静态锁串行化；
+  收进来的内容**并进输出**而不是丢掉）。真机验过：`标签错误…未找到标签: ocv_init_done` + 寄存器 dump
+  完整显示在输出区。
+- **运行中不许直接离开**：按返回先问「是否强制停止？」——「继续运行」就留在本页；「强制停止」走
+  `VmRuntime.Run(ct)`（主循环**每条指令**查一次 token，实测死循环 207ms 内停住），等这次运行
+  **彻底收干净**再重发一次返回。只拦 VML 运行：普通 shell 命令没有中断入口，弹一个停不掉的
+  "强制停止"是骗人。
+- **静默等待有状态了**：解压标准库（39 MB / 5200+ 个文件）与前端编译各要好几秒、屏幕上一个字不变，
+  和卡死没区别 ⇒ `MauiVml.OnProgress` 钩子打出「⏳ 正在解压 VML 标准库…」「⏳ 正在编译 xxx.c…」
+  与完成提示。钩子只在本页发起的运行期间装着，聊天那边跑 VML 不会往这页冒提示。
+- **「运行中 / 已结束」的边界**（用户报"摸不着头脑"）：加了 `路径>` 提示符 —— 起点写一行
+  `~/examples> vml run gomoku.c`，终点再写一行空的 `~/examples>` 表示"等下一个命令"；
+  运行中输入框前面那一格显示 `⋯`。三个入口（手敲、文件页运行、文件页编译）共用
+  `RunWithPromptAsync` 一个外壳，免得谁漏掉收尾提示符。
+- **路径缩写成 `~/…`**（工作区根 = `~`）：`SandboxFsService.Abbreviate`，
+  手机上的 `/storage/emulated/0/waycoder/workspace/examples/gomoku.c` 缩成 `~/examples/gomoku.c`；
+  顶栏那行 `cwd:` 去掉（和提示符说同一件事）。
+
+### VML 窗口
+
+- **去掉重复标题**：Shell 标题栏已经显示了 `scene.Title`，页面里那个自绘 HeaderLabel 写着同一句话，
+  屏幕上就是上下两个一模一样的标题 —— 删掉页面里那个，标题只留 `Page.Title` 一处。
+- **手柄区可收起**：画布与手柄之间加一条折叠条（左右细线 + 中间「▲ 收起手柄」），点一下整块隐藏，
+  画布立刻多出那约 150dp（隐藏 `Auto` 行自然塌成 0）。箭头旁带一句话说明，免得"▲ 是收起还是展开"
+  要靠点一次才知道。
+
+### 内置标准库（Lib）：不再白解压
+
+- **解压位置从 `Global.Home/vml` 改到 App 私有目录（`AppDataDirectory/vml`）**。`Global.Home` 在
+  Android 上会随「所有文件访问」权限在**私有目录 ↔ `sdcard/waycoder/config` 之间跳**，而标记文件
+  跟着 Home 走 ⇒ 在系统设置里授权/撤销一次，新位置没有标记，**39 MB / 5245 个文件白解压一遍**。
+  App 私有目录不随任何权限变化。老位置里已有一份且内容对得上的用户**就地接着用**，不为搬家白解压。
+  顺带对齐了本仓库自己的移动端铁律第 3 条（路径一律走 `FileSystem.Current.AppDataDirectory`）。
+- **判据从「哈希整个 6 MB zip」换成随包的 `vml_lib.hash`**（`scripts/make-vml-lib.sh` 生成）：
+  读几十字节而不是 6 MB；而且它按「条目名 + 长度 + 内容」算、**不看时间戳**，所以"同样的内容重新
+  打个包"指纹不变、不会白解压。哈希缺失时退回原行为，不会更糟。
+
+### 真机上挖出来的两个坑（这才是这一轮的主要产出）
+
+**① `Shell.Current.GoToAsync("//shell")` 在真机上直接抛 `ArgumentOutOfRangeException`** ——
+用户看到的是点「VML 运行」/「VML 编译」弹「无法打开命令行页」。原因：Shell 的绝对路由串要一路穿过
+`TabBar → Tab → ShellContent` 三层，而 `AppShell.xaml` 里那几个 `<Tab>` **没有显式 `Route`**
+（MAUI 自动生成的），`//<ShellContent 的 Route>` 这种写法在这里解析不到 —— 报的还不是"路由不存在"，
+是路由解析器内部越界，**光看错误信息根本猜不到**。改成**直接指定 Shell 的当前项**
+（`ShellPage.SwitchToShellTab`：找到 `Route == "shell"` 的 ShellContent，把三层依次设为当前）——
+这就是点 Tab 时系统做的事，不经过任何路由字符串。修完真机验证：文件页点「VML 运行」直接切到命令行页
+并开始跑。
+
+**② `async void` 里的异常会被静默吞掉**。`OnSelectionChanged` 是 `async void`（事件签名定死），
+里面任何一处抛出都是进程级未处理异常；而 MAUI 在几条路径上还会先吞掉，现场只剩应用自己
+`FirstChance` 日志里一行 `ArgumentOutOfRangeException` —— **连是哪一步炸的都看不出来**。
+现在整个处理器兜住并把**堆栈**落进错误日志（`sdcard/waycoder/config/logs/`，adb 直接可读），
+还给用户一句人话。同理，文件页递过来的作业是 `Dispatcher.Dispatch(() => _ = RunPendingVmlJobAsync(job))`
+起的，那个 `_ = ` 把 Task 丢掉了 —— 一个例子编译时抛 `未找到标签: asm` 就变成"未观察的任务异常"，
+屏幕上什么都没有；现在由 `RunWithPromptAsync` 统一兜住并打印。
+
+### 顺带查清的三件事（都记进 CLAUDE.md 了）
+
+1. **`prog.ToString()` 的产物能不能独立跑**：能 —— 但**必须"编完就存、不先跑"**。同一个 `VmlProgram`
+   先 `Run` 过再 `ToString`，产物再汇编出来**不等价**（实测一个打印 3 行的程序变成只输出一个换行）。
+   产品里 `CompileToVml` 与 `CompileAndRun` 各建各的程序，天然是对的；这条规矩钉在
+   `.scratch/vmlround` 里，免得将来有人图省事把两条路合成"编一次、又能跑又能存"。
+2. **上游 VMB 编码器不认 `long`**（`Unsupported data type: System.Int64`）—— 而 64 位常量在
+   C 标准库里到处都是（hello 级程序的数据段 160 项里 7 项是 Int64）。宿主侧按位换成 `double` 绕开
+   （编码/解码/装载三处全是 8 字节搬运，位模式不变），**没有动 `third_party/vml`**。
+3. ⚠ **`.vml → .vmb` 这条链上游还断着**：手写的小汇编 `.vml` 编成 `.vmb` 装载运行**输出逐字符一致**；
+   但编译器产物（35k 条指令那种）写出的 `.vmb` **自己读不回来**（`InvalidDataException: Unknown
+   operand type tag: 0x00`，在**代码段**的 operand 编码上，与上面那个数据段的缺口无关）。
+   这条得在上游 VML 仓库补，宿主侧绕不过去。
+
+### 验证
+
+Android 构建 0 错误；桌面自测 **5778 通过 / 0 失败**；真机逐项验过：配色（逐像素量色）、
+文件页 →「VML 运行」切页并开跑、`tetris.c`/`gomoku.c` 编译后弹出游戏窗口、运行时报错与
+解压/编译状态提示、强制停止、`~>` 提示符与收尾提示符。
+
 ## v0.96.170 (2026-09-15) — **C 版俄罗斯方块**；修掉它顶出来的三个 bug；示例打包两处修复
 
 用户决定"先用 C 实现，以后再去修 BASIC"，于是 `Examples/c/tetris.c`：10×20 棋盘、7 种方块、
