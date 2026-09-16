@@ -80,8 +80,37 @@ func count5() -> Int { var i = 0; var s = 0
 `A[f(i)]`（**下标位置里调函数**）编出来不对：贪吃蛇蛇身用 `A[segx(k)]` 时 0 像素、
 食物用常量下标 `A[4]` 正常。示例里已把下标算术内联（`A[16 + k*2]`）绕开。
 
+
+## 四、读数组元素读回的是**字节偏移**（不是元素值）
+
+`GenerateIndexAccess` 最后一句是 `MOVE [Mem("R1")], R0` —— 而 `MOVE dest, src` 的 dest 在前，
+那是"把 R0 **存**进 R1 指向的地址"，可 R0 此刻装的正是**字节偏移** ⇒ **读数组读回来的是偏移**。
+
+实测（解 PNG **逐像素量宽度**）：
+
+| 写法 | 读到 | 画出来 | 期望 |
+|---|---|---|---|
+| `A[2]`（常量下标）| 12 = 2*4+4 | 96 像素 | 24 |
+| `A[i]`（变量下标）| 12 | 96 | 24 |
+| `A[16+k*2]`（算术下标）| 92（被屏幕截断）| 385 | 32 |
+| `A[3]`（动态写后读）| 16 = 3*4+4 | 128 | 56 |
+
+三个数**全对得上偏移公式**，所以不是猜。**"地址当值"那一族** ——
+与 C# 的 LABEL/MEMORY、BASIC 的 `MOVE reg, R2` 是同一个毛病，这已经是本仓库第四次遇到。
+
+改成 `MOVE R0, [R1]`（取元素值）。修完**四项全对**：常量下标 / 变量下标 / 算术下标 /
+动态写后读 = 24 / 24 / 32 / 56 像素，与期望逐一吻合。
+
+## 还剩的（未定位）
+
+贪吃蛇现在能画出：窗口、棋盘、HUD、食物、**一节蛇身** —— 但应当是 3 节。
+而**同一份状态在 `main` 里量是对的**：`A[1] * 20 = 60` ⇒ len = 3 ✓、`A[14] / 10 = 39` ⇒ sw = 395 ✓
+（都是逐像素量的），说明**状态没写错，是 `draw()` 里那段循环没跑满**。
+
+⚠ 这一轮的诊断自己还栽过一次：量了**第一帧**（诊断画在第二次 `ui_present`，落在 `f001`），
+于是得出"三个诊断全 0"的假结论。**先确认量的是哪一帧，再下结论。**
 diff --git a/third_party/vml/VMLPrepares/SwiftCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/SwiftCompiler/CodeGenerator.cs
-index 8f283257..d4aaa7bb 100644
+index 8f283257..5e3c6b3d 100644
 --- a/third_party/vml/VMLPrepares/SwiftCompiler/CodeGenerator.cs
 +++ b/third_party/vml/VMLPrepares/SwiftCompiler/CodeGenerator.cs
 @@ -62,20 +62,25 @@ namespace SwiftCompiler
@@ -249,3 +278,17 @@ index 8f283257..d4aaa7bb 100644
              if (_localVarSize > 0)
                  instructions.Add(new Instruction(OpCode.SUB, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, _localVarSize + 8)]));
  
+@@ -1173,7 +1278,12 @@ namespace SwiftCompiler
+             EmitArrayElementOffset();
+             AddInstruction(OpCode.POP, [Reg(1)]);
+             AddInstruction(OpCode.ADD, [Reg(1), Reg(1), Reg(0)]);
+-            AddInstruction(OpCode.MOVE, [Mem("R1"), Reg(0)]);
++            // ⚠ **取元素值**：`MOVE dest, src` 的 dest 在前 —— 写成 `[Mem("R1"), Reg(0)]`
++            //    是"把 R0 **存**进 R1 指向的地址"，而 R0 此刻装的正是**字节偏移**
++            //    ⇒ 读数组读回来的是偏移（实测 A[2] 得 12 = 2*4+4、A[3] 得 16 = 3*4+4，
++            //    画出来是 96 / 128 像素宽，而期望是 24 / 56）。**地址当值**那一族，
++            //    与 C# 的 LABEL/MEMORY、BASIC 的 `MOVE reg, R2` 同一个毛病。
++            AddInstruction(OpCode.MOVE, [Reg(0), Mem("R1")]);
+         }
+ 
+         private void GenerateArrayLiteral(ArrayLiteralExpression arrayLiteral)

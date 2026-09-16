@@ -1278,7 +1278,12 @@ namespace SwiftCompiler
             EmitArrayElementOffset();
             AddInstruction(OpCode.POP, [Reg(1)]);
             AddInstruction(OpCode.ADD, [Reg(1), Reg(1), Reg(0)]);
-            AddInstruction(OpCode.MOVE, [Mem("R1"), Reg(0)]);
+            // ⚠ **取元素值**：`MOVE dest, src` 的 dest 在前 —— 写成 `[Mem("R1"), Reg(0)]`
+            //    是"把 R0 **存**进 R1 指向的地址"，而 R0 此刻装的正是**字节偏移**
+            //    ⇒ 读数组读回来的是偏移（实测 A[2] 得 12 = 2*4+4、A[3] 得 16 = 3*4+4，
+            //    画出来是 96 / 128 像素宽，而期望是 24 / 56）。**地址当值**那一族，
+            //    与 C# 的 LABEL/MEMORY、BASIC 的 `MOVE reg, R2` 同一个毛病。
+            AddInstruction(OpCode.MOVE, [Reg(0), Mem("R1")]);
         }
 
         private void GenerateArrayLiteral(ArrayLiteralExpression arrayLiteral)
