@@ -327,8 +327,10 @@ func step() -> Int {
     }
 
     // 敌机 × 本机 / 敌机出底
+    // ⚠ 这一圈必须走 foeSlots()：写成 4 的话，第 5、6 号槽的敌机**永远不被清、也永远不扣命**
+    //   —— 它们掉出屏幕后槽位一直占着，刷到第 3 架就再也没有敌机了（静默地"游戏自己停了"）。
     i = 0
-    while i < 4 {
+    while i < foeSlots() {
         if A[48 + i] != 0 {
             if overlap(A[0] - shipW() / 2, A[1] - shipH() / 2, shipW(), shipH(), A[40 + i], A[44 + i], foeW(), foeH()) != 0 {
                 gameOver()
