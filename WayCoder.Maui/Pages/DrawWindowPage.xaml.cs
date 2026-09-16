@@ -32,6 +32,17 @@ public partial class DrawWindowPage : ContentPage
     private int _lastSeenVersion = -1;
     private bool _rendering;
 
+    /// <summary>后台那半的分段耗时，随帧交到 UI 线程一起打点（`(DSL, 解析, 光栅+PNG, PNG 字节, 图元数)`）。</summary>
+    private (double DslMs, double ParseMs, double RasterMs, int PngBytes, int Figures)? _pendingStats;
+
+    /// <summary>每多少帧打一条分段耗时日志（0 = 关）。</summary>
+    internal static int StatsEvery = 30;
+    private int _statsFrames;
+
+    /// <summary>窗口**实际**出了多少帧 —— 分段耗时只说明"单帧多快"，这个说明"每秒真出几帧"。</summary>
+    private readonly System.Diagnostics.Stopwatch _statsWindow = System.Diagnostics.Stopwatch.StartNew();
+    private int _statsWindowFrames;
+
     /// <summary>当前按住不放的手柄键（0 = 没有）。只用于「滑到另一个键时补一条 KeyUp」。</summary>
     private int _padDownKey;
 
@@ -290,7 +301,21 @@ public partial class DrawWindowPage : ContentPage
 
         _rendering = true;
 
-        var dsl = scene.BuildDsl();
+        // ── 这一帧的文本从哪来：**present 那一刻当场拍的快照** ────────────────────
+        // 原来是"此刻现拍"（定时器醒来的那一刻 `BuildDsl()`），而 present 到定时器醒来
+        // 之间最多隔 40ms —— 期间 VM 早已开始画下一帧（先 `ui_clear()` 再重画），拍到的是
+        // **半成品**（实测日志里图元数 17/28/30/36/60 参差不齐就是这个）。
+        // 快照已在 `VmlScene.Present()` 里当场拍好，这里只取；老程序（没调 present）
+        // 才退到此刻现拍 —— 那条路上"这一拍内容没再变"已经保证程序不在画。
+        var swTotal = System.Diagnostics.Stopwatch.StartNew();
+        var dsl = scene.EverPresented ? scene.TakePresentedDsl() : scene.BuildDsl();
+        var dslMs = swTotal.Elapsed.TotalMilliseconds;
+        if (dsl == null)
+        {
+            // 同一帧的快照已被另一条路径取走（`FinishRender` 与定时器都会走到这里）
+            _rendering = false;
+            return;
+        }
 
         if (synchronous)
         {
@@ -305,8 +330,23 @@ public partial class DrawWindowPage : ContentPage
         {
             try
             {
-                var png = DrawRunner.ToPng(DrawRunner.Parse(dsl));
-                MainThread.BeginInvokeOnMainThread(() => ShowFrame(png, scene));
+                var swParse = System.Diagnostics.Stopwatch.StartNew();
+                var doc = DrawRunner.Parse(dsl);
+                var parseMs = swParse.Elapsed.TotalMilliseconds;
+                var swRaster = System.Diagnostics.Stopwatch.StartNew();
+                var png = DrawRunner.ToPng(doc);
+                var rasterMs = swRaster.Elapsed.TotalMilliseconds;
+
+                // 图元数**从这一帧的 DSL 里数**（= 真正被渲染的那一帧有多少图元）。
+                // ⚠ 别在 UI 回调里读 `scene.FigureCount`：那时后台已经过了一整趟光栅化
+                //   （几十毫秒），VM 早又画过好几轮，读出来的是**此刻**的场景而不是这一帧 ——
+                //   实测就是这样把"图元 5/37/34/29"打成一片参差，害我误判快照没修好。
+                var figures = dsl.Count(c => c == '\n') - 2;   // 去掉 canvas / antialias 两行
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    _pendingStats = (dslMs, parseMs, rasterMs, png.Length, figures);
+                    ShowFrame(png, scene);
+                });
             }
             catch (Exception ex)
             {
@@ -381,14 +421,61 @@ public partial class DrawWindowPage : ContentPage
             //   之后一律交给 `OnSizeAllocated` —— 那里才是"视口真的变了"的判据（带 0.5dp 容差）。
             if (CanvasView.WidthRequest <= 0) FitCanvas(scene);
 
+            // UI 线程这一半也要计时：PNG **解码** + 平台贴图，在真机上未必比后台那半便宜。
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             _canvas.SetFrame(Microsoft.Maui.Graphics.Platform.PlatformImage.FromStream(new MemoryStream(png)),
                 scene.Width, scene.Height);
+            var decodeMs = sw.Elapsed.TotalMilliseconds;
             CanvasView.Invalidate();
+            var blitMs = sw.Elapsed.TotalMilliseconds - decodeMs;
+
+            LogFrameStats(decodeMs, blitMs, png.Length);
         }
         catch (Exception ex)
         {
             ErrorLog.Error("VmlDraw", "帧贴图失败", ex);
         }
+    }
+
+    /// <summary>
+    /// 每 <see cref="StatsEvery"/> 帧往 logcat 打**一行分段耗时**（tag `WCVML`）。
+    ///
+    /// 为什么要它：真机上"卡"是个笼统的体感，而这一帧的代价分在**两半**上 ——
+    /// 后台线程的 `DSL 拼装 / 解析 / 光栅化+PNG 编码`，与 UI 线程的 `PNG 解码 / 贴图`。
+    /// 不分开量就不知道优化该往哪儿使劲（桌面基准只覆盖了后台那半）。
+    /// 频率压得很低（每 30 帧一条），对帧率的影响可以忽略；要临时静音把 <see cref="StatsEvery"/> 调大即可。
+    ///
+    /// 读法：`adb logcat -s WCVML`
+    /// </summary>
+    private void LogFrameStats(double decodeMs, double blitMs, int pngBytes)
+    {
+        if (StatsEvery <= 0) return;
+        var st = _pendingStats;
+        _pendingStats = null;
+        var windowFrames = ++_statsWindowFrames;
+        if (++_statsFrames % StatsEvery != 0) return;
+
+        // 窗口实际帧率（2 秒窗口）—— 与"单帧耗时"是两件事：单帧 10ms 也可能因为
+        // 出帧判据/定时器节拍只出 2 帧/秒（本仓在编辑器那边吃过一次"快的其实是没人要"）。
+        var elapsed = _statsWindow.Elapsed.TotalMilliseconds;
+        _statsWindow.Restart();
+        _statsWindowFrames = 0;
+        var realFps = elapsed > 0 ? windowFrames * 1000.0 / elapsed : 0;
+
+        var uiMs = decodeMs + blitMs;
+        var bgMs = st?.DslMs + st?.ParseMs + st?.RasterMs ?? 0;
+        var msg = $"每帧：DSL {st?.DslMs ?? 0:F1} / 解析 {st?.ParseMs ?? 0:F1} / 光栅+PNG {st?.RasterMs ?? 0:F1} " +
+                  $"= 后台 {bgMs:F1}ms｜解码 {decodeMs:F1} / 贴图 {blitMs:F1} = UI {uiMs:F1}ms" +
+                  $"｜图元 {st?.Figures ?? 0}｜PNG {pngBytes / 1024}KB｜合计 {bgMs + uiMs:F0}ms" +
+                  $"｜**实际 {realFps:F1} fps**（{windowFrames} 帧 / {elapsed:F0}ms）";
+
+        // ⚠ 平台守卫：`Android.Util.Log` 在 iOS 上不存在 —— 本页是两端共编的，
+        //   少一处守卫就多一次「只在某个平台编译不过」（本仓在编辑器探针上踩过一轮）。
+#if ANDROID
+        Android.Util.Log.Info("WCVML", msg);
+#else
+        System.Diagnostics.Debug.WriteLine("[WCVML] " + msg);
+#endif
     }
 
     /// <summary>

@@ -523,8 +523,25 @@ public sealed class VmlScene
     /// <summary>一帧画完了（VML `ui_present()`）。</summary>
     public void Present()
     {
+        // **当场把这一帧拍下来**（v0.96.178）：宿主收到 present 之后，未必立刻渲染 ——
+        // 页面是"定时器醒来才发现有 present"（最多隔 40ms），而这段时间里程序早已开始
+        // 画下一帧（先 `ui_clear()` 再重画）。若等到那时才 `BuildDsl()`，拍到的是**半成品**：
+        // 真机实测日志里图元数 17/28/30/36/60 参差不齐，就是这个竞态。
+        // 在 present 这一刻拍，拍到的必然是程序刚画完的那一帧；之后隔多久渲染都不影响。
+        PresentedDsl = BuildDsl();
         PresentVersion++;
         Version++;
+    }
+
+    /// <summary>最近一次 `ui_present()` 时**当场拍下**的那一帧（DSL 文本）。</summary>
+    public string? PresentedDsl { get; private set; }
+
+    /// <summary>取走那一帧快照（取走即清 —— 同一帧只该被渲染一次）。</summary>
+    public string? TakePresentedDsl()
+    {
+        var d = PresentedDsl;
+        PresentedDsl = null;
+        return d;
     }
 
     /// <summary>清屏：清空图元并置背景色。</summary>
