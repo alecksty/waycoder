@@ -843,6 +843,49 @@ namespace SwiftCompiler
             }
         }
         
+        /// <summary>
+        /// 递归收集函数体里的局部变量声明，在栈帧上给它们留位子（名字 → 负偏移）。
+        /// 不递归进嵌套函数（那有它自己的帧）。
+        /// </summary>
+        private void ReserveLocals(Statement stmt)
+        {
+            switch (stmt)
+            {
+                case null:
+                    return;
+                case VariableDeclStatement vd:
+                    if (!_localVarOffsets.ContainsKey(vd.Name))
+                    {
+                        _localVarSize += 4;
+                        _localVarOffsets[vd.Name] = -_localVarSize;
+                    }
+                    return;
+                case Block blk:
+                    foreach (var s in blk.Statements) ReserveLocals(s);
+                    return;
+                case IfStatement iff:
+                    ReserveLocals(iff.ThenBranch);
+                    ReserveLocals(iff.ElseBranch);
+                    return;
+                case WhileStatement wh:
+                    ReserveLocals(wh.Body);
+                    return;
+                case ForStatement fr:
+                    ReserveLocals(fr.Initializer);
+                    ReserveLocals(fr.Body);
+                    return;
+                case DoWhileStatement dw:
+                    ReserveLocals(dw.Body);
+                    return;
+                case SwitchStatement sw:
+                    foreach (var c in sw.Cases)
+                        foreach (var s in c.Body) ReserveLocals(s);
+                    return;
+                default:
+                    return;   // 嵌套函数有自己的帧，不进来
+            }
+        }
+
         private void GenerateVariableDecl(VariableDeclStatement varDecl)
         {
             // 记录变量类型
@@ -856,12 +899,21 @@ namespace SwiftCompiler
                 // 将初始化值转换到目标变量类型 (Int/Float/Double/Int64 全转换)
                 EmitConvertTo(varType, varDecl.Initializer);
 
+                var storeOp = GetStoreInstruction(varType);
+                // **栈帧上的局部变量优先**（前导里已经预扫描留好位子）——
+                // 只有这样不同函数的同名局部才互不干扰。查不到才回退数据段：
+                // 那种情况是**模块级**声明（`var A = [...]` 之类），本来就该是全局。
+                if (_localVarOffsets.TryGetValue(varDecl.Name, out int lofs))
+                {
+                    instructions.Add(new Instruction(storeOp,
+                        [new Operand(OperandType.MEMORY, $"R14{lofs}"), new Operand(OperandType.REGISTER, 0)]));
+                    return;
+                }
+
                 // 在数据段中分配变量空间 (Int64 需要 8 字节)
                 string label = $"var_{varDecl.Name}";
                 dataSection[label] = varType == SwiftType.Int64 ? 0L : 0;
 
-                // 使用类型正确的存储指令
-                var storeOp = GetStoreInstruction(varType);
                 // 统一 store: dest-first 顺序 (MEMORY first for store)
                 instructions.Add(new Instruction(storeOp, [new Operand(OperandType.MEMORY, label), new Operand(OperandType.REGISTER, 0)]));
             }
@@ -950,6 +1002,16 @@ namespace SwiftCompiler
                     instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R14-{_localVarSize}"), new Operand(OperandType.REGISTER, 0)]));
                 }
             }
+            // ⚠ v0.96.187 新增：**预扫描函数体里的局部变量声明**，在栈帧上给它们留位子。
+            //   原来这里只给参数留位，而 `GenerateVariableDecl` 是**无条件写数据段**的
+            //   ⇒ 局部变量全变成"全局"，**不同函数的同名局部互相踩**（读的地方先查
+            //   `_localVarOffsets` 查不到、于是也走数据段，两边一致地错）。
+            //   实测症状：`func count5() -> Int { var i = 0; var s = 0; while i < 5 {…} return s }`
+            //   返回 **3** 而不是 5；数据段里能看到 `var_i` / `var_k` / `var_tries` 这些本该在栈上的东西。
+            //   游戏里 `draw` / `step` / `occupied` 三处都有 `var_i` ⇒ 画面立刻烂。
+            if (funcDecl.Body != null)
+                ReserveLocals(funcDecl.Body);
+
             if (_localVarSize > 0)
                 instructions.Add(new Instruction(OpCode.SUB, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, _localVarSize + 8)]));
 

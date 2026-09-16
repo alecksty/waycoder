@@ -1,0 +1,251 @@
+# 0011：Swift 前端两处（顶层死代码 + 函数局部变量漏进全局）
+
+> 两条**同属一个 CodeGenerator.cs 文件**，就合成一条补丁（同文件按 hunk 拆反而拆坏过一次：
+> 12 条补丁都能打上、重建出来却不一致）。Swift 本来的三处问题，改完这两条 + 一条写法绕开。
+
+## 一、定义了 `func main()` 时，顶层那段（含全局数组初始化）成了死代码
+
+## 现象
+
+```swift
+var A = [0, 0, 0, 0, 0, 0, 0, 0]
+func writer() { A[1] = 3 }
+func reader() -> Int { return A[1] }
+func main() { writer(); var v = reader(); ui_rect(10, 40, v * 4, 19, -11409298, 1, 0, 0); ... }
+```
+
+`reader()` 读回来**不是 3**（实测循环画了 8 个而不是 3）。
+
+## 根因
+
+生成的程序头 `.entry main`，而 `main` 那段本来是"**顶层语句**"：
+
+```
+.text
+        move R0 arr_data_0      ← 全局数组指针的初始化
+        move [var_A] R0
+        move R0 [var_A]
+        syscall #3              ← 紧跟着就退出
+writer:  …
+main:    …                     ← 而入口在这里
+```
+
+`Generate()` 的设计是"**没有 `func main` 时**，入口就是顶层那段"；可一旦程序自己定义了 `main`，
+顶层那段**永远不会被执行** —— 恰恰全局变量/全局数组的初始化就在那段里（`var A = [...]`
+生成的是"把数组基址存进 var_A"）⇒ `var_A` 恒为 0 ⇒ 所有 `A[i]` 读写都落在地址 4/8/… 那片
+**低内存**上。同一个函数内读写偏移一致所以"看着正常"，跨函数就露馅。
+
+## 改法（不搬指令，只挪标签）
+
+入口仍旧指回顶层块：块首补一个 `main` 标签，块尾那条 EXIT 前面插一句
+`call __user_main`，于是执行顺序变成「全局初始化 → 用户 main → 退出」。
+
+⚠ **一处容易只修一半的地方**：序列化器认的是**指令流里的 LABEL 伪指令**，不是编译器那张
+`labels` 表 —— 只改表的话，函数身上那个 `main` 标签还在流里，入口照样指向函数（第一版就是
+这么白改了一次，出图一看才发现）。所以指令流里的 LABEL 也要改名。
+
+## 还没修（同一个前端、另一处，别当成已修）
+
+**函数里的局部变量是坏的**：`func count5() -> Int { var i = 0; var s = 0; while i < 5 {…}; return s }`
+实测返回 **3** 而不是 5。数据段里能看到 `var_i` / `var_k` / `var_tries` / `var_c` / `var_r`
+这些**函数局部** —— 说明局部变量漏进了全局数据段，不同函数的同名局部**互相踩**
+（游戏里 `draw` / `step` / `occupied` 三处都有 `var_i` ⇒ 画面立刻烂）。
+**这一条不修，Swift 写不了游戏**（循环里用局部变量是最基本的写法）。
+
+
+
+
+## 三、函数里的局部变量漏进全局数据段
+
+```swift
+func count5() -> Int { var i = 0; var s = 0
+                       while i < 5 { s = s + 1; i = i + 1 }
+                       return s }        // 实测返回 3，而不是 5
+```
+
+两条都不对：序言**只给参数**在栈帧上留位子、函数体的局部变量一个不留；而 `GenerateVariableDecl`
+**无条件写数据段**（读的几处虽先查 `_localVarOffsets`，但那儿根本没有局部变量的名字）
+⇒ 所有局部变量都成了"全局"，**不同函数的同名局部互相踩**（游戏里 `draw`/`step`/`occupied`
+三处都有 `var_i`，画面立刻烂）。
+
+改法：序言里递归预扫描函数体（block / if / while / for / do-while / switch）给每个局部留 4 字节
+（`ReserveLocals`，不进嵌套函数）；`GenerateVariableDecl` **栈帧优先**、查不到才回退数据段。
+
+验证：`count5()` 的序言变成 `sub R13 #16`、`i`/`s` 落在 `[R14-4]`/`[R14-8]`；
+复现用例的方块宽度**解 PNG 逐像素量**得 40 = 5×8 ✓（此前 24 = 3×8）。
+⚠ 这条的验证走过一次弯路：先**用眼睛估**宽度、估成 24 以为没修好 —— **宽度这类东西不该靠眼睛**。
+
+## 还没修（第三条，只定位到形态）
+
+`A[f(i)]`（**下标位置里调函数**）编出来不对：贪吃蛇蛇身用 `A[segx(k)]` 时 0 像素、
+食物用常量下标 `A[4]` 正常。示例里已把下标算术内联（`A[16 + k*2]`）绕开。
+
+diff --git a/third_party/vml/VMLPrepares/SwiftCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/SwiftCompiler/CodeGenerator.cs
+index 8f283257..d4aaa7bb 100644
+--- a/third_party/vml/VMLPrepares/SwiftCompiler/CodeGenerator.cs
++++ b/third_party/vml/VMLPrepares/SwiftCompiler/CodeGenerator.cs
+@@ -62,20 +62,25 @@ namespace SwiftCompiler
+             _program = program;
+             // 先处理非函数定义的语句，记录程序入口
+             int mainEntry = instructions.Count;
++            bool hasTopLevel = false;
+             foreach (var statement in program.Statements)
+                 if (!(statement is FunctionDeclStatement))
++                {
+                     GenerateStatement(statement);
+-            
++                    hasTopLevel = true;
++                }
++
+             string[] varDataKeys = dataSection.Keys.Where(k => k.StartsWith("var_")).ToArray();
+             if (varDataKeys.Length > 0)
+                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, varDataKeys[0]) }));
++            int exitIndex = instructions.Count;
+             EmitExit();
+-            
++
+             // 后处理函数定义
+             foreach (var statement in program.Statements)
+                 if (statement is FunctionDeclStatement funcDecl)
+                     GenerateFunctionDecl(funcDecl);
+-            
++
+             // 如果没有main标签，添加默认的main
+             if (!labels.ContainsKey("main"))
+             {
+@@ -88,6 +93,44 @@ namespace SwiftCompiler
+                     if (labels[k] >= mainEntry && k != "main")
+                         labels[k] += shift;
+             }
++            else if (hasTopLevel)
++            {
++                // 程序自己定义了 `func main()` 时，**顶层那段语句会变成死代码** ——
++                // 而全局变量/全局数组的初始化恰恰就在那段里（`var A = [...]` 生成的是
++                // "把数组基址存进 var_A"）。实测症状：全局数组指针恒为 0，所有 `A[i]`
++                // 读写都落在地址 4/8/… 那片低内存上 —— 写进去 3、读回来是别的值，
++                // 表现成"跨函数读全局数组不对"（同一函数内看着正常，因为读写都偏移同样错）。
++                //
++                // 修法**不搬指令、只挪标签**：入口仍旧指回顶层块（mainEntry），
++                // 块尾那条 EXIT 前面插一句 `call __user_main`，于是
++                // 「全局初始化 → 用户 main → 退出」。
++                int userMain = labels["main"];
++
++                // ⚠ 序列化器认的是**指令流里的 LABEL 伪指令**，不是编译器那张表 ——
++                //    只改表的话，函数身上那个 `main` 标签还在流里，入口照样指向函数。
++                for (int i = 0; i < instructions.Count; i++)
++                {
++                    var ins = instructions[i];
++                    if (ins.Opcode == OpCode.LABEL && ins.Operands.Count > 0
++                        && "main".Equals(ins.Operands[0].Value as string))
++                        instructions[i] = new Instruction(OpCode.LABEL,
++                            new List<Operand> { new Operand(OperandType.LABEL, "__user_main") });
++                }
++
++                labels.Remove("main");
++                instructions.Insert(exitIndex,
++                    new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, "__user_main")]));
++                instructions.Insert(mainEntry,
++                    new Instruction(OpCode.LABEL, [new Operand(OperandType.LABEL, "main")]));
++                // 两处插入 ⇒ exitIndex 之后的标签 +2、夹在中间的 +1
++                foreach (var k in new List<string>(labels.Keys))
++                {
++                    if (labels[k] >= exitIndex) labels[k] += 2;
++                    else if (labels[k] >= mainEntry) labels[k] += 1;
++                }
++                labels["main"] = mainEntry;
++                labels["__user_main"] = userMain + 2;
++            }
+             
+             // 创建VML程序
+             var vmlProgram = BuildProgram("main");
+@@ -800,6 +843,49 @@ namespace SwiftCompiler
+             }
+         }
+         
++        /// <summary>
++        /// 递归收集函数体里的局部变量声明，在栈帧上给它们留位子（名字 → 负偏移）。
++        /// 不递归进嵌套函数（那有它自己的帧）。
++        /// </summary>
++        private void ReserveLocals(Statement stmt)
++        {
++            switch (stmt)
++            {
++                case null:
++                    return;
++                case VariableDeclStatement vd:
++                    if (!_localVarOffsets.ContainsKey(vd.Name))
++                    {
++                        _localVarSize += 4;
++                        _localVarOffsets[vd.Name] = -_localVarSize;
++                    }
++                    return;
++                case Block blk:
++                    foreach (var s in blk.Statements) ReserveLocals(s);
++                    return;
++                case IfStatement iff:
++                    ReserveLocals(iff.ThenBranch);
++                    ReserveLocals(iff.ElseBranch);
++                    return;
++                case WhileStatement wh:
++                    ReserveLocals(wh.Body);
++                    return;
++                case ForStatement fr:
++                    ReserveLocals(fr.Initializer);
++                    ReserveLocals(fr.Body);
++                    return;
++                case DoWhileStatement dw:
++                    ReserveLocals(dw.Body);
++                    return;
++                case SwitchStatement sw:
++                    foreach (var c in sw.Cases)
++                        foreach (var s in c.Body) ReserveLocals(s);
++                    return;
++                default:
++                    return;   // 嵌套函数有自己的帧，不进来
++            }
++        }
++
+         private void GenerateVariableDecl(VariableDeclStatement varDecl)
+         {
+             // 记录变量类型
+@@ -813,12 +899,21 @@ namespace SwiftCompiler
+                 // 将初始化值转换到目标变量类型 (Int/Float/Double/Int64 全转换)
+                 EmitConvertTo(varType, varDecl.Initializer);
+ 
++                var storeOp = GetStoreInstruction(varType);
++                // **栈帧上的局部变量优先**（前导里已经预扫描留好位子）——
++                // 只有这样不同函数的同名局部才互不干扰。查不到才回退数据段：
++                // 那种情况是**模块级**声明（`var A = [...]` 之类），本来就该是全局。
++                if (_localVarOffsets.TryGetValue(varDecl.Name, out int lofs))
++                {
++                    instructions.Add(new Instruction(storeOp,
++                        [new Operand(OperandType.MEMORY, $"R14{lofs}"), new Operand(OperandType.REGISTER, 0)]));
++                    return;
++                }
++
+                 // 在数据段中分配变量空间 (Int64 需要 8 字节)
+                 string label = $"var_{varDecl.Name}";
+                 dataSection[label] = varType == SwiftType.Int64 ? 0L : 0;
+ 
+-                // 使用类型正确的存储指令
+-                var storeOp = GetStoreInstruction(varType);
+                 // 统一 store: dest-first 顺序 (MEMORY first for store)
+                 instructions.Add(new Instruction(storeOp, [new Operand(OperandType.MEMORY, label), new Operand(OperandType.REGISTER, 0)]));
+             }
+@@ -907,6 +1002,16 @@ namespace SwiftCompiler
+                     instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R14-{_localVarSize}"), new Operand(OperandType.REGISTER, 0)]));
+                 }
+             }
++            // ⚠ v0.96.187 新增：**预扫描函数体里的局部变量声明**，在栈帧上给它们留位子。
++            //   原来这里只给参数留位，而 `GenerateVariableDecl` 是**无条件写数据段**的
++            //   ⇒ 局部变量全变成"全局"，**不同函数的同名局部互相踩**（读的地方先查
++            //   `_localVarOffsets` 查不到、于是也走数据段，两边一致地错）。
++            //   实测症状：`func count5() -> Int { var i = 0; var s = 0; while i < 5 {…} return s }`
++            //   返回 **3** 而不是 5；数据段里能看到 `var_i` / `var_k` / `var_tries` 这些本该在栈上的东西。
++            //   游戏里 `draw` / `step` / `occupied` 三处都有 `var_i` ⇒ 画面立刻烂。
++            if (funcDecl.Body != null)
++                ReserveLocals(funcDecl.Body);
++
+             if (_localVarSize > 0)
+                 instructions.Add(new Instruction(OpCode.SUB, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, _localVarSize + 8)]));
+ 

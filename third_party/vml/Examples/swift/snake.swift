@@ -1,12 +1,13 @@
 // 贪吃蛇 —— 用 **Swift** 写的手机游戏
 //
-// ⚠ **状态：编译通过、能出图，但还不能玩**（v0.96.185）。
-//   窗口尺寸、棋盘网格、HUD 文字都出来了，蛇身与分数画不出来 —— 卡在
-//   **"在一个函数里写全局数组、在另一个函数里读"读回来不对**（实测：`A[1] = 3` 之后
-//   经一个函数读回来，循环画了 8 个而不是 3；提进局部变量也救不了）。
-//   同一份评估里 C# 是"带参方法的参数会串"、Go/Pascal 是"条件跳转跳寄存器"。
-//   **全 22 个前端的结论、根因、修法见 `docs/前端游戏能力评估.md`。**
-//   修好那一条（一处）之后，这个文件就是可玩的 —— 剩下的全是纯逻辑。
+// ⚠ **状态：编译通过、能出图（窗口/棋盘/HUD 都对），蛇身还没画出来**（v0.96.187）。
+//   Swift 的两条大阻塞点已经修好（patch 0011）：
+//     ① 全局数组初始化曾是死代码（定义了 func main 时顶层块不执行）；
+//     ② **函数的局部变量漏进全局数据段**、同名互相踩。
+//   现在剩下的是一条**只定位到形态**的问题：`A[f(i)]`（**下标位置里调函数**）编出来不对 ——
+//   蛇身原来写 `A[segx(k)]`，食物写常量下标 `A[4]` 正常。所以本文件已把下标算术**内联**成
+//   `A[16 + k*2]` 绕开；还是差一截（动态下标本身可靠到什么程度没测准）。
+//   全 22 个前端的结论与根因：`docs/前端游戏能力评估.md`。
 //
 // ## 为什么是 Swift
 //
@@ -79,7 +80,7 @@ func occupied(c: Int, r: Int) -> Int {
     while i < A[1] {
         var k = A[0] - i
         while k < 0 { k = k + maxseg() }
-        if A[segx(k)] == c && A[segy(k)] == r { return 1 }
+        if A[16 + (k) * 2] == c && A[17 + (k) * 2] == r { return 1 }
         i = i + 1
     }
     return 0
@@ -121,8 +122,8 @@ func draw() {
     while i < A[1] {
         var k = A[0] - i
         while k < 0 { k = k + maxseg() }
-        if i == 0 { drawCell(A[segx(k)], A[segy(k)], cellColorHead()) }
-        else { drawCell(A[segx(k)], A[segy(k)], cellColorBody()) }
+        if i == 0 { drawCell(A[16 + (k) * 2], A[17 + (k) * 2], cellColorHead()) }
+        else { drawCell(A[16 + (k) * 2], A[17 + (k) * 2], cellColorBody()) }
         i = i + 1
     }
     ui_text(8, 8, "得分", colorText(), 13, 0)
@@ -136,9 +137,9 @@ func draw() {
 func reset() {
     A[1] = 3        // 长度
     A[0] = 2        // 头下标
-    A[segx(0)] = 8; A[segy(0)] = 8
-    A[segx(1)] = 7; A[segy(1)] = 8
-    A[segx(2)] = 6; A[segy(2)] = 8
+    A[16 + (0) * 2] = 8; A[17 + (0) * 2] = 8
+    A[16 + (1) * 2] = 7; A[17 + (1) * 2] = 8
+    A[16 + (2) * 2] = 6; A[17 + (2) * 2] = 8
     A[2] = 1; A[3] = 0
     A[6] = 0
     A[8] = 1
@@ -157,8 +158,8 @@ func gameOver() {
 
 func step() -> Int {
     if A[8] == 0 || A[9] != 0 { return 0 }
-    var nc = A[segx(A[0])] + A[2]
-    var nr = A[segy(A[0])] + A[3]
+    var nc = A[16 + (A[0]) * 2] + A[2]
+    var nr = A[17 + (A[0]) * 2] + A[3]
     if nc < 0 || nc >= cw() || nr < 0 || nr >= ch() {
         gameOver()
         return 1
@@ -167,7 +168,7 @@ func step() -> Int {
     while i < A[1] - 1 {
         var k = A[0] - i
         while k < 0 { k = k + maxseg() }
-        if A[segx(k)] == nc && A[segy(k)] == nr {
+        if A[16 + (k) * 2] == nc && A[17 + (k) * 2] == nr {
             gameOver()
             return 1
         }
@@ -177,8 +178,8 @@ func step() -> Int {
     if nc == A[4] && nr == A[5] { eat = 1 }
     A[0] = A[0] + 1
     if A[0] >= maxseg() { A[0] = 0 }
-    A[segx(A[0])] = nc
-    A[segy(A[0])] = nr
+    A[16 + (A[0]) * 2] = nc
+    A[17 + (A[0]) * 2] = nr
     if eat != 0 {
         if A[1] < maxseg() { A[1] = A[1] + 1 }
         A[6] = A[6] + 10
