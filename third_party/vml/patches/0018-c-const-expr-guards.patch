@@ -1,0 +1,368 @@
+# 0018：C 前端的**常量表达式护栏**（溢出 / 负数维度）与**枚举值走常量折叠**
+
+## 缺陷 A：常量折叠没有溢出与负数护栏
+
+`Parser.cs` 的 `TryConstInt`（0003 加的）里 `+ - *` 全是 unchecked int 运算，
+溢出一律回绕、**不报错**：
+
+    #define N 65536
+    int a[N * N];        /* 65536*65536 回绕成 0 ⇒ .data 里 a 有 0 个元素，
+                            编译通过、不报错，之后每个 a[i] 都静默越界 */
+    #define N 50000
+    int a[N * N];        /* 回绕成负数 ⇒ CodeGenerator.Functions.cs:113 的
+                            new int[负数] 抛裸的 .NET OverflowException：
+                            用户只看到「Arithmetic operation resulted in an
+                            overflow.」，没有文件行号 */
+    int a[-1];           /* 折叠成功 ⇒ 生成 `sub R13, R1` 而 R1 为负
+                            ⇒ 栈指针反向移动（局部数组那条路） */
+
+改法：算术一律 `checked`，溢出抛 `Parser_UnexpectedToken`（**本仓唯一不可恢复的
+错误码** —— 其它码会被 `Parse()` 顶层的容错恢复 catch 吞成一行 stderr 日志后继续编，
+那就又回到「编译通过、跑起来才错」），报错带文件/行号且**说出是哪个表达式**。
+维度另加「不得为负」的判定（`TryConstDim`），多维总元素数的乘法也走 checked
+（`MulArraySize`）—— `int a[70000][70000]` 此前同样静默回绕。
+
+`Parser.Statements.cs` 里**函数体内**的数组声明是另一条路（只认裸 NUMBER，其余
+全按 VLA 走），所以 `int a[-1]` 的栈指针那条、以及
+`int a[4294967295]`（`Convert.ToInt32` 抛裸异常 → 被容错恢复吞掉 → 输出 0 条指令、
+退出码 0）都要在那里单独补。
+
+## 缺陷 B：枚举值「只认裸字面量」，同一个缺陷有 4 份
+
+`Parser.Types.cs` 的 4 处 enum 解析（匿名 / 命名 / typedef 匿名 / typedef 命名）
+都写着 `if (valueExpr is NumberLiteral numLit)` —— **表达式不是裸字面量时既不更新
+也不报错**，枚举值静默沿用上一个成员的值：
+
+    #define BASE 10
+    enum { A = BASE + 1, B, C };   /* 编出 0/1/2，应为 11/12/13，整段错位 */
+
+改法：4 处统一收进 `EvalEnumMemberValue`，走与数组维度**同一套** `TryConstInt`，
+并额外允许引用**已定义的枚举成员**（`enum { A = 1, B = A + 1 }` 在 C 里合法，
+否则修完这一处反而会把合法写法判成错误）；真折不出来就报错，不再静默。
+
+## 实测（桌面宿主：C → .vml → 汇编器 → VmRuntime，真编译真运行）
+
+    // 改前 → 改后
+    enum { A = BASE + 1, B, C };  return A;                0 → 11
+    enum { A = 1, B = A + 1, C = B * 2 };  A+B*10+C*100;   321 → 421   (C: 3 → 4)
+    #define N 65536 / int a[N*N]                     编译通过(数组 0 元素) → 报错
+    #define N 50000 / int a[N*N]                     裸 .NET 异常 → 报错(带行号)
+    int a[-1];                                       编译通过(栈反向) → 报错
+    合法用例不误伤：int a[16*16]、char b[1<<20]、负枚举值 enum{NEG=-3,ZERO,POS}
+                    在 8 个既有 C 文件（Examples/c + Lib）上 .vml 逐字节不变
+
+diff --git a/third_party/vml/VMLPrepares/CCompiler/Parser.cs b/third_party/vml/VMLPrepares/CCompiler/Parser.cs
+--- a/third_party/vml/VMLPrepares/CCompiler/Parser.cs
++++ b/third_party/vml/VMLPrepares/CCompiler/Parser.cs
+@@ -63,8 +63,21 @@
+         ///
+         /// 只做**能在编译期算出唯一结果**的折叠：字面量、一元 +/−/!、以及两侧都是常量的
+         /// 算术/位运算。任何一样不确定就返回 false，调用方照旧走 VLA 路径（真 VLA 仍然支持）。
++        ///
++        /// ## 溢出必须报错，不能回绕（v0.96.187 / patches/0018）
++        ///
++        /// 算术全在 <c>unchecked</c> 下做的话，`int a[N * N]`（N=65536）会算成 **0** ⇒
++        /// 数组在 `.data` 里**零个元素**、编译通过不报错，之后每个 `a[i]` 都静默越界；
++        /// N=50000 时算成负数 ⇒ 代码生成里 `new int[负数]` 抛裸的 .NET `OverflowException`，
++        /// 用户只看到一行「Arithmetic operation resulted in an overflow.」，没有文件行号。
++        /// 所以这里一律 `checked`，溢出抛**带文件/行号**的编译错误（见 <see cref="ConstOverflow"/>）。
+         /// </summary>
+-        private static bool TryConstInt(ASTNode? node, out int value)
++        /// <param name="constLookup">
++        /// 可选的**标识符**求值器（枚举值用：把已定义的枚举成员当常量）。
++        /// 传 null 表示标识符一律不算常量 —— 数组维度走的是这条路，
++        /// 免得把 `int a[n]`（n 是变量，真 VLA）误折成常量。
++        /// </param>
++        private bool TryConstInt(ASTNode? node, out int value, System.Func<string, int?>? constLookup = null)
+         {
+             value = 0;
+             if (node == null) return false;
+@@ -78,13 +91,25 @@
+                 return true;
+             }
+ 
++            if (constLookup != null && node is Identifier id)
++            {
++                // 已定义的枚举成员当常量用（`enum { A = 1, B = A + 1 }` 在 C 里合法）
++                var c = constLookup(id.Name);
++                if (c.HasValue) { value = c.Value; return true; }
++                return false;
++            }
++
+             if (node is UnaryOp un)
+             {
+-                if (!TryConstInt(un.Operand, out var v)) return false;
++                if (!TryConstInt(un.Operand, out var v, constLookup)) return false;
+                 switch (un.Op)
+                 {
+                     case "+": value = v; return true;
+-                    case "-": value = -v; return true;
++                    case "-":
++                        // int.MinValue 取负会回绕成自己
++                        try { value = checked(-v); }
++                        catch (System.OverflowException) { throw ConstOverflow(un); }
++                        return true;
+                     case "!": value = v == 0 ? 1 : 0; return true;
+                     case "~": value = ~v; return true;
+                     default: return false;
+@@ -93,25 +118,117 @@
+ 
+             if (node is BinaryOp bin)
+             {
+-                if (!TryConstInt(bin.Left, out var a) || !TryConstInt(bin.Right, out var b)) return false;
+-                switch (bin.Op)
++                if (!TryConstInt(bin.Left, out var a, constLookup) || !TryConstInt(bin.Right, out var b, constLookup)) return false;
++                try
+                 {
+-                    case "+": value = a + b; return true;
+-                    case "-": value = a - b; return true;
+-                    case "*": value = a * b; return true;
+-                    // 除零不折叠（交给运行时的报错路径，别在编译期造一个假值出来）
+-                    case "/": if (b == 0) return false; value = a / b; return true;
+-                    case "%": if (b == 0) return false; value = a % b; return true;
+-                    case "<<": value = b >= 0 && b < 32 ? a << b : 0; return b >= 0 && b < 32;
+-                    case ">>": value = b >= 0 && b < 32 ? a >> b : 0; return b >= 0 && b < 32;
+-                    case "&": value = a & b; return true;
+-                    case "|": value = a | b; return true;
+-                    case "^": value = a ^ b; return true;
+-                    default: return false;
++                    switch (bin.Op)
++                    {
++                        case "+": value = checked(a + b); return true;
++                        case "-": value = checked(a - b); return true;
++                        case "*": value = checked(a * b); return true;
++                        // 除零不折叠（交给运行时的报错路径，别在编译期造一个假值出来）
++                        // ⚠ 除法溢出（int.MinValue / -1）与 checked 无关，一定抛，所以整块都在 try 里
++                        case "/": if (b == 0) return false; value = a / b; return true;
++                        case "%": if (b == 0) return false; value = a % b; return true;
++                        case "<<": if (!(b >= 0 && b < 32)) return false; value = a << b; return true;
++                        case ">>": if (!(b >= 0 && b < 32)) return false; value = a >> b; return true;
++                        case "&": value = a & b; return true;
++                        case "|": value = a | b; return true;
++                        case "^": value = a ^ b; return true;
++                        default: return false;
++                    }
+                 }
++                catch (System.OverflowException) { throw ConstOverflow(bin); }
+             }
+ 
+             return false;
+         }
++
++        /// <summary>
++        /// **数组维度**专用：折常量 + 拒绝负数维度（`int a[-1]` 此前折叠成功，
++        /// 生成 `sub R13, R1` 而 R1 为负 ⇒ 栈指针**反向移动**；全局数组则抛
++        /// `new int[负数]` 的裸 .NET 异常）。负数一律报错。
++        /// </summary>
++        private bool TryConstDim(ASTNode? node, out int dim)
++        {
++            if (!TryConstInt(node, out dim)) return false;
++            if (dim < 0)
++                throw Error(ErrorCode.Parser_UnexpectedToken,
++                    $"数组维度不能为负数：{DescribeConstExpr(node)} = {dim}");
++            return true;
++        }
++
++        /// <summary>
++        /// 多维数组**总元素数**的乘法（`int a[A][B]` 的 A*B）。
++        /// 回绕就是静默拿到一个错的尺寸 —— 与单个维度溢出同一类。
++        /// </summary>
++        private int MulArraySize(int a, int b)
++        {
++            try { return checked(a * b); }
++            catch (System.OverflowException)
++            {
++                throw Error(ErrorCode.Parser_UnexpectedToken,
++                    $"数组总元素个数在编译期溢出 int 范围：{a} * {b}");
++            }
++        }
++
++        /// <summary>
++        /// 常量表达式溢出 —— 必须是**编译错误**（带文件/行号），不能回绕成别的值、也不能
++        /// 让它升到代码生成阶段变成裸的 .NET 异常。
++        ///
++        /// 用 <c>Parser_UnexpectedToken</c> 是因为**只有这个错误码是不可恢复的**
++        /// （见 `Parser.Declarations.cs` 顶层容错恢复那段的约定）：其它码会被 `Parse()`
++        /// 的 `catch (System.Exception)` 吞成一行 stderr 日志后继续编 —— 那就又回到
++        /// 「编译通过、跑起来才错」。它在本处已确认「真该终止编译」。
++        /// </summary>
++        private CompilerBase.ParseException ConstOverflow(ASTNode expr)
++            => Error(ErrorCode.Parser_UnexpectedToken,
++                $"常量表达式在编译期溢出 int 范围：{DescribeConstExpr(expr)}"
++                + "（回绕会静默算出一个错的值 —— 例如 int a[N*N] 会变成 0 个元素）");
++
++        /// <summary>
++        /// 求**枚举成员**的值（4 处 enum 解析共用一个实现 —— 匿名 / 命名 / typedef 两种形态）。
++        ///
++        /// 此前这 4 处**只认裸数字字面量**：`A = BASE + 1`（宏展开成 `10 + 1`，是个 BinaryOp）
++        /// 既不更新 nextValue 也**不报错** ⇒ 静默沿用上一个成员的值，
++        /// `A/B/C` 编成 `0/1/2` 而不是 `11/12/13`，整段后续成员一起错位。
++        ///
++        /// 现在走与数组维度**同一套常量折叠**（<see cref="TryConstInt"/>），并额外允许引用
++        /// **已定义的枚举成员**（`enum { A = 1, B = A + 1 }`）。真算不出来就报错，不再静默。
++        /// </summary>
++        private int EvalEnumMemberValue(ASTNode? expr, Dictionary<string, int> current)
++        {
++            if (TryConstInt(expr, out var v, name =>
++                    current.TryGetValue(name, out var c) ? c : LookupEnumConstant(name)))
++                return v;
++
++            throw Error(ErrorCode.Parser_UnexpectedToken,
++                $"枚举值不是编译期整型常量表达式：{DescribeConstExpr(expr)}"
++                + "（只支持字面量与常量算术；引用变量、函数调用等无法在编译期求值）");
++        }
++
++        /// <summary>在**已解析完**的枚举里找成员（与 CodeGenerator.Core 同一口径：后定义的覆盖先定义的）。</summary>
++        private int? LookupEnumConstant(string name)
++        {
++            if (program?.EnumConstants == null) return null;
++            int? found = null;
++            foreach (var e in program.EnumConstants)
++                if (e.Value != null && e.Value.TryGetValue(name, out var v)) found = v;
++            return found;
++        }
++
++        /// <summary>把常量表达式还原成人看的文本（报错信息里要说清是**哪个**表达式溢出了）。</summary>
++        private static string DescribeConstExpr(ASTNode? n)
++        {
++            switch (n)
++            {
++                case null: return "?";
++                case NumberLiteral l: return l.Value?.ToString() ?? "?";
++                case Identifier id: return id.Name;
++                case UnaryOp u: return u.Op + DescribeConstExpr(u.Operand);
++                case BinaryOp b: return $"({DescribeConstExpr(b.Left)} {b.Op} {DescribeConstExpr(b.Right)})";
++                default: return "常量表达式";
++            }
++        }
+     }
+ }
+diff --git a/third_party/vml/VMLPrepares/CCompiler/Parser.Types.cs b/third_party/vml/VMLPrepares/CCompiler/Parser.Types.cs
+--- a/third_party/vml/VMLPrepares/CCompiler/Parser.Types.cs
++++ b/third_party/vml/VMLPrepares/CCompiler/Parser.Types.cs
+@@ -25,11 +25,8 @@
+                     string enumMemberName = Expect(TokenType.IDENTIFIER).Value.ToString();
+                     if (Match(TokenType.ASSIGN))
+                     {
+-                        ASTNode valueExpr = ParseConditional();
+-                        if (valueExpr is NumberLiteral numLit)
+-                        {
+-                            nextValue = Convert.ToInt32(numLit.Value);
+-                        }
++                        // 走**常量表达式**折叠（此前只认裸字面量 ⇒ `A = BASE + 1` 静默沿用上一个成员的值）
++                        nextValue = EvalEnumMemberValue(ParseConditional(), enumValues);
+                     }
+                     enumValues[enumMemberName] = nextValue;
+                     nextValue++;
+@@ -68,11 +65,8 @@
+                     string enumMemberName = Expect(TokenType.IDENTIFIER).Value.ToString();
+                     if (Match(TokenType.ASSIGN))
+                     {
+-                        ASTNode valueExpr = ParseConditional();
+-                        if (valueExpr is NumberLiteral numLit)
+-                        {
+-                            nextValue = Convert.ToInt32(numLit.Value);
+-                        }
++                        // 走**常量表达式**折叠（此前只认裸字面量 ⇒ `A = BASE + 1` 静默沿用上一个成员的值）
++                        nextValue = EvalEnumMemberValue(ParseConditional(), enumValues);
+                     }
+                     enumValues[enumMemberName] = nextValue;
+                     nextValue++;
+@@ -133,9 +127,8 @@
+                     string memberName = Expect(TokenType.IDENTIFIER).Value.ToString();
+                     if (Match(TokenType.ASSIGN))
+                     {
+-                        ASTNode valueExpr = ParseConditional();
+-                        if (valueExpr is NumberLiteral numLit)
+-                            nextValue = Convert.ToInt32(numLit.Value);
++                        // 走**常量表达式**折叠（此前只认裸字面量 ⇒ `A = BASE + 1` 静默沿用上一个成员的值）
++                        nextValue = EvalEnumMemberValue(ParseConditional(), enumValues);
+                     }
+                     enumValues[memberName] = nextValue;
+                     nextValue++;
+@@ -165,9 +158,8 @@
+                     string memberName = Expect(TokenType.IDENTIFIER).Value.ToString();
+                     if (Match(TokenType.ASSIGN))
+                     {
+-                        ASTNode valueExpr = ParseConditional();
+-                        if (valueExpr is NumberLiteral numLit)
+-                            nextValue = Convert.ToInt32(numLit.Value);
++                        // 走**常量表达式**折叠（此前只认裸字面量 ⇒ `A = BASE + 1` 静默沿用上一个成员的值）
++                        nextValue = EvalEnumMemberValue(ParseConditional(), enumValues);
+                     }
+                     enumValues[memberName] = nextValue;
+                     nextValue++;
+diff --git a/third_party/vml/VMLPrepares/CCompiler/Parser.Statements.cs b/third_party/vml/VMLPrepares/CCompiler/Parser.Statements.cs
+--- a/third_party/vml/VMLPrepares/CCompiler/Parser.Statements.cs
++++ b/third_party/vml/VMLPrepares/CCompiler/Parser.Statements.cs
+@@ -394,13 +394,27 @@
+                             // 否则是常量表达式（如 MAX+8）或 VLA（如 arr[n]）
+                             if (Current().Type == TokenType.NUMBER && Peek(1).Type == TokenType.RBRACKET)
+                             {
+-                                size = Convert.ToInt32(Current().Value);
++                                // 字面量超出 int 范围要报错：此前 Convert.ToInt32 抛的是裸 .NET
++                                // OverflowException，被顶层容错恢复吞成一行 stderr 日志后**继续编**
++                                // （实测 `int a[4294967295]` → 「编译完成: 0 条指令」，退出码 0）。
++                                try { size = Convert.ToInt32(Current().Value); }
++                                catch (System.OverflowException)
++                                {
++                                    throw Error(ErrorCode.Parser_UnexpectedToken,
++                                        $"数组维度字面量超出 int 范围：{Current().Value}");
++                                }
+                                 Advance();
+                             }
+                             else
+                             {
+                                 // 常量表达式或 VLA: 运行时维度 (如 int arr[n] 或 int arr[MAX+8])
+                                 var dimExpr = ParseExpression();
++                                // 能折成常量的**负数维度**要在这里就报错：`int a[-1]` 此前落进
++                                // VLA 分支，运行时算出负的分配量 ⇒ 生成 `sub R13, R1` 而 R1 为负，
++                                // 栈指针**反向移动**，编译不报错（v0.96.187 / patches/0018）。
++                                if (TryConstInt(dimExpr, out var constDim) && constDim < 0)
++                                    throw Error(ErrorCode.Parser_UnexpectedToken,
++                                        $"数组维度不能为负数：{DescribeConstExpr(dimExpr)} = {constDim}");
+                                 vlaDims ??= new List<ASTNode>();
+                                 vlaDims.Add(dimExpr);
+                             }
+@@ -418,7 +432,8 @@
+                         {
+                             foreach (var dim in dimensions)
+                             {
+-                                if (dim.HasValue) totalSize *= dim.Value;
++                                // MulArraySize（checked）：多维总元素数回绕就是静默拿到错的尺寸
++                                if (dim.HasValue) totalSize = MulArraySize(totalSize.Value, dim.Value);
+                                 else { totalSize = null; break; }
+                             }
+                         }
+diff --git a/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs b/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs
+--- a/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs
++++ b/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs
+@@ -957,10 +957,12 @@
+ 
+                     // 能折成常量的（**含 `BW * BH` 这种宏 × 宏**）记为编译期维度 —— 只认
+                     // 裸字面量的话，`int b[BW*BH]` 会静默按 1 个元素分配（见 TryConstInt 注释）。
+-                    if (TryConstInt(dimExpr, out var dim))
++                    // 维度用 TryConstDim：溢出/负数**报错**，不回绕（`int a[N*N]` 回绕成 0 个元素、
++                    // `int a[-1]` 让栈指针反向移动，此前都是静默的）。
++                    if (TryConstDim(dimExpr, out var dim))
+                     {
+                         if (var.ArraySize == null) var.ArraySize = dim;
+-                        else var.ArraySize *= dim;
++                        else var.ArraySize = MulArraySize(var.ArraySize.Value, dim);
+                         var.Dimensions.Add(dim);
+                     }
+                     else
+diff --git a/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs b/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs
+--- a/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs
++++ b/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs
+@@ -242,7 +242,9 @@
+                                 else
+                                 {
+                                     var dimExpr = ParseExpression();
+-                                    if (TryConstInt(dimExpr, out var dimVal))
++                                    // TryConstDim（不是 TryConstInt）：函数指针数组的维度
++                                    // 同样不能是负数/溢出（见 Parser.cs 的注释）
++                                    if (TryConstDim(dimExpr, out var dimVal))
+                                         arraySize = dimVal;
+                                     Expect(TokenType.RBRACKET);
+                                 }

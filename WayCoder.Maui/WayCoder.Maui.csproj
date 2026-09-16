@@ -1,7 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net10.0-android;net10.0-ios;net10.0-maccatalyst</TargetFrameworks>
+		<!-- ⚠ 苹果两端的 TFM **必须带平台版本**，不能写裸 `net10.0-ios`。
+		     裸写法会落到工作负载清单的默认版本（本机是 26.5），而那个 SDK 会**硬性检查 Xcode 版本**：
+		     `Microsoft.iOS.Sdk.net10.0_26.5 (26.5.10318) requires Xcode 26.6, current 27.0`
+		     —— 构建直接失败，且这跟代码无关（实测 7 秒就挂）。
+		     本机同时装着 26.0 / 26.5 / **27.0** 三个包，显式钉 27.0 就能选到对应 Xcode 27 的那个。
+		     想换 Xcode 时不用改文件：`dotnet build -p:AppleSdkVersion=26.5`。 -->
+		<AppleSdkVersion Condition="'$(AppleSdkVersion)' == ''">27.0</AppleSdkVersion>
+		<TargetFrameworks>net10.0-android;net10.0-ios$(AppleSdkVersion);net10.0-maccatalyst$(AppleSdkVersion)</TargetFrameworks>
 		<!-- Windows（WinUI 3）**只能在 Windows 上构建**：它的构建链是 Windows 专有的 PE 可执行文件
 		     （XAML 编译器 / MakePri / WindowsAppSDK 的那些 task），别的 OS 上连评估这个 TFM 都会失败。
 		     所以按宿主 OS 条件追加 —— macOS/Linux 上 `dotnet build` 连看都看不到它，
@@ -98,7 +105,9 @@
 		<WindowsPackageType>None</WindowsPackageType>
 
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
-		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
+		<!-- MacCatalyst 最低 17.0：SDK 27.0 起把下限从 15.0 抬到了 17.0，
+		     写 15.0 会硬失败（`SupportedOSPlatformVersion value '15.0' is lower than the minimum value '17.0'`）。 -->
+		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">17.0</SupportedOSPlatformVersion>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">21.0</SupportedOSPlatformVersion>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
 		<TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>

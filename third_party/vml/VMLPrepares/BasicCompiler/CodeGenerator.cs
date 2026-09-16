@@ -107,7 +107,10 @@ namespace BasicCompiler
             if (_globalVars.Contains(name))
             {
                 EmitStaticAddr(reg, STATIC_GLOBALS_OFFSET + GetVarByteOffset(name));
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+                // ⚠ 读也要**按类型**（MOVEF/MOVED/MOVEL）—— 与 EmitStoreVar 的
+                //   `GetStoreInstruction(GetVariableType(name))` 对称。固定发 MOVE 的话，
+                //   浮点/64 位全局变量会写进 F 寄存器组、却用整数寄存器读回来（值进不了目标组）。
+                instructions.Add(new Instruction(GetLoadInstruction(GetVariableType(name)), new List<Operand>
                 {
                     new Operand(OperandType.REGISTER, reg), new Operand(OperandType.INDIRECT, reg)
                 }));
@@ -139,6 +142,56 @@ namespace BasicCompiler
             instructions.Add(new Instruction(GetStoreInstruction(GetVariableType(name)), new List<Operand>
             {
                 new Operand(OperandType.MEMORY, VarMemRef(name)), new Operand(OperandType.REGISTER, srcReg)
+            }));
+        }
+
+        /// <summary>
+        /// 记录（TYPE）字段的地址 → <paramref name="reg"/>。全局记录走静态区全局段
+        /// （基址 + 全局段偏移 + 字段偏移），与 <see cref="EmitLoadVar"/>/<see cref="EmitStoreVar"/> 同源；
+        /// 其余（SUB 内以 STATIC 登记的名字）仍按 R12 相对。
+        ///
+        /// 为什么要有这个 helper：字段地址原先在**六处**各拼一遍 `MOVE reg,#8+索引*4+字段偏移; ADD reg,R12`
+        /// —— ① 全局记录被写到主帧/子帧上，与已经改走全局段的记录整体读写**各写各的**
+        /// （SUB 里 `p.Y = 42`、主程序 `PRINT p.Y` 读回 0）；② 用的是"索引×4"，而同一变量的整体
+        /// 寻址走 `GetVarByteOffset`（Double/Long 算 8 字节）—— 同一件事两处算法，有 8 字节类型就漂。
+        /// 现在两处算法只有一份。
+        /// </summary>
+        private void EmitRecordFieldAddr(int reg, string recordName, int fieldOffset)
+        {
+            if (_globalVars.Contains(recordName))
+            {
+                EmitStaticAddr(reg, STATIC_GLOBALS_OFFSET + GetVarByteOffset(recordName) + fieldOffset);
+                return;
+            }
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+            {
+                new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 8 + variables[recordName] * 4 + fieldOffset)
+            }));
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand>
+            {
+                new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12)
+            }));
+        }
+
+        /// <summary>
+        /// 取变量本身的**地址**（不是值）→ <paramref name="reg"/>。用于 BYREF 实参。
+        /// 全局变量必须给静态区全局段的地址 —— 给 `R12+8+偏移`（主帧）等于把一个跟变量无关的
+        /// 栈地址传进去，被调方按地址读写的是主帧，与变量的实际位置无关。
+        /// </summary>
+        private void EmitVarAddr(int reg, string name)
+        {
+            if (_globalVars.Contains(name))
+            {
+                EmitStaticAddr(reg, STATIC_GLOBALS_OFFSET + GetVarByteOffset(name));
+                return;
+            }
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+            {
+                new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 8 + GetVarByteOffset(name))
+            }));
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand>
+            {
+                new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12)
             }));
         }
 
@@ -969,10 +1022,12 @@ namespace BasicCompiler
             {
                 string zeroLoop = GenerateLabel();
                 string zeroDone = GenerateLabel();
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
-                    new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, STATIC_GLOBALS_OFFSET) }));
-                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> {
-                    new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R1") }));  // R1 已含基址
+                // R1 = 静态基址 + STATIC_GLOBALS_OFFSET —— 用现成的 EmitStaticAddr。
+                // ⚠ 此前这两行是 `MOVE R1,#0x5000` + `ADD R1,[R1]`：上一行刚被 EmitStaticBase 算进 R1 的
+                //   基址被立刻冲掉，`[R1]` 读的是**它自己要清的那块内存** ⇒ R1 = 0x5000 + mem[0x5000]。
+                //   后果两层：① 全局区（基址+0x5000）一个字节都没清，"未初始化的全局变量是 0" 不成立；
+                //   ② 8KB 被清到 0x5000+该值 的随机绝对地址上，还会把基址槽 0x6FD4 一起抹掉。
+                EmitStaticAddr(1, STATIC_GLOBALS_OFFSET);
                 AddRI(OpCode.MOVE, 2, STATIC_TOTAL_SIZE - STATIC_GLOBALS_OFFSET);   // R2 = 剩余字节数
                 instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, zeroLoop) }));
                 AddRI(OpCode.CMP, 2, 0);

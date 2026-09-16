@@ -86,10 +86,9 @@ namespace BasicCompiler
                 }
                 else
                 {
-                    int varOffset = variables[varName] * 4;
-                    // 字符串变量：存储地址指针；数值变量：存储值
-                    OpCode storeOp = varType == BasicType.String ? OpCode.MOVE : GetStoreInstruction(varType);
-                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), new Operand(OperandType.REGISTER, 1) }));
+                    // 全局变量：走静态区全局段（与 PRINT 的读侧同一块内存）。
+                    // 存指令由 EmitStoreVar 按变量类型选（字符串存的也是地址指针 → MOVE）。
+                    EmitStoreVar(varName, 1);
                 }
                 // Increment data pointer
                 AddRI(OpCode.MOVE, 0, 0x6FD0);
@@ -164,12 +163,12 @@ namespace BasicCompiler
                 string n2 = id2.Name.ToLower();
                 if (variables.ContainsKey(n1) && variables.ContainsKey(n2))
                 {
-                    int o1 = variables[n1] * 4;
-                    int o2 = variables[n2] * 4;
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{8 + o1}") }));
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, $"R12+{8 + o2}") }));
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, $"R12+{8 + o1}") }));
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{8 + o2}") }));
+                    // 全局变量经静态区全局段（EmitLoadVar/EmitStoreVar 内部只借 R2 当地址临时，
+                    // R0/R1 的两个值全程不被冲掉）。
+                    EmitLoadVar(0, n1);
+                    EmitLoadVar(1, n2);
+                    EmitStoreVar(n1, 1);
+                    EmitStoreVar(n2, 0);
                 }
             }
         }
@@ -435,8 +434,7 @@ namespace BasicCompiler
                         }
                         else if (variables.ContainsKey(variable.Name.ToLower()))
                         {
-                            int varOffset = variables[variable.Name.ToLower()] * 4;
-                            instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), new Operand(OperandType.REGISTER, 0) }));
+                            EmitStoreVar(variable.Name, 0);   // 全局变量走静态区全局段
                         }
                         else
                         {
@@ -446,9 +444,8 @@ namespace BasicCompiler
                 }
                 else
                 {
-                    // 全局变量
-                    int varOffset = variables[variable.Name] * 4;
-                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), new Operand(OperandType.REGISTER, 0) }));
+                    // 全局变量走静态区全局段（与 PRINT 的读侧同一块内存）
+                    EmitStoreVar(variable.Name, 0);
                 }
             }
         }

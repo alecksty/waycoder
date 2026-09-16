@@ -248,8 +248,10 @@ namespace BasicCompiler
                 {
                     // 简化: 直接存储缓冲区地址
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, bufLabel) }));
-                    int offset = variables[varName];
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{8 + offset * 4}") }));
+                    // ⚠ 这一行其实是**读**（把变量当前值取到 R0），不是写 —— 它紧跟着把上面刚放进去的
+                    //   缓冲区地址覆盖掉了（`INPUT #` 整体是坏的，属既有缺陷）。这里只把寻址从
+                    //   `R12+8+索引*4`（主帧、且是另一套偏移算法）改成全局段的统一入口。
+                    EmitLoadVar(0, varName);
                 }
             }
         }

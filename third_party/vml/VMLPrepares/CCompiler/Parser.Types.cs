@@ -25,11 +25,8 @@ namespace CCompiler
                     string enumMemberName = Expect(TokenType.IDENTIFIER).Value.ToString();
                     if (Match(TokenType.ASSIGN))
                     {
-                        ASTNode valueExpr = ParseConditional();
-                        if (valueExpr is NumberLiteral numLit)
-                        {
-                            nextValue = Convert.ToInt32(numLit.Value);
-                        }
+                        // 走**常量表达式**折叠（此前只认裸字面量 ⇒ `A = BASE + 1` 静默沿用上一个成员的值）
+                        nextValue = EvalEnumMemberValue(ParseConditional(), enumValues);
                     }
                     enumValues[enumMemberName] = nextValue;
                     nextValue++;
@@ -68,11 +65,8 @@ namespace CCompiler
                     string enumMemberName = Expect(TokenType.IDENTIFIER).Value.ToString();
                     if (Match(TokenType.ASSIGN))
                     {
-                        ASTNode valueExpr = ParseConditional();
-                        if (valueExpr is NumberLiteral numLit)
-                        {
-                            nextValue = Convert.ToInt32(numLit.Value);
-                        }
+                        // 走**常量表达式**折叠（此前只认裸字面量 ⇒ `A = BASE + 1` 静默沿用上一个成员的值）
+                        nextValue = EvalEnumMemberValue(ParseConditional(), enumValues);
                     }
                     enumValues[enumMemberName] = nextValue;
                     nextValue++;
@@ -133,9 +127,8 @@ namespace CCompiler
                     string memberName = Expect(TokenType.IDENTIFIER).Value.ToString();
                     if (Match(TokenType.ASSIGN))
                     {
-                        ASTNode valueExpr = ParseConditional();
-                        if (valueExpr is NumberLiteral numLit)
-                            nextValue = Convert.ToInt32(numLit.Value);
+                        // 走**常量表达式**折叠（此前只认裸字面量 ⇒ `A = BASE + 1` 静默沿用上一个成员的值）
+                        nextValue = EvalEnumMemberValue(ParseConditional(), enumValues);
                     }
                     enumValues[memberName] = nextValue;
                     nextValue++;
@@ -165,9 +158,8 @@ namespace CCompiler
                     string memberName = Expect(TokenType.IDENTIFIER).Value.ToString();
                     if (Match(TokenType.ASSIGN))
                     {
-                        ASTNode valueExpr = ParseConditional();
-                        if (valueExpr is NumberLiteral numLit)
-                            nextValue = Convert.ToInt32(numLit.Value);
+                        // 走**常量表达式**折叠（此前只认裸字面量 ⇒ `A = BASE + 1` 静默沿用上一个成员的值）
+                        nextValue = EvalEnumMemberValue(ParseConditional(), enumValues);
                     }
                     enumValues[memberName] = nextValue;
                     nextValue++;

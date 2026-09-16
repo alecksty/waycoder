@@ -635,9 +635,7 @@ namespace BasicCompiler
                     // Unknown type — store to offset 0
                     if (variables.ContainsKey(recordName))
                     {
-                        int varOffset = variables[recordName] * 4;
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 8 + varOffset) }));
-                        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 12) }));
+                        EmitRecordFieldAddr(2, recordName, 0);   // 全局记录走静态区全局段
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R2"), new Operand(OperandType.REGISTER, storeSrcReg) }));
                     }
                     return;
@@ -664,9 +662,7 @@ namespace BasicCompiler
                 // Compute address and store
                 if (variables.ContainsKey(recordName))
                 {
-                    int varOffset = variables[recordName] * 4;
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 8 + varOffset + fieldOffset) }));
-                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 12) }));
+                    EmitRecordFieldAddr(2, recordName, fieldOffset);   // 全局记录走静态区全局段
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, "R2"), new Operand(OperandType.REGISTER, storeSrcReg) }));
                 }
             }
@@ -840,8 +836,17 @@ namespace BasicCompiler
                 loopVarAddr = $"R12+{8 + variables[stmt.Variable.Name] * 4}";
             }
             // 循环体前后"保护/恢复循环变量"：**只对栈上的循环变量做**。
-            // 全局变量在静态区全局段，循环体改不到它；而且它的地址是动态算出来的、
-            // 没法像 R12/R14 那样预先写成字符串。跳过不影响语义。
+            //
+            // ⚠ 两件事要写清楚，免得下一个人照着错的理由推理：
+            //   ① **不是因为"全局变量循环体改不到"** —— 全局变量在静态区全局段，循环体（含被调 SUB）
+            //      完全改得到它；真正的区别是"地址形态"：全局变量的地址要经 EmitStaticAddr 现算
+            //      （基址是运行时的值），没法像 R12/R14 那样预先写成一条字符串常量。所以这里跳过。
+            //   ② **这一段本身对"变量"是空操作**：PUSH 的是循环变量当前值、POP 回 R0，后面那句是
+            //      **读**（`MOVE R0, [loopVarAddr]`）而不是写回 —— 变量全程没被动过；而下面自增的第一句
+            //      又会重新装载 R0。所以"做不做"可观测行为为零，跳过全局变量自然也不影响语义。
+            //      （曾经把它改成"写回"并观察到 SUB 内 FOR 死循环 —— 那次死循环的真因是这里的
+            //       `loopVarAddr` 用了 R14（`enter` 只设 R12、从不设 R14），写回等于往错地址写；
+            //       SUB 内 FOR 现在走 GenerateSubForStatement，那条路用的是对的 `R12-…`。）
             bool loopVarOnStack = !_globalVars.Contains(stmt.Variable.Name.ToLower()) && !_globalVars.Contains(stmt.Variable.Name);
             if (loopVarOnStack)
             {
@@ -855,10 +860,8 @@ namespace BasicCompiler
             if (loopVarOnStack)
             {
                 instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
-                // ⚠ **保持原样**：原来就是"读"而不是"写"（`MOVE R0, [loopVarAddr]`）。
-                // 我一度以为这是写反了、顺手改成"写回"，结果把 SUB 里的局部 FOR 循环改成了死循环
-                // （最小复现：SUB 里 DIM i + FOR i = 0 TO 3 + 局部数组赋值）。
-                // 看着像 bug 但不是 —— **没有证据就不要改语义**。
+                // ⚠ **保持原样**：这里就是"读"而不是"写"。BASIC 里循环体内给循环变量赋值应当生效，
+                // 改成"写回"会把体内的修改吞掉 —— 那是改语义，不是修 bug。**没有证据就不要改语义**。
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loopVarAddr) }));
             }
 

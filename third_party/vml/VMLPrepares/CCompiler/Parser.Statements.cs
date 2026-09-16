@@ -394,13 +394,27 @@ namespace CCompiler
                             // 否则是常量表达式（如 MAX+8）或 VLA（如 arr[n]）
                             if (Current().Type == TokenType.NUMBER && Peek(1).Type == TokenType.RBRACKET)
                             {
-                                size = Convert.ToInt32(Current().Value);
+                                // 字面量超出 int 范围要报错：此前 Convert.ToInt32 抛的是裸 .NET
+                                // OverflowException，被顶层容错恢复吞成一行 stderr 日志后**继续编**
+                                // （实测 `int a[4294967295]` → 「编译完成: 0 条指令」，退出码 0）。
+                                try { size = Convert.ToInt32(Current().Value); }
+                                catch (System.OverflowException)
+                                {
+                                    throw Error(ErrorCode.Parser_UnexpectedToken,
+                                        $"数组维度字面量超出 int 范围：{Current().Value}");
+                                }
                                 Advance();
                             }
                             else
                             {
                                 // 常量表达式或 VLA: 运行时维度 (如 int arr[n] 或 int arr[MAX+8])
                                 var dimExpr = ParseExpression();
+                                // 能折成常量的**负数维度**要在这里就报错：`int a[-1]` 此前落进
+                                // VLA 分支，运行时算出负的分配量 ⇒ 生成 `sub R13, R1` 而 R1 为负，
+                                // 栈指针**反向移动**，编译不报错（v0.96.187 / patches/0018）。
+                                if (TryConstInt(dimExpr, out var constDim) && constDim < 0)
+                                    throw Error(ErrorCode.Parser_UnexpectedToken,
+                                        $"数组维度不能为负数：{DescribeConstExpr(dimExpr)} = {constDim}");
                                 vlaDims ??= new List<ASTNode>();
                                 vlaDims.Add(dimExpr);
                             }
@@ -418,7 +432,8 @@ namespace CCompiler
                         {
                             foreach (var dim in dimensions)
                             {
-                                if (dim.HasValue) totalSize *= dim.Value;
+                                // MulArraySize（checked）：多维总元素数回绕就是静默拿到错的尺寸
+                                if (dim.HasValue) totalSize = MulArraySize(totalSize.Value, dim.Value);
                                 else { totalSize = null; break; }
                             }
                         }

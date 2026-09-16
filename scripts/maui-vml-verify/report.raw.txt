@@ -1,0 +1,104 @@
+======================================================================
+### skel-c  [PASS]  vml run vmlverify/c/skel.c
+
+======================================================================
+### skel-cpp  [COMPILE_FAIL]  vml run vmlverify/cpp/skel.cpp
+
+======================================================================
+### skel-csharp  [PASS]  vml run vmlverify/csharp/skel.cs
+
+======================================================================
+### skel-go  [PASS]  vml run vmlverify/go/skel.go
+
+======================================================================
+### skel-swift  [TIMEOUT]  vml run vmlverify/swift/skel.swift
+
+======================================================================
+### skel-pascal  [PASS]  vml run vmlverify/pascal/skel.pas
+
+~> vml run vmlverify/pascal/skel.pas
+⏳ 正在编译 skel.pas（前端编译 + 链接标准库，手机上要一两分钟）…
+SKEL-SUM=14
+
+~>
+======================================================================
+### skel-python  [OUTPUT_MISMATCH]  vml run vmlverify/python/skel.py
+
+~> vml run vmlverify/python/skel.py
+⏳ 正在编译 skel.py（前端编译 + 链接标准库，手机上要一两分钟）…
+SKEL-SUM=10
+
+~>
+======================================================================
+### skel-java  [OUTPUT_MISMATCH]  vml run vmlverify/java/skel.java
+
+~> vml run vmlverify/java/skel.java
+⏳ 正在编译 skel.java（前端编译 + 链接标准库，手机上要一两分钟）…
+SKEL-SUM=0
+
+~>
+======================================================================
+### skel-javascript  [PASS]  vml run vmlverify/javascript/skel.js
+
+~> vml run vmlverify/javascript/skel.js
+⏳ 正在编译 skel.js（前端编译 + 链接标准库，手机上要一两分钟）…
+SKEL-SUM=14
+
+~>
+======================================================================
+### skel-kotlin  [COMPILE_FAIL]  vml run vmlverify/kotlin/skel.kt
+
+~> vml run vmlverify/kotlin/skel.kt
+⏳ 正在编译 skel.kt（前端编译 + 链接标准库，手机上要一两分钟）…
+⚠️ 编译失败：/storage/emulated/0/waycoder/workspace/vmlverify/kotlin/skel.kt: error: Unexpected token: ASSIGN '=' at 22:14
+
+~>
+======================================================================
+### skel-ruby  [COMPILE_FAIL]  vml run vmlverify/ruby/skel.rb
+
+~> vml run vmlverify/ruby/skel.rb
+⏳ 正在编译 skel.rb（前端编译 + 链接标准库，手机上要一两分钟）…
+⚠️ 编译失败：/storage/emulated/0/waycoder/workspace/vmlverify/ruby/skel.rb: error: Ruby parse error: expected ) (got LBracket)
+
+~>
+======================================================================
+### skel-rust  [COMPILE_FAIL]  vml run vmlverify/rust/skel.rs
+
+~> vml run vmlverify/rust/skel.rs
+⏳ 正在编译 skel.rs（前端编译 + 链接标准库，手机上要一两分钟）…
+⚠️ 编译失败：/storage/emulated/0/waycoder/workspace/vmlverify/rust/skel.rs: error: 期望 ';'
+
+~>
+======================================================================
+### skel-lua  [OUTPUT_MISMATCH]  vml run vmlverify/lua/skel.lua
+
+~> vml run vmlverify/lua/skel.lua
+⏳ 正在编译 skel.lua（前端编译 + 链接标准库，手机上要一两分钟）…
+SKEL-SUM=0
+
+~>
+======================================================================
+### skel-dart  [TIMEOUT]  vml run vmlverify/dart/skel.dart
+WayCoder 命令行
+输入 shell 命令后按「运行」（或回车）。`cd` 会改变下面的工作目录。
+======================================================================
+### skel-objc  [PASS]  vml run vmlverify/objc/skel.m
+
+~> vml run vmlverify/objc/skel.m
+⏳ 正在编译 skel.m（前端编译 + 链接标准库，手机上要一两分钟）…
+SKEL-SUM=14
+
+~>
+======================================================================
+### skel-r  [OUTPUT_MISMATCH]  vml run vmlverify/r/skel.r
+
+~> vml run vmlverify/r/skel.r
+⏳ 正在编译 skel.r（前端编译 + 链接标准库，手机上要一两分钟）…
+内存错误(PC=00000047): MOVE R0, @1 — 内存访问越界：地址=FFFFFFFC, 大小=4
+R0=FFFFFFFC  R1=FFFFFFFC  R2=00000000  R3=00000000
+R4=00000000  R5=00000000  R6=00000000  R7=00000000
+R8=00000000  R9=00000000  R10=00000000 R11=00000000
+R12(BP)=0000FFF8 R13(SP)=0000FFF8 R14(LR)=00010000 R15(RA)=00000000
+ZF=False SF=True CF=False  PC=00000047  SP=0000FFF8
+
+~>

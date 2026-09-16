@@ -46,10 +46,12 @@ for p in "$WT"/third_party/vml/patches/*.patch; do
 done
 
 # 逐目录比对。跳过 csproj（那类由 sync.sh 的 python 步骤机械施加，不进补丁）、
-# bin/obj（构建产物）、Examples（rsync 明确排除，改动能留住）。
+# bin/obj（构建产物）、Examples（rsync 明确排除，改动能留住）、.DS_Store
+# （macOS 浏览过目录就会生成，未被 git 跟踪 ⇒ 只在工作区里有、临时工作树里没有，
+#   不排除的话在 Mac 上**必然**误报「不一致」，这道防线就形同虚设）。
 fail=0
 for d in VMLAssembler VMLRuntime VMLPlugins VMLPrepares VMLTool VMLTranslators VMLToHex Lib; do
-  if diff -r -q -x '*.csproj' -x bin -x obj -x Examples \
+  if diff -r -q -x '*.csproj' -x bin -x obj -x Examples -x .DS_Store \
         "$WT/third_party/vml/$d" "$VML/$d" > /tmp/wc-vml-patch-diff.txt 2>&1; then
     echo "  ✔ $d 一致"
   else

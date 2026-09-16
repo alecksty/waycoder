@@ -739,18 +739,14 @@ namespace BasicCompiler
                 }
                 else if (variables.ContainsKey(recordName))
                 {
-                    int varOffset = variables[recordName] * 4;
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 8 + varOffset + fieldOffset) }));
-                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
+                    EmitRecordFieldAddr(reg, recordName, fieldOffset);   // 全局记录走静态区全局段
                 }
             }
             else
             {
                 if (variables.ContainsKey(recordName))
                 {
-                    int varOffset = variables[recordName] * 4;
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 8 + varOffset + fieldOffset) }));
-                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
+                    EmitRecordFieldAddr(reg, recordName, fieldOffset);   // 全局记录走静态区全局段
                 }
                 else
                 {

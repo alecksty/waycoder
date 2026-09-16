@@ -843,9 +843,7 @@ namespace BasicCompiler
                     }
                     else if (variables.ContainsKey(recordName))
                     {
-                        int varOffset = variables[recordName] * 4;
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 8 + varOffset) }));
-                        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 12) }));
+                        EmitRecordFieldAddr(2, recordName, 0);   // 全局记录走静态区全局段
                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R2") }));
                     }
                     return;
@@ -878,9 +876,7 @@ namespace BasicCompiler
                 }
                 else if (variables.ContainsKey(recordName))
                 {
-                    int varOffset = variables[recordName] * 4;
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 8 + varOffset + fieldOffset) }));
-                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 12) }));
+                    EmitRecordFieldAddr(2, recordName, fieldOffset);   // 全局记录走静态区全局段
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R2") }));
                 }
             }
@@ -929,7 +925,11 @@ namespace BasicCompiler
 
             GenerateSubExpression(stmt.InitialValue, 0);
             string initAddr = GetVarAddr();
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, initAddr) }));
+            // ⚠ 操作数顺序：MOVE 是 **dest-first**（`move [mem], reg` 是"存"、`move reg, [mem]` 是"取"）。
+            //   这里原来写成 [REGISTER 0, MEMORY addr] —— 那是**取**不是存（`move R0 [R12-4]`），
+            //   于是 `FOR i = 0 TO 3` 的初值根本没写进去；自增那处同样写反 ⇒ 循环变量永不推进，
+            //   实测就是"10 秒跑 10 亿条指令"的死循环（t10）。两处都改成 [MEMORY addr, REGISTER 0]。
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, initAddr), new Operand(OperandType.REGISTER, 0) }));
 
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, loopLabel) }));
 
@@ -942,15 +942,31 @@ namespace BasicCompiler
             instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
             instructions.Add(new Instruction(OpCode.JG, new List<Operand> { new Operand(OperandType.LABEL, endLabel) }));
 
+            // 循环体前后"保护/恢复循环变量" —— 与主程序的 GenerateForStatement **同一形状**，
+            // 两套 FOR 实现不再一个有一个没有。
+            //
+            // ⚠ 说清楚它到底做了什么：PUSH 的是"循环变量当前值"，POP 回 R0，紧随其后那句是**读**
+            //   （`MOVE R0, [addr]`）而不是写回。循环变量本身在内存里、全程没被动过，所以这一对
+            //   PUSH/POP 对**变量**是空操作（主程序那条路径同样如此，见 Statements.cs 里那段注释）；
+            //   它唯一的效果是让 R0 跨循环体保持一致，而自增的第一句又会重新装载 R0 ⇒ 可观测行为为零。
+            //   照抄而不"改进"的理由：BASIC 里循环体内给循环变量赋值是合法的（应当生效），
+            //   写成"从栈里写回"反而会把体内对循环变量的修改吞掉 —— 那是改语义，不是修 bug。
+            string loopVarAddr = GetVarAddr();
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loopVarAddr) }));
+            instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
+
             foreach (var bodyStmt in stmt.Body)
                 GenerateSubStatement(bodyStmt);
+
+            instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loopVarAddr) }));
 
             // Increment
             string incAddr = GetVarAddr();
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, incAddr) }));
             GenerateSubExpression(stmt.StepValue, 1);
             instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1) }));
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, incAddr) }));
+            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.MEMORY, incAddr), new Operand(OperandType.REGISTER, 0) }));
 
             instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, loopLabel) }));
 
@@ -1380,11 +1396,11 @@ namespace BasicCompiler
                 }
                 else
                 {
-                    // 在主程序中，只有全局变量
-                    int varOffset = GetOrCreateVariable(ident.Name) * 4;
-                    // 计算全局变量地址: R12 + 8 + varOffset
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 8 + varOffset) }));
-                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
+                    // 在主程序中，只有全局变量 —— 传出去的是**变量的地址**（BYREF 实参），
+                    // 必须是静态区全局段的地址；给 `R12+8+偏移`（主帧）等于把一个跟变量无关的
+                    // 栈地址交给被调方，被调方按地址读写的是主帧。
+                    GetOrCreateVariable(ident.Name);
+                    EmitVarAddr(reg, ident.Name);
                 }
             }
             else
@@ -1423,10 +1439,10 @@ namespace BasicCompiler
                 }
                 else if (variables.ContainsKey(varName))
                 {
-                    int varOffset = variables[varName] * 4;
-                    BasicType varType = GetVariableType(varName);
-                    OpCode storeOp = GetStoreInstruction(varType);
-                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), new Operand(OperandType.REGISTER, valueReg) }));
+                    // 全局变量写静态区全局段（与 EmitLoadVar 的读侧对称）。
+                    // ⚠ 原来是 `R12+{8 + 索引*4}`：SUB 的 R12 是子帧 ⇒ 写进去等于丢在子帧里，
+                    //   而读侧已改走全局段 —— `READ g` 在主程序里读回 0 就是这么来的。
+                    EmitStoreVar(varName, valueReg);
                 }
                 else
                 {

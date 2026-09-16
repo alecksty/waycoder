@@ -242,7 +242,9 @@ namespace CCompiler
                                 else
                                 {
                                     var dimExpr = ParseExpression();
-                                    if (TryConstInt(dimExpr, out var dimVal))
+                                    // TryConstDim（不是 TryConstInt）：函数指针数组的维度
+                                    // 同样不能是负数/溢出（见 Parser.cs 的注释）
+                                    if (TryConstDim(dimExpr, out var dimVal))
                                         arraySize = dimVal;
                                     Expect(TokenType.RBRACKET);
                                 }

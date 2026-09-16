@@ -957,10 +957,12 @@ namespace CCompiler
 
                     // 能折成常量的（**含 `BW * BH` 这种宏 × 宏**）记为编译期维度 —— 只认
                     // 裸字面量的话，`int b[BW*BH]` 会静默按 1 个元素分配（见 TryConstInt 注释）。
-                    if (TryConstInt(dimExpr, out var dim))
+                    // 维度用 TryConstDim：溢出/负数**报错**，不回绕（`int a[N*N]` 回绕成 0 个元素、
+                    // `int a[-1]` 让栈指针反向移动，此前都是静默的）。
+                    if (TryConstDim(dimExpr, out var dim))
                     {
                         if (var.ArraySize == null) var.ArraySize = dim;
-                        else var.ArraySize *= dim;
+                        else var.ArraySize = MulArraySize(var.ArraySize.Value, dim);
                         var.Dimensions.Add(dim);
                     }
                     else
