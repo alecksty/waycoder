@@ -379,6 +379,17 @@ WayCoder/
 16 个内置指令每个都要能画出东西（新增指令忘写矢量画法时会红）。**遗留**：新瓶颈变成每帧
 拼 DSL + 解析（0.8ms 与相应分配，GC 主要来自它），再省就得让矢量后端直接吃场景图元。
 
+**跨端验证的手段（Windows 没有 adb，但可以用 UI Automation 驱动真机之外的第二个平台）**：
+`WayCoder.Maui` 在 Windows 上是免打包的 WinUI（`WindowsPackageType=None`），
+`dotnet build -f net10.0-windows10.0.19041.0` 之后直接跑 exe 就能验观感 —— 这一步值得做，
+因为**它正是"跨端编译检查"的那道闸**（任何安卓专有 API、`#if ANDROID` 漏守卫都会在这里现形；
+本仓已有"桌面构建全绿看不出"的教训）。驱动界面走 UI Automation：按**名字**找元素
+（`TabItem` 用 `SelectionItemPattern.Select`、输入框用 `ValuePattern.SetValue`、按钮用
+`InvokePattern.Invoke`）—— 比按坐标点稳（DPI 缩放与窗口位置都会让坐标漂）。
+两条实测要注意：**按钮名常带 emoji 前缀**（`▶  运行`），精确匹配会落空、要按子串找；
+**`.ps1` 里的中文必须存成带 BOM 的 UTF-8**（PowerShell 5.1 否则按 ANSI 读，中文标识符直接变解析错误）。
+矢量后端两个平台的观感都核对过（Android 真机 + Windows 桌面），iOS/MacCatalyst 只到"我加的文件零错误"。
+
 ⑰ **两条"脚本改代码"的坑（本会话各踩一次，都是静默失败）**：① **`python` 的 `re.sub` 替换串漏了
 关键字** —— `("internal sealed ") + "partial " + ("RectCommand : IDrawCommand")` 把 `class` 吃掉了，
 文件写下去才发现（`grep` 回读立刻可见）；② **CRLF 没匹配上、替换静默失败** —— 本仓工作区是 CRLF
