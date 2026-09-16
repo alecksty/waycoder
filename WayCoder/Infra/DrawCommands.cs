@@ -246,7 +246,7 @@ internal static class DrawFill
 }
 
 /// <summary>rect x y w h [fill] [stroke] [width]</summary>
-internal sealed class RectCommand : IDrawCommand
+internal sealed partial class RectCommand : IDrawCommand
 {
     public string Name => "rect";
     public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
@@ -276,7 +276,7 @@ internal sealed class RectCommand : IDrawCommand
 }
 
 /// <summary>roundrect x y w h r [fill] [stroke] [width]</summary>
-internal sealed class RoundRectCommand : IDrawCommand
+internal sealed partial class RoundRectCommand : IDrawCommand
 {
     public string Name => "roundrect";
     public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
@@ -312,7 +312,7 @@ internal sealed class RoundRectCommand : IDrawCommand
 }
 
 /// <summary>circle cx cy r [fill] [stroke] [width]</summary>
-internal sealed class CircleCommand : IDrawCommand
+internal sealed partial class CircleCommand : IDrawCommand
 {
     public string Name => "circle";
     public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
@@ -342,7 +342,7 @@ internal sealed class CircleCommand : IDrawCommand
 }
 
 /// <summary>ellipse cx cy rx ry [fill] [stroke] [width]</summary>
-internal sealed class EllipseCommand : IDrawCommand
+internal sealed partial class EllipseCommand : IDrawCommand
 {
     public string Name => "ellipse";
     public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
@@ -372,7 +372,7 @@ internal sealed class EllipseCommand : IDrawCommand
 }
 
 /// <summary>line x1 y1 x2 y2 [color] [width]</summary>
-internal sealed class LineCommand : IDrawCommand
+internal sealed partial class LineCommand : IDrawCommand
 {
     public string Name => "line";
     public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
@@ -410,7 +410,7 @@ internal sealed class LineCommand : IDrawCommand
 }
 
 /// <summary>arrow x1 y1 x2 y2 [color] [width]</summary>
-internal sealed class ArrowCommand : IDrawCommand
+internal sealed partial class ArrowCommand : IDrawCommand
 {
     public string Name => "arrow";
     public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
@@ -467,7 +467,7 @@ internal sealed class ArrowCommand : IDrawCommand
 }
 
 /// <summary>polygon x1 y1 x2 y2 ... [fill] [stroke] [width]（偶数个点 + 可选样式段）</summary>
-internal sealed class PolygonCommand : IDrawCommand
+internal sealed partial class PolygonCommand : IDrawCommand
 {
     public string Name => "polygon";
     public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
@@ -492,7 +492,7 @@ internal sealed class PolygonCommand : IDrawCommand
 }
 
 /// <summary>polyline x1 y1 x2 y2 ... [color] [width]（偶数个点 + 可选样式段）</summary>
-internal sealed class PolylineCommand : IDrawCommand
+internal sealed partial class PolylineCommand : IDrawCommand
 {
     public string Name => "polyline";
     public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
@@ -546,7 +546,7 @@ internal sealed class PolylineCommand : IDrawCommand
 /// 老写法「裸颜色 = 描边」保持不动（桌面 `draw` 工具与既有脚本都这么用）。要填充得显式写
 /// `fill &lt;颜色|@渐变id&gt;`。多个子路径之间按**奇偶规则**挖洞（`M…Z M…Z` 画圆环那种）。
 /// </summary>
-internal sealed class PathCommand : IDrawCommand
+internal sealed partial class PathCommand : IDrawCommand
 {
     public string Name => "path";
     public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
@@ -646,7 +646,7 @@ internal sealed class PathCommand : IDrawCommand
 }
 
 /// <summary>text x y "内容" [size] [color] [anchor] [bold|italic|bolditalic] [fontFamily]</summary>
-internal sealed class TextCommand : IDrawCommand
+internal sealed partial class TextCommand : IDrawCommand
 {
     public string Name => "text";
     public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
@@ -720,7 +720,7 @@ internal sealed class TextCommand : IDrawCommand
 }
 
 /// <summary>star cx cy R r n [rot] [fill] [stroke] [width] — n 尖星</summary>
-internal sealed class StarCommand : IDrawCommand
+internal sealed partial class StarCommand : IDrawCommand
 {
     public string Name => "star";
     public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
@@ -756,7 +756,7 @@ internal sealed class StarCommand : IDrawCommand
 }
 
 /// <summary>regular cx cy r n [rot] [fill] [stroke] [width] — 正 n 边形</summary>
-internal sealed class RegularCommand : IDrawCommand
+internal sealed partial class RegularCommand : IDrawCommand
 {
     public string Name => "regular";
     public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
@@ -792,7 +792,7 @@ internal sealed class RegularCommand : IDrawCommand
 }
 
 /// <summary>ring cx cy R r [fill] [stroke] [width] — 圆环（even-odd 挖孔）</summary>
-internal sealed class RingCommand : IDrawCommand
+internal sealed partial class RingCommand : IDrawCommand
 {
     public string Name => "ring";
     public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
@@ -819,7 +819,7 @@ internal sealed class RingCommand : IDrawCommand
 }
 
 /// <summary>pie cx cy r a0 a1 [fill] [stroke] [width] — 扇形（角度制，a0→a1 逆时针）</summary>
-internal sealed class PieCommand : IDrawCommand
+internal sealed partial class PieCommand : IDrawCommand
 {
     public string Name => "pie";
     public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
@@ -863,7 +863,7 @@ internal sealed class PieCommand : IDrawCommand
 }
 
 /// <summary>heart x y size [fill] [stroke] [width] — 心形（参数式采样）</summary>
-internal sealed class HeartCommand : IDrawCommand
+internal sealed partial class HeartCommand : IDrawCommand
 {
     public string Name => "heart";
     public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
@@ -894,7 +894,7 @@ internal sealed class HeartCommand : IDrawCommand
 /// 可选裁剪：crop 裁源图子矩形（像素坐标）、round 裁目标圆角（圆角半径 r）、rect 显式直角矩形（默认）。
 /// SVG 输入无法栅格化，仅 SVG 端透传。
 /// </summary>
-internal sealed class ImageCommand : IDrawCommand
+internal sealed partial class ImageCommand : IDrawCommand
 {
     public string Name => "image";
     public DrawFigure? Parse(IReadOnlyList<DrawToken> a)

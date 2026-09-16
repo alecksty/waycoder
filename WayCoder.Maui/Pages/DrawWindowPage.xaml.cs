@@ -59,6 +59,29 @@ public partial class DrawWindowPage : ContentPage
         CanvasView.GestureRecognizers.Add(pointer);
 
         CanvasView.Drawable = _canvas;
+        _canvas.UseVector = UseVectorBackend;
+        _canvas.OnUnsupported = FallbackToRaster;
+    }
+
+    /// <summary>
+    /// **矢量后端总开关**（v0.96.180）。开了之后每帧只做"拼 DSL + 解析"，图元直接画到平台画布上：
+    /// 不再手搓光栅化、不再编 PNG、UI 侧也不解码 —— 那条路上每帧要新建一张 333KB 位图，
+    /// 25fps ≈ 10MB/s 垃圾、10 秒里 GC 跑 355 次（真机实测），"抖动"里属于平台的正是它。
+    ///
+    /// 落笔面走 MAUI 的 `ICanvas`，**一套代码两端跑**；按用户要求先在安卓上验证，
+    /// iOS/桌面不用重写、开这个开关即可。真机上若发现画得不对，把它置 false 就整体回到光栅后端。
+    /// </summary>
+    internal static bool UseVectorBackend = true;
+
+    /// <summary>
+    /// 矢量后端画不出来的图元（自定义指令没实现矢量画法）⇒ **整个窗口回退光栅后端**。
+    /// 宁可慢，也别默默少画东西。
+    /// </summary>
+    private void FallbackToRaster(IReadOnlyCollection<string> kinds)
+    {
+        if (!_canvas.UseVector) return;
+        _canvas.UseVector = false;      // 下一帧起走光栅；当前这帧已经画好了，不重绘（免得闪成空白）
+        ErrorLog.Warning("VmlDraw", $"矢量后端画不了 {string.Join("/", kinds)} ⇒ 本窗口回退光栅后端");
     }
 
     /// <summary>
@@ -71,11 +94,23 @@ public partial class DrawWindowPage : ContentPage
     {
         private Microsoft.Maui.Graphics.IImage? _image;
 
+        /// <summary>矢量后端要画的那一帧（解析后的文档）。非空且 <see cref="UseVector"/> 时走矢量。</summary>
+        private WayCoder.Infra.DrawDocument? _doc;
+
+        /// <summary>本帧里画不出来的图元（自定义指令没实现矢量画法）⇒ 宿主据此回退光栅后端。</summary>
+        public Action<IReadOnlyCollection<string>>? OnUnsupported;
+
         /// <summary>最近一帧在屏幕上的贴图矩形（`AspectFit` 的结果）。</summary>
         private RectF _fit;
 
         /// <summary>场景尺寸（= PNG 的像素尺寸），坐标反算要用。</summary>
         private double _sceneW = 1, _sceneH = 1;
+
+        /// <summary>
+        /// **矢量后端开关**。开了之后不再光栅化、不再编解码 PNG ——
+        /// 图元直接画到平台画布上（GPU 光栅化），每帧的托管分配几乎归零。
+        /// </summary>
+        public bool UseVector { get; set; }
 
         public void SetFrame(Microsoft.Maui.Graphics.IImage img, double sceneW, double sceneH)
         {
@@ -84,11 +119,26 @@ public partial class DrawWindowPage : ContentPage
             _sceneH = sceneH <= 0 ? 1 : sceneH;
         }
 
+        /// <summary>矢量后端：把这一帧的文档挂上去（引用赋值，天然是原子的）。</summary>
+        public void SetDocument(WayCoder.Infra.DrawDocument doc)
+        {
+            _doc = doc;
+            _sceneW = doc.Width <= 0 ? 1 : doc.Width;
+            _sceneH = doc.Height <= 0 ? 1 : doc.Height;
+        }
+
         public void Draw(ICanvas canvas, RectF dirtyRect)
         {
             // 背景铺满整个视图（含 AspectFit 留出的黑边），否则未覆盖区会是平台默认底色
             canvas.FillColor = Colors.Black;
             canvas.FillRectangle(dirtyRect);
+
+            if (UseVector && _doc is { } doc)
+            {
+                DrawVectorFrame(canvas, dirtyRect, doc);
+                return;
+            }
+
             if (_image == null) return;
 
             var iw = _image.Width;
@@ -103,6 +153,40 @@ public partial class DrawWindowPage : ContentPage
             var y = dirtyRect.Y + (dirtyRect.Height - h) / 2f;
             _fit = new RectF(x, y, w, h);
             canvas.DrawImage(_image, x, y, w, h);
+        }
+
+        /// <summary>
+        /// 矢量后端出图：把文档里的图元**逐条画到平台画布**上。
+        ///
+        /// 坐标：场景坐标 → 屏幕坐标用与光栅路径**同一个 AspectFit 结果**（`_fit`），
+        /// 通过 `Translate + Scale` 交给画布，图元本身仍按场景坐标画 ——
+        /// 这样触摸反算（`ToScene`）用的还是同一个 `_fit`，两条后端不会各算一套。
+        /// </summary>
+        private void DrawVectorFrame(ICanvas canvas, RectF dirtyRect, WayCoder.Infra.DrawDocument doc)
+        {
+            if (doc.Width <= 0 || doc.Height <= 0 || dirtyRect.Width <= 0 || dirtyRect.Height <= 0) return;
+
+            var s = Math.Min(dirtyRect.Width / doc.Width, dirtyRect.Height / doc.Height);
+            var w = (float)(doc.Width * s);
+            var h = (float)(doc.Height * s);
+            var x = dirtyRect.X + (dirtyRect.Width - w) / 2f;
+            var y = dirtyRect.Y + (dirtyRect.Height - h) / 2f;
+            _fit = new RectF(x, y, w, h);
+
+            canvas.SaveState();
+            canvas.Translate(x, y);
+            canvas.Scale((float)s, (float)s);
+
+            // 场景底色（`canvas w h <bg>` 那条），与光栅路径的起始填充一致
+            canvas.FillColor = MauiVectorTarget.ColOf(doc.Background);
+            canvas.FillRectangle(0, 0, doc.Width, doc.Height);
+
+            var target = new MauiVectorTarget(canvas, doc.Width, doc.Height);
+            foreach (var f in doc.Figures)
+                WayCoder.Infra.DrawCommandRegistry.Get(f.Kind)?.Vector(target, f);
+            canvas.RestoreState();
+
+            if (target.Unsupported.Count > 0) OnUnsupported?.Invoke(target.Unsupported);
         }
 
         /// <summary>
@@ -333,15 +417,27 @@ public partial class DrawWindowPage : ContentPage
                 var swParse = System.Diagnostics.Stopwatch.StartNew();
                 var doc = DrawRunner.Parse(dsl);
                 var parseMs = swParse.Elapsed.TotalMilliseconds;
+                var figures = dsl.Count(c => c == '\n') - 2;   // 去掉 canvas / antialias 两行
+
+                // ── 矢量后端：到这里就完了 ────────────────────────────────────
+                // 不再光栅化、不再编 PNG、UI 侧也不解码 —— 把文档挂给画布、让它自己重绘。
+                // 每帧的托管分配几乎归零（原来每帧一张 333KB 位图 ⇒ 25fps ≈ 10MB/s 垃圾）。
+                if (_canvas.UseVector)
+                {
+                    MainThread.BeginInvokeOnMainThread(() =>
+                    {
+                        _pendingStats = (dslMs, parseMs, 0, 0, figures);
+                        _canvas.SetDocument(doc);
+                        CanvasView.Invalidate();
+                        LogFrameStats(0, 0, 0);
+                    });
+                    return;
+                }
+
                 var swRaster = System.Diagnostics.Stopwatch.StartNew();
                 var png = DrawRunner.ToPng(doc);
                 var rasterMs = swRaster.Elapsed.TotalMilliseconds;
 
-                // 图元数**从这一帧的 DSL 里数**（= 真正被渲染的那一帧有多少图元）。
-                // ⚠ 别在 UI 回调里读 `scene.FigureCount`：那时后台已经过了一整趟光栅化
-                //   （几十毫秒），VM 早又画过好几轮，读出来的是**此刻**的场景而不是这一帧 ——
-                //   实测就是这样把"图元 5/37/34/29"打成一片参差，害我误判快照没修好。
-                var figures = dsl.Count(c => c == '\n') - 2;   // 去掉 canvas / antialias 两行
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
                     _pendingStats = (dslMs, parseMs, rasterMs, png.Length, figures);

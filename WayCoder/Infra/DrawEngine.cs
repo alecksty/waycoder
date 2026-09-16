@@ -273,6 +273,12 @@ public interface IDrawCommand
     void EmitSvg(StringBuilder sb, DrawFigure f);
     /// <summary>光栅化到像素画布。</summary>
     void Rasterize(Canvas c, DrawFigure f);
+    /// <summary>
+    /// 画到平台矢量画布（第三条路，见 <see cref="IVectorTarget"/>）。
+    /// **必需成员而不是默认空实现**：漏一个指令就会静默少画东西，那种错只有上手机才看得出；
+    /// 编不过反而是最省事的提醒。
+    /// </summary>
+    void Vector(IVectorTarget t, DrawFigure f);
 }
 
 /// <summary>绘图指令注册表。内置指令经 [ModuleInitializer] 自动注册，插件亦可注册自定义指令。</summary>
