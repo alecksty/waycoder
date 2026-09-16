@@ -110,7 +110,7 @@ func count5() -> Int { var i = 0; var s = 0
 ⚠ 这一轮的诊断自己还栽过一次：量了**第一帧**（诊断画在第二次 `ui_present`，落在 `f001`），
 于是得出"三个诊断全 0"的假结论。**先确认量的是哪一帧，再下结论。**
 diff --git a/third_party/vml/VMLPrepares/SwiftCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/SwiftCompiler/CodeGenerator.cs
-index 8f283257..5e3c6b3d 100644
+index 8f283257..1360f7ea 100644
 --- a/third_party/vml/VMLPrepares/SwiftCompiler/CodeGenerator.cs
 +++ b/third_party/vml/VMLPrepares/SwiftCompiler/CodeGenerator.cs
 @@ -62,20 +62,25 @@ namespace SwiftCompiler
@@ -187,7 +187,51 @@ index 8f283257..5e3c6b3d 100644
              
              // 创建VML程序
              var vmlProgram = BuildProgram("main");
-@@ -800,6 +843,49 @@ namespace SwiftCompiler
+@@ -363,14 +406,25 @@ namespace SwiftCompiler
+                 case IndexAccessExpression indexExpr:
+                     GenerateIndexAccess(indexExpr);
+                     break;
+-                    
+-                default:
+-                    // 未知表达式类型，生成默认值
+-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
+-                        new Operand(OperandType.REGISTER, 0),
+-                        new Operand(OperandType.IMMEDIATE, 0)
+-                    }));
++
++                case ParenthesizedExpression paren:
++                    // ⚠ v0.96.189 新增：**括号表达式原先根本没有分支**，直接落进下面的
++                    //    `default:` 被编成 `move R0 #0` —— **`(任意表达式)` 恒等于 0**。
++                    //    编译全绿、跑起来错，是最难查的那一类。
++                    //    实测症状（贪吃蛇，逐像素量 + 读生成的汇编）：`A[16 + (k) * 2]`
++                    //    恒等于 `A[16]`（`(k)` 折成 0 ⇒ **六次写入全落到同一个槽**）；
++                    //    `draw()` 里的 `(c + r) % 2 == 0` 棋盘格也从来没对过。
++                    GenerateExpression(paren.Expression);
+                     break;
++
++                default:
++                    // ⚠ 不能静默发 0：本文件 15 个表达式类型里，正是这个 `default` 把
++                    //    `ParenthesizedExpression` 吞成了一个恒 0 的常量。**编不过最省事**
++                    //    （与 `DrawCommand.Vector` 定成必需成员同一个理由：漏一个会静默少画东西，
++                    //    只有上手机才看得出）。
++                    throw new CodeGenerationException(
++                        ErrorCode.CodeGen_UnsupportedExpression,
++                        $"Swift 前端不支持这种表达式（代码生成缺分支）：{expression.GetType().Name}");
+             }
+         }
+         
+@@ -409,6 +463,10 @@ namespace SwiftCompiler
+ 
+         private ExpType InferSwiftType(Expression expr)
+         {
++            // ⚠ v0.96.189：括号不改变类型 —— 不加这条要么靠"兜底 I32"侥幸对（Int 的情况），
++            //    要么把 `(f)` 里的 Float/Double/Int64 判成 Int32（走 32 位指令路径）。
++            if (expr is ParenthesizedExpression parenType)
++                return InferSwiftType(parenType.Expression);
+             if (expr is LiteralExpression lit)
+             {
+                 if (lit.Type == "Float") return ExpType.F32;
+@@ -800,6 +858,49 @@ namespace SwiftCompiler
              }
          }
          
@@ -237,7 +281,7 @@ index 8f283257..5e3c6b3d 100644
          private void GenerateVariableDecl(VariableDeclStatement varDecl)
          {
              // 记录变量类型
-@@ -813,12 +899,21 @@ namespace SwiftCompiler
+@@ -813,12 +914,21 @@ namespace SwiftCompiler
                  // 将初始化值转换到目标变量类型 (Int/Float/Double/Int64 全转换)
                  EmitConvertTo(varType, varDecl.Initializer);
  
@@ -261,7 +305,7 @@ index 8f283257..5e3c6b3d 100644
                  // 统一 store: dest-first 顺序 (MEMORY first for store)
                  instructions.Add(new Instruction(storeOp, [new Operand(OperandType.MEMORY, label), new Operand(OperandType.REGISTER, 0)]));
              }
-@@ -907,6 +1002,16 @@ namespace SwiftCompiler
+@@ -907,6 +1017,16 @@ namespace SwiftCompiler
                      instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R14-{_localVarSize}"), new Operand(OperandType.REGISTER, 0)]));
                  }
              }
@@ -278,7 +322,7 @@ index 8f283257..5e3c6b3d 100644
              if (_localVarSize > 0)
                  instructions.Add(new Instruction(OpCode.SUB, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, _localVarSize + 8)]));
  
-@@ -1173,7 +1278,12 @@ namespace SwiftCompiler
+@@ -1173,7 +1293,12 @@ namespace SwiftCompiler
              EmitArrayElementOffset();
              AddInstruction(OpCode.POP, [Reg(1)]);
              AddInstruction(OpCode.ADD, [Reg(1), Reg(1), Reg(0)]);

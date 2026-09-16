@@ -406,14 +406,25 @@ namespace SwiftCompiler
                 case IndexAccessExpression indexExpr:
                     GenerateIndexAccess(indexExpr);
                     break;
-                    
-                default:
-                    // 未知表达式类型，生成默认值
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
-                        new Operand(OperandType.REGISTER, 0),
-                        new Operand(OperandType.IMMEDIATE, 0)
-                    }));
+
+                case ParenthesizedExpression paren:
+                    // ⚠ v0.96.189 新增：**括号表达式原先根本没有分支**，直接落进下面的
+                    //    `default:` 被编成 `move R0 #0` —— **`(任意表达式)` 恒等于 0**。
+                    //    编译全绿、跑起来错，是最难查的那一类。
+                    //    实测症状（贪吃蛇，逐像素量 + 读生成的汇编）：`A[16 + (k) * 2]`
+                    //    恒等于 `A[16]`（`(k)` 折成 0 ⇒ **六次写入全落到同一个槽**）；
+                    //    `draw()` 里的 `(c + r) % 2 == 0` 棋盘格也从来没对过。
+                    GenerateExpression(paren.Expression);
                     break;
+
+                default:
+                    // ⚠ 不能静默发 0：本文件 15 个表达式类型里，正是这个 `default` 把
+                    //    `ParenthesizedExpression` 吞成了一个恒 0 的常量。**编不过最省事**
+                    //    （与 `DrawCommand.Vector` 定成必需成员同一个理由：漏一个会静默少画东西，
+                    //    只有上手机才看得出）。
+                    throw new CodeGenerationException(
+                        ErrorCode.CodeGen_UnsupportedExpression,
+                        $"Swift 前端不支持这种表达式（代码生成缺分支）：{expression.GetType().Name}");
             }
         }
         
@@ -452,6 +463,10 @@ namespace SwiftCompiler
 
         private ExpType InferSwiftType(Expression expr)
         {
+            // ⚠ v0.96.189：括号不改变类型 —— 不加这条要么靠"兜底 I32"侥幸对（Int 的情况），
+            //    要么把 `(f)` 里的 Float/Double/Int64 判成 Int32（走 32 位指令路径）。
+            if (expr is ParenthesizedExpression parenType)
+                return InferSwiftType(parenType.Expression);
             if (expr is LiteralExpression lit)
             {
                 if (lit.Type == "Float") return ExpType.F32;

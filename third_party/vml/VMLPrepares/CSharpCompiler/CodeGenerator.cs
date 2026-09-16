@@ -25,6 +25,9 @@ namespace CSharpCompiler
 
         private ExpType InferCSharpType(Expression expr)
         {
+            // ⚠ v0.96.189：括号不改变类型（缺这条会把 `(f)` 里的 float/double 判成 Int32）
+            if (expr is ParenthesizedExpression parenType)
+                return InferCSharpType(parenType.Expression);
             if (expr is LiteralExpression lit)
             {
                 if (lit.Value is float) return ExpType.F32;
@@ -372,13 +375,21 @@ namespace CSharpCompiler
                     }
                     break;
 
-                default:
-                    // 未知表达式类型，生成默认值
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
-                        new Operand(OperandType.REGISTER, 0),
-                        new Operand(OperandType.IMMEDIATE, 0)
-                    }));
+                case ParenthesizedExpression paren:
+                    // ⚠ v0.96.189 新增：**括号表达式原先根本没有分支**，直接落进下面的
+                    //    `default:` 被编成 `move R0 #0` —— **`(任意表达式)` 恒等于 0**。
+                    //    解析器（`Parser.Expressions.cs`）明明建了 `ParenthesizedExpression`，
+                    //    代码生成却没接 ⇒ 编译全绿、跑起来错，最难查的那一类。
+                    //    Swift 前端实测症状：`A[16 + (k) * 2]` 恒等于 `A[16]`。
+                    GenerateExpression(paren.Expression);
                     break;
+
+                default:
+                    // ⚠ 不能静默发 0：这个 `default` 正是把 `ParenthesizedExpression` 吞成
+                    //    恒 0 常量的那个洞。**编不过最省事**。
+                    throw new CodeGenerationException(
+                        ErrorCode.CodeGen_UnsupportedExpression,
+                        $"C# 前端不支持这种表达式（代码生成缺分支）：{expression.GetType().Name}");
             }
         }
         

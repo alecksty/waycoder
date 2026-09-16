@@ -1,0 +1,56 @@
+# 0012：JavaScript 前端 —— 括号表达式被静默编成 0
+
+> 与 0011（Swift）、0010（C#）**同一个洞**：`GenerateExpression` 的 switch 里没有
+> `ParenthesizedExpression` 分支，落进 `default:` 发 `move R0 #0` ⇒ **`(任意表达式)`
+> 恒等于 0**，而且编译全绿。三家前端的解析器都建了这个 AST 节点，代码生成都漏接了。
+> JavaScript 独立成一条补丁只是因为**它不在 0007/0010/0011 任何一个补丁覆盖的文件里** ——
+> 同一文件只进一条补丁，是按文件分的，不是按毛病分的。
+
+## 现象与判据
+
+```js
+var k = 1;
+var t = 20 + (k) * 2;      // 修前：t = 20 + 0*2 = 20（(k) 编成 move R0 #0）
+```
+
+判据不靠"看着不对"，是**读生成的汇编**：修前 `(k)` 处是 `move R0 #0`，
+修后是 `move R0 var_k` + `move R0 [R0]`（取值）。
+
+## 两处改动
+
+1. 补上 `case ParenthesizedExpression paren:` —— 递归生成内层表达式；
+2. `default:` 从"静默发 0"改为 **抛 `CodeGenerationException`** ——
+   这一类"编译全绿、跑起来错"的故障，最该编不过（同 `DrawCommand.Vector` 定成必需成员）。
+
+回归：`Examples/` 下 25 个示例改动后全部照常编译通过。
+
+diff --git a/third_party/vml/VMLPrepares/JavaScriptCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/JavaScriptCompiler/CodeGenerator.cs
+index dcfa83cf..c733285b 100644
+--- a/third_party/vml/VMLPrepares/JavaScriptCompiler/CodeGenerator.cs
++++ b/third_party/vml/VMLPrepares/JavaScriptCompiler/CodeGenerator.cs
+@@ -350,13 +350,19 @@ namespace JavaScriptCompiler
+                         instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0)]));
+                     break;
+ 
+-                default:
+-                    // 未知表达式类型，生成默认值
+-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
+-                        new Operand(OperandType.REGISTER, 0),
+-                        new Operand(OperandType.IMMEDIATE, 0)
+-                    }));
++                case ParenthesizedExpression paren:
++                    // ⚠ v0.96.189 新增：**括号表达式原先根本没有分支**，直接落进下面的
++                    //    `default:` 被编成 `move R0 #0` —— **`(任意表达式)` 恒等于 0**。
++                    //    解析器（`Parser.cs`）建了 `ParenthesizedExpression`、代码生成却没接。
++                    GenerateExpression(paren.Expression);
+                     break;
++
++                default:
++                    // ⚠ 不能静默发 0：这个 `default` 正是把 `ParenthesizedExpression` 吞成
++                    //    恒 0 常量的那个洞。**编不过最省事**。
++                    throw new CodeGenerationException(
++                        ErrorCode.CodeGen_UnsupportedExpression,
++                        $"JavaScript 前端不支持这种表达式（代码生成缺分支）：{expression.GetType().Name}");
+             }
+         }
+         

@@ -1,5 +1,34 @@
 # 更新日志
 
+## v0.96.189 (2026-09-16) — 括号表达式恒等于 0（Swift/C#/JavaScript 三家同一个洞）→ Swift 贪吃蛇跑通
+
+`GenerateExpression` 的 switch 里**没有 `ParenthesizedExpression` 分支**，落进 `default:`
+被静默编成 `move R0 #0` ⇒ **`(任意表达式)` 恒等于 0**，而且**编译全绿**。
+三家前端的解析器都建了这个 AST 节点（`Parser.cs` 里 `new ParenthesizedExpression(expr)`），
+代码生成都漏接了 —— 只有 Java 接上了。
+
+**症状有多误导**：贪吃蛇里 `A[16 + (k) * 2]` 六次写入**全落到同一个槽**（因为下标恒为
+`16 + 0*2 = 16`），换成纯常量下标 `A[16]…A[21]` 就全对 ⇒ 看起来像"算式下标不能在多条语句里复用"。
+同一个洞还让棋盘格 `(c + r) % 2 == 0` 从来没交替过。
+
+**判据不是看现象猜，是读生成的汇编**（`vmlhost asm`）：修前 `(k)` 处就是 `move R0 #0`。
+这个手段一步定位，比前面几轮"换个写法试试"快得多。
+
+**改动**（patch 0011 扩充 / 0010 扩充 / 新增 0012）：
+1. 补 `case ParenthesizedExpression paren:` —— 递归生成内层表达式；
+2. 类型推断同步补一条（括号不改变类型）；
+3. `default:` 从"静默发 0"改为**抛 `CodeGenerationException`** ——
+   这类"编译全绿、跑起来错"的故障最该编不过（与 `DrawCommand.Vector` 定成必需成员同一个理由）。
+
+回归：`Examples/` 下 25 个示例改动后全部照常编译通过；`check-vml-patches.sh` 12 条补丁全绿。
+
+**Swift 贪吃蛇跑通**（`Examples/swift/snake.swift`，逐像素量）：蛇头 316 像素（1 格）、
+蛇身 632（2 格）、食物 316（1 格）—— 三个数都是精确整格；棋盘格图元数 180 = 20×18 的一半，
+说明交替也对了。**这是第一门不用 C 写出来的手机游戏。**
+
+C# 贪吃蛇仍画不出蛇 —— 卡在**带参方法的参数串槽**（`drawCell(sx[k], sy[k], HEAD_C)` 三个参数），
+这是它与 Swift 之间还剩的那一条，下一步修它。
+
 ## v0.96.188 (2026-09-16) — 修 Swift 读数组读回**字节偏移**（影响面最大的一条）
 
 `GenerateIndexAccess` 最后一句写的是 `MOVE [Mem("R1")], R0` —— 而 `MOVE dest, src` 的 dest 在前，

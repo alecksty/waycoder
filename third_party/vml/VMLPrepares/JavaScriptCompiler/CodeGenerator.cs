@@ -350,13 +350,19 @@ namespace JavaScriptCompiler
                         instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0)]));
                     break;
 
-                default:
-                    // 未知表达式类型，生成默认值
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
-                        new Operand(OperandType.REGISTER, 0),
-                        new Operand(OperandType.IMMEDIATE, 0)
-                    }));
+                case ParenthesizedExpression paren:
+                    // ⚠ v0.96.189 新增：**括号表达式原先根本没有分支**，直接落进下面的
+                    //    `default:` 被编成 `move R0 #0` —— **`(任意表达式)` 恒等于 0**。
+                    //    解析器（`Parser.cs`）建了 `ParenthesizedExpression`、代码生成却没接。
+                    GenerateExpression(paren.Expression);
                     break;
+
+                default:
+                    // ⚠ 不能静默发 0：这个 `default` 正是把 `ParenthesizedExpression` 吞成
+                    //    恒 0 常量的那个洞。**编不过最省事**。
+                    throw new CodeGenerationException(
+                        ErrorCode.CodeGen_UnsupportedExpression,
+                        $"JavaScript 前端不支持这种表达式（代码生成缺分支）：{expression.GetType().Name}");
             }
         }
         

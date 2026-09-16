@@ -37,10 +37,20 @@ class P { const int N = 5; static void Main() { int i = 0;
 C# 写游戏**（每个动作都要调方法）。
 
 diff --git a/third_party/vml/VMLPrepares/CSharpCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/CSharpCompiler/CodeGenerator.cs
-index 16e159dd..18af2209 100644
+index 16e159dd..3ca51376 100644
 --- a/third_party/vml/VMLPrepares/CSharpCompiler/CodeGenerator.cs
 +++ b/third_party/vml/VMLPrepares/CSharpCompiler/CodeGenerator.cs
-@@ -214,7 +214,17 @@ namespace CSharpCompiler
+@@ -25,6 +25,9 @@ namespace CSharpCompiler
+ 
+         private ExpType InferCSharpType(Expression expr)
+         {
++            // ⚠ v0.96.189：括号不改变类型（缺这条会把 `(f)` 里的 float/double 判成 Int32）
++            if (expr is ParenthesizedExpression parenType)
++                return InferCSharpType(parenType.Expression);
+             if (expr is LiteralExpression lit)
+             {
+                 if (lit.Value is float) return ExpType.F32;
+@@ -214,7 +217,17 @@ namespace CSharpCompiler
                      string prevClass = _currentClassName;
                      _currentClassName = classDecl.Name;
                      foreach (var member in classDecl.Members)
@@ -58,7 +68,7 @@ index 16e159dd..18af2209 100644
                      _currentClassName = prevClass;
                      break;
  
-@@ -344,12 +354,16 @@ namespace CSharpCompiler
+@@ -344,12 +357,16 @@ namespace CSharpCompiler
                          }
                          else
                          {
@@ -77,7 +87,35 @@ index 16e159dd..18af2209 100644
                          }
                      }
                      else
-@@ -394,14 +408,14 @@ namespace CSharpCompiler
+@@ -358,13 +375,21 @@ namespace CSharpCompiler
+                     }
+                     break;
+ 
+-                default:
+-                    // 未知表达式类型，生成默认值
+-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
+-                        new Operand(OperandType.REGISTER, 0),
+-                        new Operand(OperandType.IMMEDIATE, 0)
+-                    }));
++                case ParenthesizedExpression paren:
++                    // ⚠ v0.96.189 新增：**括号表达式原先根本没有分支**，直接落进下面的
++                    //    `default:` 被编成 `move R0 #0` —— **`(任意表达式)` 恒等于 0**。
++                    //    解析器（`Parser.Expressions.cs`）明明建了 `ParenthesizedExpression`，
++                    //    代码生成却没接 ⇒ 编译全绿、跑起来错，最难查的那一类。
++                    //    Swift 前端实测症状：`A[16 + (k) * 2]` 恒等于 `A[16]`。
++                    GenerateExpression(paren.Expression);
+                     break;
++
++                default:
++                    // ⚠ 不能静默发 0：这个 `default` 正是把 `ParenthesizedExpression` 吞成
++                    //    恒 0 常量的那个洞。**编不过最省事**。
++                    throw new CodeGenerationException(
++                        ErrorCode.CodeGen_UnsupportedExpression,
++                        $"C# 前端不支持这种表达式（代码生成缺分支）：{expression.GetType().Name}");
+             }
+         }
+         
+@@ -394,14 +419,14 @@ namespace CSharpCompiler
                  return;
              }
  
@@ -94,7 +132,7 @@ index 16e159dd..18af2209 100644
          }
          
          private void GenerateIndex(IndexExpression indexExpr)
-@@ -644,11 +658,43 @@ namespace CSharpCompiler
+@@ -644,11 +669,43 @@ namespace CSharpCompiler
                      string label = $"var_{varExpr2.Name}";
                      if (!dataSection.ContainsKey(label))
                          dataSection[label] = 0;
