@@ -815,7 +815,9 @@ namespace GoCompiler
                 GenerateExpression(indexExpr.Index);
                 instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 1)]));
                 instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0)]));
-                instructions.Add(new Instruction(OpCode.MOVEB, [Mem("R0"), new Operand(OperandType.REGISTER, 0)]));
+                // ⚠ v0.96.193：原本是 `MOVEB [R0], R0` —— dest/src 写反，"取字节"变成了
+                //   "把地址存回自己指向的地方"。同族问题（见下面数组分支的注释）。
+                instructions.Add(new Instruction(OpCode.MOVEB, [new Operand(OperandType.REGISTER, 0), Mem("R0")]));
                 return;
             }
             // 计算数组地址
@@ -840,12 +842,26 @@ namespace GoCompiler
                 new Operand(OperandType.REGISTER, 1)
             }, instructions.Count));
 
+            // ⚠ v0.96.193 修（两处）：
+            //   ① **少跳了 VML 数组头**：`AllocateVmlArray`（基类）的布局是
+            //      `[count, e0, e1, …]`，元素 i 在 `base + i*4 + 4`；这里原来只算 `base + i*4`
+            //      ⇒ 下标 0 读到的是 count、其余整体错位一格。
+            //   ② 最后那句"加载元素"写的是 `MOVE R0, R0` —— **自赋值、空操作**
+            //      ⇒ R0 里留着的是**地址**，被当成元素值返回。实测：`a[2]`→8、`a[5]`→20、
+            //      `a[7]`→28，**全是 `idx*4`**。这与 Swift 的 patch 0011 ③ 是同一个病
+            //      （`MOVE dest, src` 的操作数写反），**"地址当值"族第六次**。
+            instructions.Add(new Instruction(OpCode.ADD, new List<Operand>
+            {
+                new Operand(OperandType.REGISTER, 0),
+                new Operand(OperandType.IMMEDIATE, 4)
+            }, instructions.Count));
+
             instructions.Add(new Instruction(OpCode.POP, new List<Operand>
             {
                 new Operand(OperandType.REGISTER, 1)
             }, instructions.Count));
 
-            // 加载元素
+            // R0 = base + idx*4 + 4 → 取元素值回 R0
             instructions.Add(new Instruction(OpCode.ADD, new List<Operand>
             {
                 new Operand(OperandType.REGISTER, 0),
@@ -854,7 +870,7 @@ namespace GoCompiler
             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
             {
                 new Operand(OperandType.REGISTER, 0),
-                new Operand(OperandType.REGISTER, 0)
+                new Operand(OperandType.MEMORY, "R0")
             }, instructions.Count));
         }
 

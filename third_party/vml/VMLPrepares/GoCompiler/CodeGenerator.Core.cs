@@ -136,6 +136,19 @@ namespace GoCompiler
             _ => 4
         };
 
+        /// <summary>
+        /// `[N]T` 的元素个数；不是定长数组返回 -1。
+        /// `GoType.Array()` 把 N 编在**名字**里（`Name = "[N]"`，`ElementType` 另存），所以从名字读。
+        /// </summary>
+        private static int GoArrayLength(GoType t)
+        {
+            string n = t?.Name;
+            if (string.IsNullOrEmpty(n) || n[0] != '[') return -1;
+            int close = n.IndexOf(']');
+            if (close <= 1) return -1;
+            return int.TryParse(n.Substring(1, close - 1), out int len) && len > 0 ? len : -1;
+        }
+
         /// <summary>查找变量对应的 struct 类型定义</summary>
         private GoType GetVarStructType(string varName)
         {

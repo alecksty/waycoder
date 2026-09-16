@@ -1,0 +1,295 @@
+# 0015：Go 前端 —— 数组支持（声明 / 存储 / 读取三处都缺）
+
+> 承接 patch 0014（那一条只修了 `L{n}` 标签名，把**死循环**修好了）。
+> Go 的数组当时是坏的，而且是**三处都缺**，不在一个地方：
+
+## 一、`var a [8]int` 不分配（`CodeGenerator.Statements.cs`）
+
+`GenerateLocalVarDecl` 按 `GetTypeSize`（默认 4 字节）只留**一个槽、从不初始化**
+⇒ `a[i]` 的基址是那个未初始化的栈槽。实测读数全是 `idx*4`（`a[2]`→8、`a[5]`→20、`a[7]`→28），
+因为基址恰好是 0，返回的是**地址**。
+修法：用基类现成的 `AllocateVmlArray`（布局 `[count, e0, e1, …]`）在数据段建块，
+再把**块地址**存进变量槽 —— 与 `GenerateIndexExpr` 假设的"`GenerateExpression(数组名)` 给基址"对齐。
+
+## 二、`a[i] = v` **整段没有代码生成**
+
+赋值目标是下标时谁都不认，右值算完就丢掉（实测 `a[3] = 5` 只编出一句 `move R0 #5`，
+存储根本不存在）。`GenerateAssignment` 里补一条 `IndexExpr` 分支：
+先把值存进 R2（避开后面要用的 R0/R1），再算 `base + idx*4 + 4`，最后 `MOVE [R0], R2`。
+
+## 三、读取结尾是 `MOVE R0, R0`（空操作）+ 少跳数组头（`CodeGenerator.Expressions.cs`）
+
+- 最后那句"加载元素"写成了 `MOVE R0, R0` —— **自赋值**，R0 里留着的**地址**被当成元素值返回。
+  这与 Swift 的 patch 0011 ③ 是同一个病（**操作数写反**），**"地址当值"族第六次**。
+- 偏移少算了 **VML 数组头**：`[count, e0, …]` 的元素 i 在 `base + i*4 + 4`，原来只算 `base + i*4`
+  ⇒ 下标 0 读到的是 count、其余整体错位一格。
+- 字符串索引分支同族：`MOVEB [R0], R0` → `MOVEB R0, [R0]`。
+
+## 四、顺带修掉的"少算栈帧"（同一文件）
+
+`CalculateLocalSpace` 原来**只看块里的顶层语句**，`for i := 0; …` 里的 `i`
+与循环体内声明的变量**都没算进去** ⇒ 帧开小了、局部变量落到保留区之外，
+而表达式求值的 `push`/`pop` 正好写在那里 ⇒ **每次求值都把循环变量冲掉**。
+症状极具迷惑性：`for i:=0;i<5;i++ { s = s + a[3] }` 只累加 2 次（10 而不是 25），
+而**同一个循环里不读数组**时又是对的（50）—— 因为读数组的序列多了几条 `push/pop`，恰好踩中。
+现在递归进 if / for / switch 的体内统计；**少算 ≠ 只浪费空间，少算就是踩内存**，故宁可多算。
+
+另外 `GenerateLocalVarDecl` 里给初值的那句写的是 `Mem($"R14-{-localVarOffset + typeSize}")` ——
+字面量里**已经有那个负号**，再喂负数就成了 `R14--4`，而 `ResolveRegOffsetString` 把它解析成
+`R14 + 4`（往调用方那边写）⇒ **`var x int = 5` 的初值从来没有落到 x 上**。已改成与读取路径
+一致的 `Mem($"R14-{variables[name]}")`（正数）。
+
+## 验证（全部逐像素量，画布 200×200）
+
+| 探针 | 结果 |
+|---|---|
+| `a[3] = 5; a[3]*5` | **25** ✓（改前 60 —— 那是 12×5，12 = 3×4 的偏移）|
+| `a[1]=3; a[4]=7; a[7]=9` 各画一条 | **30 / 70 / 90** ✓ 三个互不串 |
+| `for i:=0;i<5;i++ { s = s + a[3] }` | **25** ✓（改前 10 = 2 次 × 5，正是栈帧被踩）|
+| `for i:=0;i<5;i++ { s = s + 1 }` | **50** ✓ |
+
+回归：`Examples/` 25 个示例全部编译通过；Swift 与 C# 贪吃蛇仍 316/632/316；
+C 俄罗斯方块仍正常出图。
+
+diff --git a/third_party/vml/VMLPrepares/GoCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/GoCompiler/CodeGenerator.Expressions.cs
+index d50bb8a7..4451aec9 100644
+--- a/third_party/vml/VMLPrepares/GoCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/GoCompiler/CodeGenerator.Expressions.cs
+@@ -815,7 +815,9 @@ namespace GoCompiler
+                 GenerateExpression(indexExpr.Index);
+                 instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 1)]));
+                 instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0)]));
+-                instructions.Add(new Instruction(OpCode.MOVEB, [Mem("R0"), new Operand(OperandType.REGISTER, 0)]));
++                // ⚠ v0.96.193：原本是 `MOVEB [R0], R0` —— dest/src 写反，"取字节"变成了
++                //   "把地址存回自己指向的地方"。同族问题（见下面数组分支的注释）。
++                instructions.Add(new Instruction(OpCode.MOVEB, [new Operand(OperandType.REGISTER, 0), Mem("R0")]));
+                 return;
+             }
+             // 计算数组地址
+@@ -840,12 +842,26 @@ namespace GoCompiler
+                 new Operand(OperandType.REGISTER, 1)
+             }, instructions.Count));
+ 
++            // ⚠ v0.96.193 修（两处）：
++            //   ① **少跳了 VML 数组头**：`AllocateVmlArray`（基类）的布局是
++            //      `[count, e0, e1, …]`，元素 i 在 `base + i*4 + 4`；这里原来只算 `base + i*4`
++            //      ⇒ 下标 0 读到的是 count、其余整体错位一格。
++            //   ② 最后那句"加载元素"写的是 `MOVE R0, R0` —— **自赋值、空操作**
++            //      ⇒ R0 里留着的是**地址**，被当成元素值返回。实测：`a[2]`→8、`a[5]`→20、
++            //      `a[7]`→28，**全是 `idx*4`**。这与 Swift 的 patch 0011 ③ 是同一个病
++            //      （`MOVE dest, src` 的操作数写反），**"地址当值"族第六次**。
++            instructions.Add(new Instruction(OpCode.ADD, new List<Operand>
++            {
++                new Operand(OperandType.REGISTER, 0),
++                new Operand(OperandType.IMMEDIATE, 4)
++            }, instructions.Count));
++
+             instructions.Add(new Instruction(OpCode.POP, new List<Operand>
+             {
+                 new Operand(OperandType.REGISTER, 1)
+             }, instructions.Count));
+ 
+-            // 加载元素
++            // R0 = base + idx*4 + 4 → 取元素值回 R0
+             instructions.Add(new Instruction(OpCode.ADD, new List<Operand>
+             {
+                 new Operand(OperandType.REGISTER, 0),
+@@ -854,7 +870,7 @@ namespace GoCompiler
+             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+             {
+                 new Operand(OperandType.REGISTER, 0),
+-                new Operand(OperandType.REGISTER, 0)
++                new Operand(OperandType.MEMORY, "R0")
+             }, instructions.Count));
+         }
+ 
+diff --git a/third_party/vml/VMLPrepares/GoCompiler/CodeGenerator.Statements.cs b/third_party/vml/VMLPrepares/GoCompiler/CodeGenerator.Statements.cs
+index f2e0cb2c..d90f1582 100644
+--- a/third_party/vml/VMLPrepares/GoCompiler/CodeGenerator.Statements.cs
++++ b/third_party/vml/VMLPrepares/GoCompiler/CodeGenerator.Statements.cs
+@@ -258,15 +258,29 @@ namespace GoCompiler
+             currentFunction = null;
+         }
+ 
++        /// <summary>
++        /// 估算函数体需要的局部栈空间（序言据此 `sub R13`）。
++        ///
++        /// ⚠ v0.96.193：**必须递归进 if / for / switch 的体内**。原来只看块里的顶层语句，
++        /// 于是 `for i := 0; i &lt; 5; i++ { … }` 里的 `i`（以及循环体内声明的变量）**都没被算进去**
++        /// ⇒ 帧开小了、局部变量落到了保留区之外，而表达式求值的 `push`/`pop` 正好写在那里
++        /// ⇒ **每次求值都把循环变量冲掉**。实测症状极具迷惑性：`for i := 0; i &lt; 5; i++ { s = s + a[3] }`
++        /// 只累加 2 次（10 而不是 25），而**同一个循环里不读数组**时又是对的（50）——
++        /// 因为读数组的序列多了几条 `push/pop`，恰好踩中。
++        /// 少算 ≠ 只浪费空间：**少算就是踩内存**，所以这里宁可多算。
++        /// </summary>
+         private int CalculateLocalSpace(Block block)
+         {
++            if (block == null) return 0;
+             int space = 0;
+             foreach (var stmt in block.Statements)
+             {
+                 if (stmt is VariableDecl varDecl)
+                 {
+                     GoTypeEnum varType = varDecl.Type != null ? GetGoTypeEnum(varDecl.Type) : GoTypeEnum.Int;
+-                    space += GetTypeSize(varType) * varDecl.Names.Count;
++                    // 定长数组只占一个指针槽（块本身在数据段，见 GenerateLocalVarDecl）
++                    int per = GoArrayLength(varDecl.Type) > 0 ? 4 : GetTypeSize(varType);
++                    space += per * varDecl.Names.Count;
+                 }
+                 else if (stmt is ShortVarDecl shortVar)
+                 {
+@@ -283,10 +297,64 @@ namespace GoCompiler
+                 {
+                     // 常量不占用栈空间
+                 }
++                else if (stmt is IfStatement ifStmt)
++                {
++                    space += CountDeclSpace(ifStmt.Init);
++                    space += CalculateLocalSpace(ifStmt.ThenBranch);
++                    if (ifStmt.ElseIfBranches != null)
++                        foreach (var (_, body) in ifStmt.ElseIfBranches)
++                            space += CalculateLocalSpace(body);
++                    space += CalculateLocalSpace(ifStmt.ElseBranch);
++                }
++                else if (stmt is ForStatement forStmt)
++                {
++                    space += CountDeclSpace(forStmt.Init);
++                    if (forStmt.IsRangeLoop)
++                    {
++                        if (!string.IsNullOrEmpty(forStmt.KeyVar)) space += 4;
++                        if (!string.IsNullOrEmpty(forStmt.ValueVar)) space += 4;
++                    }
++                    space += CountDeclSpace(forStmt.Post);
++                    space += CalculateLocalSpace(forStmt.Body);
++                }
++                else if (stmt is SwitchStatement switchStmt)
++                {
++                    space += CountDeclSpace(switchStmt.Init);
++                    if (switchStmt.Cases != null)
++                        foreach (var c in switchStmt.Cases)
++                            space += CalculateLocalSpace(c.Body);
++                }
++                else if (stmt is Block inner)
++                {
++                    space += CalculateLocalSpace(inner);
++                }
+             }
+             return space;
+         }
+ 
++        /// <summary>单条语句可能带来的声明空间（供 if/for/switch 的 init/post 用）。</summary>
++        private int CountDeclSpace(ASTNode stmt)
++        {
++            switch (stmt)
++            {
++                case null: return 0;
++                case VariableDecl vd:
++                    {
++                        GoTypeEnum t = vd.Type != null ? GetGoTypeEnum(vd.Type) : GoTypeEnum.Int;
++                        int per = GoArrayLength(vd.Type) > 0 ? 4 : GetTypeSize(t);
++                        return per * vd.Names.Count;
++                    }
++                case ShortVarDecl sv:
++                    {
++                        int s = 0;
++                        for (int i = 0; i < sv.Names.Count; i++)
++                            s += GetTypeSize(i < sv.Values.Count ? InferExpressionType(sv.Values[i]) : GoTypeEnum.Int);
++                        return s;
++                    }
++                default: return 0;
++            }
++        }
++
+         private void GenerateBlock(Block block)
+         {
+             foreach (var stmt in block.Statements)
+@@ -447,6 +515,38 @@ namespace GoCompiler
+                     var value = WrapExpr(assignment.Right[i]);
+                     _expr!.EmitCompoundAssign(target, value, assignment.Op);
+                 }
++                else if (leftNode is IndexExpr idxLeft)
++                {
++                    // ⚠ v0.96.193 新增：**`a[i] = v` 原来整段没有代码生成** ——
++                    //   赋值目标是下标时谁都不认，右值算完就被丢掉（实测 `a[3] = 5` 只编出
++                    //   一句 `move R0 #5`，存储根本不存在）。这里补上：
++                    //   先把值存进 R2（避开后面要用的 R0/R1），再算地址，最后 `MOVE [R0], R2`。
++                    //   `MOVE dest, src` 是 **dest 在前** —— 别写反（这一族本仓库栽过六次）。
++                    GenerateExpression(assignment.Right[i]);            // R0 = 值
++                    instructions.Add(new Instruction(OpCode.MOVE,
++                        [new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 0)],
++                        instructions.Count));
++
++                    GenerateExpression(idxLeft.Array);                  // R0 = 数组块地址
++                    instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)], instructions.Count));
++                    GenerateExpression(idxLeft.Index);                  // R0 = 下标
++                    instructions.Add(new Instruction(OpCode.MOVE,
++                        [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 4)],
++                        instructions.Count));
++                    instructions.Add(new Instruction(OpCode.MUL,
++                        [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1)],
++                        instructions.Count));                           // R0 = idx*4
++                    instructions.Add(new Instruction(OpCode.ADD,
++                        [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 4)],
++                        instructions.Count));                           // +4 跳过 VML 数组头
++                    instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 1)], instructions.Count));
++                    instructions.Add(new Instruction(OpCode.ADD,
++                        [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1)],
++                        instructions.Count));                           // R0 = base + idx*4 + 4
++                    instructions.Add(new Instruction(OpCode.MOVE,
++                        [new Operand(OperandType.MEMORY, "R0"), new Operand(OperandType.REGISTER, 2)],
++                        instructions.Count));                           // [R0] = 值
++                }
+                 else
+                 {
+                     // 计算右值 → R0
+@@ -675,6 +775,32 @@ namespace GoCompiler
+             GoTypeEnum varType = varDecl.Type != null ? GetGoTypeEnum(varDecl.Type) : GoTypeEnum.Int;
+             int typeSize = GetTypeSize(varType);
+ 
++            // ⚠ v0.96.193：**定长数组要真的分配**。原来 `var a [8]int` 只按 `GetTypeSize`
++            //   （默认 4 字节）留了一个槽、**从不初始化** ⇒ `a[i]` 的基址是一个未初始化的栈槽
++            //   （实测恒为 0），于是 `a[2]` 读到 8、`a[5]` 读到 20 —— 全是 `idx*4` 的"偏移"。
++            //   现在：用基类现成的 `AllocateVmlArray`（布局 `[count, e0, e1, …]`）在数据段建块，
++            //   再把这个**块的地址**存进变量槽 —— 这样 `GenerateIndexExpr` 里
++            //   `GenerateExpression(数组名)` 拿到的就是块地址，与它后面的 `base + i*4 + 4` 对得上。
++            int arrLen = GoArrayLength(varDecl.Type);
++            if (arrLen > 0)
++            {
++                foreach (var name in varDecl.Names)
++                {
++                    variables[name] = localVarOffset;
++                    _varTypes[name] = varType;
++                    Vars?.AllocLocal(name, 4);      // 变量槽只占一个指针
++                    localVarOffset += 4;
++                    string blockLabel = AllocateVmlArray(name, arrLen);
++                    instructions.Add(new Instruction(OpCode.MOVE,
++                        [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, blockLabel)],
++                        instructions.Count));       // R0 = 块地址（LEA）
++                    instructions.Add(new Instruction(OpCode.MOVE,
++                        [Mem($"R14-{variables[name]}"), new Operand(OperandType.REGISTER, 0)],
++                        instructions.Count));       // 存进变量槽（偏移取正数，与读取路径同一套）
++                }
++                return;
++            }
++
+             foreach (var name in varDecl.Names)
+             {
+                 variables[name] = localVarOffset;
+@@ -689,10 +815,16 @@ namespace GoCompiler
+                     {
+                         GenerateExpression(varDecl.Values[index]);
+                         // 使用类型敏感的存储指令
++                        // ⚠ v0.96.193 修：原来是 `Mem($"R14-{-localVarOffset + typeSize}")` ——
++                        //   字面量里**已经有了那个负号**，再喂一个负数就成了 `R14--4`，
++                        //   而 `ResolveRegOffsetString` 把它解析成 `R14 + 4`（往调用方那边写）
++                        //   ⇒ **`var x int = 5` 的初值从来没有落到 x 上**。
++                        //   读取路径（`GenerateIdentifier`）用的是 `R14-{variables[name]}`（正数），
++                        //   这里跟着它写，两边才是同一个槽。
+                         OpCode storeOp = GetStoreInstruction(varType);
+                         instructions.Add(new Instruction(storeOp, new List<Operand>
+                         {
+-                            Mem($"R14-{-localVarOffset + typeSize}"),
++                            Mem($"R14-{variables[name]}"),
+                             new Operand(OperandType.REGISTER, 0)
+                         }, instructions.Count));
+                     }

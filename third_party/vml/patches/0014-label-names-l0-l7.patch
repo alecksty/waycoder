@@ -27,6 +27,15 @@ Go 的探针（数组 + `for` 循环 + 读数组元素当矩形宽）：
   = **字节偏移**，不是元素值。这与 Swift 的 patch 0011 ③ 是同一个病（**"地址当值"族，本仓库第六次**），
   Go 这一处**尚未修**。
 
+
+---
+
+## 补记（v0.96.193）：Go 这一支后来又补了数组支持 —— 见 patch 0015
+
+0014 里 Go 只改了标签名（`L{n}` → `L_{n}`），那一步把**死循环**修好了。
+但 Go 的数组当时还有三处缺失，在 0015 里一并补掉：
+声明不分配、`a[i] = v` 没有代码生成、读取是 `MOVE R0, R0` 空操作。
+本文件的改动仍然是"标签名"那一处。
 diff --git a/third_party/vml/VMLPrepares/CCompiler/CodeGenerator.Expressions.Types.cs b/third_party/vml/VMLPrepares/CCompiler/CodeGenerator.Expressions.Types.cs
 index b051b07b..c9f9387d 100644
 --- a/third_party/vml/VMLPrepares/CCompiler/CodeGenerator.Expressions.Types.cs
@@ -56,10 +65,30 @@ index c469b146..272ef13f 100644
  
          private static string MangleName(string name)
 diff --git a/third_party/vml/VMLPrepares/GoCompiler/CodeGenerator.Core.cs b/third_party/vml/VMLPrepares/GoCompiler/CodeGenerator.Core.cs
-index 75afe38a..d8dd30f0 100644
+index 75afe38a..43a59b7d 100644
 --- a/third_party/vml/VMLPrepares/GoCompiler/CodeGenerator.Core.cs
 +++ b/third_party/vml/VMLPrepares/GoCompiler/CodeGenerator.Core.cs
-@@ -170,7 +170,8 @@ namespace GoCompiler
+@@ -136,6 +136,19 @@ namespace GoCompiler
+             _ => 4
+         };
+ 
++        /// <summary>
++        /// `[N]T` 的元素个数；不是定长数组返回 -1。
++        /// `GoType.Array()` 把 N 编在**名字**里（`Name = "[N]"`，`ElementType` 另存），所以从名字读。
++        /// </summary>
++        private static int GoArrayLength(GoType t)
++        {
++            string n = t?.Name;
++            if (string.IsNullOrEmpty(n) || n[0] != '[') return -1;
++            int close = n.IndexOf(']');
++            if (close <= 1) return -1;
++            return int.TryParse(n.Substring(1, close - 1), out int len) && len > 0 ? len : -1;
++        }
++
+         /// <summary>查找变量对应的 struct 类型定义</summary>
+         private GoType GetVarStructType(string varName)
+         {
+@@ -170,7 +183,8 @@ namespace GoCompiler
  
          private string NewLabel()
          {
