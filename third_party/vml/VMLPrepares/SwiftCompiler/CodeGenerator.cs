@@ -62,20 +62,25 @@ namespace SwiftCompiler
             _program = program;
             // 先处理非函数定义的语句，记录程序入口
             int mainEntry = instructions.Count;
+            bool hasTopLevel = false;
             foreach (var statement in program.Statements)
                 if (!(statement is FunctionDeclStatement))
+                {
                     GenerateStatement(statement);
-            
+                    hasTopLevel = true;
+                }
+
             string[] varDataKeys = dataSection.Keys.Where(k => k.StartsWith("var_")).ToArray();
             if (varDataKeys.Length > 0)
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, varDataKeys[0]) }));
+            int exitIndex = instructions.Count;
             EmitExit();
-            
+
             // 后处理函数定义
             foreach (var statement in program.Statements)
                 if (statement is FunctionDeclStatement funcDecl)
                     GenerateFunctionDecl(funcDecl);
-            
+
             // 如果没有main标签，添加默认的main
             if (!labels.ContainsKey("main"))
             {
@@ -87,6 +92,44 @@ namespace SwiftCompiler
                 foreach (var k in labelKeys)
                     if (labels[k] >= mainEntry && k != "main")
                         labels[k] += shift;
+            }
+            else if (hasTopLevel)
+            {
+                // 程序自己定义了 `func main()` 时，**顶层那段语句会变成死代码** ——
+                // 而全局变量/全局数组的初始化恰恰就在那段里（`var A = [...]` 生成的是
+                // "把数组基址存进 var_A"）。实测症状：全局数组指针恒为 0，所有 `A[i]`
+                // 读写都落在地址 4/8/… 那片低内存上 —— 写进去 3、读回来是别的值，
+                // 表现成"跨函数读全局数组不对"（同一函数内看着正常，因为读写都偏移同样错）。
+                //
+                // 修法**不搬指令、只挪标签**：入口仍旧指回顶层块（mainEntry），
+                // 块尾那条 EXIT 前面插一句 `call __user_main`，于是
+                // 「全局初始化 → 用户 main → 退出」。
+                int userMain = labels["main"];
+
+                // ⚠ 序列化器认的是**指令流里的 LABEL 伪指令**，不是编译器那张表 ——
+                //    只改表的话，函数身上那个 `main` 标签还在流里，入口照样指向函数。
+                for (int i = 0; i < instructions.Count; i++)
+                {
+                    var ins = instructions[i];
+                    if (ins.Opcode == OpCode.LABEL && ins.Operands.Count > 0
+                        && "main".Equals(ins.Operands[0].Value as string))
+                        instructions[i] = new Instruction(OpCode.LABEL,
+                            new List<Operand> { new Operand(OperandType.LABEL, "__user_main") });
+                }
+
+                labels.Remove("main");
+                instructions.Insert(exitIndex,
+                    new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, "__user_main")]));
+                instructions.Insert(mainEntry,
+                    new Instruction(OpCode.LABEL, [new Operand(OperandType.LABEL, "main")]));
+                // 两处插入 ⇒ exitIndex 之后的标签 +2、夹在中间的 +1
+                foreach (var k in new List<string>(labels.Keys))
+                {
+                    if (labels[k] >= exitIndex) labels[k] += 2;
+                    else if (labels[k] >= mainEntry) labels[k] += 1;
+                }
+                labels["main"] = mainEntry;
+                labels["__user_main"] = userMain + 2;
             }
             
             // 创建VML程序
