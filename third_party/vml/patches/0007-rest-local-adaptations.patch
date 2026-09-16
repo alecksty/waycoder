@@ -1,0 +1,3667 @@
+其余本地适配（兜底补丁）：除 0001–0006 之外**全部**对 rsync 覆盖路径的源码改动（v0.96.181）
+
+## 为什么需要一条兜底
+
+`sync.sh` 的 rsync 列表是
+`VMLAssembler VMLRuntime VMLPlugins VMLPrepares VMLTool VMLTranslators VMLToHex Lib`
+（含 `Lib`，带 `--delete`）—— **凡在这个列表里、又没进补丁的改动，跑一次同步就没了**。
+0001–0006 是按"我们知道的那几处"手写的，而**靠记忆枚举必然漏**：这一版之前，
+`Lib/` 里共享 UI 调用库那一整块（`vmlui.vml` 2248 行 + `Lib/shared/src/vmlui.c` 345 行）与
+`VMLPrepares/` 下 9 个文件（BasicCompiler ×7、CompilerBase/Preprocessor、PythonCompiler ×1，
+即 v0.96.164/165/169 打通"其它语言调用 C 共享库"的那批修复）**都没有补丁**。
+
+所以这条补丁**不做人工挑选**，直接取机械差：
+`git diff <vendor 提交>..HEAD -- <上面那 8 个路径>` 减去 0001–0006 已覆盖的文件。
+
+## 内容（按目录）
+
+| 目录 | 大意 |
+|---|---|
+| `Lib/` | UI syscall 提为共享调用库（各语言共用一份）、方块几何、`ui_*` 包装、C 侧绑定与 README |
+| `VMLPrepares/BasicCompiler/` | BASIC 前端：SUB 内模块级变量可读可写、整除 `\`、数组读写、跨帧变量 |
+| `VMLPrepares/PythonCompiler/` | Python 前端：调用 C 共享库的那条路 |
+| `VMLPrepares/CompilerBase/` | 预处理器：让各语言都能 `#include`/`.linked` 到共享库 |
+
+## 验证（这条能验到硬）
+
+把补丁依次打到 vendor 提交的树上，结果必须与当前工作区**逐字节相同** ——
+`scripts/check-vml-patches.sh` 就是干这个的（利用仓库里那次 vendor 提交当"上游"）。
+⚠ 上游仓库若已包含其中某处，`git apply` 会失败并让 `sync.sh` 直接退出（这是有意的：
+宁可让人来合并，也不要静默丢失）。
+
+diff --git a/third_party/vml/Lib/README-ui.md b/third_party/vml/Lib/README-ui.md
+new file mode 100644
+index 00000000..2618322b
+--- /dev/null
++++ b/third_party/vml/Lib/README-ui.md
+@@ -0,0 +1,261 @@
++# 手机端 UI syscall（对话框 / 窗体绘图 / 输入）
++
++> 这份接口**只在手机 App（WayCoder）里可用** —— 由宿主实现（`WayCoder.Maui/Services/VmlUiCalls.cs`），
++> 桌面 `vmltool` 不认识这些号（会走内置 switch → 报未知 syscall）。
++> 号段的**唯一事实源**在 `WayCoder/UI/Shared/VmlUiProtocol.cs` 的常量注释里，本文与之同步。
++
++## 为什么是 500–599
++
++运行时现用最大号是 402（`VMLRuntime/SyscallNumber.cs`）。宿主 syscall 处理器在**内置 switch 之前**
++被调用（`VMLRuntime.Syscall.cs:23`），所以这个号段完全由宿主解释 —— **运行时一行不用改**。
++手机端跑的是 mcu 模式（privilegeLevel > 0），dispatch 顶部还有一道白名单门
++（`UserAllowedSyscalls.Contains`），宿主启动时会 `UserAllowed.Add(500..599)` 把门打开；
++**这正是"处理器注册了却永远不被调用"的唯一原因**，自己接一套新号段时别漏。
++
++## 号段表
++
++参数写在 R0、R1…；字符串是**内存里的 NUL 结尾 UTF-8 字节**；颜色是 **0xAARRGGBB**。
++"选项块" = 若干 `\0` 分隔的字符串（末尾再补一个 `\0`）。
++
++### 对话框
++
++| 号 | 名称 | 参数 | 返回 |
++|---|---|---|---|
++| 500 | `DLG_MSG` | R0=标题* R1=正文* R2=样式(0信息/1警告/2错误/3询问) | 0=确定/是，1=否/取消 |
++| 501 | `DLG_SELECT` | R0=标题* R1=提示* R2=选项块* R3=选项数 R4=默认项 | 选中下标，取消 -1 |
++| 502 | `DLG_MULTI` | 同 501 | 位掩码，取消 -1 |
++| 503 | `DLG_INPUT` | R0=标题* R1=提示* R2=缓冲* R3=容量 | 写入长度，取消 -1 |
++
++### 窗体与绘图（保留模式）
++
++程序先把图元一条条追加进窗口场景，宿主按帧渲染 —— VM 只追加、UI 只渲染，互不阻塞。
++
++| 号 | 名称 | 参数 | 返回 |
++|---|---|---|---|
++| 520 | `WIN_OPEN` | R0=标题* R1=宽 R2=高 | 句柄(1)，失败 -1 |
++| 521 | `WIN_CLOSE` | R0=句柄 | 0 |
++| 522 | `DRAW_CLEAR` | R0=颜色 | 0 |
++| 523 | `DRAW_PIXEL` | x y 颜色 | 0 |
++| 524 | `DRAW_LINE` | x1 y1 x2 y2 颜色 线宽 | 0 |
++| 525 | `DRAW_RECT` | x y w h 颜色 填充(0/1) 线宽 圆角半径 | 0 |
++| 526 | `DRAW_CIRCLE` | cx cy r 颜色 填充 线宽 | 0 |
++| 527 | `DRAW_ELLIPSE` | cx cy rx ry 颜色 填充 线宽 | 0 |
++| 528 | `DRAW_TEXT` | x y 文本* 颜色 字号 锚点(0左/1中/2右) | 0 |
++| 529 | `DRAW_ICON` | x y 图标名* 尺寸 颜色 | 0 |
++| 530 | `DRAW_IMAGE` | x y 路径* w h | 0 |
++| 531 | `DRAW_PRESENT` | — | 0（帧边界标记；宿主定时器也会刷） |
++
++### 输入（统一消息队列）
++
++键盘、鼠标、触摸、定时器、窗口事件**进同一个队列**，程序统一按「取消息 → 分派」写循环。
++
++| 号 | 名称 | 参数 | 返回 |
++|---|---|---|---|
++| 560 | `MSG_POLL` | R0=消息缓冲地址 | 消息类型，无消息 0 |
++| 561 | `MSG_WAIT` | R0=缓冲地址 R1=超时毫秒(0=无限) | 消息类型，超时 0 |
++| 562 | `MSG_COUNT` | — | 待处理条数 |
++| 563 | `TIMER_SET` | R0=间隔毫秒 R1=用户标记 | 定时器 id |
++| 564 | `TIMER_KILL` | R0=id | 0 |
++| 565 | `WIN_CLOSED` | R0=句柄 | 1=用户关了窗口（程序应退出主循环） |
++
++**消息结构固定 16 字节**（4 个小端 int，任何语言都能直接读）：
++
++```
+++0  类型      +4  A        +8  B        +12 时间戳(ms)
++```
++
++| 类型 | 名称 | A | B |
++|---|---|---|---|
++| 1 / 2 | KeyDown / KeyUp | 键码 | 0 |
++| 3 / 4 / 5 | MouseMove / Down / Up | x | y |
++| 6 / 7 / 8 | TouchDown / Move / Up | x | y |
++| 9 | Timer | 定时器 id | 装机时的用户标记 |
++| 10 | WindowClose | 0 | 0 |
++| 11 | WindowResize | 新宽 | 新高 |
++
++键码沿用 **Win32 虚拟键值**（与 HTML `keyCode` 基本一致）：方向键 37–40、回车 13、空格 32、ESC 27
++（常量见 `UI/Shared/VmlUiProtocol.cs` 的 `VmlKeys`）。
++
++### 随机数与计时（游戏要用）
++
++这两个**不在 500–599 号段**里，走的是 VM 自带的 `#50` / `#53`。放在共享库里，是因为
++只有 C 能直接调 syscall，其它前端自己搓不出随机数（只能固定出子顺序）。
++
++| 函数 | 说明 |
++|---|---|
++| `int ui_rand(int n)` | 0..n-1 的随机数（n ≤ 0 返回 0） |
++| `int ui_tick(void)` | 自 VM 启动起的毫秒数（单调递增） |
++
++## 最小可运行示例（VML 汇编）
++
++开一个窗口，画一个实心圆 + 一行字，等按键，然后关窗：
++
++```asm
++.entry main
++.stack 256
++.vectors 0x0
++
++.data
++title:  .string "演示窗口"
++hello:  .string "按方向键退出"
++msg:    .string "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0"   ; 16 字节消息缓冲
++
++.text
++main:
++        ; WIN_OPEN(title, 320, 240)
++        LEA R0, title
++        MOVE R1, #320
++        MOVE R2, #240
++        SYSCALL #520
++
++        ; DRAW_CLEAR(#FF101020)
++        LOAD R0, #0xFF101020
++        SYSCALL #522
++
++        ; DRAW_CIRCLE(160, 120, 60, #FF00C8FF, 填充=1, 线宽=0)
++        MOVE R0, #160
++        MOVE R1, #120
++        MOVE R2, #60
++        LOAD R3, #0xFF00C8FF
++        MOVE R4, #1
++        MOVE R5, #0
++        SYSCALL #526
++
++        ; DRAW_TEXT(160, 20, hello, #FFFFFFFF, 16, 锚点=居中)
++        MOVE R0, #160
++        MOVE R1, #20
++        LEA R2, hello
++        LOAD R3, #0xFFFFFFFF
++        MOVE R4, #16
++        MOVE R5, #1
++        SYSCALL #528
++
++        ; 主循环：等一条消息，收到 WindowClose 就退出
++wait:
++        LEA R0, msg
++        MOVE R1, #0            ; 0 = 无限等
++        SYSCALL #561
++        CMP R0, #10            ; WindowClose
++        JE  done
++        JMP wait
++
++done:
++        MOVE R0, #0
++        SYSCALL #3             ; exit(0)
++```
++
++> ⚠ 上面用的是 VML 汇编的指令写法（`LEA`/`LOAD`/`MOVE`/`SYSCALL`/`CMP`/`JE`）。
++> 具体语法以 `docs/VML_ISA_SPEC.md` 为准；本示例的价值在于**把号段、参数顺序、消息缓冲的用法
++> 串成一条完整可跑的路径**。
++
++## C 侧约定（实测校准，不是推测）
++
++C 里调这套 syscall 的**唯一可靠**写法是 `${名}` 占位符，包装库见 **`Lib/c/waycoder_ui.h`**
++（头文件自带实现，`#include` 即可用）：
++
++```c
++#include <waycoder_ui.h>
++
++int main(void) {
++    int msg[4];
++    ui_win_open("演示", 360, 620);
++    ui_clear(0xFF101020);
++    ui_circle(160, 120, 60, 0xFF00C8FF, 1, 0);
++    ui_text(160, 20, "按方向键退出", 0xFFFFFFFF, 16, 1);
++    ui_present();
++
++    while (ui_win_closed() == 0) {
++        if (ui_wait(msg, 0) != VML_MSG_TOUCHDOWN) continue;
++        /* msg[1]=x msg[2]=y，单位与绘图一致 */
++    }
++    return 0;
++}
++```
++
++### 参数：`${名}` 占位符
++
++`GenerateAsmStatement` 会把 `${名}` 按出现顺序换成 R0、R1、R2…，并在它前面补一条
++`MOVE Rn, [变量槽]`：
++
++```c
++asm("SYSCALL #520, ${title}, ${w}, ${h}");   /* ✓ R0=title R1=w R2=h */
++```
++
++**不可靠的写法**（本仓库 `Lib/c/stdlib.c`、`Lib/c/time.c` 里就是这么写的，实际拿不到值）：
++
++```c
++asm("MOVE R0, s");    /* ✗ 这句文本原样进汇编器；局部变量在栈上（R12±偏移）、
++                             汇编器没有它的符号表 → R0 是垃圾 */
++```
++
++`${名}` 只认**简单变量名**：`p.x`、`arr[i]`、函数名都不认，要先赋给一个变量。
++全局变量也不认（它不在局部变量表里，会退化成 `R12+0`）—— 走包装函数（形参）就没这问题。
++
++### 返回值：把 asm 当表达式用
++
++```c
++int ui_scr_w(void) { return asm("SYSCALL #566"); }     /* ✓ */
++int ui_scr_w(void) { asm("SYSCALL #566"); return 0; }  /* ✗ 返回值丢了 */
++```
++
++### 校准记录
++
++用桌面宿主 + 寄存器探针跑的最小用例（宿主在仓库根的 `.scratch/vmlhost/`，
++它直接从 `third_party/vml` 的 `Lib/` 取库，不重编 VML 任何工程）：
++
++| 用例 | 结果 |
++|---|---|
++| `asm("SYSCALL #510, ${s}")`，`s` 是字符串指针 | R0 → `HELLO-STRING` ✅ |
++| `asm("SYSCALL #520, ${s}, ${w}, ${h}")` | R0/R1/R2 = 字符串指针/395/744 ✅ 顺序即占位符出现顺序 |
++| `asm("MOVE R0, ${n}")` + `asm("SYSCALL #530")` | R0 = 12345 ✅（`${}` 在非 SYSCALL 行上也替换） |
++| `r = asm("SYSCALL #540, ${n}")` | `r` = 探针回的 23130 ✅ |
++| `asm("MOVE R0, s")`（直写变量名） | ❌ 拿不到值 |
++
++## 校准过程中修掉的两个编译器 bug
++
++这两处都在 C 前端，都属于"**编得过、跑起来才错**"，是这套 syscall 一开始"字符串传不过去"
++的真正原因。修法见 `patches/0002-c-codegen-fixes.patch`（并已回灌上游 VML 仓库）。
++
++### ① 参数寄存器过早装载（影响面更大）
++
++cdecl 调用里，实参是从右到左"边求值边 `MOVE Ri, R0`"，而**下一次实参求值会把 R0/R1
++当临时寄存器用**（表达式产物里随处可见 `PUSH R0 … POP R1`）——于是已经装好的 Ri 被冲掉。
++
++```c
++probe(p + 3 * k, q + 3 * k, 3 * k);   /* p=29 q=41 k=24 → 期望 101/113/72 */
++```
++修前：`R0=101 R1=101 R2=72`（第二个参数变成了第一个的值）
++修后：`R0=101 R1=113 R2=72` ✅
++
++只要实参是**带运算的表达式**、且它前面还有别的实参就会中招。改法是分两步：
++先全部求值+压栈并记下各自相对 R13 的偏移，最后统一从栈上把 R0–R3 装回来。
++
++### ② `R12-4` 撞车
++
++`asm("SYSCALL #…")` 执行完会把 R0 存回 `[R12-4]`（asm 结果的暂存槽），
++而局部变量分配器把**第一个声明的局部变量**也放在 `R12-4`。任何一条 asm 执行完
++都会把它覆盖成上一条 syscall 的返回值 —— 症状正是"弹窗里的字符串大多是空的"。
++
++修法是让 C 前端先占住 `R12-4`，用户局部变量从 `R12-8` 起（与 BasicCompiler 把
++`R12-4` 到 `R12-256` 预留给临时槽的处置一致）。
++
++> 这两处都已实测校准。**没有它们的编译器上，`waycoder_ui.h` 里的包装函数仍然可用** ——
++> 那是因为包装函数只把**形参**交给 `${}`（形参在 `R12+8` 往上，不在 `R12-4`），
++> 且每个函数只调一条 syscall。但**你自己的代码**如果直接用 `${局部变量}`、或写出
++> 带运算的实参，就会踩到上面两条。
++
++## 各语言的封装状态
++
++**实现只有一份**：`Lib/shared/src/vmlui.c` → 编成 `Lib/shared/vmlui.vml`，由
++`vmltool.config.xml` 挂到各语言的 `Libs` 上。各语言侧只放**声明/包装**。
++
++| 语言 | 状态 |
++|---|---|
++| VML 汇编 | ✅ 上面的示例可直接跑 |
++| C / C++ / ObjC | ✅ `#include <waycoder_ui.h>`（`Lib/c/`，只有声明，不增大程序）；约定与校准见上一节 |
++| Python / BASIC | ✅ 同一份 `vmlui.vml`（`vmltool.config.xml` 里已挂）—— 这两个前端**不能用内联 asm**，只能按标签调 C 函数，`Lib/shared/src/vmlui.c` 就是为它们写的（另有 `ui_wait_msg`/`ui_msg_a`/`ui_gset` 这类不碰指针的接口） |
++| 其它前端 | 未做（做法同上：加声明 + 确保 `vmlui.vml` 在该语言的 `Libs` 里） |
++
++> ⚠ 这个目录由 `third_party/vml/sync.sh` 从上游 VML 仓库同步，**本地改动下次同步会被覆盖** ——
++> 落地后要把 `Lib/shared/src/vmlui.c`、`Lib/shared/vmlui.vml`、`Lib/c/waycoder_ui.h`
++> 回灌上游仓库（或改 sync.sh 显式保留，但那是最脆的一类本地适配，优先回灌）。
+diff --git a/third_party/vml/Lib/c/waycoder_ui.h b/third_party/vml/Lib/c/waycoder_ui.h
+new file mode 100644
+index 00000000..46113bf5
+--- /dev/null
++++ b/third_party/vml/Lib/c/waycoder_ui.h
+@@ -0,0 +1,169 @@
++/* waycoder_ui.h —— 手机端 UI syscall 的 C 语言**声明**（对话框 / 窗体 / 绘图 / 输入）
++ *
++ * ## 实现在哪
++ *
++ * 函数体在 **`Lib/shared/src/vmlui.c`**，编成 `Lib/shared/vmlui.vml` 后由
++ * `vmltool.config.xml` 挂到各语言的 `Libs` 上 —— **C 与 Python 等前端共用同一份实现**。
++ * 本头文件只提供声明与常量，`#include` 它不会让程序变大。
++ *
++ * （早先这层是写在头文件里自带实现的。挪出去的原因：Python 等前端**不支持内联 asm**，
++ *   只能按标签调 C 函数 —— 实现留在 `.h` 里，那些语言就一个都调不到，
++ *   于是同一套接口会被迫各写一遍。那是本仓库排第一的坑。）
++ *
++ * ## 号段
++ * 500–599 是**宿主 UI 保留段**，只有手机 App（WayCoder）里能用；桌面 vmltool 不认识
++ * 这些号。号段表见 `Lib/README-ui.md`。
++ *
++ * ## 用法（C）
++ *
++ *     #include <waycoder_ui.h>
++ *
++ *     int main(void) {
++ *         int msg[4];
++ *         ui_win_open("演示", 360, 620);
++ *         ui_clear(0xFF101020);
++ *         ui_set_font(18, VML_FONT_BOLD, 0xFFFFFFFF, VML_ANCHOR_CENTER);
++ *         ui_text_cur(180, 40, "按方向键退出");
++ *         ui_present();
++ *         while (ui_win_closed() == 0) {
++ *             if (ui_wait(msg, 0) != VML_MSG_TOUCHDOWN) continue;   // msg[1]=x msg[2]=y
++ *         }
++ *         return 0;
++ *     }
++ *
++ * 文本按 **UTF-8**（NUL 结尾）传给宿主，源文件存成 UTF-8 即可直接写中文。
++ */
++
++#ifndef WAYCODER_UI_H
++#define WAYCODER_UI_H
++
++/* ── 消息类型（与 UI/Shared/VmlUiProtocol.cs 的 VmlMsgType 一一对应）── */
++#define VML_MSG_NONE          0
++#define VML_MSG_KEYDOWN       1
++#define VML_MSG_KEYUP         2
++#define VML_MSG_MOUSEMOVE     3
++#define VML_MSG_MOUSEDOWN     4
++#define VML_MSG_MOUSEUP       5
++#define VML_MSG_TOUCHDOWN     6
++#define VML_MSG_TOUCHMOVE     7
++#define VML_MSG_TOUCHUP       8
++#define VML_MSG_TIMER         9
++#define VML_MSG_WINDOWCLOSE  10
++#define VML_MSG_WINDOWRESIZE 11
++
++/* ── 键码（Win32 虚拟键值；手柄那一排见 VmlKeys）── */
++#define VML_KEY_BACKSPACE  8
++#define VML_KEY_ENTER     13
++#define VML_KEY_SELECT    16    /* 手柄 SELECT */
++#define VML_KEY_PAUSE     19    /* 手柄 PAUSE */
++#define VML_KEY_ESCAPE    27
++#define VML_KEY_SPACE     32
++#define VML_KEY_LEFT      37
++#define VML_KEY_UP        38
++#define VML_KEY_RIGHT     39
++#define VML_KEY_DOWN      40
++#define VML_KEY_PAD_A     65    /* 'A' */
++#define VML_KEY_PAD_B     66    /* 'B' */
++#define VML_KEY_PAD_X     88    /* 'X' */
++#define VML_KEY_PAD_Y     89    /* 'Y' */
++
++/* ── 对话框样式 ── */
++#define VML_DLG_INFO     0
++#define VML_DLG_WARN     1
++#define VML_DLG_ERROR    2
++#define VML_DLG_QUESTION 3
++
++/* ── 文字样式位 / 锚点 ── */
++#define VML_FONT_BOLD    1
++#define VML_FONT_ITALIC  2
++#define VML_ANCHOR_LEFT   0
++#define VML_ANCHOR_CENTER 1
++#define VML_ANCHOR_RIGHT  2
++
++/* ── 对话框 ── */
++int  ui_dlg_msg(char* title, char* body, int style);
++int  ui_dlg_select(char* title, char* body, char* opts, int n, int def);
++int  ui_dlg_multi(char* title, char* body, char* opts, int n);
++int  ui_dlg_input(char* title, char* prompt, char* buf, int cap);
++
++/* ── 窗体 ── */
++int  ui_win_open(char* title, int w, int h);
++int  ui_win_close(void);
++int  ui_win_closed(void);
++int  ui_scr_w(void);
++int  ui_scr_h(void);
++
++/* ── 绘图 ── */
++void ui_clear(int color);
++void ui_pixel(int x, int y, int color);
++void ui_line(int x1, int y1, int x2, int y2, int color, int lw);
++void ui_rect(int x, int y, int w, int h, int color, int fill, int lw, int radius);
++void ui_circle(int cx, int cy, int r, int color, int fill, int lw);
++void ui_ellipse(int cx, int cy, int rx, int ry, int color, int fill, int lw);
++void ui_icon(int x, int y, char* name, int size, int color);
++void ui_image(int x, int y, char* path, int w, int h);
++void ui_present(void);
++
++/* ── 文字 ── */
++void ui_text(int x, int y, char* s, int color, int size, int anchor);
++void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style);
++void ui_set_font(int size, int style, int color, int anchor);
++void ui_text_cur(int x, int y, char* s);
++
++/* ── 不碰指针的消息读取 + 通用整数网格（非 C 语言用，C 也能用）── */
++int  ui_wait_msg(int timeout_ms);
++int  ui_poll_msg(void);
++int  ui_msg_type(void);
++int  ui_msg_a(void);
++int  ui_msg_b(void);
++void ui_gclear(void);
++void ui_piece_init(void);
++int  ui_piece_cell(int pid, int rot, int which);
++void ui_gset(int idx, int val);
++int  ui_gget(int idx);
++
++/* ── 输入 ── */
++int  ui_poll(int* msg);
++int  ui_wait(int* msg, int timeout_ms);
++int  ui_msg_count(void);
++int  ui_timer_set(int interval_ms, int tag);
++int  ui_timer_kill(int id);
++
++/* ── 绘图增强（534–539，v0.96.176）：渐变刷子 / 路径与曲线 / 多边形 ──
++ *
++ * 这一组也是**本地加的**，同样要提给上游 VML 仓库（理由见文件末尾那段）。
++ * 坐标与颜色约定与既有绘图接口一致（dp、0xAARRGGBB）。 */
++
++/* 渐变刷子：id 之后用 ui_rect_grad / ui_circle_grad / ui_path 的 grad 参数按名引用。
++ * 几何是**归一化 0..1000 的整数**（千分之一）：线性给 x1,y1,x2,y2；径向给 cx,cy,r（第 4 个忽略）。
++ * 不想要自定义几何就传 0,0,1000,0（线性从左到右）或 500,500,500,0（径向居中）。 */
++void ui_gradient(char* id, int radial, int color_a, int color_b,
++                 int a1, int a2, int a3, int a4);
++
++/* 路径：d 是 **SVG path 语法**（M L H V C S Q T A Z，大小写区分绝对/相对）。
++ * stroke=描边色（0=不描边）、width=线宽、fill=填充色（0=不填充）、
++ * grad=渐变 id（非 0 时用它填充、忽略 fill）、cap=0平/1圆/2方、dash=0/1 虚线。 */
++void ui_path(char* d, int stroke, int width, int fill, char* grad, int cap, int dash);
++
++/* 多边形（自动闭合）/ 折线：pts 是 int 数组，**每两个 int 一个点**（x,y）；count 是**点数**。 */
++void ui_polygon(int* pts, int count, int fill, int stroke, int width, char* grad);
++void ui_polyline(int* pts, int count, int stroke, int width, char* grad);
++
++/* 渐变填充的矩形 / 圆（渐变按钮、渐变背景这类最常用） */
++void ui_rect_grad(int x, int y, int w, int h, char* grad, int radius);
++void ui_circle_grad(int cx, int cy, int r, char* grad);
++
++/* ── 随机数 / 计时（游戏用；实现走 VM 的 #50/#53，各语言共用一份）── */
++int  ui_rand(int n);      /* 0..n-1 */
++int  ui_tick(void);       /* VM 启动至今毫秒 */
++
++/* ── 手感：音效 / 震动 / 持久化 / 常亮 ──
++   音效走 **VM 内置的 #57 蜂鸣**（宿主把它接到真实音频，零素材、不必打包音频文件）。
++   这一组同样要提给上游 VML 仓库（Lib/ 会被 sync.sh 覆盖）。 */
++void ui_beep(int freq, int ms);              /* 合成音：频率 Hz + 时长 ms */
++void ui_vibrate(int ms);                     /* 震动一下（Android 需 VIBRATE 权限，normal 级） */
++void ui_keep_on(int on);                     /* 玩游戏时别熄屏：0 关 / 1 开 */
++void ui_store_set(char* key, char* value);   /* 写持久化键值（最高分/进度/设置） */
++int  ui_store_get(char* key, char* buf, int cap);  /* 读；返回长度，没有这条键返回 -1 */
++
++#endif /* WAYCODER_UI_H */
+diff --git a/third_party/vml/Lib/shared/src/vmlui.c b/third_party/vml/Lib/shared/src/vmlui.c
+new file mode 100644
+index 00000000..e9dc4f1d
+--- /dev/null
++++ b/third_party/vml/Lib/shared/src/vmlui.c
+@@ -0,0 +1,345 @@
++/* vmlui.c —— 手机端 UI syscall 的**共享调用库**（对话框 / 窗体 / 绘图 / 输入）
++ *
++ * 编译：`Lib/build_libs.sh --shared`（等价于
++ *       `vmltool -c vmlui.c -o ../vmlui.vml -I ../shared -I ../c --mode mcu --no-link`）
++ * 产物：`Lib/shared/vmlui.vml` —— 由 `vmltool.config.xml` 挂到各语言的 `Libs` 上，
++ *       **C 与 Python 等前端共用同一份实现**。
++ *
++ * ## 为什么要有这个文件（而不是让各语言自己写）
++ *
++ * 汇编级 syscall 只有 C/ObjC/C++ 能直接调（`asm()`），其余前端（Python/BASIC/…）
++ * 只能**按标签调用 C 函数**。所以"让所有语言都能用上 UI 接口"的唯一做法，
++ * 就是在这里写一层 C 包装、编成 `.vml` 供大家链接 —— 这正是上游 `Lib/shared/src/vmlsys.c`
++ * 的定位（它给非 C 语言提供类型安全的 SYSCALL 接口）。
++ *
++ * ⚠ **上游那份 `vmlsys.c` 的参数传递是坏的**：里面写成
++ * `void vml_print_int(int n) { asm("SYSCALL 6"); }` —— **没有把 n 放进 R0**，
++ * 而 `asm()` 的文本是原样进汇编器的，汇编器并不认识 C 的形参名。
++ * 本文件用 `${形参}` 占位符（C 前端唯一实现了的替换），形参按出现顺序自动落
++ * R0、R1、R2…，所以参数是真的传进去了（详见 `Lib/README-ui.md` 的实测校准）。
++ *
++ * ## 返回值
++ *
++ * 形如 `return asm("SYSCALL #566");` —— **必须把 asm 当表达式用**；
++ * 写成"先 asm(...) 再 return 0"会把返回值丢掉。
++ *
++ * ## 线程/生命周期
++ *
++ * 这些函数只做"把参数量进寄存器 + 发一条 syscall"，状态全在宿主侧
++ * （`WayCoder.Maui/Services/VmlUiCalls.cs`）。没有全局变量，可重入。
++ */
++
++/* ── 对话框 ─────────────────────────────────────────────── */
++
++/* 消息框。返回 0=确定/是，1=否/取消。 */
++int ui_dlg_msg(char* title, char* body, int style) {
++    return asm("SYSCALL #500, ${title}, ${body}, ${style}");
++}
++
++/* 单选。opts 是 NUL 分隔的选项块，n=选项数，def=默认项。返回选中下标，取消 -1。 */
++int ui_dlg_select(char* title, char* body, char* opts, int n, int def) {
++    return asm("SYSCALL #501, ${title}, ${body}, ${opts}, ${n}, ${def}");
++}
++
++/* 多选。返回位掩码（第 i 项 = 1<<i），取消 -1。 */
++int ui_dlg_multi(char* title, char* body, char* opts, int n) {
++    return asm("SYSCALL #502, ${title}, ${body}, ${opts}, ${n}");
++}
++
++/* 输入框：把用户输入写进 buf（最多 cap-1 字节 + 结尾 NUL）。返回写入长度，取消 -1。 */
++int ui_dlg_input(char* title, char* prompt, char* buf, int cap) {
++    return asm("SYSCALL #503, ${title}, ${prompt}, ${buf}, ${cap}");
++}
++
++/* ── 窗体 ───────────────────────────────────────────────── */
++
++/* 开一个绘图窗口（带标题栏与返回箭头）。返回句柄(1)，失败 -1。 */
++int ui_win_open(char* title, int w, int h) {
++    return asm("SYSCALL #520, ${title}, ${w}, ${h}");
++}
++
++int ui_win_close(void) {
++    return asm("SYSCALL #521");
++}
++
++/* 用户点了返回箭头 → 1，程序主循环应退出。 */
++int ui_win_closed(void) {
++    return asm("SYSCALL #565");
++}
++
++/* 可用绘图区（单位与绘图一致，可直接拿来算格子）。 */
++int ui_scr_w(void) {
++    return asm("SYSCALL #566");
++}
++
++int ui_scr_h(void) {
++    return asm("SYSCALL #567");
++}
++
++/* ── 绘图（保留模式：只管追加图元，宿主按帧渲染）───────────── */
++
++void ui_clear(int color) {
++    asm("SYSCALL #522, ${color}");
++}
++
++void ui_pixel(int x, int y, int color) {
++    asm("SYSCALL #523, ${x}, ${y}, ${color}");
++}
++
++void ui_line(int x1, int y1, int x2, int y2, int color, int lw) {
++    asm("SYSCALL #524, ${x1}, ${y1}, ${x2}, ${y2}, ${color}, ${lw}");
++}
++
++/* fill!=0 画实心；radius>0 画圆角。 */
++void ui_rect(int x, int y, int w, int h, int color, int fill, int lw, int radius) {
++    asm("SYSCALL #525, ${x}, ${y}, ${w}, ${h}, ${color}, ${fill}, ${lw}, ${radius}");
++}
++
++void ui_circle(int cx, int cy, int r, int color, int fill, int lw) {
++    asm("SYSCALL #526, ${cx}, ${cy}, ${r}, ${color}, ${fill}, ${lw}");
++}
++
++void ui_ellipse(int cx, int cy, int rx, int ry, int color, int fill, int lw) {
++    asm("SYSCALL #527, ${cx}, ${cy}, ${rx}, ${ry}, ${color}, ${fill}, ${lw}");
++}
++
++/* 帧边界标记（本帧画完了）。 */
++void ui_present(void) {
++    asm("SYSCALL #531");
++}
++
++/* ── 文字 ───────────────────────────────────────────────── */
++
++/* 一次性画一行字。anchor: 0=左 1=中 2=右；style: 1=粗 2=斜。 */
++void ui_text(int x, int y, char* s, int color, int size, int anchor) {
++    asm("SYSCALL #528, ${x}, ${y}, ${s}, ${color}, ${size}, ${anchor}");
++}
++
++void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style) {
++    asm("SYSCALL #528, ${x}, ${y}, ${s}, ${color}, ${size}, ${anchor}, ${style}");
++}
++
++/* 设置当前文字属性：字号 / 样式位 (1=粗 2=斜) / 颜色 / 锚点。 */
++void ui_set_font(int size, int style, int color, int anchor) {
++    asm("SYSCALL #532, ${size}, ${style}, ${color}, ${anchor}");
++}
++
++/* 用**当前文字属性**画一行字（属性由 ui_set_font 设定）。 */
++void ui_text_cur(int x, int y, char* s) {
++    asm("SYSCALL #533, ${x}, ${y}, ${s}");
++}
++
++/* ── 输入（统一消息队列）────────────────────────────────────
++ *
++ * 消息缓冲固定 **16 字节 = 4 个 int**：msg[0]=类型 msg[1]=A msg[2]=B msg[3]=时间戳
++ * 触摸类消息：A=x，B=y（单位与绘图一致）。 */
++
++/* 非阻塞取一条。返回消息类型，无消息 0。 */
++int ui_poll(int* msg) {
++    return asm("SYSCALL #560, ${msg}");
++}
++
++/* 阻塞取一条，timeout_ms=0 表示无限等。返回消息类型，超时 0。 */
++int ui_wait(int* msg, int timeout_ms) {
++    return asm("SYSCALL #561, ${msg}, ${timeout_ms}");
++}
++
++int ui_msg_count(void) {
++    return asm("SYSCALL #562");
++}
++
++/* ── 面向**不支持指针的语言**（Python/BASIC/…）的取消息接口 ──────────
++ *
++ * C 里可以直接 `int msg[4]; ui_wait(msg, 0)`，但其它前端拿不到"一块内存的地址"，
++ * 也没有办法按 int 下标去读它。所以这里把消息**取出来拆开放进静态变量**，
++ * 由三个访问器读 —— 调用方只需要：
++ *
++ *     t = ui_wait_msg(0)
++ *     if t == 6:  x = ui_msg_a();  y = ui_msg_b()
++ *
++ * ⚠ 一次只保留**最近一条**消息（单缓冲）。要"把队列里积压的都处理完"，
++ * 用 `while ui_poll_msg() != 0:` 连取即可 —— 每次取都会刷新这三个值。
++ */
++static int _ui_msg_type;
++static int _ui_msg_a;
++static int _ui_msg_b;
++
++/* 取一条消息（timeout_ms=0 无限等），返回类型；内容用下面三个读。 */
++int ui_wait_msg(int timeout_ms) {
++    int* buf;
++    int tmp[4];
++    buf = tmp;
++    _ui_msg_type = asm("SYSCALL #561, ${buf}, ${timeout_ms}");
++    _ui_msg_a = tmp[1];
++    _ui_msg_b = tmp[2];
++    return _ui_msg_type;
++}
++
++/* 非阻塞取一条，返回类型（无消息返回 0）。 */
++int ui_poll_msg(void) {
++    int* buf;
++    int tmp[4];
++    buf = tmp;
++    _ui_msg_type = asm("SYSCALL #560, ${buf}");
++    _ui_msg_a = tmp[1];
++    _ui_msg_b = tmp[2];
++    return _ui_msg_type;
++}
++
++/* 最近一条消息的三个字段。 */
++int ui_msg_type(void) { return _ui_msg_type; }
++int ui_msg_a(void) { return _ui_msg_a; }
++int ui_msg_b(void) { return _ui_msg_b; }
++
++/* ── 通用整数网格（给"没有可靠数组"的语言用）────────────────────────
++ *
++ * C 里棋盘就是 `int board[200]`，但实测 Python 前端的列表**读可以、写不生效**
++ * （`b[i] = v` 之后读回来还是 0），嵌套列表也错 —— 于是棋盘只能放在这边，
++ * 由调用方用整数下标读写：
++ *
++ *     ui_gclear()
++ *     ui_gset(3, 1)            # 第 3 格
++ *     v = ui_gget(3)
++ *
++ * 256 个 int 够放 10×20 的棋盘（200）+ 7 种方块的 4×4 位掩码（7）。
++ * 越界一律**安全失败**（写丢弃、读返回 0），不抛异常 —— 游戏代码里少一层边界判断。
++ */
++#define UI_GRID_N 256
++static int _ui_grid[UI_GRID_N];
++
++void ui_gclear(void) {
++    int i;
++    for (i = 0; i < UI_GRID_N; i = i + 1) _ui_grid[i] = 0;
++}
++
++void ui_gset(int idx, int val) {
++    if (idx >= 0 && idx < UI_GRID_N) _ui_grid[idx] = val;
++}
++
++int ui_gget(int idx) {
++    if (idx >= 0 && idx < UI_GRID_N) return _ui_grid[idx];
++    return 0;
++}
++
++/* ── 方块几何（给"没有可靠位运算/数组"的语言用）────────────────────
++ *
++ * 7 种方块各 4 次旋转，每次 4 个格子。**位运算与旋转公式都放这里**：
++ * BASIC 只有 AND/OR、没有移位取位，Python 的列表读写也不可靠 ——
++ * 各前端只负责"拿坐标 → 画出来 / 判一下"，几何这一层共用一份。
++ *
++ *   ui_piece_init()                       一次，初始化形状表
++ *   ui_piece_cell(pid, rot, which)        第 which 个格子的坐标，打包为 x*16+y；无此格返回 -1
++ *
++ * `pid` 0..6，`rot` 0..3，`which` 0..3。
++ * 坐标以方块**左上角**为原点（4×4 包围盒内），调用方加上落点即可。
++ */
++static int _ui_piece_rot[7];     /* 当前 pid 的基准掩码在 _ui_grid 的槽位（见 ui_piece_init） */
++
++void ui_piece_init(void) {
++    /* 4×4 行优先位掩码，第 r 行第 c 位 = r*4+c */
++    ui_gset(MASK_AT + 0, 0x0066);   /* O */
++    ui_gset(MASK_AT + 1, 0x0F00);   /* I */
++    ui_gset(MASK_AT + 2, 0x006C);   /* S */
++    ui_gset(MASK_AT + 3, 0x00C6);   /* Z */
++    ui_gset(MASK_AT + 4, 0x00E4);   /* T */
++    ui_gset(MASK_AT + 5, 0x0062);   /* L */
++    ui_gset(MASK_AT + 6, 0x00E8);   /* J */
++    _ui_piece_rot[0] = MASK_AT + 0;
++    _ui_piece_rot[1] = MASK_AT + 1;
++    _ui_piece_rot[2] = MASK_AT + 2;
++    _ui_piece_rot[3] = MASK_AT + 3;
++    _ui_piece_rot[4] = MASK_AT + 4;
++    _ui_piece_rot[5] = MASK_AT + 5;
++    _ui_piece_rot[6] = MASK_AT + 6;
++}
++
++/* 4×4 掩码顺时针 90°：位 (r,c) → (c, 3-r) */
++static int _ui_rot90(int m) {
++    int out;
++    int r;
++    int c;
++    out = 0;
++    r = 0;
++    while (r < 4) {
++        c = 0;
++        while (c < 4) {
++            if ((m & (1 << (r * 4 + c))) != 0)
++                out = out | (1 << (c * 4 + (3 - r)));
++            c = c + 1;
++        }
++        r = r + 1;
++    }
++    return out;
++}
++
++int ui_piece_cell(int pid, int rot, int which) {
++    int m;
++    int k;
++    int r;
++    int c;
++    int n;
++
++    if (pid < 0 || pid > 6 || which < 0 || which > 3) return -1;
++
++    m = ui_gget(_ui_piece_rot[pid]);
++    k = rot % 4;
++    while (k > 0) {
++        m = _ui_rot90(m);
++        k = k - 1;
++    }
++
++    /* 数到第 which 个置位 */
++    n = 0;
++    r = 0;
++    while (r < 4) {
++        c = 0;
++        while (c < 4) {
++            if ((m & (1 << (r * 4 + c))) != 0) {
++                if (n == which) return c * 16 + r;
++                n = n + 1;
++            }
++            c = c + 1;
++        }
++        r = r + 1;
++    }
++    return -1;
++}
++
++/* 定时器：每隔 interval_ms 往队列投一条 VML_MSG_TIMER（A=id，B=tag）。 */
++int ui_timer_set(int interval_ms, int tag) {
++    return asm("SYSCALL #563, ${interval_ms}, ${tag}");
++}
++
++int ui_timer_kill(int id) {
++    return asm("SYSCALL #564, ${id}");
++}
++
++/* ── 随机数 / 计时（游戏要用，而只有 C 能直接调 #50/#53）──────
++ *
++ * 非 C 前端拿不到 syscall，游戏里的"下一个方块""洗牌"就只能自己搓一个劣质
++ * 伪随机（或者干脆固定顺序）。放这里一份，各语言共用同一个源。
++ */
++
++/* 0..n-1 的随机数（n<=0 返回 0）。 */
++int ui_rand(int n) {
++    int v;
++    if (n <= 0) return 0;
++    v = asm("SYSCALL #50");
++    /* #50 返回的是 32 位有符号随机数，负数取模在 C 里是负数 ⇒ 先归一到非负 */
++    return (v % n + n) % n;
++}
++
++/* 自 VM 启动起的毫秒数（单调递增，可作动画相位/超时基准）。 */
++int ui_tick(void) {
++    return asm("SYSCALL #53");
++}
++
++/* ── 图标 / 图片 ────────────────────────────────────────── */
++
++void ui_icon(int x, int y, char* name, int size, int color) {
++    asm("SYSCALL #529, ${x}, ${y}, ${name}, ${size}, ${color}");
++}
++
++void ui_image(int x, int y, char* path, int w, int h) {
++    asm("SYSCALL #530, ${x}, ${y}, ${path}, ${w}, ${h}");
++}
+diff --git a/third_party/vml/Lib/shared/vmlui.vml b/third_party/vml/Lib/shared/vmlui.vml
+new file mode 100644
+index 00000000..f6e7eba2
+--- /dev/null
++++ b/third_party/vml/Lib/shared/vmlui.vml
+@@ -0,0 +1,2248 @@
++.linked  "Lib/c/builtin.vml"
++.linked  "D:\code-agents\WayCoder\third_party\vml\Lib\shared\builtins.vml"
++.linked  "D:\code-agents\WayCoder\third_party\vml\Lib\shared\crt.vml"
++.linked  "D:\code-agents\WayCoder\third_party\vml\Lib\shared\vmlui.vml"
++
++.entry main
++.stack 0
++.vectors 0x0
++
++.data
++_ui_msg_type: .word 0
++_ui_msg_a: .word 0
++_ui_msg_b: .word 0
++_ui_grid:
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++_ui_piece_rot:
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++    .word 0
++
++.text
++ui_dlg_msg:
++; -------------------------------------------
++; source   : int ui_dlg_msg(char* title,char* body,int style)
++; function : ui_dlg_msg
++; param   : char* title
++; param   : char* body
++; param   : int style
++; return   : int
++; --------------------------------------------
++ui_dlg_msg:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        syscall #500
++        move [R12-4] R0
++        jmp L2170000
++L2170000:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_dlg_select:
++; -------------------------------------------
++; source   : int ui_dlg_select(char* title,char* body,char* opts,int n,int def)
++; function : ui_dlg_select
++; param   : char* title
++; param   : char* body
++; param   : char* opts
++; param   : int n
++; param   : int def
++; return   : int
++; --------------------------------------------
++ui_dlg_select:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        syscall #501
++        move [R12-4] R0
++        jmp L2170001
++L2170001:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_dlg_multi:
++; -------------------------------------------
++; source   : int ui_dlg_multi(char* title,char* body,char* opts,int n)
++; function : ui_dlg_multi
++; param   : char* title
++; param   : char* body
++; param   : char* opts
++; param   : int n
++; return   : int
++; --------------------------------------------
++ui_dlg_multi:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        syscall #502
++        move [R12-4] R0
++        jmp L2170002
++L2170002:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_dlg_input:
++; -------------------------------------------
++; source   : int ui_dlg_input(char* title,char* prompt,char* buf,int cap)
++; function : ui_dlg_input
++; param   : char* title
++; param   : char* prompt
++; param   : char* buf
++; param   : int cap
++; return   : int
++; --------------------------------------------
++ui_dlg_input:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        syscall #503
++        move [R12-4] R0
++        jmp L2170003
++L2170003:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_win_open:
++; -------------------------------------------
++; source   : int ui_win_open(char* title,int w,int h)
++; function : ui_win_open
++; param   : char* title
++; param   : int w
++; param   : int h
++; return   : int
++; --------------------------------------------
++ui_win_open:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        syscall #520
++        move [R12-4] R0
++        jmp L2170004
++L2170004:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_win_close:
++; -------------------------------------------
++; source   : int ui_win_close()
++; function : ui_win_close
++; return   : int
++; --------------------------------------------
++ui_win_close:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        syscall #521
++        move [R12-4] R0
++        jmp L2170005
++L2170005:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_win_closed:
++; -------------------------------------------
++; source   : int ui_win_closed()
++; function : ui_win_closed
++; return   : int
++; --------------------------------------------
++ui_win_closed:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        syscall #565
++        move [R12-4] R0
++        jmp L2170006
++L2170006:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_scr_w:
++; -------------------------------------------
++; source   : int ui_scr_w()
++; function : ui_scr_w
++; return   : int
++; --------------------------------------------
++ui_scr_w:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        syscall #566
++        move [R12-4] R0
++        jmp L2170007
++L2170007:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_scr_h:
++; -------------------------------------------
++; source   : int ui_scr_h()
++; function : ui_scr_h
++; return   : int
++; --------------------------------------------
++ui_scr_h:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        syscall #567
++        move [R12-4] R0
++        jmp L2170008
++L2170008:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_clear:
++; -------------------------------------------
++; source   : void ui_clear(int color)
++; function : ui_clear
++; param   : int color
++; return   : void
++; --------------------------------------------
++ui_clear:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        syscall #522
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_pixel:
++; -------------------------------------------
++; source   : void ui_pixel(int x,int y,int color)
++; function : ui_pixel
++; param   : int x
++; param   : int y
++; param   : int color
++; return   : void
++; --------------------------------------------
++ui_pixel:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        syscall #523
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_line:
++; -------------------------------------------
++; source   : void ui_line(int x1,int y1,int x2,int y2,int color,int lw)
++; function : ui_line
++; param   : int x1
++; param   : int y1
++; param   : int x2
++; param   : int y2
++; param   : int color
++; param   : int lw
++; return   : void
++; --------------------------------------------
++ui_line:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        move R5 [R12+32]
++        syscall #524
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_rect:
++; -------------------------------------------
++; source   : void ui_rect(int x,int y,int w,int h,int color,int fill,int lw,int radius)
++; function : ui_rect
++; param   : int x
++; param   : int y
++; param   : int w
++; param   : int h
++; param   : int color
++; param   : int fill
++; param   : int lw
++; param   : int radius
++; return   : void
++; --------------------------------------------
++ui_rect:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        move R5 [R12+32]
++        move R6 [R12+36]
++        move R7 [R12+40]
++        syscall #525
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_circle:
++; -------------------------------------------
++; source   : void ui_circle(int cx,int cy,int r,int color,int fill,int lw)
++; function : ui_circle
++; param   : int cx
++; param   : int cy
++; param   : int r
++; param   : int color
++; param   : int fill
++; param   : int lw
++; return   : void
++; --------------------------------------------
++ui_circle:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        move R5 [R12+32]
++        syscall #526
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_ellipse:
++; -------------------------------------------
++; source   : void ui_ellipse(int cx,int cy,int rx,int ry,int color,int fill,int lw)
++; function : ui_ellipse
++; param   : int cx
++; param   : int cy
++; param   : int rx
++; param   : int ry
++; param   : int color
++; param   : int fill
++; param   : int lw
++; return   : void
++; --------------------------------------------
++ui_ellipse:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        move R5 [R12+32]
++        move R6 [R12+36]
++        syscall #527
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_present:
++; -------------------------------------------
++; source   : void ui_present()
++; function : ui_present
++; return   : void
++; --------------------------------------------
++ui_present:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        syscall #531
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_text:
++; -------------------------------------------
++; source   : void ui_text(int x,int y,char* s,int color,int size,int anchor)
++; function : ui_text
++; param   : int x
++; param   : int y
++; param   : char* s
++; param   : int color
++; param   : int size
++; param   : int anchor
++; return   : void
++; --------------------------------------------
++ui_text:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        move R5 [R12+32]
++        syscall #528
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_text_styled:
++; -------------------------------------------
++; source   : void ui_text_styled(int x,int y,char* s,int color,int size,int anchor,int style)
++; function : ui_text_styled
++; param   : int x
++; param   : int y
++; param   : char* s
++; param   : int color
++; param   : int size
++; param   : int anchor
++; param   : int style
++; return   : void
++; --------------------------------------------
++ui_text_styled:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        move R5 [R12+32]
++        move R6 [R12+36]
++        syscall #528
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_set_font:
++; -------------------------------------------
++; source   : void ui_set_font(int size,int style,int color,int anchor)
++; function : ui_set_font
++; param   : int size
++; param   : int style
++; param   : int color
++; param   : int anchor
++; return   : void
++; --------------------------------------------
++ui_set_font:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        syscall #532
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_text_cur:
++; -------------------------------------------
++; source   : void ui_text_cur(int x,int y,char* s)
++; function : ui_text_cur
++; param   : int x
++; param   : int y
++; param   : char* s
++; return   : void
++; --------------------------------------------
++ui_text_cur:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        syscall #533
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_poll:
++; -------------------------------------------
++; source   : int ui_poll(int* msg)
++; function : ui_poll
++; param   : int* msg
++; return   : int
++; --------------------------------------------
++ui_poll:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        syscall #560
++        move [R12-4] R0
++        jmp L2170009
++L2170009:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_wait:
++; -------------------------------------------
++; source   : int ui_wait(int* msg,int timeout_ms)
++; function : ui_wait
++; param   : int* msg
++; param   : int timeout_ms
++; return   : int
++; --------------------------------------------
++ui_wait:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        syscall #561
++        move [R12-4] R0
++        jmp L2170010
++L2170010:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_msg_count:
++; -------------------------------------------
++; source   : int ui_msg_count()
++; function : ui_msg_count
++; return   : int
++; --------------------------------------------
++ui_msg_count:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        syscall #562
++        move [R12-4] R0
++        jmp L2170011
++L2170011:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_wait_msg:
++; -------------------------------------------
++; source   : int ui_wait_msg(int timeout_ms)
++; function : ui_wait_msg
++; param   : int timeout_ms
++; return   : int
++; --------------------------------------------
++ui_wait_msg:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #32
++        move R0 R12
++        sub R0 #24
++        move [R12-8] R0
++        move R0 [R12-8]
++        move R1 [R12+12]
++        syscall #561
++        move [R12-4] R0
++        move [_ui_msg_type] R0
++        move R0 R12
++        sub R0 #24
++        push R0
++        move R11 #0
++        push R11
++        move R0 #1
++        pop R11
++        move R11 R0
++        move R0 R11
++        mul R0 #4
++        pop R10
++        add R0 R10
++        move R0 [R0]
++        move [_ui_msg_a] R0
++        move R0 R12
++        sub R0 #24
++        push R0
++        move R9 #0
++        push R9
++        move R0 #2
++        pop R9
++        move R9 R0
++        move R0 R9
++        mul R0 #4
++        pop R8
++        add R0 R8
++        move R0 [R0]
++        move [_ui_msg_b] R0
++        move R0 [_ui_msg_type]
++        jmp L2170012
++L2170012:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_poll_msg:
++; -------------------------------------------
++; source   : int ui_poll_msg()
++; function : ui_poll_msg
++; return   : int
++; --------------------------------------------
++ui_poll_msg:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #32
++        move R0 R12
++        sub R0 #24
++        move [R12-8] R0
++        move R0 [R12-8]
++        syscall #560
++        move [R12-4] R0
++        move [_ui_msg_type] R0
++        move R0 R12
++        sub R0 #24
++        push R0
++        move R7 #0
++        push R7
++        move R0 #1
++        pop R7
++        move R7 R0
++        move R0 R7
++        mul R0 #4
++        pop R6
++        add R0 R6
++        move R0 [R0]
++        move [_ui_msg_a] R0
++        move R0 R12
++        sub R0 #24
++        push R0
++        move R5 #0
++        push R5
++        move R0 #2
++        pop R5
++        move R5 R0
++        move R0 R5
++        mul R0 #4
++        pop R4
++        add R0 R4
++        move R0 [R0]
++        move [_ui_msg_b] R0
++        move R0 [_ui_msg_type]
++        jmp L2170013
++L2170013:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_msg_type:
++; -------------------------------------------
++; source   : int ui_msg_type()
++; function : ui_msg_type
++; return   : int
++; --------------------------------------------
++ui_msg_type:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [_ui_msg_type]
++        jmp L2170014
++L2170014:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_msg_a:
++; -------------------------------------------
++; source   : int ui_msg_a()
++; function : ui_msg_a
++; return   : int
++; --------------------------------------------
++ui_msg_a:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [_ui_msg_a]
++        jmp L2170015
++L2170015:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_msg_b:
++; -------------------------------------------
++; source   : int ui_msg_b()
++; function : ui_msg_b
++; return   : int
++; --------------------------------------------
++ui_msg_b:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [_ui_msg_b]
++        jmp L2170016
++L2170016:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_gclear:
++; -------------------------------------------
++; source   : void ui_gclear()
++; function : ui_gclear
++; return   : void
++; --------------------------------------------
++ui_gclear:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #16
++        move R0 #0
++        move [R12-8] R0
++sta_2170017:
++        move R0 [R12-8]
++        push R0
++        move R0 #256
++        pop R1
++        cmp R1 R0
++        jl _L2170020
++        move R0 #0
++        jmp _L2170021
++_L2170020:
++        move R0 #1
++_L2170021:
++        cmp R0 #0
++        jz sta_2170019
++        move R0 #0
++        move R3 R0
++        move R0 _ui_grid
++        push R0
++        move R2 #0
++        push R2
++        move R0 [R12-8]
++        pop R2
++        move R2 R0
++        move R0 R2
++        mul R0 #4
++        pop R1
++        add R0 R1
++        move [R0] R3
++sta_2170018:
++        move R0 [R12-8]
++        push R0
++        move R0 #1
++        pop R1
++        add R1 R0
++        move R0 R1
++        move [R12-8] R0
++        jmp sta_2170017
++sta_2170019:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_gset:
++; -------------------------------------------
++; source   : void ui_gset(int idx,int val)
++; function : ui_gset
++; param   : int idx
++; param   : int val
++; return   : void
++; --------------------------------------------
++ui_gset:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        push R0
++        move R0 #0
++        pop R1
++        cmp R1 R0
++        jge _L2170026
++        move R0 #0
++        jmp _L2170027
++_L2170026:
++        move R0 #1
++_L2170027:
++        test R0 R0
++        jz _L2170024
++        move R0 [R12+12]
++        push R0
++        move R0 #256
++        pop R1
++        cmp R1 R0
++        jl _L2170028
++        move R0 #0
++        jmp _L2170029
++_L2170028:
++        move R0 #1
++_L2170029:
++        test R0 R0
++        jz _L2170024
++        move R0 #1
++        jmp _L2170025
++_L2170024:
++        move R0 #0
++_L2170025:
++        cmp R0 #0
++        jz sta_2170022
++        move R0 [R12+16]
++        move R11 R0
++        move R0 _ui_grid
++        push R0
++        move R10 #0
++        push R10
++        move R0 [R12+12]
++        pop R10
++        move R10 R0
++        move R0 R10
++        mul R0 #4
++        pop R9
++        add R0 R9
++        move [R0] R11
++sta_2170022:
++sta_2170023:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_gget:
++; -------------------------------------------
++; source   : int ui_gget(int idx)
++; function : ui_gget
++; param   : int idx
++; return   : int
++; --------------------------------------------
++ui_gget:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        push R0
++        move R0 #0
++        pop R1
++        cmp R1 R0
++        jge _L2170034
++        move R0 #0
++        jmp _L2170035
++_L2170034:
++        move R0 #1
++_L2170035:
++        test R0 R0
++        jz _L2170032
++        move R0 [R12+12]
++        push R0
++        move R0 #256
++        pop R1
++        cmp R1 R0
++        jl _L2170036
++        move R0 #0
++        jmp _L2170037
++_L2170036:
++        move R0 #1
++_L2170037:
++        test R0 R0
++        jz _L2170032
++        move R0 #1
++        jmp _L2170033
++_L2170032:
++        move R0 #0
++_L2170033:
++        cmp R0 #0
++        jz sta_2170030
++        move R0 _ui_grid
++        push R0
++        move R8 #0
++        push R8
++        move R0 [R12+12]
++        pop R8
++        move R8 R0
++        move R0 R8
++        mul R0 #4
++        pop R7
++        add R0 R7
++        move R0 [R0]
++        jmp L2170038
++sta_2170030:
++sta_2170031:
++        move R0 #0
++        jmp L2170038
++L2170038:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_piece_init:
++; -------------------------------------------
++; source   : void ui_piece_init()
++; function : ui_piece_init
++; return   : void
++; --------------------------------------------
++ui_piece_init:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 #102
++        push R0
++        move R0 #0
++        push R0
++        move R0 [R13+0]
++        move R1 [R13+4]
++        call ui_gset
++        add R13 #8
++        move R0 #3840
++        push R0
++        move R0 #0
++        push R0
++        move R0 #1
++        pop R1
++        add R1 R0
++        move R0 R1
++        push R0
++        move R0 [R13+0]
++        move R1 [R13+4]
++        call ui_gset
++        add R13 #8
++        move R0 #108
++        push R0
++        move R0 #0
++        push R0
++        move R0 #2
++        pop R1
++        add R1 R0
++        move R0 R1
++        push R0
++        move R0 [R13+0]
++        move R1 [R13+4]
++        call ui_gset
++        add R13 #8
++        move R0 #198
++        push R0
++        move R0 #0
++        push R0
++        move R0 #3
++        pop R1
++        add R1 R0
++        move R0 R1
++        push R0
++        move R0 [R13+0]
++        move R1 [R13+4]
++        call ui_gset
++        add R13 #8
++        move R0 #228
++        push R0
++        move R0 #0
++        push R0
++        move R0 #4
++        pop R1
++        add R1 R0
++        move R0 R1
++        push R0
++        move R0 [R13+0]
++        move R1 [R13+4]
++        call ui_gset
++        add R13 #8
++        move R0 #98
++        push R0
++        move R0 #0
++        push R0
++        move R0 #5
++        pop R1
++        add R1 R0
++        move R0 R1
++        push R0
++        move R0 [R13+0]
++        move R1 [R13+4]
++        call ui_gset
++        add R13 #8
++        move R0 #232
++        push R0
++        move R0 #0
++        push R0
++        move R0 #6
++        pop R1
++        add R1 R0
++        move R0 R1
++        push R0
++        move R0 [R13+0]
++        move R1 [R13+4]
++        call ui_gset
++        add R13 #8
++        move R0 #0
++        move R6 R0
++        move R0 _ui_piece_rot
++        push R0
++        move R5 #0
++        push R5
++        move R0 #0
++        pop R5
++        move R5 R0
++        move R0 R5
++        mul R0 #4
++        pop R4
++        add R0 R4
++        move [R0] R6
++        move R0 #0
++        push R0
++        move R0 #1
++        pop R1
++        add R1 R0
++        move R0 R1
++        move R2 R0
++        move R0 _ui_piece_rot
++        push R0
++        move R1 #0
++        push R1
++        move R0 #1
++        pop R1
++        move R1 R0
++        move R0 R1
++        mul R0 #4
++        pop R3
++        add R0 R3
++        move [R0] R2
++        move R0 #0
++        push R0
++        move R0 #2
++        pop R1
++        add R1 R0
++        move R0 R1
++        move R10 R0
++        move R0 _ui_piece_rot
++        push R0
++        move R9 #0
++        push R9
++        move R0 #2
++        pop R9
++        move R9 R0
++        move R0 R9
++        mul R0 #4
++        pop R11
++        add R0 R11
++        move [R0] R10
++        move R0 #0
++        push R0
++        move R0 #3
++        pop R1
++        add R1 R0
++        move R0 R1
++        move R8 R0
++        move R0 _ui_piece_rot
++        push R0
++        move R7 #0
++        push R7
++        move R0 #3
++        pop R7
++        move R7 R0
++        move R0 R7
++        mul R0 #4
++        pop R5
++        add R0 R5
++        move [R0] R8
++        move R0 #0
++        push R0
++        move R0 #4
++        pop R1
++        add R1 R0
++        move R0 R1
++        move R4 R0
++        move R0 _ui_piece_rot
++        push R0
++        move R6 #0
++        push R6
++        move R0 #4
++        pop R6
++        move R6 R0
++        move R0 R6
++        mul R0 #4
++        pop R1
++        add R0 R1
++        move [R0] R4
++        move R0 #0
++        push R0
++        move R0 #5
++        pop R1
++        add R1 R0
++        move R0 R1
++        move R3 R0
++        move R0 _ui_piece_rot
++        push R0
++        move R2 #0
++        push R2
++        move R0 #5
++        pop R2
++        move R2 R0
++        move R0 R2
++        mul R0 #4
++        pop R9
++        add R0 R9
++        move [R0] R3
++        move R0 #0
++        push R0
++        move R0 #6
++        pop R1
++        add R1 R0
++        move R0 R1
++        move R11 R0
++        move R0 _ui_piece_rot
++        push R0
++        move R10 #0
++        push R10
++        move R0 #6
++        pop R10
++        move R10 R0
++        move R0 R10
++        mul R0 #4
++        pop R7
++        add R0 R7
++        move [R0] R11
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++_ui_rot90:
++; -------------------------------------------
++; source   : int _ui_rot90(int m)
++; function : _ui_rot90
++; param   : int m
++; return   : int
++; --------------------------------------------
++_ui_rot90:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #24
++        move R0 #0
++        move [R12-8] R0
++        move R0 #0
++        move [R12-12] R0
++sta_2170039:
++        move R2 #0
++        move R0 [R12-12]
++        push R0
++        move R0 #4
++        pop R1
++        cmp R1 R0
++        jl _L2170041
++        move R0 #0
++        jmp _L2170042
++_L2170041:
++        move R0 #1
++_L2170042:
++        cmp R0 #0
++        jz sta_2170040
++        move R0 #0
++        move [R12-16] R0
++sta_2170043:
++        move R2 #0
++        move R0 [R12-16]
++        push R0
++        move R0 #4
++        pop R1
++        cmp R1 R0
++        jl _L2170045
++        move R0 #0
++        jmp _L2170046
++_L2170045:
++        move R0 #1
++_L2170046:
++        cmp R0 #0
++        jz sta_2170044
++        move R0 [R12+12]
++        push R0
++        move R0 #1
++        push R0
++        move R0 [R12-12]
++        push R0
++        move R0 #4
++        pop R1
++        mul R1 R0
++        move R0 R1
++        push R0
++        move R0 [R12-16]
++        pop R1
++        add R1 R0
++        move R0 R1
++        pop R1
++        shl R1 R0
++        move R0 R1
++        pop R1
++        and R1 R0
++        move R0 R1
++        push R0
++        move R0 #0
++        pop R1
++        cmp R1 R0
++        jne _L2170049
++        move R0 #0
++        jmp _L2170050
++_L2170049:
++        move R0 #1
++_L2170050:
++        cmp R0 #0
++        jz sta_2170047
++        move R0 [R12-8]
++        push R0
++        move R0 #1
++        push R0
++        move R0 [R12-16]
++        push R0
++        move R0 #4
++        pop R1
++        mul R1 R0
++        move R0 R1
++        push R0
++        move R0 #3
++        push R0
++        move R0 [R12-12]
++        pop R1
++        sub R1 R0
++        move R0 R1
++        pop R1
++        add R1 R0
++        move R0 R1
++        pop R1
++        shl R1 R0
++        move R0 R1
++        pop R1
++        or R1 R0
++        move R0 R1
++        move [R12-8] R0
++sta_2170047:
++sta_2170048:
++        move R0 [R12-16]
++        push R0
++        move R0 #1
++        pop R1
++        add R1 R0
++        move R0 R1
++        move [R12-16] R0
++        jmp sta_2170043
++sta_2170044:
++        move R0 [R12-12]
++        push R0
++        move R0 #1
++        pop R1
++        add R1 R0
++        move R0 R1
++        move [R12-12] R0
++        jmp sta_2170039
++sta_2170040:
++        move R0 [R12-8]
++        jmp L2170051
++L2170051:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_piece_cell:
++; -------------------------------------------
++; source   : int ui_piece_cell(int pid,int rot,int which)
++; function : ui_piece_cell
++; param   : int pid
++; param   : int rot
++; param   : int which
++; return   : int
++; --------------------------------------------
++ui_piece_cell:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #32
++        move R0 [R12+12]
++        push R0
++        move R0 #0
++        pop R1
++        cmp R1 R0
++        jl _L2170063
++        move R0 #0
++        jmp _L2170064
++_L2170063:
++        move R0 #1
++_L2170064:
++        test R0 R0
++        jnz _L2170060
++        move R0 [R12+12]
++        push R0
++        move R0 #6
++        pop R1
++        cmp R1 R0
++        jg _L2170065
++        move R0 #0
++        jmp _L2170066
++_L2170065:
++        move R0 #1
++_L2170066:
++        test R0 R0
++        jz _L2170061
++_L2170060:
++        move R0 #1
++        jmp _L2170062
++_L2170061:
++        move R0 #0
++_L2170062:
++        test R0 R0
++        jnz _L2170057
++        move R0 [R12+20]
++        push R0
++        move R0 #0
++        pop R1
++        cmp R1 R0
++        jl _L2170067
++        move R0 #0
++        jmp _L2170068
++_L2170067:
++        move R0 #1
++_L2170068:
++        test R0 R0
++        jz _L2170058
++_L2170057:
++        move R0 #1
++        jmp _L2170059
++_L2170058:
++        move R0 #0
++_L2170059:
++        test R0 R0
++        jnz _L2170054
++        move R0 [R12+20]
++        push R0
++        move R0 #3
++        pop R1
++        cmp R1 R0
++        jg _L2170069
++        move R0 #0
++        jmp _L2170070
++_L2170069:
++        move R0 #1
++_L2170070:
++        test R0 R0
++        jz _L2170055
++_L2170054:
++        move R0 #1
++        jmp _L2170056
++_L2170055:
++        move R0 #0
++_L2170056:
++        cmp R0 #0
++        jz sta_2170052
++        move R0 #1
++        move R0 #1
++        neg R0 R0
++        jmp L2170071
++sta_2170052:
++sta_2170053:
++        move R0 _ui_piece_rot
++        push R0
++        move R5 #0
++        push R5
++        move R0 [R12+12]
++        pop R5
++        move R5 R0
++        move R0 R5
++        mul R0 #4
++        pop R8
++        add R0 R8
++        move R0 [R0]
++        push R0
++        move R0 [R13+0]
++        call ui_gget
++        add R13 #4
++        move [R12-8] R0
++        move R0 [R12+16]
++        push R0
++        move R0 #4
++        pop R1
++        mod R1 R0
++        move R0 R1
++        move [R12-12] R0
++sta_2170072:
++        move R2 #0
++        move R0 [R12-12]
++        push R0
++        move R0 #0
++        pop R1
++        cmp R1 R0
++        jg _L2170074
++        move R0 #0
++        jmp _L2170075
++_L2170074:
++        move R0 #1
++_L2170075:
++        cmp R0 #0
++        jz sta_2170073
++        move R0 [R12-8]
++        push R0
++        move R0 [R13+0]
++        call _ui_rot90
++        add R13 #4
++        move [R12-8] R0
++        move R0 [R12-12]
++        push R0
++        move R0 #1
++        pop R1
++        sub R1 R0
++        move R0 R1
++        move [R12-12] R0
++        jmp sta_2170072
++sta_2170073:
++        move R0 #0
++        move [R12-24] R0
++        move R0 #0
++        move [R12-16] R0
++sta_2170076:
++        move R2 #0
++        move R0 [R12-16]
++        push R0
++        move R0 #4
++        pop R1
++        cmp R1 R0
++        jl _L2170078
++        move R0 #0
++        jmp _L2170079
++_L2170078:
++        move R0 #1
++_L2170079:
++        cmp R0 #0
++        jz sta_2170077
++        move R0 #0
++        move [R12-20] R0
++sta_2170080:
++        move R2 #0
++        move R0 [R12-20]
++        push R0
++        move R0 #4
++        pop R1
++        cmp R1 R0
++        jl _L2170082
++        move R0 #0
++        jmp _L2170083
++_L2170082:
++        move R0 #1
++_L2170083:
++        cmp R0 #0
++        jz sta_2170081
++        move R0 [R12-8]
++        push R0
++        move R0 #1
++        push R0
++        move R0 [R12-16]
++        push R0
++        move R0 #4
++        pop R1
++        mul R1 R0
++        move R0 R1
++        push R0
++        move R0 [R12-20]
++        pop R1
++        add R1 R0
++        move R0 R1
++        pop R1
++        shl R1 R0
++        move R0 R1
++        pop R1
++        and R1 R0
++        move R0 R1
++        push R0
++        move R0 #0
++        pop R1
++        cmp R1 R0
++        jne _L2170086
++        move R0 #0
++        jmp _L2170087
++_L2170086:
++        move R0 #1
++_L2170087:
++        cmp R0 #0
++        jz sta_2170084
++        move R0 [R12-24]
++        push R0
++        move R0 [R12+20]
++        pop R1
++        cmp R1 R0
++        je _L2170090
++        move R0 #0
++        jmp _L2170091
++_L2170090:
++        move R0 #1
++_L2170091:
++        cmp R0 #0
++        jz sta_2170088
++        move R0 [R12-20]
++        push R0
++        move R0 #16
++        pop R1
++        mul R1 R0
++        move R0 R1
++        push R0
++        move R0 [R12-16]
++        pop R1
++        add R1 R0
++        move R0 R1
++        jmp L2170071
++sta_2170088:
++sta_2170089:
++        move R0 [R12-24]
++        push R0
++        move R0 #1
++        pop R1
++        add R1 R0
++        move R0 R1
++        move [R12-24] R0
++sta_2170084:
++sta_2170085:
++        move R0 [R12-20]
++        push R0
++        move R0 #1
++        pop R1
++        add R1 R0
++        move R0 R1
++        move [R12-20] R0
++        jmp sta_2170080
++sta_2170081:
++        move R0 [R12-16]
++        push R0
++        move R0 #1
++        pop R1
++        add R1 R0
++        move R0 R1
++        move [R12-16] R0
++        jmp sta_2170076
++sta_2170077:
++        move R0 #1
++        move R0 #1
++        neg R0 R0
++        jmp L2170071
++L2170071:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_timer_set:
++; -------------------------------------------
++; source   : int ui_timer_set(int interval_ms,int tag)
++; function : ui_timer_set
++; param   : int interval_ms
++; param   : int tag
++; return   : int
++; --------------------------------------------
++ui_timer_set:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        syscall #563
++        move [R12-4] R0
++        jmp L2170092
++L2170092:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_timer_kill:
++; -------------------------------------------
++; source   : int ui_timer_kill(int id)
++; function : ui_timer_kill
++; param   : int id
++; return   : int
++; --------------------------------------------
++ui_timer_kill:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        syscall #564
++        move [R12-4] R0
++        jmp L2170093
++L2170093:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_rand:
++; -------------------------------------------
++; source   : int ui_rand(int n)
++; function : ui_rand
++; param   : int n
++; return   : int
++; --------------------------------------------
++ui_rand:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #16
++        move R0 [R12+12]
++        push R0
++        move R0 #0
++        pop R1
++        cmp R1 R0
++        jle _L2170096
++        move R0 #0
++        jmp _L2170097
++_L2170096:
++        move R0 #1
++_L2170097:
++        cmp R0 #0
++        jz sta_2170094
++        move R0 #0
++        jmp L2170098
++sta_2170094:
++sta_2170095:
++        syscall #50
++        move [R12-4] R0
++        move [R12-8] R0
++        move R0 [R12-8]
++        push R0
++        move R0 [R12+12]
++        pop R1
++        mod R1 R0
++        move R0 R1
++        push R0
++        move R0 [R12+12]
++        pop R1
++        add R1 R0
++        move R0 R1
++        push R0
++        move R0 [R12+12]
++        pop R1
++        mod R1 R0
++        move R0 R1
++        jmp L2170098
++L2170098:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_tick:
++; -------------------------------------------
++; source   : int ui_tick()
++; function : ui_tick
++; return   : int
++; --------------------------------------------
++ui_tick:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        syscall #53
++        move [R12-4] R0
++        jmp L2170099
++L2170099:
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_icon:
++; -------------------------------------------
++; source   : void ui_icon(int x,int y,char* name,int size,int color)
++; function : ui_icon
++; param   : int x
++; param   : int y
++; param   : char* name
++; param   : int size
++; param   : int color
++; return   : void
++; --------------------------------------------
++ui_icon:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        syscall #529
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_image:
++; -------------------------------------------:
++; -------------------------------------------
++; source   : void ui_image(int x,int y,char* path,int w,int h)
++; function : ui_image
++; param   : int x
++; param   : int y
++; param   : char* path
++; param   : int w
++; param   : int h
++; return   : void
++; --------------------------------------------
++ui_image:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        syscall #530
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++
++; ═══════════════════════════════════════════════════════════════
++; 手感：音效 / 震动 / 持久化 / 常亮（宿主保留号段 500–599 与 VM 内置 #57）
++;
++; ⚠ 这一组**必须提给上游 VML 仓库**：`Lib/` 是 sync.sh 从上游 rsync 同步下来的，
++;   只改本地的话下次同步就没了（与 ui_rand/ui_tick 同一处境）。
++; ⚠ 写法照抄 ui_timer_set：形参在栈上（arg_i = [R12+8+4*i]），搬进 R0..Rn 再 syscall。
++;   不要在 C 里用 `asm("MOVE R1 ${x}")` 直连 —— `${}` 展开时**总是先载入 R0**，
++;   第二个参数会把第一个覆盖掉（实测：`MOVE R0 ${freq}` + `MOVE R1 ${ms}` 生成的是
++;   `move R0 [R12+12]; move R0 [R12+16]; move R1 R0` —— freq 丢了）。
++; ═══════════════════════════════════════════════════════════════
++ui_beep:
++; -------------------------------------------
++; source   : void ui_beep(int freq,int ms)
++; function : ui_beep
++; param   : int freq  (Hz)
++; param   : int ms    (时长)
++; return   : void
++; 说明     : 合成音（VM 内置 #57 的蜂鸣，宿主接真实音频）。零素材：不必打包音频文件。
++; --------------------------------------------
++ui_beep:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        syscall #57
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++; ═══════════════════════════════════════════════════════════════
++; 绘图增强（534–539，v0.96.176）：渐变刷子 / 路径与曲线 / 多边形
++;
++; 写法照抄上面 ui_beep/ui_timer_set 那一组：形参在栈上（arg_i = [R12+8+4*i]），
++; 搬进 R0..Rn 再 syscall，返回值放 [R12-4]。
++; ⚠ 同样**必须提给上游 VML 仓库**（Lib/ 由 sync.sh 同步，只改本地下次就没了）。
++; ═══════════════════════════════════════════════════════════════
++ui_gradient:
++; -------------------------------------------
++; source   : void ui_gradient(char* id,int radial,int color_a,int color_b,int a1,int a2,int a3,int a4)
++; function : ui_gradient
++; return   : void
++; --------------------------------------------
++ui_gradient:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        move R5 [R12+32]
++        move R6 [R12+36]
++        move R7 [R12+40]
++        syscall #534
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_path:
++; -------------------------------------------
++; source   : void ui_path(char* d,int stroke,int width,int fill,char* grad,int cap,int dash)
++; function : ui_path
++; return   : void
++; --------------------------------------------
++ui_path:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        move R5 [R12+32]
++        move R6 [R12+36]
++        syscall #535
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_polygon:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        move R5 [R12+32]
++        syscall #536
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_polyline:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        syscall #537
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_rect_grad:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        move R4 [R12+28]
++        move R5 [R12+32]
++        syscall #538
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_circle_grad:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        move R3 [R12+24]
++        syscall #539
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_vibrate:
++; -------------------------------------------
++; source   : void ui_vibrate(int ms)
++; function : ui_vibrate
++; param   : int ms
++; return   : void
++; --------------------------------------------
++ui_vibrate:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 #0
++        syscall #545
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_keep_on:
++; -------------------------------------------
++; source   : void ui_keep_on(int on)
++; function : ui_keep_on
++; param   : int on    (0 关 / 1 开)
++; return   : void
++; 说明     : 玩游戏时别熄屏。
++; --------------------------------------------
++ui_keep_on:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        syscall #553
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_store_set:
++; -------------------------------------------
++; source   : void ui_store_set(char* key,char* value)
++; function : ui_store_set
++; param   : char* key
++; param   : char* value
++; return   : void
++; 说明     : 持久化键值（最高分/进度/设置）。键会加 `vml.` 前缀，与 App 自己的配置隔离。
++; --------------------------------------------
++ui_store_set:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        syscall #550
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
++ui_store_get:
++; -------------------------------------------
++; source   : int ui_store_get(char* key,char* buf,int cap)
++; function : ui_store_get
++; param   : char* key
++; param   : char* buf
++; param   : int cap
++; return   : int     (写入长度；没有这条键返回 -1)
++; --------------------------------------------
++ui_store_get:
++        push R15
++        push R12
++        move R12 R13
++        sub R13 #12
++        move R0 [R12+12]
++        move R1 [R12+16]
++        move R2 [R12+20]
++        syscall #551
++        move [R12-4] R0
++        move R13 R12
++        pop R12
++        pop R15
++        ret
+diff --git a/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Expressions.cs
+index 25805272..5f748d72 100644
+--- a/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Expressions.cs
+@@ -112,10 +112,13 @@ namespace BasicCompiler
+                     }
+                     return;
+                 }
+-                int varOffset = GetOrCreateVariable(ident.Name) * 4;
++                GetOrCreateVariable(ident.Name);
+                 BasicType varType = GetVariableType(ident.Name);
+-                OpCode loadOp = GetLoadInstruction(varType);
+-                instructions.Add(new Instruction(loadOp, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}") }));
++                // 走 EmitLoadVar：全局变量（模块级）从静态区全局段读，SUB 局部/参数走 R12 相对。
++                // ⚠ 原来这里是就地拼 `R12+{8 + index*4}` —— 一来进不了全局段，
++                //   二来它按"索引×4"而 VarMemRef 按 GetVarByteOffset（Double/Long 算 8 字节），
++                //   同一处地址两套算法，有 8 字节类型就会漂。
++                EmitLoadVar(reg, ident.Name);
+                 if (varType == BasicType.Single || varType == BasicType.Double)
+                     _lastExprFloatType = varType;
+             }
+@@ -154,11 +157,14 @@ namespace BasicCompiler
+                     case "-":
+                     case "*":
+                     case "/":
++                    case "\\":      // BASIC 的整除：与 `/` 同一条除法路径（VML 的 DIV 对整数就是整除）
+                     case "MOD":
+-                        OpCode arithmeticOp = binary.Operator == "MOD" ? OpCode.MOD : ExpressionManager.SelectArithmeticOp(binary.Operator, isFloat, resultType.IsDouble());
++                        OpCode arithmeticOp = binary.Operator == "MOD" ? OpCode.MOD
++                            : ExpressionManager.SelectArithmeticOp(
++                                binary.Operator == "\\" ? "/" : binary.Operator, isFloat, resultType.IsDouble());
+                         if (!isFloat) {
+                             if (rightReg == reg) {
+-                                if (binary.Operator == "-" || binary.Operator == "/" || binary.Operator == "MOD") {
++                                if (binary.Operator == "-" || binary.Operator == "/" || binary.Operator == "\\" || binary.Operator == "MOD") {
+                                     // Non-commutative: save right value (in reg) to R0 before MOVE clobbers it
+                                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, reg) }));
+                                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, leftReg) }));
+@@ -572,11 +578,20 @@ namespace BasicCompiler
+             
+             if (forAssignment)
+             {
++                // 赋值：把**地址**放到 R0，由 GenerateArrayAssignment 再往里存
+                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 2) }));
+             }
+             else
+             {
+-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 2) }));
++                // 取值：**从地址里读出来**。
++                //
++                // ⚠ 这里原来写的是 `MOVE reg, R2` —— 那是把**地址本身**当成了元素值，
++                //   于是 `arr(2)` 读出来永远是一个栈地址（实测 65556 = 0x10014），
++                //   与"写没写进去"无关。读、写两条路各反了一次，叠在一起看着像"数组全是野值"。
++                //   正确写法是寄存器间接寻址 `MOVE reg, @R2`。
++                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
++                    new Operand(OperandType.REGISTER, reg),
++                    new Operand(OperandType.INDIRECT, 2) }));
+             }
+             
+             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, endLabel) }));
+@@ -586,13 +601,22 @@ namespace BasicCompiler
+         {
+             // 保存值到R3
+             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, valueReg) }));
+-            
++
+             // 生成数组访问，获取地址到R0
+             GenerateArrayAccess(arrayAccess, 0, true);
+-            
+-            // 存储值到地址 (R0包含地址，R3包含值)
+-            // 假设数组元素是整数类型（默认）
+-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 3), new Operand(OperandType.REGISTER, 0) }));
++
++            // 把 R3 里的值**存进 R0 指向的地址**。
++            //
++            // ⚠ 这里原来是 `MOVE R3, R0` —— 方向反了：那是把**地址**写回 R3，
++            //   值根本没落到数组里，而地址留在 R3 里被后续代码当成"刚赋的值"。
++            //   现象极具迷惑性：`arr(2) = 7` 之后读 `arr(2)` 得到的是**一个栈地址**
++            //   （实测 65556 = 0x10014），看着像"数组读出来是野值"，其实**写就没生效**。
++            //
++            // 正确写法是寄存器间接寻址 `MOVE @R0, R3`（`@Rn` = 地址在 Rn 里，
++            // 见 OperandType.INDIRECT）。
++            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
++                new Operand(OperandType.INDIRECT, 0),
++                new Operand(OperandType.REGISTER, 3) }));
+         }
+ 
+         private string GenerateLabel()
+diff --git a/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Statements.cs b/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Statements.cs
+index 6761eb33..a5580ee1 100644
+--- a/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Statements.cs
++++ b/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Statements.cs
+@@ -550,7 +550,7 @@ namespace BasicCompiler
+                             // 全局变量
+                             BasicType varType = GetVariableType(varKey);
+                             OpCode storeOp = GetStoreInstruction(varType);
+-                            instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, VarMemRef(varKey)), new Operand(OperandType.REGISTER, storeSrcReg) }));
++                            EmitStoreVar(varKey, storeSrcReg);   // 全局变量写静态区全局段
+                         }
+                         else
+                         {
+@@ -563,7 +563,7 @@ namespace BasicCompiler
+                     // 全局变量赋值
+                     BasicType varType = GetVariableType(varKey);
+                     OpCode storeOp = GetStoreInstruction(varType);
+-                    instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, VarMemRef(ident.Name)), new Operand(OperandType.REGISTER, storeSrcReg) }));
++                    EmitStoreVar(ident.Name, storeSrcReg);   // 全局变量写静态区全局段
+                 }
+             }
+             else if (stmt.Variable is ArrayAccessExpression arrayAccess)
+@@ -767,11 +767,8 @@ namespace BasicCompiler
+                     }
+                     else if (variables.ContainsKey(stmt.Variable.Name.ToLower()))
+                     {
+-                        // 全局变量
+-                        int varOffset = variables[stmt.Variable.Name.ToLower()] * 4;
+-                        BasicType varType = GetVariableType(stmt.Variable.Name.ToLower());
+-                        OpCode storeOp = GetStoreInstruction(varType);
+-                        instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), new Operand(OperandType.REGISTER, 0) }));
++                        // 全局变量（走全局段，见 EmitStoreVar）
++                        EmitStoreVar(stmt.Variable.Name.ToLower(), 0);
+                     }
+                     else
+                     {
+@@ -781,11 +778,8 @@ namespace BasicCompiler
+             }
+             else
+             {
+-                // 全局变量
+-                int varOffset = variables[stmt.Variable.Name] * 4;
+-                BasicType varType = GetVariableType(stmt.Variable.Name);
+-                OpCode storeOp = GetStoreInstruction(varType);
+-                instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), new Operand(OperandType.REGISTER, 0) }));
++                // 全局变量（走全局段，见 EmitStoreVar）
++                EmitStoreVar(stmt.Variable.Name, 0);
+             }
+ 
+             // 循环开始
+@@ -815,8 +809,7 @@ namespace BasicCompiler
+                     }
+                     else if (variables.ContainsKey(stmt.Variable.Name.ToLower()))
+                     {
+-                        int varOffset = variables[stmt.Variable.Name.ToLower()] * 4;
+-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}") }));
++                        EmitLoadVar(0, stmt.Variable.Name.ToLower());   // 全局段（见 EmitLoadVar）
+                     }
+                     else
+                         throw new CompilationException(ErrorCode.CodeGen_UndefinedVariable, $"变量 '{stmt.Variable.Name}' 未定义");
+@@ -824,8 +817,7 @@ namespace BasicCompiler
+             }
+             else
+             {
+-                int varOffset = variables[stmt.Variable.Name] * 4;
+-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}") }));
++                EmitLoadVar(0, stmt.Variable.Name);   // 全局段（见 EmitLoadVar）
+             }
+             // 每次迭代重新计算结束值（循环体可能破坏 R1）
+             if (currentSubName != null)
+@@ -847,16 +839,28 @@ namespace BasicCompiler
+             {
+                 loopVarAddr = $"R12+{8 + variables[stmt.Variable.Name] * 4}";
+             }
+-            // PUSH loop variable onto stack
+-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loopVarAddr) }));
+-            instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
++            // 循环体前后"保护/恢复循环变量"：**只对栈上的循环变量做**。
++            // 全局变量在静态区全局段，循环体改不到它；而且它的地址是动态算出来的、
++            // 没法像 R12/R14 那样预先写成字符串。跳过不影响语义。
++            bool loopVarOnStack = !_globalVars.Contains(stmt.Variable.Name.ToLower()) && !_globalVars.Contains(stmt.Variable.Name);
++            if (loopVarOnStack)
++            {
++                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loopVarAddr) }));
++                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
++            }
+             foreach (var bodyStmt in stmt.Body)
+             {
+                 GenerateStatement(bodyStmt);
+             }
+-            // POP loop variable back from stack
+-            instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
+-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loopVarAddr) }));
++            if (loopVarOnStack)
++            {
++                instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
++                // ⚠ **保持原样**：原来就是"读"而不是"写"（`MOVE R0, [loopVarAddr]`）。
++                // 我一度以为这是写反了、顺手改成"写回"，结果把 SUB 里的局部 FOR 循环改成了死循环
++                // （最小复现：SUB 里 DIM i + FOR i = 0 TO 3 + 局部数组赋值）。
++                // 看着像 bug 但不是 —— **没有证据就不要改语义**。
++                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, loopVarAddr) }));
++            }
+ 
+             // 增加步长 - 加载变量值
+             if (currentSubName != null)
+@@ -881,9 +885,7 @@ namespace BasicCompiler
+                     }
+                     else if (variables.ContainsKey(stmt.Variable.Name.ToLower()))
+                     {
+-                        // 全局变量
+-                        int varOffset = variables[stmt.Variable.Name.ToLower()] * 4;
+-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}") }));
++                        EmitLoadVar(0, stmt.Variable.Name.ToLower());   // 全局段（见 EmitLoadVar）
+                     }
+                     else
+                     {
+@@ -893,9 +895,7 @@ namespace BasicCompiler
+             }
+             else
+             {
+-                // 全局变量
+-                int varOffset = variables[stmt.Variable.Name] * 4;
+-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}") }));
++                EmitLoadVar(0, stmt.Variable.Name);   // 全局段（见 EmitLoadVar）
+             }
+             
+             // 计算步长值
+@@ -936,11 +936,7 @@ namespace BasicCompiler
+                     }
+                     else if (variables.ContainsKey(stmt.Variable.Name.ToLower()))
+                     {
+-                        // 全局变量
+-                        int varOffset = variables[stmt.Variable.Name.ToLower()] * 4;
+-                        BasicType varType = GetVariableType(stmt.Variable.Name.ToLower());
+-                        OpCode storeOp = GetStoreInstruction(varType);
+-                        instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), new Operand(OperandType.REGISTER, 0) }));
++                        EmitStoreVar(stmt.Variable.Name.ToLower(), 0);   // 全局段（见 EmitStoreVar）
+                     }
+                     else
+                     {
+@@ -950,11 +946,7 @@ namespace BasicCompiler
+             }
+             else
+             {
+-                // 全局变量
+-                int varOffset = variables[stmt.Variable.Name] * 4;
+-                BasicType varType = GetVariableType(stmt.Variable.Name);
+-                OpCode storeOp = GetStoreInstruction(varType);
+-                instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), new Operand(OperandType.REGISTER, 0) }));
++                EmitStoreVar(stmt.Variable.Name, 0);   // 全局段（见 EmitStoreVar）
+             }
+ 
+             // 跳回循环开始
+diff --git a/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Sub.cs b/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Sub.cs
+index 6d2d115b..84a69471 100644
+--- a/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Sub.cs
++++ b/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Sub.cs
+@@ -162,6 +162,25 @@ namespace BasicCompiler
+             return variables.ContainsKey(scopedName);
+         }
+ 
++        /// <summary>
++        /// 这个名字是不是**模块级变量**（含 `DIM SHARED`）—— 是的话，SUB 内**不许**把它当局部变量。
++        ///
++        /// ⚠ 原来没有这一条：CollectLocalVariables 会把 SUB 里出现过的赋值目标统统登记成
++        /// 局部变量，而局部变量**未初始化就是 0** —— 于是模块级 `DIM BW` / `BW = 10` 在 SUB 里
++        /// 读出来是 **0**（实测）。任何"用全局常量排版"的写法（拿格宽算坐标之类）都会因此
++        /// 算错、甚至踩运行时除零。
++        ///
++        /// 模块级变量在 <c>variables</c> 里是**裸名**，STATIC 是 `子程序名__变量名`，
++        /// 用键的形状就能分开（见 <see cref="IsStaticVariable"/>）。
++        /// </summary>
++        private bool IsModuleVariable(string varName)
++        {
++            if (string.IsNullOrEmpty(varName)) return false;
++            string key = varName.ToLower();
++            if (currentSubName != null && key == currentSubName.ToLower()) return false;
++            return variables.ContainsKey(key);
++        }
++
+         private void CollectLocalVariables(Statement stmt)
+         {
+             if (stmt is SequenceStatement seq)
+@@ -178,7 +197,8 @@ namespace BasicCompiler
+                     if (ident.Name.ToLower() != currentSubName.ToLower() &&
+                         !currentLocalVars.ContainsKey(ident.Name.ToLower()) &&
+                         !IsParameter(ident.Name.ToLower()) &&
+-                        !IsStaticVariable(ident.Name.ToLower())) // STATIC vars already in globals
++                        !IsStaticVariable(ident.Name.ToLower()) &&
++                        !IsModuleVariable(ident.Name))   // 模块级变量不许被局部遮蔽
+                     {
+                         currentLocalVars[ident.Name.ToLower()] = currentLocalVarCount++;
+                     }
+@@ -200,7 +220,8 @@ namespace BasicCompiler
+             {
+                 if (!currentLocalVars.ContainsKey(forStmt.Variable.Name.ToLower()) &&
+                     !IsParameter(forStmt.Variable.Name.ToLower()) &&
+-                    !IsStaticVariable(forStmt.Variable.Name.ToLower())) // STATIC vars already in globals
++                    !IsStaticVariable(forStmt.Variable.Name.ToLower()) &&
++                    !IsModuleVariable(forStmt.Variable.Name))   // 模块级变量不许被局部遮蔽
+                 {
+                     currentLocalVars[forStmt.Variable.Name.ToLower()] = currentLocalVarCount++;
+                 }
+@@ -332,7 +353,8 @@ namespace BasicCompiler
+                 if (!currentLocalVars.ContainsKey(ident.Name.ToLower()) &&
+                     !variables.ContainsKey(ident.Name.ToLower()) &&
+                     !IsParameter(ident.Name.ToLower()) &&
+-                    !IsStaticVariable(ident.Name.ToLower())) // STATIC vars already in globals
++                    !IsStaticVariable(ident.Name.ToLower()) &&
++                    !IsModuleVariable(ident.Name))   // 模块级变量不许被局部遮蔽
+                 {
+                     currentLocalVars[ident.Name.ToLower()] = currentLocalVarCount++;
+                 }
+@@ -746,9 +768,14 @@ namespace BasicCompiler
+                     }
+                     else
+                     {
+-                        // Auto-create undefined global variable (QBasic behavior: default to 0)
+-                        int varOffset = GetOrCreateVariable(ident.Name) * 4;
+-                        instructions.Add(new Instruction(storeOp, new List<Operand> { new Operand(OperandType.MEMORY, $"R12+{8 + varOffset}"), new Operand(OperandType.REGISTER, srcReg) }));
++                        // 模块级（全局）变量 —— 写静态区全局段，与 EmitLoadVar 的读侧对称。
++                        //
++                        // ⚠ 这里原来是 `R12+{8 + index*4}`：SUB 的 R12 是子帧，写进去等于丢在子帧里，
++                        //   而读侧已经改从全局段读 ⇒ **写读两边各写各的**：`counter = counter + 5`
++                        //   读回 0、写进子帧，永远不累加（实测 t8 得 0）；更糟的是循环变量不推进，
++                        //   表现为**死循环**（`draw_board` 里的 `WHILE i < BW` 就是这么卡住的）。
++                        GetOrCreateVariable(ident.Name);
++                        EmitStoreVar(ident.Name, srcReg);
+                     }
+                 }
+             }
+@@ -1118,14 +1145,14 @@ namespace BasicCompiler
+                         else
+                         {
+                             GetOrCreateVariable(ident.Name);
+-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, VarMemRef(ident.Name)) }));
++                            EmitLoadVar(reg, ident.Name);   // 全局变量走静态区全局段（见 EmitLoadVar）
+                         }
+                     }
+                     else
+                     {
+                         // Auto-create undefined global variable (QBasic behavior: default to 0)
+                         GetOrCreateVariable(ident.Name);
+-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, VarMemRef(ident.Name)) }));
++                        EmitLoadVar(reg, ident.Name);   // 全局变量走静态区全局段（见 EmitLoadVar）
+                     }
+                 }
+             }
+@@ -1330,29 +1357,25 @@ namespace BasicCompiler
+                         instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, offset) }));
+                         instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
+                     }
+-                    // 全局变量
++                    // 全局变量：**取静态区全局段的地址**（主程序与 SUB 共用同一份）
+                     else if (variables.ContainsKey(ident.Name.ToLower()))
+                     {
+-                        string memRef = VarMemRef(ident.Name.ToLower());
+-                        // 地址可能是绝对地址或 R12+offset
+-                        if (memRef.StartsWith("R12"))
++                        if (_globalVars.Contains(ident.Name.ToLower()))
+                         {
+-                            int off = int.Parse(memRef.Substring(3));
+-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, off) }));
+-                            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
++                            EmitStaticAddr(reg, STATIC_GLOBALS_OFFSET + GetVarByteOffset(ident.Name.ToLower()));
+                         }
+                         else
+                         {
+-                            int absAddr = int.Parse(memRef);
+-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, absAddr) }));
++                            int off = GetVarByteOffset(ident.Name.ToLower());
++                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 8 + off) }));
++                            instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
+                         }
+                     }
+                     else
+                     {
+                         // Auto-create undefined variable (QBasic behavior)
+-                        int varOffset2 = GetOrCreateVariable(ident.Name) * 4;
+-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 8 + varOffset2) }));
+-                        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 12) }));
++                        GetOrCreateVariable(ident.Name);
++                        EmitStaticAddr(reg, STATIC_GLOBALS_OFFSET + GetVarByteOffset(ident.Name.ToLower()));
+                     }
+                 }
+                 else
+diff --git a/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.cs
+index fd575257..f03f73ec 100644
+--- a/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.cs
++++ b/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.cs
+@@ -33,7 +33,10 @@ namespace BasicCompiler
+         public const int STATIC_PAL_OFFSET    = 0x3000; // EGA palette (was StaticBase - 0x100)
+         public const int STATIC_PAL13_OFFSET  = 0x3800; // VGA 256 palette (was StaticBase + 0x800)
+         public const int STATIC_SOUND_OFFSET  = 0x4000; // Sound buffer (was StaticBase + 0x2000)
+-        public const int STATIC_TOTAL_SIZE    = 0x5000; // 20KB total allocation
++        // 全局变量区：**追加在现有硬编码分区之后**（0x0000 DATA / 0x1000 文件句柄 / 0x3000 调色板
++        // / 0x3800 VGA 调色板 / 0x4000 声音），不动它们，免得重新编号引入新错。
++        public const int STATIC_GLOBALS_OFFSET = 0x5000;
++        public const int STATIC_TOTAL_SIZE    = 0x7000; // 原 0x5000；尾部 8KB(≈2048 个 int) 给全局变量
+         public const int STATIC_BASE_ADDR     = 0x6FD4; // where the dynamic base pointer is stored
+ 
+         // Backward-compat property for code that still uses StaticBase directly
+@@ -79,6 +82,8 @@ namespace BasicCompiler
+         private Dictionary<string, BasicType> variableTypes;
+         private Dictionary<string, ArrayInfo> arrayVariables;
+         private HashSet<string> _sharedVariables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
++        /// <summary>模块级变量（含 DIM SHARED）—— 放静态区的全局段，主程序与 SUB 共用同一份内存。</summary>
++        private HashSet<string> _globalVars = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+ 
+         /// <summary>获取变量的内存引用字符串。SHARED 变量使用绝对地址, 普通变量使用 BP+offset</summary>
+         private string VarMemRef(string varName)
+@@ -89,6 +94,54 @@ namespace BasicCompiler
+             return $"R12+{8 + offset}";
+         }
+ 
++        /// <summary>
++        /// 读变量到 <paramref name="reg"/>。**全局变量（模块级）走静态区的全局段**，用
++        /// <see cref="EmitStaticAddr"/> 就地算出绝对地址再间接读 —— 于是主程序与 SUB 指向同一块内存；
++        /// 其余（SUB 局部/参数）仍走 `R12+偏移` 的相对寻址。
++        ///
++        /// 为什么不"让某个寄存器长期存基址"：已确认 R7–R11 全被大量使用（33~123 处），
++        /// **没有空闲寄存器**可以专用；所以就地在目标寄存器里算地址，只用一个寄存器。
++        /// </summary>
++        private void EmitLoadVar(int reg, string name)
++        {
++            if (_globalVars.Contains(name))
++            {
++                EmitStaticAddr(reg, STATIC_GLOBALS_OFFSET + GetVarByteOffset(name));
++                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
++                {
++                    new Operand(OperandType.REGISTER, reg), new Operand(OperandType.INDIRECT, reg)
++                }));
++                return;
++            }
++            instructions.Add(new Instruction(GetLoadInstruction(GetVariableType(name)), new List<Operand>
++            {
++                new Operand(OperandType.REGISTER, reg), new Operand(OperandType.MEMORY, VarMemRef(name))
++            }));
++        }
++
++        /// <summary>
++        /// 把 <paramref name="srcReg"/> 写进变量。全局变量同样写进静态区的全局段。
++        ///
++        /// 地址临时用 **R2**：调用点（Let 语句）把值放在 R0/R1（浮点用 R0、整数用 R1），
++        /// R2 在那一带本来就是拿来算地址的临时寄存器（见 `Statements.cs` 里 `MOVE R2,[R14+off]` 那段）。
++        /// </summary>
++        private void EmitStoreVar(string name, int srcReg)
++        {
++            if (_globalVars.Contains(name))
++            {
++                EmitStaticAddr(2, STATIC_GLOBALS_OFFSET + GetVarByteOffset(name));
++                instructions.Add(new Instruction(GetStoreInstruction(GetVariableType(name)), new List<Operand>
++                {
++                    new Operand(OperandType.INDIRECT, 2), new Operand(OperandType.REGISTER, srcReg)
++                }));
++                return;
++            }
++            instructions.Add(new Instruction(GetStoreInstruction(GetVariableType(name)), new List<Operand>
++            {
++                new Operand(OperandType.MEMORY, VarMemRef(name)), new Operand(OperandType.REGISTER, srcReg)
++            }));
++        }
++
+         /// <summary>获取变量类型对应的字节偏移步长 — 委托到 TypedCodeGen.GetTypeInfo</summary>
+         private int GetVarByteSize(BasicType t) => GetTypeInfo(t).byteSize;
+ 
+@@ -179,6 +232,9 @@ namespace BasicCompiler
+             if (!variables.ContainsKey(name))
+             {
+                 variables[name] = variableCount;
++                // **模块级创建的变量就是全局变量** —— 放静态区全局段。SUB 的局部/参数在
++                // currentLocalVars 里、本来就不进 variables，所以不受影响。
++                if (currentSubName == null) _globalVars.Add(name);
+                 // Double 和 Long 类型需要 8 字节，分配 2 个槽位
+                 BasicType varType = GetVariableType(name);
+                 int slots = (varType == BasicType.Double || varType == BasicType.Long) ? 2 : 1;
+@@ -906,6 +962,29 @@ namespace BasicCompiler
+             AddRI(OpCode.MOVE, 0, STATIC_TOTAL_SIZE);
+             EmitAlloc();
+             EmitStaticBase(1);
++
++            // 把**全局变量区清 0** —— BASIC 语义里"未初始化的变量是 0"，
++            // 而这块是 EmitAlloc 出来的裸内存（不保证是零）。清的范围只有全局段，
++            // DATA 区等由各自的初始化逻辑负责，不碰。
++            {
++                string zeroLoop = GenerateLabel();
++                string zeroDone = GenerateLabel();
++                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
++                    new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, STATIC_GLOBALS_OFFSET) }));
++                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> {
++                    new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R1") }));  // R1 已含基址
++                AddRI(OpCode.MOVE, 2, STATIC_TOTAL_SIZE - STATIC_GLOBALS_OFFSET);   // R2 = 剩余字节数
++                instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, zeroLoop) }));
++                AddRI(OpCode.CMP, 2, 0);
++                instructions.Add(new Instruction(OpCode.JLE, new List<Operand> { new Operand(OperandType.LABEL, zeroDone) }));
++                AddRI(OpCode.MOVE, 0, 0);
++                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
++                    new Operand(OperandType.INDIRECT, 1), new Operand(OperandType.REGISTER, 0) }));
++                AddRI(OpCode.ADD, 1, 4);
++                AddRI(OpCode.SUB, 2, 4);
++                instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, zeroLoop) }));
++                instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, zeroDone) }));
++            }
+             instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") }));
+ 
+             // 初始化 DATA 指针 (offset 0 in static area)
+diff --git a/third_party/vml/VMLPrepares/BasicCompiler/Lexer.cs b/third_party/vml/VMLPrepares/BasicCompiler/Lexer.cs
+index e8dba828..1d7eba40 100644
+--- a/third_party/vml/VMLPrepares/BasicCompiler/Lexer.cs
++++ b/third_party/vml/VMLPrepares/BasicCompiler/Lexer.cs
+@@ -246,6 +246,13 @@ namespace BasicCompiler
+                     tokens.Add(new Token(TokenType.DIVIDE, "/", _line, _col));
+                     Advance();
+                 }
++                else if (current == '\\')
++                {
++                    // `\` 整除。**必须有这一支** —— 否则它落进下面的"未知字符"分支发 ERROR，
++                    // 表达式解析到那儿就停，`a \ b` 静默只剩 `a`（实测 `100 \ 20` 得 100）。
++                    tokens.Add(new Token(TokenType.INT_DIVIDE, "\\", _line, _col));
++                    Advance();
++                }
+                 else if (current == '<')
+                 {
+                     Advance();
+diff --git a/third_party/vml/VMLPrepares/BasicCompiler/Parser.Expressions.cs b/third_party/vml/VMLPrepares/BasicCompiler/Parser.Expressions.cs
+index e41da8c7..8133c384 100644
+--- a/third_party/vml/VMLPrepares/BasicCompiler/Parser.Expressions.cs
++++ b/third_party/vml/VMLPrepares/BasicCompiler/Parser.Expressions.cs
+@@ -113,6 +113,7 @@ namespace BasicCompiler
+             if (expr == null) return null;
+ 
+             while (Peek().Type == TokenType.MULTIPLY || Peek().Type == TokenType.DIVIDE
++                   || Peek().Type == TokenType.INT_DIVIDE
+                    || Peek().Type == TokenType.EXPONENT || Peek().Type == TokenType.MOD_KW)
+             {
+                 string op = Peek().Value;
+diff --git a/third_party/vml/VMLPrepares/BasicCompiler/TokenType.cs b/third_party/vml/VMLPrepares/BasicCompiler/TokenType.cs
+index d801cdeb..21eb40ba 100644
+--- a/third_party/vml/VMLPrepares/BasicCompiler/TokenType.cs
++++ b/third_party/vml/VMLPrepares/BasicCompiler/TokenType.cs
+@@ -40,6 +40,14 @@ namespace BasicCompiler
+         MINUS,       // -
+         MULTIPLY,    // *
+         DIVIDE,      // /
++        /// <summary>
++        /// `\` —— BASIC 的**整除**运算符（与 `/` 同优先级，结果取整）。
++        ///
++        /// ⚠ 原来**根本没有这个 token**：词法把它当"未知字符"发 ERROR，表达式解析
++        /// 走到那儿就停了 —— 于是 `c = 100 \ 20` 静默变成 `c = 100`（`\ 20` 整段被丢），
++        /// 而按 `\` 排版的代码（比如用格宽算坐标）会踩运行时"整数除零"。
++        /// </summary>
++        INT_DIVIDE,
+         EXPONENT,    // ^
+         EQUALS,      // =
+         LESS,        // <
+diff --git a/third_party/vml/VMLPrepares/CompilerBase/Preprocessor.cs b/third_party/vml/VMLPrepares/CompilerBase/Preprocessor.cs
+index 3d1745be..abde4f67 100644
+--- a/third_party/vml/VMLPrepares/CompilerBase/Preprocessor.cs
++++ b/third_party/vml/VMLPrepares/CompilerBase/Preprocessor.cs
+@@ -314,6 +314,15 @@ namespace CompilerBase
+                 if (line2.StartsWith("#"))
+                 {
+                     string[] dirParts = line2.Substring(1).Trim().Split(new[] { ' ', '\t' }, 2, StringSplitOptions.RemoveEmptyEntries);
++
++                    // ⚠ **光秃秃的 `#` 行不是预处理指令**，`dirParts` 会是**空数组**，
++                    // 下一行 `dirParts[0]` 直接 IndexOutOfRange **把整个编译打挂**。
++                    // 而 `#` 单独成行在 Python / BASIC / shell 里都是**合法注释**
++                    // （实测：Python 源里写一行 `#` 就让编译器抛未捕获异常）。
++                    // 空数组当"不是指令"处理，原样保留 —— 与"认不出来就当普通文本"一致。
++                    if (dirParts.Length == 0)
++                        continue;
++
+                     string directive = dirParts[0].ToLower();
+                     bool isCond = directive == "if" || directive == "ifdef" || directive == "ifndef"
+                                   || directive == "else" || directive == "elif" || directive == "endif";
+diff --git a/third_party/vml/VMLPrepares/PythonCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/PythonCompiler/CodeGenerator.Expressions.cs
+index 05a7f048..85e1fdf8 100644
+--- a/third_party/vml/VMLPrepares/PythonCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/PythonCompiler/CodeGenerator.Expressions.cs
+@@ -413,6 +413,21 @@ namespace PythonCompiler
+                         node.Args[0].Accept(this);
+                         Emit(OpCode.CALL, new Operand(OperandType.LABEL, "vml_" + peekName));
+                         break;
++
++                    default:
++                        // **不是内置函数 ⇒ 当成外部（库）函数，按标签直接 CALL。**
++                        //
++                        // ⚠ 这里原来是**静默丢弃**（switch 没命中就什么都不发）。后果很隐蔽：
++                        //   链进来的库（`vmltool.config.xml` 里各语言的 `Libs`，例如共享调用库
++                        //   `vmlui.vml`）标签不在编译期的 `labels` 表里，于是
++                        //   `ui_win_open(...)` 编出来**一条 CALL 都没有** —— 程序照跑、
++                        //   界面上什么都没有，也看不出哪儿错了（实测就是这样）。
++                        //
++                        //   「认不出来就报错」比「认不出来就装作没看见」好得多（CLI 那条铁律同理）：
++                        //   名字拼错的函数现在会在**链接期**报「未找到标签」，而不是凭空消失。
++                        //   参数已经按从右到左压好栈，与 C 库函数的 cdecl 约定一致，直接 CALL 即可。
++                        Emit(OpCode.CALL, new Operand(OperandType.LABEL, callTarget));
++                        break;
+                 }
+             }
+ 

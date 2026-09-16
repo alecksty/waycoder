@@ -45,14 +45,18 @@
 #      `7,7,8,8,9,9`（`c[1]` 读到 7、`c[2]` 读到 8）。零初值数组只是白占一倍内存，所以棋盘类
 #      程序一直看着正常，有初值的才露馅。修法只有一个词（`if` → `else if`）。
 #      最小复现：`.data` / `p1:` / 三行 `.word 7|8|9` 喂给 `Assemble`，看 `DataSection["p1"]`。
-#   ⑦ 0007-lib-ui-wrappers.patch：把 **`Lib/` 里我们加的那些包装**补成补丁。
-#      ⚠ rsync 列表**包含 `Lib`**（且带 `--delete`），而 0001–0006 只覆盖 VMLRuntime/VMLPrepares/
-#      VMLAssembler ⇒ 这些包装此前**没有任何补丁兜着**，跑一次本脚本就全没了
-#      （手机上的游戏与绘图接口会直接编不过）。包含：`ui_rand`/`ui_tick`、
-#      `ui_beep`/`ui_vibrate`/`ui_keep_on`/`ui_store_set`/`ui_store_get`、
-#      `ui_gradient`/`ui_path`/`ui_polygon`/`ui_polyline`/`ui_rect_grad`/`ui_circle_grad`。
-#      **这些同时也是欠给上游的**（新 syscall 的语义本就该在那边定义）—— 上游收了之后这条
-#      会自动走"已在（跳过）"分支。脚本末尾另有一道**符号存在性校验**兜底。
+#   ⑦ 0007-rest-local-adaptations.patch：**兜底补丁** —— 除 0001–0006 之外全部源码改动。
+#      ⚠ rsync 列表**包含 `Lib`**（且带 `--delete`），而 0001–0006 是按"我们知道的那几处"手写的 ⇒
+#      `Lib/` 里共享 UI 调用库那一整块（`vmlui.vml` 2248 行 + `Lib/shared/src/vmlui.c` 345 行）
+#      与 `VMLPrepares/` 下 9 个文件（BasicCompiler/PythonCompiler/CompilerBase，即 v0.96.164/165/169
+#      打通"其它语言调用 C 共享库"那批修复）此前**都没有补丁**，跑一次本脚本就全没了。
+#      这条不做人工挑选：`git diff <vendor>..HEAD -- <八个 synced 路径>` 减去前六条已覆盖的内容。
+#      与它同批修正的还有 0001（上下文漂了，严格 `git apply` 打不上）与 0002–0004
+#      （只包了"那次修复"的几处，而文件本身还有别的改动）—— 现在**每条都从 vendor 基准生成**。
+#
+# 判据（可运行）：`scripts/check-vml-patches.sh` —— 把补丁依次打到 vendor 那次提交的树上，
+# 结果必须与当前工作区**逐字节相同**（八个 synced 目录逐个 diff）。**补丁的覆盖要按内容算，
+# 不能按文件名算**（v0.96.181 就是先按文件名兜底，结果 `CodeGenerator.Functions.cs` 两头都没兜住）。
 #
 # 之所以要脚本化：rsync 是覆盖式的，两类改动都会被冲掉。
 # 【B】用 patch 而不是"再抄一遍源码"：改动本身可 review、可 diff；

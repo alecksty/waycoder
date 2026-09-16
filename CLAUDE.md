@@ -390,18 +390,22 @@ WayCoder/
 **`.ps1` 里的中文必须存成带 BOM 的 UTF-8**（PowerShell 5.1 否则按 ANSI 读，中文标识符直接变解析错误）。
 矢量后端两个平台的观感都核对过（Android 真机 + Windows 桌面），iOS/MacCatalyst 只到"我加的文件零错误"。
 
-⑱ **`sync.sh` 会覆盖哪些路径 = "哪些改动必须有补丁兜着"（v0.96.181）**：rsync 列表是
-`VMLAssembler VMLRuntime VMLPlugins VMLPrepares VMLTool VMLTranslators VMLToHex Lib`
-（**含 `Lib`，且带 `--delete`**；只排除 `bin/obj/Examples`）。而补丁原先只覆盖前三类里的源码 ⇒
-**`Lib/` 里加的 13 个包装（`ui_beep`/`ui_vibrate`/`ui_keep_on`/`ui_store_*`/`ui_rand`/`ui_tick` +
-534–539 的绘图包装）一直没有补丁，跑一次同步就全没了**（手机上的游戏直接编不过）。
-现补成 `patches/0007-lib-ui-wrappers.patch`（三段纯插入按时间拼接 —— 本仓库的 `third_party/vml`
-本来就来自上游同步，所以那些提交的**前缀状态 ≈ 上游状态**，diff 可直接当补丁）。
-两条可复用的做法：① **没有上游副本时怎么验补丁** —— 反过来打：`git apply --check --reverse`
-能打上就说明补丁与工作区逐字一致；② **给同步脚本加"符号存在性校验"** —— `apply` 的退出码
-只证明"补丁打上了"，证明不了"该有的东西都在"（上游整段删掉或改名时 apply 照样成功），
-所以脚本末尾按名字逐个查标签定义与头文件声明，缺一个就报错退出。**顺手记住这条判据：
-`sync.sh` 的 rsync 列表 = 必须进 `patches/` 的清单。**
+⑱ **`sync.sh` 的 rsync 列表 = "哪些改动必须有补丁兜着"；而"补丁全不全"要按**内容**算，不能按文件名（v0.96.181）**：
+rsync 列表是 `VMLAssembler VMLRuntime VMLPlugins VMLPrepares VMLTool VMLTranslators VMLToHex Lib`
+（**含 `Lib`，且带 `--delete`**；只排除 `bin/obj/Examples`）。原先补丁只覆盖"我们记得的那几处" ⇒
+`Lib/` 里共享 UI 调用库那一整块（3023 行）与 `VMLPrepares/` 下 9 个文件**都没有补丁**，
+跑一次同步就没了。修法与三条可复用做法：
+① **别靠记忆枚举改动**，直接机械求差：`git diff <vendor 提交>..HEAD -- <八个 synced 路径>`
+（本仓库把 VML 并进来那次提交就是现成的"上游基准"，此后没跑过同步 ⇒ 这份差就是"上游 → 我们"）；
+② **按内容算覆盖，不能按文件名** —— 第一版兜底补丁把"已被 0002 提到的文件"排除了，
+而 0002 只包了该文件"那次修复"的几处、文件本身还有别的改动 ⇒ **两头都没兜住**；
+③ **判据要能跑**：`scripts/check-vml-patches.sh` 把补丁依次打到 vendor 提交的树上（临时工作树），
+再与当前工作区**逐目录逐字节**比对（跳过 csproj —— 那类由 sync.sh 的 python 步骤机械施加）。
+同批还查出 **0001 的上下文漂了**：严格 `git apply` 打不上（GNU patch 也要 fuzz 2），
+而 `sync.sh` 用的正是严格 `git apply` ⇒ **真同步时它会失败并中断** —— 补丁"能打上"必须验，
+`--check --reverse` 只能证明"与我们工作区一致"，证明不了"打得进上游"。
+另：**给同步脚本加"符号存在性校验"** —— `apply` 的退出码只证明"补丁打上了"，
+证明不了"该有的东西都在"（上游整段删掉或改名时 apply 照样成功），所以按名字逐个查标签定义与头文件声明。
 
 ⑰ **两条"脚本改代码"的坑（本会话各踩一次，都是静默失败）**：① **`python` 的 `re.sub` 替换串漏了
 关键字** —— `("internal sealed ") + "partial " + ("RectCommand : IDrawCommand")` 把 `class` 吃掉了，

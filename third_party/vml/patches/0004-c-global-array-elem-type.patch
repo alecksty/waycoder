@@ -1,23 +1,26 @@
-C 前端第四处错误代码生成：**全局** char/short 数组按 32 位读写（v0.96.174）
+C 前端第四处错误代码生成：**全局** char/short 数组按 32 位读写（v0.96.174）
+
+复现：`.scratch/vmlhost/tests/globchar.c`（判定不经过 stdio，每条结论用一个频率报出来）
+
+    char g[8];                       /* 全局 */
+    int main() { g[0]='A'; if (g[0]=='A') … }   /* 判成不等 */
+
+根因：`CodeGenerator.Statements.cs` 的 `InferExpressionType(ArrayAccess)` 只查
+`variableTypes`（**只装局部变量**），全局数组查不到就 `return ExprType.Int`
+⇒ `GetLoadInstruction(Int)` 给出 `MOVE`（32 位），`char` 的存储宽度被整个忽略。
+局部数组一直是对的（`variableTypes` 里有），所以这个坑只在全局数组上冒头。
+
+为什么值得单独一个补丁：**"编得过、跑起来才错"**，而且错得很难往编译器上想 ——
+现象是「字符串长度对、内容不对」「写进去的字符读回来是别的值」。同一类的还有
+`short`（应 `MOVEH`）。写也是 32 位，所以 `char g[8]` 的 `g[7]` 会**越界**写 3 个字节。
+
+修法：把"先查局部 `variableTypes`、再回退 `ast.Variables` 里的全局声明"这个口诀
+**收成一个 `GetVarExprType`**（原先只有"取标识符值"那条路写了它，数组下标那条路没写 ——
+典型的"助手已存在但调用点绕过"）。`StringToExprType` 本来就会剥掉数组维度返回元素类型，
+认不出的类型回退成 `Int`，保持原语义不变。
+
 
-复现：`.scratch/vmlhost/tests/globchar.c`（判定不经过 stdio，每条结论用一个频率报出来）
-
-    char g[8];                       /* 全局 */
-    int main() { g[0]='A'; if (g[0]=='A') … }   /* 判成不等 */
-
-根因：`CodeGenerator.Statements.cs` 的 `InferExpressionType(ArrayAccess)` 只查
-`variableTypes`（**只装局部变量**），全局数组查不到就 `return ExprType.Int`
-⇒ `GetLoadInstruction(Int)` 给出 `MOVE`（32 位），`char` 的存储宽度被整个忽略。
-局部数组一直是对的（`variableTypes` 里有），所以这个坑只在全局数组上冒头。
-
-为什么值得单独一个补丁：**"编得过、跑起来才错"**，而且错得很难往编译器上想 ——
-现象是「字符串长度对、内容不对」「写进去的字符读回来是别的值」。同一类的还有
-`short`（应 `MOVEH`）。写也是 32 位，所以 `char g[8]` 的 `g[7]` 会**越界**写 3 个字节。
-
-修法：把"先查局部 `variableTypes`、再回退 `ast.Variables` 里的全局声明"这个口诀
-**收成一个 `GetVarExprType`**（原先只有"取标识符值"那条路写了它，数组下标那条路没写 ——
-典型的"助手已存在但调用点绕过"）。`StringToExprType` 本来就会剥掉数组维度返回元素类型，
-认不出的类型回退成 `Int`，保持原语义不变。
+> ⚠ 本条于 v0.96.181 按 **vendor 基准**重新生成：原先只包了「那次修复」的几处，而这些文件自 vendor 以来**还有别的改动**（不在任何补丁里，两头都没兜住）。现在这条补丁 = 这些文件相对 vendor 的**全部**改动 —— 回灌上游时请把它们当一整块 review。
 
 diff --git a/third_party/vml/VMLPrepares/CCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/CCompiler/CodeGenerator.Expressions.cs
 index 1157d6c4..74fa6988 100644

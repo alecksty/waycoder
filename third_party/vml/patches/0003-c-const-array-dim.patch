@@ -1,3 +1,7 @@
+
+
+> ⚠ 本条于 v0.96.181 按 **vendor 基准**重新生成：原先只包了「那次修复」的几处，而这些文件自 vendor 以来**还有别的改动**（不在任何补丁里，两头都没兜住）。现在这条补丁 = 这些文件相对 vendor 的**全部**改动 —— 回灌上游时请把它们当一整块 review。
+
 diff --git a/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs b/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs
 index ece861d8..970615f6 100644
 --- a/third_party/vml/VMLPrepares/CCompiler/Parser.Declarations.cs
