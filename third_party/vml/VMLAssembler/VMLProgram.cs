@@ -373,15 +373,29 @@ namespace VMLAssembler
                 }
                 if (data.Value is int[] arr)
                 {
-                    sb.Append($"{data.Key}:\n");
-                    foreach (var elem in arr)
-                        sb.Append($"    .word {elem}\n");
+                    // **等值数组压成一行**（v0.96.177）：`int a[1024]` 是 1024 个 0，
+                    // 逐元素写出来就是 1024 行 —— 而数据在内存里本来就是压缩的
+                    // （编译器放的就是 `int[N]`），只有"落成文本"这一步把它摊平了。
+                    // 非等值的仍逐元素写（那才是真的每个都不一样）。
+                    if (TryUniform(arr, out var only))
+                        sb.Append($"{data.Key}: .word[{arr.Length}] {only}\n");
+                    else
+                    {
+                        sb.Append($"{data.Key}:\n");
+                        foreach (var elem in arr)
+                            sb.Append($"    .word {elem}\n");
+                    }
                 }
                 else if (data.Value is object[] objArr)
                 {
-                    sb.Append($"{data.Key}:\n");
-                    foreach (var elem in objArr)
-                        sb.Append($"    .word {elem}\n");
+                    if (TryUniform(objArr, out var onlyObj))
+                        sb.Append($"{data.Key}: .word[{objArr.Length}] {onlyObj}\n");
+                    else
+                    {
+                        sb.Append($"{data.Key}:\n");
+                        foreach (var elem in objArr)
+                            sb.Append($"    .word {elem}\n");
+                    }
                 }
                 else if (data.Value is DataString ds)
                 {
@@ -1032,6 +1046,20 @@ namespace VMLAssembler
                 default:
                     throw new NotSupportedException($"Unsupported OperandType: {operand.Type}");
             }
+        }
+
+        /// <summary>
+        /// 数组元素是否**全部相同** —— 相同才能压成 `.word[N] v` 一行。
+        /// 少于 2 个元素返回 false：压了反而更啰嗦，也不值得为它多担一条路径。
+        /// </summary>
+        private static bool TryUniform(System.Collections.IList list, out object? only)
+        {
+            only = null;
+            if (list.Count < 2) return false;
+            only = list[0];
+            for (var i = 1; i < list.Count; i++)
+                if (!Equals(list[i], only)) return false;
+            return true;
         }
 
         private void WriteDataSection(BinaryWriter writer)

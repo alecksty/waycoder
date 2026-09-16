@@ -712,6 +712,46 @@ namespace VMLAssembler
                 return;
             }
 
+            // ── 批量数据：`.word[1024] [默认值]`（v0.96.177）────────────────────
+            //
+            // ## 为什么要有它
+            //
+            // `int a[1024];` 原来生成 **1024 行 `.word 0`**（实测一个空 main 的 .vml 有 1071 行），
+            // 而数据在**内存里本来就是压缩的**（编译器放的就是 `int[1024]`）——
+            // 只有"落成文本"这一步把它摊平了。文本是给人看、给 diff 的，摊平之后一个数组
+            // 就把整份文件淹掉，`.vml` 的体积也跟着涨。
+            //
+            // ## 语法
+            //
+            //     buf: .word[1024] 0        ; 1024 个字，初值 0
+            //     buf: .word[1024]:0        ; 冒号写法也收（`类型[数量]:默认值` 形态）
+            //     buf: .word[1024]          ; 默认值省略 = 0
+            //
+            // 别名 `.int[N]` / `.long[N]` / `.dword[N]` 等价（都是 4 字节字）。
+            // ⚠ 只做了 **4 字节字**：`.byte[N]`/`.half[N]` 没做 —— VMB 数据段对数组是按
+            //   "每个元素一个带 tag 的槽"写的，直接塞 `byte[]` 会被写成 4 字节（静默错），
+            //   要做得再多动一处编码。C 前端的 `int a[N]` 正好是 4 字节字，够用。
+            // ⚠ **兼容性**：`.word[N]` 是新写法，**旧版汇编器读不懂**（会退化成把 `[1024] 0`
+            //   当值解析、静默变 0）。回灌上游时这条要一起说清楚。
+            if (TryParseCompactData(line, out var compactLabel, out var compactCount, out var compactValue))
+            {
+                FinalizeMultiWordData();
+                var compactArr = new int[compactCount];
+                for (var ci = 0; ci < compactCount; ci++) compactArr[ci] = compactValue;
+                if (compactLabel.Length > 0)
+                {
+                    if (!labels.ContainsKey(compactLabel)) labels[compactLabel] = currentAddress;
+                    dataSection[compactLabel] = compactArr;
+                }
+                else if (_lastLabel != null)
+                {
+                    if (!labels.ContainsKey(_lastLabel)) labels[_lastLabel] = currentAddress;
+                    dataSection[_lastLabel] = compactArr;
+                    _lastLabel = null;
+                }
+                return;
+            }
+
             // 处理 .word 指令
             if (line.Contains(".word"))
             {
@@ -844,7 +884,14 @@ namespace VMLAssembler
             }
 
             // 处理 .data 指令 (支持 label: .data [name] value 和 .data [name] value 两种格式)
-            if (line.Contains(".data"))
+            //
+            // ⚠ 这里必须是 `else if`（v0.96.177 修复）：它原来是新起的 `if`，**链就断在这里** ——
+            //   下面 `.dword`/`.byte`/`.halfword`/`.word` 那几条 `else if` 于是挂到了本分支上，
+            //   于是一行 `.word 7` 会被处理两遍（上面 `.word` 专用分支加一次、`HandleDataDirective`
+            //   再加一次），**每个元素都翻倍**。对数组初值是静默错值：`int c[3] = {7,8,9}`
+            //   编出来是 `7,7,8,8,9,9` ⇒ `c[1]` 读到 7、`c[2]` 读到 8。
+            //   零初值数组只是白占一倍内存（棋盘类程序因此一直看着正常），有初值的才露馅。
+            else if (line.Contains(".data"))
             {
                 string[] parts = line.Split(new[] { ':' }, 2, StringSplitOptions.None);
                 if (parts.Length == 2)
@@ -891,6 +938,67 @@ namespace VMLAssembler
             {
                 HandleDataDirective(line, null);
             }
+        }
+
+        /// <summary>
+        /// 批量数据行 `.word[数量] [默认值]`（别名 `.int`/`.long`/`.dword`）→ 数量与默认值。
+        ///
+        /// 只认"整行就是这一条"的形态（前面可带 `label:`）。返回 false 表示不是这种写法，
+        /// 交回原来逐元素的路径 —— **不能猜**，猜错会把普通 `.word 5` 解析成别的东西。
+        ///
+        /// 两处易错：① `label: .word[N]` 与 `.word[N]:V` 都有冒号，**别把后者那个当 label
+        /// 分隔符**（判据是"冒号在方括号之前才算 label"）；② 数量要钳一下，
+        /// `[999999999]` 会在这一行直接分配 4GB。
+        /// </summary>
+        private static bool TryParseCompactData(string line, out string label, out int count, out int value)
+        {
+            label = "";
+            count = 0;
+            value = 0;
+
+            var s = (line ?? "").Trim();
+            var bracket = s.IndexOf('[');
+            if (bracket < 0) return false;
+            var colon = s.IndexOf(':');
+            if (colon >= 0 && colon < bracket)          // 冒号在 `[` 之前才是 label 分隔符
+            {
+                label = s[..colon].Trim();
+                s = s[(colon + 1)..].Trim();
+            }
+
+            var m = System.Text.RegularExpressions.Regex.Match(s,
+                @"^\.?(?:word|int|long|dword)\s*\[\s*(\d+)\s*\]\s*:?\s*(-?[0-9A-Fa-fxX]*)\s*$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (!m.Success) return false;
+
+            if (!int.TryParse(m.Groups[1].Value, out count) || count <= 0) return false;
+            if (count > 1 << 20) return false;          // 400 万字节的表已经不合理了，多半是写错
+
+            var def = m.Groups[2].Value;
+            if (def.Length > 0)
+            {
+                var parsed = ParseValueStatic(def);
+                value = parsed is int iv ? iv : 0;
+            }
+            return true;
+        }
+
+        /// <summary>`ParseValue` 的静态版（批量数据在静态辅助里解析，拿不到实例）。</summary>
+        private static object? ParseValueStatic(string s)
+        {
+            s = (s ?? "").Trim();
+            if (s.Length == 0) return 0;
+            if (s.StartsWith("0x", StringComparison.OrdinalIgnoreCase) &&
+                long.TryParse(s[2..], System.Globalization.NumberStyles.HexNumber,
+                    System.Globalization.CultureInfo.InvariantCulture, out var hex))
+                return (int)hex;
+            if (int.TryParse(s, System.Globalization.NumberStyles.Integer,
+                    System.Globalization.CultureInfo.InvariantCulture, out var dec))
+                return dec;
+            if (double.TryParse(s, System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var dbl))
+                return (int)dbl;
+            return 0;
         }
 
         private void FinalizeMultiWordData()

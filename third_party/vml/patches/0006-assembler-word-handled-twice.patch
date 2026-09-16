@@ -1,0 +1,55 @@
+汇编器把一行 `.word` **处理了两遍** ⇒ 数组初值静默错位（v0.96.177）
+
+## 症状
+
+    int c[3] = {7, 8, 9};        /* c[0]==7 ✓，c[1] 读到 7 ✗、c[2] 读到 8 ✗ */
+
+数据段实际写出 6 个字：`7, 7, 8, 8, 9, 9` —— **每个元素都翻倍**。
+
+## 最小复现（与 C 前端无关，纯汇编器）
+
+    .data
+    p1:
+        .word 7
+        .word 8
+        .word 9
+
+`Assemble` 之后 `DataSection["p1"]` 是 `int[6] {7,7,8,8,9,9}`（应为 `int[3] {7,8,9}`）。
+
+## 根因
+
+`VmlAssembler.ParseData` 里是一条 `if / else if` 链：`.word`（专用分支）→ `.string` →
+… → `.const`，然后**换成了新起的 `if (line.Contains(".data"))`** —— 链就断在这里，
+后面 `.dword` / `.byte` / `.halfword` / `.word` 那几条 `else if` 于是挂到了 `.data` 分支上。
+于是一行 `.word 7` 先被 `.word` 专用分支加一次，又被 `HandleDataDirective` 加一次。
+
+修法就是把那一行接回链上（`if` → `else if`）—— 只有一个词。
+
+## 为什么一直没被发现
+
+- 零初值数组（`int board[15][15];`）翻倍只是**白占一倍内存**，下标寻址仍按各自基址算，
+  所以棋盘类程序看着完全正常；
+- 有初值的才露馅，而"每个元素翻倍"这种错误很容易被当成"前端数组初始化没实现"。
+  实测中它先被误判成前端问题：`c[2]` 读出 8 而不是 9，去 C 前端找了一轮才回到汇编器 ——
+  **判据是"把同一段文本喂给 `Assemble` 单测"**，前端根本不在这条路上。
+
+## 复现与验证
+
+- 最小复现：上面的三行 `.data`；
+- 端到端：`int a[1024]; int b[3]; int c[3]={7,8,9};` 逐项判定绕过 stdio（每条结论发一个频率）；
+- 回归：`Examples/c/tetris.c`、`Examples/c/gomoku.c` 的「直接编译运行 vs 存盘再独立汇编运行」
+  仍逐字节相同（A==C）。
+
+diff --git a/third_party/vml/VMLAssembler/VMLAssembler.cs b/third_party/vml/VMLAssembler/VMLAssembler.cs
+index f615f9d1..d1fd9d86 100644
+--- a/third_party/vml/VMLAssembler/VMLAssembler.cs
++++ b/third_party/vml/VMLAssembler/VMLAssembler.cs
+@@ -891,7 +891,7 @@ namespace VMLAssembler
+             //   再加一次），**每个元素都翻倍**。对数组初值是静默错值：`int c[3] = {7,8,9}`
+             //   编出来是 `7,7,8,8,9,9` ⇒ `c[1]` 读到 7、`c[2]` 读到 8。
+             //   零初值数组只是白占一倍内存（棋盘类程序因此一直看着正常），有初值的才露馅。
+-            if (line.Contains(".data"))
++            else if (line.Contains(".data"))
+             {
+                 string[] parts = line.Split(new[] { ':' }, 2, StringSplitOptions.None);
+                 if (parts.Length == 2)
