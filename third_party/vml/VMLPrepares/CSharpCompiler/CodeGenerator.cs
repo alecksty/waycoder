@@ -214,7 +214,17 @@ namespace CSharpCompiler
                     string prevClass = _currentClassName;
                     _currentClassName = classDecl.Name;
                     foreach (var member in classDecl.Members)
+                    {
+                        // **字段（含 const/static）不是栈上的局部变量**，而是数据段里的静态存储：
+                        // 登记进 dataSection 并把初值折进去。v0.96.185 前这两件事都没做 ——
+                        // 字段既没进数据段、初值也不生效（`const int N = 5;` 读出来是 0 或那个标签的地址）。
+                        if (member is VariableDeclStatement field)
+                        {
+                            RegisterStaticField(field);
+                            continue;
+                        }
                         GenerateStatement(member);
+                    }
                     _currentClassName = prevClass;
                     break;
 
@@ -344,12 +354,16 @@ namespace CSharpCompiler
                         }
                         else
                         {
-                            // Global/static variable: load data section label address
+                            // 全局/静态变量：从数据段**取值**（不是取地址）
+                            // ⚠ v0.96.185 前这里是 `OperandType.LABEL` —— 而 LABEL 在 VM 里的语义是
+                            //    "**标签的地址**"（C 那边正是用它来物化指针），于是 `const int N = 5;`
+                            //    读出来是 var_N 的地址（几千），`while (i < N)` 就跑几千圈。
+                            //    数据段里带标签名的 `MEMORY` 操作数才是"取那个位置的值"。
                             string label = $"var_{ve.Name}";
                             if (!dataSection.ContainsKey(label))
                                 dataSection[label] = 0;
                             instructions.Add(new Instruction(OpCode.MOVE,
-                                [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, label)]));
+                                [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, label)]));
                         }
                     }
                     else
@@ -394,14 +408,14 @@ namespace CSharpCompiler
                 return;
             }
 
-            // 回退到数据段（全局/静态变量或参数）
+            // 回退到数据段（全局/静态变量或参数）—— 取**值**，见上面那段说明
             string label = $"var_{variable.Name}";
             if (!dataSection.ContainsKey(label))
             {
                 dataSection[label] = 0;
             }
 
-            instructions.Add(new Instruction(loadOp, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, label)]));
+            instructions.Add(new Instruction(loadOp, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, label)]));
         }
         
         private void GenerateIndex(IndexExpression indexExpr)
@@ -644,11 +658,43 @@ namespace CSharpCompiler
                     string label = $"var_{varExpr2.Name}";
                     if (!dataSection.ContainsKey(label))
                         dataSection[label] = 0;
-                    instructions.Add(new Instruction(storeOp, [new Operand(OperandType.LABEL, label), new Operand(OperandType.REGISTER, 0)]));
+                    // 同上：写进"那个位置"，不是写进"那个地址的编号"
+                    instructions.Add(new Instruction(storeOp, [new Operand(OperandType.MEMORY, label), new Operand(OperandType.REGISTER, 0)]));
                 }
             }
         }
         
+        /// <summary>
+        /// 类字段（含 <c>const</c> / <c>static</c>）→ 数据段里的静态槽 + 折好的初值。
+        ///
+        /// 为什么单独一条路：<c>GenerateVariableDecl</c> 是给**方法内局部变量**用的
+        /// （在栈帧上分配），类字段走那条路会既进不了数据段、初值也丢掉。
+        /// 类型仍记进 <c>_variableTypes</c>，否则后面的类型推断取不到它。
+        /// </summary>
+        private void RegisterStaticField(VariableDeclStatement field)
+        {
+            if (!_variableTypes.ContainsKey(field.Name))
+                _variableTypes[field.Name] = field.Type;
+            dataSection[$"var_{field.Name}"] = FoldConst(field.Initializer);
+        }
+
+        /// <summary>字面量（可带正负号）→ 整数；折不出来给 0。只服务字段初值，不做通用常量折叠。</summary>
+        private static int FoldConst(Expression expr)
+        {
+            if (expr is LiteralExpression lit)
+            {
+                if (lit.Value is int i) return i;
+                if (lit.Value is long l) return (int)l;
+                if (lit.Value is bool b) return b ? 1 : 0;
+            }
+            if (expr is UnaryExpression u && (u.Operator == TokenType.Minus || u.Operator == TokenType.Plus))
+            {
+                int v = FoldConst(u.Operand);
+                return u.Operator == TokenType.Minus ? -v : v;
+            }
+            return 0;
+        }
+
         private void GenerateVariableDecl(VariableDeclStatement varDecl)
         {
             // 在栈帧上分配局部变量

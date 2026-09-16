@@ -59,5 +59,20 @@ for d in VMLAssembler VMLRuntime VMLPlugins VMLPrepares VMLTool VMLTranslators V
   fi
 done
 
+# `vmltool.config.xml` 与 `VERSION` 不在 rsync 列表里、但由 sync.sh 用 `cp` 覆盖
+# （见 sync.sh 的 `for f in VERSION LICENSE Directory.Build.props .editorconfig` 与那条
+#  `cp "$UP/vmltool.config.xml"`）⇒ 改动同样会丢，必须一起比。
+# ⚠ 这条是 v0.96.185 补上的：改 `vmltool.config.xml` 给各语言挂 `vmlui.vml` 时才发现
+#    复核脚本根本没看这个文件 —— **判据漏了一个文件，等于那道防线对它是空的**。
+for f in vmltool.config.xml VERSION; do
+  if diff -q "$WT/third_party/vml/$f" "$VML/$f" > /dev/null 2>&1; then
+    echo "  ✔ $f 一致"
+  else
+    echo "  ✘ $f 与「vendor+补丁」不一致 —— 同步时会被 cp 覆盖掉：" >&2
+    diff "$WT/third_party/vml/$f" "$VML/$f" | head -10 >&2
+    fail=1
+  fi
+done
+
 [ "$fail" -eq 0 ] && echo "✅ 全部本地适配都在 patches/ 里（vendor + 补丁 == 当前工作区）"
 exit "$fail"

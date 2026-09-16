@@ -1,0 +1,100 @@
+# 0009：给**每种语言**都挂上 `vmlui.vml`（手机 UI 那一层）
+
+## 为什么
+
+`Lib/c/waycoder_ui.h` 的头注释写着这套接口是"**C 与 Python 等前端共用同一份实现**"
+（函数体在 `Lib/shared/src/vmlui.c` → 编成 `Lib/shared/vmlui.vml`），而"挂到各语言的
+`Libs` 上"这件事**只对 c / basic / python 做了**（而且这三条本身也是我们本地的改动、
+一直没进补丁）—— 其余 19 种语言 `Libs=""`，于是非 C 语言写 `ui_rect(...)` 会在运行期报
+**`未找到标签: ui_rect`**（实测：Go 编译链接全过，一跑就崩）。
+
+⇒ 全部语言都挂上。这样"用别的前端写手机程序"才成立，也是 v0.96.185 那批游戏的前置条件。
+
+## 另外两条（同批发现，都记在这条补丁里）
+
+① **我们此前给 c/basic/python 挂 vmlui 的改动从来没进补丁** —— 这个文件不在 `sync.sh` 的
+   rsync 列表里（那列表只有八个目录），而是由 `cp "$UP/vmltool.config.xml"` 覆盖。
+   也就是说：**跑一次同步，C 的游戏示例就会因为找不到 UI 包装而全部编不过**。
+   本补丁把它们一起兜住。
+② `scripts/check-vml-patches.sh` 此前**只比八个目录**，根本没看这个文件 ——
+   判据漏一个文件，那道防线对它就等于不存在。现已把它与 `VERSION` 一起纳入比对。
+
+## 注意
+
+挂了库≠这门语言就能调：**调用约定**还得对得上。包装函数读 `[R12+12]`（= 调用方**最后压**的
+那个 = C 的第一个参数）⇒ 实参必须**逆序压栈**。前端若正序压（如 JavaScript），
+或者把未知函数名当变量（`var_ui_rect` + 间接 `call R0`），照样调不通 ——
+详见能力评估报告。
+
+diff --git a/third_party/vml/vmltool.config.xml b/third_party/vml/vmltool.config.xml
+index 89344314..232cd033 100644
+--- a/third_party/vml/vmltool.config.xml
++++ b/third_party/vml/vmltool.config.xml
+@@ -77,43 +77,43 @@
+    ═══════════════════════════════════════════ -->
+   <Languages>
+     <!-- C-like: 保留 asm() -->
+-    <Language Name="c"       Libs="builtins.vml,crt.vml" />
+-    <Language Name="cpp"     Libs="builtins.vml,crt.vml" />
+-    <Language Name="objc"    Libs="builtins.vml,crt.vml" />
++    <Language Name="c"       Libs="builtins.vml,crt.vml,vmlui.vml" />
++    <Language Name="cpp"     Libs="builtins.vml,crt.vml,vmlui.vml" />
++    <Language Name="objc"    Libs="builtins.vml,crt.vml,vmlui.vml" />
+ 
+     <!-- QBasic 方言 -->
+-    <Language Name="basic"   Libs="builtins.vml,crt.vml" />
++    <Language Name="basic"   Libs="builtins.vml,crt.vml,vmlui.vml" />
+ 
+     <!-- Pascal 方言 -->
+-    <Language Name="pascal"  Libs="builtins.vml,crt.vml" />
++    <Language Name="pascal"  Libs="builtins.vml,crt.vml,vmlui.vml" />
+ 
+     <!-- 脚本语言 -->
+-    <Language Name="python"     Libs="" />
+-    <Language Name="lua"        Libs="" />
+-    <Language Name="javascript" Libs="" />
+-    <Language Name="ruby"       Libs="" />
++    <Language Name="python"     Libs="vmlui.vml" />
++    <Language Name="lua"        Libs="vmlui.vml" />
++    <Language Name="javascript" Libs="vmlui.vml" />
++    <Language Name="ruby"       Libs="vmlui.vml" />
+ 
+     <!-- 系统语言 -->
+-    <Language Name="rust"    Libs="" />
+-    <Language Name="go"      Libs="" />
+-    <Language Name="java"    Libs="" />
+-    <Language Name="csharp"  Libs="" />
+-    <Language Name="swift"   Libs="" />
+-    <Language Name="kotlin"  Libs="" />
+-    <Language Name="d"       Libs="" />
++    <Language Name="rust"    Libs="vmlui.vml" />
++    <Language Name="go"      Libs="vmlui.vml" />
++    <Language Name="java"    Libs="vmlui.vml" />
++    <Language Name="csharp"  Libs="vmlui.vml" />
++    <Language Name="swift"   Libs="vmlui.vml" />
++    <Language Name="kotlin"  Libs="vmlui.vml" />
++    <Language Name="d"       Libs="vmlui.vml" />
+ 
+     <!-- 函数式 / 领域语言 -->
+-    <Language Name="scheme"  Libs="" />
+-    <Language Name="forth"   Libs="" />
+-    <Language Name="ladder"  Libs="" />
+-    <Language Name="dart"    Libs="" />
+-    <Language Name="fortran" Libs="" />
+-    <Language Name="r"       Libs="" />
++    <Language Name="scheme"  Libs="vmlui.vml" />
++    <Language Name="forth"   Libs="vmlui.vml" />
++    <Language Name="ladder"  Libs="vmlui.vml" />
++    <Language Name="dart"    Libs="vmlui.vml" />
++    <Language Name="fortran" Libs="vmlui.vml" />
++    <Language Name="r"       Libs="vmlui.vml" />
+ 
+     <!-- VML 汇编 -->
+-    <Language Name="vml"     Libs="crt.vml" />
++    <Language Name="vml"     Libs="crt.vml,vmlui.vml" />
+ 
+     <!-- 未知语言默认 -->
+-    <Language Name="default" Libs="crt.vml" />
++    <Language Name="default" Libs="crt.vml,vmlui.vml" />
+   </Languages>
+ </VMLToolConfig>

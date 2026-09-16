@@ -78,42 +78,42 @@
   <Languages>
     <!-- C-like: 保留 asm() -->
     <Language Name="c"       Libs="builtins.vml,crt.vml,vmlui.vml" />
-    <Language Name="cpp"     Libs="builtins.vml,crt.vml" />
-    <Language Name="objc"    Libs="builtins.vml,crt.vml" />
+    <Language Name="cpp"     Libs="builtins.vml,crt.vml,vmlui.vml" />
+    <Language Name="objc"    Libs="builtins.vml,crt.vml,vmlui.vml" />
 
     <!-- QBasic 方言 -->
-    <Language Name="basic"     Libs="builtins.vml,crt.vml,vmlui.vml" />
+    <Language Name="basic"   Libs="builtins.vml,crt.vml,vmlui.vml" />
 
     <!-- Pascal 方言 -->
-    <Language Name="pascal"  Libs="builtins.vml,crt.vml" />
+    <Language Name="pascal"  Libs="builtins.vml,crt.vml,vmlui.vml" />
 
     <!-- 脚本语言 -->
     <Language Name="python"     Libs="vmlui.vml" />
-    <Language Name="lua"        Libs="" />
-    <Language Name="javascript" Libs="" />
-    <Language Name="ruby"       Libs="" />
+    <Language Name="lua"        Libs="vmlui.vml" />
+    <Language Name="javascript" Libs="vmlui.vml" />
+    <Language Name="ruby"       Libs="vmlui.vml" />
 
     <!-- 系统语言 -->
-    <Language Name="rust"    Libs="" />
-    <Language Name="go"      Libs="" />
-    <Language Name="java"    Libs="" />
-    <Language Name="csharp"  Libs="" />
-    <Language Name="swift"   Libs="" />
-    <Language Name="kotlin"  Libs="" />
-    <Language Name="d"       Libs="" />
+    <Language Name="rust"    Libs="vmlui.vml" />
+    <Language Name="go"      Libs="vmlui.vml" />
+    <Language Name="java"    Libs="vmlui.vml" />
+    <Language Name="csharp"  Libs="vmlui.vml" />
+    <Language Name="swift"   Libs="vmlui.vml" />
+    <Language Name="kotlin"  Libs="vmlui.vml" />
+    <Language Name="d"       Libs="vmlui.vml" />
 
     <!-- 函数式 / 领域语言 -->
-    <Language Name="scheme"  Libs="" />
-    <Language Name="forth"   Libs="" />
-    <Language Name="ladder"  Libs="" />
-    <Language Name="dart"    Libs="" />
-    <Language Name="fortran" Libs="" />
-    <Language Name="r"       Libs="" />
+    <Language Name="scheme"  Libs="vmlui.vml" />
+    <Language Name="forth"   Libs="vmlui.vml" />
+    <Language Name="ladder"  Libs="vmlui.vml" />
+    <Language Name="dart"    Libs="vmlui.vml" />
+    <Language Name="fortran" Libs="vmlui.vml" />
+    <Language Name="r"       Libs="vmlui.vml" />
 
     <!-- VML 汇编 -->
-    <Language Name="vml"     Libs="crt.vml" />
+    <Language Name="vml"     Libs="crt.vml,vmlui.vml" />
 
     <!-- 未知语言默认 -->
-    <Language Name="default" Libs="crt.vml" />
+    <Language Name="default" Libs="crt.vml,vmlui.vml" />
   </Languages>
 </VMLToolConfig>
