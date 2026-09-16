@@ -13,8 +13,18 @@ C 前端的 `int a[1024];` 会生成 **1024 行** `.word 0`（实测一个空 ma
     buf: .word[1024]          ; 默认值省略 = 0
 
 别名 `.int[N]` / `.long[N]` / `.dword[N]` 等价（都是 4 字节字）。
-序列化侧（`VmlProgram.ToString`）只在**元素全相同**时才压成一行 —— 不等值的仍逐元素写，
-那才是真的每个都不一样。
+序列化侧（`VmlProgram.ToString`）只在**元素全相同、且都是 4 字节整数**时才压成一行 ——
+不等值的仍逐元素写，那才是真的每个都不一样。
+
+## 两处必须一起改的地方（都不是可选的）
+
+⚠ **压行判据要看类型，不只看值**：`.word[N]` 的默认值只收整数，若只判"值相同"，
+`object[]{"ok","ok","ok"}`（前端会产出等值字符串数组）也会被压成一行 —— 那行回来就**不是数组**
+了。而且**只有全等才会中招**（有一个不同就退回逐元素写），所以拿 `int` 数组测永远测不出来。
+⚠ **别名要在"调度那一层"露出来**：`ProcessSingleLine` 是按一串 `Contains(".word")/.dword/…`
+把行交给 `ParseData` 的，`.int[N]`/`.long[N]` 不在这串里就**永远走不到**（等于死代码）。
+判据要带方括号（`.int[`）免得吞掉 `.interrupt` 之类；且**不能用 `StartsWith`** ——
+带标签的 `p: .int[3] 7` 开头是标签（实测报"未知指令：.INT[3]"）。
 
 ## 实测
 
@@ -32,7 +42,7 @@ C 前端的 `int a[1024];` 会生成 **1024 行** `.word 0`（实测一个空 ma
 正好是 4 字节字，够用。
 
 diff --git a/third_party/vml/VMLAssembler/VMLAssembler.cs b/third_party/vml/VMLAssembler/VMLAssembler.cs
-index a6f48077..f615f9d1 100644
+index a6f48077..1dc6678c 100644
 --- a/third_party/vml/VMLAssembler/VMLAssembler.cs
 +++ b/third_party/vml/VMLAssembler/VMLAssembler.cs
 @@ -712,6 +712,46 @@ namespace VMLAssembler
@@ -164,8 +174,22 @@ index a6f48077..f615f9d1 100644
          private void FinalizeMultiWordData()
          {
              if (_lastDataLabel != null && _lastDataValues != null && _lastDataValues.Count > 0)
+@@ -1264,7 +1372,12 @@ namespace VMLAssembler
+                 return index;
+             }
+ 
+-            if (trimmedLine.Contains(".word") || trimmedLine.Contains(".byte") || trimmedLine.Contains(".dword") || trimmedLine.Contains(".halfword") || trimmedLine.Contains(".hword") || trimmedLine.Contains(".string") || trimmedLine.Contains(".wstring") || trimmedLine.Contains(".ustring") || trimmedLine.Contains(".const") || trimmedLine.Contains(".data"))
++            // ⚠ `.int[N]` / `.long[N]`（批量数据的别名）要**显式写在这儿**才走得到 `ParseData` ——
++            //   这条调度只认下面这些子串，光在 `TryParseCompactData` 的正则里列出来是**够不到的**
++            //   （别名等于死代码）。判据带上方括号（`.int[`）而不是 `.int`，免得把 `.interrupt`
++            //   之类一并吞进来；也**不能用 `StartsWith`** —— 带标签的写法（`p: .int[3] 7`）
++            //   开头是标签，实测就栽在这上面（报"未知指令：.INT[3]"）。
++            if (trimmedLine.Contains(".word") || trimmedLine.Contains(".byte") || trimmedLine.Contains(".dword") || trimmedLine.Contains(".halfword") || trimmedLine.Contains(".hword") || trimmedLine.Contains(".string") || trimmedLine.Contains(".wstring") || trimmedLine.Contains(".ustring") || trimmedLine.Contains(".const") || trimmedLine.Contains(".data") || trimmedLine.Contains(".int[") || trimmedLine.Contains(".long["))
+             {
+                 ParseData(originalLine);
+                 return index;
 diff --git a/third_party/vml/VMLAssembler/VMLProgram.cs b/third_party/vml/VMLAssembler/VMLProgram.cs
-index 8ade3eaf..ba30beb8 100644
+index 8ade3eaf..dc2ce8b2 100644
 --- a/third_party/vml/VMLAssembler/VMLProgram.cs
 +++ b/third_party/vml/VMLAssembler/VMLProgram.cs
 @@ -373,15 +373,29 @@ namespace VMLAssembler
@@ -204,21 +228,33 @@ index 8ade3eaf..ba30beb8 100644
                  }
                  else if (data.Value is DataString ds)
                  {
-@@ -1034,6 +1048,20 @@ namespace VMLAssembler
+@@ -1034,6 +1048,32 @@ namespace VMLAssembler
              }
          }
  
 +        /// <summary>
-+        /// 数组元素是否**全部相同** —— 相同才能压成 `.word[N] v` 一行。
++        /// 数组元素是否**全部相同、且都是 4 字节整数** —— 只有这样才能压成 `.word[N] v` 一行。
++        ///
++        /// ⚠ **必须连类型一起判**（v0.96.177 修正）：`.word[N]` 的默认值只收整数
++        /// （汇编器那侧就是 `int`）。只判"值相同"会把**等值的字符串/浮点数组**也压成一行 ——
++        /// 那行回来的东西就不是数组了：`object[]{"ok","ok","ok"}` 往返之后只剩一个字符串，
++        /// 而且**只有全等才会中招**（有一个不同就退回逐元素写），所以拿 `int` 数组去测永远测不出来。
++        /// 前端确实会产出等值的字符串数组（`GenerateStaticArrayInit` 与全局初始化器都会），
++        /// 这不是假想。
++        ///
 +        /// 少于 2 个元素返回 false：压了反而更啰嗦，也不值得为它多担一条路径。
 +        /// </summary>
 +        private static bool TryUniform(System.Collections.IList list, out object? only)
 +        {
 +            only = null;
 +            if (list.Count < 2) return false;
++            if (list[0] is not int) return false;       // 只压 4 字节字（与 `.word[N]` 的语义对齐）
 +            only = list[0];
 +            for (var i = 1; i < list.Count; i++)
++            {
++                if (list[i] is not int) return false;
 +                if (!Equals(list[i], only)) return false;
++            }
 +            return true;
 +        }
 +

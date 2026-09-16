@@ -138,7 +138,10 @@ internal sealed class VmlUiCalls : ISystemCallHandler
                 case VmlUi.Text: Scene()?.AddTextCurrent(registers[0], registers[1], Str(memory, registers[2])); TouchScene(); break;
                 case VmlUi.DrawIcon: Scene()?.AddIcon(registers[0], registers[1], Str(memory, registers[2]), registers[3], (uint)registers[4]); TouchScene(); break;
                 case VmlUi.DrawImage: Scene()?.AddImage(registers[0], registers[1], Str(memory, registers[2]), registers[3], registers[4]); TouchScene(); break;
-                case VmlUi.DrawPresent: TouchScene(); break;
+                // 「这一帧画完了」——**不是**普通的一次内容变化：窗口靠它决定什么时候出图，
+                // 见 VmlScene.PresentVersion。原先这里只是 TouchScene()（= 当作"变了"），
+                // 于是定时器会把画到一半的场景贴上去（棋盘一闪一闪就是它）。
+                case VmlUi.DrawPresent: Scene()?.Present(); TouchScene(); break;
 
                 // ── 手感：音效 / 震动 ──
                 case VmlUi.AudioPlay: registers[0] = AudioPlay(registers, memory); break;

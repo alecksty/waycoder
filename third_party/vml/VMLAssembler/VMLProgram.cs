@@ -1049,16 +1049,28 @@ namespace VMLAssembler
         }
 
         /// <summary>
-        /// 数组元素是否**全部相同** —— 相同才能压成 `.word[N] v` 一行。
+        /// 数组元素是否**全部相同、且都是 4 字节整数** —— 只有这样才能压成 `.word[N] v` 一行。
+        ///
+        /// ⚠ **必须连类型一起判**（v0.96.177 修正）：`.word[N]` 的默认值只收整数
+        /// （汇编器那侧就是 `int`）。只判"值相同"会把**等值的字符串/浮点数组**也压成一行 ——
+        /// 那行回来的东西就不是数组了：`object[]{"ok","ok","ok"}` 往返之后只剩一个字符串，
+        /// 而且**只有全等才会中招**（有一个不同就退回逐元素写），所以拿 `int` 数组去测永远测不出来。
+        /// 前端确实会产出等值的字符串数组（`GenerateStaticArrayInit` 与全局初始化器都会），
+        /// 这不是假想。
+        ///
         /// 少于 2 个元素返回 false：压了反而更啰嗦，也不值得为它多担一条路径。
         /// </summary>
         private static bool TryUniform(System.Collections.IList list, out object? only)
         {
             only = null;
             if (list.Count < 2) return false;
+            if (list[0] is not int) return false;       // 只压 4 字节字（与 `.word[N]` 的语义对齐）
             only = list[0];
             for (var i = 1; i < list.Count; i++)
+            {
+                if (list[i] is not int) return false;
                 if (!Equals(list[i], only)) return false;
+            }
             return true;
         }
 

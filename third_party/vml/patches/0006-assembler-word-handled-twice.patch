@@ -41,7 +41,7 @@
   仍逐字节相同（A==C）。
 
 diff --git a/third_party/vml/VMLAssembler/VMLAssembler.cs b/third_party/vml/VMLAssembler/VMLAssembler.cs
-index f615f9d1..d1fd9d86 100644
+index 1dc6678c..afd2ec1a 100644
 --- a/third_party/vml/VMLAssembler/VMLAssembler.cs
 +++ b/third_party/vml/VMLAssembler/VMLAssembler.cs
 @@ -891,7 +891,7 @@ namespace VMLAssembler

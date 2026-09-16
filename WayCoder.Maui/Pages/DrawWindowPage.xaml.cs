@@ -13,9 +13,12 @@ namespace WayCoder.Maui.Pages;
 ///   · **输入**：指针/按键事件投进 <see cref="VmlUiCalls"/> 的消息队列（UI 线程投递、VM 线程取走）。
 ///   · **生命周期**：用户点返回箭头 = 发一条 WindowClose 消息，程序据此退出自己的主循环。
 ///
-/// **按版本号重绘**：场景每次变化 <c>Version</c> 自增，定时器只在版本变了才重新编码 PNG。
-/// 不这么做的话，一个 30fps 的定时器会把整段 DSL 重新解析 + 重新压缩编码 30 次/秒，
-/// 而画面可能根本没变。
+/// **按「一帧画完了」重绘**：程序的 `ui_present()` 每调一次算一帧（<c>PresentVersion</c> 自增），
+/// 定时器只在标记变了才重新编码 PNG。不这么做的话，一个 25fps 的定时器会把整段 DSL 重新解析 +
+/// 重新压缩编码 25 次/秒，而画面可能根本没变。
+///
+/// ⚠ **别用 `Version` 当这个标记**（v0.96.178 修的就是它）：那个数每个图元都 +1，定时器撞上
+/// 任意一次就会把**画到一半的场景**贴出去 —— 用户看到的是「棋盘一闪一闪」（见 `RenderIfChanged`）。
 /// </summary>
 public partial class DrawWindowPage : ContentPage
 {
@@ -23,7 +26,10 @@ public partial class DrawWindowPage : ContentPage
     /// <summary>页面正在关闭 —— 这之后不再往消息队列投 `WindowResize`（程序已经在退出了）。</summary>
     private bool _closing;
     private IDispatcherTimer? _timer;
+    /// <summary>上次出图时的标记（presented 程序 = `PresentVersion`，否则 = `Version`）。</summary>
     private int _renderedVersion = -1;
+    /// <summary>上一拍看到的 `Version` —— 只给「没调 present 的老程序」判"这一拍还在画"用。</summary>
+    private int _lastSeenVersion = -1;
     private bool _rendering;
 
     /// <summary>当前按住不放的手柄键（0 = 没有）。只用于「滑到另一个键时补一条 KeyUp」。</summary>
@@ -247,8 +253,41 @@ public partial class DrawWindowPage : ContentPage
     {
         var scene = _scene;
         if (scene == null || _rendering) return;
-        if (scene.Version == _renderedVersion) return;
-        _renderedVersion = scene.Version;
+
+        // ── 出帧判据：**「一帧画完了」，不是「内容变了」**（v0.96.178 修闪烁）──────────
+        //
+        // 原来判 `scene.Version`，而那个数**每个图元都 +1**：一帧 200 个图元就是 200 次"变了"。
+        // 40ms 的定时器撞上哪一次，就把**当时那一刻**的场景贴上去 —— 多半是画到一半的画面
+        // （`ui_clear()` 刚清完、棋子还没画出来）。用户看到的就是「俄罗斯方块有时抖动闪烁」：
+        // 棋盘一闪一闪地清空又出现。**"内容变了"与"一帧画完了"是两件事。**
+        //
+        // 判据与程序对齐：`ui_present()` 就是"这帧画完了"（`waycoder_ui.h` 的用法示例每帧末尾
+        // 都调，两个游戏也都调）。**没调过 present 的老程序**退到"这一拍内容没再变"——
+        // 同样是"画完再说"，只是晚一拍；**都不再是"一变就出图"**。
+        // 首帧（synchronous）不受此限：那时程序可能一个图元都还没画，等一拍就会"一闪而过"。
+        if (!synchronous)
+        {
+            int mark;
+            if (scene.EverPresented)
+            {
+                mark = scene.PresentVersion;
+                if (mark == _renderedVersion) return;
+            }
+            else
+            {
+                mark = scene.Version;
+                var stillChanging = mark != _lastSeenVersion;
+                _lastSeenVersion = mark;
+                if (stillChanging) return;        // 这一拍还在画 ⇒ 等下一拍
+                if (mark == _renderedVersion) return;
+            }
+            _renderedVersion = mark;
+        }
+        else
+        {
+            _renderedVersion = scene.EverPresented ? scene.PresentVersion : scene.Version;
+        }
+
         _rendering = true;
 
         var dsl = scene.BuildDsl();
@@ -335,7 +374,13 @@ public partial class DrawWindowPage : ContentPage
     {
         try
         {
-            FitCanvas(scene);
+            // ⚠ 尺寸**只在还没有尺寸时兜底设一次**（首帧在 Attach 里同步出图，那时页面还没布局）。
+            //   别每帧都重算：`FitSize` 是按视口比例算的**带小数的值**，视口测量有一点浮动
+            //   （ScrollView 内容变化、滚动条出现/消失）就跟着变 ⇒ 画布**每帧微调一次尺寸**，
+            //   整块棋盘跟着缩放/位移，看着就是「抖动」（实测连拍里抓到过两张比满格小 1% 的）。
+            //   之后一律交给 `OnSizeAllocated` —— 那里才是"视口真的变了"的判据（带 0.5dp 容差）。
+            if (CanvasView.WidthRequest <= 0) FitCanvas(scene);
+
             _canvas.SetFrame(Microsoft.Maui.Graphics.Platform.PlatformImage.FromStream(new MemoryStream(png)),
                 scene.Width, scene.Height);
             CanvasView.Invalidate();

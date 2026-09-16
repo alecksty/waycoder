@@ -1372,7 +1372,12 @@ namespace VMLAssembler
                 return index;
             }
 
-            if (trimmedLine.Contains(".word") || trimmedLine.Contains(".byte") || trimmedLine.Contains(".dword") || trimmedLine.Contains(".halfword") || trimmedLine.Contains(".hword") || trimmedLine.Contains(".string") || trimmedLine.Contains(".wstring") || trimmedLine.Contains(".ustring") || trimmedLine.Contains(".const") || trimmedLine.Contains(".data"))
+            // ⚠ `.int[N]` / `.long[N]`（批量数据的别名）要**显式写在这儿**才走得到 `ParseData` ——
+            //   这条调度只认下面这些子串，光在 `TryParseCompactData` 的正则里列出来是**够不到的**
+            //   （别名等于死代码）。判据带上方括号（`.int[`）而不是 `.int`，免得把 `.interrupt`
+            //   之类一并吞进来；也**不能用 `StartsWith`** —— 带标签的写法（`p: .int[3] 7`）
+            //   开头是标签，实测就栽在这上面（报"未知指令：.INT[3]"）。
+            if (trimmedLine.Contains(".word") || trimmedLine.Contains(".byte") || trimmedLine.Contains(".dword") || trimmedLine.Contains(".halfword") || trimmedLine.Contains(".hword") || trimmedLine.Contains(".string") || trimmedLine.Contains(".wstring") || trimmedLine.Contains(".ustring") || trimmedLine.Contains(".const") || trimmedLine.Contains(".data") || trimmedLine.Contains(".int[") || trimmedLine.Contains(".long["))
             {
                 ParseData(originalLine);
                 return index;

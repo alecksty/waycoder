@@ -501,6 +501,32 @@ public sealed class VmlScene
     /// <summary>每次内容变化 +1 —— 宿主缓存渲染结果时比对它，避免无变化也重编码 PNG。</summary>
     public int Version { get; private set; }
 
+    /// <summary>
+    /// **「一帧画完了」标记** —— 只由 <see cref="Present"/>（= VML 的 `ui_present()`）递增。
+    ///
+    /// ## 为什么必须有它（v0.96.178）
+    ///
+    /// 窗口原来按 <see cref="Version"/> 出图，而那个数**每个图元都 +1**：一帧 200 个图元就是
+    /// 200 次"变了"。定时器（40ms）撞上哪一次就把**当时那一刻**的场景贴上去 —— 而那多半是
+    /// **画到一半的画面**（`ui_clear()` 刚清完、棋子还没画）。用户看到的就是
+    /// 「俄罗斯方块有时抖动闪烁」：棋盘一闪一闪地清空又出现。
+    ///
+    /// 判据应当与程序对齐：`ui_present()` 就是"这一帧画完了"（`waycoder_ui.h` 的用法示例里
+    /// 每帧末尾都调它，两个游戏也都调）。**"内容变了"和"一帧画完了"是两件事**，
+    /// 拿前者当后者用就会贴出半成品。
+    /// </summary>
+    public int PresentVersion { get; private set; }
+
+    /// <summary>程序调过 `ui_present()` 没有 —— 没调过的老程序由宿主退到"静下来了再出图"。</summary>
+    public bool EverPresented => PresentVersion > 0;
+
+    /// <summary>一帧画完了（VML `ui_present()`）。</summary>
+    public void Present()
+    {
+        PresentVersion++;
+        Version++;
+    }
+
     /// <summary>清屏：清空图元并置背景色。</summary>
     public void Clear(uint background)
     {
