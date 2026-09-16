@@ -136,6 +136,14 @@ public partial class CodeGenerator : OopCodeGenerator {
             case Block b: foreach (var s in b.Statements) GenerateNode(s); break;
             case VarDecl vd: {
                 string vt = vd.Type ?? "Int";
+                // ⚠ v0.96.194：`arrayOf(...)` 这类**数组变量要单独标出来** —— 它的下标语义
+                //   与字符串完全不同（字符串按 1 字节、数组按 4 字节且要跳过 VML 数组头）。
+                //   原来一律按"字符串那套"编，于是 `a[3]` 算的是 `base + 3`。
+                //   ⚠ **用独立的集合、不要动 `vt`**：`vt` 会流进 `AllocVar(vt)`/`StoreOpFor(vt)`/
+                //   `EmitKotlinConvert(init, vt)`，塞一个假的 "Array" 进去会把变量的**槽大小与
+                //   存储指令一起改坏**（实测：指针根本没存进去，读出来恒 0）。
+                if (vd.Init is CallExpr arrCall && arrCall.Name is "arrayOf" or "listOf" or "mutableListOf")
+                    _arrayVars.Add(vd.Name);
                 _varTypes[vd.Name] = vt;
                 if (vd.Init != null) {
                     GenerateNode(vd.Init);
@@ -406,12 +414,38 @@ public partial class CodeGenerator : OopCodeGenerator {
                 break;
             }
             case IndexExpr ie: {
-                GenerateNode(ie.Target); // string addr in R0
+                // ⚠ v0.96.194 修（两处，与 Go 的 patch 0015 同族）：
+                //   ① 数组下标原来**完全按字符串那套算**（`base + idx`，1 字节步长、不跳数组头）
+                //      ⇒ 算出来的是个错地址；数组元素 i 在 `base + i*4 + 4`
+                //      （`kotlin_array_alloc` 的布局是 `[count, e0, e1, …]`）。
+                //   ② 最后那句"load byte"写的是 `MOVEB R0, R0` —— **自赋值、空操作**，
+                //      地址被当成元素值返回。**"地址当值"族第七次**（前六次：C# 的 LABEL/MEMORY、
+                //      BASIC 的 `MOVE reg, R2`、Swift 的读数组、Go 的 `MOVE R0,R0` …）。
+                bool isArray = ie.Target is VarRef arrRef && _arrayVars.Contains(arrRef.Name);
+                // ⚠ v0.96.194：数组这条**不用 PUSH/POP 保存基址，改存 R2** ——
+                //   原来的 `push base … pop R1` 与**外层表达式**自己的 push/pop 交织在一起，
+                //   两套栈操作在同一段序列里交错，实测读数会随下标漂（`a[0]` 读到下一格、
+                //   `a[1]` 读到野值）。用寄存器存基址就没有这层耦合。
+                if (isArray) {
+                    GenerateNode(ie.Target);                                  // R0 = 块地址
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 0)]));
+                    GenerateNode(ie.Index);                                   // R0 = 下标
+                    // R0 = idx*4 + 4（2 操作数是 dest 在前：Rd = Rd op Rs）
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 4)]));
+                    instructions.Add(new(OpCode.MUL, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1)]));
+                    instructions.Add(new(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 4)]));
+                    instructions.Add(new(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 0)]));
+                    // 取元素值（**不是**自赋值 —— 原来写的是 `MOVE R0, R0`，空操作）
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0")]));
+                    break;
+                }
+                GenerateNode(ie.Target); // 字符串：地址 in R0
                 instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)])); // save addr
                 GenerateNode(ie.Index); // index in R0
                 instructions.Add(new(OpCode.POP, [new Operand(OperandType.REGISTER, 1)])); // R1 = addr
                 instructions.Add(new(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0)])); // R0 = addr + idx
-                instructions.Add(new(OpCode.MOVEB, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0)])); // load byte
+                // 取字节（原来写的是 `MOVEB R0, R0` —— 自赋值、空操作）
+                instructions.Add(new(OpCode.MOVEB, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0")]));
                 break;
             }
             case LambdaExpr le: {
@@ -581,13 +615,22 @@ public partial class CodeGenerator : OopCodeGenerator {
                 // kotlin_array_alloc(count) — C 函数: 分配数组 + 存储 count
                 int elemCount = ce.Args.Count;
                 instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, elemCount)]));
+                // ⚠ v0.96.194 修：`array_alloc`（`Lib/shared/builtins_kotlin.vml`）是**按 C 约定写的**
+                //   —— 它从 `[R12+12]` 取 `count`，所以调用方**必须把实参压栈**。
+                //   原来只把 count 放进 R0 就 CALL ⇒ 被调用方读到的是一段陈旧的栈内容
+                //   ⇒ 分配尺寸是垃圾、返回的指针也是垃圾，之后 `a[i]` 全在读野内存。
+                //   （同文件里其它外部调用（`abs`/`min`/`peek`/`poke`…）都是压栈的，只有这一处漏了。）
+                instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
                 instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "kotlin_array_alloc")]));
                 // 存储元素
                 for (int i = 0; i < elemCount; i++) {
                     instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)])); // save arr ptr
                     GenerateNode(ce.Args[i]);
                     instructions.Add(new(OpCode.POP, [new Operand(OperandType.REGISTER, 1)])); // arr ptr
-                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R1+{(i + 1) * 4}")]));
+                    // ⚠ v0.96.194 修：原来是 `MOVE R0, [R1+off]` —— `MOVE dest, src` 的 **dest 在前**，
+                    //   那是**从数组里读**进 R0，元素值根本没写进去（数组恒为 0）。
+                    //   要存就得把 `[R1+off]` 放在 dest 位。**"操作数写反"族，第八次。**
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R1+{(i + 1) * 4}"), new Operand(OperandType.REGISTER, 0)]));
                 }
                 instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1)])); // arr ptr in R0
                 break;
@@ -962,6 +1005,8 @@ public partial class CodeGenerator : OopCodeGenerator {
 
     new Dictionary<string, int> _varOffsets = [];
     Dictionary<string, string> _varTypes = [];
+    /// <summary>`arrayOf(...)` 声明出来的数组变量名（下标语义与字符串不同，见 IndexExpr）。</summary>
+    HashSet<string> _arrayVars = [];
     int _frameBytes = -1; // -1 = 尚未分配局部变量
 
     static int VarSize(string type) => (type == "Double" || type == "Long") ? 8 : 4;
