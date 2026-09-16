@@ -129,6 +129,30 @@ int  ui_msg_count(void);
 int  ui_timer_set(int interval_ms, int tag);
 int  ui_timer_kill(int id);
 
+/* ── 绘图增强（534–539，v0.96.176）：渐变刷子 / 路径与曲线 / 多边形 ──
+ *
+ * 这一组也是**本地加的**，同样要提给上游 VML 仓库（理由见文件末尾那段）。
+ * 坐标与颜色约定与既有绘图接口一致（dp、0xAARRGGBB）。 */
+
+/* 渐变刷子：id 之后用 ui_rect_grad / ui_circle_grad / ui_path 的 grad 参数按名引用。
+ * 几何是**归一化 0..1000 的整数**（千分之一）：线性给 x1,y1,x2,y2；径向给 cx,cy,r（第 4 个忽略）。
+ * 不想要自定义几何就传 0,0,1000,0（线性从左到右）或 500,500,500,0（径向居中）。 */
+void ui_gradient(char* id, int radial, int color_a, int color_b,
+                 int a1, int a2, int a3, int a4);
+
+/* 路径：d 是 **SVG path 语法**（M L H V C S Q T A Z，大小写区分绝对/相对）。
+ * stroke=描边色（0=不描边）、width=线宽、fill=填充色（0=不填充）、
+ * grad=渐变 id（非 0 时用它填充、忽略 fill）、cap=0平/1圆/2方、dash=0/1 虚线。 */
+void ui_path(char* d, int stroke, int width, int fill, char* grad, int cap, int dash);
+
+/* 多边形（自动闭合）/ 折线：pts 是 int 数组，**每两个 int 一个点**（x,y）；count 是**点数**。 */
+void ui_polygon(int* pts, int count, int fill, int stroke, int width, char* grad);
+void ui_polyline(int* pts, int count, int stroke, int width, char* grad);
+
+/* 渐变填充的矩形 / 圆（渐变按钮、渐变背景这类最常用） */
+void ui_rect_grad(int x, int y, int w, int h, char* grad, int radius);
+void ui_circle_grad(int cx, int cy, int r, char* grad);
+
 /* ── 随机数 / 计时（游戏用；实现走 VM 的 #50/#53，各语言共用一份）── */
 int  ui_rand(int n);      /* 0..n-1 */
 int  ui_tick(void);       /* VM 启动至今毫秒 */

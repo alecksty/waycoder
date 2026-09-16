@@ -899,9 +899,12 @@ public static partial class SelfTest
     /// <summary>v0.71.25 批次：DrawCommands path 首点丢失 + PngDecoder 长度溢出 + BmpCodec 32 位 alpha + 历史预览代理对切半。</summary>
     private static void TestV0725DrawAndCodec(Action<string, bool> Check)
     {
-        // ── #1 PathCommand.ParsePathSegments：cx 初始为 0（非 NaN）导致首个数字被误当 y 与 x=0 配对，首点丢失 ──
-        var seg = WayCoder.Infra.PathCommand.ParsePathSegments("M 10 20 L 30 40");
-        Check("path: 首点坐标不丢失", seg.Count == 2 && seg[0].X == 10 && seg[0].Y == 20 && seg[1].X == 30 && seg[1].Y == 40);
+        // ── #1 path 首点丢失（原钉在 PathCommand.ParsePathSegments，v0.96.176 换成完整展平器 DrawPath）──
+        //    判据一字未改：首点坐标必须还在。曲线/圆弧/填充的新用例在 TestV096176DrawPath 里。
+        var seg = WayCoder.Infra.DrawPath.Flatten("M 10 20 L 30 40");
+        var pts0 = seg.Count > 0 ? seg[0].Points : new System.Collections.Generic.List<(double X, double Y)>();
+        Check("path: 首点坐标不丢失", seg.Count == 1 && pts0.Count == 2
+            && pts0[0].X == 10 && pts0[0].Y == 20 && pts0[1].X == 30 && pts0[1].Y == 40);
 
         // ── #2 PngDecoder：chunk 长度 0x7FFFFFFF 使 off+len 整数溢出为负、绕过越界检查 → 负索引崩溃 ──
         var png = new byte[8 + 8 + 13];

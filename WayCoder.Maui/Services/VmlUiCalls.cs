@@ -147,6 +147,28 @@ internal sealed class VmlUiCalls : ISystemCallHandler
                 case VmlUi.Vibrate: registers[0] = Vibrate(registers); break;
                 case VmlUi.VibratePattern: registers[0] = VibratePattern(registers, memory); break;
 
+                // ── 绘图增强（534–539）──
+                case VmlUi.Gradient: Gradient(registers, memory); registers[0] = 0; break;
+                case VmlUi.DrawPath: DrawPath(registers, memory); registers[0] = 0; break;
+                case VmlUi.DrawPolygon: DrawPolyline(registers, memory, close: true); registers[0] = 0; break;
+                case VmlUi.DrawPolyline: DrawPolyline(registers, memory, close: false); registers[0] = 0; break;
+                case VmlUi.DrawRectGrad:
+                {
+                    // 没有渐变 id 就什么都不画 —— 这个号的全部意义就是"用渐变填充"，
+                    // 没有渐变时退化成"画一个黑色矩形"只会让人以为渐变没生效。
+                    var g = GradientIdOrNull(registers, 4, memory);
+                    if (g != null)
+                        Scene()?.AddRect(registers[0], registers[1], registers[2], registers[3],
+                            0, filled: true, width: 0, radius: Math.Max(0, registers[5]), fillGradient: g);
+                    TouchScene(); break;
+                }
+                case VmlUi.DrawCircleGrad:
+                {
+                    var g = GradientIdOrNull(registers, 3, memory);
+                    if (g != null) Scene()?.AddCircle(registers[0], registers[1], registers[2], 0, true, 0, g);
+                    TouchScene(); break;
+                }
+
                 // ── 持久化与常亮 ──
                 case VmlUi.StoreSet: registers[0] = StoreSet(registers, memory); break;
                 case VmlUi.StoreGet: registers[0] = StoreGet(registers, memory); break;
@@ -420,6 +442,71 @@ internal sealed class VmlUiCalls : ISystemCallHandler
 
         var pattern = VmlUi.ClampVibratePattern(raw);
         return pattern.Length > 0 && VmlAudio.VibratePattern(pattern) ? 0 : -1;
+    }
+
+    // ── 绘图增强（v0.96.176）──────────────────────────────────
+    //
+    // 这六个号只是把**本来就在绘图 DSL 里**的能力接到 VML 侧：曲线展平、渐变采样、
+    // 多边形填充在 Infra 那层早就有了（桌面 draw 工具一直在用），此前只是没有 syscall 入口。
+    // 所以这里的方法都很薄 —— 真正干活的是 `VmlScene` 的 `AddXxx` 与 `Infra/DrawPath.cs`。
+
+    /// <summary>
+    /// 渐变刷子：把 id 与几何交给场景，之后形状用 `fillGradient` 按 id 引用。
+    /// **同名覆盖**（重定义同一个 id 就是改它），与 DSL 里 `gradient` 指令的语义一致。
+    /// </summary>
+    private void Gradient(int[] r, byte[] mem)
+    {
+        var id = VmlUi.SafeId(Str(mem, r[0]));
+        if (id.Length == 0) return;
+        // 几何原样传寄存器：**千分之一的换算在 VmlScene.AddGradient 一处做**，
+        // 别在这边再除一次（两端各换算一次就是"沉默的错"，见那边的注释）。
+        Scene()?.AddGradient(id, radial: r[1] != 0, (uint)r[2], (uint)r[3], r[4], r[5], r[6], r[7]);
+        TouchScene();
+    }
+
+    /// <summary>路径：d 字符串 + 描边/填充/渐变/线帽/虚线。曲线展平在 `Infra/DrawPath.cs`。</summary>
+    private void DrawPath(int[] r, byte[] mem)
+    {
+        var d = Str(mem, r[0]);
+        if (d.Length == 0) return;
+        var grad = GradientIdOrNull(r, 4, mem);
+        Scene()?.AddPath(d, (uint)r[1], r[2],
+            cap: r[5],
+            fillColor: (uint)r[3], fillSet: r[3] != 0,
+            fillGradient: grad,
+            dashed: r[6] != 0);
+        TouchScene();
+    }
+
+    /// <summary>多边形 / 折线：点数组是内存里的 **int32 的 x,y 对**。</summary>
+    private void DrawPolyline(int[] r, byte[] mem, bool close)
+    {
+        var count = r[1];
+        if (count < 2 || count > VmlUi.MaxPolyPoints) return;
+
+        // 读内存要防越界：地址与点数都是程序给的，越界就地停（宁可少画几个点，不要读坏内存）
+        var pts = new List<double>(count * 2);
+        for (var i = 0; i < count; i++)
+        {
+            var at = r[0] + i * 8;
+            if (at < 0 || at + 8 > mem.Length) break;
+            pts.Add(BitConverter.ToInt32(mem, at));
+            pts.Add(BitConverter.ToInt32(mem, at + 4));
+        }
+        if (pts.Count < 4) return;
+
+        var grad = GradientIdOrNull(r, 5, mem);
+        if (close) Scene()?.AddPolygon(pts, (uint)r[3], filled: r[2] != 0 || grad != null, r[4], grad);
+        else Scene()?.AddPolyline(pts, (uint)r[3], r[4], grad);
+        TouchScene();
+    }
+
+    /// <summary>渐变 id 指针 → 清洗后的 id；指针为 0（或读出来是空串）返回 null（= 用纯色填充）。</summary>
+    internal static string? GradientIdOrNull(int[] r, int reg, byte[] mem)
+    {
+        if (r[reg] == 0) return null;
+        var id = VmlUi.SafeId(Str(mem, r[reg]));
+        return id.Length == 0 ? null : id;
     }
 
     // ── 持久化与常亮 ──────────────────────────────────────────

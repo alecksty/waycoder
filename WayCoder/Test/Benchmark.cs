@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Text;
 using WayCoder.UI.Shared.Terminal;
+using WayCoder.Infra;
 using WayCoder.Tools;
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
@@ -82,7 +83,10 @@ public static class Benchmark
         // ── 8. TUI 渲染压力（轻量，无 TUI 时跳过交互项）──
         TuiRenderStress();
 
-        // ── 9. 大项目自编程准备度 ──
+        // ── 9. 绘图性能（手机 VML 窗口每帧）──
+        DrawingStress();
+
+        // ── 10. 大项目自编程准备度 ──
         LargeProjectReadiness();
 
         totalSw.Stop();
@@ -873,6 +877,174 @@ public static class Benchmark
     // ════════════════════════════════════════════════════════════════
     // 9. 大项目自编程准备度
     // ════════════════════════════════════════════════════════════════
+
+    // ════════════════════════════════════════════════════════════════
+    // 绘图性能（v0.96.176）
+    // ════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 绘图压力 —— 量的是**手机上 VML 窗口每帧的真实代价**：
+    /// <c>VmlScene → BuildDsl → DrawRunner.Parse → ToPng</c> 三段分开计时。
+    ///
+    /// ## 为什么单独分三段
+    ///
+    /// 这三段的量级差得很远（实测：DSL 拼接是微秒级、光栅化是毫秒级、PNG 压缩又可能翻倍），
+    /// 只报一个"每帧 X 毫秒"等于没报 —— 优化时不知道该动哪一段。分段之后一眼能看出
+    /// "这帧慢是因为图元多"还是"因为编码器"。
+    ///
+    /// ## 场景取自真程序，不自造玩具
+    ///
+    /// 俄罗斯方块与五子棋的每帧图元是**照抄**它们 `draw_all` / `draw_board` 的产出
+    /// （棋盘格线、每个方块 2 条圆角矩形、每个棋子 1 个圆、状态文字）—— 玩具场景（画 100 个矩形）
+    /// 量出来的数不能代表真实负载。第三个场景是 v0.96.176 新加的**路径/曲线/渐变**，
+    /// 它同时兼作新代码的回归：画得出来、且代价有数。
+    /// </summary>
+    private static void DrawingStress()
+    {
+        Cat("绘图（手机 VML 窗口每帧）");
+
+        const int W = 377, H = 539;   // 真机可用绘图区（dp），见 docs/VML宿主接口.md
+
+        // 顺手把三段的毫秒数记下来，供 PrintReport 之外的细看
+        var scenes = new (string Name, Func<VmlScene> Build)[]
+        {
+            ("俄罗斯方块（满盘）", () => BuildTetrisScene(W, H)),
+            ("五子棋（满盘）",     () => BuildGomokuScene(W, H)),
+            ("路径/曲线/渐变",     () => BuildPathScene(W, H)),
+        };
+
+        foreach (var (name, build) in scenes)
+        {
+            // 每帧都从"空场景"重建（与程序每帧 ui_clear + 重画一致），
+            // 免得把上一帧的图元也计进这一帧。
+            var scene = build();
+            var dsl = scene.BuildDsl();
+            var dslKb = Encoding.UTF8.GetByteCount(dsl) / 1024;
+
+            const int N = 20;
+            var swDsl = Stopwatch.StartNew();
+            for (var i = 0; i < N; i++) { var s = build(); _ = s.BuildDsl(); }
+            swDsl.Stop();
+
+            var swParse = Stopwatch.StartNew();
+            DrawDocument? doc = null;
+            for (var i = 0; i < N; i++) doc = DrawRunner.Parse(dsl);
+            swParse.Stop();
+
+            var swRaster = Stopwatch.StartNew();
+            byte[] png = [];
+            for (var i = 0; i < N; i++) png = DrawRunner.ToPng(doc!);
+            swRaster.Stop();
+
+            // **再拆一层**：抗锯齿开着时 ToPng 走 3× 超采样（像素数 ×9），
+            // 关掉它就能量出"抗锯齿本身占多少" —— 这是决定要不要动抗锯齿那条路的前提。
+            var noAaDoc = DrawRunner.Parse(dsl);
+            noAaDoc.Antialias = false;
+            var swNoAa = Stopwatch.StartNew();
+            for (var i = 0; i < N; i++) DrawRunner.ToPng(noAaDoc);
+            swNoAa.Stop();
+            var noAaMs = swNoAa.Elapsed.TotalMilliseconds / N;
+
+            var dslMs = swDsl.Elapsed.TotalMilliseconds / N;
+            var parseMs = swParse.Elapsed.TotalMilliseconds / N;
+            var rasterMs = swRaster.Elapsed.TotalMilliseconds / N;
+            var aaMs = rasterMs - noAaMs;   // 抗锯齿那部分（超采样 + 降采样）
+            var frameMs = dslMs + parseMs + rasterMs;
+
+            // 抗锯齿占比是**优化时唯一有意义的杠杆数**（关掉它画质肉眼可辨，所以要知道它值多少）
+            if (rasterMs > 1)
+                Console.WriteLine($"      · {name}: 光栅 {rasterMs:0.0}ms = 无AA {noAaMs:0.0}ms + 抗锯齿 {aaMs:0.0}ms"
+                    + $"（AA 占 {aaMs / rasterMs * 100:0}%）");
+
+            // 阈值分两档：**目标**是手机 30fps（每帧 33ms），**当前**离它还有距离。
+            // 所以阈值取"当前实测的两倍上下"——它的作用是**抓回归**（哪天某处改动让它翻倍就红），
+            // 而不是假装已经达标。真实的差距写在下面那行注释与 CHANGELOG 里。
+            //   实测（桌面 Debug，满盘最坏情形）：合计 71~108ms ⇒ 9~14fps。
+            //   其中抗锯齿（按面积自适应的 2× 超采样）仍占 71~75%。
+            Bench($"图纸→DSL（{name}）", (long)Math.Ceiling(dslMs), dslKb, warnMs: 5, failMs: 20);
+            Bench($"DSL→文档（{name}）", (long)Math.Ceiling(parseMs), 0, warnMs: 5, failMs: 20);
+            Bench($"光栅化+PNG（{name}）", (long)Math.Ceiling(rasterMs), png.Length / 1024, warnMs: 80, failMs: 200);
+            Bench($"每帧合计（{name}）", (long)Math.Ceiling(frameMs), 0, warnMs: 100, failMs: 240);
+        }
+    }
+
+    /// <summary>俄罗斯方块的一帧：外框 + 底板 + 格线 + 满盘方块 + 下一个 + 面板数字。</summary>
+    private static VmlScene BuildTetrisScene(int w, int h)
+    {
+        var s = new VmlScene { Width = w, Height = h };
+        s.Clear(0xFF0E0E14);
+
+        const int cell = 24, bx = 6, by = 6;
+        s.AddRect(bx - 3, by - 3, 10 * cell + 6, 20 * cell + 6, 0xFF2A2A38, true, 0, 8);
+        s.AddRect(bx, by, 10 * cell, 20 * cell, 0xFF16161F, true, 0, 4);
+        for (var i = 1; i < 10; i++) s.AddLine(bx + i * cell, by + 1, bx + i * cell, by + 20 * cell - 1, 0xFF21212C, 1);
+        for (var i = 1; i < 20; i++) s.AddLine(bx + 1, by + i * cell, bx + 10 * cell - 1, by + i * cell, 0xFF21212C, 1);
+        for (var y = 0; y < 20; y++)
+            for (var x = 0; x < 10; x++)
+                DrawBlock(s, bx + x * cell, by + y * cell, 0xFF22D3EE, cell);   // 满盘 = 200 个方块
+        return s;
+    }
+
+    /// <summary>方块：圆角实心 + 顶部高光条（与 <c>Examples/c/tetris.c</c> 的 draw_block 同形）。</summary>
+    private static void DrawBlock(VmlScene s, int x, int y, uint color, int size)
+    {
+        var pad = Math.Max(1, size / 9);
+        var r = Math.Max(2, size / 5);
+        var hi = Math.Max(2, size / 6);
+        s.AddRect(x + pad, y + pad, size - pad * 2, size - pad * 2, color, true, 0, r);
+        s.AddRect(x + pad + r, y + pad + hi, size - (pad + r) * 2, hi, 0xFF7DE8F7, true, 0, hi / 2);
+    }
+
+    /// <summary>五子棋的一帧：底 + 格线 + 星位 + 满盘棋子 + 状态行。</summary>
+    private static VmlScene BuildGomokuScene(int w, int h)
+    {
+        var s = new VmlScene { Width = w, Height = h };
+        s.Clear(0xFF1B1B22);
+
+        const int cell = 24, pad = 27, padY = 40, N = 15;
+        var half = (N - 1) * cell;
+        s.AddRect(pad - cell / 2, padY - cell / 2, half + cell, half + cell, 0xFFE8C48A, true, 0, 6);
+        for (var i = 0; i < N; i++)
+        {
+            s.AddLine(pad, padY + i * cell, pad + half, padY + i * cell, 0xFF5A5A66, 1);
+            s.AddLine(pad + i * cell, padY, pad + i * cell, padY + half, 0xFF5A5A66, 1);
+        }
+        for (var y = 0; y < N; y++)
+            for (var x = 0; x < N; x++)
+                s.AddCircle(pad + x * cell, padY + y * cell, 9, (x + y) % 2 == 0 ? 0xFF14141A : 0xFFF2F2F6, true, 0);
+        s.AddText(pad, padY + half + cell, "你执黑，点棋盘落子", 0xFFEDEDF2, 15, 0);
+        return s;
+    }
+
+    /// <summary>路径/曲线/渐变：贝塞尔、圆弧、多子路径挖洞、渐变填充各来一批。</summary>
+    private static VmlScene BuildPathScene(int w, int h)
+    {
+        var s = new VmlScene { Width = w, Height = h };
+        s.Clear(0xFF101018);
+        s.AddGradient("bg", radial: false, 0xFF4ADE80, 0xFF1E3A8A, 0, 0, 1000, 1000);
+
+        // 渐变波浪：每条都是三次贝塞尔
+        for (var i = 0; i < 8; i++)
+        {
+            var y = 40 + i * 40;
+            s.AddPath($"M0 {y} C {w / 3} {y - 30} {w * 2 / 3} {y + 30} {w} {y}", 0xFF4ADE80, 3, 0);
+        }
+        // 圆弧拼一个圆环（多子路径 + 奇偶挖洞）
+        s.AddPath($"M{w / 2} 120 A 70 70 0 1 1 {w / 2 - 1} 120 Z " +
+                  $"M{w / 2} 150 A 40 40 0 1 0 {w / 2 - 1} 150 Z", 0xFFFACC15, 2, 1);
+        // 渐变填充的圆角风车（二次贝塞尔）
+        for (var i = 0; i < 6; i++)
+        {
+            var a = i * 60 * Math.PI / 180.0;
+            var cx = w / 2.0 + Math.Cos(a) * 60;
+            var cy = 380 + Math.Sin(a) * 60;
+            // 渐变填充的六瓣风车：每条都是两段二次贝塞尔（`AddPath` 的填充靠 fillGradient 具名参数）
+            s.AddPath($"M{cx:0.#} {cy:0.#} Q {cx + 40:0.#} {cy - 40:0.#} {cx + 60:0.#} {cy:0.#} " +
+                      $"Q {cx + 40:0.#} {cy + 40:0.#} {cx:0.#} {cy:0.#} Z",
+                strokeColor: 0, width: 0, cap: 0, fillGradient: "bg");
+        }
+        return s;
+    }
 
     private static void LargeProjectReadiness()
     {

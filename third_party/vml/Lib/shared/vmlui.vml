@@ -2040,6 +2040,127 @@ ui_beep:
         pop R12
         pop R15
         ret
+; ═══════════════════════════════════════════════════════════════
+; 绘图增强（534–539，v0.96.176）：渐变刷子 / 路径与曲线 / 多边形
+;
+; 写法照抄上面 ui_beep/ui_timer_set 那一组：形参在栈上（arg_i = [R12+8+4*i]），
+; 搬进 R0..Rn 再 syscall，返回值放 [R12-4]。
+; ⚠ 同样**必须提给上游 VML 仓库**（Lib/ 由 sync.sh 同步，只改本地下次就没了）。
+; ═══════════════════════════════════════════════════════════════
+ui_gradient:
+; -------------------------------------------
+; source   : void ui_gradient(char* id,int radial,int color_a,int color_b,int a1,int a2,int a3,int a4)
+; function : ui_gradient
+; return   : void
+; --------------------------------------------
+ui_gradient:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        move R4 [R12+28]
+        move R5 [R12+32]
+        move R6 [R12+36]
+        move R7 [R12+40]
+        syscall #534
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_path:
+; -------------------------------------------
+; source   : void ui_path(char* d,int stroke,int width,int fill,char* grad,int cap,int dash)
+; function : ui_path
+; return   : void
+; --------------------------------------------
+ui_path:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        move R4 [R12+28]
+        move R5 [R12+32]
+        move R6 [R12+36]
+        syscall #535
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_polygon:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        move R4 [R12+28]
+        move R5 [R12+32]
+        syscall #536
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_polyline:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        move R4 [R12+28]
+        syscall #537
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_rect_grad:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        move R4 [R12+28]
+        move R5 [R12+32]
+        syscall #538
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_circle_grad:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        syscall #539
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
 ui_vibrate:
 ; -------------------------------------------
 ; source   : void ui_vibrate(int ms)

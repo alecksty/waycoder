@@ -172,6 +172,57 @@ public static class VmlUi
     public const int VmSpeakerBeep = 57;
 
     /// <summary>播放音频文件（BGM）：R0=路径*(沙箱相对) R1=循环(0/1) → 0，失败 -1。</summary>
+    // ── 绘图增强（534–539，v0.96.176）──
+    //
+    // 为什么成组加在这里：534–539 是 500–599 号段里**唯一还没被占的一段**（540 起是音频、
+    // 550 起是持久化、560 起是输入与屏幕）。号段约定与冲突检查见 docs/VML宿主接口.md。
+
+    /// <summary>`GRADIENT`：定义渐变刷子。R0=id\* R1=类型(0线性/1径向) R2=色A R3=色B
+    /// R4..R7=几何（线性 x1 y1 x2 y2；径向 cx cy r）。坐标归一化 0..1。</summary>
+    public const int Gradient = 534;
+
+    /// <summary>`DRAW_PATH`：R0=SVG path 的 d\* R1=描边色 R2=线宽 R3=填充色(0=不填) R4=渐变id\*
+    /// R5=线帽(0butt/1round/2square) R6=虚线(0/1)。</summary>
+    public const int DrawPath = 535;
+
+    /// <summary>`DRAW_POLYGON`：R0=点数组\*（int32 的 x,y 对）R1=点数 R2=填充色 R3=描边色
+    /// R4=线宽 R5=渐变id\*。自动闭合。</summary>
+    public const int DrawPolygon = 536;
+
+    /// <summary>`DRAW_POLYLINE`：同多边形但不闭合。</summary>
+    public const int DrawPolyline = 537;
+
+    /// <summary>`DRAW_RECT_GRAD`：R0..R3=x y w h R4=渐变id\* R5=圆角半径。**渐变填充的矩形**
+    /// （渐变按钮/背景这类最常用）。</summary>
+    public const int DrawRectGrad = 538;
+
+    /// <summary>`DRAW_CIRCLE_GRAD`：R0..R2=cx cy r R3=渐变id\*。</summary>
+    public const int DrawCircleGrad = 539;
+
+    /// <summary>
+    /// 多边形/折线的**点数上限**。程序传的是内存里的点数组，点数由它自己给 ——
+    /// 不设上限的话，一个写错的大数会让宿主去读几十万个点（每次读还要做越界检查），
+    /// 界面直接卡住。512 个点足够画任何真实图形（一张地图轮廓也不过几百个点）。
+    /// </summary>
+    public const int MaxPolyPoints = 512;
+
+    /// <summary>
+    /// 渐变 id 清洗：只留字母数字与 `_ - .`，其余换成 `_`；空/全非法返回空串。
+    ///
+    /// **为什么必须清洗**：id 会被拼进绘图 DSL 的一个**裸词**位置（`gradient &lt;id&gt; …` 与
+    /// 形状的 `@id` 引用），而 id 来自程序内存里的字符串 —— 里面一个空格或引号就能把 DSL
+    /// 那一行拆坏（轻则渐变失效，重则整行解析失败、这张图后面的东西全丢）。
+    /// 放协议层是为了**能被自测覆盖**（宿主与场景两边都调它，不留第二份实现）。
+    /// </summary>
+    public static string SafeId(string? id)
+    {
+        if (string.IsNullOrEmpty(id)) return "";
+        var sb = new StringBuilder(id.Length);
+        foreach (var c in id)
+            sb.Append(char.IsLetterOrDigit(c) || c == '_' || c == '-' || c == '.' ? c : '_');
+        return sb.ToString();
+    }
+
     public const int AudioPlay = 541;
     /// <summary>停掉正在播的音频：→ 0。</summary>
     public const int AudioStop = 542;
@@ -464,19 +515,117 @@ public sealed class VmlScene
     public void AddLine(int x1, int y1, int x2, int y2, uint color, int width)
         => Add($"line {x1} {y1} {x2} {y2} {Hex(color)}{(width > 0 ? " " + width : "")}");
 
-    /// <summary>矩形；<paramref name="radius"/> &gt; 0 时走 DSL 的 roundrect（圆角矩形）。</summary>
-    public void AddRect(int x, int y, int w, int h, uint color, bool filled, int width, int radius)
+    /// <summary>矩形；<paramref name="radius"/> &gt; 0 时走 DSL 的 roundrect（圆角矩形）。
+    /// <paramref name="fillGradient"/> 非空时用**渐变刷子**填充（DSL 的 `@id` 引用）。</summary>
+    public void AddRect(int x, int y, int w, int h, uint color, bool filled, int width, int radius,
+        string? fillGradient = null)
     {
         var name = radius > 0 ? "roundrect" : "rect";
         var extra = radius > 0 ? $" {radius}" : "";
-        Add($"{name} {x} {y} {w} {h}{extra}{Style(color, filled, width)}");
+        Add($"{name} {x} {y} {w} {h}{extra}{Style(color, filled, width, fillGradient)}");
     }
 
-    public void AddCircle(int cx, int cy, int r, uint color, bool filled, int width)
-        => Add($"circle {cx} {cy} {r}{Style(color, filled, width)}");
+    public void AddCircle(int cx, int cy, int r, uint color, bool filled, int width, string? fillGradient = null)
+        => Add($"circle {cx} {cy} {r}{Style(color, filled, width, fillGradient)}");
 
-    public void AddEllipse(int cx, int cy, int rx, int ry, uint color, bool filled, int width)
-        => Add($"ellipse {cx} {cy} {rx} {ry}{Style(color, filled, width)}");
+    public void AddEllipse(int cx, int cy, int rx, int ry, uint color, bool filled, int width, string? fillGradient = null)
+        => Add($"ellipse {cx} {cy} {rx} {ry}{Style(color, filled, width, fillGradient)}");
+
+    /// <summary>
+    /// **渐变刷子**定义（v0.96.176）。形状用 <c>fillGradient</c> 参数按 <paramref name="id"/> 引用。
+    ///
+    /// 几何坐标是**归一化的 0..1**（SVG `objectBoundingBox` 约定，与 DSL 一致）：
+    ///   · 线性：<paramref name="a1"/>..<paramref name="a4"/> = x1 y1 x2 y2（起点→终点）
+    ///   · 径向：<paramref name="a1"/>..<paramref name="a3"/> = cx cy r
+    /// 不传就用默认（线性从左到右、径向居中）。
+    ///
+    /// 之所以坐标归一化而不是绝对像素：同一个"左上到右下"的渐变套在按钮和套在整屏上
+    /// 写法一样，程序不必为每个尺寸重算 —— 这也是 SVG 选这个约定的原因。
+    /// </summary>
+    public void AddGradient(string id, bool radial, uint colorA, uint colorB,
+        int a1 = 0, int a2 = 0, int a3 = 1000, int a4 = 0)
+    {
+        var safe = VmlUi.SafeId(id);
+        if (safe.Length == 0) return;
+        // ⚠ **单位只在这一处换算**：对外（C# API 与 VML 的 syscall）统一用**千分之一**的整数
+        //   0..1000，进 DSL 前除以 1000 变成 SVG 的归一化 0..1。
+        //   两端各写一次换算就会出现"我按千分之一传、它按 0..1 收"这种**沉默的错**：
+        //   方向变成 (0,0)→(1000,0)，t 恒等于约 0 ⇒ 整块只剩 ColorA（实测踩过，
+        //   现象是"渐变完全不生效、颜色是纯色"，而 DSL 与解析全都正常，很难看出来）。
+        //   默认值是 x1=0 y1=0 x2=1000 y2=0：线性从左到右（径向则是 cx=cy=500 r=0 由调用方给）。
+        var geo = radial
+            ? $" {N(a1)} {N(a2)} {N(a3)}"
+            : $" {N(a1)} {N(a2)} {N(a3)} {N(a4)}";
+        Add($"gradient {safe} {(radial ? "radial" : "linear")} {Hex(colorA)} {Hex(colorB)}{geo}");
+    }
+
+    /// <summary>千分之一 → 归一化（渐变几何专用，唯一一处换算）。</summary>
+    private static string N(int perMille)
+        => (Math.Clamp(perMille, -1000, 1000) / 1000.0).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// 路径（v0.96.176）。<paramref name="d"/> 是 **SVG path 语法**
+    /// （`M/m L/l H/h V/v C/c S/s Q/q T/t A/a Z/z`），光栅化那侧现在会展平曲线
+    /// （见 <c>Infra/DrawPath.cs</c>），与导出 SVG 形状一致。
+    ///
+    /// <paramref name="fillColor"/> 与 <paramref name="fillGradient"/> 都不给就是**只描边**
+    /// （与老写法一致）。给了渐变就用渐变填，忽略 <paramref name="fillColor"/>。
+    /// </summary>
+    public void AddPath(string d, uint strokeColor, double width = 1, int cap = 0,
+        uint fillColor = 0, bool fillSet = false, string? fillGradient = null, bool dashed = false)
+    {
+        if (string.IsNullOrWhiteSpace(d)) return;
+        var sb = new StringBuilder();
+        sb.Append("path \"").Append(d.Replace("\"", " ")).Append('"');
+        sb.Append(' ').Append(Hex(strokeColor));
+        if (width > 0) sb.Append(' ').Append(Num(width));
+        sb.Append(" ").Append(CapName(cap));
+        if (dashed) sb.Append(" dash");
+        if (!string.IsNullOrEmpty(fillGradient)) sb.Append(" fill @").Append(VmlUi.SafeId(fillGradient));
+        else if (fillSet) sb.Append(" fill ").Append(Hex(fillColor));
+        Add(sb.ToString());
+    }
+
+    /// <summary>
+    /// 多边形（v0.96.176）。<paramref name="points"/> 是**扁平坐标数组** `x0,y0,x1,y1,…`。
+    /// 自动闭合（多边形）—— 不闭合的用 <see cref="AddPolyline"/>。
+    /// </summary>
+    public void AddPolygon(IReadOnlyList<double> points, uint color, bool filled, int width,
+        string? fillGradient = null, bool dashed = false)
+    {
+        var pts = FlatPoints(points);
+        if (pts == null) return;
+        Add($"polygon {pts}{Style(color, filled, width, fillGradient)}{(dashed ? " dash" : "")}");
+    }
+
+    /// <summary>折线（不闭合）。坐标同上。</summary>
+    public void AddPolyline(IReadOnlyList<double> points, uint color, int width,
+        string? fillGradient = null, bool dashed = false)
+    {
+        var pts = FlatPoints(points);
+        if (pts == null) return;
+        Add($"polyline {pts}{Style(color, filled: false, width, fillGradient)}{(dashed ? " dash" : "")}");
+    }
+
+    /// <summary>扁平坐标数组 → DSL 的 `x,y x,y …` 串；点数不足 2 个返回 null（画不出东西）。</summary>
+    private static string? FlatPoints(IReadOnlyList<double> points)
+    {
+        if (points == null || points.Count < 4) return null;
+        var n = points.Count / 2 * 2;
+        var sb = new StringBuilder();
+        for (var i = 0; i < n; i += 2)
+        {
+            if (i > 0) sb.Append(' ');
+            sb.Append(Num(points[i])).Append(',').Append(Num(points[i + 1]));
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>数字格式化：**固定小点、不进科学计数法**（DSL 的分词器不认 `1E-05` 这种写法）。</summary>
+    private static string Num(double v)
+        => double.IsFinite(v) ? v.ToString("0.####", System.Globalization.CultureInfo.InvariantCulture) : "0";
+
+    private static string CapName(int cap) => cap switch { 1 => "round", 2 => "square", _ => "butt" };
 
     /// <summary>
     /// 文字；<paramref name="anchor"/> 0=左 1=中 2=右，<paramref name="style"/> 见 <see cref="TextBold"/>/<see cref="TextItalic"/>。
@@ -557,9 +706,13 @@ public sealed class VmlScene
     /// （见 <c>DrawCommands.ParseStyle</c>）。所以空心图形要把填充显式写成全透明色 ——
     /// 这里传 <c>#00000000</c> 而不是省略，否则颜色位会被描边占用、变成"填充了描边的颜色"。
     /// </summary>
-    private static string Style(uint color, bool filled, int width)
+    private static string Style(uint color, bool filled, int width, string? fillGradient = null)
     {
         var w = width > 0 ? $" {width}" : "";
+        // 渐变填充：把 DSL 的 `@id` 放在**填充位**（DSL 规定"第一个颜色 = 填充，第二个 = 描边"，
+        // 渐变引用与颜色占同一个位置，见 DrawParse.TryParseStyle）。
+        if (!string.IsNullOrEmpty(fillGradient))
+            return $" @{VmlUi.SafeId(fillGradient)} {Hex(color)}{w}";
         return filled
             ? $" {Hex(color)}{w}"
             : $" {Hex(0x00000000u)} {Hex(color)}{w}";

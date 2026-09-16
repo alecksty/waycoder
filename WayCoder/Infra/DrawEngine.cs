@@ -229,6 +229,12 @@ public sealed class DrawFigure
     public readonly List<double> Args = new();
     public string? Text;
     public uint Fill = 0xFF000000;
+    /// <summary>
+    /// 是否**真的要填充**。<see cref="Fill"/> 默认是黑色，不能拿"它非零"当判据 ——
+    /// 描边类图元（line/polyline/arrow/path 的老写法）不填充但 Fill 有值，
+    /// 拿 Fill 判断会把它们全填成黑块。
+    /// </summary>
+    public bool FillSet = true;
     public uint Stroke = 0;
     public double StrokeWidth = 1;
     public string LineCap = "butt"; // 线头形状：butt | round | square
@@ -568,11 +574,36 @@ public static class DrawRunner
             throw new InvalidOperationException("画布尺寸非法或过大");
         if (doc.Antialias)
         {
-            int W = doc.Width * 3, H = doc.Height * 3;
-            if ((long)W * H > MaxCanvasPixels) return RenderPng(doc, doc.Width, doc.Height); // 超大画布跳过超采样
-            return ToPngAntialiased(doc, 3);
+            var s = ChooseSupersample(doc.Width, doc.Height);
+            if (s <= 1) return RenderPng(doc, doc.Width, doc.Height);   // 画布太大：宁可不要抗锯齿也别卡住
+            return ToPngAntialiased(doc, s);
         }
         return RenderPng(doc, doc.Width, doc.Height);
+    }
+
+    /// <summary>
+    /// 超采样倍率（抗锯齿用）—— **按画布面积自适应**，不再固定 3×。
+    ///
+    /// ## 为什么必须自适应（v0.96.176 实测）
+    ///
+    /// 代价是 <c>O(W·H·s²)</c>，而画质收益是**固定的观感改善**、不随画布变大而变大。
+    /// 固定 3× 的后果在手机尺寸上非常明显：`377×539` 的 VML 窗口 ×9 = 183 万像素，
+    /// 实测抗锯齿**吃掉了光栅化那一段的 87~89%**（俄罗斯方块每帧 222ms 里 194ms 是它，
+    /// 关掉抗锯齿只要 29ms）—— 也就是说每帧 4fps 基本都是花在"把画布放大 9 倍再缩回来"。
+    ///
+    /// 改成"按预算选倍率"之后：小画布（图标、缩略图）仍然拿满 3×，手机全屏这种大画布降到 2×
+    /// （像素数 9×→4×，代价约减半，而 2× 超采样对线条/圆角的改善本来就接近饱和）。
+    ///
+    /// ⚠ 阈值与候选倍率都放在这一处：别在别处再写一个"3" —— 那是本仓反复踩的平行表。
+    /// </summary>
+    internal static int ChooseSupersample(int w, int h)
+    {
+        var area = (long)w * h;
+        // 预算 120 万像素：2× 在手机全屏（377×539×4 ≈ 81 万）内，3× 只留给小画布。
+        const long budget = 1_200_000;
+        if (area * 9 <= budget) return 3;
+        if (area * 4 <= budget) return 2;
+        return 1;
     }
 
     static byte[] RenderPng(DrawDocument doc, int w, int h)

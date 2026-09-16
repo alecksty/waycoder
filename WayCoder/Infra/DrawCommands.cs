@@ -531,52 +531,117 @@ internal sealed class PolylineCommand : IDrawCommand
     }
 }
 
-/// <summary>path "d" [color] [width]</summary>
+/// <summary>
+/// path "d" [stroke色] [width] [cap] [dash] [fill 色|@渐变id]
+///
+/// ## 曲线（v0.96.176）
+///
+/// 解析与展平在 <see cref="DrawPath"/>（纯数学、可自测），这里只管"展平结果怎么落到像素上"。
+/// 原先光栅化只认 `M`/`L`/`Z`、**曲线段被静默丢掉**，而 <see cref="EmitSvg"/> 把整条 `d`
+/// 原样交给矢量后端 —— 于是**同一份 DSL 导出 PNG 与导出 SVG 图形不一样**。
+/// 现在两条路都走同一个展平器，曲线在两边形状一致。
+///
+/// ## 填充
+///
+/// 老写法「裸颜色 = 描边」保持不动（桌面 `draw` 工具与既有脚本都这么用）。要填充得显式写
+/// `fill &lt;颜色|@渐变id&gt;`。多个子路径之间按**奇偶规则**挖洞（`M…Z M…Z` 画圆环那种）。
+/// </summary>
 internal sealed class PathCommand : IDrawCommand
 {
     public string Name => "path";
     public DrawFigure? Parse(IReadOnlyList<DrawToken> a)
     {
         if (a.Count < 1) return null;
-        var f = new DrawFigure { Kind = "path", Stroke = 0xFF000000, Text = a[0].Value };
+        var f = new DrawFigure { Kind = "path", Stroke = 0xFF000000, Text = a[0].Value, FillSet = false };
         for (int i = 1; i < a.Count; i++)
         {
-            if (DrawParse.TryCap(a[i].Value, out var cap)) { f.LineCap = cap; continue; }
-            if (ColorUtil.TryParse(a[i].Value, out var c)) f.Stroke = c;
+            var tok = a[i].Value;
+            if (tok.Equals("fill", StringComparison.OrdinalIgnoreCase) && i + 1 < a.Count)
+            {
+                var v = a[++i].Value;
+                if (v.Length >= 2 && v[0] == '@') f.GradientRef = v[1..];
+                else if (ColorUtil.TryParse(v, out var fc)) { f.Fill = fc; f.FillSet = true; }
+                continue;
+            }
+            if (tok.Equals("dash", StringComparison.OrdinalIgnoreCase) || tok.Equals("dashed", StringComparison.OrdinalIgnoreCase))
+            { f.Dashed = true; continue; }
+            if (DrawParse.TryCap(tok, out var cap)) { f.LineCap = cap; continue; }
+            if (tok.Length >= 2 && tok[0] == '@') { f.GradientRef = tok[1..]; continue; }
+            if (ColorUtil.TryParse(tok, out var c)) f.Stroke = c;
             else { var v = DrawParse.Num(a[i]); if (!double.IsNaN(v)) f.StrokeWidth = v; }
         }
         return f;
     }
+
     public void EmitSvg(StringBuilder sb, DrawFigure f)
-        => sb.Append("  <path d=\"").Append(DrawParse.EscapeXml(f.Text ?? ""))
-          .Append("\" fill=\"none\" stroke=\"").Append(ColorUtil.ToHex(f.Stroke))
-          .Append("\" stroke-width=\"").Append(DrawParse.F(f.StrokeWidth)).Append("\" stroke-linecap=\"").Append(f.LineCap).Append("\"/>\n");
+    {
+        var fill = f.GradientRef != null ? "url(#" + DrawParse.EscapeXml(f.GradientRef) + ")"
+                 : f.FillSet ? ColorUtil.ToHex(f.Fill) : "none";
+        sb.Append("  <path d=\"").Append(DrawParse.EscapeXml(f.Text ?? ""))
+          .Append("\" fill=\"").Append(fill)
+          .Append("\" stroke=\"").Append(ColorUtil.ToHex(f.Stroke))
+          .Append("\" stroke-width=\"").Append(DrawParse.F(f.StrokeWidth)).Append("\" stroke-linecap=\"").Append(f.LineCap).Append('"');
+        if (f.Dashed) sb.Append(" stroke-dasharray=\"6 4\"");
+        sb.Append("/>\n");
+    }
+
     public void Rasterize(Canvas c, DrawFigure f)
     {
-        // 手搓光栅化器不支持任意 SVG path 曲线，退化为解析 M/L 直线段
-        var seg = ParsePathSegments(f.Text);
-        for (int i = 0; i + 1 < seg.Count; i++)
+        var subs = DrawPath.Flatten(f.Text);
+        if (subs.Count == 0) return;
+
+        // 填充：多子路径按**奇偶规则**挖洞 ⇒ 被奇数条子路径包含的点才算在图形内。
+        // 交给 FillTransformed（它自带变换与渐变采样），把"点内测试"作为委托传进去。
+        if (f.FillSet || f.GradientRef != null)
         {
-            var a = f.Transform.Apply(seg[i].X, seg[i].Y);
-            var b = f.Transform.Apply(seg[i + 1].X, seg[i + 1].Y);
-            c.DrawLine(a.X, a.Y, b.X, b.Y, f.Stroke, f.StrokeWidth, f.LineCap);
+            ComputeBounds(subs, out var minX, out var minY, out var maxX, out var maxY);
+            var polys = new List<double[]>(subs.Count);
+            foreach (var sp in subs)
+            {
+                var arr = new double[sp.Points.Count * 2];
+                for (int i = 0; i < sp.Points.Count; i++) { arr[i * 2] = sp.Points[i].X; arr[i * 2 + 1] = sp.Points[i].Y; }
+                polys.Add(arr);
+            }
+            c.FillTransformed(f.Transform, minX, minY, maxX, maxY, (lx, ly) =>
+            {
+                bool inside = false;
+                foreach (var p in polys)
+                    if (Canvas.PointInPolygon(lx, ly, p)) inside = !inside;
+                return inside;
+            }, f.Fill, f.Gradient);
+        }
+
+        // 描边：逐子路径折线
+        if (f.StrokeWidth <= 0) return;
+        foreach (var sp in subs)
+        {
+            var pts = new List<double>(sp.Points.Count * 2);
+            foreach (var p in sp.Points)
+            {
+                var q = f.Transform.Apply(p.X, p.Y);
+                pts.Add(q.X); pts.Add(q.Y);
+            }
+            if (pts.Count < 4) continue;
+            for (int i = 0; i + 3 < pts.Count; i += 2)
+            {
+                if (f.Dashed) c.DrawLineDashed(pts[i], pts[i + 1], pts[i + 2], pts[i + 3], f.Stroke, f.StrokeWidth, f.LineCap);
+                else c.DrawLine(pts[i], pts[i + 1], pts[i + 2], pts[i + 3], f.Stroke, f.StrokeWidth, f.LineCap);
+            }
         }
     }
-    internal static List<(double X, double Y)> ParsePathSegments(string? d)
+
+    static void ComputeBounds(List<DrawPath.SubPath> subs, out double minX, out double minY, out double maxX, out double maxY)
     {
-        var pts = new List<(double, double)>();
-        if (string.IsNullOrWhiteSpace(d)) return pts;
-        double cx = double.NaN, cy = 0; // cx 初始须为 NaN，否则首个数字被误当 y 与 x=0 配对、首点丢失
-        foreach (var token in DrawTokenizer.Tokenize(d))
-        {
-            var s = token.Value;
-            if (s.Equals("M", StringComparison.OrdinalIgnoreCase) || s.Equals("L", StringComparison.OrdinalIgnoreCase)) continue;
-            if (s.Equals("Z", StringComparison.OrdinalIgnoreCase)) { if (pts.Count > 0) pts.Add(pts[0]); continue; }
-            if (!Canvas.TryNum(s, out var v)) continue;
-            if (double.IsNaN(cx)) cx = v;
-            else { cy = v; pts.Add((cx, cy)); cx = double.NaN; cy = 0; }
-        }
-        return pts;
+        minX = double.MaxValue; minY = double.MaxValue;
+        maxX = double.MinValue; maxY = double.MinValue;
+        foreach (var sp in subs)
+            foreach (var p in sp.Points)
+            {
+                if (p.X < minX) minX = p.X;
+                if (p.Y < minY) minY = p.Y;
+                if (p.X > maxX) maxX = p.X;
+                if (p.Y > maxY) maxY = p.Y;
+            }
     }
 }
 
