@@ -117,6 +117,17 @@ public static class VmlUi
     public const int ScrH = 567;
 
     /// <summary>
+    /// 估算的固定占用 —— **只在"还没量到真实视口"时用**（见下）。
+    ///
+    /// v0.96.173 由 170 调到 262：那 170 只算了导航栏 + 方向键，**漏了绘图窗口页自己的
+    /// 折叠条（26dp）与画布留白（16dp）**，于是每次会话里**第一个** VML 窗口会比可用视口高
+    /// 约 90dp —— 用户看到的是「内容超出绘图区，下面被键盘区挡住」（实测）。
+    /// 真实值由 `DrawWindowPage.OnSizeAllocated` 量到后写进 `MeasuredViewport`，
+    /// 那之后的窗口一律用它；这个常数只是"第一次开窗之前"的兜底。
+    /// </summary>
+    public const int DefaultChromeHeightDp = 262;
+
+    /// <summary>
     /// 可用绘图区尺寸的纯计算（宿主把设备参数喂进来）—— 放这里是为了**可自测**：
     /// 设备像素 / 密度 = dp；再扣掉导航栏、标题、底部方向键与四周留白，
     /// 剩下的才是能安全绘制的区域。所有扣减都在这一处，宿主不许自己再算一份。
@@ -126,7 +137,8 @@ public static class VmlUi
     /// <param name="density">像素密度（dp → px 的倍率）</param>
     /// <param name="chromeHeightDp">非绘图区的固定占用（导航栏 + 标题 + 方向键 + 上下留白），dp</param>
     public static (int Width, int Height) AvailableArea(
-        double displayWidthPx, double displayHeightPx, double density, int chromeHeightDp = 170)
+        double displayWidthPx, double displayHeightPx, double density,
+        int chromeHeightDp = DefaultChromeHeightDp)
     {
         if (density <= 0) density = 1;
         var w = (int)Math.Floor(displayWidthPx / density) - 16;  // 左右各 8dp 留白

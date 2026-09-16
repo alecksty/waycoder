@@ -1,28 +1,33 @@
 /* tetris.c —— 俄罗斯方块（C 版），跑在手机端 VML 上
  *
- * 用到的都是现成的宿主接口（`waycoder_ui.h` 那套：窗体 / 绘图 / 消息队列 / 定时器）。
+ * 用到的都是现成的宿主接口（`waycoder_ui.h` 那套：窗体 / 绘图 / 消息队列 / 定时器），
+ * 外加 v0.96.172 新加的**手感接口**（`ui_beep` / `ui_vibrate` / `ui_keep_on` / `ui_store_*`）。
  * 布局全部按实际可用绘图区（syscall #566/#567）算，所以手机、平板、模拟器上都能铺满。
  *
  * 编译运行（手机 App 的 vml 工具）：
  *     vml run tetris.c
  *
- * ## 桌面无头模拟器（改完先在这里跑一遍，别为了看一眼效果重打 APK）
+ * 操作全部走**绘图窗口底部那排屏幕手柄**（方向键 + START/SELECT + X/Y/A/B），
+ * 手柄按键就是 Win32 虚拟键值，接物理键盘也是同一套：
+ *     ← →      左右移动（按住连发）
+ *     ↓        加速下落（按住连发）
+ *     ↑ / A / X 旋转
+ *     空格 / B / Y 直落到底
+ *     START    重开一局
+ *     SELECT   暂停 / 继续
+ *     返回箭头  退出
  *
- *     vmlhost run Examples/c/tetris.c --sim "t;t;87,671;297,639" --frames 输出目录
+ * ## 为什么不自己画手柄、也不判触摸（v0.96.173 去掉的）
  *
- *   `--sim` 脚本里每个 `x,y` 投一次触摸、`t` 投一次**重力节拍**（定时器消息）；
- *   `--frames <目录>` 把每一帧走**和手机同一条渲染链**（VmlScene → DSL → ToPng）出成 PNG，
- *   可以直接看排版对不对。屏幕上没有键盘，所以操作用手柄坐标点：屏幕 395×744 时
- *   左(87,671) 右(171,671) 下(129,713) 旋转(230,639) 直落(297,639) 暂停(230,692) 重开(297,692)。
- *
- *   `vmlhost bench` 能量出图成本（这套"场景→DSL→PNG"路线每帧要多久，游戏卡不卡就看它）。
- *
- * ## 为什么用 C 而不是 BASIC（用户决定）
- *
- * BASIC 版先写了，卡在**三个既有前端缺陷**上：SUB 内局部 FOR 循环死循环、SUB 内局部数组
- * 赋值读回 0、FUNCTION+SUB 组合挂起（见 `scripts/basic-tests/README.md` 的 t9/t10/t11）。
- * 那三个缺陷与本程序无关，但 `draw_board` 这类函数整片都是 SUB 内局部 FOR 循环，
- * 一个都绕不过去 —— 所以先用 C 交付，BASIC 的那几个 bug 以后单独修。
+ * 上一版在窗口里自绘了一套十字键 + 旋转/直落/暂停/重开，靠触摸命中去判按键。
+ * 那是**多此一举**：绘图窗口底部本来就有一排屏幕手柄（`DrawWindowPage`），
+ * 程序只要收 `VML_MSG_KEYDOWN` 就行。自绘那套的代价是实打实的 ——
+ *   1. 要占掉约 140px 的窗口高度（棋盘就矮一截，手机上少两行）；
+ *   2. 几何要在"画"与"命中判定"两处各算一遍（本文件上一版专门写了段注释讲这件事），
+ *      改个间距就会出现"看着在键上、点下去没反应"；
+ *   3. 每个游戏各画一套，风格互不相同，用户还得重新学一遍；
+ *   4. 触摸与按键两条输入路径并存，程序里两套状态（`held` 与键盘）容易不一致。
+ * 现在**只认按键消息**，触摸消息一概不处理 —— 窗口就是一块显示区。
  *
  * ## 三条 C 前端的硬约束（踩过才写的）
  *
@@ -36,13 +41,20 @@
  * 3. ⚠ **`#define` 不支持折行续行**（反斜杠续行会让词法器在下一行报"未知字符"），
  *    所以宏本身一行写完，多行说明另起一段块注释。
  *
- * ## 手柄与命中判定共用一份几何
+ * ## 存档那条链上的两条前端约束（v0.96.173 实测出来的）
  *
- * `gx/gy/gk/gstep/rs/rx` 这些都在 `main` 里算**一次**，`draw_pad` 画它、`hit_button` 判它。
- * 各算一遍的话，改个间距就会出现"看着在键上、点下去没反应"。
+ * `ui_store_get(key, buf, cap)` 把字符串写进调用方给的缓冲区，用 C 读回来时要绕开两个坑：
+ *   · **缓冲区必须放全局**。`char buf[64]` 这种局部数组，把地址传给函数是错的
+ *     （实测 `strcpy(局部, "12345")` 之后读出来是空/乱码，换成全局就正确）——
+ *     所以 `hibuf` 是文件级全局，不是 `main` 里的局部。
+ *   · **不能用 `buf[0] == '1'` 这种下标读**。全局 `char` 数组用下标读会读成 32 位
+ *     （`g[0]='A'` 之后 `g[0]=='A'` 是 false），必须走 `atoi` / `strcmp` 这类
+ *     按字节读的库函数。这里用 `atoi` 正好——最高分本来就是个数。
+ * 两条都在 `.scratch/vmlround` 里量过，是**既有**的前端缺陷，与本次改动无关。
  */
 
 #include <waycoder_ui.h>
+#include <stdlib.h>
 
 #define BW 10              /* 棋盘宽（格） */
 #define BH 20              /* 棋盘高（格） */
@@ -54,10 +66,12 @@
 #define COL_DIM     0xFF8A8A99
 #define COL_ACCENT  0xFF4ADE80
 #define COL_WARN    0xFFF87171
-#define COL_KEY     0xFF2E2E3C
-#define COL_KEYEDGE 0xFF44445A
 #define COL_PANEL   0xFF1B1B26
 #define COL_SHADE   0xCC000000
+#define COL_GOLD    0xFFFACC15
+
+/* 存档键（`ui_store_*` 会再加一层 `vml.` 前缀，与 App 自己的配置隔开） */
+#define KEY_HI "tetris.hi"
 
 /* ── 游戏状态 ───────────────────────────────────────────── */
 
@@ -72,6 +86,7 @@ int py;
 int npid;           /* 下一个方块 */
 
 int score;
+int best;           /* 最高分（从存档里读出来，破纪录时写回去） */
 int nlines;
 int level;
 
@@ -79,9 +94,11 @@ int state;          /* 0 = 运行 1 = 暂停 2 = 结束 */
 int tid;            /* 重力定时器 id（0 = 没有） */
 int rid;            /* 长按连发定时器 id（0 = 没有） */
 int held;           /* 正在按住的方向键（1 左 2 右 3 下，0 = 没按） */
+int rptLeft;        /* 这次连发还剩几拍（见 hold_repeat 的"自限"说明） */
+int rptStuck;       /* 连续几拍"按了但没动" */
 int dropMs;
 
-/* ── 布局（main 里算一次，画与命中都读它） ───────────────── */
+/* ── 布局（main 里算一次，绘图全读它） ──────────────────── */
 
 int sw;
 int sh;
@@ -90,16 +107,14 @@ int bx;             /* 棋盘左上角 */
 int by;
 int panelX;         /* 右侧信息面板 */
 int panelW;
-int gx;             /* 手柄左上角 */
-int gy;
-int gk;             /* 方向键边长 */
-int gstep;          /* 方向键步进 = gk + 间隙 */
-int dpw;            /* 方向键整块宽 */
-int rs;             /* 旋转 / 直落键边长 */
-int rx;             /* 右侧键区左上角 */
 
-/* 数字的中间缓冲（`draw_int` 用；全局 int 数组，实测可用） */
+/* 数字的中间缓冲（`draw_int` / `score_to_str` 用；全局 int 数组，实测可用） */
 int digs[12];
+int sdigs[12];
+
+/* 存档缓冲：**必须是全局**（局部数组的地址传给函数是错的，见文件头） */
+char hibuf[16];     /* ui_store_get 读进来 */
+char hiout[16];     /* 自己逐位拼出去给 ui_store_set */
 
 /* ── 方块颜色 ───────────────────────────────────────────── */
 
@@ -135,6 +150,27 @@ char* digit_str(int d) {
     if (d == 7) return "7";
     if (d == 8) return "8";
     return "9";
+}
+
+/* ── 手感：音效与震动 ───────────────────────────────────── */
+
+/* 设计原则：**动作用"手感"回话，不堆气氛**。
+ *
+ * 合成音是**单通道**的（`ui_beep` 一来就把上一个音停掉，见 VmlAudio.ToneCore），
+ * 所以这里**一次事件只发一个音**，靠"频率高低"表达好坏，而不是连发一串琶音 ——
+ * 连发的话只有最后一个音听得见，等于白写。
+ * 频率从低到高：闷响（落地）< 干音（消一行）< 亮音（消四行 / 升级）。 */
+void sfx(int hz, int ms) {
+    ui_beep(hz, ms);
+}
+
+/* 消行：行数越多音越高、越长 —— 一耳朵就能听出"这波赚了"。 */
+void sfx_clear(int n) {
+    if (n == 1) sfx(880, 110);
+    else if (n == 2) sfx(1046, 130);
+    else if (n == 3) sfx(1318, 160);
+    else sfx(1568, 220);
+    ui_vibrate(28);
 }
 
 /* ── 方块几何 ───────────────────────────────────────────── */
@@ -194,6 +230,53 @@ void set_speed(void) {
     tid = ui_timer_set(dropMs, 0);
 }
 
+/* ── 存档：最高分 ───────────────────────────────────────── */
+
+/* 把非负整数写成十进制字符串（C 前端的字符串拼接不可靠，逐位自己拼）。
+ * 顺序**必须从前到后**、最后补一个 0 —— 全局 char 数组的赋值是 32 位写，
+ * 正序写下来每个下标的低字节都是对的，末尾那个 0 顺手把后面几个字节一起清零。 */
+void score_to_str(int v, char* dst) {
+    int n;
+    int t;
+    int i;
+    if (v < 0) v = 0;
+    n = 0;
+    t = v;
+    while (t > 0) {
+        sdigs[n] = t % 10;
+        t = t / 10;
+        n = n + 1;
+    }
+    if (n == 0) {
+        sdigs[0] = 0;
+        n = 1;
+    }
+    i = 0;
+    while (i < n) {
+        dst[i] = 48 + sdigs[n - 1 - i];
+        i = i + 1;
+    }
+    dst[n] = 0;
+}
+
+void load_best(void) {
+    best = 0;
+    if (ui_store_get(KEY_HI, hibuf, 16) >= 0) best = atoi(hibuf);
+    if (best < 0) best = 0;
+}
+
+void save_best(void) {
+    score_to_str(best, hiout);
+    ui_store_set(KEY_HI, hiout);
+}
+
+void submit_score(void) {
+    if (score > best) {
+        best = score;
+        save_best();
+    }
+}
+
 /* ── 游戏动作 ───────────────────────────────────────────── */
 
 void spawn(void) {
@@ -204,7 +287,12 @@ void spawn(void) {
     px = 3;
     m = piece_min(pid, 0);
     py = 0 - m % 16;                    /* 让形状最高的一行贴在第 0 行 */
-    if (collide(pid, rot, px, py) != 0) state = 2;   /* 出生位就满了 = 结束 */
+    if (collide(pid, rot, px, py) != 0) {   /* 出生位就满了 = 结束 */
+        state = 2;
+        submit_score();
+        sfx(220, 420);
+        ui_vibrate(220);
+    }
 }
 
 /* 把当前方块写进棋盘、消行、算分。 */
@@ -218,6 +306,7 @@ void lock_piece(void) {
     int full;
     int n;
     int k;
+    int lv;
 
     i = 0;
     while (i < 4) {
@@ -267,9 +356,18 @@ void lock_piece(void) {
         if (n == 3) score = score + 500 * level;
         if (n >= 4) score = score + 800 * level;
         nlines = nlines + n;
-        level = nlines / 10 + 1;
-        if (level > 12) level = 12;
+        lv = nlines / 10 + 1;
+        if (lv > 12) lv = 12;
+        if (lv > level) {
+            level = lv;
+            sfx(1760, 150);            /* 升级盖过消行音：升级更值得听见 */
+            ui_vibrate(60);
+        } else {
+            sfx_clear(n);
+        }
         set_speed();
+    } else {
+        sfx(200, 35);                  /* 自然落地：一声闷响，不震 */
     }
 }
 
@@ -295,6 +393,7 @@ void rotate_piece(void) {
     nm = piece_min(pid, nr);
     nx = px + om / 16 - nm / 16;
     ny = py + om % 16 - nm % 16;
+    sfx(1200, 22);
     if (collide(pid, nr, nx, ny) == 0) {
         rot = nr;
         px = nx;
@@ -334,6 +433,8 @@ void hard_drop(void) {
         n = n + 1;
     }
     score = score + n * 2;
+    sfx(150, 70);                      /* 低频闷响 = "砸下去了" */
+    ui_vibrate(22);
     lock_piece();
     spawn();
 }
@@ -350,6 +451,8 @@ void restart(void) {
     level = 1;
     state = 0;
     held = 0;
+    rptLeft = 0;
+    rptStuck = 0;
     if (rid > 0) {
         ui_timer_kill(rid);
         rid = 0;
@@ -357,6 +460,7 @@ void restart(void) {
     npid = ui_rand(7);
     spawn();
     set_speed();
+    sfx(900, 70);
 }
 
 /* ── 绘图 ───────────────────────────────────────────────── */
@@ -380,7 +484,7 @@ void draw_block(int x, int y, int p, int size) {
     ui_rect(x + pad + r, y + pad + hi, size - (pad + r) * 2, hi, piece_light(p), 1, 0, hi / 2);
 }
 
-/* 数字：**逐位画**，不拼字符串（C 前端的字符串拼接没法可靠地做，而十个数字字面量就够了）。 */
+/* 数字：**逐位画**，不拼字符串（拼字符串那条路对本前端不可靠，而十个数字字面量就够了）。 */
 void draw_int(int x, int y, int v, int size, int color) {
     int n;
     int i;
@@ -404,74 +508,6 @@ void draw_int(int x, int y, int v, int size, int color) {
     }
 }
 
-/* 手柄上的一个圆角按键。 */
-void draw_key(int x, int y, int w, int h) {
-    ui_rect(x, y, w, h, COL_KEY, 1, 0, 9);
-    ui_rect(x + 1, y + 1, w - 2, h - 2, COL_KEYEDGE, 0, 2, 8);
-}
-
-/* 方向箭头：用两条粗线画成的折角。**不用 ▲ 这类字符** —— 那要赌字体里有这个字形，
- * 系统字体一换就成豆腐块；线是自己画的，到哪都一样。dir: 0 上 1 左 2 右 3 下 */
-void draw_arrow(int x, int y, int k, int dir) {
-    int cx;
-    int cy;
-    int a;
-    int lw;
-    cx = x + k / 2;
-    cy = y + k / 2;
-    a = k / 5;
-    if (a < 5) a = 5;
-    lw = k / 10;
-    if (lw < 3) lw = 3;
-    if (dir == 0) {
-        ui_line(cx - a, cy + a / 2, cx, cy - a / 2, COL_TEXT, lw);
-        ui_line(cx, cy - a / 2, cx + a, cy + a / 2, COL_TEXT, lw);
-    } else if (dir == 1) {
-        ui_line(cx + a / 2, cy - a, cx - a / 2, cy, COL_TEXT, lw);
-        ui_line(cx - a / 2, cy, cx + a / 2, cy + a, COL_TEXT, lw);
-    } else if (dir == 2) {
-        ui_line(cx - a / 2, cy - a, cx + a / 2, cy, COL_TEXT, lw);
-        ui_line(cx + a / 2, cy, cx - a / 2, cy + a, COL_TEXT, lw);
-    } else {
-        ui_line(cx - a, cy - a / 2, cx, cy + a / 2, COL_TEXT, lw);
-        ui_line(cx, cy + a / 2, cx + a, cy - a / 2, COL_TEXT, lw);
-    }
-}
-
-void draw_pad(void) {
-    int w;
-    int cy;
-    int bx2;
-    w = dpw + 10 + rs * 2 + 8;
-    ui_rect(gx - 6, gy - 6, w + 12, gk * 3 + 18, COL_PANEL, 1, 0, 12);
-
-    /* 方向键：十字排布的三个步进位 */
-    draw_key(gx + gstep, gy, gk, gk);
-    draw_arrow(gx + gstep, gy, gk, 0);
-    draw_key(gx, gy + gstep, gk, gk);
-    draw_arrow(gx, gy + gstep, gk, 1);
-    draw_key(gx + gstep * 2, gy + gstep, gk, gk);
-    draw_arrow(gx + gstep * 2, gy + gstep, gk, 2);
-    draw_key(gx + gstep, gy + gstep * 2, gk, gk);
-    draw_arrow(gx + gstep, gy + gstep * 2, gk, 3);
-
-    /* 旋转 / 直落 */
-    draw_key(rx, gy, rs, rs);
-    ui_set_font(13, VML_FONT_BOLD, COL_TEXT, VML_ANCHOR_CENTER);
-    ui_text_cur(rx + rs / 2, gy + rs / 2 - 16, "旋转");
-    bx2 = rx + rs + 8;
-    draw_key(bx2, gy, rs, rs);
-    ui_text_cur(bx2 + rs / 2, gy + rs / 2 - 16, "直落");
-
-    /* SELECT / START：**小尺寸、单独一行，不与上面叠** */
-    cy = gy + rs + 10;
-    draw_key(rx, cy, rs, 26);
-    ui_set_font(11, 0, COL_DIM, VML_ANCHOR_CENTER);
-    ui_text_cur(rx + rs / 2, cy + 7, "暂停");
-    draw_key(bx2, cy, rs, 26);
-    ui_text_cur(bx2 + rs / 2, cy + 7, "重开");
-}
-
 void draw_panel(void) {
     int i;
     int v;
@@ -483,8 +519,10 @@ void draw_panel(void) {
 
     ui_rect(panelX, by, panelW, BH * cell, COL_PANEL, 1, 0, 8);
 
+    x = panelX + panelW / 2;
+
     ui_set_font(12, 0, COL_DIM, VML_ANCHOR_CENTER);
-    ui_text_cur(panelX + panelW / 2, by + 10, "下一个");
+    ui_text_cur(x, by + 10, "下一个");
 
     mini = cell / 2;
     if (mini < 7) mini = 7;
@@ -493,9 +531,8 @@ void draw_panel(void) {
     while (i < 4) {
         v = ui_piece_cell(npid, 0, i);
         if (v >= 0) {
-            x = v / 16;
             y = v % 16;
-            draw_block(panelX + (panelW - pw) / 2 + x * mini, by + 32 + y * mini, npid, mini);
+            draw_block(panelX + (panelW - pw) / 2 + (v / 16) * mini, by + 32 + y * mini, npid, mini);
         }
         i = i + 1;
     }
@@ -505,18 +542,24 @@ void draw_panel(void) {
     ui_text_cur(panelX + 10, ty, "分数");
     draw_int(panelX + 10, ty + 16, score, 17, COL_TEXT);
 
-    ty = ty + 56;
+    ty = ty + 52;
+    ui_set_font(12, 0, COL_DIM, VML_ANCHOR_LEFT);
+    ui_text_cur(panelX + 10, ty, "最高");
+    draw_int(panelX + 10, ty + 16, best, 17, COL_GOLD);
+
+    ty = ty + 52;
     ui_set_font(12, 0, COL_DIM, VML_ANCHOR_LEFT);
     ui_text_cur(panelX + 10, ty, "消行");
     draw_int(panelX + 10, ty + 16, nlines, 17, COL_TEXT);
 
-    ty = ty + 56;
+    ty = ty + 52;
     ui_set_font(12, 0, COL_DIM, VML_ANCHOR_LEFT);
     ui_text_cur(panelX + 10, ty, "等级");
     draw_int(panelX + 10, ty + 16, level, 17, COL_ACCENT);
 }
 
-/* 暂停 / 结束的遮罩 + 一行提示。 */
+/* 暂停 / 结束的遮罩 + 两行提示。提示文案要写**手柄上的键名** ——
+ * 屏幕上已经没有自绘按键了，写"点「重开」"用户找不到那个东西。 */
 void draw_overlay(void) {
     int w;
     int h;
@@ -526,22 +569,22 @@ void draw_overlay(void) {
     char* s2;
     if (state == 0) return;
     w = BW * cell - 16;
-    h = 76;
+    h = 84;
     x = bx + 8;
     y = by + (BH * cell - h) / 2;
     ui_rect(bx, by, BW * cell, BH * cell, COL_SHADE, 1, 0, 0);
     ui_rect(x, y, w, h, COL_PANEL, 1, 0, 10);
     if (state == 2) {
         s = "游戏结束";
-        s2 = "点「重开」再来一局";
+        s2 = "按 START 再来一局";
     } else {
         s = "已暂停";
-        s2 = "点「暂停」继续";
+        s2 = "按 SELECT 继续";
     }
     ui_set_font(20, VML_FONT_BOLD, COL_WARN, VML_ANCHOR_CENTER);
     ui_text_cur(x + w / 2, y + 16, s);
     ui_set_font(12, 0, COL_DIM, VML_ANCHOR_CENTER);
-    ui_text_cur(x + w / 2, y + 48, s2);
+    ui_text_cur(x + w / 2, y + 52, s2);
 }
 
 void draw_all(void) {
@@ -592,38 +635,14 @@ void draw_all(void) {
     }
 
     draw_panel();
-    draw_pad();
     draw_overlay();
     ui_present();
 }
 
-/* ── 手柄命中 ───────────────────────────────────────────── */
-
-/* 按键码：1 左 2 右 3 下 4 旋转 5 直落 6 暂停 7 重开；0 = 没命中 */
-int in_box(int x, int y, int x0, int y0, int w, int h) {
-    if (x < x0) return 0;
-    if (x > x0 + w) return 0;
-    if (y < y0) return 0;
-    if (y > y0 + h) return 0;
-    return 1;
-}
-
-int hit_button(int x, int y) {
-    int bx2;
-    bx2 = rx + rs + 8;
-    if (in_box(x, y, gx + gstep, gy, gk, gk)) return 4;
-    if (in_box(x, y, gx, gy + gstep, gk, gk)) return 1;
-    if (in_box(x, y, gx + gstep * 2, gy + gstep, gk, gk)) return 2;
-    if (in_box(x, y, gx + gstep, gy + gstep * 2, gk, gk)) return 3;
-    if (in_box(x, y, rx, gy, rs, rs)) return 4;
-    if (in_box(x, y, bx2, gy, rs, rs)) return 5;
-    if (in_box(x, y, rx, gy + rs + 10, rs, 26)) return 6;
-    if (in_box(x, y, bx2, gy + rs + 10, rs, 26)) return 7;
-    return 0;
-}
+/* ── 动作派发 ───────────────────────────────────────────── */
 
 /* 按一下某个键。返回 **画面是否需要重画** —— 每次重画都要把整幅场景光栅化一遍
- * （手机上是几百毫秒），所以"撞墙没动""结束后乱点"这些情况必须直接跳过重画。 */
+ * （手机上是几百毫秒），所以"撞墙没动""结束后乱按"这些情况必须直接跳过重画。 */
 int press(int btn) {
     if (btn == 7) {
         restart();
@@ -635,9 +654,11 @@ int press(int btn) {
             state = 1;
             if (tid > 0) ui_timer_kill(tid);
             tid = 0;
+            sfx(500, 60);
         } else {
             state = 0;
             set_speed();
+            sfx(700, 60);
         }
         return 1;
     }
@@ -668,19 +689,72 @@ int press(int btn) {
     return 0;
 }
 
-/* 长按连发：左/右/下按住不放就每 130ms 再来一次（手机上点着走太累了）。 */
+/* 长按连发：左/右/下按住不放就每 130ms 再来一次。
+ *
+ * 靠 `VML_MSG_KEYUP` 收尾 —— 手柄按下发 KeyDown、抬手发 KeyUp（`DrawWindowPage`
+ * 用 Button 的 Pressed/Released，不再是一按就 Down+Up 一起发）。但**不能把"一定会收到
+ * KeyUp"当成前提**：手指划出按键范围、系统吃掉 CANCEL、页面被切走，都可能让 KeyUp 永远不来，
+ * 而连发一旦跑起来就会一直跑（`ui_timer_set` 是重复定时器）。
+ * 所以连发**自带三道刹车**，任何一道都不会让程序卡在"一直往左移"上：
+ *   1. **换键即接管** —— 另一个方向键的 KeyDown 直接改写 `held`；
+ *   2. **按了没动两次就停** —— 已经贴墙了还按，说明再按也没意义；
+ *   3. **总拍数上限 40**（约 5 秒）—— 横穿整个棋盘只要 10 拍、竖到底最多 20 拍，
+ *      40 拍远超任何真实操作，纯粹是丢 KeyUp 时的兜底。
+ * 三道里前两道是"手感"，第三道是"安全网"；写游戏时**重复定时器都要有这么一道**。 */
 void hold_repeat(int btn) {
+    if (held == btn) {
+        if (rid > 0) return;           /* 同一键重复按下（系统重复键）：不重建定时器 */
+        rid = ui_timer_set(130, 1);
+        return;
+    }
     held = btn;
+    rptLeft = 40;
+    rptStuck = 0;
     if (rid > 0) ui_timer_kill(rid);
     rid = ui_timer_set(130, 1);
 }
 
 void release(void) {
     held = 0;
+    rptLeft = 0;
+    rptStuck = 0;
     if (rid > 0) {
         ui_timer_kill(rid);
         rid = 0;
     }
+}
+
+/* 连发的一拍。返回画面是否要重画。 */
+int repeat_tick(void) {
+    if (held == 0 || state != 0) return 0;
+    rptLeft = rptLeft - 1;
+    if (press(held) != 0) {
+        rptStuck = 0;
+        if (rptLeft <= 0) release();
+        return 1;
+    }
+    rptStuck = rptStuck + 1;
+    if (rptStuck >= 2 || rptLeft <= 0) release();
+    return 0;
+}
+
+/* 键码 → 按钮码；0 = 这个键不做事。
+ * 手柄那几个键在 `VmlKeys` 里刻意映射成了自然键盘等价键（A/B/X/Y 就是字母键、
+ * START=回车、SELECT=Shift），所以同一份程序接物理键盘也能玩。 */
+int key_to_btn(int k) {
+    if (k == VML_KEY_LEFT) return 1;
+    if (k == VML_KEY_RIGHT) return 2;
+    if (k == VML_KEY_DOWN) return 3;
+    if (k == VML_KEY_UP) return 4;
+    if (k == VML_KEY_PAD_A) return 4;
+    if (k == VML_KEY_PAD_X) return 4;
+    if (k == VML_KEY_SPACE) return 5;
+    if (k == VML_KEY_PAD_B) return 5;
+    if (k == VML_KEY_PAD_Y) return 5;
+    if (k == VML_KEY_SELECT) return 6;
+    if (k == VML_KEY_PAUSE) return 6;
+    if (k == VML_KEY_ENTER) return 7;
+    return 0;
 }
 
 /* ── 主循环 ─────────────────────────────────────────────── */
@@ -692,9 +766,9 @@ int main(void) {
     int btn;
     int reserveP;
     int availH;
+    int availW;
     int cw;
     int chh;
-    int padH;
 
     ui_piece_init();          /* 形状表一次初始化（几何都在共享库里，各语言共用一份） */
 
@@ -706,36 +780,30 @@ int main(void) {
     if (sh <= 0) sh = 620;
     ui_win_open("俄罗斯方块", sw, sh);
 
+    /* 玩游戏时别熄屏 —— 一手不动盯着棋盘想下一步，屏幕自己黑了最扫兴。
+     * 退出时会关掉（见文件末尾），所以不会一直亮着。 */
+    ui_keep_on(1);
+
     /* ── 布局（只算这一处）──
      *
-     * 手柄：`padH` 是手柄区总高，`gk` 是方向键边长。三行键 + 两道 3px 缝 = 3*gk+6，
-     * 底板再上下各留 6 ⇒ `gk` 取 39 时正好装得下 140。（底板高度 3*gk+18 = 135，
-     * 键块 3*gk+6 = 123，`gy` 落在底板顶往下 6px 处，底边留 6px —— 上下都不贴边。）*/
-    padH = 140;
-    gk = 39;
-    gstep = gk + 3;
-    dpw = gk * 3 + 6;
-    rs = gk + 20;
-    gx = (sw - (dpw + 10 + rs * 2 + 8)) / 2;
-    if (gx < 8) gx = 8;
-    gy = sh - padH + 6;
-    rx = gx + dpw + 10;
-
-    reserveP = 84;
-    if (sw < 340) reserveP = 72;
-    availH = sh - padH - 16;
-    cw = (sw - reserveP - 30) / BW;
+     * 手柄交给系统之后，整个窗口高度都归棋盘用（旧版要留 140px 画手柄）。
+     * `reserveP` 是右侧信息面板的宽度，窄屏收一点。 */
+    reserveP = 88;
+    if (sw < 360) reserveP = 76;
+    availW = sw - reserveP - 24;
+    availH = sh - 16;
+    cw = availW / BW;
     chh = availH / BH;
     cell = cw;
     if (chh < cell) cell = chh;
     if (cell < 8) cell = 8;
-    bx = 10 + (sw - reserveP - 20 - BW * cell) / 2;
+    bx = 8 + (availW - BW * cell) / 2;
     if (bx < 6) bx = 6;
     by = 8 + (availH - BH * cell) / 2;
     if (by < 6) by = 6;
-    panelX = bx + BW * cell + 10;
-    panelW = sw - panelX - 8;
-    if (panelW < 56) panelW = 56;
+    panelX = sw - reserveP - 8;
+    panelW = reserveP;
+    if (panelX < bx + BW * cell + 6) panelX = bx + BW * cell + 6;
 
     /* ── 开局 ── */
     tid = 0;
@@ -745,11 +813,13 @@ int main(void) {
     nlines = 0;
     level = 1;
     state = 0;
+    load_best();
     npid = ui_rand(7);
     spawn();
     set_speed();
-    btn = ui_dlg_msg("俄罗斯方块", "方向键移动与旋转，右边「直落」一放到底。"
-                                  "返回箭头退出。", VML_DLG_INFO);
+    ui_dlg_msg("俄罗斯方块", "用屏幕下方的游戏按键操作："
+                             "方向键移动与旋转、A 旋转、B 直落，START 重开、SELECT 暂停。"
+                             "返回箭头退出。", VML_DLG_INFO);
     draw_all();
 
     while (ui_win_closed() == 0) {
@@ -759,7 +829,7 @@ int main(void) {
 
         if (t == VML_MSG_TIMER) {
             if (msg[2] == 1) {                 /* tag 1 = 长按连发 */
-                if (held != 0 && state == 0 && press(held) != 0) draw_all();
+                if (repeat_tick() != 0) draw_all();
             } else if (state == 0) {           /* tag 0 = 重力 */
                 step_down();
                 draw_all();
@@ -772,42 +842,28 @@ int main(void) {
             continue;
         }
 
-        if (t == VML_MSG_TOUCHUP || t == VML_MSG_MOUSEUP) {
-            release();
-            continue;
-        }
-
-        if (t == VML_MSG_TOUCHDOWN || t == VML_MSG_MOUSEDOWN) {
-            btn = hit_button(msg[1], msg[2]);
-            if (btn == 0) continue;
-            if (press(btn) == 0) continue;      /* 没变化就不重画 */
-            if (btn == 1 || btn == 2 || btn == 3) hold_repeat(btn);
-            else release();
-            draw_all();
+        if (t == VML_MSG_KEYUP) {
+            k = msg[1];
+            /* 只有"抬起的是当前按住的键"才结束连发；否则连发的节奏会被
+             * 另一个方向键的抬起打断（屏幕上同时按两个键是很常见的）。 */
+            if (held != 0 && key_to_btn(k) == held) release();
             continue;
         }
 
         if (t == VML_MSG_KEYDOWN) {
             k = msg[1];
             if (k == VML_KEY_ESCAPE) break;
-            if (k == VML_KEY_LEFT) btn = 1;
-            else if (k == VML_KEY_RIGHT) btn = 2;
-            else if (k == VML_KEY_DOWN) btn = 3;
-            else if (k == VML_KEY_UP) btn = 4;
-            else if (k == VML_KEY_SPACE) btn = 5;
-            else if (k == VML_KEY_PAD_A) btn = 4;
-            else if (k == VML_KEY_PAD_B) btn = 5;
-            else if (k == VML_KEY_PAD_X) btn = 4;
-            else if (k == VML_KEY_PAD_Y) btn = 5;
-            else if (k == VML_KEY_SELECT) btn = 6;
-            else if (k == VML_KEY_ENTER) btn = 7;
-            else continue;
+            btn = key_to_btn(k);
+            if (btn == 0) continue;
             if (press(btn) != 0) draw_all();
+            /* 连发只挂"能连续做的动作"，重开/暂停那种一次性键不挂 */
+            if (btn == 1 || btn == 2 || btn == 3) hold_repeat(btn);
         }
     }
 
     release();
     if (tid > 0) ui_timer_kill(tid);
+    ui_keep_on(0);
     ui_win_close();
     return 0;
 }

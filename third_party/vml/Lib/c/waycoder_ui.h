@@ -133,4 +133,13 @@ int  ui_timer_kill(int id);
 int  ui_rand(int n);      /* 0..n-1 */
 int  ui_tick(void);       /* VM 启动至今毫秒 */
 
+/* ── 手感：音效 / 震动 / 持久化 / 常亮 ──
+   音效走 **VM 内置的 #57 蜂鸣**（宿主把它接到真实音频，零素材、不必打包音频文件）。
+   这一组同样要提给上游 VML 仓库（Lib/ 会被 sync.sh 覆盖）。 */
+void ui_beep(int freq, int ms);              /* 合成音：频率 Hz + 时长 ms */
+void ui_vibrate(int ms);                     /* 震动一下（Android 需 VIBRATE 权限，normal 级） */
+void ui_keep_on(int on);                     /* 玩游戏时别熄屏：0 关 / 1 开 */
+void ui_store_set(char* key, char* value);   /* 写持久化键值（最高分/进度/设置） */
+int  ui_store_get(char* key, char* buf, int cap);  /* 读；返回长度，没有这条键返回 -1 */
+
 #endif /* WAYCODER_UI_H */

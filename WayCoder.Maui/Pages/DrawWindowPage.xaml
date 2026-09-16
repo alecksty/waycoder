@@ -64,13 +64,13 @@
             <!-- 左：十字方向键。**圆角方块**（角落 10 而不是半圆），比圆形更好按、也更像手柄 -->
             <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,Auto,Auto"
                   RowSpacing="3" ColumnSpacing="3" VerticalOptions="Center">
-                <Button Grid.Row="0" Grid.Column="1" x:Name="PadUp"    Text="↑" Clicked="OnPadUp"
+                <Button Grid.Row="0" Grid.Column="1" x:Name="PadUp"    Text="↑" Pressed="OnPadPressed" Released="OnPadReleased"
                         WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="16" />
-                <Button Grid.Row="1" Grid.Column="0" x:Name="PadLeft"  Text="←" Clicked="OnPadLeft"
+                <Button Grid.Row="1" Grid.Column="0" x:Name="PadLeft"  Text="←" Pressed="OnPadPressed" Released="OnPadReleased"
                         WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="16" />
-                <Button Grid.Row="1" Grid.Column="2" x:Name="PadRight" Text="→" Clicked="OnPadRight"
+                <Button Grid.Row="1" Grid.Column="2" x:Name="PadRight" Text="→" Pressed="OnPadPressed" Released="OnPadReleased"
                         WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="16" />
-                <Button Grid.Row="2" Grid.Column="1" x:Name="PadDown"  Text="↓" Clicked="OnPadDown"
+                <Button Grid.Row="2" Grid.Column="1" x:Name="PadDown"  Text="↓" Pressed="OnPadPressed" Released="OnPadReleased"
                         WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="16" />
             </Grid>
 
@@ -78,22 +78,22 @@
                  ⚠ 必须显式给 WidthRequest：全局 Button 样式的 MinimumWidthRequest(44)
                  会在只靠 Padding 撑宽时变成宽度上限，文字被裁成一个字母。 -->
             <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center" HorizontalOptions="Center">
-                <Button x:Name="BtnSelect" Text="SELECT" Clicked="OnSelect"
+                <Button x:Name="BtnSelect" Text="SELECT" Pressed="OnPadPressed" Released="OnPadReleased"
                         FontSize="10" Padding="0" WidthRequest="70" HeightRequest="28" CornerRadius="9" />
-                <Button x:Name="BtnStart"  Text="START"  Clicked="OnStart"
+                <Button x:Name="BtnStart"  Text="START"  Pressed="OnPadPressed" Released="OnPadReleased"
                         FontSize="10" Padding="0" WidthRequest="70" HeightRequest="28" CornerRadius="9" />
             </VerticalStackLayout>
 
             <!-- 右：X/Y/A/B 菱形（Y 上 X 左 B 右 A 下） -->
             <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,Auto,Auto"
                   RowSpacing="3" ColumnSpacing="3" VerticalOptions="Center">
-                <Button Grid.Row="0" Grid.Column="1" x:Name="FaceY" Text="Y" Clicked="OnFaceY"
+                <Button Grid.Row="0" Grid.Column="1" x:Name="FaceY" Text="Y" Pressed="OnPadPressed" Released="OnPadReleased"
                         WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="15" FontAttributes="Bold" />
-                <Button Grid.Row="1" Grid.Column="0" x:Name="FaceX" Text="X" Clicked="OnFaceX"
+                <Button Grid.Row="1" Grid.Column="0" x:Name="FaceX" Text="X" Pressed="OnPadPressed" Released="OnPadReleased"
                         WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="15" FontAttributes="Bold" />
-                <Button Grid.Row="1" Grid.Column="2" x:Name="FaceB" Text="B" Clicked="OnFaceB"
+                <Button Grid.Row="1" Grid.Column="2" x:Name="FaceB" Text="B" Pressed="OnPadPressed" Released="OnPadReleased"
                         WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="15" FontAttributes="Bold" />
-                <Button Grid.Row="2" Grid.Column="1" x:Name="FaceA" Text="A" Clicked="OnFaceA"
+                <Button Grid.Row="2" Grid.Column="1" x:Name="FaceA" Text="A" Pressed="OnPadPressed" Released="OnPadReleased"
                         WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="15" FontAttributes="Bold" />
             </Grid>
         </Grid>

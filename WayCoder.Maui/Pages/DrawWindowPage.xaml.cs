@@ -26,6 +26,9 @@ public partial class DrawWindowPage : ContentPage
     private int _renderedVersion = -1;
     private bool _rendering;
 
+    /// <summary>当前按住不放的手柄键（0 = 没有）。只用于「滑到另一个键时补一条 KeyUp」。</summary>
+    private int _padDownKey;
+
     public DrawWindowPage()
     {
         InitializeComponent();
@@ -163,8 +166,11 @@ public partial class DrawWindowPage : ContentPage
         // 并按需重画 —— 否则首帧用过兜底尺寸，转屏/分屏之后就再也不会修正。
         if (_scene is { } s && CanvasScroll.Width > 0)
         {
-            var want = CanvasScroll.Width;
-            if (Math.Abs(CanvasView.WidthRequest - want) > 0.5)
+            // ⚠ 比较的是 **FitSize 算出来的两个数**，不是"宽度变没变"：
+            //    两维取小之后，宽度可能没变而高度变了（视口变矮 ⇒ 要缩得更多），
+            //    只比宽度就会漏掉这一次重排。
+            var (w, h) = FitSize(s, CanvasScroll.Width, CanvasScroll.Height);
+            if (Math.Abs(CanvasView.WidthRequest - w) > 0.5 || Math.Abs(CanvasView.HeightRequest - h) > 0.5)
             {
                 FitCanvas(s);
                 CanvasView.Invalidate();
@@ -188,6 +194,9 @@ public partial class DrawWindowPage : ContentPage
     {
         base.OnDisappearing();
         _closing = true;
+        // 页面走了，按住的那个手柄键不可能再收到 Released —— 补一条 KeyUp，
+        // 否则程序里那条"按住连发"会一直挂着（虽然马上要终止了，但日志里会留个假象）。
+        if (_padDownKey != 0) { PostKeyUp(_padDownKey); _padDownKey = 0; }
         VmlAudio.StopAll();   // 退出窗口就别再响了（BGM 留着比不响更糟）
         _timer?.Stop();
         _timer = null;
@@ -276,23 +285,50 @@ public partial class DrawWindowPage : ContentPage
     /// 的 `Source`/`Content`：那样会先卸旧再装新，中间空一拍就是可见的闪。
     /// </summary>
     /// <summary>
-    /// 给画布定尺寸：**宽 = 可用宽，高 = 宽 × 场景高宽比**（超出的部分交给外面的 ScrollView 滚）。
+    /// 给画布定尺寸：**等比缩放到两个方向都装得下**（`min(视口宽/场景宽, 视口高/场景高)`）。
     ///
-    /// 为什么不能让它按高度 `AspectFit`：GraphicsView 在 ScrollView 里、视口高度就一行，
-    /// 一个"高瘦"的场景（手机竖屏绘图区 395×744 就是）会两边留大片黑边、内容缩成半屏宽 —— 实测如此。
+    /// ## 为什么不只按宽度缩（v0.96.173 改的）
     ///
-    /// ⚠ **可用宽取不到时必须兜底成场景宽度**，不能"取不到就不设"：
-    /// 首帧是在 `Attach` 里同步渲染的，那时页面还没布局、`CanvasScroll.Width` 是 0 ——
+    /// 原来写的是「宽 = 视口宽，高 = 宽 × 场景高宽比」—— 宽度那一维装得下，**高度完全没管**。
+    /// 于是只要场景比视口高，下半截就被 ScrollView 截在可视区外：用户报的
+    /// 「内容超出绘图区，下面被键盘区挡住」就是这个（游戏必须能滚动才看得全 = 已经不能玩了）。
+    /// 场景为什么会偏高：程序开窗前会先问 `SCREEN_W/H`，而这两个数在**第一次开窗之前**
+    /// 只能靠 `AvailableArea` 估算（真实视口要等页面布局完才量得到）。估算偏大 ⇒ 场景偏高。
+    ///
+    /// 改成两维取小之后，**无论程序按什么尺寸开窗，整幅场景一定完整可见**（多余的那一维留边），
+    /// "被切掉一半"这种情形从结构上就不可能出现。代价是估算偏大时画面会等比缩小一点
+    /// （用户要的正是"弄小点点"），而估算准的时候缩放比恰好是 1、与原来完全一致。
+    ///
+    /// ⚠ **视口取不到时必须兜底成场景尺寸**，不能"取不到就不设"：
+    /// 首帧是在 `Attach` 里同步渲染的，那时页面还没布局、`CanvasScroll.Width/Height` 都是 0 ——
     /// 不设尺寸 ⇒ GraphicsView 零尺寸 ⇒ **画不出来、也点不到**（实测：整块画布全黑，
     /// 触摸全被 `ToScene` 判在图外丢掉）。而 `_renderedVersion` 此时已经记下，
     /// 后续帧不会再触发，于是永远黑着。
     /// </summary>
     private void FitCanvas(VmlScene scene)
     {
-        if (scene.Width <= 0) return;
-        var avail = CanvasScroll.Width > 0 ? CanvasScroll.Width : scene.Width;
-        CanvasView.WidthRequest = avail;
-        CanvasView.HeightRequest = avail * scene.Height / scene.Width;
+        var (w, h) = FitSize(scene, CanvasScroll.Width, CanvasScroll.Height);
+        if (w <= 0) return;
+        CanvasView.WidthRequest = w;
+        CanvasView.HeightRequest = h;
+    }
+
+    /// <summary>
+    /// 画布尺寸的纯计算（拆出来是为了让"要不要重排"能比较**同一个结果**，而不是各算一遍）。
+    /// 视口尺寸传 0 表示"还没量到" —— 那一维退回按场景原尺寸算（缩放比 1）。
+    /// </summary>
+    private static (double W, double H) FitSize(VmlScene scene, double viewW, double viewH)
+    {
+        if (scene.Width <= 0 || scene.Height <= 0) return (0, 0);
+        var scale = 1.0;
+        if (viewW > 0) scale = viewW / scene.Width;
+        if (viewH > 0)
+        {
+            var byH = viewH / scene.Height;
+            if (byH < scale) scale = byH;
+        }
+        if (scale <= 0) scale = 1;
+        return (Math.Max(1, scene.Width * scale), Math.Max(1, scene.Height * scale));
     }
 
     private void ShowFrame(byte[] png, VmlScene scene)
@@ -358,19 +394,48 @@ public partial class DrawWindowPage : ContentPage
 
     // 屏幕手柄：手机没有物理键盘，不把这些键做出来的话「方向键 + 动作键写的游戏」在真机上没法玩。
     // 键码全部取自 VmlKeys（唯一真源），且刻意映射到自然键盘等价键 —— 同一份程序接物理键盘也能玩。
-    private void OnPadLeft(object? sender, EventArgs e) => PostKey(VmlKeys.Left);
-    private void OnPadRight(object? sender, EventArgs e) => PostKey(VmlKeys.Right);
-    private void OnPadUp(object? sender, EventArgs e) => PostKey(VmlKeys.Up);
-    private void OnPadDown(object? sender, EventArgs e) => PostKey(VmlKeys.Down);
+    //
+    // ## 为什么是 Pressed/Released 而不是 Clicked（v0.96.173）
+    //
+    // `Clicked` 是「抬手时」才触发一次，于是**按住不放没有任何后续事件**：俄罗斯方块那种
+    // "按住 ← 连续左移"就做不出来（程序只能收到一次 KeyDown）。改成 `Pressed`/`Released`
+    // 之后，按下发 `KeyDown`、抬手发 `KeyUp`，程序就能自己拿定时器做连发（DAS）——
+    // 这也是所有游戏手柄的语义。单点仍然是"先 Down 后 Up"，只是中间隔了真实的按压时长。
+    private void OnPadPressed(object? sender, EventArgs e)
+    {
+        var key = PadKeyOf(sender);
+        if (key == 0) return;
+        // 手指从一个键滑到另一个键时，Android 只发新键的 Pressed，旧键的 Released 就丢了。
+        // 先替旧键补一条 KeyUp，否则程序会以为**两个键同时按着**（连发会一直挂在旧方向上）。
+        if (_padDownKey != 0 && _padDownKey != key) PostKeyUp(_padDownKey);
+        _padDownKey = key;
+        PostKeyDown(key);
+    }
 
-    private void OnFaceA(object? sender, EventArgs e) => PostKey(VmlKeys.PadA);
-    private void OnFaceB(object? sender, EventArgs e) => PostKey(VmlKeys.PadB);
-    private void OnFaceX(object? sender, EventArgs e) => PostKey(VmlKeys.PadX);
-    private void OnFaceY(object? sender, EventArgs e) => PostKey(VmlKeys.PadY);
+    private void OnPadReleased(object? sender, EventArgs e)
+    {
+        var key = PadKeyOf(sender);
+        if (key == 0) return;
+        if (_padDownKey == key) _padDownKey = 0;
+        PostKeyUp(key);
+    }
 
-    private void OnStart(object? sender, EventArgs e) => PostKey(VmlKeys.Start);
-    // SELECT 与 PAUSE 都映射到「SELECT 键」，中间区只留两个键（手柄上也就是这两个）
-    private void OnSelect(object? sender, EventArgs e) => PostKey(VmlKeys.Select);
+    /// <summary>手柄按键 → 键码（0 = 认不出）。这张表就是"哪个按钮是哪个键"的**唯一**一处。</summary>
+    private int PadKeyOf(object? sender)
+    {
+        if (ReferenceEquals(sender, PadLeft)) return VmlKeys.Left;
+        if (ReferenceEquals(sender, PadRight)) return VmlKeys.Right;
+        if (ReferenceEquals(sender, PadUp)) return VmlKeys.Up;
+        if (ReferenceEquals(sender, PadDown)) return VmlKeys.Down;
+        if (ReferenceEquals(sender, FaceA)) return VmlKeys.PadA;
+        if (ReferenceEquals(sender, FaceB)) return VmlKeys.PadB;
+        if (ReferenceEquals(sender, FaceX)) return VmlKeys.PadX;
+        if (ReferenceEquals(sender, FaceY)) return VmlKeys.PadY;
+        if (ReferenceEquals(sender, BtnStart)) return VmlKeys.Start;
+        // SELECT 与 PAUSE 都映射到「SELECT 键」，中间区只留两个键（手柄上也就是这两个）
+        if (ReferenceEquals(sender, BtnSelect)) return VmlKeys.Select;
+        return 0;
+    }
 
     /// <summary>
     /// 收起 / 展开手柄区（折叠条中间那个箭头）。
@@ -389,11 +454,17 @@ public partial class DrawWindowPage : ContentPage
         PadToggleBtn.Text = collapse ? "▼ 展开手柄" : "▲ 收起手柄";
     }
 
-    private static void PostKey(int code)
+    private static void PostKeyDown(int code)
     {
         var calls = VmlUiCalls.Current;
         if (calls == null) return;
         calls.PostInput(VmlMsgType.KeyDown, code, 0);
+    }
+
+    private static void PostKeyUp(int code)
+    {
+        var calls = VmlUiCalls.Current;
+        if (calls == null) return;
         calls.PostInput(VmlMsgType.KeyUp, code, 0);
     }
 }

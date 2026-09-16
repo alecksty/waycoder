@@ -1,6 +1,7 @@
 /* gomoku.c —— 五子棋（人机对战），跑在手机端 VML 上
  *
- * 用到的都是现成的宿主接口：`waycoder_ui.h` 那套（窗体 / 绘图 / 触摸消息队列）。
+ * 用到的都是现成的宿主接口：`waycoder_ui.h` 那套（窗体 / 绘图 / 触摸消息队列），
+ * 外加 v0.96.173 的**手感接口**（`ui_beep` 落子与胜负、`ui_vibrate`、`ui_dlg_msg` 报胜负）。
  * 棋盘与棋子全部用绘图指令画出来，不依赖任何图片资源；棋盘尺寸按实际可用绘图区
  * （syscall #566/#567）自适应，所以同一份代码在手机、平板、模拟器上都能铺满。
  *
@@ -240,10 +241,12 @@ void draw_board(int* b, int pad, int padY, int cell, int lastIdx, int over) {
         if (i == lastIdx) ui_circle(cx, cy, r / 3, COL_ACCENT, 1, 0);
     }
 
-    /* 状态行：用**状态式**文字接口 —— 属性设一次，之后只管给坐标和字符串 */
-    if (over == 1) s = "你赢了！点任意处再来一局";
-    else if (over == 2) s = "电脑赢了。点任意处再来一局";
-    else if (over == 3) s = "平局。点任意处再来一局";
+    /* 状态行：用**状态式**文字接口 —— 属性设一次，之后只管给坐标和字符串。
+     * 结束时不再写"点任意处再来一局" —— 那件事现在由 `finish()` 的弹框交代，
+     * 一行小字既没人看、又与弹框重复。这行只管"当前该谁下"。 */
+    if (over == 1) s = "你赢了！";
+    else if (over == 2) s = "电脑赢了";
+    else if (over == 3) s = "平局";
     else s = "你执黑，点棋盘落子";
 
     ui_set_font(15, VML_FONT_BOLD, COL_TEXT, VML_ANCHOR_LEFT);
@@ -258,6 +261,39 @@ void draw_board(int* b, int pad, int padY, int cell, int lastIdx, int over) {
     ui_present();
 }
 
+/* ─────────── 一局结束 ─────────── */
+
+/* 出声 + 弹框问要不要再来一局。返回 1 = 再来，0 = 退出。
+ *
+ * **为什么必须弹框**：原来只在棋盘下面写了一行 15px 的小字（「你赢了！点任意处再来一局」），
+ * 而玩家盯着的是棋盘 —— 那一行在屏幕下方、又不闪不动，实测用户的原话是
+ * 「赢了输了都没看到输赢的提示框，只是棋盘清空了，重新开始了」。
+ * 胜负是这一局唯一必须让玩家知道的事，**用一行小字交代等于没交代**：
+ * 要么弹框（挡住视线、必须点一下才消失），要么根本别做这个游戏。
+ *
+ * 音效按"赢/输"给完全不同的两条：赢是又高又长的上行亮音，输是又低又闷的长音 ——
+ * 两者差别要大到**不看屏幕也分得出**（合成音是单通道的，一次只能发一个音，
+ * 所以用"音高"而不是"音数"表达情绪，见 tetris.c 里同一处的说明）。 */
+int finish(int over) {
+    int r;
+    if (over == 1) {
+        ui_beep(1320, 320);
+        ui_vibrate(60);
+        r = ui_dlg_msg("五子棋", "你赢了！再来一局？", VML_DLG_QUESTION);
+    } else if (over == 2) {
+        ui_beep(260, 420);
+        ui_vibrate(220);
+        r = ui_dlg_msg("五子棋", "电脑赢了。再来一局？", VML_DLG_QUESTION);
+    } else {
+        ui_beep(500, 300);
+        ui_vibrate(40);
+        r = ui_dlg_msg("五子棋", "平局。再来一局？", VML_DLG_QUESTION);
+    }
+    /* 弹框失败（返回 -1）也当"再来" —— 总不能因为宿主弹不出框就把整局卡死在这儿 */
+    if (r == 1) return 0;
+    return 1;
+}
+
 /* ─────────── 主循环 ─────────── */
 
 int main(void) {
@@ -268,7 +304,8 @@ int main(void) {
     int cell;
     int pad;
     int padY;
-    int avail;
+    int availW;
+    int availH;
     int i;
     int t;
     int x;
@@ -282,6 +319,7 @@ int main(void) {
     int aiIdx;
     int t0;
     int t1;
+    int r;
     char* title;
 
     /* 开局：棋盘清空 */
@@ -302,15 +340,22 @@ int main(void) {
 
     ui_win_open(title, sw, sh);
 
-    /* 底下留一行状态文字的高度 */
-    avail = sh - 34;
-    if (avail > sw) avail = sw;
+    /* 布局：**宽和高分开算约束**，再在整块画布里居中。
+     *
+     * 这里原来写的是 `avail = sh - 34; if (avail > sw) avail = sw;` —— 把两个方向压成
+     * 一个数取小者：手机上 sh≈744、sw≈395 ⇒ avail 被压成 395，于是格子按宽度算完之后
+     * **棋盘被居中在"顶部那 395px"里**，屏幕下面空掉一大半（棋盘挤在上半屏、
+     * 状态文字浮在屏幕中间）。宽高各自约束才不会互相吃掉。 */
+    availW = sw;
+    availH = sh - 34;                     /* 底下留一行状态文字 */
+    if (availH < 40) availH = 40;
 
-    cell = avail / (N + 1);
+    cell = availW / (N + 1);
+    if (availH / (N + 1) < cell) cell = availH / (N + 1);
     if (cell < 4) cell = 4;
 
     pad = (sw - (N - 1) * cell) / 2;
-    padY = (avail - (N - 1) * cell) / 2 + cell / 2;
+    padY = (availH - (N - 1) * cell) / 2 + cell / 2;
     if (padY < cell / 2) padY = cell / 2;
 
     t0 = ui_dlg_msg("五子棋", "你执黑先行。点棋盘落子，返回箭头退出。", VML_DLG_INFO);
@@ -330,16 +375,6 @@ int main(void) {
         x = msg[1];
         y = msg[2];
 
-        /* 已经结束 → 点任意处重开 */
-        if (over != 0) {
-            for (i = 0; i < N * N; i = i + 1) b[i] = EMPTY;
-            over = 0;
-            moves = 0;
-            lastIdx = -1;
-            draw_board(b, pad, padY, cell, lastIdx, over);
-            continue;
-        }
-
         col = hit_col(x, pad, cell);
         row = hit_col(y, padY, cell);
         if (col < 0 || row < 0) continue;
@@ -351,36 +386,45 @@ int main(void) {
         b[idx] = BLACK;
         moves = moves + 1;
         lastIdx = idx;
+        ui_beep(880, 25);                          /* 人：清亮一点 */
+
         if (has_won(b, col, row, BLACK) == 1) {
             over = 1;
-            draw_board(b, pad, padY, cell, lastIdx, over);
-            continue;
-        }
-        if (moves >= N * N) {
+        } else if (moves >= N * N) {
             over = 3;
+        } else {
+            /* 先画一手人的，让手感立刻有反馈，再算电脑的 */
             draw_board(b, pad, padY, cell, lastIdx, over);
-            continue;
+
+            /* 电脑落子 */
+            aiIdx = ai_pick(b, 0);
+            if (aiIdx < 0) {
+                over = 3;
+            } else {
+                b[aiIdx] = WHITE;
+                moves = moves + 1;
+                lastIdx = aiIdx;
+                col = aiIdx % N;
+                row = aiIdx / N;
+                ui_beep(620, 25);                  /* 电脑：低一点，一耳朵分得出是谁下的 */
+                if (has_won(b, col, row, WHITE) == 1) over = 2;
+                else if (moves >= N * N) over = 3;
+            }
         }
 
-        /* 先画一手人的，让手感立刻有反馈，再算电脑的 */
         draw_board(b, pad, padY, cell, lastIdx, over);
 
-        /* 电脑落子 */
-        aiIdx = ai_pick(b, 0);
-        if (aiIdx < 0) {
-            over = 3;
+        /* 一局结束：**收在这一处**（四种结束方式都汇到这里）——
+         * 出声、弹框问要不要再来；不想再来就退出窗口，而不是默默重开。 */
+        if (over != 0) {
+            if (finish(over) == 0) break;
+            for (i = 0; i < N * N; i = i + 1) b[i] = EMPTY;
+            over = 0;
+            moves = 0;
+            lastIdx = -1;
+            ui_beep(900, 70);
             draw_board(b, pad, padY, cell, lastIdx, over);
-            continue;
         }
-        b[aiIdx] = WHITE;
-        moves = moves + 1;
-        lastIdx = aiIdx;
-        col = aiIdx % N;
-        row = aiIdx / N;
-        if (has_won(b, col, row, WHITE) == 1) over = 2;
-        else if (moves >= N * N) over = 3;
-
-        draw_board(b, pad, padY, cell, lastIdx, over);
     }
 
     /* 收尾：等一小会儿再关，免得窗口一闪而过（宿主定时刷新，这里只是留个缓冲） */

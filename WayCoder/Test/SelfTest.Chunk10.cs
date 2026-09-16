@@ -523,8 +523,10 @@ public static partial class SelfTest
         var area = VmlUi.AvailableArea(1080, 2400, 2.75);
         Check("VmlUi.AvailableArea: 宽 = dp 宽 − 左右留白",
             area.Width == (int)Math.Floor(1080 / 2.75) - 16);
-        Check("VmlUi.AvailableArea: 高 = dp 高 − 固定占用（导航+标题+方向键）",
-            area.Height == (int)Math.Floor(2400 / 2.75) - 170);
+        // ⚠ 引用常数而**不是**再写一个字面量 —— 平行表正是本仓库头号坑
+        //    （测试里写着 170、实现里改掉，两边各说各话）
+        Check("VmlUi.AvailableArea: 高 = dp 高 − 固定占用（导航+标题+方向键+折叠条）",
+            area.Height == (int)Math.Floor(2400 / 2.75) - VmlUi.DefaultChromeHeightDp);
         Check("VmlUi.AvailableArea: 密度非法时不炸（回退 1）",
             VmlUi.AvailableArea(300, 400, 0).Width > 0);
         Check("VmlUi.AvailableArea: 极小屏有下限（程序仍能布局）",

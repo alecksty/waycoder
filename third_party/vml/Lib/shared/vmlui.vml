@@ -2007,3 +2007,121 @@ ui_image:
         pop R12
         pop R15
         ret
+
+; ═══════════════════════════════════════════════════════════════
+; 手感：音效 / 震动 / 持久化 / 常亮（宿主保留号段 500–599 与 VM 内置 #57）
+;
+; ⚠ 这一组**必须提给上游 VML 仓库**：`Lib/` 是 sync.sh 从上游 rsync 同步下来的，
+;   只改本地的话下次同步就没了（与 ui_rand/ui_tick 同一处境）。
+; ⚠ 写法照抄 ui_timer_set：形参在栈上（arg_i = [R12+8+4*i]），搬进 R0..Rn 再 syscall。
+;   不要在 C 里用 `asm("MOVE R1 ${x}")` 直连 —— `${}` 展开时**总是先载入 R0**，
+;   第二个参数会把第一个覆盖掉（实测：`MOVE R0 ${freq}` + `MOVE R1 ${ms}` 生成的是
+;   `move R0 [R12+12]; move R0 [R12+16]; move R1 R0` —— freq 丢了）。
+; ═══════════════════════════════════════════════════════════════
+ui_beep:
+; -------------------------------------------
+; source   : void ui_beep(int freq,int ms)
+; function : ui_beep
+; param   : int freq  (Hz)
+; param   : int ms    (时长)
+; return   : void
+; 说明     : 合成音（VM 内置 #57 的蜂鸣，宿主接真实音频）。零素材：不必打包音频文件。
+; --------------------------------------------
+ui_beep:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        move R1 [R12+16]
+        syscall #57
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_vibrate:
+; -------------------------------------------
+; source   : void ui_vibrate(int ms)
+; function : ui_vibrate
+; param   : int ms
+; return   : void
+; --------------------------------------------
+ui_vibrate:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        move R1 #0
+        syscall #545
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_keep_on:
+; -------------------------------------------
+; source   : void ui_keep_on(int on)
+; function : ui_keep_on
+; param   : int on    (0 关 / 1 开)
+; return   : void
+; 说明     : 玩游戏时别熄屏。
+; --------------------------------------------
+ui_keep_on:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        syscall #553
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_store_set:
+; -------------------------------------------
+; source   : void ui_store_set(char* key,char* value)
+; function : ui_store_set
+; param   : char* key
+; param   : char* value
+; return   : void
+; 说明     : 持久化键值（最高分/进度/设置）。键会加 `vml.` 前缀，与 App 自己的配置隔离。
+; --------------------------------------------
+ui_store_set:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        move R1 [R12+16]
+        syscall #550
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_store_get:
+; -------------------------------------------
+; source   : int ui_store_get(char* key,char* buf,int cap)
+; function : ui_store_get
+; param   : char* key
+; param   : char* buf
+; param   : int cap
+; return   : int     (写入长度；没有这条键返回 -1)
+; --------------------------------------------
+ui_store_get:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        syscall #551
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
