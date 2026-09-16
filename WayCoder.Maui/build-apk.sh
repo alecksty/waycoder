@@ -5,7 +5,7 @@
 #   ./build-apk.sh              # 出 APK
 #   ./build-apk.sh -t:Install   # 顺便装到已连接的设备/模拟器（adb）
 #
-# 产物：bin/Release/net10.0-android/publish/com.companyname.waycoder.maui-Signed.apk
+# 产物：bin/Release/net10.0-android/publish/com.tanso.waycoder-Signed.apk
 #
 # 关于签名：项目里没有正式 keystore，用本目录下自签的 waycoder.keystore
 # （alias / 两个密码都是 waycoder，有效期 10 年）。这是**自用/内部分发**的签名，

@@ -20,6 +20,8 @@ namespace WayCoder.Maui.Pages;
 public partial class DrawWindowPage : ContentPage
 {
     private VmlScene? _scene;
+    /// <summary>页面正在关闭 —— 这之后不再往消息队列投 `WindowResize`（程序已经在退出了）。</summary>
+    private bool _closing;
     private IDispatcherTimer? _timer;
     private int _renderedVersion = -1;
     private bool _rendering;
@@ -143,7 +145,19 @@ public partial class DrawWindowPage : ContentPage
     {
         base.OnSizeAllocated(width, height);
         if (CanvasScroll.Width > 0 && CanvasScroll.Height > 0)
-            VmlUiCalls.MeasuredViewport = ((int)CanvasScroll.Width, (int)CanvasScroll.Height);
+        {
+            var now = (Width: (int)CanvasScroll.Width, Height: (int)CanvasScroll.Height);
+
+            // **视口真的变了就告诉程序**（`WindowResize`）。这条消息协议里一直有，
+            // 但宿主**从来没发过** —— 于是转屏、折叠屏、以及这条折叠条收起手柄，
+            // 程序全都不知道，还按开窗时的尺寸排着版（用户看到的就是"收起了手柄但画面没变大"）。
+            // 判据是"与上次实测值不同"，而不是"OnSizeAllocated 被调用"：这个回调在布局期
+            // 会连着触发好几次，不比较就会把一堆无意义的 resize 灌进消息队列。
+            if (VmlUiCalls.MeasuredViewport is { } prev && prev != now && !_closing)
+                VmlUiCalls.Current?.PostInput(VmlMsgType.WindowResize, now.Width, now.Height);
+
+            VmlUiCalls.MeasuredViewport = now;
+        }
 
         // 布局到位后重算一次画布尺寸（首帧渲染时这里还是 0，见 FitCanvas 注释），
         // 并按需重画 —— 否则首帧用过兜底尺寸，转屏/分屏之后就再也不会修正。
@@ -158,9 +172,23 @@ public partial class DrawWindowPage : ContentPage
         }
     }
 
+    /// <summary>
+    /// 用户退出游戏窗口后，给程序**多久**自行收场（毫秒）—— 到点还在跑就强制终止。
+    ///
+    /// 为什么要宽限：正常程序收到 `WindowClose` 后会在下一帧退出主循环（那是**优雅退出**，
+    /// 该让它自己走完，比如落盘存档）。但程序**可以不理这条消息**（卡在自己的循环里/死循环），
+    /// 那时它就一直在后台烧 CPU —— 用户按了返回却什么都没停掉，这是不可接受的。
+    /// 1.5 秒足够任何守规矩的程序反应，又短到用户察觉不出"卡了一下"。
+    /// </summary>
+    private const int CloseGraceMs = 1500;
+
+    private IDispatcherTimer? _closeWatchdog;
+
     protected override void OnDisappearing()
     {
         base.OnDisappearing();
+        _closing = true;
+        VmlAudio.StopAll();   // 退出窗口就别再响了（BGM 留着比不响更糟）
         _timer?.Stop();
         _timer = null;
         VmlUiCalls.OnSceneChanged -= OnSceneChanged;
@@ -169,6 +197,23 @@ public partial class DrawWindowPage : ContentPage
         // **这必须在 OnDisappearing 里做** —— 放在别处会漏掉"手势返回"这条路径，
         // 程序就会一直等在 MsgWait 上，直到超时。
         VmlUiCalls.Current?.MarkWindowClosed();
+
+        // 再上一道保险：**退出窗口 = 终止程序**（用户原话「随时按返回，需要终止程序」）。
+        // 先礼后兵 —— 上面那条消息是"你自己收场"，这里给 1.5 秒；到点还在跑就直接取消 token。
+        // 只发消息不兜底的话，一个不理会 WindowClose 的程序会一直烧着 CPU 活在后台，
+        // 而用户以为"我已经退出游戏了"。
+        _closeWatchdog?.Stop();
+        var watchdog = Dispatcher.CreateTimer();
+        watchdog.Interval = TimeSpan.FromMilliseconds(CloseGraceMs);
+        watchdog.IsRepeating = false;
+        watchdog.Tick += (_, _) =>
+        {
+            watchdog.Stop();
+            _closeWatchdog = null;
+            ShellPage.CancelRunningVml();   // 已经自己退了的话，这就是个空操作
+        };
+        _closeWatchdog = watchdog;
+        watchdog.Start();
     }
 
     /// <summary>

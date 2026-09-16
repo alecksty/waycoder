@@ -1,0 +1,5 @@
+/* 中文系统的应用显示名 —— 道码。
+   与 Android 的 Resources/values-zh/strings.xml 成对：iOS 按系统语言自动挑 lproj。
+   默认（英文）来自 csproj 的 <ApplicationTitle> → CFBundleDisplayName。 */
+"CFBundleDisplayName" = "道码";
+"CFBundleName" = "道码";

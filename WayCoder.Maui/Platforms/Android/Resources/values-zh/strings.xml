@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 中文（含简繁）系统的应用显示名 —— 道码。
+     与 `values/strings.xml` 的英文名成对；Android 按系统语言自动选，不用代码判断。 -->
+<resources>
+	<string name="app_name">道码</string>
+</resources>

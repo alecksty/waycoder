@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 应用显示名（桌面图标 + 最近任务里那个标题）。
+
+     为什么不用 csproj 的 `<ApplicationTitle>`：那是**单个写死的字面量**，
+     没法按系统语言变。而用户要的是「中文系统显示「道码」、英文系统显示 WayCoder」——
+     这必须走 Android 的字符串资源 + 语言限定目录（`values-zh/`），
+     再由清单里的 `android:label="@string/app_name"` 引用。
+
+     默认（`values/`）给英文：没有语言限定的目录是所有其它语言的兜底。 -->
+<resources>
+	<string name="app_name">WayCoder</string>
+</resources>

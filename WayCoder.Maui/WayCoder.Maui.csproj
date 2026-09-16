@@ -48,11 +48,23 @@
 		       <MauiXaml Update="MyPage.xaml" Inflator="Runtime" /> (force runtime inflation) -->
 		<MauiXamlInflator>SourceGen</MauiXamlInflator>
 
-		<!-- Display name -->
-		<ApplicationTitle>WayCoder.Maui</ApplicationTitle>
+		<!-- Display name —— **只是兜底**：Android 那边清单里的 android:label 指向
+		     `@string/app_name`（按系统语言给「道码」/「WayCoder」，见 Resources/values*/strings.xml），
+		     iOS 用 Info.plist 的 CFBundleDisplayName。这里给英文名，作为没有专门配置的平台的默认值。 -->
+		<ApplicationTitle>WayCoder</ApplicationTitle>
+
+		<!-- 作者 / 版权（进 APK 的 manifest 与 IPA 的 Info.plist，商店与"应用信息"里显示的就是它） -->
+		<Authors>施探宇</Authors>
+		<Product>WayCoder 道码</Product>
+		<Copyright>© 施探宇</Copyright>
 
 		<!-- App Identifier -->
-		<ApplicationId>com.companyname.waycoder.maui</ApplicationId>
+		<!-- 包名：公司（深圳市探索智能科技有限公司 / tanso）反写 + 产品名。
+		     ⚠ **改包名 = 换一个 App**：Android 按包名认身份，改了之后新包不会覆盖旧包
+		     （两个图标并存），而且**私有目录里的东西（Preferences 存的最分/设置、解压出来的 vml 库）
+		     不会跟过来**。工作区与 config 在外部存储（sdcard/waycoder）不受影响。
+		     签名的 keystore 不变，所以旧包可以随时卸。 -->
+		<ApplicationId>com.tanso.waycoder</ApplicationId>
 
 		<!-- Versions —— **从 Global.cs 推导，不在这里手写**。
 		     起因：这两个字段和 `WayCoder/Config/Global.cs` 的 `Global.Version` 是**同一份事实的两处拷贝**，

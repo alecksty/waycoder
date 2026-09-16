@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using VMLRuntime;
+using WayCoder.Tools;          // CwdContext：BGM 路径要与文件工具用同一把尺子解析
 using WayCoder.UI.Shared;
 using WayCoder.UI.Tui;
 
@@ -89,6 +90,22 @@ internal sealed class VmlUiCalls : ISystemCallHandler
 
     public bool HandleSyscall(int syscallNumber, int[] registers, byte[] memory, ref int pc)
     {
+        // **VM 内置的 PC 喇叭蜂鸣（#57）：截住它，接到真实音频。**
+        //
+        // 运行时的 #57 本来就有，但实现是交给 `VmSpeakerDevice` —— 那个设备只把样本记进内存 /
+        // 写 WAV 给测试用，**不发出任何声音**，手机上跑就是"调了没反应"。
+        // 与其新增一个平行的 `AUDIO_TONE`，不如把这条已经存在、所有前端都认的接口接通
+        //（理由详见 VmlUi.VmSpeakerBeep 的注释）。
+        //
+        // ⚠ **只截这一个号** —— 下面那行 `Handles()` 仍然只认 500–599，别顺手把它放宽。
+        if (syscallNumber == VmlUi.VmSpeakerBeep)
+        {
+            // 波形固定方波：PC 喇叭本来就是方波，音色也正是"8 位机音效"那个味道。
+            VmlAudio.Tone(registers[0], registers[1], wave: 1);
+            registers[0] = 0;
+            return true;
+        }
+
         if (!VmlUi.Handles(syscallNumber)) return false; // 不认识必须放行，否则吞掉内置 syscall
 
         // 入参诊断（临时脚手架，定位完就撤）：真机实测「对话框字符串大多是空的、只有一个 hello」
@@ -122,6 +139,19 @@ internal sealed class VmlUiCalls : ISystemCallHandler
                 case VmlUi.DrawIcon: Scene()?.AddIcon(registers[0], registers[1], Str(memory, registers[2]), registers[3], (uint)registers[4]); TouchScene(); break;
                 case VmlUi.DrawImage: Scene()?.AddImage(registers[0], registers[1], Str(memory, registers[2]), registers[3], registers[4]); TouchScene(); break;
                 case VmlUi.DrawPresent: TouchScene(); break;
+
+                // ── 手感：音效 / 震动 ──
+                case VmlUi.AudioPlay: registers[0] = AudioPlay(registers, memory); break;
+                case VmlUi.AudioStop: VmlAudio.StopBgm(); registers[0] = 0; break;
+                case VmlUi.AudioVolume: VmlAudio.SetVolume(registers[0]); registers[0] = 0; break;
+                case VmlUi.Vibrate: registers[0] = Vibrate(registers); break;
+                case VmlUi.VibratePattern: registers[0] = VibratePattern(registers, memory); break;
+
+                // ── 持久化与常亮 ──
+                case VmlUi.StoreSet: registers[0] = StoreSet(registers, memory); break;
+                case VmlUi.StoreGet: registers[0] = StoreGet(registers, memory); break;
+                case VmlUi.StoreDel: registers[0] = StoreDel(registers, memory); break;
+                case VmlUi.ScreenKeepOn: ScreenKeepOn(registers[0] != 0); registers[0] = 0; break;
 
                 case VmlUi.MsgPoll: registers[0] = Poll(registers, memory); break;
                 case VmlUi.MsgWait: registers[0] = Wait(registers, memory); break;
@@ -349,6 +379,104 @@ internal sealed class VmlUiCalls : ISystemCallHandler
     private int TimerKill(int[] r)
     {
         if (_timers.TryRemove(r[0], out var t)) t.Timer.Dispose();
+        return 0;
+    }
+
+    // ── 手感：音效 / 震动 ──────────────────────────────────────
+
+    /// <summary>
+    /// BGM：路径**沙箱相对 → 绝对**（`CwdContext` 与文件工具同一把尺子），
+    /// 文件不存在直接回 -1 —— 让程序自己看得见"没播成"，而不是静默没声音。
+    /// </summary>
+    private static int AudioPlay(int[] r, byte[] mem)
+    {
+        var rel = Str(mem, r[0]);
+        if (rel.Length == 0) return -1;
+        var full = CwdContext.Resolve(rel);
+        if (!File.Exists(full)) return -1;
+        return VmlAudio.Play(full, r[1] != 0) == null ? 0 : -1;
+    }
+
+    /// <summary>震动一下：时长先钳到上限（负数/超长都拦掉），强度交给平台层。</summary>
+    private static int Vibrate(int[] r)
+        => VmlAudio.Vibrate(Math.Clamp(r[0], 1, VmlUi.VibrateMaxSegmentMs), Math.Clamp(r[1], 0, 255)) ? 0 : -1;
+
+    /// <summary>
+    /// 按节奏震动：把内存里的 int 数组读出来 → 协议层钳段数/段长 → 交给平台层。
+    /// **读内存要防越界**：地址与段数都是程序给的，越界就地停（宁可少振几段，不要读坏内存）。
+    /// </summary>
+    private static int VibratePattern(int[] r, byte[] mem)
+    {
+        var count = Math.Clamp(r[1], 0, VmlUi.VibrateMaxSegments);
+        if (count <= 0) return -1;
+
+        var raw = new List<int>(count);
+        for (var i = 0; i < count; i++)
+        {
+            var at = r[0] + i * 4;
+            if (at < 0 || at + 4 > mem.Length) break;
+            raw.Add(BitConverter.ToInt32(mem, at));
+        }
+
+        var pattern = VmlUi.ClampVibratePattern(raw);
+        return pattern.Length > 0 && VmlAudio.VibratePattern(pattern) ? 0 : -1;
+    }
+
+    // ── 持久化与常亮 ──────────────────────────────────────────
+    //
+    // ⚠ 这一组里**没有**"取时间"与"随机数"——VM 内置已有（`#53`/`#54` 与 `#50`），
+    // 另立接口就是同一件事两处实现。
+
+    /// <summary>
+    /// 「别熄屏」**必须回主线程**。
+    ///
+    /// 真机实测：`DeviceDisplay.KeepScreenOn` 在 Android 上最终调的是
+    /// `Window.AddFlags(FLAG_KEEP_SCREEN_ON)` —— 那是**动 View 层级**，从 VM 线程调直接抛
+    /// `RuntimeException: Only the original thread that created a view hierarchy can touch its views`。
+    ///
+    /// ⚠ 宿主处理器**所有**分支都得按这条尺子过一遍：只碰数据的（Preferences / Vibrator / AudioTrack）
+    /// 可以在 VM 线程上直接调，**凡是碰 View 的一律要 marshal**。
+    /// 用 `BeginInvokeOnMainThread` 而不是 `InvokeOnMainThread`：前者不阻塞，
+    /// 免得把 VM 线程挂在一次 UI 派发上。
+    /// </summary>
+    private static void ScreenKeepOn(bool on)
+        => MainThread.BeginInvokeOnMainThread(() =>
+        {
+            try { DeviceDisplay.KeepScreenOn = on; }
+            catch (Exception ex) { ErrorLog.Error("VmlUi", "设置常亮失败", ex); }
+        });
+
+    private static int StoreSet(int[] r, byte[] mem)
+    {
+        var key = VmlUi.StoreKey(Str(mem, r[0]));
+        if (key == null) return -1;
+        Preferences.Default.Set(key, Str(mem, r[1]));
+        return 0;
+    }
+
+    private static int StoreGet(int[] r, byte[] mem)
+    {
+        var key = VmlUi.StoreKey(Str(mem, r[0]));
+        if (key == null) return -1;
+        if (!Preferences.Default.ContainsKey(key)) return -1;
+
+        var value = Preferences.Default.Get(key, "");
+        var capacity = Math.Max(0, r[2]);
+        var bytes = System.Text.Encoding.UTF8.GetBytes(value);
+        var n = Math.Min(bytes.Length, Math.Max(0, capacity - 1));   // 留一个字节给结尾 \0
+        if (r[1] >= 0 && r[1] + n + 1 <= mem.Length)
+        {
+            Array.Copy(bytes, 0, mem, r[1], n);
+            mem[r[1] + n] = 0;
+        }
+        return n;
+    }
+
+    private static int StoreDel(int[] r, byte[] mem)
+    {
+        var key = VmlUi.StoreKey(Str(mem, r[0]));
+        if (key == null) return -1;
+        Preferences.Default.Remove(key);
         return 0;
     }
 

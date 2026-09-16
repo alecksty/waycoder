@@ -62,23 +62,38 @@ public partial class ShellPage : ContentPage
     private TaskCompletionSource<string>? _stdinTcs;
 
     /// <summary>
-    /// 当前这次 VML 运行的取消源（= 「强制停止」的手柄）。
+    /// 当前这次 VML 操作的取消源（= 「强制停止」的手柄）。
     ///
-    /// 只有 VML 运行才有它：VM 主循环每条指令查一次 token，取消是即时的；
-    /// 而普通 shell 命令（`dotnet build` 之类）**没有可用的中断入口**，
+    /// **做成静态的**：绘图页（游戏窗口）也要能停掉发起的那个进程 ——
+    /// 用户按返回退出游戏时，程序可能正卡在自己的循环里不理会"窗口已关"的消息，
+    /// 那时只有运行 token 能真正把它停下来。而 `DrawWindowPage` 拿不到 `ShellPage` 实例，
+    /// 所以取消源与"被谁持有"解耦成静态。
+    ///
+    /// ⚠ **静态是安全的**：VML 的执行是**排他**的（`VmlTool.ExecutionMode = Exclusive`，
+    /// 加上本页 `_busy` 闸门），同一时刻只可能有一次运行。
+    ///
+    /// 只有 VML 才有它：普通 shell 命令（`dotnet build` 之类）**没有可用的中断入口**，
     /// 所以"运行中不许返回"的拦截只对 VML 生效（见 <see cref="OnBackButtonPressed"/>）。
     /// </summary>
-    private CancellationTokenSource? _runCts;
+    private static CancellationTokenSource? _runCts;
 
     /// <summary>
-    /// 这次运行**彻底收干净**的信号（在 <see cref="ExecVmlAsync"/> 的 `finally` 最末尾置位）。
+    /// 这次操作**彻底收干净**的信号（在 `ExecVmlAsync` / `CompileArtifactAsync` 的 `finally` 最末尾置位）。
     ///
-    /// 为什么不是直接 `await` 那个运行 Task：它和 `ExecVmlAsync` 里那句 `await task`
+    /// 为什么不是直接 `await` 那个运行 Task：它和调用处那句 `await task`
     /// 挂在**同一个 Task 的完成回调**上，谁先恢复没有保证 —— 若我们这边先恢复，
     /// 此刻 `_runCts` 还没被清空，重发的返回会撞上同一个拦截、再弹一次框。
     /// 用"finally 最后一步"的信号，就把它钉成了确定顺序。
     /// </summary>
-    private TaskCompletionSource? _runDone;
+    private static TaskCompletionSource? _runDone;
+
+    /// <summary>
+    /// **随时终止正在跑（或正在编译）的 VML 程序** —— 绘图页按返回时调它。
+    ///
+    /// 两段都停得掉：编译段是"带超时地等一个不可取消的编译"（`MauiVml` 的看门狗），
+    /// 运行段是"主循环每条指令查一次 token"（即时）。
+    /// </summary>
+    internal static void CancelRunningVml() => _runCts?.Cancel();
 
     /// <summary>本页认识的命令（加命令改 <see cref="BuildCommandRegistry"/> 一处即可）。</summary>
     private readonly ShellCommandRegistry _commands;
@@ -231,33 +246,50 @@ public partial class ShellPage : ContentPage
 
         return RunWithPromptAsync($"vml build {SandboxFsService.Abbreviate(absPath)} → {outRel}", async () =>
         {
-            // 编译/汇编都是同步阻塞的（前端编译本身就吃 CPU），必须离开 UI 线程 —— 否则整页卡死。
-            var (note, error) = await Task.Run<(string? Note, string? Error)>(() =>
+            // 编译也要装取消源：前端编译在手机上**一分多钟**，用户随时按返回应该能停下
+            // （停的是"等待"，那个编译线程本身没法中止 —— 见 MauiVml.BuildProgram 的看门狗说明）。
+            _runCts = new CancellationTokenSource();
+            var cts = _runCts;
+            var done = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            _runDone = done;
+            try
             {
-                if (toVmb)
+                // 编译/汇编都是同步阻塞的（前端编译本身就吃 CPU），必须离开 UI 线程 —— 否则整页卡死。
+                var (note, error) = await Task.Run<(string? Note, string? Error)>(() =>
                 {
-                    var (bytes, err) = MauiVml.AssembleVmlToVmb(absPath);
-                    if (bytes == null) return (null, err);
-                    try { SandboxFsService.WriteBytesAtomic(outRel, bytes); }
+                    if (toVmb)
+                    {
+                        var (bytes, err) = MauiVml.AssembleVmlToVmb(absPath);
+                        if (bytes == null) return (null, err);
+                        try { SandboxFsService.WriteBytesAtomic(outRel, bytes); }
+                        catch (Exception ex) { return (null, $"⚠️ 写入失败：{ex.Message}"); }
+                        return ($"{bytes.Length:#,0} 字节", null);
+                    }
+
+                    var (text, err2) = MauiVml.CompileToVml(absPath, cts.Token);
+                    if (text == null) return (null, err2);
+                    try
+                    {
+                        // 原子写 + UTF-8 **不带 BOM**：产物动辄几十万字符，写到一半崩掉会留下半截文件；
+                        // 带 BOM 则会让汇编器认不出首行的 `.entry`。
+                        SandboxFsService.WriteTextAtomic(outRel, text, new System.Text.UTF8Encoding(false), crlf: false);
+                    }
                     catch (Exception ex) { return (null, $"⚠️ 写入失败：{ex.Message}"); }
-                    return ($"{bytes.Length:#,0} 字节", null);
-                }
+                    return ($"{text.Length:#,0} 字符", null);
+                });
 
-                var (text, err2) = MauiVml.CompileToVml(absPath);
-                if (text == null) return (null, err2);
-                try
-                {
-                    // 原子写 + UTF-8 **不带 BOM**：产物动辄几十万字符，写到一半崩掉会留下半截文件；
-                    // 带 BOM 则会让汇编器认不出首行的 `.entry`。
-                    SandboxFsService.WriteTextAtomic(outRel, text, new System.Text.UTF8Encoding(false), crlf: false);
-                }
-                catch (Exception ex) { return (null, $"⚠️ 写入失败：{ex.Message}"); }
-                return ($"{text.Length:#,0} 字符", null);
-            });
-
-            return error != null
-                ? error
-                : $"✔ 已生成 {outRel}（{note}）\n回文件页点它选「VML 运行」即可执行。";
+                return error != null
+                    ? error
+                    : $"✔ 已生成 {outRel}（{note}）\n回文件页点它选「VML 运行」即可执行。";
+            }
+            finally
+            {
+                _runCts = null;
+                cts.Dispose();
+                // 顺序同 ExecVmlAsync：先摘信号（此时 `_runCts` 已空）再放行等待方
+                _runDone = null;
+                done.TrySetResult();
+            }
         });
     }
 
@@ -287,6 +319,12 @@ public partial class ShellPage : ContentPage
     private void RefreshCwd()
     {
         if (!_busy) PromptLabel.Text = Prompt;
+
+        // 缩写**失败**才记一行日志（成功是常态，记了就是刷屏）。这一行的价值在于：
+        // 提示符显示错的时候，`CwdContext.Root` 与沙箱根到底哪个不一样，一眼就能看出来 ——
+        // 否则只能靠猜（实测就为这个多跑了一轮装机）。
+        if (!string.IsNullOrEmpty(CwdContext.Root) && Prompt.Length > 1 && Prompt[0] != '~')
+            ErrorLog.Info("ShellPage", $"提示符未缩写：cwd={CwdContext.Root} 沙箱根={SandboxFsService.Root}");
     }
 
     /// <summary>

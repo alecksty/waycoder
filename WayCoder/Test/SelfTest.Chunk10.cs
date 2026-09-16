@@ -564,8 +564,79 @@ public static partial class SelfTest
             VmlKeys.Left == 37 && VmlKeys.Up == 38 && VmlKeys.Right == 39 && VmlKeys.Down == 40
             && VmlKeys.Enter == 13 && VmlKeys.Space == 32 && VmlKeys.Escape == 27);
 
+        TestVmlFeel(Section, Check);
+
         TestShellCommands(Section, Check);
         TestScrollBarMath(Section, Check);
+    }
+
+    // ═══ VML 手感接口（音效 / 震动 / 持久化）的纯逻辑 ═══
+    //
+    // 这一组的意义全在**钳位与清洗**：号段本身没什么可测的（宿主认了号就会调到），
+    // 但参数是 VML 程序给的 —— 频率传 0、时长传负数、键里塞奇怪字符，
+    // 下游要么静默没反应、要么把平台存储写坏，而且**都看不出是参数问题**。
+    static void TestVmlFeel(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("VML 手感接口（音效 / 震动 / 持久化）");
+
+        // 号：这一段用的都是 541–553，别和已有的撞（撞了 handle 里 switch 会先命中先写的那个）
+        var feel = new[] { VmlUi.AudioPlay, VmlUi.AudioStop, VmlUi.AudioVolume,
+                           VmlUi.Vibrate, VmlUi.VibratePattern,
+                           VmlUi.StoreSet, VmlUi.StoreGet, VmlUi.StoreDel, VmlUi.ScreenKeepOn };
+        Check("VmlUi: 手感接口号唯一且都在保留段内",
+            feel.Distinct().Count() == feel.Length && feel.All(n => n is >= 500 and <= 599));
+
+        // 音效走的是 **VM 内置的 #57**（宿主截住它接到真实音频），不是新号 ——
+        // 这条断言钉住"只截这一个内置号"：`Handles()` 必须仍然只认 500–599，
+        // 否则会把别的内置 syscall 一并吞掉（那是最难查的一类故障）。
+        Check("VmlUi: 音效复用 VM 内置 #57（不新增平行接口）", VmlUi.VmSpeakerBeep == 57);
+        Check("VmlUi: 截 #57 不等于把号段扩到内置区",
+            !VmlUi.Handles(VmlUi.VmSpeakerBeep) && VmlUi.Handles(500) && VmlUi.Handles(599));
+        Check("VmlUi: 随机/时间复用 VM 内置（#50/#53/#54），未另立接口",
+            feel.All(n => n is not (50 or 51 or 53 or 54)));
+
+        // ── 音效参数钳位 ──
+        var t = VmlUi.ClampTone(440, 120, 1, 80);
+        Check("ClampTone: 正常值原样通过", t == (440, 120, 1, 80));
+
+        var lo = VmlUi.ClampTone(0, 0, -5, -1);
+        Check("ClampTone: 0/负数被抬到下限（不是静默不响）",
+            lo.Hz == VmlUi.ToneMinHz && lo.Ms == 1 && lo.Wave == 0 && lo.Volume == 0);
+
+        var hi = VmlUi.ClampTone(999999, 999999, 99, 999);
+        Check("ClampTone: 超上限被压回（频率/时长/波形/音量各一档）",
+            hi.Hz == VmlUi.ToneMaxHz && hi.Ms == VmlUi.ToneMaxMs
+            && hi.Wave == 3 && hi.Volume == 100);
+
+        Check("ClampVolume: 只有 0–100 两档边界内", VmlUi.ClampVolume(-9) == 0 && VmlUi.ClampVolume(101) == 100
+            && VmlUi.ClampVolume(50) == 50);
+
+        // ── 震动模式钳位 ──
+        var pat = VmlUi.ClampVibratePattern([0, 50, 100, 50]);
+        Check("ClampVibratePattern: 正常模式原样（静/动交替）",
+            pat.Length == 4 && pat.SequenceEqual(new long[] { 0, 50, 100, 50 }));
+
+        var many = VmlUi.ClampVibratePattern(Enumerable.Repeat(10, 100).ToArray());
+        Check("ClampVibratePattern: 段数截到上限（否则程序能让手机抖一分钟）",
+            many.Length == VmlUi.VibrateMaxSegments);
+
+        var longSeg = VmlUi.ClampVibratePattern([-5, 999999]);
+        Check("ClampVibratePattern: 单段钳到 0..上限",
+            longSeg[0] == 0 && longSeg[1] == VmlUi.VibrateMaxSegmentMs);
+
+        Check("ClampVibratePattern: 空模式不抛（返回空数组）",
+            VmlUi.ClampVibratePattern([]).Length == 0);
+
+        // ── 持久化键清洗（与 App 自己的 Preferences 隔离）──
+        Check("StoreKey: 加 vml. 前缀", VmlUi.StoreKey("highscore") == "vml.highscore");
+        Check("StoreKey: 保留字母数字与 . _ -", VmlUi.StoreKey("a.b_c-d1") == "vml.a.b_c-d1");
+        Check("StoreKey: 空格转下划线", VmlUi.StoreKey("my key") == "vml.my_key");
+        Check("StoreKey: 丢掉落字符（键是程序起的，丢了不歧义）",
+            VmlUi.StoreKey("a/b\\c:d*e") == "vml.abcde");
+        Check("StoreKey: 空/纯空白/只有非法字符 → null（调用方当失败）",
+            VmlUi.StoreKey("") == null && VmlUi.StoreKey("   ") == null
+            && VmlUi.StoreKey(null) == null && VmlUi.StoreKey("///") == null);
+        Check("StoreKey: 前后空白先裁掉", VmlUi.StoreKey("  hi  ") == "vml.hi");
     }
 
     // ═══ 命令行页：命令注册表 / 滚动条几何 ═══

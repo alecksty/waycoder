@@ -183,9 +183,9 @@ HALT
     public static string CompileAndRun(string filePath, int timeoutSeconds = 30, Func<string>? readLine = null,
         CancellationToken ct = default)
     {
-        // 编译本身不可中断（前端编译是同步的），取消只作用于**运行**那一段 ——
-        // 而"编译慢"和"程序跑不完"是两回事，用户在命令行页上要停的是后者。
-        var (prog, _, error) = BuildProgram(filePath);
+        // `ct` 对两段都有效：编译段是"带超时地等一个不可取消的编译"（见 BuildProgram 的看门狗），
+        // 运行段是"主循环每条指令查一次"。用户按「强制停止」时两段都能停下来。
+        var (prog, _, error) = BuildProgram(filePath, ct);
         return prog == null ? error! : RunProgram(prog, timeoutSeconds, readLine, ct);
     }
 
@@ -203,9 +203,9 @@ HALT
     /// ⚠ `ToString()` 会**就地**做死代码消除，调用之后这个 prog 不能再拿去跑（所以先编文本、后跑
     /// 是两条独立的路，各自 BuildProgram 一次）。同步阻塞，调用方自己放后台线程。
     /// </summary>
-    public static (string? Text, string? Error) CompileToVml(string filePath)
+    public static (string? Text, string? Error) CompileToVml(string filePath, CancellationToken ct = default)
     {
-        var (prog, _, error) = BuildProgram(filePath);
+        var (prog, _, error) = BuildProgram(filePath, ct);
         return prog == null ? (null, error) : (prog.ToString(), null);
     }
 
@@ -277,7 +277,16 @@ HALT
     ///
     /// 失败时 <c>Prog</c> 为 null、<c>Error</c> 是可读原因（照旧带 ⚠️ 前缀，与其它失败文案一致）。
     /// </summary>
-    private static (VmlProgram? Prog, string Lang, string? Error) BuildProgram(string filePath)
+    /// <summary>
+    /// 前端编译的**看门狗**（秒）。超了就报错收场，不再傻等。
+    ///
+    /// ⚠ 值必须**明显大于合法编译的耗时**，否则会把正常程序误杀：手机上一份 C 程序
+    /// （前端 + 汇编 + 链接 3.7 万条指令）实测要**一分多钟**，所以给到 180 秒 ——
+    /// 它防的是"编译器自己卡死"（源码里有让前端死循环的写法），不是"慢"。
+    /// </summary>
+    public const int CompileTimeoutSeconds = 180;
+
+    private static (VmlProgram? Prog, string Lang, string? Error) BuildProgram(string filePath, CancellationToken ct)
     {
         if (!File.Exists(filePath)) return (null, "", $"⚠️ 找不到文件：{filePath}");
 
@@ -342,11 +351,40 @@ HALT
             return (null, lang, "⚠️ 标准库清单为空 —— 多半是 `vmltool.config.xml` 没跟着解压出来（或解压目录不对）。"
                  + "没有它，`LinkLibraries` 会直接跳过整个链接阶段。");
 
-        // 前端编译同样是个静默段（手机上几秒）—— 与解压那条提示同一个道理
-        OnProgress?.Invoke($"⏳ 正在编译 {Path.GetFileName(filePath)}（前端编译 + 链接标准库，手机上要几秒）…");
+        // 前端编译同样是个静默段（手机上**一分钟起步**）—— 与解压那条提示同一个道理
+        OnProgress?.Invoke($"⏳ 正在编译 {Path.GetFileName(filePath)}（前端编译 + 链接标准库，手机上要一两分钟）…");
 
-        var vmlText = ex.CompileFileWithIncludes(filePath, includePaths, libraryPaths,
-            autoLinkStdLib: true, useSharedLibrary: true);
+        // **看门狗**：前端编译是同步的、且**没有取消入口**（`IFrontendCompiler` 上没有任何 token），
+        // 所以只能把它丢到独立线程上跑，主线程**带超时地等**。
+        //
+        // 为什么非要有：某些源码会让编译器自己陷进去（死循环/病态输入），而这条链上
+        // **从前没有任何出口** —— 界面卡在"正在编译…"永远不出来，用户连「强制停止」都按不动
+        // （那个 token 只作用于 VM 的运行阶段，编译根本没走到）。
+        //
+        // ⚠ 说清楚代价：超时之后**那个编译线程还在跑**（.NET 没法中止线程），会一直烧一个核，
+        // 直到它自己结束或 App 退出。所以这只是"把控制权还给用户"，不是"杀掉编译" ——
+        // 在手机上没有 fork/exec 可用，这是唯一做得到的形态。
+        var compile = Task.Run(() => ex.CompileFileWithIncludes(filePath, includePaths, libraryPaths,
+            autoLinkStdLib: true, useSharedLibrary: true), ct);
+
+        string vmlText;
+        try
+        {
+            if (!compile.Wait(TimeSpan.FromSeconds(CompileTimeoutSeconds), ct))
+            {
+                // 早退之后这个 Task 没人 await：挂个空的续体把异常吃掉，
+                // 否则它最终抛出来会变成"未观察的任务异常"（只在日志里，看不出是谁）。
+                _ = compile.ContinueWith(static t => _ = t.Exception, TaskScheduler.Default);
+                return (null, lang, $"⚠️ 编译超时（{CompileTimeoutSeconds} 秒）—— 多半是源码里有让前端编译器"
+                    + "卡住的写法。编译线程还在后台跑，建议改完源码再试；实在不行退出 App 重来。");
+            }
+            vmlText = compile.Result;
+        }
+        catch (OperationCanceledException)
+        {
+            _ = compile.ContinueWith(static t => _ = t.Exception, TaskScheduler.Default);
+            return (null, lang, "⏹ 编译已被停止。");
+        }
 
         // **自检：产物得像 VML 汇编。**
         // 上游那个「失败就静默原样返回」的行为会把所有编译错误伪装成汇编期的

@@ -1,6 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-	<application android:allowBackup="true" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true" android:largeHeap="true">
+	<!-- android:label 引用**字符串资源**而不是字面量：只有这样才能按系统语言变
+	     （中文 → 道码、英文 → WayCoder，见 Resources/values*/strings.xml）。
+	     写成字面量的话 csproj 的 ApplicationTitle 也会来插一脚，两边必然打架。 -->
+	<application android:allowBackup="true" android:label="@string/app_name" android:icon="@mipmap/appicon" android:roundIcon="@mipmap/appicon_round" android:supportsRtl="true" android:largeHeap="true">
 		<!-- FileProvider：仅暴露沙箱 workspace（file_paths.xml），供「用外部应用打开」生成 content:// URI。
 		     authority 必须为 {applicationId}.fileprovider，MAUI Launcher 在 Android 端按此找 FileProvider。 -->
 		<provider
@@ -19,6 +22,9 @@
 	<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
 	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
 	<uses-permission android:name="android.permission.RECORD_AUDIO" />
+	<!-- VML 程序的震动（syscall 545/546）。**normal 级权限：装上即生效，不用运行时申请**；
+	     漏了声明的表现是"调了没反应"，而且 Vibrate 对无权限的调用是**静默失败**、不抛异常。 -->
+	<uses-permission android:name="android.permission.VIBRATE" />
 	<!-- workspace 放外部存储（/storage/emulated/0/WayCoder/workspace），卸载重装代码不丢。
 	     Android 11+ 需要「所有文件访问」MANAGE_EXTERNAL_STORAGE，设置页引导授予。 -->
 	<uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />

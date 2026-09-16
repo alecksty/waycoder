@@ -108,7 +108,7 @@ public partial class FilesPage : ContentPage
         var canRun = entry.Vml != SandboxFsService.VmlRole.None;
 
         var actions = new List<string>();
-        if (entry.Category == SandboxFsService.FileCategory.Source) actions.Add("打开");
+        if (entry.CanEdit) actions.Add("打开");   // 是文本就该能改（含 `.vml` 与各种可编译源码）
         if (canCompile) actions.Add("VML 编译");
         if (canRun) actions.Add("VML 运行");
         actions.Add("用外部应用打开");

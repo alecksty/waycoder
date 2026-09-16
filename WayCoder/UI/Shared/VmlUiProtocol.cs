@@ -135,6 +135,122 @@ public static class VmlUi
         return (Math.Clamp(w, 120, 2048), Math.Clamp(h, 120, 4096));
     }
 
+    // ── 手感：音效 / 震动（540–546）──
+    //
+    // 手机上的游戏没有音效和震动就是"没有手感"。这一组刻意**全部零素材、零权限**：
+    // 音效是**现场合成**的（不是播放音频文件），所以不用打包任何资源、不涉及版权；
+    // 震动只要 VIBRATE 这一个 normal 级权限（装上即生效，不用运行时申请）。
+    // 完整接口表见 docs/VML宿主接口.md。
+
+    /// <summary>
+    /// VM **内置**的 PC 喇叭蜂鸣（`SyscallNumber.SpeakerBeep`）—— 宿主把它**接住**，接到真实音频。
+    ///
+    /// ## 为什么是"接住它"而不是新增一个 `AUDIO_TONE(540)`
+    /// 运行时的 `#57` 本来就有（`R0=频率 R1=时长`），但它的实现是交给 `VmSpeakerDevice` ——
+    /// 那个设备**只把样本记进内存/写 WAV 给测试用，不发出任何声音**。手机上跑就是"调了没反应"。
+    ///
+    /// 于是这里有两个选择：**接通它**，或者**再加一个平行的音效接口**。选前者：
+    ///   · VM 的文档/示例/任何语言的前端都已经认这个号，接通一次全都活了；
+    ///   · 加一个平行接口就是"同一件事两处实现"（本仓库头号坑），而且以后两边必然行为不一致。
+    ///
+    /// 宿主处理器**在内置 switch 之前**被调用，所以 `#57` 能在这里被截走 —— 这是该设计允许的用法，
+    /// 而不是绕开它。⚠ 但**只截这一个内置号**：`Handles()` 仍然只认 500–599，
+    /// 免得把别的内置 syscall 一并吞掉（那是最难查的一类故障）。
+    /// </summary>
+    public const int VmSpeakerBeep = 57;
+
+    /// <summary>播放音频文件（BGM）：R0=路径*(沙箱相对) R1=循环(0/1) → 0，失败 -1。</summary>
+    public const int AudioPlay = 541;
+    /// <summary>停掉正在播的音频：→ 0。</summary>
+    public const int AudioStop = 542;
+    /// <summary>设置整体音量：R0=音量(0–100) → 0（对之后播放的音生效）。</summary>
+    public const int AudioVolume = 543;
+
+    /// <summary>震动一下：R0=时长ms R1=强度(0–255，0=用系统默认) → 0。</summary>
+    public const int Vibrate = 545;
+    /// <summary>按节奏震动：R0=模式*(int 数组) R1=段数 → 0（奇数下标=静、偶数下标=动，同 Android 语义）。</summary>
+    public const int VibratePattern = 546;
+
+    // ── 持久化与常亮（550–553）──
+    //
+    // ⚠ **这一组刻意不含"随机数"与"取时间"** —— VM 已经有了，别再实现一遍：
+    //   · `#50` Random / `#51` Seed → `ui_rand` 就是包着它（任何语言都能直接调）
+    //   · `#53` GetTick（VM 启动至今毫秒）/ `#54` GetDateTime（unix **秒**）/ `#55`/`#56` 日期时间串
+    // 同样是"先 grep 有没有现成的"，只不过这里的"仓"是 VM 的内置 syscall 表。
+
+    /// <summary>写入一条持久化键值：R0=键* R1=值* → 0（键会加 `vml.` 前缀，见 <see cref="StoreKey"/>）。</summary>
+    public const int StoreSet = 550;
+    /// <summary>读一条：R0=键* R1=缓冲* R2=容量 → 写入长度；没有这个键返回 -1。</summary>
+    public const int StoreGet = 551;
+    /// <summary>删一条：R0=键* → 0。</summary>
+    public const int StoreDel = 552;
+
+    /// <summary>玩游戏时别熄屏：R0=0 关 / 1 开 → 0。</summary>
+    public const int ScreenKeepOn = 553;
+
+    // ── 参数钳位与解析（纯逻辑，放这里是为了能被主工程自测覆盖）──
+
+    /// <summary>可听频率下限（Hz）。低于它的震动人耳听不到，还会让某些设备的音频栈行为异常。</summary>
+    public const int ToneMinHz = 20;
+    /// <summary>可听频率上限（Hz）。</summary>
+    public const int ToneMaxHz = 20000;
+    /// <summary>单次发声时长上限（ms）—— 再长就不是"音效"而是 BGM 了，用 <see cref="AudioPlay"/>。</summary>
+    public const int ToneMaxMs = 5000;
+    /// <summary>震动模式最多几段（防呆：模式数组是程序给的，不设上限就是"程序能让手机抖一分钟"）。</summary>
+    public const int VibrateMaxSegments = 16;
+    /// <summary>单段震动/静默时长上限（ms）。</summary>
+    public const int VibrateMaxSegmentMs = 10000;
+
+    /// <summary>
+    /// 把 <see cref="AudioTone"/> 的参数钳到安全范围。
+    ///
+    /// **必须在宿主侧钳，不能让下游自己去防**：传 0 或负数会让合成器算出零/负周期，
+    /// 症状是"没声音"甚至"卡住"，而程序那边完全看不出是参数问题
+    /// （这类"看起来更周到、实际更糟"的坑本仓库踩过好几次）。
+    /// </summary>
+    public static (int Hz, int Ms, int Wave, int Volume) ClampTone(int hz, int ms, int wave, int volume)
+        => (Math.Clamp(hz, ToneMinHz, ToneMaxHz),
+            Math.Clamp(ms, 1, ToneMaxMs),
+            Math.Clamp(wave, 0, 3),
+            Math.Clamp(volume, 0, 100));
+
+    /// <summary>音量钳位（BGM 与合成音共用一份口径）。</summary>
+    public static int ClampVolume(int volume) => Math.Clamp(volume, 0, 100);
+
+    /// <summary>
+    /// 持久化键的**加前缀 + 清洗**：空键返回 null（调用方当失败处理）。
+    ///
+    /// 加 `vml.` 前缀是必须的 —— 这些键和 App 自己的 Preferences（主题、模式、编辑器设置）
+    /// 共用一个存储，不隔离就会互相覆盖，而且是"用户改个设置把游戏存档冲了"这种最难查的形态。
+    /// 只留字母/数字/`._-`：Preferences 的键最终落到平台存储（Android 是 XML），
+    /// 塞进奇怪字符出问题时**报错在平台层**，根本看不出是谁写的。
+    /// </summary>
+    public static string? StoreKey(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        var sb = new StringBuilder("vml.");
+        foreach (var ch in raw.Trim())
+        {
+            if (char.IsLetterOrDigit(ch) || ch is '.' or '_' or '-') sb.Append(ch);
+            else if (ch == ' ') sb.Append('_');
+            // 其余字符直接丢：键是程序自己起的，丢了也不会歧义（不像值那样影响语义）
+        }
+        return sb.Length > 4 ? sb.ToString() : null;   // 只有前缀 = 空键
+    }
+
+    /// <summary>
+    /// 把程序给的震动模式（int 数组）钳成平台能接受的毫秒序列。
+    /// 段数截到 <see cref="VibrateMaxSegments"/>、每段截到 <see cref="VibrateMaxSegmentMs"/>。
+    /// </summary>
+    public static long[] ClampVibratePattern(IReadOnlyList<int> segments)
+    {
+        var n = Math.Min(segments.Count, VibrateMaxSegments);
+        var result = new long[n];
+        for (var i = 0; i < n; i++)
+            result[i] = Math.Clamp((long)segments[i], 0, VibrateMaxSegmentMs);
+        return result;
+    }
+
     /// <summary>本协议是否认领该 syscall 号。**不认识必须返回 false**，否则会把内置 syscall 吞掉。</summary>
     public static bool Handles(int syscallNumber) => syscallNumber is >= 500 and <= 599;
 

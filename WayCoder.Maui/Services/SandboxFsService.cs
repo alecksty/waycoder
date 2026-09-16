@@ -13,8 +13,29 @@ namespace WayCoder.Maui.Services;
 /// </summary>
 public static class SandboxFsService
 {
-    /// <summary>文件类型分类：源码/文本→编辑器，图片→预览页，音频/视频→系统播放器，未知→仅外部打开。</summary>
-    public enum FileCategory { Source, Image, Audio, Video, Unknown }
+    /// <summary>
+    /// 文件类型分类（**展示用的那一套，8 类**）：决定图标，以及"能不能打开编辑"。
+    ///
+    /// 顺序就是"越靠前越特别"：**可编译**与**可运行**是 VML 这条线上的两种角色，
+    /// 排在前面；剩下的才是按文件形态分的通用类型。
+    /// 菜单项与配色**不看这里**（那是 <see cref="VmlRole"/> 的活），
+    /// 这里只管"它是什么、长什么样、能不能用编辑器打开"。
+    /// </summary>
+    public enum FileCategory
+    {
+        /// <summary>能被 VML 前端编译的源码（`.c`/`.py`/`.bas`/`.lua`…）—— 可编译、可编辑。</summary>
+        Compilable,
+        /// <summary>能**直接跑**的 VML 产物：`.vml`（汇编源码，可编辑）/ `.vmb`（字节码，二进制）。</summary>
+        Runnable,
+        /// <summary>其他源码与纯文本（`.md`/`.json`/`.txt`/`.sh`…）。</summary>
+        Source,
+        /// <summary>网页（`.html`/`.htm`/`.xhtml`/`.mhtml`）。</summary>
+        Web,
+        Image,
+        Audio,
+        Video,
+        Unknown,
+    }
 
     /// <summary>
     /// 文件在 **VML 这条线上的角色** —— 文件名配色与「VML 编译 / VML 运行」两个菜单项的**唯一判据**。
@@ -56,11 +77,11 @@ public static class SandboxFsService
         ".json",".xml",".html",".htm",".md",".mdx",".sh",".bash",".zsh",".yml",".yaml",".sql",
         ".css",".scss",".rb",".php",".swift",".kt",".kts",".vue",".txt",".log",".csv",".ini",
         ".toml",".conf",".csproj",".sln",".tui",".env",".gitignore",
-        // VML 汇编源码也是**文本源码**：不加这一条它会被判成"未知"，
-        // 连编辑器都打不开（只能用外部应用），而它恰恰是最该能改的那种文件。
-        // `.vmb` 故意不加 —— 那是二进制，进编辑器只会是一屏乱码。
-        ".vml",
     };
+
+    /// <summary>网页扩展名 —— 单独一类（图标 🌐），与普通"源码/文本"分开。</summary>
+    private static readonly HashSet<string> WebExts = new(StringComparer.OrdinalIgnoreCase)
+        { ".html",".htm",".xhtml",".mhtml",".mht" };
     private static readonly HashSet<string> ImageExts = new(StringComparer.OrdinalIgnoreCase)
         { ".png",".jpg",".jpeg",".gif",".webp",".bmp",".svg",".ico" };
     private static readonly HashSet<string> AudioExts = new(StringComparer.OrdinalIgnoreCase)
@@ -68,10 +89,26 @@ public static class SandboxFsService
     private static readonly HashSet<string> VideoExts = new(StringComparer.OrdinalIgnoreCase)
         { ".mp4",".webm",".mkv",".mov",".avi" };
 
-    /// <summary>按扩展名分类文件类型。</summary>
+    /// <summary>
+    /// 按扩展名分类文件类型（**唯一判据**，菜单与图标都从它推）。
+    ///
+    /// VML 的两类**优先于**通用类型判：
+    ///   · `.vml`/`.vmb` → <see cref="FileCategory.Runnable"/>（能直接跑）
+    ///   · 能被 VML 前端编译的 → <see cref="FileCategory.Compilable"/>
+    ///
+    /// ⚠ 第二类**必须问 <see cref="MauiVml.CanCompile"/>，不在这里再抄一份扩展名** ——
+    /// `.lua`/`.pas`/`.bas`/`.r`/`.m`/`.ld`/`.d`/`.f90` 这些 VML 前端认、而
+    /// <see cref="SourceExts"/> 那张表没列；不这么判的话它们在文件页里**连「打开」都没有**，
+    /// 而它们恰恰是最该能改的那种文件（用户实测反馈：所有能编译的源码都该能编辑）。
+    /// </summary>
     public static FileCategory DetectCategory(string path)
     {
         var ext = System.IO.Path.GetExtension(path);
+        if (ext.Equals(".vml", StringComparison.OrdinalIgnoreCase)
+            || ext.Equals(".vmb", StringComparison.OrdinalIgnoreCase))
+            return FileCategory.Runnable;
+        if (MauiVml.CanCompile(path)) return FileCategory.Compilable;
+        if (WebExts.Contains(ext)) return FileCategory.Web;
         if (SourceExts.Contains(ext)) return FileCategory.Source;
         if (ImageExts.Contains(ext)) return FileCategory.Image;
         if (AudioExts.Contains(ext)) return FileCategory.Audio;
@@ -79,10 +116,20 @@ public static class SandboxFsService
         return FileCategory.Unknown;
     }
 
-    /// <summary>文件类型图标。</summary>
+    /// <summary>
+    /// 文件类型图标 —— **图标要说"这个文件能干什么"**：
+    /// 可编译 📐（要"画图纸"编译一下才能跑）、可运行 🚀（直接就能跑）、
+    /// 源码/文本 📝、网页 🌐、图像 🖼、声音 🎵、视频 🎬、未知 📄。
+    ///
+    /// ⚠ Unicode 里**没有"圆规"这个 emoji**，📐（三角尺）是制图工具里最接近的一个；
+    /// 真要一个圆规图形就得换成打包的自绘图标（`FontImageSource` / SVG），那是另一件事。
+    /// </summary>
     public static string CategoryIcon(FileCategory c) => c switch
     {
+        FileCategory.Compilable => "📐",
+        FileCategory.Runnable => "🚀",
         FileCategory.Source => "📝",
+        FileCategory.Web => "🌐",
         FileCategory.Image => "🖼",
         FileCategory.Audio => "🎵",
         FileCategory.Video => "🎬",
@@ -134,6 +181,19 @@ public static class SandboxFsService
         }
 
         public string Icon => IsDirectory ? "📁" : CategoryIcon(Category);
+
+        /// <summary>
+        /// 能不能用内置编辑器打开。
+        ///
+        /// **判据是"它是不是文本"，不是"它是什么类型"** —— 所以：
+        ///   · 可编译源码 / `.vml` 汇编 / 其他源码文本 / 网页 → 能（它们都是文本，都该能改）
+        ///   · `.vmb`（字节码）→ **不能**：二进制进编辑器只会是一屏乱码
+        ///   · 图像/声音/视频/未知 → 不能（各自有用系统应用打开的路径）
+        /// </summary>
+        public bool CanEdit => !IsDirectory
+            && Vml != VmlRole.Binary
+            && Category is FileCategory.Compilable or FileCategory.Runnable
+                        or FileCategory.Source or FileCategory.Web;
         public string DisplaySize => IsDirectory ? "" : FormatSize(Size);
         public string DisplayModified => Modified.ToString("MM-dd HH:mm");
 
@@ -351,12 +411,21 @@ public static class SandboxFsService
         try
         {
             var root = Path.GetFullPath(Root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            if (string.Equals(Path.GetFullPath(fullPath).TrimEnd(Path.DirectorySeparatorChar), root,
-                    StringComparison.OrdinalIgnoreCase))
-                return "~";   // 就是工作区根本身（ToRelative 对它是 null，得单独兜）
+            var full = Path.GetFullPath(fullPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
-            var rel = ToRelative(fullPath);
-            return rel == null ? fullPath : "~/" + rel.Replace('\\', '/');
+            // **按前缀判断，不调 ToRelative**。
+            // ToRelative 要求「root + 分隔符」严格前缀 ⇒ **根自己**传进去返回 null
+            //（原来这里用一条等值分支单独兜它）。而"根自己"恰恰是提示符最常见的输入
+            //（`~>` 就是 `Abbreviate(工作区根)`），两条分支各判一次既啰嗦又容易只对一边
+            // —— 实测真机上就出过"`vml build ~/examples/x.c` 缩写对了、提示符却打出完整路径"。
+            if (full.Length < root.Length) return fullPath;              // 比根还短 ⇒ 不是根内路径
+            if (full.Length == root.Length)
+                return string.Equals(full, root, StringComparison.OrdinalIgnoreCase) ? "~" : fullPath;
+            if (!full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+                && !full.StartsWith(root + Path.AltDirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                return fullPath;                                          // 根外：原样返回，宁可长
+
+            return "~/" + full[(root.Length + 1)..].Replace('\\', '/');
         }
         catch
         {

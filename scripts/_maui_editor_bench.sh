@@ -16,7 +16,7 @@
 set -uo pipefail
 
 SERIAL="${SERIAL:-cd53cb14}"
-PKG="${PKG:-com.companyname.waycoder.maui}"
+PKG="${PKG:-com.tanso.waycoder}"
 N="${1:-6}"
 
 adb -s "$SERIAL" logcat -c 2>/dev/null

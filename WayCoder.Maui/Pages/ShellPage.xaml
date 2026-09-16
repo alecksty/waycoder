@@ -72,7 +72,8 @@
                 Grid.Column="0"
                 Text="~>"
                 FontSize="13"
-                LineBreakMode="NoWrap"
+                LineBreakMode="MiddleTruncation"
+                MaximumWidthRequest="132"
                 VerticalOptions="Center" />
             <!-- ⚠ `Keyboard="Plain"` 是**必须的**，不是样式偏好：
                  Android 输入法默认**自动首字母大写**，`cd /sdcard` 会被送成 `CD /sdcard`，
