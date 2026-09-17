@@ -1,3 +1,57 @@
+## v0.96.213 (2026-09-18) — macOS(MacCatalyst) 与 iOS 端 VML 游戏跑通 + 音效验证；**Xcode 27 把 Simulator.app 换成了 DeviceHub.app**
+
+这一版**没有改任何生产代码** —— 产出是「两端跑通并验证音效」这个结论，外加三条**下次一定会再撞上**
+的环境事实。排查用的探针加了又撤，工作区回到干净状态（`git diff` 为空）。
+
+### ① 两端都跑通了，能玩完整的一局
+
+- **macOS（MacCatalyst）**：`WayCoder.app`（`-f net10.0-maccatalyst27.0`）。五子棋跑完整局 ——
+  棋盘/黑白棋子/落子标记/「电脑赢了。再来一局？」对话框/屏幕手柄/「▲ 收起手柄」折叠条全正常；
+  另跑了贪吃蛇、吃豆人。
+- **iOS**：iPhone 17 Pro 模拟器（iOS 26.5，`-f net10.0-ios27.0`）。五子棋同上，中文渲染与手柄区一致。
+- 两端 `VmlAudio` 都走 `#elif IOS || MACCATALYST` 那一支，日志实测 `分支=APPLE` + `engineRunning=True`。
+
+### ② 「游戏正常、就是没声音」的真因**不在代码，在增量构建**
+
+链路本身是通的。加探针重新构建后，日志立刻变成：
+
+```
+[VmlAudio] Tone hz=880 ms=25 分支=APPLE
+[VmlAudio] ToneCore 已调度 hz=880 ms=25 frames=1102 engineRunning=True
+```
+
+**探针不改变任何逻辑**，两次构建唯一的差别就是「重新构建了一次」⇒ 先前那次是**增量构建没把
+`VmlAudio` 的新代码编进去**。**下次遇到「改了没生效 / 编译全绿但行为是旧的」，先 `-t:Rebuild`
+或清 `obj/` 再谈其他。**
+
+排查途中还踩了一个**自己造的坑**：`dotnet msbuild -getProperty:DefineConstants` 的输出里**只有**
+`__MACCATALYST__` 而没有 `MACCATALYST`，据此差点判定「符号没定义、静默走了空实现分支」。
+**那个属性不等于编译器实际收到的全部符号，别拿它当判据** —— 要判就用 `#if` 探针实测
+（本次正是靠探针才把结论从「编译期」拨回「构建缓存」）。
+
+### ③ ⚠ Xcode 27 把 `Simulator.app` 换成了 `DeviceHub.app`（环境变更）
+
+全盘 `find` + `mdfind`（按名字、按 `com.apple.iphonesimulator`）都找不到模拟器 ——
+**这不是装坏了，是 Xcode 27（2026-06）的有意变更**：
+
+| | Xcode 26 及以前 | Xcode 27 |
+|---|---|---|
+| 应用 | `Xcode.app/Contents/Developer/Applications/Simulator.app` | `Xcode.app/Contents/Applications/DeviceHub.app` |
+| bundle id | `com.apple.iphonesimulator` | `com.apple.dt.Devices` |
+
+**后果**：`open -a Simulator`、按旧路径 `open`、以及 `xcodebuild -downloadComponent Simulator`
+（**该组件类型根本不存在**，合法值如 `MetalToolchain`）全部失败。**驱动模拟器要 `open`
+那个 `Contents/Applications/DeviceHub.app`**；`xcrun simctl` 一侧一切照旧（boot/install/launch/
+io screenshot 都正常，只是它**不提供触控命令**）。
+另：升级 Xcode 时旧 Simulator 进程可能变成**孤儿**（bundle 已被删、进程还活着，`ps` 里有路径
+但那个文件不存在）—— 别被它误导去找那个路径。
+
+### ④ MAUI 的 Apple TFM 名字里带着 SDK 版本
+
+`-f net10.0-maccatalyst` 会报 `NETSDK1005`（assets 里没这个目标）。真名是
+**`net10.0-maccatalyst27.0`** / **`net10.0-ios27.0`** —— csproj 的 `AppleSdkVersion` 被拼进了 TFM。
+查法：`obj/project.assets.json` 的 `targets` 键，或 `dotnet msbuild <proj> -p:TargetFramework=… -getProperty:DefineConstants`。
+
 ## v0.96.212 (2026-09-17) — 吃豆人「按键有反应、人不动」的根因在 **C 前端**：初始化器里的负数被编成 0
 
 用户真机上「手机版 WayCoder 用 VML 的 C 写游戏，写着写着不行了」这条线，最后落在
