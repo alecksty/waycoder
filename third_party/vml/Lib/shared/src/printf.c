@@ -183,6 +183,14 @@ int vsnprintf(char *buf, const char *fmt, const int *args, int nargs) {
             if (*fmt == 'l') { fmt++; } // %lld 等同 %ld
         } else if (*fmt == 'h') { fmt++; if (*fmt == 'h') fmt++; }
 
+        // ⚠ `%%` 必须在这里处理 —— 它**不消耗任何实参**。
+        //   此前它靠下面分派链尾部的 `else if (*fmt == '%')` 兜，但那已经太晚了：
+        //   中间这段「读取参数值」在 ai >= nargs 时会走 `else { fmt++; continue; }`
+        //   ⇒ `printf("100%%")` 这种（没有实参）会把第二个 `%` 悄悄吃掉、
+        //   **一个字都不输出、pos 也不增**，而且没有任何报错。
+        //   实测 `vsnprintf(b,"P=%%",args,0)` 得 len=2、buf=`P=`（应为 len=3、`P=%`）。
+        if (*fmt == '%') { pos += emit(bufI, pos, '%'); fmt++; continue; }
+
         // 读取参数值
         int val = 0;
         long long val64 = 0;
