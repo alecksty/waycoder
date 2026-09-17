@@ -551,41 +551,28 @@ namespace CCompiler
                 
                 var (hexOriginalFile, hexOriginalLine) = GetOriginalFileAndLine(startLine);
                 string hexSourceLine = GetLine(startLine);
-                try
+                // ⚠ 两处硬伤（实测：`0xAAAAAAAAAAAAAAAAUL` / `0xFFFFFFFFUL` / `0xFFFFFFFFFFUL`
+                //   等一律报 `Value was either too large or too small for a UInt64`，
+                //   导致 `Lib/shared/src/bitops64.c` **整份编不出来**）：
+                //   ① `value` 是**带 `0x` 前缀**的（上面拼进去的），而 .NET 的
+                //      `Convert.To* (s, fromBase)` **不接受进制前缀** —— 必须先剥掉；
+                //   ② 十六进制字面量**按有符号 `ToInt64` 解析** ——
+                //      `0xAAAAAAAAAAAAAAAA` 这种"位模式"写法一超 int64 就抛，
+                //      而 C 里十六进制常量本来就常用来表示**无符号位模式**
+                //      ⇒ 一律按**无符号 64 位**解析，由后缀决定怎么装进 token。
+                string hexOnly = value.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+                    ? value.Substring(2) : value;
+                if (hexOnly.Length == 0 ||
+                    !ulong.TryParse(hexOnly, System.Globalization.NumberStyles.HexNumber,
+                                    System.Globalization.CultureInfo.InvariantCulture, out ulong u64))
                 {
-                    if (hexSuffix.Contains('U'))
-                    {
-                        if (hexSuffix.Contains('L'))
-                        {
-                            ulong u64 = System.Convert.ToUInt64(value, 16);
-                            return new Token(TokenType.NUMBER, unchecked((int)(uint)u64), startLine, startCol, hexSourceLine, hexOriginalFile, hexOriginalLine);
-                        }
-                        uint unsignedValue = System.Convert.ToUInt32(value, 16);
-                        return new Token(TokenType.NUMBER, unchecked((int)unsignedValue), startLine, startCol, hexSourceLine, hexOriginalFile, hexOriginalLine);
-                    }
-                    else if (hexSuffix.Contains('L'))
-                    {
-                        long i64 = System.Convert.ToInt64(value, 16);
-                        return new Token(TokenType.NUMBER, (int)(i64 & 0xFFFFFFFF), startLine, startCol, hexSourceLine, hexOriginalFile, hexOriginalLine);
-                    }
-                    else
-                    {
-                        // 尝试 int32, 溢出回退到 int64 → int
-                        long lv = System.Convert.ToInt64(value, 16);
-                        if (lv < int.MinValue || lv > uint.MaxValue)
-                        {
-                            // 64 位常量: 取低 32 位保持位模式
-                            return new Token(TokenType.NUMBER, (int)(lv & 0xFFFFFFFF), startLine, startCol, hexSourceLine, hexOriginalFile, hexOriginalLine);
-                        }
-                        int iv = System.Convert.ToInt32(value, 16);
-                        return new Token(TokenType.NUMBER, iv, startLine, startCol, hexSourceLine, hexOriginalFile, hexOriginalLine);
-                    }
-                } catch (OverflowException)
-                {
-                    // 溢出时将 hex 值作为无符号 double 处理（去掉 0x 前缀）
-                    string hexOnly = value.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? value.Substring(2) : value;
-                    return new Token(TokenType.NUMBER, (double)System.Convert.ToUInt64(hexOnly, 16), startLine, startCol, hexSourceLine, hexOriginalFile, hexOriginalLine);
+                    throw new CompilerBase.ParseException(ErrorCode.Lexer_InvalidNumberSuffix,
+                        $"无效的十六进制常量: '{value}{hexSuffix}'");
                 }
+                // token 的 Value 只承载 32 位（前端对 64 位常量的既有约定是保留低 32 位位模式），
+                // 但**解析阶段不能因为超出 int64 就抛** —— 那是两个不同的问题。
+                return new Token(TokenType.NUMBER, unchecked((int)(uint)u64),
+                                 startLine, startCol, hexSourceLine, hexOriginalFile, hexOriginalLine);
             }
 
             // 处理八进制 (C标准: 前导0后跟0-7数字)

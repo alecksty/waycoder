@@ -272,7 +272,11 @@ internal static class Program
             catch (Exception ex)
             {
                 Console.SetOut(prevOut);
+                // ⚠ 只打 `ex.Message` 会把**唯一能定位的线索（堆栈）**吞掉 ——
+                //   实测 `bitops64.c` 报 "Value was either too large or too small for a
+                //   UInt64."，而全树搜不到任何 `ToUInt64` 调用 ⇒ 没有堆栈就完全查不下去。
                 Console.Error.WriteLine($"✘ 重建失败：{ex.Message}");
+                Console.Error.WriteLine(ex.ToString());
                 // `StringWriter` 没有 `Length`（要经 `GetStringBuilder()`）——
                 // 与上面 `BuildProgram` 里用 `StringBuilder` 记日志的写法不同，别照抄。
                 if (sink.GetStringBuilder().Length > 0) Console.Error.WriteLine(sink.ToString());

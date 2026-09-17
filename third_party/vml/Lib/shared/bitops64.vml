@@ -1,92 +1,141 @@
-.entry main
-.stack 0
-.vectors 0x0
 
 .data
+i64_81630034: .dword 1
+i64_81630045: .dword 1
+i64_81630056: .dword 1
+i64_81630067: .dword 1431655765
+i64_81630068: .dword 858993459
+i64_81630069: .dword 858993459
+i64_81630070: .dword 252645135
+i64_81630071: .dword 16843009
+i64_81630073: .dword 2863311530
+i64_81630074: .dword 1431655765
+i64_81630075: .dword 3435973836
+i64_81630076: .dword 858993459
+i64_81630077: .dword 4042322160
+i64_81630078: .dword 252645135
+i64_81630079: .dword 4278255360
+i64_81630080: .dword 16711935
+i64_81630081: .dword 4294901760
+i64_81630082: .dword 65535
+i64_81630096: .dword 1
+i64_81630112: .dword 1
 
 .text
+lbit_and64:
+; -------------------------------------------
+; source   : long lbit_and64(long a,long b)
+; function : lbit_and64
+; param   : long a
+; param   : long b
+; return   : long
+; --------------------------------------------
 lbit_and64:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        jmp L81630000
-L81630000:
+        movel R0 R1
+        jmp L_81630000
+L_81630000:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+lbit_or64:
+; -------------------------------------------
+; source   : long lbit_or64(long a,long b)
+; function : lbit_or64
+; param   : long a
+; param   : long b
+; return   : long
+; --------------------------------------------
 lbit_or64:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
+        popl R1
         or R1 R0
-        move R0 R1
-        jmp L81630001
-L81630001:
+        movel R0 R1
+        jmp L_81630001
+L_81630001:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+lbit_xor64:
+; -------------------------------------------
+; source   : long lbit_xor64(long a,long b)
+; function : lbit_xor64
+; param   : long a
+; param   : long b
+; return   : long
+; --------------------------------------------
 lbit_xor64:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
+        popl R1
         xor R1 R0
-        move R0 R1
-        jmp L81630002
-L81630002:
+        movel R0 R1
+        jmp L_81630002
+L_81630002:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+lbit_not64:
+; -------------------------------------------
+; source   : long lbit_not64(long a)
+; function : lbit_not64
+; param   : long a
+; return   : long
+; --------------------------------------------
 lbit_not64:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movel R0 [R12+12]
         not R0
-        jmp L81630003
-L81630003:
+        jmp L_81630003
+L_81630003:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+lbit_shl64:
+; -------------------------------------------
+; source   : long lbit_shl64(long a,long bits)
+; function : lbit_shl64
+; param   : long a
+; param   : long bits
+; return   : long
+; --------------------------------------------
 lbit_shl64:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jle _L81630006
         move R0 #0
         jmp _L81630007
@@ -96,15 +145,15 @@ _L81630007:
         cmp R0 #0
         jz sta_81630004
         movel R0 [R12+12]
-        jmp L81630008
+        jmp L_81630008
 sta_81630004:
 sta_81630005:
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #64
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jge _L81630011
         move R0 #0
         jmp _L81630012
@@ -114,35 +163,40 @@ _L81630012:
         cmp R0 #0
         jz sta_81630009
         move R0 #0
-        jmp L81630008
+        jmp L_81630008
 sta_81630009:
 sta_81630010:
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        jmp L81630008
-L81630008:
+        movel R0 R1
+        jmp L_81630008
+L_81630008:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+lbit_shr64:
+; -------------------------------------------
+; source   : long lbit_shr64(long a,long bits)
+; function : lbit_shr64
+; param   : long a
+; param   : long bits
+; return   : long
+; --------------------------------------------
 lbit_shr64:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jle _L81630015
         move R0 #0
         jmp _L81630016
@@ -152,15 +206,15 @@ _L81630016:
         cmp R0 #0
         jz sta_81630013
         movel R0 [R12+12]
-        jmp L81630017
+        jmp L_81630017
 sta_81630013:
 sta_81630014:
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #64
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jge _L81630020
         move R0 #0
         jmp _L81630021
@@ -170,124 +224,140 @@ _L81630021:
         cmp R0 #0
         jz sta_81630018
         move R0 #0
-        jmp L81630017
+        jmp L_81630017
 sta_81630018:
 sta_81630019:
         movel R0 [R12+12]
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        dpush R0
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        jmp L81630017
-L81630017:
+        movel R0 R1
+        jmp L_81630017
+L_81630017:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+lrol64:
+; -------------------------------------------
+; source   : long lrol64(long val,long bits)
+; function : lrol64
+; param   : long val
+; param   : long bits
+; return   : long
+; --------------------------------------------
 lrol64:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         movel R0 [R12+12]
-        movel [R12-8] R0
+        movel [R12-12] R0
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #63
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
+        movel R0 R1
         movel [R12+20] R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 [R12-12]
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #64
-        i2d R0 R0
-        dpush R0
+        i2l R0 R0
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
-        dsub R0 R1 R0
-        dpop R1
+        popl R1
+        subl R0 R1 R0
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpop R1
+        movel R0 R1
+        popl R1
         or R1 R0
-        move R0 R1
-        jmp L81630022
-L81630022:
+        movel R0 R1
+        jmp L_81630022
+L_81630022:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+lror64:
+; -------------------------------------------
+; source   : long lror64(long val,long bits)
+; function : lror64
+; param   : long val
+; param   : long bits
+; return   : long
+; --------------------------------------------
 lror64:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         movel R0 [R12+12]
-        movel [R12-8] R0
+        movel [R12-12] R0
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #63
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
+        movel R0 R1
         movel [R12+20] R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 [R12-12]
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #64
-        i2d R0 R0
-        dpush R0
+        i2l R0 R0
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
-        dsub R0 R1 R0
-        dpop R1
+        popl R1
+        subl R0 R1 R0
+        popl R1
         shl R1 R0
-        move R0 R1
-        dpop R1
+        movel R0 R1
+        popl R1
         or R1 R0
-        move R0 R1
-        jmp L81630023
-L81630023:
+        movel R0 R1
+        jmp L_81630023
+L_81630023:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+lbit_set64:
+; -------------------------------------------
+; source   : long lbit_set64(long val,long bit)
+; function : lbit_set64
+; param   : long val
+; param   : long bit
+; return   : long
+; --------------------------------------------
 lbit_set64:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jl _L81630029
         move R0 #0
         jmp _L81630030
@@ -297,11 +367,11 @@ _L81630030:
         test R0 R0
         jnz _L81630026
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #64
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jge _L81630031
         move R0 #0
         jmp _L81630032
@@ -319,39 +389,45 @@ _L81630028:
         cmp R0 #0
         jz sta_81630024
         movel R0 [R12+12]
-        jmp L81630033
+        jmp L_81630033
 sta_81630024:
 sta_81630025:
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         movel R0 [i64_81630034]
-        dpush R0
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        dpop R1
+        movel R0 R1
+        popl R1
         or R1 R0
-        move R0 R1
-        jmp L81630033
-L81630033:
+        movel R0 R1
+        jmp L_81630033
+L_81630033:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+lbit_clear64:
+; -------------------------------------------
+; source   : long lbit_clear64(long val,long bit)
+; function : lbit_clear64
+; param   : long val
+; param   : long bit
+; return   : long
+; --------------------------------------------
 lbit_clear64:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jl _L81630040
         move R0 #0
         jmp _L81630041
@@ -361,11 +437,11 @@ _L81630041:
         test R0 R0
         jnz _L81630037
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #64
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jge _L81630042
         move R0 #0
         jmp _L81630043
@@ -383,40 +459,46 @@ _L81630039:
         cmp R0 #0
         jz sta_81630035
         movel R0 [R12+12]
-        jmp L81630044
+        jmp L_81630044
 sta_81630035:
 sta_81630036:
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         movel R0 [i64_81630045]
-        dpush R0
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
+        movel R0 R1
         not R0
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        jmp L81630044
-L81630044:
+        movel R0 R1
+        jmp L_81630044
+L_81630044:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+lbit_toggle64:
+; -------------------------------------------
+; source   : long lbit_toggle64(long val,long bit)
+; function : lbit_toggle64
+; param   : long val
+; param   : long bit
+; return   : long
+; --------------------------------------------
 lbit_toggle64:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jl _L81630051
         move R0 #0
         jmp _L81630052
@@ -426,11 +508,11 @@ _L81630052:
         test R0 R0
         jnz _L81630048
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #64
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jge _L81630053
         move R0 #0
         jmp _L81630054
@@ -448,39 +530,45 @@ _L81630050:
         cmp R0 #0
         jz sta_81630046
         movel R0 [R12+12]
-        jmp L81630055
+        jmp L_81630055
 sta_81630046:
 sta_81630047:
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         movel R0 [i64_81630056]
-        dpush R0
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        dpop R1
+        movel R0 R1
+        popl R1
         xor R1 R0
-        move R0 R1
-        jmp L81630055
-L81630055:
+        movel R0 R1
+        jmp L_81630055
+L_81630055:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+lbit_test64:
+; -------------------------------------------
+; source   : long lbit_test64(long val,long bit)
+; function : lbit_test64
+; param   : long val
+; param   : long bit
+; return   : long
+; --------------------------------------------
 lbit_test64:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jl _L81630062
         move R0 #0
         jmp _L81630063
@@ -490,11 +578,11 @@ _L81630063:
         test R0 R0
         jnz _L81630059
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #64
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jge _L81630064
         move R0 #0
         jmp _L81630065
@@ -512,325 +600,360 @@ _L81630061:
         cmp R0 #0
         jz sta_81630057
         move R0 #0
-        jmp L81630066
+        jmp L_81630066
 sta_81630057:
 sta_81630058:
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         move R0 #1
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        jmp L81630066
-L81630066:
+        movel R0 R1
+        jmp L_81630066
+L_81630066:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+lcount64:
+; -------------------------------------------
+; source   : long lcount64(long value)
+; function : lcount64
+; param   : long value
+; return   : long
+; --------------------------------------------
 lcount64:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         movel R0 [R12+12]
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #1
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         movel R0 [i64_81630067]
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        dpop R1
-        dsub R0 R1 R0
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        popl R1
+        subl R0 R1 R0
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
         movel R0 [i64_81630068]
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #2
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         movel R0 [i64_81630069]
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        dpop R1
-        dadd R0 R1 R0
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        popl R1
+        addl R0 R1 R0
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #4
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpop R1
-        dadd R0 R1 R0
-        dpush R0
+        movel R0 R1
+        popl R1
+        addl R0 R1 R0
+        pushl R0
         movel R0 [i64_81630070]
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
         movel R0 [i64_81630071]
-        dpop R1
-        dmul R0 R1 R0
-        dpush R0
+        popl R1
+        mull R0 R1 R0
+        pushl R0
         move R0 #56
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        jmp L81630072
-L81630072:
+        movel R0 R1
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        jmp L_81630072
+L_81630072:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+lreverse64:
+; -------------------------------------------
+; source   : long lreverse64(long value)
+; function : lreverse64
+; param   : long value
+; return   : long
+; --------------------------------------------
 lreverse64:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         movel R0 [R12+12]
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        dpush R0
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
         movel R0 [i64_81630073]
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         move R0 #1
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         movel R0 [i64_81630074]
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         move R0 #1
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        dpop R1
+        movel R0 R1
+        popl R1
         or R1 R0
-        move R0 R1
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
         movel R0 [i64_81630075]
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         move R0 #2
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         movel R0 [i64_81630076]
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         move R0 #2
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        dpop R1
+        movel R0 R1
+        popl R1
         or R1 R0
-        move R0 R1
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
         movel R0 [i64_81630077]
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         move R0 #4
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         movel R0 [i64_81630078]
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         move R0 #4
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        dpop R1
+        movel R0 R1
+        popl R1
         or R1 R0
-        move R0 R1
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
         movel R0 [i64_81630079]
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         move R0 #8
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         movel R0 [i64_81630080]
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         move R0 #8
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        dpop R1
+        movel R0 R1
+        popl R1
         or R1 R0
-        move R0 R1
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
         movel R0 [i64_81630081]
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         move R0 #16
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         movel R0 [i64_81630082]
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         move R0 #16
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        dpop R1
+        movel R0 R1
+        popl R1
         or R1 R0
-        move R0 R1
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #32
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #32
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        dpop R1
+        movel R0 R1
+        popl R1
         or R1 R0
-        move R0 R1
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        jmp L81630083
-L81630083:
+        movel R0 R1
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        jmp L_81630083
+L_81630083:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+lrotate_left64:
+; -------------------------------------------
+; source   : long lrotate_left64(long value,long n)
+; function : lrotate_left64
+; param   : long value
+; param   : long n
+; return   : long
+; --------------------------------------------
 lrotate_left64:
         push R15
         push R12
         move R12 R13
-        movel R0 [R12+12]
-        push R0
+        sub R13 #12
         movel R0 [R12+20]
-        push R0
+        sub R13 #8
+        movel @13 R0
+        movel R0 [R12+12]
+        sub R13 #8
+        movel @13 R0
+        move R0 [R13+0]
+        move R1 [R13+8]
         call lrol64
-        jmp L81630084
-L81630084:
+        add R13 #16
+        jmp L_81630084
+L_81630084:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+lrotate_right64:
+; -------------------------------------------
+; source   : long lrotate_right64(long value,long n)
+; function : lrotate_right64
+; param   : long value
+; param   : long n
+; return   : long
+; --------------------------------------------
 lrotate_right64:
         push R15
         push R12
         move R12 R13
-        movel R0 [R12+12]
-        push R0
+        sub R13 #12
         movel R0 [R12+20]
-        push R0
+        sub R13 #8
+        movel @13 R0
+        movel R0 [R12+12]
+        sub R13 #8
+        movel @13 R0
+        move R0 [R13+0]
+        move R1 [R13+8]
         call lror64
-        jmp L81630085
-L81630085:
+        add R13 #16
+        jmp L_81630085
+L_81630085:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+llowest_set64:
+; -------------------------------------------
+; source   : long llowest_set64(long value)
+; function : llowest_set64
+; param   : long value
+; return   : long
+; --------------------------------------------
 llowest_set64:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         je _L81630088
         move R0 #0
         jmp _L81630089
@@ -842,33 +965,38 @@ _L81630089:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L81630090
+        jmp L_81630090
 sta_81630086:
 sta_81630087:
         movel R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call lctz64
         add R13 #4
-        jmp L81630090
-L81630090:
+        jmp L_81630090
+L_81630090:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+lhighest_set64:
+; -------------------------------------------
+; source   : long lhighest_set64(long value)
+; function : lhighest_set64
+; param   : long value
+; return   : long
+; --------------------------------------------
 lhighest_set64:
         push R15
         push R12
         move R12 R13
-        sub R13 #32
+        sub R13 #36
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         je _L81630093
         move R0 #0
         jmp _L81630094
@@ -880,38 +1008,38 @@ _L81630094:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L81630095
+        jmp L_81630095
 sta_81630091:
 sta_81630092:
         movel R0 [R12+12]
-        movel [R12-8] R0
+        movel [R12-12] R0
         move R0 #63
         i2l R0 R0
-        movel [R12-16] R0
+        movel [R12-20] R0
         movel R0 [i64_81630096]
-        dpush R0
+        pushl R0
         move R0 #63
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        movel [R12-24] R0
+        movel R0 R1
+        movel [R12-28] R0
 sta_81630097:
         move R2 #0
-        movel R0 [R12-24]
+        movel R0 [R12-28]
         test R0 R0
         jz _L81630099
-        movel R0 [R12-8]
-        dpush R0
-        movel R0 [R12-24]
-        dpop R1
+        movel R0 [R12-12]
+        pushl R0
+        movel R0 [R12-28]
+        popl R1
         and R1 R0
-        move R0 R1
-        movel R0 [R12-8]
-        dpush R0
-        movel R0 [R12-24]
-        dpop R1
+        movel R0 R1
+        movel R0 [R12-12]
+        pushl R0
+        movel R0 [R12-28]
+        popl R1
         and R1 R0
-        move R0 R1
+        movel R0 R1
         test R0 R0
         jz _L81630101
         move R0 #0
@@ -928,40 +1056,45 @@ _L81630099:
 _L81630100:
         cmp R0 #0
         jz sta_81630098
-        moved R0 [R12-16]
-        moved R1 R0
-        sub R0 R0 #1
-        moved [R12-16] R0
-        moved R0 R1
-        moved R0 [R12-24]
-        dpush R0
+        movel R0 [R12-20]
+        movel R1 R0
+        subl R0 R0 #1
+        movel [R12-20] R0
+        movel R0 R1
+        movel R0 [R12-28]
+        pushl R0
         move R0 #1
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        moved [R12-24] R0
+        movel R0 R1
+        movel [R12-28] R0
         jmp sta_81630097
 sta_81630098:
-        movel R0 [R12-16]
-        jmp L81630095
-L81630095:
+        movel R0 [R12-20]
+        jmp L_81630095
+L_81630095:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+lmask64:
+; -------------------------------------------
+; source   : long lmask64(long n)
+; function : lmask64
+; param   : long n
+; return   : long
+; --------------------------------------------
 lmask64:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jle _L81630105
         move R0 #0
         jmp _L81630106
@@ -971,15 +1104,15 @@ _L81630106:
         cmp R0 #0
         jz sta_81630103
         move R0 #0
-        jmp L81630107
+        jmp L_81630107
 sta_81630103:
 sta_81630104:
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         move R0 #64
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jge _L81630110
         move R0 #0
         jmp _L81630111
@@ -991,39 +1124,46 @@ _L81630111:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L81630107
+        jmp L_81630107
 sta_81630108:
 sta_81630109:
         movel R0 [i64_81630112]
-        dpush R0
+        pushl R0
         movel R0 [R12+12]
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         move R0 #1
-        i2d R0 R0
-        dpop R1
-        dsub R0 R1 R0
-        jmp L81630107
-L81630107:
+        i2l R0 R0
+        popl R1
+        subl R0 R1 R0
+        jmp L_81630107
+L_81630107:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+lextract64:
+; -------------------------------------------
+; source   : long lextract64(long value,long start,long len)
+; function : lextract64
+; param   : long value
+; param   : long start
+; param   : long len
+; return   : long
+; --------------------------------------------
 lextract64:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jl _L81630121
         move R0 #0
         jmp _L81630122
@@ -1033,11 +1173,11 @@ _L81630122:
         test R0 R0
         jnz _L81630118
         movel R0 [R12+28]
-        dpush R0
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jle _L81630123
         move R0 #0
         jmp _L81630124
@@ -1055,15 +1195,15 @@ _L81630120:
         test R0 R0
         jnz _L81630115
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         movel R0 [R12+28]
-        dpop R1
-        dadd R0 R1 R0
-        dpush R0
+        popl R1
+        addl R0 R1 R0
+        pushl R0
         move R0 #64
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jg _L81630125
         move R0 #0
         jmp _L81630126
@@ -1081,42 +1221,52 @@ _L81630117:
         cmp R0 #0
         jz sta_81630113
         move R0 #0
-        jmp L81630127
+        jmp L_81630127
 sta_81630113:
 sta_81630114:
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         movel R0 [R12+28]
-        push R0
+        sub R13 #8
+        movel @13 R0
+        move R0 [R13+0]
         call lmask64
-        dpop R1
+        add R13 #8
+        popl R1
         and R1 R0
-        move R0 R1
-        jmp L81630127
-L81630127:
+        movel R0 R1
+        jmp L_81630127
+L_81630127:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+linsert64:
+; -------------------------------------------
+; source   : long linsert64(long value,long field,long start,long len)
+; function : linsert64
+; param   : long value
+; param   : long field
+; param   : long start
+; param   : long len
+; return   : long
+; --------------------------------------------
 linsert64:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         movel R0 [R12+28]
-        dpush R0
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jl _L81630136
         move R0 #0
         jmp _L81630137
@@ -1126,11 +1276,11 @@ _L81630137:
         test R0 R0
         jnz _L81630133
         movel R0 [R12+36]
-        dpush R0
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jle _L81630138
         move R0 #0
         jmp _L81630139
@@ -1148,15 +1298,15 @@ _L81630135:
         test R0 R0
         jnz _L81630130
         movel R0 [R12+28]
-        dpush R0
+        pushl R0
         movel R0 [R12+36]
-        dpop R1
-        dadd R0 R1 R0
-        dpush R0
+        popl R1
+        addl R0 R1 R0
+        pushl R0
         move R0 #64
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jg _L81630140
         move R0 #0
         jmp _L81630141
@@ -1174,61 +1324,72 @@ _L81630132:
         cmp R0 #0
         jz sta_81630128
         movel R0 [R12+12]
-        jmp L81630142
+        jmp L_81630142
 sta_81630128:
 sta_81630129:
         movel R0 [R12+36]
-        push R0
+        sub R13 #8
+        movel @13 R0
+        move R0 [R13+0]
         call lmask64
-        dpush R0
+        add R13 #8
+        pushl R0
         movel R0 [R12+28]
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        movel [R12-8] R0
+        movel R0 R1
+        movel [R12-12] R0
         movel R0 [R12+12]
-        dpush R0
-        movel R0 [R12-8]
+        pushl R0
+        movel R0 [R12-12]
         not R0
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         movel R0 [R12+36]
-        push R0
+        sub R13 #8
+        movel @13 R0
+        move R0 [R13+0]
         call lmask64
-        dpop R1
+        add R13 #8
+        popl R1
         and R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         movel R0 [R12+28]
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        dpop R1
+        movel R0 R1
+        popl R1
         or R1 R0
-        move R0 R1
-        jmp L81630142
-L81630142:
+        movel R0 R1
+        jmp L_81630142
+L_81630142:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #20
-        push R1
         ret
+lis_power_of_two64:
+; -------------------------------------------
+; source   : long lis_power_of_two64(long x)
+; function : lis_power_of_two64
+; param   : long x
+; return   : long
+; --------------------------------------------
 lis_power_of_two64:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jg _L81630145
         move R0 #0
         jmp _L81630146
@@ -1238,21 +1399,21 @@ _L81630146:
         test R0 R0
         jz _L81630143
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         move R0 #1
-        i2d R0 R0
-        dpop R1
-        dsub R0 R1 R0
-        dpop R1
+        i2l R0 R0
+        popl R1
+        subl R0 R1 R0
+        popl R1
         and R1 R0
-        move R0 R1
-        dpush R0
+        movel R0 R1
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         je _L81630147
         move R0 #0
         jmp _L81630148
@@ -1266,26 +1427,31 @@ _L81630148:
 _L81630143:
         move R0 #0
 _L81630144:
-        jmp L81630149
-L81630149:
+        jmp L_81630149
+L_81630149:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+lnext_power_of_two64:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : long lnext_power_of_two64(long x)
+; function : lnext_power_of_two64
+; param   : long x
+; return   : long
+; --------------------------------------------
 lnext_power_of_two64:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         move R0 #1
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jle _L81630152
         move R0 #0
         jmp _L81630153
@@ -1295,100 +1461,97 @@ _L81630153:
         cmp R0 #0
         jz sta_81630150
         move R0 #1
-        jmp L81630154
+        jmp L_81630154
 sta_81630150:
 sta_81630151:
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         move R0 #1
-        i2d R0 R0
-        dpop R1
-        dsub R0 R1 R0
-        movel [R12-8] R0
-        moved R0 [R12-8]
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        i2l R0 R0
+        popl R1
+        subl R0 R1 R0
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #1
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpop R1
+        movel R0 R1
+        popl R1
         or R1 R0
-        move R0 R1
-        moved [R12-8] R0
-        moved R0 [R12-8]
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #2
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpop R1
+        movel R0 R1
+        popl R1
         or R1 R0
-        move R0 R1
-        moved [R12-8] R0
-        moved R0 [R12-8]
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #4
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpop R1
+        movel R0 R1
+        popl R1
         or R1 R0
-        move R0 R1
-        moved [R12-8] R0
-        moved R0 [R12-8]
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #8
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpop R1
+        movel R0 R1
+        popl R1
         or R1 R0
-        move R0 R1
-        moved [R12-8] R0
-        moved R0 [R12-8]
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #16
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpop R1
+        movel R0 R1
+        popl R1
         or R1 R0
-        move R0 R1
-        moved [R12-8] R0
-        moved R0 [R12-8]
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #32
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        dpop R1
+        movel R0 R1
+        popl R1
         or R1 R0
-        move R0 R1
-        moved [R12-8] R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 R1
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #1
-        i2d R0 R0
-        dpop R1
-        dadd R0 R1 R0
-        jmp L81630154
-L81630154:
+        i2l R0 R0
+        popl R1
+        addl R0 R1 R0
+        jmp L_81630154
+L_81630154:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret

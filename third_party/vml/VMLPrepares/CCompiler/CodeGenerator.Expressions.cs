@@ -37,15 +37,28 @@ namespace CCompiler
                     long longVal;
                     if (suffix.Contains('U') || suffix.Contains('u'))
                     {
-                        // UL/ULL: 如果 Lexer 已将其转为 long（unchecked 转换保留位模式），直接使用
-                        if (numLiteral.Value is long alreadyLong)
-                            longVal = alreadyLong;
-                        else
+                        // UL/ULL：**不能经 `decimal` 转 `ulong`**。
+                        // `(ulong)(decimal)负数` 会抛 `Decimal.ToUInt64` 的
+                        // "Value was either too large or too small for a UInt64." ——
+                        // 而词法把十六进制常量装成 `unchecked((int)(uint)u64)`，
+                        // 于是**凡是低 32 位最高位为 1 的常量，token 值就是负数**。
+                        // 实测这一条正解释了 `bitops64.c` 编不出来：
+                        //   ✗ 0xFFFFFFFFUL / 0xFFFFFFFFFFUL / 0xFFFFFFFFFFFFFFFFUL
+                        //     （低 32 位都是 0xFFFFFFFF）
+                        //   ✗ 0xAAAAAAAAAAAAAAAAUL(0xAAAAAAAA) / 0xCCCCCCCCCCCCCCCCUL
+                        //     (0xCCCCCCCC) / 0xF0F0F0F0F0F0F0F0UL(0xF0F0F0F0)
+                        //   ✓ 0x7FFFFFFFUL / 0x5555555555555555UL / 0x100000000UL
+                        //     （低 32 位最高位为 0）
+                        // ⇒ 一律**按位模式直接搬**，不做有符号/无符号的语义转换。
+                        object hv = numLiteral.Value;
+                        longVal = hv switch
                         {
-                            decimal decVal = numLiteral.Value is decimal d ? d : Convert.ToDecimal(numLiteral.Value);
-                            ulong ulVal = (ulong)decVal;
-                            longVal = unchecked((long)ulVal);
-                        }
+                            long al => al,
+                            int ai => unchecked((long)(uint)ai),
+                            ulong au => unchecked((long)au),
+                            uint ui => ui,
+                            _ => unchecked((long)Convert.ToInt64(hv)),
+                        };
                     }
                     else
                     {
