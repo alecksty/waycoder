@@ -6,7 +6,14 @@
 #define _STDIO_H
 
 #param lib("file")
-#param lib("stdio_funcs")
+// ⚠ 这里原先还有一句 `#param lib("stdio_funcs")` —— **已删**。
+//   `c/stdio_funcs.vml` 里只有 printf 家族（printf/sprintf/snprintf/shared_vsnprintf/
+//   _vformat_buf/_put*），**一个独有的 stdio 函数都没有**，是 `shared/printf.vml`
+//   的第二份实现（且是坏的）。而 `#param lib(...)` 会把它拉进链接、让
+//   `globalLabelMapping["printf"]` 被它覆盖 ⇒ **凡是 `#include <stdio.h>` 的 C 程序，
+//   printf 全部走到那份坏的上、一个字都不输出**；不 include 的反而正常
+//   （实测同一份代码：不带 include 三行全对，带 include 一字全无）。
+//   printf 家族由 `shared/printf.vml` 单独提供，这里是多余的那一份。
 // printf/putchar/getchar/sprintf 已由默认最小集提供
 
 #include <stddef.h>

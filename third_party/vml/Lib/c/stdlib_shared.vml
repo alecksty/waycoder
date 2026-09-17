@@ -179,5 +179,5 @@ LABEL fsize
 LABEL ftruncate
     JMP shared_ftruncate
 
-; printf — see Lib/c/src/printf.c (C source) → Lib/c/stdio_funcs.vml (compiled, --no-link)
+; printf — 唯一实现在 Lib/shared/printf.vml（stdio_funcs.vml 已删）
 ; Included via IncludeProcessor.GetStandardLibraryIncludes for C language
