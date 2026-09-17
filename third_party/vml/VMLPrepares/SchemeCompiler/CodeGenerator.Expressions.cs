@@ -104,7 +104,13 @@ public partial class CodeGenerator {
                     Emit(OpCode.NOP, [], "; --------------------------------------------");
                 }
                 AddInstruction(OpCode.LABEL, [new Operand(OperandType.LABEL, lamLabel)]);
-                EmitPrologueWithFrame(64);
+                // 帧占位：**不能再写死 64** —— 固定 64 字节装不下真实函数的局部量，
+                // 超出的部分直接写进调用方的帧（踩内存）。骨架照不出来，因为骨架的函数都极小。
+                // 帧大小要等函数体生成完才知道，故先占位、最后回填（与 R 的 GenerateCode 同口径）。
+                EmitPrologue();
+                int framePatchIndex = instructions.Count;
+                instructions.Add(new Instruction(OpCode.SUB,
+                    [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, 0)], framePatchIndex));
                 // Parse params and body
                 if (l.Items[1] is SList pars) {
                     int savedVarOff = varOff;
@@ -128,7 +134,11 @@ public partial class CodeGenerator {
                     int savedVarCount = varOff;
                     if (l.Items.Count >= 3) GenExpr(l.Items[2]);
                     // Epilogue — 先释放临时栈空间
-                    AddInstruction(OpCode.ADD, [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, 64)]);
+                    int frameSize = varOff * 4 + 32;
+                    if (frameSize < 64) frameSize = 64;
+                    instructions[framePatchIndex] = new Instruction(OpCode.SUB,
+                        [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, frameSize)], framePatchIndex);
+                    AddInstruction(OpCode.ADD, [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, frameSize)]);
                     AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.REGISTER, 12)]);
                     AddInstruction(OpCode.POP, [new Operand(OperandType.REGISTER, 12)]);
                     AddInstruction(OpCode.POP, [new Operand(OperandType.REGISTER, 15)]);

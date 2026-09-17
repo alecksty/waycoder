@@ -67,7 +67,13 @@ public partial class CodeGenerator : CodeGeneratorBase {
                 Emit(OpCode.NOP, [], "; --------------------------------------------");
                 AddInstruction(OpCode.JMP, [new Operand(OperandType.LABEL, afterFunc)]);
                 AddLabel(fname);
-                EmitPrologueWithFrame(64);
+                // 帧占位：**不能再写死 64** —— 固定 64 字节装不下真实函数的局部量，
+                // 超出的部分直接写进调用方的帧（踩内存）。骨架照不出来，因为骨架的函数都极小。
+                // 帧大小要等函数体生成完才知道，故先占位、最后回填（与 R 的 GenerateCode 同口径）。
+                EmitPrologue();
+                int framePatchIndex = instructions.Count;
+                instructions.Add(new Instruction(OpCode.SUB,
+                    [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, 0)], framePatchIndex));
                 AddInstruction(OpCode.LABEL, [new Operand(OperandType.LABEL, $"{fname}_body")]);
                 // Reserve space for locals
                 varOff = fnParams.Count;
@@ -75,8 +81,13 @@ public partial class CodeGenerator : CodeGeneratorBase {
                 // 确保局部变量在 BP 下方（前3槽 = 返回地址+R15+R12, 各4字节）
                 if (varOff < 4) varOff = 4;
                 GenExpr(l.Items[2], true);
+                // 回填帧大小（+32 安全边界；旧的 64 当保底，小函数行为不变）
+                int frameSize = varOff * 4 + 32;
+                if (frameSize < 64) frameSize = 64;
+                instructions[framePatchIndex] = new Instruction(OpCode.SUB,
+                    [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, frameSize)], framePatchIndex);
                 // 释放临时栈空间后恢复帧
-                AddInstruction(OpCode.ADD, [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, 64)]);
+                AddInstruction(OpCode.ADD, [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, frameSize)]);
                 EmitEpilogue();
                 AddInstruction(OpCode.LABEL, [new Operand(OperandType.LABEL, afterFunc)]);
                 _currentFunc = savedFunc;

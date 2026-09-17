@@ -101,12 +101,19 @@ public partial class CodeGenerator
 
         AddLabel(funcLabel);
 
-        // function prologue + 预留栈空间 (64 bytes)
-        EmitPrologueWithFrame(64);
+        // 函数序言 + **帧占位**（与顶层 GenerateCode 同一口径，见那段注释）。
+        // ⚠ 这里此前是写死的 `EmitPrologueWithFrame(64)` —— 固定的 64 字节装不下真实函数的
+        //    局部量与表达式临时区，超出的部分直接写进调用方的帧（踩内存）。
+        //    骨架照不出来，因为骨架的函数都极小（`(define (f x) (+ x 1))`）。
+        EmitPrologue();
+        int framePatchIndex = instructions.Count;
+        instructions.Add(new Instruction(OpCode.SUB,
+            [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, 0)], framePatchIndex));
 
         // save old symbol table, set up parameters
         var savedSymbols = new Dictionary<string, int>(symbolTable);
         int savedOffset = nextStackOffset;
+        nextStackOffset = 0;   // 每个函数有自己的帧，不吃顶层/上一个函数留下的偏移
         int numParams = node.Parameters.Count;
         for (int i = 0; i < numParams; i++)
             symbolTable[node.Parameters[i]] = -(12 + i * 4);
@@ -115,9 +122,14 @@ public partial class CodeGenerator
         foreach (var stmt in node.Body)
             GenerateStatement(stmt);
 
-        // function epilogue — 先释放临时栈空间
+        // 回填帧大小（+8 安全边界，与顶层同口径）
+        int frameSize = nextStackOffset + 8;
+        instructions[framePatchIndex] = new Instruction(OpCode.SUB,
+            [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, frameSize)], framePatchIndex);
+
+        // function epilogue — 先释放临时栈空间（用回填后的真实大小，不再是写死的 64）
         instructions.Add(new Instruction(OpCode.ADD,
-            [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 64)],
+            [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, frameSize)],
             instructions.Count));
         EmitEpilogue();
 
