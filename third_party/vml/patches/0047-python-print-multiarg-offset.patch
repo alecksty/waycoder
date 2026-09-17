@@ -1,0 +1,20 @@
+diff --git a/third_party/vml/VMLPrepares/PythonCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/PythonCompiler/CodeGenerator.Expressions.cs
+index eec4128d..70f1c328 100644
+--- a/third_party/vml/VMLPrepares/PythonCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/PythonCompiler/CodeGenerator.Expressions.cs
+@@ -200,7 +200,14 @@ namespace PythonCompiler
+                     case "print":
+                         for (int i = 0; i < node.Args.Count; i++)
+                         {
+-                            int stackOffset = (node.Args.Count - 1 - i) * 4;
++                            // ⚠ 实参从**右往左**压栈 ⇒ arg_i 在 `[R13 + 4*i]`（最后压的 arg0 在栈顶）。
++                            //   这里原先写的是 `(node.Args.Count - 1 - i) * 4` —— **整个反了**：
++                            //   `Args.Count == 1` 时 `(1-1-0)*4 == 0` 恰好对，所以
++                            //   `print("一个字面量")` 一直正常，**只有多实参才炸**，而且炸法很隐蔽：
++                            //   `print("OUT-INT=", 42)` ⇒ 把 42 当**字符串指针**打、把字符串指针当
++                            //   **整数**打，实测输出 ` 1036`（字面量丢了、整数也不对）。
++                            //   （同族：Scheme 命名 let 那处 `nlParams.Count-1` 也只在两个参数时恰好对。）
++                            int stackOffset = i * 4;
+                             Emit(OpCode.MOVE, new Operand(OperandType.REGISTER, 0),
+                                  new Operand(OperandType.MEMORY, $"{stackOffset}(R13)"));
+ 
