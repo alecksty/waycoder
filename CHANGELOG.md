@@ -1,3 +1,142 @@
+## v0.96.208 (2026-09-17) — printf 为什么一个字都不输出：两份实现 + 一个后缀匹配
+
+接着 v0.96.207 往下查「各语言自己的标准输出函数」。C 的 `printf` **一个字都不输出**
+（但**执行继续**，后面的 `puts` 照常）。查到最底下是**两个互不相干的缺陷叠在一起**，
+外加一条把两者都藏了很久的东西。
+
+### ① `#include <stdio.h>` 会把 C 的 printf 导到**第二份实现**上
+
+`Lib/c/stdio.h` 里有一句 `#param lib("stdio_funcs")`，把 `c/stdio_funcs.vml` 拉进链接。
+那份文件（41763 字节、**连 `.c` 源都没有**）里**只有 printf 家族** ——
+`printf`/`sprintf`/`snprintf`/`shared_vsnprintf`/`_vformat_buf`/`_put*`，
+**一个独有的 stdio 函数都没有**。名字叫 stdio_funcs，内容纯粹是 printf 的第二份实现，
+而且它是坏的。
+
+**隔离证据**（同一份 C 代码，唯一差别是那个 include）：
+
+```
+不带 stdio.h → call lib_printf_printf        → 三行全对 ✓
+带   stdio.h → call lib_stdio_funcs_printf   → 一字全无 ✗
+```
+
+C 前端里**没有任何 printf 特殊处理**（已确认），差别纯粹来自链接进哪个模块 ——
+`globalLabelMapping["printf"]` 被后链接的 `stdio_funcs` 覆盖了。
+
+**这正是用户最初那句「为啥 printf 有 2 份实现？只要一份就行」的真身。**
+按「相同的函数只留一份」删掉：`stdio.h` 去掉那句 `#param`、删 `c/stdio_funcs.vml`、
+**d/dart/fortran/objc/r/ruby 六门语言也在链它** ⇒ 改为链 `../shared/printf.vml`。
+
+### ② 链接器用**纯后缀匹配**找"CALL 目标"，把 `_printf_itoa` 认成了 `itoa`
+
+`LibraryLinker` 的「情况2」（已解析到包装器 → 找更好的实现体）：
+
+```csharp
+if (target.EndsWith("_" + bareName) && target.StartsWith("lib_") && ...)
+    operand.Value = bestImpl;      // 把 CALL 换成"更好的实现体"
+```
+
+`shared/src/printf.c` 的 static 助手叫 `_printf_itoa`，链接后是 `lib_printf__printf_itoa`
+（前缀 `lib_<库文件名>_`）—— 它 **`EndsWith("_itoa")`** ⇒ 被当成「itoa 的包装器」，
+**整个调用被重定向到 `convert.c` 的 `itoa(int value, char* dst)`**：
+一个**参数顺序完全相反**的函数。`itoa(42, tmp)` 把 42 当目标地址去写 ⇒
+`%d` 返回垃圾长度、`tmp` 没被填 ⇒ **printf 的所有 `%` 转换静默失效**，
+而字面量正常（那条路只经过 `emit`，不经过它）。
+
+**四条证据合拢**，第三条最说明问题 —— 源码里留着一行前人的补丁：
+
+```c
+// 32-bit itoa (base 2-16) — 前缀 _printf_ 避免与其他库冲突
+```
+
+**这个前缀就是为了躲开 `itoa` 冲突而加的**，而 `EndsWith` 把那个规避手段整个架空了。
+
+诊断路径也值得记：先在 `_printf_itoa` **内部**插桩 → **一个字都不打**，
+而在调用它的 `vsnprintf` 里插桩正常打印 ⇒ **调用根本没进那个函数**；
+再插桩读数 `len=5 val=42 t0=0 t1=0` ⇒ 实参是对的、缓冲区没被填。
+**"改对一处"不等于修好** —— 中途我改过一版"取最长匹配"，没修好，因为
+`globalLabelMapping` 里只有 `itoa` 这个键、没有更长的 `_printf_itoa`；
+那一版是**未经验证的链接器行为变更**，已撤回，没留在树里。
+
+**正解**是判据带上**模块边界**：target 要**恰好**是 `lib_<模块>_<裸名>`
+（模块名 = 库文件 basename，与 `libPrefix` 同源）。`lib_builtins_itoa` 照旧重定向，
+`lib_printf__printf_itoa` 需要模块名 `printf__printf`（不存在）⇒ 不再误伤。
+顺带把「break 在字典遍历顺序第一个匹配」改成取最长匹配 —— 原实现的结果
+**取决于 Dictionary 的枚举顺序**，本身就是不确定行为。
+
+### ③ `%%` 被当成"需要实参的转换"，没有实参时被静默吃掉
+
+`vsnprintf` 里「读取参数值」那段排在 `%%` 分派**之前**：
+
+```c
+} else if (ai < nargs) { val = args[ai]; ai++; }
+else { fmt++; continue; }        // ← 没有实参就静默跳过这个转换
+```
+
+`%%` 是唯一**不消耗实参**的转换 ⇒ `printf("100%%")` 会走 `fmt++; continue`：
+吃掉第二个 `%`、**一个字不产出、pos 也不增、零报错**。实测 `sprintf(b,"4-sp=%%d",42)`
+打出 `4-sp=d`。改法是把 `%%` 提到「读取实参」之前（一行）。
+
+### 结果
+
+| | 修前 | 修后 |
+|---|---|---|
+| `vsnprintf(b,"N=%d",args,1)` | `len=7`、缓冲区 `N=` 后跟一个 0 | **`len=4 buf=[N=42]`** |
+| `vsnprintf(b,"P=%%",args,0)` | `len=2 buf=[P=]` | **`len=3 buf=[P=%]`** |
+| `sprintf(b,"4-sp=%%d",42)` | `4-sp=d` | **`4-sp=%d`** |
+| `nat.c`（带 stdio.h 的 C printf） | **一个字都没有** | **三行全对** |
+| `nat.cpp` | `OUT-INT=` 后面什么都没有 | **三行全对** |
+
+`scripts/vml-out-probe`：**17 → 19 / 28**（`nat.c` 与 `nat.cpp` 转 PASS），**无回归**
+（`out.d`/`out.dart`/`out.fortran`/`out.objc`/`out.r`/`out.ruby` 六门全通过，
+那正是改用 `shared/printf.vml` 的六门）。链接日志里「最终修复重定向数」由 101 → 65。
+
+### 顺带清掉的死代码，以及**两个被推翻的模型**
+
+- **`c/*.c` 不是"第二份实现"** —— 读了 GenLib 本体（`tools/GenLib/Program.cs:92`）：
+  它的输入是 **`Lib/shared/src/*.c`**，`<lang>/*.c` 是 shared 重构之前的**遗留死源码**，
+  既不进链接产物也不参与 shim 生成。已删（11 个）。
+  **而且它们是地雷**：`build_libs.sh` 的 Phase 3 是 `c/*.c → c/<name>.vml` 无差别遍历，
+  跑一次就会把 GenLib 的 shim 覆盖掉。删完 `c/` 下已是零个 `.c`。
+- **撤回「29 模块各装载两次 ⇒ 定义两遍」** —— 第二次装载的是 **GenLib shim**，
+  它**转发**而不重实现。据此报的「71 组两份都可达」跟着不成立。
+- **撤回「指针形参被当成数组」** —— 复现写错了（`int rd0(int p){return p[0];}` 在 C 里
+  本身非法），用正确的 `int *p` / `const int *p` 重测全部正确。
+  ⇒ **撤掉 `c/string.*` 的删除**：支撑它的模型不成立，而 `c/string.vml` 是 shim、
+  导出的 102 个 `c_*`/`func_*` 别名是 `shared/string.vml` **没有**的，
+  探针全绿只说明探针没用到它们、**证明不了无害**。
+
+### GenLib vs build_libs：谁该留（实测）
+
+让 GenLib 重新生成 `c/` 的 74 个模块 → 与签入的**零差异**（幂等、权威）。
+`build_libs.sh`/`.ps1` 重复实现了 GenLib 的 `-b`/`-m`/`-a` 三个阶段（且是更旧的语义、
+缺 `-g`/`-n`），除历史 CHANGELOG 外**没有任何代码/CI/文档引用** ⇒ 真正的冗余是它。
+⚠ 但 GenLib 的**产物里有陈旧件**：那 6 个 `<lang>/stdio.vml` 顶着 `Auto-generated`
+却链着 GenLib 源码里早已不存在的 `stdio_funcs`（更早版本的输出）。**下一步：对全部
+语言重跑一次 GenLib，判据是 `git status` 应几乎无改动，凡有改动处就是一处陈旧产物。**
+
+### 新建设施：`third_party/vml/test_shared/`
+
+起点是用户的一句判断：**「单元测试估计也只能测有返回值的，没返回值的判不了好坏，
+只能判有没有」**。这条对了一半，落进规矩里 —— 判据不是「有没有返回值」，
+而是**「有没有可观测的副作用」**。扫了 959 个导出函数：
+
+| 类 | 数量 | 占比 | 判据 |
+|---|---|---|---|
+| A 有返回值 | 638 | 66% | 直接比返回值 |
+| B void + 指针形参 | 178 | 18% | **从被写穿的内存断言**（`sprintf`/`strcpy`/`memcpy` 全在这类 —— 缓冲区就是那个"返回值"） |
+| C void + 往 stdout 写 | 32 | 3% | 断言**程序自己的 stdout 字节** |
+| D void + 无指针形参 | 111 | 11% | 大半还能救：`graph.*` 走**场景图元可数**、`crt.CRT_*` 断言写出的字符序列 |
+
+⇒ **89% 可以真正判好坏**。真·冒烟（`SMOKE`）**只证明没崩/没挂/没超时**，
+runner 把它**单列一档、不计入 PASS** 并单独打警告和名单 ——
+**不许拿"没崩"冒充"正确"**：111 个都写成"跑通了就算过"的话，报告会显示 100% 绿而质量是零。
+
+首个用例 `test_shared/vsnprintf.c`（30+ 断言，覆盖 `%d` 含负数 / `%%` / 字面量 /
+`%s` / `%c` / `%x` / 宽度 / 左对齐 / 补零）实测 PASS。**每一格都同时查返回长度和逐字节内容**
+—— 只查长度会漏掉「长度对、内容写了个 0」这种本次故障的原始形态。
+（写它的时候我自己先踩了两次实参错位，5 条 FAIL 全是用例的问题不是库的问题。）
+
+
 ## v0.96.207 (2026-09-17) — printf 有 4 份实现：同一个函数只留一份
 
 起点是用户的一句追问：**「为啥 printf 有 2 份实现？只要一份就行」「相同的函数只要保留一份，多的删掉」**。
