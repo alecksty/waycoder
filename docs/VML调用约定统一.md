@@ -75,7 +75,7 @@ C:  void probe(int a,int b,int c,int d,int e,int f);
 - 目标：消掉「764 个被调方清栈 vs 446 个调用方清栈」（数字来自 CLAUDE.md §⑨）
 
 ### 第 4 步：回归（**判据要能跑，不是目测**）
-1. `.scratch/vmlcli` 跑 22 条骨架语料 → 仍须 **22/22 出 `SKEL-SUM=14`**
+1. `scripts/vmlcli` 跑 22 条骨架语料 → 仍须 **22/22 出 `SKEL-SUM=14`**
 2. **`print_*` 漂移探针**（现成的，见下）→ 必须消失
 3. 上游 `Examples/` 全量（cpp 12 / lua 9 / rust 8 / ruby 12 / dart 12 / fortran 11 …）编译+运行
 4. `scripts/check-vml-patches.sh` 全绿
@@ -102,7 +102,7 @@ print_str("T5="); println_int(a[-1])                        # 40
 
 - **单点隔离版**（每个用例只打一次，避免被漂移污染）：`/tmp/p_{plain,compound1,compound2,oobread,oobwrite,negidx}.py`
   —— 上一轮实测全对（77 / 25 / 50 / 0 / 10 / 40），**改造后必须仍然全对**
-- **`--vml <文件>`** 导出链接后的汇编（`.scratch/vmlcli` 的参数）—— 查压栈顺序用这个
+- **`--vml <文件>`** 导出链接后的汇编（`scripts/vmlcli` 的参数）—— 查压栈顺序用这个
   ⚠ 实测：产物里**搜不到用户函数名**（`ToString()` 做死代码消除 + 库里同名标签很多），
   所以**别指望从 dump 里找用户函数**，要查方向就直接读前端的生成代码
 
