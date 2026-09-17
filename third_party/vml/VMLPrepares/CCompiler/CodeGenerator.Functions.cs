@@ -870,12 +870,22 @@ namespace CCompiler
                     string resolvedVarType = ResolveTypeName(varDecl.Type);
                     var typeDims = ExtractArrayDimensions(resolvedVarType);
                     bool isArrayByType = typeDims != null && typeDims.Count > 0;
-                    if (!varDecl.IsVLA && varDecl.IsArray && (varDecl.ArraySize.HasValue || varDecl.Initializer is ArrayInitializer))
+                    // ⚠ 判据必须含 `Initializer is StringLiteral` ——
+                    //   `char h[] = "ABC";` 对它原本是**双假**：`[]` 靠推断 ⇒ `ArraySize`
+                    //   为 null；初始化器是 `StringLiteral` 而非 `ArrayInitializer`
+                    //   ⇒ **整个分支被跳过**、空间按单元素分配、初始化一行都不生成。
+                    //   实测 `char h[] = "ABC"; return h[0];` 得 0（应 65）。
+                    if (!varDecl.IsVLA && varDecl.IsArray &&
+                        (varDecl.ArraySize.HasValue || varDecl.Initializer is ArrayInitializer
+                         || varDecl.Initializer is StringLiteral))
                     {
                         int typeSize = GetTypeSizeFromString(varDecl.Type);
                         elementSize = typeSize;
                         if (varDecl.ArraySize.HasValue)
                             allocSize = varDecl.ArraySize.Value * typeSize;
+                        else if (varDecl.Initializer is StringLiteral slInit)
+                            // `char h[] = "AB"` 的数组长度是 **3**（含结尾 NUL）
+                            allocSize = ((slInit.Value?.Length ?? 0) + 1) * typeSize;
                         else
                             allocSize = ((ArrayInitializer)varDecl.Initializer).Elements.Count * typeSize;
                         arrayLocalVars.Add(varDecl.Name);
@@ -899,7 +909,9 @@ namespace CCompiler
                     var varInfo = Vars?.AllocLocal(varDecl.Name, allocSize);
                     // 数组元素 0 位于分配区域底部（最低地址），指针算术通过 ADD 向上访问
                     int adjustedOffset = varInfo?.Offset ?? -(4 + 4 * localIndex);
-                    if (varInfo != null && (isArrayByType || (varDecl.IsArray && (varDecl.ArraySize.HasValue || varDecl.Initializer is ArrayInitializer))))
+                    if (varInfo != null && (isArrayByType || (varDecl.IsArray &&
+                        (varDecl.ArraySize.HasValue || varDecl.Initializer is ArrayInitializer
+                         || varDecl.Initializer is StringLiteral))))
                         adjustedOffset = varInfo.Offset;
                     else if (varInfo != null)
                         adjustedOffset = varInfo.Offset + allocSize - elementSize;

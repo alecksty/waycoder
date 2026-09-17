@@ -229,6 +229,13 @@ namespace CCompiler
                     // 处理数组初始化
                     GenerateArrayInitialization(varDecl, arrayInit);
                 }
+                else if (varDecl.Initializer is StringLiteral strArrInit && varDecl.IsArray)
+                {
+                    // `char h[] = "ABC";` —— 此前**没有这条分支**，整个初始化被静默跳过、
+                    // 数组全 0（判据 `ArraySize.HasValue || Initializer is ArrayInitializer`
+                    // 对它是双假）。见 GenerateStringArrayInitialization 的注释。
+                    GenerateStringArrayInitialization(varDecl, strArrInit);
+                }
                 else
                 {
                     // Check if this is a struct initialization (not a pointer to struct)
@@ -384,6 +391,60 @@ namespace CCompiler
         {
             int elemSize = GetTypeSize(StringToExprType(varDecl.Type));
             GenerateArrayInitRecursive(varDecl, arrayInit, elemSize, 0);
+        }
+
+        /// <summary>
+        /// `char h[] = "ABC";` —— **局部数组 + 字符串字面量初始化**。
+        ///
+        /// 这条路径此前**完全不存在**。判据 `ArraySize.HasValue || Initializer is
+        /// ArrayInitializer` 对它是**双假**：`[]` 靠推断 ⇒ `ArraySize` 为 null；
+        /// 初始化器是 `StringLiteral` 而非 `ArrayInitializer`
+        /// ⇒ 分支被跳过、**一行初始化代码都不生成、数组静默全 0**。
+        /// 实测最小复现：`char h[] = "ABC"; return h[0];` 得 0（应 65）；
+        /// 手动逐元素赋值与 `char *h = "ABC"` 两条路都正常 —— 所以问题**专在"初始化"这一步**。
+        /// 后果不止"值错"：`Lib/shared/src/convert.c` 的 `itoa_hex` 里有
+        /// `char hex[] = "0123456789ABCDEF";`，于是它输出全错、并把栈都搞坏
+        /// （实测 `R12(BP)=00000004`、`R13(SP)=FFFFFFF8`）。
+        /// </summary>
+        private void GenerateStringArrayInitialization(VariableDecl varDecl, StringLiteral strLit)
+        {
+            int elemSize = GetTypeSize(StringToExprType(varDecl.Type));
+            string varOffset = FormatVarOffset(varDecl.Name);
+            string s = strLit.Value ?? "";
+            // `<=` —— **结尾的 NUL 也要写进去**（C 里 `char h[] = "AB"` 的数组长度是 3）
+            for (int i = 0; i <= s.Length; i++)
+            {
+                // R0 = 数组基址 + i*elemSize
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
+                    new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 12) }));
+                if (varOffset.StartsWith("R12+"))
+                {
+                    int off = int.Parse(varOffset.Substring(4));
+                    if (off != 0)
+                        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> {
+                            new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, off) }));
+                }
+                else if (varOffset.StartsWith("R12-"))
+                {
+                    int off = int.Parse(varOffset.Substring(4));
+                    instructions.Add(new Instruction(OpCode.SUB, new List<Operand> {
+                        new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, off) }));
+                }
+                int byteOff = i * elemSize;
+                if (byteOff != 0)
+                    instructions.Add(new Instruction(OpCode.ADD, new List<Operand> {
+                        new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, byteOff) }));
+
+                // 地址先存起来（下面写值要用 R0），与 GenerateArrayInitRecursive 同一套 idiom
+                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
+                int ch = i < s.Length ? (int)s[i] : 0;
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
+                    new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, ch) }));
+                instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 1) }));
+
+                instructions.Add(new Instruction(elemSize == 1 ? OpCode.MOVEB : OpCode.MOVE, new List<Operand> {
+                    new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 0) }));
+            }
         }
 
         private int GenerateArrayInitRecursive(VariableDecl varDecl, ASTNode init, int elemSize, int baseOffset)
