@@ -9,3 +9,18 @@
 
 # shell 脚本必须 LF（CRLF 会让 set -euo pipefail 报 "无效的选项名"）
 *.sh   text eol=lf
+
+# 补丁文件必须逐字节稳定：行尾被 checkout 改写会让 git apply 匹配不上。
+# 反例（2026-09-17 实测）：Lib/naming.json 是**没有结尾换行符**的单行文件，
+# 补丁被写成 CRLF 后，它的上下文行末尾多出一个 CR，而文件本身没有 ⇒ 永远匹配不上，
+# sync.sh 与 check-vml-patches.sh 都在这里中断。补丁是逐字节精确的产物，
+# 不该参与任何行尾转换。（LF 补丁对 CRLF 源文件是**可以**打上的，实测 34/34。）
+*.patch text eol=lf
+
+# third_party/vml/Lib/ 是**生成物**（GenLib 用 string.Join + File.WriteAllText 写，永远 LF），
+# 若让它在 Windows 上按 autocrlf 落下 CRLF，会造成两个后果（2026-09-17 实测）：
+#   ① check-vml-patches.sh 的「重生成 == 工作区」判据在 Windows 上**必然全红**
+#      （一个模块实测：忽略 CR 只差 1 行、不忽略差 3477 行，字节差 1739 = 行数）；
+#   ② 本地跑一次 GenLib -A 会把 2225 个文件全写成 LF ⇒ 整片 Lib/ 变成全文件 diff。
+# 用 text=auto 保留二进制的自动判定（Lib 下有 3 个文件被 git 判成 binary），只固定行尾。
+third_party/vml/Lib/** text=auto eol=lf

@@ -6,6 +6,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using GenLib;
+using static GenLib.GenWriter;
+
 
 // ============================================================
 // GenLib — VML Shared Library Pipeline
@@ -256,7 +258,7 @@ static void BuildShared(string sharedSrc, string sharedDir)
             var lines = prog.ToString().Split('\n')
                 .Where(l => !l.TrimStart().StartsWith(".entry") && !l.TrimStart().StartsWith(".stack") && !l.TrimStart().StartsWith(".vectors"))
                 .ToArray();
-            File.WriteAllText(vml, string.Join('\n', lines));
+            WriteGen(vml, string.Join('\n', lines));
             Console.WriteLine("OK");
             compiled++;
         }
@@ -528,7 +530,7 @@ static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef
         }
 
         var outPath = Path.Combine(langDir, modName + ".vml");
-        File.WriteAllText(outPath, sb.ToString());
+        WriteGen(outPath, sb.ToString());
         count++;
     }
 
@@ -576,7 +578,7 @@ static void GenAggregators(string lang, string libRoot, Dictionary<string, Modul
         if (lang == "lua" && File.Exists(Path.Combine(langDir, "lua_meta.vml")))
             sb.AppendLine(".linked \"lua_meta.vml\"");
 
-        File.WriteAllText(Path.Combine(langDir, "builtin.vml"), sb.ToString());
+        WriteGen(Path.Combine(langDir, "builtin.vml"), sb.ToString());
     }
 
     // ---- stdlib.vml ----
@@ -603,7 +605,7 @@ static void GenAggregators(string lang, string libRoot, Dictionary<string, Modul
         sb.AppendLine(".linked \"memory.vml\"");
         sb.AppendLine(".linked \"readline.vml\"");
 
-        File.WriteAllText(Path.Combine(langDir, "stdlib.vml"), sb.ToString());
+        WriteGen(Path.Combine(langDir, "stdlib.vml"), sb.ToString());
     }
 
     // ---- vmllib.vml ----
@@ -617,7 +619,7 @@ static void GenAggregators(string lang, string libRoot, Dictionary<string, Modul
         sb.AppendLine(".linked \"network.vml\"");
         sb.AppendLine(".linked \"vga_text.vml\"");
 
-        File.WriteAllText(Path.Combine(langDir, "vmllib.vml"), sb.ToString());
+        WriteGen(Path.Combine(langDir, "vmllib.vml"), sb.ToString());
     }
 
     Console.WriteLine($"  {lang}: builtin + stdlib + vmllib");
@@ -768,7 +770,7 @@ internal class BindingGenerator
             foreach (var f in g) sb.AppendLine($"{f.Convention} {f.ReturnType} {f.Name}({f.Params});");
             sb.AppendLine();
         }
-        File.WriteAllText(Path.Combine(dir, "shared_bindings.h"), sb.ToString());
+        WriteGen(Path.Combine(dir, "shared_bindings.h"), sb.ToString());
     }
 
     void GenCpp(string dir)
@@ -778,7 +780,7 @@ internal class BindingGenerator
         sb.AppendLine("extern \"C\" {");
         foreach (var f in _exported) sb.AppendLine($"    {f.Convention} {f.ReturnType} {f.Name}({f.Params});");
         sb.AppendLine("}");
-        File.WriteAllText(Path.Combine(dir, "shared_bindings.hpp"), sb.ToString());
+        WriteGen(Path.Combine(dir, "shared_bindings.hpp"), sb.ToString());
     }
 
     void GenBasic(string dir)
@@ -795,7 +797,7 @@ internal class BindingGenerator
             if (f.ReturnType != "void") sb.AppendLine($"    {f.Name} = 0");
             sb.AppendLine($"END {kw}\n");
         }
-        File.WriteAllText(Path.Combine(dir, "shared.bas"), sb.ToString());
+        WriteGen(Path.Combine(dir, "shared.bas"), sb.ToString());
     }
 
     void GenPython(string dir)
@@ -815,7 +817,7 @@ internal class BindingGenerator
             if (f.ReturnType != "void") sb.AppendLine("    return r0");
             sb.AppendLine();
         }
-        File.WriteAllText(Path.Combine(dir, "shared.py"), sb.ToString());
+        WriteGen(Path.Combine(dir, "shared.py"), sb.ToString());
     }
 
     void GenRust(string dir)
@@ -831,7 +833,7 @@ internal class BindingGenerator
             if (f.ReturnType != "void") { sb.AppendLine("    let r: i32;"); sb.AppendLine("    asm!(\"MOVE {{0}}, R0\", out(reg) r);"); sb.AppendLine("    r"); }
             sb.AppendLine("}\n");
         }
-        File.WriteAllText(Path.Combine(dir, "shared.rs"), sb.ToString());
+        WriteGen(Path.Combine(dir, "shared.rs"), sb.ToString());
     }
 
     void GenGo(string dir, string package)
@@ -849,7 +851,7 @@ internal class BindingGenerator
             if (f.ReturnType != "void") sb.AppendLine("    return vml.R0()");
             sb.AppendLine("}\n");
         }
-        File.WriteAllText(Path.Combine(dir, "shared.go"), sb.ToString());
+        WriteGen(Path.Combine(dir, "shared.go"), sb.ToString());
     }
 
     void GenJava(string dir, string package)
@@ -864,7 +866,7 @@ internal class BindingGenerator
         foreach (var f in _exported)
             sb.AppendLine($"    // extern {f.ReturnType} {f.Name}({f.Params});  // CALL {f.Name}");
         sb.AppendLine("}");
-        File.WriteAllText(Path.Combine(dir, "shared.cs"), sb.ToString());
+        WriteGen(Path.Combine(dir, "shared.cs"), sb.ToString());
     }
 
     void GenJavaScript(string dir)
@@ -902,7 +904,26 @@ internal class BindingGenerator
             sb.AppendLine($"// extern fn {f.Name}({f.Params}) -> {f.ReturnType}");
             sb.AppendLine($"// CALL {f.Name}");
         }
-        File.WriteAllText(Path.Combine(dir, filename), sb.ToString());
+        WriteGen(Path.Combine(dir, filename), sb.ToString());
         Console.WriteLine($"  ({_exported.Count} stubs)");
+    }
+}
+
+namespace GenLib
+{
+    /// <summary>
+    /// 生成物写出：统一成 LF。
+    /// StringBuilder.AppendLine 用的是 Environment.NewLine，
+    /// Windows 上是 CRLF、Linux/macOS 上是 LF，
+    /// 会让 Lib/ 的字节随平台而变，
+    /// 于是 check-vml-patches.sh 的「重生成 == 工作区」
+    /// 判据在任何行尾设置下都不可能两边都绿。
+    /// （2026-09-17 实测：同一个 Lib/cpp/math.vml，
+    /// 忽略 CR 逐字节相同、不忽略差 2114 行。）
+    /// </summary>
+    internal static class GenWriter
+    {
+        public static void WriteGen(string path, string text)
+            => File.WriteAllText(path, text.Replace("\r\n", "\n"));
     }
 }

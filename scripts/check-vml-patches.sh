@@ -58,13 +58,20 @@ for p in "$WT"/third_party/vml/patches/*.patch; do
   fi
 done
 
+# ⚠ 比较口径分两种（2026-09-17 定）：
+#   · ①②-b 比的是「vendor 工作树 + 补丁」与「工作区」—— 两边行尾各由**各自提交的
+#     .gitattributes** 决定（临时工作树签出的是 vendor 提交，用的是旧规则），所以只比
+#     **内容**（--strip-trailing-cr）。行尾是 .gitattributes 的事，不是这条判据要管的事。
+#   · ②a 比的是「GenLib 刚生成」与「工作区」—— 两边都在我们控制下，故仍**逐字节**。
+#     这道逐字节正是抓到 GenLib 用 AppendLine（Environment.NewLine ⇒ Windows 写 CRLF）
+#     导致 Lib/ 平台相关的那道网，绝不能放宽。
 echo "── ① 手写源码：vendor + 补丁 == 工作区 ──"
 # 逐目录比对。跳过 csproj（那类由 sync.sh 的 python 步骤机械施加，不进补丁）、
 # bin/obj（构建产物）、Examples（rsync 明确排除，改动能留住）、.DS_Store
 # （macOS 浏览过目录就会生成，未被 git 跟踪 ⇒ 只在工作区里有、临时工作树里没有，
 #   不排除的话在 Mac 上**必然**误报「不一致」，这道防线就形同虚设）。
 for d in VMLAssembler VMLRuntime VMLPlugins VMLPrepares VMLTool VMLTranslators VMLToHex; do
-  if diff -r -q -x '*.csproj' -x bin -x obj -x Examples -x .DS_Store \
+  if diff -r -q --strip-trailing-cr -x '*.csproj' -x bin -x obj -x Examples -x .DS_Store \
         "$WT/third_party/vml/$d" "$VML/$d" > "$TMP/diff.txt" 2>&1; then
     echo "  ✔ $d 一致"
   else
@@ -80,11 +87,11 @@ done
 # ⚠ 这条是 v0.96.185 补上的：改 `vmltool.config.xml` 给各语言挂 `vmlui.vml` 时才发现
 #    复核脚本根本没看这个文件 —— **判据漏了一个文件，等于那道防线对它是空的**。
 for f in vmltool.config.xml VERSION; do
-  if diff -q "$WT/third_party/vml/$f" "$VML/$f" > /dev/null 2>&1; then
+  if diff -q --strip-trailing-cr "$WT/third_party/vml/$f" "$VML/$f" > /dev/null 2>&1; then
     echo "  ✔ $f 一致"
   else
     echo "  ✘ $f 与「vendor+补丁」不一致 —— 同步时会被 cp 覆盖掉：" >&2
-    diff "$WT/third_party/vml/$f" "$VML/$f" | head -10 >&2
+    diff --strip-trailing-cr "$WT/third_party/vml/$f" "$VML/$f" | head -10 >&2
     fail=1
   fi
 done
@@ -137,7 +144,7 @@ while IFS= read -r f; do
   [ -n "$f" ] || continue
   if [ ! -f "$WT/third_party/vml/Lib/$f" ]; then
     echo "  ✘ Lib/$f 是本地新增的手工文件，没进补丁（同步时会被 --delete 删掉）" >&2; hand_bad=1
-  elif ! cmp -s "$WT/third_party/vml/Lib/$f" "$VML/Lib/$f"; then
+  elif ! diff -q --strip-trailing-cr "$WT/third_party/vml/Lib/$f" "$VML/Lib/$f" > /dev/null 2>&1; then
     echo "  ✘ Lib/$f 的手工改动没进补丁" >&2; hand_bad=1
   fi
 done < "$TMP/hand.txt"
