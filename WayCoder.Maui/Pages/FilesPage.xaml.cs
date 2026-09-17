@@ -7,6 +7,26 @@ public partial class FilesPage : ContentPage
     /// <summary>当前相对沙箱根的目录（"" = 根）。</summary>
     private string _currentDir = "";
 
+    /// <summary>
+    /// 正在做耗时文件操作（删除 / 打包）——期间挡住重入。
+    /// 用户实测报过「删大目录卡死闪退」，删除期间连点会叠出好几次递归遍历。
+    /// </summary>
+    private bool _busy;
+
+    /// <summary>
+    /// 显示/隐藏耗时操作的进度遮罩。遮罩**铺满整页**（见 XAML 注释），
+    /// 所以「没完成之前不让点其他地方」是它天然带来的，不必再去逐个禁用按钮。
+    /// `BusySpin` 一直在转 —— 这本身就是"还活着"的证据：大目录递归删是分钟级的，
+    /// 屏幕上什么都不动和卡死看起来一模一样（用户报的「卡死」有一半是这个）。
+    /// </summary>
+    private void ShowBusy(string text)
+    {
+        BusyLabel.Text = text;
+        BusyOverlay.IsVisible = true;
+    }
+
+    private void HideBusy() => BusyOverlay.IsVisible = false;
+
     public FilesPage()
     {
         InitializeComponent();
@@ -232,15 +252,35 @@ public partial class FilesPage : ContentPage
     /// <summary>把文件/目录打包为 ZIP（同目录下 同名.zip）。</summary>
     private async Task CreateZipAsync(SandboxFsService.FsEntry entry)
     {
-        var rel = SandboxFsService.ToRelative(entry.FullPath) ?? entry.Name;
-        var zipRel = await Task.Run(() => SandboxFsService.CreateZip(rel));
-        if (zipRel == null)
+        // 打包与删除同一类：大目录上都是长耗时。Task.Run 早就对了，
+        // 补的是**重入**与**异常**这两条（与 DeleteAsync 保持一致的口径）。
+        if (_busy) return;
+        _busy = true;
+        ShowBusy($"正在打包「{entry.Name}」…");
+        try
         {
-            await DisplayAlertAsync("打包失败", "同名 .zip 已存在，或目录不可写", "关闭");
-            return;
+            var rel = SandboxFsService.ToRelative(entry.FullPath) ?? entry.Name;
+            var zipRel = await Task.Run(() => SandboxFsService.CreateZip(rel));
+            HideBusy();
+            if (zipRel == null)
+            {
+                await DisplayAlertAsync("打包失败", "同名 .zip 已存在，或目录不可写", "关闭");
+                return;
+            }
+            Refresh();
+            await DisplayAlertAsync("已打包", $"已生成 {Path.GetFileName(zipRel)}", "确定");
         }
-        Refresh();
-        await DisplayAlertAsync("已打包", $"已生成 {Path.GetFileName(zipRel)}", "确定");
+        catch (Exception ex)
+        {
+            ErrorLog.Warning("FilesPage", $"打包 {entry.Name} 失败", ex);
+            HideBusy();
+            await DisplayAlertAsync("打包失败", ex.Message, "关闭");
+        }
+        finally
+        {
+            HideBusy();
+            _busy = false;
+        }
     }
 
     private async Task RenameAsync(SandboxFsService.FsEntry entry)
@@ -260,10 +300,34 @@ public partial class FilesPage : ContentPage
         var rel = SandboxFsService.ToRelative(entry.FullPath) ?? entry.Name;
         var confirmed = await DisplayAlertAsync("删除确认", $"确定删除「{entry.Name}」？此操作不可撤销。", "删除", "取消");
         if (!confirmed) return;
-        if (SandboxFsService.Delete(rel))
-            Refresh();
-        else
-            await DisplayAlertAsync("删除失败", "无法删除该项", "关闭");
+
+        // ⚠ **删除必须离开 UI 线程**。`SandboxFsService.Delete` 里是
+        //    `Directory.Delete(full, recursive: true)` —— **同步递归**，
+        //    而本方法是在 UI 线程上跑的：目录一大（App 自带那套 `vml/Lib` 是 5245 个文件）
+        //    主线程被堵死 ⇒ ANR ⇒ 用户看到的就是「删除卡死闪退」。
+        //    顺带挡重入：删除期间连点会叠出好几趟递归遍历，越叠越慢。
+        if (_busy) return;
+        _busy = true;
+        ShowBusy($"正在删除「{entry.Name}」…");
+        try
+        {
+            var ok = await Task.Run(() => SandboxFsService.Delete(rel));
+            HideBusy();                       // 先撤遮罩再弹结果，免得弹框压在遮罩下面
+            if (ok) Refresh();
+            else await DisplayAlertAsync("删除失败", "无法删除该项", "关闭");
+        }
+        catch (Exception ex)
+        {
+            // 删到一半失败（被占用 / 无权限）不能把整个 App 带崩，如实报出来
+            ErrorLog.Warning("FilesPage", $"删除 {rel} 失败", ex);
+            HideBusy();
+            await DisplayAlertAsync("删除失败", ex.Message, "关闭");
+        }
+        finally
+        {
+            HideBusy();
+            _busy = false;
+        }
     }
 
     /// <summary>点文件 → 跳内置编辑器（携带沙箱相对路径）。</summary>

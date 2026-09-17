@@ -6,6 +6,7 @@
     xmlns:svc="clr-namespace:WayCoder.Maui.Services"
     Title="文件">
 
+    <Grid>
     <Grid RowDefinitions="Auto,Auto,*">
 
         <!-- 顶部导航条：返回上级 + 当前路径 + 编辑模式开关 + 导入文档 -->
@@ -95,5 +96,37 @@
                 <Label Text="沙箱工作区为空，点「导入」加入文件" HorizontalOptions="Center" VerticalOptions="Center" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
             </CollectionView.EmptyView>
         </CollectionView>
+    </Grid>
+
+        <!--
+            耗时操作（删除 / 打包）的进度遮罩。
+
+            ⚠ 铺满**整页**、带不透明底色 —— 这样它自己就是可命中的，底层列表/按钮
+              收不到任何触摸 ⇒「没完成之前不让点其他地方」不用另写开关，遮罩天然就是模态。
+              （只把 `FileList.IsEnabled = false` 是不够的：顶部那几个按钮还点得动。）
+
+            显示/隐藏走 FilesPage.ShowBusy/HideBusy；删除与打包两处共用。
+        -->
+        <Grid
+            x:Name="BusyOverlay"
+            IsVisible="False"
+            BackgroundColor="#C0000000">
+            <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="14">
+                <ActivityIndicator
+                    x:Name="BusySpin"
+                    IsRunning="True"
+                    Color="White"
+                    WidthRequest="46"
+                    HeightRequest="46" />
+                <Label
+                    x:Name="BusyLabel"
+                    Text="正在处理…"
+                    TextColor="White"
+                    FontSize="15"
+                    HorizontalTextAlignment="Center"
+                    LineBreakMode="WordWrap"
+                    MaximumWidthRequest="280" />
+            </VerticalStackLayout>
+        </Grid>
     </Grid>
 </ContentPage>
