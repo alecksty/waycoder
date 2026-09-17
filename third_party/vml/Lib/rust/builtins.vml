@@ -4,90 +4,210 @@
 .linked "../shared/builtins.vml"
 
 LABEL rust_newline
+    push R15
+    push R12
+    move R12 R13
     CALL newline
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL rust_debug_print
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL debug_print
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL rust_debug_print_int
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL debug_print_int
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL rust_assert
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL assert
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL rust_sign
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL sign
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL rust_popcount
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL popcount
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL rust_clz
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL clz
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL rust_gcd
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL gcd
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL rust_lcm
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL lcm
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL rust_factorial
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL factorial
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL rust_is_prime
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL is_prime
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL rust_atoi
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL atoi
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL rust_itoa
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL itoa
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL rust_rand_range
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL rand_range
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL func_newline

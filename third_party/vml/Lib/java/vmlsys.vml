@@ -4,408 +4,978 @@
 .linked "../shared/vmlsys.vml"
 
 LABEL vmlPrintStr
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_print_str
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlPrintInt
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_print_int
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlPrintChar
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #4
     moveb @13 R0
+    move R0 [R13+0]
     CALL vml_print_char
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlPrintFloat
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #4
     movef @13 R0
+    move R0 [R13+0]
     CALL vml_print_float
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlPrintHex
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_print_hex
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlNewline
+    push R15
+    push R12
+    move R12 R13
     CALL vml_newline
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlPrintWstr
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_print_wstr
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlPrintUstr
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_print_ustr
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlMemCopy
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL vml_mem_copy
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlMemFill
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL vml_mem_fill
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlMemCompare
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL vml_mem_compare
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlRandom
+    push R15
+    push R12
+    move R12 R13
     CALL vml_random
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlSeed
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_seed
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlSleepMs
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_sleep_ms
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlGetTick
+    push R15
+    push R12
+    move R12 R13
     CALL vml_get_tick
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlGetTimestamp
+    push R15
+    push R12
+    move R12 R13
     CALL vml_get_timestamp
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlGetDate
+    push R15
+    push R12
+    move R12 R13
     CALL vml_get_date
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlGetTime
+    push R15
+    push R12
+    move R12 R13
     CALL vml_get_time
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlBeep
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL vml_beep
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlGetConfig
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_get_config
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlGetInfo
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_get_info
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlGetPlatform
+    push R15
+    push R12
+    move R12 R13
     CALL vml_get_platform
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlDebugPrint
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_debug_print
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlDebugInt
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_debug_int
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlAssert
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL vml_assert
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlDeviceOpen
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_device_open
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlDeviceClose
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_device_close
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlDeviceRead
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL vml_device_read
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlDeviceWrite
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL vml_device_write
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlDeviceControl
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL vml_device_control
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlFileOpen
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL vml_file_open
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlFileClose
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_file_close
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlFileRead
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL vml_file_read
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlFileWrite
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL vml_file_write
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlFileSize
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_file_size
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlFileSeek
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL vml_file_seek
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlFileTell
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_file_tell
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlMkdir
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_mkdir
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlRemove
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_remove
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlRename
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL vml_rename
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlReaddir
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL vml_readdir
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlStat
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL vml_stat
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlGetEnv
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_get_env
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlSetEnv
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL vml_set_env
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlExit
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_exit
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlGetPid
+    push R15
+    push R12
+    move R12 R13
     CALL vml_get_pid
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlThreadCreate
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL vml_thread_create
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlThreadExit
+    push R15
+    push R12
+    move R12 R13
     CALL vml_thread_exit
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlThreadYield
+    push R15
+    push R12
+    move R12 R13
     CALL vml_thread_yield
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlMutexCreate
+    push R15
+    push R12
+    move R12 R13
     CALL vml_mutex_create
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlMutexLock
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_mutex_lock
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlMutexUnlock
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_mutex_unlock
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlCondCreate
+    push R15
+    push R12
+    move R12 R13
     CALL vml_cond_create
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlCondWait
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL vml_cond_wait
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlCondSignal
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_cond_signal
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlCondBroadcast
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_cond_broadcast
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlExec
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_exec
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlSocketCreate
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL vml_socket_create
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlSocketConnect
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL vml_socket_connect
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlSocketSend
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL vml_socket_send
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlSocketRecv
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL vml_socket_recv
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlSocketClose
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_socket_close
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlDnsResolve
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vml_dns_resolve
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlScreenshot
+    push R15
+    push R12
+    move R12 R13
     CALL vml_screenshot
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL vmlSyscall5
-    PUSH R5
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+32]
     PUSH R0
+    move R0 [R12+28]
+    PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL vml_syscall5
     ADD R13 #24
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Vmlsys_VmlPrintStr

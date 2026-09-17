@@ -4,525 +4,1299 @@
 .linked "../shared/graph.vml"
 
 LABEL GfxScreen
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL gfx_screen
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxWidth
+    push R15
+    push R12
+    move R12 R13
     CALL gfx_width
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxHeight
+    push R15
+    push R12
+    move R12 R13
     CALL gfx_height
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxDepth
+    push R15
+    push R12
+    move R12 R13
     CALL gfx_depth
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxPalette
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL gfx_palette
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxPaletteGet
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL gfx_palette_get
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxPset
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL gfx_pset
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxPoint
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL gfx_point
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxCls
+    push R15
+    push R12
+    move R12 R13
     CALL gfx_cls
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxClsColor
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL gfx_cls_color
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxLine
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL gfx_line
     ADD R13 #20
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxRect
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL gfx_rect
     ADD R13 #20
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxRectFill
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL gfx_rect_fill
     ADD R13 #20
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxCircle
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL gfx_circle
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxCircleFill
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL gfx_circle_fill
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxEllipse
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL gfx_ellipse
     ADD R13 #20
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxEllipseFill
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL gfx_ellipse_fill
     ADD R13 #20
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxArc
-    PUSH R5
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+32]
     PUSH R0
+    move R0 [R12+28]
+    PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL gfx_arc
     ADD R13 #24
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxSector
-    PUSH R5
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+32]
     PUSH R0
+    move R0 [R12+28]
+    PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL gfx_sector
     ADD R13 #24
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxSectorFill
-    PUSH R5
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+32]
     PUSH R0
+    move R0 [R12+28]
+    PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL gfx_sector_fill
     ADD R13 #24
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxFloodFill
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL gfx_flood_fill
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxPrint
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL gfx_print
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxPrintScale
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL gfx_print_scale
     ADD R13 #20
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxScreenshot
+    push R15
+    push R12
+    move R12 R13
     CALL gfx_screenshot
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxPutImage
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL gfx_put_image
     ADD R13 #20
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxGetImage
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL gfx_get_image
     ADD R13 #20
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GfxViewport
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL gfx_viewport
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL InitGraph
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL InitGraph
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL CloseGraph
+    push R15
+    push R12
+    move R12 R13
     CALL CloseGraph
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL DetectGraph
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL DetectGraph
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GetMaxX
+    push R15
+    push R12
+    move R12 R13
     CALL GetMaxX
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GetMaxY
+    push R15
+    push R12
+    move R12 R13
     CALL GetMaxY
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GetDriverName
+    push R15
+    push R12
+    move R12 R13
     CALL GetDriverName
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GetModeName
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL GetModeName
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL SetColor
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL SetColor
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GetColor
+    push R15
+    push R12
+    move R12 R13
     CALL GetColor
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL SetBkColor
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL SetBkColor
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GetBkColor
+    push R15
+    push R12
+    move R12 R13
     CALL GetBkColor
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL SetRGBPalette
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL SetRGBPalette
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL PutPixel
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL PutPixel
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GetPixel
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL GetPixel
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Line
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL Line
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LineTo
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL LineTo
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LineRel
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL LineRel
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Rectangle
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL Rectangle
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Bar
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL Bar
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Bar3D
-    PUSH R5
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+32]
     PUSH R0
+    move R0 [R12+28]
+    PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL Bar3D
     ADD R13 #24
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Circle
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL Circle
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL FillCircle
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL FillCircle
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Ellipse
-    PUSH R5
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+32]
     PUSH R0
+    move R0 [R12+28]
+    PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL Ellipse
     ADD R13 #24
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL FillEllipse
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL FillEllipse
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Arc
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL Arc
     ADD R13 #20
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL PieSlice
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL PieSlice
     ADD R13 #20
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL SetFillStyle
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL SetFillStyle
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL SetLineStyle
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL SetLineStyle
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL ClearDevice
+    push R15
+    push R12
+    move R12 R13
     CALL ClearDevice
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL ClearViewPort
+    push R15
+    push R12
+    move R12 R13
     CALL ClearViewPort
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL SetViewPort
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL SetViewPort
     ADD R13 #20
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL OutText
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL OutText
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL OutTextXY
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL OutTextXY
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL FloodFill
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL FloodFill
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL ImageSize
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL ImageSize
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GetImage
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL GetImage
     ADD R13 #20
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL PutImage
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL PutImage
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GetPaletteSize
+    push R15
+    push R12
+    move R12 R13
     CALL GetPaletteSize
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GetPalette
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL GetPalette
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GetDefaultPalette
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL GetDefaultPalette
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GraphResult
+    push R15
+    push R12
+    move R12 R13
     CALL GraphResult
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL GraphErrorMsg
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL GraphErrorMsg
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL RestoreCrtMode
+    push R15
+    push R12
+    move R12 R13
     CALL RestoreCrtMode
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Graph_GfxScreen

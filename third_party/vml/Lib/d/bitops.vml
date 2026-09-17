@@ -4,86 +4,204 @@
 .linked "../shared/bitops.vml"
 
 LABEL d_bit_and
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL bit_and
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL d_bit_or
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL bit_or
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL d_bit_xor
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL bit_xor
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL d_bit_not
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL bit_not
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL d_bit_shl
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL bit_shl
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL d_bit_shr
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL bit_shr
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL d_rol
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL rol
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL d_ror
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL ror
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL d_bit_set
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL bit_set
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL d_bit_clear
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL bit_clear
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL d_bit_toggle
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL bit_toggle
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL d_bit_test
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL bit_test
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL func_bit_and

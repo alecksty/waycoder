@@ -6,312 +6,713 @@
 .linked "../shared/util.vml"
 
 LABEL LADDER_MIN
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL min
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_MAX
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL max
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_SUM
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL sum
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_ABS
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL abs
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_RANDOM
+    push R15
+    push R12
+    move R12 R13
     CALL random
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_CLAMP
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL clamp
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_COS
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL cos
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_SIN
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL sin
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_SQRT
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL sqrt
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_ATAN2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL atan2
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_POW10
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL pow10
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_RANDOMIZE
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL randomize
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER__SIN_TAYLOR
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL _sin_taylor
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER__COS_TAYLOR
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL _cos_taylor
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_ATAN_APPROX
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL atan_approx
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER__LOG_TAYLOR
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL _log_taylor
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_TAN
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL tan
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_ASIN
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL asin
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_ACOS
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL acos
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_ATAN
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL atan
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_EXP
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL exp
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_LOG
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL log
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_POW
-    sub R13 #8
-    moved @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     moved @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    moved @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL pow
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_IPOW
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL ipow
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_SIN_DEG
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #4
     movef @13 R0
+    move R0 [R13+0]
     CALL sin_deg
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_COS_DEG
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #4
     movef @13 R0
+    move R0 [R13+0]
     CALL cos_deg
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_TAN_DEG
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #4
     movef @13 R0
+    move R0 [R13+0]
     CALL tan_deg
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_APPROXIMATION
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL approximation
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_ILOG2
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL ilog2
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_CEIL_DIV
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL ceil_div
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_ROUND_DIV
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL round_div
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_RANDOM_RANGE
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL random_range
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_RANDOM_SET_SEED
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL random_set_seed
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_LERP
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL lerp
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_MAP_RANGE
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL map_range
     ADD R13 #20
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_CLAMP_INT
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL clamp_int
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_HYPOT_INT
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL hypot_int
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_ISQRT
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL isqrt
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_SIN_DEG_D
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL sin_deg_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_COS_DEG_D
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL cos_deg_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_TAN_DEG_D
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL tan_deg_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_SUM_ARR
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL sum_arr
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_MIN_ARR
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL min_arr
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_MAX_ARR
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL max_arr
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_INT_POW
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL int_pow
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_INT_SQRT
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL int_sqrt
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 

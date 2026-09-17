@@ -4,26 +4,56 @@
 .linked "../shared/encoding64.vml"
 
 LABEL PASCAL_LUTF8_STRLEN
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL lutf8_strlen
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL PASCAL_LUTF8_DECODE
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     sub R13 #8
-    movel @13 R1
+    movel @13 R0
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL lutf8_decode
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL PASCAL_LUTF8_ENCODE
-    sub R13 #8
-    movel @13 R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
+    move R2 [R13+12]
     CALL lutf8_encode
     ADD R13 #20
+    move R13 R12
+    pop R12
+    pop R15
     RET
 

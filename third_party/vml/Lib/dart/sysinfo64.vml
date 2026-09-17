@@ -4,7 +4,13 @@
 .linked "../shared/sysinfo64.vml"
 
 LABEL dart_ldatetime64
+    push R15
+    push R12
+    move R12 R13
     CALL ldatetime64
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL func_ldatetime64

@@ -57,18 +57,25 @@ namespace LuaCompiler
                     symbolTable[pname] = nextStackOffset;
                     nextStackOffset += 4;
                 }
-                // 调用方把第 i 个实参放在 **R{i}**（GenerateFunctionCall 的
-                // `MOVE R{i}, [R13-(i+1)*4]`），所以每个形参都要从自己那个寄存器里取。
-                // 此前只处理了 pi == 0 ⇒ **第二个及以后的形参永远是未初始化的栈内容**
-                //（`function add(a,b) return a+b end` 的 `add(4,5)` 返回 4+垃圾）。
-                // 第 4 个之后的实参走栈传参，本前端还没实现（保持原状）。
-                if (pi < 4)
+                // ⚠ **每个形参都从栈上取**（2026-09-17 调用约定统一后改的）。
+                //
+                // 先前：调用方把第 i 个实参放 **R{i}**（`MOVE R{i}, [R13-(i+1)*4]`）、
+                // 这里对应地从 R{pi} 取，两边自洽但只在「前 4 个 + 只有 Lua 自己调」时成立
+                //（且更早只实现了 pi == 0 ⇒ 第二个及以后的形参读到的是未初始化内容）。
+                // 现在调用点真压栈、其它语言与库也都从栈读 ⇒ 这里统一成 `[R12+12+4i]`，
+                // 与 C 编译出来的函数同一口径，**第 4 个之后的形参也一并支持**。
+                // 取到 R0 再存回帧内槽（VML 没有内存到内存的搬移）。
                 {
                     int off = symbolTable[pname];
                     instructions.Add(new Instruction(OpCode.MOVE,
                         new List<Operand> {
+                            new Operand(OperandType.REGISTER, 0),
+                            new Operand(OperandType.MEMORY, $"R12+{12 + pi * 4}")
+                        }, instructions.Count));
+                    instructions.Add(new Instruction(OpCode.MOVE,
+                        new List<Operand> {
                             new Operand(OperandType.MEMORY, $"R12-{off}"),
-                            new Operand(OperandType.REGISTER, pi)
+                            new Operand(OperandType.REGISTER, 0)
                         }, instructions.Count));
                 }
             }
@@ -462,32 +469,24 @@ namespace LuaCompiler
                 // asm() 已移除 — 仅限 C/ObjC/C++ 语言使用，Lua 通过 Lib/shared/vmlsys.c 调用系统功能
             }
 
-            // 生成参数
+            // 生成参数：**真·右到左压栈**（2026-09-17 调用约定统一后改的）
+            //
+            // 原先那句「保存参数到栈」只有一半：`MOVE [R13-(i+1)*4], R0` 是往 SP **下方**写，
+            // **R13 全程不动** —— 它不是压栈，而是把实参写进「被调方建帧后马上会覆盖」的区域；
+            // 紧跟着再把实参镜像进 R0-R3，指望被调方从**寄存器**取参（旧寄存器 ABI）。
+            // 统一之后实参一律在栈上、被调方也从栈读，这半套就不成立了：
+            // 实测 `scripts/vml-abi-probe/langs/abi.lua` 的 `ipow(2,3)` 得 **0**。
+            //
+            // 现在：右到左真压栈，调用点后面由调用方清（每个实参 4 字节）。
+            // 镜像那一段**删掉**了 —— 该做的事现在由 `Lib/{lang}` 的包装器统一做一次，
+            // 不再是每个前端各自记得做。
             if (node.Arguments != null)
             {
-                for (int i = 0; i < node.Arguments.Count; i++)
+                for (int i = node.Arguments.Count - 1; i >= 0; i--)
                 {
                     GenerateExpression(node.Arguments[i]);
-                    
-                    // 保存参数到栈
-                    int offset = (i + 1) * 4;
-                    instructions.Add(new Instruction(OpCode.MOVE, 
-                        new List<Operand> { 
-                            new Operand(OperandType.MEMORY, $"R13-{offset}"),
-                            new Operand(OperandType.REGISTER, 0)
-                        }, 
-                        instructions.Count));
-                }
-
-                int registerArgCount = Math.Min(node.Arguments.Count, 4);
-                for (int i = 0; i < registerArgCount; i++)
-                {
-                    int offset = (i + 1) * 4;
-                    instructions.Add(new Instruction(OpCode.MOVE,
-                        new List<Operand> {
-                            new Operand(OperandType.REGISTER, i),
-                            new Operand(OperandType.MEMORY, $"R13-{offset}")
-                        },
+                    instructions.Add(new Instruction(OpCode.PUSH,
+                        new List<Operand> { new Operand(OperandType.REGISTER, 0) },
                         instructions.Count));
                 }
             }
@@ -949,11 +948,23 @@ namespace LuaCompiler
                 {
                     funcLabel = $"func_{SanitizeFunctionName(functionName)}";
                 }
-                instructions.Add(new Instruction(OpCode.CALL, 
-                    new List<Operand> { 
+                instructions.Add(new Instruction(OpCode.CALL,
+                    new List<Operand> {
                         new Operand(OperandType.LABEL, funcLabel)
-                    }, 
+                    },
                     instructions.Count));
+
+                // 调用方清栈（原先没有 —— 那时实参既没真压、也没人清）
+                int callArgs = node.Arguments?.Count ?? 0;
+                if (callArgs > 0)
+                {
+                    instructions.Add(new Instruction(OpCode.ADD,
+                        new List<Operand> {
+                            new Operand(OperandType.REGISTER, 13),
+                            new Operand(OperandType.IMMEDIATE, callArgs * 4)
+                        },
+                        instructions.Count));
+                }
             }
             else
             {

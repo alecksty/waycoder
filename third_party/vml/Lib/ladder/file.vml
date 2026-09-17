@@ -4,58 +4,138 @@
 .linked "../shared/file.vml"
 
 LABEL LADDER_FOPEN
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL fopen
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_FCLOSE
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL fclose
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_FREAD
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL fread
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_FWRITE
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL fwrite
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_FSEEK
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL fseek
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_FTELL
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL ftell
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_FSIZE
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL fsize
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_FTRUNCATE
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL ftruncate
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 

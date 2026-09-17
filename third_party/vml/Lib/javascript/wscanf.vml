@@ -4,9 +4,17 @@
 .linked "../shared/wscanf.vml"
 
 LABEL wscanf
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL wscanf
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Wscanf_Wscanf

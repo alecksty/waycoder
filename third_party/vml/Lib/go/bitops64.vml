@@ -4,186 +4,392 @@
 .linked "../shared/bitops64.vml"
 
 LABEL go_lbit_and64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lbit_and64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lbit_or64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lbit_or64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lbit_xor64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lbit_xor64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lbit_not64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lbit_not64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lbit_shl64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lbit_shl64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lbit_shr64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lbit_shr64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lrol64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lrol64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lror64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lror64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lbit_set64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lbit_set64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lbit_clear64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lbit_clear64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lbit_toggle64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lbit_toggle64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lbit_test64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lbit_test64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lcount64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lcount64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lrotate_left64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lrotate_left64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lrotate_right64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lrotate_right64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_llowest_set64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL llowest_set64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lctz64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL lctz64
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lhighest_set64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lhighest_set64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lmask64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lmask64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lextract64
-    sub R13 #8
-    movel @13 R2
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+20]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
+    move R2 [R13+16]
     CALL lextract64
     ADD R13 #24
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lis_power_of_two64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lis_power_of_two64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_lnext_power_of_two64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lnext_power_of_two64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL func_lbit_and64

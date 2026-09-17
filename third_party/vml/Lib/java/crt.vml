@@ -4,119 +4,287 @@
 .linked "../shared/crt.vml"
 
 LABEL crtInitMaps
+    push R15
+    push R12
+    move R12 R13
     CALL _crt_init_maps
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTINIT
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_INIT
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTCLRSCR
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_CLRSCR
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTCLREOL
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_CLREOL
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTGOTOXY
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL CRT_GOTOXY
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTWHEREX
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_WHEREX
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTWHEREY
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_WHEREY
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTTEXTCOLOR
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL CRT_TEXTCOLOR
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTTEXTBACKGROUND
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL CRT_TEXTBACKGROUND
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTWINDOW
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL CRT_WINDOW
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTKEYPRESSED
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_KEYPRESSED
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTREADKEY
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_READKEY
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTDELAY
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL CRT_DELAY
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTSOUND
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL CRT_SOUND
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTNOSOUND
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_NOSOUND
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTNORMVIDEO
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_NORMVIDEO
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTHIGHVIDEO
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_HIGHVIDEO
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTLOWVIDEO
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_LOWVIDEO
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTINSLINE
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_INSLINE
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTDELLINE
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_DELLINE
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTCURSORON
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_CURSORON
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTCURSOROFF
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_CURSOROFF
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTWRITECHAR
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL CRT_WRITE_CHAR
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cRTWRITESTRING
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL CRT_WRITE_STRING
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Crt_CrtInitMaps

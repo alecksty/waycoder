@@ -4,25 +4,53 @@
 .linked "../shared/device64.vml"
 
 LABEL forth_ldev_read64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     sub R13 #8
-    movel @13 R3
+    movel @13 R0
+    move R0 [R12+20]
     sub R13 #8
-    movel @13 R2
-    PUSH R1
+    movel @13 R0
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+16]
     CALL ldev_read64
     ADD R13 #24
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL forth_ldev_write64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     sub R13 #8
-    movel @13 R3
+    movel @13 R0
+    move R0 [R12+20]
     sub R13 #8
-    movel @13 R2
-    PUSH R1
+    movel @13 R0
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+16]
     CALL ldev_write64
     ADD R13 #24
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL func_ldev_read64

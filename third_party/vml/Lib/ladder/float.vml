@@ -4,6 +4,12 @@
 .linked "../shared/float.vml"
 
 LABEL LADDER_GETFLOAT
+    push R15
+    push R12
+    move R12 R13
     CALL getfloat
+    move R13 R12
+    pop R12
+    pop R15
     RET
 

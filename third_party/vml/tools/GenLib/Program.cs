@@ -378,15 +378,57 @@ static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef
             }
 
             sb.AppendLine($"LABEL {label}");
+
+            // ⚠ **包装器从自己的栈帧读实参**（2026-09-17 调用约定统一）。
+            //
+            // 原先这里直接发 `PUSH R{i}` —— 那是**旧寄存器 ABI**（第 i 个形参在 R{i}）。
+            // 统一之后实参一律在调用方的栈上，包装器再去 R1-R3 里找就是残留值：
+            // 单参调用时 R0 恰好等于刚求值完的那个实参，所以**看不出问题**；
+            // 多参才露馅（实测 `ipow(2, 3)` 经包装器得 `1` = `ipow(x, 0)`，因为 R1 恰为 0）。
+            // C 前端能跑只是因为它在调用点额外做了 R0-R3 镜像（commit 5655c305）。
+            //
+            // 现在包装器只认一条规则「实参在栈上、右到左」，不再关心调用方是谁 ——
+            // 顺带把那套镜像从「每个前端都要记得做」变成「包装器这一层做一次」。
+            sb.AppendLine("    push R15");
+            sb.AppendLine("    push R12");
+            sb.AppendLine("    move R12 R13");
+
+            // 实参区布局：`[R12+12]` = 第 1 个参数
+            //（R12 上方依次是序言存下的 R12、R15，再往上是 CALL 压的返回地址，之后才是实参）
+            int[] argOff = new int[pCount];
+            {
+                int off = 12;
+                for (int i = 0; i < pCount; i++)
+                {
+                    argOff[i] = off;
+                    off += EmitPushParam(i < paramTypes.Length ? paramTypes[i] : "", 0).bytes;
+                }
+            }
+
             int totalArgBytes = 0;
             for (int i = pCount - 1; i >= 0; i--)
             {
                 string type = i < paramTypes.Length ? paramTypes[i] : "";
-                var (lines, bytes) = EmitPushParam(type, i);
+                // 先把第 i 个实参从帧里取到 R0，再复用同一套按类型压栈的指令
+                sb.AppendLine($"    move R0 [R12+{argOff[i]}]");
+                var (lines, bytes) = EmitPushParam(type, 0);
                 foreach (var line in lines)
                     sb.AppendLine(line);
                 totalArgBytes += bytes;
             }
+
+            // 镜像 arg0..arg3 进 R0-R3 —— 给实现体里那 543 处 `asm("SYSCALL #6")` 用
+            //（参数直接吃 R0，把「第一个形参在 R0」烙死在源码里）。
+            // ⚠ 必须在所有压栈**之后**做：压栈过程本身会用到 R0。
+            {
+                int off = 0;
+                for (int i = 0; i < pCount && i < 4; i++)
+                {
+                    sb.AppendLine($"    move R{i} [R13+{off}]");
+                    off += EmitPushParam(i < paramTypes.Length ? paramTypes[i] : "", 0).bytes;
+                }
+            }
+
             sb.AppendLine($"    CALL {funcName}");
             // ⚠ 统一约定：**一律由调用方清栈**（原来只在 isCdecl 时发）。
             // 旧行为下非 cdecl 的包装器不发清栈，是指望被调方弹掉自己压的那格 ——
@@ -394,6 +436,10 @@ static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef
             // 也是「两套栈清理约定并存」那一族缺陷的源头。
             if (totalArgBytes > 0)
                 sb.AppendLine($"    ADD R13 #{totalArgBytes}");
+            // 拆掉本包装器自己的帧（序言压的 R12/R15）—— 被调方已是裸 `ret`，不弹实参
+            sb.AppendLine("    move R13 R12");
+            sb.AppendLine("    pop R12");
+            sb.AppendLine("    pop R15");
             sb.AppendLine("    RET");
             sb.AppendLine();
         }

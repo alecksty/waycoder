@@ -4,242 +4,568 @@
 .linked "../shared/matrix64.vml"
 
 LABEL python_arrays
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL arrays
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat2_identity_d
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL mat2_identity_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat2_add_d
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL mat2_add_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat2_sub_d
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL mat2_sub_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat2_mul_d
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL mat2_mul_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat2_scale_d
-    PUSH R2
-    sub R13 #8
-    moved @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+16]
+    sub R13 #8
+    moved @13 R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+12]
     CALL mat2_scale_d
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat2_det_d
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL mat2_det_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat2_transpose_d
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL mat2_transpose_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat2_inv_d
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL mat2_inv_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat2_rot_d
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL mat2_rot_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat3_identity_d
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL mat3_identity_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat3_mul_d
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL mat3_mul_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat3_det_d
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL mat3_det_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat3_transpose_d
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL mat3_transpose_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat3_scale_d
-    PUSH R2
-    sub R13 #8
-    moved @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+16]
+    sub R13 #8
+    moved @13 R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+12]
     CALL mat3_scale_d
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat4_identity_d
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL mat4_identity_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat4_mul_d
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL mat4_mul_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat4_translate_d
-    PUSH R3
-    sub R13 #8
-    moved @13 R2
-    sub R13 #8
-    moved @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+36]
+    PUSH R0
+    move R0 [R12+28]
     sub R13 #8
     moved @13 R0
+    move R0 [R12+20]
+    sub R13 #8
+    moved @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    moved @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
+    move R2 [R13+16]
+    move R3 [R13+24]
     CALL mat4_translate_d
     ADD R13 #28
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat4_scale_xyz_d
-    PUSH R3
-    sub R13 #8
-    moved @13 R2
-    sub R13 #8
-    moved @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+36]
+    PUSH R0
+    move R0 [R12+28]
     sub R13 #8
     moved @13 R0
+    move R0 [R12+20]
+    sub R13 #8
+    moved @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    moved @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
+    move R2 [R13+16]
+    move R3 [R13+24]
     CALL mat4_scale_xyz_d
     ADD R13 #28
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat4_rot_x_d
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL mat4_rot_x_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat4_rot_y_d
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL mat4_rot_y_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat4_rot_z_d
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL mat4_rot_z_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat4_transpose_d
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL mat4_transpose_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_vec2_dot_d
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL vec2_dot_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_vec2_cross_d
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL vec2_cross_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_vec2_len_d
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vec2_len_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_vec2_normalize_d
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vec2_normalize_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_vec3_dot_d
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL vec3_dot_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_vec3_cross_d
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL vec3_cross_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_vec3_len_d
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vec3_len_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_vec3_normalize_d
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vec3_normalize_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL python_mat4_transform_vec3_d
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL mat4_transform_vec3_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL func_arrays

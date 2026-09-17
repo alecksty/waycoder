@@ -4,20 +4,46 @@
 .linked "../shared/parserexpf.vml"
 
 LABEL PASCAL_PARSE_EXPR_F
+    push R15
+    push R12
+    move R12 R13
     CALL parse_expr_f
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL PASCAL_PARSE_TERM_F
+    push R15
+    push R12
+    move R12 R13
     CALL parse_term_f
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL PASCAL_PARSE_FACTOR_F
+    push R15
+    push R12
+    move R12 R13
     CALL parse_factor_f
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL PASCAL_PARSEREXPF
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL parserexpf
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 

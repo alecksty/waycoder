@@ -4,61 +4,129 @@
 .linked "../shared/fixed64.vml"
 
 LABEL LADDER_MATH
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL Math
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_LFIXED_MUL64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lfixed_mul64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_LFIXED_DIV64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lfixed_div64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_LFIXED_FROM_INT64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lfixed_from_int64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_LFIXED_TO_INT64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lfixed_to_int64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_LFIXED_TO_INT_ROUND64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lfixed_to_int_round64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_LFIXED_FROM_DOUBLE
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL lfixed_from_double
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LADDER_LFIXED_TO_DOUBLE
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lfixed_to_double
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 

@@ -4,37 +4,81 @@
 .linked "../shared/crc64.vml"
 
 LABEL ruby_crc64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     sub R13 #8
-    movel @13 R1
+    movel @13 R0
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL crc64
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL ruby_fnv1a_hash64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL fnv1a_hash64
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL ruby_djb2_hash64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL djb2_hash64
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL ruby_sdbm_hash64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL sdbm_hash64
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL ruby_crc32_64l
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     sub R13 #8
-    movel @13 R1
+    movel @13 R0
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL crc32_64l
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL func_crc64

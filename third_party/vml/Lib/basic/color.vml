@@ -4,117 +4,283 @@
 .linked "../shared/color.vml"
 
 LABEL BASIC_RGB888_TO_RGB565
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL rgb888_to_rgb565
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_RGB565_TO_R
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL rgb565_to_r
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_RGB565_TO_G
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL rgb565_to_g
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_RGB565_TO_B
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL rgb565_to_b
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_RGB
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL rgb
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_RED
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL red
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_GREEN
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL green
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_BLUE
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL blue
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_GRAYSCALE
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL grayscale
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_COLOR_BLEND
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL color_blend
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_COLOR_BRIGHTNESS
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL color_brightness
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_HSV_TO_RGB
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL hsv_to_rgb
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_COLOR_BLACK
+    push R15
+    push R12
+    move R12 R13
     CALL color_black
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_COLOR_WHITE
+    push R15
+    push R12
+    move R12 R13
     CALL color_white
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_COLOR_RED
+    push R15
+    push R12
+    move R12 R13
     CALL color_red
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_COLOR_GREEN
+    push R15
+    push R12
+    move R12 R13
     CALL color_green
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_COLOR_BLUE
+    push R15
+    push R12
+    move R12 R13
     CALL color_blue
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_COLOR_YELLOW
+    push R15
+    push R12
+    move R12 R13
     CALL color_yellow
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_COLOR_CYAN
+    push R15
+    push R12
+    move R12 R13
     CALL color_cyan
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_COLOR_MAGENTA
+    push R15
+    push R12
+    move R12 R13
     CALL color_magenta
+    move R13 R12
+    pop R12
+    pop R15
     RET
 

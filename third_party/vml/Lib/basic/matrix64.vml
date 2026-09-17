@@ -4,241 +4,567 @@
 .linked "../shared/matrix64.vml"
 
 LABEL BASIC_ARRAYS
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL arrays
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT2_IDENTITY_D
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL mat2_identity_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT2_ADD_D
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL mat2_add_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT2_SUB_D
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL mat2_sub_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT2_MUL_D
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL mat2_mul_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT2_SCALE_D
-    PUSH R2
-    sub R13 #8
-    moved @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+16]
+    sub R13 #8
+    moved @13 R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+12]
     CALL mat2_scale_d
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT2_DET_D
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL mat2_det_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT2_TRANSPOSE_D
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL mat2_transpose_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT2_INV_D
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL mat2_inv_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT2_ROT_D
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL mat2_rot_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT3_IDENTITY_D
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL mat3_identity_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT3_MUL_D
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL mat3_mul_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT3_DET_D
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL mat3_det_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT3_TRANSPOSE_D
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL mat3_transpose_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT3_SCALE_D
-    PUSH R2
-    sub R13 #8
-    moved @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+16]
+    sub R13 #8
+    moved @13 R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+12]
     CALL mat3_scale_d
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT4_IDENTITY_D
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL mat4_identity_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT4_MUL_D
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL mat4_mul_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT4_TRANSLATE_D
-    PUSH R3
-    sub R13 #8
-    moved @13 R2
-    sub R13 #8
-    moved @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+36]
+    PUSH R0
+    move R0 [R12+28]
     sub R13 #8
     moved @13 R0
+    move R0 [R12+20]
+    sub R13 #8
+    moved @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    moved @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
+    move R2 [R13+16]
+    move R3 [R13+24]
     CALL mat4_translate_d
     ADD R13 #28
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT4_SCALE_XYZ_D
-    PUSH R3
-    sub R13 #8
-    moved @13 R2
-    sub R13 #8
-    moved @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+36]
+    PUSH R0
+    move R0 [R12+28]
     sub R13 #8
     moved @13 R0
+    move R0 [R12+20]
+    sub R13 #8
+    moved @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    moved @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
+    move R2 [R13+16]
+    move R3 [R13+24]
     CALL mat4_scale_xyz_d
     ADD R13 #28
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT4_ROT_X_D
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL mat4_rot_x_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT4_ROT_Y_D
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL mat4_rot_y_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT4_ROT_Z_D
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL mat4_rot_z_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT4_TRANSPOSE_D
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL mat4_transpose_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_VEC2_DOT_D
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL vec2_dot_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_VEC2_CROSS_D
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL vec2_cross_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_VEC2_LEN_D
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vec2_len_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_VEC2_NORMALIZE_D
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vec2_normalize_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_VEC3_DOT_D
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL vec3_dot_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_VEC3_CROSS_D
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL vec3_cross_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_VEC3_LEN_D
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vec3_len_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_VEC3_NORMALIZE_D
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL vec3_normalize_d
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL BASIC_MAT4_TRANSFORM_VEC3_D
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL mat4_transform_vec3_d
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 

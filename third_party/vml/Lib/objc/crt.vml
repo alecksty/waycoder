@@ -4,119 +4,287 @@
 .linked "../shared/crt.vml"
 
 LABEL objc__crt_init_maps
+    push R15
+    push R12
+    move R12 R13
     CALL _crt_init_maps
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_INIT
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_INIT
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_CLRSCR
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_CLRSCR
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_CLREOL
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_CLREOL
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_GOTOXY
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL CRT_GOTOXY
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_WHEREX
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_WHEREX
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_WHEREY
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_WHEREY
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_TEXTCOLOR
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL CRT_TEXTCOLOR
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_TEXTBACKGROUND
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL CRT_TEXTBACKGROUND
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_WINDOW
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+24]
     PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL CRT_WINDOW
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_KEYPRESSED
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_KEYPRESSED
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_READKEY
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_READKEY
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_DELAY
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL CRT_DELAY
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_SOUND
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL CRT_SOUND
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_NOSOUND
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_NOSOUND
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_NORMVIDEO
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_NORMVIDEO
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_HIGHVIDEO
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_HIGHVIDEO
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_LOWVIDEO
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_LOWVIDEO
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_INSLINE
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_INSLINE
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_DELLINE
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_DELLINE
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_CURSORON
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_CURSORON
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_CURSOROFF
+    push R15
+    push R12
+    move R12 R13
     CALL CRT_CURSOROFF
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_WRITE_CHAR
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL CRT_WRITE_CHAR
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_CRT_WRITE_STRING
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL CRT_WRITE_STRING
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL func__crt_init_maps

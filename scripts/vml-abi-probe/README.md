@@ -39,9 +39,10 @@ scripts/vml-abi-probe/run-langs.sh cpp  # 按扩展名挑
 |---|---|---|
 | ~~`abi.cpp`~~ | **`8` ✓** | 已修：`CppCompiler` 的四条分流（extern/stdcall/fastcall/cdecl）合成一条 —— 右到左压栈 + 镜像移出压栈循环 + 一律调用方清栈；被调方那边同样收口（形参只有 `R12+12+4i` 一种布局、尾声裸 `pop R15`） |
 | ~~`abi.java`~~ | **`8` ✓** | 已修：调用点原先「第 1 个实参进 R0、其余右→左压栈」（CCv2 寄存器约定，与库完全不兼容——库里 C 编译出来的函数从 `[R12+12+4i]` 取参，R0 里那个它根本看不到）。改成全部右到左压栈 + 全部由调用方清；被调方也统一成每个形参都从 `[R14+16+4i]` 取 |
-| `abi.rb` | `1` | 调用点**已修**（改右到左，生成物已核对），但仍卡在**最后一层**：`Lib/ruby/math.vml` 的包装器 |
-| `abi.js` | 崩（SP 归零） | 调用点**已修**，但 `Lib/javascript/math.vml` 里 `LABEL ipow … CALL ipow` 是**自调用** ⇒ 无限递归（`naming.json` 给 javascript/java 的 `PrimaryPrefix` 为空，单词名函数的主标签与 C 符号名撞车；`pow`/`abs`/`sqrt` 同理）。重生成前后都在 |
-| `drift.lua` | `0` | `LuaCompiler/CodeGenerator.Statements_B.cs:465-493` 的「压栈」**不动 R13**，实参只进 R0-R3 ⇒ 被调方读不到（第 5 个起静默丢弃） |
+| ~~`abi.rb`~~ | **`8` ✓** | 已修：调用点改右到左 + **包装器改从自己的栈帧读实参**（见下「总根源」） |
+| ~~`abi.lua`~~ | **`8` ✓** | 已修：Lua 的「压栈」原先**不动 R13**（假压栈），改成真压 + 调用方清；被调方也改成每个形参都从 `[R12+12+4i]` 取（原先从 R0-R3，第 4 个之后还不支持） |
+| `abi.js` | 崩（SP 归零） | 调用点**已修**，但仍崩在**另一个既存缺陷**：`Lib/javascript/math.vml` 里 `LABEL ipow … CALL ipow` 是**自调用** ⇒ 无限递归。根因是 `naming.json` 给 javascript/java 的 `PrimaryPrefix` 为空，**单词名函数**的主标签与 C 符号名撞车（`pow`/`abs`/`sqrt` 等同理）。重生成前后都在 |
+| `drift.lua` | `0` | `ipow` 在循环**外**是对的（常量实参、`local` 变量实参都实测得 8），**进 `for` 循环就变 0** —— Lua 前端的另一个独立问题（与实参传递无关），待查 |
 | `drift.m` | `2059` | ObjC 的多参外部调用（**既存缺陷**：重生成前基线也是 2059；栈漂移那部分已修） |
 
 ### ⚠ 总根源：`Lib/{lang}/**` 的包装器仍在用**寄存器**收参数

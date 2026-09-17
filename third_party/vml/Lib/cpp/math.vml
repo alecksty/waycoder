@@ -6,313 +6,714 @@
 .linked "../shared/util.vml"
 
 LABEL cpp_min
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL min
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_max
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL max
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_sum
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL sum
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_abs
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL abs
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_random
+    push R15
+    push R12
+    move R12 R13
     CALL random
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_clamp
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL clamp
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_cos
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL cos
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_sin
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL sin
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_sqrt
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL sqrt
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_atan2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL atan2
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_pow10
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL pow10
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_randomize
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL randomize
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp__sin_taylor
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL _sin_taylor
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp__cos_taylor
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL _cos_taylor
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_atan_approx
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL atan_approx
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp__log_taylor
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL _log_taylor
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_tan
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL tan
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_asin
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL asin
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_acos
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL acos
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_atan
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL atan
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_exp
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL exp
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_log
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL log
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_pow
-    sub R13 #8
-    moved @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     moved @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    moved @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL pow
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_ipow
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL ipow
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_sin_deg
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #4
     movef @13 R0
+    move R0 [R13+0]
     CALL sin_deg
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_cos_deg
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #4
     movef @13 R0
+    move R0 [R13+0]
     CALL cos_deg
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_tan_deg
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #4
     movef @13 R0
+    move R0 [R13+0]
     CALL tan_deg
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_approximation
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL approximation
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_ilog2
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL ilog2
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_ceil_div
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL ceil_div
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_round_div
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL round_div
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_random_range
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL random_range
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_random_set_seed
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL random_set_seed
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_lerp
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL lerp
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_map_range
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL map_range
     ADD R13 #20
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_clamp_int
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
     CALL clamp_int
     ADD R13 #12
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_hypot_int
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL hypot_int
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_isqrt
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL isqrt
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_sin_deg_d
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL sin_deg_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_cos_deg_d
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL cos_deg_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_tan_deg_d
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL tan_deg_d
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_sum_arr
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL sum_arr
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_min_arr
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL min_arr
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_max_arr
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL max_arr
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_int_pow
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]
     PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
     CALL int_pow
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL cpp_int_sqrt
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL int_sqrt
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL func_min

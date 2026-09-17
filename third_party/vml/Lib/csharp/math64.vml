@@ -4,218 +4,459 @@
 .linked "../shared/math64.vml"
 
 LABEL Labs64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL labs64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Lmin64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lmin64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Lmax64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lmax64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Lclamp64
-    sub R13 #8
-    movel @13 R2
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+20]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
+    move R2 [R13+16]
     CALL lclamp64
     ADD R13 #24
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Lsign64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lsign64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Lgcd64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lgcd64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Llcm64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL llcm64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Lisqrt64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lisqrt64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Lpow64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lpow64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Lfactorial64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lfactorial64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LceilDiv64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lceil_div64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LroundDiv64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lround_div64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LisPrime64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lis_prime64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Lrandom64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lrandom64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Lclz64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lclz64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Count
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL Count
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Lpopcnt64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lpopcnt64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Llerp64
-    sub R13 #8
-    movel @13 R2
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+20]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
+    move R2 [R13+16]
     CALL llerp64
     ADD R13 #24
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LmapRange64
-    sub R13 #8
-    movel @13 R4
-    sub R13 #8
-    movel @13 R3
-    sub R13 #8
-    movel @13 R2
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+44]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+36]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R12+28]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R12+20]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
+    move R2 [R13+16]
+    move R3 [R13+24]
     CALL lmap_range64
     ADD R13 #40
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Lpow1064
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lpow10_64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Lhypot64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lhypot64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Lilog264
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lilog2_64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LisEven64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lis_even64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL LisOdd64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lis_odd64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL SinTaylor64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL _sin_taylor64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL CosTaylor64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL _cos_taylor64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL Math64_Labs64

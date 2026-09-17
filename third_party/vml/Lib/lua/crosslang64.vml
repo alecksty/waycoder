@@ -4,85 +4,183 @@
 .linked "../shared/crosslang64.vml"
 
 LABEL lua_ladd64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL ladd64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL lua_lsub64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lsub64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL lua_lmul64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lmul64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL lua_ldiv64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL ldiv64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL lua_lmod64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lmod64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL lua_lneg64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lneg64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL lua_larr_sum64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL larr_sum64
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL lua_larr_avg64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL larr_avg64
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL lua_lmean64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL lmean64
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL lua_larr_max64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL larr_max64
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL lua_larr_min64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL larr_min64
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL func_ladd64

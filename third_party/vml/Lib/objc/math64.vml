@@ -4,218 +4,459 @@
 .linked "../shared/math64.vml"
 
 LABEL objc_labs64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL labs64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lmin64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lmin64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lmax64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lmax64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lclamp64
-    sub R13 #8
-    movel @13 R2
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+20]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
+    move R2 [R13+16]
     CALL lclamp64
     ADD R13 #24
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lsign64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lsign64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lgcd64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lgcd64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_llcm64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL llcm64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lisqrt64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lisqrt64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lpow64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lpow64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lfactorial64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lfactorial64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lceil_div64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lceil_div64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lround_div64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lround_div64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lis_prime64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lis_prime64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lrandom64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lrandom64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lclz64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lclz64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_Count
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL Count
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lpopcnt64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lpopcnt64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_llerp64
-    sub R13 #8
-    movel @13 R2
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+20]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
+    move R2 [R13+16]
     CALL llerp64
     ADD R13 #24
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lmap_range64
-    sub R13 #8
-    movel @13 R4
-    sub R13 #8
-    movel @13 R3
-    sub R13 #8
-    movel @13 R2
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+44]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+36]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R12+28]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R12+20]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
+    move R2 [R13+16]
+    move R3 [R13+24]
     CALL lmap_range64
     ADD R13 #40
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lpow10_64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lpow10_64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lhypot64
-    sub R13 #8
-    movel @13 R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+20]
     sub R13 #8
     movel @13 R0
+    move R0 [R12+12]
+    sub R13 #8
+    movel @13 R0
+    move R0 [R13+0]
+    move R1 [R13+8]
     CALL lhypot64
     ADD R13 #16
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lilog2_64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lilog2_64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lis_even64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lis_even64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc_lis_odd64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     movel @13 R0
+    move R0 [R13+0]
     CALL lis_odd64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc__sin_taylor64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL _sin_taylor64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL objc__cos_taylor64
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #8
     moved @13 R0
+    move R0 [R13+0]
     CALL _cos_taylor64
     ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL func_labs64

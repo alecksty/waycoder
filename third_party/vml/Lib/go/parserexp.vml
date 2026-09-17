@@ -4,58 +4,135 @@
 .linked "../shared/parserexp.vml"
 
 LABEL go_literals
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL literals
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_NULL
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL NULL
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_is_hex_digit
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     sub R13 #4
     moveb @13 R0
+    move R0 [R13+0]
     CALL is_hex_digit
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_skip_spaces
+    push R15
+    push R12
+    move R12 R13
     CALL skip_spaces
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_next_token
+    push R15
+    push R12
+    move R12 R13
     CALL next_token
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_parse_expr
+    push R15
+    push R12
+    move R12 R13
     CALL parse_expr
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_parse_term
+    push R15
+    push R12
+    move R12 R13
     CALL parse_term
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_parse_factor
+    push R15
+    push R12
+    move R12 R13
     CALL parse_factor
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_parserexp
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+12]
     PUSH R0
+    move R0 [R13+0]
     CALL parserexp
     ADD R13 #4
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL go_cases
-    PUSH R4
-    PUSH R3
-    PUSH R2
-    PUSH R1
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+28]
     PUSH R0
+    move R0 [R12+24]
+    PUSH R0
+    move R0 [R12+20]
+    PUSH R0
+    move R0 [R12+16]
+    PUSH R0
+    move R0 [R12+12]
+    PUSH R0
+    move R0 [R13+0]
+    move R1 [R13+4]
+    move R2 [R13+8]
+    move R3 [R13+12]
     CALL cases
     ADD R13 #20
+    move R13 R12
+    pop R12
+    pop R15
     RET
 
 LABEL func_literals
