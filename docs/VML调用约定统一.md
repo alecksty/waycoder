@@ -365,3 +365,95 @@ csharp 与 forth 就掉。原因是重生成会换掉标签格式（`L94240004` 
 中间态（一个模块新、其余旧）是**没有可用基线**的，只能靠判据（`scripts/vml-abi-probe/`）
 而不是 22 语言骨架来判进度 —— 判据是**运行期**行为，不受模块间新旧混杂影响：
 上面第二次实验里判据就已经是 **6/6 全绿**了。
+
+---
+
+# 上游重生成：具体命令与要改的两处（2026-09-17 实地查证）
+
+## 关键前提：上游的 `CCompiler` 是 `Exe`
+
+`~/Desktop/source/vml/vml/VMLPrepares/CCompiler/CCompiler.csproj` 是 `<OutputType>Exe</OutputType>`；
+**我们 vendored 的那份是 `Library`**（vmlcli 与 WayCoder.Maui 要以项目引用它）。
+所以 `Lib/shared/rebuild_shared.sh` 那种靠 `dotnet run` 的脚本**只在上游跑得通**，
+在本仓会报「可运行的项目应面向可运行的 TFM 且 OutputType 为 Exe」。
+（本仓那份 `scripts/vmlcli --rebuild-lib` 是为绕开这一点写的，走同一个 `CompileFile` API。）
+
+## 一键全流程
+
+`tools/GenLib` 自带整条链 —— 编译 C→VML、生成各语言模块包装、聚合文件、源文件绑定：
+
+```bash
+cd ~/Desktop/source/vml/vml
+dotnet run --project tools/GenLib -- -A          # 全流程
+dotnet run --project tools/GenLib -- -A -l python # 只做某个语言
+dotnet run --project tools/GenLib -- -b           # 只编译过期的 C 源
+```
+
+`-b` 是**进程内调用 CCompiler**，所以本仓对 C 前端做的调用约定改动**直接生效**
+（前提是上游那份 `VMLPrepares/` 也是新版 —— 见下面「待办」）。
+
+**所以「重生成 Lib」不是一条复杂工序，就是这一条命令。** 难的部分不在跑，在于跑完之后
+本仓要能接得住（同步 + 补丁 + 22 前端 + 重打 APK）。
+
+## GenLib 必须改的两处
+
+### ① 清栈：`Program.cs` 的包装生成（约 :387）
+
+```csharp
+sb.AppendLine($"    CALL {funcName}");
+if (isCdecl && totalArgBytes > 0)              // ← 现在只有 cdecl 才发调用方清栈
+    sb.AppendLine($"    ADD R13 #{totalArgBytes}");
+sb.AppendLine("    RET");
+```
+
+统一约定下**一律由调用方清** ⇒ 去掉 `isCdecl &&` 这个条件即可。
+这正是那批 `PUSH R0 / CALL x / RET` thunk（`c_println_int` 等）的成因 ——
+它们不发清栈，是因为**指望被调方弹掉自己压的那格**。
+
+### ② 压参宽度：`EmitPushParam` 按自然大小压，与新的形参槽对不上
+
+```csharp
+case "char": ... return (new[] { $"    sub R13 #1", $"    moveb @13 R{regIdx}" }, 1);
+case "short": ... return (new[] { $"    sub R13 #2", ... }, 2);
+```
+
+旁边还留着白纸黑字的耦合注释：
+
+> `// 实现体用 moveb 读取 + add R13 #5 清栈, 包装器必须只压 1 字节`
+
+而新前端把形参槽统一成「**每个标量一个 4 字节槽**」（`ParamStackBytes`）——
+**这与 p6（`short` 形参错位）是同一个病，只差在包装器这一侧**。
+`EmitPushParam` 里 1/2 字节那两支要改成压满一格（`PUSH R0` / `sub R13 #4`），
+`totalArgBytes` 随之按 4 计；8 字节的（double/long）保持占两格。
+
+## 顺序（照这个走，别换）
+
+1. **上游**：把本仓 `VMLPrepares/CCompiler/` 的调用约定改动搬过去（或在两边同步同一份）。
+2. **上游**：按上面 ①② 改 `tools/GenLib`。
+3. **上游**：`dotnet run --project tools/GenLib -- -A`。
+4. 上游跑自己的测试 `VMLTests/`（含 `GenLibGenDynTests`）。
+5. **本仓**：`sync.sh` 同步下来（⚠ 它会 `--delete` 覆盖 `Lib/`），按需补 `patches/`。
+6. **本仓**：删掉 22 个前端里为旧约定写的补偿代码（Forth
+   `CodeGenerator.Operations.cs` 的额外 `PUSH` 有白纸黑字的注释）。
+7. **判据**：`scripts/vml-abi-probe/run.sh` → 必须 **6/6**（这一步在同步完当场就能验）。
+8. **22 语言**：`scripts/vmlcli` 逐条跑 → 22/22。
+9. **重打 APK** + `scripts/maui-vml-verify.sh` 真机全量。
+
+> ⚠ 第 5~6 步之间是本仓唯一没有可用基线的窗口 —— 那时 22 语言会大面积红。
+> **判进度只看 `scripts/vml-abi-probe/`**（运行期行为，不受模块间新旧混杂影响）。
+
+## 顺手要清的雷
+
+`Lib/shared/src/console.c` 的 `printf2` / `printf3`：
+
+```c
+__stdcall void printf2(const char* fmt, int a1, int a2) {
+    asm("MOVE R0 fmt");      // ← 把 C 变量名当 asm 操作数
+    asm("MOVE R1 a1");
+    asm("MOVE R2 a2");
+    asm("CALL printf2");     // ← 在 printf2 自己里面递归调自己
+    asm("ADD R13 #12");      // ← 清一块从没压过的栈
+}
+```
+
+现在没炸只因没人调用它。重生成时一并处理（或删掉）。
