@@ -167,12 +167,26 @@ namespace RustCompiler
                     AddInstruction(OpCode.MOVE, "R0", label);
                     EmitPrintString();
                 }
-                else if (literal.Type == "integer")
+                else if (literal.Type == "integer" || literal.Type == "int" || literal.Type == "long")
                 {
-                    if (literal.Value != null && int.TryParse(literal.Value.ToString(), out int iv))
+                    // ⚠ 判据必须含 `"int"` / `"long"` —— 解析器产出的整数类型名是
+                    //   `Parser.Expressions.cs:284` 的 `"int"`（`"long"` 是 :285），
+                    //   而这里原先只认 `"integer"`。**两个字符串对不上 ⇒ 整个分支从不进入
+                    //   ⇒ 这个 if/else 链又没有兜底 else ⇒ 静默产空、实参凭空消失**。
+                    //   实测：`println!("OUT-INT={}", 42)` 只打出 `OUT-INT=`（42 丢了），
+                    //   而字符串/浮点/字符/布尔的类型名恰好都对得上 ⇒ **只有整数被丢**。
+                    //   （与 C++ 前端 `printf` 那个"只取第 0 个实参"是同一族：
+                    //     格式串旁挂的实参被静默丢掉、编译链接全绿。）
+                    if (literal.Value != null && long.TryParse(literal.Value.ToString(), out long iv))
                     {
-                        AddInstruction(OpCode.MOVE, "R0", $"#{iv}");
+                        AddInstruction(OpCode.MOVE, "R0", $"#{(int)iv}");
                         EmitPrintInt();
+                    }
+                    else
+                    {
+                        // 宁可报错也不静默丢 —— 静默丢正是这个 bug 藏了这么久的原因
+                        throw new CodeGenerationException(
+                            $"println! 格式实参的整数值无法解析: {literal.Value}");
                     }
                 }
                 else if (literal.Type == "float")
