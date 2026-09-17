@@ -460,16 +460,19 @@ namespace JavaCompiler
             }
             // asm() 已移除 — 仅限 C/ObjC/C++ 语言使用，Java 通过 Lib/shared/vmlsys.c 调用系统功能
 
-            // 生成参数 (CCv2: 第一个参数在R0, 其余从右到左压栈)
+            // ⚠ **全部**实参右到左压栈（2026-09-17 调用约定统一后改的）。
+            //
+            // 原先是「第 1 个实参放 R0、其余从右到左压栈」（CCv2 寄存器约定）。本前端自己的
+            // 被调方也照这个读（param0 从 R0），两边**自洽**，但与其它所有语言和库都不兼容 ——
+            // 库里由 C 编译出来的函数从 `[R12+12+4i]` 取参，R0 里那个参数它**根本看不到**。
+            // 实测（`scripts/vml-abi-probe/langs/abi.java`）：`ipow(2, 3)` 得 **1**
+            // （= `ipow(2, 0)`，第二个实参读成 0）。
             for (int i = methodCall.Arguments.Count - 1; i >= 0; i--)
             {
                 GenerateExpression(methodCall.Arguments[i]);
-                if (i > 0)
-                {
-                    instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> {
-                        new Operand(OperandType.REGISTER, 0)
-                    }));
-                }
+                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> {
+                    new Operand(OperandType.REGISTER, 0)
+                }));
             }
             
             if (methodCall.MethodName == "exit" && methodCall.Arguments.Count == 1)
@@ -532,8 +535,8 @@ namespace JavaCompiler
                 }
             }
             
-            // 清理参数 (只清理压栈的参数, 不包括R0中的第一个参数)
-            int pushedArgs = methodCall.Arguments.Count > 0 ? methodCall.Arguments.Count - 1 : 0;
+            // 清栈：**全部**实参都由调用方清（原先只清「压过的那些」，因为第 1 个留在 R0 里没压）
+            int pushedArgs = methodCall.Arguments.Count;
             if (pushedArgs > 0)
             {
                 instructions.Add(new Instruction(OpCode.ADD, new List<Operand> {

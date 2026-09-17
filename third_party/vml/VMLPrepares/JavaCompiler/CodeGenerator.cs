@@ -302,33 +302,27 @@ namespace JavaCompiler
                 _varOffsets[method.Parameters[pi].Name] = _currentVarOffset;
                 _varTypes[method.Parameters[pi].Name] = JavaTypeEnum.Int;
                 Vars.AllocLocal(method.Parameters[pi].Name, 4);
-                if (pi == 0)
-                {
-                    instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, Vars.FormatOffset(-_currentVarOffset)), new Operand(OperandType.REGISTER, 0)]));
-                }
-                else
-                {
-                    // 从栈上取第 pi 个实参。
-                    //
-                    // ⚠ 这一句原来是 `MOVE [R14+n], R0` —— **操作数写反**：`MOVE` 是 dest 在前，
-                    //   所以它实际做的是"把 R0 存进 [R14+n]"（一个 store），被注释称为"从栈上取"
-                    //   的动作根本不存在 ⇒ R0 里一直留着第 0 个形参的值，**除首参外每个形参都
-                    //   等于首参**（实测 `f(11,22,33)` 三个形参全是 11、`add(3,4)` 得 6）。
-                    //   它下面那句（存进形参槽）方向本来就是对的 —— 两句摆在一起才看得出，
-                    //   单看一句"长得像 load"，正是这一族 bug 反复漏掉的原因。
-                    //
-                    // 栈帧（本文件上面那段手写序言的布局）：
-                    //   [R14+0]  = 保存的调用方 R14
-                    //   [R14+4]  = 保存的 R12
-                    //   [R14+8]  = 保存的 R15
-                    //   [R14+12] = **CALL 压入的返回地址**
-                    //   [R14+16 + 4k] = 调用方从右到左压入的实参（最后一个形参先压、在最高地址）
-                    // ⚠ 比原来的 `12 +` 多 4 —— 多存的那个 R14 让帧基整体下移一格，
-                    //   不改这里的话除首参外全部读成返回地址/错位一格。
-                    int stackOff = 16 + (pi - 1) * 4;
-                    instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, Vars.FormatOffset(stackOff))]));
-                    instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, Vars.FormatOffset(-_currentVarOffset)), new Operand(OperandType.REGISTER, 0)]));
-                }
+                // ⚠ **每个形参都从栈上取**（2026-09-17 调用约定统一后改的）。
+                //
+                // 原先 `pi == 0` 走一个特例分支（直接从 R0 存进形参槽），其余才从栈取 ——
+                // 那是「第 1 个实参放 R0」的 CCv2 寄存器约定。统一之后调用点把**全部**实参
+                // 都右到左压栈，R0 里不再有特供的首参（R0 只在调用前被镜像层顺手写一次，
+                // 是给 `Lib` 里那些内联汇编用的，不是传参通道）。
+                //
+                // 栈帧（本文件上面那段手写序言的布局）：
+                //   [R14+0]  = 保存的调用方 R14
+                //   [R14+4]  = 保存的 R12
+                //   [R14+8]  = 保存的 R15
+                //   [R14+12] = **CALL 压入的返回地址**
+                //   [R14+16 + 4i] = 调用方从右到左压入的实参（第 1 个形参最后压、在最低地址）
+                // ⚠ 比原来的 `12 +` 多 4 —— 多存的那个 R14 让帧基整体下移一格。
+                //
+                // 历史：这一句更早的形态是 `MOVE [R14+n], R0` —— **操作数写反**（`MOVE` 是
+                // dest 在前），做的是 store 而不是 load ⇒ 除首参外每个形参都等于首参
+                // （实测 `f(11,22,33)` 三个形参全是 11）。修的时候别只看一句"长得像 load"。
+                int stackOff = 16 + pi * 4;
+                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, Vars.FormatOffset(stackOff))]));
+                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, Vars.FormatOffset(-_currentVarOffset)), new Operand(OperandType.REGISTER, 0)]));
                 paramSpace += 4;
             }
             instructions.Add(new Instruction(OpCode.SUB, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, Math.Max(64, paramSpace))]));

@@ -179,8 +179,15 @@ public partial class CodeGenerator
             return;
         }
 
-        // push arguments
-        for (int i = 0; i < node.Arguments.Count; i++)
+        // ⚠ 实参**右到左**压栈（2026-09-17 调用约定统一后改的，原先是从左到右）。
+        //
+        // 被调方按 `[R12+12+4i]` 逐个读形参（本前端 `CodeGenerator.Statements.cs` 的 `MemOff`
+        // 把 -12 翻成 `R12+12`），**前提就是最后压入的 = 第 1 个参数**。左到右会让形参整体反序。
+        // 实测（`scripts/vml-abi-probe/langs/abi.rb`）：`ipow(2, 3)` 得 **1**（= `ipow(2, 0)`）。
+        //
+        // 接收者在实参**之后**压 ⇒ 落在最低地址 = 第 1 个形参槽，正好是 `self` 该在的位置，
+        // 所以这一段不用动（改完 `obj.m(a,b)` 的形参是 self/a/b，不再是 self/b/a）。
+        for (int i = node.Arguments.Count - 1; i >= 0; i--)
         {
             GenerateExpression(node.Arguments[i]);
             instructions.Add(new Instruction(OpCode.PUSH,

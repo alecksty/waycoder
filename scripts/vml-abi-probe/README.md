@@ -38,11 +38,60 @@ scripts/vml-abi-probe/run-langs.sh cpp  # 按扩展名挑
 | 探针 | 实测 | 指向 |
 |---|---|---|
 | ~~`abi.cpp`~~ | **`8` ✓** | 已修：`CppCompiler` 的四条分流（extern/stdcall/fastcall/cdecl）合成一条 —— 右到左压栈 + 镜像移出压栈循环 + 一律调用方清栈；被调方那边同样收口（形参只有 `R12+12+4i` 一种布局、尾声裸 `pop R15`） |
-| `abi.java` | `1` | 调用点「第 1 个实参进 R0、其余右→左压栈」——是旧约定本体，第 2 个实参到不了 `[R12+16]`；被调方 `CodeGenerator.cs:299-331` 的 param0 也从 R0 读 |
-| `abi.rb` | `1` | 同上（`RubyCompiler/CodeGenerator.Expressions.cs:177-183` 左→右压栈） |
-| `abi.js` | 崩（SP 归零） | 压栈方向**已修**（`CodeGenerator.Calls.cs` 两处循环改右到左，生成物已核对），但仍崩在**另一个既存缺陷**上：`Lib/javascript/math.vml` 里 `LABEL ipow … CALL ipow` 是**自调用** ⇒ 无限递归。根因是 `naming.json` 给 javascript/java 的 `PrimaryPrefix` 为空，**单词名函数**的主标签与 C 符号名撞车（`pow`/`abs`/`sqrt` 等同理）。重生成前后都在 |
+| ~~`abi.java`~~ | **`8` ✓** | 已修：调用点原先「第 1 个实参进 R0、其余右→左压栈」（CCv2 寄存器约定，与库完全不兼容——库里 C 编译出来的函数从 `[R12+12+4i]` 取参，R0 里那个它根本看不到）。改成全部右到左压栈 + 全部由调用方清；被调方也统一成每个形参都从 `[R14+16+4i]` 取 |
+| `abi.rb` | `1` | 调用点**已修**（改右到左，生成物已核对），但仍卡在**最后一层**：`Lib/ruby/math.vml` 的包装器 |
+| `abi.js` | 崩（SP 归零） | 调用点**已修**，但 `Lib/javascript/math.vml` 里 `LABEL ipow … CALL ipow` 是**自调用** ⇒ 无限递归（`naming.json` 给 javascript/java 的 `PrimaryPrefix` 为空，单词名函数的主标签与 C 符号名撞车；`pow`/`abs`/`sqrt` 同理）。重生成前后都在 |
 | `drift.lua` | `0` | `LuaCompiler/CodeGenerator.Statements_B.cs:465-493` 的「压栈」**不动 R13**，实参只进 R0-R3 ⇒ 被调方读不到（第 5 个起静默丢弃） |
 | `drift.m` | `2059` | ObjC 的多参外部调用（**既存缺陷**：重生成前基线也是 2059；栈漂移那部分已修） |
+
+### ⚠ 总根源：`Lib/{lang}/**` 的包装器仍在用**寄存器**收参数
+
+`abi.rb` / `abi.js` / `drift.lua` / `drift.m` 这四条追下去都汇到同一处 ——
+GenLib 生成的包装器（`Lib/ruby/math.vml`、`Lib/javascript/math.vml` …）长这样：
+
+```asm
+func_ipow:
+    jmp ruby_ipow
+ruby_ipow:
+    push R1        ; ← 第 2 个参数从 **R1** 取
+    push R0        ; ← 第 1 个从 **R0**
+    call lib_math_ipow
+    add R13 #8
+    ret
+```
+
+`EmitPushParam`（`tools/GenLib/Program.cs`）发的是 `PUSH R{i}` —— 这是**旧寄存器 ABI**。
+被调方 `lib_math_ipow` 从 `[R12+12]`/`[R12+16]` 读栈，于是拿到的是 R0/R1 里的残留
+（实测 `ipow(2,3)` 得 `1` = `ipow(x, 0)`，因为 R1 恰为 0）。
+
+**这解释了「为什么单参调用看着都对、多参才露馅」**：单参时 `R0` 恰好等于刚求值完的第 1 个实参；
+多参才需要 R1-R3，而那是垃圾。C 前端能跑，只因为它在调用点做了 **R0-R3 镜像**（commit 5655c305）。
+
+**修法**（下一步）：让包装器**从自己的栈帧读实参**而不是从寄存器 ——
+
+```asm
+LABEL ruby_ipow
+    push R15
+    push R12
+    move R12 R13
+    move R0 [R12+16]      ; arg1
+    push R0
+    move R0 [R12+12]      ; arg0
+    push R0
+    move R0 [R13+0]       ; 镜像 arg0..arg3 给下一层的内联汇编用
+    move R1 [R13+4]
+    CALL ipow
+    ADD R13 #8
+    move R13 R12
+    pop R12
+    pop R15
+    RET
+```
+
+这一改的好处是**包装器不再关心调用方的约定**（只认「实参在栈上、右到左」），
+`Lib/` 里那 543 处 `asm("SYSCALL #6")` 也由包装器这一层的镜像喂饱。
+⚠ 代价是 `Lib/{lang}/**` 要整体重生成一次（1933 个文件），改法与验证路径与上一轮相同
+（`GenLib -A` + `scripts/check-vml-patches.sh` 的「可重生成」判据）。
 
 > 审计（覆盖全部 22 个前端）还查出几条**探针没覆盖**的同类问题，一并记在这里当活单：
 > Python 的**被调方**仍从 R0-R3 拷形参（`Statements_A.cs:61-71`）而调用点只压栈 ⇒ 只有 arg0 侥幸正确；

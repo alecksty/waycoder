@@ -1048,6 +1048,107 @@ index 768e0990..254854f4 100644
                  break;
              case "==": _expr!.EmitCmp(left, right, "=="); break;
              case "/=": _expr!.EmitCmp(left, right, "!="); break;
+diff --git a/third_party/vml/VMLPrepares/JavaCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/JavaCompiler/CodeGenerator.Expressions.cs
+index c1fce0cc..4db12564 100644
+--- a/third_party/vml/VMLPrepares/JavaCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/JavaCompiler/CodeGenerator.Expressions.cs
+@@ -460,16 +460,19 @@ namespace JavaCompiler
+             }
+             // asm() 已移除 — 仅限 C/ObjC/C++ 语言使用，Java 通过 Lib/shared/vmlsys.c 调用系统功能
+ 
+-            // 生成参数 (CCv2: 第一个参数在R0, 其余从右到左压栈)
++            // ⚠ **全部**实参右到左压栈（2026-09-17 调用约定统一后改的）。
++            //
++            // 原先是「第 1 个实参放 R0、其余从右到左压栈」（CCv2 寄存器约定）。本前端自己的
++            // 被调方也照这个读（param0 从 R0），两边**自洽**，但与其它所有语言和库都不兼容 ——
++            // 库里由 C 编译出来的函数从 `[R12+12+4i]` 取参，R0 里那个参数它**根本看不到**。
++            // 实测（`scripts/vml-abi-probe/langs/abi.java`）：`ipow(2, 3)` 得 **1**
++            // （= `ipow(2, 0)`，第二个实参读成 0）。
+             for (int i = methodCall.Arguments.Count - 1; i >= 0; i--)
+             {
+                 GenerateExpression(methodCall.Arguments[i]);
+-                if (i > 0)
+-                {
+-                    instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> {
+-                        new Operand(OperandType.REGISTER, 0)
+-                    }));
+-                }
++                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> {
++                    new Operand(OperandType.REGISTER, 0)
++                }));
+             }
+             
+             if (methodCall.MethodName == "exit" && methodCall.Arguments.Count == 1)
+@@ -532,8 +535,8 @@ namespace JavaCompiler
+                 }
+             }
+             
+-            // 清理参数 (只清理压栈的参数, 不包括R0中的第一个参数)
+-            int pushedArgs = methodCall.Arguments.Count > 0 ? methodCall.Arguments.Count - 1 : 0;
++            // 清栈：**全部**实参都由调用方清（原先只清「压过的那些」，因为第 1 个留在 R0 里没压）
++            int pushedArgs = methodCall.Arguments.Count;
+             if (pushedArgs > 0)
+             {
+                 instructions.Add(new Instruction(OpCode.ADD, new List<Operand> {
+diff --git a/third_party/vml/VMLPrepares/JavaCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/JavaCompiler/CodeGenerator.cs
+index c0a6fe5e..aaa72409 100644
+--- a/third_party/vml/VMLPrepares/JavaCompiler/CodeGenerator.cs
++++ b/third_party/vml/VMLPrepares/JavaCompiler/CodeGenerator.cs
+@@ -302,33 +302,27 @@ namespace JavaCompiler
+                 _varOffsets[method.Parameters[pi].Name] = _currentVarOffset;
+                 _varTypes[method.Parameters[pi].Name] = JavaTypeEnum.Int;
+                 Vars.AllocLocal(method.Parameters[pi].Name, 4);
+-                if (pi == 0)
+-                {
+-                    instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, Vars.FormatOffset(-_currentVarOffset)), new Operand(OperandType.REGISTER, 0)]));
+-                }
+-                else
+-                {
+-                    // 从栈上取第 pi 个实参。
+-                    //
+-                    // ⚠ 这一句原来是 `MOVE [R14+n], R0` —— **操作数写反**：`MOVE` 是 dest 在前，
+-                    //   所以它实际做的是"把 R0 存进 [R14+n]"（一个 store），被注释称为"从栈上取"
+-                    //   的动作根本不存在 ⇒ R0 里一直留着第 0 个形参的值，**除首参外每个形参都
+-                    //   等于首参**（实测 `f(11,22,33)` 三个形参全是 11、`add(3,4)` 得 6）。
+-                    //   它下面那句（存进形参槽）方向本来就是对的 —— 两句摆在一起才看得出，
+-                    //   单看一句"长得像 load"，正是这一族 bug 反复漏掉的原因。
+-                    //
+-                    // 栈帧（本文件上面那段手写序言的布局）：
+-                    //   [R14+0]  = 保存的调用方 R14
+-                    //   [R14+4]  = 保存的 R12
+-                    //   [R14+8]  = 保存的 R15
+-                    //   [R14+12] = **CALL 压入的返回地址**
+-                    //   [R14+16 + 4k] = 调用方从右到左压入的实参（最后一个形参先压、在最高地址）
+-                    // ⚠ 比原来的 `12 +` 多 4 —— 多存的那个 R14 让帧基整体下移一格，
+-                    //   不改这里的话除首参外全部读成返回地址/错位一格。
+-                    int stackOff = 16 + (pi - 1) * 4;
+-                    instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, Vars.FormatOffset(stackOff))]));
+-                    instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, Vars.FormatOffset(-_currentVarOffset)), new Operand(OperandType.REGISTER, 0)]));
+-                }
++                // ⚠ **每个形参都从栈上取**（2026-09-17 调用约定统一后改的）。
++                //
++                // 原先 `pi == 0` 走一个特例分支（直接从 R0 存进形参槽），其余才从栈取 ——
++                // 那是「第 1 个实参放 R0」的 CCv2 寄存器约定。统一之后调用点把**全部**实参
++                // 都右到左压栈，R0 里不再有特供的首参（R0 只在调用前被镜像层顺手写一次，
++                // 是给 `Lib` 里那些内联汇编用的，不是传参通道）。
++                //
++                // 栈帧（本文件上面那段手写序言的布局）：
++                //   [R14+0]  = 保存的调用方 R14
++                //   [R14+4]  = 保存的 R12
++                //   [R14+8]  = 保存的 R15
++                //   [R14+12] = **CALL 压入的返回地址**
++                //   [R14+16 + 4i] = 调用方从右到左压入的实参（第 1 个形参最后压、在最低地址）
++                // ⚠ 比原来的 `12 +` 多 4 —— 多存的那个 R14 让帧基整体下移一格。
++                //
++                // 历史：这一句更早的形态是 `MOVE [R14+n], R0` —— **操作数写反**（`MOVE` 是
++                // dest 在前），做的是 store 而不是 load ⇒ 除首参外每个形参都等于首参
++                // （实测 `f(11,22,33)` 三个形参全是 11）。修的时候别只看一句"长得像 load"。
++                int stackOff = 16 + pi * 4;
++                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, Vars.FormatOffset(stackOff))]));
++                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, Vars.FormatOffset(-_currentVarOffset)), new Operand(OperandType.REGISTER, 0)]));
+                 paramSpace += 4;
+             }
+             instructions.Add(new Instruction(OpCode.SUB, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, Math.Max(64, paramSpace))]));
 diff --git a/third_party/vml/VMLPrepares/JavaScriptCompiler/CodeGenerator.Calls.cs b/third_party/vml/VMLPrepares/JavaScriptCompiler/CodeGenerator.Calls.cs
 index ef3709d1..1f16decf 100644
 --- a/third_party/vml/VMLPrepares/JavaScriptCompiler/CodeGenerator.Calls.cs
@@ -1187,7 +1288,7 @@ index f642ea90..af25bcff 100644
          }
          // push arguments in reverse order
 diff --git a/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.Expressions.cs
-index ded299cf..d9704a18 100644
+index ded299cf..ce5b6b42 100644
 --- a/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.Expressions.cs
 +++ b/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.Expressions.cs
 @@ -93,12 +93,17 @@ public partial class CodeGenerator
@@ -1209,3 +1310,21 @@ index ded299cf..d9704a18 100644
                  break;
              case "==": _expr!.EmitCmp(left, right, "=="); break;
              case "!=": _expr!.EmitCmp(left, right, "!="); break;
+@@ -174,8 +179,15 @@ public partial class CodeGenerator
+             return;
+         }
+ 
+-        // push arguments
+-        for (int i = 0; i < node.Arguments.Count; i++)
++        // ⚠ 实参**右到左**压栈（2026-09-17 调用约定统一后改的，原先是从左到右）。
++        //
++        // 被调方按 `[R12+12+4i]` 逐个读形参（本前端 `CodeGenerator.Statements.cs` 的 `MemOff`
++        // 把 -12 翻成 `R12+12`），**前提就是最后压入的 = 第 1 个参数**。左到右会让形参整体反序。
++        // 实测（`scripts/vml-abi-probe/langs/abi.rb`）：`ipow(2, 3)` 得 **1**（= `ipow(2, 0)`）。
++        //
++        // 接收者在实参**之后**压 ⇒ 落在最低地址 = 第 1 个形参槽，正好是 `self` 该在的位置，
++        // 所以这一段不用动（改完 `obj.m(a,b)` 的形参是 self/a/b，不再是 self/b/a）。
++        for (int i = node.Arguments.Count - 1; i >= 0; i--)
+         {
+             GenerateExpression(node.Arguments[i]);
+             instructions.Add(new Instruction(OpCode.PUSH,
