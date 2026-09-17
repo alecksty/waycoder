@@ -1,21 +1,4 @@
 
-.linked "shared.vml"
-.linked "io.vml"
-.linked "memory.vml"
-.linked "sysinfo.vml"
-.linked "vmlsys.vml"
-.linked "syscall.vml"
-.linked "console.vml"
-.linked "convert.vml"
-.linked "string.vml"
-.linked "math.vml"
-.linked "printf.vml"
-.linked "ctype.vml"
-.linked "bitops.vml"
-.linked "util.vml"
-.linked "float.vml"
-.linked "file.vml"
-.linked "os.vml"
 .data
 L_94240004: .string "true"
 L_94240005: .string "false"
@@ -1661,219 +1644,6 @@ L_94240131:
         pop R12
         pop R15
         ret
-atoi:
-; -------------------------------------------
-; source   : int atoi(const char* s)
-; function : atoi
-; param   : const char* s
-; return   : int
-; --------------------------------------------
-atoi:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
-        move R0 #0
-        move [R12-8] R0
-        move R0 #1
-        move [R12-12] R0
-        move R0 #0
-        move [R12-16] R0
-        move R0 [R12+12]
-        move R0 [R12+12]
-        test R0 R0
-        jz _L94240136
-        move R0 #0
-        jmp _L94240137
-_L94240136:
-        move R0 #1
-_L94240137:
-        cmp R0 #0
-        jz sta_94240134
-        move R0 #0
-        jmp L_94240138
-sta_94240134:
-sta_94240135:
-sta_94240139:
-        move R2 #0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R9
-        add R0 R9
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #32
-        popb R1
-        cmp R1 R0
-        je _L94240141
-        move R0 #0
-        jmp _L94240142
-_L94240141:
-        move R0 #1
-_L94240142:
-        cmp R0 #0
-        jz sta_94240140
-        move R0 [R12-16]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-16] R0
-        move R0 R1
-        jmp sta_94240139
-sta_94240140:
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R6
-        add R0 R6
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #45
-        popb R1
-        cmp R1 R0
-        je _L94240145
-        move R0 #0
-        jmp _L94240146
-_L94240145:
-        move R0 #1
-_L94240146:
-        cmp R0 #0
-        jz sta_94240143
-        move R0 #1
-        move R0 #1
-        neg R0 R0
-        move [R12-12] R0
-        move R0 [R12-16]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-16] R0
-        move R0 R1
-        jmp sta_94240144
-sta_94240143:
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R7
-        add R0 R7
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #43
-        popb R1
-        cmp R1 R0
-        je _L94240149
-        move R0 #0
-        jmp _L94240150
-_L94240149:
-        move R0 #1
-_L94240150:
-        cmp R0 #0
-        jz sta_94240147
-        move R0 [R12-16]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-16] R0
-        move R0 R1
-sta_94240147:
-sta_94240148:
-sta_94240144:
-sta_94240151:
-        move R2 #0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R5
-        add R0 R5
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #48
-        popb R1
-        cmp R1 R0
-        jge _L94240155
-        move R0 #0
-        jmp _L94240156
-_L94240155:
-        move R0 #1
-_L94240156:
-        test R0 R0
-        jz _L94240153
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R4
-        add R0 R4
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #57
-        popb R1
-        cmp R1 R0
-        jle _L94240157
-        move R0 #0
-        jmp _L94240158
-_L94240157:
-        move R0 #1
-_L94240158:
-        test R0 R0
-        jz _L94240153
-        move R0 #1
-        jmp _L94240154
-_L94240153:
-        move R0 #0
-_L94240154:
-        cmp R0 #0
-        jz sta_94240152
-        move R0 [R12-8]
-        push R0
-        move R0 #10
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R3
-        add R0 R3
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #48
-        popb R1
-        sub R1 R0
-        moveb R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-8] R0
-        move R0 [R12-16]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-16] R0
-        move R0 R1
-        jmp sta_94240151
-sta_94240152:
-        move R0 [R12-8]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        jmp L_94240138
-L_94240138:
-        move R13 R12
-        pop R12
-        pop R15
-        ret
 memcpy:
 ; -------------------------------------------
 ; source   : void* memcpy(void* dst,const void* src,int n)
@@ -1894,47 +1664,47 @@ memcpy:
         move [R12-12] R0
         move R0 #0
         move [R12-16] R0
-sta_94240159:
+sta_94240134:
         move R0 [R12-16]
         push R0
         move R0 [R12+20]
         pop R1
         cmp R1 R0
-        jl _L94240162
+        jl _L94240137
         move R0 #0
-        jmp _L94240163
-_L94240162:
+        jmp _L94240138
+_L94240137:
         move R0 #1
-_L94240163:
+_L94240138:
         cmp R0 #0
-        jz sta_94240161
+        jz sta_94240136
         move R0 [R12-12]
         push R0
         move R0 [R12-16]
         mul R0 #1
-        pop R1
-        add R0 R1
+        pop R9
+        add R0 R9
         moveb R0 [R0]
         sextb R0 R0
-        move R2 R0
+        move R6 R0
         move R0 [R12-8]
         push R0
         move R0 [R12-16]
         mul R0 #1
-        pop R10
-        add R0 R10
-        moveb [R0] R2
-sta_94240160:
+        pop R7
+        add R0 R7
+        moveb [R0] R6
+sta_94240135:
         move R0 [R12-16]
         move R1 R0
         add R0 R0 #1
         move [R12-16] R0
         move R0 R1
-        jmp sta_94240159
-sta_94240161:
+        jmp sta_94240134
+sta_94240136:
         move R0 [R12+12]
-        jmp L_94240164
-L_94240164:
+        jmp L_94240139
+L_94240139:
         move R13 R12
         pop R12
         pop R15
@@ -1957,40 +1727,40 @@ memset:
         move [R12-8] R0
         move R0 #0
         move [R12-12] R0
-sta_94240165:
+sta_94240140:
         move R0 [R12-12]
         push R0
         move R0 [R12+20]
         pop R1
         cmp R1 R0
-        jl _L94240168
+        jl _L94240143
         move R0 #0
-        jmp _L94240169
-_L94240168:
+        jmp _L94240144
+_L94240143:
         move R0 #1
-_L94240169:
+_L94240144:
         cmp R0 #0
-        jz sta_94240167
+        jz sta_94240142
         move R0 [R12+16]
-        move R11 R0
+        move R5 R0
         move R0 [R12-8]
         push R0
         move R0 [R12-12]
         mul R0 #1
-        pop R8
-        add R0 R8
-        moveb [R0] R11
-sta_94240166:
+        pop R4
+        add R0 R4
+        moveb [R0] R5
+sta_94240141:
         move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
         move [R12-12] R0
         move R0 R1
-        jmp sta_94240165
-sta_94240167:
+        jmp sta_94240140
+sta_94240142:
         move R0 [R12+12]
-        jmp L_94240170
-L_94240170:
+        jmp L_94240145
+L_94240145:
         move R13 R12
         pop R12
         pop R15
@@ -2015,26 +1785,26 @@ memcmp:
         move [R12-12] R0
         move R0 #0
         move [R12-16] R0
-sta_94240171:
+sta_94240146:
         move R0 [R12-16]
         push R0
         move R0 [R12+20]
         pop R1
         cmp R1 R0
-        jl _L94240174
+        jl _L94240149
         move R0 #0
-        jmp _L94240175
-_L94240174:
+        jmp _L94240150
+_L94240149:
         move R0 #1
-_L94240175:
+_L94240150:
         cmp R0 #0
-        jz sta_94240173
+        jz sta_94240148
         move R0 [R12-8]
         push R0
         move R0 [R12-16]
         mul R0 #1
-        pop R9
-        add R0 R9
+        pop R3
+        add R0 R3
         moveb R0 [R0]
         sextb R0 R0
         pushb R0
@@ -2042,26 +1812,26 @@ _L94240175:
         push R0
         move R0 [R12-16]
         mul R0 #1
-        pop R6
-        add R0 R6
+        pop R1
+        add R0 R1
         moveb R0 [R0]
         sextb R0 R0
         popb R1
         cmp R1 R0
-        jne _L94240178
+        jne _L94240153
         move R0 #0
-        jmp _L94240179
-_L94240178:
+        jmp _L94240154
+_L94240153:
         move R0 #1
-_L94240179:
+_L94240154:
         cmp R0 #0
-        jz sta_94240176
+        jz sta_94240151
         move R0 [R12-8]
         push R0
         move R0 [R12-16]
         mul R0 #1
-        pop R7
-        add R0 R7
+        pop R2
+        add R0 R2
         moveb R0 [R0]
         sextb R0 R0
         push R0
@@ -2069,27 +1839,27 @@ _L94240179:
         push R0
         move R0 [R12-16]
         mul R0 #1
-        pop R5
-        add R0 R5
+        pop R10
+        add R0 R10
         moveb R0 [R0]
         sextb R0 R0
         pop R1
         sub R1 R0
         move R0 R1
-        jmp L_94240180
-sta_94240176:
-sta_94240177:
-sta_94240172:
+        jmp L_94240155
+sta_94240151:
+sta_94240152:
+sta_94240147:
         move R0 [R12-16]
         move R1 R0
         add R0 R0 #1
         move [R12-16] R0
         move R0 R1
-        jmp sta_94240171
-sta_94240173:
+        jmp sta_94240146
+sta_94240148:
         move R0 #0
-        jmp L_94240180
-L_94240180:
+        jmp L_94240155
+L_94240155:
         move R13 R12
         pop R12
         pop R15
@@ -2108,7 +1878,7 @@ delay_us:
         sub R13 #16
         move R0 #0
         move [R12-8] R0
-sta_94240181:
+sta_94240156:
         move R0 [R12-8]
         push R0
         move R0 [R12+12]
@@ -2119,22 +1889,22 @@ sta_94240181:
         move R0 R1
         pop R1
         cmp R1 R0
-        jl _L94240184
+        jl _L94240159
         move R0 #0
-        jmp _L94240185
-_L94240184:
+        jmp _L94240160
+_L94240159:
         move R0 #1
-_L94240185:
+_L94240160:
         cmp R0 #0
-        jz sta_94240183
-sta_94240182:
+        jz sta_94240158
+sta_94240157:
         move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
         move [R12-8] R0
         move R0 R1
-        jmp sta_94240181
-sta_94240183:
+        jmp sta_94240156
+sta_94240158:
         move R13 R12
         pop R12
         pop R15
@@ -2158,18 +1928,18 @@ rand_range:
         move R0 [R12+12]
         pop R1
         cmp R1 R0
-        jle _L94240188
+        jle _L94240163
         move R0 #0
-        jmp _L94240189
-_L94240188:
+        jmp _L94240164
+_L94240163:
         move R0 #1
-_L94240189:
+_L94240164:
         cmp R0 #0
-        jz sta_94240186
+        jz sta_94240161
         move R0 [R12+12]
-        jmp L_94240190
-sta_94240186:
-sta_94240187:
+        jmp L_94240165
+sta_94240161:
+sta_94240162:
         syscall #50
         move [R12-4] R0
         move R0 [R12-8]
@@ -2195,8 +1965,8 @@ sta_94240187:
         pop R1
         add R1 R0
         move R0 R1
-        jmp L_94240190
-L_94240190:
+        jmp L_94240165
+L_94240165:
         move R13 R12
         pop R12
         pop R15

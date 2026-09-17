@@ -118,12 +118,11 @@ __stdcall int strlen(const char* s) { int n = 0; if (!s) return 0; while (s[n]) 
 
 // ===== 转换 =====
 
-__stdcall int atoi(const char* s) {
-    int r = 0, sign = 1, i = 0; if (!s) return 0;
-    while (s[i] == ' ') i++; if (s[i] == '-') { sign = -1; i++; } else if (s[i] == '+') i++;
-    while (s[i] >= '0' && s[i] <= '9') { r = r * 10 + (s[i] - '0'); i++; } return r * sign;
-}
-// (itoa 由 convert.c 提供 2 参数版本: int itoa(int value, char* dst))
+// ⚠ `atoi` 的原生实现在 `convert.c`（模块映射 `["atoi"] = "convert"`）。
+//   这里与 `util.c` 原先各有一份重名实现，而重名标签**按链接顺序后者覆盖**
+//   ⇒ 实测生效的是 `util.c` 那份最弱的（不跳空白、不认 `+`）。
+//   已按「相同函数只留一份」删掉两处冗余，唯一实现留在 `convert.c`。
+// (itoa 同样由 convert.c 提供 2 参数版本: int itoa(int value, char* dst))
 
 // ===== 内存操作 =====
 

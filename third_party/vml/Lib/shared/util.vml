@@ -1,5 +1,4 @@
 
-.linked "math.vml"
 .data
 
 .text
@@ -42,147 +41,6 @@ L_3860000:
         pop R12
         pop R15
         ret
-atoi:
-; -------------------------------------------
-; source   : int atoi(const char* s)
-; function : atoi
-; param   : const char* s
-; return   : int
-; --------------------------------------------
-atoi:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
-        move R0 #0
-        move [R12-8] R0
-        move R0 #1
-        move [R12-12] R0
-        move R0 #0
-        move [R12-16] R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R11
-        add R0 R11
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #45
-        popb R1
-        cmp R1 R0
-        je _L3860003
-        move R0 #0
-        jmp _L3860004
-_L3860003:
-        move R0 #1
-_L3860004:
-        cmp R0 #0
-        jz sta_3860001
-        move R0 #1
-        move R0 #1
-        neg R0 R0
-        move [R12-12] R0
-        move R0 [R12-16]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-16] R0
-        move R0 R1
-sta_3860001:
-sta_3860002:
-sta_3860005:
-        move R2 #0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R10
-        add R0 R10
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #48
-        popb R1
-        cmp R1 R0
-        jge _L3860009
-        move R0 #0
-        jmp _L3860010
-_L3860009:
-        move R0 #1
-_L3860010:
-        test R0 R0
-        jz _L3860007
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R9
-        add R0 R9
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #57
-        popb R1
-        cmp R1 R0
-        jle _L3860011
-        move R0 #0
-        jmp _L3860012
-_L3860011:
-        move R0 #1
-_L3860012:
-        test R0 R0
-        jz _L3860007
-        move R0 #1
-        jmp _L3860008
-_L3860007:
-        move R0 #0
-_L3860008:
-        cmp R0 #0
-        jz sta_3860006
-        move R0 [R12-8]
-        push R0
-        move R0 #10
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R8
-        add R0 R8
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #48
-        popb R1
-        sub R1 R0
-        moveb R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-8] R0
-        move R0 [R12-16]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-16] R0
-        move R0 R1
-        jmp sta_3860005
-sta_3860006:
-        move R0 [R12-8]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        jmp L_3860013
-L_3860013:
-        move R13 R12
-        pop R12
-        pop R15
-        ret
 int_pow:
 ; -------------------------------------------
 ; source   : int int_pow(int base,int exp)
@@ -198,21 +56,21 @@ int_pow:
         sub R13 #16
         move R0 #1
         move [R12-8] R0
-sta_3860014:
+sta_3860001:
         move R2 #0
         move R0 [R12+16]
         push R0
         move R0 #0
         pop R1
         cmp R1 R0
-        jg _L3860016
+        jg _L3860003
         move R0 #0
-        jmp _L3860017
-_L3860016:
+        jmp _L3860004
+_L3860003:
         move R0 #1
-_L3860017:
+_L3860004:
         cmp R0 #0
-        jz sta_3860015
+        jz sta_3860002
         move R0 [R12+16]
         push R0
         move R0 #1
@@ -220,7 +78,7 @@ _L3860017:
         and R1 R0
         move R0 R1
         cmp R0 #0
-        jz sta_3860018
+        jz sta_3860005
         move R0 [R12-8]
         push R0
         move R0 [R12+12]
@@ -228,8 +86,8 @@ _L3860017:
         mul R1 R0
         move R0 R1
         move [R12-8] R0
-sta_3860018:
-sta_3860019:
+sta_3860005:
+sta_3860006:
         move R0 [R12+12]
         push R0
         move R0 [R12+12]
@@ -244,11 +102,11 @@ sta_3860019:
         shr R1 R0
         move R0 R1
         move [R12+16] R0
-        jmp sta_3860014
-sta_3860015:
+        jmp sta_3860001
+sta_3860002:
         move R0 [R12-8]
-        jmp L_3860020
-L_3860020:
+        jmp L_3860007
+L_3860007:
         move R13 R12
         pop R12
         pop R15
@@ -270,18 +128,18 @@ int_sqrt:
         move R0 #0
         pop R1
         cmp R1 R0
-        jle _L3860023
+        jle _L3860010
         move R0 #0
-        jmp _L3860024
-_L3860023:
+        jmp _L3860011
+_L3860010:
         move R0 #1
-_L3860024:
+_L3860011:
         cmp R0 #0
-        jz sta_3860021
+        jz sta_3860008
         move R0 #0
-        jmp L_3860025
-sta_3860021:
-sta_3860022:
+        jmp L_3860012
+sta_3860008:
+sta_3860009:
         move R0 [R12+12]
         move [R12-8] R0
         move R0 [R12-8]
@@ -296,21 +154,21 @@ sta_3860022:
         div R1 R0
         move R0 R1
         move [R12-12] R0
-sta_3860026:
+sta_3860013:
         move R2 #0
         move R0 [R12-12]
         push R0
         move R0 [R12-8]
         pop R1
         cmp R1 R0
-        jl _L3860028
+        jl _L3860015
         move R0 #0
-        jmp _L3860029
-_L3860028:
+        jmp _L3860016
+_L3860015:
         move R0 #1
-_L3860029:
+_L3860016:
         cmp R0 #0
-        jz sta_3860027
+        jz sta_3860014
         move R0 [R12-12]
         move [R12-8] R0
         move R0 [R12-8]
@@ -330,11 +188,11 @@ _L3860029:
         div R1 R0
         move R0 R1
         move [R12-12] R0
-        jmp sta_3860026
-sta_3860027:
+        jmp sta_3860013
+sta_3860014:
         move R0 [R12-8]
-        jmp L_3860025
-L_3860025:
+        jmp L_3860012
+L_3860012:
         move R13 R12
         pop R12
         pop R15
@@ -357,44 +215,44 @@ sum:
         move [R12-8] R0
         move R0 #0
         move [R12-12] R0
-sta_3860030:
+sta_3860017:
         move R0 [R12-12]
         push R0
         move R0 [R12+16]
         pop R1
         cmp R1 R0
-        jl _L3860033
+        jl _L3860020
         move R0 #0
-        jmp _L3860034
-_L3860033:
+        jmp _L3860021
+_L3860020:
         move R0 #1
-_L3860034:
+_L3860021:
         cmp R0 #0
-        jz sta_3860032
+        jz sta_3860019
         move R0 [R12-8]
         push R0
         move R0 [R12+12]
         push R0
         move R0 [R12-12]
         mul R0 #4
-        pop R7
-        add R0 R7
+        pop R11
+        add R0 R11
         move R0 [R0]
         pop R1
         add R1 R0
         move R0 R1
         move [R12-8] R0
-sta_3860031:
+sta_3860018:
         move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
         move [R12-12] R0
         move R0 R1
-        jmp sta_3860030
-sta_3860032:
+        jmp sta_3860017
+sta_3860019:
         move R0 [R12-8]
-        jmp L_3860035
-L_3860035:
+        jmp L_3860022
+L_3860022:
         move R13 R12
         pop R12
         pop R15
