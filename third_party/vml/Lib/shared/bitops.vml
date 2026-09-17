@@ -14,7 +14,7 @@ bit_and:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -39,7 +39,7 @@ bit_or:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -64,7 +64,7 @@ bit_xor:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -88,7 +88,7 @@ bit_not:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         not R0
         jmp L_47790003
@@ -109,7 +109,7 @@ bit_shl:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -134,7 +134,7 @@ bit_shr:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -159,7 +159,7 @@ rol:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -199,7 +199,7 @@ ror:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -239,7 +239,7 @@ bit_set:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -269,7 +269,7 @@ bit_clear:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -300,7 +300,7 @@ bit_toggle:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -331,7 +331,7 @@ bit_test:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]

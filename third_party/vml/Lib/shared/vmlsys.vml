@@ -15,7 +15,7 @@ vml_print_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 1"
         move R13 R12
         pop R12
@@ -32,7 +32,7 @@ vml_print_int:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 6"
         move R13 R12
         pop R12
@@ -49,7 +49,7 @@ vml_print_char:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 4"
         move R13 R12
         pop R12
@@ -66,7 +66,7 @@ vml_print_float:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 8"
         move R13 R12
         pop R12
@@ -83,7 +83,7 @@ vml_print_hex:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 10"
         move R13 R12
         pop R12
@@ -99,7 +99,7 @@ vml_newline:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "MOVE R0, #10
 SYSCALL 4"
         move R13 R12
@@ -117,7 +117,7 @@ vml_print_wstr:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 391"
         move R13 R12
         pop R12
@@ -134,7 +134,7 @@ vml_print_ustr:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 393"
         move R13 R12
         pop R12
@@ -151,7 +151,7 @@ vml_alloc:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 40"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -172,7 +172,7 @@ vml_free:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 41"
         move R13 R12
         pop R12
@@ -191,7 +191,7 @@ vml_mem_copy:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 11"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -214,7 +214,7 @@ vml_mem_fill:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 12"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -237,7 +237,7 @@ vml_mem_compare:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 13"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -257,7 +257,7 @@ vml_random:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 50"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -278,7 +278,7 @@ vml_seed:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 51"
         move R13 R12
         pop R12
@@ -295,7 +295,7 @@ vml_sleep_ms:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 52"
         move R13 R12
         pop R12
@@ -311,7 +311,7 @@ vml_get_tick:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 53"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -331,7 +331,7 @@ vml_get_timestamp:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 54"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -351,7 +351,7 @@ vml_get_date:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 55"
         asm "MOVE [_vml_result_str], R0"
         move R0 [_vml_result_str]
@@ -371,7 +371,7 @@ vml_get_time:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 56"
         asm "MOVE [_vml_result_str], R0"
         move R0 [_vml_result_str]
@@ -393,7 +393,7 @@ vml_beep:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 57"
         move R13 R12
         pop R12
@@ -410,7 +410,7 @@ vml_get_config:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 60"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -431,7 +431,7 @@ vml_get_info:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 59"
         asm "MOVE [_vml_result_str], R0"
         move R0 [_vml_result_str]
@@ -451,7 +451,7 @@ vml_get_platform:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 374"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -472,7 +472,7 @@ vml_debug_print:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 70"
         move R13 R12
         pop R12
@@ -489,7 +489,7 @@ vml_debug_int:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 71"
         move R13 R12
         pop R12
@@ -507,7 +507,7 @@ vml_assert:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 72"
         move R13 R12
         pop R12
@@ -524,7 +524,7 @@ vml_device_open:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 100"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -545,7 +545,7 @@ vml_device_close:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 101"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -568,7 +568,7 @@ vml_device_read:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 102"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -591,7 +591,7 @@ vml_device_write:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 103"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -615,7 +615,7 @@ vml_device_control:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 104"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -637,7 +637,7 @@ vml_file_open:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 110"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -658,7 +658,7 @@ vml_file_close:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 111"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -681,7 +681,7 @@ vml_file_read:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 112"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -704,7 +704,7 @@ vml_file_write:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 113"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -795,7 +795,7 @@ vml_mkdir:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 340"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -816,7 +816,7 @@ vml_remove:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 341"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -838,7 +838,7 @@ vml_rename:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 342"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -860,7 +860,7 @@ vml_readdir:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 343"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -882,7 +882,7 @@ vml_stat:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 344"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -903,7 +903,7 @@ vml_get_env:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 360"
         asm "MOVE [_vml_result_str], R0"
         move R0 [_vml_result_str]
@@ -925,7 +925,7 @@ vml_set_env:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 361"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -946,7 +946,7 @@ vml_exit:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 3"
         move R13 R12
         pop R12
@@ -962,7 +962,7 @@ vml_get_pid:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 322"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -984,7 +984,7 @@ vml_thread_create:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 300"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -1004,7 +1004,7 @@ vml_thread_exit:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 301"
         move R13 R12
         pop R12
@@ -1020,7 +1020,7 @@ vml_thread_yield:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 303"
         move R13 R12
         pop R12
@@ -1036,7 +1036,7 @@ vml_mutex_create:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 310"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -1057,7 +1057,7 @@ vml_mutex_lock:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 311"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -1078,7 +1078,7 @@ vml_mutex_unlock:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 312"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -1098,7 +1098,7 @@ vml_cond_create:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 313"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -1120,7 +1120,7 @@ vml_cond_wait:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 314"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -1141,7 +1141,7 @@ vml_cond_signal:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 315"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -1162,7 +1162,7 @@ vml_cond_broadcast:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 316"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -1183,7 +1183,7 @@ vml_exec:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 320"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -1205,7 +1205,7 @@ vml_socket_create:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 330"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -1228,7 +1228,7 @@ vml_socket_connect:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 334"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -1251,7 +1251,7 @@ vml_socket_send:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 335"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -1274,7 +1274,7 @@ vml_socket_recv:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 336"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -1295,7 +1295,7 @@ vml_socket_close:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 337"
         asm "MOVE [_vml_result_int], R0"
         move R0 [_vml_result_int]
@@ -1316,7 +1316,7 @@ vml_dns_resolve:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 338"
         asm "MOVE [_vml_result_str], R0"
         move R0 [_vml_result_str]
@@ -1336,7 +1336,7 @@ vml_screenshot:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 200"
         move R13 R12
         pop R12
@@ -1359,7 +1359,7 @@ vml_syscall5:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "MOVE [_vml_result_int], R0"
         move R0 [R12+12]
         move [_vml_result_int] R0

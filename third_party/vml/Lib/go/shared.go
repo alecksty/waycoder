@@ -873,11 +873,6 @@ func strlen(a0 int32) int32 {
     return vml.R0()
 }
 
-func atoi(a0 int32) int32 {
-    vml.Call("atoi")
-    return vml.R0()
-}
-
 func memcpy(a0 int32, a1 int32, a2 int32) int32 {
     vml.Call("memcpy")
     return vml.R0()
@@ -1224,6 +1219,11 @@ func int_to_wstr(a0 int32) int32 {
 
 func int_to_ustr(a0 int32) int32 {
     vml.Call("int_to_ustr")
+    return vml.R0()
+}
+
+func atoi(a0 int32) int32 {
+    vml.Call("atoi")
     return vml.R0()
 }
 

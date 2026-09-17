@@ -532,6 +532,12 @@ namespace CCompiler
             {
                 result.Add(strLit.Value);
             }
+            // 常量表达式（`-1`、`1+2`…）—— 同 FlattenArrayInitializer，见 ConstFold.cs：
+            // 这条没有的话 `static int d[4] = {0,1,0,-1}` 里的负数会被静默当成 0。
+            else if (ConstFold.TryNumber(node, out var folded))
+            {
+                result.Add(folded!);
+            }
             else
             {
                 result.Add(0); // fallback for non-constant expressions

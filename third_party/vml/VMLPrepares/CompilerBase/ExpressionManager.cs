@@ -474,9 +474,11 @@ namespace CompilerBase
             };
             _emit(jmpOp, [Lbl(trueLabel)]);
             _emit(OpCode.MOVE, [R(0), Imm(0)]);
+            if (l) _emit(OpCode.I2L, [R(0), R(0)]);
             _emit(OpCode.JMP, [Lbl(endLabel)]);
             _placeLabel(trueLabel);
             _emit(OpCode.MOVE, [R(0), Imm(1)]);
+            if (l) _emit(OpCode.I2L, [R(0), R(0)]);
             _placeLabel(endLabel);
 
             return ExpVar.Reg(0, ExpType.I32);
@@ -755,10 +757,12 @@ namespace CompilerBase
 
             _emit(jmpOp, [Lbl(trueLabel)]);
             _emit(OpCode.MOVE, [R(0), Imm(0)]);
+            if (isLong) _emit(OpCode.I2L, [R(0), R(0)]);
             _emit(OpCode.JMP, [Lbl(endLabel)]);
 
             _placeLabel(trueLabel);
             _emit(OpCode.MOVE, [R(0), Imm(1)]);
+            if (isLong) _emit(OpCode.I2L, [R(0), R(0)]);
             _placeLabel(endLabel);
         }
 

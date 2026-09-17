@@ -367,7 +367,7 @@ ema_init:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -414,7 +414,7 @@ ema_update:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -497,7 +497,7 @@ kalman_init:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -567,7 +567,7 @@ kalman_update:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -736,7 +736,7 @@ lerp_table:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1043,7 +1043,7 @@ deadband:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -1102,7 +1102,7 @@ hysteresis:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0

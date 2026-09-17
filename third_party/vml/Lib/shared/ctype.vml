@@ -1,4 +1,5 @@
 
+.linked "parserexpf.vml"
 .data
 
 .text
@@ -13,7 +14,7 @@ is_alpha:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #65
@@ -103,7 +104,7 @@ is_digit:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #48
@@ -152,7 +153,7 @@ isalnum:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -190,7 +191,7 @@ isspace:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #32
@@ -324,7 +325,7 @@ isupper:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #65
@@ -373,7 +374,7 @@ islower:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #97
@@ -422,7 +423,7 @@ to_upper:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #97
@@ -483,7 +484,7 @@ to_lower:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #65
@@ -544,7 +545,7 @@ isxdigit:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -649,7 +650,7 @@ ispunct:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #33
@@ -821,7 +822,7 @@ isprint:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #32
@@ -871,7 +872,7 @@ iscntrl:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0

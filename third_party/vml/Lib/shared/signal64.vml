@@ -15,7 +15,7 @@ lmoving_avg_init64:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         movel R0 [R12+12]
         move R11 R0
         move R0 [R12+24]
@@ -64,9 +64,11 @@ sta_67100000:
         cmpl R1 R0
         jl _L67100005
         move R0 #0
+        i2l R0 R0
         jmp _L67100006
 _L67100005:
         move R0 #1
+        i2l R0 R0
 _L67100006:
         test R0 R0
         jz _L67100003
@@ -78,9 +80,11 @@ _L67100006:
         cmpl R1 R0
         jl _L67100007
         move R0 #0
+        i2l R0 R0
         jmp _L67100008
 _L67100007:
         move R0 #1
+        i2l R0 R0
 _L67100008:
         test R0 R0
         jz _L67100003
@@ -217,9 +221,11 @@ lmoving_avg_update64:
         cmpl R1 R0
         jl _L67100012
         move R0 #0
+        i2l R0 R0
         jmp _L67100013
 _L67100012:
         move R0 #1
+        i2l R0 R0
 _L67100013:
         cmp R0 #0
         jz sta_67100010
@@ -282,9 +288,11 @@ sta_67100011:
         cmpl R1 R0
         jle _L67100016
         move R0 #0
+        i2l R0 R0
         jmp _L67100017
 _L67100016:
         move R0 #1
+        i2l R0 R0
 _L67100017:
         cmp R0 #0
         jz sta_67100014
@@ -314,7 +322,7 @@ lema_init64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
         move R7 R0
         move R0 [R12+12]
@@ -353,7 +361,7 @@ lema_update64:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -411,7 +419,7 @@ lkalman_init64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+16]
         move R1 R0
         move R0 [R12+12]
@@ -464,7 +472,7 @@ lkalman_update64:
         push R15
         push R12
         move R12 R13
-        sub R13 #52
+        sub R13 #56
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -520,9 +528,11 @@ lkalman_update64:
         cmpl R1 R0
         jg _L67100021
         move R0 #0
+        i2l R0 R0
         jmp _L67100022
 _L67100021:
         move R0 #1
+        i2l R0 R0
 _L67100022:
         test R0 R0
         jz _L67100023
@@ -608,7 +618,7 @@ ldeadband64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -616,9 +626,11 @@ ldeadband64:
         cmpl R1 R0
         jl _L67100030
         move R0 #0
+        i2l R0 R0
         jmp _L67100031
 _L67100030:
         move R0 #1
+        i2l R0 R0
 _L67100031:
         test R0 R0
         jz _L67100028
@@ -631,9 +643,11 @@ _L67100031:
         cmpl R1 R0
         jg _L67100032
         move R0 #0
+        i2l R0 R0
         jmp _L67100033
 _L67100032:
         move R0 #1
+        i2l R0 R0
 _L67100033:
         test R0 R0
         jz _L67100028
@@ -670,7 +684,7 @@ lhysteresis64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+16]
         pushl R0
         movel R0 [R12+24]
@@ -678,9 +692,11 @@ lhysteresis64:
         cmpl R1 R0
         jg _L67100037
         move R0 #0
+        i2l R0 R0
         jmp _L67100038
 _L67100037:
         move R0 #1
+        i2l R0 R0
 _L67100038:
         cmp R0 #0
         jz sta_67100035
@@ -704,9 +720,11 @@ sta_67100036:
         cmpl R1 R0
         jl _L67100042
         move R0 #0
+        i2l R0 R0
         jmp _L67100043
 _L67100042:
         move R0 #1
+        i2l R0 R0
 _L67100043:
         cmp R0 #0
         jz sta_67100040

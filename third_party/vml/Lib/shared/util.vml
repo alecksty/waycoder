@@ -1,4 +1,5 @@
 
+.linked "math.vml"
 .data
 
 .text
@@ -13,7 +14,7 @@ delay:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #52
         move [R12-4] R0
         move R13 R12
@@ -33,7 +34,7 @@ sscanf:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
         jmp L_3860000
 L_3860000:
@@ -122,7 +123,7 @@ int_sqrt:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -210,7 +211,7 @@ sum:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
         move [R12-8] R0
         move R0 #0

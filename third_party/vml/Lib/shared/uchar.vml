@@ -1,4 +1,6 @@
 
+.linked "uscanf.vml"
+.linked "ustring.vml"
 .data
 
 .text
@@ -63,7 +65,7 @@ ucscmp:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
 sta_43310005:
         move R2 #0
         move R0 [R12+12]
@@ -164,7 +166,7 @@ ucsncmp:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+20]
         push R0
         move R0 #0
@@ -527,7 +529,7 @@ ucsncat:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         move [R12-8] R0
         move R0 #0
@@ -629,7 +631,7 @@ ucschr:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
 sta_43310079:
         move R2 #0
         move R0 [R12+12]
@@ -787,7 +789,7 @@ ucsstr:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+16]
         move R0 [R0]
         push R0
@@ -1002,7 +1004,7 @@ ucscspn:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
         move [R12-8] R0
 sta_43310137:
@@ -1267,7 +1269,7 @@ umemcmp:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
 sta_43310161:
         move R2 #0
         move R0 [R12+20]
@@ -1348,7 +1350,7 @@ c32tombs:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 #128
@@ -1617,7 +1619,7 @@ mbtoc32:
         push R15
         push R12
         move R12 R13
-        sub R13 #13
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -2061,7 +2063,7 @@ utf8_to_ucs:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
         move [R12-8] R0
 sta_43310223:
@@ -2184,7 +2186,7 @@ ucs_to_wcs:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
         move [R12-8] R0
 sta_43310238:
@@ -2381,7 +2383,7 @@ wcs_to_ucs:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
         move [R12-8] R0
 sta_43310257:

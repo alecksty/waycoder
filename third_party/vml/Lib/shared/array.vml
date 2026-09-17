@@ -1,4 +1,7 @@
 
+.linked "bitlib.vml"
+.linked "builtins.vml"
+.linked "util.vml"
 .data
 
 .text
@@ -13,7 +16,7 @@ len:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -56,7 +59,7 @@ get:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -153,7 +156,7 @@ set:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -521,7 +524,7 @@ last_indexof:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -622,7 +625,7 @@ contains:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 [R12+12]
@@ -866,7 +869,7 @@ copy:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -989,7 +992,7 @@ slice:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1463,7 +1466,7 @@ pop:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1694,7 +1697,7 @@ unshift:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1804,7 +1807,7 @@ insert:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -2462,7 +2465,7 @@ min:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -2602,7 +2605,7 @@ max:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -2742,7 +2745,7 @@ sum:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3441,7 +3444,7 @@ sort_quick:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3525,7 +3528,7 @@ bsearch:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+12]
         push R0
         move R0 #0

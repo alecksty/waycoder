@@ -1151,13 +1151,6 @@ fn strlen(a0: i32) -> i32 {
     r
 }
 
-fn atoi(a0: i32) -> i32 {
-    asm!("CALL atoi")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn memcpy(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL memcpy")
     let r: i32;
@@ -1600,6 +1593,13 @@ fn int_to_wstr(a0: i32) -> i32 {
 
 fn int_to_ustr(a0: i32) -> i32 {
     asm!("CALL int_to_ustr")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn atoi(a0: i32) -> i32 {
+    asm!("CALL atoi")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r

@@ -14,7 +14,7 @@ itoa:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         move R0 #0
         move [R12-8] R0
         move R0 [R12+16]
@@ -221,7 +221,7 @@ atoi:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
         move [R12-8] R0
         move R0 #1
@@ -699,7 +699,7 @@ atoi_hex:
         push R15
         push R12
         move R12 R13
-        sub R13 #17
+        sub R13 #24
         move R0 #0
         move [R12-8] R0
 sta_3230058:
@@ -1045,7 +1045,7 @@ ftoa:
         push R15
         push R12
         move R12 R13
-        sub R13 #52
+        sub R13 #56
         move R0 [R12+20]
         move [R12-8] R0
         move R0 #0
@@ -1366,7 +1366,7 @@ byte_to_hword:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moveb R0 [R12+12]
         jmp L_3230144
 L_3230144:
@@ -1385,7 +1385,7 @@ byte_to_word:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moveb R0 [R12+12]
         jmp L_3230145
 L_3230145:
@@ -1404,7 +1404,7 @@ hword_to_byte:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #255
@@ -1428,7 +1428,7 @@ hword_to_word:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #65535
@@ -1452,7 +1452,7 @@ word_to_byte:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #255
@@ -1477,7 +1477,7 @@ word_to_hword:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #65535

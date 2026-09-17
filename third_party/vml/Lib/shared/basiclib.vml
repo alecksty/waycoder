@@ -1,4 +1,6 @@
 
+.linked "math.vml"
+.linked "fixed.vml"
 .data
 _buf1: .word[256] 0
 L_66490000: .string "0123456789ABCDEF"
@@ -16,7 +18,7 @@ _hex_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         move R0 L_66490000
         move [R12-8] R0
         move R0 #0
@@ -213,7 +215,7 @@ basic_instr:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+16]
         move R0 [R12+16]
         test R0 R0
@@ -587,7 +589,7 @@ basic_stringS:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #32
         move [R12-8] R0
         move R0 [R12+16]
@@ -717,7 +719,7 @@ basic_hex:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 _buf1
         push R0
         move R0 [R12+12]
@@ -744,7 +746,7 @@ basic_oct:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 _buf1
         push R0
         move R0 #10
@@ -1189,7 +1191,7 @@ basic_inputN:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1320,7 +1322,7 @@ basic_ucase:
         push R15
         push R12
         move R12 R13
-        sub R13 #17
+        sub R13 #24
         move R0 #0
         move [R12-8] R0
         move R0 [R12+12]
@@ -1491,7 +1493,7 @@ basic_lcase:
         push R15
         push R12
         move R12 R13
-        sub R13 #17
+        sub R13 #24
         move R0 #0
         move [R12-8] R0
         move R0 [R12+12]
@@ -1717,7 +1719,7 @@ basic_asc:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R0 [R12+12]
         test R0 R0
@@ -1776,7 +1778,7 @@ basic_chr:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #255
@@ -1935,7 +1937,7 @@ basic_str_int:
         push R15
         push R12
         move R12 R13
-        sub R13 #44
+        sub R13 #48
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -2776,7 +2778,7 @@ basic_ltrim:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
         move [R12-8] R0
         move R0 [R12+12]
@@ -2924,7 +2926,7 @@ basic_rtrim:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3110,7 +3112,7 @@ basic_abs:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3148,7 +3150,7 @@ basic_sgn:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3658,7 +3660,7 @@ basic_cos:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #15708
@@ -3686,7 +3688,7 @@ basic_tan:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -4052,7 +4054,7 @@ basic_log:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -4427,7 +4429,7 @@ basic_int:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         jmp L_66490504
 L_66490504:
@@ -4448,7 +4450,7 @@ basic_point:
         push R15
         push R12
         move R12 R13
-        sub R13 #44
+        sub R13 #48
         move R0 #28640
         move [R12-32] R0
         move R0 [R12-32]

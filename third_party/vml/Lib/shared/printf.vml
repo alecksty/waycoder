@@ -1,4 +1,9 @@
 
+.linked "uscanf.vml"
+.linked "wprintf.vml"
+.linked "wscanf.vml"
+.linked "wchar.vml"
+.linked "uchar.vml"
 .data
 L_35270013: .string "(null)"
 flt_35270100: .word 0
@@ -71,7 +76,7 @@ pad_char:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
         move [R12-12] R0
         move R0 #0
@@ -305,7 +310,7 @@ _printf_itoa:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
         move [R12-8] R0
 sta_35270031:
@@ -401,7 +406,7 @@ _printf_itoa64:
         push R15
         push R12
         move R12 R13
-        sub R13 #60
+        sub R13 #64
         move R0 #0
         move [R12-8] R0
 sta_35270040:
@@ -564,9 +569,11 @@ _L35270065:
         cmpl R1 R0
         jge _L35270068
         move R0 #0
+        i2l R0 R0
         jmp _L35270069
 _L35270068:
         move R0 #1
+        i2l R0 R0
 _L35270069:
         cmp R0 #0
         jz sta_35270066
@@ -666,9 +673,11 @@ sta_35270051:
         cmpl R1 R0
         jl _L35270074
         move R0 #0
+        i2l R0 R0
         jmp _L35270075
 _L35270074:
         move R0 #1
+        i2l R0 R0
 _L35270075:
         test R0 R0
         jz _L35270076
@@ -768,7 +777,7 @@ out_rev:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
         move [R12-12] R0
         move R0 [R12+24]
@@ -848,7 +857,7 @@ readLong:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -962,7 +971,7 @@ sign64:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -971,9 +980,11 @@ sign64:
         cmpl R1 R0
         jl _L35270095
         move R0 #0
+        i2l R0 R0
         jmp _L35270096
 _L35270095:
         move R0 #1
+        i2l R0 R0
 _L35270096:
         cmp R0 #0
         jz sta_35270093
@@ -1362,7 +1373,7 @@ _printf_ftoe:
         push R15
         push R12
         move R12 R13
-        sub R13 #44
+        sub R13 #48
         move R0 #0
         move [R12-8] R0
         movef R0 [R12+16]
@@ -2895,9 +2906,11 @@ sta_35270330:
         cmpl R1 R0
         je _L35270335
         move R0 #0
+        i2l R0 R0
         jmp _L35270336
 _L35270335:
         move R0 #1
+        i2l R0 R0
 _L35270336:
         jmp _L35270334
 _L35270333:
@@ -4638,7 +4651,7 @@ printf2:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 R12
         sub R0 #12
         add R0 #0
@@ -4748,7 +4761,7 @@ printf4:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 R12
         sub R0 #20
         add R0 #0

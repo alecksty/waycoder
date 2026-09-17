@@ -183,7 +183,6 @@ extern "C" {
     __stdcall char* strcpy(char* dst, const char* src);
     __stdcall char* strcat(char* dst, const char* src);
     __stdcall int strlen(const char* s);
-    __stdcall int atoi(const char* s);
     __stdcall void* memcpy(void* dst, const void* src, int n);
     __stdcall void* memset(void* ptr, int val, int n);
     __stdcall int memcmp(const void* a, const void* b, int n);
@@ -259,6 +258,7 @@ extern "C" {
     __stdcall const char* int_to_str(int val);
     __stdcall const wchar_t* int_to_wstr(int val);
     __stdcall const char32_t* int_to_ustr(int val);
+     int atoi(const char* s);
     __stdcall int str_to_int(const char* s);
     __stdcall int wstr_to_int(const wchar_t* s);
     __stdcall int ustr_to_int(const char32_t* s);

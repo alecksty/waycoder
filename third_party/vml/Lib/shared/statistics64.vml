@@ -1,4 +1,5 @@
 
+.linked "math64.vml"
 .data
 
 .text
@@ -13,7 +14,7 @@ lmean64:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -36,9 +37,11 @@ sta_52150000:
         cmpl R1 R0
         jle _L52150003
         move R0 #0
+        i2l R0 R0
         jmp _L52150004
 _L52150003:
         move R0 #1
+        i2l R0 R0
 _L52150004:
         cmp R0 #0
         jz sta_52150002
@@ -70,9 +73,11 @@ sta_52150002:
         cmpl R1 R0
         jle _L52150007
         move R0 #0
+        i2l R0 R0
         jmp _L52150008
 _L52150007:
         move R0 #1
+        i2l R0 R0
 _L52150008:
         cmp R0 #0
         jz sta_52150005
@@ -102,7 +107,7 @@ lsum64:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -125,9 +130,11 @@ sta_52150010:
         cmpl R1 R0
         jle _L52150013
         move R0 #0
+        i2l R0 R0
         jmp _L52150014
 _L52150013:
         move R0 #1
+        i2l R0 R0
 _L52150014:
         cmp R0 #0
         jz sta_52150012
@@ -169,7 +176,7 @@ lmin_arr64:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -186,9 +193,11 @@ lmin_arr64:
         cmpl R1 R0
         jle _L52150018
         move R0 #0
+        i2l R0 R0
         jmp _L52150019
 _L52150018:
         move R0 #1
+        i2l R0 R0
 _L52150019:
         cmp R0 #0
         jz sta_52150016
@@ -215,9 +224,11 @@ sta_52150021:
         cmpl R1 R0
         jle _L52150024
         move R0 #0
+        i2l R0 R0
         jmp _L52150025
 _L52150024:
         move R0 #1
+        i2l R0 R0
 _L52150025:
         cmp R0 #0
         jz sta_52150023
@@ -234,9 +245,11 @@ _L52150025:
         cmpl R1 R0
         jl _L52150028
         move R0 #0
+        i2l R0 R0
         jmp _L52150029
 _L52150028:
         move R0 #1
+        i2l R0 R0
 _L52150029:
         cmp R0 #0
         jz sta_52150026
@@ -276,7 +289,7 @@ lmax_arr64:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -293,9 +306,11 @@ lmax_arr64:
         cmpl R1 R0
         jle _L52150032
         move R0 #0
+        i2l R0 R0
         jmp _L52150033
 _L52150032:
         move R0 #1
+        i2l R0 R0
 _L52150033:
         cmp R0 #0
         jz sta_52150030
@@ -322,9 +337,11 @@ sta_52150035:
         cmpl R1 R0
         jle _L52150038
         move R0 #0
+        i2l R0 R0
         jmp _L52150039
 _L52150038:
         move R0 #1
+        i2l R0 R0
 _L52150039:
         cmp R0 #0
         jz sta_52150037
@@ -341,9 +358,11 @@ _L52150039:
         cmpl R1 R0
         jg _L52150042
         move R0 #0
+        i2l R0 R0
         jmp _L52150043
 _L52150042:
         move R0 #1
+        i2l R0 R0
 _L52150043:
         cmp R0 #0
         jz sta_52150040
@@ -383,7 +402,7 @@ lmedian64:
         push R15
         push R12
         move R12 R13
-        sub R13 #564
+        sub R13 #568
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -400,9 +419,11 @@ lmedian64:
         cmpl R1 R0
         jle _L52150046
         move R0 #0
+        i2l R0 R0
         jmp _L52150047
 _L52150046:
         move R0 #1
+        i2l R0 R0
 _L52150047:
         cmp R0 #0
         jz sta_52150044
@@ -418,9 +439,11 @@ sta_52150045:
         cmpl R1 R0
         jg _L52150051
         move R0 #0
+        i2l R0 R0
         jmp _L52150052
 _L52150051:
         move R0 #1
+        i2l R0 R0
 _L52150052:
         cmp R0 #0
         jz sta_52150049
@@ -440,9 +463,11 @@ sta_52150053:
         cmpl R1 R0
         jle _L52150056
         move R0 #0
+        i2l R0 R0
         jmp _L52150057
 _L52150056:
         move R0 #1
+        i2l R0 R0
 _L52150057:
         cmp R0 #0
         jz sta_52150055
@@ -486,9 +511,11 @@ sta_52150058:
         cmpl R1 R0
         jl _L52150061
         move R0 #0
+        i2l R0 R0
         jmp _L52150062
 _L52150061:
         move R0 #1
+        i2l R0 R0
 _L52150062:
         cmp R0 #0
         jz sta_52150060
@@ -507,9 +534,11 @@ sta_52150063:
         cmpl R1 R0
         jle _L52150066
         move R0 #0
+        i2l R0 R0
         jmp _L52150067
 _L52150066:
         move R0 #1
+        i2l R0 R0
 _L52150067:
         cmp R0 #0
         jz sta_52150065
@@ -544,9 +573,11 @@ _L52150067:
         cmpl R1 R0
         jg _L52150070
         move R0 #0
+        i2l R0 R0
         jmp _L52150071
 _L52150070:
         move R0 #1
+        i2l R0 R0
 _L52150071:
         cmp R0 #0
         jz sta_52150068
@@ -637,9 +668,11 @@ sta_52150060:
         cmpl R1 R0
         je _L52150074
         move R0 #0
+        i2l R0 R0
         jmp _L52150075
 _L52150074:
         move R0 #1
+        i2l R0 R0
 _L52150075:
         cmp R0 #0
         jz sta_52150072
@@ -735,7 +768,7 @@ lrange64:
         push R15
         push R12
         move R12 R13
-        sub R13 #44
+        sub R13 #48
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -752,9 +785,11 @@ lrange64:
         cmpl R1 R0
         jle _L52150078
         move R0 #0
+        i2l R0 R0
         jmp _L52150079
 _L52150078:
         move R0 #1
+        i2l R0 R0
 _L52150079:
         cmp R0 #0
         jz sta_52150076
@@ -789,9 +824,11 @@ sta_52150081:
         cmpl R1 R0
         jle _L52150084
         move R0 #0
+        i2l R0 R0
         jmp _L52150085
 _L52150084:
         move R0 #1
+        i2l R0 R0
 _L52150085:
         cmp R0 #0
         jz sta_52150083
@@ -808,9 +845,11 @@ _L52150085:
         cmpl R1 R0
         jl _L52150088
         move R0 #0
+        i2l R0 R0
         jmp _L52150089
 _L52150088:
         move R0 #1
+        i2l R0 R0
 _L52150089:
         cmp R0 #0
         jz sta_52150086
@@ -837,9 +876,11 @@ sta_52150087:
         cmpl R1 R0
         jg _L52150092
         move R0 #0
+        i2l R0 R0
         jmp _L52150093
 _L52150092:
         move R0 #1
+        i2l R0 R0
 _L52150093:
         cmp R0 #0
         jz sta_52150090
@@ -884,7 +925,7 @@ lcount_gt64:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -907,9 +948,11 @@ sta_52150094:
         cmpl R1 R0
         jle _L52150097
         move R0 #0
+        i2l R0 R0
         jmp _L52150098
 _L52150097:
         move R0 #1
+        i2l R0 R0
 _L52150098:
         cmp R0 #0
         jz sta_52150096
@@ -926,9 +969,11 @@ _L52150098:
         cmpl R1 R0
         jg _L52150101
         move R0 #0
+        i2l R0 R0
         jmp _L52150102
 _L52150101:
         move R0 #1
+        i2l R0 R0
 _L52150102:
         cmp R0 #0
         jz sta_52150099
@@ -966,7 +1011,7 @@ lcount_lt64:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -989,9 +1034,11 @@ sta_52150104:
         cmpl R1 R0
         jle _L52150107
         move R0 #0
+        i2l R0 R0
         jmp _L52150108
 _L52150107:
         move R0 #1
+        i2l R0 R0
 _L52150108:
         cmp R0 #0
         jz sta_52150106
@@ -1008,9 +1055,11 @@ _L52150108:
         cmpl R1 R0
         jl _L52150111
         move R0 #0
+        i2l R0 R0
         jmp _L52150112
 _L52150111:
         move R0 #1
+        i2l R0 R0
 _L52150112:
         cmp R0 #0
         jz sta_52150109
@@ -1048,7 +1097,7 @@ lcount_eq64:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1071,9 +1120,11 @@ sta_52150114:
         cmpl R1 R0
         jle _L52150117
         move R0 #0
+        i2l R0 R0
         jmp _L52150118
 _L52150117:
         move R0 #1
+        i2l R0 R0
 _L52150118:
         cmp R0 #0
         jz sta_52150116
@@ -1090,9 +1141,11 @@ _L52150118:
         cmpl R1 R0
         je _L52150121
         move R0 #0
+        i2l R0 R0
         jmp _L52150122
 _L52150121:
         move R0 #1
+        i2l R0 R0
 _L52150122:
         cmp R0 #0
         jz sta_52150119
@@ -1129,7 +1182,7 @@ lvariance64:
         push R15
         push R12
         move R12 R13
-        sub R13 #52
+        sub R13 #56
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1146,9 +1199,11 @@ lvariance64:
         cmpl R1 R0
         jle _L52150126
         move R0 #0
+        i2l R0 R0
         jmp _L52150127
 _L52150126:
         move R0 #1
+        i2l R0 R0
 _L52150127:
         cmp R0 #0
         jz sta_52150124
@@ -1176,9 +1231,11 @@ sta_52150129:
         cmpl R1 R0
         jle _L52150132
         move R0 #0
+        i2l R0 R0
         jmp _L52150133
 _L52150132:
         move R0 #1
+        i2l R0 R0
 _L52150133:
         cmp R0 #0
         jz sta_52150131
@@ -1239,7 +1296,7 @@ lstd_dev64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -1267,7 +1324,7 @@ llinreg_slope64:
         push R15
         push R12
         move R12 R13
-        sub R13 #68
+        sub R13 #72
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1289,9 +1346,11 @@ llinreg_slope64:
         cmpl R1 R0
         jl _L52150137
         move R0 #0
+        i2l R0 R0
         jmp _L52150138
 _L52150137:
         move R0 #1
+        i2l R0 R0
 _L52150138:
         cmp R0 #0
         jz sta_52150135
@@ -1313,9 +1372,11 @@ sta_52150136:
         cmpl R1 R0
         jle _L52150141
         move R0 #0
+        i2l R0 R0
         jmp _L52150142
 _L52150141:
         move R0 #1
+        i2l R0 R0
 _L52150142:
         cmp R0 #0
         jz sta_52150139
@@ -1346,9 +1407,11 @@ sta_52150144:
         cmpl R1 R0
         jle _L52150147
         move R0 #0
+        i2l R0 R0
         jmp _L52150148
 _L52150147:
         move R0 #1
+        i2l R0 R0
 _L52150148:
         cmp R0 #0
         jz sta_52150146
@@ -1450,9 +1513,11 @@ sta_52150146:
         cmpl R1 R0
         je _L52150151
         move R0 #0
+        i2l R0 R0
         jmp _L52150152
 _L52150151:
         move R0 #1
+        i2l R0 R0
 _L52150152:
         cmp R0 #0
         jz sta_52150149
@@ -1496,7 +1561,7 @@ llinreg_intercept64:
         push R15
         push R12
         move R12 R13
-        sub R13 #52
+        sub R13 #56
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1518,9 +1583,11 @@ llinreg_intercept64:
         cmpl R1 R0
         jl _L52150155
         move R0 #0
+        i2l R0 R0
         jmp _L52150156
 _L52150155:
         move R0 #1
+        i2l R0 R0
 _L52150156:
         cmp R0 #0
         jz sta_52150153
@@ -1542,9 +1609,11 @@ sta_52150154:
         cmpl R1 R0
         jle _L52150159
         move R0 #0
+        i2l R0 R0
         jmp _L52150160
 _L52150159:
         move R0 #1
+        i2l R0 R0
 _L52150160:
         cmp R0 #0
         jz sta_52150157
@@ -1569,9 +1638,11 @@ sta_52150162:
         cmpl R1 R0
         jle _L52150165
         move R0 #0
+        i2l R0 R0
         jmp _L52150166
 _L52150165:
         move R0 #1
+        i2l R0 R0
 _L52150166:
         cmp R0 #0
         jz sta_52150164

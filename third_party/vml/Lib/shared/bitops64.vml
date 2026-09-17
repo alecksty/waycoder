@@ -1,4 +1,5 @@
 
+.linked "math64.vml"
 .data
 i64_81630034: .dword 1
 i64_81630045: .dword 1
@@ -34,7 +35,7 @@ lbit_and64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -59,7 +60,7 @@ lbit_or64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -84,7 +85,7 @@ lbit_xor64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -108,7 +109,7 @@ lbit_not64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         not R0
         jmp L_81630003
@@ -129,7 +130,7 @@ lbit_shl64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -138,9 +139,11 @@ lbit_shl64:
         cmpl R1 R0
         jle _L81630006
         move R0 #0
+        i2l R0 R0
         jmp _L81630007
 _L81630006:
         move R0 #1
+        i2l R0 R0
 _L81630007:
         cmp R0 #0
         jz sta_81630004
@@ -156,9 +159,11 @@ sta_81630005:
         cmpl R1 R0
         jge _L81630011
         move R0 #0
+        i2l R0 R0
         jmp _L81630012
 _L81630011:
         move R0 #1
+        i2l R0 R0
 _L81630012:
         cmp R0 #0
         jz sta_81630009
@@ -190,7 +195,7 @@ lbit_shr64:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -199,9 +204,11 @@ lbit_shr64:
         cmpl R1 R0
         jle _L81630015
         move R0 #0
+        i2l R0 R0
         jmp _L81630016
 _L81630015:
         move R0 #1
+        i2l R0 R0
 _L81630016:
         cmp R0 #0
         jz sta_81630013
@@ -217,9 +224,11 @@ sta_81630014:
         cmpl R1 R0
         jge _L81630020
         move R0 #0
+        i2l R0 R0
         jmp _L81630021
 _L81630020:
         move R0 #1
+        i2l R0 R0
 _L81630021:
         cmp R0 #0
         jz sta_81630018
@@ -253,7 +262,7 @@ lrol64:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         movel R0 [R12+12]
         movel [R12-12] R0
         movel R0 [R12+20]
@@ -302,7 +311,7 @@ lror64:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         movel R0 [R12+12]
         movel [R12-12] R0
         movel R0 [R12+20]
@@ -351,7 +360,7 @@ lbit_set64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -360,9 +369,11 @@ lbit_set64:
         cmpl R1 R0
         jl _L81630029
         move R0 #0
+        i2l R0 R0
         jmp _L81630030
 _L81630029:
         move R0 #1
+        i2l R0 R0
 _L81630030:
         test R0 R0
         jnz _L81630026
@@ -374,9 +385,11 @@ _L81630030:
         cmpl R1 R0
         jge _L81630031
         move R0 #0
+        i2l R0 R0
         jmp _L81630032
 _L81630031:
         move R0 #1
+        i2l R0 R0
 _L81630032:
         test R0 R0
         jz _L81630027
@@ -421,7 +434,7 @@ lbit_clear64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -430,9 +443,11 @@ lbit_clear64:
         cmpl R1 R0
         jl _L81630040
         move R0 #0
+        i2l R0 R0
         jmp _L81630041
 _L81630040:
         move R0 #1
+        i2l R0 R0
 _L81630041:
         test R0 R0
         jnz _L81630037
@@ -444,9 +459,11 @@ _L81630041:
         cmpl R1 R0
         jge _L81630042
         move R0 #0
+        i2l R0 R0
         jmp _L81630043
 _L81630042:
         move R0 #1
+        i2l R0 R0
 _L81630043:
         test R0 R0
         jz _L81630038
@@ -492,7 +509,7 @@ lbit_toggle64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -501,9 +518,11 @@ lbit_toggle64:
         cmpl R1 R0
         jl _L81630051
         move R0 #0
+        i2l R0 R0
         jmp _L81630052
 _L81630051:
         move R0 #1
+        i2l R0 R0
 _L81630052:
         test R0 R0
         jnz _L81630048
@@ -515,9 +534,11 @@ _L81630052:
         cmpl R1 R0
         jge _L81630053
         move R0 #0
+        i2l R0 R0
         jmp _L81630054
 _L81630053:
         move R0 #1
+        i2l R0 R0
 _L81630054:
         test R0 R0
         jz _L81630049
@@ -562,7 +583,7 @@ lbit_test64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -571,9 +592,11 @@ lbit_test64:
         cmpl R1 R0
         jl _L81630062
         move R0 #0
+        i2l R0 R0
         jmp _L81630063
 _L81630062:
         move R0 #1
+        i2l R0 R0
 _L81630063:
         test R0 R0
         jnz _L81630059
@@ -585,9 +608,11 @@ _L81630063:
         cmpl R1 R0
         jge _L81630064
         move R0 #0
+        i2l R0 R0
         jmp _L81630065
 _L81630064:
         move R0 #1
+        i2l R0 R0
 _L81630065:
         test R0 R0
         jz _L81630060
@@ -631,7 +656,7 @@ lcount64:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         movel R0 [R12+12]
         movel [R12-12] R0
         movel R0 [R12-12]
@@ -716,7 +741,7 @@ lreverse64:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         movel R0 [R12+12]
         movel [R12-12] R0
         movel R0 [R12-12]
@@ -890,7 +915,7 @@ lrotate_left64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+20]
         sub R13 #8
         movel @13 R0
@@ -919,7 +944,7 @@ lrotate_right64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+20]
         sub R13 #8
         movel @13 R0
@@ -947,7 +972,7 @@ llowest_set64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -956,9 +981,11 @@ llowest_set64:
         cmpl R1 R0
         je _L81630088
         move R0 #0
+        i2l R0 R0
         jmp _L81630089
 _L81630088:
         move R0 #1
+        i2l R0 R0
 _L81630089:
         cmp R0 #0
         jz sta_81630086
@@ -990,7 +1017,7 @@ lhighest_set64:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -999,9 +1026,11 @@ lhighest_set64:
         cmpl R1 R0
         je _L81630093
         move R0 #0
+        i2l R0 R0
         jmp _L81630094
 _L81630093:
         move R0 #1
+        i2l R0 R0
 _L81630094:
         cmp R0 #0
         jz sta_81630091
@@ -1088,7 +1117,7 @@ lmask64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -1097,9 +1126,11 @@ lmask64:
         cmpl R1 R0
         jle _L81630105
         move R0 #0
+        i2l R0 R0
         jmp _L81630106
 _L81630105:
         move R0 #1
+        i2l R0 R0
 _L81630106:
         cmp R0 #0
         jz sta_81630103
@@ -1115,9 +1146,11 @@ sta_81630104:
         cmpl R1 R0
         jge _L81630110
         move R0 #0
+        i2l R0 R0
         jmp _L81630111
 _L81630110:
         move R0 #1
+        i2l R0 R0
 _L81630111:
         cmp R0 #0
         jz sta_81630108
@@ -1157,7 +1190,7 @@ lextract64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -1166,9 +1199,11 @@ lextract64:
         cmpl R1 R0
         jl _L81630121
         move R0 #0
+        i2l R0 R0
         jmp _L81630122
 _L81630121:
         move R0 #1
+        i2l R0 R0
 _L81630122:
         test R0 R0
         jnz _L81630118
@@ -1180,9 +1215,11 @@ _L81630122:
         cmpl R1 R0
         jle _L81630123
         move R0 #0
+        i2l R0 R0
         jmp _L81630124
 _L81630123:
         move R0 #1
+        i2l R0 R0
 _L81630124:
         test R0 R0
         jz _L81630119
@@ -1206,9 +1243,11 @@ _L81630120:
         cmpl R1 R0
         jg _L81630125
         move R0 #0
+        i2l R0 R0
         jmp _L81630126
 _L81630125:
         move R0 #1
+        i2l R0 R0
 _L81630126:
         test R0 R0
         jz _L81630116
@@ -1260,7 +1299,7 @@ linsert64:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         movel R0 [R12+28]
         pushl R0
         move R0 #0
@@ -1269,9 +1308,11 @@ linsert64:
         cmpl R1 R0
         jl _L81630136
         move R0 #0
+        i2l R0 R0
         jmp _L81630137
 _L81630136:
         move R0 #1
+        i2l R0 R0
 _L81630137:
         test R0 R0
         jnz _L81630133
@@ -1283,9 +1324,11 @@ _L81630137:
         cmpl R1 R0
         jle _L81630138
         move R0 #0
+        i2l R0 R0
         jmp _L81630139
 _L81630138:
         move R0 #1
+        i2l R0 R0
 _L81630139:
         test R0 R0
         jz _L81630134
@@ -1309,9 +1352,11 @@ _L81630135:
         cmpl R1 R0
         jg _L81630140
         move R0 #0
+        i2l R0 R0
         jmp _L81630141
 _L81630140:
         move R0 #1
+        i2l R0 R0
 _L81630141:
         test R0 R0
         jz _L81630131
@@ -1383,7 +1428,7 @@ lis_power_of_two64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -1392,9 +1437,11 @@ lis_power_of_two64:
         cmpl R1 R0
         jg _L81630145
         move R0 #0
+        i2l R0 R0
         jmp _L81630146
 _L81630145:
         move R0 #1
+        i2l R0 R0
 _L81630146:
         test R0 R0
         jz _L81630143
@@ -1416,9 +1463,11 @@ _L81630146:
         cmpl R1 R0
         je _L81630147
         move R0 #0
+        i2l R0 R0
         jmp _L81630148
 _L81630147:
         move R0 #1
+        i2l R0 R0
 _L81630148:
         test R0 R0
         jz _L81630143
@@ -1445,7 +1494,7 @@ lnext_power_of_two64:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         movel R0 [R12+12]
         pushl R0
         move R0 #1
@@ -1454,9 +1503,11 @@ lnext_power_of_two64:
         cmpl R1 R0
         jle _L81630152
         move R0 #0
+        i2l R0 R0
         jmp _L81630153
 _L81630152:
         move R0 #1
+        i2l R0 R0
 _L81630153:
         cmp R0 #0
         jz sta_81630150

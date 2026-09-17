@@ -1,4 +1,7 @@
 
+.linked "builtins.vml"
+.linked "wchar.vml"
+.linked "uchar.vml"
 .data
 L_35090000: .string "0x"
 
@@ -14,7 +17,7 @@ printx_int32:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #6
         move [R12-4] R0
         move R13 R12
@@ -32,7 +35,7 @@ printlnx_int32:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #6
         move [R12-4] R0
         asm "LOAD R0 #10"
@@ -53,7 +56,7 @@ printx_string:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #1
         move [R12-4] R0
         move R13 R12
@@ -71,7 +74,7 @@ printlnx_string:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #1
         move [R12-4] R0
         asm "LOAD R0 #10"
@@ -92,7 +95,7 @@ printx_wstring:
         push R15
         push R12
         move R12 R13
-        sub R13 #1036
+        sub R13 #1040
         move R0 #1023
         push R0
         move R0 [R12+12]
@@ -126,7 +129,7 @@ printlnx_wstring:
         push R15
         push R12
         move R12 R13
-        sub R13 #1036
+        sub R13 #1040
         move R0 #1023
         push R0
         move R0 [R12+12]
@@ -165,7 +168,7 @@ printx_ustring:
         push R15
         push R12
         move R12 R13
-        sub R13 #1036
+        sub R13 #1040
         move R0 #1023
         push R0
         move R0 R12
@@ -199,7 +202,7 @@ printlnx_ustring:
         push R15
         push R12
         move R12 R13
-        sub R13 #1036
+        sub R13 #1040
         move R0 #1023
         push R0
         move R0 R12
@@ -238,7 +241,7 @@ printx_float32:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #8
         move [R12-4] R0
         move R13 R12
@@ -256,7 +259,7 @@ printlnx_float32:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #8
         move [R12-4] R0
         asm "LOAD R0 #10"
@@ -323,7 +326,7 @@ printx_int64_hex:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 L_35090000
         push R0
         move R0 [R13+0]
@@ -359,7 +362,7 @@ printx_nl:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #10
         push R0
         move R0 [R13+0]

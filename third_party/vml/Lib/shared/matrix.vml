@@ -87,7 +87,7 @@ mat2_identity:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movef R0 [flt_96150000]
         move R11 R0
         move R0 [R12+12]
@@ -141,7 +141,7 @@ mat2_add:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -259,7 +259,7 @@ mat2_sub:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -377,7 +377,7 @@ mat2_mul:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -575,7 +575,7 @@ mat2_scale:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -667,7 +667,7 @@ mat2_det:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -723,7 +723,7 @@ mat2_transpose:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -800,7 +800,7 @@ mat2_inv:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1123,7 +1123,7 @@ mat3_identity:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movef R0 [flt_96150024]
         move R2 R0
         move R0 [R12+12]
@@ -1222,7 +1222,7 @@ mat3_mul:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1823,7 +1823,7 @@ mat3_det:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1989,7 +1989,7 @@ mat3_transpose:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -2142,7 +2142,7 @@ mat3_scale:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -2416,7 +2416,7 @@ mat4_mul:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 #0
         move [R12-8] R0
 sta_96150044:
@@ -2570,7 +2570,7 @@ mat4_translate:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+24]
         push R0
         move R0 [R13+0]
@@ -2707,7 +2707,7 @@ mat4_rot_x:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         movef R0 [R12+12]
         fpush R0
         movef R0 [R12+12]
@@ -2887,7 +2887,7 @@ mat4_rot_y:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         movef R0 [R12+12]
         fpush R0
         movef R0 [R12+12]
@@ -3067,7 +3067,7 @@ mat4_rot_z:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         movef R0 [R12+12]
         fpush R0
         movef R0 [R12+12]
@@ -3247,7 +3247,7 @@ mat4_transpose:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3504,7 +3504,7 @@ vec2_dot:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3560,7 +3560,7 @@ vec2_cross:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3816,7 +3816,7 @@ vec3_dot:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3893,7 +3893,7 @@ vec3_cross:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -4286,7 +4286,7 @@ mat4_transform_vec3:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+12]
         push R0
         move R0 #0

@@ -1,4 +1,5 @@
 
+.linked "fixed.vml"
 .data
 PI64_D: .dword 3.141592653589793
 PI2_D: .dword 6.283185307179586
@@ -38,7 +39,7 @@ labs64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -47,9 +48,11 @@ labs64:
         cmpl R1 R0
         jl _L8740000
         move R0 #0
+        i2l R0 R0
         jmp _L8740001
 _L8740000:
         move R0 #1
+        i2l R0 R0
 _L8740001:
         test R0 R0
         jz _L8740002
@@ -78,7 +81,7 @@ lmin64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -86,9 +89,11 @@ lmin64:
         cmpl R1 R0
         jl _L8740005
         move R0 #0
+        i2l R0 R0
         jmp _L8740006
 _L8740005:
         move R0 #1
+        i2l R0 R0
 _L8740006:
         test R0 R0
         jz _L8740007
@@ -115,7 +120,7 @@ lmax64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -123,9 +128,11 @@ lmax64:
         cmpl R1 R0
         jg _L8740010
         move R0 #0
+        i2l R0 R0
         jmp _L8740011
 _L8740010:
         move R0 #1
+        i2l R0 R0
 _L8740011:
         test R0 R0
         jz _L8740012
@@ -153,7 +160,7 @@ lclamp64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -161,9 +168,11 @@ lclamp64:
         cmpl R1 R0
         jl _L8740017
         move R0 #0
+        i2l R0 R0
         jmp _L8740018
 _L8740017:
         move R0 #1
+        i2l R0 R0
 _L8740018:
         cmp R0 #0
         jz sta_8740015
@@ -178,9 +187,11 @@ sta_8740016:
         cmpl R1 R0
         jg _L8740022
         move R0 #0
+        i2l R0 R0
         jmp _L8740023
 _L8740022:
         move R0 #1
+        i2l R0 R0
 _L8740023:
         cmp R0 #0
         jz sta_8740020
@@ -206,7 +217,7 @@ lsign64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -215,9 +226,11 @@ lsign64:
         cmpl R1 R0
         jg _L8740026
         move R0 #0
+        i2l R0 R0
         jmp _L8740027
 _L8740026:
         move R0 #1
+        i2l R0 R0
 _L8740027:
         cmp R0 #0
         jz sta_8740024
@@ -233,9 +246,11 @@ sta_8740025:
         cmpl R1 R0
         jl _L8740031
         move R0 #0
+        i2l R0 R0
         jmp _L8740032
 _L8740031:
         move R0 #1
+        i2l R0 R0
 _L8740032:
         cmp R0 #0
         jz sta_8740029
@@ -264,7 +279,7 @@ lgcd64:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -273,9 +288,11 @@ lgcd64:
         cmpl R1 R0
         jl _L8740035
         move R0 #0
+        i2l R0 R0
         jmp _L8740036
 _L8740035:
         move R0 #1
+        i2l R0 R0
 _L8740036:
         cmp R0 #0
         jz sta_8740033
@@ -293,9 +310,11 @@ sta_8740034:
         cmpl R1 R0
         jl _L8740039
         move R0 #0
+        i2l R0 R0
         jmp _L8740040
 _L8740039:
         move R0 #1
+        i2l R0 R0
 _L8740040:
         cmp R0 #0
         jz sta_8740037
@@ -315,9 +334,11 @@ sta_8740041:
         cmpl R1 R0
         jne _L8740043
         move R0 #0
+        i2l R0 R0
         jmp _L8740044
 _L8740043:
         move R0 #1
+        i2l R0 R0
 _L8740044:
         cmp R0 #0
         jz sta_8740042
@@ -352,7 +373,7 @@ llcm64:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -361,9 +382,11 @@ llcm64:
         cmpl R1 R0
         je _L8740051
         move R0 #0
+        i2l R0 R0
         jmp _L8740052
 _L8740051:
         move R0 #1
+        i2l R0 R0
 _L8740052:
         test R0 R0
         jnz _L8740048
@@ -375,9 +398,11 @@ _L8740052:
         cmpl R1 R0
         je _L8740053
         move R0 #0
+        i2l R0 R0
         jmp _L8740054
 _L8740053:
         move R0 #1
+        i2l R0 R0
 _L8740054:
         test R0 R0
         jz _L8740049
@@ -430,7 +455,7 @@ lisqrt64:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -439,9 +464,11 @@ lisqrt64:
         cmpl R1 R0
         jle _L8740058
         move R0 #0
+        i2l R0 R0
         jmp _L8740059
 _L8740058:
         move R0 #1
+        i2l R0 R0
 _L8740059:
         cmp R0 #0
         jz sta_8740056
@@ -457,9 +484,11 @@ sta_8740057:
         cmpl R1 R0
         je _L8740063
         move R0 #0
+        i2l R0 R0
         jmp _L8740064
 _L8740063:
         move R0 #1
+        i2l R0 R0
 _L8740064:
         cmp R0 #0
         jz sta_8740061
@@ -482,9 +511,11 @@ sta_8740062:
         cmpl R1 R0
         jl _L8740067
         move R0 #0
+        i2l R0 R0
         jmp _L8740068
 _L8740067:
         move R0 #1
+        i2l R0 R0
 _L8740068:
         cmp R0 #0
         jz sta_8740065
@@ -505,9 +536,11 @@ sta_8740069:
         cmpl R1 R0
         jl _L8740072
         move R0 #0
+        i2l R0 R0
         jmp _L8740073
 _L8740072:
         move R0 #1
+        i2l R0 R0
 _L8740073:
         cmp R0 #0
         jz sta_8740071
@@ -533,9 +566,11 @@ _L8740073:
         cmpl R1 R0
         jge _L8740076
         move R0 #0
+        i2l R0 R0
         jmp _L8740077
 _L8740076:
         move R0 #1
+        i2l R0 R0
 _L8740077:
         cmp R0 #0
         jz sta_8740074
@@ -572,7 +607,7 @@ lpow64:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #1
         i2l R0 R0
         movel [R12-12] R0
@@ -584,9 +619,11 @@ lpow64:
         cmpl R1 R0
         jl _L8740080
         move R0 #0
+        i2l R0 R0
         jmp _L8740081
 _L8740080:
         move R0 #1
+        i2l R0 R0
 _L8740081:
         cmp R0 #0
         jz sta_8740078
@@ -604,9 +641,11 @@ sta_8740083:
         cmpl R1 R0
         jg _L8740085
         move R0 #0
+        i2l R0 R0
         jmp _L8740086
 _L8740085:
         move R0 #1
+        i2l R0 R0
 _L8740086:
         cmp R0 #0
         jz sta_8740084
@@ -659,7 +698,7 @@ lfactorial64:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 #1
         i2l R0 R0
         movel [R12-12] R0
@@ -671,9 +710,11 @@ lfactorial64:
         cmpl R1 R0
         jl _L8740091
         move R0 #0
+        i2l R0 R0
         jmp _L8740092
 _L8740091:
         move R0 #1
+        i2l R0 R0
 _L8740092:
         cmp R0 #0
         jz sta_8740089
@@ -689,9 +730,11 @@ sta_8740090:
         cmpl R1 R0
         jg _L8740096
         move R0 #0
+        i2l R0 R0
         jmp _L8740097
 _L8740096:
         move R0 #1
+        i2l R0 R0
 _L8740097:
         cmp R0 #0
         jz sta_8740094
@@ -710,9 +753,11 @@ sta_8740098:
         cmpl R1 R0
         jle _L8740101
         move R0 #0
+        i2l R0 R0
         jmp _L8740102
 _L8740101:
         move R0 #1
+        i2l R0 R0
 _L8740102:
         cmp R0 #0
         jz sta_8740100
@@ -749,7 +794,7 @@ lceil_div64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -758,9 +803,11 @@ lceil_div64:
         cmpl R1 R0
         je _L8740105
         move R0 #0
+        i2l R0 R0
         jmp _L8740106
 _L8740105:
         move R0 #1
+        i2l R0 R0
 _L8740106:
         cmp R0 #0
         jz sta_8740103
@@ -800,7 +847,7 @@ lround_div64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -809,9 +856,11 @@ lround_div64:
         cmpl R1 R0
         je _L8740110
         move R0 #0
+        i2l R0 R0
         jmp _L8740111
 _L8740110:
         move R0 #1
+        i2l R0 R0
 _L8740111:
         cmp R0 #0
         jz sta_8740108
@@ -827,9 +876,11 @@ sta_8740109:
         cmpl R1 R0
         jge _L8740115
         move R0 #0
+        i2l R0 R0
         jmp _L8740116
 _L8740115:
         move R0 #1
+        i2l R0 R0
 _L8740116:
         cmp R0 #0
         jz sta_8740113
@@ -881,7 +932,7 @@ lis_prime64:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         movel R0 [R12+12]
         pushl R0
         move R0 #2
@@ -890,9 +941,11 @@ lis_prime64:
         cmpl R1 R0
         jl _L8740119
         move R0 #0
+        i2l R0 R0
         jmp _L8740120
 _L8740119:
         move R0 #1
+        i2l R0 R0
 _L8740120:
         cmp R0 #0
         jz sta_8740117
@@ -908,9 +961,11 @@ sta_8740118:
         cmpl R1 R0
         je _L8740127
         move R0 #0
+        i2l R0 R0
         jmp _L8740128
 _L8740127:
         move R0 #1
+        i2l R0 R0
 _L8740128:
         test R0 R0
         jnz _L8740124
@@ -922,9 +977,11 @@ _L8740128:
         cmpl R1 R0
         je _L8740129
         move R0 #0
+        i2l R0 R0
         jmp _L8740130
 _L8740129:
         move R0 #1
+        i2l R0 R0
 _L8740130:
         test R0 R0
         jz _L8740125
@@ -953,9 +1010,11 @@ sta_8740123:
         cmpl R1 R0
         je _L8740133
         move R0 #0
+        i2l R0 R0
         jmp _L8740134
 _L8740133:
         move R0 #1
+        i2l R0 R0
 _L8740134:
         cmp R0 #0
         jz sta_8740131
@@ -981,9 +1040,11 @@ sta_8740135:
         cmpl R1 R0
         jle _L8740138
         move R0 #0
+        i2l R0 R0
         jmp _L8740139
 _L8740138:
         move R0 #1
+        i2l R0 R0
 _L8740139:
         cmp R0 #0
         jz sta_8740137
@@ -999,9 +1060,11 @@ _L8740139:
         cmpl R1 R0
         je _L8740142
         move R0 #0
+        i2l R0 R0
         jmp _L8740143
 _L8740142:
         move R0 #1
+        i2l R0 R0
 _L8740143:
         cmp R0 #0
         jz sta_8740140
@@ -1038,7 +1101,7 @@ lrandom64:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         movel R0 [R12+20]
         pushl R0
         movel R0 [R12+12]
@@ -1046,9 +1109,11 @@ lrandom64:
         cmpl R1 R0
         jl _L8740146
         move R0 #0
+        i2l R0 R0
         jmp _L8740147
 _L8740146:
         move R0 #1
+        i2l R0 R0
 _L8740147:
         cmp R0 #0
         jz sta_8740144
@@ -1112,7 +1177,7 @@ lclz64:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -1121,9 +1186,11 @@ lclz64:
         cmpl R1 R0
         je _L8740154
         move R0 #0
+        i2l R0 R0
         jmp _L8740155
 _L8740154:
         move R0 #1
+        i2l R0 R0
 _L8740155:
         cmp R0 #0
         jz sta_8740152
@@ -1156,9 +1223,11 @@ sta_8740158:
         cmpl R1 R0
         je _L8740162
         move R0 #0
+        i2l R0 R0
         jmp _L8740163
 _L8740162:
         move R0 #1
+        i2l R0 R0
 _L8740163:
         test R0 R0
         jz _L8740160
@@ -1170,9 +1239,11 @@ _L8740163:
         cmpl R1 R0
         jne _L8740164
         move R0 #0
+        i2l R0 R0
         jmp _L8740165
 _L8740164:
         move R0 #1
+        i2l R0 R0
 _L8740165:
         test R0 R0
         jz _L8740160
@@ -1222,7 +1293,7 @@ lctz64:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -1231,9 +1302,11 @@ lctz64:
         cmpl R1 R0
         je _L8740168
         move R0 #0
+        i2l R0 R0
         jmp _L8740169
 _L8740168:
         move R0 #1
+        i2l R0 R0
 _L8740169:
         cmp R0 #0
         jz sta_8740166
@@ -1259,9 +1332,11 @@ sta_8740171:
         cmpl R1 R0
         je _L8740173
         move R0 #0
+        i2l R0 R0
         jmp _L8740174
 _L8740173:
         move R0 #1
+        i2l R0 R0
 _L8740174:
         cmp R0 #0
         jz sta_8740172
@@ -1299,7 +1374,7 @@ lpopcnt64:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 #0
         i2l R0 R0
         movel [R12-12] R0
@@ -1315,9 +1390,11 @@ sta_8740175:
         cmpl R1 R0
         jne _L8740177
         move R0 #0
+        i2l R0 R0
         jmp _L8740178
 _L8740177:
         move R0 #1
+        i2l R0 R0
 _L8740178:
         cmp R0 #0
         jz sta_8740176
@@ -1361,7 +1438,7 @@ llerp64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -1401,7 +1478,7 @@ lmap_range64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+28]
         pushl R0
         movel R0 [R12+20]
@@ -1409,9 +1486,11 @@ lmap_range64:
         cmpl R1 R0
         je _L8740183
         move R0 #0
+        i2l R0 R0
         jmp _L8740184
 _L8740183:
         move R0 #1
+        i2l R0 R0
 _L8740184:
         cmp R0 #0
         jz sta_8740181
@@ -1461,7 +1540,7 @@ lpow10_64:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 #1
         i2l R0 R0
         movel [R12-12] R0
@@ -1473,9 +1552,11 @@ lpow10_64:
         cmpl R1 R0
         jl _L8740188
         move R0 #0
+        i2l R0 R0
         jmp _L8740189
 _L8740188:
         move R0 #1
+        i2l R0 R0
 _L8740189:
         cmp R0 #0
         jz sta_8740186
@@ -1491,9 +1572,11 @@ sta_8740187:
         cmpl R1 R0
         jg _L8740193
         move R0 #0
+        i2l R0 R0
         jmp _L8740194
 _L8740193:
         move R0 #1
+        i2l R0 R0
 _L8740194:
         cmp R0 #0
         jz sta_8740191
@@ -1512,9 +1595,11 @@ sta_8740195:
         cmpl R1 R0
         jl _L8740198
         move R0 #0
+        i2l R0 R0
         jmp _L8740199
 _L8740198:
         move R0 #1
+        i2l R0 R0
 _L8740199:
         cmp R0 #0
         jz sta_8740197
@@ -1552,7 +1637,7 @@ lhypot64:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -1561,9 +1646,11 @@ lhypot64:
         cmpl R1 R0
         jl _L8740202
         move R0 #0
+        i2l R0 R0
         jmp _L8740203
 _L8740202:
         move R0 #1
+        i2l R0 R0
 _L8740203:
         cmp R0 #0
         jz sta_8740200
@@ -1581,9 +1668,11 @@ sta_8740201:
         cmpl R1 R0
         jl _L8740206
         move R0 #0
+        i2l R0 R0
         jmp _L8740207
 _L8740206:
         move R0 #1
+        i2l R0 R0
 _L8740207:
         cmp R0 #0
         jz sta_8740204
@@ -1601,9 +1690,11 @@ sta_8740205:
         cmpl R1 R0
         je _L8740212
         move R0 #0
+        i2l R0 R0
         jmp _L8740213
 _L8740212:
         move R0 #1
+        i2l R0 R0
 _L8740213:
         test R0 R0
         jz _L8740210
@@ -1615,9 +1706,11 @@ _L8740213:
         cmpl R1 R0
         je _L8740214
         move R0 #0
+        i2l R0 R0
         jmp _L8740215
 _L8740214:
         move R0 #1
+        i2l R0 R0
 _L8740215:
         test R0 R0
         jz _L8740210
@@ -1639,9 +1732,11 @@ sta_8740209:
         cmpl R1 R0
         jg _L8740219
         move R0 #0
+        i2l R0 R0
         jmp _L8740220
 _L8740219:
         move R0 #1
+        i2l R0 R0
 _L8740220:
         cmp R0 #0
         jz sta_8740217
@@ -1660,9 +1755,11 @@ _L8740220:
         cmpl R1 R0
         jg _L8740221
         move R0 #0
+        i2l R0 R0
         jmp _L8740222
 _L8740221:
         move R0 #1
+        i2l R0 R0
 _L8740222:
         test R0 R0
         jz _L8740223
@@ -1692,9 +1789,11 @@ _L8740224:
         cmpl R1 R0
         jg _L8740225
         move R0 #0
+        i2l R0 R0
         jmp _L8740226
 _L8740225:
         move R0 #1
+        i2l R0 R0
 _L8740226:
         test R0 R0
         jz _L8740227
@@ -1752,7 +1851,7 @@ lilog2_64:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
         i2l R0 R0
         movel [R12-12] R0
@@ -1764,9 +1863,11 @@ lilog2_64:
         cmpl R1 R0
         jle _L8740231
         move R0 #0
+        i2l R0 R0
         jmp _L8740232
 _L8740231:
         move R0 #1
+        i2l R0 R0
 _L8740232:
         cmp R0 #0
         jz sta_8740229
@@ -1786,9 +1887,11 @@ sta_8740234:
         cmpl R1 R0
         jg _L8740236
         move R0 #0
+        i2l R0 R0
         jmp _L8740237
 _L8740236:
         move R0 #1
+        i2l R0 R0
 _L8740237:
         cmp R0 #0
         jz sta_8740235
@@ -1824,7 +1927,7 @@ lis_even64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         move R0 #1
@@ -1838,9 +1941,11 @@ lis_even64:
         cmpl R1 R0
         je _L8740238
         move R0 #0
+        i2l R0 R0
         jmp _L8740239
 _L8740238:
         move R0 #1
+        i2l R0 R0
 _L8740239:
         jmp L_8740240
 L_8740240:
@@ -1859,7 +1964,7 @@ lis_odd64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         move R0 #1
@@ -1873,9 +1978,11 @@ lis_odd64:
         cmpl R1 R0
         je _L8740241
         move R0 #0
+        i2l R0 R0
         jmp _L8740242
 _L8740241:
         move R0 #1
+        i2l R0 R0
 _L8740242:
         jmp L_8740243
 L_8740243:
@@ -2154,7 +2261,7 @@ sin_deg_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         moved R0 [dbl_8740280]
         moved [R12-12] R0
         moved R0 [R12+12]
@@ -2287,7 +2394,7 @@ cos_deg_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         moved R0 [R12+12]
         dpush R0
         moved R0 [PI64_D]
@@ -2407,7 +2514,7 @@ tan_deg_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         moved R0 [R12+12]
         sub R13 #8
         moved @13 R0

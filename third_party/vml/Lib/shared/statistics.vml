@@ -1,4 +1,5 @@
 
+.linked "fixed.vml"
 .data
 
 .text
@@ -133,7 +134,7 @@ sum_arr:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -219,7 +220,7 @@ min_arr:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -359,7 +360,7 @@ max_arr:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -499,7 +500,7 @@ median:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -798,7 +799,7 @@ range:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -875,7 +876,7 @@ count_gt:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -975,7 +976,7 @@ count_lt:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1075,7 +1076,7 @@ count_eq:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1312,7 +1313,7 @@ std_dev:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -1475,7 +1476,7 @@ linreg_slope:
         push R15
         push R12
         move R12 R13
-        sub R13 #52
+        sub R13 #56
         move R0 [R12+12]
         push R0
         move R0 #0

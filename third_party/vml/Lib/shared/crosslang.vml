@@ -1,4 +1,6 @@
 
+.linked "fixed.vml"
+.linked "math.vml"
 .data
 
 .text
@@ -14,7 +16,7 @@ add:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -39,7 +41,7 @@ sub:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -64,7 +66,7 @@ mul:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -89,7 +91,7 @@ div_:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -131,7 +133,7 @@ mod_:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -172,7 +174,7 @@ neg_:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R0 [R12+12]
         neg R0 R0
@@ -193,7 +195,7 @@ arr_sum:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -339,7 +341,7 @@ arr_max:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -479,7 +481,7 @@ arr_min:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -660,7 +662,7 @@ str_cmp:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
 sta_20940072:
         move R2 #0
         move R0 [R12+12]
@@ -733,7 +735,7 @@ clamp:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -786,7 +788,7 @@ is_even:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -821,7 +823,7 @@ is_odd:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #1

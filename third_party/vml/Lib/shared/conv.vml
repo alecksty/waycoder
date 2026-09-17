@@ -31,7 +31,7 @@ int_to_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 _buf
         push R0
         move R0 [R12+12]
@@ -252,7 +252,7 @@ str_to_int:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -478,7 +478,7 @@ long_to_strbuf:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+20]
         push R0
         movel R0 [R12+12]
@@ -505,7 +505,7 @@ long_to_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 _buf
         push R0
         movel R0 [R12+12]
@@ -729,7 +729,7 @@ str_to_long:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -954,7 +954,7 @@ uint_to_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #25
+        sub R13 #32
         move R0 [R12+12]
         push R0
         move R0 #2147483647
@@ -1170,7 +1170,7 @@ ulong_to_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #29
+        sub R13 #32
         movel R0 [R12+12]
         pushl R0
         movel R0 [i64_95080065]
@@ -1178,9 +1178,11 @@ ulong_to_str:
         cmpl R1 R0
         jle _L95080066
         move R0 #0
+        i2l R0 R0
         jmp _L95080067
 _L95080066:
         move R0 #1
+        i2l R0 R0
 _L95080067:
         cmp R0 #0
         jz sta_95080063
@@ -1246,9 +1248,11 @@ sta_95080070:
         cmpl R1 R0
         jg _L95080071
         move R0 #0
+        i2l R0 R0
         jmp _L95080072
 _L95080071:
         move R0 #1
+        i2l R0 R0
 _L95080072:
         cmp R0 #0
         jnz sta_95080069
@@ -1388,7 +1392,7 @@ str_to_uint:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -1411,7 +1415,7 @@ str_to_ulong:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -1434,7 +1438,7 @@ bool_to_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         cmp R0 #0
         jz sta_95080080
@@ -1613,7 +1617,7 @@ str_to_bool:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R0 [R12+12]
         test R0 R0
@@ -1760,7 +1764,7 @@ char_to_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moveb R0 [R12+12]
         sextb R0 R0
         move R10 R0
@@ -1808,7 +1812,7 @@ str_to_char:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         test R0 R0
         jz _L95080108
@@ -1858,7 +1862,7 @@ byte_to_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moveb R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -1881,7 +1885,7 @@ str_to_byte:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -1904,7 +1908,7 @@ sbyte_to_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moveb R0 [R12+12]
         sextb R0 R0
         push R0
@@ -1928,7 +1932,7 @@ str_to_sbyte:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -1951,7 +1955,7 @@ short_to_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moveh R0 [R12+12]
         sexth R0 R0
         push R0
@@ -1975,7 +1979,7 @@ str_to_short:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -1998,7 +2002,7 @@ ushort_to_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moveh R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -2021,7 +2025,7 @@ str_to_ushort:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -2412,7 +2416,7 @@ double_to_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 _buf
         push R0
         move R0 #9
@@ -2708,7 +2712,7 @@ float_to_wstr:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         movef R0 [R12+12]
         sub R13 #4
         movef @13 R0
@@ -2789,7 +2793,7 @@ double_to_wstr:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         moved R0 [R12+12]
         sub R13 #8
         moved @13 R0
@@ -2870,7 +2874,7 @@ bool_to_wstr:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -2950,7 +2954,7 @@ float_to_ustr:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         movef R0 [R12+12]
         sub R13 #4
         movef @13 R0
@@ -3031,7 +3035,7 @@ double_to_ustr:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         moved R0 [R12+12]
         sub R13 #8
         moved @13 R0
@@ -3113,7 +3117,7 @@ bool_to_ustr:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 [R13+0]

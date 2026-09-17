@@ -365,8 +365,6 @@
 // CALL strcat
 // extern fn strlen(const char* s) -> int
 // CALL strlen
-// extern fn atoi(const char* s) -> int
-// CALL atoi
 // extern fn memcpy(void* dst, const void* src, int n) -> void*
 // CALL memcpy
 // extern fn memset(void* ptr, int val, int n) -> void*
@@ -517,6 +515,8 @@
 // CALL int_to_wstr
 // extern fn int_to_ustr(int val) -> const char32_t*
 // CALL int_to_ustr
+// extern fn atoi(const char* s) -> int
+// CALL atoi
 // extern fn str_to_int(const char* s) -> int
 // CALL str_to_int
 // extern fn wstr_to_int(const wchar_t* s) -> int

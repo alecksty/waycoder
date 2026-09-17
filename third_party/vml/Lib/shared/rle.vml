@@ -15,7 +15,7 @@ rle_encode:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -211,7 +211,7 @@ rle_decode:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+16]
         move [R12-8] R0
 sta_30030021:

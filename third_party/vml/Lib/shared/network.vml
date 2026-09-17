@@ -14,7 +14,7 @@ net_connect:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         asm "LOAD R0 #2"
         asm "LOAD R1 #1"
         syscall #330
@@ -133,7 +133,7 @@ net_close:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #337
         move [R12-4] R0
         move R13 R12
@@ -152,7 +152,7 @@ net_listen:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         asm "LOAD R0 #2"
         asm "LOAD R1 #1"
         syscall #330

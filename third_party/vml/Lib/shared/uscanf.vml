@@ -1,4 +1,6 @@
 
+.linked "uchar.vml"
+.linked "printf.vml"
 .data
 
 .text
@@ -14,7 +16,7 @@ uscanf:
         push R15
         push R12
         move R12 R13
-        sub R13 #1036
+        sub R13 #1040
         move R0 #1
         push R0
         move R0 #1

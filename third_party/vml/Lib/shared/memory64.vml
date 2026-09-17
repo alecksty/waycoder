@@ -15,7 +15,7 @@ lmemcpy:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+12]
         move [R12-8] R0
         move R0 [R12+16]
@@ -71,9 +71,11 @@ sta_7690009:
         cmpl R1 R0
         jl _L7690012
         move R0 #0
+        i2l R0 R0
         jmp _L7690013
 _L7690012:
         move R0 #1
+        i2l R0 R0
 _L7690013:
         cmp R0 #0
         jz sta_7690011
@@ -119,9 +121,11 @@ sta_7690014:
         cmpl R1 R0
         jge _L7690017
         move R0 #0
+        i2l R0 R0
         jmp _L7690018
 _L7690017:
         move R0 #1
+        i2l R0 R0
 _L7690018:
         cmp R0 #0
         jz sta_7690016
@@ -184,9 +188,11 @@ sta_7690020:
         cmpl R1 R0
         jl _L7690023
         move R0 #0
+        i2l R0 R0
         jmp _L7690024
 _L7690023:
         move R0 #1
+        i2l R0 R0
 _L7690024:
         cmp R0 #0
         jz sta_7690022
@@ -227,7 +233,7 @@ lmemmove:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+20]
         sub R13 #8
         movel @13 R0
@@ -260,7 +266,7 @@ lmemcmp:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+12]
         move [R12-8] R0
         move R0 [R12+16]
@@ -276,9 +282,11 @@ sta_7690027:
         cmpl R1 R0
         jl _L7690030
         move R0 #0
+        i2l R0 R0
         jmp _L7690031
 _L7690030:
         move R0 #1
+        i2l R0 R0
 _L7690031:
         cmp R0 #0
         jz sta_7690029

@@ -1112,12 +1112,6 @@ def strlen(a0):
     asm("CALL strlen")
     return r0
 
-def atoi(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL atoi")
-    return r0
-
 def memcpy(a0, a1, a2):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a2
@@ -1559,6 +1553,12 @@ def int_to_ustr(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
     asm("CALL int_to_ustr")
+    return r0
+
+def atoi(a0):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a0
+    asm("CALL atoi")
     return r0
 
 def str_to_int(a0):

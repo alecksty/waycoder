@@ -16,7 +16,7 @@ __vml_i64_add:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         move R0 [R0]
         push R0
@@ -82,7 +82,7 @@ __vml_i64_sub:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         move R0 [R0]
         push R0
@@ -146,7 +146,7 @@ __vml_i64_neg:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R7 R0
         move R0 [R12+12]
@@ -208,7 +208,7 @@ __vml_i64_and:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R4 R0
         move R0 [R12+12]
@@ -247,7 +247,7 @@ __vml_i64_or:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R2 R0
         move R0 [R12+12]
@@ -286,7 +286,7 @@ __vml_i64_xor:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R11 R0
         move R0 [R12+12]
@@ -323,7 +323,7 @@ __vml_i64_not:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R9 R0
         move R0 [R12+12]
@@ -353,7 +353,7 @@ __vml_i64_shl:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+20]
         push R0
         move R0 #32
@@ -458,7 +458,7 @@ __vml_i64_shr:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+20]
         push R0
         move R0 #32

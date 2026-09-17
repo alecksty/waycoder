@@ -476,7 +476,7 @@ encoding_utf8_encode:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1186,7 +1186,7 @@ encoding_ascii_is_clean:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1260,7 +1260,7 @@ encoding_ascii_isclean:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1335,7 +1335,7 @@ encoding_latin1_decode:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -1408,7 +1408,7 @@ encoding_latin1_encode:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -1522,7 +1522,7 @@ encoding_utf16le_decode:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+16]
         push R0
         move R0 #2
@@ -1775,7 +1775,7 @@ encoding_utf16be_decode:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+16]
         push R0
         move R0 #2
@@ -2518,7 +2518,7 @@ encoding_big5_decode:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -2865,7 +2865,7 @@ encoding_detect_bom:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 #3
@@ -3177,7 +3177,7 @@ encoding_name:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 R0
         push R1
@@ -3262,7 +3262,7 @@ encoding_convert:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3731,7 +3731,7 @@ encoding_detect_bom_1:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3984,7 +3984,7 @@ encoding_get_name:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -4009,7 +4009,7 @@ encoding_convert_utf8_to_latin1:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #4
         push R0
         move R0 #0
@@ -4045,7 +4045,7 @@ encoding_latin1_decode_1:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #1
         push R0
         move R0 [R12+12]
@@ -4072,7 +4072,7 @@ encoding_latin1_encode_2:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #1
         push R0
         move R0 [R12+16]
@@ -4101,7 +4101,7 @@ encoding_ascii_decode_1:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #1
         push R0
         move R0 [R12+12]
@@ -4129,7 +4129,7 @@ encoding_gbk_encode_2:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #2
         push R0
         move R0 [R12+16]

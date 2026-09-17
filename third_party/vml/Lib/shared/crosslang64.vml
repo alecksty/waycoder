@@ -1,4 +1,5 @@
 
+.linked "statistics64.vml"
 .data
 
 .text
@@ -14,7 +15,7 @@ ladd64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -38,7 +39,7 @@ lsub64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -62,7 +63,7 @@ lmul64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -86,7 +87,7 @@ ldiv64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -95,9 +96,11 @@ ldiv64:
         cmpl R1 R0
         je _L95880005
         move R0 #0
+        i2l R0 R0
         jmp _L95880006
 _L95880005:
         move R0 #1
+        i2l R0 R0
 _L95880006:
         cmp R0 #0
         jz sta_95880003
@@ -128,7 +131,7 @@ lmod64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -137,9 +140,11 @@ lmod64:
         cmpl R1 R0
         je _L95880010
         move R0 #0
+        i2l R0 R0
         jmp _L95880011
 _L95880010:
         move R0 #1
+        i2l R0 R0
 _L95880011:
         cmp R0 #0
         jz sta_95880008
@@ -169,7 +174,7 @@ lneg64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         movel R0 [R12+12]
         negl R0 R0
@@ -190,7 +195,7 @@ larr_sum64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -213,7 +218,7 @@ larr_avg64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -236,7 +241,7 @@ larr_max64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -260,7 +265,7 @@ larr_min64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]

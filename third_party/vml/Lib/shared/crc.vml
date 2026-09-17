@@ -362,7 +362,7 @@ djb2_hash:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #5381
         move [R12-8] R0
 sta_87720039:
@@ -414,7 +414,7 @@ sdbm_hash:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
         move [R12-8] R0
 sta_87720042:
@@ -476,7 +476,7 @@ fnv1a_hash:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #-2128831035
         move [R12-8] R0
 sta_87720045:
@@ -526,7 +526,7 @@ checksum8:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
         moveb [R12-5] R0
         move R0 #0
@@ -587,7 +587,7 @@ checksum16:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
         move [R12-8] R0
         move R0 #0

@@ -1,4 +1,5 @@
 
+.linked "encoding.vml"
 .data
 
 .text
@@ -13,7 +14,7 @@ lutf8_strlen:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -37,7 +38,7 @@ lutf8_decode:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+16]
         pushl R0
         move R0 #2147483647
@@ -46,9 +47,11 @@ lutf8_decode:
         cmpl R1 R0
         jg _L55030001
         move R0 #0
+        i2l R0 R0
         jmp _L55030002
 _L55030001:
         move R0 #1
+        i2l R0 R0
 _L55030002:
         test R0 R0
         jz _L55030003
@@ -85,7 +88,7 @@ lutf8_encode:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+24]
         pushl R0
         move R0 #2147483647
@@ -94,9 +97,11 @@ lutf8_encode:
         cmpl R1 R0
         jg _L55030006
         move R0 #0
+        i2l R0 R0
         jmp _L55030007
 _L55030006:
         move R0 #1
+        i2l R0 R0
 _L55030007:
         test R0 R0
         jz _L55030008

@@ -1,4 +1,6 @@
 
+.linked "builtins.vml"
+.linked "fixed.vml"
 .data
 PI: .dword 3.141592653589793
 PI2: .dword 6.283185307179586
@@ -185,185 +187,185 @@ sin_table:
     .word 0.03489900007843971
     .word 0.017451999709010124
     .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
+    .word -0.017451999709010124
+    .word -0.03489900007843971
+    .word -0.05233599990606308
+    .word -0.06975600123405457
+    .word -0.08715599775314331
+    .word -0.10452800244092941
+    .word -0.12186899781227112
+    .word -0.1391730010509491
+    .word -0.15643399953842163
+    .word -0.17364799976348877
+    .word -0.1908089965581894
+    .word -0.20791199803352356
+    .word -0.22495099902153015
+    .word -0.24192200601100922
+    .word -0.25881901383399963
+    .word -0.2756370007991791
+    .word -0.2923719882965088
+    .word -0.30901700258255005
+    .word -0.32556799054145813
+    .word -0.3420200049877167
+    .word -0.35836800932884216
+    .word -0.37460699677467346
+    .word -0.39073100686073303
+    .word -0.40673699975013733
+    .word -0.42261800169944763
+    .word -0.4383710026741028
+    .word -0.45399001240730286
+    .word -0.4694719910621643
+    .word -0.4848099946975708
+    .word -0.5
+    .word -0.515038013458252
+    .word -0.5299190282821655
+    .word -0.544638991355896
+    .word -0.5591930150985718
+    .word -0.5735759735107422
+    .word -0.587785005569458
+    .word -0.6018149852752686
+    .word -0.6156610250473022
+    .word -0.6293200254440308
+    .word -0.6427879929542542
+    .word -0.6560590267181396
+    .word -0.6691309809684753
+    .word -0.6819980144500732
+    .word -0.6946579813957214
+    .word -0.7071070075035095
+    .word -0.7193400263786316
+    .word -0.7313539981842041
+    .word -0.7431449890136719
+    .word -0.7547100186347961
+    .word -0.766044020652771
+    .word -0.7771459817886353
+    .word -0.7880110144615173
+    .word -0.7986360192298889
+    .word -0.80901700258255
+    .word -0.8191519975662231
+    .word -0.8290380239486694
+    .word -0.8386710286140442
+    .word -0.8480479717254639
+    .word -0.8571670055389404
+    .word -0.8660249710083008
+    .word -0.8746200203895569
+    .word -0.8829479813575745
+    .word -0.8910070061683655
+    .word -0.8987939953804016
+    .word -0.9063079953193665
+    .word -0.9135450124740601
+    .word -0.9205049872398376
+    .word -0.927183985710144
+    .word -0.9335799813270569
+    .word -0.9396929740905762
+    .word -0.945518970489502
+    .word -0.9510570168495178
+    .word -0.9563050270080566
+    .word -0.9612619876861572
+    .word -0.9659259915351868
+    .word -0.9702960252761841
+    .word -0.974370002746582
+    .word -0.9781479835510254
+    .word -0.9816269874572754
+    .word -0.9848080277442932
+    .word -0.9876880049705505
+    .word -0.9902679920196533
+    .word -0.992546021938324
+    .word -0.994521975517273
+    .word -0.9961950182914734
+    .word -0.9975640177726746
+    .word -0.9986299872398376
+    .word -0.9993910193443298
+    .word -0.9998480081558228
+    .word -1
+    .word -0.9998480081558228
+    .word -0.9993910193443298
+    .word -0.9986299872398376
+    .word -0.9975640177726746
+    .word -0.9961950182914734
+    .word -0.994521975517273
+    .word -0.992546021938324
+    .word -0.9902679920196533
+    .word -0.9876880049705505
+    .word -0.9848080277442932
+    .word -0.9816269874572754
+    .word -0.9781479835510254
+    .word -0.974370002746582
+    .word -0.9702960252761841
+    .word -0.9659259915351868
+    .word -0.9612619876861572
+    .word -0.9563050270080566
+    .word -0.9510570168495178
+    .word -0.945518970489502
+    .word -0.9396929740905762
+    .word -0.9335799813270569
+    .word -0.927183985710144
+    .word -0.9205049872398376
+    .word -0.9135450124740601
+    .word -0.9063079953193665
+    .word -0.8987939953804016
+    .word -0.8910070061683655
+    .word -0.8829479813575745
+    .word -0.8746200203895569
+    .word -0.8660249710083008
+    .word -0.8571670055389404
+    .word -0.8480479717254639
+    .word -0.8386710286140442
+    .word -0.8290380239486694
+    .word -0.8191519975662231
+    .word -0.80901700258255
+    .word -0.7986360192298889
+    .word -0.7880110144615173
+    .word -0.7771459817886353
+    .word -0.766044020652771
+    .word -0.7547100186347961
+    .word -0.7431449890136719
+    .word -0.7313539981842041
+    .word -0.7193400263786316
+    .word -0.7071070075035095
+    .word -0.6946579813957214
+    .word -0.6819980144500732
+    .word -0.6691309809684753
+    .word -0.6560590267181396
+    .word -0.6427879929542542
+    .word -0.6293200254440308
+    .word -0.6156610250473022
+    .word -0.6018149852752686
+    .word -0.587785005569458
+    .word -0.5735759735107422
+    .word -0.5591930150985718
+    .word -0.544638991355896
+    .word -0.5299190282821655
+    .word -0.515038013458252
+    .word -0.5
+    .word -0.4848099946975708
+    .word -0.4694719910621643
+    .word -0.45399001240730286
+    .word -0.4383710026741028
+    .word -0.42261800169944763
+    .word -0.40673699975013733
+    .word -0.39073100686073303
+    .word -0.37460699677467346
+    .word -0.35836800932884216
+    .word -0.3420200049877167
+    .word -0.32556799054145813
+    .word -0.30901700258255005
+    .word -0.2923719882965088
+    .word -0.2756370007991791
+    .word -0.25881901383399963
+    .word -0.24192200601100922
+    .word -0.22495099902153015
+    .word -0.20791199803352356
+    .word -0.1908089965581894
+    .word -0.17364799976348877
+    .word -0.15643399953842163
+    .word -0.1391730010509491
+    .word -0.12186899781227112
+    .word -0.10452800244092941
+    .word -0.08715599775314331
+    .word -0.06975600123405457
+    .word -0.05233599990606308
+    .word -0.03489900007843971
+    .word -0.017451999709010124
     .word 0
 dbl_41360054: .dword 4457293557087583675
 dbl_41360057: .dword 4457293557087583675
@@ -453,7 +455,7 @@ abs:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -492,7 +494,7 @@ min:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -529,7 +531,7 @@ max:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -567,7 +569,7 @@ clamp:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -620,7 +622,7 @@ is_even:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -654,7 +656,7 @@ is_odd:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -688,7 +690,7 @@ sign:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -743,7 +745,7 @@ pow10:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #1
         move [R12-8] R0
         move R0 #0
@@ -795,7 +797,7 @@ randomize:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #51
         move [R12-4] R0
         move R13 R12
@@ -1208,7 +1210,7 @@ sin:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         moved R0 [dbl_41360098]
         moved [R12-12] R0
         moved R0 [R12+12]
@@ -1330,7 +1332,7 @@ cos:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moved R0 [R12+12]
         dpush R0
         move R0 #0
@@ -1438,7 +1440,7 @@ tan:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         moved R0 [R12+12]
         sub R13 #8
         moved @13 R0
@@ -1514,7 +1516,7 @@ sqrt:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         moved R0 [R12+12]
         dpush R0
         moved R0 [dbl_41360142]
@@ -1637,7 +1639,7 @@ asin:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moved R0 [R12+12]
         dpush R0
         moved R0 [dbl_41360172]
@@ -1718,7 +1720,7 @@ acos:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moved R0 [R12+12]
         dpush R0
         moved R0 [dbl_41360187]
@@ -1799,7 +1801,7 @@ atan:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moved R0 [dbl_41360197]
         sub R13 #8
         moved @13 R0
@@ -1828,7 +1830,7 @@ atan2:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moved R0 [R12+20]
         dpush R0
         moved R0 [dbl_41360201]
@@ -1971,7 +1973,7 @@ exp:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         moved R0 [dbl_41360226]
         moved [R12-20] R0
         moved R0 [dbl_41360227]
@@ -2342,7 +2344,7 @@ pow:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         moved R0 [R12+20]
         dpush R0
         moved R0 [dbl_41360290]
@@ -2550,7 +2552,7 @@ sin_deg:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         movef R0 [R12+12]
         f2i R0 R0
         move [R12-8] R0
@@ -2688,7 +2690,7 @@ cos_deg:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movef R0 [R12+12]
         fpush R0
         movef R0 [flt_41360341]
@@ -2716,7 +2718,7 @@ tan_deg:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         movef R0 [R12+12]
         sub R13 #4
         movef @13 R0
@@ -2843,7 +2845,7 @@ ceil_div:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -2895,7 +2897,7 @@ round_div:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -3290,7 +3292,7 @@ factorial:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #1
         move [R12-8] R0
         move R0 [R12+12]
@@ -3454,7 +3456,7 @@ random_set_seed:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #51
         move [R12-4] R0
         move R13 R12
@@ -3474,7 +3476,7 @@ lerp:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -3517,7 +3519,7 @@ map_range:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+20]
         push R0
         move R0 [R12+16]
@@ -3585,7 +3587,7 @@ clamp_int:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]

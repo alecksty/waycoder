@@ -14,7 +14,7 @@ __vml_float_add:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -39,7 +39,7 @@ __vml_float_sub:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -179,7 +179,7 @@ __vml_float_div:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -228,7 +228,7 @@ __vml_int2float:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #15
@@ -252,7 +252,7 @@ __vml_float2int:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -308,7 +308,7 @@ __vml_float_neg:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R0 [R12+12]
         neg R0 R0
@@ -329,7 +329,7 @@ __vml_float_abs:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -369,7 +369,7 @@ __vml_float_cmp:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R12+16]

@@ -34,7 +34,7 @@ thread_exit:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #301
         move [R12-4] R0
         move R13 R12
@@ -72,7 +72,7 @@ thread_yield:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #303
         move [R12-4] R0
         move R13 R12
@@ -90,7 +90,7 @@ thread_sleep:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #304
         move [R12-4] R0
         move R13 R12
@@ -275,7 +275,7 @@ process_exit:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #321
         move [R12-4] R0
         move R13 R12
@@ -620,7 +620,7 @@ set_env:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #361
         move [R12-4] R0
         move R13 R12

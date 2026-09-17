@@ -22,7 +22,7 @@ is_digit:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moveb R0 [R12+12]
         sextb R0 R0
         pushb R0
@@ -72,7 +72,7 @@ skip_spaces:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
 sta_29360007:
         move R2 #0
         move R0 [g_pos]
@@ -176,7 +176,7 @@ parse_factor_f:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         moved R0 [dbl_29360026]
         moved [R12-12] R0
         call skip_spaces
@@ -587,7 +587,7 @@ parserexpf:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0

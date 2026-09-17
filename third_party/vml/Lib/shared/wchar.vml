@@ -1,4 +1,6 @@
 
+.linked "wscanf.vml"
+.linked "wstring.vml"
 .data
 
 .text
@@ -64,7 +66,7 @@ wcscmp:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
 sta_13730005:
         move R2 #0
         move R0 [R12+12]
@@ -137,7 +139,7 @@ wcsncmp:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+20]
         push R0
         move R0 #0
@@ -477,7 +479,7 @@ wcsncat:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         move [R12-8] R0
         move R0 #0
@@ -582,7 +584,7 @@ wcschr:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
 sta_13730063:
         move R2 #0
         move R0 [R12+12]
@@ -744,7 +746,7 @@ wcsstr:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+16]
         moveh R0 [R0]
         sexth R0 R0
@@ -970,7 +972,7 @@ wcscspn:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
         move [R12-8] R0
 sta_13730121:
@@ -1242,7 +1244,7 @@ wmemcmp:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
 sta_13730145:
         move R2 #0
         move R0 [R12+20]
@@ -1313,7 +1315,7 @@ wctomb:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moveh R0 [R12+16]
         push R0
         move R0 #128
@@ -1478,7 +1480,7 @@ mbtowc:
         push R15
         push R12
         move R12 R13
-        sub R13 #13
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -1661,7 +1663,7 @@ wcstombs:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 #0
         move [R12-8] R0
 sta_13730174:
@@ -1827,7 +1829,7 @@ mbstowcs:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
         move [R12-8] R0
 sta_13730195:

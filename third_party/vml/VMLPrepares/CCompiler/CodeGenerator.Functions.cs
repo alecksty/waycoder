@@ -36,6 +36,15 @@ namespace CCompiler
                 // 函数名/变量名 → 存储为标签引用
                 result.Add(idLit.Name);
             }
+            // 一元/二元**常量表达式**（`-1`、`1+2`、`~0`…）。
+            // ⚠ 这一条是后补的：补之前它们全都掉进下面的 `else` 被静默当成 0，
+            // 而 `-1` 恰恰不是 `NumberLiteral` 而是 `UnaryOp` ⇒
+            // **初始化器里的负数全变 0**、正数全对（`int DX[4]={0,1,0,-1}` 编出 `{0,1,0,0}`，
+            // pacman 因此只能往右/往下走）。详见 ConstFold.cs 的说明。
+            else if (ConstFold.TryNumber(node, out var folded))
+            {
+                result.Add(folded!);
+            }
             else
             {
                 result.Add(0);

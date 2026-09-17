@@ -10,6 +10,12 @@
 //   itoa_hex(value, dst)  → **大写**十六进制，返回长度
 //   atoi(s)               → 跳前导空格/制表符，认 +/-，遇非数字停
 //   atoi_hex(s)           → 认可选 `0x`/`0X` 前缀，大小写都收
+//
+// ⚠ **`ltoa`/`atol` 必须 include 这个头**：库是靠头文件里的 `#param lib("convert64")`
+//   拉进来的，不 include 就只有裸调用 ⇒ 链接器把 `atol` 改写到别的同名标签上，
+//   崩在 `PUSH R15`（SP 已是 FFFFFFFC）。`atoi`/`itoa`/`strlen` 幸免是因为
+//   convert/string 属于**默认最小集**，convert64 不是。
+#include <convert64.h>
 
 int fails = 0;
 

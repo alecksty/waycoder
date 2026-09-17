@@ -15,7 +15,7 @@ ltoa:
         push R15
         push R12
         move R12 R13
-        sub R13 #25
+        sub R13 #32
         move R0 #0
         move [R12-8] R0
         move R0 #0
@@ -28,9 +28,11 @@ ltoa:
         cmpl R1 R0
         jl _L19190002
         move R0 #0
+        i2l R0 R0
         jmp _L19190003
 _L19190002:
         move R0 #1
+        i2l R0 R0
 _L19190003:
         cmp R0 #0
         jz sta_19190000
@@ -50,9 +52,11 @@ sta_19190001:
         cmpl R1 R0
         je _L19190006
         move R0 #0
+        i2l R0 R0
         jmp _L19190007
 _L19190006:
         move R0 #1
+        i2l R0 R0
 _L19190007:
         cmp R0 #0
         jz sta_19190004
@@ -88,9 +92,11 @@ sta_19190009:
         cmpl R1 R0
         jg _L19190011
         move R0 #0
+        i2l R0 R0
         jmp _L19190012
 _L19190011:
         move R0 #1
+        i2l R0 R0
 _L19190012:
         cmp R0 #0
         jz sta_19190010
@@ -256,7 +262,7 @@ atol:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 #0
         i2l R0 R0
         movel [R12-12] R0
@@ -651,7 +657,7 @@ atol_hex:
         push R15
         push R12
         move R12 R13
-        sub R13 #25
+        sub R13 #32
         move R0 #0
         i2l R0 R0
         movel [R12-12] R0
@@ -1029,7 +1035,7 @@ dtoa:
         push R15
         push R12
         move R12 R13
-        sub R13 #60
+        sub R13 #64
         move R0 #0
         move [R12-8] R0
         moved R0 [R12+12]
@@ -1085,9 +1091,11 @@ sta_19190118:
         cmpl R1 R0
         je _L19190123
         move R0 #0
+        i2l R0 R0
         jmp _L19190124
 _L19190123:
         move R0 #1
+        i2l R0 R0
 _L19190124:
         cmp R0 #0
         jz sta_19190121
@@ -1118,9 +1126,11 @@ sta_19190125:
         cmpl R1 R0
         jg _L19190127
         move R0 #0
+        i2l R0 R0
         jmp _L19190128
 _L19190127:
         move R0 #1
+        i2l R0 R0
 _L19190128:
         cmp R0 #0
         jz sta_19190126

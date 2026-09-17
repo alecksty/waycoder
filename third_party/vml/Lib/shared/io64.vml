@@ -1,4 +1,7 @@
 
+.linked "convert64.vml"
+.linked "io.vml"
+.linked "printf.vml"
 .data
 
 .text
@@ -13,7 +16,7 @@ print_long:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         move R0 R12
         sub R0 #28
         push R0
@@ -75,7 +78,7 @@ println_long:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         sub R13 #8
         movel @13 R0
@@ -102,7 +105,7 @@ println_hex_long:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         sub R13 #8
         movel @13 R0
@@ -128,7 +131,7 @@ input_long:
         push R15
         push R12
         move R12 R13
-        sub R13 #52
+        sub R13 #56
         move R0 #0
         move [R12-40] R0
 sta_64520000:
@@ -266,7 +269,7 @@ print_double:
         push R15
         push R12
         move R12 R13
-        sub R13 #76
+        sub R13 #80
         move R0 R12
         sub R0 #68
         push R0
@@ -302,7 +305,7 @@ println_double:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+20]
         push R0
         moved R0 [R12+12]

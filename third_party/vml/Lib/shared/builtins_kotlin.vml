@@ -1,4 +1,16 @@
 
+.linked "file.vml"
+.linked "os.vml"
+.linked "convert.vml"
+.linked "string.vml"
+.linked "math.vml"
+.linked "printf.vml"
+.linked "io.vml"
+.linked "ctype.vml"
+.linked "bitops.vml"
+.linked "util.vml"
+.linked "float.vml"
+.linked "memory.vml"
 .data
 
 .text
@@ -13,7 +25,7 @@ array_alloc:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #4

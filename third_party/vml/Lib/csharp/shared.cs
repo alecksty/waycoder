@@ -183,7 +183,6 @@ namespace VML {
     // extern char* strcpy(char* dst, const char* src);  // CALL strcpy
     // extern char* strcat(char* dst, const char* src);  // CALL strcat
     // extern int strlen(const char* s);  // CALL strlen
-    // extern int atoi(const char* s);  // CALL atoi
     // extern void* memcpy(void* dst, const void* src, int n);  // CALL memcpy
     // extern void* memset(void* ptr, int val, int n);  // CALL memset
     // extern int memcmp(const void* a, const void* b, int n);  // CALL memcmp
@@ -259,6 +258,7 @@ namespace VML {
     // extern const char* int_to_str(int val);  // CALL int_to_str
     // extern const wchar_t* int_to_wstr(int val);  // CALL int_to_wstr
     // extern const char32_t* int_to_ustr(int val);  // CALL int_to_ustr
+    // extern int atoi(const char* s);  // CALL atoi
     // extern int str_to_int(const char* s);  // CALL str_to_int
     // extern int wstr_to_int(const wchar_t* s);  // CALL wstr_to_int
     // extern int ustr_to_int(const char32_t* s);  // CALL ustr_to_int

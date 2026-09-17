@@ -17,7 +17,7 @@ lfixed_mul64:
         push R15
         push R12
         move R12 R13
-        sub R13 #60
+        sub R13 #64
         movel R0 [R12+12]
         pushl R0
         move R0 #32
@@ -108,7 +108,7 @@ lfixed_div64:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -117,9 +117,11 @@ lfixed_div64:
         cmpl R1 R0
         je _L49580003
         move R0 #0
+        i2l R0 R0
         jmp _L49580004
 _L49580003:
         move R0 #1
+        i2l R0 R0
 _L49580004:
         cmp R0 #0
         jz sta_49580001
@@ -137,9 +139,11 @@ sta_49580002:
         cmpl R1 R0
         jl _L49580008
         move R0 #0
+        i2l R0 R0
         jmp _L49580009
 _L49580008:
         move R0 #1
+        i2l R0 R0
 _L49580009:
         cmp R0 #0
         jz sta_49580006
@@ -161,9 +165,11 @@ sta_49580007:
         cmpl R1 R0
         jl _L49580012
         move R0 #0
+        i2l R0 R0
         jmp _L49580013
 _L49580012:
         move R0 #1
+        i2l R0 R0
 _L49580013:
         cmp R0 #0
         jz sta_49580010
@@ -210,9 +216,11 @@ _L49580018:
         cmpl R1 R0
         jge _L49580021
         move R0 #0
+        i2l R0 R0
         jmp _L49580022
 _L49580021:
         move R0 #1
+        i2l R0 R0
 _L49580022:
         cmp R0 #0
         jz sta_49580019
@@ -269,7 +277,7 @@ lfixed_from_int64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         move R0 #32
@@ -293,7 +301,7 @@ lfixed_to_int64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         move R0 #32
@@ -317,7 +325,7 @@ lfixed_to_int_round64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         pushl R0
         movel R0 [i64_49580025]
@@ -350,7 +358,7 @@ lfixed_from_double:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moved R0 [R12+12]
         dpush R0
         movel R0 [i64_49580027]
@@ -381,7 +389,7 @@ lfixed_to_double:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         movel R0 [R12+12]
         l2d R0 R0
         dpush R0

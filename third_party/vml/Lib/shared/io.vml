@@ -1,4 +1,12 @@
 
+.linked "builtins.vml"
+.linked "wchar.vml"
+.linked "uchar.vml"
+.linked "ctype.vml"
+.linked "printf.vml"
+.linked "uscanf.vml"
+.linked "wscanf.vml"
+.linked "wstring.vml"
 .data
 
 .text
@@ -13,7 +21,7 @@ putchar:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #4
         move [R12-4] R0
         move R13 R12
@@ -51,7 +59,7 @@ print_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #1
         move [R12-4] R0
         move R13 R12
@@ -69,7 +77,7 @@ print_int:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #6
         move [R12-4] R0
         move R13 R12
@@ -87,7 +95,7 @@ print_hex:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #10
         move [R12-4] R0
         move R13 R12
@@ -145,7 +153,7 @@ puts:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #1
         move [R12-4] R0
         asm "LOAD R0 #10"
@@ -166,7 +174,7 @@ print_string:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #1
         move [R12-4] R0
         move R13 R12
@@ -203,7 +211,7 @@ clear_screen:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "LOAD R0 #12"
         syscall #4
         move [R12-4] R0
@@ -222,7 +230,7 @@ println_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -248,7 +256,7 @@ println_int:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -274,7 +282,7 @@ println_hex:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -300,7 +308,7 @@ print_str_no_nl:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -321,7 +329,7 @@ print_wstr:
         push R15
         push R12
         move R12 R13
-        sub R13 #1036
+        sub R13 #1040
         move R0 #1
         push R0
         move R0 #1
@@ -360,7 +368,7 @@ println_wstr:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -388,7 +396,7 @@ wstr_to_utf8:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+20]
         push R0
         move R0 [R12+12]
@@ -419,7 +427,7 @@ utf8_to_wstr:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+20]
         push R0
         move R0 [R12+12]
@@ -448,7 +456,7 @@ print_ustr:
         push R15
         push R12
         move R12 R13
-        sub R13 #1036
+        sub R13 #1040
         move R0 #1
         push R0
         move R0 #1
@@ -489,7 +497,7 @@ ustr_to_utf8:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+20]
         push R0
         move R0 [R12+16]
@@ -521,7 +529,7 @@ utf8_to_ustr:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+20]
         push R0
         move R0 [R12+16]

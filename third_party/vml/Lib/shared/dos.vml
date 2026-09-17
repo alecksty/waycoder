@@ -16,7 +16,7 @@ GetDate:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         syscall #55
         move [R12-4] R0
         move R0 #0
@@ -152,7 +152,7 @@ DosVersion:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #1792
         jmp L_96560012
 L_96560012:
@@ -171,7 +171,7 @@ DiskFree:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #65535
         jmp L_96560013
 L_96560013:
@@ -190,7 +190,7 @@ DiskSize:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #65535
         jmp L_96560014
 L_96560014:
@@ -211,7 +211,7 @@ FindFirst:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
         jmp L_96560015
 L_96560015:
@@ -230,7 +230,7 @@ FindNext:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
         jmp L_96560016
 L_96560016:
@@ -249,7 +249,7 @@ FindClose:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R13 R12
         pop R12
         pop R15
@@ -264,7 +264,7 @@ EnvCount:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
         jmp L_96560017
 L_96560017:
@@ -283,7 +283,7 @@ EnvStr:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
         jmp L_96560018
 L_96560018:
@@ -302,7 +302,7 @@ GetEnv:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
         jmp L_96560019
 L_96560019:
@@ -322,7 +322,7 @@ Exec:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #1
         move R0 #1
         neg R0 R0
@@ -342,7 +342,7 @@ SwapVectors:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R13 R12
         pop R12
         pop R15
@@ -359,7 +359,7 @@ GetIntVec:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+16]
         cmp R0 #0
         jz sta_96560021
@@ -385,7 +385,7 @@ SetIntVec:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R13 R12
         pop R12
         pop R15
@@ -401,7 +401,7 @@ DosExitCode:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
         jmp L_96560023
 L_96560023:

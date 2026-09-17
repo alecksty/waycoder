@@ -35,7 +35,7 @@ fclose:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #111
         move [R12-4] R0
         move R0 #0

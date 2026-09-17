@@ -1,4 +1,6 @@
 
+.linked "array.vml"
+.linked "math.vml"
 .data
 _gfx_fb: .word 0
 _gfx_w: .word 0
@@ -1826,7 +1828,7 @@ get_config:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 60"
         asm "STORE R0, _vml_result_int"
         move R0 [_vml_result_int]
@@ -1846,7 +1848,7 @@ gfx_fb:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_gfx_fb]
         jmp L_69550053
 L_69550053:
@@ -1864,7 +1866,7 @@ gfx_w:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_gfx_w]
         jmp L_69550054
 L_69550054:
@@ -1882,7 +1884,7 @@ gfx_h:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_gfx_h]
         jmp L_69550055
 L_69550055:
@@ -1901,7 +1903,7 @@ gfx_screen:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1944,7 +1946,7 @@ gfx_width:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_gfx_w]
         push R0
         move R0 #0
@@ -1978,7 +1980,7 @@ gfx_height:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_gfx_w]
         push R0
         move R0 #0
@@ -2242,7 +2244,7 @@ gfx_palette:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "PUSH R4"
         asm "PUSH R5"
         asm "LOAD R4 [R12+12]"
@@ -2272,7 +2274,7 @@ gfx_palette_get:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "LOAD R4 [R12+12]"
         asm "MUL R4 3"
         asm "LOAD R5 #30720"
@@ -2303,7 +2305,7 @@ _putpixel:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_gfx_w]
         push R0
         move R0 #0
@@ -2427,7 +2429,7 @@ _getpixel:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_gfx_w]
         push R0
         move R0 #0
@@ -2554,7 +2556,7 @@ gfx_pset:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+20]
         push R0
         move R0 [R12+16]
@@ -2582,7 +2584,7 @@ gfx_point:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 [R12+12]
@@ -2607,7 +2609,7 @@ gfx_cls:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
         push R0
         move R0 [R13+0]
@@ -2628,7 +2630,7 @@ gfx_cls_color:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [_gfx_w]
         push R0
         move R0 #0
@@ -2700,7 +2702,7 @@ _putpixel_fast:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "PUSH R4"
         asm "PUSH R5"
         asm "LOAD R4 [_gfx_fb]"
@@ -2729,7 +2731,7 @@ gfx_line:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         asm "STORE R4, _vml_result_int"
         move R0 [_vml_result_int]
         move [R12+28] R0
@@ -2974,7 +2976,7 @@ gfx_rect:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+28]
         push R0
         move R0 [R12+16]
@@ -3499,7 +3501,7 @@ gfx_circle_fill:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 #0
         move [R12-8] R0
         move R0 [R12+20]
@@ -3758,7 +3760,7 @@ gfx_arc:
         push R15
         push R12
         move R12 R13
-        sub R13 #52
+        sub R13 #56
         move R0 [R12+24]
         push R0
         move R0 [R12+28]
@@ -4082,7 +4084,7 @@ gfx_ellipse:
         push R15
         push R12
         move R12 R13
-        sub R13 #60
+        sub R13 #64
         move R0 #0
         move [R12-8] R0
         move R0 [R12+24]
@@ -4570,7 +4572,7 @@ gfx_ellipse_fill:
         push R15
         push R12
         move R12 R13
-        sub R13 #76
+        sub R13 #80
         move R0 #0
         move [R12-8] R0
         move R0 [R12+24]
@@ -5514,7 +5516,7 @@ gfx_print:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #1
         push R0
         move R0 [R12+24]
@@ -5886,7 +5888,7 @@ gfx_flood_fill:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         move R0 #0
         move [R12-8] R0
         call gfx_w
@@ -6340,7 +6342,7 @@ gfx_screenshot:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 200"
         asm "STORE R0, _vml_result_int"
         move R0 [_vml_result_int]
@@ -6365,7 +6367,7 @@ gfx_put_image:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 201"
         asm "STORE R0, _vml_result_int"
         move R0 [_vml_result_int]
@@ -6390,7 +6392,7 @@ gfx_get_image:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 202"
         asm "STORE R0, _vml_result_int"
         move R0 [_vml_result_int]
@@ -6415,7 +6417,7 @@ gfx_viewport:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 203"
         asm "STORE R0, _vml_result_int"
         move R0 [_vml_result_int]

@@ -1,4 +1,6 @@
 
+.linked "array.vml"
+.linked "math.vml"
 .data
 _bgi_color: .word 15
 _bgi_bgcolor: .word 0
@@ -140,7 +142,7 @@ CloseGraph:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
         push R0
         move R0 [R13+0]
@@ -162,7 +164,7 @@ DetectGraph:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         cmp R0 #0
         jz sta_56300020
@@ -195,7 +197,7 @@ GetMaxX:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         call gfx_width
         push R0
         move R0 #1
@@ -218,7 +220,7 @@ GetMaxY:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         call gfx_height
         push R0
         move R0 #1
@@ -241,7 +243,7 @@ GetDriverName:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 L_56300026
         jmp L_56300027
 L_56300027:
@@ -260,7 +262,7 @@ GetModeName:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 L_56300028
         jmp L_56300029
 L_56300029:
@@ -279,7 +281,7 @@ SetColor:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move [_bgi_color] R0
         move R13 R12
@@ -296,7 +298,7 @@ GetColor:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_color]
         jmp L_56300030
 L_56300030:
@@ -315,7 +317,7 @@ SetBkColor:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move [_bgi_bgcolor] R0
         move R13 R12
@@ -332,7 +334,7 @@ GetBkColor:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_bgcolor]
         jmp L_56300031
 L_56300031:
@@ -354,7 +356,7 @@ SetRGBPalette:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+24]
         push R0
         move R0 [R12+20]
@@ -386,7 +388,7 @@ PutPixel:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+20]
         push R0
         move R0 [R12+16]
@@ -414,7 +416,7 @@ GetPixel:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 [R12+12]
@@ -443,7 +445,7 @@ Line:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_color]
         push R0
         move R0 [R12+24]
@@ -476,7 +478,7 @@ LineTo:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_color]
         push R0
         move R0 [R12+16]
@@ -509,7 +511,7 @@ LineRel:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_color]
         push R0
         move R0 [R12+16]
@@ -544,7 +546,7 @@ Rectangle:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_color]
         push R0
         move R0 [R12+24]
@@ -579,7 +581,7 @@ Bar:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_fill_color]
         push R0
         move R0 [R12+24]
@@ -616,7 +618,7 @@ Bar3D:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_fill_color]
         push R0
         move R0 [R12+24]
@@ -650,7 +652,7 @@ Circle:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_color]
         push R0
         move R0 [R12+20]
@@ -682,7 +684,7 @@ FillCircle:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_fill_color]
         push R0
         move R0 [R12+20]
@@ -717,7 +719,7 @@ Ellipse:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_color]
         push R0
         move R0 [R12+32]
@@ -752,7 +754,7 @@ FillEllipse:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_fill_color]
         push R0
         move R0 [R12+24]
@@ -788,7 +790,7 @@ Arc:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_color]
         push R0
         move R0 [R12+24]
@@ -826,7 +828,7 @@ PieSlice:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_fill_color]
         push R0
         move R0 [R12+24]
@@ -861,7 +863,7 @@ SetFillStyle:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move [_bgi_fill_pattern] R0
         move R0 [R12+16]
@@ -883,7 +885,7 @@ SetLineStyle:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R13 R12
         pop R12
         pop R15
@@ -898,7 +900,7 @@ ClearDevice:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_bgcolor]
         push R0
         move R0 [R13+0]
@@ -918,7 +920,7 @@ ClearViewPort:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_bgcolor]
         push R0
         move R0 [R13+0]
@@ -943,7 +945,7 @@ SetViewPort:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+24]
         push R0
         move R0 [R12+20]
@@ -973,7 +975,7 @@ OutText:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_color]
         push R0
         move R0 [R12+12]
@@ -1005,7 +1007,7 @@ OutTextXY:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_bgi_color]
         push R0
         move R0 [R12+20]
@@ -1037,7 +1039,7 @@ FloodFill:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+20]
         push R0
         move R0 [_bgi_fill_color]
@@ -1070,7 +1072,7 @@ ImageSize:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+20]
         push R0
         move R0 [R12+12]
@@ -1132,7 +1134,7 @@ GetImage:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+28]
         push R0
         move R0 [R12+24]
@@ -1187,7 +1189,7 @@ PutImage:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+20]
         move [R12-8] R0
         move R0 [R12-8]
@@ -1244,7 +1246,7 @@ GetPaletteSize:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #256
         jmp L_56300034
 L_56300034:
@@ -1263,7 +1265,7 @@ GetPalette:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R13 R12
         pop R12
         pop R15
@@ -1279,7 +1281,7 @@ GetDefaultPalette:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R13 R12
         pop R12
         pop R15
@@ -1294,7 +1296,7 @@ GraphResult:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
         jmp L_56300035
 L_56300035:
@@ -1313,7 +1315,7 @@ GraphErrorMsg:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 L_56300036
         jmp L_56300037
 L_56300037:
@@ -1332,7 +1334,7 @@ RestoreCrtMode:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
         push R0
         move R0 [R13+0]

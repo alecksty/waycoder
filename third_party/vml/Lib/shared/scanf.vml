@@ -1,4 +1,5 @@
 
+.linked "util.vml"
 .data
 
 .text
@@ -13,7 +14,7 @@ _count_args:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
         move [R12-8] R0
         move R0 [R12+12]
@@ -118,7 +119,7 @@ _isspace:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #32
@@ -210,7 +211,7 @@ _isdigit:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #48
@@ -262,7 +263,7 @@ vsscanf:
         push R15
         push R12
         move R12 R13
-        sub R13 #52
+        sub R13 #56
         move R0 [R12+12]
         move R0 [R12+12]
         test R0 R0

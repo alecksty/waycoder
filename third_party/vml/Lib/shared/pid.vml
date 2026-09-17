@@ -1,4 +1,6 @@
 
+.linked "ringbuf.vml"
+.linked "swtimer.vml"
 .data
 
 .text
@@ -19,7 +21,7 @@ init:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -125,7 +127,7 @@ set_setpoint:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -476,7 +478,7 @@ reset:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0

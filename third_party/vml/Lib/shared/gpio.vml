@@ -14,7 +14,7 @@ __gpio_pinmode:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R13 R12
         pop R12
         pop R15
@@ -31,7 +31,7 @@ __gpio_digitalwrite:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R13 R12
         pop R12
         pop R15
@@ -47,7 +47,7 @@ __gpio_digitalread:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
         jmp L_94710000
 L_94710000:
@@ -67,7 +67,7 @@ __gpio_bload:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R13 R12
         pop R12
         pop R15
@@ -86,7 +86,7 @@ __gpio_bsave:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R13 R12
         pop R12
         pop R15

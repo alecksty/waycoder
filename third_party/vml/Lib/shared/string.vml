@@ -54,7 +54,7 @@ strcmp:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
 sta_59030003:
         move R2 #0
         move R0 [R12+12]
@@ -369,7 +369,7 @@ strchr:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
 sta_59030032:
         move R2 #0
         move R0 [R12+12]
@@ -423,7 +423,7 @@ strncpy:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         move [R12-8] R0
         move R0 #0
@@ -543,7 +543,7 @@ strstr:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+16]
         moveb R0 [R0]
         sextb R0 R0
@@ -674,7 +674,7 @@ strrev:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+16]
         push R0
         move R0 [R13+0]
@@ -759,7 +759,7 @@ str_toupper:
         push R15
         push R12
         move R12 R13
-        sub R13 #13
+        sub R13 #16
 sta_59030078:
         move R2 #0
         move R0 [R12+16]
@@ -850,7 +850,7 @@ str_tolower:
         push R15
         push R12
         move R12 R13
-        sub R13 #13
+        sub R13 #16
 sta_59030088:
         move R2 #0
         move R0 [R12+16]
@@ -942,7 +942,7 @@ str_repeat:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+16]
         push R0
         move R0 [R13+0]
@@ -1047,7 +1047,7 @@ str_contains:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 [R12+12]
@@ -1091,7 +1091,7 @@ str_trim:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
 sta_59030114:
         move R2 #0
         move R0 [R12+16]
@@ -1329,7 +1329,7 @@ str_substr:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+16]
         push R0
         move R0 [R13+0]
@@ -1549,7 +1549,7 @@ str_split:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 #0
         move [R12-8] R0
         move R0 [R12+12]
@@ -1902,7 +1902,7 @@ str_padend:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+16]
         push R0
         move R0 [R13+0]
@@ -2073,7 +2073,7 @@ str_startswith:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
 sta_59030229:
         move R2 #0
         move R0 [R12+16]
@@ -2134,7 +2134,7 @@ str_endswith:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 [R13+0]

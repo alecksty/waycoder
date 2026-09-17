@@ -13,7 +13,7 @@ getconfig:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 60"
         move R0 #0
         jmp L_98610000
@@ -32,7 +32,7 @@ random:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 50"
         move R0 #0
         jmp L_98610001
@@ -52,7 +52,7 @@ srand:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 51"
         move R13 R12
         pop R12
@@ -87,7 +87,7 @@ get_date:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 55"
         move R0 #0
         jmp L_98610003
@@ -106,7 +106,7 @@ get_time:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 56"
         move R0 #0
         jmp L_98610004
@@ -127,7 +127,7 @@ exit:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 3"
         move R13 R12
         pop R12

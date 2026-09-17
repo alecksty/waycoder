@@ -17,7 +17,7 @@ crc64:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         move R0 #1
         move R0 #1
         neg R0 R0
@@ -34,9 +34,11 @@ sta_16180000:
         cmpl R1 R0
         jl _L16180003
         move R0 #0
+        i2l R0 R0
         jmp _L16180004
 _L16180003:
         move R0 #1
+        i2l R0 R0
 _L16180004:
         cmp R0 #0
         jz sta_16180002
@@ -77,9 +79,11 @@ sta_16180005:
         cmpl R1 R0
         jl _L16180008
         move R0 #0
+        i2l R0 R0
         jmp _L16180009
 _L16180008:
         move R0 #1
+        i2l R0 R0
 _L16180009:
         cmp R0 #0
         jz sta_16180007
@@ -91,9 +95,11 @@ _L16180009:
         cmpl R1 R0
         jl _L16180012
         move R0 #0
+        i2l R0 R0
         jmp _L16180013
 _L16180012:
         move R0 #1
+        i2l R0 R0
 _L16180013:
         cmp R0 #0
         jz sta_16180010
@@ -386,9 +392,11 @@ sta_16180031:
         cmpl R1 R0
         jl _L16180034
         move R0 #0
+        i2l R0 R0
         jmp _L16180035
 _L16180034:
         move R0 #1
+        i2l R0 R0
 _L16180035:
         cmp R0 #0
         jz sta_16180033
@@ -423,9 +431,11 @@ sta_16180036:
         cmpl R1 R0
         jl _L16180039
         move R0 #0
+        i2l R0 R0
         jmp _L16180040
 _L16180039:
         move R0 #1
+        i2l R0 R0
 _L16180040:
         cmp R0 #0
         jz sta_16180038

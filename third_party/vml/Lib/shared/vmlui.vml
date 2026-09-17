@@ -20,7 +20,7 @@ ui_dlg_msg:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -47,7 +47,7 @@ ui_dlg_select:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -75,7 +75,7 @@ ui_dlg_multi:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -102,7 +102,7 @@ ui_dlg_input:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -128,7 +128,7 @@ ui_win_open:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -150,7 +150,7 @@ ui_win_close:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #521
         move [R12-4] R0
         jmp L_2170005
@@ -169,7 +169,7 @@ ui_win_closed:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #565
         move [R12-4] R0
         jmp L_2170006
@@ -188,7 +188,7 @@ ui_scr_w:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #566
         move [R12-4] R0
         jmp L_2170007
@@ -207,7 +207,7 @@ ui_scr_h:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #567
         move [R12-4] R0
         jmp L_2170008
@@ -227,7 +227,7 @@ ui_clear:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         syscall #522
         move [R12-4] R0
@@ -248,7 +248,7 @@ ui_pixel:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -274,7 +274,7 @@ ui_line:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -305,7 +305,7 @@ ui_rect:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -336,7 +336,7 @@ ui_circle:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -366,7 +366,7 @@ ui_ellipse:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -390,7 +390,7 @@ ui_present:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #531
         move [R12-4] R0
         move R13 R12
@@ -413,7 +413,7 @@ ui_text:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -443,7 +443,7 @@ ui_text_styled:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -471,7 +471,7 @@ ui_set_font:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -495,7 +495,7 @@ ui_text_cur:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -516,7 +516,7 @@ ui_poll:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         syscall #560
         move [R12-4] R0
@@ -538,7 +538,7 @@ ui_wait:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         syscall #561
@@ -559,7 +559,7 @@ ui_msg_count:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #562
         move [R12-4] R0
         jmp L_2170011
@@ -686,7 +686,7 @@ ui_msg_type:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_ui_msg_type]
         jmp L_2170014
 L_2170014:
@@ -704,7 +704,7 @@ ui_msg_a:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_ui_msg_a]
         jmp L_2170015
 L_2170015:
@@ -722,7 +722,7 @@ ui_msg_b:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_ui_msg_b]
         jmp L_2170016
 L_2170016:
@@ -797,7 +797,7 @@ ui_gset:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -862,7 +862,7 @@ ui_gget:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -928,7 +928,7 @@ ui_piece_init:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #102
         push R0
         move R0 #0
@@ -1576,7 +1576,7 @@ ui_timer_set:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         syscall #563
@@ -1598,7 +1598,7 @@ ui_timer_kill:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         syscall #564
         move [R12-4] R0
@@ -1672,7 +1672,7 @@ ui_tick:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #53
         move [R12-4] R0
         jmp L_2170099
@@ -1696,7 +1696,7 @@ ui_icon:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -1723,7 +1723,7 @@ ui_image:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -1753,7 +1753,7 @@ ui_gradient:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -1785,7 +1785,7 @@ ui_path:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -1815,7 +1815,7 @@ ui_polygon:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -1843,7 +1843,7 @@ ui_polyline:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -1871,7 +1871,7 @@ ui_rect_grad:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -1898,7 +1898,7 @@ ui_circle_grad:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
@@ -1921,7 +1921,7 @@ ui_beep:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         syscall #57
@@ -1942,7 +1942,7 @@ ui_vibrate:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         syscall #545
@@ -1962,7 +1962,7 @@ ui_keep_on:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         syscall #553
         move [R12-4] R0
@@ -1982,7 +1982,7 @@ ui_store_set:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         syscall #550
@@ -2005,7 +2005,7 @@ ui_store_get:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]

@@ -1,4 +1,5 @@
 
+.linked "string.vml"
 .data
 b64_table: .string "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
@@ -16,7 +17,7 @@ base64_encode:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+20]
         move [R12-8] R0
         move R0 #0
@@ -315,7 +316,7 @@ _b64_decode_char:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moveb R0 [R12+12]
         sextb R0 R0
         pushb R0

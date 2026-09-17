@@ -1,4 +1,5 @@
 
+.linked "parserexpf.vml"
 .data
 g_pos: .word 0
 g_current: .word 0
@@ -15,7 +16,7 @@ is_digit:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moveb R0 [R12+12]
         sextb R0 R0
         pushb R0
@@ -66,7 +67,7 @@ is_hex_digit:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moveb R0 [R12+12]
         sextb R0 R0
         pushb R0
@@ -202,7 +203,7 @@ skip_spaces:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
 sta_67060032:
         move R2 #0
         move R0 [g_pos]
@@ -306,7 +307,7 @@ next_token:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         call skip_spaces
         move R0 [g_pos]
         move R0 [R0]
@@ -345,7 +346,7 @@ parse_factor:
         push R15
         push R12
         move R12 R13
-        sub R13 #17
+        sub R13 #24
         move R0 #0
         move [R12-8] R0
         call skip_spaces

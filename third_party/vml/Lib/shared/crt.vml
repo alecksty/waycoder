@@ -24,7 +24,7 @@ _crt_init_maps:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #30
         move R11 R0
         move R0 _ansi_fg
@@ -263,7 +263,7 @@ CRT_INIT:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         call _crt_init_maps
         move R0 #7
         move [_crt_fg] R0
@@ -296,7 +296,7 @@ CRT_CLRSCR:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_crt_wx2]
         push R0
         move R0 #0
@@ -357,7 +357,7 @@ CRT_CLREOL:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
         asm "MOVE R0, #91"
@@ -380,7 +380,7 @@ CRT_GOTOXY:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "MOVE [_crt_tmp1], R0"
         asm "MOVE [_crt_tmp2], R1"
         move R0 [_crt_tmp1]
@@ -481,7 +481,7 @@ CRT_WHEREX:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_crt_x]
         jmp L_87890020
 L_87890020:
@@ -499,7 +499,7 @@ CRT_WHEREY:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [_crt_y]
         jmp L_87890021
 L_87890021:
@@ -518,7 +518,7 @@ CRT_TEXTCOLOR:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "MOVE [_crt_tmp1], R0"
         move R0 [_crt_tmp1]
         push R0
@@ -651,7 +651,7 @@ CRT_TEXTBACKGROUND:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "MOVE [_crt_tmp1], R0"
         move R0 [_crt_tmp1]
         push R0
@@ -692,7 +692,7 @@ CRT_WINDOW:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "MOVE [_crt_tmp1], R0"
         asm "MOVE [_crt_tmp2], R1"
         move R0 [_crt_tmp1]
@@ -849,7 +849,7 @@ CRT_KEYPRESSED:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 5"
         asm "MOVE [_crt_tmp1], R0"
         move R0 [_crt_tmp1]
@@ -879,7 +879,7 @@ CRT_READKEY:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "MOVE R0, #1"
         asm "SYSCALL 5"
         asm "MOVE [_crt_tmp1], R0"
@@ -901,7 +901,7 @@ CRT_DELAY:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 52"
         move R13 R12
         pop R12
@@ -918,7 +918,7 @@ CRT_SOUND:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 57"
         move R13 R12
         pop R12
@@ -934,7 +934,7 @@ CRT_NOSOUND:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R13 R12
         pop R12
         pop R15
@@ -949,7 +949,7 @@ CRT_NORMVIDEO:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
         asm "MOVE R0, #91"
@@ -976,7 +976,7 @@ CRT_HIGHVIDEO:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
         asm "MOVE R0, #91"
@@ -999,7 +999,7 @@ CRT_LOWVIDEO:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
         asm "MOVE R0, #91"
@@ -1022,7 +1022,7 @@ CRT_INSLINE:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
         asm "MOVE R0, #91"
@@ -1043,7 +1043,7 @@ CRT_DELLINE:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
         asm "MOVE R0, #91"
@@ -1064,7 +1064,7 @@ CRT_CURSORON:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
         asm "MOVE R0, #91"
@@ -1091,7 +1091,7 @@ CRT_CURSOROFF:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
         asm "MOVE R0, #91"
@@ -1119,7 +1119,7 @@ CRT_WRITE_CHAR:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "MOVE [_crt_tmp1], R0"
         move R0 [_crt_tmp1]
         move [R12+12] R0
@@ -1241,7 +1241,7 @@ CRT_WRITE_STRING:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         asm "SYSCALL 401"
         move R0 [_crt_y]
         move R1 R0
