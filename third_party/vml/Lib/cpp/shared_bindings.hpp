@@ -993,6 +993,18 @@ extern "C" {
      int ui_tick(void);
      void ui_icon(int x, int y, char* name, int size, int color);
      void ui_image(int x, int y, char* path, int w, int h);
+     void ui_gradient(char* id, int radial, int color_a, int color_b,
+                 int a1, int a2, int a3, int a4);
+     void ui_path(char* d, int stroke, int width, int fill, char* grad, int cap, int dash);
+     void ui_polygon(int* pts, int count, int fill, int stroke, int width, char* grad);
+     void ui_polyline(int* pts, int count, int stroke, int width, char* grad);
+     void ui_rect_grad(int x, int y, int w, int h, char* grad, int radius);
+     void ui_circle_grad(int cx, int cy, int r, char* grad);
+     void ui_beep(int freq, int ms);
+     void ui_vibrate(int ms, int strength);
+     void ui_keep_on(int on);
+     void ui_store_set(char* key, char* value);
+     int ui_store_get(char* key, char* buf, int cap);
      int wctomb(char *dest, wchar_t wc);
      int mbtowc(wchar_t *dest, const char *src);
      int wcscmp(const wchar_t *a, const wchar_t *b);
