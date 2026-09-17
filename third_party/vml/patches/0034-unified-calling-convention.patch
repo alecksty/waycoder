@@ -1394,6 +1394,102 @@ index e456bcd5..f7978ee1 100644
          }
      }
  
+diff --git a/third_party/vml/VMLPrepares/ObjCCompiler/CodeGenerator.Statements.cs b/third_party/vml/VMLPrepares/ObjCCompiler/CodeGenerator.Statements.cs
+index 51a0e431..f928123a 100644
+--- a/third_party/vml/VMLPrepares/ObjCCompiler/CodeGenerator.Statements.cs
++++ b/third_party/vml/VMLPrepares/ObjCCompiler/CodeGenerator.Statements.cs
+@@ -72,8 +72,16 @@ public partial class CodeGenerator
+         AddLabel(funcLabel);
+         EmitPrologue();
+ 
++        // 帧占位：函数体生成完再回填（见 CodeGenerator.cs 顶层的同款说明）。
++        // 不能只靠各声明处那条 SUB —— 文件级声明会抬高 nextStackOffset 却不发 SUB，
++        // 帧就会比偏移少，局部量落进 push 区被写花。
++        int framePatchIndex = instructions.Count;
++        instructions.Add(new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), Imm(0)], framePatchIndex));
++
+         var savedSymbols = new Dictionary<string, int>(symbolTable);
+         int savedOffset = nextStackOffset;
++        nextStackOffset = 0;   // 每个函数有自己的帧，不吃上一个函数留下的偏移
+         funcParams[node.Name] = node.Parameters;
+ 
+         // Parameters are above BP. Prologue: PUSH R15(4), PUSH R12(4), MOVE R12,R13
+@@ -90,6 +98,11 @@ public partial class CodeGenerator
+         foreach (var stmt in node.Body)
+             GenerateStatement(stmt);
+ 
++        // 回填帧大小（+8 安全边界：最深的局部量必须严格高于 R13）
++        int frameSize = nextStackOffset + 8;
++        instructions[framePatchIndex] = new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), Imm(frameSize)], framePatchIndex);
++
+         EmitEpilogue();
+         AddLabel(skipLabel);
+ 
+@@ -265,8 +278,16 @@ public partial class CodeGenerator
+         AddLabel(label);
+         EmitPrologue();
+ 
++        // 帧占位：函数体生成完再回填（见 CodeGenerator.cs 顶层的同款说明）。
++        // 不能只靠各声明处那条 SUB —— 文件级声明会抬高 nextStackOffset 却不发 SUB，
++        // 帧就会比偏移少，局部量落进 push 区被写花。
++        int framePatchIndex = instructions.Count;
++        instructions.Add(new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), Imm(0)], framePatchIndex));
++
+         var savedSymbols = new Dictionary<string, int>(symbolTable);
+         int savedOffset = nextStackOffset;
++        nextStackOffset = 0;   // 每个函数有自己的帧，不吃上一个函数留下的偏移
+         funcParams[node.Name] = node.Parameters;
+ 
+         // self is first implicit param in R12
+@@ -283,6 +304,11 @@ public partial class CodeGenerator
+         foreach (var stmt in node.Body)
+             GenerateStatement(stmt);
+ 
++        // 回填帧大小（+8 安全边界：最深的局部量必须严格高于 R13）
++        int frameSize = nextStackOffset + 8;
++        instructions[framePatchIndex] = new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), Imm(frameSize)], framePatchIndex);
++
+         EmitEpilogue();
+         AddLabel(skipLabel);
+ 
+diff --git a/third_party/vml/VMLPrepares/ObjCCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/ObjCCompiler/CodeGenerator.cs
+index 196ca2df..6d252cc3 100644
+--- a/third_party/vml/VMLPrepares/ObjCCompiler/CodeGenerator.cs
++++ b/third_party/vml/VMLPrepares/ObjCCompiler/CodeGenerator.cs
+@@ -147,6 +147,17 @@ public partial class CodeGenerator : CLikeCodegen<CodeGenerator>
+ 
+         EmitPrologue();
+ 
++
++        // 帧必须把「全部」局部量槽压在 SP 之下 —— 否则每个 PUSH/CALL 都会写花局部变量。
++        // 帧大小要等函数体生成完才知道，故先占位、最后回填（与 DartCompiler 同一口径）。
++        // ⚠ 不能只靠各声明处那条 SUB：文件级声明（全局量、函数原型）也会抬高
++        //    nextStackOffset 却不发 SUB（走基类 EmitStoreVar 的兜底分配），
++        //    帧就会比偏移少。实测：多一条 `int ipow(int,int);` 原型，main 的局部量
++        //    就落到 R12-12 而帧只有 8 ⇒ 循环变量正好落在 push 区、被写花。
++        int framePatchIndex = instructions.Count;
++        instructions.Add(new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), Imm(0)], framePatchIndex));
++
+         bool hasMainFunc = false;
+         foreach (var stmt in program.Statements)
+         {
+@@ -162,6 +173,11 @@ public partial class CodeGenerator : CLikeCodegen<CodeGenerator>
+                 new List<Operand> { new Operand(OperandType.LABEL, "main") }, instructions.Count));
+         }
+ 
++        // 回填帧大小（+8 安全边界：最深的局部量必须严格高于 R13）
++        int frameSize = nextStackOffset + 8;
++        instructions[framePatchIndex] = new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), Imm(frameSize)], framePatchIndex);
++
+         EmitExit();
+ 
+         return BuildProgram("main");
 diff --git a/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.Expressions.cs
 index f642ea90..af25bcff 100644
 --- a/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.Expressions.cs

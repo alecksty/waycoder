@@ -147,6 +147,17 @@ public partial class CodeGenerator : CLikeCodegen<CodeGenerator>
 
         EmitPrologue();
 
+
+        // 帧必须把「全部」局部量槽压在 SP 之下 —— 否则每个 PUSH/CALL 都会写花局部变量。
+        // 帧大小要等函数体生成完才知道，故先占位、最后回填（与 DartCompiler 同一口径）。
+        // ⚠ 不能只靠各声明处那条 SUB：文件级声明（全局量、函数原型）也会抬高
+        //    nextStackOffset 却不发 SUB（走基类 EmitStoreVar 的兜底分配），
+        //    帧就会比偏移少。实测：多一条 `int ipow(int,int);` 原型，main 的局部量
+        //    就落到 R12-12 而帧只有 8 ⇒ 循环变量正好落在 push 区、被写花。
+        int framePatchIndex = instructions.Count;
+        instructions.Add(new Instruction(OpCode.SUB,
+            [Reg(13), Reg(13), Imm(0)], framePatchIndex));
+
         bool hasMainFunc = false;
         foreach (var stmt in program.Statements)
         {
@@ -161,6 +172,11 @@ public partial class CodeGenerator : CLikeCodegen<CodeGenerator>
             instructions.Add(new Instruction(OpCode.CALL,
                 new List<Operand> { new Operand(OperandType.LABEL, "main") }, instructions.Count));
         }
+
+        // 回填帧大小（+8 安全边界：最深的局部量必须严格高于 R13）
+        int frameSize = nextStackOffset + 8;
+        instructions[framePatchIndex] = new Instruction(OpCode.SUB,
+            [Reg(13), Reg(13), Imm(frameSize)], framePatchIndex);
 
         EmitExit();
 

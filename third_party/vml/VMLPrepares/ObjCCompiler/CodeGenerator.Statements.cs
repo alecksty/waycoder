@@ -72,8 +72,16 @@ public partial class CodeGenerator
         AddLabel(funcLabel);
         EmitPrologue();
 
+        // 帧占位：函数体生成完再回填（见 CodeGenerator.cs 顶层的同款说明）。
+        // 不能只靠各声明处那条 SUB —— 文件级声明会抬高 nextStackOffset 却不发 SUB，
+        // 帧就会比偏移少，局部量落进 push 区被写花。
+        int framePatchIndex = instructions.Count;
+        instructions.Add(new Instruction(OpCode.SUB,
+            [Reg(13), Reg(13), Imm(0)], framePatchIndex));
+
         var savedSymbols = new Dictionary<string, int>(symbolTable);
         int savedOffset = nextStackOffset;
+        nextStackOffset = 0;   // 每个函数有自己的帧，不吃上一个函数留下的偏移
         funcParams[node.Name] = node.Parameters;
 
         // Parameters are above BP. Prologue: PUSH R15(4), PUSH R12(4), MOVE R12,R13
@@ -89,6 +97,11 @@ public partial class CodeGenerator
 
         foreach (var stmt in node.Body)
             GenerateStatement(stmt);
+
+        // 回填帧大小（+8 安全边界：最深的局部量必须严格高于 R13）
+        int frameSize = nextStackOffset + 8;
+        instructions[framePatchIndex] = new Instruction(OpCode.SUB,
+            [Reg(13), Reg(13), Imm(frameSize)], framePatchIndex);
 
         EmitEpilogue();
         AddLabel(skipLabel);
@@ -265,8 +278,16 @@ public partial class CodeGenerator
         AddLabel(label);
         EmitPrologue();
 
+        // 帧占位：函数体生成完再回填（见 CodeGenerator.cs 顶层的同款说明）。
+        // 不能只靠各声明处那条 SUB —— 文件级声明会抬高 nextStackOffset 却不发 SUB，
+        // 帧就会比偏移少，局部量落进 push 区被写花。
+        int framePatchIndex = instructions.Count;
+        instructions.Add(new Instruction(OpCode.SUB,
+            [Reg(13), Reg(13), Imm(0)], framePatchIndex));
+
         var savedSymbols = new Dictionary<string, int>(symbolTable);
         int savedOffset = nextStackOffset;
+        nextStackOffset = 0;   // 每个函数有自己的帧，不吃上一个函数留下的偏移
         funcParams[node.Name] = node.Parameters;
 
         // self is first implicit param in R12
@@ -282,6 +303,11 @@ public partial class CodeGenerator
 
         foreach (var stmt in node.Body)
             GenerateStatement(stmt);
+
+        // 回填帧大小（+8 安全边界：最深的局部量必须严格高于 R13）
+        int frameSize = nextStackOffset + 8;
+        instructions[framePatchIndex] = new Instruction(OpCode.SUB,
+            [Reg(13), Reg(13), Imm(frameSize)], framePatchIndex);
 
         EmitEpilogue();
         AddLabel(skipLabel);
