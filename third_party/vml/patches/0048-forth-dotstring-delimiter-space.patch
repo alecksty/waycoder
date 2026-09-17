@@ -1,0 +1,20 @@
+diff --git a/third_party/vml/VMLPrepares/ForthCompiler/Lexer.cs b/third_party/vml/VMLPrepares/ForthCompiler/Lexer.cs
+index bb02ca1a..75d758b9 100644
+--- a/third_party/vml/VMLPrepares/ForthCompiler/Lexer.cs
++++ b/third_party/vml/VMLPrepares/ForthCompiler/Lexer.cs
+@@ -381,7 +381,14 @@ namespace ForthCompiler
+         {
+             Advance(); // 跳过.
+             Advance(); // 跳过"
+-            
++            // ⚠ Forth 的 `."` 是「词 + **空格分隔符** + 文本」——
++            //   那个空格是**分隔符**、不属于字符串内容（`." abc"` 打出的是 `abc`）。
++            //   原先没跳它 ⇒ 每条 `." ..."` 都多一个**前导空格**：
++            //   实测 `out.fth` 每一行都是 ` OUT-STR=abc`（含第 1 行），
++            //   而标准 Forth 的 `."` 不产生任何前导空格。
++            //   只跳「确实有那一个空格」的情形 —— 也允许 `."abc"` 这种紧贴写法。
++            if (_pos < _source.Length && _source[_pos] == ' ') Advance();
++
+             int startLine = _line;
+             int startColumn = _col;
+             StringBuilder sb = new StringBuilder();
