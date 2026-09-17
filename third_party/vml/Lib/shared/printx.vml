@@ -1,7 +1,4 @@
 
-.linked "builtins.vml"
-.linked "wchar.vml"
-.linked "uchar.vml"
 .data
 L_35090000: .string "0x"
 

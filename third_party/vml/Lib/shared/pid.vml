@@ -1,6 +1,4 @@
 
-.linked "ringbuf.vml"
-.linked "swtimer.vml"
 .data
 
 .text

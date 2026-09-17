@@ -1,5 +1,4 @@
 
-.linked "math.vml"
 .data
 dbl_92980002: .dword 0
 dbl_92980005: .dword 0

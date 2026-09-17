@@ -1,5 +1,4 @@
 
-.linked "string.vml"
 .data
 b64_table: .string "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 

@@ -1,5 +1,4 @@
 
-.linked "bitlib.vml"
 .data
 __cmd_offset: .word 0
 

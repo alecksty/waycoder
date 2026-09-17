@@ -1,6 +1,4 @@
 
-.linked "math.vml"
-.linked "fixed.vml"
 .data
 _buf1: .word[256] 0
 L_66490000: .string "0123456789ABCDEF"

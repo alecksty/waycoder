@@ -1,6 +1,4 @@
 
-.linked "array.vml"
-.linked "math.vml"
 .data
 _bgi_color: .word 15
 _bgi_bgcolor: .word 0

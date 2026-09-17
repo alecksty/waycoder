@@ -1,5 +1,4 @@
 
-.linked "fixed.vml"
 .data
 PI64_D: .dword 3.141592653589793
 PI2_D: .dword 6.283185307179586

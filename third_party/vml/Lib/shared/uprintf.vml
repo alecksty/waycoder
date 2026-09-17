@@ -1,8 +1,4 @@
 
-.linked "uchar.vml"
-.linked "printf.vml"
-.linked "uscanf.vml"
-.linked "wprintf.vml"
 .data
 
 .text

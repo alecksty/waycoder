@@ -1,6 +1,4 @@
 
-.linked "fixed.vml"
-.linked "math.vml"
 .data
 flt_43840004: .word 786163455
 flt_43840007: .word 786163455

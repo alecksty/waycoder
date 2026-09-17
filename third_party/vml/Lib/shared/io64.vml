@@ -1,7 +1,4 @@
 
-.linked "convert64.vml"
-.linked "io.vml"
-.linked "printf.vml"
 .data
 
 .text

@@ -2,6 +2,7 @@
 .data
 i64_49580025: .dword 1
 i64_49580027: .dword 1
+i64_49580029: .dword 1
 
 .text
 lfixed_mul64:
@@ -338,6 +339,36 @@ L_49580026:
         pop R12
         pop R15
         ret
+lfixed_from_double:
+; -------------------------------------------
+; source   : long lfixed_from_double(double f)
+; function : lfixed_from_double
+; param   : double f
+; return   : long
+; --------------------------------------------
+lfixed_from_double:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #12
+        moved R0 [R12+12]
+        dpush R0
+        movel R0 [i64_49580027]
+        pushl R0
+        move R0 #32
+        popl R1
+        shl R1 R0
+        movel R0 R1
+        l2d R0 R0
+        dpop R1
+        dmul R0 R1 R0
+        d2l R0 R0
+        jmp L_49580028
+L_49580028:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
 lfixed_to_double:
 ; -------------------------------------------:
 ; -------------------------------------------
@@ -354,7 +385,7 @@ lfixed_to_double:
         movel R0 [R12+12]
         l2d R0 R0
         dpush R0
-        movel R0 [i64_49580027]
+        movel R0 [i64_49580029]
         pushl R0
         move R0 #32
         popl R1
@@ -363,8 +394,8 @@ lfixed_to_double:
         l2d R0 R0
         dpop R1
         ddiv R0 R1 R0
-        jmp L_49580028
-L_49580028:
+        jmp L_49580030
+L_49580030:
         move R13 R12
         pop R12
         pop R15

@@ -1,7 +1,4 @@
 
-.linked "bitlib.vml"
-.linked "builtins.vml"
-.linked "util.vml"
 .data
 
 .text

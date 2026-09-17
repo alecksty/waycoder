@@ -1,5 +1,4 @@
 
-.linked "math64.vml"
 .data
 dbl_73430000: .dword 4607182418800017408
 dbl_73430001: .dword 0

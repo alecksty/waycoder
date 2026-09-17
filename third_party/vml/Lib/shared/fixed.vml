@@ -1,5 +1,4 @@
 
-.linked "math.vml"
 .data
 flt_57480009: .word 1199570944
 flt_57480011: .word 1199570944

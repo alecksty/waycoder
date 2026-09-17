@@ -1,5 +1,4 @@
 
-.linked "parserexpf.vml"
 .data
 g_pos: .word 0
 g_current: .word 0
