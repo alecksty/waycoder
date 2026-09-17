@@ -80,6 +80,7 @@ game-basic-whack	-	examples/basic/whack.bas	window	-	打地鼠（BASIC）—— 
 game-fortran-sokoban	-	examples/fortran/sokoban.f90	window	-	推箱子（Fortran）—— 双数组状态 + 移动规则 + 过关判定；⚠ `if` 条件里解析不了「紧跟括号的除法」，要先算进变量
 game-r-catch	-	examples/r/catch.r	window	-	接方块（R）—— 依赖本次修掉的「函数写死 64 字节帧」；R 向量 1 基、循环用 c(...) 不能写 1:4
 game-dart-catch	-	examples/dart/catch.dart	window	-	接方块（Dart）—— 库调用必须 external 声明才是裸标签；状态全内联在 main
+game-d-catch	-	examples/d/catch.d	window	-	接方块（D）—— D 本来连一个示例文件都没有，这是它的第一份；裸调 ui_* 靠链接器剥 func_ 前缀，颜色写负数十进制
 # README 明说这两个跑不了（BASIC 前端三个既有缺陷 / Python 列表写不生效）。
 # 留着是为了**验证"读代码记下的结论在设备上仍成立"**，不是指望它们过。
 game-basic-tetris	-	examples/basic/tetris.bas	window	-	README 记：BASIC 前端缺陷，跑不了	60
