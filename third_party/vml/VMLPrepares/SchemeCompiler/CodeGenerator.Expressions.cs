@@ -5,7 +5,13 @@ namespace SchemeCompiler;
 public partial class CodeGenerator {
     void GenCall(SList l, bool tailPos = false) {
         string op = ((SSym)l.Items[0]).Name;
-        if (tailPos) {
+        // 尾位置**只有自递归**才能用 GenTailRecursive：它把实参搬进**当前帧**的形参槽、
+        // 释放当前帧、再 `jmp <名>_body` —— 整个技巧成立的前提是「被调者与调用者共用同一个帧」。
+        // 对别的函数（用户函数也好、库函数也好）那是错的：跳进 `_body` 等于**跳过序言**
+        // （`push R15; push R12; move R12 R13`），被调者拿到的是调用者的 BP/返回地址。
+        // 实测症状是「从用户函数里调库函数必崩」，而顶层直接调同一个库函数完全正常
+        // （顶层 `_currentFunc == null`，走的本来就不是这条路）。
+        if (tailPos && op == _currentFunc) {
             GenTailRecursive(l, op);
             return;
         }
@@ -257,9 +263,12 @@ public partial class CodeGenerator {
                     GenExpr(tc.Items[0]);
                     Sta!.EmitJumpIfFalse(bl);
                     for (int ri = 1; ri < tc.Items.Count; ri++) GenExpr(tc.Items[ri]);
-                    // Load first variable's value as the do loop result
-                    if (vars.Count > 0) {
-                        int fo = vars.Values.Min();
+                    // 循环的值取「本 do 的**第一个**绑定变量」（本前端的既定语义，见 `sd`）。
+                    // ⚠ 不能用 `vars.Values.Min()` 找「第一个变量」：`vars` 是整个作用域的变量表，
+                    // 只要外层还有别的绑定（函数形参、内层 define）就会选错 —— 实测
+                    // `(define (f a b) (do ((i 0 (+ i 1)) (s 0 (+ s a))) ((= i 3) s)))` 调 `(f 10 20)`
+                    // 得 20（b 的值）而不是第一个循环变量。形参改成负偏移后这个 Min 更会直接落到形参上。
+                    if (sd.Count > 0 && vars.TryGetValue(sd[0].name, out int fo)) {
                         AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{12 - fo}")]);
                     }
                     AddInstruction(OpCode.JMP, [new Operand(OperandType.LABEL, le)]);

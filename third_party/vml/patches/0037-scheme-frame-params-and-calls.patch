@@ -1,0 +1,203 @@
+diff --git a/third_party/vml/VMLPrepares/SchemeCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/SchemeCompiler/CodeGenerator.Expressions.cs
+index 02501afe..89a55c9a 100644
+--- a/third_party/vml/VMLPrepares/SchemeCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/SchemeCompiler/CodeGenerator.Expressions.cs
+@@ -5,7 +5,13 @@ namespace SchemeCompiler;
+ public partial class CodeGenerator {
+     void GenCall(SList l, bool tailPos = false) {
+         string op = ((SSym)l.Items[0]).Name;
+-        if (tailPos) {
++        // 尾位置**只有自递归**才能用 GenTailRecursive：它把实参搬进**当前帧**的形参槽、
++        // 释放当前帧、再 `jmp <名>_body` —— 整个技巧成立的前提是「被调者与调用者共用同一个帧」。
++        // 对别的函数（用户函数也好、库函数也好）那是错的：跳进 `_body` 等于**跳过序言**
++        // （`push R15; push R12; move R12 R13`），被调者拿到的是调用者的 BP/返回地址。
++        // 实测症状是「从用户函数里调库函数必崩」，而顶层直接调同一个库函数完全正常
++        // （顶层 `_currentFunc == null`，走的本来就不是这条路）。
++        if (tailPos && op == _currentFunc) {
+             GenTailRecursive(l, op);
+             return;
+         }
+@@ -257,9 +263,12 @@ public partial class CodeGenerator {
+                     GenExpr(tc.Items[0]);
+                     Sta!.EmitJumpIfFalse(bl);
+                     for (int ri = 1; ri < tc.Items.Count; ri++) GenExpr(tc.Items[ri]);
+-                    // Load first variable's value as the do loop result
+-                    if (vars.Count > 0) {
+-                        int fo = vars.Values.Min();
++                    // 循环的值取「本 do 的**第一个**绑定变量」（本前端的既定语义，见 `sd`）。
++                    // ⚠ 不能用 `vars.Values.Min()` 找「第一个变量」：`vars` 是整个作用域的变量表，
++                    // 只要外层还有别的绑定（函数形参、内层 define）就会选错 —— 实测
++                    // `(define (f a b) (do ((i 0 (+ i 1)) (s 0 (+ s a))) ((= i 3) s)))` 调 `(f 10 20)`
++                    // 得 20（b 的值）而不是第一个循环变量。形参改成负偏移后这个 Min 更会直接落到形参上。
++                    if (sd.Count > 0 && vars.TryGetValue(sd[0].name, out int fo)) {
+                         AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{12 - fo}")]);
+                     }
+                     AddInstruction(OpCode.JMP, [new Operand(OperandType.LABEL, le)]);
+diff --git a/third_party/vml/VMLPrepares/SchemeCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/SchemeCompiler/CodeGenerator.cs
+index c7c00b68..dc44ec5e 100644
+--- a/third_party/vml/VMLPrepares/SchemeCompiler/CodeGenerator.cs
++++ b/third_party/vml/VMLPrepares/SchemeCompiler/CodeGenerator.cs
+@@ -5,7 +5,18 @@ namespace SchemeCompiler;
+ public partial class CodeGenerator : CodeGeneratorBase {
+     SExpr _ast;
+     Dictionary<string, int> vars = [];
+-    int varOff;
++    // 局部量分配游标。**做成属性**是为了同时维护 `_peakVarOff`：
++    // 帧大小必须按「整个函数体内 **到过的最大** varOff」算，不能按生成结束时的值算 ——
++    // `let` / `do` 在收尾时会把 `varOff` 还原（`savedVarOff`），于是
++    // `(define (f) (let ((a 1) …二十个…)) …))` 生成完 `varOff` 回到 4，
++    // 帧就被算成 64 字节，而局部量实际已经写到了 R12-80 —— **踩进调用方的帧**。
++    // 走属性以后 `++varOff` / `varOff = n` 全都自动记账，不必在每个分配点手抄一遍。
++    int _varOff;
++    int _peakVarOff;
++    int varOff {
++        get => _varOff;
++        set { _varOff = value; if (value > _peakVarOff) _peakVarOff = value; }
++    }
+     string? _currentFunc;
+     int _currentFuncParams;
+ 
+@@ -19,7 +30,21 @@ public partial class CodeGenerator : CodeGeneratorBase {
+     public override VmlProgram GenerateCode() {
+         // Label at START so .entry main loads into correct address
+         AddLabel("main");
++        // 顶层也要占帧。**顶层绑定走的是 `R12 + (12 - off)`（off = 4、8、12…）**，
++        // 也就是 `R12+8 / R12+4 / R12+0` 之后**继续往下** `R12-4 / R12-8 …`；
++        // 而 `main` 此前不 `sub R13` ⇒ `R13 == R12`，**压栈正好写在那一片**：
++        // 第 4 个顶层 `(define …)` 起就与实参压栈抢内存。
++        // 实测 12 个顶层变量求和得 24（应 78）、5 个变量夹几次调用后得 65536。
++        // 占一帧之后压栈落到 `R13-` 侧（帧之外），顶层绑定不再被冲。
++        int mainFramePatch = instructions.Count;
++        instructions.Add(new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, 0)], mainFramePatch));
++        _peakVarOff = 0;
+         GenTopLevel(_ast);
++        int mainFrameSize = _peakVarOff * 4 + 32;
++        if (mainFrameSize < 64) mainFrameSize = 64;
++        instructions[mainFramePatch] = new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, mainFrameSize)], mainFramePatch);
+         EmitExit();
+         return BuildProgram("main");
+     }
+@@ -75,15 +100,28 @@ public partial class CodeGenerator : CodeGeneratorBase {
+                 instructions.Add(new Instruction(OpCode.SUB,
+                     [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, 0)], framePatchIndex));
+                 AddInstruction(OpCode.LABEL, [new Operand(OperandType.LABEL, $"{fname}_body")]);
+-                // Reserve space for locals
+-                varOff = fnParams.Count;
+-                foreach (var p in fnParams) vars[p] = --varOff * 4;
+-                // 确保局部变量在 BP 下方（前3槽 = 返回地址+R15+R12, 各4字节）
+-                if (varOff < 4) varOff = 4;
++                // 形参绑定：arg_i 在 **R12+12+4i**（GenCall 逆序压栈 ⇒ arg0 在最顶，
++                // `call` 再压返回地址，序言压 R15/R12 —— 共 3 槽 = 12 字节）。
++                // `vars` 的约定是「偏移 off → 读 `R12+(12-off)`」，故 **off_i = -4i**。
++                //
++                // ⚠ 这里原先写的是 `varOff = fnParams.Count; … = --varOff * 4;`（4、0、-4…），
++                // 只在**单参数**时恰好等于 `-4*0`；从两个参数起整体错开一个槽：
++                // 实测 `(define (pick a b) b)` 调 `(pick 11 22)` 得 **11**（读到的是 a 的槽），
++                // `(define (add2 a b) (+ a b))` 调 `(add2 3 4)` 得 **26**。
++                // 三个参数时更远。骨架照不出来 —— `skel.scm` 里的 `inc` 只有一个参数。
++                for (int pi = 0; pi < fnParams.Count; pi++) vars[fnParams[pi]] = -4 * pi;
++                // 局部变量从 BP 下方开始（R12-8 …）——形参在 BP 上方，两者不再共用计数器
++                int savedPeak_fn = _peakVarOff;
++                _peakVarOff = 4;
++                varOff = 4;
+                 GenExpr(l.Items[2], true);
+-                // 回填帧大小（+32 安全边界；旧的 64 当保底，小函数行为不变）
+-                int frameSize = varOff * 4 + 32;
++                // 回填帧大小（+32 安全边界；旧的 64 当保底，小函数行为不变）。
++                // **按峰值算**：`let`/`do` 收尾会把 `varOff` 还原，用结束时的值会低估。
++                int frameSize = _peakVarOff * 4 + 32;
+                 if (frameSize < 64) frameSize = 64;
++                // 峰值记账是**按帧**的，出了这个函数要把外层的峰值还回去，
++                // 否则内层函数的高峰值会白白撑大外层（无害，但也就失去了意义）
++                _peakVarOff = savedPeak_fn;
+                 instructions[framePatchIndex] = new Instruction(OpCode.SUB,
+                     [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, frameSize)], framePatchIndex);
+                 // 释放临时栈空间后恢复帧
+@@ -146,16 +184,38 @@ public partial class CodeGenerator : CodeGeneratorBase {
+                 Emit(OpCode.NOP, [], "; --------------------------------------------");
+                 AddInstruction(OpCode.JMP, [new Operand(OperandType.LABEL, afterNl)]);
+                 AddInstruction(OpCode.LABEL, [new Operand(OperandType.LABEL, funcLabel)]);
++                // 帧占位 + 回填，同 `define`。⚠ 这里**此前一条 `sub R13` 都没有**：
++                // 命名 let 的函数体不占帧，而它的局部量（`let` / `do` 绑定）照样按
++                // `R12+(12-off)` 往下写 ⇒ 直接写进 **push 区**，被参数压栈冲掉。
++                // 只有「函数体里没有局部量」的命名 let（如 skel 的骨架）才看不出来。
+                 EmitPrologue();
++                int nlFramePatch = instructions.Count;
++                instructions.Add(new Instruction(OpCode.SUB,
++                    [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, 0)], nlFramePatch));
+                 var savedFuncNl = _currentFunc;
+                 var savedParamsNl = _currentFuncParams;
+                 _currentFunc = letName.Name;
+                 _currentFuncParams = nlParams.Count;
+                 AddInstruction(OpCode.LABEL, [new Operand(OperandType.LABEL, $"{letName.Name}_body")]);
+-                varOff = nlParams.Count - 1;
+-                foreach (var p in nlParams) vars[p] = --varOff * 4;
+-                if (varOff < 4) varOff = 4;
+-                GenExpr(l.Items[3], true);
++                // 形参槽位同 `define`：**off_i = -4i**（详见那处的说明）。
++                // 这里原先写 `varOff = nlParams.Count - 1; … = --varOff * 4;`（0、-4、-8…），
++                // 只在**两个参数**时恰好正确；单参数读成 `R12+16`、三个及以上整体前移一槽。
++                for (int pi = 0; pi < nlParams.Count; pi++) vars[nlParams[pi]] = -4 * pi;
++                int savedPeak_nl = _peakVarOff;
++                _peakVarOff = 4;
++                varOff = 4;
++                // 函数体是**多形式**（`(let name (bindings) body ...)`）—— 原先只生成 `l.Items[3]`，
++                // 第二个形式起全部被静默丢掉：实测
++                //   `(let lp ((a 1)(b 2)(c 3)) (display "NL3=") (display (+ a b c)) (newline))`
++                // 只打印出 "NL3="，后面的 display/newline 一个字都没编出来。
++                // 同 `begin` 的口径：前面的按值丢弃，最后一个留在尾位置（可被尾递归优化）。
++                for (int bi = 3; bi < l.Items.Count - 1; bi++) GenExpr(l.Items[bi]);
++                GenExpr(l.Items[l.Items.Count - 1], true);
++                int nlFrameSize = _peakVarOff * 4 + 32;
++                if (nlFrameSize < 64) nlFrameSize = 64;
++                _peakVarOff = savedPeak_nl;
++                instructions[nlFramePatch] = new Instruction(OpCode.SUB,
++                    [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, nlFrameSize)], nlFramePatch);
+                 EmitEpilogue();
+                 AddInstruction(OpCode.LABEL, [new Operand(OperandType.LABEL, afterNl)]);
+                 _currentFunc = savedFuncNl;
+@@ -180,7 +240,8 @@ public partial class CodeGenerator : CodeGeneratorBase {
+                             AddInstruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R12+{12 - varOff * 4}"), new Operand(OperandType.REGISTER, 0)]);
+                         }
+                     }
+-                    if (l.Items.Count >= 3) GenTopLevel(l.Items[2]);
++                    // body 是**多形式**：原先只生成 `l.Items[2]`，第二个形式起被静默丢掉。
++                    for (int bi = 2; bi < l.Items.Count; bi++) GenTopLevel(l.Items[bi]);
+                 }
+                 varOff = savedVarOff;
+             } else if (s.Name == "let*") {
+@@ -194,7 +255,8 @@ public partial class CodeGenerator : CodeGeneratorBase {
+                             AddInstruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R12+{12 - varOff * 4}"), new Operand(OperandType.REGISTER, 0)]);
+                         }
+                     }
+-                    if (l.Items.Count >= 3) GenTopLevel(l.Items[2]);
++                    // body 是**多形式**：原先只生成 `l.Items[2]`，第二个形式起被静默丢掉。
++                    for (int bi = 2; bi < l.Items.Count; bi++) GenTopLevel(l.Items[bi]);
+                 }
+             } else if (s.Name == "letrec") {
+                 // (letrec ((var1 val1) (var2 val2)) body)
+@@ -212,7 +274,8 @@ public partial class CodeGenerator : CodeGeneratorBase {
+                         GenExpr(init);
+                         AddInstruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R12+{12 - vars[vname]}"), new Operand(OperandType.REGISTER, 0)]);
+                     }
+-                    if (l.Items.Count >= 3) GenTopLevel(l.Items[2]);
++                    // body 是**多形式**：原先只生成 `l.Items[2]`，第二个形式起被静默丢掉。
++                    for (int bi = 2; bi < l.Items.Count; bi++) GenTopLevel(l.Items[bi]);
+                 }
+             } else if (s.Name == "do" && l.Items.Count >= 3) {
+                 // (do ((var init step) ...) (test result ...) body ...)
+@@ -238,8 +301,10 @@ public partial class CodeGenerator : CodeGeneratorBase {
+                     Sta!.EmitJumpIfFalse(bodyLabel);
+                     for (int ri = 1; ri < testClause.Items.Count; ri++)
+                         GenExpr(testClause.Items[ri]);
+-                    if (vars.Count > 0) {
+-                        int fo = vars.Values.Min();
++                    // 循环的值取「本 do 的第一个绑定变量」（既定语义）。
++                    // ⚠ 不能再用 `vars.Values.Min()`：那是**整个作用域**的表，外层只要还有别的绑定
++                    // （函数形参、内层 define）就会选错变量；形参改负偏移后更会直接落到形参上。
++                    if (steps.Count > 0 && vars.TryGetValue(steps[0].name, out int fo)) {
+                         AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{12 - fo}")]);
+                     }
+                     AddInstruction(OpCode.JMP, [new Operand(OperandType.LABEL, loopEnd)]);

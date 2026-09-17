@@ -1,3 +1,116 @@
+## v0.96.203 (2026-09-17) — Scheme 前端六条修复（接方块上手机）+ 全 22 语言游戏打包
+
+**起因**：给 Scheme 补一份游戏例程。写不出来的原因不是「Scheme 不适合做游戏」，
+而是这个前端**六处各自独立的内存/调用缺陷** —— 骨架 `skel.scm` 一条都照不出来，
+因为它的函数只有一个参数、循环全在顶层、且从不从函数里调库。
+
+### ① `main` 不占帧 ⇒ 顶层变量只能放 3 个
+
+顶层绑定按 `R12 + (12 - off)` 寻址（`off = 4, 8, 12 …`），也就是
+`R12+8 / R12+4 / R12+0` 之后**继续往下**到 `R12-4 / R12-8 …` —— 而 `main` 此前不 `sub R13`，
+`R13 == R12`，**压栈正好写在那一片**。
+
+| 判据 | 修前 | 修后 |
+|---|---|---|
+| 12 个顶层变量求和（应 **78**） | 24 | 78 ✓ |
+| 5 个变量夹几次调用（应 **15**） | 65536 | 15 ✓ |
+
+修法：`GenerateCode` 里给 `main` 加帧占位、按**峰值**回填。
+
+### ② ≥2 个形参的函数读错实参
+
+形参槽原先按 `varOff = fnParams.Count; … = --varOff * 4` 递减分配（4、0、-4…），
+**只在单参数时**恰好等于正确的 `-4*0`；两个参数起整体错开一槽（读到返回地址槽）。
+命名 `let` 那处写的是 `nlParams.Count - 1`（0、-4…），则**只在两个参数时**恰好对。
+
+| 判据 | 修前 | 修后 |
+|---|---|---|
+| `(define (pick a b) b)` 调 `(pick 11 22)` | 11 | 22 ✓ |
+| `(define (add2 a b) (+ a b))` 调 `(add2 3 4)` | 26 | 7 ✓ |
+| 三参数 `(add3 1 2 3)` | 31 | 6 ✓ |
+
+修法：两处统一成 **`off_i = -4i`**（`arg_i` 位于 `R12+12+4i`：GenCall 逆序压栈 ⇒
+`arg0` 在最顶，`call` 压返回地址，序言压 R15/R12 —— 共 3 槽 = 12 字节）。
+
+### ③ 从用户函数里调库函数必崩 —— 尾位置一律编成 `jmp <名>_body`
+
+`GenCall` 见 `tailPos` 就走 `GenTailRecursive`：把实参搬进**当前帧**的形参槽、释放当前帧、
+`jmp {targetFunc}_body`。那是 Scheme 自己的**尾调用优化**，成立的前提是
+「被调者与调用者共用同一个帧」—— 对**自递归**成立，对**任何别的函数**都是错的：
+跳进 `_body` 等于**跳过被调者的序言**（`push R15; push R12; move R12 R13`）。
+
+症状：顶层直接调库函数完全正常（`_currentFunc == null`，本来就不走这条路），
+**从用户函数里调**就连零参数的 `ui_present` 都崩。
+
+修法：判据收紧成 `tailPos && op == _currentFunc`（`_currentFunc` 早就在记当前函数名）。
+
+### ④ 函数体 / `let` body 只编译第一个形式
+
+`(define (f) a b c)` 只编 `a`；命名 `let` 只编 `l.Items[3]`；
+语句位的 `let` / `let*` / `letrec` 只编 `l.Items[2]` —— **第二个形式起全部静默丢掉**。
+实测 `(let lp ((a 1)(b 2)(c 3)) (display "NL3=") (display (+ a b c)) (newline))`
+只打印出 `NL3=`，后面的 display/newline 一个字都没编出来。
+
+修法：四处统一成 `begin` 的口径（前面的按值丢弃、最后一个留在尾位置）。
+
+### ⑤ 命名 `let` **完全不占帧**
+
+生成的 `__nl_N` 里一条 `sub R13` 都没有，而它体内的 `let`/`do` 局部量照样按
+`R12+(12-off)` 往下写 ⇒ **直接写进压栈区**、被实参压栈冲掉。
+只有「函数体里没有局部量」的命名 `let`（如骨架）才看不出来。
+
+### ⑥ 帧大小按**生成结束时的** `varOff` 算
+
+`let` / `do` 收尾会把 `varOff` 还原（`savedVarOff`），于是
+`(define (f) (let ((a 1) …二十个…)) …))` 生成完 `varOff` 回到 4、帧被算成 64 字节，
+而局部量已经写到 `R12-80` —— **踩进调用方的帧**。
+
+修法：`varOff` 改成属性，赋值时顺带记 `_peakVarOff`；帧按峰值算。
+20 个局部量 + 循环判据实测 **213** ✓。
+
+> **六条的共同教训**：`skel.scm` 全绿只能证明「这一条路径没坏」。
+> 骨架的最小性（单参数、循环在顶层、不调库）恰好绕开了全部六条。
+
+### ⑦ 新例程 `Examples/scheme/catch.scm`（接方块）
+
+写的时候还钉住一条**没法修、只能绕**的约束：**用户函数看不见顶层变量** ——
+二者都按 `R12 + (12 - off)` 寻址，而函数里的 `R12` 是它自己的帧指针。
+
+```scheme
+(define g 0)
+(define (w1) (set! g 5))
+(w1)            ; ⇒ 踩坏保存的 R12（R12(BP) 变成 8），紧接着 [R12-48] 越界
+```
+
+⇒ 游戏写成**扁平顶层程序**：循环、状态、判定全在顶层，只把「参数全传、不碰全局」的
+纯函数抽出去（例程里的 `clamp` 就是三参数的，顺带吃到 ② 那条修复）。
+
+### ⑧ 全 22 语言游戏例程打包上手机
+
+`scripts/make-vml-lib.sh` 重打（示例 45 份，含 `Examples/scheme/catch.scm`），
+APK 重签重建。至此 **20 门语言各有游戏例程**（22 门里只剩 Forth / Ladder 两门跑不了）：
+
+| 语言 | 例程 | 语言 | 例程 |
+|---|---|---|---|
+| C | `c/tetris.c` `c/gomoku.c` | ObjC | `objc/snake.m` |
+| C++ | `cpp/snake.cpp` | Pascal | `pascal/catch.pas` |
+| C# | `csharp/snake.cs` `csharp/racer.cs` | Python | `python/tetris.py` |
+| Java | `java/catch.java` | R | `r/catch.r` |
+| JavaScript | `javascript/catch.js` | Ruby | `ruby/catch.rb` |
+| Kotlin | `kotlin/catch.kt` | Rust | `rust/breakout.rs` |
+| Go | `go/snake.go` | Swift | `swift/snake.swift` `swift/plane.swift` |
+| Dart | `dart/catch.dart` | BASIC | `basic/tetris.bas` `basic/whack.bas` |
+| D | `d/catch.d` | Fortran | `fortran/sokoban.f90` |
+| Lua | `lua/life.lua` | Scheme | `scheme/catch.scm` |
+
+**验证**：跨语言调用约定判据 **27/29**（失败的 `fth`/`ld` 是既有的「剩余 2 种语言」）、
+`skel-scheme` **SKEL-SUM=14**、`drift.scm` **DRIFT=126**、
+Scheme 自测 13/13（`nt`/`pa`/`pb`/`pc`/`do2`/`fnst`/`manylets`/`nlstmt`/`nlstmt1`/
+`letm`/`letstarm`/`topn`/`topc`）。
+补丁 `patches/0037-scheme-frame-params-and-calls.patch`。
+
+---
+
 ## v0.96.202 (2026-09-17) — Lua 的 `for` 循环变量必须先 `local`（跨语言判据 11→13 绿）
 
 上一版之后又清掉两条，其中一条是**纯 Lua 前端缺陷**、与调用约定无关。

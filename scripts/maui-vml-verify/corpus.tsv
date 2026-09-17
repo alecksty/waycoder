@@ -85,3 +85,4 @@ game-d-catch	-	examples/d/catch.d	window	-	接方块（D）—— D 本来连一
 # 留着是为了**验证"读代码记下的结论在设备上仍成立"**，不是指望它们过。
 game-basic-tetris	-	examples/basic/tetris.bas	window	-	README 记：BASIC 前端缺陷，跑不了	60
 game-python-tetris	-	examples/python/tetris.py	window	-	README 记：Python 列表写不生效	60
+game-scheme-catch	-	examples/scheme/catch.scm	window	-	接方块（Scheme）—— 依赖本次修掉的六条：main 无帧（顶层变量只能放 3 个）、≥2 形参读错实参、函数内调库编成 jmp、body 只编第一个形式、命名 let 不占帧、帧按结束时的 varOff 低估。⚠ 用户函数看不见顶层变量 ⇒ 全部逻辑留在顶层，只抽纯函数	60
