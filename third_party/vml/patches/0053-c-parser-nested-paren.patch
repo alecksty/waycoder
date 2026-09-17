@@ -1,0 +1,37 @@
+diff --git a/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs b/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs
+index 60ee372e..c92047ca 100644
+--- a/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs
++++ b/third_party/vml/VMLPrepares/CCompiler/Parser.Expressions.cs
+@@ -349,6 +349,13 @@ namespace CCompiler
+                             after == TokenType.SEMICOLON || after == TokenType.COMMA ||
+                             after == TokenType.RBRACKET || after == TokenType.ARROW ||
+                             after == TokenType.DOT || after == TokenType.LPAREN ||
++                            // ⚠ `RPAREN` 也必须在列 —— `(s)` 后面紧跟 `)` 的情形
++                            //   （如 `(v * (s))`、`(v + (s))`）会被判成"未知类型标识符"
++                            //   ⇒ 当成类型转换 ⇒ 把 `s` 当类型名吃掉、再要求 `)`。
++                            //   这条与上面 `afterStar == LPAREN` 那条是**两个独立的坑**：
++                            //   当时先修了后者，前者被它掩盖着看不出来（`(v * (s + 1))` 两次都失败，
++                            //   我一度据此把这条判据**证伪得太早**）。
++                            after == TokenType.RPAREN ||
+                             after == TokenType.INCREMENT || after == TokenType.DECREMENT);
+                     }
+                     else
+@@ -358,7 +365,17 @@ namespace CCompiler
+                         if (next == TokenType.STAR)
+                         {
+                             var afterStar = Peek(2).Type;
+-                            isUnknownTypeIdent = !(afterStar == TokenType.NUMBER || afterStar == TokenType.IDENTIFIER);
++                            // ⚠ 判据必须含 `LPAREN` —— `*` 后面跟**括号表达式**同样是乘法操作数，
++                            //   例如 `(v * (s))`。原先只认 NUMBER/IDENTIFIER ⇒
++                            //   `afterStar == LPAREN` 时被判成"未知类型标识符"（即当成类型转换 `(v*)…`），
++                            //   于是把 `v` 当类型名吃掉、转头要求收尾的 `)`，
++                            //   撞上内层 `(` 就抛「期望 RPAREN，但是 LPAREN」——**位置正好指向内层括号**。
++                            //   而 `(v * s)`（afterStar=IDENTIFIER）正常 ⇒ 这就是"括号嵌套"那类失败的根。
++                            //   实测：`(v * (s))` / `(v * (1))` / `(v * (s + 1))` 全中；
++                            //   作**左**操作数（`((v) * s)`）或括号在最外层都不触发。
++                            isUnknownTypeIdent = !(afterStar == TokenType.NUMBER
++                                                   || afterStar == TokenType.IDENTIFIER
++                                                   || afterStar == TokenType.LPAREN);
+                         }
+                     }
+                 }
