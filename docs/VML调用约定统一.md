@@ -264,3 +264,64 @@ println_int:
 > ⚠ 顺带查清的一条：我加的 `scripts/vmlcli --rebuild-lib` 能重生成 `Lib/shared/*.vml`，
 > 但**不产出 `.linked` 抬头**，与仓库里现有那份对不齐；而现有那份本身也**用当前源码复现不出来**
 > （对照差 480 行）。所以**别拿它当真源**去批量重生成，`.linked` 的去留要先问上游。
+
+---
+
+# 配方已验证（2026-09-17）
+
+## `${}` 的确定语义
+
+实现在 `CCompiler/CodeGenerator.Statements.cs:68`（`GenerateAsmStatement`）：
+
+```csharp
+int regIdx = 0;                       // ← 每条 asm 语句各自从 0 开始
+while ((dollar = code.IndexOf("${", searchStart)) >= 0) {
+    if (variables.TryGetValue(varName, out int offset)) {
+        instructions.Add(MOVE R{regIdx}, <变量的内存>);   // 载入
+        code = code[..dollar] + $"R{regIdx}" + ...;       // 文本里换成 R{regIdx}
+        regIdx++;
+    }
+}
+```
+
+三条确定行为（都实测过）：
+
+1. **它会从栈上载入形参** —— 形参在 `variables` 里，`FormatVarOffset` 给出 `[R12+12+4k]`。
+2. **`regIdx` 是每条 `asm` 语句独立计数的** ⇒ 拆成多条 `asm()` 时，每条的第一个 `${}` 都载入
+   **R0**，后者覆盖前者（实测 `24 = 12+12`）。**一条 asm 里写多个 `${}` 才拿到 R0、R1、R2…**
+3. **只做载入，不做存回** —— 存结果仍用 `MOVE [_全局], R0`（Lib 源码本来就这么写）。
+   ⚠ 分隔指令**不能用 `;`**（那是 VML 的注释，实测后半截被整段吃掉）。
+
+## 改造配方（已验证）
+
+```c
+asm("SYSCALL #6")          /* 旧：靠「第一个形参在 R0」 */
+asm("SYSCALL #6, ${val}")  /* 新：展开成 move R0 [R12+12]; syscall #6 */
+```
+
+`SYSCALL #N` 分支会**忽略尾随文本**（`CodeGenerator.Statements.cs:106` 的
+`numStr.Split(',', ' ', ';')[0]`），所以占位符只是顺带把载入发出来 —— 正好合用。
+
+## 实测效果
+
+只改 `Lib/shared/src/console.c` 的 `print_int` / `println_int` 两个函数
+（`asm("SYSCALL #6")` → `asm("SYSCALL #6, ${val}")`），用
+`scripts/vmlcli --rebuild-lib` 重生成 `Lib/shared/console.vml`：
+
+| | 改前 | 改后 |
+|---|---|---|
+| `p1`~`p6` | 4/6（p3/p5 红） | **6/6 全绿** |
+| 生成的 `println_int` | 靠 R0，不读 `[R12+12]` | `move R0 [R12+12]` 后 `syscall #6` |
+
+**`p3`/`p5` 正是「栈漂移」那两条 —— 转绿说明配方确实消灭了漂移本体。**
+
+## 两个必须记住的操作事实
+
+1. **本地迭代回路可用**：`--rebuild-lib` 重生成的模块**不带 `.linked` 抬头**，
+   但照样能跑（实测 C 骨架仍出 `SKEL-SUM=14`）⇒ 可以先在本地
+   「改源码 → 重生成 → 跑判据」快速试，配方定了再回上游做正式重生成。
+
+2. ⚠ **不能只改模块里的一部分函数**：把一个模块重生成、但里面还有没移植的函数时，
+   22 语言会从 22 掉到 11（实测）。原因有两层 —— 重生成会换掉整个文件的标签格式与
+   `.linked`；且同一模块内**新旧 ABI 混着**必然对不上。
+   **移植要以「模块」为单位做完，不能跨模块零敲碎打。**
