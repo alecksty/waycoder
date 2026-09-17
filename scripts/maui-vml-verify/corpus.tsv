@@ -68,6 +68,9 @@ game-csharp-racer	-	examples/csharp/racer.cs	window	-	赛车（C#）	300
 game-csharp-snake	-	examples/csharp/snake.cs	window	-	贪吃蛇（C#）	300
 game-go-snake	-	examples/go/snake.go	window	-	贪吃蛇（Go）	300
 game-objc-snake	-	examples/objc/snake.m	window	-	贪吃蛇（ObjC）—— 第一份**桌面本地可链可跑**的游戏：避开 Lib/ 里「声明了但未实现」的 11 个 ui_*（ui_beep/ui_keep_on 等），其余 Go/C#/Swift 的游戏在桌面都因它们链不上	300
+game-cpp-snake	-	examples/cpp/snake.cpp	window	-	贪吃蛇（C++）—— 照 ObjC 那份移植；桌面实测可链可跑	300
+game-java-catch	-	examples/java/catch.java	window	-	接方块（Java）—— 更紧凑的完整游戏（挡板/球/计分/结束重开）	300
+game-javascript-catch	-	examples/javascript/catch.js	window	-	接方块（JavaScript）—— 同上	300
 # README 明说这两个跑不了（BASIC 前端三个既有缺陷 / Python 列表写不生效）。
 # 留着是为了**验证"读代码记下的结论在设备上仍成立"**，不是指望它们过。
 game-basic-tetris	-	examples/basic/tetris.bas	window	-	README 记：BASIC 前端缺陷，跑不了	60
