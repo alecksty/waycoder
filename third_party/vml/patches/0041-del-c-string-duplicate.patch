@@ -1,0 +1,1068 @@
+diff --git a/third_party/vml/Lib/c/string.c b/third_party/vml/Lib/c/string.c
+deleted file mode 100644
+index 4febd585..00000000
+--- a/third_party/vml/Lib/c/string.c
++++ /dev/null
+@@ -1,346 +0,0 @@
+-#include "string.h"
+-
+-void *memcpy(void *dest, const void *src, size_t n)
+-{
+-    char *d = (char *)dest;
+-    const char *s = (const char *)src;
+-    while (n--)
+-    {
+-        *d++ = *s++;
+-    }
+-    return dest;
+-}
+-
+-void *memmove(void *dest, const void *src, size_t n)
+-{
+-    char *d = (char *)dest;
+-    const char *s = (const char *)src;
+-    if (d < s)
+-    {
+-        while (n--)
+-        {
+-            *d++ = *s++;
+-        }
+-    }
+-    else
+-    {
+-        d += n;
+-        s += n;
+-        while (n--)
+-        {
+-            *--d = *--s;
+-        }
+-    }
+-    return dest;
+-}
+-
+-char *strcpy(char *dest, const char *src)
+-{
+-    char *p = dest;
+-    while (*src)
+-    {
+-        *p++ = *src++;
+-    }
+-    *p = '\0';
+-    return dest;
+-}
+-
+-char *strncpy(char *dest, const char *src, size_t n)
+-{
+-    char *p = dest;
+-    while (n > 0 && *src)
+-    {
+-        *p++ = *src++;
+-        n--;
+-    }
+-    while (n > 0)
+-    {
+-        *p++ = '\0';
+-        n--;
+-    }
+-    return dest;
+-}
+-
+-char *strcat(char *dest, const char *src)
+-{
+-    char *p = dest;
+-    while (*p)
+-        p++;
+-    while (*src)
+-    {
+-        *p++ = *src++;
+-    }
+-    *p = '\0';
+-    return dest;
+-}
+-
+-char *strncat(char *dest, const char *src, size_t n)
+-{
+-    char *p = dest;
+-    while (*p)
+-        p++;
+-    while (n-- > 0 && *src)
+-    {
+-        *p++ = *src++;
+-    }
+-    *p = '\0';
+-    return dest;
+-}
+-
+-int memcmp(const void *s1, const void *s2, size_t n)
+-{
+-    const char *p1 = (const char *)s1;
+-    const char *p2 = (const char *)s2;
+-    while (n--)
+-    {
+-        if (*p1 != *p2)
+-        {
+-            return *p1 - *p2;
+-        }
+-        p1++;
+-        p2++;
+-    }
+-    return 0;
+-}
+-
+-int strcmp(const char *s1, const char *s2)
+-{
+-    while (*s1 && *s2)
+-    {
+-        if (*s1 != *s2)
+-        {
+-            return *s1 - *s2;
+-        }
+-        s1++;
+-        s2++;
+-    }
+-    return *s1 - *s2;
+-}
+-
+-int strncmp(const char *s1, const char *s2, size_t n)
+-{
+-    while (n-- && *s1 && *s2)
+-    {
+-        if (*s1 != *s2)
+-        {
+-            return *s1 - *s2;
+-        }
+-        s1++;
+-        s2++;
+-    }
+-    if (n == (size_t)-1)
+-        return 0;
+-    return *s1 - *s2;
+-}
+-
+-int strcoll(const char *s1, const char *s2)
+-{
+-    return strcmp(s1, s2);
+-}
+-
+-size_t strxfrm(char *dest, const char *src, size_t n)
+-{
+-    size_t len = 0;
+-    while (*src)
+-    {
+-        if (len < n)
+-        {
+-            *dest++ = *src;
+-        }
+-        src++;
+-        len++;
+-    }
+-    if (n > 0)
+-    {
+-        *dest = '\0';
+-    }
+-    return len;
+-}
+-
+-void *memchr(const void *s, int c, size_t n)
+-{
+-    const char *p = (const char *)s;
+-    while (n--)
+-    {
+-        if (*p == (char)c)
+-        {
+-            return (void *)p;
+-        }
+-        p++;
+-    }
+-    return (void *)0;
+-}
+-
+-char *strchr(const char *s, int c)
+-{
+-    while (*s)
+-    {
+-        if (*s == (char)c)
+-        {
+-            return (char *)s;
+-        }
+-        s++;
+-    }
+-    return (char *)0;
+-}
+-
+-size_t strcspn(const char *s, const char *reject)
+-{
+-    size_t count = 0;
+-    while (*s)
+-    {
+-        const char *p = reject;
+-        while (*p)
+-        {
+-            if (*s == *p++)
+-            {
+-                return count;
+-            }
+-        }
+-        s++;
+-        count++;
+-    }
+-    return count;
+-}
+-
+-char *strpbrk(const char *s, const char *accept)
+-{
+-    while (*s)
+-    {
+-        const char *p = accept;
+-        while (*p)
+-        {
+-            if (*s == *p++)
+-            {
+-                return (char *)s;
+-            }
+-        }
+-        s++;
+-    }
+-    return (char *)0;
+-}
+-
+-char *strrchr(const char *s, int c)
+-{
+-    char *result = (char *)0;
+-    while (*s)
+-    {
+-        if (*s == (char)c)
+-        {
+-            result = (char *)s;
+-        }
+-        s++;
+-    }
+-    return result;
+-}
+-
+-size_t strspn(const char *s, const char *accept)
+-{
+-    size_t count = 0;
+-    while (*s)
+-    {
+-        const char *p = accept;
+-        int found = 0;
+-        while (*p)
+-        {
+-            if (*s == *p++)
+-            {
+-                found = 1;
+-                break;
+-            }
+-        }
+-        if (!found)
+-            break;
+-        s++;
+-        count++;
+-    }
+-    return count;
+-}
+-
+-char *strstr(const char *haystack, const char *needle)
+-{
+-    if (*needle == '\0')
+-        return (char *)haystack;
+-    
+-    while (*haystack)
+-    {
+-        const char *h = haystack;
+-        const char *n = needle;
+-        while (*h && *n && *h == *n)
+-        {
+-            h++;
+-            n++;
+-        }
+-        if (*n == '\0')
+-        {
+-            return (char *)haystack;
+-        }
+-        haystack++;
+-    }
+-    return (char *)0;
+-}
+-
+-char *strtok(char *str, const char *delim)
+-{
+-    static char *saved;
+-    char *token;
+-    
+-    if (str)
+-        saved = str;
+-    else if (!saved)
+-        return (char *)0;
+-    
+-    str = saved;
+-    
+-    while (*str && strchr(delim, *str))
+-        str++;
+-    
+-    if (*str == '\0')
+-    {
+-        saved = (char *)0;
+-        return (char *)0;
+-    }
+-    
+-    token = str;
+-    
+-    while (*str && !strchr(delim, *str))
+-        str++;
+-    
+-    if (*str)
+-    {
+-        *str = '\0';
+-        saved = str + 1;
+-    }
+-    else
+-    {
+-        saved = (char *)0;
+-    }
+-    
+-    return token;
+-}
+-
+-void *memset(void *s, int c, size_t n)
+-{
+-    char *p = (char *)s;
+-    while (n--)
+-    {
+-        *p++ = (char)c;
+-    }
+-    return s;
+-}
+-
+-size_t strlen(const char *s)
+-{
+-    size_t len = 0;
+-    while (*s)
+-    {
+-        s++;
+-        len++;
+-    }
+-    return len;
+-}
+-
+-char *strerror(int errnum)
+-{
+-    return "unknown error";
+-}
+\ No newline at end of file
+diff --git a/third_party/vml/Lib/c/string.vml b/third_party/vml/Lib/c/string.vml
+deleted file mode 100644
+index 097ebce0..00000000
+--- a/third_party/vml/Lib/c/string.vml
++++ /dev/null
+@@ -1,709 +0,0 @@
+-; Auto-generated by GenLib — c string module
+-; 使用: .linked "string.vml"
+-
+-.linked "../shared/string.vml"
+-
+-LABEL c_string
+-    push R15
+-    push R12
+-    move R12 R13
+-    CALL string
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_strcpy
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    CALL strcpy
+-    ADD R13 #8
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_strcat
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    CALL strcat
+-    ADD R13 #8
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_strlen
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    CALL strlen
+-    ADD R13 #4
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_str_len
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    CALL str_len
+-    ADD R13 #4
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_str_cmp
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    CALL str_cmp
+-    ADD R13 #8
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_strcmp
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    CALL strcmp
+-    ADD R13 #8
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_strncmp
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+20]
+-    PUSH R0
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    move R2 [R13+8]
+-    CALL strncmp
+-    ADD R13 #12
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_strchr
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    CALL strchr
+-    ADD R13 #8
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_strncpy
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+20]
+-    PUSH R0
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    move R2 [R13+8]
+-    CALL strncpy
+-    ADD R13 #12
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_strstr
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    CALL strstr
+-    ADD R13 #8
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_strrev
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    CALL strrev
+-    ADD R13 #8
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_uppercase
+-    push R15
+-    push R12
+-    move R12 R13
+-    CALL uppercase
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_str_toupper
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    CALL str_toupper
+-    ADD R13 #8
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_lowercase
+-    push R15
+-    push R12
+-    move R12 R13
+-    CALL lowercase
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_str_tolower
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    CALL str_tolower
+-    ADD R13 #8
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_str_repeat
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+20]
+-    PUSH R0
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    move R2 [R13+8]
+-    CALL str_repeat
+-    ADD R13 #12
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_str_contains
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    CALL str_contains
+-    ADD R13 #8
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_whitespace
+-    push R15
+-    push R12
+-    move R12 R13
+-    CALL whitespace
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_str_trim
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    CALL str_trim
+-    ADD R13 #8
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_str_substr
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+24]
+-    PUSH R0
+-    move R0 [R12+20]
+-    PUSH R0
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    move R2 [R13+8]
+-    move R3 [R13+12]
+-    CALL str_substr
+-    ADD R13 #16
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_str_indexof
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    CALL str_indexof
+-    ADD R13 #8
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_parts
+-    push R15
+-    push R12
+-    move R12 R13
+-    CALL parts
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_str_split
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+24]
+-    PUSH R0
+-    move R0 [R12+20]
+-    PUSH R0
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    move R2 [R13+8]
+-    move R3 [R13+12]
+-    CALL str_split
+-    ADD R13 #16
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_str_padstart
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+24]
+-    PUSH R0
+-    move R0 [R12+20]
+-    PUSH R0
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    move R2 [R13+8]
+-    move R3 [R13+12]
+-    CALL str_padstart
+-    ADD R13 #16
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_str_padend
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+24]
+-    PUSH R0
+-    move R0 [R12+20]
+-    PUSH R0
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    move R2 [R13+8]
+-    move R3 [R13+12]
+-    CALL str_padend
+-    ADD R13 #16
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_str_charat
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    CALL str_charat
+-    ADD R13 #8
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_str_startswith
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    CALL str_startswith
+-    ADD R13 #8
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL c_str_endswith
+-    push R15
+-    push R12
+-    move R12 R13
+-    move R0 [R12+16]
+-    PUSH R0
+-    move R0 [R12+12]
+-    PUSH R0
+-    move R0 [R13+0]
+-    move R1 [R13+4]
+-    CALL str_endswith
+-    ADD R13 #8
+-    move R13 R12
+-    pop R12
+-    pop R15
+-    RET
+-
+-LABEL func_string
+-    JMP c_string
+-
+-LABEL func_String
+-    JMP c_string
+-
+-LABEL func_strcpy
+-    JMP c_strcpy
+-
+-LABEL func_Strcpy
+-    JMP c_strcpy
+-
+-LABEL func_strcat
+-    JMP c_strcat
+-
+-LABEL func_Strcat
+-    JMP c_strcat
+-
+-LABEL func_strlen
+-    JMP c_strlen
+-
+-LABEL func_Strlen
+-    JMP c_strlen
+-
+-LABEL func_str_len
+-    JMP c_str_len
+-
+-LABEL func_StrLen
+-    JMP c_str_len
+-
+-LABEL func_strLen
+-    JMP c_str_len
+-
+-LABEL func_str_cmp
+-    JMP c_str_cmp
+-
+-LABEL func_StrCmp
+-    JMP c_str_cmp
+-
+-LABEL func_strCmp
+-    JMP c_str_cmp
+-
+-LABEL func_strcmp
+-    JMP c_strcmp
+-
+-LABEL func_Strcmp
+-    JMP c_strcmp
+-
+-LABEL func_strncmp
+-    JMP c_strncmp
+-
+-LABEL func_Strncmp
+-    JMP c_strncmp
+-
+-LABEL func_strchr
+-    JMP c_strchr
+-
+-LABEL func_Strchr
+-    JMP c_strchr
+-
+-LABEL func_strncpy
+-    JMP c_strncpy
+-
+-LABEL func_Strncpy
+-    JMP c_strncpy
+-
+-LABEL func_strstr
+-    JMP c_strstr
+-
+-LABEL func_Strstr
+-    JMP c_strstr
+-
+-LABEL func_strrev
+-    JMP c_strrev
+-
+-LABEL func_Strrev
+-    JMP c_strrev
+-
+-LABEL func_uppercase
+-    JMP c_uppercase
+-
+-LABEL func_Uppercase
+-    JMP c_uppercase
+-
+-LABEL func_str_toupper
+-    JMP c_str_toupper
+-
+-LABEL func_StrToupper
+-    JMP c_str_toupper
+-
+-LABEL func_strToupper
+-    JMP c_str_toupper
+-
+-LABEL func_lowercase
+-    JMP c_lowercase
+-
+-LABEL func_Lowercase
+-    JMP c_lowercase
+-
+-LABEL func_str_tolower
+-    JMP c_str_tolower
+-
+-LABEL func_StrTolower
+-    JMP c_str_tolower
+-
+-LABEL func_strTolower
+-    JMP c_str_tolower
+-
+-LABEL func_str_repeat
+-    JMP c_str_repeat
+-
+-LABEL func_StrRepeat
+-    JMP c_str_repeat
+-
+-LABEL func_strRepeat
+-    JMP c_str_repeat
+-
+-LABEL func_str_contains
+-    JMP c_str_contains
+-
+-LABEL func_StrContains
+-    JMP c_str_contains
+-
+-LABEL func_strContains
+-    JMP c_str_contains
+-
+-LABEL func_whitespace
+-    JMP c_whitespace
+-
+-LABEL func_Whitespace
+-    JMP c_whitespace
+-
+-LABEL func_str_trim
+-    JMP c_str_trim
+-
+-LABEL func_StrTrim
+-    JMP c_str_trim
+-
+-LABEL func_strTrim
+-    JMP c_str_trim
+-
+-LABEL func_str_substr
+-    JMP c_str_substr
+-
+-LABEL func_StrSubstr
+-    JMP c_str_substr
+-
+-LABEL func_strSubstr
+-    JMP c_str_substr
+-
+-LABEL func_str_indexof
+-    JMP c_str_indexof
+-
+-LABEL func_StrIndexof
+-    JMP c_str_indexof
+-
+-LABEL func_strIndexof
+-    JMP c_str_indexof
+-
+-LABEL func_parts
+-    JMP c_parts
+-
+-LABEL func_Parts
+-    JMP c_parts
+-
+-LABEL func_str_split
+-    JMP c_str_split
+-
+-LABEL func_StrSplit
+-    JMP c_str_split
+-
+-LABEL func_strSplit
+-    JMP c_str_split
+-
+-LABEL func_str_padstart
+-    JMP c_str_padstart
+-
+-LABEL func_StrPadstart
+-    JMP c_str_padstart
+-
+-LABEL func_strPadstart
+-    JMP c_str_padstart
+-
+-LABEL func_str_padend
+-    JMP c_str_padend
+-
+-LABEL func_StrPadend
+-    JMP c_str_padend
+-
+-LABEL func_strPadend
+-    JMP c_str_padend
+-
+-LABEL func_str_charat
+-    JMP c_str_charat
+-
+-LABEL func_StrCharat
+-    JMP c_str_charat
+-
+-LABEL func_strCharat
+-    JMP c_str_charat
+-
+-LABEL func_str_startswith
+-    JMP c_str_startswith
+-
+-LABEL func_StrStartswith
+-    JMP c_str_startswith
+-
+-LABEL func_strStartswith
+-    JMP c_str_startswith
+-
+-LABEL func_str_endswith
+-    JMP c_str_endswith
+-
+-LABEL func_StrEndswith
+-    JMP c_str_endswith
+-
+-LABEL func_strEndswith
+-    JMP c_str_endswith
+-
