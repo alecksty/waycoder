@@ -1,3 +1,62 @@
+## v0.96.201 (2026-09-17) — 单词名库函数的包装器**自调用**（跨语言判据 10→11 绿）
+
+### ① `abi.js` 由「崩（SP 归零）」转 `ABI=8`
+
+现象是调用 `ipow(2,3)` 直接把栈跑穿。根因在 `Lib/naming.json`：
+
+| | LabelStyle | PrimaryPrefix | 单词名（`ipow`/`pow`/`abs`/`sqrt`）的标签 |
+|---|---|---|---|
+| 其余 19 种语言 | snake_lower 等 | `c_` / `python_` / `ruby_` … | 带前缀，**不与 C 符号名同名** |
+| java / csharp / javascript | PascalCase / camelCase | **空** | camelCase 走完**还是它自己** ⇒ 与 C 符号名同名 |
+
+于是包装器生成成了自调用：
+
+```asm
+LABEL ipow
+    push R1 / push R0
+    call ipow        ← 自己调自己，无限递归 → SP 归零
+```
+
+修法是补前缀：javascript → `js_`、java → `java_`（与其余语言做法一致）。
+
+> ⚠ **java 是同一个病**，此前没崩只是**链接器那次"碰巧"选了共享实现**。
+> 同一份 `LABEL ipow / CALL ipow`，链接顺序换个方向就发作 —— 这种运气不能留。
+> csharp 的 `LabelStyle` 是 `PascalCase_method`（首字母也大写），单词名会变成 `Ipow` ≠ `ipow`，
+> 所以它没有这一类撞名（它的告警是下面 ③ 那批虚构条目）。
+
+### ② 护栏：真实函数撞名就告警
+
+`GenLib.GenModules` 新增一条 —— 生成的标签等于 C 符号名**且该函数确实存在于共享库**时打到 stderr。
+只在真实冲突时触发（虚构条目报出来只会误导），把「以后新增语言选了个会撞名的命名风格」挡在生成阶段。
+
+### ③ 护栏顺带挖出的一条**独立缺陷**（本次只告警、未修）
+
+加完护栏，csharp 一次报出 `Arrays` / `Manipulation` / `CRC` / `GetDate` / `GetTime` …… 一查全是
+**虚构条目**：`GenLib.ParseFunctions` 的正则没先剥注释，于是 `array64.c` 第 4 行的
+
+```c
+// VML Shared Array64 Library — 64-bit Integer Arrays (long* with long indices)
+```
+
+被读成「返回 `Integer`、函数名 `Arrays`、参数 `long* with long indices`」。
+后果：`funcMap` 与 `Lib/modules.json` 里多出一批不存在的函数，每个还生成一个
+`LABEL x … CALL x` 的**自调用死包装器** —— 与 ① 同一个机制，将来撞上真标签就是静默劫持。
+
+修法（下一步）：`ParseFunctions` 先剥 `//` 与 `/* */` 再匹配，并清掉 `modules.json` 里已收进来的
+虚构条目。成因已写进 `scripts/vml-abi-probe/README.md`。
+
+### 判据
+
+| | 本轮开始 | 结束 |
+|---|---|---|
+| 跨语言判据 | 10 绿 / 3 红 | **11 绿 / 2 红** |
+| C 判据 / 22 语言骨架 / `check-vml-patches.sh` | — | 6/6 · 22/22 · 全绿 |
+
+剩两项是**独立的既存缺陷**：`drift.lua`（`ipow` 在循环外对、进 `for` 循环变 0）、
+`drift.m`（ObjC 既有多参缺陷）。`vml_lib.zip` 随 `Lib/` 重打；**APK 仍未重打**。
+
+---
+
 ## v0.96.200 (2026-09-17) — VML 调用约定统一**推平到其余前端**（跨语言判据 7→10 绿）
 
 上一版把约定落到了 `Lib/`，但**其余前端仍是旧形态** —— 22 语言骨架全绿照不出来。
