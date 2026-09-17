@@ -57,6 +57,14 @@ namespace PythonCompiler
 
             // 函数序言
             EmitPrologue();
+            // 帧占位：EmitPrologue 只压了 R15/R12 并设了 R12，**没有给局部量留空间** ——
+            // R13 仍等于 R12，于是每个 push/call 都直接写进 [R12-4]、[R12-8] … 这些局部量槽。
+            // 帧大小要等函数体生成完才知道，故先占位、最后回填（与 DartCompiler 同一口径）。
+            int framePatchIndex = instructions.Count;
+            instructions.Add(new Instruction(OpCode.SUB, new List<Operand> {
+                new Operand(OperandType.REGISTER, 13),
+                new Operand(OperandType.REGISTER, 13),
+                new Operand(OperandType.IMMEDIATE, 0) }));
             
             // 为参数分配栈空间并保存CCv2寄存器参数(R0-R3)
             // CCv2: 第1个参数在 R12+12 (越过 saved_R12, R15, CALL-RA)
@@ -77,6 +85,12 @@ namespace PythonCompiler
             }
             
             // 函数尾声（如果没有 return）
+            // 回填帧大小（+8 安全边界：最深的局部量必须严格高于 R13）
+            int frameSize = -stackOffset + 8;
+            instructions[framePatchIndex] = new Instruction(OpCode.SUB, new List<Operand> {
+                new Operand(OperandType.REGISTER, 13),
+                new Operand(OperandType.REGISTER, 13),
+                new Operand(OperandType.IMMEDIATE, frameSize) });
             EmitEpilogue();
 
             // 装饰器应用: @deco → func = deco(func)
@@ -469,6 +483,14 @@ namespace PythonCompiler
                 
                 // prologue
                 EmitPrologue();
+                // 帧占位：EmitPrologue 只压了 R15/R12 并设了 R12，**没有给局部量留空间** ——
+                // R13 仍等于 R12，于是每个 push/call 都直接写进 [R12-4]、[R12-8] … 这些局部量槽。
+                // 帧大小要等函数体生成完才知道，故先占位、最后回填（与 DartCompiler 同一口径）。
+                int framePatchIndex = instructions.Count;
+                instructions.Add(new Instruction(OpCode.SUB, new List<Operand> {
+                    new Operand(OperandType.REGISTER, 13),
+                    new Operand(OperandType.REGISTER, 13),
+                    new Operand(OperandType.IMMEDIATE, 0) }));
                 
                 for (int i = 0; i < lambdaNode.Args.Count; i++)
                     localVars[lambdaNode.Args[i]] = 12 + 4 * i; // 第1个参数在 R12+12 (越过 saved_R12, saved_R15, CALL-RA)
@@ -476,6 +498,12 @@ namespace PythonCompiler
                 lambdaNode.Body.Accept(this);
                 
                 // epilogue
+                // 回填帧大小（+8 安全边界：最深的局部量必须严格高于 R13）
+                int frameSize = -stackOffset + 8;
+                instructions[framePatchIndex] = new Instruction(OpCode.SUB, new List<Operand> {
+                    new Operand(OperandType.REGISTER, 13),
+                    new Operand(OperandType.REGISTER, 13),
+                    new Operand(OperandType.IMMEDIATE, frameSize) });
                 EmitEpilogue();
                 
                 // 恢复上下文
