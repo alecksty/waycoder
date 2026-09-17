@@ -170,7 +170,7 @@ void sfx_clear(int n) {
     else if (n == 2) sfx(1046, 130);
     else if (n == 3) sfx(1318, 160);
     else sfx(1568, 220);
-    ui_vibrate(28);
+    ui_vibrate(28, 0);
 }
 
 /* ── 方块几何 ───────────────────────────────────────────── */
@@ -291,7 +291,7 @@ void spawn(void) {
         state = 2;
         submit_score();
         sfx(220, 420);
-        ui_vibrate(220);
+        ui_vibrate(220, 0);
     }
 }
 
@@ -361,7 +361,7 @@ void lock_piece(void) {
         if (lv > level) {
             level = lv;
             sfx(1760, 150);            /* 升级盖过消行音：升级更值得听见 */
-            ui_vibrate(60);
+            ui_vibrate(60, 0);
         } else {
             sfx_clear(n);
         }
@@ -434,7 +434,7 @@ void hard_drop(void) {
     }
     score = score + n * 2;
     sfx(150, 70);                      /* 低频闷响 = "砸下去了" */
-    ui_vibrate(22);
+    ui_vibrate(22, 0);
     lock_piece();
     spawn();
 }

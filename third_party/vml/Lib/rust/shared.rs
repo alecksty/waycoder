@@ -6125,6 +6125,53 @@ fn ui_image(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
     asm!("CALL ui_image")
 }
 
+fn ui_gradient(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32, a6: i32, a7: i32) {
+    asm!("CALL ui_gradient")
+}
+
+fn ui_path(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32, a6: i32) {
+    asm!("CALL ui_path")
+}
+
+fn ui_polygon(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
+    asm!("CALL ui_polygon")
+}
+
+fn ui_polyline(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
+    asm!("CALL ui_polyline")
+}
+
+fn ui_rect_grad(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
+    asm!("CALL ui_rect_grad")
+}
+
+fn ui_circle_grad(a0: i32, a1: i32, a2: i32, a3: i32) {
+    asm!("CALL ui_circle_grad")
+}
+
+fn ui_beep(a0: i32, a1: i32) {
+    asm!("CALL ui_beep")
+}
+
+fn ui_vibrate(a0: i32, a1: i32) {
+    asm!("CALL ui_vibrate")
+}
+
+fn ui_keep_on(a0: i32) {
+    asm!("CALL ui_keep_on")
+}
+
+fn ui_store_set(a0: i32, a1: i32) {
+    asm!("CALL ui_store_set")
+}
+
+fn ui_store_get(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL ui_store_get")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
 fn wctomb(a0: i32, a1: i32) -> i32 {
     asm!("CALL wctomb")
     let r: i32;

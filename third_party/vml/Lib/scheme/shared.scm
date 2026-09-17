@@ -1985,6 +1985,29 @@
 // CALL ui_icon
 // extern fn ui_image(int x, int y, char* path, int w, int h) -> void
 // CALL ui_image
+// extern fn ui_gradient(char* id, int radial, int color_a, int color_b,
+                 int a1, int a2, int a3, int a4) -> void
+// CALL ui_gradient
+// extern fn ui_path(char* d, int stroke, int width, int fill, char* grad, int cap, int dash) -> void
+// CALL ui_path
+// extern fn ui_polygon(int* pts, int count, int fill, int stroke, int width, char* grad) -> void
+// CALL ui_polygon
+// extern fn ui_polyline(int* pts, int count, int stroke, int width, char* grad) -> void
+// CALL ui_polyline
+// extern fn ui_rect_grad(int x, int y, int w, int h, char* grad, int radius) -> void
+// CALL ui_rect_grad
+// extern fn ui_circle_grad(int cx, int cy, int r, char* grad) -> void
+// CALL ui_circle_grad
+// extern fn ui_beep(int freq, int ms) -> void
+// CALL ui_beep
+// extern fn ui_vibrate(int ms, int strength) -> void
+// CALL ui_vibrate
+// extern fn ui_keep_on(int on) -> void
+// CALL ui_keep_on
+// extern fn ui_store_set(char* key, char* value) -> void
+// CALL ui_store_set
+// extern fn ui_store_get(char* key, char* buf, int cap) -> int
+// CALL ui_store_get
 // extern fn wctomb(char *dest, wchar_t wc) -> int
 // CALL wctomb
 // extern fn mbtowc(wchar_t *dest, const char *src) -> int

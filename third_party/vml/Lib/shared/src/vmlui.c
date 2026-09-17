@@ -343,3 +343,72 @@ void ui_icon(int x, int y, char* name, int size, int color) {
 void ui_image(int x, int y, char* path, int w, int h) {
     asm("SYSCALL #530, ${x}, ${y}, ${path}, ${w}, ${h}");
 }
+
+/* ── 绘图增强（534–539）：渐变刷子 / 路径与曲线 / 多边形 ──
+ *
+ * ⚠ 这一组与下面「手感」那 5 个，此前**只在 `Lib/c/waycoder_ui.h` 里声明过、
+ *   本文件里没有实现**（2026-09-17 实测）。后果是双重的：
+ *     · 桌面 vmlcli 里 `CALL ui_beep` **链不上** ⇒ `KeyNotFoundException` 直接崩
+ *       （`Examples/go/snake.go` 实测如此）⇒ 所有游戏**只能在设备上验**；
+ *     · 设备那边对未解析调用是容忍的 ⇒ 游戏跑得动，但这些调用**全是空转**
+ *       （用户早就报过「#57 调了没反应」）。
+ *   宿主侧的 syscall 一直是好的（`VmlUiCalls` 的 534–539、`VmSpeakerBeep`、
+ *   `DeviceDisplay.KeepScreenOn`、`Preferences`），缺的只是这一层
+ *   「把 `ui_*` 标签接到号段」的包装。
+ *
+ * 几何是**归一化 0..1000 的整数**（千分之一），约定见 `Lib/c/waycoder_ui.h`。 */
+
+void ui_gradient(char* id, int radial, int color_a, int color_b,
+                 int a1, int a2, int a3, int a4) {
+    asm("SYSCALL #534, ${id}, ${radial}, ${color_a}, ${color_b}, ${a1}, ${a2}, ${a3}, ${a4}");
+}
+
+void ui_path(char* d, int stroke, int width, int fill, char* grad, int cap, int dash) {
+    asm("SYSCALL #535, ${d}, ${stroke}, ${width}, ${fill}, ${grad}, ${cap}, ${dash}");
+}
+
+/* pts 是 int 数组、每两个 int 一个点（x,y）；count 是**点数**不是数组长度。 */
+void ui_polygon(int* pts, int count, int fill, int stroke, int width, char* grad) {
+    asm("SYSCALL #536, ${pts}, ${count}, ${fill}, ${stroke}, ${width}, ${grad}");
+}
+
+void ui_polyline(int* pts, int count, int stroke, int width, char* grad) {
+    asm("SYSCALL #537, ${pts}, ${count}, ${stroke}, ${width}, ${grad}");
+}
+
+void ui_rect_grad(int x, int y, int w, int h, char* grad, int radius) {
+    asm("SYSCALL #538, ${x}, ${y}, ${w}, ${h}, ${grad}, ${radius}");
+}
+
+void ui_circle_grad(int cx, int cy, int r, char* grad) {
+    asm("SYSCALL #539, ${cx}, ${cy}, ${r}, ${grad}");
+}
+
+/* ── 手感：音效 / 震动 / 持久化 / 常亮 ──
+ *
+ * 音效走 **VM 内置的 #57 蜂鸣** —— 宿主把它截住接到真实音频（方波 + 3ms 包络），
+ * 零素材、不必打包音频文件。 */
+
+void ui_beep(int freq, int ms) {
+    asm("SYSCALL #57, ${freq}, ${ms}");
+}
+
+/* 震动：时长 ms + 强度（0-255，0 = 默认）。
+ * ⚠ 强度位**必须**是形参 —— `${形参}` 是按出现顺序装进 R0、R1…，
+ *   在 asm 文本里塞字面量 `0` 不会落到 R1（实测被丢掉），宿主读到的就是垃圾值。 */
+void ui_vibrate(int ms, int strength) {
+    asm("SYSCALL #545, ${ms}, ${strength}");
+}
+
+void ui_keep_on(int on) {
+    asm("SYSCALL #553, ${on}");
+}
+
+/* 持久化。键由宿主统一加 `vml.` 前缀，不会和 App 自己的设置打架。 */
+void ui_store_set(char* key, char* value) {
+    asm("SYSCALL #550, ${key}, ${value}");
+}
+
+int ui_store_get(char* key, char* buf, int cap) {
+    return asm("SYSCALL #551, ${key}, ${buf}, ${cap}");
+}

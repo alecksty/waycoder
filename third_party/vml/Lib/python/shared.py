@@ -6123,6 +6123,87 @@ def ui_image(a0, a1, a2, a3, a4):
     asm(f"PUSH R0")  # push a0
     asm("CALL ui_image")
 
+def ui_gradient(a0, a1, a2, a3, a4, a5, a6, a7):
+    asm(f"PUSH R0")  # push a7
+    asm(f"PUSH R0")  # push a6
+    asm(f"PUSH R0")  # push a5
+    asm(f"PUSH R0")  # push a4
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_gradient")
+
+def ui_path(a0, a1, a2, a3, a4, a5, a6):
+    asm(f"PUSH R0")  # push a6
+    asm(f"PUSH R0")  # push a5
+    asm(f"PUSH R0")  # push a4
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_path")
+
+def ui_polygon(a0, a1, a2, a3, a4, a5):
+    asm(f"PUSH R0")  # push a5
+    asm(f"PUSH R0")  # push a4
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_polygon")
+
+def ui_polyline(a0, a1, a2, a3, a4):
+    asm(f"PUSH R0")  # push a4
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_polyline")
+
+def ui_rect_grad(a0, a1, a2, a3, a4, a5):
+    asm(f"PUSH R0")  # push a5
+    asm(f"PUSH R0")  # push a4
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_rect_grad")
+
+def ui_circle_grad(a0, a1, a2, a3):
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_circle_grad")
+
+def ui_beep(a0, a1):
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_beep")
+
+def ui_vibrate(a0, a1):
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_vibrate")
+
+def ui_keep_on(a0):
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_keep_on")
+
+def ui_store_set(a0, a1):
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_store_set")
+
+def ui_store_get(a0, a1, a2):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_store_get")
+    return r0
+
 def wctomb(a0, a1):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a1

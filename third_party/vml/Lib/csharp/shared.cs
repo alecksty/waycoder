@@ -993,6 +993,18 @@ namespace VML {
     // extern int ui_tick(void);  // CALL ui_tick
     // extern void ui_icon(int x, int y, char* name, int size, int color);  // CALL ui_icon
     // extern void ui_image(int x, int y, char* path, int w, int h);  // CALL ui_image
+    // extern void ui_gradient(char* id, int radial, int color_a, int color_b,
+                 int a1, int a2, int a3, int a4);  // CALL ui_gradient
+    // extern void ui_path(char* d, int stroke, int width, int fill, char* grad, int cap, int dash);  // CALL ui_path
+    // extern void ui_polygon(int* pts, int count, int fill, int stroke, int width, char* grad);  // CALL ui_polygon
+    // extern void ui_polyline(int* pts, int count, int stroke, int width, char* grad);  // CALL ui_polyline
+    // extern void ui_rect_grad(int x, int y, int w, int h, char* grad, int radius);  // CALL ui_rect_grad
+    // extern void ui_circle_grad(int cx, int cy, int r, char* grad);  // CALL ui_circle_grad
+    // extern void ui_beep(int freq, int ms);  // CALL ui_beep
+    // extern void ui_vibrate(int ms, int strength);  // CALL ui_vibrate
+    // extern void ui_keep_on(int on);  // CALL ui_keep_on
+    // extern void ui_store_set(char* key, char* value);  // CALL ui_store_set
+    // extern int ui_store_get(char* key, char* buf, int cap);  // CALL ui_store_get
     // extern int wctomb(char *dest, wchar_t wc);  // CALL wctomb
     // extern int mbtowc(wchar_t *dest, const char *src);  // CALL mbtowc
     // extern int wcscmp(const wchar_t *a, const wchar_t *b);  // CALL wcscmp

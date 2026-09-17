@@ -278,15 +278,15 @@ int finish(int over) {
     int r;
     if (over == 1) {
         ui_beep(1320, 320);
-        ui_vibrate(60);
+        ui_vibrate(60, 0);
         r = ui_dlg_msg("五子棋", "你赢了！再来一局？", VML_DLG_QUESTION);
     } else if (over == 2) {
         ui_beep(260, 420);
-        ui_vibrate(220);
+        ui_vibrate(220, 0);
         r = ui_dlg_msg("五子棋", "电脑赢了。再来一局？", VML_DLG_QUESTION);
     } else {
         ui_beep(500, 300);
-        ui_vibrate(40);
+        ui_vibrate(40, 0);
         r = ui_dlg_msg("五子棋", "平局。再来一局？", VML_DLG_QUESTION);
     }
     /* 弹框失败（返回 -1）也当"再来" —— 总不能因为宿主弹不出框就把整局卡死在这儿 */

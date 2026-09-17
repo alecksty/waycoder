@@ -4691,6 +4691,51 @@ func ui_image(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
     vml.Call("ui_image")
 }
 
+func ui_gradient(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32, a6 int32, a7 int32) {
+    vml.Call("ui_gradient")
+}
+
+func ui_path(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32, a6 int32) {
+    vml.Call("ui_path")
+}
+
+func ui_polygon(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
+    vml.Call("ui_polygon")
+}
+
+func ui_polyline(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
+    vml.Call("ui_polyline")
+}
+
+func ui_rect_grad(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
+    vml.Call("ui_rect_grad")
+}
+
+func ui_circle_grad(a0 int32, a1 int32, a2 int32, a3 int32) {
+    vml.Call("ui_circle_grad")
+}
+
+func ui_beep(a0 int32, a1 int32) {
+    vml.Call("ui_beep")
+}
+
+func ui_vibrate(a0 int32, a1 int32) {
+    vml.Call("ui_vibrate")
+}
+
+func ui_keep_on(a0 int32) {
+    vml.Call("ui_keep_on")
+}
+
+func ui_store_set(a0 int32, a1 int32) {
+    vml.Call("ui_store_set")
+}
+
+func ui_store_get(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("ui_store_get")
+    return vml.R0()
+}
+
 func wctomb(a0 int32, a1 int32) int32 {
     vml.Call("wctomb")
     return vml.R0()

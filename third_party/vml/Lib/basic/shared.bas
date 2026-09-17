@@ -4689,6 +4689,51 @@ DECLARE SUB ui_image(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER,
     asm("CALL ui_image")
 END SUB
 
+DECLARE SUB ui_gradient(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER, a6 AS INTEGER, a7 AS INTEGER)
+    asm("CALL ui_gradient")
+END SUB
+
+DECLARE SUB ui_path(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER, a6 AS INTEGER)
+    asm("CALL ui_path")
+END SUB
+
+DECLARE SUB ui_polygon(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER)
+    asm("CALL ui_polygon")
+END SUB
+
+DECLARE SUB ui_polyline(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER)
+    asm("CALL ui_polyline")
+END SUB
+
+DECLARE SUB ui_rect_grad(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER)
+    asm("CALL ui_rect_grad")
+END SUB
+
+DECLARE SUB ui_circle_grad(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
+    asm("CALL ui_circle_grad")
+END SUB
+
+DECLARE SUB ui_beep(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL ui_beep")
+END SUB
+
+DECLARE SUB ui_vibrate(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL ui_vibrate")
+END SUB
+
+DECLARE SUB ui_keep_on(a0 AS INTEGER)
+    asm("CALL ui_keep_on")
+END SUB
+
+DECLARE SUB ui_store_set(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL ui_store_set")
+END SUB
+
+DECLARE FUNCTION ui_store_get(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL ui_store_get")
+    ui_store_get = 0
+END FUNCTION
+
 DECLARE FUNCTION wctomb(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL wctomb")
     wctomb = 0
