@@ -1,0 +1,20 @@
+diff --git a/third_party/vml/VMLPrepares/CompilerBase/CompilerHelper.cs b/third_party/vml/VMLPrepares/CompilerBase/CompilerHelper.cs
+index 8abf35da..cd38467d 100644
+--- a/third_party/vml/VMLPrepares/CompilerBase/CompilerHelper.cs
++++ b/third_party/vml/VMLPrepares/CompilerBase/CompilerHelper.cs
+@@ -506,6 +506,15 @@ namespace CompilerBase
+             ["input_long"] = "io64", ["print_double"] = "io64", ["println_double"] = "io64",
+             // console.vml — 控制台 I/O (gets, input_float等)
+             ["gets"] = "console", ["print_str_no_nl_impl"] = "console", ["input_float"] = "console",
++            // ⚠ **C# 发的是 PascalCase 标签** —— `CSharpCompiler/CodeGenerator.cs` 的
++            //   `memberLabels` 把 `Console.Write/WriteLine` 编成 `PrintlnStr` / `PrintStr` /
++            //   `PrintlnInt` / `PrintInt`，注释里写着「标签定义在 Lib/csharp/console.vml」。
++            //   但**映射表里原本一条都没有** ⇒ 自动链接无从得知该链 `console` ⇒
++            //   程序里只有调用点、没有定义，报「未找到标签: PrintlnStr」
++            //   （实测 `out.cs` 链的 51 个模块里**没有任何 console 模块**）。
++            //   这四条补上，`console` 才会被链进来。
++            ["PrintlnStr"] = "console", ["PrintlnInt"] = "console",
++            ["PrintStr"] = "console", ["PrintInt"] = "console",
+             // printx.vml — 格式化输出 (printx_int32, printlnx_string等)
+             ["printx_"] = "printx", ["printlnx_"] = "printx",
+             // sysinfo.vml — 系统信息

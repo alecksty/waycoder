@@ -1,0 +1,264 @@
+diff --git a/third_party/vml/Lib/basic/builtin.vml b/third_party/vml/Lib/basic/builtin.vml
+index 76ce8224..413b6a5d 100644
+--- a/third_party/vml/Lib/basic/builtin.vml
++++ b/third_party/vml/Lib/basic/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/c/builtin.vml b/third_party/vml/Lib/c/builtin.vml
+index 5092c39b..6e636e88 100644
+--- a/third_party/vml/Lib/c/builtin.vml
++++ b/third_party/vml/Lib/c/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/cpp/builtin.vml b/third_party/vml/Lib/cpp/builtin.vml
+index fb1035ad..1c23a5fc 100644
+--- a/third_party/vml/Lib/cpp/builtin.vml
++++ b/third_party/vml/Lib/cpp/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/csharp/builtin.vml b/third_party/vml/Lib/csharp/builtin.vml
+index 85904797..1d89c642 100644
+--- a/third_party/vml/Lib/csharp/builtin.vml
++++ b/third_party/vml/Lib/csharp/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/d/builtin.vml b/third_party/vml/Lib/d/builtin.vml
+index ff6bb886..66b8afd9 100644
+--- a/third_party/vml/Lib/d/builtin.vml
++++ b/third_party/vml/Lib/d/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/dart/builtin.vml b/third_party/vml/Lib/dart/builtin.vml
+index 696b557e..c9998689 100644
+--- a/third_party/vml/Lib/dart/builtin.vml
++++ b/third_party/vml/Lib/dart/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/forth/builtin.vml b/third_party/vml/Lib/forth/builtin.vml
+index 2c5d5587..3bcffec6 100644
+--- a/third_party/vml/Lib/forth/builtin.vml
++++ b/third_party/vml/Lib/forth/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/fortran/builtin.vml b/third_party/vml/Lib/fortran/builtin.vml
+index f8135619..ec2508e1 100644
+--- a/third_party/vml/Lib/fortran/builtin.vml
++++ b/third_party/vml/Lib/fortran/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/go/builtin.vml b/third_party/vml/Lib/go/builtin.vml
+index ac808c81..a95b8482 100644
+--- a/third_party/vml/Lib/go/builtin.vml
++++ b/third_party/vml/Lib/go/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/java/builtin.vml b/third_party/vml/Lib/java/builtin.vml
+index e83a8d90..a7c05656 100644
+--- a/third_party/vml/Lib/java/builtin.vml
++++ b/third_party/vml/Lib/java/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/javascript/builtin.vml b/third_party/vml/Lib/javascript/builtin.vml
+index bc9c3316..e384b11e 100644
+--- a/third_party/vml/Lib/javascript/builtin.vml
++++ b/third_party/vml/Lib/javascript/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/kotlin/builtin.vml b/third_party/vml/Lib/kotlin/builtin.vml
+index ff627324..bae3626a 100644
+--- a/third_party/vml/Lib/kotlin/builtin.vml
++++ b/third_party/vml/Lib/kotlin/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/ladder/builtin.vml b/third_party/vml/Lib/ladder/builtin.vml
+index 22a074fb..7cda1f03 100644
+--- a/third_party/vml/Lib/ladder/builtin.vml
++++ b/third_party/vml/Lib/ladder/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/lua/builtin.vml b/third_party/vml/Lib/lua/builtin.vml
+index 48caa4ae..b41585a8 100644
+--- a/third_party/vml/Lib/lua/builtin.vml
++++ b/third_party/vml/Lib/lua/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/objc/builtin.vml b/third_party/vml/Lib/objc/builtin.vml
+index 130fcd9c..c0c69dd2 100644
+--- a/third_party/vml/Lib/objc/builtin.vml
++++ b/third_party/vml/Lib/objc/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/pascal/builtin.vml b/third_party/vml/Lib/pascal/builtin.vml
+index 7531e277..bef77a6b 100644
+--- a/third_party/vml/Lib/pascal/builtin.vml
++++ b/third_party/vml/Lib/pascal/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/python/builtin.vml b/third_party/vml/Lib/python/builtin.vml
+index c00bc2b3..12b9a973 100644
+--- a/third_party/vml/Lib/python/builtin.vml
++++ b/third_party/vml/Lib/python/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/r/builtin.vml b/third_party/vml/Lib/r/builtin.vml
+index 92a1fc35..21b0380e 100644
+--- a/third_party/vml/Lib/r/builtin.vml
++++ b/third_party/vml/Lib/r/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/ruby/builtin.vml b/third_party/vml/Lib/ruby/builtin.vml
+index 7bc267d5..91292374 100644
+--- a/third_party/vml/Lib/ruby/builtin.vml
++++ b/third_party/vml/Lib/ruby/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/rust/builtin.vml b/third_party/vml/Lib/rust/builtin.vml
+index 268d4e75..607c0075 100644
+--- a/third_party/vml/Lib/rust/builtin.vml
++++ b/third_party/vml/Lib/rust/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/scheme/builtin.vml b/third_party/vml/Lib/scheme/builtin.vml
+index 76b30098..21753a7b 100644
+--- a/third_party/vml/Lib/scheme/builtin.vml
++++ b/third_party/vml/Lib/scheme/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"
+diff --git a/third_party/vml/Lib/swift/builtin.vml b/third_party/vml/Lib/swift/builtin.vml
+index c599d568..d0e2661a 100644
+--- a/third_party/vml/Lib/swift/builtin.vml
++++ b/third_party/vml/Lib/swift/builtin.vml
+@@ -28,6 +28,7 @@
+ .linked "bitops.vml"
+ .linked "util.vml"
+ .linked "float.vml"
++.linked "console.vml"
+ .linked "file.vml"
+ .linked "time.vml"
+ .linked "encoding.vml"

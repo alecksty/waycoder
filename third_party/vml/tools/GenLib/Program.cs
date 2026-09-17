@@ -567,8 +567,16 @@ static void GenAggregators(string lang, string libRoot, Dictionary<string, Modul
         sb.AppendLine();
 
         // builtin 通用模块: 链接所有存在模块包装器的库
+        // ⚠ **`console` 必须在列** —— `CSharpCompiler/CodeGenerator.cs` 把
+        //   `Console.Write/WriteLine` 编成 **PascalCase 标签** `PrintlnStr` / `PrintStr` /
+        //   `PrintlnInt` / `PrintInt`，并注明「标签定义在 `Lib/csharp/console.vml`」。
+        //   清单里没有 `console` ⇒ 那个模块永远不会被链进来 ⇒ C# 程序里
+        //   **只有调用点、没有定义**，运行期抛「未找到标签: PrintlnStr」
+        //   （实测 `out.cs` 链的 43~51 个模块里始终没有任何 console 模块）。
+        //   `File.Exists` 兜着 —— 没有该模块的语言不会被多链。
         foreach (var mod in new[] { "math", "system", "convert", "conv",
             "string", "io", "printf", "scanf", "ctype", "bitops", "util", "float",
+            "console",
             "file", "time", "encoding", "memory", "network", "os" })
         {
             if (File.Exists(Path.Combine(langDir, $"{mod}.vml")))

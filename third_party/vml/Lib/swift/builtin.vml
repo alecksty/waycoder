@@ -28,6 +28,7 @@
 .linked "bitops.vml"
 .linked "util.vml"
 .linked "float.vml"
+.linked "console.vml"
 .linked "file.vml"
 .linked "time.vml"
 .linked "encoding.vml"
