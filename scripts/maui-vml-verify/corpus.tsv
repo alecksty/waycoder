@@ -71,6 +71,7 @@ game-objc-snake	-	examples/objc/snake.m	window	-	贪吃蛇（ObjC）—— 第�
 game-cpp-snake	-	examples/cpp/snake.cpp	window	-	贪吃蛇（C++）—— 照 ObjC 那份移植；桌面实测可链可跑	300
 game-java-catch	-	examples/java/catch.java	window	-	接方块（Java）—— 更紧凑的完整游戏（挡板/球/计分/结束重开）	300
 game-javascript-catch	-	examples/javascript/catch.js	window	-	接方块（JavaScript）—— 同上	300
+game-kotlin-catch	-	examples/kotlin/catch.kt	window	-	接方块（Kotlin）—— ⚠ 状态数组必须留在 main 内：文件级 arrayOf 读回 0（实测两个最小对照），所以 draw/tick 全内联；另 `step` 是前端保留字
 # README 明说这两个跑不了（BASIC 前端三个既有缺陷 / Python 列表写不生效）。
 # 留着是为了**验证"读代码记下的结论在设备上仍成立"**，不是指望它们过。
 game-basic-tetris	-	examples/basic/tetris.bas	window	-	README 记：BASIC 前端缺陷，跑不了	60
