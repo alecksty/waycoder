@@ -43,6 +43,18 @@ internal static class Program
 
         if (opt.Help) { Usage(); return 0; }
 
+        // ── 模式二：重建 Lib 模块 ─────────────────────────────────────────────────
+        // 把 Lib/shared/src/<模块>.c 编成 Lib/shared/<模块>.vml，**等价上游 CCompiler 的
+        // `--no-link`**（`dotnet run --project CCompiler -- --no-link <src> -o <out>`）。
+        //
+        // 为什么不直接用上游那条路：vendored 的 `CCompiler.csproj` 是 `OutputType=Library`
+        // （vmlcli 与 WayCoder.Maui 都要以项目引用它），而 `dotnet run` 要求可运行项目；
+        // 用 `-p:OutputType=Exe` 覆盖又会**传播到所有被引用的子项目**，VMLPlugins 没有 Main
+        // 直接 CS5001 构建失败。所以本仓自己留一个入口，走**同一个** `CompileFile` API。
+        if (opt.RebuildLibSource is not null)
+            return RebuildLibModule(opt);
+
+
         if (opt.SourcePath is null)
         {
             Console.Error.WriteLine("✘ 缺少源文件路径。");
@@ -216,6 +228,57 @@ internal static class Program
         prog.ApplyExports();
 
         return (prog, lang, null);
+    }
+
+    /// <summary>
+    /// 重建单个 Lib 模块：`<src>.c` → `<out>.vml`。
+    ///
+    /// 与上游 `CCompiler --no-link` 逐步对齐（`Program.cs` 的 `_noLink` 分支）：
+    /// ```csharp
+    /// var prog = CCompiler.CompileFile(sourceFile, includePaths, null, false);
+    /// prog.IsLibrary = true;
+    /// return prog.ToString();
+    /// ```
+    /// `includePaths` 传空是**对的** —— 上游重建脚本一个 `-I` 都不传，`CompileFile` 自己会把
+    /// 源文件所在目录加进去（`CCompiler.cs` 的 `sourceDir`），`Lib/shared/src/*.c` 的
+    /// `#include "shared_decls.h"` 就是靠这条解析到的。
+    /// </summary>
+    private static int RebuildLibModule(CliOptions opt)
+    {
+        var src = Path.GetFullPath(opt.RebuildLibSource!);
+        if (!File.Exists(src))
+        {
+            Console.Error.WriteLine($"✘ 找不到源文件：{src}");
+            return 2;
+        }
+        var outPath = Path.GetFullPath(opt.RebuildLibOut
+            ?? Path.ChangeExtension(src, ".vml"));
+
+        lock (ConsoleGate)
+        {
+            var prevOut = Console.Out;
+            var sink = new StringWriter();
+            try
+            {
+                Console.SetOut(sink);
+                var prog = CCompiler.CCompiler.CompileFile(src, new List<string>(), null, false);
+                prog.IsLibrary = true;
+                File.WriteAllText(outPath, prog.ToString(), new UTF8Encoding(false));
+                Console.SetOut(prevOut);
+                var n = prog.Instructions?.Count ?? 0;
+                Console.Error.WriteLine($"✔ 已重建 {Path.GetFileName(outPath)}（{n} 条指令）");
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                Console.SetOut(prevOut);
+                Console.Error.WriteLine($"✘ 重建失败：{ex.Message}");
+                // `StringWriter` 没有 `Length`（要经 `GetStringBuilder()`）——
+                // 与上面 `BuildProgram` 里用 `StringBuilder` 记日志的写法不同，别照抄。
+                if (sink.GetStringBuilder().Length > 0) Console.Error.WriteLine(sink.ToString());
+                return 1;
+            }
+        }
     }
 
     /// <summary>与 MauiVml.LooksLikeVml 同判据（正判据 + 「残留 #include」反判据）。</summary>
@@ -417,6 +480,11 @@ internal static class Program
   --vml <路径>         把链接之后的 VML 汇编写出到文件（只编不跑）
   -h, --help           显示本帮助
 
+重建 Lib 模块（与上面互斥，走单独一条路）：
+  --rebuild-lib <源.c> [--out <输出.vml>]
+                       把 Lib/shared/src/<模块>.c 编成 Lib/shared/<模块>.vml
+                       （等价上游 CCompiler 的 --no-link；--out 默认与源文件同名）
+
 输出：stdout = VML 程序自己的输出（+ 运行期诊断）；stderr = 编译/链接日志与进度。
 """);
     }
@@ -431,6 +499,10 @@ internal sealed class CliOptions
     public string? Lang { get; private set; }
     public string? VmlHome { get; private set; }
     public string? EmitVmlPath { get; private set; }
+    /// <summary>`--rebuild-lib`：要走「重建 Lib 模块」这条路的源文件（.c）。</summary>
+    public string? RebuildLibSource { get; private set; }
+    /// <summary>`--out`：重建模式的输出路径（默认与源文件同名的 .vml）。</summary>
+    public string? RebuildLibOut { get; private set; }
     public int TimeoutSeconds { get; private set; } = 30;
     public bool Help { get; private set; }
 
@@ -461,6 +533,14 @@ internal sealed class CliOptions
 
                 case "--vml":
                     o.EmitVmlPath = Require(args, ref i, "--vml");
+                    break;
+
+                case "--rebuild-lib":
+                    o.RebuildLibSource = Require(args, ref i, "--rebuild-lib");
+                    break;
+
+                case "--out":
+                    o.RebuildLibOut = Require(args, ref i, "--out");
                     break;
 
                 case "--timeout":

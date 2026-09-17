@@ -190,221 +190,93 @@ namespace CCompiler
                 if (!isKnownFunc && isKnownVar)
                     isIndirect = true;
             }
+            bool indirectAddrPushed = false;
             if (isIndirect && funcCall.Callee != null)
             {
                 GenerateExpression(funcCall.Callee);
-                // 保存被调用地址到 R8，参数设置过程可能会使用 R0-R3
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 8), new Operand(OperandType.REGISTER, 0) }));
+                // ⚠ 被调地址必须**压栈**保存，不能留在 R8。
+                //
+                // 原注释写着「参数设置过程可能会使用 R0-R3」，那是「前 4 参走寄存器」时代的事实；
+                // 现在实参全部压栈，但**实参求值本身**会用 R0-R11 当临时寄存器
+                // （实测 `main` 的产物里就在用 R2/R5/R8/R11 给数组赋值暂存），
+                // 留在 R8 里的地址必被冲掉 —— 表现是「调函数指针跳到随机的地址」。
+                //
+                // 压在最底下（先压），等全部实参压完后按 `[R13 + argSize]` 取回。
+                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
+                indirectAddrPushed = true;
             }
 
-            // 确定调用约定：优先从函数定义获取，否则用调用点的约定（默认 Cdecl）
-            CallingConvention callConv = funcDef != null ? funcDef.Convention : funcCall.Convention;
-            bool argsAlreadyPushed = false;
-            if (callConv == CallingConvention.Cdecl)
+            // ══ 统一调用约定：全部实参右到左压栈、一个都不走寄存器、**调用方清栈** ══
+            //
+            // 原先是 cdecl / stdcall / pascal / fastcall / basic 五条分流，而其中
+            // 「前 4 参走 R0-R3」与「两套清理约定」在 VML 里是**并存**的 ——
+            // `Lib` 里 `vmlui` 家族（`ui_rect` …）是裸 `ret`（调用方清），
+            // `builtins` 家族（`println_int` …）是 `add R13 #8`（被调方清）。
+            // 调用点一旦猜错，**每调一次栈就漂一次**，症状是「同一个局部连读两遍得到不同的值」，
+            // 极难反查（判据见 scripts/vml-abi-probe/，方案见 docs/VML调用约定统一.md）。
+            //
+            // 现在只留一条：**谁压的谁清**。它天然免疫三类问题 ——
+            //   ① 变参函数：被调方原理上不知道调用方压了几个（真·stdcall 也是让变参退回 cdecl）；
+            //   ② 函数指针间接调用：调用方拿不到被调方的形参个数；
+            //   ③ 声明缺失或写错：调用方**总是**知道自己压了多少字节。
+            //
+            // `__stdcall` / `__cdecl` / `__fastcall` / `__pascal` 这些修饰符**仍然能被解析**
+            // （`funcCall.Convention` / `funcDef.Convention` 照旧填），但**不再影响代码生成** ——
+            // 这才符合「统一之后，写不写声明都必须是对的」。
+            //
+            // ⚠ 保留下来的那条老教训（它不随约定统一而失效）：
+            // **实参求值之间不能夹带寄存器装载。** 表达式生成器用 R0/R1 做 push/pop 暂存，
+            // 所以「边求值边 `MOVE Ri, R0`」会被**下一个**实参的求值冲掉，丢的还是先求值的那些。
+            // 实测（历史）：`probe(p + 3*k, q + 3*k, 3*k)` 传出去是 R0=101 R1=**101**(应为 113)，
+            // 五子棋的星位 `ui_circle(pad + 3*cell, padY + 3*cell, …)` 就是这么画歪的。
+            // 现在全程不装寄存器，这个坑从结构上消失了；但**结构体返回的隐藏指针**仍要守这条规矩
+            //（见下面 ②：它是**压栈**进去的，不是提前存进某个寄存器）。
+            int totalArgs = funcCall.Args.Count;
+
+            // ① 只求值 + 压栈，从右到左（⇒ arg0 在最低地址 = 最后压入 = `[R12+12]`）
+            for (int i = totalArgs - 1; i >= 0; i--)
             {
-                // cdecl: 全部参数从右到左压栈，调用者清理；前 4 个非结构体参数同时留在 R0-R3
-                // （callee 序言把 R0-R3 存回 [R12+12..] 覆盖掉栈上的那份，所以寄存器才是权威）。
-                //
-                // ⚠ **寄存器必须在所有实参求值完成之后才装载。**
-                //
-                // 原实现在循环里"边求值边 `MOVE Ri, R0`"，而**下一个**实参的求值会把 R0/R1
-                // 当临时寄存器用（表达式生成器用 R0/R1 做 push/pop 暂存，见任意表达式产物里的
-                // `PUSH R0 … POP R1`），于是已经把参数装进去的 Ri 被冲掉 —— 而且丢的是
-                // **先求值的那些**（从右到左，所以丢的是编号大的那个，表现得像"后面的参数
-                // 拿到了前面参数的值"）。
-                //
-                // 实测（`tests/argorder.c`）：`probe(p + 3*k, q + 3*k, 3*k)` 传出去是
-                // R0=101 R1=**101**(应为 113) R2=72 —— 第二个参数变成了第一个的值。
-                // 只要实参是**带运算的表达式**（不只是常量/变量），且它前面还有别的实参，就会中招；
-                // 五子棋的星位 `ui_circle(pad + 3*cell, padY + 3*cell, …)` 就是这么画歪的。
-                //
-                // 现在分两步：① 只求值 + 压栈，记下每个实参相对最终 R13 的偏移；
-                //             ② 压栈全部结束后，统一从栈上把 R0-R3 装回来。
-                // 第 ② 步读的就是第 ① 步压进去的值，与后面还有没有求值无关，天然免疫覆盖。
-                int argCount = funcCall.Args.Count;
-                var argSizes = new int[argCount];
-                for (int i = argCount - 1; i >= 0; i--)
+                if (isStructArg[i])
                 {
-                    if (isStructArg[i])
-                    {
-                        PushStructToStack(funcCall.Args[i], structArgSizes[i]);
-                        argSizes[i] = structArgSizes[i];
-                        argSize += structArgSizes[i];
-                    }
-                    else
-                    {
-                        GenerateExpression(funcCall.Args[i]);
-                        argSizes[i] = (isDoubleArg[i] || isLongArg[i]) ? 8 : 4;
-                        argSize += EmitPushArg(argSizes[i], isFloatArg[i], isDoubleArg[i], isLongArg[i]);
-                    }
+                    PushStructToStack(funcCall.Args[i], structArgSizes[i]);
+                    // ⚠ 必须按**向上取整到 4 的倍数**计账：PushStructToStack 是按「字」压的
+                    //（末尾不足一字的部分也占一整格），按原始字节数计账会让清栈少弹一截。
+                    argSize += ParamStackBytes(null, isStruct: true, structSize: structArgSizes[i]);
                 }
-                // 压栈是从右到左，所以 arg[k] 落在 [R13 + sum(size[0..k-1])]
-                int argOff = 0;
-                for (int i = 0; i < argCount && i < 4; i++)
+                else
                 {
-                    // 结构体参数不走寄存器（callee 序言也不按寄存器读它们），只推进偏移
-                    if (!isStructArg[i])
-                    {
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
-                            new Operand(OperandType.REGISTER, i),
-                            new Operand(OperandType.MEMORY, $"R13+{argOff}") }));
-                    }
-                    argOff += argSizes[i];
+                    GenerateExpression(funcCall.Args[i]);
+                    // 与 ParamStackBytes 同源的 4/8 规则（见该函数注释）
+                    int size = ParamStackBytes(funcDef?.Params.Count > i ? funcDef.Params[i].Type : null);
+                    if (isDoubleArg[i] || isLongArg[i]) size = 8;
+                    argSize += EmitPushArg(size, isFloatArg[i], isDoubleArg[i], isLongArg[i]);
                 }
-                argsAlreadyPushed = true;
             }
 
-            // 根据调用约定传递参数
-            switch (callConv)
+            // ② 结构体返回：调用方在自己的栈上留出返回区，并把地址**当 arg0 压进去**
+            //    （原来走的是「提前 `move R9, R13`、最后 `move R0, R9`」那条寄存器路，
+            //     而 R9 会在中间任意一次实参求值里被当临时寄存器用掉）。
+            bool returnsStruct = funcDef != null && IsStructParamType(funcDef.ReturnType);
+            if (returnsStruct)
             {
-                case CallingConvention.Basic:
-                    // BASIC 约定：通过 R0-R3 传递前4个参数
-                    for (int i = 0; i < funcCall.Args.Count && i < 4; i++)
-                    {
-                        GenerateExpression(funcCall.Args[i]);
-                        int reg = i;
-                        if (i > 0)
-                            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
-                                new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 0) }));
-                    }
-                    break;
+                int returnStructSize = GetTypeSizeFromString(funcDef.ReturnType);
+                // 先留出返回区（SP 继续向下），再把它的地址压成 arg0
+                instructions.Add(new Instruction(OpCode.SUB, new List<Operand> {
+                    new(OperandType.REGISTER, 13), new(OperandType.IMMEDIATE, returnStructSize) }));
+                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> {
+                    new(OperandType.REGISTER, 13) }));
+                argSize += returnStructSize + 4;
+            }
 
-                case CallingConvention.Pascal:
-                    // Pascal 约定：参数从左到右压栈，被调用者清理
-                    for (int i = 0; i < funcCall.Args.Count; i++)
-                    {
-                        if (isStructArg[i])
-                        {
-                            PushStructToStack(funcCall.Args[i], structArgSizes[i]);
-                        }
-                        else
-                        {
-                            GenerateExpression(funcCall.Args[i]);
-                            EmitPushArg((isDoubleArg[i] || isLongArg[i]) ? 8 : 4, isFloatArg[i], isDoubleArg[i], isLongArg[i]);
-                        }
-                    }
-                    break;
 
-                case CallingConvention.Stdcall:
-                    // stdcall: 全部参数从左到右压栈，被调用者清理
-                    for (int i = 0; i < funcCall.Args.Count; i++)
-                    {
-                        if (isStructArg[i])
-                        {
-                            PushStructToStack(funcCall.Args[i], structArgSizes[i]);
-                        }
-                        else
-                        {
-                            GenerateExpression(funcCall.Args[i]);
-                            EmitPushArg((isDoubleArg[i] || isLongArg[i]) ? 8 : 4, isFloatArg[i], isDoubleArg[i], isLongArg[i]);
-                        }
-                    }
-                    argSize = 0; // 被调用者清理
-                    break;
-
-                case CallingConvention.Fastcall:
-                    // fastcall: 前4参数 R0-R3 从左到右 (struct args push to stack instead)
-                    {
-                        int totalArgs = funcCall.Args.Count;
-                        int maxReg = Math.Min(totalArgs, 4);
-                        int stackWordCount = 0;
-                        // Push args beyond first 4, plus struct args within first 4
-                        for (int i = totalArgs - 1; i >= 0; i--)
-                        {
-                            // Register-only args (non-struct, within first 4) — skip
-                            if (i < maxReg && !isStructArg[i]) continue;
-
-                            if (isStructArg[i])
-                            {
-                                PushStructToStack(funcCall.Args[i], structArgSizes[i]);
-                                stackWordCount += (structArgSizes[i] + 3) / 4;
-                            }
-                            else
-                            {
-                                GenerateExpression(funcCall.Args[i]);
-                                stackWordCount += EmitPushArg((isDoubleArg[i] || isLongArg[i]) ? 8 : 4, isFloatArg[i], isDoubleArg[i], isLongArg[i]) / 4;
-                            }
-                        }
-                        // Set register args (non-struct among first 4), right-to-left
-                        // so that R0=arg0, R1=arg1, ... after all evaluations
-                        {
-                            int regIdx = maxReg - 1;
-                            for (int i = maxReg - 1; i >= 0; i--)
-                            {
-                                if (isStructArg[i]) continue;
-                                GenerateExpression(funcCall.Args[i]);
-                                if (regIdx > 0)
-                                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
-                                        new Operand(OperandType.REGISTER, regIdx), new Operand(OperandType.REGISTER, 0) }));
-                                regIdx--;
-                            }
-                        }
-                        argSize = stackWordCount * 4;
-                        break;
-                    }
-
-                default: // CallingConvention.C — CCv2: 前4参数 R0-R3 (struct args to stack)
-                    {
-                        if (!argsAlreadyPushed) {
-                            int totalArgs = funcCall.Args.Count;
-                            bool returnsStruct = funcDef != null && IsStructParamType(funcDef.ReturnType);
-                            int returnStructSize = returnsStruct ? GetTypeSizeFromString(funcDef.ReturnType) : 0;
-                            int stackWordCount = 0;
-
-                            // For struct return: allocate space on caller's stack and
-                            // pass hidden pointer as the first argument (in R0).
-                            // All subsequent declared args shift by one register slot.
-                            int maxRegArgs = returnsStruct ? 3 : 4; // R0 taken by hidden ptr if struct return
-                            if (returnsStruct)
-                            {
-                                instructions.Add(new Instruction(OpCode.SUB, new List<Operand> {
-                                    new(OperandType.REGISTER, 13), new(OperandType.IMMEDIATE, returnStructSize) }));
-                                // R9 holds the return struct address (safe: PushStructToStack uses R10)
-                                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
-                                    new(OperandType.REGISTER, 9), new(OperandType.REGISTER, 13) }));
-                                stackWordCount += (returnStructSize + 3) / 4;
-                            }
-
-                            // Push args: struct args within first N go to stack;
-                            // args beyond N (struct or not) go to stack
-                            // Push right-to-left so first-arg ends up at lowest stack address
-                            for (int i = totalArgs - 1; i >= 0; i--)
-                            {
-                                // Register-only args (non-struct, within first maxRegArgs)
-                                if (i < maxRegArgs && !isStructArg[i]) continue;
-
-                                if (isStructArg[i])
-                                {
-                                    PushStructToStack(funcCall.Args[i], structArgSizes[i]);
-                                    stackWordCount += (structArgSizes[i] + 3) / 4;
-                                }
-                                else
-                                {
-                                    GenerateExpression(funcCall.Args[i]);
-                                    stackWordCount += EmitPushArg((isDoubleArg[i] || isLongArg[i]) ? 8 : 4, isFloatArg[i], isDoubleArg[i], isLongArg[i]) / 4;
-                                }
-                            }
-                            // Set register args (non-struct among first maxRegArgs, preserving position)
-                            int regIdx = returnsStruct ? 1 : 0; // R0 used by hidden ptr if struct return
-                            if (returnsStruct)
-                            {
-                                // Hidden pointer for return value goes in R0
-                                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
-                                    new(OperandType.REGISTER, 0), new(OperandType.REGISTER, 9) }));
-                            }
-                            for (int i = 0; i < Math.Min(totalArgs, maxRegArgs); i++)
-                            {
-                                if (isStructArg[i]) continue;
-                                GenerateExpression(funcCall.Args[i]);
-                                if (regIdx > 0)
-                                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
-                                        new Operand(OperandType.REGISTER, regIdx), new Operand(OperandType.REGISTER, 0) }));
-                                regIdx++;
-                            }
-                            argSize = stackWordCount * 4;
-                        }
-                        break;
-                    }
+            // ③ 间接调用：把最底下那格（被调地址）取回 R8
+            //    —— 此刻 SP 已经停在「实参区之下」，被调地址正好在实参区上方一格。
+            if (indirectAddrPushed)
+            {
+                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
+                    new Operand(OperandType.REGISTER, 8),
+                    new Operand(OperandType.MEMORY, $"R13+{argSize}") }));
+                argSize += 4;
             }
 
             // 使用函数的原始名称作为标签
@@ -413,7 +285,6 @@ namespace CCompiler
             // 调用函数（直接或间接）
             if (isIndirect)
             {
-                // 间接调用：被调用地址已保存在 R8，参数设置不会修改 R8
                 instructions.Add(new Instruction(OpCode.CALL, new List<Operand> { new Operand(OperandType.REGISTER, 8) }));
             }
             else
@@ -421,18 +292,9 @@ namespace CCompiler
                 instructions.Add(new Instruction(OpCode.CALL, new List<Operand> { new Operand(OperandType.LABEL, funcLabel) }));
             }
 
-            // 清理参数栈（按调用约定）
-            // C (CCv2)/fastcall: caller 清理栈参数
-            // Pascal/stdcall: 被调用者清理（不需 caller 操作）
-            // BASIC: 无栈参数，不需清理
-            bool callerCleanup = callConv switch
-            {
-                CallingConvention.Stdcall => false,
-                CallingConvention.Pascal => false,
-                CallingConvention.Basic => false,
-                _ => true
-            };
-            if (argSize > 0 && callerCleanup)
+            // 清理参数栈 —— 统一约定下**永远是调用方清**（`argSize` 是刚才压进去的总字节数，
+            // 含结构体返回区与间接调用的地址格）。被调方一律裸 `ret`，不再自己弹栈。
+            if (argSize > 0)
             {
                 instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, argSize) }));
             }
@@ -599,6 +461,37 @@ namespace CCompiler
                 instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R10+{w * 4}") }));
                 instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
             }
+        }
+
+        /// <summary>
+        /// 一个形参在**调用方栈上**占多少字节 —— **调用点与被调方共用的唯一规则**。
+        ///
+        /// 规则：每个标量占一个 4 字节槽（与 ABI 基准「参数 4 字节对齐」一致），
+        /// 64 位类型（double / long 系）占两格 8 字节，按值结构体按 4 字节向上取整。
+        ///
+        /// ⚠ **这段规则必须只有一处实现。** 原先调用方按「每参数 4 字节」推进，而被调方
+        /// 用 `GetTypeSizeFromString` + `VarMemManager.AlignmentForSize` 的**自然大小与对齐**
+        /// 分配（char=1、short=2）⇒ 两端不一致、形参整体错位，而且**不报错**。
+        /// 实测就是脚本探针 p6：`mix(char, short, int, double, int)` 从第 2 个形参起全错；
+        /// 单类型隔离后确认「char 过去是对的、short 开始错」。
+        /// </summary>
+        /// <param name="typeName">形参/实参的类型名（可为空）</param>
+        /// <param name="isStruct">该类型是否为按值传递的结构体/联合体</param>
+        /// <param name="structSize">按值结构体的实际大小（仅 isStruct 为真时使用）</param>
+        private static int ParamStackBytes(string typeName, bool isStruct = false, int structSize = 0)
+        {
+            if (isStruct) return ((structSize + 3) / 4) * 4;
+
+            string t = (typeName ?? "").ToLower().Trim();
+            t = t.Replace("const", "").Replace("volatile", "").Replace("restrict", "").Trim();
+            while (t.Contains("  ")) t = t.Replace("  ", " ");
+
+            if (t == "double" || t == "long" || t == "long long"
+                || t == "unsigned long" || t == "unsigned long long")
+                return 8;
+
+            // char / short / int / float / 指针 / 未知 —— 一律一个 4 字节槽
+            return 4;
         }
 
         /// <summary>

@@ -713,86 +713,31 @@ namespace CCompiler
                 }
             }
 
-            // 计算寄存器参数个数（决定序言要不要把 R0-R3 存回栈帧参数槽）
+            // 分配形参偏移 —— **唯一一条路**：全部形参都在调用方栈上，
+            // 自 `[R12+12]` 起按「每个标量一个 4 字节槽、64 位占两格」排列，
+            // 与调用点共用 `ParamStackBytes` 这一条规则。
             //
-            // ⚠ **cdecl 必须是 0**，这是"其它语言调得动 C 共享库"的关键。
+            // ⚠ 原先这里按 `GetTypeSizeFromString` + `VarMemManager.AlignmentForSize`
+            // 的**自然大小与对齐**分配（char=1、short=2 …），而调用方每压一个标量就推进
+            // 4 字节 ⇒ 两端规则不同、形参整体错位，且**不报错**。
+            // 实测（scripts/vml-abi-probe/p6）：`mix(char, short, int, double, int)`
+            // 从第 2 个形参（short）起全错。
             //
-            // 序言里那段「把 R0-R3 存到 [R12+偏移]」是给 **CCv2**（`CallingConvention.C`，
-            // 前 4 个参数走寄存器）用的。它一旦对 cdecl 也生效，就会**用寄存器里那点残留
-            // 覆盖掉调用方压进来的真参数** —— 而 C 的 caller 恰好也顺手装了 R0-R3，
-            // 于是 C→C 一直"看着是对的"，问题只在**别的语言调过来**时才暴露：
-            // Python/BASIC 等前端是**只压栈**的（`VisitCall` 末尾统一 `ADD R13, n*4` 清栈，
-            // 与 cdecl 的"调用者清理"一致），寄存器里没有实参。
-            //
-            // 实测（Python 调共享库 `vmlui.vml`）：
-            //   `ui_rect(10,20,30,40,255,1,2,3)` → R0=10 ✓ 而 **R1/R2/R3 全是 0**
-            //   （R4-R7 却是对的 —— 第 5 个参数起才走栈，所以只有前 4 个被覆盖）。
-            // 表现就是"四个参数以内的库函数，只有第一个参数生效"。
-            int regParamCount = function.Convention switch
+            // ⚠ 序言**不再**把 R0-R3 存回参数槽。那段是给「前 4 参走寄存器」的 CCv2 用的：
+            // 对只压栈的调用方（22 种语言前端里的绝大多数）它会用寄存器里的残留值
+            // **覆盖掉调用方压进来的真参数**。实测 Python 调 `ui_rect(10,20,30,40,…)` 时
+            // R0=10 而 R1/R2/R3 全是 0 —— 表现是「四个参数以内的库函数只有第一个生效」。
+            foreach (var param in function.Params)
             {
-                CallingConvention.C => 4,           // CCv2: 前 4 个走寄存器
-                CallingConvention.Fastcall => 4,    // fastcall: R0-R3
-                _ => 0                              // cdecl / stdcall / pascal: 全部走栈
-            };
-
-            // 分配参数偏移
-            // fastcall: 栈参数在低偏移(R12+12起)，寄存器参数在高偏移，避免覆盖
-            //           寄存器参数由 caller 装入 R0-R3，不占用栈空间
-            // stdcall:  从左到右压栈，第一个参数在最高偏移，最后一个在 R12+12
-            if (function.Convention == CallingConvention.Fastcall && function.Params.Count > regParamCount)
-            {
-                // 先分配栈参数（索引 >= regParamCount），再分配寄存器参数（索引 0..regParamCount-1）
-                for (int i = regParamCount; i < function.Params.Count; i++)
-                {
-                    var param = function.Params[i];
-                    int paramSize = GetTypeSizeFromString(param.Type);
-                    var paramInfo = Vars?.AllocParam(param.Name, paramSize);
-                    int offset = paramInfo?.Offset ?? 12;
-                    variables[param.Name] = offset;
-                    variableTypes[param.Name] = StringToExprType(param.Type);
-                    variableTypeStrings[param.Name] = param.Type;
-                    RegisterStructParamType(param);
-                }
-                for (int i = 0; i < regParamCount; i++)
-                {
-                    var param = function.Params[i];
-                    int paramSize = GetTypeSizeFromString(param.Type);
-                    var paramInfo = Vars?.AllocParam(param.Name, paramSize);
-                    int offset = paramInfo?.Offset ?? 12;
-                    variables[param.Name] = offset;
-                    variableTypes[param.Name] = StringToExprType(param.Type);
-                    variableTypeStrings[param.Name] = param.Type;
-                    RegisterStructParamType(param);
-                }
-            }
-            else if (function.Convention == CallingConvention.Stdcall)
-            {
-                // stdcall 和 cdecl 栈布局相同 (均为右→左压栈)
-                // 第一个参数在 R12+12，后续参数在高偏移
-                // 唯一区别: stdcall 被调用者清理栈 (见 Epilogue)
-                foreach (var param in function.Params)
-                {
-                    int paramSize = GetTypeSizeFromString(param.Type);
-                    var paramInfo = Vars?.AllocParam(param.Name, paramSize);
-                    int offset = paramInfo?.Offset ?? 12;
-                    variables[param.Name] = offset;
-                    variableTypes[param.Name] = StringToExprType(param.Type);
-                    variableTypeStrings[param.Name] = param.Type;
-                    RegisterStructParamType(param);
-                }
-            }
-            else
-            {
-                foreach (var param in function.Params)
-                {
-                    int paramSize = GetTypeSizeFromString(param.Type);
-                    var paramInfo = Vars?.AllocParam(param.Name, paramSize);
-                    int offset = paramInfo?.Offset ?? 12;
-                    variables[param.Name] = offset;
-                    variableTypes[param.Name] = StringToExprType(param.Type);
-                    variableTypeStrings[param.Name] = param.Type;
-                    RegisterStructParamType(param);
-                }
+                int slot = ParamStackBytes(param.Type,
+                    IsStructParamType(param.Type),
+                    IsStructParamType(param.Type) ? GetTypeSizeFromString(param.Type) : 0);
+                var paramInfo = Vars?.AllocParam(param.Name, slot);
+                int offset = paramInfo?.Offset ?? 12;
+                variables[param.Name] = offset;
+                variableTypes[param.Name] = StringToExprType(param.Type);
+                variableTypeStrings[param.Name] = param.Type;
+                RegisterStructParamType(param);
             }
 
             // 统计局部变量（不包括参数）
@@ -807,57 +752,9 @@ namespace CCompiler
                 instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new(OperandType.REGISTER, 13), new(OperandType.IMMEDIATE, stackAlloc) }));
             }
 
-            // 根据调用约定保存寄存器参数到栈帧
-            // 使得所有参数可以通过 [R12+offset] 统一访问
-            // Struct params always arrive on the stack — skip them for register saving
-            int regNum = 0;  // actual register number (R0, R1, ...) — skips struct params
-
-            // For struct-return functions: the hidden return pointer arrives in R0
-            // and is stored at R12+12. Save it before handling declared params.
-            if (hiddenReturnPtrOffset >= 0 && regNum < regParamCount)
-            {
-                instructions.Add(new Instruction(OpCode.MOVE,
-                    new List<Operand> { new(OperandType.MEMORY, $"R12+{hiddenReturnPtrOffset}"), new(OperandType.REGISTER, regNum) }));
-                regNum++;
-            }
-
-            for (int i = 0; i < function.Params.Count && regNum < regParamCount; i++)
-            {
-                var param = function.Params[i];
-                var pType = StringToExprType(param.Type);
-                int paramSize = GetTypeSizeFromString(param.Type);
-
-                // Struct params are passed on the stack — no register to save
-                if (pType == ExprType.Struct)
-                    continue;
-
-                int saveOffset = (Vars != null && Vars.TryGetVar(param.Name, out var pvi))
-                    ? pvi.Offset : variables[param.Name];
-
-                if (pType == ExprType.Float)
-                {
-                    instructions.Add(new Instruction(OpCode.I2F, new List<Operand> { new(OperandType.REGISTER, regNum), new(OperandType.REGISTER, regNum) }));
-                    instructions.Add(new Instruction(OpCode.MOVEF,
-                        new List<Operand> { new(OperandType.MEMORY, $"R12+{saveOffset}"), new(OperandType.REGISTER, regNum) }));
-                }
-                else if (pType == ExprType.Double)
-                {
-                    instructions.Add(new Instruction(OpCode.I2D, new List<Operand> { new(OperandType.REGISTER, regNum+16), new(OperandType.REGISTER, regNum) }));
-                    instructions.Add(new Instruction(OpCode.MOVED,
-                        new List<Operand> { new(OperandType.MEMORY, $"R12+{saveOffset}"), new(OperandType.REGISTER, regNum+16) }));
-                }
-                else if (paramSize <= 4)
-                {
-                    instructions.Add(new Instruction(OpCode.MOVE,
-                        new List<Operand> { new(OperandType.MEMORY, $"R12+{saveOffset}"), new(OperandType.REGISTER, regNum) }));
-                }
-                else
-                {
-                    instructions.Add(new Instruction(OpCode.MOVE,
-                        new List<Operand> { new(OperandType.MEMORY, $"R12+{saveOffset}"), new(OperandType.REGISTER, regNum) }));
-                }
-                regNum++;
-            }
+            // （原「把 R0-R3 存回 [R12+偏移] 参数槽」的那一整段已删除 ——
+            //   统一约定下实参**全部在栈上**，`[R12+12]` 起就是调用方压进来的真值，
+            //   再拿寄存器残留值回写只会把它们覆盖掉。见上面分配形参偏移处的长注释。）
         }
 
         private void GenerateFunctionEpilogue(Function function)
@@ -884,26 +781,15 @@ namespace CCompiler
             instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 15)]));
 
             // 返回
+            //
+            // ⚠ 一律裸 `ret` —— **被调方不弹参数**。
+            //
+            // 原先 `__stdcall` 的函数在这里自己清栈（`move R1 [R13]; add R13 #(4+参数); push R1; ret`），
+            // 而 `Lib` 里 `builtins` 家族（`println_int` …）就是这种形态；可调用点若按 cdecl
+            // 又清了一次，**每调一次栈净漂 4 字节**（见 scripts/vml-abi-probe/p3）。
+            // 统一为「调用方清栈」之后，这里只剩下一条路。
             if (function.IsInterrupt)
                 instructions.Add(new Instruction(OpCode.IRET, new List<Operand>()));
-            else if (function.Convention == CallingConvention.Stdcall && function.Params.Count > 0)
-            {
-                // stdcall: 被调用者清理栈参数
-                // 保存返回地址，清理栈参数，恢复返回地址，RET
-                // 使用 R1 作为临时寄存器，避免覆盖 R0（返回值）
-                int stackArgBytes = 0;
-                foreach (var p in function.Params)
-                    stackArgBytes += GetTypeSizeFromString(p.Type);
-                // [R13] 当前指向返回地址
-                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
-                    new(OperandType.REGISTER, 1), new(OperandType.MEMORY, "R13") }));
-                // SP += 4 (跳过返回地址本身) + stackArgBytes (跳过参数)
-                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> {
-                    new(OperandType.REGISTER, 13), new(OperandType.IMMEDIATE, 4 + stackArgBytes) }));
-                // 把返回地址压回栈
-                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new(OperandType.REGISTER, 1) }));
-                instructions.Add(new Instruction(OpCode.RET, new List<Operand>()));
-            }
             else
                 instructions.Add(new Instruction(OpCode.RET, new List<Operand>()));
         }

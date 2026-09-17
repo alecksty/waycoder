@@ -125,3 +125,142 @@ print_str("T5="); println_int(a[-1])                        # 40
 - 消掉一整族「同一段代码有时对有时错」的缺陷（CLAUDE.md 已记过两例：
   `d9ee4b53` 查到根因是「Lib 里两套栈清理约定并存」；`e37db3a4` 的「Swift 第 5 参起全错」）
 - 让 22 种语言**真正**共用一套 ABI，而不是「碰巧都对」
+
+---
+
+# 实测记录（2026-09-17，第 1~2 步）
+
+> 下面全部是**跑出来的**，不是推断。复跑方式见 `scripts/vml-abi-probe/README.md`。
+
+## 第 1 步：判据已立（`scripts/vml-abi-probe/`，6 条，约 1 秒/条）
+
+判据只有一条：**跑得完 = 通过**。刻意不看探针打印出来的数 —— 栈漂移踩的正是
+打印路径自己要用的栈，实测出现过「掩码印出 0、紧接着的分支却走了失败那一支」
+（同一个局部连读两遍得 `0` 和 `242`）。
+
+| 探针 | 改动前 | 现在 | 钉的是什么 |
+|---|---|---|---|
+| `p1_args_order` | PASS | PASS | 6 个实参形参位置不错位 |
+| `p2_args_expr` | PASS | PASS | 表达式实参（历史寄存器覆盖伤） |
+| `p3_local_after_lib` | FAIL | **FAIL** | 调库后局部必须一字未动 |
+| `p4_local_declared` | PASS | PASS | 同 p3，但声明了 `__stdcall` |
+| `p5_array_after_lib` | FAIL | **FAIL** | 调库后数组下标仍算得对 |
+| `p6_arg_types` | FAIL | **PASS** | `char`/`short`/`double` 混合实参 |
+
+## 根因（实测确认）
+
+链接进来的 `println_int`（`Lib/shared/src/console.c:73`；`builtins.c:41` **也**定义了同名，
+链接器选了 console 那份）是**被调方清栈**：
+
+```asm
+println_int:
+        push R15 / push R12 / move R12 R13
+        syscall #6            ; 参数直接吃 R0，从不读 [R12+12]
+        ...
+        move R1 @13           ; 存返回地址
+        add R13 #8            ; ← 被调方清掉「返回地址 + 1 个参数槽」
+        push R1 / ret
+```
+
+而调用点（无论新旧）都发 `add R13 #4` ⇒ **每次调用净 +4 字节**。SP 一路爬进调用方栈帧，
+把局部覆盖掉。对照 `ui_rect` 是裸 `ret`（调用方清栈）——**同一份程序里两套约定并存**。
+
+## 第 2 步：C 前端已改（4/6 绿，**22/22 语言全绿**）
+
+`CodeGenerator.Expressions.Calls.cs` / `CodeGenerator.Functions.cs`：
+
+- 删掉 cdecl/stdcall/pascal/fastcall/basic **五条分流**，统一成「全部实参右到左压栈、
+  一个都不装 R0-R3、调用方清栈」。`__stdcall` 等修饰符仍能解析但**不再影响代码生成**。
+- 序言删掉「把 R0-R3 存回参数槽」那一段。
+- 尾声一律裸 `ret`（删掉 stdcall 的被调方清栈块）。
+- **顺带修掉 p6**：形参槽改成「每标量一个 4 字节槽、64 位占两格」，
+  由 `ParamStackBytes` 一条规则同时服务调用点与被调方。原先被调方按
+  `AlignmentForSize(1)=1 / (2)=2` 的自然大小分配，与调用方的「每参数 4 字节」对不上，
+  形参整体错位（`mix(char,short,int,double,int)` 从第 2 个起全错）。
+- 顺带修掉间接调用的一个潜伏 bug：被调地址原先存 R8，而实参求值会用 R0-R11 当临时寄存器
+  （实测 `main` 的产物里就在用 R2/R5/R8/R11），现在改成**压栈保存**、调用前取回。
+
+**22 种语言骨架全部通过**（`scripts/vmlcli` 逐条跑，判据 `SKEL-SUM=14`）。
+
+## 剩余阻塞：Lib 那一侧，**范围比原方案预估的大**
+
+方案原写「用当前前端把 `Lib/` 整个重新生成」。实测下来这一步有三条没想到的代价：
+
+1. **Lib 源码本身依赖寄存器 ABI。** `Lib/shared/src/*.c` 里有 **514 处 `asm(`，其中 197 处涉及 R0**。
+   典型如 `builtins.c`：
+   ```c
+   __stdcall void println_int(int val) {
+       asm("SYSCALL #6");    // ← 形参 val 在 C 里从未被引用，靠的就是「第一个形参在 R0」
+       asm("MOVE R0 #10");
+       asm("SYSCALL #4");
+   }
+   ```
+   **重新生成救不了它** —— 用新前端重建出来的 `println_int` 仍然只有 `syscall #6`，
+   因为源码自己就没读 `[R12+12]`。这类地方得**改源码**。
+
+2. **仓库里那份 `Lib/**/*.vml` 用当前源码复现不出来（是过期的）。** 做对照实验：
+   用**未改动**的前端重建 `builtins.vml`，与仓库现有文件仍差 **480 行** ——
+   差在标签格式（`L94240004` → `L_94240004`）、局部布局（`[R12-4]` → `[R12-8]`，
+   即我们自己那个 `__asm_result_slot` 修复）、以及**整批 `.linked` 指令消失**。
+   「整个重新生成」会把这些无关改动一并拖进来，每个模块几百行，且 `.linked` 的去留未查清。
+
+3. **机械剥离被调方清栈能全绿，但会打断 thunk 链。** 试过：把
+   `move R13 R12 / pop R12 / pop R15 / move R1 @13 / add R13 #N / push R1 / ret`
+   机械改写成裸 `ret`（65 个文件、719 处）—— **6/6 判据立刻全绿**。
+   但 22 语言掉到 19/22（csharp / fortran / forth 回归）。原因：
+   `Lib/c/console.vml` 里的 thunk **自己也依赖被调方清栈**：
+   ```asm
+   LABEL c_println_int
+       PUSH R0              ; 为「被调方会弹掉一个参数槽」而多压的一格
+       CALL println_int
+       RET                  ; ← 它指望 println_int 把那一格弹掉
+   ```
+   `println_int` 改成不弹之后，`RET` 弹掉的就是自己刚压的参数 ⇒ 跳飞。
+   **Forth 前端里也有同款变通**（`ForthCompiler/CodeGenerator.Operations.cs` 的注释白纸黑字写着
+   「压栈 + 被调用方弹掉 = 净 0」，所以它故意多压一个参数抵消）。
+
+### 更正：`.vml` 是生成物，别手改（用户 2026-09-17 指出）
+
+一度试过「外科手术」：直接改 `Lib/**/*.vml`，把被调方清栈的尾声剥成裸 `ret`。
+**这条路是错的**，已撤回。理由：
+
+- `Lib/**/*.vml` 是**生成物**。手改它们等于把生成器的输出改脏，
+  下次重生成就没了；而且 `sync.sh` 的 rsync 列表**含 `Lib` 且带 `--delete`**，
+  上游一同步照样冲掉。
+- 剥完会打断 thunk 链（`Lib/c/console.vml` 的 `c_println_int` 是
+  `PUSH R0 / CALL println_int / RET`，那一格原本由被调方弹掉）——
+  22 种语言会掉到 19/22。而在 `.vml` 层修 thunk 又是在改生成物，越陷越深。
+
+**真正要动的只有一处：`Lib/shared/src/*.c` 里的内联汇编。**
+
+`asm("SYSCALL #6")` 这类块把「第一个形参在 R0」**烙死在了源码里** ——
+`builtins.c` 的 `println_int(int val)` 里 `val` 从未被引用，靠的就是那条寄存器 ABI。
+换 ABI 之后这些地方必须显式从 `[R12+12 + 4k]` 取形参。
+
+### 正确的重生成链路
+
+| 环节 | 位置 | 说明 |
+|---|---|---|
+| 共享库源码 | `Lib/shared/src/*.c` | **要改的就是这里的 `asm(...)`**；514 处，197 处涉 R0 |
+| 共享库 `.vml` | `Lib/shared/*.vml` | 由 `Lib/shared/rebuild_shared.sh` 从上面生成（用 C 前端） |
+| 各语言 native 包装 | `Lib/<lang>/*.vml` | 由 **GenLib** 生成 —— 它**只在上游**，不在 `sync.sh` 的 rsync 列表里 |
+
+⚠ **GenLib 只存在于上游仓库**（`~/Desktop/source/vml/vml/tools/GenLib`）。
+所以这一整套**必须在上游做完再同步下来**，本地改 `Lib/` 会白改。
+
+> 而且 CHANGELOG 里早就记着一条同族问题：
+> 「Forth Conv 测试 — Forth↔C **调用约定不匹配** — 包装器 `PUSH R0` 传递栈顶值…
+> 需修改 **GenLib 包装器**或 Forth 编译器以正确处理外部 C 函数调用」。
+> 也就是说这次要统一的东西，上游自己也撞到过、只在包装器层面绕开了。
+
+### 因此剩余工作是
+
+1. **上游**：把 `Lib/shared/src/*.c` 的内联汇编从「形参在 R0-R3」改成「从 `[R12+12+4k]` 读」。
+2. **上游**：GenLib 的包装器生成规则一并改（它的 `PUSH R0 / CALL x / RET` 就是为旧约定写的）。
+3. 重生成 `Lib/`（shared + 各语言包装），同步下来，按 `scripts/check-vml-patches.sh` 补 `patches/`。
+4. 删掉前端里的补偿变通（`ForthCompiler/CodeGenerator.Operations.cs` 的额外 `PUSH` 有白纸黑字的注释）。
+5. 重打 APK 才到得了手机（`scripts/make-vml-lib.sh`）。
+
+> ⚠ 顺带查清的一条：我加的 `scripts/vmlcli --rebuild-lib` 能重生成 `Lib/shared/*.vml`，
+> 但**不产出 `.linked` 抬头**，与仓库里现有那份对不齐；而现有那份本身也**用当前源码复现不出来**
+> （对照差 480 行）。所以**别拿它当真源**去批量重生成，`.linked` 的去留要先问上游。
