@@ -308,7 +308,9 @@ static (string[] lines, int bytes) EmitPushParam(string paramType, int regIdx)
         case "unsigned char":
         case "int8_t":
         case "uint8_t":
-            return (new[] { $"    sub R13 #1", $"    moveb @13 R{regIdx}" }, 1);
+            // ⚠ 统一约定：形参槽一律 4 字节（C 前端 ParamStackBytes），所以**压满一格**。
+            // 按自然大小压 1 字节会让后续形参整体错位 —— 与脚本判据 p6（short 形参）同一个病。
+            return (new[] { $"    sub R13 #4", $"    moveb @13 R{regIdx}" }, 4);
         // 2 字节整数: short/unsigned short
         // 实现体用 moveh 读取 + add R13 #6 清栈, 包装器必须只压 2 字节
         case "short":
@@ -319,7 +321,8 @@ static (string[] lines, int bytes) EmitPushParam(string paramType, int regIdx)
         case "unsigned short int":
         case "int16_t":
         case "uint16_t":
-            return (new[] { $"    sub R13 #2", $"    moveh @13 R{regIdx}" }, 2);
+            // ⚠ 同上：short 也压满一格（4 字节），不再按自然大小压 2 字节。
+            return (new[] { $"    sub R13 #4", $"    moveh @13 R{regIdx}" }, 4);
         default:
             return (new[] { $"    PUSH R{regIdx}" }, 4);
     }
@@ -385,7 +388,11 @@ static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef
                 totalArgBytes += bytes;
             }
             sb.AppendLine($"    CALL {funcName}");
-            if (isCdecl && totalArgBytes > 0)
+            // ⚠ 统一约定：**一律由调用方清栈**（原来只在 isCdecl 时发）。
+            // 旧行为下非 cdecl 的包装器不发清栈，是指望被调方弹掉自己压的那格 ——
+            // 那正是 Lib/c/*.vml 里 `PUSH R0 / CALL x / RET` thunk 的成因，
+            // 也是「两套栈清理约定并存」那一族缺陷的源头。
+            if (totalArgBytes > 0)
                 sb.AppendLine($"    ADD R13 #{totalArgBytes}");
             sb.AppendLine("    RET");
             sb.AppendLine();
