@@ -1,3 +1,83 @@
+## v0.96.202 (2026-09-17) — Lua 的 `for` 循环变量必须先 `local`（跨语言判据 11→13 绿）
+
+上一版之后又清掉两条，其中一条是**纯 Lua 前端缺陷**、与调用约定无关。
+
+### ① `ParseFunctions` 把**注释**当成了函数签名
+
+正则 `RET NAME(params)` 看不出注释与代码的区别，于是 `array64.c` 第 4 行的
+
+```c
+// VML Shared Array64 Library — 64-bit Integer Arrays (long* with long indices)
+```
+
+被读成「返回 `Integer`、函数名 `Arrays`、参数 `long* with long indices`」⇒ `funcMap` 与
+`Lib/modules.json` 里多出一批**不存在的函数**，每个还生成一个 `LABEL x … CALL x` 的
+**自调用死包装器**（与 v0.96.201 修的撞名自调用同一个机制）。
+
+修法：`StripComments`（把注释换成**等长空白**，保住偏移与行号）之后正则再匹配。
+`Arrays` / `Manipulation` / `CRC` 从此不再出现。
+⚠ `modules.json` 是手工配置，里面仍留着约 50 条历史虚构条目（`graphics` 模块下的 `R0`/`PUSH` 之类），
+是死包装器且已被下面的保险兜住，**本次不清**。
+
+### ② 撞名保险：包装标签与 C 符号名同名时**自动改名**
+
+原本想给 java/javascript 补 `PrimaryPrefix` 了事，但 csharp 立刻报出**两例真实撞名**：
+`GetDate` / `GetTime`（`dos.c` 里函数名本身就是 PascalCase，camelCase/PascalCase 之后还是它自己）。
+改成在 `GenModules` 里兜底：`label == funcName` 时包装标签改 `{lang}_{原标签}`，
+别名（`func_xxx` / `Dos_xxx` …）指向它，包装器里的 `CALL {funcName}` 于是解析到共享实现而非自己。
+原来是「撞名就告警」，现在是被**处理**。
+
+### ③ Lua 的 `for` 循环变量必须有自己的局部槽（`drift.lua` 由 `0` 转 `126`）
+
+```lua
+function main()
+    local a = {1, 2, 3, 4}
+    local s = 0
+    for i = 1, 4 do  s = s + a[i]  end
+    print(s)          -- 0    ✗ 循环体一次都没执行
+end
+```
+
+**只差一句 `local i = 0`** 就对（得 10）。读生成的 VML 看到根因：没预声明时循环变量落在
+数据段的全局 `var_i`，而那条路对**同一个标签有两种解读** ——
+
+```asm
+for_start:  move R1 var_i     ; 把标签当**地址**取 → R1 是个远大于 4 的地址
+            cmp R1 R0
+            jg  for_end       ; 立刻跳出，一次都不执行
+循环体:     move R0 [var_i]    ; 按地址**取值**
+```
+
+修法：`GenerateForStatement` 里循环变量**无条件分配一格局部槽**，两种写法从此走同一条 `[R12-off]`。
+
+> 语料 `corpus/lua/skel.lua` 恰好写了 `local i = 0`，所以 22 语言骨架一直绿 ——
+> **这条路径从来没被覆盖**。又一个「骨架全绿 ≠ 该语言没问题」。
+
+### ④ 新增 `abi.m`：把 ObjC 的嫌疑从「实参顺序」摘干净
+
+`drift.m` 一直是红的，但新增的 `abi.m`（同样的两参调用、**不套循环**）实测 `ABI=8` **通过**
+⇒ ObjC 的实参传递没问题。真正的病定位到「**外部库调用在循环体里会让循环提前退出**」：
+
+| 程序 | 实测 | 应得 |
+|---|---|---|
+| 循环里不调库 `s = s + i` | `21` ✓ | 21（跑满 6 轮） |
+| 循环里调库、**常量**实参 `s = s + ipow(2,3)` | **`16`** ✗ | 48（= 8×**2** ⇒ 只跑 2 轮） |
+| 循环里调库、变量实参 `s = s + ipow(2,i)` | **`2059`** ✗ | 126 |
+
+骨架 `corpus/objc/skel.m` 没事，是因为它循环里调的是 `inc`（**本地函数**，走另一条分支）。
+**未修**，落点已写进交接文档。
+
+### 判据
+
+| | 本版开始 | 结束 |
+|---|---|---|
+| 跨语言判据 | 11 绿 / 2 红 | **13 绿 / 1 红**（新增 `abi.m`，分母 13→14） |
+| C 判据 / 22 语言骨架 / `check-vml-patches.sh` | — | 6/6 · 22/22 · 全绿 |
+
+唯一红的 `drift.m` 未修。**APK 仍未重打**。交接说明见 `docs/VML调用约定统一-交接.md`。
+
+---
+
 ## v0.96.201 (2026-09-17) — 单词名库函数的包装器**自调用**（跨语言判据 10→11 绿）
 
 ### ① `abi.js` 由「崩（SP 归零）」转 `ABI=8`
