@@ -117,6 +117,10 @@ int gx[NG], gy[NG], gdir[NG];              /* 鬼：像素坐标 / 朝向 */
  * 0 = 一开始就在场上。 */
 int grel[NG] = { 0, 70, 160, 260 };
 
+/* 游走（scatter）阶段各自的角 —— 原作就是这个机制，追击与游走交替 */
+int gcorner_x[NG] = { 1, 17, 1, 17 };
+int gcorner_y[NG] = { 1, 1, 19, 19 };
+
 char nbuf[16];
 
 /* 方向增量：上 右 下 左 */
@@ -289,6 +293,8 @@ void move_ghost(int i) {
     int best;
     int bestv;
     int v;
+    int tx;
+    int ty;
 
     spd = 2 + level / 2;
     if (spd > 4) spd = 4;
@@ -306,14 +312,21 @@ void move_ghost(int i) {
             gy[i] = cy_of(r);
 
             /* 候选方向：能走的四个方向，排除掉头 */
+            /* 目标格：追击段盯着吃豆人，游走段各自回自己的角（原作就有这个交替）。
+             * 没有游走段的话四只鬼会**无休止死追** —— 自测里那个贪心机器人
+             * 4000 拍死了 42 次（约合 4 秒一条命），人玩只会更难受。 */
+            tx = col_of(pxp);
+            ty = row_of(pyp);
+            if ((frame / 300) % 2 == 1) { tx = gcorner_x[i]; ty = gcorner_y[i]; }
+
             best = -1;
             bestv = 1000000;
             d = 0;
             while (d < 4) {
                 if (can_go(c, r, d)) {
                     if (d != ((gdir[i] + 2) & 3) || best < 0) {
-                        /* 惊吓时逃（远离），平时追（靠近）*/
-                        v = abs_i(c + DX[d] - col_of(pxp)) + abs_i(r + DY[d] - row_of(pyp));
+                        /* 惊吓时逃（远离），平时靠近目标 */
+                        v = abs_i(c + DX[d] - tx) + abs_i(r + DY[d] - ty);
                         if (fright > 0) v = -v;
                         v = v + rnd(2);              /* 一点随机，免得四只鬼叠在一起 */
                         if (v < bestv) { bestv = v; best = d; }
