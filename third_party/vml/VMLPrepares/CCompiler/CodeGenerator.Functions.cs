@@ -749,6 +749,17 @@ namespace CCompiler
             int stackAlloc = localVarSpace > 0 ? localVarSpace + 8 : 0;
             if (stackAlloc > 0)
             {
+                // ⚠ **必须向上对齐到 8 字节**。
+                //   `VarMemManager.LocalFrameSize` 是 `-_localBottom`，按各局部量的**实际大小**
+                //   累加 —— 一个 `char t;`（1 字节）就能让它落成奇数：
+                //   实测 `Lib/shared/src/convert64.c` 的 `ltoa` 就带着
+                //   `char t = dst[j];`（for body 里的 1 字节局部量），
+                //   于是它编出 `sub R13 #25` —— **SP 不在 4/8 字节边界上**，
+                //   紧随其后的 `movel R0 [R12+12]` / `movel @13 R0`（8 字节访问）
+                //   地址就算错，报「内存错误: MOVEL @13, R0 写内存失败: 内存越界」。
+                //   最小复现：`char b[8]; ltoa(5L, b);`（用户自定义的 `long` 形参函数是好的，
+                //   只有这个库函数崩 ⇒ 差别就在它这 25 字节的帧）。
+                stackAlloc = (stackAlloc + 7) & ~7;
                 instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new(OperandType.REGISTER, 13), new(OperandType.IMMEDIATE, stackAlloc) }));
             }
 

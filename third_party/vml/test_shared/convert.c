@@ -85,7 +85,6 @@ int main() {
     chk("atoi(空串)", atoi(""), 0);
 
     // ---- 往返：itoa 写出去，atoi 读回来 ----
-    ok_roundtrip:
     itoa(123456, buf);
     chk("往返 123456", atoi(buf), 123456);
     itoa(0 - 999, buf);
