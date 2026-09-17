@@ -1,0 +1,26 @@
+diff --git a/third_party/vml/VMLPrepares/CppCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/CppCompiler/CodeGenerator.Expressions.cs
+index 99efee4e..47fbef98 100644
+--- a/third_party/vml/VMLPrepares/CppCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/CppCompiler/CodeGenerator.Expressions.cs
+@@ -911,10 +911,18 @@ namespace CppCompiler
+                 Add(OpCode.CALL, "println_str");
+                 return;
+             }
+-            // printf(s) → CALL vml_print_str
+-            if (ce.Callee is IdentExpr pfId && pfId.Name.Contains("printf"))
++            // printf("纯字符串") → CALL print_str。**只在"恰好一个实参"时走这条捷径**。
++            //
++            // ⚠ 这里原先写的是 `ce.Arguments.Count > 0` —— 于是**多实参的 printf 也只取第一个**、
++            //    第 2 个起全部丢掉，而且**一个字都不报**。实测
++            //    `printf("OUT-INT=%d\n", 42)` 打出来的就是字面量 `OUT-INT=%d`，42 凭空消失
++            //    （探针 `scripts/vml-out-probe/langs/nat.cpp`）。
++            //    多实参意味着格式串里有 `%d`/`%s` —— 那正是被丢掉的东西。
++            //    交给普通调用路径落到 `Lib/shared/printf.vml` 的真实现（C 前端就是这么做的，
++            //    它没有这条特例，所以 C 的 printf 一直是对的 —— 又一处"两门语言同一件事两种实现"）。
++            if (ce.Callee is IdentExpr pfId && pfId.Name.Contains("printf") && ce.Arguments.Count == 1)
+             {
+-                if (ce.Arguments.Count > 0) GenerateExpr(ce.Arguments[0]);
++                GenerateExpr(ce.Arguments[0]);
+                 Add(OpCode.CALL, "print_str");
+                 return;
+             }
