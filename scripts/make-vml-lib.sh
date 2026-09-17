@@ -54,10 +54,31 @@ OUT="$ROOT/WayCoder.Maui/Resources/Raw/vml_lib.zip"
 TMP="$OUT.tmp"
 rm -f "$TMP"
 
+# ⚠ **移动端不需要 PC / DOS / 单片机那一类库** —— 它们提供的是那几种机器上的硬件或
+#    操作系统接口，手机上既没有对应设备、也没有对应调用方（手机上跑的是 `vmlui`
+#    那套 `ui_*` 接口）。排掉它们能少打一批字节，也少一批"文件不存在"的悬空 `.linked`。
+#
+#    每个模块都有**两份**：`shared/<名>.vml`（实现）与各语言目录下的 `<lang>/<名>.vml`
+#    （GenLib 生成的转发 shim）⇒ **两份都要排**，只排 shared 那份等于没排。
+#
+#    判据是「这个模块提供的接口在手机上有没有对应的东西」，不是"名字看着像 PC"：
+#      · crt / dos / vga_text / conio —— DOS 与 PC 文本控制台（CRT_GOTOXY、VGA 文本页…）
+#      · graphics / graph            —— BGI 绘图（`initgraph`/`putpixel` 那一套，Turbo C 时代）
+#      · browser_gfx                 —— 浏览器 canvas 专用
+#      · gpio                        —— 单片机引脚
+#    ⚠ `device` / `device64` **没排** —— 名字像硬件层，但它可能是 VM 自己的设备抽象
+#      （`ui_*` 那条链上要用），排错会让手机上的绘图/音效失灵。要用先查清调用方再排。
+MOBILE_EXCLUDE=(crt dos vga_text conio graphics graph browser_gfx gpio)
+
 # -X 去掉多余的文件属性（否则同样的内容在 mac/linux 上产出的 zip 字节不同，
 #    指纹会跟着变、白解压一次；虽然不影响正确性，但没必要）
 if command -v zip >/dev/null 2>&1; then
-    ( cd "$VML" && zip -q -r -X "$TMP" Lib vmltool.config.xml )
+    # 把 `MOBILE_EXCLUDE` 展开成 zip 的 `-x` 排除模式：shared/<名>.vml 与 <lang>/<名>.vml
+    ZIP_EX=()
+    for m in "${MOBILE_EXCLUDE[@]}"; do
+        ZIP_EX+=(-x "Lib/shared/$m.vml" -x "Lib/*/$m.vml")
+    done
+    ( cd "$VML" && zip -q -r -X "$TMP" "${ZIP_EX[@]}" Lib vmltool.config.xml )
     ( cd "$VML" && zip -q -X "$TMP" \
         $(find Examples -maxdepth 1 -type f ! -name '*.gen.vml') \
         $(find Examples -mindepth 2 -maxdepth 2 -type f ! -name '*.gen.vml') )
@@ -65,9 +86,10 @@ else
     # 没有 `zip` 的机器（例如 Windows Git Bash 默认不带）走 Python —— 用**固定时间戳**
     # 保证同样的内容每次产出同样的字节（与 `zip -X` 的意图一致）。
     echo "ℹ 未找到 zip，改用 Python zipfile"
-    "$PYTHON" - "$VML" "$TMP" <<'PY'
+    "$PYTHON" - "$VML" "$TMP" "${MOBILE_EXCLUDE[@]}" <<'PY'
 import os, sys, zipfile
 root, out = sys.argv[1], sys.argv[2]
+exclude = set(sys.argv[3:])   # 移动端不需要的模块名（见脚本头部的 MOBILE_EXCLUDE）
 
 def examples_files():
     """示例只收第 1 层（README）与第 2 层（<语言>/<文件>），见脚本头部注释。"""
@@ -84,6 +106,11 @@ def examples_files():
 with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
     def add(rel):
         rel = rel.replace(os.sep, "/")
+        # 移动端不需要的 PC/DOS/单片机模块：`Lib/shared/<名>.vml` 与
+        # `Lib/<语言>/<名>.vml` 两份都排（只排一份等于没排）。
+        base = os.path.basename(rel)
+        if rel.startswith("Lib/") and base.endswith(".vml") and base[:-4] in exclude:
+            return
         full = os.path.join(root, rel)
         if os.path.isdir(full):
             for name in sorted(os.listdir(full)):
