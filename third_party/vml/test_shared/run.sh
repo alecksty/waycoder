@@ -33,7 +33,7 @@ shopt -u nullglob
 
 [ ${#files[@]} -gt 0 ] || { echo "✘ 没有匹配的用例（$HERE/*.c）" >&2; exit 2; }
 
-pass=0; fail=0; skip=0; failed=(); skipped=()
+pass=0; fail=0; skip=0; smoke=0; failed=(); skipped=(); smoked=()
 
 printf '%-28s %-6s %s\n' "用例" "结果" "输出"
 printf '%s\n' "--------------------------------------------------------------------------"
@@ -43,9 +43,16 @@ for f in "${files[@]}"; do
     # 编译/链接进度走 stderr，这里只留程序自己的输出
     out="$(timeout $((TIMEOUT + 60)) dotnet "$DLL" "$f" --timeout "$TIMEOUT" 2>/dev/null | tr -d '\0')"
     rc=$?
-    # 用例可以用 `SKIP <理由>` 显式跳过（例：浮点路径当前不可用）
+    # 用例的三种结论：
+    #   SKIP  <理由> —— 明确不测（例：浮点路径当前不可用）
+    #   SMOKE        —— 只到「没崩/没挂/没超时」这一层（无返回值、副作用在设备上、
+    #                   观测通道还没搭的函数就用它）。**单独计一档，不算 PASS** ——
+    #                   不许拿「没崩」冒充「正确」。
+    #   PASS         —— 断言全过
     if [[ "$out" == *"SKIP"* ]]; then
         verdict="SKIP"; skip=$((skip + 1)); skipped+=("$name")
+    elif [[ "$out" == *"SMOKE"* ]]; then
+        verdict="SMOKE"; smoke=$((smoke + 1)); smoked+=("$name")
     elif [[ $rc -eq 0 && "$out" == *"PASS"* ]]; then
         verdict="PASS"; pass=$((pass + 1))
     else
@@ -56,7 +63,8 @@ for f in "${files[@]}"; do
 done
 
 printf '%s\n' "--------------------------------------------------------------------------"
-echo "通过 ${pass} / 失败 ${fail} / 跳过 ${skip}（共 ${#files[@]} 条）"
+echo "通过 ${pass} / 失败 ${fail} / 冒烟 ${smoke} / 跳过 ${skip}（共 ${#files[@]} 条）"
+[ $smoke -gt 0 ] && echo "⚠ 冒烟 ${smoke} 条**只证明没崩、不证明正确**：${smoked[*]}"
 [ $fail -gt 0 ] && { echo "失败：${failed[*]}"; exit 1; }
 [ $skip -gt 0 ] && echo "跳过：${skipped[*]}"
 exit 0
