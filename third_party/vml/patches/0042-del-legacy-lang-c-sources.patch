@@ -1,0 +1,3502 @@
+diff --git a/third_party/vml/Lib/c/conio.c b/third_party/vml/Lib/c/conio.c
+deleted file mode 100644
+index dbe96941..00000000
+--- a/third_party/vml/Lib/c/conio.c
++++ /dev/null
+@@ -1,171 +0,0 @@
+-#include <conio.h>
+-
+-static int cur_row = 1;
+-static int cur_col = 1;
+-static int fg_color = 7;
+-static int bg_color = 0;
+-
+-void clrscr(void)
+-{
+-    int i;
+-    for (i = 0; i < 80 * 25 * 2; i += 2)
+-    {
+-        asm("MOVE R0, #0xB8000");
+-        asm("ADD R0, %0");
+-        asm("MOVEB [R0], #32");
+-        asm("MOVEB [R0+1], #7");
+-    }
+-    cur_row = 1;
+-    cur_col = 1;
+-    asm("MOVE R0, #1");
+-    asm("STORE R0, [0x6FF4]");
+-    asm("STORE R0, [0x6FF8]");
+-}
+-
+-void gotoxy(int x, int y)
+-{
+-    cur_row = y;
+-    cur_col = x;
+-    if (cur_row < 1) cur_row = 1;
+-    if (cur_col < 1) cur_col = 1;
+-    if (cur_row > 25) cur_row = 25;
+-    if (cur_col > 80) cur_col = 80;
+-    asm("MOVE R0, %0");
+-    asm("STORE R0, [0x6FF4]");
+-    asm("MOVE R0, %0");
+-    asm("STORE R0, [0x6FF8]");
+-}
+-
+-int wherex(void)
+-{
+-    return cur_col;
+-}
+-
+-int wherey(void)
+-{
+-    return cur_row;
+-}
+-
+-void textcolor(int color)
+-{
+-    fg_color = color & 0x0F;
+-    asm("MOVE R0, %0");
+-    asm("STOREB R0, [0x6FFC]");
+-}
+-
+-void textbackground(int color)
+-{
+-    bg_color = color & 0x0F;
+-    asm("MOVE R0, %0");
+-    asm("STOREB R0, [0x6FFD]");
+-}
+-
+-void cputs(const char *str)
+-{
+-    int offset;
+-    char ch;
+-    while (1)
+-    {
+-        asm("LOAD R0, %0");
+-        ch = *str;
+-        if (ch == 0) break;
+-        if (ch == '\n')
+-        {
+-            cur_row++;
+-            cur_col = 1;
+-            str++;
+-            continue;
+-        }
+-        offset = ((cur_row - 1) * 80 + (cur_col - 1)) * 2;
+-        asm("MOVE R0, #0xB8000");
+-        asm("ADD R0, %0");
+-        asm("MOVEB [R0], %0");
+-        asm("LOADB R1, [0x6FFC]");
+-        asm("LOADB R2, [0x6FFD]");
+-        asm("SHL R2, #4");
+-        asm("OR R1, R2");
+-        asm("MOVEB [R0+1], R1");
+-        cur_col++;
+-        str++;
+-        if (cur_col > 80)
+-        {
+-            cur_col = 1;
+-            cur_row++;
+-        }
+-        if (cur_row > 25) cur_row = 25;
+-    }
+-    asm("MOVE R0, %0");
+-    asm("STORE R0, [0x6FF4]");
+-    asm("MOVE R0, %0");
+-    asm("STORE R0, [0x6FF8]");
+-}
+-
+-int getch(void)
+-{
+-    int ch;
+-    asm("SYSCALL 5");
+-    asm("MOVE %0, R0");
+-    return ch;
+-}
+-
+-int getche(void)
+-{
+-    int ch;
+-    asm("SYSCALL 5");
+-    asm("MOVE %0, R0");
+-    asm("MOVE R0, %0");
+-    asm("SYSCALL 4");
+-    return ch;
+-}
+-
+-int kbhit(void)
+-{
+-    int status;
+-    asm("LOADB R0, [0x64]");
+-    asm("MOVE %0, R0");
+-    return status;
+-}
+-
+-void clreol(void)
+-{
+-    int i;
+-    for (i = cur_col - 1; i < 80; i++)
+-    {
+-        int offset = ((cur_row - 1) * 80 + i) * 2;
+-        asm("MOVE R0, #0xB8000");
+-        asm("ADD R0, %0");
+-        asm("MOVEB [R0], #32");
+-        asm("MOVEB [R0+1], #7");
+-    }
+-}
+-
+-void delline(void) { clreol(); }
+-void insline(void) { clreol(); }
+-
+-void delay(int ms)
+-{
+-    int i, j;
+-    for (i = 0; i < ms; i++)
+-        for (j = 0; j < 1000; j++)
+-            asm("NOP");
+-}
+-
+-void sound(int freq)
+-{
+-    asm("MOVE R0, #7");
+-    asm("SYSCALL 4");
+-}
+-
+-void nosound(void) {}
+-void _setcursortype(int type) {}
+-
+-int putch(int ch)
+-{
+-    asm("MOVE R0, %0");
+-    asm("SYSCALL 4");
+-    return ch;
+-}
+-
+-void highvideo(void) { fg_color = 15; asm("STOREB R0, [0x6FFC]"); }
+-void lowvideo(void) { fg_color = 7; asm("STOREB R0, [0x6FFC]"); }
+-void normvideo(void) { fg_color = 7; bg_color = 0; asm("MOVE R0, #7"); asm("STOREB R0, [0x6FFC]"); }
+diff --git a/third_party/vml/Lib/c/conio.vml b/third_party/vml/Lib/c/conio.vml
+deleted file mode 100644
+index b687c0f9..00000000
+--- a/third_party/vml/Lib/c/conio.vml
++++ /dev/null
+@@ -1,630 +0,0 @@
+-.entry main
+-.stack 0
+-.vectors 0x0
+-
+-.data
+-cur_row: .word 1
+-cur_col: .word 1
+-fg_color: .word 7
+-bg_color: .word 0
+-
+-.text
+-clrscr:
+-        push R15
+-        push R12
+-        move R12 R13
+-        sub R13 #12
+-        move R0 #0
+-        move [R12-4] R0
+-sta_44560000:
+-        move R0 [R12-4]
+-        push R0
+-        move R0 #80
+-        push R0
+-        move R0 #25
+-        pop R1
+-        mul R1 R0
+-        move R0 R1
+-        push R0
+-        move R0 #2
+-        pop R1
+-        mul R1 R0
+-        move R0 R1
+-        pop R1
+-        cmp R1 R0
+-        jl _L44560003
+-        move R0 #0
+-        jmp _L44560004
+-_L44560003:
+-        move R0 #1
+-_L44560004:
+-        cmp R0 #0
+-        jz sta_44560002
+-        move R0 #753664
+-        add R0 #%0
+-        moveb @0 #32
+-        moveb [R0+1] #7
+-sta_44560001:
+-        move R0 [R12-4]
+-        push R0
+-        move R0 #2
+-        pop R1
+-        add R1 R0
+-        move R0 R1
+-        move [R12-4] R0
+-        jmp sta_44560000
+-sta_44560002:
+-        move R0 #1
+-        move [cur_row] R0
+-        move R0 #1
+-        move [cur_col] R0
+-        move R0 #1
+-        move [28660] R0
+-        move [28664] R0
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-gotoxy:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move [R12+12] R0
+-        move [R12+16] R1
+-        move R0 [R12+16]
+-        move [cur_row] R0
+-        move R0 [R12+12]
+-        move [cur_col] R0
+-        move R0 [cur_row]
+-        push R0
+-        move R0 #1
+-        pop R1
+-        cmp R1 R0
+-        jl _L44560007
+-        move R0 #0
+-        jmp _L44560008
+-_L44560007:
+-        move R0 #1
+-_L44560008:
+-        cmp R0 #0
+-        jz sta_44560005
+-        move R0 #1
+-        move [cur_row] R0
+-sta_44560005:
+-sta_44560006:
+-        move R0 [cur_col]
+-        push R0
+-        move R0 #1
+-        pop R1
+-        cmp R1 R0
+-        jl _L44560011
+-        move R0 #0
+-        jmp _L44560012
+-_L44560011:
+-        move R0 #1
+-_L44560012:
+-        cmp R0 #0
+-        jz sta_44560009
+-        move R0 #1
+-        move [cur_col] R0
+-sta_44560009:
+-sta_44560010:
+-        move R0 [cur_row]
+-        push R0
+-        move R0 #25
+-        pop R1
+-        cmp R1 R0
+-        jg _L44560015
+-        move R0 #0
+-        jmp _L44560016
+-_L44560015:
+-        move R0 #1
+-_L44560016:
+-        cmp R0 #0
+-        jz sta_44560013
+-        move R0 #25
+-        move [cur_row] R0
+-sta_44560013:
+-sta_44560014:
+-        move R0 [cur_col]
+-        push R0
+-        move R0 #80
+-        pop R1
+-        cmp R1 R0
+-        jg _L44560019
+-        move R0 #0
+-        jmp _L44560020
+-_L44560019:
+-        move R0 #1
+-_L44560020:
+-        cmp R0 #0
+-        jz sta_44560017
+-        move R0 #80
+-        move [cur_col] R0
+-sta_44560017:
+-sta_44560018:
+-        move R0 #%0
+-        move [28660] R0
+-        move R0 #%0
+-        move [28664] R0
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-wherex:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move R0 [cur_col]
+-        jmp L44560021
+-L44560021:
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-wherey:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move R0 [cur_row]
+-        jmp L44560022
+-L44560022:
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-textcolor:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move [R12+12] R0
+-        move R0 [R12+12]
+-        push R0
+-        move R0 #15
+-        pop R1
+-        and R1 R0
+-        move R0 R1
+-        move [fg_color] R0
+-        move R0 #%0
+-        moveb [28668] R0
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-textbackground:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move [R12+12] R0
+-        move R0 [R12+12]
+-        push R0
+-        move R0 #15
+-        pop R1
+-        and R1 R0
+-        move R0 R1
+-        move [bg_color] R0
+-        move R0 #%0
+-        moveb [28669] R0
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-cputs:
+-        push R15
+-        push R12
+-        move R12 R13
+-        sub R13 #13
+-        move [R12+12] R0
+-sta_44560023:
+-        move R2 #0
+-        move R0 #1
+-        cmp R0 #0
+-        jz sta_44560024
+-        move R0 #%0
+-        move R0 [R12+12]
+-        moveb R0 @0
+-        sextb R0 R0
+-        moveb [R12-5] R0
+-        moveb R0 [R12-5]
+-        sextb R0 R0
+-        push R0
+-        move R0 #0
+-        pop R1
+-        cmp R1 R0
+-        je _L44560027
+-        move R0 #0
+-        jmp _L44560028
+-_L44560027:
+-        move R0 #1
+-_L44560028:
+-        cmp R0 #0
+-        jz sta_44560025
+-        jmp sta_44560024
+-sta_44560025:
+-sta_44560026:
+-        moveb R0 [R12-5]
+-        sextb R0 R0
+-        pushb R0
+-        move R0 #10
+-        popb R1
+-        cmp R1 R0
+-        je _L44560031
+-        move R0 #0
+-        jmp _L44560032
+-_L44560031:
+-        move R0 #1
+-_L44560032:
+-        cmp R0 #0
+-        jz sta_44560029
+-        move R0 [cur_row]
+-        move R1 R0
+-        add R0 R0 #1
+-        move [cur_row] R0
+-        move R0 R1
+-        move R0 #1
+-        move [cur_col] R0
+-        move R0 [R12+12]
+-        move R1 R0
+-        add R0 R0 #1
+-        move [R12+12] R0
+-        move R0 R1
+-        jmp sta_44560023
+-sta_44560029:
+-sta_44560030:
+-        move R0 [cur_row]
+-        push R0
+-        move R0 #1
+-        pop R1
+-        sub R1 R0
+-        move R0 R1
+-        push R0
+-        move R0 #80
+-        pop R1
+-        mul R1 R0
+-        move R0 R1
+-        push R0
+-        move R0 [cur_col]
+-        push R0
+-        move R0 #1
+-        pop R1
+-        sub R1 R0
+-        move R0 R1
+-        pop R1
+-        add R1 R0
+-        move R0 R1
+-        push R0
+-        move R0 #2
+-        pop R1
+-        mul R1 R0
+-        move R0 R1
+-        move [R12-4] R0
+-        move R0 #753664
+-        add R0 #%0
+-        moveb @0 #%0
+-        moveb R1 [28668]
+-        moveb R2 [28669]
+-        shl R2 #4
+-        or R1 R2
+-        moveb [R0+1] R1
+-        move R0 [cur_col]
+-        move R1 R0
+-        add R0 R0 #1
+-        move [cur_col] R0
+-        move R0 R1
+-        move R0 [R12+12]
+-        move R1 R0
+-        add R0 R0 #1
+-        move [R12+12] R0
+-        move R0 R1
+-        move R0 [cur_col]
+-        push R0
+-        move R0 #80
+-        pop R1
+-        cmp R1 R0
+-        jg _L44560035
+-        move R0 #0
+-        jmp _L44560036
+-_L44560035:
+-        move R0 #1
+-_L44560036:
+-        cmp R0 #0
+-        jz sta_44560033
+-        move R0 #1
+-        move [cur_col] R0
+-        move R0 [cur_row]
+-        move R1 R0
+-        add R0 R0 #1
+-        move [cur_row] R0
+-        move R0 R1
+-sta_44560033:
+-sta_44560034:
+-        move R0 [cur_row]
+-        push R0
+-        move R0 #25
+-        pop R1
+-        cmp R1 R0
+-        jg _L44560039
+-        move R0 #0
+-        jmp _L44560040
+-_L44560039:
+-        move R0 #1
+-_L44560040:
+-        cmp R0 #0
+-        jz sta_44560037
+-        move R0 #25
+-        move [cur_row] R0
+-sta_44560037:
+-sta_44560038:
+-        jmp sta_44560023
+-sta_44560024:
+-        move R0 #%0
+-        move [28660] R0
+-        move R0 #%0
+-        move [28664] R0
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-getch:
+-        push R15
+-        push R12
+-        move R12 R13
+-        sub R13 #12
+-        syscall #5
+-        move #%0 R0
+-        move R0 [R12-4]
+-        jmp L44560041
+-L44560041:
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-getche:
+-        push R15
+-        push R12
+-        move R12 R13
+-        sub R13 #12
+-        syscall #5
+-        move #%0 R0
+-        move R0 #%0
+-        syscall #4
+-        move R0 [R12-4]
+-        jmp L44560042
+-L44560042:
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-kbhit:
+-        push R15
+-        push R12
+-        move R12 R13
+-        sub R13 #12
+-        moveb R0 [100]
+-        move #%0 R0
+-        move R0 [R12-4]
+-        jmp L44560043
+-L44560043:
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-clreol:
+-        push R15
+-        push R12
+-        move R12 R13
+-        sub R13 #16
+-        move R0 [cur_col]
+-        push R0
+-        move R0 #1
+-        pop R1
+-        sub R1 R0
+-        move R0 R1
+-        move [R12-4] R0
+-sta_44560044:
+-        move R0 [R12-4]
+-        push R0
+-        move R0 #80
+-        pop R1
+-        cmp R1 R0
+-        jl _L44560047
+-        move R0 #0
+-        jmp _L44560048
+-_L44560047:
+-        move R0 #1
+-_L44560048:
+-        cmp R0 #0
+-        jz sta_44560046
+-        move R0 [cur_row]
+-        push R0
+-        move R0 #1
+-        pop R1
+-        sub R1 R0
+-        move R0 R1
+-        push R0
+-        move R0 #80
+-        pop R1
+-        mul R1 R0
+-        move R0 R1
+-        push R0
+-        move R0 [R12-4]
+-        pop R1
+-        add R1 R0
+-        move R0 R1
+-        push R0
+-        move R0 #2
+-        pop R1
+-        mul R1 R0
+-        move R0 R1
+-        move [R12-8] R0
+-        move R0 #753664
+-        add R0 #%0
+-        moveb @0 #32
+-        moveb [R0+1] #7
+-sta_44560045:
+-        move R0 [R12-4]
+-        move R1 R0
+-        add R0 R0 #1
+-        move [R12-4] R0
+-        move R0 R1
+-        jmp sta_44560044
+-sta_44560046:
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-delline:
+-        push R15
+-        push R12
+-        move R12 R13
+-        call clreol
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-insline:
+-        push R15
+-        push R12
+-        move R12 R13
+-        call clreol
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-delay:
+-        push R15
+-        push R12
+-        move R12 R13
+-        sub R13 #16
+-        move [R12+12] R0
+-        move R0 #0
+-        move [R12-4] R0
+-sta_44560049:
+-        move R0 [R12-4]
+-        push R0
+-        move R0 [R12+12]
+-        pop R1
+-        cmp R1 R0
+-        jl _L44560052
+-        move R0 #0
+-        jmp _L44560053
+-_L44560052:
+-        move R0 #1
+-_L44560053:
+-        cmp R0 #0
+-        jz sta_44560051
+-        move R0 #0
+-        move [R12-8] R0
+-sta_44560054:
+-        move R0 [R12-8]
+-        push R0
+-        move R0 #1000
+-        pop R1
+-        cmp R1 R0
+-        jl _L44560057
+-        move R0 #0
+-        jmp _L44560058
+-_L44560057:
+-        move R0 #1
+-_L44560058:
+-        cmp R0 #0
+-        jz sta_44560056
+-        nop
+-sta_44560055:
+-        move R0 [R12-8]
+-        move R1 R0
+-        add R0 R0 #1
+-        move [R12-8] R0
+-        move R0 R1
+-        jmp sta_44560054
+-sta_44560056:
+-sta_44560050:
+-        move R0 [R12-4]
+-        move R1 R0
+-        add R0 R0 #1
+-        move [R12-4] R0
+-        move R0 R1
+-        jmp sta_44560049
+-sta_44560051:
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-sound:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move [R12+12] R0
+-        move R0 #7
+-        syscall #4
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-nosound:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-_setcursortype:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move [R12+12] R0
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-putch:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move [R12+12] R0
+-        move R0 #%0
+-        syscall #4
+-        move R0 [R12+12]
+-        jmp L44560059
+-L44560059:
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-highvideo:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move R0 #15
+-        move [fg_color] R0
+-        moveb [28668] R0
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-lowvideo:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move R0 #7
+-        move [fg_color] R0
+-        moveb [28668] R0
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-normvideo:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move R0 #7
+-        move [fg_color] R0
+-        move R0 #0
+-        move [bg_color] R0
+-        move R0 #7
+-        moveb [28668] R0
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+diff --git a/third_party/vml/Lib/c/console.c b/third_party/vml/Lib/c/console.c
+deleted file mode 100644
+index 5d3b6fc5..00000000
+--- a/third_party/vml/Lib/c/console.c
++++ /dev/null
+@@ -1,199 +0,0 @@
+-/* console.c - POSIX 控制台库实现
+- *
+- * OS 模式: dev_open("console") + dev_control() → VmConsoleDevice
+- * MCU 模式: 每个函数返回默认值
+- */
+-
+-#include "console.h"
+-
+-/* 前向声明 device 操作 (链接时解析) */
+-int  dev_open(const char *name);
+-int  dev_close(int handle);
+-int  dev_control(int handle, int command, const void *data, int length);
+-
+-/* 内存复制 (本地实现, 避免依赖 string.h) */
+-static void _memcpy(char *dst, const char *src, int n)
+-{
+-    int i;
+-    for (i = 0; i < n; i++)
+-        dst[i] = src[i];
+-}
+-
+-/* ttyname 缓冲区 (全局, 避免 static 局部变量) */
+-char _ttyname_buf[16];
+-
+-/* ================================================================
+- *  isatty — 检查 fd 是否为终端
+- * ================================================================ */
+-int isatty(int fd)
+-{
+-    /* 标准 fd 0/1/2 是终端 */
+-    if (fd == 0 || fd == 1 || fd == 2) {
+-        int h, result;
+-        h = dev_open("console");
+-        if (h < 0) return 1; /* MCU 模式: 总是终端 */
+-        result = dev_control(h, 9, (void *)0, 0);
+-        dev_close(h);
+-        return (result >= 0) ? 1 : 0;
+-    }
+-    return 0;
+-}
+-
+-/* ================================================================
+- *  ttyname — 获取终端名称
+- * ================================================================ */
+-char* ttyname(int fd)
+-{
+-    int i;
+-    for (i = 0; i < 16; i++) _ttyname_buf[i] = 0;
+-
+-    if (fd == 0 || fd == 1 || fd == 2) {
+-        int h;
+-        h = dev_open("console");
+-        if (h < 0) {
+-            _ttyname_buf[0] = '/'; _ttyname_buf[1] = 'd'; _ttyname_buf[2] = 'e';
+-            _ttyname_buf[3] = 'v'; _ttyname_buf[4] = '/'; _ttyname_buf[5] = 'c';
+-            _ttyname_buf[6] = 'o'; _ttyname_buf[7] = 'n'; _ttyname_buf[8] = 's';
+-            _ttyname_buf[9] = 'o'; _ttyname_buf[10] = 'l'; _ttyname_buf[11] = 'e';
+-            return _ttyname_buf;
+-        }
+-        dev_control(h, 8, _ttyname_buf, 16);
+-        dev_close(h);
+-        return _ttyname_buf;
+-    }
+-    return (char *)0;
+-}
+-
+-/* ================================================================
+- *  tcgetattr — 获取终端属性
+- * ================================================================ */
+-int tcgetattr(int fd, termios_t *t)
+-{
+-    int h, result;
+-    if (!t) return -1;
+-
+-    h = dev_open("console");
+-    if (h < 0) {
+-        /* MCU 模式: 返回默认值 */
+-        t->c_iflag = ICRNL;
+-        t->c_oflag = OPOST | ONLCR;
+-        t->c_cflag = 0;
+-        t->c_lflag = ECHO | ICANON | ISIG;
+-        t->c_cc[0] = 0;
+-        return 0;
+-    }
+-
+-    result = dev_control(h, 4, (void *)t, 24);
+-    dev_close(h);
+-    return (result >= 0) ? 0 : -1;
+-}
+-
+-/* ================================================================
+- *  tcsetattr — 设置终端属性
+- *  data 布局: [4 字节 action] [24 字节 termios]
+- * ================================================================ */
+-int tcsetattr(int fd, int optional_actions, const termios_t *t)
+-{
+-    int h, result;
+-    char data[28];
+-    int i;
+-
+-    if (!t) return -1;
+-
+-    h = dev_open("console");
+-    if (h < 0) return 0; /* MCU 模式: no-op */
+-
+-    /* 编码: action (4 bytes) + termios (24 bytes) */
+-    data[0] = (char)(optional_actions & 0xFF);
+-    data[1] = (char)((optional_actions >> 8) & 0xFF);
+-    data[2] = (char)((optional_actions >> 16) & 0xFF);
+-    data[3] = (char)((optional_actions >> 24) & 0xFF);
+-
+-    /* 复制 termios 结构: 4 个 int + 8 个 char */
+-    _memcpy(data + 4, (char *)t, 24);
+-
+-    result = dev_control(h, 5, data, 28);
+-    dev_close(h);
+-    return (result >= 0) ? 0 : -1;
+-}
+-
+-/* ================================================================
+- *  cfmakeraw — 将 termios 设置为原始模式
+- * ================================================================ */
+-void cfmakeraw(termios_t *t)
+-{
+-    if (!t) return;
+-
+-    /* 清除所有标志 */
+-    t->c_iflag = 0;
+-    t->c_oflag = 0;
+-    t->c_cflag = 0;
+-    t->c_lflag = 0;
+-
+-    /* 原始模式: 无回显, 无规范模式, 无信号处理 */
+-}
+-
+-/* ================================================================
+- *  tcflush — 刷新终端输入/输出队列
+- * ================================================================ */
+-int tcflush(int fd, int queue_selector)
+-{
+-    int h, result;
+-    int sel;
+-
+-    h = dev_open("console");
+-    if (h < 0) return 0; /* MCU 模式: no-op */
+-
+-    sel = queue_selector;
+-    result = dev_control(h, 6, (void *)&sel, 4);
+-    dev_close(h);
+-    return (result >= 0) ? 0 : -1;
+-}
+-
+-/* ================================================================
+- *  tcdrain — 等待输出完成
+- * ================================================================ */
+-int tcdrain(int fd)
+-{
+-    /* OS 模式下通过 sleep(1ms) 模拟输出排空 */
+-    int h;
+-    h = dev_open("console");
+-    if (h < 0) return 0; /* MCU 模式 */
+-    dev_close(h);
+-    /* sleep(1) 会在链接时解析 */
+-    return 0;
+-}
+-
+-/* ================================================================
+- *  ioctl_console — 控制台 ioctl (窗口大小等)
+- * ================================================================ */
+-int ioctl_console(int fd, int request, void *data)
+-{
+-    int h, result;
+-    char *buf;
+-    int val;
+-
+-    h = dev_open("console");
+-    if (h < 0) {
+-        /* MCU 模式: 返回默认 80x25 */
+-        if (request == 7 && data) {
+-            buf = (char *)data;
+-            val = 25;  /* ws_row */
+-            buf[0] = (char)(val & 0xFF);
+-            buf[1] = (char)((val >> 8) & 0xFF);
+-            buf[2] = (char)((val >> 16) & 0xFF);
+-            buf[3] = (char)((val >> 24) & 0xFF);
+-            val = 80;  /* ws_col */
+-            buf[4] = (char)(val & 0xFF);
+-            buf[5] = (char)((val >> 8) & 0xFF);
+-            buf[6] = (char)((val >> 16) & 0xFF);
+-            buf[7] = (char)((val >> 24) & 0xFF);
+-            return 0;
+-        }
+-        return -1;
+-    }
+-
+-    result = dev_control(h, request, data, 8);
+-    dev_close(h);
+-    return (result >= 0) ? 0 : -1;
+-}
+diff --git a/third_party/vml/Lib/c/graphics.c b/third_party/vml/Lib/c/graphics.c
+deleted file mode 100644
+index b094b255..00000000
+--- a/third_party/vml/Lib/c/graphics.c
++++ /dev/null
+@@ -1,774 +0,0 @@
+-#include "graphics.h"
+-
+-extern double cos(double x);
+-extern double sin(double x);
+-static double atan_approx(double x);
+-static double atan2_approx(double y, double x);
+-
+-int _graph_ok = 0;
+-int _current_color = WHITE;
+-int _bg_color = BLACK;
+-int _fill_pattern = SOLID_FILL;
+-int _fill_color = WHITE;
+-int _cp_x = 0;
+-int _cp_y = 0;
+-
+-static int _vp_x1 = 0, _vp_y1 = 0, _vp_x2 = 319, _vp_y2 = 239, _vp_clip = 0;
+-
+-static char _font8x8[96][8] = {
+-    {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
+-    {0x7E,0x81,0xA5,0x81,0xBD,0x99,0x81,0x7E},
+-    {0x7E,0xFF,0xDB,0xFF,0xC3,0xE7,0xFF,0x7E},
+-    {0x6C,0xFE,0xFE,0xFE,0x7C,0x38,0x10,0x00},
+-    {0x10,0x38,0x7C,0xFE,0x7C,0x38,0x10,0x00},
+-    {0x38,0x7C,0x38,0xFE,0xFE,0x10,0x10,0x7C},
+-    {0x00,0x18,0x3C,0x7E,0xFF,0x7E,0x18,0x7E},
+-    {0x00,0x00,0x18,0x3C,0x3C,0x18,0x00,0x00},
+-    {0xFF,0xFF,0xE7,0xC3,0xC3,0xE7,0xFF,0xFF},
+-    {0x00,0x3C,0x66,0x42,0x42,0x66,0x3C,0x00},
+-    {0xFF,0xC3,0x99,0xBD,0xBD,0x99,0xC3,0xFF},
+-    {0x0F,0x07,0x0F,0x7D,0xCC,0xCC,0xCC,0x78},
+-    {0x3C,0x66,0x66,0x66,0x3C,0x18,0x7E,0x18},
+-    {0x3F,0x33,0x3F,0x30,0x30,0x70,0xF0,0xE0},
+-    {0x7F,0x63,0x7F,0x63,0x63,0x67,0xE6,0xC0},
+-    {0x99,0x5A,0x3C,0xE7,0xE7,0x3C,0x5A,0x99},
+-    {0x80,0xE0,0xF8,0xFE,0xF8,0xE0,0x80,0x00},
+-    {0x02,0x0E,0x3E,0xFE,0x3E,0x0E,0x02,0x00},
+-    {0x18,0x3C,0x7E,0x18,0x18,0x7E,0x3C,0x18},
+-    {0x66,0x66,0x66,0x66,0x66,0x00,0x66,0x00},
+-    {0x7F,0xDB,0xDB,0x7B,0x1B,0x1B,0x1B,0x00},
+-    {0x3E,0x63,0x38,0x6C,0x6C,0x38,0xCC,0x78},
+-    {0x00,0x00,0x00,0x00,0x7E,0x7E,0x7E,0x00},
+-    {0x18,0x3C,0x7E,0x18,0x7E,0x3C,0x18,0xFF},
+-    {0x18,0x3C,0x7E,0x18,0x18,0x18,0x18,0x00},
+-    {0x18,0x18,0x18,0x18,0x7E,0x3C,0x18,0x00},
+-    {0x00,0x18,0x0C,0xFE,0x0C,0x18,0x00,0x00},
+-    {0x00,0x30,0x60,0xFE,0x60,0x30,0x00,0x00},
+-    {0x00,0x00,0xC0,0xC0,0xC0,0xFE,0x00,0x00},
+-    {0x00,0x24,0x66,0xFF,0x66,0x24,0x00,0x00},
+-    {0x00,0x10,0x38,0x7C,0xFE,0xFE,0x00,0x00},
+-    {0x00,0xFE,0xFE,0x7C,0x38,0x10,0x00,0x00},
+-    {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00},
+-    {0x18,0x3C,0x3C,0x18,0x18,0x00,0x18,0x00},
+-    {0x6C,0x6C,0x6C,0x00,0x00,0x00,0x00,0x00},
+-    {0x6C,0x6C,0xFE,0x6C,0xFE,0x6C,0x6C,0x00},
+-    {0x18,0x7E,0xC0,0x7C,0x06,0xFC,0x18,0x00},
+-    {0x00,0xC6,0xCC,0x18,0x30,0x66,0xC6,0x00},
+-    {0x38,0x6C,0x38,0x76,0xDC,0xCC,0x76,0x00},
+-    {0x30,0x30,0x60,0x00,0x00,0x00,0x00,0x00},
+-    {0x0C,0x18,0x30,0x30,0x30,0x18,0x0C,0x00},
+-    {0x30,0x18,0x0C,0x0C,0x0C,0x18,0x30,0x00},
+-    {0x00,0x66,0x3C,0xFF,0x3C,0x66,0x00,0x00},
+-    {0x00,0x18,0x18,0x7E,0x18,0x18,0x00,0x00},
+-    {0x00,0x00,0x00,0x00,0x18,0x18,0x30,0x00},
+-    {0x00,0x00,0x00,0x7E,0x00,0x00,0x00,0x00},
+-    {0x00,0x00,0x00,0x00,0x18,0x18,0x00,0x00},
+-    {0x06,0x0C,0x18,0x30,0x60,0xC0,0x80,0x00},
+-    {0x7C,0xC6,0xCE,0xD6,0xE6,0xC6,0x7C,0x00},
+-    {0x18,0x38,0x18,0x18,0x18,0x18,0x7E,0x00},
+-    {0x7C,0xC6,0x06,0x1C,0x30,0x66,0xFE,0x00},
+-    {0x7C,0xC6,0x06,0x3C,0x06,0xC6,0x7C,0x00},
+-    {0x1C,0x3C,0x6C,0xCC,0xFE,0x0C,0x1E,0x00},
+-    {0xFE,0xC0,0xFC,0x06,0x06,0xC6,0x7C,0x00},
+-    {0x3C,0x60,0xC0,0xFC,0xC6,0xC6,0x7C,0x00},
+-    {0xFE,0xC6,0x0C,0x18,0x30,0x30,0x30,0x00},
+-    {0x7C,0xC6,0xC6,0x7C,0xC6,0xC6,0x7C,0x00},
+-    {0x7C,0xC6,0xC6,0x7E,0x06,0x0C,0x78,0x00},
+-    {0x00,0x18,0x18,0x00,0x18,0x18,0x00,0x00},
+-    {0x00,0x18,0x18,0x00,0x18,0x18,0x30,0x00},
+-    {0x0C,0x18,0x30,0x60,0x30,0x18,0x0C,0x00},
+-    {0x00,0x00,0x7E,0x00,0x7E,0x00,0x00,0x00},
+-    {0x30,0x18,0x0C,0x06,0x0C,0x18,0x30,0x00},
+-    {0x3C,0x66,0x0C,0x18,0x18,0x00,0x18,0x00},
+-    {0x7C,0xC6,0xDE,0xDE,0xDE,0xC0,0x78,0x00},
+-    {0x38,0x6C,0xC6,0xFE,0xC6,0xC6,0xC6,0x00},
+-    {0xFC,0x66,0x66,0x7C,0x66,0x66,0xFC,0x00},
+-    {0x3C,0x66,0xC0,0xC0,0xC0,0x66,0x3C,0x00},
+-    {0xF8,0x6C,0x66,0x66,0x66,0x6C,0xF8,0x00},
+-    {0xFE,0x62,0x68,0x78,0x68,0x62,0xFE,0x00},
+-    {0xFE,0x62,0x68,0x78,0x68,0x60,0xF0,0x00},
+-    {0x3C,0x66,0xC0,0xC0,0xCE,0x66,0x3E,0x00},
+-    {0xC6,0xC6,0xC6,0xFE,0xC6,0xC6,0xC6,0x00},
+-    {0x7E,0x18,0x18,0x18,0x18,0x18,0x7E,0x00},
+-    {0x1E,0x0C,0x0C,0x0C,0xCC,0xCC,0x78,0x00},
+-    {0xE6,0x66,0x6C,0x78,0x6C,0x66,0xE6,0x00},
+-    {0xF0,0x60,0x60,0x60,0x62,0x66,0xFE,0x00},
+-    {0xC6,0xEE,0xFE,0xD6,0xC6,0xC6,0xC6,0x00},
+-    {0xC6,0xE6,0xF6,0xDE,0xCE,0xC6,0xC6,0x00},
+-    {0x38,0x6C,0xC6,0xC6,0xC6,0x6C,0x38,0x00},
+-    {0xFC,0x66,0x66,0x7C,0x60,0x60,0xF0,0x00},
+-    {0x7C,0xC6,0xC6,0xC6,0xD6,0x7C,0x0E,0x00},
+-    {0xFC,0x66,0x66,0x7C,0x6C,0x66,0xE6,0x00},
+-    {0x7C,0xC6,0xE0,0x7C,0x0E,0xC6,0x7C,0x00},
+-    {0x7E,0x5A,0x18,0x18,0x18,0x18,0x3C,0x00},
+-    {0xC6,0xC6,0xC6,0xC6,0xC6,0xC6,0x7C,0x00},
+-    {0xC6,0xC6,0xC6,0xC6,0xC6,0x6C,0x38,0x00},
+-    {0xC6,0xC6,0xC6,0xD6,0xFE,0xEE,0xC6,0x00},
+-    {0xC6,0xC6,0x6C,0x38,0x6C,0xC6,0xC6,0x00},
+-    {0x66,0x66,0x66,0x3C,0x18,0x18,0x3C,0x00},
+-    {0xFE,0xC6,0x8C,0x18,0x32,0x66,0xFE,0x00},
+-    {0x3C,0x30,0x30,0x30,0x30,0x30,0x3C,0x00},
+-    {0xC0,0x60,0x30,0x18,0x0C,0x06,0x02,0x00},
+-    {0x3C,0x0C,0x0C,0x0C,0x0C,0x0C,0x3C,0x00},
+-    {0x10,0x38,0x6C,0xC6,0x00,0x00,0x00,0x00},
+-    {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0xFF},
+-    {0x30,0x18,0x0C,0x00,0x00,0x00,0x00,0x00},
+-    {0x00,0x00,0x78,0x0C,0x7C,0xCC,0x76,0x00},
+-    {0xE0,0x60,0x7C,0x66,0x66,0x66,0xDC,0x00},
+-    {0x00,0x00,0x7C,0xC6,0xC0,0xC6,0x7C,0x00},
+-    {0x1C,0x0C,0x7C,0xCC,0xCC,0xCC,0x76,0x00},
+-    {0x00,0x00,0x7C,0xC6,0xFE,0xC0,0x7C,0x00},
+-    {0x3C,0x66,0x60,0xF8,0x60,0x60,0xF0,0x00},
+-    {0x00,0x00,0x76,0xCC,0xCC,0x7C,0x0C,0xF8},
+-    {0xE0,0x60,0x6C,0x76,0x66,0x66,0xE6,0x00},
+-    {0x18,0x00,0x38,0x18,0x18,0x18,0x3C,0x00},
+-    {0x06,0x00,0x0E,0x06,0x06,0x06,0x66,0x3C},
+-    {0xE0,0x60,0x66,0x6C,0x78,0x6C,0xE6,0x00},
+-    {0x38,0x18,0x18,0x18,0x18,0x18,0x3C,0x00},
+-    {0x00,0x00,0xEC,0xFE,0xD6,0xC6,0xC6,0x00},
+-    {0x00,0x00,0xDC,0x66,0x66,0x66,0x66,0x00},
+-    {0x00,0x00,0x7C,0xC6,0xC6,0xC6,0x7C,0x00},
+-    {0x00,0x00,0xDC,0x66,0x66,0x7C,0x60,0xF0},
+-    {0x00,0x00,0x76,0xCC,0xCC,0x7C,0x0C,0x1E},
+-    {0x00,0x00,0xDC,0x76,0x60,0x60,0xF0,0x00},
+-    {0x00,0x00,0x7E,0xC0,0x7C,0x06,0xFC,0x00},
+-    {0x30,0x30,0xFC,0x30,0x30,0x36,0x1C,0x00},
+-    {0x00,0x00,0xCC,0xCC,0xCC,0xCC,0x76,0x00},
+-    {0x00,0x00,0xC6,0xC6,0xC6,0x6C,0x38,0x00},
+-    {0x00,0x00,0xC6,0xC6,0xD6,0xFE,0x6C,0x00},
+-    {0x00,0x00,0xC6,0x6C,0x38,0x6C,0xC6,0x00},
+-    {0x00,0x00,0xC6,0xC6,0xC6,0x7E,0x06,0xFC},
+-    {0x00,0x00,0xFE,0x8C,0x18,0x32,0xFE,0x00},
+-    {0x0E,0x18,0x18,0x70,0x18,0x18,0x0E,0x00},
+-    {0x18,0x18,0x18,0x18,0x18,0x18,0x18,0x00},
+-    {0x70,0x18,0x18,0x0E,0x18,0x18,0x70,0x00},
+-    {0x76,0xDC,0x00,0x00,0x00,0x00,0x00,0x00},
+-};
+-
+-static void write_pixel(int x, int y, int r, int g, int b)
+-{
+-    char *fb = (char *)GFX_BASE;
+-    int off = (y * GFX_WIDTH + x) * 3;
+-    if (x < 0 || x >= GFX_WIDTH || y < 0 || y >= GFX_HEIGHT) return;
+-    fb[off] = (char)r;
+-    fb[off + 1] = (char)g;
+-    fb[off + 2] = (char)b;
+-}
+-
+-static void read_pixel(int x, int y, int *r, int *g, int *b)
+-{
+-    char *fb = (char *)GFX_BASE;
+-    int off = (y * GFX_WIDTH + x) * 3;
+-    if (x < 0 || x >= GFX_WIDTH || y < 0 || y >= GFX_HEIGHT) { *r = 0; *g = 0; *b = 0; return; }
+-    *r = (char)fb[off];
+-    *g = (char)fb[off + 1];
+-    *b = (char)fb[off + 2];
+-}
+-
+-static void palette_to_rgb(int color, int *r, int *g, int *b)
+-{
+-    char *pal = (char *)PAL_BASE;
+-    if (color < 0 || color > 15)
+-    {
+-        *r = 0; *g = 0; *b = 0;
+-        return;
+-    }
+-    *r = pal[color * 3];
+-    *g = pal[color * 3 + 1];
+-    *b = pal[color * 3 + 2];
+-}
+-
+-static int rgb_to_palette(int r, int g, int b)
+-{
+-    char *pal = (char *)PAL_BASE;
+-    int best = 0;
+-    int best_dist = 999999;
+-    int i;
+-    for (i = 0; i < 16; i++)
+-    {
+-        int dr = r - (int)pal[i * 3];
+-        int dg = g - (int)pal[i * 3 + 1];
+-        int db = b - (int)pal[i * 3 + 2];
+-        int dist = dr * dr + dg * dg + db * db;
+-        if (dist < best_dist) { best_dist = dist; best = i; }
+-    }
+-    return best;
+-}
+-
+-void initgraph(int *gd, int *gm, const char *path)
+-{
+-    int i, j;
+-    char *fb = (char *)GFX_BASE;
+-    _graph_ok = 1;
+-    _current_color = WHITE;
+-    _bg_color = BLACK;
+-    _cp_x = 0;
+-    _cp_y = 0;
+-    for (i = 0; i < GFX_HEIGHT; i++)
+-        for (j = 0; j < GFX_WIDTH; j++)
+-        {
+-            int off = (i * GFX_WIDTH + j) * 3;
+-            fb[off] = 0;
+-            fb[off + 1] = 0;
+-            fb[off + 2] = 0;
+-        }
+-}
+-
+-void closegraph(void)
+-{
+-    _graph_ok = 0;
+-}
+-
+-int graphresult(void)
+-{
+-    return 0;
+-}
+-
+-char *grapherrormsg(int code)
+-{
+-    switch (code) {
+-        case 0: return "No error";
+-        case -1: return "Graphics not initialized";
+-        case -2: return "Invalid driver";
+-        case -3: return "Invalid mode";
+-        default: return "Unknown error";
+-    }
+-}
+-
+-void setcolor(int color)
+-{
+-    _current_color = color;
+-}
+-
+-void setbkcolor(int color)
+-{
+-    _bg_color = color;
+-}
+-
+-int getcolor(void)
+-{
+-    return _current_color;
+-}
+-
+-int getmaxx(void)
+-{
+-    return GFX_WIDTH - 1;
+-}
+-
+-int getmaxy(void)
+-{
+-    return GFX_HEIGHT - 1;
+-}
+-
+-void putpixel(int x, int y, int color)
+-{
+-    int r, g, b;
+-    if (_vp_clip && (x < _vp_x1 || x > _vp_x2 || y < _vp_y1 || y > _vp_y2)) return;
+-    palette_to_rgb(color, &r, &g, &b);
+-    write_pixel(x, y, r, g, b);
+-}
+-
+-int getpixel(int x, int y)
+-{
+-    int r, g, b;
+-    if (x < 0 || x >= GFX_WIDTH || y < 0 || y >= GFX_HEIGHT) return 0;
+-    read_pixel(x, y, &r, &g, &b);
+-    return rgb_to_palette(r, g, b);
+-}
+-
+-void moveto(int x, int y)
+-{
+-    _cp_x = x;
+-    _cp_y = y;
+-}
+-
+-void moverel(int dx, int dy)
+-{
+-    _cp_x += dx;
+-    _cp_y += dy;
+-}
+-
+-static int abs_int(int x)
+-{
+-    return x < 0 ? -x : x;
+-}
+-
+-static void draw_line_low(int x0, int y0, int x1, int y1, int color)
+-{
+-    int dx = x1 - x0;
+-    int dy = y1 - y0;
+-    int yi = 1;
+-    int D, x, y;
+-    if (dy < 0) { yi = -1; dy = -dy; }
+-    D = 2 * dy - dx;
+-    y = y0;
+-    for (x = x0; x <= x1; x++)
+-    {
+-        putpixel(x, y, color);
+-        if (D > 0) { y += yi; D -= 2 * dx; }
+-        D += 2 * dy;
+-    }
+-}
+-
+-static void draw_line_high(int x0, int y0, int x1, int y1, int color)
+-{
+-    int dx = x1 - x0;
+-    int dy = y1 - y0;
+-    int xi = 1;
+-    int D, x, y;
+-    if (dx < 0) { xi = -1; dx = -dx; }
+-    D = 2 * dx - dy;
+-    x = x0;
+-    for (y = y0; y <= y1; y++)
+-    {
+-        putpixel(x, y, color);
+-        if (D > 0) { x += xi; D -= 2 * dy; }
+-        D += 2 * dx;
+-    }
+-}
+-
+-void line(int x1, int y1, int x2, int y2)
+-{
+-    int color = _current_color;
+-    if (x1 == x2 && y1 == y2) { putpixel(x1, y1, color); return; }
+-    if (abs_int(y2 - y1) < abs_int(x2 - x1))
+-    {
+-        if (x1 > x2) { int t; t = x1; x1 = x2; x2 = t; t = y1; y1 = y2; y2 = t; }
+-        draw_line_low(x1, y1, x2, y2, color);
+-    }
+-    else
+-    {
+-        if (y1 > y2) { int t; t = x1; x1 = x2; x2 = t; t = y1; y1 = y2; y2 = t; }
+-        draw_line_high(x1, y1, x2, y2, color);
+-    }
+-}
+-
+-void lineto(int x, int y)
+-{
+-    line(_cp_x, _cp_y, x, y);
+-    _cp_x = x;
+-    _cp_y = y;
+-}
+-
+-void linerel(int dx, int dy)
+-{
+-    lineto(_cp_x + dx, _cp_y + dy);
+-}
+-
+-void circle(int xc, int yc, int r)
+-{
+-    int x = 0, y = r;
+-    int d = 3 - 2 * r;
+-    int color = _current_color;
+-    while (y >= x)
+-    {
+-        putpixel(xc + x, yc + y, color);
+-        putpixel(xc - x, yc + y, color);
+-        putpixel(xc + x, yc - y, color);
+-        putpixel(xc - x, yc - y, color);
+-        putpixel(xc + y, yc + x, color);
+-        putpixel(xc - y, yc + x, color);
+-        putpixel(xc + y, yc - x, color);
+-        putpixel(xc - y, yc - x, color);
+-        x++;
+-        if (d > 0) { y--; d = d + 4 * (x - y) + 10; }
+-        else d = d + 4 * x + 6;
+-    }
+-}
+-
+-void arc(int x, int y, int stangle, int endangle, int radius)
+-{
+-    int xp = 0, yp = radius;
+-    int d = 3 - 2 * radius;
+-    int xa, ya;
+-    int color = _current_color;
+-
+-    while (yp >= xp)
+-    {
+-        int pts[8][2] = {
+-            {xp, yp}, {-xp, yp}, {xp, -yp}, {-xp, -yp},
+-            {yp, xp}, {-yp, xp}, {yp, -xp}, {-yp, -xp}
+-        };
+-        int i;
+-        for (i = 0; i < 8; i++)
+-        {
+-            xa = x + pts[i][0];
+-            ya = y + pts[i][1];
+-            double angle;
+-            if (xa == x)
+-                angle = (ya > y) ? 90.0 : 270.0;
+-            else
+-            {
+-                angle = atan2_approx(ya - y, xa - x) * 180.0 / 3.14159265;
+-            }
+-            if (angle < 0) angle += 360.0;
+-            if (stangle <= endangle)
+-            {
+-                if (angle >= stangle && angle <= endangle)
+-                    putpixel(xa, ya, color);
+-            }
+-            else
+-            {
+-                if (angle >= stangle || angle <= endangle)
+-                    putpixel(xa, ya, color);
+-            }
+-        }
+-        xp++;
+-        if (d > 0) { yp--; d = d + 4 * (xp - yp) + 10; }
+-        else d = d + 4 * xp + 6;
+-    }
+-}
+-
+-void ellipse(int xc, int yc, int stangle, int endangle, int xradius, int yradius)
+-{
+-    int x = 0, y = yradius;
+-    int rx = xradius, ry = yradius;
+-    int color = _current_color;
+-    double d1, d2;
+-
+-    d1 = (double)(ry * ry) - (double)(rx * rx) * ry + (double)(rx * rx) * 0.25;
+-
+-    while (2 * (double)(ry * ry) * x <= 2 * (double)(rx * rx) * y)
+-    {
+-        putpixel(xc + x, yc + y, color);
+-        putpixel(xc - x, yc + y, color);
+-        putpixel(xc + x, yc - y, color);
+-        putpixel(xc - x, yc - y, color);
+-        if (d1 < 0)
+-        {
+-            x++;
+-            d1 += 2 * (double)(ry * ry) * x + (double)(ry * ry);
+-        }
+-        else
+-        {
+-            x++;
+-            y--;
+-            d1 += 2 * (double)(ry * ry) * x - 2 * (double)(rx * rx) * y + (double)(ry * ry);
+-        }
+-    }
+-
+-    d2 = (double)(ry * ry) * (x + 0.5) * (x + 0.5) + (double)(rx * rx) * (y - 1) * (y - 1) - (double)(rx * rx) * (double)(ry * ry);
+-
+-    while (y >= 0)
+-    {
+-        putpixel(xc + x, yc + y, color);
+-        putpixel(xc - x, yc + y, color);
+-        putpixel(xc + x, yc - y, color);
+-        putpixel(xc - x, yc - y, color);
+-        if (d2 > 0)
+-        {
+-            y--;
+-            d2 += (double)(rx * rx) - 2 * (double)(rx * rx) * y;
+-        }
+-        else
+-        {
+-            y--;
+-            x++;
+-            d2 += 2 * (double)(ry * ry) * x - 2 * (double)(rx * rx) * y + (double)(rx * rx);
+-        }
+-    }
+-}
+-
+-void rectangle(int left, int top, int right, int bottom)
+-{
+-    int color = _current_color;
+-    line(left, top, right, top);
+-    line(right, top, right, bottom);
+-    line(right, bottom, left, bottom);
+-    line(left, bottom, left, top);
+-}
+-
+-void bar(int left, int top, int right, int bottom)
+-{
+-    int x, y, color = _fill_color;
+-    for (y = top; y <= bottom; y++)
+-        for (x = left; x <= right; x++)
+-            putpixel(x, y, color);
+-}
+-
+-void bar3d(int left, int top, int right, int bottom, int depth, int topflag)
+-{
+-    int color = _current_color;
+-    bar(left, top, right, bottom);
+-    setcolor(color);
+-    rectangle(left, top, right, bottom);
+-    line(right + depth, top - depth, right + depth, bottom - depth);
+-    line(right + depth, bottom - depth, right, bottom);
+-    line(right + depth, top - depth, right, top);
+-    if (topflag)
+-        line(left, top, left + depth, top - depth);
+-    setcolor(color);
+-}
+-
+-void setfillstyle(int pattern, int color)
+-{
+-    _fill_pattern = pattern;
+-    _fill_color = color;
+-}
+-
+-void floodfill(int x, int y, int border)
+-{
+-    int old_color = getpixel(x, y);
+-    if (old_color == border) return;
+-
+-    {
+-        int stack[4096];
+-        int sp = 0;
+-        int sx, sy, c;
+-
+-        stack[sp++] = x;
+-        stack[sp++] = y;
+-
+-        while (sp > 0)
+-        {
+-            sy = stack[--sp];
+-            sx = stack[--sp];
+-            if (sx < 0 || sx >= GFX_WIDTH || sy < 0 || sy >= GFX_HEIGHT) continue;
+-            if (_vp_clip && (sx < _vp_x1 || sx > _vp_x2 || sy < _vp_y1 || sy > _vp_y2)) continue;
+-            c = getpixel(sx, sy);
+-            if (c == border || c != old_color) continue;
+-            putpixel(sx, sy, _fill_color);
+-            stack[sp++] = sx + 1; stack[sp++] = sy;
+-            stack[sp++] = sx - 1; stack[sp++] = sy;
+-            stack[sp++] = sx; stack[sp++] = sy + 1;
+-            stack[sp++] = sx; stack[sp++] = sy - 1;
+-        }
+-    }
+-}
+-
+-void setlinestyle(int linestyle, int pattern, int thickness)
+-{
+-}
+-
+-void outtextxy(int x, int y, const char *str)
+-{
+-    int color = _current_color;
+-    int r, g, b;
+-    palette_to_rgb(color, &r, &g, &b);
+-
+-    while (*str)
+-    {
+-        char c = (char)*str;
+-        int row, col;
+-        if (c < 32 || c > 127) { str++; x += 8; continue; }
+-        c -= 32;
+-        for (row = 0; row < 8; row++)
+-        {
+-            char font_byte = _font8x8[c][row];
+-            for (col = 0; col < 8; col++)
+-            {
+-                if (font_byte & (0x80 >> col))
+-                {
+-                    int px = x + col;
+-                    int py = y + row;
+-                    if (px >= 0 && px < GFX_WIDTH && py >= 0 && py < GFX_HEIGHT)
+-                        write_pixel(px, py, r, g, b);
+-                }
+-            }
+-        }
+-        x += 8;
+-        str++;
+-    }
+-}
+-
+-void outtext(const char *str)
+-{
+-    outtextxy(_cp_x, _cp_y, str);
+-}
+-
+-void settextstyle(int font, int direction, int charsize)
+-{
+-}
+-
+-void setviewport(int x1, int y1, int x2, int y2, int clip)
+-{
+-    _vp_x1 = x1; _vp_y1 = y1;
+-    _vp_x2 = x2; _vp_y2 = y2;
+-    _vp_clip = clip;
+-}
+-
+-void clearviewport(void)
+-{
+-    int i, j;
+-    char *fb = (char *)GFX_BASE;
+-    for (i = _vp_y1; i <= _vp_y2 && i < GFX_HEIGHT; i++)
+-        for (j = _vp_x1; j <= _vp_x2 && j < GFX_WIDTH; j++)
+-        {
+-            int off = (i * GFX_WIDTH + j) * 3;
+-            fb[off] = 0; fb[off + 1] = 0; fb[off + 2] = 0;
+-        }
+-}
+-
+-int imagesize(int x1, int y1, int x2, int y2)
+-{
+-    int w = x2 - x1 + 1;
+-    int h = y2 - y1 + 1;
+-    return w * h * 3 + 8;
+-}
+-
+-void getimage(int x1, int y1, int x2, int y2, void *buf)
+-{
+-    char *fb = (char *)GFX_BASE;
+-    char *b = (char *)buf;
+-    int w = x2 - x1 + 1;
+-    int h = y2 - y1 + 1;
+-    int x, y;
+-
+-    *(int *)b = w; b += 4;
+-    *(int *)b = h; b += 4;
+-
+-    for (y = y1; y <= y2; y++)
+-        for (x = x1; x <= x2; x++)
+-        {
+-            int off = (y * GFX_WIDTH + x) * 3;
+-            *b++ = fb[off];
+-            *b++ = fb[off + 1];
+-            *b++ = fb[off + 2];
+-        }
+-}
+-
+-void putimage(int x, int y, void *buf, int op)
+-{
+-    char *fb = (char *)GFX_BASE;
+-    char *b = (char *)buf;
+-    int w = *(int *)b; b += 4;
+-    int h = *(int *)b; b += 4;
+-    int px, py;
+-
+-    for (py = 0; py < h; py++)
+-        for (px = 0; px < w; px++)
+-        {
+-            int fx = x + px;
+-            int fy = y + py;
+-            if (fx >= 0 && fx < GFX_WIDTH && fy >= 0 && fy < GFX_HEIGHT)
+-            {
+-                int off = (fy * GFX_WIDTH + fx) * 3;
+-                if (op == COPY_PUT)
+-                {
+-                    fb[off] = *b++;
+-                    fb[off + 1] = *b++;
+-                    fb[off + 2] = *b++;
+-                }
+-                else
+-                {
+-                    fb[off] ^= *b++;
+-                    fb[off + 1] ^= *b++;
+-                    fb[off + 2] ^= *b++;
+-                }
+-            }
+-            else b += 3;
+-        }
+-}
+-
+-void drawpoly(int numpoints, int *polypoints)
+-{
+-    int i;
+-    int color = _current_color;
+-    for (i = 0; i < numpoints - 1; i++)
+-        line(polypoints[i * 2], polypoints[i * 2 + 1],
+-             polypoints[(i + 1) * 2], polypoints[(i + 1) * 2 + 1]);
+-    line(polypoints[(numpoints - 1) * 2], polypoints[(numpoints - 1) * 2 + 1],
+-         polypoints[0], polypoints[1]);
+-}
+-
+-void fillpoly(int numpoints, int *polypoints)
+-{
+-    int i, j;
+-    int color = _fill_color;
+-    int min_y = 9999, max_y = -9999;
+-    int x, y;
+-
+-    for (i = 0; i < numpoints; i++)
+-    {
+-        int py = polypoints[i * 2 + 1];
+-        if (py < min_y) min_y = py;
+-        if (py > max_y) max_y = py;
+-    }
+-
+-    for (y = min_y; y <= max_y; y++)
+-    {
+-        int inter[100];
+-        int inter_cnt = 0;
+-
+-        for (i = 0; i < numpoints; i++)
+-        {
+-            int j = (i + 1) % numpoints;
+-            int x1 = polypoints[i * 2];
+-            int y1 = polypoints[i * 2 + 1];
+-            int x2 = polypoints[j * 2];
+-            int y2 = polypoints[j * 2 + 1];
+-
+-            if ((y1 <= y && y2 > y) || (y2 <= y && y1 > y))
+-            {
+-                int x_inter = x1 + (y - y1) * (x2 - x1) / (y2 - y1);
+-                if (inter_cnt < 100) inter[inter_cnt++] = x_inter;
+-            }
+-        }
+-
+-        for (i = 0; i < inter_cnt - 1; i++)
+-            for (j = 0; j < inter_cnt - 1 - i; j++)
+-                if (inter[j] > inter[j + 1])
+-                {
+-                    int t = inter[j];
+-                    inter[j] = inter[j + 1];
+-                    inter[j + 1] = t;
+-                }
+-
+-        for (i = 0; i + 1 < inter_cnt; i += 2)
+-            for (x = inter[i]; x <= inter[i + 1]; x++)
+-                putpixel(x, y, color);
+-    }
+-
+-    drawpoly(numpoints, polypoints);
+-}
+-
+-void sector(int x, int y, int stangle, int endangle, int xradius, int yradius)
+-{
+-    int color = _fill_color;
+-    int border = _current_color;
+-    double st = stangle * 3.14159265 / 180.0;
+-    double en = endangle * 3.14159265 / 180.0;
+-    double a;
+-    int px, py;
+-
+-    if (stangle > endangle) { a = st; st = en; en = a; }
+-
+-    for (a = st; a <= en; a += 0.01)
+-    {
+-        px = x + (int)(xradius * cos(a));
+-        py = y + (int)(yradius * sin(a));
+-        line(x, y, px, py);
+-    }
+-
+-    setcolor(border);
+-    for (a = st; a <= en; a += 0.01)
+-    {
+-        px = x + (int)(xradius * cos(a));
+-        py = y + (int)(yradius * sin(a));
+-        putpixel(px, py, border);
+-    }
+-}
+-
+-void pieslice(int x, int y, int stangle, int endangle, int radius)
+-{
+-    sector(x, y, stangle, endangle, radius, radius);
+-}
+-
+-static double atan2_approx(double y, double x)
+-{
+-    if (x > 0.0) return atan_approx(y / x);
+-    if (x < 0.0)
+-    {
+-        if (y >= 0.0) return atan_approx(y / x) + 3.14159265;
+-        return atan_approx(y / x) - 3.14159265;
+-    }
+-    if (y > 0.0) return 3.14159265 / 2.0;
+-    if (y < 0.0) return -3.14159265 / 2.0;
+-    return 0.0;
+-}
+-
+-static double atan_approx(double x)
+-{
+-    double x2 = x * x;
+-    return x - x2 * x / 3.0 + x2 * x2 * x / 5.0 - x2 * x2 * x2 * x / 7.0 + x2 * x2 * x2 * x2 * x / 9.0;
+-}
+diff --git a/third_party/vml/Lib/c/math.c b/third_party/vml/Lib/c/math.c
+deleted file mode 100644
+index 57fdd6e9..00000000
+--- a/third_party/vml/Lib/c/math.c
++++ /dev/null
+@@ -1,259 +0,0 @@
+-#include "math.h"
+-#include <errno.h>
+-
+-#define PI      3.141592653589793
+-#define PI2     6.283185307179586
+-#define PI_HALF 1.570796326794896
+-
+-int errno = 0;
+-
+-static double _sin_taylor(double x);
+-static double _cos_taylor(double x);
+-static double atan_approx(double x);
+-
+-static double _sin_taylor(double x)
+-{
+-    double x2 = x * x;
+-    double term = x;
+-    double sum = x;
+-    int n;
+-    for (n = 1; n < 12; n++)
+-    {
+-        term *= -x2 / (double)((2 * n) * (2 * n + 1));
+-        sum += term;
+-        if (term < 1e-10 && term > -1e-10) break;
+-    }
+-    return sum;
+-}
+-
+-static double _cos_taylor(double x)
+-{
+-    double x2 = x * x;
+-    double term = 1.0;
+-    double sum = 1.0;
+-    int n;
+-    for (n = 1; n < 12; n++)
+-    {
+-        term *= -x2 / (double)((2 * n - 1) * (2 * n));
+-        sum += term;
+-        if (term < 1e-10 && term > -1e-10) break;
+-    }
+-    return sum;
+-}
+-
+-double sin(double x)
+-{
+-    double sign = 1.0;
+-    if (x < 0) { x = -x; sign = -1.0; }
+-    x = x - (double)(int)(x / PI2) * PI2;
+-    if (x > PI) { x -= PI; sign = -sign; }
+-    if (x > PI_HALF) x = PI - x;
+-    return sign * _sin_taylor(x);
+-}
+-
+-double cos(double x)
+-{
+-    if (x < 0) x = -x;
+-    x = x - (double)(int)(x / PI2) * PI2;
+-    if (x > PI) x = PI2 - x;
+-    if (x > PI_HALF) x = PI - x;
+-    return _cos_taylor(x);
+-}
+-
+-double tan(double x)
+-{
+-    double s = sin(x);
+-    double c = cos(x);
+-    if (c < 1e-15 && c > -1e-15) return 0.0;
+-    return s / c;
+-}
+-
+-double asin(double x)
+-{
+-    if (x < -1.0 || x > 1.0) { errno = EDOM; return 0.0; }
+-    return atan2(x, sqrt(1.0 - x * x));
+-}
+-
+-double acos(double x)
+-{
+-    if (x < -1.0 || x > 1.0) { errno = EDOM; return 0.0; }
+-    return atan2(sqrt(1.0 - x * x), x);
+-}
+-
+-double atan(double x)
+-{
+-    return atan2(x, 1.0);
+-}
+-
+-double atan2(double y, double x)
+-{
+-    if (x > 0.0) return atan_approx(y / x);
+-    if (x < 0.0)
+-    {
+-        if (y >= 0.0) return atan_approx(y / x) + PI;
+-        return atan_approx(y / x) - PI;
+-    }
+-    if (y > 0.0) return PI_HALF;
+-    if (y < 0.0) return -PI_HALF;
+-    return 0.0;
+-}
+-
+-static double atan_approx(double x)
+-{
+-    double x2 = x * x;
+-    double term = x;
+-    double sum = x;
+-    int n;
+-    for (n = 1; n < 15; n++)
+-    {
+-        term *= -x2 * (double)(2 * n - 1) / (double)(2 * n + 1);
+-        sum += term;
+-        if (term < 1e-10 && term > -1e-10) break;
+-    }
+-    return sum;
+-}
+-
+-double sinh(double x)
+-{
+-    double e = exp(x);
+-    return (e - 1.0 / e) * 0.5;
+-}
+-
+-double cosh(double x)
+-{
+-    double e = exp(x);
+-    return (e + 1.0 / e) * 0.5;
+-}
+-
+-double tanh(double x)
+-{
+-    double e = exp(x);
+-    double em1 = 1.0 / e;
+-    return (e - em1) / (e + em1);
+-}
+-
+-double exp(double x)
+-{
+-    int i, n;
+-    double term = 1.0;
+-    double sum = 1.0;
+-    if (x < 0.0) return 1.0 / exp(-x);
+-    n = (int)x;
+-    x -= (double)n;
+-    for (i = 1; i < 20; i++)
+-    {
+-        term *= x / (double)i;
+-        sum += term;
+-        if (term < 1e-12) break;
+-    }
+-    for (i = 0; i < n; i++) sum *= 2.718281828459045;
+-    return sum;
+-}
+-
+-static double _log_taylor(double x)
+-{
+-    double term = x;
+-    double sum = x;
+-    int n;
+-    for (n = 2; n < 30; n++)
+-    {
+-        term *= -x * (double)(n - 1) / (double)n;
+-        sum += term;
+-        if (term < 1e-10 && term > -1e-10) break;
+-    }
+-    return sum;
+-}
+-
+-double log(double x)
+-{
+-    int e = 0;
+-    if (x <= 0.0) { errno = EDOM; return 0.0; }
+-    while (x > 1.5) { x /= 2.718281828459045; e++; }
+-    while (x < 0.6) { x *= 2.718281828459045; e--; }
+-    return _log_taylor(x - 1.0) + (double)e;
+-}
+-
+-double log10(double x)
+-{
+-    return log(x) / 2.302585092994046;
+-}
+-
+-double pow(double x, double y)
+-{
+-    int i;
+-    int int_y;
+-    if (y == 0.0) return 1.0;
+-    if (x == 0.0) return 0.0;
+-    int_y = (int)y;
+-    if ((double)int_y == y && int_y >= 0)
+-    {
+-        double result = 1.0;
+-        for (i = 0; i < int_y; i++) result *= x;
+-        return result;
+-    }
+-    return exp(y * log(x));
+-}
+-
+-double sqrt(double x)
+-{
+-    double guess, prev;
+-    if (x < 0.0) { errno = EDOM; return 0.0; }
+-    if (x == 0.0) return 0.0;
+-    guess = x * 0.5 + 0.5;
+-    do {
+-        prev = guess;
+-        guess = (guess + x / guess) * 0.5;
+-    } while (guess < prev - 1e-10 || guess > prev + 1e-10);
+-    return guess;
+-}
+-
+-double ceil(double x)
+-{
+-    int i = (int)x;
+-    if ((double)i == x) return x;
+-    return x > 0.0 ? (double)(i + 1) : (double)i;
+-}
+-
+-double floor(double x)
+-{
+-    int i = (int)x;
+-    if ((double)i == x) return x;
+-    return x > 0.0 ? (double)i : (double)(i - 1);
+-}
+-
+-double fabs(double x)
+-{
+-    return x < 0.0 ? -x : x;
+-}
+-
+-double fmod(double x, double y)
+-{
+-    if (y == 0.0) { errno = EDOM; return 0.0; }
+-    return x - (double)(int)(x / y) * y;
+-}
+-
+-double frexp(double value, int *exp)
+-{
+-    int e = 0;
+-    if (value == 0.0) { *exp = 0; return 0.0; }
+-    if (value < 0.0) return -frexp(-value, exp);
+-    while (value >= 1.0) { value *= 0.5; e++; }
+-    while (value < 0.5) { value *= 2.0; e--; }
+-    *exp = e;
+-    return value;
+-}
+-
+-double ldexp(double x, int exp)
+-{
+-    int i;
+-    if (exp > 0) for (i = 0; i < exp; i++) x *= 2.0;
+-    else for (i = 0; i < -exp; i++) x *= 0.5;
+-    return x;
+-}
+-
+-double modf(double value, double *iptr)
+-{
+-    int i = (int)value;
+-    *iptr = (double)i;
+-    return value - *iptr;
+-}
+diff --git a/third_party/vml/Lib/c/signal.c b/third_party/vml/Lib/c/signal.c
+deleted file mode 100644
+index 65c75460..00000000
+--- a/third_party/vml/Lib/c/signal.c
++++ /dev/null
+@@ -1,22 +0,0 @@
+-/* Signal handling implementation (OS mode) */
+-#include "signal.h"
+-
+-/* ── signal: register a handler for a given signal ── */
+-void (*signal(int signum, void (*handler)(int)))(int)
+-{
+-    unsigned int* ivt = (unsigned int*)IVT_BASE;
+-    void (*old_handler)(int) = (void (*)(int))ivt[signum];
+-    ivt[signum] = (unsigned int)handler;
+-    return old_handler;
+-}
+-
+-/* ── raise: send a signal to the current process ── */
+-int raise(int signum)
+-{
+-    /* Trigger software interrupt via INT instruction.
+-     * The runtime handler dispatches based on the vector number.
+-     * signum is passed via R0 register. */
+-    asm("MOVE R0, signum");
+-    asm("INT R0");
+-    return 0;
+-}
+diff --git a/third_party/vml/Lib/c/stdlib.c b/third_party/vml/Lib/c/stdlib.c
+deleted file mode 100644
+index fdd284c1..00000000
+--- a/third_party/vml/Lib/c/stdlib.c
++++ /dev/null
+@@ -1,126 +0,0 @@
+-/* C标准库 — 用C语言本身实现
+- * 编译器: CCompiler → VML
+- * 所有函数使用C语言形式调用约定:
+- *   参数从右向左压栈，调用者清理栈
+- *   返回值在 R0
+- */
+-
+-/* ---------- I/O 函数 ---------- */
+-
+-int putchar(int c) {
+-    /* SYSCALL #4: OutputChar */
+-    asm("MOVE R0, c");
+-    asm("SYSCALL #4");
+-    return c;
+-}
+-
+-int puts(const char* s) {
+-    /* SYSCALL #1: OutputString */
+-    asm("MOVE R0, s");
+-    asm("SYSCALL #1");
+-    asm("MOVE R0, #10");
+-    asm("SYSCALL #4");  /* 换行 */
+-    return 1;
+-}
+-
+-int getchar(void) {
+-    /* SYSCALL #5: InputChar */
+-    int c;
+-    asm("SYSCALL #5");
+-    asm("MOVE c, R0");
+-    return c;
+-}
+-
+-/* ---------- 内存操作 ---------- */
+-
+-void* memset(void* ptr, int value, int num) {
+-    char* p = (char*)ptr;
+-    while (num > 0) {
+-        *p = (char)value;
+-        p++;
+-        num--;
+-    }
+-    return ptr;
+-}
+-
+-void* memcpy(void* dest, const void* src, int num) {
+-    char* d = (char*)dest;
+-    const char* s = (const char*)src;
+-    while (num > 0) {
+-        *d = *s;
+-        d++;
+-        s++;
+-        num--;
+-    }
+-    return dest;
+-}
+-
+-int memcmp(const void* ptr1, const void* ptr2, int num) {
+-    const char* p1 = (const char*)ptr1;
+-    const char* p2 = (const char*)ptr2;
+-    while (num > 0) {
+-        if (*p1 != *p2) return *p1 - *p2;
+-        p1++; p2++; num--;
+-    }
+-    return 0;
+-}
+-
+-/* ---------- 字符串操作 ---------- */
+-
+-int strlen(const char* s) {
+-    int len = 0;
+-    while (s[len] != 0) len++;
+-    return len;
+-}
+-
+-char* strcpy(char* dest, const char* src) {
+-    char* d = dest;
+-    while (*src != 0) { *d = *src; d++; src++; }
+-    *d = 0;
+-    return dest;
+-}
+-
+-char* strcat(char* dest, const char* src) {
+-    char* d = dest + strlen(dest);
+-    while (*src != 0) { *d = *src; d++; src++; }
+-    *d = 0;
+-    return dest;
+-}
+-
+-int strcmp(const char* s1, const char* s2) {
+-    while (*s1 != 0 && *s2 != 0 && *s1 == *s2) { s1++; s2++; }
+-    return *s1 - *s2;
+-}
+-
+-/* ---------- 数学函数 ---------- */
+-
+-int abs(int x) {
+-    return x < 0 ? -x : x;
+-}
+-
+-int min(int a, int b) {
+-    return a < b ? a : b;
+-}
+-
+-int max(int a, int b) {
+-    return a > b ? a : b;
+-}
+-
+-/* ---------- 工具函数 ---------- */
+-
+-void exit(int code) {
+-    asm("SYSCALL #3");
+-}
+-
+-int atoi(const char* s) {
+-    int result = 0;
+-    int sign = 1;
+-    while (*s == ' ') s++;
+-    if (*s == '-') { sign = -1; s++; }
+-    else if (*s == '+') s++;
+-    while (*s >= '0' && *s <= '9') {
+-        result = result * 10 + (*s - '0');
+-        s++;
+-    }
+-    return result * sign;
+-}
+diff --git a/third_party/vml/Lib/c/string.c b/third_party/vml/Lib/c/string.c
+deleted file mode 100644
+index 4febd585..00000000
+--- a/third_party/vml/Lib/c/string.c
++++ /dev/null
+@@ -1,346 +0,0 @@
+-#include "string.h"
+-
+-void *memcpy(void *dest, const void *src, size_t n)
+-{
+-    char *d = (char *)dest;
+-    const char *s = (const char *)src;
+-    while (n--)
+-    {
+-        *d++ = *s++;
+-    }
+-    return dest;
+-}
+-
+-void *memmove(void *dest, const void *src, size_t n)
+-{
+-    char *d = (char *)dest;
+-    const char *s = (const char *)src;
+-    if (d < s)
+-    {
+-        while (n--)
+-        {
+-            *d++ = *s++;
+-        }
+-    }
+-    else
+-    {
+-        d += n;
+-        s += n;
+-        while (n--)
+-        {
+-            *--d = *--s;
+-        }
+-    }
+-    return dest;
+-}
+-
+-char *strcpy(char *dest, const char *src)
+-{
+-    char *p = dest;
+-    while (*src)
+-    {
+-        *p++ = *src++;
+-    }
+-    *p = '\0';
+-    return dest;
+-}
+-
+-char *strncpy(char *dest, const char *src, size_t n)
+-{
+-    char *p = dest;
+-    while (n > 0 && *src)
+-    {
+-        *p++ = *src++;
+-        n--;
+-    }
+-    while (n > 0)
+-    {
+-        *p++ = '\0';
+-        n--;
+-    }
+-    return dest;
+-}
+-
+-char *strcat(char *dest, const char *src)
+-{
+-    char *p = dest;
+-    while (*p)
+-        p++;
+-    while (*src)
+-    {
+-        *p++ = *src++;
+-    }
+-    *p = '\0';
+-    return dest;
+-}
+-
+-char *strncat(char *dest, const char *src, size_t n)
+-{
+-    char *p = dest;
+-    while (*p)
+-        p++;
+-    while (n-- > 0 && *src)
+-    {
+-        *p++ = *src++;
+-    }
+-    *p = '\0';
+-    return dest;
+-}
+-
+-int memcmp(const void *s1, const void *s2, size_t n)
+-{
+-    const char *p1 = (const char *)s1;
+-    const char *p2 = (const char *)s2;
+-    while (n--)
+-    {
+-        if (*p1 != *p2)
+-        {
+-            return *p1 - *p2;
+-        }
+-        p1++;
+-        p2++;
+-    }
+-    return 0;
+-}
+-
+-int strcmp(const char *s1, const char *s2)
+-{
+-    while (*s1 && *s2)
+-    {
+-        if (*s1 != *s2)
+-        {
+-            return *s1 - *s2;
+-        }
+-        s1++;
+-        s2++;
+-    }
+-    return *s1 - *s2;
+-}
+-
+-int strncmp(const char *s1, const char *s2, size_t n)
+-{
+-    while (n-- && *s1 && *s2)
+-    {
+-        if (*s1 != *s2)
+-        {
+-            return *s1 - *s2;
+-        }
+-        s1++;
+-        s2++;
+-    }
+-    if (n == (size_t)-1)
+-        return 0;
+-    return *s1 - *s2;
+-}
+-
+-int strcoll(const char *s1, const char *s2)
+-{
+-    return strcmp(s1, s2);
+-}
+-
+-size_t strxfrm(char *dest, const char *src, size_t n)
+-{
+-    size_t len = 0;
+-    while (*src)
+-    {
+-        if (len < n)
+-        {
+-            *dest++ = *src;
+-        }
+-        src++;
+-        len++;
+-    }
+-    if (n > 0)
+-    {
+-        *dest = '\0';
+-    }
+-    return len;
+-}
+-
+-void *memchr(const void *s, int c, size_t n)
+-{
+-    const char *p = (const char *)s;
+-    while (n--)
+-    {
+-        if (*p == (char)c)
+-        {
+-            return (void *)p;
+-        }
+-        p++;
+-    }
+-    return (void *)0;
+-}
+-
+-char *strchr(const char *s, int c)
+-{
+-    while (*s)
+-    {
+-        if (*s == (char)c)
+-        {
+-            return (char *)s;
+-        }
+-        s++;
+-    }
+-    return (char *)0;
+-}
+-
+-size_t strcspn(const char *s, const char *reject)
+-{
+-    size_t count = 0;
+-    while (*s)
+-    {
+-        const char *p = reject;
+-        while (*p)
+-        {
+-            if (*s == *p++)
+-            {
+-                return count;
+-            }
+-        }
+-        s++;
+-        count++;
+-    }
+-    return count;
+-}
+-
+-char *strpbrk(const char *s, const char *accept)
+-{
+-    while (*s)
+-    {
+-        const char *p = accept;
+-        while (*p)
+-        {
+-            if (*s == *p++)
+-            {
+-                return (char *)s;
+-            }
+-        }
+-        s++;
+-    }
+-    return (char *)0;
+-}
+-
+-char *strrchr(const char *s, int c)
+-{
+-    char *result = (char *)0;
+-    while (*s)
+-    {
+-        if (*s == (char)c)
+-        {
+-            result = (char *)s;
+-        }
+-        s++;
+-    }
+-    return result;
+-}
+-
+-size_t strspn(const char *s, const char *accept)
+-{
+-    size_t count = 0;
+-    while (*s)
+-    {
+-        const char *p = accept;
+-        int found = 0;
+-        while (*p)
+-        {
+-            if (*s == *p++)
+-            {
+-                found = 1;
+-                break;
+-            }
+-        }
+-        if (!found)
+-            break;
+-        s++;
+-        count++;
+-    }
+-    return count;
+-}
+-
+-char *strstr(const char *haystack, const char *needle)
+-{
+-    if (*needle == '\0')
+-        return (char *)haystack;
+-    
+-    while (*haystack)
+-    {
+-        const char *h = haystack;
+-        const char *n = needle;
+-        while (*h && *n && *h == *n)
+-        {
+-            h++;
+-            n++;
+-        }
+-        if (*n == '\0')
+-        {
+-            return (char *)haystack;
+-        }
+-        haystack++;
+-    }
+-    return (char *)0;
+-}
+-
+-char *strtok(char *str, const char *delim)
+-{
+-    static char *saved;
+-    char *token;
+-    
+-    if (str)
+-        saved = str;
+-    else if (!saved)
+-        return (char *)0;
+-    
+-    str = saved;
+-    
+-    while (*str && strchr(delim, *str))
+-        str++;
+-    
+-    if (*str == '\0')
+-    {
+-        saved = (char *)0;
+-        return (char *)0;
+-    }
+-    
+-    token = str;
+-    
+-    while (*str && !strchr(delim, *str))
+-        str++;
+-    
+-    if (*str)
+-    {
+-        *str = '\0';
+-        saved = str + 1;
+-    }
+-    else
+-    {
+-        saved = (char *)0;
+-    }
+-    
+-    return token;
+-}
+-
+-void *memset(void *s, int c, size_t n)
+-{
+-    char *p = (char *)s;
+-    while (n--)
+-    {
+-        *p++ = (char)c;
+-    }
+-    return s;
+-}
+-
+-size_t strlen(const char *s)
+-{
+-    size_t len = 0;
+-    while (*s)
+-    {
+-        s++;
+-        len++;
+-    }
+-    return len;
+-}
+-
+-char *strerror(int errnum)
+-{
+-    return "unknown error";
+-}
+\ No newline at end of file
+diff --git a/third_party/vml/Lib/c/time.c b/third_party/vml/Lib/c/time.c
+deleted file mode 100644
+index 353c7489..00000000
+--- a/third_party/vml/Lib/c/time.c
++++ /dev/null
+@@ -1,218 +0,0 @@
+-/* time.c - Time functions implementation for VML
+- * Uses SYSCALL 53 (GetTick), 54 (GetDateTime)
+- */
+-
+-#include <time.h>
+-
+-/* Global buffers for gmtime/localtime (not thread-safe, but matches C standard) */
+-static tm_t _gmtime_buf;
+-static char _asctime_buf[26];
+-
+-/* clock() - returns processor time in clock ticks (milliseconds since boot) */
+-clock_t clock(void) {
+-    int result;
+-    asm("SYSCALL #53");
+-    asm("MOVE result, R0");
+-    return (clock_t)result;
+-}
+-
+-/* difftime() - compute difference in seconds (time1 - time0) */
+-double difftime(time_t time1, time_t time0) {
+-    return (double)((int)time1 - (int)time0);
+-}
+-
+-/* time() - get current calendar time (Unix timestamp) */
+-time_t time(time_t *timer) {
+-    int result;
+-    asm("SYSCALL #54");
+-    asm("MOVE result, R0");
+-    if (timer != 0)
+-        *timer = (time_t)result;
+-    return (time_t)result;
+-}
+-
+-/* mktime() - convert struct tm to time_t (Unix timestamp) */
+-time_t mktime(tm_t *timeptr) {
+-    if (timeptr == 0) return 0;
+-
+-    int year = timeptr->tm_year + 1900;
+-    int mon = timeptr->tm_mon;
+-
+-    /* Days from 1970 to given year */
+-    int days = 0;
+-    int y;
+-    for (y = 1970; y < year; y++) {
+-        if ((y % 4 == 0 && y % 100 != 0) || (y % 400 == 0))
+-            days += 366;
+-        else
+-            days += 365;
+-    }
+-
+-    /* Days from January to given month */
+-    int m;
+-    for (m = 0; m < mon; m++) {
+-        int is_leap = ((year % 4 == 0 && year % 100 != 0) || (year % 400 == 0)) ? 1 : 0;
+-        const int mdays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+-        days += mdays[m];
+-        if (m == 1 && is_leap) days += 1;
+-    }
+-
+-    /* Add day of month - 1 */
+-    days += timeptr->tm_mday - 1;
+-
+-    time_t result = (time_t)(days * 86400 + timeptr->tm_hour * 3600 +
+-                              timeptr->tm_min * 60 + timeptr->tm_sec);
+-
+-    /* Adjust for DST */
+-    if (timeptr->tm_isdst > 0)
+-        result -= 3600;
+-
+-    return result;
+-}
+-
+-/* Internal: convert epoch timestamp to date components */
+-static void epoch_to_date(int timestamp, int *year, int *mon, int *mday,
+-                           int *wday, int *yday) {
+-    int sec_of_day = timestamp % 86400;
+-    if (sec_of_day < 0) sec_of_day += 86400;
+-    int days = timestamp / 86400;
+-    if (timestamp < 0 && sec_of_day > 0) days--;
+-
+-    int day_of_week = (days + 4) % 7; /* 1970-01-01 was Thursday */
+-    if (day_of_week < 0) day_of_week += 7;
+-
+-    int y = 1970;
+-    while (1) {
+-        int is_leap = (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0);
+-        int days_in_year = is_leap ? 366 : 365;
+-        if (days < days_in_year) break;
+-        days -= days_in_year;
+-        y++;
+-    }
+-
+-    *year = y;
+-    *yday = days;
+-
+-    int is_leap = (y % 4 == 0 && y % 100 != 0) || (y % 400 == 0);
+-    const int mdays[] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+-    int m;
+-    for (m = 0; m < 12; m++) {
+-        int md = mdays[m];
+-        if (m == 1 && is_leap) md = 29;
+-        if (days < md) break;
+-        days -= md;
+-    }
+-    *mon = m;
+-    *mday = days + 1;
+-    *wday = day_of_week;
+-}
+-
+-/* gmtime() - convert time_t to struct tm (UTC) */
+-tm_t *gmtime(const time_t *timer) {
+-    if (timer == 0) return 0;
+-
+-    int ts = (int)*timer;
+-    int sec_of_day = ts % 86400;
+-    if (sec_of_day < 0) sec_of_day += 86400;
+-    int days = ts / 86400;
+-    if (ts < 0 && sec_of_day > 0) days--;
+-
+-    _gmtime_buf.tm_sec = sec_of_day % 60;
+-    _gmtime_buf.tm_min = (sec_of_day / 60) % 60;
+-    _gmtime_buf.tm_hour = sec_of_day / 3600;
+-
+-    int year, mon, mday, wday, yday;
+-    epoch_to_date(ts, &year, &mon, &mday, &wday, &yday);
+-
+-    _gmtime_buf.tm_year = year - 1900;
+-    _gmtime_buf.tm_mon = mon;
+-    _gmtime_buf.tm_mday = mday;
+-    _gmtime_buf.tm_wday = wday;
+-    _gmtime_buf.tm_yday = yday;
+-    _gmtime_buf.tm_isdst = 0;
+-
+-    return &_gmtime_buf;
+-}
+-
+-/* localtime() - same as gmtime() on VML (no timezone support yet) */
+-tm_t *localtime(const time_t *timer) {
+-    return gmtime(timer);
+-}
+-
+-/* Internal: write 3-char day name */
+-static void write_wday(char *p, int wday) {
+-    if (wday == 0) { p[0] = 'S'; p[1] = 'u'; p[2] = 'n'; }
+-    else if (wday == 1) { p[0] = 'M'; p[1] = 'o'; p[2] = 'n'; }
+-    else if (wday == 2) { p[0] = 'T'; p[1] = 'u'; p[2] = 'e'; }
+-    else if (wday == 3) { p[0] = 'W'; p[1] = 'e'; p[2] = 'd'; }
+-    else if (wday == 4) { p[0] = 'T'; p[1] = 'h'; p[2] = 'u'; }
+-    else if (wday == 5) { p[0] = 'F'; p[1] = 'r'; p[2] = 'i'; }
+-    else if (wday == 6) { p[0] = 'S'; p[1] = 'a'; p[2] = 't'; }
+-}
+-
+-/* Internal: write 3-char month name */
+-static void write_mon(char *p, int mon) {
+-    if (mon == 0) { p[0] = 'J'; p[1] = 'a'; p[2] = 'n'; }
+-    else if (mon == 1) { p[0] = 'F'; p[1] = 'e'; p[2] = 'b'; }
+-    else if (mon == 2) { p[0] = 'M'; p[1] = 'a'; p[2] = 'r'; }
+-    else if (mon == 3) { p[0] = 'A'; p[1] = 'p'; p[2] = 'r'; }
+-    else if (mon == 4) { p[0] = 'M'; p[1] = 'a'; p[2] = 'y'; }
+-    else if (mon == 5) { p[0] = 'J'; p[1] = 'u'; p[2] = 'n'; }
+-    else if (mon == 6) { p[0] = 'J'; p[1] = 'u'; p[2] = 'l'; }
+-    else if (mon == 7) { p[0] = 'A'; p[1] = 'u'; p[2] = 'g'; }
+-    else if (mon == 8) { p[0] = 'S'; p[1] = 'e'; p[2] = 'p'; }
+-    else if (mon == 9) { p[0] = 'O'; p[1] = 'c'; p[2] = 't'; }
+-    else if (mon == 10) { p[0] = 'N'; p[1] = 'o'; p[2] = 'v'; }
+-    else if (mon == 11) { p[0] = 'D'; p[1] = 'e'; p[2] = 'c'; }
+-}
+-
+-/* asctime() - convert struct tm to string "Www Mmm dd hh:mm:ss yyyy\n" */
+-char *asctime(const tm_t *timeptr) {
+-    if (timeptr == 0) return 0;
+-
+-    char *p = _asctime_buf;
+-
+-    /* Www */
+-    int wd = timeptr->tm_wday;
+-    if (wd < 0 || wd > 6) wd = 0;
+-    write_wday(p, wd); p += 3;
+-    *p++ = ' ';
+-
+-    /* Mmm */
+-    write_mon(p, timeptr->tm_mon); p += 3;
+-    *p++ = ' ';
+-
+-    /* dd */
+-    int d = timeptr->tm_mday;
+-    if (d >= 10) *p++ = '0' + d / 10; else *p++ = ' ';
+-    *p++ = '0' + d % 10;
+-    *p++ = ' ';
+-
+-    /* hh:mm:ss */
+-    int h = timeptr->tm_hour;
+-    *p++ = '0' + h / 10; *p++ = '0' + h % 10; *p++ = ':';
+-    int mi = timeptr->tm_min;
+-    *p++ = '0' + mi / 10; *p++ = '0' + mi % 10; *p++ = ':';
+-    int s = timeptr->tm_sec;
+-    *p++ = '0' + s / 10; *p++ = '0' + s % 10;
+-    *p++ = ' ';
+-
+-    /* yyyy */
+-    int y = timeptr->tm_year + 1900;
+-    *p++ = '0' + (y / 1000) % 10;
+-    *p++ = '0' + (y / 100) % 10;
+-    *p++ = '0' + (y / 10) % 10;
+-    *p++ = '0' + y % 10;
+-    *p++ = '\n';
+-    *p = '\0';
+-
+-    return _asctime_buf;
+-}
+-
+-/* ctime() - convert time_t to string */
+-char *ctime(const time_t *timer) {
+-    if (timer == 0) return 0;
+-    tm_t *tm = localtime(timer);
+-    if (tm == 0) return 0;
+-    return asctime(tm);
+-}
+diff --git a/third_party/vml/Lib/c/vmdevice.c b/third_party/vml/Lib/c/vmdevice.c
+deleted file mode 100644
+index e1e0250b..00000000
+--- a/third_party/vml/Lib/c/vmdevice.c
++++ /dev/null
+@@ -1,164 +0,0 @@
+-#include "vmlib.h"
+-
+-// ============================================
+-// 新的统一设备接口实现
+-// ============================================
+-
+-// 设备操作函数
+-int dev_open(const char *name)
+-{
+-    int handle;
+-    asm("LOAD R0, %0" : : "r"(name));
+-    asm("SYSCALL 100");
+-    asm("MOV %0, R1" : "=r"(handle));
+-    return handle;
+-}
+-
+-int dev_close(int handle)
+-{
+-    int result;
+-    asm("LOAD R0, %0" : : "r"(handle));
+-    asm("SYSCALL 101");
+-    asm("MOV %0, R0" : "=r"(result));
+-    return result;
+-}
+-
+-int dev_read(int handle, void *buffer, int offset, int count)
+-{
+-    int result;
+-    asm("LOAD R0, %0" : : "r"(handle));
+-    asm("LOAD R1, %0" : : "r"(buffer));
+-    asm("LOAD R2, %0" : : "r"(count));
+-    asm("SYSCALL 102");
+-    asm("MOV %0, R0" : "=r"(result));
+-    return result;
+-}
+-
+-int dev_write(int handle, const void *buffer, int offset, int count)
+-{
+-    int result;
+-    asm("LOAD R0, %0" : : "r"(handle));
+-    asm("LOAD R1, %0" : : "r"(buffer));
+-    asm("LOAD R2, %0" : : "r"(count));
+-    asm("SYSCALL 103");
+-    asm("MOV %0, R0" : "=r"(result));
+-    return result;
+-}
+-
+-int dev_control(int handle, int command, const void *data, int length)
+-{
+-    int result;
+-    asm("LOAD R0, %0" : : "r"(handle));
+-    asm("LOAD R1, %0" : : "r"(command));
+-    asm("LOAD R2, %0" : : "r"(data));
+-    asm("LOAD R3, %0" : : "r"(length));
+-    asm("SYSCALL 104");
+-    asm("MOV %0, R0" : "=r"(result));
+-    return result;
+-}
+-
+-// ============================================
+-// 便捷函数实现
+-// ============================================
+-
+-int dev_console_puts(const char *str)
+-{
+-    int console = dev_open("console");
+-    if (console < 0) return -1;
+-    
+-    int len = 0;
+-    while (str[len] != '\0') len++;
+-    
+-    int result = dev_write(console, str, 0, len);
+-    dev_close(console);
+-    return result;
+-}
+-
+-int dev_console_getchar()
+-{
+-    int console = dev_open("console");
+-    if (console < 0) return -1;
+-    
+-    char ch;
+-    int result = dev_read(console, &ch, 0, 1);
+-    dev_close(console);
+-    
+-    if (result == 1) return ch;
+-    return -1;
+-}
+-
+-int dev_vga_draw_char(int x, int y, char c, int color)
+-{
+-    int vga = dev_open("vga");
+-    if (vga < 0) return -1;
+-    
+-    unsigned char data[4] = {x, y, c, color};
+-    int result = dev_control(vga, VGA_CMD_DRAW_CHAR, data, 4);
+-    dev_close(vga);
+-    return result;
+-}
+-
+-int dev_vga_draw_string(int x, int y, const char *str, int color)
+-{
+-    int vga = dev_open("vga");
+-    if (vga < 0) return -1;
+-    
+-    // 准备数据：x, y, color, string...
+-    int len = 0;
+-    while (str[len] != '\0') len++;
+-    
+-    // 使用栈分配内存，避免malloc
+-    unsigned char data[256]; // 最大256字节
+-    if (len > 253) len = 253; // 限制长度
+-    
+-    data[0] = x;
+-    data[1] = y;
+-    data[2] = color;
+-    for (int i = 0; i < len; i++) {
+-        data[3 + i] = str[i];
+-    }
+-    
+-    int result = dev_control(vga, VGA_CMD_DRAW_STRING, data, 3 + len);
+-    dev_close(vga);
+-    return result;
+-}
+-
+-int dev_keyboard_check()
+-{
+-    int keyboard = dev_open("kbd");
+-    if (keyboard < 0) return -1;
+-    
+-    unsigned char status;
+-    int result = dev_control(keyboard, KEYBOARD_CMD_CHECK_KEY, &status, 1);
+-    dev_close(keyboard);
+-    
+-    if (result == 0) return status;
+-    return -1;
+-}
+-
+-int dev_mouse_get_position(int *x, int *y)
+-{
+-    int mouse = dev_open("mouse");
+-    if (mouse < 0) return -1;
+-    
+-    unsigned char data[10];
+-    int result = dev_control(mouse, MOUSE_CMD_GET_STATUS, data, 10);
+-    dev_close(mouse);
+-    
+-    if (result == 0) {
+-        *x = *(int *)&data[0];
+-        *y = *(int *)&data[4];
+-        return 0;
+-    }
+-    return -1;
+-}
+-
+-int dev_rtc_get_time_string(char *buffer, int buffer_size)
+-{
+-    int rtc = dev_open("rtc");
+-    if (rtc < 0) return -1;
+-    
+-    int result = dev_control(rtc, RTC_CMD_GET_TIME_STRING, buffer, buffer_size);
+-    dev_close(rtc);
+-    return result;
+-}
+\ No newline at end of file
+diff --git a/third_party/vml/Lib/c/vmdevice.vml b/third_party/vml/Lib/c/vmdevice.vml
+deleted file mode 100644
+index faec3db1..00000000
+--- a/third_party/vml/Lib/c/vmdevice.vml
++++ /dev/null
+@@ -1,22 +0,0 @@
+-.entry main
+-.stack 0
+-.vectors 0x0
+-
+-.linked "math.vml"
+-.linked "ctype.vml"
+-.linked "file.vml"
+-.linked "graphics.vml"
+-.linked "network.vml"
+-.linked "os.vml"
+-.linked "device.vml"
+-.linked "convert.vml"
+-.linked "bitops.vml"
+-.linked "util.vml"
+-.linked "softfloat.vml"
+-.linked "softint64.vml"
+-.linked "softdouble.vml"
+-.linked "readline.vml"
+-.linked "vga_text.vml"
+-.data
+-
+-.text
+diff --git a/third_party/vml/Lib/c/vmdevice_simple.c b/third_party/vml/Lib/c/vmdevice_simple.c
+deleted file mode 100644
+index ac3e8e91..00000000
+--- a/third_party/vml/Lib/c/vmdevice_simple.c
++++ /dev/null
+@@ -1,159 +0,0 @@
+-#include "vmlib.h"
+-
+-// ============================================
+-// 新的统一设备接口实现（简化版，使用VML asm语法）
+-// ============================================
+-
+-// 设备操作函数
+-int dev_open(const char *name)
+-{
+-    // 将参数name的地址加载到R0，然后调用SYSCALL 100
+-    // 注意：这里假设name参数在栈帧中的标准位置
+-    asm("LOAD R0, [R12+12]");  // 第一个参数在R12+12
+-    asm("SYSCALL #100");
+-    // 返回值在R0中，但我们需要将其保存
+-    // 由于asm不支持返回值，我们需要编译器支持
+-    return 0; // 临时返回值
+-}
+-
+-int dev_close(int handle)
+-{
+-    asm("LOAD R0, [R12+12]");  // handle参数
+-    asm("SYSCALL #101");
+-    return 0;
+-}
+-
+-int dev_read(int handle, void *buffer, int offset, int count)
+-{
+-    // 参数：handle(R12+12), buffer(R12+16), offset(R12+20), count(R12+24)
+-    asm("LOAD R0, [R12+12]");  // handle
+-    asm("LOAD R1, [R12+16]");  // buffer
+-    asm("LOAD R2, [R12+24]");  // count (跳过offset，因为系统调用可能不需要)
+-    asm("SYSCALL #102");
+-    return 0;
+-}
+-
+-int dev_write(int handle, const void *buffer, int offset, int count)
+-{
+-    asm("LOAD R0, [R12+12]");  // handle
+-    asm("LOAD R1, [R12+16]");  // buffer
+-    asm("LOAD R2, [R12+24]");  // count
+-    asm("SYSCALL #103");
+-    return 0;
+-}
+-
+-int dev_control(int handle, int command, const void *data, int length)
+-{
+-    asm("LOAD R0, [R12+12]");  // handle
+-    asm("LOAD R1, [R12+16]");  // command
+-    asm("LOAD R2, [R12+20]");  // data
+-    asm("LOAD R3, [R12+24]");  // length
+-    asm("SYSCALL #104");
+-    return 0;
+-}
+-
+-// ============================================
+-// 便捷函数实现
+-// ============================================
+-
+-int dev_console_puts(const char *str)
+-{
+-    int console = dev_open("console");
+-    if (console < 0) return -1;
+-    
+-    int len = 0;
+-    while (str[len] != '\0') len++;
+-    
+-    int result = dev_write(console, str, 0, len);
+-    dev_close(console);
+-    return result;
+-}
+-
+-int dev_console_getchar()
+-{
+-    int console = dev_open("console");
+-    if (console < 0) return -1;
+-    
+-    char ch;
+-    int result = dev_read(console, &ch, 0, 1);
+-    dev_close(console);
+-    
+-    if (result == 1) return ch;
+-    return -1;
+-}
+-
+-int dev_vga_draw_char(int x, int y, char c, int color)
+-{
+-    int vga = dev_open("vga");
+-    if (vga < 0) return -1;
+-    
+-    unsigned char data[4] = {x, y, c, color};
+-    int result = dev_control(vga, VGA_CMD_DRAW_CHAR, data, 4);
+-    dev_close(vga);
+-    return result;
+-}
+-
+-int dev_vga_draw_string(int x, int y, const char *str, int color)
+-{
+-    int vga = dev_open("vga");
+-    if (vga < 0) return -1;
+-    
+-    // 准备数据：x, y, color, string...
+-    int len = 0;
+-    while (str[len] != '\0') len++;
+-    
+-    // 使用栈分配内存，避免malloc
+-    unsigned char data[256]; // 最大256字节
+-    if (len > 253) len = 253; // 限制长度
+-    
+-    data[0] = x;
+-    data[1] = y;
+-    data[2] = color;
+-    for (int i = 0; i < len; i++) {
+-        data[3 + i] = str[i];
+-    }
+-    
+-    int result = dev_control(vga, VGA_CMD_DRAW_STRING, data, 3 + len);
+-    dev_close(vga);
+-    return result;
+-}
+-
+-int dev_keyboard_check()
+-{
+-    int keyboard = dev_open("kbd");
+-    if (keyboard < 0) return -1;
+-    
+-    unsigned char status;
+-    int result = dev_control(keyboard, KEYBOARD_CMD_CHECK_KEY, &status, 1);
+-    dev_close(keyboard);
+-    
+-    if (result == 0) return status;
+-    return -1;
+-}
+-
+-int dev_mouse_get_position(int *x, int *y)
+-{
+-    int mouse = dev_open("mouse");
+-    if (mouse < 0) return -1;
+-    
+-    unsigned char data[10];
+-    int result = dev_control(mouse, MOUSE_CMD_GET_STATUS, data, 10);
+-    dev_close(mouse);
+-    
+-    if (result == 0) {
+-        *x = *(int *)&data[0];
+-        *y = *(int *)&data[4];
+-        return 0;
+-    }
+-    return -1;
+-}
+-
+-int dev_rtc_get_time_string(char *buffer, int buffer_size)
+-{
+-    int rtc = dev_open("rtc");
+-    if (rtc < 0) return -1;
+-    
+-    int result = dev_control(rtc, RTC_CMD_GET_TIME_STRING, buffer, buffer_size);
+-    dev_close(rtc);
+-    return result;
+-}
+\ No newline at end of file
+diff --git a/third_party/vml/Lib/c/vmdevice_simple.vml b/third_party/vml/Lib/c/vmdevice_simple.vml
+deleted file mode 100644
+index faec3db1..00000000
+--- a/third_party/vml/Lib/c/vmdevice_simple.vml
++++ /dev/null
+@@ -1,22 +0,0 @@
+-.entry main
+-.stack 0
+-.vectors 0x0
+-
+-.linked "math.vml"
+-.linked "ctype.vml"
+-.linked "file.vml"
+-.linked "graphics.vml"
+-.linked "network.vml"
+-.linked "os.vml"
+-.linked "device.vml"
+-.linked "convert.vml"
+-.linked "bitops.vml"
+-.linked "util.vml"
+-.linked "softfloat.vml"
+-.linked "softint64.vml"
+-.linked "softdouble.vml"
+-.linked "readline.vml"
+-.linked "vga_text.vml"
+-.data
+-
+-.text
+diff --git a/third_party/vml/Lib/c/vmlinfo.c b/third_party/vml/Lib/c/vmlinfo.c
+deleted file mode 100644
+index 8db18da6..00000000
+--- a/third_party/vml/Lib/c/vmlinfo.c
++++ /dev/null
+@@ -1,113 +0,0 @@
+-/*
+- * VML info 共享库 — 系统信息 / 随机数 / 日期时间
+- * 所有语言通过链接此库获取 VML 运行时信息
+- */
+-
+-/* 全局存储 — asm 结果通过此变量中转返回 */
+-int _vml_result_int = 0;
+-const char* _vml_result_str = 0;
+-
+-/* ---- 声明外部汇编函数 ---- */
+-
+-/* 输出字符串 (R0 = 字符串地址) */
+-void vml_print_str(const char* s);
+-void vml_print_str(const char* s) {
+-    asm("SYSCALL 1");
+-}
+-
+-/* 输出整数 (R0 = 整数值) */
+-void vml_print_int(int n);
+-void vml_print_int(int n) {
+-    asm("SYSCALL 6");
+-}
+-
+-/* 输出十六进制 (R0 = 整数值) */
+-void vml_print_hex(int n);
+-void vml_print_hex(int n) {
+-    asm("SYSCALL 10");
+-}
+-
+-/* 输出字符 (R0 = 字符) */
+-void vml_putchar(char c);
+-void vml_putchar(char c) {
+-    asm("SYSCALL 4");
+-}
+-
+-/* 输出新行 */
+-void vml_newline(void);
+-void vml_newline(void) {
+-    asm("LOAD R0 #10\nSYSCALL 4");
+-}
+-
+-/* 输出浮点 (R0 = float) — SYSCALL 8 */
+-void vml_print_float(float f);
+-void vml_print_float(float f) {
+-    asm("SYSCALL 8");
+-}
+-
+-/* 输出双精度 (R0/R1 = double) — 截断为 float32 (v1.66.41) */
+-void vml_print_double(double d);
+-void vml_print_double(double d) {
+-    float f = (float)d;
+-    asm("SYSCALL 8");
+-}
+-
+-/* 输出长整数 (R0/R1 = int64) — 暂截断为 int32 (v1.66.41) */
+-void vml_print_long(long long n);
+-void vml_print_long(long long n) {
+-    int val = (int)n;
+-    asm("SYSCALL 6");
+-}
+-
+-/* 输出布尔 (R0 = 0/1) — prints "true"/"false" */
+-void vml_print_bool(int b);
+-void vml_print_bool(int b) {
+-    if (b) { vml_print_str("true"); }
+-    else   { vml_print_str("false"); }
+-}
+-
+-/* ---- 配置信息 ---- */
+-
+-/* GetConfig(type) -> 返回值 */
+-int vml_getconfig(int type);
+-int vml_getconfig(int type) {
+-    asm("SYSCALL 60");
+-    asm("STORE R0, _vml_result_int");
+-    return _vml_result_int;
+-}
+-
+-/* ---- 随机数 ---- */
+-
+-/* Random() -> 随机整数 */
+-int vml_random(void);
+-int vml_random(void) {
+-    asm("SYSCALL 50");
+-    asm("STORE R0, _vml_result_int");
+-    return _vml_result_int;
+-}
+-
+-/* ---- 日期时间 ---- */
+-
+-/* GetDateString() -> 日期字符串地址 */
+-const char* vml_get_date(void);
+-const char* vml_get_date(void) {
+-    asm("SYSCALL 55");
+-    asm("STORE R0, _vml_result_str");
+-    return _vml_result_str;
+-}
+-
+-/* GetTimeString() -> 时间字符串地址 */
+-const char* vml_get_time(void);
+-const char* vml_get_time(void) {
+-    asm("SYSCALL 56");
+-    asm("STORE R0, _vml_result_str");
+-    return _vml_result_str;
+-}
+-
+-/* ---- 退出 ---- */
+-
+-/* Exit(code) */
+-void vml_exit(int code);
+-void vml_exit(int code) {
+-    asm("SYSCALL 3");
+-}
+diff --git a/third_party/vml/Lib/c/vmlinfo.vml b/third_party/vml/Lib/c/vmlinfo.vml
+deleted file mode 100644
+index c55376c7..00000000
+--- a/third_party/vml/Lib/c/vmlinfo.vml
++++ /dev/null
+@@ -1,184 +0,0 @@
+-.entry main
+-.stack 0
+-.vectors 0x0
+-
+-.data
+-_vml_result_int: .word 0
+-_vml_result_str: .word 0
+-L67230002: .string "true"
+-L67230003: .string "false"
+-
+-.text
+-vml_print_str:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move [R12+12] R0
+-        syscall #1
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-vml_print_int:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move [R12+12] R0
+-        syscall #6
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-vml_print_hex:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move [R12+12] R0
+-        syscall #10
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-vml_putchar:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move [R12+12] R0
+-        syscall #4
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-vml_newline:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-vml_print_float:
+-        push R15
+-        push R12
+-        move R12 R13
+-        i2f R0 R0
+-        movef [R12+12] R0
+-        syscall #8
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-vml_print_double:
+-        push R15
+-        push R12
+-        move R12 R13
+-        sub R13 #12
+-        i2d R16 R0
+-        moved [R12+12] R16
+-        moved R0 [R12+12]
+-        d2f R0 R0
+-        movef [R12-4] R0
+-        syscall #8
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-vml_print_long:
+-        push R15
+-        push R12
+-        move R12 R13
+-        sub R13 #12
+-        move [R12+12] R0
+-        movel R0 [R12+12]
+-        move [R12-4] R0
+-        syscall #6
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-vml_print_bool:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move [R12+12] R0
+-        move R0 [R12+12]
+-        cmp R0 #0
+-        jz sta_67230000
+-        move R0 L67230002
+-        push R0
+-        call vml_print_str
+-        add R13 #4
+-        jmp sta_67230001
+-sta_67230000:
+-        move R0 L67230003
+-        push R0
+-        call vml_print_str
+-        add R13 #4
+-sta_67230001:
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-vml_getconfig:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move [R12+12] R0
+-        syscall #60
+-        move _vml_result_int R0
+-        move R0 [_vml_result_int]
+-        jmp L67230004
+-L67230004:
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-vml_random:
+-        push R15
+-        push R12
+-        move R12 R13
+-        syscall #50
+-        move _vml_result_int R0
+-        move R0 [_vml_result_int]
+-        jmp L67230005
+-L67230005:
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-vml_get_date:
+-        push R15
+-        push R12
+-        move R12 R13
+-        syscall #55
+-        move _vml_result_str R0
+-        move R0 [_vml_result_str]
+-        jmp L67230006
+-L67230006:
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-vml_get_time:
+-        push R15
+-        push R12
+-        move R12 R13
+-        syscall #56
+-        move _vml_result_str R0
+-        move R0 [_vml_result_str]
+-        jmp L67230007
+-L67230007:
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
+-vml_exit:
+-        push R15
+-        push R12
+-        move R12 R13
+-        move [R12+12] R0
+-        syscall #3
+-        move R13 R12
+-        pop R12
+-        pop R15
+-        ret
