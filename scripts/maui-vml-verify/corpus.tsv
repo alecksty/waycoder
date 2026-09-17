@@ -72,6 +72,8 @@ game-cpp-snake	-	examples/cpp/snake.cpp	window	-	贪吃蛇（C++）—— 照 Ob
 game-java-catch	-	examples/java/catch.java	window	-	接方块（Java）—— 更紧凑的完整游戏（挡板/球/计分/结束重开）	300
 game-javascript-catch	-	examples/javascript/catch.js	window	-	接方块（JavaScript）—— 同上	300
 game-kotlin-catch	-	examples/kotlin/catch.kt	window	-	接方块（Kotlin）—— ⚠ 状态数组必须留在 main 内：文件级 arrayOf 读回 0（实测两个最小对照），所以 draw/tick 全内联；另 `step` 是前端保留字
+game-pascal-catch	-	examples/pascal/catch.pas	window	-	接方块（Pascal）—— 全局数组 + 无参过程，结构上最接近 C 版，可当对照	300
+game-ruby-catch	-	examples/ruby/catch.rb	window	-	接方块（Ruby）—— ⚠ 完全平铺：本前端①不认 `&&` ②`def` 报 Unexpected token: End（骨架里一个函数都没有）	300
 # README 明说这两个跑不了（BASIC 前端三个既有缺陷 / Python 列表写不生效）。
 # 留着是为了**验证"读代码记下的结论在设备上仍成立"**，不是指望它们过。
 game-basic-tetris	-	examples/basic/tetris.bas	window	-	README 记：BASIC 前端缺陷，跑不了	60
