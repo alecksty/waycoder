@@ -551,7 +551,7 @@ LABEL GfxViewport
     pop R15
     RET
 
-LABEL InitGraph
+LABEL csharp_InitGraph
     push R15
     push R12
     move R12 R13
@@ -571,7 +571,7 @@ LABEL InitGraph
     pop R15
     RET
 
-LABEL CloseGraph
+LABEL csharp_CloseGraph
     push R15
     push R12
     move R12 R13
@@ -581,7 +581,7 @@ LABEL CloseGraph
     pop R15
     RET
 
-LABEL DetectGraph
+LABEL csharp_DetectGraph
     push R15
     push R12
     move R12 R13
@@ -598,7 +598,7 @@ LABEL DetectGraph
     pop R15
     RET
 
-LABEL GetMaxX
+LABEL csharp_GetMaxX
     push R15
     push R12
     move R12 R13
@@ -608,7 +608,7 @@ LABEL GetMaxX
     pop R15
     RET
 
-LABEL GetMaxY
+LABEL csharp_GetMaxY
     push R15
     push R12
     move R12 R13
@@ -618,7 +618,7 @@ LABEL GetMaxY
     pop R15
     RET
 
-LABEL GetDriverName
+LABEL csharp_GetDriverName
     push R15
     push R12
     move R12 R13
@@ -628,7 +628,7 @@ LABEL GetDriverName
     pop R15
     RET
 
-LABEL GetModeName
+LABEL csharp_GetModeName
     push R15
     push R12
     move R12 R13
@@ -642,7 +642,7 @@ LABEL GetModeName
     pop R15
     RET
 
-LABEL SetColor
+LABEL csharp_SetColor
     push R15
     push R12
     move R12 R13
@@ -656,7 +656,7 @@ LABEL SetColor
     pop R15
     RET
 
-LABEL GetColor
+LABEL csharp_GetColor
     push R15
     push R12
     move R12 R13
@@ -666,7 +666,7 @@ LABEL GetColor
     pop R15
     RET
 
-LABEL SetBkColor
+LABEL csharp_SetBkColor
     push R15
     push R12
     move R12 R13
@@ -680,7 +680,7 @@ LABEL SetBkColor
     pop R15
     RET
 
-LABEL GetBkColor
+LABEL csharp_GetBkColor
     push R15
     push R12
     move R12 R13
@@ -690,7 +690,7 @@ LABEL GetBkColor
     pop R15
     RET
 
-LABEL SetRGBPalette
+LABEL csharp_SetRGBPalette
     push R15
     push R12
     move R12 R13
@@ -713,7 +713,7 @@ LABEL SetRGBPalette
     pop R15
     RET
 
-LABEL PutPixel
+LABEL csharp_PutPixel
     push R15
     push R12
     move R12 R13
@@ -733,7 +733,7 @@ LABEL PutPixel
     pop R15
     RET
 
-LABEL GetPixel
+LABEL csharp_GetPixel
     push R15
     push R12
     move R12 R13
@@ -750,7 +750,7 @@ LABEL GetPixel
     pop R15
     RET
 
-LABEL Line
+LABEL csharp_Line
     push R15
     push R12
     move R12 R13
@@ -773,7 +773,7 @@ LABEL Line
     pop R15
     RET
 
-LABEL LineTo
+LABEL csharp_LineTo
     push R15
     push R12
     move R12 R13
@@ -790,7 +790,7 @@ LABEL LineTo
     pop R15
     RET
 
-LABEL LineRel
+LABEL csharp_LineRel
     push R15
     push R12
     move R12 R13
@@ -807,7 +807,7 @@ LABEL LineRel
     pop R15
     RET
 
-LABEL Rectangle
+LABEL csharp_Rectangle
     push R15
     push R12
     move R12 R13
@@ -830,7 +830,7 @@ LABEL Rectangle
     pop R15
     RET
 
-LABEL Bar
+LABEL csharp_Bar
     push R15
     push R12
     move R12 R13
@@ -853,7 +853,7 @@ LABEL Bar
     pop R15
     RET
 
-LABEL Bar3D
+LABEL csharp_Bar3D
     push R15
     push R12
     move R12 R13
@@ -880,7 +880,7 @@ LABEL Bar3D
     pop R15
     RET
 
-LABEL Circle
+LABEL csharp_Circle
     push R15
     push R12
     move R12 R13
@@ -900,7 +900,7 @@ LABEL Circle
     pop R15
     RET
 
-LABEL FillCircle
+LABEL csharp_FillCircle
     push R15
     push R12
     move R12 R13
@@ -920,7 +920,7 @@ LABEL FillCircle
     pop R15
     RET
 
-LABEL Ellipse
+LABEL csharp_Ellipse
     push R15
     push R12
     move R12 R13
@@ -947,7 +947,7 @@ LABEL Ellipse
     pop R15
     RET
 
-LABEL FillEllipse
+LABEL csharp_FillEllipse
     push R15
     push R12
     move R12 R13
@@ -970,7 +970,7 @@ LABEL FillEllipse
     pop R15
     RET
 
-LABEL Arc
+LABEL csharp_Arc
     push R15
     push R12
     move R12 R13
@@ -995,7 +995,7 @@ LABEL Arc
     pop R15
     RET
 
-LABEL PieSlice
+LABEL csharp_PieSlice
     push R15
     push R12
     move R12 R13
@@ -1020,7 +1020,7 @@ LABEL PieSlice
     pop R15
     RET
 
-LABEL SetFillStyle
+LABEL csharp_SetFillStyle
     push R15
     push R12
     move R12 R13
@@ -1037,7 +1037,7 @@ LABEL SetFillStyle
     pop R15
     RET
 
-LABEL SetLineStyle
+LABEL csharp_SetLineStyle
     push R15
     push R12
     move R12 R13
@@ -1057,7 +1057,7 @@ LABEL SetLineStyle
     pop R15
     RET
 
-LABEL ClearDevice
+LABEL csharp_ClearDevice
     push R15
     push R12
     move R12 R13
@@ -1067,7 +1067,7 @@ LABEL ClearDevice
     pop R15
     RET
 
-LABEL ClearViewPort
+LABEL csharp_ClearViewPort
     push R15
     push R12
     move R12 R13
@@ -1077,7 +1077,7 @@ LABEL ClearViewPort
     pop R15
     RET
 
-LABEL SetViewPort
+LABEL csharp_SetViewPort
     push R15
     push R12
     move R12 R13
@@ -1102,7 +1102,7 @@ LABEL SetViewPort
     pop R15
     RET
 
-LABEL OutText
+LABEL csharp_OutText
     push R15
     push R12
     move R12 R13
@@ -1116,7 +1116,7 @@ LABEL OutText
     pop R15
     RET
 
-LABEL OutTextXY
+LABEL csharp_OutTextXY
     push R15
     push R12
     move R12 R13
@@ -1136,7 +1136,7 @@ LABEL OutTextXY
     pop R15
     RET
 
-LABEL FloodFill
+LABEL csharp_FloodFill
     push R15
     push R12
     move R12 R13
@@ -1156,7 +1156,7 @@ LABEL FloodFill
     pop R15
     RET
 
-LABEL ImageSize
+LABEL csharp_ImageSize
     push R15
     push R12
     move R12 R13
@@ -1179,7 +1179,7 @@ LABEL ImageSize
     pop R15
     RET
 
-LABEL GetImage
+LABEL csharp_GetImage
     push R15
     push R12
     move R12 R13
@@ -1204,7 +1204,7 @@ LABEL GetImage
     pop R15
     RET
 
-LABEL PutImage
+LABEL csharp_PutImage
     push R15
     push R12
     move R12 R13
@@ -1227,7 +1227,7 @@ LABEL PutImage
     pop R15
     RET
 
-LABEL GetPaletteSize
+LABEL csharp_GetPaletteSize
     push R15
     push R12
     move R12 R13
@@ -1237,7 +1237,7 @@ LABEL GetPaletteSize
     pop R15
     RET
 
-LABEL GetPalette
+LABEL csharp_GetPalette
     push R15
     push R12
     move R12 R13
@@ -1251,7 +1251,7 @@ LABEL GetPalette
     pop R15
     RET
 
-LABEL GetDefaultPalette
+LABEL csharp_GetDefaultPalette
     push R15
     push R12
     move R12 R13
@@ -1265,7 +1265,7 @@ LABEL GetDefaultPalette
     pop R15
     RET
 
-LABEL GraphResult
+LABEL csharp_GraphResult
     push R15
     push R12
     move R12 R13
@@ -1275,7 +1275,7 @@ LABEL GraphResult
     pop R15
     RET
 
-LABEL GraphErrorMsg
+LABEL csharp_GraphErrorMsg
     push R15
     push R12
     move R12 R13
@@ -1289,7 +1289,7 @@ LABEL GraphErrorMsg
     pop R15
     RET
 
-LABEL RestoreCrtMode
+LABEL csharp_RestoreCrtMode
     push R15
     push R12
     move R12 R13
@@ -1381,131 +1381,131 @@ LABEL Graph_GfxViewport
     JMP GfxViewport
 
 LABEL Graph_InitGraph
-    JMP InitGraph
+    JMP csharp_InitGraph
 
 LABEL Graph_CloseGraph
-    JMP CloseGraph
+    JMP csharp_CloseGraph
 
 LABEL Graph_DetectGraph
-    JMP DetectGraph
+    JMP csharp_DetectGraph
 
 LABEL Graph_GetMaxX
-    JMP GetMaxX
+    JMP csharp_GetMaxX
 
 LABEL Graph_GetMaxY
-    JMP GetMaxY
+    JMP csharp_GetMaxY
 
 LABEL Graph_GetDriverName
-    JMP GetDriverName
+    JMP csharp_GetDriverName
 
 LABEL Graph_GetModeName
-    JMP GetModeName
+    JMP csharp_GetModeName
 
 LABEL Graph_SetColor
-    JMP SetColor
+    JMP csharp_SetColor
 
 LABEL Graph_GetColor
-    JMP GetColor
+    JMP csharp_GetColor
 
 LABEL Graph_SetBkColor
-    JMP SetBkColor
+    JMP csharp_SetBkColor
 
 LABEL Graph_GetBkColor
-    JMP GetBkColor
+    JMP csharp_GetBkColor
 
 LABEL Graph_SetRGBPalette
-    JMP SetRGBPalette
+    JMP csharp_SetRGBPalette
 
 LABEL Graph_PutPixel
-    JMP PutPixel
+    JMP csharp_PutPixel
 
 LABEL Graph_GetPixel
-    JMP GetPixel
+    JMP csharp_GetPixel
 
 LABEL Graph_Line
-    JMP Line
+    JMP csharp_Line
 
 LABEL Graph_LineTo
-    JMP LineTo
+    JMP csharp_LineTo
 
 LABEL Graph_LineRel
-    JMP LineRel
+    JMP csharp_LineRel
 
 LABEL Graph_Rectangle
-    JMP Rectangle
+    JMP csharp_Rectangle
 
 LABEL Graph_Bar
-    JMP Bar
+    JMP csharp_Bar
 
 LABEL Graph_Bar3D
-    JMP Bar3D
+    JMP csharp_Bar3D
 
 LABEL Graph_Circle
-    JMP Circle
+    JMP csharp_Circle
 
 LABEL Graph_FillCircle
-    JMP FillCircle
+    JMP csharp_FillCircle
 
 LABEL Graph_Ellipse
-    JMP Ellipse
+    JMP csharp_Ellipse
 
 LABEL Graph_FillEllipse
-    JMP FillEllipse
+    JMP csharp_FillEllipse
 
 LABEL Graph_Arc
-    JMP Arc
+    JMP csharp_Arc
 
 LABEL Graph_PieSlice
-    JMP PieSlice
+    JMP csharp_PieSlice
 
 LABEL Graph_SetFillStyle
-    JMP SetFillStyle
+    JMP csharp_SetFillStyle
 
 LABEL Graph_SetLineStyle
-    JMP SetLineStyle
+    JMP csharp_SetLineStyle
 
 LABEL Graph_ClearDevice
-    JMP ClearDevice
+    JMP csharp_ClearDevice
 
 LABEL Graph_ClearViewPort
-    JMP ClearViewPort
+    JMP csharp_ClearViewPort
 
 LABEL Graph_SetViewPort
-    JMP SetViewPort
+    JMP csharp_SetViewPort
 
 LABEL Graph_OutText
-    JMP OutText
+    JMP csharp_OutText
 
 LABEL Graph_OutTextXY
-    JMP OutTextXY
+    JMP csharp_OutTextXY
 
 LABEL Graph_FloodFill
-    JMP FloodFill
+    JMP csharp_FloodFill
 
 LABEL Graph_ImageSize
-    JMP ImageSize
+    JMP csharp_ImageSize
 
 LABEL Graph_GetImage
-    JMP GetImage
+    JMP csharp_GetImage
 
 LABEL Graph_PutImage
-    JMP PutImage
+    JMP csharp_PutImage
 
 LABEL Graph_GetPaletteSize
-    JMP GetPaletteSize
+    JMP csharp_GetPaletteSize
 
 LABEL Graph_GetPalette
-    JMP GetPalette
+    JMP csharp_GetPalette
 
 LABEL Graph_GetDefaultPalette
-    JMP GetDefaultPalette
+    JMP csharp_GetDefaultPalette
 
 LABEL Graph_GraphResult
-    JMP GraphResult
+    JMP csharp_GraphResult
 
 LABEL Graph_GraphErrorMsg
-    JMP GraphErrorMsg
+    JMP csharp_GraphErrorMsg
 
 LABEL Graph_RestoreCrtMode
-    JMP RestoreCrtMode
+    JMP csharp_RestoreCrtMode
 

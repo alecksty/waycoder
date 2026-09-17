@@ -139,11 +139,6 @@ func bsearch(a0 int32, a1 int32) int32 {
     return vml.R0()
 }
 
-func Arrays(a0 int32) int32 {
-    vml.Call("Arrays")
-    return vml.R0()
-}
-
 func llen64(a0 int32) int32 {
     vml.Call("llen64")
     return vml.R0()
@@ -279,11 +274,6 @@ func base64_decode(a0 int32, a1 int32) int32 {
     return vml.R0()
 }
 
-func values(a0 int32) int32 {
-    vml.Call("values")
-    return vml.R0()
-}
-
 func _hex_str(a0 int32, a1 int32) int32 {
     vml.Call("_hex_str")
     return vml.R0()
@@ -329,11 +319,6 @@ func basic_time_str() int32 {
     return vml.R0()
 }
 
-func elapsed(a0 int32) int32 {
-    vml.Call("elapsed")
-    return vml.R0()
-}
-
 func basic_timer() int32 {
     vml.Call("basic_timer")
     return vml.R0()
@@ -344,18 +329,8 @@ func basic_inputN(a0 int32) int32 {
     return vml.R0()
 }
 
-func asm(a0 int32) int32 {
-    vml.Call("asm")
-    return vml.R0()
-}
-
 func basic_eof(a0 int32) int32 {
     vml.Call("basic_eof")
-    return vml.R0()
-}
-
-func Manipulation(a0 int32) int32 {
-    vml.Call("Manipulation")
     return vml.R0()
 }
 
@@ -379,28 +354,13 @@ func basic_asc(a0 int32) int32 {
     return vml.R0()
 }
 
-func code(a0 int32) int32 {
-    vml.Call("code")
-    return vml.R0()
-}
-
 func basic_chr(a0 int32) int32 {
     vml.Call("basic_chr")
     return vml.R0()
 }
 
-func spaces(a0 int32) int32 {
-    vml.Call("spaces")
-    return vml.R0()
-}
-
 func basic_space(a0 int32) int32 {
     vml.Call("basic_space")
-    return vml.R0()
-}
-
-func string(a0 int32, a1 int32) int32 {
-    vml.Call("string")
     return vml.R0()
 }
 
@@ -444,11 +404,6 @@ func basic_sgn(a0 int32) int32 {
     return vml.R0()
 }
 
-func interpolation(a0 int32, a1 int32) int32 {
-    vml.Call("interpolation")
-    return vml.R0()
-}
-
 func _sin_lookup(a0 int32) int32 {
     vml.Call("_sin_lookup")
     return vml.R0()
@@ -469,28 +424,13 @@ func basic_tan(a0 int32) int32 {
     return vml.R0()
 }
 
-func method(a0 int32) int32 {
-    vml.Call("method")
-    return vml.R0()
-}
-
 func basic_sqr(a0 int32) int32 {
     vml.Call("basic_sqr")
     return vml.R0()
 }
 
-func integer(a0 int32) int32 {
-    vml.Call("integer")
-    return vml.R0()
-}
-
 func basic_rnd() int32 {
     vml.Call("basic_rnd")
-    return vml.R0()
-}
-
-func series(a0 int32) int32 {
-    vml.Call("series")
     return vml.R0()
 }
 
@@ -516,11 +456,6 @@ func basic_int(a0 int32) int32 {
 
 func basic_point(a0 int32, a1 int32) int32 {
     vml.Call("basic_point")
-    return vml.R0()
-}
-
-func above(a0 int32) int32 {
-    vml.Call("above")
     return vml.R0()
 }
 
@@ -754,16 +689,6 @@ func lnext_power_of_two64(a0 int32) int32 {
     return vml.R0()
 }
 
-func CMD_BUF(a0 int32) int32 {
-    vml.Call("CMD_BUF")
-    return vml.R0()
-}
-
-func format(a0 int32, a1 int32) int32 {
-    vml.Call("format")
-    return vml.R0()
-}
-
 func cmd_write(a0 int32) int32 {
     vml.Call("cmd_write")
     return vml.R0()
@@ -953,11 +878,6 @@ func atoi(a0 int32) int32 {
     return vml.R0()
 }
 
-func itoa(a0 int32, a1 int32) int32 {
-    vml.Call("itoa")
-    return vml.R0()
-}
-
 func memcpy(a0 int32, a1 int32, a2 int32) int32 {
     vml.Call("memcpy")
     return vml.R0()
@@ -1128,11 +1048,6 @@ func csub(a0 int32, a1 int32, a2 int32) {
     vml.Call("csub")
 }
 
-func b(a0 int32) int32 {
-    vml.Call("b")
-    return vml.R0()
-}
-
 func cmul(a0 int32, a1 int32, a2 int32) {
     vml.Call("cmul")
 }
@@ -1143,11 +1058,6 @@ func cdiv(a0 int32, a1 int32, a2 int32) {
 
 func complex_abs(a0 int32) int32 {
     vml.Call("complex_abs")
-    return vml.R0()
-}
-
-func radians(a0 int32) int32 {
-    vml.Call("radians")
     return vml.R0()
 }
 
@@ -1169,18 +1079,8 @@ func cexp_re(a0 int32, a1 int32) int32 {
     return vml.R0()
 }
 
-func cos(a0 int32) int32 {
-    vml.Call("cos")
-    return vml.R0()
-}
-
 func cexp_im(a0 int32, a1 int32) int32 {
     vml.Call("cexp_im")
-    return vml.R0()
-}
-
-func sin(a0 int32) int32 {
-    vml.Call("sin")
     return vml.R0()
 }
 
@@ -1305,6 +1205,11 @@ func printf2(a0 int32, a1 int32, a2 int32) {
 
 func printf3(a0 int32, a1 int32, a2 int32, a3 int32) {
     vml.Call("printf3")
+}
+
+func itoa(a0 int32, a1 int32) int32 {
+    vml.Call("itoa")
+    return vml.R0()
 }
 
 func int_to_str(a0 int32) int32 {
@@ -1573,11 +1478,6 @@ func ltoa_hex(a0 int32, a1 int32) int32 {
 
 func atol_hex(a0 int32) int32 {
     vml.Call("atol_hex")
-    return vml.R0()
-}
-
-func CRC(a0 int32, a1 int32) int32 {
-    vml.Call("CRC")
     return vml.R0()
 }
 
@@ -2165,11 +2065,6 @@ func encoding_convert(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32
     return vml.R0()
 }
 
-func wrappers(a0 int32) int32 {
-    vml.Call("wrappers")
-    return vml.R0()
-}
-
 func encoding_detect_bom_1(a0 int32) int32 {
     vml.Call("encoding_detect_bom_1")
     return vml.R0()
@@ -2295,13 +2190,18 @@ func sqrt(a0 int32) int32 {
     return vml.R0()
 }
 
-func atan2(a0 int32, a1 int32) int32 {
-    vml.Call("atan2")
+func sin(a0 int32) int32 {
+    vml.Call("sin")
     return vml.R0()
 }
 
-func Math(a0 int32) int32 {
-    vml.Call("Math")
+func cos(a0 int32) int32 {
+    vml.Call("cos")
+    return vml.R0()
+}
+
+func atan2(a0 int32, a1 int32) int32 {
+    vml.Call("atan2")
     return vml.R0()
 }
 
@@ -2682,23 +2582,8 @@ func RestoreCrtMode() {
     vml.Call("RestoreCrtMode")
 }
 
-func base(a0 int32) int32 {
-    vml.Call("base")
-    return vml.R0()
-}
-
-func params(a0 int32) int32 {
-    vml.Call("params")
-    return vml.R0()
-}
-
 func _gfx_refresh_cache() int32 {
     vml.Call("_gfx_refresh_cache")
-    return vml.R0()
-}
-
-func config(a0 int32) int32 {
-    vml.Call("config")
     return vml.R0()
 }
 
@@ -2722,18 +2607,8 @@ func gfx_h() int32 {
     return vml.R0()
 }
 
-func address(a0 int32) int32 {
-    vml.Call("address")
-    return vml.R0()
-}
-
 func _putpixel(a0 int32, a1 int32, a2 int32) int32 {
     vml.Call("_putpixel")
-    return vml.R0()
-}
-
-func PUSH(a0 int32) int32 {
-    vml.Call("PUSH")
     return vml.R0()
 }
 
@@ -2742,43 +2617,8 @@ func _getpixel(a0 int32, a1 int32) int32 {
     return vml.R0()
 }
 
-func R0(a0 int32) int32 {
-    vml.Call("R0")
-    return vml.R0()
-}
-
-func offset(a0 int32, a1 int32) int32 {
-    vml.Call("offset")
-    return vml.R0()
-}
-
 func _putpixel_fast(a0 int32, a1 int32) int32 {
     vml.Call("_putpixel_fast")
-    return vml.R0()
-}
-
-func R4(a0 int32) int32 {
-    vml.Call("R4")
-    return vml.R0()
-}
-
-func Sector(a0 int32) int32 {
-    vml.Call("Sector")
-    return vml.R0()
-}
-
-func points(a0 int32) int32 {
-    vml.Call("points")
-    return vml.R0()
-}
-
-func Font(a0 int32) int32 {
-    vml.Call("Font")
-    return vml.R0()
-}
-
-func Points(a0 int32) int32 {
-    vml.Call("Points")
     return vml.R0()
 }
 
@@ -2960,11 +2800,6 @@ func tan_deg(a0 int32) int32 {
     return vml.R0()
 }
 
-func approximation(a0 int32) int32 {
-    vml.Call("approximation")
-    return vml.R0()
-}
-
 func ilog2(a0 int32) int32 {
     vml.Call("ilog2")
     return vml.R0()
@@ -3086,11 +2921,6 @@ func lrandom64(a0 int32, a1 int32) int32 {
 
 func lclz64(a0 int32) int32 {
     vml.Call("lclz64")
-    return vml.R0()
-}
-
-func Count(a0 int32) int32 {
-    vml.Call("Count")
     return vml.R0()
 }
 
@@ -3255,11 +3085,6 @@ func vec2_dot(a0 int32, a1 int32) int32 {
     return vml.R0()
 }
 
-func product(a0 int32) int32 {
-    vml.Call("product")
-    return vml.R0()
-}
-
 func vec2_cross(a0 int32, a1 int32) int32 {
     vml.Call("vec2_cross")
     return vml.R0()
@@ -3294,18 +3119,8 @@ func vec3_normalize(a0 int32) int32 {
     return vml.R0()
 }
 
-func vector(a0 int32, a1 int32) int32 {
-    vml.Call("vector")
-    return vml.R0()
-}
-
 func mat4_transform_vec3(a0 int32, a1 int32, a2 int32) {
     vml.Call("mat4_transform_vec3")
-}
-
-func arrays(a0 int32) int32 {
-    vml.Call("arrays")
-    return vml.R0()
 }
 
 func mat2_identity_d(a0 int32) {
@@ -3444,16 +3259,6 @@ func mat4_transform_vec3_d(a0 int32, a1 int32, a2 int32) {
 
 func memmove(a0 int32, a1 int32, a2 int32) int32 {
     vml.Call("memmove")
-    return vml.R0()
-}
-
-func long(a0 int32) int32 {
-    vml.Call("long")
-    return vml.R0()
-}
-
-func int(a0 int32) int32 {
-    vml.Call("int")
     return vml.R0()
 }
 
@@ -3666,11 +3471,6 @@ func type_name(a0 int32, a1 int32) int32 {
     return vml.R0()
 }
 
-func literals(a0 int32) int32 {
-    vml.Call("literals")
-    return vml.R0()
-}
-
 func NULL(a0 int32) int32 {
     vml.Call("NULL")
     return vml.R0()
@@ -3708,11 +3508,6 @@ func parse_factor() int32 {
 
 func parserexp(a0 int32) int32 {
     vml.Call("parserexp")
-    return vml.R0()
-}
-
-func cases(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) int32 {
-    vml.Call("cases")
     return vml.R0()
 }
 
@@ -4026,11 +3821,6 @@ func hysteresis(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
     return vml.R0()
 }
 
-func Processing(a0 int32) int32 {
-    vml.Call("Processing")
-    return vml.R0()
-}
-
 func lmoving_avg_init64(a0 int32, a1 int32, a2 int32) int32 {
     vml.Call("lmoving_avg_init64")
     return vml.R0()
@@ -4140,11 +3930,6 @@ func lmedian64(a0 int32) int32 {
     return vml.R0()
 }
 
-func middle(a0 int32, a1 int32) int32 {
-    vml.Call("middle")
-    return vml.R0()
-}
-
 func lrange64(a0 int32) int32 {
     vml.Call("lrange64")
     return vml.R0()
@@ -4215,18 +4000,8 @@ func strrev(a0 int32, a1 int32) int32 {
     return vml.R0()
 }
 
-func uppercase(a0 int32) int32 {
-    vml.Call("uppercase")
-    return vml.R0()
-}
-
 func str_toupper(a0 int32, a1 int32) {
     vml.Call("str_toupper")
-}
-
-func lowercase(a0 int32) int32 {
-    vml.Call("lowercase")
-    return vml.R0()
 }
 
 func str_tolower(a0 int32, a1 int32) {
@@ -4243,11 +4018,6 @@ func str_contains(a0 int32, a1 int32) int32 {
     return vml.R0()
 }
 
-func whitespace(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
-    vml.Call("whitespace")
-    return vml.R0()
-}
-
 func str_trim(a0 int32, a1 int32) int32 {
     vml.Call("str_trim")
     return vml.R0()
@@ -4260,11 +4030,6 @@ func str_substr(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
 
 func str_indexof(a0 int32, a1 int32) int32 {
     vml.Call("str_indexof")
-    return vml.R0()
-}
-
-func parts(a0 int32) int32 {
-    vml.Call("parts")
     return vml.R0()
 }
 
@@ -4314,36 +4079,6 @@ func tick(a0 int32) int32 {
 
 func remaining(a0 int32, a1 int32) int32 {
     vml.Call("remaining")
-    return vml.R0()
-}
-
-func char(a0 int32) int32 {
-    vml.Call("char")
-    return vml.R0()
-}
-
-func hex(a0 int32) int32 {
-    vml.Call("hex")
-    return vml.R0()
-}
-
-func timestamp(a0 int32) int32 {
-    vml.Call("timestamp")
-    return vml.R0()
-}
-
-func framebuffer(a0 int32) int32 {
-    vml.Call("framebuffer")
-    return vml.R0()
-}
-
-func size(a0 int32) int32 {
-    vml.Call("size")
-    return vml.R0()
-}
-
-func compatible(a0 int32) int32 {
-    vml.Call("compatible")
     return vml.R0()
 }
 
@@ -4444,11 +4179,6 @@ func delay(a0 int32) {
 
 func int_pow(a0 int32, a1 int32) int32 {
     vml.Call("int_pow")
-    return vml.R0()
-}
-
-func root(a0 int32) int32 {
-    vml.Call("root")
     return vml.R0()
 }
 
@@ -4777,6 +4507,11 @@ func ui_dlg_msg(a0 int32, a1 int32, a2 int32) int32 {
     return vml.R0()
 }
 
+func asm(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("asm")
+    return vml.R0()
+}
+
 func ui_dlg_select(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) int32 {
     vml.Call("ui_dlg_select")
     return vml.R0()
@@ -4876,13 +4611,13 @@ func ui_msg_count() int32 {
     return vml.R0()
 }
 
-func ui_poll_msg() int32 {
-    vml.Call("ui_poll_msg")
+func ui_wait_msg(a0 int32) int32 {
+    vml.Call("ui_wait_msg")
     return vml.R0()
 }
 
-func ui_wait_msg(a0 int32) int32 {
-    vml.Call("ui_wait_msg")
+func ui_poll_msg() int32 {
+    vml.Call("ui_poll_msg")
     return vml.R0()
 }
 
@@ -4954,11 +4689,6 @@ func ui_icon(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
 
 func ui_image(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
     vml.Call("ui_image")
-}
-
-func character(a0 int32, a1 int32) int32 {
-    vml.Call("character")
-    return vml.R0()
 }
 
 func wctomb(a0 int32, a1 int32) int32 {

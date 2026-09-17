@@ -137,11 +137,6 @@ DECLARE FUNCTION bsearch(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     bsearch = 0
 END FUNCTION
 
-DECLARE FUNCTION Arrays(a0 AS INTEGER) AS INTEGER
-    asm("CALL Arrays")
-    Arrays = 0
-END FUNCTION
-
 DECLARE FUNCTION llen64(a0 AS INTEGER) AS INTEGER
     asm("CALL llen64")
     llen64 = 0
@@ -277,11 +272,6 @@ DECLARE FUNCTION base64_decode(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     base64_decode = 0
 END FUNCTION
 
-DECLARE FUNCTION values(a0 AS INTEGER) AS INTEGER
-    asm("CALL values")
-    values = 0
-END FUNCTION
-
 DECLARE FUNCTION _hex_str(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL _hex_str")
     _hex_str = 0
@@ -327,11 +317,6 @@ DECLARE FUNCTION basic_time_str() AS INTEGER
     basic_time_str = 0
 END FUNCTION
 
-DECLARE FUNCTION elapsed(a0 AS INTEGER) AS INTEGER
-    asm("CALL elapsed")
-    elapsed = 0
-END FUNCTION
-
 DECLARE FUNCTION basic_timer() AS INTEGER
     asm("CALL basic_timer")
     basic_timer = 0
@@ -342,19 +327,9 @@ DECLARE FUNCTION basic_inputN(a0 AS INTEGER) AS INTEGER
     basic_inputN = 0
 END FUNCTION
 
-DECLARE FUNCTION asm(a0 AS INTEGER) AS INTEGER
-    asm("CALL asm")
-    asm = 0
-END FUNCTION
-
 DECLARE FUNCTION basic_eof(a0 AS INTEGER) AS INTEGER
     asm("CALL basic_eof")
     basic_eof = 0
-END FUNCTION
-
-DECLARE FUNCTION Manipulation(a0 AS INTEGER) AS INTEGER
-    asm("CALL Manipulation")
-    Manipulation = 0
 END FUNCTION
 
 DECLARE FUNCTION basic_ucase(a0 AS INTEGER) AS INTEGER
@@ -377,29 +352,14 @@ DECLARE FUNCTION basic_asc(a0 AS INTEGER) AS INTEGER
     basic_asc = 0
 END FUNCTION
 
-DECLARE FUNCTION code(a0 AS INTEGER) AS INTEGER
-    asm("CALL code")
-    code = 0
-END FUNCTION
-
 DECLARE FUNCTION basic_chr(a0 AS INTEGER) AS INTEGER
     asm("CALL basic_chr")
     basic_chr = 0
 END FUNCTION
 
-DECLARE FUNCTION spaces(a0 AS INTEGER) AS INTEGER
-    asm("CALL spaces")
-    spaces = 0
-END FUNCTION
-
 DECLARE FUNCTION basic_space(a0 AS INTEGER) AS INTEGER
     asm("CALL basic_space")
     basic_space = 0
-END FUNCTION
-
-DECLARE FUNCTION string(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
-    asm("CALL string")
-    string = 0
 END FUNCTION
 
 DECLARE FUNCTION basic_str_int(a0 AS INTEGER) AS INTEGER
@@ -442,11 +402,6 @@ DECLARE FUNCTION basic_sgn(a0 AS INTEGER) AS INTEGER
     basic_sgn = 0
 END FUNCTION
 
-DECLARE FUNCTION interpolation(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
-    asm("CALL interpolation")
-    interpolation = 0
-END FUNCTION
-
 DECLARE FUNCTION _sin_lookup(a0 AS INTEGER) AS INTEGER
     asm("CALL _sin_lookup")
     _sin_lookup = 0
@@ -467,29 +422,14 @@ DECLARE FUNCTION basic_tan(a0 AS INTEGER) AS INTEGER
     basic_tan = 0
 END FUNCTION
 
-DECLARE FUNCTION method(a0 AS INTEGER) AS INTEGER
-    asm("CALL method")
-    method = 0
-END FUNCTION
-
 DECLARE FUNCTION basic_sqr(a0 AS INTEGER) AS INTEGER
     asm("CALL basic_sqr")
     basic_sqr = 0
 END FUNCTION
 
-DECLARE FUNCTION integer(a0 AS INTEGER) AS INTEGER
-    asm("CALL integer")
-    integer = 0
-END FUNCTION
-
 DECLARE FUNCTION basic_rnd() AS INTEGER
     asm("CALL basic_rnd")
     basic_rnd = 0
-END FUNCTION
-
-DECLARE FUNCTION series(a0 AS INTEGER) AS INTEGER
-    asm("CALL series")
-    series = 0
 END FUNCTION
 
 DECLARE FUNCTION basic_exp(a0 AS INTEGER) AS INTEGER
@@ -515,11 +455,6 @@ END FUNCTION
 DECLARE FUNCTION basic_point(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL basic_point")
     basic_point = 0
-END FUNCTION
-
-DECLARE FUNCTION above(a0 AS INTEGER) AS INTEGER
-    asm("CALL above")
-    above = 0
 END FUNCTION
 
 DECLARE FUNCTION clear(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
@@ -752,16 +687,6 @@ DECLARE FUNCTION lnext_power_of_two64(a0 AS INTEGER) AS INTEGER
     lnext_power_of_two64 = 0
 END FUNCTION
 
-DECLARE FUNCTION CMD_BUF(a0 AS INTEGER) AS INTEGER
-    asm("CALL CMD_BUF")
-    CMD_BUF = 0
-END FUNCTION
-
-DECLARE FUNCTION format(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
-    asm("CALL format")
-    format = 0
-END FUNCTION
-
 DECLARE FUNCTION cmd_write(a0 AS INTEGER) AS INTEGER
     asm("CALL cmd_write")
     cmd_write = 0
@@ -951,11 +876,6 @@ DECLARE FUNCTION atoi(a0 AS INTEGER) AS INTEGER
     atoi = 0
 END FUNCTION
 
-DECLARE FUNCTION itoa(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
-    asm("CALL itoa")
-    itoa = 0
-END FUNCTION
-
 DECLARE FUNCTION memcpy(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
     asm("CALL memcpy")
     memcpy = 0
@@ -1126,11 +1046,6 @@ DECLARE SUB csub(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
     asm("CALL csub")
 END SUB
 
-DECLARE FUNCTION b(a0 AS INTEGER) AS INTEGER
-    asm("CALL b")
-    b = 0
-END FUNCTION
-
 DECLARE SUB cmul(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
     asm("CALL cmul")
 END SUB
@@ -1142,11 +1057,6 @@ END SUB
 DECLARE FUNCTION complex_abs(a0 AS INTEGER) AS INTEGER
     asm("CALL complex_abs")
     complex_abs = 0
-END FUNCTION
-
-DECLARE FUNCTION radians(a0 AS INTEGER) AS INTEGER
-    asm("CALL radians")
-    radians = 0
 END FUNCTION
 
 DECLARE FUNCTION complex_arg(a0 AS INTEGER) AS INTEGER
@@ -1167,19 +1077,9 @@ DECLARE FUNCTION cexp_re(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     cexp_re = 0
 END FUNCTION
 
-DECLARE FUNCTION cos(a0 AS INTEGER) AS INTEGER
-    asm("CALL cos")
-    cos = 0
-END FUNCTION
-
 DECLARE FUNCTION cexp_im(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL cexp_im")
     cexp_im = 0
-END FUNCTION
-
-DECLARE FUNCTION sin(a0 AS INTEGER) AS INTEGER
-    asm("CALL sin")
-    sin = 0
 END FUNCTION
 
 DECLARE SUB csqr(a0 AS INTEGER, a1 AS INTEGER)
@@ -1304,6 +1204,11 @@ END SUB
 DECLARE SUB printf3(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
     asm("CALL printf3")
 END SUB
+
+DECLARE FUNCTION itoa(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL itoa")
+    itoa = 0
+END FUNCTION
 
 DECLARE FUNCTION int_to_str(a0 AS INTEGER) AS INTEGER
     asm("CALL int_to_str")
@@ -1572,11 +1477,6 @@ END FUNCTION
 DECLARE FUNCTION atol_hex(a0 AS INTEGER) AS INTEGER
     asm("CALL atol_hex")
     atol_hex = 0
-END FUNCTION
-
-DECLARE FUNCTION CRC(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
-    asm("CALL CRC")
-    CRC = 0
 END FUNCTION
 
 DECLARE FUNCTION crc8(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
@@ -2163,11 +2063,6 @@ DECLARE FUNCTION encoding_convert(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a
     encoding_convert = 0
 END FUNCTION
 
-DECLARE FUNCTION wrappers(a0 AS INTEGER) AS INTEGER
-    asm("CALL wrappers")
-    wrappers = 0
-END FUNCTION
-
 DECLARE FUNCTION encoding_detect_bom_1(a0 AS INTEGER) AS INTEGER
     asm("CALL encoding_detect_bom_1")
     encoding_detect_bom_1 = 0
@@ -2293,14 +2188,19 @@ DECLARE FUNCTION sqrt(a0 AS INTEGER) AS INTEGER
     sqrt = 0
 END FUNCTION
 
+DECLARE FUNCTION sin(a0 AS INTEGER) AS INTEGER
+    asm("CALL sin")
+    sin = 0
+END FUNCTION
+
+DECLARE FUNCTION cos(a0 AS INTEGER) AS INTEGER
+    asm("CALL cos")
+    cos = 0
+END FUNCTION
+
 DECLARE FUNCTION atan2(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL atan2")
     atan2 = 0
-END FUNCTION
-
-DECLARE FUNCTION Math(a0 AS INTEGER) AS INTEGER
-    asm("CALL Math")
-    Math = 0
 END FUNCTION
 
 DECLARE FUNCTION lfixed_mul64(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
@@ -2680,24 +2580,9 @@ DECLARE SUB RestoreCrtMode()
     asm("CALL RestoreCrtMode")
 END SUB
 
-DECLARE FUNCTION base(a0 AS INTEGER) AS INTEGER
-    asm("CALL base")
-    base = 0
-END FUNCTION
-
-DECLARE FUNCTION params(a0 AS INTEGER) AS INTEGER
-    asm("CALL params")
-    params = 0
-END FUNCTION
-
 DECLARE FUNCTION _gfx_refresh_cache() AS INTEGER
     asm("CALL _gfx_refresh_cache")
     _gfx_refresh_cache = 0
-END FUNCTION
-
-DECLARE FUNCTION config(a0 AS INTEGER) AS INTEGER
-    asm("CALL config")
-    config = 0
 END FUNCTION
 
 DECLARE FUNCTION get_config(a0 AS INTEGER) AS INTEGER
@@ -2720,19 +2605,9 @@ DECLARE FUNCTION gfx_h() AS INTEGER
     gfx_h = 0
 END FUNCTION
 
-DECLARE FUNCTION address(a0 AS INTEGER) AS INTEGER
-    asm("CALL address")
-    address = 0
-END FUNCTION
-
 DECLARE FUNCTION _putpixel(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
     asm("CALL _putpixel")
     _putpixel = 0
-END FUNCTION
-
-DECLARE FUNCTION PUSH(a0 AS INTEGER) AS INTEGER
-    asm("CALL PUSH")
-    PUSH = 0
 END FUNCTION
 
 DECLARE FUNCTION _getpixel(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
@@ -2740,44 +2615,9 @@ DECLARE FUNCTION _getpixel(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     _getpixel = 0
 END FUNCTION
 
-DECLARE FUNCTION R0(a0 AS INTEGER) AS INTEGER
-    asm("CALL R0")
-    R0 = 0
-END FUNCTION
-
-DECLARE FUNCTION offset(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
-    asm("CALL offset")
-    offset = 0
-END FUNCTION
-
 DECLARE FUNCTION _putpixel_fast(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL _putpixel_fast")
     _putpixel_fast = 0
-END FUNCTION
-
-DECLARE FUNCTION R4(a0 AS INTEGER) AS INTEGER
-    asm("CALL R4")
-    R4 = 0
-END FUNCTION
-
-DECLARE FUNCTION Sector(a0 AS INTEGER) AS INTEGER
-    asm("CALL Sector")
-    Sector = 0
-END FUNCTION
-
-DECLARE FUNCTION points(a0 AS INTEGER) AS INTEGER
-    asm("CALL points")
-    points = 0
-END FUNCTION
-
-DECLARE FUNCTION Font(a0 AS INTEGER) AS INTEGER
-    asm("CALL Font")
-    Font = 0
-END FUNCTION
-
-DECLARE FUNCTION Points(a0 AS INTEGER) AS INTEGER
-    asm("CALL Points")
-    Points = 0
 END FUNCTION
 
 DECLARE FUNCTION wcslen(a0 AS INTEGER) AS INTEGER
@@ -2958,11 +2798,6 @@ DECLARE FUNCTION tan_deg(a0 AS INTEGER) AS INTEGER
     tan_deg = 0
 END FUNCTION
 
-DECLARE FUNCTION approximation(a0 AS INTEGER) AS INTEGER
-    asm("CALL approximation")
-    approximation = 0
-END FUNCTION
-
 DECLARE FUNCTION ilog2(a0 AS INTEGER) AS INTEGER
     asm("CALL ilog2")
     ilog2 = 0
@@ -3085,11 +2920,6 @@ END FUNCTION
 DECLARE FUNCTION lclz64(a0 AS INTEGER) AS INTEGER
     asm("CALL lclz64")
     lclz64 = 0
-END FUNCTION
-
-DECLARE FUNCTION Count(a0 AS INTEGER) AS INTEGER
-    asm("CALL Count")
-    Count = 0
 END FUNCTION
 
 DECLARE FUNCTION lpopcnt64(a0 AS INTEGER) AS INTEGER
@@ -3253,11 +3083,6 @@ DECLARE FUNCTION vec2_dot(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     vec2_dot = 0
 END FUNCTION
 
-DECLARE FUNCTION product(a0 AS INTEGER) AS INTEGER
-    asm("CALL product")
-    product = 0
-END FUNCTION
-
 DECLARE FUNCTION vec2_cross(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL vec2_cross")
     vec2_cross = 0
@@ -3292,19 +3117,9 @@ DECLARE FUNCTION vec3_normalize(a0 AS INTEGER) AS INTEGER
     vec3_normalize = 0
 END FUNCTION
 
-DECLARE FUNCTION vector(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
-    asm("CALL vector")
-    vector = 0
-END FUNCTION
-
 DECLARE SUB mat4_transform_vec3(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
     asm("CALL mat4_transform_vec3")
 END SUB
-
-DECLARE FUNCTION arrays(a0 AS INTEGER) AS INTEGER
-    asm("CALL arrays")
-    arrays = 0
-END FUNCTION
 
 DECLARE SUB mat2_identity_d(a0 AS INTEGER)
     asm("CALL mat2_identity_d")
@@ -3443,16 +3258,6 @@ END SUB
 DECLARE FUNCTION memmove(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
     asm("CALL memmove")
     memmove = 0
-END FUNCTION
-
-DECLARE FUNCTION long(a0 AS INTEGER) AS INTEGER
-    asm("CALL long")
-    long = 0
-END FUNCTION
-
-DECLARE FUNCTION int(a0 AS INTEGER) AS INTEGER
-    asm("CALL int")
-    int = 0
 END FUNCTION
 
 DECLARE FUNCTION lmemcpy(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
@@ -3664,11 +3469,6 @@ DECLARE FUNCTION type_name(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     type_name = 0
 END FUNCTION
 
-DECLARE FUNCTION literals(a0 AS INTEGER) AS INTEGER
-    asm("CALL literals")
-    literals = 0
-END FUNCTION
-
 DECLARE FUNCTION NULL(a0 AS INTEGER) AS INTEGER
     asm("CALL NULL")
     NULL = 0
@@ -3707,11 +3507,6 @@ END FUNCTION
 DECLARE FUNCTION parserexp(a0 AS INTEGER) AS INTEGER
     asm("CALL parserexp")
     parserexp = 0
-END FUNCTION
-
-DECLARE FUNCTION cases(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER) AS INTEGER
-    asm("CALL cases")
-    cases = 0
 END FUNCTION
 
 DECLARE FUNCTION parse_expr_f() AS INTEGER
@@ -4024,11 +3819,6 @@ DECLARE FUNCTION hysteresis(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS I
     hysteresis = 0
 END FUNCTION
 
-DECLARE FUNCTION Processing(a0 AS INTEGER) AS INTEGER
-    asm("CALL Processing")
-    Processing = 0
-END FUNCTION
-
 DECLARE FUNCTION lmoving_avg_init64(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
     asm("CALL lmoving_avg_init64")
     lmoving_avg_init64 = 0
@@ -4138,11 +3928,6 @@ DECLARE FUNCTION lmedian64(a0 AS INTEGER) AS INTEGER
     lmedian64 = 0
 END FUNCTION
 
-DECLARE FUNCTION middle(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
-    asm("CALL middle")
-    middle = 0
-END FUNCTION
-
 DECLARE FUNCTION lrange64(a0 AS INTEGER) AS INTEGER
     asm("CALL lrange64")
     lrange64 = 0
@@ -4213,19 +3998,9 @@ DECLARE FUNCTION strrev(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     strrev = 0
 END FUNCTION
 
-DECLARE FUNCTION uppercase(a0 AS INTEGER) AS INTEGER
-    asm("CALL uppercase")
-    uppercase = 0
-END FUNCTION
-
 DECLARE SUB str_toupper(a0 AS INTEGER, a1 AS INTEGER)
     asm("CALL str_toupper")
 END SUB
-
-DECLARE FUNCTION lowercase(a0 AS INTEGER) AS INTEGER
-    asm("CALL lowercase")
-    lowercase = 0
-END FUNCTION
 
 DECLARE SUB str_tolower(a0 AS INTEGER, a1 AS INTEGER)
     asm("CALL str_tolower")
@@ -4241,11 +4016,6 @@ DECLARE FUNCTION str_contains(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     str_contains = 0
 END FUNCTION
 
-DECLARE FUNCTION whitespace(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
-    asm("CALL whitespace")
-    whitespace = 0
-END FUNCTION
-
 DECLARE FUNCTION str_trim(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL str_trim")
     str_trim = 0
@@ -4259,11 +4029,6 @@ END FUNCTION
 DECLARE FUNCTION str_indexof(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL str_indexof")
     str_indexof = 0
-END FUNCTION
-
-DECLARE FUNCTION parts(a0 AS INTEGER) AS INTEGER
-    asm("CALL parts")
-    parts = 0
 END FUNCTION
 
 DECLARE FUNCTION str_split(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
@@ -4313,36 +4078,6 @@ END FUNCTION
 DECLARE FUNCTION remaining(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL remaining")
     remaining = 0
-END FUNCTION
-
-DECLARE FUNCTION char(a0 AS INTEGER) AS INTEGER
-    asm("CALL char")
-    char = 0
-END FUNCTION
-
-DECLARE FUNCTION hex(a0 AS INTEGER) AS INTEGER
-    asm("CALL hex")
-    hex = 0
-END FUNCTION
-
-DECLARE FUNCTION timestamp(a0 AS INTEGER) AS INTEGER
-    asm("CALL timestamp")
-    timestamp = 0
-END FUNCTION
-
-DECLARE FUNCTION framebuffer(a0 AS INTEGER) AS INTEGER
-    asm("CALL framebuffer")
-    framebuffer = 0
-END FUNCTION
-
-DECLARE FUNCTION size(a0 AS INTEGER) AS INTEGER
-    asm("CALL size")
-    size = 0
-END FUNCTION
-
-DECLARE FUNCTION compatible(a0 AS INTEGER) AS INTEGER
-    asm("CALL compatible")
-    compatible = 0
 END FUNCTION
 
 DECLARE FUNCTION getconfig(a0 AS INTEGER) AS INTEGER
@@ -4443,11 +4178,6 @@ END SUB
 DECLARE FUNCTION int_pow(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL int_pow")
     int_pow = 0
-END FUNCTION
-
-DECLARE FUNCTION root(a0 AS INTEGER) AS INTEGER
-    asm("CALL root")
-    root = 0
 END FUNCTION
 
 DECLARE FUNCTION int_sqrt(a0 AS INTEGER) AS INTEGER
@@ -4775,6 +4505,11 @@ DECLARE FUNCTION ui_dlg_msg(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTE
     ui_dlg_msg = 0
 END FUNCTION
 
+DECLARE FUNCTION asm(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL asm")
+    asm = 0
+END FUNCTION
+
 DECLARE FUNCTION ui_dlg_select(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER) AS INTEGER
     asm("CALL ui_dlg_select")
     ui_dlg_select = 0
@@ -4874,14 +4609,14 @@ DECLARE FUNCTION ui_msg_count() AS INTEGER
     ui_msg_count = 0
 END FUNCTION
 
-DECLARE FUNCTION ui_poll_msg() AS INTEGER
-    asm("CALL ui_poll_msg")
-    ui_poll_msg = 0
-END FUNCTION
-
 DECLARE FUNCTION ui_wait_msg(a0 AS INTEGER) AS INTEGER
     asm("CALL ui_wait_msg")
     ui_wait_msg = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_poll_msg() AS INTEGER
+    asm("CALL ui_poll_msg")
+    ui_poll_msg = 0
 END FUNCTION
 
 DECLARE FUNCTION ui_msg_type() AS INTEGER
@@ -4953,11 +4688,6 @@ END SUB
 DECLARE SUB ui_image(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER)
     asm("CALL ui_image")
 END SUB
-
-DECLARE FUNCTION character(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
-    asm("CALL character")
-    character = 0
-END FUNCTION
 
 DECLARE FUNCTION wctomb(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL wctomb")

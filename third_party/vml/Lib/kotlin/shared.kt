@@ -59,8 +59,6 @@
 // CALL sort_quick
 // extern fn bsearch(int* arr, int value) -> int
 // CALL bsearch
-// extern fn Arrays(long* with long indices) -> Integer
-// CALL Arrays
 // extern fn llen64(long* arr) -> long
 // CALL llen64
 // extern fn lget64(long* arr, long index) -> long
@@ -119,8 +117,6 @@
 // CALL _b64_decode_char
 // extern fn base64_decode(const char* src, char* dst) -> int
 // CALL base64_decode
-// extern fn values(QBASIC convention) -> return
-// CALL values
 // extern fn _hex_str(int val, char* buf) -> oid
 // CALL _hex_str
 // extern fn basic_instr(int start, const char* haystack, const char* needle) -> int
@@ -139,18 +135,12 @@
 // CALL basic_date_str
 // extern fn basic_time_str(void) -> const char*
 // CALL basic_time_str
-// extern fn elapsed(SYSCALL 53 returns ms) -> seconds
-// CALL elapsed
 // extern fn basic_timer(void) -> int
 // CALL basic_timer
 // extern fn basic_inputN(int n) -> char*
 // CALL basic_inputN
-// extern fn asm("SYSCALL #5") -> mode
-// CALL asm
 // extern fn basic_eof(int filenum) -> int
 // CALL basic_eof
-// extern fn Manipulation(inline replacements) -> String
-// CALL Manipulation
 // extern fn basic_ucase(const char* s) -> char*
 // CALL basic_ucase
 // extern fn basic_lcase(const char* s) -> char*
@@ -159,16 +149,10 @@
 // CALL basic_len
 // extern fn basic_asc(const char* s) -> int
 // CALL basic_asc
-// extern fn code(returns 1-char string) -> ASCII
-// CALL code
 // extern fn basic_chr(int n) -> char*
 // CALL basic_chr
-// extern fn spaces(inline to avoid nested CALL stack cleanup issues) -> n
-// CALL spaces
 // extern fn basic_space(int n) -> char*
 // CALL basic_space
-// extern fn string(no division, pure subtraction) -> decimal
-// CALL string
 // extern fn basic_str_int(int val) -> char*
 // CALL basic_str_int
 // extern fn basic_val(const char* s) -> int
@@ -185,8 +169,6 @@
 // CALL basic_abs
 // extern fn basic_sgn(int n) -> int
 // CALL basic_sgn
-// extern fn interpolation(no array, VML C compiler safe) -> linear
-// CALL interpolation
 // extern fn _sin_lookup(int deg) -> int
 // CALL _sin_lookup
 // extern fn basic_sin(int x) -> int
@@ -195,16 +177,10 @@
 // CALL basic_cos
 // extern fn basic_tan(int x) -> int
 // CALL basic_tan
-// extern fn method(integer) -> s
-// CALL method
 // extern fn basic_sqr(int x) -> int
 // CALL basic_sqr
-// extern fn integer(SYSCALL #50) -> random
-// CALL integer
 // extern fn basic_rnd(void) -> int
 // CALL basic_rnd
-// extern fn series(avoid div in loop) -> Taylor
-// CALL series
 // extern fn basic_exp(int x) -> int
 // CALL basic_exp
 // extern fn basic_log(int x) -> int
@@ -215,8 +191,6 @@
 // CALL basic_int
 // extern fn basic_point(int x, int y) -> int
 // CALL basic_point
-// extern fn above(implemented in basiclib.vml) -> declaration
-// CALL above
 // extern fn clear(int value, int n) -> int
 // CALL clear
 // extern fn toggle(int value, int n) -> int
@@ -309,10 +283,6 @@
 // CALL lis_power_of_two64
 // extern fn lnext_power_of_two64(long x) -> long
 // CALL lnext_power_of_two64
-// extern fn CMD_BUF(0x5000) -> at
-// CALL CMD_BUF
-// extern fn format(sequential, terminated by cmd_id=0) -> Buffer
-// CALL format
 // extern fn cmd_write(int val) -> oid
 // CALL cmd_write
 // extern fn browser_clear(int r, int g, int b) -> void
@@ -397,8 +367,6 @@
 // CALL strlen
 // extern fn atoi(const char* s) -> int
 // CALL atoi
-// extern fn itoa(int value, char* dst) -> int
-// CALL itoa
 // extern fn memcpy(void* dst, const void* src, int n) -> void*
 // CALL memcpy
 // extern fn memset(void* ptr, int val, int n) -> void*
@@ -469,16 +437,12 @@
 // CALL cadd
 // extern fn csub(float* a, float* b, float* result) -> void
 // CALL csub
-// extern fn b(complex multiplication) -> a *
-// CALL b
 // extern fn cmul(float* a, float* b, float* result) -> void
 // CALL cmul
 // extern fn cdiv(float* a, float* b, float* result) -> void
 // CALL cdiv
 // extern fn complex_abs(float* z) -> float
 // CALL complex_abs
-// extern fn radians(-PI to PI) -> in
-// CALL radians
 // extern fn complex_arg(float* z) -> float
 // CALL complex_arg
 // extern fn cconj(float* a, float* result) -> void
@@ -487,12 +451,8 @@
 // CALL cneg
 // extern fn cexp_re(float re, float im) -> float
 // CALL cexp_re
-// extern fn cos(im) -> re *
-// CALL cos
 // extern fn cexp_im(float re, float im) -> float
 // CALL cexp_im
-// extern fn sin(im) -> re *
-// CALL sin
 // extern fn csqr(float* a, float* result) -> void
 // CALL csqr
 // extern fn csqrt(float* z, float* result) -> void
@@ -549,6 +509,8 @@
 // CALL printf2
 // extern fn printf3(const char* fmt, int a1, int a2, int a3) -> void
 // CALL printf3
+// extern fn itoa(int value, char* dst) -> int
+// CALL itoa
 // extern fn int_to_str(int val) -> const char*
 // CALL int_to_str
 // extern fn int_to_wstr(int val) -> const wchar_t*
@@ -657,8 +619,6 @@
 // CALL ltoa_hex
 // extern fn atol_hex(const char* s) -> long
 // CALL atol_hex
-// extern fn CRC(CRC-8-ATM, poly=0x07) -> bit
-// CALL CRC
 // extern fn crc8(const char* data, int len) -> int
 // CALL crc8
 // extern fn crc16(const char* data, int len) -> int
@@ -903,8 +863,6 @@
 // CALL encoding_name
 // extern fn encoding_convert(unsigned char* src, int src_len, unsigned char* dst, int dst_max, int from_enc, int to_enc) -> int
 // CALL encoding_convert
-// extern fn wrappers(matching test signatures) -> compatible
-// CALL wrappers
 // extern fn encoding_detect_bom_1(unsigned char* src) -> int
 // CALL encoding_detect_bom_1
 // extern fn encoding_get_name(int enc) -> const char*
@@ -955,10 +913,12 @@
 // CALL to_float
 // extern fn sqrt(int value) -> int
 // CALL sqrt
+// extern fn sin(int rad_q16) -> int
+// CALL sin
+// extern fn cos(int rad_q16) -> int
+// CALL cos
 // extern fn atan2(int y, int x) -> int
 // CALL atan2
-// extern fn Math(64-bit int representation) -> Point
-// CALL Math
 // extern fn lfixed_mul64(long a, long b) -> long
 // CALL lfixed_mul64
 // extern fn lfixed_div64(long a, long b) -> long
@@ -1131,14 +1091,8 @@
 // CALL GraphErrorMsg
 // extern fn RestoreCrtMode(void) -> void
 // CALL RestoreCrtMode
-// extern fn base(GetConfig #1) -> framebuffer
-// CALL base
-// extern fn params(refreshed once after SCREEN mode change) -> framebuffer
-// CALL params
 // extern fn _gfx_refresh_cache(void) -> oid
 // CALL _gfx_refresh_cache
-// extern fn config(80x25) -> device
-// CALL config
 // extern fn get_config(int code) -> nt
 // CALL get_config
 // extern fn gfx_fb() -> nt*
@@ -1147,31 +1101,12 @@
 // CALL gfx_w
 // extern fn gfx_h() -> nt
 // CALL gfx_h
-// extern fn address(0x6FF0) -> VGA_MODE
-// CALL address
 // extern fn _putpixel(int x, int y, int color) -> oid
 // CALL _putpixel
-// extern fn PUSH(PUSH modifies SP which may confuse the
-    // compiler when _putpixel is called from functions with 5+ params) -> of
-// CALL PUSH
 // extern fn _getpixel(int x, int y) -> nt
 // CALL _getpixel
-// extern fn R0(return value) -> into
-// CALL R0
-// extern fn offset(no bounds check, no y*x+w multiply) -> linear
-// CALL offset
 // extern fn _putpixel_fast(int offset, int color) -> oid
 // CALL _putpixel_fast
-// extern fn R4(5th param color) -> save
-// CALL R4
-// extern fn Sector(pie slice with radial lines) -> Filled
-// CALL Sector
-// extern fn points(2-degree steps for fill density) -> arc
-// CALL points
-// extern fn Font(ASCII 32-126) -> Bitmap
-// CALL Font
-// extern fn Points(called by all language wrappers) -> Entry
-// CALL Points
 // extern fn wcslen(const wchar_t *s) -> size_t
 // CALL wcslen
 // extern fn wcstombs(char *dest, const wchar_t *src, size_t max) -> size_t
@@ -1248,8 +1183,6 @@
 // CALL cos_deg
 // extern fn tan_deg(float degrees) -> float
 // CALL tan_deg
-// extern fn approximation(for positive integers) -> log2
-// CALL approximation
 // extern fn ilog2(int x) -> int
 // CALL ilog2
 // extern fn ceil_div(int a, int b) -> int
@@ -1300,8 +1233,6 @@
 // CALL lrandom64
 // extern fn lclz64(long x) -> long
 // CALL lclz64
-// extern fn Count(1-bits) -> Population
-// CALL Count
 // extern fn lpopcnt64(long x) -> long
 // CALL lpopcnt64
 // extern fn llerp64(long a, long b, long t) -> long
@@ -1374,8 +1305,6 @@
 // CALL mat4_transpose
 // extern fn vec2_dot(float* a, float* b) -> float
 // CALL vec2_dot
-// extern fn product(scalar) -> cross
-// CALL product
 // extern fn vec2_cross(float* a, float* b) -> float
 // CALL vec2_cross
 // extern fn vec2_len(float* v) -> float
@@ -1390,12 +1319,8 @@
 // CALL vec3_len
 // extern fn vec3_normalize(float* v) -> float
 // CALL vec3_normalize
-// extern fn vector(w=1, perspective divide) -> D
-// CALL vector
 // extern fn mat4_transform_vec3(float* m, float* v, float* result) -> void
 // CALL mat4_transform_vec3
-// extern fn arrays(64-bit float) -> double*
-// CALL arrays
 // extern fn mat2_identity_d(double* result) -> void
 // CALL mat2_identity_d
 // extern fn mat2_add_d(double* a, double* b, double* result) -> void
@@ -1460,10 +1385,6 @@
 // CALL mat4_transform_vec3_d
 // extern fn memmove(void* dst, const void* src, int n) -> void*
 // CALL memmove
-// extern fn long(64-bit) -> Uses
-// CALL long
-// extern fn int(32-bit) -> of
-// CALL int
 // extern fn lmemcpy(void* dst, const void* src, long n) -> void*
 // CALL lmemcpy
 // extern fn lmemset(void* ptr, int val, long n) -> void*
@@ -1550,8 +1471,6 @@
 // CALL type_of
 // extern fn type_name(int type_id, char* buf) -> int
 // CALL type_name
-// extern fn literals(decimal/hex) -> integer
-// CALL literals
 // extern fn NULL((void*) -> define
 // CALL NULL
 // extern fn is_hex_digit(char c) -> nt
@@ -1568,8 +1487,6 @@
 // CALL parse_factor
 // extern fn parserexp(const char *expression) -> int
 // CALL parserexp
-// extern fn cases(expected: 14, 0, 42, 7, -5) -> test
-// CALL cases
 // extern fn parse_expr_f(void) -> ouble
 // CALL parse_expr_f
 // extern fn parse_term_f(void) -> ouble
@@ -1702,8 +1619,6 @@
 // CALL deadband
 // extern fn hysteresis(int* state, int input, int on_threshold, int off_threshold) -> int
 // CALL hysteresis
-// extern fn Processing(long* state arrays) -> Signal
-// CALL Processing
 // extern fn lmoving_avg_init64(long window_size, long* buffer, long* state) -> long
 // CALL lmoving_avg_init64
 // extern fn lmoving_avg_update64(long* state, long new_value) -> long
@@ -1748,8 +1663,6 @@
 // CALL linreg_intercept
 // extern fn lmedian64(long* arr) -> long
 // CALL lmedian64
-// extern fn middle(simple, correct for small arrays) -> pick
-// CALL middle
 // extern fn lrange64(long* arr) -> long
 // CALL lrange64
 // extern fn lcount_gt64(long* arr, long threshold) -> long
@@ -1778,28 +1691,20 @@
 // CALL strstr
 // extern fn strrev(char* dst, const char* src) -> int
 // CALL strrev
-// extern fn uppercase(in-place or to dst) -> to
-// CALL uppercase
 // extern fn str_toupper(char* dst, const char* src) -> void
 // CALL str_toupper
-// extern fn lowercase(in-place or to dst) -> to
-// CALL lowercase
 // extern fn str_tolower(char* dst, const char* src) -> void
 // CALL str_tolower
 // extern fn str_repeat(char* dst, const char* src, int n) -> int
 // CALL str_repeat
 // extern fn str_contains(const char* s, const char* sub) -> int
 // CALL str_contains
-// extern fn whitespace(space, tab, CR, LF) -> trailing
-// CALL whitespace
 // extern fn str_trim(char* dst, const char* src) -> char*
 // CALL str_trim
 // extern fn str_substr(char* dst, const char* src, int pos, int count) -> char*
 // CALL str_substr
 // extern fn str_indexof(const char* s, int c) -> int
 // CALL str_indexof
-// extern fn parts(max 32) -> of
-// CALL parts
 // extern fn str_split(const char* s, int delim, char** parts, int maxParts) -> int
 // CALL str_split
 // extern fn str_padstart(char* dst, const char* src, int totalLen, int padChar) -> char*
@@ -1820,18 +1725,6 @@
 // CALL tick
 // extern fn remaining(int* timers, int timer_id) -> int
 // CALL remaining
-// extern fn char(+VGA text buffer) -> output
-// CALL char
-// extern fn hex(0x....) -> output
-// CALL hex
-// extern fn timestamp(seconds) -> Unix
-// CALL timestamp
-// extern fn framebuffer(same as 0) -> text
-// CALL framebuffer
-// extern fn size(bytes) -> memory
-// CALL size
-// extern fn compatible(30-39) -> QB
-// CALL compatible
 // extern fn getconfig(int type) -> int
 // CALL getconfig
 // extern fn srand(int seed) -> void
@@ -1874,8 +1767,6 @@
 // CALL delay
 // extern fn int_pow(int base, int exp) -> int
 // CALL int_pow
-// extern fn root(floor) -> square
-// CALL root
 // extern fn int_sqrt(int n) -> int
 // CALL int_sqrt
 // extern fn vga_text_putchar(int c) -> void
@@ -2014,6 +1905,8 @@
 // CALL vml_syscall5
 // extern fn ui_dlg_msg(char* title, char* body, int style) -> int
 // CALL ui_dlg_msg
+// extern fn asm("SYSCALL #500, ${title}, ${body}, ${style}") -> return
+// CALL asm
 // extern fn ui_dlg_select(char* title, char* body, char* opts, int n, int def) -> int
 // CALL ui_dlg_select
 // extern fn ui_dlg_multi(char* title, char* body, char* opts, int n) -> int
@@ -2058,10 +1951,10 @@
 // CALL ui_wait
 // extern fn ui_msg_count(void) -> int
 // CALL ui_msg_count
-// extern fn ui_poll_msg() -> while
-// CALL ui_poll_msg
 // extern fn ui_wait_msg(int timeout_ms) -> int
 // CALL ui_wait_msg
+// extern fn ui_poll_msg(void) -> int
+// CALL ui_poll_msg
 // extern fn ui_msg_type(void) -> int
 // CALL ui_msg_type
 // extern fn ui_msg_a(void) -> int
@@ -2092,8 +1985,6 @@
 // CALL ui_icon
 // extern fn ui_image(int x, int y, char* path, int w, int h) -> void
 // CALL ui_image
-// extern fn character(inline, to avoid header parsing issues) -> Unicode
-// CALL character
 // extern fn wctomb(char *dest, wchar_t wc) -> int
 // CALL wctomb
 // extern fn mbtowc(wchar_t *dest, const char *src) -> int

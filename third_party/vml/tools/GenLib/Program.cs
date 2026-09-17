@@ -357,7 +357,7 @@ static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef
         // 生成包装器
         foreach (var funcName in modDef.Functions)
         {
-            var label = NamingConfig.ToLabel(funcName, langNaming);
+            var label = SafeWrapperLabel(NamingConfig.ToLabel(funcName, langNaming), funcName, lang);
 
             // ⚠ 主标签与 C 符号名**同名**时，下面生成的 `LABEL x … CALL x` 是**自调用**（无限递归）。
             //
@@ -375,19 +375,6 @@ static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef
             // `modules.json` 里有一批**虚构条目**（例如 `array64` 模块下的 `Arrays` ——
             // C 源里没有这个函数），它们生成的包装器是死代码，报出来只会误导。
             // 真实冲突才算数：那意味着「调用这个库函数就会无限递归」。
-            if (label == funcName && funcMap.ContainsKey(funcName))
-            {
-                Console.Error.WriteLine(
-                    $"⚠ {lang}: 函数 `{funcName}` 的包装标签与 C 符号名同名 —— "
-                    + $"`LABEL {label} … CALL {funcName}` 会变成自调用（无限递归）。"
-                    + "修法：在 Lib/naming.json 里给该语言的 PrimaryPrefix 一个非空前缀"
-                    + "（java 用 `java_`、javascript 用 `js_`）。"
-                    + " ⚠ 若这个符号其实不存在于 C 源（已知一例：`Arrays` 来自 array64.c 第 4 行"
-                    + "注释里的 \"Integer Arrays (long* with long indices)\"，被 ParseFunctions "
-                    + "的正则当成了函数签名），那它是**虚构条目**、包装器是死代码，可以忽略；"
-                    + "真正该修的是 ParseFunctions 没剥注释。");
-            }
-
             int pCount = 0;
             bool isCdecl = false;
             string[] paramTypes = Array.Empty<string>();
@@ -497,7 +484,7 @@ static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef
         {
             foreach (var funcName in modDef.Functions)
             {
-                var primaryLabel = NamingConfig.ToLabel(funcName, langNaming);
+                var primaryLabel = SafeWrapperLabel(NamingConfig.ToLabel(funcName, langNaming), funcName, lang);
                 // func_/method_/word_: 生成 snake_case + PascalCase + camelCase 三种版本
                 if (prefix == "func_" || prefix == "method_" || prefix == "word_")
                 {
@@ -640,12 +627,66 @@ static void GenAggregators(string lang, string libRoot, Dictionary<string, Modul
 // 共享函数解析
 // ============================================================
 
+/// <summary>
+/// 包装器主标签的**撞名保险**。
+///
+/// 若生成的标签与 C 符号名相同，那么下面那句 `CALL {funcName}` 会解析到**包装器自己**
+/// ——`LABEL x … CALL x` 就是无限递归，实测把栈跑到 SP 归零。
+///
+/// 哪些情况会撞：`LabelStyle` 是 PascalCase/camelCase 的语言（java / csharp / javascript）
+/// 遇到**本身就是 PascalCase、或单词小写**的 C 函数名 ——
+/// `ipow`（camelCase 后还是 `ipow`）、`GetDate`/`GetTime`（`dos.c`，camelCase/PascalCase 都是它自己）。
+/// 2026-09-17 修的 javascript 就是这个病；当时 java 没发作只是**链接器碰巧选了共享实现**，
+/// 靠链接顺序的运气不能留 —— 所以这里一律改名，而不是指望各语言的前缀配置记得填。
+///
+/// 改成 `{lang}_{原标签}`：别名（`func_xxx` / `Math_xxx` …）指向它，调用方照旧；
+/// 包装器里的 `CALL {funcName}` 于是解析到共享实现而不是自己。
+/// </summary>
+static string SafeWrapperLabel(string label, string funcName, string lang)
+    => label == funcName ? $"{lang}_{label}" : label;
+
+/// <summary>把 C 源码里的注释换成等长空白（保住偏移与行号，正则的 `\n` 前瞻仍然可用）。</summary>
+static string StripComments(string src)
+{
+    var sb = new System.Text.StringBuilder(src.Length);
+    for (int i = 0; i < src.Length; i++)
+    {
+        if (src[i] == '/' && i + 1 < src.Length && src[i + 1] == '/')
+        {
+            while (i < src.Length && src[i] != '\n') { sb.Append(' '); i++; }
+            if (i < src.Length) sb.Append('\n');
+        }
+        else if (src[i] == '/' && i + 1 < src.Length && src[i + 1] == '*')
+        {
+            sb.Append("  "); i += 2;
+            while (i < src.Length && !(src[i] == '*' && i + 1 < src.Length && src[i + 1] == '/'))
+            {
+                sb.Append(src[i] == '\n' ? '\n' : ' '); i++;
+            }
+            if (i < src.Length) { sb.Append("  "); i++; }
+        }
+        else
+        {
+            sb.Append(src[i]);
+        }
+    }
+    return sb.ToString();
+}
+
 static List<FuncDef> ParseFunctions(string srcDir)
 {
     var result = new List<FuncDef>();
     foreach (var file in Directory.GetFiles(srcDir, "*.c").OrderBy(f => f))
     {
-        var src = File.ReadAllText(file);
+        // ⚠ **先剥注释再匹配**（2026-09-17 加）。正则 `RET NAME(params)` 看不出注释与代码的区别，
+        // 于是 `array64.c` 第 4 行的
+        //     // VML Shared Array64 Library — 64-bit Integer Arrays (long* with long indices)
+        // 被读成「返回 Integer、函数名 Arrays、参数 long* with long indices」——
+        // 从此 funcMap 与 `Lib/modules.json` 里多了一批**不存在的函数**，每个还会生成一个
+        // `LABEL x … CALL x` 的**自调用死包装器**（与 2026-09-17 修的 java/javascript
+        // 撞名自调用是同一个机制：将来撞上真标签就是静默劫持）。
+        // 实测剥离之前有 5 个虚构条目：Arrays / Manipulation / CRC / GetDate / GetTime。
+        var src = StripComments(File.ReadAllText(file));
         var matches = Regex.Matches(src, @"(?<!\bstatic\s)(?<!\bstatic\n)(?:(__stdcall|__cdecl|__fastcall)\s+)?((?:const\s+)?(?:unsigned\s+)?[a-zA-Z_][a-zA-Z0-9_]*\s*\*?)\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([^)]*)\)");
         foreach (Match m in matches)
         {

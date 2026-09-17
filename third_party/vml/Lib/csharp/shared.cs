@@ -30,7 +30,6 @@ namespace VML {
     // extern oid _qs_recursive(int* arr, int low, int high);  // CALL _qs_recursive
     // extern void sort_quick(int* arr);  // CALL sort_quick
     // extern int bsearch(int* arr, int value);  // CALL bsearch
-    // extern Integer Arrays(long* with long indices);  // CALL Arrays
     // extern long llen64(long* arr);  // CALL llen64
     // extern long lget64(long* arr, long index);  // CALL lget64
     // extern void lset64(long* arr, long index, long value);  // CALL lset64
@@ -60,7 +59,6 @@ namespace VML {
     // extern int base64_encode(const char* data, int len, char* dst);  // CALL base64_encode
     // extern nt _b64_decode_char(char c);  // CALL _b64_decode_char
     // extern int base64_decode(const char* src, char* dst);  // CALL base64_decode
-    // extern return values(QBASIC convention);  // CALL values
     // extern oid _hex_str(int val, char* buf);  // CALL _hex_str
     // extern int basic_instr(int start, const char* haystack, const char* needle);  // CALL basic_instr
     // extern char* basic_stringN(int n, int ch);  // CALL basic_stringN
@@ -70,21 +68,15 @@ namespace VML {
     // extern char* basic_mid3(const char* s, int start, int length);  // CALL basic_mid3
     // extern const char* basic_date_str(void);  // CALL basic_date_str
     // extern const char* basic_time_str(void);  // CALL basic_time_str
-    // extern seconds elapsed(SYSCALL 53 returns ms);  // CALL elapsed
     // extern int basic_timer(void);  // CALL basic_timer
     // extern char* basic_inputN(int n);  // CALL basic_inputN
-    // extern mode asm("SYSCALL #5");  // CALL asm
     // extern int basic_eof(int filenum);  // CALL basic_eof
-    // extern String Manipulation(inline replacements);  // CALL Manipulation
     // extern char* basic_ucase(const char* s);  // CALL basic_ucase
     // extern char* basic_lcase(const char* s);  // CALL basic_lcase
     // extern int basic_len(const char* s);  // CALL basic_len
     // extern int basic_asc(const char* s);  // CALL basic_asc
-    // extern ASCII code(returns 1-char string);  // CALL code
     // extern char* basic_chr(int n);  // CALL basic_chr
-    // extern n spaces(inline to avoid nested CALL stack cleanup issues);  // CALL spaces
     // extern char* basic_space(int n);  // CALL basic_space
-    // extern decimal string(no division, pure subtraction);  // CALL string
     // extern char* basic_str_int(int val);  // CALL basic_str_int
     // extern int basic_val(const char* s);  // CALL basic_val
     // extern char* basic_left(const char* s, int n);  // CALL basic_left
@@ -93,22 +85,17 @@ namespace VML {
     // extern char* basic_rtrim(const char* s);  // CALL basic_rtrim
     // extern int basic_abs(int n);  // CALL basic_abs
     // extern int basic_sgn(int n);  // CALL basic_sgn
-    // extern linear interpolation(no array, VML C compiler safe);  // CALL interpolation
     // extern int _sin_lookup(int deg);  // CALL _sin_lookup
     // extern int basic_sin(int x);  // CALL basic_sin
     // extern int basic_cos(int x);  // CALL basic_cos
     // extern int basic_tan(int x);  // CALL basic_tan
-    // extern s method(integer);  // CALL method
     // extern int basic_sqr(int x);  // CALL basic_sqr
-    // extern random integer(SYSCALL #50);  // CALL integer
     // extern int basic_rnd(void);  // CALL basic_rnd
-    // extern Taylor series(avoid div in loop);  // CALL series
     // extern int basic_exp(int x);  // CALL basic_exp
     // extern int basic_log(int x);  // CALL basic_log
     // extern int basic_atn(int x);  // CALL basic_atn
     // extern int basic_int(int x);  // CALL basic_int
     // extern int basic_point(int x, int y);  // CALL basic_point
-    // extern declaration above(implemented in basiclib.vml);  // CALL above
     // extern int clear(int value, int n);  // CALL clear
     // extern int toggle(int value, int n);  // CALL toggle
     // extern int test(int value, int n);  // CALL test
@@ -155,8 +142,6 @@ namespace VML {
     // extern long lextract64(long value, long start, long len);  // CALL lextract64
     // extern long lis_power_of_two64(long x);  // CALL lis_power_of_two64
     // extern long lnext_power_of_two64(long x);  // CALL lnext_power_of_two64
-    // extern at CMD_BUF(0x5000);  // CALL CMD_BUF
-    // extern Buffer format(sequential, terminated by cmd_id=0);  // CALL format
     // extern oid cmd_write(int val);  // CALL cmd_write
     // extern void browser_clear(int r, int g, int b);  // CALL browser_clear
     // extern void browser_color(int r, int g, int b);  // CALL browser_color
@@ -199,7 +184,6 @@ namespace VML {
     // extern char* strcat(char* dst, const char* src);  // CALL strcat
     // extern int strlen(const char* s);  // CALL strlen
     // extern int atoi(const char* s);  // CALL atoi
-    // extern int itoa(int value, char* dst);  // CALL itoa
     // extern void* memcpy(void* dst, const void* src, int n);  // CALL memcpy
     // extern void* memset(void* ptr, int val, int n);  // CALL memset
     // extern int memcmp(const void* a, const void* b, int n);  // CALL memcmp
@@ -235,18 +219,14 @@ namespace VML {
     // extern int color_magenta();  // CALL color_magenta
     // extern void cadd(float* a, float* b, float* result);  // CALL cadd
     // extern void csub(float* a, float* b, float* result);  // CALL csub
-    // extern a * b(complex multiplication);  // CALL b
     // extern void cmul(float* a, float* b, float* result);  // CALL cmul
     // extern void cdiv(float* a, float* b, float* result);  // CALL cdiv
     // extern float complex_abs(float* z);  // CALL complex_abs
-    // extern in radians(-PI to PI);  // CALL radians
     // extern float complex_arg(float* z);  // CALL complex_arg
     // extern void cconj(float* a, float* result);  // CALL cconj
     // extern void cneg(float* a, float* result);  // CALL cneg
     // extern float cexp_re(float re, float im);  // CALL cexp_re
-    // extern re * cos(im);  // CALL cos
     // extern float cexp_im(float re, float im);  // CALL cexp_im
-    // extern re * sin(im);  // CALL sin
     // extern void csqr(float* a, float* result);  // CALL csqr
     // extern void csqrt(float* z, float* result);  // CALL csqrt
     // extern void zadd(double* a, double* b, double* result);  // CALL zadd
@@ -275,6 +255,7 @@ namespace VML {
     // extern int kb_hit(void);  // CALL kb_hit
     // extern void printf2(const char* fmt, int a1, int a2);  // CALL printf2
     // extern void printf3(const char* fmt, int a1, int a2, int a3);  // CALL printf3
+    // extern int itoa(int value, char* dst);  // CALL itoa
     // extern const char* int_to_str(int val);  // CALL int_to_str
     // extern const wchar_t* int_to_wstr(int val);  // CALL int_to_wstr
     // extern const char32_t* int_to_ustr(int val);  // CALL int_to_ustr
@@ -329,7 +310,6 @@ namespace VML {
     // extern int word_to_hword(int w);  // CALL word_to_hword
     // extern int ltoa_hex(long value, char* dst);  // CALL ltoa_hex
     // extern long atol_hex(const char* s);  // CALL atol_hex
-    // extern bit CRC(CRC-8-ATM, poly=0x07);  // CALL CRC
     // extern int crc8(const char* data, int len);  // CALL crc8
     // extern int crc16(const char* data, int len);  // CALL crc16
     // extern int crc32(const char* data, int len);  // CALL crc32
@@ -452,7 +432,6 @@ namespace VML {
     // extern int encoding_detect_bom(unsigned char* src, int len, int* bom_len);  // CALL encoding_detect_bom
     // extern const char* encoding_name(int enc);  // CALL encoding_name
     // extern int encoding_convert(unsigned char* src, int src_len, unsigned char* dst, int dst_max, int from_enc, int to_enc);  // CALL encoding_convert
-    // extern compatible wrappers(matching test signatures);  // CALL wrappers
     // extern int encoding_detect_bom_1(unsigned char* src);  // CALL encoding_detect_bom_1
     // extern const char* encoding_get_name(int enc);  // CALL encoding_get_name
     // extern int encoding_convert_utf8_to_latin1(unsigned char* src, unsigned char* dst, int max_len);  // CALL encoding_convert_utf8_to_latin1
@@ -478,8 +457,9 @@ namespace VML {
     // extern int from_float(float f);  // CALL from_float
     // extern float to_float(int value);  // CALL to_float
     // extern int sqrt(int value);  // CALL sqrt
+    // extern int sin(int rad_q16);  // CALL sin
+    // extern int cos(int rad_q16);  // CALL cos
     // extern int atan2(int y, int x);  // CALL atan2
-    // extern Point Math(64-bit int representation);  // CALL Math
     // extern long lfixed_mul64(long a, long b);  // CALL lfixed_mul64
     // extern long lfixed_div64(long a, long b);  // CALL lfixed_div64
     // extern long lfixed_from_int64(long value);  // CALL lfixed_from_int64
@@ -566,27 +546,14 @@ namespace VML {
     // extern int GraphResult(void);  // CALL GraphResult
     // extern char* GraphErrorMsg(int code);  // CALL GraphErrorMsg
     // extern void RestoreCrtMode(void);  // CALL RestoreCrtMode
-    // extern framebuffer base(GetConfig #1);  // CALL base
-    // extern framebuffer params(refreshed once after SCREEN mode change);  // CALL params
     // extern oid _gfx_refresh_cache(void);  // CALL _gfx_refresh_cache
-    // extern device config(80x25);  // CALL config
     // extern nt get_config(int code);  // CALL get_config
     // extern nt* gfx_fb();  // CALL gfx_fb
     // extern nt gfx_w();  // CALL gfx_w
     // extern nt gfx_h();  // CALL gfx_h
-    // extern VGA_MODE address(0x6FF0);  // CALL address
     // extern oid _putpixel(int x, int y, int color);  // CALL _putpixel
-    // extern of PUSH(PUSH modifies SP which may confuse the
-    // compiler when _putpixel is called from functions with 5+ params);  // CALL PUSH
     // extern nt _getpixel(int x, int y);  // CALL _getpixel
-    // extern into R0(return value);  // CALL R0
-    // extern linear offset(no bounds check, no y*x+w multiply);  // CALL offset
     // extern oid _putpixel_fast(int offset, int color);  // CALL _putpixel_fast
-    // extern save R4(5th param color);  // CALL R4
-    // extern Filled Sector(pie slice with radial lines);  // CALL Sector
-    // extern arc points(2-degree steps for fill density);  // CALL points
-    // extern Bitmap Font(ASCII 32-126);  // CALL Font
-    // extern Entry Points(called by all language wrappers);  // CALL Points
     // extern size_t wcslen(const wchar_t *s);  // CALL wcslen
     // extern size_t wcstombs(char *dest, const wchar_t *src, size_t max);  // CALL wcstombs
     // extern size_t mbstowcs(wchar_t *dest, const char *src, size_t max);  // CALL mbstowcs
@@ -625,7 +592,6 @@ namespace VML {
     // extern float sin_deg(float degrees);  // CALL sin_deg
     // extern float cos_deg(float degrees);  // CALL cos_deg
     // extern float tan_deg(float degrees);  // CALL tan_deg
-    // extern log2 approximation(for positive integers);  // CALL approximation
     // extern int ilog2(int x);  // CALL ilog2
     // extern int ceil_div(int a, int b);  // CALL ceil_div
     // extern int round_div(int a, int b);  // CALL round_div
@@ -651,7 +617,6 @@ namespace VML {
     // extern long lis_prime64(long n);  // CALL lis_prime64
     // extern long lrandom64(long min, long max);  // CALL lrandom64
     // extern long lclz64(long x);  // CALL lclz64
-    // extern Population Count(1-bits);  // CALL Count
     // extern long lpopcnt64(long x);  // CALL lpopcnt64
     // extern long llerp64(long a, long b, long t);  // CALL llerp64
     // extern long lmap_range64(long x, long in_min, long in_max, long out_min, long out_max);  // CALL lmap_range64
@@ -688,7 +653,6 @@ namespace VML {
     // extern void mat4_rot_z(float angle_rad, float* result);  // CALL mat4_rot_z
     // extern void mat4_transpose(float* a, float* result);  // CALL mat4_transpose
     // extern float vec2_dot(float* a, float* b);  // CALL vec2_dot
-    // extern cross product(scalar);  // CALL product
     // extern float vec2_cross(float* a, float* b);  // CALL vec2_cross
     // extern float vec2_len(float* v);  // CALL vec2_len
     // extern float vec2_normalize(float* v);  // CALL vec2_normalize
@@ -696,9 +660,7 @@ namespace VML {
     // extern void vec3_cross(float* a, float* b, float* result);  // CALL vec3_cross
     // extern float vec3_len(float* v);  // CALL vec3_len
     // extern float vec3_normalize(float* v);  // CALL vec3_normalize
-    // extern D vector(w=1, perspective divide);  // CALL vector
     // extern void mat4_transform_vec3(float* m, float* v, float* result);  // CALL mat4_transform_vec3
-    // extern double* arrays(64-bit float);  // CALL arrays
     // extern void mat2_identity_d(double* result);  // CALL mat2_identity_d
     // extern void mat2_add_d(double* a, double* b, double* result);  // CALL mat2_add_d
     // extern void mat2_sub_d(double* a, double* b, double* result);  // CALL mat2_sub_d
@@ -731,8 +693,6 @@ namespace VML {
     // extern double vec3_normalize_d(double* v);  // CALL vec3_normalize_d
     // extern void mat4_transform_vec3_d(double* m, double* v, double* result);  // CALL mat4_transform_vec3_d
     // extern void* memmove(void* dst, const void* src, int n);  // CALL memmove
-    // extern Uses long(64-bit);  // CALL long
-    // extern of int(32-bit);  // CALL int
     // extern void* lmemcpy(void* dst, const void* src, long n);  // CALL lmemcpy
     // extern void* lmemset(void* ptr, int val, long n);  // CALL lmemset
     // extern void* lmemmove(void* dst, const void* src, long n);  // CALL lmemmove
@@ -776,7 +736,6 @@ namespace VML {
     // extern int signal(int signum, void* handler);  // CALL signal
     // extern int type_of(void* addr);  // CALL type_of
     // extern int type_name(int type_id, char* buf);  // CALL type_name
-    // extern integer literals(decimal/hex);  // CALL literals
     // extern define NULL((void*);  // CALL NULL
     // extern nt is_hex_digit(char c);  // CALL is_hex_digit
     // extern oid skip_spaces(void);  // CALL skip_spaces
@@ -785,7 +744,6 @@ namespace VML {
     // extern nt parse_term(void);  // CALL parse_term
     // extern nt parse_factor(void);  // CALL parse_factor
     // extern int parserexp(const char *expression);  // CALL parserexp
-    // extern test cases(expected: 14, 0, 42, 7, -5);  // CALL cases
     // extern ouble parse_expr_f(void);  // CALL parse_expr_f
     // extern ouble parse_term_f(void);  // CALL parse_term_f
     // extern ouble parse_factor_f(void);  // CALL parse_factor_f
@@ -852,7 +810,6 @@ namespace VML {
     // extern int lerp_table(int* x_table, int* y_table, int n, int x);  // CALL lerp_table
     // extern int deadband(int value, int threshold);  // CALL deadband
     // extern int hysteresis(int* state, int input, int on_threshold, int off_threshold);  // CALL hysteresis
-    // extern Signal Processing(long* state arrays);  // CALL Processing
     // extern long lmoving_avg_init64(long window_size, long* buffer, long* state);  // CALL lmoving_avg_init64
     // extern long lmoving_avg_update64(long* state, long new_value);  // CALL lmoving_avg_update64
     // extern long lema_init64(long* state);  // CALL lema_init64
@@ -875,7 +832,6 @@ namespace VML {
     // extern int linreg_slope(int* x, int* y);  // CALL linreg_slope
     // extern int linreg_intercept(int* x, int* y);  // CALL linreg_intercept
     // extern long lmedian64(long* arr);  // CALL lmedian64
-    // extern pick middle(simple, correct for small arrays);  // CALL middle
     // extern long lrange64(long* arr);  // CALL lrange64
     // extern long lcount_gt64(long* arr, long threshold);  // CALL lcount_gt64
     // extern long lcount_lt64(long* arr, long threshold);  // CALL lcount_lt64
@@ -890,17 +846,13 @@ namespace VML {
     // extern char* strncpy(char* dst, const char* src, int n);  // CALL strncpy
     // extern const char* strstr(const char* haystack, const char* needle);  // CALL strstr
     // extern int strrev(char* dst, const char* src);  // CALL strrev
-    // extern to uppercase(in-place or to dst);  // CALL uppercase
     // extern void str_toupper(char* dst, const char* src);  // CALL str_toupper
-    // extern to lowercase(in-place or to dst);  // CALL lowercase
     // extern void str_tolower(char* dst, const char* src);  // CALL str_tolower
     // extern int str_repeat(char* dst, const char* src, int n);  // CALL str_repeat
     // extern int str_contains(const char* s, const char* sub);  // CALL str_contains
-    // extern trailing whitespace(space, tab, CR, LF);  // CALL whitespace
     // extern char* str_trim(char* dst, const char* src);  // CALL str_trim
     // extern char* str_substr(char* dst, const char* src, int pos, int count);  // CALL str_substr
     // extern int str_indexof(const char* s, int c);  // CALL str_indexof
-    // extern of parts(max 32);  // CALL parts
     // extern int str_split(const char* s, int delim, char** parts, int maxParts);  // CALL str_split
     // extern char* str_padstart(char* dst, const char* src, int totalLen, int padChar);  // CALL str_padstart
     // extern char* str_padend(char* dst, const char* src, int totalLen, int padChar);  // CALL str_padend
@@ -911,12 +863,6 @@ namespace VML {
     // extern void stop(int* timers, int timer_id);  // CALL stop
     // extern int tick(int* timers);  // CALL tick
     // extern int remaining(int* timers, int timer_id);  // CALL remaining
-    // extern output char(+VGA text buffer);  // CALL char
-    // extern output hex(0x....);  // CALL hex
-    // extern Unix timestamp(seconds);  // CALL timestamp
-    // extern text framebuffer(same as 0);  // CALL framebuffer
-    // extern memory size(bytes);  // CALL size
-    // extern QB compatible(30-39);  // CALL compatible
     // extern int getconfig(int type);  // CALL getconfig
     // extern void srand(int seed);  // CALL srand
     // extern int datetime(void);  // CALL datetime
@@ -938,7 +884,6 @@ namespace VML {
     // extern void uscanf(const unsigned int *ufmt);  // CALL uscanf
     // extern void delay(int ms);  // CALL delay
     // extern int int_pow(int base, int exp);  // CALL int_pow
-    // extern square root(floor);  // CALL root
     // extern int int_sqrt(int n);  // CALL int_sqrt
     // extern void vga_text_putchar(int c);  // CALL vga_text_putchar
     // extern void vga_text_newline(void);  // CALL vga_text_newline
@@ -1008,6 +953,7 @@ namespace VML {
     // extern void vml_screenshot(void);  // CALL vml_screenshot
     // extern int vml_syscall5(int num, int a0, int a1, int a2, int a3, int a4);  // CALL vml_syscall5
     // extern int ui_dlg_msg(char* title, char* body, int style);  // CALL ui_dlg_msg
+    // extern return asm("SYSCALL #500, ${title}, ${body}, ${style}");  // CALL asm
     // extern int ui_dlg_select(char* title, char* body, char* opts, int n, int def);  // CALL ui_dlg_select
     // extern int ui_dlg_multi(char* title, char* body, char* opts, int n);  // CALL ui_dlg_multi
     // extern int ui_dlg_input(char* title, char* prompt, char* buf, int cap);  // CALL ui_dlg_input
@@ -1030,8 +976,8 @@ namespace VML {
     // extern int ui_poll(int* msg);  // CALL ui_poll
     // extern int ui_wait(int* msg, int timeout_ms);  // CALL ui_wait
     // extern int ui_msg_count(void);  // CALL ui_msg_count
-    // extern while ui_poll_msg();  // CALL ui_poll_msg
     // extern int ui_wait_msg(int timeout_ms);  // CALL ui_wait_msg
+    // extern int ui_poll_msg(void);  // CALL ui_poll_msg
     // extern int ui_msg_type(void);  // CALL ui_msg_type
     // extern int ui_msg_a(void);  // CALL ui_msg_a
     // extern int ui_msg_b(void);  // CALL ui_msg_b
@@ -1047,7 +993,6 @@ namespace VML {
     // extern int ui_tick(void);  // CALL ui_tick
     // extern void ui_icon(int x, int y, char* name, int size, int color);  // CALL ui_icon
     // extern void ui_image(int x, int y, char* path, int w, int h);  // CALL ui_image
-    // extern Unicode character(inline, to avoid header parsing issues);  // CALL character
     // extern int wctomb(char *dest, wchar_t wc);  // CALL wctomb
     // extern int mbtowc(wchar_t *dest, const char *src);  // CALL mbtowc
     // extern int wcscmp(const wchar_t *a, const wchar_t *b);  // CALL wcscmp

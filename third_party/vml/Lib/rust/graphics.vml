@@ -7,11 +7,7 @@ LABEL rust_base
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL base
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -21,11 +17,7 @@ LABEL rust_params
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL params
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -45,11 +37,7 @@ LABEL rust_config
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL config
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -103,11 +91,7 @@ LABEL rust_address
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL address
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -137,11 +121,7 @@ LABEL rust_PUSH
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL PUSH
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -168,11 +148,7 @@ LABEL rust_R0
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL R0
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -182,14 +158,7 @@ LABEL rust_offset
     push R15
     push R12
     move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
     CALL offset
-    ADD R13 #8
     move R13 R12
     pop R12
     pop R15
@@ -216,11 +185,7 @@ LABEL rust_R4
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL R4
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -230,11 +195,7 @@ LABEL rust_Sector
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL Sector
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -244,11 +205,7 @@ LABEL rust_points
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL points
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -258,11 +215,7 @@ LABEL rust_Font
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL Font
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -272,11 +225,7 @@ LABEL rust_Points
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL Points
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15

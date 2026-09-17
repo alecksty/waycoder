@@ -32,7 +32,6 @@ __stdcall void sort_quick(int* arr);
 __stdcall int bsearch(int* arr, int value);
 
 // array64.c
- Integer Arrays(long* with long indices);
 __stdcall long llen64(long* arr);
 __stdcall long lget64(long* arr, long index);
 __stdcall void lset64(long* arr, long index, long value);
@@ -66,7 +65,6 @@ __stdcall int base64_encode(const char* data, int len, char* dst);
 __stdcall int base64_decode(const char* src, char* dst);
 
 // basiclib.c
- return values(QBASIC convention);
  oid _hex_str(int val, char* buf);
 __stdcall int basic_instr(int start, const char* haystack, const char* needle);
 __stdcall char* basic_stringN(int n, int ch);
@@ -76,21 +74,15 @@ __stdcall char* basic_oct(int val);
 __stdcall char* basic_mid3(const char* s, int start, int length);
 __stdcall const char* basic_date_str(void);
 __stdcall const char* basic_time_str(void);
- seconds elapsed(SYSCALL 53 returns ms);
 __stdcall int basic_timer(void);
 __stdcall char* basic_inputN(int n);
- mode asm("SYSCALL #5");
 __stdcall int basic_eof(int filenum);
- String Manipulation(inline replacements);
 __stdcall char* basic_ucase(const char* s);
 __stdcall char* basic_lcase(const char* s);
 __stdcall int basic_len(const char* s);
 __stdcall int basic_asc(const char* s);
- ASCII code(returns 1-char string);
 __stdcall char* basic_chr(int n);
- n spaces(inline to avoid nested CALL stack cleanup issues);
 __stdcall char* basic_space(int n);
- decimal string(no division, pure subtraction);
 __stdcall char* basic_str_int(int val);
 __stdcall int basic_val(const char* s);
 __stdcall char* basic_left(const char* s, int n);
@@ -99,22 +91,17 @@ __stdcall char* basic_ltrim(const char* s);
 __stdcall char* basic_rtrim(const char* s);
 __stdcall int basic_abs(int n);
 __stdcall int basic_sgn(int n);
- linear interpolation(no array, VML C compiler safe);
 __stdcall int _sin_lookup(int deg);
 __stdcall int basic_sin(int x);
 __stdcall int basic_cos(int x);
 __stdcall int basic_tan(int x);
- s method(integer);
 __stdcall int basic_sqr(int x);
- random integer(SYSCALL #50);
 __stdcall int basic_rnd(void);
- Taylor series(avoid div in loop);
 __stdcall int basic_exp(int x);
 __stdcall int basic_log(int x);
 __stdcall int basic_atn(int x);
 __stdcall int basic_int(int x);
 __stdcall int basic_point(int x, int y);
- declaration above(implemented in basiclib.vml);
 
 // bitlib.c
 __stdcall int clear(int value, int n);
@@ -169,8 +156,6 @@ __stdcall long lis_power_of_two64(long x);
 __stdcall long lnext_power_of_two64(long x);
 
 // browser_gfx.c
- at CMD_BUF(0x5000);
- Buffer format(sequential, terminated by cmd_id=0);
  oid cmd_write(int val);
  void browser_clear(int r, int g, int b);
  void browser_color(int r, int g, int b);
@@ -213,7 +198,6 @@ __stdcall char* strcpy(char* dst, const char* src);
 __stdcall char* strcat(char* dst, const char* src);
 __stdcall int strlen(const char* s);
 __stdcall int atoi(const char* s);
- int itoa(int value, char* dst);
 __stdcall void* memcpy(void* dst, const void* src, int n);
 __stdcall void* memset(void* ptr, int val, int n);
 __stdcall int memcmp(const void* a, const void* b, int n);
@@ -261,18 +245,14 @@ __stdcall int color_magenta();
 // complex.c
 __stdcall void cadd(float* a, float* b, float* result);
 __stdcall void csub(float* a, float* b, float* result);
- a * b(complex multiplication);
 __stdcall void cmul(float* a, float* b, float* result);
 __stdcall void cdiv(float* a, float* b, float* result);
 __stdcall float complex_abs(float* z);
- in radians(-PI to PI);
 __stdcall float complex_arg(float* z);
 __stdcall void cconj(float* a, float* result);
 __stdcall void cneg(float* a, float* result);
 __stdcall float cexp_re(float re, float im);
- re * cos(im);
 __stdcall float cexp_im(float re, float im);
- re * sin(im);
 __stdcall void csqr(float* a, float* result);
 __stdcall void csqrt(float* z, float* result);
 
@@ -307,6 +287,7 @@ __stdcall void printf2(const char* fmt, int a1, int a2);
 __stdcall void printf3(const char* fmt, int a1, int a2, int a3);
 
 // conv.c
+ int itoa(int value, char* dst);
 __stdcall const char* int_to_str(int val);
 __stdcall const wchar_t* int_to_wstr(int val);
 __stdcall const char32_t* int_to_ustr(int val);
@@ -367,7 +348,6 @@ __stdcall int ltoa_hex(long value, char* dst);
 __stdcall long atol_hex(const char* s);
 
 // crc.c
- bit CRC(CRC-8-ATM, poly=0x07);
 __stdcall int crc8(const char* data, int len);
 __stdcall int crc16(const char* data, int len);
 __stdcall int crc32(const char* data, int len);
@@ -510,7 +490,6 @@ __stdcall int encoding_big5_decode(unsigned char* src, int len);
 __stdcall int encoding_detect_bom(unsigned char* src, int len, int* bom_len);
 __stdcall const char* encoding_name(int enc);
 __stdcall int encoding_convert(unsigned char* src, int src_len, unsigned char* dst, int dst_max, int from_enc, int to_enc);
- compatible wrappers(matching test signatures);
 __stdcall int encoding_detect_bom_1(unsigned char* src);
 __stdcall const char* encoding_get_name(int enc);
 __stdcall int encoding_convert_utf8_to_latin1(unsigned char* src, unsigned char* dst, int max_len);
@@ -542,10 +521,11 @@ __stdcall int to_int_round(int value);
 __stdcall int from_float(float f);
 __stdcall float to_float(int value);
 __stdcall int sqrt(int value);
+__stdcall int sin(int rad_q16);
+__stdcall int cos(int rad_q16);
 __stdcall int atan2(int y, int x);
 
 // fixed64.c
- Point Math(64-bit int representation);
 __stdcall long lfixed_mul64(long a, long b);
 __stdcall long lfixed_div64(long a, long b);
 __stdcall long lfixed_from_int64(long value);
@@ -640,27 +620,14 @@ __stdcall char* GraphErrorMsg(int code);
 __stdcall void RestoreCrtMode(void);
 
 // graphics.c
- framebuffer base(GetConfig #1);
- framebuffer params(refreshed once after SCREEN mode change);
  oid _gfx_refresh_cache(void);
- device config(80x25);
  nt get_config(int code);
  nt* gfx_fb();
  nt gfx_w();
  nt gfx_h();
- VGA_MODE address(0x6FF0);
  oid _putpixel(int x, int y, int color);
- of PUSH(PUSH modifies SP which may confuse the
-    // compiler when _putpixel is called from functions with 5+ params);
  nt _getpixel(int x, int y);
- into R0(return value);
- linear offset(no bounds check, no y*x+w multiply);
  oid _putpixel_fast(int offset, int color);
- save R4(5th param color);
- Filled Sector(pie slice with radial lines);
- arc points(2-degree steps for fill density);
- Bitmap Font(ASCII 32-126);
- Entry Points(called by all language wrappers);
 
 // io.c
  size_t wcslen(const wchar_t *s);
@@ -705,7 +672,6 @@ __stdcall int ipow(int base, int exp);
 __stdcall float sin_deg(float degrees);
 __stdcall float cos_deg(float degrees);
 __stdcall float tan_deg(float degrees);
- log2 approximation(for positive integers);
 __stdcall int ilog2(int x);
 __stdcall int ceil_div(int a, int b);
 __stdcall int round_div(int a, int b);
@@ -733,7 +699,6 @@ __stdcall long lround_div64(long a, long b);
 __stdcall long lis_prime64(long n);
 __stdcall long lrandom64(long min, long max);
 __stdcall long lclz64(long x);
- Population Count(1-bits);
 __stdcall long lpopcnt64(long x);
 __stdcall long llerp64(long a, long b, long t);
 __stdcall long lmap_range64(long x, long in_min, long in_max, long out_min, long out_max);
@@ -772,7 +737,6 @@ __stdcall void mat4_rot_y(float angle_rad, float* result);
 __stdcall void mat4_rot_z(float angle_rad, float* result);
 __stdcall void mat4_transpose(float* a, float* result);
 __stdcall float vec2_dot(float* a, float* b);
- cross product(scalar);
 __stdcall float vec2_cross(float* a, float* b);
 __stdcall float vec2_len(float* v);
 __stdcall float vec2_normalize(float* v);
@@ -780,11 +744,9 @@ __stdcall float vec3_dot(float* a, float* b);
 __stdcall void vec3_cross(float* a, float* b, float* result);
 __stdcall float vec3_len(float* v);
 __stdcall float vec3_normalize(float* v);
- D vector(w=1, perspective divide);
 __stdcall void mat4_transform_vec3(float* m, float* v, float* result);
 
 // matrix64.c
- double* arrays(64-bit float);
 __stdcall void mat2_identity_d(double* result);
 __stdcall void mat2_add_d(double* a, double* b, double* result);
 __stdcall void mat2_sub_d(double* a, double* b, double* result);
@@ -821,8 +783,6 @@ __stdcall void mat4_transform_vec3_d(double* m, double* v, double* result);
 __stdcall void* memmove(void* dst, const void* src, int n);
 
 // memory64.c
- Uses long(64-bit);
- of int(32-bit);
 __stdcall void* lmemcpy(void* dst, const void* src, long n);
 __stdcall void* lmemset(void* ptr, int val, long n);
 __stdcall void* lmemmove(void* dst, const void* src, long n);
@@ -872,7 +832,6 @@ __stdcall int type_of(void* addr);
 __stdcall int type_name(int type_id, char* buf);
 
 // parserexp.c
- integer literals(decimal/hex);
  define NULL((void*);
  nt is_hex_digit(char c);
  oid skip_spaces(void);
@@ -881,7 +840,6 @@ __stdcall int type_name(int type_id, char* buf);
  nt parse_term(void);
  nt parse_factor(void);
 __stdcall int parserexp(const char *expression);
- test cases(expected: 14, 0, 42, 7, -5);
 
 // parserexpf.c
  ouble parse_expr_f(void);
@@ -970,7 +928,6 @@ __stdcall int deadband(int value, int threshold);
 __stdcall int hysteresis(int* state, int input, int on_threshold, int off_threshold);
 
 // signal64.c
- Signal Processing(long* state arrays);
 __stdcall long lmoving_avg_init64(long window_size, long* buffer, long* state);
 __stdcall long lmoving_avg_update64(long* state, long new_value);
 __stdcall long lema_init64(long* state);
@@ -997,7 +954,6 @@ __stdcall int linreg_intercept(int* x, int* y);
 
 // statistics64.c
 __stdcall long lmedian64(long* arr);
- pick middle(simple, correct for small arrays);
 __stdcall long lrange64(long* arr);
 __stdcall long lcount_gt64(long* arr, long threshold);
 __stdcall long lcount_lt64(long* arr, long threshold);
@@ -1014,17 +970,13 @@ __stdcall int strncmp(const char* a, const char* b, int n);
  char* strncpy(char* dst, const char* src, int n);
  const char* strstr(const char* haystack, const char* needle);
 __stdcall int strrev(char* dst, const char* src);
- to uppercase(in-place or to dst);
 __stdcall void str_toupper(char* dst, const char* src);
- to lowercase(in-place or to dst);
 __stdcall void str_tolower(char* dst, const char* src);
 __stdcall int str_repeat(char* dst, const char* src, int n);
 __stdcall int str_contains(const char* s, const char* sub);
- trailing whitespace(space, tab, CR, LF);
 __stdcall char* str_trim(char* dst, const char* src);
 __stdcall char* str_substr(char* dst, const char* src, int pos, int count);
 __stdcall int str_indexof(const char* s, int c);
- of parts(max 32);
 __stdcall int str_split(const char* s, int delim, char** parts, int maxParts);
 __stdcall char* str_padstart(char* dst, const char* src, int totalLen, int padChar);
 __stdcall char* str_padend(char* dst, const char* src, int totalLen, int padChar);
@@ -1037,14 +989,6 @@ __stdcall int start(int* timers, int period, int repeat, int callback_id);
 __stdcall void stop(int* timers, int timer_id);
 __stdcall int tick(int* timers);
 __stdcall int remaining(int* timers, int timer_id);
-
-// syscall.c
- output char(+VGA text buffer);
- output hex(0x....);
- Unix timestamp(seconds);
- text framebuffer(same as 0);
- memory size(bytes);
- QB compatible(30-39);
 
 // sysinfo.c
 __stdcall int getconfig(int type);
@@ -1078,7 +1022,6 @@ __stdcall void uscanf(const unsigned int *ufmt);
 // util.c
 __stdcall void delay(int ms);
 __stdcall int int_pow(int base, int exp);
- square root(floor);
 __stdcall int int_sqrt(int n);
 
 // vga_text.c
@@ -1154,6 +1097,7 @@ __stdcall void vga_text_newline(void);
 
 // vmlui.c
  int ui_dlg_msg(char* title, char* body, int style);
+ return asm("SYSCALL #500, ${title}, ${body}, ${style}");
  int ui_dlg_select(char* title, char* body, char* opts, int n, int def);
  int ui_dlg_multi(char* title, char* body, char* opts, int n);
  int ui_dlg_input(char* title, char* prompt, char* buf, int cap);
@@ -1176,8 +1120,8 @@ __stdcall void vga_text_newline(void);
  int ui_poll(int* msg);
  int ui_wait(int* msg, int timeout_ms);
  int ui_msg_count(void);
- while ui_poll_msg();
  int ui_wait_msg(int timeout_ms);
+ int ui_poll_msg(void);
  int ui_msg_type(void);
  int ui_msg_a(void);
  int ui_msg_b(void);
@@ -1195,7 +1139,6 @@ __stdcall void vga_text_newline(void);
  void ui_image(int x, int y, char* path, int w, int h);
 
 // wchar.c
- Unicode character(inline, to avoid header parsing issues);
  int wctomb(char *dest, wchar_t wc);
  int mbtowc(wchar_t *dest, const char *src);
  int wcscmp(const wchar_t *a, const wchar_t *b);

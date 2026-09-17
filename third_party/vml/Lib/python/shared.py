@@ -184,12 +184,6 @@ def bsearch(a0, a1):
     asm("CALL bsearch")
     return r0
 
-def Arrays(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL Arrays")
-    return r0
-
 def llen64(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
@@ -367,12 +361,6 @@ def base64_decode(a0, a1):
     asm("CALL base64_decode")
     return r0
 
-def values(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL values")
-    return r0
-
 def _hex_str(a0, a1):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a1
@@ -432,12 +420,6 @@ def basic_time_str():
     asm("CALL basic_time_str")
     return r0
 
-def elapsed(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL elapsed")
-    return r0
-
 def basic_timer():
     r0 = asm("R0")
     asm("CALL basic_timer")
@@ -449,22 +431,10 @@ def basic_inputN(a0):
     asm("CALL basic_inputN")
     return r0
 
-def asm(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL asm")
-    return r0
-
 def basic_eof(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
     asm("CALL basic_eof")
-    return r0
-
-def Manipulation(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL Manipulation")
     return r0
 
 def basic_ucase(a0):
@@ -491,35 +461,16 @@ def basic_asc(a0):
     asm("CALL basic_asc")
     return r0
 
-def code(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL code")
-    return r0
-
 def basic_chr(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
     asm("CALL basic_chr")
     return r0
 
-def spaces(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL spaces")
-    return r0
-
 def basic_space(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
     asm("CALL basic_space")
-    return r0
-
-def string(a0, a1):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a1
-    asm(f"PUSH R0")  # push a0
-    asm("CALL string")
     return r0
 
 def basic_str_int(a0):
@@ -572,13 +523,6 @@ def basic_sgn(a0):
     asm("CALL basic_sgn")
     return r0
 
-def interpolation(a0, a1):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a1
-    asm(f"PUSH R0")  # push a0
-    asm("CALL interpolation")
-    return r0
-
 def _sin_lookup(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
@@ -603,33 +547,15 @@ def basic_tan(a0):
     asm("CALL basic_tan")
     return r0
 
-def method(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL method")
-    return r0
-
 def basic_sqr(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
     asm("CALL basic_sqr")
     return r0
 
-def integer(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL integer")
-    return r0
-
 def basic_rnd():
     r0 = asm("R0")
     asm("CALL basic_rnd")
-    return r0
-
-def series(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL series")
     return r0
 
 def basic_exp(a0):
@@ -661,12 +587,6 @@ def basic_point(a0, a1):
     asm(f"PUSH R0")  # push a1
     asm(f"PUSH R0")  # push a0
     asm("CALL basic_point")
-    return r0
-
-def above(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL above")
     return r0
 
 def clear(a0, a1):
@@ -978,19 +898,6 @@ def lnext_power_of_two64(a0):
     asm("CALL lnext_power_of_two64")
     return r0
 
-def CMD_BUF(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL CMD_BUF")
-    return r0
-
-def format(a0, a1):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a1
-    asm(f"PUSH R0")  # push a0
-    asm("CALL format")
-    return r0
-
 def cmd_write(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
@@ -1209,13 +1116,6 @@ def atoi(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
     asm("CALL atoi")
-    return r0
-
-def itoa(a0, a1):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a1
-    asm(f"PUSH R0")  # push a0
-    asm("CALL itoa")
     return r0
 
 def memcpy(a0, a1, a2):
@@ -1440,12 +1340,6 @@ def csub(a0, a1, a2):
     asm(f"PUSH R0")  # push a0
     asm("CALL csub")
 
-def b(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL b")
-    return r0
-
 def cmul(a0, a1, a2):
     asm(f"PUSH R0")  # push a2
     asm(f"PUSH R0")  # push a1
@@ -1462,12 +1356,6 @@ def complex_abs(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
     asm("CALL complex_abs")
-    return r0
-
-def radians(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL radians")
     return r0
 
 def complex_arg(a0):
@@ -1493,23 +1381,11 @@ def cexp_re(a0, a1):
     asm("CALL cexp_re")
     return r0
 
-def cos(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL cos")
-    return r0
-
 def cexp_im(a0, a1):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a1
     asm(f"PUSH R0")  # push a0
     asm("CALL cexp_im")
-    return r0
-
-def sin(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL sin")
     return r0
 
 def csqr(a0, a1):
@@ -1659,6 +1535,13 @@ def printf3(a0, a1, a2, a3):
     asm(f"PUSH R0")  # push a1
     asm(f"PUSH R0")  # push a0
     asm("CALL printf3")
+
+def itoa(a0, a1):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL itoa")
+    return r0
 
 def int_to_str(a0):
     r0 = asm("R0")
@@ -1989,13 +1872,6 @@ def atol_hex(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
     asm("CALL atol_hex")
-    return r0
-
-def CRC(a0, a1):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a1
-    asm(f"PUSH R0")  # push a0
-    asm("CALL CRC")
     return r0
 
 def crc8(a0, a1):
@@ -2729,12 +2605,6 @@ def encoding_convert(a0, a1, a2, a3, a4, a5):
     asm("CALL encoding_convert")
     return r0
 
-def wrappers(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL wrappers")
-    return r0
-
 def encoding_detect_bom_1(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
@@ -2901,17 +2771,23 @@ def sqrt(a0):
     asm("CALL sqrt")
     return r0
 
+def sin(a0):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a0
+    asm("CALL sin")
+    return r0
+
+def cos(a0):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a0
+    asm("CALL cos")
+    return r0
+
 def atan2(a0, a1):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a1
     asm(f"PUSH R0")  # push a0
     asm("CALL atan2")
-    return r0
-
-def Math(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL Math")
     return r0
 
 def lfixed_mul64(a0, a1):
@@ -3448,27 +3324,9 @@ def GraphErrorMsg(a0):
 def RestoreCrtMode():
     asm("CALL RestoreCrtMode")
 
-def base(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL base")
-    return r0
-
-def params(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL params")
-    return r0
-
 def _gfx_refresh_cache():
     r0 = asm("R0")
     asm("CALL _gfx_refresh_cache")
-    return r0
-
-def config(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL config")
     return r0
 
 def get_config(a0):
@@ -3492,24 +3350,12 @@ def gfx_h():
     asm("CALL gfx_h")
     return r0
 
-def address(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL address")
-    return r0
-
 def _putpixel(a0, a1, a2):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a2
     asm(f"PUSH R0")  # push a1
     asm(f"PUSH R0")  # push a0
     asm("CALL _putpixel")
-    return r0
-
-def PUSH(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL PUSH")
     return r0
 
 def _getpixel(a0, a1):
@@ -3519,54 +3365,11 @@ def _getpixel(a0, a1):
     asm("CALL _getpixel")
     return r0
 
-def R0(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL R0")
-    return r0
-
-def offset(a0, a1):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a1
-    asm(f"PUSH R0")  # push a0
-    asm("CALL offset")
-    return r0
-
 def _putpixel_fast(a0, a1):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a1
     asm(f"PUSH R0")  # push a0
     asm("CALL _putpixel_fast")
-    return r0
-
-def R4(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL R4")
-    return r0
-
-def Sector(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL Sector")
-    return r0
-
-def points(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL points")
-    return r0
-
-def Font(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL Font")
-    return r0
-
-def Points(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL Points")
     return r0
 
 def wcslen(a0):
@@ -3792,12 +3595,6 @@ def tan_deg(a0):
     asm("CALL tan_deg")
     return r0
 
-def approximation(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL approximation")
-    return r0
-
 def ilog2(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
@@ -3966,12 +3763,6 @@ def lclz64(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
     asm("CALL lclz64")
-    return r0
-
-def Count(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL Count")
     return r0
 
 def lpopcnt64(a0):
@@ -4188,12 +3979,6 @@ def vec2_dot(a0, a1):
     asm("CALL vec2_dot")
     return r0
 
-def product(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL product")
-    return r0
-
 def vec2_cross(a0, a1):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a1
@@ -4238,24 +4023,11 @@ def vec3_normalize(a0):
     asm("CALL vec3_normalize")
     return r0
 
-def vector(a0, a1):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a1
-    asm(f"PUSH R0")  # push a0
-    asm("CALL vector")
-    return r0
-
 def mat4_transform_vec3(a0, a1, a2):
     asm(f"PUSH R0")  # push a2
     asm(f"PUSH R0")  # push a1
     asm(f"PUSH R0")  # push a0
     asm("CALL mat4_transform_vec3")
-
-def arrays(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL arrays")
-    return r0
 
 def mat2_identity_d(a0):
     asm(f"PUSH R0")  # push a0
@@ -4442,18 +4214,6 @@ def memmove(a0, a1, a2):
     asm(f"PUSH R0")  # push a1
     asm(f"PUSH R0")  # push a0
     asm("CALL memmove")
-    return r0
-
-def long(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL long")
-    return r0
-
-def int(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL int")
     return r0
 
 def lmemcpy(a0, a1, a2):
@@ -4727,12 +4487,6 @@ def type_name(a0, a1):
     asm("CALL type_name")
     return r0
 
-def literals(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL literals")
-    return r0
-
 def NULL(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
@@ -4774,16 +4528,6 @@ def parserexp(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
     asm("CALL parserexp")
-    return r0
-
-def cases(a0, a1, a2, a3, a4):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a4
-    asm(f"PUSH R0")  # push a3
-    asm(f"PUSH R0")  # push a2
-    asm(f"PUSH R0")  # push a1
-    asm(f"PUSH R0")  # push a0
-    asm("CALL cases")
     return r0
 
 def parse_expr_f():
@@ -5220,12 +4964,6 @@ def hysteresis(a0, a1, a2, a3):
     asm("CALL hysteresis")
     return r0
 
-def Processing(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL Processing")
-    return r0
-
 def lmoving_avg_init64(a0, a1, a2):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a2
@@ -5374,13 +5112,6 @@ def lmedian64(a0):
     asm("CALL lmedian64")
     return r0
 
-def middle(a0, a1):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a1
-    asm(f"PUSH R0")  # push a0
-    asm("CALL middle")
-    return r0
-
 def lrange64(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
@@ -5478,22 +5209,10 @@ def strrev(a0, a1):
     asm("CALL strrev")
     return r0
 
-def uppercase(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL uppercase")
-    return r0
-
 def str_toupper(a0, a1):
     asm(f"PUSH R0")  # push a1
     asm(f"PUSH R0")  # push a0
     asm("CALL str_toupper")
-
-def lowercase(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL lowercase")
-    return r0
 
 def str_tolower(a0, a1):
     asm(f"PUSH R0")  # push a1
@@ -5513,15 +5232,6 @@ def str_contains(a0, a1):
     asm(f"PUSH R0")  # push a1
     asm(f"PUSH R0")  # push a0
     asm("CALL str_contains")
-    return r0
-
-def whitespace(a0, a1, a2, a3):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a3
-    asm(f"PUSH R0")  # push a2
-    asm(f"PUSH R0")  # push a1
-    asm(f"PUSH R0")  # push a0
-    asm("CALL whitespace")
     return r0
 
 def str_trim(a0, a1):
@@ -5545,12 +5255,6 @@ def str_indexof(a0, a1):
     asm(f"PUSH R0")  # push a1
     asm(f"PUSH R0")  # push a0
     asm("CALL str_indexof")
-    return r0
-
-def parts(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL parts")
     return r0
 
 def str_split(a0, a1, a2, a3):
@@ -5626,42 +5330,6 @@ def remaining(a0, a1):
     asm(f"PUSH R0")  # push a1
     asm(f"PUSH R0")  # push a0
     asm("CALL remaining")
-    return r0
-
-def char(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL char")
-    return r0
-
-def hex(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL hex")
-    return r0
-
-def timestamp(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL timestamp")
-    return r0
-
-def framebuffer(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL framebuffer")
-    return r0
-
-def size(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL size")
-    return r0
-
-def compatible(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL compatible")
     return r0
 
 def getconfig(a0):
@@ -5788,12 +5456,6 @@ def int_pow(a0, a1):
     asm(f"PUSH R0")  # push a1
     asm(f"PUSH R0")  # push a0
     asm("CALL int_pow")
-    return r0
-
-def root(a0):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a0
-    asm("CALL root")
     return r0
 
 def int_sqrt(a0):
@@ -6197,6 +5859,15 @@ def ui_dlg_msg(a0, a1, a2):
     asm("CALL ui_dlg_msg")
     return r0
 
+def asm(a0, a1, a2, a3):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL asm")
+    return r0
+
 def ui_dlg_select(a0, a1, a2, a3, a4):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a4
@@ -6355,15 +6026,15 @@ def ui_msg_count():
     asm("CALL ui_msg_count")
     return r0
 
-def ui_poll_msg():
-    r0 = asm("R0")
-    asm("CALL ui_poll_msg")
-    return r0
-
 def ui_wait_msg(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
     asm("CALL ui_wait_msg")
+    return r0
+
+def ui_poll_msg():
+    r0 = asm("R0")
+    asm("CALL ui_poll_msg")
     return r0
 
 def ui_msg_type():
@@ -6451,13 +6122,6 @@ def ui_image(a0, a1, a2, a3, a4):
     asm(f"PUSH R0")  # push a1
     asm(f"PUSH R0")  # push a0
     asm("CALL ui_image")
-
-def character(a0, a1):
-    r0 = asm("R0")
-    asm(f"PUSH R0")  # push a1
-    asm(f"PUSH R0")  # push a0
-    asm("CALL character")
-    return r0
 
 def wctomb(a0, a1):
     r0 = asm("R0")

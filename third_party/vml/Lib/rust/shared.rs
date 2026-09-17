@@ -173,13 +173,6 @@ fn bsearch(a0: i32, a1: i32) -> i32 {
     r
 }
 
-fn Arrays(a0: i32) -> i32 {
-    asm!("CALL Arrays")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn llen64(a0: i32) -> i32 {
     asm!("CALL llen64")
     let r: i32;
@@ -353,13 +346,6 @@ fn base64_decode(a0: i32, a1: i32) -> i32 {
     r
 }
 
-fn values(a0: i32) -> i32 {
-    asm!("CALL values")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn _hex_str(a0: i32, a1: i32) -> i32 {
     asm!("CALL _hex_str")
     let r: i32;
@@ -423,13 +409,6 @@ fn basic_time_str() -> i32 {
     r
 }
 
-fn elapsed(a0: i32) -> i32 {
-    asm!("CALL elapsed")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn basic_timer() -> i32 {
     asm!("CALL basic_timer")
     let r: i32;
@@ -444,22 +423,8 @@ fn basic_inputN(a0: i32) -> i32 {
     r
 }
 
-fn asm(a0: i32) -> i32 {
-    asm!("CALL asm")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn basic_eof(a0: i32) -> i32 {
     asm!("CALL basic_eof")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn Manipulation(a0: i32) -> i32 {
-    asm!("CALL Manipulation")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -493,13 +458,6 @@ fn basic_asc(a0: i32) -> i32 {
     r
 }
 
-fn code(a0: i32) -> i32 {
-    asm!("CALL code")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn basic_chr(a0: i32) -> i32 {
     asm!("CALL basic_chr")
     let r: i32;
@@ -507,22 +465,8 @@ fn basic_chr(a0: i32) -> i32 {
     r
 }
 
-fn spaces(a0: i32) -> i32 {
-    asm!("CALL spaces")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn basic_space(a0: i32) -> i32 {
     asm!("CALL basic_space")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn string(a0: i32, a1: i32) -> i32 {
-    asm!("CALL string")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -584,13 +528,6 @@ fn basic_sgn(a0: i32) -> i32 {
     r
 }
 
-fn interpolation(a0: i32, a1: i32) -> i32 {
-    asm!("CALL interpolation")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn _sin_lookup(a0: i32) -> i32 {
     asm!("CALL _sin_lookup")
     let r: i32;
@@ -619,13 +556,6 @@ fn basic_tan(a0: i32) -> i32 {
     r
 }
 
-fn method(a0: i32) -> i32 {
-    asm!("CALL method")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn basic_sqr(a0: i32) -> i32 {
     asm!("CALL basic_sqr")
     let r: i32;
@@ -633,22 +563,8 @@ fn basic_sqr(a0: i32) -> i32 {
     r
 }
 
-fn integer(a0: i32) -> i32 {
-    asm!("CALL integer")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn basic_rnd() -> i32 {
     asm!("CALL basic_rnd")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn series(a0: i32) -> i32 {
-    asm!("CALL series")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -684,13 +600,6 @@ fn basic_int(a0: i32) -> i32 {
 
 fn basic_point(a0: i32, a1: i32) -> i32 {
     asm!("CALL basic_point")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn above(a0: i32) -> i32 {
-    asm!("CALL above")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -1018,20 +927,6 @@ fn lnext_power_of_two64(a0: i32) -> i32 {
     r
 }
 
-fn CMD_BUF(a0: i32) -> i32 {
-    asm!("CALL CMD_BUF")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn format(a0: i32, a1: i32) -> i32 {
-    asm!("CALL format")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn cmd_write(a0: i32) -> i32 {
     asm!("CALL cmd_write")
     let r: i32;
@@ -1258,13 +1153,6 @@ fn strlen(a0: i32) -> i32 {
 
 fn atoi(a0: i32) -> i32 {
     asm!("CALL atoi")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn itoa(a0: i32, a1: i32) -> i32 {
-    asm!("CALL itoa")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -1500,13 +1388,6 @@ fn csub(a0: i32, a1: i32, a2: i32) {
     asm!("CALL csub")
 }
 
-fn b(a0: i32) -> i32 {
-    asm!("CALL b")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn cmul(a0: i32, a1: i32, a2: i32) {
     asm!("CALL cmul")
 }
@@ -1517,13 +1398,6 @@ fn cdiv(a0: i32, a1: i32, a2: i32) {
 
 fn complex_abs(a0: i32) -> i32 {
     asm!("CALL complex_abs")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn radians(a0: i32) -> i32 {
-    asm!("CALL radians")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -1551,22 +1425,8 @@ fn cexp_re(a0: i32, a1: i32) -> i32 {
     r
 }
 
-fn cos(a0: i32) -> i32 {
-    asm!("CALL cos")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn cexp_im(a0: i32, a1: i32) -> i32 {
     asm!("CALL cexp_im")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn sin(a0: i32) -> i32 {
-    asm!("CALL sin")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -1715,6 +1575,13 @@ fn printf2(a0: i32, a1: i32, a2: i32) {
 
 fn printf3(a0: i32, a1: i32, a2: i32, a3: i32) {
     asm!("CALL printf3")
+}
+
+fn itoa(a0: i32, a1: i32) -> i32 {
+    asm!("CALL itoa")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
 }
 
 fn int_to_str(a0: i32) -> i32 {
@@ -2087,13 +1954,6 @@ fn ltoa_hex(a0: i32, a1: i32) -> i32 {
 
 fn atol_hex(a0: i32) -> i32 {
     asm!("CALL atol_hex")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn CRC(a0: i32, a1: i32) -> i32 {
-    asm!("CALL CRC")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -2875,13 +2735,6 @@ fn encoding_convert(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) -> i32
     r
 }
 
-fn wrappers(a0: i32) -> i32 {
-    asm!("CALL wrappers")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn encoding_detect_bom_1(a0: i32) -> i32 {
     asm!("CALL encoding_detect_bom_1")
     let r: i32;
@@ -3057,15 +2910,22 @@ fn sqrt(a0: i32) -> i32 {
     r
 }
 
-fn atan2(a0: i32, a1: i32) -> i32 {
-    asm!("CALL atan2")
+fn sin(a0: i32) -> i32 {
+    asm!("CALL sin")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
 }
 
-fn Math(a0: i32) -> i32 {
-    asm!("CALL Math")
+fn cos(a0: i32) -> i32 {
+    asm!("CALL cos")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn atan2(a0: i32, a1: i32) -> i32 {
+    asm!("CALL atan2")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -3514,29 +3374,8 @@ fn RestoreCrtMode() {
     asm!("CALL RestoreCrtMode")
 }
 
-fn base(a0: i32) -> i32 {
-    asm!("CALL base")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn params(a0: i32) -> i32 {
-    asm!("CALL params")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn _gfx_refresh_cache() -> i32 {
     asm!("CALL _gfx_refresh_cache")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn config(a0: i32) -> i32 {
-    asm!("CALL config")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -3570,22 +3409,8 @@ fn gfx_h() -> i32 {
     r
 }
 
-fn address(a0: i32) -> i32 {
-    asm!("CALL address")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn _putpixel(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL _putpixel")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn PUSH(a0: i32) -> i32 {
-    asm!("CALL PUSH")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -3598,57 +3423,8 @@ fn _getpixel(a0: i32, a1: i32) -> i32 {
     r
 }
 
-fn R0(a0: i32) -> i32 {
-    asm!("CALL R0")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn offset(a0: i32, a1: i32) -> i32 {
-    asm!("CALL offset")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn _putpixel_fast(a0: i32, a1: i32) -> i32 {
     asm!("CALL _putpixel_fast")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn R4(a0: i32) -> i32 {
-    asm!("CALL R4")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn Sector(a0: i32) -> i32 {
-    asm!("CALL Sector")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn points(a0: i32) -> i32 {
-    asm!("CALL points")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn Font(a0: i32) -> i32 {
-    asm!("CALL Font")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn Points(a0: i32) -> i32 {
-    asm!("CALL Points")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -3884,13 +3660,6 @@ fn tan_deg(a0: i32) -> i32 {
     r
 }
 
-fn approximation(a0: i32) -> i32 {
-    asm!("CALL approximation")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn ilog2(a0: i32) -> i32 {
     asm!("CALL ilog2")
     let r: i32;
@@ -4058,13 +3827,6 @@ fn lrandom64(a0: i32, a1: i32) -> i32 {
 
 fn lclz64(a0: i32) -> i32 {
     asm!("CALL lclz64")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn Count(a0: i32) -> i32 {
-    asm!("CALL Count")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -4265,13 +4027,6 @@ fn vec2_dot(a0: i32, a1: i32) -> i32 {
     r
 }
 
-fn product(a0: i32) -> i32 {
-    asm!("CALL product")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn vec2_cross(a0: i32, a1: i32) -> i32 {
     asm!("CALL vec2_cross")
     let r: i32;
@@ -4318,22 +4073,8 @@ fn vec3_normalize(a0: i32) -> i32 {
     r
 }
 
-fn vector(a0: i32, a1: i32) -> i32 {
-    asm!("CALL vector")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn mat4_transform_vec3(a0: i32, a1: i32, a2: i32) {
     asm!("CALL mat4_transform_vec3")
-}
-
-fn arrays(a0: i32) -> i32 {
-    asm!("CALL arrays")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
 }
 
 fn mat2_identity_d(a0: i32) {
@@ -4492,20 +4233,6 @@ fn mat4_transform_vec3_d(a0: i32, a1: i32, a2: i32) {
 
 fn memmove(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL memmove")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn long(a0: i32) -> i32 {
-    asm!("CALL long")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn int(a0: i32) -> i32 {
-    asm!("CALL int")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -4794,13 +4521,6 @@ fn type_name(a0: i32, a1: i32) -> i32 {
     r
 }
 
-fn literals(a0: i32) -> i32 {
-    asm!("CALL literals")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn NULL(a0: i32) -> i32 {
     asm!("CALL NULL")
     let r: i32;
@@ -4852,13 +4572,6 @@ fn parse_factor() -> i32 {
 
 fn parserexp(a0: i32) -> i32 {
     asm!("CALL parserexp")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn cases(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
-    asm!("CALL cases")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -5266,13 +4979,6 @@ fn hysteresis(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
     r
 }
 
-fn Processing(a0: i32) -> i32 {
-    asm!("CALL Processing")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn lmoving_avg_init64(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL lmoving_avg_init64")
     let r: i32;
@@ -5424,13 +5130,6 @@ fn lmedian64(a0: i32) -> i32 {
     r
 }
 
-fn middle(a0: i32, a1: i32) -> i32 {
-    asm!("CALL middle")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn lrange64(a0: i32) -> i32 {
     asm!("CALL lrange64")
     let r: i32;
@@ -5529,22 +5228,8 @@ fn strrev(a0: i32, a1: i32) -> i32 {
     r
 }
 
-fn uppercase(a0: i32) -> i32 {
-    asm!("CALL uppercase")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
 fn str_toupper(a0: i32, a1: i32) {
     asm!("CALL str_toupper")
-}
-
-fn lowercase(a0: i32) -> i32 {
-    asm!("CALL lowercase")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
 }
 
 fn str_tolower(a0: i32, a1: i32) {
@@ -5560,13 +5245,6 @@ fn str_repeat(a0: i32, a1: i32, a2: i32) -> i32 {
 
 fn str_contains(a0: i32, a1: i32) -> i32 {
     asm!("CALL str_contains")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn whitespace(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
-    asm!("CALL whitespace")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -5588,13 +5266,6 @@ fn str_substr(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
 
 fn str_indexof(a0: i32, a1: i32) -> i32 {
     asm!("CALL str_indexof")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn parts(a0: i32) -> i32 {
-    asm!("CALL parts")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -5662,48 +5333,6 @@ fn tick(a0: i32) -> i32 {
 
 fn remaining(a0: i32, a1: i32) -> i32 {
     asm!("CALL remaining")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn char(a0: i32) -> i32 {
-    asm!("CALL char")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn hex(a0: i32) -> i32 {
-    asm!("CALL hex")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn timestamp(a0: i32) -> i32 {
-    asm!("CALL timestamp")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn framebuffer(a0: i32) -> i32 {
-    asm!("CALL framebuffer")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn size(a0: i32) -> i32 {
-    asm!("CALL size")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn compatible(a0: i32) -> i32 {
-    asm!("CALL compatible")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -5836,13 +5465,6 @@ fn delay(a0: i32) {
 
 fn int_pow(a0: i32, a1: i32) -> i32 {
     asm!("CALL int_pow")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
-}
-
-fn root(a0: i32) -> i32 {
-    asm!("CALL root")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -6271,6 +5893,13 @@ fn ui_dlg_msg(a0: i32, a1: i32, a2: i32) -> i32 {
     r
 }
 
+fn asm(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL asm")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
 fn ui_dlg_select(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
     asm!("CALL ui_dlg_select")
     let r: i32;
@@ -6392,15 +6021,15 @@ fn ui_msg_count() -> i32 {
     r
 }
 
-fn ui_poll_msg() -> i32 {
-    asm!("CALL ui_poll_msg")
+fn ui_wait_msg(a0: i32) -> i32 {
+    asm!("CALL ui_wait_msg")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
 }
 
-fn ui_wait_msg(a0: i32) -> i32 {
-    asm!("CALL ui_wait_msg")
+fn ui_poll_msg() -> i32 {
+    asm!("CALL ui_poll_msg")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r
@@ -6494,13 +6123,6 @@ fn ui_icon(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
 
 fn ui_image(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
     asm!("CALL ui_image")
-}
-
-fn character(a0: i32, a1: i32) -> i32 {
-    asm!("CALL character")
-    let r: i32;
-    asm!("MOVE {{0}}, R0", out(reg) r);
-    r
 }
 
 fn wctomb(a0: i32, a1: i32) -> i32 {

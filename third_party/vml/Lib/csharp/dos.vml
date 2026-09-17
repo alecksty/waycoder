@@ -3,7 +3,7 @@
 
 .linked "../shared/dos.vml"
 
-LABEL GetDate
+LABEL csharp_GetDate
     push R15
     push R12
     move R12 R13
@@ -26,7 +26,7 @@ LABEL GetDate
     pop R15
     RET
 
-LABEL GetTime
+LABEL csharp_GetTime
     push R15
     push R12
     move R12 R13
@@ -49,7 +49,7 @@ LABEL GetTime
     pop R15
     RET
 
-LABEL DosVersion
+LABEL csharp_DosVersion
     push R15
     push R12
     move R12 R13
@@ -59,7 +59,7 @@ LABEL DosVersion
     pop R15
     RET
 
-LABEL DiskFree
+LABEL csharp_DiskFree
     push R15
     push R12
     move R12 R13
@@ -73,7 +73,7 @@ LABEL DiskFree
     pop R15
     RET
 
-LABEL DiskSize
+LABEL csharp_DiskSize
     push R15
     push R12
     move R12 R13
@@ -87,7 +87,7 @@ LABEL DiskSize
     pop R15
     RET
 
-LABEL FindFirst
+LABEL csharp_FindFirst
     push R15
     push R12
     move R12 R13
@@ -107,7 +107,7 @@ LABEL FindFirst
     pop R15
     RET
 
-LABEL FindNext
+LABEL csharp_FindNext
     push R15
     push R12
     move R12 R13
@@ -121,7 +121,7 @@ LABEL FindNext
     pop R15
     RET
 
-LABEL FindClose
+LABEL csharp_FindClose
     push R15
     push R12
     move R12 R13
@@ -135,7 +135,7 @@ LABEL FindClose
     pop R15
     RET
 
-LABEL EnvCount
+LABEL csharp_EnvCount
     push R15
     push R12
     move R12 R13
@@ -145,7 +145,7 @@ LABEL EnvCount
     pop R15
     RET
 
-LABEL EnvStr
+LABEL csharp_EnvStr
     push R15
     push R12
     move R12 R13
@@ -159,7 +159,7 @@ LABEL EnvStr
     pop R15
     RET
 
-LABEL GetEnv
+LABEL csharp_GetEnv
     push R15
     push R12
     move R12 R13
@@ -173,7 +173,7 @@ LABEL GetEnv
     pop R15
     RET
 
-LABEL Exec
+LABEL csharp_Exec
     push R15
     push R12
     move R12 R13
@@ -190,7 +190,7 @@ LABEL Exec
     pop R15
     RET
 
-LABEL SwapVectors
+LABEL csharp_SwapVectors
     push R15
     push R12
     move R12 R13
@@ -200,7 +200,7 @@ LABEL SwapVectors
     pop R15
     RET
 
-LABEL GetIntVec
+LABEL csharp_GetIntVec
     push R15
     push R12
     move R12 R13
@@ -217,7 +217,7 @@ LABEL GetIntVec
     pop R15
     RET
 
-LABEL SetIntVec
+LABEL csharp_SetIntVec
     push R15
     push R12
     move R12 R13
@@ -234,7 +234,7 @@ LABEL SetIntVec
     pop R15
     RET
 
-LABEL DosExitCode
+LABEL csharp_DosExitCode
     push R15
     push R12
     move R12 R13
@@ -245,50 +245,50 @@ LABEL DosExitCode
     RET
 
 LABEL Dos_GetDate
-    JMP GetDate
+    JMP csharp_GetDate
 
 LABEL Dos_GetTime
-    JMP GetTime
+    JMP csharp_GetTime
 
 LABEL Dos_DosVersion
-    JMP DosVersion
+    JMP csharp_DosVersion
 
 LABEL Dos_DiskFree
-    JMP DiskFree
+    JMP csharp_DiskFree
 
 LABEL Dos_DiskSize
-    JMP DiskSize
+    JMP csharp_DiskSize
 
 LABEL Dos_FindFirst
-    JMP FindFirst
+    JMP csharp_FindFirst
 
 LABEL Dos_FindNext
-    JMP FindNext
+    JMP csharp_FindNext
 
 LABEL Dos_FindClose
-    JMP FindClose
+    JMP csharp_FindClose
 
 LABEL Dos_EnvCount
-    JMP EnvCount
+    JMP csharp_EnvCount
 
 LABEL Dos_EnvStr
-    JMP EnvStr
+    JMP csharp_EnvStr
 
 LABEL Dos_GetEnv
-    JMP GetEnv
+    JMP csharp_GetEnv
 
 LABEL Dos_Exec
-    JMP Exec
+    JMP csharp_Exec
 
 LABEL Dos_SwapVectors
-    JMP SwapVectors
+    JMP csharp_SwapVectors
 
 LABEL Dos_GetIntVec
-    JMP GetIntVec
+    JMP csharp_GetIntVec
 
 LABEL Dos_SetIntVec
-    JMP SetIntVec
+    JMP csharp_SetIntVec
 
 LABEL Dos_DosExitCode
-    JMP DosExitCode
+    JMP csharp_DosExitCode
 

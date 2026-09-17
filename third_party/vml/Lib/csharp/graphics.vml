@@ -7,11 +7,7 @@ LABEL Base
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL base
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -21,11 +17,7 @@ LABEL Params
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL params
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -45,11 +37,7 @@ LABEL Config
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL config
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -103,11 +91,7 @@ LABEL Address
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL address
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -133,15 +117,11 @@ LABEL Putpixel
     pop R15
     RET
 
-LABEL PUSH
+LABEL csharp_PUSH
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL PUSH
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -164,15 +144,11 @@ LABEL Getpixel
     pop R15
     RET
 
-LABEL R0
+LABEL csharp_R0
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL R0
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -182,14 +158,7 @@ LABEL Offset
     push R15
     push R12
     move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
     CALL offset
-    ADD R13 #8
     move R13 R12
     pop R12
     pop R15
@@ -212,29 +181,21 @@ LABEL PutpixelFast
     pop R15
     RET
 
-LABEL R4
+LABEL csharp_R4
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL R4
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
     RET
 
-LABEL Sector
+LABEL csharp_Sector
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL Sector
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -244,39 +205,27 @@ LABEL Points
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL points
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
     RET
 
-LABEL Font
+LABEL csharp_Font
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL Font
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
     RET
 
-LABEL Points
+LABEL csharp_Points
     push R15
     push R12
     move R12 R13
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
     CALL Points
-    ADD R13 #4
     move R13 R12
     pop R12
     pop R15
@@ -313,13 +262,13 @@ LABEL Graphics_Putpixel
     JMP Putpixel
 
 LABEL Graphics_PUSH
-    JMP PUSH
+    JMP csharp_PUSH
 
 LABEL Graphics_Getpixel
     JMP Getpixel
 
 LABEL Graphics_R0
-    JMP R0
+    JMP csharp_R0
 
 LABEL Graphics_Offset
     JMP Offset
@@ -328,17 +277,17 @@ LABEL Graphics_PutpixelFast
     JMP PutpixelFast
 
 LABEL Graphics_R4
-    JMP R4
+    JMP csharp_R4
 
 LABEL Graphics_Sector
-    JMP Sector
+    JMP csharp_Sector
 
 LABEL Graphics_Points
     JMP Points
 
 LABEL Graphics_Font
-    JMP Font
+    JMP csharp_Font
 
 LABEL Graphics_Points
-    JMP Points
+    JMP csharp_Points
 

@@ -21,14 +21,7 @@ LABEL dart_middle
     push R15
     push R12
     move R12 R13
-    move R0 [R12+16]
-    PUSH R0
-    move R0 [R12+12]
-    PUSH R0
-    move R0 [R13+0]
-    move R1 [R13+4]
     CALL middle
-    ADD R13 #8
     move R13 R12
     pop R12
     pop R15
