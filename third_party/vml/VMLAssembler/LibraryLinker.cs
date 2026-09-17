@@ -50,6 +50,10 @@ namespace VMLAssembler
             // 去重：linkedFiles 跟踪已链接文件，enqueuedFiles 跟踪已入队文件
             var linkedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var enqueuedFiles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            // 已链接的**模块名**（库文件名去掉 .vml）。库里的标签形如 `lib_<模块>_<标签>`，
+            // 后面「情况2」要靠它把模块边界切出来，否则 `lib_printf__printf_itoa`
+            // 会被当成 `itoa` 的包装器（详见那处的注释）。
+            var moduleNames = new HashSet<string>(StringComparer.Ordinal);
 
             // 处理队列 (支持递归 .linked)
             var queue = new Queue<string>(libraryPaths.Where(p => File.Exists(p) || Directory.Exists(p)));
@@ -86,6 +90,7 @@ namespace VMLAssembler
                     {
                         string normalized = NormalizePath(vmlFile);
                         if (!linkedFiles.Add(normalized)) continue;
+                        moduleNames.Add(Path.GetFileNameWithoutExtension(vmlFile));
                         if (debug) Console.WriteLine($"  链接库文件: {Path.GetFileName(vmlFile)}");
                         linkedProgram = LinkSingleLibrary(linkedProgram, vmlFile, assembler, globalLabelMapping, debug);
                         // 递归: 库的 .linked 依赖
@@ -110,6 +115,7 @@ namespace VMLAssembler
                 {
                     string normalized = NormalizePath(libPath);
                     if (!linkedFiles.Add(normalized)) continue;
+                    moduleNames.Add(Path.GetFileNameWithoutExtension(libPath));
                     if (debug) Console.WriteLine($"链接库文件: {libPath}");
                     linkedProgram = LinkSingleLibrary(linkedProgram, libPath, assembler, globalLabelMapping, debug);
                     // 递归: 库的 .linked 依赖
@@ -186,18 +192,67 @@ namespace VMLAssembler
                 // 直接旁路到实现体会丢失调用约定, 导致参数错位/死循环 (v1.66.64 修复)
                 if (!target.Contains("_func_"))
                 {
+                    string? bestBare = null;
+                    string? bestImpl = null;
                     foreach (var kvp in globalLabelMapping)
                     {
                         string bareName = kvp.Key;
-                        string bestImpl = kvp.Value;
-                        if (target == bestImpl) break; // 已是最佳实现
-                        if (target.EndsWith("_" + bareName) && target.StartsWith("lib_") &&
-                            target != bestImpl && linkedProgram.Labels.ContainsKey(bestImpl))
+                        string impl = kvp.Value;
+                        if (target == impl) { bestBare = null; bestImpl = null; break; } // 已是最佳实现
+                        if (target == impl) continue;
+                        if (!target.StartsWith("lib_")) continue;
+                        if (!linkedProgram.Labels.ContainsKey(impl)) continue;
+
+                        // ⚠ 判据必须**带模块边界**：target 要**恰好**是 `lib_<模块>_<裸名>`
+                        //   （模块名 = 库文件 basename，见 LinkSingleLibrary 里
+                        //    `libPrefix = $"lib_{文件名}_"`）。
+                        //
+                        //   原先写的是 `target.EndsWith("_" + bareName)` —— 纯后缀匹配，
+                        //   会误伤**名字里含短名**的函数：printf.c 的 static 助手
+                        //   `_printf_itoa` 链接后是 `lib_printf__printf_itoa`，它
+                        //   `EndsWith("_itoa")` ⇒ 被当成「itoa 的包装器」，**整个调用被
+                        //   重定向到 convert.c 的 `itoa(int value, char* dst)`**
+                        //   —— 参数顺序完全相反的函数。
+                        //
+                        //   实测后果：`call _printf_itoa` **永远进不去那个函数**（在它内部
+                        //   插桩一个字都不打），`itoa(42, tmp)` 把 42 当目标地址去写，
+                        //   于是 `%d` 返回垃圾长度、`tmp` 未被填 ⇒ **printf 的所有 `%`
+                        //   转换全废**，而字面量正常（那条路只经过 emit，不经过它）。
+                        //
+                        //   源码里那句注释「前缀 _printf_ 避免与其他库冲突」正是前人给这个
+                        //   碰撞打的补丁 —— 而 `EndsWith` 把那个规避手段整个架空了。
+                        //
+                        //   带边界后：`lib_builtins_itoa`（模块 builtins）仍照旧重定向，
+                        //   而 `lib_printf__printf_itoa` 需要模块名 `printf__printf`（不存在）
+                        //   ⇒ 不再误伤。
+                        bool exact = false;
+                        foreach (var m in moduleNames)
                         {
-                            operand.Value = bestImpl;
-                            finalFixupCount++;
-                            break;
+                            if (target.Length == m.Length + 5 + bareName.Length &&
+                                string.CompareOrdinal(target, 0, "lib_", 0, 4) == 0 &&
+                                string.CompareOrdinal(target, 4, m, 0, m.Length) == 0 &&
+                                target[m.Length + 4] == '_' &&
+                                string.CompareOrdinal(target, m.Length + 5, bareName, 0, bareName.Length) == 0)
+                            {
+                                exact = true;
+                                break;
+                            }
                         }
+                        if (!exact) continue;
+
+                        // 多个候选时取**最长**的裸名（更具体）。
+                        // 原实现 break 在字典遍历顺序的第一个匹配上 ⇒ 结果取决于
+                        // Dictionary 的枚举顺序，本身就是不确定行为。
+                        if (bestBare == null || bareName.Length > bestBare.Length)
+                        {
+                            bestBare = bareName;
+                            bestImpl = impl;
+                        }
+                    }
+                    if (bestImpl != null)
+                    {
+                        operand.Value = bestImpl;
+                        finalFixupCount++;
                     }
                 }
             }
