@@ -1174,100 +1174,57 @@ namespace CppCompiler
             // 确定调用约定
             CallingConvention callConv = calleeDecl?.Convention ?? CallingConvention.Cdecl;
 
-            if (isExternCall)
+            // ══ 统一调用约定（2026-09-17）════
+            //
+            // 一条循环取代原来的 extern / stdcall / fastcall / cdecl **四条分流**：
+            //   **全部实参右到左压栈、一个都不走寄存器、调用方清栈**，
+            //   压完之后把 arg0..arg3 镜像进 R0-R3。
+            //
+            // 原来的四条里 extern 与 stdcall 是「左到右 + 被调方清栈」、cdecl 是「右到左 +
+            // 调用方清栈」、fastcall 是混的 —— **同一门语言里三套约定**，调用点与被调方
+            // 一旦对不上就是静默的实参错位或栈漂移。
+            // 实测（`scripts/vml-abi-probe/langs/abi.cpp`）：`ipow(2, 3)` 得 **9**
+            // （= `ipow(3, 2)`，实参整体反序），而同一份程序在 C 前端得 **8**。
+            //
+            // ⚠ 镜像必须**在所有实参求值完成之后**。表达式生成器拿 R0 当暂存，
+            //   原来那句 `if (i > 0) MOVE Ri, R0` 写在压栈循环**里面**：
+            //   i=3 装好 R3 之后还会被 i=2/1/0 的求值冲掉 —— R1-R3 从来没镜像对过。
+            //   （与 C 前端 `CodeGenerator.Expressions.Calls.cs` 注释里记的
+            //     「实参求值之间不能夹带寄存器装载」是同一条教训：历史伤
+            //     `probe(p + 3*k, q + 3*k, 3*k)` 传出去 R1 = 第一个实参的值。）
+            //
+            // `__stdcall` / `__fastcall` 等修饰符**仍能被解析**，但不再影响代码生成 ——
+            // 这才是「统一之后写不写声明都必须是对的」。
+            for (int i = ce.Arguments.Count - 1; i >= 0; i--)
             {
-                // 外部函数: 左到右 PUSH，wrapper 负责清理栈
-                for (int i = 0; i < ce.Arguments.Count; i++)
-                {
-                    string? paramType = null;
-                    if (calleeDecl != null && i < calleeDecl.Parameters.Count)
-                        paramType = calleeDecl.Parameters[i].Type?.Trim();
-                    bool isFloat = paramType == "float";
-                    bool isDouble = paramType == "double";
-                    bool isLong = paramType != null && (paramType == "long" || paramType == "long long"
-                        || paramType == "unsigned long" || paramType == "unsigned long long"
-                        || paramType.Contains("long"));
+                bool isRefArg = calleeDecl != null
+                    && i < calleeDecl.Parameters.Count
+                    && calleeDecl.Parameters[i].IsReference;
+                // 结构体按值传参：被调方拿到的也是**地址**（见 CodeGenerator.cs 里
+                // `isStructVal → _isReferenceVar`），所以这里同样压地址。
+                bool isStructValArg = !isRefArg && calleeDecl != null
+                    && i < calleeDecl.Parameters.Count
+                    && GetStructSlotCount(calleeDecl.Parameters[i].Type) > 1;
+                if (isRefArg || isStructValArg)
+                    GenerateAddressOf(ce.Arguments[i]);
+                else
                     GenerateExpr(ce.Arguments[i]);
-                    // 使用 EmitPushArg: float/double/long 写入主栈（不用 typed stack 指令）
-                    EmitPushArg(isLong || isDouble ? 8 : 4, isFloat, isDouble, isLong);
-                }
-            }
-            else if (callConv == CallingConvention.Stdcall)
-            {
-                // stdcall: 从左到右 PUSH，被调用者清理栈
-                for (int i = 0; i < ce.Arguments.Count; i++)
-                {
-                    bool isRefArg = calleeDecl != null
-                        && i < calleeDecl.Parameters.Count
-                        && calleeDecl.Parameters[i].IsReference;
-                    if (isRefArg)
-                        GenerateAddressOf(ce.Arguments[i]);
-                    else
-                        GenerateExpr(ce.Arguments[i]);
-                    Add(OpCode.PUSH, "R0");
-                }
-            }
-            else if (callConv == CallingConvention.Fastcall)
-            {
-                // fastcall: 前4参数 R0-R3 从左到右，其余从右到左压栈，调用者清理
-                int totalArgs = ce.Arguments.Count;
-                int hasThisInt = hasThis ? 1 : 0;
-                int totalParams = totalArgs + hasThisInt;
-                int maxReg = Math.Min(totalArgs, 4);
-                // Push overflow args right-to-left (skip first 4)
-                for (int i = totalArgs - 1; i >= maxReg; i--)
-                {
-                    bool isRefArg = calleeDecl != null
-                        && i < calleeDecl.Parameters.Count
-                        && calleeDecl.Parameters[i].IsReference;
-                    if (isRefArg)
-                        GenerateAddressOf(ce.Arguments[i]);
-                    else
-                        GenerateExpr(ce.Arguments[i]);
-                    Add(OpCode.PUSH, "R0");
-                }
-                // Set register args (first 4), right-to-left to avoid overwrite
-                for (int i = maxReg - 1; i >= 0; i--)
-                {
-                    bool isRefArg = calleeDecl != null
-                        && i < calleeDecl.Parameters.Count
-                        && calleeDecl.Parameters[i].IsReference;
-                    if (isRefArg)
-                        GenerateAddressOf(ce.Arguments[i]);
-                    else
-                        GenerateExpr(ce.Arguments[i]);
-                    if (i > 0)
-                        Add(OpCode.MOVE, $"R{i}", "R0");
-                }
-            }
-            else
-            {
-                // cdecl (默认): 右到左 PUSH + 寄存器保存 + 调用者清理
-                for (int i = ce.Arguments.Count - 1; i >= 0; i--)
-                {
-                    bool isRefArg = calleeDecl != null
-                        && i < calleeDecl.Parameters.Count
-                        && calleeDecl.Parameters[i].IsReference;
-                    bool isStructValArg = !isRefArg && calleeDecl != null
-                        && i < calleeDecl.Parameters.Count
-                        && GetStructSlotCount(calleeDecl.Parameters[i].Type) > 1;
-                    if (isStructValArg)
-                        GenerateAddressOf(ce.Arguments[i]);
-                    else if (isRefArg)
-                        GenerateAddressOf(ce.Arguments[i]);
-                    else
-                        GenerateExpr(ce.Arguments[i]);
-                    if (i > 0)
-                        Add(OpCode.MOVE, $"R{i}", "R0");
-                    Add(OpCode.PUSH, "R0");
-                }
+                Add(OpCode.PUSH, "R0");
             }
 
-            // 预计算栈参数大小（用于间接调用和cdecl清理）
-            int stackArgCount = callConv == CallingConvention.Fastcall
-                ? Math.Max(0, ce.Arguments.Count - 4) + (hasThis ? 1 : 0)
-                : ce.Arguments.Count + (hasThis ? 1 : 0);
-            int argsSize = stackArgCount * 4;
+            // 镜像 arg0..arg3 进 R0-R3 —— 读的是刚压好的栈，不再求值，结构上免疫被冲掉。
+            // 这一份是给 `Lib` 里那 543 处内联汇编（`asm("SYSCALL #6")` 直接吃 R0）
+            // 与各语言包装器（`PUSH R0 / CALL x`）用的。
+            for (int i = 0; i < ce.Arguments.Count && i < 4; i++)
+            {
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    [new Operand(OperandType.REGISTER, i), new Operand(OperandType.MEMORY, $"R13+{i * 4}")],
+                    instructions.Count));
+            }
+
+            // 每个实参一个 4 字节槽（与被调方 `cumOff += 4` 同一口径），方法调用的 `this`
+            // 在此块之前就已压好，一并计入待清理量。
+            int argsSize = (ce.Arguments.Count + (hasThis ? 1 : 0)) * 4;
 
             // 函数指针间接调用（Callee 非简单标识符，如 fa[i](r)）
             if (string.IsNullOrEmpty(funcName))
@@ -1310,9 +1267,9 @@ namespace CppCompiler
                 label = $"func_{funcName}";
             Add(OpCode.CALL, label);
 
-            // 栈清理: cdecl/fastcall 调用者清理; stdcall/extern 被调用者清理
-            bool callerCleanup = !isExternCall && callConv != CallingConvention.Stdcall;
-            if (callerCleanup && argsSize > 0)
+            // 栈清理：**一律调用方清**（原先是「cdecl/fastcall 调用方清、stdcall/extern
+            // 被调方清」两条路，被调方那边见 CodeGenerator.cs 的同批改动）。
+            if (argsSize > 0)
             {
                 Add(OpCode.ADD, "R13", $"#{argsSize}");
             }

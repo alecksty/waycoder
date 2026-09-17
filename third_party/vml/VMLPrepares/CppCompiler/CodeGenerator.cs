@@ -191,71 +191,27 @@ namespace CppCompiler
             _isReferenceVar.Clear();
 
             // Pre-allocate parameters via Vars (get offsets before prologue)
-            // fastcall: R0-R3 for first 4 params -> allocate stack params first (R14+12+), then register params
-            // stdcall: left-to-right push -> last param at R14+12, first at highest offset
+            //
+            // ⚠ **只有一种布局了**（2026-09-17 调用约定统一）：实参全部右到左压栈 ⇒
+            //     第 i 个形参在 `R12 + 12 + 4*i`（R12 上方依次是 R15、R14、返回地址，再往上就是实参区）。
+            // 原先这里是三条分支（fastcall 前 4 参进 R0-R3 / stdcall 左到右 / 默认右到左）——
+            // 那是**同一门语言里三套约定**，与调用点合不上就是静默的实参错位。
+            // `__stdcall` / `__fastcall` 等修饰符仍能解析，但不再影响布局。
             var paramAllocs = new List<(string name, int localOff, string type, bool isRef, int paramOff, bool isRegParam)>();
-            int regParamCount = (func.Convention == CallingConvention.Fastcall)
-                ? Math.Min(func.Parameters.Count, 4) : 0;
 
-            if (func.Convention == CallingConvention.Fastcall && regParamCount > 0)
+            int cumOff = 12; // start after R14+R15 push
+            for (int i = 0; i < func.Parameters.Count; i++)
             {
-                int stackParamCount = func.Parameters.Count - regParamCount;
-                // Allocate stack params first → lower Vars offsets (R14+12, R14+16, ...)
-                for (int i = regParamCount; i < func.Parameters.Count; i++)
-                {
-                    var param = func.Parameters[i];
-                    var paramInfo = Vars?.AllocParam(param.Name, 4, param.Type, param.IsReference);
-                    int localOff = paramInfo?.Offset ?? (12 + (i - regParamCount) * 4);
-                    int paramOff = 12 + (i - regParamCount) * 4;
-                    paramAllocs.Add((param.Name, localOff, param.Type, param.IsReference, paramOff, false));
-                    _variables[param.Name] = localOff;
-                    _varTypes[param.Name] = param.Type;
-                    if (param.IsReference) _isReferenceVar[param.Name] = true;
-                }
-                // Then allocate register params → higher Vars offsets
-                for (int i = 0; i < regParamCount; i++)
-                {
-                    var param = func.Parameters[i];
-                    var paramInfo = Vars?.AllocParam(param.Name, 4, param.Type, param.IsReference);
-                    int localOff = paramInfo?.Offset ?? (12 + stackParamCount * 4 + i * 4);
-                    paramAllocs.Add((param.Name, localOff, param.Type, param.IsReference, -1, true));
-                    _variables[param.Name] = localOff;
-                    _varTypes[param.Name] = param.Type;
-                    if (param.IsReference) _isReferenceVar[param.Name] = true;
-                }
-            }
-            else if (func.Convention == CallingConvention.Stdcall)
-            {
-                // stdcall: left-to-right push → last param at R14+12, first at highest offset
-                for (int i = func.Parameters.Count - 1; i >= 0; i--)
-                {
-                    var param = func.Parameters[i];
-                    var paramInfo = Vars?.AllocParam(param.Name, 4, param.Type, param.IsReference);
-                    int localOff = paramInfo?.Offset ?? ((func.Parameters.Count - 1 - i) * 4 + 12);
-                    int stackIndex = func.Parameters.Count - 1 - i; // 0 = last param (first pushed)
-                    int paramOff = 12 + stackIndex * 4;
-                    paramAllocs.Insert(0, (param.Name, localOff, param.Type, param.IsReference, paramOff, false));
-                    _variables[param.Name] = localOff;
-                    _varTypes[param.Name] = param.Type;
-                    if (param.IsReference) _isReferenceVar[param.Name] = true;
-                }
-            }
-            else
-            {
-                int cumOff = 12; // start after R14+R15 push
-                for (int i = 0; i < func.Parameters.Count; i++)
-                {
-                    var param = func.Parameters[i];
-                    bool isStructVal = GetStructSlotCount(param.Type) > 1;
-                    var paramInfo = Vars?.AllocParam(param.Name, 4, param.Type, param.IsReference || isStructVal);
-                    int localOff = paramInfo?.Offset ?? cumOff;
-                    paramAllocs.Add((param.Name, localOff, param.Type, param.IsReference, cumOff, false));
-                    _variables[param.Name] = localOff;
-                    _varTypes[param.Name] = param.Type;
-                    if (param.IsReference || isStructVal)
-                        _isReferenceVar[param.Name] = true;
-                    cumOff += 4;
-                }
+                var param = func.Parameters[i];
+                bool isStructVal = GetStructSlotCount(param.Type) > 1;
+                var paramInfo = Vars?.AllocParam(param.Name, 4, param.Type, param.IsReference || isStructVal);
+                int localOff = paramInfo?.Offset ?? cumOff;
+                paramAllocs.Add((param.Name, localOff, param.Type, param.IsReference, cumOff, false));
+                _variables[param.Name] = localOff;
+                _varTypes[param.Name] = param.Type;
+                if (param.IsReference || isStructVal)
+                    _isReferenceVar[param.Name] = true;
+                cumOff += 4;
             }
 
             // Prologue
@@ -357,21 +313,10 @@ namespace CppCompiler
             labels[returnLabel] = instructions.Count;
             Add(OpCode.MOVE, "R13", "R14");
             Add(OpCode.POP, "R14");
-            if (func.Convention == CallingConvention.Stdcall && func.Parameters.Count > 0)
-            {
-                // stdcall: 被调用者清理栈参数
-                // 先恢复 R15，然后用 R1 保存返回地址（避免覆盖 R0 返回值）
-                Add(OpCode.POP, "R15");
-                int stackArgBytes = func.Parameters.Count * 4;
-                // [R13] 当前指向返回地址
-                Add(OpCode.MOVE, "R1", "(R13)");
-                Add(OpCode.ADD, "R13", $"#{4 + stackArgBytes}");
-                Add(OpCode.PUSH, "R1");
-            }
-            else
-            {
-                Add(OpCode.POP, "R15");
-            }
+            // ⚠ **被调方一律裸 `ret`、不弹实参**（2026-09-17 调用约定统一）。
+            // 原先声明成 `__stdcall` 的函数会在这里自己弹掉 `4 + 形参个数×4` 字节，
+            // 而调用方那条路也清一次 ⇒ 每次调用净漏栈。现在清栈只归调用方。
+            Add(OpCode.POP, "R15");
             // main 返回后通过 SYSCALL 3 退出（R0 中的值作为退出码）
             if (func.Name == "main")
                 EmitExit();

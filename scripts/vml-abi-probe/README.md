@@ -37,12 +37,19 @@ scripts/vml-abi-probe/run-langs.sh cpp  # 按扩展名挑
 
 | 探针 | 实测 | 指向 |
 |---|---|---|
-| `abi.cpp` | `9` | `CppCompiler/CodeGenerator.Expressions.cs` 的 extern/stdcall 分支**左→右**压栈；cdecl 分支的 R0-R3 镜像写在**压栈循环内**（会被后续实参求值冲掉） |
-| `abi.java` | `1` | 调用点「第 1 个实参进 R0、其余右→左压栈」——是旧约定本体，第 2 个实参到不了 `[R12+16]` |
-| `abi.rb` | `1` | 同上（`RubyCompiler/CodeGenerator.Expressions.cs:177-183` 左→右） |
-| `abi.js` | 无输出 | `JavaScriptCompiler/CodeGenerator.Calls.cs:737-745` 左→右；且**同一前端内** `super`/`new` 两处却是右→左 |
+| ~~`abi.cpp`~~ | **`8` ✓** | 已修：`CppCompiler` 的四条分流（extern/stdcall/fastcall/cdecl）合成一条 —— 右到左压栈 + 镜像移出压栈循环 + 一律调用方清栈；被调方那边同样收口（形参只有 `R12+12+4i` 一种布局、尾声裸 `pop R15`） |
+| `abi.java` | `1` | 调用点「第 1 个实参进 R0、其余右→左压栈」——是旧约定本体，第 2 个实参到不了 `[R12+16]`；被调方 `CodeGenerator.cs:299-331` 的 param0 也从 R0 读 |
+| `abi.rb` | `1` | 同上（`RubyCompiler/CodeGenerator.Expressions.cs:177-183` 左→右压栈） |
+| `abi.js` | 崩（SP 归零） | 压栈方向**已修**（`CodeGenerator.Calls.cs` 两处循环改右到左，生成物已核对），但仍崩在**另一个既存缺陷**上：`Lib/javascript/math.vml` 里 `LABEL ipow … CALL ipow` 是**自调用** ⇒ 无限递归。根因是 `naming.json` 给 javascript/java 的 `PrimaryPrefix` 为空，**单词名函数**的主标签与 C 符号名撞车（`pow`/`abs`/`sqrt` 等同理）。重生成前后都在 |
 | `drift.lua` | `0` | `LuaCompiler/CodeGenerator.Statements_B.cs:465-493` 的「压栈」**不动 R13**，实参只进 R0-R3 ⇒ 被调方读不到（第 5 个起静默丢弃） |
 | `drift.m` | `2059` | ObjC 的多参外部调用（**既存缺陷**：重生成前基线也是 2059；栈漂移那部分已修） |
+
+> 审计（覆盖全部 22 个前端）还查出几条**探针没覆盖**的同类问题，一并记在这里当活单：
+> Python 的**被调方**仍从 R0-R3 拷形参（`Statements_A.cs:61-71`）而调用点只压栈 ⇒ 只有 arg0 侥幸正确；
+> Kotlin 的被调方取参公式（`CodeGenerator.cs:90-96`）与调用点的压栈方向**相反**；
+> Java 的被调方 param0 读 R0；Swift 的被调方前 4 参读 R0-R3；
+> Go 的方法调用把 receiver 压在最前、落在最高地址 ⇒ 被当成最后一个形参；
+> Lua 的实参**第 5 个起静默丢弃**；Basic/Pascal 的 builtin 调用仍有「被调方清栈」残留。
 
 > `drift.m` 与 `drift.lua` 的数值在 `Lib/` 重生成**前后**都错 ⇒ 不是本次回归；
 > `abi.cpp` / `abi.java` / `abi.rb` / `abi.js` 同理（骨架文件头早就记着这些形态）。

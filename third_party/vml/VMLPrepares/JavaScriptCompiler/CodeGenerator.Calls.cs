@@ -734,9 +734,13 @@ namespace JavaScriptCompiler
                     }
                     return;
                 }
-                foreach (var arg in call.Arguments)
+                // ⚠ **右到左**压栈（2026-09-17 调用约定统一后改的，原先是从左到右）。
+                // 被调方从 `R14+8+4i`（本前端）或 `[R12+12+4i]`（库里 C 编译出来的函数）
+                // 逐个读形参，**前提就是最后压入的 = 第 1 个参数**。左到右压栈会让形参整体反序：
+                // 实测 `ipow(2,3)`（非交换）反序后按 `ipow(3,2)` 算。
+                for (int i = call.Arguments.Count - 1; i >= 0; i--)
                 {
-                    GenerateExpression(arg);
+                    GenerateExpression(call.Arguments[i]);
                     instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
                 }
                 instructions.Add(new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, functionName)]));
@@ -820,9 +824,12 @@ namespace JavaScriptCompiler
                 // Object.create/getPrototypeOf/setPrototypeOf are handled in MemberExpression branch above
             }
 
-            foreach (var arg in call.Arguments)
+            // ⚠ **右到左**压栈（2026-09-17 调用约定统一后改的，原先是从左到右）。
+            // 被调方从 `R14+8+4i`（本前端）或 `[R12+12+4i]`（库里 C 编译出来的函数）逐个读形参，
+            // 前提是最后压入的 = 第 1 个参数。左到右会让形参整体反序。
+            for (int i = call.Arguments.Count - 1; i >= 0; i--)
             {
-                GenerateExpression(arg);
+                GenerateExpression(call.Arguments[i]);
                 instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
             }
 
