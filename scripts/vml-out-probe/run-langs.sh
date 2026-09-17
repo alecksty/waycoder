@@ -22,15 +22,23 @@
 #
 # 依赖桌面的 `scripts/vmlcli`（与手机端等价的编译+运行流水线）。
 #
-# ⚠ **校准状态（2026-09-17 首轮：0/22）**：探针文件是用「每门语言一套打印模板」批量生成的，
-#    首轮全红，而且**红的主要是模板、不是语言** —— 最典型的是换行：输出拼成了
-#    `OUT-STR=abc<sep>42<sep>OUT-PUN=…`，说明我给的"怎么打一个换行"大多不对。
-#    已能分辨出的**真信号**（与模板无关，值得单独追）：
-#      · `go` / `kt` 在字符串后面多打了一个 `0`（我拿 `println_int(0)` 当换行用，它们照打了）
-#      · `swift` 直接 `CALL main` 崩（外层包装写法与该前端不符）
-#      · `rs` 少了整行整数输出
-#    下一步：**逐门照 `scripts/maui-vml-verify/corpus/<语言>/skel.<ext>` 的打印段校准**
-#    （那份是各语言唯一被验证过能打印的样板），校准完这 22 条才真正在量「语言」。
+# ⚠ **校准状态（2026-09-17，v0.96.208）**：**22 通过 / 6 输出不符 / 2 编译失败**（30 条）。
+#    一路校准下来红的主要是**我自己的探针**、不是语言 —— 反复踩到的三类：
+#      · **注释前缀写错**（`//` 用在 Python/Pascal/Ladder/R/Ruby/Scheme/Lua 上 ⇒ 编译期就抛）。
+#        这是**最贵的一个坑**：它把"编译失败"伪装成"运行了没输出"。
+#      · **拿别的语言的换行/分隔语义套这一门**（Go/Python 的 println/print 在操作数间插空格、
+#        Kotlin 的 println 只吃一个实参）⇒ 各语言的原生 print 语义不同，期望必须分开：
+#        探针旁边放一份 `<探针>.expect` 覆盖默认期望。
+#      · **忘记整数实参从 args[0] 起**（自己写用例时也踩过：期望按 args[2] 写）。
+#    ⇒ **runner 现在把「编译期抛异常」与「跑完输出不对」分成两档报**（ERR / FAIL）——
+#      早先一律 2>/dev/null，5 个编译失败被报成「输出为空」，害得"修编译器"和
+#      "修探针"混在一起看不出来。
+#    剩下的真信号（与探针无关，值得单独追）：
+#      · `out.rs` —— `println!("OUT-INT={}", 42)` 打出 `OUT-INT=`（整数整个丢了）
+#      · `out.js` —— 编译运行都正常（87224 条指令 / 5.6 秒）但**零输出**
+#      · `out.fth` —— 第二行 ` OUT-INT=42` 多一个**前导空格**
+#      · `nat.py` —— 多实参 `print("OUT-INT=", 42)` 打出 ` 1036`（字面量丢了、整数也不对）
+#      · `out.f90` / `nat.kt` —— 仍**编译期抛异常**，先修探针再看输出
 
 set -uo pipefail
 
@@ -51,6 +59,10 @@ shopt -s nullglob
 # 两条路是两套实现，坏一条不代表另一条好 —— 用户点出来的正是这个：
 # 「各语言还要测试自己的标准输出函数，现在只有测试共享库的」。
 files=("$HERE"/langs/out.* "$HERE"/langs/nat.*)
+# ⚠ 排除 *.expect —— 它们是**期望值**不是探针，glob 会一并匹配到
+#   （实测过：nat.go.expect / nat.py.expect 被当成探针去编译）
+keep=(); for f in "${files[@]}"; do [[ "$f" == *.expect ]] || keep+=("$f"); done
+files=("${keep[@]}")
 if [[ $# -gt 0 ]]; then
     filtered=()
     for f in "${files[@]}"; do
@@ -66,21 +78,32 @@ shopt -u nullglob
 
 [ ${#files[@]} -gt 0 ] || { echo "✘ 没有匹配的探针" >&2; exit 2; }
 
-pass=0; fail=0; failed=()
+pass=0; fail=0; err=0; failed=(); errored=()
 printf '%-10s %-6s %s\n' "探针" "结果" "输出（ / = 换行）"
 printf '%s\n' "--------------------------------------------------------------------"
 
 for f in "${files[@]}"; do
     ext="${f##*.}"
-    out="$(cd "$(dirname "$f")" && timeout $((TIMEOUT + 20)) dotnet "$DLL" "$f" --timeout "$TIMEOUT" 2>/dev/null | tr -d '\0')"
-    # 只看程序自己的输出：vmlcli 的编译/链接进度走 stderr，这里已经 2>/dev/null 掉了；
-    # 再掐掉 `? 运行完成…` 那一行兜底
+    # 该探针自带期望就用它（各语言的原生 print 语义不同：Go/Python 的 println/print
+    # 在操作数间**插一个空格**，Kotlin 的 println 只吃一个实参）—— 统一成一行是错的。
+    exp="$EXPECT"
+    [[ -f "$f.expect" ]] && exp="$(cat "$f.expect")"
+    # ⚠ stderr 要**单独接住**：编译期抛异常与「跑完输出不对」是两回事。
+    #   早先一律 2>/dev/null，把 5 个**编译失败**报成了「输出为空」，
+    #   于是「修编译器」和「修探针注释前缀」混在一起看不出来（实测踩过）。
+    errf="$(mktemp)"
+    out="$(cd "$(dirname "$f")" && timeout $((TIMEOUT + 20)) dotnet "$DLL" "$f" --timeout "$TIMEOUT" 2>"$errf" | tr -d '\0')"
+    # 只看程序自己的输出：vmlcli 的编译/链接进度走 stderr；再掐掉 `? 运行完成…` 那一行兜底
     got="$(printf '%s\n' "$out" | grep -av '^?' | sed -e 's/[[:space:]]*$//')"
-    if [[ "$got" == "$EXPECT" ]]; then
+    if grep -qaE 'Unhandled exception|CompilationException|ParseException' "$errf"; then
+        verdict="ERR"; err=$((err + 1)); errored+=("$(basename "$f")")
+        brief="编译期抛异常：$(grep -aoE '[A-Za-z]+Exception' "$errf" | head -1)"
+    elif [[ "$got" == "$exp" ]]; then
         verdict="PASS"; pass=$((pass + 1))
     else
         verdict="FAIL"; fail=$((fail + 1)); failed+=("$(basename "$f")")
     fi
+    rm -f "$errf"
     # ⚠ 不能用 `tr '\n' '⏎'` —— tr 按**字节**替换，而 ⏎ 是多字节 UTF-8，
     #    换完只剩它的首字节，输出会变成一串乱码（第一版就踩了，读起来像"语言坏了"）。
     brief="$(printf '%s' "$got" | awk '{printf "%s / ", $0}' | cut -c1-58)"
@@ -88,6 +111,7 @@ for f in "${files[@]}"; do
 done
 
 printf '%s\n' "--------------------------------------------------------------------"
-echo "通过 ${pass} / 失败 ${fail}（共 ${#files[@]} 条）"
+echo "通过 ${pass} / 输出不符 ${fail} / **编译失败 ${err}**（共 ${#files[@]} 条）"
+[ $err -gt 0 ] && echo "⚠ 编译期就抛异常的探针（先修探针/前端，还没轮到看输出）：${errored[*]}"
 [ $fail -gt 0 ] && { echo "失败：${failed[*]}"; exit 1; }
 exit 0
