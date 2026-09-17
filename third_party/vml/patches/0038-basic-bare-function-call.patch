@@ -1,0 +1,67 @@
+diff --git a/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Sub.cs b/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Sub.cs
+index 2687a3e2..bab95bb1 100644
+--- a/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Sub.cs
++++ b/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Sub.cs
+@@ -1457,20 +1457,31 @@ namespace BasicCompiler
+             SubDeclaration subDecl = null;
+             subMap.TryGetValue(stmt.SubName.ToLower(), out subDecl);
+ 
+-            // native SUB: 使用裸名 CALL (无 sub_ 前缀)
+-            string subLabel = (subDecl != null && subDecl.IsNative)
++            // 裸调用也可能落在**函数**上（`ui_win_open "T", 10, 20`，丢弃返回值）——
++            // 函数声明在 `funcMap` 而不是 `subMap`，此前这里只查 subMap ⇒ `subDecl == null`
++            // ⇒ 标签被编成 `sub_ui_win_open`（永远解析不到）。判据与表达式路径
++            // （`GenerateSubFunctionCall`）保持一致：native 用**裸名**、否则 `func_` 前缀。
++            FunctionDeclaration funcDecl = null;
++            if (subDecl == null)
++                funcMap.TryGetValue(stmt.SubName.ToLower(), out funcDecl);
++
++            // native SUB/FUNCTION: 使用裸名 CALL (无 sub_/func_ 前缀)
++            bool isNative = (subDecl?.IsNative ?? false) || (funcDecl?.IsNative ?? false);
++            string prefix = subDecl != null ? "sub_" : "func_";
++            string subLabel = isNative
+                 ? stmt.SubName.ToLower()
+-                : "sub_" + stmt.SubName.ToLower();
++                : prefix + stmt.SubName.ToLower();
++
++            // BYREF 判据对 SUB / FUNCTION 两种声明都成立
++            int declParamCount = subDecl?.Parameters.Count ?? funcDecl?.Parameters.Count ?? 0;
++            bool IsByRefAt(int i) => i < declParamCount &&
++                (subDecl != null ? subDecl.Parameters[i].IsByRef : funcDecl!.Parameters[i].IsByRef);
+ 
+             // Push arguments (right-to-left)
+             for (int i = stmt.Arguments.Count - 1; i >= 0; i--)
+             {
+-                bool isByRef = false;
+-                if (subDecl != null && i < subDecl.Parameters.Count)
+-                {
+-                    isByRef = subDecl.Parameters[i].IsByRef;
+-                }
+-                
++                bool isByRef = IsByRefAt(i);
++
+                 if (isByRef)
+                 {
+                     // BYREF: 传递变量地址
+diff --git a/third_party/vml/VMLPrepares/BasicCompiler/Parser.Core.cs b/third_party/vml/VMLPrepares/BasicCompiler/Parser.Core.cs
+index fd3249a6..fd71b6c7 100644
+--- a/third_party/vml/VMLPrepares/BasicCompiler/Parser.Core.cs
++++ b/third_party/vml/VMLPrepares/BasicCompiler/Parser.Core.cs
+@@ -357,6 +357,17 @@ namespace BasicCompiler
+                     {
+                         return ParseImplicitCallStatement();
+                     }
++                    // 裸调**函数**同样合法（`ui_win_open "打地鼠", w, h`）—— QBasic 里
++                    // 「有返回值的函数当语句用」就是丢弃返回值。此前只认 `declaredSubs`，
++                    // 函数名的裸调用于是落到下面的 `ParseLetStatement`，而没有 `=` 就被
++                    // **静默丢掉**（连 `line_N` 行标都不发，看汇编完全看不出少了东西）。
++                    // 实测：`Examples/basic` 两份游戏都不弹绘图窗口 —— `ui_win_open` 一次都没被调用。
++                    // ⚠ 必须排除赋值：`x = ...` 左边也可能是与函数同名的变量（少见但合法）。
++                    bool nextIsAssign = current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.EQUALS;
++                    if (!nextIsAssign && declaredFunctions.Contains(token.Value))
++                    {
++                        return ParseImplicitCallStatement();
++                    }
+                     return ParseLetStatement();
+                 // QBASIC 图形/硬件关键字
+                 case TokenType.PSET:        return ParsePsetStatement();

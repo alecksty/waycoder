@@ -76,13 +76,13 @@ game-pascal-catch	-	examples/pascal/catch.pas	window	-	接方块（Pascal）—�
 game-ruby-catch	-	examples/ruby/catch.rb	window	-	接方块（Ruby）—— ⚠ 完全平铺：本前端①不认 `&&` ②`def` 报 Unexpected token: End（骨架里一个函数都没有）	300
 game-rust-breakout	-	examples/rust/breakout.rs	window	-	打砖块（Rust）—— 换玩法：24 砖数组遍历 + 矩形碰撞；⚠ 数组字面量必须写在一行（跨行 `];` 报非法 token）
 game-lua-life	-	examples/lua/life.lua	window	-	生命游戏（Lua）—— 双缓冲 480 格数组 + 八邻域求和，照「数组当主力」路径	300
-game-basic-whack	-	examples/basic/whack.bas	window	-	打地鼠（BASIC）—— ui_rand + 离散光标 + 秒级倒计时；⚠ NATIVE 形参名不能叫 `on`（关键字）	300
+game-basic-whack	-	examples/basic/whack.bas	window	-	打地鼠（BASIC）—— ui_rand + 离散光标 + 秒级倒计时；⚠ NATIVE 形参名不能叫 `on`（关键字）；本份的 `ui_win_open "打地鼠", w, h` 正是 v0.96.204 修的那条：裸调**函数**的语句此前被静默丢弃	300
 game-fortran-sokoban	-	examples/fortran/sokoban.f90	window	-	推箱子（Fortran）—— 双数组状态 + 移动规则 + 过关判定；⚠ `if` 条件里解析不了「紧跟括号的除法」，要先算进变量
 game-r-catch	-	examples/r/catch.r	window	-	接方块（R）—— 依赖本次修掉的「函数写死 64 字节帧」；R 向量 1 基、循环用 c(...) 不能写 1:4
 game-dart-catch	-	examples/dart/catch.dart	window	-	接方块（Dart）—— 库调用必须 external 声明才是裸标签；状态全内联在 main
 game-d-catch	-	examples/d/catch.d	window	-	接方块（D）—— D 本来连一个示例文件都没有，这是它的第一份；裸调 ui_* 靠链接器剥 func_ 前缀，颜色写负数十进制
 # README 明说这两个跑不了（BASIC 前端三个既有缺陷 / Python 列表写不生效）。
 # 留着是为了**验证"读代码记下的结论在设备上仍成立"**，不是指望它们过。
-game-basic-tetris	-	examples/basic/tetris.bas	window	-	README 记：BASIC 前端缺陷，跑不了	60
+game-basic-tetris	-	examples/basic/tetris.bas	window	-	README 记：BASIC 前端缺陷，跑不了 —— **v0.96.204 已修**（裸调函数的语句被静默丢弃 ⇒ 不弹绘图窗口）	60
 game-python-tetris	-	examples/python/tetris.py	window	-	README 记：Python 列表写不生效	60
 game-scheme-catch	-	examples/scheme/catch.scm	window	-	接方块（Scheme）—— 依赖本次修掉的六条：main 无帧（顶层变量只能放 3 个）、≥2 形参读错实参、函数内调库编成 jmp、body 只编第一个形式、命名 let 不占帧、帧按结束时的 varOff 低估。⚠ 用户函数看不见顶层变量 ⇒ 全部逻辑留在顶层，只抽纯函数	60

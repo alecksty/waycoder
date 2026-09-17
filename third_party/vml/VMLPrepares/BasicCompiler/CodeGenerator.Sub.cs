@@ -1457,20 +1457,31 @@ namespace BasicCompiler
             SubDeclaration subDecl = null;
             subMap.TryGetValue(stmt.SubName.ToLower(), out subDecl);
 
-            // native SUB: 使用裸名 CALL (无 sub_ 前缀)
-            string subLabel = (subDecl != null && subDecl.IsNative)
+            // 裸调用也可能落在**函数**上（`ui_win_open "T", 10, 20`，丢弃返回值）——
+            // 函数声明在 `funcMap` 而不是 `subMap`，此前这里只查 subMap ⇒ `subDecl == null`
+            // ⇒ 标签被编成 `sub_ui_win_open`（永远解析不到）。判据与表达式路径
+            // （`GenerateSubFunctionCall`）保持一致：native 用**裸名**、否则 `func_` 前缀。
+            FunctionDeclaration funcDecl = null;
+            if (subDecl == null)
+                funcMap.TryGetValue(stmt.SubName.ToLower(), out funcDecl);
+
+            // native SUB/FUNCTION: 使用裸名 CALL (无 sub_/func_ 前缀)
+            bool isNative = (subDecl?.IsNative ?? false) || (funcDecl?.IsNative ?? false);
+            string prefix = subDecl != null ? "sub_" : "func_";
+            string subLabel = isNative
                 ? stmt.SubName.ToLower()
-                : "sub_" + stmt.SubName.ToLower();
+                : prefix + stmt.SubName.ToLower();
+
+            // BYREF 判据对 SUB / FUNCTION 两种声明都成立
+            int declParamCount = subDecl?.Parameters.Count ?? funcDecl?.Parameters.Count ?? 0;
+            bool IsByRefAt(int i) => i < declParamCount &&
+                (subDecl != null ? subDecl.Parameters[i].IsByRef : funcDecl!.Parameters[i].IsByRef);
 
             // Push arguments (right-to-left)
             for (int i = stmt.Arguments.Count - 1; i >= 0; i--)
             {
-                bool isByRef = false;
-                if (subDecl != null && i < subDecl.Parameters.Count)
-                {
-                    isByRef = subDecl.Parameters[i].IsByRef;
-                }
-                
+                bool isByRef = IsByRefAt(i);
+
                 if (isByRef)
                 {
                     // BYREF: 传递变量地址

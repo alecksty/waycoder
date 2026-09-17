@@ -1,3 +1,58 @@
+## v0.96.204 (2026-09-17) — BASIC 裸调函数被静默丢弃（两份游戏都不弹绘图窗口）
+
+**用户真机实测报的**：「basic 语言有问题，没有弹界面，只弹了对话框」。
+
+### 根因：裸调用**函数**的语句根本没被解析成调用
+
+`Parser.Core.cs` 的标识符语句分支只认 `declaredSubs`：
+
+```csharp
+// Check for implicit SUB call (without CALL keyword) — QBasic allows bare sub name calls
+if (declaredSubs.Contains(token.Value)) return ParseImplicitCallStatement();
+return ParseLetStatement();          // ← ui_win_open 落到这里
+```
+
+`ui_win_open` 声明的是 `NATIVE FUNCTION`（进 `declaredFunctions`），**不在 `declaredSubs` 里**
+⇒ 落到 `ParseLetStatement()`，而这一行没有 `=` ⇒ **静默丢掉**。
+两份游戏都是这个形状：`whack.bas:81` 写 `ui_win_open "打地鼠", w, h`、
+`tetris.bas:310` 写 `ui_win_open("俄罗斯方块", ui_scr_w(), ui_scr_h())`。
+
+**症状为什么是「只弹对话框」**：`ui_dlg_msg` 走的是 `NATIVE SUB`（裸调用正常），
+`ui_clear`/`ui_rect`/`ui_text`/`ui_present` 也都是 SUB —— **全都没问题**；
+唯独 `ui_win_open` 是唯一「有返回值 + 当语句裸调」的那个 ⇒ 窗口从没被打开，
+绘制全画在一块不存在的画布上，而对话框照弹。
+
+**汇编层面的证据**：行标从 `line_80` 直接跳到 `line_82`，**`line_81` 整个不存在**；
+`grep 'call .*ui_win_open'` 数出 **0**（库里只有定义、没有调用）。
+
+### 修法（两处，缺一不可）
+
+① **解析器**认「声明的函数名 + 后一个 token 不是 `=`」⇒ 当隐式调用语句
+（排除赋值：`x = ...` 的左边也可能是与函数同名的变量）。
+② **代码生成**：`GenerateCallStatement` 此前**只查 `subMap`**（函数在 `funcMap`），
+`subDecl == null` ⇒ 标签被编成 `sub_ui_win_open`（永远解析不到）。
+现在两种声明都查，判据与表达式路径 `GenerateSubFunctionCall` 对齐：
+**native 用裸名、否则 `sub_`/`func_` 前缀**；BYREF 判据同样对两种声明成立。
+
+### 验证
+
+| 判据 | 修前 | 修后 |
+|---|---|---|
+| 探针 `ui_win_open` 的 call 数（语句式 + 赋值式两处） | 1（赋值那处） | **2** ✓ |
+| 探针的行标 | 缺 `line_15`/`line_16` | 14 个行标齐全 ✓ |
+| `Examples/basic/whack.bas` 的 `ui_win_open` call 数 | 0 | **1** ✓ |
+| `Examples/basic/tetris.bas` | 0 | **1** ✓ |
+
+回归：`drift.bas` **DRIFT=126**、`skel.bas` **SKEL-SUM=14**、
+跨语言判据 **27/29**（失败的 `fth`/`ld` 是既有的剩余 2 种）、
+两份 BASIC 游戏跑满超时**零内存错**。补丁 `patches/0038-basic-bare-function-call.patch`。
+
+> **教训**：「能编译、能跑、连对话框都弹了」不等于这条路径通了 ——
+> 前面 20 门语言都正常，唯独 BASIC 是「**函数当语句用**」这个形状没被覆盖。
+> 与 v0.96.203 的 Scheme 同一个道理：**骨架全绿只能证明骨架走过的那条路没坏**。
+
+---
+
 ## v0.96.203 (2026-09-17) — Scheme 前端六条修复（接方块上手机）+ 全 22 语言游戏打包
 
 **起因**：给 Scheme 补一份游戏例程。写不出来的原因不是「Scheme 不适合做游戏」，

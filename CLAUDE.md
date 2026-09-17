@@ -466,6 +466,20 @@ SVG `objectBoundingBox`、以及自测里早就钉住的"矩形左端偏红右�
 骨架的最小性本身就是盲区，补例程时要**刻意把每种形态各用一遍**（顶层变量 / 多参数函数 / 函数内调库 /
 多形式 body / 命名 let / 多局部量）。
 
+㉑ **BASIC「裸调函数」的语句被静默丢弃 —— 症状是「只弹对话框、不弹绘图窗口」（v0.96.204）**：用户真机报的。
+`Parser.Core.cs` 的标识符语句分支**只认 `declaredSubs`**（`if (declaredSubs.Contains(tok)) ParseImplicitCallStatement();
+return ParseLetStatement();`），而 `ui_win_open` 声明的是 `NATIVE FUNCTION`（进 `declaredFunctions`）⇒ 落到
+`ParseLetStatement()`、那一行又没有 `=` ⇒ **静默丢掉**（连 `line_N` 行标都不发 —— 汇编里 `line_80` 直接跳到
+`line_82`，**根本看不出少了东西**）。**为什么只有 `ui_win_open` 中招**：`ui_dlg_msg`/`ui_clear`/`ui_rect`/`ui_text`/
+`ui_present` 全是 `NATIVE SUB`（裸调用正常），`ui_win_open` 是唯一「**有返回值 + 当语句裸调**」的那个 ⇒
+窗口从没被打开、绘制全画在不存在的画布上，**对话框照弹**（「只弹对话框」这个症状正是这么来的）。
+**两处修，缺一不可**：① 解析器认「声明的函数名 + 后一个 token 不是 `=`」⇒ 当隐式调用（排除赋值：`x = ...` 左边
+也可能是与函数同名的变量）；② **`GenerateCallStatement` 此前只查 `subMap`**（函数在 `funcMap`）⇒ `subDecl == null`
+⇒ 标签被编成 `sub_ui_win_open`（永远解析不到）—— 判据要与表达式路径 `GenerateSubFunctionCall` 对齐（native 用裸名、
+否则 `sub_`/`func_`），BYREF 判据对两种声明都成立。**判据**：`grep -c 'call .*ui_win_open'` 从 0 → 1（两份游戏各一处）。
+**教训同 ⑳**：「能编译、能跑、连对话框都弹了」不等于这条路径通了；BASIC 是**唯一**会把「函数当语句用」的语言，
+前 20 门语言全绿也照不出来。
+
 ## 模式体系（三分钟版，竞品对标）
 
 WayCoder 的模式参考 Claude Code / OpenAI Codex / Crush / Aider 划分为**四个正交轴**（完整版见 [docs/模式体系.md](docs/模式体系.md)）：

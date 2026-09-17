@@ -357,6 +357,17 @@ namespace BasicCompiler
                     {
                         return ParseImplicitCallStatement();
                     }
+                    // 裸调**函数**同样合法（`ui_win_open "打地鼠", w, h`）—— QBasic 里
+                    // 「有返回值的函数当语句用」就是丢弃返回值。此前只认 `declaredSubs`，
+                    // 函数名的裸调用于是落到下面的 `ParseLetStatement`，而没有 `=` 就被
+                    // **静默丢掉**（连 `line_N` 行标都不发，看汇编完全看不出少了东西）。
+                    // 实测：`Examples/basic` 两份游戏都不弹绘图窗口 —— `ui_win_open` 一次都没被调用。
+                    // ⚠ 必须排除赋值：`x = ...` 左边也可能是与函数同名的变量（少见但合法）。
+                    bool nextIsAssign = current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.EQUALS;
+                    if (!nextIsAssign && declaredFunctions.Contains(token.Value))
+                    {
+                        return ParseImplicitCallStatement();
+                    }
                     return ParseLetStatement();
                 // QBASIC 图形/硬件关键字
                 case TokenType.PSET:        return ParsePsetStatement();
