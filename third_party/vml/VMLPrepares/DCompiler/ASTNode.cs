@@ -124,6 +124,33 @@ public class IndexNode(string name, ASTNode index, int line, int col) : ASTNode(
     public ASTNode Index { get; } = index;
 }
 
+/// <summary>
+/// 数组字面量 <c>[1, 2, 3]</c>。此前它被塞进 <c>LiteralNode(List&lt;ASTNode&gt;)</c> ——
+/// 那是**非法**的：<c>EmitLoadConstant</c> 会对它做 <c>Convert.ToInt32(List)</c>，
+/// 直接抛 <c>InvalidCastException</c>（"Unable to cast List&lt;ASTNode&gt; to IConvertible"）。
+/// </summary>
+public class ArrayLiteralNode(List<ASTNode> elements, int line, int col) : ASTNode(line, col)
+{
+    public List<ASTNode> Elements { get; } = elements;
+}
+
+/// <summary>下标赋值 <c>a[i] = v</c>。原来被压成 <c>AssignNode(a, v)</c>（给数组变量本身赋值）。</summary>
+public class IndexAssignNode(string name, ASTNode index, ASTNode value, int line, int col) : ASTNode(line, col)
+{
+    public string Name { get; } = name;
+    public ASTNode Index { get; } = index;
+    public ASTNode Value { get; } = value;
+}
+
+/// <summary>下标复合赋值 <c>a[i] += v</c>（原来这个分支没有 else，整条语句的值被丢掉）。</summary>
+public class IndexOpAssignNode(string name, ASTNode index, string op, ASTNode value, int line, int col) : ASTNode(line, col)
+{
+    public string Name { get; } = name;
+    public ASTNode Index { get; } = index;
+    public string Op { get; } = op;
+    public ASTNode Value { get; } = value;
+}
+
 public class ForeachNode(string varName, string? keyName, ASTNode collection, List<ASTNode> body, int line, int col)
     : ASTNode(line, col)
 {

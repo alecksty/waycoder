@@ -124,8 +124,15 @@ public partial class CodeGenerator
         // skip label
         AddLabel(skipLabel);
 
-        // restore symbol table
-        symbolTable = savedSymbols;
+        // 恢复符号表 —— **必须就地恢复**（Clear + 逐项写回），不能 `symbolTable = savedSymbols`。
+        // `_varOffsets`（EmitLoadVar/EmitStoreVar 用的那张表）持有的是 symbolTable **这个对象的引用**，
+        // 换成新对象后两者就分家了：EmitStoreVar 的「新变量」分支把偏移写进 symbolTable，
+        // 而 EmitLoadVar 在 `_varOffsets` 里查不到 ⇒ 回退成 dataSection 里的全局 `var_xxx`（初值 0）。
+        // 现象就是「定义过函数之后，之后每个变量的初始化都丢掉、读回来恒为 0」，
+        // 连带 `i` 读成 0 → `(0-1)*4 = -4` → 地址 FFFFFFFC 越界崩溃。
+        symbolTable.Clear();
+        foreach (var kv in savedSymbols)
+            symbolTable[kv.Key] = kv.Value;
         nextStackOffset = savedOffset;
 
         // store function label reference in the variable (just store 1 as placeholder)
@@ -191,9 +198,15 @@ public partial class CodeGenerator
             seqLength = seqNode.Elements.Count;
         }
 
-        // Initialize loop variable (1-based index in R)
+        // Initialize the **hidden 1-based cursor** used by the loop.
+        // ⚠ 游标**不能**复用 node.Variable：R 的 for 语义是「循环变量拿到元素值」，
+        // 若把元素值写回循环变量，下一轮的「取元素」与「自增」就都作用在元素值上了
+        //（`for (i in c(7,8))` 只跑一轮：i=1 → 元素 7 → i=7 → 7+1=8 > 2 ⇒ 直接退出）。
+        string idxVar = $"_foridx_{node.Line}_{node.Column}";
+        nextStackOffset += 4;
+        symbolTable[idxVar] = nextStackOffset;
         AddRI(OpCode.MOVE, 0, 1);
-        EmitStoreVar(node.Variable);
+        EmitStoreVar(idxVar);
 
         string startLabel = $"for_{labelCounter++}";
         string endLabel = $"forend_{labelCounter++}";
@@ -206,19 +219,19 @@ public partial class CodeGenerator
 
         AddLabel(startLabel);
 
-        // check loop condition: variable <= seqLength
-        EmitLoadVar(node.Variable);
+        // check loop condition: cursor <= seqLength
+        EmitLoadVar(idxVar);
         instructions.Add(new Instruction(OpCode.CMP,
             new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, seqLength) },
             instructions.Count));
         instructions.Add(new Instruction(OpCode.JG,
             new List<Operand> { new Operand(OperandType.LABEL, endLabel) }, instructions.Count));
 
-        // load the value from the sequence vector: seqPtr[variable - 1]
+        // load the value from the sequence vector: seqPtr[cursor - 1]
         EmitLoadVar(seqVar);
         instructions.Add(new Instruction(OpCode.PUSH,
             new List<Operand> { new Operand(OperandType.REGISTER, 0) }, instructions.Count));
-        EmitLoadVar(node.Variable);
+        EmitLoadVar(idxVar);
         // subtract 1 for 0-based indexing
         instructions.Add(new Instruction(OpCode.SUB,
             new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 1) },
@@ -243,12 +256,12 @@ public partial class CodeGenerator
         foreach (var stmt in node.Body)
             GenerateStatement(stmt);
 
-        // increment loop variable
-        EmitLoadVar(node.Variable);
+        // increment the cursor (NOT the user's loop variable — it holds the element value)
+        EmitLoadVar(idxVar);
         instructions.Add(new Instruction(OpCode.ADD,
             new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 1) },
             instructions.Count));
-        EmitStoreVar(node.Variable);
+        EmitStoreVar(idxVar);
 
         instructions.Add(new Instruction(OpCode.JMP,
             new List<Operand> { new Operand(OperandType.LABEL, startLabel) }, instructions.Count));

@@ -113,6 +113,40 @@ public class OpAssignNode(string name, string op, ASTNode value, int line, int c
     public ASTNode Value { get; } = value;
 }
 
+// ── 数组（下标）──────────────────────────────────────────────────────────────
+// 此前 Dart 前端**完全没有下标这个概念**：`a[i]` 只解析成裸 `a`，`a[i] = v` 的左值被
+// ParseAssignment 丢掉（注释自称"容错"）。下面三个节点把下标补上（与 Go/Kotlin/Rust 同形）。
+
+/// <summary>数组字面量 <c>[e0, e1, …]</c>。布局 <c>[count, e0, e1, …]</c>（4 字节/元素）。</summary>
+public class ArrayLiteralNode(List<ASTNode> elements, int line, int col) : ASTNode(line, col)
+{
+    public List<ASTNode> Elements { get; } = elements;
+}
+
+/// <summary>下标读取 <c>a[i]</c>。</summary>
+public class IndexNode(ASTNode target, ASTNode index, int line, int col) : ASTNode(line, col)
+{
+    public ASTNode Target { get; } = target;
+    public ASTNode Index { get; } = index;
+}
+
+/// <summary>下标赋值 <c>a[i] = v</c>。注意左值**不是**变量名，必须整段留着。</summary>
+public class IndexAssignNode(ASTNode target, ASTNode index, ASTNode value, int line, int col) : ASTNode(line, col)
+{
+    public ASTNode Target { get; } = target;
+    public ASTNode Index { get; } = index;
+    public ASTNode Value { get; } = value;
+}
+
+/// <summary>下标复合赋值 <c>a[i] += v</c>。</summary>
+public class IndexOpAssignNode(ASTNode target, ASTNode index, string op, ASTNode value, int line, int col) : ASTNode(line, col)
+{
+    public ASTNode Target { get; } = target;
+    public ASTNode Index { get; } = index;
+    public string Op { get; } = op;
+    public ASTNode Value { get; } = value;
+}
+
 public class BinaryNode(ASTNode left, string op, ASTNode right, int line, int col) : ASTNode(line, col)
 {
     public ASTNode Left { get; } = left;

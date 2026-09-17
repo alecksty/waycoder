@@ -29,6 +29,15 @@ if [[ ! -f "$KS" ]]; then
   exit 1
 fi
 
+# ⚠ **先重新生成内置标准库资产** —— `Resources/Raw/vml_lib.zip` 是**签入仓库的生成物**，
+#    `Lib/` 一有改动（新增 / 改名 / 删文件）它就过期，而过期的后果**只在手机上现形**：
+#    桌面跑 VML 直接读 `third_party/vml/Lib/`，**根本不走「zip → APK 资产 → 设备解压」这条链**
+#    ⇒ 桌面全绿、手机上是坏的。
+#    实测踩过（2026-09-17，补丁 0033 新增 `Lib/lua/luatable.vml` 之后直接打包）：
+#    手机上 Lua 一路报 `未找到标签: lua_table_get`，而桌面同一条语料 PASS。
+#    这一步保证「打出来的包」与「当前工作树的 `Lib/`」一致。
+"$(cd "$(dirname "$0")" && pwd)/../scripts/make-vml-lib.sh"
+
 dotnet publish -f net10.0-android -c Release \
   -p:AndroidPackageFormat=apk \
   -p:AndroidKeyStore=true \

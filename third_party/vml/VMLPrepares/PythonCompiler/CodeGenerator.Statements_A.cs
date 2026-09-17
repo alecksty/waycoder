@@ -496,9 +496,32 @@ namespace PythonCompiler
                 return;
             }
 
-            // 属性/下标赋值: obj.attr = value
+            // 属性/下标赋值: obj.attr = value / container[index] = value
             if (node.TargetExpr != null)
             {
+                // 下标赋值：a[i] = v
+                // 此前这里**整段没有存储指令** —— 右值算完就 return，一个字节都没写进去，
+                // 症状正是"列表读可以、写不生效"（a[i]=v 之后读回来还是旧值）。
+                // 地址计算与读取共用 EmitSubscriptAddress，避免读写两处偏移各算一遍。
+                if (node.TargetExpr is SubscriptNode subTarget)
+                {
+                    string subOob = NewLabel("sub_store_oob");
+
+                    // 先算地址：越界就整条跳过（不写、也不求值 —— 越界赋值本就是错误路径）
+                    EmitSubscriptAddress(subTarget, subOob);
+                    Emit(OpCode.PUSH, new Operand(OperandType.REGISTER, 2)); // 保存元素地址
+
+                    node.Value.Accept(this); // R0 = value（求值会冲掉 R2，故地址先入栈）
+
+                    Emit(OpCode.POP, new Operand(OperandType.REGISTER, 2));  // R2 = 元素地址
+                    Emit(OpCode.MOVE, new Operand(OperandType.MEMORY, "0(R2)"),
+                         new Operand(OperandType.REGISTER, 0));              // 存入元素
+
+                    // 越界直接落到这里：跳过存储（栈是平的 —— PUSH 在那句之后才执行）
+                    PlaceLabel(subOob);
+                    return;
+                }
+
                 node.Value.Accept(this);  // R0 = value
                 Emit(OpCode.PUSH, new Operand(OperandType.REGISTER, 0));
                 node.TargetExpr.Accept(this);  // evaluate target (pushes address?)
@@ -548,6 +571,33 @@ namespace PythonCompiler
             // 属性/下标增强赋值
             if (node.TargetExpr != null)
             {
+                // 下标增强赋值：a[i] += v —— 与 VisitAssign 同一个洞（算完就丢）。
+                // 另：原路径落不到任何存储分支时，末尾压进去的 R0 **没人弹** ⇒ 每执行一次漏一个栈槽。
+                if (node.TargetExpr is SubscriptNode augSub)
+                {
+                    string augOob = NewLabel("sub_aug_oob");
+
+                    EmitSubscriptAddress(augSub, augOob);                     // R2 = 元素地址
+                    Emit(OpCode.PUSH, new Operand(OperandType.REGISTER, 2));  // 保存地址
+                    Emit(OpCode.MOVE, new Operand(OperandType.REGISTER, 0),
+                         new Operand(OperandType.MEMORY, "0(R2)"));           // R0 = 当前值
+                    Emit(OpCode.PUSH, new Operand(OperandType.REGISTER, 0));
+
+                    node.Value.Accept(this);                                  // R0 = 右值
+
+                    Emit(OpCode.POP, new Operand(OperandType.REGISTER, 1));   // R1 = 当前值
+                    OpCode augArithOp = GetArithmeticInstruction(node.Op.Replace("=", ""), PythonType.Int);
+                    Emit(augArithOp, new Operand(OperandType.REGISTER, 0),
+                         new Operand(OperandType.REGISTER, 1),
+                         new Operand(OperandType.REGISTER, 0));               // R0 = 当前值 op 右值
+                    Emit(OpCode.POP, new Operand(OperandType.REGISTER, 2));   // R2 = 元素地址
+                    Emit(OpCode.MOVE, new Operand(OperandType.MEMORY, "0(R2)"),
+                         new Operand(OperandType.REGISTER, 0));               // 写回元素
+
+                    PlaceLabel(augOob);
+                    return;
+                }
+
                 node.TargetExpr.Accept(this);  // R0 = current value
                 Emit(OpCode.PUSH, new Operand(OperandType.REGISTER, 0));
                 node.Value.Accept(this);       // R0 = right value

@@ -286,6 +286,10 @@ namespace CppCompiler
                 string three = c.ToString() + n.ToString() + Peek(2).ToString();
                 if (three == "<<=") { AddOp(TokenType.LSHIFT_ASSIGN, "<<="); return true; }
                 if (three == ">>=") { AddOp(TokenType.RSHIFT_ASSIGN, ">>="); return true; }
+                // `...` 可变参数 —— C 标准头里的 `int printf(const char *, ...)` 就是这个形态。
+                // 不认它的话每个 `.` 各自成 DOT，参数列表解析到第一个点就炸
+                //（报 "Expected IDENTIFIER but got DOT"）。C 前端早有此分支，这里补齐。
+                if (three == "...") { AddOp(TokenType.ELLIPSIS, "..."); return true; }
             }
             // 2-char operators
             string two = c.ToString() + n.ToString();

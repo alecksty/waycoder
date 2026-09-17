@@ -5,6 +5,33 @@ namespace ForthCompiler
 {
     public partial class CodeGenerator
     {
+        // ── 共享库输出函数调用（`print_str` / `print_int`）──────────────────────────
+        //
+        // ⚠ **实参必须自己压栈**。基类的 `EmitPrintString()` / `EmitPrintInt()` 只发一条
+        //   `CALL print_str`（注释写「R0 承载参数」），但 `Lib` 里这两个函数是 **`__stdcall`**
+        //   —— 形如 `move R13 R12; pop R12; pop R15; move R1 @13; add R13 #8; push R1; ret`，
+        //   **净效果是替调用方多弹掉 4 字节**（返回值地址 4 字节之外的那一个实参槽）。
+        //   证据：`scripts/maui-vml-verify/corpus/c/skel.c` 把它们声明成 `__stdcall` 并注明
+        //   「被调用方清栈」，而 C 前端生成的调用点就是 `move R0 …; push R0; call print_str`。
+        //
+        //   别的前端不压栈也「看着没事」，是因为它们的值都在栈帧/寄存器里；**Forth 的数据栈
+        //   就是 VML 的 R13**，多弹的 4 字节正好吃掉栈顶的累加器 —— 实测
+        //   `CREATE a 16 ALLOT  1 a !  a @ .` 里的 `@` 已经修对（＝5）之后，
+        //   只要前面加一句 `." SKEL-SUM="`，随后的 `.` 就印出 65536（栈顶被吃、pop 到了别的槽）。
+        //
+        //   压栈 + 被调用方弹掉 = 净 0，所以 `stackPointer`（Forth 深度计数）不用动。
+        private void EmitCallPrintString()
+        {
+            instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)], instructions.Count));
+            EmitPrintString();
+        }
+
+        private void EmitCallPrintInt()
+        {
+            instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)], instructions.Count));
+            EmitPrintInt();
+        }
+
         private void GenerateIOOperation(IOOperation ioOp)
         {
             switch (ioOp.Operation)
@@ -19,14 +46,14 @@ namespace ForthCompiler
                         // 输出字符串
                         AddInstruction(OpCode.MOVE, new List<Operand>
                             { Reg(0), LabelOp(label) });
-                        EmitPrintString(); // SYSCALL 1: 输出字符串
+                        EmitCallPrintString(); // print_str（__stdcall，实参由调用方压栈）
                     }
                     break;
-                    
+
                 case TokenType.DOT:
                     // 弹出栈顶并输出整数
                     AddInstruction(OpCode.POP, Reg(0));
-                    EmitPrintInt(); // SYSCALL 6: 输出整数
+                    EmitCallPrintInt(); // print_int（__stdcall，实参由调用方压栈）
                     break;
 
                 case TokenType.FDOT:
@@ -560,10 +587,14 @@ namespace ForthCompiler
                     
                 case TokenType.FETCH: // @ (读取)
                     // addr @ : 弹出addr，读取addr处的值，压栈
-                    instructions.Add(new Instruction(OpCode.POP, new List<Operand> 
+                    instructions.Add(new Instruction(OpCode.POP, new List<Operand>
                         { new Operand(OperandType.REGISTER, 0) }, instructions.Count)); // addr
-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> 
-                        { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0) }, instructions.Count));
+                    // ⚠ `MOVE R0, R0` 是**自赋值**、空操作 —— 压回栈的是**地址**而不是元素值。
+                    //   实测：`CREATE a 16 ALLOT  1 a !  a @` 得到 65536（= 0x10000，就是块地址）。
+                    //   `MOVE dest, src` 是 **dest 在前** —— 别写反（同族问题本仓库栽过多次，
+                    //   见 patches/0015-go-arrays.patch）。写入侧 `MOVE [R1], R0` 方向本来就是对的。
+                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
+                        { new Operand(OperandType.REGISTER, 0), Mem("R0") }, instructions.Count));
                     instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> 
                         { new Operand(OperandType.REGISTER, 0) }, instructions.Count));
                     stackPointer--; // 弹出一个值，压入一个值，净减少0
@@ -582,8 +613,9 @@ namespace ForthCompiler
                 case TokenType.CFETCH:
                     instructions.Add(new Instruction(OpCode.POP, new List<Operand>
                         { new Operand(OperandType.REGISTER, 0) }, instructions.Count));
+                    // ⚠ 同 `@`：原本是 `MOVEB R0, R0`（自赋值），压回栈的是地址不是字节值。
                     instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand>
-                        { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0) }, instructions.Count));
+                        { new Operand(OperandType.REGISTER, 0), Mem("R0") }, instructions.Count));
                     instructions.Add(new Instruction(OpCode.PUSH, new List<Operand>
                         { new Operand(OperandType.REGISTER, 0) }, instructions.Count));
                     break;

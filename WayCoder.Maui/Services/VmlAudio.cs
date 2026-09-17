@@ -236,6 +236,14 @@ internal static class VmlAudio
 
     private const int SampleRate = 44100;
 
+    /// <summary>
+    /// 合成音与播放节点共用的 PCM 格式（16 位单声道 44.1kHz 非交错）。
+    /// **必须是同一个实例**：连接节点用的格式与喂给 buffer 的格式一旦不同，
+    /// 引擎会按连接格式重采样，音量/音高都可能变。
+    /// （旧代码每次 <c>ToneCore</c> 都 new 一个、且从不 Dispose —— 缓存后顺带修掉那处泄漏。）
+    /// </summary>
+    private static AVAudioFormat? _format;
+
     /// <summary>惰性建引擎与播放节点（只建一次；建失败返回 null，调用方当"没声音"处理）。</summary>
     private static AVAudioPlayerNode? EnsureNode()
     {
@@ -245,6 +253,15 @@ internal static class VmlAudio
             var engine = new AVAudioEngine();
             var node = new AVAudioPlayerNode();
             engine.AttachNode(node);
+
+            // ⚠ **必须接上混音器**：`AttachNode` 只是把节点挂进图里，**不会创建输出节点**；
+            // 直接 `StartAndReturnError` 会抛 ObjCException
+            // （`required condition is false: inputNode != nullptr || outputNode != nullptr`），
+            // 被下面的 catch 吞掉 ⇒ `EnsureNode` 恒返回 null、`ToneCore` 恒返回 false ——
+            // **编译通过、一声不响、什么都没坏，就是永远没声音**。
+            // 访问 `MainMixerNode` 会顺带建出混音器与输出节点，这是 AVAudioEngine 的标准接法。
+            engine.Connect(node, engine.MainMixerNode, _format ??= new AVAudioFormat(AVAudioCommonFormat.PCMInt16, SampleRate, 1, false));
+
             if (!engine.StartAndReturnError(out var err) || err != null)
             {
                 engine.Dispose();
@@ -267,18 +284,22 @@ internal static class VmlAudio
             var node = EnsureNode();
             if (node == null) return false;
 
-            var format = new AVAudioFormat(AVAudioCommonFormat.PCMInt16, SampleRate, 1, false);
+            // 与 `EnsureNode` 里连接节点用的是同一个实例（见 `_format` 注释）。
+            var format = _format ??= new AVAudioFormat(AVAudioCommonFormat.PCMInt16, SampleRate, 1, false);
             var frames = (uint)(SampleRate * ms / 1000);
             if (frames == 0) return false;
 
-            using var buf = new AVAudioPCMBuffer(format, frames);
+            using var buf = new AVAudioPcmBuffer(format, frames);
             buf.FrameLength = frames;
 
             var amp = 32767.0 * Math.Clamp(volume, 0, 100) / 100.0;
             var period = (double)SampleRate / hz;
             unsafe
             {
-                var ch = buf.Int16ChannelData[0];
+                // `int16ChannelData` 的 ObjC 类型是 `int16_t * const *`（通道指针数组），
+                // .NET 绑定把它收成了 `nint` ⇒ 这里显式还原成 `short**` 再取通道 0，
+                // 语义与绑定暴露裸指针时完全一致。
+                var ch = ((short**)buf.Int16ChannelData)[0];
                 for (var i = 0; i < frames; i++)
                 {
                     var phase = i / period;
@@ -297,7 +318,9 @@ internal static class VmlAudio
             }
 
             node.Stop();
-            node.ScheduleBuffer(buf);
+            // 绑定里没有「只要 buffer」的 1 参重载：完成回调是 `[NullAllowed] Action`
+            // ⇒ 传 null 表示不关心播放结束（显式转型消掉与枚举重载的歧义）。
+            node.ScheduleBuffer(buf, (Action?)null);
             node.Play();
             return true;
         }

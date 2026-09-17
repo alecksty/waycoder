@@ -1176,15 +1176,24 @@ namespace SwiftCompiler
                 (rangeExpr.Operator == TokenType.Range || rangeExpr.Operator == TokenType.HalfOpenRange))
             {
                 bool halfOpen = rangeExpr.Operator == TokenType.HalfOpenRange;
+                // ⚠ 这三处**存循环变量/上界**的地方原来写的是 `OperandType.LABEL` 当**源**、`R0` 当**目的**，
+                //   而运行期对它的解释是 **LEA（取标签地址）**（`VMLRuntime.Instructions.cs` 的
+                //   ExecuteMove：`src.Type == LABEL` → `value = labelAddresses[...]`，只有
+                //   `dest.Type == LABEL/MEMORY` 才是写内存）⇒ **三个「存」全都成了空操作**。
+                //   读的那两处用的是 `OperandType.MEMORY`（对的），于是**写读两套口径**。
+                //   后果不是「值不对」而是**死循环**：`var_i` 恒 0、`__fe_end_2` 恒 0 ⇒ 循环条件
+                //   恒为「不大于」→ 循环体永远再进一次（`skel.swift` 实测 31.5s 被 VM 取消）。
+                //   同文件里所有别的全局写都写作 `[MEMORY label, R0]`（见 GenerateVariableDecl /
+                //   GenerateAssignment），这里照它统一。
                 // 生成 range start 并存入循环变量
                 GenerateExpression(rangeExpr.Left);
-                instructions.Add(new Instruction(OpCode.MOVE, [Reg(0), new Operand(OperandType.LABEL, varLabel)]));
+                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, varLabel), Reg(0)]));
 
                 // 生成 range end 并存入临时变量
                 GenerateExpression(rangeExpr.Right);
                 string endVarLabel = $"__fe_end_{labelCounter}";
                 dataSection[endVarLabel] = 0;
-                instructions.Add(new Instruction(OpCode.MOVE, [Reg(0), new Operand(OperandType.LABEL, endVarLabel)]));
+                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, endVarLabel), Reg(0)]));
 
                 // 循环开始: 检查循环变量 <= end (或 < end for half-open)
                 labels[startLabel] = instructions.Count;
@@ -1196,10 +1205,10 @@ namespace SwiftCompiler
                 // 循环体
                 GenerateStatement(foreachStmt.Body);
 
-                // 循环变量递增
+                // 循环变量递增（第三句原来是 LEA，递增结果被丢掉 —— 这正是死循环的直接原因）
                 instructions.Add(new Instruction(OpCode.MOVE, [Reg(0), new Operand(OperandType.MEMORY, varLabel)]));
                 instructions.Add(new Instruction(OpCode.ADD, [Reg(0), Reg(0), new Operand(OperandType.IMMEDIATE, 1)]));
-                instructions.Add(new Instruction(OpCode.MOVE, [Reg(0), new Operand(OperandType.LABEL, varLabel)]));
+                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, varLabel), Reg(0)]));
                 instructions.Add(new Instruction(OpCode.JMP, [new Operand(OperandType.LABEL, startLabel)]));
                 labels[endLabel] = instructions.Count;
 
@@ -1215,31 +1224,37 @@ namespace SwiftCompiler
             dataSection[arrLabel] = 0;
             dataSection[idxLabel] = 0;
 
+            // ⚠ 这个分支与上面的 range 分支是**同一个毛病**（把 `OperandType.LABEL` 当存取操作数），
+            //   而且更散：**每一处都反了** —— 存的写成 LEA、读的也写成 LEA、递增那句把**立即数**
+            //   当目的寄存器（`ADD #1, R0`）⇒ 下标恒不增长，循环一次都进不去 / 进去就出不来。
+            //   实测 `for x in [10,20,30] { s = s + x }` 得 0（应 60）。
+            //   这里按「存用 `[MEMORY label]` 当目的、读用 `[MEMORY label]` 当源」统一重写；
+            //   元素值那一步**要真的 LOAD**（原句 `MOVE [R1], R0` 是把元素**地址**写回数组）。
             GenerateExpression(foreachStmt.Collection);
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, arrLabel)]));
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0)]));
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, idxLabel)]));
+            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, arrLabel), Reg(0)])); // arr = 集合指针
+            instructions.Add(new Instruction(OpCode.MOVE, [Reg(0), new Operand(OperandType.IMMEDIATE, 0)]));
+            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, idxLabel), Reg(0)])); // idx = 0
 
             labels[startLabel] = instructions.Count;
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.LABEL, arrLabel)]));
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 2)]));
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, idxLabel)]));
-            instructions.Add(new Instruction(OpCode.CMP, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 2)]));
-            instructions.Add(new Instruction(OpCode.JGE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, endLabel)]));
+            instructions.Add(new Instruction(OpCode.MOVE, [Reg(1), new Operand(OperandType.MEMORY, arrLabel)])); // R1 = arr
+            instructions.Add(new Instruction(OpCode.MOVE, [Reg(2), new Operand(OperandType.MEMORY, "R1")]));     // R2 = arr[0] = 长度
+            instructions.Add(new Instruction(OpCode.MOVE, [Reg(0), new Operand(OperandType.MEMORY, idxLabel)])); // R0 = idx
+            instructions.Add(new Instruction(OpCode.CMP, [Reg(0), Reg(2)]));
+            instructions.Add(new Instruction(OpCode.JGE, [Reg(0), new Operand(OperandType.LABEL, endLabel)]));
 
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.LABEL, arrLabel)]));
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, idxLabel)]));
-            EmitArrayElementOffset();
-            AddInstruction(OpCode.ADD, [Reg(0), Reg(1)]);
-            AddInstruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, "R1"), Reg(0)]);
+            instructions.Add(new Instruction(OpCode.MOVE, [Reg(1), new Operand(OperandType.MEMORY, arrLabel)])); // R1 = arr
+            instructions.Add(new Instruction(OpCode.MOVE, [Reg(0), new Operand(OperandType.MEMORY, idxLabel)])); // R0 = idx
+            EmitArrayElementOffset();                                // R0 = idx*4 + 4
+            AddInstruction(OpCode.ADD, [Reg(0), Reg(1)]);            // R0 = 元素地址
+            AddInstruction(OpCode.MOVE, [Reg(0), Mem("R0")]);        // R0 = 元素值（LOAD，不是 STORE）
 
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, varLabel)]));
+            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, varLabel), Reg(0)])); // 循环变量 = 元素值
 
             GenerateStatement(foreachStmt.Body);
 
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, idxLabel)]));
-            instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.IMMEDIATE, 1), new Operand(OperandType.REGISTER, 0)]));
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, idxLabel)]));
+            instructions.Add(new Instruction(OpCode.MOVE, [Reg(0), new Operand(OperandType.MEMORY, idxLabel)]));
+            instructions.Add(new Instruction(OpCode.ADD, [Reg(0), Reg(0), new Operand(OperandType.IMMEDIATE, 1)])); // 目的必须是寄存器
+            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, idxLabel), Reg(0)]));
             instructions.Add(new Instruction(OpCode.JMP, [new Operand(OperandType.LABEL, startLabel)]));
             labels[endLabel] = instructions.Count;
 

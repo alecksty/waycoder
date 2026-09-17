@@ -231,6 +231,24 @@ class Driver:
             return None
         return "" if e["text"] in PLACEHOLDERS else e["text"]
 
+    def entry_text_stable(self, tries=3, gap=0.45):
+        """读输入框内容，**连续两次读到同一个值才认**。
+
+        ⚠ `uiautomator dump` 会返回**上一次的树**（它自己也要时间，键盘动画期间尤其明显）。
+        只读一次就拿来判"命令送对了没有"，会在最坏的情况下**把没送进去的当成送进去了** ——
+        实测过一条 `vml run x.basvml run x.bas`（命令被键入两遍、没清掉）被判成"已送达"，
+        App 收到的是一条拼起来的怪路径，报 `找不到文件：…/x.basvml run x.bas`。
+        这种失败最难查：看起来像 VML 的路径解析坏了，其实是采集端读了一张旧图。
+        """
+        prev = self.entry_text()
+        for _ in range(tries):
+            time.sleep(gap)
+            cur = self.entry_text()
+            if cur == prev:
+                return cur
+            prev = cur
+        return prev
+
     def focus_entry(self, tries=4):
         """把键盘焦点送到命令输入框，**并确认它真的拿到了**。
 
@@ -282,7 +300,7 @@ class Driver:
         落到最后一字之后。`KEYCODE_MOVE_END` 也发，但它要穿过输入法，不保证送达（实测会丢）。
         """
         for _ in range(tries):
-            if self.entry_text() == "":
+            if self.entry_text_stable(gap=0.3) == "":
                 return True
             e = self._entry()
             if e is not None:
@@ -329,19 +347,51 @@ class Driver:
             # 命令就这么躺在输入框里不动。实测：同一条 `vml run skel.c`，
             # 发回车的写法"输入成功但从没跑起来"，改点按钮立刻正常。
             # 按钮走的是 `Clicked="OnRunRequested"`，与回车**同一个处理函数**，语义完全一致。
+            # **两条提交路都试**：点「运行」按钮，再补一个回车。
+            #
+            # 单用哪一条都实测会偶发不提交（都成功过、也都失败过，取决于当时的输入法状态）：
+            # 点按钮走 `Clicked="OnRunRequested"`，回车走输入法发的 EditorAction →
+            # `Completed`，两条路在 MAUI 里是**两个不同的入口**，没有哪条恒稳。
+            # 先点按钮（不依赖输入法），再回车兜底（按钮坐标在键盘起落时可能过期）。
+            # 两条都发出去了最多是"提交两次"，而第二次会因为 `_busy` 被 `OnRunRequested`
+            # 直接挡掉（`if (_busy) return;`），不会真的跑两遍。
             b = self.run_button()
-            if b is None:
-                self.recover()
-                continue
-            self.sh("shell", "input", "tap", *self._center(b))
+            if b is not None:
+                self.sh("shell", "input", "tap", *self._center(b))
+                time.sleep(1.2)
+                if self.entry_text_stable() == "":
+                    return True
+            self.sh("shell", "input", "keyevent", "66")
             time.sleep(1.2)
-            if self.entry_text() == "":
+            if self.entry_text_stable() == "":
                 return True
             # 还是没提交（偶发）—— 清掉重来，别让残留污染下一条
             self.clear_entry()
         return False
 
     # ── 跑一条命令 ──────────────────────────────────────────────────────
+    # 宿主对话框上的按钮文案（VML 的 `ui_dlg_msg` 落到 MAUI 的 DisplayAlert 上）
+    DIALOG_OK = ("允许", "确定", "好的", "继续", "是")
+
+    def accept_host_dialog(self, ns=None):
+        """遇到宿主弹的模态对话框就**点允许**。
+
+        为什么必须有：`ui_dlg_msg` 这类调用会**阻塞 VM 线程**等用户点按钮，
+        而 `examples/c/gomoku.c` 开局第一件事就是弹一个「五子棋 / 你执黑先行…」的介绍框。
+        自动化跑的时候没人点它 —— 于是程序不动、绘图窗口不出现，被记成
+        「没走到 ui_win_open」，**把一个完全正常的程序判成坏的**。
+        （实测踩到：屏幕上就摆着「拒绝 / 允许」两个按钮，采集端在下面傻等超时。）
+
+        ⚠ 这是**有意的放行**：装置只在"无人可问"的场景跑，权限类弹框一律点允许。
+        要测拒绝路径得另外造用例，别指望这里。
+        """
+        for n in (ns if ns is not None else self.nodes()):
+            if n["cls"] == "android.widget.Button" and n["text"] in self.DIALOG_OK:
+                self.sh("shell", "input", "tap", *self._center(n))
+                time.sleep(1.5)
+                return n["text"]
+        return None
+
     def window_open(self, ns=None):
         """VML 程序开的绘图窗口在不在。
 
@@ -363,6 +413,8 @@ class Driver:
         while time.time() - t0 < timeout:
             ns = self.nodes()
             polls += 1
+            if self.accept_host_dialog(ns):
+                continue
             if self.window_open(ns):
                 # **开窗即达判据，立刻返回**，不要等满超时。
                 #
@@ -435,8 +487,16 @@ class Driver:
         pre = self.output_label()
         sent = self.submit(cmd)
         if not sent:
+            # 命令送不进去 = 命令行页的状态不干净（无法取证的一类）。**冷启动一次再来** ——
+            # 这是确定性恢复，比继续在同一张脏页面上重试有价值：继续重试只会把
+            # "送不进去"重复 N 遍，最后记一条"驱动失败"，而那既不是产品的结论、也不是语料的结论。
+            # 冷启动会清掉页面（输出缓冲没了），所以 pre 必须重新取，否则增量判据对不上。
+            self.restart_app()
+            pre = self.output_label()
+            sent = self.submit(cmd)
+        if not sent:
             return dict(ok=False, saw_busy=False, window=False, output="",
-                        error="命令未能送进输入框")
+                        error="命令未能送进输入框（冷启动重试后仍失败）")
         done, saw_busy, saw_window = self.wait_idle(timeout)
         if saw_window:
             self.close_window()

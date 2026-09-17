@@ -78,7 +78,15 @@ def classify(output, expect_kind, expect, ok, err, window=False):
     if expect_kind == "window":
         return "PASS", "开出绘图窗口后自行退出"
     stripped = strip_echo(output)
-    if any(k in output for k in COMPILE_FAIL):
+    # ⚠ 判 COMPILE_FAIL 必须在**剔除进度行之后**：进度行 `⏳ 正在解压 VML 标准库（39 MB / …）…`
+    #   含子串 `VML 标准库`，而它是 COMPILE_FAIL 的关键字之一 ⇒ **库指纹一变，之后跑的第一条
+    #   必被误判成 COMPILE_FAIL**，哪怕它已经打出了正确输出。
+    #   （实测：第二轮 `skel-c` 的原文里 `SKEL-SUM=14` 明明在，却被判 COMPILE_FAIL。）
+    #   注意上面几行原先用的是**未清洗的** `output`，而下面的 LINK_FAIL 用的是 `stripped`——
+    #   同一个函数里两套口径，本身就是这个 bug 的温床。
+    no_progress = "\n".join(
+        l for l in stripped.splitlines() if not l.lstrip().startswith("⏳"))
+    if any(k in no_progress for k in COMPILE_FAIL):
         return "COMPILE_FAIL", first_meaningful(stripped)
     if any(k in stripped for k in LINK_FAIL):
         return "LINK_FAIL", first_meaningful(stripped)

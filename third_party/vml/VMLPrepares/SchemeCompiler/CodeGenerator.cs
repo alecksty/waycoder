@@ -34,6 +34,19 @@ public partial class CodeGenerator : CodeGeneratorBase {
                 int paramCount = fnParams.Count;
                 var savedFunc = _currentFunc;
                 var savedParams = _currentFuncParams;
+                // ⚠ `varOff` / `vars` 是**顶层与函数体共用**的（函数形参直接写进 `vars`），
+                //   而函数定义结束处原先**没有恢复**：函数体把 `varOff` 顶到了 4（形参 1 个、
+                //   再被 `if (varOff < 4) varOff = 4` 抬到 4），这个值就**漏给了后面的顶层绑定**。
+                //   后果不是「编号难看」而是**踩内存**：顶层变量按 `R12 + (12 - off)` 定位，
+                //   `off = varOff*4`；而程序入口 `main` **没有序言**，VM 把 R12(BP) 和 R13(SP)
+                //   一起初始化成栈顶（`VMLRuntime.cs:570-571`）⇒ `R12-4 / -8 / -12 …` **正是
+                //   push 与被调用函数序言落笔的地方**。
+                //   实测：`(define (inc x) …)` 之后的 `a`/`s`/`i` 落到 `R12-8 / -12 / -16`，
+                //   于是循环里每次 `call inc` 的 `push R15; push R12` 都把 `i` 冲掉
+                //   ⇒ `i` 永远到不了 4、**死循环**（`skel.scm` 实测跑 30 秒被 VM 取消）。
+                //   恢复之后顶层绑定回到 `R12+8 / +4 / +0`（栈顶之上，push 够不着）。
+                int savedVarOffFn = varOff;
+                var savedVarsFn = new Dictionary<string, int>(vars);
                 _currentFunc = fname;
                 _currentFuncParams = paramCount;
                 string afterFunc = NewLabel();
@@ -68,6 +81,10 @@ public partial class CodeGenerator : CodeGeneratorBase {
                 AddInstruction(OpCode.LABEL, [new Operand(OperandType.LABEL, afterFunc)]);
                 _currentFunc = savedFunc;
                 _currentFuncParams = savedParams;
+                // 恢复顶层作用域（形参不进 `vars`，否则后面的顶层代码会把形参名当变量读）
+                varOff = savedVarOffFn;
+                vars.Clear();
+                foreach (var kv in savedVarsFn) vars[kv.Key] = kv.Value;
             } else if (s.Name == "define" && l.Items.Count >= 3) {
                 // (define name value)
                 string name = ((SSym)l.Items[1]).Name;

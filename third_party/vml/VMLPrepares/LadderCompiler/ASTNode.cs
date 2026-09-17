@@ -26,6 +26,7 @@ namespace LadderCompiler
         void Visit(CoilNode node);
         void Visit(FunctionBlockNode node);
         void Visit(AssignmentNode node);
+        void Visit(IndexAssignmentNode node);
         void Visit(ExpressionNode node);
         void Visit(StIfNode node);
         void Visit(StForNode node);
@@ -179,6 +180,25 @@ namespace LadderCompiler
         }
     }
     
+    /// <summary>
+    /// 下标赋值节点 <c>a[i] := expr</c>。
+    ///
+    /// <para>此前 ST 语句层只认 <c>IDENT := expr</c>（<c>Parser.cs</c> 的 ParseStStatement），
+    /// <c>a[i] := v</c> 在读完 <c>a</c> 之后撞上 <c>[</c> 而不是 <c>:=</c>，直接落进
+    /// 「跳过无法识别的语句」—— **连报错都没有**，整条语句凭空消失。</para>
+    /// </summary>
+    public class IndexAssignmentNode : ASTNode
+    {
+        /// <summary>左值表达式（IdentifierNode 或嵌套的 ArrayAccessNode）。</summary>
+        public ExpressionNode Target { get; set; }
+        public ExpressionNode Value { get; set; }
+
+        public override void Accept(IASTVisitor visitor)
+        {
+            visitor.Visit(this);
+        }
+    }
+
     /// <summary>
     /// 表达式节点基类
     /// </summary>

@@ -268,7 +268,23 @@ namespace JavaCompiler
             EmitMethodHeader(method.Name, method.ReturnType, headerParams);
 
             // 方法序言（CCv2）
-            EmitPrologue();
+            //
+            // ⚠ 这里**手写**而不再复用基类的 EmitPrologue/EmitEpilogue：R14 是帧指针
+            //   (`InitSimpleCompiler(framePointerReg: 14)` ⇒ 局部变量一律 `R14-offset` 寻址)，
+            //   而基类那对只存 R15/R12，**不存 R14** —— 被调方一进来就 `MOVE R14, R13` 把
+            //   它改成自己的帧，返回时又不还原 ⇒ 调用方此后**所有**局部变量读写整体错位。
+            //   症状极具迷惑性：单次调用看不出问题，一旦在循环里反复调用（如
+            //   `a[i] = plus1(a[i]); s = s + a[i]`），循环变量 / 累加器 / 数组指针会一起
+            //   漂到别的内存上 —— 实测元素被写成 0、累加器变成无关数字。
+            //   形状与 Swift 前端一致（CodeGenerator.cs 的 `PUSH R14; MOVE R14, R13`）。
+            //
+            //   顺序不可换：R14 必须是**最后一个压**（紧挨着帧基），尾声才能
+            //   `MOVE R13, R14` 回到帧基、先 `POP R14` 再依次弹回 R12/R15、最后 RET
+            //   （RET 弹的是 CALL 压的返回地址，它恰好在帧基之上）。
+            instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 15)]));
+            instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 12)]));
+            instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 14)]));
+            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 12), new Operand(OperandType.REGISTER, 13)]));
             instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 14), new Operand(OperandType.REGISTER, 13)]));
 
             // Save method parameters to stack frame (CCv2: first param in R0)
@@ -292,9 +308,25 @@ namespace JavaCompiler
                 }
                 else
                 {
-                    // Load param from stack: R14+8 = return addr, R14+12 = first pushed arg
-                    int stackOff = 12 + (pi - 1) * 4;
-                    instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, Vars.FormatOffset(stackOff)), new Operand(OperandType.REGISTER, 0)]));
+                    // 从栈上取第 pi 个实参。
+                    //
+                    // ⚠ 这一句原来是 `MOVE [R14+n], R0` —— **操作数写反**：`MOVE` 是 dest 在前，
+                    //   所以它实际做的是"把 R0 存进 [R14+n]"（一个 store），被注释称为"从栈上取"
+                    //   的动作根本不存在 ⇒ R0 里一直留着第 0 个形参的值，**除首参外每个形参都
+                    //   等于首参**（实测 `f(11,22,33)` 三个形参全是 11、`add(3,4)` 得 6）。
+                    //   它下面那句（存进形参槽）方向本来就是对的 —— 两句摆在一起才看得出，
+                    //   单看一句"长得像 load"，正是这一族 bug 反复漏掉的原因。
+                    //
+                    // 栈帧（本文件上面那段手写序言的布局）：
+                    //   [R14+0]  = 保存的调用方 R14
+                    //   [R14+4]  = 保存的 R12
+                    //   [R14+8]  = 保存的 R15
+                    //   [R14+12] = **CALL 压入的返回地址**
+                    //   [R14+16 + 4k] = 调用方从右到左压入的实参（最后一个形参先压、在最高地址）
+                    // ⚠ 比原来的 `12 +` 多 4 —— 多存的那个 R14 让帧基整体下移一格，
+                    //   不改这里的话除首参外全部读成返回地址/错位一格。
+                    int stackOff = 16 + (pi - 1) * 4;
+                    instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, Vars.FormatOffset(stackOff))]));
                     instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, Vars.FormatOffset(-_currentVarOffset)), new Operand(OperandType.REGISTER, 0)]));
                 }
                 paramSpace += 4;
@@ -307,7 +339,13 @@ namespace JavaCompiler
             _varOffsets.Clear();
             foreach (var kv in savedVarOffsets) _varOffsets[kv.Key] = kv.Value;
 
-            EmitEpilogue();
+            // 尾声 —— 与上面的手写序言严格镜像（见那段注释）：
+            //   MOVE R13, R12 (= 帧基, R12/R14 在进入时被设成同一个值) → POP R14 → POP R12 → POP R15 → RET
+            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.REGISTER, 12)]));
+            instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 14)]));
+            instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 12)]));
+            instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 15)]));
+            instructions.Add(new Instruction(OpCode.RET, []));
             _methodReturnLabelId = savedReturnLabel;
         }
         
@@ -580,25 +618,49 @@ namespace JavaCompiler
             _expr!.EmitConditional(WrapExpr(condExpr.Condition), WrapExpr(condExpr.TrueValue), WrapExpr(condExpr.FalseValue));
         }
 
+        /// <summary>
+        /// 把数组元素 `a[i]` 的**地址**算进 R0：`base + i*4 + 4`。
+        ///
+        /// <para>读取（<see cref="GenerateArrayAccess"/>）与写入（<c>GenerateArrayElementAssignment</c>）
+        /// 共用这一处 —— 地址公式只有一份，两条路不会各自漂。</para>
+        ///
+        /// <para>布局来自数组字面量/声明时的 `Alloc((count+1)*4)`：
+        /// `[count, e0, e1, …]`，故元素 i 在 `base + i*4 + 4`（**+4 跳过 count 头**）。</para>
+        /// </summary>
+        private void EmitArrayElementAddress(ArrayAccessExpression arrExpr)
+        {
+            GenerateExpression(arrExpr.Array);          // R0 = 数组块地址
+            instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
+
+            GenerateExpression(arrExpr.Index);          // R0 = 下标
+
+            // ⚠ `SHL` 是 **dest 在前**：原来的 `SHL [IMMEDIATE 2, REGISTER 0]` 把立即数当成
+            //   了目标，运行时 `ExecuteShl` 只在 dest 是寄存器时才写回 ⇒ **整条是个空操作**，
+            //   于是下标根本没乘 4（元素地址退化成"下标 + 4 + 基址"）。
+            instructions.Add(new Instruction(OpCode.SHL, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 2)]));
+            instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 4)]));
+
+            instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 1)]));
+            instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1)]));
+        }
+
+        /// <summary>
+        /// 读取数组元素 `a[i]`（结果留在 R0）。
+        ///
+        /// <para>原实现有两处独立的错，合起来的表现是**永远读回数组头**：</para>
+        /// <list type="number">
+        /// <item><c>SHL [#2, R0]</c> —— 立即数当目标，空操作（见 <see cref="EmitArrayElementAddress"/>）。</item>
+        /// <item>末尾那句写的是 <c>MOVE R0, [R1]</c> —— R1 里装的是**块基址**（不是刚算完的
+        /// 元素地址），于是取到的是 `[base]` = count；而且 `[R1]` 在文本汇编里往返一趟会
+        /// 变成 `INDIRECT 1`，跟 `[R1+4]` 那种"寄存器相对"形态还不是同一类操作数。</item>
+        /// </list>
+        /// <para>另外原实现把中间量存进 <c>__aa_arr_N</c>/<c>__aa_idx_N</c> 全局数据字，
+        /// 现在改成纯寄存器 + 栈，函数可重入（递归取下标不再互相踩）。</para>
+        /// </summary>
         private void GenerateArrayAccess(ArrayAccessExpression arrExpr)
         {
-            string arrLabel = $"__aa_arr_{labelCounter}";
-            string idxLabel = $"__aa_idx_{labelCounter}";
-            labelCounter++;
-            dataSection[arrLabel] = 0;
-            dataSection[idxLabel] = 0;
-
-            GenerateExpression(arrExpr.Array);
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.LABEL, arrLabel), new Operand(OperandType.REGISTER, 0)]));
-            GenerateExpression(arrExpr.Index);
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.LABEL, idxLabel), new Operand(OperandType.REGISTER, 0)]));
-
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.LABEL, arrLabel)]));
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, idxLabel)]));
-            instructions.Add(new Instruction(OpCode.SHL, [new Operand(OperandType.IMMEDIATE, 2), new Operand(OperandType.REGISTER, 0)]));
-            instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 4)]));
-            instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1)]));
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1")]));
+            EmitArrayElementAddress(arrExpr);           // R0 = base + i*4 + 4
+            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0")]));
         }
 
         private void GenerateEnum(EnumDeclStatement enumDecl)

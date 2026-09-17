@@ -122,6 +122,12 @@ public partial class CodeGenerator
         AddLabel(funcLabel);
         EmitPrologue();
 
+        // 同顶层：局部变量槽必须落在 SP 之下，否则每个 PUSH/CALL 都会写花局部变量。
+        // 帧大小边生成边确定，故先占位、函数体生成完再回填。
+        int framePatchIndex = instructions.Count;
+        instructions.Add(new Instruction(OpCode.SUB,
+            [Reg(13), Reg(13), Imm(0)], framePatchIndex));
+
         var savedSymbols = new Dictionary<string, (string type, int offset)>(symbolTable);
         int savedOffset = nextStackOffset;
 
@@ -135,6 +141,13 @@ public partial class CodeGenerator
 
         foreach (var stmt in node.Body)
             GenerateStatement(stmt);
+
+        // 回填帧大小 + 退栈（+8 安全边界，与 EmitPrologueWithFrame 口径一致）
+        int frameSize = nextStackOffset + 8;
+        instructions[framePatchIndex] = new Instruction(OpCode.SUB,
+            [Reg(13), Reg(13), Imm(frameSize)], framePatchIndex);
+        instructions.Add(new Instruction(OpCode.ADD,
+            [Reg(13), Reg(13), Imm(frameSize)], instructions.Count));
 
         EmitEpilogue();
         AddLabel(skipLabel);

@@ -43,30 +43,30 @@ skel-d	scripts/maui-vml-verify/corpus/d/skel.d	vmlverify/d/skel.d	contains	SKEL-
 # ── 2. BASIC 回归语料（scripts/basic-tests/）────────────────────────────
 # 期望值取 **正确值**，不是"当前观测值"：这样 OUTPUT_MISMATCH 本身就在报告缺陷。
 # 来源：scripts/basic-tests/README.md 的基线表（v0.96.168/169 记录）。
-basic-t1	scripts/basic-tests/t1_scalar.bas	basictests/t1scalar.bas	contains	idiv=5	标量/算术/整除	180
-basic-t2	scripts/basic-tests/t2_array.bas	basictests/t2array.bas	contains	a5=15	数组读写	180
-basic-t3	scripts/basic-tests/t3_sub_param.bas	basictests/t3subparam.bas	contains	in=42	SUB 传参 BYVAL	180
-basic-t4	scripts/basic-tests/t4_global_in_sub.bas	basictests/t4globalinsub.bas	contains	sub=10	SUB 读模块级变量（README 记 ❌ 实得 0）	180
-basic-t5	scripts/basic-tests/t5_loop.bas	basictests/t5loop.bas	contains	sum=15	FOR/WHILE	180
-basic-t6	scripts/basic-tests/t6_bridge.bas	basictests/t6bridge.bas	regex	w=\d+	跨语言调 C 共享库（宽度随设备）	180
-basic-t7	scripts/basic-tests/t7_shared.bas	basictests/t7shared.bas	contains	shared=77	DIM SHARED 跨 SUB（README 记 ❌ 实得 0）	180
-basic-t8	scripts/basic-tests/t8_sub_write_global.bas	basictests/t8subwriteglobal.bas	contains	counter=10	SUB 写模块级变量	180
-basic-t9	scripts/basic-tests/t9_func_global.bas	basictests/t9funcglobal.bas	contains	vals=0	模块级 FUNCTION + 被 SUB 调（README 记 ❌ 死循环）	75
-basic-t10	scripts/basic-tests/t10_sub_local_for.bas	basictests/t10sublocfor.bas	contains	n=6	SUB 内局部 FOR（README 记 ❌ 死循环）	75
-basic-t11	scripts/basic-tests/t11_sub_local_array.bas	basictests/t11sublocarr.bas	contains	s=7	SUB 内局部数组（README 记 ❌ 读出 0）	180
+basic-t1	scripts/basic-tests/t1_scalar.bas	basictests/t1scalar.bas	regex	idiv=\s*5[\s\S]*mul=\s*200	标量/算术/整除	180
+basic-t2	scripts/basic-tests/t2_array.bas	basictests/t2array.bas	regex	a5=\s*15[\s\S]*a2=\s*6	数组读写	180
+basic-t3	scripts/basic-tests/t3_sub_param.bas	basictests/t3subparam.bas	regex	in=\s*42	SUB 传参 BYVAL	180
+basic-t4	scripts/basic-tests/t4_global_in_sub.bas	basictests/t4globalinsub.bas	regex	sub=\s*10	SUB 读模块级变量（README 记 ❌ 实得 0）	180
+basic-t5	scripts/basic-tests/t5_loop.bas	basictests/t5loop.bas	regex	sum=\s*15[\s\S]*w=\s*3	FOR/WHILE	180
+basic-t6	scripts/basic-tests/t6_bridge.bas	basictests/t6bridge.bas	regex	w=\s*\d+	跨语言调 C 共享库（宽度随设备）	180
+basic-t7	scripts/basic-tests/t7_shared.bas	basictests/t7shared.bas	regex	shared=\s*77	DIM SHARED 跨 SUB（README 记 ❌ 实得 0）	180
+basic-t8	scripts/basic-tests/t8_sub_write_global.bas	basictests/t8subwriteglobal.bas	regex	counter=\s*10	SUB 写模块级变量	180
+basic-t9	scripts/basic-tests/t9_func_global.bas	basictests/t9funcglobal.bas	regex	vals=\s*0	模块级 FUNCTION + 被 SUB 调（README 记 ❌ 死循环）	75
+basic-t10	scripts/basic-tests/t10_sub_local_for.bas	basictests/t10sublocfor.bas	regex	n=\s*6	SUB 内局部 FOR（README 记 ❌ 死循环）	75
+basic-t11	scripts/basic-tests/t11_sub_local_array.bas	basictests/t11sublocarr.bas	regex	s=\s*7	SUB 内局部数组（README 记 ❌ 读出 0）	180
 
 # ── 3. Examples 里的游戏（判据 = 真的开出了绘图窗口）────────────────────
 # 这些程序的主循环直到用户关窗才退出，**控制台输出读不到**（开窗会把 App 从命令行页
 # 导航到绘图页，页面重建、缓冲清空 —— 实测）。所以判据不是输出，而是
 # 「App 有没有进到绘图页」= 程序真的走到了 ui_win_open 并开始出帧。
 # 文件在设备上的位置由 MauiBootstrap.EnsureExamples 随包解出（examples/<语言>/）。
-game-c-tetris	-	examples/c/tetris.c	window	-	俄罗斯方块（C）	75
-game-c-gomoku	-	examples/c/gomoku.c	window	-	五子棋（C）	75
-game-swift-plane	-	examples/swift/plane.swift	window	-	飞机空战（Swift）	75
-game-swift-snake	-	examples/swift/snake.swift	window	-	贪吃蛇（Swift）	75
-game-csharp-racer	-	examples/csharp/racer.cs	window	-	赛车（C#）	75
-game-csharp-snake	-	examples/csharp/snake.cs	window	-	贪吃蛇（C#）	75
-game-go-snake	-	examples/go/snake.go	window	-	贪吃蛇（Go）	75
+game-c-tetris	-	examples/c/tetris.c	window	-	俄罗斯方块（C）	300
+game-c-gomoku	-	examples/c/gomoku.c	window	-	五子棋（C）	300
+game-swift-plane	-	examples/swift/plane.swift	window	-	飞机空战（Swift）	300
+game-swift-snake	-	examples/swift/snake.swift	window	-	贪吃蛇（Swift）	300
+game-csharp-racer	-	examples/csharp/racer.cs	window	-	赛车（C#）	300
+game-csharp-snake	-	examples/csharp/snake.cs	window	-	贪吃蛇（C#）	300
+game-go-snake	-	examples/go/snake.go	window	-	贪吃蛇（Go）	300
 # README 明说这两个跑不了（BASIC 前端三个既有缺陷 / Python 列表写不生效）。
 # 留着是为了**验证"读代码记下的结论在设备上仍成立"**，不是指望它们过。
 game-basic-tetris	-	examples/basic/tetris.bas	window	-	README 记：BASIC 前端缺陷，跑不了	60

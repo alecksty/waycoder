@@ -56,12 +56,23 @@ public partial class CodeGenerator : OopCodeGenerator
     {
         AddLabel("main");
         EmitPrologue();
+        int prologueEnd = instructions.Count; // 序言结束位置（帧分配插在这里）
         bool hasMainFunc = false;
         foreach (var stmt in program.Statements)
         {
             if (stmt is FuncDefNode f && f.Name == "main")
                 hasMainFunc = true;
             GenerateStatement(stmt);
+        }
+
+        // 顶层同样要预留局部变量栈帧（函数路径本来就有，顶层一直漏着）：
+        // 局部变量按 [R12-4]、[R12-8]… 分配，而 R12 == R13 ⇒ 槽位全在 SP 之下，
+        // 顶层任何 PUSH / CALL 都会把它们原地写花。
+        int mainFrameSize = Vars!.LocalFrameSize;
+        if (mainFrameSize > 0)
+        {
+            instructions.Insert(prologueEnd, new Instruction(OpCode.SUB,
+                [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, mainFrameSize + 8)]));
         }
 
         // If main() was defined as a function, CALL it so it actually executes

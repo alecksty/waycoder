@@ -27,6 +27,15 @@ public partial class CodeGenerator
             case ArrayNode array:
                 GenerateArray(array);
                 break;
+            case IndexNode index:
+                GenerateIndexRead(index);
+                break;
+            case IndexAssignNode indexAssign:
+                GenerateIndexAssign(indexAssign);
+                break;
+            case IndexOpAssignNode indexOpAssign:
+                GenerateIndexOpAssign(indexOpAssign);
+                break;
             case TernaryNode tern:
                 GenerateTernary(tern);
                 break;
@@ -207,29 +216,83 @@ public partial class CodeGenerator
 
     private void GenerateArray(ArrayNode node)
     {
-        // allocate array: size * 4 bytes
-        int size = node.Elements.Count;
-        AddRI(OpCode.MOVE, 0, size * 4);
-        instructions.Add(new Instruction(OpCode.SYSCALL,
-            new List<Operand> { new Operand(OperandType.IMMEDIATE, 2) }, instructions.Count)); // malloc
+        // 数组字面量。布局 = **无数组头**的扁平块：元素 i 在 `base + i*4`
+        // （读/写两侧同式，和 R 前端一种路数；`[count, e0, …]` 那种带头布局是另一族）。
+        int count = node.Elements.Count;
 
-        // store elements
-        for (int i = 0; i < node.Elements.Count; i++)
+        // ⚠ 原来这里写的是 `SYSCALL #2` —— 而 **#2 是 InputString（从 stdin 读一个字符串）**，
+        //   不是 malloc（`Alloc = 40`）。分配到的根本不是内存，后面所有元素都写飞了。
+        AddRI(OpCode.MOVE, 0, count * 4);
+        instructions.Add(new Instruction(OpCode.SYSCALL,
+            new List<Operand> { new Operand(OperandType.IMMEDIATE, 40) }, instructions.Count)); // R0 = 块地址
+
+        // ⚠ 原来循环里 `PUSH R0` 指望 R0 一直是基址，可第一轮之后 R0 已经是**上一个元素的值**；
+        //   而 `POP R1` 又冲掉了正在当游标用的 R1 ⇒ 元素 1..n-1 全写到"上一个元素值"那个地址。
+        //   改法：基址常驻栈顶，每存一个元素重新取一次（元素表达式里可能有函数调用，
+        //   任何寄存器都靠不住）。
+        instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));   // 基址常驻栈顶
+        for (int i = 0; i < count; i++)
         {
-            instructions.Add(new Instruction(OpCode.PUSH,
-                new List<Operand> { new Operand(OperandType.REGISTER, 0) }, instructions.Count));
-            GenerateExpression(node.Elements[i]);
-            instructions.Add(new Instruction(OpCode.POP,
-                new List<Operand> { new Operand(OperandType.REGISTER, 1) }, instructions.Count));
+            GenerateExpression(node.Elements[i]);                   // R0 = 元素值
+            instructions.Add(new Instruction(OpCode.POP, [Reg(1)])); // R1 = 基址
+            instructions.Add(new Instruction(OpCode.PUSH, [Reg(1)]));// 立刻放回
             instructions.Add(new Instruction(OpCode.MOVE,
-                new List<Operand> { Mem("R1"), new Operand(OperandType.REGISTER, 0) },
-                instructions.Count));
-            if (i < node.Elements.Count - 1)
-            {
-                instructions.Add(new Instruction(OpCode.ADD,
-                    new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 4) },
-                    instructions.Count));
-            }
+                [Mem(i == 0 ? "R1" : $"R1+{i * 4}"), Reg(0)],
+                instructions.Count));                               // [base+i*4] = 元素值
         }
+        instructions.Add(new Instruction(OpCode.POP, [Reg(0)]));    // 返回值 = 基址
+    }
+
+    /// <summary>元素地址 → R0：<c>base + idx*4</c>（无数组头）。</summary>
+    private void EmitElementAddress(ASTNode target, ASTNode index)
+    {
+        GenerateExpression(target);                                // R0 = 基址
+        instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
+        GenerateExpression(index);                                 // R0 = 下标
+        instructions.Add(new Instruction(OpCode.POP, [Reg(1)]));   // R1 = 基址
+        instructions.Add(new Instruction(OpCode.SHL,
+            [Reg(0), Reg(0), new Operand(OperandType.IMMEDIATE, 2)], instructions.Count));
+        instructions.Add(new Instruction(OpCode.ADD,
+            [Reg(0), Reg(0), Reg(1)], instructions.Count));
+    }
+
+    private void GenerateIndexRead(IndexNode node)
+    {
+        EmitElementAddress(node.Target, node.Index);               // R0 = 元素地址
+        instructions.Add(new Instruction(OpCode.MOVE,
+            [Reg(0), Mem("R0")], instructions.Count));             // R0 = 元素值（load）
+    }
+
+    private void GenerateIndexAssign(IndexAssignNode node)
+    {
+        GenerateExpression(node.Value);                            // R0 = 右值
+        instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
+        EmitElementAddress(node.Target, node.Index);               // R0 = 元素地址
+        instructions.Add(new Instruction(OpCode.POP, [Reg(1)]));   // R1 = 右值
+        instructions.Add(new Instruction(OpCode.MOVE,
+            [Mem("R0"), Reg(1)], instructions.Count));             // [地址] = 右值（dest 在前）
+        instructions.Add(new Instruction(OpCode.MOVE, [Reg(0), Reg(1)], instructions.Count));
+    }
+
+    private void GenerateIndexOpAssign(IndexOpAssignNode node)
+    {
+        EmitElementAddress(node.Target, node.Index);               // R0 = 元素地址
+        instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));  // 地址压栈（求值会改所有寄存器）
+        instructions.Add(new Instruction(OpCode.MOVE, [Reg(1), Mem("R0")], instructions.Count)); // R1 = 旧值
+        instructions.Add(new Instruction(OpCode.PUSH, [Reg(1)]));
+        GenerateExpression(node.Value);                            // R0 = 右值
+        instructions.Add(new Instruction(OpCode.POP, [Reg(1)]));   // R1 = 旧值
+        OpCode op = node.Op switch
+        {
+            "+=" => OpCode.ADD,
+            "-=" => OpCode.SUB,
+            "*=" => OpCode.MUL,
+            "/=" => OpCode.DIV,
+            _ => OpCode.ADD,
+        };
+        instructions.Add(new Instruction(op, [Reg(0), Reg(1), Reg(0)], instructions.Count)); // R0 = 旧值 op 右值
+        instructions.Add(new Instruction(OpCode.POP, [Reg(1)]));   // R1 = 地址
+        instructions.Add(new Instruction(OpCode.MOVE,
+            [Mem("R1"), Reg(0)], instructions.Count));             // [地址] = 结果
     }
 }

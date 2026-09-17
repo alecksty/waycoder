@@ -1,0 +1,120 @@
+# 0021：Scheme 前端 —— 向量构造/写入是「读」方向，以及顶层 define 漏恢复作用域
+
+## 一、`(vector …)` 字面量构造器：长度与每个元素都写反了方向
+
+`CodeGenerator.Expressions.cs` 里**两处**都是**读**（load）而不是**写**（store）：
+
+    :499   MOVE R1, [R0]          ← 长度，应为 MOVE [R0], R1
+    :503   MOVE R0, [R1+n]        ← 每个元素，应为 MOVE [R1+n], R0
+
+⇒ **向量一个元素都没写进去**。这是 `14` 必需的（骨架要在向量里存 `a[i] = a[i] + 1`）。
+
+## 二、`vector-set!` 写反了，但**只翻方向会写坏内存**
+
+`CodeGenerator.Expressions.cs:587` 是 `MOVE R0, [R1+4]`（读），应为写。
+但**不能简单翻转**：`(inc (vector-ref a i))` 里的 `inc` 是**函数调用**，求值 `(+ x 1)` 会**用掉 R1**
+（实测调用返回后 R1 == 1）⇒ 直接 `MOVE [R1+4], R0` 会写到**地址 5**。
+
+正解是「**右值先压栈 → 再算地址 → 取回右值 → 落笔**」：
+
+    GenExpr(值); PUSH; …算地址…; POP R0; MOVE [R1+4], R0
+
+## 三、死循环的真根因：顶层 `(define (f …) …)` 之后 `varOff` / `vars` 没恢复
+
+`CodeGenerator.cs`：函数体把 `varOff` 顶到 4 且**不还原**，这个值漏给其后的顶层绑定。
+而 `main` **没有序言**，VM 把 R12(BP) 与 R13(SP) **一起初始化成栈顶**
+（`VMLRuntime.cs:570-571`）⇒ 顶层变量按 `R12+(12-off)` 落到 `R12-8 / -12 / -16`，
+**正是 `push` 与被调用函数序言落笔的地方**。
+循环里每次 `call inc` 的 `push R15; push R12` 都把 `i` 冲掉 ⇒ **`i` 永远到不了 4**（死循环）。
+
+恢复作用域后 `a/s/i` 回到 `R12+8 / +4 / +0`（栈顶之上，`push` 够不着）。
+
+## 四、实测
+
+| | 修前 | 修后 |
+|---|---|---|
+| `corpus/scheme/skel.scm` | 编译链接成功（71915 条指令），**运行期死循环**（`VM execution cancelled`，31.8s）| `SKEL-SUM=14`，2.1s ✅ |
+
+`Examples/scheme/math/main.scm`、`sicp/1.2.5-gcd.scm` 编译运行正常。
+diff --git a/third_party/vml/VMLPrepares/SchemeCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/SchemeCompiler/CodeGenerator.Expressions.cs
+index e9501621..17d3616a 100644
+--- a/third_party/vml/VMLPrepares/SchemeCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/SchemeCompiler/CodeGenerator.Expressions.cs
+@@ -496,11 +496,14 @@ public partial class CodeGenerator {
+                 EmitAlloc(vecLen * 4 + 4);
+                 AddInstruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]); // save vec addr
+                 AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, vecLen)]);
+-                AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R0")]); // vec[0] = len
++                // ⚠ `MOVE dest, src` **dest 在前**。原来写成 `MOVE R1, [R0]`（**读**），
++                //   长度没写进去且把 R1 冲成垃圾；元素那两句同病（`MOVE R0, [R1+n]` 也是读），
++                //   ⇒ `(vector 1 2 3 4)` 建出来的块**一个元素都没写**，全是未初始化堆内存。
++                AddInstruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, "R0"), new Operand(OperandType.REGISTER, 1)]); // vec[0] = len
+                 for (int vi = 1; vi < l.Items.Count; vi++) {
+                     GenExpr(l.Items[vi]);
+                     AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R13")]); // vec addr
+-                    AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R1+{vi * 4}")]);
++                    AddInstruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R1+{vi * 4}"), new Operand(OperandType.REGISTER, 0)]); // vec[vi] = 元素值
+                 }
+                 AddInstruction(OpCode.POP, [new Operand(OperandType.REGISTER, 0)]); // vec addr in R0
+             } else if (sFirst.Name == "unless" && l.Items.Count >= 3) {
+@@ -577,14 +580,23 @@ public partial class CodeGenerator {
+                 AddInstruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0)]);
+                 AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0+4")]);
+             } else if (sFirst.Name == "vector-set!" && l.Items.Count >= 4) {
++                // ⚠ 两处都错（`vector-ref` 那句方向本来是对的，可作对照）：
++                //   ① `MOVE dest, src` **dest 在前** —— 原来是 `MOVE R0, [R1+4]`（**读**），
++                //      `vector-set!` 整个成了空操作，元素一个都写不进去。
++                //   ② **不能指望 R1 活过右值求值**：`(vector-set! a i (inc …))` 里的 `inc`
++                //      是函数调用，它算 `(+ x 1)` 就会用掉 R1（实测调用返回后 R1 == 1）
++                //      ⇒ 若直接写 `MOVE [R1+4], R0`，会往地址 5 写。
++                //   所以先把**右值压栈**，算完地址再取回来（右值在 R0，地址在 R1，最后落笔）。
++                GenExpr(l.Items[3]);                                                 // R0 = 右值
++                AddInstruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]); // 存右值
+                 GenExpr(l.Items[1]); // vec
+                 AddInstruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]);
+                 GenExpr(l.Items[2]); // index
+                 AddInstruction(OpCode.MUL, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 4)]);
+                 AddInstruction(OpCode.POP, [new Operand(OperandType.REGISTER, 1)]); // vec addr
+                 AddInstruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0)]); // R1 = vec + idx*4
+-                GenExpr(l.Items[3]); // value
+-                AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1+4")]);
++                AddInstruction(OpCode.POP, [new Operand(OperandType.REGISTER, 0)]); // R0 = 右值
++                AddInstruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, "R1+4"), new Operand(OperandType.REGISTER, 0)]); // vec[idx] = 右值
+             } else if (sFirst.Name == "vector-length" && l.Items.Count >= 2) {
+                 GenExpr(l.Items[1]); // vec
+                 AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0")]); // vec[0] = length
+diff --git a/third_party/vml/VMLPrepares/SchemeCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/SchemeCompiler/CodeGenerator.cs
+index 50093975..f37221eb 100644
+--- a/third_party/vml/VMLPrepares/SchemeCompiler/CodeGenerator.cs
++++ b/third_party/vml/VMLPrepares/SchemeCompiler/CodeGenerator.cs
+@@ -34,6 +34,19 @@ public partial class CodeGenerator : CodeGeneratorBase {
+                 int paramCount = fnParams.Count;
+                 var savedFunc = _currentFunc;
+                 var savedParams = _currentFuncParams;
++                // ⚠ `varOff` / `vars` 是**顶层与函数体共用**的（函数形参直接写进 `vars`），
++                //   而函数定义结束处原先**没有恢复**：函数体把 `varOff` 顶到了 4（形参 1 个、
++                //   再被 `if (varOff < 4) varOff = 4` 抬到 4），这个值就**漏给了后面的顶层绑定**。
++                //   后果不是「编号难看」而是**踩内存**：顶层变量按 `R12 + (12 - off)` 定位，
++                //   `off = varOff*4`；而程序入口 `main` **没有序言**，VM 把 R12(BP) 和 R13(SP)
++                //   一起初始化成栈顶（`VMLRuntime.cs:570-571`）⇒ `R12-4 / -8 / -12 …` **正是
++                //   push 与被调用函数序言落笔的地方**。
++                //   实测：`(define (inc x) …)` 之后的 `a`/`s`/`i` 落到 `R12-8 / -12 / -16`，
++                //   于是循环里每次 `call inc` 的 `push R15; push R12` 都把 `i` 冲掉
++                //   ⇒ `i` 永远到不了 4、**死循环**（`skel.scm` 实测跑 30 秒被 VM 取消）。
++                //   恢复之后顶层绑定回到 `R12+8 / +4 / +0`（栈顶之上，push 够不着）。
++                int savedVarOffFn = varOff;
++                var savedVarsFn = new Dictionary<string, int>(vars);
+                 _currentFunc = fname;
+                 _currentFuncParams = paramCount;
+                 string afterFunc = NewLabel();
+@@ -68,6 +81,10 @@ public partial class CodeGenerator : CodeGeneratorBase {
+                 AddInstruction(OpCode.LABEL, [new Operand(OperandType.LABEL, afterFunc)]);
+                 _currentFunc = savedFunc;
+                 _currentFuncParams = savedParams;
++                // 恢复顶层作用域（形参不进 `vars`，否则后面的顶层代码会把形参名当变量读）
++                varOff = savedVarOffFn;
++                vars.Clear();
++                foreach (var kv in savedVarsFn) vars[kv.Key] = kv.Value;
+             } else if (s.Name == "define" && l.Items.Count >= 3) {
+                 // (define name value)
+                 string name = ((SSym)l.Items[1]).Name;

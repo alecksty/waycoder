@@ -11,6 +11,14 @@
 --     ui_rect 的 8 个实参到不了包装函数读的 [R12+12]…[R12+40]。
 --  ③ `0x…` 字面量在 Parser.cs:662 会 Int32 溢出，颜色写 -65536（= 0xFFFF0000）。
 --  ④ print 多实参不加分隔符、末尾自动补换行（Statements_B.cs:476-502）。
+--
+-- ⚠ 下标基准：Lua 的表是 **1-based**（真 Lua 如此，本前端亦如此 ——
+--    `LUA_LANGUAGE_SPEC.md` 明写 `local arr = {10,20,30,40}; print(arr[1]) -- 10（Lua索引从1开始）`，
+--    `GenerateTableConstructor` 给位置字段的键也是 `slotIndex + 1`）。
+--    本文件原先写的是 `for i = 0, 3` —— **那是语料作者的笔误**（他按 0-based 语言的习惯套过来了；
+--    对照 Fortran(1-based) 写的是 `a(1)…a(4)`，Pascal/BASIC/JS/Python(0-based) 写的是 `0..3`）。
+--    0-based 取 `a[0..3]` 时 `a[0]` 是新键（nil→0），`s` 只得 10。
+--    **修的是语料，不是前端** —— 把前端改成 0-based 会同时推翻真 Lua 语义与它自己的规格文档。
 
 function inc(x)
     return x + 1
@@ -20,7 +28,7 @@ function main()
     local a = {1, 2, 3, 4}
     local s = 0
     local i = 0
-    for i = 0, 3 do
+    for i = 1, 4 do
         a[i] = inc(a[i])
         s = s + a[i]
     end

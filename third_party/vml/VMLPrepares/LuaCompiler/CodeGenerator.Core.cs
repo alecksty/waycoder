@@ -44,15 +44,53 @@ namespace LuaCompiler
             // 生成栈帧
             EmitPrologue();
 
+            // 顶层也要**预留局部变量栈帧**（此前只有 EmitPrologue，没有 SUB R13）。
+            // 局部变量按 [R12-4]、[R12-8]… 分配，而 R12 == R13 ⇒ 整片局部区都在 SP **之下**，
+            // 任何 PUSH / CALL（压返回地址）都会把它们原地写花；
+            // 更直接的冲突是前端自己也拿 [R13-4] 当临时槽（`GenerateTableAccess` 之后那句
+            // `MOVE [R13-4], R0`）—— 那正好就是第一个局部变量 [R12-4] 的位置。
+            // 帧大小要等语句生成完才知道（变量是边生成边分配的），故先占位、最后回填。
+            int framePatchIndex = instructions.Count;
+            instructions.Add(new Instruction(OpCode.SUB,
+                new List<Operand> {
+                    new Operand(OperandType.REGISTER, 13),
+                    new Operand(OperandType.IMMEDIATE, 0)
+                }, framePatchIndex));
+
             // 生成程序语句
             foreach (var stmt in program.Statements)
             {
                 GenerateStatement(stmt);
             }
+
+            // 回填帧大小
+            instructions[framePatchIndex] = new Instruction(OpCode.SUB,
+                new List<Operand> {
+                    new Operand(OperandType.REGISTER, 13),
+                    new Operand(OperandType.IMMEDIATE, ComputeFrameSize())
+                }, framePatchIndex);
+
             // 保留最后一条语句的结果在 R0 中作为退出码，不自作主张加载全局变量
             EmitExit();
 
             return BuildProgram("main");
+        }
+
+        /// <summary>
+        /// 本帧需要预留的字节数 = max(已分配的局部变量总长, 符号表里最大的那个偏移 + 4)。
+        /// <para>
+        /// 为什么两个都要取：`symbolTable` 是**跨函数共用**的（第二个函数声明同名局部变量时
+        /// 会直接复用第一个函数的偏移、不再累加 `nextStackOffset`），只看 `nextStackOffset`
+        /// 会让那种函数预留不足 —— 它的局部变量落在帧外，照样被 PUSH/CALL 写花。
+        /// 多预留几字节无害，少预留就是「变量莫名归零」。
+        /// </para>
+        /// </summary>
+        private int ComputeFrameSize()
+        {
+            int maxOffset = 0;
+            foreach (var off in symbolTable.Values)
+                if (off > maxOffset) maxOffset = off;
+            return Math.Max(nextStackOffset, maxOffset + 4) + 8; // +8 安全边界
         }
 
         /// <summary>

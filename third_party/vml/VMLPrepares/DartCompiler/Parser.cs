@@ -82,7 +82,47 @@ public class Parser : ParserBase<Token, TokenType>
         if (IsType(Cur) && Peek(1).Type == TokenType.Identifier)
             return ParseVarDecl();
 
+        // 泛型集合声明: List<int> a = … / List<double> b;（Dart 里数组就是这么声明的）
+        // ⚠ 此前 `IsType` 只认内建类型关键字，`List` 是普通 Identifier ⇒ 整条声明被
+        //   ParseExprStmt 的容错循环当作"无法识别的语句"整个跳过，**变量根本没被声明**，
+        //   后面所有对它的引用退化成 dataSection 里的全局 0。
+        if (Check(TokenType.Identifier) && Peek(1).Type == TokenType.Lt && IsGenericVarDecl())
+            return ParseVarDecl();
+
         return ParseExprStmt();
+    }
+
+    /// <summary>
+    /// 前瞻判定「Identifier &lt; … &gt; Identifier (= | ;)」形态的泛型变量声明。
+    /// 括号配对跳过泛型参数；中途撞上 <c>;</c>/<c>{</c>/<c>}</c>/<c>)</c>/EOF 即判定不是声明
+    /// （这样 <c>a &lt; b</c> 这类比较表达式不会被误判）。
+    /// </summary>
+    private bool IsGenericVarDecl()
+    {
+        int i = _pos + 1;                     // 当前是 Identifier，下一个是 '<'
+        if (i >= _tokens.Count || GetTokenType(_tokens[i]) != TokenType.Lt) return false;
+        int depth = 0;
+        while (i < _tokens.Count)
+        {
+            var tt = GetTokenType(_tokens[i]);
+            if (tt == TokenType.Lt) depth++;
+            else if (tt == TokenType.Gt)
+            {
+                depth--;
+                if (depth == 0) break;
+            }
+            else if (tt is TokenType.Semicolon or TokenType.LBrace or TokenType.RBrace
+                     or TokenType.RParen or TokenType.EOF)
+                return false;
+            i++;
+        }
+        if (i >= _tokens.Count || depth != 0) return false;
+        int nameIdx = i + 1;                  // '>' 之后必须是变量名
+        if (nameIdx >= _tokens.Count || GetTokenType(_tokens[nameIdx]) != TokenType.Identifier) return false;
+        int afterIdx = nameIdx + 1;           // 再之后必须是 '=' 或 ';'
+        if (afterIdx >= _tokens.Count) return false;
+        var after = GetTokenType(_tokens[afterIdx]);
+        return after == TokenType.Assign || after == TokenType.Semicolon;
     }
 
     private bool IsType(Token t)
@@ -276,8 +316,9 @@ public class Parser : ParserBase<Token, TokenType>
             else if (Cur.Type == TokenType.External) { _pendingExternal = true; Advance(); }
             else if (Cur.Type == TokenType.Identifier)
             {
-                // 泛型类型字段: T val; / T? val;
-                if (Peek(1).Type == TokenType.Identifier || Peek(1).Type == TokenType.Question)
+                // 泛型类型字段: T val; / T? val; / List<int> vals;（数组字段就是这种写法）
+                if (Peek(1).Type == TokenType.Identifier || Peek(1).Type == TokenType.Question
+                    || (Peek(1).Type == TokenType.Lt && IsGenericVarDecl()))
                     members.Add(ParseVarDecl());
                 else
                     throw Error($"Unexpected token in class body: {Cur.Type} at {Cur.Line}:{Cur.Column}");
@@ -560,7 +601,10 @@ public class Parser : ParserBase<Token, TokenType>
             var right = ParseAssignment();
             if (left is VarNode v)
                 return new AssignNode(v.Name, right, l, c);
-            // 容错: 复杂左值(如arr[i]=x) — 求值但返回右值
+            // 下标左值: a[i] = v —— 此前整段落到下面的"容错"分支被丢掉（目标与下标都没了）。
+            if (left is IndexNode ix)
+                return new IndexAssignNode(ix.Target, ix.Index, right, l, c);
+            // 容错: 其它复杂左值 — 求值但返回右值
             return right;
         }
         if (Check(TokenType.PlusAssign) || Check(TokenType.MinusAssign) || Check(TokenType.MulAssign) || Check(TokenType.DivAssign) || Check(TokenType.ModAssign))
@@ -569,6 +613,8 @@ public class Parser : ParserBase<Token, TokenType>
             var right = ParseAssignment();
             if (left is VarNode v)
                 return new OpAssignNode(v.Name, op, right, left.Line, left.Column);
+            if (left is IndexNode ix2)
+                return new IndexOpAssignNode(ix2.Target, ix2.Index, op, right, left.Line, left.Column);
             // 容错: 复杂左值复合赋值 — 返回右值
             return right;
         }
@@ -792,6 +838,19 @@ public class Parser : ParserBase<Token, TokenType>
                 continue;
             }
 
+            // 下标: a[i] / a[i][j] / f()[i]
+            // ⚠ 此前**没有这个分支** ⇒ `a[i]` 只解析成裸 `a`（下标整段被吞掉，后续 token
+            //   由 ParseExprStmt 的容错循环跳过），于是数组读写全部退化成"对数组变量本身操作"。
+            if (Check(TokenType.LBracket))
+            {
+                Advance(); // [
+                var index = ParseExpression();
+                while (!Check(TokenType.RBracket) && !Check(TokenType.EOF)) Advance();
+                Expect(TokenType.RBracket, "expected ']'");
+                expr = new IndexNode(expr, index, expr.Line, expr.Column);
+                continue;
+            }
+
             // 空值安全成员访问: obj?.field
             if (Check(TokenType.Question) && Peek(1).Type == TokenType.Dot)
             {
@@ -870,16 +929,19 @@ public class Parser : ParserBase<Token, TokenType>
             Advance(); return new LiteralNode(0, l, c);
         }
         // 数组字面量: [1,2,3]
+        // ⚠ 此前是把整个 `[...]` 括号配对跳过后 `return LiteralNode(0)` —— 元素**一个都没解析**，
+        //   于是 `List<int> a = [1,2,3,4]` 里的数组永远是常量 0（`a[i]` 再怎么修也读不到东西）。
         if (Match(TokenType.LBracket))
         {
-            int bd = 1;
-            while (bd > 0 && !Check(TokenType.EOF))
+            var elements = new List<ASTNode>();
+            if (!Check(TokenType.RBracket))
             {
-                if (Check(TokenType.LBracket)) bd++;
-                else if (Check(TokenType.RBracket)) bd--;
-                Advance();
+                do elements.Add(ParseExpression());
+                while (Match(TokenType.Comma) && !Check(TokenType.RBracket) && !Check(TokenType.EOF));
             }
-            return new LiteralNode(0, l, c);
+            while (!Check(TokenType.RBracket) && !Check(TokenType.EOF)) Advance();
+            Expect(TokenType.RBracket, "expected ']'");
+            return new ArrayLiteralNode(elements, l, c);
         }
         // map/set字面量: {a:1, b:2}
         if (Match(TokenType.LBrace))

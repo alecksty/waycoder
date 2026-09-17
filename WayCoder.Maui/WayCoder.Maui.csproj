@@ -36,7 +36,13 @@
 		     CS1570/CS1587 —— 共享源码 XML 注释含 < >（如 List<T>、1.5x→）在 MAUI 文档解析下报格式错（主工程不开文档生成不报）；
 		     CA1416/CA1422 —— Android 目标下 Console 等桌面 API 平台不可用（移动端不执行这些路径）；
 		     CA2255 —— ModuleInitializer 仅限应用代码规则（共享 DrawCommands 静态注册）。 -->
-		<NoWarn>$(NoWarn);CS1570;CS1587;CS1591;CA1416;CA1422;CA2255</NoWarn>
+		<!-- XCODE_27_0_PREVIEW —— Xcode 27 SDK 把一批 API 标成「仅用于评估」，dotnet-macios 默认当**错误**
+		     （`error XCODE_27_0_PREVIEW: …仅用于评估…取消此诊断以继续`）。命中的包括
+		     `Foundation.RegisterAttribute`（**每个 MAUI 模板都有的 `[Register("AppDelegate")]`**）
+		     和 `AVAudioEngine`/`AVAudioPlayerNode`（VmlAudio.cs）—— 也就是**不是我们代码特有的用法**，
+		     是这个 SDK 对上层的整体收紧。构建被它整个挡住，按提示抑制。
+		     ⚠ 这是"知情接受"：Apple 说这些 API 将来可能改。升级 SDK 时要回头看一眼这条还在不在。 -->
+		<NoWarn>$(NoWarn);CS1570;CS1587;CS1591;CA1416;CA1422;CA2255;XCODE_27_0_PREVIEW</NoWarn>
 
 		<!-- Android 工具链路径：本机（macOS）用 `dotnet build -t:InstallAndroidDependencies` 装到
 		     ~/Library/Android/{sdk,jdk}。三重守卫保证跨平台安全：
@@ -167,21 +173,54 @@
 	-->
 	<ItemGroup>
 		<!-- VML 已经**复制进本仓库**（third_party/vml/，来源与同步方式见那里的 README）。
-		     这里只引用「跑一段 VML 程序」真正需要的两个项目。
-		     ⚠ 不要引用 VMLPrepares 下那 25 个前端编译器 —— 它们是按需加的，
-		        全量引用会拖慢构建，而命令行页现在只用到汇编器 + 运行时。 -->
+		     这里引用「跑一段 VML 程序」真正需要的项目：汇编器 + 运行时 + 下面那批前端编译器。
+		     （早期只引汇编器 + 运行时，因为命令行页当时只跑 `.vml` 汇编；后来接上
+		       「高级语言 → VML 汇编 → 运行」这条链，就得把 22 个前端编译器也引进来。） -->
 		<ProjectReference Include="../third_party/vml/VMLAssembler/VMLAssembler.csproj" />
 		<ProjectReference Include="../third_party/vml/VMLRuntime/VMLRuntime.csproj" />
 
-		<!-- **VMLTool 是「一套工具编所有类型文件」的集成主体** —— 扩展名→语言的派发
-		     （Program.Compile.cs:55/105）、include/library 路径、标准库链接、导出应用都在它那儿。
-		     引它一个就够：它自己传递引用了 22 个前端编译器 + VMLTranslators + VMLToHex。
+		<!-- **22 个前端编译器逐个直引**（上游 VMLTool.csproj 的 StaticLink 分支也是这么列的）。
 
-		     ⚠ 这四个本地适配（都在 third_party/vml/，由 sync.sh 重新施加）是它能被引用的前提：
+		     为什么不引 VMLTool.csproj 一个了事：它还**编译依赖** VMLTranslators（18 个后端翻译器，
+		     302.5 KB）与 VMLToHex（158 KB，产物 vml2hex.dll）—— 那两个是给**裸机/单片机**输出后端
+		     汇编与 hex/elf/bin 的，手机端只用得到「高级语言 → VML 汇编 → 虚拟机执行」这一条链，
+		     引它就会把那 ~460 KB 一起链进 APK（实测 APK 里确实躺着 libaot-VMLTranslators.dll.so
+		     与 libaot-vml2hex.dll.so）。
+
+		     代价是 VMLTool 那边的两样东西要**本地化**（前端编译器清单 + vmltool.config.xml 的读取器）：
+		       · Services/VmlFrontendCompilers.cs —— 抄上游 StaticLinkInitializer 的前端那半截，
+		         并把清单钉在 UI/Shared/VmlFrontendCompilerList.cs（唯一真源 + 漂移判据）；
+		       · Services/VmlLibConfig.cs —— 抄上游 VmlToolConfig 的 Load/ResolveLibs 两件事。
+		     ⚠ 上游**加一门语言**时这三处要一起改（清单 / RegisterAll / 这里的 ProjectReference），
+		        漏了会被桌面自测的 `[VML 前端编译器清单]` 段与手机端的注册断言**响亮地**拦下。
+
+		     ⚠ 这四个本地适配（都在 third_party/vml/，由 sync.sh 重新施加）是它们能被引用的前提：
 		       OutputType Exe→Library（否则 NETSDK1150）、去 StartupObject（否则 CS2017）、
 		       去 RuntimeIdentifiers（否则 NETSDK1047：它的列表里没有 android-arm64）、
 		       去 PublishAot（AOT 发布需要 RID，而我们只要它的代码）。 -->
-		<ProjectReference Include="../third_party/vml/VMLTool/VMLTool.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/CompilerBase/CompilerBase.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/CCompiler/CCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/BasicCompiler/BasicCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/PascalCompiler/PascalCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/PythonCompiler/PythonCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/LuaCompiler/LuaCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/ForthCompiler/ForthCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/RustCompiler/RustCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/GoCompiler/GoCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/LadderCompiler/LadderCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/CSharpCompiler/CSharpCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/JavaCompiler/JavaCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/JavaScriptCompiler/JavaScriptCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/SwiftCompiler/SwiftCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/CppCompiler/CppCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/KotlinCompiler/KotlinCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/SchemeCompiler/SchemeCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/RubyCompiler/RubyCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/DartCompiler/DartCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/ObjCCompiler/ObjCCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/RCompiler/RCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/DCompiler/DCompiler.csproj" />
+		<ProjectReference Include="../third_party/vml/VMLPrepares/FortranCompiler/FortranCompiler.csproj" />
 	</ItemGroup>
 
 	<!--

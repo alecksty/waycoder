@@ -44,6 +44,16 @@ public class UnaryNode(string op, ASTNode operand, int line, int col) : ASTNode(
 public class CallNode(ASTNode? receiver, string method, List<ASTNode> arguments, int line, int col) : ASTNode(line, col)
 { public ASTNode? Receiver { get; } = receiver; public string Method { get; } = method; public List<ASTNode> Arguments { get; } = arguments; }
 public class ArrayNode(List<ASTNode> elements, int line, int col) : ASTNode(line, col) { public List<ASTNode> Elements { get; } = elements; }
+
+// ── 数组下标 ──────────────────────────────────────────────────────────────────
+// 此前 Ruby 前端**没有下标表达式**：`a[i]` 只解析成裸 `a`（下标 token 被语句层跳过），
+// `a[i] = v` 的左值被 ParseAssignment 丢成 `_`。下面三个节点把下标补上。
+public class IndexNode(ASTNode target, ASTNode index, int line, int col) : ASTNode(line, col)
+{ public ASTNode Target { get; } = target; public ASTNode Index { get; } = index; }
+public class IndexAssignNode(ASTNode target, ASTNode index, ASTNode value, int line, int col) : ASTNode(line, col)
+{ public ASTNode Target { get; } = target; public ASTNode Index { get; } = index; public ASTNode Value { get; } = value; }
+public class IndexOpAssignNode(ASTNode target, ASTNode index, string op, ASTNode value, int line, int col) : ASTNode(line, col)
+{ public ASTNode Target { get; } = target; public ASTNode Index { get; } = index; public string Op { get; } = op; public ASTNode Value { get; } = value; }
 public class StringInterpolateNode(List<ASTNode> parts, int line, int col) : ASTNode(line, col) { public List<ASTNode> Parts { get; } = parts; }
 public class WhenClauseNode(List<ASTNode> values, List<ASTNode> body, int line, int col) : ASTNode(line, col)
 { public List<ASTNode> Values { get; } = values; public List<ASTNode> Body { get; } = body; }

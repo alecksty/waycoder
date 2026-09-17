@@ -1,0 +1,132 @@
+# 0020：Forth 前端 —— `@`/`C@` 自赋值，以及 `."`/`.` 吃掉数据栈
+
+## 一、`@` / `C@` 是自赋值空操作（`CodeGenerator.Operations.cs`）
+
+    :565-566   MOVE  R0, R0      ← 应为 MOVE  R0, [R0]
+    :585-586   MOVEB R0, R0      ← 应为 MOVEB R0, [R0]
+
+返回的是**地址**而不是元素值。写入侧（`:556-557`、`:577-578` 的 `MOVE [R1], R0` / `MOVEB [R1], R0`）
+方向本来就是对的，**别一起改错**。
+
+## 二、⚠ 更正：`65536` 与 `@` 无关
+
+发现这条缺陷时，我们一度认为「输出 `65536 = 0x10000` 正是把地址当值返回」，
+并拿它当定位 `@` 的佐证。**这个推断是错的** —— 只修 `@` 之后 `skel.fth` 仍然打印 ` SKEL-SUM=65536`，
+`65536` 是**往栈顶之上读到的未写内存**，两条命令里恰好一致属于巧合。**别再用这个数字定位 `@`。**
+
+`65536` 的真正来源是下面这条，它比 `@` 更重要：
+
+## 三、`."` / `.` 吃掉 Forth 数据栈（根因在共享的 `CompilerBase`）
+
+`CodeGeneratorBase.EmitPrintString/EmitPrintInt`（注释写「R0 承载参数」）只发一条**裸 `CALL print_str`**，
+而 `Lib` 里 `print_str` / `print_int` 是 **`__stdcall`（被调用方清栈）**：
+
+    move R13 R12; pop R12; pop R15; move R1 @13; add R13 #8; push R1; ret
+                                                 ^^^^^^^^^^^^ 替调用方多弹掉 4 字节实参
+
+调用方**没压过**这 4 字节。别的前端「看着没事」是因为它们的值在栈帧里、多弹 4 字节只是啃掉一点栈帧；
+**而 Forth 的数据栈就是 VML 的 R13** —— 多弹的那 4 字节正好是栈顶累加器。
+实测：`42 ." X" . CR` 在加一句 `."` 之前打印 ` 42`，加了就变 ` 65536`。
+
+**佐证**：`scripts/maui-vml-verify/corpus/c/skel.c` 把这三个函数声明成 `__stdcall` 并注明「被调用方清栈」，
+C 前端生成的调用点是 `move R0 …; push R0; call …`。**压栈才是对的。**
+
+修法：在 `ForthCompiler` 内加 `EmitCallPrintString/EmitCallPrintInt`（先 `PUSH R0` 再 `CALL`，
+净栈变化 0、`stackPointer` 不动），`."` 与 `.` 两处改用它。
+
+> **根因在共享的 `CompilerBase`，JS / Rust 等前端同样漏 4 字节** —— 本补丁**没有**动它
+> （改共享基类影响面大，需要单独评估 + 更广的回归）。这一条是**已知的、未修的**。
+
+## 四、实测
+
+| | 修前 | 修后 |
+|---|---|---|
+| `corpus/forth/skel.fth` | ` SKEL-SUM=65536` | ` SKEL-SUM=14` ✅ |
+
+输出带**前导空格**是 `."` 保留了紧跟其后的那个空格（`msg_1: .string " SKEL-SUM="`），
+改前改后一致、属该前端的既有 Forth 方言行为；`corpus.tsv` 用 `expect_kind=contains`，未动。
+diff --git a/third_party/vml/VMLPrepares/ForthCompiler/CodeGenerator.Operations.cs b/third_party/vml/VMLPrepares/ForthCompiler/CodeGenerator.Operations.cs
+index f52d315a..34012bd0 100644
+--- a/third_party/vml/VMLPrepares/ForthCompiler/CodeGenerator.Operations.cs
++++ b/third_party/vml/VMLPrepares/ForthCompiler/CodeGenerator.Operations.cs
+@@ -5,6 +5,33 @@ namespace ForthCompiler
+ {
+     public partial class CodeGenerator
+     {
++        // ── 共享库输出函数调用（`print_str` / `print_int`）──────────────────────────
++        //
++        // ⚠ **实参必须自己压栈**。基类的 `EmitPrintString()` / `EmitPrintInt()` 只发一条
++        //   `CALL print_str`（注释写「R0 承载参数」），但 `Lib` 里这两个函数是 **`__stdcall`**
++        //   —— 形如 `move R13 R12; pop R12; pop R15; move R1 @13; add R13 #8; push R1; ret`，
++        //   **净效果是替调用方多弹掉 4 字节**（返回值地址 4 字节之外的那一个实参槽）。
++        //   证据：`scripts/maui-vml-verify/corpus/c/skel.c` 把它们声明成 `__stdcall` 并注明
++        //   「被调用方清栈」，而 C 前端生成的调用点就是 `move R0 …; push R0; call print_str`。
++        //
++        //   别的前端不压栈也「看着没事」，是因为它们的值都在栈帧/寄存器里；**Forth 的数据栈
++        //   就是 VML 的 R13**，多弹的 4 字节正好吃掉栈顶的累加器 —— 实测
++        //   `CREATE a 16 ALLOT  1 a !  a @ .` 里的 `@` 已经修对（＝5）之后，
++        //   只要前面加一句 `." SKEL-SUM="`，随后的 `.` 就印出 65536（栈顶被吃、pop 到了别的槽）。
++        //
++        //   压栈 + 被调用方弹掉 = 净 0，所以 `stackPointer`（Forth 深度计数）不用动。
++        private void EmitCallPrintString()
++        {
++            instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)], instructions.Count));
++            EmitPrintString();
++        }
++
++        private void EmitCallPrintInt()
++        {
++            instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)], instructions.Count));
++            EmitPrintInt();
++        }
++
+         private void GenerateIOOperation(IOOperation ioOp)
+         {
+             switch (ioOp.Operation)
+@@ -19,14 +46,14 @@ namespace ForthCompiler
+                         // 输出字符串
+                         AddInstruction(OpCode.MOVE, new List<Operand>
+                             { Reg(0), LabelOp(label) });
+-                        EmitPrintString(); // SYSCALL 1: 输出字符串
++                        EmitCallPrintString(); // print_str（__stdcall，实参由调用方压栈）
+                     }
+                     break;
+-                    
++
+                 case TokenType.DOT:
+                     // 弹出栈顶并输出整数
+                     AddInstruction(OpCode.POP, Reg(0));
+-                    EmitPrintInt(); // SYSCALL 6: 输出整数
++                    EmitCallPrintInt(); // print_int（__stdcall，实参由调用方压栈）
+                     break;
+ 
+                 case TokenType.FDOT:
+@@ -560,10 +587,14 @@ namespace ForthCompiler
+                     
+                 case TokenType.FETCH: // @ (读取)
+                     // addr @ : 弹出addr，读取addr处的值，压栈
+-                    instructions.Add(new Instruction(OpCode.POP, new List<Operand> 
++                    instructions.Add(new Instruction(OpCode.POP, new List<Operand>
+                         { new Operand(OperandType.REGISTER, 0) }, instructions.Count)); // addr
+-                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> 
+-                        { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0) }, instructions.Count));
++                    // ⚠ `MOVE R0, R0` 是**自赋值**、空操作 —— 压回栈的是**地址**而不是元素值。
++                    //   实测：`CREATE a 16 ALLOT  1 a !  a @` 得到 65536（= 0x10000，就是块地址）。
++                    //   `MOVE dest, src` 是 **dest 在前** —— 别写反（同族问题本仓库栽过多次，
++                    //   见 patches/0015-go-arrays.patch）。写入侧 `MOVE [R1], R0` 方向本来就是对的。
++                    instructions.Add(new Instruction(OpCode.MOVE, new List<Operand>
++                        { new Operand(OperandType.REGISTER, 0), Mem("R0") }, instructions.Count));
+                     instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> 
+                         { new Operand(OperandType.REGISTER, 0) }, instructions.Count));
+                     stackPointer--; // 弹出一个值，压入一个值，净减少0
+@@ -582,8 +613,9 @@ namespace ForthCompiler
+                 case TokenType.CFETCH:
+                     instructions.Add(new Instruction(OpCode.POP, new List<Operand>
+                         { new Operand(OperandType.REGISTER, 0) }, instructions.Count));
++                    // ⚠ 同 `@`：原本是 `MOVEB R0, R0`（自赋值），压回栈的是地址不是字节值。
+                     instructions.Add(new Instruction(OpCode.MOVEB, new List<Operand>
+-                        { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0) }, instructions.Count));
++                        { new Operand(OperandType.REGISTER, 0), Mem("R0") }, instructions.Count));
+                     instructions.Add(new Instruction(OpCode.PUSH, new List<Operand>
+                         { new Operand(OperandType.REGISTER, 0) }, instructions.Count));
+                     break;

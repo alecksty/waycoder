@@ -1,0 +1,208 @@
+# 0019：Python 前端 —— `a[i] = v` 整段没有代码生成（列表"读可以、写不生效"）
+
+> 族别：**「赋值目标是下标时不发存储指令」**。同一族在 Go 上已修过一次（见 `0015-go-arrays.patch`），
+> 这是第 7 例。判据都是同一句：右值算完就 `return`，一个字节都没落到元素上。
+
+## 一、`VisitAssign` —— 下标分支直接 return（`CodeGenerator.Statements_A.cs`）
+
+原形态：
+
+    if (node.TargetExpr != null)
+    {
+        node.Value.Accept(this);      // 算右值
+        Emit(PUSH, R0);
+        node.TargetExpr.Accept(this); // 求值 target（其实只做了「读」）
+        Emit(POP, R1);
+        if (target is AttributeNode && … == "self") { …存 instance_xxx… }
+        return;                       // ← a[i] = v 走到这里：**没有任何存储指令**
+    }
+
+只有 `self.attr` 那一支真的写了；下标分支静默丢弃。
+**症状**：`a = [1,2,3,4]` 之后逐元素 `a[i] = a[i] + 1`，读回来仍是原值
+⇒ 汇总 `s = 1+2+3+4 = 10`（期望 14）。设备端实测输出正是 `SKEL-SUM=10`。
+
+## 二、`VisitAugAssign` —— 同一个洞，且额外漏一个栈槽
+
+    if (node.TargetExpr != null) { …；末尾 Emit(PUSH, R0)；只有 self.attr 分支会 POP；return; }
+
+下标分支既没写回元素，**末尾压进去的 R0 也没有任何分支去弹** ⇒ 每执行一次 `a[i] += v` 漏一个栈槽。
+
+## 三、修法：读写共用一份地址计算
+
+抽出 `EmitSubscriptAddress(node, outOfBounds)`，把「取容器 → 取下标 → 负索引归一 → 边界检查 →
+`base + 4 + idx*4`」收成**唯一实现**，由调用方决定越界怎么办（读给 0、写整条跳过）。
+
+之所以要共用：本仓库头号坑是「**同一规则两处实现，只修了其中一处**」。读与写各算一遍地址，
+迟早出现「读的偏移对、写的偏移差一格」—— 而那类缺陷在游戏里表现为「棋盘画得对、落子落错位」。
+
+列表布局由 `VisitList` 定死（`SYSCALL 40` 分配）：`[长度, e0, e1, …]`，元素 i 落在 `base + 4 + i*4`。
+元素宽度 4 字节（本前端硬编码，无 MOVEB 分支）。
+
+## 四、实测
+
+`.scratch/vmlcli`（桌面版，已实测与手机端逐字等价）：
+
+| 树 | `corpus/python/skel.py` 输出 |
+|---|---|
+| vendor + 0001..0018（= 打 APK 时那棵树）| `SKEL-SUM=10` ❌ |
+| 加本补丁 | `SKEL-SUM=14` ✅ |
+
+复现语料：`scripts/maui-vml-verify/corpus/python/skel.py`。
+
+## 五、未覆盖
+
+`obj.attr = value`（**非** `self.` 的属性赋值）在原代码里同样落空 —— 本补丁**没有**动它。
+把它留着是因为没有语料背书（Python 前端的类支持本身很薄），等有复现再修，避免盲改。
+diff --git a/third_party/vml/VMLPrepares/PythonCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/PythonCompiler/CodeGenerator.Expressions.cs
+index 85e1fdf8..eec4128d 100644
+--- a/third_party/vml/VMLPrepares/PythonCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/PythonCompiler/CodeGenerator.Expressions.cs
+@@ -469,18 +469,26 @@ namespace PythonCompiler
+             }
+         }
+ 
+-        public void VisitSubscript(SubscriptNode node)
++        /// <summary>
++        /// 计算下标元素地址到 R2；越界时跳到 <paramref name="outOfBounds"/> 标签（此时 R2 无意义）。
++        ///
++        /// 读（<see cref="VisitSubscript"/>）与写（VisitAssign / VisitAugAssign 的下标分支）**共用这一份**。
++        /// 两处各算一遍地址，迟早会出现"读的偏移对、写的偏移差一格"那类缺陷 ——
++        /// 本仓已记过同族问题多次（Go 的 a[i]=v 整段没代码生成，见 patches/0015-go-arrays.patch）。
++        /// 列表布局见 <see cref="VisitList"/>：[长度, e0, e1, …]，元素 i 落在 base + 4 + i*4。
++        /// </summary>
++        private void EmitSubscriptAddress(SubscriptNode node, string outOfBounds)
+         {
+             // 获取容器（列表/字典/元组）地址
+             node.Value.Accept(this); // 容器地址在R0
+             Emit(OpCode.PUSH, new Operand(OperandType.REGISTER, 0)); // 保存容器地址
+-            
++
+             // 获取索引/键
+             node.Index.Accept(this); // 索引/键在R0
+-            
++
+             // 恢复容器地址到R1
+             Emit(OpCode.POP, new Operand(OperandType.REGISTER, 1)); // 容器地址在R1
+-            
++
+             // 检查容器类型（简化：假设所有容器都有长度字段）
+             // 加载长度
+             Emit(OpCode.MOVE, new Operand(OperandType.REGISTER, 2),
+@@ -493,13 +501,11 @@ namespace PythonCompiler
+             Emit(OpCode.ADD, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 2));
+             PlaceLabel(negSkip);
+ 
+-            // 边界检查（对于列表/元组）
+-            Emit(OpCode.CMP, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 2));
++            // 边界检查（对于列表/元组）：越界交给调用方处理 —— 读给 0，写整条跳过
+             string boundsOk = NewLabel("bounds_ok");
+-            string boundsEnd = NewLabel("bounds_end");
++            Emit(OpCode.CMP, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 2));
+             Emit(OpCode.JL, new Operand(OperandType.LABEL, boundsOk));
+-            Emit(OpCode.MOVE, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0));
+-            Emit(OpCode.JMP, new Operand(OperandType.LABEL, boundsEnd));
++            Emit(OpCode.JMP, new Operand(OperandType.LABEL, outOfBounds));
+ 
+             // 边界检查通过
+             PlaceLabel(boundsOk);
+@@ -512,13 +518,26 @@ namespace PythonCompiler
+             Emit(OpCode.MUL, new Operand(OperandType.REGISTER, 0),
+                  new Operand(OperandType.IMMEDIATE, 4)); // 索引*4
+             Emit(OpCode.ADD, new Operand(OperandType.REGISTER, 2),
+-                 new Operand(OperandType.REGISTER, 0)); // 最终地址
++                 new Operand(OperandType.REGISTER, 0)); // 最终地址在R2
++        }
++
++        public void VisitSubscript(SubscriptNode node)
++        {
++            string outOfBounds = NewLabel("sub_oob");
++            string done = NewLabel("sub_done");
++
++            EmitSubscriptAddress(node, outOfBounds);
+ 
+             // 加载元素值
+             Emit(OpCode.MOVE, new Operand(OperandType.REGISTER, 0),
+                  new Operand(OperandType.MEMORY, "0(R2)"));
++            Emit(OpCode.JMP, new Operand(OperandType.LABEL, done));
++
++            // 越界：沿用原语义 —— 读回 0（不抛异常）
++            PlaceLabel(outOfBounds);
++            Emit(OpCode.MOVE, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0));
+ 
+-            PlaceLabel(boundsEnd);
++            PlaceLabel(done);
+         }
+ 
+         public void VisitName(NameNode node)
+diff --git a/third_party/vml/VMLPrepares/PythonCompiler/CodeGenerator.Statements_A.cs b/third_party/vml/VMLPrepares/PythonCompiler/CodeGenerator.Statements_A.cs
+index 73b39351..b0610f4c 100644
+--- a/third_party/vml/VMLPrepares/PythonCompiler/CodeGenerator.Statements_A.cs
++++ b/third_party/vml/VMLPrepares/PythonCompiler/CodeGenerator.Statements_A.cs
+@@ -496,9 +496,32 @@ namespace PythonCompiler
+                 return;
+             }
+ 
+-            // 属性/下标赋值: obj.attr = value
++            // 属性/下标赋值: obj.attr = value / container[index] = value
+             if (node.TargetExpr != null)
+             {
++                // 下标赋值：a[i] = v
++                // 此前这里**整段没有存储指令** —— 右值算完就 return，一个字节都没写进去，
++                // 症状正是"列表读可以、写不生效"（a[i]=v 之后读回来还是旧值）。
++                // 地址计算与读取共用 EmitSubscriptAddress，避免读写两处偏移各算一遍。
++                if (node.TargetExpr is SubscriptNode subTarget)
++                {
++                    string subOob = NewLabel("sub_store_oob");
++
++                    // 先算地址：越界就整条跳过（不写、也不求值 —— 越界赋值本就是错误路径）
++                    EmitSubscriptAddress(subTarget, subOob);
++                    Emit(OpCode.PUSH, new Operand(OperandType.REGISTER, 2)); // 保存元素地址
++
++                    node.Value.Accept(this); // R0 = value（求值会冲掉 R2，故地址先入栈）
++
++                    Emit(OpCode.POP, new Operand(OperandType.REGISTER, 2));  // R2 = 元素地址
++                    Emit(OpCode.MOVE, new Operand(OperandType.MEMORY, "0(R2)"),
++                         new Operand(OperandType.REGISTER, 0));              // 存入元素
++
++                    // 越界直接落到这里：跳过存储（栈是平的 —— PUSH 在那句之后才执行）
++                    PlaceLabel(subOob);
++                    return;
++                }
++
+                 node.Value.Accept(this);  // R0 = value
+                 Emit(OpCode.PUSH, new Operand(OperandType.REGISTER, 0));
+                 node.TargetExpr.Accept(this);  // evaluate target (pushes address?)
+@@ -548,6 +571,33 @@ namespace PythonCompiler
+             // 属性/下标增强赋值
+             if (node.TargetExpr != null)
+             {
++                // 下标增强赋值：a[i] += v —— 与 VisitAssign 同一个洞（算完就丢）。
++                // 另：原路径落不到任何存储分支时，末尾压进去的 R0 **没人弹** ⇒ 每执行一次漏一个栈槽。
++                if (node.TargetExpr is SubscriptNode augSub)
++                {
++                    string augOob = NewLabel("sub_aug_oob");
++
++                    EmitSubscriptAddress(augSub, augOob);                     // R2 = 元素地址
++                    Emit(OpCode.PUSH, new Operand(OperandType.REGISTER, 2));  // 保存地址
++                    Emit(OpCode.MOVE, new Operand(OperandType.REGISTER, 0),
++                         new Operand(OperandType.MEMORY, "0(R2)"));           // R0 = 当前值
++                    Emit(OpCode.PUSH, new Operand(OperandType.REGISTER, 0));
++
++                    node.Value.Accept(this);                                  // R0 = 右值
++
++                    Emit(OpCode.POP, new Operand(OperandType.REGISTER, 1));   // R1 = 当前值
++                    OpCode augArithOp = GetArithmeticInstruction(node.Op.Replace("=", ""), PythonType.Int);
++                    Emit(augArithOp, new Operand(OperandType.REGISTER, 0),
++                         new Operand(OperandType.REGISTER, 1),
++                         new Operand(OperandType.REGISTER, 0));               // R0 = 当前值 op 右值
++                    Emit(OpCode.POP, new Operand(OperandType.REGISTER, 2));   // R2 = 元素地址
++                    Emit(OpCode.MOVE, new Operand(OperandType.MEMORY, "0(R2)"),
++                         new Operand(OperandType.REGISTER, 0));               // 写回元素
++
++                    PlaceLabel(augOob);
++                    return;
++                }
++
+                 node.TargetExpr.Accept(this);  // R0 = current value
+                 Emit(OpCode.PUSH, new Operand(OperandType.REGISTER, 0));
+                 node.Value.Accept(this);       // R0 = right value

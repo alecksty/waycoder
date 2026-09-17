@@ -88,16 +88,25 @@ public partial class CodeGenerator
         return nextStackOffset;
     }
 
+    /// <summary>
+    /// 一个名字要在栈上占多少字节：数组要留 **N × 元素大小**
+    /// （`integer :: a(4)` = 16 字节；只留 4 字节的话 `a(2)` 就踩到紧邻的下一个变量）。
+    /// </summary>
+    private int GetVarByteSize(string key, FortranType ft)
+    {
+        int elemSize = GetTypeInfo(ft).byteSize;
+        return _arraySizes.TryGetValue(key, out int count) ? elemSize * count : elemSize;
+    }
+
     private void GenerateVarDecl(VarDeclNode node)
     {
         FortranType ft = MapTypeName(node.TypeName);
-        int byteSize = GetTypeInfo(ft).byteSize;
         foreach (var name in node.Names)
         {
             string key = name.ToLowerInvariant();
             _varTypes[key] = ft;
             if (!symbolTable.ContainsKey(key))
-                AllocStackSlot(key, byteSize);
+                AllocStackSlot(key, GetVarByteSize(key, ft));
         }
     }
 
@@ -131,14 +140,13 @@ public partial class CodeGenerator
                 if (s is VarDeclNode vd)
                 {
                     FortranType ft = MapTypeName(vd.TypeName);
-                    int byteSize = GetTypeInfo(ft).byteSize;
                     foreach (var name in vd.Names)
                     {
                         string key = name.ToLowerInvariant();
                         _varTypes[key] = ft;
                         if (!symbolTable.ContainsKey(key))
                         {
-                            nextStackOffset += byteSize;
+                            nextStackOffset += GetVarByteSize(key, ft);
                             symbolTable[key] = nextStackOffset;
                         }
                     }
@@ -188,8 +196,10 @@ public partial class CodeGenerator
         int localSlot = 4; // start at R12-4
         FortranType retType = MapTypeName(node.ReturnType);
 
-        // Allocate space for return value (function name) below BP
-        string fkey = node.Name.ToLowerInvariant();
+        // Allocate space for the return value below BP.
+        // ⚠ 用 ResultVar（有 `result(r)` 子句时是 r，否则就是函数名），**不是** node.Name ——
+        // 函数体里写的是 `r = …`，槽必须挂在 r 上；而标签挂在 node.Name 上（func_<被调用的名字>）。
+        string fkey = node.ResultVar.ToLowerInvariant();
         symbolTable[fkey] = localSlot; // MemOff(4) → R12-4
         _varTypes[fkey] = retType;
         localSlot += 4;
@@ -212,7 +222,6 @@ public partial class CodeGenerator
                 if (s is VarDeclNode vd)
                 {
                     FortranType ft = MapTypeName(vd.TypeName);
-                    int byteSize = GetTypeInfo(ft).byteSize;
                     foreach (var name in vd.Names)
                     {
                         string key = name.ToLowerInvariant();
@@ -220,7 +229,7 @@ public partial class CodeGenerator
                         if (!symbolTable.ContainsKey(key))
                         {
                             symbolTable[key] = localSlot;
-                            localSlot += byteSize;
+                            localSlot += GetVarByteSize(key, ft);
                         }
                     }
                 }
@@ -235,8 +244,8 @@ public partial class CodeGenerator
         foreach (var stmt in node.Body)
             GenerateStatement(stmt);
 
-        // Load return value into R0
-        EmitLoadVar(node.Name);
+        // Load return value into R0（同上：取的是 ResultVar 那个槽）
+        EmitLoadVar(node.ResultVar);
 
         // Function epilogue
         EmitEpilogue(); // 含 RET
@@ -416,26 +425,20 @@ public partial class CodeGenerator
         // 数组元素赋值: a(i) = expr
         if (node.ArrayIndices != null && node.ArrayIndices.Count > 0)
         {
-            string key = node.Name.ToLowerInvariant();
             // 保存值到栈
             GenerateExpression(node.Value);
             instructions.Add(new Instruction(OpCode.PUSH,
                 new List<Operand> { new Operand(OperandType.REGISTER, 0) }, instructions.Count));
-            // 计算数组基地址到 R1
-            if (symbolTable.TryGetValue(key, out int offset))
-                instructions.Add(new Instruction(OpCode.MOVE,
-                    new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, $"R12+{offset}") },
-                    instructions.Count));
-            else
-                instructions.Add(new Instruction(OpCode.MOVE,
-                    new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.LABEL, $"var_{key}") },
-                    instructions.Count));
             // 计算索引偏移 (Fortran 1-based: index-1, 乘以4字节)
+            // ⚠ 下标必须先算：它求值时要用 R0/R1，先算基地址会被它冲掉
             GenerateExpression(node.ArrayIndices[0]);
             AddRI(OpCode.SUB, 0, 1);
             AddRI(OpCode.MUL, 0, 4);
+            // R1 = 数组基地址 + 偏移（基地址统一由 EmitArrayBaseAddress 给出，
+            // 原先这里写死 `R12+offset` —— 相对帧指针方向反了，写进的是调用方的帧）
+            EmitArrayBaseAddress(node.Name, 1);
             instructions.Add(new Instruction(OpCode.ADD,
-                new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) },
+                new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) },
                 instructions.Count));
             // 恢复R0值并存储到计算地址
             instructions.Add(new Instruction(OpCode.POP,
@@ -453,7 +456,7 @@ public partial class CodeGenerator
     private void GenerateArrayAssign(ArrayAssignNode node)
     {
         string idxVar = $"__i_{node.Target}";
-        int n = _arraySizes.TryGetValue(node.Target, out int size) ? size : 10;
+        int n = _arraySizes.TryGetValue(node.Target.ToLowerInvariant(), out int size) ? size : 10;
 
         // do idxVar = 1, n
         string loopStart = NewLabel($"__arr_{node.Target}");

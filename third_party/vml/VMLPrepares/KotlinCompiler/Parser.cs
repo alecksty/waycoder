@@ -385,6 +385,11 @@ public class Parser : ParserBase<Token, TokenType>
         return r;
     }
 
+    /// <summary>赋值运算符集合（`=` / `+=` / `-=` / `*=` / `/=` / `%=`）的唯一判据。</summary>
+    static bool IsAssignOp(TokenType t) =>
+        t is TokenType.ASSIGN or TokenType.PLUS_ASSIGN or TokenType.MINUS_ASSIGN
+          or TokenType.STAR_ASSIGN or TokenType.SLASH_ASSIGN or TokenType.PERCENT_ASSIGN;
+
     ASTNode ParseExprStmt() {
         var expr = ParseExpr();
         if (GetTokenType(Cur) == TokenType.SEMICOLON) Advance();
@@ -591,7 +596,7 @@ public class Parser : ParserBase<Token, TokenType>
                     }
                 }
                 // Check for assignment after member access: p.x = 5
-                if (GetTokenType(Cur) == TokenType.ASSIGN || GetTokenType(Cur) == TokenType.PLUS_ASSIGN || GetTokenType(Cur) == TokenType.MINUS_ASSIGN || GetTokenType(Cur) == TokenType.STAR_ASSIGN || GetTokenType(Cur) == TokenType.SLASH_ASSIGN || GetTokenType(Cur) == TokenType.PERCENT_ASSIGN) {
+                if (IsAssignOp(GetTokenType(Cur))) {
                     string op = Advance().Value;
                     return new AssignStmt(name, ParseExpr(), op, result);
                 }
@@ -602,7 +607,7 @@ public class Parser : ParserBase<Token, TokenType>
                 string member = Expect(TokenType.IDENTIFIER, "Expected member name").Value;
                 return new SafeCallExpr(new VarRef(name), member);
             }
-            if (GetTokenType(Cur) == TokenType.ASSIGN || GetTokenType(Cur) == TokenType.PLUS_ASSIGN || GetTokenType(Cur) == TokenType.MINUS_ASSIGN || GetTokenType(Cur) == TokenType.STAR_ASSIGN || GetTokenType(Cur) == TokenType.SLASH_ASSIGN || GetTokenType(Cur) == TokenType.PERCENT_ASSIGN) {
+            if (IsAssignOp(GetTokenType(Cur))) {
                 string op = Advance().Value;
                 return new AssignStmt(name, ParseExpr(), op);
             }
@@ -611,7 +616,16 @@ public class Parser : ParserBase<Token, TokenType>
                 Advance(); // [
                 var idx = ParseExpr();
                 Expect(TokenType.RBRACKET, "Expected ']'");
-                return new IndexExpr(new VarRef(name), idx);
+                ASTNode indexTarget = new IndexExpr(new VarRef(name), idx);
+                // ⚠ 下标赋值：`a[i] = v` / `a[i] += v`。原来这里直接 `return indexTarget`，
+                //   后面那个 `=` 没人接 ⇒ ParseExprStmt 完事后撞上 ASSIGN，
+                //   报 "Unexpected token: ASSIGN '='"（整份文件解析失败）。
+                //   与上面成员访问 `p.x = v` 的收尾（:594）是同一件事，条件也照抄。
+                if (IsAssignOp(GetTokenType(Cur))) {
+                    string aop = Advance().Value;
+                    return new AssignStmt(name, ParseExpr(), aop, indexTarget);
+                }
+                return indexTarget;
             }
             return new VarRef(name);
         }

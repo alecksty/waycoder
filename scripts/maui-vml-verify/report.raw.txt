@@ -1,18 +1,43 @@
 ======================================================================
 ### skel-c  [PASS]  vml run vmlverify/c/skel.c
 
-======================================================================
-### skel-cpp  [COMPILE_FAIL]  vml run vmlverify/cpp/skel.cpp
+~> vml run vmlverify/c/skel.c
+⏳ 正在编译 skel.c（前端编译 + 链接标准库，手机上要一两分钟）…
+SKEL-SUM=14
 
+~>
+======================================================================
+### skel-cpp  [PASS]  vml run vmlverify/cpp/skel.cpp
+
+~> vml run vmlverify/cpp/skel.cpp
+⏳ 正在编译 skel.cpp（前端编译 + 链接标准库，手机上要一两分钟）…
+SKEL-SUM=14
+
+~>
 ======================================================================
 ### skel-csharp  [PASS]  vml run vmlverify/csharp/skel.cs
 
+~> vml run vmlverify/csharp/skel.cs
+⏳ 正在编译 skel.cs（前端编译 + 链接标准库，手机上要一两分钟）…
+SKEL-SUM=14
+
+~>
 ======================================================================
 ### skel-go  [PASS]  vml run vmlverify/go/skel.go
 
-======================================================================
-### skel-swift  [TIMEOUT]  vml run vmlverify/swift/skel.swift
+~> vml run vmlverify/go/skel.go
+⏳ 正在编译 skel.go（前端编译 + 链接标准库，手机上要一两分钟）…
+SKEL-SUM=14
 
+~>
+======================================================================
+### skel-swift  [PASS]  vml run vmlverify/swift/skel.swift
+
+~> vml run vmlverify/swift/skel.swift
+⏳ 正在编译 skel.swift（前端编译 + 链接标准库，手机上要一两分钟）…
+SKEL-SUM=14
+
+~>
 ======================================================================
 ### skel-pascal  [PASS]  vml run vmlverify/pascal/skel.pas
 
@@ -22,19 +47,19 @@ SKEL-SUM=14
 
 ~>
 ======================================================================
-### skel-python  [OUTPUT_MISMATCH]  vml run vmlverify/python/skel.py
+### skel-python  [PASS]  vml run vmlverify/python/skel.py
 
 ~> vml run vmlverify/python/skel.py
 ⏳ 正在编译 skel.py（前端编译 + 链接标准库，手机上要一两分钟）…
-SKEL-SUM=10
+SKEL-SUM=14
 
 ~>
 ======================================================================
-### skel-java  [OUTPUT_MISMATCH]  vml run vmlverify/java/skel.java
+### skel-java  [PASS]  vml run vmlverify/java/skel.java
 
 ~> vml run vmlverify/java/skel.java
 ⏳ 正在编译 skel.java（前端编译 + 链接标准库，手机上要一两分钟）…
-SKEL-SUM=0
+SKEL-SUM=14
 
 ~>
 ======================================================================
@@ -46,41 +71,45 @@ SKEL-SUM=14
 
 ~>
 ======================================================================
-### skel-kotlin  [COMPILE_FAIL]  vml run vmlverify/kotlin/skel.kt
+### skel-kotlin  [PASS]  vml run vmlverify/kotlin/skel.kt
 
 ~> vml run vmlverify/kotlin/skel.kt
 ⏳ 正在编译 skel.kt（前端编译 + 链接标准库，手机上要一两分钟）…
-⚠️ 编译失败：/storage/emulated/0/waycoder/workspace/vmlverify/kotlin/skel.kt: error: Unexpected token: ASSIGN '=' at 22:14
+SKEL-SUM=14
 
 ~>
 ======================================================================
-### skel-ruby  [COMPILE_FAIL]  vml run vmlverify/ruby/skel.rb
+### skel-ruby  [PASS]  vml run vmlverify/ruby/skel.rb
 
 ~> vml run vmlverify/ruby/skel.rb
 ⏳ 正在编译 skel.rb（前端编译 + 链接标准库，手机上要一两分钟）…
-⚠️ 编译失败：/storage/emulated/0/waycoder/workspace/vmlverify/ruby/skel.rb: error: Ruby parse error: expected ) (got LBracket)
+SKEL-SUM=14
 
 ~>
 ======================================================================
-### skel-rust  [COMPILE_FAIL]  vml run vmlverify/rust/skel.rs
+### skel-rust  [PASS]  vml run vmlverify/rust/skel.rs
 
 ~> vml run vmlverify/rust/skel.rs
 ⏳ 正在编译 skel.rs（前端编译 + 链接标准库，手机上要一两分钟）…
-⚠️ 编译失败：/storage/emulated/0/waycoder/workspace/vmlverify/rust/skel.rs: error: 期望 ';'
+SKEL-SUM=14
 
 ~>
 ======================================================================
-### skel-lua  [OUTPUT_MISMATCH]  vml run vmlverify/lua/skel.lua
+### skel-lua  [PASS]  vml run vmlverify/lua/skel.lua
 
 ~> vml run vmlverify/lua/skel.lua
 ⏳ 正在编译 skel.lua（前端编译 + 链接标准库，手机上要一两分钟）…
-SKEL-SUM=0
+SKEL-SUM=14
 
 ~>
 ======================================================================
-### skel-dart  [TIMEOUT]  vml run vmlverify/dart/skel.dart
-WayCoder 命令行
-输入 shell 命令后按「运行」（或回车）。`cd` 会改变下面的工作目录。
+### skel-dart  [PASS]  vml run vmlverify/dart/skel.dart
+
+~> vml run vmlverify/dart/skel.dart
+⏳ 正在编译 skel.dart（前端编译 + 链接标准库，手机上要一两分钟）…
+SKEL-SUM=14
+
+~>
 ======================================================================
 ### skel-objc  [PASS]  vml run vmlverify/objc/skel.m
 
@@ -90,15 +119,58 @@ SKEL-SUM=14
 
 ~>
 ======================================================================
-### skel-r  [OUTPUT_MISMATCH]  vml run vmlverify/r/skel.r
+### skel-r  [PASS]  vml run vmlverify/r/skel.r
 
 ~> vml run vmlverify/r/skel.r
 ⏳ 正在编译 skel.r（前端编译 + 链接标准库，手机上要一两分钟）…
-内存错误(PC=00000047): MOVE R0, @1 — 内存访问越界：地址=FFFFFFFC, 大小=4
-R0=FFFFFFFC  R1=FFFFFFFC  R2=00000000  R3=00000000
-R4=00000000  R5=00000000  R6=00000000  R7=00000000
-R8=00000000  R9=00000000  R10=00000000 R11=00000000
-R12(BP)=0000FFF8 R13(SP)=0000FFF8 R14(LR)=00010000 R15(RA)=00000000
-ZF=False SF=True CF=False  PC=00000047  SP=0000FFF8
+SKEL-SUM=14
+
+~>
+======================================================================
+### skel-scheme  [PASS]  vml run vmlverify/scheme/skel.scm
+
+~> vml run vmlverify/scheme/skel.scm
+⏳ 正在编译 skel.scm（前端编译 + 链接标准库，手机上要一两分钟）…
+SKEL-SUM=14
+
+~>
+======================================================================
+### skel-forth  [PASS]  vml run vmlverify/forth/skel.fth
+
+~> vml run vmlverify/forth/skel.fth
+⏳ 正在编译 skel.fth（前端编译 + 链接标准库，手机上要一两分钟）…
+ SKEL-SUM=14
+
+~>
+======================================================================
+### skel-fortran  [PASS]  vml run vmlverify/fortran/skel.f90
+
+~> vml run vmlverify/fortran/skel.f90
+⏳ 正在编译 skel.f90（前端编译 + 链接标准库，手机上要一两分钟）…
+SKEL-SUM=14
+
+~>
+======================================================================
+### skel-basic  [PASS]  vml run vmlverify/basic/skel.bas
+
+~> vml run vmlverify/basic/skel.bas
+⏳ 正在编译 skel.bas（前端编译 + 链接标准库，手机上要一两分钟）…
+SKEL-SUM=14
+
+~>
+======================================================================
+### skel-ladder  [PASS]  vml run vmlverify/ladder/skel.ld
+
+~> vml run vmlverify/ladder/skel.ld
+⏳ 正在编译 skel.ld（前端编译 + 链接标准库，手机上要一两分钟）…
+SKEL-SUM=14
+
+~>
+======================================================================
+### skel-d  [PASS]  vml run vmlverify/d/skel.d
+
+~> vml run vmlverify/d/skel.d
+⏳ 正在编译 skel.d（前端编译 + 链接标准库，手机上要一两分钟）…
+SKEL-SUM=14
 
 ~>

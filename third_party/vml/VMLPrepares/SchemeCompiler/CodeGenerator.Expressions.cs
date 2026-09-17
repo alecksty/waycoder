@@ -496,11 +496,14 @@ public partial class CodeGenerator {
                 EmitAlloc(vecLen * 4 + 4);
                 AddInstruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]); // save vec addr
                 AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, vecLen)]);
-                AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R0")]); // vec[0] = len
+                // ⚠ `MOVE dest, src` **dest 在前**。原来写成 `MOVE R1, [R0]`（**读**），
+                //   长度没写进去且把 R1 冲成垃圾；元素那两句同病（`MOVE R0, [R1+n]` 也是读），
+                //   ⇒ `(vector 1 2 3 4)` 建出来的块**一个元素都没写**，全是未初始化堆内存。
+                AddInstruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, "R0"), new Operand(OperandType.REGISTER, 1)]); // vec[0] = len
                 for (int vi = 1; vi < l.Items.Count; vi++) {
                     GenExpr(l.Items[vi]);
                     AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R13")]); // vec addr
-                    AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R1+{vi * 4}")]);
+                    AddInstruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R1+{vi * 4}"), new Operand(OperandType.REGISTER, 0)]); // vec[vi] = 元素值
                 }
                 AddInstruction(OpCode.POP, [new Operand(OperandType.REGISTER, 0)]); // vec addr in R0
             } else if (sFirst.Name == "unless" && l.Items.Count >= 3) {
@@ -577,14 +580,23 @@ public partial class CodeGenerator {
                 AddInstruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0)]);
                 AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0+4")]);
             } else if (sFirst.Name == "vector-set!" && l.Items.Count >= 4) {
+                // ⚠ 两处都错（`vector-ref` 那句方向本来是对的，可作对照）：
+                //   ① `MOVE dest, src` **dest 在前** —— 原来是 `MOVE R0, [R1+4]`（**读**），
+                //      `vector-set!` 整个成了空操作，元素一个都写不进去。
+                //   ② **不能指望 R1 活过右值求值**：`(vector-set! a i (inc …))` 里的 `inc`
+                //      是函数调用，它算 `(+ x 1)` 就会用掉 R1（实测调用返回后 R1 == 1）
+                //      ⇒ 若直接写 `MOVE [R1+4], R0`，会往地址 5 写。
+                //   所以先把**右值压栈**，算完地址再取回来（右值在 R0，地址在 R1，最后落笔）。
+                GenExpr(l.Items[3]);                                                 // R0 = 右值
+                AddInstruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]); // 存右值
                 GenExpr(l.Items[1]); // vec
                 AddInstruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]);
                 GenExpr(l.Items[2]); // index
                 AddInstruction(OpCode.MUL, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 4)]);
                 AddInstruction(OpCode.POP, [new Operand(OperandType.REGISTER, 1)]); // vec addr
                 AddInstruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0)]); // R1 = vec + idx*4
-                GenExpr(l.Items[3]); // value
-                AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1+4")]);
+                AddInstruction(OpCode.POP, [new Operand(OperandType.REGISTER, 0)]); // R0 = 右值
+                AddInstruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, "R1+4"), new Operand(OperandType.REGISTER, 0)]); // vec[idx] = 右值
             } else if (sFirst.Name == "vector-length" && l.Items.Count >= 2) {
                 GenExpr(l.Items[1]); // vec
                 AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R0")]); // vec[0] = length

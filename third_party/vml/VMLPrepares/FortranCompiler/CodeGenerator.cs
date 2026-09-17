@@ -166,6 +166,8 @@ public partial class CodeGenerator : TypedCodeGen<FortranType>
             _ => ExpType.I32
         },
         VarNode vn => ToExpType(_varTypes.TryGetValue(vn.Name.ToLowerInvariant(), out var t) ? t : FortranType.Integer),
+        // 数组元素 a(i) 的表达式类型 = 该数组的元素类型
+        ArrayElemNode ae => ToExpType(_varTypes.TryGetValue(ae.Name.ToLowerInvariant(), out var et) ? et : FortranType.Integer),
         BinaryNode bn => ExpressionManager.WidenType(GetExprType(bn.Left), GetExprType(bn.Right)),
         UnaryNode un => GetExprType(un.Operand),
         FuncCallNode fc => fc.Name.ToLowerInvariant() switch

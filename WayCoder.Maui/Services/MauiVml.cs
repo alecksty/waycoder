@@ -5,8 +5,6 @@ using VMLAssembler;
 using VMLPlugins;
 using VMLPlugins.Interfaces;
 using VMLRuntime;
-using VMLTool;
-using VMLTool.StaticLink;
 using WayCoder.Tools;
 
 namespace WayCoder.Maui.Services;
@@ -133,14 +131,19 @@ HALT
         try
         {
             var pm = new PluginManager { Quiet = true };
-            StaticLinkInitializer.RegisterAll(pm);
+            VmlFrontendCompilers.RegisterAll(pm);
             foreach (var compiler in pm.GetAllFrontendCompilers())
                 foreach (var ext in compiler.SupportedExtensions.Split(',', StringSplitOptions.RemoveEmptyEntries))
                     if (ext.Trim().Length > 0) set.Add(ext.Trim().ToLowerInvariant());
         }
-        catch
+        catch (Exception ex) when (ex is not VmlCompilerListDriftException)
         {
             // 注册失败不该把文件页带崩：退化成"一门语言都不认"，只是少一个「VML 编译」入口
+            //
+            // ⚠ 但**清单漂移不在此列**（所以上面那条 when 把 DriftException 排除掉）：
+            //    那是我们自己代码里的不一致，吞掉就成了「护栏看着在、其实不拦」——
+            //    症状还会退化成「文件页上某个语言莫名不能用」，正是这份清单要防的那件事。
+            //    注册失败是环境问题，可以退化；清单不一致是 bug，必须炸出来。
         }
         return set;
     }
@@ -295,9 +298,15 @@ HALT
             return (null, "", "⚠️ VML 标准库（Lib/）解压失败 —— 没有它就编不了高级语言（链接阶段会找不到 stdlib）。");
 
         // 静态注册 22 个前端编译器，**绕开 PluginManager 的 Assembly.LoadFrom 反射路径**
-        // （那条路在 MAUI 的裁剪/AOT 下不可靠，上游自己也在 StaticLink 模式里绕开了它）
+        // （那条路在 MAUI 的裁剪/AOT 下不可靠，上游自己也在 StaticLink 模式里绕开了它）。
+        //
+        // 这份注册是**本地副本**（`VmlFrontendCompilers`，抄自上游 StaticLinkInitializer 的
+        // 前端那半截）：上游那版连 18 个后端翻译器一起注册，而翻译器来自 VMLTranslators
+        // （+ VMLToHex）—— 裸机/单片机的输出后端，手机端用不到，正是从包里去掉了那 ~460 KB。
+        // 后端一个都不注册 ⇒ `PluginManager.BackendTranslatorCount` 恒为 0，而我们这条链
+        // （编译 → 汇编 → 链接 → 运行）从来不查后端翻译器，上游 CLI 的「导出」动作才是它的用户。
         var pm = new PluginManager();
-        StaticLinkInitializer.RegisterAll(pm);
+        VmlFrontendCompilers.RegisterAll(pm);
 
         // 扩展名派发用上游现成的 —— 自己遍历 SupportedExtensions 就是第二份实现
         var compiler = pm.GetCompilerByFileName(Path.GetFileName(filePath));
@@ -337,12 +346,12 @@ HALT
         // `ResolveLibs` 读 `vmltool.config.xml` 的 `DefaultLibs`（= `builtins.vml`，**所有语言**
         // 都有）+ 该语言的 `<Language Libs="...">`（C 是 `crt.vml`）。这份 XML 随库一起解压，
         // 与 `Lib/` 同源，改了配置不用改我们的代码。
-        VmlToolConfig? toolConfig = null;
-        try { toolConfig = VmlToolConfig.Load(Path.Combine(libRoot, "vmltool.config.xml")); }
-        catch { /* 配置读不了就退回空库清单，下面自检会把它亮出来 */ }
+        // （读 XML 那份是 `VmlLibConfig`，上游 `VmlToolConfig` 的精简本地副本 —— 原类 340 行里
+        //   绝大部分是 CLI 的东西，且依赖一堆 VMLTool Exe 侧的类型，手机端只用得到这两件事。）
+        var libConfig = VmlLibConfig.Load(Path.Combine(libRoot, "vmltool.config.xml"));
 
         var includePaths = new[] { Path.Combine(libRoot, "Lib") }.Where(Directory.Exists).ToList();
-        var libraryPaths = toolConfig?.ResolveLibs(lang, libRoot) ?? [];
+        var libraryPaths = libConfig?.ResolveLibs(lang, libRoot) ?? [];
 
         // `LinkLibraries` 第一行就是 `if (libraryPaths.Count == 0) return mainProgram;` ——
         // 空清单等于**静默不链接**。所以库清单为空必须当失败处理，不能让用户拿到一个

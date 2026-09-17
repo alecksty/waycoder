@@ -1421,8 +1421,34 @@ namespace LadderCompiler
                 return ParseStFor();
             if (GetTokenType(Cur) == TokenType.Identifier)
             {
+                int idLine = Cur.Line, idCol = Cur.Column;
                 var name = Advance().Value;
                 SkipWhitespaceAndComments();
+
+                // 下标左值: a[i] := expr —— 此前没有这个分支，读完 `a` 撞上 `[` 就落进
+                // 下面的「跳过无法识别的语句」，整条语句**静默消失**（不报错、不生成代码）。
+                if (GetTokenType(Cur) == TokenType.LeftBracket)
+                {
+                    ExpressionNode target = new IdentifierNode { Name = name, Line = idLine, Column = idCol };
+                    while (GetTokenType(Cur) == TokenType.LeftBracket)
+                    {
+                        Advance(); // [
+                        SkipWhitespaceAndComments();
+                        var index = ParseExpression();
+                        SkipWhitespaceAndComments();
+                        Expect(TokenType.RightBracket, "期望 ]");
+                        SkipWhitespaceAndComments();
+                        target = new ArrayAccessNode { Target = target, Index = index, Line = idLine, Column = idCol };
+                    }
+                    if (Match(TokenType.Assignment))
+                    {
+                        SkipWhitespaceAndComments();
+                        var rhs = ParseExpression();
+                        Match(TokenType.Semicolon);
+                        return new IndexAssignmentNode { Target = target, Value = rhs, Line = idLine, Column = idCol };
+                    }
+                }
+
                 if (Match(TokenType.Assignment))
                 {
                     SkipWhitespaceAndComments();

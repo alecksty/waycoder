@@ -15,6 +15,20 @@ public class Parser : ParserBase<Token, TokenType>
 
     private ProgramNode _program = null!;
 
+    /// <summary>
+    /// 本文件里出现过的函数/子程序名（小写）。只用来消歧：`x(i)` 到底是数组元素
+    /// 还是函数调用 —— 名字声明成数组**且**没被声明成例程，才按数组元素编。
+    /// 少了后半条，一个「数组名恰好与某个 contained 函数同名」的文件会被静默编错。
+    /// </summary>
+    private readonly HashSet<string> _declaredRoutines = new();
+
+    /// <summary>`name(i)` 是否应按数组元素处理（见 <see cref="_declaredRoutines"/>）。</summary>
+    private bool IsDeclaredArray(string name)
+    {
+        string key = name.ToLowerInvariant();
+        return _program.ArraySizes.ContainsKey(key) && !_declaredRoutines.Contains(key);
+    }
+
     public Parser(List<Token> tokens) : base(tokens) { }
 
     public ProgramNode Parse()
@@ -139,6 +153,7 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         string name = Expect(TokenType.Identifier, "expected subroutine name").Value;
+        _declaredRoutines.Add(name.ToLowerInvariant());
         var parms = ParseParameterList();
         SkipNewlines();
         var body = new List<ASTNode>();
@@ -166,16 +181,17 @@ public class Parser : ParserBase<Token, TokenType>
                 Advance();
         }
         string name = Expect(TokenType.Identifier, "expected function name").Value;
+        // 记的是**被调用的那个名字** —— `name` 全程不再被改写成 result 变量名
+        _declaredRoutines.Add(name.ToLowerInvariant());
         var parms = ParseParameterList();
 
-        // result(resultVar) clause — "result" is tokenized as Identifier
+        // result(resultVar) 子句 —— "result" 被词法器当普通标识符
+        string resultVar = name; // 没有 result 子句时返回值就存在函数名里（`f = expr`）
         if (Check(TokenType.Identifier) && Cur.Value.Equals("result", System.StringComparison.OrdinalIgnoreCase))
         {
             Advance(); // consume "result"
             Expect(TokenType.LParen, "expected ( after result");
-            // Use the result variable name as the function effective name
-            string resultName = Expect(TokenType.Identifier, "expected result name").Value;
-            name = resultName;
+            resultVar = Expect(TokenType.Identifier, "expected result name").Value;
             Expect(TokenType.RParen, "expected )");
         }
 
@@ -183,7 +199,7 @@ public class Parser : ParserBase<Token, TokenType>
 
         // Check for return type declaration before body
         // "integer :: function_name" or "real :: function_name"
-        returnType = ParseReturnTypeFromDecl(returnType, name);
+        returnType = ParseReturnTypeFromDecl(returnType, resultVar);
 
         var body = new List<ASTNode>();
         while (!Check(TokenType.End) && !Check(TokenType.EOF))
@@ -194,7 +210,7 @@ public class Parser : ParserBase<Token, TokenType>
         }
         Expect(TokenType.End, "expected 'end' for function");
         if (Match(TokenType.Function)) Match(TokenType.Identifier); // optional name
-        return new FunctionNode(name, returnType, parms, body, l, c);
+        return new FunctionNode(name, returnType, parms, body, l, c) { ResultVar = resultVar };
     }
 
     /// <summary>
@@ -396,8 +412,10 @@ public class Parser : ParserBase<Token, TokenType>
                 // Extract array size from dimension expression
                 if (Check(TokenType.IntLiteral))
                 {
+                    // 键统一小写 —— 代码生成侧（EmitArrayBaseAddress / GenerateArrayAssign）
+                    // 一律按小写查，大写声明（`integer :: A(4)`）否则查不到、数组退化成标量。
                     if (int.TryParse(Cur.Value, out int arrSize) && arrSize > 0)
-                        _program.ArraySizes[name] = arrSize;
+                        _program.ArraySizes[name.ToLowerInvariant()] = arrSize;
                 }
                 // Consume the rest of the dimension expression
                 int depth = 1;
@@ -817,6 +835,12 @@ public class Parser : ParserBase<Token, TokenType>
                 }
                 if (isArraySection)
                     return new ArraySectionNode(name, args.Count > 0 ? args[0] : null, null, l, c);
+                // 数组标量元素读 `a(i)`：前端原先一律当函数调用，编出 `CALL func_a`
+                // —— 链接期「未找到标签: func_a」、运行期 KeyNotFound（Examples/fortran/sorting
+                // 的 `arr(j)` 就是这么坏的）。Fortran 没有 C 那样的「调用才加括号」线索，
+                // 判据只能是「这个名字声明成了数组」。
+                if (args.Count == 1 && IsDeclaredArray(name))
+                    return new ArrayElemNode(name, args[0], l, c);
                 return new FuncCallNode(name, args, l, c);
             }
             // Assignment detection: name = expr

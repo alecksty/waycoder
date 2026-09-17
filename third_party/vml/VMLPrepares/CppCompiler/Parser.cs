@@ -296,10 +296,12 @@ namespace CppCompiler
             {
                 var func = new FunctionDecl { Name = name, ReturnType = type, IsMember = true, IsVirtual = isVirtual };
                 if (pendingConvention.HasValue) func.Convention = pendingConvention.Value;
-                if (!Check(TokenType.RPAREN))
+                if (IsVoidOnlyParamList()) Advance(); // `f(void)`
+                else if (!Check(TokenType.RPAREN))
                 {
                     do
                     {
+                        if (Match(TokenType.ELLIPSIS)) break; // 可变参数 `...`
                         string pt = ParseType();
                         bool isRef = Match(TokenType.AMPERSAND);
                         if (isRef) pt += "&";
@@ -464,13 +466,35 @@ namespace CppCompiler
             return ParseFunctionBody(type, name);
         }
 
+        /// <summary>
+        /// `f(void)` —— C 风格「无参数」写法，等价于空参数列表。
+        ///
+        /// <para>判据收得很紧：<b>`void` 后面紧跟 `)`</b>。这样 `void f(void* p)`、
+        /// `void f(void v)`、`void f(void*, int)` 仍是正常参数，一个都不受影响 ——
+        /// 只有「括号里孤零零一个 void」才被当成空参数表。</para>
+        ///
+        /// <para>为什么必须支持：`Lib/c/stdio.h` 自己就写着 `int getchar(void);`
+        /// （第 31 行）与 `FILE *tmpfile(void);`，所以任何 `#include <stdio.h>` 的 C++
+        /// 程序在预处理后必定碰到这个形态 —— 不认它就等于「C++ 用不了 C 标准头」。</para>
+        /// </summary>
+        private bool IsVoidOnlyParamList()
+            => Check(TokenType.VOID)
+               && _pos + 1 < _tokens.Count
+               && GetTokenType(_tokens[_pos + 1]) == TokenType.RPAREN;
+
         private FunctionDecl ParseFunctionBody(string type, string name)
         {
             var func = new FunctionDecl { Name = name, ReturnType = type };
-            if (!Check(TokenType.RPAREN))
+            if (IsVoidOnlyParamList())
+            {
+                Advance(); // 吃掉 `void` —— 参数列表为空
+            }
+            else if (!Check(TokenType.RPAREN))
             {
                 do
                 {
+                    // 可变参数 `...` —— 到此为止，后面不再有具名参数（C 语义）。
+                    if (Match(TokenType.ELLIPSIS)) break;
                     string pt = ParseType();
                     bool isRef = Match(TokenType.AMPERSAND);
                     if (isRef) pt += "&";
@@ -671,10 +695,12 @@ namespace CppCompiler
                 tfd.TypeParams.AddRange(typeParams);
 
                 // 解析参数列表（参数类型可能是模板参数 T）
-                if (!Check(TokenType.RPAREN))
+                if (IsVoidOnlyParamList()) Advance(); // `f(void)`
+                else if (!Check(TokenType.RPAREN))
                 {
                     do
                     {
+                        if (Match(TokenType.ELLIPSIS)) break; // 可变参数 `...`
                         string pt;
                         if (Check(TokenType.IDENTIFIER) && typeParams.Contains(Cur.Value))
                             pt = Advance().Value;
@@ -748,10 +774,12 @@ namespace CppCompiler
             if (Match(TokenType.LPAREN))
             {
                 var func = new FunctionDecl { Name = name, ReturnType = type, IsMember = true };
-                if (!Check(TokenType.RPAREN))
+                if (IsVoidOnlyParamList()) Advance(); // `f(void)`
+                else if (!Check(TokenType.RPAREN))
                 {
                     do
                     {
+                        if (Match(TokenType.ELLIPSIS)) break; // 可变参数 `...`
                         string pt;
                         if (IsTypeToken() || IsTemplateParam(typeParams))
                             pt = ParseTypeOrTemplateParam(typeParams);

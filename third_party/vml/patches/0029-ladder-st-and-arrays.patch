@@ -1,0 +1,324 @@
+# 0029：Ladder 前端 —— 注释不嵌套 / ST 无下标左值 / store 写成 load / 数组非连续 / 字符串带引号
+
+> **先纠正一个判断**：派活时我们担心「Ladder 是梯形图语言，形式根本不支持数组+循环，不该用这个骨架验收」。
+> **这个判断是错的。** `LadderCompiler` 除梯级外**实现了完整的 IEC 61131-3 ST 子集**：
+> `TokenType` 有 `KeywordFor/To/Do/EndFor/Array/TypeInt`，AST 有 `StForNode`/`ArrayAccessNode`，
+> `ParsePrimary:1228` **已经有 `a[i]` 的解析分支**。语料是纯 ST 写法，属于该前端**明确宣称支持**的形式
+> ⇒ **是实现缺陷，该用这个骨架验收。**
+
+## 五个缺陷（体检只提了 2 个）
+
+1. **`(* … *)` 注释不支持嵌套**（★ 最先撞上的）。语料头部注释里写了一对 `(* … *)`，
+   `ReadComment` 只找**第一个** `*)` 就收尾 ⇒ 注释提前结束，后面的散文全变成 token，
+   报出一个与真实原因毫无关系的 `期望 BEGIN 关键字 (col 44)`。
+   修法：支持嵌套（CODESYS / TwinCAT 同款）。
+2. `ParseStStatement` 只认 `IDENT := expr`，`a[i] := …` 落进「跳过无法识别的语句」**静默消失**。
+3. `StoreVariable` 与 `LoadVariable` **逐字同形**（`storeOp (R0, [var])` 其实是 load）
+   ⇒ **连 `s := 0` 都没写进去**。与 Java 那条同族。
+4. **⚠ 数组根本不是一个数组**（体检未提）：`Visit(VariableDeclarationNode)` 把元素摊成
+   `a_0 / a_1 / …` 一个个**独立数据条目**，而链接期 `RemoveUnusedData` 会把没人按名字引用的元素
+   **逐个删掉** ⇒ 剩下的 `a_0` 邻居直接变成 `i` / `s`（实测循环累加读出 `21286`）。
+   **光补解析/存储过不了，必须把数组改成连续块。**
+5. **⚠ 字符串字面量带着引号**（体检未提）：`Lexer.ReadString` 把两个引号一起 Append 进 token 值，
+   数据段里存的是 `"\"SKEL-SUM=\""`，`PRINT_STR` 原样打出 `"SKEL-SUM="`
+   ⇒ **stdout 里永远不会出现 `SKEL-SUM=14`**。
+
+## 实测
+
+| | 修前 | 修后 |
+|---|---|---|
+| `corpus/ladder/skel.ld` | `期望 BEGIN 关键字 (col 44)` | `SKEL-SUM=14` ✅ |
+
+回归：vendored 两个例子 + 上游 8 个 `.ld` 全部编过。**语料未改。**
+（`parserexp_demo.ld` 依旧失败 —— 它用 `//` 行注释、本前端不支持，**改动前后报错一致**，与 `(* *)` 无关。）
+
+## 未做且建议保留现状
+
+① BEGIN 块里的裸调用语句 `ui_rect(...);` 仍被静默丢弃；
+② 外部调用仍带 `LADDER_` 前缀（链接器只剥 `func_/word_/method_/var_`）⇒ 解析不到 `lib_vmlui_ui_rect`。
+
+**不动的理由**：Ladder 里裸调用语句的**主要形态是功能块**（`TON(inst, IN := start, PT := T#5s);`，上游例子就在用），
+草率地「按普通调用解析」会把这些**当前能编过的程序变成编不过**（命名实参 `:=` 解析不了）。
+要修得连功能块语法一起做，属于另一个议题。
+diff --git a/third_party/vml/VMLPrepares/LadderCompiler/ASTNode.cs b/third_party/vml/VMLPrepares/LadderCompiler/ASTNode.cs
+index 8b109819..ac3acb43 100644
+--- a/third_party/vml/VMLPrepares/LadderCompiler/ASTNode.cs
++++ b/third_party/vml/VMLPrepares/LadderCompiler/ASTNode.cs
+@@ -26,6 +26,7 @@ namespace LadderCompiler
+         void Visit(CoilNode node);
+         void Visit(FunctionBlockNode node);
+         void Visit(AssignmentNode node);
++        void Visit(IndexAssignmentNode node);
+         void Visit(ExpressionNode node);
+         void Visit(StIfNode node);
+         void Visit(StForNode node);
+@@ -179,6 +180,25 @@ namespace LadderCompiler
+         }
+     }
+     
++    /// <summary>
++    /// 下标赋值节点 <c>a[i] := expr</c>。
++    ///
++    /// <para>此前 ST 语句层只认 <c>IDENT := expr</c>（<c>Parser.cs</c> 的 ParseStStatement），
++    /// <c>a[i] := v</c> 在读完 <c>a</c> 之后撞上 <c>[</c> 而不是 <c>:=</c>，直接落进
++    /// 「跳过无法识别的语句」—— **连报错都没有**，整条语句凭空消失。</para>
++    /// </summary>
++    public class IndexAssignmentNode : ASTNode
++    {
++        /// <summary>左值表达式（IdentifierNode 或嵌套的 ArrayAccessNode）。</summary>
++        public ExpressionNode Target { get; set; }
++        public ExpressionNode Value { get; set; }
++
++        public override void Accept(IASTVisitor visitor)
++        {
++            visitor.Visit(this);
++        }
++    }
++
+     /// <summary>
+     /// 表达式节点基类
+     /// </summary>
+diff --git a/third_party/vml/VMLPrepares/LadderCompiler/CodeGenerator.Core.cs b/third_party/vml/VMLPrepares/LadderCompiler/CodeGenerator.Core.cs
+index bee9277a..bea9b352 100644
+--- a/third_party/vml/VMLPrepares/LadderCompiler/CodeGenerator.Core.cs
++++ b/third_party/vml/VMLPrepares/LadderCompiler/CodeGenerator.Core.cs
+@@ -623,10 +623,14 @@ namespace LadderCompiler
+             // 获取变量类型并使用正确的存储指令
+             LadderTypeEnum varType = _varTypes.ContainsKey(varName) ? _varTypes[varName] : LadderTypeEnum.Bool;
+             OpCode storeOp = GetStoreInstruction(varType);
+-            
++
++            // ⚠ 操作数顺序：`ADD/MOVE dest, src` —— **dest 在前**。原来这里写的是
++            //   `(REGISTER 0, MEMORY varName)`，与上面 LoadVariable 逐字同形 ⇒ 那是一次
++            //   **加载**，被赋的值根本没写进变量（`s := 0` 之后读回来还是旧值）。
++            //   同族缺陷见 Rust 0024 / Java 0022 / Scheme 0021。
+             AddInstruction(storeOp,
+-                new Operand(OperandType.REGISTER, 0),
+-                new Operand(OperandType.MEMORY, varName));
++                new Operand(OperandType.MEMORY, varName),
++                new Operand(OperandType.REGISTER, 0));
+         }
+ 
+         // ========== Visitor实现 ==========
+@@ -646,14 +650,22 @@ namespace LadderCompiler
+                     _arrays[node.Name] = (lower, upper, elementType);
+                     _varTypes[node.Name] = LadderTypeEnum.Array;
+                     var initValues = SplitInitialList(node.InitialValue);
+-                    for (int i = lower; i <= upper; i++)
++
++                    // ⚠ **数组元素必须连续地存在一个块里**（一个 `object[]` 数据条目），
++                    //   否则「运行期才知下标的 `a[i]`」根本无法寻址：
++                    //   原来是把元素摊成 `a_0`/`a_1`/… 一个个独立数据条目，而链接期的
++                    //   `RemoveUnusedData` 会**逐个删掉没人按名字引用的元素** ——
++                    //   实测剩下的 `a_0` 的邻居直接变成了 `i` / `s`，
++                    //   `&a_0 + i*4` 于是读到变量本身（循环读出 21286 这种数）。
++                    //   现在整个数组是一个数据标签（`a: .word 1 / .word 2 / …` 连续排布），
++                    //   读、写都走 `&a + (idx-lo)*4` —— 常量下标同样走这条路，等价且统一。
++                    var block = new object[upper - lower + 1];
++                    for (int i = 0; i < block.Length; i++)
+                     {
+-                        string elementName = $"{node.Name}_{i}";
+-                        string init = (i - lower) < initValues.Count ? initValues[i - lower] : null;
+-                        dataSection[elementName] = ParseInitialValue(init, 0);
+-                        _varTypes[elementName] = GetLadderTypeEnum(elementType);
++                        string init = i < initValues.Count ? initValues[i] : null;
++                        block[i] = ParseInitialValue(init, 0);
+                     }
+-                    dataSection[node.Name] = 0;
++                    dataSection[node.Name] = block;
+                     return;
+                 }
+ 
+diff --git a/third_party/vml/VMLPrepares/LadderCompiler/CodeGenerator.Networks.cs b/third_party/vml/VMLPrepares/LadderCompiler/CodeGenerator.Networks.cs
+index 356542cd..585d7812 100644
+--- a/third_party/vml/VMLPrepares/LadderCompiler/CodeGenerator.Networks.cs
++++ b/third_party/vml/VMLPrepares/LadderCompiler/CodeGenerator.Networks.cs
+@@ -35,10 +35,15 @@ namespace LadderCompiler
+ 
+         public void Visit(ArrayAccessNode node)
+         {
+-            string target = ExpressionToStorageName(node);
+-            if (!string.IsNullOrEmpty(target))
++            // 数组在数据段里是一个**连续块**（见 Visit(VariableDeclarationNode)），
++            // 所以元素地址统一是 `&a + (idx - lo) * 4` —— 常量下标与运行期下标同一条路。
++            // ⚠ 原来只有「常量下标」能查名字（a_0/a_1/… 一堆独立数据条目），
++            //   变量下标直接落空返回 0 ⇒ 循环里的 `a[i]` 恒读成 0。
++            if (TryPrepareElementAddress(node, out LadderTypeEnum elemType))
+             {
+-                LoadVariable(target);
++                AddInstruction(GetLoadInstruction(elemType),
++                    new Operand(OperandType.REGISTER, 0),
++                    new Operand(OperandType.MEMORY, "R0"));
+                 return;
+             }
+ 
+@@ -47,6 +52,68 @@ namespace LadderCompiler
+                 new Operand(OperandType.IMMEDIATE, 0));
+         }
+ 
++        /// <summary>
++        /// 下标赋值 <c>a[i] := expr</c>（<c>Parser.ParseStStatement</c> 新增的节点）。
++        /// </summary>
++        public void Visit(IndexAssignmentNode node)
++        {
++            if (node.Target is ArrayAccessNode arr && TryPrepareElementAddress(arr, out LadderTypeEnum elemType))
++            {
++                AddInstruction(OpCode.PUSH, new Operand(OperandType.REGISTER, 0)); // 地址入栈
++                Visit(node.Value);                                               // R0 = 右值
++                AddInstruction(OpCode.POP, new Operand(OperandType.REGISTER, 1)); // R1 = 地址
++                // dest 在前：把 R0 写进 [R1]（与 StoreVariable 同一处纠错）
++                AddInstruction(GetStoreInstruction(elemType),
++                    new Operand(OperandType.MEMORY, "R1"),
++                    new Operand(OperandType.REGISTER, 0));
++                return;
++            }
++
++            // 兜底：至少把右值求出来（不静默丢弃整条语句）
++            Visit(node.Value);
++        }
++
++        /// <summary>
++        /// 把数组元素地址算进 R0。成功返回 true 并给出元素类型。
++        /// 形如 <c>&amp;a + (idx - lo) * 4</c>；下标求值可能调函数，故基址走栈暂存。
++        /// </summary>
++        private bool TryPrepareElementAddress(ArrayAccessNode array, out LadderTypeEnum elemType)
++        {
++            elemType = LadderTypeEnum.Int;
++
++            string arrayName = ExpressionToStorageName(array.Target);
++            if (string.IsNullOrEmpty(arrayName) || !_arrays.TryGetValue(arrayName, out var info))
++                return false;
++            if (!dataSection.ContainsKey(arrayName))
++                return false;
++
++            elemType = GetLadderTypeEnum(info.ElementType);
++
++            // 取标签地址（本 VM 里 `MOVE reg, label` 是 LEA）
++            AddInstruction(OpCode.MOVE,
++                new Operand(OperandType.REGISTER, 0),
++                new Operand(OperandType.LABEL, arrayName));
++            AddInstruction(OpCode.PUSH, new Operand(OperandType.REGISTER, 0));
++
++            array.Index.Accept(this);                                   // R0 = 下标
++            if (info.Lower != 0)
++                AddInstruction(OpCode.SUB,
++                    new Operand(OperandType.REGISTER, 0),
++                    new Operand(OperandType.IMMEDIATE, info.Lower));
++            AddInstruction(OpCode.SHL,
++                new Operand(OperandType.REGISTER, 0),
++                new Operand(OperandType.IMMEDIATE, 2));                 // *4
++
++            AddInstruction(OpCode.POP, new Operand(OperandType.REGISTER, 1));
++            AddInstruction(OpCode.ADD, new List<Operand>
++            {
++                new Operand(OperandType.REGISTER, 0),
++                new Operand(OperandType.REGISTER, 0),
++                new Operand(OperandType.REGISTER, 1),
++            });
++            return true;
++        }
++
+         public void Visit(MemberAccessNode node)
+         {
+             string target = ExpressionToStorageName(node);
+@@ -133,8 +200,16 @@ namespace LadderCompiler
+                     else
+                     {
+                         // 字符串常量
++                        // ⚠ `Lexer.ReadString` 把**两个引号连同内容一起**放进了 token 值
++                        //   （`value.Append(quote)` 开、结尾再 Append 一次），于是数据段里存的是
++                        //   `"\"SKEL-SUM=\""`，PRINT_STR 原样打出来就是 `"SKEL-SUM="…`（带引号）。
++                        //   这一处只在本分支剥掉定界引号 —— 只影响"字符串字面量落数据段"这一条路，
++                        //   不动词法器（词法器还被 include/文件名等路径共用，改它面更大）。
++                        string text = s;
++                        if (text.Length >= 2 && (text[0] == '"' || text[0] == '\'') && text[^1] == text[0])
++                            text = text.Substring(1, text.Length - 2);
+                         string constName = $"_str{labelCounter++}";
+-                        dataSection[constName] = s;
++                        dataSection[constName] = text;
+                         AddInstruction(OpCode.MOVE,
+                             new Operand(OperandType.REGISTER, 0),
+                             new Operand(OperandType.LABEL, constName));
+diff --git a/third_party/vml/VMLPrepares/LadderCompiler/Lexer.cs b/third_party/vml/VMLPrepares/LadderCompiler/Lexer.cs
+index ea6caa45..b261aa84 100644
+--- a/third_party/vml/VMLPrepares/LadderCompiler/Lexer.cs
++++ b/third_party/vml/VMLPrepares/LadderCompiler/Lexer.cs
+@@ -247,17 +247,35 @@ namespace LadderCompiler
+ 
+             int contentStart = _pos;
+ 
++            // ⚠ **支持嵌套 `(* … (* … *) … *)`**（CODESYS / TwinCAT 的 ST 也是这样）：
++            //   原来只找**第一个** `*)` 就收尾，于是注释正文里出现一对 `(* … *)` 时
++            //   注释会**提前结束**，后面的散文全变成 token ⇒ 报一个与真实原因无关的
++            //   「期望 BEGIN 关键字」。这是一个纯词法层面的健壮性修复，不针对任何具体输入。
++            int depth = 1;
+             while (_pos < _source.Length)
+             {
++                if (_source[_pos] == '(' && Peek(1) == '*')
++                {
++                    depth++;
++                    value.Append("(*");
++                    _pos += 2;
++                    _col += 2;
++                    continue;
++                }
+                 if (_source[_pos] == '*' && Peek(1) == ')')
+                 {
+-                    string content = _source.Substring(contentStart, _pos - contentStart).Trim();
++                    depth--;
+                     value.Append("*)");
+                     _pos += 2;
+                     _col += 2;
+-                    if (content.StartsWith("$param"))
+-                        ParseParamDirective(content);
+-                    break;
++                    if (depth == 0)
++                    {
++                        string content = _source.Substring(contentStart, _pos - 2 - contentStart).Trim();
++                        if (content.StartsWith("$param"))
++                            ParseParamDirective(content);
++                        break;
++                    }
++                    continue;
+                 }
+ 
+                 if (_source[_pos] == '\n')
+diff --git a/third_party/vml/VMLPrepares/LadderCompiler/Parser.cs b/third_party/vml/VMLPrepares/LadderCompiler/Parser.cs
+index 8ebef1f7..364e8424 100644
+--- a/third_party/vml/VMLPrepares/LadderCompiler/Parser.cs
++++ b/third_party/vml/VMLPrepares/LadderCompiler/Parser.cs
+@@ -1421,8 +1421,34 @@ namespace LadderCompiler
+                 return ParseStFor();
+             if (GetTokenType(Cur) == TokenType.Identifier)
+             {
++                int idLine = Cur.Line, idCol = Cur.Column;
+                 var name = Advance().Value;
+                 SkipWhitespaceAndComments();
++
++                // 下标左值: a[i] := expr —— 此前没有这个分支，读完 `a` 撞上 `[` 就落进
++                // 下面的「跳过无法识别的语句」，整条语句**静默消失**（不报错、不生成代码）。
++                if (GetTokenType(Cur) == TokenType.LeftBracket)
++                {
++                    ExpressionNode target = new IdentifierNode { Name = name, Line = idLine, Column = idCol };
++                    while (GetTokenType(Cur) == TokenType.LeftBracket)
++                    {
++                        Advance(); // [
++                        SkipWhitespaceAndComments();
++                        var index = ParseExpression();
++                        SkipWhitespaceAndComments();
++                        Expect(TokenType.RightBracket, "期望 ]");
++                        SkipWhitespaceAndComments();
++                        target = new ArrayAccessNode { Target = target, Index = index, Line = idLine, Column = idCol };
++                    }
++                    if (Match(TokenType.Assignment))
++                    {
++                        SkipWhitespaceAndComments();
++                        var rhs = ParseExpression();
++                        Match(TokenType.Semicolon);
++                        return new IndexAssignmentNode { Target = target, Value = rhs, Line = idLine, Column = idCol };
++                    }
++                }
++
+                 if (Match(TokenType.Assignment))
+                 {
+                     SkipWhitespaceAndComments();

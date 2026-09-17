@@ -247,17 +247,35 @@ namespace LadderCompiler
 
             int contentStart = _pos;
 
+            // ⚠ **支持嵌套 `(* … (* … *) … *)`**（CODESYS / TwinCAT 的 ST 也是这样）：
+            //   原来只找**第一个** `*)` 就收尾，于是注释正文里出现一对 `(* … *)` 时
+            //   注释会**提前结束**，后面的散文全变成 token ⇒ 报一个与真实原因无关的
+            //   「期望 BEGIN 关键字」。这是一个纯词法层面的健壮性修复，不针对任何具体输入。
+            int depth = 1;
             while (_pos < _source.Length)
             {
+                if (_source[_pos] == '(' && Peek(1) == '*')
+                {
+                    depth++;
+                    value.Append("(*");
+                    _pos += 2;
+                    _col += 2;
+                    continue;
+                }
                 if (_source[_pos] == '*' && Peek(1) == ')')
                 {
-                    string content = _source.Substring(contentStart, _pos - contentStart).Trim();
+                    depth--;
                     value.Append("*)");
                     _pos += 2;
                     _col += 2;
-                    if (content.StartsWith("$param"))
-                        ParseParamDirective(content);
-                    break;
+                    if (depth == 0)
+                    {
+                        string content = _source.Substring(contentStart, _pos - 2 - contentStart).Trim();
+                        if (content.StartsWith("$param"))
+                            ParseParamDirective(content);
+                        break;
+                    }
+                    continue;
                 }
 
                 if (_source[_pos] == '\n')

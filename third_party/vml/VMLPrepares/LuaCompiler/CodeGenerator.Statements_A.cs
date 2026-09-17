@@ -181,16 +181,15 @@ namespace LuaCompiler
                 }
                 else if (variable is TableAccessNode tableAccess)
                 {
+                    // 值 / 表指针**都存栈上**再求值 key：求值表达式会拿 R1/R2 当临时寄存器，
+                    // `t[i + 1] = v` 这种写法下只把表指针放 R1 会被后面对 key 的求值冲掉。
                     GenerateExpression(value);
                     instructions.Add(new Instruction(OpCode.PUSH,
                         new List<Operand> { new Operand(OperandType.REGISTER, 0) },
                         instructions.Count));
                     GenerateExpression(tableAccess.Table);
-                    instructions.Add(new Instruction(OpCode.MOVE,
-                        new List<Operand> {
-                            new Operand(OperandType.REGISTER, 1),
-                            new Operand(OperandType.REGISTER, 0)
-                        },
+                    instructions.Add(new Instruction(OpCode.PUSH,
+                        new List<Operand> { new Operand(OperandType.REGISTER, 0) },
                         instructions.Count));
                     GenerateExpression(tableAccess.Key);
                     instructions.Add(new Instruction(OpCode.MOVE,
@@ -200,8 +199,11 @@ namespace LuaCompiler
                         },
                         instructions.Count));
                     instructions.Add(new Instruction(OpCode.POP,
+                        new List<Operand> { new Operand(OperandType.REGISTER, 1) },
+                        instructions.Count)); // R1 = 表指针
+                    instructions.Add(new Instruction(OpCode.POP,
                         new List<Operand> { new Operand(OperandType.REGISTER, 0) },
-                        instructions.Count));
+                        instructions.Count)); // R0 = 值
                     instructions.Add(new Instruction(OpCode.CALL,
                         new List<Operand> { new Operand(OperandType.LABEL, "lua_table_set") },
                         instructions.Count));

@@ -1008,6 +1008,66 @@ public static partial class SelfTest
             }
         }
 
+        Section("[VML 前端编译器清单：抄自上游，漂移即红]");
+        // 手机端**不再引 `VMLTool.csproj`** —— 它会连带编译依赖 `VMLTranslators`（18 个后端翻译器，
+        // 302.5 KB）与 `VMLToHex`（158 KB，产物 vml2hex.dll），而那两个是给**裸机/单片机**输出后端
+        // 汇编与 hex/elf/bin 的，手机端只用得到「高级语言 → VML 汇编 → 虚拟机执行」这条链。
+        // 改法是「直引 22 个编译器 csproj + 把注册清单本地抄一份」（见
+        // WayCoder.Maui/Services/VmlFrontendCompilers.cs 与 UI/Shared/VmlFrontendCompilerList.cs）。
+        //
+        // 抄清单的代价就是**可能漂移**：上游加了第 23 门语言，我们这份不会跟着变，而且是
+        // **静默少一种语言** —— 症状是「某个语言莫名不能用」，极难排查。所以这里读**上游源码文本**
+        // 逐项比对（判据是集合，与顺序、与行号无关），不一致直接红。手机端另有一条注册断言兜另一半。
+        {
+            static string? FindRepoFile(string rel)
+            {
+                for (var d = new DirectoryInfo(Directory.GetCurrentDirectory()); d != null; d = d.Parent)
+                {
+                    var p = Path.Combine(d.FullName, rel);
+                    if (File.Exists(p)) return p;
+                }
+                return null;
+            }
+
+            // ⚠ 那个 22 是**钉住的基线**，不是"随便写的一个数"：上游加一门语言时，这条与下面
+            //    「与上游逐项一致」会**一起红**，逼人来看。真要跟进（往 All 里加一项）时，
+            //    这个 22 也要一起改成 23 —— 两处都动过，才说明是"看过了"，不是"改到绿为止"。
+            Check("VML 编译器清单: 自带 22 项（钉住的基线）、类型名与 Name 都不重复（清单自洽）",
+                VmlFrontendCompilerList.All.Count == 22
+                && VmlFrontendCompilerList.PluginTypes.Count == 22
+                && VmlFrontendCompilerList.NormalizedNames.Count == 22);
+
+            var upstreamPath = FindRepoFile(VmlFrontendCompilerList.UpstreamRelativePath);
+            if (upstreamPath == null)
+            {
+                // 打包/发布产物里没有源码 → 该护栏只在开发期生效，跳过不算失败（与工具清单那条同口径）
+                Check("VML 编译器清单: 无源码目录（打包环境），跳过与上游的比对", true);
+            }
+            else
+            {
+                var (types, parseError) = VmlFrontendCompilerList.ParseUpstream(File.ReadAllText(upstreamPath));
+                // 「没解析出来」必须与「解析出来是空的」分开：前者说明锚点漂了（防线已经失效），
+                // 不单独判一条的话它会被读成「上游一个编译器都没有」而变成一片假红。
+                Check("VML 编译器清单: 上游注册段能被解析（方法名锚点未漂）", parseError == null);
+                Check($"VML 编译器清单: 与上游 {VmlFrontendCompilerList.UpstreamRelativePath} 逐项一致"
+                      + "（上游加一门语言即红）",
+                    VmlFrontendCompilerList.DescribeDrift(types) == null);
+            }
+
+            // 护栏自身的自证：伪造三种漂移，必须都被判出来。
+            // 不做这一步的话，这道防线有可能「看着有、实际不拦」（比如判据写反了 —— 本仓踩过：
+            // 守卫写反了照样全绿）。
+            var realTypes = VmlFrontendCompilerList.All.Select(e => e.PluginType).ToList();
+            var plusOne = new List<string>(realTypes) { "ZzzCompiler.ZzzCompilerPlugin" };
+            var minusOne = realTypes.Skip(1).ToList();
+            Check("VML 编译器清单: 上游多一门 → 判为漂移（护栏自证）",
+                VmlFrontendCompilerList.DescribeDrift(plusOne) != null);
+            Check("VML 编译器清单: 上游少一门 → 判为漂移（护栏自证）",
+                VmlFrontendCompilerList.DescribeDrift(minusOne) != null);
+            Check("VML 编译器清单: 上游解析失败（空集）不当作『一致』（护栏自证）",
+                VmlFrontendCompilerList.DescribeDrift([]) != null);
+        }
+
         Section("[导入源解析：/model 与 /provider 共用一份]");
         // `/model import <源>` 与 `/provider import <源>` 此前各写一份逐字相同的解析：
         // 新增一个在线源、或改一次源名规则，就要改两处（漏一处 = 一个命令能导入、另一个不能）。

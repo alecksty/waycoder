@@ -35,16 +35,83 @@ namespace LadderCompiler
 
         public void Visit(ArrayAccessNode node)
         {
-            string target = ExpressionToStorageName(node);
-            if (!string.IsNullOrEmpty(target))
+            // 数组在数据段里是一个**连续块**（见 Visit(VariableDeclarationNode)），
+            // 所以元素地址统一是 `&a + (idx - lo) * 4` —— 常量下标与运行期下标同一条路。
+            // ⚠ 原来只有「常量下标」能查名字（a_0/a_1/… 一堆独立数据条目），
+            //   变量下标直接落空返回 0 ⇒ 循环里的 `a[i]` 恒读成 0。
+            if (TryPrepareElementAddress(node, out LadderTypeEnum elemType))
             {
-                LoadVariable(target);
+                AddInstruction(GetLoadInstruction(elemType),
+                    new Operand(OperandType.REGISTER, 0),
+                    new Operand(OperandType.MEMORY, "R0"));
                 return;
             }
 
             AddInstruction(OpCode.MOVE,
                 new Operand(OperandType.REGISTER, 0),
                 new Operand(OperandType.IMMEDIATE, 0));
+        }
+
+        /// <summary>
+        /// 下标赋值 <c>a[i] := expr</c>（<c>Parser.ParseStStatement</c> 新增的节点）。
+        /// </summary>
+        public void Visit(IndexAssignmentNode node)
+        {
+            if (node.Target is ArrayAccessNode arr && TryPrepareElementAddress(arr, out LadderTypeEnum elemType))
+            {
+                AddInstruction(OpCode.PUSH, new Operand(OperandType.REGISTER, 0)); // 地址入栈
+                Visit(node.Value);                                               // R0 = 右值
+                AddInstruction(OpCode.POP, new Operand(OperandType.REGISTER, 1)); // R1 = 地址
+                // dest 在前：把 R0 写进 [R1]（与 StoreVariable 同一处纠错）
+                AddInstruction(GetStoreInstruction(elemType),
+                    new Operand(OperandType.MEMORY, "R1"),
+                    new Operand(OperandType.REGISTER, 0));
+                return;
+            }
+
+            // 兜底：至少把右值求出来（不静默丢弃整条语句）
+            Visit(node.Value);
+        }
+
+        /// <summary>
+        /// 把数组元素地址算进 R0。成功返回 true 并给出元素类型。
+        /// 形如 <c>&amp;a + (idx - lo) * 4</c>；下标求值可能调函数，故基址走栈暂存。
+        /// </summary>
+        private bool TryPrepareElementAddress(ArrayAccessNode array, out LadderTypeEnum elemType)
+        {
+            elemType = LadderTypeEnum.Int;
+
+            string arrayName = ExpressionToStorageName(array.Target);
+            if (string.IsNullOrEmpty(arrayName) || !_arrays.TryGetValue(arrayName, out var info))
+                return false;
+            if (!dataSection.ContainsKey(arrayName))
+                return false;
+
+            elemType = GetLadderTypeEnum(info.ElementType);
+
+            // 取标签地址（本 VM 里 `MOVE reg, label` 是 LEA）
+            AddInstruction(OpCode.MOVE,
+                new Operand(OperandType.REGISTER, 0),
+                new Operand(OperandType.LABEL, arrayName));
+            AddInstruction(OpCode.PUSH, new Operand(OperandType.REGISTER, 0));
+
+            array.Index.Accept(this);                                   // R0 = 下标
+            if (info.Lower != 0)
+                AddInstruction(OpCode.SUB,
+                    new Operand(OperandType.REGISTER, 0),
+                    new Operand(OperandType.IMMEDIATE, info.Lower));
+            AddInstruction(OpCode.SHL,
+                new Operand(OperandType.REGISTER, 0),
+                new Operand(OperandType.IMMEDIATE, 2));                 // *4
+
+            AddInstruction(OpCode.POP, new Operand(OperandType.REGISTER, 1));
+            AddInstruction(OpCode.ADD, new List<Operand>
+            {
+                new Operand(OperandType.REGISTER, 0),
+                new Operand(OperandType.REGISTER, 0),
+                new Operand(OperandType.REGISTER, 1),
+            });
+            return true;
         }
 
         public void Visit(MemberAccessNode node)
@@ -133,8 +200,16 @@ namespace LadderCompiler
                     else
                     {
                         // 字符串常量
+                        // ⚠ `Lexer.ReadString` 把**两个引号连同内容一起**放进了 token 值
+                        //   （`value.Append(quote)` 开、结尾再 Append 一次），于是数据段里存的是
+                        //   `"\"SKEL-SUM=\""`，PRINT_STR 原样打出来就是 `"SKEL-SUM="…`（带引号）。
+                        //   这一处只在本分支剥掉定界引号 —— 只影响"字符串字面量落数据段"这一条路，
+                        //   不动词法器（词法器还被 include/文件名等路径共用，改它面更大）。
+                        string text = s;
+                        if (text.Length >= 2 && (text[0] == '"' || text[0] == '\'') && text[^1] == text[0])
+                            text = text.Substring(1, text.Length - 2);
                         string constName = $"_str{labelCounter++}";
-                        dataSection[constName] = s;
+                        dataSection[constName] = text;
                         AddInstruction(OpCode.MOVE,
                             new Operand(OperandType.REGISTER, 0),
                             new Operand(OperandType.LABEL, constName));

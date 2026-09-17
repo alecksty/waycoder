@@ -1,17 +1,23 @@
 id	target	verdict	secs	detail	note
-skel-c	vml run vmlverify/c/skel.c	PASS	29		循环+数组+函数+ui_rect
-skel-cpp	vml run vmlverify/cpp/skel.cpp	COMPILE_FAIL	29	~> vml run vmlverify/cpp/skel.cpp	
-skel-csharp	vml run vmlverify/csharp/skel.cs	PASS	29		
-skel-go	vml run vmlverify/go/skel.go	PASS	30		
-skel-swift	vml run vmlverify/swift/skel.swift	TIMEOUT	129	等待超时（命令可能仍在运行）	
-skel-pascal	vml run vmlverify/pascal/skel.pas	PASS	32		
-skel-python	vml run vmlverify/python/skel.py	OUTPUT_MISMATCH	32	输出里没有 'SKEL-SUM=14'；实得 '⏳ 正在编译 skel.py（前端编译 + 链接标准库，手机上要一两分钟）…\nSKEL-SUM=10'	
-skel-java	vml run vmlverify/java/skel.java	OUTPUT_MISMATCH	32	输出里没有 'SKEL-SUM=14'；实得 '⏳ 正在编译 skel.java（前端编译 + 链接标准库，手机上要一两分钟）…\nSKEL-SUM=0'	
-skel-javascript	vml run vmlverify/javascript/skel.js	PASS	32		
-skel-kotlin	vml run vmlverify/kotlin/skel.kt	COMPILE_FAIL	32	⚠️ 编译失败：/storage/emulated/0/waycoder/workspace/vmlverify/kotlin/skel.kt: error: Unexpected token: ASSIGN '=' at 22:14	
-skel-ruby	vml run vmlverify/ruby/skel.rb	COMPILE_FAIL	31	⚠️ 编译失败：/storage/emulated/0/waycoder/workspace/vmlverify/ruby/skel.rb: error: Ruby parse error: expected ) (got LBracket)	
-skel-rust	vml run vmlverify/rust/skel.rs	COMPILE_FAIL	32	⚠️ 编译失败：/storage/emulated/0/waycoder/workspace/vmlverify/rust/skel.rs: error: 期望 ';'	
-skel-lua	vml run vmlverify/lua/skel.lua	OUTPUT_MISMATCH	32	输出里没有 'SKEL-SUM=14'；实得 '⏳ 正在编译 skel.lua（前端编译 + 链接标准库，手机上要一两分钟）…\nSKEL-SUM=0'	
-skel-dart	vml run vmlverify/dart/skel.dart	TIMEOUT	129	等待超时（命令可能仍在运行）	
-skel-objc	vml run vmlverify/objc/skel.m	PASS	32		
-skel-r	vml run vmlverify/r/skel.r	OUTPUT_MISMATCH	32	输出里没有 'SKEL-SUM=14'；实得 '⏳ 正在编译 skel.r（前端编译 + 链接标准库，手机上要一两分钟）…\n内存错误(PC=00000047): MOVE R0, @1 — 内存访问越界：地址=FFFFFFFC, 大小=4\nR0=FFFFFFFC  R1=FFFFFFFC  R2=00000000  R3=00000000\nR4=00000000  R5=00000000  R6=00000000  R7=00000000\nR8'	
+skel-c	vml run vmlverify/c/skel.c	PASS	34		循环+数组+函数+ui_rect
+skel-cpp	vml run vmlverify/cpp/skel.cpp	PASS	34		
+skel-csharp	vml run vmlverify/csharp/skel.cs	PASS	34		
+skel-go	vml run vmlverify/go/skel.go	PASS	35		
+skel-swift	vml run vmlverify/swift/skel.swift	PASS	34		
+skel-pascal	vml run vmlverify/pascal/skel.pas	PASS	34		
+skel-python	vml run vmlverify/python/skel.py	PASS	34		
+skel-java	vml run vmlverify/java/skel.java	PASS	34		
+skel-javascript	vml run vmlverify/javascript/skel.js	PASS	35		
+skel-kotlin	vml run vmlverify/kotlin/skel.kt	PASS	34		
+skel-ruby	vml run vmlverify/ruby/skel.rb	PASS	34		
+skel-rust	vml run vmlverify/rust/skel.rs	PASS	34		
+skel-lua	vml run vmlverify/lua/skel.lua	PASS	34		
+skel-dart	vml run vmlverify/dart/skel.dart	PASS	34		
+skel-objc	vml run vmlverify/objc/skel.m	PASS	34		
+skel-r	vml run vmlverify/r/skel.r	PASS	34		
+skel-scheme	vml run vmlverify/scheme/skel.scm	PASS	34		
+skel-forth	vml run vmlverify/forth/skel.fth	PASS	34		
+skel-fortran	vml run vmlverify/fortran/skel.f90	PASS	35		
+skel-basic	vml run vmlverify/basic/skel.bas	PASS	34		
+skel-ladder	vml run vmlverify/ladder/skel.ld	PASS	34		
+skel-d	vml run vmlverify/d/skel.d	PASS	34		

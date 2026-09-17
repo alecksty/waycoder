@@ -469,18 +469,26 @@ namespace PythonCompiler
             }
         }
 
-        public void VisitSubscript(SubscriptNode node)
+        /// <summary>
+        /// 计算下标元素地址到 R2；越界时跳到 <paramref name="outOfBounds"/> 标签（此时 R2 无意义）。
+        ///
+        /// 读（<see cref="VisitSubscript"/>）与写（VisitAssign / VisitAugAssign 的下标分支）**共用这一份**。
+        /// 两处各算一遍地址，迟早会出现"读的偏移对、写的偏移差一格"那类缺陷 ——
+        /// 本仓已记过同族问题多次（Go 的 a[i]=v 整段没代码生成，见 patches/0015-go-arrays.patch）。
+        /// 列表布局见 <see cref="VisitList"/>：[长度, e0, e1, …]，元素 i 落在 base + 4 + i*4。
+        /// </summary>
+        private void EmitSubscriptAddress(SubscriptNode node, string outOfBounds)
         {
             // 获取容器（列表/字典/元组）地址
             node.Value.Accept(this); // 容器地址在R0
             Emit(OpCode.PUSH, new Operand(OperandType.REGISTER, 0)); // 保存容器地址
-            
+
             // 获取索引/键
             node.Index.Accept(this); // 索引/键在R0
-            
+
             // 恢复容器地址到R1
             Emit(OpCode.POP, new Operand(OperandType.REGISTER, 1)); // 容器地址在R1
-            
+
             // 检查容器类型（简化：假设所有容器都有长度字段）
             // 加载长度
             Emit(OpCode.MOVE, new Operand(OperandType.REGISTER, 2),
@@ -493,13 +501,11 @@ namespace PythonCompiler
             Emit(OpCode.ADD, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 2));
             PlaceLabel(negSkip);
 
-            // 边界检查（对于列表/元组）
-            Emit(OpCode.CMP, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 2));
+            // 边界检查（对于列表/元组）：越界交给调用方处理 —— 读给 0，写整条跳过
             string boundsOk = NewLabel("bounds_ok");
-            string boundsEnd = NewLabel("bounds_end");
+            Emit(OpCode.CMP, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 2));
             Emit(OpCode.JL, new Operand(OperandType.LABEL, boundsOk));
-            Emit(OpCode.MOVE, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0));
-            Emit(OpCode.JMP, new Operand(OperandType.LABEL, boundsEnd));
+            Emit(OpCode.JMP, new Operand(OperandType.LABEL, outOfBounds));
 
             // 边界检查通过
             PlaceLabel(boundsOk);
@@ -512,13 +518,26 @@ namespace PythonCompiler
             Emit(OpCode.MUL, new Operand(OperandType.REGISTER, 0),
                  new Operand(OperandType.IMMEDIATE, 4)); // 索引*4
             Emit(OpCode.ADD, new Operand(OperandType.REGISTER, 2),
-                 new Operand(OperandType.REGISTER, 0)); // 最终地址
+                 new Operand(OperandType.REGISTER, 0)); // 最终地址在R2
+        }
+
+        public void VisitSubscript(SubscriptNode node)
+        {
+            string outOfBounds = NewLabel("sub_oob");
+            string done = NewLabel("sub_done");
+
+            EmitSubscriptAddress(node, outOfBounds);
 
             // 加载元素值
             Emit(OpCode.MOVE, new Operand(OperandType.REGISTER, 0),
                  new Operand(OperandType.MEMORY, "0(R2)"));
+            Emit(OpCode.JMP, new Operand(OperandType.LABEL, done));
 
-            PlaceLabel(boundsEnd);
+            // 越界：沿用原语义 —— 读回 0（不抛异常）
+            PlaceLabel(outOfBounds);
+            Emit(OpCode.MOVE, new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0));
+
+            PlaceLabel(done);
         }
 
         public void VisitName(NameNode node)

@@ -318,7 +318,27 @@ public partial class CodeGenerator
         {
             bool isString = node.Arguments[0] is LiteralNode lit && lit.Value is string
                 || (node.Arguments[0] is CallNode call && IsStringReturningFunc(call.Name));
-            EmitPrintArg(() => GenerateExpression(node.Arguments[0]), isString: isString, isFloat: node.Arguments[0] is LiteralNode flit && (flit.Value is float || flit.Value is double));
+            bool isFloat = node.Arguments[0] is LiteralNode flit && (flit.Value is float || flit.Value is double);
+
+            // ⚠ **必须在 CALL 之前压一个实参**（不能直接用基类的 EmitPrintArg，它只管
+            // 「求值到 R0 + CALL」）。`print_int`/`print_str`/`print_float`（Lib/console.vml）
+            // 的收尾是「被调用方清参数」的蹦床：
+            //     move R1 @13        ; R1 = 返回地址
+            //     add R13 #8         ; 跳过「返回地址 + 1 个实参」
+            //     push R1
+            //     ret
+            // 调用方一个字节都不压就直接 CALL 的话，每调一次 R13 净上移 4 字节；
+            // 攒够几次后，循环体里的 `push` / `call` 的返回地址就会落进本函数的栈帧，
+            // 把循环游标写花 —— 现象是**「循环只跑一轮」**（实测：3 次 print 之后
+            // `for (j in c(3,4)) { print(7) }` 只打一个 7）。压一个实参正好抵消那一格，
+            // 调用前后 R13 完全守恒。
+            // （C 前端踩的是同一条：它压了参数、又在 CALL 后 `add R13 #4` 自己清一遍，
+            //   净上移 4 ⇒ 同一个循环在同样的位置上只跑一轮。）
+            GenerateExpression(node.Arguments[0]);
+            instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)], instructions.Count));
+            string printFn = isFloat ? "print_float" : (isString ? "print_str" : "print_int");
+            instructions.Add(new Instruction(OpCode.CALL,
+                [new Operand(OperandType.LABEL, printFn)], instructions.Count));
             return;
         }
         // push arguments in reverse order

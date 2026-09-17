@@ -119,19 +119,33 @@ namespace JavaCompiler
             }
             else if (expression is ArrayInitializerExpression arrInit)
             {
+                // 数组字面量 `{1, 2, 3, 4}` —— 堆上开一块 `[count, e0, e1, …]`，
+                // 结果（块地址）留在 R0。读取/写入路径都按这个布局算 `base + i*4 + 4`
+                //（见 EmitArrayElementAddress）。
+                //
+                // ⚠ 这里原本有两处**操作数写反**（`MOVE` 是 **dest 在前**）：
+                //   ① `MOVE R0, R1` 想说的是"把分配结果搬到 R1"，实际却把（未初始化的）R1
+                //      读进了 R0 ⇒ 基址丢失，头与元素全写到了 `[R1+…]`（R1 = 0 ⇒ 写进中断向量区）；
+                //   ② 末尾 `MOVE R1, R0` 想说的是"结果 = 块地址"，实际却把**最后一个元素的值**
+                //      搬进了 R1 ⇒ 变量拿到的根本不是指针（实测 `int[] a = {1,2,3,4}` 之后 a == 4）。
+                //   两处互为镜像，所以从汇编上看像"有代码"，其实整块的地址从头到尾没对上。
                 int count = arrInit.Elements.Count;
                 int allocSize = (count + 1) * 4;
                 instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, allocSize)]));
-                EmitAlloc();
-                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1)]));
+                EmitAlloc();                                    // R0 = 块地址
+                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0)]));
                 instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, count)]));
-                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 0)]));
+                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 0)]));  // 头 = count
                 for (int i = 0; i < arrInit.Elements.Count; i++)
                 {
+                    // 基址在 R1 里，而元素表达式（方法调用、嵌套字面量…）可能占用 R1 ⇒
+                    // 压栈护住它，否则只有"元素全是纯字面量"时才碰巧正确。
+                    instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 1)]));
                     GenerateExpression(arrInit.Elements[i]);
+                    instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 1)]));
                     instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R1+{(i + 1) * 4}"), new Operand(OperandType.REGISTER, 0)]));
                 }
-                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0)]));
+                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1)]));  // 结果 = 块地址
             }
             else if (expression is InstanceofExpression instExpr)
             {
@@ -539,22 +553,7 @@ namespace JavaCompiler
                     if (assignment.Operator != TokenType.Assign)
                     {
                         var target = WrapTargetExpr(new VariableExpression(varExpr.Name));
-                        string op = assignment.Operator switch
-                        {
-                            TokenType.PlusAssign => "+",
-                            TokenType.MinusAssign => "-",
-                            TokenType.MultiplyAssign => "*",
-                            TokenType.DivideAssign => "/",
-                            TokenType.ModuloAssign => "%",
-                            TokenType.AndAssign => "&",
-                            TokenType.OrAssign => "|",
-                            TokenType.XorAssign => "^",
-                            TokenType.LeftShiftAssign => "<<",
-                            TokenType.RightShiftAssign => ">>",
-                            TokenType.UnsignedRightShiftAssign => ">>",
-                            _ => throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, $"Unknown compound operator: {assignment.Operator}")
-                        };
-                        _expr!.EmitCompoundAssign(target, WrapExpr(assignment.Right), op);
+                        _expr!.EmitCompoundAssign(target, WrapExpr(assignment.Right), CompoundOpSymbol(assignment.Operator));
                         return;
                     }
 
@@ -562,9 +561,15 @@ namespace JavaCompiler
                     JavaTypeEnum rightType = InferExpressionType(assignment.Right);
                     _varTypes[varExpr.Name] = rightType;
                     OpCode storeOp = GetStoreInstruction(rightType);
+                    // ⚠ 统一 store 约定是 **dest 在前**：`MOVE [mem], reg`。
+                    //   原实现与上面的"读取"（`MOVE reg, [mem]`）**逐字同形** ——
+                    //   `new Operand(REGISTER 0), new Operand(MEMORY …)` —— 也就是把 store
+                    //   写成了 load：`x = 5` 编译出来是"把 x 读进 R0"，值根本没落盘。
+                    //   实测后果：`s = s + a[i]` 每轮都只算不存，s 永远是 0（SKEL-SUM=0）。
+                    //   同族问题见 patch 0015（Go）/0011（Swift）——"操作数写反"。
                     instructions.Add(new Instruction(storeOp, new List<Operand> {
-                        new Operand(OperandType.REGISTER, 0),
-                        new Operand(OperandType.MEMORY, Vars.FormatOffset(-offset))
+                        new Operand(OperandType.MEMORY, Vars.FormatOffset(-offset)),
+                        new Operand(OperandType.REGISTER, 0)
                     }));
                 }
                 else
@@ -580,8 +585,77 @@ namespace JavaCompiler
                     }));
                 }
             }
+            else if (assignment.Left is ArrayAccessExpression arrLeft)
+            {
+                GenerateArrayElementAssignment(arrLeft, assignment);
+            }
         }
-        
+
+        /// <summary>
+        /// 复合赋值运算符 → 统一运算符号（<see cref="ExpressionManager.EmitCompoundAssign"/> 的口径）。
+        /// </summary>
+        private static string CompoundOpSymbol(TokenType op) => op switch
+        {
+            TokenType.PlusAssign => "+",
+            TokenType.MinusAssign => "-",
+            TokenType.MultiplyAssign => "*",
+            TokenType.DivideAssign => "/",
+            TokenType.ModuloAssign => "%",
+            TokenType.AndAssign => "&",
+            TokenType.OrAssign => "|",
+            TokenType.XorAssign => "^",
+            TokenType.LeftShiftAssign => "<<",
+            TokenType.RightShiftAssign => ">>",
+            TokenType.UnsignedRightShiftAssign => ">>",
+            _ => throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, $"Unknown compound operator: {op}")
+        };
+
+        /// <summary>
+        /// 数组元素赋值 `a[i] = v`（含复合形态 `a[i] += v`）。
+        ///
+        /// ⚠ 原来 <see cref="GenerateAssignment"/> **只有** <c>Left is VariableExpression</c>
+        ///   一条分支、**没有 else** ⇒ 目标是下标时整段没有代码生成，右值算完就被丢掉
+        ///   （实测 `a[i] = plus1(a[i])` 在汇编里一条指令都没有，只有紧随其后的 `s = s + a[i]`
+        ///   那半句留下了痕迹）。地址公式与读取路径共用
+        ///   <see cref="EmitArrayElementAddress"/>，两条路才是同一套。
+        /// </summary>
+        private void GenerateArrayElementAssignment(ArrayAccessExpression target, AssignmentExpression assignment)
+        {
+            bool compound = assignment.Operator != TokenType.Assign;
+
+            if (!compound)
+            {
+                // 右值先进栈保管：下面算地址要占用 R0/R1。用栈而不是约定的临时寄存器，
+                // 是因为右值表达式里可能有方法调用 / 嵌套取下标，同样会用到那些寄存器。
+                GenerateExpression(assignment.Right);
+                instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)], instructions.Count));
+            }
+
+            EmitArrayElementAddress(target);   // R0 = base + idx*4 + 4
+
+            if (compound)
+            {
+                // 读-改-写。地址压在栈上供最后回写；元素当前值用 ExpVar.Eval 懒求值，
+                // 让 EmitBinOp 按既有规则决定类型提升与 2 操作数 / 3 操作数形态，
+                // 不在这里另抄一套运算分发（那正是"同一规则两处实现"的来源）。
+                instructions.Add(new Instruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)], instructions.Count));
+                var current = ExpVar.Eval(ExpType.I32, () =>
+                {
+                    // 【R13】 = 元素地址（此刻 EmitBinOp 还没压任何东西）
+                    instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R13")], instructions.Count));
+                    instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1")], instructions.Count));
+                });
+                _expr!.EmitBinOp(current, WrapExpr(assignment.Right), CompoundOpSymbol(assignment.Operator));
+                instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 1)], instructions.Count));
+                instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, "R1"), new Operand(OperandType.REGISTER, 0)], instructions.Count));
+                return;
+            }
+
+            // R1 = 值，R0 = 地址 → 回写
+            instructions.Add(new Instruction(OpCode.POP, [new Operand(OperandType.REGISTER, 1)], instructions.Count));
+            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, "R0"), new Operand(OperandType.REGISTER, 1)], instructions.Count));
+        }
+
         private void GenerateVariableDeclaration(VariableDeclStatement varDecl)
         {
             if (varDecl.Initializer != null)

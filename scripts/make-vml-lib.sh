@@ -31,6 +31,19 @@
 #    那个位置会随「所有文件访问」权限跳，标记跟着跳就等于每次授权都白解压一遍。
 set -euo pipefail
 
+# ⚠ **别用裸 `python`** —— macOS 上只有 `python3`，裸 `python` 报「未找到命令」退出 127。
+#    而本脚本的失败点恰好落在「zip 已写好、指纹还没算」之间 ⇒ 留下**新 zip + 旧指纹**的矛盾状态。
+#    消费方 `MauiVml.EnsureLibExtracted()` 的解压判据是**指纹而非 zip** ⇒ 设备永远不重新解压，
+#    **修复就这么静默地不生效**（实测踩过：补丁 0033 给 Lib 新增 `lua/luatable.vml`，
+#    桌面能跑、手机上 Lua 一直报 `未找到标签: lua_table_get`）。
+PYTHON="${PYTHON:-}"
+if [ -z "$PYTHON" ]; then
+  for c in python3 python; do command -v "$c" >/dev/null 2>&1 && { PYTHON="$c"; break; }; done
+fi
+[ -n "$PYTHON" ] || { echo "✘ 找不到 python3/python，本脚本需要 Python 3" >&2; exit 1; }
+"$PYTHON" -c 'import sys; sys.exit(0 if sys.version_info.major >= 3 else 1)' \
+  || { echo "✘ $PYTHON 不是 Python 3" >&2; exit 1; }
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VML="$ROOT/third_party/vml"
 OUT="$ROOT/WayCoder.Maui/Resources/Raw/vml_lib.zip"
@@ -52,7 +65,7 @@ else
     # 没有 `zip` 的机器（例如 Windows Git Bash 默认不带）走 Python —— 用**固定时间戳**
     # 保证同样的内容每次产出同样的字节（与 `zip -X` 的意图一致）。
     echo "ℹ 未找到 zip，改用 Python zipfile"
-    python - "$VML" "$TMP" <<'PY'
+    "$PYTHON" - "$VML" "$TMP" <<'PY'
 import os, sys, zipfile
 root, out = sys.argv[1], sys.argv[2]
 
@@ -90,7 +103,12 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
 PY
 fi
 
-mv -f "$TMP" "$OUT"
+# ⚠ **先算指纹、再落盘 —— 顺序不能反。**
+#    原先的顺序是「先把 zip 移到 $OUT（就在这一行）→ 再算指纹」，于是指纹那一步一旦失败，
+#    就留下**新 zip + 旧指纹**的矛盾状态。而设备的解压判据是**指纹**、不是 zip
+#    ⇒ 它永远不重新解压、**修复静默不生效**（补丁 0033 新增 `Lib/lua/luatable.vml` 就是这么被吞掉的：
+#    桌面读 `Lib/` 直接跑得通，手机上一路报 `未找到标签: lua_table_get`）。
+#    现在两个都先写临时文件、最后一起移入；**指纹失败则两个都不动**（留旧的、自洽）。
 
 # ── 随包的**内容指纹**（`vml_lib.hash`）────────────────────────────────────
 #
@@ -104,7 +122,7 @@ mv -f "$TMP" "$OUT"
 # ⚠ 消费方是 `MauiVml.LibFingerprint()`，只有那一处。改这里的算法必须同步改那边，
 #    否则老包会反复解压（那边读不到/读不出就退回哈希整个 zip，不会崩，只是慢）。
 HASH_OUT="$ROOT/WayCoder.Maui/Resources/Raw/vml_lib.hash"
-python - "$OUT" "$HASH_OUT" <<'PY'
+"$PYTHON" - "$TMP" "$HASH_OUT.tmp" <<'PY'
 import sys, zipfile, hashlib
 zip_path, out = sys.argv[1], sys.argv[2]
 h = hashlib.sha256()
@@ -122,13 +140,17 @@ with open(out, "w", encoding="utf-8", newline="\n") as f:
 print("  指纹:", digest)
 PY
 
+# 两个都算好了才落盘 —— 保证「zip 与指纹要么都是新的、要么都是旧的」，不会一新一旧
+mv -f "$TMP" "$OUT"
+mv -f "$HASH_OUT.tmp" "$HASH_OUT"
+
 echo "✔ $OUT"
 ls -la "$OUT" | awk '{print "  大小: " $5 " 字节"}'
-echo "  顶层条目：$(python -c "
+echo "  顶层条目：$("$PYTHON" -c "
 import sys, zipfile
 print(' '.join(sorted({n.split('/')[0] for n in zipfile.ZipFile(sys.argv[1]).namelist()})))
 " "$OUT")"
-echo "  示例：$(python -c "
+echo "  示例：$("$PYTHON" -c "
 import sys, zipfile
 ns=[n for n in zipfile.ZipFile(sys.argv[1]).namelist() if n.startswith('Examples/') and n.count('/')==2]
 print(len(ns), '个 →', ' '.join(sorted(ns)))

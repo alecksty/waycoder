@@ -52,7 +52,16 @@ public class SubroutineNode(string name, List<string> parameters, List<ASTNode> 
 /// </summary>
 public class FunctionNode(string name, string returnType, List<string> parameters, List<ASTNode> body, int line, int col) : ASTNode(line, col)
 {
+    /// <summary>**被调用的**名字 —— 定义体标签 = <c>func_{Name}</c>，调用点也是这个名字。</summary>
     public string Name { get; } = name;
+    /// <summary>
+    /// 装返回值的那个变量：有 <c>result(r)</c> 子句时是 <c>r</c>，否则与函数名同名
+    /// （老式写法 <c>f = expr</c>）。**它和 <see cref="Name"/> 是两回事** ——
+    /// 早先解析器把 Name 直接换成 result 变量名，于是定义体编成 `func_r:` 而调用点找
+    /// `func_fib`：命中了库里的同名函数就**静默调错**（fact2.f90 的 `factorial` 实际
+    /// 调的是 lib_math_factorial），没命中就运行期 KeyNotFound。
+    /// </summary>
+    public string ResultVar { get; set; } = name;
     public string ReturnType { get; } = returnType;
     public List<string> Parameters { get; } = parameters;
     public List<ASTNode> Body { get; } = body;
@@ -160,6 +169,15 @@ public class AssignNode(string name, ASTNode value, int line, int col) : ASTNode
     public ASTNode Value { get; } = value;
     public List<ASTNode>? ArrayIndices { get; set; } // for array element: a(i) = expr
     public bool IsArraySection { get; set; } // array slice: a(:) = expr
+}
+
+/// <summary>
+/// Array element reference in an expression: a(i)（标量元素，1-based）
+/// </summary>
+public class ArrayElemNode(string name, ASTNode index, int line, int col) : ASTNode(line, col)
+{
+    public string Name { get; } = name;
+    public ASTNode Index { get; } = index;
 }
 
 /// Array section: A(lower:upper) or A(:) for whole array

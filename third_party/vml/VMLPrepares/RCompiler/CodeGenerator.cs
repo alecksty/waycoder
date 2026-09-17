@@ -57,8 +57,22 @@ public partial class CodeGenerator : TypedCodeGen<RType>
         // stack frame prologue
         EmitPrologue();
 
+        // 顶层也要**预留局部变量栈帧**（此前只 EmitPrologue，没有 SUB R13）。
+        // 局部变量按 [R12-4]、[R12-8]… 分配，而 R12 == R13 ⇒ 那些槽位全在 SP **之下**，
+        // 任何 PUSH / CALL（压返回地址）都会把它们原地写花 —— 表现是循环跑一两轮就乱、
+        // 或读回 0（`(0-1)*4 = -4` ⇒ 地址 FFFFFFFC 的内存越界）。
+        // 帧大小要等语句生成完才知道（变量是边生成边分配的），故先占位、最后回填。
+        int framePatchIndex = instructions.Count;
+        instructions.Add(new Instruction(OpCode.SUB,
+            [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, 0)], framePatchIndex));
+
         foreach (var stmt in program.Statements)
             GenerateStatement(stmt);
+
+        // 回填帧大小（+8 安全边界，与 EmitPrologueWithFrame 的口径一致）
+        int frameSize = nextStackOffset + 8;
+        instructions[framePatchIndex] = new Instruction(OpCode.SUB,
+            [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, frameSize)], framePatchIndex);
 
         // exit program
         EmitExit();

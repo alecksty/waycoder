@@ -319,40 +319,49 @@ namespace RustCompiler
         public void Visit(ArrayLiteralNode node)
         {
             int count = node.Elements.Count;
-            // Allocate: size = (count + 1) * 4 bytes
+            // 布局: [count, e0, e1, …]（与 Visit(IndexAccessNode) 的 +4 一致）
             int allocSize = (count + 1) * 4;
             AddInstruction(OpCode.MOVE, "R0", $"#{allocSize}");
-            AddInstruction(OpCode.SYSCALL, "#40");
-            AddInstruction(OpCode.MOVE, "R1", "R0");
+            AddInstruction(OpCode.SYSCALL, "#40");      // R0 = 块地址
+            // ⚠ 原来是 `MOVE R1, R0` 之后就指望 R1 一直有效 —— 可 R1 会被元素表达式
+            //   （尤其函数调用）改掉；更致命的是下面每一句写元素都写成了
+            //   `MOVE R0, {off}(R1)`：`MOVE dest, src` 的 **dest 在前**，那是**从数组读**进 R0，
+            //   元素值一个都没写进去（数组恒为 0），最后 `MOVE R0, R1` 还把上一个元素值当指针返回。
+            //   **"操作数写反"族**（与 Go 0015、Swift 0011 同病）。
+            //   现在基址常驻栈顶（元素表达式可能调函数，任何寄存器都靠不住）。
+            AddInstruction(OpCode.PUSH, "R0");          // 基址入栈（此后栈顶恒为基址）
             AddInstruction(OpCode.MOVE, "R0", $"#{count}");
-            AddInstruction(OpCode.MOVE, "R0", $"(R1)");
+            AddInstruction(OpCode.POP, "R1");           // R1 = 基址
+            AddInstruction(OpCode.PUSH, "R1");          // 立刻放回
+            AddInstruction(OpCode.MOVE, "(R1)", "R0");  // [base] = count
 
             for (int i = 0; i < node.Elements.Count; i++)
             {
-                node.Elements[i].Accept(this);
+                node.Elements[i].Accept(this);          // R0 = 元素值
+                AddInstruction(OpCode.POP, "R1");       // R1 = 基址
+                AddInstruction(OpCode.PUSH, "R1");      // 放回
                 int offset = (i + 1) * 4;
-                AddInstruction(OpCode.MOVE, "R0", $"{offset}(R1)");
+                AddInstruction(OpCode.MOVE, $"{offset}(R1)", "R0");   // [base+off] = 元素值
             }
-            AddInstruction(OpCode.MOVE, "R0", "R1");
+            AddInstruction(OpCode.POP, "R0");           // 返回值 = 基址
         }
 
         public void Visit(IndexAccessNode node)
         {
-            string arrLabel = NewLabel("__ia_arr");
-            string idxLabel = NewLabel("__ia_idx");
-            dataSection[arrLabel] = 0;
-            dataSection[idxLabel] = 0;
-
-            node.Target.Accept(this);
-            AddInstruction(OpCode.MOVE, "R0", arrLabel);
-            node.Index.Accept(this);
-            AddInstruction(OpCode.MOVE, "R0", idxLabel);
-            AddInstruction(OpCode.MOVE, "R1", arrLabel);
-            AddInstruction(OpCode.MOVE, "R0", idxLabel);
-            AddInstruction(OpCode.SHL, "R0", "#2");
-            AddInstruction(OpCode.ADD, "R0", "#4");
-            AddInstruction(OpCode.ADD, "R0", "R1");
-            AddInstruction(OpCode.MOVE, "R0", "(R0)");
+            // 元素 i 在 `base + i*4 + 4`（跳过 [count, e0, …] 的头）。
+            // ⚠ 原来用的是两个**全局暂存标签** `arrLabel`/`idxLabel`，而四句存取的**方向全写反了**
+            //   （`MOVE R0, arrLabel` 是 **LEA**、`MOVE R0, idxLabel` 也是 LEA）⇒ 算出来的基址与下标
+            //   当场被覆盖，最后从 `&__ia_idx` 之类的地方取值（野地址）。
+            //   连标签暂存这条路本身也不该走：它是**全局的**，递归/重入时会被内层下标冲掉。
+            //   改成纯 PUSH/POP（与 Go/Kotlin 同一套写法，天然嵌套安全）。
+            node.Target.Accept(this);                   // R0 = 基址
+            AddInstruction(OpCode.PUSH, "R0");
+            node.Index.Accept(this);                    // R0 = 下标
+            AddInstruction(OpCode.POP, "R1");           // R1 = 基址
+            AddInstruction(OpCode.SHL, "R0", "#2");     // R0 = idx*4
+            AddInstruction(OpCode.ADD, "R0", "#4");     // 跳过数组头
+            AddInstruction(OpCode.ADD, "R0", "R1");     // R0 = 元素地址
+            AddInstruction(OpCode.MOVE, "R0", "(R0)");  // R0 = 元素值（load）
         }
 
         public void Visit(MemberAccessNode node)

@@ -1,0 +1,260 @@
+# 0030：D 前端 —— 数组字面量是 `LiteralNode(List)` / 无下标赋值节点 / 顶层无栈帧
+
+> 体检报告的三条（`a[i]=v` 被压成对**数组变量本身**赋值、复合赋值无 else、`base + idx*4` 无 `+4` 头）
+> **全部复核属实**。另有两条体检未提。
+
+## 一、数组字面量把 `List<ASTNode>` 塞进了 `LiteralNode`
+
+`[1,2,3,4]` → `LiteralNode(List<ASTNode>)`，加载常量时 `Convert.ToInt32(List)` 直接炸：
+
+    internal error: Unable to cast object of type 'List`1[DCompiler.ASTNode]' to type 'System.IConvertible'
+      at CompilerBase.CodeGeneratorBase.EmitLoadConstant(Object value)
+      at DCompiler.CodeGenerator.GenerateLiteral(...) CodeGenerator.Expressions.cs:45
+
+## 二、无下标赋值节点（体检正确）
+
+`a[i] = v` → `new AssignNode(idx.Name, right)` = 给**数组变量本身**赋值；
+复合赋值无 `else` 落 `return left`（值丢弃）。
+修法：新增 `IndexAssignNode` / `IndexOpAssignNode` + 对应的代码生成。
+
+## 三、⚠ 顶层（`main:` 那段）也没有栈帧（体检未提）
+
+函数路径本来就有 `Vars.LocalFrameSize` 回填，**顶层一直漏着**。
+修法：插入序言之后占位、语句生成完回填
+（`BuildProgram` 会重扫 LABEL 指令重建标签表，所以插入是安全的）。
+
+## 四、⚠ 关于「D 的数组到底有没有头」—— **没有**，所以**不补 `+4`**
+
+查证：D 的 `GenerateIndex` 算的是 `base + idx*4`，而 `GenerateVarDecl` 只把数组变量当作
+**一个指向元素的指针**存起来，**代码里没有任何地方**建立过 `[count, e0, …]` 那种带头布局。
+⇒ 数组字面量按 `count*4` 分配、元素 `i` 落在 `base + i*4`，**与既有读取路径自洽**，
+**没有照搬 Go/Kotlin 的带头布局**（那会引入一个「读的对、写的差一格」的缺陷）。
+
+> 这一条正是 `patches/0015` 与我们反复强调的判据：
+> **`+4` 只有用了 `AllocateVmlArray` 的语言才需要；自建扁布局的语言读写两侧同式，没有 `+4` 是对的。**
+
+## 五、实测
+
+| | 修前 | 修后 |
+|---|---|---|
+| `corpus/d/skel.d` | `Unable to cast List<ASTNode> to IConvertible` | `SKEL-SUM=14` ✅ |
+
+**D 在两个仓库里都没有任何 `.d` 例子**可做回归基线 ⇒ 另写探针验证单次 `writeln`、
+循环内 `a[i] = inc(a[i])`、全局数组写入等形状都产生正确代码。
+
+## 六、发现但未修（超出本次范围）
+
+D 的 `symbolTable` 是帧相对的，而 `GenerateFuncDef` 结尾 `symbolTable = savedSymbols`；
+**顶层声明的数组在函数里被读时，偏移是按函数自己的 `R12` 解释的** ——
+实测 `int[3] g = [7,8,9]` 在 `main()` 里读 `g[1]` 得 0。
+这是 D 既有的作用域设计问题，与下标读写无关。
+（D 覆写了 `EmitLoadVar/EmitStoreVar` 直接查 `symbolTable`，所以**不受** Ruby 那条 `_varOffsets` 分家 bug 影响。）
+diff --git a/third_party/vml/VMLPrepares/DCompiler/ASTNode.cs b/third_party/vml/VMLPrepares/DCompiler/ASTNode.cs
+index 306d38b5..d3733786 100644
+--- a/third_party/vml/VMLPrepares/DCompiler/ASTNode.cs
++++ b/third_party/vml/VMLPrepares/DCompiler/ASTNode.cs
+@@ -124,6 +124,33 @@ public class IndexNode(string name, ASTNode index, int line, int col) : ASTNode(
+     public ASTNode Index { get; } = index;
+ }
+ 
++/// <summary>
++/// 数组字面量 <c>[1, 2, 3]</c>。此前它被塞进 <c>LiteralNode(List&lt;ASTNode&gt;)</c> ——
++/// 那是**非法**的：<c>EmitLoadConstant</c> 会对它做 <c>Convert.ToInt32(List)</c>，
++/// 直接抛 <c>InvalidCastException</c>（"Unable to cast List&lt;ASTNode&gt; to IConvertible"）。
++/// </summary>
++public class ArrayLiteralNode(List<ASTNode> elements, int line, int col) : ASTNode(line, col)
++{
++    public List<ASTNode> Elements { get; } = elements;
++}
++
++/// <summary>下标赋值 <c>a[i] = v</c>。原来被压成 <c>AssignNode(a, v)</c>（给数组变量本身赋值）。</summary>
++public class IndexAssignNode(string name, ASTNode index, ASTNode value, int line, int col) : ASTNode(line, col)
++{
++    public string Name { get; } = name;
++    public ASTNode Index { get; } = index;
++    public ASTNode Value { get; } = value;
++}
++
++/// <summary>下标复合赋值 <c>a[i] += v</c>（原来这个分支没有 else，整条语句的值被丢掉）。</summary>
++public class IndexOpAssignNode(string name, ASTNode index, string op, ASTNode value, int line, int col) : ASTNode(line, col)
++{
++    public string Name { get; } = name;
++    public ASTNode Index { get; } = index;
++    public string Op { get; } = op;
++    public ASTNode Value { get; } = value;
++}
++
+ public class ForeachNode(string varName, string? keyName, ASTNode collection, List<ASTNode> body, int line, int col)
+     : ASTNode(line, col)
+ {
+diff --git a/third_party/vml/VMLPrepares/DCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/DCompiler/CodeGenerator.Expressions.cs
+index 5e39e94b..e56c48be 100644
+--- a/third_party/vml/VMLPrepares/DCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/DCompiler/CodeGenerator.Expressions.cs
+@@ -31,6 +31,15 @@ public partial class CodeGenerator
+             case IndexNode index:
+                 GenerateIndex(index);
+                 break;
++            case ArrayLiteralNode arrayLiteral:
++                GenerateArrayLiteral(arrayLiteral);
++                break;
++            case IndexAssignNode indexAssign:
++                GenerateIndexAssign(indexAssign);
++                break;
++            case IndexOpAssignNode indexOpAssign:
++                GenerateIndexOpAssign(indexOpAssign);
++                break;
+             case PrefixPostfixNode pp:
+                 GeneratePrefixPostfix(pp);
+                 break;
+@@ -261,6 +270,91 @@ public partial class CodeGenerator
+             instructions.Count));
+     }
+ 
++    // ══════════════════════════════════════════════════════════════════════════
++    // 数组（下标）代码生成
++    //
++    // 布局与**本文件既有的 `GenerateIndex` 一致：没有数组头**，元素 i 在 `base + i*4`。
++    // （D 的数组变量就是一个指向元素的指针；读写两侧同式，自洽。）
++    // ⚠ 不要照搬 Go/Kotlin 那种 `[count, e0, …]` 带头布局 —— 那会和这里的读取路径对不上。
++    // ══════════════════════════════════════════════════════════════════════════
++
++    private void GenerateArrayLiteral(ArrayLiteralNode node)
++    {
++        int count = node.Elements.Count;
++        AddRI(OpCode.MOVE, 0, count * 4);
++        instructions.Add(new Instruction(OpCode.SYSCALL,
++            new List<Operand> { new Operand(OperandType.IMMEDIATE, 40) }, instructions.Count)); // R0 = 块地址
++        // 基址常驻栈顶：元素表达式里可能有函数调用，任何寄存器都靠不住。
++        instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
++        for (int i = 0; i < count; i++)
++        {
++            GenerateExpression(node.Elements[i]);                     // R0 = 元素值
++            instructions.Add(new Instruction(OpCode.POP, [Reg(1)]));  // R1 = 基址
++            instructions.Add(new Instruction(OpCode.PUSH, [Reg(1)])); // 立刻放回
++            instructions.Add(new Instruction(OpCode.MOVE,
++                [new Operand(OperandType.MEMORY, i == 0 ? "R1" : $"R1+{i * 4}"), Reg(0)],
++                instructions.Count));                                 // [base+i*4] = 元素值
++        }
++        instructions.Add(new Instruction(OpCode.POP, [Reg(0)]));      // 返回值 = 基址
++    }
++
++    /// <summary>算出 <c>a[i]</c> 的元素地址 → R0（无数组头，<c>base + i*4</c>）。</summary>
++    private void EmitElementAddress(string name, ASTNode index)
++    {
++        if (symbolTable.TryGetValue(name, out int baseOffset))
++        {
++            instructions.Add(new Instruction(OpCode.MOVE,
++                [Reg(0), new Operand(OperandType.MEMORY, MemOff(baseOffset))], instructions.Count));
++        }
++        else
++        {
++            string dataLabel = $"var_{name}";
++            if (!dataSection.ContainsKey(dataLabel))
++                dataSection[dataLabel] = 0;
++            instructions.Add(new Instruction(OpCode.MOVE,
++                [Reg(0), new Operand(OperandType.MEMORY, dataLabel)], instructions.Count));
++        }
++        instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));    // 基址
++        GenerateExpression(index);                                   // R0 = 下标
++        instructions.Add(new Instruction(OpCode.MUL, [Reg(0), Reg(0), Imm(4)], instructions.Count));
++        instructions.Add(new Instruction(OpCode.POP, [Reg(1)]));     // R1 = 基址
++        instructions.Add(new Instruction(OpCode.ADD, [Reg(0), Reg(0), Reg(1)], instructions.Count));
++    }
++
++    private void GenerateIndexAssign(IndexAssignNode node)
++    {
++        GenerateExpression(node.Value);                              // R0 = 右值
++        instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
++        EmitElementAddress(node.Name, node.Index);                   // R0 = 元素地址
++        instructions.Add(new Instruction(OpCode.POP, [Reg(1)]));     // R1 = 右值
++        instructions.Add(new Instruction(OpCode.MOVE,
++            [new Operand(OperandType.MEMORY, "R0"), Reg(1)], instructions.Count)); // [地址] = 右值
++        instructions.Add(new Instruction(OpCode.MOVE, [Reg(0), Reg(1)], instructions.Count));
++    }
++
++    private void GenerateIndexOpAssign(IndexOpAssignNode node)
++    {
++        EmitElementAddress(node.Name, node.Index);                   // R0 = 元素地址
++        instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));    // 地址压栈（求值会改所有寄存器）
++        instructions.Add(new Instruction(OpCode.MOVE,
++            [Reg(1), new Operand(OperandType.MEMORY, "R0")], instructions.Count));  // R1 = 旧值
++        instructions.Add(new Instruction(OpCode.PUSH, [Reg(1)]));
++        GenerateExpression(node.Value);                              // R0 = 右值
++        instructions.Add(new Instruction(OpCode.POP, [Reg(1)]));     // R1 = 旧值
++        OpCode op = node.Op switch
++        {
++            "+=" => OpCode.ADD,
++            "-=" => OpCode.SUB,
++            "*=" => OpCode.MUL,
++            "/=" => OpCode.DIV,
++            _ => OpCode.ADD,
++        };
++        instructions.Add(new Instruction(op, [Reg(0), Reg(1), Reg(0)], instructions.Count)); // R0 = 旧值 op 右值
++        instructions.Add(new Instruction(OpCode.POP, [Reg(1)]));     // R1 = 地址
++        instructions.Add(new Instruction(OpCode.MOVE,
++            [new Operand(OperandType.MEMORY, "R1"), Reg(0)], instructions.Count));          // [地址] = 结果
++    }
++
+     private void GeneratePrefixPostfix(PrefixPostfixNode node)
+     {
+         if (node.Operand is VarNode vn)
+diff --git a/third_party/vml/VMLPrepares/DCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/DCompiler/CodeGenerator.cs
+index b9754856..c0b169f5 100644
+--- a/third_party/vml/VMLPrepares/DCompiler/CodeGenerator.cs
++++ b/third_party/vml/VMLPrepares/DCompiler/CodeGenerator.cs
+@@ -56,6 +56,7 @@ public partial class CodeGenerator : OopCodeGenerator
+     {
+         AddLabel("main");
+         EmitPrologue();
++        int prologueEnd = instructions.Count; // 序言结束位置（帧分配插在这里）
+         bool hasMainFunc = false;
+         foreach (var stmt in program.Statements)
+         {
+@@ -64,6 +65,16 @@ public partial class CodeGenerator : OopCodeGenerator
+             GenerateStatement(stmt);
+         }
+ 
++        // 顶层同样要预留局部变量栈帧（函数路径本来就有，顶层一直漏着）：
++        // 局部变量按 [R12-4]、[R12-8]… 分配，而 R12 == R13 ⇒ 槽位全在 SP 之下，
++        // 顶层任何 PUSH / CALL 都会把它们原地写花。
++        int mainFrameSize = Vars!.LocalFrameSize;
++        if (mainFrameSize > 0)
++        {
++            instructions.Insert(prologueEnd, new Instruction(OpCode.SUB,
++                [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, mainFrameSize + 8)]));
++        }
++
+         // If main() was defined as a function, CALL it so it actually executes
+         if (hasMainFunc)
+         {
+diff --git a/third_party/vml/VMLPrepares/DCompiler/Parser.cs b/third_party/vml/VMLPrepares/DCompiler/Parser.cs
+index 9c22137b..0e0154f4 100644
+--- a/third_party/vml/VMLPrepares/DCompiler/Parser.cs
++++ b/third_party/vml/VMLPrepares/DCompiler/Parser.cs
+@@ -569,8 +569,11 @@ public class Parser : ParserBase<Token, TokenType>
+             }
+             if (left is IndexNode idx)
+             {
+-                // a[i] = value
+-                if (op == "=") return new AssignNode(idx.Name, right, l, cl);
++                // a[i] = value / a[i] += value
++                // ⚠ 原来 `a[i] = v` 被压成 `AssignNode(a, v)` —— **给数组变量本身赋值**
++                //   （下标整个丢掉）；复合赋值连分支都没有，落空后整条语句被静默丢弃。
++                if (op == "=") return new IndexAssignNode(idx.Name, idx.Index, right, l, cl);
++                return new IndexOpAssignNode(idx.Name, idx.Index, op, right, l, cl);
+             }
+         }
+         return left;
+@@ -858,7 +861,10 @@ public class Parser : ParserBase<Token, TokenType>
+                 while (Match(TokenType.Comma));
+             }
+             Expect(TokenType.RBracket, "expected ']'");
+-            return new LiteralNode(elements, l, c);
++            // ⚠ 原来 here 是 `new LiteralNode(elements, l, c)` —— 把元素列表当成"字面量的值"，
++            //   而 EmitLoadConstant 会对它做 Convert.ToInt32 ⇒ InvalidCastException
++            //   （实测：`Unable to cast List<ASTNode> to IConvertible`）。改成真正的数组字面量节点。
++            return new ArrayLiteralNode(elements, l, c);
+         }
+ 
+         // this

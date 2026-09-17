@@ -28,8 +28,85 @@ public partial class CodeGenerator
             case FuncCallNode funcCall:
                 GenerateFuncCall(funcCall);
                 break;
+            case ArrayElemNode arrayElem:
+                GenerateArrayElemLoad(arrayElem);
+                break;
             default:
                 throw new CompilationException(ErrorCode.CodeGen_UnsupportedExpression, VMLPlugins.Strings.UnsupportedExpression(node.GetType().Name));
+        }
+    }
+
+    /// <summary>
+    /// 数组元素读：`a(i)` → R0 = a[i-1]。
+    ///
+    /// <para>次序上**先算下标再算基地址**：下标表达式求值会用到 R0/R1，反过来就会被基地址覆盖。</para>
+    /// </summary>
+    private void GenerateArrayElemLoad(ArrayElemNode node)
+    {
+        GenerateExpression(node.Index);
+        AddRI(OpCode.SUB, 0, 1);   // Fortran 1-based → 0-based
+        AddRI(OpCode.MUL, 0, 4);   // 元素 4 字节（与写入侧 GenerateAssign 同一约定）
+        EmitArrayBaseAddress(node.Name, 1);
+        instructions.Add(new Instruction(OpCode.ADD,
+            new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) },
+            instructions.Count));
+        instructions.Add(new Instruction(OpCode.MOVE,
+            new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") },
+            instructions.Count));
+    }
+
+    /// <summary>
+    /// 把数组 <paramref name="name"/> 的**基地址**（元素 0 的地址）算到 <paramref name="destReg"/>。
+    /// 四种来源，判据按「这块内存在哪」分：
+    /// <list type="bullet">
+    /// <item>固定长度局部数组（`integer :: a(4)`，声明进了 ArraySizes）—— 整块就在栈帧里，
+    ///       基地址 = R12 - 偏移；偏移是 <see cref="TypedCodeGen{T}.MemOff"/> 的正数约定。</item>
+    /// <item>形参数组（`subroutine f(x)` 里的 x，偏移为负 = 帧上方参数区）—— 槽里存的是
+    ///       调用方传进来的地址，解引用即可。</item>
+    /// <item>可分配数组（`allocate(a(n))`）—— 槽里是 malloc 来的指针，且
+    ///       <see cref="GenerateAllocate"/> 在 [0] 处放了长度头 ⇒ 元素从 +4 开始。</item>
+    /// <item>其余（全局）—— 数据段标签本身就是地址。</item>
+    /// </list>
+    /// </summary>
+    private void EmitArrayBaseAddress(string name, int destReg)
+    {
+        string key = name.ToLowerInvariant();
+        if (symbolTable.TryGetValue(key, out int offset))
+        {
+            if (offset < 0)
+            {
+                // 形参数组：参数区在 R12 上方，槽里是地址
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    new List<Operand> { new Operand(OperandType.REGISTER, destReg), new Operand(OperandType.MEMORY, MemOff(offset)) },
+                    instructions.Count));
+            }
+            else if (_arraySizes.ContainsKey(key))
+            {
+                // 固定长度局部数组：R12 - offset 就是元素 0 的地址
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    new List<Operand> { new Operand(OperandType.REGISTER, destReg), new Operand(OperandType.REGISTER, 12) },
+                    instructions.Count));
+                if (offset != 0)
+                    instructions.Add(new Instruction(OpCode.SUB,
+                        new List<Operand> { new Operand(OperandType.REGISTER, destReg), new Operand(OperandType.IMMEDIATE, offset) },
+                        instructions.Count));
+            }
+            else
+            {
+                // 可分配数组：解引用拿首地址，跳过 [0] 的长度头
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    new List<Operand> { new Operand(OperandType.REGISTER, destReg), new Operand(OperandType.MEMORY, MemOff(offset)) },
+                    instructions.Count));
+                instructions.Add(new Instruction(OpCode.ADD,
+                    new List<Operand> { new Operand(OperandType.REGISTER, destReg), new Operand(OperandType.IMMEDIATE, 4) },
+                    instructions.Count));
+            }
+        }
+        else
+        {
+            instructions.Add(new Instruction(OpCode.MOVE,
+                new List<Operand> { new Operand(OperandType.REGISTER, destReg), new Operand(OperandType.LABEL, $"var_{key}") },
+                instructions.Count));
         }
     }
 
@@ -177,6 +254,15 @@ public partial class CodeGenerator
         {
             // char(i) / achar(i) — 整数转字符（字符即按整数存储，本质无操作）
             GenerateExpression(node.Arguments[0]);
+            return;
+        }
+        // mod(a, b) —— Fortran 的取模，VML 有原生 MOD 指令。
+        // 不拦的话会走到下面的通用 `CALL func_mod`，而**库里没有 mod 这个标签**（实测），
+        // 于是「未解析标签 func_mod」→ 运行期 KeyNotFound：gcd/质数/进制转换这类
+        // 真例子（Examples/fortran 的 gcd2/prime2/sum_digits2）全都卡在这一句上。
+        if (fname == "mod" || fname == "modulo")
+        {
+            _expr!.EmitBinOp(WrapExpr(node.Arguments[0]), WrapExpr(node.Arguments[1]), "%");
             return;
         }
         if (fname == "outint")

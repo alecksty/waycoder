@@ -276,6 +276,8 @@ public class Parser : ParserBase<Token, TokenType>
             Advance();
             var right = ParseAssignment();
             if (left is VarNode v) return new AssignNode(v.Name, right, l, c);
+            // 下标左值: a[i] = v —— 原来整段丢成下划线变量 `_`（目标与下标都没了，写得"成功"但其实什么都没写）
+            if (left is IndexNode ix) return new IndexAssignNode(ix.Target, ix.Index, right, l, c);
             return new AssignNode("_", right, l, c);
         }
         if (Check(TokenType.PlusAssign) || Check(TokenType.MinusAssign) || Check(TokenType.MulAssign) || Check(TokenType.DivAssign))
@@ -283,6 +285,8 @@ public class Parser : ParserBase<Token, TokenType>
             string op = Advance().Value;
             var right = ParseAssignment();
             if (left is VarNode v) return new OpAssignNode(v.Name, op, right, left.Line, left.Column);
+            // 下标复合赋值: 原来落空（既没生成节点也没报错，整条语句的值被丢掉）
+            if (left is IndexNode ix2) return new IndexOpAssignNode(ix2.Target, ix2.Index, op, right, left.Line, left.Column);
         }
         return left;
     }
@@ -354,7 +358,25 @@ public class Parser : ParserBase<Token, TokenType>
         return ParsePrimary();
     }
 
+    /// <summary>
+    /// 主表达式 + **后缀下标链**。此前只有主表达式，`a[i]` 里的 `[i]` 根本没人吃
+    /// （表现为 `plus1(a[i])` 报「expected ) (got LBracket)」）。
+    /// </summary>
     private ASTNode ParsePrimary()
+    {
+        var expr = ParsePrimaryCore();
+        while (Check(TokenType.LBracket))
+        {
+            int l = expr.Line, c = expr.Column;
+            Advance(); // [
+            var index = ParseExpression();
+            Expect(TokenType.RBracket, "expected ]");
+            expr = new IndexNode(expr, index, l, c);
+        }
+        return expr;
+    }
+
+    private ASTNode ParsePrimaryCore()
     {
         int l = Cur.Line, c = Cur.Column;
 

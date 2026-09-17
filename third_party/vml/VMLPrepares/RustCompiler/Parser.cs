@@ -425,15 +425,31 @@ namespace RustCompiler
                 assignment.VariableName = Expect(TokenType.IDENTIFIER, "期望变量名").Value;
             }
 
-            // 成员访问链: p.x = ... 或 p.x.y = ...
-            if (Check(TokenType.DOT))
+            // 左值后缀链: p.x = ... / p.x.y = ... / a[i] = ... / p.a[i] = ...
+            // ⚠ 下标左值原来**完全没有分支**：`a[i] = v` 会被 ParseStatement 判成"不是赋值"
+            //   （IsAssignment 只认 `IDENT (.IDENT)* =`）⇒ 落到 ParseExpressionStatement，
+            //   表达式吃到 `a[i]` 后撞上 `=`，Expect(';') 抛「期望 ';'」——**整个文件解析失败**。
+            if (Check(TokenType.DOT) || Check(TokenType.LBRACKET))
             {
                 ASTNode target = new IdentifierNode { Name = assignment.VariableName };
-                while (Check(TokenType.DOT))
+                while (true)
                 {
-                    Advance(); // .
-                    string member = Expect(TokenType.IDENTIFIER, "期望字段名").Value;
-                    target = new MemberAccessNode { Target = target, Member = member };
+                    if (Check(TokenType.DOT))
+                    {
+                        Advance(); // .
+                        string member = Expect(TokenType.IDENTIFIER, "期望字段名").Value;
+                        target = new MemberAccessNode { Target = target, Member = member };
+                        continue;
+                    }
+                    if (Check(TokenType.LBRACKET))
+                    {
+                        Advance(); // [
+                        var index = ParseExpression();
+                        Expect(TokenType.RBRACKET, "期望 ']'");
+                        target = new IndexAccessNode { Target = target, Index = index };
+                        continue;
+                    }
+                    break;
                 }
                 assignment.Target = target;
             }
@@ -455,16 +471,41 @@ namespace RustCompiler
         /// </summary>
         private bool IsAssignment()
         {
-            // Lookahead: IDENTIFIER (. IDENTIFIER)* = ...
+            // Lookahead: IDENTIFIER (. IDENTIFIER | [ expr ])* = ...
+            // ⚠ 原来只认 `IDENTIFIER (. IDENTIFIER)* =` —— 下标左值 `a[i] = v` 落到表达式语句，
+            //   然后在 Expect(';') 上撞 `=`（Parser 的 456 行那条老注释只提了成员访问）。
             int savedPos = _pos;
             try
             {
                 Advance(); // skip IDENTIFIER
-                while (Check(TokenType.DOT))
+                while (true)
                 {
-                    Advance(); // skip .
-                    if (!Check(TokenType.IDENTIFIER)) return false;
-                    Advance(); // skip IDENTIFIER
+                    if (Check(TokenType.DOT))
+                    {
+                        Advance(); // skip .
+                        if (!Check(TokenType.IDENTIFIER)) return false;
+                        Advance(); // skip IDENTIFIER
+                        continue;
+                    }
+                    if (Check(TokenType.LBRACKET))
+                    {
+                        // 整个 `[ ... ]` 括号配对跳过（下标里可以有任意表达式、含嵌套下标）。
+                        int depth = 0;
+                        bool closed = false;
+                        while (!IsAtEnd)
+                        {
+                            if (Check(TokenType.LBRACKET)) depth++;
+                            else if (Check(TokenType.RBRACKET))
+                            {
+                                depth--;
+                                if (depth == 0) { Advance(); closed = true; break; }
+                            }
+                            Advance();
+                        }
+                        if (!closed) return false;
+                        continue;
+                    }
+                    break;
                 }
                 return Check(TokenType.EQ);
             }

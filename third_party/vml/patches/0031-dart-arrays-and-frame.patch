@@ -1,0 +1,431 @@
+# 0031：Dart 前端 —— `List<int>` 声明被整条丢弃 / 字面量丢元素 / 无后缀下标 / 无栈帧
+
+> 体检报告只说了一条（`Parser.cs:561-564` 的 `if (left is VarNode v) …; return right;`）。
+> **那一条属实，但远不是全部 —— 光修它到不了 14。** 真正的大头是前两条。
+
+## 一、⚠ `List<int> a = [1,2,3,4];` **整条声明被丢掉**（体检未提）
+
+`IsType()` 只认内建类型关键字，`List` 是普通 Identifier ⇒ 语句层判成「不是声明」，
+整条落进 `ParseExprStmt` 的「跳过无法识别的 token」循环 ⇒ **`a` 根本没被声明**。
+
+而 **`List<int>` 正是 Dart 声明数组的唯一自然写法**（上游 `Examples/dart/sorting/main.dart`
+就写 `int max(List<int> arr)`）。
+修法：新增 `IsGenericVarDecl()` 让 `List<int> a` 成为合法变量声明（**类字段分支一并放开**）。
+
+## 二、⚠ 数组字面量被解析成 `LiteralNode(0)`（体检未提）
+
+`ParsePrimary` 的 `[` 分支是把 `[...]` **括号配对跳过**后返回常量 0 —— **元素一个都没解析**
+⇒ 即使下标修好也读不到东西。修法：真正解析元素，建 `ArrayLiteralNode`。
+
+## 三、无后缀 `[` + 下标左值被丢（体检正确）
+
+`ParsePostfix` 补后缀 `[`；`ParseAssignment` 两处补 Index 左值：
+
+    if (left is VarNode v) return new AssignNode(v.Name, right, l, c);
+    // 容错: 复杂左值(如arr[i]=x) — 求值但返回右值
+    return right;                       // ← 左值和右值一起丢
+
+## 四、前端不分配栈帧（语料注释提过，但没当成必改项）
+
+`EmitPrologue` 只有 `PUSH R15; PUSH R12; MOVE R12,R13`，而局部变量就放在 `[R12-4]`、`[R12-8]` ——
+**`R12 == R13`，那些槽位全在 SP 之下**，任何 `PUSH`/`CALL` 都会原地写花。
+对照实验（无数组、纯标量）：
+
+    int s = 7; int t = inc(3); print("S=", s, " T=", t, "\n");
+    → S=33 T=61        （应为 S=7 T=4）
+
+修法：顶层 `main` 与 `GenerateMethod` 都加**帧回填**（`frameSize = nextStackOffset + 8`，与 `RCompiler` 同款）。
+
+## 五、实测
+
+| | 修前 | 修后 |
+|---|---|---|
+| `corpus/dart/skel.dart` | 编译运行都「成功」但输出 `SKEL-SUM=56`，随后 `VM execution cancelled` | `SKEL-SUM=14` ✅ |
+
+**运行时间 31893ms → 2001ms** —— 此前那句 `VM execution cancelled` 是卡在坏循环里被超时掐掉。
+
+回归：vendored `fibonacci/main.dart`、`parserexpf_demo.dart` 仍编过且行为不变；
+上游 12 个 dart 例子仍编过 11 个。顺带修好 `stack/main.dart` 的 `List<int> data;`（**类字段**）
+从解析报错 → 能编（与「新增数组声明」同属一个缺口，故一并放开）；
+该例仍卡在 `func_Stack` 这个**既有的**类构造调用缺口上，与本改动无关。
+
+## 六、未修
+
+同 `0022`~`0025`：`Lib/` 的 `print_*` 漂移（本条 agent 在**完全没碰过的 Python 前端**上做了对照实验，
+同样坏 —— `a = 7` 连打 9 次 `print("A")` 后 `a` 变成 `1042`）。
+四个语料都在漂移「发作」之前就把 `s` 读出来了，所以验收不受影响；
+但**写长游戏主循环时这会是个真问题**，建议单独排期。
+diff --git a/third_party/vml/VMLPrepares/DartCompiler/ASTNode.cs b/third_party/vml/VMLPrepares/DartCompiler/ASTNode.cs
+index 5f02a303..a79f6954 100644
+--- a/third_party/vml/VMLPrepares/DartCompiler/ASTNode.cs
++++ b/third_party/vml/VMLPrepares/DartCompiler/ASTNode.cs
+@@ -113,6 +113,40 @@ public class OpAssignNode(string name, string op, ASTNode value, int line, int c
+     public ASTNode Value { get; } = value;
+ }
+ 
++// ── 数组（下标）──────────────────────────────────────────────────────────────
++// 此前 Dart 前端**完全没有下标这个概念**：`a[i]` 只解析成裸 `a`，`a[i] = v` 的左值被
++// ParseAssignment 丢掉（注释自称"容错"）。下面三个节点把下标补上（与 Go/Kotlin/Rust 同形）。
++
++/// <summary>数组字面量 <c>[e0, e1, …]</c>。布局 <c>[count, e0, e1, …]</c>（4 字节/元素）。</summary>
++public class ArrayLiteralNode(List<ASTNode> elements, int line, int col) : ASTNode(line, col)
++{
++    public List<ASTNode> Elements { get; } = elements;
++}
++
++/// <summary>下标读取 <c>a[i]</c>。</summary>
++public class IndexNode(ASTNode target, ASTNode index, int line, int col) : ASTNode(line, col)
++{
++    public ASTNode Target { get; } = target;
++    public ASTNode Index { get; } = index;
++}
++
++/// <summary>下标赋值 <c>a[i] = v</c>。注意左值**不是**变量名，必须整段留着。</summary>
++public class IndexAssignNode(ASTNode target, ASTNode index, ASTNode value, int line, int col) : ASTNode(line, col)
++{
++    public ASTNode Target { get; } = target;
++    public ASTNode Index { get; } = index;
++    public ASTNode Value { get; } = value;
++}
++
++/// <summary>下标复合赋值 <c>a[i] += v</c>。</summary>
++public class IndexOpAssignNode(ASTNode target, ASTNode index, string op, ASTNode value, int line, int col) : ASTNode(line, col)
++{
++    public ASTNode Target { get; } = target;
++    public ASTNode Index { get; } = index;
++    public string Op { get; } = op;
++    public ASTNode Value { get; } = value;
++}
++
+ public class BinaryNode(ASTNode left, string op, ASTNode right, int line, int col) : ASTNode(line, col)
+ {
+     public ASTNode Left { get; } = left;
+diff --git a/third_party/vml/VMLPrepares/DartCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/DartCompiler/CodeGenerator.Expressions.cs
+index 3bed13a6..512b8377 100644
+--- a/third_party/vml/VMLPrepares/DartCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/DartCompiler/CodeGenerator.Expressions.cs
+@@ -31,6 +31,18 @@ public partial class CodeGenerator
+             case OpAssignNode opAssign:
+                 GenerateOpAssign(opAssign); // → CodeGenerator.Statements.cs
+                 break;
++            case ArrayLiteralNode arrayLiteral:
++                GenerateArrayLiteral(arrayLiteral);
++                break;
++            case IndexNode index:
++                GenerateIndexRead(index);
++                break;
++            case IndexAssignNode indexAssign:
++                GenerateIndexAssign(indexAssign);
++                break;
++            case IndexOpAssignNode indexOpAssign:
++                GenerateIndexOpAssign(indexOpAssign);
++                break;
+             case PrefixPostfixNode pp:
+                 GeneratePrefixPostfix(pp);
+                 break;
+@@ -152,6 +164,109 @@ public partial class CodeGenerator
+         }
+     }
+ 
++    // ══════════════════════════════════════════════════════════════════════════
++    // 数组（下标）代码生成
++    //
++    // 布局 `[count, e0, e1, …]`，每元素 4 字节 ⇒ 元素 i 在 `base + i*4 + 4`
++    // （与 Go/Kotlin/JS/C#/Python 同一套；R/Fortran/Pascal 那种自建扁布局才没有 +4 头）。
++    //
++    // ⚠ 全程用 PUSH/POP 而不是寄存器暂存：右值表达式里可能有函数调用（`inc(a[i])`），
++    //   任何寄存器都会被改掉。前提是**函数序言必须真的预留栈帧**（见 CodeGenerator.cs
++    //   的帧回填）—— 没有帧的话 PUSH 会直接写进局部变量槽。
++    // ══════════════════════════════════════════════════════════════════════════
++
++    private void GenerateArrayLiteral(ArrayLiteralNode node)
++    {
++        int count = node.Elements.Count;
++        AddRI(OpCode.MOVE, 0, (count + 1) * 4);
++        instructions.Add(new Instruction(OpCode.SYSCALL,
++            new List<Operand> { new Operand(OperandType.IMMEDIATE, 40) }, instructions.Count));  // R0 = 块地址
++        instructions.Add(new Instruction(OpCode.PUSH,
++            new List<Operand> { new Operand(OperandType.REGISTER, 0) }, instructions.Count));    // 基址常驻栈顶
++
++        AddRI(OpCode.MOVE, 0, count);
++        PopReg(1);
++        PushReg(1);
++        instructions.Add(new Instruction(OpCode.MOVE,
++            new List<Operand> { Mem("R1"), Reg(0) }, instructions.Count));                       // [base] = count
++
++        for (int i = 0; i < count; i++)
++        {
++            GenerateExpression(node.Elements[i]);                                                // R0 = 元素值
++            PopReg(1);
++            PushReg(1);
++            instructions.Add(new Instruction(OpCode.MOVE,
++                new List<Operand> { Mem($"R1+{(i + 1) * 4}"), Reg(0) }, instructions.Count));     // [base+off] = 元素值
++        }
++
++        PopReg(0);                                                                               // 返回值 = 基址
++    }
++
++    /// <summary>算出元素地址到 R0：base + idx*4 + 4。base 由调用方压栈（栈顶）。</summary>
++    private void EmitElementAddress(ASTNode target, ASTNode index)
++    {
++        GenerateExpression(target);                       // R0 = 基址
++        PushReg(0);
++        GenerateExpression(index);                        // R0 = 下标
++        PopReg(1);                                        // R1 = 基址
++        AddRI(OpCode.SHL, 0, 2);
++        AddRI(OpCode.ADD, 0, 4);                          // 跳过数组头
++        instructions.Add(new Instruction(OpCode.ADD,
++            new List<Operand> { Reg(0), Reg(0), Reg(1) }, instructions.Count));
++    }
++
++    private void GenerateIndexRead(IndexNode node)
++    {
++        EmitElementAddress(node.Target, node.Index);      // R0 = 元素地址
++        instructions.Add(new Instruction(OpCode.MOVE,
++            new List<Operand> { Reg(0), Mem("R0") }, instructions.Count));   // R0 = 元素值（load）
++    }
++
++    private void GenerateIndexAssign(IndexAssignNode node)
++    {
++        GenerateExpression(node.Value);                   // R0 = 右值
++        PushReg(0);
++        EmitElementAddress(node.Target, node.Index);      // R0 = 元素地址
++        PopReg(1);                                        // R1 = 右值
++        instructions.Add(new Instruction(OpCode.MOVE,
++            new List<Operand> { Mem("R0"), Reg(1) }, instructions.Count));   // [地址] = 右值（dest 在前）
++        AddReg(OpCode.MOVE, 0, 1);                        // 表达式值 = 右值
++    }
++
++    private void GenerateIndexOpAssign(IndexOpAssignNode node)
++    {
++        EmitElementAddress(node.Target, node.Index);      // R0 = 元素地址
++        PushReg(0);                                       // 地址压栈（下面的求值会改所有寄存器）
++        instructions.Add(new Instruction(OpCode.MOVE,
++            new List<Operand> { Reg(1), Mem("R0") }, instructions.Count));   // R1 = 旧值
++        PushReg(1);
++        GenerateExpression(node.Value);                   // R0 = 右值
++        PopReg(1);                                        // R1 = 旧值
++        var op = node.Op switch
++        {
++            "+=" => OpCode.ADD,
++            "-=" => OpCode.SUB,
++            "*=" => OpCode.MUL,
++            "/=" => OpCode.DIV,
++            "%=" => OpCode.MOD,
++            _ => OpCode.ADD,
++        };
++        AddReg(op, 0, 1);                                 // R0 = 旧值 op 右值
++        PopReg(1);                                        // R1 = 地址
++        instructions.Add(new Instruction(OpCode.MOVE,
++            new List<Operand> { Mem("R1"), Reg(0) }, instructions.Count));   // [地址] = 结果
++    }
++
++    // ── 小助手（只在本文件用）──────────────────────────────────────────────────
++    private void PushReg(int r) => instructions.Add(new Instruction(OpCode.PUSH,
++        new List<Operand> { Reg(r) }, instructions.Count));
++
++    private void PopReg(int r) => instructions.Add(new Instruction(OpCode.POP,
++        new List<Operand> { Reg(r) }, instructions.Count));
++
++    private void AddReg(OpCode op, int dst, int src) => instructions.Add(new Instruction(op,
++        new List<Operand> { Reg(dst), Reg(src) }, instructions.Count));
++
+     private void GenerateTernary(ASTNode cond, ASTNode thenExpr, ASTNode elseExpr)
+     {
+         EmitTernary(
+diff --git a/third_party/vml/VMLPrepares/DartCompiler/CodeGenerator.Statements.cs b/third_party/vml/VMLPrepares/DartCompiler/CodeGenerator.Statements.cs
+index c48b4cea..da07865e 100644
+--- a/third_party/vml/VMLPrepares/DartCompiler/CodeGenerator.Statements.cs
++++ b/third_party/vml/VMLPrepares/DartCompiler/CodeGenerator.Statements.cs
+@@ -122,6 +122,12 @@ public partial class CodeGenerator
+         AddLabel(funcLabel);
+         EmitPrologue();
+ 
++        // 同顶层：局部变量槽必须落在 SP 之下，否则每个 PUSH/CALL 都会写花局部变量。
++        // 帧大小边生成边确定，故先占位、函数体生成完再回填。
++        int framePatchIndex = instructions.Count;
++        instructions.Add(new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), Imm(0)], framePatchIndex));
++
+         var savedSymbols = new Dictionary<string, (string type, int offset)>(symbolTable);
+         int savedOffset = nextStackOffset;
+ 
+@@ -136,6 +142,13 @@ public partial class CodeGenerator
+         foreach (var stmt in node.Body)
+             GenerateStatement(stmt);
+ 
++        // 回填帧大小 + 退栈（+8 安全边界，与 EmitPrologueWithFrame 口径一致）
++        int frameSize = nextStackOffset + 8;
++        instructions[framePatchIndex] = new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), Imm(frameSize)], framePatchIndex);
++        instructions.Add(new Instruction(OpCode.ADD,
++            [Reg(13), Reg(13), Imm(frameSize)], instructions.Count));
++
+         EmitEpilogue();
+         AddLabel(skipLabel);
+ 
+diff --git a/third_party/vml/VMLPrepares/DartCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/DartCompiler/CodeGenerator.cs
+index dc2e0096..cba90f33 100644
+--- a/third_party/vml/VMLPrepares/DartCompiler/CodeGenerator.cs
++++ b/third_party/vml/VMLPrepares/DartCompiler/CodeGenerator.cs
+@@ -28,6 +28,15 @@ public partial class CodeGenerator : OopCodeGenerator
+         AddLabel("main");
+         EmitPrologue();
+ 
++        // 顶层也要**预留局部变量栈帧**（原来只有 EmitPrologue，没有 SUB R13）。
++        // 局部变量按 [R12-4]、[R12-8]… 分配，而 R12 == R13 ⇒ 那些槽位全在 SP **之下**，
++        // 任何 PUSH / CALL（压返回地址）都会把它们原地写花：实测 `int s = 7; int t = inc(3);`
++        // 打印出 `S=33 T=61`（应为 7 / 4）。帧大小要等语句生成完才知道（变量边生成边分配），
++        // 故先占位、最后回填 —— 与 R 前端同一套做法。
++        int mainFramePatch = instructions.Count;
++        instructions.Add(new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), Imm(0)], mainFramePatch));
++
+         // First pass: collect mixin definitions for inlining
+         foreach (var stmt in program.Statements)
+         {
+@@ -66,6 +75,11 @@ public partial class CodeGenerator : OopCodeGenerator
+             }
+         }
+ 
++        // 回填顶层帧大小（+8 安全边界，与 R 前端/EmitPrologueWithFrame 口径一致）
++        int mainFrameSize = nextStackOffset + 8;
++        instructions[mainFramePatch] = new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), Imm(mainFrameSize)], mainFramePatch);
++
+         // If main() was defined, CALL it so it actually executes
+         if (hasMainFunc)
+         {
+diff --git a/third_party/vml/VMLPrepares/DartCompiler/Parser.cs b/third_party/vml/VMLPrepares/DartCompiler/Parser.cs
+index ff065198..c7f14c37 100644
+--- a/third_party/vml/VMLPrepares/DartCompiler/Parser.cs
++++ b/third_party/vml/VMLPrepares/DartCompiler/Parser.cs
+@@ -82,9 +82,49 @@ public class Parser : ParserBase<Token, TokenType>
+         if (IsType(Cur) && Peek(1).Type == TokenType.Identifier)
+             return ParseVarDecl();
+ 
++        // 泛型集合声明: List<int> a = … / List<double> b;（Dart 里数组就是这么声明的）
++        // ⚠ 此前 `IsType` 只认内建类型关键字，`List` 是普通 Identifier ⇒ 整条声明被
++        //   ParseExprStmt 的容错循环当作"无法识别的语句"整个跳过，**变量根本没被声明**，
++        //   后面所有对它的引用退化成 dataSection 里的全局 0。
++        if (Check(TokenType.Identifier) && Peek(1).Type == TokenType.Lt && IsGenericVarDecl())
++            return ParseVarDecl();
++
+         return ParseExprStmt();
+     }
+ 
++    /// <summary>
++    /// 前瞻判定「Identifier &lt; … &gt; Identifier (= | ;)」形态的泛型变量声明。
++    /// 括号配对跳过泛型参数；中途撞上 <c>;</c>/<c>{</c>/<c>}</c>/<c>)</c>/EOF 即判定不是声明
++    /// （这样 <c>a &lt; b</c> 这类比较表达式不会被误判）。
++    /// </summary>
++    private bool IsGenericVarDecl()
++    {
++        int i = _pos + 1;                     // 当前是 Identifier，下一个是 '<'
++        if (i >= _tokens.Count || GetTokenType(_tokens[i]) != TokenType.Lt) return false;
++        int depth = 0;
++        while (i < _tokens.Count)
++        {
++            var tt = GetTokenType(_tokens[i]);
++            if (tt == TokenType.Lt) depth++;
++            else if (tt == TokenType.Gt)
++            {
++                depth--;
++                if (depth == 0) break;
++            }
++            else if (tt is TokenType.Semicolon or TokenType.LBrace or TokenType.RBrace
++                     or TokenType.RParen or TokenType.EOF)
++                return false;
++            i++;
++        }
++        if (i >= _tokens.Count || depth != 0) return false;
++        int nameIdx = i + 1;                  // '>' 之后必须是变量名
++        if (nameIdx >= _tokens.Count || GetTokenType(_tokens[nameIdx]) != TokenType.Identifier) return false;
++        int afterIdx = nameIdx + 1;           // 再之后必须是 '=' 或 ';'
++        if (afterIdx >= _tokens.Count) return false;
++        var after = GetTokenType(_tokens[afterIdx]);
++        return after == TokenType.Assign || after == TokenType.Semicolon;
++    }
++
+     private bool IsType(Token t)
+     {
+         return t.Type is TokenType.Int or TokenType.DoubleKw or TokenType.StringKw
+@@ -276,8 +316,9 @@ public class Parser : ParserBase<Token, TokenType>
+             else if (Cur.Type == TokenType.External) { _pendingExternal = true; Advance(); }
+             else if (Cur.Type == TokenType.Identifier)
+             {
+-                // 泛型类型字段: T val; / T? val;
+-                if (Peek(1).Type == TokenType.Identifier || Peek(1).Type == TokenType.Question)
++                // 泛型类型字段: T val; / T? val; / List<int> vals;（数组字段就是这种写法）
++                if (Peek(1).Type == TokenType.Identifier || Peek(1).Type == TokenType.Question
++                    || (Peek(1).Type == TokenType.Lt && IsGenericVarDecl()))
+                     members.Add(ParseVarDecl());
+                 else
+                     throw Error($"Unexpected token in class body: {Cur.Type} at {Cur.Line}:{Cur.Column}");
+@@ -560,7 +601,10 @@ public class Parser : ParserBase<Token, TokenType>
+             var right = ParseAssignment();
+             if (left is VarNode v)
+                 return new AssignNode(v.Name, right, l, c);
+-            // 容错: 复杂左值(如arr[i]=x) — 求值但返回右值
++            // 下标左值: a[i] = v —— 此前整段落到下面的"容错"分支被丢掉（目标与下标都没了）。
++            if (left is IndexNode ix)
++                return new IndexAssignNode(ix.Target, ix.Index, right, l, c);
++            // 容错: 其它复杂左值 — 求值但返回右值
+             return right;
+         }
+         if (Check(TokenType.PlusAssign) || Check(TokenType.MinusAssign) || Check(TokenType.MulAssign) || Check(TokenType.DivAssign) || Check(TokenType.ModAssign))
+@@ -569,6 +613,8 @@ public class Parser : ParserBase<Token, TokenType>
+             var right = ParseAssignment();
+             if (left is VarNode v)
+                 return new OpAssignNode(v.Name, op, right, left.Line, left.Column);
++            if (left is IndexNode ix2)
++                return new IndexOpAssignNode(ix2.Target, ix2.Index, op, right, left.Line, left.Column);
+             // 容错: 复杂左值复合赋值 — 返回右值
+             return right;
+         }
+@@ -792,6 +838,19 @@ public class Parser : ParserBase<Token, TokenType>
+                 continue;
+             }
+ 
++            // 下标: a[i] / a[i][j] / f()[i]
++            // ⚠ 此前**没有这个分支** ⇒ `a[i]` 只解析成裸 `a`（下标整段被吞掉，后续 token
++            //   由 ParseExprStmt 的容错循环跳过），于是数组读写全部退化成"对数组变量本身操作"。
++            if (Check(TokenType.LBracket))
++            {
++                Advance(); // [
++                var index = ParseExpression();
++                while (!Check(TokenType.RBracket) && !Check(TokenType.EOF)) Advance();
++                Expect(TokenType.RBracket, "expected ']'");
++                expr = new IndexNode(expr, index, expr.Line, expr.Column);
++                continue;
++            }
++
+             // 空值安全成员访问: obj?.field
+             if (Check(TokenType.Question) && Peek(1).Type == TokenType.Dot)
+             {
+@@ -870,16 +929,19 @@ public class Parser : ParserBase<Token, TokenType>
+             Advance(); return new LiteralNode(0, l, c);
+         }
+         // 数组字面量: [1,2,3]
++        // ⚠ 此前是把整个 `[...]` 括号配对跳过后 `return LiteralNode(0)` —— 元素**一个都没解析**，
++        //   于是 `List<int> a = [1,2,3,4]` 里的数组永远是常量 0（`a[i]` 再怎么修也读不到东西）。
+         if (Match(TokenType.LBracket))
+         {
+-            int bd = 1;
+-            while (bd > 0 && !Check(TokenType.EOF))
++            var elements = new List<ASTNode>();
++            if (!Check(TokenType.RBracket))
+             {
+-                if (Check(TokenType.LBracket)) bd++;
+-                else if (Check(TokenType.RBracket)) bd--;
+-                Advance();
++                do elements.Add(ParseExpression());
++                while (Match(TokenType.Comma) && !Check(TokenType.RBracket) && !Check(TokenType.EOF));
+             }
+-            return new LiteralNode(0, l, c);
++            while (!Check(TokenType.RBracket) && !Check(TokenType.EOF)) Advance();
++            Expect(TokenType.RBracket, "expected ']'");
++            return new ArrayLiteralNode(elements, l, c);
+         }
+         // map/set字面量: {a:1, b:2}
+         if (Match(TokenType.LBrace))

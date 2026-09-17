@@ -1,0 +1,262 @@
+# 0024：Rust 前端 —— 下标赋值解析不过 + 暂存标签语义混用 + 字面量方向反
+
+> 体检报告指出的 3 条**方向对**，但其中第 2 条「四句 `MOVE R0, <label>` 方向全反」**描述不准**；
+> 另有一条**体检未提到**的字面量缺陷。本补丁一并纠正。
+
+## 一、解析层：`a[i] = v` 解析不过（`Parser.cs`）
+
+`IsAssignment` 只认 `IDENT (.IDENT)* =`，`a[i] = v` 走到 `ParseExpressionStatement`
+→ `Expect(';')` 撞上 `=` ⇒ 报错。
+补：前瞻支持 `[...]`（**括号配对跳过**，不是简单找一个 `]`）；`ParseAssignment` 的左值后缀链**同时吃 `.` 与 `[...]`**，建 `IndexAccessNode`。
+
+## 二、下标读写的暂存标签：**不是「方向全反」，是语义混用 + 全局作用域**
+
+原实现用一对**全局**暂存标签存基址/下标。体检说 `NewFeatures.cs:347/349/350/351` 四句
+`MOVE R0, <label>` 「方向全反」——**这个描述不准**：
+真正写反的是 `347 MOVE R0, arrLabel` 与 `349 MOVE R0, idxLabel`（它们是 **LEA**，当场覆盖刚算出来的基址/下标）；
+`350 MOVE R1, arrLabel` / `351 MOVE R0, idxLabel` 的**字面形式本身是「读」的写法**。
+
+**根因是**：这对标签的「存」与「读」用了**同一种书写形式**表达**相反语义**，而且标签是**全局的**
+（递归/重入时会被内层下标冲掉）。**整段换成纯 PUSH/POP**（与 Go/Kotlin 同套），
+**不必再逐句判断哪几句「反了」** —— 那是症状不是病根。
+
+> 这类「同一个书写形式在不同上下文表示相反语义」正是本仓库反复出现的
+> 「操作数写反 / 地址当值」族的温床（`ExecuteMove` 里 src 是 LABEL = LEA、dest 是 LABEL 才是 store）。
+
+## 三、`p.x = v` 的写回方向反了（`CodeGenerator.VisitExpr.cs:196`）
+
+`MOVE R1, (R0)` 把字段地址处的**内容**读进 R1，地址随之丢失 ⇒ 应为 `MOVE (R0), R1`。
+
+## 四、⚠ `ArrayLiteralNode` 整段同级写反（体检未提到）
+
+元素存成 `MOVE R0, {off}(R1)`（那是**读**）；且 `MOVE R1, R0` 之后指望 R1 一直是基址
+（会被元素表达式改掉）⇒ **数组恒为 0**。
+修法同上：方向改对 + **基址常驻栈顶**。
+
+## 五、实测
+
+| | 修前 | 修后 |
+|---|---|---|
+| `corpus/rust/skel.rs` | 编译失败 | `SKEL-SUM=14` ✅ |
+
+探针：静态下标和 = 150、动态下标 = 40、循环累加 = 150、写后读 = 154。
+上游 15 个能编的 Rust 例子仍全部编译通过。
+
+**语料未改**（`git diff -- scripts/maui-vml-verify/corpus/` 为空）—— Rust 语料用的是标准写法
+（`let mut a = [1,2,3,4]; a[i] = inc(a[i]);`），前端本来就有 `ArrayLiteralNode`/`IndexAccessNode` 节点，
+**是货真价实的前端缺口，不是语料问题**。
+
+**既有的、与本补丁无关的失败**：`perg/*.rs` 与 `system_program.rs` 解析失败
+（`意外的token: STRUCT/MOD/ENUM`、`期望 '{'`）—— 把 `Parser.cs` 还原后复跑，报错逐字相同 ⇒ 改动前就存在。
+上游 `Examples/rust/` 里**没有一个数组例子**可对照（只有 `perg/` 用 `&lines[i]` 这类切片）。
+
+## 六、未修
+
+同 `0023` 第六条：`Lib/` 的 `print_*` 家族「被调用方清实参」而前端调用点又自己清 ⇒ 栈指针上漂，
+**C 也一样坏**。`ui_*` 家族不漂，游戏主循环不受影响。
+diff --git a/third_party/vml/VMLPrepares/RustCompiler/CodeGenerator.NewFeatures.cs b/third_party/vml/VMLPrepares/RustCompiler/CodeGenerator.NewFeatures.cs
+index 92e482b4..110461eb 100644
+--- a/third_party/vml/VMLPrepares/RustCompiler/CodeGenerator.NewFeatures.cs
++++ b/third_party/vml/VMLPrepares/RustCompiler/CodeGenerator.NewFeatures.cs
+@@ -319,40 +319,49 @@ namespace RustCompiler
+         public void Visit(ArrayLiteralNode node)
+         {
+             int count = node.Elements.Count;
+-            // Allocate: size = (count + 1) * 4 bytes
++            // 布局: [count, e0, e1, …]（与 Visit(IndexAccessNode) 的 +4 一致）
+             int allocSize = (count + 1) * 4;
+             AddInstruction(OpCode.MOVE, "R0", $"#{allocSize}");
+-            AddInstruction(OpCode.SYSCALL, "#40");
+-            AddInstruction(OpCode.MOVE, "R1", "R0");
++            AddInstruction(OpCode.SYSCALL, "#40");      // R0 = 块地址
++            // ⚠ 原来是 `MOVE R1, R0` 之后就指望 R1 一直有效 —— 可 R1 会被元素表达式
++            //   （尤其函数调用）改掉；更致命的是下面每一句写元素都写成了
++            //   `MOVE R0, {off}(R1)`：`MOVE dest, src` 的 **dest 在前**，那是**从数组读**进 R0，
++            //   元素值一个都没写进去（数组恒为 0），最后 `MOVE R0, R1` 还把上一个元素值当指针返回。
++            //   **"操作数写反"族**（与 Go 0015、Swift 0011 同病）。
++            //   现在基址常驻栈顶（元素表达式可能调函数，任何寄存器都靠不住）。
++            AddInstruction(OpCode.PUSH, "R0");          // 基址入栈（此后栈顶恒为基址）
+             AddInstruction(OpCode.MOVE, "R0", $"#{count}");
+-            AddInstruction(OpCode.MOVE, "R0", $"(R1)");
++            AddInstruction(OpCode.POP, "R1");           // R1 = 基址
++            AddInstruction(OpCode.PUSH, "R1");          // 立刻放回
++            AddInstruction(OpCode.MOVE, "(R1)", "R0");  // [base] = count
+ 
+             for (int i = 0; i < node.Elements.Count; i++)
+             {
+-                node.Elements[i].Accept(this);
++                node.Elements[i].Accept(this);          // R0 = 元素值
++                AddInstruction(OpCode.POP, "R1");       // R1 = 基址
++                AddInstruction(OpCode.PUSH, "R1");      // 放回
+                 int offset = (i + 1) * 4;
+-                AddInstruction(OpCode.MOVE, "R0", $"{offset}(R1)");
++                AddInstruction(OpCode.MOVE, $"{offset}(R1)", "R0");   // [base+off] = 元素值
+             }
+-            AddInstruction(OpCode.MOVE, "R0", "R1");
++            AddInstruction(OpCode.POP, "R0");           // 返回值 = 基址
+         }
+ 
+         public void Visit(IndexAccessNode node)
+         {
+-            string arrLabel = NewLabel("__ia_arr");
+-            string idxLabel = NewLabel("__ia_idx");
+-            dataSection[arrLabel] = 0;
+-            dataSection[idxLabel] = 0;
+-
+-            node.Target.Accept(this);
+-            AddInstruction(OpCode.MOVE, "R0", arrLabel);
+-            node.Index.Accept(this);
+-            AddInstruction(OpCode.MOVE, "R0", idxLabel);
+-            AddInstruction(OpCode.MOVE, "R1", arrLabel);
+-            AddInstruction(OpCode.MOVE, "R0", idxLabel);
+-            AddInstruction(OpCode.SHL, "R0", "#2");
+-            AddInstruction(OpCode.ADD, "R0", "#4");
+-            AddInstruction(OpCode.ADD, "R0", "R1");
+-            AddInstruction(OpCode.MOVE, "R0", "(R0)");
++            // 元素 i 在 `base + i*4 + 4`（跳过 [count, e0, …] 的头）。
++            // ⚠ 原来用的是两个**全局暂存标签** `arrLabel`/`idxLabel`，而四句存取的**方向全写反了**
++            //   （`MOVE R0, arrLabel` 是 **LEA**、`MOVE R0, idxLabel` 也是 LEA）⇒ 算出来的基址与下标
++            //   当场被覆盖，最后从 `&__ia_idx` 之类的地方取值（野地址）。
++            //   连标签暂存这条路本身也不该走：它是**全局的**，递归/重入时会被内层下标冲掉。
++            //   改成纯 PUSH/POP（与 Go/Kotlin 同一套写法，天然嵌套安全）。
++            node.Target.Accept(this);                   // R0 = 基址
++            AddInstruction(OpCode.PUSH, "R0");
++            node.Index.Accept(this);                    // R0 = 下标
++            AddInstruction(OpCode.POP, "R1");           // R1 = 基址
++            AddInstruction(OpCode.SHL, "R0", "#2");     // R0 = idx*4
++            AddInstruction(OpCode.ADD, "R0", "#4");     // 跳过数组头
++            AddInstruction(OpCode.ADD, "R0", "R1");     // R0 = 元素地址
++            AddInstruction(OpCode.MOVE, "R0", "(R0)");  // R0 = 元素值（load）
+         }
+ 
+         public void Visit(MemberAccessNode node)
+diff --git a/third_party/vml/VMLPrepares/RustCompiler/CodeGenerator.VisitExpr.cs b/third_party/vml/VMLPrepares/RustCompiler/CodeGenerator.VisitExpr.cs
+index ca5de795..9a476fc6 100644
+--- a/third_party/vml/VMLPrepares/RustCompiler/CodeGenerator.VisitExpr.cs
++++ b/third_party/vml/VMLPrepares/RustCompiler/CodeGenerator.VisitExpr.cs
+@@ -164,6 +164,24 @@ namespace RustCompiler
+         
+         public void Visit(AssignmentNode node)
+         {
++            // 下标赋值: a[i] = value（左值后缀链里 `[` 这条，见 Parser.ParseAssignment）
++            if (node.Target is IndexAccessNode iaTarget)
++            {
++                // 值与地址全程走栈 —— 右值表达式（如 `inc(a[i])`）里可能调函数，寄存器靠不住。
++                node.Value.Accept(this);                        // R0 = 右值
++                AddInstruction(OpCode.PUSH, "R0");
++                iaTarget.Target.Accept(this);                   // R0 = 基址
++                AddInstruction(OpCode.PUSH, "R0");
++                iaTarget.Index.Accept(this);                    // R0 = 下标
++                AddInstruction(OpCode.POP, "R1");               // R1 = 基址
++                AddInstruction(OpCode.SHL, "R0", "#2");         // idx*4
++                AddInstruction(OpCode.ADD, "R0", "#4");         // 跳过 VML 数组头
++                AddInstruction(OpCode.ADD, "R0", "R1");         // R0 = 元素地址
++                AddInstruction(OpCode.POP, "R1");               // R1 = 右值
++                AddInstruction(OpCode.MOVE, "(R0)", "R1");      // [地址] = 右值（dest 在前）
++                return;
++            }
++
+             // 成员字段赋值: p.x = value
+             if (node.Target != null)
+             {
+@@ -193,7 +211,10 @@ namespace RustCompiler
+                     node.Target.Accept(this); // fallback
+                 }
+                 AddInstruction(OpCode.POP, "R1", "");
+-                AddInstruction(OpCode.MOVE, "R1", "(R0)");
++                // ⚠ 原来是 `MOVE R1, (R0)` —— `MOVE dest, src` 的 **dest 在前**，
++                //   那是把**字段地址处的内容读进 R1**（并且 R0 里的地址随之丢失）；
++                //   要存就得把 `(R0)` 放 dest 位。**"操作数写反"族。**
++                AddInstruction(OpCode.MOVE, "(R0)", "R1");
+                 return;
+             }
+ 
+diff --git a/third_party/vml/VMLPrepares/RustCompiler/Parser.cs b/third_party/vml/VMLPrepares/RustCompiler/Parser.cs
+index 63b63785..b6976010 100644
+--- a/third_party/vml/VMLPrepares/RustCompiler/Parser.cs
++++ b/third_party/vml/VMLPrepares/RustCompiler/Parser.cs
+@@ -425,15 +425,31 @@ namespace RustCompiler
+                 assignment.VariableName = Expect(TokenType.IDENTIFIER, "期望变量名").Value;
+             }
+ 
+-            // 成员访问链: p.x = ... 或 p.x.y = ...
+-            if (Check(TokenType.DOT))
++            // 左值后缀链: p.x = ... / p.x.y = ... / a[i] = ... / p.a[i] = ...
++            // ⚠ 下标左值原来**完全没有分支**：`a[i] = v` 会被 ParseStatement 判成"不是赋值"
++            //   （IsAssignment 只认 `IDENT (.IDENT)* =`）⇒ 落到 ParseExpressionStatement，
++            //   表达式吃到 `a[i]` 后撞上 `=`，Expect(';') 抛「期望 ';'」——**整个文件解析失败**。
++            if (Check(TokenType.DOT) || Check(TokenType.LBRACKET))
+             {
+                 ASTNode target = new IdentifierNode { Name = assignment.VariableName };
+-                while (Check(TokenType.DOT))
++                while (true)
+                 {
+-                    Advance(); // .
+-                    string member = Expect(TokenType.IDENTIFIER, "期望字段名").Value;
+-                    target = new MemberAccessNode { Target = target, Member = member };
++                    if (Check(TokenType.DOT))
++                    {
++                        Advance(); // .
++                        string member = Expect(TokenType.IDENTIFIER, "期望字段名").Value;
++                        target = new MemberAccessNode { Target = target, Member = member };
++                        continue;
++                    }
++                    if (Check(TokenType.LBRACKET))
++                    {
++                        Advance(); // [
++                        var index = ParseExpression();
++                        Expect(TokenType.RBRACKET, "期望 ']'");
++                        target = new IndexAccessNode { Target = target, Index = index };
++                        continue;
++                    }
++                    break;
+                 }
+                 assignment.Target = target;
+             }
+@@ -455,16 +471,41 @@ namespace RustCompiler
+         /// </summary>
+         private bool IsAssignment()
+         {
+-            // Lookahead: IDENTIFIER (. IDENTIFIER)* = ...
++            // Lookahead: IDENTIFIER (. IDENTIFIER | [ expr ])* = ...
++            // ⚠ 原来只认 `IDENTIFIER (. IDENTIFIER)* =` —— 下标左值 `a[i] = v` 落到表达式语句，
++            //   然后在 Expect(';') 上撞 `=`（Parser 的 456 行那条老注释只提了成员访问）。
+             int savedPos = _pos;
+             try
+             {
+                 Advance(); // skip IDENTIFIER
+-                while (Check(TokenType.DOT))
++                while (true)
+                 {
+-                    Advance(); // skip .
+-                    if (!Check(TokenType.IDENTIFIER)) return false;
+-                    Advance(); // skip IDENTIFIER
++                    if (Check(TokenType.DOT))
++                    {
++                        Advance(); // skip .
++                        if (!Check(TokenType.IDENTIFIER)) return false;
++                        Advance(); // skip IDENTIFIER
++                        continue;
++                    }
++                    if (Check(TokenType.LBRACKET))
++                    {
++                        // 整个 `[ ... ]` 括号配对跳过（下标里可以有任意表达式、含嵌套下标）。
++                        int depth = 0;
++                        bool closed = false;
++                        while (!IsAtEnd)
++                        {
++                            if (Check(TokenType.LBRACKET)) depth++;
++                            else if (Check(TokenType.RBRACKET))
++                            {
++                                depth--;
++                                if (depth == 0) { Advance(); closed = true; break; }
++                            }
++                            Advance();
++                        }
++                        if (!closed) return false;
++                        continue;
++                    }
++                    break;
+                 }
+                 return Check(TokenType.EQ);
+             }

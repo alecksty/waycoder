@@ -1,3 +1,86 @@
+## v0.96.198 (2026-09-17) — VML 22 种语言全部达到「能写游戏」（真机 22/22）
+
+**用户目标**：「至少 20 种语言可以用来写游戏，供大家在手机上调试运行程序」——**达成**。
+
+判据不是「编译过了」，而是每种语言跑通一条骨架（**循环 + 数组 + 函数 + 一次游戏 API 调用**），
+stdout 恰好 `SKEL-SUM=14`。基线 **7** 种（c / csharp / go / javascript / objc / pascal / basic），
+本轮修好另外 **15** 种，**桌面 CLI 与真机（Android 模拟器）逐字一致，22/22 零分歧**。
+
+### ① 两个效率前提 —— 没有它们这件事根本做不动
+
+| | |
+|---|---|
+| **桌面 VML CLI** | `.scratch/vmlcli`，与手机端**逐字等价**（c/python/lua/java/forth 5/5 实测，连 forth 的前导空格都对上）。迭代从「打 APK + 装模拟器 ≈ 2 分钟」压到「≈ 1 秒」|
+| **22 前端横向体检** | 先静读 22 个前端把缺陷定位到 `文件:行号`，再派并行修复；而不是一个个试 |
+
+> ⚠ **必须用 vendored 代码**：上游仓库没有我们 `patches/` 里的修复。同一份 python 语料，
+> vendored 能编过、上游 CLI 在编译期崩 `Index was outside the bounds of array`。
+
+### ② 缺陷归成五族 —— 不是「某门语言难」，是同一个错误反复出现在不同前端
+
+| 族 | 表现 | 中招 |
+|---|---|---|
+| 赋值目标是下标时**整段没有代码生成** | 算完右值就 `return` | Go · Python · Java · Kotlin · Rust · Ruby · D · Dart |
+| **操作数写反 / 地址当值** | `MOVE R0, R0` 自赋值、把 store 写成 load | Forth · Scheme · Java · Swift · Ladder · D · Rust |
+| 解析器**没有下标语法** | `a[i] = v` 根本解析不过 | Ruby · Ladder · D · Dart · Kotlin · Rust |
+| **符号表换对象**致基类 `_varOffsets` 悬空 | 定义过函数后顶层变量被分配两次 | **R 与 Ruby 各写一份、都漏了**（R 那份有修复注释，Ruby 没有）|
+| 前端**不分配栈帧** | `R12 == R13`，局部变量槽全在 SP 之下，任何 `push`/`call` 都写花 | R · Lua · Ruby · Dart · D |
+
+**一条必须记住的判据**：`+4` 数组头**只有用了 `AllocateVmlArray`（`[count, e0, …]`）的语言才需要**；
+**R / Fortran / Pascal / D 是自建扁布局、读写两侧同式，没有 `+4` 是对的** —— 补上去反而造出「读的对、写的差一格」。
+
+**几条被实测纠正的先前判断**（记下来免得重犯）：
+- Forth 的 `65536` **不是**「把地址当值返回」的佐证（那是巧合），真因是 `print_*` 蹦床吃掉数据栈
+- Ladder **不是**「不该用游戏骨架验收」—— 它有完整的 IEC 61131-3 ST 子集，缺陷是实现问题
+- Dart 的大头**不是**「少个 postfix」，是 `List<int>` 声明整条被丢弃 + 字面量元素一个都没解析
+- Fortran 语料里 `print *, 'A=', s` 打出多余空格是**正确的列表输出语义**，不是缺陷
+
+### ③ 改动固化为 `third_party/vml/patches/0019`–`0033`（15 条）
+
+python / forth / scheme / java / kotlin / rust / swift / cpp / fortran / ruby / ladder / d / dart / r / lua。
+`scripts/check-vml-patches.sh` **全绿**：33 条补丁依序打到 vendor 提交上，8 个同步目录 + `vmltool.config.xml` + `VERSION` **逐字节一致** ⇒ 跑 `sync.sh` 不会再丢。
+
+> Lua 那条新增了 `Lib/lua/luatable.vml`（前端调的 `lua_table_get/set` 全仓没有定义）。
+> ⚠ **新增文件要 `git add -N` 才进得了 `git diff`** —— 生成补丁时踩过：漏了它，同步一次 Lua 就废。
+
+### ④ 真机验收抓出「桌面等价性」的边界（**这条最有价值**）
+
+第一轮真机是 **21 PASS / 1 LINK_FAIL**：`skel-lua` 报 `未找到标签: lua_table_get`，而**桌面同一条 PASS**。
+
+根因**不在前端**，在打包：APK 内置的 `WayCoder.Maui/Resources/Raw/vml_lib.zip` 是**签入仓库的生成物**，
+早于补丁 0033，里面没有 `luatable.vml`。而**桌面跑 VML 直接读 `third_party/vml/Lib/`，根本不走
+「zip → APK 资产 → 设备解压」这条链** ⇒ 桌面全绿、手机上是坏的。
+
+**如果只信桌面结果就发布，Lua 在手机上就是坏的，而且我们不会知道。**
+
+### ⑤ 三个打包缺陷修复（① 是 ④ 的根因，也是后续重构的前置条件）
+
+| | 问题 | 修法 |
+|---|---|---|
+| ① | `scripts/make-vml-lib.sh` 调**裸 `python`**，macOS 上只有 `python3` ⇒ 报 127；**失败点恰在「zip 已移到位、指纹还没算」之间** ⇒ 留下「新 zip + 旧指纹」，而设备解压判据是**指纹** ⇒ **永远不重新解压、修复静默不生效** | 解析 `PYTHON`（优先 `python3`）+ **两个都先写临时文件、最后一起移入**（指纹失败则两个都不动）|
+| ② | `build-apk.sh` **不会重新生成 `vml_lib.zip`** ⇒ `Lib/` 一有改动，打出的包就过期 | 打包前先调 `scripts/make-vml-lib.sh` |
+| ③ | `verify.py` 的 `COMPILE_FAIL` 关键字含 `VML 标准库`，而它是进度行 `⏳ 正在解压 VML 标准库…` 的子串 ⇒ **库指纹一变、之后第一条必被误判**（实测 `skel-c` 明明打出了 `SKEL-SUM=14` 却被判 COMPILE_FAIL）| 判据剔除进度行（原先 `COMPILE_FAIL` 用未清洗的 `output`、`LINK_FAIL` 用 `stripped`，同函数两套口径）|
+
+### ⑥ 发现 VML 内部**三种调用约定并存**，并定案统一到微软 stdcall
+
+排查 `print_*` 栈漂移时发现：`CCompiler` 的寄存器路径是**右到左**压栈（注释明写），
+而同一个前端的 `case CallingConvention.Stdcall:` 分支是**左到右**（注释也明写）——
+**两条注释直接互相矛盾**；`Lib` 里 `vmlui` 家族从 `[R12+12]` 起读（右到左、全从栈读），
+而 `builtins` 家族值在 `R0` 却**还要求栈上留一个槽**。
+
+底层事实（三条互证）：`VMLRuntime.Instructions.cs:452` 的 `sp -= 4` ⇒ 栈向下生长
+⇒ **arg0 在最低地址 = 最后压入 = 右到左**，且 `[R12+12]` 恒为 arg0。
+
+**定案（用户拍板）**：全部参数**右到左压栈、一个都不走寄存器** + **被调方清栈** + **用当前前端重新生成整个 `Lib/`**。
+方案见 `docs/VML调用约定统一.md`（含实施顺序、回归资产、六条已知坑）。
+> 收益之一是消掉 **`print_*` 栈漂移**：现在任何打了两次以上 `print` 的程序局部变量就会读成 0
+> （实测 Swift / Kotlin / Go / C / R / Python 全部中招；`ui_*` 家族不漂，所以游戏主循环不受影响）。
+
+### 文档
+
+- 新增 `docs/VML调用约定统一.md`（重构方案，含 `file:line` 证据）
+- `docs/前端游戏能力评估.md` 加**时效横幅** —— 它的「不适合」档位表已失效（那 6 种现在都通），根因分析仍有效
+
 ## v0.96.197 (2026-09-17) — C/BASIC 前端缺陷修复 + 补丁机制三处失修 + 设备端验收装置
 
 本轮以**排查与修缺陷**为主，附一套可重复的设备端验收装置。

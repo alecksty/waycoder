@@ -1,0 +1,133 @@
+# 0026：C++ 前端 —— `(void)` 空参数表与 `...` 变参解析不了
+
+> **定性先行**：上游真例子 `calc.cpp` / `start.cpp` / `tictactoe.cpp` **改前就能编译并运行**
+> ⇒ **C++ 前端基本是活的**，语料报的「编译失败」是**真缺陷**（不是语料写错），但缺陷面很窄。
+
+## 一、`(void)` 空参数表被当成「一个 void 类型的参数」
+
+`Parser.ParseFunctionBody` 见到 `(` 后把 `void` 当参数类型、接着要 IDENTIFIER ⇒
+`Expected IDENTIFIER but got RPAREN (')')`。
+
+**影响面比看上去大得多**：`Lib/c/stdio.h` 第 31/72 行就有 `getchar(void)` / `tmpfile(void)`
+⇒ **任何 include 标准头的 C++ 程序都编不过**（上游 `factorial.cpp` 同样炸在 `#include <stdio.h>`）。
+
+修法：新增 `IsVoidOnlyParamList()`，**判据收紧到「`void` 紧跟 `)`」**
+（这样 `void* p` 这种真参数不受影响），接到 4 个参数列表入口。
+
+## 二、词法器不认 `...`（三个 `.` 各自成 DOT）
+
+⇒ 变参声明 `printf(const char*, ...)` 必炸。补 `ELLIPSIS` 词法单元
+（C 前端早有此分支，照抄），4 个参数列表循环各加一行 `if (Match(ELLIPSIS)) break;`。
+
+## 三、实测
+
+| | 修前 | 修后 |
+|---|---|---|
+| `corpus/cpp/skel.cpp` | `Expected IDENTIFIER but got RPAREN` at line 16（= `void ui_present(void);`）| `SKEL-SUM=14` ✅ |
+
+回归：`calc` / `start` / `tictactoe` / `info` / `guess` / `factorial` 全部编译运行。
+
+## 四、未修
+
+- **变参实参没接上**：`printf("factorial(10) = %d\n", f)` 打出**字面 `%d`**。
+  另一条独立缺陷，语料刻意用单参 `print_str`/`println_int` 绕开。
+- **C++ 内联成员函数调用**（`method_s_f` 未找到标签）是既有缺陷 ——
+  已用「有 `(void)` / 无 `(void)` 两份程序报**完全相同**的错」反证与本次无关。
+diff --git a/third_party/vml/VMLPrepares/CppCompiler/Lexer.cs b/third_party/vml/VMLPrepares/CppCompiler/Lexer.cs
+index 72273500..62c67612 100644
+--- a/third_party/vml/VMLPrepares/CppCompiler/Lexer.cs
++++ b/third_party/vml/VMLPrepares/CppCompiler/Lexer.cs
+@@ -286,6 +286,10 @@ namespace CppCompiler
+                 string three = c.ToString() + n.ToString() + Peek(2).ToString();
+                 if (three == "<<=") { AddOp(TokenType.LSHIFT_ASSIGN, "<<="); return true; }
+                 if (three == ">>=") { AddOp(TokenType.RSHIFT_ASSIGN, ">>="); return true; }
++                // `...` 可变参数 —— C 标准头里的 `int printf(const char *, ...)` 就是这个形态。
++                // 不认它的话每个 `.` 各自成 DOT，参数列表解析到第一个点就炸
++                //（报 "Expected IDENTIFIER but got DOT"）。C 前端早有此分支，这里补齐。
++                if (three == "...") { AddOp(TokenType.ELLIPSIS, "..."); return true; }
+             }
+             // 2-char operators
+             string two = c.ToString() + n.ToString();
+diff --git a/third_party/vml/VMLPrepares/CppCompiler/Parser.cs b/third_party/vml/VMLPrepares/CppCompiler/Parser.cs
+index e8235824..d36cc337 100644
+--- a/third_party/vml/VMLPrepares/CppCompiler/Parser.cs
++++ b/third_party/vml/VMLPrepares/CppCompiler/Parser.cs
+@@ -296,10 +296,12 @@ namespace CppCompiler
+             {
+                 var func = new FunctionDecl { Name = name, ReturnType = type, IsMember = true, IsVirtual = isVirtual };
+                 if (pendingConvention.HasValue) func.Convention = pendingConvention.Value;
+-                if (!Check(TokenType.RPAREN))
++                if (IsVoidOnlyParamList()) Advance(); // `f(void)`
++                else if (!Check(TokenType.RPAREN))
+                 {
+                     do
+                     {
++                        if (Match(TokenType.ELLIPSIS)) break; // 可变参数 `...`
+                         string pt = ParseType();
+                         bool isRef = Match(TokenType.AMPERSAND);
+                         if (isRef) pt += "&";
+@@ -464,13 +466,35 @@ namespace CppCompiler
+             return ParseFunctionBody(type, name);
+         }
+ 
++        /// <summary>
++        /// `f(void)` —— C 风格「无参数」写法，等价于空参数列表。
++        ///
++        /// <para>判据收得很紧：<b>`void` 后面紧跟 `)`</b>。这样 `void f(void* p)`、
++        /// `void f(void v)`、`void f(void*, int)` 仍是正常参数，一个都不受影响 ——
++        /// 只有「括号里孤零零一个 void」才被当成空参数表。</para>
++        ///
++        /// <para>为什么必须支持：`Lib/c/stdio.h` 自己就写着 `int getchar(void);`
++        /// （第 31 行）与 `FILE *tmpfile(void);`，所以任何 `#include <stdio.h>` 的 C++
++        /// 程序在预处理后必定碰到这个形态 —— 不认它就等于「C++ 用不了 C 标准头」。</para>
++        /// </summary>
++        private bool IsVoidOnlyParamList()
++            => Check(TokenType.VOID)
++               && _pos + 1 < _tokens.Count
++               && GetTokenType(_tokens[_pos + 1]) == TokenType.RPAREN;
++
+         private FunctionDecl ParseFunctionBody(string type, string name)
+         {
+             var func = new FunctionDecl { Name = name, ReturnType = type };
+-            if (!Check(TokenType.RPAREN))
++            if (IsVoidOnlyParamList())
++            {
++                Advance(); // 吃掉 `void` —— 参数列表为空
++            }
++            else if (!Check(TokenType.RPAREN))
+             {
+                 do
+                 {
++                    // 可变参数 `...` —— 到此为止，后面不再有具名参数（C 语义）。
++                    if (Match(TokenType.ELLIPSIS)) break;
+                     string pt = ParseType();
+                     bool isRef = Match(TokenType.AMPERSAND);
+                     if (isRef) pt += "&";
+@@ -671,10 +695,12 @@ namespace CppCompiler
+                 tfd.TypeParams.AddRange(typeParams);
+ 
+                 // 解析参数列表（参数类型可能是模板参数 T）
+-                if (!Check(TokenType.RPAREN))
++                if (IsVoidOnlyParamList()) Advance(); // `f(void)`
++                else if (!Check(TokenType.RPAREN))
+                 {
+                     do
+                     {
++                        if (Match(TokenType.ELLIPSIS)) break; // 可变参数 `...`
+                         string pt;
+                         if (Check(TokenType.IDENTIFIER) && typeParams.Contains(Cur.Value))
+                             pt = Advance().Value;
+@@ -748,10 +774,12 @@ namespace CppCompiler
+             if (Match(TokenType.LPAREN))
+             {
+                 var func = new FunctionDecl { Name = name, ReturnType = type, IsMember = true };
+-                if (!Check(TokenType.RPAREN))
++                if (IsVoidOnlyParamList()) Advance(); // `f(void)`
++                else if (!Check(TokenType.RPAREN))
+                 {
+                     do
+                     {
++                        if (Match(TokenType.ELLIPSIS)) break; // 可变参数 `...`
+                         string pt;
+                         if (IsTypeToken() || IsTemplateParam(typeParams))
+                             pt = ParseTypeOrTemplateParam(typeParams);

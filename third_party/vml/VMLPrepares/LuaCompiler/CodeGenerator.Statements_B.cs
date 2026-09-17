@@ -57,32 +57,44 @@ namespace LuaCompiler
                     symbolTable[pname] = nextStackOffset;
                     nextStackOffset += 4;
                 }
-                if (pi == 0)
+                // 调用方把第 i 个实参放在 **R{i}**（GenerateFunctionCall 的
+                // `MOVE R{i}, [R13-(i+1)*4]`），所以每个形参都要从自己那个寄存器里取。
+                // 此前只处理了 pi == 0 ⇒ **第二个及以后的形参永远是未初始化的栈内容**
+                //（`function add(a,b) return a+b end` 的 `add(4,5)` 返回 4+垃圾）。
+                // 第 4 个之后的实参走栈传参，本前端还没实现（保持原状）。
+                if (pi < 4)
                 {
                     int off = symbolTable[pname];
                     instructions.Add(new Instruction(OpCode.MOVE,
                         new List<Operand> {
                             new Operand(OperandType.MEMORY, $"R12-{off}"),
-                            new Operand(OperandType.REGISTER, 0)
+                            new Operand(OperandType.REGISTER, pi)
                         }, instructions.Count));
                 }
             }
-            // 分配栈空间给参数
-            if (node.Parameters.Count > 0)
-            {
-                instructions.Add(new Instruction(OpCode.SUB,
-                    new List<Operand> {
-                        new Operand(OperandType.REGISTER, 13),
-                        new Operand(OperandType.IMMEDIATE, node.Parameters.Count * 4)
-                    }, instructions.Count));
-            }
-            
+            // 分配栈空间给参数 —— 实际预留的是**整帧**（参数 + 局部变量），
+            // 局部变量是边生成边分配的、此刻还不知道有多少，故先占位、生成完回填。
+            // 不预留的后果与 main 相同：局部变量落在 SP 之下，被 PUSH/CALL 写花。
+            int framePatchIndex = instructions.Count;
+            instructions.Add(new Instruction(OpCode.SUB,
+                new List<Operand> {
+                    new Operand(OperandType.REGISTER, 13),
+                    new Operand(OperandType.IMMEDIATE, 0)
+                }, framePatchIndex));
+
             // 生成函数体
             foreach (var stmt in node.Body)
             {
                 GenerateStatement(stmt);
             }
-            
+
+            // 回填帧大小（生成函数体时又把 [R12-4] 之类的临时槽用了一遍，所以这一步不能省）
+            instructions[framePatchIndex] = new Instruction(OpCode.SUB,
+                new List<Operand> {
+                    new Operand(OperandType.REGISTER, 13),
+                    new Operand(OperandType.IMMEDIATE, ComputeFrameSize())
+                }, framePatchIndex);
+
             // 函数尾声: 恢复帧指针并返回
             instructions.Add(new Instruction(OpCode.MOVE,
                 new List<Operand> {
@@ -139,30 +151,40 @@ namespace LuaCompiler
             // 初始化变量
             GenerateExpression(node.Start);
             string varLabel = $"var_{node.Variable}";
-            if (!dataSection.ContainsKey(varLabel))
+            // **循环变量存在哪儿必须和循环体看到的那个位置一致**：
+            // 循环体里的 `i` 是按 symbolTable 解析的（局部变量 → [R12-off]），
+            // 而这里原先无条件写数据段的全局 `var_i` ⇒ 「先 local i 再 for i = …」的写法下
+            // 循环推进的是全局、循环体读的是局部，两者永不相等（语料 skel.lua 里 i 恒为 0 就是这么来的）。
+            // 该名字已经是局部变量就写它那一格；否则维持原行为（写全局，循环体也解析到同一个全局）。
+            bool varIsLocal = symbolTable.TryGetValue(node.Variable, out int varOffset);
+            if (!varIsLocal && !dataSection.ContainsKey(varLabel))
             {
                 dataSection[varLabel] = 0;
             }
+            Operand VarStoreTarget() => varIsLocal
+                ? new Operand(OperandType.MEMORY, $"R12-{varOffset}")
+                : new Operand(OperandType.LABEL, varLabel);
+
             // 存储初始值到变量（GenerateExpression结果在R0中）
-            instructions.Add(new Instruction(OpCode.MOVE, 
-                new List<Operand> { 
-                    new Operand(OperandType.LABEL, varLabel),
+            instructions.Add(new Instruction(OpCode.MOVE,
+                new List<Operand> {
+                    VarStoreTarget(),
                     new Operand(OperandType.REGISTER, 0)
-                }, 
+                },
                 instructions.Count));
-            
+
             // 循环开始标签
             AddLabel(startLabel);
-            
+
             // 检查循环条件
             // 加载当前值
-            instructions.Add(new Instruction(OpCode.MOVE, 
-                new List<Operand> { 
+            instructions.Add(new Instruction(OpCode.MOVE,
+                new List<Operand> {
                     new Operand(OperandType.REGISTER, 1),
-                    new Operand(OperandType.LABEL, varLabel)
-                }, 
+                    VarStoreTarget()
+                },
                 instructions.Count));
-            
+
             // 加载结束值
             GenerateExpression(node.End);
             
@@ -218,16 +240,16 @@ namespace LuaCompiler
             }
             
             // 保存新值
-            instructions.Add(new Instruction(OpCode.MOVE, 
-                new List<Operand> { 
-                    new Operand(OperandType.LABEL, varLabel),
+            instructions.Add(new Instruction(OpCode.MOVE,
+                new List<Operand> {
+                    VarStoreTarget(),
                     new Operand(OperandType.REGISTER, 1)
-                }, 
+                },
                 instructions.Count));
-            
+
             // 跳回循环开始
             Sta!.EmitJump(startLabel);
-            
+
             // 循环结束标签
             AddLabel(endLabel);
             Sta!.PopLoopLabels();
@@ -487,7 +509,11 @@ namespace LuaCompiler
                         else if (arg is FunctionCallNode fcn && TryResolveFunctionName(fcn.Function, out var retName) && IsStringReturningFunc(retName))
                             instructions.Add(new(OpCode.SYSCALL, [new Operand(OperandType.IMMEDIATE, 1)]));
                         // Float → vml_print_float
-                        else if (arg is ConstantNode cnf && cnf.Type == "number" && cnf.Value is double)
+                        // ⚠ 必须要求**真的带小数**：词法器把数字字面量一律存成 double，
+                        // 只看 `Value is double` 的话 `print(5)` 也会走这条 ⇒ SYSCALL #8 把
+                        // 整数位型当浮点数解释，打出 0（实测 `print(5)` → 0，而 `print(2+3)` → 5）。
+                        else if (arg is ConstantNode cnf && cnf.Type == "number"
+                                 && cnf.Value is double dv && dv != Math.Floor(dv))
                             EmitPrintFloat();
                         else
                         {
@@ -938,9 +964,19 @@ namespace LuaCompiler
         
         private void GenerateTableConstructor(TableConstructorNode node)
         {
-            // 新格式: [metatable(4), count(4), key1(4), val1(4), key2(4), val2(4), ...]
-            // metatable在负偏移(ptr-4), 返回ptr使现有运行时兼容
-            int totalSlots = node.Fields.Count * 2 + 1 + 1; // +1 for metatable slot
+            // 格式: [capacity(4), metatable(4), count(4), key1(4), val1(4), key2(4), val2(4), ...]
+            // 返回的指针 p = raw + 8（指向 count）⇒ 相对布局与旧版完全一致：
+            //   [p-8]=capacity（新加，只有 lua_table_set 读）、[p-4]=metatable（前端 `[R1-4]` 读的仍是它）、
+            //   [p]=count、[p+4+i*8]=key_i、[p+8+i*8]=value_i。
+            // **为什么要有 capacity**：Lua 的表是**动态**的（`t[#t+1] = v`、`a[新键] = v`），
+            // 而 lua_table_set 拿不到「重新分配并把新指针写回调用方变量」的机会（调用点忽略返回值）
+            // ⇒ 只能在建表时多留余量、由 set 在尾部追加。没有余量时写新键只能静默丢弃。
+            // ⚠ 余量是**有限**的：写满 count == capacity 之后新键只能丢弃（见 lua_table_set）。
+            // 真正的动态增长要「重新分配 + 把新指针写回调用方的变量」，而调用点忽略返回值，
+            // 前端也没为 `a[i] = v` 的 `a` 保留左值信息 —— 那是另一个改动。
+            int fieldCount = node.Fields.Count;
+            int capacity = fieldCount + Math.Max(8, fieldCount / 2 + 4);
+            int totalSlots = capacity * 2 + 3; // capacity + metatable + count + capacity*(key+val)
             int bytes = totalSlots * 4;
 
             // 分配内存
@@ -953,7 +989,7 @@ namespace LuaCompiler
             instructions.Add(new Instruction(OpCode.SYSCALL,
                 new List<Operand> { new Operand(OperandType.IMMEDIATE, 40) },
                 instructions.Count));
-            // R2 = raw ptr (metatable at [R2+0], count at [R2+4], ...)
+            // R2 = raw ptr (capacity at [R2+0], metatable at [R2+4], count at [R2+8], ...)
             instructions.Add(new Instruction(OpCode.MOVE,
                 new List<Operand> {
                     new Operand(OperandType.REGISTER, 2),
@@ -961,13 +997,23 @@ namespace LuaCompiler
                 },
                 instructions.Count));
 
-            // 存储 metatable = nil (0) at [R2 + 0]
+            // 存储 capacity at [R2 + 0]
             instructions.Add(new Instruction(OpCode.MOVE,
-                [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0)]));
+                new List<Operand> {
+                    new Operand(OperandType.REGISTER, 0),
+                    new Operand(OperandType.IMMEDIATE, capacity.ToString())
+                },
+                instructions.Count));
             instructions.Add(new Instruction(OpCode.MOVE,
                 [new Operand(OperandType.MEMORY, "R2"), new Operand(OperandType.REGISTER, 0)]));
 
-            // 存储元素数量 at [R2 + 4]
+            // 存储 metatable = nil (0) at [R2 + 4]
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0)]));
+            instructions.Add(new Instruction(OpCode.MOVE,
+                [new Operand(OperandType.MEMORY, "R2+4"), new Operand(OperandType.REGISTER, 0)]));
+
+            // 存储元素数量 at [R2 + 8]
             instructions.Add(new Instruction(OpCode.MOVE,
                 new List<Operand> {
                     new Operand(OperandType.REGISTER, 0),
@@ -975,53 +1021,56 @@ namespace LuaCompiler
                 },
                 instructions.Count));
             instructions.Add(new Instruction(OpCode.MOVE,
-                [new Operand(OperandType.MEMORY, "R2+4"), new Operand(OperandType.REGISTER, 0)]));
+                [new Operand(OperandType.MEMORY, "R2+8"), new Operand(OperandType.REGISTER, 0)]));
 
-            // 存储 key-value 对 (偏移量 +4 相对于原布局)
+            // 存储 key-value 对
+            // ⚠ 基址**必须存到栈上**：下面每个字段的求值都可能冲掉 R2
+            //（嵌套表构造器自己也拿 R2 当基址；函数调用、表访问也都会用 R1–R3）。
+            // 只在 R2 里攥着基址的话，`{{1,2},{3,4}}` 这种嵌套字面量会把**内层表当外层写**，
+            // 整张表全是坏的（实测 `local grid = {{1,2},{3,4}}` 之后 `grid[1][1]` 直接崩）。
+            instructions.Add(new Instruction(OpCode.PUSH,
+                new List<Operand> { new Operand(OperandType.REGISTER, 2) },
+                instructions.Count));
             int slotIndex = 0;
             foreach (var field in node.Fields)
             {
-                int baseOffset = 8 + slotIndex * 8; // metatable(4)+count(4) + slot*(key+val)
+                int baseOffset = 12 + slotIndex * 8; // capacity(4)+metatable(4)+count(4) + slot*(key+val)
 
                 // 存储 key
-                if (field.Key != null)
-                {
-                    GenerateExpression(field.Key);
-                }
-                else
-                {
-                    instructions.Add(new Instruction(OpCode.MOVE,
-                        new List<Operand> {
-                            new Operand(OperandType.REGISTER, 0),
-                            new Operand(OperandType.IMMEDIATE, (slotIndex + 1).ToString())
-                        },
-                        instructions.Count));
-                }
+                if (field.Key != null) GenerateExpression(field.Key);
+                else AddRI(OpCode.MOVE, 0, slotIndex + 1);
                 instructions.Add(new Instruction(OpCode.MOVE,
-                    [new Operand(OperandType.MEMORY, $"R2+{baseOffset}"), new Operand(OperandType.REGISTER, 0)]));
+                    [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R13")]));
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    [new Operand(OperandType.MEMORY, $"R1+{baseOffset}"), new Operand(OperandType.REGISTER, 0)]));
 
                 // 存储 value
                 GenerateExpression(field.Value);
                 instructions.Add(new Instruction(OpCode.MOVE,
-                    [new Operand(OperandType.MEMORY, $"R2+{baseOffset + 4}"), new Operand(OperandType.REGISTER, 0)]));
+                    [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, "R13")]));
+                instructions.Add(new Instruction(OpCode.MOVE,
+                    [new Operand(OperandType.MEMORY, $"R1+{baseOffset + 4}"), new Operand(OperandType.REGISTER, 0)]));
 
                 slotIndex++;
             }
+            instructions.Add(new Instruction(OpCode.POP,
+                new List<Operand> { new Operand(OperandType.REGISTER, 2) },
+                instructions.Count));
 
-            // Return table pointer = raw ptr + 4 (skip metatable slot, points to count)
-            // This maintains backward compatibility with lua_table_get/set runtime
+            // Return table pointer = raw ptr + 8 (skip capacity + metatable, points to count)
+            // 相对布局与旧版一致：调用方看到的 [p-4]=metatable、[p]=count 都没变
             instructions.Add(new Instruction(OpCode.ADD,
-                [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 4)]));
+                [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, 8)]));
         }
 
         private void GenerateTableAccess(TableAccessNode node)
         {
+            // 表指针**必须存栈上**，不能只放在 R1 里求值 key —— 求值表达式会拿 R1/R2 当临时寄存器
+            // （`GenerateBinaryOperation` 就是），`t[i + 1]` 这种写法下 R1 会变成 `i` 的值，
+            // 传给 lua_table_get 的就是个野指针（实测 R1=1 ⇒ 读 [1-4] = FFFFFFFC 越界崩溃）。
             GenerateExpression(node.Table);
-            instructions.Add(new Instruction(OpCode.MOVE,
-                new List<Operand> {
-                    new Operand(OperandType.REGISTER, 1),
-                    new Operand(OperandType.REGISTER, 0)
-                },
+            instructions.Add(new Instruction(OpCode.PUSH,
+                new List<Operand> { new Operand(OperandType.REGISTER, 0) },
                 instructions.Count));
             GenerateExpression(node.Key);
             instructions.Add(new Instruction(OpCode.MOVE,
@@ -1030,6 +1079,9 @@ namespace LuaCompiler
                     new Operand(OperandType.REGISTER, 0)
                 },
                 instructions.Count));
+            instructions.Add(new Instruction(OpCode.POP,
+                new List<Operand> { new Operand(OperandType.REGISTER, 1) },
+                instructions.Count)); // R1 = 表指针
             instructions.Add(new Instruction(OpCode.CALL,
                 new List<Operand> { new Operand(OperandType.LABEL, "lua_table_get") },
                 instructions.Count));

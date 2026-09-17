@@ -1,0 +1,312 @@
+# 0028：Ruby 前端 —— 无后缀下标 + `SYSCALL #2` 不是 malloc + `symbolTable` 与基类分家
+
+> 体检报告说的「解析器没有下标语法 / `a[i]=v` 左值被丢成 `AssignNode("_")`」**正确**，
+> 但**漏了两条更致命的**（不修就到不了 14）。
+
+## 一、解析器没有后缀 `[`（体检正确）
+
+`ParsePrimary` 无后缀下标分支 ⇒ `a[i]` 只解析成裸 `a` ⇒ `plus1(a[i])` 的实参吃到 `a` 后撞上 `[`，
+在 `Expect(RParen)` 上炸：`Ruby parse error: expected ) (got LBracket)`（`Parser.cs:414`）。
+补：`ParsePrimary` 拆成 `ParsePrimaryCore` + **后缀 `[` 链**；`ParseAssignment` 两处加 `IndexNode` 分支
+（原来赋值落 `AssignNode("_")`、复合赋值**连 else 都没有**）。
+
+## 二、⚠ `GenerateArray` 的分配用的是 `SYSCALL #2`（体检未提）
+
+vml 的 **`#2` 是 `InputString`**（从 stdin 读字符串），**`Alloc` 是 `40`**
+⇒ **数组字面量连内存都没分配到**。体检只说了「PUSH/POP 游标写错」，没发现这条。
+
+## 三、⚠ `GenerateDef` 结尾 `symbolTable = savedSymbols` 让顶层变量被分配两次（体检未提）
+
+基类 `_varOffsets` 持有的是 `symbolTable` **这个对象的引用**。`GenerateDef` 结尾**换成了新对象**
+⇒ 两者分家：`EmitStoreVar` 把偏移写进新表、`EmitLoadVar` 在老表里查不到。
+
+**实测后果**：**只要文件里定义过函数，之后每个顶层变量都会被分配两次** ——
+`s = 0` 落在 `[R12-8]`，循环里的 `s = s + a[i]` 却写进 `[R12-16]`，读回来恒为 0。
+
+修法：**就地 `Clear()` + 逐项写回**，不要换对象。
+> **`RCompiler` 的同一处有逐字相同的注释和修复**（「必须就地恢复（Clear + 逐项写回）」）
+> —— Ruby 这份漏了。**同一规则两处实现、只修了其中一处**，本仓库头号坑。
+
+## 四、顺带：局部变量槽落在 PUSH 区里
+
+`EmitPrologue` 没有 `SUB R13` ⇒ 修下标之前必须先加栈帧，否则 `inc(a[i])` 一压栈就把 `a` 写花。
+对照实验：`int s = 7; int t = inc(3);` 打出 `S=33 T=61`（应为 7/4）。
+
+## 五、实测
+
+| | 修前 | 修后 |
+|---|---|---|
+| `corpus/ruby/skel.rb` | `expected ) (got LBracket)` | `SKEL-SUM=14` ✅ |
+
+回归：上游 14 个 ruby 例子里 12 个仍编过；`factorial.rb` 端到端输出 `factorial(10) = 3628800`。
+`prime.rb`（`?` + Symbol 三元）与 `roguelike/vanilla.rb`（`&` 字符）**改动前后报错逐字相同**，与本改动无关。
+diff --git a/third_party/vml/VMLPrepares/RubyCompiler/ASTNode.cs b/third_party/vml/VMLPrepares/RubyCompiler/ASTNode.cs
+index e435cbad..65287ca3 100644
+--- a/third_party/vml/VMLPrepares/RubyCompiler/ASTNode.cs
++++ b/third_party/vml/VMLPrepares/RubyCompiler/ASTNode.cs
+@@ -44,6 +44,16 @@ public class UnaryNode(string op, ASTNode operand, int line, int col) : ASTNode(
+ public class CallNode(ASTNode? receiver, string method, List<ASTNode> arguments, int line, int col) : ASTNode(line, col)
+ { public ASTNode? Receiver { get; } = receiver; public string Method { get; } = method; public List<ASTNode> Arguments { get; } = arguments; }
+ public class ArrayNode(List<ASTNode> elements, int line, int col) : ASTNode(line, col) { public List<ASTNode> Elements { get; } = elements; }
++
++// ── 数组下标 ──────────────────────────────────────────────────────────────────
++// 此前 Ruby 前端**没有下标表达式**：`a[i]` 只解析成裸 `a`（下标 token 被语句层跳过），
++// `a[i] = v` 的左值被 ParseAssignment 丢成 `_`。下面三个节点把下标补上。
++public class IndexNode(ASTNode target, ASTNode index, int line, int col) : ASTNode(line, col)
++{ public ASTNode Target { get; } = target; public ASTNode Index { get; } = index; }
++public class IndexAssignNode(ASTNode target, ASTNode index, ASTNode value, int line, int col) : ASTNode(line, col)
++{ public ASTNode Target { get; } = target; public ASTNode Index { get; } = index; public ASTNode Value { get; } = value; }
++public class IndexOpAssignNode(ASTNode target, ASTNode index, string op, ASTNode value, int line, int col) : ASTNode(line, col)
++{ public ASTNode Target { get; } = target; public ASTNode Index { get; } = index; public string Op { get; } = op; public ASTNode Value { get; } = value; }
+ public class StringInterpolateNode(List<ASTNode> parts, int line, int col) : ASTNode(line, col) { public List<ASTNode> Parts { get; } = parts; }
+ public class WhenClauseNode(List<ASTNode> values, List<ASTNode> body, int line, int col) : ASTNode(line, col)
+ { public List<ASTNode> Values { get; } = values; public List<ASTNode> Body { get; } = body; }
+diff --git a/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.Expressions.cs
+index 25b58e8e..ded299cf 100644
+--- a/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.Expressions.cs
+@@ -27,6 +27,15 @@ public partial class CodeGenerator
+             case ArrayNode array:
+                 GenerateArray(array);
+                 break;
++            case IndexNode index:
++                GenerateIndexRead(index);
++                break;
++            case IndexAssignNode indexAssign:
++                GenerateIndexAssign(indexAssign);
++                break;
++            case IndexOpAssignNode indexOpAssign:
++                GenerateIndexOpAssign(indexOpAssign);
++                break;
+             case TernaryNode tern:
+                 GenerateTernary(tern);
+                 break;
+@@ -207,29 +216,83 @@ public partial class CodeGenerator
+ 
+     private void GenerateArray(ArrayNode node)
+     {
+-        // allocate array: size * 4 bytes
+-        int size = node.Elements.Count;
+-        AddRI(OpCode.MOVE, 0, size * 4);
++        // 数组字面量。布局 = **无数组头**的扁平块：元素 i 在 `base + i*4`
++        // （读/写两侧同式，和 R 前端一种路数；`[count, e0, …]` 那种带头布局是另一族）。
++        int count = node.Elements.Count;
++
++        // ⚠ 原来这里写的是 `SYSCALL #2` —— 而 **#2 是 InputString（从 stdin 读一个字符串）**，
++        //   不是 malloc（`Alloc = 40`）。分配到的根本不是内存，后面所有元素都写飞了。
++        AddRI(OpCode.MOVE, 0, count * 4);
+         instructions.Add(new Instruction(OpCode.SYSCALL,
+-            new List<Operand> { new Operand(OperandType.IMMEDIATE, 2) }, instructions.Count)); // malloc
++            new List<Operand> { new Operand(OperandType.IMMEDIATE, 40) }, instructions.Count)); // R0 = 块地址
+ 
+-        // store elements
+-        for (int i = 0; i < node.Elements.Count; i++)
++        // ⚠ 原来循环里 `PUSH R0` 指望 R0 一直是基址，可第一轮之后 R0 已经是**上一个元素的值**；
++        //   而 `POP R1` 又冲掉了正在当游标用的 R1 ⇒ 元素 1..n-1 全写到"上一个元素值"那个地址。
++        //   改法：基址常驻栈顶，每存一个元素重新取一次（元素表达式里可能有函数调用，
++        //   任何寄存器都靠不住）。
++        instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));   // 基址常驻栈顶
++        for (int i = 0; i < count; i++)
+         {
+-            instructions.Add(new Instruction(OpCode.PUSH,
+-                new List<Operand> { new Operand(OperandType.REGISTER, 0) }, instructions.Count));
+-            GenerateExpression(node.Elements[i]);
+-            instructions.Add(new Instruction(OpCode.POP,
+-                new List<Operand> { new Operand(OperandType.REGISTER, 1) }, instructions.Count));
++            GenerateExpression(node.Elements[i]);                   // R0 = 元素值
++            instructions.Add(new Instruction(OpCode.POP, [Reg(1)])); // R1 = 基址
++            instructions.Add(new Instruction(OpCode.PUSH, [Reg(1)]));// 立刻放回
+             instructions.Add(new Instruction(OpCode.MOVE,
+-                new List<Operand> { Mem("R1"), new Operand(OperandType.REGISTER, 0) },
+-                instructions.Count));
+-            if (i < node.Elements.Count - 1)
+-            {
+-                instructions.Add(new Instruction(OpCode.ADD,
+-                    new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 4) },
+-                    instructions.Count));
+-            }
++                [Mem(i == 0 ? "R1" : $"R1+{i * 4}"), Reg(0)],
++                instructions.Count));                               // [base+i*4] = 元素值
+         }
++        instructions.Add(new Instruction(OpCode.POP, [Reg(0)]));    // 返回值 = 基址
++    }
++
++    /// <summary>元素地址 → R0：<c>base + idx*4</c>（无数组头）。</summary>
++    private void EmitElementAddress(ASTNode target, ASTNode index)
++    {
++        GenerateExpression(target);                                // R0 = 基址
++        instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
++        GenerateExpression(index);                                 // R0 = 下标
++        instructions.Add(new Instruction(OpCode.POP, [Reg(1)]));   // R1 = 基址
++        instructions.Add(new Instruction(OpCode.SHL,
++            [Reg(0), Reg(0), new Operand(OperandType.IMMEDIATE, 2)], instructions.Count));
++        instructions.Add(new Instruction(OpCode.ADD,
++            [Reg(0), Reg(0), Reg(1)], instructions.Count));
++    }
++
++    private void GenerateIndexRead(IndexNode node)
++    {
++        EmitElementAddress(node.Target, node.Index);               // R0 = 元素地址
++        instructions.Add(new Instruction(OpCode.MOVE,
++            [Reg(0), Mem("R0")], instructions.Count));             // R0 = 元素值（load）
++    }
++
++    private void GenerateIndexAssign(IndexAssignNode node)
++    {
++        GenerateExpression(node.Value);                            // R0 = 右值
++        instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
++        EmitElementAddress(node.Target, node.Index);               // R0 = 元素地址
++        instructions.Add(new Instruction(OpCode.POP, [Reg(1)]));   // R1 = 右值
++        instructions.Add(new Instruction(OpCode.MOVE,
++            [Mem("R0"), Reg(1)], instructions.Count));             // [地址] = 右值（dest 在前）
++        instructions.Add(new Instruction(OpCode.MOVE, [Reg(0), Reg(1)], instructions.Count));
++    }
++
++    private void GenerateIndexOpAssign(IndexOpAssignNode node)
++    {
++        EmitElementAddress(node.Target, node.Index);               // R0 = 元素地址
++        instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));  // 地址压栈（求值会改所有寄存器）
++        instructions.Add(new Instruction(OpCode.MOVE, [Reg(1), Mem("R0")], instructions.Count)); // R1 = 旧值
++        instructions.Add(new Instruction(OpCode.PUSH, [Reg(1)]));
++        GenerateExpression(node.Value);                            // R0 = 右值
++        instructions.Add(new Instruction(OpCode.POP, [Reg(1)]));   // R1 = 旧值
++        OpCode op = node.Op switch
++        {
++            "+=" => OpCode.ADD,
++            "-=" => OpCode.SUB,
++            "*=" => OpCode.MUL,
++            "/=" => OpCode.DIV,
++            _ => OpCode.ADD,
++        };
++        instructions.Add(new Instruction(op, [Reg(0), Reg(1), Reg(0)], instructions.Count)); // R0 = 旧值 op 右值
++        instructions.Add(new Instruction(OpCode.POP, [Reg(1)]));   // R1 = 地址
++        instructions.Add(new Instruction(OpCode.MOVE,
++            [Mem("R1"), Reg(0)], instructions.Count));             // [地址] = 结果
+     }
+ }
+diff --git a/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.Statements.cs b/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.Statements.cs
+index f82aa108..c283a895 100644
+--- a/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.Statements.cs
++++ b/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.Statements.cs
+@@ -96,6 +96,12 @@ public partial class CodeGenerator
+         // function prologue
+         EmitPrologue();
+ 
++        // 同顶层：局部变量槽必须落在 SP 之下，否则函数体内每次 PUSH/CALL 都会写花局部变量。
++        // 帧大小边生成边确定，故先占位、函数体生成完再回填。
++        int framePatchIndex = instructions.Count;
++        instructions.Add(new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, 0)], framePatchIndex));
++
+         // save old symbol table, set up parameters
+         var savedSymbols = new Dictionary<string, int>(symbolTable);
+         int savedOffset = nextStackOffset;
+@@ -107,12 +113,28 @@ public partial class CodeGenerator
+         foreach (var stmt in node.Body)
+             GenerateStatement(stmt);
+ 
++        // 回填帧大小（+8 安全边界）。变量偏移是「相对本帧 R12」的绝对量，取生成完的最大值即可。
++        int frameSize = nextStackOffset + 8;
++        instructions[framePatchIndex] = new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, frameSize)], framePatchIndex);
++
+         // function epilogue
+         EmitEpilogue();
+         AddLabel(skipLabel);
+ 
+         // restore symbol table + class context
+-        symbolTable = savedSymbols;
++        // ⚠ **必须就地恢复（Clear + 逐项写回），不能 `symbolTable = savedSymbols`**：
++        //   `_varOffsets`（基类 EmitLoadVar/EmitStoreVar 用的那张表）持有的是 symbolTable
++        //   **这个对象的引用**，换成新对象后两者就分家了 —— EmitStoreVar 的「新变量」分支把
++        //   偏移写进 symbolTable，而 EmitLoadVar 在 `_varOffsets` 里查不到 ⇒ 回退成
++        //   dataSection 里的全局 `var_xxx`（初值 0）。
++        //   现象：**只要文件里定义过函数，之后每个顶层变量都会被重复分配** ——
++        //   `s = 0` 落在 [R12-8]，循环里 `s = s + a[i]` 却写进 [R12-16]（同一个名字第二次
++        //   分配了一个新槽）⇒ 读回来恒为 0。语料里 `def plus1` 在前，正好踩中。
++        //   （与 R 前端 `CodeGenerator.Statements.cs` 的同一处修复逐字同因。）
++        symbolTable.Clear();
++        foreach (var kv in savedSymbols)
++            symbolTable[kv.Key] = kv.Value;
+         nextStackOffset = savedOffset;
+         _currentClassName = prevClassName;
+     }
+diff --git a/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.cs
+index f7898415..60a5d801 100644
+--- a/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.cs
++++ b/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.cs
+@@ -39,6 +39,14 @@ public partial class CodeGenerator : OopCodeGenerator
+         // stack frame prologue (使用基类方法)
+         EmitPrologue();
+ 
++        // 顶层也要**预留局部变量栈帧**（原来只有 EmitPrologue，没有 SUB R13）。
++        // 局部变量按 [R12-4]、[R12-8]… 分配，而 R12 == R13 ⇒ 那些槽位全在 SP **之下**，
++        // 任何 PUSH / CALL 都会把它们原地写花（`a = [1,2,3,4]` + `plus1(a[i])` 就是这种形状）。
++        // 帧大小要等语句生成完才知道（变量边生成边分配），故先占位、最后回填（与 R 前端同款）。
++        int mainFramePatch = instructions.Count;
++        instructions.Add(new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, 0)], mainFramePatch));
++
+         // First pass: collect module methods for include inlining
+         foreach (var stmt in program.Statements)
+         {
+@@ -49,6 +57,11 @@ public partial class CodeGenerator : OopCodeGenerator
+         foreach (var stmt in program.Statements)
+             GenerateStatement(stmt);
+ 
++        // 回填帧大小（+8 安全边界，与 EmitPrologueWithFrame 口径一致）
++        int mainFrameSize = nextStackOffset + 8;
++        instructions[mainFramePatch] = new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, mainFrameSize)], mainFramePatch);
++
+         EmitExit();
+ 
+         return BuildProgram("main");
+diff --git a/third_party/vml/VMLPrepares/RubyCompiler/Parser.cs b/third_party/vml/VMLPrepares/RubyCompiler/Parser.cs
+index 0123c8c2..0ee10abc 100644
+--- a/third_party/vml/VMLPrepares/RubyCompiler/Parser.cs
++++ b/third_party/vml/VMLPrepares/RubyCompiler/Parser.cs
+@@ -276,6 +276,8 @@ public class Parser : ParserBase<Token, TokenType>
+             Advance();
+             var right = ParseAssignment();
+             if (left is VarNode v) return new AssignNode(v.Name, right, l, c);
++            // 下标左值: a[i] = v —— 原来整段丢成下划线变量 `_`（目标与下标都没了，写得"成功"但其实什么都没写）
++            if (left is IndexNode ix) return new IndexAssignNode(ix.Target, ix.Index, right, l, c);
+             return new AssignNode("_", right, l, c);
+         }
+         if (Check(TokenType.PlusAssign) || Check(TokenType.MinusAssign) || Check(TokenType.MulAssign) || Check(TokenType.DivAssign))
+@@ -283,6 +285,8 @@ public class Parser : ParserBase<Token, TokenType>
+             string op = Advance().Value;
+             var right = ParseAssignment();
+             if (left is VarNode v) return new OpAssignNode(v.Name, op, right, left.Line, left.Column);
++            // 下标复合赋值: 原来落空（既没生成节点也没报错，整条语句的值被丢掉）
++            if (left is IndexNode ix2) return new IndexOpAssignNode(ix2.Target, ix2.Index, op, right, left.Line, left.Column);
+         }
+         return left;
+     }
+@@ -354,7 +358,25 @@ public class Parser : ParserBase<Token, TokenType>
+         return ParsePrimary();
+     }
+ 
++    /// <summary>
++    /// 主表达式 + **后缀下标链**。此前只有主表达式，`a[i]` 里的 `[i]` 根本没人吃
++    /// （表现为 `plus1(a[i])` 报「expected ) (got LBracket)」）。
++    /// </summary>
+     private ASTNode ParsePrimary()
++    {
++        var expr = ParsePrimaryCore();
++        while (Check(TokenType.LBracket))
++        {
++            int l = expr.Line, c = expr.Column;
++            Advance(); // [
++            var index = ParseExpression();
++            Expect(TokenType.RBracket, "expected ]");
++            expr = new IndexNode(expr, index, l, c);
++        }
++        return expr;
++    }
++
++    private ASTNode ParsePrimaryCore()
+     {
+         int l = Cur.Line, c = Cur.Column;
+ 

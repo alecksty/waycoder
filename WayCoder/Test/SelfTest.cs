@@ -144,6 +144,7 @@ public static partial class SelfTest
         ["[文件锁"] = "agent",
         ["[导入源解析"] = "config",
         ["[工具清单跨端同步"] = "tools",
+        ["[VML 前端编译器清单"] = "tools",
         ["[视觉列换算"] = "ui",
         ["[MCP 状态图标"] = "tools",
         ["[任务列表"] = "tools",

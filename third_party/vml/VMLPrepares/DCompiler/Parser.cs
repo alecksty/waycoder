@@ -569,8 +569,11 @@ public class Parser : ParserBase<Token, TokenType>
             }
             if (left is IndexNode idx)
             {
-                // a[i] = value
-                if (op == "=") return new AssignNode(idx.Name, right, l, cl);
+                // a[i] = value / a[i] += value
+                // ⚠ 原来 `a[i] = v` 被压成 `AssignNode(a, v)` —— **给数组变量本身赋值**
+                //   （下标整个丢掉）；复合赋值连分支都没有，落空后整条语句被静默丢弃。
+                if (op == "=") return new IndexAssignNode(idx.Name, idx.Index, right, l, cl);
+                return new IndexOpAssignNode(idx.Name, idx.Index, op, right, l, cl);
             }
         }
         return left;
@@ -858,7 +861,10 @@ public class Parser : ParserBase<Token, TokenType>
                 while (Match(TokenType.Comma));
             }
             Expect(TokenType.RBracket, "expected ']'");
-            return new LiteralNode(elements, l, c);
+            // ⚠ 原来 here 是 `new LiteralNode(elements, l, c)` —— 把元素列表当成"字面量的值"，
+            //   而 EmitLoadConstant 会对它做 Convert.ToInt32 ⇒ InvalidCastException
+            //   （实测：`Unable to cast List<ASTNode> to IConvertible`）。改成真正的数组字面量节点。
+            return new ArrayLiteralNode(elements, l, c);
         }
 
         // this

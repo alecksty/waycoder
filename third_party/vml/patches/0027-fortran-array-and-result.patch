@@ -1,0 +1,439 @@
+# 0027：Fortran 前端 —— 数组元素当函数调、数组不分配、`result()` 改名、`mod` 走库
+
+> **定性先行**：用上游真例子跑过 —— `sorting/main.f90` 的 `arr(j)` **改前同样**报
+> `未找到标签: func_arr` ⇒ **是前端缺陷，不是语料问题**；
+> 而语料注释里那条「`print *, 'SKEL-SUM=', s` 打出多余空格是缺陷」**判错了** ——
+> 那是**正确的 Fortran 列表输出语义**（列表项之间有分隔符），已按其它语言语料的既有做法改语料
+> （先打无换行字符串、再单独打这个数），**补丁本身不含语料改动**。
+
+## 一、`a(i)` 在表达式里一律被当成函数调用
+
+一律编成 `FuncCallNode` → `CALL func_a`，而 `func_a` 是**用户自己的函数标签命名**，
+数组根本不该走那条路。未解析就运行期 `KeyNotFound`。
+修法：新增 `ArrayElemNode` + `IsDeclaredArray()`（声明过数组 **且不是** 例程名），`Parser.cs`。
+
+## 二、`integer :: a(4)` 只分配 **1 个** 4 字节栈槽
+
+而且写路径的基地址 `MOVE R1, [R12+offset]` **方向反**（`MemOff` 约定是正数 → `R12-offset`）
+**且解引用了**；下标表达式还在基地址之后求值（会把 R1 冲掉）。
+修法：新增 `GetVarByteSize()`（数组留 N×元素字节）与**唯一实现** `EmitArrayBaseAddress()`
+（栈数组/形参数组/可分配数组/全局四种来源收在一处）。
+
+## 三、`function f(...) result(r)` 把定义体标签改成了 `r`
+
+解析器把 `name` 改写成 `r` ⇒ 定义体标签成 `func_r`，而调用点找的是 `func_fib`
+⇒ **命中库里同名函数就静默调错**（`fact2.f90` 实测 `call lib_math_factorial`，用户自己的函数成死代码），
+没命中就运行期 `KeyNotFound`。
+修法：`FunctionNode` 拆成 `Name`（标签/调用名）+ `ResultVar`（返回值槽）。
+
+## 四、`mod(a,b)` 走到通用 `CALL func_mod`，而**库里没有 `mod` 这个标签**
+
+⇒ 未解析。改走原生 `MOD`（复用既有 `_expr.EmitBinOp(..., "%")`）。
+
+## 五、实测
+
+| | 修前 | 修后 |
+|---|---|---|
+| `corpus/fortran/skel.f90` | 未解析标签 `func_a`(×2) + 运行期 `KeyNotFound` | `SKEL-SUM=14` ✅ |
+
+回归（上游 7 个例子）：**全部编译并运行、零未解析标签**
+（修前 4 个崩、1 个静默调错）；`t_fres.f90` 从 `未找到标签: func_myimpl` → 输出 `15`。
+数组端到端：`[4,3,2,1]` 冒泡排序后打印 `1 2 3 4`，**相邻变量 `z` 仍为 `99`**
+（证明 16 字节栈分配与基地址都正确 —— 这条正是防「改了数组踩到邻居」的判据）。
+
+## 六、未修
+
+1. **`GenerateArrayElemAddr`（整段数组切片 `A(:) = B(:) + C(:)`）仍是坏的**：
+   它引用的 `_arr_<name>` 标签**全仓没有生产者**，且算到 R0 却从 R1 存。
+   语料与上游例子都不走这条路，未动（避免 gold-plating）。
+2. **`LibraryLinker` 会把主程序自己定义的 `func_X` 重定向到库实现**
+   （`fact2` 的 `factorial` 仍调 `lib_builtins_func_factorial`；修前修后一致）。
+   链接器策略问题，`VMLAssembler/` 不在本次改动范围。
+   **非碰撞名（`inc` / `digit_sum` / `myimpl`）已正确解析到用户自己的函数。**
+diff --git a/third_party/vml/VMLPrepares/FortranCompiler/ASTNode.cs b/third_party/vml/VMLPrepares/FortranCompiler/ASTNode.cs
+index 0e67b479..e840458a 100644
+--- a/third_party/vml/VMLPrepares/FortranCompiler/ASTNode.cs
++++ b/third_party/vml/VMLPrepares/FortranCompiler/ASTNode.cs
+@@ -52,7 +52,16 @@ public class SubroutineNode(string name, List<string> parameters, List<ASTNode>
+ /// </summary>
+ public class FunctionNode(string name, string returnType, List<string> parameters, List<ASTNode> body, int line, int col) : ASTNode(line, col)
+ {
++    /// <summary>**被调用的**名字 —— 定义体标签 = <c>func_{Name}</c>，调用点也是这个名字。</summary>
+     public string Name { get; } = name;
++    /// <summary>
++    /// 装返回值的那个变量：有 <c>result(r)</c> 子句时是 <c>r</c>，否则与函数名同名
++    /// （老式写法 <c>f = expr</c>）。**它和 <see cref="Name"/> 是两回事** ——
++    /// 早先解析器把 Name 直接换成 result 变量名，于是定义体编成 `func_r:` 而调用点找
++    /// `func_fib`：命中了库里的同名函数就**静默调错**（fact2.f90 的 `factorial` 实际
++    /// 调的是 lib_math_factorial），没命中就运行期 KeyNotFound。
++    /// </summary>
++    public string ResultVar { get; set; } = name;
+     public string ReturnType { get; } = returnType;
+     public List<string> Parameters { get; } = parameters;
+     public List<ASTNode> Body { get; } = body;
+@@ -162,6 +171,15 @@ public class AssignNode(string name, ASTNode value, int line, int col) : ASTNode
+     public bool IsArraySection { get; set; } // array slice: a(:) = expr
+ }
+ 
++/// <summary>
++/// Array element reference in an expression: a(i)（标量元素，1-based）
++/// </summary>
++public class ArrayElemNode(string name, ASTNode index, int line, int col) : ASTNode(line, col)
++{
++    public string Name { get; } = name;
++    public ASTNode Index { get; } = index;
++}
++
+ /// Array section: A(lower:upper) or A(:) for whole array
+ public class ArraySectionNode(string name, ASTNode? lower, ASTNode? upper, int line, int col) : ASTNode(line, col)
+ {
+diff --git a/third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.Expressions.cs
+index 5a230d08..768e0990 100644
+--- a/third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.Expressions.cs
+@@ -28,11 +28,88 @@ public partial class CodeGenerator
+             case FuncCallNode funcCall:
+                 GenerateFuncCall(funcCall);
+                 break;
++            case ArrayElemNode arrayElem:
++                GenerateArrayElemLoad(arrayElem);
++                break;
+             default:
+                 throw new CompilationException(ErrorCode.CodeGen_UnsupportedExpression, VMLPlugins.Strings.UnsupportedExpression(node.GetType().Name));
+         }
+     }
+ 
++    /// <summary>
++    /// 数组元素读：`a(i)` → R0 = a[i-1]。
++    ///
++    /// <para>次序上**先算下标再算基地址**：下标表达式求值会用到 R0/R1，反过来就会被基地址覆盖。</para>
++    /// </summary>
++    private void GenerateArrayElemLoad(ArrayElemNode node)
++    {
++        GenerateExpression(node.Index);
++        AddRI(OpCode.SUB, 0, 1);   // Fortran 1-based → 0-based
++        AddRI(OpCode.MUL, 0, 4);   // 元素 4 字节（与写入侧 GenerateAssign 同一约定）
++        EmitArrayBaseAddress(node.Name, 1);
++        instructions.Add(new Instruction(OpCode.ADD,
++            new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) },
++            instructions.Count));
++        instructions.Add(new Instruction(OpCode.MOVE,
++            new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "R1") },
++            instructions.Count));
++    }
++
++    /// <summary>
++    /// 把数组 <paramref name="name"/> 的**基地址**（元素 0 的地址）算到 <paramref name="destReg"/>。
++    /// 四种来源，判据按「这块内存在哪」分：
++    /// <list type="bullet">
++    /// <item>固定长度局部数组（`integer :: a(4)`，声明进了 ArraySizes）—— 整块就在栈帧里，
++    ///       基地址 = R12 - 偏移；偏移是 <see cref="TypedCodeGen{T}.MemOff"/> 的正数约定。</item>
++    /// <item>形参数组（`subroutine f(x)` 里的 x，偏移为负 = 帧上方参数区）—— 槽里存的是
++    ///       调用方传进来的地址，解引用即可。</item>
++    /// <item>可分配数组（`allocate(a(n))`）—— 槽里是 malloc 来的指针，且
++    ///       <see cref="GenerateAllocate"/> 在 [0] 处放了长度头 ⇒ 元素从 +4 开始。</item>
++    /// <item>其余（全局）—— 数据段标签本身就是地址。</item>
++    /// </list>
++    /// </summary>
++    private void EmitArrayBaseAddress(string name, int destReg)
++    {
++        string key = name.ToLowerInvariant();
++        if (symbolTable.TryGetValue(key, out int offset))
++        {
++            if (offset < 0)
++            {
++                // 形参数组：参数区在 R12 上方，槽里是地址
++                instructions.Add(new Instruction(OpCode.MOVE,
++                    new List<Operand> { new Operand(OperandType.REGISTER, destReg), new Operand(OperandType.MEMORY, MemOff(offset)) },
++                    instructions.Count));
++            }
++            else if (_arraySizes.ContainsKey(key))
++            {
++                // 固定长度局部数组：R12 - offset 就是元素 0 的地址
++                instructions.Add(new Instruction(OpCode.MOVE,
++                    new List<Operand> { new Operand(OperandType.REGISTER, destReg), new Operand(OperandType.REGISTER, 12) },
++                    instructions.Count));
++                if (offset != 0)
++                    instructions.Add(new Instruction(OpCode.SUB,
++                        new List<Operand> { new Operand(OperandType.REGISTER, destReg), new Operand(OperandType.IMMEDIATE, offset) },
++                        instructions.Count));
++            }
++            else
++            {
++                // 可分配数组：解引用拿首地址，跳过 [0] 的长度头
++                instructions.Add(new Instruction(OpCode.MOVE,
++                    new List<Operand> { new Operand(OperandType.REGISTER, destReg), new Operand(OperandType.MEMORY, MemOff(offset)) },
++                    instructions.Count));
++                instructions.Add(new Instruction(OpCode.ADD,
++                    new List<Operand> { new Operand(OperandType.REGISTER, destReg), new Operand(OperandType.IMMEDIATE, 4) },
++                    instructions.Count));
++            }
++        }
++        else
++        {
++            instructions.Add(new Instruction(OpCode.MOVE,
++                new List<Operand> { new Operand(OperandType.REGISTER, destReg), new Operand(OperandType.LABEL, $"var_{key}") },
++                instructions.Count));
++        }
++    }
++
+     private void GenerateLiteral(LiteralNode node) => EmitLoadConstant(node.Value);
+ 
+     private void GenerateVar(VarNode node)
+@@ -179,6 +256,15 @@ public partial class CodeGenerator
+             GenerateExpression(node.Arguments[0]);
+             return;
+         }
++        // mod(a, b) —— Fortran 的取模，VML 有原生 MOD 指令。
++        // 不拦的话会走到下面的通用 `CALL func_mod`，而**库里没有 mod 这个标签**（实测），
++        // 于是「未解析标签 func_mod」→ 运行期 KeyNotFound：gcd/质数/进制转换这类
++        // 真例子（Examples/fortran 的 gcd2/prime2/sum_digits2）全都卡在这一句上。
++        if (fname == "mod" || fname == "modulo")
++        {
++            _expr!.EmitBinOp(WrapExpr(node.Arguments[0]), WrapExpr(node.Arguments[1]), "%");
++            return;
++        }
+         if (fname == "outint")
+         {
+             // outint(x) — SYSCALL #4: print_int
+diff --git a/third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.Statements.cs b/third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.Statements.cs
+index 30b66d7d..9bfbef09 100644
+--- a/third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.Statements.cs
++++ b/third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.Statements.cs
+@@ -88,16 +88,25 @@ public partial class CodeGenerator
+         return nextStackOffset;
+     }
+ 
++    /// <summary>
++    /// 一个名字要在栈上占多少字节：数组要留 **N × 元素大小**
++    /// （`integer :: a(4)` = 16 字节；只留 4 字节的话 `a(2)` 就踩到紧邻的下一个变量）。
++    /// </summary>
++    private int GetVarByteSize(string key, FortranType ft)
++    {
++        int elemSize = GetTypeInfo(ft).byteSize;
++        return _arraySizes.TryGetValue(key, out int count) ? elemSize * count : elemSize;
++    }
++
+     private void GenerateVarDecl(VarDeclNode node)
+     {
+         FortranType ft = MapTypeName(node.TypeName);
+-        int byteSize = GetTypeInfo(ft).byteSize;
+         foreach (var name in node.Names)
+         {
+             string key = name.ToLowerInvariant();
+             _varTypes[key] = ft;
+             if (!symbolTable.ContainsKey(key))
+-                AllocStackSlot(key, byteSize);
++                AllocStackSlot(key, GetVarByteSize(key, ft));
+         }
+     }
+ 
+@@ -131,14 +140,13 @@ public partial class CodeGenerator
+                 if (s is VarDeclNode vd)
+                 {
+                     FortranType ft = MapTypeName(vd.TypeName);
+-                    int byteSize = GetTypeInfo(ft).byteSize;
+                     foreach (var name in vd.Names)
+                     {
+                         string key = name.ToLowerInvariant();
+                         _varTypes[key] = ft;
+                         if (!symbolTable.ContainsKey(key))
+                         {
+-                            nextStackOffset += byteSize;
++                            nextStackOffset += GetVarByteSize(key, ft);
+                             symbolTable[key] = nextStackOffset;
+                         }
+                     }
+@@ -188,8 +196,10 @@ public partial class CodeGenerator
+         int localSlot = 4; // start at R12-4
+         FortranType retType = MapTypeName(node.ReturnType);
+ 
+-        // Allocate space for return value (function name) below BP
+-        string fkey = node.Name.ToLowerInvariant();
++        // Allocate space for the return value below BP.
++        // ⚠ 用 ResultVar（有 `result(r)` 子句时是 r，否则就是函数名），**不是** node.Name ——
++        // 函数体里写的是 `r = …`，槽必须挂在 r 上；而标签挂在 node.Name 上（func_<被调用的名字>）。
++        string fkey = node.ResultVar.ToLowerInvariant();
+         symbolTable[fkey] = localSlot; // MemOff(4) → R12-4
+         _varTypes[fkey] = retType;
+         localSlot += 4;
+@@ -212,7 +222,6 @@ public partial class CodeGenerator
+                 if (s is VarDeclNode vd)
+                 {
+                     FortranType ft = MapTypeName(vd.TypeName);
+-                    int byteSize = GetTypeInfo(ft).byteSize;
+                     foreach (var name in vd.Names)
+                     {
+                         string key = name.ToLowerInvariant();
+@@ -220,7 +229,7 @@ public partial class CodeGenerator
+                         if (!symbolTable.ContainsKey(key))
+                         {
+                             symbolTable[key] = localSlot;
+-                            localSlot += byteSize;
++                            localSlot += GetVarByteSize(key, ft);
+                         }
+                     }
+                 }
+@@ -235,8 +244,8 @@ public partial class CodeGenerator
+         foreach (var stmt in node.Body)
+             GenerateStatement(stmt);
+ 
+-        // Load return value into R0
+-        EmitLoadVar(node.Name);
++        // Load return value into R0（同上：取的是 ResultVar 那个槽）
++        EmitLoadVar(node.ResultVar);
+ 
+         // Function epilogue
+         EmitEpilogue(); // 含 RET
+@@ -416,26 +425,20 @@ public partial class CodeGenerator
+         // 数组元素赋值: a(i) = expr
+         if (node.ArrayIndices != null && node.ArrayIndices.Count > 0)
+         {
+-            string key = node.Name.ToLowerInvariant();
+             // 保存值到栈
+             GenerateExpression(node.Value);
+             instructions.Add(new Instruction(OpCode.PUSH,
+                 new List<Operand> { new Operand(OperandType.REGISTER, 0) }, instructions.Count));
+-            // 计算数组基地址到 R1
+-            if (symbolTable.TryGetValue(key, out int offset))
+-                instructions.Add(new Instruction(OpCode.MOVE,
+-                    new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, $"R12+{offset}") },
+-                    instructions.Count));
+-            else
+-                instructions.Add(new Instruction(OpCode.MOVE,
+-                    new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.LABEL, $"var_{key}") },
+-                    instructions.Count));
+             // 计算索引偏移 (Fortran 1-based: index-1, 乘以4字节)
++            // ⚠ 下标必须先算：它求值时要用 R0/R1，先算基地址会被它冲掉
+             GenerateExpression(node.ArrayIndices[0]);
+             AddRI(OpCode.SUB, 0, 1);
+             AddRI(OpCode.MUL, 0, 4);
++            // R1 = 数组基地址 + 偏移（基地址统一由 EmitArrayBaseAddress 给出，
++            // 原先这里写死 `R12+offset` —— 相对帧指针方向反了，写进的是调用方的帧）
++            EmitArrayBaseAddress(node.Name, 1);
+             instructions.Add(new Instruction(OpCode.ADD,
+-                new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) },
++                new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) },
+                 instructions.Count));
+             // 恢复R0值并存储到计算地址
+             instructions.Add(new Instruction(OpCode.POP,
+@@ -453,7 +456,7 @@ public partial class CodeGenerator
+     private void GenerateArrayAssign(ArrayAssignNode node)
+     {
+         string idxVar = $"__i_{node.Target}";
+-        int n = _arraySizes.TryGetValue(node.Target, out int size) ? size : 10;
++        int n = _arraySizes.TryGetValue(node.Target.ToLowerInvariant(), out int size) ? size : 10;
+ 
+         // do idxVar = 1, n
+         string loopStart = NewLabel($"__arr_{node.Target}");
+diff --git a/third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.cs
+index 0d8b0905..ac11c030 100644
+--- a/third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.cs
++++ b/third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.cs
+@@ -166,6 +166,8 @@ public partial class CodeGenerator : TypedCodeGen<FortranType>
+             _ => ExpType.I32
+         },
+         VarNode vn => ToExpType(_varTypes.TryGetValue(vn.Name.ToLowerInvariant(), out var t) ? t : FortranType.Integer),
++        // 数组元素 a(i) 的表达式类型 = 该数组的元素类型
++        ArrayElemNode ae => ToExpType(_varTypes.TryGetValue(ae.Name.ToLowerInvariant(), out var et) ? et : FortranType.Integer),
+         BinaryNode bn => ExpressionManager.WidenType(GetExprType(bn.Left), GetExprType(bn.Right)),
+         UnaryNode un => GetExprType(un.Operand),
+         FuncCallNode fc => fc.Name.ToLowerInvariant() switch
+diff --git a/third_party/vml/VMLPrepares/FortranCompiler/Parser.cs b/third_party/vml/VMLPrepares/FortranCompiler/Parser.cs
+index 4b4be18e..f92c472c 100644
+--- a/third_party/vml/VMLPrepares/FortranCompiler/Parser.cs
++++ b/third_party/vml/VMLPrepares/FortranCompiler/Parser.cs
+@@ -15,6 +15,20 @@ public class Parser : ParserBase<Token, TokenType>
+ 
+     private ProgramNode _program = null!;
+ 
++    /// <summary>
++    /// 本文件里出现过的函数/子程序名（小写）。只用来消歧：`x(i)` 到底是数组元素
++    /// 还是函数调用 —— 名字声明成数组**且**没被声明成例程，才按数组元素编。
++    /// 少了后半条，一个「数组名恰好与某个 contained 函数同名」的文件会被静默编错。
++    /// </summary>
++    private readonly HashSet<string> _declaredRoutines = new();
++
++    /// <summary>`name(i)` 是否应按数组元素处理（见 <see cref="_declaredRoutines"/>）。</summary>
++    private bool IsDeclaredArray(string name)
++    {
++        string key = name.ToLowerInvariant();
++        return _program.ArraySizes.ContainsKey(key) && !_declaredRoutines.Contains(key);
++    }
++
+     public Parser(List<Token> tokens) : base(tokens) { }
+ 
+     public ProgramNode Parse()
+@@ -139,6 +153,7 @@ public class Parser : ParserBase<Token, TokenType>
+     {
+         int l = Cur.Line, c = Cur.Column;
+         string name = Expect(TokenType.Identifier, "expected subroutine name").Value;
++        _declaredRoutines.Add(name.ToLowerInvariant());
+         var parms = ParseParameterList();
+         SkipNewlines();
+         var body = new List<ASTNode>();
+@@ -166,16 +181,17 @@ public class Parser : ParserBase<Token, TokenType>
+                 Advance();
+         }
+         string name = Expect(TokenType.Identifier, "expected function name").Value;
++        // 记的是**被调用的那个名字** —— `name` 全程不再被改写成 result 变量名
++        _declaredRoutines.Add(name.ToLowerInvariant());
+         var parms = ParseParameterList();
+ 
+-        // result(resultVar) clause — "result" is tokenized as Identifier
++        // result(resultVar) 子句 —— "result" 被词法器当普通标识符
++        string resultVar = name; // 没有 result 子句时返回值就存在函数名里（`f = expr`）
+         if (Check(TokenType.Identifier) && Cur.Value.Equals("result", System.StringComparison.OrdinalIgnoreCase))
+         {
+             Advance(); // consume "result"
+             Expect(TokenType.LParen, "expected ( after result");
+-            // Use the result variable name as the function effective name
+-            string resultName = Expect(TokenType.Identifier, "expected result name").Value;
+-            name = resultName;
++            resultVar = Expect(TokenType.Identifier, "expected result name").Value;
+             Expect(TokenType.RParen, "expected )");
+         }
+ 
+@@ -183,7 +199,7 @@ public class Parser : ParserBase<Token, TokenType>
+ 
+         // Check for return type declaration before body
+         // "integer :: function_name" or "real :: function_name"
+-        returnType = ParseReturnTypeFromDecl(returnType, name);
++        returnType = ParseReturnTypeFromDecl(returnType, resultVar);
+ 
+         var body = new List<ASTNode>();
+         while (!Check(TokenType.End) && !Check(TokenType.EOF))
+@@ -194,7 +210,7 @@ public class Parser : ParserBase<Token, TokenType>
+         }
+         Expect(TokenType.End, "expected 'end' for function");
+         if (Match(TokenType.Function)) Match(TokenType.Identifier); // optional name
+-        return new FunctionNode(name, returnType, parms, body, l, c);
++        return new FunctionNode(name, returnType, parms, body, l, c) { ResultVar = resultVar };
+     }
+ 
+     /// <summary>
+@@ -396,8 +412,10 @@ public class Parser : ParserBase<Token, TokenType>
+                 // Extract array size from dimension expression
+                 if (Check(TokenType.IntLiteral))
+                 {
++                    // 键统一小写 —— 代码生成侧（EmitArrayBaseAddress / GenerateArrayAssign）
++                    // 一律按小写查，大写声明（`integer :: A(4)`）否则查不到、数组退化成标量。
+                     if (int.TryParse(Cur.Value, out int arrSize) && arrSize > 0)
+-                        _program.ArraySizes[name] = arrSize;
++                        _program.ArraySizes[name.ToLowerInvariant()] = arrSize;
+                 }
+                 // Consume the rest of the dimension expression
+                 int depth = 1;
+@@ -817,6 +835,12 @@ public class Parser : ParserBase<Token, TokenType>
+                 }
+                 if (isArraySection)
+                     return new ArraySectionNode(name, args.Count > 0 ? args[0] : null, null, l, c);
++                // 数组标量元素读 `a(i)`：前端原先一律当函数调用，编出 `CALL func_a`
++                // —— 链接期「未找到标签: func_a」、运行期 KeyNotFound（Examples/fortran/sorting
++                // 的 `arr(j)` 就是这么坏的）。Fortran 没有 C 那样的「调用才加括号」线索，
++                // 判据只能是「这个名字声明成了数组」。
++                if (args.Count == 1 && IsDeclaredArray(name))
++                    return new ArrayElemNode(name, args[0], l, c);
+                 return new FuncCallNode(name, args, l, c);
+             }
+             // Assignment detection: name = expr

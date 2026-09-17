@@ -31,6 +31,18 @@ public partial class CodeGenerator
             case OpAssignNode opAssign:
                 GenerateOpAssign(opAssign); // → CodeGenerator.Statements.cs
                 break;
+            case ArrayLiteralNode arrayLiteral:
+                GenerateArrayLiteral(arrayLiteral);
+                break;
+            case IndexNode index:
+                GenerateIndexRead(index);
+                break;
+            case IndexAssignNode indexAssign:
+                GenerateIndexAssign(indexAssign);
+                break;
+            case IndexOpAssignNode indexOpAssign:
+                GenerateIndexOpAssign(indexOpAssign);
+                break;
             case PrefixPostfixNode pp:
                 GeneratePrefixPostfix(pp);
                 break;
@@ -151,6 +163,109 @@ public partial class CodeGenerator
                 new List<Operand> { new Operand(OperandType.REGISTER, 1) }, instructions.Count));
         }
     }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // 数组（下标）代码生成
+    //
+    // 布局 `[count, e0, e1, …]`，每元素 4 字节 ⇒ 元素 i 在 `base + i*4 + 4`
+    // （与 Go/Kotlin/JS/C#/Python 同一套；R/Fortran/Pascal 那种自建扁布局才没有 +4 头）。
+    //
+    // ⚠ 全程用 PUSH/POP 而不是寄存器暂存：右值表达式里可能有函数调用（`inc(a[i])`），
+    //   任何寄存器都会被改掉。前提是**函数序言必须真的预留栈帧**（见 CodeGenerator.cs
+    //   的帧回填）—— 没有帧的话 PUSH 会直接写进局部变量槽。
+    // ══════════════════════════════════════════════════════════════════════════
+
+    private void GenerateArrayLiteral(ArrayLiteralNode node)
+    {
+        int count = node.Elements.Count;
+        AddRI(OpCode.MOVE, 0, (count + 1) * 4);
+        instructions.Add(new Instruction(OpCode.SYSCALL,
+            new List<Operand> { new Operand(OperandType.IMMEDIATE, 40) }, instructions.Count));  // R0 = 块地址
+        instructions.Add(new Instruction(OpCode.PUSH,
+            new List<Operand> { new Operand(OperandType.REGISTER, 0) }, instructions.Count));    // 基址常驻栈顶
+
+        AddRI(OpCode.MOVE, 0, count);
+        PopReg(1);
+        PushReg(1);
+        instructions.Add(new Instruction(OpCode.MOVE,
+            new List<Operand> { Mem("R1"), Reg(0) }, instructions.Count));                       // [base] = count
+
+        for (int i = 0; i < count; i++)
+        {
+            GenerateExpression(node.Elements[i]);                                                // R0 = 元素值
+            PopReg(1);
+            PushReg(1);
+            instructions.Add(new Instruction(OpCode.MOVE,
+                new List<Operand> { Mem($"R1+{(i + 1) * 4}"), Reg(0) }, instructions.Count));     // [base+off] = 元素值
+        }
+
+        PopReg(0);                                                                               // 返回值 = 基址
+    }
+
+    /// <summary>算出元素地址到 R0：base + idx*4 + 4。base 由调用方压栈（栈顶）。</summary>
+    private void EmitElementAddress(ASTNode target, ASTNode index)
+    {
+        GenerateExpression(target);                       // R0 = 基址
+        PushReg(0);
+        GenerateExpression(index);                        // R0 = 下标
+        PopReg(1);                                        // R1 = 基址
+        AddRI(OpCode.SHL, 0, 2);
+        AddRI(OpCode.ADD, 0, 4);                          // 跳过数组头
+        instructions.Add(new Instruction(OpCode.ADD,
+            new List<Operand> { Reg(0), Reg(0), Reg(1) }, instructions.Count));
+    }
+
+    private void GenerateIndexRead(IndexNode node)
+    {
+        EmitElementAddress(node.Target, node.Index);      // R0 = 元素地址
+        instructions.Add(new Instruction(OpCode.MOVE,
+            new List<Operand> { Reg(0), Mem("R0") }, instructions.Count));   // R0 = 元素值（load）
+    }
+
+    private void GenerateIndexAssign(IndexAssignNode node)
+    {
+        GenerateExpression(node.Value);                   // R0 = 右值
+        PushReg(0);
+        EmitElementAddress(node.Target, node.Index);      // R0 = 元素地址
+        PopReg(1);                                        // R1 = 右值
+        instructions.Add(new Instruction(OpCode.MOVE,
+            new List<Operand> { Mem("R0"), Reg(1) }, instructions.Count));   // [地址] = 右值（dest 在前）
+        AddReg(OpCode.MOVE, 0, 1);                        // 表达式值 = 右值
+    }
+
+    private void GenerateIndexOpAssign(IndexOpAssignNode node)
+    {
+        EmitElementAddress(node.Target, node.Index);      // R0 = 元素地址
+        PushReg(0);                                       // 地址压栈（下面的求值会改所有寄存器）
+        instructions.Add(new Instruction(OpCode.MOVE,
+            new List<Operand> { Reg(1), Mem("R0") }, instructions.Count));   // R1 = 旧值
+        PushReg(1);
+        GenerateExpression(node.Value);                   // R0 = 右值
+        PopReg(1);                                        // R1 = 旧值
+        var op = node.Op switch
+        {
+            "+=" => OpCode.ADD,
+            "-=" => OpCode.SUB,
+            "*=" => OpCode.MUL,
+            "/=" => OpCode.DIV,
+            "%=" => OpCode.MOD,
+            _ => OpCode.ADD,
+        };
+        AddReg(op, 0, 1);                                 // R0 = 旧值 op 右值
+        PopReg(1);                                        // R1 = 地址
+        instructions.Add(new Instruction(OpCode.MOVE,
+            new List<Operand> { Mem("R1"), Reg(0) }, instructions.Count));   // [地址] = 结果
+    }
+
+    // ── 小助手（只在本文件用）──────────────────────────────────────────────────
+    private void PushReg(int r) => instructions.Add(new Instruction(OpCode.PUSH,
+        new List<Operand> { Reg(r) }, instructions.Count));
+
+    private void PopReg(int r) => instructions.Add(new Instruction(OpCode.POP,
+        new List<Operand> { Reg(r) }, instructions.Count));
+
+    private void AddReg(OpCode op, int dst, int src) => instructions.Add(new Instruction(op,
+        new List<Operand> { Reg(dst), Reg(src) }, instructions.Count));
 
     private void GenerateTernary(ASTNode cond, ASTNode thenExpr, ASTNode elseExpr)
     {

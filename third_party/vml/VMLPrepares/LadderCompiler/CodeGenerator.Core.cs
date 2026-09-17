@@ -623,10 +623,14 @@ namespace LadderCompiler
             // 获取变量类型并使用正确的存储指令
             LadderTypeEnum varType = _varTypes.ContainsKey(varName) ? _varTypes[varName] : LadderTypeEnum.Bool;
             OpCode storeOp = GetStoreInstruction(varType);
-            
+
+            // ⚠ 操作数顺序：`ADD/MOVE dest, src` —— **dest 在前**。原来这里写的是
+            //   `(REGISTER 0, MEMORY varName)`，与上面 LoadVariable 逐字同形 ⇒ 那是一次
+            //   **加载**，被赋的值根本没写进变量（`s := 0` 之后读回来还是旧值）。
+            //   同族缺陷见 Rust 0024 / Java 0022 / Scheme 0021。
             AddInstruction(storeOp,
-                new Operand(OperandType.REGISTER, 0),
-                new Operand(OperandType.MEMORY, varName));
+                new Operand(OperandType.MEMORY, varName),
+                new Operand(OperandType.REGISTER, 0));
         }
 
         // ========== Visitor实现 ==========
@@ -646,14 +650,22 @@ namespace LadderCompiler
                     _arrays[node.Name] = (lower, upper, elementType);
                     _varTypes[node.Name] = LadderTypeEnum.Array;
                     var initValues = SplitInitialList(node.InitialValue);
-                    for (int i = lower; i <= upper; i++)
+
+                    // ⚠ **数组元素必须连续地存在一个块里**（一个 `object[]` 数据条目），
+                    //   否则「运行期才知下标的 `a[i]`」根本无法寻址：
+                    //   原来是把元素摊成 `a_0`/`a_1`/… 一个个独立数据条目，而链接期的
+                    //   `RemoveUnusedData` 会**逐个删掉没人按名字引用的元素** ——
+                    //   实测剩下的 `a_0` 的邻居直接变成了 `i` / `s`，
+                    //   `&a_0 + i*4` 于是读到变量本身（循环读出 21286 这种数）。
+                    //   现在整个数组是一个数据标签（`a: .word 1 / .word 2 / …` 连续排布），
+                    //   读、写都走 `&a + (idx-lo)*4` —— 常量下标同样走这条路，等价且统一。
+                    var block = new object[upper - lower + 1];
+                    for (int i = 0; i < block.Length; i++)
                     {
-                        string elementName = $"{node.Name}_{i}";
-                        string init = (i - lower) < initValues.Count ? initValues[i - lower] : null;
-                        dataSection[elementName] = ParseInitialValue(init, 0);
-                        _varTypes[elementName] = GetLadderTypeEnum(elementType);
+                        string init = i < initValues.Count ? initValues[i] : null;
+                        block[i] = ParseInitialValue(init, 0);
                     }
-                    dataSection[node.Name] = 0;
+                    dataSection[node.Name] = block;
                     return;
                 }
 

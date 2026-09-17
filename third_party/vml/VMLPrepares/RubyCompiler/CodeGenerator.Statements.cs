@@ -96,6 +96,12 @@ public partial class CodeGenerator
         // function prologue
         EmitPrologue();
 
+        // 同顶层：局部变量槽必须落在 SP 之下，否则函数体内每次 PUSH/CALL 都会写花局部变量。
+        // 帧大小边生成边确定，故先占位、函数体生成完再回填。
+        int framePatchIndex = instructions.Count;
+        instructions.Add(new Instruction(OpCode.SUB,
+            [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, 0)], framePatchIndex));
+
         // save old symbol table, set up parameters
         var savedSymbols = new Dictionary<string, int>(symbolTable);
         int savedOffset = nextStackOffset;
@@ -107,12 +113,28 @@ public partial class CodeGenerator
         foreach (var stmt in node.Body)
             GenerateStatement(stmt);
 
+        // 回填帧大小（+8 安全边界）。变量偏移是「相对本帧 R12」的绝对量，取生成完的最大值即可。
+        int frameSize = nextStackOffset + 8;
+        instructions[framePatchIndex] = new Instruction(OpCode.SUB,
+            [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, frameSize)], framePatchIndex);
+
         // function epilogue
         EmitEpilogue();
         AddLabel(skipLabel);
 
         // restore symbol table + class context
-        symbolTable = savedSymbols;
+        // ⚠ **必须就地恢复（Clear + 逐项写回），不能 `symbolTable = savedSymbols`**：
+        //   `_varOffsets`（基类 EmitLoadVar/EmitStoreVar 用的那张表）持有的是 symbolTable
+        //   **这个对象的引用**，换成新对象后两者就分家了 —— EmitStoreVar 的「新变量」分支把
+        //   偏移写进 symbolTable，而 EmitLoadVar 在 `_varOffsets` 里查不到 ⇒ 回退成
+        //   dataSection 里的全局 `var_xxx`（初值 0）。
+        //   现象：**只要文件里定义过函数，之后每个顶层变量都会被重复分配** ——
+        //   `s = 0` 落在 [R12-8]，循环里 `s = s + a[i]` 却写进 [R12-16]（同一个名字第二次
+        //   分配了一个新槽）⇒ 读回来恒为 0。语料里 `def plus1` 在前，正好踩中。
+        //   （与 R 前端 `CodeGenerator.Statements.cs` 的同一处修复逐字同因。）
+        symbolTable.Clear();
+        foreach (var kv in savedSymbols)
+            symbolTable[kv.Key] = kv.Value;
         nextStackOffset = savedOffset;
         _currentClassName = prevClassName;
     }

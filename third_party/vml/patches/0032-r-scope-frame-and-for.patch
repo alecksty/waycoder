@@ -1,0 +1,208 @@
+# 0032：R 前端 —— 符号表换对象 / 顶层无栈帧 / `for` 拿元素值当游标 / print 蹦床抬高栈指针
+
+> 四个独立缺陷。**我们先前那个探针结论「`for` 只迭代一轮」是对的，但成因说错了**：
+> 不是循环计数的问题，是**游标被元素值顶掉**（见三）。
+> 语料崩溃（`地址=FFFFFFFC`）则是一（符号表）造成的，与 `for` 无关。
+
+## 一、`symbolTable = savedSymbols` 让 `_varOffsets` 悬空（语料崩溃的直接原因）
+
+`GenerateFuncDef` 用 `symbolTable = savedSymbols` 把字段指向**新字典**，
+而 `_varOffsets`（`EmitLoadVar`/`EmitStoreVar` 用的那张表）**仍指向旧对象**。
+此后新变量 **store 走 `symbolTable`（栈槽）、load 在 `_varOffsets` 里查不到**
+⇒ 回退到 `dataSection` 的全局 `var_xxx`。
+
+汇编实证（导出的 `skel.vml`）：**存 1 到 `[R12-24]`，读的却是 `[var_i]`（全局，恒 0）**；
+`var__seq_4_1` 同理 ⇒ 基址 0、下标 0 ⇒ 地址 `FFFFFFFC`。**只要程序里定义过函数就中招。**
+
+修法：**就地 `Clear()` + 逐项写回**，不要换对象。
+
+> 与 `0028`（Ruby）**同一条** —— 两个前端各写一份、都漏了。**同一规则两处实现、只修了其中一处**，本仓库头号坑。
+
+## 二、顶层 `main` 没有栈帧
+
+`GenerateCode` 只 `EmitPrologue()`（`push R15 / push R12 / move R12,R13`），**没有 `sub R13 #N`**；
+而局部变量按 `[R12-4]、[R12-8]…` 分配，`R12 == R13` ⇒ **整片局部区在 SP 之下**，
+任何 `push`/`call`（压返回地址）都原地写花。
+修法：顶层预留栈帧（占位 `sub R13 #0`，生成完回填 `nextStackOffset + 8`）。
+
+## 三、`for` 拿「元素值」当循环游标 ← **「只迭代一轮」的真身**
+
+原代码把取到的**元素值** `EmitStoreVar(node.Variable)` 写回循环变量，
+下一轮的「取元素」和「自增」就都作用在元素值上：
+
+    c(7,8)  ⇒ i=1 → 元素 7 → i=7 → 7+1=8 > 2 → 直接退出
+
+`c(1,2,3,4)` 只是**碰巧元素值 == 下标**才看着正常。
+修法：新增隐藏游标 `_foridx_<line>_<col>`，条件/取元素/自增全改用它，`node.Variable` 只接元素值。
+
+## 四、print 调用每次把栈指针抬高 4 字节（**Lib 级，跨语言**）
+
+`Lib/console.vml` 的 `print_int/print_str/print_float` 用「被调用方清参数」的蹦床收尾：
+
+    move R1 @13      ; R1 = 返回地址
+    add R13 #8       ; 跳过「返回地址 + 1 个实参」
+    push R1
+    ret
+
+而调用方只把值放 R0、**一个字节都不压**就 `CALL` ⇒ **每调一次 R13 净上移 4**。
+攒几次后循环体的 `push`/`call` 返回地址落进本函数栈，把循环游标写花。
+实测：3 次 print 之后 `for (j in c(3,4)) { print(7) }` **只打一个 7**。
+
+**C 前端一模一样**（`print_int(1)`×3 之后同一个循环也只跑一轮；C 压了参数又自己 `add R13 #4`，**净上移 4**）。
+R 侧本补丁按「被调用方清 1 个参数」的约定对齐（CALL 前压一个实参把这一格抵消掉）。
+**`Lib/` 本身没动** —— 真修法是 CLAUDE.md §⑨ 记的那条：用当前前端**重新生成 `Lib/`**。
+
+## 五、⚠ 一条无效实验的警告
+
+把 R 的栈帧余量从 `+8` 加到 `+64`，会让某个用例**「看起来好了」**，但换个调用次数又坏 ——
+**那是地址位移造成的假象，别按栈帧大小去调。** 记在这里免得后人重走。
+
+## 六、实测
+
+| | 修前 | 修后 |
+|---|---|---|
+| `corpus/r/skel.r` | `内存错误 … 地址=FFFFFFFC` | `SKEL-SUM=14` ✅ |
+
+回归：`78 / 3 / 10 / 34`，复合用例 `2142986`（21|42|9|8|6）、`s=21ad=42b9b8w=6`。
+`Examples/r` 示例编译零错误。
+diff --git a/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.Expressions.cs
+index 606231f4..f642ea90 100644
+--- a/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.Expressions.cs
+@@ -318,7 +318,27 @@ public partial class CodeGenerator
+         {
+             bool isString = node.Arguments[0] is LiteralNode lit && lit.Value is string
+                 || (node.Arguments[0] is CallNode call && IsStringReturningFunc(call.Name));
+-            EmitPrintArg(() => GenerateExpression(node.Arguments[0]), isString: isString, isFloat: node.Arguments[0] is LiteralNode flit && (flit.Value is float || flit.Value is double));
++            bool isFloat = node.Arguments[0] is LiteralNode flit && (flit.Value is float || flit.Value is double);
++
++            // ⚠ **必须在 CALL 之前压一个实参**（不能直接用基类的 EmitPrintArg，它只管
++            // 「求值到 R0 + CALL」）。`print_int`/`print_str`/`print_float`（Lib/console.vml）
++            // 的收尾是「被调用方清参数」的蹦床：
++            //     move R1 @13        ; R1 = 返回地址
++            //     add R13 #8         ; 跳过「返回地址 + 1 个实参」
++            //     push R1
++            //     ret
++            // 调用方一个字节都不压就直接 CALL 的话，每调一次 R13 净上移 4 字节；
++            // 攒够几次后，循环体里的 `push` / `call` 的返回地址就会落进本函数的栈帧，
++            // 把循环游标写花 —— 现象是**「循环只跑一轮」**（实测：3 次 print 之后
++            // `for (j in c(3,4)) { print(7) }` 只打一个 7）。压一个实参正好抵消那一格，
++            // 调用前后 R13 完全守恒。
++            // （C 前端踩的是同一条：它压了参数、又在 CALL 后 `add R13 #4` 自己清一遍，
++            //   净上移 4 ⇒ 同一个循环在同样的位置上只跑一轮。）
++            GenerateExpression(node.Arguments[0]);
++            instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)], instructions.Count));
++            string printFn = isFloat ? "print_float" : (isString ? "print_str" : "print_int");
++            instructions.Add(new Instruction(OpCode.CALL,
++                [new Operand(OperandType.LABEL, printFn)], instructions.Count));
+             return;
+         }
+         // push arguments in reverse order
+diff --git a/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.Statements.cs b/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.Statements.cs
+index 3527b863..0e0e8389 100644
+--- a/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.Statements.cs
++++ b/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.Statements.cs
+@@ -124,8 +124,15 @@ public partial class CodeGenerator
+         // skip label
+         AddLabel(skipLabel);
+ 
+-        // restore symbol table
+-        symbolTable = savedSymbols;
++        // 恢复符号表 —— **必须就地恢复**（Clear + 逐项写回），不能 `symbolTable = savedSymbols`。
++        // `_varOffsets`（EmitLoadVar/EmitStoreVar 用的那张表）持有的是 symbolTable **这个对象的引用**，
++        // 换成新对象后两者就分家了：EmitStoreVar 的「新变量」分支把偏移写进 symbolTable，
++        // 而 EmitLoadVar 在 `_varOffsets` 里查不到 ⇒ 回退成 dataSection 里的全局 `var_xxx`（初值 0）。
++        // 现象就是「定义过函数之后，之后每个变量的初始化都丢掉、读回来恒为 0」，
++        // 连带 `i` 读成 0 → `(0-1)*4 = -4` → 地址 FFFFFFFC 越界崩溃。
++        symbolTable.Clear();
++        foreach (var kv in savedSymbols)
++            symbolTable[kv.Key] = kv.Value;
+         nextStackOffset = savedOffset;
+ 
+         // store function label reference in the variable (just store 1 as placeholder)
+@@ -191,9 +198,15 @@ public partial class CodeGenerator
+             seqLength = seqNode.Elements.Count;
+         }
+ 
+-        // Initialize loop variable (1-based index in R)
++        // Initialize the **hidden 1-based cursor** used by the loop.
++        // ⚠ 游标**不能**复用 node.Variable：R 的 for 语义是「循环变量拿到元素值」，
++        // 若把元素值写回循环变量，下一轮的「取元素」与「自增」就都作用在元素值上了
++        //（`for (i in c(7,8))` 只跑一轮：i=1 → 元素 7 → i=7 → 7+1=8 > 2 ⇒ 直接退出）。
++        string idxVar = $"_foridx_{node.Line}_{node.Column}";
++        nextStackOffset += 4;
++        symbolTable[idxVar] = nextStackOffset;
+         AddRI(OpCode.MOVE, 0, 1);
+-        EmitStoreVar(node.Variable);
++        EmitStoreVar(idxVar);
+ 
+         string startLabel = $"for_{labelCounter++}";
+         string endLabel = $"forend_{labelCounter++}";
+@@ -206,19 +219,19 @@ public partial class CodeGenerator
+ 
+         AddLabel(startLabel);
+ 
+-        // check loop condition: variable <= seqLength
+-        EmitLoadVar(node.Variable);
++        // check loop condition: cursor <= seqLength
++        EmitLoadVar(idxVar);
+         instructions.Add(new Instruction(OpCode.CMP,
+             new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, seqLength) },
+             instructions.Count));
+         instructions.Add(new Instruction(OpCode.JG,
+             new List<Operand> { new Operand(OperandType.LABEL, endLabel) }, instructions.Count));
+ 
+-        // load the value from the sequence vector: seqPtr[variable - 1]
++        // load the value from the sequence vector: seqPtr[cursor - 1]
+         EmitLoadVar(seqVar);
+         instructions.Add(new Instruction(OpCode.PUSH,
+             new List<Operand> { new Operand(OperandType.REGISTER, 0) }, instructions.Count));
+-        EmitLoadVar(node.Variable);
++        EmitLoadVar(idxVar);
+         // subtract 1 for 0-based indexing
+         instructions.Add(new Instruction(OpCode.SUB,
+             new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 1) },
+@@ -243,12 +256,12 @@ public partial class CodeGenerator
+         foreach (var stmt in node.Body)
+             GenerateStatement(stmt);
+ 
+-        // increment loop variable
+-        EmitLoadVar(node.Variable);
++        // increment the cursor (NOT the user's loop variable — it holds the element value)
++        EmitLoadVar(idxVar);
+         instructions.Add(new Instruction(OpCode.ADD,
+             new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 1) },
+             instructions.Count));
+-        EmitStoreVar(node.Variable);
++        EmitStoreVar(idxVar);
+ 
+         instructions.Add(new Instruction(OpCode.JMP,
+             new List<Operand> { new Operand(OperandType.LABEL, startLabel) }, instructions.Count));
+diff --git a/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.cs
+index 0739aa02..419a1e06 100644
+--- a/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.cs
++++ b/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.cs
+@@ -57,9 +57,23 @@ public partial class CodeGenerator : TypedCodeGen<RType>
+         // stack frame prologue
+         EmitPrologue();
+ 
++        // 顶层也要**预留局部变量栈帧**（此前只 EmitPrologue，没有 SUB R13）。
++        // 局部变量按 [R12-4]、[R12-8]… 分配，而 R12 == R13 ⇒ 那些槽位全在 SP **之下**，
++        // 任何 PUSH / CALL（压返回地址）都会把它们原地写花 —— 表现是循环跑一两轮就乱、
++        // 或读回 0（`(0-1)*4 = -4` ⇒ 地址 FFFFFFFC 的内存越界）。
++        // 帧大小要等语句生成完才知道（变量是边生成边分配的），故先占位、最后回填。
++        int framePatchIndex = instructions.Count;
++        instructions.Add(new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, 0)], framePatchIndex));
++
+         foreach (var stmt in program.Statements)
+             GenerateStatement(stmt);
+ 
++        // 回填帧大小（+8 安全边界，与 EmitPrologueWithFrame 的口径一致）
++        int frameSize = nextStackOffset + 8;
++        instructions[framePatchIndex] = new Instruction(OpCode.SUB,
++            [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, frameSize)], framePatchIndex);
++
+         // exit program
+         EmitExit();
+ 

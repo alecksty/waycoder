@@ -164,6 +164,24 @@ namespace RustCompiler
         
         public void Visit(AssignmentNode node)
         {
+            // 下标赋值: a[i] = value（左值后缀链里 `[` 这条，见 Parser.ParseAssignment）
+            if (node.Target is IndexAccessNode iaTarget)
+            {
+                // 值与地址全程走栈 —— 右值表达式（如 `inc(a[i])`）里可能调函数，寄存器靠不住。
+                node.Value.Accept(this);                        // R0 = 右值
+                AddInstruction(OpCode.PUSH, "R0");
+                iaTarget.Target.Accept(this);                   // R0 = 基址
+                AddInstruction(OpCode.PUSH, "R0");
+                iaTarget.Index.Accept(this);                    // R0 = 下标
+                AddInstruction(OpCode.POP, "R1");               // R1 = 基址
+                AddInstruction(OpCode.SHL, "R0", "#2");         // idx*4
+                AddInstruction(OpCode.ADD, "R0", "#4");         // 跳过 VML 数组头
+                AddInstruction(OpCode.ADD, "R0", "R1");         // R0 = 元素地址
+                AddInstruction(OpCode.POP, "R1");               // R1 = 右值
+                AddInstruction(OpCode.MOVE, "(R0)", "R1");      // [地址] = 右值（dest 在前）
+                return;
+            }
+
             // 成员字段赋值: p.x = value
             if (node.Target != null)
             {
@@ -193,7 +211,10 @@ namespace RustCompiler
                     node.Target.Accept(this); // fallback
                 }
                 AddInstruction(OpCode.POP, "R1", "");
-                AddInstruction(OpCode.MOVE, "R1", "(R0)");
+                // ⚠ 原来是 `MOVE R1, (R0)` —— `MOVE dest, src` 的 **dest 在前**，
+                //   那是把**字段地址处的内容读进 R1**（并且 R0 里的地址随之丢失）；
+                //   要存就得把 `(R0)` 放 dest 位。**"操作数写反"族。**
+                AddInstruction(OpCode.MOVE, "(R0)", "R1");
                 return;
             }
 

@@ -229,6 +229,44 @@ public partial class CodeGenerator : OopCodeGenerator {
                 break;
             }
             case AssignStmt a: {
+                // ⚠ 下标赋值 `a[i] = v` / `a[i] op= v` —— **必须自己算地址**。
+                //   原来落到下面 `a.Target != null` 那条通用支路，而它对 IndexExpr 只是
+                //   `GenerateNode(a.Target)` ⇒ 拿到的是**元素值**（IndexExpr 的读法收尾是
+                //   `MOVE R0, [R0]`），不是地址；再 `MOVE R1, [R0]` 又是 **load** ——
+                //   于是「以元素值为地址读一次」吞掉待写值，**元素从来没被写过**。
+                //   两条都属于"地址当值 / 操作数写反"族。
+                if (a.Target is IndexExpr idxT && idxT.Target is VarRef idxBase && _arrayVars.Contains(idxBase.Name)) {
+                    // 地址：块地址 + idx*4 + 4（跳过 VML 数组头），全程用**栈**保存中间量
+                    //（右值表达式里可能调函数，R1/R2 都可能被改）。
+                    GenerateNode(idxT.Target);                                    // R0 = 块地址
+                    instructions.Add(new(OpCode.PUSH, [Reg(0)]));
+                    GenerateNode(idxT.Index);                                     // R0 = 下标
+                    instructions.Add(new(OpCode.MOVE, [Reg(1), Imm(4)]));
+                    instructions.Add(new(OpCode.MUL, [Reg(0), Reg(1)]));          // R0 = idx*4
+                    instructions.Add(new(OpCode.ADD, [Reg(0), Imm(4)]));
+                    instructions.Add(new(OpCode.POP, [Reg(1)]));                  // R1 = 块地址
+                    instructions.Add(new(OpCode.ADD, [Reg(0), Reg(1), Reg(0)]));  // R0 = 元素地址
+                    instructions.Add(new(OpCode.PUSH, [Reg(0)]));                 // 地址留栈上
+
+                    if (a.Op != "=") {
+                        // 复合赋值：先按地址取旧值（`MOVE R0, [R0]` 是 load）
+                        instructions.Add(new(OpCode.MOVE, [Reg(0), new Operand(OperandType.MEMORY, "R0")]));
+                        instructions.Add(new(OpCode.PUSH, [Reg(0)]));
+                    }
+                    GenerateNode(a.Value);                                        // R0 = 右值
+                    if (a.Op != "=") {
+                        instructions.Add(new(OpCode.POP, [Reg(1)]));              // R1 = 旧值
+                        // 2 操作数是 dest 在前：R1 = R1 op R0（加减乘除取模都不需要交换）
+                        OpCode binOp = a.Op switch {
+                            "+=" => OpCode.ADD, "-=" => OpCode.SUB, "*=" => OpCode.MUL,
+                            "/=" => OpCode.DIV, "%=" => OpCode.MOD, _ => OpCode.ADD };
+                        instructions.Add(new(binOp, [Reg(1), Reg(0)]));
+                        instructions.Add(new(OpCode.MOVE, [Reg(0), Reg(1)]));
+                    }
+                    instructions.Add(new(OpCode.POP, [Reg(1)]));                  // R1 = 元素地址
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.MEMORY, "R1"), Reg(0)])); // [R1] = R0
+                    break;
+                }
                 if (a.Target != null) {
                     // Member assignment: obj.field = value
                     GenerateNode(a.Value); // value in R0
@@ -612,27 +650,43 @@ public partial class CodeGenerator : OopCodeGenerator {
                 break;
             }
             case CallExpr ce when ce.Name is "arrayOf" or "listOf" or "mutableListOf": {
-                // kotlin_array_alloc(count) — C 函数: 分配数组 + 存储 count
+                // 数组字面量：按 VML 数组布局 `[count, e0, e1, …]` 自己分配 + 填充。
                 int elemCount = ce.Args.Count;
-                instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, elemCount)]));
-                // ⚠ v0.96.194 修：`array_alloc`（`Lib/shared/builtins_kotlin.vml`）是**按 C 约定写的**
-                //   —— 它从 `[R12+12]` 取 `count`，所以调用方**必须把实参压栈**。
-                //   原来只把 count 放进 R0 就 CALL ⇒ 被调用方读到的是一段陈旧的栈内容
-                //   ⇒ 分配尺寸是垃圾、返回的指针也是垃圾，之后 `a[i]` 全在读野内存。
-                //   （同文件里其它外部调用（`abs`/`min`/`peek`/`poke`…）都是压栈的，只有这一处漏了。）
-                instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]));
-                instructions.Add(new(OpCode.CALL, [new Operand(OperandType.LABEL, "kotlin_array_alloc")]));
-                // 存储元素
+                // ⚠ v0.96.196：**不再 `CALL kotlin_array_alloc`** —— 那条路实测走不通，而且
+                //   根因不在本文件：`Lib/kotlin/builtins_kotlin.vml` 的
+                //   `kotlin_array_alloc: PUSH R0 / CALL array_alloc / RET` 里那句 `CALL array_alloc`
+                //   被 `LibraryLinker` 的「已解析到包装器 → 寻找更好的实现体」那段启发式
+                //   （`target.EndsWith("_" + bareName) && target.StartsWith("lib_")`）改写成了
+                //   **通用 `alloc(size)`**（`lib_builtins_kotlin_array_alloc`.EndsWith("_alloc") ⇒
+                //   重定向到 `lib_builtins_alloc`）。实测汇编里 `lib_builtins_alloc:` 就是
+                //   `move R0 [R12+12]; syscall #40; ret` —— **只分配 `count` 个字节、
+                //   且没有 `[count, e0, …]` 头**，于是元素 i 落在 `base + i*4 + 4` 的整套假设失效
+                //   （`arrayOf(10,20,40,80)` 实测只有 `a[0]` 对，其余全是 0）。
+                //   这里按 VML 数组布局**自己分配**：`(count+1)*4` 字节，`[0]` 存 count。
+                instructions.Add(new(OpCode.MOVE, [Reg(0), Imm((elemCount + 1) * 4)]));
+                instructions.Add(new(OpCode.SYSCALL, [Imm(40)]));          // R0 = 块地址
+                // 存数组头 count，再存元素。
+                // ⚠ v0.96.194 修：基址**必须每轮重新取**。原来的循环开头是
+                //   `PUSH R0` + 注释「save arr ptr」—— 可 R0 只在 i=0 时才是数组指针，
+                //   i≥1 时它已经被上一轮的 `GenerateNode(arg)` 覆盖成**上一个元素的值**
+                //   ⇒ `POP R1` 拿到的是那个值、`[R1+off]` 写在野地址上。
+                //   实测 `arrayOf(10,20,40,80)`：只有 a[0]=10 落到对的地方，
+                //   a[1]/a[2]/a[3] 全丢（并且函数返回值也变成最后一个元素值）。
+                //   现在基址常驻**栈顶**（元素表达式可能调函数，任何寄存器都靠不住）：
+                //   用之前 POP 出来、用完立刻 PUSH 回去，循环结束再 POP 回 R0 当返回值。
+                instructions.Add(new(OpCode.PUSH, [Reg(0)]));                     // 基址入栈（此后栈顶恒为基址）
+                instructions.Add(new(OpCode.MOVE, [Reg(0), Imm(elemCount)]));
+                instructions.Add(new(OpCode.POP, [Reg(1)]));                      // R1 = 基址
+                instructions.Add(new(OpCode.PUSH, [Reg(1)]));                     // 放回
+                instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.MEMORY, "R1"), Reg(0)])); // [base] = count（VML 数组头）
                 for (int i = 0; i < elemCount; i++) {
-                    instructions.Add(new(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)])); // save arr ptr
-                    GenerateNode(ce.Args[i]);
-                    instructions.Add(new(OpCode.POP, [new Operand(OperandType.REGISTER, 1)])); // arr ptr
-                    // ⚠ v0.96.194 修：原来是 `MOVE R0, [R1+off]` —— `MOVE dest, src` 的 **dest 在前**，
-                    //   那是**从数组里读**进 R0，元素值根本没写进去（数组恒为 0）。
-                    //   要存就得把 `[R1+off]` 放在 dest 位。**"操作数写反"族，第八次。**
+                    GenerateNode(ce.Args[i]);                                     // R0 = 元素值
+                    instructions.Add(new(OpCode.POP, [Reg(1)]));                  // R1 = 基址
+                    instructions.Add(new(OpCode.PUSH, [Reg(1)]));                 // 立刻放回
+                    // `MOVE dest, src` 的 **dest 在前** ⇒ 存要写成 `[R1+off], R0`。
                     instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R1+{(i + 1) * 4}"), new Operand(OperandType.REGISTER, 0)]));
                 }
-                instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1)])); // arr ptr in R0
+                instructions.Add(new(OpCode.POP, [Reg(0)]));                      // 返回值 = 基址
                 break;
             }
             case CallExpr ce when ce.Name == "abs" && ce.Args.Count == 1: {

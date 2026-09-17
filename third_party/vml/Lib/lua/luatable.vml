@@ -1,0 +1,107 @@
+; luatable.vml —— Lua 前端的表读写运行库（lua_table_get / lua_table_set）。
+;
+; 【为什么会有这个文件】
+; `LuaCompiler/CodeGenerator.Statements_B.cs:1034`（读 `a[i]`）与
+; `CodeGenerator.Statements_A.cs:206`（写 `a[i] = v`）都编成 `CALL lua_table_get` /
+; `CALL lua_table_set`，而这两个标签在 Lib/ 下**从来就没有定义** ⇒ 链接期只报
+; 「未解析标签」警告，运行期「未找到标签」把整个程序打挂（数组读写全废）。
+; 本文件补上这两个函数（布局约定与前端 `GenerateTableConstructor` 完全一致），
+; 前端一行不用改。
+;
+; 【表布局】（`GenerateTableConstructor` 产出，指针 p 指向 count）
+;   [p-8] = capacity（建表时留的增长余量，只有本文件的 set 读它）
+;   [p-4] = metatable（0 = 无；前端 `GenerateTableAccess` 的 __index 回退读的就是它）
+;   [p+0] = count  N
+;   [p+4+i*8] = key_i     (i = 0..N-1)
+;   [p+8+i*8] = value_i
+;
+; 【调用约定】寄存器传参（**不是**压栈），与前端调用点逐字对应：
+;   get: R1 = 表指针, R2 = 键        → R0 = 值（键不存在则 0 = nil）
+;   set: R1 = 表指针, R2 = 键, R0 = 值 → R0 = 值（便于链式使用，前端的调用点忽略返回值）
+;   ⚠ `lua_table_get` **必须保住 R1**：前端在 CALL 之后要读 `[R1-4]` 取元表
+;     （`CodeGenerator.Statements_B.cs:1040`）。R2 一并保住，便于将来复用。
+;
+; 【新键怎么办】Lua 的表是动态的（`t[#t+1] = v`、`a[新键] = v`），而调用点**忽略返回值**
+; ⇒ 运行库无法「重新分配再把新指针写回调用方的变量」。所以增长余量在建表时就留好
+; （`GenerateTableConstructor` 写进 [p-8]），这里在 count < capacity 时**原地追加**；
+; 余量用尽才丢弃（不改写任何已有键值，不会破坏数据）。
+
+.entry main
+.stack 0
+.vectors 0x0
+
+.data
+
+.text
+
+; ── lua_table_get(R1 = 表, R2 = 键) → R0 = 值 ─────────────────────────────────
+lua_table_get:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        PUSH R1                 ; 保住调用方的表指针（前端 CALL 之后还要读 [R1-4]）
+        PUSH R2                 ; 保住键
+        MOVE R3 R1              ; R3 → count 槽
+        MOVE R5 [R3]            ; R5 = count
+        ADD R3 R3 #4            ; R3 → 第一个 key 槽
+        MOVE R6 #0              ; R6 = 线性扫描下标
+lua_tg_loop:
+        CMP R6 R5
+        JGE lua_tg_miss
+        MOVE R4 [R3]            ; R4 = key_i
+        CMP R4 R2
+        JE lua_tg_hit
+        ADD R6 R6 #1
+        ADD R3 R3 #8
+        JMP lua_tg_loop
+lua_tg_hit:
+        MOVE R0 [R3+4]          ; R0 = value_i
+        JMP lua_tg_done
+lua_tg_miss:
+        MOVE R0 #0              ; nil
+lua_tg_done:
+        POP R2
+        POP R1
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
+
+; ── lua_table_set(R1 = 表, R2 = 键, R0 = 值) → R0 = 值 ────────────────────────
+lua_table_set:
+        PUSH R15
+        PUSH R12
+        MOVE R12 R13
+        MOVE R7 R0              ; R7 = 待写入的值
+        MOVE R3 R1
+        MOVE R5 [R3]
+        ADD R3 R3 #4
+        MOVE R6 #0
+lua_ts_loop:
+        CMP R6 R5
+        JGE lua_ts_miss
+        MOVE R4 [R3]
+        CMP R4 R2
+        JE lua_ts_hit
+        ADD R6 R6 #1
+        ADD R3 R3 #8
+        JMP lua_ts_loop
+lua_ts_hit:
+        MOVE [R3+4] R7          ; 命中：原地覆盖
+        JMP lua_ts_done
+lua_ts_miss:
+        ; 未命中：R3 正好是「第 count 个槽」= 第一个空槽，count < capacity 时原地追加。
+        ; capacity 落在 [p-8]，只在建表时由 GenerateTableConstructor 写入。
+        MOVE R8 [R1-8]
+        CMP R8 R5
+        JLE lua_ts_done         ; capacity <= count ⇒ 余量用尽，丢弃（现有键值不受影响）
+        MOVE [R3] R2            ; key
+        MOVE [R3+4] R7          ; value
+        ADD R5 R5 #1
+        MOVE [R1] R5            ; count++
+lua_ts_done:
+        MOVE R0 R7
+        MOVE R13 R12
+        POP R12
+        POP R15
+        RET
