@@ -12,6 +12,8 @@ public partial class AppShell : Shell
         Routing.RegisterRoute("editor", typeof(EditorPage));
         // 关于页：非 Tab 路由，从菜单/首页进入
         Routing.RegisterRoute("about", typeof(AboutPage));
+        // 设置二级页：设置首页点分组进入（`settingsgroup?group=model|params|perm|storage|voice`）
+        Routing.RegisterRoute("settingsgroup", typeof(SettingsGroupPage));
         // 供应商与模型管理页：从菜单/首页进入
         Routing.RegisterRoute("models", typeof(ModelManagerPage));
         // 模型选择对话框（TUI ModelPicker 移植）：从模型条/菜单进入

@@ -248,9 +248,9 @@ public partial class DrawWindowPage : ContentPage
     protected override void OnSizeAllocated(double width, double height)
     {
         base.OnSizeAllocated(width, height);
-        if (CanvasScroll.Width > 0 && CanvasScroll.Height > 0)
+        if (CanvasHost.Width > 0 && CanvasHost.Height > 0)
         {
-            var now = (Width: (int)CanvasScroll.Width, Height: (int)CanvasScroll.Height);
+            var now = (Width: (int)CanvasHost.Width, Height: (int)CanvasHost.Height);
 
             // **视口真的变了就告诉程序**（`WindowResize`）。这条消息协议里一直有，
             // 但宿主**从来没发过** —— 于是转屏、折叠屏、以及这条折叠条收起手柄，
@@ -265,12 +265,12 @@ public partial class DrawWindowPage : ContentPage
 
         // 布局到位后重算一次画布尺寸（首帧渲染时这里还是 0，见 FitCanvas 注释），
         // 并按需重画 —— 否则首帧用过兜底尺寸，转屏/分屏之后就再也不会修正。
-        if (_scene is { } s && CanvasScroll.Width > 0)
+        if (_scene is { } s && CanvasHost.Width > 0)
         {
             // ⚠ 比较的是 **FitSize 算出来的两个数**，不是"宽度变没变"：
             //    两维取小之后，宽度可能没变而高度变了（视口变矮 ⇒ 要缩得更多），
             //    只比宽度就会漏掉这一次重排。
-            var (w, h) = FitSize(s, CanvasScroll.Width, CanvasScroll.Height);
+            var (w, h) = FitSize(s, CanvasHost.Width, CanvasHost.Height);
             if (Math.Abs(CanvasView.WidthRequest - w) > 0.5 || Math.Abs(CanvasView.HeightRequest - h) > 0.5)
             {
                 FitCanvas(s);
@@ -475,14 +475,14 @@ public partial class DrawWindowPage : ContentPage
     /// （用户要的正是"弄小点点"），而估算准的时候缩放比恰好是 1、与原来完全一致。
     ///
     /// ⚠ **视口取不到时必须兜底成场景尺寸**，不能"取不到就不设"：
-    /// 首帧是在 `Attach` 里同步渲染的，那时页面还没布局、`CanvasScroll.Width/Height` 都是 0 ——
+    /// 首帧是在 `Attach` 里同步渲染的，那时页面还没布局、`CanvasHost.Width/Height` 都是 0 ——
     /// 不设尺寸 ⇒ GraphicsView 零尺寸 ⇒ **画不出来、也点不到**（实测：整块画布全黑，
     /// 触摸全被 `ToScene` 判在图外丢掉）。而 `_renderedVersion` 此时已经记下，
     /// 后续帧不会再触发，于是永远黑着。
     /// </summary>
     private void FitCanvas(VmlScene scene)
     {
-        var (w, h) = FitSize(scene, CanvasScroll.Width, CanvasScroll.Height);
+        var (w, h) = FitSize(scene, CanvasHost.Width, CanvasHost.Height);
         if (w <= 0) return;
         CanvasView.WidthRequest = w;
         CanvasView.HeightRequest = h;

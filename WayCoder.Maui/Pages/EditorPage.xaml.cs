@@ -654,10 +654,50 @@ public partial class EditorPage : ContentPage
     /// <summary>本次导航已经问过并放行（避免「取消后再 Pop」被自己再拦一次）。</summary>
     private bool _leaving;
 
+    /// <summary>当前是否处于全屏（收起所有栏）。</summary>
+    private bool _fullscreen;
+
+    /// <summary>
+    /// 全屏 / 还原：收掉**导航栏 + 文件名行 + 工具条 + 状态栏**，把整屏让给画布。
+    ///
+    /// 两条实现要点：
+    /// ① 行高不用手工调 —— `RootGrid` 的行定义是 `Auto,Auto,*,Auto`，
+    ///    子元素 `IsVisible=False` 时 Auto 行自然塌成 0，画布那一行（`*`）自动吃掉空间。
+    /// ② 进全屏后**导航栏整条消失，全屏按钮自己也没了** ⇒ 恢复入口只能另放一个
+    ///    浮在画布上的按钮（`RestoreBtn`）。这是这类「隐藏所有 UI」功能最容易漏的地方：
+    ///    只做了"进去"、忘了"出来"，用户就被困在无栏界面里（只剩系统返回键能救）。
+    ///
+    /// 画布尺寸会跟着变（页面可用高度变高），由 `CodeCanvasView.OnSizeAllocated`
+    /// 自己收口边界 —— 与 IME inset 那条走的是同一条路，这里不必手工算高度。
+    /// </summary>
+    private void SetFullscreen(bool on)
+    {
+        _fullscreen = on;
+        if (Shell.Current != null)
+        {
+            Shell.SetNavBarIsVisible(this, !on);
+            // 底部 TabBar（首页/对话/命令行/文件/设置）也一起收掉 —— 它同样占着一整条的高度，
+            // 全屏的意义就是把这些都让给画布。与上面 NavigateBar 一样是**附加属性**，
+            // 设在页面自身上，只影响本页。
+            Shell.SetTabBarIsVisible(this, !on);
+        }
+        FileRow.IsVisible = !on;
+        ToolRow.IsVisible = !on;
+        StatusLabel.IsVisible = !on;
+        RestoreBtn.IsVisible = on;
+    }
+
+    private void OnFullscreenEnterClicked(object? sender, EventArgs e) => SetFullscreen(true);
+
+    private void OnFullscreenExitClicked(object? sender, EventArgs e) => SetFullscreen(false);
+
     protected override void OnAppearing()
     {
         base.OnAppearing();
         if (Shell.Current != null) Shell.Current.Navigating += OnShellNavigating;
+        // 每次进来都回到「有栏」状态：全屏是靠隐藏导航栏实现的，若带着全屏状态重新进入，
+        // 用户第一眼看到的是没有返回箭头的界面，容易以为进了死路。
+        if (_fullscreen) SetFullscreen(false);
     }
 
     protected override void OnDisappearing()

@@ -126,15 +126,19 @@
                 <TapGestureRecognizer Tapped="OnModelBarTapped" />
             </Border.GestureRecognizers>
             <Grid ColumnDefinitions="Auto,*,Auto">
-                <!-- 左 ≡：滑出左抽屉（会话历史列表） -->
-                <Button Grid.Column="0"
+                <!-- 左：会话历史（滑出左抽屉）。
+                     ⚠ 这里**必须是矢量图标、不能用 `≡`/`☰` 这类字形** —— 两者来自不同
+                     Unicode 块（U+2261 数学符号 / U+2630 杂项符号），同字号下固有大小差一截，
+                     用户实测「左右两个图标不一样大」。两个 SVG 共用 24×24 网格与
+                     stroke-width=2 ⇒ 尺寸由几何决定，不再随字体度量漂。 -->
+                <ImageButton Grid.Column="0"
                         x:Name="SessionsBtn"
-                        Text="≡"
-                        FontSize="16"
-                        Padding="4,2"
-                        Margin="0,0,6,0"
+                        Source="icon_history.png"
                         BackgroundColor="Transparent"
-                        TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
+                        Padding="8"
+                        WidthRequest="40"
+                        HeightRequest="40"
+                        Margin="0,0,6,0"
                         Clicked="OnSessionsBtnClicked"
                         SemanticProperties.Hint="会话历史" />
                 <!-- 行1：模型（左）+ 工作模式/权限（右）；行2：todo/上下文/用量/花费 -->
@@ -160,14 +164,14 @@
                            TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
                            HorizontalOptions="Start" />
                 </Grid>
-                <!-- 右 ☰：滑出右抽屉（侧边栏：模式/权限/todo/上下文/记忆/命令） -->
-                <Button Grid.Column="2"
+                <!-- 右：侧边栏（模式/权限/todo/上下文/记忆/命令）。参数与左边逐项相同 ⇒ 图标一样大。 -->
+                <ImageButton Grid.Column="2"
                         x:Name="MenuBtn"
-                        Text="☰"
-                        FontSize="16"
-                        Padding="8,2"
+                        Source="icon_menu.png"
                         BackgroundColor="Transparent"
-                        TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
+                        Padding="8"
+                        WidthRequest="40"
+                        HeightRequest="40"
                         Clicked="OnMenuClicked"
                         SemanticProperties.Hint="侧边栏" />
             </Grid>
@@ -240,7 +244,7 @@
                 BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}"
                 TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}"
                 Clicked="OnAddClicked"
-                VerticalOptions="End"
+                VerticalOptions="Center"
                 SemanticProperties.Hint="添加语音或图片" />
             <Border Grid.Column="1" BackgroundColor="{AppThemeBinding Light={StaticResource InputBgLight}, Dark={StaticResource InputBgDark}}" StrokeThickness="0" Margin="0,0,0,4">
                 <Border.StrokeShape>
@@ -288,7 +292,7 @@
                 BorderColor="{AppThemeBinding Light={StaticResource BorderLineLight}, Dark={StaticResource BorderLineDark}}"
                 BorderWidth="1"
                 Clicked="OnSendClicked"
-                VerticalOptions="End"
+                VerticalOptions="Center"
                 SemanticProperties.Hint="发送（忙时点=停止；键盘发送忙时排队）" />
         </Grid>
 

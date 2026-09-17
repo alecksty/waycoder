@@ -146,11 +146,31 @@ public partial class ChatPage : ContentPage
     private string _toolName = "";
     private string _compressStatusText = "";   // 上下文压缩进度（状态栏显示，不进入聊天区）
 
-    /// <summary>内容增长 ≥300 字符或距上次 ≥120ms 才重算富文本（流式中渐进更新，最终 finally 全量）。</summary>
+    /// <summary>
+    /// 流式富文本重算门禁。**两条门禁都必须随消息长度退避。**
+    ///
+    /// 每次放行都是 `Convert(整段)` = **O(长度)**，而流式期间 token 连续到达 ⇒
+    /// 门禁若固定（原先是「增长 ≥300 字符 **或** 距上次 ≥120ms」），总代价就是
+    /// **O(n²)**：消息越长单次越贵、节拍却不变。
+    ///
+    /// 更要命的是**它为什么表现为「卡死」而不是「卡顿」**：单次重算一旦超过节拍间隔，
+    /// UI 线程就永远追不上，占用率钉在 100%，界面完全无响应 ——
+    /// 用户实测「让手机版 AI 用 VML 的 C 写个超级玛丽，写着写着死机」正是这个形态
+    /// （App 无 ANR、无崩溃、无日志，因为那一轮从没结束、也一直没落盘）。
+    ///
+    /// 所以：小消息（&lt;4000）保持原行为（流式观感不变）；大消息按长度放大两条门禁。
+    /// 配合 [`MarkupToFormattedString.StreamingHighlightMaxChars`]（流式期大代码块降级纯文本）
+    /// 一起把单次成本也压下来 —— 只降频不降单次，仍然会跨过那个临界点。
+    /// </summary>
     private bool ShouldRecomputeFormatted(int currentLen)
     {
         var now = DateTime.UtcNow;
-        if (currentLen - _lastFormattedLen >= 300 || (now - _lastFormatRecompute).TotalMilliseconds >= 120)
+        int growthGate = Math.Max(300, currentLen / 20);                 // 3 万字符 → 每 1500 字符
+        double timeGateMs = currentLen < 4000
+            ? 120
+            : Math.Min(1200, 120 + currentLen / 50.0);                   // 3 万字符 → 最长 1.2 秒
+        if (currentLen - _lastFormattedLen >= growthGate ||
+            (now - _lastFormatRecompute).TotalMilliseconds >= timeGateMs)
         {
             _lastFormatRecompute = now;
             _lastFormattedLen = currentLen;
@@ -182,6 +202,19 @@ public partial class ChatPage : ContentPage
             SlashSuggest.IsVisible = items.Count > 0;
         }
         else SlashSuggest.IsVisible = false;
+        AlignInputButtons();
+    }
+
+    /// <summary>
+    /// 加号 / 发送两个圆钮的纵向对齐：常态**居中**（对齐输入框那一行），
+    /// 斜杠建议列表展开时改贴**底部** —— 那时输入区会高一截，居中的圆钮会飘在中间。
+    /// 两个按钮永远同一档，别只改一个（左右不对称比"偏下"更扎眼）。
+    /// </summary>
+    private void AlignInputButtons()
+    {
+        var v = SlashSuggest.IsVisible ? LayoutOptions.End : LayoutOptions.Center;
+        AddBtn.VerticalOptions = v;
+        SendBtn.VerticalOptions = v;
     }
 
     private async void SlashSuggest_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -193,6 +226,7 @@ public partial class ChatPage : ContentPage
             InputBox.Focus();
             SlashSuggest.SelectedItem = null;
             SlashSuggest.IsVisible = false;
+            AlignInputButtons();
         }
     }
 
@@ -804,7 +838,12 @@ public partial class ChatPage : ContentPage
                             }
                             AppendCapped(segSb!, token);
                             if (ShouldRecomputeFormatted(segSb!.Length))
-                                seg.Formatted = MarkupToFormattedString.Convert(segSb.ToString(), isDark);
+                                // 流式期用**低一档**的高亮上限：大代码块降级成纯文本（1 个 Span），
+                                // 否则每次重算都要重建数千个 Span。本轮结束的 finally 会走
+                                // 默认上限全量渲染一次，语法高亮照样有。
+                                seg.Formatted = MarkupToFormattedString.Convert(
+                                    segSb.ToString(), isDark,
+                                    MarkupToFormattedString.StreamingHighlightMaxChars);
                             FollowStreamScroll();   // 流式跟随：正文滚动
                         }
                     }

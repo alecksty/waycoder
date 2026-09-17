@@ -18,12 +18,18 @@
         <ToolbarItem Text="☰" Order="Primary" Priority="0"
                      Clicked="OnMenuClicked"
                      SemanticProperties.Hint="编辑器菜单" />
+        <!-- 全屏：把导航栏 + 文件名行 + 工具条 + 状态栏全收掉，画布占满整屏。
+             ⚠ 进全屏后**这个按钮自己也跟着导航栏一起没了**，所以恢复入口必须另放一个
+             浮在画布上的按钮（RestoreBtn）—— 不能只靠这一个 ToolbarItem。 -->
+        <ToolbarItem IconImageSource="icon_fullscreen.png" Order="Primary" Priority="1"
+                     Clicked="OnFullscreenEnterClicked"
+                     SemanticProperties.Hint="全屏（隐藏所有栏）" />
     </ContentPage.ToolbarItems>
 
     <Grid x:Name="RootGrid" RowDefinitions="Auto,Auto,*,Auto">
 
-        <!-- 文件名（整行：菜单已挪到导航栏） -->
-        <Grid Grid.Row="0" ColumnDefinitions="*" Padding="8,4,8,0">
+        <!-- 文件名（整行：菜单已挪到导航栏）。全屏时整行收起（Auto 行随子元素 IsVisible=False 塌成 0）。 -->
+        <Grid x:Name="FileRow" Grid.Row="0" ColumnDefinitions="*" Padding="8,4,8,0">
             <Label
                 x:Name="FileLabel"
                 Grid.Column="0"
@@ -34,7 +40,7 @@
         </Grid>
 
         <!-- 编辑工具条（SVG 图标按钮）：撤销 / 重做 / 查找 / 大纲 / 预览(源码) / 编辑(只读↔可写) / 保存 -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*,*,*,*" Padding="8,2" ColumnSpacing="4">
+        <Grid x:Name="ToolRow" Grid.Row="1" ColumnDefinitions="*,*,*,*,*,*,*" Padding="8,2" ColumnSpacing="4">
             <ImageButton
                 x:Name="UndoBtn"
                 Source="icon_undo.png"
@@ -126,6 +132,23 @@
                 Unfocused="OnLineEditorUnfocused" />
 
             <ctl:CodeCanvasView x:Name="Canvas" />
+
+            <!-- 全屏时的「还原」按钮：**只能浮在画布上** —— 导航栏那一行（含全屏按钮自己）
+                 在全屏时整条消失，不另放一个就没有出口了。
+                 半透明黑底 + 白图标，压在画布右上角；ZIndex 高于选区操作条、低于打开中遮罩。 -->
+            <ImageButton x:Name="RestoreBtn"
+                    Source="icon_restore.png"
+                    IsVisible="False"
+                    ZIndex="21"
+                    HorizontalOptions="End"
+                    VerticalOptions="Start"
+                    Margin="0,8,8,0"
+                    WidthRequest="44"
+                    HeightRequest="44"
+                    Padding="10"
+                    BackgroundColor="#99000000"
+                    Clicked="OnFullscreenExitClicked"
+                    SemanticProperties.Hint="退出全屏" />
 
             <ScrollView x:Name="PreviewScroll" IsVisible="False">
                 <VerticalStackLayout x:Name="PreviewContent" />

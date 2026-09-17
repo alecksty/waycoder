@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="WayCoder.Maui.Pages.SettingsPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="设置">
+
+    <!-- 设置的**一级页**：只列分组 + 当前值摘要，点进去才是可改的控件（二级页
+         SettingsGroupPage）。手机上「先看概要、要看细节再进去」比一页到底的长滚动好找。 -->
+    <ScrollView>
+        <VerticalStackLayout Padding="16,12" Spacing="10">
+
+            <!-- 分组行模板：图标 | 标题+摘要 | › -->
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}"
+                    StrokeThickness="0" Padding="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="14" />
+                </Border.StrokeShape>
+                <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,12" ColumnSpacing="12">
+                    <Label Grid.Column="0" Text="🤖" FontSize="20" VerticalOptions="Center" />
+                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                        <Label Text="模型" FontSize="15"
+                               TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+                        <Label x:Name="ModelSummary" FontSize="12"
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text="›" FontSize="20" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnModelTapped" />
+                    </Grid.GestureRecognizers>
+                </Grid>
+            </Border>
+
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}"
+                    StrokeThickness="0" Padding="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="14" />
+                </Border.StrokeShape>
+                <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,12" ColumnSpacing="12">
+                    <Label Grid.Column="0" Text="💰" FontSize="20" VerticalOptions="Center" />
+                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                        <Label Text="参数" FontSize="15"
+                               TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+                        <Label x:Name="ParamsSummary" FontSize="12"
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text="›" FontSize="20" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnParamsTapped" />
+                    </Grid.GestureRecognizers>
+                </Grid>
+            </Border>
+
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}"
+                    StrokeThickness="0" Padding="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="14" />
+                </Border.StrokeShape>
+                <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,12" ColumnSpacing="12">
+                    <Label Grid.Column="0" Text="🔐" FontSize="20" VerticalOptions="Center" />
+                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                        <Label Text="权限" FontSize="15"
+                               TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+                        <Label x:Name="PermSummary" FontSize="12"
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text="›" FontSize="20" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnPermTapped" />
+                    </Grid.GestureRecognizers>
+                </Grid>
+            </Border>
+
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}"
+                    StrokeThickness="0" Padding="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="14" />
+                </Border.StrokeShape>
+                <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,12" ColumnSpacing="12">
+                    <Label Grid.Column="0" Text="🗂" FontSize="20" VerticalOptions="Center" />
+                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                        <Label Text="存储与编辑器" FontSize="15"
+                               TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+                        <Label x:Name="StorageSummary" FontSize="12"
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text="›" FontSize="20" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnStorageTapped" />
+                    </Grid.GestureRecognizers>
+                </Grid>
+            </Border>
+
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}"
+                    StrokeThickness="0" Padding="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="14" />
+                </Border.StrokeShape>
+                <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,12" ColumnSpacing="12">
+                    <Label Grid.Column="0" Text="🎤" FontSize="20" VerticalOptions="Center" />
+                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                        <Label Text="语音" FontSize="15"
+                               TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+                        <Label x:Name="VoiceSummary" FontSize="12"
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text="›" FontSize="20" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnVoiceTapped" />
+                    </Grid.GestureRecognizers>
+                </Grid>
+            </Border>
+
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}"
+                    StrokeThickness="0" Padding="0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="14" />
+                </Border.StrokeShape>
+                <Grid ColumnDefinitions="Auto,*,Auto" Padding="14,12" ColumnSpacing="12">
+                    <Label Grid.Column="0" Text="ℹ️" FontSize="20" VerticalOptions="Center" />
+                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                        <Label Text="关于" FontSize="15"
+                               TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+                        <Label x:Name="AboutSummary" FontSize="12"
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    </VerticalStackLayout>
+                    <Label Grid.Column="2" Text="›" FontSize="20" VerticalOptions="Center"
+                           TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Grid.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnAboutTapped" />
+                    </Grid.GestureRecognizers>
+                </Grid>
+            </Border>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

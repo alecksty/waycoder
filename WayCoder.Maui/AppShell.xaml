@@ -23,10 +23,15 @@
             <ShellContent ContentTemplate="{DataTemplate pages:ChatPage}" Route="chat" Shell.NavBarIsVisible="False" />
         </Tab>
         <!-- 命令行 Tab：模拟终端的 shell 页。
-             iOS 上会礼貌拒绝（那边没有 shell 进程），Android 上走真 /system/bin/sh。 -->
+             iOS 上会礼貌拒绝（那边没有 shell 进程），Android 上走真 /system/bin/sh。
+
+             ⚠ 图标**别用 `⌨️`**（U+2328 + U+FE0F）：它是 Unicode「杂项技术符号」块里的
+             符号，Android 的 Noto Color Emoji 没有它的彩色字形，回落成文本样式后
+             就是一个空心方块 —— 用户实测「看不出是什么类型」。
+             Tab 图标一律选 **U+1F300 以上 emoji 块**里的（那里 100% 有彩色字形）。 -->
         <Tab Title="命令行">
             <Tab.Icon>
-                <FontImageSource Glyph="⌨️" />
+                <FontImageSource Glyph="💻" />
             </Tab.Icon>
             <ShellContent ContentTemplate="{DataTemplate pages:ShellPage}" Route="shell" Shell.NavBarIsVisible="False" />
         </Tab>

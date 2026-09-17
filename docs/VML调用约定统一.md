@@ -480,8 +480,10 @@ __stdcall void printf2(const char* fmt, int a1, int a2) {
 1. **`tools/` 已复制进本仓**（`GenLib` / `GenDyn` / `GenDev` / `VMLPacker`）。
    实测 `dotnet build third_party/vml/tools/GenLib` **在本仓编译通过**。
    ⇒ `Lib/` 的重生成从此**在本仓就地做**，不必回上游。
-2. **`sync.sh` 加了分家闸门**：默认直接拒绝运行并说明原因；
-   确实要强制同步走 `WAYCODER_VML_FORCE_SYNC=1`。
+2. **`sync.sh` 已删除**（连同逃生口 `WAYCODER_VML_FORCE_SYNC`）——
+   本副本与上游**不再有任何同步通道**。改 `third_party/vml/` 下的文件**改完就是最终状态**，
+   不需要再做成补丁（那是分家前被 `rsync --delete` 逼出来的流程）。
+   分家原因、csproj 四条手工适配、`patches/` 的现状见 [third_party/vml/FORK.md](../third_party/vml/FORK.md)。
 3. 上游此后只作**参考**。要拉某个上游修复请**手工挑拣**，别整目录 rsync。
 
 ## 因此，之前那份「上游重生成」方案作废，改成：

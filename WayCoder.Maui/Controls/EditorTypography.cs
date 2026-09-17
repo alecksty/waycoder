@@ -135,10 +135,16 @@ internal static class EditorTypography
     public static float LineHeight => MathF.Round(FontSize * 1.40f);
 
     /// <summary>行号栏与文字之间的留白。</summary>
-    public const float GutterRightPad = 8f;
+    /// <remarks>
+    /// ⚠ 行号与正文之间的**可见间距 = 本值 + <see cref="TextLeftPad"/>**（两者都由
+    /// <c>CodeCanvasView.GutterWidth()</c> 累加），所以要调窄间距必须两个一起看，
+    /// 只改一个只能得到一小截效果。竖屏手机上 8+4=12px 太宽（用户实测「留白太宽」），
+    /// 现按「减一半」收到 4+2=6px。
+    /// </remarks>
+    public const float GutterRightPad = 4f;
 
     /// <summary>正文左内边距（行号栏之后）。</summary>
-    public const float TextLeftPad = 4f;
+    public const float TextLeftPad = 2f;
 
     /// <summary>上下内边距。</summary>
     public const float VerticalPad = 2f;
@@ -191,7 +197,19 @@ internal static class EditorTypography
     /// 而底部紧挨着的就是状态栏那一行 —— 留白 3pt 时滚动条正好被状态栏压在底下，
     /// 表现为「加了滚动条却看不见、也点不中」。
     /// </summary>
-    public const float BarMargin = 16f;
+    /// <summary>
+    /// 滚动条距画布边缘的留白。
+    /// ⚠ 别调大：它同时是**可见间距**（条子外侧到屏幕边还剩多少空）。
+    /// 原为 16 —— 用户实测「离边太远、白占一条」，收到 3（贴边但不压边框）。
+    /// 拖动时条子变粗（<see cref="BarThick"/>），仍在这个留白之内，不会顶出画布。
+    /// </summary>
+    public const float BarMargin = 3f;
+
+    /// <summary>
+    /// 滚动条**自动淡出**的秒数：最后一次触摸之后超过这么久就隐藏，再摸屏幕又出现。
+    /// 太短会一直闪、太长等于常驻；5 秒是「读完一屏再滑」的典型间隔。
+    /// </summary>
+    public const double BarAutoHideSeconds = 5.0;
     public const float BarMinThumb = 40f;     // 滑块最短长度（百万行文件里否则细到捏不住）
     public const float BarTouchSlop = 20f;    // 触摸热区比视觉再宽一圈，手指不必压在条上也能拖
 

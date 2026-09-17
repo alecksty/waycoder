@@ -23,9 +23,15 @@
              （实测：把渲染从"每条图元一次"降到"每帧一次"之后仍然闪，说明问题不在**次数**，
              而在**换了控件内容这件事本身**）。`GraphicsView` 由平台双缓冲：旧帧一直在屏上，
              直到新帧画完才替换，中间不会露出背景色。 -->
-        <ScrollView Grid.Row="0" x:Name="CanvasScroll" Orientation="Both">
+        <!-- ⚠ **这里不能套 ScrollView。**
+             即便是 `Orientation="Both"` 的 ScrollView 也会把拖动当成滚动手势截走，
+             而绘图窗口里的触摸**就是游戏的操作输入** —— 实测"手指一拖，画面跟着滑走，
+             程序收不到连续的 TOUCHMOVE"，拖动操作整个失灵。
+             容器只需要给 FitCanvas 提供一个"可用视口尺寸"（code-behind 只读它的 Width/Height），
+             普通 Grid 完全够用，且触摸直达 GraphicsView。 -->
+        <Grid Grid.Row="0" x:Name="CanvasHost">
             <GraphicsView x:Name="CanvasView" Margin="8" />
-        </ScrollView>
+        </Grid>
 
         <!-- 折叠条：左右两条细线 + 中间一个箭头按钮（点一下收起/展开手柄）。
              没有它的话，手柄区是**永久占着**的 —— 而很多 VML 程序只是打印文本或画一张静态图，

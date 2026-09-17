@@ -487,6 +487,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
     private void OnStart(object? sender, TouchEventArgs e)
     {
+        MarkBarActivity();   // 摸屏幕就续命：滚动条 5 秒没交互才淡出
         if (e.Touches.Length == 0) return;
         var p = e.Touches[0];
         _lastX = _downX = p.X;
@@ -504,8 +505,12 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         { var (bw, bh) = BarCanvas(); _dragBar = HitBar(p.X, p.Y, bw, bh); }
         if (_dragBar != Bar.None)
         {
+            // ⚠ 让角参数必须与 DrawScrollbars **同源**，否则按下的落点与画出来的条对不上
+            // （拖起来会"差一截"，越靠角越明显）。
+            var (bv, bh2) = BarsShown();
             var (start, len) = _dragBar == Bar.Vertical
-                ? VerticalThumb((float)Height) : HorizontalThumb((float)Width);
+                ? VerticalThumb((float)Height, bh2 ? BarCorner() : 0f)
+                : HorizontalThumb((float)Width, bv ? BarCorner() : 0f);
             float pos = _dragBar == Bar.Vertical ? p.Y : p.X;
             _barGrab = pos >= start && pos <= start + len ? pos - start : len / 2f;
             _dragging = false;
@@ -580,6 +585,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
     private void OnDrag(object? sender, TouchEventArgs e)
     {
+        MarkBarActivity();   // 摸屏幕就续命：滚动条 5 秒没交互才淡出
         if (e.Touches.Length == 0) return;
 
         // 拖滚动条：整条路都归它（不进内容拖拽、不攒惯性速度）
@@ -672,6 +678,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
     private void OnEnd(object? sender, TouchEventArgs e)
     {
+        MarkBarActivity();   // 摸屏幕就续命：滚动条 5 秒没交互才淡出
         bool wasPinching = _pinchStartDist > 0;
         _pinchStartDist = 0;
         _dragging = false;
@@ -2346,9 +2353,9 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     private (float W, float H) BarCanvas()
         => (_drawW > 0 ? _drawW : (float)Width, _drawH > 0 ? _drawH : (float)Height);
 
-    private (float Start, float Length) VerticalThumb(float h)
+    private (float Start, float Length) VerticalThumb(float h, float reserveEnd = 0f)
     {
-        float track = Math.Max(1f, h - 2 * EditorTypography.BarMargin);
+        float track = Math.Max(1f, h - 2 * EditorTypography.BarMargin - reserveEnd);
         long total = _doc?.LineCount ?? 0;
         if (total <= 0) return (EditorTypography.BarMargin, track);
 
@@ -2366,16 +2373,16 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// 滑块停在最左时手指按上去会被系统截走 —— 实测「拖滚动条直接退出了编辑器」。
     /// 顺带也符合直觉：行号栏不参与横滚。
     /// </summary>
-    private (float Left, float Track) HorizontalTrack(float w)
+    private (float Left, float Track) HorizontalTrack(float w, float reserveEnd = 0f)
     {
         float left = GutterWidth() + EditorTypography.BarMargin;
-        return (left, Math.Max(1f, w - left - EditorTypography.BarMargin));
+        return (left, Math.Max(1f, w - left - EditorTypography.BarMargin - reserveEnd));
     }
 
     /// <summary>横向滑块的（起点, 长度），坐标是画布横向。</summary>
-    private (float Start, float Length) HorizontalThumb(float w)
+    private (float Start, float Length) HorizontalThumb(float w, float reserveEnd = 0f)
     {
-        var (left, track) = HorizontalTrack(w);
+        var (left, track) = HorizontalTrack(w, reserveEnd);
         float maxX = ComputeMaxScrollX();
         if (maxX <= 0) return (left, track);
 
@@ -2432,26 +2439,84 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// <summary>
     /// 自绘两条滚动条：**内容超出视口才出现**；按住/拖动时变粗变浓，松手回到细淡。
     /// </summary>
+    /// <summary>两条滚动条当前**该不该显示**（内容够长才有）。</summary>
+    private (bool V, bool H) BarsShown()
+        => (_doc != null && _doc.LineCount > VisibleLines, ComputeMaxScrollX() > 0);
+
+    /// <summary>
+    /// 两条同时出现时，各自要为对方让出的**角落长度**。
+    ///
+    /// 不让的话，纵向条（贴右缘、通到底）与横向条（贴底缘、通到右）会在右下角**交叉重叠**：
+    /// 两条半透明黑叠在一起就是一块更深的方块，且角上那一截既不属于纵条也不属于横条，
+    /// 看着像画错了（用户实测「交叉处会交叉」）。
+    /// 让角 = 横条占用的底边高度（= 最粗时的厚度 + 留白），用 <see cref="EditorTypography.BarThick"/>
+    /// 而不是当前厚度 —— 否则**按下变粗的那一瞬几何会跳**。
+    /// </summary>
+    private static float BarCorner()
+        => EditorTypography.BarThick + EditorTypography.BarMargin;
+
     private void DrawScrollbars(ICanvas canvas, float w, float h)
     {
+        if (!BarsShouldShow()) return;   // 5 秒没交互就淡出；「到点那一帧谁来画」由 _barTimer 负责
         bool active = _dragBar != Bar.None;
         float thick = active ? EditorTypography.BarThick : EditorTypography.BarThin;
+        var (vShown, hShown) = BarsShown();
 
         canvas.FillColor = _isDark
             ? (active ? EditorTypography.BarActiveDark : EditorTypography.BarIdleDark)
             : (active ? EditorTypography.BarActive : EditorTypography.BarIdle);
 
-        if (_doc != null && _doc.LineCount > VisibleLines)
+        if (vShown)
         {
-            var (y, len) = VerticalThumb(h);
+            var (y, len) = VerticalThumb(h, hShown ? BarCorner() : 0f);
             canvas.FillRoundedRectangle(w - EditorTypography.BarMargin - thick, y, thick, len, thick / 2);
         }
 
-        if (ComputeMaxScrollX() > 0)
+        if (hShown)
         {
-            var (x, len) = HorizontalThumb(w);
+            var (x, len) = HorizontalThumb(w, vShown ? BarCorner() : 0f);
             canvas.FillRoundedRectangle(x, h - EditorTypography.BarMargin - thick, len, thick, thick / 2);
         }
+    }
+
+    // ── 滚动条自动淡出 ────────────────────────────────────────────
+    // 最后一次触摸的时间；超过 BarAutoHideSeconds 就不画滚动条（下次触摸立刻回来）。
+    private DateTime _barTouched = DateTime.MinValue;
+    private IDispatcherTimer? _barTimer;
+
+    /// <summary>滚动条此刻该不该显示：正在拖 或 距上次触摸不到 5 秒。</summary>
+    private bool BarsShouldShow()
+    {
+        if (_dragBar != Bar.None) return true;
+        // 从未触摸过（刚打开文件）时也先显示 5 秒，给一个"这里还有内容"的提示
+        if (_barTouched == DateTime.MinValue) return true;
+        return (DateTime.UtcNow - _barTouched).TotalSeconds < EditorTypography.BarAutoHideSeconds;
+    }
+
+    /// <summary>
+    /// 续命：任何触摸都把它刷新，并确保有个定时器在**到点那一刻重画一帧**。
+    ///
+    /// ⚠ 这个定时器不是可有可无的：`Draw` 里"不满足条件就不画滚动条"只对**下一次**绘制生效，
+    /// 而五秒后没有任何事件会触发那一次绘制 ⇒ 滚动条会永远留在屏上。
+    /// 这正是本仓记过的「凡是『满足条件就跳过绘制』的优化，都要回答不满足条件的那一刻谁负责画」。
+    /// 它在隐藏后立刻自停，不空转。
+    /// </summary>
+    private void MarkBarActivity()
+    {
+        _barTouched = DateTime.UtcNow;
+        if (_barTimer != null) return;
+        if (Dispatcher is null) return;
+        var timer = Dispatcher.CreateTimer();
+        timer.Interval = TimeSpan.FromMilliseconds(300);
+        timer.Tick += (_, _) =>
+        {
+            if (BarsShouldShow()) return;    // 活跃期内不重画（省掉每秒三次无谓重绘）
+            timer.Stop();
+            _barTimer = null;
+            Invalidate();                    // 到点这一帧由我们画 —— 否则滚动条永不消失
+        };
+        _barTimer = timer;
+        timer.Start();
     }
 
     private void DrawDebug(ICanvas canvas, float w, float h, long first, long last, float gutterW, float lineH)

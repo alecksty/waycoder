@@ -42,16 +42,37 @@ public static class MarkupToFormattedString
 
     /// <summary>把 «» 中间格式文本解析成 MAUI FormattedString（自适应深浅主题默认色）。
     /// 同时支持 ```lang 围栏代码块：块内用 Syntax 逐行 Tokenize 语法高亮。</summary>
-    public static FormattedString Convert(string? markup, bool isDark)
+    /// <param name="maxHighlightChars">
+    /// 超过这个长度的**单个代码块**直接降级成一个纯文本 Span（不做语法高亮）。
+    /// 默认 10 万字符（一次性的最终渲染用）；**流式渲染必须传小得多**（见
+    /// <see cref="StreamingHighlightMaxChars"/>）—— 那里的代价是 O(长度) 且被
+    /// 反复支付，见 ChatPage.ShouldRecomputeFormatted 的注释。
+    /// </param>
+    public static FormattedString Convert(string? markup, bool isDark, int maxHighlightChars = DefaultHighlightMaxChars)
     {
         var fs = new FormattedString();
         if (string.IsNullOrEmpty(markup)) return fs;
-        RenderSegments(markup, fs, isDark);
+        RenderSegments(markup, fs, isDark, maxHighlightChars);
         return fs;
     }
 
     /// <summary>按行渲染：围栏块 / markdown 表格块走专门渲染，其余累积后走 ParseInline（保留跨行 «» 块）。</summary>
-    private static void RenderSegments(string markup, FormattedString fs, bool isDark)
+    /// <summary>一次性（最终）渲染的高亮长度上限。</summary>
+    internal const int DefaultHighlightMaxChars = 100_000;
+
+    /// <summary>
+    /// **流式渲染**的高亮长度上限 —— 比一次性渲染低一个数量级。
+    /// 理由：流式期间每 120ms~1.2s 就把整段重算一次，代价 O(长度)，
+    /// 一个几万字符的代码块按语法高亮会造出**数千个 Span**，每次重建都要
+    /// `SpannableString` + 整段重新排版 —— 单次耗时一旦超过节拍，UI 线程就永远追不上
+    /// （占用率 100% ⇒ 界面完全无响应，用户实测「让 AI 写个超级玛丽，写着写着死机」）。
+    /// 流式时高亮本来就看不清楚（内容还在长），降级成纯文本 = 1 个 Span，几乎免费；
+    /// 本轮结束时 finally 会走一次默认上限的全量渲染，语法高亮照样有。
+    /// </summary>
+    internal const int StreamingHighlightMaxChars = 8_000;
+
+    private static void RenderSegments(string markup, FormattedString fs, bool isDark,
+        int maxHighlightChars = DefaultHighlightMaxChars)
     {
         var lines = markup.Replace("\r\n", "\n").Split('\n');
         var inline = new System.Text.StringBuilder();
@@ -82,7 +103,7 @@ public static class MarkupToFormattedString
                 i++; // 跳过闭合围栏（可能越界=未闭合）
                 var syntax = lang.Length > 0 ? Syntax.ByLanguage(lang) : Syntax.Detect(code.ToString()) ?? Syntax.ByLanguage("");
                 if (syntax.Name != "纯文本")
-                    RenderCode(code.ToString().TrimEnd('\n'), syntax, fs, isDark);
+                    RenderCode(code.ToString().TrimEnd('\n'), syntax, fs, isDark, maxHighlightChars);
                 else
                     RenderInline("```" + lang + "\n" + code + "```", fs, isDark);
                 continue;
@@ -169,8 +190,9 @@ public static class MarkupToFormattedString
 
     /// <summary>代码块逐行 Tokenize 上色（每行间保留换行）。相邻同色 token 合并成单个 Span，
     /// 避免大代码块拆出上万 Span 导致移动端 Label 渲染卡死（ANR）。</summary>
-    private static void RenderCode(string code, Syntax syntax, FormattedString fs, bool isDark)
-        => AppendCodeLines(fs, code, syntax, isDark);
+    private static void RenderCode(string code, Syntax syntax, FormattedString fs, bool isDark,
+        int maxHighlightChars = DefaultHighlightMaxChars)
+        => AppendCodeLines(fs, code, syntax, isDark, maxHighlightChars: maxHighlightChars);
 
     /// <summary>
     /// 代码块逐行 Tokenize 上色 —— **唯一实现**（三处调用：本类的 RenderCode、
@@ -180,9 +202,9 @@ public static class MarkupToFormattedString
     /// </summary>
     /// <param name="monoFont">是否用等宽字体（命令行/代码块对齐）。预览页不需要，传 false。</param>
     internal static void AppendCodeLines(FormattedString fs, string code, Syntax syntax, bool isDark,
-        bool monoFont = true)
+        bool monoFont = true, int maxHighlightChars = DefaultHighlightMaxChars)
     {
-        if (code.Length > 100_000)
+        if (code.Length > maxHighlightChars)
         {
             fs.Spans.Add(new Span { Text = code });
             return;
