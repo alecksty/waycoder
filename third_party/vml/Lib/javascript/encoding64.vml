@@ -3,7 +3,7 @@
 
 .linked "../shared/encoding64.vml"
 
-LABEL lutf8Strlen
+LABEL js_lutf8Strlen
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL lutf8Strlen
     pop R15
     RET
 
-LABEL lutf8Decode
+LABEL js_lutf8Decode
     push R15
     push R12
     move R12 R13
@@ -35,7 +35,7 @@ LABEL lutf8Decode
     pop R15
     RET
 
-LABEL lutf8Encode
+LABEL js_lutf8Encode
     push R15
     push R12
     move R12 R13
@@ -58,38 +58,38 @@ LABEL lutf8Encode
     RET
 
 LABEL Encoding64_Lutf8Strlen
-    JMP lutf8Strlen
+    JMP js_lutf8Strlen
 
 LABEL Encoding64_Lutf8Decode
-    JMP lutf8Decode
+    JMP js_lutf8Decode
 
 LABEL Encoding64_Lutf8Encode
-    JMP lutf8Encode
+    JMP js_lutf8Encode
 
 LABEL method_lutf8_strlen
-    JMP lutf8Strlen
+    JMP js_lutf8Strlen
 
 LABEL method_Lutf8Strlen
-    JMP lutf8Strlen
+    JMP js_lutf8Strlen
 
 LABEL method_lutf8Strlen
-    JMP lutf8Strlen
+    JMP js_lutf8Strlen
 
 LABEL method_lutf8_decode
-    JMP lutf8Decode
+    JMP js_lutf8Decode
 
 LABEL method_Lutf8Decode
-    JMP lutf8Decode
+    JMP js_lutf8Decode
 
 LABEL method_lutf8Decode
-    JMP lutf8Decode
+    JMP js_lutf8Decode
 
 LABEL method_lutf8_encode
-    JMP lutf8Encode
+    JMP js_lutf8Encode
 
 LABEL method_Lutf8Encode
-    JMP lutf8Encode
+    JMP js_lutf8Encode
 
 LABEL method_lutf8Encode
-    JMP lutf8Encode
+    JMP js_lutf8Encode
 

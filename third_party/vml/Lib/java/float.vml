@@ -3,7 +3,7 @@
 
 .linked "../shared/float.vml"
 
-LABEL getfloat
+LABEL java_getfloat
     push R15
     push R12
     move R12 R13
@@ -14,11 +14,11 @@ LABEL getfloat
     RET
 
 LABEL Float_Getfloat
-    JMP getfloat
+    JMP java_getfloat
 
 LABEL method_getfloat
-    JMP getfloat
+    JMP java_getfloat
 
 LABEL method_Getfloat
-    JMP getfloat
+    JMP java_getfloat
 

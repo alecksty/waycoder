@@ -3,7 +3,7 @@
 
 .linked "../shared/uchar.vml"
 
-LABEL c32tombs
+LABEL js_c32tombs
     push R15
     push R12
     move R12 R13
@@ -21,7 +21,7 @@ LABEL c32tombs
     pop R15
     RET
 
-LABEL mbtoc32
+LABEL js_mbtoc32
     push R15
     push R12
     move R12 R13
@@ -38,7 +38,7 @@ LABEL mbtoc32
     pop R15
     RET
 
-LABEL ucslen
+LABEL js_ucslen
     push R15
     push R12
     move R12 R13
@@ -52,7 +52,7 @@ LABEL ucslen
     pop R15
     RET
 
-LABEL ucscmp
+LABEL js_ucscmp
     push R15
     push R12
     move R12 R13
@@ -69,7 +69,7 @@ LABEL ucscmp
     pop R15
     RET
 
-LABEL ucsncmp
+LABEL js_ucsncmp
     push R15
     push R12
     move R12 R13
@@ -89,7 +89,7 @@ LABEL ucsncmp
     pop R15
     RET
 
-LABEL ucsspn
+LABEL js_ucsspn
     push R15
     push R12
     move R12 R13
@@ -106,7 +106,7 @@ LABEL ucsspn
     pop R15
     RET
 
-LABEL ucscspn
+LABEL js_ucscspn
     push R15
     push R12
     move R12 R13
@@ -123,7 +123,7 @@ LABEL ucscspn
     pop R15
     RET
 
-LABEL umemcmp
+LABEL js_umemcmp
     push R15
     push R12
     move R12 R13
@@ -143,7 +143,7 @@ LABEL umemcmp
     pop R15
     RET
 
-LABEL ucsToWcs
+LABEL js_ucsToWcs
     push R15
     push R12
     move R12 R13
@@ -163,7 +163,7 @@ LABEL ucsToWcs
     pop R15
     RET
 
-LABEL wcsToUcs
+LABEL js_wcsToUcs
     push R15
     push R12
     move R12 R13
@@ -184,98 +184,98 @@ LABEL wcsToUcs
     RET
 
 LABEL Uchar_C32tombs
-    JMP c32tombs
+    JMP js_c32tombs
 
 LABEL Uchar_Mbtoc32
-    JMP mbtoc32
+    JMP js_mbtoc32
 
 LABEL Uchar_Ucslen
-    JMP ucslen
+    JMP js_ucslen
 
 LABEL Uchar_Ucscmp
-    JMP ucscmp
+    JMP js_ucscmp
 
 LABEL Uchar_Ucsncmp
-    JMP ucsncmp
+    JMP js_ucsncmp
 
 LABEL Uchar_Ucsspn
-    JMP ucsspn
+    JMP js_ucsspn
 
 LABEL Uchar_Ucscspn
-    JMP ucscspn
+    JMP js_ucscspn
 
 LABEL Uchar_Umemcmp
-    JMP umemcmp
+    JMP js_umemcmp
 
 LABEL Uchar_UcsToWcs
-    JMP ucsToWcs
+    JMP js_ucsToWcs
 
 LABEL Uchar_WcsToUcs
-    JMP wcsToUcs
+    JMP js_wcsToUcs
 
 LABEL method_c32tombs
-    JMP c32tombs
+    JMP js_c32tombs
 
 LABEL method_C32tombs
-    JMP c32tombs
+    JMP js_c32tombs
 
 LABEL method_mbtoc32
-    JMP mbtoc32
+    JMP js_mbtoc32
 
 LABEL method_Mbtoc32
-    JMP mbtoc32
+    JMP js_mbtoc32
 
 LABEL method_ucslen
-    JMP ucslen
+    JMP js_ucslen
 
 LABEL method_Ucslen
-    JMP ucslen
+    JMP js_ucslen
 
 LABEL method_ucscmp
-    JMP ucscmp
+    JMP js_ucscmp
 
 LABEL method_Ucscmp
-    JMP ucscmp
+    JMP js_ucscmp
 
 LABEL method_ucsncmp
-    JMP ucsncmp
+    JMP js_ucsncmp
 
 LABEL method_Ucsncmp
-    JMP ucsncmp
+    JMP js_ucsncmp
 
 LABEL method_ucsspn
-    JMP ucsspn
+    JMP js_ucsspn
 
 LABEL method_Ucsspn
-    JMP ucsspn
+    JMP js_ucsspn
 
 LABEL method_ucscspn
-    JMP ucscspn
+    JMP js_ucscspn
 
 LABEL method_Ucscspn
-    JMP ucscspn
+    JMP js_ucscspn
 
 LABEL method_umemcmp
-    JMP umemcmp
+    JMP js_umemcmp
 
 LABEL method_Umemcmp
-    JMP umemcmp
+    JMP js_umemcmp
 
 LABEL method_ucs_to_wcs
-    JMP ucsToWcs
+    JMP js_ucsToWcs
 
 LABEL method_UcsToWcs
-    JMP ucsToWcs
+    JMP js_ucsToWcs
 
 LABEL method_ucsToWcs
-    JMP ucsToWcs
+    JMP js_ucsToWcs
 
 LABEL method_wcs_to_ucs
-    JMP wcsToUcs
+    JMP js_wcsToUcs
 
 LABEL method_WcsToUcs
-    JMP wcsToUcs
+    JMP js_wcsToUcs
 
 LABEL method_wcsToUcs
-    JMP wcsToUcs
+    JMP js_wcsToUcs
 

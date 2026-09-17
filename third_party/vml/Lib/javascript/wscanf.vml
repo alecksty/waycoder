@@ -3,7 +3,7 @@
 
 .linked "../shared/wscanf.vml"
 
-LABEL wscanf
+LABEL js_wscanf
     push R15
     push R12
     move R12 R13
@@ -18,11 +18,11 @@ LABEL wscanf
     RET
 
 LABEL Wscanf_Wscanf
-    JMP wscanf
+    JMP js_wscanf
 
 LABEL method_wscanf
-    JMP wscanf
+    JMP js_wscanf
 
 LABEL method_Wscanf
-    JMP wscanf
+    JMP js_wscanf
 

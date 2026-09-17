@@ -3,7 +3,7 @@
 
 .linked "../shared/network.vml"
 
-LABEL netConnect
+LABEL java_netConnect
     push R15
     push R12
     move R12 R13
@@ -20,7 +20,7 @@ LABEL netConnect
     pop R15
     RET
 
-LABEL netSend
+LABEL java_netSend
     push R15
     push R12
     move R12 R13
@@ -40,7 +40,7 @@ LABEL netSend
     pop R15
     RET
 
-LABEL netRecv
+LABEL java_netRecv
     push R15
     push R12
     move R12 R13
@@ -60,7 +60,7 @@ LABEL netRecv
     pop R15
     RET
 
-LABEL netClose
+LABEL java_netClose
     push R15
     push R12
     move R12 R13
@@ -74,7 +74,7 @@ LABEL netClose
     pop R15
     RET
 
-LABEL netListen
+LABEL java_netListen
     push R15
     push R12
     move R12 R13
@@ -89,62 +89,62 @@ LABEL netListen
     RET
 
 LABEL Network_NetConnect
-    JMP netConnect
+    JMP java_netConnect
 
 LABEL Network_NetSend
-    JMP netSend
+    JMP java_netSend
 
 LABEL Network_NetRecv
-    JMP netRecv
+    JMP java_netRecv
 
 LABEL Network_NetClose
-    JMP netClose
+    JMP java_netClose
 
 LABEL Network_NetListen
-    JMP netListen
+    JMP java_netListen
 
 LABEL method_net_connect
-    JMP netConnect
+    JMP java_netConnect
 
 LABEL method_NetConnect
-    JMP netConnect
+    JMP java_netConnect
 
 LABEL method_netConnect
-    JMP netConnect
+    JMP java_netConnect
 
 LABEL method_net_send
-    JMP netSend
+    JMP java_netSend
 
 LABEL method_NetSend
-    JMP netSend
+    JMP java_netSend
 
 LABEL method_netSend
-    JMP netSend
+    JMP java_netSend
 
 LABEL method_net_recv
-    JMP netRecv
+    JMP java_netRecv
 
 LABEL method_NetRecv
-    JMP netRecv
+    JMP java_netRecv
 
 LABEL method_netRecv
-    JMP netRecv
+    JMP java_netRecv
 
 LABEL method_net_close
-    JMP netClose
+    JMP java_netClose
 
 LABEL method_NetClose
-    JMP netClose
+    JMP java_netClose
 
 LABEL method_netClose
-    JMP netClose
+    JMP java_netClose
 
 LABEL method_net_listen
-    JMP netListen
+    JMP java_netListen
 
 LABEL method_NetListen
-    JMP netListen
+    JMP java_netListen
 
 LABEL method_netListen
-    JMP netListen
+    JMP java_netListen
 

@@ -3,7 +3,7 @@
 
 .linked "../shared/bitlib.vml"
 
-LABEL clear
+LABEL java_clear
     push R15
     push R12
     move R12 R13
@@ -20,7 +20,7 @@ LABEL clear
     pop R15
     RET
 
-LABEL toggle
+LABEL java_toggle
     push R15
     push R12
     move R12 R13
@@ -37,7 +37,7 @@ LABEL toggle
     pop R15
     RET
 
-LABEL test
+LABEL java_test
     push R15
     push R12
     move R12 R13
@@ -54,7 +54,7 @@ LABEL test
     pop R15
     RET
 
-LABEL count
+LABEL java_count
     push R15
     push R12
     move R12 R13
@@ -68,7 +68,7 @@ LABEL count
     pop R15
     RET
 
-LABEL rotateLeft
+LABEL java_rotateLeft
     push R15
     push R12
     move R12 R13
@@ -85,7 +85,7 @@ LABEL rotateLeft
     pop R15
     RET
 
-LABEL rotateRight
+LABEL java_rotateRight
     push R15
     push R12
     move R12 R13
@@ -102,7 +102,7 @@ LABEL rotateRight
     pop R15
     RET
 
-LABEL lowestSet
+LABEL java_lowestSet
     push R15
     push R12
     move R12 R13
@@ -116,7 +116,7 @@ LABEL lowestSet
     pop R15
     RET
 
-LABEL highestSet
+LABEL java_highestSet
     push R15
     push R12
     move R12 R13
@@ -130,7 +130,7 @@ LABEL highestSet
     pop R15
     RET
 
-LABEL mask
+LABEL java_mask
     push R15
     push R12
     move R12 R13
@@ -144,7 +144,7 @@ LABEL mask
     pop R15
     RET
 
-LABEL extract
+LABEL java_extract
     push R15
     push R12
     move R12 R13
@@ -164,7 +164,7 @@ LABEL extract
     pop R15
     RET
 
-LABEL isPowerOfTwo
+LABEL java_isPowerOfTwo
     push R15
     push R12
     move R12 R13
@@ -178,7 +178,7 @@ LABEL isPowerOfTwo
     pop R15
     RET
 
-LABEL nextPowerOfTwo
+LABEL java_nextPowerOfTwo
     push R15
     push R12
     move R12 R13
@@ -193,128 +193,128 @@ LABEL nextPowerOfTwo
     RET
 
 LABEL Bitlib_Clear
-    JMP clear
+    JMP java_clear
 
 LABEL Bitlib_Toggle
-    JMP toggle
+    JMP java_toggle
 
 LABEL Bitlib_Test
-    JMP test
+    JMP java_test
 
 LABEL Bitlib_Count
-    JMP count
+    JMP java_count
 
 LABEL Bitlib_RotateLeft
-    JMP rotateLeft
+    JMP java_rotateLeft
 
 LABEL Bitlib_RotateRight
-    JMP rotateRight
+    JMP java_rotateRight
 
 LABEL Bitlib_LowestSet
-    JMP lowestSet
+    JMP java_lowestSet
 
 LABEL Bitlib_HighestSet
-    JMP highestSet
+    JMP java_highestSet
 
 LABEL Bitlib_Mask
-    JMP mask
+    JMP java_mask
 
 LABEL Bitlib_Extract
-    JMP extract
+    JMP java_extract
 
 LABEL Bitlib_IsPowerOfTwo
-    JMP isPowerOfTwo
+    JMP java_isPowerOfTwo
 
 LABEL Bitlib_NextPowerOfTwo
-    JMP nextPowerOfTwo
+    JMP java_nextPowerOfTwo
 
 LABEL method_clear
-    JMP clear
+    JMP java_clear
 
 LABEL method_Clear
-    JMP clear
+    JMP java_clear
 
 LABEL method_toggle
-    JMP toggle
+    JMP java_toggle
 
 LABEL method_Toggle
-    JMP toggle
+    JMP java_toggle
 
 LABEL method_test
-    JMP test
+    JMP java_test
 
 LABEL method_Test
-    JMP test
+    JMP java_test
 
 LABEL method_count
-    JMP count
+    JMP java_count
 
 LABEL method_Count
-    JMP count
+    JMP java_count
 
 LABEL method_rotate_left
-    JMP rotateLeft
+    JMP java_rotateLeft
 
 LABEL method_RotateLeft
-    JMP rotateLeft
+    JMP java_rotateLeft
 
 LABEL method_rotateLeft
-    JMP rotateLeft
+    JMP java_rotateLeft
 
 LABEL method_rotate_right
-    JMP rotateRight
+    JMP java_rotateRight
 
 LABEL method_RotateRight
-    JMP rotateRight
+    JMP java_rotateRight
 
 LABEL method_rotateRight
-    JMP rotateRight
+    JMP java_rotateRight
 
 LABEL method_lowest_set
-    JMP lowestSet
+    JMP java_lowestSet
 
 LABEL method_LowestSet
-    JMP lowestSet
+    JMP java_lowestSet
 
 LABEL method_lowestSet
-    JMP lowestSet
+    JMP java_lowestSet
 
 LABEL method_highest_set
-    JMP highestSet
+    JMP java_highestSet
 
 LABEL method_HighestSet
-    JMP highestSet
+    JMP java_highestSet
 
 LABEL method_highestSet
-    JMP highestSet
+    JMP java_highestSet
 
 LABEL method_mask
-    JMP mask
+    JMP java_mask
 
 LABEL method_Mask
-    JMP mask
+    JMP java_mask
 
 LABEL method_extract
-    JMP extract
+    JMP java_extract
 
 LABEL method_Extract
-    JMP extract
+    JMP java_extract
 
 LABEL method_is_power_of_two
-    JMP isPowerOfTwo
+    JMP java_isPowerOfTwo
 
 LABEL method_IsPowerOfTwo
-    JMP isPowerOfTwo
+    JMP java_isPowerOfTwo
 
 LABEL method_isPowerOfTwo
-    JMP isPowerOfTwo
+    JMP java_isPowerOfTwo
 
 LABEL method_next_power_of_two
-    JMP nextPowerOfTwo
+    JMP java_nextPowerOfTwo
 
 LABEL method_NextPowerOfTwo
-    JMP nextPowerOfTwo
+    JMP java_nextPowerOfTwo
 
 LABEL method_nextPowerOfTwo
-    JMP nextPowerOfTwo
+    JMP java_nextPowerOfTwo
 

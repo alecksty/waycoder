@@ -3,7 +3,7 @@
 
 .linked "../shared/uprintf.vml"
 
-LABEL uprintf
+LABEL java_uprintf
     push R15
     push R12
     move R12 R13
@@ -18,11 +18,11 @@ LABEL uprintf
     RET
 
 LABEL Uprintf_Uprintf
-    JMP uprintf
+    JMP java_uprintf
 
 LABEL method_uprintf
-    JMP uprintf
+    JMP java_uprintf
 
 LABEL method_Uprintf
-    JMP uprintf
+    JMP java_uprintf
 

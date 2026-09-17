@@ -3,7 +3,7 @@
 
 .linked "../shared/basiclib.vml"
 
-LABEL values
+LABEL js_values
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL values
     pop R15
     RET
 
-LABEL hexStr
+LABEL js_hexStr
     push R15
     push R12
     move R12 R13
@@ -34,7 +34,7 @@ LABEL hexStr
     pop R15
     RET
 
-LABEL basicInstr
+LABEL js_basicInstr
     push R15
     push R12
     move R12 R13
@@ -54,7 +54,7 @@ LABEL basicInstr
     pop R15
     RET
 
-LABEL basicStringN
+LABEL js_basicStringN
     push R15
     push R12
     move R12 R13
@@ -71,7 +71,7 @@ LABEL basicStringN
     pop R15
     RET
 
-LABEL basicStringS
+LABEL js_basicStringS
     push R15
     push R12
     move R12 R13
@@ -88,7 +88,7 @@ LABEL basicStringS
     pop R15
     RET
 
-LABEL basicHex
+LABEL js_basicHex
     push R15
     push R12
     move R12 R13
@@ -102,7 +102,7 @@ LABEL basicHex
     pop R15
     RET
 
-LABEL basicOct
+LABEL js_basicOct
     push R15
     push R12
     move R12 R13
@@ -116,7 +116,7 @@ LABEL basicOct
     pop R15
     RET
 
-LABEL basicMid3
+LABEL js_basicMid3
     push R15
     push R12
     move R12 R13
@@ -136,7 +136,7 @@ LABEL basicMid3
     pop R15
     RET
 
-LABEL basicDateStr
+LABEL js_basicDateStr
     push R15
     push R12
     move R12 R13
@@ -146,7 +146,7 @@ LABEL basicDateStr
     pop R15
     RET
 
-LABEL basicTimeStr
+LABEL js_basicTimeStr
     push R15
     push R12
     move R12 R13
@@ -156,7 +156,7 @@ LABEL basicTimeStr
     pop R15
     RET
 
-LABEL elapsed
+LABEL js_elapsed
     push R15
     push R12
     move R12 R13
@@ -170,7 +170,7 @@ LABEL elapsed
     pop R15
     RET
 
-LABEL basicTimer
+LABEL js_basicTimer
     push R15
     push R12
     move R12 R13
@@ -180,7 +180,7 @@ LABEL basicTimer
     pop R15
     RET
 
-LABEL basicInputN
+LABEL js_basicInputN
     push R15
     push R12
     move R12 R13
@@ -194,7 +194,7 @@ LABEL basicInputN
     pop R15
     RET
 
-LABEL asm
+LABEL js_asm
     push R15
     push R12
     move R12 R13
@@ -208,7 +208,7 @@ LABEL asm
     pop R15
     RET
 
-LABEL basicEof
+LABEL js_basicEof
     push R15
     push R12
     move R12 R13
@@ -222,7 +222,7 @@ LABEL basicEof
     pop R15
     RET
 
-LABEL manipulation
+LABEL js_manipulation
     push R15
     push R12
     move R12 R13
@@ -236,7 +236,7 @@ LABEL manipulation
     pop R15
     RET
 
-LABEL basicUcase
+LABEL js_basicUcase
     push R15
     push R12
     move R12 R13
@@ -250,7 +250,7 @@ LABEL basicUcase
     pop R15
     RET
 
-LABEL basicLcase
+LABEL js_basicLcase
     push R15
     push R12
     move R12 R13
@@ -264,7 +264,7 @@ LABEL basicLcase
     pop R15
     RET
 
-LABEL basicLen
+LABEL js_basicLen
     push R15
     push R12
     move R12 R13
@@ -278,7 +278,7 @@ LABEL basicLen
     pop R15
     RET
 
-LABEL basicAsc
+LABEL js_basicAsc
     push R15
     push R12
     move R12 R13
@@ -292,7 +292,7 @@ LABEL basicAsc
     pop R15
     RET
 
-LABEL code
+LABEL js_code
     push R15
     push R12
     move R12 R13
@@ -306,7 +306,7 @@ LABEL code
     pop R15
     RET
 
-LABEL basicChr
+LABEL js_basicChr
     push R15
     push R12
     move R12 R13
@@ -320,7 +320,7 @@ LABEL basicChr
     pop R15
     RET
 
-LABEL spaces
+LABEL js_spaces
     push R15
     push R12
     move R12 R13
@@ -334,7 +334,7 @@ LABEL spaces
     pop R15
     RET
 
-LABEL basicSpace
+LABEL js_basicSpace
     push R15
     push R12
     move R12 R13
@@ -348,7 +348,7 @@ LABEL basicSpace
     pop R15
     RET
 
-LABEL basicStrInt
+LABEL js_basicStrInt
     push R15
     push R12
     move R12 R13
@@ -362,7 +362,7 @@ LABEL basicStrInt
     pop R15
     RET
 
-LABEL basicVal
+LABEL js_basicVal
     push R15
     push R12
     move R12 R13
@@ -376,7 +376,7 @@ LABEL basicVal
     pop R15
     RET
 
-LABEL basicLeft
+LABEL js_basicLeft
     push R15
     push R12
     move R12 R13
@@ -393,7 +393,7 @@ LABEL basicLeft
     pop R15
     RET
 
-LABEL basicRight
+LABEL js_basicRight
     push R15
     push R12
     move R12 R13
@@ -410,7 +410,7 @@ LABEL basicRight
     pop R15
     RET
 
-LABEL basicLtrim
+LABEL js_basicLtrim
     push R15
     push R12
     move R12 R13
@@ -424,7 +424,7 @@ LABEL basicLtrim
     pop R15
     RET
 
-LABEL basicRtrim
+LABEL js_basicRtrim
     push R15
     push R12
     move R12 R13
@@ -438,7 +438,7 @@ LABEL basicRtrim
     pop R15
     RET
 
-LABEL basicAbs
+LABEL js_basicAbs
     push R15
     push R12
     move R12 R13
@@ -452,7 +452,7 @@ LABEL basicAbs
     pop R15
     RET
 
-LABEL basicSgn
+LABEL js_basicSgn
     push R15
     push R12
     move R12 R13
@@ -466,7 +466,7 @@ LABEL basicSgn
     pop R15
     RET
 
-LABEL interpolation
+LABEL js_interpolation
     push R15
     push R12
     move R12 R13
@@ -483,7 +483,7 @@ LABEL interpolation
     pop R15
     RET
 
-LABEL sinLookup
+LABEL js_sinLookup
     push R15
     push R12
     move R12 R13
@@ -497,7 +497,7 @@ LABEL sinLookup
     pop R15
     RET
 
-LABEL basicSin
+LABEL js_basicSin
     push R15
     push R12
     move R12 R13
@@ -511,7 +511,7 @@ LABEL basicSin
     pop R15
     RET
 
-LABEL basicCos
+LABEL js_basicCos
     push R15
     push R12
     move R12 R13
@@ -525,7 +525,7 @@ LABEL basicCos
     pop R15
     RET
 
-LABEL basicTan
+LABEL js_basicTan
     push R15
     push R12
     move R12 R13
@@ -539,7 +539,7 @@ LABEL basicTan
     pop R15
     RET
 
-LABEL method
+LABEL js_method
     push R15
     push R12
     move R12 R13
@@ -553,7 +553,7 @@ LABEL method
     pop R15
     RET
 
-LABEL basicSqr
+LABEL js_basicSqr
     push R15
     push R12
     move R12 R13
@@ -567,7 +567,7 @@ LABEL basicSqr
     pop R15
     RET
 
-LABEL integer
+LABEL js_integer
     push R15
     push R12
     move R12 R13
@@ -581,7 +581,7 @@ LABEL integer
     pop R15
     RET
 
-LABEL basicRnd
+LABEL js_basicRnd
     push R15
     push R12
     move R12 R13
@@ -591,7 +591,7 @@ LABEL basicRnd
     pop R15
     RET
 
-LABEL series
+LABEL js_series
     push R15
     push R12
     move R12 R13
@@ -605,7 +605,7 @@ LABEL series
     pop R15
     RET
 
-LABEL basicExp
+LABEL js_basicExp
     push R15
     push R12
     move R12 R13
@@ -619,7 +619,7 @@ LABEL basicExp
     pop R15
     RET
 
-LABEL basicLog
+LABEL js_basicLog
     push R15
     push R12
     move R12 R13
@@ -633,7 +633,7 @@ LABEL basicLog
     pop R15
     RET
 
-LABEL basicAtn
+LABEL js_basicAtn
     push R15
     push R12
     move R12 R13
@@ -647,7 +647,7 @@ LABEL basicAtn
     pop R15
     RET
 
-LABEL basicInt
+LABEL js_basicInt
     push R15
     push R12
     move R12 R13
@@ -661,7 +661,7 @@ LABEL basicInt
     pop R15
     RET
 
-LABEL basicPoint
+LABEL js_basicPoint
     push R15
     push R12
     move R12 R13
@@ -678,7 +678,7 @@ LABEL basicPoint
     pop R15
     RET
 
-LABEL above
+LABEL js_above
     push R15
     push R12
     move R12 R13
@@ -693,545 +693,545 @@ LABEL above
     RET
 
 LABEL Basiclib_Values
-    JMP values
+    JMP js_values
 
 LABEL Basiclib_HexStr
-    JMP hexStr
+    JMP js_hexStr
 
 LABEL Basiclib_BasicInstr
-    JMP basicInstr
+    JMP js_basicInstr
 
 LABEL Basiclib_BasicStringN
-    JMP basicStringN
+    JMP js_basicStringN
 
 LABEL Basiclib_BasicStringS
-    JMP basicStringS
+    JMP js_basicStringS
 
 LABEL Basiclib_BasicHex
-    JMP basicHex
+    JMP js_basicHex
 
 LABEL Basiclib_BasicOct
-    JMP basicOct
+    JMP js_basicOct
 
 LABEL Basiclib_BasicMid3
-    JMP basicMid3
+    JMP js_basicMid3
 
 LABEL Basiclib_BasicDateStr
-    JMP basicDateStr
+    JMP js_basicDateStr
 
 LABEL Basiclib_BasicTimeStr
-    JMP basicTimeStr
+    JMP js_basicTimeStr
 
 LABEL Basiclib_Elapsed
-    JMP elapsed
+    JMP js_elapsed
 
 LABEL Basiclib_BasicTimer
-    JMP basicTimer
+    JMP js_basicTimer
 
 LABEL Basiclib_BasicInputN
-    JMP basicInputN
+    JMP js_basicInputN
 
 LABEL Basiclib_Asm
-    JMP asm
+    JMP js_asm
 
 LABEL Basiclib_BasicEof
-    JMP basicEof
+    JMP js_basicEof
 
 LABEL Basiclib_Manipulation
-    JMP manipulation
+    JMP js_manipulation
 
 LABEL Basiclib_BasicUcase
-    JMP basicUcase
+    JMP js_basicUcase
 
 LABEL Basiclib_BasicLcase
-    JMP basicLcase
+    JMP js_basicLcase
 
 LABEL Basiclib_BasicLen
-    JMP basicLen
+    JMP js_basicLen
 
 LABEL Basiclib_BasicAsc
-    JMP basicAsc
+    JMP js_basicAsc
 
 LABEL Basiclib_Code
-    JMP code
+    JMP js_code
 
 LABEL Basiclib_BasicChr
-    JMP basicChr
+    JMP js_basicChr
 
 LABEL Basiclib_Spaces
-    JMP spaces
+    JMP js_spaces
 
 LABEL Basiclib_BasicSpace
-    JMP basicSpace
+    JMP js_basicSpace
 
 LABEL Basiclib_BasicStrInt
-    JMP basicStrInt
+    JMP js_basicStrInt
 
 LABEL Basiclib_BasicVal
-    JMP basicVal
+    JMP js_basicVal
 
 LABEL Basiclib_BasicLeft
-    JMP basicLeft
+    JMP js_basicLeft
 
 LABEL Basiclib_BasicRight
-    JMP basicRight
+    JMP js_basicRight
 
 LABEL Basiclib_BasicLtrim
-    JMP basicLtrim
+    JMP js_basicLtrim
 
 LABEL Basiclib_BasicRtrim
-    JMP basicRtrim
+    JMP js_basicRtrim
 
 LABEL Basiclib_BasicAbs
-    JMP basicAbs
+    JMP js_basicAbs
 
 LABEL Basiclib_BasicSgn
-    JMP basicSgn
+    JMP js_basicSgn
 
 LABEL Basiclib_Interpolation
-    JMP interpolation
+    JMP js_interpolation
 
 LABEL Basiclib_SinLookup
-    JMP sinLookup
+    JMP js_sinLookup
 
 LABEL Basiclib_BasicSin
-    JMP basicSin
+    JMP js_basicSin
 
 LABEL Basiclib_BasicCos
-    JMP basicCos
+    JMP js_basicCos
 
 LABEL Basiclib_BasicTan
-    JMP basicTan
+    JMP js_basicTan
 
 LABEL Basiclib_Method
-    JMP method
+    JMP js_method
 
 LABEL Basiclib_BasicSqr
-    JMP basicSqr
+    JMP js_basicSqr
 
 LABEL Basiclib_Integer
-    JMP integer
+    JMP js_integer
 
 LABEL Basiclib_BasicRnd
-    JMP basicRnd
+    JMP js_basicRnd
 
 LABEL Basiclib_Series
-    JMP series
+    JMP js_series
 
 LABEL Basiclib_BasicExp
-    JMP basicExp
+    JMP js_basicExp
 
 LABEL Basiclib_BasicLog
-    JMP basicLog
+    JMP js_basicLog
 
 LABEL Basiclib_BasicAtn
-    JMP basicAtn
+    JMP js_basicAtn
 
 LABEL Basiclib_BasicInt
-    JMP basicInt
+    JMP js_basicInt
 
 LABEL Basiclib_BasicPoint
-    JMP basicPoint
+    JMP js_basicPoint
 
 LABEL Basiclib_Above
-    JMP above
+    JMP js_above
 
 LABEL method_values
-    JMP values
+    JMP js_values
 
 LABEL method_Values
-    JMP values
+    JMP js_values
 
 LABEL method__hex_str
-    JMP hexStr
+    JMP js_hexStr
 
 LABEL method_HexStr
-    JMP hexStr
+    JMP js_hexStr
 
 LABEL method_hexStr
-    JMP hexStr
+    JMP js_hexStr
 
 LABEL method_basic_instr
-    JMP basicInstr
+    JMP js_basicInstr
 
 LABEL method_BasicInstr
-    JMP basicInstr
+    JMP js_basicInstr
 
 LABEL method_basicInstr
-    JMP basicInstr
+    JMP js_basicInstr
 
 LABEL method_basic_stringN
-    JMP basicStringN
+    JMP js_basicStringN
 
 LABEL method_BasicStringN
-    JMP basicStringN
+    JMP js_basicStringN
 
 LABEL method_basicStringN
-    JMP basicStringN
+    JMP js_basicStringN
 
 LABEL method_basic_stringS
-    JMP basicStringS
+    JMP js_basicStringS
 
 LABEL method_BasicStringS
-    JMP basicStringS
+    JMP js_basicStringS
 
 LABEL method_basicStringS
-    JMP basicStringS
+    JMP js_basicStringS
 
 LABEL method_basic_hex
-    JMP basicHex
+    JMP js_basicHex
 
 LABEL method_BasicHex
-    JMP basicHex
+    JMP js_basicHex
 
 LABEL method_basicHex
-    JMP basicHex
+    JMP js_basicHex
 
 LABEL method_basic_oct
-    JMP basicOct
+    JMP js_basicOct
 
 LABEL method_BasicOct
-    JMP basicOct
+    JMP js_basicOct
 
 LABEL method_basicOct
-    JMP basicOct
+    JMP js_basicOct
 
 LABEL method_basic_mid3
-    JMP basicMid3
+    JMP js_basicMid3
 
 LABEL method_BasicMid3
-    JMP basicMid3
+    JMP js_basicMid3
 
 LABEL method_basicMid3
-    JMP basicMid3
+    JMP js_basicMid3
 
 LABEL method_basic_date_str
-    JMP basicDateStr
+    JMP js_basicDateStr
 
 LABEL method_BasicDateStr
-    JMP basicDateStr
+    JMP js_basicDateStr
 
 LABEL method_basicDateStr
-    JMP basicDateStr
+    JMP js_basicDateStr
 
 LABEL method_basic_time_str
-    JMP basicTimeStr
+    JMP js_basicTimeStr
 
 LABEL method_BasicTimeStr
-    JMP basicTimeStr
+    JMP js_basicTimeStr
 
 LABEL method_basicTimeStr
-    JMP basicTimeStr
+    JMP js_basicTimeStr
 
 LABEL method_elapsed
-    JMP elapsed
+    JMP js_elapsed
 
 LABEL method_Elapsed
-    JMP elapsed
+    JMP js_elapsed
 
 LABEL method_basic_timer
-    JMP basicTimer
+    JMP js_basicTimer
 
 LABEL method_BasicTimer
-    JMP basicTimer
+    JMP js_basicTimer
 
 LABEL method_basicTimer
-    JMP basicTimer
+    JMP js_basicTimer
 
 LABEL method_basic_inputN
-    JMP basicInputN
+    JMP js_basicInputN
 
 LABEL method_BasicInputN
-    JMP basicInputN
+    JMP js_basicInputN
 
 LABEL method_basicInputN
-    JMP basicInputN
+    JMP js_basicInputN
 
 LABEL method_asm
-    JMP asm
+    JMP js_asm
 
 LABEL method_Asm
-    JMP asm
+    JMP js_asm
 
 LABEL method_basic_eof
-    JMP basicEof
+    JMP js_basicEof
 
 LABEL method_BasicEof
-    JMP basicEof
+    JMP js_basicEof
 
 LABEL method_basicEof
-    JMP basicEof
+    JMP js_basicEof
 
 LABEL method_Manipulation
-    JMP manipulation
+    JMP js_manipulation
 
 LABEL method_manipulation
-    JMP manipulation
+    JMP js_manipulation
 
 LABEL method_basic_ucase
-    JMP basicUcase
+    JMP js_basicUcase
 
 LABEL method_BasicUcase
-    JMP basicUcase
+    JMP js_basicUcase
 
 LABEL method_basicUcase
-    JMP basicUcase
+    JMP js_basicUcase
 
 LABEL method_basic_lcase
-    JMP basicLcase
+    JMP js_basicLcase
 
 LABEL method_BasicLcase
-    JMP basicLcase
+    JMP js_basicLcase
 
 LABEL method_basicLcase
-    JMP basicLcase
+    JMP js_basicLcase
 
 LABEL method_basic_len
-    JMP basicLen
+    JMP js_basicLen
 
 LABEL method_BasicLen
-    JMP basicLen
+    JMP js_basicLen
 
 LABEL method_basicLen
-    JMP basicLen
+    JMP js_basicLen
 
 LABEL method_basic_asc
-    JMP basicAsc
+    JMP js_basicAsc
 
 LABEL method_BasicAsc
-    JMP basicAsc
+    JMP js_basicAsc
 
 LABEL method_basicAsc
-    JMP basicAsc
+    JMP js_basicAsc
 
 LABEL method_code
-    JMP code
+    JMP js_code
 
 LABEL method_Code
-    JMP code
+    JMP js_code
 
 LABEL method_basic_chr
-    JMP basicChr
+    JMP js_basicChr
 
 LABEL method_BasicChr
-    JMP basicChr
+    JMP js_basicChr
 
 LABEL method_basicChr
-    JMP basicChr
+    JMP js_basicChr
 
 LABEL method_spaces
-    JMP spaces
+    JMP js_spaces
 
 LABEL method_Spaces
-    JMP spaces
+    JMP js_spaces
 
 LABEL method_basic_space
-    JMP basicSpace
+    JMP js_basicSpace
 
 LABEL method_BasicSpace
-    JMP basicSpace
+    JMP js_basicSpace
 
 LABEL method_basicSpace
-    JMP basicSpace
+    JMP js_basicSpace
 
 LABEL method_basic_str_int
-    JMP basicStrInt
+    JMP js_basicStrInt
 
 LABEL method_BasicStrInt
-    JMP basicStrInt
+    JMP js_basicStrInt
 
 LABEL method_basicStrInt
-    JMP basicStrInt
+    JMP js_basicStrInt
 
 LABEL method_basic_val
-    JMP basicVal
+    JMP js_basicVal
 
 LABEL method_BasicVal
-    JMP basicVal
+    JMP js_basicVal
 
 LABEL method_basicVal
-    JMP basicVal
+    JMP js_basicVal
 
 LABEL method_basic_left
-    JMP basicLeft
+    JMP js_basicLeft
 
 LABEL method_BasicLeft
-    JMP basicLeft
+    JMP js_basicLeft
 
 LABEL method_basicLeft
-    JMP basicLeft
+    JMP js_basicLeft
 
 LABEL method_basic_right
-    JMP basicRight
+    JMP js_basicRight
 
 LABEL method_BasicRight
-    JMP basicRight
+    JMP js_basicRight
 
 LABEL method_basicRight
-    JMP basicRight
+    JMP js_basicRight
 
 LABEL method_basic_ltrim
-    JMP basicLtrim
+    JMP js_basicLtrim
 
 LABEL method_BasicLtrim
-    JMP basicLtrim
+    JMP js_basicLtrim
 
 LABEL method_basicLtrim
-    JMP basicLtrim
+    JMP js_basicLtrim
 
 LABEL method_basic_rtrim
-    JMP basicRtrim
+    JMP js_basicRtrim
 
 LABEL method_BasicRtrim
-    JMP basicRtrim
+    JMP js_basicRtrim
 
 LABEL method_basicRtrim
-    JMP basicRtrim
+    JMP js_basicRtrim
 
 LABEL method_basic_abs
-    JMP basicAbs
+    JMP js_basicAbs
 
 LABEL method_BasicAbs
-    JMP basicAbs
+    JMP js_basicAbs
 
 LABEL method_basicAbs
-    JMP basicAbs
+    JMP js_basicAbs
 
 LABEL method_basic_sgn
-    JMP basicSgn
+    JMP js_basicSgn
 
 LABEL method_BasicSgn
-    JMP basicSgn
+    JMP js_basicSgn
 
 LABEL method_basicSgn
-    JMP basicSgn
+    JMP js_basicSgn
 
 LABEL method_interpolation
-    JMP interpolation
+    JMP js_interpolation
 
 LABEL method_Interpolation
-    JMP interpolation
+    JMP js_interpolation
 
 LABEL method__sin_lookup
-    JMP sinLookup
+    JMP js_sinLookup
 
 LABEL method_SinLookup
-    JMP sinLookup
+    JMP js_sinLookup
 
 LABEL method_sinLookup
-    JMP sinLookup
+    JMP js_sinLookup
 
 LABEL method_basic_sin
-    JMP basicSin
+    JMP js_basicSin
 
 LABEL method_BasicSin
-    JMP basicSin
+    JMP js_basicSin
 
 LABEL method_basicSin
-    JMP basicSin
+    JMP js_basicSin
 
 LABEL method_basic_cos
-    JMP basicCos
+    JMP js_basicCos
 
 LABEL method_BasicCos
-    JMP basicCos
+    JMP js_basicCos
 
 LABEL method_basicCos
-    JMP basicCos
+    JMP js_basicCos
 
 LABEL method_basic_tan
-    JMP basicTan
+    JMP js_basicTan
 
 LABEL method_BasicTan
-    JMP basicTan
+    JMP js_basicTan
 
 LABEL method_basicTan
-    JMP basicTan
+    JMP js_basicTan
 
 LABEL method_method
-    JMP method
+    JMP js_method
 
 LABEL method_Method
-    JMP method
+    JMP js_method
 
 LABEL method_basic_sqr
-    JMP basicSqr
+    JMP js_basicSqr
 
 LABEL method_BasicSqr
-    JMP basicSqr
+    JMP js_basicSqr
 
 LABEL method_basicSqr
-    JMP basicSqr
+    JMP js_basicSqr
 
 LABEL method_integer
-    JMP integer
+    JMP js_integer
 
 LABEL method_Integer
-    JMP integer
+    JMP js_integer
 
 LABEL method_basic_rnd
-    JMP basicRnd
+    JMP js_basicRnd
 
 LABEL method_BasicRnd
-    JMP basicRnd
+    JMP js_basicRnd
 
 LABEL method_basicRnd
-    JMP basicRnd
+    JMP js_basicRnd
 
 LABEL method_series
-    JMP series
+    JMP js_series
 
 LABEL method_Series
-    JMP series
+    JMP js_series
 
 LABEL method_basic_exp
-    JMP basicExp
+    JMP js_basicExp
 
 LABEL method_BasicExp
-    JMP basicExp
+    JMP js_basicExp
 
 LABEL method_basicExp
-    JMP basicExp
+    JMP js_basicExp
 
 LABEL method_basic_log
-    JMP basicLog
+    JMP js_basicLog
 
 LABEL method_BasicLog
-    JMP basicLog
+    JMP js_basicLog
 
 LABEL method_basicLog
-    JMP basicLog
+    JMP js_basicLog
 
 LABEL method_basic_atn
-    JMP basicAtn
+    JMP js_basicAtn
 
 LABEL method_BasicAtn
-    JMP basicAtn
+    JMP js_basicAtn
 
 LABEL method_basicAtn
-    JMP basicAtn
+    JMP js_basicAtn
 
 LABEL method_basic_int
-    JMP basicInt
+    JMP js_basicInt
 
 LABEL method_BasicInt
-    JMP basicInt
+    JMP js_basicInt
 
 LABEL method_basicInt
-    JMP basicInt
+    JMP js_basicInt
 
 LABEL method_basic_point
-    JMP basicPoint
+    JMP js_basicPoint
 
 LABEL method_BasicPoint
-    JMP basicPoint
+    JMP js_basicPoint
 
 LABEL method_basicPoint
-    JMP basicPoint
+    JMP js_basicPoint
 
 LABEL method_above
-    JMP above
+    JMP js_above
 
 LABEL method_Above
-    JMP above
+    JMP js_above
 

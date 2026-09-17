@@ -3,7 +3,7 @@
 
 .linked "../shared/fsm.vml"
 
-LABEL transition
+LABEL js_transition
     push R15
     push R12
     move R12 R13
@@ -23,7 +23,7 @@ LABEL transition
     pop R15
     RET
 
-LABEL sendEvent
+LABEL js_sendEvent
     push R15
     push R12
     move R12 R13
@@ -40,7 +40,7 @@ LABEL sendEvent
     pop R15
     RET
 
-LABEL state
+LABEL js_state
     push R15
     push R12
     move R12 R13
@@ -57,7 +57,7 @@ LABEL state
     pop R15
     RET
 
-LABEL getState
+LABEL js_getState
     push R15
     push R12
     move R12 R13
@@ -71,7 +71,7 @@ LABEL getState
     pop R15
     RET
 
-LABEL eventQueuePush
+LABEL js_eventQueuePush
     push R15
     push R12
     move R12 R13
@@ -88,7 +88,7 @@ LABEL eventQueuePush
     pop R15
     RET
 
-LABEL eventQueuePop
+LABEL js_eventQueuePop
     push R15
     push R12
     move R12 R13
@@ -102,7 +102,7 @@ LABEL eventQueuePop
     pop R15
     RET
 
-LABEL eventQueueInit
+LABEL js_eventQueueInit
     push R15
     push R12
     move R12 R13
@@ -116,7 +116,7 @@ LABEL eventQueueInit
     pop R15
     RET
 
-LABEL eventQueueAvailable
+LABEL js_eventQueueAvailable
     push R15
     push R12
     move R12 R13
@@ -131,92 +131,92 @@ LABEL eventQueueAvailable
     RET
 
 LABEL Fsm_Transition
-    JMP transition
+    JMP js_transition
 
 LABEL Fsm_SendEvent
-    JMP sendEvent
+    JMP js_sendEvent
 
 LABEL Fsm_State
-    JMP state
+    JMP js_state
 
 LABEL Fsm_GetState
-    JMP getState
+    JMP js_getState
 
 LABEL Fsm_EventQueuePush
-    JMP eventQueuePush
+    JMP js_eventQueuePush
 
 LABEL Fsm_EventQueuePop
-    JMP eventQueuePop
+    JMP js_eventQueuePop
 
 LABEL Fsm_EventQueueInit
-    JMP eventQueueInit
+    JMP js_eventQueueInit
 
 LABEL Fsm_EventQueueAvailable
-    JMP eventQueueAvailable
+    JMP js_eventQueueAvailable
 
 LABEL method_transition
-    JMP transition
+    JMP js_transition
 
 LABEL method_Transition
-    JMP transition
+    JMP js_transition
 
 LABEL method_send_event
-    JMP sendEvent
+    JMP js_sendEvent
 
 LABEL method_SendEvent
-    JMP sendEvent
+    JMP js_sendEvent
 
 LABEL method_sendEvent
-    JMP sendEvent
+    JMP js_sendEvent
 
 LABEL method_state
-    JMP state
+    JMP js_state
 
 LABEL method_State
-    JMP state
+    JMP js_state
 
 LABEL method_get_state
-    JMP getState
+    JMP js_getState
 
 LABEL method_GetState
-    JMP getState
+    JMP js_getState
 
 LABEL method_getState
-    JMP getState
+    JMP js_getState
 
 LABEL method_event_queue_push
-    JMP eventQueuePush
+    JMP js_eventQueuePush
 
 LABEL method_EventQueuePush
-    JMP eventQueuePush
+    JMP js_eventQueuePush
 
 LABEL method_eventQueuePush
-    JMP eventQueuePush
+    JMP js_eventQueuePush
 
 LABEL method_event_queue_pop
-    JMP eventQueuePop
+    JMP js_eventQueuePop
 
 LABEL method_EventQueuePop
-    JMP eventQueuePop
+    JMP js_eventQueuePop
 
 LABEL method_eventQueuePop
-    JMP eventQueuePop
+    JMP js_eventQueuePop
 
 LABEL method_event_queue_init
-    JMP eventQueueInit
+    JMP js_eventQueueInit
 
 LABEL method_EventQueueInit
-    JMP eventQueueInit
+    JMP js_eventQueueInit
 
 LABEL method_eventQueueInit
-    JMP eventQueueInit
+    JMP js_eventQueueInit
 
 LABEL method_event_queue_available
-    JMP eventQueueAvailable
+    JMP js_eventQueueAvailable
 
 LABEL method_EventQueueAvailable
-    JMP eventQueueAvailable
+    JMP js_eventQueueAvailable
 
 LABEL method_eventQueueAvailable
-    JMP eventQueueAvailable
+    JMP js_eventQueueAvailable
 

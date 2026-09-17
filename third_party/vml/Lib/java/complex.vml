@@ -3,7 +3,7 @@
 
 .linked "../shared/complex.vml"
 
-LABEL cadd
+LABEL java_cadd
     push R15
     push R12
     move R12 R13
@@ -23,7 +23,7 @@ LABEL cadd
     pop R15
     RET
 
-LABEL csub
+LABEL java_csub
     push R15
     push R12
     move R12 R13
@@ -43,7 +43,7 @@ LABEL csub
     pop R15
     RET
 
-LABEL b
+LABEL java_b
     push R15
     push R12
     move R12 R13
@@ -57,7 +57,7 @@ LABEL b
     pop R15
     RET
 
-LABEL cmul
+LABEL java_cmul
     push R15
     push R12
     move R12 R13
@@ -77,7 +77,7 @@ LABEL cmul
     pop R15
     RET
 
-LABEL cdiv
+LABEL java_cdiv
     push R15
     push R12
     move R12 R13
@@ -97,7 +97,7 @@ LABEL cdiv
     pop R15
     RET
 
-LABEL complexAbs
+LABEL java_complexAbs
     push R15
     push R12
     move R12 R13
@@ -111,7 +111,7 @@ LABEL complexAbs
     pop R15
     RET
 
-LABEL radians
+LABEL java_radians
     push R15
     push R12
     move R12 R13
@@ -125,7 +125,7 @@ LABEL radians
     pop R15
     RET
 
-LABEL complexArg
+LABEL java_complexArg
     push R15
     push R12
     move R12 R13
@@ -139,7 +139,7 @@ LABEL complexArg
     pop R15
     RET
 
-LABEL cconj
+LABEL java_cconj
     push R15
     push R12
     move R12 R13
@@ -156,7 +156,7 @@ LABEL cconj
     pop R15
     RET
 
-LABEL cneg
+LABEL java_cneg
     push R15
     push R12
     move R12 R13
@@ -173,7 +173,7 @@ LABEL cneg
     pop R15
     RET
 
-LABEL cexpRe
+LABEL java_cexpRe
     push R15
     push R12
     move R12 R13
@@ -192,7 +192,7 @@ LABEL cexpRe
     pop R15
     RET
 
-LABEL cexpIm
+LABEL java_cexpIm
     push R15
     push R12
     move R12 R13
@@ -211,7 +211,7 @@ LABEL cexpIm
     pop R15
     RET
 
-LABEL csqr
+LABEL java_csqr
     push R15
     push R12
     move R12 R13
@@ -228,7 +228,7 @@ LABEL csqr
     pop R15
     RET
 
-LABEL csqrt
+LABEL java_csqrt
     push R15
     push R12
     move R12 R13
@@ -246,140 +246,140 @@ LABEL csqrt
     RET
 
 LABEL Complex_Cadd
-    JMP cadd
+    JMP java_cadd
 
 LABEL Complex_Csub
-    JMP csub
+    JMP java_csub
 
 LABEL Complex_B
-    JMP b
+    JMP java_b
 
 LABEL Complex_Cmul
-    JMP cmul
+    JMP java_cmul
 
 LABEL Complex_Cdiv
-    JMP cdiv
+    JMP java_cdiv
 
 LABEL Complex_ComplexAbs
-    JMP complexAbs
+    JMP java_complexAbs
 
 LABEL Complex_Radians
-    JMP radians
+    JMP java_radians
 
 LABEL Complex_ComplexArg
-    JMP complexArg
+    JMP java_complexArg
 
 LABEL Complex_Cconj
-    JMP cconj
+    JMP java_cconj
 
 LABEL Complex_Cneg
-    JMP cneg
+    JMP java_cneg
 
 LABEL Complex_CexpRe
-    JMP cexpRe
+    JMP java_cexpRe
 
 LABEL Complex_CexpIm
-    JMP cexpIm
+    JMP java_cexpIm
 
 LABEL Complex_Csqr
-    JMP csqr
+    JMP java_csqr
 
 LABEL Complex_Csqrt
-    JMP csqrt
+    JMP java_csqrt
 
 LABEL method_cadd
-    JMP cadd
+    JMP java_cadd
 
 LABEL method_Cadd
-    JMP cadd
+    JMP java_cadd
 
 LABEL method_csub
-    JMP csub
+    JMP java_csub
 
 LABEL method_Csub
-    JMP csub
+    JMP java_csub
 
 LABEL method_b
-    JMP b
+    JMP java_b
 
 LABEL method_B
-    JMP b
+    JMP java_b
 
 LABEL method_cmul
-    JMP cmul
+    JMP java_cmul
 
 LABEL method_Cmul
-    JMP cmul
+    JMP java_cmul
 
 LABEL method_cdiv
-    JMP cdiv
+    JMP java_cdiv
 
 LABEL method_Cdiv
-    JMP cdiv
+    JMP java_cdiv
 
 LABEL method_complex_abs
-    JMP complexAbs
+    JMP java_complexAbs
 
 LABEL method_ComplexAbs
-    JMP complexAbs
+    JMP java_complexAbs
 
 LABEL method_complexAbs
-    JMP complexAbs
+    JMP java_complexAbs
 
 LABEL method_radians
-    JMP radians
+    JMP java_radians
 
 LABEL method_Radians
-    JMP radians
+    JMP java_radians
 
 LABEL method_complex_arg
-    JMP complexArg
+    JMP java_complexArg
 
 LABEL method_ComplexArg
-    JMP complexArg
+    JMP java_complexArg
 
 LABEL method_complexArg
-    JMP complexArg
+    JMP java_complexArg
 
 LABEL method_cconj
-    JMP cconj
+    JMP java_cconj
 
 LABEL method_Cconj
-    JMP cconj
+    JMP java_cconj
 
 LABEL method_cneg
-    JMP cneg
+    JMP java_cneg
 
 LABEL method_Cneg
-    JMP cneg
+    JMP java_cneg
 
 LABEL method_cexp_re
-    JMP cexpRe
+    JMP java_cexpRe
 
 LABEL method_CexpRe
-    JMP cexpRe
+    JMP java_cexpRe
 
 LABEL method_cexpRe
-    JMP cexpRe
+    JMP java_cexpRe
 
 LABEL method_cexp_im
-    JMP cexpIm
+    JMP java_cexpIm
 
 LABEL method_CexpIm
-    JMP cexpIm
+    JMP java_cexpIm
 
 LABEL method_cexpIm
-    JMP cexpIm
+    JMP java_cexpIm
 
 LABEL method_csqr
-    JMP csqr
+    JMP java_csqr
 
 LABEL method_Csqr
-    JMP csqr
+    JMP java_csqr
 
 LABEL method_csqrt
-    JMP csqrt
+    JMP java_csqrt
 
 LABEL method_Csqrt
-    JMP csqrt
+    JMP java_csqrt
 

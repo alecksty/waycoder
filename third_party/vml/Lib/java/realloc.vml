@@ -3,7 +3,7 @@
 
 .linked "../shared/realloc.vml"
 
-LABEL vmlFree
+LABEL java_vmlFree
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL vmlFree
     pop R15
     RET
 
-LABEL vmlAlloc
+LABEL java_vmlAlloc
     push R15
     push R12
     move R12 R13
@@ -32,26 +32,26 @@ LABEL vmlAlloc
     RET
 
 LABEL Realloc_VmlFree
-    JMP vmlFree
+    JMP java_vmlFree
 
 LABEL Realloc_VmlAlloc
-    JMP vmlAlloc
+    JMP java_vmlAlloc
 
 LABEL method_vml_free
-    JMP vmlFree
+    JMP java_vmlFree
 
 LABEL method_VmlFree
-    JMP vmlFree
+    JMP java_vmlFree
 
 LABEL method_vmlFree
-    JMP vmlFree
+    JMP java_vmlFree
 
 LABEL method_vml_alloc
-    JMP vmlAlloc
+    JMP java_vmlAlloc
 
 LABEL method_VmlAlloc
-    JMP vmlAlloc
+    JMP java_vmlAlloc
 
 LABEL method_vmlAlloc
-    JMP vmlAlloc
+    JMP java_vmlAlloc
 

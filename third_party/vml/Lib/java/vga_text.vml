@@ -3,7 +3,7 @@
 
 .linked "../shared/vga_text.vml"
 
-LABEL vgaTextPutchar
+LABEL java_vgaTextPutchar
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL vgaTextPutchar
     pop R15
     RET
 
-LABEL vgaTextNewline
+LABEL java_vgaTextNewline
     push R15
     push R12
     move R12 R13
@@ -28,26 +28,26 @@ LABEL vgaTextNewline
     RET
 
 LABEL Vga_text_VgaTextPutchar
-    JMP vgaTextPutchar
+    JMP java_vgaTextPutchar
 
 LABEL Vga_text_VgaTextNewline
-    JMP vgaTextNewline
+    JMP java_vgaTextNewline
 
 LABEL method_vga_text_putchar
-    JMP vgaTextPutchar
+    JMP java_vgaTextPutchar
 
 LABEL method_VgaTextPutchar
-    JMP vgaTextPutchar
+    JMP java_vgaTextPutchar
 
 LABEL method_vgaTextPutchar
-    JMP vgaTextPutchar
+    JMP java_vgaTextPutchar
 
 LABEL method_vga_text_newline
-    JMP vgaTextNewline
+    JMP java_vgaTextNewline
 
 LABEL method_VgaTextNewline
-    JMP vgaTextNewline
+    JMP java_vgaTextNewline
 
 LABEL method_vgaTextNewline
-    JMP vgaTextNewline
+    JMP java_vgaTextNewline
 

@@ -3,7 +3,7 @@
 
 .linked "../shared/scheduler.vml"
 
-LABEL addTask
+LABEL js_addTask
     push R15
     push R12
     move R12 R13
@@ -28,7 +28,7 @@ LABEL addTask
     pop R15
     RET
 
-LABEL task
+LABEL js_task
     push R15
     push R12
     move R12 R13
@@ -45,7 +45,7 @@ LABEL task
     pop R15
     RET
 
-LABEL setPeriod
+LABEL js_setPeriod
     push R15
     push R12
     move R12 R13
@@ -65,7 +65,7 @@ LABEL setPeriod
     pop R15
     RET
 
-LABEL run
+LABEL js_run
     push R15
     push R12
     move R12 R13
@@ -79,7 +79,7 @@ LABEL run
     pop R15
     RET
 
-LABEL getFunc
+LABEL js_getFunc
     push R15
     push R12
     move R12 R13
@@ -97,56 +97,56 @@ LABEL getFunc
     RET
 
 LABEL Scheduler_AddTask
-    JMP addTask
+    JMP js_addTask
 
 LABEL Scheduler_Task
-    JMP task
+    JMP js_task
 
 LABEL Scheduler_SetPeriod
-    JMP setPeriod
+    JMP js_setPeriod
 
 LABEL Scheduler_Run
-    JMP run
+    JMP js_run
 
 LABEL Scheduler_GetFunc
-    JMP getFunc
+    JMP js_getFunc
 
 LABEL method_add_task
-    JMP addTask
+    JMP js_addTask
 
 LABEL method_AddTask
-    JMP addTask
+    JMP js_addTask
 
 LABEL method_addTask
-    JMP addTask
+    JMP js_addTask
 
 LABEL method_task
-    JMP task
+    JMP js_task
 
 LABEL method_Task
-    JMP task
+    JMP js_task
 
 LABEL method_set_period
-    JMP setPeriod
+    JMP js_setPeriod
 
 LABEL method_SetPeriod
-    JMP setPeriod
+    JMP js_setPeriod
 
 LABEL method_setPeriod
-    JMP setPeriod
+    JMP js_setPeriod
 
 LABEL method_run
-    JMP run
+    JMP js_run
 
 LABEL method_Run
-    JMP run
+    JMP js_run
 
 LABEL method_get_func
-    JMP getFunc
+    JMP js_getFunc
 
 LABEL method_GetFunc
-    JMP getFunc
+    JMP js_getFunc
 
 LABEL method_getFunc
-    JMP getFunc
+    JMP js_getFunc
 

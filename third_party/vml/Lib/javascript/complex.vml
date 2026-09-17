@@ -3,7 +3,7 @@
 
 .linked "../shared/complex.vml"
 
-LABEL cadd
+LABEL js_cadd
     push R15
     push R12
     move R12 R13
@@ -23,7 +23,7 @@ LABEL cadd
     pop R15
     RET
 
-LABEL csub
+LABEL js_csub
     push R15
     push R12
     move R12 R13
@@ -43,7 +43,7 @@ LABEL csub
     pop R15
     RET
 
-LABEL b
+LABEL js_b
     push R15
     push R12
     move R12 R13
@@ -57,7 +57,7 @@ LABEL b
     pop R15
     RET
 
-LABEL cmul
+LABEL js_cmul
     push R15
     push R12
     move R12 R13
@@ -77,7 +77,7 @@ LABEL cmul
     pop R15
     RET
 
-LABEL cdiv
+LABEL js_cdiv
     push R15
     push R12
     move R12 R13
@@ -97,7 +97,7 @@ LABEL cdiv
     pop R15
     RET
 
-LABEL complexAbs
+LABEL js_complexAbs
     push R15
     push R12
     move R12 R13
@@ -111,7 +111,7 @@ LABEL complexAbs
     pop R15
     RET
 
-LABEL radians
+LABEL js_radians
     push R15
     push R12
     move R12 R13
@@ -125,7 +125,7 @@ LABEL radians
     pop R15
     RET
 
-LABEL complexArg
+LABEL js_complexArg
     push R15
     push R12
     move R12 R13
@@ -139,7 +139,7 @@ LABEL complexArg
     pop R15
     RET
 
-LABEL cconj
+LABEL js_cconj
     push R15
     push R12
     move R12 R13
@@ -156,7 +156,7 @@ LABEL cconj
     pop R15
     RET
 
-LABEL cneg
+LABEL js_cneg
     push R15
     push R12
     move R12 R13
@@ -173,7 +173,7 @@ LABEL cneg
     pop R15
     RET
 
-LABEL cexpRe
+LABEL js_cexpRe
     push R15
     push R12
     move R12 R13
@@ -192,7 +192,7 @@ LABEL cexpRe
     pop R15
     RET
 
-LABEL cexpIm
+LABEL js_cexpIm
     push R15
     push R12
     move R12 R13
@@ -211,7 +211,7 @@ LABEL cexpIm
     pop R15
     RET
 
-LABEL csqr
+LABEL js_csqr
     push R15
     push R12
     move R12 R13
@@ -228,7 +228,7 @@ LABEL csqr
     pop R15
     RET
 
-LABEL csqrt
+LABEL js_csqrt
     push R15
     push R12
     move R12 R13
@@ -246,140 +246,140 @@ LABEL csqrt
     RET
 
 LABEL Complex_Cadd
-    JMP cadd
+    JMP js_cadd
 
 LABEL Complex_Csub
-    JMP csub
+    JMP js_csub
 
 LABEL Complex_B
-    JMP b
+    JMP js_b
 
 LABEL Complex_Cmul
-    JMP cmul
+    JMP js_cmul
 
 LABEL Complex_Cdiv
-    JMP cdiv
+    JMP js_cdiv
 
 LABEL Complex_ComplexAbs
-    JMP complexAbs
+    JMP js_complexAbs
 
 LABEL Complex_Radians
-    JMP radians
+    JMP js_radians
 
 LABEL Complex_ComplexArg
-    JMP complexArg
+    JMP js_complexArg
 
 LABEL Complex_Cconj
-    JMP cconj
+    JMP js_cconj
 
 LABEL Complex_Cneg
-    JMP cneg
+    JMP js_cneg
 
 LABEL Complex_CexpRe
-    JMP cexpRe
+    JMP js_cexpRe
 
 LABEL Complex_CexpIm
-    JMP cexpIm
+    JMP js_cexpIm
 
 LABEL Complex_Csqr
-    JMP csqr
+    JMP js_csqr
 
 LABEL Complex_Csqrt
-    JMP csqrt
+    JMP js_csqrt
 
 LABEL method_cadd
-    JMP cadd
+    JMP js_cadd
 
 LABEL method_Cadd
-    JMP cadd
+    JMP js_cadd
 
 LABEL method_csub
-    JMP csub
+    JMP js_csub
 
 LABEL method_Csub
-    JMP csub
+    JMP js_csub
 
 LABEL method_b
-    JMP b
+    JMP js_b
 
 LABEL method_B
-    JMP b
+    JMP js_b
 
 LABEL method_cmul
-    JMP cmul
+    JMP js_cmul
 
 LABEL method_Cmul
-    JMP cmul
+    JMP js_cmul
 
 LABEL method_cdiv
-    JMP cdiv
+    JMP js_cdiv
 
 LABEL method_Cdiv
-    JMP cdiv
+    JMP js_cdiv
 
 LABEL method_complex_abs
-    JMP complexAbs
+    JMP js_complexAbs
 
 LABEL method_ComplexAbs
-    JMP complexAbs
+    JMP js_complexAbs
 
 LABEL method_complexAbs
-    JMP complexAbs
+    JMP js_complexAbs
 
 LABEL method_radians
-    JMP radians
+    JMP js_radians
 
 LABEL method_Radians
-    JMP radians
+    JMP js_radians
 
 LABEL method_complex_arg
-    JMP complexArg
+    JMP js_complexArg
 
 LABEL method_ComplexArg
-    JMP complexArg
+    JMP js_complexArg
 
 LABEL method_complexArg
-    JMP complexArg
+    JMP js_complexArg
 
 LABEL method_cconj
-    JMP cconj
+    JMP js_cconj
 
 LABEL method_Cconj
-    JMP cconj
+    JMP js_cconj
 
 LABEL method_cneg
-    JMP cneg
+    JMP js_cneg
 
 LABEL method_Cneg
-    JMP cneg
+    JMP js_cneg
 
 LABEL method_cexp_re
-    JMP cexpRe
+    JMP js_cexpRe
 
 LABEL method_CexpRe
-    JMP cexpRe
+    JMP js_cexpRe
 
 LABEL method_cexpRe
-    JMP cexpRe
+    JMP js_cexpRe
 
 LABEL method_cexp_im
-    JMP cexpIm
+    JMP js_cexpIm
 
 LABEL method_CexpIm
-    JMP cexpIm
+    JMP js_cexpIm
 
 LABEL method_cexpIm
-    JMP cexpIm
+    JMP js_cexpIm
 
 LABEL method_csqr
-    JMP csqr
+    JMP js_csqr
 
 LABEL method_Csqr
-    JMP csqr
+    JMP js_csqr
 
 LABEL method_csqrt
-    JMP csqrt
+    JMP js_csqrt
 
 LABEL method_Csqrt
-    JMP csqrt
+    JMP js_csqrt
 

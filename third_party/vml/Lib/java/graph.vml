@@ -3,7 +3,7 @@
 
 .linked "../shared/graph.vml"
 
-LABEL gfxScreen
+LABEL java_gfxScreen
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL gfxScreen
     pop R15
     RET
 
-LABEL gfxWidth
+LABEL java_gfxWidth
     push R15
     push R12
     move R12 R13
@@ -27,7 +27,7 @@ LABEL gfxWidth
     pop R15
     RET
 
-LABEL gfxHeight
+LABEL java_gfxHeight
     push R15
     push R12
     move R12 R13
@@ -37,7 +37,7 @@ LABEL gfxHeight
     pop R15
     RET
 
-LABEL gfxDepth
+LABEL java_gfxDepth
     push R15
     push R12
     move R12 R13
@@ -47,7 +47,7 @@ LABEL gfxDepth
     pop R15
     RET
 
-LABEL gfxPalette
+LABEL java_gfxPalette
     push R15
     push R12
     move R12 R13
@@ -70,7 +70,7 @@ LABEL gfxPalette
     pop R15
     RET
 
-LABEL gfxPaletteGet
+LABEL java_gfxPaletteGet
     push R15
     push R12
     move R12 R13
@@ -84,7 +84,7 @@ LABEL gfxPaletteGet
     pop R15
     RET
 
-LABEL gfxPset
+LABEL java_gfxPset
     push R15
     push R12
     move R12 R13
@@ -104,7 +104,7 @@ LABEL gfxPset
     pop R15
     RET
 
-LABEL gfxPoint
+LABEL java_gfxPoint
     push R15
     push R12
     move R12 R13
@@ -121,7 +121,7 @@ LABEL gfxPoint
     pop R15
     RET
 
-LABEL gfxCls
+LABEL java_gfxCls
     push R15
     push R12
     move R12 R13
@@ -131,7 +131,7 @@ LABEL gfxCls
     pop R15
     RET
 
-LABEL gfxClsColor
+LABEL java_gfxClsColor
     push R15
     push R12
     move R12 R13
@@ -145,7 +145,7 @@ LABEL gfxClsColor
     pop R15
     RET
 
-LABEL gfxLine
+LABEL java_gfxLine
     push R15
     push R12
     move R12 R13
@@ -170,7 +170,7 @@ LABEL gfxLine
     pop R15
     RET
 
-LABEL gfxRect
+LABEL java_gfxRect
     push R15
     push R12
     move R12 R13
@@ -195,7 +195,7 @@ LABEL gfxRect
     pop R15
     RET
 
-LABEL gfxRectFill
+LABEL java_gfxRectFill
     push R15
     push R12
     move R12 R13
@@ -220,7 +220,7 @@ LABEL gfxRectFill
     pop R15
     RET
 
-LABEL gfxCircle
+LABEL java_gfxCircle
     push R15
     push R12
     move R12 R13
@@ -243,7 +243,7 @@ LABEL gfxCircle
     pop R15
     RET
 
-LABEL gfxCircleFill
+LABEL java_gfxCircleFill
     push R15
     push R12
     move R12 R13
@@ -266,7 +266,7 @@ LABEL gfxCircleFill
     pop R15
     RET
 
-LABEL gfxEllipse
+LABEL java_gfxEllipse
     push R15
     push R12
     move R12 R13
@@ -291,7 +291,7 @@ LABEL gfxEllipse
     pop R15
     RET
 
-LABEL gfxEllipseFill
+LABEL java_gfxEllipseFill
     push R15
     push R12
     move R12 R13
@@ -316,7 +316,7 @@ LABEL gfxEllipseFill
     pop R15
     RET
 
-LABEL gfxArc
+LABEL java_gfxArc
     push R15
     push R12
     move R12 R13
@@ -343,7 +343,7 @@ LABEL gfxArc
     pop R15
     RET
 
-LABEL gfxSector
+LABEL java_gfxSector
     push R15
     push R12
     move R12 R13
@@ -370,7 +370,7 @@ LABEL gfxSector
     pop R15
     RET
 
-LABEL gfxSectorFill
+LABEL java_gfxSectorFill
     push R15
     push R12
     move R12 R13
@@ -397,7 +397,7 @@ LABEL gfxSectorFill
     pop R15
     RET
 
-LABEL gfxFloodFill
+LABEL java_gfxFloodFill
     push R15
     push R12
     move R12 R13
@@ -420,7 +420,7 @@ LABEL gfxFloodFill
     pop R15
     RET
 
-LABEL gfxPrint
+LABEL java_gfxPrint
     push R15
     push R12
     move R12 R13
@@ -443,7 +443,7 @@ LABEL gfxPrint
     pop R15
     RET
 
-LABEL gfxPrintScale
+LABEL java_gfxPrintScale
     push R15
     push R12
     move R12 R13
@@ -468,7 +468,7 @@ LABEL gfxPrintScale
     pop R15
     RET
 
-LABEL gfxScreenshot
+LABEL java_gfxScreenshot
     push R15
     push R12
     move R12 R13
@@ -478,7 +478,7 @@ LABEL gfxScreenshot
     pop R15
     RET
 
-LABEL gfxPutImage
+LABEL java_gfxPutImage
     push R15
     push R12
     move R12 R13
@@ -503,7 +503,7 @@ LABEL gfxPutImage
     pop R15
     RET
 
-LABEL gfxGetImage
+LABEL java_gfxGetImage
     push R15
     push R12
     move R12 R13
@@ -528,7 +528,7 @@ LABEL gfxGetImage
     pop R15
     RET
 
-LABEL gfxViewport
+LABEL java_gfxViewport
     push R15
     push R12
     move R12 R13
@@ -551,7 +551,7 @@ LABEL gfxViewport
     pop R15
     RET
 
-LABEL initGraph
+LABEL java_initGraph
     push R15
     push R12
     move R12 R13
@@ -571,7 +571,7 @@ LABEL initGraph
     pop R15
     RET
 
-LABEL closeGraph
+LABEL java_closeGraph
     push R15
     push R12
     move R12 R13
@@ -581,7 +581,7 @@ LABEL closeGraph
     pop R15
     RET
 
-LABEL detectGraph
+LABEL java_detectGraph
     push R15
     push R12
     move R12 R13
@@ -598,7 +598,7 @@ LABEL detectGraph
     pop R15
     RET
 
-LABEL getMaxX
+LABEL java_getMaxX
     push R15
     push R12
     move R12 R13
@@ -608,7 +608,7 @@ LABEL getMaxX
     pop R15
     RET
 
-LABEL getMaxY
+LABEL java_getMaxY
     push R15
     push R12
     move R12 R13
@@ -618,7 +618,7 @@ LABEL getMaxY
     pop R15
     RET
 
-LABEL getDriverName
+LABEL java_getDriverName
     push R15
     push R12
     move R12 R13
@@ -628,7 +628,7 @@ LABEL getDriverName
     pop R15
     RET
 
-LABEL getModeName
+LABEL java_getModeName
     push R15
     push R12
     move R12 R13
@@ -642,7 +642,7 @@ LABEL getModeName
     pop R15
     RET
 
-LABEL setColor
+LABEL java_setColor
     push R15
     push R12
     move R12 R13
@@ -656,7 +656,7 @@ LABEL setColor
     pop R15
     RET
 
-LABEL getColor
+LABEL java_getColor
     push R15
     push R12
     move R12 R13
@@ -666,7 +666,7 @@ LABEL getColor
     pop R15
     RET
 
-LABEL setBkColor
+LABEL java_setBkColor
     push R15
     push R12
     move R12 R13
@@ -680,7 +680,7 @@ LABEL setBkColor
     pop R15
     RET
 
-LABEL getBkColor
+LABEL java_getBkColor
     push R15
     push R12
     move R12 R13
@@ -690,7 +690,7 @@ LABEL getBkColor
     pop R15
     RET
 
-LABEL setRGBPalette
+LABEL java_setRGBPalette
     push R15
     push R12
     move R12 R13
@@ -713,7 +713,7 @@ LABEL setRGBPalette
     pop R15
     RET
 
-LABEL putPixel
+LABEL java_putPixel
     push R15
     push R12
     move R12 R13
@@ -733,7 +733,7 @@ LABEL putPixel
     pop R15
     RET
 
-LABEL getPixel
+LABEL java_getPixel
     push R15
     push R12
     move R12 R13
@@ -750,7 +750,7 @@ LABEL getPixel
     pop R15
     RET
 
-LABEL line
+LABEL java_line
     push R15
     push R12
     move R12 R13
@@ -773,7 +773,7 @@ LABEL line
     pop R15
     RET
 
-LABEL lineTo
+LABEL java_lineTo
     push R15
     push R12
     move R12 R13
@@ -790,7 +790,7 @@ LABEL lineTo
     pop R15
     RET
 
-LABEL lineRel
+LABEL java_lineRel
     push R15
     push R12
     move R12 R13
@@ -807,7 +807,7 @@ LABEL lineRel
     pop R15
     RET
 
-LABEL rectangle
+LABEL java_rectangle
     push R15
     push R12
     move R12 R13
@@ -830,7 +830,7 @@ LABEL rectangle
     pop R15
     RET
 
-LABEL bar
+LABEL java_bar
     push R15
     push R12
     move R12 R13
@@ -853,7 +853,7 @@ LABEL bar
     pop R15
     RET
 
-LABEL bar3D
+LABEL java_bar3D
     push R15
     push R12
     move R12 R13
@@ -880,7 +880,7 @@ LABEL bar3D
     pop R15
     RET
 
-LABEL circle
+LABEL java_circle
     push R15
     push R12
     move R12 R13
@@ -900,7 +900,7 @@ LABEL circle
     pop R15
     RET
 
-LABEL fillCircle
+LABEL java_fillCircle
     push R15
     push R12
     move R12 R13
@@ -920,7 +920,7 @@ LABEL fillCircle
     pop R15
     RET
 
-LABEL ellipse
+LABEL java_ellipse
     push R15
     push R12
     move R12 R13
@@ -947,7 +947,7 @@ LABEL ellipse
     pop R15
     RET
 
-LABEL fillEllipse
+LABEL java_fillEllipse
     push R15
     push R12
     move R12 R13
@@ -970,7 +970,7 @@ LABEL fillEllipse
     pop R15
     RET
 
-LABEL arc
+LABEL java_arc
     push R15
     push R12
     move R12 R13
@@ -995,7 +995,7 @@ LABEL arc
     pop R15
     RET
 
-LABEL pieSlice
+LABEL java_pieSlice
     push R15
     push R12
     move R12 R13
@@ -1020,7 +1020,7 @@ LABEL pieSlice
     pop R15
     RET
 
-LABEL setFillStyle
+LABEL java_setFillStyle
     push R15
     push R12
     move R12 R13
@@ -1037,7 +1037,7 @@ LABEL setFillStyle
     pop R15
     RET
 
-LABEL setLineStyle
+LABEL java_setLineStyle
     push R15
     push R12
     move R12 R13
@@ -1057,7 +1057,7 @@ LABEL setLineStyle
     pop R15
     RET
 
-LABEL clearDevice
+LABEL java_clearDevice
     push R15
     push R12
     move R12 R13
@@ -1067,7 +1067,7 @@ LABEL clearDevice
     pop R15
     RET
 
-LABEL clearViewPort
+LABEL java_clearViewPort
     push R15
     push R12
     move R12 R13
@@ -1077,7 +1077,7 @@ LABEL clearViewPort
     pop R15
     RET
 
-LABEL setViewPort
+LABEL java_setViewPort
     push R15
     push R12
     move R12 R13
@@ -1102,7 +1102,7 @@ LABEL setViewPort
     pop R15
     RET
 
-LABEL outText
+LABEL java_outText
     push R15
     push R12
     move R12 R13
@@ -1116,7 +1116,7 @@ LABEL outText
     pop R15
     RET
 
-LABEL outTextXY
+LABEL java_outTextXY
     push R15
     push R12
     move R12 R13
@@ -1136,7 +1136,7 @@ LABEL outTextXY
     pop R15
     RET
 
-LABEL floodFill
+LABEL java_floodFill
     push R15
     push R12
     move R12 R13
@@ -1156,7 +1156,7 @@ LABEL floodFill
     pop R15
     RET
 
-LABEL imageSize
+LABEL java_imageSize
     push R15
     push R12
     move R12 R13
@@ -1179,7 +1179,7 @@ LABEL imageSize
     pop R15
     RET
 
-LABEL getImage
+LABEL java_getImage
     push R15
     push R12
     move R12 R13
@@ -1204,7 +1204,7 @@ LABEL getImage
     pop R15
     RET
 
-LABEL putImage
+LABEL java_putImage
     push R15
     push R12
     move R12 R13
@@ -1227,7 +1227,7 @@ LABEL putImage
     pop R15
     RET
 
-LABEL getPaletteSize
+LABEL java_getPaletteSize
     push R15
     push R12
     move R12 R13
@@ -1237,7 +1237,7 @@ LABEL getPaletteSize
     pop R15
     RET
 
-LABEL getPalette
+LABEL java_getPalette
     push R15
     push R12
     move R12 R13
@@ -1251,7 +1251,7 @@ LABEL getPalette
     pop R15
     RET
 
-LABEL getDefaultPalette
+LABEL java_getDefaultPalette
     push R15
     push R12
     move R12 R13
@@ -1265,7 +1265,7 @@ LABEL getDefaultPalette
     pop R15
     RET
 
-LABEL graphResult
+LABEL java_graphResult
     push R15
     push R12
     move R12 R13
@@ -1275,7 +1275,7 @@ LABEL graphResult
     pop R15
     RET
 
-LABEL graphErrorMsg
+LABEL java_graphErrorMsg
     push R15
     push R12
     move R12 R13
@@ -1289,7 +1289,7 @@ LABEL graphErrorMsg
     pop R15
     RET
 
-LABEL restoreCrtMode
+LABEL java_restoreCrtMode
     push R15
     push R12
     move R12 R13
@@ -1300,713 +1300,713 @@ LABEL restoreCrtMode
     RET
 
 LABEL Graph_GfxScreen
-    JMP gfxScreen
+    JMP java_gfxScreen
 
 LABEL Graph_GfxWidth
-    JMP gfxWidth
+    JMP java_gfxWidth
 
 LABEL Graph_GfxHeight
-    JMP gfxHeight
+    JMP java_gfxHeight
 
 LABEL Graph_GfxDepth
-    JMP gfxDepth
+    JMP java_gfxDepth
 
 LABEL Graph_GfxPalette
-    JMP gfxPalette
+    JMP java_gfxPalette
 
 LABEL Graph_GfxPaletteGet
-    JMP gfxPaletteGet
+    JMP java_gfxPaletteGet
 
 LABEL Graph_GfxPset
-    JMP gfxPset
+    JMP java_gfxPset
 
 LABEL Graph_GfxPoint
-    JMP gfxPoint
+    JMP java_gfxPoint
 
 LABEL Graph_GfxCls
-    JMP gfxCls
+    JMP java_gfxCls
 
 LABEL Graph_GfxClsColor
-    JMP gfxClsColor
+    JMP java_gfxClsColor
 
 LABEL Graph_GfxLine
-    JMP gfxLine
+    JMP java_gfxLine
 
 LABEL Graph_GfxRect
-    JMP gfxRect
+    JMP java_gfxRect
 
 LABEL Graph_GfxRectFill
-    JMP gfxRectFill
+    JMP java_gfxRectFill
 
 LABEL Graph_GfxCircle
-    JMP gfxCircle
+    JMP java_gfxCircle
 
 LABEL Graph_GfxCircleFill
-    JMP gfxCircleFill
+    JMP java_gfxCircleFill
 
 LABEL Graph_GfxEllipse
-    JMP gfxEllipse
+    JMP java_gfxEllipse
 
 LABEL Graph_GfxEllipseFill
-    JMP gfxEllipseFill
+    JMP java_gfxEllipseFill
 
 LABEL Graph_GfxArc
-    JMP gfxArc
+    JMP java_gfxArc
 
 LABEL Graph_GfxSector
-    JMP gfxSector
+    JMP java_gfxSector
 
 LABEL Graph_GfxSectorFill
-    JMP gfxSectorFill
+    JMP java_gfxSectorFill
 
 LABEL Graph_GfxFloodFill
-    JMP gfxFloodFill
+    JMP java_gfxFloodFill
 
 LABEL Graph_GfxPrint
-    JMP gfxPrint
+    JMP java_gfxPrint
 
 LABEL Graph_GfxPrintScale
-    JMP gfxPrintScale
+    JMP java_gfxPrintScale
 
 LABEL Graph_GfxScreenshot
-    JMP gfxScreenshot
+    JMP java_gfxScreenshot
 
 LABEL Graph_GfxPutImage
-    JMP gfxPutImage
+    JMP java_gfxPutImage
 
 LABEL Graph_GfxGetImage
-    JMP gfxGetImage
+    JMP java_gfxGetImage
 
 LABEL Graph_GfxViewport
-    JMP gfxViewport
+    JMP java_gfxViewport
 
 LABEL Graph_InitGraph
-    JMP initGraph
+    JMP java_initGraph
 
 LABEL Graph_CloseGraph
-    JMP closeGraph
+    JMP java_closeGraph
 
 LABEL Graph_DetectGraph
-    JMP detectGraph
+    JMP java_detectGraph
 
 LABEL Graph_GetMaxX
-    JMP getMaxX
+    JMP java_getMaxX
 
 LABEL Graph_GetMaxY
-    JMP getMaxY
+    JMP java_getMaxY
 
 LABEL Graph_GetDriverName
-    JMP getDriverName
+    JMP java_getDriverName
 
 LABEL Graph_GetModeName
-    JMP getModeName
+    JMP java_getModeName
 
 LABEL Graph_SetColor
-    JMP setColor
+    JMP java_setColor
 
 LABEL Graph_GetColor
-    JMP getColor
+    JMP java_getColor
 
 LABEL Graph_SetBkColor
-    JMP setBkColor
+    JMP java_setBkColor
 
 LABEL Graph_GetBkColor
-    JMP getBkColor
+    JMP java_getBkColor
 
 LABEL Graph_SetRGBPalette
-    JMP setRGBPalette
+    JMP java_setRGBPalette
 
 LABEL Graph_PutPixel
-    JMP putPixel
+    JMP java_putPixel
 
 LABEL Graph_GetPixel
-    JMP getPixel
+    JMP java_getPixel
 
 LABEL Graph_Line
-    JMP line
+    JMP java_line
 
 LABEL Graph_LineTo
-    JMP lineTo
+    JMP java_lineTo
 
 LABEL Graph_LineRel
-    JMP lineRel
+    JMP java_lineRel
 
 LABEL Graph_Rectangle
-    JMP rectangle
+    JMP java_rectangle
 
 LABEL Graph_Bar
-    JMP bar
+    JMP java_bar
 
 LABEL Graph_Bar3D
-    JMP bar3D
+    JMP java_bar3D
 
 LABEL Graph_Circle
-    JMP circle
+    JMP java_circle
 
 LABEL Graph_FillCircle
-    JMP fillCircle
+    JMP java_fillCircle
 
 LABEL Graph_Ellipse
-    JMP ellipse
+    JMP java_ellipse
 
 LABEL Graph_FillEllipse
-    JMP fillEllipse
+    JMP java_fillEllipse
 
 LABEL Graph_Arc
-    JMP arc
+    JMP java_arc
 
 LABEL Graph_PieSlice
-    JMP pieSlice
+    JMP java_pieSlice
 
 LABEL Graph_SetFillStyle
-    JMP setFillStyle
+    JMP java_setFillStyle
 
 LABEL Graph_SetLineStyle
-    JMP setLineStyle
+    JMP java_setLineStyle
 
 LABEL Graph_ClearDevice
-    JMP clearDevice
+    JMP java_clearDevice
 
 LABEL Graph_ClearViewPort
-    JMP clearViewPort
+    JMP java_clearViewPort
 
 LABEL Graph_SetViewPort
-    JMP setViewPort
+    JMP java_setViewPort
 
 LABEL Graph_OutText
-    JMP outText
+    JMP java_outText
 
 LABEL Graph_OutTextXY
-    JMP outTextXY
+    JMP java_outTextXY
 
 LABEL Graph_FloodFill
-    JMP floodFill
+    JMP java_floodFill
 
 LABEL Graph_ImageSize
-    JMP imageSize
+    JMP java_imageSize
 
 LABEL Graph_GetImage
-    JMP getImage
+    JMP java_getImage
 
 LABEL Graph_PutImage
-    JMP putImage
+    JMP java_putImage
 
 LABEL Graph_GetPaletteSize
-    JMP getPaletteSize
+    JMP java_getPaletteSize
 
 LABEL Graph_GetPalette
-    JMP getPalette
+    JMP java_getPalette
 
 LABEL Graph_GetDefaultPalette
-    JMP getDefaultPalette
+    JMP java_getDefaultPalette
 
 LABEL Graph_GraphResult
-    JMP graphResult
+    JMP java_graphResult
 
 LABEL Graph_GraphErrorMsg
-    JMP graphErrorMsg
+    JMP java_graphErrorMsg
 
 LABEL Graph_RestoreCrtMode
-    JMP restoreCrtMode
+    JMP java_restoreCrtMode
 
 LABEL method_gfx_screen
-    JMP gfxScreen
+    JMP java_gfxScreen
 
 LABEL method_GfxScreen
-    JMP gfxScreen
+    JMP java_gfxScreen
 
 LABEL method_gfxScreen
-    JMP gfxScreen
+    JMP java_gfxScreen
 
 LABEL method_gfx_width
-    JMP gfxWidth
+    JMP java_gfxWidth
 
 LABEL method_GfxWidth
-    JMP gfxWidth
+    JMP java_gfxWidth
 
 LABEL method_gfxWidth
-    JMP gfxWidth
+    JMP java_gfxWidth
 
 LABEL method_gfx_height
-    JMP gfxHeight
+    JMP java_gfxHeight
 
 LABEL method_GfxHeight
-    JMP gfxHeight
+    JMP java_gfxHeight
 
 LABEL method_gfxHeight
-    JMP gfxHeight
+    JMP java_gfxHeight
 
 LABEL method_gfx_depth
-    JMP gfxDepth
+    JMP java_gfxDepth
 
 LABEL method_GfxDepth
-    JMP gfxDepth
+    JMP java_gfxDepth
 
 LABEL method_gfxDepth
-    JMP gfxDepth
+    JMP java_gfxDepth
 
 LABEL method_gfx_palette
-    JMP gfxPalette
+    JMP java_gfxPalette
 
 LABEL method_GfxPalette
-    JMP gfxPalette
+    JMP java_gfxPalette
 
 LABEL method_gfxPalette
-    JMP gfxPalette
+    JMP java_gfxPalette
 
 LABEL method_gfx_palette_get
-    JMP gfxPaletteGet
+    JMP java_gfxPaletteGet
 
 LABEL method_GfxPaletteGet
-    JMP gfxPaletteGet
+    JMP java_gfxPaletteGet
 
 LABEL method_gfxPaletteGet
-    JMP gfxPaletteGet
+    JMP java_gfxPaletteGet
 
 LABEL method_gfx_pset
-    JMP gfxPset
+    JMP java_gfxPset
 
 LABEL method_GfxPset
-    JMP gfxPset
+    JMP java_gfxPset
 
 LABEL method_gfxPset
-    JMP gfxPset
+    JMP java_gfxPset
 
 LABEL method_gfx_point
-    JMP gfxPoint
+    JMP java_gfxPoint
 
 LABEL method_GfxPoint
-    JMP gfxPoint
+    JMP java_gfxPoint
 
 LABEL method_gfxPoint
-    JMP gfxPoint
+    JMP java_gfxPoint
 
 LABEL method_gfx_cls
-    JMP gfxCls
+    JMP java_gfxCls
 
 LABEL method_GfxCls
-    JMP gfxCls
+    JMP java_gfxCls
 
 LABEL method_gfxCls
-    JMP gfxCls
+    JMP java_gfxCls
 
 LABEL method_gfx_cls_color
-    JMP gfxClsColor
+    JMP java_gfxClsColor
 
 LABEL method_GfxClsColor
-    JMP gfxClsColor
+    JMP java_gfxClsColor
 
 LABEL method_gfxClsColor
-    JMP gfxClsColor
+    JMP java_gfxClsColor
 
 LABEL method_gfx_line
-    JMP gfxLine
+    JMP java_gfxLine
 
 LABEL method_GfxLine
-    JMP gfxLine
+    JMP java_gfxLine
 
 LABEL method_gfxLine
-    JMP gfxLine
+    JMP java_gfxLine
 
 LABEL method_gfx_rect
-    JMP gfxRect
+    JMP java_gfxRect
 
 LABEL method_GfxRect
-    JMP gfxRect
+    JMP java_gfxRect
 
 LABEL method_gfxRect
-    JMP gfxRect
+    JMP java_gfxRect
 
 LABEL method_gfx_rect_fill
-    JMP gfxRectFill
+    JMP java_gfxRectFill
 
 LABEL method_GfxRectFill
-    JMP gfxRectFill
+    JMP java_gfxRectFill
 
 LABEL method_gfxRectFill
-    JMP gfxRectFill
+    JMP java_gfxRectFill
 
 LABEL method_gfx_circle
-    JMP gfxCircle
+    JMP java_gfxCircle
 
 LABEL method_GfxCircle
-    JMP gfxCircle
+    JMP java_gfxCircle
 
 LABEL method_gfxCircle
-    JMP gfxCircle
+    JMP java_gfxCircle
 
 LABEL method_gfx_circle_fill
-    JMP gfxCircleFill
+    JMP java_gfxCircleFill
 
 LABEL method_GfxCircleFill
-    JMP gfxCircleFill
+    JMP java_gfxCircleFill
 
 LABEL method_gfxCircleFill
-    JMP gfxCircleFill
+    JMP java_gfxCircleFill
 
 LABEL method_gfx_ellipse
-    JMP gfxEllipse
+    JMP java_gfxEllipse
 
 LABEL method_GfxEllipse
-    JMP gfxEllipse
+    JMP java_gfxEllipse
 
 LABEL method_gfxEllipse
-    JMP gfxEllipse
+    JMP java_gfxEllipse
 
 LABEL method_gfx_ellipse_fill
-    JMP gfxEllipseFill
+    JMP java_gfxEllipseFill
 
 LABEL method_GfxEllipseFill
-    JMP gfxEllipseFill
+    JMP java_gfxEllipseFill
 
 LABEL method_gfxEllipseFill
-    JMP gfxEllipseFill
+    JMP java_gfxEllipseFill
 
 LABEL method_gfx_arc
-    JMP gfxArc
+    JMP java_gfxArc
 
 LABEL method_GfxArc
-    JMP gfxArc
+    JMP java_gfxArc
 
 LABEL method_gfxArc
-    JMP gfxArc
+    JMP java_gfxArc
 
 LABEL method_gfx_sector
-    JMP gfxSector
+    JMP java_gfxSector
 
 LABEL method_GfxSector
-    JMP gfxSector
+    JMP java_gfxSector
 
 LABEL method_gfxSector
-    JMP gfxSector
+    JMP java_gfxSector
 
 LABEL method_gfx_sector_fill
-    JMP gfxSectorFill
+    JMP java_gfxSectorFill
 
 LABEL method_GfxSectorFill
-    JMP gfxSectorFill
+    JMP java_gfxSectorFill
 
 LABEL method_gfxSectorFill
-    JMP gfxSectorFill
+    JMP java_gfxSectorFill
 
 LABEL method_gfx_flood_fill
-    JMP gfxFloodFill
+    JMP java_gfxFloodFill
 
 LABEL method_GfxFloodFill
-    JMP gfxFloodFill
+    JMP java_gfxFloodFill
 
 LABEL method_gfxFloodFill
-    JMP gfxFloodFill
+    JMP java_gfxFloodFill
 
 LABEL method_gfx_print
-    JMP gfxPrint
+    JMP java_gfxPrint
 
 LABEL method_GfxPrint
-    JMP gfxPrint
+    JMP java_gfxPrint
 
 LABEL method_gfxPrint
-    JMP gfxPrint
+    JMP java_gfxPrint
 
 LABEL method_gfx_print_scale
-    JMP gfxPrintScale
+    JMP java_gfxPrintScale
 
 LABEL method_GfxPrintScale
-    JMP gfxPrintScale
+    JMP java_gfxPrintScale
 
 LABEL method_gfxPrintScale
-    JMP gfxPrintScale
+    JMP java_gfxPrintScale
 
 LABEL method_gfx_screenshot
-    JMP gfxScreenshot
+    JMP java_gfxScreenshot
 
 LABEL method_GfxScreenshot
-    JMP gfxScreenshot
+    JMP java_gfxScreenshot
 
 LABEL method_gfxScreenshot
-    JMP gfxScreenshot
+    JMP java_gfxScreenshot
 
 LABEL method_gfx_put_image
-    JMP gfxPutImage
+    JMP java_gfxPutImage
 
 LABEL method_GfxPutImage
-    JMP gfxPutImage
+    JMP java_gfxPutImage
 
 LABEL method_gfxPutImage
-    JMP gfxPutImage
+    JMP java_gfxPutImage
 
 LABEL method_gfx_get_image
-    JMP gfxGetImage
+    JMP java_gfxGetImage
 
 LABEL method_GfxGetImage
-    JMP gfxGetImage
+    JMP java_gfxGetImage
 
 LABEL method_gfxGetImage
-    JMP gfxGetImage
+    JMP java_gfxGetImage
 
 LABEL method_gfx_viewport
-    JMP gfxViewport
+    JMP java_gfxViewport
 
 LABEL method_GfxViewport
-    JMP gfxViewport
+    JMP java_gfxViewport
 
 LABEL method_gfxViewport
-    JMP gfxViewport
+    JMP java_gfxViewport
 
 LABEL method_InitGraph
-    JMP initGraph
+    JMP java_initGraph
 
 LABEL method_initGraph
-    JMP initGraph
+    JMP java_initGraph
 
 LABEL method_CloseGraph
-    JMP closeGraph
+    JMP java_closeGraph
 
 LABEL method_closeGraph
-    JMP closeGraph
+    JMP java_closeGraph
 
 LABEL method_DetectGraph
-    JMP detectGraph
+    JMP java_detectGraph
 
 LABEL method_detectGraph
-    JMP detectGraph
+    JMP java_detectGraph
 
 LABEL method_GetMaxX
-    JMP getMaxX
+    JMP java_getMaxX
 
 LABEL method_getMaxX
-    JMP getMaxX
+    JMP java_getMaxX
 
 LABEL method_GetMaxY
-    JMP getMaxY
+    JMP java_getMaxY
 
 LABEL method_getMaxY
-    JMP getMaxY
+    JMP java_getMaxY
 
 LABEL method_GetDriverName
-    JMP getDriverName
+    JMP java_getDriverName
 
 LABEL method_getDriverName
-    JMP getDriverName
+    JMP java_getDriverName
 
 LABEL method_GetModeName
-    JMP getModeName
+    JMP java_getModeName
 
 LABEL method_getModeName
-    JMP getModeName
+    JMP java_getModeName
 
 LABEL method_SetColor
-    JMP setColor
+    JMP java_setColor
 
 LABEL method_setColor
-    JMP setColor
+    JMP java_setColor
 
 LABEL method_GetColor
-    JMP getColor
+    JMP java_getColor
 
 LABEL method_getColor
-    JMP getColor
+    JMP java_getColor
 
 LABEL method_SetBkColor
-    JMP setBkColor
+    JMP java_setBkColor
 
 LABEL method_setBkColor
-    JMP setBkColor
+    JMP java_setBkColor
 
 LABEL method_GetBkColor
-    JMP getBkColor
+    JMP java_getBkColor
 
 LABEL method_getBkColor
-    JMP getBkColor
+    JMP java_getBkColor
 
 LABEL method_SetRGBPalette
-    JMP setRGBPalette
+    JMP java_setRGBPalette
 
 LABEL method_setRGBPalette
-    JMP setRGBPalette
+    JMP java_setRGBPalette
 
 LABEL method_PutPixel
-    JMP putPixel
+    JMP java_putPixel
 
 LABEL method_putPixel
-    JMP putPixel
+    JMP java_putPixel
 
 LABEL method_GetPixel
-    JMP getPixel
+    JMP java_getPixel
 
 LABEL method_getPixel
-    JMP getPixel
+    JMP java_getPixel
 
 LABEL method_Line
-    JMP line
+    JMP java_line
 
 LABEL method_line
-    JMP line
+    JMP java_line
 
 LABEL method_LineTo
-    JMP lineTo
+    JMP java_lineTo
 
 LABEL method_lineTo
-    JMP lineTo
+    JMP java_lineTo
 
 LABEL method_LineRel
-    JMP lineRel
+    JMP java_lineRel
 
 LABEL method_lineRel
-    JMP lineRel
+    JMP java_lineRel
 
 LABEL method_Rectangle
-    JMP rectangle
+    JMP java_rectangle
 
 LABEL method_rectangle
-    JMP rectangle
+    JMP java_rectangle
 
 LABEL method_Bar
-    JMP bar
+    JMP java_bar
 
 LABEL method_bar
-    JMP bar
+    JMP java_bar
 
 LABEL method_Bar3D
-    JMP bar3D
+    JMP java_bar3D
 
 LABEL method_bar3D
-    JMP bar3D
+    JMP java_bar3D
 
 LABEL method_Circle
-    JMP circle
+    JMP java_circle
 
 LABEL method_circle
-    JMP circle
+    JMP java_circle
 
 LABEL method_FillCircle
-    JMP fillCircle
+    JMP java_fillCircle
 
 LABEL method_fillCircle
-    JMP fillCircle
+    JMP java_fillCircle
 
 LABEL method_Ellipse
-    JMP ellipse
+    JMP java_ellipse
 
 LABEL method_ellipse
-    JMP ellipse
+    JMP java_ellipse
 
 LABEL method_FillEllipse
-    JMP fillEllipse
+    JMP java_fillEllipse
 
 LABEL method_fillEllipse
-    JMP fillEllipse
+    JMP java_fillEllipse
 
 LABEL method_Arc
-    JMP arc
+    JMP java_arc
 
 LABEL method_arc
-    JMP arc
+    JMP java_arc
 
 LABEL method_PieSlice
-    JMP pieSlice
+    JMP java_pieSlice
 
 LABEL method_pieSlice
-    JMP pieSlice
+    JMP java_pieSlice
 
 LABEL method_SetFillStyle
-    JMP setFillStyle
+    JMP java_setFillStyle
 
 LABEL method_setFillStyle
-    JMP setFillStyle
+    JMP java_setFillStyle
 
 LABEL method_SetLineStyle
-    JMP setLineStyle
+    JMP java_setLineStyle
 
 LABEL method_setLineStyle
-    JMP setLineStyle
+    JMP java_setLineStyle
 
 LABEL method_ClearDevice
-    JMP clearDevice
+    JMP java_clearDevice
 
 LABEL method_clearDevice
-    JMP clearDevice
+    JMP java_clearDevice
 
 LABEL method_ClearViewPort
-    JMP clearViewPort
+    JMP java_clearViewPort
 
 LABEL method_clearViewPort
-    JMP clearViewPort
+    JMP java_clearViewPort
 
 LABEL method_SetViewPort
-    JMP setViewPort
+    JMP java_setViewPort
 
 LABEL method_setViewPort
-    JMP setViewPort
+    JMP java_setViewPort
 
 LABEL method_OutText
-    JMP outText
+    JMP java_outText
 
 LABEL method_outText
-    JMP outText
+    JMP java_outText
 
 LABEL method_OutTextXY
-    JMP outTextXY
+    JMP java_outTextXY
 
 LABEL method_outTextXY
-    JMP outTextXY
+    JMP java_outTextXY
 
 LABEL method_FloodFill
-    JMP floodFill
+    JMP java_floodFill
 
 LABEL method_floodFill
-    JMP floodFill
+    JMP java_floodFill
 
 LABEL method_ImageSize
-    JMP imageSize
+    JMP java_imageSize
 
 LABEL method_imageSize
-    JMP imageSize
+    JMP java_imageSize
 
 LABEL method_GetImage
-    JMP getImage
+    JMP java_getImage
 
 LABEL method_getImage
-    JMP getImage
+    JMP java_getImage
 
 LABEL method_PutImage
-    JMP putImage
+    JMP java_putImage
 
 LABEL method_putImage
-    JMP putImage
+    JMP java_putImage
 
 LABEL method_GetPaletteSize
-    JMP getPaletteSize
+    JMP java_getPaletteSize
 
 LABEL method_getPaletteSize
-    JMP getPaletteSize
+    JMP java_getPaletteSize
 
 LABEL method_GetPalette
-    JMP getPalette
+    JMP java_getPalette
 
 LABEL method_getPalette
-    JMP getPalette
+    JMP java_getPalette
 
 LABEL method_GetDefaultPalette
-    JMP getDefaultPalette
+    JMP java_getDefaultPalette
 
 LABEL method_getDefaultPalette
-    JMP getDefaultPalette
+    JMP java_getDefaultPalette
 
 LABEL method_GraphResult
-    JMP graphResult
+    JMP java_graphResult
 
 LABEL method_graphResult
-    JMP graphResult
+    JMP java_graphResult
 
 LABEL method_GraphErrorMsg
-    JMP graphErrorMsg
+    JMP java_graphErrorMsg
 
 LABEL method_graphErrorMsg
-    JMP graphErrorMsg
+    JMP java_graphErrorMsg
 
 LABEL method_RestoreCrtMode
-    JMP restoreCrtMode
+    JMP java_restoreCrtMode
 
 LABEL method_restoreCrtMode
-    JMP restoreCrtMode
+    JMP java_restoreCrtMode
 

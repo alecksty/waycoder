@@ -3,7 +3,7 @@
 
 .linked "../shared/fixed.vml"
 
-LABEL div
+LABEL java_div
     push R15
     push R12
     move R12 R13
@@ -20,7 +20,7 @@ LABEL div
     pop R15
     RET
 
-LABEL fromInt
+LABEL java_fromInt
     push R15
     push R12
     move R12 R13
@@ -34,7 +34,7 @@ LABEL fromInt
     pop R15
     RET
 
-LABEL toInt
+LABEL java_toInt
     push R15
     push R12
     move R12 R13
@@ -48,7 +48,7 @@ LABEL toInt
     pop R15
     RET
 
-LABEL toIntRound
+LABEL java_toIntRound
     push R15
     push R12
     move R12 R13
@@ -62,7 +62,7 @@ LABEL toIntRound
     pop R15
     RET
 
-LABEL fromFloat
+LABEL java_fromFloat
     push R15
     push R12
     move R12 R13
@@ -77,7 +77,7 @@ LABEL fromFloat
     pop R15
     RET
 
-LABEL toFloat
+LABEL java_toFloat
     push R15
     push R12
     move R12 R13
@@ -92,71 +92,71 @@ LABEL toFloat
     RET
 
 LABEL Fixed_Div
-    JMP div
+    JMP java_div
 
 LABEL Fixed_FromInt
-    JMP fromInt
+    JMP java_fromInt
 
 LABEL Fixed_ToInt
-    JMP toInt
+    JMP java_toInt
 
 LABEL Fixed_ToIntRound
-    JMP toIntRound
+    JMP java_toIntRound
 
 LABEL Fixed_FromFloat
-    JMP fromFloat
+    JMP java_fromFloat
 
 LABEL Fixed_ToFloat
-    JMP toFloat
+    JMP java_toFloat
 
 LABEL method_div
-    JMP div
+    JMP java_div
 
 LABEL method_Div
-    JMP div
+    JMP java_div
 
 LABEL method_from_int
-    JMP fromInt
+    JMP java_fromInt
 
 LABEL method_FromInt
-    JMP fromInt
+    JMP java_fromInt
 
 LABEL method_fromInt
-    JMP fromInt
+    JMP java_fromInt
 
 LABEL method_to_int
-    JMP toInt
+    JMP java_toInt
 
 LABEL method_ToInt
-    JMP toInt
+    JMP java_toInt
 
 LABEL method_toInt
-    JMP toInt
+    JMP java_toInt
 
 LABEL method_to_int_round
-    JMP toIntRound
+    JMP java_toIntRound
 
 LABEL method_ToIntRound
-    JMP toIntRound
+    JMP java_toIntRound
 
 LABEL method_toIntRound
-    JMP toIntRound
+    JMP java_toIntRound
 
 LABEL method_from_float
-    JMP fromFloat
+    JMP java_fromFloat
 
 LABEL method_FromFloat
-    JMP fromFloat
+    JMP java_fromFloat
 
 LABEL method_fromFloat
-    JMP fromFloat
+    JMP java_fromFloat
 
 LABEL method_to_float
-    JMP toFloat
+    JMP java_toFloat
 
 LABEL method_ToFloat
-    JMP toFloat
+    JMP java_toFloat
 
 LABEL method_toFloat
-    JMP toFloat
+    JMP java_toFloat
 

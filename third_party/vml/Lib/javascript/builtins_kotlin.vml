@@ -3,7 +3,7 @@
 
 .linked "../shared/builtins_kotlin.vml"
 
-LABEL arrayAlloc
+LABEL js_arrayAlloc
     push R15
     push R12
     move R12 R13
@@ -18,14 +18,14 @@ LABEL arrayAlloc
     RET
 
 LABEL Builtins_kotlin_ArrayAlloc
-    JMP arrayAlloc
+    JMP js_arrayAlloc
 
 LABEL method_array_alloc
-    JMP arrayAlloc
+    JMP js_arrayAlloc
 
 LABEL method_ArrayAlloc
-    JMP arrayAlloc
+    JMP js_arrayAlloc
 
 LABEL method_arrayAlloc
-    JMP arrayAlloc
+    JMP js_arrayAlloc
 

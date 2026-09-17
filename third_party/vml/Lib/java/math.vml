@@ -5,7 +5,7 @@
 .linked "../shared/float.vml"
 .linked "../shared/util.vml"
 
-LABEL min
+LABEL java_min
     push R15
     push R12
     move R12 R13
@@ -19,7 +19,7 @@ LABEL min
     pop R15
     RET
 
-LABEL max
+LABEL java_max
     push R15
     push R12
     move R12 R13
@@ -33,7 +33,7 @@ LABEL max
     pop R15
     RET
 
-LABEL sum
+LABEL java_sum
     push R15
     push R12
     move R12 R13
@@ -47,7 +47,7 @@ LABEL sum
     pop R15
     RET
 
-LABEL abs
+LABEL java_abs
     push R15
     push R12
     move R12 R13
@@ -61,7 +61,7 @@ LABEL abs
     pop R15
     RET
 
-LABEL random
+LABEL java_random
     push R15
     push R12
     move R12 R13
@@ -71,7 +71,7 @@ LABEL random
     pop R15
     RET
 
-LABEL clamp
+LABEL java_clamp
     push R15
     push R12
     move R12 R13
@@ -91,7 +91,7 @@ LABEL clamp
     pop R15
     RET
 
-LABEL cos
+LABEL java_cos
     push R15
     push R12
     move R12 R13
@@ -105,7 +105,7 @@ LABEL cos
     pop R15
     RET
 
-LABEL sin
+LABEL java_sin
     push R15
     push R12
     move R12 R13
@@ -119,7 +119,7 @@ LABEL sin
     pop R15
     RET
 
-LABEL sqrt
+LABEL java_sqrt
     push R15
     push R12
     move R12 R13
@@ -133,7 +133,7 @@ LABEL sqrt
     pop R15
     RET
 
-LABEL atan2
+LABEL java_atan2
     push R15
     push R12
     move R12 R13
@@ -150,7 +150,7 @@ LABEL atan2
     pop R15
     RET
 
-LABEL pow10
+LABEL java_pow10
     push R15
     push R12
     move R12 R13
@@ -164,7 +164,7 @@ LABEL pow10
     pop R15
     RET
 
-LABEL randomize
+LABEL java_randomize
     push R15
     push R12
     move R12 R13
@@ -178,7 +178,7 @@ LABEL randomize
     pop R15
     RET
 
-LABEL sinTaylor
+LABEL java_sinTaylor
     push R15
     push R12
     move R12 R13
@@ -193,7 +193,7 @@ LABEL sinTaylor
     pop R15
     RET
 
-LABEL cosTaylor
+LABEL java_cosTaylor
     push R15
     push R12
     move R12 R13
@@ -208,7 +208,7 @@ LABEL cosTaylor
     pop R15
     RET
 
-LABEL atanApprox
+LABEL java_atanApprox
     push R15
     push R12
     move R12 R13
@@ -223,7 +223,7 @@ LABEL atanApprox
     pop R15
     RET
 
-LABEL logTaylor
+LABEL java_logTaylor
     push R15
     push R12
     move R12 R13
@@ -238,7 +238,7 @@ LABEL logTaylor
     pop R15
     RET
 
-LABEL tan
+LABEL java_tan
     push R15
     push R12
     move R12 R13
@@ -253,7 +253,7 @@ LABEL tan
     pop R15
     RET
 
-LABEL asin
+LABEL java_asin
     push R15
     push R12
     move R12 R13
@@ -268,7 +268,7 @@ LABEL asin
     pop R15
     RET
 
-LABEL acos
+LABEL java_acos
     push R15
     push R12
     move R12 R13
@@ -283,7 +283,7 @@ LABEL acos
     pop R15
     RET
 
-LABEL atan
+LABEL java_atan
     push R15
     push R12
     move R12 R13
@@ -298,7 +298,7 @@ LABEL atan
     pop R15
     RET
 
-LABEL exp
+LABEL java_exp
     push R15
     push R12
     move R12 R13
@@ -313,7 +313,7 @@ LABEL exp
     pop R15
     RET
 
-LABEL log
+LABEL java_log
     push R15
     push R12
     move R12 R13
@@ -328,7 +328,7 @@ LABEL log
     pop R15
     RET
 
-LABEL pow
+LABEL java_pow
     push R15
     push R12
     move R12 R13
@@ -347,7 +347,7 @@ LABEL pow
     pop R15
     RET
 
-LABEL ipow
+LABEL java_ipow
     push R15
     push R12
     move R12 R13
@@ -364,7 +364,7 @@ LABEL ipow
     pop R15
     RET
 
-LABEL sinDeg
+LABEL java_sinDeg
     push R15
     push R12
     move R12 R13
@@ -379,7 +379,7 @@ LABEL sinDeg
     pop R15
     RET
 
-LABEL cosDeg
+LABEL java_cosDeg
     push R15
     push R12
     move R12 R13
@@ -394,7 +394,7 @@ LABEL cosDeg
     pop R15
     RET
 
-LABEL tanDeg
+LABEL java_tanDeg
     push R15
     push R12
     move R12 R13
@@ -409,7 +409,7 @@ LABEL tanDeg
     pop R15
     RET
 
-LABEL approximation
+LABEL java_approximation
     push R15
     push R12
     move R12 R13
@@ -423,7 +423,7 @@ LABEL approximation
     pop R15
     RET
 
-LABEL ilog2
+LABEL java_ilog2
     push R15
     push R12
     move R12 R13
@@ -437,7 +437,7 @@ LABEL ilog2
     pop R15
     RET
 
-LABEL ceilDiv
+LABEL java_ceilDiv
     push R15
     push R12
     move R12 R13
@@ -454,7 +454,7 @@ LABEL ceilDiv
     pop R15
     RET
 
-LABEL roundDiv
+LABEL java_roundDiv
     push R15
     push R12
     move R12 R13
@@ -471,7 +471,7 @@ LABEL roundDiv
     pop R15
     RET
 
-LABEL randomRange
+LABEL java_randomRange
     push R15
     push R12
     move R12 R13
@@ -488,7 +488,7 @@ LABEL randomRange
     pop R15
     RET
 
-LABEL randomSetSeed
+LABEL java_randomSetSeed
     push R15
     push R12
     move R12 R13
@@ -502,7 +502,7 @@ LABEL randomSetSeed
     pop R15
     RET
 
-LABEL lerp
+LABEL java_lerp
     push R15
     push R12
     move R12 R13
@@ -522,7 +522,7 @@ LABEL lerp
     pop R15
     RET
 
-LABEL mapRange
+LABEL java_mapRange
     push R15
     push R12
     move R12 R13
@@ -547,7 +547,7 @@ LABEL mapRange
     pop R15
     RET
 
-LABEL clampInt
+LABEL java_clampInt
     push R15
     push R12
     move R12 R13
@@ -567,7 +567,7 @@ LABEL clampInt
     pop R15
     RET
 
-LABEL hypotInt
+LABEL java_hypotInt
     push R15
     push R12
     move R12 R13
@@ -584,7 +584,7 @@ LABEL hypotInt
     pop R15
     RET
 
-LABEL isqrt
+LABEL java_isqrt
     push R15
     push R12
     move R12 R13
@@ -598,7 +598,7 @@ LABEL isqrt
     pop R15
     RET
 
-LABEL sinDegD
+LABEL java_sinDegD
     push R15
     push R12
     move R12 R13
@@ -613,7 +613,7 @@ LABEL sinDegD
     pop R15
     RET
 
-LABEL cosDegD
+LABEL java_cosDegD
     push R15
     push R12
     move R12 R13
@@ -628,7 +628,7 @@ LABEL cosDegD
     pop R15
     RET
 
-LABEL tanDegD
+LABEL java_tanDegD
     push R15
     push R12
     move R12 R13
@@ -643,7 +643,7 @@ LABEL tanDegD
     pop R15
     RET
 
-LABEL sumArr
+LABEL java_sumArr
     push R15
     push R12
     move R12 R13
@@ -657,7 +657,7 @@ LABEL sumArr
     pop R15
     RET
 
-LABEL minArr
+LABEL java_minArr
     push R15
     push R12
     move R12 R13
@@ -671,7 +671,7 @@ LABEL minArr
     pop R15
     RET
 
-LABEL maxArr
+LABEL java_maxArr
     push R15
     push R12
     move R12 R13
@@ -685,7 +685,7 @@ LABEL maxArr
     pop R15
     RET
 
-LABEL intPow
+LABEL java_intPow
     push R15
     push R12
     move R12 R13
@@ -702,7 +702,7 @@ LABEL intPow
     pop R15
     RET
 
-LABEL intSqrt
+LABEL java_intSqrt
     push R15
     push R12
     move R12 R13
@@ -717,482 +717,482 @@ LABEL intSqrt
     RET
 
 LABEL Math_Min
-    JMP min
+    JMP java_min
 
 LABEL Math_Max
-    JMP max
+    JMP java_max
 
 LABEL Math_Sum
-    JMP sum
+    JMP java_sum
 
 LABEL Math_Abs
-    JMP abs
+    JMP java_abs
 
 LABEL Math_Random
-    JMP random
+    JMP java_random
 
 LABEL Math_Clamp
-    JMP clamp
+    JMP java_clamp
 
 LABEL Math_Cos
-    JMP cos
+    JMP java_cos
 
 LABEL Math_Sin
-    JMP sin
+    JMP java_sin
 
 LABEL Math_Sqrt
-    JMP sqrt
+    JMP java_sqrt
 
 LABEL Math_Atan2
-    JMP atan2
+    JMP java_atan2
 
 LABEL Math_Pow10
-    JMP pow10
+    JMP java_pow10
 
 LABEL Math_Randomize
-    JMP randomize
+    JMP java_randomize
 
 LABEL Math_SinTaylor
-    JMP sinTaylor
+    JMP java_sinTaylor
 
 LABEL Math_CosTaylor
-    JMP cosTaylor
+    JMP java_cosTaylor
 
 LABEL Math_AtanApprox
-    JMP atanApprox
+    JMP java_atanApprox
 
 LABEL Math_LogTaylor
-    JMP logTaylor
+    JMP java_logTaylor
 
 LABEL Math_Tan
-    JMP tan
+    JMP java_tan
 
 LABEL Math_Asin
-    JMP asin
+    JMP java_asin
 
 LABEL Math_Acos
-    JMP acos
+    JMP java_acos
 
 LABEL Math_Atan
-    JMP atan
+    JMP java_atan
 
 LABEL Math_Exp
-    JMP exp
+    JMP java_exp
 
 LABEL Math_Log
-    JMP log
+    JMP java_log
 
 LABEL Math_Pow
-    JMP pow
+    JMP java_pow
 
 LABEL Math_Ipow
-    JMP ipow
+    JMP java_ipow
 
 LABEL Math_SinDeg
-    JMP sinDeg
+    JMP java_sinDeg
 
 LABEL Math_CosDeg
-    JMP cosDeg
+    JMP java_cosDeg
 
 LABEL Math_TanDeg
-    JMP tanDeg
+    JMP java_tanDeg
 
 LABEL Math_Approximation
-    JMP approximation
+    JMP java_approximation
 
 LABEL Math_Ilog2
-    JMP ilog2
+    JMP java_ilog2
 
 LABEL Math_CeilDiv
-    JMP ceilDiv
+    JMP java_ceilDiv
 
 LABEL Math_RoundDiv
-    JMP roundDiv
+    JMP java_roundDiv
 
 LABEL Math_RandomRange
-    JMP randomRange
+    JMP java_randomRange
 
 LABEL Math_RandomSetSeed
-    JMP randomSetSeed
+    JMP java_randomSetSeed
 
 LABEL Math_Lerp
-    JMP lerp
+    JMP java_lerp
 
 LABEL Math_MapRange
-    JMP mapRange
+    JMP java_mapRange
 
 LABEL Math_ClampInt
-    JMP clampInt
+    JMP java_clampInt
 
 LABEL Math_HypotInt
-    JMP hypotInt
+    JMP java_hypotInt
 
 LABEL Math_Isqrt
-    JMP isqrt
+    JMP java_isqrt
 
 LABEL Math_SinDegD
-    JMP sinDegD
+    JMP java_sinDegD
 
 LABEL Math_CosDegD
-    JMP cosDegD
+    JMP java_cosDegD
 
 LABEL Math_TanDegD
-    JMP tanDegD
+    JMP java_tanDegD
 
 LABEL Math_SumArr
-    JMP sumArr
+    JMP java_sumArr
 
 LABEL Math_MinArr
-    JMP minArr
+    JMP java_minArr
 
 LABEL Math_MaxArr
-    JMP maxArr
+    JMP java_maxArr
 
 LABEL Math_IntPow
-    JMP intPow
+    JMP java_intPow
 
 LABEL Math_IntSqrt
-    JMP intSqrt
+    JMP java_intSqrt
 
 LABEL method_min
-    JMP min
+    JMP java_min
 
 LABEL method_Min
-    JMP min
+    JMP java_min
 
 LABEL method_max
-    JMP max
+    JMP java_max
 
 LABEL method_Max
-    JMP max
+    JMP java_max
 
 LABEL method_sum
-    JMP sum
+    JMP java_sum
 
 LABEL method_Sum
-    JMP sum
+    JMP java_sum
 
 LABEL method_abs
-    JMP abs
+    JMP java_abs
 
 LABEL method_Abs
-    JMP abs
+    JMP java_abs
 
 LABEL method_random
-    JMP random
+    JMP java_random
 
 LABEL method_Random
-    JMP random
+    JMP java_random
 
 LABEL method_clamp
-    JMP clamp
+    JMP java_clamp
 
 LABEL method_Clamp
-    JMP clamp
+    JMP java_clamp
 
 LABEL method_cos
-    JMP cos
+    JMP java_cos
 
 LABEL method_Cos
-    JMP cos
+    JMP java_cos
 
 LABEL method_sin
-    JMP sin
+    JMP java_sin
 
 LABEL method_Sin
-    JMP sin
+    JMP java_sin
 
 LABEL method_sqrt
-    JMP sqrt
+    JMP java_sqrt
 
 LABEL method_Sqrt
-    JMP sqrt
+    JMP java_sqrt
 
 LABEL method_atan2
-    JMP atan2
+    JMP java_atan2
 
 LABEL method_Atan2
-    JMP atan2
+    JMP java_atan2
 
 LABEL method_pow10
-    JMP pow10
+    JMP java_pow10
 
 LABEL method_Pow10
-    JMP pow10
+    JMP java_pow10
 
 LABEL method_randomize
-    JMP randomize
+    JMP java_randomize
 
 LABEL method_Randomize
-    JMP randomize
+    JMP java_randomize
 
 LABEL method__sin_taylor
-    JMP sinTaylor
+    JMP java_sinTaylor
 
 LABEL method_SinTaylor
-    JMP sinTaylor
+    JMP java_sinTaylor
 
 LABEL method_sinTaylor
-    JMP sinTaylor
+    JMP java_sinTaylor
 
 LABEL method__cos_taylor
-    JMP cosTaylor
+    JMP java_cosTaylor
 
 LABEL method_CosTaylor
-    JMP cosTaylor
+    JMP java_cosTaylor
 
 LABEL method_cosTaylor
-    JMP cosTaylor
+    JMP java_cosTaylor
 
 LABEL method_atan_approx
-    JMP atanApprox
+    JMP java_atanApprox
 
 LABEL method_AtanApprox
-    JMP atanApprox
+    JMP java_atanApprox
 
 LABEL method_atanApprox
-    JMP atanApprox
+    JMP java_atanApprox
 
 LABEL method__log_taylor
-    JMP logTaylor
+    JMP java_logTaylor
 
 LABEL method_LogTaylor
-    JMP logTaylor
+    JMP java_logTaylor
 
 LABEL method_logTaylor
-    JMP logTaylor
+    JMP java_logTaylor
 
 LABEL method_tan
-    JMP tan
+    JMP java_tan
 
 LABEL method_Tan
-    JMP tan
+    JMP java_tan
 
 LABEL method_asin
-    JMP asin
+    JMP java_asin
 
 LABEL method_Asin
-    JMP asin
+    JMP java_asin
 
 LABEL method_acos
-    JMP acos
+    JMP java_acos
 
 LABEL method_Acos
-    JMP acos
+    JMP java_acos
 
 LABEL method_atan
-    JMP atan
+    JMP java_atan
 
 LABEL method_Atan
-    JMP atan
+    JMP java_atan
 
 LABEL method_exp
-    JMP exp
+    JMP java_exp
 
 LABEL method_Exp
-    JMP exp
+    JMP java_exp
 
 LABEL method_log
-    JMP log
+    JMP java_log
 
 LABEL method_Log
-    JMP log
+    JMP java_log
 
 LABEL method_pow
-    JMP pow
+    JMP java_pow
 
 LABEL method_Pow
-    JMP pow
+    JMP java_pow
 
 LABEL method_ipow
-    JMP ipow
+    JMP java_ipow
 
 LABEL method_Ipow
-    JMP ipow
+    JMP java_ipow
 
 LABEL method_sin_deg
-    JMP sinDeg
+    JMP java_sinDeg
 
 LABEL method_SinDeg
-    JMP sinDeg
+    JMP java_sinDeg
 
 LABEL method_sinDeg
-    JMP sinDeg
+    JMP java_sinDeg
 
 LABEL method_cos_deg
-    JMP cosDeg
+    JMP java_cosDeg
 
 LABEL method_CosDeg
-    JMP cosDeg
+    JMP java_cosDeg
 
 LABEL method_cosDeg
-    JMP cosDeg
+    JMP java_cosDeg
 
 LABEL method_tan_deg
-    JMP tanDeg
+    JMP java_tanDeg
 
 LABEL method_TanDeg
-    JMP tanDeg
+    JMP java_tanDeg
 
 LABEL method_tanDeg
-    JMP tanDeg
+    JMP java_tanDeg
 
 LABEL method_approximation
-    JMP approximation
+    JMP java_approximation
 
 LABEL method_Approximation
-    JMP approximation
+    JMP java_approximation
 
 LABEL method_ilog2
-    JMP ilog2
+    JMP java_ilog2
 
 LABEL method_Ilog2
-    JMP ilog2
+    JMP java_ilog2
 
 LABEL method_ceil_div
-    JMP ceilDiv
+    JMP java_ceilDiv
 
 LABEL method_CeilDiv
-    JMP ceilDiv
+    JMP java_ceilDiv
 
 LABEL method_ceilDiv
-    JMP ceilDiv
+    JMP java_ceilDiv
 
 LABEL method_round_div
-    JMP roundDiv
+    JMP java_roundDiv
 
 LABEL method_RoundDiv
-    JMP roundDiv
+    JMP java_roundDiv
 
 LABEL method_roundDiv
-    JMP roundDiv
+    JMP java_roundDiv
 
 LABEL method_random_range
-    JMP randomRange
+    JMP java_randomRange
 
 LABEL method_RandomRange
-    JMP randomRange
+    JMP java_randomRange
 
 LABEL method_randomRange
-    JMP randomRange
+    JMP java_randomRange
 
 LABEL method_random_set_seed
-    JMP randomSetSeed
+    JMP java_randomSetSeed
 
 LABEL method_RandomSetSeed
-    JMP randomSetSeed
+    JMP java_randomSetSeed
 
 LABEL method_randomSetSeed
-    JMP randomSetSeed
+    JMP java_randomSetSeed
 
 LABEL method_lerp
-    JMP lerp
+    JMP java_lerp
 
 LABEL method_Lerp
-    JMP lerp
+    JMP java_lerp
 
 LABEL method_map_range
-    JMP mapRange
+    JMP java_mapRange
 
 LABEL method_MapRange
-    JMP mapRange
+    JMP java_mapRange
 
 LABEL method_mapRange
-    JMP mapRange
+    JMP java_mapRange
 
 LABEL method_clamp_int
-    JMP clampInt
+    JMP java_clampInt
 
 LABEL method_ClampInt
-    JMP clampInt
+    JMP java_clampInt
 
 LABEL method_clampInt
-    JMP clampInt
+    JMP java_clampInt
 
 LABEL method_hypot_int
-    JMP hypotInt
+    JMP java_hypotInt
 
 LABEL method_HypotInt
-    JMP hypotInt
+    JMP java_hypotInt
 
 LABEL method_hypotInt
-    JMP hypotInt
+    JMP java_hypotInt
 
 LABEL method_isqrt
-    JMP isqrt
+    JMP java_isqrt
 
 LABEL method_Isqrt
-    JMP isqrt
+    JMP java_isqrt
 
 LABEL method_sin_deg_d
-    JMP sinDegD
+    JMP java_sinDegD
 
 LABEL method_SinDegD
-    JMP sinDegD
+    JMP java_sinDegD
 
 LABEL method_sinDegD
-    JMP sinDegD
+    JMP java_sinDegD
 
 LABEL method_cos_deg_d
-    JMP cosDegD
+    JMP java_cosDegD
 
 LABEL method_CosDegD
-    JMP cosDegD
+    JMP java_cosDegD
 
 LABEL method_cosDegD
-    JMP cosDegD
+    JMP java_cosDegD
 
 LABEL method_tan_deg_d
-    JMP tanDegD
+    JMP java_tanDegD
 
 LABEL method_TanDegD
-    JMP tanDegD
+    JMP java_tanDegD
 
 LABEL method_tanDegD
-    JMP tanDegD
+    JMP java_tanDegD
 
 LABEL method_sum_arr
-    JMP sumArr
+    JMP java_sumArr
 
 LABEL method_SumArr
-    JMP sumArr
+    JMP java_sumArr
 
 LABEL method_sumArr
-    JMP sumArr
+    JMP java_sumArr
 
 LABEL method_min_arr
-    JMP minArr
+    JMP java_minArr
 
 LABEL method_MinArr
-    JMP minArr
+    JMP java_minArr
 
 LABEL method_minArr
-    JMP minArr
+    JMP java_minArr
 
 LABEL method_max_arr
-    JMP maxArr
+    JMP java_maxArr
 
 LABEL method_MaxArr
-    JMP maxArr
+    JMP java_maxArr
 
 LABEL method_maxArr
-    JMP maxArr
+    JMP java_maxArr
 
 LABEL method_int_pow
-    JMP intPow
+    JMP java_intPow
 
 LABEL method_IntPow
-    JMP intPow
+    JMP java_intPow
 
 LABEL method_intPow
-    JMP intPow
+    JMP java_intPow
 
 LABEL method_int_sqrt
-    JMP intSqrt
+    JMP java_intSqrt
 
 LABEL method_IntSqrt
-    JMP intSqrt
+    JMP java_intSqrt
 
 LABEL method_intSqrt
-    JMP intSqrt
+    JMP java_intSqrt
 

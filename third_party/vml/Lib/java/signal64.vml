@@ -3,7 +3,7 @@
 
 .linked "../shared/signal64.vml"
 
-LABEL processing
+LABEL java_processing
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL processing
     pop R15
     RET
 
-LABEL lmovingAvgInit64
+LABEL java_lmovingAvgInit64
     push R15
     push R12
     move R12 R13
@@ -38,7 +38,7 @@ LABEL lmovingAvgInit64
     pop R15
     RET
 
-LABEL lmovingAvgUpdate64
+LABEL java_lmovingAvgUpdate64
     push R15
     push R12
     move R12 R13
@@ -56,7 +56,7 @@ LABEL lmovingAvgUpdate64
     pop R15
     RET
 
-LABEL lemaInit64
+LABEL java_lemaInit64
     push R15
     push R12
     move R12 R13
@@ -70,7 +70,7 @@ LABEL lemaInit64
     pop R15
     RET
 
-LABEL lemaUpdate64
+LABEL java_lemaUpdate64
     push R15
     push R12
     move R12 R13
@@ -92,7 +92,7 @@ LABEL lemaUpdate64
     pop R15
     RET
 
-LABEL lkalmanInit64
+LABEL java_lkalmanInit64
     push R15
     push R12
     move R12 R13
@@ -118,7 +118,7 @@ LABEL lkalmanInit64
     pop R15
     RET
 
-LABEL lkalmanUpdate64
+LABEL java_lkalmanUpdate64
     push R15
     push R12
     move R12 R13
@@ -136,7 +136,7 @@ LABEL lkalmanUpdate64
     pop R15
     RET
 
-LABEL ldeadband64
+LABEL java_ldeadband64
     push R15
     push R12
     move R12 R13
@@ -155,7 +155,7 @@ LABEL ldeadband64
     pop R15
     RET
 
-LABEL lhysteresis64
+LABEL java_lhysteresis64
     push R15
     push R12
     move R12 R13
@@ -182,101 +182,101 @@ LABEL lhysteresis64
     RET
 
 LABEL Signal64_Processing
-    JMP processing
+    JMP java_processing
 
 LABEL Signal64_LmovingAvgInit64
-    JMP lmovingAvgInit64
+    JMP java_lmovingAvgInit64
 
 LABEL Signal64_LmovingAvgUpdate64
-    JMP lmovingAvgUpdate64
+    JMP java_lmovingAvgUpdate64
 
 LABEL Signal64_LemaInit64
-    JMP lemaInit64
+    JMP java_lemaInit64
 
 LABEL Signal64_LemaUpdate64
-    JMP lemaUpdate64
+    JMP java_lemaUpdate64
 
 LABEL Signal64_LkalmanInit64
-    JMP lkalmanInit64
+    JMP java_lkalmanInit64
 
 LABEL Signal64_LkalmanUpdate64
-    JMP lkalmanUpdate64
+    JMP java_lkalmanUpdate64
 
 LABEL Signal64_Ldeadband64
-    JMP ldeadband64
+    JMP java_ldeadband64
 
 LABEL Signal64_Lhysteresis64
-    JMP lhysteresis64
+    JMP java_lhysteresis64
 
 LABEL method_Processing
-    JMP processing
+    JMP java_processing
 
 LABEL method_processing
-    JMP processing
+    JMP java_processing
 
 LABEL method_lmoving_avg_init64
-    JMP lmovingAvgInit64
+    JMP java_lmovingAvgInit64
 
 LABEL method_LmovingAvgInit64
-    JMP lmovingAvgInit64
+    JMP java_lmovingAvgInit64
 
 LABEL method_lmovingAvgInit64
-    JMP lmovingAvgInit64
+    JMP java_lmovingAvgInit64
 
 LABEL method_lmoving_avg_update64
-    JMP lmovingAvgUpdate64
+    JMP java_lmovingAvgUpdate64
 
 LABEL method_LmovingAvgUpdate64
-    JMP lmovingAvgUpdate64
+    JMP java_lmovingAvgUpdate64
 
 LABEL method_lmovingAvgUpdate64
-    JMP lmovingAvgUpdate64
+    JMP java_lmovingAvgUpdate64
 
 LABEL method_lema_init64
-    JMP lemaInit64
+    JMP java_lemaInit64
 
 LABEL method_LemaInit64
-    JMP lemaInit64
+    JMP java_lemaInit64
 
 LABEL method_lemaInit64
-    JMP lemaInit64
+    JMP java_lemaInit64
 
 LABEL method_lema_update64
-    JMP lemaUpdate64
+    JMP java_lemaUpdate64
 
 LABEL method_LemaUpdate64
-    JMP lemaUpdate64
+    JMP java_lemaUpdate64
 
 LABEL method_lemaUpdate64
-    JMP lemaUpdate64
+    JMP java_lemaUpdate64
 
 LABEL method_lkalman_init64
-    JMP lkalmanInit64
+    JMP java_lkalmanInit64
 
 LABEL method_LkalmanInit64
-    JMP lkalmanInit64
+    JMP java_lkalmanInit64
 
 LABEL method_lkalmanInit64
-    JMP lkalmanInit64
+    JMP java_lkalmanInit64
 
 LABEL method_lkalman_update64
-    JMP lkalmanUpdate64
+    JMP java_lkalmanUpdate64
 
 LABEL method_LkalmanUpdate64
-    JMP lkalmanUpdate64
+    JMP java_lkalmanUpdate64
 
 LABEL method_lkalmanUpdate64
-    JMP lkalmanUpdate64
+    JMP java_lkalmanUpdate64
 
 LABEL method_ldeadband64
-    JMP ldeadband64
+    JMP java_ldeadband64
 
 LABEL method_Ldeadband64
-    JMP ldeadband64
+    JMP java_ldeadband64
 
 LABEL method_lhysteresis64
-    JMP lhysteresis64
+    JMP java_lhysteresis64
 
 LABEL method_Lhysteresis64
-    JMP lhysteresis64
+    JMP java_lhysteresis64
 

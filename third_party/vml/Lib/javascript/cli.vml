@@ -3,7 +3,7 @@
 
 .linked "../shared/cli.vml"
 
-LABEL cliMatch
+LABEL js_cliMatch
     push R15
     push R12
     move R12 R13
@@ -20,7 +20,7 @@ LABEL cliMatch
     pop R15
     RET
 
-LABEL cliParseInt
+LABEL js_cliParseInt
     push R15
     push R12
     move R12 R13
@@ -37,7 +37,7 @@ LABEL cliParseInt
     pop R15
     RET
 
-LABEL cliNextArg
+LABEL js_cliNextArg
     push R15
     push R12
     move R12 R13
@@ -51,7 +51,7 @@ LABEL cliNextArg
     pop R15
     RET
 
-LABEL cliTrimLine
+LABEL js_cliTrimLine
     push R15
     push R12
     move R12 R13
@@ -65,7 +65,7 @@ LABEL cliTrimLine
     pop R15
     RET
 
-LABEL cliTokenize
+LABEL js_cliTokenize
     push R15
     push R12
     move R12 R13
@@ -86,62 +86,62 @@ LABEL cliTokenize
     RET
 
 LABEL Cli_CliMatch
-    JMP cliMatch
+    JMP js_cliMatch
 
 LABEL Cli_CliParseInt
-    JMP cliParseInt
+    JMP js_cliParseInt
 
 LABEL Cli_CliNextArg
-    JMP cliNextArg
+    JMP js_cliNextArg
 
 LABEL Cli_CliTrimLine
-    JMP cliTrimLine
+    JMP js_cliTrimLine
 
 LABEL Cli_CliTokenize
-    JMP cliTokenize
+    JMP js_cliTokenize
 
 LABEL method_cli_match
-    JMP cliMatch
+    JMP js_cliMatch
 
 LABEL method_CliMatch
-    JMP cliMatch
+    JMP js_cliMatch
 
 LABEL method_cliMatch
-    JMP cliMatch
+    JMP js_cliMatch
 
 LABEL method_cli_parse_int
-    JMP cliParseInt
+    JMP js_cliParseInt
 
 LABEL method_CliParseInt
-    JMP cliParseInt
+    JMP js_cliParseInt
 
 LABEL method_cliParseInt
-    JMP cliParseInt
+    JMP js_cliParseInt
 
 LABEL method_cli_next_arg
-    JMP cliNextArg
+    JMP js_cliNextArg
 
 LABEL method_CliNextArg
-    JMP cliNextArg
+    JMP js_cliNextArg
 
 LABEL method_cliNextArg
-    JMP cliNextArg
+    JMP js_cliNextArg
 
 LABEL method_cli_trim_line
-    JMP cliTrimLine
+    JMP js_cliTrimLine
 
 LABEL method_CliTrimLine
-    JMP cliTrimLine
+    JMP js_cliTrimLine
 
 LABEL method_cliTrimLine
-    JMP cliTrimLine
+    JMP js_cliTrimLine
 
 LABEL method_cli_tokenize
-    JMP cliTokenize
+    JMP js_cliTokenize
 
 LABEL method_CliTokenize
-    JMP cliTokenize
+    JMP js_cliTokenize
 
 LABEL method_cliTokenize
-    JMP cliTokenize
+    JMP js_cliTokenize
 

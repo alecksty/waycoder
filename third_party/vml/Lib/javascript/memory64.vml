@@ -3,7 +3,7 @@
 
 .linked "../shared/memory64.vml"
 
-LABEL long
+LABEL js_long
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL long
     pop R15
     RET
 
-LABEL int
+LABEL js_int
     push R15
     push R12
     move R12 R13
@@ -31,7 +31,7 @@ LABEL int
     pop R15
     RET
 
-LABEL lmemcpy
+LABEL js_lmemcpy
     push R15
     push R12
     move R12 R13
@@ -52,7 +52,7 @@ LABEL lmemcpy
     pop R15
     RET
 
-LABEL lmemset
+LABEL js_lmemset
     push R15
     push R12
     move R12 R13
@@ -73,7 +73,7 @@ LABEL lmemset
     pop R15
     RET
 
-LABEL lmemmove
+LABEL js_lmemmove
     push R15
     push R12
     move R12 R13
@@ -94,7 +94,7 @@ LABEL lmemmove
     pop R15
     RET
 
-LABEL lmemcmp
+LABEL js_lmemcmp
     push R15
     push R12
     move R12 R13
@@ -116,56 +116,56 @@ LABEL lmemcmp
     RET
 
 LABEL Memory64_Long
-    JMP long
+    JMP js_long
 
 LABEL Memory64_Int
-    JMP int
+    JMP js_int
 
 LABEL Memory64_Lmemcpy
-    JMP lmemcpy
+    JMP js_lmemcpy
 
 LABEL Memory64_Lmemset
-    JMP lmemset
+    JMP js_lmemset
 
 LABEL Memory64_Lmemmove
-    JMP lmemmove
+    JMP js_lmemmove
 
 LABEL Memory64_Lmemcmp
-    JMP lmemcmp
+    JMP js_lmemcmp
 
 LABEL method_long
-    JMP long
+    JMP js_long
 
 LABEL method_Long
-    JMP long
+    JMP js_long
 
 LABEL method_int
-    JMP int
+    JMP js_int
 
 LABEL method_Int
-    JMP int
+    JMP js_int
 
 LABEL method_lmemcpy
-    JMP lmemcpy
+    JMP js_lmemcpy
 
 LABEL method_Lmemcpy
-    JMP lmemcpy
+    JMP js_lmemcpy
 
 LABEL method_lmemset
-    JMP lmemset
+    JMP js_lmemset
 
 LABEL method_Lmemset
-    JMP lmemset
+    JMP js_lmemset
 
 LABEL method_lmemmove
-    JMP lmemmove
+    JMP js_lmemmove
 
 LABEL method_Lmemmove
-    JMP lmemmove
+    JMP js_lmemmove
 
 LABEL method_lmemcmp
-    JMP lmemcmp
+    JMP js_lmemcmp
 
 LABEL method_Lmemcmp
-    JMP lmemcmp
+    JMP js_lmemcmp
 

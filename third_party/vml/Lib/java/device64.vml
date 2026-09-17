@@ -3,7 +3,7 @@
 
 .linked "../shared/device64.vml"
 
-LABEL ldevRead64
+LABEL java_ldevRead64
     push R15
     push R12
     move R12 R13
@@ -28,7 +28,7 @@ LABEL ldevRead64
     pop R15
     RET
 
-LABEL ldevWrite64
+LABEL java_ldevWrite64
     push R15
     push R12
     move R12 R13
@@ -54,26 +54,26 @@ LABEL ldevWrite64
     RET
 
 LABEL Device64_LdevRead64
-    JMP ldevRead64
+    JMP java_ldevRead64
 
 LABEL Device64_LdevWrite64
-    JMP ldevWrite64
+    JMP java_ldevWrite64
 
 LABEL method_ldev_read64
-    JMP ldevRead64
+    JMP java_ldevRead64
 
 LABEL method_LdevRead64
-    JMP ldevRead64
+    JMP java_ldevRead64
 
 LABEL method_ldevRead64
-    JMP ldevRead64
+    JMP java_ldevRead64
 
 LABEL method_ldev_write64
-    JMP ldevWrite64
+    JMP java_ldevWrite64
 
 LABEL method_LdevWrite64
-    JMP ldevWrite64
+    JMP java_ldevWrite64
 
 LABEL method_ldevWrite64
-    JMP ldevWrite64
+    JMP java_ldevWrite64
 

@@ -3,7 +3,7 @@
 
 .linked "../shared/file.vml"
 
-LABEL fopen
+LABEL java_fopen
     push R15
     push R12
     move R12 R13
@@ -20,7 +20,7 @@ LABEL fopen
     pop R15
     RET
 
-LABEL fclose
+LABEL java_fclose
     push R15
     push R12
     move R12 R13
@@ -34,7 +34,7 @@ LABEL fclose
     pop R15
     RET
 
-LABEL fread
+LABEL java_fread
     push R15
     push R12
     move R12 R13
@@ -54,7 +54,7 @@ LABEL fread
     pop R15
     RET
 
-LABEL fwrite
+LABEL java_fwrite
     push R15
     push R12
     move R12 R13
@@ -74,7 +74,7 @@ LABEL fwrite
     pop R15
     RET
 
-LABEL fseek
+LABEL java_fseek
     push R15
     push R12
     move R12 R13
@@ -94,7 +94,7 @@ LABEL fseek
     pop R15
     RET
 
-LABEL ftell
+LABEL java_ftell
     push R15
     push R12
     move R12 R13
@@ -108,7 +108,7 @@ LABEL ftell
     pop R15
     RET
 
-LABEL fsize
+LABEL java_fsize
     push R15
     push R12
     move R12 R13
@@ -122,7 +122,7 @@ LABEL fsize
     pop R15
     RET
 
-LABEL ftruncate
+LABEL java_ftruncate
     push R15
     push R12
     move R12 R13
@@ -140,74 +140,74 @@ LABEL ftruncate
     RET
 
 LABEL File_Fopen
-    JMP fopen
+    JMP java_fopen
 
 LABEL File_Fclose
-    JMP fclose
+    JMP java_fclose
 
 LABEL File_Fread
-    JMP fread
+    JMP java_fread
 
 LABEL File_Fwrite
-    JMP fwrite
+    JMP java_fwrite
 
 LABEL File_Fseek
-    JMP fseek
+    JMP java_fseek
 
 LABEL File_Ftell
-    JMP ftell
+    JMP java_ftell
 
 LABEL File_Fsize
-    JMP fsize
+    JMP java_fsize
 
 LABEL File_Ftruncate
-    JMP ftruncate
+    JMP java_ftruncate
 
 LABEL method_fopen
-    JMP fopen
+    JMP java_fopen
 
 LABEL method_Fopen
-    JMP fopen
+    JMP java_fopen
 
 LABEL method_fclose
-    JMP fclose
+    JMP java_fclose
 
 LABEL method_Fclose
-    JMP fclose
+    JMP java_fclose
 
 LABEL method_fread
-    JMP fread
+    JMP java_fread
 
 LABEL method_Fread
-    JMP fread
+    JMP java_fread
 
 LABEL method_fwrite
-    JMP fwrite
+    JMP java_fwrite
 
 LABEL method_Fwrite
-    JMP fwrite
+    JMP java_fwrite
 
 LABEL method_fseek
-    JMP fseek
+    JMP java_fseek
 
 LABEL method_Fseek
-    JMP fseek
+    JMP java_fseek
 
 LABEL method_ftell
-    JMP ftell
+    JMP java_ftell
 
 LABEL method_Ftell
-    JMP ftell
+    JMP java_ftell
 
 LABEL method_fsize
-    JMP fsize
+    JMP java_fsize
 
 LABEL method_Fsize
-    JMP fsize
+    JMP java_fsize
 
 LABEL method_ftruncate
-    JMP ftruncate
+    JMP java_ftruncate
 
 LABEL method_Ftruncate
-    JMP ftruncate
+    JMP java_ftruncate
 

@@ -3,7 +3,7 @@
 
 .linked "../shared/wprintf.vml"
 
-LABEL wprintf
+LABEL java_wprintf
     push R15
     push R12
     move R12 R13
@@ -18,11 +18,11 @@ LABEL wprintf
     RET
 
 LABEL Wprintf_Wprintf
-    JMP wprintf
+    JMP java_wprintf
 
 LABEL method_wprintf
-    JMP wprintf
+    JMP java_wprintf
 
 LABEL method_Wprintf
-    JMP wprintf
+    JMP java_wprintf
 

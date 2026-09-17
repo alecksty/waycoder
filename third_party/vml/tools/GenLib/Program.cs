@@ -358,6 +358,36 @@ static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef
         foreach (var funcName in modDef.Functions)
         {
             var label = NamingConfig.ToLabel(funcName, langNaming);
+
+            // ⚠ 主标签与 C 符号名**同名**时，下面生成的 `LABEL x … CALL x` 是**自调用**（无限递归）。
+            //
+            // 这不是理论风险：`LabelStyle = pascalCase_method` 的语言（javascript / java）
+            // 走 camelCase，而**单词名**（`ipow` / `pow` / `abs` / `sqrt`）camelCase 之后还是它自己，
+            // 只要 `PrimaryPrefix` 为空就会撞上。实测 `Lib/javascript/math.vml` 的
+            // `LABEL ipow … CALL ipow` → 递归到底、SP 归零。
+            // 更阴的是**它靠链接顺序决定要不要发作**：同一份 `LABEL ipow / CALL ipow`，
+            // Java 那次链接器选了共享实现所以看着正常，JS 这次选了自己 —— 这种运气不能留。
+            //
+            // 判据：标签必须与 C 符号名不同。修法是给该语言的 `PrimaryPrefix` 一个非空值
+            //（java 用 `java_`、javascript 用 `js_`），与其余 19 种语言的做法一致。
+            //
+            // ⚠ 只在**函数真的存在于共享库**（`funcMap` 里查得到）时才报错。
+            // `modules.json` 里有一批**虚构条目**（例如 `array64` 模块下的 `Arrays` ——
+            // C 源里没有这个函数），它们生成的包装器是死代码，报出来只会误导。
+            // 真实冲突才算数：那意味着「调用这个库函数就会无限递归」。
+            if (label == funcName && funcMap.ContainsKey(funcName))
+            {
+                Console.Error.WriteLine(
+                    $"⚠ {lang}: 函数 `{funcName}` 的包装标签与 C 符号名同名 —— "
+                    + $"`LABEL {label} … CALL {funcName}` 会变成自调用（无限递归）。"
+                    + "修法：在 Lib/naming.json 里给该语言的 PrimaryPrefix 一个非空前缀"
+                    + "（java 用 `java_`、javascript 用 `js_`）。"
+                    + " ⚠ 若这个符号其实不存在于 C 源（已知一例：`Arrays` 来自 array64.c 第 4 行"
+                    + "注释里的 \"Integer Arrays (long* with long indices)\"，被 ParseFunctions "
+                    + "的正则当成了函数签名），那它是**虚构条目**、包装器是死代码，可以忽略；"
+                    + "真正该修的是 ParseFunctions 没剥注释。");
+            }
+
             int pCount = 0;
             bool isCdecl = false;
             string[] paramTypes = Array.Empty<string>();

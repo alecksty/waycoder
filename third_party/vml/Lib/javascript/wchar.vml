@@ -3,7 +3,7 @@
 
 .linked "../shared/wchar.vml"
 
-LABEL character
+LABEL js_character
     push R15
     push R12
     move R12 R13
@@ -20,7 +20,7 @@ LABEL character
     pop R15
     RET
 
-LABEL wctomb
+LABEL js_wctomb
     push R15
     push R12
     move R12 R13
@@ -38,7 +38,7 @@ LABEL wctomb
     pop R15
     RET
 
-LABEL mbtowc
+LABEL js_mbtowc
     push R15
     push R12
     move R12 R13
@@ -55,7 +55,7 @@ LABEL mbtowc
     pop R15
     RET
 
-LABEL wcscmp
+LABEL js_wcscmp
     push R15
     push R12
     move R12 R13
@@ -72,7 +72,7 @@ LABEL wcscmp
     pop R15
     RET
 
-LABEL wcsncmp
+LABEL js_wcsncmp
     push R15
     push R12
     move R12 R13
@@ -92,7 +92,7 @@ LABEL wcsncmp
     pop R15
     RET
 
-LABEL wcsspn
+LABEL js_wcsspn
     push R15
     push R12
     move R12 R13
@@ -109,7 +109,7 @@ LABEL wcsspn
     pop R15
     RET
 
-LABEL wcscspn
+LABEL js_wcscspn
     push R15
     push R12
     move R12 R13
@@ -126,7 +126,7 @@ LABEL wcscspn
     pop R15
     RET
 
-LABEL wmemcmp
+LABEL js_wmemcmp
     push R15
     push R12
     move R12 R13
@@ -147,74 +147,74 @@ LABEL wmemcmp
     RET
 
 LABEL Wchar_Character
-    JMP character
+    JMP js_character
 
 LABEL Wchar_Wctomb
-    JMP wctomb
+    JMP js_wctomb
 
 LABEL Wchar_Mbtowc
-    JMP mbtowc
+    JMP js_mbtowc
 
 LABEL Wchar_Wcscmp
-    JMP wcscmp
+    JMP js_wcscmp
 
 LABEL Wchar_Wcsncmp
-    JMP wcsncmp
+    JMP js_wcsncmp
 
 LABEL Wchar_Wcsspn
-    JMP wcsspn
+    JMP js_wcsspn
 
 LABEL Wchar_Wcscspn
-    JMP wcscspn
+    JMP js_wcscspn
 
 LABEL Wchar_Wmemcmp
-    JMP wmemcmp
+    JMP js_wmemcmp
 
 LABEL method_character
-    JMP character
+    JMP js_character
 
 LABEL method_Character
-    JMP character
+    JMP js_character
 
 LABEL method_wctomb
-    JMP wctomb
+    JMP js_wctomb
 
 LABEL method_Wctomb
-    JMP wctomb
+    JMP js_wctomb
 
 LABEL method_mbtowc
-    JMP mbtowc
+    JMP js_mbtowc
 
 LABEL method_Mbtowc
-    JMP mbtowc
+    JMP js_mbtowc
 
 LABEL method_wcscmp
-    JMP wcscmp
+    JMP js_wcscmp
 
 LABEL method_Wcscmp
-    JMP wcscmp
+    JMP js_wcscmp
 
 LABEL method_wcsncmp
-    JMP wcsncmp
+    JMP js_wcsncmp
 
 LABEL method_Wcsncmp
-    JMP wcsncmp
+    JMP js_wcsncmp
 
 LABEL method_wcsspn
-    JMP wcsspn
+    JMP js_wcsspn
 
 LABEL method_Wcsspn
-    JMP wcsspn
+    JMP js_wcsspn
 
 LABEL method_wcscspn
-    JMP wcscspn
+    JMP js_wcscspn
 
 LABEL method_Wcscspn
-    JMP wcscspn
+    JMP js_wcscspn
 
 LABEL method_wmemcmp
-    JMP wmemcmp
+    JMP js_wmemcmp
 
 LABEL method_Wmemcmp
-    JMP wmemcmp
+    JMP js_wmemcmp
 

@@ -3,7 +3,7 @@
 
 .linked "../shared/string.vml"
 
-LABEL string
+LABEL js_string
     push R15
     push R12
     move R12 R13
@@ -20,7 +20,7 @@ LABEL string
     pop R15
     RET
 
-LABEL strcpy
+LABEL js_strcpy
     push R15
     push R12
     move R12 R13
@@ -37,7 +37,7 @@ LABEL strcpy
     pop R15
     RET
 
-LABEL strcat
+LABEL js_strcat
     push R15
     push R12
     move R12 R13
@@ -54,7 +54,7 @@ LABEL strcat
     pop R15
     RET
 
-LABEL strlen
+LABEL js_strlen
     push R15
     push R12
     move R12 R13
@@ -68,7 +68,7 @@ LABEL strlen
     pop R15
     RET
 
-LABEL strLen
+LABEL js_strLen
     push R15
     push R12
     move R12 R13
@@ -82,7 +82,7 @@ LABEL strLen
     pop R15
     RET
 
-LABEL strCmp
+LABEL js_strCmp
     push R15
     push R12
     move R12 R13
@@ -99,7 +99,7 @@ LABEL strCmp
     pop R15
     RET
 
-LABEL strcmp
+LABEL js_strcmp
     push R15
     push R12
     move R12 R13
@@ -116,7 +116,7 @@ LABEL strcmp
     pop R15
     RET
 
-LABEL strncmp
+LABEL js_strncmp
     push R15
     push R12
     move R12 R13
@@ -136,7 +136,7 @@ LABEL strncmp
     pop R15
     RET
 
-LABEL strchr
+LABEL js_strchr
     push R15
     push R12
     move R12 R13
@@ -153,7 +153,7 @@ LABEL strchr
     pop R15
     RET
 
-LABEL strncpy
+LABEL js_strncpy
     push R15
     push R12
     move R12 R13
@@ -173,7 +173,7 @@ LABEL strncpy
     pop R15
     RET
 
-LABEL strstr
+LABEL js_strstr
     push R15
     push R12
     move R12 R13
@@ -190,7 +190,7 @@ LABEL strstr
     pop R15
     RET
 
-LABEL strrev
+LABEL js_strrev
     push R15
     push R12
     move R12 R13
@@ -207,7 +207,7 @@ LABEL strrev
     pop R15
     RET
 
-LABEL uppercase
+LABEL js_uppercase
     push R15
     push R12
     move R12 R13
@@ -221,7 +221,7 @@ LABEL uppercase
     pop R15
     RET
 
-LABEL strToupper
+LABEL js_strToupper
     push R15
     push R12
     move R12 R13
@@ -238,7 +238,7 @@ LABEL strToupper
     pop R15
     RET
 
-LABEL lowercase
+LABEL js_lowercase
     push R15
     push R12
     move R12 R13
@@ -252,7 +252,7 @@ LABEL lowercase
     pop R15
     RET
 
-LABEL strTolower
+LABEL js_strTolower
     push R15
     push R12
     move R12 R13
@@ -269,7 +269,7 @@ LABEL strTolower
     pop R15
     RET
 
-LABEL strRepeat
+LABEL js_strRepeat
     push R15
     push R12
     move R12 R13
@@ -289,7 +289,7 @@ LABEL strRepeat
     pop R15
     RET
 
-LABEL strContains
+LABEL js_strContains
     push R15
     push R12
     move R12 R13
@@ -306,7 +306,7 @@ LABEL strContains
     pop R15
     RET
 
-LABEL whitespace
+LABEL js_whitespace
     push R15
     push R12
     move R12 R13
@@ -329,7 +329,7 @@ LABEL whitespace
     pop R15
     RET
 
-LABEL strTrim
+LABEL js_strTrim
     push R15
     push R12
     move R12 R13
@@ -346,7 +346,7 @@ LABEL strTrim
     pop R15
     RET
 
-LABEL strSubstr
+LABEL js_strSubstr
     push R15
     push R12
     move R12 R13
@@ -369,7 +369,7 @@ LABEL strSubstr
     pop R15
     RET
 
-LABEL strIndexof
+LABEL js_strIndexof
     push R15
     push R12
     move R12 R13
@@ -386,7 +386,7 @@ LABEL strIndexof
     pop R15
     RET
 
-LABEL parts
+LABEL js_parts
     push R15
     push R12
     move R12 R13
@@ -400,7 +400,7 @@ LABEL parts
     pop R15
     RET
 
-LABEL strSplit
+LABEL js_strSplit
     push R15
     push R12
     move R12 R13
@@ -423,7 +423,7 @@ LABEL strSplit
     pop R15
     RET
 
-LABEL strPadstart
+LABEL js_strPadstart
     push R15
     push R12
     move R12 R13
@@ -446,7 +446,7 @@ LABEL strPadstart
     pop R15
     RET
 
-LABEL strPadend
+LABEL js_strPadend
     push R15
     push R12
     move R12 R13
@@ -469,7 +469,7 @@ LABEL strPadend
     pop R15
     RET
 
-LABEL strCharat
+LABEL js_strCharat
     push R15
     push R12
     move R12 R13
@@ -486,7 +486,7 @@ LABEL strCharat
     pop R15
     RET
 
-LABEL strStartswith
+LABEL js_strStartswith
     push R15
     push R12
     move R12 R13
@@ -503,7 +503,7 @@ LABEL strStartswith
     pop R15
     RET
 
-LABEL strEndswith
+LABEL js_strEndswith
     push R15
     push R12
     move R12 R13
@@ -521,308 +521,308 @@ LABEL strEndswith
     RET
 
 LABEL String_String
-    JMP string
+    JMP js_string
 
 LABEL String_Strcpy
-    JMP strcpy
+    JMP js_strcpy
 
 LABEL String_Strcat
-    JMP strcat
+    JMP js_strcat
 
 LABEL String_Strlen
-    JMP strlen
+    JMP js_strlen
 
 LABEL String_StrLen
-    JMP strLen
+    JMP js_strLen
 
 LABEL String_StrCmp
-    JMP strCmp
+    JMP js_strCmp
 
 LABEL String_Strcmp
-    JMP strcmp
+    JMP js_strcmp
 
 LABEL String_Strncmp
-    JMP strncmp
+    JMP js_strncmp
 
 LABEL String_Strchr
-    JMP strchr
+    JMP js_strchr
 
 LABEL String_Strncpy
-    JMP strncpy
+    JMP js_strncpy
 
 LABEL String_Strstr
-    JMP strstr
+    JMP js_strstr
 
 LABEL String_Strrev
-    JMP strrev
+    JMP js_strrev
 
 LABEL String_Uppercase
-    JMP uppercase
+    JMP js_uppercase
 
 LABEL String_StrToupper
-    JMP strToupper
+    JMP js_strToupper
 
 LABEL String_Lowercase
-    JMP lowercase
+    JMP js_lowercase
 
 LABEL String_StrTolower
-    JMP strTolower
+    JMP js_strTolower
 
 LABEL String_StrRepeat
-    JMP strRepeat
+    JMP js_strRepeat
 
 LABEL String_StrContains
-    JMP strContains
+    JMP js_strContains
 
 LABEL String_Whitespace
-    JMP whitespace
+    JMP js_whitespace
 
 LABEL String_StrTrim
-    JMP strTrim
+    JMP js_strTrim
 
 LABEL String_StrSubstr
-    JMP strSubstr
+    JMP js_strSubstr
 
 LABEL String_StrIndexof
-    JMP strIndexof
+    JMP js_strIndexof
 
 LABEL String_Parts
-    JMP parts
+    JMP js_parts
 
 LABEL String_StrSplit
-    JMP strSplit
+    JMP js_strSplit
 
 LABEL String_StrPadstart
-    JMP strPadstart
+    JMP js_strPadstart
 
 LABEL String_StrPadend
-    JMP strPadend
+    JMP js_strPadend
 
 LABEL String_StrCharat
-    JMP strCharat
+    JMP js_strCharat
 
 LABEL String_StrStartswith
-    JMP strStartswith
+    JMP js_strStartswith
 
 LABEL String_StrEndswith
-    JMP strEndswith
+    JMP js_strEndswith
 
 LABEL method_string
-    JMP string
+    JMP js_string
 
 LABEL method_String
-    JMP string
+    JMP js_string
 
 LABEL method_strcpy
-    JMP strcpy
+    JMP js_strcpy
 
 LABEL method_Strcpy
-    JMP strcpy
+    JMP js_strcpy
 
 LABEL method_strcat
-    JMP strcat
+    JMP js_strcat
 
 LABEL method_Strcat
-    JMP strcat
+    JMP js_strcat
 
 LABEL method_strlen
-    JMP strlen
+    JMP js_strlen
 
 LABEL method_Strlen
-    JMP strlen
+    JMP js_strlen
 
 LABEL method_str_len
-    JMP strLen
+    JMP js_strLen
 
 LABEL method_StrLen
-    JMP strLen
+    JMP js_strLen
 
 LABEL method_strLen
-    JMP strLen
+    JMP js_strLen
 
 LABEL method_str_cmp
-    JMP strCmp
+    JMP js_strCmp
 
 LABEL method_StrCmp
-    JMP strCmp
+    JMP js_strCmp
 
 LABEL method_strCmp
-    JMP strCmp
+    JMP js_strCmp
 
 LABEL method_strcmp
-    JMP strcmp
+    JMP js_strcmp
 
 LABEL method_Strcmp
-    JMP strcmp
+    JMP js_strcmp
 
 LABEL method_strncmp
-    JMP strncmp
+    JMP js_strncmp
 
 LABEL method_Strncmp
-    JMP strncmp
+    JMP js_strncmp
 
 LABEL method_strchr
-    JMP strchr
+    JMP js_strchr
 
 LABEL method_Strchr
-    JMP strchr
+    JMP js_strchr
 
 LABEL method_strncpy
-    JMP strncpy
+    JMP js_strncpy
 
 LABEL method_Strncpy
-    JMP strncpy
+    JMP js_strncpy
 
 LABEL method_strstr
-    JMP strstr
+    JMP js_strstr
 
 LABEL method_Strstr
-    JMP strstr
+    JMP js_strstr
 
 LABEL method_strrev
-    JMP strrev
+    JMP js_strrev
 
 LABEL method_Strrev
-    JMP strrev
+    JMP js_strrev
 
 LABEL method_uppercase
-    JMP uppercase
+    JMP js_uppercase
 
 LABEL method_Uppercase
-    JMP uppercase
+    JMP js_uppercase
 
 LABEL method_str_toupper
-    JMP strToupper
+    JMP js_strToupper
 
 LABEL method_StrToupper
-    JMP strToupper
+    JMP js_strToupper
 
 LABEL method_strToupper
-    JMP strToupper
+    JMP js_strToupper
 
 LABEL method_lowercase
-    JMP lowercase
+    JMP js_lowercase
 
 LABEL method_Lowercase
-    JMP lowercase
+    JMP js_lowercase
 
 LABEL method_str_tolower
-    JMP strTolower
+    JMP js_strTolower
 
 LABEL method_StrTolower
-    JMP strTolower
+    JMP js_strTolower
 
 LABEL method_strTolower
-    JMP strTolower
+    JMP js_strTolower
 
 LABEL method_str_repeat
-    JMP strRepeat
+    JMP js_strRepeat
 
 LABEL method_StrRepeat
-    JMP strRepeat
+    JMP js_strRepeat
 
 LABEL method_strRepeat
-    JMP strRepeat
+    JMP js_strRepeat
 
 LABEL method_str_contains
-    JMP strContains
+    JMP js_strContains
 
 LABEL method_StrContains
-    JMP strContains
+    JMP js_strContains
 
 LABEL method_strContains
-    JMP strContains
+    JMP js_strContains
 
 LABEL method_whitespace
-    JMP whitespace
+    JMP js_whitespace
 
 LABEL method_Whitespace
-    JMP whitespace
+    JMP js_whitespace
 
 LABEL method_str_trim
-    JMP strTrim
+    JMP js_strTrim
 
 LABEL method_StrTrim
-    JMP strTrim
+    JMP js_strTrim
 
 LABEL method_strTrim
-    JMP strTrim
+    JMP js_strTrim
 
 LABEL method_str_substr
-    JMP strSubstr
+    JMP js_strSubstr
 
 LABEL method_StrSubstr
-    JMP strSubstr
+    JMP js_strSubstr
 
 LABEL method_strSubstr
-    JMP strSubstr
+    JMP js_strSubstr
 
 LABEL method_str_indexof
-    JMP strIndexof
+    JMP js_strIndexof
 
 LABEL method_StrIndexof
-    JMP strIndexof
+    JMP js_strIndexof
 
 LABEL method_strIndexof
-    JMP strIndexof
+    JMP js_strIndexof
 
 LABEL method_parts
-    JMP parts
+    JMP js_parts
 
 LABEL method_Parts
-    JMP parts
+    JMP js_parts
 
 LABEL method_str_split
-    JMP strSplit
+    JMP js_strSplit
 
 LABEL method_StrSplit
-    JMP strSplit
+    JMP js_strSplit
 
 LABEL method_strSplit
-    JMP strSplit
+    JMP js_strSplit
 
 LABEL method_str_padstart
-    JMP strPadstart
+    JMP js_strPadstart
 
 LABEL method_StrPadstart
-    JMP strPadstart
+    JMP js_strPadstart
 
 LABEL method_strPadstart
-    JMP strPadstart
+    JMP js_strPadstart
 
 LABEL method_str_padend
-    JMP strPadend
+    JMP js_strPadend
 
 LABEL method_StrPadend
-    JMP strPadend
+    JMP js_strPadend
 
 LABEL method_strPadend
-    JMP strPadend
+    JMP js_strPadend
 
 LABEL method_str_charat
-    JMP strCharat
+    JMP js_strCharat
 
 LABEL method_StrCharat
-    JMP strCharat
+    JMP js_strCharat
 
 LABEL method_strCharat
-    JMP strCharat
+    JMP js_strCharat
 
 LABEL method_str_startswith
-    JMP strStartswith
+    JMP js_strStartswith
 
 LABEL method_StrStartswith
-    JMP strStartswith
+    JMP js_strStartswith
 
 LABEL method_strStartswith
-    JMP strStartswith
+    JMP js_strStartswith
 
 LABEL method_str_endswith
-    JMP strEndswith
+    JMP js_strEndswith
 
 LABEL method_StrEndswith
-    JMP strEndswith
+    JMP js_strEndswith
 
 LABEL method_strEndswith
-    JMP strEndswith
+    JMP js_strEndswith
 

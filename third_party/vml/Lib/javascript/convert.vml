@@ -3,7 +3,7 @@
 
 .linked "../shared/convert.vml"
 
-LABEL itoaHex
+LABEL js_itoaHex
     push R15
     push R12
     move R12 R13
@@ -20,7 +20,7 @@ LABEL itoaHex
     pop R15
     RET
 
-LABEL atoiHex
+LABEL js_atoiHex
     push R15
     push R12
     move R12 R13
@@ -34,7 +34,7 @@ LABEL atoiHex
     pop R15
     RET
 
-LABEL byteToHword
+LABEL js_byteToHword
     push R15
     push R12
     move R12 R13
@@ -49,7 +49,7 @@ LABEL byteToHword
     pop R15
     RET
 
-LABEL byteToWord
+LABEL js_byteToWord
     push R15
     push R12
     move R12 R13
@@ -64,7 +64,7 @@ LABEL byteToWord
     pop R15
     RET
 
-LABEL hwordToByte
+LABEL js_hwordToByte
     push R15
     push R12
     move R12 R13
@@ -78,7 +78,7 @@ LABEL hwordToByte
     pop R15
     RET
 
-LABEL hwordToWord
+LABEL js_hwordToWord
     push R15
     push R12
     move R12 R13
@@ -92,7 +92,7 @@ LABEL hwordToWord
     pop R15
     RET
 
-LABEL wordToByte
+LABEL js_wordToByte
     push R15
     push R12
     move R12 R13
@@ -106,7 +106,7 @@ LABEL wordToByte
     pop R15
     RET
 
-LABEL wordToHword
+LABEL js_wordToHword
     push R15
     push R12
     move R12 R13
@@ -121,98 +121,98 @@ LABEL wordToHword
     RET
 
 LABEL Convert_ItoaHex
-    JMP itoaHex
+    JMP js_itoaHex
 
 LABEL Convert_AtoiHex
-    JMP atoiHex
+    JMP js_atoiHex
 
 LABEL Convert_ByteToHword
-    JMP byteToHword
+    JMP js_byteToHword
 
 LABEL Convert_ByteToWord
-    JMP byteToWord
+    JMP js_byteToWord
 
 LABEL Convert_HwordToByte
-    JMP hwordToByte
+    JMP js_hwordToByte
 
 LABEL Convert_HwordToWord
-    JMP hwordToWord
+    JMP js_hwordToWord
 
 LABEL Convert_WordToByte
-    JMP wordToByte
+    JMP js_wordToByte
 
 LABEL Convert_WordToHword
-    JMP wordToHword
+    JMP js_wordToHword
 
 LABEL method_itoa_hex
-    JMP itoaHex
+    JMP js_itoaHex
 
 LABEL method_ItoaHex
-    JMP itoaHex
+    JMP js_itoaHex
 
 LABEL method_itoaHex
-    JMP itoaHex
+    JMP js_itoaHex
 
 LABEL method_atoi_hex
-    JMP atoiHex
+    JMP js_atoiHex
 
 LABEL method_AtoiHex
-    JMP atoiHex
+    JMP js_atoiHex
 
 LABEL method_atoiHex
-    JMP atoiHex
+    JMP js_atoiHex
 
 LABEL method_byte_to_hword
-    JMP byteToHword
+    JMP js_byteToHword
 
 LABEL method_ByteToHword
-    JMP byteToHword
+    JMP js_byteToHword
 
 LABEL method_byteToHword
-    JMP byteToHword
+    JMP js_byteToHword
 
 LABEL method_byte_to_word
-    JMP byteToWord
+    JMP js_byteToWord
 
 LABEL method_ByteToWord
-    JMP byteToWord
+    JMP js_byteToWord
 
 LABEL method_byteToWord
-    JMP byteToWord
+    JMP js_byteToWord
 
 LABEL method_hword_to_byte
-    JMP hwordToByte
+    JMP js_hwordToByte
 
 LABEL method_HwordToByte
-    JMP hwordToByte
+    JMP js_hwordToByte
 
 LABEL method_hwordToByte
-    JMP hwordToByte
+    JMP js_hwordToByte
 
 LABEL method_hword_to_word
-    JMP hwordToWord
+    JMP js_hwordToWord
 
 LABEL method_HwordToWord
-    JMP hwordToWord
+    JMP js_hwordToWord
 
 LABEL method_hwordToWord
-    JMP hwordToWord
+    JMP js_hwordToWord
 
 LABEL method_word_to_byte
-    JMP wordToByte
+    JMP js_wordToByte
 
 LABEL method_WordToByte
-    JMP wordToByte
+    JMP js_wordToByte
 
 LABEL method_wordToByte
-    JMP wordToByte
+    JMP js_wordToByte
 
 LABEL method_word_to_hword
-    JMP wordToHword
+    JMP js_wordToHword
 
 LABEL method_WordToHword
-    JMP wordToHword
+    JMP js_wordToHword
 
 LABEL method_wordToHword
-    JMP wordToHword
+    JMP js_wordToHword
 

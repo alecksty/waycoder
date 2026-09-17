@@ -6,7 +6,7 @@
 .linked "../shared/scanf.vml"
 .linked "../shared/readline.vml"
 
-LABEL readLine
+LABEL java_readLine
     push R15
     push R12
     move R12 R13
@@ -16,7 +16,7 @@ LABEL readLine
     pop R15
     RET
 
-LABEL putchar
+LABEL java_putchar
     push R15
     push R12
     move R12 R13
@@ -31,7 +31,7 @@ LABEL putchar
     pop R15
     RET
 
-LABEL printStr
+LABEL java_printStr
     push R15
     push R12
     move R12 R13
@@ -45,7 +45,7 @@ LABEL printStr
     pop R15
     RET
 
-LABEL printInt
+LABEL java_printInt
     push R15
     push R12
     move R12 R13
@@ -59,7 +59,7 @@ LABEL printInt
     pop R15
     RET
 
-LABEL printHex
+LABEL java_printHex
     push R15
     push R12
     move R12 R13
@@ -73,7 +73,7 @@ LABEL printHex
     pop R15
     RET
 
-LABEL printlnStr
+LABEL java_printlnStr
     push R15
     push R12
     move R12 R13
@@ -87,7 +87,7 @@ LABEL printlnStr
     pop R15
     RET
 
-LABEL printlnInt
+LABEL java_printlnInt
     push R15
     push R12
     move R12 R13
@@ -101,7 +101,7 @@ LABEL printlnInt
     pop R15
     RET
 
-LABEL printFloat
+LABEL java_printFloat
     push R15
     push R12
     move R12 R13
@@ -116,7 +116,7 @@ LABEL printFloat
     pop R15
     RET
 
-LABEL printBool
+LABEL java_printBool
     push R15
     push R12
     move R12 R13
@@ -130,7 +130,7 @@ LABEL printBool
     pop R15
     RET
 
-LABEL puthex
+LABEL java_puthex
     push R15
     push R12
     move R12 R13
@@ -144,7 +144,7 @@ LABEL puthex
     pop R15
     RET
 
-LABEL putfloat
+LABEL java_putfloat
     push R15
     push R12
     move R12 R13
@@ -159,7 +159,7 @@ LABEL putfloat
     pop R15
     RET
 
-LABEL printStrNoNl
+LABEL java_printStrNoNl
     push R15
     push R12
     move R12 R13
@@ -173,7 +173,7 @@ LABEL printStrNoNl
     pop R15
     RET
 
-LABEL printStrNoNlImpl
+LABEL java_printStrNoNlImpl
     push R15
     push R12
     move R12 R13
@@ -187,7 +187,7 @@ LABEL printStrNoNlImpl
     pop R15
     RET
 
-LABEL printlnHex
+LABEL java_printlnHex
     push R15
     push R12
     move R12 R13
@@ -201,7 +201,7 @@ LABEL printlnHex
     pop R15
     RET
 
-LABEL clearScreen
+LABEL java_clearScreen
     push R15
     push R12
     move R12 R13
@@ -211,7 +211,7 @@ LABEL clearScreen
     pop R15
     RET
 
-LABEL getchar
+LABEL java_getchar
     push R15
     push R12
     move R12 R13
@@ -221,7 +221,7 @@ LABEL getchar
     pop R15
     RET
 
-LABEL inputStr
+LABEL java_inputStr
     push R15
     push R12
     move R12 R13
@@ -231,7 +231,7 @@ LABEL inputStr
     pop R15
     RET
 
-LABEL inputInt
+LABEL java_inputInt
     push R15
     push R12
     move R12 R13
@@ -241,7 +241,7 @@ LABEL inputInt
     pop R15
     RET
 
-LABEL inputFloat
+LABEL java_inputFloat
     push R15
     push R12
     move R12 R13
@@ -251,7 +251,7 @@ LABEL inputFloat
     pop R15
     RET
 
-LABEL gets
+LABEL java_gets
     push R15
     push R12
     move R12 R13
@@ -261,7 +261,7 @@ LABEL gets
     pop R15
     RET
 
-LABEL kbHit
+LABEL java_kbHit
     push R15
     push R12
     move R12 R13
@@ -271,7 +271,7 @@ LABEL kbHit
     pop R15
     RET
 
-LABEL printf2
+LABEL java_printf2
     push R15
     push R12
     move R12 R13
@@ -291,7 +291,7 @@ LABEL printf2
     pop R15
     RET
 
-LABEL printf3
+LABEL java_printf3
     push R15
     push R12
     move R12 R13
@@ -314,7 +314,7 @@ LABEL printf3
     pop R15
     RET
 
-LABEL printf
+LABEL java_printf
     push R15
     push R12
     move R12 R13
@@ -331,7 +331,7 @@ LABEL printf
     pop R15
     RET
 
-LABEL puts
+LABEL java_puts
     push R15
     push R12
     move R12 R13
@@ -345,7 +345,7 @@ LABEL puts
     pop R15
     RET
 
-LABEL printString
+LABEL java_printString
     push R15
     push R12
     move R12 R13
@@ -359,7 +359,7 @@ LABEL printString
     pop R15
     RET
 
-LABEL printWstr
+LABEL java_printWstr
     push R15
     push R12
     move R12 R13
@@ -373,7 +373,7 @@ LABEL printWstr
     pop R15
     RET
 
-LABEL printlnWstr
+LABEL java_printlnWstr
     push R15
     push R12
     move R12 R13
@@ -387,7 +387,7 @@ LABEL printlnWstr
     pop R15
     RET
 
-LABEL printUstr
+LABEL java_printUstr
     push R15
     push R12
     move R12 R13
@@ -401,7 +401,7 @@ LABEL printUstr
     pop R15
     RET
 
-LABEL printLong
+LABEL java_printLong
     push R15
     push R12
     move R12 R13
@@ -416,7 +416,7 @@ LABEL printLong
     pop R15
     RET
 
-LABEL printHexLong
+LABEL java_printHexLong
     push R15
     push R12
     move R12 R13
@@ -431,7 +431,7 @@ LABEL printHexLong
     pop R15
     RET
 
-LABEL printlnLong
+LABEL java_printlnLong
     push R15
     push R12
     move R12 R13
@@ -446,7 +446,7 @@ LABEL printlnLong
     pop R15
     RET
 
-LABEL printlnHexLong
+LABEL java_printlnHexLong
     push R15
     push R12
     move R12 R13
@@ -461,7 +461,7 @@ LABEL printlnHexLong
     pop R15
     RET
 
-LABEL inputLong
+LABEL java_inputLong
     push R15
     push R12
     move R12 R13
@@ -471,7 +471,7 @@ LABEL inputLong
     pop R15
     RET
 
-LABEL printDouble
+LABEL java_printDouble
     push R15
     push R12
     move R12 R13
@@ -489,7 +489,7 @@ LABEL printDouble
     pop R15
     RET
 
-LABEL printlnDouble
+LABEL java_printlnDouble
     push R15
     push R12
     move R12 R13
@@ -507,7 +507,7 @@ LABEL printlnDouble
     pop R15
     RET
 
-LABEL putsn
+LABEL java_putsn
     push R15
     push R12
     move R12 R13
@@ -530,7 +530,7 @@ LABEL putsn
     pop R15
     RET
 
-LABEL vsnprintf
+LABEL java_vsnprintf
     push R15
     push R12
     move R12 R13
@@ -554,7 +554,7 @@ LABEL vsnprintf
     pop R15
     RET
 
-LABEL sprintf
+LABEL java_sprintf
     push R15
     push R12
     move R12 R13
@@ -575,7 +575,7 @@ LABEL sprintf
     pop R15
     RET
 
-LABEL printf4
+LABEL java_printf4
     push R15
     push R12
     move R12 R13
@@ -603,7 +603,7 @@ LABEL printf4
     pop R15
     RET
 
-LABEL printf5
+LABEL java_printf5
     push R15
     push R12
     move R12 R13
@@ -633,7 +633,7 @@ LABEL printf5
     pop R15
     RET
 
-LABEL printxInt32
+LABEL java_printxInt32
     push R15
     push R12
     move R12 R13
@@ -647,7 +647,7 @@ LABEL printxInt32
     pop R15
     RET
 
-LABEL printlnxInt32
+LABEL java_printlnxInt32
     push R15
     push R12
     move R12 R13
@@ -661,7 +661,7 @@ LABEL printlnxInt32
     pop R15
     RET
 
-LABEL printxString
+LABEL java_printxString
     push R15
     push R12
     move R12 R13
@@ -675,7 +675,7 @@ LABEL printxString
     pop R15
     RET
 
-LABEL printlnxString
+LABEL java_printlnxString
     push R15
     push R12
     move R12 R13
@@ -689,7 +689,7 @@ LABEL printlnxString
     pop R15
     RET
 
-LABEL printxWstring
+LABEL java_printxWstring
     push R15
     push R12
     move R12 R13
@@ -703,7 +703,7 @@ LABEL printxWstring
     pop R15
     RET
 
-LABEL printlnxWstring
+LABEL java_printlnxWstring
     push R15
     push R12
     move R12 R13
@@ -717,7 +717,7 @@ LABEL printlnxWstring
     pop R15
     RET
 
-LABEL printxUstring
+LABEL java_printxUstring
     push R15
     push R12
     move R12 R13
@@ -731,7 +731,7 @@ LABEL printxUstring
     pop R15
     RET
 
-LABEL printlnxUstring
+LABEL java_printlnxUstring
     push R15
     push R12
     move R12 R13
@@ -745,7 +745,7 @@ LABEL printlnxUstring
     pop R15
     RET
 
-LABEL printxFloat32
+LABEL java_printxFloat32
     push R15
     push R12
     move R12 R13
@@ -760,7 +760,7 @@ LABEL printxFloat32
     pop R15
     RET
 
-LABEL printlnxFloat32
+LABEL java_printlnxFloat32
     push R15
     push R12
     move R12 R13
@@ -775,7 +775,7 @@ LABEL printlnxFloat32
     pop R15
     RET
 
-LABEL printxFloat64
+LABEL java_printxFloat64
     push R15
     push R12
     move R12 R13
@@ -790,7 +790,7 @@ LABEL printxFloat64
     pop R15
     RET
 
-LABEL printlnxFloat64
+LABEL java_printlnxFloat64
     push R15
     push R12
     move R12 R13
@@ -805,7 +805,7 @@ LABEL printlnxFloat64
     pop R15
     RET
 
-LABEL printxInt64Hex
+LABEL java_printxInt64Hex
     push R15
     push R12
     move R12 R13
@@ -822,7 +822,7 @@ LABEL printxInt64Hex
     pop R15
     RET
 
-LABEL printxNl
+LABEL java_printxNl
     push R15
     push R12
     move R12 R13
@@ -832,7 +832,7 @@ LABEL printxNl
     pop R15
     RET
 
-LABEL scanf
+LABEL java_scanf
     push R15
     push R12
     move R12 R13
@@ -849,7 +849,7 @@ LABEL scanf
     pop R15
     RET
 
-LABEL sscanf
+LABEL java_sscanf
     push R15
     push R12
     move R12 R13
@@ -870,638 +870,638 @@ LABEL sscanf
     RET
 
 LABEL Console_ReadLine
-    JMP readLine
+    JMP java_readLine
 
 LABEL Console_Putchar
-    JMP putchar
+    JMP java_putchar
 
 LABEL Console_PrintStr
-    JMP printStr
+    JMP java_printStr
 
 LABEL Console_PrintInt
-    JMP printInt
+    JMP java_printInt
 
 LABEL Console_PrintHex
-    JMP printHex
+    JMP java_printHex
 
 LABEL Console_PrintlnStr
-    JMP printlnStr
+    JMP java_printlnStr
 
 LABEL Console_PrintlnInt
-    JMP printlnInt
+    JMP java_printlnInt
 
 LABEL Console_PrintFloat
-    JMP printFloat
+    JMP java_printFloat
 
 LABEL Console_PrintBool
-    JMP printBool
+    JMP java_printBool
 
 LABEL Console_Puthex
-    JMP puthex
+    JMP java_puthex
 
 LABEL Console_Putfloat
-    JMP putfloat
+    JMP java_putfloat
 
 LABEL Console_PrintStrNoNl
-    JMP printStrNoNl
+    JMP java_printStrNoNl
 
 LABEL Console_PrintStrNoNlImpl
-    JMP printStrNoNlImpl
+    JMP java_printStrNoNlImpl
 
 LABEL Console_PrintlnHex
-    JMP printlnHex
+    JMP java_printlnHex
 
 LABEL Console_ClearScreen
-    JMP clearScreen
+    JMP java_clearScreen
 
 LABEL Console_Getchar
-    JMP getchar
+    JMP java_getchar
 
 LABEL Console_InputStr
-    JMP inputStr
+    JMP java_inputStr
 
 LABEL Console_InputInt
-    JMP inputInt
+    JMP java_inputInt
 
 LABEL Console_InputFloat
-    JMP inputFloat
+    JMP java_inputFloat
 
 LABEL Console_Gets
-    JMP gets
+    JMP java_gets
 
 LABEL Console_KbHit
-    JMP kbHit
+    JMP java_kbHit
 
 LABEL Console_Printf2
-    JMP printf2
+    JMP java_printf2
 
 LABEL Console_Printf3
-    JMP printf3
+    JMP java_printf3
 
 LABEL Console_Printf
-    JMP printf
+    JMP java_printf
 
 LABEL Console_Puts
-    JMP puts
+    JMP java_puts
 
 LABEL Console_PrintString
-    JMP printString
+    JMP java_printString
 
 LABEL Console_PrintWstr
-    JMP printWstr
+    JMP java_printWstr
 
 LABEL Console_PrintlnWstr
-    JMP printlnWstr
+    JMP java_printlnWstr
 
 LABEL Console_PrintUstr
-    JMP printUstr
+    JMP java_printUstr
 
 LABEL Console_PrintLong
-    JMP printLong
+    JMP java_printLong
 
 LABEL Console_PrintHexLong
-    JMP printHexLong
+    JMP java_printHexLong
 
 LABEL Console_PrintlnLong
-    JMP printlnLong
+    JMP java_printlnLong
 
 LABEL Console_PrintlnHexLong
-    JMP printlnHexLong
+    JMP java_printlnHexLong
 
 LABEL Console_InputLong
-    JMP inputLong
+    JMP java_inputLong
 
 LABEL Console_PrintDouble
-    JMP printDouble
+    JMP java_printDouble
 
 LABEL Console_PrintlnDouble
-    JMP printlnDouble
+    JMP java_printlnDouble
 
 LABEL Console_Putsn
-    JMP putsn
+    JMP java_putsn
 
 LABEL Console_Vsnprintf
-    JMP vsnprintf
+    JMP java_vsnprintf
 
 LABEL Console_Sprintf
-    JMP sprintf
+    JMP java_sprintf
 
 LABEL Console_Printf4
-    JMP printf4
+    JMP java_printf4
 
 LABEL Console_Printf5
-    JMP printf5
+    JMP java_printf5
 
 LABEL Console_PrintxInt32
-    JMP printxInt32
+    JMP java_printxInt32
 
 LABEL Console_PrintlnxInt32
-    JMP printlnxInt32
+    JMP java_printlnxInt32
 
 LABEL Console_PrintxString
-    JMP printxString
+    JMP java_printxString
 
 LABEL Console_PrintlnxString
-    JMP printlnxString
+    JMP java_printlnxString
 
 LABEL Console_PrintxWstring
-    JMP printxWstring
+    JMP java_printxWstring
 
 LABEL Console_PrintlnxWstring
-    JMP printlnxWstring
+    JMP java_printlnxWstring
 
 LABEL Console_PrintxUstring
-    JMP printxUstring
+    JMP java_printxUstring
 
 LABEL Console_PrintlnxUstring
-    JMP printlnxUstring
+    JMP java_printlnxUstring
 
 LABEL Console_PrintxFloat32
-    JMP printxFloat32
+    JMP java_printxFloat32
 
 LABEL Console_PrintlnxFloat32
-    JMP printlnxFloat32
+    JMP java_printlnxFloat32
 
 LABEL Console_PrintxFloat64
-    JMP printxFloat64
+    JMP java_printxFloat64
 
 LABEL Console_PrintlnxFloat64
-    JMP printlnxFloat64
+    JMP java_printlnxFloat64
 
 LABEL Console_PrintxInt64Hex
-    JMP printxInt64Hex
+    JMP java_printxInt64Hex
 
 LABEL Console_PrintxNl
-    JMP printxNl
+    JMP java_printxNl
 
 LABEL Console_Scanf
-    JMP scanf
+    JMP java_scanf
 
 LABEL Console_Sscanf
-    JMP sscanf
+    JMP java_sscanf
 
 LABEL method_read_line
-    JMP readLine
+    JMP java_readLine
 
 LABEL method_ReadLine
-    JMP readLine
+    JMP java_readLine
 
 LABEL method_readLine
-    JMP readLine
+    JMP java_readLine
 
 LABEL method_putchar
-    JMP putchar
+    JMP java_putchar
 
 LABEL method_Putchar
-    JMP putchar
+    JMP java_putchar
 
 LABEL method_print_str
-    JMP printStr
+    JMP java_printStr
 
 LABEL method_PrintStr
-    JMP printStr
+    JMP java_printStr
 
 LABEL method_printStr
-    JMP printStr
+    JMP java_printStr
 
 LABEL method_print_int
-    JMP printInt
+    JMP java_printInt
 
 LABEL method_PrintInt
-    JMP printInt
+    JMP java_printInt
 
 LABEL method_printInt
-    JMP printInt
+    JMP java_printInt
 
 LABEL method_print_hex
-    JMP printHex
+    JMP java_printHex
 
 LABEL method_PrintHex
-    JMP printHex
+    JMP java_printHex
 
 LABEL method_printHex
-    JMP printHex
+    JMP java_printHex
 
 LABEL method_println_str
-    JMP printlnStr
+    JMP java_printlnStr
 
 LABEL method_PrintlnStr
-    JMP printlnStr
+    JMP java_printlnStr
 
 LABEL method_printlnStr
-    JMP printlnStr
+    JMP java_printlnStr
 
 LABEL method_println_int
-    JMP printlnInt
+    JMP java_printlnInt
 
 LABEL method_PrintlnInt
-    JMP printlnInt
+    JMP java_printlnInt
 
 LABEL method_printlnInt
-    JMP printlnInt
+    JMP java_printlnInt
 
 LABEL method_print_float
-    JMP printFloat
+    JMP java_printFloat
 
 LABEL method_PrintFloat
-    JMP printFloat
+    JMP java_printFloat
 
 LABEL method_printFloat
-    JMP printFloat
+    JMP java_printFloat
 
 LABEL method_print_bool
-    JMP printBool
+    JMP java_printBool
 
 LABEL method_PrintBool
-    JMP printBool
+    JMP java_printBool
 
 LABEL method_printBool
-    JMP printBool
+    JMP java_printBool
 
 LABEL method_puthex
-    JMP puthex
+    JMP java_puthex
 
 LABEL method_Puthex
-    JMP puthex
+    JMP java_puthex
 
 LABEL method_putfloat
-    JMP putfloat
+    JMP java_putfloat
 
 LABEL method_Putfloat
-    JMP putfloat
+    JMP java_putfloat
 
 LABEL method_print_str_no_nl
-    JMP printStrNoNl
+    JMP java_printStrNoNl
 
 LABEL method_PrintStrNoNl
-    JMP printStrNoNl
+    JMP java_printStrNoNl
 
 LABEL method_printStrNoNl
-    JMP printStrNoNl
+    JMP java_printStrNoNl
 
 LABEL method_print_str_no_nl_impl
-    JMP printStrNoNlImpl
+    JMP java_printStrNoNlImpl
 
 LABEL method_PrintStrNoNlImpl
-    JMP printStrNoNlImpl
+    JMP java_printStrNoNlImpl
 
 LABEL method_printStrNoNlImpl
-    JMP printStrNoNlImpl
+    JMP java_printStrNoNlImpl
 
 LABEL method_println_hex
-    JMP printlnHex
+    JMP java_printlnHex
 
 LABEL method_PrintlnHex
-    JMP printlnHex
+    JMP java_printlnHex
 
 LABEL method_printlnHex
-    JMP printlnHex
+    JMP java_printlnHex
 
 LABEL method_clear_screen
-    JMP clearScreen
+    JMP java_clearScreen
 
 LABEL method_ClearScreen
-    JMP clearScreen
+    JMP java_clearScreen
 
 LABEL method_clearScreen
-    JMP clearScreen
+    JMP java_clearScreen
 
 LABEL method_getchar
-    JMP getchar
+    JMP java_getchar
 
 LABEL method_Getchar
-    JMP getchar
+    JMP java_getchar
 
 LABEL method_input_str
-    JMP inputStr
+    JMP java_inputStr
 
 LABEL method_InputStr
-    JMP inputStr
+    JMP java_inputStr
 
 LABEL method_inputStr
-    JMP inputStr
+    JMP java_inputStr
 
 LABEL method_input_int
-    JMP inputInt
+    JMP java_inputInt
 
 LABEL method_InputInt
-    JMP inputInt
+    JMP java_inputInt
 
 LABEL method_inputInt
-    JMP inputInt
+    JMP java_inputInt
 
 LABEL method_input_float
-    JMP inputFloat
+    JMP java_inputFloat
 
 LABEL method_InputFloat
-    JMP inputFloat
+    JMP java_inputFloat
 
 LABEL method_inputFloat
-    JMP inputFloat
+    JMP java_inputFloat
 
 LABEL method_gets
-    JMP gets
+    JMP java_gets
 
 LABEL method_Gets
-    JMP gets
+    JMP java_gets
 
 LABEL method_kb_hit
-    JMP kbHit
+    JMP java_kbHit
 
 LABEL method_KbHit
-    JMP kbHit
+    JMP java_kbHit
 
 LABEL method_kbHit
-    JMP kbHit
+    JMP java_kbHit
 
 LABEL method_printf2
-    JMP printf2
+    JMP java_printf2
 
 LABEL method_Printf2
-    JMP printf2
+    JMP java_printf2
 
 LABEL method_printf3
-    JMP printf3
+    JMP java_printf3
 
 LABEL method_Printf3
-    JMP printf3
+    JMP java_printf3
 
 LABEL method_printf
-    JMP printf
+    JMP java_printf
 
 LABEL method_Printf
-    JMP printf
+    JMP java_printf
 
 LABEL method_puts
-    JMP puts
+    JMP java_puts
 
 LABEL method_Puts
-    JMP puts
+    JMP java_puts
 
 LABEL method_print_string
-    JMP printString
+    JMP java_printString
 
 LABEL method_PrintString
-    JMP printString
+    JMP java_printString
 
 LABEL method_printString
-    JMP printString
+    JMP java_printString
 
 LABEL method_print_wstr
-    JMP printWstr
+    JMP java_printWstr
 
 LABEL method_PrintWstr
-    JMP printWstr
+    JMP java_printWstr
 
 LABEL method_printWstr
-    JMP printWstr
+    JMP java_printWstr
 
 LABEL method_println_wstr
-    JMP printlnWstr
+    JMP java_printlnWstr
 
 LABEL method_PrintlnWstr
-    JMP printlnWstr
+    JMP java_printlnWstr
 
 LABEL method_printlnWstr
-    JMP printlnWstr
+    JMP java_printlnWstr
 
 LABEL method_print_ustr
-    JMP printUstr
+    JMP java_printUstr
 
 LABEL method_PrintUstr
-    JMP printUstr
+    JMP java_printUstr
 
 LABEL method_printUstr
-    JMP printUstr
+    JMP java_printUstr
 
 LABEL method_print_long
-    JMP printLong
+    JMP java_printLong
 
 LABEL method_PrintLong
-    JMP printLong
+    JMP java_printLong
 
 LABEL method_printLong
-    JMP printLong
+    JMP java_printLong
 
 LABEL method_print_hex_long
-    JMP printHexLong
+    JMP java_printHexLong
 
 LABEL method_PrintHexLong
-    JMP printHexLong
+    JMP java_printHexLong
 
 LABEL method_printHexLong
-    JMP printHexLong
+    JMP java_printHexLong
 
 LABEL method_println_long
-    JMP printlnLong
+    JMP java_printlnLong
 
 LABEL method_PrintlnLong
-    JMP printlnLong
+    JMP java_printlnLong
 
 LABEL method_printlnLong
-    JMP printlnLong
+    JMP java_printlnLong
 
 LABEL method_println_hex_long
-    JMP printlnHexLong
+    JMP java_printlnHexLong
 
 LABEL method_PrintlnHexLong
-    JMP printlnHexLong
+    JMP java_printlnHexLong
 
 LABEL method_printlnHexLong
-    JMP printlnHexLong
+    JMP java_printlnHexLong
 
 LABEL method_input_long
-    JMP inputLong
+    JMP java_inputLong
 
 LABEL method_InputLong
-    JMP inputLong
+    JMP java_inputLong
 
 LABEL method_inputLong
-    JMP inputLong
+    JMP java_inputLong
 
 LABEL method_print_double
-    JMP printDouble
+    JMP java_printDouble
 
 LABEL method_PrintDouble
-    JMP printDouble
+    JMP java_printDouble
 
 LABEL method_printDouble
-    JMP printDouble
+    JMP java_printDouble
 
 LABEL method_println_double
-    JMP printlnDouble
+    JMP java_printlnDouble
 
 LABEL method_PrintlnDouble
-    JMP printlnDouble
+    JMP java_printlnDouble
 
 LABEL method_printlnDouble
-    JMP printlnDouble
+    JMP java_printlnDouble
 
 LABEL method_putsn
-    JMP putsn
+    JMP java_putsn
 
 LABEL method_Putsn
-    JMP putsn
+    JMP java_putsn
 
 LABEL method_vsnprintf
-    JMP vsnprintf
+    JMP java_vsnprintf
 
 LABEL method_Vsnprintf
-    JMP vsnprintf
+    JMP java_vsnprintf
 
 LABEL method_sprintf
-    JMP sprintf
+    JMP java_sprintf
 
 LABEL method_Sprintf
-    JMP sprintf
+    JMP java_sprintf
 
 LABEL method_printf4
-    JMP printf4
+    JMP java_printf4
 
 LABEL method_Printf4
-    JMP printf4
+    JMP java_printf4
 
 LABEL method_printf5
-    JMP printf5
+    JMP java_printf5
 
 LABEL method_Printf5
-    JMP printf5
+    JMP java_printf5
 
 LABEL method_printx_int32
-    JMP printxInt32
+    JMP java_printxInt32
 
 LABEL method_PrintxInt32
-    JMP printxInt32
+    JMP java_printxInt32
 
 LABEL method_printxInt32
-    JMP printxInt32
+    JMP java_printxInt32
 
 LABEL method_printlnx_int32
-    JMP printlnxInt32
+    JMP java_printlnxInt32
 
 LABEL method_PrintlnxInt32
-    JMP printlnxInt32
+    JMP java_printlnxInt32
 
 LABEL method_printlnxInt32
-    JMP printlnxInt32
+    JMP java_printlnxInt32
 
 LABEL method_printx_string
-    JMP printxString
+    JMP java_printxString
 
 LABEL method_PrintxString
-    JMP printxString
+    JMP java_printxString
 
 LABEL method_printxString
-    JMP printxString
+    JMP java_printxString
 
 LABEL method_printlnx_string
-    JMP printlnxString
+    JMP java_printlnxString
 
 LABEL method_PrintlnxString
-    JMP printlnxString
+    JMP java_printlnxString
 
 LABEL method_printlnxString
-    JMP printlnxString
+    JMP java_printlnxString
 
 LABEL method_printx_wstring
-    JMP printxWstring
+    JMP java_printxWstring
 
 LABEL method_PrintxWstring
-    JMP printxWstring
+    JMP java_printxWstring
 
 LABEL method_printxWstring
-    JMP printxWstring
+    JMP java_printxWstring
 
 LABEL method_printlnx_wstring
-    JMP printlnxWstring
+    JMP java_printlnxWstring
 
 LABEL method_PrintlnxWstring
-    JMP printlnxWstring
+    JMP java_printlnxWstring
 
 LABEL method_printlnxWstring
-    JMP printlnxWstring
+    JMP java_printlnxWstring
 
 LABEL method_printx_ustring
-    JMP printxUstring
+    JMP java_printxUstring
 
 LABEL method_PrintxUstring
-    JMP printxUstring
+    JMP java_printxUstring
 
 LABEL method_printxUstring
-    JMP printxUstring
+    JMP java_printxUstring
 
 LABEL method_printlnx_ustring
-    JMP printlnxUstring
+    JMP java_printlnxUstring
 
 LABEL method_PrintlnxUstring
-    JMP printlnxUstring
+    JMP java_printlnxUstring
 
 LABEL method_printlnxUstring
-    JMP printlnxUstring
+    JMP java_printlnxUstring
 
 LABEL method_printx_float32
-    JMP printxFloat32
+    JMP java_printxFloat32
 
 LABEL method_PrintxFloat32
-    JMP printxFloat32
+    JMP java_printxFloat32
 
 LABEL method_printxFloat32
-    JMP printxFloat32
+    JMP java_printxFloat32
 
 LABEL method_printlnx_float32
-    JMP printlnxFloat32
+    JMP java_printlnxFloat32
 
 LABEL method_PrintlnxFloat32
-    JMP printlnxFloat32
+    JMP java_printlnxFloat32
 
 LABEL method_printlnxFloat32
-    JMP printlnxFloat32
+    JMP java_printlnxFloat32
 
 LABEL method_printx_float64
-    JMP printxFloat64
+    JMP java_printxFloat64
 
 LABEL method_PrintxFloat64
-    JMP printxFloat64
+    JMP java_printxFloat64
 
 LABEL method_printxFloat64
-    JMP printxFloat64
+    JMP java_printxFloat64
 
 LABEL method_printlnx_float64
-    JMP printlnxFloat64
+    JMP java_printlnxFloat64
 
 LABEL method_PrintlnxFloat64
-    JMP printlnxFloat64
+    JMP java_printlnxFloat64
 
 LABEL method_printlnxFloat64
-    JMP printlnxFloat64
+    JMP java_printlnxFloat64
 
 LABEL method_printx_int64_hex
-    JMP printxInt64Hex
+    JMP java_printxInt64Hex
 
 LABEL method_PrintxInt64Hex
-    JMP printxInt64Hex
+    JMP java_printxInt64Hex
 
 LABEL method_printxInt64Hex
-    JMP printxInt64Hex
+    JMP java_printxInt64Hex
 
 LABEL method_printx_nl
-    JMP printxNl
+    JMP java_printxNl
 
 LABEL method_PrintxNl
-    JMP printxNl
+    JMP java_printxNl
 
 LABEL method_printxNl
-    JMP printxNl
+    JMP java_printxNl
 
 LABEL method_scanf
-    JMP scanf
+    JMP java_scanf
 
 LABEL method_Scanf
-    JMP scanf
+    JMP java_scanf
 
 LABEL method_sscanf
-    JMP sscanf
+    JMP java_sscanf
 
 LABEL method_Sscanf
-    JMP sscanf
+    JMP java_sscanf
 

@@ -3,7 +3,7 @@
 
 .linked "../shared/sysinfo.vml"
 
-LABEL sleep
+LABEL java_sleep
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL sleep
     pop R15
     RET
 
-LABEL getTick
+LABEL java_getTick
     push R15
     push R12
     move R12 R13
@@ -27,7 +27,7 @@ LABEL getTick
     pop R15
     RET
 
-LABEL delayUs
+LABEL java_delayUs
     push R15
     push R12
     move R12 R13
@@ -41,7 +41,7 @@ LABEL delayUs
     pop R15
     RET
 
-LABEL datetime
+LABEL java_datetime
     push R15
     push R12
     move R12 R13
@@ -51,7 +51,7 @@ LABEL datetime
     pop R15
     RET
 
-LABEL getDate
+LABEL java_getDate
     push R15
     push R12
     move R12 R13
@@ -61,7 +61,7 @@ LABEL getDate
     pop R15
     RET
 
-LABEL getTime
+LABEL java_getTime
     push R15
     push R12
     move R12 R13
@@ -71,7 +71,7 @@ LABEL getTime
     pop R15
     RET
 
-LABEL delay
+LABEL java_delay
     push R15
     push R12
     move R12 R13
@@ -86,77 +86,77 @@ LABEL delay
     RET
 
 LABEL Time_Sleep
-    JMP sleep
+    JMP java_sleep
 
 LABEL Time_GetTick
-    JMP getTick
+    JMP java_getTick
 
 LABEL Time_DelayUs
-    JMP delayUs
+    JMP java_delayUs
 
 LABEL Time_Datetime
-    JMP datetime
+    JMP java_datetime
 
 LABEL Time_GetDate
-    JMP getDate
+    JMP java_getDate
 
 LABEL Time_GetTime
-    JMP getTime
+    JMP java_getTime
 
 LABEL Time_Delay
-    JMP delay
+    JMP java_delay
 
 LABEL method_sleep
-    JMP sleep
+    JMP java_sleep
 
 LABEL method_Sleep
-    JMP sleep
+    JMP java_sleep
 
 LABEL method_get_tick
-    JMP getTick
+    JMP java_getTick
 
 LABEL method_GetTick
-    JMP getTick
+    JMP java_getTick
 
 LABEL method_getTick
-    JMP getTick
+    JMP java_getTick
 
 LABEL method_delay_us
-    JMP delayUs
+    JMP java_delayUs
 
 LABEL method_DelayUs
-    JMP delayUs
+    JMP java_delayUs
 
 LABEL method_delayUs
-    JMP delayUs
+    JMP java_delayUs
 
 LABEL method_datetime
-    JMP datetime
+    JMP java_datetime
 
 LABEL method_Datetime
-    JMP datetime
+    JMP java_datetime
 
 LABEL method_get_date
-    JMP getDate
+    JMP java_getDate
 
 LABEL method_GetDate
-    JMP getDate
+    JMP java_getDate
 
 LABEL method_getDate
-    JMP getDate
+    JMP java_getDate
 
 LABEL method_get_time
-    JMP getTime
+    JMP java_getTime
 
 LABEL method_GetTime
-    JMP getTime
+    JMP java_getTime
 
 LABEL method_getTime
-    JMP getTime
+    JMP java_getTime
 
 LABEL method_delay
-    JMP delay
+    JMP java_delay
 
 LABEL method_Delay
-    JMP delay
+    JMP java_delay
 

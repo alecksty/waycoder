@@ -3,7 +3,7 @@
 
 .linked "../shared/matrix.vml"
 
-LABEL mat2Identity
+LABEL java_mat2Identity
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL mat2Identity
     pop R15
     RET
 
-LABEL mat2Add
+LABEL java_mat2Add
     push R15
     push R12
     move R12 R13
@@ -37,7 +37,7 @@ LABEL mat2Add
     pop R15
     RET
 
-LABEL mat2Sub
+LABEL java_mat2Sub
     push R15
     push R12
     move R12 R13
@@ -57,7 +57,7 @@ LABEL mat2Sub
     pop R15
     RET
 
-LABEL mat2Mul
+LABEL java_mat2Mul
     push R15
     push R12
     move R12 R13
@@ -77,7 +77,7 @@ LABEL mat2Mul
     pop R15
     RET
 
-LABEL mat2Scale
+LABEL java_mat2Scale
     push R15
     push R12
     move R12 R13
@@ -98,7 +98,7 @@ LABEL mat2Scale
     pop R15
     RET
 
-LABEL mat2Det
+LABEL java_mat2Det
     push R15
     push R12
     move R12 R13
@@ -112,7 +112,7 @@ LABEL mat2Det
     pop R15
     RET
 
-LABEL mat2Transpose
+LABEL java_mat2Transpose
     push R15
     push R12
     move R12 R13
@@ -129,7 +129,7 @@ LABEL mat2Transpose
     pop R15
     RET
 
-LABEL mat2Inv
+LABEL java_mat2Inv
     push R15
     push R12
     move R12 R13
@@ -146,7 +146,7 @@ LABEL mat2Inv
     pop R15
     RET
 
-LABEL mat2Rot
+LABEL java_mat2Rot
     push R15
     push R12
     move R12 R13
@@ -164,7 +164,7 @@ LABEL mat2Rot
     pop R15
     RET
 
-LABEL mat3Identity
+LABEL java_mat3Identity
     push R15
     push R12
     move R12 R13
@@ -178,7 +178,7 @@ LABEL mat3Identity
     pop R15
     RET
 
-LABEL mat3Mul
+LABEL java_mat3Mul
     push R15
     push R12
     move R12 R13
@@ -198,7 +198,7 @@ LABEL mat3Mul
     pop R15
     RET
 
-LABEL mat3Det
+LABEL java_mat3Det
     push R15
     push R12
     move R12 R13
@@ -212,7 +212,7 @@ LABEL mat3Det
     pop R15
     RET
 
-LABEL mat3Transpose
+LABEL java_mat3Transpose
     push R15
     push R12
     move R12 R13
@@ -229,7 +229,7 @@ LABEL mat3Transpose
     pop R15
     RET
 
-LABEL mat3Scale
+LABEL java_mat3Scale
     push R15
     push R12
     move R12 R13
@@ -250,7 +250,7 @@ LABEL mat3Scale
     pop R15
     RET
 
-LABEL mat4Identity
+LABEL java_mat4Identity
     push R15
     push R12
     move R12 R13
@@ -264,7 +264,7 @@ LABEL mat4Identity
     pop R15
     RET
 
-LABEL mat4Mul
+LABEL java_mat4Mul
     push R15
     push R12
     move R12 R13
@@ -284,7 +284,7 @@ LABEL mat4Mul
     pop R15
     RET
 
-LABEL mat4Translate
+LABEL java_mat4Translate
     push R15
     push R12
     move R12 R13
@@ -310,7 +310,7 @@ LABEL mat4Translate
     pop R15
     RET
 
-LABEL mat4ScaleXyz
+LABEL java_mat4ScaleXyz
     push R15
     push R12
     move R12 R13
@@ -336,7 +336,7 @@ LABEL mat4ScaleXyz
     pop R15
     RET
 
-LABEL mat4RotX
+LABEL java_mat4RotX
     push R15
     push R12
     move R12 R13
@@ -354,7 +354,7 @@ LABEL mat4RotX
     pop R15
     RET
 
-LABEL mat4RotY
+LABEL java_mat4RotY
     push R15
     push R12
     move R12 R13
@@ -372,7 +372,7 @@ LABEL mat4RotY
     pop R15
     RET
 
-LABEL mat4RotZ
+LABEL java_mat4RotZ
     push R15
     push R12
     move R12 R13
@@ -390,7 +390,7 @@ LABEL mat4RotZ
     pop R15
     RET
 
-LABEL mat4Transpose
+LABEL java_mat4Transpose
     push R15
     push R12
     move R12 R13
@@ -407,7 +407,7 @@ LABEL mat4Transpose
     pop R15
     RET
 
-LABEL vec2Dot
+LABEL java_vec2Dot
     push R15
     push R12
     move R12 R13
@@ -424,7 +424,7 @@ LABEL vec2Dot
     pop R15
     RET
 
-LABEL product
+LABEL java_product
     push R15
     push R12
     move R12 R13
@@ -438,7 +438,7 @@ LABEL product
     pop R15
     RET
 
-LABEL vec2Cross
+LABEL java_vec2Cross
     push R15
     push R12
     move R12 R13
@@ -455,7 +455,7 @@ LABEL vec2Cross
     pop R15
     RET
 
-LABEL vec2Len
+LABEL java_vec2Len
     push R15
     push R12
     move R12 R13
@@ -469,7 +469,7 @@ LABEL vec2Len
     pop R15
     RET
 
-LABEL vec2Normalize
+LABEL java_vec2Normalize
     push R15
     push R12
     move R12 R13
@@ -483,7 +483,7 @@ LABEL vec2Normalize
     pop R15
     RET
 
-LABEL vec3Dot
+LABEL java_vec3Dot
     push R15
     push R12
     move R12 R13
@@ -500,7 +500,7 @@ LABEL vec3Dot
     pop R15
     RET
 
-LABEL vec3Cross
+LABEL java_vec3Cross
     push R15
     push R12
     move R12 R13
@@ -520,7 +520,7 @@ LABEL vec3Cross
     pop R15
     RET
 
-LABEL vec3Len
+LABEL java_vec3Len
     push R15
     push R12
     move R12 R13
@@ -534,7 +534,7 @@ LABEL vec3Len
     pop R15
     RET
 
-LABEL vec3Normalize
+LABEL java_vec3Normalize
     push R15
     push R12
     move R12 R13
@@ -548,7 +548,7 @@ LABEL vec3Normalize
     pop R15
     RET
 
-LABEL vector
+LABEL java_vector
     push R15
     push R12
     move R12 R13
@@ -565,7 +565,7 @@ LABEL vector
     pop R15
     RET
 
-LABEL mat4TransformVec3
+LABEL java_mat4TransformVec3
     push R15
     push R12
     move R12 R13
@@ -586,392 +586,392 @@ LABEL mat4TransformVec3
     RET
 
 LABEL Matrix_Mat2Identity
-    JMP mat2Identity
+    JMP java_mat2Identity
 
 LABEL Matrix_Mat2Add
-    JMP mat2Add
+    JMP java_mat2Add
 
 LABEL Matrix_Mat2Sub
-    JMP mat2Sub
+    JMP java_mat2Sub
 
 LABEL Matrix_Mat2Mul
-    JMP mat2Mul
+    JMP java_mat2Mul
 
 LABEL Matrix_Mat2Scale
-    JMP mat2Scale
+    JMP java_mat2Scale
 
 LABEL Matrix_Mat2Det
-    JMP mat2Det
+    JMP java_mat2Det
 
 LABEL Matrix_Mat2Transpose
-    JMP mat2Transpose
+    JMP java_mat2Transpose
 
 LABEL Matrix_Mat2Inv
-    JMP mat2Inv
+    JMP java_mat2Inv
 
 LABEL Matrix_Mat2Rot
-    JMP mat2Rot
+    JMP java_mat2Rot
 
 LABEL Matrix_Mat3Identity
-    JMP mat3Identity
+    JMP java_mat3Identity
 
 LABEL Matrix_Mat3Mul
-    JMP mat3Mul
+    JMP java_mat3Mul
 
 LABEL Matrix_Mat3Det
-    JMP mat3Det
+    JMP java_mat3Det
 
 LABEL Matrix_Mat3Transpose
-    JMP mat3Transpose
+    JMP java_mat3Transpose
 
 LABEL Matrix_Mat3Scale
-    JMP mat3Scale
+    JMP java_mat3Scale
 
 LABEL Matrix_Mat4Identity
-    JMP mat4Identity
+    JMP java_mat4Identity
 
 LABEL Matrix_Mat4Mul
-    JMP mat4Mul
+    JMP java_mat4Mul
 
 LABEL Matrix_Mat4Translate
-    JMP mat4Translate
+    JMP java_mat4Translate
 
 LABEL Matrix_Mat4ScaleXyz
-    JMP mat4ScaleXyz
+    JMP java_mat4ScaleXyz
 
 LABEL Matrix_Mat4RotX
-    JMP mat4RotX
+    JMP java_mat4RotX
 
 LABEL Matrix_Mat4RotY
-    JMP mat4RotY
+    JMP java_mat4RotY
 
 LABEL Matrix_Mat4RotZ
-    JMP mat4RotZ
+    JMP java_mat4RotZ
 
 LABEL Matrix_Mat4Transpose
-    JMP mat4Transpose
+    JMP java_mat4Transpose
 
 LABEL Matrix_Vec2Dot
-    JMP vec2Dot
+    JMP java_vec2Dot
 
 LABEL Matrix_Product
-    JMP product
+    JMP java_product
 
 LABEL Matrix_Vec2Cross
-    JMP vec2Cross
+    JMP java_vec2Cross
 
 LABEL Matrix_Vec2Len
-    JMP vec2Len
+    JMP java_vec2Len
 
 LABEL Matrix_Vec2Normalize
-    JMP vec2Normalize
+    JMP java_vec2Normalize
 
 LABEL Matrix_Vec3Dot
-    JMP vec3Dot
+    JMP java_vec3Dot
 
 LABEL Matrix_Vec3Cross
-    JMP vec3Cross
+    JMP java_vec3Cross
 
 LABEL Matrix_Vec3Len
-    JMP vec3Len
+    JMP java_vec3Len
 
 LABEL Matrix_Vec3Normalize
-    JMP vec3Normalize
+    JMP java_vec3Normalize
 
 LABEL Matrix_Vector
-    JMP vector
+    JMP java_vector
 
 LABEL Matrix_Mat4TransformVec3
-    JMP mat4TransformVec3
+    JMP java_mat4TransformVec3
 
 LABEL method_mat2_identity
-    JMP mat2Identity
+    JMP java_mat2Identity
 
 LABEL method_Mat2Identity
-    JMP mat2Identity
+    JMP java_mat2Identity
 
 LABEL method_mat2Identity
-    JMP mat2Identity
+    JMP java_mat2Identity
 
 LABEL method_mat2_add
-    JMP mat2Add
+    JMP java_mat2Add
 
 LABEL method_Mat2Add
-    JMP mat2Add
+    JMP java_mat2Add
 
 LABEL method_mat2Add
-    JMP mat2Add
+    JMP java_mat2Add
 
 LABEL method_mat2_sub
-    JMP mat2Sub
+    JMP java_mat2Sub
 
 LABEL method_Mat2Sub
-    JMP mat2Sub
+    JMP java_mat2Sub
 
 LABEL method_mat2Sub
-    JMP mat2Sub
+    JMP java_mat2Sub
 
 LABEL method_mat2_mul
-    JMP mat2Mul
+    JMP java_mat2Mul
 
 LABEL method_Mat2Mul
-    JMP mat2Mul
+    JMP java_mat2Mul
 
 LABEL method_mat2Mul
-    JMP mat2Mul
+    JMP java_mat2Mul
 
 LABEL method_mat2_scale
-    JMP mat2Scale
+    JMP java_mat2Scale
 
 LABEL method_Mat2Scale
-    JMP mat2Scale
+    JMP java_mat2Scale
 
 LABEL method_mat2Scale
-    JMP mat2Scale
+    JMP java_mat2Scale
 
 LABEL method_mat2_det
-    JMP mat2Det
+    JMP java_mat2Det
 
 LABEL method_Mat2Det
-    JMP mat2Det
+    JMP java_mat2Det
 
 LABEL method_mat2Det
-    JMP mat2Det
+    JMP java_mat2Det
 
 LABEL method_mat2_transpose
-    JMP mat2Transpose
+    JMP java_mat2Transpose
 
 LABEL method_Mat2Transpose
-    JMP mat2Transpose
+    JMP java_mat2Transpose
 
 LABEL method_mat2Transpose
-    JMP mat2Transpose
+    JMP java_mat2Transpose
 
 LABEL method_mat2_inv
-    JMP mat2Inv
+    JMP java_mat2Inv
 
 LABEL method_Mat2Inv
-    JMP mat2Inv
+    JMP java_mat2Inv
 
 LABEL method_mat2Inv
-    JMP mat2Inv
+    JMP java_mat2Inv
 
 LABEL method_mat2_rot
-    JMP mat2Rot
+    JMP java_mat2Rot
 
 LABEL method_Mat2Rot
-    JMP mat2Rot
+    JMP java_mat2Rot
 
 LABEL method_mat2Rot
-    JMP mat2Rot
+    JMP java_mat2Rot
 
 LABEL method_mat3_identity
-    JMP mat3Identity
+    JMP java_mat3Identity
 
 LABEL method_Mat3Identity
-    JMP mat3Identity
+    JMP java_mat3Identity
 
 LABEL method_mat3Identity
-    JMP mat3Identity
+    JMP java_mat3Identity
 
 LABEL method_mat3_mul
-    JMP mat3Mul
+    JMP java_mat3Mul
 
 LABEL method_Mat3Mul
-    JMP mat3Mul
+    JMP java_mat3Mul
 
 LABEL method_mat3Mul
-    JMP mat3Mul
+    JMP java_mat3Mul
 
 LABEL method_mat3_det
-    JMP mat3Det
+    JMP java_mat3Det
 
 LABEL method_Mat3Det
-    JMP mat3Det
+    JMP java_mat3Det
 
 LABEL method_mat3Det
-    JMP mat3Det
+    JMP java_mat3Det
 
 LABEL method_mat3_transpose
-    JMP mat3Transpose
+    JMP java_mat3Transpose
 
 LABEL method_Mat3Transpose
-    JMP mat3Transpose
+    JMP java_mat3Transpose
 
 LABEL method_mat3Transpose
-    JMP mat3Transpose
+    JMP java_mat3Transpose
 
 LABEL method_mat3_scale
-    JMP mat3Scale
+    JMP java_mat3Scale
 
 LABEL method_Mat3Scale
-    JMP mat3Scale
+    JMP java_mat3Scale
 
 LABEL method_mat3Scale
-    JMP mat3Scale
+    JMP java_mat3Scale
 
 LABEL method_mat4_identity
-    JMP mat4Identity
+    JMP java_mat4Identity
 
 LABEL method_Mat4Identity
-    JMP mat4Identity
+    JMP java_mat4Identity
 
 LABEL method_mat4Identity
-    JMP mat4Identity
+    JMP java_mat4Identity
 
 LABEL method_mat4_mul
-    JMP mat4Mul
+    JMP java_mat4Mul
 
 LABEL method_Mat4Mul
-    JMP mat4Mul
+    JMP java_mat4Mul
 
 LABEL method_mat4Mul
-    JMP mat4Mul
+    JMP java_mat4Mul
 
 LABEL method_mat4_translate
-    JMP mat4Translate
+    JMP java_mat4Translate
 
 LABEL method_Mat4Translate
-    JMP mat4Translate
+    JMP java_mat4Translate
 
 LABEL method_mat4Translate
-    JMP mat4Translate
+    JMP java_mat4Translate
 
 LABEL method_mat4_scale_xyz
-    JMP mat4ScaleXyz
+    JMP java_mat4ScaleXyz
 
 LABEL method_Mat4ScaleXyz
-    JMP mat4ScaleXyz
+    JMP java_mat4ScaleXyz
 
 LABEL method_mat4ScaleXyz
-    JMP mat4ScaleXyz
+    JMP java_mat4ScaleXyz
 
 LABEL method_mat4_rot_x
-    JMP mat4RotX
+    JMP java_mat4RotX
 
 LABEL method_Mat4RotX
-    JMP mat4RotX
+    JMP java_mat4RotX
 
 LABEL method_mat4RotX
-    JMP mat4RotX
+    JMP java_mat4RotX
 
 LABEL method_mat4_rot_y
-    JMP mat4RotY
+    JMP java_mat4RotY
 
 LABEL method_Mat4RotY
-    JMP mat4RotY
+    JMP java_mat4RotY
 
 LABEL method_mat4RotY
-    JMP mat4RotY
+    JMP java_mat4RotY
 
 LABEL method_mat4_rot_z
-    JMP mat4RotZ
+    JMP java_mat4RotZ
 
 LABEL method_Mat4RotZ
-    JMP mat4RotZ
+    JMP java_mat4RotZ
 
 LABEL method_mat4RotZ
-    JMP mat4RotZ
+    JMP java_mat4RotZ
 
 LABEL method_mat4_transpose
-    JMP mat4Transpose
+    JMP java_mat4Transpose
 
 LABEL method_Mat4Transpose
-    JMP mat4Transpose
+    JMP java_mat4Transpose
 
 LABEL method_mat4Transpose
-    JMP mat4Transpose
+    JMP java_mat4Transpose
 
 LABEL method_vec2_dot
-    JMP vec2Dot
+    JMP java_vec2Dot
 
 LABEL method_Vec2Dot
-    JMP vec2Dot
+    JMP java_vec2Dot
 
 LABEL method_vec2Dot
-    JMP vec2Dot
+    JMP java_vec2Dot
 
 LABEL method_product
-    JMP product
+    JMP java_product
 
 LABEL method_Product
-    JMP product
+    JMP java_product
 
 LABEL method_vec2_cross
-    JMP vec2Cross
+    JMP java_vec2Cross
 
 LABEL method_Vec2Cross
-    JMP vec2Cross
+    JMP java_vec2Cross
 
 LABEL method_vec2Cross
-    JMP vec2Cross
+    JMP java_vec2Cross
 
 LABEL method_vec2_len
-    JMP vec2Len
+    JMP java_vec2Len
 
 LABEL method_Vec2Len
-    JMP vec2Len
+    JMP java_vec2Len
 
 LABEL method_vec2Len
-    JMP vec2Len
+    JMP java_vec2Len
 
 LABEL method_vec2_normalize
-    JMP vec2Normalize
+    JMP java_vec2Normalize
 
 LABEL method_Vec2Normalize
-    JMP vec2Normalize
+    JMP java_vec2Normalize
 
 LABEL method_vec2Normalize
-    JMP vec2Normalize
+    JMP java_vec2Normalize
 
 LABEL method_vec3_dot
-    JMP vec3Dot
+    JMP java_vec3Dot
 
 LABEL method_Vec3Dot
-    JMP vec3Dot
+    JMP java_vec3Dot
 
 LABEL method_vec3Dot
-    JMP vec3Dot
+    JMP java_vec3Dot
 
 LABEL method_vec3_cross
-    JMP vec3Cross
+    JMP java_vec3Cross
 
 LABEL method_Vec3Cross
-    JMP vec3Cross
+    JMP java_vec3Cross
 
 LABEL method_vec3Cross
-    JMP vec3Cross
+    JMP java_vec3Cross
 
 LABEL method_vec3_len
-    JMP vec3Len
+    JMP java_vec3Len
 
 LABEL method_Vec3Len
-    JMP vec3Len
+    JMP java_vec3Len
 
 LABEL method_vec3Len
-    JMP vec3Len
+    JMP java_vec3Len
 
 LABEL method_vec3_normalize
-    JMP vec3Normalize
+    JMP java_vec3Normalize
 
 LABEL method_Vec3Normalize
-    JMP vec3Normalize
+    JMP java_vec3Normalize
 
 LABEL method_vec3Normalize
-    JMP vec3Normalize
+    JMP java_vec3Normalize
 
 LABEL method_vector
-    JMP vector
+    JMP java_vector
 
 LABEL method_Vector
-    JMP vector
+    JMP java_vector
 
 LABEL method_mat4_transform_vec3
-    JMP mat4TransformVec3
+    JMP java_mat4TransformVec3
 
 LABEL method_Mat4TransformVec3
-    JMP mat4TransformVec3
+    JMP java_mat4TransformVec3
 
 LABEL method_mat4TransformVec3
-    JMP mat4TransformVec3
+    JMP java_mat4TransformVec3
 

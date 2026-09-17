@@ -3,7 +3,7 @@
 
 .linked "../shared/conv.vml"
 
-LABEL intToStr
+LABEL java_intToStr
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL intToStr
     pop R15
     RET
 
-LABEL intToWstr
+LABEL java_intToWstr
     push R15
     push R12
     move R12 R13
@@ -31,7 +31,7 @@ LABEL intToWstr
     pop R15
     RET
 
-LABEL intToUstr
+LABEL java_intToUstr
     push R15
     push R12
     move R12 R13
@@ -45,7 +45,7 @@ LABEL intToUstr
     pop R15
     RET
 
-LABEL strToInt
+LABEL java_strToInt
     push R15
     push R12
     move R12 R13
@@ -59,7 +59,7 @@ LABEL strToInt
     pop R15
     RET
 
-LABEL wstrToInt
+LABEL java_wstrToInt
     push R15
     push R12
     move R12 R13
@@ -73,7 +73,7 @@ LABEL wstrToInt
     pop R15
     RET
 
-LABEL ustrToInt
+LABEL java_ustrToInt
     push R15
     push R12
     move R12 R13
@@ -87,7 +87,7 @@ LABEL ustrToInt
     pop R15
     RET
 
-LABEL ltoa
+LABEL java_ltoa
     push R15
     push R12
     move R12 R13
@@ -105,7 +105,7 @@ LABEL ltoa
     pop R15
     RET
 
-LABEL longToStrbuf
+LABEL java_longToStrbuf
     push R15
     push R12
     move R12 R13
@@ -123,7 +123,7 @@ LABEL longToStrbuf
     pop R15
     RET
 
-LABEL longToStr
+LABEL java_longToStr
     push R15
     push R12
     move R12 R13
@@ -138,7 +138,7 @@ LABEL longToStr
     pop R15
     RET
 
-LABEL longToWstr
+LABEL java_longToWstr
     push R15
     push R12
     move R12 R13
@@ -153,7 +153,7 @@ LABEL longToWstr
     pop R15
     RET
 
-LABEL longToUstr
+LABEL java_longToUstr
     push R15
     push R12
     move R12 R13
@@ -168,7 +168,7 @@ LABEL longToUstr
     pop R15
     RET
 
-LABEL atol
+LABEL java_atol
     push R15
     push R12
     move R12 R13
@@ -182,7 +182,7 @@ LABEL atol
     pop R15
     RET
 
-LABEL strToLong
+LABEL java_strToLong
     push R15
     push R12
     move R12 R13
@@ -196,7 +196,7 @@ LABEL strToLong
     pop R15
     RET
 
-LABEL wstrToLong
+LABEL java_wstrToLong
     push R15
     push R12
     move R12 R13
@@ -210,7 +210,7 @@ LABEL wstrToLong
     pop R15
     RET
 
-LABEL ustrToLong
+LABEL java_ustrToLong
     push R15
     push R12
     move R12 R13
@@ -224,7 +224,7 @@ LABEL ustrToLong
     pop R15
     RET
 
-LABEL uintToStr
+LABEL java_uintToStr
     push R15
     push R12
     move R12 R13
@@ -238,7 +238,7 @@ LABEL uintToStr
     pop R15
     RET
 
-LABEL ulongToStr
+LABEL java_ulongToStr
     push R15
     push R12
     move R12 R13
@@ -253,7 +253,7 @@ LABEL ulongToStr
     pop R15
     RET
 
-LABEL strToUint
+LABEL java_strToUint
     push R15
     push R12
     move R12 R13
@@ -267,7 +267,7 @@ LABEL strToUint
     pop R15
     RET
 
-LABEL strToUlong
+LABEL java_strToUlong
     push R15
     push R12
     move R12 R13
@@ -281,7 +281,7 @@ LABEL strToUlong
     pop R15
     RET
 
-LABEL boolToStr
+LABEL java_boolToStr
     push R15
     push R12
     move R12 R13
@@ -295,7 +295,7 @@ LABEL boolToStr
     pop R15
     RET
 
-LABEL strToBool
+LABEL java_strToBool
     push R15
     push R12
     move R12 R13
@@ -309,7 +309,7 @@ LABEL strToBool
     pop R15
     RET
 
-LABEL charToStr
+LABEL java_charToStr
     push R15
     push R12
     move R12 R13
@@ -324,7 +324,7 @@ LABEL charToStr
     pop R15
     RET
 
-LABEL strToChar
+LABEL java_strToChar
     push R15
     push R12
     move R12 R13
@@ -338,7 +338,7 @@ LABEL strToChar
     pop R15
     RET
 
-LABEL byteToStr
+LABEL java_byteToStr
     push R15
     push R12
     move R12 R13
@@ -353,7 +353,7 @@ LABEL byteToStr
     pop R15
     RET
 
-LABEL strToByte
+LABEL java_strToByte
     push R15
     push R12
     move R12 R13
@@ -367,7 +367,7 @@ LABEL strToByte
     pop R15
     RET
 
-LABEL sbyteToStr
+LABEL java_sbyteToStr
     push R15
     push R12
     move R12 R13
@@ -382,7 +382,7 @@ LABEL sbyteToStr
     pop R15
     RET
 
-LABEL strToSbyte
+LABEL java_strToSbyte
     push R15
     push R12
     move R12 R13
@@ -396,7 +396,7 @@ LABEL strToSbyte
     pop R15
     RET
 
-LABEL shortToStr
+LABEL java_shortToStr
     push R15
     push R12
     move R12 R13
@@ -411,7 +411,7 @@ LABEL shortToStr
     pop R15
     RET
 
-LABEL strToShort
+LABEL java_strToShort
     push R15
     push R12
     move R12 R13
@@ -425,7 +425,7 @@ LABEL strToShort
     pop R15
     RET
 
-LABEL ushortToStr
+LABEL java_ushortToStr
     push R15
     push R12
     move R12 R13
@@ -440,7 +440,7 @@ LABEL ushortToStr
     pop R15
     RET
 
-LABEL strToUshort
+LABEL java_strToUshort
     push R15
     push R12
     move R12 R13
@@ -454,7 +454,7 @@ LABEL strToUshort
     pop R15
     RET
 
-LABEL ftoa
+LABEL java_ftoa
     push R15
     push R12
     move R12 R13
@@ -474,7 +474,7 @@ LABEL ftoa
     pop R15
     RET
 
-LABEL floatToStr
+LABEL java_floatToStr
     push R15
     push R12
     move R12 R13
@@ -489,7 +489,7 @@ LABEL floatToStr
     pop R15
     RET
 
-LABEL strToFloat
+LABEL java_strToFloat
     push R15
     push R12
     move R12 R13
@@ -503,7 +503,7 @@ LABEL strToFloat
     pop R15
     RET
 
-LABEL dtoa
+LABEL java_dtoa
     push R15
     push R12
     move R12 R13
@@ -524,7 +524,7 @@ LABEL dtoa
     pop R15
     RET
 
-LABEL doubleToStr
+LABEL java_doubleToStr
     push R15
     push R12
     move R12 R13
@@ -539,7 +539,7 @@ LABEL doubleToStr
     pop R15
     RET
 
-LABEL strToDouble
+LABEL java_strToDouble
     push R15
     push R12
     move R12 R13
@@ -553,7 +553,7 @@ LABEL strToDouble
     pop R15
     RET
 
-LABEL floatToWstr
+LABEL java_floatToWstr
     push R15
     push R12
     move R12 R13
@@ -568,7 +568,7 @@ LABEL floatToWstr
     pop R15
     RET
 
-LABEL doubleToWstr
+LABEL java_doubleToWstr
     push R15
     push R12
     move R12 R13
@@ -583,7 +583,7 @@ LABEL doubleToWstr
     pop R15
     RET
 
-LABEL boolToWstr
+LABEL java_boolToWstr
     push R15
     push R12
     move R12 R13
@@ -597,7 +597,7 @@ LABEL boolToWstr
     pop R15
     RET
 
-LABEL floatToUstr
+LABEL java_floatToUstr
     push R15
     push R12
     move R12 R13
@@ -612,7 +612,7 @@ LABEL floatToUstr
     pop R15
     RET
 
-LABEL doubleToUstr
+LABEL java_doubleToUstr
     push R15
     push R12
     move R12 R13
@@ -627,7 +627,7 @@ LABEL doubleToUstr
     pop R15
     RET
 
-LABEL boolToUstr
+LABEL java_boolToUstr
     push R15
     push R12
     move R12 R13
@@ -641,7 +641,7 @@ LABEL boolToUstr
     pop R15
     RET
 
-LABEL wstrToUtf8
+LABEL java_wstrToUtf8
     push R15
     push R12
     move R12 R13
@@ -661,7 +661,7 @@ LABEL wstrToUtf8
     pop R15
     RET
 
-LABEL ustrToUtf8
+LABEL java_ustrToUtf8
     push R15
     push R12
     move R12 R13
@@ -682,530 +682,530 @@ LABEL ustrToUtf8
     RET
 
 LABEL Conv_IntToStr
-    JMP intToStr
+    JMP java_intToStr
 
 LABEL Conv_IntToWstr
-    JMP intToWstr
+    JMP java_intToWstr
 
 LABEL Conv_IntToUstr
-    JMP intToUstr
+    JMP java_intToUstr
 
 LABEL Conv_StrToInt
-    JMP strToInt
+    JMP java_strToInt
 
 LABEL Conv_WstrToInt
-    JMP wstrToInt
+    JMP java_wstrToInt
 
 LABEL Conv_UstrToInt
-    JMP ustrToInt
+    JMP java_ustrToInt
 
 LABEL Conv_Ltoa
-    JMP ltoa
+    JMP java_ltoa
 
 LABEL Conv_LongToStrbuf
-    JMP longToStrbuf
+    JMP java_longToStrbuf
 
 LABEL Conv_LongToStr
-    JMP longToStr
+    JMP java_longToStr
 
 LABEL Conv_LongToWstr
-    JMP longToWstr
+    JMP java_longToWstr
 
 LABEL Conv_LongToUstr
-    JMP longToUstr
+    JMP java_longToUstr
 
 LABEL Conv_Atol
-    JMP atol
+    JMP java_atol
 
 LABEL Conv_StrToLong
-    JMP strToLong
+    JMP java_strToLong
 
 LABEL Conv_WstrToLong
-    JMP wstrToLong
+    JMP java_wstrToLong
 
 LABEL Conv_UstrToLong
-    JMP ustrToLong
+    JMP java_ustrToLong
 
 LABEL Conv_UintToStr
-    JMP uintToStr
+    JMP java_uintToStr
 
 LABEL Conv_UlongToStr
-    JMP ulongToStr
+    JMP java_ulongToStr
 
 LABEL Conv_StrToUint
-    JMP strToUint
+    JMP java_strToUint
 
 LABEL Conv_StrToUlong
-    JMP strToUlong
+    JMP java_strToUlong
 
 LABEL Conv_BoolToStr
-    JMP boolToStr
+    JMP java_boolToStr
 
 LABEL Conv_StrToBool
-    JMP strToBool
+    JMP java_strToBool
 
 LABEL Conv_CharToStr
-    JMP charToStr
+    JMP java_charToStr
 
 LABEL Conv_StrToChar
-    JMP strToChar
+    JMP java_strToChar
 
 LABEL Conv_ByteToStr
-    JMP byteToStr
+    JMP java_byteToStr
 
 LABEL Conv_StrToByte
-    JMP strToByte
+    JMP java_strToByte
 
 LABEL Conv_SbyteToStr
-    JMP sbyteToStr
+    JMP java_sbyteToStr
 
 LABEL Conv_StrToSbyte
-    JMP strToSbyte
+    JMP java_strToSbyte
 
 LABEL Conv_ShortToStr
-    JMP shortToStr
+    JMP java_shortToStr
 
 LABEL Conv_StrToShort
-    JMP strToShort
+    JMP java_strToShort
 
 LABEL Conv_UshortToStr
-    JMP ushortToStr
+    JMP java_ushortToStr
 
 LABEL Conv_StrToUshort
-    JMP strToUshort
+    JMP java_strToUshort
 
 LABEL Conv_Ftoa
-    JMP ftoa
+    JMP java_ftoa
 
 LABEL Conv_FloatToStr
-    JMP floatToStr
+    JMP java_floatToStr
 
 LABEL Conv_StrToFloat
-    JMP strToFloat
+    JMP java_strToFloat
 
 LABEL Conv_Dtoa
-    JMP dtoa
+    JMP java_dtoa
 
 LABEL Conv_DoubleToStr
-    JMP doubleToStr
+    JMP java_doubleToStr
 
 LABEL Conv_StrToDouble
-    JMP strToDouble
+    JMP java_strToDouble
 
 LABEL Conv_FloatToWstr
-    JMP floatToWstr
+    JMP java_floatToWstr
 
 LABEL Conv_DoubleToWstr
-    JMP doubleToWstr
+    JMP java_doubleToWstr
 
 LABEL Conv_BoolToWstr
-    JMP boolToWstr
+    JMP java_boolToWstr
 
 LABEL Conv_FloatToUstr
-    JMP floatToUstr
+    JMP java_floatToUstr
 
 LABEL Conv_DoubleToUstr
-    JMP doubleToUstr
+    JMP java_doubleToUstr
 
 LABEL Conv_BoolToUstr
-    JMP boolToUstr
+    JMP java_boolToUstr
 
 LABEL Conv_WstrToUtf8
-    JMP wstrToUtf8
+    JMP java_wstrToUtf8
 
 LABEL Conv_UstrToUtf8
-    JMP ustrToUtf8
+    JMP java_ustrToUtf8
 
 LABEL method_int_to_str
-    JMP intToStr
+    JMP java_intToStr
 
 LABEL method_IntToStr
-    JMP intToStr
+    JMP java_intToStr
 
 LABEL method_intToStr
-    JMP intToStr
+    JMP java_intToStr
 
 LABEL method_int_to_wstr
-    JMP intToWstr
+    JMP java_intToWstr
 
 LABEL method_IntToWstr
-    JMP intToWstr
+    JMP java_intToWstr
 
 LABEL method_intToWstr
-    JMP intToWstr
+    JMP java_intToWstr
 
 LABEL method_int_to_ustr
-    JMP intToUstr
+    JMP java_intToUstr
 
 LABEL method_IntToUstr
-    JMP intToUstr
+    JMP java_intToUstr
 
 LABEL method_intToUstr
-    JMP intToUstr
+    JMP java_intToUstr
 
 LABEL method_str_to_int
-    JMP strToInt
+    JMP java_strToInt
 
 LABEL method_StrToInt
-    JMP strToInt
+    JMP java_strToInt
 
 LABEL method_strToInt
-    JMP strToInt
+    JMP java_strToInt
 
 LABEL method_wstr_to_int
-    JMP wstrToInt
+    JMP java_wstrToInt
 
 LABEL method_WstrToInt
-    JMP wstrToInt
+    JMP java_wstrToInt
 
 LABEL method_wstrToInt
-    JMP wstrToInt
+    JMP java_wstrToInt
 
 LABEL method_ustr_to_int
-    JMP ustrToInt
+    JMP java_ustrToInt
 
 LABEL method_UstrToInt
-    JMP ustrToInt
+    JMP java_ustrToInt
 
 LABEL method_ustrToInt
-    JMP ustrToInt
+    JMP java_ustrToInt
 
 LABEL method_ltoa
-    JMP ltoa
+    JMP java_ltoa
 
 LABEL method_Ltoa
-    JMP ltoa
+    JMP java_ltoa
 
 LABEL method_long_to_strbuf
-    JMP longToStrbuf
+    JMP java_longToStrbuf
 
 LABEL method_LongToStrbuf
-    JMP longToStrbuf
+    JMP java_longToStrbuf
 
 LABEL method_longToStrbuf
-    JMP longToStrbuf
+    JMP java_longToStrbuf
 
 LABEL method_long_to_str
-    JMP longToStr
+    JMP java_longToStr
 
 LABEL method_LongToStr
-    JMP longToStr
+    JMP java_longToStr
 
 LABEL method_longToStr
-    JMP longToStr
+    JMP java_longToStr
 
 LABEL method_long_to_wstr
-    JMP longToWstr
+    JMP java_longToWstr
 
 LABEL method_LongToWstr
-    JMP longToWstr
+    JMP java_longToWstr
 
 LABEL method_longToWstr
-    JMP longToWstr
+    JMP java_longToWstr
 
 LABEL method_long_to_ustr
-    JMP longToUstr
+    JMP java_longToUstr
 
 LABEL method_LongToUstr
-    JMP longToUstr
+    JMP java_longToUstr
 
 LABEL method_longToUstr
-    JMP longToUstr
+    JMP java_longToUstr
 
 LABEL method_atol
-    JMP atol
+    JMP java_atol
 
 LABEL method_Atol
-    JMP atol
+    JMP java_atol
 
 LABEL method_str_to_long
-    JMP strToLong
+    JMP java_strToLong
 
 LABEL method_StrToLong
-    JMP strToLong
+    JMP java_strToLong
 
 LABEL method_strToLong
-    JMP strToLong
+    JMP java_strToLong
 
 LABEL method_wstr_to_long
-    JMP wstrToLong
+    JMP java_wstrToLong
 
 LABEL method_WstrToLong
-    JMP wstrToLong
+    JMP java_wstrToLong
 
 LABEL method_wstrToLong
-    JMP wstrToLong
+    JMP java_wstrToLong
 
 LABEL method_ustr_to_long
-    JMP ustrToLong
+    JMP java_ustrToLong
 
 LABEL method_UstrToLong
-    JMP ustrToLong
+    JMP java_ustrToLong
 
 LABEL method_ustrToLong
-    JMP ustrToLong
+    JMP java_ustrToLong
 
 LABEL method_uint_to_str
-    JMP uintToStr
+    JMP java_uintToStr
 
 LABEL method_UintToStr
-    JMP uintToStr
+    JMP java_uintToStr
 
 LABEL method_uintToStr
-    JMP uintToStr
+    JMP java_uintToStr
 
 LABEL method_ulong_to_str
-    JMP ulongToStr
+    JMP java_ulongToStr
 
 LABEL method_UlongToStr
-    JMP ulongToStr
+    JMP java_ulongToStr
 
 LABEL method_ulongToStr
-    JMP ulongToStr
+    JMP java_ulongToStr
 
 LABEL method_str_to_uint
-    JMP strToUint
+    JMP java_strToUint
 
 LABEL method_StrToUint
-    JMP strToUint
+    JMP java_strToUint
 
 LABEL method_strToUint
-    JMP strToUint
+    JMP java_strToUint
 
 LABEL method_str_to_ulong
-    JMP strToUlong
+    JMP java_strToUlong
 
 LABEL method_StrToUlong
-    JMP strToUlong
+    JMP java_strToUlong
 
 LABEL method_strToUlong
-    JMP strToUlong
+    JMP java_strToUlong
 
 LABEL method_bool_to_str
-    JMP boolToStr
+    JMP java_boolToStr
 
 LABEL method_BoolToStr
-    JMP boolToStr
+    JMP java_boolToStr
 
 LABEL method_boolToStr
-    JMP boolToStr
+    JMP java_boolToStr
 
 LABEL method_str_to_bool
-    JMP strToBool
+    JMP java_strToBool
 
 LABEL method_StrToBool
-    JMP strToBool
+    JMP java_strToBool
 
 LABEL method_strToBool
-    JMP strToBool
+    JMP java_strToBool
 
 LABEL method_char_to_str
-    JMP charToStr
+    JMP java_charToStr
 
 LABEL method_CharToStr
-    JMP charToStr
+    JMP java_charToStr
 
 LABEL method_charToStr
-    JMP charToStr
+    JMP java_charToStr
 
 LABEL method_str_to_char
-    JMP strToChar
+    JMP java_strToChar
 
 LABEL method_StrToChar
-    JMP strToChar
+    JMP java_strToChar
 
 LABEL method_strToChar
-    JMP strToChar
+    JMP java_strToChar
 
 LABEL method_byte_to_str
-    JMP byteToStr
+    JMP java_byteToStr
 
 LABEL method_ByteToStr
-    JMP byteToStr
+    JMP java_byteToStr
 
 LABEL method_byteToStr
-    JMP byteToStr
+    JMP java_byteToStr
 
 LABEL method_str_to_byte
-    JMP strToByte
+    JMP java_strToByte
 
 LABEL method_StrToByte
-    JMP strToByte
+    JMP java_strToByte
 
 LABEL method_strToByte
-    JMP strToByte
+    JMP java_strToByte
 
 LABEL method_sbyte_to_str
-    JMP sbyteToStr
+    JMP java_sbyteToStr
 
 LABEL method_SbyteToStr
-    JMP sbyteToStr
+    JMP java_sbyteToStr
 
 LABEL method_sbyteToStr
-    JMP sbyteToStr
+    JMP java_sbyteToStr
 
 LABEL method_str_to_sbyte
-    JMP strToSbyte
+    JMP java_strToSbyte
 
 LABEL method_StrToSbyte
-    JMP strToSbyte
+    JMP java_strToSbyte
 
 LABEL method_strToSbyte
-    JMP strToSbyte
+    JMP java_strToSbyte
 
 LABEL method_short_to_str
-    JMP shortToStr
+    JMP java_shortToStr
 
 LABEL method_ShortToStr
-    JMP shortToStr
+    JMP java_shortToStr
 
 LABEL method_shortToStr
-    JMP shortToStr
+    JMP java_shortToStr
 
 LABEL method_str_to_short
-    JMP strToShort
+    JMP java_strToShort
 
 LABEL method_StrToShort
-    JMP strToShort
+    JMP java_strToShort
 
 LABEL method_strToShort
-    JMP strToShort
+    JMP java_strToShort
 
 LABEL method_ushort_to_str
-    JMP ushortToStr
+    JMP java_ushortToStr
 
 LABEL method_UshortToStr
-    JMP ushortToStr
+    JMP java_ushortToStr
 
 LABEL method_ushortToStr
-    JMP ushortToStr
+    JMP java_ushortToStr
 
 LABEL method_str_to_ushort
-    JMP strToUshort
+    JMP java_strToUshort
 
 LABEL method_StrToUshort
-    JMP strToUshort
+    JMP java_strToUshort
 
 LABEL method_strToUshort
-    JMP strToUshort
+    JMP java_strToUshort
 
 LABEL method_ftoa
-    JMP ftoa
+    JMP java_ftoa
 
 LABEL method_Ftoa
-    JMP ftoa
+    JMP java_ftoa
 
 LABEL method_float_to_str
-    JMP floatToStr
+    JMP java_floatToStr
 
 LABEL method_FloatToStr
-    JMP floatToStr
+    JMP java_floatToStr
 
 LABEL method_floatToStr
-    JMP floatToStr
+    JMP java_floatToStr
 
 LABEL method_str_to_float
-    JMP strToFloat
+    JMP java_strToFloat
 
 LABEL method_StrToFloat
-    JMP strToFloat
+    JMP java_strToFloat
 
 LABEL method_strToFloat
-    JMP strToFloat
+    JMP java_strToFloat
 
 LABEL method_dtoa
-    JMP dtoa
+    JMP java_dtoa
 
 LABEL method_Dtoa
-    JMP dtoa
+    JMP java_dtoa
 
 LABEL method_double_to_str
-    JMP doubleToStr
+    JMP java_doubleToStr
 
 LABEL method_DoubleToStr
-    JMP doubleToStr
+    JMP java_doubleToStr
 
 LABEL method_doubleToStr
-    JMP doubleToStr
+    JMP java_doubleToStr
 
 LABEL method_str_to_double
-    JMP strToDouble
+    JMP java_strToDouble
 
 LABEL method_StrToDouble
-    JMP strToDouble
+    JMP java_strToDouble
 
 LABEL method_strToDouble
-    JMP strToDouble
+    JMP java_strToDouble
 
 LABEL method_float_to_wstr
-    JMP floatToWstr
+    JMP java_floatToWstr
 
 LABEL method_FloatToWstr
-    JMP floatToWstr
+    JMP java_floatToWstr
 
 LABEL method_floatToWstr
-    JMP floatToWstr
+    JMP java_floatToWstr
 
 LABEL method_double_to_wstr
-    JMP doubleToWstr
+    JMP java_doubleToWstr
 
 LABEL method_DoubleToWstr
-    JMP doubleToWstr
+    JMP java_doubleToWstr
 
 LABEL method_doubleToWstr
-    JMP doubleToWstr
+    JMP java_doubleToWstr
 
 LABEL method_bool_to_wstr
-    JMP boolToWstr
+    JMP java_boolToWstr
 
 LABEL method_BoolToWstr
-    JMP boolToWstr
+    JMP java_boolToWstr
 
 LABEL method_boolToWstr
-    JMP boolToWstr
+    JMP java_boolToWstr
 
 LABEL method_float_to_ustr
-    JMP floatToUstr
+    JMP java_floatToUstr
 
 LABEL method_FloatToUstr
-    JMP floatToUstr
+    JMP java_floatToUstr
 
 LABEL method_floatToUstr
-    JMP floatToUstr
+    JMP java_floatToUstr
 
 LABEL method_double_to_ustr
-    JMP doubleToUstr
+    JMP java_doubleToUstr
 
 LABEL method_DoubleToUstr
-    JMP doubleToUstr
+    JMP java_doubleToUstr
 
 LABEL method_doubleToUstr
-    JMP doubleToUstr
+    JMP java_doubleToUstr
 
 LABEL method_bool_to_ustr
-    JMP boolToUstr
+    JMP java_boolToUstr
 
 LABEL method_BoolToUstr
-    JMP boolToUstr
+    JMP java_boolToUstr
 
 LABEL method_boolToUstr
-    JMP boolToUstr
+    JMP java_boolToUstr
 
 LABEL method_wstr_to_utf8
-    JMP wstrToUtf8
+    JMP java_wstrToUtf8
 
 LABEL method_WstrToUtf8
-    JMP wstrToUtf8
+    JMP java_wstrToUtf8
 
 LABEL method_wstrToUtf8
-    JMP wstrToUtf8
+    JMP java_wstrToUtf8
 
 LABEL method_ustr_to_utf8
-    JMP ustrToUtf8
+    JMP java_ustrToUtf8
 
 LABEL method_UstrToUtf8
-    JMP ustrToUtf8
+    JMP java_ustrToUtf8
 
 LABEL method_ustrToUtf8
-    JMP ustrToUtf8
+    JMP java_ustrToUtf8
 

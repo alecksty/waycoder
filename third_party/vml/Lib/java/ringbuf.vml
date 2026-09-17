@@ -3,7 +3,7 @@
 
 .linked "../shared/ringbuf.vml"
 
-LABEL write
+LABEL java_write
     push R15
     push R12
     move R12 R13
@@ -20,7 +20,7 @@ LABEL write
     pop R15
     RET
 
-LABEL read
+LABEL java_read
     push R15
     push R12
     move R12 R13
@@ -37,7 +37,7 @@ LABEL read
     pop R15
     RET
 
-LABEL available
+LABEL java_available
     push R15
     push R12
     move R12 R13
@@ -51,7 +51,7 @@ LABEL available
     pop R15
     RET
 
-LABEL isEmpty
+LABEL java_isEmpty
     push R15
     push R12
     move R12 R13
@@ -65,7 +65,7 @@ LABEL isEmpty
     pop R15
     RET
 
-LABEL isFull
+LABEL java_isFull
     push R15
     push R12
     move R12 R13
@@ -80,53 +80,53 @@ LABEL isFull
     RET
 
 LABEL Ringbuf_Write
-    JMP write
+    JMP java_write
 
 LABEL Ringbuf_Read
-    JMP read
+    JMP java_read
 
 LABEL Ringbuf_Available
-    JMP available
+    JMP java_available
 
 LABEL Ringbuf_IsEmpty
-    JMP isEmpty
+    JMP java_isEmpty
 
 LABEL Ringbuf_IsFull
-    JMP isFull
+    JMP java_isFull
 
 LABEL method_write
-    JMP write
+    JMP java_write
 
 LABEL method_Write
-    JMP write
+    JMP java_write
 
 LABEL method_read
-    JMP read
+    JMP java_read
 
 LABEL method_Read
-    JMP read
+    JMP java_read
 
 LABEL method_available
-    JMP available
+    JMP java_available
 
 LABEL method_Available
-    JMP available
+    JMP java_available
 
 LABEL method_is_empty
-    JMP isEmpty
+    JMP java_isEmpty
 
 LABEL method_IsEmpty
-    JMP isEmpty
+    JMP java_isEmpty
 
 LABEL method_isEmpty
-    JMP isEmpty
+    JMP java_isEmpty
 
 LABEL method_is_full
-    JMP isFull
+    JMP java_isFull
 
 LABEL method_IsFull
-    JMP isFull
+    JMP java_isFull
 
 LABEL method_isFull
-    JMP isFull
+    JMP java_isFull
 

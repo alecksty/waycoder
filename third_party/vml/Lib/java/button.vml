@@ -3,7 +3,7 @@
 
 .linked "../shared/button.vml"
 
-LABEL init
+LABEL java_init
     push R15
     push R12
     move R12 R13
@@ -23,7 +23,7 @@ LABEL init
     pop R15
     RET
 
-LABEL update
+LABEL java_update
     push R15
     push R12
     move R12 R13
@@ -43,7 +43,7 @@ LABEL update
     pop R15
     RET
 
-LABEL isPressed
+LABEL java_isPressed
     push R15
     push R12
     move R12 R13
@@ -58,32 +58,32 @@ LABEL isPressed
     RET
 
 LABEL Button_Init
-    JMP init
+    JMP java_init
 
 LABEL Button_Update
-    JMP update
+    JMP java_update
 
 LABEL Button_IsPressed
-    JMP isPressed
+    JMP java_isPressed
 
 LABEL method_init
-    JMP init
+    JMP java_init
 
 LABEL method_Init
-    JMP init
+    JMP java_init
 
 LABEL method_update
-    JMP update
+    JMP java_update
 
 LABEL method_Update
-    JMP update
+    JMP java_update
 
 LABEL method_is_pressed
-    JMP isPressed
+    JMP java_isPressed
 
 LABEL method_IsPressed
-    JMP isPressed
+    JMP java_isPressed
 
 LABEL method_isPressed
-    JMP isPressed
+    JMP java_isPressed
 

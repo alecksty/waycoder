@@ -3,7 +3,7 @@
 
 .linked "../shared/os.vml"
 
-LABEL threadCreate
+LABEL java_threadCreate
     push R15
     push R12
     move R12 R13
@@ -20,7 +20,7 @@ LABEL threadCreate
     pop R15
     RET
 
-LABEL threadExit
+LABEL java_threadExit
     push R15
     push R12
     move R12 R13
@@ -30,7 +30,7 @@ LABEL threadExit
     pop R15
     RET
 
-LABEL threadJoin
+LABEL java_threadJoin
     push R15
     push R12
     move R12 R13
@@ -44,7 +44,7 @@ LABEL threadJoin
     pop R15
     RET
 
-LABEL threadYield
+LABEL java_threadYield
     push R15
     push R12
     move R12 R13
@@ -54,7 +54,7 @@ LABEL threadYield
     pop R15
     RET
 
-LABEL threadSleep
+LABEL java_threadSleep
     push R15
     push R12
     move R12 R13
@@ -68,7 +68,7 @@ LABEL threadSleep
     pop R15
     RET
 
-LABEL mutexCreate
+LABEL java_mutexCreate
     push R15
     push R12
     move R12 R13
@@ -78,7 +78,7 @@ LABEL mutexCreate
     pop R15
     RET
 
-LABEL mutexLock
+LABEL java_mutexLock
     push R15
     push R12
     move R12 R13
@@ -92,7 +92,7 @@ LABEL mutexLock
     pop R15
     RET
 
-LABEL mutexUnlock
+LABEL java_mutexUnlock
     push R15
     push R12
     move R12 R13
@@ -106,7 +106,7 @@ LABEL mutexUnlock
     pop R15
     RET
 
-LABEL condCreate
+LABEL java_condCreate
     push R15
     push R12
     move R12 R13
@@ -116,7 +116,7 @@ LABEL condCreate
     pop R15
     RET
 
-LABEL condWait
+LABEL java_condWait
     push R15
     push R12
     move R12 R13
@@ -133,7 +133,7 @@ LABEL condWait
     pop R15
     RET
 
-LABEL condSignal
+LABEL java_condSignal
     push R15
     push R12
     move R12 R13
@@ -147,7 +147,7 @@ LABEL condSignal
     pop R15
     RET
 
-LABEL condBroadcast
+LABEL java_condBroadcast
     push R15
     push R12
     move R12 R13
@@ -161,7 +161,7 @@ LABEL condBroadcast
     pop R15
     RET
 
-LABEL exec
+LABEL java_exec
     push R15
     push R12
     move R12 R13
@@ -175,7 +175,7 @@ LABEL exec
     pop R15
     RET
 
-LABEL processExit
+LABEL java_processExit
     push R15
     push R12
     move R12 R13
@@ -189,7 +189,7 @@ LABEL processExit
     pop R15
     RET
 
-LABEL getPid
+LABEL java_getPid
     push R15
     push R12
     move R12 R13
@@ -199,7 +199,7 @@ LABEL getPid
     pop R15
     RET
 
-LABEL socketCreate
+LABEL java_socketCreate
     push R15
     push R12
     move R12 R13
@@ -216,7 +216,7 @@ LABEL socketCreate
     pop R15
     RET
 
-LABEL socketBind
+LABEL java_socketBind
     push R15
     push R12
     move R12 R13
@@ -233,7 +233,7 @@ LABEL socketBind
     pop R15
     RET
 
-LABEL socketListen
+LABEL java_socketListen
     push R15
     push R12
     move R12 R13
@@ -250,7 +250,7 @@ LABEL socketListen
     pop R15
     RET
 
-LABEL socketAccept
+LABEL java_socketAccept
     push R15
     push R12
     move R12 R13
@@ -264,7 +264,7 @@ LABEL socketAccept
     pop R15
     RET
 
-LABEL socketConnect
+LABEL java_socketConnect
     push R15
     push R12
     move R12 R13
@@ -284,7 +284,7 @@ LABEL socketConnect
     pop R15
     RET
 
-LABEL socketSend
+LABEL java_socketSend
     push R15
     push R12
     move R12 R13
@@ -304,7 +304,7 @@ LABEL socketSend
     pop R15
     RET
 
-LABEL socketRecv
+LABEL java_socketRecv
     push R15
     push R12
     move R12 R13
@@ -324,7 +324,7 @@ LABEL socketRecv
     pop R15
     RET
 
-LABEL socketClose
+LABEL java_socketClose
     push R15
     push R12
     move R12 R13
@@ -338,7 +338,7 @@ LABEL socketClose
     pop R15
     RET
 
-LABEL mkdir
+LABEL java_mkdir
     push R15
     push R12
     move R12 R13
@@ -352,7 +352,7 @@ LABEL mkdir
     pop R15
     RET
 
-LABEL removeFile
+LABEL java_removeFile
     push R15
     push R12
     move R12 R13
@@ -366,7 +366,7 @@ LABEL removeFile
     pop R15
     RET
 
-LABEL renameFile
+LABEL java_renameFile
     push R15
     push R12
     move R12 R13
@@ -383,7 +383,7 @@ LABEL renameFile
     pop R15
     RET
 
-LABEL readDir
+LABEL java_readDir
     push R15
     push R12
     move R12 R13
@@ -400,7 +400,7 @@ LABEL readDir
     pop R15
     RET
 
-LABEL fileStat
+LABEL java_fileStat
     push R15
     push R12
     move R12 R13
@@ -417,7 +417,7 @@ LABEL fileStat
     pop R15
     RET
 
-LABEL getEnv
+LABEL java_getEnv
     push R15
     push R12
     move R12 R13
@@ -431,7 +431,7 @@ LABEL getEnv
     pop R15
     RET
 
-LABEL setEnv
+LABEL java_setEnv
     push R15
     push R12
     move R12 R13
@@ -448,7 +448,7 @@ LABEL setEnv
     pop R15
     RET
 
-LABEL getArgs
+LABEL java_getArgs
     push R15
     push R12
     move R12 R13
@@ -462,7 +462,7 @@ LABEL getArgs
     pop R15
     RET
 
-LABEL signal
+LABEL java_signal
     push R15
     push R12
     move R12 R13
@@ -479,7 +479,7 @@ LABEL signal
     pop R15
     RET
 
-LABEL typeOf
+LABEL java_typeOf
     push R15
     push R12
     move R12 R13
@@ -493,7 +493,7 @@ LABEL typeOf
     pop R15
     RET
 
-LABEL typeName
+LABEL java_typeName
     push R15
     push R12
     move R12 R13
@@ -511,401 +511,401 @@ LABEL typeName
     RET
 
 LABEL Os_ThreadCreate
-    JMP threadCreate
+    JMP java_threadCreate
 
 LABEL Os_ThreadExit
-    JMP threadExit
+    JMP java_threadExit
 
 LABEL Os_ThreadJoin
-    JMP threadJoin
+    JMP java_threadJoin
 
 LABEL Os_ThreadYield
-    JMP threadYield
+    JMP java_threadYield
 
 LABEL Os_ThreadSleep
-    JMP threadSleep
+    JMP java_threadSleep
 
 LABEL Os_MutexCreate
-    JMP mutexCreate
+    JMP java_mutexCreate
 
 LABEL Os_MutexLock
-    JMP mutexLock
+    JMP java_mutexLock
 
 LABEL Os_MutexUnlock
-    JMP mutexUnlock
+    JMP java_mutexUnlock
 
 LABEL Os_CondCreate
-    JMP condCreate
+    JMP java_condCreate
 
 LABEL Os_CondWait
-    JMP condWait
+    JMP java_condWait
 
 LABEL Os_CondSignal
-    JMP condSignal
+    JMP java_condSignal
 
 LABEL Os_CondBroadcast
-    JMP condBroadcast
+    JMP java_condBroadcast
 
 LABEL Os_Exec
-    JMP exec
+    JMP java_exec
 
 LABEL Os_ProcessExit
-    JMP processExit
+    JMP java_processExit
 
 LABEL Os_GetPid
-    JMP getPid
+    JMP java_getPid
 
 LABEL Os_SocketCreate
-    JMP socketCreate
+    JMP java_socketCreate
 
 LABEL Os_SocketBind
-    JMP socketBind
+    JMP java_socketBind
 
 LABEL Os_SocketListen
-    JMP socketListen
+    JMP java_socketListen
 
 LABEL Os_SocketAccept
-    JMP socketAccept
+    JMP java_socketAccept
 
 LABEL Os_SocketConnect
-    JMP socketConnect
+    JMP java_socketConnect
 
 LABEL Os_SocketSend
-    JMP socketSend
+    JMP java_socketSend
 
 LABEL Os_SocketRecv
-    JMP socketRecv
+    JMP java_socketRecv
 
 LABEL Os_SocketClose
-    JMP socketClose
+    JMP java_socketClose
 
 LABEL Os_Mkdir
-    JMP mkdir
+    JMP java_mkdir
 
 LABEL Os_RemoveFile
-    JMP removeFile
+    JMP java_removeFile
 
 LABEL Os_RenameFile
-    JMP renameFile
+    JMP java_renameFile
 
 LABEL Os_ReadDir
-    JMP readDir
+    JMP java_readDir
 
 LABEL Os_FileStat
-    JMP fileStat
+    JMP java_fileStat
 
 LABEL Os_GetEnv
-    JMP getEnv
+    JMP java_getEnv
 
 LABEL Os_SetEnv
-    JMP setEnv
+    JMP java_setEnv
 
 LABEL Os_GetArgs
-    JMP getArgs
+    JMP java_getArgs
 
 LABEL Os_Signal
-    JMP signal
+    JMP java_signal
 
 LABEL Os_TypeOf
-    JMP typeOf
+    JMP java_typeOf
 
 LABEL Os_TypeName
-    JMP typeName
+    JMP java_typeName
 
 LABEL method_thread_create
-    JMP threadCreate
+    JMP java_threadCreate
 
 LABEL method_ThreadCreate
-    JMP threadCreate
+    JMP java_threadCreate
 
 LABEL method_threadCreate
-    JMP threadCreate
+    JMP java_threadCreate
 
 LABEL method_thread_exit
-    JMP threadExit
+    JMP java_threadExit
 
 LABEL method_ThreadExit
-    JMP threadExit
+    JMP java_threadExit
 
 LABEL method_threadExit
-    JMP threadExit
+    JMP java_threadExit
 
 LABEL method_thread_join
-    JMP threadJoin
+    JMP java_threadJoin
 
 LABEL method_ThreadJoin
-    JMP threadJoin
+    JMP java_threadJoin
 
 LABEL method_threadJoin
-    JMP threadJoin
+    JMP java_threadJoin
 
 LABEL method_thread_yield
-    JMP threadYield
+    JMP java_threadYield
 
 LABEL method_ThreadYield
-    JMP threadYield
+    JMP java_threadYield
 
 LABEL method_threadYield
-    JMP threadYield
+    JMP java_threadYield
 
 LABEL method_thread_sleep
-    JMP threadSleep
+    JMP java_threadSleep
 
 LABEL method_ThreadSleep
-    JMP threadSleep
+    JMP java_threadSleep
 
 LABEL method_threadSleep
-    JMP threadSleep
+    JMP java_threadSleep
 
 LABEL method_mutex_create
-    JMP mutexCreate
+    JMP java_mutexCreate
 
 LABEL method_MutexCreate
-    JMP mutexCreate
+    JMP java_mutexCreate
 
 LABEL method_mutexCreate
-    JMP mutexCreate
+    JMP java_mutexCreate
 
 LABEL method_mutex_lock
-    JMP mutexLock
+    JMP java_mutexLock
 
 LABEL method_MutexLock
-    JMP mutexLock
+    JMP java_mutexLock
 
 LABEL method_mutexLock
-    JMP mutexLock
+    JMP java_mutexLock
 
 LABEL method_mutex_unlock
-    JMP mutexUnlock
+    JMP java_mutexUnlock
 
 LABEL method_MutexUnlock
-    JMP mutexUnlock
+    JMP java_mutexUnlock
 
 LABEL method_mutexUnlock
-    JMP mutexUnlock
+    JMP java_mutexUnlock
 
 LABEL method_cond_create
-    JMP condCreate
+    JMP java_condCreate
 
 LABEL method_CondCreate
-    JMP condCreate
+    JMP java_condCreate
 
 LABEL method_condCreate
-    JMP condCreate
+    JMP java_condCreate
 
 LABEL method_cond_wait
-    JMP condWait
+    JMP java_condWait
 
 LABEL method_CondWait
-    JMP condWait
+    JMP java_condWait
 
 LABEL method_condWait
-    JMP condWait
+    JMP java_condWait
 
 LABEL method_cond_signal
-    JMP condSignal
+    JMP java_condSignal
 
 LABEL method_CondSignal
-    JMP condSignal
+    JMP java_condSignal
 
 LABEL method_condSignal
-    JMP condSignal
+    JMP java_condSignal
 
 LABEL method_cond_broadcast
-    JMP condBroadcast
+    JMP java_condBroadcast
 
 LABEL method_CondBroadcast
-    JMP condBroadcast
+    JMP java_condBroadcast
 
 LABEL method_condBroadcast
-    JMP condBroadcast
+    JMP java_condBroadcast
 
 LABEL method_exec
-    JMP exec
+    JMP java_exec
 
 LABEL method_Exec
-    JMP exec
+    JMP java_exec
 
 LABEL method_process_exit
-    JMP processExit
+    JMP java_processExit
 
 LABEL method_ProcessExit
-    JMP processExit
+    JMP java_processExit
 
 LABEL method_processExit
-    JMP processExit
+    JMP java_processExit
 
 LABEL method_get_pid
-    JMP getPid
+    JMP java_getPid
 
 LABEL method_GetPid
-    JMP getPid
+    JMP java_getPid
 
 LABEL method_getPid
-    JMP getPid
+    JMP java_getPid
 
 LABEL method_socket_create
-    JMP socketCreate
+    JMP java_socketCreate
 
 LABEL method_SocketCreate
-    JMP socketCreate
+    JMP java_socketCreate
 
 LABEL method_socketCreate
-    JMP socketCreate
+    JMP java_socketCreate
 
 LABEL method_socket_bind
-    JMP socketBind
+    JMP java_socketBind
 
 LABEL method_SocketBind
-    JMP socketBind
+    JMP java_socketBind
 
 LABEL method_socketBind
-    JMP socketBind
+    JMP java_socketBind
 
 LABEL method_socket_listen
-    JMP socketListen
+    JMP java_socketListen
 
 LABEL method_SocketListen
-    JMP socketListen
+    JMP java_socketListen
 
 LABEL method_socketListen
-    JMP socketListen
+    JMP java_socketListen
 
 LABEL method_socket_accept
-    JMP socketAccept
+    JMP java_socketAccept
 
 LABEL method_SocketAccept
-    JMP socketAccept
+    JMP java_socketAccept
 
 LABEL method_socketAccept
-    JMP socketAccept
+    JMP java_socketAccept
 
 LABEL method_socket_connect
-    JMP socketConnect
+    JMP java_socketConnect
 
 LABEL method_SocketConnect
-    JMP socketConnect
+    JMP java_socketConnect
 
 LABEL method_socketConnect
-    JMP socketConnect
+    JMP java_socketConnect
 
 LABEL method_socket_send
-    JMP socketSend
+    JMP java_socketSend
 
 LABEL method_SocketSend
-    JMP socketSend
+    JMP java_socketSend
 
 LABEL method_socketSend
-    JMP socketSend
+    JMP java_socketSend
 
 LABEL method_socket_recv
-    JMP socketRecv
+    JMP java_socketRecv
 
 LABEL method_SocketRecv
-    JMP socketRecv
+    JMP java_socketRecv
 
 LABEL method_socketRecv
-    JMP socketRecv
+    JMP java_socketRecv
 
 LABEL method_socket_close
-    JMP socketClose
+    JMP java_socketClose
 
 LABEL method_SocketClose
-    JMP socketClose
+    JMP java_socketClose
 
 LABEL method_socketClose
-    JMP socketClose
+    JMP java_socketClose
 
 LABEL method_mkdir
-    JMP mkdir
+    JMP java_mkdir
 
 LABEL method_Mkdir
-    JMP mkdir
+    JMP java_mkdir
 
 LABEL method_remove_file
-    JMP removeFile
+    JMP java_removeFile
 
 LABEL method_RemoveFile
-    JMP removeFile
+    JMP java_removeFile
 
 LABEL method_removeFile
-    JMP removeFile
+    JMP java_removeFile
 
 LABEL method_rename_file
-    JMP renameFile
+    JMP java_renameFile
 
 LABEL method_RenameFile
-    JMP renameFile
+    JMP java_renameFile
 
 LABEL method_renameFile
-    JMP renameFile
+    JMP java_renameFile
 
 LABEL method_read_dir
-    JMP readDir
+    JMP java_readDir
 
 LABEL method_ReadDir
-    JMP readDir
+    JMP java_readDir
 
 LABEL method_readDir
-    JMP readDir
+    JMP java_readDir
 
 LABEL method_file_stat
-    JMP fileStat
+    JMP java_fileStat
 
 LABEL method_FileStat
-    JMP fileStat
+    JMP java_fileStat
 
 LABEL method_fileStat
-    JMP fileStat
+    JMP java_fileStat
 
 LABEL method_get_env
-    JMP getEnv
+    JMP java_getEnv
 
 LABEL method_GetEnv
-    JMP getEnv
+    JMP java_getEnv
 
 LABEL method_getEnv
-    JMP getEnv
+    JMP java_getEnv
 
 LABEL method_set_env
-    JMP setEnv
+    JMP java_setEnv
 
 LABEL method_SetEnv
-    JMP setEnv
+    JMP java_setEnv
 
 LABEL method_setEnv
-    JMP setEnv
+    JMP java_setEnv
 
 LABEL method_get_args
-    JMP getArgs
+    JMP java_getArgs
 
 LABEL method_GetArgs
-    JMP getArgs
+    JMP java_getArgs
 
 LABEL method_getArgs
-    JMP getArgs
+    JMP java_getArgs
 
 LABEL method_signal
-    JMP signal
+    JMP java_signal
 
 LABEL method_Signal
-    JMP signal
+    JMP java_signal
 
 LABEL method_type_of
-    JMP typeOf
+    JMP java_typeOf
 
 LABEL method_TypeOf
-    JMP typeOf
+    JMP java_typeOf
 
 LABEL method_typeOf
-    JMP typeOf
+    JMP java_typeOf
 
 LABEL method_type_name
-    JMP typeName
+    JMP java_typeName
 
 LABEL method_TypeName
-    JMP typeName
+    JMP java_typeName
 
 LABEL method_typeName
-    JMP typeName
+    JMP java_typeName
 

@@ -3,7 +3,7 @@
 
 .linked "../shared/sysinfo.vml"
 
-LABEL srand
+LABEL java_srand
     push R15
     push R12
     move R12 R13
@@ -18,11 +18,11 @@ LABEL srand
     RET
 
 LABEL Sysinfo_Srand
-    JMP srand
+    JMP java_srand
 
 LABEL method_srand
-    JMP srand
+    JMP java_srand
 
 LABEL method_Srand
-    JMP srand
+    JMP java_srand
 

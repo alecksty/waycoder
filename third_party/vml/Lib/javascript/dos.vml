@@ -3,7 +3,7 @@
 
 .linked "../shared/dos.vml"
 
-LABEL getDate
+LABEL js_getDate
     push R15
     push R12
     move R12 R13
@@ -26,7 +26,7 @@ LABEL getDate
     pop R15
     RET
 
-LABEL getTime
+LABEL js_getTime
     push R15
     push R12
     move R12 R13
@@ -49,7 +49,7 @@ LABEL getTime
     pop R15
     RET
 
-LABEL dosVersion
+LABEL js_dosVersion
     push R15
     push R12
     move R12 R13
@@ -59,7 +59,7 @@ LABEL dosVersion
     pop R15
     RET
 
-LABEL diskFree
+LABEL js_diskFree
     push R15
     push R12
     move R12 R13
@@ -73,7 +73,7 @@ LABEL diskFree
     pop R15
     RET
 
-LABEL diskSize
+LABEL js_diskSize
     push R15
     push R12
     move R12 R13
@@ -87,7 +87,7 @@ LABEL diskSize
     pop R15
     RET
 
-LABEL findFirst
+LABEL js_findFirst
     push R15
     push R12
     move R12 R13
@@ -107,7 +107,7 @@ LABEL findFirst
     pop R15
     RET
 
-LABEL findNext
+LABEL js_findNext
     push R15
     push R12
     move R12 R13
@@ -121,7 +121,7 @@ LABEL findNext
     pop R15
     RET
 
-LABEL findClose
+LABEL js_findClose
     push R15
     push R12
     move R12 R13
@@ -135,7 +135,7 @@ LABEL findClose
     pop R15
     RET
 
-LABEL envCount
+LABEL js_envCount
     push R15
     push R12
     move R12 R13
@@ -145,7 +145,7 @@ LABEL envCount
     pop R15
     RET
 
-LABEL envStr
+LABEL js_envStr
     push R15
     push R12
     move R12 R13
@@ -159,7 +159,7 @@ LABEL envStr
     pop R15
     RET
 
-LABEL getEnv
+LABEL js_getEnv
     push R15
     push R12
     move R12 R13
@@ -173,7 +173,7 @@ LABEL getEnv
     pop R15
     RET
 
-LABEL exec
+LABEL js_exec
     push R15
     push R12
     move R12 R13
@@ -190,7 +190,7 @@ LABEL exec
     pop R15
     RET
 
-LABEL swapVectors
+LABEL js_swapVectors
     push R15
     push R12
     move R12 R13
@@ -200,7 +200,7 @@ LABEL swapVectors
     pop R15
     RET
 
-LABEL getIntVec
+LABEL js_getIntVec
     push R15
     push R12
     move R12 R13
@@ -217,7 +217,7 @@ LABEL getIntVec
     pop R15
     RET
 
-LABEL setIntVec
+LABEL js_setIntVec
     push R15
     push R12
     move R12 R13
@@ -234,7 +234,7 @@ LABEL setIntVec
     pop R15
     RET
 
-LABEL dosExitCode
+LABEL js_dosExitCode
     push R15
     push R12
     move R12 R13
@@ -245,146 +245,146 @@ LABEL dosExitCode
     RET
 
 LABEL Dos_GetDate
-    JMP getDate
+    JMP js_getDate
 
 LABEL Dos_GetTime
-    JMP getTime
+    JMP js_getTime
 
 LABEL Dos_DosVersion
-    JMP dosVersion
+    JMP js_dosVersion
 
 LABEL Dos_DiskFree
-    JMP diskFree
+    JMP js_diskFree
 
 LABEL Dos_DiskSize
-    JMP diskSize
+    JMP js_diskSize
 
 LABEL Dos_FindFirst
-    JMP findFirst
+    JMP js_findFirst
 
 LABEL Dos_FindNext
-    JMP findNext
+    JMP js_findNext
 
 LABEL Dos_FindClose
-    JMP findClose
+    JMP js_findClose
 
 LABEL Dos_EnvCount
-    JMP envCount
+    JMP js_envCount
 
 LABEL Dos_EnvStr
-    JMP envStr
+    JMP js_envStr
 
 LABEL Dos_GetEnv
-    JMP getEnv
+    JMP js_getEnv
 
 LABEL Dos_Exec
-    JMP exec
+    JMP js_exec
 
 LABEL Dos_SwapVectors
-    JMP swapVectors
+    JMP js_swapVectors
 
 LABEL Dos_GetIntVec
-    JMP getIntVec
+    JMP js_getIntVec
 
 LABEL Dos_SetIntVec
-    JMP setIntVec
+    JMP js_setIntVec
 
 LABEL Dos_DosExitCode
-    JMP dosExitCode
+    JMP js_dosExitCode
 
 LABEL method_GetDate
-    JMP getDate
+    JMP js_getDate
 
 LABEL method_getDate
-    JMP getDate
+    JMP js_getDate
 
 LABEL method_GetTime
-    JMP getTime
+    JMP js_getTime
 
 LABEL method_getTime
-    JMP getTime
+    JMP js_getTime
 
 LABEL method_DosVersion
-    JMP dosVersion
+    JMP js_dosVersion
 
 LABEL method_dosVersion
-    JMP dosVersion
+    JMP js_dosVersion
 
 LABEL method_DiskFree
-    JMP diskFree
+    JMP js_diskFree
 
 LABEL method_diskFree
-    JMP diskFree
+    JMP js_diskFree
 
 LABEL method_DiskSize
-    JMP diskSize
+    JMP js_diskSize
 
 LABEL method_diskSize
-    JMP diskSize
+    JMP js_diskSize
 
 LABEL method_FindFirst
-    JMP findFirst
+    JMP js_findFirst
 
 LABEL method_findFirst
-    JMP findFirst
+    JMP js_findFirst
 
 LABEL method_FindNext
-    JMP findNext
+    JMP js_findNext
 
 LABEL method_findNext
-    JMP findNext
+    JMP js_findNext
 
 LABEL method_FindClose
-    JMP findClose
+    JMP js_findClose
 
 LABEL method_findClose
-    JMP findClose
+    JMP js_findClose
 
 LABEL method_EnvCount
-    JMP envCount
+    JMP js_envCount
 
 LABEL method_envCount
-    JMP envCount
+    JMP js_envCount
 
 LABEL method_EnvStr
-    JMP envStr
+    JMP js_envStr
 
 LABEL method_envStr
-    JMP envStr
+    JMP js_envStr
 
 LABEL method_GetEnv
-    JMP getEnv
+    JMP js_getEnv
 
 LABEL method_getEnv
-    JMP getEnv
+    JMP js_getEnv
 
 LABEL method_Exec
-    JMP exec
+    JMP js_exec
 
 LABEL method_exec
-    JMP exec
+    JMP js_exec
 
 LABEL method_SwapVectors
-    JMP swapVectors
+    JMP js_swapVectors
 
 LABEL method_swapVectors
-    JMP swapVectors
+    JMP js_swapVectors
 
 LABEL method_GetIntVec
-    JMP getIntVec
+    JMP js_getIntVec
 
 LABEL method_getIntVec
-    JMP getIntVec
+    JMP js_getIntVec
 
 LABEL method_SetIntVec
-    JMP setIntVec
+    JMP js_setIntVec
 
 LABEL method_setIntVec
-    JMP setIntVec
+    JMP js_setIntVec
 
 LABEL method_DosExitCode
-    JMP dosExitCode
+    JMP js_dosExitCode
 
 LABEL method_dosExitCode
-    JMP dosExitCode
+    JMP js_dosExitCode
 

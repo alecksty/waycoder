@@ -3,7 +3,7 @@
 
 .linked "../shared/util.vml"
 
-LABEL root
+LABEL js_root
     push R15
     push R12
     move R12 R13
@@ -18,11 +18,11 @@ LABEL root
     RET
 
 LABEL Util_Root
-    JMP root
+    JMP js_root
 
 LABEL method_root
-    JMP root
+    JMP js_root
 
 LABEL method_Root
-    JMP root
+    JMP js_root
 

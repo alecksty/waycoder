@@ -5,7 +5,7 @@
 .linked "../shared/device.vml"
 .linked "../shared/memory.vml"
 
-LABEL peek
+LABEL js_peek
     push R15
     push R12
     move R12 R13
@@ -19,7 +19,7 @@ LABEL peek
     pop R15
     RET
 
-LABEL poke
+LABEL js_poke
     push R15
     push R12
     move R12 R13
@@ -36,7 +36,7 @@ LABEL poke
     pop R15
     RET
 
-LABEL peekb
+LABEL js_peekb
     push R15
     push R12
     move R12 R13
@@ -50,7 +50,7 @@ LABEL peekb
     pop R15
     RET
 
-LABEL pokeb
+LABEL js_pokeb
     push R15
     push R12
     move R12 R13
@@ -67,7 +67,7 @@ LABEL pokeb
     pop R15
     RET
 
-LABEL alloc
+LABEL js_alloc
     push R15
     push R12
     move R12 R13
@@ -81,7 +81,7 @@ LABEL alloc
     pop R15
     RET
 
-LABEL free
+LABEL js_free
     push R15
     push R12
     move R12 R13
@@ -95,7 +95,7 @@ LABEL free
     pop R15
     RET
 
-LABEL memcpy
+LABEL js_memcpy
     push R15
     push R12
     move R12 R13
@@ -115,7 +115,7 @@ LABEL memcpy
     pop R15
     RET
 
-LABEL memset
+LABEL js_memset
     push R15
     push R12
     move R12 R13
@@ -135,7 +135,7 @@ LABEL memset
     pop R15
     RET
 
-LABEL memcmp
+LABEL js_memcmp
     push R15
     push R12
     move R12 R13
@@ -155,7 +155,7 @@ LABEL memcmp
     pop R15
     RET
 
-LABEL devOpen
+LABEL js_devOpen
     push R15
     push R12
     move R12 R13
@@ -169,7 +169,7 @@ LABEL devOpen
     pop R15
     RET
 
-LABEL devClose
+LABEL js_devClose
     push R15
     push R12
     move R12 R13
@@ -183,7 +183,7 @@ LABEL devClose
     pop R15
     RET
 
-LABEL devRead
+LABEL js_devRead
     push R15
     push R12
     move R12 R13
@@ -206,7 +206,7 @@ LABEL devRead
     pop R15
     RET
 
-LABEL devWrite
+LABEL js_devWrite
     push R15
     push R12
     move R12 R13
@@ -229,7 +229,7 @@ LABEL devWrite
     pop R15
     RET
 
-LABEL devControl
+LABEL js_devControl
     push R15
     push R12
     move R12 R13
@@ -249,7 +249,7 @@ LABEL devControl
     pop R15
     RET
 
-LABEL memmove
+LABEL js_memmove
     push R15
     push R12
     move R12 R13
@@ -269,7 +269,7 @@ LABEL memmove
     pop R15
     RET
 
-LABEL getconfig
+LABEL js_getconfig
     push R15
     push R12
     move R12 R13
@@ -283,7 +283,7 @@ LABEL getconfig
     pop R15
     RET
 
-LABEL exit
+LABEL js_exit
     push R15
     push R12
     move R12 R13
@@ -298,170 +298,170 @@ LABEL exit
     RET
 
 LABEL System_Peek
-    JMP peek
+    JMP js_peek
 
 LABEL System_Poke
-    JMP poke
+    JMP js_poke
 
 LABEL System_Peekb
-    JMP peekb
+    JMP js_peekb
 
 LABEL System_Pokeb
-    JMP pokeb
+    JMP js_pokeb
 
 LABEL System_Alloc
-    JMP alloc
+    JMP js_alloc
 
 LABEL System_Free
-    JMP free
+    JMP js_free
 
 LABEL System_Memcpy
-    JMP memcpy
+    JMP js_memcpy
 
 LABEL System_Memset
-    JMP memset
+    JMP js_memset
 
 LABEL System_Memcmp
-    JMP memcmp
+    JMP js_memcmp
 
 LABEL System_DevOpen
-    JMP devOpen
+    JMP js_devOpen
 
 LABEL System_DevClose
-    JMP devClose
+    JMP js_devClose
 
 LABEL System_DevRead
-    JMP devRead
+    JMP js_devRead
 
 LABEL System_DevWrite
-    JMP devWrite
+    JMP js_devWrite
 
 LABEL System_DevControl
-    JMP devControl
+    JMP js_devControl
 
 LABEL System_Memmove
-    JMP memmove
+    JMP js_memmove
 
 LABEL System_Getconfig
-    JMP getconfig
+    JMP js_getconfig
 
 LABEL System_Exit
-    JMP exit
+    JMP js_exit
 
 LABEL method_peek
-    JMP peek
+    JMP js_peek
 
 LABEL method_Peek
-    JMP peek
+    JMP js_peek
 
 LABEL method_poke
-    JMP poke
+    JMP js_poke
 
 LABEL method_Poke
-    JMP poke
+    JMP js_poke
 
 LABEL method_peekb
-    JMP peekb
+    JMP js_peekb
 
 LABEL method_Peekb
-    JMP peekb
+    JMP js_peekb
 
 LABEL method_pokeb
-    JMP pokeb
+    JMP js_pokeb
 
 LABEL method_Pokeb
-    JMP pokeb
+    JMP js_pokeb
 
 LABEL method_alloc
-    JMP alloc
+    JMP js_alloc
 
 LABEL method_Alloc
-    JMP alloc
+    JMP js_alloc
 
 LABEL method_free
-    JMP free
+    JMP js_free
 
 LABEL method_Free
-    JMP free
+    JMP js_free
 
 LABEL method_memcpy
-    JMP memcpy
+    JMP js_memcpy
 
 LABEL method_Memcpy
-    JMP memcpy
+    JMP js_memcpy
 
 LABEL method_memset
-    JMP memset
+    JMP js_memset
 
 LABEL method_Memset
-    JMP memset
+    JMP js_memset
 
 LABEL method_memcmp
-    JMP memcmp
+    JMP js_memcmp
 
 LABEL method_Memcmp
-    JMP memcmp
+    JMP js_memcmp
 
 LABEL method_dev_open
-    JMP devOpen
+    JMP js_devOpen
 
 LABEL method_DevOpen
-    JMP devOpen
+    JMP js_devOpen
 
 LABEL method_devOpen
-    JMP devOpen
+    JMP js_devOpen
 
 LABEL method_dev_close
-    JMP devClose
+    JMP js_devClose
 
 LABEL method_DevClose
-    JMP devClose
+    JMP js_devClose
 
 LABEL method_devClose
-    JMP devClose
+    JMP js_devClose
 
 LABEL method_dev_read
-    JMP devRead
+    JMP js_devRead
 
 LABEL method_DevRead
-    JMP devRead
+    JMP js_devRead
 
 LABEL method_devRead
-    JMP devRead
+    JMP js_devRead
 
 LABEL method_dev_write
-    JMP devWrite
+    JMP js_devWrite
 
 LABEL method_DevWrite
-    JMP devWrite
+    JMP js_devWrite
 
 LABEL method_devWrite
-    JMP devWrite
+    JMP js_devWrite
 
 LABEL method_dev_control
-    JMP devControl
+    JMP js_devControl
 
 LABEL method_DevControl
-    JMP devControl
+    JMP js_devControl
 
 LABEL method_devControl
-    JMP devControl
+    JMP js_devControl
 
 LABEL method_memmove
-    JMP memmove
+    JMP js_memmove
 
 LABEL method_Memmove
-    JMP memmove
+    JMP js_memmove
 
 LABEL method_getconfig
-    JMP getconfig
+    JMP js_getconfig
 
 LABEL method_Getconfig
-    JMP getconfig
+    JMP js_getconfig
 
 LABEL method_exit
-    JMP exit
+    JMP js_exit
 
 LABEL method_Exit
-    JMP exit
+    JMP js_exit
 

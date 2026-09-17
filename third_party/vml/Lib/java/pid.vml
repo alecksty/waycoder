@@ -3,7 +3,7 @@
 
 .linked "../shared/pid.vml"
 
-LABEL setSetpoint
+LABEL java_setSetpoint
     push R15
     push R12
     move R12 R13
@@ -20,7 +20,7 @@ LABEL setSetpoint
     pop R15
     RET
 
-LABEL compute
+LABEL java_compute
     push R15
     push R12
     move R12 R13
@@ -40,7 +40,7 @@ LABEL compute
     pop R15
     RET
 
-LABEL reset
+LABEL java_reset
     push R15
     push R12
     move R12 R13
@@ -55,32 +55,32 @@ LABEL reset
     RET
 
 LABEL Pid_SetSetpoint
-    JMP setSetpoint
+    JMP java_setSetpoint
 
 LABEL Pid_Compute
-    JMP compute
+    JMP java_compute
 
 LABEL Pid_Reset
-    JMP reset
+    JMP java_reset
 
 LABEL method_set_setpoint
-    JMP setSetpoint
+    JMP java_setSetpoint
 
 LABEL method_SetSetpoint
-    JMP setSetpoint
+    JMP java_setSetpoint
 
 LABEL method_setSetpoint
-    JMP setSetpoint
+    JMP java_setSetpoint
 
 LABEL method_compute
-    JMP compute
+    JMP java_compute
 
 LABEL method_Compute
-    JMP compute
+    JMP java_compute
 
 LABEL method_reset
-    JMP reset
+    JMP java_reset
 
 LABEL method_Reset
-    JMP reset
+    JMP java_reset
 

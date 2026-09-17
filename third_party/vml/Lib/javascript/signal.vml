@@ -3,7 +3,7 @@
 
 .linked "../shared/signal.vml"
 
-LABEL movingAvgInit
+LABEL js_movingAvgInit
     push R15
     push R12
     move R12 R13
@@ -23,7 +23,7 @@ LABEL movingAvgInit
     pop R15
     RET
 
-LABEL movingAvgUpdate
+LABEL js_movingAvgUpdate
     push R15
     push R12
     move R12 R13
@@ -40,7 +40,7 @@ LABEL movingAvgUpdate
     pop R15
     RET
 
-LABEL emaInit
+LABEL js_emaInit
     push R15
     push R12
     move R12 R13
@@ -54,7 +54,7 @@ LABEL emaInit
     pop R15
     RET
 
-LABEL emaUpdate
+LABEL js_emaUpdate
     push R15
     push R12
     move R12 R13
@@ -74,7 +74,7 @@ LABEL emaUpdate
     pop R15
     RET
 
-LABEL kalmanInit
+LABEL js_kalmanInit
     push R15
     push R12
     move R12 R13
@@ -97,7 +97,7 @@ LABEL kalmanInit
     pop R15
     RET
 
-LABEL kalmanUpdate
+LABEL js_kalmanUpdate
     push R15
     push R12
     move R12 R13
@@ -114,7 +114,7 @@ LABEL kalmanUpdate
     pop R15
     RET
 
-LABEL lerpTable
+LABEL js_lerpTable
     push R15
     push R12
     move R12 R13
@@ -137,7 +137,7 @@ LABEL lerpTable
     pop R15
     RET
 
-LABEL deadband
+LABEL js_deadband
     push R15
     push R12
     move R12 R13
@@ -154,7 +154,7 @@ LABEL deadband
     pop R15
     RET
 
-LABEL hysteresis
+LABEL js_hysteresis
     push R15
     push R12
     move R12 R13
@@ -178,104 +178,104 @@ LABEL hysteresis
     RET
 
 LABEL Signal_MovingAvgInit
-    JMP movingAvgInit
+    JMP js_movingAvgInit
 
 LABEL Signal_MovingAvgUpdate
-    JMP movingAvgUpdate
+    JMP js_movingAvgUpdate
 
 LABEL Signal_EmaInit
-    JMP emaInit
+    JMP js_emaInit
 
 LABEL Signal_EmaUpdate
-    JMP emaUpdate
+    JMP js_emaUpdate
 
 LABEL Signal_KalmanInit
-    JMP kalmanInit
+    JMP js_kalmanInit
 
 LABEL Signal_KalmanUpdate
-    JMP kalmanUpdate
+    JMP js_kalmanUpdate
 
 LABEL Signal_LerpTable
-    JMP lerpTable
+    JMP js_lerpTable
 
 LABEL Signal_Deadband
-    JMP deadband
+    JMP js_deadband
 
 LABEL Signal_Hysteresis
-    JMP hysteresis
+    JMP js_hysteresis
 
 LABEL method_moving_avg_init
-    JMP movingAvgInit
+    JMP js_movingAvgInit
 
 LABEL method_MovingAvgInit
-    JMP movingAvgInit
+    JMP js_movingAvgInit
 
 LABEL method_movingAvgInit
-    JMP movingAvgInit
+    JMP js_movingAvgInit
 
 LABEL method_moving_avg_update
-    JMP movingAvgUpdate
+    JMP js_movingAvgUpdate
 
 LABEL method_MovingAvgUpdate
-    JMP movingAvgUpdate
+    JMP js_movingAvgUpdate
 
 LABEL method_movingAvgUpdate
-    JMP movingAvgUpdate
+    JMP js_movingAvgUpdate
 
 LABEL method_ema_init
-    JMP emaInit
+    JMP js_emaInit
 
 LABEL method_EmaInit
-    JMP emaInit
+    JMP js_emaInit
 
 LABEL method_emaInit
-    JMP emaInit
+    JMP js_emaInit
 
 LABEL method_ema_update
-    JMP emaUpdate
+    JMP js_emaUpdate
 
 LABEL method_EmaUpdate
-    JMP emaUpdate
+    JMP js_emaUpdate
 
 LABEL method_emaUpdate
-    JMP emaUpdate
+    JMP js_emaUpdate
 
 LABEL method_kalman_init
-    JMP kalmanInit
+    JMP js_kalmanInit
 
 LABEL method_KalmanInit
-    JMP kalmanInit
+    JMP js_kalmanInit
 
 LABEL method_kalmanInit
-    JMP kalmanInit
+    JMP js_kalmanInit
 
 LABEL method_kalman_update
-    JMP kalmanUpdate
+    JMP js_kalmanUpdate
 
 LABEL method_KalmanUpdate
-    JMP kalmanUpdate
+    JMP js_kalmanUpdate
 
 LABEL method_kalmanUpdate
-    JMP kalmanUpdate
+    JMP js_kalmanUpdate
 
 LABEL method_lerp_table
-    JMP lerpTable
+    JMP js_lerpTable
 
 LABEL method_LerpTable
-    JMP lerpTable
+    JMP js_lerpTable
 
 LABEL method_lerpTable
-    JMP lerpTable
+    JMP js_lerpTable
 
 LABEL method_deadband
-    JMP deadband
+    JMP js_deadband
 
 LABEL method_Deadband
-    JMP deadband
+    JMP js_deadband
 
 LABEL method_hysteresis
-    JMP hysteresis
+    JMP js_hysteresis
 
 LABEL method_Hysteresis
-    JMP hysteresis
+    JMP js_hysteresis
 

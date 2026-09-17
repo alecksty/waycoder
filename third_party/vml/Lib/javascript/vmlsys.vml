@@ -3,7 +3,7 @@
 
 .linked "../shared/vmlsys.vml"
 
-LABEL vmlPrintStr
+LABEL js_vmlPrintStr
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL vmlPrintStr
     pop R15
     RET
 
-LABEL vmlPrintInt
+LABEL js_vmlPrintInt
     push R15
     push R12
     move R12 R13
@@ -31,7 +31,7 @@ LABEL vmlPrintInt
     pop R15
     RET
 
-LABEL vmlPrintChar
+LABEL js_vmlPrintChar
     push R15
     push R12
     move R12 R13
@@ -46,7 +46,7 @@ LABEL vmlPrintChar
     pop R15
     RET
 
-LABEL vmlPrintFloat
+LABEL js_vmlPrintFloat
     push R15
     push R12
     move R12 R13
@@ -61,7 +61,7 @@ LABEL vmlPrintFloat
     pop R15
     RET
 
-LABEL vmlPrintHex
+LABEL js_vmlPrintHex
     push R15
     push R12
     move R12 R13
@@ -75,7 +75,7 @@ LABEL vmlPrintHex
     pop R15
     RET
 
-LABEL vmlNewline
+LABEL js_vmlNewline
     push R15
     push R12
     move R12 R13
@@ -85,7 +85,7 @@ LABEL vmlNewline
     pop R15
     RET
 
-LABEL vmlPrintWstr
+LABEL js_vmlPrintWstr
     push R15
     push R12
     move R12 R13
@@ -99,7 +99,7 @@ LABEL vmlPrintWstr
     pop R15
     RET
 
-LABEL vmlPrintUstr
+LABEL js_vmlPrintUstr
     push R15
     push R12
     move R12 R13
@@ -113,7 +113,7 @@ LABEL vmlPrintUstr
     pop R15
     RET
 
-LABEL vmlMemCopy
+LABEL js_vmlMemCopy
     push R15
     push R12
     move R12 R13
@@ -133,7 +133,7 @@ LABEL vmlMemCopy
     pop R15
     RET
 
-LABEL vmlMemFill
+LABEL js_vmlMemFill
     push R15
     push R12
     move R12 R13
@@ -153,7 +153,7 @@ LABEL vmlMemFill
     pop R15
     RET
 
-LABEL vmlMemCompare
+LABEL js_vmlMemCompare
     push R15
     push R12
     move R12 R13
@@ -173,7 +173,7 @@ LABEL vmlMemCompare
     pop R15
     RET
 
-LABEL vmlRandom
+LABEL js_vmlRandom
     push R15
     push R12
     move R12 R13
@@ -183,7 +183,7 @@ LABEL vmlRandom
     pop R15
     RET
 
-LABEL vmlSeed
+LABEL js_vmlSeed
     push R15
     push R12
     move R12 R13
@@ -197,7 +197,7 @@ LABEL vmlSeed
     pop R15
     RET
 
-LABEL vmlSleepMs
+LABEL js_vmlSleepMs
     push R15
     push R12
     move R12 R13
@@ -211,7 +211,7 @@ LABEL vmlSleepMs
     pop R15
     RET
 
-LABEL vmlGetTick
+LABEL js_vmlGetTick
     push R15
     push R12
     move R12 R13
@@ -221,7 +221,7 @@ LABEL vmlGetTick
     pop R15
     RET
 
-LABEL vmlGetTimestamp
+LABEL js_vmlGetTimestamp
     push R15
     push R12
     move R12 R13
@@ -231,7 +231,7 @@ LABEL vmlGetTimestamp
     pop R15
     RET
 
-LABEL vmlGetDate
+LABEL js_vmlGetDate
     push R15
     push R12
     move R12 R13
@@ -241,7 +241,7 @@ LABEL vmlGetDate
     pop R15
     RET
 
-LABEL vmlGetTime
+LABEL js_vmlGetTime
     push R15
     push R12
     move R12 R13
@@ -251,7 +251,7 @@ LABEL vmlGetTime
     pop R15
     RET
 
-LABEL vmlBeep
+LABEL js_vmlBeep
     push R15
     push R12
     move R12 R13
@@ -268,7 +268,7 @@ LABEL vmlBeep
     pop R15
     RET
 
-LABEL vmlGetConfig
+LABEL js_vmlGetConfig
     push R15
     push R12
     move R12 R13
@@ -282,7 +282,7 @@ LABEL vmlGetConfig
     pop R15
     RET
 
-LABEL vmlGetInfo
+LABEL js_vmlGetInfo
     push R15
     push R12
     move R12 R13
@@ -296,7 +296,7 @@ LABEL vmlGetInfo
     pop R15
     RET
 
-LABEL vmlGetPlatform
+LABEL js_vmlGetPlatform
     push R15
     push R12
     move R12 R13
@@ -306,7 +306,7 @@ LABEL vmlGetPlatform
     pop R15
     RET
 
-LABEL vmlDebugPrint
+LABEL js_vmlDebugPrint
     push R15
     push R12
     move R12 R13
@@ -320,7 +320,7 @@ LABEL vmlDebugPrint
     pop R15
     RET
 
-LABEL vmlDebugInt
+LABEL js_vmlDebugInt
     push R15
     push R12
     move R12 R13
@@ -334,7 +334,7 @@ LABEL vmlDebugInt
     pop R15
     RET
 
-LABEL vmlAssert
+LABEL js_vmlAssert
     push R15
     push R12
     move R12 R13
@@ -351,7 +351,7 @@ LABEL vmlAssert
     pop R15
     RET
 
-LABEL vmlDeviceOpen
+LABEL js_vmlDeviceOpen
     push R15
     push R12
     move R12 R13
@@ -365,7 +365,7 @@ LABEL vmlDeviceOpen
     pop R15
     RET
 
-LABEL vmlDeviceClose
+LABEL js_vmlDeviceClose
     push R15
     push R12
     move R12 R13
@@ -379,7 +379,7 @@ LABEL vmlDeviceClose
     pop R15
     RET
 
-LABEL vmlDeviceRead
+LABEL js_vmlDeviceRead
     push R15
     push R12
     move R12 R13
@@ -399,7 +399,7 @@ LABEL vmlDeviceRead
     pop R15
     RET
 
-LABEL vmlDeviceWrite
+LABEL js_vmlDeviceWrite
     push R15
     push R12
     move R12 R13
@@ -419,7 +419,7 @@ LABEL vmlDeviceWrite
     pop R15
     RET
 
-LABEL vmlDeviceControl
+LABEL js_vmlDeviceControl
     push R15
     push R12
     move R12 R13
@@ -442,7 +442,7 @@ LABEL vmlDeviceControl
     pop R15
     RET
 
-LABEL vmlFileOpen
+LABEL js_vmlFileOpen
     push R15
     push R12
     move R12 R13
@@ -459,7 +459,7 @@ LABEL vmlFileOpen
     pop R15
     RET
 
-LABEL vmlFileClose
+LABEL js_vmlFileClose
     push R15
     push R12
     move R12 R13
@@ -473,7 +473,7 @@ LABEL vmlFileClose
     pop R15
     RET
 
-LABEL vmlFileRead
+LABEL js_vmlFileRead
     push R15
     push R12
     move R12 R13
@@ -493,7 +493,7 @@ LABEL vmlFileRead
     pop R15
     RET
 
-LABEL vmlFileWrite
+LABEL js_vmlFileWrite
     push R15
     push R12
     move R12 R13
@@ -513,7 +513,7 @@ LABEL vmlFileWrite
     pop R15
     RET
 
-LABEL vmlFileSize
+LABEL js_vmlFileSize
     push R15
     push R12
     move R12 R13
@@ -527,7 +527,7 @@ LABEL vmlFileSize
     pop R15
     RET
 
-LABEL vmlFileSeek
+LABEL js_vmlFileSeek
     push R15
     push R12
     move R12 R13
@@ -544,7 +544,7 @@ LABEL vmlFileSeek
     pop R15
     RET
 
-LABEL vmlFileTell
+LABEL js_vmlFileTell
     push R15
     push R12
     move R12 R13
@@ -558,7 +558,7 @@ LABEL vmlFileTell
     pop R15
     RET
 
-LABEL vmlMkdir
+LABEL js_vmlMkdir
     push R15
     push R12
     move R12 R13
@@ -572,7 +572,7 @@ LABEL vmlMkdir
     pop R15
     RET
 
-LABEL vmlRemove
+LABEL js_vmlRemove
     push R15
     push R12
     move R12 R13
@@ -586,7 +586,7 @@ LABEL vmlRemove
     pop R15
     RET
 
-LABEL vmlRename
+LABEL js_vmlRename
     push R15
     push R12
     move R12 R13
@@ -603,7 +603,7 @@ LABEL vmlRename
     pop R15
     RET
 
-LABEL vmlReaddir
+LABEL js_vmlReaddir
     push R15
     push R12
     move R12 R13
@@ -620,7 +620,7 @@ LABEL vmlReaddir
     pop R15
     RET
 
-LABEL vmlStat
+LABEL js_vmlStat
     push R15
     push R12
     move R12 R13
@@ -637,7 +637,7 @@ LABEL vmlStat
     pop R15
     RET
 
-LABEL vmlGetEnv
+LABEL js_vmlGetEnv
     push R15
     push R12
     move R12 R13
@@ -651,7 +651,7 @@ LABEL vmlGetEnv
     pop R15
     RET
 
-LABEL vmlSetEnv
+LABEL js_vmlSetEnv
     push R15
     push R12
     move R12 R13
@@ -668,7 +668,7 @@ LABEL vmlSetEnv
     pop R15
     RET
 
-LABEL vmlExit
+LABEL js_vmlExit
     push R15
     push R12
     move R12 R13
@@ -682,7 +682,7 @@ LABEL vmlExit
     pop R15
     RET
 
-LABEL vmlGetPid
+LABEL js_vmlGetPid
     push R15
     push R12
     move R12 R13
@@ -692,7 +692,7 @@ LABEL vmlGetPid
     pop R15
     RET
 
-LABEL vmlThreadCreate
+LABEL js_vmlThreadCreate
     push R15
     push R12
     move R12 R13
@@ -709,7 +709,7 @@ LABEL vmlThreadCreate
     pop R15
     RET
 
-LABEL vmlThreadExit
+LABEL js_vmlThreadExit
     push R15
     push R12
     move R12 R13
@@ -719,7 +719,7 @@ LABEL vmlThreadExit
     pop R15
     RET
 
-LABEL vmlThreadYield
+LABEL js_vmlThreadYield
     push R15
     push R12
     move R12 R13
@@ -729,7 +729,7 @@ LABEL vmlThreadYield
     pop R15
     RET
 
-LABEL vmlMutexCreate
+LABEL js_vmlMutexCreate
     push R15
     push R12
     move R12 R13
@@ -739,7 +739,7 @@ LABEL vmlMutexCreate
     pop R15
     RET
 
-LABEL vmlMutexLock
+LABEL js_vmlMutexLock
     push R15
     push R12
     move R12 R13
@@ -753,7 +753,7 @@ LABEL vmlMutexLock
     pop R15
     RET
 
-LABEL vmlMutexUnlock
+LABEL js_vmlMutexUnlock
     push R15
     push R12
     move R12 R13
@@ -767,7 +767,7 @@ LABEL vmlMutexUnlock
     pop R15
     RET
 
-LABEL vmlCondCreate
+LABEL js_vmlCondCreate
     push R15
     push R12
     move R12 R13
@@ -777,7 +777,7 @@ LABEL vmlCondCreate
     pop R15
     RET
 
-LABEL vmlCondWait
+LABEL js_vmlCondWait
     push R15
     push R12
     move R12 R13
@@ -794,7 +794,7 @@ LABEL vmlCondWait
     pop R15
     RET
 
-LABEL vmlCondSignal
+LABEL js_vmlCondSignal
     push R15
     push R12
     move R12 R13
@@ -808,7 +808,7 @@ LABEL vmlCondSignal
     pop R15
     RET
 
-LABEL vmlCondBroadcast
+LABEL js_vmlCondBroadcast
     push R15
     push R12
     move R12 R13
@@ -822,7 +822,7 @@ LABEL vmlCondBroadcast
     pop R15
     RET
 
-LABEL vmlExec
+LABEL js_vmlExec
     push R15
     push R12
     move R12 R13
@@ -836,7 +836,7 @@ LABEL vmlExec
     pop R15
     RET
 
-LABEL vmlSocketCreate
+LABEL js_vmlSocketCreate
     push R15
     push R12
     move R12 R13
@@ -853,7 +853,7 @@ LABEL vmlSocketCreate
     pop R15
     RET
 
-LABEL vmlSocketConnect
+LABEL js_vmlSocketConnect
     push R15
     push R12
     move R12 R13
@@ -873,7 +873,7 @@ LABEL vmlSocketConnect
     pop R15
     RET
 
-LABEL vmlSocketSend
+LABEL js_vmlSocketSend
     push R15
     push R12
     move R12 R13
@@ -893,7 +893,7 @@ LABEL vmlSocketSend
     pop R15
     RET
 
-LABEL vmlSocketRecv
+LABEL js_vmlSocketRecv
     push R15
     push R12
     move R12 R13
@@ -913,7 +913,7 @@ LABEL vmlSocketRecv
     pop R15
     RET
 
-LABEL vmlSocketClose
+LABEL js_vmlSocketClose
     push R15
     push R12
     move R12 R13
@@ -927,7 +927,7 @@ LABEL vmlSocketClose
     pop R15
     RET
 
-LABEL vmlDnsResolve
+LABEL js_vmlDnsResolve
     push R15
     push R12
     move R12 R13
@@ -941,7 +941,7 @@ LABEL vmlDnsResolve
     pop R15
     RET
 
-LABEL vmlScreenshot
+LABEL js_vmlScreenshot
     push R15
     push R12
     move R12 R13
@@ -951,7 +951,7 @@ LABEL vmlScreenshot
     pop R15
     RET
 
-LABEL vmlSyscall5
+LABEL js_vmlSyscall5
     push R15
     push R12
     move R12 R13
@@ -979,782 +979,782 @@ LABEL vmlSyscall5
     RET
 
 LABEL Vmlsys_VmlPrintStr
-    JMP vmlPrintStr
+    JMP js_vmlPrintStr
 
 LABEL Vmlsys_VmlPrintInt
-    JMP vmlPrintInt
+    JMP js_vmlPrintInt
 
 LABEL Vmlsys_VmlPrintChar
-    JMP vmlPrintChar
+    JMP js_vmlPrintChar
 
 LABEL Vmlsys_VmlPrintFloat
-    JMP vmlPrintFloat
+    JMP js_vmlPrintFloat
 
 LABEL Vmlsys_VmlPrintHex
-    JMP vmlPrintHex
+    JMP js_vmlPrintHex
 
 LABEL Vmlsys_VmlNewline
-    JMP vmlNewline
+    JMP js_vmlNewline
 
 LABEL Vmlsys_VmlPrintWstr
-    JMP vmlPrintWstr
+    JMP js_vmlPrintWstr
 
 LABEL Vmlsys_VmlPrintUstr
-    JMP vmlPrintUstr
+    JMP js_vmlPrintUstr
 
 LABEL Vmlsys_VmlMemCopy
-    JMP vmlMemCopy
+    JMP js_vmlMemCopy
 
 LABEL Vmlsys_VmlMemFill
-    JMP vmlMemFill
+    JMP js_vmlMemFill
 
 LABEL Vmlsys_VmlMemCompare
-    JMP vmlMemCompare
+    JMP js_vmlMemCompare
 
 LABEL Vmlsys_VmlRandom
-    JMP vmlRandom
+    JMP js_vmlRandom
 
 LABEL Vmlsys_VmlSeed
-    JMP vmlSeed
+    JMP js_vmlSeed
 
 LABEL Vmlsys_VmlSleepMs
-    JMP vmlSleepMs
+    JMP js_vmlSleepMs
 
 LABEL Vmlsys_VmlGetTick
-    JMP vmlGetTick
+    JMP js_vmlGetTick
 
 LABEL Vmlsys_VmlGetTimestamp
-    JMP vmlGetTimestamp
+    JMP js_vmlGetTimestamp
 
 LABEL Vmlsys_VmlGetDate
-    JMP vmlGetDate
+    JMP js_vmlGetDate
 
 LABEL Vmlsys_VmlGetTime
-    JMP vmlGetTime
+    JMP js_vmlGetTime
 
 LABEL Vmlsys_VmlBeep
-    JMP vmlBeep
+    JMP js_vmlBeep
 
 LABEL Vmlsys_VmlGetConfig
-    JMP vmlGetConfig
+    JMP js_vmlGetConfig
 
 LABEL Vmlsys_VmlGetInfo
-    JMP vmlGetInfo
+    JMP js_vmlGetInfo
 
 LABEL Vmlsys_VmlGetPlatform
-    JMP vmlGetPlatform
+    JMP js_vmlGetPlatform
 
 LABEL Vmlsys_VmlDebugPrint
-    JMP vmlDebugPrint
+    JMP js_vmlDebugPrint
 
 LABEL Vmlsys_VmlDebugInt
-    JMP vmlDebugInt
+    JMP js_vmlDebugInt
 
 LABEL Vmlsys_VmlAssert
-    JMP vmlAssert
+    JMP js_vmlAssert
 
 LABEL Vmlsys_VmlDeviceOpen
-    JMP vmlDeviceOpen
+    JMP js_vmlDeviceOpen
 
 LABEL Vmlsys_VmlDeviceClose
-    JMP vmlDeviceClose
+    JMP js_vmlDeviceClose
 
 LABEL Vmlsys_VmlDeviceRead
-    JMP vmlDeviceRead
+    JMP js_vmlDeviceRead
 
 LABEL Vmlsys_VmlDeviceWrite
-    JMP vmlDeviceWrite
+    JMP js_vmlDeviceWrite
 
 LABEL Vmlsys_VmlDeviceControl
-    JMP vmlDeviceControl
+    JMP js_vmlDeviceControl
 
 LABEL Vmlsys_VmlFileOpen
-    JMP vmlFileOpen
+    JMP js_vmlFileOpen
 
 LABEL Vmlsys_VmlFileClose
-    JMP vmlFileClose
+    JMP js_vmlFileClose
 
 LABEL Vmlsys_VmlFileRead
-    JMP vmlFileRead
+    JMP js_vmlFileRead
 
 LABEL Vmlsys_VmlFileWrite
-    JMP vmlFileWrite
+    JMP js_vmlFileWrite
 
 LABEL Vmlsys_VmlFileSize
-    JMP vmlFileSize
+    JMP js_vmlFileSize
 
 LABEL Vmlsys_VmlFileSeek
-    JMP vmlFileSeek
+    JMP js_vmlFileSeek
 
 LABEL Vmlsys_VmlFileTell
-    JMP vmlFileTell
+    JMP js_vmlFileTell
 
 LABEL Vmlsys_VmlMkdir
-    JMP vmlMkdir
+    JMP js_vmlMkdir
 
 LABEL Vmlsys_VmlRemove
-    JMP vmlRemove
+    JMP js_vmlRemove
 
 LABEL Vmlsys_VmlRename
-    JMP vmlRename
+    JMP js_vmlRename
 
 LABEL Vmlsys_VmlReaddir
-    JMP vmlReaddir
+    JMP js_vmlReaddir
 
 LABEL Vmlsys_VmlStat
-    JMP vmlStat
+    JMP js_vmlStat
 
 LABEL Vmlsys_VmlGetEnv
-    JMP vmlGetEnv
+    JMP js_vmlGetEnv
 
 LABEL Vmlsys_VmlSetEnv
-    JMP vmlSetEnv
+    JMP js_vmlSetEnv
 
 LABEL Vmlsys_VmlExit
-    JMP vmlExit
+    JMP js_vmlExit
 
 LABEL Vmlsys_VmlGetPid
-    JMP vmlGetPid
+    JMP js_vmlGetPid
 
 LABEL Vmlsys_VmlThreadCreate
-    JMP vmlThreadCreate
+    JMP js_vmlThreadCreate
 
 LABEL Vmlsys_VmlThreadExit
-    JMP vmlThreadExit
+    JMP js_vmlThreadExit
 
 LABEL Vmlsys_VmlThreadYield
-    JMP vmlThreadYield
+    JMP js_vmlThreadYield
 
 LABEL Vmlsys_VmlMutexCreate
-    JMP vmlMutexCreate
+    JMP js_vmlMutexCreate
 
 LABEL Vmlsys_VmlMutexLock
-    JMP vmlMutexLock
+    JMP js_vmlMutexLock
 
 LABEL Vmlsys_VmlMutexUnlock
-    JMP vmlMutexUnlock
+    JMP js_vmlMutexUnlock
 
 LABEL Vmlsys_VmlCondCreate
-    JMP vmlCondCreate
+    JMP js_vmlCondCreate
 
 LABEL Vmlsys_VmlCondWait
-    JMP vmlCondWait
+    JMP js_vmlCondWait
 
 LABEL Vmlsys_VmlCondSignal
-    JMP vmlCondSignal
+    JMP js_vmlCondSignal
 
 LABEL Vmlsys_VmlCondBroadcast
-    JMP vmlCondBroadcast
+    JMP js_vmlCondBroadcast
 
 LABEL Vmlsys_VmlExec
-    JMP vmlExec
+    JMP js_vmlExec
 
 LABEL Vmlsys_VmlSocketCreate
-    JMP vmlSocketCreate
+    JMP js_vmlSocketCreate
 
 LABEL Vmlsys_VmlSocketConnect
-    JMP vmlSocketConnect
+    JMP js_vmlSocketConnect
 
 LABEL Vmlsys_VmlSocketSend
-    JMP vmlSocketSend
+    JMP js_vmlSocketSend
 
 LABEL Vmlsys_VmlSocketRecv
-    JMP vmlSocketRecv
+    JMP js_vmlSocketRecv
 
 LABEL Vmlsys_VmlSocketClose
-    JMP vmlSocketClose
+    JMP js_vmlSocketClose
 
 LABEL Vmlsys_VmlDnsResolve
-    JMP vmlDnsResolve
+    JMP js_vmlDnsResolve
 
 LABEL Vmlsys_VmlScreenshot
-    JMP vmlScreenshot
+    JMP js_vmlScreenshot
 
 LABEL Vmlsys_VmlSyscall5
-    JMP vmlSyscall5
+    JMP js_vmlSyscall5
 
 LABEL method_vml_print_str
-    JMP vmlPrintStr
+    JMP js_vmlPrintStr
 
 LABEL method_VmlPrintStr
-    JMP vmlPrintStr
+    JMP js_vmlPrintStr
 
 LABEL method_vmlPrintStr
-    JMP vmlPrintStr
+    JMP js_vmlPrintStr
 
 LABEL method_vml_print_int
-    JMP vmlPrintInt
+    JMP js_vmlPrintInt
 
 LABEL method_VmlPrintInt
-    JMP vmlPrintInt
+    JMP js_vmlPrintInt
 
 LABEL method_vmlPrintInt
-    JMP vmlPrintInt
+    JMP js_vmlPrintInt
 
 LABEL method_vml_print_char
-    JMP vmlPrintChar
+    JMP js_vmlPrintChar
 
 LABEL method_VmlPrintChar
-    JMP vmlPrintChar
+    JMP js_vmlPrintChar
 
 LABEL method_vmlPrintChar
-    JMP vmlPrintChar
+    JMP js_vmlPrintChar
 
 LABEL method_vml_print_float
-    JMP vmlPrintFloat
+    JMP js_vmlPrintFloat
 
 LABEL method_VmlPrintFloat
-    JMP vmlPrintFloat
+    JMP js_vmlPrintFloat
 
 LABEL method_vmlPrintFloat
-    JMP vmlPrintFloat
+    JMP js_vmlPrintFloat
 
 LABEL method_vml_print_hex
-    JMP vmlPrintHex
+    JMP js_vmlPrintHex
 
 LABEL method_VmlPrintHex
-    JMP vmlPrintHex
+    JMP js_vmlPrintHex
 
 LABEL method_vmlPrintHex
-    JMP vmlPrintHex
+    JMP js_vmlPrintHex
 
 LABEL method_vml_newline
-    JMP vmlNewline
+    JMP js_vmlNewline
 
 LABEL method_VmlNewline
-    JMP vmlNewline
+    JMP js_vmlNewline
 
 LABEL method_vmlNewline
-    JMP vmlNewline
+    JMP js_vmlNewline
 
 LABEL method_vml_print_wstr
-    JMP vmlPrintWstr
+    JMP js_vmlPrintWstr
 
 LABEL method_VmlPrintWstr
-    JMP vmlPrintWstr
+    JMP js_vmlPrintWstr
 
 LABEL method_vmlPrintWstr
-    JMP vmlPrintWstr
+    JMP js_vmlPrintWstr
 
 LABEL method_vml_print_ustr
-    JMP vmlPrintUstr
+    JMP js_vmlPrintUstr
 
 LABEL method_VmlPrintUstr
-    JMP vmlPrintUstr
+    JMP js_vmlPrintUstr
 
 LABEL method_vmlPrintUstr
-    JMP vmlPrintUstr
+    JMP js_vmlPrintUstr
 
 LABEL method_vml_mem_copy
-    JMP vmlMemCopy
+    JMP js_vmlMemCopy
 
 LABEL method_VmlMemCopy
-    JMP vmlMemCopy
+    JMP js_vmlMemCopy
 
 LABEL method_vmlMemCopy
-    JMP vmlMemCopy
+    JMP js_vmlMemCopy
 
 LABEL method_vml_mem_fill
-    JMP vmlMemFill
+    JMP js_vmlMemFill
 
 LABEL method_VmlMemFill
-    JMP vmlMemFill
+    JMP js_vmlMemFill
 
 LABEL method_vmlMemFill
-    JMP vmlMemFill
+    JMP js_vmlMemFill
 
 LABEL method_vml_mem_compare
-    JMP vmlMemCompare
+    JMP js_vmlMemCompare
 
 LABEL method_VmlMemCompare
-    JMP vmlMemCompare
+    JMP js_vmlMemCompare
 
 LABEL method_vmlMemCompare
-    JMP vmlMemCompare
+    JMP js_vmlMemCompare
 
 LABEL method_vml_random
-    JMP vmlRandom
+    JMP js_vmlRandom
 
 LABEL method_VmlRandom
-    JMP vmlRandom
+    JMP js_vmlRandom
 
 LABEL method_vmlRandom
-    JMP vmlRandom
+    JMP js_vmlRandom
 
 LABEL method_vml_seed
-    JMP vmlSeed
+    JMP js_vmlSeed
 
 LABEL method_VmlSeed
-    JMP vmlSeed
+    JMP js_vmlSeed
 
 LABEL method_vmlSeed
-    JMP vmlSeed
+    JMP js_vmlSeed
 
 LABEL method_vml_sleep_ms
-    JMP vmlSleepMs
+    JMP js_vmlSleepMs
 
 LABEL method_VmlSleepMs
-    JMP vmlSleepMs
+    JMP js_vmlSleepMs
 
 LABEL method_vmlSleepMs
-    JMP vmlSleepMs
+    JMP js_vmlSleepMs
 
 LABEL method_vml_get_tick
-    JMP vmlGetTick
+    JMP js_vmlGetTick
 
 LABEL method_VmlGetTick
-    JMP vmlGetTick
+    JMP js_vmlGetTick
 
 LABEL method_vmlGetTick
-    JMP vmlGetTick
+    JMP js_vmlGetTick
 
 LABEL method_vml_get_timestamp
-    JMP vmlGetTimestamp
+    JMP js_vmlGetTimestamp
 
 LABEL method_VmlGetTimestamp
-    JMP vmlGetTimestamp
+    JMP js_vmlGetTimestamp
 
 LABEL method_vmlGetTimestamp
-    JMP vmlGetTimestamp
+    JMP js_vmlGetTimestamp
 
 LABEL method_vml_get_date
-    JMP vmlGetDate
+    JMP js_vmlGetDate
 
 LABEL method_VmlGetDate
-    JMP vmlGetDate
+    JMP js_vmlGetDate
 
 LABEL method_vmlGetDate
-    JMP vmlGetDate
+    JMP js_vmlGetDate
 
 LABEL method_vml_get_time
-    JMP vmlGetTime
+    JMP js_vmlGetTime
 
 LABEL method_VmlGetTime
-    JMP vmlGetTime
+    JMP js_vmlGetTime
 
 LABEL method_vmlGetTime
-    JMP vmlGetTime
+    JMP js_vmlGetTime
 
 LABEL method_vml_beep
-    JMP vmlBeep
+    JMP js_vmlBeep
 
 LABEL method_VmlBeep
-    JMP vmlBeep
+    JMP js_vmlBeep
 
 LABEL method_vmlBeep
-    JMP vmlBeep
+    JMP js_vmlBeep
 
 LABEL method_vml_get_config
-    JMP vmlGetConfig
+    JMP js_vmlGetConfig
 
 LABEL method_VmlGetConfig
-    JMP vmlGetConfig
+    JMP js_vmlGetConfig
 
 LABEL method_vmlGetConfig
-    JMP vmlGetConfig
+    JMP js_vmlGetConfig
 
 LABEL method_vml_get_info
-    JMP vmlGetInfo
+    JMP js_vmlGetInfo
 
 LABEL method_VmlGetInfo
-    JMP vmlGetInfo
+    JMP js_vmlGetInfo
 
 LABEL method_vmlGetInfo
-    JMP vmlGetInfo
+    JMP js_vmlGetInfo
 
 LABEL method_vml_get_platform
-    JMP vmlGetPlatform
+    JMP js_vmlGetPlatform
 
 LABEL method_VmlGetPlatform
-    JMP vmlGetPlatform
+    JMP js_vmlGetPlatform
 
 LABEL method_vmlGetPlatform
-    JMP vmlGetPlatform
+    JMP js_vmlGetPlatform
 
 LABEL method_vml_debug_print
-    JMP vmlDebugPrint
+    JMP js_vmlDebugPrint
 
 LABEL method_VmlDebugPrint
-    JMP vmlDebugPrint
+    JMP js_vmlDebugPrint
 
 LABEL method_vmlDebugPrint
-    JMP vmlDebugPrint
+    JMP js_vmlDebugPrint
 
 LABEL method_vml_debug_int
-    JMP vmlDebugInt
+    JMP js_vmlDebugInt
 
 LABEL method_VmlDebugInt
-    JMP vmlDebugInt
+    JMP js_vmlDebugInt
 
 LABEL method_vmlDebugInt
-    JMP vmlDebugInt
+    JMP js_vmlDebugInt
 
 LABEL method_vml_assert
-    JMP vmlAssert
+    JMP js_vmlAssert
 
 LABEL method_VmlAssert
-    JMP vmlAssert
+    JMP js_vmlAssert
 
 LABEL method_vmlAssert
-    JMP vmlAssert
+    JMP js_vmlAssert
 
 LABEL method_vml_device_open
-    JMP vmlDeviceOpen
+    JMP js_vmlDeviceOpen
 
 LABEL method_VmlDeviceOpen
-    JMP vmlDeviceOpen
+    JMP js_vmlDeviceOpen
 
 LABEL method_vmlDeviceOpen
-    JMP vmlDeviceOpen
+    JMP js_vmlDeviceOpen
 
 LABEL method_vml_device_close
-    JMP vmlDeviceClose
+    JMP js_vmlDeviceClose
 
 LABEL method_VmlDeviceClose
-    JMP vmlDeviceClose
+    JMP js_vmlDeviceClose
 
 LABEL method_vmlDeviceClose
-    JMP vmlDeviceClose
+    JMP js_vmlDeviceClose
 
 LABEL method_vml_device_read
-    JMP vmlDeviceRead
+    JMP js_vmlDeviceRead
 
 LABEL method_VmlDeviceRead
-    JMP vmlDeviceRead
+    JMP js_vmlDeviceRead
 
 LABEL method_vmlDeviceRead
-    JMP vmlDeviceRead
+    JMP js_vmlDeviceRead
 
 LABEL method_vml_device_write
-    JMP vmlDeviceWrite
+    JMP js_vmlDeviceWrite
 
 LABEL method_VmlDeviceWrite
-    JMP vmlDeviceWrite
+    JMP js_vmlDeviceWrite
 
 LABEL method_vmlDeviceWrite
-    JMP vmlDeviceWrite
+    JMP js_vmlDeviceWrite
 
 LABEL method_vml_device_control
-    JMP vmlDeviceControl
+    JMP js_vmlDeviceControl
 
 LABEL method_VmlDeviceControl
-    JMP vmlDeviceControl
+    JMP js_vmlDeviceControl
 
 LABEL method_vmlDeviceControl
-    JMP vmlDeviceControl
+    JMP js_vmlDeviceControl
 
 LABEL method_vml_file_open
-    JMP vmlFileOpen
+    JMP js_vmlFileOpen
 
 LABEL method_VmlFileOpen
-    JMP vmlFileOpen
+    JMP js_vmlFileOpen
 
 LABEL method_vmlFileOpen
-    JMP vmlFileOpen
+    JMP js_vmlFileOpen
 
 LABEL method_vml_file_close
-    JMP vmlFileClose
+    JMP js_vmlFileClose
 
 LABEL method_VmlFileClose
-    JMP vmlFileClose
+    JMP js_vmlFileClose
 
 LABEL method_vmlFileClose
-    JMP vmlFileClose
+    JMP js_vmlFileClose
 
 LABEL method_vml_file_read
-    JMP vmlFileRead
+    JMP js_vmlFileRead
 
 LABEL method_VmlFileRead
-    JMP vmlFileRead
+    JMP js_vmlFileRead
 
 LABEL method_vmlFileRead
-    JMP vmlFileRead
+    JMP js_vmlFileRead
 
 LABEL method_vml_file_write
-    JMP vmlFileWrite
+    JMP js_vmlFileWrite
 
 LABEL method_VmlFileWrite
-    JMP vmlFileWrite
+    JMP js_vmlFileWrite
 
 LABEL method_vmlFileWrite
-    JMP vmlFileWrite
+    JMP js_vmlFileWrite
 
 LABEL method_vml_file_size
-    JMP vmlFileSize
+    JMP js_vmlFileSize
 
 LABEL method_VmlFileSize
-    JMP vmlFileSize
+    JMP js_vmlFileSize
 
 LABEL method_vmlFileSize
-    JMP vmlFileSize
+    JMP js_vmlFileSize
 
 LABEL method_vml_file_seek
-    JMP vmlFileSeek
+    JMP js_vmlFileSeek
 
 LABEL method_VmlFileSeek
-    JMP vmlFileSeek
+    JMP js_vmlFileSeek
 
 LABEL method_vmlFileSeek
-    JMP vmlFileSeek
+    JMP js_vmlFileSeek
 
 LABEL method_vml_file_tell
-    JMP vmlFileTell
+    JMP js_vmlFileTell
 
 LABEL method_VmlFileTell
-    JMP vmlFileTell
+    JMP js_vmlFileTell
 
 LABEL method_vmlFileTell
-    JMP vmlFileTell
+    JMP js_vmlFileTell
 
 LABEL method_vml_mkdir
-    JMP vmlMkdir
+    JMP js_vmlMkdir
 
 LABEL method_VmlMkdir
-    JMP vmlMkdir
+    JMP js_vmlMkdir
 
 LABEL method_vmlMkdir
-    JMP vmlMkdir
+    JMP js_vmlMkdir
 
 LABEL method_vml_remove
-    JMP vmlRemove
+    JMP js_vmlRemove
 
 LABEL method_VmlRemove
-    JMP vmlRemove
+    JMP js_vmlRemove
 
 LABEL method_vmlRemove
-    JMP vmlRemove
+    JMP js_vmlRemove
 
 LABEL method_vml_rename
-    JMP vmlRename
+    JMP js_vmlRename
 
 LABEL method_VmlRename
-    JMP vmlRename
+    JMP js_vmlRename
 
 LABEL method_vmlRename
-    JMP vmlRename
+    JMP js_vmlRename
 
 LABEL method_vml_readdir
-    JMP vmlReaddir
+    JMP js_vmlReaddir
 
 LABEL method_VmlReaddir
-    JMP vmlReaddir
+    JMP js_vmlReaddir
 
 LABEL method_vmlReaddir
-    JMP vmlReaddir
+    JMP js_vmlReaddir
 
 LABEL method_vml_stat
-    JMP vmlStat
+    JMP js_vmlStat
 
 LABEL method_VmlStat
-    JMP vmlStat
+    JMP js_vmlStat
 
 LABEL method_vmlStat
-    JMP vmlStat
+    JMP js_vmlStat
 
 LABEL method_vml_get_env
-    JMP vmlGetEnv
+    JMP js_vmlGetEnv
 
 LABEL method_VmlGetEnv
-    JMP vmlGetEnv
+    JMP js_vmlGetEnv
 
 LABEL method_vmlGetEnv
-    JMP vmlGetEnv
+    JMP js_vmlGetEnv
 
 LABEL method_vml_set_env
-    JMP vmlSetEnv
+    JMP js_vmlSetEnv
 
 LABEL method_VmlSetEnv
-    JMP vmlSetEnv
+    JMP js_vmlSetEnv
 
 LABEL method_vmlSetEnv
-    JMP vmlSetEnv
+    JMP js_vmlSetEnv
 
 LABEL method_vml_exit
-    JMP vmlExit
+    JMP js_vmlExit
 
 LABEL method_VmlExit
-    JMP vmlExit
+    JMP js_vmlExit
 
 LABEL method_vmlExit
-    JMP vmlExit
+    JMP js_vmlExit
 
 LABEL method_vml_get_pid
-    JMP vmlGetPid
+    JMP js_vmlGetPid
 
 LABEL method_VmlGetPid
-    JMP vmlGetPid
+    JMP js_vmlGetPid
 
 LABEL method_vmlGetPid
-    JMP vmlGetPid
+    JMP js_vmlGetPid
 
 LABEL method_vml_thread_create
-    JMP vmlThreadCreate
+    JMP js_vmlThreadCreate
 
 LABEL method_VmlThreadCreate
-    JMP vmlThreadCreate
+    JMP js_vmlThreadCreate
 
 LABEL method_vmlThreadCreate
-    JMP vmlThreadCreate
+    JMP js_vmlThreadCreate
 
 LABEL method_vml_thread_exit
-    JMP vmlThreadExit
+    JMP js_vmlThreadExit
 
 LABEL method_VmlThreadExit
-    JMP vmlThreadExit
+    JMP js_vmlThreadExit
 
 LABEL method_vmlThreadExit
-    JMP vmlThreadExit
+    JMP js_vmlThreadExit
 
 LABEL method_vml_thread_yield
-    JMP vmlThreadYield
+    JMP js_vmlThreadYield
 
 LABEL method_VmlThreadYield
-    JMP vmlThreadYield
+    JMP js_vmlThreadYield
 
 LABEL method_vmlThreadYield
-    JMP vmlThreadYield
+    JMP js_vmlThreadYield
 
 LABEL method_vml_mutex_create
-    JMP vmlMutexCreate
+    JMP js_vmlMutexCreate
 
 LABEL method_VmlMutexCreate
-    JMP vmlMutexCreate
+    JMP js_vmlMutexCreate
 
 LABEL method_vmlMutexCreate
-    JMP vmlMutexCreate
+    JMP js_vmlMutexCreate
 
 LABEL method_vml_mutex_lock
-    JMP vmlMutexLock
+    JMP js_vmlMutexLock
 
 LABEL method_VmlMutexLock
-    JMP vmlMutexLock
+    JMP js_vmlMutexLock
 
 LABEL method_vmlMutexLock
-    JMP vmlMutexLock
+    JMP js_vmlMutexLock
 
 LABEL method_vml_mutex_unlock
-    JMP vmlMutexUnlock
+    JMP js_vmlMutexUnlock
 
 LABEL method_VmlMutexUnlock
-    JMP vmlMutexUnlock
+    JMP js_vmlMutexUnlock
 
 LABEL method_vmlMutexUnlock
-    JMP vmlMutexUnlock
+    JMP js_vmlMutexUnlock
 
 LABEL method_vml_cond_create
-    JMP vmlCondCreate
+    JMP js_vmlCondCreate
 
 LABEL method_VmlCondCreate
-    JMP vmlCondCreate
+    JMP js_vmlCondCreate
 
 LABEL method_vmlCondCreate
-    JMP vmlCondCreate
+    JMP js_vmlCondCreate
 
 LABEL method_vml_cond_wait
-    JMP vmlCondWait
+    JMP js_vmlCondWait
 
 LABEL method_VmlCondWait
-    JMP vmlCondWait
+    JMP js_vmlCondWait
 
 LABEL method_vmlCondWait
-    JMP vmlCondWait
+    JMP js_vmlCondWait
 
 LABEL method_vml_cond_signal
-    JMP vmlCondSignal
+    JMP js_vmlCondSignal
 
 LABEL method_VmlCondSignal
-    JMP vmlCondSignal
+    JMP js_vmlCondSignal
 
 LABEL method_vmlCondSignal
-    JMP vmlCondSignal
+    JMP js_vmlCondSignal
 
 LABEL method_vml_cond_broadcast
-    JMP vmlCondBroadcast
+    JMP js_vmlCondBroadcast
 
 LABEL method_VmlCondBroadcast
-    JMP vmlCondBroadcast
+    JMP js_vmlCondBroadcast
 
 LABEL method_vmlCondBroadcast
-    JMP vmlCondBroadcast
+    JMP js_vmlCondBroadcast
 
 LABEL method_vml_exec
-    JMP vmlExec
+    JMP js_vmlExec
 
 LABEL method_VmlExec
-    JMP vmlExec
+    JMP js_vmlExec
 
 LABEL method_vmlExec
-    JMP vmlExec
+    JMP js_vmlExec
 
 LABEL method_vml_socket_create
-    JMP vmlSocketCreate
+    JMP js_vmlSocketCreate
 
 LABEL method_VmlSocketCreate
-    JMP vmlSocketCreate
+    JMP js_vmlSocketCreate
 
 LABEL method_vmlSocketCreate
-    JMP vmlSocketCreate
+    JMP js_vmlSocketCreate
 
 LABEL method_vml_socket_connect
-    JMP vmlSocketConnect
+    JMP js_vmlSocketConnect
 
 LABEL method_VmlSocketConnect
-    JMP vmlSocketConnect
+    JMP js_vmlSocketConnect
 
 LABEL method_vmlSocketConnect
-    JMP vmlSocketConnect
+    JMP js_vmlSocketConnect
 
 LABEL method_vml_socket_send
-    JMP vmlSocketSend
+    JMP js_vmlSocketSend
 
 LABEL method_VmlSocketSend
-    JMP vmlSocketSend
+    JMP js_vmlSocketSend
 
 LABEL method_vmlSocketSend
-    JMP vmlSocketSend
+    JMP js_vmlSocketSend
 
 LABEL method_vml_socket_recv
-    JMP vmlSocketRecv
+    JMP js_vmlSocketRecv
 
 LABEL method_VmlSocketRecv
-    JMP vmlSocketRecv
+    JMP js_vmlSocketRecv
 
 LABEL method_vmlSocketRecv
-    JMP vmlSocketRecv
+    JMP js_vmlSocketRecv
 
 LABEL method_vml_socket_close
-    JMP vmlSocketClose
+    JMP js_vmlSocketClose
 
 LABEL method_VmlSocketClose
-    JMP vmlSocketClose
+    JMP js_vmlSocketClose
 
 LABEL method_vmlSocketClose
-    JMP vmlSocketClose
+    JMP js_vmlSocketClose
 
 LABEL method_vml_dns_resolve
-    JMP vmlDnsResolve
+    JMP js_vmlDnsResolve
 
 LABEL method_VmlDnsResolve
-    JMP vmlDnsResolve
+    JMP js_vmlDnsResolve
 
 LABEL method_vmlDnsResolve
-    JMP vmlDnsResolve
+    JMP js_vmlDnsResolve
 
 LABEL method_vml_screenshot
-    JMP vmlScreenshot
+    JMP js_vmlScreenshot
 
 LABEL method_VmlScreenshot
-    JMP vmlScreenshot
+    JMP js_vmlScreenshot
 
 LABEL method_vmlScreenshot
-    JMP vmlScreenshot
+    JMP js_vmlScreenshot
 
 LABEL method_vml_syscall5
-    JMP vmlSyscall5
+    JMP js_vmlSyscall5
 
 LABEL method_VmlSyscall5
-    JMP vmlSyscall5
+    JMP js_vmlSyscall5
 
 LABEL method_vmlSyscall5
-    JMP vmlSyscall5
+    JMP js_vmlSyscall5
 

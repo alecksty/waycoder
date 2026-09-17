@@ -3,7 +3,7 @@
 
 .linked "../shared/crc.vml"
 
-LABEL cRC
+LABEL java_cRC
     push R15
     push R12
     move R12 R13
@@ -20,7 +20,7 @@ LABEL cRC
     pop R15
     RET
 
-LABEL crc8
+LABEL java_crc8
     push R15
     push R12
     move R12 R13
@@ -37,7 +37,7 @@ LABEL crc8
     pop R15
     RET
 
-LABEL crc16
+LABEL java_crc16
     push R15
     push R12
     move R12 R13
@@ -54,7 +54,7 @@ LABEL crc16
     pop R15
     RET
 
-LABEL crc32
+LABEL java_crc32
     push R15
     push R12
     move R12 R13
@@ -71,7 +71,7 @@ LABEL crc32
     pop R15
     RET
 
-LABEL djb2Hash
+LABEL java_djb2Hash
     push R15
     push R12
     move R12 R13
@@ -85,7 +85,7 @@ LABEL djb2Hash
     pop R15
     RET
 
-LABEL sdbmHash
+LABEL java_sdbmHash
     push R15
     push R12
     move R12 R13
@@ -99,7 +99,7 @@ LABEL sdbmHash
     pop R15
     RET
 
-LABEL fnv1aHash
+LABEL java_fnv1aHash
     push R15
     push R12
     move R12 R13
@@ -113,7 +113,7 @@ LABEL fnv1aHash
     pop R15
     RET
 
-LABEL checksum8
+LABEL java_checksum8
     push R15
     push R12
     move R12 R13
@@ -130,7 +130,7 @@ LABEL checksum8
     pop R15
     RET
 
-LABEL checksum16
+LABEL java_checksum16
     push R15
     push R12
     move R12 R13
@@ -148,92 +148,92 @@ LABEL checksum16
     RET
 
 LABEL Crc_CRC
-    JMP cRC
+    JMP java_cRC
 
 LABEL Crc_Crc8
-    JMP crc8
+    JMP java_crc8
 
 LABEL Crc_Crc16
-    JMP crc16
+    JMP java_crc16
 
 LABEL Crc_Crc32
-    JMP crc32
+    JMP java_crc32
 
 LABEL Crc_Djb2Hash
-    JMP djb2Hash
+    JMP java_djb2Hash
 
 LABEL Crc_SdbmHash
-    JMP sdbmHash
+    JMP java_sdbmHash
 
 LABEL Crc_Fnv1aHash
-    JMP fnv1aHash
+    JMP java_fnv1aHash
 
 LABEL Crc_Checksum8
-    JMP checksum8
+    JMP java_checksum8
 
 LABEL Crc_Checksum16
-    JMP checksum16
+    JMP java_checksum16
 
 LABEL method_CRC
-    JMP cRC
+    JMP java_cRC
 
 LABEL method_cRC
-    JMP cRC
+    JMP java_cRC
 
 LABEL method_crc8
-    JMP crc8
+    JMP java_crc8
 
 LABEL method_Crc8
-    JMP crc8
+    JMP java_crc8
 
 LABEL method_crc16
-    JMP crc16
+    JMP java_crc16
 
 LABEL method_Crc16
-    JMP crc16
+    JMP java_crc16
 
 LABEL method_crc32
-    JMP crc32
+    JMP java_crc32
 
 LABEL method_Crc32
-    JMP crc32
+    JMP java_crc32
 
 LABEL method_djb2_hash
-    JMP djb2Hash
+    JMP java_djb2Hash
 
 LABEL method_Djb2Hash
-    JMP djb2Hash
+    JMP java_djb2Hash
 
 LABEL method_djb2Hash
-    JMP djb2Hash
+    JMP java_djb2Hash
 
 LABEL method_sdbm_hash
-    JMP sdbmHash
+    JMP java_sdbmHash
 
 LABEL method_SdbmHash
-    JMP sdbmHash
+    JMP java_sdbmHash
 
 LABEL method_sdbmHash
-    JMP sdbmHash
+    JMP java_sdbmHash
 
 LABEL method_fnv1a_hash
-    JMP fnv1aHash
+    JMP java_fnv1aHash
 
 LABEL method_Fnv1aHash
-    JMP fnv1aHash
+    JMP java_fnv1aHash
 
 LABEL method_fnv1aHash
-    JMP fnv1aHash
+    JMP java_fnv1aHash
 
 LABEL method_checksum8
-    JMP checksum8
+    JMP java_checksum8
 
 LABEL method_Checksum8
-    JMP checksum8
+    JMP java_checksum8
 
 LABEL method_checksum16
-    JMP checksum16
+    JMP java_checksum16
 
 LABEL method_Checksum16
-    JMP checksum16
+    JMP java_checksum16
 

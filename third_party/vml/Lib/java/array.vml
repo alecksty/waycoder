@@ -3,7 +3,7 @@
 
 .linked "../shared/array.vml"
 
-LABEL lib
+LABEL java_lib
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL lib
     pop R15
     RET
 
-LABEL len
+LABEL java_len
     push R15
     push R12
     move R12 R13
@@ -31,7 +31,7 @@ LABEL len
     pop R15
     RET
 
-LABEL get
+LABEL java_get
     push R15
     push R12
     move R12 R13
@@ -48,7 +48,7 @@ LABEL get
     pop R15
     RET
 
-LABEL set
+LABEL java_set
     push R15
     push R12
     move R12 R13
@@ -68,7 +68,7 @@ LABEL set
     pop R15
     RET
 
-LABEL sortBubble
+LABEL java_sortBubble
     push R15
     push R12
     move R12 R13
@@ -82,7 +82,7 @@ LABEL sortBubble
     pop R15
     RET
 
-LABEL indexof
+LABEL java_indexof
     push R15
     push R12
     move R12 R13
@@ -99,7 +99,7 @@ LABEL indexof
     pop R15
     RET
 
-LABEL lastIndexof
+LABEL java_lastIndexof
     push R15
     push R12
     move R12 R13
@@ -116,7 +116,7 @@ LABEL lastIndexof
     pop R15
     RET
 
-LABEL contains
+LABEL java_contains
     push R15
     push R12
     move R12 R13
@@ -133,7 +133,7 @@ LABEL contains
     pop R15
     RET
 
-LABEL reverse
+LABEL java_reverse
     push R15
     push R12
     move R12 R13
@@ -147,7 +147,7 @@ LABEL reverse
     pop R15
     RET
 
-LABEL fill
+LABEL java_fill
     push R15
     push R12
     move R12 R13
@@ -164,7 +164,7 @@ LABEL fill
     pop R15
     RET
 
-LABEL copy
+LABEL java_copy
     push R15
     push R12
     move R12 R13
@@ -181,7 +181,7 @@ LABEL copy
     pop R15
     RET
 
-LABEL slice
+LABEL java_slice
     push R15
     push R12
     move R12 R13
@@ -204,7 +204,7 @@ LABEL slice
     pop R15
     RET
 
-LABEL concat
+LABEL java_concat
     push R15
     push R12
     move R12 R13
@@ -224,7 +224,7 @@ LABEL concat
     pop R15
     RET
 
-LABEL push
+LABEL java_push
     push R15
     push R12
     move R12 R13
@@ -241,7 +241,7 @@ LABEL push
     pop R15
     RET
 
-LABEL pop
+LABEL java_pop
     push R15
     push R12
     move R12 R13
@@ -255,7 +255,7 @@ LABEL pop
     pop R15
     RET
 
-LABEL shift
+LABEL java_shift
     push R15
     push R12
     move R12 R13
@@ -269,7 +269,7 @@ LABEL shift
     pop R15
     RET
 
-LABEL unshift
+LABEL java_unshift
     push R15
     push R12
     move R12 R13
@@ -286,7 +286,7 @@ LABEL unshift
     pop R15
     RET
 
-LABEL insert
+LABEL java_insert
     push R15
     push R12
     move R12 R13
@@ -306,7 +306,7 @@ LABEL insert
     pop R15
     RET
 
-LABEL remove
+LABEL java_remove
     push R15
     push R12
     move R12 R13
@@ -323,7 +323,7 @@ LABEL remove
     pop R15
     RET
 
-LABEL joinStr
+LABEL java_joinStr
     push R15
     push R12
     move R12 R13
@@ -343,7 +343,7 @@ LABEL joinStr
     pop R15
     RET
 
-LABEL startswith
+LABEL java_startswith
     push R15
     push R12
     move R12 R13
@@ -360,7 +360,7 @@ LABEL startswith
     pop R15
     RET
 
-LABEL endswith
+LABEL java_endswith
     push R15
     push R12
     move R12 R13
@@ -377,7 +377,7 @@ LABEL endswith
     pop R15
     RET
 
-LABEL qsSwap
+LABEL java_qsSwap
     push R15
     push R12
     move R12 R13
@@ -397,7 +397,7 @@ LABEL qsSwap
     pop R15
     RET
 
-LABEL qsPartition
+LABEL java_qsPartition
     push R15
     push R12
     move R12 R13
@@ -417,7 +417,7 @@ LABEL qsPartition
     pop R15
     RET
 
-LABEL qsRecursive
+LABEL java_qsRecursive
     push R15
     push R12
     move R12 R13
@@ -437,7 +437,7 @@ LABEL qsRecursive
     pop R15
     RET
 
-LABEL sortQuick
+LABEL java_sortQuick
     push R15
     push R12
     move R12 R13
@@ -451,7 +451,7 @@ LABEL sortQuick
     pop R15
     RET
 
-LABEL bsearch
+LABEL java_bsearch
     push R15
     push R12
     move R12 R13
@@ -469,266 +469,266 @@ LABEL bsearch
     RET
 
 LABEL Array_Lib
-    JMP lib
+    JMP java_lib
 
 LABEL Array_Len
-    JMP len
+    JMP java_len
 
 LABEL Array_Get
-    JMP get
+    JMP java_get
 
 LABEL Array_Set
-    JMP set
+    JMP java_set
 
 LABEL Array_SortBubble
-    JMP sortBubble
+    JMP java_sortBubble
 
 LABEL Array_Indexof
-    JMP indexof
+    JMP java_indexof
 
 LABEL Array_LastIndexof
-    JMP lastIndexof
+    JMP java_lastIndexof
 
 LABEL Array_Contains
-    JMP contains
+    JMP java_contains
 
 LABEL Array_Reverse
-    JMP reverse
+    JMP java_reverse
 
 LABEL Array_Fill
-    JMP fill
+    JMP java_fill
 
 LABEL Array_Copy
-    JMP copy
+    JMP java_copy
 
 LABEL Array_Slice
-    JMP slice
+    JMP java_slice
 
 LABEL Array_Concat
-    JMP concat
+    JMP java_concat
 
 LABEL Array_Push
-    JMP push
+    JMP java_push
 
 LABEL Array_Pop
-    JMP pop
+    JMP java_pop
 
 LABEL Array_Shift
-    JMP shift
+    JMP java_shift
 
 LABEL Array_Unshift
-    JMP unshift
+    JMP java_unshift
 
 LABEL Array_Insert
-    JMP insert
+    JMP java_insert
 
 LABEL Array_Remove
-    JMP remove
+    JMP java_remove
 
 LABEL Array_JoinStr
-    JMP joinStr
+    JMP java_joinStr
 
 LABEL Array_Startswith
-    JMP startswith
+    JMP java_startswith
 
 LABEL Array_Endswith
-    JMP endswith
+    JMP java_endswith
 
 LABEL Array_QsSwap
-    JMP qsSwap
+    JMP java_qsSwap
 
 LABEL Array_QsPartition
-    JMP qsPartition
+    JMP java_qsPartition
 
 LABEL Array_QsRecursive
-    JMP qsRecursive
+    JMP java_qsRecursive
 
 LABEL Array_SortQuick
-    JMP sortQuick
+    JMP java_sortQuick
 
 LABEL Array_Bsearch
-    JMP bsearch
+    JMP java_bsearch
 
 LABEL method_lib
-    JMP lib
+    JMP java_lib
 
 LABEL method_Lib
-    JMP lib
+    JMP java_lib
 
 LABEL method_len
-    JMP len
+    JMP java_len
 
 LABEL method_Len
-    JMP len
+    JMP java_len
 
 LABEL method_get
-    JMP get
+    JMP java_get
 
 LABEL method_Get
-    JMP get
+    JMP java_get
 
 LABEL method_set
-    JMP set
+    JMP java_set
 
 LABEL method_Set
-    JMP set
+    JMP java_set
 
 LABEL method_sort_bubble
-    JMP sortBubble
+    JMP java_sortBubble
 
 LABEL method_SortBubble
-    JMP sortBubble
+    JMP java_sortBubble
 
 LABEL method_sortBubble
-    JMP sortBubble
+    JMP java_sortBubble
 
 LABEL method_indexof
-    JMP indexof
+    JMP java_indexof
 
 LABEL method_Indexof
-    JMP indexof
+    JMP java_indexof
 
 LABEL method_last_indexof
-    JMP lastIndexof
+    JMP java_lastIndexof
 
 LABEL method_LastIndexof
-    JMP lastIndexof
+    JMP java_lastIndexof
 
 LABEL method_lastIndexof
-    JMP lastIndexof
+    JMP java_lastIndexof
 
 LABEL method_contains
-    JMP contains
+    JMP java_contains
 
 LABEL method_Contains
-    JMP contains
+    JMP java_contains
 
 LABEL method_reverse
-    JMP reverse
+    JMP java_reverse
 
 LABEL method_Reverse
-    JMP reverse
+    JMP java_reverse
 
 LABEL method_fill
-    JMP fill
+    JMP java_fill
 
 LABEL method_Fill
-    JMP fill
+    JMP java_fill
 
 LABEL method_copy
-    JMP copy
+    JMP java_copy
 
 LABEL method_Copy
-    JMP copy
+    JMP java_copy
 
 LABEL method_slice
-    JMP slice
+    JMP java_slice
 
 LABEL method_Slice
-    JMP slice
+    JMP java_slice
 
 LABEL method_concat
-    JMP concat
+    JMP java_concat
 
 LABEL method_Concat
-    JMP concat
+    JMP java_concat
 
 LABEL method_push
-    JMP push
+    JMP java_push
 
 LABEL method_Push
-    JMP push
+    JMP java_push
 
 LABEL method_pop
-    JMP pop
+    JMP java_pop
 
 LABEL method_Pop
-    JMP pop
+    JMP java_pop
 
 LABEL method_shift
-    JMP shift
+    JMP java_shift
 
 LABEL method_Shift
-    JMP shift
+    JMP java_shift
 
 LABEL method_unshift
-    JMP unshift
+    JMP java_unshift
 
 LABEL method_Unshift
-    JMP unshift
+    JMP java_unshift
 
 LABEL method_insert
-    JMP insert
+    JMP java_insert
 
 LABEL method_Insert
-    JMP insert
+    JMP java_insert
 
 LABEL method_remove
-    JMP remove
+    JMP java_remove
 
 LABEL method_Remove
-    JMP remove
+    JMP java_remove
 
 LABEL method_join_str
-    JMP joinStr
+    JMP java_joinStr
 
 LABEL method_JoinStr
-    JMP joinStr
+    JMP java_joinStr
 
 LABEL method_joinStr
-    JMP joinStr
+    JMP java_joinStr
 
 LABEL method_startswith
-    JMP startswith
+    JMP java_startswith
 
 LABEL method_Startswith
-    JMP startswith
+    JMP java_startswith
 
 LABEL method_endswith
-    JMP endswith
+    JMP java_endswith
 
 LABEL method_Endswith
-    JMP endswith
+    JMP java_endswith
 
 LABEL method__qs_swap
-    JMP qsSwap
+    JMP java_qsSwap
 
 LABEL method_QsSwap
-    JMP qsSwap
+    JMP java_qsSwap
 
 LABEL method_qsSwap
-    JMP qsSwap
+    JMP java_qsSwap
 
 LABEL method__qs_partition
-    JMP qsPartition
+    JMP java_qsPartition
 
 LABEL method_QsPartition
-    JMP qsPartition
+    JMP java_qsPartition
 
 LABEL method_qsPartition
-    JMP qsPartition
+    JMP java_qsPartition
 
 LABEL method__qs_recursive
-    JMP qsRecursive
+    JMP java_qsRecursive
 
 LABEL method_QsRecursive
-    JMP qsRecursive
+    JMP java_qsRecursive
 
 LABEL method_qsRecursive
-    JMP qsRecursive
+    JMP java_qsRecursive
 
 LABEL method_sort_quick
-    JMP sortQuick
+    JMP java_sortQuick
 
 LABEL method_SortQuick
-    JMP sortQuick
+    JMP java_sortQuick
 
 LABEL method_sortQuick
-    JMP sortQuick
+    JMP java_sortQuick
 
 LABEL method_bsearch
-    JMP bsearch
+    JMP java_bsearch
 
 LABEL method_Bsearch
-    JMP bsearch
+    JMP java_bsearch
 

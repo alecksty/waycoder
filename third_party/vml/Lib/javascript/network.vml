@@ -3,7 +3,7 @@
 
 .linked "../shared/network.vml"
 
-LABEL netConnect
+LABEL js_netConnect
     push R15
     push R12
     move R12 R13
@@ -20,7 +20,7 @@ LABEL netConnect
     pop R15
     RET
 
-LABEL netSend
+LABEL js_netSend
     push R15
     push R12
     move R12 R13
@@ -40,7 +40,7 @@ LABEL netSend
     pop R15
     RET
 
-LABEL netRecv
+LABEL js_netRecv
     push R15
     push R12
     move R12 R13
@@ -60,7 +60,7 @@ LABEL netRecv
     pop R15
     RET
 
-LABEL netClose
+LABEL js_netClose
     push R15
     push R12
     move R12 R13
@@ -74,7 +74,7 @@ LABEL netClose
     pop R15
     RET
 
-LABEL netListen
+LABEL js_netListen
     push R15
     push R12
     move R12 R13
@@ -89,62 +89,62 @@ LABEL netListen
     RET
 
 LABEL Network_NetConnect
-    JMP netConnect
+    JMP js_netConnect
 
 LABEL Network_NetSend
-    JMP netSend
+    JMP js_netSend
 
 LABEL Network_NetRecv
-    JMP netRecv
+    JMP js_netRecv
 
 LABEL Network_NetClose
-    JMP netClose
+    JMP js_netClose
 
 LABEL Network_NetListen
-    JMP netListen
+    JMP js_netListen
 
 LABEL method_net_connect
-    JMP netConnect
+    JMP js_netConnect
 
 LABEL method_NetConnect
-    JMP netConnect
+    JMP js_netConnect
 
 LABEL method_netConnect
-    JMP netConnect
+    JMP js_netConnect
 
 LABEL method_net_send
-    JMP netSend
+    JMP js_netSend
 
 LABEL method_NetSend
-    JMP netSend
+    JMP js_netSend
 
 LABEL method_netSend
-    JMP netSend
+    JMP js_netSend
 
 LABEL method_net_recv
-    JMP netRecv
+    JMP js_netRecv
 
 LABEL method_NetRecv
-    JMP netRecv
+    JMP js_netRecv
 
 LABEL method_netRecv
-    JMP netRecv
+    JMP js_netRecv
 
 LABEL method_net_close
-    JMP netClose
+    JMP js_netClose
 
 LABEL method_NetClose
-    JMP netClose
+    JMP js_netClose
 
 LABEL method_netClose
-    JMP netClose
+    JMP js_netClose
 
 LABEL method_net_listen
-    JMP netListen
+    JMP js_netListen
 
 LABEL method_NetListen
-    JMP netListen
+    JMP js_netListen
 
 LABEL method_netListen
-    JMP netListen
+    JMP js_netListen
 

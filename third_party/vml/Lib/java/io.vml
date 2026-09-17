@@ -3,7 +3,7 @@
 
 .linked "../shared/io.vml"
 
-LABEL wcslen
+LABEL java_wcslen
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL wcslen
     pop R15
     RET
 
-LABEL wcstombs
+LABEL java_wcstombs
     push R15
     push R12
     move R12 R13
@@ -38,7 +38,7 @@ LABEL wcstombs
     pop R15
     RET
 
-LABEL mbstowcs
+LABEL java_mbstowcs
     push R15
     push R12
     move R12 R13
@@ -58,7 +58,7 @@ LABEL mbstowcs
     pop R15
     RET
 
-LABEL utf8ToWstr
+LABEL java_utf8ToWstr
     push R15
     push R12
     move R12 R13
@@ -78,7 +78,7 @@ LABEL utf8ToWstr
     pop R15
     RET
 
-LABEL ucsToUtf8
+LABEL java_ucsToUtf8
     push R15
     push R12
     move R12 R13
@@ -99,7 +99,7 @@ LABEL ucsToUtf8
     pop R15
     RET
 
-LABEL utf8ToUcs
+LABEL java_utf8ToUcs
     push R15
     push R12
     move R12 R13
@@ -119,7 +119,7 @@ LABEL utf8ToUcs
     pop R15
     RET
 
-LABEL utf8ToUstr
+LABEL java_utf8ToUstr
     push R15
     push R12
     move R12 R13
@@ -140,77 +140,77 @@ LABEL utf8ToUstr
     RET
 
 LABEL Io_Wcslen
-    JMP wcslen
+    JMP java_wcslen
 
 LABEL Io_Wcstombs
-    JMP wcstombs
+    JMP java_wcstombs
 
 LABEL Io_Mbstowcs
-    JMP mbstowcs
+    JMP java_mbstowcs
 
 LABEL Io_Utf8ToWstr
-    JMP utf8ToWstr
+    JMP java_utf8ToWstr
 
 LABEL Io_UcsToUtf8
-    JMP ucsToUtf8
+    JMP java_ucsToUtf8
 
 LABEL Io_Utf8ToUcs
-    JMP utf8ToUcs
+    JMP java_utf8ToUcs
 
 LABEL Io_Utf8ToUstr
-    JMP utf8ToUstr
+    JMP java_utf8ToUstr
 
 LABEL method_wcslen
-    JMP wcslen
+    JMP java_wcslen
 
 LABEL method_Wcslen
-    JMP wcslen
+    JMP java_wcslen
 
 LABEL method_wcstombs
-    JMP wcstombs
+    JMP java_wcstombs
 
 LABEL method_Wcstombs
-    JMP wcstombs
+    JMP java_wcstombs
 
 LABEL method_mbstowcs
-    JMP mbstowcs
+    JMP java_mbstowcs
 
 LABEL method_Mbstowcs
-    JMP mbstowcs
+    JMP java_mbstowcs
 
 LABEL method_utf8_to_wstr
-    JMP utf8ToWstr
+    JMP java_utf8ToWstr
 
 LABEL method_Utf8ToWstr
-    JMP utf8ToWstr
+    JMP java_utf8ToWstr
 
 LABEL method_utf8ToWstr
-    JMP utf8ToWstr
+    JMP java_utf8ToWstr
 
 LABEL method_ucs_to_utf8
-    JMP ucsToUtf8
+    JMP java_ucsToUtf8
 
 LABEL method_UcsToUtf8
-    JMP ucsToUtf8
+    JMP java_ucsToUtf8
 
 LABEL method_ucsToUtf8
-    JMP ucsToUtf8
+    JMP java_ucsToUtf8
 
 LABEL method_utf8_to_ucs
-    JMP utf8ToUcs
+    JMP java_utf8ToUcs
 
 LABEL method_Utf8ToUcs
-    JMP utf8ToUcs
+    JMP java_utf8ToUcs
 
 LABEL method_utf8ToUcs
-    JMP utf8ToUcs
+    JMP java_utf8ToUcs
 
 LABEL method_utf8_to_ustr
-    JMP utf8ToUstr
+    JMP java_utf8ToUstr
 
 LABEL method_Utf8ToUstr
-    JMP utf8ToUstr
+    JMP java_utf8ToUstr
 
 LABEL method_utf8ToUstr
-    JMP utf8ToUstr
+    JMP java_utf8ToUstr
 

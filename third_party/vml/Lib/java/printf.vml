@@ -3,7 +3,7 @@
 
 .linked "../shared/printf.vml"
 
-LABEL emit
+LABEL java_emit
     push R15
     push R12
     move R12 R13
@@ -24,7 +24,7 @@ LABEL emit
     pop R15
     RET
 
-LABEL padChar
+LABEL java_padChar
     push R15
     push R12
     move R12 R13
@@ -48,7 +48,7 @@ LABEL padChar
     pop R15
     RET
 
-LABEL slen
+LABEL java_slen
     push R15
     push R12
     move R12 R13
@@ -62,7 +62,7 @@ LABEL slen
     pop R15
     RET
 
-LABEL itoa64
+LABEL java_itoa64
     push R15
     push R12
     move R12 R13
@@ -72,7 +72,7 @@ LABEL itoa64
     pop R15
     RET
 
-LABEL outRev
+LABEL java_outRev
     push R15
     push R12
     move R12 R13
@@ -95,7 +95,7 @@ LABEL outRev
     pop R15
     RET
 
-LABEL readLong
+LABEL java_readLong
     push R15
     push R12
     move R12 R13
@@ -112,7 +112,7 @@ LABEL readLong
     pop R15
     RET
 
-LABEL readDouble
+LABEL java_readDouble
     push R15
     push R12
     move R12 R13
@@ -129,7 +129,7 @@ LABEL readDouble
     pop R15
     RET
 
-LABEL sign64
+LABEL java_sign64
     push R15
     push R12
     move R12 R13
@@ -150,7 +150,7 @@ LABEL sign64
     pop R15
     RET
 
-LABEL ftoe
+LABEL java_ftoe
     push R15
     push R12
     move R12 R13
@@ -161,89 +161,89 @@ LABEL ftoe
     RET
 
 LABEL Printf_Emit
-    JMP emit
+    JMP java_emit
 
 LABEL Printf_PadChar
-    JMP padChar
+    JMP java_padChar
 
 LABEL Printf_Slen
-    JMP slen
+    JMP java_slen
 
 LABEL Printf_Itoa64
-    JMP itoa64
+    JMP java_itoa64
 
 LABEL Printf_OutRev
-    JMP outRev
+    JMP java_outRev
 
 LABEL Printf_ReadLong
-    JMP readLong
+    JMP java_readLong
 
 LABEL Printf_ReadDouble
-    JMP readDouble
+    JMP java_readDouble
 
 LABEL Printf_Sign64
-    JMP sign64
+    JMP java_sign64
 
 LABEL Printf_Ftoe
-    JMP ftoe
+    JMP java_ftoe
 
 LABEL method_emit
-    JMP emit
+    JMP java_emit
 
 LABEL method_Emit
-    JMP emit
+    JMP java_emit
 
 LABEL method_pad_char
-    JMP padChar
+    JMP java_padChar
 
 LABEL method_PadChar
-    JMP padChar
+    JMP java_padChar
 
 LABEL method_padChar
-    JMP padChar
+    JMP java_padChar
 
 LABEL method_slen
-    JMP slen
+    JMP java_slen
 
 LABEL method_Slen
-    JMP slen
+    JMP java_slen
 
 LABEL method_itoa64
-    JMP itoa64
+    JMP java_itoa64
 
 LABEL method_Itoa64
-    JMP itoa64
+    JMP java_itoa64
 
 LABEL method_out_rev
-    JMP outRev
+    JMP java_outRev
 
 LABEL method_OutRev
-    JMP outRev
+    JMP java_outRev
 
 LABEL method_outRev
-    JMP outRev
+    JMP java_outRev
 
 LABEL method_readLong
-    JMP readLong
+    JMP java_readLong
 
 LABEL method_ReadLong
-    JMP readLong
+    JMP java_readLong
 
 LABEL method_readDouble
-    JMP readDouble
+    JMP java_readDouble
 
 LABEL method_ReadDouble
-    JMP readDouble
+    JMP java_readDouble
 
 LABEL method_sign64
-    JMP sign64
+    JMP java_sign64
 
 LABEL method_Sign64
-    JMP sign64
+    JMP java_sign64
 
 LABEL method_ftoe
-    JMP ftoe
+    JMP java_ftoe
 
 LABEL method_Ftoe
-    JMP ftoe
+    JMP java_ftoe
 

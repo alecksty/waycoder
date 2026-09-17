@@ -3,7 +3,7 @@
 
 .linked "../shared/fixed64.vml"
 
-LABEL math
+LABEL js_math
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL math
     pop R15
     RET
 
-LABEL lfixedMul64
+LABEL js_lfixedMul64
     push R15
     push R12
     move R12 R13
@@ -36,7 +36,7 @@ LABEL lfixedMul64
     pop R15
     RET
 
-LABEL lfixedDiv64
+LABEL js_lfixedDiv64
     push R15
     push R12
     move R12 R13
@@ -55,7 +55,7 @@ LABEL lfixedDiv64
     pop R15
     RET
 
-LABEL lfixedFromInt64
+LABEL js_lfixedFromInt64
     push R15
     push R12
     move R12 R13
@@ -70,7 +70,7 @@ LABEL lfixedFromInt64
     pop R15
     RET
 
-LABEL lfixedToInt64
+LABEL js_lfixedToInt64
     push R15
     push R12
     move R12 R13
@@ -85,7 +85,7 @@ LABEL lfixedToInt64
     pop R15
     RET
 
-LABEL lfixedToIntRound64
+LABEL js_lfixedToIntRound64
     push R15
     push R12
     move R12 R13
@@ -100,7 +100,7 @@ LABEL lfixedToIntRound64
     pop R15
     RET
 
-LABEL lfixedFromDouble
+LABEL js_lfixedFromDouble
     push R15
     push R12
     move R12 R13
@@ -115,7 +115,7 @@ LABEL lfixedFromDouble
     pop R15
     RET
 
-LABEL lfixedToDouble
+LABEL js_lfixedToDouble
     push R15
     push R12
     move R12 R13
@@ -131,95 +131,95 @@ LABEL lfixedToDouble
     RET
 
 LABEL Fixed64_Math
-    JMP math
+    JMP js_math
 
 LABEL Fixed64_LfixedMul64
-    JMP lfixedMul64
+    JMP js_lfixedMul64
 
 LABEL Fixed64_LfixedDiv64
-    JMP lfixedDiv64
+    JMP js_lfixedDiv64
 
 LABEL Fixed64_LfixedFromInt64
-    JMP lfixedFromInt64
+    JMP js_lfixedFromInt64
 
 LABEL Fixed64_LfixedToInt64
-    JMP lfixedToInt64
+    JMP js_lfixedToInt64
 
 LABEL Fixed64_LfixedToIntRound64
-    JMP lfixedToIntRound64
+    JMP js_lfixedToIntRound64
 
 LABEL Fixed64_LfixedFromDouble
-    JMP lfixedFromDouble
+    JMP js_lfixedFromDouble
 
 LABEL Fixed64_LfixedToDouble
-    JMP lfixedToDouble
+    JMP js_lfixedToDouble
 
 LABEL method_Math
-    JMP math
+    JMP js_math
 
 LABEL method_math
-    JMP math
+    JMP js_math
 
 LABEL method_lfixed_mul64
-    JMP lfixedMul64
+    JMP js_lfixedMul64
 
 LABEL method_LfixedMul64
-    JMP lfixedMul64
+    JMP js_lfixedMul64
 
 LABEL method_lfixedMul64
-    JMP lfixedMul64
+    JMP js_lfixedMul64
 
 LABEL method_lfixed_div64
-    JMP lfixedDiv64
+    JMP js_lfixedDiv64
 
 LABEL method_LfixedDiv64
-    JMP lfixedDiv64
+    JMP js_lfixedDiv64
 
 LABEL method_lfixedDiv64
-    JMP lfixedDiv64
+    JMP js_lfixedDiv64
 
 LABEL method_lfixed_from_int64
-    JMP lfixedFromInt64
+    JMP js_lfixedFromInt64
 
 LABEL method_LfixedFromInt64
-    JMP lfixedFromInt64
+    JMP js_lfixedFromInt64
 
 LABEL method_lfixedFromInt64
-    JMP lfixedFromInt64
+    JMP js_lfixedFromInt64
 
 LABEL method_lfixed_to_int64
-    JMP lfixedToInt64
+    JMP js_lfixedToInt64
 
 LABEL method_LfixedToInt64
-    JMP lfixedToInt64
+    JMP js_lfixedToInt64
 
 LABEL method_lfixedToInt64
-    JMP lfixedToInt64
+    JMP js_lfixedToInt64
 
 LABEL method_lfixed_to_int_round64
-    JMP lfixedToIntRound64
+    JMP js_lfixedToIntRound64
 
 LABEL method_LfixedToIntRound64
-    JMP lfixedToIntRound64
+    JMP js_lfixedToIntRound64
 
 LABEL method_lfixedToIntRound64
-    JMP lfixedToIntRound64
+    JMP js_lfixedToIntRound64
 
 LABEL method_lfixed_from_double
-    JMP lfixedFromDouble
+    JMP js_lfixedFromDouble
 
 LABEL method_LfixedFromDouble
-    JMP lfixedFromDouble
+    JMP js_lfixedFromDouble
 
 LABEL method_lfixedFromDouble
-    JMP lfixedFromDouble
+    JMP js_lfixedFromDouble
 
 LABEL method_lfixed_to_double
-    JMP lfixedToDouble
+    JMP js_lfixedToDouble
 
 LABEL method_LfixedToDouble
-    JMP lfixedToDouble
+    JMP js_lfixedToDouble
 
 LABEL method_lfixedToDouble
-    JMP lfixedToDouble
+    JMP js_lfixedToDouble
 

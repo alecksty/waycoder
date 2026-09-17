@@ -5,7 +5,7 @@
 .linked "../shared/device.vml"
 .linked "../shared/memory.vml"
 
-LABEL peek
+LABEL java_peek
     push R15
     push R12
     move R12 R13
@@ -19,7 +19,7 @@ LABEL peek
     pop R15
     RET
 
-LABEL poke
+LABEL java_poke
     push R15
     push R12
     move R12 R13
@@ -36,7 +36,7 @@ LABEL poke
     pop R15
     RET
 
-LABEL peekb
+LABEL java_peekb
     push R15
     push R12
     move R12 R13
@@ -50,7 +50,7 @@ LABEL peekb
     pop R15
     RET
 
-LABEL pokeb
+LABEL java_pokeb
     push R15
     push R12
     move R12 R13
@@ -67,7 +67,7 @@ LABEL pokeb
     pop R15
     RET
 
-LABEL alloc
+LABEL java_alloc
     push R15
     push R12
     move R12 R13
@@ -81,7 +81,7 @@ LABEL alloc
     pop R15
     RET
 
-LABEL free
+LABEL java_free
     push R15
     push R12
     move R12 R13
@@ -95,7 +95,7 @@ LABEL free
     pop R15
     RET
 
-LABEL memcpy
+LABEL java_memcpy
     push R15
     push R12
     move R12 R13
@@ -115,7 +115,7 @@ LABEL memcpy
     pop R15
     RET
 
-LABEL memset
+LABEL java_memset
     push R15
     push R12
     move R12 R13
@@ -135,7 +135,7 @@ LABEL memset
     pop R15
     RET
 
-LABEL memcmp
+LABEL java_memcmp
     push R15
     push R12
     move R12 R13
@@ -155,7 +155,7 @@ LABEL memcmp
     pop R15
     RET
 
-LABEL devOpen
+LABEL java_devOpen
     push R15
     push R12
     move R12 R13
@@ -169,7 +169,7 @@ LABEL devOpen
     pop R15
     RET
 
-LABEL devClose
+LABEL java_devClose
     push R15
     push R12
     move R12 R13
@@ -183,7 +183,7 @@ LABEL devClose
     pop R15
     RET
 
-LABEL devRead
+LABEL java_devRead
     push R15
     push R12
     move R12 R13
@@ -206,7 +206,7 @@ LABEL devRead
     pop R15
     RET
 
-LABEL devWrite
+LABEL java_devWrite
     push R15
     push R12
     move R12 R13
@@ -229,7 +229,7 @@ LABEL devWrite
     pop R15
     RET
 
-LABEL devControl
+LABEL java_devControl
     push R15
     push R12
     move R12 R13
@@ -249,7 +249,7 @@ LABEL devControl
     pop R15
     RET
 
-LABEL memmove
+LABEL java_memmove
     push R15
     push R12
     move R12 R13
@@ -269,7 +269,7 @@ LABEL memmove
     pop R15
     RET
 
-LABEL getconfig
+LABEL java_getconfig
     push R15
     push R12
     move R12 R13
@@ -283,7 +283,7 @@ LABEL getconfig
     pop R15
     RET
 
-LABEL exit
+LABEL java_exit
     push R15
     push R12
     move R12 R13
@@ -298,170 +298,170 @@ LABEL exit
     RET
 
 LABEL System_Peek
-    JMP peek
+    JMP java_peek
 
 LABEL System_Poke
-    JMP poke
+    JMP java_poke
 
 LABEL System_Peekb
-    JMP peekb
+    JMP java_peekb
 
 LABEL System_Pokeb
-    JMP pokeb
+    JMP java_pokeb
 
 LABEL System_Alloc
-    JMP alloc
+    JMP java_alloc
 
 LABEL System_Free
-    JMP free
+    JMP java_free
 
 LABEL System_Memcpy
-    JMP memcpy
+    JMP java_memcpy
 
 LABEL System_Memset
-    JMP memset
+    JMP java_memset
 
 LABEL System_Memcmp
-    JMP memcmp
+    JMP java_memcmp
 
 LABEL System_DevOpen
-    JMP devOpen
+    JMP java_devOpen
 
 LABEL System_DevClose
-    JMP devClose
+    JMP java_devClose
 
 LABEL System_DevRead
-    JMP devRead
+    JMP java_devRead
 
 LABEL System_DevWrite
-    JMP devWrite
+    JMP java_devWrite
 
 LABEL System_DevControl
-    JMP devControl
+    JMP java_devControl
 
 LABEL System_Memmove
-    JMP memmove
+    JMP java_memmove
 
 LABEL System_Getconfig
-    JMP getconfig
+    JMP java_getconfig
 
 LABEL System_Exit
-    JMP exit
+    JMP java_exit
 
 LABEL method_peek
-    JMP peek
+    JMP java_peek
 
 LABEL method_Peek
-    JMP peek
+    JMP java_peek
 
 LABEL method_poke
-    JMP poke
+    JMP java_poke
 
 LABEL method_Poke
-    JMP poke
+    JMP java_poke
 
 LABEL method_peekb
-    JMP peekb
+    JMP java_peekb
 
 LABEL method_Peekb
-    JMP peekb
+    JMP java_peekb
 
 LABEL method_pokeb
-    JMP pokeb
+    JMP java_pokeb
 
 LABEL method_Pokeb
-    JMP pokeb
+    JMP java_pokeb
 
 LABEL method_alloc
-    JMP alloc
+    JMP java_alloc
 
 LABEL method_Alloc
-    JMP alloc
+    JMP java_alloc
 
 LABEL method_free
-    JMP free
+    JMP java_free
 
 LABEL method_Free
-    JMP free
+    JMP java_free
 
 LABEL method_memcpy
-    JMP memcpy
+    JMP java_memcpy
 
 LABEL method_Memcpy
-    JMP memcpy
+    JMP java_memcpy
 
 LABEL method_memset
-    JMP memset
+    JMP java_memset
 
 LABEL method_Memset
-    JMP memset
+    JMP java_memset
 
 LABEL method_memcmp
-    JMP memcmp
+    JMP java_memcmp
 
 LABEL method_Memcmp
-    JMP memcmp
+    JMP java_memcmp
 
 LABEL method_dev_open
-    JMP devOpen
+    JMP java_devOpen
 
 LABEL method_DevOpen
-    JMP devOpen
+    JMP java_devOpen
 
 LABEL method_devOpen
-    JMP devOpen
+    JMP java_devOpen
 
 LABEL method_dev_close
-    JMP devClose
+    JMP java_devClose
 
 LABEL method_DevClose
-    JMP devClose
+    JMP java_devClose
 
 LABEL method_devClose
-    JMP devClose
+    JMP java_devClose
 
 LABEL method_dev_read
-    JMP devRead
+    JMP java_devRead
 
 LABEL method_DevRead
-    JMP devRead
+    JMP java_devRead
 
 LABEL method_devRead
-    JMP devRead
+    JMP java_devRead
 
 LABEL method_dev_write
-    JMP devWrite
+    JMP java_devWrite
 
 LABEL method_DevWrite
-    JMP devWrite
+    JMP java_devWrite
 
 LABEL method_devWrite
-    JMP devWrite
+    JMP java_devWrite
 
 LABEL method_dev_control
-    JMP devControl
+    JMP java_devControl
 
 LABEL method_DevControl
-    JMP devControl
+    JMP java_devControl
 
 LABEL method_devControl
-    JMP devControl
+    JMP java_devControl
 
 LABEL method_memmove
-    JMP memmove
+    JMP java_memmove
 
 LABEL method_Memmove
-    JMP memmove
+    JMP java_memmove
 
 LABEL method_getconfig
-    JMP getconfig
+    JMP java_getconfig
 
 LABEL method_Getconfig
-    JMP getconfig
+    JMP java_getconfig
 
 LABEL method_exit
-    JMP exit
+    JMP java_exit
 
 LABEL method_Exit
-    JMP exit
+    JMP java_exit
 

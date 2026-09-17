@@ -3,7 +3,7 @@
 
 .linked "../shared/printf.vml"
 
-LABEL emit
+LABEL js_emit
     push R15
     push R12
     move R12 R13
@@ -24,7 +24,7 @@ LABEL emit
     pop R15
     RET
 
-LABEL padChar
+LABEL js_padChar
     push R15
     push R12
     move R12 R13
@@ -48,7 +48,7 @@ LABEL padChar
     pop R15
     RET
 
-LABEL slen
+LABEL js_slen
     push R15
     push R12
     move R12 R13
@@ -62,7 +62,7 @@ LABEL slen
     pop R15
     RET
 
-LABEL itoa64
+LABEL js_itoa64
     push R15
     push R12
     move R12 R13
@@ -72,7 +72,7 @@ LABEL itoa64
     pop R15
     RET
 
-LABEL outRev
+LABEL js_outRev
     push R15
     push R12
     move R12 R13
@@ -95,7 +95,7 @@ LABEL outRev
     pop R15
     RET
 
-LABEL readLong
+LABEL js_readLong
     push R15
     push R12
     move R12 R13
@@ -112,7 +112,7 @@ LABEL readLong
     pop R15
     RET
 
-LABEL readDouble
+LABEL js_readDouble
     push R15
     push R12
     move R12 R13
@@ -129,7 +129,7 @@ LABEL readDouble
     pop R15
     RET
 
-LABEL sign64
+LABEL js_sign64
     push R15
     push R12
     move R12 R13
@@ -150,7 +150,7 @@ LABEL sign64
     pop R15
     RET
 
-LABEL ftoe
+LABEL js_ftoe
     push R15
     push R12
     move R12 R13
@@ -161,89 +161,89 @@ LABEL ftoe
     RET
 
 LABEL Printf_Emit
-    JMP emit
+    JMP js_emit
 
 LABEL Printf_PadChar
-    JMP padChar
+    JMP js_padChar
 
 LABEL Printf_Slen
-    JMP slen
+    JMP js_slen
 
 LABEL Printf_Itoa64
-    JMP itoa64
+    JMP js_itoa64
 
 LABEL Printf_OutRev
-    JMP outRev
+    JMP js_outRev
 
 LABEL Printf_ReadLong
-    JMP readLong
+    JMP js_readLong
 
 LABEL Printf_ReadDouble
-    JMP readDouble
+    JMP js_readDouble
 
 LABEL Printf_Sign64
-    JMP sign64
+    JMP js_sign64
 
 LABEL Printf_Ftoe
-    JMP ftoe
+    JMP js_ftoe
 
 LABEL method_emit
-    JMP emit
+    JMP js_emit
 
 LABEL method_Emit
-    JMP emit
+    JMP js_emit
 
 LABEL method_pad_char
-    JMP padChar
+    JMP js_padChar
 
 LABEL method_PadChar
-    JMP padChar
+    JMP js_padChar
 
 LABEL method_padChar
-    JMP padChar
+    JMP js_padChar
 
 LABEL method_slen
-    JMP slen
+    JMP js_slen
 
 LABEL method_Slen
-    JMP slen
+    JMP js_slen
 
 LABEL method_itoa64
-    JMP itoa64
+    JMP js_itoa64
 
 LABEL method_Itoa64
-    JMP itoa64
+    JMP js_itoa64
 
 LABEL method_out_rev
-    JMP outRev
+    JMP js_outRev
 
 LABEL method_OutRev
-    JMP outRev
+    JMP js_outRev
 
 LABEL method_outRev
-    JMP outRev
+    JMP js_outRev
 
 LABEL method_readLong
-    JMP readLong
+    JMP js_readLong
 
 LABEL method_ReadLong
-    JMP readLong
+    JMP js_readLong
 
 LABEL method_readDouble
-    JMP readDouble
+    JMP js_readDouble
 
 LABEL method_ReadDouble
-    JMP readDouble
+    JMP js_readDouble
 
 LABEL method_sign64
-    JMP sign64
+    JMP js_sign64
 
 LABEL method_Sign64
-    JMP sign64
+    JMP js_sign64
 
 LABEL method_ftoe
-    JMP ftoe
+    JMP js_ftoe
 
 LABEL method_Ftoe
-    JMP ftoe
+    JMP js_ftoe
 

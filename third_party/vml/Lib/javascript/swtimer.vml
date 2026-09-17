@@ -3,7 +3,7 @@
 
 .linked "../shared/swtimer.vml"
 
-LABEL start
+LABEL js_start
     push R15
     push R12
     move R12 R13
@@ -26,7 +26,7 @@ LABEL start
     pop R15
     RET
 
-LABEL stop
+LABEL js_stop
     push R15
     push R12
     move R12 R13
@@ -43,7 +43,7 @@ LABEL stop
     pop R15
     RET
 
-LABEL tick
+LABEL js_tick
     push R15
     push R12
     move R12 R13
@@ -57,7 +57,7 @@ LABEL tick
     pop R15
     RET
 
-LABEL remaining
+LABEL js_remaining
     push R15
     push R12
     move R12 R13
@@ -75,38 +75,38 @@ LABEL remaining
     RET
 
 LABEL Swtimer_Start
-    JMP start
+    JMP js_start
 
 LABEL Swtimer_Stop
-    JMP stop
+    JMP js_stop
 
 LABEL Swtimer_Tick
-    JMP tick
+    JMP js_tick
 
 LABEL Swtimer_Remaining
-    JMP remaining
+    JMP js_remaining
 
 LABEL method_start
-    JMP start
+    JMP js_start
 
 LABEL method_Start
-    JMP start
+    JMP js_start
 
 LABEL method_stop
-    JMP stop
+    JMP js_stop
 
 LABEL method_Stop
-    JMP stop
+    JMP js_stop
 
 LABEL method_tick
-    JMP tick
+    JMP js_tick
 
 LABEL method_Tick
-    JMP tick
+    JMP js_tick
 
 LABEL method_remaining
-    JMP remaining
+    JMP js_remaining
 
 LABEL method_Remaining
-    JMP remaining
+    JMP js_remaining
 

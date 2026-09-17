@@ -3,7 +3,7 @@
 
 .linked "../shared/vmlsys.vml"
 
-LABEL vmlPrintStr
+LABEL java_vmlPrintStr
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL vmlPrintStr
     pop R15
     RET
 
-LABEL vmlPrintInt
+LABEL java_vmlPrintInt
     push R15
     push R12
     move R12 R13
@@ -31,7 +31,7 @@ LABEL vmlPrintInt
     pop R15
     RET
 
-LABEL vmlPrintChar
+LABEL java_vmlPrintChar
     push R15
     push R12
     move R12 R13
@@ -46,7 +46,7 @@ LABEL vmlPrintChar
     pop R15
     RET
 
-LABEL vmlPrintFloat
+LABEL java_vmlPrintFloat
     push R15
     push R12
     move R12 R13
@@ -61,7 +61,7 @@ LABEL vmlPrintFloat
     pop R15
     RET
 
-LABEL vmlPrintHex
+LABEL java_vmlPrintHex
     push R15
     push R12
     move R12 R13
@@ -75,7 +75,7 @@ LABEL vmlPrintHex
     pop R15
     RET
 
-LABEL vmlNewline
+LABEL java_vmlNewline
     push R15
     push R12
     move R12 R13
@@ -85,7 +85,7 @@ LABEL vmlNewline
     pop R15
     RET
 
-LABEL vmlPrintWstr
+LABEL java_vmlPrintWstr
     push R15
     push R12
     move R12 R13
@@ -99,7 +99,7 @@ LABEL vmlPrintWstr
     pop R15
     RET
 
-LABEL vmlPrintUstr
+LABEL java_vmlPrintUstr
     push R15
     push R12
     move R12 R13
@@ -113,7 +113,7 @@ LABEL vmlPrintUstr
     pop R15
     RET
 
-LABEL vmlMemCopy
+LABEL java_vmlMemCopy
     push R15
     push R12
     move R12 R13
@@ -133,7 +133,7 @@ LABEL vmlMemCopy
     pop R15
     RET
 
-LABEL vmlMemFill
+LABEL java_vmlMemFill
     push R15
     push R12
     move R12 R13
@@ -153,7 +153,7 @@ LABEL vmlMemFill
     pop R15
     RET
 
-LABEL vmlMemCompare
+LABEL java_vmlMemCompare
     push R15
     push R12
     move R12 R13
@@ -173,7 +173,7 @@ LABEL vmlMemCompare
     pop R15
     RET
 
-LABEL vmlRandom
+LABEL java_vmlRandom
     push R15
     push R12
     move R12 R13
@@ -183,7 +183,7 @@ LABEL vmlRandom
     pop R15
     RET
 
-LABEL vmlSeed
+LABEL java_vmlSeed
     push R15
     push R12
     move R12 R13
@@ -197,7 +197,7 @@ LABEL vmlSeed
     pop R15
     RET
 
-LABEL vmlSleepMs
+LABEL java_vmlSleepMs
     push R15
     push R12
     move R12 R13
@@ -211,7 +211,7 @@ LABEL vmlSleepMs
     pop R15
     RET
 
-LABEL vmlGetTick
+LABEL java_vmlGetTick
     push R15
     push R12
     move R12 R13
@@ -221,7 +221,7 @@ LABEL vmlGetTick
     pop R15
     RET
 
-LABEL vmlGetTimestamp
+LABEL java_vmlGetTimestamp
     push R15
     push R12
     move R12 R13
@@ -231,7 +231,7 @@ LABEL vmlGetTimestamp
     pop R15
     RET
 
-LABEL vmlGetDate
+LABEL java_vmlGetDate
     push R15
     push R12
     move R12 R13
@@ -241,7 +241,7 @@ LABEL vmlGetDate
     pop R15
     RET
 
-LABEL vmlGetTime
+LABEL java_vmlGetTime
     push R15
     push R12
     move R12 R13
@@ -251,7 +251,7 @@ LABEL vmlGetTime
     pop R15
     RET
 
-LABEL vmlBeep
+LABEL java_vmlBeep
     push R15
     push R12
     move R12 R13
@@ -268,7 +268,7 @@ LABEL vmlBeep
     pop R15
     RET
 
-LABEL vmlGetConfig
+LABEL java_vmlGetConfig
     push R15
     push R12
     move R12 R13
@@ -282,7 +282,7 @@ LABEL vmlGetConfig
     pop R15
     RET
 
-LABEL vmlGetInfo
+LABEL java_vmlGetInfo
     push R15
     push R12
     move R12 R13
@@ -296,7 +296,7 @@ LABEL vmlGetInfo
     pop R15
     RET
 
-LABEL vmlGetPlatform
+LABEL java_vmlGetPlatform
     push R15
     push R12
     move R12 R13
@@ -306,7 +306,7 @@ LABEL vmlGetPlatform
     pop R15
     RET
 
-LABEL vmlDebugPrint
+LABEL java_vmlDebugPrint
     push R15
     push R12
     move R12 R13
@@ -320,7 +320,7 @@ LABEL vmlDebugPrint
     pop R15
     RET
 
-LABEL vmlDebugInt
+LABEL java_vmlDebugInt
     push R15
     push R12
     move R12 R13
@@ -334,7 +334,7 @@ LABEL vmlDebugInt
     pop R15
     RET
 
-LABEL vmlAssert
+LABEL java_vmlAssert
     push R15
     push R12
     move R12 R13
@@ -351,7 +351,7 @@ LABEL vmlAssert
     pop R15
     RET
 
-LABEL vmlDeviceOpen
+LABEL java_vmlDeviceOpen
     push R15
     push R12
     move R12 R13
@@ -365,7 +365,7 @@ LABEL vmlDeviceOpen
     pop R15
     RET
 
-LABEL vmlDeviceClose
+LABEL java_vmlDeviceClose
     push R15
     push R12
     move R12 R13
@@ -379,7 +379,7 @@ LABEL vmlDeviceClose
     pop R15
     RET
 
-LABEL vmlDeviceRead
+LABEL java_vmlDeviceRead
     push R15
     push R12
     move R12 R13
@@ -399,7 +399,7 @@ LABEL vmlDeviceRead
     pop R15
     RET
 
-LABEL vmlDeviceWrite
+LABEL java_vmlDeviceWrite
     push R15
     push R12
     move R12 R13
@@ -419,7 +419,7 @@ LABEL vmlDeviceWrite
     pop R15
     RET
 
-LABEL vmlDeviceControl
+LABEL java_vmlDeviceControl
     push R15
     push R12
     move R12 R13
@@ -442,7 +442,7 @@ LABEL vmlDeviceControl
     pop R15
     RET
 
-LABEL vmlFileOpen
+LABEL java_vmlFileOpen
     push R15
     push R12
     move R12 R13
@@ -459,7 +459,7 @@ LABEL vmlFileOpen
     pop R15
     RET
 
-LABEL vmlFileClose
+LABEL java_vmlFileClose
     push R15
     push R12
     move R12 R13
@@ -473,7 +473,7 @@ LABEL vmlFileClose
     pop R15
     RET
 
-LABEL vmlFileRead
+LABEL java_vmlFileRead
     push R15
     push R12
     move R12 R13
@@ -493,7 +493,7 @@ LABEL vmlFileRead
     pop R15
     RET
 
-LABEL vmlFileWrite
+LABEL java_vmlFileWrite
     push R15
     push R12
     move R12 R13
@@ -513,7 +513,7 @@ LABEL vmlFileWrite
     pop R15
     RET
 
-LABEL vmlFileSize
+LABEL java_vmlFileSize
     push R15
     push R12
     move R12 R13
@@ -527,7 +527,7 @@ LABEL vmlFileSize
     pop R15
     RET
 
-LABEL vmlFileSeek
+LABEL java_vmlFileSeek
     push R15
     push R12
     move R12 R13
@@ -544,7 +544,7 @@ LABEL vmlFileSeek
     pop R15
     RET
 
-LABEL vmlFileTell
+LABEL java_vmlFileTell
     push R15
     push R12
     move R12 R13
@@ -558,7 +558,7 @@ LABEL vmlFileTell
     pop R15
     RET
 
-LABEL vmlMkdir
+LABEL java_vmlMkdir
     push R15
     push R12
     move R12 R13
@@ -572,7 +572,7 @@ LABEL vmlMkdir
     pop R15
     RET
 
-LABEL vmlRemove
+LABEL java_vmlRemove
     push R15
     push R12
     move R12 R13
@@ -586,7 +586,7 @@ LABEL vmlRemove
     pop R15
     RET
 
-LABEL vmlRename
+LABEL java_vmlRename
     push R15
     push R12
     move R12 R13
@@ -603,7 +603,7 @@ LABEL vmlRename
     pop R15
     RET
 
-LABEL vmlReaddir
+LABEL java_vmlReaddir
     push R15
     push R12
     move R12 R13
@@ -620,7 +620,7 @@ LABEL vmlReaddir
     pop R15
     RET
 
-LABEL vmlStat
+LABEL java_vmlStat
     push R15
     push R12
     move R12 R13
@@ -637,7 +637,7 @@ LABEL vmlStat
     pop R15
     RET
 
-LABEL vmlGetEnv
+LABEL java_vmlGetEnv
     push R15
     push R12
     move R12 R13
@@ -651,7 +651,7 @@ LABEL vmlGetEnv
     pop R15
     RET
 
-LABEL vmlSetEnv
+LABEL java_vmlSetEnv
     push R15
     push R12
     move R12 R13
@@ -668,7 +668,7 @@ LABEL vmlSetEnv
     pop R15
     RET
 
-LABEL vmlExit
+LABEL java_vmlExit
     push R15
     push R12
     move R12 R13
@@ -682,7 +682,7 @@ LABEL vmlExit
     pop R15
     RET
 
-LABEL vmlGetPid
+LABEL java_vmlGetPid
     push R15
     push R12
     move R12 R13
@@ -692,7 +692,7 @@ LABEL vmlGetPid
     pop R15
     RET
 
-LABEL vmlThreadCreate
+LABEL java_vmlThreadCreate
     push R15
     push R12
     move R12 R13
@@ -709,7 +709,7 @@ LABEL vmlThreadCreate
     pop R15
     RET
 
-LABEL vmlThreadExit
+LABEL java_vmlThreadExit
     push R15
     push R12
     move R12 R13
@@ -719,7 +719,7 @@ LABEL vmlThreadExit
     pop R15
     RET
 
-LABEL vmlThreadYield
+LABEL java_vmlThreadYield
     push R15
     push R12
     move R12 R13
@@ -729,7 +729,7 @@ LABEL vmlThreadYield
     pop R15
     RET
 
-LABEL vmlMutexCreate
+LABEL java_vmlMutexCreate
     push R15
     push R12
     move R12 R13
@@ -739,7 +739,7 @@ LABEL vmlMutexCreate
     pop R15
     RET
 
-LABEL vmlMutexLock
+LABEL java_vmlMutexLock
     push R15
     push R12
     move R12 R13
@@ -753,7 +753,7 @@ LABEL vmlMutexLock
     pop R15
     RET
 
-LABEL vmlMutexUnlock
+LABEL java_vmlMutexUnlock
     push R15
     push R12
     move R12 R13
@@ -767,7 +767,7 @@ LABEL vmlMutexUnlock
     pop R15
     RET
 
-LABEL vmlCondCreate
+LABEL java_vmlCondCreate
     push R15
     push R12
     move R12 R13
@@ -777,7 +777,7 @@ LABEL vmlCondCreate
     pop R15
     RET
 
-LABEL vmlCondWait
+LABEL java_vmlCondWait
     push R15
     push R12
     move R12 R13
@@ -794,7 +794,7 @@ LABEL vmlCondWait
     pop R15
     RET
 
-LABEL vmlCondSignal
+LABEL java_vmlCondSignal
     push R15
     push R12
     move R12 R13
@@ -808,7 +808,7 @@ LABEL vmlCondSignal
     pop R15
     RET
 
-LABEL vmlCondBroadcast
+LABEL java_vmlCondBroadcast
     push R15
     push R12
     move R12 R13
@@ -822,7 +822,7 @@ LABEL vmlCondBroadcast
     pop R15
     RET
 
-LABEL vmlExec
+LABEL java_vmlExec
     push R15
     push R12
     move R12 R13
@@ -836,7 +836,7 @@ LABEL vmlExec
     pop R15
     RET
 
-LABEL vmlSocketCreate
+LABEL java_vmlSocketCreate
     push R15
     push R12
     move R12 R13
@@ -853,7 +853,7 @@ LABEL vmlSocketCreate
     pop R15
     RET
 
-LABEL vmlSocketConnect
+LABEL java_vmlSocketConnect
     push R15
     push R12
     move R12 R13
@@ -873,7 +873,7 @@ LABEL vmlSocketConnect
     pop R15
     RET
 
-LABEL vmlSocketSend
+LABEL java_vmlSocketSend
     push R15
     push R12
     move R12 R13
@@ -893,7 +893,7 @@ LABEL vmlSocketSend
     pop R15
     RET
 
-LABEL vmlSocketRecv
+LABEL java_vmlSocketRecv
     push R15
     push R12
     move R12 R13
@@ -913,7 +913,7 @@ LABEL vmlSocketRecv
     pop R15
     RET
 
-LABEL vmlSocketClose
+LABEL java_vmlSocketClose
     push R15
     push R12
     move R12 R13
@@ -927,7 +927,7 @@ LABEL vmlSocketClose
     pop R15
     RET
 
-LABEL vmlDnsResolve
+LABEL java_vmlDnsResolve
     push R15
     push R12
     move R12 R13
@@ -941,7 +941,7 @@ LABEL vmlDnsResolve
     pop R15
     RET
 
-LABEL vmlScreenshot
+LABEL java_vmlScreenshot
     push R15
     push R12
     move R12 R13
@@ -951,7 +951,7 @@ LABEL vmlScreenshot
     pop R15
     RET
 
-LABEL vmlSyscall5
+LABEL java_vmlSyscall5
     push R15
     push R12
     move R12 R13
@@ -979,782 +979,782 @@ LABEL vmlSyscall5
     RET
 
 LABEL Vmlsys_VmlPrintStr
-    JMP vmlPrintStr
+    JMP java_vmlPrintStr
 
 LABEL Vmlsys_VmlPrintInt
-    JMP vmlPrintInt
+    JMP java_vmlPrintInt
 
 LABEL Vmlsys_VmlPrintChar
-    JMP vmlPrintChar
+    JMP java_vmlPrintChar
 
 LABEL Vmlsys_VmlPrintFloat
-    JMP vmlPrintFloat
+    JMP java_vmlPrintFloat
 
 LABEL Vmlsys_VmlPrintHex
-    JMP vmlPrintHex
+    JMP java_vmlPrintHex
 
 LABEL Vmlsys_VmlNewline
-    JMP vmlNewline
+    JMP java_vmlNewline
 
 LABEL Vmlsys_VmlPrintWstr
-    JMP vmlPrintWstr
+    JMP java_vmlPrintWstr
 
 LABEL Vmlsys_VmlPrintUstr
-    JMP vmlPrintUstr
+    JMP java_vmlPrintUstr
 
 LABEL Vmlsys_VmlMemCopy
-    JMP vmlMemCopy
+    JMP java_vmlMemCopy
 
 LABEL Vmlsys_VmlMemFill
-    JMP vmlMemFill
+    JMP java_vmlMemFill
 
 LABEL Vmlsys_VmlMemCompare
-    JMP vmlMemCompare
+    JMP java_vmlMemCompare
 
 LABEL Vmlsys_VmlRandom
-    JMP vmlRandom
+    JMP java_vmlRandom
 
 LABEL Vmlsys_VmlSeed
-    JMP vmlSeed
+    JMP java_vmlSeed
 
 LABEL Vmlsys_VmlSleepMs
-    JMP vmlSleepMs
+    JMP java_vmlSleepMs
 
 LABEL Vmlsys_VmlGetTick
-    JMP vmlGetTick
+    JMP java_vmlGetTick
 
 LABEL Vmlsys_VmlGetTimestamp
-    JMP vmlGetTimestamp
+    JMP java_vmlGetTimestamp
 
 LABEL Vmlsys_VmlGetDate
-    JMP vmlGetDate
+    JMP java_vmlGetDate
 
 LABEL Vmlsys_VmlGetTime
-    JMP vmlGetTime
+    JMP java_vmlGetTime
 
 LABEL Vmlsys_VmlBeep
-    JMP vmlBeep
+    JMP java_vmlBeep
 
 LABEL Vmlsys_VmlGetConfig
-    JMP vmlGetConfig
+    JMP java_vmlGetConfig
 
 LABEL Vmlsys_VmlGetInfo
-    JMP vmlGetInfo
+    JMP java_vmlGetInfo
 
 LABEL Vmlsys_VmlGetPlatform
-    JMP vmlGetPlatform
+    JMP java_vmlGetPlatform
 
 LABEL Vmlsys_VmlDebugPrint
-    JMP vmlDebugPrint
+    JMP java_vmlDebugPrint
 
 LABEL Vmlsys_VmlDebugInt
-    JMP vmlDebugInt
+    JMP java_vmlDebugInt
 
 LABEL Vmlsys_VmlAssert
-    JMP vmlAssert
+    JMP java_vmlAssert
 
 LABEL Vmlsys_VmlDeviceOpen
-    JMP vmlDeviceOpen
+    JMP java_vmlDeviceOpen
 
 LABEL Vmlsys_VmlDeviceClose
-    JMP vmlDeviceClose
+    JMP java_vmlDeviceClose
 
 LABEL Vmlsys_VmlDeviceRead
-    JMP vmlDeviceRead
+    JMP java_vmlDeviceRead
 
 LABEL Vmlsys_VmlDeviceWrite
-    JMP vmlDeviceWrite
+    JMP java_vmlDeviceWrite
 
 LABEL Vmlsys_VmlDeviceControl
-    JMP vmlDeviceControl
+    JMP java_vmlDeviceControl
 
 LABEL Vmlsys_VmlFileOpen
-    JMP vmlFileOpen
+    JMP java_vmlFileOpen
 
 LABEL Vmlsys_VmlFileClose
-    JMP vmlFileClose
+    JMP java_vmlFileClose
 
 LABEL Vmlsys_VmlFileRead
-    JMP vmlFileRead
+    JMP java_vmlFileRead
 
 LABEL Vmlsys_VmlFileWrite
-    JMP vmlFileWrite
+    JMP java_vmlFileWrite
 
 LABEL Vmlsys_VmlFileSize
-    JMP vmlFileSize
+    JMP java_vmlFileSize
 
 LABEL Vmlsys_VmlFileSeek
-    JMP vmlFileSeek
+    JMP java_vmlFileSeek
 
 LABEL Vmlsys_VmlFileTell
-    JMP vmlFileTell
+    JMP java_vmlFileTell
 
 LABEL Vmlsys_VmlMkdir
-    JMP vmlMkdir
+    JMP java_vmlMkdir
 
 LABEL Vmlsys_VmlRemove
-    JMP vmlRemove
+    JMP java_vmlRemove
 
 LABEL Vmlsys_VmlRename
-    JMP vmlRename
+    JMP java_vmlRename
 
 LABEL Vmlsys_VmlReaddir
-    JMP vmlReaddir
+    JMP java_vmlReaddir
 
 LABEL Vmlsys_VmlStat
-    JMP vmlStat
+    JMP java_vmlStat
 
 LABEL Vmlsys_VmlGetEnv
-    JMP vmlGetEnv
+    JMP java_vmlGetEnv
 
 LABEL Vmlsys_VmlSetEnv
-    JMP vmlSetEnv
+    JMP java_vmlSetEnv
 
 LABEL Vmlsys_VmlExit
-    JMP vmlExit
+    JMP java_vmlExit
 
 LABEL Vmlsys_VmlGetPid
-    JMP vmlGetPid
+    JMP java_vmlGetPid
 
 LABEL Vmlsys_VmlThreadCreate
-    JMP vmlThreadCreate
+    JMP java_vmlThreadCreate
 
 LABEL Vmlsys_VmlThreadExit
-    JMP vmlThreadExit
+    JMP java_vmlThreadExit
 
 LABEL Vmlsys_VmlThreadYield
-    JMP vmlThreadYield
+    JMP java_vmlThreadYield
 
 LABEL Vmlsys_VmlMutexCreate
-    JMP vmlMutexCreate
+    JMP java_vmlMutexCreate
 
 LABEL Vmlsys_VmlMutexLock
-    JMP vmlMutexLock
+    JMP java_vmlMutexLock
 
 LABEL Vmlsys_VmlMutexUnlock
-    JMP vmlMutexUnlock
+    JMP java_vmlMutexUnlock
 
 LABEL Vmlsys_VmlCondCreate
-    JMP vmlCondCreate
+    JMP java_vmlCondCreate
 
 LABEL Vmlsys_VmlCondWait
-    JMP vmlCondWait
+    JMP java_vmlCondWait
 
 LABEL Vmlsys_VmlCondSignal
-    JMP vmlCondSignal
+    JMP java_vmlCondSignal
 
 LABEL Vmlsys_VmlCondBroadcast
-    JMP vmlCondBroadcast
+    JMP java_vmlCondBroadcast
 
 LABEL Vmlsys_VmlExec
-    JMP vmlExec
+    JMP java_vmlExec
 
 LABEL Vmlsys_VmlSocketCreate
-    JMP vmlSocketCreate
+    JMP java_vmlSocketCreate
 
 LABEL Vmlsys_VmlSocketConnect
-    JMP vmlSocketConnect
+    JMP java_vmlSocketConnect
 
 LABEL Vmlsys_VmlSocketSend
-    JMP vmlSocketSend
+    JMP java_vmlSocketSend
 
 LABEL Vmlsys_VmlSocketRecv
-    JMP vmlSocketRecv
+    JMP java_vmlSocketRecv
 
 LABEL Vmlsys_VmlSocketClose
-    JMP vmlSocketClose
+    JMP java_vmlSocketClose
 
 LABEL Vmlsys_VmlDnsResolve
-    JMP vmlDnsResolve
+    JMP java_vmlDnsResolve
 
 LABEL Vmlsys_VmlScreenshot
-    JMP vmlScreenshot
+    JMP java_vmlScreenshot
 
 LABEL Vmlsys_VmlSyscall5
-    JMP vmlSyscall5
+    JMP java_vmlSyscall5
 
 LABEL method_vml_print_str
-    JMP vmlPrintStr
+    JMP java_vmlPrintStr
 
 LABEL method_VmlPrintStr
-    JMP vmlPrintStr
+    JMP java_vmlPrintStr
 
 LABEL method_vmlPrintStr
-    JMP vmlPrintStr
+    JMP java_vmlPrintStr
 
 LABEL method_vml_print_int
-    JMP vmlPrintInt
+    JMP java_vmlPrintInt
 
 LABEL method_VmlPrintInt
-    JMP vmlPrintInt
+    JMP java_vmlPrintInt
 
 LABEL method_vmlPrintInt
-    JMP vmlPrintInt
+    JMP java_vmlPrintInt
 
 LABEL method_vml_print_char
-    JMP vmlPrintChar
+    JMP java_vmlPrintChar
 
 LABEL method_VmlPrintChar
-    JMP vmlPrintChar
+    JMP java_vmlPrintChar
 
 LABEL method_vmlPrintChar
-    JMP vmlPrintChar
+    JMP java_vmlPrintChar
 
 LABEL method_vml_print_float
-    JMP vmlPrintFloat
+    JMP java_vmlPrintFloat
 
 LABEL method_VmlPrintFloat
-    JMP vmlPrintFloat
+    JMP java_vmlPrintFloat
 
 LABEL method_vmlPrintFloat
-    JMP vmlPrintFloat
+    JMP java_vmlPrintFloat
 
 LABEL method_vml_print_hex
-    JMP vmlPrintHex
+    JMP java_vmlPrintHex
 
 LABEL method_VmlPrintHex
-    JMP vmlPrintHex
+    JMP java_vmlPrintHex
 
 LABEL method_vmlPrintHex
-    JMP vmlPrintHex
+    JMP java_vmlPrintHex
 
 LABEL method_vml_newline
-    JMP vmlNewline
+    JMP java_vmlNewline
 
 LABEL method_VmlNewline
-    JMP vmlNewline
+    JMP java_vmlNewline
 
 LABEL method_vmlNewline
-    JMP vmlNewline
+    JMP java_vmlNewline
 
 LABEL method_vml_print_wstr
-    JMP vmlPrintWstr
+    JMP java_vmlPrintWstr
 
 LABEL method_VmlPrintWstr
-    JMP vmlPrintWstr
+    JMP java_vmlPrintWstr
 
 LABEL method_vmlPrintWstr
-    JMP vmlPrintWstr
+    JMP java_vmlPrintWstr
 
 LABEL method_vml_print_ustr
-    JMP vmlPrintUstr
+    JMP java_vmlPrintUstr
 
 LABEL method_VmlPrintUstr
-    JMP vmlPrintUstr
+    JMP java_vmlPrintUstr
 
 LABEL method_vmlPrintUstr
-    JMP vmlPrintUstr
+    JMP java_vmlPrintUstr
 
 LABEL method_vml_mem_copy
-    JMP vmlMemCopy
+    JMP java_vmlMemCopy
 
 LABEL method_VmlMemCopy
-    JMP vmlMemCopy
+    JMP java_vmlMemCopy
 
 LABEL method_vmlMemCopy
-    JMP vmlMemCopy
+    JMP java_vmlMemCopy
 
 LABEL method_vml_mem_fill
-    JMP vmlMemFill
+    JMP java_vmlMemFill
 
 LABEL method_VmlMemFill
-    JMP vmlMemFill
+    JMP java_vmlMemFill
 
 LABEL method_vmlMemFill
-    JMP vmlMemFill
+    JMP java_vmlMemFill
 
 LABEL method_vml_mem_compare
-    JMP vmlMemCompare
+    JMP java_vmlMemCompare
 
 LABEL method_VmlMemCompare
-    JMP vmlMemCompare
+    JMP java_vmlMemCompare
 
 LABEL method_vmlMemCompare
-    JMP vmlMemCompare
+    JMP java_vmlMemCompare
 
 LABEL method_vml_random
-    JMP vmlRandom
+    JMP java_vmlRandom
 
 LABEL method_VmlRandom
-    JMP vmlRandom
+    JMP java_vmlRandom
 
 LABEL method_vmlRandom
-    JMP vmlRandom
+    JMP java_vmlRandom
 
 LABEL method_vml_seed
-    JMP vmlSeed
+    JMP java_vmlSeed
 
 LABEL method_VmlSeed
-    JMP vmlSeed
+    JMP java_vmlSeed
 
 LABEL method_vmlSeed
-    JMP vmlSeed
+    JMP java_vmlSeed
 
 LABEL method_vml_sleep_ms
-    JMP vmlSleepMs
+    JMP java_vmlSleepMs
 
 LABEL method_VmlSleepMs
-    JMP vmlSleepMs
+    JMP java_vmlSleepMs
 
 LABEL method_vmlSleepMs
-    JMP vmlSleepMs
+    JMP java_vmlSleepMs
 
 LABEL method_vml_get_tick
-    JMP vmlGetTick
+    JMP java_vmlGetTick
 
 LABEL method_VmlGetTick
-    JMP vmlGetTick
+    JMP java_vmlGetTick
 
 LABEL method_vmlGetTick
-    JMP vmlGetTick
+    JMP java_vmlGetTick
 
 LABEL method_vml_get_timestamp
-    JMP vmlGetTimestamp
+    JMP java_vmlGetTimestamp
 
 LABEL method_VmlGetTimestamp
-    JMP vmlGetTimestamp
+    JMP java_vmlGetTimestamp
 
 LABEL method_vmlGetTimestamp
-    JMP vmlGetTimestamp
+    JMP java_vmlGetTimestamp
 
 LABEL method_vml_get_date
-    JMP vmlGetDate
+    JMP java_vmlGetDate
 
 LABEL method_VmlGetDate
-    JMP vmlGetDate
+    JMP java_vmlGetDate
 
 LABEL method_vmlGetDate
-    JMP vmlGetDate
+    JMP java_vmlGetDate
 
 LABEL method_vml_get_time
-    JMP vmlGetTime
+    JMP java_vmlGetTime
 
 LABEL method_VmlGetTime
-    JMP vmlGetTime
+    JMP java_vmlGetTime
 
 LABEL method_vmlGetTime
-    JMP vmlGetTime
+    JMP java_vmlGetTime
 
 LABEL method_vml_beep
-    JMP vmlBeep
+    JMP java_vmlBeep
 
 LABEL method_VmlBeep
-    JMP vmlBeep
+    JMP java_vmlBeep
 
 LABEL method_vmlBeep
-    JMP vmlBeep
+    JMP java_vmlBeep
 
 LABEL method_vml_get_config
-    JMP vmlGetConfig
+    JMP java_vmlGetConfig
 
 LABEL method_VmlGetConfig
-    JMP vmlGetConfig
+    JMP java_vmlGetConfig
 
 LABEL method_vmlGetConfig
-    JMP vmlGetConfig
+    JMP java_vmlGetConfig
 
 LABEL method_vml_get_info
-    JMP vmlGetInfo
+    JMP java_vmlGetInfo
 
 LABEL method_VmlGetInfo
-    JMP vmlGetInfo
+    JMP java_vmlGetInfo
 
 LABEL method_vmlGetInfo
-    JMP vmlGetInfo
+    JMP java_vmlGetInfo
 
 LABEL method_vml_get_platform
-    JMP vmlGetPlatform
+    JMP java_vmlGetPlatform
 
 LABEL method_VmlGetPlatform
-    JMP vmlGetPlatform
+    JMP java_vmlGetPlatform
 
 LABEL method_vmlGetPlatform
-    JMP vmlGetPlatform
+    JMP java_vmlGetPlatform
 
 LABEL method_vml_debug_print
-    JMP vmlDebugPrint
+    JMP java_vmlDebugPrint
 
 LABEL method_VmlDebugPrint
-    JMP vmlDebugPrint
+    JMP java_vmlDebugPrint
 
 LABEL method_vmlDebugPrint
-    JMP vmlDebugPrint
+    JMP java_vmlDebugPrint
 
 LABEL method_vml_debug_int
-    JMP vmlDebugInt
+    JMP java_vmlDebugInt
 
 LABEL method_VmlDebugInt
-    JMP vmlDebugInt
+    JMP java_vmlDebugInt
 
 LABEL method_vmlDebugInt
-    JMP vmlDebugInt
+    JMP java_vmlDebugInt
 
 LABEL method_vml_assert
-    JMP vmlAssert
+    JMP java_vmlAssert
 
 LABEL method_VmlAssert
-    JMP vmlAssert
+    JMP java_vmlAssert
 
 LABEL method_vmlAssert
-    JMP vmlAssert
+    JMP java_vmlAssert
 
 LABEL method_vml_device_open
-    JMP vmlDeviceOpen
+    JMP java_vmlDeviceOpen
 
 LABEL method_VmlDeviceOpen
-    JMP vmlDeviceOpen
+    JMP java_vmlDeviceOpen
 
 LABEL method_vmlDeviceOpen
-    JMP vmlDeviceOpen
+    JMP java_vmlDeviceOpen
 
 LABEL method_vml_device_close
-    JMP vmlDeviceClose
+    JMP java_vmlDeviceClose
 
 LABEL method_VmlDeviceClose
-    JMP vmlDeviceClose
+    JMP java_vmlDeviceClose
 
 LABEL method_vmlDeviceClose
-    JMP vmlDeviceClose
+    JMP java_vmlDeviceClose
 
 LABEL method_vml_device_read
-    JMP vmlDeviceRead
+    JMP java_vmlDeviceRead
 
 LABEL method_VmlDeviceRead
-    JMP vmlDeviceRead
+    JMP java_vmlDeviceRead
 
 LABEL method_vmlDeviceRead
-    JMP vmlDeviceRead
+    JMP java_vmlDeviceRead
 
 LABEL method_vml_device_write
-    JMP vmlDeviceWrite
+    JMP java_vmlDeviceWrite
 
 LABEL method_VmlDeviceWrite
-    JMP vmlDeviceWrite
+    JMP java_vmlDeviceWrite
 
 LABEL method_vmlDeviceWrite
-    JMP vmlDeviceWrite
+    JMP java_vmlDeviceWrite
 
 LABEL method_vml_device_control
-    JMP vmlDeviceControl
+    JMP java_vmlDeviceControl
 
 LABEL method_VmlDeviceControl
-    JMP vmlDeviceControl
+    JMP java_vmlDeviceControl
 
 LABEL method_vmlDeviceControl
-    JMP vmlDeviceControl
+    JMP java_vmlDeviceControl
 
 LABEL method_vml_file_open
-    JMP vmlFileOpen
+    JMP java_vmlFileOpen
 
 LABEL method_VmlFileOpen
-    JMP vmlFileOpen
+    JMP java_vmlFileOpen
 
 LABEL method_vmlFileOpen
-    JMP vmlFileOpen
+    JMP java_vmlFileOpen
 
 LABEL method_vml_file_close
-    JMP vmlFileClose
+    JMP java_vmlFileClose
 
 LABEL method_VmlFileClose
-    JMP vmlFileClose
+    JMP java_vmlFileClose
 
 LABEL method_vmlFileClose
-    JMP vmlFileClose
+    JMP java_vmlFileClose
 
 LABEL method_vml_file_read
-    JMP vmlFileRead
+    JMP java_vmlFileRead
 
 LABEL method_VmlFileRead
-    JMP vmlFileRead
+    JMP java_vmlFileRead
 
 LABEL method_vmlFileRead
-    JMP vmlFileRead
+    JMP java_vmlFileRead
 
 LABEL method_vml_file_write
-    JMP vmlFileWrite
+    JMP java_vmlFileWrite
 
 LABEL method_VmlFileWrite
-    JMP vmlFileWrite
+    JMP java_vmlFileWrite
 
 LABEL method_vmlFileWrite
-    JMP vmlFileWrite
+    JMP java_vmlFileWrite
 
 LABEL method_vml_file_size
-    JMP vmlFileSize
+    JMP java_vmlFileSize
 
 LABEL method_VmlFileSize
-    JMP vmlFileSize
+    JMP java_vmlFileSize
 
 LABEL method_vmlFileSize
-    JMP vmlFileSize
+    JMP java_vmlFileSize
 
 LABEL method_vml_file_seek
-    JMP vmlFileSeek
+    JMP java_vmlFileSeek
 
 LABEL method_VmlFileSeek
-    JMP vmlFileSeek
+    JMP java_vmlFileSeek
 
 LABEL method_vmlFileSeek
-    JMP vmlFileSeek
+    JMP java_vmlFileSeek
 
 LABEL method_vml_file_tell
-    JMP vmlFileTell
+    JMP java_vmlFileTell
 
 LABEL method_VmlFileTell
-    JMP vmlFileTell
+    JMP java_vmlFileTell
 
 LABEL method_vmlFileTell
-    JMP vmlFileTell
+    JMP java_vmlFileTell
 
 LABEL method_vml_mkdir
-    JMP vmlMkdir
+    JMP java_vmlMkdir
 
 LABEL method_VmlMkdir
-    JMP vmlMkdir
+    JMP java_vmlMkdir
 
 LABEL method_vmlMkdir
-    JMP vmlMkdir
+    JMP java_vmlMkdir
 
 LABEL method_vml_remove
-    JMP vmlRemove
+    JMP java_vmlRemove
 
 LABEL method_VmlRemove
-    JMP vmlRemove
+    JMP java_vmlRemove
 
 LABEL method_vmlRemove
-    JMP vmlRemove
+    JMP java_vmlRemove
 
 LABEL method_vml_rename
-    JMP vmlRename
+    JMP java_vmlRename
 
 LABEL method_VmlRename
-    JMP vmlRename
+    JMP java_vmlRename
 
 LABEL method_vmlRename
-    JMP vmlRename
+    JMP java_vmlRename
 
 LABEL method_vml_readdir
-    JMP vmlReaddir
+    JMP java_vmlReaddir
 
 LABEL method_VmlReaddir
-    JMP vmlReaddir
+    JMP java_vmlReaddir
 
 LABEL method_vmlReaddir
-    JMP vmlReaddir
+    JMP java_vmlReaddir
 
 LABEL method_vml_stat
-    JMP vmlStat
+    JMP java_vmlStat
 
 LABEL method_VmlStat
-    JMP vmlStat
+    JMP java_vmlStat
 
 LABEL method_vmlStat
-    JMP vmlStat
+    JMP java_vmlStat
 
 LABEL method_vml_get_env
-    JMP vmlGetEnv
+    JMP java_vmlGetEnv
 
 LABEL method_VmlGetEnv
-    JMP vmlGetEnv
+    JMP java_vmlGetEnv
 
 LABEL method_vmlGetEnv
-    JMP vmlGetEnv
+    JMP java_vmlGetEnv
 
 LABEL method_vml_set_env
-    JMP vmlSetEnv
+    JMP java_vmlSetEnv
 
 LABEL method_VmlSetEnv
-    JMP vmlSetEnv
+    JMP java_vmlSetEnv
 
 LABEL method_vmlSetEnv
-    JMP vmlSetEnv
+    JMP java_vmlSetEnv
 
 LABEL method_vml_exit
-    JMP vmlExit
+    JMP java_vmlExit
 
 LABEL method_VmlExit
-    JMP vmlExit
+    JMP java_vmlExit
 
 LABEL method_vmlExit
-    JMP vmlExit
+    JMP java_vmlExit
 
 LABEL method_vml_get_pid
-    JMP vmlGetPid
+    JMP java_vmlGetPid
 
 LABEL method_VmlGetPid
-    JMP vmlGetPid
+    JMP java_vmlGetPid
 
 LABEL method_vmlGetPid
-    JMP vmlGetPid
+    JMP java_vmlGetPid
 
 LABEL method_vml_thread_create
-    JMP vmlThreadCreate
+    JMP java_vmlThreadCreate
 
 LABEL method_VmlThreadCreate
-    JMP vmlThreadCreate
+    JMP java_vmlThreadCreate
 
 LABEL method_vmlThreadCreate
-    JMP vmlThreadCreate
+    JMP java_vmlThreadCreate
 
 LABEL method_vml_thread_exit
-    JMP vmlThreadExit
+    JMP java_vmlThreadExit
 
 LABEL method_VmlThreadExit
-    JMP vmlThreadExit
+    JMP java_vmlThreadExit
 
 LABEL method_vmlThreadExit
-    JMP vmlThreadExit
+    JMP java_vmlThreadExit
 
 LABEL method_vml_thread_yield
-    JMP vmlThreadYield
+    JMP java_vmlThreadYield
 
 LABEL method_VmlThreadYield
-    JMP vmlThreadYield
+    JMP java_vmlThreadYield
 
 LABEL method_vmlThreadYield
-    JMP vmlThreadYield
+    JMP java_vmlThreadYield
 
 LABEL method_vml_mutex_create
-    JMP vmlMutexCreate
+    JMP java_vmlMutexCreate
 
 LABEL method_VmlMutexCreate
-    JMP vmlMutexCreate
+    JMP java_vmlMutexCreate
 
 LABEL method_vmlMutexCreate
-    JMP vmlMutexCreate
+    JMP java_vmlMutexCreate
 
 LABEL method_vml_mutex_lock
-    JMP vmlMutexLock
+    JMP java_vmlMutexLock
 
 LABEL method_VmlMutexLock
-    JMP vmlMutexLock
+    JMP java_vmlMutexLock
 
 LABEL method_vmlMutexLock
-    JMP vmlMutexLock
+    JMP java_vmlMutexLock
 
 LABEL method_vml_mutex_unlock
-    JMP vmlMutexUnlock
+    JMP java_vmlMutexUnlock
 
 LABEL method_VmlMutexUnlock
-    JMP vmlMutexUnlock
+    JMP java_vmlMutexUnlock
 
 LABEL method_vmlMutexUnlock
-    JMP vmlMutexUnlock
+    JMP java_vmlMutexUnlock
 
 LABEL method_vml_cond_create
-    JMP vmlCondCreate
+    JMP java_vmlCondCreate
 
 LABEL method_VmlCondCreate
-    JMP vmlCondCreate
+    JMP java_vmlCondCreate
 
 LABEL method_vmlCondCreate
-    JMP vmlCondCreate
+    JMP java_vmlCondCreate
 
 LABEL method_vml_cond_wait
-    JMP vmlCondWait
+    JMP java_vmlCondWait
 
 LABEL method_VmlCondWait
-    JMP vmlCondWait
+    JMP java_vmlCondWait
 
 LABEL method_vmlCondWait
-    JMP vmlCondWait
+    JMP java_vmlCondWait
 
 LABEL method_vml_cond_signal
-    JMP vmlCondSignal
+    JMP java_vmlCondSignal
 
 LABEL method_VmlCondSignal
-    JMP vmlCondSignal
+    JMP java_vmlCondSignal
 
 LABEL method_vmlCondSignal
-    JMP vmlCondSignal
+    JMP java_vmlCondSignal
 
 LABEL method_vml_cond_broadcast
-    JMP vmlCondBroadcast
+    JMP java_vmlCondBroadcast
 
 LABEL method_VmlCondBroadcast
-    JMP vmlCondBroadcast
+    JMP java_vmlCondBroadcast
 
 LABEL method_vmlCondBroadcast
-    JMP vmlCondBroadcast
+    JMP java_vmlCondBroadcast
 
 LABEL method_vml_exec
-    JMP vmlExec
+    JMP java_vmlExec
 
 LABEL method_VmlExec
-    JMP vmlExec
+    JMP java_vmlExec
 
 LABEL method_vmlExec
-    JMP vmlExec
+    JMP java_vmlExec
 
 LABEL method_vml_socket_create
-    JMP vmlSocketCreate
+    JMP java_vmlSocketCreate
 
 LABEL method_VmlSocketCreate
-    JMP vmlSocketCreate
+    JMP java_vmlSocketCreate
 
 LABEL method_vmlSocketCreate
-    JMP vmlSocketCreate
+    JMP java_vmlSocketCreate
 
 LABEL method_vml_socket_connect
-    JMP vmlSocketConnect
+    JMP java_vmlSocketConnect
 
 LABEL method_VmlSocketConnect
-    JMP vmlSocketConnect
+    JMP java_vmlSocketConnect
 
 LABEL method_vmlSocketConnect
-    JMP vmlSocketConnect
+    JMP java_vmlSocketConnect
 
 LABEL method_vml_socket_send
-    JMP vmlSocketSend
+    JMP java_vmlSocketSend
 
 LABEL method_VmlSocketSend
-    JMP vmlSocketSend
+    JMP java_vmlSocketSend
 
 LABEL method_vmlSocketSend
-    JMP vmlSocketSend
+    JMP java_vmlSocketSend
 
 LABEL method_vml_socket_recv
-    JMP vmlSocketRecv
+    JMP java_vmlSocketRecv
 
 LABEL method_VmlSocketRecv
-    JMP vmlSocketRecv
+    JMP java_vmlSocketRecv
 
 LABEL method_vmlSocketRecv
-    JMP vmlSocketRecv
+    JMP java_vmlSocketRecv
 
 LABEL method_vml_socket_close
-    JMP vmlSocketClose
+    JMP java_vmlSocketClose
 
 LABEL method_VmlSocketClose
-    JMP vmlSocketClose
+    JMP java_vmlSocketClose
 
 LABEL method_vmlSocketClose
-    JMP vmlSocketClose
+    JMP java_vmlSocketClose
 
 LABEL method_vml_dns_resolve
-    JMP vmlDnsResolve
+    JMP java_vmlDnsResolve
 
 LABEL method_VmlDnsResolve
-    JMP vmlDnsResolve
+    JMP java_vmlDnsResolve
 
 LABEL method_vmlDnsResolve
-    JMP vmlDnsResolve
+    JMP java_vmlDnsResolve
 
 LABEL method_vml_screenshot
-    JMP vmlScreenshot
+    JMP java_vmlScreenshot
 
 LABEL method_VmlScreenshot
-    JMP vmlScreenshot
+    JMP java_vmlScreenshot
 
 LABEL method_vmlScreenshot
-    JMP vmlScreenshot
+    JMP java_vmlScreenshot
 
 LABEL method_vml_syscall5
-    JMP vmlSyscall5
+    JMP java_vmlSyscall5
 
 LABEL method_VmlSyscall5
-    JMP vmlSyscall5
+    JMP java_vmlSyscall5
 
 LABEL method_vmlSyscall5
-    JMP vmlSyscall5
+    JMP java_vmlSyscall5
 

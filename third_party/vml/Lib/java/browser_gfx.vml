@@ -3,7 +3,7 @@
 
 .linked "../shared/browser_gfx.vml"
 
-LABEL cMDBUF
+LABEL java_cMDBUF
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL cMDBUF
     pop R15
     RET
 
-LABEL format
+LABEL java_format
     push R15
     push R12
     move R12 R13
@@ -34,7 +34,7 @@ LABEL format
     pop R15
     RET
 
-LABEL cmdWrite
+LABEL java_cmdWrite
     push R15
     push R12
     move R12 R13
@@ -48,7 +48,7 @@ LABEL cmdWrite
     pop R15
     RET
 
-LABEL browserClear
+LABEL java_browserClear
     push R15
     push R12
     move R12 R13
@@ -68,7 +68,7 @@ LABEL browserClear
     pop R15
     RET
 
-LABEL browserColor
+LABEL java_browserColor
     push R15
     push R12
     move R12 R13
@@ -88,7 +88,7 @@ LABEL browserColor
     pop R15
     RET
 
-LABEL browserFillPolygon
+LABEL java_browserFillPolygon
     push R15
     push R12
     move R12 R13
@@ -105,7 +105,7 @@ LABEL browserFillPolygon
     pop R15
     RET
 
-LABEL browserDrawPolygon
+LABEL java_browserDrawPolygon
     push R15
     push R12
     move R12 R13
@@ -122,7 +122,7 @@ LABEL browserDrawPolygon
     pop R15
     RET
 
-LABEL browserFlush
+LABEL java_browserFlush
     push R15
     push R12
     move R12 R13
@@ -133,95 +133,95 @@ LABEL browserFlush
     RET
 
 LABEL Browser_gfx_CMDBUF
-    JMP cMDBUF
+    JMP java_cMDBUF
 
 LABEL Browser_gfx_Format
-    JMP format
+    JMP java_format
 
 LABEL Browser_gfx_CmdWrite
-    JMP cmdWrite
+    JMP java_cmdWrite
 
 LABEL Browser_gfx_BrowserClear
-    JMP browserClear
+    JMP java_browserClear
 
 LABEL Browser_gfx_BrowserColor
-    JMP browserColor
+    JMP java_browserColor
 
 LABEL Browser_gfx_BrowserFillPolygon
-    JMP browserFillPolygon
+    JMP java_browserFillPolygon
 
 LABEL Browser_gfx_BrowserDrawPolygon
-    JMP browserDrawPolygon
+    JMP java_browserDrawPolygon
 
 LABEL Browser_gfx_BrowserFlush
-    JMP browserFlush
+    JMP java_browserFlush
 
 LABEL method_CMD_BUF
-    JMP cMDBUF
+    JMP java_cMDBUF
 
 LABEL method_CMDBUF
-    JMP cMDBUF
+    JMP java_cMDBUF
 
 LABEL method_cMDBUF
-    JMP cMDBUF
+    JMP java_cMDBUF
 
 LABEL method_format
-    JMP format
+    JMP java_format
 
 LABEL method_Format
-    JMP format
+    JMP java_format
 
 LABEL method_cmd_write
-    JMP cmdWrite
+    JMP java_cmdWrite
 
 LABEL method_CmdWrite
-    JMP cmdWrite
+    JMP java_cmdWrite
 
 LABEL method_cmdWrite
-    JMP cmdWrite
+    JMP java_cmdWrite
 
 LABEL method_browser_clear
-    JMP browserClear
+    JMP java_browserClear
 
 LABEL method_BrowserClear
-    JMP browserClear
+    JMP java_browserClear
 
 LABEL method_browserClear
-    JMP browserClear
+    JMP java_browserClear
 
 LABEL method_browser_color
-    JMP browserColor
+    JMP java_browserColor
 
 LABEL method_BrowserColor
-    JMP browserColor
+    JMP java_browserColor
 
 LABEL method_browserColor
-    JMP browserColor
+    JMP java_browserColor
 
 LABEL method_browser_fill_polygon
-    JMP browserFillPolygon
+    JMP java_browserFillPolygon
 
 LABEL method_BrowserFillPolygon
-    JMP browserFillPolygon
+    JMP java_browserFillPolygon
 
 LABEL method_browserFillPolygon
-    JMP browserFillPolygon
+    JMP java_browserFillPolygon
 
 LABEL method_browser_draw_polygon
-    JMP browserDrawPolygon
+    JMP java_browserDrawPolygon
 
 LABEL method_BrowserDrawPolygon
-    JMP browserDrawPolygon
+    JMP java_browserDrawPolygon
 
 LABEL method_browserDrawPolygon
-    JMP browserDrawPolygon
+    JMP java_browserDrawPolygon
 
 LABEL method_browser_flush
-    JMP browserFlush
+    JMP java_browserFlush
 
 LABEL method_BrowserFlush
-    JMP browserFlush
+    JMP java_browserFlush
 
 LABEL method_browserFlush
-    JMP browserFlush
+    JMP java_browserFlush
 

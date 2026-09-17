@@ -3,7 +3,7 @@
 
 .linked "../shared/statistics64.vml"
 
-LABEL lmedian64
+LABEL js_lmedian64
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL lmedian64
     pop R15
     RET
 
-LABEL middle
+LABEL js_middle
     push R15
     push R12
     move R12 R13
@@ -34,7 +34,7 @@ LABEL middle
     pop R15
     RET
 
-LABEL lrange64
+LABEL js_lrange64
     push R15
     push R12
     move R12 R13
@@ -48,7 +48,7 @@ LABEL lrange64
     pop R15
     RET
 
-LABEL lcountGt64
+LABEL js_lcountGt64
     push R15
     push R12
     move R12 R13
@@ -66,7 +66,7 @@ LABEL lcountGt64
     pop R15
     RET
 
-LABEL lcountLt64
+LABEL js_lcountLt64
     push R15
     push R12
     move R12 R13
@@ -84,7 +84,7 @@ LABEL lcountLt64
     pop R15
     RET
 
-LABEL lcountEq64
+LABEL js_lcountEq64
     push R15
     push R12
     move R12 R13
@@ -102,7 +102,7 @@ LABEL lcountEq64
     pop R15
     RET
 
-LABEL lvariance64
+LABEL js_lvariance64
     push R15
     push R12
     move R12 R13
@@ -116,7 +116,7 @@ LABEL lvariance64
     pop R15
     RET
 
-LABEL lstdDev64
+LABEL js_lstdDev64
     push R15
     push R12
     move R12 R13
@@ -130,7 +130,7 @@ LABEL lstdDev64
     pop R15
     RET
 
-LABEL llinregSlope64
+LABEL js_llinregSlope64
     push R15
     push R12
     move R12 R13
@@ -147,7 +147,7 @@ LABEL llinregSlope64
     pop R15
     RET
 
-LABEL llinregIntercept64
+LABEL js_llinregIntercept64
     push R15
     push R12
     move R12 R13
@@ -165,110 +165,110 @@ LABEL llinregIntercept64
     RET
 
 LABEL Statistics64_Lmedian64
-    JMP lmedian64
+    JMP js_lmedian64
 
 LABEL Statistics64_Middle
-    JMP middle
+    JMP js_middle
 
 LABEL Statistics64_Lrange64
-    JMP lrange64
+    JMP js_lrange64
 
 LABEL Statistics64_LcountGt64
-    JMP lcountGt64
+    JMP js_lcountGt64
 
 LABEL Statistics64_LcountLt64
-    JMP lcountLt64
+    JMP js_lcountLt64
 
 LABEL Statistics64_LcountEq64
-    JMP lcountEq64
+    JMP js_lcountEq64
 
 LABEL Statistics64_Lvariance64
-    JMP lvariance64
+    JMP js_lvariance64
 
 LABEL Statistics64_LstdDev64
-    JMP lstdDev64
+    JMP js_lstdDev64
 
 LABEL Statistics64_LlinregSlope64
-    JMP llinregSlope64
+    JMP js_llinregSlope64
 
 LABEL Statistics64_LlinregIntercept64
-    JMP llinregIntercept64
+    JMP js_llinregIntercept64
 
 LABEL method_lmedian64
-    JMP lmedian64
+    JMP js_lmedian64
 
 LABEL method_Lmedian64
-    JMP lmedian64
+    JMP js_lmedian64
 
 LABEL method_middle
-    JMP middle
+    JMP js_middle
 
 LABEL method_Middle
-    JMP middle
+    JMP js_middle
 
 LABEL method_lrange64
-    JMP lrange64
+    JMP js_lrange64
 
 LABEL method_Lrange64
-    JMP lrange64
+    JMP js_lrange64
 
 LABEL method_lcount_gt64
-    JMP lcountGt64
+    JMP js_lcountGt64
 
 LABEL method_LcountGt64
-    JMP lcountGt64
+    JMP js_lcountGt64
 
 LABEL method_lcountGt64
-    JMP lcountGt64
+    JMP js_lcountGt64
 
 LABEL method_lcount_lt64
-    JMP lcountLt64
+    JMP js_lcountLt64
 
 LABEL method_LcountLt64
-    JMP lcountLt64
+    JMP js_lcountLt64
 
 LABEL method_lcountLt64
-    JMP lcountLt64
+    JMP js_lcountLt64
 
 LABEL method_lcount_eq64
-    JMP lcountEq64
+    JMP js_lcountEq64
 
 LABEL method_LcountEq64
-    JMP lcountEq64
+    JMP js_lcountEq64
 
 LABEL method_lcountEq64
-    JMP lcountEq64
+    JMP js_lcountEq64
 
 LABEL method_lvariance64
-    JMP lvariance64
+    JMP js_lvariance64
 
 LABEL method_Lvariance64
-    JMP lvariance64
+    JMP js_lvariance64
 
 LABEL method_lstd_dev64
-    JMP lstdDev64
+    JMP js_lstdDev64
 
 LABEL method_LstdDev64
-    JMP lstdDev64
+    JMP js_lstdDev64
 
 LABEL method_lstdDev64
-    JMP lstdDev64
+    JMP js_lstdDev64
 
 LABEL method_llinreg_slope64
-    JMP llinregSlope64
+    JMP js_llinregSlope64
 
 LABEL method_LlinregSlope64
-    JMP llinregSlope64
+    JMP js_llinregSlope64
 
 LABEL method_llinregSlope64
-    JMP llinregSlope64
+    JMP js_llinregSlope64
 
 LABEL method_llinreg_intercept64
-    JMP llinregIntercept64
+    JMP js_llinregIntercept64
 
 LABEL method_LlinregIntercept64
-    JMP llinregIntercept64
+    JMP js_llinregIntercept64
 
 LABEL method_llinregIntercept64
-    JMP llinregIntercept64
+    JMP js_llinregIntercept64
 

@@ -3,7 +3,7 @@
 
 .linked "../shared/bitops64.vml"
 
-LABEL lbitAnd64
+LABEL js_lbitAnd64
     push R15
     push R12
     move R12 R13
@@ -22,7 +22,7 @@ LABEL lbitAnd64
     pop R15
     RET
 
-LABEL lbitOr64
+LABEL js_lbitOr64
     push R15
     push R12
     move R12 R13
@@ -41,7 +41,7 @@ LABEL lbitOr64
     pop R15
     RET
 
-LABEL lbitXor64
+LABEL js_lbitXor64
     push R15
     push R12
     move R12 R13
@@ -60,7 +60,7 @@ LABEL lbitXor64
     pop R15
     RET
 
-LABEL lbitNot64
+LABEL js_lbitNot64
     push R15
     push R12
     move R12 R13
@@ -75,7 +75,7 @@ LABEL lbitNot64
     pop R15
     RET
 
-LABEL lbitShl64
+LABEL js_lbitShl64
     push R15
     push R12
     move R12 R13
@@ -94,7 +94,7 @@ LABEL lbitShl64
     pop R15
     RET
 
-LABEL lbitShr64
+LABEL js_lbitShr64
     push R15
     push R12
     move R12 R13
@@ -113,7 +113,7 @@ LABEL lbitShr64
     pop R15
     RET
 
-LABEL lrol64
+LABEL js_lrol64
     push R15
     push R12
     move R12 R13
@@ -132,7 +132,7 @@ LABEL lrol64
     pop R15
     RET
 
-LABEL lror64
+LABEL js_lror64
     push R15
     push R12
     move R12 R13
@@ -151,7 +151,7 @@ LABEL lror64
     pop R15
     RET
 
-LABEL lbitSet64
+LABEL js_lbitSet64
     push R15
     push R12
     move R12 R13
@@ -170,7 +170,7 @@ LABEL lbitSet64
     pop R15
     RET
 
-LABEL lbitClear64
+LABEL js_lbitClear64
     push R15
     push R12
     move R12 R13
@@ -189,7 +189,7 @@ LABEL lbitClear64
     pop R15
     RET
 
-LABEL lbitToggle64
+LABEL js_lbitToggle64
     push R15
     push R12
     move R12 R13
@@ -208,7 +208,7 @@ LABEL lbitToggle64
     pop R15
     RET
 
-LABEL lbitTest64
+LABEL js_lbitTest64
     push R15
     push R12
     move R12 R13
@@ -227,7 +227,7 @@ LABEL lbitTest64
     pop R15
     RET
 
-LABEL lcount64
+LABEL js_lcount64
     push R15
     push R12
     move R12 R13
@@ -242,7 +242,7 @@ LABEL lcount64
     pop R15
     RET
 
-LABEL lrotateLeft64
+LABEL js_lrotateLeft64
     push R15
     push R12
     move R12 R13
@@ -261,7 +261,7 @@ LABEL lrotateLeft64
     pop R15
     RET
 
-LABEL lrotateRight64
+LABEL js_lrotateRight64
     push R15
     push R12
     move R12 R13
@@ -280,7 +280,7 @@ LABEL lrotateRight64
     pop R15
     RET
 
-LABEL llowestSet64
+LABEL js_llowestSet64
     push R15
     push R12
     move R12 R13
@@ -295,7 +295,7 @@ LABEL llowestSet64
     pop R15
     RET
 
-LABEL lctz64
+LABEL js_lctz64
     push R15
     push R12
     move R12 R13
@@ -309,7 +309,7 @@ LABEL lctz64
     pop R15
     RET
 
-LABEL lhighestSet64
+LABEL js_lhighestSet64
     push R15
     push R12
     move R12 R13
@@ -324,7 +324,7 @@ LABEL lhighestSet64
     pop R15
     RET
 
-LABEL lmask64
+LABEL js_lmask64
     push R15
     push R12
     move R12 R13
@@ -339,7 +339,7 @@ LABEL lmask64
     pop R15
     RET
 
-LABEL lextract64
+LABEL js_lextract64
     push R15
     push R12
     move R12 R13
@@ -362,7 +362,7 @@ LABEL lextract64
     pop R15
     RET
 
-LABEL lisPowerOfTwo64
+LABEL js_lisPowerOfTwo64
     push R15
     push R12
     move R12 R13
@@ -377,7 +377,7 @@ LABEL lisPowerOfTwo64
     pop R15
     RET
 
-LABEL lnextPowerOfTwo64
+LABEL js_lnextPowerOfTwo64
     push R15
     push R12
     move R12 R13
@@ -393,248 +393,248 @@ LABEL lnextPowerOfTwo64
     RET
 
 LABEL Bitops64_LbitAnd64
-    JMP lbitAnd64
+    JMP js_lbitAnd64
 
 LABEL Bitops64_LbitOr64
-    JMP lbitOr64
+    JMP js_lbitOr64
 
 LABEL Bitops64_LbitXor64
-    JMP lbitXor64
+    JMP js_lbitXor64
 
 LABEL Bitops64_LbitNot64
-    JMP lbitNot64
+    JMP js_lbitNot64
 
 LABEL Bitops64_LbitShl64
-    JMP lbitShl64
+    JMP js_lbitShl64
 
 LABEL Bitops64_LbitShr64
-    JMP lbitShr64
+    JMP js_lbitShr64
 
 LABEL Bitops64_Lrol64
-    JMP lrol64
+    JMP js_lrol64
 
 LABEL Bitops64_Lror64
-    JMP lror64
+    JMP js_lror64
 
 LABEL Bitops64_LbitSet64
-    JMP lbitSet64
+    JMP js_lbitSet64
 
 LABEL Bitops64_LbitClear64
-    JMP lbitClear64
+    JMP js_lbitClear64
 
 LABEL Bitops64_LbitToggle64
-    JMP lbitToggle64
+    JMP js_lbitToggle64
 
 LABEL Bitops64_LbitTest64
-    JMP lbitTest64
+    JMP js_lbitTest64
 
 LABEL Bitops64_Lcount64
-    JMP lcount64
+    JMP js_lcount64
 
 LABEL Bitops64_LrotateLeft64
-    JMP lrotateLeft64
+    JMP js_lrotateLeft64
 
 LABEL Bitops64_LrotateRight64
-    JMP lrotateRight64
+    JMP js_lrotateRight64
 
 LABEL Bitops64_LlowestSet64
-    JMP llowestSet64
+    JMP js_llowestSet64
 
 LABEL Bitops64_Lctz64
-    JMP lctz64
+    JMP js_lctz64
 
 LABEL Bitops64_LhighestSet64
-    JMP lhighestSet64
+    JMP js_lhighestSet64
 
 LABEL Bitops64_Lmask64
-    JMP lmask64
+    JMP js_lmask64
 
 LABEL Bitops64_Lextract64
-    JMP lextract64
+    JMP js_lextract64
 
 LABEL Bitops64_LisPowerOfTwo64
-    JMP lisPowerOfTwo64
+    JMP js_lisPowerOfTwo64
 
 LABEL Bitops64_LnextPowerOfTwo64
-    JMP lnextPowerOfTwo64
+    JMP js_lnextPowerOfTwo64
 
 LABEL method_lbit_and64
-    JMP lbitAnd64
+    JMP js_lbitAnd64
 
 LABEL method_LbitAnd64
-    JMP lbitAnd64
+    JMP js_lbitAnd64
 
 LABEL method_lbitAnd64
-    JMP lbitAnd64
+    JMP js_lbitAnd64
 
 LABEL method_lbit_or64
-    JMP lbitOr64
+    JMP js_lbitOr64
 
 LABEL method_LbitOr64
-    JMP lbitOr64
+    JMP js_lbitOr64
 
 LABEL method_lbitOr64
-    JMP lbitOr64
+    JMP js_lbitOr64
 
 LABEL method_lbit_xor64
-    JMP lbitXor64
+    JMP js_lbitXor64
 
 LABEL method_LbitXor64
-    JMP lbitXor64
+    JMP js_lbitXor64
 
 LABEL method_lbitXor64
-    JMP lbitXor64
+    JMP js_lbitXor64
 
 LABEL method_lbit_not64
-    JMP lbitNot64
+    JMP js_lbitNot64
 
 LABEL method_LbitNot64
-    JMP lbitNot64
+    JMP js_lbitNot64
 
 LABEL method_lbitNot64
-    JMP lbitNot64
+    JMP js_lbitNot64
 
 LABEL method_lbit_shl64
-    JMP lbitShl64
+    JMP js_lbitShl64
 
 LABEL method_LbitShl64
-    JMP lbitShl64
+    JMP js_lbitShl64
 
 LABEL method_lbitShl64
-    JMP lbitShl64
+    JMP js_lbitShl64
 
 LABEL method_lbit_shr64
-    JMP lbitShr64
+    JMP js_lbitShr64
 
 LABEL method_LbitShr64
-    JMP lbitShr64
+    JMP js_lbitShr64
 
 LABEL method_lbitShr64
-    JMP lbitShr64
+    JMP js_lbitShr64
 
 LABEL method_lrol64
-    JMP lrol64
+    JMP js_lrol64
 
 LABEL method_Lrol64
-    JMP lrol64
+    JMP js_lrol64
 
 LABEL method_lror64
-    JMP lror64
+    JMP js_lror64
 
 LABEL method_Lror64
-    JMP lror64
+    JMP js_lror64
 
 LABEL method_lbit_set64
-    JMP lbitSet64
+    JMP js_lbitSet64
 
 LABEL method_LbitSet64
-    JMP lbitSet64
+    JMP js_lbitSet64
 
 LABEL method_lbitSet64
-    JMP lbitSet64
+    JMP js_lbitSet64
 
 LABEL method_lbit_clear64
-    JMP lbitClear64
+    JMP js_lbitClear64
 
 LABEL method_LbitClear64
-    JMP lbitClear64
+    JMP js_lbitClear64
 
 LABEL method_lbitClear64
-    JMP lbitClear64
+    JMP js_lbitClear64
 
 LABEL method_lbit_toggle64
-    JMP lbitToggle64
+    JMP js_lbitToggle64
 
 LABEL method_LbitToggle64
-    JMP lbitToggle64
+    JMP js_lbitToggle64
 
 LABEL method_lbitToggle64
-    JMP lbitToggle64
+    JMP js_lbitToggle64
 
 LABEL method_lbit_test64
-    JMP lbitTest64
+    JMP js_lbitTest64
 
 LABEL method_LbitTest64
-    JMP lbitTest64
+    JMP js_lbitTest64
 
 LABEL method_lbitTest64
-    JMP lbitTest64
+    JMP js_lbitTest64
 
 LABEL method_lcount64
-    JMP lcount64
+    JMP js_lcount64
 
 LABEL method_Lcount64
-    JMP lcount64
+    JMP js_lcount64
 
 LABEL method_lrotate_left64
-    JMP lrotateLeft64
+    JMP js_lrotateLeft64
 
 LABEL method_LrotateLeft64
-    JMP lrotateLeft64
+    JMP js_lrotateLeft64
 
 LABEL method_lrotateLeft64
-    JMP lrotateLeft64
+    JMP js_lrotateLeft64
 
 LABEL method_lrotate_right64
-    JMP lrotateRight64
+    JMP js_lrotateRight64
 
 LABEL method_LrotateRight64
-    JMP lrotateRight64
+    JMP js_lrotateRight64
 
 LABEL method_lrotateRight64
-    JMP lrotateRight64
+    JMP js_lrotateRight64
 
 LABEL method_llowest_set64
-    JMP llowestSet64
+    JMP js_llowestSet64
 
 LABEL method_LlowestSet64
-    JMP llowestSet64
+    JMP js_llowestSet64
 
 LABEL method_llowestSet64
-    JMP llowestSet64
+    JMP js_llowestSet64
 
 LABEL method_lctz64
-    JMP lctz64
+    JMP js_lctz64
 
 LABEL method_Lctz64
-    JMP lctz64
+    JMP js_lctz64
 
 LABEL method_lhighest_set64
-    JMP lhighestSet64
+    JMP js_lhighestSet64
 
 LABEL method_LhighestSet64
-    JMP lhighestSet64
+    JMP js_lhighestSet64
 
 LABEL method_lhighestSet64
-    JMP lhighestSet64
+    JMP js_lhighestSet64
 
 LABEL method_lmask64
-    JMP lmask64
+    JMP js_lmask64
 
 LABEL method_Lmask64
-    JMP lmask64
+    JMP js_lmask64
 
 LABEL method_lextract64
-    JMP lextract64
+    JMP js_lextract64
 
 LABEL method_Lextract64
-    JMP lextract64
+    JMP js_lextract64
 
 LABEL method_lis_power_of_two64
-    JMP lisPowerOfTwo64
+    JMP js_lisPowerOfTwo64
 
 LABEL method_LisPowerOfTwo64
-    JMP lisPowerOfTwo64
+    JMP js_lisPowerOfTwo64
 
 LABEL method_lisPowerOfTwo64
-    JMP lisPowerOfTwo64
+    JMP js_lisPowerOfTwo64
 
 LABEL method_lnext_power_of_two64
-    JMP lnextPowerOfTwo64
+    JMP js_lnextPowerOfTwo64
 
 LABEL method_LnextPowerOfTwo64
-    JMP lnextPowerOfTwo64
+    JMP js_lnextPowerOfTwo64
 
 LABEL method_lnextPowerOfTwo64
-    JMP lnextPowerOfTwo64
+    JMP js_lnextPowerOfTwo64
 

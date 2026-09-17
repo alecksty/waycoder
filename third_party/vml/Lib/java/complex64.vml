@@ -3,7 +3,7 @@
 
 .linked "../shared/complex64.vml"
 
-LABEL zadd
+LABEL java_zadd
     push R15
     push R12
     move R12 R13
@@ -23,7 +23,7 @@ LABEL zadd
     pop R15
     RET
 
-LABEL zsub
+LABEL java_zsub
     push R15
     push R12
     move R12 R13
@@ -43,7 +43,7 @@ LABEL zsub
     pop R15
     RET
 
-LABEL zmul
+LABEL java_zmul
     push R15
     push R12
     move R12 R13
@@ -63,7 +63,7 @@ LABEL zmul
     pop R15
     RET
 
-LABEL zdiv
+LABEL java_zdiv
     push R15
     push R12
     move R12 R13
@@ -83,7 +83,7 @@ LABEL zdiv
     pop R15
     RET
 
-LABEL zabs
+LABEL java_zabs
     push R15
     push R12
     move R12 R13
@@ -97,7 +97,7 @@ LABEL zabs
     pop R15
     RET
 
-LABEL zarg
+LABEL java_zarg
     push R15
     push R12
     move R12 R13
@@ -111,7 +111,7 @@ LABEL zarg
     pop R15
     RET
 
-LABEL zconj
+LABEL java_zconj
     push R15
     push R12
     move R12 R13
@@ -128,7 +128,7 @@ LABEL zconj
     pop R15
     RET
 
-LABEL zneg
+LABEL java_zneg
     push R15
     push R12
     move R12 R13
@@ -145,7 +145,7 @@ LABEL zneg
     pop R15
     RET
 
-LABEL zexpRe
+LABEL java_zexpRe
     push R15
     push R12
     move R12 R13
@@ -164,7 +164,7 @@ LABEL zexpRe
     pop R15
     RET
 
-LABEL zexpIm
+LABEL java_zexpIm
     push R15
     push R12
     move R12 R13
@@ -183,7 +183,7 @@ LABEL zexpIm
     pop R15
     RET
 
-LABEL zsqr
+LABEL java_zsqr
     push R15
     push R12
     move R12 R13
@@ -200,7 +200,7 @@ LABEL zsqr
     pop R15
     RET
 
-LABEL zsqrt
+LABEL java_zsqrt
     push R15
     push R12
     move R12 R13
@@ -218,116 +218,116 @@ LABEL zsqrt
     RET
 
 LABEL Complex64_Zadd
-    JMP zadd
+    JMP java_zadd
 
 LABEL Complex64_Zsub
-    JMP zsub
+    JMP java_zsub
 
 LABEL Complex64_Zmul
-    JMP zmul
+    JMP java_zmul
 
 LABEL Complex64_Zdiv
-    JMP zdiv
+    JMP java_zdiv
 
 LABEL Complex64_Zabs
-    JMP zabs
+    JMP java_zabs
 
 LABEL Complex64_Zarg
-    JMP zarg
+    JMP java_zarg
 
 LABEL Complex64_Zconj
-    JMP zconj
+    JMP java_zconj
 
 LABEL Complex64_Zneg
-    JMP zneg
+    JMP java_zneg
 
 LABEL Complex64_ZexpRe
-    JMP zexpRe
+    JMP java_zexpRe
 
 LABEL Complex64_ZexpIm
-    JMP zexpIm
+    JMP java_zexpIm
 
 LABEL Complex64_Zsqr
-    JMP zsqr
+    JMP java_zsqr
 
 LABEL Complex64_Zsqrt
-    JMP zsqrt
+    JMP java_zsqrt
 
 LABEL method_zadd
-    JMP zadd
+    JMP java_zadd
 
 LABEL method_Zadd
-    JMP zadd
+    JMP java_zadd
 
 LABEL method_zsub
-    JMP zsub
+    JMP java_zsub
 
 LABEL method_Zsub
-    JMP zsub
+    JMP java_zsub
 
 LABEL method_zmul
-    JMP zmul
+    JMP java_zmul
 
 LABEL method_Zmul
-    JMP zmul
+    JMP java_zmul
 
 LABEL method_zdiv
-    JMP zdiv
+    JMP java_zdiv
 
 LABEL method_Zdiv
-    JMP zdiv
+    JMP java_zdiv
 
 LABEL method_zabs
-    JMP zabs
+    JMP java_zabs
 
 LABEL method_Zabs
-    JMP zabs
+    JMP java_zabs
 
 LABEL method_zarg
-    JMP zarg
+    JMP java_zarg
 
 LABEL method_Zarg
-    JMP zarg
+    JMP java_zarg
 
 LABEL method_zconj
-    JMP zconj
+    JMP java_zconj
 
 LABEL method_Zconj
-    JMP zconj
+    JMP java_zconj
 
 LABEL method_zneg
-    JMP zneg
+    JMP java_zneg
 
 LABEL method_Zneg
-    JMP zneg
+    JMP java_zneg
 
 LABEL method_zexp_re
-    JMP zexpRe
+    JMP java_zexpRe
 
 LABEL method_ZexpRe
-    JMP zexpRe
+    JMP java_zexpRe
 
 LABEL method_zexpRe
-    JMP zexpRe
+    JMP java_zexpRe
 
 LABEL method_zexp_im
-    JMP zexpIm
+    JMP java_zexpIm
 
 LABEL method_ZexpIm
-    JMP zexpIm
+    JMP java_zexpIm
 
 LABEL method_zexpIm
-    JMP zexpIm
+    JMP java_zexpIm
 
 LABEL method_zsqr
-    JMP zsqr
+    JMP java_zsqr
 
 LABEL method_Zsqr
-    JMP zsqr
+    JMP java_zsqr
 
 LABEL method_zsqrt
-    JMP zsqrt
+    JMP java_zsqrt
 
 LABEL method_Zsqrt
-    JMP zsqrt
+    JMP java_zsqrt
 

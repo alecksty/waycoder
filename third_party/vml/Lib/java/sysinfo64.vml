@@ -3,7 +3,7 @@
 
 .linked "../shared/sysinfo64.vml"
 
-LABEL ldatetime64
+LABEL java_ldatetime64
     push R15
     push R12
     move R12 R13
@@ -14,11 +14,11 @@ LABEL ldatetime64
     RET
 
 LABEL Sysinfo64_Ldatetime64
-    JMP ldatetime64
+    JMP java_ldatetime64
 
 LABEL method_ldatetime64
-    JMP ldatetime64
+    JMP java_ldatetime64
 
 LABEL method_Ldatetime64
-    JMP ldatetime64
+    JMP java_ldatetime64
 

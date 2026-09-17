@@ -3,7 +3,7 @@
 
 .linked "../shared/base64.vml"
 
-LABEL base64Encode
+LABEL java_base64Encode
     push R15
     push R12
     move R12 R13
@@ -23,7 +23,7 @@ LABEL base64Encode
     pop R15
     RET
 
-LABEL b64DecodeChar
+LABEL java_b64DecodeChar
     push R15
     push R12
     move R12 R13
@@ -38,7 +38,7 @@ LABEL b64DecodeChar
     pop R15
     RET
 
-LABEL base64Decode
+LABEL java_base64Decode
     push R15
     push R12
     move R12 R13
@@ -56,38 +56,38 @@ LABEL base64Decode
     RET
 
 LABEL Base64_Base64Encode
-    JMP base64Encode
+    JMP java_base64Encode
 
 LABEL Base64_B64DecodeChar
-    JMP b64DecodeChar
+    JMP java_b64DecodeChar
 
 LABEL Base64_Base64Decode
-    JMP base64Decode
+    JMP java_base64Decode
 
 LABEL method_base64_encode
-    JMP base64Encode
+    JMP java_base64Encode
 
 LABEL method_Base64Encode
-    JMP base64Encode
+    JMP java_base64Encode
 
 LABEL method_base64Encode
-    JMP base64Encode
+    JMP java_base64Encode
 
 LABEL method__b64_decode_char
-    JMP b64DecodeChar
+    JMP java_b64DecodeChar
 
 LABEL method_B64DecodeChar
-    JMP b64DecodeChar
+    JMP java_b64DecodeChar
 
 LABEL method_b64DecodeChar
-    JMP b64DecodeChar
+    JMP java_b64DecodeChar
 
 LABEL method_base64_decode
-    JMP base64Decode
+    JMP java_base64Decode
 
 LABEL method_Base64Decode
-    JMP base64Decode
+    JMP java_base64Decode
 
 LABEL method_base64Decode
-    JMP base64Decode
+    JMP java_base64Decode
 

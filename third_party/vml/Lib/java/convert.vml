@@ -3,7 +3,7 @@
 
 .linked "../shared/convert.vml"
 
-LABEL itoaHex
+LABEL java_itoaHex
     push R15
     push R12
     move R12 R13
@@ -20,7 +20,7 @@ LABEL itoaHex
     pop R15
     RET
 
-LABEL atoiHex
+LABEL java_atoiHex
     push R15
     push R12
     move R12 R13
@@ -34,7 +34,7 @@ LABEL atoiHex
     pop R15
     RET
 
-LABEL byteToHword
+LABEL java_byteToHword
     push R15
     push R12
     move R12 R13
@@ -49,7 +49,7 @@ LABEL byteToHword
     pop R15
     RET
 
-LABEL byteToWord
+LABEL java_byteToWord
     push R15
     push R12
     move R12 R13
@@ -64,7 +64,7 @@ LABEL byteToWord
     pop R15
     RET
 
-LABEL hwordToByte
+LABEL java_hwordToByte
     push R15
     push R12
     move R12 R13
@@ -78,7 +78,7 @@ LABEL hwordToByte
     pop R15
     RET
 
-LABEL hwordToWord
+LABEL java_hwordToWord
     push R15
     push R12
     move R12 R13
@@ -92,7 +92,7 @@ LABEL hwordToWord
     pop R15
     RET
 
-LABEL wordToByte
+LABEL java_wordToByte
     push R15
     push R12
     move R12 R13
@@ -106,7 +106,7 @@ LABEL wordToByte
     pop R15
     RET
 
-LABEL wordToHword
+LABEL java_wordToHword
     push R15
     push R12
     move R12 R13
@@ -121,98 +121,98 @@ LABEL wordToHword
     RET
 
 LABEL Convert_ItoaHex
-    JMP itoaHex
+    JMP java_itoaHex
 
 LABEL Convert_AtoiHex
-    JMP atoiHex
+    JMP java_atoiHex
 
 LABEL Convert_ByteToHword
-    JMP byteToHword
+    JMP java_byteToHword
 
 LABEL Convert_ByteToWord
-    JMP byteToWord
+    JMP java_byteToWord
 
 LABEL Convert_HwordToByte
-    JMP hwordToByte
+    JMP java_hwordToByte
 
 LABEL Convert_HwordToWord
-    JMP hwordToWord
+    JMP java_hwordToWord
 
 LABEL Convert_WordToByte
-    JMP wordToByte
+    JMP java_wordToByte
 
 LABEL Convert_WordToHword
-    JMP wordToHword
+    JMP java_wordToHword
 
 LABEL method_itoa_hex
-    JMP itoaHex
+    JMP java_itoaHex
 
 LABEL method_ItoaHex
-    JMP itoaHex
+    JMP java_itoaHex
 
 LABEL method_itoaHex
-    JMP itoaHex
+    JMP java_itoaHex
 
 LABEL method_atoi_hex
-    JMP atoiHex
+    JMP java_atoiHex
 
 LABEL method_AtoiHex
-    JMP atoiHex
+    JMP java_atoiHex
 
 LABEL method_atoiHex
-    JMP atoiHex
+    JMP java_atoiHex
 
 LABEL method_byte_to_hword
-    JMP byteToHword
+    JMP java_byteToHword
 
 LABEL method_ByteToHword
-    JMP byteToHword
+    JMP java_byteToHword
 
 LABEL method_byteToHword
-    JMP byteToHword
+    JMP java_byteToHword
 
 LABEL method_byte_to_word
-    JMP byteToWord
+    JMP java_byteToWord
 
 LABEL method_ByteToWord
-    JMP byteToWord
+    JMP java_byteToWord
 
 LABEL method_byteToWord
-    JMP byteToWord
+    JMP java_byteToWord
 
 LABEL method_hword_to_byte
-    JMP hwordToByte
+    JMP java_hwordToByte
 
 LABEL method_HwordToByte
-    JMP hwordToByte
+    JMP java_hwordToByte
 
 LABEL method_hwordToByte
-    JMP hwordToByte
+    JMP java_hwordToByte
 
 LABEL method_hword_to_word
-    JMP hwordToWord
+    JMP java_hwordToWord
 
 LABEL method_HwordToWord
-    JMP hwordToWord
+    JMP java_hwordToWord
 
 LABEL method_hwordToWord
-    JMP hwordToWord
+    JMP java_hwordToWord
 
 LABEL method_word_to_byte
-    JMP wordToByte
+    JMP java_wordToByte
 
 LABEL method_WordToByte
-    JMP wordToByte
+    JMP java_wordToByte
 
 LABEL method_wordToByte
-    JMP wordToByte
+    JMP java_wordToByte
 
 LABEL method_word_to_hword
-    JMP wordToHword
+    JMP java_wordToHword
 
 LABEL method_WordToHword
-    JMP wordToHword
+    JMP java_wordToHword
 
 LABEL method_wordToHword
-    JMP wordToHword
+    JMP java_wordToHword
 

@@ -3,7 +3,7 @@
 
 .linked "../shared/builtins.vml"
 
-LABEL newline
+LABEL js_newline
     push R15
     push R12
     move R12 R13
@@ -13,7 +13,7 @@ LABEL newline
     pop R15
     RET
 
-LABEL debugPrint
+LABEL js_debugPrint
     push R15
     push R12
     move R12 R13
@@ -27,7 +27,7 @@ LABEL debugPrint
     pop R15
     RET
 
-LABEL debugPrintInt
+LABEL js_debugPrintInt
     push R15
     push R12
     move R12 R13
@@ -41,7 +41,7 @@ LABEL debugPrintInt
     pop R15
     RET
 
-LABEL assert
+LABEL js_assert
     push R15
     push R12
     move R12 R13
@@ -58,7 +58,7 @@ LABEL assert
     pop R15
     RET
 
-LABEL sign
+LABEL js_sign
     push R15
     push R12
     move R12 R13
@@ -72,7 +72,7 @@ LABEL sign
     pop R15
     RET
 
-LABEL popcount
+LABEL js_popcount
     push R15
     push R12
     move R12 R13
@@ -86,7 +86,7 @@ LABEL popcount
     pop R15
     RET
 
-LABEL clz
+LABEL js_clz
     push R15
     push R12
     move R12 R13
@@ -100,7 +100,7 @@ LABEL clz
     pop R15
     RET
 
-LABEL gcd
+LABEL js_gcd
     push R15
     push R12
     move R12 R13
@@ -117,7 +117,7 @@ LABEL gcd
     pop R15
     RET
 
-LABEL lcm
+LABEL js_lcm
     push R15
     push R12
     move R12 R13
@@ -134,7 +134,7 @@ LABEL lcm
     pop R15
     RET
 
-LABEL factorial
+LABEL js_factorial
     push R15
     push R12
     move R12 R13
@@ -148,7 +148,7 @@ LABEL factorial
     pop R15
     RET
 
-LABEL isPrime
+LABEL js_isPrime
     push R15
     push R12
     move R12 R13
@@ -162,7 +162,7 @@ LABEL isPrime
     pop R15
     RET
 
-LABEL atoi
+LABEL js_atoi
     push R15
     push R12
     move R12 R13
@@ -176,7 +176,7 @@ LABEL atoi
     pop R15
     RET
 
-LABEL itoa
+LABEL js_itoa
     push R15
     push R12
     move R12 R13
@@ -193,7 +193,7 @@ LABEL itoa
     pop R15
     RET
 
-LABEL randRange
+LABEL js_randRange
     push R15
     push R12
     move R12 R13
@@ -211,140 +211,140 @@ LABEL randRange
     RET
 
 LABEL Builtins_Newline
-    JMP newline
+    JMP js_newline
 
 LABEL Builtins_DebugPrint
-    JMP debugPrint
+    JMP js_debugPrint
 
 LABEL Builtins_DebugPrintInt
-    JMP debugPrintInt
+    JMP js_debugPrintInt
 
 LABEL Builtins_Assert
-    JMP assert
+    JMP js_assert
 
 LABEL Builtins_Sign
-    JMP sign
+    JMP js_sign
 
 LABEL Builtins_Popcount
-    JMP popcount
+    JMP js_popcount
 
 LABEL Builtins_Clz
-    JMP clz
+    JMP js_clz
 
 LABEL Builtins_Gcd
-    JMP gcd
+    JMP js_gcd
 
 LABEL Builtins_Lcm
-    JMP lcm
+    JMP js_lcm
 
 LABEL Builtins_Factorial
-    JMP factorial
+    JMP js_factorial
 
 LABEL Builtins_IsPrime
-    JMP isPrime
+    JMP js_isPrime
 
 LABEL Builtins_Atoi
-    JMP atoi
+    JMP js_atoi
 
 LABEL Builtins_Itoa
-    JMP itoa
+    JMP js_itoa
 
 LABEL Builtins_RandRange
-    JMP randRange
+    JMP js_randRange
 
 LABEL method_newline
-    JMP newline
+    JMP js_newline
 
 LABEL method_Newline
-    JMP newline
+    JMP js_newline
 
 LABEL method_debug_print
-    JMP debugPrint
+    JMP js_debugPrint
 
 LABEL method_DebugPrint
-    JMP debugPrint
+    JMP js_debugPrint
 
 LABEL method_debugPrint
-    JMP debugPrint
+    JMP js_debugPrint
 
 LABEL method_debug_print_int
-    JMP debugPrintInt
+    JMP js_debugPrintInt
 
 LABEL method_DebugPrintInt
-    JMP debugPrintInt
+    JMP js_debugPrintInt
 
 LABEL method_debugPrintInt
-    JMP debugPrintInt
+    JMP js_debugPrintInt
 
 LABEL method_assert
-    JMP assert
+    JMP js_assert
 
 LABEL method_Assert
-    JMP assert
+    JMP js_assert
 
 LABEL method_sign
-    JMP sign
+    JMP js_sign
 
 LABEL method_Sign
-    JMP sign
+    JMP js_sign
 
 LABEL method_popcount
-    JMP popcount
+    JMP js_popcount
 
 LABEL method_Popcount
-    JMP popcount
+    JMP js_popcount
 
 LABEL method_clz
-    JMP clz
+    JMP js_clz
 
 LABEL method_Clz
-    JMP clz
+    JMP js_clz
 
 LABEL method_gcd
-    JMP gcd
+    JMP js_gcd
 
 LABEL method_Gcd
-    JMP gcd
+    JMP js_gcd
 
 LABEL method_lcm
-    JMP lcm
+    JMP js_lcm
 
 LABEL method_Lcm
-    JMP lcm
+    JMP js_lcm
 
 LABEL method_factorial
-    JMP factorial
+    JMP js_factorial
 
 LABEL method_Factorial
-    JMP factorial
+    JMP js_factorial
 
 LABEL method_is_prime
-    JMP isPrime
+    JMP js_isPrime
 
 LABEL method_IsPrime
-    JMP isPrime
+    JMP js_isPrime
 
 LABEL method_isPrime
-    JMP isPrime
+    JMP js_isPrime
 
 LABEL method_atoi
-    JMP atoi
+    JMP js_atoi
 
 LABEL method_Atoi
-    JMP atoi
+    JMP js_atoi
 
 LABEL method_itoa
-    JMP itoa
+    JMP js_itoa
 
 LABEL method_Itoa
-    JMP itoa
+    JMP js_itoa
 
 LABEL method_rand_range
-    JMP randRange
+    JMP js_randRange
 
 LABEL method_RandRange
-    JMP randRange
+    JMP js_randRange
 
 LABEL method_randRange
-    JMP randRange
+    JMP js_randRange
 

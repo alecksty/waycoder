@@ -3,7 +3,7 @@
 
 .linked "../shared/matrix64.vml"
 
-LABEL arrays
+LABEL js_arrays
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL arrays
     pop R15
     RET
 
-LABEL mat2IdentityD
+LABEL js_mat2IdentityD
     push R15
     push R12
     move R12 R13
@@ -31,7 +31,7 @@ LABEL mat2IdentityD
     pop R15
     RET
 
-LABEL mat2AddD
+LABEL js_mat2AddD
     push R15
     push R12
     move R12 R13
@@ -51,7 +51,7 @@ LABEL mat2AddD
     pop R15
     RET
 
-LABEL mat2SubD
+LABEL js_mat2SubD
     push R15
     push R12
     move R12 R13
@@ -71,7 +71,7 @@ LABEL mat2SubD
     pop R15
     RET
 
-LABEL mat2MulD
+LABEL js_mat2MulD
     push R15
     push R12
     move R12 R13
@@ -91,7 +91,7 @@ LABEL mat2MulD
     pop R15
     RET
 
-LABEL mat2ScaleD
+LABEL js_mat2ScaleD
     push R15
     push R12
     move R12 R13
@@ -112,7 +112,7 @@ LABEL mat2ScaleD
     pop R15
     RET
 
-LABEL mat2DetD
+LABEL js_mat2DetD
     push R15
     push R12
     move R12 R13
@@ -126,7 +126,7 @@ LABEL mat2DetD
     pop R15
     RET
 
-LABEL mat2TransposeD
+LABEL js_mat2TransposeD
     push R15
     push R12
     move R12 R13
@@ -143,7 +143,7 @@ LABEL mat2TransposeD
     pop R15
     RET
 
-LABEL mat2InvD
+LABEL js_mat2InvD
     push R15
     push R12
     move R12 R13
@@ -160,7 +160,7 @@ LABEL mat2InvD
     pop R15
     RET
 
-LABEL mat2RotD
+LABEL js_mat2RotD
     push R15
     push R12
     move R12 R13
@@ -178,7 +178,7 @@ LABEL mat2RotD
     pop R15
     RET
 
-LABEL mat3IdentityD
+LABEL js_mat3IdentityD
     push R15
     push R12
     move R12 R13
@@ -192,7 +192,7 @@ LABEL mat3IdentityD
     pop R15
     RET
 
-LABEL mat3MulD
+LABEL js_mat3MulD
     push R15
     push R12
     move R12 R13
@@ -212,7 +212,7 @@ LABEL mat3MulD
     pop R15
     RET
 
-LABEL mat3DetD
+LABEL js_mat3DetD
     push R15
     push R12
     move R12 R13
@@ -226,7 +226,7 @@ LABEL mat3DetD
     pop R15
     RET
 
-LABEL mat3TransposeD
+LABEL js_mat3TransposeD
     push R15
     push R12
     move R12 R13
@@ -243,7 +243,7 @@ LABEL mat3TransposeD
     pop R15
     RET
 
-LABEL mat3ScaleD
+LABEL js_mat3ScaleD
     push R15
     push R12
     move R12 R13
@@ -264,7 +264,7 @@ LABEL mat3ScaleD
     pop R15
     RET
 
-LABEL mat4IdentityD
+LABEL js_mat4IdentityD
     push R15
     push R12
     move R12 R13
@@ -278,7 +278,7 @@ LABEL mat4IdentityD
     pop R15
     RET
 
-LABEL mat4MulD
+LABEL js_mat4MulD
     push R15
     push R12
     move R12 R13
@@ -298,7 +298,7 @@ LABEL mat4MulD
     pop R15
     RET
 
-LABEL mat4TranslateD
+LABEL js_mat4TranslateD
     push R15
     push R12
     move R12 R13
@@ -324,7 +324,7 @@ LABEL mat4TranslateD
     pop R15
     RET
 
-LABEL mat4ScaleXyzD
+LABEL js_mat4ScaleXyzD
     push R15
     push R12
     move R12 R13
@@ -350,7 +350,7 @@ LABEL mat4ScaleXyzD
     pop R15
     RET
 
-LABEL mat4RotXD
+LABEL js_mat4RotXD
     push R15
     push R12
     move R12 R13
@@ -368,7 +368,7 @@ LABEL mat4RotXD
     pop R15
     RET
 
-LABEL mat4RotYD
+LABEL js_mat4RotYD
     push R15
     push R12
     move R12 R13
@@ -386,7 +386,7 @@ LABEL mat4RotYD
     pop R15
     RET
 
-LABEL mat4RotZD
+LABEL js_mat4RotZD
     push R15
     push R12
     move R12 R13
@@ -404,7 +404,7 @@ LABEL mat4RotZD
     pop R15
     RET
 
-LABEL mat4TransposeD
+LABEL js_mat4TransposeD
     push R15
     push R12
     move R12 R13
@@ -421,7 +421,7 @@ LABEL mat4TransposeD
     pop R15
     RET
 
-LABEL vec2DotD
+LABEL js_vec2DotD
     push R15
     push R12
     move R12 R13
@@ -438,7 +438,7 @@ LABEL vec2DotD
     pop R15
     RET
 
-LABEL vec2CrossD
+LABEL js_vec2CrossD
     push R15
     push R12
     move R12 R13
@@ -455,7 +455,7 @@ LABEL vec2CrossD
     pop R15
     RET
 
-LABEL vec2LenD
+LABEL js_vec2LenD
     push R15
     push R12
     move R12 R13
@@ -469,7 +469,7 @@ LABEL vec2LenD
     pop R15
     RET
 
-LABEL vec2NormalizeD
+LABEL js_vec2NormalizeD
     push R15
     push R12
     move R12 R13
@@ -483,7 +483,7 @@ LABEL vec2NormalizeD
     pop R15
     RET
 
-LABEL vec3DotD
+LABEL js_vec3DotD
     push R15
     push R12
     move R12 R13
@@ -500,7 +500,7 @@ LABEL vec3DotD
     pop R15
     RET
 
-LABEL vec3CrossD
+LABEL js_vec3CrossD
     push R15
     push R12
     move R12 R13
@@ -520,7 +520,7 @@ LABEL vec3CrossD
     pop R15
     RET
 
-LABEL vec3LenD
+LABEL js_vec3LenD
     push R15
     push R12
     move R12 R13
@@ -534,7 +534,7 @@ LABEL vec3LenD
     pop R15
     RET
 
-LABEL vec3NormalizeD
+LABEL js_vec3NormalizeD
     push R15
     push R12
     move R12 R13
@@ -548,7 +548,7 @@ LABEL vec3NormalizeD
     pop R15
     RET
 
-LABEL mat4TransformVec3D
+LABEL js_mat4TransformVec3D
     push R15
     push R12
     move R12 R13
@@ -569,383 +569,383 @@ LABEL mat4TransformVec3D
     RET
 
 LABEL Matrix64_Arrays
-    JMP arrays
+    JMP js_arrays
 
 LABEL Matrix64_Mat2IdentityD
-    JMP mat2IdentityD
+    JMP js_mat2IdentityD
 
 LABEL Matrix64_Mat2AddD
-    JMP mat2AddD
+    JMP js_mat2AddD
 
 LABEL Matrix64_Mat2SubD
-    JMP mat2SubD
+    JMP js_mat2SubD
 
 LABEL Matrix64_Mat2MulD
-    JMP mat2MulD
+    JMP js_mat2MulD
 
 LABEL Matrix64_Mat2ScaleD
-    JMP mat2ScaleD
+    JMP js_mat2ScaleD
 
 LABEL Matrix64_Mat2DetD
-    JMP mat2DetD
+    JMP js_mat2DetD
 
 LABEL Matrix64_Mat2TransposeD
-    JMP mat2TransposeD
+    JMP js_mat2TransposeD
 
 LABEL Matrix64_Mat2InvD
-    JMP mat2InvD
+    JMP js_mat2InvD
 
 LABEL Matrix64_Mat2RotD
-    JMP mat2RotD
+    JMP js_mat2RotD
 
 LABEL Matrix64_Mat3IdentityD
-    JMP mat3IdentityD
+    JMP js_mat3IdentityD
 
 LABEL Matrix64_Mat3MulD
-    JMP mat3MulD
+    JMP js_mat3MulD
 
 LABEL Matrix64_Mat3DetD
-    JMP mat3DetD
+    JMP js_mat3DetD
 
 LABEL Matrix64_Mat3TransposeD
-    JMP mat3TransposeD
+    JMP js_mat3TransposeD
 
 LABEL Matrix64_Mat3ScaleD
-    JMP mat3ScaleD
+    JMP js_mat3ScaleD
 
 LABEL Matrix64_Mat4IdentityD
-    JMP mat4IdentityD
+    JMP js_mat4IdentityD
 
 LABEL Matrix64_Mat4MulD
-    JMP mat4MulD
+    JMP js_mat4MulD
 
 LABEL Matrix64_Mat4TranslateD
-    JMP mat4TranslateD
+    JMP js_mat4TranslateD
 
 LABEL Matrix64_Mat4ScaleXyzD
-    JMP mat4ScaleXyzD
+    JMP js_mat4ScaleXyzD
 
 LABEL Matrix64_Mat4RotXD
-    JMP mat4RotXD
+    JMP js_mat4RotXD
 
 LABEL Matrix64_Mat4RotYD
-    JMP mat4RotYD
+    JMP js_mat4RotYD
 
 LABEL Matrix64_Mat4RotZD
-    JMP mat4RotZD
+    JMP js_mat4RotZD
 
 LABEL Matrix64_Mat4TransposeD
-    JMP mat4TransposeD
+    JMP js_mat4TransposeD
 
 LABEL Matrix64_Vec2DotD
-    JMP vec2DotD
+    JMP js_vec2DotD
 
 LABEL Matrix64_Vec2CrossD
-    JMP vec2CrossD
+    JMP js_vec2CrossD
 
 LABEL Matrix64_Vec2LenD
-    JMP vec2LenD
+    JMP js_vec2LenD
 
 LABEL Matrix64_Vec2NormalizeD
-    JMP vec2NormalizeD
+    JMP js_vec2NormalizeD
 
 LABEL Matrix64_Vec3DotD
-    JMP vec3DotD
+    JMP js_vec3DotD
 
 LABEL Matrix64_Vec3CrossD
-    JMP vec3CrossD
+    JMP js_vec3CrossD
 
 LABEL Matrix64_Vec3LenD
-    JMP vec3LenD
+    JMP js_vec3LenD
 
 LABEL Matrix64_Vec3NormalizeD
-    JMP vec3NormalizeD
+    JMP js_vec3NormalizeD
 
 LABEL Matrix64_Mat4TransformVec3D
-    JMP mat4TransformVec3D
+    JMP js_mat4TransformVec3D
 
 LABEL method_arrays
-    JMP arrays
+    JMP js_arrays
 
 LABEL method_Arrays
-    JMP arrays
+    JMP js_arrays
 
 LABEL method_mat2_identity_d
-    JMP mat2IdentityD
+    JMP js_mat2IdentityD
 
 LABEL method_Mat2IdentityD
-    JMP mat2IdentityD
+    JMP js_mat2IdentityD
 
 LABEL method_mat2IdentityD
-    JMP mat2IdentityD
+    JMP js_mat2IdentityD
 
 LABEL method_mat2_add_d
-    JMP mat2AddD
+    JMP js_mat2AddD
 
 LABEL method_Mat2AddD
-    JMP mat2AddD
+    JMP js_mat2AddD
 
 LABEL method_mat2AddD
-    JMP mat2AddD
+    JMP js_mat2AddD
 
 LABEL method_mat2_sub_d
-    JMP mat2SubD
+    JMP js_mat2SubD
 
 LABEL method_Mat2SubD
-    JMP mat2SubD
+    JMP js_mat2SubD
 
 LABEL method_mat2SubD
-    JMP mat2SubD
+    JMP js_mat2SubD
 
 LABEL method_mat2_mul_d
-    JMP mat2MulD
+    JMP js_mat2MulD
 
 LABEL method_Mat2MulD
-    JMP mat2MulD
+    JMP js_mat2MulD
 
 LABEL method_mat2MulD
-    JMP mat2MulD
+    JMP js_mat2MulD
 
 LABEL method_mat2_scale_d
-    JMP mat2ScaleD
+    JMP js_mat2ScaleD
 
 LABEL method_Mat2ScaleD
-    JMP mat2ScaleD
+    JMP js_mat2ScaleD
 
 LABEL method_mat2ScaleD
-    JMP mat2ScaleD
+    JMP js_mat2ScaleD
 
 LABEL method_mat2_det_d
-    JMP mat2DetD
+    JMP js_mat2DetD
 
 LABEL method_Mat2DetD
-    JMP mat2DetD
+    JMP js_mat2DetD
 
 LABEL method_mat2DetD
-    JMP mat2DetD
+    JMP js_mat2DetD
 
 LABEL method_mat2_transpose_d
-    JMP mat2TransposeD
+    JMP js_mat2TransposeD
 
 LABEL method_Mat2TransposeD
-    JMP mat2TransposeD
+    JMP js_mat2TransposeD
 
 LABEL method_mat2TransposeD
-    JMP mat2TransposeD
+    JMP js_mat2TransposeD
 
 LABEL method_mat2_inv_d
-    JMP mat2InvD
+    JMP js_mat2InvD
 
 LABEL method_Mat2InvD
-    JMP mat2InvD
+    JMP js_mat2InvD
 
 LABEL method_mat2InvD
-    JMP mat2InvD
+    JMP js_mat2InvD
 
 LABEL method_mat2_rot_d
-    JMP mat2RotD
+    JMP js_mat2RotD
 
 LABEL method_Mat2RotD
-    JMP mat2RotD
+    JMP js_mat2RotD
 
 LABEL method_mat2RotD
-    JMP mat2RotD
+    JMP js_mat2RotD
 
 LABEL method_mat3_identity_d
-    JMP mat3IdentityD
+    JMP js_mat3IdentityD
 
 LABEL method_Mat3IdentityD
-    JMP mat3IdentityD
+    JMP js_mat3IdentityD
 
 LABEL method_mat3IdentityD
-    JMP mat3IdentityD
+    JMP js_mat3IdentityD
 
 LABEL method_mat3_mul_d
-    JMP mat3MulD
+    JMP js_mat3MulD
 
 LABEL method_Mat3MulD
-    JMP mat3MulD
+    JMP js_mat3MulD
 
 LABEL method_mat3MulD
-    JMP mat3MulD
+    JMP js_mat3MulD
 
 LABEL method_mat3_det_d
-    JMP mat3DetD
+    JMP js_mat3DetD
 
 LABEL method_Mat3DetD
-    JMP mat3DetD
+    JMP js_mat3DetD
 
 LABEL method_mat3DetD
-    JMP mat3DetD
+    JMP js_mat3DetD
 
 LABEL method_mat3_transpose_d
-    JMP mat3TransposeD
+    JMP js_mat3TransposeD
 
 LABEL method_Mat3TransposeD
-    JMP mat3TransposeD
+    JMP js_mat3TransposeD
 
 LABEL method_mat3TransposeD
-    JMP mat3TransposeD
+    JMP js_mat3TransposeD
 
 LABEL method_mat3_scale_d
-    JMP mat3ScaleD
+    JMP js_mat3ScaleD
 
 LABEL method_Mat3ScaleD
-    JMP mat3ScaleD
+    JMP js_mat3ScaleD
 
 LABEL method_mat3ScaleD
-    JMP mat3ScaleD
+    JMP js_mat3ScaleD
 
 LABEL method_mat4_identity_d
-    JMP mat4IdentityD
+    JMP js_mat4IdentityD
 
 LABEL method_Mat4IdentityD
-    JMP mat4IdentityD
+    JMP js_mat4IdentityD
 
 LABEL method_mat4IdentityD
-    JMP mat4IdentityD
+    JMP js_mat4IdentityD
 
 LABEL method_mat4_mul_d
-    JMP mat4MulD
+    JMP js_mat4MulD
 
 LABEL method_Mat4MulD
-    JMP mat4MulD
+    JMP js_mat4MulD
 
 LABEL method_mat4MulD
-    JMP mat4MulD
+    JMP js_mat4MulD
 
 LABEL method_mat4_translate_d
-    JMP mat4TranslateD
+    JMP js_mat4TranslateD
 
 LABEL method_Mat4TranslateD
-    JMP mat4TranslateD
+    JMP js_mat4TranslateD
 
 LABEL method_mat4TranslateD
-    JMP mat4TranslateD
+    JMP js_mat4TranslateD
 
 LABEL method_mat4_scale_xyz_d
-    JMP mat4ScaleXyzD
+    JMP js_mat4ScaleXyzD
 
 LABEL method_Mat4ScaleXyzD
-    JMP mat4ScaleXyzD
+    JMP js_mat4ScaleXyzD
 
 LABEL method_mat4ScaleXyzD
-    JMP mat4ScaleXyzD
+    JMP js_mat4ScaleXyzD
 
 LABEL method_mat4_rot_x_d
-    JMP mat4RotXD
+    JMP js_mat4RotXD
 
 LABEL method_Mat4RotXD
-    JMP mat4RotXD
+    JMP js_mat4RotXD
 
 LABEL method_mat4RotXD
-    JMP mat4RotXD
+    JMP js_mat4RotXD
 
 LABEL method_mat4_rot_y_d
-    JMP mat4RotYD
+    JMP js_mat4RotYD
 
 LABEL method_Mat4RotYD
-    JMP mat4RotYD
+    JMP js_mat4RotYD
 
 LABEL method_mat4RotYD
-    JMP mat4RotYD
+    JMP js_mat4RotYD
 
 LABEL method_mat4_rot_z_d
-    JMP mat4RotZD
+    JMP js_mat4RotZD
 
 LABEL method_Mat4RotZD
-    JMP mat4RotZD
+    JMP js_mat4RotZD
 
 LABEL method_mat4RotZD
-    JMP mat4RotZD
+    JMP js_mat4RotZD
 
 LABEL method_mat4_transpose_d
-    JMP mat4TransposeD
+    JMP js_mat4TransposeD
 
 LABEL method_Mat4TransposeD
-    JMP mat4TransposeD
+    JMP js_mat4TransposeD
 
 LABEL method_mat4TransposeD
-    JMP mat4TransposeD
+    JMP js_mat4TransposeD
 
 LABEL method_vec2_dot_d
-    JMP vec2DotD
+    JMP js_vec2DotD
 
 LABEL method_Vec2DotD
-    JMP vec2DotD
+    JMP js_vec2DotD
 
 LABEL method_vec2DotD
-    JMP vec2DotD
+    JMP js_vec2DotD
 
 LABEL method_vec2_cross_d
-    JMP vec2CrossD
+    JMP js_vec2CrossD
 
 LABEL method_Vec2CrossD
-    JMP vec2CrossD
+    JMP js_vec2CrossD
 
 LABEL method_vec2CrossD
-    JMP vec2CrossD
+    JMP js_vec2CrossD
 
 LABEL method_vec2_len_d
-    JMP vec2LenD
+    JMP js_vec2LenD
 
 LABEL method_Vec2LenD
-    JMP vec2LenD
+    JMP js_vec2LenD
 
 LABEL method_vec2LenD
-    JMP vec2LenD
+    JMP js_vec2LenD
 
 LABEL method_vec2_normalize_d
-    JMP vec2NormalizeD
+    JMP js_vec2NormalizeD
 
 LABEL method_Vec2NormalizeD
-    JMP vec2NormalizeD
+    JMP js_vec2NormalizeD
 
 LABEL method_vec2NormalizeD
-    JMP vec2NormalizeD
+    JMP js_vec2NormalizeD
 
 LABEL method_vec3_dot_d
-    JMP vec3DotD
+    JMP js_vec3DotD
 
 LABEL method_Vec3DotD
-    JMP vec3DotD
+    JMP js_vec3DotD
 
 LABEL method_vec3DotD
-    JMP vec3DotD
+    JMP js_vec3DotD
 
 LABEL method_vec3_cross_d
-    JMP vec3CrossD
+    JMP js_vec3CrossD
 
 LABEL method_Vec3CrossD
-    JMP vec3CrossD
+    JMP js_vec3CrossD
 
 LABEL method_vec3CrossD
-    JMP vec3CrossD
+    JMP js_vec3CrossD
 
 LABEL method_vec3_len_d
-    JMP vec3LenD
+    JMP js_vec3LenD
 
 LABEL method_Vec3LenD
-    JMP vec3LenD
+    JMP js_vec3LenD
 
 LABEL method_vec3LenD
-    JMP vec3LenD
+    JMP js_vec3LenD
 
 LABEL method_vec3_normalize_d
-    JMP vec3NormalizeD
+    JMP js_vec3NormalizeD
 
 LABEL method_Vec3NormalizeD
-    JMP vec3NormalizeD
+    JMP js_vec3NormalizeD
 
 LABEL method_vec3NormalizeD
-    JMP vec3NormalizeD
+    JMP js_vec3NormalizeD
 
 LABEL method_mat4_transform_vec3_d
-    JMP mat4TransformVec3D
+    JMP js_mat4TransformVec3D
 
 LABEL method_Mat4TransformVec3D
-    JMP mat4TransformVec3D
+    JMP js_mat4TransformVec3D
 
 LABEL method_mat4TransformVec3D
-    JMP mat4TransformVec3D
+    JMP js_mat4TransformVec3D
 

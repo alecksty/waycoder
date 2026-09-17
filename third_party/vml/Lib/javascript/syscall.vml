@@ -3,7 +3,7 @@
 
 .linked "../shared/syscall.vml"
 
-LABEL char
+LABEL js_char
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL char
     pop R15
     RET
 
-LABEL hex
+LABEL js_hex
     push R15
     push R12
     move R12 R13
@@ -31,7 +31,7 @@ LABEL hex
     pop R15
     RET
 
-LABEL timestamp
+LABEL js_timestamp
     push R15
     push R12
     move R12 R13
@@ -45,7 +45,7 @@ LABEL timestamp
     pop R15
     RET
 
-LABEL framebuffer
+LABEL js_framebuffer
     push R15
     push R12
     move R12 R13
@@ -59,7 +59,7 @@ LABEL framebuffer
     pop R15
     RET
 
-LABEL size
+LABEL js_size
     push R15
     push R12
     move R12 R13
@@ -73,7 +73,7 @@ LABEL size
     pop R15
     RET
 
-LABEL compatible
+LABEL js_compatible
     push R15
     push R12
     move R12 R13
@@ -88,56 +88,56 @@ LABEL compatible
     RET
 
 LABEL Syscall_Char
-    JMP char
+    JMP js_char
 
 LABEL Syscall_Hex
-    JMP hex
+    JMP js_hex
 
 LABEL Syscall_Timestamp
-    JMP timestamp
+    JMP js_timestamp
 
 LABEL Syscall_Framebuffer
-    JMP framebuffer
+    JMP js_framebuffer
 
 LABEL Syscall_Size
-    JMP size
+    JMP js_size
 
 LABEL Syscall_Compatible
-    JMP compatible
+    JMP js_compatible
 
 LABEL method_char
-    JMP char
+    JMP js_char
 
 LABEL method_Char
-    JMP char
+    JMP js_char
 
 LABEL method_hex
-    JMP hex
+    JMP js_hex
 
 LABEL method_Hex
-    JMP hex
+    JMP js_hex
 
 LABEL method_timestamp
-    JMP timestamp
+    JMP js_timestamp
 
 LABEL method_Timestamp
-    JMP timestamp
+    JMP js_timestamp
 
 LABEL method_framebuffer
-    JMP framebuffer
+    JMP js_framebuffer
 
 LABEL method_Framebuffer
-    JMP framebuffer
+    JMP js_framebuffer
 
 LABEL method_size
-    JMP size
+    JMP js_size
 
 LABEL method_Size
-    JMP size
+    JMP js_size
 
 LABEL method_compatible
-    JMP compatible
+    JMP js_compatible
 
 LABEL method_Compatible
-    JMP compatible
+    JMP js_compatible
 

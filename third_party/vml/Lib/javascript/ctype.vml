@@ -3,7 +3,7 @@
 
 .linked "../shared/ctype.vml"
 
-LABEL isAlpha
+LABEL js_isAlpha
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL isAlpha
     pop R15
     RET
 
-LABEL isDigit
+LABEL js_isDigit
     push R15
     push R12
     move R12 R13
@@ -31,7 +31,7 @@ LABEL isDigit
     pop R15
     RET
 
-LABEL isalnum
+LABEL js_isalnum
     push R15
     push R12
     move R12 R13
@@ -45,7 +45,7 @@ LABEL isalnum
     pop R15
     RET
 
-LABEL isspace
+LABEL js_isspace
     push R15
     push R12
     move R12 R13
@@ -59,7 +59,7 @@ LABEL isspace
     pop R15
     RET
 
-LABEL isupper
+LABEL js_isupper
     push R15
     push R12
     move R12 R13
@@ -73,7 +73,7 @@ LABEL isupper
     pop R15
     RET
 
-LABEL islower
+LABEL js_islower
     push R15
     push R12
     move R12 R13
@@ -87,7 +87,7 @@ LABEL islower
     pop R15
     RET
 
-LABEL toUpper
+LABEL js_toUpper
     push R15
     push R12
     move R12 R13
@@ -101,7 +101,7 @@ LABEL toUpper
     pop R15
     RET
 
-LABEL toLower
+LABEL js_toLower
     push R15
     push R12
     move R12 R13
@@ -115,7 +115,7 @@ LABEL toLower
     pop R15
     RET
 
-LABEL isxdigit
+LABEL js_isxdigit
     push R15
     push R12
     move R12 R13
@@ -129,7 +129,7 @@ LABEL isxdigit
     pop R15
     RET
 
-LABEL ispunct
+LABEL js_ispunct
     push R15
     push R12
     move R12 R13
@@ -143,7 +143,7 @@ LABEL ispunct
     pop R15
     RET
 
-LABEL isprint
+LABEL js_isprint
     push R15
     push R12
     move R12 R13
@@ -157,7 +157,7 @@ LABEL isprint
     pop R15
     RET
 
-LABEL iscntrl
+LABEL js_iscntrl
     push R15
     push R12
     move R12 R13
@@ -172,122 +172,122 @@ LABEL iscntrl
     RET
 
 LABEL Ctype_IsAlpha
-    JMP isAlpha
+    JMP js_isAlpha
 
 LABEL Ctype_IsDigit
-    JMP isDigit
+    JMP js_isDigit
 
 LABEL Ctype_Isalnum
-    JMP isalnum
+    JMP js_isalnum
 
 LABEL Ctype_Isspace
-    JMP isspace
+    JMP js_isspace
 
 LABEL Ctype_Isupper
-    JMP isupper
+    JMP js_isupper
 
 LABEL Ctype_Islower
-    JMP islower
+    JMP js_islower
 
 LABEL Ctype_ToUpper
-    JMP toUpper
+    JMP js_toUpper
 
 LABEL Ctype_ToLower
-    JMP toLower
+    JMP js_toLower
 
 LABEL Ctype_Isxdigit
-    JMP isxdigit
+    JMP js_isxdigit
 
 LABEL Ctype_Ispunct
-    JMP ispunct
+    JMP js_ispunct
 
 LABEL Ctype_Isprint
-    JMP isprint
+    JMP js_isprint
 
 LABEL Ctype_Iscntrl
-    JMP iscntrl
+    JMP js_iscntrl
 
 LABEL method_is_alpha
-    JMP isAlpha
+    JMP js_isAlpha
 
 LABEL method_IsAlpha
-    JMP isAlpha
+    JMP js_isAlpha
 
 LABEL method_isAlpha
-    JMP isAlpha
+    JMP js_isAlpha
 
 LABEL method_is_digit
-    JMP isDigit
+    JMP js_isDigit
 
 LABEL method_IsDigit
-    JMP isDigit
+    JMP js_isDigit
 
 LABEL method_isDigit
-    JMP isDigit
+    JMP js_isDigit
 
 LABEL method_isalnum
-    JMP isalnum
+    JMP js_isalnum
 
 LABEL method_Isalnum
-    JMP isalnum
+    JMP js_isalnum
 
 LABEL method_isspace
-    JMP isspace
+    JMP js_isspace
 
 LABEL method_Isspace
-    JMP isspace
+    JMP js_isspace
 
 LABEL method_isupper
-    JMP isupper
+    JMP js_isupper
 
 LABEL method_Isupper
-    JMP isupper
+    JMP js_isupper
 
 LABEL method_islower
-    JMP islower
+    JMP js_islower
 
 LABEL method_Islower
-    JMP islower
+    JMP js_islower
 
 LABEL method_to_upper
-    JMP toUpper
+    JMP js_toUpper
 
 LABEL method_ToUpper
-    JMP toUpper
+    JMP js_toUpper
 
 LABEL method_toUpper
-    JMP toUpper
+    JMP js_toUpper
 
 LABEL method_to_lower
-    JMP toLower
+    JMP js_toLower
 
 LABEL method_ToLower
-    JMP toLower
+    JMP js_toLower
 
 LABEL method_toLower
-    JMP toLower
+    JMP js_toLower
 
 LABEL method_isxdigit
-    JMP isxdigit
+    JMP js_isxdigit
 
 LABEL method_Isxdigit
-    JMP isxdigit
+    JMP js_isxdigit
 
 LABEL method_ispunct
-    JMP ispunct
+    JMP js_ispunct
 
 LABEL method_Ispunct
-    JMP ispunct
+    JMP js_ispunct
 
 LABEL method_isprint
-    JMP isprint
+    JMP js_isprint
 
 LABEL method_Isprint
-    JMP isprint
+    JMP js_isprint
 
 LABEL method_iscntrl
-    JMP iscntrl
+    JMP js_iscntrl
 
 LABEL method_Iscntrl
-    JMP iscntrl
+    JMP js_iscntrl
 

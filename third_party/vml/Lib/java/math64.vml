@@ -3,7 +3,7 @@
 
 .linked "../shared/math64.vml"
 
-LABEL labs64
+LABEL java_labs64
     push R15
     push R12
     move R12 R13
@@ -18,7 +18,7 @@ LABEL labs64
     pop R15
     RET
 
-LABEL lmin64
+LABEL java_lmin64
     push R15
     push R12
     move R12 R13
@@ -37,7 +37,7 @@ LABEL lmin64
     pop R15
     RET
 
-LABEL lmax64
+LABEL java_lmax64
     push R15
     push R12
     move R12 R13
@@ -56,7 +56,7 @@ LABEL lmax64
     pop R15
     RET
 
-LABEL lclamp64
+LABEL java_lclamp64
     push R15
     push R12
     move R12 R13
@@ -79,7 +79,7 @@ LABEL lclamp64
     pop R15
     RET
 
-LABEL lsign64
+LABEL java_lsign64
     push R15
     push R12
     move R12 R13
@@ -94,7 +94,7 @@ LABEL lsign64
     pop R15
     RET
 
-LABEL lgcd64
+LABEL java_lgcd64
     push R15
     push R12
     move R12 R13
@@ -113,7 +113,7 @@ LABEL lgcd64
     pop R15
     RET
 
-LABEL llcm64
+LABEL java_llcm64
     push R15
     push R12
     move R12 R13
@@ -132,7 +132,7 @@ LABEL llcm64
     pop R15
     RET
 
-LABEL lisqrt64
+LABEL java_lisqrt64
     push R15
     push R12
     move R12 R13
@@ -147,7 +147,7 @@ LABEL lisqrt64
     pop R15
     RET
 
-LABEL lpow64
+LABEL java_lpow64
     push R15
     push R12
     move R12 R13
@@ -166,7 +166,7 @@ LABEL lpow64
     pop R15
     RET
 
-LABEL lfactorial64
+LABEL java_lfactorial64
     push R15
     push R12
     move R12 R13
@@ -181,7 +181,7 @@ LABEL lfactorial64
     pop R15
     RET
 
-LABEL lceilDiv64
+LABEL java_lceilDiv64
     push R15
     push R12
     move R12 R13
@@ -200,7 +200,7 @@ LABEL lceilDiv64
     pop R15
     RET
 
-LABEL lroundDiv64
+LABEL java_lroundDiv64
     push R15
     push R12
     move R12 R13
@@ -219,7 +219,7 @@ LABEL lroundDiv64
     pop R15
     RET
 
-LABEL lisPrime64
+LABEL java_lisPrime64
     push R15
     push R12
     move R12 R13
@@ -234,7 +234,7 @@ LABEL lisPrime64
     pop R15
     RET
 
-LABEL lrandom64
+LABEL java_lrandom64
     push R15
     push R12
     move R12 R13
@@ -253,7 +253,7 @@ LABEL lrandom64
     pop R15
     RET
 
-LABEL lclz64
+LABEL java_lclz64
     push R15
     push R12
     move R12 R13
@@ -268,7 +268,7 @@ LABEL lclz64
     pop R15
     RET
 
-LABEL count
+LABEL java_count
     push R15
     push R12
     move R12 R13
@@ -282,7 +282,7 @@ LABEL count
     pop R15
     RET
 
-LABEL lpopcnt64
+LABEL java_lpopcnt64
     push R15
     push R12
     move R12 R13
@@ -297,7 +297,7 @@ LABEL lpopcnt64
     pop R15
     RET
 
-LABEL llerp64
+LABEL java_llerp64
     push R15
     push R12
     move R12 R13
@@ -320,7 +320,7 @@ LABEL llerp64
     pop R15
     RET
 
-LABEL lmapRange64
+LABEL java_lmapRange64
     push R15
     push R12
     move R12 R13
@@ -350,7 +350,7 @@ LABEL lmapRange64
     pop R15
     RET
 
-LABEL lpow1064
+LABEL java_lpow1064
     push R15
     push R12
     move R12 R13
@@ -365,7 +365,7 @@ LABEL lpow1064
     pop R15
     RET
 
-LABEL lhypot64
+LABEL java_lhypot64
     push R15
     push R12
     move R12 R13
@@ -384,7 +384,7 @@ LABEL lhypot64
     pop R15
     RET
 
-LABEL lilog264
+LABEL java_lilog264
     push R15
     push R12
     move R12 R13
@@ -399,7 +399,7 @@ LABEL lilog264
     pop R15
     RET
 
-LABEL lisEven64
+LABEL java_lisEven64
     push R15
     push R12
     move R12 R13
@@ -414,7 +414,7 @@ LABEL lisEven64
     pop R15
     RET
 
-LABEL lisOdd64
+LABEL java_lisOdd64
     push R15
     push R12
     move R12 R13
@@ -429,7 +429,7 @@ LABEL lisOdd64
     pop R15
     RET
 
-LABEL sinTaylor64
+LABEL java_sinTaylor64
     push R15
     push R12
     move R12 R13
@@ -444,7 +444,7 @@ LABEL sinTaylor64
     pop R15
     RET
 
-LABEL cosTaylor64
+LABEL java_cosTaylor64
     push R15
     push R12
     move R12 R13
@@ -460,266 +460,266 @@ LABEL cosTaylor64
     RET
 
 LABEL Math64_Labs64
-    JMP labs64
+    JMP java_labs64
 
 LABEL Math64_Lmin64
-    JMP lmin64
+    JMP java_lmin64
 
 LABEL Math64_Lmax64
-    JMP lmax64
+    JMP java_lmax64
 
 LABEL Math64_Lclamp64
-    JMP lclamp64
+    JMP java_lclamp64
 
 LABEL Math64_Lsign64
-    JMP lsign64
+    JMP java_lsign64
 
 LABEL Math64_Lgcd64
-    JMP lgcd64
+    JMP java_lgcd64
 
 LABEL Math64_Llcm64
-    JMP llcm64
+    JMP java_llcm64
 
 LABEL Math64_Lisqrt64
-    JMP lisqrt64
+    JMP java_lisqrt64
 
 LABEL Math64_Lpow64
-    JMP lpow64
+    JMP java_lpow64
 
 LABEL Math64_Lfactorial64
-    JMP lfactorial64
+    JMP java_lfactorial64
 
 LABEL Math64_LceilDiv64
-    JMP lceilDiv64
+    JMP java_lceilDiv64
 
 LABEL Math64_LroundDiv64
-    JMP lroundDiv64
+    JMP java_lroundDiv64
 
 LABEL Math64_LisPrime64
-    JMP lisPrime64
+    JMP java_lisPrime64
 
 LABEL Math64_Lrandom64
-    JMP lrandom64
+    JMP java_lrandom64
 
 LABEL Math64_Lclz64
-    JMP lclz64
+    JMP java_lclz64
 
 LABEL Math64_Count
-    JMP count
+    JMP java_count
 
 LABEL Math64_Lpopcnt64
-    JMP lpopcnt64
+    JMP java_lpopcnt64
 
 LABEL Math64_Llerp64
-    JMP llerp64
+    JMP java_llerp64
 
 LABEL Math64_LmapRange64
-    JMP lmapRange64
+    JMP java_lmapRange64
 
 LABEL Math64_Lpow1064
-    JMP lpow1064
+    JMP java_lpow1064
 
 LABEL Math64_Lhypot64
-    JMP lhypot64
+    JMP java_lhypot64
 
 LABEL Math64_Lilog264
-    JMP lilog264
+    JMP java_lilog264
 
 LABEL Math64_LisEven64
-    JMP lisEven64
+    JMP java_lisEven64
 
 LABEL Math64_LisOdd64
-    JMP lisOdd64
+    JMP java_lisOdd64
 
 LABEL Math64_SinTaylor64
-    JMP sinTaylor64
+    JMP java_sinTaylor64
 
 LABEL Math64_CosTaylor64
-    JMP cosTaylor64
+    JMP java_cosTaylor64
 
 LABEL method_labs64
-    JMP labs64
+    JMP java_labs64
 
 LABEL method_Labs64
-    JMP labs64
+    JMP java_labs64
 
 LABEL method_lmin64
-    JMP lmin64
+    JMP java_lmin64
 
 LABEL method_Lmin64
-    JMP lmin64
+    JMP java_lmin64
 
 LABEL method_lmax64
-    JMP lmax64
+    JMP java_lmax64
 
 LABEL method_Lmax64
-    JMP lmax64
+    JMP java_lmax64
 
 LABEL method_lclamp64
-    JMP lclamp64
+    JMP java_lclamp64
 
 LABEL method_Lclamp64
-    JMP lclamp64
+    JMP java_lclamp64
 
 LABEL method_lsign64
-    JMP lsign64
+    JMP java_lsign64
 
 LABEL method_Lsign64
-    JMP lsign64
+    JMP java_lsign64
 
 LABEL method_lgcd64
-    JMP lgcd64
+    JMP java_lgcd64
 
 LABEL method_Lgcd64
-    JMP lgcd64
+    JMP java_lgcd64
 
 LABEL method_llcm64
-    JMP llcm64
+    JMP java_llcm64
 
 LABEL method_Llcm64
-    JMP llcm64
+    JMP java_llcm64
 
 LABEL method_lisqrt64
-    JMP lisqrt64
+    JMP java_lisqrt64
 
 LABEL method_Lisqrt64
-    JMP lisqrt64
+    JMP java_lisqrt64
 
 LABEL method_lpow64
-    JMP lpow64
+    JMP java_lpow64
 
 LABEL method_Lpow64
-    JMP lpow64
+    JMP java_lpow64
 
 LABEL method_lfactorial64
-    JMP lfactorial64
+    JMP java_lfactorial64
 
 LABEL method_Lfactorial64
-    JMP lfactorial64
+    JMP java_lfactorial64
 
 LABEL method_lceil_div64
-    JMP lceilDiv64
+    JMP java_lceilDiv64
 
 LABEL method_LceilDiv64
-    JMP lceilDiv64
+    JMP java_lceilDiv64
 
 LABEL method_lceilDiv64
-    JMP lceilDiv64
+    JMP java_lceilDiv64
 
 LABEL method_lround_div64
-    JMP lroundDiv64
+    JMP java_lroundDiv64
 
 LABEL method_LroundDiv64
-    JMP lroundDiv64
+    JMP java_lroundDiv64
 
 LABEL method_lroundDiv64
-    JMP lroundDiv64
+    JMP java_lroundDiv64
 
 LABEL method_lis_prime64
-    JMP lisPrime64
+    JMP java_lisPrime64
 
 LABEL method_LisPrime64
-    JMP lisPrime64
+    JMP java_lisPrime64
 
 LABEL method_lisPrime64
-    JMP lisPrime64
+    JMP java_lisPrime64
 
 LABEL method_lrandom64
-    JMP lrandom64
+    JMP java_lrandom64
 
 LABEL method_Lrandom64
-    JMP lrandom64
+    JMP java_lrandom64
 
 LABEL method_lclz64
-    JMP lclz64
+    JMP java_lclz64
 
 LABEL method_Lclz64
-    JMP lclz64
+    JMP java_lclz64
 
 LABEL method_Count
-    JMP count
+    JMP java_count
 
 LABEL method_count
-    JMP count
+    JMP java_count
 
 LABEL method_lpopcnt64
-    JMP lpopcnt64
+    JMP java_lpopcnt64
 
 LABEL method_Lpopcnt64
-    JMP lpopcnt64
+    JMP java_lpopcnt64
 
 LABEL method_llerp64
-    JMP llerp64
+    JMP java_llerp64
 
 LABEL method_Llerp64
-    JMP llerp64
+    JMP java_llerp64
 
 LABEL method_lmap_range64
-    JMP lmapRange64
+    JMP java_lmapRange64
 
 LABEL method_LmapRange64
-    JMP lmapRange64
+    JMP java_lmapRange64
 
 LABEL method_lmapRange64
-    JMP lmapRange64
+    JMP java_lmapRange64
 
 LABEL method_lpow10_64
-    JMP lpow1064
+    JMP java_lpow1064
 
 LABEL method_Lpow1064
-    JMP lpow1064
+    JMP java_lpow1064
 
 LABEL method_lpow1064
-    JMP lpow1064
+    JMP java_lpow1064
 
 LABEL method_lhypot64
-    JMP lhypot64
+    JMP java_lhypot64
 
 LABEL method_Lhypot64
-    JMP lhypot64
+    JMP java_lhypot64
 
 LABEL method_lilog2_64
-    JMP lilog264
+    JMP java_lilog264
 
 LABEL method_Lilog264
-    JMP lilog264
+    JMP java_lilog264
 
 LABEL method_lilog264
-    JMP lilog264
+    JMP java_lilog264
 
 LABEL method_lis_even64
-    JMP lisEven64
+    JMP java_lisEven64
 
 LABEL method_LisEven64
-    JMP lisEven64
+    JMP java_lisEven64
 
 LABEL method_lisEven64
-    JMP lisEven64
+    JMP java_lisEven64
 
 LABEL method_lis_odd64
-    JMP lisOdd64
+    JMP java_lisOdd64
 
 LABEL method_LisOdd64
-    JMP lisOdd64
+    JMP java_lisOdd64
 
 LABEL method_lisOdd64
-    JMP lisOdd64
+    JMP java_lisOdd64
 
 LABEL method__sin_taylor64
-    JMP sinTaylor64
+    JMP java_sinTaylor64
 
 LABEL method_SinTaylor64
-    JMP sinTaylor64
+    JMP java_sinTaylor64
 
 LABEL method_sinTaylor64
-    JMP sinTaylor64
+    JMP java_sinTaylor64
 
 LABEL method__cos_taylor64
-    JMP cosTaylor64
+    JMP java_cosTaylor64
 
 LABEL method_CosTaylor64
-    JMP cosTaylor64
+    JMP java_cosTaylor64
 
 LABEL method_cosTaylor64
-    JMP cosTaylor64
+    JMP java_cosTaylor64
 

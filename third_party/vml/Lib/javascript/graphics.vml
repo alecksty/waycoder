@@ -3,7 +3,7 @@
 
 .linked "../shared/graphics.vml"
 
-LABEL base
+LABEL js_base
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL base
     pop R15
     RET
 
-LABEL params
+LABEL js_params
     push R15
     push R12
     move R12 R13
@@ -31,7 +31,7 @@ LABEL params
     pop R15
     RET
 
-LABEL gfxRefreshCache
+LABEL js_gfxRefreshCache
     push R15
     push R12
     move R12 R13
@@ -41,7 +41,7 @@ LABEL gfxRefreshCache
     pop R15
     RET
 
-LABEL config
+LABEL js_config
     push R15
     push R12
     move R12 R13
@@ -55,7 +55,7 @@ LABEL config
     pop R15
     RET
 
-LABEL getConfig
+LABEL js_getConfig
     push R15
     push R12
     move R12 R13
@@ -69,7 +69,7 @@ LABEL getConfig
     pop R15
     RET
 
-LABEL gfxFb
+LABEL js_gfxFb
     push R15
     push R12
     move R12 R13
@@ -79,7 +79,7 @@ LABEL gfxFb
     pop R15
     RET
 
-LABEL gfxW
+LABEL js_gfxW
     push R15
     push R12
     move R12 R13
@@ -89,7 +89,7 @@ LABEL gfxW
     pop R15
     RET
 
-LABEL gfxH
+LABEL js_gfxH
     push R15
     push R12
     move R12 R13
@@ -99,7 +99,7 @@ LABEL gfxH
     pop R15
     RET
 
-LABEL address
+LABEL js_address
     push R15
     push R12
     move R12 R13
@@ -113,7 +113,7 @@ LABEL address
     pop R15
     RET
 
-LABEL putpixel
+LABEL js_putpixel
     push R15
     push R12
     move R12 R13
@@ -133,7 +133,7 @@ LABEL putpixel
     pop R15
     RET
 
-LABEL pUSH
+LABEL js_pUSH
     push R15
     push R12
     move R12 R13
@@ -147,7 +147,7 @@ LABEL pUSH
     pop R15
     RET
 
-LABEL getpixel
+LABEL js_getpixel
     push R15
     push R12
     move R12 R13
@@ -164,7 +164,7 @@ LABEL getpixel
     pop R15
     RET
 
-LABEL r0
+LABEL js_r0
     push R15
     push R12
     move R12 R13
@@ -178,7 +178,7 @@ LABEL r0
     pop R15
     RET
 
-LABEL offset
+LABEL js_offset
     push R15
     push R12
     move R12 R13
@@ -195,7 +195,7 @@ LABEL offset
     pop R15
     RET
 
-LABEL putpixelFast
+LABEL js_putpixelFast
     push R15
     push R12
     move R12 R13
@@ -212,7 +212,7 @@ LABEL putpixelFast
     pop R15
     RET
 
-LABEL r4
+LABEL js_r4
     push R15
     push R12
     move R12 R13
@@ -226,7 +226,7 @@ LABEL r4
     pop R15
     RET
 
-LABEL sector
+LABEL js_sector
     push R15
     push R12
     move R12 R13
@@ -240,7 +240,7 @@ LABEL sector
     pop R15
     RET
 
-LABEL points
+LABEL js_points
     push R15
     push R12
     move R12 R13
@@ -254,7 +254,7 @@ LABEL points
     pop R15
     RET
 
-LABEL font
+LABEL js_font
     push R15
     push R12
     move R12 R13
@@ -268,7 +268,7 @@ LABEL font
     pop R15
     RET
 
-LABEL points
+LABEL js_points
     push R15
     push R12
     move R12 R13
@@ -283,206 +283,206 @@ LABEL points
     RET
 
 LABEL Graphics_Base
-    JMP base
+    JMP js_base
 
 LABEL Graphics_Params
-    JMP params
+    JMP js_params
 
 LABEL Graphics_GfxRefreshCache
-    JMP gfxRefreshCache
+    JMP js_gfxRefreshCache
 
 LABEL Graphics_Config
-    JMP config
+    JMP js_config
 
 LABEL Graphics_GetConfig
-    JMP getConfig
+    JMP js_getConfig
 
 LABEL Graphics_GfxFb
-    JMP gfxFb
+    JMP js_gfxFb
 
 LABEL Graphics_GfxW
-    JMP gfxW
+    JMP js_gfxW
 
 LABEL Graphics_GfxH
-    JMP gfxH
+    JMP js_gfxH
 
 LABEL Graphics_Address
-    JMP address
+    JMP js_address
 
 LABEL Graphics_Putpixel
-    JMP putpixel
+    JMP js_putpixel
 
 LABEL Graphics_PUSH
-    JMP pUSH
+    JMP js_pUSH
 
 LABEL Graphics_Getpixel
-    JMP getpixel
+    JMP js_getpixel
 
 LABEL Graphics_R0
-    JMP r0
+    JMP js_r0
 
 LABEL Graphics_Offset
-    JMP offset
+    JMP js_offset
 
 LABEL Graphics_PutpixelFast
-    JMP putpixelFast
+    JMP js_putpixelFast
 
 LABEL Graphics_R4
-    JMP r4
+    JMP js_r4
 
 LABEL Graphics_Sector
-    JMP sector
+    JMP js_sector
 
 LABEL Graphics_Points
-    JMP points
+    JMP js_points
 
 LABEL Graphics_Font
-    JMP font
+    JMP js_font
 
 LABEL Graphics_Points
-    JMP points
+    JMP js_points
 
 LABEL method_base
-    JMP base
+    JMP js_base
 
 LABEL method_Base
-    JMP base
+    JMP js_base
 
 LABEL method_params
-    JMP params
+    JMP js_params
 
 LABEL method_Params
-    JMP params
+    JMP js_params
 
 LABEL method__gfx_refresh_cache
-    JMP gfxRefreshCache
+    JMP js_gfxRefreshCache
 
 LABEL method_GfxRefreshCache
-    JMP gfxRefreshCache
+    JMP js_gfxRefreshCache
 
 LABEL method_gfxRefreshCache
-    JMP gfxRefreshCache
+    JMP js_gfxRefreshCache
 
 LABEL method_config
-    JMP config
+    JMP js_config
 
 LABEL method_Config
-    JMP config
+    JMP js_config
 
 LABEL method_get_config
-    JMP getConfig
+    JMP js_getConfig
 
 LABEL method_GetConfig
-    JMP getConfig
+    JMP js_getConfig
 
 LABEL method_getConfig
-    JMP getConfig
+    JMP js_getConfig
 
 LABEL method_gfx_fb
-    JMP gfxFb
+    JMP js_gfxFb
 
 LABEL method_GfxFb
-    JMP gfxFb
+    JMP js_gfxFb
 
 LABEL method_gfxFb
-    JMP gfxFb
+    JMP js_gfxFb
 
 LABEL method_gfx_w
-    JMP gfxW
+    JMP js_gfxW
 
 LABEL method_GfxW
-    JMP gfxW
+    JMP js_gfxW
 
 LABEL method_gfxW
-    JMP gfxW
+    JMP js_gfxW
 
 LABEL method_gfx_h
-    JMP gfxH
+    JMP js_gfxH
 
 LABEL method_GfxH
-    JMP gfxH
+    JMP js_gfxH
 
 LABEL method_gfxH
-    JMP gfxH
+    JMP js_gfxH
 
 LABEL method_address
-    JMP address
+    JMP js_address
 
 LABEL method_Address
-    JMP address
+    JMP js_address
 
 LABEL method__putpixel
-    JMP putpixel
+    JMP js_putpixel
 
 LABEL method_Putpixel
-    JMP putpixel
+    JMP js_putpixel
 
 LABEL method_putpixel
-    JMP putpixel
+    JMP js_putpixel
 
 LABEL method_PUSH
-    JMP pUSH
+    JMP js_pUSH
 
 LABEL method_pUSH
-    JMP pUSH
+    JMP js_pUSH
 
 LABEL method__getpixel
-    JMP getpixel
+    JMP js_getpixel
 
 LABEL method_Getpixel
-    JMP getpixel
+    JMP js_getpixel
 
 LABEL method_getpixel
-    JMP getpixel
+    JMP js_getpixel
 
 LABEL method_R0
-    JMP r0
+    JMP js_r0
 
 LABEL method_r0
-    JMP r0
+    JMP js_r0
 
 LABEL method_offset
-    JMP offset
+    JMP js_offset
 
 LABEL method_Offset
-    JMP offset
+    JMP js_offset
 
 LABEL method__putpixel_fast
-    JMP putpixelFast
+    JMP js_putpixelFast
 
 LABEL method_PutpixelFast
-    JMP putpixelFast
+    JMP js_putpixelFast
 
 LABEL method_putpixelFast
-    JMP putpixelFast
+    JMP js_putpixelFast
 
 LABEL method_R4
-    JMP r4
+    JMP js_r4
 
 LABEL method_r4
-    JMP r4
+    JMP js_r4
 
 LABEL method_Sector
-    JMP sector
+    JMP js_sector
 
 LABEL method_sector
-    JMP sector
+    JMP js_sector
 
 LABEL method_points
-    JMP points
+    JMP js_points
 
 LABEL method_Points
-    JMP points
+    JMP js_points
 
 LABEL method_Font
-    JMP font
+    JMP js_font
 
 LABEL method_font
-    JMP font
+    JMP js_font
 
 LABEL method_Points
-    JMP points
+    JMP js_points
 
 LABEL method_points
-    JMP points
+    JMP js_points
 

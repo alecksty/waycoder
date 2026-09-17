@@ -3,7 +3,7 @@
 
 .linked "../shared/demolib.vml"
 
-LABEL demolibAdd
+LABEL js_demolibAdd
     push R15
     push R12
     move R12 R13
@@ -20,7 +20,7 @@ LABEL demolibAdd
     pop R15
     RET
 
-LABEL demolibSub
+LABEL js_demolibSub
     push R15
     push R12
     move R12 R13
@@ -37,7 +37,7 @@ LABEL demolibSub
     pop R15
     RET
 
-LABEL demolibMul
+LABEL js_demolibMul
     push R15
     push R12
     move R12 R13
@@ -54,7 +54,7 @@ LABEL demolibMul
     pop R15
     RET
 
-LABEL demolibDiv
+LABEL js_demolibDiv
     push R15
     push R12
     move R12 R13
@@ -71,7 +71,7 @@ LABEL demolibDiv
     pop R15
     RET
 
-LABEL demolibFact
+LABEL js_demolibFact
     push R15
     push R12
     move R12 R13
@@ -85,7 +85,7 @@ LABEL demolibFact
     pop R15
     RET
 
-LABEL demolibFib
+LABEL js_demolibFib
     push R15
     push R12
     move R12 R13
@@ -99,7 +99,7 @@ LABEL demolibFib
     pop R15
     RET
 
-LABEL demolibSquare
+LABEL js_demolibSquare
     push R15
     push R12
     move R12 R13
@@ -113,7 +113,7 @@ LABEL demolibSquare
     pop R15
     RET
 
-LABEL demolibNegate
+LABEL js_demolibNegate
     push R15
     push R12
     move R12 R13
@@ -128,98 +128,98 @@ LABEL demolibNegate
     RET
 
 LABEL Demolib_DemolibAdd
-    JMP demolibAdd
+    JMP js_demolibAdd
 
 LABEL Demolib_DemolibSub
-    JMP demolibSub
+    JMP js_demolibSub
 
 LABEL Demolib_DemolibMul
-    JMP demolibMul
+    JMP js_demolibMul
 
 LABEL Demolib_DemolibDiv
-    JMP demolibDiv
+    JMP js_demolibDiv
 
 LABEL Demolib_DemolibFact
-    JMP demolibFact
+    JMP js_demolibFact
 
 LABEL Demolib_DemolibFib
-    JMP demolibFib
+    JMP js_demolibFib
 
 LABEL Demolib_DemolibSquare
-    JMP demolibSquare
+    JMP js_demolibSquare
 
 LABEL Demolib_DemolibNegate
-    JMP demolibNegate
+    JMP js_demolibNegate
 
 LABEL method_demolib_add
-    JMP demolibAdd
+    JMP js_demolibAdd
 
 LABEL method_DemolibAdd
-    JMP demolibAdd
+    JMP js_demolibAdd
 
 LABEL method_demolibAdd
-    JMP demolibAdd
+    JMP js_demolibAdd
 
 LABEL method_demolib_sub
-    JMP demolibSub
+    JMP js_demolibSub
 
 LABEL method_DemolibSub
-    JMP demolibSub
+    JMP js_demolibSub
 
 LABEL method_demolibSub
-    JMP demolibSub
+    JMP js_demolibSub
 
 LABEL method_demolib_mul
-    JMP demolibMul
+    JMP js_demolibMul
 
 LABEL method_DemolibMul
-    JMP demolibMul
+    JMP js_demolibMul
 
 LABEL method_demolibMul
-    JMP demolibMul
+    JMP js_demolibMul
 
 LABEL method_demolib_div
-    JMP demolibDiv
+    JMP js_demolibDiv
 
 LABEL method_DemolibDiv
-    JMP demolibDiv
+    JMP js_demolibDiv
 
 LABEL method_demolibDiv
-    JMP demolibDiv
+    JMP js_demolibDiv
 
 LABEL method_demolib_fact
-    JMP demolibFact
+    JMP js_demolibFact
 
 LABEL method_DemolibFact
-    JMP demolibFact
+    JMP js_demolibFact
 
 LABEL method_demolibFact
-    JMP demolibFact
+    JMP js_demolibFact
 
 LABEL method_demolib_fib
-    JMP demolibFib
+    JMP js_demolibFib
 
 LABEL method_DemolibFib
-    JMP demolibFib
+    JMP js_demolibFib
 
 LABEL method_demolibFib
-    JMP demolibFib
+    JMP js_demolibFib
 
 LABEL method_demolib_square
-    JMP demolibSquare
+    JMP js_demolibSquare
 
 LABEL method_DemolibSquare
-    JMP demolibSquare
+    JMP js_demolibSquare
 
 LABEL method_demolibSquare
-    JMP demolibSquare
+    JMP js_demolibSquare
 
 LABEL method_demolib_negate
-    JMP demolibNegate
+    JMP js_demolibNegate
 
 LABEL method_DemolibNegate
-    JMP demolibNegate
+    JMP js_demolibNegate
 
 LABEL method_demolibNegate
-    JMP demolibNegate
+    JMP js_demolibNegate
 

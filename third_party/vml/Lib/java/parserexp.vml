@@ -3,7 +3,7 @@
 
 .linked "../shared/parserexp.vml"
 
-LABEL literals
+LABEL java_literals
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL literals
     pop R15
     RET
 
-LABEL nULL
+LABEL java_nULL
     push R15
     push R12
     move R12 R13
@@ -31,7 +31,7 @@ LABEL nULL
     pop R15
     RET
 
-LABEL isHexDigit
+LABEL java_isHexDigit
     push R15
     push R12
     move R12 R13
@@ -46,7 +46,7 @@ LABEL isHexDigit
     pop R15
     RET
 
-LABEL skipSpaces
+LABEL java_skipSpaces
     push R15
     push R12
     move R12 R13
@@ -56,7 +56,7 @@ LABEL skipSpaces
     pop R15
     RET
 
-LABEL nextToken
+LABEL java_nextToken
     push R15
     push R12
     move R12 R13
@@ -66,7 +66,7 @@ LABEL nextToken
     pop R15
     RET
 
-LABEL parseExpr
+LABEL java_parseExpr
     push R15
     push R12
     move R12 R13
@@ -76,7 +76,7 @@ LABEL parseExpr
     pop R15
     RET
 
-LABEL parseTerm
+LABEL java_parseTerm
     push R15
     push R12
     move R12 R13
@@ -86,7 +86,7 @@ LABEL parseTerm
     pop R15
     RET
 
-LABEL parseFactor
+LABEL java_parseFactor
     push R15
     push R12
     move R12 R13
@@ -96,7 +96,7 @@ LABEL parseFactor
     pop R15
     RET
 
-LABEL parserexp
+LABEL java_parserexp
     push R15
     push R12
     move R12 R13
@@ -110,7 +110,7 @@ LABEL parserexp
     pop R15
     RET
 
-LABEL cases
+LABEL java_cases
     push R15
     push R12
     move R12 R13
@@ -136,110 +136,110 @@ LABEL cases
     RET
 
 LABEL Parserexp_Literals
-    JMP literals
+    JMP java_literals
 
 LABEL Parserexp_NULL
-    JMP nULL
+    JMP java_nULL
 
 LABEL Parserexp_IsHexDigit
-    JMP isHexDigit
+    JMP java_isHexDigit
 
 LABEL Parserexp_SkipSpaces
-    JMP skipSpaces
+    JMP java_skipSpaces
 
 LABEL Parserexp_NextToken
-    JMP nextToken
+    JMP java_nextToken
 
 LABEL Parserexp_ParseExpr
-    JMP parseExpr
+    JMP java_parseExpr
 
 LABEL Parserexp_ParseTerm
-    JMP parseTerm
+    JMP java_parseTerm
 
 LABEL Parserexp_ParseFactor
-    JMP parseFactor
+    JMP java_parseFactor
 
 LABEL Parserexp_Parserexp
-    JMP parserexp
+    JMP java_parserexp
 
 LABEL Parserexp_Cases
-    JMP cases
+    JMP java_cases
 
 LABEL method_literals
-    JMP literals
+    JMP java_literals
 
 LABEL method_Literals
-    JMP literals
+    JMP java_literals
 
 LABEL method_NULL
-    JMP nULL
+    JMP java_nULL
 
 LABEL method_nULL
-    JMP nULL
+    JMP java_nULL
 
 LABEL method_is_hex_digit
-    JMP isHexDigit
+    JMP java_isHexDigit
 
 LABEL method_IsHexDigit
-    JMP isHexDigit
+    JMP java_isHexDigit
 
 LABEL method_isHexDigit
-    JMP isHexDigit
+    JMP java_isHexDigit
 
 LABEL method_skip_spaces
-    JMP skipSpaces
+    JMP java_skipSpaces
 
 LABEL method_SkipSpaces
-    JMP skipSpaces
+    JMP java_skipSpaces
 
 LABEL method_skipSpaces
-    JMP skipSpaces
+    JMP java_skipSpaces
 
 LABEL method_next_token
-    JMP nextToken
+    JMP java_nextToken
 
 LABEL method_NextToken
-    JMP nextToken
+    JMP java_nextToken
 
 LABEL method_nextToken
-    JMP nextToken
+    JMP java_nextToken
 
 LABEL method_parse_expr
-    JMP parseExpr
+    JMP java_parseExpr
 
 LABEL method_ParseExpr
-    JMP parseExpr
+    JMP java_parseExpr
 
 LABEL method_parseExpr
-    JMP parseExpr
+    JMP java_parseExpr
 
 LABEL method_parse_term
-    JMP parseTerm
+    JMP java_parseTerm
 
 LABEL method_ParseTerm
-    JMP parseTerm
+    JMP java_parseTerm
 
 LABEL method_parseTerm
-    JMP parseTerm
+    JMP java_parseTerm
 
 LABEL method_parse_factor
-    JMP parseFactor
+    JMP java_parseFactor
 
 LABEL method_ParseFactor
-    JMP parseFactor
+    JMP java_parseFactor
 
 LABEL method_parseFactor
-    JMP parseFactor
+    JMP java_parseFactor
 
 LABEL method_parserexp
-    JMP parserexp
+    JMP java_parserexp
 
 LABEL method_Parserexp
-    JMP parserexp
+    JMP java_parserexp
 
 LABEL method_cases
-    JMP cases
+    JMP java_cases
 
 LABEL method_Cases
-    JMP cases
+    JMP java_cases
 

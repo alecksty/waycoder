@@ -3,7 +3,7 @@
 
 .linked "../shared/parserexpf.vml"
 
-LABEL parseExprF
+LABEL js_parseExprF
     push R15
     push R12
     move R12 R13
@@ -13,7 +13,7 @@ LABEL parseExprF
     pop R15
     RET
 
-LABEL parseTermF
+LABEL js_parseTermF
     push R15
     push R12
     move R12 R13
@@ -23,7 +23,7 @@ LABEL parseTermF
     pop R15
     RET
 
-LABEL parseFactorF
+LABEL js_parseFactorF
     push R15
     push R12
     move R12 R13
@@ -33,7 +33,7 @@ LABEL parseFactorF
     pop R15
     RET
 
-LABEL parserexpf
+LABEL js_parserexpf
     push R15
     push R12
     move R12 R13
@@ -48,47 +48,47 @@ LABEL parserexpf
     RET
 
 LABEL Parserexpf_ParseExprF
-    JMP parseExprF
+    JMP js_parseExprF
 
 LABEL Parserexpf_ParseTermF
-    JMP parseTermF
+    JMP js_parseTermF
 
 LABEL Parserexpf_ParseFactorF
-    JMP parseFactorF
+    JMP js_parseFactorF
 
 LABEL Parserexpf_Parserexpf
-    JMP parserexpf
+    JMP js_parserexpf
 
 LABEL method_parse_expr_f
-    JMP parseExprF
+    JMP js_parseExprF
 
 LABEL method_ParseExprF
-    JMP parseExprF
+    JMP js_parseExprF
 
 LABEL method_parseExprF
-    JMP parseExprF
+    JMP js_parseExprF
 
 LABEL method_parse_term_f
-    JMP parseTermF
+    JMP js_parseTermF
 
 LABEL method_ParseTermF
-    JMP parseTermF
+    JMP js_parseTermF
 
 LABEL method_parseTermF
-    JMP parseTermF
+    JMP js_parseTermF
 
 LABEL method_parse_factor_f
-    JMP parseFactorF
+    JMP js_parseFactorF
 
 LABEL method_ParseFactorF
-    JMP parseFactorF
+    JMP js_parseFactorF
 
 LABEL method_parseFactorF
-    JMP parseFactorF
+    JMP js_parseFactorF
 
 LABEL method_parserexpf
-    JMP parserexpf
+    JMP js_parserexpf
 
 LABEL method_Parserexpf
-    JMP parserexpf
+    JMP js_parserexpf
 

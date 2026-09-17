@@ -3,7 +3,7 @@
 
 .linked "../shared/uscanf.vml"
 
-LABEL uscanf
+LABEL java_uscanf
     push R15
     push R12
     move R12 R13
@@ -18,11 +18,11 @@ LABEL uscanf
     RET
 
 LABEL Uscanf_Uscanf
-    JMP uscanf
+    JMP java_uscanf
 
 LABEL method_uscanf
-    JMP uscanf
+    JMP java_uscanf
 
 LABEL method_Uscanf
-    JMP uscanf
+    JMP java_uscanf
 

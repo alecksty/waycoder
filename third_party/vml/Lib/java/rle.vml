@@ -3,7 +3,7 @@
 
 .linked "../shared/rle.vml"
 
-LABEL rleEncode
+LABEL java_rleEncode
     push R15
     push R12
     move R12 R13
@@ -23,7 +23,7 @@ LABEL rleEncode
     pop R15
     RET
 
-LABEL rleDecode
+LABEL java_rleDecode
     push R15
     push R12
     move R12 R13
@@ -41,26 +41,26 @@ LABEL rleDecode
     RET
 
 LABEL Rle_RleEncode
-    JMP rleEncode
+    JMP java_rleEncode
 
 LABEL Rle_RleDecode
-    JMP rleDecode
+    JMP java_rleDecode
 
 LABEL method_rle_encode
-    JMP rleEncode
+    JMP java_rleEncode
 
 LABEL method_RleEncode
-    JMP rleEncode
+    JMP java_rleEncode
 
 LABEL method_rleEncode
-    JMP rleEncode
+    JMP java_rleEncode
 
 LABEL method_rle_decode
-    JMP rleDecode
+    JMP java_rleDecode
 
 LABEL method_RleDecode
-    JMP rleDecode
+    JMP java_rleDecode
 
 LABEL method_rleDecode
-    JMP rleDecode
+    JMP java_rleDecode
 

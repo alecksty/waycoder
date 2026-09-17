@@ -3,7 +3,7 @@
 
 .linked "../shared/ringbuf.vml"
 
-LABEL write
+LABEL js_write
     push R15
     push R12
     move R12 R13
@@ -20,7 +20,7 @@ LABEL write
     pop R15
     RET
 
-LABEL read
+LABEL js_read
     push R15
     push R12
     move R12 R13
@@ -37,7 +37,7 @@ LABEL read
     pop R15
     RET
 
-LABEL available
+LABEL js_available
     push R15
     push R12
     move R12 R13
@@ -51,7 +51,7 @@ LABEL available
     pop R15
     RET
 
-LABEL isEmpty
+LABEL js_isEmpty
     push R15
     push R12
     move R12 R13
@@ -65,7 +65,7 @@ LABEL isEmpty
     pop R15
     RET
 
-LABEL isFull
+LABEL js_isFull
     push R15
     push R12
     move R12 R13
@@ -80,53 +80,53 @@ LABEL isFull
     RET
 
 LABEL Ringbuf_Write
-    JMP write
+    JMP js_write
 
 LABEL Ringbuf_Read
-    JMP read
+    JMP js_read
 
 LABEL Ringbuf_Available
-    JMP available
+    JMP js_available
 
 LABEL Ringbuf_IsEmpty
-    JMP isEmpty
+    JMP js_isEmpty
 
 LABEL Ringbuf_IsFull
-    JMP isFull
+    JMP js_isFull
 
 LABEL method_write
-    JMP write
+    JMP js_write
 
 LABEL method_Write
-    JMP write
+    JMP js_write
 
 LABEL method_read
-    JMP read
+    JMP js_read
 
 LABEL method_Read
-    JMP read
+    JMP js_read
 
 LABEL method_available
-    JMP available
+    JMP js_available
 
 LABEL method_Available
-    JMP available
+    JMP js_available
 
 LABEL method_is_empty
-    JMP isEmpty
+    JMP js_isEmpty
 
 LABEL method_IsEmpty
-    JMP isEmpty
+    JMP js_isEmpty
 
 LABEL method_isEmpty
-    JMP isEmpty
+    JMP js_isEmpty
 
 LABEL method_is_full
-    JMP isFull
+    JMP js_isFull
 
 LABEL method_IsFull
-    JMP isFull
+    JMP js_isFull
 
 LABEL method_isFull
-    JMP isFull
+    JMP js_isFull
 

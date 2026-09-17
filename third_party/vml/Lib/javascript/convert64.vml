@@ -3,7 +3,7 @@
 
 .linked "../shared/convert64.vml"
 
-LABEL ltoaHex
+LABEL js_ltoaHex
     push R15
     push R12
     move R12 R13
@@ -21,7 +21,7 @@ LABEL ltoaHex
     pop R15
     RET
 
-LABEL atolHex
+LABEL js_atolHex
     push R15
     push R12
     move R12 R13
@@ -36,26 +36,26 @@ LABEL atolHex
     RET
 
 LABEL Convert64_LtoaHex
-    JMP ltoaHex
+    JMP js_ltoaHex
 
 LABEL Convert64_AtolHex
-    JMP atolHex
+    JMP js_atolHex
 
 LABEL method_ltoa_hex
-    JMP ltoaHex
+    JMP js_ltoaHex
 
 LABEL method_LtoaHex
-    JMP ltoaHex
+    JMP js_ltoaHex
 
 LABEL method_ltoaHex
-    JMP ltoaHex
+    JMP js_ltoaHex
 
 LABEL method_atol_hex
-    JMP atolHex
+    JMP js_atolHex
 
 LABEL method_AtolHex
-    JMP atolHex
+    JMP js_atolHex
 
 LABEL method_atolHex
-    JMP atolHex
+    JMP js_atolHex
 

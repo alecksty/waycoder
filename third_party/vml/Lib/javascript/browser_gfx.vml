@@ -3,7 +3,7 @@
 
 .linked "../shared/browser_gfx.vml"
 
-LABEL cMDBUF
+LABEL js_cMDBUF
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL cMDBUF
     pop R15
     RET
 
-LABEL format
+LABEL js_format
     push R15
     push R12
     move R12 R13
@@ -34,7 +34,7 @@ LABEL format
     pop R15
     RET
 
-LABEL cmdWrite
+LABEL js_cmdWrite
     push R15
     push R12
     move R12 R13
@@ -48,7 +48,7 @@ LABEL cmdWrite
     pop R15
     RET
 
-LABEL browserClear
+LABEL js_browserClear
     push R15
     push R12
     move R12 R13
@@ -68,7 +68,7 @@ LABEL browserClear
     pop R15
     RET
 
-LABEL browserColor
+LABEL js_browserColor
     push R15
     push R12
     move R12 R13
@@ -88,7 +88,7 @@ LABEL browserColor
     pop R15
     RET
 
-LABEL browserFillPolygon
+LABEL js_browserFillPolygon
     push R15
     push R12
     move R12 R13
@@ -105,7 +105,7 @@ LABEL browserFillPolygon
     pop R15
     RET
 
-LABEL browserDrawPolygon
+LABEL js_browserDrawPolygon
     push R15
     push R12
     move R12 R13
@@ -122,7 +122,7 @@ LABEL browserDrawPolygon
     pop R15
     RET
 
-LABEL browserFlush
+LABEL js_browserFlush
     push R15
     push R12
     move R12 R13
@@ -133,95 +133,95 @@ LABEL browserFlush
     RET
 
 LABEL Browser_gfx_CMDBUF
-    JMP cMDBUF
+    JMP js_cMDBUF
 
 LABEL Browser_gfx_Format
-    JMP format
+    JMP js_format
 
 LABEL Browser_gfx_CmdWrite
-    JMP cmdWrite
+    JMP js_cmdWrite
 
 LABEL Browser_gfx_BrowserClear
-    JMP browserClear
+    JMP js_browserClear
 
 LABEL Browser_gfx_BrowserColor
-    JMP browserColor
+    JMP js_browserColor
 
 LABEL Browser_gfx_BrowserFillPolygon
-    JMP browserFillPolygon
+    JMP js_browserFillPolygon
 
 LABEL Browser_gfx_BrowserDrawPolygon
-    JMP browserDrawPolygon
+    JMP js_browserDrawPolygon
 
 LABEL Browser_gfx_BrowserFlush
-    JMP browserFlush
+    JMP js_browserFlush
 
 LABEL method_CMD_BUF
-    JMP cMDBUF
+    JMP js_cMDBUF
 
 LABEL method_CMDBUF
-    JMP cMDBUF
+    JMP js_cMDBUF
 
 LABEL method_cMDBUF
-    JMP cMDBUF
+    JMP js_cMDBUF
 
 LABEL method_format
-    JMP format
+    JMP js_format
 
 LABEL method_Format
-    JMP format
+    JMP js_format
 
 LABEL method_cmd_write
-    JMP cmdWrite
+    JMP js_cmdWrite
 
 LABEL method_CmdWrite
-    JMP cmdWrite
+    JMP js_cmdWrite
 
 LABEL method_cmdWrite
-    JMP cmdWrite
+    JMP js_cmdWrite
 
 LABEL method_browser_clear
-    JMP browserClear
+    JMP js_browserClear
 
 LABEL method_BrowserClear
-    JMP browserClear
+    JMP js_browserClear
 
 LABEL method_browserClear
-    JMP browserClear
+    JMP js_browserClear
 
 LABEL method_browser_color
-    JMP browserColor
+    JMP js_browserColor
 
 LABEL method_BrowserColor
-    JMP browserColor
+    JMP js_browserColor
 
 LABEL method_browserColor
-    JMP browserColor
+    JMP js_browserColor
 
 LABEL method_browser_fill_polygon
-    JMP browserFillPolygon
+    JMP js_browserFillPolygon
 
 LABEL method_BrowserFillPolygon
-    JMP browserFillPolygon
+    JMP js_browserFillPolygon
 
 LABEL method_browserFillPolygon
-    JMP browserFillPolygon
+    JMP js_browserFillPolygon
 
 LABEL method_browser_draw_polygon
-    JMP browserDrawPolygon
+    JMP js_browserDrawPolygon
 
 LABEL method_BrowserDrawPolygon
-    JMP browserDrawPolygon
+    JMP js_browserDrawPolygon
 
 LABEL method_browserDrawPolygon
-    JMP browserDrawPolygon
+    JMP js_browserDrawPolygon
 
 LABEL method_browser_flush
-    JMP browserFlush
+    JMP js_browserFlush
 
 LABEL method_BrowserFlush
-    JMP browserFlush
+    JMP js_browserFlush
 
 LABEL method_browserFlush
-    JMP browserFlush
+    JMP js_browserFlush
 

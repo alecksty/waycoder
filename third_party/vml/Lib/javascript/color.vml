@@ -3,7 +3,7 @@
 
 .linked "../shared/color.vml"
 
-LABEL rgb888ToRgb565
+LABEL js_rgb888ToRgb565
     push R15
     push R12
     move R12 R13
@@ -23,7 +23,7 @@ LABEL rgb888ToRgb565
     pop R15
     RET
 
-LABEL rgb565ToR
+LABEL js_rgb565ToR
     push R15
     push R12
     move R12 R13
@@ -37,7 +37,7 @@ LABEL rgb565ToR
     pop R15
     RET
 
-LABEL rgb565ToG
+LABEL js_rgb565ToG
     push R15
     push R12
     move R12 R13
@@ -51,7 +51,7 @@ LABEL rgb565ToG
     pop R15
     RET
 
-LABEL rgb565ToB
+LABEL js_rgb565ToB
     push R15
     push R12
     move R12 R13
@@ -65,7 +65,7 @@ LABEL rgb565ToB
     pop R15
     RET
 
-LABEL rgb
+LABEL js_rgb
     push R15
     push R12
     move R12 R13
@@ -85,7 +85,7 @@ LABEL rgb
     pop R15
     RET
 
-LABEL red
+LABEL js_red
     push R15
     push R12
     move R12 R13
@@ -99,7 +99,7 @@ LABEL red
     pop R15
     RET
 
-LABEL green
+LABEL js_green
     push R15
     push R12
     move R12 R13
@@ -113,7 +113,7 @@ LABEL green
     pop R15
     RET
 
-LABEL blue
+LABEL js_blue
     push R15
     push R12
     move R12 R13
@@ -127,7 +127,7 @@ LABEL blue
     pop R15
     RET
 
-LABEL grayscale
+LABEL js_grayscale
     push R15
     push R12
     move R12 R13
@@ -147,7 +147,7 @@ LABEL grayscale
     pop R15
     RET
 
-LABEL colorBlend
+LABEL js_colorBlend
     push R15
     push R12
     move R12 R13
@@ -167,7 +167,7 @@ LABEL colorBlend
     pop R15
     RET
 
-LABEL colorBrightness
+LABEL js_colorBrightness
     push R15
     push R12
     move R12 R13
@@ -184,7 +184,7 @@ LABEL colorBrightness
     pop R15
     RET
 
-LABEL hsvToRgb
+LABEL js_hsvToRgb
     push R15
     push R12
     move R12 R13
@@ -204,7 +204,7 @@ LABEL hsvToRgb
     pop R15
     RET
 
-LABEL colorBlack
+LABEL js_colorBlack
     push R15
     push R12
     move R12 R13
@@ -214,7 +214,7 @@ LABEL colorBlack
     pop R15
     RET
 
-LABEL colorWhite
+LABEL js_colorWhite
     push R15
     push R12
     move R12 R13
@@ -224,7 +224,7 @@ LABEL colorWhite
     pop R15
     RET
 
-LABEL colorRed
+LABEL js_colorRed
     push R15
     push R12
     move R12 R13
@@ -234,7 +234,7 @@ LABEL colorRed
     pop R15
     RET
 
-LABEL colorGreen
+LABEL js_colorGreen
     push R15
     push R12
     move R12 R13
@@ -244,7 +244,7 @@ LABEL colorGreen
     pop R15
     RET
 
-LABEL colorBlue
+LABEL js_colorBlue
     push R15
     push R12
     move R12 R13
@@ -254,7 +254,7 @@ LABEL colorBlue
     pop R15
     RET
 
-LABEL colorYellow
+LABEL js_colorYellow
     push R15
     push R12
     move R12 R13
@@ -264,7 +264,7 @@ LABEL colorYellow
     pop R15
     RET
 
-LABEL colorCyan
+LABEL js_colorCyan
     push R15
     push R12
     move R12 R13
@@ -274,7 +274,7 @@ LABEL colorCyan
     pop R15
     RET
 
-LABEL colorMagenta
+LABEL js_colorMagenta
     push R15
     push R12
     move R12 R13
@@ -285,227 +285,227 @@ LABEL colorMagenta
     RET
 
 LABEL Color_Rgb888ToRgb565
-    JMP rgb888ToRgb565
+    JMP js_rgb888ToRgb565
 
 LABEL Color_Rgb565ToR
-    JMP rgb565ToR
+    JMP js_rgb565ToR
 
 LABEL Color_Rgb565ToG
-    JMP rgb565ToG
+    JMP js_rgb565ToG
 
 LABEL Color_Rgb565ToB
-    JMP rgb565ToB
+    JMP js_rgb565ToB
 
 LABEL Color_Rgb
-    JMP rgb
+    JMP js_rgb
 
 LABEL Color_Red
-    JMP red
+    JMP js_red
 
 LABEL Color_Green
-    JMP green
+    JMP js_green
 
 LABEL Color_Blue
-    JMP blue
+    JMP js_blue
 
 LABEL Color_Grayscale
-    JMP grayscale
+    JMP js_grayscale
 
 LABEL Color_ColorBlend
-    JMP colorBlend
+    JMP js_colorBlend
 
 LABEL Color_ColorBrightness
-    JMP colorBrightness
+    JMP js_colorBrightness
 
 LABEL Color_HsvToRgb
-    JMP hsvToRgb
+    JMP js_hsvToRgb
 
 LABEL Color_ColorBlack
-    JMP colorBlack
+    JMP js_colorBlack
 
 LABEL Color_ColorWhite
-    JMP colorWhite
+    JMP js_colorWhite
 
 LABEL Color_ColorRed
-    JMP colorRed
+    JMP js_colorRed
 
 LABEL Color_ColorGreen
-    JMP colorGreen
+    JMP js_colorGreen
 
 LABEL Color_ColorBlue
-    JMP colorBlue
+    JMP js_colorBlue
 
 LABEL Color_ColorYellow
-    JMP colorYellow
+    JMP js_colorYellow
 
 LABEL Color_ColorCyan
-    JMP colorCyan
+    JMP js_colorCyan
 
 LABEL Color_ColorMagenta
-    JMP colorMagenta
+    JMP js_colorMagenta
 
 LABEL method_rgb888_to_rgb565
-    JMP rgb888ToRgb565
+    JMP js_rgb888ToRgb565
 
 LABEL method_Rgb888ToRgb565
-    JMP rgb888ToRgb565
+    JMP js_rgb888ToRgb565
 
 LABEL method_rgb888ToRgb565
-    JMP rgb888ToRgb565
+    JMP js_rgb888ToRgb565
 
 LABEL method_rgb565_to_r
-    JMP rgb565ToR
+    JMP js_rgb565ToR
 
 LABEL method_Rgb565ToR
-    JMP rgb565ToR
+    JMP js_rgb565ToR
 
 LABEL method_rgb565ToR
-    JMP rgb565ToR
+    JMP js_rgb565ToR
 
 LABEL method_rgb565_to_g
-    JMP rgb565ToG
+    JMP js_rgb565ToG
 
 LABEL method_Rgb565ToG
-    JMP rgb565ToG
+    JMP js_rgb565ToG
 
 LABEL method_rgb565ToG
-    JMP rgb565ToG
+    JMP js_rgb565ToG
 
 LABEL method_rgb565_to_b
-    JMP rgb565ToB
+    JMP js_rgb565ToB
 
 LABEL method_Rgb565ToB
-    JMP rgb565ToB
+    JMP js_rgb565ToB
 
 LABEL method_rgb565ToB
-    JMP rgb565ToB
+    JMP js_rgb565ToB
 
 LABEL method_rgb
-    JMP rgb
+    JMP js_rgb
 
 LABEL method_Rgb
-    JMP rgb
+    JMP js_rgb
 
 LABEL method_red
-    JMP red
+    JMP js_red
 
 LABEL method_Red
-    JMP red
+    JMP js_red
 
 LABEL method_green
-    JMP green
+    JMP js_green
 
 LABEL method_Green
-    JMP green
+    JMP js_green
 
 LABEL method_blue
-    JMP blue
+    JMP js_blue
 
 LABEL method_Blue
-    JMP blue
+    JMP js_blue
 
 LABEL method_grayscale
-    JMP grayscale
+    JMP js_grayscale
 
 LABEL method_Grayscale
-    JMP grayscale
+    JMP js_grayscale
 
 LABEL method_color_blend
-    JMP colorBlend
+    JMP js_colorBlend
 
 LABEL method_ColorBlend
-    JMP colorBlend
+    JMP js_colorBlend
 
 LABEL method_colorBlend
-    JMP colorBlend
+    JMP js_colorBlend
 
 LABEL method_color_brightness
-    JMP colorBrightness
+    JMP js_colorBrightness
 
 LABEL method_ColorBrightness
-    JMP colorBrightness
+    JMP js_colorBrightness
 
 LABEL method_colorBrightness
-    JMP colorBrightness
+    JMP js_colorBrightness
 
 LABEL method_hsv_to_rgb
-    JMP hsvToRgb
+    JMP js_hsvToRgb
 
 LABEL method_HsvToRgb
-    JMP hsvToRgb
+    JMP js_hsvToRgb
 
 LABEL method_hsvToRgb
-    JMP hsvToRgb
+    JMP js_hsvToRgb
 
 LABEL method_color_black
-    JMP colorBlack
+    JMP js_colorBlack
 
 LABEL method_ColorBlack
-    JMP colorBlack
+    JMP js_colorBlack
 
 LABEL method_colorBlack
-    JMP colorBlack
+    JMP js_colorBlack
 
 LABEL method_color_white
-    JMP colorWhite
+    JMP js_colorWhite
 
 LABEL method_ColorWhite
-    JMP colorWhite
+    JMP js_colorWhite
 
 LABEL method_colorWhite
-    JMP colorWhite
+    JMP js_colorWhite
 
 LABEL method_color_red
-    JMP colorRed
+    JMP js_colorRed
 
 LABEL method_ColorRed
-    JMP colorRed
+    JMP js_colorRed
 
 LABEL method_colorRed
-    JMP colorRed
+    JMP js_colorRed
 
 LABEL method_color_green
-    JMP colorGreen
+    JMP js_colorGreen
 
 LABEL method_ColorGreen
-    JMP colorGreen
+    JMP js_colorGreen
 
 LABEL method_colorGreen
-    JMP colorGreen
+    JMP js_colorGreen
 
 LABEL method_color_blue
-    JMP colorBlue
+    JMP js_colorBlue
 
 LABEL method_ColorBlue
-    JMP colorBlue
+    JMP js_colorBlue
 
 LABEL method_colorBlue
-    JMP colorBlue
+    JMP js_colorBlue
 
 LABEL method_color_yellow
-    JMP colorYellow
+    JMP js_colorYellow
 
 LABEL method_ColorYellow
-    JMP colorYellow
+    JMP js_colorYellow
 
 LABEL method_colorYellow
-    JMP colorYellow
+    JMP js_colorYellow
 
 LABEL method_color_cyan
-    JMP colorCyan
+    JMP js_colorCyan
 
 LABEL method_ColorCyan
-    JMP colorCyan
+    JMP js_colorCyan
 
 LABEL method_colorCyan
-    JMP colorCyan
+    JMP js_colorCyan
 
 LABEL method_color_magenta
-    JMP colorMagenta
+    JMP js_colorMagenta
 
 LABEL method_ColorMagenta
-    JMP colorMagenta
+    JMP js_colorMagenta
 
 LABEL method_colorMagenta
-    JMP colorMagenta
+    JMP js_colorMagenta
 

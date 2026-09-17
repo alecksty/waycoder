@@ -3,7 +3,7 @@
 
 .linked "../shared/scanf.vml"
 
-LABEL countArgs
+LABEL js_countArgs
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL countArgs
     pop R15
     RET
 
-LABEL isspace
+LABEL js_isspace
     push R15
     push R12
     move R12 R13
@@ -31,7 +31,7 @@ LABEL isspace
     pop R15
     RET
 
-LABEL isdigit
+LABEL js_isdigit
     push R15
     push R12
     move R12 R13
@@ -45,7 +45,7 @@ LABEL isdigit
     pop R15
     RET
 
-LABEL vsscanf
+LABEL js_vsscanf
     push R15
     push R12
     move R12 R13
@@ -71,47 +71,47 @@ LABEL vsscanf
     RET
 
 LABEL Scanf_CountArgs
-    JMP countArgs
+    JMP js_countArgs
 
 LABEL Scanf_Isspace
-    JMP isspace
+    JMP js_isspace
 
 LABEL Scanf_Isdigit
-    JMP isdigit
+    JMP js_isdigit
 
 LABEL Scanf_Vsscanf
-    JMP vsscanf
+    JMP js_vsscanf
 
 LABEL method__count_args
-    JMP countArgs
+    JMP js_countArgs
 
 LABEL method_CountArgs
-    JMP countArgs
+    JMP js_countArgs
 
 LABEL method_countArgs
-    JMP countArgs
+    JMP js_countArgs
 
 LABEL method__isspace
-    JMP isspace
+    JMP js_isspace
 
 LABEL method_Isspace
-    JMP isspace
+    JMP js_isspace
 
 LABEL method_isspace
-    JMP isspace
+    JMP js_isspace
 
 LABEL method__isdigit
-    JMP isdigit
+    JMP js_isdigit
 
 LABEL method_Isdigit
-    JMP isdigit
+    JMP js_isdigit
 
 LABEL method_isdigit
-    JMP isdigit
+    JMP js_isdigit
 
 LABEL method_vsscanf
-    JMP vsscanf
+    JMP js_vsscanf
 
 LABEL method_Vsscanf
-    JMP vsscanf
+    JMP js_vsscanf
 

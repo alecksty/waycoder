@@ -3,7 +3,7 @@
 
 .linked "../shared/crosslang.vml"
 
-LABEL add
+LABEL js_add
     push R15
     push R12
     move R12 R13
@@ -20,7 +20,7 @@ LABEL add
     pop R15
     RET
 
-LABEL sub
+LABEL js_sub
     push R15
     push R12
     move R12 R13
@@ -37,7 +37,7 @@ LABEL sub
     pop R15
     RET
 
-LABEL mul
+LABEL js_mul
     push R15
     push R12
     move R12 R13
@@ -54,7 +54,7 @@ LABEL mul
     pop R15
     RET
 
-LABEL div
+LABEL js_div
     push R15
     push R12
     move R12 R13
@@ -71,7 +71,7 @@ LABEL div
     pop R15
     RET
 
-LABEL mod
+LABEL js_mod
     push R15
     push R12
     move R12 R13
@@ -88,7 +88,7 @@ LABEL mod
     pop R15
     RET
 
-LABEL neg
+LABEL js_neg
     push R15
     push R12
     move R12 R13
@@ -102,7 +102,7 @@ LABEL neg
     pop R15
     RET
 
-LABEL arrSum
+LABEL js_arrSum
     push R15
     push R12
     move R12 R13
@@ -116,7 +116,7 @@ LABEL arrSum
     pop R15
     RET
 
-LABEL arrAvg
+LABEL js_arrAvg
     push R15
     push R12
     move R12 R13
@@ -130,7 +130,7 @@ LABEL arrAvg
     pop R15
     RET
 
-LABEL arrMax
+LABEL js_arrMax
     push R15
     push R12
     move R12 R13
@@ -144,7 +144,7 @@ LABEL arrMax
     pop R15
     RET
 
-LABEL arrMin
+LABEL js_arrMin
     push R15
     push R12
     move R12 R13
@@ -158,7 +158,7 @@ LABEL arrMin
     pop R15
     RET
 
-LABEL isEven
+LABEL js_isEven
     push R15
     push R12
     move R12 R13
@@ -172,7 +172,7 @@ LABEL isEven
     pop R15
     RET
 
-LABEL isOdd
+LABEL js_isOdd
     push R15
     push R12
     move R12 R13
@@ -187,137 +187,137 @@ LABEL isOdd
     RET
 
 LABEL Crosslang_Add
-    JMP add
+    JMP js_add
 
 LABEL Crosslang_Sub
-    JMP sub
+    JMP js_sub
 
 LABEL Crosslang_Mul
-    JMP mul
+    JMP js_mul
 
 LABEL Crosslang_Div
-    JMP div
+    JMP js_div
 
 LABEL Crosslang_Mod
-    JMP mod
+    JMP js_mod
 
 LABEL Crosslang_Neg
-    JMP neg
+    JMP js_neg
 
 LABEL Crosslang_ArrSum
-    JMP arrSum
+    JMP js_arrSum
 
 LABEL Crosslang_ArrAvg
-    JMP arrAvg
+    JMP js_arrAvg
 
 LABEL Crosslang_ArrMax
-    JMP arrMax
+    JMP js_arrMax
 
 LABEL Crosslang_ArrMin
-    JMP arrMin
+    JMP js_arrMin
 
 LABEL Crosslang_IsEven
-    JMP isEven
+    JMP js_isEven
 
 LABEL Crosslang_IsOdd
-    JMP isOdd
+    JMP js_isOdd
 
 LABEL method_add
-    JMP add
+    JMP js_add
 
 LABEL method_Add
-    JMP add
+    JMP js_add
 
 LABEL method_sub
-    JMP sub
+    JMP js_sub
 
 LABEL method_Sub
-    JMP sub
+    JMP js_sub
 
 LABEL method_mul
-    JMP mul
+    JMP js_mul
 
 LABEL method_Mul
-    JMP mul
+    JMP js_mul
 
 LABEL method_div_
-    JMP div
+    JMP js_div
 
 LABEL method_Div
-    JMP div
+    JMP js_div
 
 LABEL method_div
-    JMP div
+    JMP js_div
 
 LABEL method_mod_
-    JMP mod
+    JMP js_mod
 
 LABEL method_Mod
-    JMP mod
+    JMP js_mod
 
 LABEL method_mod
-    JMP mod
+    JMP js_mod
 
 LABEL method_neg_
-    JMP neg
+    JMP js_neg
 
 LABEL method_Neg
-    JMP neg
+    JMP js_neg
 
 LABEL method_neg
-    JMP neg
+    JMP js_neg
 
 LABEL method_arr_sum
-    JMP arrSum
+    JMP js_arrSum
 
 LABEL method_ArrSum
-    JMP arrSum
+    JMP js_arrSum
 
 LABEL method_arrSum
-    JMP arrSum
+    JMP js_arrSum
 
 LABEL method_arr_avg
-    JMP arrAvg
+    JMP js_arrAvg
 
 LABEL method_ArrAvg
-    JMP arrAvg
+    JMP js_arrAvg
 
 LABEL method_arrAvg
-    JMP arrAvg
+    JMP js_arrAvg
 
 LABEL method_arr_max
-    JMP arrMax
+    JMP js_arrMax
 
 LABEL method_ArrMax
-    JMP arrMax
+    JMP js_arrMax
 
 LABEL method_arrMax
-    JMP arrMax
+    JMP js_arrMax
 
 LABEL method_arr_min
-    JMP arrMin
+    JMP js_arrMin
 
 LABEL method_ArrMin
-    JMP arrMin
+    JMP js_arrMin
 
 LABEL method_arrMin
-    JMP arrMin
+    JMP js_arrMin
 
 LABEL method_is_even
-    JMP isEven
+    JMP js_isEven
 
 LABEL method_IsEven
-    JMP isEven
+    JMP js_isEven
 
 LABEL method_isEven
-    JMP isEven
+    JMP js_isEven
 
 LABEL method_is_odd
-    JMP isOdd
+    JMP js_isOdd
 
 LABEL method_IsOdd
-    JMP isOdd
+    JMP js_isOdd
 
 LABEL method_isOdd
-    JMP isOdd
+    JMP js_isOdd
 

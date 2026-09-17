@@ -41,7 +41,7 @@ scripts/vml-abi-probe/run-langs.sh cpp  # 按扩展名挑
 | ~~`abi.java`~~ | **`8` ✓** | 已修：调用点原先「第 1 个实参进 R0、其余右→左压栈」（CCv2 寄存器约定，与库完全不兼容——库里 C 编译出来的函数从 `[R12+12+4i]` 取参，R0 里那个它根本看不到）。改成全部右到左压栈 + 全部由调用方清；被调方也统一成每个形参都从 `[R14+16+4i]` 取 |
 | ~~`abi.rb`~~ | **`8` ✓** | 已修：调用点改右到左 + **包装器改从自己的栈帧读实参**（见下「总根源」） |
 | ~~`abi.lua`~~ | **`8` ✓** | 已修：Lua 的「压栈」原先**不动 R13**（假压栈），改成真压 + 调用方清；被调方也改成每个形参都从 `[R12+12+4i]` 取（原先从 R0-R3，第 4 个之后还不支持） |
-| `abi.js` | 崩（SP 归零） | 调用点**已修**，但仍崩在**另一个既存缺陷**：`Lib/javascript/math.vml` 里 `LABEL ipow … CALL ipow` 是**自调用** ⇒ 无限递归。根因是 `naming.json` 给 javascript/java 的 `PrimaryPrefix` 为空，**单词名函数**的主标签与 C 符号名撞车（`pow`/`abs`/`sqrt` 等同理）。重生成前后都在 |
+| ~~`abi.js`~~ | **`8` ✓** | 已修：根因是 `naming.json` 给 javascript 的 `PrimaryPrefix` 为空，而它的 `LabelStyle` 是 camelCase ⇒ **单词名函数**（`ipow`/`pow`/`abs`/`sqrt`）的主标签与 C 符号名同名，`LABEL ipow … CALL ipow` 成了自调用。补上 `js_` 前缀即可（java 同病，一并补 `java_`）。GenLib 里加了护栏：真实存在的函数一旦撞名就告警 |
 | `drift.lua` | `0` | `ipow` 在循环**外**是对的（常量实参、`local` 变量实参都实测得 8），**进 `for` 循环就变 0** —— Lua 前端的另一个独立问题（与实参传递无关），待查 |
 | `drift.m` | `2059` | ObjC 的多参外部调用（**既存缺陷**：重生成前基线也是 2059；栈漂移那部分已修） |
 
@@ -93,6 +93,24 @@ LABEL ruby_ipow
 `Lib/` 里那 543 处 `asm("SYSCALL #6")` 也由包装器这一层的镜像喂饱。
 ⚠ 代价是 `Lib/{lang}/**` 要整体重生成一次（1933 个文件），改法与验证路径与上一轮相同
 （`GenLib -A` + `scripts/check-vml-patches.sh` 的「可重生成」判据）。
+
+### 顺带挖出的一条独立缺陷：`ParseFunctions` 把**注释**当函数签名
+
+给 `abi.js` 加护栏（标签与 C 符号名同名就告警）之后，csharp 一次报出 `Arrays`、`Manipulation`、
+`CRC`、`GetDate`、`GetTime` …… 一查全是**虚构条目** —— `GenLib.ParseFunctions` 的正则
+（`RET NAME(params)`）没先剥注释，于是 `array64.c` 第 4 行的
+
+```c
+// VML Shared Array64 Library — 64-bit Integer Arrays (long* with long indices)
+```
+
+被读成「返回 `Integer`、函数名 `Arrays`、参数 `long* with long indices`」。
+后果：`funcMap` 与 `Lib/modules.json` 里多出一批不存在的函数，每个还会生成一个
+`LABEL x … CALL x` 的**自调用死包装器**（不排除将来和真标签撞上 —— 与上面那族同一个机制）。
+
+**修法**（下一步）：`ParseFunctions` 先剥 `//` 与 `/* */` 注释再匹配；
+并清掉 `modules.json` 里已收进来的虚构条目。**本次只告警、未修**，护栏里也已写明
+「这条是虚构条目、可以忽略」。
 
 > 审计（覆盖全部 22 个前端）还查出几条**探针没覆盖**的同类问题，一并记在这里当活单：
 > Python 的**被调方**仍从 R0-R3 拷形参（`Statements_A.cs:61-71`）而调用点只压栈 ⇒ 只有 arg0 侥幸正确；

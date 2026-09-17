@@ -3,7 +3,7 @@
 
 .linked "../shared/statistics.vml"
 
-LABEL mean
+LABEL js_mean
     push R15
     push R12
     move R12 R13
@@ -17,7 +17,7 @@ LABEL mean
     pop R15
     RET
 
-LABEL median
+LABEL js_median
     push R15
     push R12
     move R12 R13
@@ -31,7 +31,7 @@ LABEL median
     pop R15
     RET
 
-LABEL range
+LABEL js_range
     push R15
     push R12
     move R12 R13
@@ -45,7 +45,7 @@ LABEL range
     pop R15
     RET
 
-LABEL countGt
+LABEL js_countGt
     push R15
     push R12
     move R12 R13
@@ -62,7 +62,7 @@ LABEL countGt
     pop R15
     RET
 
-LABEL countLt
+LABEL js_countLt
     push R15
     push R12
     move R12 R13
@@ -79,7 +79,7 @@ LABEL countLt
     pop R15
     RET
 
-LABEL countEq
+LABEL js_countEq
     push R15
     push R12
     move R12 R13
@@ -96,7 +96,7 @@ LABEL countEq
     pop R15
     RET
 
-LABEL variance
+LABEL js_variance
     push R15
     push R12
     move R12 R13
@@ -110,7 +110,7 @@ LABEL variance
     pop R15
     RET
 
-LABEL stdDev
+LABEL js_stdDev
     push R15
     push R12
     move R12 R13
@@ -124,7 +124,7 @@ LABEL stdDev
     pop R15
     RET
 
-LABEL linregSlope
+LABEL js_linregSlope
     push R15
     push R12
     move R12 R13
@@ -141,7 +141,7 @@ LABEL linregSlope
     pop R15
     RET
 
-LABEL linregIntercept
+LABEL js_linregIntercept
     push R15
     push R12
     move R12 R13
@@ -159,110 +159,110 @@ LABEL linregIntercept
     RET
 
 LABEL Statistics_Mean
-    JMP mean
+    JMP js_mean
 
 LABEL Statistics_Median
-    JMP median
+    JMP js_median
 
 LABEL Statistics_Range
-    JMP range
+    JMP js_range
 
 LABEL Statistics_CountGt
-    JMP countGt
+    JMP js_countGt
 
 LABEL Statistics_CountLt
-    JMP countLt
+    JMP js_countLt
 
 LABEL Statistics_CountEq
-    JMP countEq
+    JMP js_countEq
 
 LABEL Statistics_Variance
-    JMP variance
+    JMP js_variance
 
 LABEL Statistics_StdDev
-    JMP stdDev
+    JMP js_stdDev
 
 LABEL Statistics_LinregSlope
-    JMP linregSlope
+    JMP js_linregSlope
 
 LABEL Statistics_LinregIntercept
-    JMP linregIntercept
+    JMP js_linregIntercept
 
 LABEL method_mean
-    JMP mean
+    JMP js_mean
 
 LABEL method_Mean
-    JMP mean
+    JMP js_mean
 
 LABEL method_median
-    JMP median
+    JMP js_median
 
 LABEL method_Median
-    JMP median
+    JMP js_median
 
 LABEL method_range
-    JMP range
+    JMP js_range
 
 LABEL method_Range
-    JMP range
+    JMP js_range
 
 LABEL method_count_gt
-    JMP countGt
+    JMP js_countGt
 
 LABEL method_CountGt
-    JMP countGt
+    JMP js_countGt
 
 LABEL method_countGt
-    JMP countGt
+    JMP js_countGt
 
 LABEL method_count_lt
-    JMP countLt
+    JMP js_countLt
 
 LABEL method_CountLt
-    JMP countLt
+    JMP js_countLt
 
 LABEL method_countLt
-    JMP countLt
+    JMP js_countLt
 
 LABEL method_count_eq
-    JMP countEq
+    JMP js_countEq
 
 LABEL method_CountEq
-    JMP countEq
+    JMP js_countEq
 
 LABEL method_countEq
-    JMP countEq
+    JMP js_countEq
 
 LABEL method_variance
-    JMP variance
+    JMP js_variance
 
 LABEL method_Variance
-    JMP variance
+    JMP js_variance
 
 LABEL method_std_dev
-    JMP stdDev
+    JMP js_stdDev
 
 LABEL method_StdDev
-    JMP stdDev
+    JMP js_stdDev
 
 LABEL method_stdDev
-    JMP stdDev
+    JMP js_stdDev
 
 LABEL method_linreg_slope
-    JMP linregSlope
+    JMP js_linregSlope
 
 LABEL method_LinregSlope
-    JMP linregSlope
+    JMP js_linregSlope
 
 LABEL method_linregSlope
-    JMP linregSlope
+    JMP js_linregSlope
 
 LABEL method_linreg_intercept
-    JMP linregIntercept
+    JMP js_linregIntercept
 
 LABEL method_LinregIntercept
-    JMP linregIntercept
+    JMP js_linregIntercept
 
 LABEL method_linregIntercept
-    JMP linregIntercept
+    JMP js_linregIntercept
 
