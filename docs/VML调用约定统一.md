@@ -457,3 +457,45 @@ __stdcall void printf2(const char* fmt, int a1, int a2) {
 ```
 
 现在没炸只因没人调用它。重生成时一并处理（或删掉）。
+
+---
+
+# 分家决定（2026-09-17，用户拍板）
+
+> **本副本自即日起与上游 VML 仓库分家，改走「移动设备专用版本」的路。**
+
+## 为什么
+
+调用约定统一这件事，本仓与上游已经走到不同的路上：
+
+- 本仓的 `VMLPrepares/CCompiler` **比上游新** —— 上游的 cdecl 路径还是
+  「边求值边 `MOVE Ri, R0`」那个会被冲掉的旧实现，我们早在 `patches/0002` 里修了；
+  另有 `0008`（复合字面量硬失败）、`0018`（常量表达式护栏）也动同一批文件。
+- 本次的调用约定统一、以及接下来要在 **GenLib 包装规则** 上做的两处改动，
+  上游都没有。
+- 而 `sync.sh` 是 `rsync --delete` 的整目录覆盖 ⇒ **跑一次就把这些全冲掉**。
+
+## 做了什么
+
+1. **`tools/` 已复制进本仓**（`GenLib` / `GenDyn` / `GenDev` / `VMLPacker`）。
+   实测 `dotnet build third_party/vml/tools/GenLib` **在本仓编译通过**。
+   ⇒ `Lib/` 的重生成从此**在本仓就地做**，不必回上游。
+2. **`sync.sh` 加了分家闸门**：默认直接拒绝运行并说明原因；
+   确实要强制同步走 `WAYCODER_VML_FORCE_SYNC=1`。
+3. 上游此后只作**参考**。要拉某个上游修复请**手工挑拣**，别整目录 rsync。
+
+## 因此，之前那份「上游重生成」方案作废，改成：
+
+```bash
+# 在本仓就地重生成 Lib/（GenLib 的 -b 是进程内调用 CCompiler，改前端直接生效）
+dotnet run --project third_party/vml/tools/GenLib -- -A
+```
+
+⚠ 跑之前先完成 GenLib 那两处改动（清栈条件、压参宽度），见上一节。
+
+## 还没拿过来的
+
+上游顶层还有 11 个目录本仓没有：`Config Devices docs images Scripts test`
+`VMLEmulators VMLFast VMLIde VMLTests web`。多是上游自己的 IDE/模拟器/文档/网页端，
+移动版用不上。**唯独 `VMLTests/`（回归测试套件）值得拿** —— 但它能不能在本仓这份树上
+编译通过尚未验证，纳入时要单独评估（它可能依赖 `VMLEmulators` / `VMLFast` 之类）。

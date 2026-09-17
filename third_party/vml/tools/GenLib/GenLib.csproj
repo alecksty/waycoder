@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Authors>施探宇;alecksty</Authors>
+    <Company>深圳市探索智能科技有限公司</Company>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>genlib</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RuntimeIdentifiers>win-x64;linux-x64;osx-x64;osx-arm64</RuntimeIdentifiers>
+    <!-- Native AOT 发布配置 -->
+    <PublishAot>true</PublishAot>
+    <OptimizationPreference>Speed</OptimizationPreference>
+    <!-- CCompiler 是 Exe (非自包含), AOT 发布需绕过引用校验 -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+    <!-- 抑制 CCompiler 依赖链中的 trim 警告 (PluginManager 的 Assembly.LoadFrom 在 GenLib 中不被调用) -->
+    <NoWarn>$(NoWarn);IL2104;IL2026;IL2055;IL3050</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../VMLPrepares/CCompiler/CCompiler.csproj" />
+  </ItemGroup>
+</Project>

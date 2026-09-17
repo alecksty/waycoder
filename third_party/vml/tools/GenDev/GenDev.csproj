@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Authors>施探宇;alecksty</Authors>
+    <Company>深圳市探索智能科技有限公司</Company>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <NoWarn>$(NoWarn);IL2104</NoWarn>
+    <AssemblyName>GenDev</AssemblyName>
+    <RootNamespace>GenDev</RootNamespace>
+    <RuntimeIdentifiers>win-x64;linux-x64;osx-x64;osx-arm64</RuntimeIdentifiers>
+    <!-- AOT 关闭: XmlSerializer 需要运行时动态代码, SGEN 暂不支持 .NET 10 -->
+    <PublishAot>false</PublishAot>
+    <OptimizationPreference>Speed</OptimizationPreference>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="YamlDotNet" Version="15.1.2" />
+  </ItemGroup>
+
+</Project>
