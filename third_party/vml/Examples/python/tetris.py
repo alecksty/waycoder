@@ -171,8 +171,7 @@ def draw(px, py, rot, pid, score, over):
         x = 0
         while x < W:
             if bget(x, y) != 0:
-                ui_rect(ox + x * cell + 1, oy + y * cell + 1, cell - 2, cell - 2,
-                        0xFF58A6FF, 1, 0, 2)
+                ui_rect(ox + x * cell + 1, oy + y * cell + 1, cell - 2, cell - 2, 0xFF58A6FF, 1, 0, 2)
             x = x + 1
         y = y + 1
 
@@ -183,8 +182,7 @@ def draw(px, py, rot, pid, score, over):
         c = 0
         while c < 4:
             if (m >> (r * 4 + c)) & 1:
-                ui_rect(ox + (px + c) * cell + 1, oy + (py + r) * cell + 1,
-                        cell - 2, cell - 2, 0xFFF0B429, 1, 0, 2)
+                ui_rect(ox + (px + c) * cell + 1, oy + (py + r) * cell + 1, cell - 2, cell - 2, 0xFFF0B429, 1, 0, 2)
             c = c + 1
         r = r + 1
 
