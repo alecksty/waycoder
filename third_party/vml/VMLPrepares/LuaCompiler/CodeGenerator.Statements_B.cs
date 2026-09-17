@@ -164,13 +164,25 @@ namespace LuaCompiler
             // 循环推进的是全局、循环体读的是局部，两者永不相等（语料 skel.lua 里 i 恒为 0 就是这么来的）。
             // 该名字已经是局部变量就写它那一格；否则维持原行为（写全局，循环体也解析到同一个全局）。
             bool varIsLocal = symbolTable.TryGetValue(node.Variable, out int varOffset);
-            if (!varIsLocal && !dataSection.ContainsKey(varLabel))
+            if (!varIsLocal)
             {
-                dataSection[varLabel] = 0;
+                // ⚠ **循环变量必须有自己的局部槽**（2026-09-17 修）。
+                //
+                // 原先没预声明 `local i` 时回退到数据段的全局 `var_i`，而那条路是坏的：
+                // 循环头发的是 `move R1 var_i`（把标签当**地址**取），循环体读 `i` 发的却是
+                // `move R0 [var_i]`（按地址**取值**）—— 同一个标签两种解读方式。
+                // 于是 R1 拿到一个远大于上界的地址 ⇒ `cmp/jg` 立刻跳出，**循环体一次都不执行**。
+                // 实测：`for i = 1, 4 do s = s + a[i] end` 得 0；
+                //       前面补一句 `local i = 0` 就对（得 10）—— 因为那时走的是局部槽这条一致的路。
+                // 语料 `corpus/lua/skel.lua` 恰好写了 `local i = 0`，所以这条路径一直没被覆盖。
+                //
+                // 现在无条件分配一格，两种写法走同一条路（`[R12-off]`）。
+                varOffset = nextStackOffset;
+                symbolTable[node.Variable] = varOffset;
+                nextStackOffset += 4;
+                varIsLocal = true;
             }
-            Operand VarStoreTarget() => varIsLocal
-                ? new Operand(OperandType.MEMORY, $"R12-{varOffset}")
-                : new Operand(OperandType.LABEL, varLabel);
+            Operand VarStoreTarget() => new Operand(OperandType.MEMORY, $"R12-{varOffset}");
 
             // 存储初始值到变量（GenerateExpression结果在R0中）
             instructions.Add(new Instruction(OpCode.MOVE,
