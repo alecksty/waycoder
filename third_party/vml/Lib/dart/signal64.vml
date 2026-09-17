@@ -15,6 +15,7 @@ LABEL dart_lmoving_avg_init64
     sub R13 #8
     movel @13 R0
     CALL lmoving_avg_init64
+    ADD R13 #16
     RET
 
 LABEL dart_lmoving_avg_update64
@@ -22,11 +23,13 @@ LABEL dart_lmoving_avg_update64
     movel @13 R1
     PUSH R0
     CALL lmoving_avg_update64
+    ADD R13 #12
     RET
 
 LABEL dart_lema_init64
     PUSH R0
     CALL lema_init64
+    ADD R13 #4
     RET
 
 LABEL dart_lema_update64
@@ -36,6 +39,7 @@ LABEL dart_lema_update64
     movel @13 R1
     PUSH R0
     CALL lema_update64
+    ADD R13 #20
     RET
 
 LABEL dart_lkalman_init64
@@ -47,6 +51,7 @@ LABEL dart_lkalman_init64
     movel @13 R1
     PUSH R0
     CALL lkalman_init64
+    ADD R13 #28
     RET
 
 LABEL dart_lkalman_update64
@@ -54,6 +59,7 @@ LABEL dart_lkalman_update64
     movel @13 R1
     PUSH R0
     CALL lkalman_update64
+    ADD R13 #12
     RET
 
 LABEL dart_ldeadband64
@@ -62,6 +68,7 @@ LABEL dart_ldeadband64
     sub R13 #8
     movel @13 R0
     CALL ldeadband64
+    ADD R13 #16
     RET
 
 LABEL dart_lhysteresis64
@@ -73,6 +80,7 @@ LABEL dart_lhysteresis64
     movel @13 R1
     PUSH R0
     CALL lhysteresis64
+    ADD R13 #28
     RET
 
 LABEL func_Processing

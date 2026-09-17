@@ -9,6 +9,7 @@ LABEL fortran_ladd64
     sub R13 #8
     movel @13 R0
     CALL ladd64
+    ADD R13 #16
     RET
 
 LABEL fortran_lsub64
@@ -17,6 +18,7 @@ LABEL fortran_lsub64
     sub R13 #8
     movel @13 R0
     CALL lsub64
+    ADD R13 #16
     RET
 
 LABEL fortran_lmul64
@@ -25,6 +27,7 @@ LABEL fortran_lmul64
     sub R13 #8
     movel @13 R0
     CALL lmul64
+    ADD R13 #16
     RET
 
 LABEL fortran_ldiv64
@@ -33,6 +36,7 @@ LABEL fortran_ldiv64
     sub R13 #8
     movel @13 R0
     CALL ldiv64
+    ADD R13 #16
     RET
 
 LABEL fortran_lmod64
@@ -41,22 +45,26 @@ LABEL fortran_lmod64
     sub R13 #8
     movel @13 R0
     CALL lmod64
+    ADD R13 #16
     RET
 
 LABEL fortran_lneg64
     sub R13 #8
     movel @13 R0
     CALL lneg64
+    ADD R13 #8
     RET
 
 LABEL fortran_larr_sum64
     PUSH R0
     CALL larr_sum64
+    ADD R13 #4
     RET
 
 LABEL fortran_larr_avg64
     PUSH R0
     CALL larr_avg64
+    ADD R13 #4
     RET
 
 LABEL fortran_lmean64
@@ -68,11 +76,13 @@ LABEL fortran_lmean64
 LABEL fortran_larr_max64
     PUSH R0
     CALL larr_max64
+    ADD R13 #4
     RET
 
 LABEL fortran_larr_min64
     PUSH R0
     CALL larr_min64
+    ADD R13 #4
     RET
 
 LABEL func_ladd64

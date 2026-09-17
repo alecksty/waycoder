@@ -1007,6 +1007,46 @@ namespace VML {
     // extern const char* vml_dns_resolve(const char* hostname);  // CALL vml_dns_resolve
     // extern void vml_screenshot(void);  // CALL vml_screenshot
     // extern int vml_syscall5(int num, int a0, int a1, int a2, int a3, int a4);  // CALL vml_syscall5
+    // extern int ui_dlg_msg(char* title, char* body, int style);  // CALL ui_dlg_msg
+    // extern int ui_dlg_select(char* title, char* body, char* opts, int n, int def);  // CALL ui_dlg_select
+    // extern int ui_dlg_multi(char* title, char* body, char* opts, int n);  // CALL ui_dlg_multi
+    // extern int ui_dlg_input(char* title, char* prompt, char* buf, int cap);  // CALL ui_dlg_input
+    // extern int ui_win_open(char* title, int w, int h);  // CALL ui_win_open
+    // extern int ui_win_close(void);  // CALL ui_win_close
+    // extern int ui_win_closed(void);  // CALL ui_win_closed
+    // extern int ui_scr_w(void);  // CALL ui_scr_w
+    // extern int ui_scr_h(void);  // CALL ui_scr_h
+    // extern void ui_clear(int color);  // CALL ui_clear
+    // extern void ui_pixel(int x, int y, int color);  // CALL ui_pixel
+    // extern void ui_line(int x1, int y1, int x2, int y2, int color, int lw);  // CALL ui_line
+    // extern void ui_rect(int x, int y, int w, int h, int color, int fill, int lw, int radius);  // CALL ui_rect
+    // extern void ui_circle(int cx, int cy, int r, int color, int fill, int lw);  // CALL ui_circle
+    // extern void ui_ellipse(int cx, int cy, int rx, int ry, int color, int fill, int lw);  // CALL ui_ellipse
+    // extern void ui_present(void);  // CALL ui_present
+    // extern void ui_text(int x, int y, char* s, int color, int size, int anchor);  // CALL ui_text
+    // extern void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style);  // CALL ui_text_styled
+    // extern void ui_set_font(int size, int style, int color, int anchor);  // CALL ui_set_font
+    // extern void ui_text_cur(int x, int y, char* s);  // CALL ui_text_cur
+    // extern int ui_poll(int* msg);  // CALL ui_poll
+    // extern int ui_wait(int* msg, int timeout_ms);  // CALL ui_wait
+    // extern int ui_msg_count(void);  // CALL ui_msg_count
+    // extern while ui_poll_msg();  // CALL ui_poll_msg
+    // extern int ui_wait_msg(int timeout_ms);  // CALL ui_wait_msg
+    // extern int ui_msg_type(void);  // CALL ui_msg_type
+    // extern int ui_msg_a(void);  // CALL ui_msg_a
+    // extern int ui_msg_b(void);  // CALL ui_msg_b
+    // extern void ui_gclear(void);  // CALL ui_gclear
+    // extern void ui_gset(int idx, int val);  // CALL ui_gset
+    // extern int ui_gget(int idx);  // CALL ui_gget
+    // extern void ui_piece_init(void);  // CALL ui_piece_init
+    // extern nt _ui_rot90(int m);  // CALL _ui_rot90
+    // extern int ui_piece_cell(int pid, int rot, int which);  // CALL ui_piece_cell
+    // extern int ui_timer_set(int interval_ms, int tag);  // CALL ui_timer_set
+    // extern int ui_timer_kill(int id);  // CALL ui_timer_kill
+    // extern int ui_rand(int n);  // CALL ui_rand
+    // extern int ui_tick(void);  // CALL ui_tick
+    // extern void ui_icon(int x, int y, char* name, int size, int color);  // CALL ui_icon
+    // extern void ui_image(int x, int y, char* path, int w, int h);  // CALL ui_image
     // extern Unicode character(inline, to avoid header parsing issues);  // CALL character
     // extern int wctomb(char *dest, wchar_t wc);  // CALL wctomb
     // extern int mbtowc(wchar_t *dest, const char *src);  // CALL mbtowc

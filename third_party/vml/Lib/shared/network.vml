@@ -14,13 +14,13 @@ net_connect:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         asm "LOAD R0 #2"
         asm "LOAD R1 #1"
         syscall #330
         move [R12-4] R0
         asm "MOVE fd, R0"
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #0
         pop R1
@@ -36,7 +36,7 @@ _L52300003:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L52300004
+        jmp L_52300004
 sta_52300000:
 sta_52300001:
         asm "MOVE R0, fd"
@@ -45,7 +45,7 @@ sta_52300001:
         syscall #334
         move [R12-4] R0
         asm "MOVE result, R0"
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #0
         pop R1
@@ -64,18 +64,15 @@ _L52300008:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L52300004
+        jmp L_52300004
 sta_52300005:
 sta_52300006:
-        move R0 [R12-4]
-        jmp L52300004
-L52300004:
+        move R0 [R12-8]
+        jmp L_52300004
+L_52300004:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 net_send:
 ; -------------------------------------------
@@ -90,19 +87,16 @@ net_send:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #335
         move [R12-4] R0
         asm "MOVE result, R0"
-        move R0 [R12-4]
-        jmp L52300009
-L52300009:
+        move R0 [R12-8]
+        jmp L_52300009
+L_52300009:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #16
-        push R1
         ret
 net_recv:
 ; -------------------------------------------
@@ -117,19 +111,16 @@ net_recv:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #336
         move [R12-4] R0
         asm "MOVE result, R0"
-        move R0 [R12-4]
-        jmp L52300010
-L52300010:
+        move R0 [R12-8]
+        jmp L_52300010
+L_52300010:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #16
-        push R1
         ret
 net_close:
 ; -------------------------------------------
@@ -142,14 +133,12 @@ net_close:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #337
         move [R12-4] R0
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 net_listen:
 ; -------------------------------------------:
@@ -163,13 +152,13 @@ net_listen:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         asm "LOAD R0 #2"
         asm "LOAD R1 #1"
         syscall #330
         move [R12-4] R0
         asm "MOVE fd, R0"
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #0
         pop R1
@@ -185,7 +174,7 @@ _L52300014:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L52300015
+        jmp L_52300015
 sta_52300011:
 sta_52300012:
         asm "MOVE R0, fd"
@@ -193,7 +182,7 @@ sta_52300012:
         syscall #331
         move [R12-4] R0
         asm "MOVE result, R0"
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #0
         pop R1
@@ -212,7 +201,7 @@ _L52300019:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L52300015
+        jmp L_52300015
 sta_52300016:
 sta_52300017:
         asm "MOVE R0, fd"
@@ -220,7 +209,7 @@ sta_52300017:
         syscall #332
         move [R12-4] R0
         asm "MOVE result, R0"
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #0
         pop R1
@@ -239,16 +228,13 @@ _L52300023:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L52300015
+        jmp L_52300015
 sta_52300020:
 sta_52300021:
-        move R0 [R12-4]
-        jmp L52300015
-L52300015:
+        move R0 [R12-8]
+        jmp L_52300015
+L_52300015:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret

@@ -8,12 +8,14 @@ LABEL r_rle_encode
     PUSH R1
     PUSH R0
     CALL rle_encode
+    ADD R13 #12
     RET
 
 LABEL r_rle_decode
     PUSH R1
     PUSH R0
     CALL rle_decode
+    ADD R13 #8
     RET
 
 LABEL func_rle_encode

@@ -8,21 +8,25 @@ LABEL Rgb888ToRgb565
     PUSH R1
     PUSH R0
     CALL rgb888_to_rgb565
+    ADD R13 #12
     RET
 
 LABEL Rgb565ToR
     PUSH R0
     CALL rgb565_to_r
+    ADD R13 #4
     RET
 
 LABEL Rgb565ToG
     PUSH R0
     CALL rgb565_to_g
+    ADD R13 #4
     RET
 
 LABEL Rgb565ToB
     PUSH R0
     CALL rgb565_to_b
+    ADD R13 #4
     RET
 
 LABEL Rgb
@@ -30,21 +34,25 @@ LABEL Rgb
     PUSH R1
     PUSH R0
     CALL rgb
+    ADD R13 #12
     RET
 
 LABEL Red
     PUSH R0
     CALL red
+    ADD R13 #4
     RET
 
 LABEL Green
     PUSH R0
     CALL green
+    ADD R13 #4
     RET
 
 LABEL Blue
     PUSH R0
     CALL blue
+    ADD R13 #4
     RET
 
 LABEL Grayscale
@@ -52,6 +60,7 @@ LABEL Grayscale
     PUSH R1
     PUSH R0
     CALL grayscale
+    ADD R13 #12
     RET
 
 LABEL ColorBlend
@@ -59,12 +68,14 @@ LABEL ColorBlend
     PUSH R1
     PUSH R0
     CALL color_blend
+    ADD R13 #12
     RET
 
 LABEL ColorBrightness
     PUSH R1
     PUSH R0
     CALL color_brightness
+    ADD R13 #8
     RET
 
 LABEL HsvToRgb
@@ -72,6 +83,7 @@ LABEL HsvToRgb
     PUSH R1
     PUSH R0
     CALL hsv_to_rgb
+    ADD R13 #12
     RET
 
 LABEL ColorBlack

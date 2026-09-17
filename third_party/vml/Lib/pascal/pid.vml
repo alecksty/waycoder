@@ -7,6 +7,7 @@ LABEL PASCAL_SET_SETPOINT
     PUSH R1
     PUSH R0
     CALL set_setpoint
+    ADD R13 #8
     RET
 
 LABEL PASCAL_COMPUTE
@@ -14,10 +15,12 @@ LABEL PASCAL_COMPUTE
     PUSH R1
     PUSH R0
     CALL compute
+    ADD R13 #12
     RET
 
 LABEL PASCAL_RESET
     PUSH R0
     CALL reset
+    ADD R13 #4
     RET
 

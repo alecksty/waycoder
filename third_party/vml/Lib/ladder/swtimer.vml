@@ -9,22 +9,26 @@ LABEL LADDER_START
     PUSH R1
     PUSH R0
     CALL start
+    ADD R13 #16
     RET
 
 LABEL LADDER_STOP
     PUSH R1
     PUSH R0
     CALL stop
+    ADD R13 #8
     RET
 
 LABEL LADDER_TICK
     PUSH R0
     CALL tick
+    ADD R13 #4
     RET
 
 LABEL LADDER_REMAINING
     PUSH R1
     PUSH R0
     CALL remaining
+    ADD R13 #8
     RET
 

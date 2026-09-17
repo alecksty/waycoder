@@ -10,59 +10,70 @@ LABEL kotlin_newline
 LABEL kotlin_debug_print
     PUSH R0
     CALL debug_print
+    ADD R13 #4
     RET
 
 LABEL kotlin_debug_print_int
     PUSH R0
     CALL debug_print_int
+    ADD R13 #4
     RET
 
 LABEL kotlin_assert
     PUSH R1
     PUSH R0
     CALL assert
+    ADD R13 #8
     RET
 
 LABEL kotlin_sign
     PUSH R0
     CALL sign
+    ADD R13 #4
     RET
 
 LABEL kotlin_popcount
     PUSH R0
     CALL popcount
+    ADD R13 #4
     RET
 
 LABEL kotlin_clz
     PUSH R0
     CALL clz
+    ADD R13 #4
     RET
 
 LABEL kotlin_gcd
     PUSH R1
     PUSH R0
     CALL gcd
+    ADD R13 #8
     RET
 
 LABEL kotlin_lcm
     PUSH R1
     PUSH R0
     CALL lcm
+    ADD R13 #8
     RET
 
 LABEL kotlin_factorial
     PUSH R0
     CALL factorial
+    ADD R13 #4
     RET
 
 LABEL kotlin_is_prime
     PUSH R0
     CALL is_prime
+    ADD R13 #4
     RET
 
 LABEL kotlin_atoi
     PUSH R0
     CALL atoi
+    ADD R13 #4
     RET
 
 LABEL kotlin_itoa
@@ -76,6 +87,7 @@ LABEL kotlin_rand_range
     PUSH R1
     PUSH R0
     CALL rand_range
+    ADD R13 #8
     RET
 
 LABEL func_newline

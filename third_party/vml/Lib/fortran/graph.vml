@@ -228,6 +228,7 @@ LABEL fortran_InitGraph
     PUSH R1
     PUSH R0
     CALL InitGraph
+    ADD R13 #12
     RET
 
 LABEL fortran_CloseGraph
@@ -238,6 +239,7 @@ LABEL fortran_DetectGraph
     PUSH R1
     PUSH R0
     CALL DetectGraph
+    ADD R13 #8
     RET
 
 LABEL fortran_GetMaxX
@@ -255,11 +257,13 @@ LABEL fortran_GetDriverName
 LABEL fortran_GetModeName
     PUSH R0
     CALL GetModeName
+    ADD R13 #4
     RET
 
 LABEL fortran_SetColor
     PUSH R0
     CALL SetColor
+    ADD R13 #4
     RET
 
 LABEL fortran_GetColor
@@ -269,6 +273,7 @@ LABEL fortran_GetColor
 LABEL fortran_SetBkColor
     PUSH R0
     CALL SetBkColor
+    ADD R13 #4
     RET
 
 LABEL fortran_GetBkColor
@@ -281,6 +286,7 @@ LABEL fortran_SetRGBPalette
     PUSH R1
     PUSH R0
     CALL SetRGBPalette
+    ADD R13 #16
     RET
 
 LABEL fortran_PutPixel
@@ -288,12 +294,14 @@ LABEL fortran_PutPixel
     PUSH R1
     PUSH R0
     CALL PutPixel
+    ADD R13 #12
     RET
 
 LABEL fortran_GetPixel
     PUSH R1
     PUSH R0
     CALL GetPixel
+    ADD R13 #8
     RET
 
 LABEL fortran_Line
@@ -302,18 +310,21 @@ LABEL fortran_Line
     PUSH R1
     PUSH R0
     CALL Line
+    ADD R13 #16
     RET
 
 LABEL fortran_LineTo
     PUSH R1
     PUSH R0
     CALL LineTo
+    ADD R13 #8
     RET
 
 LABEL fortran_LineRel
     PUSH R1
     PUSH R0
     CALL LineRel
+    ADD R13 #8
     RET
 
 LABEL fortran_Rectangle
@@ -322,6 +333,7 @@ LABEL fortran_Rectangle
     PUSH R1
     PUSH R0
     CALL Rectangle
+    ADD R13 #16
     RET
 
 LABEL fortran_Bar
@@ -330,6 +342,7 @@ LABEL fortran_Bar
     PUSH R1
     PUSH R0
     CALL Bar
+    ADD R13 #16
     RET
 
 LABEL fortran_Bar3D
@@ -340,6 +353,7 @@ LABEL fortran_Bar3D
     PUSH R1
     PUSH R0
     CALL Bar3D
+    ADD R13 #24
     RET
 
 LABEL fortran_Circle
@@ -347,6 +361,7 @@ LABEL fortran_Circle
     PUSH R1
     PUSH R0
     CALL Circle
+    ADD R13 #12
     RET
 
 LABEL fortran_FillCircle
@@ -354,6 +369,7 @@ LABEL fortran_FillCircle
     PUSH R1
     PUSH R0
     CALL FillCircle
+    ADD R13 #12
     RET
 
 LABEL fortran_Ellipse
@@ -364,6 +380,7 @@ LABEL fortran_Ellipse
     PUSH R1
     PUSH R0
     CALL Ellipse
+    ADD R13 #24
     RET
 
 LABEL fortran_FillEllipse
@@ -372,6 +389,7 @@ LABEL fortran_FillEllipse
     PUSH R1
     PUSH R0
     CALL FillEllipse
+    ADD R13 #16
     RET
 
 LABEL fortran_Arc
@@ -381,6 +399,7 @@ LABEL fortran_Arc
     PUSH R1
     PUSH R0
     CALL Arc
+    ADD R13 #20
     RET
 
 LABEL fortran_PieSlice
@@ -390,12 +409,14 @@ LABEL fortran_PieSlice
     PUSH R1
     PUSH R0
     CALL PieSlice
+    ADD R13 #20
     RET
 
 LABEL fortran_SetFillStyle
     PUSH R1
     PUSH R0
     CALL SetFillStyle
+    ADD R13 #8
     RET
 
 LABEL fortran_SetLineStyle
@@ -403,6 +424,7 @@ LABEL fortran_SetLineStyle
     PUSH R1
     PUSH R0
     CALL SetLineStyle
+    ADD R13 #12
     RET
 
 LABEL fortran_ClearDevice
@@ -420,11 +442,13 @@ LABEL fortran_SetViewPort
     PUSH R1
     PUSH R0
     CALL SetViewPort
+    ADD R13 #20
     RET
 
 LABEL fortran_OutText
     PUSH R0
     CALL OutText
+    ADD R13 #4
     RET
 
 LABEL fortran_OutTextXY
@@ -432,6 +456,7 @@ LABEL fortran_OutTextXY
     PUSH R1
     PUSH R0
     CALL OutTextXY
+    ADD R13 #12
     RET
 
 LABEL fortran_FloodFill
@@ -439,6 +464,7 @@ LABEL fortran_FloodFill
     PUSH R1
     PUSH R0
     CALL FloodFill
+    ADD R13 #12
     RET
 
 LABEL fortran_ImageSize
@@ -447,6 +473,7 @@ LABEL fortran_ImageSize
     PUSH R1
     PUSH R0
     CALL ImageSize
+    ADD R13 #16
     RET
 
 LABEL fortran_GetImage
@@ -456,6 +483,7 @@ LABEL fortran_GetImage
     PUSH R1
     PUSH R0
     CALL GetImage
+    ADD R13 #20
     RET
 
 LABEL fortran_PutImage
@@ -464,6 +492,7 @@ LABEL fortran_PutImage
     PUSH R1
     PUSH R0
     CALL PutImage
+    ADD R13 #16
     RET
 
 LABEL fortran_GetPaletteSize
@@ -473,11 +502,13 @@ LABEL fortran_GetPaletteSize
 LABEL fortran_GetPalette
     PUSH R0
     CALL GetPalette
+    ADD R13 #4
     RET
 
 LABEL fortran_GetDefaultPalette
     PUSH R0
     CALL GetDefaultPalette
+    ADD R13 #4
     RET
 
 LABEL fortran_GraphResult
@@ -487,6 +518,7 @@ LABEL fortran_GraphResult
 LABEL fortran_GraphErrorMsg
     PUSH R0
     CALL GraphErrorMsg
+    ADD R13 #4
     RET
 
 LABEL fortran_RestoreCrtMode

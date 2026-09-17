@@ -8,21 +8,25 @@ LABEL scheme_crc64
     movel @13 R1
     PUSH R0
     CALL crc64
+    ADD R13 #12
     RET
 
 LABEL scheme_fnv1a_hash64
     PUSH R0
     CALL fnv1a_hash64
+    ADD R13 #4
     RET
 
 LABEL scheme_djb2_hash64
     PUSH R0
     CALL djb2_hash64
+    ADD R13 #4
     RET
 
 LABEL scheme_sdbm_hash64
     PUSH R0
     CALL sdbm_hash64
+    ADD R13 #4
     RET
 
 LABEL scheme_crc32_64l
@@ -30,6 +34,7 @@ LABEL scheme_crc32_64l
     movel @13 R1
     PUSH R0
     CALL crc32_64l
+    ADD R13 #12
     RET
 
 LABEL func_crc64

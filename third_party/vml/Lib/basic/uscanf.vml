@@ -6,5 +6,6 @@
 LABEL BASIC_USCANF
     PUSH R0
     CALL uscanf
+    ADD R13 #4
     RET
 

@@ -9,6 +9,7 @@ LABEL kotlin_GetDate
     PUSH R1
     PUSH R0
     CALL GetDate
+    ADD R13 #16
     RET
 
 LABEL kotlin_GetTime
@@ -17,6 +18,7 @@ LABEL kotlin_GetTime
     PUSH R1
     PUSH R0
     CALL GetTime
+    ADD R13 #16
     RET
 
 LABEL kotlin_DosVersion
@@ -26,11 +28,13 @@ LABEL kotlin_DosVersion
 LABEL kotlin_DiskFree
     PUSH R0
     CALL DiskFree
+    ADD R13 #4
     RET
 
 LABEL kotlin_DiskSize
     PUSH R0
     CALL DiskSize
+    ADD R13 #4
     RET
 
 LABEL kotlin_FindFirst
@@ -38,16 +42,19 @@ LABEL kotlin_FindFirst
     PUSH R1
     PUSH R0
     CALL FindFirst
+    ADD R13 #12
     RET
 
 LABEL kotlin_FindNext
     PUSH R0
     CALL FindNext
+    ADD R13 #4
     RET
 
 LABEL kotlin_FindClose
     PUSH R0
     CALL FindClose
+    ADD R13 #4
     RET
 
 LABEL kotlin_EnvCount
@@ -57,17 +64,20 @@ LABEL kotlin_EnvCount
 LABEL kotlin_EnvStr
     PUSH R0
     CALL EnvStr
+    ADD R13 #4
     RET
 
 LABEL kotlin_GetEnv
     PUSH R0
     CALL GetEnv
+    ADD R13 #4
     RET
 
 LABEL kotlin_Exec
     PUSH R1
     PUSH R0
     CALL Exec
+    ADD R13 #8
     RET
 
 LABEL kotlin_SwapVectors
@@ -78,12 +88,14 @@ LABEL kotlin_GetIntVec
     PUSH R1
     PUSH R0
     CALL GetIntVec
+    ADD R13 #8
     RET
 
 LABEL kotlin_SetIntVec
     PUSH R1
     PUSH R0
     CALL SetIntVec
+    ADD R13 #8
     RET
 
 LABEL kotlin_DosExitCode

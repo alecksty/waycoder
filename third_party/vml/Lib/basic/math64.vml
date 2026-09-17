@@ -7,6 +7,7 @@ LABEL BASIC_LABS64
     sub R13 #8
     movel @13 R0
     CALL labs64
+    ADD R13 #8
     RET
 
 LABEL BASIC_LMIN64
@@ -15,6 +16,7 @@ LABEL BASIC_LMIN64
     sub R13 #8
     movel @13 R0
     CALL lmin64
+    ADD R13 #16
     RET
 
 LABEL BASIC_LMAX64
@@ -23,6 +25,7 @@ LABEL BASIC_LMAX64
     sub R13 #8
     movel @13 R0
     CALL lmax64
+    ADD R13 #16
     RET
 
 LABEL BASIC_LCLAMP64
@@ -33,12 +36,14 @@ LABEL BASIC_LCLAMP64
     sub R13 #8
     movel @13 R0
     CALL lclamp64
+    ADD R13 #24
     RET
 
 LABEL BASIC_LSIGN64
     sub R13 #8
     movel @13 R0
     CALL lsign64
+    ADD R13 #8
     RET
 
 LABEL BASIC_LGCD64
@@ -47,6 +52,7 @@ LABEL BASIC_LGCD64
     sub R13 #8
     movel @13 R0
     CALL lgcd64
+    ADD R13 #16
     RET
 
 LABEL BASIC_LLCM64
@@ -55,12 +61,14 @@ LABEL BASIC_LLCM64
     sub R13 #8
     movel @13 R0
     CALL llcm64
+    ADD R13 #16
     RET
 
 LABEL BASIC_LISQRT64
     sub R13 #8
     movel @13 R0
     CALL lisqrt64
+    ADD R13 #8
     RET
 
 LABEL BASIC_LPOW64
@@ -69,12 +77,14 @@ LABEL BASIC_LPOW64
     sub R13 #8
     movel @13 R0
     CALL lpow64
+    ADD R13 #16
     RET
 
 LABEL BASIC_LFACTORIAL64
     sub R13 #8
     movel @13 R0
     CALL lfactorial64
+    ADD R13 #8
     RET
 
 LABEL BASIC_LCEIL_DIV64
@@ -83,6 +93,7 @@ LABEL BASIC_LCEIL_DIV64
     sub R13 #8
     movel @13 R0
     CALL lceil_div64
+    ADD R13 #16
     RET
 
 LABEL BASIC_LROUND_DIV64
@@ -91,12 +102,14 @@ LABEL BASIC_LROUND_DIV64
     sub R13 #8
     movel @13 R0
     CALL lround_div64
+    ADD R13 #16
     RET
 
 LABEL BASIC_LIS_PRIME64
     sub R13 #8
     movel @13 R0
     CALL lis_prime64
+    ADD R13 #8
     RET
 
 LABEL BASIC_LRANDOM64
@@ -105,12 +118,14 @@ LABEL BASIC_LRANDOM64
     sub R13 #8
     movel @13 R0
     CALL lrandom64
+    ADD R13 #16
     RET
 
 LABEL BASIC_LCLZ64
     sub R13 #8
     movel @13 R0
     CALL lclz64
+    ADD R13 #8
     RET
 
 LABEL BASIC_COUNT
@@ -123,6 +138,7 @@ LABEL BASIC_LPOPCNT64
     sub R13 #8
     movel @13 R0
     CALL lpopcnt64
+    ADD R13 #8
     RET
 
 LABEL BASIC_LLERP64
@@ -133,6 +149,7 @@ LABEL BASIC_LLERP64
     sub R13 #8
     movel @13 R0
     CALL llerp64
+    ADD R13 #24
     RET
 
 LABEL BASIC_LMAP_RANGE64
@@ -147,12 +164,14 @@ LABEL BASIC_LMAP_RANGE64
     sub R13 #8
     movel @13 R0
     CALL lmap_range64
+    ADD R13 #40
     RET
 
 LABEL BASIC_LPOW10_64
     sub R13 #8
     movel @13 R0
     CALL lpow10_64
+    ADD R13 #8
     RET
 
 LABEL BASIC_LHYPOT64
@@ -161,24 +180,28 @@ LABEL BASIC_LHYPOT64
     sub R13 #8
     movel @13 R0
     CALL lhypot64
+    ADD R13 #16
     RET
 
 LABEL BASIC_LILOG2_64
     sub R13 #8
     movel @13 R0
     CALL lilog2_64
+    ADD R13 #8
     RET
 
 LABEL BASIC_LIS_EVEN64
     sub R13 #8
     movel @13 R0
     CALL lis_even64
+    ADD R13 #8
     RET
 
 LABEL BASIC_LIS_ODD64
     sub R13 #8
     movel @13 R0
     CALL lis_odd64
+    ADD R13 #8
     RET
 
 LABEL BASIC__SIN_TAYLOR64

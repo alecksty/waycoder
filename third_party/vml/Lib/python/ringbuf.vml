@@ -7,27 +7,32 @@ LABEL python_write
     PUSH R1
     PUSH R0
     CALL write
+    ADD R13 #8
     RET
 
 LABEL python_read
     PUSH R1
     PUSH R0
     CALL read
+    ADD R13 #8
     RET
 
 LABEL python_available
     PUSH R0
     CALL available
+    ADD R13 #4
     RET
 
 LABEL python_is_empty
     PUSH R0
     CALL is_empty
+    ADD R13 #4
     RET
 
 LABEL python_is_full
     PUSH R0
     CALL is_full
+    ADD R13 #4
     RET
 
 LABEL func_write

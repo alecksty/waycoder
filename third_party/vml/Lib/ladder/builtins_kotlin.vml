@@ -6,5 +6,6 @@
 LABEL LADDER_ARRAY_ALLOC
     PUSH R0
     CALL array_alloc
+    ADD R13 #4
     RET
 

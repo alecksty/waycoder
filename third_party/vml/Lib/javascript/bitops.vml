@@ -7,71 +7,83 @@ LABEL bitAnd
     PUSH R1
     PUSH R0
     CALL bit_and
+    ADD R13 #8
     RET
 
 LABEL bitOr
     PUSH R1
     PUSH R0
     CALL bit_or
+    ADD R13 #8
     RET
 
 LABEL bitXor
     PUSH R1
     PUSH R0
     CALL bit_xor
+    ADD R13 #8
     RET
 
 LABEL bitNot
     PUSH R0
     CALL bit_not
+    ADD R13 #4
     RET
 
 LABEL bitShl
     PUSH R1
     PUSH R0
     CALL bit_shl
+    ADD R13 #8
     RET
 
 LABEL bitShr
     PUSH R1
     PUSH R0
     CALL bit_shr
+    ADD R13 #8
     RET
 
 LABEL rol
     PUSH R1
     PUSH R0
     CALL rol
+    ADD R13 #8
     RET
 
 LABEL ror
     PUSH R1
     PUSH R0
     CALL ror
+    ADD R13 #8
     RET
 
 LABEL bitSet
     PUSH R1
     PUSH R0
     CALL bit_set
+    ADD R13 #8
     RET
 
 LABEL bitClear
     PUSH R1
     PUSH R0
     CALL bit_clear
+    ADD R13 #8
     RET
 
 LABEL bitToggle
     PUSH R1
     PUSH R0
     CALL bit_toggle
+    ADD R13 #8
     RET
 
 LABEL bitTest
     PUSH R1
     PUSH R0
     CALL bit_test
+    ADD R13 #8
     RET
 
 LABEL Bitops_BitAnd

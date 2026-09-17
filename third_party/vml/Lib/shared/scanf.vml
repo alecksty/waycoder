@@ -1,29 +1,33 @@
-.entry main
-.stack 0
-.vectors 0x0
 
+.linked "util.vml"
 .data
 
 .text
 _count_args:
+; -------------------------------------------
+; source   : int _count_args(const char* format)
+; function : _count_args
+; param   : const char* format
+; return   : int
+; --------------------------------------------
+_count_args:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
-        move [R12+12] R0
+        sub R13 #20
         move R0 #0
-        move [R12-4] R0
-        move R0 [R12+12]
         move [R12-8] R0
+        move R0 [R12+12]
+        move [R12-12] R0
 sta_9530000:
         move R2 #0
-        move R0 [R12-8]
-        moveb R0 @0
+        move R0 [R12-12]
+        moveb R0 [R0]
         sextb R0 R0
         cmp R0 #0
         jz sta_9530001
-        move R0 [R12-8]
-        moveb R0 @0
+        move R0 [R12-12]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #37
@@ -37,13 +41,13 @@ _L9530004:
 _L9530005:
         cmp R0 #0
         jz sta_9530002
-        move R0 [R12-8]
+        move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
-        move [R12-8] R0
+        move [R12-12] R0
         move R0 R1
-        move R0 [R12-8]
-        moveb R0 @0
+        move R0 [R12-12]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #37
@@ -57,8 +61,8 @@ _L9530011:
 _L9530012:
         test R0 R0
         jnz _L9530008
-        move R0 [R12-8]
-        moveb R0 @0
+        move R0 [R12-12]
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #0
@@ -82,33 +86,40 @@ _L9530010:
         jz sta_9530006
         jmp sta_9530007
 sta_9530006:
-        move R0 [R12-4]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-4] R0
-        move R0 R1
-sta_9530007:
-sta_9530002:
-sta_9530003:
         move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
         move [R12-8] R0
         move R0 R1
+sta_9530007:
+sta_9530002:
+sta_9530003:
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
         jmp sta_9530000
 sta_9530001:
-        move R0 [R12-4]
-        jmp L9530015
-L9530015:
+        move R0 [R12-8]
+        jmp L_9530015
+L_9530015:
         move R13 R12
         pop R12
         pop R15
         ret
 _isspace:
+; -------------------------------------------
+; source   : int _isspace(int c)
+; function : _isspace
+; param   : int c
+; return   : int
+; --------------------------------------------
+_isspace:
         push R15
         push R12
         move R12 R13
-        move [R12+12] R0
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #32
@@ -183,17 +194,24 @@ _L9530016:
 _L9530017:
         move R0 #0
 _L9530018:
-        jmp L9530033
-L9530033:
+        jmp L_9530033
+L_9530033:
         move R13 R12
         pop R12
         pop R15
         ret
 _isdigit:
+; -------------------------------------------
+; source   : int _isdigit(int c)
+; function : _isdigit
+; param   : int c
+; return   : int
+; --------------------------------------------
+_isdigit:
         push R15
         push R12
         move R12 R13
-        move [R12+12] R0
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #48
@@ -225,21 +243,27 @@ _L9530039:
 _L9530034:
         move R0 #0
 _L9530035:
-        jmp L9530040
-L9530040:
+        jmp L_9530040
+L_9530040:
         move R13 R12
         pop R12
         pop R15
         ret
 vsscanf:
+; -------------------------------------------
+; source   : int vsscanf(char* str,char* format,int* args,int nargs)
+; function : vsscanf
+; param   : char* str
+; param   : char* format
+; param   : int* args
+; param   : int nargs
+; return   : int
+; --------------------------------------------
+vsscanf:
         push R15
         push R12
         move R12 R13
-        sub R13 #48
-        move [R12+12] R0
-        move [R12+16] R1
-        move [R12+20] R2
-        move [R12+24] R3
+        sub R13 #52
         move R0 [R12+12]
         move R0 [R12+12]
         test R0 R0
@@ -292,26 +316,26 @@ _L9530045:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L9530055
+        jmp L_9530055
 sta_9530041:
 sta_9530042:
         move R0 [R12+12]
-        move [R12-4] R0
-        move R0 #0
         move [R12-8] R0
         move R0 #0
         move [R12-12] R0
-        move R0 [R12+16]
+        move R0 #0
         move [R12-16] R0
+        move R0 [R12+16]
+        move [R12-20] R0
 sta_9530056:
         move R2 #0
-        move R0 [R12-16]
-        moveb R0 @0
+        move R0 [R12-20]
+        moveb R0 [R0]
         sextb R0 R0
         test R0 R0
         jz _L9530058
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         test R0 R0
         jz _L9530058
@@ -322,8 +346,8 @@ _L9530058:
 _L9530059:
         cmp R0 #0
         jz sta_9530057
-        move R0 [R12-16]
-        moveb R0 @0
+        move R0 [R12-20]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #32
@@ -337,8 +361,8 @@ _L9530071:
 _L9530072:
         test R0 R0
         jnz _L9530068
-        move R0 [R12-16]
-        moveb R0 @0
+        move R0 [R12-20]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #9
@@ -360,8 +384,8 @@ _L9530069:
 _L9530070:
         test R0 R0
         jnz _L9530065
-        move R0 [R12-16]
-        moveb R0 @0
+        move R0 [R12-20]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #10
@@ -383,8 +407,8 @@ _L9530066:
 _L9530067:
         test R0 R0
         jnz _L9530062
-        move R0 [R12-16]
-        moveb R0 @0
+        move R0 [R12-20]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #13
@@ -408,13 +432,13 @@ _L9530064:
         jz sta_9530060
 sta_9530079:
         move R2 #0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         test R0 R0
         jz _L9530081
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #32
@@ -428,8 +452,8 @@ _L9530092:
 _L9530093:
         test R0 R0
         jnz _L9530089
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #9
@@ -451,8 +475,8 @@ _L9530090:
 _L9530091:
         test R0 R0
         jnz _L9530086
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #10
@@ -474,8 +498,8 @@ _L9530087:
 _L9530088:
         test R0 R0
         jnz _L9530083
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #13
@@ -504,23 +528,23 @@ _L9530081:
 _L9530082:
         cmp R0 #0
         jz sta_9530080
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_9530079
 sta_9530080:
-        move R0 [R12-16]
+        move R0 [R12-20]
         move R1 R0
         add R0 R0 #1
-        move [R12-16] R0
+        move [R12-20] R0
         move R0 R1
         jmp sta_9530056
 sta_9530060:
 sta_9530061:
-        move R0 [R12-16]
-        moveb R0 @0
+        move R0 [R12-20]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #37
@@ -534,12 +558,12 @@ _L9530102:
 _L9530103:
         cmp R0 #0
         jz sta_9530100
-        move R0 [R12-16]
-        moveb R0 @0
+        move R0 [R12-20]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         popb R1
         cmp R1 R0
@@ -551,15 +575,15 @@ _L9530106:
 _L9530107:
         cmp R0 #0
         jz sta_9530104
-        move R0 [R12-16]
+        move R0 [R12-20]
         move R1 R0
         add R0 R0 #1
-        move [R12-16] R0
+        move [R12-20] R0
         move R0 R1
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_9530105
 sta_9530104:
@@ -568,13 +592,13 @@ sta_9530105:
         jmp sta_9530056
 sta_9530100:
 sta_9530101:
-        move R0 [R12-16]
+        move R0 [R12-20]
         move R1 R0
         add R0 R0 #1
-        move [R12-16] R0
+        move [R12-20] R0
         move R0 R1
-        move R0 [R12-16]
-        moveb R0 @0
+        move R0 [R12-20]
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #0
@@ -591,7 +615,7 @@ _L9530111:
         jmp sta_9530057
 sta_9530108:
 sta_9530109:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 [R12+24]
         pop R1
@@ -607,8 +631,8 @@ _L9530115:
         jmp sta_9530057
 sta_9530112:
 sta_9530113:
-        move R0 [R12-16]
-        moveb R0 @0
+        move R0 [R12-20]
+        moveb R0 [R0]
         sextb R0 R0
         move R1 R0
         push R1
@@ -645,15 +669,15 @@ sta_9530113:
 sta_9530117:
 sta_9530118:
         move R0 #0
-        move [R12-20] R0
-        move R0 #1
         move [R12-24] R0
-        move R0 #0
+        move R0 #1
         move [R12-28] R0
+        move R0 #0
+        move [R12-32] R0
 sta_9530123:
         move R2 #0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #32
@@ -667,8 +691,8 @@ _L9530128:
 _L9530129:
         test R0 R0
         jnz _L9530125
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #9
@@ -690,15 +714,15 @@ _L9530126:
 _L9530127:
         cmp R0 #0
         jz sta_9530124
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_9530123
 sta_9530124:
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #45
@@ -715,16 +739,16 @@ _L9530135:
         move R0 #1
         move R0 #1
         neg R0 R0
-        move [R12-24] R0
-        move R0 [R12-4]
+        move [R12-28] R0
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_9530133
 sta_9530132:
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #43
@@ -738,16 +762,16 @@ _L9530138:
 _L9530139:
         cmp R0 #0
         jz sta_9530136
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
 sta_9530136:
 sta_9530137:
 sta_9530133:
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #48
@@ -761,13 +785,13 @@ _L9530142:
 _L9530143:
         cmp R0 #0
         jz sta_9530140
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #120
@@ -781,8 +805,8 @@ _L9530149:
 _L9530150:
         test R0 R0
         jnz _L9530146
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #88
@@ -804,20 +828,20 @@ _L9530147:
 _L9530148:
         cmp R0 #0
         jz sta_9530144
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
 sta_9530153:
         move R2 #0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         cmp R0 #0
         jz sta_9530154
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #48
@@ -831,8 +855,8 @@ _L9530159:
 _L9530160:
         test R0 R0
         jz _L9530157
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #57
@@ -853,15 +877,15 @@ _L9530157:
 _L9530158:
         cmp R0 #0
         jz sta_9530155
-        move R0 [R12-20]
+        move R0 [R12-24]
         push R0
         move R0 #16
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #48
@@ -871,11 +895,11 @@ _L9530158:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-20] R0
+        move [R12-24] R0
         jmp sta_9530156
 sta_9530155:
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #97
@@ -889,8 +913,8 @@ _L9530167:
 _L9530168:
         test R0 R0
         jz _L9530165
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #102
@@ -911,15 +935,15 @@ _L9530165:
 _L9530166:
         cmp R0 #0
         jz sta_9530163
-        move R0 [R12-20]
+        move R0 [R12-24]
         push R0
         move R0 #16
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #97
@@ -934,11 +958,11 @@ _L9530166:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-20] R0
+        move [R12-24] R0
         jmp sta_9530164
 sta_9530163:
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #65
@@ -952,8 +976,8 @@ _L9530175:
 _L9530176:
         test R0 R0
         jz _L9530173
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #70
@@ -974,15 +998,15 @@ _L9530173:
 _L9530174:
         cmp R0 #0
         jz sta_9530171
-        move R0 [R12-20]
+        move R0 [R12-24]
         push R0
         move R0 #16
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #65
@@ -997,7 +1021,7 @@ _L9530174:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-20] R0
+        move [R12-24] R0
         jmp sta_9530172
 sta_9530171:
         jmp sta_9530154
@@ -1005,11 +1029,11 @@ sta_9530172:
 sta_9530164:
 sta_9530156:
         move R0 #1
-        move [R12-28] R0
-        move R0 [R12-4]
+        move [R12-32] R0
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_9530153
 sta_9530154:
@@ -1017,8 +1041,8 @@ sta_9530154:
 sta_9530144:
 sta_9530179:
         move R2 #0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #48
@@ -1032,8 +1056,8 @@ _L9530183:
 _L9530184:
         test R0 R0
         jz _L9530181
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #55
@@ -1054,15 +1078,15 @@ _L9530181:
 _L9530182:
         cmp R0 #0
         jz sta_9530180
-        move R0 [R12-20]
+        move R0 [R12-24]
         push R0
         move R0 #8
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #48
@@ -1072,13 +1096,13 @@ _L9530182:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-20] R0
+        move [R12-24] R0
         move R0 #1
-        move [R12-28] R0
-        move R0 [R12-4]
+        move [R12-32] R0
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_9530179
 sta_9530180:
@@ -1087,8 +1111,8 @@ sta_9530145:
 sta_9530140:
 sta_9530187:
         move R2 #0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #48
@@ -1102,8 +1126,8 @@ _L9530191:
 _L9530192:
         test R0 R0
         jz _L9530189
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #57
@@ -1124,15 +1148,15 @@ _L9530189:
 _L9530190:
         cmp R0 #0
         jz sta_9530188
-        move R0 [R12-20]
+        move R0 [R12-24]
         push R0
         move R0 #10
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #48
@@ -1142,60 +1166,60 @@ _L9530190:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-20] R0
+        move [R12-24] R0
         move R0 #1
-        move [R12-28] R0
-        move R0 [R12-4]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-4] R0
-        move R0 R1
-        jmp sta_9530187
-sta_9530188:
-sta_9530141:
-        move R0 [R12-28]
-        cmp R0 #0
-        jz sta_9530195
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-8]
-        mul R0 #4
-        pop R11
-        add R0 R11
-        move R0 @0
-        move [R12-36] R0
-        move R0 [R12-36]
-        move R10 R0
-        move R0 [R12-24]
-        push R0
-        move R0 [R12-20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move @10 R0
-        move R0 [R12-12]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-12] R0
-        move R0 R1
-sta_9530195:
-sta_9530196:
+        move [R12-32] R0
         move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
         move [R12-8] R0
         move R0 R1
+        jmp sta_9530187
+sta_9530188:
+sta_9530141:
+        move R0 [R12-32]
+        cmp R0 #0
+        jz sta_9530195
+        move R0 [R12+20]
+        push R0
+        move R0 [R12-12]
+        mul R0 #4
+        pop R11
+        add R0 R11
+        move R0 [R0]
+        move [R12-40] R0
+        move R0 [R12-40]
+        move R10 R0
+        move R0 [R12-28]
+        push R0
+        move R0 [R12-24]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        move [R10] R0
+        move R0 [R12-16]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-16] R0
+        move R0 R1
+sta_9530195:
+sta_9530196:
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
         jmp sta_9530116
 sta_9530119:
 sta_9530120:
         move R0 #0
-        move [R12-20] R0
+        move [R12-24] R0
         move R0 #0
-        move [R12-28] R0
+        move [R12-32] R0
 sta_9530197:
         move R2 #0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #32
@@ -1209,8 +1233,8 @@ _L9530202:
 _L9530203:
         test R0 R0
         jnz _L9530199
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #9
@@ -1232,22 +1256,22 @@ _L9530200:
 _L9530201:
         cmp R0 #0
         jz sta_9530198
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_9530197
 sta_9530198:
 sta_9530206:
         move R2 #0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         cmp R0 #0
         jz sta_9530207
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #48
@@ -1261,8 +1285,8 @@ _L9530212:
 _L9530213:
         test R0 R0
         jz _L9530210
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #57
@@ -1283,15 +1307,15 @@ _L9530210:
 _L9530211:
         cmp R0 #0
         jz sta_9530208
-        move R0 [R12-20]
+        move R0 [R12-24]
         push R0
         move R0 #16
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #48
@@ -1301,11 +1325,11 @@ _L9530211:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-20] R0
+        move [R12-24] R0
         jmp sta_9530209
 sta_9530208:
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #97
@@ -1319,8 +1343,8 @@ _L9530220:
 _L9530221:
         test R0 R0
         jz _L9530218
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #102
@@ -1341,15 +1365,15 @@ _L9530218:
 _L9530219:
         cmp R0 #0
         jz sta_9530216
-        move R0 [R12-20]
+        move R0 [R12-24]
         push R0
         move R0 #16
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #97
@@ -1364,11 +1388,11 @@ _L9530219:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-20] R0
+        move [R12-24] R0
         jmp sta_9530217
 sta_9530216:
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #65
@@ -1382,8 +1406,8 @@ _L9530228:
 _L9530229:
         test R0 R0
         jz _L9530226
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #70
@@ -1404,15 +1428,15 @@ _L9530226:
 _L9530227:
         cmp R0 #0
         jz sta_9530224
-        move R0 [R12-20]
+        move R0 [R12-24]
         push R0
         move R0 #16
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #65
@@ -1427,7 +1451,7 @@ _L9530227:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-20] R0
+        move [R12-24] R0
         jmp sta_9530225
 sta_9530224:
         jmp sta_9530207
@@ -1435,55 +1459,55 @@ sta_9530225:
 sta_9530217:
 sta_9530209:
         move R0 #1
-        move [R12-28] R0
-        move R0 [R12-4]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-4] R0
-        move R0 R1
-        jmp sta_9530206
-sta_9530207:
-        move R0 [R12-28]
-        cmp R0 #0
-        jz sta_9530232
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-8]
-        mul R0 #4
-        pop R9
-        add R0 R9
-        move R0 @0
-        move [R12-36] R0
-        move R0 [R12-36]
-        move R8 R0
-        move R0 [R12-20]
-        move @8 R0
-        move R0 [R12-12]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-12] R0
-        move R0 R1
-sta_9530232:
-sta_9530233:
+        move [R12-32] R0
         move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
         move [R12-8] R0
         move R0 R1
+        jmp sta_9530206
+sta_9530207:
+        move R0 [R12-32]
+        cmp R0 #0
+        jz sta_9530232
+        move R0 [R12+20]
+        push R0
+        move R0 [R12-12]
+        mul R0 #4
+        pop R9
+        add R0 R9
+        move R0 [R0]
+        move [R12-40] R0
+        move R0 [R12-40]
+        move R8 R0
+        move R0 [R12-24]
+        move [R8] R0
+        move R0 [R12-16]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-16] R0
+        move R0 R1
+sta_9530232:
+sta_9530233:
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
         jmp sta_9530116
 sta_9530121:
         move R0 [R12+20]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         mul R0 #4
         pop R7
         add R0 R7
-        move R0 @0
-        move [R12-32] R0
+        move R0 [R0]
+        move [R12-36] R0
 sta_9530234:
         move R2 #0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #32
@@ -1497,8 +1521,8 @@ _L9530239:
 _L9530240:
         test R0 R0
         jnz _L9530236
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #9
@@ -1520,24 +1544,24 @@ _L9530237:
 _L9530238:
         cmp R0 #0
         jz sta_9530235
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_9530234
 sta_9530235:
         move R0 #0
-        move [R12-40] R0
+        move [R12-44] R0
 sta_9530243:
         move R2 #0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         test R0 R0
         jz _L9530251
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #32
@@ -1558,8 +1582,8 @@ _L9530251:
 _L9530252:
         test R0 R0
         jz _L9530249
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #9
@@ -1580,8 +1604,8 @@ _L9530249:
 _L9530250:
         test R0 R0
         jz _L9530247
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #10
@@ -1602,7 +1626,7 @@ _L9530247:
 _L9530248:
         test R0 R0
         jz _L9530245
-        move R0 [R12-40]
+        move R0 [R12-44]
         push R0
         move R0 #255
         pop R1
@@ -1622,123 +1646,130 @@ _L9530245:
 _L9530246:
         cmp R0 #0
         jz sta_9530244
-        move R0 [R12-32]
+        move R0 [R12-36]
         move R6 R0
-        move R0 [R12-4]
-        moveb R0 @0
+        move R0 [R12-8]
+        moveb R0 [R0]
         sextb R0 R0
-        moveb @6 R0
-        move R0 [R12-32]
+        moveb [R6] R0
+        move R0 [R12-36]
         move R1 R0
         add R0 R0 #1
-        move [R12-32] R0
+        move [R12-36] R0
         move R0 R1
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
-        move R0 [R12-40]
+        move R0 [R12-44]
         move R1 R0
         add R0 R0 #1
-        move [R12-40] R0
+        move [R12-44] R0
         move R0 R1
         jmp sta_9530243
 sta_9530244:
-        move R0 [R12-32]
+        move R0 [R12-36]
         move R5 R0
         move R0 #0
-        moveb @5 R0
-        move R0 [R12-12]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-12] R0
-        move R0 R1
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
-        jmp sta_9530116
-sta_9530122:
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-8]
-        mul R0 #4
-        pop R4
-        add R0 R4
-        move R0 @0
-        move [R12-32] R0
-        move R0 [R12-32]
-        move R3 R0
-        move R0 [R12-4]
-        moveb R0 @0
-        sextb R0 R0
-        moveb @3 R0
-        move R0 [R12-32]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-32] R0
-        move R0 R1
-        move R0 [R12-32]
-        move R2 R0
-        move R0 #0
-        moveb @2 R0
-        move R0 [R12-4]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-4] R0
-        move R0 R1
-        move R0 [R12-12]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-12] R0
-        move R0 R1
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
-        jmp sta_9530116
-sta_9530116:
+        moveb [R5] R0
         move R0 [R12-16]
         move R1 R0
         add R0 R0 #1
         move [R12-16] R0
         move R0 R1
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_9530116
+sta_9530122:
+        move R0 [R12+20]
+        push R0
+        move R0 [R12-12]
+        mul R0 #4
+        pop R4
+        add R0 R4
+        move R0 [R0]
+        move [R12-36] R0
+        move R0 [R12-36]
+        move R3 R0
+        move R0 [R12-8]
+        moveb R0 [R0]
+        sextb R0 R0
+        moveb [R3] R0
+        move R0 [R12-36]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-36] R0
+        move R0 R1
+        move R0 [R12-36]
+        move R2 R0
+        move R0 #0
+        moveb [R2] R0
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        move R0 [R12-16]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-16] R0
+        move R0 R1
+        move R0 [R12-12]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-12] R0
+        move R0 R1
+        jmp sta_9530116
+sta_9530116:
+        move R0 [R12-20]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-20] R0
+        move R0 R1
         jmp sta_9530056
 sta_9530057:
-        move R0 [R12-12]
-        jmp L9530055
-L9530055:
+        move R0 [R12-16]
+        jmp L_9530055
+L_9530055:
         move R13 R12
         pop R12
         pop R15
         ret
 scanf:
+; -------------------------------------------
+; source   : int scanf(const char* format)
+; function : scanf
+; param   : const char* format
+; return   : int
+; --------------------------------------------
+scanf:
         push R15
         push R12
         move R12 R13
-        sub R13 #332
-        move [R12+12] R0
+        sub R13 #336
         move R0 R12
         add R0 #12
         add R0 #4
         move R1 R0
         move R0 R12
-        sub R0 #4
-        move @0 R1
+        sub R0 #8
+        move [R0] R1
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call _count_args
         add R13 #4
-        move [R12-8] R0
+        move [R12-12] R0
         move R0 #0
-        move [R12-60] R0
+        move [R12-64] R0
 sta_9530261:
-        move R0 [R12-60]
+        move R0 [R12-64]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R1
         cmp R1 R0
         jl _L9530266
@@ -1749,7 +1780,7 @@ _L9530266:
 _L9530267:
         test R0 R0
         jz _L9530264
-        move R0 [R12-60]
+        move R0 [R12-64]
         push R0
         move R0 #12
         pop R1
@@ -1769,42 +1800,42 @@ _L9530264:
 _L9530265:
         cmp R0 #0
         jz sta_9530263
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
-        move R2 @1
+        move R2 [R1]
         move R0 #4
         add R1 R0
         move R0 R12
-        sub R0 #4
-        move @0 R1
+        sub R0 #8
+        move [R0] R1
         move R0 R2
         move R1 R0
         move R0 R12
-        sub R0 #56
+        sub R0 #60
         push R0
         move R11 #0
         push R11
-        move R0 [R12-60]
+        move R0 [R12-64]
         pop R11
         move R11 R0
         move R0 R11
         mul R0 #4
         pop R10
         add R0 R10
-        move @0 R1
+        move [R0] R1
 sta_9530262:
-        move R0 [R12-60]
+        move R0 [R12-64]
         move R1 R0
         add R0 R0 #1
-        move [R12-60] R0
+        move [R12-64] R0
         move R0 R1
         jmp sta_9530261
 sta_9530263:
         move R0 #0
-        move [R12-320] R0
+        move [R12-324] R0
 sta_9530270:
         move R2 #0
-        move R0 [R12-320]
+        move R0 [R12-324]
         push R0
         move R0 #254
         pop R1
@@ -1818,8 +1849,8 @@ _L9530273:
         cmp R0 #0
         jz sta_9530271
         call getchar
-        move [R12-324] R0
-        move R0 [R12-324]
+        move [R12-328] R0
+        move R0 [R12-328]
         push R0
         move R0 #0
         pop R1
@@ -1832,7 +1863,7 @@ _L9530279:
 _L9530280:
         test R0 R0
         jnz _L9530276
-        move R0 [R12-324]
+        move R0 [R12-328]
         push R0
         move R0 #10
         pop R1
@@ -1856,89 +1887,98 @@ _L9530278:
         jmp sta_9530271
 sta_9530274:
 sta_9530275:
-        move R0 [R12-324]
+        move R0 [R12-328]
         move R9 R0
         move R0 R12
-        sub R0 #316
+        sub R0 #320
         push R0
         move R8 #0
         push R8
-        move R0 [R12-320]
+        move R0 [R12-324]
         pop R8
         move R8 R0
         move R0 R8
         mul R0 #1
         pop R7
         add R0 R7
-        moveb @0 R9
-        move R0 [R12-320]
+        moveb [R0] R9
+        move R0 [R12-324]
         move R1 R0
         add R0 R0 #1
-        move [R12-320] R0
+        move [R12-324] R0
         move R0 R1
         jmp sta_9530270
 sta_9530271:
         move R0 #0
         move R6 R0
         move R0 R12
-        sub R0 #316
+        sub R0 #320
         push R0
         move R5 #0
         push R5
-        move R0 [R12-320]
+        move R0 [R12-324]
         pop R5
         move R5 R0
         move R0 R5
         mul R0 #1
         pop R4
         add R0 R4
-        moveb @0 R6
-        move R0 [R12-8]
-        move R3 R0
+        moveb [R0] R6
+        move R0 [R12-12]
         push R0
         move R0 R12
-        sub R0 #56
-        move R2 R0
+        sub R0 #60
         push R0
         move R0 [R12+12]
-        move R1 R0
         push R0
         move R0 R12
-        sub R0 #316
+        sub R0 #320
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call vsscanf
         add R13 #16
-        jmp L9530283
-L9530283:
+        jmp L_9530283
+L_9530283:
         move R13 R12
         pop R12
         pop R15
         ret
 sscanf:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int sscanf(const char* str,const char* format)
+; function : sscanf
+; param   : const char* str
+; param   : const char* format
+; return   : int
+; --------------------------------------------
+sscanf:
         push R15
         push R12
         move R12 R13
-        sub R13 #68
-        move [R12+12] R0
-        move [R12+16] R1
+        sub R13 #72
         move R0 R12
         add R0 #16
         add R0 #4
         move R1 R0
         move R0 R12
-        sub R0 #4
-        move @0 R1
+        sub R0 #8
+        move [R0] R1
         move R0 [R12+16]
         push R0
+        move R0 [R13+0]
         call _count_args
         add R13 #4
-        move [R12-8] R0
+        move [R12-12] R0
         move R0 #0
-        move [R12-60] R0
+        move [R12-64] R0
 sta_9530284:
-        move R0 [R12-60]
+        move R0 [R12-64]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R1
         cmp R1 R0
         jl _L9530289
@@ -1949,7 +1989,7 @@ _L9530289:
 _L9530290:
         test R0 R0
         jz _L9530287
-        move R0 [R12-60]
+        move R0 [R12-64]
         push R0
         move R0 #12
         pop R1
@@ -1969,53 +2009,54 @@ _L9530287:
 _L9530288:
         cmp R0 #0
         jz sta_9530286
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
-        move R2 @1
+        move R2 [R1]
         move R0 #4
         add R1 R0
         move R0 R12
-        sub R0 #4
-        move @0 R1
+        sub R0 #8
+        move [R0] R1
         move R0 R2
         move R3 R0
         move R0 R12
-        sub R0 #56
+        sub R0 #60
         push R0
         move R2 #0
         push R2
-        move R0 [R12-60]
+        move R0 [R12-64]
         pop R2
         move R2 R0
         move R0 R2
         mul R0 #4
         pop R11
         add R0 R11
-        move @0 R3
+        move [R0] R3
 sta_9530285:
-        move R0 [R12-60]
+        move R0 [R12-64]
         move R1 R0
         add R0 R0 #1
-        move [R12-60] R0
+        move [R12-64] R0
         move R0 R1
         jmp sta_9530284
 sta_9530286:
-        move R0 [R12-8]
-        move R3 R0
+        move R0 [R12-12]
         push R0
         move R0 R12
-        sub R0 #56
-        move R2 R0
+        sub R0 #60
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call vsscanf
         add R13 #16
-        jmp L9530293
-L9530293:
+        jmp L_9530293
+L_9530293:
         move R13 R12
         pop R12
         pop R15

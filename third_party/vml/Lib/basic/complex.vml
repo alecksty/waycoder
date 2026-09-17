@@ -8,6 +8,7 @@ LABEL BASIC_CADD
     PUSH R1
     PUSH R0
     CALL cadd
+    ADD R13 #12
     RET
 
 LABEL BASIC_CSUB
@@ -15,6 +16,7 @@ LABEL BASIC_CSUB
     PUSH R1
     PUSH R0
     CALL csub
+    ADD R13 #12
     RET
 
 LABEL BASIC_B
@@ -28,6 +30,7 @@ LABEL BASIC_CMUL
     PUSH R1
     PUSH R0
     CALL cmul
+    ADD R13 #12
     RET
 
 LABEL BASIC_CDIV
@@ -35,11 +38,13 @@ LABEL BASIC_CDIV
     PUSH R1
     PUSH R0
     CALL cdiv
+    ADD R13 #12
     RET
 
 LABEL BASIC_COMPLEX_ABS
     PUSH R0
     CALL complex_abs
+    ADD R13 #4
     RET
 
 LABEL BASIC_RADIANS
@@ -51,18 +56,21 @@ LABEL BASIC_RADIANS
 LABEL BASIC_COMPLEX_ARG
     PUSH R0
     CALL complex_arg
+    ADD R13 #4
     RET
 
 LABEL BASIC_CCONJ
     PUSH R1
     PUSH R0
     CALL cconj
+    ADD R13 #8
     RET
 
 LABEL BASIC_CNEG
     PUSH R1
     PUSH R0
     CALL cneg
+    ADD R13 #8
     RET
 
 LABEL BASIC_CEXP_RE
@@ -71,6 +79,7 @@ LABEL BASIC_CEXP_RE
     sub R13 #4
     movef @13 R0
     CALL cexp_re
+    ADD R13 #8
     RET
 
 LABEL BASIC_CEXP_IM
@@ -79,17 +88,20 @@ LABEL BASIC_CEXP_IM
     sub R13 #4
     movef @13 R0
     CALL cexp_im
+    ADD R13 #8
     RET
 
 LABEL BASIC_CSQR
     PUSH R1
     PUSH R0
     CALL csqr
+    ADD R13 #8
     RET
 
 LABEL BASIC_CSQRT
     PUSH R1
     PUSH R0
     CALL csqrt
+    ADD R13 #8
     RET
 

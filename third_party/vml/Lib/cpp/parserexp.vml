@@ -16,10 +16,10 @@ LABEL cpp_NULL
     RET
 
 LABEL cpp_is_hex_digit
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL is_hex_digit
-    ADD R13 #1
+    ADD R13 #4
     RET
 
 LABEL cpp_skip_spaces
@@ -45,6 +45,7 @@ LABEL cpp_parse_factor
 LABEL cpp_parserexp
     PUSH R0
     CALL parserexp
+    ADD R13 #4
     RET
 
 LABEL cpp_cases

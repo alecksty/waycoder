@@ -8,11 +8,13 @@ LABEL PASCAL_RLE_ENCODE
     PUSH R1
     PUSH R0
     CALL rle_encode
+    ADD R13 #12
     RET
 
 LABEL PASCAL_RLE_DECODE
     PUSH R1
     PUSH R0
     CALL rle_decode
+    ADD R13 #8
     RET
 

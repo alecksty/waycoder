@@ -9,6 +9,7 @@ LABEL PASCAL_LBIT_AND64
     sub R13 #8
     movel @13 R0
     CALL lbit_and64
+    ADD R13 #16
     RET
 
 LABEL PASCAL_LBIT_OR64
@@ -17,6 +18,7 @@ LABEL PASCAL_LBIT_OR64
     sub R13 #8
     movel @13 R0
     CALL lbit_or64
+    ADD R13 #16
     RET
 
 LABEL PASCAL_LBIT_XOR64
@@ -25,12 +27,14 @@ LABEL PASCAL_LBIT_XOR64
     sub R13 #8
     movel @13 R0
     CALL lbit_xor64
+    ADD R13 #16
     RET
 
 LABEL PASCAL_LBIT_NOT64
     sub R13 #8
     movel @13 R0
     CALL lbit_not64
+    ADD R13 #8
     RET
 
 LABEL PASCAL_LBIT_SHL64
@@ -39,6 +43,7 @@ LABEL PASCAL_LBIT_SHL64
     sub R13 #8
     movel @13 R0
     CALL lbit_shl64
+    ADD R13 #16
     RET
 
 LABEL PASCAL_LBIT_SHR64
@@ -47,6 +52,7 @@ LABEL PASCAL_LBIT_SHR64
     sub R13 #8
     movel @13 R0
     CALL lbit_shr64
+    ADD R13 #16
     RET
 
 LABEL PASCAL_LROL64
@@ -55,6 +61,7 @@ LABEL PASCAL_LROL64
     sub R13 #8
     movel @13 R0
     CALL lrol64
+    ADD R13 #16
     RET
 
 LABEL PASCAL_LROR64
@@ -63,6 +70,7 @@ LABEL PASCAL_LROR64
     sub R13 #8
     movel @13 R0
     CALL lror64
+    ADD R13 #16
     RET
 
 LABEL PASCAL_LBIT_SET64
@@ -71,6 +79,7 @@ LABEL PASCAL_LBIT_SET64
     sub R13 #8
     movel @13 R0
     CALL lbit_set64
+    ADD R13 #16
     RET
 
 LABEL PASCAL_LBIT_CLEAR64
@@ -79,6 +88,7 @@ LABEL PASCAL_LBIT_CLEAR64
     sub R13 #8
     movel @13 R0
     CALL lbit_clear64
+    ADD R13 #16
     RET
 
 LABEL PASCAL_LBIT_TOGGLE64
@@ -87,6 +97,7 @@ LABEL PASCAL_LBIT_TOGGLE64
     sub R13 #8
     movel @13 R0
     CALL lbit_toggle64
+    ADD R13 #16
     RET
 
 LABEL PASCAL_LBIT_TEST64
@@ -95,12 +106,14 @@ LABEL PASCAL_LBIT_TEST64
     sub R13 #8
     movel @13 R0
     CALL lbit_test64
+    ADD R13 #16
     RET
 
 LABEL PASCAL_LCOUNT64
     sub R13 #8
     movel @13 R0
     CALL lcount64
+    ADD R13 #8
     RET
 
 LABEL PASCAL_LROTATE_LEFT64
@@ -109,6 +122,7 @@ LABEL PASCAL_LROTATE_LEFT64
     sub R13 #8
     movel @13 R0
     CALL lrotate_left64
+    ADD R13 #16
     RET
 
 LABEL PASCAL_LROTATE_RIGHT64
@@ -117,12 +131,14 @@ LABEL PASCAL_LROTATE_RIGHT64
     sub R13 #8
     movel @13 R0
     CALL lrotate_right64
+    ADD R13 #16
     RET
 
 LABEL PASCAL_LLOWEST_SET64
     sub R13 #8
     movel @13 R0
     CALL llowest_set64
+    ADD R13 #8
     RET
 
 LABEL PASCAL_LCTZ64
@@ -135,12 +151,14 @@ LABEL PASCAL_LHIGHEST_SET64
     sub R13 #8
     movel @13 R0
     CALL lhighest_set64
+    ADD R13 #8
     RET
 
 LABEL PASCAL_LMASK64
     sub R13 #8
     movel @13 R0
     CALL lmask64
+    ADD R13 #8
     RET
 
 LABEL PASCAL_LEXTRACT64
@@ -151,17 +169,20 @@ LABEL PASCAL_LEXTRACT64
     sub R13 #8
     movel @13 R0
     CALL lextract64
+    ADD R13 #24
     RET
 
 LABEL PASCAL_LIS_POWER_OF_TWO64
     sub R13 #8
     movel @13 R0
     CALL lis_power_of_two64
+    ADD R13 #8
     RET
 
 LABEL PASCAL_LNEXT_POWER_OF_TWO64
     sub R13 #8
     movel @13 R0
     CALL lnext_power_of_two64
+    ADD R13 #8
     RET
 

@@ -6,56 +6,66 @@
 LABEL lua_mean
     PUSH R0
     CALL mean
+    ADD R13 #4
     RET
 
 LABEL lua_median
     PUSH R0
     CALL median
+    ADD R13 #4
     RET
 
 LABEL lua_range
     PUSH R0
     CALL range
+    ADD R13 #4
     RET
 
 LABEL lua_count_gt
     PUSH R1
     PUSH R0
     CALL count_gt
+    ADD R13 #8
     RET
 
 LABEL lua_count_lt
     PUSH R1
     PUSH R0
     CALL count_lt
+    ADD R13 #8
     RET
 
 LABEL lua_count_eq
     PUSH R1
     PUSH R0
     CALL count_eq
+    ADD R13 #8
     RET
 
 LABEL lua_variance
     PUSH R0
     CALL variance
+    ADD R13 #4
     RET
 
 LABEL lua_std_dev
     PUSH R0
     CALL std_dev
+    ADD R13 #4
     RET
 
 LABEL lua_linreg_slope
     PUSH R1
     PUSH R0
     CALL linreg_slope
+    ADD R13 #8
     RET
 
 LABEL lua_linreg_intercept
     PUSH R1
     PUSH R0
     CALL linreg_intercept
+    ADD R13 #8
     RET
 
 LABEL func_mean

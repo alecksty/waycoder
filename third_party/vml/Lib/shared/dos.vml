@@ -1,74 +1,88 @@
-.entry main
-.stack 0
-.vectors 0x0
 
 .data
 
 .text
 GetDate:
+; -------------------------------------------
+; source   : void GetDate(int* year,int* month,int* day,int* wday)
+; function : GetDate
+; param   : int* year
+; param   : int* month
+; param   : int* day
+; param   : int* wday
+; return   : void
+; --------------------------------------------
+GetDate:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         syscall #55
         move [R12-4] R0
         move R0 #0
-        move R0 @0
-        move [R12-4] R0
+        move R0 [R0]
+        move [R12-8] R0
         move R0 [R12+12]
         cmp R0 #0
         jz sta_96560000
-        move _vml_result_int R0
+        asm "STORE R0, _vml_result_int"
         move R0 [R12+12]
         move R11 R0
         move R0 #0
-        move @11 R0
+        move [R11] R0
 sta_96560000:
 sta_96560001:
         move R0 [R12+12]
         move R10 R0
         move R0 #2026
-        move @10 R0
+        move [R10] R0
         move R0 [R12+16]
         move R9 R0
         move R0 #8
-        move @9 R0
+        move [R9] R0
         move R0 [R12+20]
         move R8 R0
         move R0 #1
-        move @8 R0
+        move [R8] R0
         move R0 [R12+24]
         cmp R0 #0
         jz sta_96560002
         move R0 [R12+24]
         move R7 R0
         move R0 #6
-        move @7 R0
+        move [R7] R0
 sta_96560002:
 sta_96560003:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #20
-        push R1
         ret
+GetTime:
+; -------------------------------------------
+; source   : void GetTime(int* hour,int* min,int* sec,int* msec)
+; function : GetTime
+; param   : int* hour
+; param   : int* min
+; param   : int* sec
+; param   : int* msec
+; return   : void
+; --------------------------------------------
 GetTime:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #56
         move [R12-4] R0
-        move _vml_result_int R0
+        asm "STORE R0, _vml_result_int"
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 [R12+12]
         cmp R0 #0
         jz sta_96560004
         move R0 [R12+12]
         move R6 R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #16
         pop R1
@@ -79,7 +93,7 @@ GetTime:
         pop R1
         and R1 R0
         move R0 R1
-        move @6 R0
+        move [R6] R0
 sta_96560004:
 sta_96560005:
         move R0 [R12+16]
@@ -87,7 +101,7 @@ sta_96560005:
         jz sta_96560006
         move R0 [R12+16]
         move R5 R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #8
         pop R1
@@ -98,7 +112,7 @@ sta_96560005:
         pop R1
         and R1 R0
         move R0 R1
-        move @5 R0
+        move [R5] R0
 sta_96560006:
 sta_96560007:
         move R0 [R12+20]
@@ -106,13 +120,13 @@ sta_96560007:
         jz sta_96560008
         move R0 [R12+20]
         move R4 R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #255
         pop R1
         and R1 R0
         move R0 R1
-        move @4 R0
+        move [R4] R0
 sta_96560008:
 sta_96560009:
         move R0 [R12+24]
@@ -121,195 +135,276 @@ sta_96560009:
         move R0 [R12+24]
         move R3 R0
         move R0 #0
-        move @3 R0
+        move [R3] R0
 sta_96560010:
 sta_96560011:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #20
-        push R1
         ret
+DosVersion:
+; -------------------------------------------
+; source   : int DosVersion()
+; function : DosVersion
+; return   : int
+; --------------------------------------------
 DosVersion:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #1792
-        jmp L96560012
-L96560012:
+        jmp L_96560012
+L_96560012:
         move R13 R12
         pop R12
         pop R15
         ret
 DiskFree:
+; -------------------------------------------
+; source   : int DiskFree(int drive)
+; function : DiskFree
+; param   : int drive
+; return   : int
+; --------------------------------------------
+DiskFree:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #65535
-        jmp L96560013
-L96560013:
+        jmp L_96560013
+L_96560013:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+DiskSize:
+; -------------------------------------------
+; source   : int DiskSize(int drive)
+; function : DiskSize
+; param   : int drive
+; return   : int
+; --------------------------------------------
 DiskSize:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #65535
-        jmp L96560014
-L96560014:
+        jmp L_96560014
+L_96560014:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+FindFirst:
+; -------------------------------------------
+; source   : int FindFirst(const char* path,int attr,void* sr)
+; function : FindFirst
+; param   : const char* path
+; param   : int attr
+; param   : void* sr
+; return   : int
+; --------------------------------------------
 FindFirst:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #0
-        jmp L96560015
-L96560015:
+        jmp L_96560015
+L_96560015:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+FindNext:
+; -------------------------------------------
+; source   : int FindNext(void* sr)
+; function : FindNext
+; param   : void* sr
+; return   : int
+; --------------------------------------------
 FindNext:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #0
-        jmp L96560016
-L96560016:
+        jmp L_96560016
+L_96560016:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+FindClose:
+; -------------------------------------------
+; source   : void FindClose(void* sr)
+; function : FindClose
+; param   : void* sr
+; return   : void
+; --------------------------------------------
 FindClose:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+EnvCount:
+; -------------------------------------------
+; source   : int EnvCount()
+; function : EnvCount
+; return   : int
+; --------------------------------------------
 EnvCount:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #0
-        jmp L96560017
-L96560017:
+        jmp L_96560017
+L_96560017:
         move R13 R12
         pop R12
         pop R15
         ret
 EnvStr:
+; -------------------------------------------
+; source   : char* EnvStr(int index)
+; function : EnvStr
+; param   : int index
+; return   : char*
+; --------------------------------------------
+EnvStr:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #0
-        jmp L96560018
-L96560018:
+        jmp L_96560018
+L_96560018:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+GetEnv:
+; -------------------------------------------
+; source   : char* GetEnv(const char* name)
+; function : GetEnv
+; param   : const char* name
+; return   : char*
+; --------------------------------------------
 GetEnv:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #0
-        jmp L96560019
-L96560019:
+        jmp L_96560019
+L_96560019:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+Exec:
+; -------------------------------------------
+; source   : int Exec(const char* path,const char* args)
+; function : Exec
+; param   : const char* path
+; param   : const char* args
+; return   : int
+; --------------------------------------------
 Exec:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L96560020
-L96560020:
+        jmp L_96560020
+L_96560020:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+SwapVectors:
+; -------------------------------------------
+; source   : void SwapVectors()
+; function : SwapVectors
+; return   : void
+; --------------------------------------------
 SwapVectors:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R13 R12
         pop R12
         pop R15
         ret
 GetIntVec:
+; -------------------------------------------
+; source   : void GetIntVec(int intno,void* vector)
+; function : GetIntVec
+; param   : int intno
+; param   : void* vector
+; return   : void
+; --------------------------------------------
+GetIntVec:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+16]
         cmp R0 #0
         jz sta_96560021
         move R0 [R12+16]
         move R2 R0
         move R0 #0
-        move @2 R0
+        move [R2] R0
 sta_96560021:
 sta_96560022:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+SetIntVec:
+; -------------------------------------------
+; source   : void SetIntVec(int intno,void* vector)
+; function : SetIntVec
+; param   : int intno
+; param   : void* vector
+; return   : void
+; --------------------------------------------
 SetIntVec:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+DosExitCode:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int DosExitCode()
+; function : DosExitCode
+; return   : int
+; --------------------------------------------
 DosExitCode:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #0
-        jmp L96560023
-L96560023:
+        jmp L_96560023
+L_96560023:
         move R13 R12
         pop R12
         pop R15

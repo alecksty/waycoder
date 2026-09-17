@@ -6,6 +6,7 @@
 LABEL PASCAL_LUTF8_STRLEN
     PUSH R0
     CALL lutf8_strlen
+    ADD R13 #4
     RET
 
 LABEL PASCAL_LUTF8_DECODE
@@ -13,6 +14,7 @@ LABEL PASCAL_LUTF8_DECODE
     movel @13 R1
     PUSH R0
     CALL lutf8_decode
+    ADD R13 #12
     RET
 
 LABEL PASCAL_LUTF8_ENCODE
@@ -22,5 +24,6 @@ LABEL PASCAL_LUTF8_ENCODE
     sub R13 #8
     movel @13 R0
     CALL lutf8_encode
+    ADD R13 #20
     RET
 

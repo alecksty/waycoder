@@ -7,26 +7,31 @@ LABEL LADDER_WRITE
     PUSH R1
     PUSH R0
     CALL write
+    ADD R13 #8
     RET
 
 LABEL LADDER_READ
     PUSH R1
     PUSH R0
     CALL read
+    ADD R13 #8
     RET
 
 LABEL LADDER_AVAILABLE
     PUSH R0
     CALL available
+    ADD R13 #4
     RET
 
 LABEL LADDER_IS_EMPTY
     PUSH R0
     CALL is_empty
+    ADD R13 #4
     RET
 
 LABEL LADDER_IS_FULL
     PUSH R0
     CALL is_full
+    ADD R13 #4
     RET
 

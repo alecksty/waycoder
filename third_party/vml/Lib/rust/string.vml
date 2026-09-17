@@ -14,34 +14,40 @@ LABEL rust_strcpy
     PUSH R1
     PUSH R0
     CALL strcpy
+    ADD R13 #8
     RET
 
 LABEL rust_strcat
     PUSH R1
     PUSH R0
     CALL strcat
+    ADD R13 #8
     RET
 
 LABEL rust_strlen
     PUSH R0
     CALL strlen
+    ADD R13 #4
     RET
 
 LABEL rust_str_len
     PUSH R0
     CALL str_len
+    ADD R13 #4
     RET
 
 LABEL rust_str_cmp
     PUSH R1
     PUSH R0
     CALL str_cmp
+    ADD R13 #8
     RET
 
 LABEL rust_strcmp
     PUSH R1
     PUSH R0
     CALL strcmp
+    ADD R13 #8
     RET
 
 LABEL rust_strncmp
@@ -49,6 +55,7 @@ LABEL rust_strncmp
     PUSH R1
     PUSH R0
     CALL strncmp
+    ADD R13 #12
     RET
 
 LABEL rust_strchr
@@ -77,6 +84,7 @@ LABEL rust_strrev
     PUSH R1
     PUSH R0
     CALL strrev
+    ADD R13 #8
     RET
 
 LABEL rust_uppercase
@@ -89,6 +97,7 @@ LABEL rust_str_toupper
     PUSH R1
     PUSH R0
     CALL str_toupper
+    ADD R13 #8
     RET
 
 LABEL rust_lowercase
@@ -101,6 +110,7 @@ LABEL rust_str_tolower
     PUSH R1
     PUSH R0
     CALL str_tolower
+    ADD R13 #8
     RET
 
 LABEL rust_str_repeat
@@ -108,12 +118,14 @@ LABEL rust_str_repeat
     PUSH R1
     PUSH R0
     CALL str_repeat
+    ADD R13 #12
     RET
 
 LABEL rust_str_contains
     PUSH R1
     PUSH R0
     CALL str_contains
+    ADD R13 #8
     RET
 
 LABEL rust_whitespace
@@ -129,6 +141,7 @@ LABEL rust_str_trim
     PUSH R1
     PUSH R0
     CALL str_trim
+    ADD R13 #8
     RET
 
 LABEL rust_str_substr
@@ -137,12 +150,14 @@ LABEL rust_str_substr
     PUSH R1
     PUSH R0
     CALL str_substr
+    ADD R13 #16
     RET
 
 LABEL rust_str_indexof
     PUSH R1
     PUSH R0
     CALL str_indexof
+    ADD R13 #8
     RET
 
 LABEL rust_parts
@@ -157,6 +172,7 @@ LABEL rust_str_split
     PUSH R1
     PUSH R0
     CALL str_split
+    ADD R13 #16
     RET
 
 LABEL rust_str_padstart
@@ -165,6 +181,7 @@ LABEL rust_str_padstart
     PUSH R1
     PUSH R0
     CALL str_padstart
+    ADD R13 #16
     RET
 
 LABEL rust_str_padend
@@ -173,24 +190,28 @@ LABEL rust_str_padend
     PUSH R1
     PUSH R0
     CALL str_padend
+    ADD R13 #16
     RET
 
 LABEL rust_str_charat
     PUSH R1
     PUSH R0
     CALL str_charat
+    ADD R13 #8
     RET
 
 LABEL rust_str_startswith
     PUSH R1
     PUSH R0
     CALL str_startswith
+    ADD R13 #8
     RET
 
 LABEL rust_str_endswith
     PUSH R1
     PUSH R0
     CALL str_endswith
+    ADD R13 #8
     RET
 
 LABEL func_string

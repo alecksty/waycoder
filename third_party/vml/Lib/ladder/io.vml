@@ -12,10 +12,10 @@ LABEL LADDER_WCSLEN
 LABEL LADDER_WCSTOMBS
     PUSH R2
     PUSH R1
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL wcstombs
-    ADD R13 #9
+    ADD R13 #12
     RET
 
 LABEL LADDER_MBSTOWCS
@@ -31,15 +31,16 @@ LABEL LADDER_UTF8_TO_WSTR
     PUSH R1
     PUSH R0
     CALL utf8_to_wstr
+    ADD R13 #12
     RET
 
 LABEL LADDER_UCS_TO_UTF8
     PUSH R2
-    sub R13 #1
+    sub R13 #4
     moveb @13 R1
     PUSH R0
     CALL ucs_to_utf8
-    ADD R13 #9
+    ADD R13 #12
     RET
 
 LABEL LADDER_UTF8_TO_UCS
@@ -55,5 +56,6 @@ LABEL LADDER_UTF8_TO_USTR
     PUSH R1
     PUSH R0
     CALL utf8_to_ustr
+    ADD R13 #12
     RET
 

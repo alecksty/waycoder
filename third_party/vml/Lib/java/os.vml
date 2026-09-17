@@ -7,6 +7,7 @@ LABEL threadCreate
     PUSH R1
     PUSH R0
     CALL thread_create
+    ADD R13 #8
     RET
 
 LABEL threadExit
@@ -16,6 +17,7 @@ LABEL threadExit
 LABEL threadJoin
     PUSH R0
     CALL thread_join
+    ADD R13 #4
     RET
 
 LABEL threadYield
@@ -25,6 +27,7 @@ LABEL threadYield
 LABEL threadSleep
     PUSH R0
     CALL thread_sleep
+    ADD R13 #4
     RET
 
 LABEL mutexCreate
@@ -34,11 +37,13 @@ LABEL mutexCreate
 LABEL mutexLock
     PUSH R0
     CALL mutex_lock
+    ADD R13 #4
     RET
 
 LABEL mutexUnlock
     PUSH R0
     CALL mutex_unlock
+    ADD R13 #4
     RET
 
 LABEL condCreate
@@ -49,16 +54,19 @@ LABEL condWait
     PUSH R1
     PUSH R0
     CALL cond_wait
+    ADD R13 #8
     RET
 
 LABEL condSignal
     PUSH R0
     CALL cond_signal
+    ADD R13 #4
     RET
 
 LABEL condBroadcast
     PUSH R0
     CALL cond_broadcast
+    ADD R13 #4
     RET
 
 LABEL exec
@@ -81,23 +89,27 @@ LABEL socketCreate
     PUSH R1
     PUSH R0
     CALL socket_create
+    ADD R13 #8
     RET
 
 LABEL socketBind
     PUSH R1
     PUSH R0
     CALL socket_bind
+    ADD R13 #8
     RET
 
 LABEL socketListen
     PUSH R1
     PUSH R0
     CALL socket_listen
+    ADD R13 #8
     RET
 
 LABEL socketAccept
     PUSH R0
     CALL socket_accept
+    ADD R13 #4
     RET
 
 LABEL socketConnect
@@ -105,6 +117,7 @@ LABEL socketConnect
     PUSH R1
     PUSH R0
     CALL socket_connect
+    ADD R13 #12
     RET
 
 LABEL socketSend
@@ -112,6 +125,7 @@ LABEL socketSend
     PUSH R1
     PUSH R0
     CALL socket_send
+    ADD R13 #12
     RET
 
 LABEL socketRecv
@@ -119,27 +133,32 @@ LABEL socketRecv
     PUSH R1
     PUSH R0
     CALL socket_recv
+    ADD R13 #12
     RET
 
 LABEL socketClose
     PUSH R0
     CALL socket_close
+    ADD R13 #4
     RET
 
 LABEL mkdir
     PUSH R0
     CALL mkdir
+    ADD R13 #4
     RET
 
 LABEL removeFile
     PUSH R0
     CALL remove_file
+    ADD R13 #4
     RET
 
 LABEL renameFile
     PUSH R1
     PUSH R0
     CALL rename_file
+    ADD R13 #8
     RET
 
 LABEL readDir
@@ -166,6 +185,7 @@ LABEL setEnv
     PUSH R1
     PUSH R0
     CALL set_env
+    ADD R13 #8
     RET
 
 LABEL getArgs
@@ -178,17 +198,20 @@ LABEL signal
     PUSH R1
     PUSH R0
     CALL signal
+    ADD R13 #8
     RET
 
 LABEL typeOf
     PUSH R0
     CALL type_of
+    ADD R13 #4
     RET
 
 LABEL typeName
     PUSH R1
     PUSH R0
     CALL type_name
+    ADD R13 #8
     RET
 
 LABEL Os_ThreadCreate

@@ -8,10 +8,12 @@ LABEL BASIC_LTOA_HEX
     sub R13 #8
     movel @13 R0
     CALL ltoa_hex
+    ADD R13 #12
     RET
 
 LABEL BASIC_ATOL_HEX
     PUSH R0
     CALL atol_hex
+    ADD R13 #4
     RET
 

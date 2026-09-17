@@ -7,11 +7,13 @@ LABEL objc_fopen
     PUSH R1
     PUSH R0
     CALL fopen
+    ADD R13 #8
     RET
 
 LABEL objc_fclose
     PUSH R0
     CALL fclose
+    ADD R13 #4
     RET
 
 LABEL objc_fread
@@ -19,6 +21,7 @@ LABEL objc_fread
     PUSH R1
     PUSH R0
     CALL fread
+    ADD R13 #12
     RET
 
 LABEL objc_fwrite
@@ -26,6 +29,7 @@ LABEL objc_fwrite
     PUSH R1
     PUSH R0
     CALL fwrite
+    ADD R13 #12
     RET
 
 LABEL objc_fseek
@@ -33,22 +37,26 @@ LABEL objc_fseek
     PUSH R1
     PUSH R0
     CALL fseek
+    ADD R13 #12
     RET
 
 LABEL objc_ftell
     PUSH R0
     CALL ftell
+    ADD R13 #4
     RET
 
 LABEL objc_fsize
     PUSH R0
     CALL fsize
+    ADD R13 #4
     RET
 
 LABEL objc_ftruncate
     PUSH R1
     PUSH R0
     CALL ftruncate
+    ADD R13 #8
     RET
 
 LABEL func_fopen

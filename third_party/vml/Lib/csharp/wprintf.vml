@@ -6,6 +6,7 @@
 LABEL Wprintf
     PUSH R0
     CALL wprintf
+    ADD R13 #4
     RET
 
 LABEL Wprintf_Wprintf

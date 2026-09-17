@@ -9,6 +9,7 @@ LABEL swift_GetDate
     PUSH R1
     PUSH R0
     CALL GetDate
+    ADD R13 #16
     RET
 
 LABEL swift_GetTime
@@ -17,6 +18,7 @@ LABEL swift_GetTime
     PUSH R1
     PUSH R0
     CALL GetTime
+    ADD R13 #16
     RET
 
 LABEL swift_DosVersion
@@ -26,11 +28,13 @@ LABEL swift_DosVersion
 LABEL swift_DiskFree
     PUSH R0
     CALL DiskFree
+    ADD R13 #4
     RET
 
 LABEL swift_DiskSize
     PUSH R0
     CALL DiskSize
+    ADD R13 #4
     RET
 
 LABEL swift_FindFirst
@@ -38,16 +42,19 @@ LABEL swift_FindFirst
     PUSH R1
     PUSH R0
     CALL FindFirst
+    ADD R13 #12
     RET
 
 LABEL swift_FindNext
     PUSH R0
     CALL FindNext
+    ADD R13 #4
     RET
 
 LABEL swift_FindClose
     PUSH R0
     CALL FindClose
+    ADD R13 #4
     RET
 
 LABEL swift_EnvCount
@@ -57,17 +64,20 @@ LABEL swift_EnvCount
 LABEL swift_EnvStr
     PUSH R0
     CALL EnvStr
+    ADD R13 #4
     RET
 
 LABEL swift_GetEnv
     PUSH R0
     CALL GetEnv
+    ADD R13 #4
     RET
 
 LABEL swift_Exec
     PUSH R1
     PUSH R0
     CALL Exec
+    ADD R13 #8
     RET
 
 LABEL swift_SwapVectors
@@ -78,12 +88,14 @@ LABEL swift_GetIntVec
     PUSH R1
     PUSH R0
     CALL GetIntVec
+    ADD R13 #8
     RET
 
 LABEL swift_SetIntVec
     PUSH R1
     PUSH R0
     CALL SetIntVec
+    ADD R13 #8
     RET
 
 LABEL swift_DosExitCode

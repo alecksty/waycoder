@@ -6,6 +6,7 @@
 LABEL r_uscanf
     PUSH R0
     CALL uscanf
+    ADD R13 #4
     RET
 
 LABEL func_uscanf

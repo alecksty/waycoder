@@ -7,64 +7,76 @@ LABEL LADDER_ADD
     PUSH R1
     PUSH R0
     CALL add
+    ADD R13 #8
     RET
 
 LABEL LADDER_SUB
     PUSH R1
     PUSH R0
     CALL sub
+    ADD R13 #8
     RET
 
 LABEL LADDER_MUL
     PUSH R1
     PUSH R0
     CALL mul
+    ADD R13 #8
     RET
 
 LABEL LADDER_DIV_
     PUSH R1
     PUSH R0
     CALL div_
+    ADD R13 #8
     RET
 
 LABEL LADDER_MOD_
     PUSH R1
     PUSH R0
     CALL mod_
+    ADD R13 #8
     RET
 
 LABEL LADDER_NEG_
     PUSH R0
     CALL neg_
+    ADD R13 #4
     RET
 
 LABEL LADDER_ARR_SUM
     PUSH R0
     CALL arr_sum
+    ADD R13 #4
     RET
 
 LABEL LADDER_ARR_AVG
     PUSH R0
     CALL arr_avg
+    ADD R13 #4
     RET
 
 LABEL LADDER_ARR_MAX
     PUSH R0
     CALL arr_max
+    ADD R13 #4
     RET
 
 LABEL LADDER_ARR_MIN
     PUSH R0
     CALL arr_min
+    ADD R13 #4
     RET
 
 LABEL LADDER_IS_EVEN
     PUSH R0
     CALL is_even
+    ADD R13 #4
     RET
 
 LABEL LADDER_IS_ODD
     PUSH R0
     CALL is_odd
+    ADD R13 #4
     RET
 

@@ -7,44 +7,52 @@ LABEL DemolibAdd
     PUSH R1
     PUSH R0
     CALL demolib_add
+    ADD R13 #8
     RET
 
 LABEL DemolibSub
     PUSH R1
     PUSH R0
     CALL demolib_sub
+    ADD R13 #8
     RET
 
 LABEL DemolibMul
     PUSH R1
     PUSH R0
     CALL demolib_mul
+    ADD R13 #8
     RET
 
 LABEL DemolibDiv
     PUSH R1
     PUSH R0
     CALL demolib_div
+    ADD R13 #8
     RET
 
 LABEL DemolibFact
     PUSH R0
     CALL demolib_fact
+    ADD R13 #4
     RET
 
 LABEL DemolibFib
     PUSH R0
     CALL demolib_fib
+    ADD R13 #4
     RET
 
 LABEL DemolibSquare
     PUSH R0
     CALL demolib_square
+    ADD R13 #4
     RET
 
 LABEL DemolibNegate
     PUSH R0
     CALL demolib_negate
+    ADD R13 #4
     RET
 
 LABEL Demolib_DemolibAdd

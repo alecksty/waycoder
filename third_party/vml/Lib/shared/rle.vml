@@ -1,15 +1,21 @@
-.entry main
-.stack 0
-.vectors 0x0
 
 .data
 
 .text
 rle_encode:
+; -------------------------------------------
+; source   : int rle_encode(const char* data,int len,char* dst)
+; function : rle_encode
+; param   : const char* data
+; param   : int len
+; param   : char* dst
+; return   : int
+; --------------------------------------------
+rle_encode:
         push R15
         push R12
         move R12 R13
-        sub R13 #24
+        sub R13 #28
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -31,18 +37,18 @@ _L30030003:
         mul R0 #1
         pop R10
         add R0 R10
-        moveb @0 R11
+        moveb [R0] R11
         move R0 #1
-        jmp L30030004
+        jmp L_30030004
 sta_30030000:
 sta_30030001:
         move R0 [R12+20]
-        move [R12-4] R0
-        move R0 #0
         move [R12-8] R0
+        move R0 #0
+        move [R12-12] R0
 sta_30030005:
         move R2 #0
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 [R12+16]
         pop R1
@@ -57,20 +63,20 @@ _L30030008:
         jz sta_30030006
         move R0 [R12+12]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         mul R0 #1
         pop R9
         add R0 R9
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
-        moveb [R12-9] R0
+        moveb [R12-13] R0
         move R0 #1
-        move [R12-16] R0
+        move [R12-20] R0
 sta_30030009:
         move R2 #0
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
-        move R0 [R12-16]
+        move R0 [R12-20]
         pop R1
         add R1 R0
         move R0 R1
@@ -88,19 +94,19 @@ _L30030016:
         jz _L30030013
         move R0 [R12+12]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
-        move R0 [R12-16]
+        move R0 [R12-20]
         pop R1
         add R1 R0
         move R0 R1
         mul R0 #1
         pop R8
         add R0 R8
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
-        moveb R0 [R12-9]
+        moveb R0 [R12-13]
         sextb R0 R0
         popb R1
         cmp R1 R0
@@ -119,7 +125,7 @@ _L30030013:
 _L30030014:
         test R0 R0
         jz _L30030011
-        move R0 [R12-16]
+        move R0 [R12-20]
         push R0
         move R0 #255
         pop R1
@@ -139,10 +145,10 @@ _L30030011:
 _L30030012:
         cmp R0 #0
         jz sta_30030010
-        move R0 [R12-16]
+        move R0 [R12-20]
         move R1 R0
         add R0 R0 #1
-        move [R12-16] R0
+        move [R12-20] R0
         move R0 R1
         jmp sta_30030009
 sta_30030010:
@@ -152,24 +158,24 @@ sta_30030010:
         move [R12+20] R0
         move R0 R1
         move R7 R0
-        move R0 [R12-16]
-        moveb @7 R0
+        move R0 [R12-20]
+        moveb [R7] R0
         move R0 [R12+20]
         move R1 R0
         add R0 R0 #1
         move [R12+20] R0
         move R0 R1
         move R6 R0
-        moveb R0 [R12-9]
+        moveb R0 [R12-13]
         sextb R0 R0
-        moveb @6 R0
-        move R0 [R12-8]
+        moveb [R6] R0
+        move R0 [R12-12]
         push R0
-        move R0 [R12-16]
+        move R0 [R12-20]
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-8] R0
+        move [R12-12] R0
         jmp sta_30030005
 sta_30030006:
         move R0 [R12+20]
@@ -179,29 +185,35 @@ sta_30030006:
         move R0 R1
         move R5 R0
         move R0 #0
-        moveb @5 R0
+        moveb [R5] R0
         move R0 [R12+20]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         sub R1 R0
         move R0 R1
-        jmp L30030004
-L30030004:
+        jmp L_30030004
+L_30030004:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+rle_decode:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int rle_decode(const char* src,char* dst)
+; function : rle_decode
+; param   : const char* src
+; param   : char* dst
+; return   : int
+; --------------------------------------------
 rle_decode:
         push R15
         push R12
         move R12 R13
-        sub R13 #24
+        sub R13 #28
         move R0 [R12+16]
-        move [R12-4] R0
+        move [R12-8] R0
 sta_30030021:
         move R2 #0
         move R0 #1
@@ -212,10 +224,10 @@ sta_30030021:
         add R0 R0 #1
         move [R12+12] R0
         move R0 R1
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
-        move [R12-8] R0
-        move R0 [R12-8]
+        move [R12-12] R0
+        move R0 [R12-12]
         push R0
         move R0 #0
         pop R1
@@ -236,15 +248,15 @@ sta_30030024:
         add R0 R0 #1
         move [R12+12] R0
         move R0 R1
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
-        moveb [R12-9] R0
+        moveb [R12-13] R0
         move R0 #0
-        move [R12-16] R0
+        move [R12-20] R0
 sta_30030027:
-        move R0 [R12-16]
+        move R0 [R12-20]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R1
         cmp R1 R0
         jl _L30030030
@@ -261,14 +273,14 @@ _L30030031:
         move [R12+16] R0
         move R0 R1
         move R4 R0
-        moveb R0 [R12-9]
+        moveb R0 [R12-13]
         sextb R0 R0
-        moveb @4 R0
+        moveb [R4] R0
 sta_30030028:
-        move R0 [R12-16]
+        move R0 [R12-20]
         move R1 R0
         add R0 R0 #1
-        move [R12-16] R0
+        move [R12-20] R0
         move R0 R1
         jmp sta_30030027
 sta_30030029:
@@ -276,16 +288,13 @@ sta_30030029:
 sta_30030022:
         move R0 [R12+16]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         sub R1 R0
         move R0 R1
-        jmp L30030032
-L30030032:
+        jmp L_30030032
+L_30030032:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret

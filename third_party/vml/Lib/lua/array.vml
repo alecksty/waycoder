@@ -12,12 +12,14 @@ LABEL lua_lib
 LABEL lua_len
     PUSH R0
     CALL len
+    ADD R13 #4
     RET
 
 LABEL lua_get
     PUSH R1
     PUSH R0
     CALL get
+    ADD R13 #8
     RET
 
 LABEL lua_set
@@ -25,46 +27,54 @@ LABEL lua_set
     PUSH R1
     PUSH R0
     CALL set
+    ADD R13 #12
     RET
 
 LABEL lua_sort_bubble
     PUSH R0
     CALL sort_bubble
+    ADD R13 #4
     RET
 
 LABEL lua_indexof
     PUSH R1
     PUSH R0
     CALL indexof
+    ADD R13 #8
     RET
 
 LABEL lua_last_indexof
     PUSH R1
     PUSH R0
     CALL last_indexof
+    ADD R13 #8
     RET
 
 LABEL lua_contains
     PUSH R1
     PUSH R0
     CALL contains
+    ADD R13 #8
     RET
 
 LABEL lua_reverse
     PUSH R0
     CALL reverse
+    ADD R13 #4
     RET
 
 LABEL lua_fill
     PUSH R1
     PUSH R0
     CALL fill
+    ADD R13 #8
     RET
 
 LABEL lua_copy
     PUSH R1
     PUSH R0
     CALL copy
+    ADD R13 #8
     RET
 
 LABEL lua_slice
@@ -73,6 +83,7 @@ LABEL lua_slice
     PUSH R1
     PUSH R0
     CALL slice
+    ADD R13 #16
     RET
 
 LABEL lua_concat
@@ -80,28 +91,33 @@ LABEL lua_concat
     PUSH R1
     PUSH R0
     CALL concat
+    ADD R13 #12
     RET
 
 LABEL lua_push
     PUSH R1
     PUSH R0
     CALL push
+    ADD R13 #8
     RET
 
 LABEL lua_pop
     PUSH R0
     CALL pop
+    ADD R13 #4
     RET
 
 LABEL lua_shift
     PUSH R0
     CALL shift
+    ADD R13 #4
     RET
 
 LABEL lua_unshift
     PUSH R1
     PUSH R0
     CALL unshift
+    ADD R13 #8
     RET
 
 LABEL lua_insert
@@ -109,12 +125,14 @@ LABEL lua_insert
     PUSH R1
     PUSH R0
     CALL insert
+    ADD R13 #12
     RET
 
 LABEL lua_remove
     PUSH R1
     PUSH R0
     CALL remove
+    ADD R13 #8
     RET
 
 LABEL lua_join_str
@@ -122,18 +140,21 @@ LABEL lua_join_str
     PUSH R1
     PUSH R0
     CALL join_str
+    ADD R13 #12
     RET
 
 LABEL lua_startswith
     PUSH R1
     PUSH R0
     CALL startswith
+    ADD R13 #8
     RET
 
 LABEL lua_endswith
     PUSH R1
     PUSH R0
     CALL endswith
+    ADD R13 #8
     RET
 
 LABEL lua__qs_swap
@@ -163,12 +184,14 @@ LABEL lua__qs_recursive
 LABEL lua_sort_quick
     PUSH R0
     CALL sort_quick
+    ADD R13 #4
     RET
 
 LABEL lua_bsearch
     PUSH R1
     PUSH R0
     CALL bsearch
+    ADD R13 #8
     RET
 
 LABEL func_lib

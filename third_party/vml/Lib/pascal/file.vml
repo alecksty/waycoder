@@ -7,11 +7,13 @@ LABEL PASCAL_FOPEN
     PUSH R1
     PUSH R0
     CALL fopen
+    ADD R13 #8
     RET
 
 LABEL PASCAL_FCLOSE
     PUSH R0
     CALL fclose
+    ADD R13 #4
     RET
 
 LABEL PASCAL_FREAD
@@ -19,6 +21,7 @@ LABEL PASCAL_FREAD
     PUSH R1
     PUSH R0
     CALL fread
+    ADD R13 #12
     RET
 
 LABEL PASCAL_FWRITE
@@ -26,6 +29,7 @@ LABEL PASCAL_FWRITE
     PUSH R1
     PUSH R0
     CALL fwrite
+    ADD R13 #12
     RET
 
 LABEL PASCAL_FSEEK
@@ -33,21 +37,25 @@ LABEL PASCAL_FSEEK
     PUSH R1
     PUSH R0
     CALL fseek
+    ADD R13 #12
     RET
 
 LABEL PASCAL_FTELL
     PUSH R0
     CALL ftell
+    ADD R13 #4
     RET
 
 LABEL PASCAL_FSIZE
     PUSH R0
     CALL fsize
+    ADD R13 #4
     RET
 
 LABEL PASCAL_FTRUNCATE
     PUSH R1
     PUSH R0
     CALL ftruncate
+    ADD R13 #8
     RET
 

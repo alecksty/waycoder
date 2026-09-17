@@ -228,6 +228,7 @@ LABEL ruby_InitGraph
     PUSH R1
     PUSH R0
     CALL InitGraph
+    ADD R13 #12
     RET
 
 LABEL ruby_CloseGraph
@@ -238,6 +239,7 @@ LABEL ruby_DetectGraph
     PUSH R1
     PUSH R0
     CALL DetectGraph
+    ADD R13 #8
     RET
 
 LABEL ruby_GetMaxX
@@ -255,11 +257,13 @@ LABEL ruby_GetDriverName
 LABEL ruby_GetModeName
     PUSH R0
     CALL GetModeName
+    ADD R13 #4
     RET
 
 LABEL ruby_SetColor
     PUSH R0
     CALL SetColor
+    ADD R13 #4
     RET
 
 LABEL ruby_GetColor
@@ -269,6 +273,7 @@ LABEL ruby_GetColor
 LABEL ruby_SetBkColor
     PUSH R0
     CALL SetBkColor
+    ADD R13 #4
     RET
 
 LABEL ruby_GetBkColor
@@ -281,6 +286,7 @@ LABEL ruby_SetRGBPalette
     PUSH R1
     PUSH R0
     CALL SetRGBPalette
+    ADD R13 #16
     RET
 
 LABEL ruby_PutPixel
@@ -288,12 +294,14 @@ LABEL ruby_PutPixel
     PUSH R1
     PUSH R0
     CALL PutPixel
+    ADD R13 #12
     RET
 
 LABEL ruby_GetPixel
     PUSH R1
     PUSH R0
     CALL GetPixel
+    ADD R13 #8
     RET
 
 LABEL ruby_Line
@@ -302,18 +310,21 @@ LABEL ruby_Line
     PUSH R1
     PUSH R0
     CALL Line
+    ADD R13 #16
     RET
 
 LABEL ruby_LineTo
     PUSH R1
     PUSH R0
     CALL LineTo
+    ADD R13 #8
     RET
 
 LABEL ruby_LineRel
     PUSH R1
     PUSH R0
     CALL LineRel
+    ADD R13 #8
     RET
 
 LABEL ruby_Rectangle
@@ -322,6 +333,7 @@ LABEL ruby_Rectangle
     PUSH R1
     PUSH R0
     CALL Rectangle
+    ADD R13 #16
     RET
 
 LABEL ruby_Bar
@@ -330,6 +342,7 @@ LABEL ruby_Bar
     PUSH R1
     PUSH R0
     CALL Bar
+    ADD R13 #16
     RET
 
 LABEL ruby_Bar3D
@@ -340,6 +353,7 @@ LABEL ruby_Bar3D
     PUSH R1
     PUSH R0
     CALL Bar3D
+    ADD R13 #24
     RET
 
 LABEL ruby_Circle
@@ -347,6 +361,7 @@ LABEL ruby_Circle
     PUSH R1
     PUSH R0
     CALL Circle
+    ADD R13 #12
     RET
 
 LABEL ruby_FillCircle
@@ -354,6 +369,7 @@ LABEL ruby_FillCircle
     PUSH R1
     PUSH R0
     CALL FillCircle
+    ADD R13 #12
     RET
 
 LABEL ruby_Ellipse
@@ -364,6 +380,7 @@ LABEL ruby_Ellipse
     PUSH R1
     PUSH R0
     CALL Ellipse
+    ADD R13 #24
     RET
 
 LABEL ruby_FillEllipse
@@ -372,6 +389,7 @@ LABEL ruby_FillEllipse
     PUSH R1
     PUSH R0
     CALL FillEllipse
+    ADD R13 #16
     RET
 
 LABEL ruby_Arc
@@ -381,6 +399,7 @@ LABEL ruby_Arc
     PUSH R1
     PUSH R0
     CALL Arc
+    ADD R13 #20
     RET
 
 LABEL ruby_PieSlice
@@ -390,12 +409,14 @@ LABEL ruby_PieSlice
     PUSH R1
     PUSH R0
     CALL PieSlice
+    ADD R13 #20
     RET
 
 LABEL ruby_SetFillStyle
     PUSH R1
     PUSH R0
     CALL SetFillStyle
+    ADD R13 #8
     RET
 
 LABEL ruby_SetLineStyle
@@ -403,6 +424,7 @@ LABEL ruby_SetLineStyle
     PUSH R1
     PUSH R0
     CALL SetLineStyle
+    ADD R13 #12
     RET
 
 LABEL ruby_ClearDevice
@@ -420,11 +442,13 @@ LABEL ruby_SetViewPort
     PUSH R1
     PUSH R0
     CALL SetViewPort
+    ADD R13 #20
     RET
 
 LABEL ruby_OutText
     PUSH R0
     CALL OutText
+    ADD R13 #4
     RET
 
 LABEL ruby_OutTextXY
@@ -432,6 +456,7 @@ LABEL ruby_OutTextXY
     PUSH R1
     PUSH R0
     CALL OutTextXY
+    ADD R13 #12
     RET
 
 LABEL ruby_FloodFill
@@ -439,6 +464,7 @@ LABEL ruby_FloodFill
     PUSH R1
     PUSH R0
     CALL FloodFill
+    ADD R13 #12
     RET
 
 LABEL ruby_ImageSize
@@ -447,6 +473,7 @@ LABEL ruby_ImageSize
     PUSH R1
     PUSH R0
     CALL ImageSize
+    ADD R13 #16
     RET
 
 LABEL ruby_GetImage
@@ -456,6 +483,7 @@ LABEL ruby_GetImage
     PUSH R1
     PUSH R0
     CALL GetImage
+    ADD R13 #20
     RET
 
 LABEL ruby_PutImage
@@ -464,6 +492,7 @@ LABEL ruby_PutImage
     PUSH R1
     PUSH R0
     CALL PutImage
+    ADD R13 #16
     RET
 
 LABEL ruby_GetPaletteSize
@@ -473,11 +502,13 @@ LABEL ruby_GetPaletteSize
 LABEL ruby_GetPalette
     PUSH R0
     CALL GetPalette
+    ADD R13 #4
     RET
 
 LABEL ruby_GetDefaultPalette
     PUSH R0
     CALL GetDefaultPalette
+    ADD R13 #4
     RET
 
 LABEL ruby_GraphResult
@@ -487,6 +518,7 @@ LABEL ruby_GraphResult
 LABEL ruby_GraphErrorMsg
     PUSH R0
     CALL GraphErrorMsg
+    ADD R13 #4
     RET
 
 LABEL ruby_RestoreCrtMode

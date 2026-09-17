@@ -6,6 +6,7 @@
 LABEL lua_vga_text_putchar
     PUSH R0
     CALL vga_text_putchar
+    ADD R13 #4
     RET
 
 LABEL lua_vga_text_newline

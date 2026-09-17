@@ -1,51 +1,57 @@
-.entry main
-.stack 0
-.vectors 0x0
 
+.linked "math64.vml"
 .data
-flt_73430000: .word 1065353216
-flt_73430001: .word 0
-flt_73430002: .word 0
-flt_73430003: .word 1065353216
-flt_73430007: .word 0
-flt_73430011: .word 1065353216
-flt_73430012: .word 1127481344
-flt_73430013: .word 1078530011
-flt_73430014: .word 1127481344
-flt_73430015: .word 1078530011
-flt_73430051: .word 1065353216
-flt_73430052: .word 0
-flt_73430073: .word 1127481344
-flt_73430074: .word 1078530011
-flt_73430075: .word 1127481344
-flt_73430076: .word 1078530011
-flt_73430077: .word 1127481344
-flt_73430078: .word 1078530011
-flt_73430079: .word 1127481344
-flt_73430080: .word 1078530011
-flt_73430081: .word 1127481344
-flt_73430082: .word 1078530011
-flt_73430083: .word 1127481344
-flt_73430084: .word 1078530011
-flt_73430099: .word 0
-flt_73430102: .word 0
-flt_73430104: .word 1056964608
-flt_73430105: .word 1056964608
-flt_73430111: .word 1056964608
-flt_73430118: .word 0
-flt_73430125: .word 0
-flt_73430128: .word 0
-flt_73430130: .word 1056964608
-flt_73430131: .word 1056964608
-flt_73430137: .word 1056964608
-flt_73430144: .word 0
+dbl_73430000: .dword 4607182418800017408
+dbl_73430001: .dword 0
+dbl_73430002: .dword 0
+dbl_73430003: .dword 4607182418800017408
+dbl_73430007: .dword 0
+dbl_73430011: .dword 4607182418800017408
+dbl_73430012: .dword 4640537203540230144
+dbl_73430013: .dword 4614256656552045848
+dbl_73430014: .dword 4640537203540230144
+dbl_73430015: .dword 4614256656552045848
+dbl_73430051: .dword 4607182418800017408
+dbl_73430052: .dword 0
+dbl_73430073: .dword 4640537203540230144
+dbl_73430074: .dword 4614256656552045848
+dbl_73430075: .dword 4640537203540230144
+dbl_73430076: .dword 4614256656552045848
+dbl_73430077: .dword 4640537203540230144
+dbl_73430078: .dword 4614256656552045848
+dbl_73430079: .dword 4640537203540230144
+dbl_73430080: .dword 4614256656552045848
+dbl_73430081: .dword 4640537203540230144
+dbl_73430082: .dword 4614256656552045848
+dbl_73430083: .dword 4640537203540230144
+dbl_73430084: .dword 4614256656552045848
+dbl_73430099: .dword 0
+dbl_73430102: .dword 0
+dbl_73430104: .dword 4602678819172646912
+dbl_73430105: .dword 4602678819172646912
+dbl_73430111: .dword 4602678819172646912
+dbl_73430118: .dword 0
+dbl_73430125: .dword 0
+dbl_73430128: .dword 0
+dbl_73430130: .dword 4602678819172646912
+dbl_73430131: .dword 4602678819172646912
+dbl_73430137: .dword 4602678819172646912
+dbl_73430144: .dword 0
 
 .text
+mat2_identity_d:
+; -------------------------------------------
+; source   : void mat2_identity_d(double* result)
+; function : mat2_identity_d
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat2_identity_d:
         push R15
         push R12
         move R12 R13
-        movef R0 [flt_73430000]
+        sub R13 #12
+        moved R0 [dbl_73430000]
         move R11 R0
         move R0 [R12+12]
         push R0
@@ -53,8 +59,8 @@ mat2_identity_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved @0 R11
-        movef R0 [flt_73430001]
+        moved [R0] R11
+        moved R0 [dbl_73430001]
         move R9 R0
         move R0 [R12+12]
         push R0
@@ -62,8 +68,8 @@ mat2_identity_d:
         mul R0 #8
         pop R8
         add R0 R8
-        moved @0 R9
-        movef R0 [flt_73430002]
+        moved [R0] R9
+        moved R0 [dbl_73430002]
         move R7 R0
         move R0 [R12+12]
         push R0
@@ -71,8 +77,8 @@ mat2_identity_d:
         mul R0 #8
         pop R6
         add R0 R6
-        moved @0 R7
-        movef R0 [flt_73430003]
+        moved [R0] R7
+        moved R0 [dbl_73430003]
         move R5 R0
         move R0 [R12+12]
         push R0
@@ -80,25 +86,32 @@ mat2_identity_d:
         mul R0 #8
         pop R4
         add R0 R4
-        moved @0 R5
+        moved [R0] R5
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+mat2_add_d:
+; -------------------------------------------
+; source   : void mat2_add_d(double* a,double* b,double* result)
+; function : mat2_add_d
+; param   : double* a
+; param   : double* b
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat2_add_d:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R3
         add R0 R3
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -106,7 +119,7 @@ mat2_add_d:
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dadd R0 R1 R0
         move R1 R0
@@ -116,14 +129,14 @@ mat2_add_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved @0 R1
+        moved [R0] R1
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -131,7 +144,7 @@ mat2_add_d:
         mul R0 #8
         pop R8
         add R0 R8
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dadd R0 R1 R0
         move R9 R0
@@ -141,14 +154,14 @@ mat2_add_d:
         mul R0 #8
         pop R6
         add R0 R6
-        moved @0 R9
+        moved [R0] R9
         move R0 [R12+12]
         push R0
         move R0 #2
         mul R0 #8
         pop R7
         add R0 R7
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -156,7 +169,7 @@ mat2_add_d:
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dadd R0 R1 R0
         move R5 R0
@@ -166,14 +179,14 @@ mat2_add_d:
         mul R0 #8
         pop R3
         add R0 R3
-        moved @0 R5
+        moved [R0] R5
         move R0 [R12+12]
         push R0
         move R0 #3
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -181,7 +194,7 @@ mat2_add_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dadd R0 R1 R0
         move R1 R0
@@ -191,25 +204,32 @@ mat2_add_d:
         mul R0 #8
         pop R11
         add R0 R11
-        moved @0 R1
+        moved [R0] R1
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+mat2_sub_d:
+; -------------------------------------------
+; source   : void mat2_sub_d(double* a,double* b,double* result)
+; function : mat2_sub_d
+; param   : double* a
+; param   : double* b
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat2_sub_d:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R8
         add R0 R8
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -217,7 +237,7 @@ mat2_sub_d:
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dsub R0 R1 R0
         move R9 R0
@@ -227,14 +247,14 @@ mat2_sub_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved @0 R9
+        moved [R0] R9
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -242,7 +262,7 @@ mat2_sub_d:
         mul R0 #8
         pop R3
         add R0 R3
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dsub R0 R1 R0
         move R5 R0
@@ -252,14 +272,14 @@ mat2_sub_d:
         mul R0 #8
         pop R2
         add R0 R2
-        moved @0 R5
+        moved [R0] R5
         move R0 [R12+12]
         push R0
         move R0 #2
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -267,7 +287,7 @@ mat2_sub_d:
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dsub R0 R1 R0
         move R1 R0
@@ -277,14 +297,14 @@ mat2_sub_d:
         mul R0 #8
         pop R8
         add R0 R8
-        moved @0 R1
+        moved [R0] R1
         move R0 [R12+12]
         push R0
         move R0 #3
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -292,7 +312,7 @@ mat2_sub_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dsub R0 R1 R0
         move R9 R0
@@ -302,26 +322,32 @@ mat2_sub_d:
         mul R0 #8
         pop R4
         add R0 R4
-        moved @0 R9
+        moved [R0] R9
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+mat2_mul_d:
+; -------------------------------------------
+; source   : void mat2_mul_d(double* a,double* b,double* result)
+; function : mat2_mul_d
+; param   : double* a
+; param   : double* b
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat2_mul_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #40
+        sub R13 #44
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R3
         add R0 R3
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -329,7 +355,7 @@ mat2_mul_d:
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -339,7 +365,7 @@ mat2_mul_d:
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -347,19 +373,19 @@ mat2_mul_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
         dadd R0 R1 R0
-        moved [R12-8] R0
+        moved [R12-12] R0
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -367,7 +393,7 @@ mat2_mul_d:
         mul R0 #8
         pop R8
         add R0 R8
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -377,7 +403,7 @@ mat2_mul_d:
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -385,19 +411,19 @@ mat2_mul_d:
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
         dadd R0 R1 R0
-        moved [R12-16] R0
+        moved [R12-20] R0
         move R0 [R12+12]
         push R0
         move R0 #2
         mul R0 #8
         pop R7
         add R0 R7
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -405,7 +431,7 @@ mat2_mul_d:
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -415,7 +441,7 @@ mat2_mul_d:
         mul R0 #8
         pop R9
         add R0 R9
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -423,19 +449,19 @@ mat2_mul_d:
         mul R0 #8
         pop R3
         add R0 R3
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
         dadd R0 R1 R0
-        moved [R12-24] R0
+        moved [R12-28] R0
         move R0 [R12+12]
         push R0
         move R0 #2
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -443,7 +469,7 @@ mat2_mul_d:
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -453,7 +479,7 @@ mat2_mul_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -461,13 +487,13 @@ mat2_mul_d:
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
         dadd R0 R1 R0
-        moved [R12-32] R0
-        moved R0 [R12-8]
+        moved [R12-36] R0
+        moved R0 [R12-12]
         move R8 R0
         move R0 [R12+20]
         push R0
@@ -475,8 +501,8 @@ mat2_mul_d:
         mul R0 #8
         pop R1
         add R0 R1
-        moved @0 R8
-        moved R0 [R12-16]
+        moved [R0] R8
+        moved R0 [R12-20]
         move R6 R0
         move R0 [R12+20]
         push R0
@@ -484,8 +510,8 @@ mat2_mul_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved @0 R6
-        moved R0 [R12-24]
+        moved [R0] R6
+        moved R0 [R12-28]
         move R4 R0
         move R0 [R12+20]
         push R0
@@ -493,8 +519,8 @@ mat2_mul_d:
         mul R0 #8
         pop R9
         add R0 R9
-        moved @0 R4
-        moved R0 [R12-32]
+        moved [R0] R4
+        moved R0 [R12-36]
         move R3 R0
         move R0 [R12+20]
         push R0
@@ -502,25 +528,32 @@ mat2_mul_d:
         mul R0 #8
         pop R2
         add R0 R2
-        moved @0 R3
+        moved [R0] R3
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+mat2_scale_d:
+; -------------------------------------------
+; source   : void mat2_scale_d(double* a,double scalar,double* result)
+; function : mat2_scale_d
+; param   : double* a
+; param   : double scalar
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat2_scale_d:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         moved R0 [R12+16]
         dpop R1
@@ -532,14 +565,14 @@ mat2_scale_d:
         mul R0 #8
         pop R11
         add R0 R11
-        moved @0 R10
+        moved [R0] R10
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         moved R0 [R12+16]
         dpop R1
@@ -551,14 +584,14 @@ mat2_scale_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved @0 R8
+        moved [R0] R8
         move R0 [R12+12]
         push R0
         move R0 #2
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         moved R0 [R12+16]
         dpop R1
@@ -570,14 +603,14 @@ mat2_scale_d:
         mul R0 #8
         pop R4
         add R0 R4
-        moved @0 R9
+        moved [R0] R9
         move R0 [R12+12]
         push R0
         move R0 #3
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         moved R0 [R12+16]
         dpop R1
@@ -589,25 +622,30 @@ mat2_scale_d:
         mul R0 #8
         pop R5
         add R0 R5
-        moved @0 R3
+        moved [R0] R3
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+mat2_det_d:
+; -------------------------------------------
+; source   : double mat2_det_d(double* a)
+; function : mat2_det_d
+; param   : double* a
+; return   : double
+; --------------------------------------------
 mat2_det_d:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -615,7 +653,7 @@ mat2_det_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -625,7 +663,7 @@ mat2_det_d:
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -633,31 +671,37 @@ mat2_det_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
         dsub R0 R1 R0
-        jmp L73430004
-L73430004:
+        jmp L_73430004
+L_73430004:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+mat2_transpose_d:
+; -------------------------------------------
+; source   : void mat2_transpose_d(double* a,double* result)
+; function : mat2_transpose_d
+; param   : double* a
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat2_transpose_d:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R8
         add R0 R8
-        moved R0 @0
+        moved R0 [R0]
         move R6 R0
         move R0 [R12+16]
         push R0
@@ -665,14 +709,14 @@ mat2_transpose_d:
         mul R0 #8
         pop R4
         add R0 R4
-        moved @0 R6
+        moved [R0] R6
         move R0 [R12+12]
         push R0
         move R0 #2
         mul R0 #8
         pop R9
         add R0 R9
-        moved R0 @0
+        moved R0 [R0]
         move R2 R0
         move R0 [R12+16]
         push R0
@@ -680,14 +724,14 @@ mat2_transpose_d:
         mul R0 #8
         pop R5
         add R0 R5
-        moved @0 R2
+        moved [R0] R2
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R3
         add R0 R3
-        moved R0 @0
+        moved R0 [R0]
         move R11 R0
         move R0 [R12+16]
         push R0
@@ -695,14 +739,14 @@ mat2_transpose_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved @0 R11
+        moved [R0] R11
         move R0 [R12+12]
         push R0
         move R0 #3
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         move R7 R0
         move R0 [R12+16]
         push R0
@@ -710,26 +754,31 @@ mat2_transpose_d:
         mul R0 #8
         pop R8
         add R0 R8
-        moved @0 R7
+        moved [R0] R7
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+mat2_inv_d:
+; -------------------------------------------
+; source   : int mat2_inv_d(double* a,double* result)
+; function : mat2_inv_d
+; param   : double* a
+; param   : double* result
+; return   : int
+; --------------------------------------------
 mat2_inv_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #24
+        sub R13 #28
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -737,7 +786,7 @@ mat2_inv_d:
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -747,7 +796,7 @@ mat2_inv_d:
         mul R0 #8
         pop R9
         add R0 R9
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -755,15 +804,15 @@ mat2_inv_d:
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
         dsub R0 R1 R0
-        moved [R12-8] R0
-        moved R0 [R12-8]
+        moved [R12-12] R0
+        moved R0 [R12-12]
         dpush R0
-        movef R0 [flt_73430007]
+        moved R0 [dbl_73430007]
         dpop R1
         dcmp R1 R0
         je _L73430008
@@ -775,24 +824,24 @@ _L73430009:
         cmp R0 #0
         jz sta_73430005
         move R0 #0
-        jmp L73430010
+        jmp L_73430010
 sta_73430005:
 sta_73430006:
-        movef R0 [flt_73430011]
+        moved R0 [dbl_73430011]
         dpush R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpop R1
         ddiv R0 R1 R0
-        moved [R12-16] R0
+        moved [R12-20] R0
         move R0 [R12+12]
         push R0
         move R0 #3
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpop R1
         dmul R0 R1 R0
         move R3 R0
@@ -802,24 +851,24 @@ sta_73430006:
         mul R0 #8
         pop R10
         add R0 R10
-        moved @0 R3
+        moved [R0] R3
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         dneg R0 R0
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpop R1
         dmul R0 R1 R0
         move R8 R0
@@ -829,24 +878,24 @@ sta_73430006:
         mul R0 #8
         pop R7
         add R0 R7
-        moved @0 R8
+        moved [R0] R8
         move R0 [R12+12]
         push R0
         move R0 #2
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         move R0 [R12+12]
         push R0
         move R0 #2
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         dneg R0 R0
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpop R1
         dmul R0 R1 R0
         move R9 R0
@@ -856,16 +905,16 @@ sta_73430006:
         mul R0 #8
         pop R5
         add R0 R5
-        moved @0 R9
+        moved [R0] R9
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpop R1
         dmul R0 R1 R0
         move R10 R0
@@ -875,51 +924,58 @@ sta_73430006:
         mul R0 #8
         pop R3
         add R0 R3
-        moved @0 R10
+        moved [R0] R10
         move R0 #1
-        jmp L73430010
-L73430010:
+        jmp L_73430010
+L_73430010:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+mat2_rot_d:
+; -------------------------------------------
+; source   : void mat2_rot_d(double angle_rad,double* result)
+; function : mat2_rot_d
+; param   : double angle_rad
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat2_rot_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #24
+        sub R13 #28
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_73430012]
+        moved R0 [dbl_73430012]
         dpop R1
         dmul R0 R1 R0
         dpush R0
-        movef R0 [flt_73430013]
+        moved R0 [dbl_73430013]
         dpop R1
         ddiv R0 R1 R0
         push R0
+        move R0 [R13+0]
         call cos_deg_d
         add R13 #4
         i2d R0 R0
-        moved [R12-8] R0
+        moved [R12-12] R0
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_73430014]
+        moved R0 [dbl_73430014]
         dpop R1
         dmul R0 R1 R0
         dpush R0
-        movef R0 [flt_73430015]
+        moved R0 [dbl_73430015]
         dpop R1
         ddiv R0 R1 R0
         push R0
+        move R0 [R13+0]
         call sin_deg_d
         add R13 #4
         i2d R0 R0
-        moved [R12-16] R0
-        moved R0 [R12-8]
+        moved [R12-20] R0
+        moved R0 [R12-12]
         move R11 R0
         move R0 [R12+20]
         push R0
@@ -927,9 +983,9 @@ mat2_rot_d:
         mul R0 #8
         pop R1
         add R0 R1
-        moved @0 R11
-        moved R0 [R12-16]
-        moved R0 [R12-16]
+        moved [R0] R11
+        moved R0 [R12-20]
+        moved R0 [R12-20]
         dneg R0 R0
         move R7 R0
         move R0 [R12+20]
@@ -938,8 +994,8 @@ mat2_rot_d:
         mul R0 #8
         pop R8
         add R0 R8
-        moved @0 R7
-        moved R0 [R12-16]
+        moved [R0] R7
+        moved R0 [R12-20]
         move R4 R0
         move R0 [R12+20]
         push R0
@@ -947,8 +1003,8 @@ mat2_rot_d:
         mul R0 #8
         pop R6
         add R0 R6
-        moved @0 R4
-        moved R0 [R12-8]
+        moved [R0] R4
+        moved R0 [R12-12]
         move R5 R0
         move R0 [R12+20]
         push R0
@@ -956,18 +1012,23 @@ mat2_rot_d:
         mul R0 #8
         pop R9
         add R0 R9
-        moved @0 R5
+        moved [R0] R5
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+mat3_identity_d:
+; -------------------------------------------
+; source   : void mat3_identity_d(double* result)
+; function : mat3_identity_d
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat3_identity_d:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #1
         move R2 R0
         move R0 [R12+12]
@@ -976,7 +1037,7 @@ mat3_identity_d:
         mul R0 #8
         pop R3
         add R0 R3
-        moved @0 R2
+        moved [R0] R2
         move R0 #0
         move R10 R0
         move R0 [R12+12]
@@ -985,7 +1046,7 @@ mat3_identity_d:
         mul R0 #8
         pop R1
         add R0 R1
-        moved @0 R10
+        moved [R0] R10
         move R0 #0
         move R11 R0
         move R0 [R12+12]
@@ -994,7 +1055,7 @@ mat3_identity_d:
         mul R0 #8
         pop R8
         add R0 R8
-        moved @0 R11
+        moved [R0] R11
         move R0 #0
         move R7 R0
         move R0 [R12+12]
@@ -1003,7 +1064,7 @@ mat3_identity_d:
         mul R0 #8
         pop R6
         add R0 R6
-        moved @0 R7
+        moved [R0] R7
         move R0 #1
         move R4 R0
         move R0 [R12+12]
@@ -1012,7 +1073,7 @@ mat3_identity_d:
         mul R0 #8
         pop R9
         add R0 R9
-        moved @0 R4
+        moved [R0] R4
         move R0 #0
         move R5 R0
         move R0 [R12+12]
@@ -1021,7 +1082,7 @@ mat3_identity_d:
         mul R0 #8
         pop R3
         add R0 R3
-        moved @0 R5
+        moved [R0] R5
         move R0 #0
         move R2 R0
         move R0 [R12+12]
@@ -1030,7 +1091,7 @@ mat3_identity_d:
         mul R0 #8
         pop R1
         add R0 R1
-        moved @0 R2
+        moved [R0] R2
         move R0 #0
         move R10 R0
         move R0 [R12+12]
@@ -1039,7 +1100,7 @@ mat3_identity_d:
         mul R0 #8
         pop R8
         add R0 R8
-        moved @0 R10
+        moved [R0] R10
         move R0 #1
         move R11 R0
         move R0 [R12+12]
@@ -1048,23 +1109,29 @@ mat3_identity_d:
         mul R0 #8
         pop R6
         add R0 R6
-        moved @0 R11
+        moved [R0] R11
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+mat3_mul_d:
+; -------------------------------------------
+; source   : void mat3_mul_d(double* a,double* b,double* result)
+; function : mat3_mul_d
+; param   : double* a
+; param   : double* b
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat3_mul_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #92
+        sub R13 #96
         move R0 #0
-        move [R12-76] R0
+        move [R12-80] R0
 sta_73430016:
-        move R0 [R12-76]
+        move R0 [R12-80]
         push R0
         move R0 #3
         pop R1
@@ -1078,9 +1145,9 @@ _L73430020:
         cmp R0 #0
         jz sta_73430018
         move R0 #0
-        move [R12-80] R0
+        move [R12-84] R0
 sta_73430021:
-        move R0 [R12-80]
+        move R0 [R12-84]
         push R0
         move R0 #3
         pop R1
@@ -1096,18 +1163,18 @@ _L73430025:
         move R0 #0
         move R7 R0
         move R0 R12
-        sub R0 #72
+        sub R0 #76
         push R0
         move R9 #0
         push R9
-        move R0 [R12-76]
+        move R0 [R12-80]
         push R0
         move R0 #3
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-80]
+        move R0 [R12-84]
         pop R1
         add R1 R0
         move R0 R1
@@ -1117,11 +1184,11 @@ _L73430025:
         mul R0 #8
         pop R4
         add R0 R4
-        moved @0 R7
+        moved [R0] R7
         move R0 #0
-        move [R12-84] R0
+        move [R12-88] R0
 sta_73430026:
-        move R0 [R12-84]
+        move R0 [R12-88]
         push R0
         move R0 #3
         pop R1
@@ -1135,18 +1202,18 @@ _L73430030:
         cmp R0 #0
         jz sta_73430028
         move R0 R12
-        sub R0 #72
+        sub R0 #76
         push R0
         move R3 #0
         push R3
-        move R0 [R12-76]
+        move R0 [R12-80]
         push R0
         move R0 #3
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-80]
+        move R0 [R12-84]
         pop R1
         add R1 R0
         move R0 R1
@@ -1156,61 +1223,61 @@ _L73430030:
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
-        move R0 [R12-76]
+        move R0 [R12-80]
         push R0
         move R0 #3
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-84]
+        move R0 [R12-88]
         pop R1
         add R1 R0
         move R0 R1
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
-        move R0 [R12-84]
+        move R0 [R12-88]
         push R0
         move R0 #3
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-80]
+        move R0 [R12-84]
         pop R1
         add R1 R0
         move R0 R1
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
         dadd R0 R1 R0
         move R8 R0
         move R0 R12
-        sub R0 #72
+        sub R0 #76
         push R0
         move R10 #0
         push R10
-        move R0 [R12-76]
+        move R0 [R12-80]
         push R0
         move R0 #3
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-80]
+        move R0 [R12-84]
         pop R1
         add R1 R0
         move R0 R1
@@ -1220,35 +1287,35 @@ _L73430030:
         mul R0 #8
         pop R6
         add R0 R6
-        moved @0 R8
+        moved [R0] R8
 sta_73430027:
+        move R0 [R12-88]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-88] R0
+        move R0 R1
+        jmp sta_73430026
+sta_73430028:
+sta_73430022:
         move R0 [R12-84]
         move R1 R0
         add R0 R0 #1
         move [R12-84] R0
         move R0 R1
-        jmp sta_73430026
-sta_73430028:
-sta_73430022:
+        jmp sta_73430021
+sta_73430023:
+sta_73430017:
         move R0 [R12-80]
         move R1 R0
         add R0 R0 #1
         move [R12-80] R0
         move R0 R1
-        jmp sta_73430021
-sta_73430023:
-sta_73430017:
-        move R0 [R12-76]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-76] R0
-        move R0 R1
         jmp sta_73430016
 sta_73430018:
         move R0 #0
-        move [R12-76] R0
+        move [R12-80] R0
 sta_73430031:
-        move R0 [R12-76]
+        move R0 [R12-80]
         push R0
         move R0 #9
         pop R1
@@ -1262,52 +1329,57 @@ _L73430035:
         cmp R0 #0
         jz sta_73430033
         move R0 R12
-        sub R0 #72
+        sub R0 #76
         push R0
         move R11 #0
         push R11
-        move R0 [R12-76]
+        move R0 [R12-80]
         pop R11
         move R11 R0
         move R0 R11
         mul R0 #8
         pop R9
         add R0 R9
-        moved R0 @0
+        moved R0 [R0]
         move R4 R0
         move R0 [R12+20]
         push R0
-        move R0 [R12-76]
+        move R0 [R12-80]
         mul R0 #8
         pop R7
         add R0 R7
-        moved @0 R4
+        moved [R0] R4
 sta_73430032:
-        move R0 [R12-76]
+        move R0 [R12-80]
         move R1 R0
         add R0 R0 #1
-        move [R12-76] R0
+        move [R12-80] R0
         move R0 R1
         jmp sta_73430031
 sta_73430033:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+mat3_det_d:
+; -------------------------------------------
+; source   : double mat3_det_d(double* a)
+; function : mat3_det_d
+; param   : double* a
+; return   : double
+; --------------------------------------------
 mat3_det_d:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R3
         add R0 R3
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -1315,7 +1387,7 @@ mat3_det_d:
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -1323,7 +1395,7 @@ mat3_det_d:
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -1333,7 +1405,7 @@ mat3_det_d:
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -1341,7 +1413,7 @@ mat3_det_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
@@ -1355,7 +1427,7 @@ mat3_det_d:
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -1363,7 +1435,7 @@ mat3_det_d:
         mul R0 #8
         pop R8
         add R0 R8
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -1371,7 +1443,7 @@ mat3_det_d:
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -1381,7 +1453,7 @@ mat3_det_d:
         mul R0 #8
         pop R9
         add R0 R9
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -1389,7 +1461,7 @@ mat3_det_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
@@ -1405,7 +1477,7 @@ mat3_det_d:
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -1413,7 +1485,7 @@ mat3_det_d:
         mul R0 #8
         pop R3
         add R0 R3
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -1421,7 +1493,7 @@ mat3_det_d:
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -1431,7 +1503,7 @@ mat3_det_d:
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -1439,7 +1511,7 @@ mat3_det_d:
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
@@ -1448,26 +1520,32 @@ mat3_det_d:
         dmul R0 R1 R0
         dpop R1
         dadd R0 R1 R0
-        jmp L73430036
-L73430036:
+        jmp L_73430036
+L_73430036:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+mat3_transpose_d:
+; -------------------------------------------
+; source   : void mat3_transpose_d(double* a,double* result)
+; function : mat3_transpose_d
+; param   : double* a
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat3_transpose_d:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         move R6 R0
         move R0 [R12+16]
         push R0
@@ -1475,14 +1553,14 @@ mat3_transpose_d:
         mul R0 #8
         pop R8
         add R0 R8
-        moved @0 R6
+        moved [R0] R6
         move R0 [R12+12]
         push R0
         move R0 #3
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         move R9 R0
         move R0 [R12+16]
         push R0
@@ -1490,14 +1568,14 @@ mat3_transpose_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved @0 R9
+        moved [R0] R9
         move R0 [R12+12]
         push R0
         move R0 #6
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         move R3 R0
         move R0 [R12+16]
         push R0
@@ -1505,14 +1583,14 @@ mat3_transpose_d:
         mul R0 #8
         pop R5
         add R0 R5
-        moved @0 R3
+        moved [R0] R3
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         move R2 R0
         move R0 [R12+16]
         push R0
@@ -1520,14 +1598,14 @@ mat3_transpose_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved @0 R2
+        moved [R0] R2
         move R0 [R12+12]
         push R0
         move R0 #4
         mul R0 #8
         pop R8
         add R0 R8
-        moved R0 @0
+        moved R0 [R0]
         move R6 R0
         move R0 [R12+16]
         push R0
@@ -1535,14 +1613,14 @@ mat3_transpose_d:
         mul R0 #8
         pop R11
         add R0 R11
-        moved @0 R6
+        moved [R0] R6
         move R0 [R12+12]
         push R0
         move R0 #7
         mul R0 #8
         pop R7
         add R0 R7
-        moved R0 @0
+        moved R0 [R0]
         move R9 R0
         move R0 [R12+16]
         push R0
@@ -1550,14 +1628,14 @@ mat3_transpose_d:
         mul R0 #8
         pop R4
         add R0 R4
-        moved @0 R9
+        moved [R0] R9
         move R0 [R12+12]
         push R0
         move R0 #2
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         move R3 R0
         move R0 [R12+16]
         push R0
@@ -1565,14 +1643,14 @@ mat3_transpose_d:
         mul R0 #8
         pop R1
         add R0 R1
-        moved @0 R3
+        moved [R0] R3
         move R0 [R12+12]
         push R0
         move R0 #5
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         move R2 R0
         move R0 [R12+16]
         push R0
@@ -1580,14 +1658,14 @@ mat3_transpose_d:
         mul R0 #8
         pop R8
         add R0 R8
-        moved @0 R2
+        moved [R0] R2
         move R0 [R12+12]
         push R0
         move R0 #8
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         move R6 R0
         move R0 [R12+16]
         push R0
@@ -1595,23 +1673,29 @@ mat3_transpose_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved @0 R6
+        moved [R0] R6
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+mat3_scale_d:
+; -------------------------------------------
+; source   : void mat3_scale_d(double* a,double scalar,double* result)
+; function : mat3_scale_d
+; param   : double* a
+; param   : double scalar
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat3_scale_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_73430037:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #9
         pop R1
@@ -1626,11 +1710,11 @@ _L73430041:
         jz sta_73430039
         move R0 [R12+12]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         moved R0 [R12+16]
         dpop R1
@@ -1638,35 +1722,39 @@ _L73430041:
         move R9 R0
         move R0 [R12+24]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         mul R0 #8
         pop R5
         add R0 R5
-        moved @0 R9
+        moved [R0] R9
 sta_73430038:
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_73430037
 sta_73430039:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+mat4_identity_d:
+; -------------------------------------------
+; source   : void mat4_identity_d(double* result)
+; function : mat4_identity_d
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat4_identity_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_73430042:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #16
         pop R1
@@ -1679,7 +1767,7 @@ _L73430045:
 _L73430046:
         cmp R0 #0
         jz sta_73430044
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #5
         pop R1
@@ -1697,43 +1785,49 @@ _L73430047:
 _L73430048:
         test R0 R0
         jz _L73430049
-        movef R0 [flt_73430051]
+        moved R0 [dbl_73430051]
         jmp _L73430050
 _L73430049:
-        movef R0 [flt_73430052]
+        moved R0 [dbl_73430052]
 _L73430050:
         move R1 R0
         move R0 [R12+12]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         mul R0 #8
         pop R3
         add R0 R3
-        moved @0 R1
+        moved [R0] R1
 sta_73430043:
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_73430042
 sta_73430044:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+mat4_mul_d:
+; -------------------------------------------
+; source   : void mat4_mul_d(double* a,double* b,double* result)
+; function : mat4_mul_d
+; param   : double* a
+; param   : double* b
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat4_mul_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #148
+        sub R13 #152
         move R0 #0
-        move [R12-132] R0
+        move [R12-136] R0
 sta_73430053:
-        move R0 [R12-132]
+        move R0 [R12-136]
         push R0
         move R0 #4
         pop R1
@@ -1747,9 +1841,9 @@ _L73430057:
         cmp R0 #0
         jz sta_73430055
         move R0 #0
-        move [R12-136] R0
+        move [R12-140] R0
 sta_73430058:
-        move R0 [R12-136]
+        move R0 [R12-140]
         push R0
         move R0 #4
         pop R1
@@ -1765,18 +1859,18 @@ _L73430062:
         move R0 #0
         move R10 R0
         move R0 R12
-        sub R0 #128
+        sub R0 #132
         push R0
         move R8 #0
         push R8
-        move R0 [R12-132]
+        move R0 [R12-136]
         push R0
         move R0 #4
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-136]
+        move R0 [R12-140]
         pop R1
         add R1 R0
         move R0 R1
@@ -1786,11 +1880,11 @@ _L73430062:
         mul R0 #8
         pop R2
         add R0 R2
-        moved @0 R10
+        moved [R0] R10
         move R0 #0
-        move [R12-140] R0
+        move [R12-144] R0
 sta_73430063:
-        move R0 [R12-140]
+        move R0 [R12-144]
         push R0
         move R0 #4
         pop R1
@@ -1804,18 +1898,18 @@ _L73430067:
         cmp R0 #0
         jz sta_73430065
         move R0 R12
-        sub R0 #128
+        sub R0 #132
         push R0
         move R11 #0
         push R11
-        move R0 [R12-132]
+        move R0 [R12-136]
         push R0
         move R0 #4
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-136]
+        move R0 [R12-140]
         pop R1
         add R1 R0
         move R0 R1
@@ -1825,61 +1919,61 @@ _L73430067:
         mul R0 #8
         pop R7
         add R0 R7
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
-        move R0 [R12-132]
+        move R0 [R12-136]
         push R0
         move R0 #4
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-140]
+        move R0 [R12-144]
         pop R1
         add R1 R0
         move R0 R1
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
-        move R0 [R12-140]
+        move R0 [R12-144]
         push R0
         move R0 #4
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-136]
+        move R0 [R12-140]
         pop R1
         add R1 R0
         move R0 R1
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
         dadd R0 R1 R0
         move R5 R0
         move R0 R12
-        sub R0 #128
+        sub R0 #132
         push R0
         move R9 #0
         push R9
-        move R0 [R12-132]
+        move R0 [R12-136]
         push R0
         move R0 #4
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-136]
+        move R0 [R12-140]
         pop R1
         add R1 R0
         move R0 R1
@@ -1889,35 +1983,35 @@ _L73430067:
         mul R0 #8
         pop R3
         add R0 R3
-        moved @0 R5
+        moved [R0] R5
 sta_73430064:
+        move R0 [R12-144]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-144] R0
+        move R0 R1
+        jmp sta_73430063
+sta_73430065:
+sta_73430059:
         move R0 [R12-140]
         move R1 R0
         add R0 R0 #1
         move [R12-140] R0
         move R0 R1
-        jmp sta_73430063
-sta_73430065:
-sta_73430059:
+        jmp sta_73430058
+sta_73430060:
+sta_73430054:
         move R0 [R12-136]
         move R1 R0
         add R0 R0 #1
         move [R12-136] R0
         move R0 R1
-        jmp sta_73430058
-sta_73430060:
-sta_73430054:
-        move R0 [R12-132]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-132] R0
-        move R0 R1
         jmp sta_73430053
 sta_73430055:
         move R0 #0
-        move [R12-132] R0
+        move [R12-136] R0
 sta_73430068:
-        move R0 [R12-132]
+        move R0 [R12-136]
         push R0
         move R0 #16
         pop R1
@@ -1931,48 +2025,58 @@ _L73430072:
         cmp R0 #0
         jz sta_73430070
         move R0 R12
-        sub R0 #128
+        sub R0 #132
         push R0
         move R1 #0
         push R1
-        move R0 [R12-132]
+        move R0 [R12-136]
         pop R1
         move R1 R0
         move R0 R1
         mul R0 #8
         pop R8
         add R0 R8
-        moved R0 @0
+        moved R0 [R0]
         move R2 R0
         move R0 [R12+20]
         push R0
-        move R0 [R12-132]
+        move R0 [R12-136]
         mul R0 #8
         pop R10
         add R0 R10
-        moved @0 R2
+        moved [R0] R2
 sta_73430069:
-        move R0 [R12-132]
+        move R0 [R12-136]
         move R1 R0
         add R0 R0 #1
-        move [R12-132] R0
+        move [R12-136] R0
         move R0 R1
         jmp sta_73430068
 sta_73430070:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+mat4_translate_d:
+; -------------------------------------------
+; source   : void mat4_translate_d(double tx,double ty,double tz,double* result)
+; function : mat4_translate_d
+; param   : double tx
+; param   : double ty
+; param   : double tz
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat4_translate_d:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+36]
         push R0
+        move R0 [R13+0]
         call mat4_identity_d
+        add R13 #4
         moved R0 [R12+12]
         move R11 R0
         move R0 [R12+36]
@@ -1981,7 +2085,7 @@ mat4_translate_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved @0 R11
+        moved [R0] R11
         moved R0 [R12+20]
         move R6 R0
         move R0 [R12+36]
@@ -1990,7 +2094,7 @@ mat4_translate_d:
         mul R0 #8
         pop R4
         add R0 R4
-        moved @0 R6
+        moved [R0] R6
         moved R0 [R12+28]
         move R9 R0
         move R0 [R12+36]
@@ -1999,21 +2103,31 @@ mat4_translate_d:
         mul R0 #8
         pop R3
         add R0 R3
-        moved @0 R9
+        moved [R0] R9
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #20
-        push R1
         ret
+mat4_scale_xyz_d:
+; -------------------------------------------
+; source   : void mat4_scale_xyz_d(double sx,double sy,double sz,double* result)
+; function : mat4_scale_xyz_d
+; param   : double sx
+; param   : double sy
+; param   : double sz
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat4_scale_xyz_d:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+36]
         push R0
+        move R0 [R13+0]
         call mat4_identity_d
+        add R13 #4
         moved R0 [R12+12]
         move R5 R0
         move R0 [R12+36]
@@ -2022,7 +2136,7 @@ mat4_scale_xyz_d:
         mul R0 #8
         pop R1
         add R0 R1
-        moved @0 R5
+        moved [R0] R5
         moved R0 [R12+20]
         move R8 R0
         move R0 [R12+36]
@@ -2031,7 +2145,7 @@ mat4_scale_xyz_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved @0 R8
+        moved [R0] R8
         moved R0 [R12+28]
         move R2 R0
         move R0 [R12+36]
@@ -2040,51 +2154,60 @@ mat4_scale_xyz_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved @0 R2
+        moved [R0] R2
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #20
-        push R1
         ret
+mat4_rot_x_d:
+; -------------------------------------------
+; source   : void mat4_rot_x_d(double angle_rad,double* result)
+; function : mat4_rot_x_d
+; param   : double angle_rad
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat4_rot_x_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #24
+        sub R13 #28
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_73430073]
+        moved R0 [dbl_73430073]
         dpop R1
         dmul R0 R1 R0
         dpush R0
-        movef R0 [flt_73430074]
+        moved R0 [dbl_73430074]
         dpop R1
         ddiv R0 R1 R0
         push R0
+        move R0 [R13+0]
         call cos_deg_d
         add R13 #4
         i2d R0 R0
-        moved [R12-8] R0
+        moved [R12-12] R0
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_73430075]
+        moved R0 [dbl_73430075]
         dpop R1
         dmul R0 R1 R0
         dpush R0
-        movef R0 [flt_73430076]
+        moved R0 [dbl_73430076]
         dpop R1
         ddiv R0 R1 R0
         push R0
+        move R0 [R13+0]
         call sin_deg_d
         add R13 #4
         i2d R0 R0
-        moved [R12-16] R0
+        moved [R12-20] R0
         move R0 [R12+20]
         push R0
+        move R0 [R13+0]
         call mat4_identity_d
-        moved R0 [R12-8]
+        add R13 #4
+        moved R0 [R12-12]
         move R11 R0
         move R0 [R12+20]
         push R0
@@ -2092,9 +2215,9 @@ mat4_rot_x_d:
         mul R0 #8
         pop R4
         add R0 R4
-        moved @0 R11
-        moved R0 [R12-16]
-        moved R0 [R12-16]
+        moved [R0] R11
+        moved R0 [R12-20]
+        moved R0 [R12-20]
         dneg R0 R0
         move R6 R0
         move R0 [R12+20]
@@ -2103,8 +2226,8 @@ mat4_rot_x_d:
         mul R0 #8
         pop R3
         add R0 R3
-        moved @0 R6
-        moved R0 [R12-16]
+        moved [R0] R6
+        moved R0 [R12-20]
         move R9 R0
         move R0 [R12+20]
         push R0
@@ -2112,8 +2235,8 @@ mat4_rot_x_d:
         mul R0 #8
         pop R1
         add R0 R1
-        moved @0 R9
-        moved R0 [R12-8]
+        moved [R0] R9
+        moved R0 [R12-12]
         move R5 R0
         move R0 [R12+20]
         push R0
@@ -2121,51 +2244,60 @@ mat4_rot_x_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved @0 R5
+        moved [R0] R5
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+mat4_rot_y_d:
+; -------------------------------------------
+; source   : void mat4_rot_y_d(double angle_rad,double* result)
+; function : mat4_rot_y_d
+; param   : double angle_rad
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat4_rot_y_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #24
+        sub R13 #28
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_73430077]
+        moved R0 [dbl_73430077]
         dpop R1
         dmul R0 R1 R0
         dpush R0
-        movef R0 [flt_73430078]
+        moved R0 [dbl_73430078]
         dpop R1
         ddiv R0 R1 R0
         push R0
+        move R0 [R13+0]
         call cos_deg_d
         add R13 #4
         i2d R0 R0
-        moved [R12-8] R0
+        moved [R12-12] R0
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_73430079]
+        moved R0 [dbl_73430079]
         dpop R1
         dmul R0 R1 R0
         dpush R0
-        movef R0 [flt_73430080]
+        moved R0 [dbl_73430080]
         dpop R1
         ddiv R0 R1 R0
         push R0
+        move R0 [R13+0]
         call sin_deg_d
         add R13 #4
         i2d R0 R0
-        moved [R12-16] R0
+        moved [R12-20] R0
         move R0 [R12+20]
         push R0
+        move R0 [R13+0]
         call mat4_identity_d
-        moved R0 [R12-8]
+        add R13 #4
+        moved R0 [R12-12]
         move R8 R0
         move R0 [R12+20]
         push R0
@@ -2173,8 +2305,8 @@ mat4_rot_y_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved @0 R8
-        moved R0 [R12-16]
+        moved [R0] R8
+        moved R0 [R12-20]
         move R2 R0
         move R0 [R12+20]
         push R0
@@ -2182,9 +2314,9 @@ mat4_rot_y_d:
         mul R0 #8
         pop R4
         add R0 R4
-        moved @0 R2
-        moved R0 [R12-16]
-        moved R0 [R12-16]
+        moved [R0] R2
+        moved R0 [R12-20]
+        moved R0 [R12-20]
         dneg R0 R0
         move R11 R0
         move R0 [R12+20]
@@ -2193,8 +2325,8 @@ mat4_rot_y_d:
         mul R0 #8
         pop R3
         add R0 R3
-        moved @0 R11
-        moved R0 [R12-8]
+        moved [R0] R11
+        moved R0 [R12-12]
         move R6 R0
         move R0 [R12+20]
         push R0
@@ -2202,51 +2334,60 @@ mat4_rot_y_d:
         mul R0 #8
         pop R1
         add R0 R1
-        moved @0 R6
+        moved [R0] R6
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+mat4_rot_z_d:
+; -------------------------------------------
+; source   : void mat4_rot_z_d(double angle_rad,double* result)
+; function : mat4_rot_z_d
+; param   : double angle_rad
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat4_rot_z_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #24
+        sub R13 #28
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_73430081]
+        moved R0 [dbl_73430081]
         dpop R1
         dmul R0 R1 R0
         dpush R0
-        movef R0 [flt_73430082]
+        moved R0 [dbl_73430082]
         dpop R1
         ddiv R0 R1 R0
         push R0
+        move R0 [R13+0]
         call cos_deg_d
         add R13 #4
         i2d R0 R0
-        moved [R12-8] R0
+        moved [R12-12] R0
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_73430083]
+        moved R0 [dbl_73430083]
         dpop R1
         dmul R0 R1 R0
         dpush R0
-        movef R0 [flt_73430084]
+        moved R0 [dbl_73430084]
         dpop R1
         ddiv R0 R1 R0
         push R0
+        move R0 [R13+0]
         call sin_deg_d
         add R13 #4
         i2d R0 R0
-        moved [R12-16] R0
+        moved [R12-20] R0
         move R0 [R12+20]
         push R0
+        move R0 [R13+0]
         call mat4_identity_d
-        moved R0 [R12-8]
+        add R13 #4
+        moved R0 [R12-12]
         move R9 R0
         move R0 [R12+20]
         push R0
@@ -2254,9 +2395,9 @@ mat4_rot_z_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved @0 R9
-        moved R0 [R12-16]
-        moved R0 [R12-16]
+        moved [R0] R9
+        moved R0 [R12-20]
+        moved R0 [R12-20]
         dneg R0 R0
         move R5 R0
         move R0 [R12+20]
@@ -2265,8 +2406,8 @@ mat4_rot_z_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved @0 R5
-        moved R0 [R12-16]
+        moved [R0] R5
+        moved R0 [R12-20]
         move R8 R0
         move R0 [R12+20]
         push R0
@@ -2274,8 +2415,8 @@ mat4_rot_z_d:
         mul R0 #8
         pop R4
         add R0 R4
-        moved @0 R8
-        moved R0 [R12-8]
+        moved [R0] R8
+        moved R0 [R12-12]
         move R2 R0
         move R0 [R12+20]
         push R0
@@ -2283,23 +2424,28 @@ mat4_rot_z_d:
         mul R0 #8
         pop R3
         add R0 R3
-        moved @0 R2
+        moved [R0] R2
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+mat4_transpose_d:
+; -------------------------------------------
+; source   : void mat4_transpose_d(double* a,double* result)
+; function : mat4_transpose_d
+; param   : double* a
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat4_transpose_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_73430085:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #4
         pop R1
@@ -2313,9 +2459,9 @@ _L73430089:
         cmp R0 #0
         jz sta_73430087
         move R0 #0
-        move [R12-8] R0
+        move [R12-12] R0
 sta_73430090:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #4
         pop R1
@@ -2330,73 +2476,79 @@ _L73430094:
         jz sta_73430092
         move R0 [R12+12]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #4
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R1
         add R1 R0
         move R0 R1
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         move R1 R0
         move R0 [R12+16]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #4
         pop R1
         mul R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         add R1 R0
         move R0 R1
         mul R0 #8
         pop R6
         add R0 R6
-        moved @0 R1
+        moved [R0] R1
 sta_73430091:
-        move R0 [R12-8]
+        move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
-        move [R12-8] R0
+        move [R12-12] R0
         move R0 R1
         jmp sta_73430090
 sta_73430092:
 sta_73430086:
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_73430085
 sta_73430087:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+vec2_dot_d:
+; -------------------------------------------
+; source   : double vec2_dot_d(double* a,double* b)
+; function : vec2_dot_d
+; param   : double* a
+; param   : double* b
+; return   : double
+; --------------------------------------------
 vec2_dot_d:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -2404,7 +2556,7 @@ vec2_dot_d:
         mul R0 #8
         pop R9
         add R0 R9
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -2414,7 +2566,7 @@ vec2_dot_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -2422,31 +2574,37 @@ vec2_dot_d:
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
         dadd R0 R1 R0
-        jmp L73430095
-L73430095:
+        jmp L_73430095
+L_73430095:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+vec2_cross_d:
+; -------------------------------------------
+; source   : double vec2_cross_d(double* a,double* b)
+; function : vec2_cross_d
+; param   : double* a
+; param   : double* b
+; return   : double
+; --------------------------------------------
 vec2_cross_d:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -2454,7 +2612,7 @@ vec2_cross_d:
         mul R0 #8
         pop R8
         add R0 R8
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -2464,7 +2622,7 @@ vec2_cross_d:
         mul R0 #8
         pop R3
         add R0 R3
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -2472,32 +2630,36 @@ vec2_cross_d:
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
         dsub R0 R1 R0
-        jmp L73430096
-L73430096:
+        jmp L_73430096
+L_73430096:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+vec2_len_d:
+; -------------------------------------------
+; source   : double vec2_len_d(double* v)
+; function : vec2_len_d
+; param   : double* v
+; return   : double
+; --------------------------------------------
 vec2_len_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -2505,7 +2667,7 @@ vec2_len_d:
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -2515,7 +2677,7 @@ vec2_len_d:
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -2523,15 +2685,15 @@ vec2_len_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
         dadd R0 R1 R0
-        moved [R12-8] R0
-        moved R0 [R12-8]
+        moved [R12-12] R0
+        moved R0 [R12-12]
         dpush R0
-        movef R0 [flt_73430099]
+        moved R0 [dbl_73430099]
         dpop R1
         dcmp R1 R0
         jle _L73430100
@@ -2542,24 +2704,24 @@ _L73430100:
 _L73430101:
         cmp R0 #0
         jz sta_73430097
-        movef R0 [flt_73430102]
-        jmp L73430103
+        moved R0 [dbl_73430102]
+        jmp L_73430103
 sta_73430097:
 sta_73430098:
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpush R0
-        movef R0 [flt_73430104]
+        moved R0 [dbl_73430104]
         dpop R1
         dmul R0 R1 R0
         dpush R0
-        movef R0 [flt_73430105]
+        moved R0 [dbl_73430105]
         dpop R1
         dadd R0 R1 R0
-        moved [R12-16] R0
+        moved [R12-20] R0
         move R0 #0
-        move [R12-20] R0
+        move [R12-24] R0
 sta_73430106:
-        move R0 [R12-20]
+        move R0 [R12-24]
         push R0
         move R0 #15
         pop R1
@@ -2572,23 +2734,23 @@ _L73430109:
 _L73430110:
         cmp R0 #0
         jz sta_73430108
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpop R1
         ddiv R0 R1 R0
         dpop R1
         dadd R0 R1 R0
         dpush R0
-        movef R0 [flt_73430111]
+        moved R0 [dbl_73430111]
         dpop R1
         dmul R0 R1 R0
-        moved [R12-28] R0
-        moved R0 [R12-28]
+        moved [R12-32] R0
+        moved R0 [R12-32]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpop R1
         dcmp R1 R0
         jge _L73430114
@@ -2599,42 +2761,48 @@ _L73430114:
 _L73430115:
         cmp R0 #0
         jz sta_73430112
-        moved R0 [R12-16]
-        jmp L73430103
+        moved R0 [R12-20]
+        jmp L_73430103
 sta_73430112:
 sta_73430113:
-        moved R0 [R12-28]
-        moved [R12-16] R0
+        moved R0 [R12-32]
+        moved [R12-20] R0
 sta_73430107:
-        move R0 [R12-20]
+        move R0 [R12-24]
         move R1 R0
         add R0 R0 #1
-        move [R12-20] R0
+        move [R12-24] R0
         move R0 R1
         jmp sta_73430106
 sta_73430108:
-        moved R0 [R12-16]
-        jmp L73430103
-L73430103:
+        moved R0 [R12-20]
+        jmp L_73430103
+L_73430103:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+vec2_normalize_d:
+; -------------------------------------------
+; source   : double vec2_normalize_d(double* v)
+; function : vec2_normalize_d
+; param   : double* v
+; return   : double
+; --------------------------------------------
 vec2_normalize_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call vec2_len_d
-        moved [R12-8] R0
-        moved R0 [R12-8]
+        add R13 #4
+        moved [R12-12] R0
+        moved R0 [R12-12]
         dpush R0
-        movef R0 [flt_73430118]
+        moved R0 [dbl_73430118]
         dpop R1
         dcmp R1 R0
         jg _L73430119
@@ -2651,9 +2819,9 @@ _L73430120:
         mul R0 #8
         pop R9
         add R0 R9
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpop R1
         ddiv R0 R1 R0
         move R7 R0
@@ -2663,16 +2831,16 @@ _L73430120:
         mul R0 #8
         pop R5
         add R0 R5
-        moved @0 R7
+        moved [R0] R7
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpop R1
         ddiv R0 R1 R0
         move R8 R0
@@ -2682,30 +2850,36 @@ _L73430120:
         mul R0 #8
         pop R3
         add R0 R3
-        moved @0 R8
+        moved [R0] R8
 sta_73430116:
 sta_73430117:
-        moved R0 [R12-8]
-        jmp L73430121
-L73430121:
+        moved R0 [R12-12]
+        jmp L_73430121
+L_73430121:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+vec3_dot_d:
+; -------------------------------------------
+; source   : double vec3_dot_d(double* a,double* b)
+; function : vec3_dot_d
+; param   : double* a
+; param   : double* b
+; return   : double
+; --------------------------------------------
 vec3_dot_d:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -2713,7 +2887,7 @@ vec3_dot_d:
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -2723,7 +2897,7 @@ vec3_dot_d:
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -2731,7 +2905,7 @@ vec3_dot_d:
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
@@ -2743,7 +2917,7 @@ vec3_dot_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -2751,31 +2925,38 @@ vec3_dot_d:
         mul R0 #8
         pop R9
         add R0 R9
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
         dadd R0 R1 R0
-        jmp L73430122
-L73430122:
+        jmp L_73430122
+L_73430122:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+vec3_cross_d:
+; -------------------------------------------
+; source   : void vec3_cross_d(double* a,double* b,double* result)
+; function : vec3_cross_d
+; param   : double* a
+; param   : double* b
+; param   : double* result
+; return   : void
+; --------------------------------------------
 vec3_cross_d:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -2783,7 +2964,7 @@ vec3_cross_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -2793,7 +2974,7 @@ vec3_cross_d:
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -2801,7 +2982,7 @@ vec3_cross_d:
         mul R0 #8
         pop R3
         add R0 R3
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
@@ -2813,14 +2994,14 @@ vec3_cross_d:
         mul R0 #8
         pop R2
         add R0 R2
-        moved @0 R8
+        moved [R0] R8
         move R0 [R12+12]
         push R0
         move R0 #2
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -2828,7 +3009,7 @@ vec3_cross_d:
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -2838,7 +3019,7 @@ vec3_cross_d:
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -2846,7 +3027,7 @@ vec3_cross_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
@@ -2858,14 +3039,14 @@ vec3_cross_d:
         mul R0 #8
         pop R5
         add R0 R5
-        moved @0 R9
+        moved [R0] R9
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R7
         add R0 R7
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -2873,7 +3054,7 @@ vec3_cross_d:
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -2883,7 +3064,7 @@ vec3_cross_d:
         mul R0 #8
         pop R3
         add R0 R3
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -2891,7 +3072,7 @@ vec3_cross_d:
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
@@ -2903,26 +3084,30 @@ vec3_cross_d:
         mul R0 #8
         pop R11
         add R0 R11
-        moved @0 R8
+        moved [R0] R8
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+vec3_len_d:
+; -------------------------------------------
+; source   : double vec3_len_d(double* v)
+; function : vec3_len_d
+; param   : double* v
+; return   : double
+; --------------------------------------------
 vec3_len_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -2930,7 +3115,7 @@ vec3_len_d:
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -2940,7 +3125,7 @@ vec3_len_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -2948,7 +3133,7 @@ vec3_len_d:
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
@@ -2960,7 +3145,7 @@ vec3_len_d:
         mul R0 #8
         pop R9
         add R0 R9
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -2968,15 +3153,15 @@ vec3_len_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
         dadd R0 R1 R0
-        moved [R12-8] R0
-        moved R0 [R12-8]
+        moved [R12-12] R0
+        moved R0 [R12-12]
         dpush R0
-        movef R0 [flt_73430125]
+        moved R0 [dbl_73430125]
         dpop R1
         dcmp R1 R0
         jle _L73430126
@@ -2987,24 +3172,24 @@ _L73430126:
 _L73430127:
         cmp R0 #0
         jz sta_73430123
-        movef R0 [flt_73430128]
-        jmp L73430129
+        moved R0 [dbl_73430128]
+        jmp L_73430129
 sta_73430123:
 sta_73430124:
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpush R0
-        movef R0 [flt_73430130]
+        moved R0 [dbl_73430130]
         dpop R1
         dmul R0 R1 R0
         dpush R0
-        movef R0 [flt_73430131]
+        moved R0 [dbl_73430131]
         dpop R1
         dadd R0 R1 R0
-        moved [R12-16] R0
+        moved [R12-20] R0
         move R0 #0
-        move [R12-20] R0
+        move [R12-24] R0
 sta_73430132:
-        move R0 [R12-20]
+        move R0 [R12-24]
         push R0
         move R0 #15
         pop R1
@@ -3017,23 +3202,23 @@ _L73430135:
 _L73430136:
         cmp R0 #0
         jz sta_73430134
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpop R1
         ddiv R0 R1 R0
         dpop R1
         dadd R0 R1 R0
         dpush R0
-        movef R0 [flt_73430137]
+        moved R0 [dbl_73430137]
         dpop R1
         dmul R0 R1 R0
-        moved [R12-28] R0
-        moved R0 [R12-28]
+        moved [R12-32] R0
+        moved R0 [R12-32]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpop R1
         dcmp R1 R0
         jge _L73430140
@@ -3044,42 +3229,48 @@ _L73430140:
 _L73430141:
         cmp R0 #0
         jz sta_73430138
-        moved R0 [R12-16]
-        jmp L73430129
+        moved R0 [R12-20]
+        jmp L_73430129
 sta_73430138:
 sta_73430139:
-        moved R0 [R12-28]
-        moved [R12-16] R0
+        moved R0 [R12-32]
+        moved [R12-20] R0
 sta_73430133:
-        move R0 [R12-20]
+        move R0 [R12-24]
         move R1 R0
         add R0 R0 #1
-        move [R12-20] R0
+        move [R12-24] R0
         move R0 R1
         jmp sta_73430132
 sta_73430134:
-        moved R0 [R12-16]
-        jmp L73430129
-L73430129:
+        moved R0 [R12-20]
+        jmp L_73430129
+L_73430129:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+vec3_normalize_d:
+; -------------------------------------------
+; source   : double vec3_normalize_d(double* v)
+; function : vec3_normalize_d
+; param   : double* v
+; return   : double
+; --------------------------------------------
 vec3_normalize_d:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call vec3_len_d
-        moved [R12-8] R0
-        moved R0 [R12-8]
+        add R13 #4
+        moved [R12-12] R0
+        moved R0 [R12-12]
         dpush R0
-        movef R0 [flt_73430144]
+        moved R0 [dbl_73430144]
         dpop R1
         dcmp R1 R0
         jg _L73430145
@@ -3096,9 +3287,9 @@ _L73430146:
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpop R1
         ddiv R0 R1 R0
         move R3 R0
@@ -3108,16 +3299,16 @@ _L73430146:
         mul R0 #8
         pop R2
         add R0 R2
-        moved @0 R3
+        moved [R0] R3
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpop R1
         ddiv R0 R1 R0
         move R8 R0
@@ -3127,16 +3318,16 @@ _L73430146:
         mul R0 #8
         pop R6
         add R0 R6
-        moved @0 R8
+        moved [R0] R8
         move R0 [R12+12]
         push R0
         move R0 #2
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpop R1
         ddiv R0 R1 R0
         move R10 R0
@@ -3146,30 +3337,38 @@ _L73430146:
         mul R0 #8
         pop R5
         add R0 R5
-        moved @0 R10
+        moved [R0] R10
 sta_73430142:
 sta_73430143:
-        moved R0 [R12-8]
-        jmp L73430147
-L73430147:
+        moved R0 [R12-12]
+        jmp L_73430147
+L_73430147:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+mat4_transform_vec3_d:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : void mat4_transform_vec3_d(double* m,double* v,double* result)
+; function : mat4_transform_vec3_d
+; param   : double* m
+; param   : double* v
+; param   : double* result
+; return   : void
+; --------------------------------------------
 mat4_transform_vec3_d:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R9
         add R0 R9
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -3177,7 +3376,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -3187,7 +3386,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -3195,7 +3394,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
@@ -3207,7 +3406,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R3
         add R0 R3
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -3215,7 +3414,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
@@ -3227,7 +3426,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dadd R0 R1 R0
         move R8 R0
@@ -3237,14 +3436,14 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R1
         add R0 R1
-        moved @0 R8
+        moved [R0] R8
         move R0 [R12+12]
         push R0
         move R0 #4
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -3252,7 +3451,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -3262,7 +3461,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R9
         add R0 R9
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -3270,7 +3469,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
@@ -3282,7 +3481,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -3290,7 +3489,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
@@ -3302,7 +3501,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R3
         add R0 R3
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dadd R0 R1 R0
         move R11 R0
@@ -3312,14 +3511,14 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R6
         add R0 R6
-        moved @0 R11
+        moved [R0] R11
         move R0 [R12+12]
         push R0
         move R0 #8
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -3327,7 +3526,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R8
         add R0 R8
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -3337,7 +3536,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -3345,7 +3544,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
@@ -3357,7 +3556,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R9
         add R0 R9
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -3365,7 +3564,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R7
         add R0 R7
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
@@ -3377,7 +3576,7 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dadd R0 R1 R0
         move R2 R0
@@ -3387,11 +3586,8 @@ mat4_transform_vec3_d:
         mul R0 #8
         pop R3
         add R0 R3
-        moved @0 R2
+        moved [R0] R2
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret

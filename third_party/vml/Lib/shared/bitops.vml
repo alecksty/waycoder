@@ -14,20 +14,18 @@ bit_and:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
         pop R1
         and R1 R0
         move R0 R1
-        jmp L47790000
-L47790000:
+        jmp L_47790000
+L_47790000:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 bit_or:
 ; -------------------------------------------
@@ -41,20 +39,18 @@ bit_or:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
         pop R1
         or R1 R0
         move R0 R1
-        jmp L47790001
-L47790001:
+        jmp L_47790001
+L_47790001:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 bit_xor:
 ; -------------------------------------------
@@ -68,20 +64,18 @@ bit_xor:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
         pop R1
         xor R1 R0
         move R0 R1
-        jmp L47790002
-L47790002:
+        jmp L_47790002
+L_47790002:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 bit_not:
 ; -------------------------------------------
@@ -94,16 +88,14 @@ bit_not:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         not R0
-        jmp L47790003
-L47790003:
+        jmp L_47790003
+L_47790003:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 bit_shl:
 ; -------------------------------------------
@@ -117,20 +109,18 @@ bit_shl:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
         pop R1
         shl R1 R0
         move R0 R1
-        jmp L47790004
-L47790004:
+        jmp L_47790004
+L_47790004:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 bit_shr:
 ; -------------------------------------------
@@ -144,20 +134,18 @@ bit_shr:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
         pop R1
         shr R1 R0
         move R0 R1
-        jmp L47790005
-L47790005:
+        jmp L_47790005
+L_47790005:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 rol:
 ; -------------------------------------------
@@ -171,6 +159,7 @@ rol:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -192,14 +181,11 @@ rol:
         pop R1
         or R1 R0
         move R0 R1
-        jmp L47790006
-L47790006:
+        jmp L_47790006
+L_47790006:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 ror:
 ; -------------------------------------------
@@ -213,6 +199,7 @@ ror:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -234,14 +221,11 @@ ror:
         pop R1
         or R1 R0
         move R0 R1
-        jmp L47790007
-L47790007:
+        jmp L_47790007
+L_47790007:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 bit_set:
 ; -------------------------------------------
@@ -255,6 +239,7 @@ bit_set:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -266,14 +251,11 @@ bit_set:
         pop R1
         or R1 R0
         move R0 R1
-        jmp L47790008
-L47790008:
+        jmp L_47790008
+L_47790008:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 bit_clear:
 ; -------------------------------------------
@@ -287,6 +269,7 @@ bit_clear:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -299,14 +282,11 @@ bit_clear:
         pop R1
         and R1 R0
         move R0 R1
-        jmp L47790009
-L47790009:
+        jmp L_47790009
+L_47790009:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 bit_toggle:
 ; -------------------------------------------
@@ -320,6 +300,7 @@ bit_toggle:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -331,14 +312,11 @@ bit_toggle:
         pop R1
         xor R1 R0
         move R0 R1
-        jmp L47790010
-L47790010:
+        jmp L_47790010
+L_47790010:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 bit_test:
 ; -------------------------------------------:
@@ -353,6 +331,7 @@ bit_test:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -364,12 +343,9 @@ bit_test:
         pop R1
         and R1 R0
         move R0 R1
-        jmp L47790011
-L47790011:
+        jmp L_47790011
+L_47790011:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret

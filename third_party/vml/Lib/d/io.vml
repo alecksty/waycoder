@@ -12,10 +12,10 @@ LABEL d_wcslen
 LABEL d_wcstombs
     PUSH R2
     PUSH R1
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL wcstombs
-    ADD R13 #9
+    ADD R13 #12
     RET
 
 LABEL d_mbstowcs
@@ -31,15 +31,16 @@ LABEL d_utf8_to_wstr
     PUSH R1
     PUSH R0
     CALL utf8_to_wstr
+    ADD R13 #12
     RET
 
 LABEL d_ucs_to_utf8
     PUSH R2
-    sub R13 #1
+    sub R13 #4
     moveb @13 R1
     PUSH R0
     CALL ucs_to_utf8
-    ADD R13 #9
+    ADD R13 #12
     RET
 
 LABEL d_utf8_to_ucs
@@ -55,6 +56,7 @@ LABEL d_utf8_to_ustr
     PUSH R1
     PUSH R0
     CALL utf8_to_ustr
+    ADD R13 #12
     RET
 
 LABEL func_wcslen

@@ -10,59 +10,70 @@ LABEL newline
 LABEL debugPrint
     PUSH R0
     CALL debug_print
+    ADD R13 #4
     RET
 
 LABEL debugPrintInt
     PUSH R0
     CALL debug_print_int
+    ADD R13 #4
     RET
 
 LABEL assert
     PUSH R1
     PUSH R0
     CALL assert
+    ADD R13 #8
     RET
 
 LABEL sign
     PUSH R0
     CALL sign
+    ADD R13 #4
     RET
 
 LABEL popcount
     PUSH R0
     CALL popcount
+    ADD R13 #4
     RET
 
 LABEL clz
     PUSH R0
     CALL clz
+    ADD R13 #4
     RET
 
 LABEL gcd
     PUSH R1
     PUSH R0
     CALL gcd
+    ADD R13 #8
     RET
 
 LABEL lcm
     PUSH R1
     PUSH R0
     CALL lcm
+    ADD R13 #8
     RET
 
 LABEL factorial
     PUSH R0
     CALL factorial
+    ADD R13 #4
     RET
 
 LABEL isPrime
     PUSH R0
     CALL is_prime
+    ADD R13 #4
     RET
 
 LABEL atoi
     PUSH R0
     CALL atoi
+    ADD R13 #4
     RET
 
 LABEL itoa
@@ -76,6 +87,7 @@ LABEL randRange
     PUSH R1
     PUSH R0
     CALL rand_range
+    ADD R13 #8
     RET
 
 LABEL Builtins_Newline

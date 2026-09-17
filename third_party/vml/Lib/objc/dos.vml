@@ -9,6 +9,7 @@ LABEL objc_GetDate
     PUSH R1
     PUSH R0
     CALL GetDate
+    ADD R13 #16
     RET
 
 LABEL objc_GetTime
@@ -17,6 +18,7 @@ LABEL objc_GetTime
     PUSH R1
     PUSH R0
     CALL GetTime
+    ADD R13 #16
     RET
 
 LABEL objc_DosVersion
@@ -26,11 +28,13 @@ LABEL objc_DosVersion
 LABEL objc_DiskFree
     PUSH R0
     CALL DiskFree
+    ADD R13 #4
     RET
 
 LABEL objc_DiskSize
     PUSH R0
     CALL DiskSize
+    ADD R13 #4
     RET
 
 LABEL objc_FindFirst
@@ -38,16 +42,19 @@ LABEL objc_FindFirst
     PUSH R1
     PUSH R0
     CALL FindFirst
+    ADD R13 #12
     RET
 
 LABEL objc_FindNext
     PUSH R0
     CALL FindNext
+    ADD R13 #4
     RET
 
 LABEL objc_FindClose
     PUSH R0
     CALL FindClose
+    ADD R13 #4
     RET
 
 LABEL objc_EnvCount
@@ -57,17 +64,20 @@ LABEL objc_EnvCount
 LABEL objc_EnvStr
     PUSH R0
     CALL EnvStr
+    ADD R13 #4
     RET
 
 LABEL objc_GetEnv
     PUSH R0
     CALL GetEnv
+    ADD R13 #4
     RET
 
 LABEL objc_Exec
     PUSH R1
     PUSH R0
     CALL Exec
+    ADD R13 #8
     RET
 
 LABEL objc_SwapVectors
@@ -78,12 +88,14 @@ LABEL objc_GetIntVec
     PUSH R1
     PUSH R0
     CALL GetIntVec
+    ADD R13 #8
     RET
 
 LABEL objc_SetIntVec
     PUSH R1
     PUSH R0
     CALL SetIntVec
+    ADD R13 #8
     RET
 
 LABEL objc_DosExitCode

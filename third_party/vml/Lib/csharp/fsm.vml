@@ -8,44 +8,52 @@ LABEL Transition
     PUSH R1
     PUSH R0
     CALL transition
+    ADD R13 #12
     RET
 
 LABEL SendEvent
     PUSH R1
     PUSH R0
     CALL send_event
+    ADD R13 #8
     RET
 
 LABEL State
     PUSH R1
     PUSH R0
     CALL state
+    ADD R13 #8
     RET
 
 LABEL GetState
     PUSH R0
     CALL get_state
+    ADD R13 #4
     RET
 
 LABEL EventQueuePush
     PUSH R1
     PUSH R0
     CALL event_queue_push
+    ADD R13 #8
     RET
 
 LABEL EventQueuePop
     PUSH R0
     CALL event_queue_pop
+    ADD R13 #4
     RET
 
 LABEL EventQueueInit
     PUSH R0
     CALL event_queue_init
+    ADD R13 #4
     RET
 
 LABEL EventQueueAvailable
     PUSH R0
     CALL event_queue_available
+    ADD R13 #4
     RET
 
 LABEL Fsm_Transition

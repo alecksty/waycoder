@@ -6,6 +6,7 @@
 LABEL d_sleep
     PUSH R0
     CALL sleep
+    ADD R13 #4
     RET
 
 LABEL d_get_tick
@@ -15,6 +16,7 @@ LABEL d_get_tick
 LABEL d_delay_us
     PUSH R0
     CALL delay_us
+    ADD R13 #4
     RET
 
 LABEL d_datetime
@@ -32,6 +34,7 @@ LABEL d_get_time
 LABEL d_delay
     PUSH R0
     CALL delay
+    ADD R13 #4
     RET
 
 LABEL func_sleep

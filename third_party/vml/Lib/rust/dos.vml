@@ -9,6 +9,7 @@ LABEL rust_GetDate
     PUSH R1
     PUSH R0
     CALL GetDate
+    ADD R13 #16
     RET
 
 LABEL rust_GetTime
@@ -17,6 +18,7 @@ LABEL rust_GetTime
     PUSH R1
     PUSH R0
     CALL GetTime
+    ADD R13 #16
     RET
 
 LABEL rust_DosVersion
@@ -26,11 +28,13 @@ LABEL rust_DosVersion
 LABEL rust_DiskFree
     PUSH R0
     CALL DiskFree
+    ADD R13 #4
     RET
 
 LABEL rust_DiskSize
     PUSH R0
     CALL DiskSize
+    ADD R13 #4
     RET
 
 LABEL rust_FindFirst
@@ -38,16 +42,19 @@ LABEL rust_FindFirst
     PUSH R1
     PUSH R0
     CALL FindFirst
+    ADD R13 #12
     RET
 
 LABEL rust_FindNext
     PUSH R0
     CALL FindNext
+    ADD R13 #4
     RET
 
 LABEL rust_FindClose
     PUSH R0
     CALL FindClose
+    ADD R13 #4
     RET
 
 LABEL rust_EnvCount
@@ -57,17 +64,20 @@ LABEL rust_EnvCount
 LABEL rust_EnvStr
     PUSH R0
     CALL EnvStr
+    ADD R13 #4
     RET
 
 LABEL rust_GetEnv
     PUSH R0
     CALL GetEnv
+    ADD R13 #4
     RET
 
 LABEL rust_Exec
     PUSH R1
     PUSH R0
     CALL Exec
+    ADD R13 #8
     RET
 
 LABEL rust_SwapVectors
@@ -78,12 +88,14 @@ LABEL rust_GetIntVec
     PUSH R1
     PUSH R0
     CALL GetIntVec
+    ADD R13 #8
     RET
 
 LABEL rust_SetIntVec
     PUSH R1
     PUSH R0
     CALL SetIntVec
+    ADD R13 #8
     RET
 
 LABEL rust_DosExitCode

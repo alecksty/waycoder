@@ -12,6 +12,7 @@ LABEL r_arrays
 LABEL r_mat2_identity_d
     PUSH R0
     CALL mat2_identity_d
+    ADD R13 #4
     RET
 
 LABEL r_mat2_add_d
@@ -19,6 +20,7 @@ LABEL r_mat2_add_d
     PUSH R1
     PUSH R0
     CALL mat2_add_d
+    ADD R13 #12
     RET
 
 LABEL r_mat2_sub_d
@@ -26,6 +28,7 @@ LABEL r_mat2_sub_d
     PUSH R1
     PUSH R0
     CALL mat2_sub_d
+    ADD R13 #12
     RET
 
 LABEL r_mat2_mul_d
@@ -33,6 +36,7 @@ LABEL r_mat2_mul_d
     PUSH R1
     PUSH R0
     CALL mat2_mul_d
+    ADD R13 #12
     RET
 
 LABEL r_mat2_scale_d
@@ -41,23 +45,27 @@ LABEL r_mat2_scale_d
     moved @13 R1
     PUSH R0
     CALL mat2_scale_d
+    ADD R13 #16
     RET
 
 LABEL r_mat2_det_d
     PUSH R0
     CALL mat2_det_d
+    ADD R13 #4
     RET
 
 LABEL r_mat2_transpose_d
     PUSH R1
     PUSH R0
     CALL mat2_transpose_d
+    ADD R13 #8
     RET
 
 LABEL r_mat2_inv_d
     PUSH R1
     PUSH R0
     CALL mat2_inv_d
+    ADD R13 #8
     RET
 
 LABEL r_mat2_rot_d
@@ -65,11 +73,13 @@ LABEL r_mat2_rot_d
     sub R13 #8
     moved @13 R0
     CALL mat2_rot_d
+    ADD R13 #12
     RET
 
 LABEL r_mat3_identity_d
     PUSH R0
     CALL mat3_identity_d
+    ADD R13 #4
     RET
 
 LABEL r_mat3_mul_d
@@ -77,17 +87,20 @@ LABEL r_mat3_mul_d
     PUSH R1
     PUSH R0
     CALL mat3_mul_d
+    ADD R13 #12
     RET
 
 LABEL r_mat3_det_d
     PUSH R0
     CALL mat3_det_d
+    ADD R13 #4
     RET
 
 LABEL r_mat3_transpose_d
     PUSH R1
     PUSH R0
     CALL mat3_transpose_d
+    ADD R13 #8
     RET
 
 LABEL r_mat3_scale_d
@@ -96,11 +109,13 @@ LABEL r_mat3_scale_d
     moved @13 R1
     PUSH R0
     CALL mat3_scale_d
+    ADD R13 #16
     RET
 
 LABEL r_mat4_identity_d
     PUSH R0
     CALL mat4_identity_d
+    ADD R13 #4
     RET
 
 LABEL r_mat4_mul_d
@@ -108,6 +123,7 @@ LABEL r_mat4_mul_d
     PUSH R1
     PUSH R0
     CALL mat4_mul_d
+    ADD R13 #12
     RET
 
 LABEL r_mat4_translate_d
@@ -119,6 +135,7 @@ LABEL r_mat4_translate_d
     sub R13 #8
     moved @13 R0
     CALL mat4_translate_d
+    ADD R13 #28
     RET
 
 LABEL r_mat4_scale_xyz_d
@@ -130,6 +147,7 @@ LABEL r_mat4_scale_xyz_d
     sub R13 #8
     moved @13 R0
     CALL mat4_scale_xyz_d
+    ADD R13 #28
     RET
 
 LABEL r_mat4_rot_x_d
@@ -137,6 +155,7 @@ LABEL r_mat4_rot_x_d
     sub R13 #8
     moved @13 R0
     CALL mat4_rot_x_d
+    ADD R13 #12
     RET
 
 LABEL r_mat4_rot_y_d
@@ -144,6 +163,7 @@ LABEL r_mat4_rot_y_d
     sub R13 #8
     moved @13 R0
     CALL mat4_rot_y_d
+    ADD R13 #12
     RET
 
 LABEL r_mat4_rot_z_d
@@ -151,40 +171,47 @@ LABEL r_mat4_rot_z_d
     sub R13 #8
     moved @13 R0
     CALL mat4_rot_z_d
+    ADD R13 #12
     RET
 
 LABEL r_mat4_transpose_d
     PUSH R1
     PUSH R0
     CALL mat4_transpose_d
+    ADD R13 #8
     RET
 
 LABEL r_vec2_dot_d
     PUSH R1
     PUSH R0
     CALL vec2_dot_d
+    ADD R13 #8
     RET
 
 LABEL r_vec2_cross_d
     PUSH R1
     PUSH R0
     CALL vec2_cross_d
+    ADD R13 #8
     RET
 
 LABEL r_vec2_len_d
     PUSH R0
     CALL vec2_len_d
+    ADD R13 #4
     RET
 
 LABEL r_vec2_normalize_d
     PUSH R0
     CALL vec2_normalize_d
+    ADD R13 #4
     RET
 
 LABEL r_vec3_dot_d
     PUSH R1
     PUSH R0
     CALL vec3_dot_d
+    ADD R13 #8
     RET
 
 LABEL r_vec3_cross_d
@@ -192,16 +219,19 @@ LABEL r_vec3_cross_d
     PUSH R1
     PUSH R0
     CALL vec3_cross_d
+    ADD R13 #12
     RET
 
 LABEL r_vec3_len_d
     PUSH R0
     CALL vec3_len_d
+    ADD R13 #4
     RET
 
 LABEL r_vec3_normalize_d
     PUSH R0
     CALL vec3_normalize_d
+    ADD R13 #4
     RET
 
 LABEL r_mat4_transform_vec3_d
@@ -209,6 +239,7 @@ LABEL r_mat4_transform_vec3_d
     PUSH R1
     PUSH R0
     CALL mat4_transform_vec3_d
+    ADD R13 #12
     RET
 
 LABEL func_arrays

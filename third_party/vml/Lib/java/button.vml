@@ -8,6 +8,7 @@ LABEL init
     PUSH R1
     PUSH R0
     CALL init
+    ADD R13 #12
     RET
 
 LABEL update
@@ -15,11 +16,13 @@ LABEL update
     PUSH R1
     PUSH R0
     CALL update
+    ADD R13 #12
     RET
 
 LABEL isPressed
     PUSH R0
     CALL is_pressed
+    ADD R13 #4
     RET
 
 LABEL Button_Init

@@ -7,6 +7,7 @@ LABEL ruby_thread_create
     PUSH R1
     PUSH R0
     CALL thread_create
+    ADD R13 #8
     RET
 
 LABEL ruby_thread_exit
@@ -16,6 +17,7 @@ LABEL ruby_thread_exit
 LABEL ruby_thread_join
     PUSH R0
     CALL thread_join
+    ADD R13 #4
     RET
 
 LABEL ruby_thread_yield
@@ -25,6 +27,7 @@ LABEL ruby_thread_yield
 LABEL ruby_thread_sleep
     PUSH R0
     CALL thread_sleep
+    ADD R13 #4
     RET
 
 LABEL ruby_mutex_create
@@ -34,11 +37,13 @@ LABEL ruby_mutex_create
 LABEL ruby_mutex_lock
     PUSH R0
     CALL mutex_lock
+    ADD R13 #4
     RET
 
 LABEL ruby_mutex_unlock
     PUSH R0
     CALL mutex_unlock
+    ADD R13 #4
     RET
 
 LABEL ruby_cond_create
@@ -49,16 +54,19 @@ LABEL ruby_cond_wait
     PUSH R1
     PUSH R0
     CALL cond_wait
+    ADD R13 #8
     RET
 
 LABEL ruby_cond_signal
     PUSH R0
     CALL cond_signal
+    ADD R13 #4
     RET
 
 LABEL ruby_cond_broadcast
     PUSH R0
     CALL cond_broadcast
+    ADD R13 #4
     RET
 
 LABEL ruby_exec
@@ -81,23 +89,27 @@ LABEL ruby_socket_create
     PUSH R1
     PUSH R0
     CALL socket_create
+    ADD R13 #8
     RET
 
 LABEL ruby_socket_bind
     PUSH R1
     PUSH R0
     CALL socket_bind
+    ADD R13 #8
     RET
 
 LABEL ruby_socket_listen
     PUSH R1
     PUSH R0
     CALL socket_listen
+    ADD R13 #8
     RET
 
 LABEL ruby_socket_accept
     PUSH R0
     CALL socket_accept
+    ADD R13 #4
     RET
 
 LABEL ruby_socket_connect
@@ -105,6 +117,7 @@ LABEL ruby_socket_connect
     PUSH R1
     PUSH R0
     CALL socket_connect
+    ADD R13 #12
     RET
 
 LABEL ruby_socket_send
@@ -112,6 +125,7 @@ LABEL ruby_socket_send
     PUSH R1
     PUSH R0
     CALL socket_send
+    ADD R13 #12
     RET
 
 LABEL ruby_socket_recv
@@ -119,27 +133,32 @@ LABEL ruby_socket_recv
     PUSH R1
     PUSH R0
     CALL socket_recv
+    ADD R13 #12
     RET
 
 LABEL ruby_socket_close
     PUSH R0
     CALL socket_close
+    ADD R13 #4
     RET
 
 LABEL ruby_mkdir
     PUSH R0
     CALL mkdir
+    ADD R13 #4
     RET
 
 LABEL ruby_remove_file
     PUSH R0
     CALL remove_file
+    ADD R13 #4
     RET
 
 LABEL ruby_rename_file
     PUSH R1
     PUSH R0
     CALL rename_file
+    ADD R13 #8
     RET
 
 LABEL ruby_read_dir
@@ -166,6 +185,7 @@ LABEL ruby_set_env
     PUSH R1
     PUSH R0
     CALL set_env
+    ADD R13 #8
     RET
 
 LABEL ruby_get_args
@@ -178,17 +198,20 @@ LABEL ruby_signal
     PUSH R1
     PUSH R0
     CALL signal
+    ADD R13 #8
     RET
 
 LABEL ruby_type_of
     PUSH R0
     CALL type_of
+    ADD R13 #4
     RET
 
 LABEL ruby_type_name
     PUSH R1
     PUSH R0
     CALL type_name
+    ADD R13 #8
     RET
 
 LABEL func_thread_create

@@ -21,6 +21,7 @@ LABEL rust_lmemcpy
     PUSH R1
     PUSH R0
     CALL lmemcpy
+    ADD R13 #16
     RET
 
 LABEL rust_lmemset
@@ -29,6 +30,7 @@ LABEL rust_lmemset
     PUSH R1
     PUSH R0
     CALL lmemset
+    ADD R13 #16
     RET
 
 LABEL rust_lmemmove
@@ -37,6 +39,7 @@ LABEL rust_lmemmove
     PUSH R1
     PUSH R0
     CALL lmemmove
+    ADD R13 #16
     RET
 
 LABEL rust_lmemcmp
@@ -45,6 +48,7 @@ LABEL rust_lmemcmp
     PUSH R1
     PUSH R0
     CALL lmemcmp
+    ADD R13 #16
     RET
 
 LABEL func_long

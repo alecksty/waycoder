@@ -8,6 +8,7 @@ LABEL go_cadd
     PUSH R1
     PUSH R0
     CALL cadd
+    ADD R13 #12
     RET
 
 LABEL go_csub
@@ -15,6 +16,7 @@ LABEL go_csub
     PUSH R1
     PUSH R0
     CALL csub
+    ADD R13 #12
     RET
 
 LABEL go_b
@@ -28,6 +30,7 @@ LABEL go_cmul
     PUSH R1
     PUSH R0
     CALL cmul
+    ADD R13 #12
     RET
 
 LABEL go_cdiv
@@ -35,11 +38,13 @@ LABEL go_cdiv
     PUSH R1
     PUSH R0
     CALL cdiv
+    ADD R13 #12
     RET
 
 LABEL go_complex_abs
     PUSH R0
     CALL complex_abs
+    ADD R13 #4
     RET
 
 LABEL go_radians
@@ -51,18 +56,21 @@ LABEL go_radians
 LABEL go_complex_arg
     PUSH R0
     CALL complex_arg
+    ADD R13 #4
     RET
 
 LABEL go_cconj
     PUSH R1
     PUSH R0
     CALL cconj
+    ADD R13 #8
     RET
 
 LABEL go_cneg
     PUSH R1
     PUSH R0
     CALL cneg
+    ADD R13 #8
     RET
 
 LABEL go_cexp_re
@@ -71,6 +79,7 @@ LABEL go_cexp_re
     sub R13 #4
     movef @13 R0
     CALL cexp_re
+    ADD R13 #8
     RET
 
 LABEL go_cexp_im
@@ -79,18 +88,21 @@ LABEL go_cexp_im
     sub R13 #4
     movef @13 R0
     CALL cexp_im
+    ADD R13 #8
     RET
 
 LABEL go_csqr
     PUSH R1
     PUSH R0
     CALL csqr
+    ADD R13 #8
     RET
 
 LABEL go_csqrt
     PUSH R1
     PUSH R0
     CALL csqrt
+    ADD R13 #8
     RET
 
 LABEL func_cadd

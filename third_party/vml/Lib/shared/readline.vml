@@ -15,9 +15,9 @@ read_line:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 [R12+16]
         push R0
         move R0 #1
@@ -32,12 +32,12 @@ _L45660003:
         cmp R0 #0
         jz sta_45660000
         move R0 #0
-        jmp L45660004
+        jmp L_45660004
 sta_45660000:
 sta_45660001:
 sta_45660005:
         move R2 #0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 [R12+16]
         push R0
@@ -58,7 +58,7 @@ _L45660008:
         syscall #5
         move [R12-4] R0
         asm "MOVE c, R0"
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #10
         pop R1
@@ -75,11 +75,11 @@ _L45660012:
         move R11 R0
         move R0 #0
         moveb [R11] R0
-        move R0 [R12-4]
-        jmp L45660004
+        move R0 [R12-8]
+        jmp L_45660004
         jmp sta_45660010
 sta_45660009:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #13
         pop R1
@@ -96,11 +96,11 @@ _L45660016:
         move R10 R0
         move R0 #0
         moveb [R10] R0
-        move R0 [R12-4]
-        jmp L45660004
+        move R0 [R12-8]
+        jmp L_45660004
         jmp sta_45660014
 sta_45660013:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #8
         pop R1
@@ -113,7 +113,7 @@ _L45660019:
 _L45660020:
         cmp R0 #0
         jz sta_45660017
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #0
         pop R1
@@ -126,13 +126,13 @@ _L45660023:
 _L45660024:
         cmp R0 #0
         jz sta_45660021
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #1
         pop R1
         sub R1 R0
         move R0 R1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -146,7 +146,7 @@ sta_45660022:
 sta_45660017:
         move R0 [R12+12]
         move R9 R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         moveb [R9] R0
         move R0 [R12+12]
         push R0
@@ -155,13 +155,13 @@ sta_45660017:
         add R1 R0
         move R0 R1
         move [R12+12] R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #1
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-4] R0
+        move [R12-8] R0
 sta_45660018:
 sta_45660014:
 sta_45660010:
@@ -171,13 +171,10 @@ sta_45660006:
         move R8 R0
         move R0 #0
         moveb [R8] R0
-        move R0 [R12-4]
-        jmp L45660004
-L45660004:
+        move R0 [R12-8]
+        jmp L_45660004
+L_45660004:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret

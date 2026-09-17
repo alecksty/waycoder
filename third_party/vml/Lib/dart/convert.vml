@@ -7,43 +7,51 @@ LABEL dart_itoa_hex
     PUSH R1
     PUSH R0
     CALL itoa_hex
+    ADD R13 #8
     RET
 
 LABEL dart_atoi_hex
     PUSH R0
     CALL atoi_hex
+    ADD R13 #4
     RET
 
 LABEL dart_byte_to_hword
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL byte_to_hword
+    ADD R13 #4
     RET
 
 LABEL dart_byte_to_word
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL byte_to_word
+    ADD R13 #4
     RET
 
 LABEL dart_hword_to_byte
     PUSH R0
     CALL hword_to_byte
+    ADD R13 #4
     RET
 
 LABEL dart_hword_to_word
     PUSH R0
     CALL hword_to_word
+    ADD R13 #4
     RET
 
 LABEL dart_word_to_byte
     PUSH R0
     CALL word_to_byte
+    ADD R13 #4
     RET
 
 LABEL dart_word_to_hword
     PUSH R0
     CALL word_to_hword
+    ADD R13 #4
     RET
 
 LABEL func_itoa_hex

@@ -12,12 +12,14 @@ LABEL Lib
 LABEL Len
     PUSH R0
     CALL len
+    ADD R13 #4
     RET
 
 LABEL Get
     PUSH R1
     PUSH R0
     CALL get
+    ADD R13 #8
     RET
 
 LABEL Set
@@ -25,46 +27,54 @@ LABEL Set
     PUSH R1
     PUSH R0
     CALL set
+    ADD R13 #12
     RET
 
 LABEL SortBubble
     PUSH R0
     CALL sort_bubble
+    ADD R13 #4
     RET
 
 LABEL Indexof
     PUSH R1
     PUSH R0
     CALL indexof
+    ADD R13 #8
     RET
 
 LABEL LastIndexof
     PUSH R1
     PUSH R0
     CALL last_indexof
+    ADD R13 #8
     RET
 
 LABEL Contains
     PUSH R1
     PUSH R0
     CALL contains
+    ADD R13 #8
     RET
 
 LABEL Reverse
     PUSH R0
     CALL reverse
+    ADD R13 #4
     RET
 
 LABEL Fill
     PUSH R1
     PUSH R0
     CALL fill
+    ADD R13 #8
     RET
 
 LABEL Copy
     PUSH R1
     PUSH R0
     CALL copy
+    ADD R13 #8
     RET
 
 LABEL Slice
@@ -73,6 +83,7 @@ LABEL Slice
     PUSH R1
     PUSH R0
     CALL slice
+    ADD R13 #16
     RET
 
 LABEL Concat
@@ -80,28 +91,33 @@ LABEL Concat
     PUSH R1
     PUSH R0
     CALL concat
+    ADD R13 #12
     RET
 
 LABEL Push
     PUSH R1
     PUSH R0
     CALL push
+    ADD R13 #8
     RET
 
 LABEL Pop
     PUSH R0
     CALL pop
+    ADD R13 #4
     RET
 
 LABEL Shift
     PUSH R0
     CALL shift
+    ADD R13 #4
     RET
 
 LABEL Unshift
     PUSH R1
     PUSH R0
     CALL unshift
+    ADD R13 #8
     RET
 
 LABEL Insert
@@ -109,12 +125,14 @@ LABEL Insert
     PUSH R1
     PUSH R0
     CALL insert
+    ADD R13 #12
     RET
 
 LABEL Remove
     PUSH R1
     PUSH R0
     CALL remove
+    ADD R13 #8
     RET
 
 LABEL JoinStr
@@ -122,18 +140,21 @@ LABEL JoinStr
     PUSH R1
     PUSH R0
     CALL join_str
+    ADD R13 #12
     RET
 
 LABEL Startswith
     PUSH R1
     PUSH R0
     CALL startswith
+    ADD R13 #8
     RET
 
 LABEL Endswith
     PUSH R1
     PUSH R0
     CALL endswith
+    ADD R13 #8
     RET
 
 LABEL QsSwap
@@ -163,12 +184,14 @@ LABEL QsRecursive
 LABEL SortQuick
     PUSH R0
     CALL sort_quick
+    ADD R13 #4
     RET
 
 LABEL Bsearch
     PUSH R1
     PUSH R0
     CALL bsearch
+    ADD R13 #8
     RET
 
 LABEL Array_Lib

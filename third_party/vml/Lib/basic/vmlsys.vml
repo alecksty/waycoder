@@ -16,10 +16,10 @@ LABEL BASIC_VML_PRINT_INT
     RET
 
 LABEL BASIC_VML_PRINT_CHAR
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL vml_print_char
-    ADD R13 #1
+    ADD R13 #4
     RET
 
 LABEL BASIC_VML_PRINT_FLOAT

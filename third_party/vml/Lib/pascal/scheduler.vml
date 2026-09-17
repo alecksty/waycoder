@@ -10,12 +10,14 @@ LABEL PASCAL_ADD_TASK
     PUSH R1
     PUSH R0
     CALL add_task
+    ADD R13 #20
     RET
 
 LABEL PASCAL_TASK
     PUSH R1
     PUSH R0
     CALL task
+    ADD R13 #8
     RET
 
 LABEL PASCAL_SET_PERIOD
@@ -23,16 +25,19 @@ LABEL PASCAL_SET_PERIOD
     PUSH R1
     PUSH R0
     CALL set_period
+    ADD R13 #12
     RET
 
 LABEL PASCAL_RUN
     PUSH R0
     CALL run
+    ADD R13 #4
     RET
 
 LABEL PASCAL_GET_FUNC
     PUSH R1
     PUSH R0
     CALL get_func
+    ADD R13 #8
     RET
 

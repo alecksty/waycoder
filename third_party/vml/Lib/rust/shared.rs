@@ -6264,6 +6264,238 @@ fn vml_syscall5(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) -> i32 {
     r
 }
 
+fn ui_dlg_msg(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL ui_dlg_msg")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_dlg_select(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
+    asm!("CALL ui_dlg_select")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_dlg_multi(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL ui_dlg_multi")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_dlg_input(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL ui_dlg_input")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_win_open(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL ui_win_open")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_win_close() -> i32 {
+    asm!("CALL ui_win_close")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_win_closed() -> i32 {
+    asm!("CALL ui_win_closed")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_scr_w() -> i32 {
+    asm!("CALL ui_scr_w")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_scr_h() -> i32 {
+    asm!("CALL ui_scr_h")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_clear(a0: i32) {
+    asm!("CALL ui_clear")
+}
+
+fn ui_pixel(a0: i32, a1: i32, a2: i32) {
+    asm!("CALL ui_pixel")
+}
+
+fn ui_line(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
+    asm!("CALL ui_line")
+}
+
+fn ui_rect(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32, a6: i32, a7: i32) {
+    asm!("CALL ui_rect")
+}
+
+fn ui_circle(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
+    asm!("CALL ui_circle")
+}
+
+fn ui_ellipse(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32, a6: i32) {
+    asm!("CALL ui_ellipse")
+}
+
+fn ui_present() {
+    asm!("CALL ui_present")
+}
+
+fn ui_text(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
+    asm!("CALL ui_text")
+}
+
+fn ui_text_styled(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32, a6: i32) {
+    asm!("CALL ui_text_styled")
+}
+
+fn ui_set_font(a0: i32, a1: i32, a2: i32, a3: i32) {
+    asm!("CALL ui_set_font")
+}
+
+fn ui_text_cur(a0: i32, a1: i32, a2: i32) {
+    asm!("CALL ui_text_cur")
+}
+
+fn ui_poll(a0: i32) -> i32 {
+    asm!("CALL ui_poll")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_wait(a0: i32, a1: i32) -> i32 {
+    asm!("CALL ui_wait")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_msg_count() -> i32 {
+    asm!("CALL ui_msg_count")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_poll_msg() -> i32 {
+    asm!("CALL ui_poll_msg")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_wait_msg(a0: i32) -> i32 {
+    asm!("CALL ui_wait_msg")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_msg_type() -> i32 {
+    asm!("CALL ui_msg_type")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_msg_a() -> i32 {
+    asm!("CALL ui_msg_a")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_msg_b() -> i32 {
+    asm!("CALL ui_msg_b")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_gclear() {
+    asm!("CALL ui_gclear")
+}
+
+fn ui_gset(a0: i32, a1: i32) {
+    asm!("CALL ui_gset")
+}
+
+fn ui_gget(a0: i32) -> i32 {
+    asm!("CALL ui_gget")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_piece_init() {
+    asm!("CALL ui_piece_init")
+}
+
+fn _ui_rot90(a0: i32) -> i32 {
+    asm!("CALL _ui_rot90")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_piece_cell(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL ui_piece_cell")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_timer_set(a0: i32, a1: i32) -> i32 {
+    asm!("CALL ui_timer_set")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_timer_kill(a0: i32) -> i32 {
+    asm!("CALL ui_timer_kill")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_rand(a0: i32) -> i32 {
+    asm!("CALL ui_rand")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_tick() -> i32 {
+    asm!("CALL ui_tick")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_icon(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
+    asm!("CALL ui_icon")
+}
+
+fn ui_image(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
+    asm!("CALL ui_image")
+}
+
 fn character(a0: i32, a1: i32) -> i32 {
     asm!("CALL character")
     let r: i32;

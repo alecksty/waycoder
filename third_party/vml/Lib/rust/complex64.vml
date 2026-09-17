@@ -8,6 +8,7 @@ LABEL rust_zadd
     PUSH R1
     PUSH R0
     CALL zadd
+    ADD R13 #12
     RET
 
 LABEL rust_zsub
@@ -15,6 +16,7 @@ LABEL rust_zsub
     PUSH R1
     PUSH R0
     CALL zsub
+    ADD R13 #12
     RET
 
 LABEL rust_zmul
@@ -22,6 +24,7 @@ LABEL rust_zmul
     PUSH R1
     PUSH R0
     CALL zmul
+    ADD R13 #12
     RET
 
 LABEL rust_zdiv
@@ -29,28 +32,33 @@ LABEL rust_zdiv
     PUSH R1
     PUSH R0
     CALL zdiv
+    ADD R13 #12
     RET
 
 LABEL rust_zabs
     PUSH R0
     CALL zabs
+    ADD R13 #4
     RET
 
 LABEL rust_zarg
     PUSH R0
     CALL zarg
+    ADD R13 #4
     RET
 
 LABEL rust_zconj
     PUSH R1
     PUSH R0
     CALL zconj
+    ADD R13 #8
     RET
 
 LABEL rust_zneg
     PUSH R1
     PUSH R0
     CALL zneg
+    ADD R13 #8
     RET
 
 LABEL rust_zexp_re
@@ -59,6 +67,7 @@ LABEL rust_zexp_re
     sub R13 #8
     moved @13 R0
     CALL zexp_re
+    ADD R13 #16
     RET
 
 LABEL rust_zexp_im
@@ -67,18 +76,21 @@ LABEL rust_zexp_im
     sub R13 #8
     moved @13 R0
     CALL zexp_im
+    ADD R13 #16
     RET
 
 LABEL rust_zsqr
     PUSH R1
     PUSH R0
     CALL zsqr
+    ADD R13 #8
     RET
 
 LABEL rust_zsqrt
     PUSH R1
     PUSH R0
     CALL zsqrt
+    ADD R13 #8
     RET
 
 LABEL func_zadd

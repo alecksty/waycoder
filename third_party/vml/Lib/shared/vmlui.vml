@@ -1,281 +1,10 @@
-.linked  "Lib/c/builtin.vml"
-.linked  "D:\code-agents\WayCoder\third_party\vml\Lib\shared\builtins.vml"
-.linked  "D:\code-agents\WayCoder\third_party\vml\Lib\shared\crt.vml"
-.linked  "D:\code-agents\WayCoder\third_party\vml\Lib\shared\vmlui.vml"
-
-.entry main
-.stack 0
-.vectors 0x0
 
 .data
 _ui_msg_type: .word 0
 _ui_msg_a: .word 0
 _ui_msg_b: .word 0
-_ui_grid:
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-_ui_piece_rot:
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
+_ui_grid: .word[256] 0
+_ui_piece_rot: .word[7] 0
 
 .text
 ui_dlg_msg:
@@ -297,8 +26,8 @@ ui_dlg_msg:
         move R2 [R12+20]
         syscall #500
         move [R12-4] R0
-        jmp L2170000
-L2170000:
+        jmp L_2170000
+L_2170000:
         move R13 R12
         pop R12
         pop R15
@@ -326,8 +55,8 @@ ui_dlg_select:
         move R4 [R12+28]
         syscall #501
         move [R12-4] R0
-        jmp L2170001
-L2170001:
+        jmp L_2170001
+L_2170001:
         move R13 R12
         pop R12
         pop R15
@@ -353,8 +82,8 @@ ui_dlg_multi:
         move R3 [R12+24]
         syscall #502
         move [R12-4] R0
-        jmp L2170002
-L2170002:
+        jmp L_2170002
+L_2170002:
         move R13 R12
         pop R12
         pop R15
@@ -380,8 +109,8 @@ ui_dlg_input:
         move R3 [R12+24]
         syscall #503
         move [R12-4] R0
-        jmp L2170003
-L2170003:
+        jmp L_2170003
+L_2170003:
         move R13 R12
         pop R12
         pop R15
@@ -405,8 +134,8 @@ ui_win_open:
         move R2 [R12+20]
         syscall #520
         move [R12-4] R0
-        jmp L2170004
-L2170004:
+        jmp L_2170004
+L_2170004:
         move R13 R12
         pop R12
         pop R15
@@ -424,8 +153,8 @@ ui_win_close:
         sub R13 #12
         syscall #521
         move [R12-4] R0
-        jmp L2170005
-L2170005:
+        jmp L_2170005
+L_2170005:
         move R13 R12
         pop R12
         pop R15
@@ -443,8 +172,8 @@ ui_win_closed:
         sub R13 #12
         syscall #565
         move [R12-4] R0
-        jmp L2170006
-L2170006:
+        jmp L_2170006
+L_2170006:
         move R13 R12
         pop R12
         pop R15
@@ -462,8 +191,8 @@ ui_scr_w:
         sub R13 #12
         syscall #566
         move [R12-4] R0
-        jmp L2170007
-L2170007:
+        jmp L_2170007
+L_2170007:
         move R13 R12
         pop R12
         pop R15
@@ -481,8 +210,8 @@ ui_scr_h:
         sub R13 #12
         syscall #567
         move [R12-4] R0
-        jmp L2170008
-L2170008:
+        jmp L_2170008
+L_2170008:
         move R13 R12
         pop R12
         pop R15
@@ -791,8 +520,8 @@ ui_poll:
         move R0 [R12+12]
         syscall #560
         move [R12-4] R0
-        jmp L2170009
-L2170009:
+        jmp L_2170009
+L_2170009:
         move R13 R12
         pop R12
         pop R15
@@ -814,8 +543,8 @@ ui_wait:
         move R1 [R12+16]
         syscall #561
         move [R12-4] R0
-        jmp L2170010
-L2170010:
+        jmp L_2170010
+L_2170010:
         move R13 R12
         pop R12
         pop R15
@@ -833,8 +562,8 @@ ui_msg_count:
         sub R13 #12
         syscall #562
         move [R12-4] R0
-        jmp L2170011
-L2170011:
+        jmp L_2170011
+L_2170011:
         move R13 R12
         pop R12
         pop R15
@@ -888,8 +617,8 @@ ui_wait_msg:
         move R0 [R0]
         move [_ui_msg_b] R0
         move R0 [_ui_msg_type]
-        jmp L2170012
-L2170012:
+        jmp L_2170012
+L_2170012:
         move R13 R12
         pop R12
         pop R15
@@ -941,8 +670,8 @@ ui_poll_msg:
         move R0 [R0]
         move [_ui_msg_b] R0
         move R0 [_ui_msg_type]
-        jmp L2170013
-L2170013:
+        jmp L_2170013
+L_2170013:
         move R13 R12
         pop R12
         pop R15
@@ -959,8 +688,8 @@ ui_msg_type:
         move R12 R13
         sub R13 #12
         move R0 [_ui_msg_type]
-        jmp L2170014
-L2170014:
+        jmp L_2170014
+L_2170014:
         move R13 R12
         pop R12
         pop R15
@@ -977,8 +706,8 @@ ui_msg_a:
         move R12 R13
         sub R13 #12
         move R0 [_ui_msg_a]
-        jmp L2170015
-L2170015:
+        jmp L_2170015
+L_2170015:
         move R13 R12
         pop R12
         pop R15
@@ -995,8 +724,8 @@ ui_msg_b:
         move R12 R13
         sub R13 #12
         move R0 [_ui_msg_b]
-        jmp L2170016
-L2170016:
+        jmp L_2170016
+L_2170016:
         move R13 R12
         pop R12
         pop R15
@@ -1179,12 +908,12 @@ _L2170033:
         pop R7
         add R0 R7
         move R0 [R0]
-        jmp L2170038
+        jmp L_2170038
 sta_2170030:
 sta_2170031:
         move R0 #0
-        jmp L2170038
-L2170038:
+        jmp L_2170038
+L_2170038:
         move R13 R12
         pop R12
         pop R15
@@ -1547,8 +1276,8 @@ sta_2170044:
         jmp sta_2170039
 sta_2170040:
         move R0 [R12-8]
-        jmp L2170051
-L2170051:
+        jmp L_2170051
+L_2170051:
         move R13 R12
         pop R12
         pop R15
@@ -1646,7 +1375,7 @@ _L2170056:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L2170071
+        jmp L_2170071
 sta_2170052:
 sta_2170053:
         move R0 _ui_piece_rot
@@ -1796,7 +1525,7 @@ _L2170091:
         pop R1
         add R1 R0
         move R0 R1
-        jmp L2170071
+        jmp L_2170071
 sta_2170088:
 sta_2170089:
         move R0 [R12-24]
@@ -1829,8 +1558,8 @@ sta_2170077:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L2170071
-L2170071:
+        jmp L_2170071
+L_2170071:
         move R13 R12
         pop R12
         pop R15
@@ -1852,8 +1581,8 @@ ui_timer_set:
         move R1 [R12+16]
         syscall #563
         move [R12-4] R0
-        jmp L2170092
-L2170092:
+        jmp L_2170092
+L_2170092:
         move R13 R12
         pop R12
         pop R15
@@ -1873,8 +1602,8 @@ ui_timer_kill:
         move R0 [R12+12]
         syscall #564
         move [R12-4] R0
-        jmp L2170093
-L2170093:
+        jmp L_2170093
+L_2170093:
         move R13 R12
         pop R12
         pop R15
@@ -1905,7 +1634,7 @@ _L2170097:
         cmp R0 #0
         jz sta_2170094
         move R0 #0
-        jmp L2170098
+        jmp L_2170098
 sta_2170094:
 sta_2170095:
         syscall #50
@@ -1927,8 +1656,8 @@ sta_2170095:
         pop R1
         mod R1 R0
         move R0 R1
-        jmp L2170098
-L2170098:
+        jmp L_2170098
+L_2170098:
         move R13 R12
         pop R12
         pop R15
@@ -1946,8 +1675,8 @@ ui_tick:
         sub R13 #12
         syscall #53
         move [R12-4] R0
-        jmp L2170099
-L2170099:
+        jmp L_2170099
+L_2170099:
         move R13 R12
         pop R12
         pop R15
@@ -2002,245 +1731,6 @@ ui_image:
         move R3 [R12+24]
         move R4 [R12+28]
         syscall #530
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
-        ret
-
-; ═══════════════════════════════════════════════════════════════
-; 手感：音效 / 震动 / 持久化 / 常亮（宿主保留号段 500–599 与 VM 内置 #57）
-;
-; ⚠ 这一组**必须提给上游 VML 仓库**：`Lib/` 是 sync.sh 从上游 rsync 同步下来的，
-;   只改本地的话下次同步就没了（与 ui_rand/ui_tick 同一处境）。
-; ⚠ 写法照抄 ui_timer_set：形参在栈上（arg_i = [R12+8+4*i]），搬进 R0..Rn 再 syscall。
-;   不要在 C 里用 `asm("MOVE R1 ${x}")` 直连 —— `${}` 展开时**总是先载入 R0**，
-;   第二个参数会把第一个覆盖掉（实测：`MOVE R0 ${freq}` + `MOVE R1 ${ms}` 生成的是
-;   `move R0 [R12+12]; move R0 [R12+16]; move R1 R0` —— freq 丢了）。
-; ═══════════════════════════════════════════════════════════════
-ui_beep:
-; -------------------------------------------
-; source   : void ui_beep(int freq,int ms)
-; function : ui_beep
-; param   : int freq  (Hz)
-; param   : int ms    (时长)
-; return   : void
-; 说明     : 合成音（VM 内置 #57 的蜂鸣，宿主接真实音频）。零素材：不必打包音频文件。
-; --------------------------------------------
-ui_beep:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #12
-        move R0 [R12+12]
-        move R1 [R12+16]
-        syscall #57
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
-        ret
-; ═══════════════════════════════════════════════════════════════
-; 绘图增强（534–539，v0.96.176）：渐变刷子 / 路径与曲线 / 多边形
-;
-; 写法照抄上面 ui_beep/ui_timer_set 那一组：形参在栈上（arg_i = [R12+8+4*i]），
-; 搬进 R0..Rn 再 syscall，返回值放 [R12-4]。
-; ⚠ 同样**必须提给上游 VML 仓库**（Lib/ 由 sync.sh 同步，只改本地下次就没了）。
-; ═══════════════════════════════════════════════════════════════
-ui_gradient:
-; -------------------------------------------
-; source   : void ui_gradient(char* id,int radial,int color_a,int color_b,int a1,int a2,int a3,int a4)
-; function : ui_gradient
-; return   : void
-; --------------------------------------------
-ui_gradient:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #12
-        move R0 [R12+12]
-        move R1 [R12+16]
-        move R2 [R12+20]
-        move R3 [R12+24]
-        move R4 [R12+28]
-        move R5 [R12+32]
-        move R6 [R12+36]
-        move R7 [R12+40]
-        syscall #534
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
-        ret
-ui_path:
-; -------------------------------------------
-; source   : void ui_path(char* d,int stroke,int width,int fill,char* grad,int cap,int dash)
-; function : ui_path
-; return   : void
-; --------------------------------------------
-ui_path:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #12
-        move R0 [R12+12]
-        move R1 [R12+16]
-        move R2 [R12+20]
-        move R3 [R12+24]
-        move R4 [R12+28]
-        move R5 [R12+32]
-        move R6 [R12+36]
-        syscall #535
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
-        ret
-ui_polygon:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #12
-        move R0 [R12+12]
-        move R1 [R12+16]
-        move R2 [R12+20]
-        move R3 [R12+24]
-        move R4 [R12+28]
-        move R5 [R12+32]
-        syscall #536
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
-        ret
-ui_polyline:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #12
-        move R0 [R12+12]
-        move R1 [R12+16]
-        move R2 [R12+20]
-        move R3 [R12+24]
-        move R4 [R12+28]
-        syscall #537
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
-        ret
-ui_rect_grad:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #12
-        move R0 [R12+12]
-        move R1 [R12+16]
-        move R2 [R12+20]
-        move R3 [R12+24]
-        move R4 [R12+28]
-        move R5 [R12+32]
-        syscall #538
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
-        ret
-ui_circle_grad:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #12
-        move R0 [R12+12]
-        move R1 [R12+16]
-        move R2 [R12+20]
-        move R3 [R12+24]
-        syscall #539
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
-        ret
-ui_vibrate:
-; -------------------------------------------
-; source   : void ui_vibrate(int ms)
-; function : ui_vibrate
-; param   : int ms
-; return   : void
-; --------------------------------------------
-ui_vibrate:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #12
-        move R0 [R12+12]
-        move R1 #0
-        syscall #545
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
-        ret
-ui_keep_on:
-; -------------------------------------------
-; source   : void ui_keep_on(int on)
-; function : ui_keep_on
-; param   : int on    (0 关 / 1 开)
-; return   : void
-; 说明     : 玩游戏时别熄屏。
-; --------------------------------------------
-ui_keep_on:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #12
-        move R0 [R12+12]
-        syscall #553
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
-        ret
-ui_store_set:
-; -------------------------------------------
-; source   : void ui_store_set(char* key,char* value)
-; function : ui_store_set
-; param   : char* key
-; param   : char* value
-; return   : void
-; 说明     : 持久化键值（最高分/进度/设置）。键会加 `vml.` 前缀，与 App 自己的配置隔离。
-; --------------------------------------------
-ui_store_set:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #12
-        move R0 [R12+12]
-        move R1 [R12+16]
-        syscall #550
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
-        ret
-ui_store_get:
-; -------------------------------------------
-; source   : int ui_store_get(char* key,char* buf,int cap)
-; function : ui_store_get
-; param   : char* key
-; param   : char* buf
-; param   : int cap
-; return   : int     (写入长度；没有这条键返回 -1)
-; --------------------------------------------
-ui_store_get:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #12
-        move R0 [R12+12]
-        move R1 [R12+16]
-        move R2 [R12+20]
-        syscall #551
         move [R12-4] R0
         move R13 R12
         pop R12

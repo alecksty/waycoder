@@ -9,6 +9,7 @@ LABEL cpp_GetDate
     PUSH R1
     PUSH R0
     CALL GetDate
+    ADD R13 #16
     RET
 
 LABEL cpp_GetTime
@@ -17,6 +18,7 @@ LABEL cpp_GetTime
     PUSH R1
     PUSH R0
     CALL GetTime
+    ADD R13 #16
     RET
 
 LABEL cpp_DosVersion
@@ -26,11 +28,13 @@ LABEL cpp_DosVersion
 LABEL cpp_DiskFree
     PUSH R0
     CALL DiskFree
+    ADD R13 #4
     RET
 
 LABEL cpp_DiskSize
     PUSH R0
     CALL DiskSize
+    ADD R13 #4
     RET
 
 LABEL cpp_FindFirst
@@ -38,16 +42,19 @@ LABEL cpp_FindFirst
     PUSH R1
     PUSH R0
     CALL FindFirst
+    ADD R13 #12
     RET
 
 LABEL cpp_FindNext
     PUSH R0
     CALL FindNext
+    ADD R13 #4
     RET
 
 LABEL cpp_FindClose
     PUSH R0
     CALL FindClose
+    ADD R13 #4
     RET
 
 LABEL cpp_EnvCount
@@ -57,17 +64,20 @@ LABEL cpp_EnvCount
 LABEL cpp_EnvStr
     PUSH R0
     CALL EnvStr
+    ADD R13 #4
     RET
 
 LABEL cpp_GetEnv
     PUSH R0
     CALL GetEnv
+    ADD R13 #4
     RET
 
 LABEL cpp_Exec
     PUSH R1
     PUSH R0
     CALL Exec
+    ADD R13 #8
     RET
 
 LABEL cpp_SwapVectors
@@ -78,12 +88,14 @@ LABEL cpp_GetIntVec
     PUSH R1
     PUSH R0
     CALL GetIntVec
+    ADD R13 #8
     RET
 
 LABEL cpp_SetIntVec
     PUSH R1
     PUSH R0
     CALL SetIntVec
+    ADD R13 #8
     RET
 
 LABEL cpp_DosExitCode

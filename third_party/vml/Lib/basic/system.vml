@@ -8,23 +8,27 @@
 LABEL BASIC_PEEK
     PUSH R0
     CALL peek
+    ADD R13 #4
     RET
 
 LABEL BASIC_POKE
     PUSH R1
     PUSH R0
     CALL poke
+    ADD R13 #8
     RET
 
 LABEL BASIC_PEEKB
     PUSH R0
     CALL peekb
+    ADD R13 #4
     RET
 
 LABEL BASIC_POKEB
     PUSH R1
     PUSH R0
     CALL pokeb
+    ADD R13 #8
     RET
 
 LABEL BASIC_ALLOC
@@ -36,6 +40,7 @@ LABEL BASIC_ALLOC
 LABEL BASIC_FREE
     PUSH R0
     CALL free
+    ADD R13 #4
     RET
 
 LABEL BASIC_MEMCPY
@@ -43,6 +48,7 @@ LABEL BASIC_MEMCPY
     PUSH R1
     PUSH R0
     CALL memcpy
+    ADD R13 #12
     RET
 
 LABEL BASIC_MEMSET
@@ -50,6 +56,7 @@ LABEL BASIC_MEMSET
     PUSH R1
     PUSH R0
     CALL memset
+    ADD R13 #12
     RET
 
 LABEL BASIC_MEMCMP
@@ -57,16 +64,19 @@ LABEL BASIC_MEMCMP
     PUSH R1
     PUSH R0
     CALL memcmp
+    ADD R13 #12
     RET
 
 LABEL BASIC_DEV_OPEN
     PUSH R0
     CALL dev_open
+    ADD R13 #4
     RET
 
 LABEL BASIC_DEV_CLOSE
     PUSH R0
     CALL dev_close
+    ADD R13 #4
     RET
 
 LABEL BASIC_DEV_READ
@@ -75,6 +85,7 @@ LABEL BASIC_DEV_READ
     PUSH R1
     PUSH R0
     CALL dev_read
+    ADD R13 #16
     RET
 
 LABEL BASIC_DEV_WRITE
@@ -83,6 +94,7 @@ LABEL BASIC_DEV_WRITE
     PUSH R1
     PUSH R0
     CALL dev_write
+    ADD R13 #16
     RET
 
 LABEL BASIC_DEV_CONTROL
@@ -90,6 +102,7 @@ LABEL BASIC_DEV_CONTROL
     PUSH R1
     PUSH R0
     CALL dev_control
+    ADD R13 #12
     RET
 
 LABEL BASIC_MEMMOVE
@@ -97,15 +110,18 @@ LABEL BASIC_MEMMOVE
     PUSH R1
     PUSH R0
     CALL memmove
+    ADD R13 #12
     RET
 
 LABEL BASIC_GETCONFIG
     PUSH R0
     CALL getconfig
+    ADD R13 #4
     RET
 
 LABEL BASIC_EXIT
     PUSH R0
     CALL exit
+    ADD R13 #4
     RET
 

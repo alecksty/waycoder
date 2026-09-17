@@ -1,781 +1,9 @@
-.entry main
-.stack 0
-.vectors 0x0
 
 .data
-_buf:
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-_wbuf:
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-_ubuf:
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-dbl_95080065: .dword 4890909195324358656
-lng_M: .dword 1844674407370955161
+_buf: .word[128] 0
+_wbuf: .word[128] 0
+_ubuf: .word[128] 0
+i64_95080065: .dword 9223372036854775807
 flt_95080125: .word 1232348160
 flt_95080126: .word 1056964608
 flt_95080127: .word 1232348160
@@ -793,86 +21,101 @@ dbl_95080208: .dword 4591870180066957722
 
 .text
 int_to_str:
-        push R15
-        push R12
-        move R12 R13
-        move [R12+12] R0
-        move R0 _buf
-        move R1 R0
-        push R0
-        move R0 [R12+12]
-        push R0
-        call itoa
-        add R13 #8
-        move R0 _buf
-        jmp L95080000
-L95080000:
-        move R13 R12
-        pop R12
-        pop R15
-        move R1 @13
-        add R13 #8
-        push R1
-        ret
-int_to_wstr:
+; -------------------------------------------
+; source   : const char* int_to_str(int val)
+; function : int_to_str
+; param   : int val
+; return   : const char*
+; --------------------------------------------
+int_to_str:
         push R15
         push R12
         move R12 R13
         sub R13 #12
         move R0 _buf
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        call itoa
+        add R13 #8
+        move R0 _buf
+        jmp L_95080000
+L_95080000:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+int_to_wstr:
+; -------------------------------------------
+; source   : const wchar_t* int_to_wstr(int val)
+; function : int_to_wstr
+; param   : int val
+; return   : const wchar_t*
+; --------------------------------------------
+int_to_wstr:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+        move R0 _buf
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
         call itoa
         add R13 #8
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_95080001:
         move R0 _buf
         push R0
         move R11 #0
         push R11
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R11
         move R11 R0
         move R0 R11
         mul R0 #1
         pop R10
         add R0 R10
-        move R0 @0
+        moveb R0 [R0]
+        sextb R0 R0
         cmp R0 #0
         jz sta_95080003
         move R0 _buf
         push R0
         move R9 #0
         push R9
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R9
         move R9 R0
         move R0 R9
         mul R0 #1
         pop R8
         add R0 R8
-        move R0 @0
+        moveb R0 [R0]
+        sextb R0 R0
         move R7 R0
         move R0 _wbuf
         push R0
         move R6 #0
         push R6
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R6
         move R6 R0
         move R0 R6
         mul R0 #2
         pop R5
         add R0 R5
-        move @0 R7
+        moveh [R0] R7
 sta_95080002:
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_95080001
 sta_95080003:
@@ -884,6 +127,7 @@ sta_95080003:
         push R3
         move R0 _buf
         push R0
+        move R0 [R13+0]
         call strlen
         add R13 #4
         pop R3
@@ -892,76 +136,83 @@ sta_95080003:
         mul R0 #2
         pop R2
         add R0 R2
-        move @0 R4
+        moveh [R0] R4
         move R0 _wbuf
-        jmp L95080004
-L95080004:
+        jmp L_95080004
+L_95080004:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+int_to_ustr:
+; -------------------------------------------
+; source   : const char32_t* int_to_ustr(int val)
+; function : int_to_ustr
+; param   : int val
+; return   : const char32_t*
+; --------------------------------------------
 int_to_ustr:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 _buf
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
         call itoa
         add R13 #8
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_95080005:
         move R0 _buf
         push R0
         move R1 #0
         push R1
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         move R1 R0
         move R0 R1
         mul R0 #1
         pop R11
         add R0 R11
-        move R0 @0
+        moveb R0 [R0]
+        sextb R0 R0
         cmp R0 #0
         jz sta_95080007
         move R0 _buf
         push R0
         move R10 #0
         push R10
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R10
         move R10 R0
         move R0 R10
         mul R0 #1
         pop R9
         add R0 R9
-        move R0 @0
+        moveb R0 [R0]
+        sextb R0 R0
         move R8 R0
         move R0 _ubuf
         push R0
         move R6 #0
         push R6
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R6
         move R6 R0
         move R0 R6
         mul R0 #4
         pop R5
         add R0 R5
-        move @0 R8
+        move [R0] R8
 sta_95080006:
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_95080005
 sta_95080007:
@@ -973,6 +224,7 @@ sta_95080007:
         push R3
         move R0 _buf
         push R0
+        move R0 [R13+0]
         call strlen
         add R13 #4
         pop R3
@@ -981,54 +233,64 @@ sta_95080007:
         mul R0 #4
         pop R2
         add R0 R2
-        move @0 R7
+        move [R0] R7
         move R0 _ubuf
-        jmp L95080008
-L95080008:
+        jmp L_95080008
+L_95080008:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+str_to_int:
+; -------------------------------------------
+; source   : int str_to_int(const char* s)
+; function : str_to_int
+; param   : const char* s
+; return   : int
+; --------------------------------------------
 str_to_int:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call atoi
         add R13 #4
-        jmp L95080009
-L95080009:
+        jmp L_95080009
+L_95080009:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+wstr_to_int:
+; -------------------------------------------
+; source   : int wstr_to_int(const wchar_t* s)
+; function : wstr_to_int
+; param   : const wchar_t* s
+; return   : int
+; --------------------------------------------
 wstr_to_int:
         push R15
         push R12
         move R12 R13
-        sub R13 #76
+        sub R13 #80
         move R0 #0
-        move [R12-68] R0
+        move [R12-72] R0
 sta_95080010:
         move R2 #0
         move R0 [R12+12]
         push R0
-        move R0 [R12-68]
+        move R0 [R12-72]
         mul R0 #2
         pop R4
         add R0 R4
-        moveh R0 @0
+        moveh R0 [R0]
         sexth R0 R0
         test R0 R0
         jz _L95080012
-        move R0 [R12-68]
+        move R0 [R12-72]
         push R0
         move R0 #63
         pop R1
@@ -1050,81 +312,86 @@ _L95080013:
         jz sta_95080011
         move R0 [R12+12]
         push R0
-        move R0 [R12-68]
+        move R0 [R12-72]
         mul R0 #2
         pop R1
         add R0 R1
-        moveh R0 @0
+        moveh R0 [R0]
         sexth R0 R0
         move R11 R0
         move R0 R12
-        sub R0 #64
+        sub R0 #68
         push R0
         move R10 #0
         push R10
-        move R0 [R12-68]
+        move R0 [R12-72]
         pop R10
         move R10 R0
         move R0 R10
         mul R0 #1
         pop R9
         add R0 R9
-        moveb @0 R11
-        move R0 [R12-68]
+        moveb [R0] R11
+        move R0 [R12-72]
         move R1 R0
         add R0 R0 #1
-        move [R12-68] R0
+        move [R12-72] R0
         move R0 R1
         jmp sta_95080010
 sta_95080011:
         move R0 #0
         move R6 R0
         move R0 R12
-        sub R0 #64
+        sub R0 #68
         push R0
         move R5 #0
         push R5
-        move R0 [R12-68]
+        move R0 [R12-72]
         pop R5
         move R5 R0
         move R0 R5
         mul R0 #1
         pop R8
         add R0 R8
-        moveb @0 R6
+        moveb [R0] R6
         move R0 R12
-        sub R0 #64
+        sub R0 #68
         push R0
+        move R0 [R13+0]
         call atoi
         add R13 #4
-        jmp L95080016
-L95080016:
+        jmp L_95080016
+L_95080016:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+ustr_to_int:
+; -------------------------------------------
+; source   : int ustr_to_int(const char32_t* s)
+; function : ustr_to_int
+; param   : const char32_t* s
+; return   : int
+; --------------------------------------------
 ustr_to_int:
         push R15
         push R12
         move R12 R13
-        sub R13 #76
+        sub R13 #80
         move R0 #0
-        move [R12-68] R0
+        move [R12-72] R0
 sta_95080017:
         move R2 #0
         move R0 [R12+12]
         push R0
-        move R0 [R12-68]
+        move R0 [R12-72]
         mul R0 #4
         pop R3
         add R0 R3
-        move R0 @0
+        move R0 [R0]
         test R0 R0
         jz _L95080019
-        move R0 [R12-68]
+        move R0 [R12-72]
         push R0
         move R0 #63
         pop R1
@@ -1146,165 +413,185 @@ _L95080020:
         jz sta_95080018
         move R0 [R12+12]
         push R0
-        move R0 [R12-68]
+        move R0 [R12-72]
         mul R0 #4
         pop R2
         add R0 R2
-        move R0 @0
+        move R0 [R0]
         move R7 R0
         move R0 R12
-        sub R0 #64
+        sub R0 #68
         push R0
         move R4 #0
         push R4
-        move R0 [R12-68]
+        move R0 [R12-72]
         pop R4
         move R4 R0
         move R0 R4
         mul R0 #1
         pop R1
         add R0 R1
-        moveb @0 R7
-        move R0 [R12-68]
+        moveb [R0] R7
+        move R0 [R12-72]
         move R1 R0
         add R0 R0 #1
-        move [R12-68] R0
+        move [R12-72] R0
         move R0 R1
         jmp sta_95080017
 sta_95080018:
         move R0 #0
         move R10 R0
         move R0 R12
-        sub R0 #64
+        sub R0 #68
         push R0
         move R9 #0
         push R9
-        move R0 [R12-68]
+        move R0 [R12-72]
         pop R9
         move R9 R0
         move R0 R9
         mul R0 #1
         pop R11
         add R0 R11
-        moveb @0 R10
+        moveb [R0] R10
         move R0 R12
-        sub R0 #64
+        sub R0 #68
         push R0
+        move R0 [R13+0]
         call atoi
         add R13 #4
-        jmp L95080023
-L95080023:
+        jmp L_95080023
+L_95080023:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+long_to_strbuf:
+; -------------------------------------------
+; source   : int long_to_strbuf(long val,char* dst)
+; function : long_to_strbuf
+; param   : long val
+; param   : char* dst
+; return   : int
+; --------------------------------------------
 long_to_strbuf:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+20]
-        move R1 R0
         push R0
         movel R0 [R12+12]
         sub R13 #8
         movel @13 R0
+        move R0 [R13+0]
+        move R1 [R13+8]
         call ltoa
         add R13 #12
-        jmp L95080024
-L95080024:
+        jmp L_95080024
+L_95080024:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
 long_to_str:
-        push R15
-        push R12
-        move R12 R13
-        movel [R12+12] R0
-        move R0 _buf
-        move R1 R0
-        push R0
-        movel R0 [R12+12]
-        sub R13 #8
-        movel @13 R0
-        call ltoa
-        add R13 #12
-        move R0 _buf
-        jmp L95080025
-L95080025:
-        move R13 R12
-        pop R12
-        pop R15
-        move R1 @13
-        add R13 #12
-        push R1
-        ret
-long_to_wstr:
+; -------------------------------------------
+; source   : const char* long_to_str(long val)
+; function : long_to_str
+; param   : long val
+; return   : const char*
+; --------------------------------------------
+long_to_str:
         push R15
         push R12
         move R12 R13
         sub R13 #12
         move R0 _buf
-        move R1 R0
         push R0
         movel R0 [R12+12]
         sub R13 #8
         movel @13 R0
+        move R0 [R13+0]
+        move R1 [R13+8]
+        call ltoa
+        add R13 #12
+        move R0 _buf
+        jmp L_95080025
+L_95080025:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+long_to_wstr:
+; -------------------------------------------
+; source   : const wchar_t* long_to_wstr(long val)
+; function : long_to_wstr
+; param   : long val
+; return   : const wchar_t*
+; --------------------------------------------
+long_to_wstr:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+        move R0 _buf
+        push R0
+        movel R0 [R12+12]
+        sub R13 #8
+        movel @13 R0
+        move R0 [R13+0]
+        move R1 [R13+8]
         call ltoa
         add R13 #12
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_95080026:
         move R0 _buf
         push R0
         move R5 #0
         push R5
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R5
         move R5 R0
         move R0 R5
         mul R0 #1
         pop R8
         add R0 R8
-        move R0 @0
+        moveb R0 [R0]
+        sextb R0 R0
         cmp R0 #0
         jz sta_95080028
         move R0 _buf
         push R0
         move R6 #0
         push R6
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R6
         move R6 R0
         move R0 R6
         mul R0 #1
         pop R3
         add R0 R3
-        move R0 @0
+        moveb R0 [R0]
+        sextb R0 R0
         move R2 R0
         move R0 _wbuf
         push R0
         move R4 #0
         push R4
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R4
         move R4 R0
         move R0 R4
         mul R0 #2
         pop R1
         add R0 R1
-        move @0 R2
+        moveh [R0] R2
 sta_95080027:
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_95080026
 sta_95080028:
@@ -1316,6 +603,7 @@ sta_95080028:
         push R9
         move R0 _buf
         push R0
+        move R0 [R13+0]
         call strlen
         add R13 #4
         pop R9
@@ -1324,77 +612,84 @@ sta_95080028:
         mul R0 #2
         pop R11
         add R0 R11
-        move @0 R7
+        moveh [R0] R7
         move R0 _wbuf
-        jmp L95080029
-L95080029:
+        jmp L_95080029
+L_95080029:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+long_to_ustr:
+; -------------------------------------------
+; source   : const char32_t* long_to_ustr(long val)
+; function : long_to_ustr
+; param   : long val
+; return   : const char32_t*
+; --------------------------------------------
 long_to_ustr:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 _buf
-        move R1 R0
         push R0
         movel R0 [R12+12]
         sub R13 #8
         movel @13 R0
+        move R0 [R13+0]
+        move R1 [R13+8]
         call ltoa
         add R13 #12
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_95080030:
         move R0 _buf
         push R0
         move R10 #0
         push R10
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R10
         move R10 R0
         move R0 R10
         mul R0 #1
         pop R5
         add R0 R5
-        move R0 @0
+        moveb R0 [R0]
+        sextb R0 R0
         cmp R0 #0
         jz sta_95080032
         move R0 _buf
         push R0
         move R8 #0
         push R8
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R8
         move R8 R0
         move R0 R8
         mul R0 #1
         pop R6
         add R0 R6
-        move R0 @0
+        moveb R0 [R0]
+        sextb R0 R0
         move R3 R0
         move R0 _ubuf
         push R0
         move R4 #0
         push R4
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R4
         move R4 R0
         move R0 R4
         mul R0 #4
         pop R1
         add R0 R1
-        move @0 R3
+        move [R0] R3
 sta_95080031:
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_95080030
 sta_95080032:
@@ -1406,6 +701,7 @@ sta_95080032:
         push R9
         move R0 _buf
         push R0
+        move R0 [R13+0]
         call strlen
         add R13 #4
         pop R9
@@ -1414,54 +710,64 @@ sta_95080032:
         mul R0 #4
         pop R11
         add R0 R11
-        move @0 R2
+        move [R0] R2
         move R0 _ubuf
-        jmp L95080033
-L95080033:
+        jmp L_95080033
+L_95080033:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+str_to_long:
+; -------------------------------------------
+; source   : long str_to_long(const char* s)
+; function : str_to_long
+; param   : const char* s
+; return   : long
+; --------------------------------------------
 str_to_long:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call atol
         add R13 #4
-        jmp L95080034
-L95080034:
+        jmp L_95080034
+L_95080034:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+wstr_to_long:
+; -------------------------------------------
+; source   : long wstr_to_long(const wchar_t* s)
+; function : wstr_to_long
+; param   : const wchar_t* s
+; return   : long
+; --------------------------------------------
 wstr_to_long:
         push R15
         push R12
         move R12 R13
-        sub R13 #76
+        sub R13 #80
         move R0 #0
-        move [R12-68] R0
+        move [R12-72] R0
 sta_95080035:
         move R2 #0
         move R0 [R12+12]
         push R0
-        move R0 [R12-68]
+        move R0 [R12-72]
         mul R0 #2
         pop R7
         add R0 R7
-        moveh R0 @0
+        moveh R0 [R0]
         sexth R0 R0
         test R0 R0
         jz _L95080037
-        move R0 [R12-68]
+        move R0 [R12-72]
         push R0
         move R0 #63
         pop R1
@@ -1483,81 +789,86 @@ _L95080038:
         jz sta_95080036
         move R0 [R12+12]
         push R0
-        move R0 [R12-68]
+        move R0 [R12-72]
         mul R0 #2
         pop R10
         add R0 R10
-        moveh R0 @0
+        moveh R0 [R0]
         sexth R0 R0
         move R5 R0
         move R0 R12
-        sub R0 #64
+        sub R0 #68
         push R0
         move R8 #0
         push R8
-        move R0 [R12-68]
+        move R0 [R12-72]
         pop R8
         move R8 R0
         move R0 R8
         mul R0 #1
         pop R6
         add R0 R6
-        moveb @0 R5
-        move R0 [R12-68]
+        moveb [R0] R5
+        move R0 [R12-72]
         move R1 R0
         add R0 R0 #1
-        move [R12-68] R0
+        move [R12-72] R0
         move R0 R1
         jmp sta_95080035
 sta_95080036:
         move R0 #0
         move R4 R0
         move R0 R12
-        sub R0 #64
+        sub R0 #68
         push R0
         move R1 #0
         push R1
-        move R0 [R12-68]
+        move R0 [R12-72]
         pop R1
         move R1 R0
         move R0 R1
         mul R0 #1
         pop R3
         add R0 R3
-        moveb @0 R4
+        moveb [R0] R4
         move R0 R12
-        sub R0 #64
+        sub R0 #68
         push R0
+        move R0 [R13+0]
         call atol
         add R13 #4
-        jmp L95080041
-L95080041:
+        jmp L_95080041
+L_95080041:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+ustr_to_long:
+; -------------------------------------------
+; source   : long ustr_to_long(const char32_t* s)
+; function : ustr_to_long
+; param   : const char32_t* s
+; return   : long
+; --------------------------------------------
 ustr_to_long:
         push R15
         push R12
         move R12 R13
-        sub R13 #76
+        sub R13 #80
         move R0 #0
-        move [R12-68] R0
+        move [R12-72] R0
 sta_95080042:
         move R2 #0
         move R0 [R12+12]
         push R0
-        move R0 [R12-68]
+        move R0 [R12-72]
         mul R0 #4
         pop R9
         add R0 R9
-        move R0 @0
+        move R0 [R0]
         test R0 R0
         jz _L95080044
-        move R0 [R12-68]
+        move R0 [R12-72]
         push R0
         move R0 #63
         pop R1
@@ -1579,75 +890,77 @@ _L95080045:
         jz sta_95080043
         move R0 [R12+12]
         push R0
-        move R0 [R12-68]
+        move R0 [R12-72]
         mul R0 #4
         pop R11
         add R0 R11
-        move R0 @0
+        move R0 [R0]
         move R2 R0
         move R0 R12
-        sub R0 #64
+        sub R0 #68
         push R0
         move R7 #0
         push R7
-        move R0 [R12-68]
+        move R0 [R12-72]
         pop R7
         move R7 R0
         move R0 R7
         mul R0 #1
         pop R10
         add R0 R10
-        moveb @0 R2
-        move R0 [R12-68]
+        moveb [R0] R2
+        move R0 [R12-72]
         move R1 R0
         add R0 R0 #1
-        move [R12-68] R0
+        move [R12-72] R0
         move R0 R1
         jmp sta_95080042
 sta_95080043:
         move R0 #0
         move R8 R0
         move R0 R12
-        sub R0 #64
+        sub R0 #68
         push R0
         move R6 #0
         push R6
-        move R0 [R12-68]
+        move R0 [R12-72]
         pop R6
         move R6 R0
         move R0 R6
         mul R0 #1
         pop R5
         add R0 R5
-        moveb @0 R8
+        moveb [R0] R8
         move R0 R12
-        sub R0 #64
+        sub R0 #68
         push R0
+        move R0 [R13+0]
         call atol
         add R13 #4
-        jmp L95080048
-L95080048:
+        jmp L_95080048
+L_95080048:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+uint_to_str:
+; -------------------------------------------
+; source   : const char* uint_to_str(unsigned int val)
+; function : uint_to_str
+; param   : unsigned int val
+; return   : const char*
+; --------------------------------------------
 uint_to_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #21
-        move [R12+12] R0
-        ; Check if value fits in signed int (>= 0 as signed)
+        sub R13 #25
         move R0 [R12+12]
         push R0
-        move R0 #0
+        move R0 #2147483647
         pop R1
         cmp R1 R0
-        jge _L95080051
-        ; Value < 0 as signed means uint > INT_MAX -> unsigned path
+        jle _L95080051
         move R0 #0
         jmp _L95080052
 _L95080051:
@@ -1655,55 +968,215 @@ _L95080051:
 _L95080052:
         cmp R0 #0
         jz sta_95080049
-        ; Signed path: value 0..INT_MAX, call itoa
         move R0 _buf
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
         call itoa
         add R13 #8
         move R0 _buf
-        jmp L95080053
+        jmp L_95080053
 sta_95080049:
-        ; Unsigned path: zero-extend to long and call ltoa
-        ; Clear 8 bytes at [R12-12]
-        movel R0 #0
-        movel [R12-12] R0
-        ; Store uint value as low 32 bits, high 32 bits remain 0
+sta_95080050:
+        move R0 #0
+        move [R12-8] R0
         move R0 [R12+12]
         move [R12-12] R0
-        ; Load zero-extended 64-bit value
-        movel R0 [R12-12]
-        ; Call ltoa(value, _buf)
-        move R1 _buf
-        push R1
-        sub R13 #8
-        movel @13 R0
-        call ltoa
-        add R13 #12
+sta_95080054:
+        move R0 #48
+        push R0
+        move R0 [R12-12]
+        push R0
+        move R0 #10
+        pop R1
+        mod R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R1 R0
         move R0 _buf
-        jmp L95080053
-L95080053:
+        push R0
+        move R3 #0
+        push R3
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        pop R3
+        move R3 R0
+        move R0 R3
+        mul R0 #1
+        pop R4
+        add R0 R4
+        moveb [R0] R1
+        move R0 [R12-12]
+        push R0
+        move R0 #10
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-12] R0
+sta_95080055:
+        move R0 [R12-12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jg _L95080056
+        move R0 #0
+        jmp _L95080057
+_L95080056:
+        move R0 #1
+_L95080057:
+        cmp R0 #0
+        jnz sta_95080054
+        move R0 #0
+        move R9 R0
+        move R0 _buf
+        push R0
+        move R11 #0
+        push R11
+        move R0 [R12-8]
+        pop R11
+        move R11 R0
+        move R0 R11
+        mul R0 #1
+        pop R7
+        add R0 R7
+        moveb [R0] R9
+        move R0 #0
+        move [R12-16] R0
+sta_95080058:
+        move R0 [R12-16]
+        push R0
+        move R0 [R12-8]
+        push R0
+        move R0 #2
+        pop R1
+        div R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L95080061
+        move R0 #0
+        jmp _L95080062
+_L95080061:
+        move R0 #1
+_L95080062:
+        cmp R0 #0
+        jz sta_95080060
+        move R0 _buf
+        push R0
+        move R10 #0
+        push R10
+        move R0 [R12-16]
+        pop R10
+        move R10 R0
+        move R0 R10
+        mul R0 #1
+        pop R2
+        add R0 R2
+        moveb R0 [R0]
+        sextb R0 R0
+        moveb [R12-17] R0
+        move R0 _buf
+        push R0
+        move R6 #0
+        push R6
+        move R0 [R12-8]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-16]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R6
+        move R6 R0
+        move R0 R6
+        mul R0 #1
+        pop R5
+        add R0 R5
+        moveb R0 [R0]
+        sextb R0 R0
+        move R8 R0
+        move R0 _buf
+        push R0
+        move R3 #0
+        push R3
+        move R0 [R12-16]
+        pop R3
+        move R3 R0
+        move R0 R3
+        mul R0 #1
+        pop R4
+        add R0 R4
+        moveb [R0] R8
+        moveb R0 [R12-17]
+        sextb R0 R0
+        move R1 R0
+        move R0 _buf
+        push R0
+        move R11 #0
+        push R11
+        move R0 [R12-8]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-16]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R11
+        move R11 R0
+        move R0 R11
+        mul R0 #1
+        pop R7
+        add R0 R7
+        moveb [R0] R1
+sta_95080059:
+        move R0 [R12-16]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-16] R0
+        move R0 R1
+        jmp sta_95080058
+sta_95080060:
+        move R0 _buf
+        jmp L_95080053
+L_95080053:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+ulong_to_str:
+; -------------------------------------------
+; source   : const char* ulong_to_str(unsigned long val)
+; function : ulong_to_str
+; param   : unsigned long val
+; return   : const char*
+; --------------------------------------------
 ulong_to_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #25
-        movel [R12+12] R0
+        sub R13 #29
         movel R0 [R12+12]
         pushl R0
-        movel R0 #0
+        movel R0 [i64_95080065]
         popl R1
         cmpl R1 R0
-        jge _L95080066
+        jle _L95080066
         move R0 #0
         jmp _L95080067
 _L95080066:
@@ -1712,172 +1185,256 @@ _L95080067:
         cmp R0 #0
         jz sta_95080063
         move R0 _buf
-        move R1 R0
         push R0
         movel R0 [R12+12]
         sub R13 #8
         movel @13 R0
+        move R0 [R13+0]
+        move R1 [R13+8]
         call ltoa
         add R13 #12
         move R0 _buf
-        jmp L95080068
+        jmp L_95080068
 sta_95080063:
 sta_95080064:
-        ; === Unsigned path: correction formula + ltoa ===
-        ; For v_unsigned in [2^63, 2^64-1] (v_signed < 0):
-        ;   q_signed = v_signed / 10, r_signed = v_signed % 10
-        ;   r_unsigned = r_signed + 6 (+ borrow handling)
-        ;   q_unsigned = q_signed + M  (M = 2^64 / 10)
-        ; Then call ltoa(q_unsigned, _buf) and append the first digit.
-
-        ; r_signed = v % 10
+        move R0 #0
+        move [R12-8] R0
         movel R0 [R12+12]
+        movel [R12-16] R0
+sta_95080069:
+        move R0 #48
+        i2l R0 R0
         pushl R0
-        movel R0 #10
+        movel R0 [R12-16]
+        pushl R0
+        move R0 #10
+        i2l R0 R0
         popl R1
         modl R0 R1 R0
-        movel R7 R0
-
-        ; q_signed = v / 10
-        movel R0 [R12+12]
+        popl R1
+        addl R0 R1 R0
+        move R9 R0
+        move R0 _buf
+        push R0
+        move R10 #0
+        push R10
+        move R0 [R12-8]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-8] R0
+        move R0 R1
+        pop R10
+        move R10 R0
+        move R0 R10
+        mul R0 #1
+        pop R2
+        add R0 R2
+        moveb [R0] R9
+        movel R0 [R12-16]
         pushl R0
-        movel R0 #10
+        move R0 #10
+        i2l R0 R0
         popl R1
         divl R0 R1 R0
-        movel R6 R0
-
-        ; r_unsigned = r_signed + 6
-        movel R0 #6
-        addl R7 R7 R0
-
-        ; Check borrow: r_unsigned < 0 ?
-        pushl R7
-        movel R0 #0
+        movel [R12-16] R0
+sta_95080070:
+        movel R0 [R12-16]
+        pushl R0
+        move R0 #0
+        i2l R0 R0
         popl R1
         cmpl R1 R0
-        jge _L95080080
-
-        ; Borrow: r += 10, q -= 1
-        movel R0 #10
-        addl R7 R7 R0
-        movel R0 #1
-        subl R6 R6 R0
-
-_L95080080:
-        ; q_unsigned = q_signed + M
-        movel R0 [lng_M]
-        addl R6 R6 R0
-
-        ; Convert first digit to char, save locally at [R12-16]
-        move R0 #48
-        add R7 R0
-        move [R12-16] R7
-
-        ; Call ltoa(q_unsigned, _buf) — ltoa writes null-terminated string,
-        ; returns digit count in R0. Only call if q_unsigned != 0.
-        pushl R6
-        movel R0 #0
-        popl R1
-        cmpl R1 R0
-        je _L95080082
-
-        ; Push args for ltoa(q_unsigned, _buf): dst then value
+        jg _L95080071
+        move R0 #0
+        jmp _L95080072
+_L95080071:
+        move R0 #1
+_L95080072:
+        cmp R0 #0
+        jnz sta_95080069
+        move R0 #0
+        move R6 R0
         move R0 _buf
         push R0
-        movel R0 R6
-        sub R13 #8
-        movel @13 R0
-        call ltoa
-        add R13 #12
-
-        ; R0 = count from ltoa. Append first digit at _buf[count].
-        move R9 R0
-        move R7 [R12-16]
+        move R5 #0
+        push R5
+        move R0 [R12-8]
+        pop R5
+        move R5 R0
+        move R0 R5
+        mul R0 #1
+        pop R3
+        add R0 R3
+        moveb [R0] R6
+        move R0 #0
+        move [R12-20] R0
+sta_95080073:
+        move R0 [R12-20]
+        push R0
+        move R0 [R12-8]
+        push R0
+        move R0 #2
+        pop R1
+        div R1 R0
+        move R0 R1
+        pop R1
+        cmp R1 R0
+        jl _L95080076
+        move R0 #0
+        jmp _L95080077
+_L95080076:
+        move R0 #1
+_L95080077:
+        cmp R0 #0
+        jz sta_95080075
         move R0 _buf
         push R0
-        move R0 R9
+        move R4 #0
+        push R4
+        move R0 [R12-20]
+        pop R4
+        move R4 R0
+        move R0 R4
         mul R0 #1
         pop R8
         add R0 R8
-        move @0 R7
-
-        ; Null terminate at _buf[count+1]
-        move R0 #0
-        move R10 R0
+        moveb R0 [R0]
+        sextb R0 R0
+        moveb [R12-21] R0
         move R0 _buf
         push R0
-        move R0 R9
-        add R0 R0 #1
-        mul R0 #1
-        pop R8
-        add R0 R8
-        move @0 R10
-
-        move R0 _buf
-        jmp L95080068
-
-        ; q_unsigned == 0 (v_unsigned < 10): single-digit result
-_L95080082:
-        move R7 [R12-16]
-        move R0 _buf
-        move @0 R7
-        move R0 #0
-        move R9 R0
-        move R0 _buf
+        move R11 #0
+        push R11
+        move R0 [R12-8]
         push R0
         move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-20]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R11
+        move R11 R0
+        move R0 R11
         mul R0 #1
-        pop R8
-        add R0 R8
-        move @0 R9
+        pop R7
+        add R0 R7
+        moveb R0 [R0]
+        sextb R0 R0
+        move R1 R0
         move R0 _buf
-        jmp L95080068
-L95080068:
+        push R0
+        move R10 #0
+        push R10
+        move R0 [R12-20]
+        pop R10
+        move R10 R0
+        move R0 R10
+        mul R0 #1
+        pop R2
+        add R0 R2
+        moveb [R0] R1
+        moveb R0 [R12-21]
+        sextb R0 R0
+        move R9 R0
+        move R0 _buf
+        push R0
+        move R5 #0
+        push R5
+        move R0 [R12-8]
+        push R0
+        move R0 #1
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-20]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        pop R5
+        move R5 R0
+        move R0 R5
+        mul R0 #1
+        pop R3
+        add R0 R3
+        moveb [R0] R9
+sta_95080074:
+        move R0 [R12-20]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-20] R0
+        move R0 R1
+        jmp sta_95080073
+sta_95080075:
+        move R0 _buf
+        jmp L_95080068
+L_95080068:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+str_to_uint:
+; -------------------------------------------
+; source   : unsigned int str_to_uint(const char* s)
+; function : str_to_uint
+; param   : const char* s
+; return   : unsigned int
+; --------------------------------------------
 str_to_uint:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call atoi
         add R13 #4
-        jmp L95080078
-L95080078:
+        jmp L_95080078
+L_95080078:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+str_to_ulong:
+; -------------------------------------------
+; source   : unsigned long str_to_ulong(const char* s)
+; function : str_to_ulong
+; param   : const char* s
+; return   : unsigned long
+; --------------------------------------------
 str_to_ulong:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call atol
         add R13 #4
-        jmp L95080079
-L95080079:
+        jmp L_95080079
+L_95080079:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+bool_to_str:
+; -------------------------------------------
+; source   : const char* bool_to_str(int b)
+; function : bool_to_str
+; param   : int b
+; return   : const char*
+; --------------------------------------------
 bool_to_str:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         cmp R0 #0
         jz sta_95080080
@@ -1894,7 +1451,7 @@ bool_to_str:
         mul R0 #1
         pop R8
         add R0 R8
-        move @0 R6
+        moveb [R0] R6
         move R0 #114
         move R11 R0
         move R0 _buf
@@ -1908,7 +1465,7 @@ bool_to_str:
         mul R0 #1
         pop R10
         add R0 R10
-        move @0 R11
+        moveb [R0] R11
         move R0 #117
         move R2 R0
         move R0 _buf
@@ -1922,7 +1479,7 @@ bool_to_str:
         mul R0 #1
         pop R5
         add R0 R5
-        move @0 R2
+        moveb [R0] R2
         move R0 #101
         move R3 R0
         move R0 _buf
@@ -1936,7 +1493,7 @@ bool_to_str:
         mul R0 #1
         pop R4
         add R0 R4
-        move @0 R3
+        moveb [R0] R3
         move R0 #0
         move R8 R0
         move R0 _buf
@@ -1950,7 +1507,7 @@ bool_to_str:
         mul R0 #1
         pop R7
         add R0 R7
-        move @0 R8
+        moveb [R0] R8
         jmp sta_95080081
 sta_95080080:
         move R0 #102
@@ -1966,7 +1523,7 @@ sta_95080080:
         mul R0 #1
         pop R1
         add R0 R1
-        move @0 R10
+        moveb [R0] R10
         move R0 #97
         move R5 R0
         move R0 _buf
@@ -1980,7 +1537,7 @@ sta_95080080:
         mul R0 #1
         pop R9
         add R0 R9
-        move @0 R5
+        moveb [R0] R5
         move R0 #108
         move R4 R0
         move R0 _buf
@@ -1994,7 +1551,7 @@ sta_95080080:
         mul R0 #1
         pop R6
         add R0 R6
-        move @0 R4
+        moveb [R0] R4
         move R0 #115
         move R7 R0
         move R0 _buf
@@ -2008,7 +1565,7 @@ sta_95080080:
         mul R0 #1
         pop R11
         add R0 R11
-        move @0 R7
+        moveb [R0] R7
         move R0 #101
         move R1 R0
         move R0 _buf
@@ -2022,7 +1579,7 @@ sta_95080080:
         mul R0 #1
         pop R2
         add R0 R2
-        move @0 R1
+        moveb [R0] R1
         move R0 #0
         move R9 R0
         move R0 _buf
@@ -2036,22 +1593,27 @@ sta_95080080:
         mul R0 #1
         pop R3
         add R0 R3
-        move @0 R9
+        moveb [R0] R9
 sta_95080081:
         move R0 _buf
-        jmp L95080082
-L95080082:
+        jmp L_95080082
+L_95080082:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+str_to_bool:
+; -------------------------------------------
+; source   : int str_to_bool(const char* s)
+; function : str_to_bool
+; param   : const char* s
+; return   : int
+; --------------------------------------------
 str_to_bool:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         move R0 [R12+12]
         test R0 R0
@@ -2069,7 +1631,7 @@ _L95080089:
         mul R0 #1
         pop R6
         add R0 R6
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         move R0 [R12+12]
         push R0
@@ -2077,7 +1639,7 @@ _L95080089:
         mul R0 #1
         pop R4
         add R0 R4
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         test R0 R0
         jz _L95080090
@@ -2097,7 +1659,7 @@ _L95080087:
         cmp R0 #0
         jz sta_95080083
         move R0 #0
-        jmp L95080092
+        jmp L_95080092
 sta_95080083:
 sta_95080084:
         move R0 [R12+12]
@@ -2106,7 +1668,7 @@ sta_95080084:
         mul R0 #1
         pop R8
         add R0 R8
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #116
@@ -2126,7 +1688,7 @@ _L95080102:
         mul R0 #1
         pop R11
         add R0 R11
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #84
@@ -2154,7 +1716,7 @@ _L95080100:
         mul R0 #1
         pop R7
         add R0 R7
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #49
@@ -2177,23 +1739,28 @@ _L95080097:
         cmp R0 #0
         jz sta_95080093
         move R0 #1
-        jmp L95080092
+        jmp L_95080092
 sta_95080093:
 sta_95080094:
         move R0 #0
-        jmp L95080092
-L95080092:
+        jmp L_95080092
+L_95080092:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+char_to_str:
+; -------------------------------------------
+; source   : const char* char_to_str(char c)
+; function : char_to_str
+; param   : char c
+; return   : const char*
+; --------------------------------------------
 char_to_str:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         moveb R0 [R12+12]
         sextb R0 R0
         move R10 R0
@@ -2208,7 +1775,7 @@ char_to_str:
         mul R0 #1
         pop R1
         add R0 R1
-        move @0 R10
+        moveb [R0] R10
         move R0 #0
         move R5 R0
         move R0 _buf
@@ -2222,21 +1789,26 @@ char_to_str:
         mul R0 #1
         pop R9
         add R0 R9
-        move @0 R5
+        moveb [R0] R5
         move R0 _buf
-        jmp L95080107
-L95080107:
+        jmp L_95080107
+L_95080107:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #5
-        push R1
         ret
+str_to_char:
+; -------------------------------------------
+; source   : char str_to_char(const char* s)
+; function : str_to_char
+; param   : const char* s
+; return   : char
+; --------------------------------------------
 str_to_char:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         test R0 R0
         jz _L95080108
@@ -2246,7 +1818,7 @@ str_to_char:
         mul R0 #1
         pop R6
         add R0 R6
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         test R0 R0
         jz _L95080108
@@ -2263,161 +1835,216 @@ _L95080109:
         mul R0 #1
         pop R4
         add R0 R4
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         jmp _L95080111
 _L95080110:
         move R0 #0
 _L95080111:
-        jmp L95080112
-L95080112:
+        jmp L_95080112
+L_95080112:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+byte_to_str:
+; -------------------------------------------
+; source   : const char* byte_to_str(unsigned char b)
+; function : byte_to_str
+; param   : unsigned char b
+; return   : const char*
+; --------------------------------------------
 byte_to_str:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         moveb R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call int_to_str
-        jmp L95080113
-L95080113:
+        add R13 #4
+        jmp L_95080113
+L_95080113:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #5
-        push R1
         ret
+str_to_byte:
+; -------------------------------------------
+; source   : unsigned char str_to_byte(const char* s)
+; function : str_to_byte
+; param   : const char* s
+; return   : unsigned char
+; --------------------------------------------
 str_to_byte:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call atoi
         add R13 #4
-        jmp L95080114
-L95080114:
+        jmp L_95080114
+L_95080114:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+sbyte_to_str:
+; -------------------------------------------
+; source   : const char* sbyte_to_str(signed char b)
+; function : sbyte_to_str
+; param   : signed char b
+; return   : const char*
+; --------------------------------------------
 sbyte_to_str:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         moveb R0 [R12+12]
         sextb R0 R0
         push R0
+        move R0 [R13+0]
         call int_to_str
-        jmp L95080115
-L95080115:
+        add R13 #4
+        jmp L_95080115
+L_95080115:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #5
-        push R1
         ret
+str_to_sbyte:
+; -------------------------------------------
+; source   : signed char str_to_sbyte(const char* s)
+; function : str_to_sbyte
+; param   : const char* s
+; return   : signed char
+; --------------------------------------------
 str_to_sbyte:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call atoi
         add R13 #4
-        jmp L95080116
-L95080116:
+        jmp L_95080116
+L_95080116:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+short_to_str:
+; -------------------------------------------
+; source   : const char* short_to_str(short s)
+; function : short_to_str
+; param   : short s
+; return   : const char*
+; --------------------------------------------
 short_to_str:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         moveh R0 [R12+12]
         sexth R0 R0
         push R0
+        move R0 [R13+0]
         call int_to_str
-        jmp L95080117
-L95080117:
+        add R13 #4
+        jmp L_95080117
+L_95080117:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #6
-        push R1
         ret
+str_to_short:
+; -------------------------------------------
+; source   : short str_to_short(const char* s)
+; function : str_to_short
+; param   : const char* s
+; return   : short
+; --------------------------------------------
 str_to_short:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call atoi
         add R13 #4
-        jmp L95080118
-L95080118:
+        jmp L_95080118
+L_95080118:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+ushort_to_str:
+; -------------------------------------------
+; source   : const char* ushort_to_str(unsigned short s)
+; function : ushort_to_str
+; param   : unsigned short s
+; return   : const char*
+; --------------------------------------------
 ushort_to_str:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         moveh R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call int_to_str
-        jmp L95080119
-L95080119:
+        add R13 #4
+        jmp L_95080119
+L_95080119:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #6
-        push R1
         ret
+str_to_ushort:
+; -------------------------------------------
+; source   : unsigned short str_to_ushort(const char* s)
+; function : str_to_ushort
+; param   : const char* s
+; return   : unsigned short
+; --------------------------------------------
 str_to_ushort:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call atoi
         add R13 #4
-        jmp L95080120
-L95080120:
+        jmp L_95080120
+L_95080120:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+float_to_str:
+; -------------------------------------------
+; source   : const char* float_to_str(float f)
+; function : float_to_str
+; param   : float f
+; return   : const char*
+; --------------------------------------------
 float_to_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
-        movef [R12+12] R0
+        sub R13 #16
         movef R0 [R12+12]
         fpush R0
         move R0 #0
@@ -2445,7 +2072,7 @@ _L95080124:
         mul R0 #1
         pop R7
         add R0 R7
-        move @0 R8
+        moveb [R0] R8
         movef R0 [R12+12]
         movef R0 [R12+12]
         fneg R0 R0
@@ -2460,20 +2087,21 @@ _L95080124:
         fpop R1
         fadd R0 R1 R0
         f2i R0 R0
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 _buf
         push R0
         move R0 #1
         pop R1
         add R1 R0
         move R0 R1
-        move R2 R0
         push R0
         move R0 #1000000
-        move R1 R0
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call ftoa
         add R13 #12
         jmp sta_95080122
@@ -2488,33 +2116,38 @@ sta_95080121:
         fpop R1
         fadd R0 R1 R0
         f2i R0 R0
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 _buf
-        move R2 R0
         push R0
         move R0 #1000000
-        move R1 R0
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call ftoa
         add R13 #12
 sta_95080122:
         move R0 _buf
-        jmp L95080129
-L95080129:
+        jmp L_95080129
+L_95080129:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+str_to_float:
+; -------------------------------------------
+; source   : float str_to_float(const char* s)
+; function : str_to_float
+; param   : const char* s
+; return   : float
+; --------------------------------------------
 str_to_float:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         move R0 [R12+12]
         test R0 R0
@@ -2532,7 +2165,7 @@ _L95080136:
         mul R0 #1
         pop R2
         add R0 R2
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         move R0 [R12+12]
         push R0
@@ -2540,7 +2173,7 @@ _L95080136:
         mul R0 #1
         pop R1
         add R0 R1
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         test R0 R0
         jz _L95080137
@@ -2560,18 +2193,18 @@ _L95080134:
         cmp R0 #0
         jz sta_95080130
         movef R0 [flt_95080139]
-        jmp L95080140
+        jmp L_95080140
 sta_95080130:
 sta_95080131:
         move R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #1
         pop R10
         add R0 R10
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #45
@@ -2588,7 +2221,7 @@ _L95080144:
         move R0 #1
         move R0 #1
         neg R0 R0
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 [R12+12]
         move R1 R0
         add R0 R0 #1
@@ -2597,11 +2230,11 @@ _L95080144:
 sta_95080141:
 sta_95080142:
         movef R0 [flt_95080145]
-        movef [R12-8] R0
+        movef [R12-12] R0
 sta_95080146:
         move R2 #0
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #48
@@ -2616,7 +2249,7 @@ _L95080151:
         test R0 R0
         jz _L95080148
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #57
@@ -2637,14 +2270,14 @@ _L95080148:
 _L95080149:
         cmp R0 #0
         jz sta_95080147
-        movef R0 [R12-8]
+        movef R0 [R12-12]
         fpush R0
         movef R0 [flt_95080154]
         fpop R1
         fmul R0 R1 R0
         fpush R0
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #48
@@ -2654,7 +2287,7 @@ _L95080149:
         i2f R0 R0
         fpop R1
         fadd R0 R1 R0
-        movef [R12-8] R0
+        movef [R12-12] R0
         move R0 [R12+12]
         move R1 R0
         add R0 R0 #1
@@ -2663,7 +2296,7 @@ _L95080149:
         jmp sta_95080146
 sta_95080147:
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #46
@@ -2683,11 +2316,11 @@ _L95080158:
         move [R12+12] R0
         move R0 R1
         movef R0 [flt_95080159]
-        movef [R12-12] R0
+        movef [R12-16] R0
 sta_95080160:
         move R2 #0
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #48
@@ -2702,7 +2335,7 @@ _L95080165:
         test R0 R0
         jz _L95080162
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #57
@@ -2723,12 +2356,12 @@ _L95080162:
 _L95080163:
         cmp R0 #0
         jz sta_95080161
-        movef R0 [R12-8]
-        fpush R0
         movef R0 [R12-12]
         fpush R0
+        movef R0 [R12-16]
+        fpush R0
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #48
@@ -2740,13 +2373,13 @@ _L95080163:
         fmul R0 R1 R0
         fpop R1
         fadd R0 R1 R0
-        movef [R12-8] R0
-        movef R0 [R12-12]
+        movef [R12-12] R0
+        movef R0 [R12-16]
         fpush R0
         movef R0 [flt_95080168]
         fpop R1
         fmul R0 R1 R0
-        movef [R12-12] R0
+        movef [R12-16] R0
         move R0 [R12+12]
         move R1 R0
         add R0 R0 #1
@@ -2756,52 +2389,61 @@ _L95080163:
 sta_95080161:
 sta_95080155:
 sta_95080156:
-        move R0 [R12-4]
+        move R0 [R12-8]
         i2f R0 R0
         fpush R0
-        movef R0 [R12-8]
+        movef R0 [R12-12]
         fpop R1
         fmul R0 R1 R0
-        jmp L95080140
-L95080140:
+        jmp L_95080140
+L_95080140:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+double_to_str:
+; -------------------------------------------
+; source   : const char* double_to_str(double d)
+; function : double_to_str
+; param   : double d
+; return   : const char*
+; --------------------------------------------
 double_to_str:
         push R15
         push R12
         move R12 R13
-        moved [R12+12] R0
+        sub R13 #12
         move R0 _buf
-        move R2 R0
         push R0
         move R0 #9
-        move R1 R0
         push R0
         moved R0 [R12+12]
         sub R13 #8
         moved @13 R0
+        move R0 [R13+0]
+        move R1 [R13+8]
+        move R2 [R13+12]
         call dtoa
         add R13 #16
         move R0 _buf
-        jmp L95080169
-L95080169:
+        jmp L_95080169
+L_95080169:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+str_to_double:
+; -------------------------------------------
+; source   : double str_to_double(const char* s)
+; function : str_to_double
+; param   : const char* s
+; return   : double
+; --------------------------------------------
 str_to_double:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+12]
         move R0 [R12+12]
         test R0 R0
@@ -2819,7 +2461,7 @@ _L95080176:
         mul R0 #1
         pop R3
         add R0 R3
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         move R0 [R12+12]
         push R0
@@ -2827,7 +2469,7 @@ _L95080176:
         mul R0 #1
         pop R9
         add R0 R9
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         test R0 R0
         jz _L95080177
@@ -2847,18 +2489,18 @@ _L95080174:
         cmp R0 #0
         jz sta_95080170
         moved R0 [dbl_95080179]
-        jmp L95080180
+        jmp L_95080180
 sta_95080170:
 sta_95080171:
         move R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #1
         pop R5
         add R0 R5
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #45
@@ -2875,7 +2517,7 @@ _L95080184:
         move R0 #1
         move R0 #1
         neg R0 R0
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 [R12+12]
         move R1 R0
         add R0 R0 #1
@@ -2884,11 +2526,11 @@ _L95080184:
 sta_95080181:
 sta_95080182:
         moved R0 [dbl_95080185]
-        moved [R12-12] R0
+        moved [R12-16] R0
 sta_95080186:
         move R2 #0
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #48
@@ -2903,7 +2545,7 @@ _L95080191:
         test R0 R0
         jz _L95080188
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #57
@@ -2924,14 +2566,14 @@ _L95080188:
 _L95080189:
         cmp R0 #0
         jz sta_95080187
-        moved R0 [R12-12]
+        moved R0 [R12-16]
         dpush R0
         moved R0 [dbl_95080194]
         dpop R1
         dmul R0 R1 R0
         dpush R0
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #48
@@ -2941,7 +2583,7 @@ _L95080189:
         i2d R0 R0
         dpop R1
         dadd R0 R1 R0
-        moved [R12-12] R0
+        moved [R12-16] R0
         move R0 [R12+12]
         move R1 R0
         add R0 R0 #1
@@ -2950,7 +2592,7 @@ _L95080189:
         jmp sta_95080186
 sta_95080187:
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #46
@@ -2970,11 +2612,11 @@ _L95080198:
         move [R12+12] R0
         move R0 R1
         moved R0 [dbl_95080199]
-        moved [R12-20] R0
+        moved [R12-24] R0
 sta_95080200:
         move R2 #0
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #48
@@ -2989,7 +2631,7 @@ _L95080205:
         test R0 R0
         jz _L95080202
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #57
@@ -3010,12 +2652,12 @@ _L95080202:
 _L95080203:
         cmp R0 #0
         jz sta_95080201
-        moved R0 [R12-12]
+        moved R0 [R12-16]
         dpush R0
-        moved R0 [R12-20]
+        moved R0 [R12-24]
         dpush R0
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
         move R0 #48
@@ -3027,13 +2669,13 @@ _L95080203:
         dmul R0 R1 R0
         dpop R1
         dadd R0 R1 R0
-        moved [R12-12] R0
-        moved R0 [R12-20]
+        moved [R12-16] R0
+        moved R0 [R12-24]
         dpush R0
         moved R0 [dbl_95080208]
         dpop R1
         dmul R0 R1 R0
-        moved [R12-20] R0
+        moved [R12-24] R0
         move R0 [R12+12]
         move R1 R0
         add R0 R0 #1
@@ -3043,40 +2685,48 @@ _L95080203:
 sta_95080201:
 sta_95080195:
 sta_95080196:
-        move R0 [R12-4]
+        move R0 [R12-8]
         i2d R0 R0
         dpush R0
-        moved R0 [R12-12]
+        moved R0 [R12-16]
         dpop R1
         dmul R0 R1 R0
-        jmp L95080180
-L95080180:
+        jmp L_95080180
+L_95080180:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+float_to_wstr:
+; -------------------------------------------
+; source   : const wchar_t* float_to_wstr(float f)
+; function : float_to_wstr
+; param   : float f
+; return   : const wchar_t*
+; --------------------------------------------
 float_to_wstr:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         movef R0 [R12+12]
-        push R0
+        sub R13 #4
+        movef @13 R0
+        move R0 [R13+0]
         call float_to_str
+        add R13 #4
         move R0 _buf
         push R0
+        move R0 [R13+0]
         call strlen
         add R13 #4
-        move [R12-4] R0
-        move R0 #0
         move [R12-8] R0
+        move R0 #0
+        move [R12-12] R0
 sta_95080209:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         cmp R1 R0
         jle _L95080212
@@ -3091,65 +2741,73 @@ _L95080213:
         push R0
         move R6 #0
         push R6
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R6
         move R6 R0
         move R0 R6
         mul R0 #1
         pop R4
         add R0 R4
-        move R0 @0
+        moveb R0 [R0]
+        sextb R0 R0
         move R11 R0
         move R0 _wbuf
         push R0
         move R7 #0
         push R7
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R7
         move R7 R0
         move R0 R7
         mul R0 #2
         pop R8
         add R0 R8
-        move @0 R11
+        moveh [R0] R11
 sta_95080210:
-        move R0 [R12-8]
+        move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
-        move [R12-8] R0
+        move [R12-12] R0
         move R0 R1
         jmp sta_95080209
 sta_95080211:
         move R0 _wbuf
-        jmp L95080214
-L95080214:
+        jmp L_95080214
+L_95080214:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+double_to_wstr:
+; -------------------------------------------
+; source   : const wchar_t* double_to_wstr(double d)
+; function : double_to_wstr
+; param   : double d
+; return   : const wchar_t*
+; --------------------------------------------
 double_to_wstr:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         moved R0 [R12+12]
         sub R13 #8
         moved @13 R0
+        move R0 [R13+0]
         call double_to_str
+        add R13 #8
         move R0 _buf
         push R0
+        move R0 [R13+0]
         call strlen
         add R13 #4
-        move [R12-4] R0
-        move R0 #0
         move [R12-8] R0
+        move R0 #0
+        move [R12-12] R0
 sta_95080215:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         cmp R1 R0
         jle _L95080218
@@ -3164,64 +2822,72 @@ _L95080219:
         push R0
         move R2 #0
         push R2
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R2
         move R2 R0
         move R0 R2
         mul R0 #1
         pop R1
         add R0 R1
-        move R0 @0
+        moveb R0 [R0]
+        sextb R0 R0
         move R10 R0
         move R0 _wbuf
         push R0
         move R3 #0
         push R3
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R3
         move R3 R0
         move R0 R3
         mul R0 #2
         pop R9
         add R0 R9
-        move @0 R10
+        moveh [R0] R10
 sta_95080216:
-        move R0 [R12-8]
+        move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
-        move [R12-8] R0
+        move [R12-12] R0
         move R0 R1
         jmp sta_95080215
 sta_95080217:
         move R0 _wbuf
-        jmp L95080220
-L95080220:
+        jmp L_95080220
+L_95080220:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+bool_to_wstr:
+; -------------------------------------------
+; source   : const wchar_t* bool_to_wstr(int b)
+; function : bool_to_wstr
+; param   : int b
+; return   : const wchar_t*
+; --------------------------------------------
 bool_to_wstr:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call bool_to_str
+        add R13 #4
         move R0 _buf
         push R0
+        move R0 [R13+0]
         call strlen
         add R13 #4
-        move [R12-4] R0
-        move R0 #0
         move [R12-8] R0
+        move R0 #0
+        move [R12-12] R0
 sta_95080221:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         cmp R1 R0
         jle _L95080224
@@ -3236,64 +2902,73 @@ _L95080225:
         push R0
         move R5 #0
         push R5
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R5
         move R5 R0
         move R0 R5
         mul R0 #1
         pop R6
         add R0 R6
-        move R0 @0
+        moveb R0 [R0]
+        sextb R0 R0
         move R4 R0
         move R0 _wbuf
         push R0
         move R7 #0
         push R7
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R7
         move R7 R0
         move R0 R7
         mul R0 #2
         pop R8
         add R0 R8
-        move @0 R4
+        moveh [R0] R4
 sta_95080222:
-        move R0 [R12-8]
+        move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
-        move [R12-8] R0
+        move [R12-12] R0
         move R0 R1
         jmp sta_95080221
 sta_95080223:
         move R0 _wbuf
-        jmp L95080226
-L95080226:
+        jmp L_95080226
+L_95080226:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+float_to_ustr:
+; -------------------------------------------
+; source   : const char32_t* float_to_ustr(float f)
+; function : float_to_ustr
+; param   : float f
+; return   : const char32_t*
+; --------------------------------------------
 float_to_ustr:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         movef R0 [R12+12]
-        push R0
+        sub R13 #4
+        movef @13 R0
+        move R0 [R13+0]
         call float_to_str
+        add R13 #4
         move R0 _buf
         push R0
+        move R0 [R13+0]
         call strlen
         add R13 #4
-        move [R12-4] R0
-        move R0 #0
         move [R12-8] R0
+        move R0 #0
+        move [R12-12] R0
 sta_95080227:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         cmp R1 R0
         jle _L95080230
@@ -3308,65 +2983,73 @@ _L95080231:
         push R0
         move R11 #0
         push R11
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R11
         move R11 R0
         move R0 R11
         mul R0 #1
         pop R2
         add R0 R2
-        move R0 @0
+        moveb R0 [R0]
+        sextb R0 R0
         move R1 R0
         move R0 _ubuf
         push R0
         move R3 #0
         push R3
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R3
         move R3 R0
         move R0 R3
         mul R0 #4
         pop R9
         add R0 R9
-        move @0 R1
+        move [R0] R1
 sta_95080228:
-        move R0 [R12-8]
+        move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
-        move [R12-8] R0
+        move [R12-12] R0
         move R0 R1
         jmp sta_95080227
 sta_95080229:
         move R0 _ubuf
-        jmp L95080232
-L95080232:
+        jmp L_95080232
+L_95080232:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+double_to_ustr:
+; -------------------------------------------
+; source   : const char32_t* double_to_ustr(double d)
+; function : double_to_ustr
+; param   : double d
+; return   : const char32_t*
+; --------------------------------------------
 double_to_ustr:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         moved R0 [R12+12]
         sub R13 #8
         moved @13 R0
+        move R0 [R13+0]
         call double_to_str
+        add R13 #8
         move R0 _buf
         push R0
+        move R0 [R13+0]
         call strlen
         add R13 #4
-        move [R12-4] R0
-        move R0 #0
         move [R12-8] R0
+        move R0 #0
+        move [R12-12] R0
 sta_95080233:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         cmp R1 R0
         jle _L95080236
@@ -3381,64 +3064,73 @@ _L95080237:
         push R0
         move R10 #0
         push R10
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R10
         move R10 R0
         move R0 R10
         mul R0 #1
         pop R5
         add R0 R5
-        move R0 @0
+        moveb R0 [R0]
+        sextb R0 R0
         move R6 R0
         move R0 _ubuf
         push R0
         move R7 #0
         push R7
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R7
         move R7 R0
         move R0 R7
         mul R0 #4
         pop R8
         add R0 R8
-        move @0 R6
+        move [R0] R6
 sta_95080234:
-        move R0 [R12-8]
+        move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
-        move [R12-8] R0
+        move [R12-12] R0
         move R0 R1
         jmp sta_95080233
 sta_95080235:
         move R0 _ubuf
-        jmp L95080238
-L95080238:
+        jmp L_95080238
+L_95080238:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+bool_to_ustr:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : const char32_t* bool_to_ustr(int b)
+; function : bool_to_ustr
+; param   : int b
+; return   : const char32_t*
+; --------------------------------------------
 bool_to_ustr:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call bool_to_str
+        add R13 #4
         move R0 _buf
         push R0
+        move R0 [R13+0]
         call strlen
         add R13 #4
-        move [R12-4] R0
-        move R0 #0
         move [R12-8] R0
+        move R0 #0
+        move [R12-12] R0
 sta_95080239:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         cmp R1 R0
         jle _L95080242
@@ -3453,42 +3145,40 @@ _L95080243:
         push R0
         move R4 #0
         push R4
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R4
         move R4 R0
         move R0 R4
         mul R0 #1
         pop R11
         add R0 R11
-        move R0 @0
+        moveb R0 [R0]
+        sextb R0 R0
         move R2 R0
         move R0 _ubuf
         push R0
         move R3 #0
         push R3
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R3
         move R3 R0
         move R0 R3
         mul R0 #4
         pop R9
         add R0 R9
-        move @0 R2
+        move [R0] R2
 sta_95080240:
-        move R0 [R12-8]
+        move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
-        move [R12-8] R0
+        move [R12-12] R0
         move R0 R1
         jmp sta_95080239
 sta_95080241:
         move R0 _ubuf
-        jmp L95080244
-L95080244:
+        jmp L_95080244
+L_95080244:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret

@@ -16,10 +16,10 @@ LABEL NULL
     RET
 
 LABEL IsHexDigit
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL is_hex_digit
-    ADD R13 #1
+    ADD R13 #4
     RET
 
 LABEL SkipSpaces
@@ -45,6 +45,7 @@ LABEL ParseFactor
 LABEL Parserexp
     PUSH R0
     CALL parserexp
+    ADD R13 #4
     RET
 
 LABEL Cases

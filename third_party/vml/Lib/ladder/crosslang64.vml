@@ -9,6 +9,7 @@ LABEL LADDER_LADD64
     sub R13 #8
     movel @13 R0
     CALL ladd64
+    ADD R13 #16
     RET
 
 LABEL LADDER_LSUB64
@@ -17,6 +18,7 @@ LABEL LADDER_LSUB64
     sub R13 #8
     movel @13 R0
     CALL lsub64
+    ADD R13 #16
     RET
 
 LABEL LADDER_LMUL64
@@ -25,6 +27,7 @@ LABEL LADDER_LMUL64
     sub R13 #8
     movel @13 R0
     CALL lmul64
+    ADD R13 #16
     RET
 
 LABEL LADDER_LDIV64
@@ -33,6 +36,7 @@ LABEL LADDER_LDIV64
     sub R13 #8
     movel @13 R0
     CALL ldiv64
+    ADD R13 #16
     RET
 
 LABEL LADDER_LMOD64
@@ -41,22 +45,26 @@ LABEL LADDER_LMOD64
     sub R13 #8
     movel @13 R0
     CALL lmod64
+    ADD R13 #16
     RET
 
 LABEL LADDER_LNEG64
     sub R13 #8
     movel @13 R0
     CALL lneg64
+    ADD R13 #8
     RET
 
 LABEL LADDER_LARR_SUM64
     PUSH R0
     CALL larr_sum64
+    ADD R13 #4
     RET
 
 LABEL LADDER_LARR_AVG64
     PUSH R0
     CALL larr_avg64
+    ADD R13 #4
     RET
 
 LABEL LADDER_LMEAN64
@@ -68,10 +76,12 @@ LABEL LADDER_LMEAN64
 LABEL LADDER_LARR_MAX64
     PUSH R0
     CALL larr_max64
+    ADD R13 #4
     RET
 
 LABEL LADDER_LARR_MIN64
     PUSH R0
     CALL larr_min64
+    ADD R13 #4
     RET
 

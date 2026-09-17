@@ -14,45 +14,53 @@ LABEL crc8
     PUSH R1
     PUSH R0
     CALL crc8
+    ADD R13 #8
     RET
 
 LABEL crc16
     PUSH R1
     PUSH R0
     CALL crc16
+    ADD R13 #8
     RET
 
 LABEL crc32
     PUSH R1
     PUSH R0
     CALL crc32
+    ADD R13 #8
     RET
 
 LABEL djb2Hash
     PUSH R0
     CALL djb2_hash
+    ADD R13 #4
     RET
 
 LABEL sdbmHash
     PUSH R0
     CALL sdbm_hash
+    ADD R13 #4
     RET
 
 LABEL fnv1aHash
     PUSH R0
     CALL fnv1a_hash
+    ADD R13 #4
     RET
 
 LABEL checksum8
     PUSH R1
     PUSH R0
     CALL checksum8
+    ADD R13 #8
     RET
 
 LABEL checksum16
     PUSH R1
     PUSH R0
     CALL checksum16
+    ADD R13 #8
     RET
 
 LABEL Crc_CRC

@@ -21,28 +21,33 @@ LABEL basicInstr
     PUSH R1
     PUSH R0
     CALL basic_instr
+    ADD R13 #12
     RET
 
 LABEL basicStringN
     PUSH R1
     PUSH R0
     CALL basic_stringN
+    ADD R13 #8
     RET
 
 LABEL basicStringS
     PUSH R1
     PUSH R0
     CALL basic_stringS
+    ADD R13 #8
     RET
 
 LABEL basicHex
     PUSH R0
     CALL basic_hex
+    ADD R13 #4
     RET
 
 LABEL basicOct
     PUSH R0
     CALL basic_oct
+    ADD R13 #4
     RET
 
 LABEL basicMid3
@@ -50,6 +55,7 @@ LABEL basicMid3
     PUSH R1
     PUSH R0
     CALL basic_mid3
+    ADD R13 #12
     RET
 
 LABEL basicDateStr
@@ -73,6 +79,7 @@ LABEL basicTimer
 LABEL basicInputN
     PUSH R0
     CALL basic_inputN
+    ADD R13 #4
     RET
 
 LABEL asm
@@ -84,6 +91,7 @@ LABEL asm
 LABEL basicEof
     PUSH R0
     CALL basic_eof
+    ADD R13 #4
     RET
 
 LABEL manipulation
@@ -95,21 +103,25 @@ LABEL manipulation
 LABEL basicUcase
     PUSH R0
     CALL basic_ucase
+    ADD R13 #4
     RET
 
 LABEL basicLcase
     PUSH R0
     CALL basic_lcase
+    ADD R13 #4
     RET
 
 LABEL basicLen
     PUSH R0
     CALL basic_len
+    ADD R13 #4
     RET
 
 LABEL basicAsc
     PUSH R0
     CALL basic_asc
+    ADD R13 #4
     RET
 
 LABEL code
@@ -121,6 +133,7 @@ LABEL code
 LABEL basicChr
     PUSH R0
     CALL basic_chr
+    ADD R13 #4
     RET
 
 LABEL spaces
@@ -132,48 +145,57 @@ LABEL spaces
 LABEL basicSpace
     PUSH R0
     CALL basic_space
+    ADD R13 #4
     RET
 
 LABEL basicStrInt
     PUSH R0
     CALL basic_str_int
+    ADD R13 #4
     RET
 
 LABEL basicVal
     PUSH R0
     CALL basic_val
+    ADD R13 #4
     RET
 
 LABEL basicLeft
     PUSH R1
     PUSH R0
     CALL basic_left
+    ADD R13 #8
     RET
 
 LABEL basicRight
     PUSH R1
     PUSH R0
     CALL basic_right
+    ADD R13 #8
     RET
 
 LABEL basicLtrim
     PUSH R0
     CALL basic_ltrim
+    ADD R13 #4
     RET
 
 LABEL basicRtrim
     PUSH R0
     CALL basic_rtrim
+    ADD R13 #4
     RET
 
 LABEL basicAbs
     PUSH R0
     CALL basic_abs
+    ADD R13 #4
     RET
 
 LABEL basicSgn
     PUSH R0
     CALL basic_sgn
+    ADD R13 #4
     RET
 
 LABEL interpolation
@@ -186,21 +208,25 @@ LABEL interpolation
 LABEL sinLookup
     PUSH R0
     CALL _sin_lookup
+    ADD R13 #4
     RET
 
 LABEL basicSin
     PUSH R0
     CALL basic_sin
+    ADD R13 #4
     RET
 
 LABEL basicCos
     PUSH R0
     CALL basic_cos
+    ADD R13 #4
     RET
 
 LABEL basicTan
     PUSH R0
     CALL basic_tan
+    ADD R13 #4
     RET
 
 LABEL method
@@ -212,6 +238,7 @@ LABEL method
 LABEL basicSqr
     PUSH R0
     CALL basic_sqr
+    ADD R13 #4
     RET
 
 LABEL integer
@@ -233,27 +260,32 @@ LABEL series
 LABEL basicExp
     PUSH R0
     CALL basic_exp
+    ADD R13 #4
     RET
 
 LABEL basicLog
     PUSH R0
     CALL basic_log
+    ADD R13 #4
     RET
 
 LABEL basicAtn
     PUSH R0
     CALL basic_atn
+    ADD R13 #4
     RET
 
 LABEL basicInt
     PUSH R0
     CALL basic_int
+    ADD R13 #4
     RET
 
 LABEL basicPoint
     PUSH R1
     PUSH R0
     CALL basic_point
+    ADD R13 #8
     RET
 
 LABEL above

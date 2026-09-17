@@ -6,31 +6,37 @@
 LABEL swift_int_to_str
     PUSH R0
     CALL int_to_str
+    ADD R13 #4
     RET
 
 LABEL swift_int_to_wstr
     PUSH R0
     CALL int_to_wstr
+    ADD R13 #4
     RET
 
 LABEL swift_int_to_ustr
     PUSH R0
     CALL int_to_ustr
+    ADD R13 #4
     RET
 
 LABEL swift_str_to_int
     PUSH R0
     CALL str_to_int
+    ADD R13 #4
     RET
 
 LABEL swift_wstr_to_int
     PUSH R0
     CALL wstr_to_int
+    ADD R13 #4
     RET
 
 LABEL swift_ustr_to_int
     PUSH R0
     CALL ustr_to_int
+    ADD R13 #4
     RET
 
 LABEL swift_ltoa
@@ -46,24 +52,28 @@ LABEL swift_long_to_strbuf
     sub R13 #8
     movel @13 R0
     CALL long_to_strbuf
+    ADD R13 #12
     RET
 
 LABEL swift_long_to_str
     sub R13 #8
     movel @13 R0
     CALL long_to_str
+    ADD R13 #8
     RET
 
 LABEL swift_long_to_wstr
     sub R13 #8
     movel @13 R0
     CALL long_to_wstr
+    ADD R13 #8
     RET
 
 LABEL swift_long_to_ustr
     sub R13 #8
     movel @13 R0
     CALL long_to_ustr
+    ADD R13 #8
     RET
 
 LABEL swift_atol
@@ -75,75 +85,89 @@ LABEL swift_atol
 LABEL swift_str_to_long
     PUSH R0
     CALL str_to_long
+    ADD R13 #4
     RET
 
 LABEL swift_wstr_to_long
     PUSH R0
     CALL wstr_to_long
+    ADD R13 #4
     RET
 
 LABEL swift_ustr_to_long
     PUSH R0
     CALL ustr_to_long
+    ADD R13 #4
     RET
 
 LABEL swift_uint_to_str
     PUSH R0
     CALL uint_to_str
+    ADD R13 #4
     RET
 
 LABEL swift_ulong_to_str
     sub R13 #8
     movel @13 R0
     CALL ulong_to_str
+    ADD R13 #8
     RET
 
 LABEL swift_str_to_uint
     PUSH R0
     CALL str_to_uint
+    ADD R13 #4
     RET
 
 LABEL swift_str_to_ulong
     PUSH R0
     CALL str_to_ulong
+    ADD R13 #4
     RET
 
 LABEL swift_bool_to_str
     PUSH R0
     CALL bool_to_str
+    ADD R13 #4
     RET
 
 LABEL swift_str_to_bool
     PUSH R0
     CALL str_to_bool
+    ADD R13 #4
     RET
 
 LABEL swift_char_to_str
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL char_to_str
+    ADD R13 #4
     RET
 
 LABEL swift_str_to_char
     PUSH R0
     CALL str_to_char
+    ADD R13 #4
     RET
 
 LABEL swift_byte_to_str
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL byte_to_str
+    ADD R13 #4
     RET
 
 LABEL swift_str_to_byte
     PUSH R0
     CALL str_to_byte
+    ADD R13 #4
     RET
 
 LABEL swift_sbyte_to_str
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL sbyte_to_str
+    ADD R13 #4
     RET
 
 LABEL swift_str_to_sbyte
@@ -153,25 +177,29 @@ LABEL swift_str_to_sbyte
     RET
 
 LABEL swift_short_to_str
-    sub R13 #2
+    sub R13 #4
     moveh @13 R0
     CALL short_to_str
+    ADD R13 #4
     RET
 
 LABEL swift_str_to_short
     PUSH R0
     CALL str_to_short
+    ADD R13 #4
     RET
 
 LABEL swift_ushort_to_str
-    sub R13 #2
+    sub R13 #4
     moveh @13 R0
     CALL ushort_to_str
+    ADD R13 #4
     RET
 
 LABEL swift_str_to_ushort
     PUSH R0
     CALL str_to_ushort
+    ADD R13 #4
     RET
 
 LABEL swift_ftoa
@@ -186,11 +214,13 @@ LABEL swift_float_to_str
     sub R13 #4
     movef @13 R0
     CALL float_to_str
+    ADD R13 #4
     RET
 
 LABEL swift_str_to_float
     PUSH R0
     CALL str_to_float
+    ADD R13 #4
     RET
 
 LABEL swift_dtoa
@@ -206,45 +236,53 @@ LABEL swift_double_to_str
     sub R13 #8
     moved @13 R0
     CALL double_to_str
+    ADD R13 #8
     RET
 
 LABEL swift_str_to_double
     PUSH R0
     CALL str_to_double
+    ADD R13 #4
     RET
 
 LABEL swift_float_to_wstr
     sub R13 #4
     movef @13 R0
     CALL float_to_wstr
+    ADD R13 #4
     RET
 
 LABEL swift_double_to_wstr
     sub R13 #8
     moved @13 R0
     CALL double_to_wstr
+    ADD R13 #8
     RET
 
 LABEL swift_bool_to_wstr
     PUSH R0
     CALL bool_to_wstr
+    ADD R13 #4
     RET
 
 LABEL swift_float_to_ustr
     sub R13 #4
     movef @13 R0
     CALL float_to_ustr
+    ADD R13 #4
     RET
 
 LABEL swift_double_to_ustr
     sub R13 #8
     moved @13 R0
     CALL double_to_ustr
+    ADD R13 #8
     RET
 
 LABEL swift_bool_to_ustr
     PUSH R0
     CALL bool_to_ustr
+    ADD R13 #4
     RET
 
 LABEL swift_wstr_to_utf8
@@ -252,6 +290,7 @@ LABEL swift_wstr_to_utf8
     PUSH R1
     PUSH R0
     CALL wstr_to_utf8
+    ADD R13 #12
     RET
 
 LABEL swift_ustr_to_utf8
@@ -259,6 +298,7 @@ LABEL swift_ustr_to_utf8
     PUSH R1
     PUSH R0
     CALL ustr_to_utf8
+    ADD R13 #12
     RET
 
 LABEL func_int_to_str

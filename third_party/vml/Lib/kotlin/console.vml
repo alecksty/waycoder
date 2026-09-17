@@ -11,61 +11,72 @@ LABEL kotlin_read_line
     RET
 
 LABEL kotlin_putchar
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL putchar
+    ADD R13 #4
     RET
 
 LABEL kotlin_print_str
     PUSH R0
     CALL print_str
+    ADD R13 #4
     RET
 
 LABEL kotlin_print_int
     PUSH R0
     CALL print_int
+    ADD R13 #4
     RET
 
 LABEL kotlin_print_hex
     PUSH R0
     CALL print_hex
+    ADD R13 #4
     RET
 
 LABEL kotlin_println_str
     PUSH R0
     CALL println_str
+    ADD R13 #4
     RET
 
 LABEL kotlin_println_int
     PUSH R0
     CALL println_int
+    ADD R13 #4
     RET
 
 LABEL kotlin_print_float
     sub R13 #4
     movef @13 R0
     CALL print_float
+    ADD R13 #4
     RET
 
 LABEL kotlin_print_bool
     PUSH R0
     CALL print_bool
+    ADD R13 #4
     RET
 
 LABEL kotlin_puthex
     PUSH R0
     CALL puthex
+    ADD R13 #4
     RET
 
 LABEL kotlin_putfloat
     sub R13 #4
     movef @13 R0
     CALL putfloat
+    ADD R13 #4
     RET
 
 LABEL kotlin_print_str_no_nl
     PUSH R0
     CALL print_str_no_nl
+    ADD R13 #4
     RET
 
 LABEL kotlin_print_str_no_nl_impl
@@ -77,6 +88,7 @@ LABEL kotlin_print_str_no_nl_impl
 LABEL kotlin_println_hex
     PUSH R0
     CALL println_hex
+    ADD R13 #4
     RET
 
 LABEL kotlin_clear_screen
@@ -112,6 +124,7 @@ LABEL kotlin_printf2
     PUSH R1
     PUSH R0
     CALL printf2
+    ADD R13 #12
     RET
 
 LABEL kotlin_printf3
@@ -120,6 +133,7 @@ LABEL kotlin_printf3
     PUSH R1
     PUSH R0
     CALL printf3
+    ADD R13 #16
     RET
 
 LABEL kotlin_printf
@@ -132,50 +146,59 @@ LABEL kotlin_printf
 LABEL kotlin_puts
     PUSH R0
     CALL puts
+    ADD R13 #4
     RET
 
 LABEL kotlin_print_string
     PUSH R0
     CALL print_string
+    ADD R13 #4
     RET
 
 LABEL kotlin_print_wstr
     PUSH R0
     CALL print_wstr
+    ADD R13 #4
     RET
 
 LABEL kotlin_println_wstr
     PUSH R0
     CALL println_wstr
+    ADD R13 #4
     RET
 
 LABEL kotlin_print_ustr
     PUSH R0
     CALL print_ustr
+    ADD R13 #4
     RET
 
 LABEL kotlin_print_long
     sub R13 #8
     movel @13 R0
     CALL print_long
+    ADD R13 #8
     RET
 
 LABEL kotlin_print_hex_long
     sub R13 #8
     movel @13 R0
     CALL print_hex_long
+    ADD R13 #8
     RET
 
 LABEL kotlin_println_long
     sub R13 #8
     movel @13 R0
     CALL println_long
+    ADD R13 #8
     RET
 
 LABEL kotlin_println_hex_long
     sub R13 #8
     movel @13 R0
     CALL println_hex_long
+    ADD R13 #8
     RET
 
 LABEL kotlin_input_long
@@ -187,6 +210,7 @@ LABEL kotlin_print_double
     sub R13 #8
     moved @13 R0
     CALL print_double
+    ADD R13 #12
     RET
 
 LABEL kotlin_println_double
@@ -194,6 +218,7 @@ LABEL kotlin_println_double
     sub R13 #8
     moved @13 R0
     CALL println_double
+    ADD R13 #12
     RET
 
 LABEL kotlin_putsn
@@ -209,18 +234,19 @@ LABEL kotlin_vsnprintf
     PUSH R3
     PUSH R2
     PUSH R1
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL vsnprintf
-    ADD R13 #13
+    ADD R13 #16
     RET
 
 LABEL kotlin_sprintf
     PUSH R2
     PUSH R1
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL sprintf
+    ADD R13 #12
     RET
 
 LABEL kotlin_printf4
@@ -229,10 +255,10 @@ LABEL kotlin_printf4
     PUSH R3
     PUSH R2
     PUSH R1
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL printf4
-    ADD R13 #21
+    ADD R13 #24
     RET
 
 LABEL kotlin_printf5
@@ -242,80 +268,93 @@ LABEL kotlin_printf5
     PUSH R3
     PUSH R2
     PUSH R1
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL printf5
-    ADD R13 #25
+    ADD R13 #28
     RET
 
 LABEL kotlin_printx_int32
     PUSH R0
     CALL printx_int32
+    ADD R13 #4
     RET
 
 LABEL kotlin_printlnx_int32
     PUSH R0
     CALL printlnx_int32
+    ADD R13 #4
     RET
 
 LABEL kotlin_printx_string
     PUSH R0
     CALL printx_string
+    ADD R13 #4
     RET
 
 LABEL kotlin_printlnx_string
     PUSH R0
     CALL printlnx_string
+    ADD R13 #4
     RET
 
 LABEL kotlin_printx_wstring
     PUSH R0
     CALL printx_wstring
+    ADD R13 #4
     RET
 
 LABEL kotlin_printlnx_wstring
     PUSH R0
     CALL printlnx_wstring
+    ADD R13 #4
     RET
 
 LABEL kotlin_printx_ustring
     PUSH R0
     CALL printx_ustring
+    ADD R13 #4
     RET
 
 LABEL kotlin_printlnx_ustring
     PUSH R0
     CALL printlnx_ustring
+    ADD R13 #4
     RET
 
 LABEL kotlin_printx_float32
     sub R13 #4
     movef @13 R0
     CALL printx_float32
+    ADD R13 #4
     RET
 
 LABEL kotlin_printlnx_float32
     sub R13 #4
     movef @13 R0
     CALL printlnx_float32
+    ADD R13 #4
     RET
 
 LABEL kotlin_printx_float64
     sub R13 #8
     moved @13 R0
     CALL printx_float64
+    ADD R13 #8
     RET
 
 LABEL kotlin_printlnx_float64
     sub R13 #8
     moved @13 R0
     CALL printlnx_float64
+    ADD R13 #8
     RET
 
 LABEL kotlin_printx_int64_hex
     PUSH R1
     PUSH R0
     CALL printx_int64_hex
+    ADD R13 #8
     RET
 
 LABEL kotlin_printx_nl

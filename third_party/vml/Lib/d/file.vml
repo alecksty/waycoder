@@ -7,11 +7,13 @@ LABEL d_fopen
     PUSH R1
     PUSH R0
     CALL fopen
+    ADD R13 #8
     RET
 
 LABEL d_fclose
     PUSH R0
     CALL fclose
+    ADD R13 #4
     RET
 
 LABEL d_fread
@@ -19,6 +21,7 @@ LABEL d_fread
     PUSH R1
     PUSH R0
     CALL fread
+    ADD R13 #12
     RET
 
 LABEL d_fwrite
@@ -26,6 +29,7 @@ LABEL d_fwrite
     PUSH R1
     PUSH R0
     CALL fwrite
+    ADD R13 #12
     RET
 
 LABEL d_fseek
@@ -33,22 +37,26 @@ LABEL d_fseek
     PUSH R1
     PUSH R0
     CALL fseek
+    ADD R13 #12
     RET
 
 LABEL d_ftell
     PUSH R0
     CALL ftell
+    ADD R13 #4
     RET
 
 LABEL d_fsize
     PUSH R0
     CALL fsize
+    ADD R13 #4
     RET
 
 LABEL d_ftruncate
     PUSH R1
     PUSH R0
     CALL ftruncate
+    ADD R13 #8
     RET
 
 LABEL func_fopen

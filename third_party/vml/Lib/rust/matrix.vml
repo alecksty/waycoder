@@ -6,6 +6,7 @@
 LABEL rust_mat2_identity
     PUSH R0
     CALL mat2_identity
+    ADD R13 #4
     RET
 
 LABEL rust_mat2_add
@@ -13,6 +14,7 @@ LABEL rust_mat2_add
     PUSH R1
     PUSH R0
     CALL mat2_add
+    ADD R13 #12
     RET
 
 LABEL rust_mat2_sub
@@ -20,6 +22,7 @@ LABEL rust_mat2_sub
     PUSH R1
     PUSH R0
     CALL mat2_sub
+    ADD R13 #12
     RET
 
 LABEL rust_mat2_mul
@@ -27,6 +30,7 @@ LABEL rust_mat2_mul
     PUSH R1
     PUSH R0
     CALL mat2_mul
+    ADD R13 #12
     RET
 
 LABEL rust_mat2_scale
@@ -35,23 +39,27 @@ LABEL rust_mat2_scale
     movef @13 R1
     PUSH R0
     CALL mat2_scale
+    ADD R13 #12
     RET
 
 LABEL rust_mat2_det
     PUSH R0
     CALL mat2_det
+    ADD R13 #4
     RET
 
 LABEL rust_mat2_transpose
     PUSH R1
     PUSH R0
     CALL mat2_transpose
+    ADD R13 #8
     RET
 
 LABEL rust_mat2_inv
     PUSH R1
     PUSH R0
     CALL mat2_inv
+    ADD R13 #8
     RET
 
 LABEL rust_mat2_rot
@@ -59,11 +67,13 @@ LABEL rust_mat2_rot
     sub R13 #4
     movef @13 R0
     CALL mat2_rot
+    ADD R13 #8
     RET
 
 LABEL rust_mat3_identity
     PUSH R0
     CALL mat3_identity
+    ADD R13 #4
     RET
 
 LABEL rust_mat3_mul
@@ -71,17 +81,20 @@ LABEL rust_mat3_mul
     PUSH R1
     PUSH R0
     CALL mat3_mul
+    ADD R13 #12
     RET
 
 LABEL rust_mat3_det
     PUSH R0
     CALL mat3_det
+    ADD R13 #4
     RET
 
 LABEL rust_mat3_transpose
     PUSH R1
     PUSH R0
     CALL mat3_transpose
+    ADD R13 #8
     RET
 
 LABEL rust_mat3_scale
@@ -90,11 +103,13 @@ LABEL rust_mat3_scale
     movef @13 R1
     PUSH R0
     CALL mat3_scale
+    ADD R13 #12
     RET
 
 LABEL rust_mat4_identity
     PUSH R0
     CALL mat4_identity
+    ADD R13 #4
     RET
 
 LABEL rust_mat4_mul
@@ -102,6 +117,7 @@ LABEL rust_mat4_mul
     PUSH R1
     PUSH R0
     CALL mat4_mul
+    ADD R13 #12
     RET
 
 LABEL rust_mat4_translate
@@ -113,6 +129,7 @@ LABEL rust_mat4_translate
     sub R13 #4
     movef @13 R0
     CALL mat4_translate
+    ADD R13 #16
     RET
 
 LABEL rust_mat4_scale_xyz
@@ -124,6 +141,7 @@ LABEL rust_mat4_scale_xyz
     sub R13 #4
     movef @13 R0
     CALL mat4_scale_xyz
+    ADD R13 #16
     RET
 
 LABEL rust_mat4_rot_x
@@ -131,6 +149,7 @@ LABEL rust_mat4_rot_x
     sub R13 #4
     movef @13 R0
     CALL mat4_rot_x
+    ADD R13 #8
     RET
 
 LABEL rust_mat4_rot_y
@@ -138,6 +157,7 @@ LABEL rust_mat4_rot_y
     sub R13 #4
     movef @13 R0
     CALL mat4_rot_y
+    ADD R13 #8
     RET
 
 LABEL rust_mat4_rot_z
@@ -145,18 +165,21 @@ LABEL rust_mat4_rot_z
     sub R13 #4
     movef @13 R0
     CALL mat4_rot_z
+    ADD R13 #8
     RET
 
 LABEL rust_mat4_transpose
     PUSH R1
     PUSH R0
     CALL mat4_transpose
+    ADD R13 #8
     RET
 
 LABEL rust_vec2_dot
     PUSH R1
     PUSH R0
     CALL vec2_dot
+    ADD R13 #8
     RET
 
 LABEL rust_product
@@ -169,22 +192,26 @@ LABEL rust_vec2_cross
     PUSH R1
     PUSH R0
     CALL vec2_cross
+    ADD R13 #8
     RET
 
 LABEL rust_vec2_len
     PUSH R0
     CALL vec2_len
+    ADD R13 #4
     RET
 
 LABEL rust_vec2_normalize
     PUSH R0
     CALL vec2_normalize
+    ADD R13 #4
     RET
 
 LABEL rust_vec3_dot
     PUSH R1
     PUSH R0
     CALL vec3_dot
+    ADD R13 #8
     RET
 
 LABEL rust_vec3_cross
@@ -192,16 +219,19 @@ LABEL rust_vec3_cross
     PUSH R1
     PUSH R0
     CALL vec3_cross
+    ADD R13 #12
     RET
 
 LABEL rust_vec3_len
     PUSH R0
     CALL vec3_len
+    ADD R13 #4
     RET
 
 LABEL rust_vec3_normalize
     PUSH R0
     CALL vec3_normalize
+    ADD R13 #4
     RET
 
 LABEL rust_vector
@@ -216,6 +246,7 @@ LABEL rust_mat4_transform_vec3
     PUSH R1
     PUSH R0
     CALL mat4_transform_vec3
+    ADD R13 #12
     RET
 
 LABEL func_mat2_identity

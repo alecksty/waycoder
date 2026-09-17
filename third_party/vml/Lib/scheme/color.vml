@@ -8,21 +8,25 @@ LABEL scheme_rgb888_to_rgb565
     PUSH R1
     PUSH R0
     CALL rgb888_to_rgb565
+    ADD R13 #12
     RET
 
 LABEL scheme_rgb565_to_r
     PUSH R0
     CALL rgb565_to_r
+    ADD R13 #4
     RET
 
 LABEL scheme_rgb565_to_g
     PUSH R0
     CALL rgb565_to_g
+    ADD R13 #4
     RET
 
 LABEL scheme_rgb565_to_b
     PUSH R0
     CALL rgb565_to_b
+    ADD R13 #4
     RET
 
 LABEL scheme_rgb
@@ -30,21 +34,25 @@ LABEL scheme_rgb
     PUSH R1
     PUSH R0
     CALL rgb
+    ADD R13 #12
     RET
 
 LABEL scheme_red
     PUSH R0
     CALL red
+    ADD R13 #4
     RET
 
 LABEL scheme_green
     PUSH R0
     CALL green
+    ADD R13 #4
     RET
 
 LABEL scheme_blue
     PUSH R0
     CALL blue
+    ADD R13 #4
     RET
 
 LABEL scheme_grayscale
@@ -52,6 +60,7 @@ LABEL scheme_grayscale
     PUSH R1
     PUSH R0
     CALL grayscale
+    ADD R13 #12
     RET
 
 LABEL scheme_color_blend
@@ -59,12 +68,14 @@ LABEL scheme_color_blend
     PUSH R1
     PUSH R0
     CALL color_blend
+    ADD R13 #12
     RET
 
 LABEL scheme_color_brightness
     PUSH R1
     PUSH R0
     CALL color_brightness
+    ADD R13 #8
     RET
 
 LABEL scheme_hsv_to_rgb
@@ -72,6 +83,7 @@ LABEL scheme_hsv_to_rgb
     PUSH R1
     PUSH R0
     CALL hsv_to_rgb
+    ADD R13 #12
     RET
 
 LABEL scheme_color_black

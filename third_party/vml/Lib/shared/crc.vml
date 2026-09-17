@@ -1,21 +1,26 @@
-.entry main
-.stack 0
-.vectors 0x0
 
 .data
 
 .text
 crc8:
+; -------------------------------------------
+; source   : int crc8(const char* data,int len)
+; function : crc8
+; param   : const char* data
+; param   : int len
+; return   : int
+; --------------------------------------------
+crc8:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
-        moveb [R12-1] R0
+        moveb [R12-5] R0
         move R0 #0
-        move [R12-8] R0
+        move [R12-12] R0
 sta_87720000:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 [R12+16]
         pop R1
@@ -28,24 +33,24 @@ _L87720003:
 _L87720004:
         cmp R0 #0
         jz sta_87720002
-        moveb R0 [R12-1]
+        moveb R0 [R12-5]
         pushb R0
         move R0 [R12+12]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         mul R0 #1
         pop R11
         add R0 R11
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         popb R1
         xor R1 R0
         moveb R0 R1
-        moveb [R12-1] R0
+        moveb [R12-5] R0
         move R0 #0
-        move [R12-12] R0
+        move [R12-16] R0
 sta_87720005:
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #8
         pop R1
@@ -58,7 +63,7 @@ _L87720008:
 _L87720009:
         cmp R0 #0
         jz sta_87720007
-        moveb R0 [R12-1]
+        moveb R0 [R12-5]
         push R0
         move R0 #128
         pop R1
@@ -66,7 +71,7 @@ _L87720009:
         move R0 R1
         test R0 R0
         jz _L87720010
-        moveb R0 [R12-1]
+        moveb R0 [R12-5]
         push R0
         move R0 #1
         pop R1
@@ -79,51 +84,56 @@ _L87720009:
         move R0 R1
         jmp _L87720011
 _L87720010:
-        moveb R0 [R12-1]
+        moveb R0 [R12-5]
         push R0
         move R0 #1
         pop R1
         shl R1 R0
         move R0 R1
 _L87720011:
-        moveb [R12-1] R0
+        moveb [R12-5] R0
 sta_87720006:
+        move R0 [R12-16]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-16] R0
+        move R0 R1
+        jmp sta_87720005
+sta_87720007:
+sta_87720001:
         move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
         move [R12-12] R0
         move R0 R1
-        jmp sta_87720005
-sta_87720007:
-sta_87720001:
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
         jmp sta_87720000
 sta_87720002:
-        moveb R0 [R12-1]
-        jmp L87720012
-L87720012:
+        moveb R0 [R12-5]
+        jmp L_87720012
+L_87720012:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+crc16:
+; -------------------------------------------
+; source   : int crc16(const char* data,int len)
+; function : crc16
+; param   : const char* data
+; param   : int len
+; return   : int
+; --------------------------------------------
 crc16:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #0
-        moveh [R12-2] R0
+        moveh [R12-6] R0
         move R0 #0
-        move [R12-8] R0
+        move [R12-12] R0
 sta_87720013:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 [R12+16]
         pop R1
@@ -136,15 +146,15 @@ _L87720016:
 _L87720017:
         cmp R0 #0
         jz sta_87720015
-        moveh R0 [R12-2]
+        moveh R0 [R12-6]
         pushh R0
         move R0 [R12+12]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         mul R0 #1
         pop R10
         add R0 R10
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #8
@@ -154,11 +164,11 @@ _L87720017:
         poph R1
         xor R1 R0
         moveh R0 R1
-        moveh [R12-2] R0
+        moveh [R12-6] R0
         move R0 #0
-        move [R12-12] R0
+        move [R12-16] R0
 sta_87720018:
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #8
         pop R1
@@ -171,7 +181,7 @@ _L87720021:
 _L87720022:
         cmp R0 #0
         jz sta_87720020
-        moveh R0 [R12-2]
+        moveh R0 [R12-6]
         push R0
         move R0 #32768
         pop R1
@@ -179,7 +189,7 @@ _L87720022:
         move R0 R1
         test R0 R0
         jz _L87720023
-        moveh R0 [R12-2]
+        moveh R0 [R12-6]
         push R0
         move R0 #1
         pop R1
@@ -192,51 +202,56 @@ _L87720022:
         move R0 R1
         jmp _L87720024
 _L87720023:
-        moveh R0 [R12-2]
+        moveh R0 [R12-6]
         push R0
         move R0 #1
         pop R1
         shl R1 R0
         move R0 R1
 _L87720024:
-        moveh [R12-2] R0
+        moveh [R12-6] R0
 sta_87720019:
+        move R0 [R12-16]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-16] R0
+        move R0 R1
+        jmp sta_87720018
+sta_87720020:
+sta_87720014:
         move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
         move [R12-12] R0
         move R0 R1
-        jmp sta_87720018
-sta_87720020:
-sta_87720014:
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
         jmp sta_87720013
 sta_87720015:
-        moveh R0 [R12-2]
-        jmp L87720025
-L87720025:
+        moveh R0 [R12-6]
+        jmp L_87720025
+L_87720025:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+crc32:
+; -------------------------------------------
+; source   : int crc32(const char* data,int len)
+; function : crc32
+; param   : const char* data
+; param   : int len
+; return   : int
+; --------------------------------------------
 crc32:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 #-1
-        move [R12-4] R0
-        move R0 #0
         move [R12-8] R0
+        move R0 #0
+        move [R12-12] R0
 sta_87720026:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 [R12+16]
         pop R1
@@ -249,24 +264,24 @@ _L87720029:
 _L87720030:
         cmp R0 #0
         jz sta_87720028
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 [R12+12]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         mul R0 #1
         pop R9
         add R0 R9
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pop R1
         xor R1 R0
         move R0 R1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 #0
-        move [R12-12] R0
+        move [R12-16] R0
 sta_87720031:
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #8
         pop R1
@@ -279,7 +294,7 @@ _L87720034:
 _L87720035:
         cmp R0 #0
         jz sta_87720033
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #1
         pop R1
@@ -287,7 +302,7 @@ _L87720035:
         move R0 R1
         test R0 R0
         jz _L87720036
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #1
         pop R1
@@ -300,52 +315,56 @@ _L87720035:
         move R0 R1
         jmp _L87720037
 _L87720036:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #1
         pop R1
         shr R1 R0
         move R0 R1
 _L87720037:
-        move [R12-4] R0
+        move [R12-8] R0
 sta_87720032:
+        move R0 [R12-16]
+        move R1 R0
+        add R0 R0 #1
+        move [R12-16] R0
+        move R0 R1
+        jmp sta_87720031
+sta_87720033:
+sta_87720027:
         move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
         move [R12-12] R0
         move R0 R1
-        jmp sta_87720031
-sta_87720033:
-sta_87720027:
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
         jmp sta_87720026
 sta_87720028:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #-1
         pop R1
         xor R1 R0
         move R0 R1
-        jmp L87720038
-L87720038:
+        jmp L_87720038
+L_87720038:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+djb2_hash:
+; -------------------------------------------
+; source   : int djb2_hash(const char* str)
+; function : djb2_hash
+; param   : const char* str
+; return   : int
+; --------------------------------------------
 djb2_hash:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 #5381
-        move [R12-4] R0
+        move [R12-8] R0
 sta_87720039:
         move R2 #0
         move R0 [R12+12]
@@ -353,47 +372,51 @@ sta_87720039:
         add R0 R0 #1
         move [R12+12] R0
         move R0 R1
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
-        move [R12-8] R0
+        move [R12-12] R0
         cmp R0 #0
         jz sta_87720040
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #5
         pop R1
         shl R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
         move R0 [R12-8]
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-4] R0
+        push R0
+        move R0 [R12-12]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-8] R0
         jmp sta_87720039
 sta_87720040:
-        move R0 [R12-4]
-        jmp L87720041
-L87720041:
+        move R0 [R12-8]
+        jmp L_87720041
+L_87720041:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+sdbm_hash:
+; -------------------------------------------
+; source   : int sdbm_hash(const char* str)
+; function : sdbm_hash
+; param   : const char* str
+; return   : int
+; --------------------------------------------
 sdbm_hash:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_87720042:
         move R2 #0
         move R0 [R12+12]
@@ -401,14 +424,14 @@ sta_87720042:
         add R0 R0 #1
         move [R12+12] R0
         move R0 R1
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
-        move [R12-8] R0
+        move [R12-12] R0
         cmp R0 #0
         jz sta_87720043
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #6
         pop R1
@@ -418,7 +441,7 @@ sta_87720042:
         add R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #16
         pop R1
@@ -428,30 +451,34 @@ sta_87720042:
         add R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         sub R1 R0
         move R0 R1
-        move [R12-4] R0
+        move [R12-8] R0
         jmp sta_87720042
 sta_87720043:
-        move R0 [R12-4]
-        jmp L87720044
-L87720044:
+        move R0 [R12-8]
+        jmp L_87720044
+L_87720044:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+fnv1a_hash:
+; -------------------------------------------
+; source   : int fnv1a_hash(const char* str)
+; function : fnv1a_hash
+; param   : const char* str
+; return   : int
+; --------------------------------------------
 fnv1a_hash:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 #-2128831035
-        move [R12-4] R0
+        move [R12-8] R0
 sta_87720045:
         move R2 #0
         move R0 [R12+12]
@@ -459,48 +486,53 @@ sta_87720045:
         add R0 R0 #1
         move [R12+12] R0
         move R0 R1
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
-        move [R12-8] R0
+        move [R12-12] R0
         cmp R0 #0
         jz sta_87720046
-        move R0 [R12-4]
-        push R0
         move R0 [R12-8]
+        push R0
+        move R0 [R12-12]
         pop R1
         xor R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #16777619
         pop R1
         mul R1 R0
         move R0 R1
-        move [R12-4] R0
+        move [R12-8] R0
         jmp sta_87720045
 sta_87720046:
-        move R0 [R12-4]
-        jmp L87720047
-L87720047:
+        move R0 [R12-8]
+        jmp L_87720047
+L_87720047:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+checksum8:
+; -------------------------------------------
+; source   : int checksum8(const char* data,int len)
+; function : checksum8
+; param   : const char* data
+; param   : int len
+; return   : int
+; --------------------------------------------
 checksum8:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 #0
-        moveb [R12-1] R0
+        moveb [R12-5] R0
         move R0 #0
-        move [R12-8] R0
+        move [R12-12] R0
 sta_87720048:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 [R12+16]
         pop R1
@@ -513,49 +545,55 @@ _L87720051:
 _L87720052:
         cmp R0 #0
         jz sta_87720050
-        moveb R0 [R12-1]
+        moveb R0 [R12-5]
         pushb R0
         move R0 [R12+12]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         mul R0 #1
         pop R8
         add R0 R8
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         popb R1
         add R1 R0
         moveb R0 R1
-        moveb [R12-1] R0
+        moveb [R12-5] R0
 sta_87720049:
-        move R0 [R12-8]
+        move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
-        move [R12-8] R0
+        move [R12-12] R0
         move R0 R1
         jmp sta_87720048
 sta_87720050:
-        moveb R0 [R12-1]
-        jmp L87720053
-L87720053:
+        moveb R0 [R12-5]
+        jmp L_87720053
+L_87720053:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+checksum16:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int checksum16(const char* data,int len)
+; function : checksum16
+; param   : const char* data
+; param   : int len
+; return   : int
+; --------------------------------------------
 checksum16:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
-        move R0 #0
-        move [R12-4] R0
+        sub R13 #20
         move R0 #0
         move [R12-8] R0
+        move R0 #0
+        move [R12-12] R0
 sta_87720054:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 [R12+16]
         push R0
@@ -573,15 +611,15 @@ _L87720057:
 _L87720058:
         cmp R0 #0
         jz sta_87720056
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 [R12+12]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         mul R0 #1
         pop R7
         add R0 R7
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #8
@@ -591,7 +629,7 @@ _L87720058:
         push R0
         move R0 [R12+12]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #1
         pop R1
@@ -600,7 +638,7 @@ _L87720058:
         mul R0 #1
         pop R6
         add R0 R6
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pop R1
         or R1 R0
@@ -608,15 +646,15 @@ _L87720058:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-4] R0
+        move [R12-8] R0
 sta_87720055:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #2
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-8] R0
+        move [R12-12] R0
         jmp sta_87720054
 sta_87720056:
         move R0 [R12+16]
@@ -627,7 +665,7 @@ sta_87720056:
         move R0 R1
         cmp R0 #0
         jz sta_87720059
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 [R12+12]
         push R0
@@ -640,7 +678,7 @@ sta_87720056:
         mul R0 #1
         pop R5
         add R0 R5
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #8
@@ -650,12 +688,12 @@ sta_87720056:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-4] R0
+        move [R12-8] R0
 sta_87720059:
 sta_87720060:
 sta_87720061:
         move R2 #0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #16
         pop R1
@@ -663,14 +701,14 @@ sta_87720061:
         move R0 R1
         cmp R0 #0
         jz sta_87720062
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #65535
         pop R1
         and R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #16
         pop R1
@@ -679,22 +717,19 @@ sta_87720061:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-4] R0
+        move [R12-8] R0
         jmp sta_87720061
 sta_87720062:
-        move R0 [R12-4]
+        move R0 [R12-8]
         not R0
         push R0
         move R0 #65535
         pop R1
         and R1 R0
         move R0 R1
-        jmp L87720063
-L87720063:
+        jmp L_87720063
+L_87720063:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret

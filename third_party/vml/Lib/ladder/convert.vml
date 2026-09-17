@@ -7,42 +7,50 @@ LABEL LADDER_ITOA_HEX
     PUSH R1
     PUSH R0
     CALL itoa_hex
+    ADD R13 #8
     RET
 
 LABEL LADDER_ATOI_HEX
     PUSH R0
     CALL atoi_hex
+    ADD R13 #4
     RET
 
 LABEL LADDER_BYTE_TO_HWORD
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL byte_to_hword
+    ADD R13 #4
     RET
 
 LABEL LADDER_BYTE_TO_WORD
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL byte_to_word
+    ADD R13 #4
     RET
 
 LABEL LADDER_HWORD_TO_BYTE
     PUSH R0
     CALL hword_to_byte
+    ADD R13 #4
     RET
 
 LABEL LADDER_HWORD_TO_WORD
     PUSH R0
     CALL hword_to_word
+    ADD R13 #4
     RET
 
 LABEL LADDER_WORD_TO_BYTE
     PUSH R0
     CALL word_to_byte
+    ADD R13 #4
     RET
 
 LABEL LADDER_WORD_TO_HWORD
     PUSH R0
     CALL word_to_hword
+    ADD R13 #4
     RET
 

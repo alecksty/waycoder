@@ -8,17 +8,20 @@ LABEL rust_moving_avg_init
     PUSH R1
     PUSH R0
     CALL moving_avg_init
+    ADD R13 #12
     RET
 
 LABEL rust_moving_avg_update
     PUSH R1
     PUSH R0
     CALL moving_avg_update
+    ADD R13 #8
     RET
 
 LABEL rust_ema_init
     PUSH R0
     CALL ema_init
+    ADD R13 #4
     RET
 
 LABEL rust_ema_update
@@ -26,6 +29,7 @@ LABEL rust_ema_update
     PUSH R1
     PUSH R0
     CALL ema_update
+    ADD R13 #12
     RET
 
 LABEL rust_kalman_init
@@ -34,12 +38,14 @@ LABEL rust_kalman_init
     PUSH R1
     PUSH R0
     CALL kalman_init
+    ADD R13 #16
     RET
 
 LABEL rust_kalman_update
     PUSH R1
     PUSH R0
     CALL kalman_update
+    ADD R13 #8
     RET
 
 LABEL rust_lerp_table
@@ -48,12 +54,14 @@ LABEL rust_lerp_table
     PUSH R1
     PUSH R0
     CALL lerp_table
+    ADD R13 #16
     RET
 
 LABEL rust_deadband
     PUSH R1
     PUSH R0
     CALL deadband
+    ADD R13 #8
     RET
 
 LABEL rust_hysteresis
@@ -62,6 +70,7 @@ LABEL rust_hysteresis
     PUSH R1
     PUSH R0
     CALL hysteresis
+    ADD R13 #16
     RET
 
 LABEL func_moving_avg_init

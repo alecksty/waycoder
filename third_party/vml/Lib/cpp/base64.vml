@@ -8,19 +8,21 @@ LABEL cpp_base64_encode
     PUSH R1
     PUSH R0
     CALL base64_encode
+    ADD R13 #12
     RET
 
 LABEL cpp__b64_decode_char
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL _b64_decode_char
-    ADD R13 #1
+    ADD R13 #4
     RET
 
 LABEL cpp_base64_decode
     PUSH R1
     PUSH R0
     CALL base64_decode
+    ADD R13 #8
     RET
 
 LABEL func_base64_encode

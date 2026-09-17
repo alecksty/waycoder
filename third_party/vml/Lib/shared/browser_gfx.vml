@@ -1,28 +1,32 @@
-.entry main
-.stack 0
-.vectors 0x0
 
+.linked "bitlib.vml"
 .data
 __cmd_offset: .word 0
 
 .text
 cmd_write:
+; -------------------------------------------
+; source   : void cmd_write(int val)
+; function : cmd_write
+; param   : int val
+; return   : void
+; --------------------------------------------
+cmd_write:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
-        move [R12+12] R0
+        sub R13 #16
         move R0 #20480
         push R0
         move R0 [__cmd_offset]
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         move R11 R0
         move R0 [R12+12]
-        move @11 R0
+        move [R11] R0
         move R0 [__cmd_offset]
         push R0
         move R0 #4
@@ -35,30 +39,42 @@ cmd_write:
         pop R15
         ret
 browser_clear:
+; -------------------------------------------
+; source   : void browser_clear(int r,int g,int b)
+; function : browser_clear
+; param   : int r
+; param   : int g
+; param   : int b
+; return   : void
+; --------------------------------------------
+browser_clear:
         push R15
         push R12
         move R12 R13
-        move [R12+12] R0
-        move [R12+16] R1
-        move [R12+20] R2
+        sub R13 #12
         move R0 #1
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
         move R0 #3
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
         move R0 [R12+16]
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
         move R0 [R12+20]
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
         move R13 R12
@@ -66,30 +82,42 @@ browser_clear:
         pop R15
         ret
 browser_color:
+; -------------------------------------------
+; source   : void browser_color(int r,int g,int b)
+; function : browser_color
+; param   : int r
+; param   : int g
+; param   : int b
+; return   : void
+; --------------------------------------------
+browser_color:
         push R15
         push R12
         move R12 R13
-        move [R12+12] R0
-        move [R12+16] R1
-        move [R12+20] R2
+        sub R13 #12
         move R0 #5
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
         move R0 #3
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
         move R0 [R12+16]
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
         move R0 [R12+20]
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
         move R13 R12
@@ -97,14 +125,21 @@ browser_color:
         pop R15
         ret
 browser_fill_polygon:
+; -------------------------------------------
+; source   : void browser_fill_polygon(int count,int* points)
+; function : browser_fill_polygon
+; param   : int count
+; param   : int* points
+; return   : void
+; --------------------------------------------
+browser_fill_polygon:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
-        move [R12+12] R0
-        move [R12+16] R1
+        sub R13 #16
         move R0 #2
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
         move R0 [R12+12]
@@ -114,12 +149,13 @@ browser_fill_polygon:
         mul R1 R0
         move R0 R1
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_9900000:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 [R12+12]
         push R0
@@ -139,19 +175,20 @@ _L9900004:
         jz sta_9900002
         move R0 [R12+16]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         mul R0 #4
         pop R10
         add R0 R10
-        move R0 @0
+        move R0 [R0]
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
 sta_9900001:
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_9900000
 sta_9900002:
@@ -160,14 +197,21 @@ sta_9900002:
         pop R15
         ret
 browser_draw_polygon:
+; -------------------------------------------
+; source   : void browser_draw_polygon(int count,int* points)
+; function : browser_draw_polygon
+; param   : int count
+; param   : int* points
+; return   : void
+; --------------------------------------------
+browser_draw_polygon:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
-        move [R12+12] R0
-        move [R12+16] R1
+        sub R13 #16
         move R0 #3
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
         move R0 [R12+12]
@@ -177,12 +221,13 @@ browser_draw_polygon:
         mul R1 R0
         move R0 R1
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_9900005:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 [R12+12]
         push R0
@@ -202,19 +247,20 @@ _L9900009:
         jz sta_9900007
         move R0 [R12+16]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         mul R0 #4
         pop R9
         add R0 R9
-        move R0 @0
+        move R0 [R0]
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
 sta_9900006:
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_9900005
 sta_9900007:
@@ -223,19 +269,30 @@ sta_9900007:
         pop R15
         ret
 browser_flush:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : void browser_flush()
+; function : browser_flush
+; return   : void
+; --------------------------------------------
+browser_flush:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #4
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
         move R0 #0
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
         move R0 #0
         push R0
+        move R0 [R13+0]
         call cmd_write
         add R13 #4
         move R13 R12

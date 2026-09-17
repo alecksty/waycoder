@@ -7,11 +7,13 @@ LABEL rust_fopen
     PUSH R1
     PUSH R0
     CALL fopen
+    ADD R13 #8
     RET
 
 LABEL rust_fclose
     PUSH R0
     CALL fclose
+    ADD R13 #4
     RET
 
 LABEL rust_fread
@@ -19,6 +21,7 @@ LABEL rust_fread
     PUSH R1
     PUSH R0
     CALL fread
+    ADD R13 #12
     RET
 
 LABEL rust_fwrite
@@ -26,6 +29,7 @@ LABEL rust_fwrite
     PUSH R1
     PUSH R0
     CALL fwrite
+    ADD R13 #12
     RET
 
 LABEL rust_fseek
@@ -33,22 +37,26 @@ LABEL rust_fseek
     PUSH R1
     PUSH R0
     CALL fseek
+    ADD R13 #12
     RET
 
 LABEL rust_ftell
     PUSH R0
     CALL ftell
+    ADD R13 #4
     RET
 
 LABEL rust_fsize
     PUSH R0
     CALL fsize
+    ADD R13 #4
     RET
 
 LABEL rust_ftruncate
     PUSH R1
     PUSH R0
     CALL ftruncate
+    ADD R13 #8
     RET
 
 LABEL func_fopen

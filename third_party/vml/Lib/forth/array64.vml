@@ -12,6 +12,7 @@ LABEL forth_Arrays
 LABEL forth_llen64
     PUSH R0
     CALL llen64
+    ADD R13 #4
     RET
 
 LABEL forth_lget64
@@ -19,6 +20,7 @@ LABEL forth_lget64
     movel @13 R1
     PUSH R0
     CALL lget64
+    ADD R13 #12
     RET
 
 LABEL forth_lset64
@@ -28,11 +30,13 @@ LABEL forth_lset64
     movel @13 R1
     PUSH R0
     CALL lset64
+    ADD R13 #20
     RET
 
 LABEL forth_lsort_bubble64
     PUSH R0
     CALL lsort_bubble64
+    ADD R13 #4
     RET
 
 LABEL forth_lindexof64
@@ -40,6 +44,7 @@ LABEL forth_lindexof64
     movel @13 R1
     PUSH R0
     CALL lindexof64
+    ADD R13 #12
     RET
 
 LABEL forth_llast_indexof64
@@ -47,6 +52,7 @@ LABEL forth_llast_indexof64
     movel @13 R1
     PUSH R0
     CALL llast_indexof64
+    ADD R13 #12
     RET
 
 LABEL forth_lcontains64
@@ -54,11 +60,13 @@ LABEL forth_lcontains64
     movel @13 R1
     PUSH R0
     CALL lcontains64
+    ADD R13 #12
     RET
 
 LABEL forth_lreverse64
     PUSH R0
     CALL lreverse64
+    ADD R13 #4
     RET
 
 LABEL forth_lfill64
@@ -66,12 +74,14 @@ LABEL forth_lfill64
     movel @13 R1
     PUSH R0
     CALL lfill64
+    ADD R13 #12
     RET
 
 LABEL forth_lcopy64
     PUSH R1
     PUSH R0
     CALL lcopy64
+    ADD R13 #8
     RET
 
 LABEL forth_lslice64
@@ -82,6 +92,7 @@ LABEL forth_lslice64
     movel @13 R1
     PUSH R0
     CALL lslice64
+    ADD R13 #24
     RET
 
 LABEL forth_lconcat64
@@ -89,6 +100,7 @@ LABEL forth_lconcat64
     PUSH R1
     PUSH R0
     CALL lconcat64
+    ADD R13 #12
     RET
 
 LABEL forth_lpush64
@@ -96,16 +108,19 @@ LABEL forth_lpush64
     movel @13 R1
     PUSH R0
     CALL lpush64
+    ADD R13 #12
     RET
 
 LABEL forth_lpop64
     PUSH R0
     CALL lpop64
+    ADD R13 #4
     RET
 
 LABEL forth_lshift64
     PUSH R0
     CALL lshift64
+    ADD R13 #4
     RET
 
 LABEL forth_lunshift64
@@ -113,6 +128,7 @@ LABEL forth_lunshift64
     movel @13 R1
     PUSH R0
     CALL lunshift64
+    ADD R13 #12
     RET
 
 LABEL forth_linsert64
@@ -122,6 +138,7 @@ LABEL forth_linsert64
     movel @13 R1
     PUSH R0
     CALL linsert64
+    ADD R13 #20
     RET
 
 LABEL forth_lremove64
@@ -129,11 +146,13 @@ LABEL forth_lremove64
     movel @13 R1
     PUSH R0
     CALL lremove64
+    ADD R13 #12
     RET
 
 LABEL forth_lmin_val64
     PUSH R0
     CALL lmin_val64
+    ADD R13 #4
     RET
 
 LABEL forth_lmin_arr64
@@ -145,6 +164,7 @@ LABEL forth_lmin_arr64
 LABEL forth_lmax_val64
     PUSH R0
     CALL lmax_val64
+    ADD R13 #4
     RET
 
 LABEL forth_lmax_arr64
@@ -156,6 +176,7 @@ LABEL forth_lmax_arr64
 LABEL forth_lsum_val64
     PUSH R0
     CALL lsum_val64
+    ADD R13 #4
     RET
 
 LABEL forth_lsum64
@@ -168,12 +189,14 @@ LABEL forth_lstartswith64
     PUSH R1
     PUSH R0
     CALL lstartswith64
+    ADD R13 #8
     RET
 
 LABEL forth_lendswith64
     PUSH R1
     PUSH R0
     CALL lendswith64
+    ADD R13 #8
     RET
 
 LABEL func_Arrays

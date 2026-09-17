@@ -21,6 +21,7 @@ LABEL scheme_lmemcpy
     PUSH R1
     PUSH R0
     CALL lmemcpy
+    ADD R13 #16
     RET
 
 LABEL scheme_lmemset
@@ -29,6 +30,7 @@ LABEL scheme_lmemset
     PUSH R1
     PUSH R0
     CALL lmemset
+    ADD R13 #16
     RET
 
 LABEL scheme_lmemmove
@@ -37,6 +39,7 @@ LABEL scheme_lmemmove
     PUSH R1
     PUSH R0
     CALL lmemmove
+    ADD R13 #16
     RET
 
 LABEL scheme_lmemcmp
@@ -45,6 +48,7 @@ LABEL scheme_lmemcmp
     PUSH R1
     PUSH R0
     CALL lmemcmp
+    ADD R13 #16
     RET
 
 LABEL func_long

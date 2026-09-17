@@ -8,6 +8,7 @@ LABEL PASCAL_INIT
     PUSH R1
     PUSH R0
     CALL init
+    ADD R13 #12
     RET
 
 LABEL PASCAL_UPDATE
@@ -15,10 +16,12 @@ LABEL PASCAL_UPDATE
     PUSH R1
     PUSH R0
     CALL update
+    ADD R13 #12
     RET
 
 LABEL PASCAL_IS_PRESSED
     PUSH R0
     CALL is_pressed
+    ADD R13 #4
     RET
 

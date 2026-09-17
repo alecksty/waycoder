@@ -16,10 +16,10 @@ LABEL go_NULL
     RET
 
 LABEL go_is_hex_digit
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL is_hex_digit
-    ADD R13 #1
+    ADD R13 #4
     RET
 
 LABEL go_skip_spaces
@@ -45,6 +45,7 @@ LABEL go_parse_factor
 LABEL go_parserexp
     PUSH R0
     CALL parserexp
+    ADD R13 #4
     RET
 
 LABEL go_cases

@@ -4,22 +4,22 @@
 .linked "../shared/printf.vml"
 
 LABEL kotlin_emit
-    sub R13 #1
+    sub R13 #4
     moveb @13 R2
     PUSH R1
     PUSH R0
     CALL emit
-    ADD R13 #9
+    ADD R13 #12
     RET
 
 LABEL kotlin_pad_char
     PUSH R3
-    sub R13 #1
+    sub R13 #4
     moveb @13 R2
     PUSH R1
     PUSH R0
     CALL pad_char
-    ADD R13 #13
+    ADD R13 #16
     RET
 
 LABEL kotlin_slen

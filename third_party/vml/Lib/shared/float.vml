@@ -13,14 +13,12 @@ putfloat:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #8
         move [R12-4] R0
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 getfloat:
 ; -------------------------------------------
@@ -32,6 +30,7 @@ getfloat:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #9
         move [R12-4] R0
         move R13 R12
@@ -50,12 +49,10 @@ puthex:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #10
         move [R12-4] R0
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret

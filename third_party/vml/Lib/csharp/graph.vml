@@ -228,6 +228,7 @@ LABEL InitGraph
     PUSH R1
     PUSH R0
     CALL InitGraph
+    ADD R13 #12
     RET
 
 LABEL CloseGraph
@@ -238,6 +239,7 @@ LABEL DetectGraph
     PUSH R1
     PUSH R0
     CALL DetectGraph
+    ADD R13 #8
     RET
 
 LABEL GetMaxX
@@ -255,11 +257,13 @@ LABEL GetDriverName
 LABEL GetModeName
     PUSH R0
     CALL GetModeName
+    ADD R13 #4
     RET
 
 LABEL SetColor
     PUSH R0
     CALL SetColor
+    ADD R13 #4
     RET
 
 LABEL GetColor
@@ -269,6 +273,7 @@ LABEL GetColor
 LABEL SetBkColor
     PUSH R0
     CALL SetBkColor
+    ADD R13 #4
     RET
 
 LABEL GetBkColor
@@ -281,6 +286,7 @@ LABEL SetRGBPalette
     PUSH R1
     PUSH R0
     CALL SetRGBPalette
+    ADD R13 #16
     RET
 
 LABEL PutPixel
@@ -288,12 +294,14 @@ LABEL PutPixel
     PUSH R1
     PUSH R0
     CALL PutPixel
+    ADD R13 #12
     RET
 
 LABEL GetPixel
     PUSH R1
     PUSH R0
     CALL GetPixel
+    ADD R13 #8
     RET
 
 LABEL Line
@@ -302,18 +310,21 @@ LABEL Line
     PUSH R1
     PUSH R0
     CALL Line
+    ADD R13 #16
     RET
 
 LABEL LineTo
     PUSH R1
     PUSH R0
     CALL LineTo
+    ADD R13 #8
     RET
 
 LABEL LineRel
     PUSH R1
     PUSH R0
     CALL LineRel
+    ADD R13 #8
     RET
 
 LABEL Rectangle
@@ -322,6 +333,7 @@ LABEL Rectangle
     PUSH R1
     PUSH R0
     CALL Rectangle
+    ADD R13 #16
     RET
 
 LABEL Bar
@@ -330,6 +342,7 @@ LABEL Bar
     PUSH R1
     PUSH R0
     CALL Bar
+    ADD R13 #16
     RET
 
 LABEL Bar3D
@@ -340,6 +353,7 @@ LABEL Bar3D
     PUSH R1
     PUSH R0
     CALL Bar3D
+    ADD R13 #24
     RET
 
 LABEL Circle
@@ -347,6 +361,7 @@ LABEL Circle
     PUSH R1
     PUSH R0
     CALL Circle
+    ADD R13 #12
     RET
 
 LABEL FillCircle
@@ -354,6 +369,7 @@ LABEL FillCircle
     PUSH R1
     PUSH R0
     CALL FillCircle
+    ADD R13 #12
     RET
 
 LABEL Ellipse
@@ -364,6 +380,7 @@ LABEL Ellipse
     PUSH R1
     PUSH R0
     CALL Ellipse
+    ADD R13 #24
     RET
 
 LABEL FillEllipse
@@ -372,6 +389,7 @@ LABEL FillEllipse
     PUSH R1
     PUSH R0
     CALL FillEllipse
+    ADD R13 #16
     RET
 
 LABEL Arc
@@ -381,6 +399,7 @@ LABEL Arc
     PUSH R1
     PUSH R0
     CALL Arc
+    ADD R13 #20
     RET
 
 LABEL PieSlice
@@ -390,12 +409,14 @@ LABEL PieSlice
     PUSH R1
     PUSH R0
     CALL PieSlice
+    ADD R13 #20
     RET
 
 LABEL SetFillStyle
     PUSH R1
     PUSH R0
     CALL SetFillStyle
+    ADD R13 #8
     RET
 
 LABEL SetLineStyle
@@ -403,6 +424,7 @@ LABEL SetLineStyle
     PUSH R1
     PUSH R0
     CALL SetLineStyle
+    ADD R13 #12
     RET
 
 LABEL ClearDevice
@@ -420,11 +442,13 @@ LABEL SetViewPort
     PUSH R1
     PUSH R0
     CALL SetViewPort
+    ADD R13 #20
     RET
 
 LABEL OutText
     PUSH R0
     CALL OutText
+    ADD R13 #4
     RET
 
 LABEL OutTextXY
@@ -432,6 +456,7 @@ LABEL OutTextXY
     PUSH R1
     PUSH R0
     CALL OutTextXY
+    ADD R13 #12
     RET
 
 LABEL FloodFill
@@ -439,6 +464,7 @@ LABEL FloodFill
     PUSH R1
     PUSH R0
     CALL FloodFill
+    ADD R13 #12
     RET
 
 LABEL ImageSize
@@ -447,6 +473,7 @@ LABEL ImageSize
     PUSH R1
     PUSH R0
     CALL ImageSize
+    ADD R13 #16
     RET
 
 LABEL GetImage
@@ -456,6 +483,7 @@ LABEL GetImage
     PUSH R1
     PUSH R0
     CALL GetImage
+    ADD R13 #20
     RET
 
 LABEL PutImage
@@ -464,6 +492,7 @@ LABEL PutImage
     PUSH R1
     PUSH R0
     CALL PutImage
+    ADD R13 #16
     RET
 
 LABEL GetPaletteSize
@@ -473,11 +502,13 @@ LABEL GetPaletteSize
 LABEL GetPalette
     PUSH R0
     CALL GetPalette
+    ADD R13 #4
     RET
 
 LABEL GetDefaultPalette
     PUSH R0
     CALL GetDefaultPalette
+    ADD R13 #4
     RET
 
 LABEL GraphResult
@@ -487,6 +518,7 @@ LABEL GraphResult
 LABEL GraphErrorMsg
     PUSH R0
     CALL GraphErrorMsg
+    ADD R13 #4
     RET
 
 LABEL RestoreCrtMode

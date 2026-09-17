@@ -6,5 +6,6 @@
 LABEL BASIC_SRAND
     PUSH R0
     CALL srand
+    ADD R13 #4
     RET
 

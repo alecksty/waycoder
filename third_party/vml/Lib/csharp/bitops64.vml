@@ -9,6 +9,7 @@ LABEL LbitAnd64
     sub R13 #8
     movel @13 R0
     CALL lbit_and64
+    ADD R13 #16
     RET
 
 LABEL LbitOr64
@@ -17,6 +18,7 @@ LABEL LbitOr64
     sub R13 #8
     movel @13 R0
     CALL lbit_or64
+    ADD R13 #16
     RET
 
 LABEL LbitXor64
@@ -25,12 +27,14 @@ LABEL LbitXor64
     sub R13 #8
     movel @13 R0
     CALL lbit_xor64
+    ADD R13 #16
     RET
 
 LABEL LbitNot64
     sub R13 #8
     movel @13 R0
     CALL lbit_not64
+    ADD R13 #8
     RET
 
 LABEL LbitShl64
@@ -39,6 +43,7 @@ LABEL LbitShl64
     sub R13 #8
     movel @13 R0
     CALL lbit_shl64
+    ADD R13 #16
     RET
 
 LABEL LbitShr64
@@ -47,6 +52,7 @@ LABEL LbitShr64
     sub R13 #8
     movel @13 R0
     CALL lbit_shr64
+    ADD R13 #16
     RET
 
 LABEL Lrol64
@@ -55,6 +61,7 @@ LABEL Lrol64
     sub R13 #8
     movel @13 R0
     CALL lrol64
+    ADD R13 #16
     RET
 
 LABEL Lror64
@@ -63,6 +70,7 @@ LABEL Lror64
     sub R13 #8
     movel @13 R0
     CALL lror64
+    ADD R13 #16
     RET
 
 LABEL LbitSet64
@@ -71,6 +79,7 @@ LABEL LbitSet64
     sub R13 #8
     movel @13 R0
     CALL lbit_set64
+    ADD R13 #16
     RET
 
 LABEL LbitClear64
@@ -79,6 +88,7 @@ LABEL LbitClear64
     sub R13 #8
     movel @13 R0
     CALL lbit_clear64
+    ADD R13 #16
     RET
 
 LABEL LbitToggle64
@@ -87,6 +97,7 @@ LABEL LbitToggle64
     sub R13 #8
     movel @13 R0
     CALL lbit_toggle64
+    ADD R13 #16
     RET
 
 LABEL LbitTest64
@@ -95,12 +106,14 @@ LABEL LbitTest64
     sub R13 #8
     movel @13 R0
     CALL lbit_test64
+    ADD R13 #16
     RET
 
 LABEL Lcount64
     sub R13 #8
     movel @13 R0
     CALL lcount64
+    ADD R13 #8
     RET
 
 LABEL LrotateLeft64
@@ -109,6 +122,7 @@ LABEL LrotateLeft64
     sub R13 #8
     movel @13 R0
     CALL lrotate_left64
+    ADD R13 #16
     RET
 
 LABEL LrotateRight64
@@ -117,12 +131,14 @@ LABEL LrotateRight64
     sub R13 #8
     movel @13 R0
     CALL lrotate_right64
+    ADD R13 #16
     RET
 
 LABEL LlowestSet64
     sub R13 #8
     movel @13 R0
     CALL llowest_set64
+    ADD R13 #8
     RET
 
 LABEL Lctz64
@@ -135,12 +151,14 @@ LABEL LhighestSet64
     sub R13 #8
     movel @13 R0
     CALL lhighest_set64
+    ADD R13 #8
     RET
 
 LABEL Lmask64
     sub R13 #8
     movel @13 R0
     CALL lmask64
+    ADD R13 #8
     RET
 
 LABEL Lextract64
@@ -151,18 +169,21 @@ LABEL Lextract64
     sub R13 #8
     movel @13 R0
     CALL lextract64
+    ADD R13 #24
     RET
 
 LABEL LisPowerOfTwo64
     sub R13 #8
     movel @13 R0
     CALL lis_power_of_two64
+    ADD R13 #8
     RET
 
 LABEL LnextPowerOfTwo64
     sub R13 #8
     movel @13 R0
     CALL lnext_power_of_two64
+    ADD R13 #8
     RET
 
 LABEL Bitops64_LbitAnd64

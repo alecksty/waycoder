@@ -1,22 +1,28 @@
-.entry main
-.stack 0
-.vectors 0x0
 
 .data
 
 .text
 lmemcpy:
+; -------------------------------------------
+; source   : void* lmemcpy(void* dst,const void* src,long n)
+; function : lmemcpy
+; param   : void* dst
+; param   : const void* src
+; param   : long n
+; return   : void*
+; --------------------------------------------
+lmemcpy:
         push R15
         push R12
         move R12 R13
-        sub R13 #24
+        sub R13 #28
         move R0 [R12+12]
-        move [R12-4] R0
-        move R0 [R12+16]
         move [R12-8] R0
-        move R0 [R12-4]
-        push R0
+        move R0 [R12+16]
+        move [R12-12] R0
         move R0 [R12-8]
+        push R0
+        move R0 [R12-12]
         pop R1
         cmp R1 R0
         jl _L7690005
@@ -27,12 +33,12 @@ _L7690005:
 _L7690006:
         test R0 R0
         jnz _L7690002
-        move R0 [R12-4]
-        push R0
         move R0 [R12-8]
         push R0
+        move R0 [R12-12]
+        push R0
         movel R0 [R12+20]
-        d2i R0 R0
+        l2i R0 R0
         pop R1
         add R1 R0
         move R0 R1
@@ -56,13 +62,13 @@ _L7690004:
         jz sta_7690000
         move R0 #0
         i2l R0 R0
-        movel [R12-16] R0
+        movel [R12-20] R0
 sta_7690009:
-        movel R0 [R12-16]
-        dpush R0
+        movel R0 [R12-20]
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
-        dcmp R1 R0
+        popl R1
+        cmpl R1 R0
         jl _L7690012
         move R0 #0
         jmp _L7690013
@@ -71,46 +77,46 @@ _L7690012:
 _L7690013:
         cmp R0 #0
         jz sta_7690011
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
-        movel R0 [R12-16]
+        movel R0 [R12-20]
         mul R0 #1
         pop R11
         add R0 R11
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         move R10 R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
-        movel R0 [R12-16]
+        movel R0 [R12-20]
         mul R0 #1
         pop R9
         add R0 R9
-        moveb @0 R10
+        moveb [R0] R10
 sta_7690010:
-        moved R0 [R12-16]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-16] R0
-        moved R0 R1
+        movel R0 [R12-20]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-20] R0
+        movel R0 R1
         jmp sta_7690009
 sta_7690011:
         jmp sta_7690001
 sta_7690000:
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #1
-        i2d R0 R0
-        dpop R1
-        dsub R0 R1 R0
-        movel [R12-16] R0
+        i2l R0 R0
+        popl R1
+        subl R0 R1 R0
+        movel [R12-20] R0
 sta_7690014:
-        movel R0 [R12-16]
-        dpush R0
+        movel R0 [R12-20]
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jge _L7690017
         move R0 #0
         jmp _L7690018
@@ -119,57 +125,63 @@ _L7690017:
 _L7690018:
         cmp R0 #0
         jz sta_7690016
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
-        movel R0 [R12-16]
+        movel R0 [R12-20]
         mul R0 #1
         pop R8
         add R0 R8
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         move R7 R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
-        movel R0 [R12-16]
+        movel R0 [R12-20]
         mul R0 #1
         pop R6
         add R0 R6
-        moveb @0 R7
+        moveb [R0] R7
 sta_7690015:
-        moved R0 [R12-16]
-        moved R1 R0
-        sub R0 R0 #1
-        moved [R12-16] R0
-        moved R0 R1
+        movel R0 [R12-20]
+        movel R1 R0
+        subl R0 R0 #1
+        movel [R12-20] R0
+        movel R0 R1
         jmp sta_7690014
 sta_7690016:
 sta_7690001:
         move R0 [R12+12]
-        jmp L7690019
-L7690019:
+        jmp L_7690019
+L_7690019:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+lmemset:
+; -------------------------------------------
+; source   : void* lmemset(void* ptr,int val,long n)
+; function : lmemset
+; param   : void* ptr
+; param   : int val
+; param   : long n
+; return   : void*
+; --------------------------------------------
 lmemset:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 #0
         i2l R0 R0
-        movel [R12-12] R0
+        movel [R12-16] R0
 sta_7690020:
-        movel R0 [R12-12]
-        dpush R0
+        movel R0 [R12-16]
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
-        dcmp R1 R0
+        popl R1
+        cmpl R1 R0
         jl _L7690023
         move R0 #0
         jmp _L7690024
@@ -180,69 +192,88 @@ _L7690024:
         jz sta_7690022
         move R0 [R12+16]
         move R5 R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
-        movel R0 [R12-12]
+        movel R0 [R12-16]
         mul R0 #1
         pop R4
         add R0 R4
-        moveb @0 R5
+        moveb [R0] R5
 sta_7690021:
-        moved R0 [R12-12]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-12] R0
-        moved R0 R1
+        movel R0 [R12-16]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-16] R0
+        movel R0 R1
         jmp sta_7690020
 sta_7690022:
         move R0 [R12+12]
-        jmp L7690025
-L7690025:
+        jmp L_7690025
+L_7690025:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+lmemmove:
+; -------------------------------------------
+; source   : void* lmemmove(void* dst,const void* src,long n)
+; function : lmemmove
+; param   : void* dst
+; param   : const void* src
+; param   : long n
+; return   : void*
+; --------------------------------------------
 lmemmove:
         push R15
         push R12
         move R12 R13
-        move R0 [R12+12]
-        push R0
+        sub R13 #12
+        movel R0 [R12+20]
+        sub R13 #8
+        movel @13 R0
         move R0 [R12+16]
         push R0
-        movel R0 [R12+20]
+        move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call lmemcpy
-        jmp L7690026
-L7690026:
+        add R13 #16
+        jmp L_7690026
+L_7690026:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+lmemcmp:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int lmemcmp(const void* a,const void* b,long n)
+; function : lmemcmp
+; param   : const void* a
+; param   : const void* b
+; param   : long n
+; return   : int
+; --------------------------------------------
 lmemcmp:
         push R15
         push R12
         move R12 R13
-        sub R13 #24
+        sub R13 #28
         move R0 [R12+12]
-        move [R12-4] R0
-        move R0 [R12+16]
         move [R12-8] R0
+        move R0 [R12+16]
+        move [R12-12] R0
         move R0 #0
         i2l R0 R0
-        movel [R12-16] R0
+        movel [R12-20] R0
 sta_7690027:
-        movel R0 [R12-16]
-        dpush R0
+        movel R0 [R12-20]
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
-        dcmp R1 R0
+        popl R1
+        cmpl R1 R0
         jl _L7690030
         move R0 #0
         jmp _L7690031
@@ -251,22 +282,22 @@ _L7690030:
 _L7690031:
         cmp R0 #0
         jz sta_7690029
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
-        movel R0 [R12-16]
+        movel R0 [R12-20]
         mul R0 #1
         pop R3
         add R0 R3
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pushb R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
-        movel R0 [R12-16]
+        movel R0 [R12-20]
         mul R0 #1
         pop R2
         add R0 R2
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         popb R1
         cmp R1 R0
@@ -278,44 +309,41 @@ _L7690034:
 _L7690035:
         cmp R0 #0
         jz sta_7690032
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
-        movel R0 [R12-16]
+        movel R0 [R12-20]
         mul R0 #1
         pop R1
         add R0 R1
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
-        movel R0 [R12-16]
+        movel R0 [R12-20]
         mul R0 #1
         pop R11
         add R0 R11
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         pop R1
         sub R1 R0
         move R0 R1
-        jmp L7690036
+        jmp L_7690036
 sta_7690032:
 sta_7690033:
 sta_7690028:
-        moved R0 [R12-16]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-16] R0
-        moved R0 R1
+        movel R0 [R12-20]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-20] R0
+        movel R0 R1
         jmp sta_7690027
 sta_7690029:
         move R0 #0
-        jmp L7690036
-L7690036:
+        jmp L_7690036
+L_7690036:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret

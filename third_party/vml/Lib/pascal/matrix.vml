@@ -6,6 +6,7 @@
 LABEL PASCAL_MAT2_IDENTITY
     PUSH R0
     CALL mat2_identity
+    ADD R13 #4
     RET
 
 LABEL PASCAL_MAT2_ADD
@@ -13,6 +14,7 @@ LABEL PASCAL_MAT2_ADD
     PUSH R1
     PUSH R0
     CALL mat2_add
+    ADD R13 #12
     RET
 
 LABEL PASCAL_MAT2_SUB
@@ -20,6 +22,7 @@ LABEL PASCAL_MAT2_SUB
     PUSH R1
     PUSH R0
     CALL mat2_sub
+    ADD R13 #12
     RET
 
 LABEL PASCAL_MAT2_MUL
@@ -27,6 +30,7 @@ LABEL PASCAL_MAT2_MUL
     PUSH R1
     PUSH R0
     CALL mat2_mul
+    ADD R13 #12
     RET
 
 LABEL PASCAL_MAT2_SCALE
@@ -35,23 +39,27 @@ LABEL PASCAL_MAT2_SCALE
     movef @13 R1
     PUSH R0
     CALL mat2_scale
+    ADD R13 #12
     RET
 
 LABEL PASCAL_MAT2_DET
     PUSH R0
     CALL mat2_det
+    ADD R13 #4
     RET
 
 LABEL PASCAL_MAT2_TRANSPOSE
     PUSH R1
     PUSH R0
     CALL mat2_transpose
+    ADD R13 #8
     RET
 
 LABEL PASCAL_MAT2_INV
     PUSH R1
     PUSH R0
     CALL mat2_inv
+    ADD R13 #8
     RET
 
 LABEL PASCAL_MAT2_ROT
@@ -59,11 +67,13 @@ LABEL PASCAL_MAT2_ROT
     sub R13 #4
     movef @13 R0
     CALL mat2_rot
+    ADD R13 #8
     RET
 
 LABEL PASCAL_MAT3_IDENTITY
     PUSH R0
     CALL mat3_identity
+    ADD R13 #4
     RET
 
 LABEL PASCAL_MAT3_MUL
@@ -71,17 +81,20 @@ LABEL PASCAL_MAT3_MUL
     PUSH R1
     PUSH R0
     CALL mat3_mul
+    ADD R13 #12
     RET
 
 LABEL PASCAL_MAT3_DET
     PUSH R0
     CALL mat3_det
+    ADD R13 #4
     RET
 
 LABEL PASCAL_MAT3_TRANSPOSE
     PUSH R1
     PUSH R0
     CALL mat3_transpose
+    ADD R13 #8
     RET
 
 LABEL PASCAL_MAT3_SCALE
@@ -90,11 +103,13 @@ LABEL PASCAL_MAT3_SCALE
     movef @13 R1
     PUSH R0
     CALL mat3_scale
+    ADD R13 #12
     RET
 
 LABEL PASCAL_MAT4_IDENTITY
     PUSH R0
     CALL mat4_identity
+    ADD R13 #4
     RET
 
 LABEL PASCAL_MAT4_MUL
@@ -102,6 +117,7 @@ LABEL PASCAL_MAT4_MUL
     PUSH R1
     PUSH R0
     CALL mat4_mul
+    ADD R13 #12
     RET
 
 LABEL PASCAL_MAT4_TRANSLATE
@@ -113,6 +129,7 @@ LABEL PASCAL_MAT4_TRANSLATE
     sub R13 #4
     movef @13 R0
     CALL mat4_translate
+    ADD R13 #16
     RET
 
 LABEL PASCAL_MAT4_SCALE_XYZ
@@ -124,6 +141,7 @@ LABEL PASCAL_MAT4_SCALE_XYZ
     sub R13 #4
     movef @13 R0
     CALL mat4_scale_xyz
+    ADD R13 #16
     RET
 
 LABEL PASCAL_MAT4_ROT_X
@@ -131,6 +149,7 @@ LABEL PASCAL_MAT4_ROT_X
     sub R13 #4
     movef @13 R0
     CALL mat4_rot_x
+    ADD R13 #8
     RET
 
 LABEL PASCAL_MAT4_ROT_Y
@@ -138,6 +157,7 @@ LABEL PASCAL_MAT4_ROT_Y
     sub R13 #4
     movef @13 R0
     CALL mat4_rot_y
+    ADD R13 #8
     RET
 
 LABEL PASCAL_MAT4_ROT_Z
@@ -145,18 +165,21 @@ LABEL PASCAL_MAT4_ROT_Z
     sub R13 #4
     movef @13 R0
     CALL mat4_rot_z
+    ADD R13 #8
     RET
 
 LABEL PASCAL_MAT4_TRANSPOSE
     PUSH R1
     PUSH R0
     CALL mat4_transpose
+    ADD R13 #8
     RET
 
 LABEL PASCAL_VEC2_DOT
     PUSH R1
     PUSH R0
     CALL vec2_dot
+    ADD R13 #8
     RET
 
 LABEL PASCAL_PRODUCT
@@ -169,22 +192,26 @@ LABEL PASCAL_VEC2_CROSS
     PUSH R1
     PUSH R0
     CALL vec2_cross
+    ADD R13 #8
     RET
 
 LABEL PASCAL_VEC2_LEN
     PUSH R0
     CALL vec2_len
+    ADD R13 #4
     RET
 
 LABEL PASCAL_VEC2_NORMALIZE
     PUSH R0
     CALL vec2_normalize
+    ADD R13 #4
     RET
 
 LABEL PASCAL_VEC3_DOT
     PUSH R1
     PUSH R0
     CALL vec3_dot
+    ADD R13 #8
     RET
 
 LABEL PASCAL_VEC3_CROSS
@@ -192,16 +219,19 @@ LABEL PASCAL_VEC3_CROSS
     PUSH R1
     PUSH R0
     CALL vec3_cross
+    ADD R13 #12
     RET
 
 LABEL PASCAL_VEC3_LEN
     PUSH R0
     CALL vec3_len
+    ADD R13 #4
     RET
 
 LABEL PASCAL_VEC3_NORMALIZE
     PUSH R0
     CALL vec3_normalize
+    ADD R13 #4
     RET
 
 LABEL PASCAL_VECTOR
@@ -216,5 +246,6 @@ LABEL PASCAL_MAT4_TRANSFORM_VEC3
     PUSH R1
     PUSH R0
     CALL mat4_transform_vec3
+    ADD R13 #12
     RET
 

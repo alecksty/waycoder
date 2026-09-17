@@ -6,6 +6,7 @@
 LABEL Wscanf
     PUSH R0
     CALL wscanf
+    ADD R13 #4
     RET
 
 LABEL Wscanf_Wscanf

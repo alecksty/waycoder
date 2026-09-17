@@ -499,3 +499,128 @@ dotnet run --project third_party/vml/tools/GenLib -- -A
 `VMLEmulators VMLFast VMLIde VMLTests web`。多是上游自己的 IDE/模拟器/文档/网页端，
 移动版用不上。**唯独 `VMLTests/`（回归测试套件）值得拿** —— 但它能不能在本仓这份树上
 编译通过尚未验证，纳入时要单独评估（它可能依赖 `VMLEmulators` / `VMLFast` 之类）。
+
+---
+
+# 已打通：`Lib/` 就地重生成（2026-09-17 实测）
+
+```bash
+cd third_party/vml
+touch Lib/shared/src/*.c        # ⚠ 见下「时间戳陷阱」
+dotnet run --project tools/GenLib -- -A -r .
+```
+
+## 结果
+
+| 判据 | 重生成前 | 重生成后 |
+|---|---|---|
+| `scripts/vml-abi-probe/run.sh` | 4/6（`p3`/`p5` 红） | **6/6** |
+| 22 语言骨架（`SKEL-SUM=14`） | 22/22（带病） | **22/22** |
+| `print_*` 漂移探针（Python） | `T2`/`T4`/`T5` 全 `0` | `T2=50` `T4=60`，漂移本体消失 |
+| 桌面自测 `dotnet run -- --test` | — | **5859 / 5859** |
+| 变更规模 | — | `Lib/` 1621 个文件、约 4.2 MB 文本 diff |
+
+**`Lib/shared/src/*.c` 一字未改** —— 也就是说整个 `Lib/` 的 diff 全是生成物：
+1621 处变更证明的是「`Lib/` = `f(源码, 前端, GenLib)`」，不是「有人手改了 1621 处」。
+
+## 纠正一条**误判**：上一轮把病因认成了「生成工具链口径」
+
+上一版这里写着：
+
+> 只重生成 `console.vml`（源码未移植）→ 22 语言掉到 **20**（掉 csharp / forth），
+> 原因：重生成会换掉标签格式（`L94240004` → `L_94240004`）、局部布局，并**丢掉 `.linked` 抬头**。
+> 结论：移植必须以「整个 `Lib/` + 全部前端」为单位一次做完。
+
+**这段结论是错的。** 掉 csharp / forth 的真因不是标签格式，而是**只重生成了一层**：
+
+- `Lib/shared/console.vml` 重生成成了新的（被调方裸 `ret`），
+- 而 `Lib/{lang}/console.vml` 的包装器还是旧的 —— 它是
+
+  ```asm
+  LABEL PrintlnInt
+      PUSH R0            ; ← 为「被调方会弹掉一个参数槽」而多压的一格
+      CALL println_int
+      RET                ; ← 它指望 println_int 把那一格弹掉
+  ```
+
+被调方改成不弹之后，`RET` 弹掉的就是自己刚压的参数 ⇒ 跳飞。**两层一起重生成，csharp 当场恢复。**
+
+⇒ 修正后的规律：**`Lib/shared/` 与 `Lib/{lang}/` 必须同一次重生成**（`-A` 本来就一起做），
+而**标签格式与 `.linked` 从来不是问题**（`.linked` 由 C 编译器按 `#include`/依赖产出，
+`GenLib -b` 只剥 `.entry`/`.stack`/`.vectors`，其余原样）。
+
+## 时间戳陷阱（`-b` 是增量的）
+
+`BuildShared` 的判据是 `File.GetLastWriteTime(vml) >= File.GetLastWriteTime(cfile)` —
+**源码没改就不重编**。这次是「编译器改了、源码没改」，所以必须先把 `src/*.c` 的 mtime 顶上去，
+否则 `-A` 会报「0 编译, N 跳过」而**什么都没做**（原型阶段就这么假绿过一次）。
+
+## Forth 的补偿 `PUSH R0` 已删
+
+`ForthCompiler/CodeGenerator.Operations.cs` 的 `EmitCallPrintString` / `EmitCallPrintInt`
+里那句 `PUSH R0` 是**为旧约定写的抵消**（压栈 + 被调方弹掉 = 净 0）。
+现在压一格就是**净 +4 的泄漏**（Forth 的数据栈就是 R13，每打一次 `.` 吃一格）。
+删掉之后 `SKEL-SUM=14` 恢复。
+
+## `check-vml-patches.sh`：`Lib/` 换了判据
+
+`Lib/` 已完全是生成物，再往补丁里塞 4 MB 快照没有意义（而且每重生成一次就要再塞一份）。
+改成两段验：
+
+1. **生成物**：把 `Lib/` 复制到临时目录、把非 C 源文件的 mtime 拨到 1970、跑一次
+   `GenLib -A`，凡是 mtime 变新了的（1933 个）逐个 `cmp` 与工作区比 —— 必须**逐字节相同**。
+   （⚠ 只拨非 C 源：把 `.c` 一起拨老会让 `-b` 判定「不比源旧」而整批跳过 ⇒ 假绿。）
+2. **手工部分**（`GenLib` 不产出的 3289 个：手写 `.vml` / `json` / 脚本 / `Device/` …）：
+   仍按「vendor + 补丁 == 工作区」验 —— 它们才是 `rsync --delete` 真会吃掉的东西。
+
+负向验证过三次（改一个生成物 / 改一个手工文件 / 新增一个手工文件），三次都报红。
+新增补丁 `0034-unified-calling-convention.patch`（C 前端统一 + Forth 去补偿）。
+
+## 顺手确认的两条事实
+
+- **`Lib/{lang}/shared_bindings.*` 重生成是有收益的**：`Lib/c/shared_bindings.h`
+  补上了此前缺的 42 行 `ui_*` 声明（`patches/0009` 把 `vmlui.c` 的 `#include` 加进了源码，
+  但头文件一直没重生成过）。`__stdcall` 装饰保留原样 —— 它镜像的是 C 源码自己的声明，
+  且前端已不再理会它。
+- **Examples 里 `file_io.*` 那批异常（`未找到标签: asm`）是既有问题**：用**改动前的 `Lib/`**
+  跑同一批复现出同一个异常，不是本次回归。
+
+---
+
+# ⚠ 还没做完：其余前端的调用点（2026-09-17 实测发现）
+
+文档第 2 步写的是「C 系改 `CodeGenerator.Expressions.Calls.cs`；**其余 19 个前端**各自查一遍」。
+目前**只有 C 前端与 Forth 那处补偿**改完了，其余前端仍是旧形态 —— 而统一之后它们不再"碰巧能用"。
+
+## 判据（一条命令就能复现）
+
+```c
+/* C：得 8 ✓ */
+int ipow(int base, int exp);          /* Lib/shared/src/math.c，base^exp，非交换 */
+void print_int(int v); void newline(void);
+int main(void) { print_int(ipow(2, 3)); newline(); return 0; }
+```
+
+同一份程序，**C 前端得 `8`（正确），C++ 前端得 `9`**（= `ipow(3,2)`）—— 实参整体反序。
+
+## 已知的形态（语料文件头里早记着，只是当时不影响单参调用）
+
+| 前端 | 实参压栈 | 现在 |
+|---|---|---|
+| C | 右→左 + 调用方清 + R0-R3 镜像 | ✅ 已统一 |
+| Kotlin | 右→左 | ✅ |
+| Forth / Fortran / Scheme | 逆序 | ✅ |
+| C++ | **左→右** | ✗ 多参反序 |
+| JavaScript | **左→右** | ✗ |
+| Ruby | **左→右** | ✗ |
+| Java | 第 1 个进 R0，其余右→左 | ✗ 整体错位一格 |
+| Lua | **只前 4 个进 R0-R3、不压栈** | ✗ 8 参到不了 `[R12+12]` |
+
+其余前端（Basic / Pascal / Python / Go / Rust / Swift / C# / Dart / R / Ladder / D / ObjC）
+待逐个核对 —— 统一前它们靠「R0-R3 恰好承载了第一个实参」碰巧能用，
+**单参调用看不出来，多参才露馅**，这正是 22 语言骨架全绿却仍有缺陷的原因
+（骨架里的库调用都被写成单参或参数不参与判据）。
+
+**下一步**：给 22 个前端各写一条 `ipow(2,3) == 8` 的运行时探针（落在
+`scripts/vml-abi-probe/` 下），按探针逐个改成同一种形态 —— 压栈右到左、
+调用方清栈、压完之后把 `arg0..arg3` 镜像进 R0-R3（镜像给 `Lib` 里 543 处内联汇编用）。

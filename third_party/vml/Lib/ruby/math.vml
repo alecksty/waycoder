@@ -8,21 +8,25 @@
 LABEL ruby_min
     PUSH R0
     CALL min
+    ADD R13 #4
     RET
 
 LABEL ruby_max
     PUSH R0
     CALL max
+    ADD R13 #4
     RET
 
 LABEL ruby_sum
     PUSH R0
     CALL sum
+    ADD R13 #4
     RET
 
 LABEL ruby_abs
     PUSH R0
     CALL abs
+    ADD R13 #4
     RET
 
 LABEL ruby_random
@@ -34,6 +38,7 @@ LABEL ruby_clamp
     PUSH R1
     PUSH R0
     CALL clamp
+    ADD R13 #12
     RET
 
 LABEL ruby_cos
@@ -51,22 +56,26 @@ LABEL ruby_sin
 LABEL ruby_sqrt
     PUSH R0
     CALL sqrt
+    ADD R13 #4
     RET
 
 LABEL ruby_atan2
     PUSH R1
     PUSH R0
     CALL atan2
+    ADD R13 #8
     RET
 
 LABEL ruby_pow10
     PUSH R0
     CALL pow10
+    ADD R13 #4
     RET
 
 LABEL ruby_randomize
     PUSH R0
     CALL randomize
+    ADD R13 #4
     RET
 
 LABEL ruby__sin_taylor
@@ -101,36 +110,42 @@ LABEL ruby_tan
     sub R13 #8
     moved @13 R0
     CALL tan
+    ADD R13 #8
     RET
 
 LABEL ruby_asin
     sub R13 #8
     moved @13 R0
     CALL asin
+    ADD R13 #8
     RET
 
 LABEL ruby_acos
     sub R13 #8
     moved @13 R0
     CALL acos
+    ADD R13 #8
     RET
 
 LABEL ruby_atan
     sub R13 #8
     moved @13 R0
     CALL atan
+    ADD R13 #8
     RET
 
 LABEL ruby_exp
     sub R13 #8
     moved @13 R0
     CALL exp
+    ADD R13 #8
     RET
 
 LABEL ruby_log
     sub R13 #8
     moved @13 R0
     CALL log
+    ADD R13 #8
     RET
 
 LABEL ruby_pow
@@ -139,30 +154,35 @@ LABEL ruby_pow
     sub R13 #8
     moved @13 R0
     CALL pow
+    ADD R13 #16
     RET
 
 LABEL ruby_ipow
     PUSH R1
     PUSH R0
     CALL ipow
+    ADD R13 #8
     RET
 
 LABEL ruby_sin_deg
     sub R13 #4
     movef @13 R0
     CALL sin_deg
+    ADD R13 #4
     RET
 
 LABEL ruby_cos_deg
     sub R13 #4
     movef @13 R0
     CALL cos_deg
+    ADD R13 #4
     RET
 
 LABEL ruby_tan_deg
     sub R13 #4
     movef @13 R0
     CALL tan_deg
+    ADD R13 #4
     RET
 
 LABEL ruby_approximation
@@ -174,29 +194,34 @@ LABEL ruby_approximation
 LABEL ruby_ilog2
     PUSH R0
     CALL ilog2
+    ADD R13 #4
     RET
 
 LABEL ruby_ceil_div
     PUSH R1
     PUSH R0
     CALL ceil_div
+    ADD R13 #8
     RET
 
 LABEL ruby_round_div
     PUSH R1
     PUSH R0
     CALL round_div
+    ADD R13 #8
     RET
 
 LABEL ruby_random_range
     PUSH R1
     PUSH R0
     CALL random_range
+    ADD R13 #8
     RET
 
 LABEL ruby_random_set_seed
     PUSH R0
     CALL random_set_seed
+    ADD R13 #4
     RET
 
 LABEL ruby_lerp
@@ -204,6 +229,7 @@ LABEL ruby_lerp
     PUSH R1
     PUSH R0
     CALL lerp
+    ADD R13 #12
     RET
 
 LABEL ruby_map_range
@@ -213,6 +239,7 @@ LABEL ruby_map_range
     PUSH R1
     PUSH R0
     CALL map_range
+    ADD R13 #20
     RET
 
 LABEL ruby_clamp_int
@@ -220,61 +247,72 @@ LABEL ruby_clamp_int
     PUSH R1
     PUSH R0
     CALL clamp_int
+    ADD R13 #12
     RET
 
 LABEL ruby_hypot_int
     PUSH R1
     PUSH R0
     CALL hypot_int
+    ADD R13 #8
     RET
 
 LABEL ruby_isqrt
     PUSH R0
     CALL isqrt
+    ADD R13 #4
     RET
 
 LABEL ruby_sin_deg_d
     sub R13 #8
     moved @13 R0
     CALL sin_deg_d
+    ADD R13 #8
     RET
 
 LABEL ruby_cos_deg_d
     sub R13 #8
     moved @13 R0
     CALL cos_deg_d
+    ADD R13 #8
     RET
 
 LABEL ruby_tan_deg_d
     sub R13 #8
     moved @13 R0
     CALL tan_deg_d
+    ADD R13 #8
     RET
 
 LABEL ruby_sum_arr
     PUSH R0
     CALL sum_arr
+    ADD R13 #4
     RET
 
 LABEL ruby_min_arr
     PUSH R0
     CALL min_arr
+    ADD R13 #4
     RET
 
 LABEL ruby_max_arr
     PUSH R0
     CALL max_arr
+    ADD R13 #4
     RET
 
 LABEL ruby_int_pow
     PUSH R1
     PUSH R0
     CALL int_pow
+    ADD R13 #8
     RET
 
 LABEL ruby_int_sqrt
     PUSH R0
     CALL int_sqrt
+    ADD R13 #4
     RET
 
 LABEL func_min

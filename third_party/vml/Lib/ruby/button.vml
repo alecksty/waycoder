@@ -8,6 +8,7 @@ LABEL ruby_init
     PUSH R1
     PUSH R0
     CALL init
+    ADD R13 #12
     RET
 
 LABEL ruby_update
@@ -15,11 +16,13 @@ LABEL ruby_update
     PUSH R1
     PUSH R0
     CALL update
+    ADD R13 #12
     RET
 
 LABEL ruby_is_pressed
     PUSH R0
     CALL is_pressed
+    ADD R13 #4
     RET
 
 LABEL func_init

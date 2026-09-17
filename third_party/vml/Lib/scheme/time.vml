@@ -6,6 +6,7 @@
 LABEL scheme_sleep
     PUSH R0
     CALL sleep
+    ADD R13 #4
     RET
 
 LABEL scheme_get_tick
@@ -15,6 +16,7 @@ LABEL scheme_get_tick
 LABEL scheme_delay_us
     PUSH R0
     CALL delay_us
+    ADD R13 #4
     RET
 
 LABEL scheme_datetime
@@ -32,6 +34,7 @@ LABEL scheme_get_time
 LABEL scheme_delay
     PUSH R0
     CALL delay
+    ADD R13 #4
     RET
 
 LABEL func_sleep

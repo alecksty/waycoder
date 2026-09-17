@@ -14,45 +14,53 @@ LABEL fortran_crc8
     PUSH R1
     PUSH R0
     CALL crc8
+    ADD R13 #8
     RET
 
 LABEL fortran_crc16
     PUSH R1
     PUSH R0
     CALL crc16
+    ADD R13 #8
     RET
 
 LABEL fortran_crc32
     PUSH R1
     PUSH R0
     CALL crc32
+    ADD R13 #8
     RET
 
 LABEL fortran_djb2_hash
     PUSH R0
     CALL djb2_hash
+    ADD R13 #4
     RET
 
 LABEL fortran_sdbm_hash
     PUSH R0
     CALL sdbm_hash
+    ADD R13 #4
     RET
 
 LABEL fortran_fnv1a_hash
     PUSH R0
     CALL fnv1a_hash
+    ADD R13 #4
     RET
 
 LABEL fortran_checksum8
     PUSH R1
     PUSH R0
     CALL checksum8
+    ADD R13 #8
     RET
 
 LABEL fortran_checksum16
     PUSH R1
     PUSH R0
     CALL checksum16
+    ADD R13 #8
     RET
 
 LABEL func_CRC

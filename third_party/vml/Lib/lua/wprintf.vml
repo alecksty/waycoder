@@ -6,6 +6,7 @@
 LABEL lua_wprintf
     PUSH R0
     CALL wprintf
+    ADD R13 #4
     RET
 
 LABEL func_wprintf

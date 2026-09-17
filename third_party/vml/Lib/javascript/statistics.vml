@@ -6,56 +6,66 @@
 LABEL mean
     PUSH R0
     CALL mean
+    ADD R13 #4
     RET
 
 LABEL median
     PUSH R0
     CALL median
+    ADD R13 #4
     RET
 
 LABEL range
     PUSH R0
     CALL range
+    ADD R13 #4
     RET
 
 LABEL countGt
     PUSH R1
     PUSH R0
     CALL count_gt
+    ADD R13 #8
     RET
 
 LABEL countLt
     PUSH R1
     PUSH R0
     CALL count_lt
+    ADD R13 #8
     RET
 
 LABEL countEq
     PUSH R1
     PUSH R0
     CALL count_eq
+    ADD R13 #8
     RET
 
 LABEL variance
     PUSH R0
     CALL variance
+    ADD R13 #4
     RET
 
 LABEL stdDev
     PUSH R0
     CALL std_dev
+    ADD R13 #4
     RET
 
 LABEL linregSlope
     PUSH R1
     PUSH R0
     CALL linreg_slope
+    ADD R13 #8
     RET
 
 LABEL linregIntercept
     PUSH R1
     PUSH R0
     CALL linreg_intercept
+    ADD R13 #8
     RET
 
 LABEL Statistics_Mean

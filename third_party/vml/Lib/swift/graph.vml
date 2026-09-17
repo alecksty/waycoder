@@ -228,6 +228,7 @@ LABEL swift_InitGraph
     PUSH R1
     PUSH R0
     CALL InitGraph
+    ADD R13 #12
     RET
 
 LABEL swift_CloseGraph
@@ -238,6 +239,7 @@ LABEL swift_DetectGraph
     PUSH R1
     PUSH R0
     CALL DetectGraph
+    ADD R13 #8
     RET
 
 LABEL swift_GetMaxX
@@ -255,11 +257,13 @@ LABEL swift_GetDriverName
 LABEL swift_GetModeName
     PUSH R0
     CALL GetModeName
+    ADD R13 #4
     RET
 
 LABEL swift_SetColor
     PUSH R0
     CALL SetColor
+    ADD R13 #4
     RET
 
 LABEL swift_GetColor
@@ -269,6 +273,7 @@ LABEL swift_GetColor
 LABEL swift_SetBkColor
     PUSH R0
     CALL SetBkColor
+    ADD R13 #4
     RET
 
 LABEL swift_GetBkColor
@@ -281,6 +286,7 @@ LABEL swift_SetRGBPalette
     PUSH R1
     PUSH R0
     CALL SetRGBPalette
+    ADD R13 #16
     RET
 
 LABEL swift_PutPixel
@@ -288,12 +294,14 @@ LABEL swift_PutPixel
     PUSH R1
     PUSH R0
     CALL PutPixel
+    ADD R13 #12
     RET
 
 LABEL swift_GetPixel
     PUSH R1
     PUSH R0
     CALL GetPixel
+    ADD R13 #8
     RET
 
 LABEL swift_Line
@@ -302,18 +310,21 @@ LABEL swift_Line
     PUSH R1
     PUSH R0
     CALL Line
+    ADD R13 #16
     RET
 
 LABEL swift_LineTo
     PUSH R1
     PUSH R0
     CALL LineTo
+    ADD R13 #8
     RET
 
 LABEL swift_LineRel
     PUSH R1
     PUSH R0
     CALL LineRel
+    ADD R13 #8
     RET
 
 LABEL swift_Rectangle
@@ -322,6 +333,7 @@ LABEL swift_Rectangle
     PUSH R1
     PUSH R0
     CALL Rectangle
+    ADD R13 #16
     RET
 
 LABEL swift_Bar
@@ -330,6 +342,7 @@ LABEL swift_Bar
     PUSH R1
     PUSH R0
     CALL Bar
+    ADD R13 #16
     RET
 
 LABEL swift_Bar3D
@@ -340,6 +353,7 @@ LABEL swift_Bar3D
     PUSH R1
     PUSH R0
     CALL Bar3D
+    ADD R13 #24
     RET
 
 LABEL swift_Circle
@@ -347,6 +361,7 @@ LABEL swift_Circle
     PUSH R1
     PUSH R0
     CALL Circle
+    ADD R13 #12
     RET
 
 LABEL swift_FillCircle
@@ -354,6 +369,7 @@ LABEL swift_FillCircle
     PUSH R1
     PUSH R0
     CALL FillCircle
+    ADD R13 #12
     RET
 
 LABEL swift_Ellipse
@@ -364,6 +380,7 @@ LABEL swift_Ellipse
     PUSH R1
     PUSH R0
     CALL Ellipse
+    ADD R13 #24
     RET
 
 LABEL swift_FillEllipse
@@ -372,6 +389,7 @@ LABEL swift_FillEllipse
     PUSH R1
     PUSH R0
     CALL FillEllipse
+    ADD R13 #16
     RET
 
 LABEL swift_Arc
@@ -381,6 +399,7 @@ LABEL swift_Arc
     PUSH R1
     PUSH R0
     CALL Arc
+    ADD R13 #20
     RET
 
 LABEL swift_PieSlice
@@ -390,12 +409,14 @@ LABEL swift_PieSlice
     PUSH R1
     PUSH R0
     CALL PieSlice
+    ADD R13 #20
     RET
 
 LABEL swift_SetFillStyle
     PUSH R1
     PUSH R0
     CALL SetFillStyle
+    ADD R13 #8
     RET
 
 LABEL swift_SetLineStyle
@@ -403,6 +424,7 @@ LABEL swift_SetLineStyle
     PUSH R1
     PUSH R0
     CALL SetLineStyle
+    ADD R13 #12
     RET
 
 LABEL swift_ClearDevice
@@ -420,11 +442,13 @@ LABEL swift_SetViewPort
     PUSH R1
     PUSH R0
     CALL SetViewPort
+    ADD R13 #20
     RET
 
 LABEL swift_OutText
     PUSH R0
     CALL OutText
+    ADD R13 #4
     RET
 
 LABEL swift_OutTextXY
@@ -432,6 +456,7 @@ LABEL swift_OutTextXY
     PUSH R1
     PUSH R0
     CALL OutTextXY
+    ADD R13 #12
     RET
 
 LABEL swift_FloodFill
@@ -439,6 +464,7 @@ LABEL swift_FloodFill
     PUSH R1
     PUSH R0
     CALL FloodFill
+    ADD R13 #12
     RET
 
 LABEL swift_ImageSize
@@ -447,6 +473,7 @@ LABEL swift_ImageSize
     PUSH R1
     PUSH R0
     CALL ImageSize
+    ADD R13 #16
     RET
 
 LABEL swift_GetImage
@@ -456,6 +483,7 @@ LABEL swift_GetImage
     PUSH R1
     PUSH R0
     CALL GetImage
+    ADD R13 #20
     RET
 
 LABEL swift_PutImage
@@ -464,6 +492,7 @@ LABEL swift_PutImage
     PUSH R1
     PUSH R0
     CALL PutImage
+    ADD R13 #16
     RET
 
 LABEL swift_GetPaletteSize
@@ -473,11 +502,13 @@ LABEL swift_GetPaletteSize
 LABEL swift_GetPalette
     PUSH R0
     CALL GetPalette
+    ADD R13 #4
     RET
 
 LABEL swift_GetDefaultPalette
     PUSH R0
     CALL GetDefaultPalette
+    ADD R13 #4
     RET
 
 LABEL swift_GraphResult
@@ -487,6 +518,7 @@ LABEL swift_GraphResult
 LABEL swift_GraphErrorMsg
     PUSH R0
     CALL GraphErrorMsg
+    ADD R13 #4
     RET
 
 LABEL swift_RestoreCrtMode

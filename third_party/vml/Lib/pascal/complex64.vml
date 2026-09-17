@@ -8,6 +8,7 @@ LABEL PASCAL_ZADD
     PUSH R1
     PUSH R0
     CALL zadd
+    ADD R13 #12
     RET
 
 LABEL PASCAL_ZSUB
@@ -15,6 +16,7 @@ LABEL PASCAL_ZSUB
     PUSH R1
     PUSH R0
     CALL zsub
+    ADD R13 #12
     RET
 
 LABEL PASCAL_ZMUL
@@ -22,6 +24,7 @@ LABEL PASCAL_ZMUL
     PUSH R1
     PUSH R0
     CALL zmul
+    ADD R13 #12
     RET
 
 LABEL PASCAL_ZDIV
@@ -29,28 +32,33 @@ LABEL PASCAL_ZDIV
     PUSH R1
     PUSH R0
     CALL zdiv
+    ADD R13 #12
     RET
 
 LABEL PASCAL_ZABS
     PUSH R0
     CALL zabs
+    ADD R13 #4
     RET
 
 LABEL PASCAL_ZARG
     PUSH R0
     CALL zarg
+    ADD R13 #4
     RET
 
 LABEL PASCAL_ZCONJ
     PUSH R1
     PUSH R0
     CALL zconj
+    ADD R13 #8
     RET
 
 LABEL PASCAL_ZNEG
     PUSH R1
     PUSH R0
     CALL zneg
+    ADD R13 #8
     RET
 
 LABEL PASCAL_ZEXP_RE
@@ -59,6 +67,7 @@ LABEL PASCAL_ZEXP_RE
     sub R13 #8
     moved @13 R0
     CALL zexp_re
+    ADD R13 #16
     RET
 
 LABEL PASCAL_ZEXP_IM
@@ -67,17 +76,20 @@ LABEL PASCAL_ZEXP_IM
     sub R13 #8
     moved @13 R0
     CALL zexp_im
+    ADD R13 #16
     RET
 
 LABEL PASCAL_ZSQR
     PUSH R1
     PUSH R0
     CALL zsqr
+    ADD R13 #8
     RET
 
 LABEL PASCAL_ZSQRT
     PUSH R1
     PUSH R0
     CALL zsqrt
+    ADD R13 #8
     RET
 

@@ -7,32 +7,38 @@ LABEL fortran_div
     PUSH R1
     PUSH R0
     CALL div
+    ADD R13 #8
     RET
 
 LABEL fortran_from_int
     PUSH R0
     CALL from_int
+    ADD R13 #4
     RET
 
 LABEL fortran_to_int
     PUSH R0
     CALL to_int
+    ADD R13 #4
     RET
 
 LABEL fortran_to_int_round
     PUSH R0
     CALL to_int_round
+    ADD R13 #4
     RET
 
 LABEL fortran_from_float
     sub R13 #4
     movef @13 R0
     CALL from_float
+    ADD R13 #4
     RET
 
 LABEL fortran_to_float
     PUSH R0
     CALL to_float
+    ADD R13 #4
     RET
 
 LABEL func_div

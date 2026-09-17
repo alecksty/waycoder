@@ -8,11 +8,13 @@ LABEL forth_ltoa_hex
     sub R13 #8
     movel @13 R0
     CALL ltoa_hex
+    ADD R13 #12
     RET
 
 LABEL forth_atol_hex
     PUSH R0
     CALL atol_hex
+    ADD R13 #4
     RET
 
 LABEL func_ltoa_hex

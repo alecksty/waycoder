@@ -4770,6 +4770,190 @@ DECLARE FUNCTION vml_syscall5(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS
     vml_syscall5 = 0
 END FUNCTION
 
+DECLARE FUNCTION ui_dlg_msg(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL ui_dlg_msg")
+    ui_dlg_msg = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_dlg_select(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER) AS INTEGER
+    asm("CALL ui_dlg_select")
+    ui_dlg_select = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_dlg_multi(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL ui_dlg_multi")
+    ui_dlg_multi = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_dlg_input(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL ui_dlg_input")
+    ui_dlg_input = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_win_open(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL ui_win_open")
+    ui_win_open = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_win_close() AS INTEGER
+    asm("CALL ui_win_close")
+    ui_win_close = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_win_closed() AS INTEGER
+    asm("CALL ui_win_closed")
+    ui_win_closed = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_scr_w() AS INTEGER
+    asm("CALL ui_scr_w")
+    ui_scr_w = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_scr_h() AS INTEGER
+    asm("CALL ui_scr_h")
+    ui_scr_h = 0
+END FUNCTION
+
+DECLARE SUB ui_clear(a0 AS INTEGER)
+    asm("CALL ui_clear")
+END SUB
+
+DECLARE SUB ui_pixel(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
+    asm("CALL ui_pixel")
+END SUB
+
+DECLARE SUB ui_line(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER)
+    asm("CALL ui_line")
+END SUB
+
+DECLARE SUB ui_rect(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER, a6 AS INTEGER, a7 AS INTEGER)
+    asm("CALL ui_rect")
+END SUB
+
+DECLARE SUB ui_circle(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER)
+    asm("CALL ui_circle")
+END SUB
+
+DECLARE SUB ui_ellipse(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER, a6 AS INTEGER)
+    asm("CALL ui_ellipse")
+END SUB
+
+DECLARE SUB ui_present()
+    asm("CALL ui_present")
+END SUB
+
+DECLARE SUB ui_text(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER)
+    asm("CALL ui_text")
+END SUB
+
+DECLARE SUB ui_text_styled(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER, a6 AS INTEGER)
+    asm("CALL ui_text_styled")
+END SUB
+
+DECLARE SUB ui_set_font(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
+    asm("CALL ui_set_font")
+END SUB
+
+DECLARE SUB ui_text_cur(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
+    asm("CALL ui_text_cur")
+END SUB
+
+DECLARE FUNCTION ui_poll(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_poll")
+    ui_poll = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_wait(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL ui_wait")
+    ui_wait = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_msg_count() AS INTEGER
+    asm("CALL ui_msg_count")
+    ui_msg_count = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_poll_msg() AS INTEGER
+    asm("CALL ui_poll_msg")
+    ui_poll_msg = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_wait_msg(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_wait_msg")
+    ui_wait_msg = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_msg_type() AS INTEGER
+    asm("CALL ui_msg_type")
+    ui_msg_type = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_msg_a() AS INTEGER
+    asm("CALL ui_msg_a")
+    ui_msg_a = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_msg_b() AS INTEGER
+    asm("CALL ui_msg_b")
+    ui_msg_b = 0
+END FUNCTION
+
+DECLARE SUB ui_gclear()
+    asm("CALL ui_gclear")
+END SUB
+
+DECLARE SUB ui_gset(a0 AS INTEGER, a1 AS INTEGER)
+    asm("CALL ui_gset")
+END SUB
+
+DECLARE FUNCTION ui_gget(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_gget")
+    ui_gget = 0
+END FUNCTION
+
+DECLARE SUB ui_piece_init()
+    asm("CALL ui_piece_init")
+END SUB
+
+DECLARE FUNCTION _ui_rot90(a0 AS INTEGER) AS INTEGER
+    asm("CALL _ui_rot90")
+    _ui_rot90 = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_piece_cell(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL ui_piece_cell")
+    ui_piece_cell = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_timer_set(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL ui_timer_set")
+    ui_timer_set = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_timer_kill(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_timer_kill")
+    ui_timer_kill = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_rand(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_rand")
+    ui_rand = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_tick() AS INTEGER
+    asm("CALL ui_tick")
+    ui_tick = 0
+END FUNCTION
+
+DECLARE SUB ui_icon(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER)
+    asm("CALL ui_icon")
+END SUB
+
+DECLARE SUB ui_image(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER)
+    asm("CALL ui_image")
+END SUB
+
 DECLARE FUNCTION character(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL character")
     character = 0

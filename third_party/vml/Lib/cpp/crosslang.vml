@@ -7,65 +7,77 @@ LABEL cpp_add
     PUSH R1
     PUSH R0
     CALL add
+    ADD R13 #8
     RET
 
 LABEL cpp_sub
     PUSH R1
     PUSH R0
     CALL sub
+    ADD R13 #8
     RET
 
 LABEL cpp_mul
     PUSH R1
     PUSH R0
     CALL mul
+    ADD R13 #8
     RET
 
 LABEL cpp_div_
     PUSH R1
     PUSH R0
     CALL div_
+    ADD R13 #8
     RET
 
 LABEL cpp_mod_
     PUSH R1
     PUSH R0
     CALL mod_
+    ADD R13 #8
     RET
 
 LABEL cpp_neg_
     PUSH R0
     CALL neg_
+    ADD R13 #4
     RET
 
 LABEL cpp_arr_sum
     PUSH R0
     CALL arr_sum
+    ADD R13 #4
     RET
 
 LABEL cpp_arr_avg
     PUSH R0
     CALL arr_avg
+    ADD R13 #4
     RET
 
 LABEL cpp_arr_max
     PUSH R0
     CALL arr_max
+    ADD R13 #4
     RET
 
 LABEL cpp_arr_min
     PUSH R0
     CALL arr_min
+    ADD R13 #4
     RET
 
 LABEL cpp_is_even
     PUSH R0
     CALL is_even
+    ADD R13 #4
     RET
 
 LABEL cpp_is_odd
     PUSH R0
     CALL is_odd
+    ADD R13 #4
     RET
 
 LABEL func_add

@@ -6,6 +6,7 @@
 LABEL BASIC_LMEDIAN64
     PUSH R0
     CALL lmedian64
+    ADD R13 #4
     RET
 
 LABEL BASIC_MIDDLE
@@ -18,6 +19,7 @@ LABEL BASIC_MIDDLE
 LABEL BASIC_LRANGE64
     PUSH R0
     CALL lrange64
+    ADD R13 #4
     RET
 
 LABEL BASIC_LCOUNT_GT64
@@ -25,6 +27,7 @@ LABEL BASIC_LCOUNT_GT64
     movel @13 R1
     PUSH R0
     CALL lcount_gt64
+    ADD R13 #12
     RET
 
 LABEL BASIC_LCOUNT_LT64
@@ -32,6 +35,7 @@ LABEL BASIC_LCOUNT_LT64
     movel @13 R1
     PUSH R0
     CALL lcount_lt64
+    ADD R13 #12
     RET
 
 LABEL BASIC_LCOUNT_EQ64
@@ -39,27 +43,32 @@ LABEL BASIC_LCOUNT_EQ64
     movel @13 R1
     PUSH R0
     CALL lcount_eq64
+    ADD R13 #12
     RET
 
 LABEL BASIC_LVARIANCE64
     PUSH R0
     CALL lvariance64
+    ADD R13 #4
     RET
 
 LABEL BASIC_LSTD_DEV64
     PUSH R0
     CALL lstd_dev64
+    ADD R13 #4
     RET
 
 LABEL BASIC_LLINREG_SLOPE64
     PUSH R1
     PUSH R0
     CALL llinreg_slope64
+    ADD R13 #8
     RET
 
 LABEL BASIC_LLINREG_INTERCEPT64
     PUSH R1
     PUSH R0
     CALL llinreg_intercept64
+    ADD R13 #8
     RET
 

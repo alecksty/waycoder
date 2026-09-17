@@ -21,14 +21,12 @@ putchar:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #4
         move [R12-4] R0
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 getchar:
 ; -------------------------------------------
@@ -40,12 +38,12 @@ getchar:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #5
         move [R12-4] R0
-        move R0 [R12-4]
-        jmp L33660000
-L33660000:
+        move R0 [R12-8]
+        jmp L_33660000
+L_33660000:
         move R13 R12
         pop R12
         pop R15
@@ -61,14 +59,12 @@ print_str:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #1
         move [R12-4] R0
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 print_int:
 ; -------------------------------------------
@@ -81,14 +77,12 @@ print_int:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #6
         move [R12-4] R0
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 print_hex:
 ; -------------------------------------------
@@ -101,14 +95,12 @@ print_hex:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #10
         move [R12-4] R0
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 input_str:
 ; -------------------------------------------
@@ -120,12 +112,12 @@ input_str:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #2
         move [R12-4] R0
-        move R0 [R12-4]
-        jmp L33660001
-L33660001:
+        move R0 [R12-8]
+        jmp L_33660001
+L_33660001:
         move R13 R12
         pop R12
         pop R15
@@ -140,12 +132,12 @@ input_int:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #7
         move [R12-4] R0
-        move R0 [R12-4]
-        jmp L33660002
-L33660002:
+        move R0 [R12-8]
+        jmp L_33660002
+L_33660002:
         move R13 R12
         pop R12
         pop R15
@@ -161,6 +153,7 @@ puts:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #1
         move [R12-4] R0
         asm "LOAD R0 #10"
@@ -169,9 +162,6 @@ puts:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 print_string:
 ; -------------------------------------------
@@ -184,14 +174,12 @@ print_string:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #1
         move [R12-4] R0
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 kb_hit:
 ; -------------------------------------------
@@ -203,12 +191,12 @@ kb_hit:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
-        move [R12-4] R0
-        move R0 [R12-4]
-        jmp L33660003
-L33660003:
+        move [R12-8] R0
+        move R0 [R12-8]
+        jmp L_33660003
+L_33660003:
         move R13 R12
         pop R12
         pop R15
@@ -223,6 +211,7 @@ clear_screen:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         asm "LOAD R0 #12"
         syscall #4
         move [R12-4] R0
@@ -241,18 +230,20 @@ println_str:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call print_str
+        add R13 #4
         move R0 #10
         push R0
+        move R0 [R13+0]
         call putchar
+        add R13 #4
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 println_int:
 ; -------------------------------------------
@@ -265,18 +256,20 @@ println_int:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call print_int
+        add R13 #4
         move R0 #10
         push R0
+        move R0 [R13+0]
         call putchar
+        add R13 #4
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 println_hex:
 ; -------------------------------------------
@@ -289,18 +282,20 @@ println_hex:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call print_hex
+        add R13 #4
         move R0 #10
         push R0
+        move R0 [R13+0]
         call putchar
+        add R13 #4
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 print_str_no_nl:
 ; -------------------------------------------
@@ -313,15 +308,15 @@ print_str_no_nl:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call print_str
+        add R13 #4
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 print_wstr:
 ; -------------------------------------------
@@ -334,33 +329,33 @@ print_wstr:
         push R15
         push R12
         move R12 R13
-        sub R13 #1032
+        sub R13 #1036
         move R0 #1
         push R0
         move R0 #1
         pop R1
         sub R1 R0
         move R0 R1
-        move R2 R0
         push R0
         move R0 [R12+12]
-        move R1 R0
         push R0
         move R0 R12
-        sub R0 #1024
+        sub R0 #1028
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call wcstombs
         add R13 #12
         move R0 R12
-        sub R0 #1024
+        sub R0 #1028
         push R0
+        move R0 [R13+0]
         call print_str
+        add R13 #4
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 println_wstr:
 ; -------------------------------------------
@@ -373,18 +368,20 @@ println_wstr:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call print_wstr
+        add R13 #4
         move R0 #10
         push R0
+        move R0 [R13+0]
         call putchar
+        add R13 #4
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 wstr_to_utf8:
 ; -------------------------------------------
@@ -399,24 +396,23 @@ wstr_to_utf8:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+20]
-        move R2 R0
         push R0
         move R0 [R12+12]
-        move R1 R0
         push R0
         move R0 [R12+16]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call wcstombs
         add R13 #12
-        jmp L33660004
-L33660004:
+        jmp L_33660004
+L_33660004:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #16
-        push R1
         ret
 utf8_to_wstr:
 ; -------------------------------------------
@@ -431,24 +427,23 @@ utf8_to_wstr:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+20]
-        move R2 R0
         push R0
         move R0 [R12+12]
-        move R1 R0
         push R0
         move R0 [R12+16]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call mbstowcs
         add R13 #12
-        jmp L33660005
-L33660005:
+        jmp L_33660005
+L_33660005:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #16
-        push R1
         ret
 print_ustr:
 ; -------------------------------------------
@@ -461,33 +456,33 @@ print_ustr:
         push R15
         push R12
         move R12 R13
-        sub R13 #1032
+        sub R13 #1036
         move R0 #1
         push R0
         move R0 #1
         pop R1
         sub R1 R0
         move R0 R1
-        move R2 R0
         push R0
         move R0 R12
-        sub R0 #1024
-        move R1 R0
+        sub R0 #1028
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call ucs_to_utf8
         add R13 #12
         move R0 R12
-        sub R0 #1024
+        sub R0 #1028
         push R0
+        move R0 [R13+0]
         call print_str
+        add R13 #4
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 ustr_to_utf8:
 ; -------------------------------------------
@@ -502,24 +497,23 @@ ustr_to_utf8:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+20]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call ucs_to_utf8
         add R13 #12
-        jmp L33660006
-L33660006:
+        jmp L_33660006
+L_33660006:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #16
-        push R1
         ret
 utf8_to_ustr:
 ; -------------------------------------------:
@@ -535,22 +529,21 @@ utf8_to_ustr:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+20]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call utf8_to_ucs
         add R13 #12
-        jmp L33660007
-L33660007:
+        jmp L_33660007
+L_33660007:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #16
-        push R1
         ret

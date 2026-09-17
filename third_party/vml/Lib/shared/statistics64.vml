@@ -1,35 +1,40 @@
-.entry main
-.stack 0
-.vectors 0x0
 
+.linked "math64.vml"
 .data
 
 .text
 lmean64:
+; -------------------------------------------
+; source   : long lmean64(long* arr)
+; function : lmean64
+; param   : long* arr
+; return   : long
+; --------------------------------------------
+lmean64:
         push R15
         push R12
         move R12 R13
-        sub R13 #32
+        sub R13 #36
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R11
         add R0 R11
-        movel R0 @0
-        movel [R12-8] R0
+        movel R0 [R0]
+        movel [R12-12] R0
         move R0 #0
         i2l R0 R0
-        movel [R12-16] R0
+        movel [R12-20] R0
         move R0 #1
         i2l R0 R0
-        movel [R12-24] R0
+        movel [R12-28] R0
 sta_52150000:
-        movel R0 [R12-24]
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R12-28]
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        cmpl R1 R0
         jle _L52150003
         move R0 #0
         jmp _L52150004
@@ -38,32 +43,32 @@ _L52150003:
 _L52150004:
         cmp R0 #0
         jz sta_52150002
-        moved R0 [R12-16]
-        dpush R0
+        movel R0 [R12-20]
+        pushl R0
         move R0 [R12+12]
         push R0
-        movel R0 [R12-24]
+        movel R0 [R12-28]
         mul R0 #8
         pop R10
         add R0 R10
-        movel R0 @0
-        dpop R1
-        dadd R0 R1 R0
-        moved [R12-16] R0
+        movel R0 [R0]
+        popl R1
+        addl R0 R1 R0
+        movel [R12-20] R0
 sta_52150001:
-        moved R0 [R12-24]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-24] R0
-        moved R0 R1
+        movel R0 [R12-28]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-28] R0
+        movel R0 R1
         jmp sta_52150000
 sta_52150002:
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jle _L52150007
         move R0 #0
         jmp _L52150008
@@ -73,48 +78,52 @@ _L52150008:
         cmp R0 #0
         jz sta_52150005
         move R0 #0
-        jmp L52150009
+        jmp L_52150009
 sta_52150005:
 sta_52150006:
-        movel R0 [R12-16]
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        ddiv R0 R1 R0
-        jmp L52150009
-L52150009:
+        movel R0 [R12-20]
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        divl R0 R1 R0
+        jmp L_52150009
+L_52150009:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+lsum64:
+; -------------------------------------------
+; source   : long lsum64(long* arr)
+; function : lsum64
+; param   : long* arr
+; return   : long
+; --------------------------------------------
 lsum64:
         push R15
         push R12
         move R12 R13
-        sub R13 #32
+        sub R13 #36
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R9
         add R0 R9
-        movel R0 @0
-        movel [R12-8] R0
+        movel R0 [R0]
+        movel [R12-12] R0
         move R0 #0
         i2l R0 R0
-        movel [R12-16] R0
+        movel [R12-20] R0
         move R0 #1
         i2l R0 R0
-        movel [R12-24] R0
+        movel [R12-28] R0
 sta_52150010:
-        movel R0 [R12-24]
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R12-28]
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        cmpl R1 R0
         jle _L52150013
         move R0 #0
         jmp _L52150014
@@ -123,55 +132,59 @@ _L52150013:
 _L52150014:
         cmp R0 #0
         jz sta_52150012
-        moved R0 [R12-16]
-        dpush R0
+        movel R0 [R12-20]
+        pushl R0
         move R0 [R12+12]
         push R0
-        movel R0 [R12-24]
+        movel R0 [R12-28]
         mul R0 #8
         pop R8
         add R0 R8
-        movel R0 @0
-        dpop R1
-        dadd R0 R1 R0
-        moved [R12-16] R0
+        movel R0 [R0]
+        popl R1
+        addl R0 R1 R0
+        movel [R12-20] R0
 sta_52150011:
-        moved R0 [R12-24]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-24] R0
-        moved R0 R1
+        movel R0 [R12-28]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-28] R0
+        movel R0 R1
         jmp sta_52150010
 sta_52150012:
-        movel R0 [R12-16]
-        jmp L52150015
-L52150015:
+        movel R0 [R12-20]
+        jmp L_52150015
+L_52150015:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+lmin_arr64:
+; -------------------------------------------
+; source   : long lmin_arr64(long* arr)
+; function : lmin_arr64
+; param   : long* arr
+; return   : long
+; --------------------------------------------
 lmin_arr64:
         push R15
         push R12
         move R12 R13
-        sub R13 #32
+        sub R13 #36
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R7
         add R0 R7
-        movel R0 @0
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 [R0]
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jle _L52150018
         move R0 #0
         jmp _L52150019
@@ -181,7 +194,7 @@ _L52150019:
         cmp R0 #0
         jz sta_52150016
         move R0 #0
-        jmp L52150020
+        jmp L_52150020
 sta_52150016:
 sta_52150017:
         move R0 [R12+12]
@@ -190,17 +203,17 @@ sta_52150017:
         mul R0 #8
         pop R6
         add R0 R6
-        movel R0 @0
-        movel [R12-16] R0
+        movel R0 [R0]
+        movel [R12-20] R0
         move R0 #2
         i2l R0 R0
-        movel [R12-24] R0
+        movel [R12-28] R0
 sta_52150021:
-        movel R0 [R12-24]
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R12-28]
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        cmpl R1 R0
         jle _L52150024
         move R0 #0
         jmp _L52150025
@@ -211,15 +224,15 @@ _L52150025:
         jz sta_52150023
         move R0 [R12+12]
         push R0
-        movel R0 [R12-24]
+        movel R0 [R12-28]
         mul R0 #8
         pop R5
         add R0 R5
-        movel R0 @0
-        dpush R0
-        movel R0 [R12-16]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R0]
+        pushl R0
+        movel R0 [R12-20]
+        popl R1
+        cmpl R1 R0
         jl _L52150028
         move R0 #0
         jmp _L52150029
@@ -230,51 +243,55 @@ _L52150029:
         jz sta_52150026
         move R0 [R12+12]
         push R0
-        movel R0 [R12-24]
+        movel R0 [R12-28]
         mul R0 #8
         pop R4
         add R0 R4
-        movel R0 @0
-        movel [R12-16] R0
+        movel R0 [R0]
+        movel [R12-20] R0
 sta_52150026:
 sta_52150027:
 sta_52150022:
-        moved R0 [R12-24]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-24] R0
-        moved R0 R1
+        movel R0 [R12-28]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-28] R0
+        movel R0 R1
         jmp sta_52150021
 sta_52150023:
-        movel R0 [R12-16]
-        jmp L52150020
-L52150020:
+        movel R0 [R12-20]
+        jmp L_52150020
+L_52150020:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+lmax_arr64:
+; -------------------------------------------
+; source   : long lmax_arr64(long* arr)
+; function : lmax_arr64
+; param   : long* arr
+; return   : long
+; --------------------------------------------
 lmax_arr64:
         push R15
         push R12
         move R12 R13
-        sub R13 #32
+        sub R13 #36
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R3
         add R0 R3
-        movel R0 @0
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 [R0]
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jle _L52150032
         move R0 #0
         jmp _L52150033
@@ -284,7 +301,7 @@ _L52150033:
         cmp R0 #0
         jz sta_52150030
         move R0 #0
-        jmp L52150034
+        jmp L_52150034
 sta_52150030:
 sta_52150031:
         move R0 [R12+12]
@@ -293,17 +310,17 @@ sta_52150031:
         mul R0 #8
         pop R2
         add R0 R2
-        movel R0 @0
-        movel [R12-16] R0
+        movel R0 [R0]
+        movel [R12-20] R0
         move R0 #2
         i2l R0 R0
-        movel [R12-24] R0
+        movel [R12-28] R0
 sta_52150035:
-        movel R0 [R12-24]
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R12-28]
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        cmpl R1 R0
         jle _L52150038
         move R0 #0
         jmp _L52150039
@@ -314,15 +331,15 @@ _L52150039:
         jz sta_52150037
         move R0 [R12+12]
         push R0
-        movel R0 [R12-24]
+        movel R0 [R12-28]
         mul R0 #8
         pop R1
         add R0 R1
-        movel R0 @0
-        dpush R0
-        movel R0 [R12-16]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R0]
+        pushl R0
+        movel R0 [R12-20]
+        popl R1
+        cmpl R1 R0
         jg _L52150042
         move R0 #0
         jmp _L52150043
@@ -333,51 +350,55 @@ _L52150043:
         jz sta_52150040
         move R0 [R12+12]
         push R0
-        movel R0 [R12-24]
+        movel R0 [R12-28]
         mul R0 #8
         pop R11
         add R0 R11
-        movel R0 @0
-        movel [R12-16] R0
+        movel R0 [R0]
+        movel [R12-20] R0
 sta_52150040:
 sta_52150041:
 sta_52150036:
-        moved R0 [R12-24]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-24] R0
-        moved R0 R1
+        movel R0 [R12-28]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-28] R0
+        movel R0 R1
         jmp sta_52150035
 sta_52150037:
-        movel R0 [R12-16]
-        jmp L52150034
-L52150034:
+        movel R0 [R12-20]
+        jmp L_52150034
+L_52150034:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+lmedian64:
+; -------------------------------------------
+; source   : long lmedian64(long* arr)
+; function : lmedian64
+; param   : long* arr
+; return   : long
+; --------------------------------------------
 lmedian64:
         push R15
         push R12
         move R12 R13
-        sub R13 #560
+        sub R13 #564
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R10
         add R0 R10
-        movel R0 @0
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 [R0]
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jle _L52150046
         move R0 #0
         jmp _L52150047
@@ -387,15 +408,15 @@ _L52150047:
         cmp R0 #0
         jz sta_52150044
         move R0 #0
-        jmp L52150048
+        jmp L_52150048
 sta_52150044:
 sta_52150045:
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #64
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jg _L52150051
         move R0 #0
         jmp _L52150052
@@ -406,18 +427,18 @@ _L52150052:
         jz sta_52150049
         move R0 #64
         i2l R0 R0
-        movel [R12-8] R0
+        movel [R12-12] R0
 sta_52150049:
 sta_52150050:
         move R0 #0
         i2l R0 R0
-        movel [R12-536] R0
+        movel [R12-540] R0
 sta_52150053:
-        movel R0 [R12-536]
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R12-540]
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        cmpl R1 R0
         jle _L52150056
         move R0 #0
         jmp _L52150057
@@ -428,42 +449,42 @@ _L52150057:
         jz sta_52150055
         move R0 [R12+12]
         push R0
-        movel R0 [R12-536]
+        movel R0 [R12-540]
         mul R0 #8
         pop R9
         add R0 R9
-        movel R0 @0
+        movel R0 [R0]
         move R8 R0
         move R0 R12
-        sub R0 #528
+        sub R0 #532
         push R0
         move R7 #0
         push R7
-        movel R0 [R12-536]
+        movel R0 [R12-540]
         pop R7
         move R7 R0
         move R0 R7
         mul R0 #8
         pop R6
         add R0 R6
-        movel @0 R8
+        movel [R0] R8
 sta_52150054:
-        moved R0 [R12-536]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-536] R0
-        moved R0 R1
+        movel R0 [R12-540]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-540] R0
+        movel R0 R1
         jmp sta_52150053
 sta_52150055:
         move R0 #1
         i2l R0 R0
-        movel [R12-536] R0
+        movel [R12-540] R0
 sta_52150058:
-        movel R0 [R12-536]
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R12-540]
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        cmpl R1 R0
         jl _L52150061
         move R0 #0
         jmp _L52150062
@@ -472,19 +493,19 @@ _L52150061:
 _L52150062:
         cmp R0 #0
         jz sta_52150060
-        movel R0 [R12-536]
-        dpush R0
+        movel R0 [R12-540]
+        pushl R0
         move R0 #1
-        i2d R0 R0
-        dpop R1
-        dadd R0 R1 R0
-        movel [R12-544] R0
+        i2l R0 R0
+        popl R1
+        addl R0 R1 R0
+        movel [R12-548] R0
 sta_52150063:
-        movel R0 [R12-544]
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R12-548]
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        cmpl R1 R0
         jle _L52150066
         move R0 #0
         jmp _L52150067
@@ -494,34 +515,34 @@ _L52150067:
         cmp R0 #0
         jz sta_52150065
         move R0 R12
-        sub R0 #528
+        sub R0 #532
         push R0
         move R5 #0
         push R5
-        movel R0 [R12-536]
+        movel R0 [R12-540]
         pop R5
         move R5 R0
         move R0 R5
         mul R0 #8
         pop R4
         add R0 R4
-        movel R0 @0
-        dpush R0
+        movel R0 [R0]
+        pushl R0
         move R0 R12
-        sub R0 #528
+        sub R0 #532
         push R0
         move R3 #0
         push R3
-        movel R0 [R12-544]
+        movel R0 [R12-548]
         pop R3
         move R3 R0
         move R0 R3
         mul R0 #8
         pop R2
         add R0 R2
-        movel R0 @0
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R0]
+        popl R1
+        cmpl R1 R0
         jg _L52150070
         move R0 #0
         jmp _L52150071
@@ -531,90 +552,90 @@ _L52150071:
         cmp R0 #0
         jz sta_52150068
         move R0 R12
-        sub R0 #528
+        sub R0 #532
         push R0
         move R1 #0
         push R1
-        movel R0 [R12-536]
+        movel R0 [R12-540]
         pop R1
         move R1 R0
         move R0 R1
         mul R0 #8
         pop R11
         add R0 R11
-        movel R0 @0
-        movel [R12-552] R0
+        movel R0 [R0]
+        movel [R12-556] R0
         move R0 R12
-        sub R0 #528
+        sub R0 #532
         push R0
         move R10 #0
         push R10
-        movel R0 [R12-544]
+        movel R0 [R12-548]
         pop R10
         move R10 R0
         move R0 R10
         mul R0 #8
         pop R9
         add R0 R9
-        movel R0 @0
+        movel R0 [R0]
         move R7 R0
         move R0 R12
-        sub R0 #528
+        sub R0 #532
         push R0
         move R6 #0
         push R6
-        movel R0 [R12-536]
+        movel R0 [R12-540]
         pop R6
         move R6 R0
         move R0 R6
         mul R0 #8
         pop R8
         add R0 R8
-        movel @0 R7
-        movel R0 [R12-552]
+        movel [R0] R7
+        movel R0 [R12-556]
         move R5 R0
         move R0 R12
-        sub R0 #528
+        sub R0 #532
         push R0
         move R4 #0
         push R4
-        movel R0 [R12-544]
+        movel R0 [R12-548]
         pop R4
         move R4 R0
         move R0 R4
         mul R0 #8
         pop R3
         add R0 R3
-        movel @0 R5
+        movel [R0] R5
 sta_52150068:
 sta_52150069:
 sta_52150064:
-        moved R0 [R12-544]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-544] R0
-        moved R0 R1
+        movel R0 [R12-548]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-548] R0
+        movel R0 R1
         jmp sta_52150063
 sta_52150065:
 sta_52150059:
-        moved R0 [R12-536]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-536] R0
-        moved R0 R1
+        movel R0 [R12-540]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-540] R0
+        movel R0 R1
         jmp sta_52150058
 sta_52150060:
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #2
-        i2d R0 R0
-        dpop R1
-        mod R0 R1 R0
-        dpush R0
+        i2l R0 R0
+        popl R1
+        modl R0 R1 R0
+        pushl R0
         move R0 #1
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         je _L52150074
         move R0 #0
         jmp _L52150075
@@ -624,108 +645,112 @@ _L52150075:
         cmp R0 #0
         jz sta_52150072
         move R0 R12
-        sub R0 #528
+        sub R0 #532
         push R0
         move R2 #0
         push R2
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #1
-        i2d R0 R0
-        dpop R1
-        dadd R0 R1 R0
-        dpush R0
+        i2l R0 R0
+        popl R1
+        addl R0 R1 R0
+        pushl R0
         move R0 #2
-        i2d R0 R0
-        dpop R1
-        ddiv R0 R1 R0
+        i2l R0 R0
+        popl R1
+        divl R0 R1 R0
         pop R2
         move R2 R0
         move R0 R2
         mul R0 #8
         pop R1
         add R0 R1
-        movel R0 @0
-        jmp L52150048
+        movel R0 [R0]
+        jmp L_52150048
 sta_52150072:
 sta_52150073:
         move R0 R12
-        sub R0 #528
+        sub R0 #532
         push R0
         move R11 #0
         push R11
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #2
-        i2d R0 R0
-        dpop R1
-        ddiv R0 R1 R0
+        i2l R0 R0
+        popl R1
+        divl R0 R1 R0
         pop R11
         move R11 R0
         move R0 R11
         mul R0 #8
         pop R10
         add R0 R10
-        movel R0 @0
-        dpush R0
+        movel R0 [R0]
+        pushl R0
         move R0 R12
-        sub R0 #528
+        sub R0 #532
         push R0
         move R9 #0
         push R9
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #2
-        i2d R0 R0
-        dpop R1
-        ddiv R0 R1 R0
-        dpush R0
+        i2l R0 R0
+        popl R1
+        divl R0 R1 R0
+        pushl R0
         move R0 #1
-        i2d R0 R0
-        dpop R1
-        dadd R0 R1 R0
+        i2l R0 R0
+        popl R1
+        addl R0 R1 R0
         pop R9
         move R9 R0
         move R0 R9
         mul R0 #8
         pop R6
         add R0 R6
-        movel R0 @0
-        dpop R1
-        dadd R0 R1 R0
-        dpush R0
+        movel R0 [R0]
+        popl R1
+        addl R0 R1 R0
+        pushl R0
         move R0 #2
-        i2d R0 R0
-        dpop R1
-        ddiv R0 R1 R0
-        jmp L52150048
-L52150048:
+        i2l R0 R0
+        popl R1
+        divl R0 R1 R0
+        jmp L_52150048
+L_52150048:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+lrange64:
+; -------------------------------------------
+; source   : long lrange64(long* arr)
+; function : lrange64
+; param   : long* arr
+; return   : long
+; --------------------------------------------
 lrange64:
         push R15
         push R12
         move R12 R13
-        sub R13 #40
+        sub R13 #44
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R8
         add R0 R8
-        movel R0 @0
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 [R0]
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jle _L52150078
         move R0 #0
         jmp _L52150079
@@ -735,7 +760,7 @@ _L52150079:
         cmp R0 #0
         jz sta_52150076
         move R0 #0
-        jmp L52150080
+        jmp L_52150080
 sta_52150076:
 sta_52150077:
         move R0 [R12+12]
@@ -744,25 +769,25 @@ sta_52150077:
         mul R0 #8
         pop R7
         add R0 R7
-        movel R0 @0
-        movel [R12-16] R0
+        movel R0 [R0]
+        movel [R12-20] R0
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R4
         add R0 R4
-        movel R0 @0
-        movel [R12-24] R0
+        movel R0 [R0]
+        movel [R12-28] R0
         move R0 #2
         i2l R0 R0
-        movel [R12-32] R0
+        movel [R12-36] R0
 sta_52150081:
-        movel R0 [R12-32]
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R12-36]
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        cmpl R1 R0
         jle _L52150084
         move R0 #0
         jmp _L52150085
@@ -773,15 +798,15 @@ _L52150085:
         jz sta_52150083
         move R0 [R12+12]
         push R0
-        movel R0 [R12-32]
+        movel R0 [R12-36]
         mul R0 #8
         pop R3
         add R0 R3
-        movel R0 @0
-        dpush R0
-        movel R0 [R12-16]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R0]
+        pushl R0
+        movel R0 [R12-20]
+        popl R1
+        cmpl R1 R0
         jl _L52150088
         move R0 #0
         jmp _L52150089
@@ -792,25 +817,25 @@ _L52150089:
         jz sta_52150086
         move R0 [R12+12]
         push R0
-        movel R0 [R12-32]
+        movel R0 [R12-36]
         mul R0 #8
         pop R5
         add R0 R5
-        movel R0 @0
-        movel [R12-16] R0
+        movel R0 [R0]
+        movel [R12-20] R0
 sta_52150086:
 sta_52150087:
         move R0 [R12+12]
         push R0
-        movel R0 [R12-32]
+        movel R0 [R12-36]
         mul R0 #8
         pop R2
         add R0 R2
-        movel R0 @0
-        dpush R0
-        movel R0 [R12-24]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R0]
+        pushl R0
+        movel R0 [R12-28]
+        popl R1
+        cmpl R1 R0
         jg _L52150092
         move R0 #0
         jmp _L52150093
@@ -821,61 +846,66 @@ _L52150093:
         jz sta_52150090
         move R0 [R12+12]
         push R0
-        movel R0 [R12-32]
+        movel R0 [R12-36]
         mul R0 #8
         pop R1
         add R0 R1
-        movel R0 @0
-        movel [R12-24] R0
+        movel R0 [R0]
+        movel [R12-28] R0
 sta_52150090:
 sta_52150091:
 sta_52150082:
-        moved R0 [R12-32]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-32] R0
-        moved R0 R1
+        movel R0 [R12-36]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-36] R0
+        movel R0 R1
         jmp sta_52150081
 sta_52150083:
-        movel R0 [R12-24]
-        dpush R0
-        movel R0 [R12-16]
-        dpop R1
-        dsub R0 R1 R0
-        jmp L52150080
-L52150080:
+        movel R0 [R12-28]
+        pushl R0
+        movel R0 [R12-20]
+        popl R1
+        subl R0 R1 R0
+        jmp L_52150080
+L_52150080:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+lcount_gt64:
+; -------------------------------------------
+; source   : long lcount_gt64(long* arr,long threshold)
+; function : lcount_gt64
+; param   : long* arr
+; param   : long threshold
+; return   : long
+; --------------------------------------------
 lcount_gt64:
         push R15
         push R12
         move R12 R13
-        sub R13 #32
+        sub R13 #36
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R11
         add R0 R11
-        movel R0 @0
-        movel [R12-8] R0
+        movel R0 [R0]
+        movel [R12-12] R0
         move R0 #0
         i2l R0 R0
-        movel [R12-16] R0
+        movel [R12-20] R0
         move R0 #1
         i2l R0 R0
-        movel [R12-24] R0
+        movel [R12-28] R0
 sta_52150094:
-        movel R0 [R12-24]
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R12-28]
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        cmpl R1 R0
         jle _L52150097
         move R0 #0
         jmp _L52150098
@@ -886,15 +916,15 @@ _L52150098:
         jz sta_52150096
         move R0 [R12+12]
         push R0
-        movel R0 [R12-24]
+        movel R0 [R12-28]
         mul R0 #8
         pop R10
         add R0 R10
-        movel R0 @0
-        dpush R0
+        movel R0 [R0]
+        pushl R0
         movel R0 [R12+16]
-        dpop R1
-        dcmp R1 R0
+        popl R1
+        cmpl R1 R0
         jg _L52150101
         move R0 #0
         jmp _L52150102
@@ -903,56 +933,61 @@ _L52150101:
 _L52150102:
         cmp R0 #0
         jz sta_52150099
-        moved R0 [R12-16]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-16] R0
-        moved R0 R1
+        movel R0 [R12-20]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-20] R0
+        movel R0 R1
 sta_52150099:
 sta_52150100:
 sta_52150095:
-        moved R0 [R12-24]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-24] R0
-        moved R0 R1
+        movel R0 [R12-28]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-28] R0
+        movel R0 R1
         jmp sta_52150094
 sta_52150096:
-        movel R0 [R12-16]
-        jmp L52150103
-L52150103:
+        movel R0 [R12-20]
+        jmp L_52150103
+L_52150103:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+lcount_lt64:
+; -------------------------------------------
+; source   : long lcount_lt64(long* arr,long threshold)
+; function : lcount_lt64
+; param   : long* arr
+; param   : long threshold
+; return   : long
+; --------------------------------------------
 lcount_lt64:
         push R15
         push R12
         move R12 R13
-        sub R13 #32
+        sub R13 #36
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R9
         add R0 R9
-        movel R0 @0
-        movel [R12-8] R0
+        movel R0 [R0]
+        movel [R12-12] R0
         move R0 #0
         i2l R0 R0
-        movel [R12-16] R0
+        movel [R12-20] R0
         move R0 #1
         i2l R0 R0
-        movel [R12-24] R0
+        movel [R12-28] R0
 sta_52150104:
-        movel R0 [R12-24]
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R12-28]
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        cmpl R1 R0
         jle _L52150107
         move R0 #0
         jmp _L52150108
@@ -963,15 +998,15 @@ _L52150108:
         jz sta_52150106
         move R0 [R12+12]
         push R0
-        movel R0 [R12-24]
+        movel R0 [R12-28]
         mul R0 #8
         pop R6
         add R0 R6
-        movel R0 @0
-        dpush R0
+        movel R0 [R0]
+        pushl R0
         movel R0 [R12+16]
-        dpop R1
-        dcmp R1 R0
+        popl R1
+        cmpl R1 R0
         jl _L52150111
         move R0 #0
         jmp _L52150112
@@ -980,56 +1015,61 @@ _L52150111:
 _L52150112:
         cmp R0 #0
         jz sta_52150109
-        moved R0 [R12-16]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-16] R0
-        moved R0 R1
+        movel R0 [R12-20]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-20] R0
+        movel R0 R1
 sta_52150109:
 sta_52150110:
 sta_52150105:
-        moved R0 [R12-24]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-24] R0
-        moved R0 R1
+        movel R0 [R12-28]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-28] R0
+        movel R0 R1
         jmp sta_52150104
 sta_52150106:
-        movel R0 [R12-16]
-        jmp L52150113
-L52150113:
+        movel R0 [R12-20]
+        jmp L_52150113
+L_52150113:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+lcount_eq64:
+; -------------------------------------------
+; source   : long lcount_eq64(long* arr,long value)
+; function : lcount_eq64
+; param   : long* arr
+; param   : long value
+; return   : long
+; --------------------------------------------
 lcount_eq64:
         push R15
         push R12
         move R12 R13
-        sub R13 #32
+        sub R13 #36
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R8
         add R0 R8
-        movel R0 @0
-        movel [R12-8] R0
+        movel R0 [R0]
+        movel [R12-12] R0
         move R0 #0
         i2l R0 R0
-        movel [R12-16] R0
+        movel [R12-20] R0
         move R0 #1
         i2l R0 R0
-        movel [R12-24] R0
+        movel [R12-28] R0
 sta_52150114:
-        movel R0 [R12-24]
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R12-28]
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        cmpl R1 R0
         jle _L52150117
         move R0 #0
         jmp _L52150118
@@ -1040,15 +1080,15 @@ _L52150118:
         jz sta_52150116
         move R0 [R12+12]
         push R0
-        movel R0 [R12-24]
+        movel R0 [R12-28]
         mul R0 #8
         pop R7
         add R0 R7
-        movel R0 @0
-        dpush R0
+        movel R0 [R0]
+        pushl R0
         movel R0 [R12+16]
-        dpop R1
-        dcmp R1 R0
+        popl R1
+        cmpl R1 R0
         je _L52150121
         move R0 #0
         jmp _L52150122
@@ -1057,50 +1097,54 @@ _L52150121:
 _L52150122:
         cmp R0 #0
         jz sta_52150119
-        moved R0 [R12-16]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-16] R0
-        moved R0 R1
+        movel R0 [R12-20]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-20] R0
+        movel R0 R1
 sta_52150119:
 sta_52150120:
 sta_52150115:
-        moved R0 [R12-24]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-24] R0
-        moved R0 R1
+        movel R0 [R12-28]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-28] R0
+        movel R0 R1
         jmp sta_52150114
 sta_52150116:
-        movel R0 [R12-16]
-        jmp L52150123
-L52150123:
+        movel R0 [R12-20]
+        jmp L_52150123
+L_52150123:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+lvariance64:
+; -------------------------------------------
+; source   : long lvariance64(long* arr)
+; function : lvariance64
+; param   : long* arr
+; return   : long
+; --------------------------------------------
 lvariance64:
         push R15
         push R12
         move R12 R13
-        sub R13 #48
+        sub R13 #52
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R4
         add R0 R4
-        movel R0 @0
-        movel [R12-8] R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 [R0]
+        movel [R12-12] R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #1
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jle _L52150126
         move R0 #0
         jmp _L52150127
@@ -1110,25 +1154,27 @@ _L52150127:
         cmp R0 #0
         jz sta_52150124
         move R0 #0
-        jmp L52150128
+        jmp L_52150128
 sta_52150124:
 sta_52150125:
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call lmean64
-        movel [R12-16] R0
+        add R13 #4
+        movel [R12-20] R0
         move R0 #0
         i2l R0 R0
-        movel [R12-24] R0
+        movel [R12-28] R0
         move R0 #1
         i2l R0 R0
-        movel [R12-32] R0
+        movel [R12-36] R0
 sta_52150129:
-        movel R0 [R12-32]
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R12-36]
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        cmpl R1 R0
         jle _L52150132
         move R0 #0
         jmp _L52150133
@@ -1139,96 +1185,109 @@ _L52150133:
         jz sta_52150131
         move R0 [R12+12]
         push R0
-        movel R0 [R12-32]
+        movel R0 [R12-36]
         mul R0 #8
         pop R3
         add R0 R3
-        movel R0 @0
-        dpush R0
-        movel R0 [R12-16]
-        dpop R1
-        dsub R0 R1 R0
-        movel [R12-40] R0
-        moved R0 [R12-24]
-        dpush R0
-        movel R0 [R12-40]
-        dpush R0
-        movel R0 [R12-40]
-        dpop R1
-        dmul R0 R1 R0
-        dpop R1
-        dadd R0 R1 R0
-        moved [R12-24] R0
+        movel R0 [R0]
+        pushl R0
+        movel R0 [R12-20]
+        popl R1
+        subl R0 R1 R0
+        movel [R12-44] R0
+        movel R0 [R12-28]
+        pushl R0
+        movel R0 [R12-44]
+        pushl R0
+        movel R0 [R12-44]
+        popl R1
+        mull R0 R1 R0
+        popl R1
+        addl R0 R1 R0
+        movel [R12-28] R0
 sta_52150130:
-        moved R0 [R12-32]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-32] R0
-        moved R0 R1
+        movel R0 [R12-36]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-36] R0
+        movel R0 R1
         jmp sta_52150129
 sta_52150131:
-        movel R0 [R12-24]
-        dpush R0
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 [R12-28]
+        pushl R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #1
-        i2d R0 R0
-        dpop R1
-        dsub R0 R1 R0
-        dpop R1
-        ddiv R0 R1 R0
-        jmp L52150128
-L52150128:
+        i2l R0 R0
+        popl R1
+        subl R0 R1 R0
+        popl R1
+        divl R0 R1 R0
+        jmp L_52150128
+L_52150128:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+lstd_dev64:
+; -------------------------------------------
+; source   : long lstd_dev64(long* arr)
+; function : lstd_dev64
+; param   : long* arr
+; return   : long
+; --------------------------------------------
 lstd_dev64:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call lvariance64
+        add R13 #4
         push R0
+        move R0 [R13+0]
         call lisqrt64
         add R13 #4
-        jmp L52150134
-L52150134:
+        jmp L_52150134
+L_52150134:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+llinreg_slope64:
+; -------------------------------------------
+; source   : long llinreg_slope64(long* x,long* y)
+; function : llinreg_slope64
+; param   : long* x
+; param   : long* y
+; return   : long
+; --------------------------------------------
 llinreg_slope64:
         push R15
         push R12
         move R12 R13
-        sub R13 #64
+        sub R13 #68
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R5
         add R0 R5
-        movel R0 @0
-        movel [R12-8] R0
+        movel R0 [R0]
+        movel [R12-12] R0
         move R0 [R12+16]
         push R0
         move R0 #0
         mul R0 #8
         pop R2
         add R0 R2
-        movel R0 @0
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R0]
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        cmpl R1 R0
         jl _L52150137
         move R0 #0
         jmp _L52150138
@@ -1243,16 +1302,16 @@ _L52150138:
         mul R0 #8
         pop R1
         add R0 R1
-        movel R0 @0
-        movel [R12-8] R0
+        movel R0 [R0]
+        movel [R12-12] R0
 sta_52150135:
 sta_52150136:
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #1
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jle _L52150141
         move R0 #0
         jmp _L52150142
@@ -1262,30 +1321,30 @@ _L52150142:
         cmp R0 #0
         jz sta_52150139
         move R0 #0
-        jmp L52150143
+        jmp L_52150143
 sta_52150139:
 sta_52150140:
         move R0 #0
         i2l R0 R0
-        movel [R12-16] R0
+        movel [R12-20] R0
         move R0 #0
         i2l R0 R0
-        movel [R12-24] R0
+        movel [R12-28] R0
         move R0 #0
         i2l R0 R0
-        movel [R12-32] R0
+        movel [R12-36] R0
         move R0 #0
         i2l R0 R0
-        movel [R12-40] R0
+        movel [R12-44] R0
         move R0 #1
         i2l R0 R0
-        movel [R12-48] R0
+        movel [R12-52] R0
 sta_52150144:
-        movel R0 [R12-48]
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R12-52]
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        cmpl R1 R0
         jle _L52150147
         move R0 #0
         jmp _L52150148
@@ -1294,102 +1353,102 @@ _L52150147:
 _L52150148:
         cmp R0 #0
         jz sta_52150146
-        moved R0 [R12-16]
-        dpush R0
+        movel R0 [R12-20]
+        pushl R0
         move R0 [R12+12]
         push R0
-        movel R0 [R12-48]
+        movel R0 [R12-52]
         mul R0 #8
         pop R11
         add R0 R11
-        movel R0 @0
-        dpop R1
-        dadd R0 R1 R0
-        moved [R12-16] R0
-        moved R0 [R12-24]
-        dpush R0
+        movel R0 [R0]
+        popl R1
+        addl R0 R1 R0
+        movel [R12-20] R0
+        movel R0 [R12-28]
+        pushl R0
         move R0 [R12+16]
         push R0
-        movel R0 [R12-48]
+        movel R0 [R12-52]
         mul R0 #8
         pop R10
         add R0 R10
-        movel R0 @0
-        dpop R1
-        dadd R0 R1 R0
-        moved [R12-24] R0
-        moved R0 [R12-32]
-        dpush R0
+        movel R0 [R0]
+        popl R1
+        addl R0 R1 R0
+        movel [R12-28] R0
+        movel R0 [R12-36]
+        pushl R0
         move R0 [R12+12]
         push R0
-        movel R0 [R12-48]
+        movel R0 [R12-52]
         mul R0 #8
         pop R9
         add R0 R9
-        movel R0 @0
-        dpush R0
+        movel R0 [R0]
+        pushl R0
         move R0 [R12+16]
         push R0
-        movel R0 [R12-48]
+        movel R0 [R12-52]
         mul R0 #8
         pop R6
         add R0 R6
-        movel R0 @0
-        dpop R1
-        dmul R0 R1 R0
-        dpop R1
-        dadd R0 R1 R0
-        moved [R12-32] R0
-        moved R0 [R12-40]
-        dpush R0
+        movel R0 [R0]
+        popl R1
+        mull R0 R1 R0
+        popl R1
+        addl R0 R1 R0
+        movel [R12-36] R0
+        movel R0 [R12-44]
+        pushl R0
         move R0 [R12+12]
         push R0
-        movel R0 [R12-48]
+        movel R0 [R12-52]
         mul R0 #8
         pop R8
         add R0 R8
-        movel R0 @0
-        dpush R0
+        movel R0 [R0]
+        pushl R0
         move R0 [R12+12]
         push R0
-        movel R0 [R12-48]
+        movel R0 [R12-52]
         mul R0 #8
         pop R7
         add R0 R7
-        movel R0 @0
-        dpop R1
-        dmul R0 R1 R0
-        dpop R1
-        dadd R0 R1 R0
-        moved [R12-40] R0
+        movel R0 [R0]
+        popl R1
+        mull R0 R1 R0
+        popl R1
+        addl R0 R1 R0
+        movel [R12-44] R0
 sta_52150145:
-        moved R0 [R12-48]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-48] R0
-        moved R0 R1
+        movel R0 [R12-52]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-52] R0
+        movel R0 R1
         jmp sta_52150144
 sta_52150146:
-        movel R0 [R12-8]
-        dpush R0
-        movel R0 [R12-40]
-        dpop R1
-        dmul R0 R1 R0
-        dpush R0
-        movel R0 [R12-16]
-        dpush R0
-        movel R0 [R12-16]
-        dpop R1
-        dmul R0 R1 R0
-        dpop R1
-        dsub R0 R1 R0
-        movel [R12-56] R0
-        movel R0 [R12-56]
-        dpush R0
+        movel R0 [R12-12]
+        pushl R0
+        movel R0 [R12-44]
+        popl R1
+        mull R0 R1 R0
+        pushl R0
+        movel R0 [R12-20]
+        pushl R0
+        movel R0 [R12-20]
+        popl R1
+        mull R0 R1 R0
+        popl R1
+        subl R0 R1 R0
+        movel [R12-60] R0
+        movel R0 [R12-60]
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         je _L52150151
         move R0 #0
         jmp _L52150152
@@ -1399,59 +1458,65 @@ _L52150152:
         cmp R0 #0
         jz sta_52150149
         move R0 #0
-        jmp L52150143
+        jmp L_52150143
 sta_52150149:
 sta_52150150:
-        movel R0 [R12-8]
-        dpush R0
-        movel R0 [R12-32]
-        dpop R1
-        dmul R0 R1 R0
-        dpush R0
-        movel R0 [R12-16]
-        dpush R0
-        movel R0 [R12-24]
-        dpop R1
-        dmul R0 R1 R0
-        dpop R1
-        dsub R0 R1 R0
-        dpush R0
-        movel R0 [R12-56]
-        dpop R1
-        ddiv R0 R1 R0
-        jmp L52150143
-L52150143:
+        movel R0 [R12-12]
+        pushl R0
+        movel R0 [R12-36]
+        popl R1
+        mull R0 R1 R0
+        pushl R0
+        movel R0 [R12-20]
+        pushl R0
+        movel R0 [R12-28]
+        popl R1
+        mull R0 R1 R0
+        popl R1
+        subl R0 R1 R0
+        pushl R0
+        movel R0 [R12-60]
+        popl R1
+        divl R0 R1 R0
+        jmp L_52150143
+L_52150143:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+llinreg_intercept64:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : long llinreg_intercept64(long* x,long* y)
+; function : llinreg_intercept64
+; param   : long* x
+; param   : long* y
+; return   : long
+; --------------------------------------------
 llinreg_intercept64:
         push R15
         push R12
         move R12 R13
-        sub R13 #48
+        sub R13 #52
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R4
         add R0 R4
-        movel R0 @0
-        movel [R12-8] R0
+        movel R0 [R0]
+        movel [R12-12] R0
         move R0 [R12+16]
         push R0
         move R0 #0
         mul R0 #8
         pop R3
         add R0 R3
-        movel R0 @0
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R0]
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        cmpl R1 R0
         jl _L52150155
         move R0 #0
         jmp _L52150156
@@ -1466,16 +1531,16 @@ _L52150156:
         mul R0 #8
         pop R5
         add R0 R5
-        movel R0 @0
-        movel [R12-8] R0
+        movel R0 [R0]
+        movel [R12-12] R0
 sta_52150153:
 sta_52150154:
-        movel R0 [R12-8]
-        dpush R0
+        movel R0 [R12-12]
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jle _L52150159
         move R0 #0
         jmp _L52150160
@@ -1485,24 +1550,24 @@ _L52150160:
         cmp R0 #0
         jz sta_52150157
         move R0 #0
-        jmp L52150161
+        jmp L_52150161
 sta_52150157:
 sta_52150158:
         move R0 #0
         i2l R0 R0
-        movel [R12-16] R0
+        movel [R12-20] R0
         move R0 #0
         i2l R0 R0
-        movel [R12-24] R0
+        movel [R12-28] R0
         move R0 #1
         i2l R0 R0
-        movel [R12-32] R0
+        movel [R12-36] R0
 sta_52150162:
-        movel R0 [R12-32]
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        dcmp R1 R0
+        movel R0 [R12-36]
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        cmpl R1 R0
         jle _L52150165
         move R0 #0
         jmp _L52150166
@@ -1511,63 +1576,63 @@ _L52150165:
 _L52150166:
         cmp R0 #0
         jz sta_52150164
-        moved R0 [R12-16]
-        dpush R0
+        movel R0 [R12-20]
+        pushl R0
         move R0 [R12+12]
         push R0
-        movel R0 [R12-32]
+        movel R0 [R12-36]
         mul R0 #8
         pop R2
         add R0 R2
-        movel R0 @0
-        dpop R1
-        dadd R0 R1 R0
-        moved [R12-16] R0
-        moved R0 [R12-24]
-        dpush R0
+        movel R0 [R0]
+        popl R1
+        addl R0 R1 R0
+        movel [R12-20] R0
+        movel R0 [R12-28]
+        pushl R0
         move R0 [R12+16]
         push R0
-        movel R0 [R12-32]
+        movel R0 [R12-36]
         mul R0 #8
         pop R1
         add R0 R1
-        movel R0 @0
-        dpop R1
-        dadd R0 R1 R0
-        moved [R12-24] R0
+        movel R0 [R0]
+        popl R1
+        addl R0 R1 R0
+        movel [R12-28] R0
 sta_52150163:
-        moved R0 [R12-32]
-        moved R1 R0
-        add R0 R0 #1
-        moved [R12-32] R0
-        moved R0 R1
+        movel R0 [R12-36]
+        movel R1 R0
+        addl R0 R0 #1
+        movel [R12-36] R0
+        movel R0 R1
         jmp sta_52150162
 sta_52150164:
-        move R0 [R12+12]
-        push R0
         move R0 [R12+16]
         push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
         call llinreg_slope64
-        movel [R12-40] R0
-        movel R0 [R12-24]
-        dpush R0
-        movel R0 [R12-40]
-        dpush R0
-        movel R0 [R12-16]
-        dpop R1
-        dmul R0 R1 R0
-        dpop R1
-        dsub R0 R1 R0
-        dpush R0
-        movel R0 [R12-8]
-        dpop R1
-        ddiv R0 R1 R0
-        jmp L52150161
-L52150161:
+        add R13 #8
+        movel [R12-44] R0
+        movel R0 [R12-28]
+        pushl R0
+        movel R0 [R12-44]
+        pushl R0
+        movel R0 [R12-20]
+        popl R1
+        mull R0 R1 R0
+        popl R1
+        subl R0 R1 R0
+        pushl R0
+        movel R0 [R12-12]
+        popl R1
+        divl R0 R1 R0
+        jmp L_52150161
+L_52150161:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret

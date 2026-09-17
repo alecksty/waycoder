@@ -6,55 +6,65 @@
 LABEL BASIC_MEAN
     PUSH R0
     CALL mean
+    ADD R13 #4
     RET
 
 LABEL BASIC_MEDIAN
     PUSH R0
     CALL median
+    ADD R13 #4
     RET
 
 LABEL BASIC_RANGE
     PUSH R0
     CALL range
+    ADD R13 #4
     RET
 
 LABEL BASIC_COUNT_GT
     PUSH R1
     PUSH R0
     CALL count_gt
+    ADD R13 #8
     RET
 
 LABEL BASIC_COUNT_LT
     PUSH R1
     PUSH R0
     CALL count_lt
+    ADD R13 #8
     RET
 
 LABEL BASIC_COUNT_EQ
     PUSH R1
     PUSH R0
     CALL count_eq
+    ADD R13 #8
     RET
 
 LABEL BASIC_VARIANCE
     PUSH R0
     CALL variance
+    ADD R13 #4
     RET
 
 LABEL BASIC_STD_DEV
     PUSH R0
     CALL std_dev
+    ADD R13 #4
     RET
 
 LABEL BASIC_LINREG_SLOPE
     PUSH R1
     PUSH R0
     CALL linreg_slope
+    ADD R13 #8
     RET
 
 LABEL BASIC_LINREG_INTERCEPT
     PUSH R1
     PUSH R0
     CALL linreg_intercept
+    ADD R13 #8
     RET
 

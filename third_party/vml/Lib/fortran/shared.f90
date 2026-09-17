@@ -2012,6 +2012,86 @@
 // CALL vml_screenshot
 // extern fn vml_syscall5(int num, int a0, int a1, int a2, int a3, int a4) -> int
 // CALL vml_syscall5
+// extern fn ui_dlg_msg(char* title, char* body, int style) -> int
+// CALL ui_dlg_msg
+// extern fn ui_dlg_select(char* title, char* body, char* opts, int n, int def) -> int
+// CALL ui_dlg_select
+// extern fn ui_dlg_multi(char* title, char* body, char* opts, int n) -> int
+// CALL ui_dlg_multi
+// extern fn ui_dlg_input(char* title, char* prompt, char* buf, int cap) -> int
+// CALL ui_dlg_input
+// extern fn ui_win_open(char* title, int w, int h) -> int
+// CALL ui_win_open
+// extern fn ui_win_close(void) -> int
+// CALL ui_win_close
+// extern fn ui_win_closed(void) -> int
+// CALL ui_win_closed
+// extern fn ui_scr_w(void) -> int
+// CALL ui_scr_w
+// extern fn ui_scr_h(void) -> int
+// CALL ui_scr_h
+// extern fn ui_clear(int color) -> void
+// CALL ui_clear
+// extern fn ui_pixel(int x, int y, int color) -> void
+// CALL ui_pixel
+// extern fn ui_line(int x1, int y1, int x2, int y2, int color, int lw) -> void
+// CALL ui_line
+// extern fn ui_rect(int x, int y, int w, int h, int color, int fill, int lw, int radius) -> void
+// CALL ui_rect
+// extern fn ui_circle(int cx, int cy, int r, int color, int fill, int lw) -> void
+// CALL ui_circle
+// extern fn ui_ellipse(int cx, int cy, int rx, int ry, int color, int fill, int lw) -> void
+// CALL ui_ellipse
+// extern fn ui_present(void) -> void
+// CALL ui_present
+// extern fn ui_text(int x, int y, char* s, int color, int size, int anchor) -> void
+// CALL ui_text
+// extern fn ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style) -> void
+// CALL ui_text_styled
+// extern fn ui_set_font(int size, int style, int color, int anchor) -> void
+// CALL ui_set_font
+// extern fn ui_text_cur(int x, int y, char* s) -> void
+// CALL ui_text_cur
+// extern fn ui_poll(int* msg) -> int
+// CALL ui_poll
+// extern fn ui_wait(int* msg, int timeout_ms) -> int
+// CALL ui_wait
+// extern fn ui_msg_count(void) -> int
+// CALL ui_msg_count
+// extern fn ui_poll_msg() -> while
+// CALL ui_poll_msg
+// extern fn ui_wait_msg(int timeout_ms) -> int
+// CALL ui_wait_msg
+// extern fn ui_msg_type(void) -> int
+// CALL ui_msg_type
+// extern fn ui_msg_a(void) -> int
+// CALL ui_msg_a
+// extern fn ui_msg_b(void) -> int
+// CALL ui_msg_b
+// extern fn ui_gclear(void) -> void
+// CALL ui_gclear
+// extern fn ui_gset(int idx, int val) -> void
+// CALL ui_gset
+// extern fn ui_gget(int idx) -> int
+// CALL ui_gget
+// extern fn ui_piece_init(void) -> void
+// CALL ui_piece_init
+// extern fn _ui_rot90(int m) -> nt
+// CALL _ui_rot90
+// extern fn ui_piece_cell(int pid, int rot, int which) -> int
+// CALL ui_piece_cell
+// extern fn ui_timer_set(int interval_ms, int tag) -> int
+// CALL ui_timer_set
+// extern fn ui_timer_kill(int id) -> int
+// CALL ui_timer_kill
+// extern fn ui_rand(int n) -> int
+// CALL ui_rand
+// extern fn ui_tick(void) -> int
+// CALL ui_tick
+// extern fn ui_icon(int x, int y, char* name, int size, int color) -> void
+// CALL ui_icon
+// extern fn ui_image(int x, int y, char* path, int w, int h) -> void
+// CALL ui_image
 // extern fn character(inline, to avoid header parsing issues) -> Unicode
 // CALL character
 // extern fn wctomb(char *dest, wchar_t wc) -> int

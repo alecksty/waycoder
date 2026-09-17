@@ -8,6 +8,7 @@ LABEL Zadd
     PUSH R1
     PUSH R0
     CALL zadd
+    ADD R13 #12
     RET
 
 LABEL Zsub
@@ -15,6 +16,7 @@ LABEL Zsub
     PUSH R1
     PUSH R0
     CALL zsub
+    ADD R13 #12
     RET
 
 LABEL Zmul
@@ -22,6 +24,7 @@ LABEL Zmul
     PUSH R1
     PUSH R0
     CALL zmul
+    ADD R13 #12
     RET
 
 LABEL Zdiv
@@ -29,28 +32,33 @@ LABEL Zdiv
     PUSH R1
     PUSH R0
     CALL zdiv
+    ADD R13 #12
     RET
 
 LABEL Zabs
     PUSH R0
     CALL zabs
+    ADD R13 #4
     RET
 
 LABEL Zarg
     PUSH R0
     CALL zarg
+    ADD R13 #4
     RET
 
 LABEL Zconj
     PUSH R1
     PUSH R0
     CALL zconj
+    ADD R13 #8
     RET
 
 LABEL Zneg
     PUSH R1
     PUSH R0
     CALL zneg
+    ADD R13 #8
     RET
 
 LABEL ZexpRe
@@ -59,6 +67,7 @@ LABEL ZexpRe
     sub R13 #8
     moved @13 R0
     CALL zexp_re
+    ADD R13 #16
     RET
 
 LABEL ZexpIm
@@ -67,18 +76,21 @@ LABEL ZexpIm
     sub R13 #8
     moved @13 R0
     CALL zexp_im
+    ADD R13 #16
     RET
 
 LABEL Zsqr
     PUSH R1
     PUSH R0
     CALL zsqr
+    ADD R13 #8
     RET
 
 LABEL Zsqrt
     PUSH R1
     PUSH R0
     CALL zsqrt
+    ADD R13 #8
     RET
 
 LABEL Complex64_Zadd

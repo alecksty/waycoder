@@ -11,6 +11,7 @@ LABEL LdevRead64
     PUSH R1
     PUSH R0
     CALL ldev_read64
+    ADD R13 #24
     RET
 
 LABEL LdevWrite64
@@ -21,6 +22,7 @@ LABEL LdevWrite64
     PUSH R1
     PUSH R0
     CALL ldev_write64
+    ADD R13 #24
     RET
 
 LABEL Device64_LdevRead64

@@ -8,23 +8,27 @@
 LABEL fortran_peek
     PUSH R0
     CALL peek
+    ADD R13 #4
     RET
 
 LABEL fortran_poke
     PUSH R1
     PUSH R0
     CALL poke
+    ADD R13 #8
     RET
 
 LABEL fortran_peekb
     PUSH R0
     CALL peekb
+    ADD R13 #4
     RET
 
 LABEL fortran_pokeb
     PUSH R1
     PUSH R0
     CALL pokeb
+    ADD R13 #8
     RET
 
 LABEL fortran_alloc
@@ -36,6 +40,7 @@ LABEL fortran_alloc
 LABEL fortran_free
     PUSH R0
     CALL free
+    ADD R13 #4
     RET
 
 LABEL fortran_memcpy
@@ -43,6 +48,7 @@ LABEL fortran_memcpy
     PUSH R1
     PUSH R0
     CALL memcpy
+    ADD R13 #12
     RET
 
 LABEL fortran_memset
@@ -50,6 +56,7 @@ LABEL fortran_memset
     PUSH R1
     PUSH R0
     CALL memset
+    ADD R13 #12
     RET
 
 LABEL fortran_memcmp
@@ -57,16 +64,19 @@ LABEL fortran_memcmp
     PUSH R1
     PUSH R0
     CALL memcmp
+    ADD R13 #12
     RET
 
 LABEL fortran_dev_open
     PUSH R0
     CALL dev_open
+    ADD R13 #4
     RET
 
 LABEL fortran_dev_close
     PUSH R0
     CALL dev_close
+    ADD R13 #4
     RET
 
 LABEL fortran_dev_read
@@ -75,6 +85,7 @@ LABEL fortran_dev_read
     PUSH R1
     PUSH R0
     CALL dev_read
+    ADD R13 #16
     RET
 
 LABEL fortran_dev_write
@@ -83,6 +94,7 @@ LABEL fortran_dev_write
     PUSH R1
     PUSH R0
     CALL dev_write
+    ADD R13 #16
     RET
 
 LABEL fortran_dev_control
@@ -90,6 +102,7 @@ LABEL fortran_dev_control
     PUSH R1
     PUSH R0
     CALL dev_control
+    ADD R13 #12
     RET
 
 LABEL fortran_memmove
@@ -97,16 +110,19 @@ LABEL fortran_memmove
     PUSH R1
     PUSH R0
     CALL memmove
+    ADD R13 #12
     RET
 
 LABEL fortran_getconfig
     PUSH R0
     CALL getconfig
+    ADD R13 #4
     RET
 
 LABEL fortran_exit
     PUSH R0
     CALL exit
+    ADD R13 #4
     RET
 
 LABEL func_peek

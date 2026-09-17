@@ -9,23 +9,27 @@ LABEL forth_start
     PUSH R1
     PUSH R0
     CALL start
+    ADD R13 #16
     RET
 
 LABEL forth_stop
     PUSH R1
     PUSH R0
     CALL stop
+    ADD R13 #8
     RET
 
 LABEL forth_tick
     PUSH R0
     CALL tick
+    ADD R13 #4
     RET
 
 LABEL forth_remaining
     PUSH R1
     PUSH R0
     CALL remaining
+    ADD R13 #8
     RET
 
 LABEL func_start

@@ -1,107 +1,119 @@
-.entry main
-.stack 0
-.vectors 0x0
 
 .data
+i64_49580025: .dword 1
+i64_49580027: .dword 1
 
 .text
+lfixed_mul64:
+; -------------------------------------------
+; source   : long lfixed_mul64(long a,long b)
+; function : lfixed_mul64
+; param   : long a
+; param   : long b
+; return   : long
+; --------------------------------------------
 lfixed_mul64:
         push R15
         push R12
         move R12 R13
-        sub R13 #56
+        sub R13 #60
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         move R0 #32
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        movel [R12-8] R0
+        movel R0 R1
+        movel [R12-12] R0
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         move R0 #-1
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        movel [R12-16] R0
+        movel R0 R1
+        movel [R12-20] R0
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #32
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        movel [R12-24] R0
+        movel R0 R1
+        movel [R12-28] R0
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #-1
-        dpop R1
+        popl R1
         and R1 R0
-        move R0 R1
-        movel [R12-32] R0
-        movel R0 [R12-8]
-        dpush R0
-        movel R0 [R12-32]
-        dpop R1
-        dmul R0 R1 R0
-        dpush R0
-        movel R0 [R12-16]
-        dpush R0
-        movel R0 [R12-24]
-        dpop R1
-        dmul R0 R1 R0
-        dpop R1
-        dadd R0 R1 R0
-        movel [R12-40] R0
-        movel R0 [R12-8]
-        dpush R0
-        movel R0 [R12-24]
-        dpop R1
-        dmul R0 R1 R0
-        dpush R0
+        movel R0 R1
+        movel [R12-36] R0
+        movel R0 [R12-12]
+        pushl R0
+        movel R0 [R12-36]
+        popl R1
+        mull R0 R1 R0
+        pushl R0
+        movel R0 [R12-20]
+        pushl R0
+        movel R0 [R12-28]
+        popl R1
+        mull R0 R1 R0
+        popl R1
+        addl R0 R1 R0
+        movel [R12-44] R0
+        movel R0 [R12-12]
+        pushl R0
+        movel R0 [R12-28]
+        popl R1
+        mull R0 R1 R0
+        pushl R0
         move R0 #32
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        dpush R0
-        movel R0 [R12-16]
-        dpush R0
-        movel R0 [R12-32]
-        dpop R1
-        dmul R0 R1 R0
-        dpop R1
-        dadd R0 R1 R0
-        dpush R0
+        movel R0 R1
+        pushl R0
+        movel R0 [R12-20]
+        pushl R0
+        movel R0 [R12-36]
+        popl R1
+        mull R0 R1 R0
+        popl R1
+        addl R0 R1 R0
+        pushl R0
         move R0 #32
-        i2d R0 R0
-        dpush R0
-        movel R0 [R12-40]
-        dpop R1
-        dadd R0 R1 R0
-        dpop R1
+        i2l R0 R0
+        pushl R0
+        movel R0 [R12-44]
+        popl R1
+        addl R0 R1 R0
+        popl R1
         shr R1 R0
-        move R0 R1
-        movel [R12-48] R0
-        movel R0 [R12-48]
-        jmp L49580000
-L49580000:
+        movel R0 R1
+        movel [R12-52] R0
+        movel R0 [R12-52]
+        jmp L_49580000
+L_49580000:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+lfixed_div64:
+; -------------------------------------------
+; source   : long lfixed_div64(long a,long b)
+; function : lfixed_div64
+; param   : long a
+; param   : long b
+; return   : long
+; --------------------------------------------
 lfixed_div64:
         push R15
         push R12
         move R12 R13
-        sub R13 #24
+        sub R13 #28
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         je _L49580003
         move R0 #0
         jmp _L49580004
@@ -111,17 +123,17 @@ _L49580004:
         cmp R0 #0
         jz sta_49580001
         move R0 #0
-        jmp L49580005
+        jmp L_49580005
 sta_49580001:
 sta_49580002:
         move R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jl _L49580008
         move R0 #0
         jmp _L49580009
@@ -132,20 +144,20 @@ _L49580009:
         jz sta_49580006
         movel R0 [R12+12]
         movel R0 [R12+12]
-        dneg R0 R0
+        negl R0 R0
         movel [R12+12] R0
-        move R0 [R12-4]
-        move R0 [R12-4]
+        move R0 [R12-8]
+        move R0 [R12-8]
         neg R0 R0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_49580006:
 sta_49580007:
         movel R0 [R12+20]
-        dpush R0
+        pushl R0
         move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        i2l R0 R0
+        popl R1
+        cmpl R1 R0
         jl _L49580012
         move R0 #0
         jmp _L49580013
@@ -156,21 +168,21 @@ _L49580013:
         jz sta_49580010
         movel R0 [R12+20]
         movel R0 [R12+20]
-        dneg R0 R0
+        negl R0 R0
         movel [R12+20] R0
-        move R0 [R12-4]
-        move R0 [R12-4]
+        move R0 [R12-8]
+        move R0 [R12-8]
         neg R0 R0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_49580010:
 sta_49580011:
         move R0 #0
         i2l R0 R0
-        movel [R12-12] R0
+        movel [R12-16] R0
         move R0 #0
-        move [R12-16] R0
+        move [R12-20] R0
 sta_49580014:
-        move R0 [R12-16]
+        move R0 [R12-20]
         push R0
         move R0 #64
         pop R1
@@ -183,18 +195,18 @@ _L49580017:
 _L49580018:
         cmp R0 #0
         jz sta_49580016
-        moved R0 [R12-12]
-        dpush R0
+        movel R0 [R12-16]
+        pushl R0
         move R0 #1
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        moved [R12-12] R0
+        movel R0 R1
+        movel [R12-16] R0
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
-        dcmp R1 R0
+        popl R1
+        cmpl R1 R0
         jge _L49580021
         move R0 #0
         jmp _L49580022
@@ -203,139 +215,157 @@ _L49580021:
 _L49580022:
         cmp R0 #0
         jz sta_49580019
-        moved R0 [R12+12]
-        dpush R0
+        movel R0 [R12+12]
+        pushl R0
         movel R0 [R12+20]
-        dpop R1
-        dsub R0 R1 R0
-        moved [R12+12] R0
-        moved R0 [R12-12]
-        dpush R0
+        popl R1
+        subl R0 R1 R0
+        movel [R12+12] R0
+        movel R0 [R12-16]
+        pushl R0
         move R0 #1
-        dpop R1
+        popl R1
         or R1 R0
-        move R0 R1
-        moved [R12-12] R0
+        movel R0 R1
+        movel [R12-16] R0
 sta_49580019:
 sta_49580020:
-        moved R0 [R12+12]
-        dpush R0
+        movel R0 [R12+12]
+        pushl R0
         move R0 #1
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        moved [R12+12] R0
+        movel R0 R1
+        movel [R12+12] R0
 sta_49580015:
-        move R0 [R12-16]
+        move R0 [R12-20]
         move R1 R0
         add R0 R0 #1
-        move [R12-16] R0
+        move [R12-20] R0
         move R0 R1
         jmp sta_49580014
 sta_49580016:
-        move R0 [R12-4]
-        i2d R0 R0
-        dpush R0
-        movel R0 [R12-12]
-        dpop R1
-        dmul R0 R1 R0
-        jmp L49580005
-L49580005:
+        move R0 [R12-8]
+        i2l R0 R0
+        pushl R0
+        movel R0 [R12-16]
+        popl R1
+        mull R0 R1 R0
+        jmp L_49580005
+L_49580005:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+lfixed_from_int64:
+; -------------------------------------------
+; source   : long lfixed_from_int64(long value)
+; function : lfixed_from_int64
+; param   : long value
+; return   : long
+; --------------------------------------------
 lfixed_from_int64:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         move R0 #32
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        jmp L49580023
-L49580023:
+        movel R0 R1
+        jmp L_49580023
+L_49580023:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+lfixed_to_int64:
+; -------------------------------------------
+; source   : long lfixed_to_int64(long value)
+; function : lfixed_to_int64
+; param   : long value
+; return   : long
+; --------------------------------------------
 lfixed_to_int64:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         move R0 #32
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        jmp L49580024
-L49580024:
+        movel R0 R1
+        jmp L_49580024
+L_49580024:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+lfixed_to_int_round64:
+; -------------------------------------------
+; source   : long lfixed_to_int_round64(long value)
+; function : lfixed_to_int_round64
+; param   : long value
+; return   : long
+; --------------------------------------------
 lfixed_to_int_round64:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movel R0 [R12+12]
-        dpush R0
+        pushl R0
         movel R0 [i64_49580025]
-        dpush R0
+        pushl R0
         move R0 #31
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
-        dpop R1
-        dadd R0 R1 R0
-        dpush R0
+        movel R0 R1
+        popl R1
+        addl R0 R1 R0
+        pushl R0
         move R0 #32
-        dpop R1
+        popl R1
         shr R1 R0
-        move R0 R1
-        jmp L49580026
-L49580026:
+        movel R0 R1
+        jmp L_49580026
+L_49580026:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+lfixed_to_double:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : double lfixed_to_double(long value)
+; function : lfixed_to_double
+; param   : long value
+; return   : double
+; --------------------------------------------
 lfixed_to_double:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movel R0 [R12+12]
         l2d R0 R0
         dpush R0
         movel R0 [i64_49580027]
-        dpush R0
+        pushl R0
         move R0 #32
-        dpop R1
+        popl R1
         shl R1 R0
-        move R0 R1
+        movel R0 R1
         l2d R0 R0
         dpop R1
         ddiv R0 R1 R0
-        jmp L49580028
-L49580028:
+        jmp L_49580028
+L_49580028:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret

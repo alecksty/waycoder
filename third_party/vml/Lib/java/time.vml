@@ -6,6 +6,7 @@
 LABEL sleep
     PUSH R0
     CALL sleep
+    ADD R13 #4
     RET
 
 LABEL getTick
@@ -15,6 +16,7 @@ LABEL getTick
 LABEL delayUs
     PUSH R0
     CALL delay_us
+    ADD R13 #4
     RET
 
 LABEL datetime
@@ -32,6 +34,7 @@ LABEL getTime
 LABEL delay
     PUSH R0
     CALL delay
+    ADD R13 #4
     RET
 
 LABEL Time_Sleep

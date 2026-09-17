@@ -10,12 +10,14 @@ LABEL addTask
     PUSH R1
     PUSH R0
     CALL add_task
+    ADD R13 #20
     RET
 
 LABEL task
     PUSH R1
     PUSH R0
     CALL task
+    ADD R13 #8
     RET
 
 LABEL setPeriod
@@ -23,17 +25,20 @@ LABEL setPeriod
     PUSH R1
     PUSH R0
     CALL set_period
+    ADD R13 #12
     RET
 
 LABEL run
     PUSH R0
     CALL run
+    ADD R13 #4
     RET
 
 LABEL getFunc
     PUSH R1
     PUSH R0
     CALL get_func
+    ADD R13 #8
     RET
 
 LABEL Scheduler_AddTask

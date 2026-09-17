@@ -6,6 +6,7 @@
 LABEL cpp_array_alloc
     PUSH R0
     CALL array_alloc
+    ADD R13 #4
     RET
 
 LABEL func_array_alloc

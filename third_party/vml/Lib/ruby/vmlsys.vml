@@ -16,10 +16,10 @@ LABEL ruby_vml_print_int
     RET
 
 LABEL ruby_vml_print_char
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL vml_print_char
-    ADD R13 #1
+    ADD R13 #4
     RET
 
 LABEL ruby_vml_print_float

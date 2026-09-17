@@ -8,23 +8,27 @@
 LABEL kotlin_peek
     PUSH R0
     CALL peek
+    ADD R13 #4
     RET
 
 LABEL kotlin_poke
     PUSH R1
     PUSH R0
     CALL poke
+    ADD R13 #8
     RET
 
 LABEL kotlin_peekb
     PUSH R0
     CALL peekb
+    ADD R13 #4
     RET
 
 LABEL kotlin_pokeb
     PUSH R1
     PUSH R0
     CALL pokeb
+    ADD R13 #8
     RET
 
 LABEL kotlin_alloc
@@ -36,6 +40,7 @@ LABEL kotlin_alloc
 LABEL kotlin_free
     PUSH R0
     CALL free
+    ADD R13 #4
     RET
 
 LABEL kotlin_memcpy
@@ -43,6 +48,7 @@ LABEL kotlin_memcpy
     PUSH R1
     PUSH R0
     CALL memcpy
+    ADD R13 #12
     RET
 
 LABEL kotlin_memset
@@ -50,6 +56,7 @@ LABEL kotlin_memset
     PUSH R1
     PUSH R0
     CALL memset
+    ADD R13 #12
     RET
 
 LABEL kotlin_memcmp
@@ -57,16 +64,19 @@ LABEL kotlin_memcmp
     PUSH R1
     PUSH R0
     CALL memcmp
+    ADD R13 #12
     RET
 
 LABEL kotlin_dev_open
     PUSH R0
     CALL dev_open
+    ADD R13 #4
     RET
 
 LABEL kotlin_dev_close
     PUSH R0
     CALL dev_close
+    ADD R13 #4
     RET
 
 LABEL kotlin_dev_read
@@ -75,6 +85,7 @@ LABEL kotlin_dev_read
     PUSH R1
     PUSH R0
     CALL dev_read
+    ADD R13 #16
     RET
 
 LABEL kotlin_dev_write
@@ -83,6 +94,7 @@ LABEL kotlin_dev_write
     PUSH R1
     PUSH R0
     CALL dev_write
+    ADD R13 #16
     RET
 
 LABEL kotlin_dev_control
@@ -90,6 +102,7 @@ LABEL kotlin_dev_control
     PUSH R1
     PUSH R0
     CALL dev_control
+    ADD R13 #12
     RET
 
 LABEL kotlin_memmove
@@ -97,16 +110,19 @@ LABEL kotlin_memmove
     PUSH R1
     PUSH R0
     CALL memmove
+    ADD R13 #12
     RET
 
 LABEL kotlin_getconfig
     PUSH R0
     CALL getconfig
+    ADD R13 #4
     RET
 
 LABEL kotlin_exit
     PUSH R0
     CALL exit
+    ADD R13 #4
     RET
 
 LABEL func_peek

@@ -6,5 +6,6 @@
 LABEL PASCAL_WSCANF
     PUSH R0
     CALL wscanf
+    ADD R13 #4
     RET
 

@@ -8,6 +8,7 @@ LABEL dart_init
     PUSH R1
     PUSH R0
     CALL init
+    ADD R13 #12
     RET
 
 LABEL dart_update
@@ -15,11 +16,13 @@ LABEL dart_update
     PUSH R1
     PUSH R0
     CALL update
+    ADD R13 #12
     RET
 
 LABEL dart_is_pressed
     PUSH R0
     CALL is_pressed
+    ADD R13 #4
     RET
 
 LABEL func_init

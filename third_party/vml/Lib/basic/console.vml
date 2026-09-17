@@ -11,61 +11,72 @@ LABEL BASIC_READ_LINE
     RET
 
 LABEL BASIC_PUTCHAR
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL putchar
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINT_STR
     PUSH R0
     CALL print_str
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINT_INT
     PUSH R0
     CALL print_int
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINT_HEX
     PUSH R0
     CALL print_hex
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINTLN_STR
     PUSH R0
     CALL println_str
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINTLN_INT
     PUSH R0
     CALL println_int
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINT_FLOAT
     sub R13 #4
     movef @13 R0
     CALL print_float
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINT_BOOL
     PUSH R0
     CALL print_bool
+    ADD R13 #4
     RET
 
 LABEL BASIC_PUTHEX
     PUSH R0
     CALL puthex
+    ADD R13 #4
     RET
 
 LABEL BASIC_PUTFLOAT
     sub R13 #4
     movef @13 R0
     CALL putfloat
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINT_STR_NO_NL
     PUSH R0
     CALL print_str_no_nl
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINT_STR_NO_NL_IMPL
@@ -77,6 +88,7 @@ LABEL BASIC_PRINT_STR_NO_NL_IMPL
 LABEL BASIC_PRINTLN_HEX
     PUSH R0
     CALL println_hex
+    ADD R13 #4
     RET
 
 LABEL BASIC_CLEAR_SCREEN
@@ -112,6 +124,7 @@ LABEL BASIC_PRINTF2
     PUSH R1
     PUSH R0
     CALL printf2
+    ADD R13 #12
     RET
 
 LABEL BASIC_PRINTF3
@@ -120,6 +133,7 @@ LABEL BASIC_PRINTF3
     PUSH R1
     PUSH R0
     CALL printf3
+    ADD R13 #16
     RET
 
 LABEL BASIC_PRINTF
@@ -132,50 +146,59 @@ LABEL BASIC_PRINTF
 LABEL BASIC_PUTS
     PUSH R0
     CALL puts
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINT_STRING
     PUSH R0
     CALL print_string
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINT_WSTR
     PUSH R0
     CALL print_wstr
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINTLN_WSTR
     PUSH R0
     CALL println_wstr
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINT_USTR
     PUSH R0
     CALL print_ustr
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINT_LONG
     sub R13 #8
     movel @13 R0
     CALL print_long
+    ADD R13 #8
     RET
 
 LABEL BASIC_PRINT_HEX_LONG
     sub R13 #8
     movel @13 R0
     CALL print_hex_long
+    ADD R13 #8
     RET
 
 LABEL BASIC_PRINTLN_LONG
     sub R13 #8
     movel @13 R0
     CALL println_long
+    ADD R13 #8
     RET
 
 LABEL BASIC_PRINTLN_HEX_LONG
     sub R13 #8
     movel @13 R0
     CALL println_hex_long
+    ADD R13 #8
     RET
 
 LABEL BASIC_INPUT_LONG
@@ -187,6 +210,7 @@ LABEL BASIC_PRINT_DOUBLE
     sub R13 #8
     moved @13 R0
     CALL print_double
+    ADD R13 #12
     RET
 
 LABEL BASIC_PRINTLN_DOUBLE
@@ -194,6 +218,7 @@ LABEL BASIC_PRINTLN_DOUBLE
     sub R13 #8
     moved @13 R0
     CALL println_double
+    ADD R13 #12
     RET
 
 LABEL BASIC_PUTSN
@@ -209,18 +234,19 @@ LABEL BASIC_VSNPRINTF
     PUSH R3
     PUSH R2
     PUSH R1
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL vsnprintf
-    ADD R13 #13
+    ADD R13 #16
     RET
 
 LABEL BASIC_SPRINTF
     PUSH R2
     PUSH R1
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL sprintf
+    ADD R13 #12
     RET
 
 LABEL BASIC_PRINTF4
@@ -229,10 +255,10 @@ LABEL BASIC_PRINTF4
     PUSH R3
     PUSH R2
     PUSH R1
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL printf4
-    ADD R13 #21
+    ADD R13 #24
     RET
 
 LABEL BASIC_PRINTF5
@@ -242,80 +268,93 @@ LABEL BASIC_PRINTF5
     PUSH R3
     PUSH R2
     PUSH R1
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL printf5
-    ADD R13 #25
+    ADD R13 #28
     RET
 
 LABEL BASIC_PRINTX_INT32
     PUSH R0
     CALL printx_int32
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINTLNX_INT32
     PUSH R0
     CALL printlnx_int32
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINTX_STRING
     PUSH R0
     CALL printx_string
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINTLNX_STRING
     PUSH R0
     CALL printlnx_string
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINTX_WSTRING
     PUSH R0
     CALL printx_wstring
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINTLNX_WSTRING
     PUSH R0
     CALL printlnx_wstring
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINTX_USTRING
     PUSH R0
     CALL printx_ustring
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINTLNX_USTRING
     PUSH R0
     CALL printlnx_ustring
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINTX_FLOAT32
     sub R13 #4
     movef @13 R0
     CALL printx_float32
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINTLNX_FLOAT32
     sub R13 #4
     movef @13 R0
     CALL printlnx_float32
+    ADD R13 #4
     RET
 
 LABEL BASIC_PRINTX_FLOAT64
     sub R13 #8
     moved @13 R0
     CALL printx_float64
+    ADD R13 #8
     RET
 
 LABEL BASIC_PRINTLNX_FLOAT64
     sub R13 #8
     moved @13 R0
     CALL printlnx_float64
+    ADD R13 #8
     RET
 
 LABEL BASIC_PRINTX_INT64_HEX
     PUSH R1
     PUSH R0
     CALL printx_int64_hex
+    ADD R13 #8
     RET
 
 LABEL BASIC_PRINTX_NL

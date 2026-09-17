@@ -18,6 +18,7 @@ LABEL forth_parse_factor_f
 LABEL forth_parserexpf
     PUSH R0
     CALL parserexpf
+    ADD R13 #4
     RET
 
 LABEL func_parse_expr_f

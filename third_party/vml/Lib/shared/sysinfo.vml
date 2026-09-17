@@ -1,95 +1,135 @@
-.entry main
-.stack 0
-.vectors 0x0
 
 .data
 
 .text
 getconfig:
+; -------------------------------------------
+; source   : int getconfig(int type)
+; function : getconfig
+; param   : int type
+; return   : int
+; --------------------------------------------
+getconfig:
         push R15
         push R12
         move R12 R13
-        syscall #60
+        sub R13 #12
+        asm "SYSCALL 60"
         move R0 #0
-        jmp L98610000
-L98610000:
+        jmp L_98610000
+L_98610000:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+random:
+; -------------------------------------------
+; source   : int random()
+; function : random
+; return   : int
+; --------------------------------------------
 random:
         push R15
         push R12
         move R12 R13
-        syscall #50
+        sub R13 #12
+        asm "SYSCALL 50"
         move R0 #0
-        jmp L98610001
-L98610001:
+        jmp L_98610001
+L_98610001:
         move R13 R12
         pop R12
         pop R15
         ret
 srand:
-        push R15
-        push R12
-        move R12 R13
-        syscall #51
-        move R13 R12
-        pop R12
-        pop R15
-        move R1 @13
-        add R13 #8
-        push R1
-        ret
-datetime:
+; -------------------------------------------
+; source   : void srand(int seed)
+; function : srand
+; param   : int seed
+; return   : void
+; --------------------------------------------
+srand:
         push R15
         push R12
         move R12 R13
         sub R13 #12
-        syscall #54
-        move R0 [R12-4]
-        jmp L98610002
-L98610002:
+        asm "SYSCALL 51"
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+datetime:
+; -------------------------------------------
+; source   : int datetime()
+; function : datetime
+; return   : int
+; --------------------------------------------
+datetime:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+        asm "SYSCALL 54"
+        move R0 [R12-8]
+        jmp L_98610002
+L_98610002:
         move R13 R12
         pop R12
         pop R15
         ret
 get_date:
+; -------------------------------------------
+; source   : const char* get_date()
+; function : get_date
+; return   : const char*
+; --------------------------------------------
+get_date:
         push R15
         push R12
         move R12 R13
-        syscall #55
+        sub R13 #12
+        asm "SYSCALL 55"
         move R0 #0
-        jmp L98610003
-L98610003:
+        jmp L_98610003
+L_98610003:
         move R13 R12
         pop R12
         pop R15
         ret
 get_time:
+; -------------------------------------------
+; source   : const char* get_time()
+; function : get_time
+; return   : const char*
+; --------------------------------------------
+get_time:
         push R15
         push R12
         move R12 R13
-        syscall #56
+        sub R13 #12
+        asm "SYSCALL 56"
         move R0 #0
-        jmp L98610004
-L98610004:
+        jmp L_98610004
+L_98610004:
         move R13 R12
         pop R12
         pop R15
         ret
 exit:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : void exit(int code)
+; function : exit
+; param   : int code
+; return   : void
+; --------------------------------------------
+exit:
         push R15
         push R12
         move R12 R13
-        syscall #3
+        sub R13 #12
+        asm "SYSCALL 3"
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret

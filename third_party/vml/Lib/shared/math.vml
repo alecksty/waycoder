@@ -367,71 +367,71 @@ sin_table:
     .word 0
     .word 0
     .word 0
-flt_41360054: .word 786163455
-flt_41360057: .word 786163455
-flt_41360058: .word 786163455
-flt_41360062: .word 1065353216
-flt_41360063: .word 1065353216
-flt_41360073: .word 786163455
-flt_41360076: .word 786163455
-flt_41360077: .word 786163455
-flt_41360090: .word 786163455
-flt_41360093: .word 786163455
-flt_41360094: .word 786163455
-flt_41360098: .word 1065353216
-flt_41360103: .word 1065353216
-flt_41360104: .word 1065353216
-flt_41360131: .word 646978941
-flt_41360134: .word 646978941
-flt_41360135: .word 646978941
-flt_41360138: .word 0
-flt_41360142: .word 0
-flt_41360145: .word 0
-flt_41360149: .word 0
-flt_41360152: .word 0
-flt_41360153: .word 1056964608
-flt_41360154: .word 1056964608
-flt_41360157: .word 1056964608
-flt_41360161: .word 786163455
-flt_41360164: .word 786163455
-flt_41360172: .word 1065353216
-flt_41360173: .word 1065353216
-flt_41360176: .word 1065353216
-flt_41360179: .word 0
-flt_41360181: .word 1065353216
-flt_41360187: .word 1065353216
-flt_41360188: .word 1065353216
-flt_41360191: .word 1065353216
-flt_41360194: .word 0
-flt_41360196: .word 1065353216
-flt_41360197: .word 1065353216
-flt_41360201: .word 0
-flt_41360207: .word 0
-flt_41360212: .word 0
-flt_41360217: .word 0
-flt_41360222: .word 0
-flt_41360225: .word 0
-flt_41360226: .word 1065353216
-flt_41360227: .word 1065353216
-flt_41360230: .word 0
-flt_41360233: .word 1065353216
-flt_41360242: .word 730643660
-flt_41360250: .word 1076754516
-flt_41360253: .word 0
-flt_41360256: .word 0
-flt_41360260: .word 1069547520
-flt_41360263: .word 1076754516
-flt_41360266: .word 1058642330
-flt_41360269: .word 1076754516
-flt_41360270: .word 1065353216
-flt_41360280: .word 786163455
-flt_41360283: .word 786163455
-flt_41360284: .word 786163455
-flt_41360290: .word 0
-flt_41360293: .word 1065353216
-flt_41360297: .word 0
-flt_41360300: .word 0
-flt_41360309: .word 1065353216
+dbl_41360054: .dword 4457293557087583675
+dbl_41360057: .dword 4457293557087583675
+dbl_41360058: .dword 4457293557087583675
+dbl_41360062: .dword 4607182418800017408
+dbl_41360063: .dword 4607182418800017408
+dbl_41360073: .dword 4457293557087583675
+dbl_41360076: .dword 4457293557087583675
+dbl_41360077: .dword 4457293557087583675
+dbl_41360090: .dword 4457293557087583675
+dbl_41360093: .dword 4457293557087583675
+dbl_41360094: .dword 4457293557087583675
+dbl_41360098: .dword 4607182418800017408
+dbl_41360103: .dword 4607182418800017408
+dbl_41360104: .dword 4607182418800017408
+dbl_41360131: .dword 4382569440205035030
+dbl_41360134: .dword 4382569440205035030
+dbl_41360135: .dword 4382569440205035030
+dbl_41360138: .dword 0
+dbl_41360142: .dword 0
+dbl_41360145: .dword 0
+dbl_41360149: .dword 0
+dbl_41360152: .dword 0
+dbl_41360153: .dword 4602678819172646912
+dbl_41360154: .dword 4602678819172646912
+dbl_41360157: .dword 4602678819172646912
+dbl_41360161: .dword 4457293557087583675
+dbl_41360164: .dword 4457293557087583675
+dbl_41360172: .dword 4607182418800017408
+dbl_41360173: .dword 4607182418800017408
+dbl_41360176: .dword 4607182418800017408
+dbl_41360179: .dword 0
+dbl_41360181: .dword 4607182418800017408
+dbl_41360187: .dword 4607182418800017408
+dbl_41360188: .dword 4607182418800017408
+dbl_41360191: .dword 4607182418800017408
+dbl_41360194: .dword 0
+dbl_41360196: .dword 4607182418800017408
+dbl_41360197: .dword 4607182418800017408
+dbl_41360201: .dword 0
+dbl_41360207: .dword 0
+dbl_41360212: .dword 0
+dbl_41360217: .dword 0
+dbl_41360222: .dword 0
+dbl_41360225: .dword 0
+dbl_41360226: .dword 4607182418800017408
+dbl_41360227: .dword 4607182418800017408
+dbl_41360230: .dword 0
+dbl_41360233: .dword 4607182418800017408
+dbl_41360242: .dword 4427486594234968593
+dbl_41360250: .dword 4613303445314885481
+dbl_41360253: .dword 0
+dbl_41360256: .dword 0
+dbl_41360260: .dword 4609434218613702656
+dbl_41360263: .dword 4613303445314885481
+dbl_41360266: .dword 4603579539098121011
+dbl_41360269: .dword 4613303445314885481
+dbl_41360270: .dword 4607182418800017408
+dbl_41360280: .dword 4457293557087583675
+dbl_41360283: .dword 4457293557087583675
+dbl_41360284: .dword 4457293557087583675
+dbl_41360290: .dword 0
+dbl_41360293: .dword 4607182418800017408
+dbl_41360297: .dword 0
+dbl_41360300: .dword 0
+dbl_41360309: .dword 4607182418800017408
 flt_41360330: .word 0
 flt_41360333: .word 0
 flt_41360336: .word 1065336439
@@ -455,6 +455,7 @@ abs:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -475,14 +476,11 @@ _L41360001:
 _L41360002:
         move R0 [R12+12]
 _L41360003:
-        jmp L41360004
-L41360004:
+        jmp L_41360004
+L_41360004:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 min:
 ; -------------------------------------------
@@ -496,6 +494,7 @@ min:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -514,14 +513,11 @@ _L41360006:
 _L41360007:
         move R0 [R12+16]
 _L41360008:
-        jmp L41360009
-L41360009:
+        jmp L_41360009
+L_41360009:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 max:
 ; -------------------------------------------
@@ -535,6 +531,7 @@ max:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -553,14 +550,11 @@ _L41360011:
 _L41360012:
         move R0 [R12+16]
 _L41360013:
-        jmp L41360014
-L41360014:
+        jmp L_41360014
+L_41360014:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 clamp:
 ; -------------------------------------------
@@ -575,6 +569,7 @@ clamp:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -589,7 +584,7 @@ _L41360018:
         cmp R0 #0
         jz sta_41360015
         move R0 [R12+16]
-        jmp L41360019
+        jmp L_41360019
 sta_41360015:
 sta_41360016:
         move R0 [R12+12]
@@ -606,18 +601,15 @@ _L41360023:
         cmp R0 #0
         jz sta_41360020
         move R0 [R12+20]
-        jmp L41360019
+        jmp L_41360019
 sta_41360020:
 sta_41360021:
         move R0 [R12+12]
-        jmp L41360019
-L41360019:
+        jmp L_41360019
+L_41360019:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #16
-        push R1
         ret
 is_even:
 ; -------------------------------------------
@@ -630,6 +622,7 @@ is_even:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -646,14 +639,11 @@ is_even:
 _L41360024:
         move R0 #1
 _L41360025:
-        jmp L41360026
-L41360026:
+        jmp L_41360026
+L_41360026:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 is_odd:
 ; -------------------------------------------
@@ -666,6 +656,7 @@ is_odd:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -682,14 +673,11 @@ is_odd:
 _L41360027:
         move R0 #1
 _L41360028:
-        jmp L41360029
-L41360029:
+        jmp L_41360029
+L_41360029:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 sign:
 ; -------------------------------------------
@@ -702,6 +690,7 @@ sign:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -716,7 +705,7 @@ _L41360033:
         cmp R0 #0
         jz sta_41360030
         move R0 #1
-        jmp L41360034
+        jmp L_41360034
 sta_41360030:
 sta_41360031:
         move R0 [R12+12]
@@ -735,18 +724,15 @@ _L41360038:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L41360034
+        jmp L_41360034
 sta_41360035:
 sta_41360036:
         move R0 #0
-        jmp L41360034
-L41360034:
+        jmp L_41360034
+L_41360034:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 pow10:
 ; -------------------------------------------
@@ -759,13 +745,13 @@ pow10:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 #1
-        move [R12-4] R0
-        move R0 #0
         move [R12-8] R0
+        move R0 #0
+        move [R12-12] R0
 sta_41360039:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 [R12+12]
         pop R1
@@ -778,30 +764,27 @@ _L41360042:
 _L41360043:
         cmp R0 #0
         jz sta_41360041
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #10
         pop R1
         mul R1 R0
         move R0 R1
-        move [R12-4] R0
+        move [R12-8] R0
 sta_41360040:
-        move R0 [R12-8]
+        move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
-        move [R12-8] R0
+        move [R12-12] R0
         move R0 R1
         jmp sta_41360039
 sta_41360041:
-        move R0 [R12-4]
-        jmp L41360044
-L41360044:
+        move R0 [R12-8]
+        jmp L_41360044
+L_41360044:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 randomize:
 ; -------------------------------------------
@@ -814,14 +797,12 @@ randomize:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #51
         move [R12-4] R0
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 _sin_taylor:
 ; -------------------------------------------
@@ -834,21 +815,21 @@ _sin_taylor:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         moved R0 [R12+12]
         dpush R0
         moved R0 [R12+12]
         dpop R1
         dmul R0 R1 R0
-        moved [R12-8] R0
+        moved [R12-12] R0
         moved R0 [R12+12]
-        moved [R12-16] R0
+        moved [R12-20] R0
         moved R0 [R12+12]
-        moved [R12-24] R0
+        moved [R12-28] R0
         move R0 #1
-        move [R12-28] R0
+        move [R12-32] R0
 sta_41360045:
-        move R0 [R12-28]
+        move R0 [R12-32]
         push R0
         move R0 #12
         pop R1
@@ -861,22 +842,22 @@ _L41360048:
 _L41360049:
         cmp R0 #0
         jz sta_41360047
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
-        moved R0 [R12-8]
-        moved R0 [R12-8]
+        moved R0 [R12-12]
+        moved R0 [R12-12]
         dneg R0 R0
         dpush R0
         move R0 #2
         push R0
-        move R0 [R12-28]
+        move R0 [R12-32]
         pop R1
         mul R1 R0
         move R0 R1
         push R0
         move R0 #2
         push R0
-        move R0 [R12-28]
+        move R0 [R12-32]
         pop R1
         mul R1 R0
         move R0 R1
@@ -893,16 +874,16 @@ _L41360049:
         ddiv R0 R1 R0
         dpop R1
         dmul R0 R1 R0
-        moved [R12-16] R0
-        moved R0 [R12-24]
+        moved [R12-20] R0
+        moved R0 [R12-28]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpop R1
         dadd R0 R1 R0
-        moved [R12-24] R0
-        moved R0 [R12-16]
+        moved [R12-28] R0
+        moved R0 [R12-20]
         dpush R0
-        movef R0 [flt_41360054]
+        moved R0 [dbl_41360054]
         dpop R1
         dcmp R1 R0
         jl _L41360055
@@ -913,10 +894,10 @@ _L41360055:
 _L41360056:
         test R0 R0
         jz _L41360052
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
-        movef R0 [flt_41360057]
-        movef R0 [flt_41360058]
+        moved R0 [dbl_41360057]
+        moved R0 [dbl_41360058]
         dneg R0 R0
         dpop R1
         dcmp R1 R0
@@ -939,22 +920,19 @@ _L41360053:
 sta_41360050:
 sta_41360051:
 sta_41360046:
-        move R0 [R12-28]
+        move R0 [R12-32]
         move R1 R0
         add R0 R0 #1
-        move [R12-28] R0
+        move [R12-32] R0
         move R0 R1
         jmp sta_41360045
 sta_41360047:
-        moved R0 [R12-24]
-        jmp L41360061
-L41360061:
+        moved R0 [R12-28]
+        jmp L_41360061
+L_41360061:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 _cos_taylor:
 ; -------------------------------------------
@@ -967,23 +945,21 @@ _cos_taylor:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
-        i2d R16 R0
-        moved [R12+12] R16
+        sub R13 #40
         moved R0 [R12+12]
         dpush R0
         moved R0 [R12+12]
         dpop R1
         dmul R0 R1 R0
-        moved [R12-8] R0
-        movef R0 [flt_41360062]
-        moved [R12-16] R0
-        movef R0 [flt_41360063]
-        moved [R12-24] R0
+        moved [R12-12] R0
+        moved R0 [dbl_41360062]
+        moved [R12-20] R0
+        moved R0 [dbl_41360063]
+        moved [R12-28] R0
         move R0 #1
-        move [R12-28] R0
+        move [R12-32] R0
 sta_41360064:
-        move R0 [R12-28]
+        move R0 [R12-32]
         push R0
         move R0 #12
         pop R1
@@ -996,15 +972,15 @@ _L41360067:
 _L41360068:
         cmp R0 #0
         jz sta_41360066
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
-        moved R0 [R12-8]
-        moved R0 [R12-8]
+        moved R0 [R12-12]
+        moved R0 [R12-12]
         dneg R0 R0
         dpush R0
         move R0 #2
         push R0
-        move R0 [R12-28]
+        move R0 [R12-32]
         pop R1
         mul R1 R0
         move R0 R1
@@ -1016,7 +992,7 @@ _L41360068:
         push R0
         move R0 #2
         push R0
-        move R0 [R12-28]
+        move R0 [R12-32]
         pop R1
         mul R1 R0
         move R0 R1
@@ -1028,16 +1004,16 @@ _L41360068:
         ddiv R0 R1 R0
         dpop R1
         dmul R0 R1 R0
-        moved [R12-16] R0
-        moved R0 [R12-24]
+        moved [R12-20] R0
+        moved R0 [R12-28]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpop R1
         dadd R0 R1 R0
-        moved [R12-24] R0
-        moved R0 [R12-16]
+        moved [R12-28] R0
+        moved R0 [R12-20]
         dpush R0
-        movef R0 [flt_41360073]
+        moved R0 [dbl_41360073]
         dpop R1
         dcmp R1 R0
         jl _L41360074
@@ -1048,10 +1024,10 @@ _L41360074:
 _L41360075:
         test R0 R0
         jz _L41360071
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
-        movef R0 [flt_41360076]
-        movef R0 [flt_41360077]
+        moved R0 [dbl_41360076]
+        moved R0 [dbl_41360077]
         dneg R0 R0
         dpop R1
         dcmp R1 R0
@@ -1074,16 +1050,16 @@ _L41360072:
 sta_41360069:
 sta_41360070:
 sta_41360065:
-        move R0 [R12-28]
+        move R0 [R12-32]
         move R1 R0
         add R0 R0 #1
-        move [R12-28] R0
+        move [R12-32] R0
         move R0 R1
         jmp sta_41360064
 sta_41360066:
-        moved R0 [R12-24]
-        jmp L41360080
-L41360080:
+        moved R0 [R12-28]
+        jmp L_41360080
+L_41360080:
         move R13 R12
         pop R12
         pop R15
@@ -1099,23 +1075,21 @@ atan_approx:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
-        i2d R16 R0
-        moved [R12+12] R16
+        sub R13 #40
         moved R0 [R12+12]
         dpush R0
         moved R0 [R12+12]
         dpop R1
         dmul R0 R1 R0
-        moved [R12-8] R0
+        moved [R12-12] R0
         moved R0 [R12+12]
-        moved [R12-16] R0
+        moved [R12-20] R0
         moved R0 [R12+12]
-        moved [R12-24] R0
+        moved [R12-28] R0
         move R0 #1
-        move [R12-28] R0
+        move [R12-32] R0
 sta_41360081:
-        move R0 [R12-28]
+        move R0 [R12-32]
         push R0
         move R0 #15
         pop R1
@@ -1128,15 +1102,15 @@ _L41360084:
 _L41360085:
         cmp R0 #0
         jz sta_41360083
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
-        moved R0 [R12-8]
-        moved R0 [R12-8]
+        moved R0 [R12-12]
+        moved R0 [R12-12]
         dneg R0 R0
         dpush R0
         move R0 #2
         push R0
-        move R0 [R12-28]
+        move R0 [R12-32]
         pop R1
         mul R1 R0
         move R0 R1
@@ -1151,7 +1125,7 @@ _L41360085:
         dpush R0
         move R0 #2
         push R0
-        move R0 [R12-28]
+        move R0 [R12-32]
         pop R1
         mul R1 R0
         move R0 R1
@@ -1165,16 +1139,16 @@ _L41360085:
         ddiv R0 R1 R0
         dpop R1
         dmul R0 R1 R0
-        moved [R12-16] R0
-        moved R0 [R12-24]
+        moved [R12-20] R0
+        moved R0 [R12-28]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpop R1
         dadd R0 R1 R0
-        moved [R12-24] R0
-        moved R0 [R12-16]
+        moved [R12-28] R0
+        moved R0 [R12-20]
         dpush R0
-        movef R0 [flt_41360090]
+        moved R0 [dbl_41360090]
         dpop R1
         dcmp R1 R0
         jl _L41360091
@@ -1185,10 +1159,10 @@ _L41360091:
 _L41360092:
         test R0 R0
         jz _L41360088
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
-        movef R0 [flt_41360093]
-        movef R0 [flt_41360094]
+        moved R0 [dbl_41360093]
+        moved R0 [dbl_41360094]
         dneg R0 R0
         dpop R1
         dcmp R1 R0
@@ -1211,16 +1185,16 @@ _L41360089:
 sta_41360086:
 sta_41360087:
 sta_41360082:
-        move R0 [R12-28]
+        move R0 [R12-32]
         move R1 R0
         add R0 R0 #1
-        move [R12-28] R0
+        move [R12-32] R0
         move R0 R1
         jmp sta_41360081
 sta_41360083:
-        moved R0 [R12-24]
-        jmp L41360097
-L41360097:
+        moved R0 [R12-28]
+        jmp L_41360097
+L_41360097:
         move R13 R12
         pop R12
         pop R15
@@ -1236,9 +1210,9 @@ sin:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
-        movef R0 [flt_41360098]
-        moved [R12-8] R0
+        sub R13 #20
+        moved R0 [dbl_41360098]
+        moved [R12-12] R0
         moved R0 [R12+12]
         dpush R0
         move R0 #0
@@ -1257,10 +1231,10 @@ _L41360102:
         moved R0 [R12+12]
         dneg R0 R0
         moved [R12+12] R0
-        movef R0 [flt_41360103]
-        movef R0 [flt_41360104]
+        moved R0 [dbl_41360103]
+        moved R0 [dbl_41360104]
         dneg R0 R0
-        moved [R12-8] R0
+        moved [R12-12] R0
 sta_41360099:
 sta_41360100:
         moved R0 [R12+12]
@@ -1302,10 +1276,10 @@ _L41360108:
         dpop R1
         dsub R0 R1 R0
         moved [R12+12] R0
-        moved R0 [R12-8]
-        moved R0 [R12-8]
+        moved R0 [R12-12]
+        moved R0 [R12-12]
         dneg R0 R0
-        moved [R12-8] R0
+        moved [R12-12] R0
 sta_41360105:
 sta_41360106:
         moved R0 [R12+12]
@@ -1331,21 +1305,21 @@ _L41360112:
         moved [R12+12] R0
 sta_41360109:
 sta_41360110:
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpush R0
         moved R0 [R12+12]
-        dpush R0
+        sub R13 #8
+        moved @13 R0
+        move R0 [R13+0]
         call _sin_taylor
+        add R13 #8
         dpop R1
         dmul R0 R1 R0
-        jmp L41360113
-L41360113:
+        jmp L_41360113
+L_41360113:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 cos:
 ; -------------------------------------------
@@ -1358,6 +1332,7 @@ cos:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         moved R0 [R12+12]
         dpush R0
         move R0 #0
@@ -1443,17 +1418,16 @@ _L41360125:
 sta_41360122:
 sta_41360123:
         moved R0 [R12+12]
-        dpush R0
+        sub R13 #8
+        moved @13 R0
+        move R0 [R13+0]
         call _cos_taylor
         add R13 #8
-        jmp L41360126
-L41360126:
+        jmp L_41360126
+L_41360126:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 tan:
 ; -------------------------------------------
@@ -1466,18 +1440,24 @@ tan:
         push R15
         push R12
         move R12 R13
-        sub R13 #24
+        sub R13 #28
         moved R0 [R12+12]
-        dpush R0
+        sub R13 #8
+        moved @13 R0
+        move R0 [R13+0]
         call sin
-        moved [R12-8] R0
+        add R13 #8
+        moved [R12-12] R0
         moved R0 [R12+12]
-        dpush R0
+        sub R13 #8
+        moved @13 R0
+        move R0 [R13+0]
         call cos
-        moved [R12-16] R0
-        moved R0 [R12-16]
+        add R13 #8
+        moved [R12-20] R0
+        moved R0 [R12-20]
         dpush R0
-        movef R0 [flt_41360131]
+        moved R0 [dbl_41360131]
         dpop R1
         dcmp R1 R0
         jl _L41360132
@@ -1488,10 +1468,10 @@ _L41360132:
 _L41360133:
         test R0 R0
         jz _L41360129
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
-        movef R0 [flt_41360134]
-        movef R0 [flt_41360135]
+        moved R0 [dbl_41360134]
+        moved R0 [dbl_41360135]
         dneg R0 R0
         dpop R1
         dcmp R1 R0
@@ -1510,23 +1490,20 @@ _L41360129:
 _L41360130:
         cmp R0 #0
         jz sta_41360127
-        movef R0 [flt_41360138]
-        jmp L41360139
+        moved R0 [dbl_41360138]
+        jmp L_41360139
 sta_41360127:
 sta_41360128:
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpop R1
         ddiv R0 R1 R0
-        jmp L41360139
-L41360139:
+        jmp L_41360139
+L_41360139:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 sqrt:
 ; -------------------------------------------
@@ -1539,10 +1516,10 @@ sqrt:
         push R15
         push R12
         move R12 R13
-        sub R13 #24
+        sub R13 #28
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360142]
+        moved R0 [dbl_41360142]
         dpop R1
         dcmp R1 R0
         jl _L41360143
@@ -1553,13 +1530,13 @@ _L41360143:
 _L41360144:
         cmp R0 #0
         jz sta_41360140
-        movef R0 [flt_41360145]
-        jmp L41360146
+        moved R0 [dbl_41360145]
+        jmp L_41360146
 sta_41360140:
 sta_41360141:
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360149]
+        moved R0 [dbl_41360149]
         dpop R1
         dcmp R1 R0
         je _L41360150
@@ -1570,43 +1547,43 @@ _L41360150:
 _L41360151:
         cmp R0 #0
         jz sta_41360147
-        movef R0 [flt_41360152]
-        jmp L41360146
+        moved R0 [dbl_41360152]
+        jmp L_41360146
 sta_41360147:
 sta_41360148:
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360153]
+        moved R0 [dbl_41360153]
         dpop R1
         dmul R0 R1 R0
         dpush R0
-        movef R0 [flt_41360154]
+        moved R0 [dbl_41360154]
         dpop R1
         dadd R0 R1 R0
-        moved [R12-8] R0
+        moved [R12-12] R0
 sta_41360155:
-        moved R0 [R12-8]
-        moved [R12-16] R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
+        moved [R12-20] R0
+        moved R0 [R12-12]
         dpush R0
         moved R0 [R12+12]
         dpush R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpop R1
         ddiv R0 R1 R0
         dpop R1
         dadd R0 R1 R0
         dpush R0
-        movef R0 [flt_41360157]
+        moved R0 [dbl_41360157]
         dpop R1
         dmul R0 R1 R0
-        moved [R12-8] R0
+        moved [R12-12] R0
 sta_41360156:
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
-        movef R0 [flt_41360161]
+        moved R0 [dbl_41360161]
         dpop R1
         dsub R0 R1 R0
         dpop R1
@@ -1619,11 +1596,11 @@ _L41360162:
 _L41360163:
         test R0 R0
         jnz _L41360158
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
-        movef R0 [flt_41360164]
+        moved R0 [dbl_41360164]
         dpop R1
         dadd R0 R1 R0
         dpop R1
@@ -1644,15 +1621,12 @@ _L41360159:
 _L41360160:
         cmp R0 #0
         jnz sta_41360155
-        moved R0 [R12-8]
-        jmp L41360146
-L41360146:
+        moved R0 [R12-12]
+        jmp L_41360146
+L_41360146:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 asin:
 ; -------------------------------------------
@@ -1665,10 +1639,11 @@ asin:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360172]
-        movef R0 [flt_41360173]
+        moved R0 [dbl_41360172]
+        moved R0 [dbl_41360173]
         dneg R0 R0
         dpop R1
         dcmp R1 R0
@@ -1682,7 +1657,7 @@ _L41360175:
         jnz _L41360169
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360176]
+        moved R0 [dbl_41360176]
         dpop R1
         dcmp R1 R0
         jg _L41360177
@@ -1701,13 +1676,11 @@ _L41360170:
 _L41360171:
         cmp R0 #0
         jz sta_41360167
-        movef R0 [flt_41360179]
-        jmp L41360180
+        moved R0 [dbl_41360179]
+        jmp L_41360180
 sta_41360167:
 sta_41360168:
-        moved R0 [R12+12]
-        dpush R0
-        movef R0 [flt_41360181]
+        moved R0 [dbl_41360181]
         dpush R0
         moved R0 [R12+12]
         dpush R0
@@ -1716,18 +1689,25 @@ sta_41360168:
         dmul R0 R1 R0
         dpop R1
         dsub R0 R1 R0
-        dpush R0
+        sub R13 #8
+        moved @13 R0
+        move R0 [R13+0]
         call sqrt
-        dpush R0
+        add R13 #8
+        sub R13 #8
+        moved @13 R0
+        moved R0 [R12+12]
+        sub R13 #8
+        moved @13 R0
+        move R0 [R13+0]
+        move R1 [R13+8]
         call atan2
-        jmp L41360180
-L41360180:
+        add R13 #16
+        jmp L_41360180
+L_41360180:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 acos:
 ; -------------------------------------------
@@ -1740,10 +1720,11 @@ acos:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360187]
-        movef R0 [flt_41360188]
+        moved R0 [dbl_41360187]
+        moved R0 [dbl_41360188]
         dneg R0 R0
         dpop R1
         dcmp R1 R0
@@ -1757,7 +1738,7 @@ _L41360190:
         jnz _L41360184
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360191]
+        moved R0 [dbl_41360191]
         dpop R1
         dcmp R1 R0
         jg _L41360192
@@ -1776,11 +1757,14 @@ _L41360185:
 _L41360186:
         cmp R0 #0
         jz sta_41360182
-        movef R0 [flt_41360194]
-        jmp L41360195
+        moved R0 [dbl_41360194]
+        jmp L_41360195
 sta_41360182:
 sta_41360183:
-        movef R0 [flt_41360196]
+        moved R0 [R12+12]
+        sub R13 #8
+        moved @13 R0
+        moved R0 [dbl_41360196]
         dpush R0
         moved R0 [R12+12]
         dpush R0
@@ -1789,20 +1773,22 @@ sta_41360183:
         dmul R0 R1 R0
         dpop R1
         dsub R0 R1 R0
-        dpush R0
+        sub R13 #8
+        moved @13 R0
+        move R0 [R13+0]
         call sqrt
-        dpush R0
-        moved R0 [R12+12]
-        dpush R0
+        add R13 #8
+        sub R13 #8
+        moved @13 R0
+        move R0 [R13+0]
+        move R1 [R13+8]
         call atan2
-        jmp L41360195
-L41360195:
+        add R13 #16
+        jmp L_41360195
+L_41360195:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 atan:
 ; -------------------------------------------
@@ -1815,19 +1801,22 @@ atan:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
+        moved R0 [dbl_41360197]
+        sub R13 #8
+        moved @13 R0
         moved R0 [R12+12]
-        dpush R0
-        movef R0 [flt_41360197]
-        dpush R0
+        sub R13 #8
+        moved @13 R0
+        move R0 [R13+0]
+        move R1 [R13+8]
         call atan2
-        jmp L41360198
-L41360198:
+        add R13 #16
+        jmp L_41360198
+L_41360198:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 atan2:
 ; -------------------------------------------
@@ -1841,9 +1830,10 @@ atan2:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         moved R0 [R12+20]
         dpush R0
-        movef R0 [flt_41360201]
+        moved R0 [dbl_41360201]
         dpop R1
         dcmp R1 R0
         jg _L41360202
@@ -1859,15 +1849,17 @@ _L41360203:
         moved R0 [R12+20]
         dpop R1
         ddiv R0 R1 R0
-        dpush R0
+        sub R13 #8
+        moved @13 R0
+        move R0 [R13+0]
         call atan_approx
         add R13 #8
-        jmp L41360204
+        jmp L_41360204
 sta_41360199:
 sta_41360200:
         moved R0 [R12+20]
         dpush R0
-        movef R0 [flt_41360207]
+        moved R0 [dbl_41360207]
         dpop R1
         dcmp R1 R0
         jl _L41360208
@@ -1880,7 +1872,7 @@ _L41360209:
         jz sta_41360205
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360212]
+        moved R0 [dbl_41360212]
         dpop R1
         dcmp R1 R0
         jge _L41360213
@@ -1896,7 +1888,9 @@ _L41360214:
         moved R0 [R12+20]
         dpop R1
         ddiv R0 R1 R0
-        dpush R0
+        sub R13 #8
+        moved @13 R0
+        move R0 [R13+0]
         call atan_approx
         add R13 #8
         dpush R0
@@ -1904,7 +1898,7 @@ _L41360214:
         i2d R0 R0
         dpop R1
         dadd R0 R1 R0
-        jmp L41360204
+        jmp L_41360204
 sta_41360210:
 sta_41360211:
         moved R0 [R12+12]
@@ -1912,7 +1906,9 @@ sta_41360211:
         moved R0 [R12+20]
         dpop R1
         ddiv R0 R1 R0
-        dpush R0
+        sub R13 #8
+        moved @13 R0
+        move R0 [R13+0]
         call atan_approx
         add R13 #8
         dpush R0
@@ -1920,12 +1916,12 @@ sta_41360211:
         i2d R0 R0
         dpop R1
         dsub R0 R1 R0
-        jmp L41360204
+        jmp L_41360204
 sta_41360205:
 sta_41360206:
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360217]
+        moved R0 [dbl_41360217]
         dpop R1
         dcmp R1 R0
         jg _L41360218
@@ -1937,12 +1933,12 @@ _L41360219:
         cmp R0 #0
         jz sta_41360215
         moved R0 [PI_HALF]
-        jmp L41360204
+        jmp L_41360204
 sta_41360215:
 sta_41360216:
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360222]
+        moved R0 [dbl_41360222]
         dpop R1
         dcmp R1 R0
         jl _L41360223
@@ -1956,18 +1952,15 @@ _L41360224:
         moved R0 [PI_HALF]
         moved R0 [PI_HALF]
         neg R0 R0
-        jmp L41360204
+        jmp L_41360204
 sta_41360220:
 sta_41360221:
-        movef R0 [flt_41360225]
-        jmp L41360204
-L41360204:
+        moved R0 [dbl_41360225]
+        jmp L_41360204
+L_41360204:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 exp:
 ; -------------------------------------------
@@ -1980,14 +1973,14 @@ exp:
         push R15
         push R12
         move R12 R13
-        sub R13 #32
-        movef R0 [flt_41360226]
-        moved [R12-16] R0
-        movef R0 [flt_41360227]
-        moved [R12-24] R0
+        sub R13 #36
+        moved R0 [dbl_41360226]
+        moved [R12-20] R0
+        moved R0 [dbl_41360227]
+        moved [R12-28] R0
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360230]
+        moved R0 [dbl_41360230]
         dpop R1
         dcmp R1 R0
         jl _L41360231
@@ -1998,32 +1991,35 @@ _L41360231:
 _L41360232:
         cmp R0 #0
         jz sta_41360228
-        movef R0 [flt_41360233]
+        moved R0 [dbl_41360233]
         dpush R0
         moved R0 [R12+12]
         moved R0 [R12+12]
         dneg R0 R0
-        dpush R0
+        sub R13 #8
+        moved @13 R0
+        move R0 [R13+0]
         call exp
+        add R13 #8
         dpop R1
         ddiv R0 R1 R0
-        jmp L41360234
+        jmp L_41360234
 sta_41360228:
 sta_41360229:
         moved R0 [R12+12]
         d2i R0 R0
-        move [R12-8] R0
+        move [R12-12] R0
         moved R0 [R12+12]
         dpush R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         i2d R0 R0
         dpop R1
         dsub R0 R1 R0
         moved [R12+12] R0
         move R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
 sta_41360235:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #20
         pop R1
@@ -2036,26 +2032,26 @@ _L41360238:
 _L41360239:
         cmp R0 #0
         jz sta_41360237
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
         moved R0 [R12+12]
         dpush R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         i2d R0 R0
         dpop R1
         ddiv R0 R1 R0
         dpop R1
         dmul R0 R1 R0
-        moved [R12-16] R0
-        moved R0 [R12-24]
+        moved [R12-20] R0
+        moved R0 [R12-28]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpop R1
         dadd R0 R1 R0
-        moved [R12-24] R0
-        moved R0 [R12-16]
+        moved [R12-28] R0
+        moved R0 [R12-20]
         dpush R0
-        movef R0 [flt_41360242]
+        moved R0 [dbl_41360242]
         dpop R1
         dcmp R1 R0
         jl _L41360243
@@ -2070,19 +2066,19 @@ _L41360244:
 sta_41360240:
 sta_41360241:
 sta_41360236:
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_41360235
 sta_41360237:
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_41360245:
-        move R0 [R12-4]
-        push R0
         move R0 [R12-8]
+        push R0
+        move R0 [R12-12]
         pop R1
         cmp R1 R0
         jl _L41360248
@@ -2093,29 +2089,26 @@ _L41360248:
 _L41360249:
         cmp R0 #0
         jz sta_41360247
-        moved R0 [R12-24]
+        moved R0 [R12-28]
         dpush R0
-        movef R0 [flt_41360250]
+        moved R0 [dbl_41360250]
         dpop R1
         dmul R0 R1 R0
-        moved [R12-24] R0
+        moved [R12-28] R0
 sta_41360246:
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_41360245
 sta_41360247:
-        moved R0 [R12-24]
-        jmp L41360234
-L41360234:
+        moved R0 [R12-28]
+        jmp L_41360234
+L_41360234:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 log:
 ; -------------------------------------------
@@ -2128,12 +2121,12 @@ log:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360253]
+        moved R0 [dbl_41360253]
         dpop R1
         dcmp R1 R0
         jle _L41360254
@@ -2144,15 +2137,15 @@ _L41360254:
 _L41360255:
         cmp R0 #0
         jz sta_41360251
-        movef R0 [flt_41360256]
-        jmp L41360257
+        moved R0 [dbl_41360256]
+        jmp L_41360257
 sta_41360251:
 sta_41360252:
 sta_41360258:
         move R2 #0
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360260]
+        moved R0 [dbl_41360260]
         dpop R1
         dcmp R1 R0
         jg _L41360261
@@ -2165,14 +2158,14 @@ _L41360262:
         jz sta_41360259
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360263]
+        moved R0 [dbl_41360263]
         dpop R1
         ddiv R0 R1 R0
         moved [R12+12] R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_41360258
 sta_41360259:
@@ -2180,7 +2173,7 @@ sta_41360264:
         move R2 #0
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360266]
+        moved R0 [dbl_41360266]
         dpop R1
         dcmp R1 R0
         jl _L41360267
@@ -2193,38 +2186,37 @@ _L41360268:
         jz sta_41360265
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360269]
+        moved R0 [dbl_41360269]
         dpop R1
         dmul R0 R1 R0
         moved [R12+12] R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         sub R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_41360264
 sta_41360265:
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360270]
+        moved R0 [dbl_41360270]
         dpop R1
         dsub R0 R1 R0
-        dpush R0
+        sub R13 #8
+        moved @13 R0
+        move R0 [R13+0]
         call _log_taylor
         add R13 #8
         dpush R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         i2d R0 R0
         dpop R1
         dadd R0 R1 R0
-        jmp L41360257
-L41360257:
+        jmp L_41360257
+L_41360257:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 _log_taylor:
 ; -------------------------------------------
@@ -2237,17 +2229,15 @@ _log_taylor:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
-        i2d R16 R0
-        moved [R12+12] R16
+        sub R13 #32
         moved R0 [R12+12]
-        moved [R12-8] R0
+        moved [R12-12] R0
         moved R0 [R12+12]
-        moved [R12-16] R0
+        moved [R12-20] R0
         move R0 #2
-        move [R12-20] R0
+        move [R12-24] R0
 sta_41360271:
-        move R0 [R12-20]
+        move R0 [R12-24]
         push R0
         move R0 #30
         pop R1
@@ -2260,13 +2250,13 @@ _L41360274:
 _L41360275:
         cmp R0 #0
         jz sta_41360273
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpush R0
         moved R0 [R12+12]
         moved R0 [R12+12]
         dneg R0 R0
         dpush R0
-        move R0 [R12-20]
+        move R0 [R12-24]
         push R0
         move R0 #1
         pop R1
@@ -2276,22 +2266,22 @@ _L41360275:
         dpop R1
         dmul R0 R1 R0
         dpush R0
-        move R0 [R12-20]
+        move R0 [R12-24]
         i2d R0 R0
         dpop R1
         ddiv R0 R1 R0
         dpop R1
         dmul R0 R1 R0
-        moved [R12-8] R0
-        moved R0 [R12-16]
+        moved [R12-12] R0
+        moved R0 [R12-20]
         dpush R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpop R1
         dadd R0 R1 R0
-        moved [R12-16] R0
-        moved R0 [R12-8]
+        moved [R12-20] R0
+        moved R0 [R12-12]
         dpush R0
-        movef R0 [flt_41360280]
+        moved R0 [dbl_41360280]
         dpop R1
         dcmp R1 R0
         jl _L41360281
@@ -2302,10 +2292,10 @@ _L41360281:
 _L41360282:
         test R0 R0
         jz _L41360278
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpush R0
-        movef R0 [flt_41360283]
-        movef R0 [flt_41360284]
+        moved R0 [dbl_41360283]
+        moved R0 [dbl_41360284]
         dneg R0 R0
         dpop R1
         dcmp R1 R0
@@ -2328,16 +2318,16 @@ _L41360279:
 sta_41360276:
 sta_41360277:
 sta_41360272:
-        move R0 [R12-20]
+        move R0 [R12-24]
         move R1 R0
         add R0 R0 #1
-        move [R12-20] R0
+        move [R12-24] R0
         move R0 R1
         jmp sta_41360271
 sta_41360273:
-        moved R0 [R12-16]
-        jmp L41360287
-L41360287:
+        moved R0 [R12-20]
+        jmp L_41360287
+L_41360287:
         move R13 R12
         pop R12
         pop R15
@@ -2354,10 +2344,10 @@ pow:
         push R15
         push R12
         move R12 R13
-        sub R13 #24
+        sub R13 #28
         moved R0 [R12+20]
         dpush R0
-        movef R0 [flt_41360290]
+        moved R0 [dbl_41360290]
         dpop R1
         dcmp R1 R0
         je _L41360291
@@ -2368,13 +2358,13 @@ _L41360291:
 _L41360292:
         cmp R0 #0
         jz sta_41360288
-        movef R0 [flt_41360293]
-        jmp L41360294
+        moved R0 [dbl_41360293]
+        jmp L_41360294
 sta_41360288:
 sta_41360289:
         moved R0 [R12+12]
         dpush R0
-        movef R0 [flt_41360297]
+        moved R0 [dbl_41360297]
         dpop R1
         dcmp R1 R0
         je _L41360298
@@ -2385,14 +2375,14 @@ _L41360298:
 _L41360299:
         cmp R0 #0
         jz sta_41360295
-        movef R0 [flt_41360300]
-        jmp L41360294
+        moved R0 [dbl_41360300]
+        jmp L_41360294
 sta_41360295:
 sta_41360296:
         moved R0 [R12+20]
         d2i R0 R0
-        move [R12-8] R0
-        move R0 [R12-8]
+        move [R12-12] R0
+        move R0 [R12-12]
         i2d R0 R0
         dpush R0
         moved R0 [R12+20]
@@ -2406,7 +2396,7 @@ _L41360305:
 _L41360306:
         test R0 R0
         jz _L41360303
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #0
         pop R1
@@ -2426,14 +2416,14 @@ _L41360303:
 _L41360304:
         cmp R0 #0
         jz sta_41360301
-        movef R0 [flt_41360309]
-        moved [R12-16] R0
+        moved R0 [dbl_41360309]
+        moved [R12-20] R0
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_41360310:
-        move R0 [R12-4]
-        push R0
         move R0 [R12-8]
+        push R0
+        move R0 [R12-12]
         pop R1
         cmp R1 R0
         jl _L41360313
@@ -2444,41 +2434,44 @@ _L41360313:
 _L41360314:
         cmp R0 #0
         jz sta_41360312
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
         moved R0 [R12+12]
         dpop R1
         dmul R0 R1 R0
-        moved [R12-16] R0
+        moved [R12-20] R0
 sta_41360311:
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_41360310
 sta_41360312:
-        moved R0 [R12-16]
-        jmp L41360294
+        moved R0 [R12-20]
+        jmp L_41360294
 sta_41360301:
 sta_41360302:
         moved R0 [R12+20]
         dpush R0
         moved R0 [R12+12]
-        dpush R0
+        sub R13 #8
+        moved @13 R0
+        move R0 [R13+0]
         call log
+        add R13 #8
         dpop R1
         dmul R0 R1 R0
-        dpush R0
+        sub R13 #8
+        moved @13 R0
+        move R0 [R13+0]
         call exp
-        jmp L41360294
-L41360294:
+        add R13 #8
+        jmp L_41360294
+L_41360294:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 ipow:
 ; -------------------------------------------
@@ -2492,7 +2485,7 @@ ipow:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -2507,11 +2500,11 @@ _L41360318:
         cmp R0 #0
         jz sta_41360315
         move R0 #1
-        jmp L41360319
+        jmp L_41360319
 sta_41360315:
 sta_41360316:
         move R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
 sta_41360320:
         move R2 #0
         move R0 [R12+16]
@@ -2527,13 +2520,13 @@ _L41360322:
 _L41360323:
         cmp R0 #0
         jz sta_41360321
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 [R12+12]
         pop R1
         mul R1 R0
         move R0 R1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 [R12+16]
         move R1 R0
         sub R0 R0 #1
@@ -2541,15 +2534,12 @@ _L41360323:
         move R0 R1
         jmp sta_41360320
 sta_41360321:
-        move R0 [R12-4]
-        jmp L41360319
-L41360319:
+        move R0 [R12-8]
+        jmp L_41360319
+L_41360319:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 sin_deg:
 ; -------------------------------------------
@@ -2562,13 +2552,13 @@ sin_deg:
         push R15
         push R12
         move R12 R13
-        sub R13 #24
+        sub R13 #28
         movef R0 [R12+12]
         f2i R0 R0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_41360324:
         move R2 #0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #0
         pop R1
@@ -2581,22 +2571,22 @@ _L41360326:
 _L41360327:
         cmp R0 #0
         jz sta_41360325
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #360
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-4] R0
+        move [R12-8] R0
         jmp sta_41360324
 sta_41360325:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #360
         pop R1
         mod R1 R0
         move R0 R1
-        move [R12-4] R0
+        move [R12-8] R0
         movef R0 [R12+12]
         fpush R0
         movef R0 [R12+12]
@@ -2604,8 +2594,8 @@ sta_41360325:
         i2f R0 R0
         fpop R1
         fsub R0 R1 R0
-        movef [R12-8] R0
-        movef R0 [R12-8]
+        movef [R12-12] R0
+        movef R0 [R12-12]
         fpush R0
         movef R0 [flt_41360330]
         fpop R1
@@ -2619,10 +2609,10 @@ _L41360332:
         cmp R0 #0
         jz sta_41360328
         movef R0 [flt_41360333]
-        movef [R12-8] R0
+        movef [R12-12] R0
 sta_41360328:
 sta_41360329:
-        movef R0 [R12-8]
+        movef R0 [R12-12]
         fpush R0
         movef R0 [flt_41360336]
         fpop R1
@@ -2636,28 +2626,27 @@ _L41360338:
         cmp R0 #0
         jz sta_41360334
         movef R0 [flt_41360339]
-        movef [R12-8] R0
+        movef [R12-12] R0
 sta_41360334:
 sta_41360335:
         move R0 sin_table
         push R0
         move R11 #0
         push R11
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R11
         move R11 R0
         move R0 R11
         mul R0 #4
         pop R10
         add R0 R10
-        move R0 [R0]
-        i2f R0 R0
-        movef [R12-12] R0
+        movef R0 [R0]
+        movef [R12-16] R0
         move R0 sin_table
         push R0
         move R9 #0
         push R9
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #1
         pop R1
@@ -2669,30 +2658,26 @@ sta_41360335:
         mul R0 #4
         pop R8
         add R0 R8
-        move R0 [R0]
-        i2f R0 R0
-        movef [R12-16] R0
-        movef R0 [R12-12]
-        fpush R0
+        movef R0 [R0]
+        movef [R12-20] R0
         movef R0 [R12-16]
         fpush R0
-        movef R0 [R12-12]
+        movef R0 [R12-20]
+        fpush R0
+        movef R0 [R12-16]
         fpop R1
         fsub R0 R1 R0
         fpush R0
-        movef R0 [R12-8]
+        movef R0 [R12-12]
         fpop R1
         fmul R0 R1 R0
         fpop R1
         fadd R0 R1 R0
-        jmp L41360340
-L41360340:
+        jmp L_41360340
+L_41360340:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 cos_deg:
 ; -------------------------------------------
@@ -2705,21 +2690,22 @@ cos_deg:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         movef R0 [R12+12]
         fpush R0
         movef R0 [flt_41360341]
         fpop R1
         fadd R0 R1 R0
-        push R0
+        sub R13 #4
+        movef @13 R0
+        move R0 [R13+0]
         call sin_deg
-        jmp L41360342
-L41360342:
+        add R13 #4
+        jmp L_41360342
+L_41360342:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 tan_deg:
 ; -------------------------------------------
@@ -2732,16 +2718,22 @@ tan_deg:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         movef R0 [R12+12]
-        push R0
+        sub R13 #4
+        movef @13 R0
+        move R0 [R13+0]
         call sin_deg
-        movef [R12-4] R0
-        movef R0 [R12+12]
-        push R0
-        call cos_deg
+        add R13 #4
         movef [R12-8] R0
-        movef R0 [R12-8]
+        movef R0 [R12+12]
+        sub R13 #4
+        movef @13 R0
+        move R0 [R13+0]
+        call cos_deg
+        add R13 #4
+        movef [R12-12] R0
+        movef R0 [R12-12]
         fpush R0
         movef R0 [flt_41360347]
         fpop R1
@@ -2754,7 +2746,7 @@ _L41360348:
 _L41360349:
         test R0 R0
         jz _L41360345
-        movef R0 [R12-8]
+        movef R0 [R12-12]
         fpush R0
         movef R0 [flt_41360350]
         movef R0 [flt_41360351]
@@ -2777,22 +2769,19 @@ _L41360346:
         cmp R0 #0
         jz sta_41360343
         movef R0 [flt_41360354]
-        jmp L41360355
+        jmp L_41360355
 sta_41360343:
 sta_41360344:
-        movef R0 [R12-4]
-        fpush R0
         movef R0 [R12-8]
+        fpush R0
+        movef R0 [R12-12]
         fpop R1
         fdiv R0 R1 R0
-        jmp L41360355
-L41360355:
+        jmp L_41360355
+L_41360355:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 ilog2:
 ; -------------------------------------------
@@ -2805,9 +2794,9 @@ ilog2:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_41360356:
         move R2 #0
         move R0 [R12+12]
@@ -2830,22 +2819,19 @@ _L41360359:
         shr R1 R0
         move R0 R1
         move [R12+12] R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_41360356
 sta_41360357:
-        move R0 [R12-4]
-        jmp L41360360
-L41360360:
+        move R0 [R12-8]
+        jmp L_41360360
+L_41360360:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 ceil_div:
 ; -------------------------------------------
@@ -2859,6 +2845,7 @@ ceil_div:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -2873,7 +2860,7 @@ _L41360364:
         cmp R0 #0
         jz sta_41360361
         move R0 #0
-        jmp L41360365
+        jmp L_41360365
 sta_41360361:
 sta_41360362:
         move R0 [R12+12]
@@ -2892,14 +2879,11 @@ sta_41360362:
         pop R1
         div R1 R0
         move R0 R1
-        jmp L41360365
-L41360365:
+        jmp L_41360365
+L_41360365:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 round_div:
 ; -------------------------------------------
@@ -2913,6 +2897,7 @@ round_div:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -2927,7 +2912,7 @@ _L41360369:
         cmp R0 #0
         jz sta_41360366
         move R0 #0
-        jmp L41360370
+        jmp L_41360370
 sta_41360366:
 sta_41360367:
         move R0 [R12+12]
@@ -2959,7 +2944,7 @@ _L41360374:
         pop R1
         div R1 R0
         move R0 R1
-        jmp L41360370
+        jmp L_41360370
 sta_41360371:
 sta_41360372:
         move R0 [R12+12]
@@ -2978,14 +2963,11 @@ sta_41360372:
         pop R1
         div R1 R0
         move R0 R1
-        jmp L41360370
-L41360370:
+        jmp L_41360370
+L_41360370:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 gcd:
 ; -------------------------------------------
@@ -2999,7 +2981,7 @@ gcd:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3054,7 +3036,7 @@ _L41360386:
         cmp R0 #0
         jz sta_41360384
         move R0 [R12+16]
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -3062,19 +3044,16 @@ _L41360386:
         mod R1 R0
         move R0 R1
         move [R12+16] R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         move [R12+12] R0
         jmp sta_41360383
 sta_41360384:
         move R0 [R12+12]
-        jmp L41360387
-L41360387:
+        jmp L_41360387
+L_41360387:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 lcm:
 ; -------------------------------------------
@@ -3088,7 +3067,7 @@ lcm:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3124,18 +3103,21 @@ _L41360392:
         cmp R0 #0
         jz sta_41360388
         move R0 #0
-        jmp L41360397
+        jmp L_41360397
 sta_41360388:
 sta_41360389:
-        move R0 [R12+12]
-        push R0
         move R0 [R12+16]
         push R0
-        call gcd
-        move [R12-4] R0
         move R0 [R12+12]
         push R0
-        move R0 [R12-4]
+        move R0 [R13+0]
+        move R1 [R13+4]
+        call gcd
+        add R13 #8
+        move [R12-8] R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-8]
         pop R1
         div R1 R0
         move R0 R1
@@ -3144,14 +3126,11 @@ sta_41360389:
         pop R1
         mul R1 R0
         move R0 R1
-        jmp L41360397
-L41360397:
+        jmp L_41360397
+L_41360397:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 is_prime:
 ; -------------------------------------------
@@ -3164,7 +3143,7 @@ is_prime:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -3179,7 +3158,7 @@ _L41360401:
         cmp R0 #0
         jz sta_41360398
         move R0 #0
-        jmp L41360402
+        jmp L_41360402
 sta_41360398:
 sta_41360399:
         move R0 [R12+12]
@@ -3217,7 +3196,7 @@ _L41360407:
         cmp R0 #0
         jz sta_41360403
         move R0 #1
-        jmp L41360402
+        jmp L_41360402
 sta_41360403:
 sta_41360404:
         move R0 [R12+12]
@@ -3239,15 +3218,15 @@ _L41360415:
         cmp R0 #0
         jz sta_41360412
         move R0 #0
-        jmp L41360402
+        jmp L_41360402
 sta_41360412:
 sta_41360413:
         move R0 #3
-        move [R12-4] R0
+        move [R12-8] R0
 sta_41360416:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         mul R1 R0
         move R0 R1
@@ -3265,7 +3244,7 @@ _L41360420:
         jz sta_41360418
         move R0 [R12+12]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         mod R1 R0
         move R0 R1
@@ -3282,28 +3261,25 @@ _L41360424:
         cmp R0 #0
         jz sta_41360421
         move R0 #0
-        jmp L41360402
+        jmp L_41360402
 sta_41360421:
 sta_41360422:
 sta_41360417:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #2
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-4] R0
+        move [R12-8] R0
         jmp sta_41360416
 sta_41360418:
         move R0 #1
-        jmp L41360402
-L41360402:
+        jmp L_41360402
+L_41360402:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 factorial:
 ; -------------------------------------------
@@ -3316,9 +3292,9 @@ factorial:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3333,7 +3309,7 @@ _L41360428:
         cmp R0 #0
         jz sta_41360425
         move R0 #0
-        jmp L41360429
+        jmp L_41360429
 sta_41360425:
 sta_41360426:
         move R0 [R12+12]
@@ -3350,13 +3326,13 @@ _L41360433:
         cmp R0 #0
         jz sta_41360430
         move R0 #0
-        jmp L41360429
+        jmp L_41360429
 sta_41360430:
 sta_41360431:
         move R0 #2
-        move [R12-8] R0
+        move [R12-12] R0
 sta_41360434:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 [R12+12]
         pop R1
@@ -3369,30 +3345,27 @@ _L41360437:
 _L41360438:
         cmp R0 #0
         jz sta_41360436
-        move R0 [R12-4]
-        push R0
         move R0 [R12-8]
+        push R0
+        move R0 [R12-12]
         pop R1
         mul R1 R0
         move R0 R1
-        move [R12-4] R0
+        move [R12-8] R0
 sta_41360435:
-        move R0 [R12-8]
+        move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
-        move [R12-8] R0
+        move [R12-12] R0
         move R0 R1
         jmp sta_41360434
 sta_41360436:
-        move R0 [R12-4]
-        jmp L41360429
-L41360429:
+        move R0 [R12-8]
+        jmp L_41360429
+L_41360429:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 random_range:
 ; -------------------------------------------
@@ -3406,7 +3379,7 @@ random_range:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 [R12+12]
@@ -3421,10 +3394,10 @@ _L41360442:
         cmp R0 #0
         jz sta_41360439
         move R0 [R12+12]
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 [R12+16]
         move [R12+12] R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         move [R12+16] R0
 sta_41360439:
 sta_41360440:
@@ -3466,14 +3439,11 @@ sta_41360440:
         pop R1
         add R1 R0
         move R0 R1
-        jmp L41360443
-L41360443:
+        jmp L_41360443
+L_41360443:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 random_set_seed:
 ; -------------------------------------------
@@ -3486,14 +3456,12 @@ random_set_seed:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #51
         move [R12-4] R0
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 lerp:
 ; -------------------------------------------
@@ -3508,6 +3476,7 @@ lerp:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -3529,14 +3498,11 @@ lerp:
         pop R1
         add R1 R0
         move R0 R1
-        jmp L41360444
-L41360444:
+        jmp L_41360444
+L_41360444:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #16
-        push R1
         ret
 map_range:
 ; -------------------------------------------
@@ -3553,6 +3519,7 @@ map_range:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+20]
         push R0
         move R0 [R12+16]
@@ -3567,7 +3534,7 @@ _L41360448:
         cmp R0 #0
         jz sta_41360445
         move R0 [R12+24]
-        jmp L41360449
+        jmp L_41360449
 sta_41360445:
 sta_41360446:
         move R0 [R12+24]
@@ -3601,14 +3568,11 @@ sta_41360446:
         pop R1
         add R1 R0
         move R0 R1
-        jmp L41360449
-L41360449:
+        jmp L_41360449
+L_41360449:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #24
-        push R1
         ret
 clamp_int:
 ; -------------------------------------------
@@ -3623,6 +3587,7 @@ clamp_int:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -3637,7 +3602,7 @@ _L41360453:
         cmp R0 #0
         jz sta_41360450
         move R0 [R12+16]
-        jmp L41360454
+        jmp L_41360454
 sta_41360450:
 sta_41360451:
         move R0 [R12+12]
@@ -3654,18 +3619,15 @@ _L41360458:
         cmp R0 #0
         jz sta_41360455
         move R0 [R12+20]
-        jmp L41360454
+        jmp L_41360454
 sta_41360455:
 sta_41360456:
         move R0 [R12+12]
-        jmp L41360454
-L41360454:
+        jmp L_41360454
+L_41360454:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #16
-        push R1
         ret
 hypot_int:
 ; -------------------------------------------
@@ -3679,7 +3641,7 @@ hypot_int:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3734,8 +3696,8 @@ sta_41360464:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #0
         pop R1
@@ -3749,10 +3711,10 @@ _L41360470:
         cmp R0 #0
         jz sta_41360467
         move R0 #0
-        jmp L41360471
+        jmp L_41360471
 sta_41360467:
 sta_41360468:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #2
         pop R1
@@ -3763,11 +3725,11 @@ sta_41360468:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-8] R0
-        move R0 #0
         move [R12-12] R0
+        move R0 #0
+        move [R12-16] R0
 sta_41360472:
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #10
         pop R1
@@ -3780,11 +3742,11 @@ _L41360475:
 _L41360476:
         cmp R0 #0
         jz sta_41360474
-        move R0 [R12-8]
-        push R0
-        move R0 [R12-4]
+        move R0 [R12-12]
         push R0
         move R0 [R12-8]
+        push R0
+        move R0 [R12-12]
         push R0
         move R0 #0
         pop R1
@@ -3797,7 +3759,7 @@ _L41360477:
 _L41360478:
         test R0 R0
         jz _L41360479
-        move R0 [R12-8]
+        move R0 [R12-12]
         jmp _L41360480
 _L41360479:
         move R0 #1
@@ -3813,24 +3775,21 @@ _L41360480:
         pop R1
         div R1 R0
         move R0 R1
-        move [R12-8] R0
+        move [R12-12] R0
 sta_41360473:
-        move R0 [R12-12]
+        move R0 [R12-16]
         move R1 R0
         add R0 R0 #1
-        move [R12-12] R0
+        move [R12-16] R0
         move R0 R1
         jmp sta_41360472
 sta_41360474:
-        move R0 [R12-8]
-        jmp L41360471
-L41360471:
+        move R0 [R12-12]
+        jmp L_41360471
+L_41360471:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 isqrt:
 ; -------------------------------------------:
@@ -3844,7 +3803,7 @@ isqrt:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3859,7 +3818,7 @@ _L41360484:
         cmp R0 #0
         jz sta_41360481
         move R0 #0
-        jmp L41360485
+        jmp L_41360485
 sta_41360481:
 sta_41360482:
         move R0 [R12+12]
@@ -3876,7 +3835,7 @@ _L41360489:
         cmp R0 #0
         jz sta_41360486
         move R0 #1
-        jmp L41360485
+        jmp L_41360485
 sta_41360486:
 sta_41360487:
         move R0 [R12+12]
@@ -3885,8 +3844,8 @@ sta_41360487:
         pop R1
         div R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #1
         pop R1
@@ -3900,13 +3859,13 @@ _L41360493:
         cmp R0 #0
         jz sta_41360490
         move R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
 sta_41360490:
 sta_41360491:
         move R0 #0
-        move [R12-8] R0
+        move [R12-12] R0
 sta_41360494:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #10
         pop R1
@@ -3919,11 +3878,11 @@ _L41360497:
 _L41360498:
         cmp R0 #0
         jz sta_41360496
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 [R12+12]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         div R1 R0
         move R0 R1
@@ -3935,10 +3894,10 @@ _L41360498:
         pop R1
         div R1 R0
         move R0 R1
-        move [R12-12] R0
-        move R0 [R12-12]
+        move [R12-16] R0
+        move R0 [R12-16]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         cmp R1 R0
         jge _L41360501
@@ -3949,27 +3908,24 @@ _L41360501:
 _L41360502:
         cmp R0 #0
         jz sta_41360499
-        move R0 [R12-4]
-        jmp L41360485
+        move R0 [R12-8]
+        jmp L_41360485
 sta_41360499:
 sta_41360500:
-        move R0 [R12-12]
-        move [R12-4] R0
+        move R0 [R12-16]
+        move [R12-8] R0
 sta_41360495:
-        move R0 [R12-8]
+        move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
-        move [R12-8] R0
+        move [R12-12] R0
         move R0 R1
         jmp sta_41360494
 sta_41360496:
-        move R0 [R12-4]
-        jmp L41360485
-L41360485:
+        move R0 [R12-8]
+        jmp L_41360485
+L_41360485:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret

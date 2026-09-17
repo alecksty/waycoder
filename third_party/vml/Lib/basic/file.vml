@@ -7,11 +7,13 @@ LABEL BASIC_FOPEN
     PUSH R1
     PUSH R0
     CALL fopen
+    ADD R13 #8
     RET
 
 LABEL BASIC_FCLOSE
     PUSH R0
     CALL fclose
+    ADD R13 #4
     RET
 
 LABEL BASIC_FREAD
@@ -19,6 +21,7 @@ LABEL BASIC_FREAD
     PUSH R1
     PUSH R0
     CALL fread
+    ADD R13 #12
     RET
 
 LABEL BASIC_FWRITE
@@ -26,6 +29,7 @@ LABEL BASIC_FWRITE
     PUSH R1
     PUSH R0
     CALL fwrite
+    ADD R13 #12
     RET
 
 LABEL BASIC_FSEEK
@@ -33,21 +37,25 @@ LABEL BASIC_FSEEK
     PUSH R1
     PUSH R0
     CALL fseek
+    ADD R13 #12
     RET
 
 LABEL BASIC_FTELL
     PUSH R0
     CALL ftell
+    ADD R13 #4
     RET
 
 LABEL BASIC_FSIZE
     PUSH R0
     CALL fsize
+    ADD R13 #4
     RET
 
 LABEL BASIC_FTRUNCATE
     PUSH R1
     PUSH R0
     CALL ftruncate
+    ADD R13 #8
     RET
 

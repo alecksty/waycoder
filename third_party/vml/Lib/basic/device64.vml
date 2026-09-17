@@ -11,6 +11,7 @@ LABEL BASIC_LDEV_READ64
     PUSH R1
     PUSH R0
     CALL ldev_read64
+    ADD R13 #24
     RET
 
 LABEL BASIC_LDEV_WRITE64
@@ -21,5 +22,6 @@ LABEL BASIC_LDEV_WRITE64
     PUSH R1
     PUSH R0
     CALL ldev_write64
+    ADD R13 #24
     RET
 

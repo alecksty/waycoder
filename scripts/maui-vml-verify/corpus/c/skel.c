@@ -1,12 +1,14 @@
 /* skel.c —— VML 骨架程序（C）：函数 / 数组 / 循环 / 一次 ui 调用 / 打印一行。
  *
- * 习惯用法抄自 Examples/c/tetris.c：`#include <waycoder_ui.h>`，直接调 ui_* 包装
- * （它们是 cdecl，与 C 前端「实参从右到左压栈 + 前 4 个装 R0-R3」一致）。
+ * 习惯用法抄自 Examples/c/tetris.c：`#include <waycoder_ui.h>`，直接调 ui_* 包装。
  *
  * 打印**有意不走 stdio**：docs/VML宿主接口.md 记着本环境 printf 的格式化路径会崩、
  * puts 输出会串行/重复，所以用共享库的 print_str / print_int / newline（SYSCALL #1/#6/#4）。
- * 它们声明的 __stdcall 与 Lib/c/shared_bindings.h 里那份一致（被调用方清栈），
- * 声明成默认的 cdecl 会让每条调用多释放 4 字节栈。
+ *
+ * ⚠ `__stdcall` 现在**只是留着的历史装饰**，写不写都一样：2026-09-17 调用约定统一之后，
+ *   前端只认一条规则「实参全部右到左压栈、调用方清栈」，`__stdcall` / `__cdecl` /
+ *   `__fastcall` 仍能解析但**不再影响代码生成**（见 docs/VML调用约定统一.md）。
+ *   老注释说「声明成 cdecl 会让每条调用多释放 4 字节栈」——那说的是统一之前的形态，已作废。
  */
 #include <waycoder_ui.h>
 

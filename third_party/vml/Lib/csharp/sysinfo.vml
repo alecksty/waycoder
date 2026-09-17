@@ -6,6 +6,7 @@
 LABEL Srand
     PUSH R0
     CALL srand
+    ADD R13 #4
     RET
 
 LABEL Sysinfo_Srand

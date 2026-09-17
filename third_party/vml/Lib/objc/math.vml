@@ -8,21 +8,25 @@
 LABEL objc_min
     PUSH R0
     CALL min
+    ADD R13 #4
     RET
 
 LABEL objc_max
     PUSH R0
     CALL max
+    ADD R13 #4
     RET
 
 LABEL objc_sum
     PUSH R0
     CALL sum
+    ADD R13 #4
     RET
 
 LABEL objc_abs
     PUSH R0
     CALL abs
+    ADD R13 #4
     RET
 
 LABEL objc_random
@@ -34,6 +38,7 @@ LABEL objc_clamp
     PUSH R1
     PUSH R0
     CALL clamp
+    ADD R13 #12
     RET
 
 LABEL objc_cos
@@ -51,22 +56,26 @@ LABEL objc_sin
 LABEL objc_sqrt
     PUSH R0
     CALL sqrt
+    ADD R13 #4
     RET
 
 LABEL objc_atan2
     PUSH R1
     PUSH R0
     CALL atan2
+    ADD R13 #8
     RET
 
 LABEL objc_pow10
     PUSH R0
     CALL pow10
+    ADD R13 #4
     RET
 
 LABEL objc_randomize
     PUSH R0
     CALL randomize
+    ADD R13 #4
     RET
 
 LABEL objc__sin_taylor
@@ -101,36 +110,42 @@ LABEL objc_tan
     sub R13 #8
     moved @13 R0
     CALL tan
+    ADD R13 #8
     RET
 
 LABEL objc_asin
     sub R13 #8
     moved @13 R0
     CALL asin
+    ADD R13 #8
     RET
 
 LABEL objc_acos
     sub R13 #8
     moved @13 R0
     CALL acos
+    ADD R13 #8
     RET
 
 LABEL objc_atan
     sub R13 #8
     moved @13 R0
     CALL atan
+    ADD R13 #8
     RET
 
 LABEL objc_exp
     sub R13 #8
     moved @13 R0
     CALL exp
+    ADD R13 #8
     RET
 
 LABEL objc_log
     sub R13 #8
     moved @13 R0
     CALL log
+    ADD R13 #8
     RET
 
 LABEL objc_pow
@@ -139,30 +154,35 @@ LABEL objc_pow
     sub R13 #8
     moved @13 R0
     CALL pow
+    ADD R13 #16
     RET
 
 LABEL objc_ipow
     PUSH R1
     PUSH R0
     CALL ipow
+    ADD R13 #8
     RET
 
 LABEL objc_sin_deg
     sub R13 #4
     movef @13 R0
     CALL sin_deg
+    ADD R13 #4
     RET
 
 LABEL objc_cos_deg
     sub R13 #4
     movef @13 R0
     CALL cos_deg
+    ADD R13 #4
     RET
 
 LABEL objc_tan_deg
     sub R13 #4
     movef @13 R0
     CALL tan_deg
+    ADD R13 #4
     RET
 
 LABEL objc_approximation
@@ -174,29 +194,34 @@ LABEL objc_approximation
 LABEL objc_ilog2
     PUSH R0
     CALL ilog2
+    ADD R13 #4
     RET
 
 LABEL objc_ceil_div
     PUSH R1
     PUSH R0
     CALL ceil_div
+    ADD R13 #8
     RET
 
 LABEL objc_round_div
     PUSH R1
     PUSH R0
     CALL round_div
+    ADD R13 #8
     RET
 
 LABEL objc_random_range
     PUSH R1
     PUSH R0
     CALL random_range
+    ADD R13 #8
     RET
 
 LABEL objc_random_set_seed
     PUSH R0
     CALL random_set_seed
+    ADD R13 #4
     RET
 
 LABEL objc_lerp
@@ -204,6 +229,7 @@ LABEL objc_lerp
     PUSH R1
     PUSH R0
     CALL lerp
+    ADD R13 #12
     RET
 
 LABEL objc_map_range
@@ -213,6 +239,7 @@ LABEL objc_map_range
     PUSH R1
     PUSH R0
     CALL map_range
+    ADD R13 #20
     RET
 
 LABEL objc_clamp_int
@@ -220,61 +247,72 @@ LABEL objc_clamp_int
     PUSH R1
     PUSH R0
     CALL clamp_int
+    ADD R13 #12
     RET
 
 LABEL objc_hypot_int
     PUSH R1
     PUSH R0
     CALL hypot_int
+    ADD R13 #8
     RET
 
 LABEL objc_isqrt
     PUSH R0
     CALL isqrt
+    ADD R13 #4
     RET
 
 LABEL objc_sin_deg_d
     sub R13 #8
     moved @13 R0
     CALL sin_deg_d
+    ADD R13 #8
     RET
 
 LABEL objc_cos_deg_d
     sub R13 #8
     moved @13 R0
     CALL cos_deg_d
+    ADD R13 #8
     RET
 
 LABEL objc_tan_deg_d
     sub R13 #8
     moved @13 R0
     CALL tan_deg_d
+    ADD R13 #8
     RET
 
 LABEL objc_sum_arr
     PUSH R0
     CALL sum_arr
+    ADD R13 #4
     RET
 
 LABEL objc_min_arr
     PUSH R0
     CALL min_arr
+    ADD R13 #4
     RET
 
 LABEL objc_max_arr
     PUSH R0
     CALL max_arr
+    ADD R13 #4
     RET
 
 LABEL objc_int_pow
     PUSH R1
     PUSH R0
     CALL int_pow
+    ADD R13 #8
     RET
 
 LABEL objc_int_sqrt
     PUSH R0
     CALL int_sqrt
+    ADD R13 #4
     RET
 
 LABEL func_min

@@ -6,5 +6,6 @@
 LABEL LADDER_WPRINTF
     PUSH R0
     CALL wprintf
+    ADD R13 #4
     RET
 

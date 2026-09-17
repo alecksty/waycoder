@@ -6,6 +6,7 @@
 LABEL r_uprintf
     PUSH R0
     CALL uprintf
+    ADD R13 #4
     RET
 
 LABEL func_uprintf

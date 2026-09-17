@@ -1,23 +1,28 @@
-.entry main
-.stack 0
-.vectors 0x0
 
 .data
-L20990448: .string "UTF-8"
-L20990450: .string "UTF-16LE"
-L20990451: .string "UTF-16BE"
-L20990452: .string "ASCII"
-L20990453: .string "Latin-1"
-L20990454: .string "GBK"
-L20990455: .string "Big5"
-L20990456: .string "Unknown"
+L_20990448: .string "UTF-8"
+L_20990450: .string "UTF-16LE"
+L_20990451: .string "UTF-16BE"
+L_20990452: .string "ASCII"
+L_20990453: .string "Latin-1"
+L_20990454: .string "GBK"
+L_20990455: .string "Big5"
+L_20990456: .string "Unknown"
 
 .text
+encoding_utf8_decode:
+; -------------------------------------------
+; source   : int encoding_utf8_decode(unsigned char* src,int len)
+; function : encoding_utf8_decode
+; param   : unsigned char* src
+; param   : int len
+; return   : int
+; --------------------------------------------
 encoding_utf8_decode:
         push R15
         push R12
         move R12 R13
-        sub R13 #28
+        sub R13 #32
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -55,7 +60,7 @@ _L20990004:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990009
+        jmp L_20990009
 sta_20990000:
 sta_20990001:
         move R0 [R12+12]
@@ -64,15 +69,15 @@ sta_20990001:
         mul R0 #1
         pop R11
         add R0 R11
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
         pop R1
         and R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #128
         pop R1
@@ -85,11 +90,11 @@ _L20990012:
 _L20990013:
         cmp R0 #0
         jz sta_20990010
-        move R0 [R12-4]
-        jmp L20990009
+        move R0 [R12-8]
+        jmp L_20990009
 sta_20990010:
 sta_20990011:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #224
         pop R1
@@ -107,7 +112,7 @@ _L20990016:
 _L20990017:
         cmp R0 #0
         jz sta_20990014
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #194
         pop R1
@@ -123,14 +128,14 @@ _L20990021:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990009
+        jmp L_20990009
 sta_20990018:
 sta_20990019:
         move R0 #2
-        move [R12-8] R0
+        move [R12-12] R0
         jmp sta_20990015
 sta_20990014:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #240
         pop R1
@@ -149,10 +154,10 @@ _L20990025:
         cmp R0 #0
         jz sta_20990022
         move R0 #3
-        move [R12-8] R0
+        move [R12-12] R0
         jmp sta_20990023
 sta_20990022:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #248
         pop R1
@@ -170,7 +175,7 @@ _L20990028:
 _L20990029:
         cmp R0 #0
         jz sta_20990026
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #244
         pop R1
@@ -186,23 +191,23 @@ _L20990033:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990009
+        jmp L_20990009
 sta_20990030:
 sta_20990031:
         move R0 #4
-        move [R12-8] R0
+        move [R12-12] R0
         jmp sta_20990027
 sta_20990026:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990009
+        jmp L_20990009
 sta_20990027:
 sta_20990023:
 sta_20990015:
         move R0 [R12+16]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R1
         cmp R1 R0
         jl _L20990036
@@ -216,16 +221,16 @@ _L20990037:
         move R0 #2
         move R0 #2
         neg R0 R0
-        jmp L20990009
+        jmp L_20990009
 sta_20990034:
 sta_20990035:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #1
         push R0
         move R0 #7
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R1
         sub R1 R0
         move R0 R1
@@ -240,13 +245,13 @@ sta_20990035:
         pop R1
         and R1 R0
         move R0 R1
-        move [R12-12] R0
-        move R0 #1
         move [R12-16] R0
+        move R0 #1
+        move [R12-20] R0
 sta_20990038:
-        move R0 [R12-16]
+        move R0 [R12-20]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R1
         cmp R1 R0
         jl _L20990041
@@ -259,14 +264,14 @@ _L20990042:
         jz sta_20990040
         move R0 [R12+12]
         push R0
-        move R0 [R12-16]
+        move R0 [R12-20]
         mul R0 #1
         pop R10
         add R0 R10
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
-        move [R12-20] R0
-        move R0 [R12-20]
+        move [R12-24] R0
+        move R0 [R12-24]
         push R0
         move R0 #192
         pop R1
@@ -287,17 +292,17 @@ _L20990046:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990009
+        jmp L_20990009
 sta_20990043:
 sta_20990044:
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #6
         pop R1
         shl R1 R0
         move R0 R1
         push R0
-        move R0 [R12-20]
+        move R0 [R12-24]
         push R0
         move R0 #63
         pop R1
@@ -306,16 +311,16 @@ sta_20990044:
         pop R1
         or R1 R0
         move R0 R1
-        move [R12-12] R0
+        move [R12-16] R0
 sta_20990039:
-        move R0 [R12-16]
+        move R0 [R12-20]
         move R1 R0
         add R0 R0 #1
-        move [R12-16] R0
+        move [R12-20] R0
         move R0 R1
         jmp sta_20990038
 sta_20990040:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #3
         pop R1
@@ -328,7 +333,7 @@ _L20990051:
 _L20990052:
         test R0 R0
         jz _L20990049
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #2048
         pop R1
@@ -351,10 +356,10 @@ _L20990050:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990009
+        jmp L_20990009
 sta_20990047:
 sta_20990048:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #4
         pop R1
@@ -367,7 +372,7 @@ _L20990059:
 _L20990060:
         test R0 R0
         jz _L20990057
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #65536
         pop R1
@@ -390,10 +395,10 @@ _L20990058:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990009
+        jmp L_20990009
 sta_20990055:
 sta_20990056:
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #55296
         pop R1
@@ -406,7 +411,7 @@ _L20990067:
 _L20990068:
         test R0 R0
         jz _L20990065
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #57343
         pop R1
@@ -429,10 +434,10 @@ _L20990066:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990009
+        jmp L_20990009
 sta_20990063:
 sta_20990064:
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #1114111
         pop R1
@@ -448,23 +453,30 @@ _L20990074:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990009
+        jmp L_20990009
 sta_20990071:
 sta_20990072:
-        move R0 [R12-12]
-        jmp L20990009
-L20990009:
+        move R0 [R12-16]
+        jmp L_20990009
+L_20990009:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+encoding_utf8_encode:
+; -------------------------------------------
+; source   : int encoding_utf8_encode(int codepoint,unsigned char* dst,int max_bytes)
+; function : encoding_utf8_encode
+; param   : int codepoint
+; param   : unsigned char* dst
+; param   : int max_bytes
+; return   : int
+; --------------------------------------------
 encoding_utf8_encode:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -543,7 +555,7 @@ _L20990079:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990093
+        jmp L_20990093
 sta_20990075:
 sta_20990076:
         move R0 [R12+12]
@@ -575,7 +587,7 @@ _L20990101:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990093
+        jmp L_20990093
 sta_20990098:
 sta_20990099:
         move R0 [R12+12]
@@ -591,9 +603,9 @@ sta_20990099:
         mul R0 #1
         pop R8
         add R0 R8
-        moveb @0 R9
+        moveb [R0] R9
         move R0 #1
-        jmp L20990093
+        jmp L_20990093
 sta_20990094:
 sta_20990095:
         move R0 [R12+12]
@@ -625,7 +637,7 @@ _L20990109:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990093
+        jmp L_20990093
 sta_20990106:
 sta_20990107:
         move R0 #192
@@ -646,7 +658,7 @@ sta_20990107:
         mul R0 #1
         pop R6
         add R0 R6
-        moveb @0 R7
+        moveb [R0] R7
         move R0 #128
         push R0
         move R0 [R12+12]
@@ -665,9 +677,9 @@ sta_20990107:
         mul R0 #1
         pop R4
         add R0 R4
-        moveb @0 R5
+        moveb [R0] R5
         move R0 #2
-        jmp L20990093
+        jmp L_20990093
 sta_20990102:
 sta_20990103:
         move R0 [R12+12]
@@ -699,7 +711,7 @@ _L20990117:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990093
+        jmp L_20990093
 sta_20990114:
 sta_20990115:
         move R0 #224
@@ -720,7 +732,7 @@ sta_20990115:
         mul R0 #1
         pop R2
         add R0 R2
-        moveb @0 R3
+        moveb [R0] R3
         move R0 #128
         push R0
         move R0 [R12+12]
@@ -744,7 +756,7 @@ sta_20990115:
         mul R0 #1
         pop R11
         add R0 R11
-        moveb @0 R1
+        moveb [R0] R1
         move R0 #128
         push R0
         move R0 [R12+12]
@@ -763,9 +775,9 @@ sta_20990115:
         mul R0 #1
         pop R8
         add R0 R8
-        moveb @0 R10
+        moveb [R0] R10
         move R0 #3
-        jmp L20990093
+        jmp L_20990093
 sta_20990110:
 sta_20990111:
         move R0 [R12+20]
@@ -784,7 +796,7 @@ _L20990121:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990093
+        jmp L_20990093
 sta_20990118:
 sta_20990119:
         move R0 #240
@@ -805,7 +817,7 @@ sta_20990119:
         mul R0 #1
         pop R6
         add R0 R6
-        moveb @0 R9
+        moveb [R0] R9
         move R0 #128
         push R0
         move R0 [R12+12]
@@ -829,7 +841,7 @@ sta_20990119:
         mul R0 #1
         pop R4
         add R0 R4
-        moveb @0 R7
+        moveb [R0] R7
         move R0 #128
         push R0
         move R0 [R12+12]
@@ -853,7 +865,7 @@ sta_20990119:
         mul R0 #1
         pop R2
         add R0 R2
-        moveb @0 R5
+        moveb [R0] R5
         move R0 #128
         push R0
         move R0 [R12+12]
@@ -872,22 +884,26 @@ sta_20990119:
         mul R0 #1
         pop R11
         add R0 R11
-        moveb @0 R3
+        moveb [R0] R3
         move R0 #4
-        jmp L20990093
-L20990093:
+        jmp L_20990093
+L_20990093:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+encoding_utf8_strlen:
+; -------------------------------------------
+; source   : int encoding_utf8_strlen(const char* s)
+; function : encoding_utf8_strlen
+; param   : const char* s
+; return   : int
+; --------------------------------------------
 encoding_utf8_strlen:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -902,20 +918,20 @@ _L20990125:
         cmp R0 #0
         jz sta_20990122
         move R0 #0
-        jmp L20990126
+        jmp L_20990126
 sta_20990122:
 sta_20990123:
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_20990127:
         move R2 #0
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         cmp R0 #0
         jz sta_20990128
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #192
@@ -934,10 +950,10 @@ _L20990131:
 _L20990132:
         cmp R0 #0
         jz sta_20990129
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
 sta_20990129:
 sta_20990130:
@@ -948,29 +964,33 @@ sta_20990130:
         move R0 R1
         jmp sta_20990127
 sta_20990128:
-        move R0 [R12-4]
-        jmp L20990126
-L20990126:
+        move R0 [R12-8]
+        jmp L_20990126
+L_20990126:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+encoding_utf8_seqlen:
+; -------------------------------------------
+; source   : int encoding_utf8_seqlen(unsigned char lead_byte)
+; function : encoding_utf8_seqlen
+; param   : unsigned char lead_byte
+; return   : int
+; --------------------------------------------
 encoding_utf8_seqlen:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moveb R0 [R12+12]
         push R0
         move R0 #255
         pop R1
         and R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #128
         pop R1
@@ -984,10 +1004,10 @@ _L20990136:
         cmp R0 #0
         jz sta_20990133
         move R0 #1
-        jmp L20990137
+        jmp L_20990137
 sta_20990133:
 sta_20990134:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #224
         pop R1
@@ -1006,10 +1026,10 @@ _L20990141:
         cmp R0 #0
         jz sta_20990138
         move R0 #2
-        jmp L20990137
+        jmp L_20990137
 sta_20990138:
 sta_20990139:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #240
         pop R1
@@ -1028,10 +1048,10 @@ _L20990145:
         cmp R0 #0
         jz sta_20990142
         move R0 #3
-        jmp L20990137
+        jmp L_20990137
 sta_20990142:
 sta_20990143:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #248
         pop R1
@@ -1050,26 +1070,31 @@ _L20990149:
         cmp R0 #0
         jz sta_20990146
         move R0 #4
-        jmp L20990137
+        jmp L_20990137
 sta_20990146:
 sta_20990147:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990137
-L20990137:
+        jmp L_20990137
+L_20990137:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+encoding_ascii_decode:
+; -------------------------------------------
+; source   : int encoding_ascii_decode(unsigned char* src,int len)
+; function : encoding_ascii_decode
+; param   : unsigned char* src
+; param   : int len
+; return   : int
+; --------------------------------------------
 encoding_ascii_decode:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -1107,7 +1132,7 @@ _L20990154:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990159
+        jmp L_20990159
 sta_20990150:
 sta_20990151:
         move R0 [R12+12]
@@ -1116,15 +1141,15 @@ sta_20990151:
         mul R0 #1
         pop R1
         add R0 R1
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
         pop R1
         and R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #127
         pop R1
@@ -1140,23 +1165,28 @@ _L20990163:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990159
+        jmp L_20990159
 sta_20990160:
 sta_20990161:
-        move R0 [R12-4]
-        jmp L20990159
-L20990159:
+        move R0 [R12-8]
+        jmp L_20990159
+L_20990159:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+encoding_ascii_is_clean:
+; -------------------------------------------
+; source   : int encoding_ascii_is_clean(const char* s)
+; function : encoding_ascii_is_clean
+; param   : const char* s
+; return   : int
+; --------------------------------------------
 encoding_ascii_is_clean:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1171,18 +1201,18 @@ _L20990167:
         cmp R0 #0
         jz sta_20990164
         move R0 #0
-        jmp L20990168
+        jmp L_20990168
 sta_20990164:
 sta_20990165:
 sta_20990169:
         move R2 #0
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         cmp R0 #0
         jz sta_20990170
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -1202,7 +1232,7 @@ _L20990174:
         cmp R0 #0
         jz sta_20990171
         move R0 #0
-        jmp L20990168
+        jmp L_20990168
 sta_20990171:
 sta_20990172:
         move R0 [R12+12]
@@ -1213,19 +1243,24 @@ sta_20990172:
         jmp sta_20990169
 sta_20990170:
         move R0 #1
-        jmp L20990168
-L20990168:
+        jmp L_20990168
+L_20990168:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+encoding_ascii_isclean:
+; -------------------------------------------
+; source   : int encoding_ascii_isclean(const char* s)
+; function : encoding_ascii_isclean
+; param   : const char* s
+; return   : int
+; --------------------------------------------
 encoding_ascii_isclean:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1240,18 +1275,18 @@ _L20990178:
         cmp R0 #0
         jz sta_20990175
         move R0 #0
-        jmp L20990179
+        jmp L_20990179
 sta_20990175:
 sta_20990176:
 sta_20990180:
         move R2 #0
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         cmp R0 #0
         jz sta_20990181
         move R0 [R12+12]
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -1271,7 +1306,7 @@ _L20990185:
         cmp R0 #0
         jz sta_20990182
         move R0 #0
-        jmp L20990179
+        jmp L_20990179
 sta_20990182:
 sta_20990183:
         move R0 [R12+12]
@@ -1282,19 +1317,25 @@ sta_20990183:
         jmp sta_20990180
 sta_20990181:
         move R0 #1
-        jmp L20990179
-L20990179:
+        jmp L_20990179
+L_20990179:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+encoding_latin1_decode:
+; -------------------------------------------
+; source   : int encoding_latin1_decode(unsigned char* src,int len)
+; function : encoding_latin1_decode
+; param   : unsigned char* src
+; param   : int len
+; return   : int
+; --------------------------------------------
 encoding_latin1_decode:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -1332,7 +1373,7 @@ _L20990190:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990195
+        jmp L_20990195
 sta_20990186:
 sta_20990187:
         move R0 [R12+12]
@@ -1341,26 +1382,33 @@ sta_20990187:
         mul R0 #1
         pop R8
         add R0 R8
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
         pop R1
         and R1 R0
         move R0 R1
-        jmp L20990195
-L20990195:
+        jmp L_20990195
+L_20990195:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+encoding_latin1_encode:
+; -------------------------------------------
+; source   : int encoding_latin1_encode(int codepoint,unsigned char* dst,int max_bytes)
+; function : encoding_latin1_encode
+; param   : int codepoint
+; param   : unsigned char* dst
+; param   : int max_bytes
+; return   : int
+; --------------------------------------------
 encoding_latin1_encode:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -1398,7 +1446,7 @@ _L20990200:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990205
+        jmp L_20990205
 sta_20990196:
 sta_20990197:
         move R0 [R12+12]
@@ -1438,7 +1486,7 @@ _L20990210:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990205
+        jmp L_20990205
 sta_20990206:
 sta_20990207:
         move R0 [R12+12]
@@ -1454,22 +1502,27 @@ sta_20990207:
         mul R0 #1
         pop R6
         add R0 R6
-        moveb @0 R10
+        moveb [R0] R10
         move R0 #1
-        jmp L20990205
-L20990205:
+        jmp L_20990205
+L_20990205:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+encoding_utf16le_decode:
+; -------------------------------------------
+; source   : int encoding_utf16le_decode(unsigned char* src,int len)
+; function : encoding_utf16le_decode
+; param   : unsigned char* src
+; param   : int len
+; return   : int
+; --------------------------------------------
 encoding_utf16le_decode:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 [R12+16]
         push R0
         move R0 #2
@@ -1507,7 +1560,7 @@ _L20990219:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990224
+        jmp L_20990224
 sta_20990215:
 sta_20990216:
         move R0 [R12+12]
@@ -1516,7 +1569,7 @@ sta_20990216:
         mul R0 #1
         pop R9
         add R0 R9
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -1530,7 +1583,7 @@ sta_20990216:
         mul R0 #1
         pop R4
         add R0 R4
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -1545,8 +1598,8 @@ sta_20990216:
         pop R1
         or R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #55296
         pop R1
@@ -1559,7 +1612,7 @@ _L20990229:
 _L20990230:
         test R0 R0
         jz _L20990227
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #56319
         pop R1
@@ -1595,7 +1648,7 @@ _L20990236:
         move R0 #2
         move R0 #2
         neg R0 R0
-        jmp L20990224
+        jmp L_20990224
 sta_20990233:
 sta_20990234:
         move R0 [R12+12]
@@ -1604,7 +1657,7 @@ sta_20990234:
         mul R0 #1
         pop R7
         add R0 R7
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -1618,7 +1671,7 @@ sta_20990234:
         mul R0 #1
         pop R2
         add R0 R2
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -1633,8 +1686,8 @@ sta_20990234:
         pop R1
         or R1 R0
         move R0 R1
-        move [R12-8] R0
-        move R0 [R12-8]
+        move [R12-12] R0
+        move R0 [R12-12]
         push R0
         move R0 #56320
         pop R1
@@ -1647,7 +1700,7 @@ _L20990242:
 _L20990243:
         test R0 R0
         jnz _L20990239
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #57343
         pop R1
@@ -1671,12 +1724,12 @@ _L20990241:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990224
+        jmp L_20990224
 sta_20990237:
 sta_20990238:
         move R0 #65536
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #55296
         pop R1
@@ -1691,7 +1744,7 @@ sta_20990238:
         add R1 R0
         move R0 R1
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #56320
         pop R1
@@ -1700,24 +1753,29 @@ sta_20990238:
         pop R1
         add R1 R0
         move R0 R1
-        jmp L20990224
+        jmp L_20990224
 sta_20990225:
 sta_20990226:
-        move R0 [R12-4]
-        jmp L20990224
-L20990224:
+        move R0 [R12-8]
+        jmp L_20990224
+L_20990224:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+encoding_utf16be_decode:
+; -------------------------------------------
+; source   : int encoding_utf16be_decode(unsigned char* src,int len)
+; function : encoding_utf16be_decode
+; param   : unsigned char* src
+; param   : int len
+; return   : int
+; --------------------------------------------
 encoding_utf16be_decode:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 [R12+16]
         push R0
         move R0 #2
@@ -1755,7 +1813,7 @@ _L20990250:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990255
+        jmp L_20990255
 sta_20990246:
 sta_20990247:
         move R0 [R12+12]
@@ -1764,7 +1822,7 @@ sta_20990247:
         mul R0 #1
         pop R5
         add R0 R5
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -1783,7 +1841,7 @@ sta_20990247:
         mul R0 #1
         pop R11
         add R0 R11
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -1793,8 +1851,8 @@ sta_20990247:
         pop R1
         or R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #55296
         pop R1
@@ -1807,7 +1865,7 @@ _L20990260:
 _L20990261:
         test R0 R0
         jz _L20990258
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #56319
         pop R1
@@ -1843,7 +1901,7 @@ _L20990267:
         move R0 #2
         move R0 #2
         neg R0 R0
-        jmp L20990255
+        jmp L_20990255
 sta_20990264:
 sta_20990265:
         move R0 [R12+12]
@@ -1852,7 +1910,7 @@ sta_20990265:
         mul R0 #1
         pop R3
         add R0 R3
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -1871,7 +1929,7 @@ sta_20990265:
         mul R0 #1
         pop R1
         add R0 R1
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -1881,8 +1939,8 @@ sta_20990265:
         pop R1
         or R1 R0
         move R0 R1
-        move [R12-8] R0
-        move R0 [R12-8]
+        move [R12-12] R0
+        move R0 [R12-12]
         push R0
         move R0 #56320
         pop R1
@@ -1895,7 +1953,7 @@ _L20990273:
 _L20990274:
         test R0 R0
         jnz _L20990270
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #57343
         pop R1
@@ -1919,12 +1977,12 @@ _L20990272:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990255
+        jmp L_20990255
 sta_20990268:
 sta_20990269:
         move R0 #65536
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #55296
         pop R1
@@ -1939,7 +1997,7 @@ sta_20990269:
         add R1 R0
         move R0 R1
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #56320
         pop R1
@@ -1948,24 +2006,29 @@ sta_20990269:
         pop R1
         add R1 R0
         move R0 R1
-        jmp L20990255
+        jmp L_20990255
 sta_20990256:
 sta_20990257:
-        move R0 [R12-4]
-        jmp L20990255
-L20990255:
+        move R0 [R12-8]
+        jmp L_20990255
+L_20990255:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+encoding_gbk_decode:
+; -------------------------------------------
+; source   : int encoding_gbk_decode(unsigned char* src,int len)
+; function : encoding_gbk_decode
+; param   : unsigned char* src
+; param   : int len
+; return   : int
+; --------------------------------------------
 encoding_gbk_decode:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -2003,7 +2066,7 @@ _L20990281:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990286
+        jmp L_20990286
 sta_20990277:
 sta_20990278:
         move R0 [R12+12]
@@ -2012,15 +2075,15 @@ sta_20990278:
         mul R0 #1
         pop R8
         add R0 R8
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
         pop R1
         and R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #127
         pop R1
@@ -2033,8 +2096,8 @@ _L20990289:
 _L20990290:
         cmp R0 #0
         jz sta_20990287
-        move R0 [R12-4]
-        jmp L20990286
+        move R0 [R12-8]
+        jmp L_20990286
 sta_20990287:
 sta_20990288:
         move R0 [R12+16]
@@ -2050,7 +2113,7 @@ _L20990296:
 _L20990297:
         test R0 R0
         jnz _L20990293
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #129
         pop R1
@@ -2074,10 +2137,10 @@ _L20990295:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990286
+        jmp L_20990286
 sta_20990291:
 sta_20990292:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #8
         pop R1
@@ -2090,7 +2153,7 @@ sta_20990292:
         mul R0 #1
         pop R6
         add R0 R6
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -2100,8 +2163,8 @@ sta_20990292:
         pop R1
         or R1 R0
         move R0 R1
-        move [R12-8] R0
-        move R0 [R12-8]
+        move [R12-12] R0
+        move R0 [R12-12]
         push R0
         move R0 #45217
         pop R1
@@ -2115,10 +2178,10 @@ _L20990303:
         cmp R0 #0
         jz sta_20990300
         move R0 #21834
-        jmp L20990286
+        jmp L_20990286
 sta_20990300:
 sta_20990301:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #176
         pop R1
@@ -2131,7 +2194,7 @@ _L20990308:
 _L20990309:
         test R0 R0
         jz _L20990306
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #247
         pop R1
@@ -2157,15 +2220,15 @@ _L20990307:
         mul R0 #1
         pop R10
         add R0 R10
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
         pop R1
         and R1 R0
         move R0 R1
-        move [R12-12] R0
-        move R0 [R12-12]
+        move [R12-16] R0
+        move R0 [R12-16]
         push R0
         move R0 #161
         pop R1
@@ -2178,7 +2241,7 @@ _L20990316:
 _L20990317:
         test R0 R0
         jz _L20990314
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #254
         pop R1
@@ -2200,7 +2263,7 @@ _L20990315:
         jz sta_20990312
         move R0 #21834
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #176
         pop R1
@@ -2215,7 +2278,7 @@ _L20990315:
         add R1 R0
         move R0 R1
         push R0
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #161
         pop R1
@@ -2224,7 +2287,7 @@ _L20990315:
         pop R1
         add R1 R0
         move R0 R1
-        jmp L20990286
+        jmp L_20990286
 sta_20990312:
 sta_20990313:
 sta_20990304:
@@ -2232,20 +2295,26 @@ sta_20990305:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990286
-L20990286:
+        jmp L_20990286
+L_20990286:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+encoding_gbk_encode:
+; -------------------------------------------
+; source   : int encoding_gbk_encode(int codepoint,unsigned char* dst,int max_bytes)
+; function : encoding_gbk_encode
+; param   : int codepoint
+; param   : unsigned char* dst
+; param   : int max_bytes
+; return   : int
+; --------------------------------------------
 encoding_gbk_encode:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -2283,7 +2352,7 @@ _L20990324:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990329
+        jmp L_20990329
 sta_20990320:
 sta_20990321:
         move R0 [R12+12]
@@ -2312,9 +2381,9 @@ _L20990333:
         mul R0 #1
         pop R4
         add R0 R4
-        moveb @0 R9
+        moveb [R0] R9
         move R0 #1
-        jmp L20990329
+        jmp L_20990329
 sta_20990330:
 sta_20990331:
         move R0 [R12+12]
@@ -2376,7 +2445,7 @@ _L20990345:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990329
+        jmp L_20990329
 sta_20990342:
 sta_20990343:
         move R0 [R12+12]
@@ -2385,10 +2454,10 @@ sta_20990343:
         pop R1
         sub R1 R0
         move R0 R1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 #176
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #94
         pop R1
@@ -2404,10 +2473,10 @@ sta_20990343:
         mul R0 #1
         pop R2
         add R0 R2
-        moveb @0 R7
+        moveb [R0] R7
         move R0 #161
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #94
         pop R1
@@ -2423,28 +2492,33 @@ sta_20990343:
         mul R0 #1
         pop R11
         add R0 R11
-        moveb @0 R5
+        moveb [R0] R5
         move R0 #2
-        jmp L20990329
+        jmp L_20990329
 sta_20990334:
 sta_20990335:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990329
-L20990329:
+        jmp L_20990329
+L_20990329:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+encoding_big5_decode:
+; -------------------------------------------
+; source   : int encoding_big5_decode(unsigned char* src,int len)
+; function : encoding_big5_decode
+; param   : unsigned char* src
+; param   : int len
+; return   : int
+; --------------------------------------------
 encoding_big5_decode:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -2482,7 +2556,7 @@ _L20990350:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990355
+        jmp L_20990355
 sta_20990346:
 sta_20990347:
         move R0 [R12+12]
@@ -2491,15 +2565,15 @@ sta_20990347:
         mul R0 #1
         pop R3
         add R0 R3
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
         pop R1
         and R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #127
         pop R1
@@ -2512,8 +2586,8 @@ _L20990358:
 _L20990359:
         cmp R0 #0
         jz sta_20990356
-        move R0 [R12-4]
-        jmp L20990355
+        move R0 [R12-8]
+        jmp L_20990355
 sta_20990356:
 sta_20990357:
         move R0 [R12+16]
@@ -2529,7 +2603,7 @@ _L20990368:
 _L20990369:
         test R0 R0
         jnz _L20990365
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #161
         pop R1
@@ -2550,7 +2624,7 @@ _L20990366:
 _L20990367:
         test R0 R0
         jnz _L20990362
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #249
         pop R1
@@ -2574,10 +2648,10 @@ _L20990364:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990355
+        jmp L_20990355
 sta_20990360:
 sta_20990361:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #164
         pop R1
@@ -2596,7 +2670,7 @@ _L20990379:
         mul R0 #1
         pop R1
         add R0 R1
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -2623,7 +2697,7 @@ _L20990377:
         cmp R0 #0
         jz sta_20990374
         move R0 #19968
-        jmp L20990355
+        jmp L_20990355
 sta_20990374:
 sta_20990375:
         move R0 [R12+12]
@@ -2632,15 +2706,15 @@ sta_20990375:
         mul R0 #1
         pop R8
         add R0 R8
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
         pop R1
         and R1 R0
         move R0 R1
-        move [R12-8] R0
-        move R0 [R12-8]
+        move [R12-12] R0
+        move R0 [R12-12]
         push R0
         move R0 #64
         pop R1
@@ -2653,7 +2727,7 @@ _L20990386:
 _L20990387:
         test R0 R0
         jz _L20990384
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #126
         pop R1
@@ -2675,7 +2749,7 @@ _L20990385:
         jz sta_20990382
         move R0 #19968
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #164
         pop R1
@@ -2690,7 +2764,7 @@ _L20990385:
         add R1 R0
         move R0 R1
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #64
         pop R1
@@ -2699,10 +2773,10 @@ _L20990385:
         pop R1
         add R1 R0
         move R0 R1
-        jmp L20990355
+        jmp L_20990355
 sta_20990382:
 sta_20990383:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #161
         pop R1
@@ -2715,7 +2789,7 @@ _L20990394:
 _L20990395:
         test R0 R0
         jz _L20990392
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #254
         pop R1
@@ -2737,7 +2811,7 @@ _L20990393:
         jz sta_20990390
         move R0 #19968
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #164
         pop R1
@@ -2757,7 +2831,7 @@ _L20990393:
         add R1 R0
         move R0 R1
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #161
         pop R1
@@ -2766,25 +2840,32 @@ _L20990393:
         pop R1
         add R1 R0
         move R0 R1
-        jmp L20990355
+        jmp L_20990355
 sta_20990390:
 sta_20990391:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990355
-L20990355:
+        jmp L_20990355
+L_20990355:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+encoding_detect_bom:
+; -------------------------------------------
+; source   : int encoding_detect_bom(unsigned char* src,int len,int* bom_len)
+; function : encoding_detect_bom
+; param   : unsigned char* src
+; param   : int len
+; param   : int* bom_len
+; return   : int
+; --------------------------------------------
 encoding_detect_bom:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+16]
         push R0
         move R0 #3
@@ -2804,7 +2885,7 @@ _L20990407:
         mul R0 #1
         pop R6
         add R0 R6
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -2836,7 +2917,7 @@ _L20990405:
         mul R0 #1
         pop R10
         add R0 R10
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -2868,7 +2949,7 @@ _L20990403:
         mul R0 #1
         pop R4
         add R0 R4
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -2897,9 +2978,9 @@ _L20990401:
         move R0 [R12+20]
         move R9 R0
         move R0 #3
-        move @9 R0
+        move [R9] R0
         move R0 #0
-        jmp L20990414
+        jmp L_20990414
 sta_20990398:
 sta_20990399:
         move R0 [R12+16]
@@ -2921,7 +3002,7 @@ _L20990422:
         mul R0 #1
         pop R2
         add R0 R2
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -2953,7 +3034,7 @@ _L20990420:
         mul R0 #1
         pop R7
         add R0 R7
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -2982,9 +3063,9 @@ _L20990418:
         move R0 [R12+20]
         move R11 R0
         move R0 #2
-        move @11 R0
+        move [R11] R0
         move R0 #1
-        jmp L20990414
+        jmp L_20990414
 sta_20990415:
 sta_20990416:
         move R0 [R12+16]
@@ -3006,7 +3087,7 @@ _L20990434:
         mul R0 #1
         pop R5
         add R0 R5
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -3038,7 +3119,7 @@ _L20990432:
         mul R0 #1
         pop R3
         add R0 R3
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -3067,31 +3148,36 @@ _L20990430:
         move R0 [R12+20]
         move R1 R0
         move R0 #2
-        move @1 R0
+        move [R1] R0
         move R0 #2
-        jmp L20990414
+        jmp L_20990414
 sta_20990427:
 sta_20990428:
         move R0 [R12+20]
         move R8 R0
         move R0 #0
-        move @8 R0
+        move [R8] R0
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990414
-L20990414:
+        jmp L_20990414
+L_20990414:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+encoding_name:
+; -------------------------------------------
+; source   : const char* encoding_name(int enc)
+; function : encoding_name
+; param   : int enc
+; return   : const char*
+; --------------------------------------------
 encoding_name:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         move R1 R0
         push R1
@@ -3131,43 +3217,52 @@ encoding_name:
         je sta_20990447
         jmp sta_20990440
 sta_20990441:
-        move R0 L20990448
-        jmp L20990449
+        move R0 L_20990448
+        jmp L_20990449
 sta_20990442:
-        move R0 L20990450
-        jmp L20990449
+        move R0 L_20990450
+        jmp L_20990449
 sta_20990443:
-        move R0 L20990451
-        jmp L20990449
+        move R0 L_20990451
+        jmp L_20990449
 sta_20990444:
-        move R0 L20990452
-        jmp L20990449
+        move R0 L_20990452
+        jmp L_20990449
 sta_20990445:
-        move R0 L20990453
-        jmp L20990449
+        move R0 L_20990453
+        jmp L_20990449
 sta_20990446:
-        move R0 L20990454
-        jmp L20990449
+        move R0 L_20990454
+        jmp L_20990449
 sta_20990447:
-        move R0 L20990455
-        jmp L20990449
+        move R0 L_20990455
+        jmp L_20990449
 sta_20990440:
-        move R0 L20990456
-        jmp L20990449
+        move R0 L_20990456
+        jmp L_20990449
 sta_20990439:
-L20990449:
+L_20990449:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+encoding_convert:
+; -------------------------------------------
+; source   : int encoding_convert(unsigned char* src,int src_len,unsigned char* dst,int dst_max,int from_enc,int to_enc)
+; function : encoding_convert
+; param   : unsigned char* src
+; param   : int src_len
+; param   : unsigned char* dst
+; param   : int dst_max
+; param   : int from_enc
+; param   : int to_enc
+; return   : int
+; --------------------------------------------
 encoding_convert:
         push R15
         push R12
         move R12 R13
-        sub R13 #24
+        sub R13 #28
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3247,16 +3342,16 @@ _L20990461:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990476
+        jmp L_20990476
 sta_20990457:
 sta_20990458:
         move R0 #0
-        move [R12-4] R0
-        move R0 #0
         move [R12-8] R0
+        move R0 #0
+        move [R12-12] R0
 sta_20990477:
         move R2 #0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 [R12+16]
         pop R1
@@ -3269,7 +3364,7 @@ _L20990481:
 _L20990482:
         test R0 R0
         jz _L20990479
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 [R12+24]
         pop R1
@@ -3302,22 +3397,25 @@ _L20990487:
 _L20990488:
         cmp R0 #0
         jz sta_20990485
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-4]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
         move R0 [R12+16]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         sub R1 R0
         move R0 R1
         push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
         call encoding_utf8_decode
-        move [R12-12] R0
+        add R13 #8
+        move [R12-16] R0
         jmp sta_20990486
 sta_20990485:
         move R0 [R12+28]
@@ -3333,22 +3431,25 @@ _L20990491:
 _L20990492:
         cmp R0 #0
         jz sta_20990489
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-4]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
         move R0 [R12+16]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         sub R1 R0
         move R0 R1
         push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
         call encoding_latin1_decode
-        move [R12-12] R0
+        add R13 #8
+        move [R12-16] R0
         jmp sta_20990490
 sta_20990489:
         move R0 [R12+28]
@@ -3364,29 +3465,32 @@ _L20990495:
 _L20990496:
         cmp R0 #0
         jz sta_20990493
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-4]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
         move R0 [R12+16]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         pop R1
         sub R1 R0
         move R0 R1
         push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
         call encoding_ascii_decode
-        move [R12-12] R0
+        add R13 #8
+        move [R12-16] R0
         jmp sta_20990494
 sta_20990493:
         jmp sta_20990478
 sta_20990494:
 sta_20990490:
 sta_20990486:
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #0
         pop R1
@@ -3415,24 +3519,28 @@ _L20990503:
 _L20990504:
         cmp R0 #0
         jz sta_20990501
-        move R0 [R12-12]
-        push R0
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
         move R0 [R12+24]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R1
         sub R1 R0
         move R0 R1
         push R0
+        move R0 [R12+20]
+        push R0
+        move R0 [R12-12]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-16]
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call encoding_latin1_encode
-        move [R12-16] R0
+        add R13 #12
+        move [R12-20] R0
         jmp sta_20990502
 sta_20990501:
         move R0 [R12+32]
@@ -3448,24 +3556,28 @@ _L20990507:
 _L20990508:
         cmp R0 #0
         jz sta_20990505
-        move R0 [R12-12]
-        push R0
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
         move R0 [R12+24]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         pop R1
         sub R1 R0
         move R0 R1
         push R0
+        move R0 [R12+20]
+        push R0
+        move R0 [R12-12]
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-16]
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call encoding_utf8_encode
-        move [R12-16] R0
+        add R13 #12
+        move [R12-20] R0
         jmp sta_20990506
 sta_20990505:
         move R0 [R12+32]
@@ -3481,7 +3593,7 @@ _L20990511:
 _L20990512:
         cmp R0 #0
         jz sta_20990509
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #127
         pop R1
@@ -3497,27 +3609,27 @@ _L20990516:
         move R0 #2
         move R0 #2
         neg R0 R0
-        jmp L20990476
+        jmp L_20990476
 sta_20990513:
 sta_20990514:
-        move R0 [R12-12]
+        move R0 [R12-16]
         move R6 R0
         move R0 [R12+20]
         push R0
-        move R0 [R12-8]
+        move R0 [R12-12]
         mul R0 #1
         pop R10
         add R0 R10
-        moveb @0 R6
+        moveb [R0] R6
         move R0 #1
-        move [R12-16] R0
+        move [R12-20] R0
         jmp sta_20990510
 sta_20990509:
         jmp sta_20990478
 sta_20990510:
 sta_20990506:
 sta_20990502:
-        move R0 [R12-16]
+        move R0 [R12-20]
         push R0
         move R0 #0
         pop R1
@@ -3530,13 +3642,13 @@ _L20990519:
 _L20990520:
         cmp R0 #0
         jz sta_20990517
-        move R0 [R12-16]
-        jmp L20990476
+        move R0 [R12-20]
+        jmp L_20990476
 sta_20990517:
 sta_20990518:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #128
         pop R1
@@ -3552,7 +3664,7 @@ _L20990522:
         move R0 #1
         jmp _L20990524
 _L20990523:
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #2048
         pop R1
@@ -3568,7 +3680,7 @@ _L20990526:
         move R0 #2
         jmp _L20990528
 _L20990527:
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #65536
         pop R1
@@ -3591,30 +3703,35 @@ _L20990524:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-8]
+        move [R12-8] R0
+        move R0 [R12-12]
         push R0
-        move R0 [R12-16]
+        move R0 [R12-20]
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-8] R0
+        move [R12-12] R0
         jmp sta_20990477
 sta_20990478:
-        move R0 [R12-8]
-        jmp L20990476
-L20990476:
+        move R0 [R12-12]
+        jmp L_20990476
+L_20990476:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #28
-        push R1
         ret
+encoding_detect_bom_1:
+; -------------------------------------------
+; source   : int encoding_detect_bom_1(unsigned char* src)
+; function : encoding_detect_bom_1
+; param   : unsigned char* src
+; return   : int
+; --------------------------------------------
 encoding_detect_bom_1:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3631,7 +3748,7 @@ _L20990536:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L20990537
+        jmp L_20990537
 sta_20990533:
 sta_20990534:
         move R0 [R12+12]
@@ -3640,7 +3757,7 @@ sta_20990534:
         mul R0 #1
         pop R4
         add R0 R4
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -3665,7 +3782,7 @@ _L20990545:
         mul R0 #1
         pop R9
         add R0 R9
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -3697,7 +3814,7 @@ _L20990543:
         mul R0 #1
         pop R2
         add R0 R2
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -3724,7 +3841,7 @@ _L20990541:
         cmp R0 #0
         jz sta_20990538
         move R0 #3
-        jmp L20990537
+        jmp L_20990537
 sta_20990538:
 sta_20990539:
         move R0 [R12+12]
@@ -3733,7 +3850,7 @@ sta_20990539:
         mul R0 #1
         pop R7
         add R0 R7
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -3758,7 +3875,7 @@ _L20990555:
         mul R0 #1
         pop R11
         add R0 R11
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -3785,7 +3902,7 @@ _L20990553:
         cmp R0 #0
         jz sta_20990550
         move R0 #514
-        jmp L20990537
+        jmp L_20990537
 sta_20990550:
 sta_20990551:
         move R0 [R12+12]
@@ -3794,7 +3911,7 @@ sta_20990551:
         mul R0 #1
         pop R5
         add R0 R5
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -3819,7 +3936,7 @@ _L20990563:
         mul R0 #1
         pop R3
         add R0 R3
-        moveb R0 @0
+        moveb R0 [R0]
         sextb R0 R0
         push R0
         move R0 #255
@@ -3846,134 +3963,187 @@ _L20990561:
         cmp R0 #0
         jz sta_20990558
         move R0 #515
-        jmp L20990537
+        jmp L_20990537
 sta_20990558:
 sta_20990559:
         move R0 #0
-        jmp L20990537
-L20990537:
+        jmp L_20990537
+L_20990537:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+encoding_get_name:
+; -------------------------------------------
+; source   : const char* encoding_get_name(int enc)
+; function : encoding_get_name
+; param   : int enc
+; return   : const char*
+; --------------------------------------------
 encoding_get_name:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call encoding_name
-        jmp L20990566
-L20990566:
+        add R13 #4
+        jmp L_20990566
+L_20990566:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+encoding_convert_utf8_to_latin1:
+; -------------------------------------------
+; source   : int encoding_convert_utf8_to_latin1(unsigned char* src,unsigned char* dst,int max_len)
+; function : encoding_convert_utf8_to_latin1
+; param   : unsigned char* src
+; param   : unsigned char* dst
+; param   : int max_len
+; return   : int
+; --------------------------------------------
 encoding_convert_utf8_to_latin1:
         push R15
         push R12
         move R12 R13
-        move R0 [R12+12]
-        push R0
-        move R0 #9999
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+20]
+        sub R13 #12
+        move R0 #4
         push R0
         move R0 #0
         push R0
-        move R0 #4
+        move R0 [R12+20]
         push R0
+        move R0 [R12+16]
+        push R0
+        move R0 #9999
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call encoding_convert
-        jmp L20990567
-L20990567:
+        add R13 #24
+        jmp L_20990567
+L_20990567:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+encoding_latin1_decode_1:
+; -------------------------------------------
+; source   : int encoding_latin1_decode_1(unsigned char* src)
+; function : encoding_latin1_decode_1
+; param   : unsigned char* src
+; return   : int
+; --------------------------------------------
 encoding_latin1_decode_1:
         push R15
         push R12
         move R12 R13
-        move R0 [R12+12]
-        push R0
+        sub R13 #12
         move R0 #1
         push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
         call encoding_latin1_decode
-        jmp L20990568
-L20990568:
+        add R13 #8
+        jmp L_20990568
+L_20990568:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+encoding_latin1_encode_2:
+; -------------------------------------------
+; source   : int encoding_latin1_encode_2(int cp,unsigned char* out)
+; function : encoding_latin1_encode_2
+; param   : int cp
+; param   : unsigned char* out
+; return   : int
+; --------------------------------------------
 encoding_latin1_encode_2:
         push R15
         push R12
         move R12 R13
-        move R0 [R12+12]
+        sub R13 #12
+        move R0 #1
         push R0
         move R0 [R12+16]
         push R0
-        move R0 #1
+        move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call encoding_latin1_encode
-        jmp L20990569
-L20990569:
+        add R13 #12
+        jmp L_20990569
+L_20990569:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+encoding_ascii_decode_1:
+; -------------------------------------------
+; source   : int encoding_ascii_decode_1(unsigned char* src)
+; function : encoding_ascii_decode_1
+; param   : unsigned char* src
+; return   : int
+; --------------------------------------------
 encoding_ascii_decode_1:
         push R15
         push R12
         move R12 R13
-        move R0 [R12+12]
-        push R0
+        sub R13 #12
         move R0 #1
         push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
         call encoding_ascii_decode
-        jmp L20990570
-L20990570:
+        add R13 #8
+        jmp L_20990570
+L_20990570:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+encoding_gbk_encode_2:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int encoding_gbk_encode_2(int cp,unsigned char* out)
+; function : encoding_gbk_encode_2
+; param   : int cp
+; param   : unsigned char* out
+; return   : int
+; --------------------------------------------
 encoding_gbk_encode_2:
         push R15
         push R12
         move R12 R13
-        move R0 [R12+12]
+        sub R13 #12
+        move R0 #2
         push R0
         move R0 [R12+16]
         push R0
-        move R0 #2
+        move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call encoding_gbk_encode
-        jmp L20990571
-L20990571:
+        add R13 #12
+        jmp L_20990571
+L_20990571:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret

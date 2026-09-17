@@ -6,6 +6,7 @@
 LABEL Mat2Identity
     PUSH R0
     CALL mat2_identity
+    ADD R13 #4
     RET
 
 LABEL Mat2Add
@@ -13,6 +14,7 @@ LABEL Mat2Add
     PUSH R1
     PUSH R0
     CALL mat2_add
+    ADD R13 #12
     RET
 
 LABEL Mat2Sub
@@ -20,6 +22,7 @@ LABEL Mat2Sub
     PUSH R1
     PUSH R0
     CALL mat2_sub
+    ADD R13 #12
     RET
 
 LABEL Mat2Mul
@@ -27,6 +30,7 @@ LABEL Mat2Mul
     PUSH R1
     PUSH R0
     CALL mat2_mul
+    ADD R13 #12
     RET
 
 LABEL Mat2Scale
@@ -35,23 +39,27 @@ LABEL Mat2Scale
     movef @13 R1
     PUSH R0
     CALL mat2_scale
+    ADD R13 #12
     RET
 
 LABEL Mat2Det
     PUSH R0
     CALL mat2_det
+    ADD R13 #4
     RET
 
 LABEL Mat2Transpose
     PUSH R1
     PUSH R0
     CALL mat2_transpose
+    ADD R13 #8
     RET
 
 LABEL Mat2Inv
     PUSH R1
     PUSH R0
     CALL mat2_inv
+    ADD R13 #8
     RET
 
 LABEL Mat2Rot
@@ -59,11 +67,13 @@ LABEL Mat2Rot
     sub R13 #4
     movef @13 R0
     CALL mat2_rot
+    ADD R13 #8
     RET
 
 LABEL Mat3Identity
     PUSH R0
     CALL mat3_identity
+    ADD R13 #4
     RET
 
 LABEL Mat3Mul
@@ -71,17 +81,20 @@ LABEL Mat3Mul
     PUSH R1
     PUSH R0
     CALL mat3_mul
+    ADD R13 #12
     RET
 
 LABEL Mat3Det
     PUSH R0
     CALL mat3_det
+    ADD R13 #4
     RET
 
 LABEL Mat3Transpose
     PUSH R1
     PUSH R0
     CALL mat3_transpose
+    ADD R13 #8
     RET
 
 LABEL Mat3Scale
@@ -90,11 +103,13 @@ LABEL Mat3Scale
     movef @13 R1
     PUSH R0
     CALL mat3_scale
+    ADD R13 #12
     RET
 
 LABEL Mat4Identity
     PUSH R0
     CALL mat4_identity
+    ADD R13 #4
     RET
 
 LABEL Mat4Mul
@@ -102,6 +117,7 @@ LABEL Mat4Mul
     PUSH R1
     PUSH R0
     CALL mat4_mul
+    ADD R13 #12
     RET
 
 LABEL Mat4Translate
@@ -113,6 +129,7 @@ LABEL Mat4Translate
     sub R13 #4
     movef @13 R0
     CALL mat4_translate
+    ADD R13 #16
     RET
 
 LABEL Mat4ScaleXyz
@@ -124,6 +141,7 @@ LABEL Mat4ScaleXyz
     sub R13 #4
     movef @13 R0
     CALL mat4_scale_xyz
+    ADD R13 #16
     RET
 
 LABEL Mat4RotX
@@ -131,6 +149,7 @@ LABEL Mat4RotX
     sub R13 #4
     movef @13 R0
     CALL mat4_rot_x
+    ADD R13 #8
     RET
 
 LABEL Mat4RotY
@@ -138,6 +157,7 @@ LABEL Mat4RotY
     sub R13 #4
     movef @13 R0
     CALL mat4_rot_y
+    ADD R13 #8
     RET
 
 LABEL Mat4RotZ
@@ -145,18 +165,21 @@ LABEL Mat4RotZ
     sub R13 #4
     movef @13 R0
     CALL mat4_rot_z
+    ADD R13 #8
     RET
 
 LABEL Mat4Transpose
     PUSH R1
     PUSH R0
     CALL mat4_transpose
+    ADD R13 #8
     RET
 
 LABEL Vec2Dot
     PUSH R1
     PUSH R0
     CALL vec2_dot
+    ADD R13 #8
     RET
 
 LABEL Product
@@ -169,22 +192,26 @@ LABEL Vec2Cross
     PUSH R1
     PUSH R0
     CALL vec2_cross
+    ADD R13 #8
     RET
 
 LABEL Vec2Len
     PUSH R0
     CALL vec2_len
+    ADD R13 #4
     RET
 
 LABEL Vec2Normalize
     PUSH R0
     CALL vec2_normalize
+    ADD R13 #4
     RET
 
 LABEL Vec3Dot
     PUSH R1
     PUSH R0
     CALL vec3_dot
+    ADD R13 #8
     RET
 
 LABEL Vec3Cross
@@ -192,16 +219,19 @@ LABEL Vec3Cross
     PUSH R1
     PUSH R0
     CALL vec3_cross
+    ADD R13 #12
     RET
 
 LABEL Vec3Len
     PUSH R0
     CALL vec3_len
+    ADD R13 #4
     RET
 
 LABEL Vec3Normalize
     PUSH R0
     CALL vec3_normalize
+    ADD R13 #4
     RET
 
 LABEL Vector
@@ -216,6 +246,7 @@ LABEL Mat4TransformVec3
     PUSH R1
     PUSH R0
     CALL mat4_transform_vec3
+    ADD R13 #12
     RET
 
 LABEL Matrix_Mat2Identity

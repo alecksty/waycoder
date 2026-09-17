@@ -6,6 +6,7 @@
 LABEL dart_wscanf
     PUSH R0
     CALL wscanf
+    ADD R13 #4
     RET
 
 LABEL func_wscanf

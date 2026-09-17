@@ -15,6 +15,7 @@ set:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -50,7 +51,7 @@ _L78960004:
         cmp R0 #0
         jz sta_78960000
         move R0 [R12+12]
-        jmp L78960009
+        jmp L_78960009
 sta_78960000:
 sta_78960001:
         move R0 [R12+12]
@@ -64,14 +65,11 @@ sta_78960001:
         pop R1
         or R1 R0
         move R0 R1
-        jmp L78960009
-L78960009:
+        jmp L_78960009
+L_78960009:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 clear:
 ; -------------------------------------------
@@ -85,6 +83,7 @@ clear:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -120,7 +119,7 @@ _L78960014:
         cmp R0 #0
         jz sta_78960010
         move R0 [R12+12]
-        jmp L78960019
+        jmp L_78960019
 sta_78960010:
 sta_78960011:
         move R0 [R12+12]
@@ -135,14 +134,11 @@ sta_78960011:
         pop R1
         and R1 R0
         move R0 R1
-        jmp L78960019
-L78960019:
+        jmp L_78960019
+L_78960019:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 toggle:
 ; -------------------------------------------
@@ -156,6 +152,7 @@ toggle:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -191,7 +188,7 @@ _L78960024:
         cmp R0 #0
         jz sta_78960020
         move R0 [R12+12]
-        jmp L78960029
+        jmp L_78960029
 sta_78960020:
 sta_78960021:
         move R0 [R12+12]
@@ -205,14 +202,11 @@ sta_78960021:
         pop R1
         xor R1 R0
         move R0 R1
-        jmp L78960029
-L78960029:
+        jmp L_78960029
+L_78960029:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 test:
 ; -------------------------------------------
@@ -226,6 +220,7 @@ test:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -261,7 +256,7 @@ _L78960034:
         cmp R0 #0
         jz sta_78960030
         move R0 #0
-        jmp L78960039
+        jmp L_78960039
 sta_78960030:
 sta_78960031:
         move R0 [R12+12]
@@ -275,14 +270,11 @@ sta_78960031:
         pop R1
         and R1 R0
         move R0 R1
-        jmp L78960039
-L78960039:
+        jmp L_78960039
+L_78960039:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 count:
 ; -------------------------------------------
@@ -295,12 +287,12 @@ count:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #1
         pop R1
@@ -314,15 +306,15 @@ count:
         pop R1
         sub R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #858993459
         pop R1
         and R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #2
         pop R1
@@ -336,10 +328,10 @@ count:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #4
         pop R1
@@ -353,10 +345,10 @@ count:
         pop R1
         and R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #8
         pop R1
@@ -365,10 +357,10 @@ count:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #16
         pop R1
@@ -377,21 +369,18 @@ count:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #63
         pop R1
         and R1 R0
         move R0 R1
-        jmp L78960040
-L78960040:
+        jmp L_78960040
+L_78960040:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 reverse:
 ; -------------------------------------------
@@ -404,10 +393,10 @@ reverse:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #-1431655766
         pop R1
@@ -419,7 +408,7 @@ reverse:
         shr R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #1431655765
         pop R1
@@ -433,8 +422,8 @@ reverse:
         pop R1
         or R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #-858993460
         pop R1
@@ -446,7 +435,7 @@ reverse:
         shr R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #858993459
         pop R1
@@ -460,8 +449,8 @@ reverse:
         pop R1
         or R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #-252645136
         pop R1
@@ -473,7 +462,7 @@ reverse:
         shr R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #252645135
         pop R1
@@ -487,8 +476,8 @@ reverse:
         pop R1
         or R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #-16711936
         pop R1
@@ -500,7 +489,7 @@ reverse:
         shr R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #16711935
         pop R1
@@ -514,15 +503,15 @@ reverse:
         pop R1
         or R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #16
         pop R1
         shr R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #16
         pop R1
@@ -531,14 +520,11 @@ reverse:
         pop R1
         or R1 R0
         move R0 R1
-        jmp L78960041
-L78960041:
+        jmp L_78960041
+L_78960041:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 rotate_left:
 ; -------------------------------------------
@@ -552,9 +538,9 @@ rotate_left:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 [R12+16]
         push R0
         move R0 #31
@@ -562,14 +548,14 @@ rotate_left:
         and R1 R0
         move R0 R1
         move [R12+16] R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 [R12+16]
         pop R1
         shl R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #32
         push R0
@@ -583,14 +569,11 @@ rotate_left:
         pop R1
         or R1 R0
         move R0 R1
-        jmp L78960042
-L78960042:
+        jmp L_78960042
+L_78960042:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 rotate_right:
 ; -------------------------------------------
@@ -604,9 +587,9 @@ rotate_right:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 [R12+16]
         push R0
         move R0 #31
@@ -614,14 +597,14 @@ rotate_right:
         and R1 R0
         move R0 R1
         move [R12+16] R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 [R12+16]
         pop R1
         shr R1 R0
         move R0 R1
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #32
         push R0
@@ -635,14 +618,11 @@ rotate_right:
         pop R1
         or R1 R0
         move R0 R1
-        jmp L78960043
-L78960043:
+        jmp L_78960043
+L_78960043:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 lowest_set:
 ; -------------------------------------------
@@ -655,7 +635,7 @@ lowest_set:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -672,11 +652,11 @@ _L78960047:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L78960048
+        jmp L_78960048
 sta_78960044:
 sta_78960045:
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_78960049:
         move R2 #0
         move R0 [R12+12]
@@ -704,22 +684,19 @@ _L78960052:
         shr R1 R0
         move R0 R1
         move [R12+12] R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_78960049
 sta_78960050:
-        move R0 [R12-4]
-        jmp L78960048
-L78960048:
+        move R0 [R12-8]
+        jmp L_78960048
+L_78960048:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 highest_set:
 ; -------------------------------------------
@@ -732,7 +709,7 @@ highest_set:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -749,16 +726,16 @@ _L78960056:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L78960057
+        jmp L_78960057
 sta_78960053:
 sta_78960054:
         move R0 #31
-        move [R12-4] R0
-        move R0 [R12+12]
         move [R12-8] R0
+        move R0 [R12+12]
+        move [R12-12] R0
 sta_78960058:
         move R2 #0
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #-2147483648
         pop R1
@@ -776,29 +753,26 @@ _L78960060:
 _L78960061:
         cmp R0 #0
         jz sta_78960059
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #1
         pop R1
         shl R1 R0
         move R0 R1
-        move [R12-8] R0
-        move R0 [R12-4]
+        move [R12-12] R0
+        move R0 [R12-8]
         move R1 R0
         sub R0 R0 #1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 R1
         jmp sta_78960058
 sta_78960059:
-        move R0 [R12-4]
-        jmp L78960057
-L78960057:
+        move R0 [R12-8]
+        jmp L_78960057
+L_78960057:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 mask:
 ; -------------------------------------------
@@ -811,6 +785,7 @@ mask:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -825,7 +800,7 @@ _L78960065:
         cmp R0 #0
         jz sta_78960062
         move R0 #0
-        jmp L78960066
+        jmp L_78960066
 sta_78960062:
 sta_78960063:
         move R0 [R12+12]
@@ -844,7 +819,7 @@ _L78960070:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L78960066
+        jmp L_78960066
 sta_78960067:
 sta_78960068:
         move R0 #1
@@ -858,14 +833,11 @@ sta_78960068:
         pop R1
         sub R1 R0
         move R0 R1
-        jmp L78960066
-L78960066:
+        jmp L_78960066
+L_78960066:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 extract:
 ; -------------------------------------------
@@ -880,6 +852,7 @@ extract:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -941,7 +914,7 @@ _L78960075:
         cmp R0 #0
         jz sta_78960071
         move R0 #0
-        jmp L78960085
+        jmp L_78960085
 sta_78960071:
 sta_78960072:
         move R0 [R12+12]
@@ -965,14 +938,11 @@ sta_78960072:
         pop R1
         and R1 R0
         move R0 R1
-        jmp L78960085
-L78960085:
+        jmp L_78960085
+L_78960085:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #16
-        push R1
         ret
 insert:
 ; -------------------------------------------
@@ -988,7 +958,7 @@ insert:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+20]
         push R0
         move R0 #0
@@ -1050,7 +1020,7 @@ _L78960090:
         cmp R0 #0
         jz sta_78960086
         move R0 [R12+12]
-        jmp L78960100
+        jmp L_78960100
 sta_78960086:
 sta_78960087:
         move R0 #1
@@ -1069,10 +1039,10 @@ sta_78960087:
         pop R1
         shl R1 R0
         move R0 R1
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 [R12+12]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         not R0
         pop R1
         and R1 R0
@@ -1102,14 +1072,11 @@ sta_78960087:
         pop R1
         or R1 R0
         move R0 R1
-        jmp L78960100
-L78960100:
+        jmp L_78960100
+L_78960100:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #20
-        push R1
         ret
 is_power_of_two:
 ; -------------------------------------------
@@ -1122,6 +1089,7 @@ is_power_of_two:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1170,14 +1138,11 @@ _L78960102:
 _L78960107:
         move R0 #0
 _L78960108:
-        jmp L78960109
-L78960109:
+        jmp L_78960109
+L_78960109:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 next_power_of_two:
 ; -------------------------------------------:
@@ -1191,7 +1156,7 @@ next_power_of_two:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1206,7 +1171,7 @@ _L78960113:
         cmp R0 #0
         jz sta_78960110
         move R0 #1
-        jmp L78960114
+        jmp L_78960114
 sta_78960110:
 sta_78960111:
         move R0 [R12+12]
@@ -1215,10 +1180,10 @@ sta_78960111:
         pop R1
         sub R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #1
         pop R1
@@ -1227,10 +1192,10 @@ sta_78960111:
         pop R1
         or R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #2
         pop R1
@@ -1239,10 +1204,10 @@ sta_78960111:
         pop R1
         or R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #4
         pop R1
@@ -1251,10 +1216,10 @@ sta_78960111:
         pop R1
         or R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #8
         pop R1
@@ -1263,10 +1228,10 @@ sta_78960111:
         pop R1
         or R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #16
         pop R1
@@ -1275,19 +1240,16 @@ sta_78960111:
         pop R1
         or R1 R0
         move R0 R1
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #1
         pop R1
         add R1 R0
         move R0 R1
-        jmp L78960114
-L78960114:
+        jmp L_78960114
+L_78960114:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret

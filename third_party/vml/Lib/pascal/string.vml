@@ -14,34 +14,40 @@ LABEL PASCAL_STRCPY
     PUSH R1
     PUSH R0
     CALL strcpy
+    ADD R13 #8
     RET
 
 LABEL PASCAL_STRCAT
     PUSH R1
     PUSH R0
     CALL strcat
+    ADD R13 #8
     RET
 
 LABEL PASCAL_STRLEN
     PUSH R0
     CALL strlen
+    ADD R13 #4
     RET
 
 LABEL PASCAL_STR_LEN
     PUSH R0
     CALL str_len
+    ADD R13 #4
     RET
 
 LABEL PASCAL_STR_CMP
     PUSH R1
     PUSH R0
     CALL str_cmp
+    ADD R13 #8
     RET
 
 LABEL PASCAL_STRCMP
     PUSH R1
     PUSH R0
     CALL strcmp
+    ADD R13 #8
     RET
 
 LABEL PASCAL_STRNCMP
@@ -49,6 +55,7 @@ LABEL PASCAL_STRNCMP
     PUSH R1
     PUSH R0
     CALL strncmp
+    ADD R13 #12
     RET
 
 LABEL PASCAL_STRCHR
@@ -77,6 +84,7 @@ LABEL PASCAL_STRREV
     PUSH R1
     PUSH R0
     CALL strrev
+    ADD R13 #8
     RET
 
 LABEL PASCAL_UPPERCASE
@@ -89,6 +97,7 @@ LABEL PASCAL_STR_TOUPPER
     PUSH R1
     PUSH R0
     CALL str_toupper
+    ADD R13 #8
     RET
 
 LABEL PASCAL_LOWERCASE
@@ -101,6 +110,7 @@ LABEL PASCAL_STR_TOLOWER
     PUSH R1
     PUSH R0
     CALL str_tolower
+    ADD R13 #8
     RET
 
 LABEL PASCAL_STR_REPEAT
@@ -108,12 +118,14 @@ LABEL PASCAL_STR_REPEAT
     PUSH R1
     PUSH R0
     CALL str_repeat
+    ADD R13 #12
     RET
 
 LABEL PASCAL_STR_CONTAINS
     PUSH R1
     PUSH R0
     CALL str_contains
+    ADD R13 #8
     RET
 
 LABEL PASCAL_WHITESPACE
@@ -129,6 +141,7 @@ LABEL PASCAL_STR_TRIM
     PUSH R1
     PUSH R0
     CALL str_trim
+    ADD R13 #8
     RET
 
 LABEL PASCAL_STR_SUBSTR
@@ -137,12 +150,14 @@ LABEL PASCAL_STR_SUBSTR
     PUSH R1
     PUSH R0
     CALL str_substr
+    ADD R13 #16
     RET
 
 LABEL PASCAL_STR_INDEXOF
     PUSH R1
     PUSH R0
     CALL str_indexof
+    ADD R13 #8
     RET
 
 LABEL PASCAL_PARTS
@@ -157,6 +172,7 @@ LABEL PASCAL_STR_SPLIT
     PUSH R1
     PUSH R0
     CALL str_split
+    ADD R13 #16
     RET
 
 LABEL PASCAL_STR_PADSTART
@@ -165,6 +181,7 @@ LABEL PASCAL_STR_PADSTART
     PUSH R1
     PUSH R0
     CALL str_padstart
+    ADD R13 #16
     RET
 
 LABEL PASCAL_STR_PADEND
@@ -173,23 +190,27 @@ LABEL PASCAL_STR_PADEND
     PUSH R1
     PUSH R0
     CALL str_padend
+    ADD R13 #16
     RET
 
 LABEL PASCAL_STR_CHARAT
     PUSH R1
     PUSH R0
     CALL str_charat
+    ADD R13 #8
     RET
 
 LABEL PASCAL_STR_STARTSWITH
     PUSH R1
     PUSH R0
     CALL str_startswith
+    ADD R13 #8
     RET
 
 LABEL PASCAL_STR_ENDSWITH
     PUSH R1
     PUSH R0
     CALL str_endswith
+    ADD R13 #8
     RET
 

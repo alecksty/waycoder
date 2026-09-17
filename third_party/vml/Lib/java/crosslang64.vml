@@ -9,6 +9,7 @@ LABEL ladd64
     sub R13 #8
     movel @13 R0
     CALL ladd64
+    ADD R13 #16
     RET
 
 LABEL lsub64
@@ -17,6 +18,7 @@ LABEL lsub64
     sub R13 #8
     movel @13 R0
     CALL lsub64
+    ADD R13 #16
     RET
 
 LABEL lmul64
@@ -25,6 +27,7 @@ LABEL lmul64
     sub R13 #8
     movel @13 R0
     CALL lmul64
+    ADD R13 #16
     RET
 
 LABEL ldiv64
@@ -33,6 +36,7 @@ LABEL ldiv64
     sub R13 #8
     movel @13 R0
     CALL ldiv64
+    ADD R13 #16
     RET
 
 LABEL lmod64
@@ -41,22 +45,26 @@ LABEL lmod64
     sub R13 #8
     movel @13 R0
     CALL lmod64
+    ADD R13 #16
     RET
 
 LABEL lneg64
     sub R13 #8
     movel @13 R0
     CALL lneg64
+    ADD R13 #8
     RET
 
 LABEL larrSum64
     PUSH R0
     CALL larr_sum64
+    ADD R13 #4
     RET
 
 LABEL larrAvg64
     PUSH R0
     CALL larr_avg64
+    ADD R13 #4
     RET
 
 LABEL lmean64
@@ -68,11 +76,13 @@ LABEL lmean64
 LABEL larrMax64
     PUSH R0
     CALL larr_max64
+    ADD R13 #4
     RET
 
 LABEL larrMin64
     PUSH R0
     CALL larr_min64
+    ADD R13 #4
     RET
 
 LABEL Crosslang64_Ladd64

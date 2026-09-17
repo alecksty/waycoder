@@ -8,23 +8,27 @@
 LABEL swift_peek
     PUSH R0
     CALL peek
+    ADD R13 #4
     RET
 
 LABEL swift_poke
     PUSH R1
     PUSH R0
     CALL poke
+    ADD R13 #8
     RET
 
 LABEL swift_peekb
     PUSH R0
     CALL peekb
+    ADD R13 #4
     RET
 
 LABEL swift_pokeb
     PUSH R1
     PUSH R0
     CALL pokeb
+    ADD R13 #8
     RET
 
 LABEL swift_alloc
@@ -36,6 +40,7 @@ LABEL swift_alloc
 LABEL swift_free
     PUSH R0
     CALL free
+    ADD R13 #4
     RET
 
 LABEL swift_memcpy
@@ -43,6 +48,7 @@ LABEL swift_memcpy
     PUSH R1
     PUSH R0
     CALL memcpy
+    ADD R13 #12
     RET
 
 LABEL swift_memset
@@ -50,6 +56,7 @@ LABEL swift_memset
     PUSH R1
     PUSH R0
     CALL memset
+    ADD R13 #12
     RET
 
 LABEL swift_memcmp
@@ -57,16 +64,19 @@ LABEL swift_memcmp
     PUSH R1
     PUSH R0
     CALL memcmp
+    ADD R13 #12
     RET
 
 LABEL swift_dev_open
     PUSH R0
     CALL dev_open
+    ADD R13 #4
     RET
 
 LABEL swift_dev_close
     PUSH R0
     CALL dev_close
+    ADD R13 #4
     RET
 
 LABEL swift_dev_read
@@ -75,6 +85,7 @@ LABEL swift_dev_read
     PUSH R1
     PUSH R0
     CALL dev_read
+    ADD R13 #16
     RET
 
 LABEL swift_dev_write
@@ -83,6 +94,7 @@ LABEL swift_dev_write
     PUSH R1
     PUSH R0
     CALL dev_write
+    ADD R13 #16
     RET
 
 LABEL swift_dev_control
@@ -90,6 +102,7 @@ LABEL swift_dev_control
     PUSH R1
     PUSH R0
     CALL dev_control
+    ADD R13 #12
     RET
 
 LABEL swift_memmove
@@ -97,16 +110,19 @@ LABEL swift_memmove
     PUSH R1
     PUSH R0
     CALL memmove
+    ADD R13 #12
     RET
 
 LABEL swift_getconfig
     PUSH R0
     CALL getconfig
+    ADD R13 #4
     RET
 
 LABEL swift_exit
     PUSH R0
     CALL exit
+    ADD R13 #4
     RET
 
 LABEL func_peek

@@ -10,12 +10,14 @@ LABEL objc_add_task
     PUSH R1
     PUSH R0
     CALL add_task
+    ADD R13 #20
     RET
 
 LABEL objc_task
     PUSH R1
     PUSH R0
     CALL task
+    ADD R13 #8
     RET
 
 LABEL objc_set_period
@@ -23,17 +25,20 @@ LABEL objc_set_period
     PUSH R1
     PUSH R0
     CALL set_period
+    ADD R13 #12
     RET
 
 LABEL objc_run
     PUSH R0
     CALL run
+    ADD R13 #4
     RET
 
 LABEL objc_get_func
     PUSH R1
     PUSH R0
     CALL get_func
+    ADD R13 #8
     RET
 
 LABEL func_add_task

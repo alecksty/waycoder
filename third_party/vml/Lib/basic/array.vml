@@ -12,12 +12,14 @@ LABEL BASIC_LIB
 LABEL BASIC_LEN
     PUSH R0
     CALL len
+    ADD R13 #4
     RET
 
 LABEL BASIC_GET
     PUSH R1
     PUSH R0
     CALL get
+    ADD R13 #8
     RET
 
 LABEL BASIC_SET
@@ -25,46 +27,54 @@ LABEL BASIC_SET
     PUSH R1
     PUSH R0
     CALL set
+    ADD R13 #12
     RET
 
 LABEL BASIC_SORT_BUBBLE
     PUSH R0
     CALL sort_bubble
+    ADD R13 #4
     RET
 
 LABEL BASIC_INDEXOF
     PUSH R1
     PUSH R0
     CALL indexof
+    ADD R13 #8
     RET
 
 LABEL BASIC_LAST_INDEXOF
     PUSH R1
     PUSH R0
     CALL last_indexof
+    ADD R13 #8
     RET
 
 LABEL BASIC_CONTAINS
     PUSH R1
     PUSH R0
     CALL contains
+    ADD R13 #8
     RET
 
 LABEL BASIC_REVERSE
     PUSH R0
     CALL reverse
+    ADD R13 #4
     RET
 
 LABEL BASIC_FILL
     PUSH R1
     PUSH R0
     CALL fill
+    ADD R13 #8
     RET
 
 LABEL BASIC_COPY
     PUSH R1
     PUSH R0
     CALL copy
+    ADD R13 #8
     RET
 
 LABEL BASIC_SLICE
@@ -73,6 +83,7 @@ LABEL BASIC_SLICE
     PUSH R1
     PUSH R0
     CALL slice
+    ADD R13 #16
     RET
 
 LABEL BASIC_CONCAT
@@ -80,28 +91,33 @@ LABEL BASIC_CONCAT
     PUSH R1
     PUSH R0
     CALL concat
+    ADD R13 #12
     RET
 
 LABEL BASIC_PUSH
     PUSH R1
     PUSH R0
     CALL push
+    ADD R13 #8
     RET
 
 LABEL BASIC_POP
     PUSH R0
     CALL pop
+    ADD R13 #4
     RET
 
 LABEL BASIC_SHIFT
     PUSH R0
     CALL shift
+    ADD R13 #4
     RET
 
 LABEL BASIC_UNSHIFT
     PUSH R1
     PUSH R0
     CALL unshift
+    ADD R13 #8
     RET
 
 LABEL BASIC_INSERT
@@ -109,12 +125,14 @@ LABEL BASIC_INSERT
     PUSH R1
     PUSH R0
     CALL insert
+    ADD R13 #12
     RET
 
 LABEL BASIC_REMOVE
     PUSH R1
     PUSH R0
     CALL remove
+    ADD R13 #8
     RET
 
 LABEL BASIC_JOIN_STR
@@ -122,18 +140,21 @@ LABEL BASIC_JOIN_STR
     PUSH R1
     PUSH R0
     CALL join_str
+    ADD R13 #12
     RET
 
 LABEL BASIC_STARTSWITH
     PUSH R1
     PUSH R0
     CALL startswith
+    ADD R13 #8
     RET
 
 LABEL BASIC_ENDSWITH
     PUSH R1
     PUSH R0
     CALL endswith
+    ADD R13 #8
     RET
 
 LABEL BASIC__QS_SWAP
@@ -163,11 +184,13 @@ LABEL BASIC__QS_RECURSIVE
 LABEL BASIC_SORT_QUICK
     PUSH R0
     CALL sort_quick
+    ADD R13 #4
     RET
 
 LABEL BASIC_BSEARCH
     PUSH R1
     PUSH R0
     CALL bsearch
+    ADD R13 #8
     RET
 

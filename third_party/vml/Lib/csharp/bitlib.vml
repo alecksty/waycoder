@@ -7,50 +7,59 @@ LABEL Clear
     PUSH R1
     PUSH R0
     CALL clear
+    ADD R13 #8
     RET
 
 LABEL Toggle
     PUSH R1
     PUSH R0
     CALL toggle
+    ADD R13 #8
     RET
 
 LABEL Test
     PUSH R1
     PUSH R0
     CALL test
+    ADD R13 #8
     RET
 
 LABEL Count
     PUSH R0
     CALL count
+    ADD R13 #4
     RET
 
 LABEL RotateLeft
     PUSH R1
     PUSH R0
     CALL rotate_left
+    ADD R13 #8
     RET
 
 LABEL RotateRight
     PUSH R1
     PUSH R0
     CALL rotate_right
+    ADD R13 #8
     RET
 
 LABEL LowestSet
     PUSH R0
     CALL lowest_set
+    ADD R13 #4
     RET
 
 LABEL HighestSet
     PUSH R0
     CALL highest_set
+    ADD R13 #4
     RET
 
 LABEL Mask
     PUSH R0
     CALL mask
+    ADD R13 #4
     RET
 
 LABEL Extract
@@ -58,16 +67,19 @@ LABEL Extract
     PUSH R1
     PUSH R0
     CALL extract
+    ADD R13 #12
     RET
 
 LABEL IsPowerOfTwo
     PUSH R0
     CALL is_power_of_two
+    ADD R13 #4
     RET
 
 LABEL NextPowerOfTwo
     PUSH R0
     CALL next_power_of_two
+    ADD R13 #4
     RET
 
 LABEL Bitlib_Clear

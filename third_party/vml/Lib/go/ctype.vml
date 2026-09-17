@@ -6,61 +6,73 @@
 LABEL go_is_alpha
     PUSH R0
     CALL is_alpha
+    ADD R13 #4
     RET
 
 LABEL go_is_digit
     PUSH R0
     CALL is_digit
+    ADD R13 #4
     RET
 
 LABEL go_isalnum
     PUSH R0
     CALL isalnum
+    ADD R13 #4
     RET
 
 LABEL go_isspace
     PUSH R0
     CALL isspace
+    ADD R13 #4
     RET
 
 LABEL go_isupper
     PUSH R0
     CALL isupper
+    ADD R13 #4
     RET
 
 LABEL go_islower
     PUSH R0
     CALL islower
+    ADD R13 #4
     RET
 
 LABEL go_to_upper
     PUSH R0
     CALL to_upper
+    ADD R13 #4
     RET
 
 LABEL go_to_lower
     PUSH R0
     CALL to_lower
+    ADD R13 #4
     RET
 
 LABEL go_isxdigit
     PUSH R0
     CALL isxdigit
+    ADD R13 #4
     RET
 
 LABEL go_ispunct
     PUSH R0
     CALL ispunct
+    ADD R13 #4
     RET
 
 LABEL go_isprint
     PUSH R0
     CALL isprint
+    ADD R13 #4
     RET
 
 LABEL go_iscntrl
     PUSH R0
     CALL iscntrl
+    ADD R13 #4
     RET
 
 LABEL func_is_alpha

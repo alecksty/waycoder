@@ -1152,6 +1152,48 @@ __stdcall void vga_text_newline(void);
  void vml_screenshot(void);
  int vml_syscall5(int num, int a0, int a1, int a2, int a3, int a4);
 
+// vmlui.c
+ int ui_dlg_msg(char* title, char* body, int style);
+ int ui_dlg_select(char* title, char* body, char* opts, int n, int def);
+ int ui_dlg_multi(char* title, char* body, char* opts, int n);
+ int ui_dlg_input(char* title, char* prompt, char* buf, int cap);
+ int ui_win_open(char* title, int w, int h);
+ int ui_win_close(void);
+ int ui_win_closed(void);
+ int ui_scr_w(void);
+ int ui_scr_h(void);
+ void ui_clear(int color);
+ void ui_pixel(int x, int y, int color);
+ void ui_line(int x1, int y1, int x2, int y2, int color, int lw);
+ void ui_rect(int x, int y, int w, int h, int color, int fill, int lw, int radius);
+ void ui_circle(int cx, int cy, int r, int color, int fill, int lw);
+ void ui_ellipse(int cx, int cy, int rx, int ry, int color, int fill, int lw);
+ void ui_present(void);
+ void ui_text(int x, int y, char* s, int color, int size, int anchor);
+ void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int style);
+ void ui_set_font(int size, int style, int color, int anchor);
+ void ui_text_cur(int x, int y, char* s);
+ int ui_poll(int* msg);
+ int ui_wait(int* msg, int timeout_ms);
+ int ui_msg_count(void);
+ while ui_poll_msg();
+ int ui_wait_msg(int timeout_ms);
+ int ui_msg_type(void);
+ int ui_msg_a(void);
+ int ui_msg_b(void);
+ void ui_gclear(void);
+ void ui_gset(int idx, int val);
+ int ui_gget(int idx);
+ void ui_piece_init(void);
+ nt _ui_rot90(int m);
+ int ui_piece_cell(int pid, int rot, int which);
+ int ui_timer_set(int interval_ms, int tag);
+ int ui_timer_kill(int id);
+ int ui_rand(int n);
+ int ui_tick(void);
+ void ui_icon(int x, int y, char* name, int size, int color);
+ void ui_image(int x, int y, char* path, int w, int h);
+
 // wchar.c
  Unicode character(inline, to avoid header parsing issues);
  int wctomb(char *dest, wchar_t wc);

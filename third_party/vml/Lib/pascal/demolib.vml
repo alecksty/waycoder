@@ -7,43 +7,51 @@ LABEL PASCAL_DEMOLIB_ADD
     PUSH R1
     PUSH R0
     CALL demolib_add
+    ADD R13 #8
     RET
 
 LABEL PASCAL_DEMOLIB_SUB
     PUSH R1
     PUSH R0
     CALL demolib_sub
+    ADD R13 #8
     RET
 
 LABEL PASCAL_DEMOLIB_MUL
     PUSH R1
     PUSH R0
     CALL demolib_mul
+    ADD R13 #8
     RET
 
 LABEL PASCAL_DEMOLIB_DIV
     PUSH R1
     PUSH R0
     CALL demolib_div
+    ADD R13 #8
     RET
 
 LABEL PASCAL_DEMOLIB_FACT
     PUSH R0
     CALL demolib_fact
+    ADD R13 #4
     RET
 
 LABEL PASCAL_DEMOLIB_FIB
     PUSH R0
     CALL demolib_fib
+    ADD R13 #4
     RET
 
 LABEL PASCAL_DEMOLIB_SQUARE
     PUSH R0
     CALL demolib_square
+    ADD R13 #4
     RET
 
 LABEL PASCAL_DEMOLIB_NEGATE
     PUSH R0
     CALL demolib_negate
+    ADD R13 #4
     RET
 

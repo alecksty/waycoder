@@ -1,6 +1,3 @@
-.entry main
-.stack 0
-.vectors 0x0
 
 .data
 _crt_x: .word 0
@@ -13,30 +10,21 @@ _crt_wx2: .word 0
 _crt_wy2: .word 0
 _crt_tmp1: .word 0
 _crt_tmp2: .word 0
-_ansi_fg:
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-_ansi_bg:
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
-    .word 0
+_ansi_fg: .word[8] 0
+_ansi_bg: .word[8] 0
 
 .text
+_crt_init_maps:
+; -------------------------------------------
+; source   : void _crt_init_maps()
+; function : _crt_init_maps
+; return   : void
+; --------------------------------------------
 _crt_init_maps:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #30
         move R11 R0
         move R0 _ansi_fg
@@ -50,7 +38,7 @@ _crt_init_maps:
         mul R0 #4
         pop R9
         add R0 R9
-        move @0 R11
+        move [R0] R11
         move R0 #40
         move R8 R0
         move R0 _ansi_bg
@@ -64,7 +52,7 @@ _crt_init_maps:
         mul R0 #4
         pop R6
         add R0 R6
-        move @0 R8
+        move [R0] R8
         move R0 #34
         move R5 R0
         move R0 _ansi_fg
@@ -78,7 +66,7 @@ _crt_init_maps:
         mul R0 #4
         pop R3
         add R0 R3
-        move @0 R5
+        move [R0] R5
         move R0 #44
         move R2 R0
         move R0 _ansi_bg
@@ -92,7 +80,7 @@ _crt_init_maps:
         mul R0 #4
         pop R10
         add R0 R10
-        move @0 R2
+        move [R0] R2
         move R0 #32
         move R9 R0
         move R0 _ansi_fg
@@ -106,7 +94,7 @@ _crt_init_maps:
         mul R0 #4
         pop R7
         add R0 R7
-        move @0 R9
+        move [R0] R9
         move R0 #42
         move R6 R0
         move R0 _ansi_bg
@@ -120,7 +108,7 @@ _crt_init_maps:
         mul R0 #4
         pop R4
         add R0 R4
-        move @0 R6
+        move [R0] R6
         move R0 #36
         move R3 R0
         move R0 _ansi_fg
@@ -134,7 +122,7 @@ _crt_init_maps:
         mul R0 #4
         pop R1
         add R0 R1
-        move @0 R3
+        move [R0] R3
         move R0 #46
         move R10 R0
         move R0 _ansi_bg
@@ -148,7 +136,7 @@ _crt_init_maps:
         mul R0 #4
         pop R11
         add R0 R11
-        move @0 R10
+        move [R0] R10
         move R0 #31
         move R7 R0
         move R0 _ansi_fg
@@ -162,7 +150,7 @@ _crt_init_maps:
         mul R0 #4
         pop R8
         add R0 R8
-        move @0 R7
+        move [R0] R7
         move R0 #41
         move R4 R0
         move R0 _ansi_bg
@@ -176,7 +164,7 @@ _crt_init_maps:
         mul R0 #4
         pop R5
         add R0 R5
-        move @0 R4
+        move [R0] R4
         move R0 #35
         move R1 R0
         move R0 _ansi_fg
@@ -190,7 +178,7 @@ _crt_init_maps:
         mul R0 #4
         pop R2
         add R0 R2
-        move @0 R1
+        move [R0] R1
         move R0 #45
         move R11 R0
         move R0 _ansi_bg
@@ -204,7 +192,7 @@ _crt_init_maps:
         mul R0 #4
         pop R9
         add R0 R9
-        move @0 R11
+        move [R0] R11
         move R0 #33
         move R8 R0
         move R0 _ansi_fg
@@ -218,7 +206,7 @@ _crt_init_maps:
         mul R0 #4
         pop R6
         add R0 R6
-        move @0 R8
+        move [R0] R8
         move R0 #43
         move R5 R0
         move R0 _ansi_bg
@@ -232,7 +220,7 @@ _crt_init_maps:
         mul R0 #4
         pop R3
         add R0 R3
-        move @0 R5
+        move [R0] R5
         move R0 #37
         move R2 R0
         move R0 _ansi_fg
@@ -246,7 +234,7 @@ _crt_init_maps:
         mul R0 #4
         pop R10
         add R0 R10
-        move @0 R2
+        move [R0] R2
         move R0 #47
         move R9 R0
         move R0 _ansi_bg
@@ -260,15 +248,22 @@ _crt_init_maps:
         mul R0 #4
         pop R7
         add R0 R7
-        move @0 R9
+        move [R0] R9
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_INIT:
+; -------------------------------------------
+; source   : void CRT_INIT()
+; function : CRT_INIT
+; return   : void
+; --------------------------------------------
+CRT_INIT:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         call _crt_init_maps
         move R0 #7
         move [_crt_fg] R0
@@ -292,9 +287,16 @@ CRT_INIT:
         pop R15
         ret
 CRT_CLRSCR:
+; -------------------------------------------
+; source   : void CRT_CLRSCR()
+; function : CRT_CLRSCR
+; return   : void
+; --------------------------------------------
+CRT_CLRSCR:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_crt_wx2]
         push R0
         move R0 #0
@@ -323,20 +325,20 @@ _L87890003:
         move [_crt_wy2] R0
 sta_87890000:
 sta_87890001:
-        move R0 #27
-        syscall #400
-        move R0 #91
-        syscall #400
-        move R0 #50
-        syscall #400
-        move R0 #74
-        syscall #400
-        move R0 #27
-        syscall #400
-        move R0 #91
-        syscall #400
-        move R0 #72
-        syscall #400
+        asm "MOVE R0, #27"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #91"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #50"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #74"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #27"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #91"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #72"
+        asm "SYSCALL 400"
         move R0 #1
         move [_crt_x] R0
         move R0 #1
@@ -346,27 +348,41 @@ sta_87890001:
         pop R15
         ret
 CRT_CLREOL:
+; -------------------------------------------
+; source   : void CRT_CLREOL()
+; function : CRT_CLREOL
+; return   : void
+; --------------------------------------------
+CRT_CLREOL:
         push R15
         push R12
         move R12 R13
-        move R0 #27
-        syscall #400
-        move R0 #91
-        syscall #400
-        move R0 #75
-        syscall #400
+        sub R13 #12
+        asm "MOVE R0, #27"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #91"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #75"
+        asm "SYSCALL 400"
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_GOTOXY:
+; -------------------------------------------
+; source   : void CRT_GOTOXY(int x,int y)
+; function : CRT_GOTOXY
+; param   : int x
+; param   : int y
+; return   : void
+; --------------------------------------------
+CRT_GOTOXY:
         push R15
         push R12
         move R12 R13
-        move [R12+12] R0
-        move [R12+16] R1
-        move [_crt_tmp1] R0
-        move [_crt_tmp2] R1
+        sub R13 #12
+        asm "MOVE [_crt_tmp1], R0"
+        asm "MOVE [_crt_tmp2], R1"
         move R0 [_crt_tmp1]
         push R0
         move R0 [_crt_wx1]
@@ -439,50 +455,71 @@ sta_87890017:
         move [_crt_x] R0
         move R0 [_crt_tmp2]
         move [_crt_y] R0
-        move R0 #27
-        syscall #400
-        move R0 #91
-        syscall #400
-        move R0 [_crt_tmp2]
-        syscall #402
-        move R0 #59
-        syscall #400
-        move R0 [_crt_tmp1]
-        syscall #402
-        move R0 #72
-        syscall #400
+        asm "MOVE R0, #27"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #91"
+        asm "SYSCALL 400"
+        asm "MOVE R0, [_crt_tmp2]"
+        asm "SYSCALL 402"
+        asm "MOVE R0, #59"
+        asm "SYSCALL 400"
+        asm "MOVE R0, [_crt_tmp1]"
+        asm "SYSCALL 402"
+        asm "MOVE R0, #72"
+        asm "SYSCALL 400"
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_WHEREX:
+; -------------------------------------------
+; source   : int CRT_WHEREX()
+; function : CRT_WHEREX
+; return   : int
+; --------------------------------------------
+CRT_WHEREX:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_crt_x]
-        jmp L87890020
-L87890020:
+        jmp L_87890020
+L_87890020:
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_WHEREY:
+; -------------------------------------------
+; source   : int CRT_WHEREY()
+; function : CRT_WHEREY
+; return   : int
+; --------------------------------------------
+CRT_WHEREY:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_crt_y]
-        jmp L87890021
-L87890021:
+        jmp L_87890021
+L_87890021:
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_TEXTCOLOR:
+; -------------------------------------------
+; source   : void CRT_TEXTCOLOR(int c)
+; function : CRT_TEXTCOLOR
+; param   : int c
+; return   : void
+; --------------------------------------------
+CRT_TEXTCOLOR:
         push R15
         push R12
         move R12 R13
-        move [R12+12] R0
-        move [_crt_tmp1] R0
+        sub R13 #12
+        asm "MOVE [_crt_tmp1], R0"
         move R0 [_crt_tmp1]
         push R0
         move R0 #15
@@ -510,20 +547,20 @@ _L87890024:
 _L87890025:
         cmp R0 #0
         jz sta_87890022
-        move R0 #27
-        syscall #400
-        move R0 #91
-        syscall #400
-        move R0 #49
-        syscall #400
-        move R0 #109
-        syscall #400
+        asm "MOVE R0, #27"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #91"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #49"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #109"
+        asm "SYSCALL 400"
 sta_87890022:
 sta_87890023:
-        move R0 #27
-        syscall #400
-        move R0 #91
-        syscall #400
+        asm "MOVE R0, #27"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #91"
+        asm "SYSCALL 400"
         move R0 [_crt_fg]
         move R1 R0
         push R1
@@ -595,20 +632,27 @@ sta_87890027:
         move [_crt_tmp1] R0
         jmp sta_87890026
 sta_87890026:
-        move R0 [_crt_tmp1]
-        syscall #402
-        move R0 #109
-        syscall #400
+        asm "MOVE R0, [_crt_tmp1]"
+        asm "SYSCALL 402"
+        asm "MOVE R0, #109"
+        asm "SYSCALL 400"
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_TEXTBACKGROUND:
+; -------------------------------------------
+; source   : void CRT_TEXTBACKGROUND(int c)
+; function : CRT_TEXTBACKGROUND
+; param   : int c
+; return   : void
+; --------------------------------------------
+CRT_TEXTBACKGROUND:
         push R15
         push R12
         move R12 R13
-        move [R12+12] R0
-        move [_crt_tmp1] R0
+        sub R13 #12
+        asm "MOVE [_crt_tmp1], R0"
         move R0 [_crt_tmp1]
         push R0
         move R0 #7
@@ -618,38 +662,45 @@ CRT_TEXTBACKGROUND:
         move [R12+12] R0
         move R0 [R12+12]
         move [_crt_bg] R0
-        move R0 #27
-        syscall #400
-        move R0 #91
-        syscall #400
-        move R1 _ansi_bg
-        move R2 [_crt_bg]
-        mul R2 #4
-        add R1 R2
-        move R0 @1
-        syscall #402
-        move R0 #109
-        syscall #400
+        asm "MOVE R0, #27"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #91"
+        asm "SYSCALL 400"
+        asm "MOVE R1, _ansi_bg"
+        asm "MOVE R2, [_crt_bg]"
+        asm "MUL R2, #4"
+        asm "ADD R1, R2"
+        asm "MOVE R0, [R1]"
+        asm "SYSCALL 402"
+        asm "MOVE R0, #109"
+        asm "SYSCALL 400"
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_WINDOW:
+; -------------------------------------------
+; source   : void CRT_WINDOW(int x1,int y1,int x2,int y2)
+; function : CRT_WINDOW
+; param   : int x1
+; param   : int y1
+; param   : int x2
+; param   : int y2
+; return   : void
+; --------------------------------------------
+CRT_WINDOW:
         push R15
         push R12
         move R12 R13
-        move [R12+12] R0
-        move [R12+16] R1
-        move [R12+20] R2
-        move [R12+24] R3
-        move [_crt_tmp1] R0
-        move [_crt_tmp2] R1
+        sub R13 #12
+        asm "MOVE [_crt_tmp1], R0"
+        asm "MOVE [_crt_tmp2], R1"
         move R0 [_crt_tmp1]
         move [R12+12] R0
         move R0 [_crt_tmp2]
         move [R12+16] R0
-        move [_crt_tmp1] R2
-        move [_crt_tmp2] R3
+        asm "MOVE [_crt_tmp1], R2"
+        asm "MOVE [_crt_tmp2], R3"
         move R0 [_crt_tmp1]
         move [R12+20] R0
         move R0 [_crt_tmp2]
@@ -764,23 +815,24 @@ sta_87890056:
         move [_crt_wx2] R0
         move R0 [R12+24]
         move [_crt_wy2] R0
-        move R0 #27
-        syscall #400
-        move R0 #91
-        syscall #400
-        move R0 [_crt_wy1]
-        syscall #402
-        move R0 #59
-        syscall #400
-        move R0 [_crt_wy2]
-        syscall #402
-        move R0 #114
-        syscall #400
+        asm "MOVE R0, #27"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #91"
+        asm "SYSCALL 400"
+        asm "MOVE R0, [_crt_wy1]"
+        asm "SYSCALL 402"
+        asm "MOVE R0, #59"
+        asm "SYSCALL 400"
+        asm "MOVE R0, [_crt_wy2]"
+        asm "SYSCALL 402"
+        asm "MOVE R0, #114"
+        asm "SYSCALL 400"
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
         call CRT_GOTOXY
         add R13 #8
         move R13 R12
@@ -788,11 +840,18 @@ sta_87890056:
         pop R15
         ret
 CRT_KEYPRESSED:
+; -------------------------------------------
+; source   : int CRT_KEYPRESSED()
+; function : CRT_KEYPRESSED
+; return   : int
+; --------------------------------------------
+CRT_KEYPRESSED:
         push R15
         push R12
         move R12 R13
-        syscall #5
-        move [_crt_tmp1] R0
+        sub R13 #12
+        asm "SYSCALL 5"
+        asm "MOVE [_crt_tmp1], R0"
         move R0 [_crt_tmp1]
         push R0
         move R0 #0
@@ -804,66 +863,101 @@ CRT_KEYPRESSED:
 _L87890059:
         move R0 #1
 _L87890060:
-        jmp L87890061
-L87890061:
+        jmp L_87890061
+L_87890061:
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_READKEY:
+; -------------------------------------------
+; source   : int CRT_READKEY()
+; function : CRT_READKEY
+; return   : int
+; --------------------------------------------
+CRT_READKEY:
         push R15
         push R12
         move R12 R13
-        move R0 #1
-        syscall #5
-        move [_crt_tmp1] R0
+        sub R13 #12
+        asm "MOVE R0, #1"
+        asm "SYSCALL 5"
+        asm "MOVE [_crt_tmp1], R0"
         move R0 [_crt_tmp1]
-        jmp L87890062
-L87890062:
+        jmp L_87890062
+L_87890062:
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_DELAY:
+; -------------------------------------------
+; source   : void CRT_DELAY(int ms)
+; function : CRT_DELAY
+; param   : int ms
+; return   : void
+; --------------------------------------------
+CRT_DELAY:
         push R15
         push R12
         move R12 R13
-        move [R12+12] R0
-        syscall #52
+        sub R13 #12
+        asm "SYSCALL 52"
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_SOUND:
+; -------------------------------------------
+; source   : void CRT_SOUND(int f)
+; function : CRT_SOUND
+; param   : int f
+; return   : void
+; --------------------------------------------
+CRT_SOUND:
         push R15
         push R12
         move R12 R13
-        move [R12+12] R0
-        syscall #57
+        sub R13 #12
+        asm "SYSCALL 57"
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_NOSOUND:
+; -------------------------------------------
+; source   : void CRT_NOSOUND()
+; function : CRT_NOSOUND
+; return   : void
+; --------------------------------------------
+CRT_NOSOUND:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_NORMVIDEO:
+; -------------------------------------------
+; source   : void CRT_NORMVIDEO()
+; function : CRT_NORMVIDEO
+; return   : void
+; --------------------------------------------
+CRT_NORMVIDEO:
         push R15
         push R12
         move R12 R13
-        move R0 #27
-        syscall #400
-        move R0 #91
-        syscall #400
-        move R0 #48
-        syscall #400
-        move R0 #109
-        syscall #400
+        sub R13 #12
+        asm "MOVE R0, #27"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #91"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #48"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #109"
+        asm "SYSCALL 400"
         move R0 #7
         move [_crt_fg] R0
         move R0 #0
@@ -873,111 +967,160 @@ CRT_NORMVIDEO:
         pop R15
         ret
 CRT_HIGHVIDEO:
+; -------------------------------------------
+; source   : void CRT_HIGHVIDEO()
+; function : CRT_HIGHVIDEO
+; return   : void
+; --------------------------------------------
+CRT_HIGHVIDEO:
         push R15
         push R12
         move R12 R13
-        move R0 #27
-        syscall #400
-        move R0 #91
-        syscall #400
-        move R0 #49
-        syscall #400
-        move R0 #109
-        syscall #400
+        sub R13 #12
+        asm "MOVE R0, #27"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #91"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #49"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #109"
+        asm "SYSCALL 400"
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_LOWVIDEO:
+; -------------------------------------------
+; source   : void CRT_LOWVIDEO()
+; function : CRT_LOWVIDEO
+; return   : void
+; --------------------------------------------
+CRT_LOWVIDEO:
         push R15
         push R12
         move R12 R13
-        move R0 #27
-        syscall #400
-        move R0 #91
-        syscall #400
-        move R0 #50
-        syscall #400
-        move R0 #109
-        syscall #400
+        sub R13 #12
+        asm "MOVE R0, #27"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #91"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #50"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #109"
+        asm "SYSCALL 400"
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_INSLINE:
+; -------------------------------------------
+; source   : void CRT_INSLINE()
+; function : CRT_INSLINE
+; return   : void
+; --------------------------------------------
+CRT_INSLINE:
         push R15
         push R12
         move R12 R13
-        move R0 #27
-        syscall #400
-        move R0 #91
-        syscall #400
-        move R0 #76
-        syscall #400
+        sub R13 #12
+        asm "MOVE R0, #27"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #91"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #76"
+        asm "SYSCALL 400"
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_DELLINE:
+; -------------------------------------------
+; source   : void CRT_DELLINE()
+; function : CRT_DELLINE
+; return   : void
+; --------------------------------------------
+CRT_DELLINE:
         push R15
         push R12
         move R12 R13
-        move R0 #27
-        syscall #400
-        move R0 #91
-        syscall #400
-        move R0 #77
-        syscall #400
+        sub R13 #12
+        asm "MOVE R0, #27"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #91"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #77"
+        asm "SYSCALL 400"
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_CURSORON:
+; -------------------------------------------
+; source   : void CRT_CURSORON()
+; function : CRT_CURSORON
+; return   : void
+; --------------------------------------------
+CRT_CURSORON:
         push R15
         push R12
         move R12 R13
-        move R0 #27
-        syscall #400
-        move R0 #91
-        syscall #400
-        move R0 #63
-        syscall #400
-        move R0 #50
-        syscall #400
-        move R0 #53
-        syscall #400
-        move R0 #104
-        syscall #400
+        sub R13 #12
+        asm "MOVE R0, #27"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #91"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #63"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #50"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #53"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #104"
+        asm "SYSCALL 400"
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_CURSOROFF:
+; -------------------------------------------
+; source   : void CRT_CURSOROFF()
+; function : CRT_CURSOROFF
+; return   : void
+; --------------------------------------------
+CRT_CURSOROFF:
         push R15
         push R12
         move R12 R13
-        move R0 #27
-        syscall #400
-        move R0 #91
-        syscall #400
-        move R0 #63
-        syscall #400
-        move R0 #50
-        syscall #400
-        move R0 #53
-        syscall #400
-        move R0 #108
-        syscall #400
+        sub R13 #12
+        asm "MOVE R0, #27"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #91"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #63"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #50"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #53"
+        asm "SYSCALL 400"
+        asm "MOVE R0, #108"
+        asm "SYSCALL 400"
         move R13 R12
         pop R12
         pop R15
         ret
 CRT_WRITE_CHAR:
+; -------------------------------------------
+; source   : void CRT_WRITE_CHAR(int ch)
+; function : CRT_WRITE_CHAR
+; param   : int ch
+; return   : void
+; --------------------------------------------
+CRT_WRITE_CHAR:
         push R15
         push R12
         move R12 R13
-        move [R12+12] R0
-        move [_crt_tmp1] R0
+        sub R13 #12
+        asm "MOVE [_crt_tmp1], R0"
         move R0 [_crt_tmp1]
         move [R12+12] R0
         move R0 [R12+12]
@@ -1049,8 +1192,8 @@ _L87890077:
 _L87890078:
         cmp R0 #0
         jz sta_87890075
-        move R0 [_crt_tmp1]
-        syscall #400
+        asm "MOVE R0, [_crt_tmp1]"
+        asm "SYSCALL 400"
         move R0 [_crt_x]
         move R1 R0
         add R0 R0 #1
@@ -1087,11 +1230,19 @@ sta_87890064:
         pop R15
         ret
 CRT_WRITE_STRING:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : void CRT_WRITE_STRING(const char* s)
+; function : CRT_WRITE_STRING
+; param   : const char* s
+; return   : void
+; --------------------------------------------
+CRT_WRITE_STRING:
         push R15
         push R12
         move R12 R13
-        move [R12+12] R0
-        syscall #401
+        sub R13 #12
+        asm "SYSCALL 401"
         move R0 [_crt_y]
         move R1 R0
         add R0 R0 #1

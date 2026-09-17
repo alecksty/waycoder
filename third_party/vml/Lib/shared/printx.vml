@@ -3,7 +3,7 @@
 .linked "wchar.vml"
 .linked "uchar.vml"
 .data
-L35090000: .string "0x"
+L_35090000: .string "0x"
 
 .text
 printx_int32:
@@ -17,14 +17,12 @@ printx_int32:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #6
         move [R12-4] R0
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 printlnx_int32:
 ; -------------------------------------------
@@ -37,6 +35,7 @@ printlnx_int32:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #6
         move [R12-4] R0
         asm "LOAD R0 #10"
@@ -45,9 +44,6 @@ printlnx_int32:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 printx_string:
 ; -------------------------------------------
@@ -60,14 +56,12 @@ printx_string:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #1
         move [R12-4] R0
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 printlnx_string:
 ; -------------------------------------------
@@ -80,6 +74,7 @@ printlnx_string:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #1
         move [R12-4] R0
         asm "LOAD R0 #10"
@@ -88,9 +83,6 @@ printlnx_string:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 printx_wstring:
 ; -------------------------------------------
@@ -103,29 +95,28 @@ printx_wstring:
         push R15
         push R12
         move R12 R13
-        sub R13 #1032
+        sub R13 #1036
         move R0 #1023
-        move R2 R0
         push R0
         move R0 [R12+12]
-        move R1 R0
         push R0
         move R0 R12
-        sub R0 #1024
+        sub R0 #1028
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call wcstombs
         add R13 #12
         move R0 R12
-        sub R0 #1024
+        sub R0 #1028
         push R0
+        move R0 [R13+0]
         call print_str
         add R13 #4
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 printlnx_wstring:
 ; -------------------------------------------
@@ -138,33 +129,33 @@ printlnx_wstring:
         push R15
         push R12
         move R12 R13
-        sub R13 #1032
+        sub R13 #1036
         move R0 #1023
-        move R2 R0
         push R0
         move R0 [R12+12]
-        move R1 R0
         push R0
         move R0 R12
-        sub R0 #1024
+        sub R0 #1028
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call wcstombs
         add R13 #12
         move R0 R12
-        sub R0 #1024
+        sub R0 #1028
         push R0
+        move R0 [R13+0]
         call print_str
         add R13 #4
         move R0 #10
         push R0
+        move R0 [R13+0]
         call putchar
         add R13 #4
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 printx_ustring:
 ; -------------------------------------------
@@ -177,29 +168,28 @@ printx_ustring:
         push R15
         push R12
         move R12 R13
-        sub R13 #1032
+        sub R13 #1036
         move R0 #1023
-        move R2 R0
         push R0
         move R0 R12
-        sub R0 #1024
-        move R1 R0
+        sub R0 #1028
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call ucs_to_utf8
         add R13 #12
         move R0 R12
-        sub R0 #1024
+        sub R0 #1028
         push R0
+        move R0 [R13+0]
         call print_str
         add R13 #4
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 printlnx_ustring:
 ; -------------------------------------------
@@ -212,33 +202,33 @@ printlnx_ustring:
         push R15
         push R12
         move R12 R13
-        sub R13 #1032
+        sub R13 #1036
         move R0 #1023
-        move R2 R0
         push R0
         move R0 R12
-        sub R0 #1024
-        move R1 R0
+        sub R0 #1028
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call ucs_to_utf8
         add R13 #12
         move R0 R12
-        sub R0 #1024
+        sub R0 #1028
         push R0
+        move R0 [R13+0]
         call print_str
         add R13 #4
         move R0 #10
         push R0
+        move R0 [R13+0]
         call putchar
         add R13 #4
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 printx_float32:
 ; -------------------------------------------
@@ -251,14 +241,12 @@ printx_float32:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #8
         move [R12-4] R0
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 printlnx_float32:
 ; -------------------------------------------
@@ -271,6 +259,7 @@ printlnx_float32:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         syscall #8
         move [R12-4] R0
         asm "LOAD R0 #10"
@@ -279,9 +268,6 @@ printlnx_float32:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 printx_float64:
 ; -------------------------------------------
@@ -294,18 +280,15 @@ printx_float64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moved R0 [R12+12]
         d2f R0 R0
-        movef [R12-4] R0
+        movef [R12-8] R0
         syscall #8
         move [R12-4] R0
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 printlnx_float64:
 ; -------------------------------------------
@@ -318,10 +301,10 @@ printlnx_float64:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         moved R0 [R12+12]
         d2f R0 R0
-        movef [R12-4] R0
+        movef [R12-8] R0
         syscall #8
         move [R12-4] R0
         asm "LOAD R0 #10"
@@ -330,9 +313,6 @@ printlnx_float64:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 printx_int64_hex:
 ; -------------------------------------------
@@ -346,28 +326,30 @@ printx_int64_hex:
         push R15
         push R12
         move R12 R13
-        move R0 L35090000
+        sub R13 #12
+        move R0 L_35090000
         push R0
+        move R0 [R13+0]
         call print_str
         add R13 #4
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call print_int
         add R13 #4
         move R0 #95
         push R0
+        move R0 [R13+0]
         call putchar
         add R13 #4
         move R0 [R12+16]
         push R0
+        move R0 [R13+0]
         call print_int
         add R13 #4
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #12
-        push R1
         ret
 printx_nl:
 ; -------------------------------------------:
@@ -380,8 +362,10 @@ printx_nl:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #10
         push R0
+        move R0 [R13+0]
         call putchar
         add R13 #4
         move R13 R12

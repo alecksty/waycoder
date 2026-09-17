@@ -7,28 +7,24 @@ namespace ForthCompiler
     {
         // ── 共享库输出函数调用（`print_str` / `print_int`）──────────────────────────
         //
-        // ⚠ **实参必须自己压栈**。基类的 `EmitPrintString()` / `EmitPrintInt()` 只发一条
-        //   `CALL print_str`（注释写「R0 承载参数」），但 `Lib` 里这两个函数是 **`__stdcall`**
-        //   —— 形如 `move R13 R12; pop R12; pop R15; move R1 @13; add R13 #8; push R1; ret`，
-        //   **净效果是替调用方多弹掉 4 字节**（返回值地址 4 字节之外的那一个实参槽）。
-        //   证据：`scripts/maui-vml-verify/corpus/c/skel.c` 把它们声明成 `__stdcall` 并注明
-        //   「被调用方清栈」，而 C 前端生成的调用点就是 `move R0 …; push R0; call print_str`。
+        // **不要自己压栈。**（2026-09-17 调用约定统一后改的，此前这里有一句 `PUSH R0`。）
         //
-        //   别的前端不压栈也「看着没事」，是因为它们的值都在栈帧/寄存器里；**Forth 的数据栈
-        //   就是 VML 的 R13**，多弹的 4 字节正好吃掉栈顶的累加器 —— 实测
-        //   `CREATE a 16 ALLOT  1 a !  a @ .` 里的 `@` 已经修对（＝5）之后，
-        //   只要前面加一句 `." SKEL-SUM="`，随后的 `.` 就印出 65536（栈顶被吃、pop 到了别的槽）。
+        // 旧约定下 `Lib` 里这两个函数是 **被调方清栈**
+        // （`… move R1 @13; add R13 #8; push R1; ret`），净效果是替调用方多弹 4 字节；
+        // 而 **Forth 的数据栈就是 VML 的 R13**，那多出来的 4 字节正好吃掉栈顶的累加器
+        // —— 实测 `." SKEL-SUM="` 之后的 `.` 会印出错值。
+        // 当时的变通是调用方**多压一格**抵消（压栈 + 被调方弹掉 = 净 0）。
         //
-        //   压栈 + 被调用方弹掉 = 净 0，所以 `stackPointer`（Forth 深度计数）不用动。
+        // 现在 `Lib/` 已按统一约定重生成：**被调方一律裸 `ret`、调用方清栈**，
+        // 而且形参槽一律 4 字节。这里压一格就是**净 +4 的泄漏**（每次 `.` 吃一格数据栈），
+        // 所以这一句必须去掉 —— 基类只发 `CALL print_str`（R0 承载实参）刚好是对的。
         private void EmitCallPrintString()
         {
-            instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)], instructions.Count));
             EmitPrintString();
         }
 
         private void EmitCallPrintInt()
         {
-            instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)], instructions.Count));
             EmitPrintInt();
         }
 
@@ -46,14 +42,14 @@ namespace ForthCompiler
                         // 输出字符串
                         AddInstruction(OpCode.MOVE, new List<Operand>
                             { Reg(0), LabelOp(label) });
-                        EmitCallPrintString(); // print_str（__stdcall，实参由调用方压栈）
+                        EmitCallPrintString(); // print_str（R0 承载实参，调用方不压栈）
                     }
                     break;
 
                 case TokenType.DOT:
                     // 弹出栈顶并输出整数
                     AddInstruction(OpCode.POP, Reg(0));
-                    EmitCallPrintInt(); // print_int（__stdcall，实参由调用方压栈）
+                    EmitCallPrintInt(); // print_int（R0 承载实参，调用方不压栈）
                     break;
 
                 case TokenType.FDOT:

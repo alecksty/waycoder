@@ -6,6 +6,7 @@
 LABEL scheme_lutf8_strlen
     PUSH R0
     CALL lutf8_strlen
+    ADD R13 #4
     RET
 
 LABEL scheme_lutf8_decode
@@ -13,6 +14,7 @@ LABEL scheme_lutf8_decode
     movel @13 R1
     PUSH R0
     CALL lutf8_decode
+    ADD R13 #12
     RET
 
 LABEL scheme_lutf8_encode
@@ -22,6 +24,7 @@ LABEL scheme_lutf8_encode
     sub R13 #8
     movel @13 R0
     CALL lutf8_encode
+    ADD R13 #20
     RET
 
 LABEL func_lutf8_strlen

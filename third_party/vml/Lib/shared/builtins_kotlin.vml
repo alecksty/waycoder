@@ -25,7 +25,7 @@ array_alloc:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 [R12+12]
         push R0
         move R0 #4
@@ -37,27 +37,24 @@ array_alloc:
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-8] R0
+        move [R12-12] R0
         syscall #40
         move [R12-4] R0
         move R0 [R12+12]
         move R11 R0
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #0
         mul R0 #4
         pop R10
         add R0 R10
         move [R0] R11
-        move R0 [R12-4]
-        jmp L73280000
-L73280000:
+        move R0 [R12-8]
+        jmp L_73280000
+L_73280000:
         move R13 R12
         pop R12
         pop R15
-        move R1 [R13]
-        add R13 #8
-        push R1
         ret
 read_line:
 ; -------------------------------------------:
@@ -70,12 +67,12 @@ read_line:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
+        sub R13 #16
         syscall #2
         move [R12-4] R0
-        move R0 [R12-4]
-        jmp L73280001
-L73280001:
+        move R0 [R12-8]
+        jmp L_73280001
+L_73280001:
         move R13 R12
         pop R12
         pop R15

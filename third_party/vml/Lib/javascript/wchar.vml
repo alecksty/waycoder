@@ -12,10 +12,10 @@ LABEL character
 
 LABEL wctomb
     PUSH R1
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL wctomb
-    ADD R13 #5
+    ADD R13 #8
     RET
 
 LABEL mbtowc

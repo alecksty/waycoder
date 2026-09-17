@@ -21,6 +21,7 @@ LABEL python_lmemcpy
     PUSH R1
     PUSH R0
     CALL lmemcpy
+    ADD R13 #16
     RET
 
 LABEL python_lmemset
@@ -29,6 +30,7 @@ LABEL python_lmemset
     PUSH R1
     PUSH R0
     CALL lmemset
+    ADD R13 #16
     RET
 
 LABEL python_lmemmove
@@ -37,6 +39,7 @@ LABEL python_lmemmove
     PUSH R1
     PUSH R0
     CALL lmemmove
+    ADD R13 #16
     RET
 
 LABEL python_lmemcmp
@@ -45,6 +48,7 @@ LABEL python_lmemcmp
     PUSH R1
     PUSH R0
     CALL lmemcmp
+    ADD R13 #16
     RET
 
 LABEL func_long

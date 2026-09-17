@@ -1,61 +1,69 @@
-.entry main
-.stack 0
-.vectors 0x0
 
+.linked "math.vml"
 .data
-flt_92980002: .word 0
-flt_92980005: .word 0
-flt_92980006: .word 0
-flt_92980010: .word 0
-flt_92980013: .word 0
-flt_92980015: .word 1056964608
-flt_92980016: .word 1056964608
-flt_92980022: .word 1056964608
-flt_92980031: .word 0
-flt_92980034: .word 0
-flt_92980037: .word 0
-flt_92980060: .word 1078530011
-flt_92980069: .word 0
-flt_92980075: .word 1070141403
-flt_92980084: .word 1078530011
-flt_92980089: .word 1065353216
-flt_92980090: .word 1065353216
-flt_92980104: .word 1065353216
-flt_92980107: .word 646978941
-flt_92980110: .word 646978941
-flt_92980111: .word 646978941
-flt_92980116: .word 1065353216
-flt_92980117: .word 0
-flt_92980119: .word 1065353216
-flt_92980120: .word 1065353216
-flt_92980134: .word 1065353216
-flt_92980141: .word 1073741824
-flt_92980144: .word 0
-flt_92980147: .word 0
-flt_92980148: .word 0
-flt_92980150: .word 1056964608
-flt_92980151: .word 1056964608
-flt_92980156: .word 1065353216
-flt_92980157: .word 0
-flt_92980162: .word 1056964608
-flt_92980163: .word 1056964608
-flt_92980169: .word 1056964608
-flt_92980182: .word 1056964608
-flt_92980183: .word 1056964608
-flt_92980189: .word 1056964608
+dbl_92980002: .dword 0
+dbl_92980005: .dword 0
+dbl_92980006: .dword 0
+dbl_92980010: .dword 0
+dbl_92980013: .dword 0
+dbl_92980015: .dword 4602678819172646912
+dbl_92980016: .dword 4602678819172646912
+dbl_92980022: .dword 4602678819172646912
+dbl_92980031: .dword 0
+dbl_92980034: .dword 0
+dbl_92980037: .dword 0
+dbl_92980060: .dword 4614256656552045848
+dbl_92980069: .dword 0
+dbl_92980075: .dword 4609753056924675349
+dbl_92980084: .dword 4614256656552045848
+dbl_92980089: .dword 4607182418800017408
+dbl_92980090: .dword 4607182418800017408
+dbl_92980104: .dword 4607182418800017408
+dbl_92980107: .dword 4382569440205035030
+dbl_92980110: .dword 4382569440205035030
+dbl_92980111: .dword 4382569440205035030
+dbl_92980116: .dword 4607182418800017408
+dbl_92980117: .dword 0
+dbl_92980119: .dword 4607182418800017408
+dbl_92980120: .dword 4607182418800017408
+dbl_92980134: .dword 4607182418800017408
+dbl_92980141: .dword 4611686018427387904
+dbl_92980144: .dword 0
+dbl_92980147: .dword 0
+dbl_92980148: .dword 0
+dbl_92980150: .dword 4602678819172646912
+dbl_92980151: .dword 4602678819172646912
+dbl_92980156: .dword 4607182418800017408
+dbl_92980157: .dword 0
+dbl_92980162: .dword 4602678819172646912
+dbl_92980163: .dword 4602678819172646912
+dbl_92980169: .dword 4602678819172646912
+dbl_92980182: .dword 4602678819172646912
+dbl_92980183: .dword 4602678819172646912
+dbl_92980189: .dword 4602678819172646912
 
 .text
+zadd:
+; -------------------------------------------
+; source   : void zadd(double* a,double* b,double* result)
+; function : zadd
+; param   : double* a
+; param   : double* b
+; param   : double* result
+; return   : void
+; --------------------------------------------
 zadd:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -63,7 +71,7 @@ zadd:
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dadd R0 R1 R0
         move R9 R0
@@ -73,14 +81,14 @@ zadd:
         mul R0 #8
         pop R8
         add R0 R8
-        moved @0 R9
+        moved [R0] R9
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R7
         add R0 R7
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -88,7 +96,7 @@ zadd:
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dadd R0 R1 R0
         move R5 R0
@@ -98,25 +106,32 @@ zadd:
         mul R0 #8
         pop R4
         add R0 R4
-        moved @0 R5
+        moved [R0] R5
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+zsub:
+; -------------------------------------------
+; source   : void zsub(double* a,double* b,double* result)
+; function : zsub
+; param   : double* a
+; param   : double* b
+; param   : double* result
+; return   : void
+; --------------------------------------------
 zsub:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R3
         add R0 R3
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -124,7 +139,7 @@ zsub:
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dsub R0 R1 R0
         move R1 R0
@@ -134,14 +149,14 @@ zsub:
         mul R0 #8
         pop R11
         add R0 R11
-        moved @0 R1
+        moved [R0] R1
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -149,7 +164,7 @@ zsub:
         mul R0 #8
         pop R8
         add R0 R8
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dsub R0 R1 R0
         move R9 R0
@@ -159,25 +174,32 @@ zsub:
         mul R0 #8
         pop R7
         add R0 R7
-        moved @0 R9
+        moved [R0] R9
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+zmul:
+; -------------------------------------------
+; source   : void zmul(double* a,double* b,double* result)
+; function : zmul
+; param   : double* a
+; param   : double* b
+; param   : double* result
+; return   : void
+; --------------------------------------------
 zmul:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -185,7 +207,7 @@ zmul:
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -195,7 +217,7 @@ zmul:
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -203,7 +225,7 @@ zmul:
         mul R0 #8
         pop R3
         add R0 R3
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
@@ -215,14 +237,14 @@ zmul:
         mul R0 #8
         pop R11
         add R0 R11
-        moved @0 R2
+        moved [R0] R2
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -230,7 +252,7 @@ zmul:
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -240,7 +262,7 @@ zmul:
         mul R0 #8
         pop R8
         add R0 R8
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -248,7 +270,7 @@ zmul:
         mul R0 #8
         pop R7
         add R0 R7
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
@@ -260,26 +282,32 @@ zmul:
         mul R0 #8
         pop R6
         add R0 R6
-        moved @0 R9
+        moved [R0] R9
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+zdiv:
+; -------------------------------------------
+; source   : void zdiv(double* a,double* b,double* result)
+; function : zdiv
+; param   : double* a
+; param   : double* b
+; param   : double* result
+; return   : void
+; --------------------------------------------
 zdiv:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 [R12+16]
         push R0
         move R0 #0
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -287,7 +315,7 @@ zdiv:
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -297,7 +325,7 @@ zdiv:
         mul R0 #8
         pop R3
         add R0 R3
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -305,15 +333,15 @@ zdiv:
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
         dadd R0 R1 R0
-        moved [R12-8] R0
-        moved R0 [R12-8]
+        moved [R12-12] R0
+        moved R0 [R12-12]
         dpush R0
-        movef R0 [flt_92980002]
+        moved R0 [dbl_92980002]
         dpop R1
         dcmp R1 R0
         je _L92980003
@@ -324,7 +352,7 @@ _L92980003:
 _L92980004:
         cmp R0 #0
         jz sta_92980000
-        movef R0 [flt_92980005]
+        moved R0 [dbl_92980005]
         move R2 R0
         move R0 [R12+20]
         push R0
@@ -332,8 +360,8 @@ _L92980004:
         mul R0 #8
         pop R1
         add R0 R1
-        moved @0 R2
-        movef R0 [flt_92980006]
+        moved [R0] R2
+        moved R0 [dbl_92980006]
         move R10 R0
         move R0 [R12+20]
         push R0
@@ -341,8 +369,8 @@ _L92980004:
         mul R0 #8
         pop R8
         add R0 R8
-        moved @0 R10
-        jmp L92980007
+        moved [R0] R10
+        jmp L_92980007
 sta_92980000:
 sta_92980001:
         move R0 [R12+12]
@@ -351,7 +379,7 @@ sta_92980001:
         mul R0 #8
         pop R7
         add R0 R7
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -359,7 +387,7 @@ sta_92980001:
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -369,7 +397,7 @@ sta_92980001:
         mul R0 #8
         pop R9
         add R0 R9
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -377,13 +405,13 @@ sta_92980001:
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
         dadd R0 R1 R0
         dpush R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpop R1
         ddiv R0 R1 R0
         move R5 R0
@@ -393,14 +421,14 @@ sta_92980001:
         mul R0 #8
         pop R3
         add R0 R3
-        moved @0 R5
+        moved [R0] R5
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -408,7 +436,7 @@ sta_92980001:
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -418,7 +446,7 @@ sta_92980001:
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+16]
         push R0
@@ -426,13 +454,13 @@ sta_92980001:
         mul R0 #8
         pop R8
         add R0 R8
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
         dsub R0 R1 R0
         dpush R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpop R1
         ddiv R0 R1 R0
         move R10 R0
@@ -442,27 +470,31 @@ sta_92980001:
         mul R0 #8
         pop R7
         add R0 R7
-        moved @0 R10
-L92980007:
+        moved [R0] R10
+L_92980007:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+zabs:
+; -------------------------------------------
+; source   : double zabs(double* z)
+; function : zabs
+; param   : double* z
+; return   : double
+; --------------------------------------------
 zabs:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
+        sub R13 #40
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -470,7 +502,7 @@ zabs:
         mul R0 #8
         pop R9
         add R0 R9
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -480,7 +512,7 @@ zabs:
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -488,15 +520,15 @@ zabs:
         mul R0 #8
         pop R3
         add R0 R3
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
         dadd R0 R1 R0
-        moved [R12-8] R0
-        moved R0 [R12-8]
+        moved [R12-12] R0
+        moved R0 [R12-12]
         dpush R0
-        movef R0 [flt_92980010]
+        moved R0 [dbl_92980010]
         dpop R1
         dcmp R1 R0
         jle _L92980011
@@ -507,24 +539,24 @@ _L92980011:
 _L92980012:
         cmp R0 #0
         jz sta_92980008
-        movef R0 [flt_92980013]
-        jmp L92980014
+        moved R0 [dbl_92980013]
+        jmp L_92980014
 sta_92980008:
 sta_92980009:
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpush R0
-        movef R0 [flt_92980015]
+        moved R0 [dbl_92980015]
         dpop R1
         dmul R0 R1 R0
         dpush R0
-        movef R0 [flt_92980016]
+        moved R0 [dbl_92980016]
         dpop R1
         dadd R0 R1 R0
-        moved [R12-16] R0
+        moved [R12-20] R0
         move R0 #0
-        move [R12-20] R0
+        move [R12-24] R0
 sta_92980017:
-        move R0 [R12-20]
+        move R0 [R12-24]
         push R0
         move R0 #15
         pop R1
@@ -537,23 +569,23 @@ _L92980020:
 _L92980021:
         cmp R0 #0
         jz sta_92980019
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpop R1
         ddiv R0 R1 R0
         dpop R1
         dadd R0 R1 R0
         dpush R0
-        movef R0 [flt_92980022]
+        moved R0 [dbl_92980022]
         dpop R1
         dmul R0 R1 R0
-        moved [R12-28] R0
-        moved R0 [R12-28]
+        moved [R12-32] R0
+        moved R0 [R12-32]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpop R1
         dcmp R1 R0
         jge _L92980025
@@ -564,44 +596,48 @@ _L92980025:
 _L92980026:
         cmp R0 #0
         jz sta_92980023
-        moved R0 [R12-16]
-        jmp L92980014
+        moved R0 [R12-20]
+        jmp L_92980014
 sta_92980023:
 sta_92980024:
-        moved R0 [R12-28]
-        moved [R12-16] R0
+        moved R0 [R12-32]
+        moved [R12-20] R0
 sta_92980018:
-        move R0 [R12-20]
+        move R0 [R12-24]
         move R1 R0
         add R0 R0 #1
-        move [R12-20] R0
+        move [R12-24] R0
         move R0 R1
         jmp sta_92980017
 sta_92980019:
-        moved R0 [R12-16]
-        jmp L92980014
-L92980014:
+        moved R0 [R12-20]
+        jmp L_92980014
+L_92980014:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+zarg:
+; -------------------------------------------
+; source   : double zarg(double* z)
+; function : zarg
+; param   : double* z
+; return   : double
+; --------------------------------------------
 zarg:
         push R15
         push R12
         move R12 R13
-        sub R13 #68
+        sub R13 #72
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
-        movef R0 [flt_92980031]
+        moved R0 [dbl_92980031]
         dpop R1
         dcmp R1 R0
         je _L92980032
@@ -618,9 +654,9 @@ _L92980033:
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
-        movef R0 [flt_92980034]
+        moved R0 [dbl_92980034]
         dpop R1
         dcmp R1 R0
         je _L92980035
@@ -638,8 +674,8 @@ _L92980029:
 _L92980030:
         cmp R0 #0
         jz sta_92980027
-        movef R0 [flt_92980037]
-        jmp L92980038
+        moved R0 [dbl_92980037]
+        jmp L_92980038
 sta_92980027:
 sta_92980028:
         move R0 [R12+12]
@@ -648,17 +684,17 @@ sta_92980028:
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
-        moved [R12-8] R0
+        moved R0 [R0]
+        moved [R12-12] R0
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
-        moved [R12-16] R0
-        moved R0 [R12-8]
+        moved R0 [R0]
+        moved [R12-20] R0
+        moved R0 [R12-12]
         dpush R0
         move R0 #0
         i2d R0 R0
@@ -672,15 +708,15 @@ _L92980039:
 _L92980040:
         test R0 R0
         jz _L92980041
-        moved R0 [R12-8]
-        moved R0 [R12-8]
+        moved R0 [R12-12]
+        moved R0 [R12-12]
         dneg R0 R0
         jmp _L92980042
 _L92980041:
-        moved R0 [R12-8]
+        moved R0 [R12-12]
 _L92980042:
-        moved [R12-24] R0
-        moved R0 [R12-16]
+        moved [R12-28] R0
+        moved R0 [R12-20]
         dpush R0
         move R0 #0
         i2d R0 R0
@@ -694,17 +730,17 @@ _L92980043:
 _L92980044:
         test R0 R0
         jz _L92980045
-        moved R0 [R12-16]
-        moved R0 [R12-16]
+        moved R0 [R12-20]
+        moved R0 [R12-20]
         dneg R0 R0
         jmp _L92980046
 _L92980045:
-        moved R0 [R12-16]
+        moved R0 [R12-20]
 _L92980046:
-        moved [R12-32] R0
-        moved R0 [R12-32]
+        moved [R12-36] R0
+        moved R0 [R12-36]
         dpush R0
-        moved R0 [R12-24]
+        moved R0 [R12-28]
         dpop R1
         dcmp R1 R0
         jg _L92980049
@@ -715,20 +751,20 @@ _L92980049:
 _L92980050:
         cmp R0 #0
         jz sta_92980047
-        moved R0 [R12-24]
+        moved R0 [R12-28]
         dpush R0
-        moved R0 [R12-32]
+        moved R0 [R12-36]
         dpop R1
         ddiv R0 R1 R0
-        moved [R12-40] R0
-        moved R0 [R12-40]
-        moved [R12-48] R0
-        moved R0 [R12-40]
-        moved [R12-56] R0
+        moved [R12-44] R0
+        moved R0 [R12-44]
+        moved [R12-52] R0
+        moved R0 [R12-44]
+        moved [R12-60] R0
         move R0 #1
-        move [R12-60] R0
+        move [R12-64] R0
 sta_92980051:
-        move R0 [R12-60]
+        move R0 [R12-64]
         push R0
         move R0 #15
         pop R1
@@ -741,19 +777,19 @@ _L92980054:
 _L92980055:
         cmp R0 #0
         jz sta_92980053
-        moved R0 [R12-48]
+        moved R0 [R12-52]
         dpush R0
-        moved R0 [R12-40]
-        moved R0 [R12-40]
+        moved R0 [R12-44]
+        moved R0 [R12-44]
         dneg R0 R0
         dpush R0
-        moved R0 [R12-40]
+        moved R0 [R12-44]
         dpop R1
         dmul R0 R1 R0
         dpush R0
         move R0 #2
         push R0
-        move R0 [R12-60]
+        move R0 [R12-64]
         pop R1
         mul R1 R0
         move R0 R1
@@ -768,7 +804,7 @@ _L92980055:
         dpush R0
         move R0 #2
         push R0
-        move R0 [R12-60]
+        move R0 [R12-64]
         pop R1
         mul R1 R0
         move R0 R1
@@ -782,24 +818,24 @@ _L92980055:
         ddiv R0 R1 R0
         dpop R1
         dmul R0 R1 R0
-        moved [R12-48] R0
-        moved R0 [R12-56]
+        moved [R12-52] R0
+        moved R0 [R12-60]
         dpush R0
-        moved R0 [R12-48]
+        moved R0 [R12-52]
         dpop R1
         dadd R0 R1 R0
-        moved [R12-56] R0
+        moved [R12-60] R0
 sta_92980052:
-        move R0 [R12-60]
+        move R0 [R12-64]
         move R1 R0
         add R0 R0 #1
-        move [R12-60] R0
+        move [R12-64] R0
         move R0 R1
         jmp sta_92980051
 sta_92980053:
-        moved R0 [R12-56]
-        moved [R12-40] R0
-        moved R0 [R12-16]
+        moved R0 [R12-60]
+        moved [R12-44] R0
+        moved R0 [R12-20]
         dpush R0
         move R0 #0
         i2d R0 R0
@@ -813,15 +849,15 @@ _L92980058:
 _L92980059:
         cmp R0 #0
         jz sta_92980056
-        movef R0 [flt_92980060]
+        moved R0 [dbl_92980060]
         dpush R0
-        moved R0 [R12-40]
+        moved R0 [R12-44]
         dpop R1
         dsub R0 R1 R0
-        moved [R12-40] R0
+        moved [R12-44] R0
 sta_92980056:
 sta_92980057:
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpush R0
         move R0 #0
         i2d R0 R0
@@ -835,15 +871,15 @@ _L92980063:
 _L92980064:
         cmp R0 #0
         jz sta_92980061
-        moved R0 [R12-40]
-        moved R0 [R12-40]
+        moved R0 [R12-44]
+        moved R0 [R12-44]
         dneg R0 R0
-        moved [R12-40] R0
+        moved [R12-44] R0
 sta_92980061:
 sta_92980062:
         jmp sta_92980048
 sta_92980047:
-        moved R0 [R12-24]
+        moved R0 [R12-28]
         dpush R0
         move R0 #0
         i2d R0 R0
@@ -857,24 +893,24 @@ _L92980067:
 _L92980068:
         cmp R0 #0
         jz sta_92980065
-        movef R0 [flt_92980069]
-        jmp L92980038
+        moved R0 [dbl_92980069]
+        jmp L_92980038
 sta_92980065:
 sta_92980066:
-        moved R0 [R12-32]
+        moved R0 [R12-36]
         dpush R0
-        moved R0 [R12-24]
+        moved R0 [R12-28]
         dpop R1
         ddiv R0 R1 R0
-        moved [R12-40] R0
-        moved R0 [R12-40]
-        moved [R12-48] R0
-        moved R0 [R12-40]
-        moved [R12-56] R0
+        moved [R12-44] R0
+        moved R0 [R12-44]
+        moved [R12-52] R0
+        moved R0 [R12-44]
+        moved [R12-60] R0
         move R0 #1
-        move [R12-60] R0
+        move [R12-64] R0
 sta_92980070:
-        move R0 [R12-60]
+        move R0 [R12-64]
         push R0
         move R0 #15
         pop R1
@@ -887,19 +923,19 @@ _L92980073:
 _L92980074:
         cmp R0 #0
         jz sta_92980072
-        moved R0 [R12-48]
+        moved R0 [R12-52]
         dpush R0
-        moved R0 [R12-40]
-        moved R0 [R12-40]
+        moved R0 [R12-44]
+        moved R0 [R12-44]
         dneg R0 R0
         dpush R0
-        moved R0 [R12-40]
+        moved R0 [R12-44]
         dpop R1
         dmul R0 R1 R0
         dpush R0
         move R0 #2
         push R0
-        move R0 [R12-60]
+        move R0 [R12-64]
         pop R1
         mul R1 R0
         move R0 R1
@@ -914,7 +950,7 @@ _L92980074:
         dpush R0
         move R0 #2
         push R0
-        move R0 [R12-60]
+        move R0 [R12-64]
         pop R1
         mul R1 R0
         move R0 R1
@@ -928,28 +964,28 @@ _L92980074:
         ddiv R0 R1 R0
         dpop R1
         dmul R0 R1 R0
-        moved [R12-48] R0
-        moved R0 [R12-56]
+        moved [R12-52] R0
+        moved R0 [R12-60]
         dpush R0
-        moved R0 [R12-48]
+        moved R0 [R12-52]
         dpop R1
         dadd R0 R1 R0
-        moved [R12-56] R0
+        moved [R12-60] R0
 sta_92980071:
-        move R0 [R12-60]
+        move R0 [R12-64]
         move R1 R0
         add R0 R0 #1
-        move [R12-60] R0
+        move [R12-64] R0
         move R0 R1
         jmp sta_92980070
 sta_92980072:
-        movef R0 [flt_92980075]
+        moved R0 [dbl_92980075]
         dpush R0
-        moved R0 [R12-56]
+        moved R0 [R12-60]
         dpop R1
         dsub R0 R1 R0
-        moved [R12-40] R0
-        moved R0 [R12-8]
+        moved [R12-44] R0
+        moved R0 [R12-12]
         dpush R0
         move R0 #0
         i2d R0 R0
@@ -963,13 +999,13 @@ _L92980078:
 _L92980079:
         cmp R0 #0
         jz sta_92980076
-        moved R0 [R12-40]
-        moved R0 [R12-40]
+        moved R0 [R12-44]
+        moved R0 [R12-44]
         dneg R0 R0
-        moved [R12-40] R0
+        moved [R12-44] R0
 sta_92980076:
 sta_92980077:
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
         move R0 #0
         i2d R0 R0
@@ -983,9 +1019,9 @@ _L92980082:
 _L92980083:
         cmp R0 #0
         jz sta_92980080
-        movef R0 [flt_92980084]
+        moved R0 [dbl_92980084]
         dpush R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpush R0
         move R0 #0
         i2d R0 R0
@@ -999,40 +1035,46 @@ _L92980085:
 _L92980086:
         test R0 R0
         jz _L92980087
-        moved R0 [R12-40]
+        moved R0 [R12-44]
         jmp _L92980088
 _L92980087:
-        moved R0 [R12-40]
-        moved R0 [R12-40]
+        moved R0 [R12-44]
+        moved R0 [R12-44]
         dneg R0 R0
 _L92980088:
         dpop R1
         dsub R0 R1 R0
-        moved [R12-40] R0
+        moved [R12-44] R0
 sta_92980080:
 sta_92980081:
 sta_92980048:
-        moved R0 [R12-40]
-        jmp L92980038
-L92980038:
+        moved R0 [R12-44]
+        jmp L_92980038
+L_92980038:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+zconj:
+; -------------------------------------------
+; source   : void zconj(double* a,double* result)
+; function : zconj
+; param   : double* a
+; param   : double* result
+; return   : void
+; --------------------------------------------
 zconj:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R8
         add R0 R8
-        moved R0 @0
+        moved R0 [R0]
         move R7 R0
         move R0 [R12+16]
         push R0
@@ -1040,21 +1082,21 @@ zconj:
         mul R0 #8
         pop R10
         add R0 R10
-        moved @0 R7
+        moved [R0] R7
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R9
         add R0 R9
-        moved R0 @0
+        moved R0 [R0]
         dneg R0 R0
         move R4 R0
         move R0 [R12+16]
@@ -1063,32 +1105,38 @@ zconj:
         mul R0 #8
         pop R3
         add R0 R3
-        moved @0 R4
+        moved [R0] R4
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+zneg:
+; -------------------------------------------
+; source   : void zneg(double* a,double* result)
+; function : zneg
+; param   : double* a
+; param   : double* result
+; return   : void
+; --------------------------------------------
 zneg:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R11
         add R0 R11
-        moved R0 @0
+        moved R0 [R0]
         dneg R0 R0
         move R1 R0
         move R0 [R12+16]
@@ -1097,21 +1145,21 @@ zneg:
         mul R0 #8
         pop R2
         add R0 R2
-        moved @0 R1
+        moved [R0] R1
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R8
         add R0 R8
-        moved R0 @0
+        moved R0 [R0]
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dneg R0 R0
         move R7 R0
         move R0 [R12+16]
@@ -1120,26 +1168,31 @@ zneg:
         mul R0 #8
         pop R6
         add R0 R6
-        moved @0 R7
+        moved [R0] R7
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+zexp_re:
+; -------------------------------------------
+; source   : double zexp_re(double re,double im)
+; function : zexp_re
+; param   : double re
+; param   : double im
+; return   : double
+; --------------------------------------------
 zexp_re:
         push R15
         push R12
         move R12 R13
-        sub R13 #36
-        movef R0 [flt_92980089]
-        moved [R12-8] R0
-        movef R0 [flt_92980090]
-        moved [R12-16] R0
+        sub R13 #40
+        moved R0 [dbl_92980089]
+        moved [R12-12] R0
+        moved R0 [dbl_92980090]
+        moved [R12-20] R0
         moved R0 [R12+12]
-        moved [R12-28] R0
-        moved R0 [R12-28]
+        moved [R12-32] R0
+        moved R0 [R12-32]
         dpush R0
         move R0 #0
         i2d R0 R0
@@ -1153,16 +1206,16 @@ _L92980093:
 _L92980094:
         cmp R0 #0
         jz sta_92980091
-        moved R0 [R12-28]
-        moved R0 [R12-28]
+        moved R0 [R12-32]
+        moved R0 [R12-32]
         dneg R0 R0
-        moved [R12-28] R0
+        moved [R12-32] R0
 sta_92980091:
 sta_92980092:
         move R0 #1
-        move [R12-20] R0
+        move [R12-24] R0
 sta_92980095:
-        move R0 [R12-20]
+        move R0 [R12-24]
         push R0
         move R0 #20
         pop R1
@@ -1175,28 +1228,28 @@ _L92980098:
 _L92980099:
         cmp R0 #0
         jz sta_92980097
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
-        moved R0 [R12-28]
+        moved R0 [R12-32]
         dpush R0
-        move R0 [R12-20]
+        move R0 [R12-24]
         i2d R0 R0
         dpop R1
         ddiv R0 R1 R0
         dpop R1
         dmul R0 R1 R0
-        moved [R12-16] R0
-        moved R0 [R12-8]
+        moved [R12-20] R0
+        moved R0 [R12-12]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpop R1
         dadd R0 R1 R0
-        moved [R12-8] R0
+        moved [R12-12] R0
 sta_92980096:
-        move R0 [R12-20]
+        move R0 [R12-24]
         move R1 R0
         add R0 R0 #1
-        move [R12-20] R0
+        move [R12-24] R0
         move R0 R1
         jmp sta_92980095
 sta_92980097:
@@ -1214,19 +1267,19 @@ _L92980102:
 _L92980103:
         cmp R0 #0
         jz sta_92980100
-        movef R0 [flt_92980104]
+        moved R0 [dbl_92980104]
         dpush R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpop R1
         ddiv R0 R1 R0
-        moved [R12-8] R0
+        moved [R12-12] R0
 sta_92980100:
 sta_92980101:
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpush R0
         moved R0 [R12+20]
         dpush R0
-        movef R0 [flt_92980107]
+        moved R0 [dbl_92980107]
         dpop R1
         dcmp R1 R0
         jl _L92980108
@@ -1239,8 +1292,8 @@ _L92980109:
         jz _L92980105
         moved R0 [R12+20]
         dpush R0
-        movef R0 [flt_92980110]
-        movef R0 [flt_92980111]
+        moved R0 [dbl_92980110]
+        moved R0 [dbl_92980111]
         dneg R0 R0
         dpop R1
         dcmp R1 R0
@@ -1259,34 +1312,39 @@ _L92980105:
 _L92980106:
         test R0 R0
         jz _L92980114
-        movef R0 [flt_92980116]
+        moved R0 [dbl_92980116]
         jmp _L92980115
 _L92980114:
-        movef R0 [flt_92980117]
+        moved R0 [dbl_92980117]
 _L92980115:
         dpop R1
         dmul R0 R1 R0
-        jmp L92980118
-L92980118:
+        jmp L_92980118
+L_92980118:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+zexp_im:
+; -------------------------------------------
+; source   : double zexp_im(double re,double im)
+; function : zexp_im
+; param   : double re
+; param   : double im
+; return   : double
+; --------------------------------------------
 zexp_im:
         push R15
         push R12
         move R12 R13
-        sub R13 #52
-        movef R0 [flt_92980119]
-        moved [R12-8] R0
-        movef R0 [flt_92980120]
-        moved [R12-16] R0
+        sub R13 #56
+        moved R0 [dbl_92980119]
+        moved [R12-12] R0
+        moved R0 [dbl_92980120]
+        moved [R12-20] R0
         moved R0 [R12+12]
-        moved [R12-28] R0
-        moved R0 [R12-28]
+        moved [R12-32] R0
+        moved R0 [R12-32]
         dpush R0
         move R0 #0
         i2d R0 R0
@@ -1300,16 +1358,16 @@ _L92980123:
 _L92980124:
         cmp R0 #0
         jz sta_92980121
-        moved R0 [R12-28]
-        moved R0 [R12-28]
+        moved R0 [R12-32]
+        moved R0 [R12-32]
         dneg R0 R0
-        moved [R12-28] R0
+        moved [R12-32] R0
 sta_92980121:
 sta_92980122:
         move R0 #1
-        move [R12-20] R0
+        move [R12-24] R0
 sta_92980125:
-        move R0 [R12-20]
+        move R0 [R12-24]
         push R0
         move R0 #20
         pop R1
@@ -1322,28 +1380,28 @@ _L92980128:
 _L92980129:
         cmp R0 #0
         jz sta_92980127
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
-        moved R0 [R12-28]
+        moved R0 [R12-32]
         dpush R0
-        move R0 [R12-20]
+        move R0 [R12-24]
         i2d R0 R0
         dpop R1
         ddiv R0 R1 R0
         dpop R1
         dmul R0 R1 R0
-        moved [R12-16] R0
-        moved R0 [R12-8]
+        moved [R12-20] R0
+        moved R0 [R12-12]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpop R1
         dadd R0 R1 R0
-        moved [R12-8] R0
+        moved [R12-12] R0
 sta_92980126:
-        move R0 [R12-20]
+        move R0 [R12-24]
         move R1 R0
         add R0 R0 #1
-        move [R12-20] R0
+        move [R12-24] R0
         move R0 R1
         jmp sta_92980125
 sta_92980127:
@@ -1361,22 +1419,22 @@ _L92980132:
 _L92980133:
         cmp R0 #0
         jz sta_92980130
-        movef R0 [flt_92980134]
+        moved R0 [dbl_92980134]
         dpush R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpop R1
         ddiv R0 R1 R0
-        moved [R12-8] R0
+        moved [R12-12] R0
 sta_92980130:
 sta_92980131:
         moved R0 [R12+20]
-        moved [R12-36] R0
+        moved [R12-40] R0
         moved R0 [R12+20]
-        moved [R12-44] R0
+        moved [R12-48] R0
         move R0 #1
-        move [R12-20] R0
+        move [R12-24] R0
 sta_92980135:
-        move R0 [R12-20]
+        move R0 [R12-24]
         push R0
         move R0 #12
         pop R1
@@ -1389,7 +1447,7 @@ _L92980138:
 _L92980139:
         cmp R0 #0
         jz sta_92980137
-        moved R0 [R12-44]
+        moved R0 [R12-48]
         dpush R0
         moved R0 [R12+20]
         moved R0 [R12+20]
@@ -1401,14 +1459,14 @@ _L92980139:
         dpush R0
         move R0 #2
         push R0
-        move R0 [R12-20]
+        move R0 [R12-24]
         pop R1
         mul R1 R0
         move R0 R1
         push R0
         move R0 #2
         push R0
-        move R0 [R12-20]
+        move R0 [R12-24]
         pop R1
         mul R1 R0
         move R0 R1
@@ -1425,46 +1483,52 @@ _L92980139:
         ddiv R0 R1 R0
         dpop R1
         dmul R0 R1 R0
-        moved [R12-44] R0
-        moved R0 [R12-36]
+        moved [R12-48] R0
+        moved R0 [R12-40]
         dpush R0
-        moved R0 [R12-44]
+        moved R0 [R12-48]
         dpop R1
         dadd R0 R1 R0
-        moved [R12-36] R0
+        moved [R12-40] R0
 sta_92980136:
-        move R0 [R12-20]
+        move R0 [R12-24]
         move R1 R0
         add R0 R0 #1
-        move [R12-20] R0
+        move [R12-24] R0
         move R0 R1
         jmp sta_92980135
 sta_92980137:
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpush R0
-        moved R0 [R12-36]
+        moved R0 [R12-40]
         dpop R1
         dmul R0 R1 R0
-        jmp L92980140
-L92980140:
+        jmp L_92980140
+L_92980140:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+zsqr:
+; -------------------------------------------
+; source   : void zsqr(double* a,double* result)
+; function : zsqr
+; param   : double* a
+; param   : double* result
+; return   : void
+; --------------------------------------------
 zsqr:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
         mul R0 #8
         pop R9
         add R0 R9
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -1472,7 +1536,7 @@ zsqr:
         mul R0 #8
         pop R3
         add R0 R3
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -1482,7 +1546,7 @@ zsqr:
         mul R0 #8
         pop R4
         add R0 R4
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -1490,7 +1554,7 @@ zsqr:
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpop R1
@@ -1502,8 +1566,8 @@ zsqr:
         mul R0 #8
         pop R2
         add R0 R2
-        moved @0 R11
-        movef R0 [flt_92980141]
+        moved [R0] R11
+        moved R0 [dbl_92980141]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -1511,7 +1575,7 @@ zsqr:
         mul R0 #8
         pop R1
         add R0 R1
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         dpush R0
@@ -1521,7 +1585,7 @@ zsqr:
         mul R0 #8
         pop R8
         add R0 R8
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dmul R0 R1 R0
         move R10 R0
@@ -1531,26 +1595,34 @@ zsqr:
         mul R0 #8
         pop R6
         add R0 R6
-        moved @0 R10
+        moved [R0] R10
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+zsqrt:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : void zsqrt(double* z,double* result)
+; function : zsqrt
+; param   : double* z
+; param   : double* result
+; return   : void
+; --------------------------------------------
 zsqrt:
         push R15
         push R12
         move R12 R13
-        sub R13 #56
+        sub R13 #60
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call zabs
-        moved [R12-8] R0
-        moved R0 [R12-8]
+        add R13 #4
+        moved [R12-12] R0
+        moved R0 [R12-12]
         dpush R0
-        movef R0 [flt_92980144]
+        moved R0 [dbl_92980144]
         dpop R1
         dcmp R1 R0
         je _L92980145
@@ -1561,7 +1633,7 @@ _L92980145:
 _L92980146:
         cmp R0 #0
         jz sta_92980142
-        movef R0 [flt_92980147]
+        moved R0 [dbl_92980147]
         move R7 R0
         move R0 [R12+16]
         push R0
@@ -1569,8 +1641,8 @@ _L92980146:
         mul R0 #8
         pop R9
         add R0 R9
-        moved @0 R7
-        movef R0 [flt_92980148]
+        moved [R0] R7
+        moved R0 [dbl_92980148]
         move R3 R0
         move R0 [R12+16]
         push R0
@@ -1578,8 +1650,8 @@ _L92980146:
         mul R0 #8
         pop R4
         add R0 R4
-        moved @0 R3
-        jmp L92980149
+        moved [R0] R3
+        jmp L_92980149
 sta_92980142:
 sta_92980143:
         move R0 [R12+12]
@@ -1588,17 +1660,17 @@ sta_92980143:
         mul R0 #8
         pop R5
         add R0 R5
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
-        moved R0 [R12-8]
+        moved R0 [R12-12]
         dpop R1
         dadd R0 R1 R0
         dpush R0
-        movef R0 [flt_92980150]
+        moved R0 [dbl_92980150]
         dpop R1
         dmul R0 R1 R0
-        moved [R12-16] R0
-        moved R0 [R12-8]
+        moved [R12-20] R0
+        moved R0 [R12-12]
         dpush R0
         move R0 [R12+12]
         push R0
@@ -1606,15 +1678,15 @@ sta_92980143:
         mul R0 #8
         pop R2
         add R0 R2
-        moved R0 @0
+        moved R0 [R0]
         dpop R1
         dsub R0 R1 R0
         dpush R0
-        movef R0 [flt_92980151]
+        moved R0 [dbl_92980151]
         dpop R1
         dmul R0 R1 R0
-        moved [R12-24] R0
-        moved R0 [R12-16]
+        moved [R12-28] R0
+        moved R0 [R12-20]
         dpush R0
         move R0 #0
         i2d R0 R0
@@ -1628,13 +1700,13 @@ _L92980152:
 _L92980153:
         test R0 R0
         jz _L92980154
-        movef R0 [flt_92980156]
+        moved R0 [dbl_92980156]
         jmp _L92980155
 _L92980154:
-        movef R0 [flt_92980157]
+        moved R0 [dbl_92980157]
 _L92980155:
-        moved [R12-32] R0
-        moved R0 [R12-16]
+        moved [R12-36] R0
+        moved R0 [R12-20]
         dpush R0
         move R0 #0
         i2d R0 R0
@@ -1650,27 +1722,27 @@ _L92980161:
         jz sta_92980158
         move R0 #0
         i2d R0 R0
-        moved [R12-16] R0
+        moved [R12-20] R0
         move R0 #0
         i2d R0 R0
-        moved [R12-32] R0
+        moved [R12-36] R0
 sta_92980158:
 sta_92980159:
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
-        movef R0 [flt_92980162]
+        moved R0 [dbl_92980162]
         dpop R1
         dmul R0 R1 R0
         dpush R0
-        movef R0 [flt_92980163]
+        moved R0 [dbl_92980163]
         dpop R1
         dadd R0 R1 R0
-        moved [R12-32] R0
+        moved [R12-36] R0
         move R0 #0
         i2d R0 R0
-        moved [R12-40] R0
+        moved [R12-44] R0
 sta_92980164:
-        moved R0 [R12-40]
+        moved R0 [R12-44]
         dpush R0
         move R0 #15
         i2d R0 R0
@@ -1684,23 +1756,23 @@ _L92980167:
 _L92980168:
         cmp R0 #0
         jz sta_92980166
-        moved R0 [R12-32]
+        moved R0 [R12-36]
         dpush R0
-        moved R0 [R12-16]
+        moved R0 [R12-20]
         dpush R0
-        moved R0 [R12-32]
+        moved R0 [R12-36]
         dpop R1
         ddiv R0 R1 R0
         dpop R1
         dadd R0 R1 R0
         dpush R0
-        movef R0 [flt_92980169]
+        moved R0 [dbl_92980169]
         dpop R1
         dmul R0 R1 R0
-        moved [R12-48] R0
-        moved R0 [R12-48]
+        moved [R12-52] R0
+        moved R0 [R12-52]
         dpush R0
-        moved R0 [R12-32]
+        moved R0 [R12-36]
         dpop R1
         dcmp R1 R0
         jge _L92980172
@@ -1714,17 +1786,17 @@ _L92980173:
         jmp sta_92980166
 sta_92980170:
 sta_92980171:
-        moved R0 [R12-48]
-        moved [R12-32] R0
+        moved R0 [R12-52]
+        moved [R12-36] R0
 sta_92980165:
-        moved R0 [R12-40]
+        moved R0 [R12-44]
         moved R1 R0
         add R0 R0 #1
-        moved [R12-40] R0
+        moved [R12-44] R0
         moved R0 R1
         jmp sta_92980164
 sta_92980166:
-        moved R0 [R12-32]
+        moved R0 [R12-36]
         move R11 R0
         move R0 [R12+16]
         push R0
@@ -1732,14 +1804,14 @@ sta_92980166:
         mul R0 #8
         pop R1
         add R0 R1
-        moved @0 R11
+        moved [R0] R11
         move R0 [R12+12]
         push R0
         move R0 #1
         mul R0 #8
         pop R8
         add R0 R8
-        moved R0 @0
+        moved R0 [R0]
         dpush R0
         move R0 #0
         i2d R0 R0
@@ -1759,14 +1831,14 @@ _L92980177:
         mul R0 #8
         pop R6
         add R0 R6
-        moved R0 @0
+        moved R0 [R0]
         move R0 [R12+16]
         push R0
         move R0 #0
         mul R0 #8
         pop R10
         add R0 R10
-        moved R0 @0
+        moved R0 [R0]
         dneg R0 R0
         move R9 R0
         move R0 [R12+16]
@@ -1775,10 +1847,10 @@ _L92980177:
         mul R0 #8
         pop R7
         add R0 R7
-        moved @0 R9
+        moved [R0] R9
 sta_92980174:
 sta_92980175:
-        moved R0 [R12-24]
+        moved R0 [R12-28]
         dpush R0
         move R0 #0
         i2d R0 R0
@@ -1800,25 +1872,25 @@ _L92980181:
         mul R0 #8
         pop R3
         add R0 R3
-        moved @0 R4
-        jmp L92980149
+        moved [R0] R4
+        jmp L_92980149
 sta_92980178:
 sta_92980179:
-        moved R0 [R12-24]
+        moved R0 [R12-28]
         dpush R0
-        movef R0 [flt_92980182]
+        moved R0 [dbl_92980182]
         dpop R1
         dmul R0 R1 R0
         dpush R0
-        movef R0 [flt_92980183]
+        moved R0 [dbl_92980183]
         dpop R1
         dadd R0 R1 R0
-        moved [R12-32] R0
+        moved [R12-36] R0
         move R0 #0
         i2d R0 R0
-        moved [R12-40] R0
+        moved [R12-44] R0
 sta_92980184:
-        moved R0 [R12-40]
+        moved R0 [R12-44]
         dpush R0
         move R0 #15
         i2d R0 R0
@@ -1832,23 +1904,23 @@ _L92980187:
 _L92980188:
         cmp R0 #0
         jz sta_92980186
-        moved R0 [R12-32]
+        moved R0 [R12-36]
         dpush R0
-        moved R0 [R12-24]
+        moved R0 [R12-28]
         dpush R0
-        moved R0 [R12-32]
+        moved R0 [R12-36]
         dpop R1
         ddiv R0 R1 R0
         dpop R1
         dadd R0 R1 R0
         dpush R0
-        movef R0 [flt_92980189]
+        moved R0 [dbl_92980189]
         dpop R1
         dmul R0 R1 R0
-        moved [R12-48] R0
-        moved R0 [R12-48]
+        moved [R12-52] R0
+        moved R0 [R12-52]
         dpush R0
-        moved R0 [R12-32]
+        moved R0 [R12-36]
         dpop R1
         dcmp R1 R0
         jge _L92980192
@@ -1862,17 +1934,17 @@ _L92980193:
         jmp sta_92980186
 sta_92980190:
 sta_92980191:
-        moved R0 [R12-48]
-        moved [R12-32] R0
+        moved R0 [R12-52]
+        moved [R12-36] R0
 sta_92980185:
-        moved R0 [R12-40]
+        moved R0 [R12-44]
         moved R1 R0
         add R0 R0 #1
-        moved [R12-40] R0
+        moved [R12-44] R0
         moved R0 R1
         jmp sta_92980184
 sta_92980186:
-        moved R0 [R12-32]
+        moved R0 [R12-36]
         move R5 R0
         move R0 [R12+16]
         push R0
@@ -1880,12 +1952,9 @@ sta_92980186:
         mul R0 #8
         pop R2
         add R0 R2
-        moved @0 R5
-L92980149:
+        moved [R0] R5
+L_92980149:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret

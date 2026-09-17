@@ -14,34 +14,40 @@ LABEL strcpy
     PUSH R1
     PUSH R0
     CALL strcpy
+    ADD R13 #8
     RET
 
 LABEL strcat
     PUSH R1
     PUSH R0
     CALL strcat
+    ADD R13 #8
     RET
 
 LABEL strlen
     PUSH R0
     CALL strlen
+    ADD R13 #4
     RET
 
 LABEL strLen
     PUSH R0
     CALL str_len
+    ADD R13 #4
     RET
 
 LABEL strCmp
     PUSH R1
     PUSH R0
     CALL str_cmp
+    ADD R13 #8
     RET
 
 LABEL strcmp
     PUSH R1
     PUSH R0
     CALL strcmp
+    ADD R13 #8
     RET
 
 LABEL strncmp
@@ -49,6 +55,7 @@ LABEL strncmp
     PUSH R1
     PUSH R0
     CALL strncmp
+    ADD R13 #12
     RET
 
 LABEL strchr
@@ -77,6 +84,7 @@ LABEL strrev
     PUSH R1
     PUSH R0
     CALL strrev
+    ADD R13 #8
     RET
 
 LABEL uppercase
@@ -89,6 +97,7 @@ LABEL strToupper
     PUSH R1
     PUSH R0
     CALL str_toupper
+    ADD R13 #8
     RET
 
 LABEL lowercase
@@ -101,6 +110,7 @@ LABEL strTolower
     PUSH R1
     PUSH R0
     CALL str_tolower
+    ADD R13 #8
     RET
 
 LABEL strRepeat
@@ -108,12 +118,14 @@ LABEL strRepeat
     PUSH R1
     PUSH R0
     CALL str_repeat
+    ADD R13 #12
     RET
 
 LABEL strContains
     PUSH R1
     PUSH R0
     CALL str_contains
+    ADD R13 #8
     RET
 
 LABEL whitespace
@@ -129,6 +141,7 @@ LABEL strTrim
     PUSH R1
     PUSH R0
     CALL str_trim
+    ADD R13 #8
     RET
 
 LABEL strSubstr
@@ -137,12 +150,14 @@ LABEL strSubstr
     PUSH R1
     PUSH R0
     CALL str_substr
+    ADD R13 #16
     RET
 
 LABEL strIndexof
     PUSH R1
     PUSH R0
     CALL str_indexof
+    ADD R13 #8
     RET
 
 LABEL parts
@@ -157,6 +172,7 @@ LABEL strSplit
     PUSH R1
     PUSH R0
     CALL str_split
+    ADD R13 #16
     RET
 
 LABEL strPadstart
@@ -165,6 +181,7 @@ LABEL strPadstart
     PUSH R1
     PUSH R0
     CALL str_padstart
+    ADD R13 #16
     RET
 
 LABEL strPadend
@@ -173,24 +190,28 @@ LABEL strPadend
     PUSH R1
     PUSH R0
     CALL str_padend
+    ADD R13 #16
     RET
 
 LABEL strCharat
     PUSH R1
     PUSH R0
     CALL str_charat
+    ADD R13 #8
     RET
 
 LABEL strStartswith
     PUSH R1
     PUSH R0
     CALL str_startswith
+    ADD R13 #8
     RET
 
 LABEL strEndswith
     PUSH R1
     PUSH R0
     CALL str_endswith
+    ADD R13 #8
     RET
 
 LABEL String_String

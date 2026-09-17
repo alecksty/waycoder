@@ -21,6 +21,7 @@ LABEL lmemcpy
     PUSH R1
     PUSH R0
     CALL lmemcpy
+    ADD R13 #16
     RET
 
 LABEL lmemset
@@ -29,6 +30,7 @@ LABEL lmemset
     PUSH R1
     PUSH R0
     CALL lmemset
+    ADD R13 #16
     RET
 
 LABEL lmemmove
@@ -37,6 +39,7 @@ LABEL lmemmove
     PUSH R1
     PUSH R0
     CALL lmemmove
+    ADD R13 #16
     RET
 
 LABEL lmemcmp
@@ -45,6 +48,7 @@ LABEL lmemcmp
     PUSH R1
     PUSH R0
     CALL lmemcmp
+    ADD R13 #16
     RET
 
 LABEL Memory64_Long

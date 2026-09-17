@@ -15,6 +15,7 @@ LABEL BASIC_LMOVING_AVG_INIT64
     sub R13 #8
     movel @13 R0
     CALL lmoving_avg_init64
+    ADD R13 #16
     RET
 
 LABEL BASIC_LMOVING_AVG_UPDATE64
@@ -22,11 +23,13 @@ LABEL BASIC_LMOVING_AVG_UPDATE64
     movel @13 R1
     PUSH R0
     CALL lmoving_avg_update64
+    ADD R13 #12
     RET
 
 LABEL BASIC_LEMA_INIT64
     PUSH R0
     CALL lema_init64
+    ADD R13 #4
     RET
 
 LABEL BASIC_LEMA_UPDATE64
@@ -36,6 +39,7 @@ LABEL BASIC_LEMA_UPDATE64
     movel @13 R1
     PUSH R0
     CALL lema_update64
+    ADD R13 #20
     RET
 
 LABEL BASIC_LKALMAN_INIT64
@@ -47,6 +51,7 @@ LABEL BASIC_LKALMAN_INIT64
     movel @13 R1
     PUSH R0
     CALL lkalman_init64
+    ADD R13 #28
     RET
 
 LABEL BASIC_LKALMAN_UPDATE64
@@ -54,6 +59,7 @@ LABEL BASIC_LKALMAN_UPDATE64
     movel @13 R1
     PUSH R0
     CALL lkalman_update64
+    ADD R13 #12
     RET
 
 LABEL BASIC_LDEADBAND64
@@ -62,6 +68,7 @@ LABEL BASIC_LDEADBAND64
     sub R13 #8
     movel @13 R0
     CALL ldeadband64
+    ADD R13 #16
     RET
 
 LABEL BASIC_LHYSTERESIS64
@@ -73,5 +80,6 @@ LABEL BASIC_LHYSTERESIS64
     movel @13 R1
     PUSH R0
     CALL lhysteresis64
+    ADD R13 #28
     RET
 

@@ -8,6 +8,7 @@ LABEL rust_init
     PUSH R1
     PUSH R0
     CALL init
+    ADD R13 #12
     RET
 
 LABEL rust_update
@@ -15,11 +16,13 @@ LABEL rust_update
     PUSH R1
     PUSH R0
     CALL update
+    ADD R13 #12
     RET
 
 LABEL rust_is_pressed
     PUSH R0
     CALL is_pressed
+    ADD R13 #4
     RET
 
 LABEL func_init

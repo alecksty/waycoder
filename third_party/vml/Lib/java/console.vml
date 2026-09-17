@@ -11,61 +11,72 @@ LABEL readLine
     RET
 
 LABEL putchar
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL putchar
+    ADD R13 #4
     RET
 
 LABEL printStr
     PUSH R0
     CALL print_str
+    ADD R13 #4
     RET
 
 LABEL printInt
     PUSH R0
     CALL print_int
+    ADD R13 #4
     RET
 
 LABEL printHex
     PUSH R0
     CALL print_hex
+    ADD R13 #4
     RET
 
 LABEL printlnStr
     PUSH R0
     CALL println_str
+    ADD R13 #4
     RET
 
 LABEL printlnInt
     PUSH R0
     CALL println_int
+    ADD R13 #4
     RET
 
 LABEL printFloat
     sub R13 #4
     movef @13 R0
     CALL print_float
+    ADD R13 #4
     RET
 
 LABEL printBool
     PUSH R0
     CALL print_bool
+    ADD R13 #4
     RET
 
 LABEL puthex
     PUSH R0
     CALL puthex
+    ADD R13 #4
     RET
 
 LABEL putfloat
     sub R13 #4
     movef @13 R0
     CALL putfloat
+    ADD R13 #4
     RET
 
 LABEL printStrNoNl
     PUSH R0
     CALL print_str_no_nl
+    ADD R13 #4
     RET
 
 LABEL printStrNoNlImpl
@@ -77,6 +88,7 @@ LABEL printStrNoNlImpl
 LABEL printlnHex
     PUSH R0
     CALL println_hex
+    ADD R13 #4
     RET
 
 LABEL clearScreen
@@ -112,6 +124,7 @@ LABEL printf2
     PUSH R1
     PUSH R0
     CALL printf2
+    ADD R13 #12
     RET
 
 LABEL printf3
@@ -120,6 +133,7 @@ LABEL printf3
     PUSH R1
     PUSH R0
     CALL printf3
+    ADD R13 #16
     RET
 
 LABEL printf
@@ -132,50 +146,59 @@ LABEL printf
 LABEL puts
     PUSH R0
     CALL puts
+    ADD R13 #4
     RET
 
 LABEL printString
     PUSH R0
     CALL print_string
+    ADD R13 #4
     RET
 
 LABEL printWstr
     PUSH R0
     CALL print_wstr
+    ADD R13 #4
     RET
 
 LABEL printlnWstr
     PUSH R0
     CALL println_wstr
+    ADD R13 #4
     RET
 
 LABEL printUstr
     PUSH R0
     CALL print_ustr
+    ADD R13 #4
     RET
 
 LABEL printLong
     sub R13 #8
     movel @13 R0
     CALL print_long
+    ADD R13 #8
     RET
 
 LABEL printHexLong
     sub R13 #8
     movel @13 R0
     CALL print_hex_long
+    ADD R13 #8
     RET
 
 LABEL printlnLong
     sub R13 #8
     movel @13 R0
     CALL println_long
+    ADD R13 #8
     RET
 
 LABEL printlnHexLong
     sub R13 #8
     movel @13 R0
     CALL println_hex_long
+    ADD R13 #8
     RET
 
 LABEL inputLong
@@ -187,6 +210,7 @@ LABEL printDouble
     sub R13 #8
     moved @13 R0
     CALL print_double
+    ADD R13 #12
     RET
 
 LABEL printlnDouble
@@ -194,6 +218,7 @@ LABEL printlnDouble
     sub R13 #8
     moved @13 R0
     CALL println_double
+    ADD R13 #12
     RET
 
 LABEL putsn
@@ -209,18 +234,19 @@ LABEL vsnprintf
     PUSH R3
     PUSH R2
     PUSH R1
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL vsnprintf
-    ADD R13 #13
+    ADD R13 #16
     RET
 
 LABEL sprintf
     PUSH R2
     PUSH R1
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL sprintf
+    ADD R13 #12
     RET
 
 LABEL printf4
@@ -229,10 +255,10 @@ LABEL printf4
     PUSH R3
     PUSH R2
     PUSH R1
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL printf4
-    ADD R13 #21
+    ADD R13 #24
     RET
 
 LABEL printf5
@@ -242,80 +268,93 @@ LABEL printf5
     PUSH R3
     PUSH R2
     PUSH R1
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL printf5
-    ADD R13 #25
+    ADD R13 #28
     RET
 
 LABEL printxInt32
     PUSH R0
     CALL printx_int32
+    ADD R13 #4
     RET
 
 LABEL printlnxInt32
     PUSH R0
     CALL printlnx_int32
+    ADD R13 #4
     RET
 
 LABEL printxString
     PUSH R0
     CALL printx_string
+    ADD R13 #4
     RET
 
 LABEL printlnxString
     PUSH R0
     CALL printlnx_string
+    ADD R13 #4
     RET
 
 LABEL printxWstring
     PUSH R0
     CALL printx_wstring
+    ADD R13 #4
     RET
 
 LABEL printlnxWstring
     PUSH R0
     CALL printlnx_wstring
+    ADD R13 #4
     RET
 
 LABEL printxUstring
     PUSH R0
     CALL printx_ustring
+    ADD R13 #4
     RET
 
 LABEL printlnxUstring
     PUSH R0
     CALL printlnx_ustring
+    ADD R13 #4
     RET
 
 LABEL printxFloat32
     sub R13 #4
     movef @13 R0
     CALL printx_float32
+    ADD R13 #4
     RET
 
 LABEL printlnxFloat32
     sub R13 #4
     movef @13 R0
     CALL printlnx_float32
+    ADD R13 #4
     RET
 
 LABEL printxFloat64
     sub R13 #8
     moved @13 R0
     CALL printx_float64
+    ADD R13 #8
     RET
 
 LABEL printlnxFloat64
     sub R13 #8
     moved @13 R0
     CALL printlnx_float64
+    ADD R13 #8
     RET
 
 LABEL printxInt64Hex
     PUSH R1
     PUSH R0
     CALL printx_int64_hex
+    ADD R13 #8
     RET
 
 LABEL printxNl

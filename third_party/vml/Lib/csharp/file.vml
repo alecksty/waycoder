@@ -7,11 +7,13 @@ LABEL Fopen
     PUSH R1
     PUSH R0
     CALL fopen
+    ADD R13 #8
     RET
 
 LABEL Fclose
     PUSH R0
     CALL fclose
+    ADD R13 #4
     RET
 
 LABEL Fread
@@ -19,6 +21,7 @@ LABEL Fread
     PUSH R1
     PUSH R0
     CALL fread
+    ADD R13 #12
     RET
 
 LABEL Fwrite
@@ -26,6 +29,7 @@ LABEL Fwrite
     PUSH R1
     PUSH R0
     CALL fwrite
+    ADD R13 #12
     RET
 
 LABEL Fseek
@@ -33,22 +37,26 @@ LABEL Fseek
     PUSH R1
     PUSH R0
     CALL fseek
+    ADD R13 #12
     RET
 
 LABEL Ftell
     PUSH R0
     CALL ftell
+    ADD R13 #4
     RET
 
 LABEL Fsize
     PUSH R0
     CALL fsize
+    ADD R13 #4
     RET
 
 LABEL Ftruncate
     PUSH R1
     PUSH R0
     CALL ftruncate
+    ADD R13 #8
     RET
 
 LABEL File_Fopen

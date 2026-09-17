@@ -6,6 +6,7 @@
 LABEL lua_srand
     PUSH R0
     CALL srand
+    ADD R13 #4
     RET
 
 LABEL func_srand

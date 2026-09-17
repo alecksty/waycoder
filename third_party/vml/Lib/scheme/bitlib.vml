@@ -7,50 +7,59 @@ LABEL scheme_clear
     PUSH R1
     PUSH R0
     CALL clear
+    ADD R13 #8
     RET
 
 LABEL scheme_toggle
     PUSH R1
     PUSH R0
     CALL toggle
+    ADD R13 #8
     RET
 
 LABEL scheme_test
     PUSH R1
     PUSH R0
     CALL test
+    ADD R13 #8
     RET
 
 LABEL scheme_count
     PUSH R0
     CALL count
+    ADD R13 #4
     RET
 
 LABEL scheme_rotate_left
     PUSH R1
     PUSH R0
     CALL rotate_left
+    ADD R13 #8
     RET
 
 LABEL scheme_rotate_right
     PUSH R1
     PUSH R0
     CALL rotate_right
+    ADD R13 #8
     RET
 
 LABEL scheme_lowest_set
     PUSH R0
     CALL lowest_set
+    ADD R13 #4
     RET
 
 LABEL scheme_highest_set
     PUSH R0
     CALL highest_set
+    ADD R13 #4
     RET
 
 LABEL scheme_mask
     PUSH R0
     CALL mask
+    ADD R13 #4
     RET
 
 LABEL scheme_extract
@@ -58,16 +67,19 @@ LABEL scheme_extract
     PUSH R1
     PUSH R0
     CALL extract
+    ADD R13 #12
     RET
 
 LABEL scheme_is_power_of_two
     PUSH R0
     CALL is_power_of_two
+    ADD R13 #4
     RET
 
 LABEL scheme_next_power_of_two
     PUSH R0
     CALL next_power_of_two
+    ADD R13 #4
     RET
 
 LABEL func_clear

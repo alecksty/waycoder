@@ -8,21 +8,25 @@ LABEL crc64
     movel @13 R1
     PUSH R0
     CALL crc64
+    ADD R13 #12
     RET
 
 LABEL fnv1aHash64
     PUSH R0
     CALL fnv1a_hash64
+    ADD R13 #4
     RET
 
 LABEL djb2Hash64
     PUSH R0
     CALL djb2_hash64
+    ADD R13 #4
     RET
 
 LABEL sdbmHash64
     PUSH R0
     CALL sdbm_hash64
+    ADD R13 #4
     RET
 
 LABEL crc3264l
@@ -30,6 +34,7 @@ LABEL crc3264l
     movel @13 R1
     PUSH R0
     CALL crc32_64l
+    ADD R13 #12
     RET
 
 LABEL Crc64_Crc64

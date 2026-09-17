@@ -7,50 +7,59 @@ LABEL PASCAL_CLEAR
     PUSH R1
     PUSH R0
     CALL clear
+    ADD R13 #8
     RET
 
 LABEL PASCAL_TOGGLE
     PUSH R1
     PUSH R0
     CALL toggle
+    ADD R13 #8
     RET
 
 LABEL PASCAL_TEST
     PUSH R1
     PUSH R0
     CALL test
+    ADD R13 #8
     RET
 
 LABEL PASCAL_COUNT
     PUSH R0
     CALL count
+    ADD R13 #4
     RET
 
 LABEL PASCAL_ROTATE_LEFT
     PUSH R1
     PUSH R0
     CALL rotate_left
+    ADD R13 #8
     RET
 
 LABEL PASCAL_ROTATE_RIGHT
     PUSH R1
     PUSH R0
     CALL rotate_right
+    ADD R13 #8
     RET
 
 LABEL PASCAL_LOWEST_SET
     PUSH R0
     CALL lowest_set
+    ADD R13 #4
     RET
 
 LABEL PASCAL_HIGHEST_SET
     PUSH R0
     CALL highest_set
+    ADD R13 #4
     RET
 
 LABEL PASCAL_MASK
     PUSH R0
     CALL mask
+    ADD R13 #4
     RET
 
 LABEL PASCAL_EXTRACT
@@ -58,15 +67,18 @@ LABEL PASCAL_EXTRACT
     PUSH R1
     PUSH R0
     CALL extract
+    ADD R13 #12
     RET
 
 LABEL PASCAL_IS_POWER_OF_TWO
     PUSH R0
     CALL is_power_of_two
+    ADD R13 #4
     RET
 
 LABEL PASCAL_NEXT_POWER_OF_TWO
     PUSH R0
     CALL next_power_of_two
+    ADD R13 #4
     RET
 

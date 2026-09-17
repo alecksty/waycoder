@@ -7,50 +7,59 @@ LABEL go_clear
     PUSH R1
     PUSH R0
     CALL clear
+    ADD R13 #8
     RET
 
 LABEL go_toggle
     PUSH R1
     PUSH R0
     CALL toggle
+    ADD R13 #8
     RET
 
 LABEL go_test
     PUSH R1
     PUSH R0
     CALL test
+    ADD R13 #8
     RET
 
 LABEL go_count
     PUSH R0
     CALL count
+    ADD R13 #4
     RET
 
 LABEL go_rotate_left
     PUSH R1
     PUSH R0
     CALL rotate_left
+    ADD R13 #8
     RET
 
 LABEL go_rotate_right
     PUSH R1
     PUSH R0
     CALL rotate_right
+    ADD R13 #8
     RET
 
 LABEL go_lowest_set
     PUSH R0
     CALL lowest_set
+    ADD R13 #4
     RET
 
 LABEL go_highest_set
     PUSH R0
     CALL highest_set
+    ADD R13 #4
     RET
 
 LABEL go_mask
     PUSH R0
     CALL mask
+    ADD R13 #4
     RET
 
 LABEL go_extract
@@ -58,16 +67,19 @@ LABEL go_extract
     PUSH R1
     PUSH R0
     CALL extract
+    ADD R13 #12
     RET
 
 LABEL go_is_power_of_two
     PUSH R0
     CALL is_power_of_two
+    ADD R13 #4
     RET
 
 LABEL go_next_power_of_two
     PUSH R0
     CALL next_power_of_two
+    ADD R13 #4
     RET
 
 LABEL func_clear

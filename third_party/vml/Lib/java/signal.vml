@@ -8,17 +8,20 @@ LABEL movingAvgInit
     PUSH R1
     PUSH R0
     CALL moving_avg_init
+    ADD R13 #12
     RET
 
 LABEL movingAvgUpdate
     PUSH R1
     PUSH R0
     CALL moving_avg_update
+    ADD R13 #8
     RET
 
 LABEL emaInit
     PUSH R0
     CALL ema_init
+    ADD R13 #4
     RET
 
 LABEL emaUpdate
@@ -26,6 +29,7 @@ LABEL emaUpdate
     PUSH R1
     PUSH R0
     CALL ema_update
+    ADD R13 #12
     RET
 
 LABEL kalmanInit
@@ -34,12 +38,14 @@ LABEL kalmanInit
     PUSH R1
     PUSH R0
     CALL kalman_init
+    ADD R13 #16
     RET
 
 LABEL kalmanUpdate
     PUSH R1
     PUSH R0
     CALL kalman_update
+    ADD R13 #8
     RET
 
 LABEL lerpTable
@@ -48,12 +54,14 @@ LABEL lerpTable
     PUSH R1
     PUSH R0
     CALL lerp_table
+    ADD R13 #16
     RET
 
 LABEL deadband
     PUSH R1
     PUSH R0
     CALL deadband
+    ADD R13 #8
     RET
 
 LABEL hysteresis
@@ -62,6 +70,7 @@ LABEL hysteresis
     PUSH R1
     PUSH R0
     CALL hysteresis
+    ADD R13 #16
     RET
 
 LABEL Signal_MovingAvgInit

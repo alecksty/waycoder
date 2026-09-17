@@ -1,45 +1,53 @@
-.entry main
-.stack 0
-.vectors 0x0
 
+.linked "array.vml"
+.linked "math.vml"
 .data
 _bgi_color: .word 15
 _bgi_bgcolor: .word 0
 _bgi_fill_pattern: .word 1
 _bgi_fill_color: .word 15
-L56300026: .string "VGA"
-L56300028: .string "640x480x16"
-L56300036: .string "OK"
+L_56300026: .string "VGA"
+L_56300028: .string "640x480x16"
+L_56300036: .string "OK"
 
 .text
+InitGraph:
+; -------------------------------------------
+; source   : void InitGraph(int* driver,int* mode,const char* path)
+; function : InitGraph
+; param   : int* driver
+; param   : int* mode
+; param   : const char* path
+; return   : void
+; --------------------------------------------
 InitGraph:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         test R0 R0
         jz _L56300000
         move R0 [R12+12]
-        move R0 @0
+        move R0 [R0]
         jmp _L56300001
 _L56300000:
         move R0 #0
 _L56300001:
-        move [R12-4] R0
+        move [R12-8] R0
         move R0 [R12+16]
         test R0 R0
         jz _L56300002
         move R0 [R12+16]
-        move R0 @0
+        move R0 [R0]
         jmp _L56300003
 _L56300002:
         move R0 #2
 _L56300003:
-        move [R12-8] R0
-        move R0 #12
         move [R12-12] R0
-        move R0 [R12-4]
+        move R0 #12
+        move [R12-16] R0
+        move R0 [R12-8]
         push R0
         move R0 #0
         pop R1
@@ -53,10 +61,10 @@ _L56300007:
         cmp R0 #0
         jz sta_56300004
         move R0 #12
-        move [R12-12] R0
+        move [R12-16] R0
         jmp sta_56300005
 sta_56300004:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #9
         pop R1
@@ -69,7 +77,7 @@ _L56300010:
 _L56300011:
         cmp R0 #0
         jz sta_56300008
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #0
         pop R1
@@ -83,10 +91,10 @@ _L56300015:
         cmp R0 #0
         jz sta_56300012
         move R0 #8
-        move [R12-12] R0
+        move [R12-16] R0
         jmp sta_56300013
 sta_56300012:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #1
         pop R1
@@ -100,37 +108,44 @@ _L56300019:
         cmp R0 #0
         jz sta_56300016
         move R0 #9
-        move [R12-12] R0
+        move [R12-16] R0
         jmp sta_56300017
 sta_56300016:
         move R0 #12
-        move [R12-12] R0
+        move [R12-16] R0
 sta_56300017:
 sta_56300013:
 sta_56300008:
 sta_56300009:
 sta_56300005:
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
+        move R0 [R13+0]
         call gfx_screen
         add R13 #4
         move R0 [_bgi_bgcolor]
         push R0
+        move R0 [R13+0]
         call gfx_cls_color
         add R13 #4
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+CloseGraph:
+; -------------------------------------------
+; source   : void CloseGraph()
+; function : CloseGraph
+; return   : void
+; --------------------------------------------
 CloseGraph:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #0
         push R0
+        move R0 [R13+0]
         call gfx_screen
         add R13 #4
         move R13 R12
@@ -138,16 +153,25 @@ CloseGraph:
         pop R15
         ret
 DetectGraph:
+; -------------------------------------------
+; source   : void DetectGraph(int* driver,int* mode)
+; function : DetectGraph
+; param   : int* driver
+; param   : int* mode
+; return   : void
+; --------------------------------------------
+DetectGraph:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         cmp R0 #0
         jz sta_56300020
         move R0 [R12+12]
         move R11 R0
         move R0 #9
-        move @11 R0
+        move [R11] R0
 sta_56300020:
 sta_56300021:
         move R0 [R12+16]
@@ -156,514 +180,690 @@ sta_56300021:
         move R0 [R12+16]
         move R10 R0
         move R0 #2
-        move @10 R0
+        move [R10] R0
 sta_56300022:
 sta_56300023:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+GetMaxX:
+; -------------------------------------------
+; source   : int GetMaxX()
+; function : GetMaxX
+; return   : int
+; --------------------------------------------
 GetMaxX:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         call gfx_width
         push R0
         move R0 #1
         pop R1
         sub R1 R0
         move R0 R1
-        jmp L56300024
-L56300024:
+        jmp L_56300024
+L_56300024:
         move R13 R12
         pop R12
         pop R15
         ret
 GetMaxY:
+; -------------------------------------------
+; source   : int GetMaxY()
+; function : GetMaxY
+; return   : int
+; --------------------------------------------
+GetMaxY:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         call gfx_height
         push R0
         move R0 #1
         pop R1
         sub R1 R0
         move R0 R1
-        jmp L56300025
-L56300025:
+        jmp L_56300025
+L_56300025:
         move R13 R12
         pop R12
         pop R15
         ret
 GetDriverName:
+; -------------------------------------------
+; source   : char* GetDriverName()
+; function : GetDriverName
+; return   : char*
+; --------------------------------------------
+GetDriverName:
         push R15
         push R12
         move R12 R13
-        move R0 L56300026
-        jmp L56300027
-L56300027:
+        sub R13 #12
+        move R0 L_56300026
+        jmp L_56300027
+L_56300027:
         move R13 R12
         pop R12
         pop R15
         ret
 GetModeName:
+; -------------------------------------------
+; source   : char* GetModeName(int mode)
+; function : GetModeName
+; param   : int mode
+; return   : char*
+; --------------------------------------------
+GetModeName:
         push R15
         push R12
         move R12 R13
-        move R0 L56300028
-        jmp L56300029
-L56300029:
+        sub R13 #12
+        move R0 L_56300028
+        jmp L_56300029
+L_56300029:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+SetColor:
+; -------------------------------------------
+; source   : void SetColor(int color)
+; function : SetColor
+; param   : int color
+; return   : void
+; --------------------------------------------
 SetColor:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         move [_bgi_color] R0
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+GetColor:
+; -------------------------------------------
+; source   : int GetColor()
+; function : GetColor
+; return   : int
+; --------------------------------------------
 GetColor:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_color]
-        jmp L56300030
-L56300030:
+        jmp L_56300030
+L_56300030:
         move R13 R12
         pop R12
         pop R15
         ret
 SetBkColor:
+; -------------------------------------------
+; source   : void SetBkColor(int color)
+; function : SetBkColor
+; param   : int color
+; return   : void
+; --------------------------------------------
+SetBkColor:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         move [_bgi_bgcolor] R0
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+GetBkColor:
+; -------------------------------------------
+; source   : int GetBkColor()
+; function : GetBkColor
+; return   : int
+; --------------------------------------------
 GetBkColor:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_bgcolor]
-        jmp L56300031
-L56300031:
+        jmp L_56300031
+L_56300031:
         move R13 R12
         pop R12
         pop R15
         ret
 SetRGBPalette:
+; -------------------------------------------
+; source   : void SetRGBPalette(int index,int r,int g,int b)
+; function : SetRGBPalette
+; param   : int index
+; param   : int r
+; param   : int g
+; param   : int b
+; return   : void
+; --------------------------------------------
+SetRGBPalette:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+24]
-        move R3 R0
         push R0
         move R0 [R12+20]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_palette
         add R13 #16
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #20
-        push R1
         ret
+PutPixel:
+; -------------------------------------------
+; source   : void PutPixel(int x,int y,int color)
+; function : PutPixel
+; param   : int x
+; param   : int y
+; param   : int color
+; return   : void
+; --------------------------------------------
 PutPixel:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+20]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call gfx_pset
         add R13 #12
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+GetPixel:
+; -------------------------------------------
+; source   : int GetPixel(int x,int y)
+; function : GetPixel
+; param   : int x
+; param   : int y
+; return   : int
+; --------------------------------------------
 GetPixel:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
         call gfx_point
         add R13 #8
-        jmp L56300032
-L56300032:
+        jmp L_56300032
+L_56300032:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+Line:
+; -------------------------------------------
+; source   : void Line(int x1,int y1,int x2,int y2)
+; function : Line
+; param   : int x1
+; param   : int y1
+; param   : int x2
+; param   : int y2
+; return   : void
+; --------------------------------------------
 Line:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_color]
-        move R4 R0
         push R0
         move R0 [R12+24]
-        move R3 R0
         push R0
         move R0 [R12+20]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_line
         add R13 #20
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #20
-        push R1
         ret
+LineTo:
+; -------------------------------------------
+; source   : void LineTo(int x,int y)
+; function : LineTo
+; param   : int x
+; param   : int y
+; return   : void
+; --------------------------------------------
 LineTo:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_color]
-        move R4 R0
         push R0
         move R0 [R12+16]
-        move R3 R0
         push R0
         move R0 [R12+12]
-        move R2 R0
-        push R0
-        move R0 #0
-        move R1 R0
         push R0
         move R0 #0
         push R0
+        move R0 #0
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_line
         add R13 #20
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+LineRel:
+; -------------------------------------------
+; source   : void LineRel(int dx,int dy)
+; function : LineRel
+; param   : int dx
+; param   : int dy
+; return   : void
+; --------------------------------------------
 LineRel:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_color]
-        move R4 R0
         push R0
         move R0 [R12+16]
-        move R3 R0
         push R0
         move R0 [R12+12]
-        move R2 R0
-        push R0
-        move R0 #0
-        move R1 R0
         push R0
         move R0 #0
         push R0
+        move R0 #0
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_line
         add R13 #20
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+Rectangle:
+; -------------------------------------------
+; source   : void Rectangle(int x1,int y1,int x2,int y2)
+; function : Rectangle
+; param   : int x1
+; param   : int y1
+; param   : int x2
+; param   : int y2
+; return   : void
+; --------------------------------------------
 Rectangle:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_color]
-        move R4 R0
         push R0
         move R0 [R12+24]
-        move R3 R0
         push R0
         move R0 [R12+20]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_rect
         add R13 #20
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #20
-        push R1
         ret
+Bar:
+; -------------------------------------------
+; source   : void Bar(int x1,int y1,int x2,int y2)
+; function : Bar
+; param   : int x1
+; param   : int y1
+; param   : int x2
+; param   : int y2
+; return   : void
+; --------------------------------------------
 Bar:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_fill_color]
-        move R4 R0
         push R0
         move R0 [R12+24]
-        move R3 R0
         push R0
         move R0 [R12+20]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_rect_fill
         add R13 #20
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #20
-        push R1
         ret
+Bar3D:
+; -------------------------------------------
+; source   : void Bar3D(int x1,int y1,int x2,int y2,int depth,int top)
+; function : Bar3D
+; param   : int x1
+; param   : int y1
+; param   : int x2
+; param   : int y2
+; param   : int depth
+; param   : int top
+; return   : void
+; --------------------------------------------
 Bar3D:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_fill_color]
-        move R4 R0
         push R0
         move R0 [R12+24]
-        move R3 R0
         push R0
         move R0 [R12+20]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_rect_fill
         add R13 #20
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #28
-        push R1
         ret
+Circle:
+; -------------------------------------------
+; source   : void Circle(int x,int y,int r)
+; function : Circle
+; param   : int x
+; param   : int y
+; param   : int r
+; return   : void
+; --------------------------------------------
 Circle:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_color]
-        move R3 R0
         push R0
         move R0 [R12+20]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_circle
         add R13 #16
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+FillCircle:
+; -------------------------------------------
+; source   : void FillCircle(int x,int y,int r)
+; function : FillCircle
+; param   : int x
+; param   : int y
+; param   : int r
+; return   : void
+; --------------------------------------------
 FillCircle:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_fill_color]
-        move R3 R0
         push R0
         move R0 [R12+20]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_circle_fill
         add R13 #16
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+Ellipse:
+; -------------------------------------------
+; source   : void Ellipse(int x,int y,int sa,int ea,int rx,int ry)
+; function : Ellipse
+; param   : int x
+; param   : int y
+; param   : int sa
+; param   : int ea
+; param   : int rx
+; param   : int ry
+; return   : void
+; --------------------------------------------
 Ellipse:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_color]
-        move R4 R0
         push R0
         move R0 [R12+32]
-        move R3 R0
         push R0
         move R0 [R12+28]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_ellipse
         add R13 #20
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #28
-        push R1
         ret
+FillEllipse:
+; -------------------------------------------
+; source   : void FillEllipse(int x,int y,int rx,int ry)
+; function : FillEllipse
+; param   : int x
+; param   : int y
+; param   : int rx
+; param   : int ry
+; return   : void
+; --------------------------------------------
 FillEllipse:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_fill_color]
-        move R4 R0
         push R0
         move R0 [R12+24]
-        move R3 R0
         push R0
         move R0 [R12+20]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_ellipse_fill
         add R13 #20
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #20
-        push R1
         ret
+Arc:
+; -------------------------------------------
+; source   : void Arc(int x,int y,int sa,int ea,int r)
+; function : Arc
+; param   : int x
+; param   : int y
+; param   : int sa
+; param   : int ea
+; param   : int r
+; return   : void
+; --------------------------------------------
 Arc:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_color]
-        move R5 R0
         push R0
         move R0 [R12+24]
-        move R4 R0
         push R0
         move R0 [R12+20]
-        move R3 R0
         push R0
         move R0 [R12+28]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_arc
         add R13 #24
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #24
-        push R1
         ret
+PieSlice:
+; -------------------------------------------
+; source   : void PieSlice(int x,int y,int sa,int ea,int r)
+; function : PieSlice
+; param   : int x
+; param   : int y
+; param   : int sa
+; param   : int ea
+; param   : int r
+; return   : void
+; --------------------------------------------
 PieSlice:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_fill_color]
-        move R5 R0
         push R0
         move R0 [R12+24]
-        move R4 R0
         push R0
         move R0 [R12+20]
-        move R3 R0
         push R0
         move R0 [R12+28]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_sector_fill
         add R13 #24
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #24
-        push R1
         ret
+SetFillStyle:
+; -------------------------------------------
+; source   : void SetFillStyle(int pattern,int color)
+; function : SetFillStyle
+; param   : int pattern
+; param   : int color
+; return   : void
+; --------------------------------------------
 SetFillStyle:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         move [_bgi_fill_pattern] R0
         move R0 [R12+16]
@@ -671,27 +871,39 @@ SetFillStyle:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+SetLineStyle:
+; -------------------------------------------
+; source   : void SetLineStyle(int style,int pattern,int thickness)
+; function : SetLineStyle
+; param   : int style
+; param   : int pattern
+; param   : int thickness
+; return   : void
+; --------------------------------------------
 SetLineStyle:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+ClearDevice:
+; -------------------------------------------
+; source   : void ClearDevice()
+; function : ClearDevice
+; return   : void
+; --------------------------------------------
 ClearDevice:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_bgcolor]
         push R0
+        move R0 [R13+0]
         call gfx_cls_color
         add R13 #4
         move R13 R12
@@ -699,11 +911,19 @@ ClearDevice:
         pop R15
         ret
 ClearViewPort:
+; -------------------------------------------
+; source   : void ClearViewPort()
+; function : ClearViewPort
+; return   : void
+; --------------------------------------------
+ClearViewPort:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_bgcolor]
         push R0
+        move R0 [R13+0]
         call gfx_cls_color
         add R13 #4
         move R13 R12
@@ -711,121 +931,151 @@ ClearViewPort:
         pop R15
         ret
 SetViewPort:
+; -------------------------------------------
+; source   : void SetViewPort(int x1,int y1,int x2,int y2,int clip)
+; function : SetViewPort
+; param   : int x1
+; param   : int y1
+; param   : int x2
+; param   : int y2
+; param   : int clip
+; return   : void
+; --------------------------------------------
+SetViewPort:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+24]
-        move R3 R0
         push R0
         move R0 [R12+20]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_viewport
         add R13 #16
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #24
-        push R1
         ret
+OutText:
+; -------------------------------------------
+; source   : void OutText(const char* text)
+; function : OutText
+; param   : const char* text
+; return   : void
+; --------------------------------------------
 OutText:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_color]
-        move R3 R0
         push R0
         move R0 [R12+12]
-        move R2 R0
-        push R0
-        move R0 #0
-        move R1 R0
         push R0
         move R0 #0
         push R0
+        move R0 #0
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_print
         add R13 #16
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+OutTextXY:
+; -------------------------------------------
+; source   : void OutTextXY(int x,int y,const char* text)
+; function : OutTextXY
+; param   : int x
+; param   : int y
+; param   : const char* text
+; return   : void
+; --------------------------------------------
 OutTextXY:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [_bgi_color]
-        move R3 R0
         push R0
         move R0 [R12+20]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_print
         add R13 #16
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+FloodFill:
+; -------------------------------------------
+; source   : void FloodFill(int x,int y,int border)
+; function : FloodFill
+; param   : int x
+; param   : int y
+; param   : int border
+; return   : void
+; --------------------------------------------
 FloodFill:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+20]
-        move R3 R0
         push R0
         move R0 [_bgi_fill_color]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_flood_fill
         add R13 #16
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+ImageSize:
+; -------------------------------------------
+; source   : unsigned int ImageSize(int x1,int y1,int x2,int y2)
+; function : ImageSize
+; param   : int x1
+; param   : int y1
+; param   : int x2
+; param   : int y2
+; return   : unsigned int
+; --------------------------------------------
 ImageSize:
         push R15
         push R12
         move R12 R13
-        sub R13 #16
+        sub R13 #20
         move R0 [R12+20]
         push R0
         move R0 [R12+12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-4] R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12+16]
         pop R1
         sub R1 R0
         move R0 R1
@@ -835,9 +1085,21 @@ ImageSize:
         add R1 R0
         move R0 R1
         move [R12-8] R0
-        move R0 [R12-4]
+        move R0 [R12+24]
         push R0
+        move R0 [R12+16]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        push R0
+        move R0 #1
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-12] R0
         move R0 [R12-8]
+        push R0
+        move R0 [R12-12]
         pop R1
         mul R1 R0
         move R0 R1
@@ -851,21 +1113,29 @@ ImageSize:
         pop R1
         add R1 R0
         move R0 R1
-        jmp L56300033
-L56300033:
+        jmp L_56300033
+L_56300033:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #20
-        push R1
         ret
+GetImage:
+; -------------------------------------------
+; source   : void GetImage(int x1,int y1,int x2,int y2,void* bitmap)
+; function : GetImage
+; param   : int x1
+; param   : int y1
+; param   : int x2
+; param   : int y2
+; param   : void* bitmap
+; return   : void
+; --------------------------------------------
 GetImage:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+28]
-        move R4 R0
         push R0
         move R0 [R12+24]
         push R0
@@ -878,7 +1148,6 @@ GetImage:
         pop R1
         add R1 R0
         move R0 R1
-        move R3 R0
         push R0
         move R0 [R12+20]
         push R0
@@ -891,140 +1160,184 @@ GetImage:
         pop R1
         add R1 R0
         move R0 R1
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_get_image
         add R13 #20
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #24
-        push R1
         ret
+PutImage:
+; -------------------------------------------
+; source   : void PutImage(int x,int y,void* bitmap,int op)
+; function : PutImage
+; param   : int x
+; param   : int y
+; param   : void* bitmap
+; param   : int op
+; return   : void
+; --------------------------------------------
 PutImage:
         push R15
         push R12
         move R12 R13
-        sub R13 #24
+        sub R13 #28
         move R0 [R12+20]
-        move [R12-4] R0
-        move R0 [R12-4]
+        move [R12-8] R0
+        move R0 [R12-8]
         push R0
         move R0 #0
         mul R0 #4
         pop R9
         add R0 R9
-        move R0 @0
-        move [R12-8] R0
-        move R0 [R12-4]
+        move R0 [R0]
+        move [R12-12] R0
+        move R0 [R12-8]
         push R0
         move R0 #1
         mul R0 #4
         pop R8
         add R0 R8
-        move R0 @0
-        move [R12-12] R0
-        move R0 [R12-4]
+        move R0 [R0]
+        move [R12-16] R0
+        move R0 [R12-8]
         push R0
         move R0 #1
         mul R0 R0 #4
         pop R1
         add R1 R0
         move R0 R1
-        move [R12-16] R0
+        move [R12-20] R0
+        move R0 [R12-20]
+        push R0
         move R0 [R12-16]
-        move R4 R0
         push R0
         move R0 [R12-12]
-        move R3 R0
-        push R0
-        move R0 [R12-8]
-        move R2 R0
         push R0
         move R0 [R12+16]
-        move R1 R0
         push R0
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
         call gfx_put_image
         add R13 #20
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #20
-        push R1
         ret
+GetPaletteSize:
+; -------------------------------------------
+; source   : int GetPaletteSize()
+; function : GetPaletteSize
+; return   : int
+; --------------------------------------------
 GetPaletteSize:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #256
-        jmp L56300034
-L56300034:
+        jmp L_56300034
+L_56300034:
         move R13 R12
         pop R12
         pop R15
         ret
 GetPalette:
+; -------------------------------------------
+; source   : void GetPalette(void* palette)
+; function : GetPalette
+; param   : void* palette
+; return   : void
+; --------------------------------------------
+GetPalette:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+GetDefaultPalette:
+; -------------------------------------------
+; source   : void GetDefaultPalette(void* palette)
+; function : GetDefaultPalette
+; param   : void* palette
+; return   : void
+; --------------------------------------------
 GetDefaultPalette:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+GraphResult:
+; -------------------------------------------
+; source   : int GraphResult()
+; function : GraphResult
+; return   : int
+; --------------------------------------------
 GraphResult:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #0
-        jmp L56300035
-L56300035:
+        jmp L_56300035
+L_56300035:
         move R13 R12
         pop R12
         pop R15
         ret
 GraphErrorMsg:
+; -------------------------------------------
+; source   : char* GraphErrorMsg(int code)
+; function : GraphErrorMsg
+; param   : int code
+; return   : char*
+; --------------------------------------------
+GraphErrorMsg:
         push R15
         push R12
         move R12 R13
-        move R0 L56300036
-        jmp L56300037
-L56300037:
+        sub R13 #12
+        move R0 L_56300036
+        jmp L_56300037
+L_56300037:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+RestoreCrtMode:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : void RestoreCrtMode()
+; function : RestoreCrtMode
+; return   : void
+; --------------------------------------------
 RestoreCrtMode:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #0
         push R0
+        move R0 [R13+0]
         call gfx_screen
         add R13 #4
         move R13 R12

@@ -15,15 +15,13 @@ realloc:
         push R15
         push R12
         move R12 R13
-        sub R13 #12
-        move [R12+12] R0
-        move [R12+16] R1
+        sub R13 #16
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
         asm "LOAD R0 #0"
-        move R0 [R12-4]
-        jmp L65840000
-L65840000:
+        move R0 [R12-8]
+        jmp L_65840000
+L_65840000:
         move R13 R12
         pop R12
         pop R15

@@ -15,6 +15,7 @@ LABEL PASCAL_LFIXED_MUL64
     sub R13 #8
     movel @13 R0
     CALL lfixed_mul64
+    ADD R13 #16
     RET
 
 LABEL PASCAL_LFIXED_DIV64
@@ -23,35 +24,41 @@ LABEL PASCAL_LFIXED_DIV64
     sub R13 #8
     movel @13 R0
     CALL lfixed_div64
+    ADD R13 #16
     RET
 
 LABEL PASCAL_LFIXED_FROM_INT64
     sub R13 #8
     movel @13 R0
     CALL lfixed_from_int64
+    ADD R13 #8
     RET
 
 LABEL PASCAL_LFIXED_TO_INT64
     sub R13 #8
     movel @13 R0
     CALL lfixed_to_int64
+    ADD R13 #8
     RET
 
 LABEL PASCAL_LFIXED_TO_INT_ROUND64
     sub R13 #8
     movel @13 R0
     CALL lfixed_to_int_round64
+    ADD R13 #8
     RET
 
 LABEL PASCAL_LFIXED_FROM_DOUBLE
     sub R13 #8
     moved @13 R0
     CALL lfixed_from_double
+    ADD R13 #8
     RET
 
 LABEL PASCAL_LFIXED_TO_DOUBLE
     sub R13 #8
     movel @13 R0
     CALL lfixed_to_double
+    ADD R13 #8
     RET
 

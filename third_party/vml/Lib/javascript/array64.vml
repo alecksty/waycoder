@@ -12,6 +12,7 @@ LABEL arrays
 LABEL llen64
     PUSH R0
     CALL llen64
+    ADD R13 #4
     RET
 
 LABEL lget64
@@ -19,6 +20,7 @@ LABEL lget64
     movel @13 R1
     PUSH R0
     CALL lget64
+    ADD R13 #12
     RET
 
 LABEL lset64
@@ -28,11 +30,13 @@ LABEL lset64
     movel @13 R1
     PUSH R0
     CALL lset64
+    ADD R13 #20
     RET
 
 LABEL lsortBubble64
     PUSH R0
     CALL lsort_bubble64
+    ADD R13 #4
     RET
 
 LABEL lindexof64
@@ -40,6 +44,7 @@ LABEL lindexof64
     movel @13 R1
     PUSH R0
     CALL lindexof64
+    ADD R13 #12
     RET
 
 LABEL llastIndexof64
@@ -47,6 +52,7 @@ LABEL llastIndexof64
     movel @13 R1
     PUSH R0
     CALL llast_indexof64
+    ADD R13 #12
     RET
 
 LABEL lcontains64
@@ -54,11 +60,13 @@ LABEL lcontains64
     movel @13 R1
     PUSH R0
     CALL lcontains64
+    ADD R13 #12
     RET
 
 LABEL lreverse64
     PUSH R0
     CALL lreverse64
+    ADD R13 #4
     RET
 
 LABEL lfill64
@@ -66,12 +74,14 @@ LABEL lfill64
     movel @13 R1
     PUSH R0
     CALL lfill64
+    ADD R13 #12
     RET
 
 LABEL lcopy64
     PUSH R1
     PUSH R0
     CALL lcopy64
+    ADD R13 #8
     RET
 
 LABEL lslice64
@@ -82,6 +92,7 @@ LABEL lslice64
     movel @13 R1
     PUSH R0
     CALL lslice64
+    ADD R13 #24
     RET
 
 LABEL lconcat64
@@ -89,6 +100,7 @@ LABEL lconcat64
     PUSH R1
     PUSH R0
     CALL lconcat64
+    ADD R13 #12
     RET
 
 LABEL lpush64
@@ -96,16 +108,19 @@ LABEL lpush64
     movel @13 R1
     PUSH R0
     CALL lpush64
+    ADD R13 #12
     RET
 
 LABEL lpop64
     PUSH R0
     CALL lpop64
+    ADD R13 #4
     RET
 
 LABEL lshift64
     PUSH R0
     CALL lshift64
+    ADD R13 #4
     RET
 
 LABEL lunshift64
@@ -113,6 +128,7 @@ LABEL lunshift64
     movel @13 R1
     PUSH R0
     CALL lunshift64
+    ADD R13 #12
     RET
 
 LABEL linsert64
@@ -122,6 +138,7 @@ LABEL linsert64
     movel @13 R1
     PUSH R0
     CALL linsert64
+    ADD R13 #20
     RET
 
 LABEL lremove64
@@ -129,11 +146,13 @@ LABEL lremove64
     movel @13 R1
     PUSH R0
     CALL lremove64
+    ADD R13 #12
     RET
 
 LABEL lminVal64
     PUSH R0
     CALL lmin_val64
+    ADD R13 #4
     RET
 
 LABEL lminArr64
@@ -145,6 +164,7 @@ LABEL lminArr64
 LABEL lmaxVal64
     PUSH R0
     CALL lmax_val64
+    ADD R13 #4
     RET
 
 LABEL lmaxArr64
@@ -156,6 +176,7 @@ LABEL lmaxArr64
 LABEL lsumVal64
     PUSH R0
     CALL lsum_val64
+    ADD R13 #4
     RET
 
 LABEL lsum64
@@ -168,12 +189,14 @@ LABEL lstartswith64
     PUSH R1
     PUSH R0
     CALL lstartswith64
+    ADD R13 #8
     RET
 
 LABEL lendswith64
     PUSH R1
     PUSH R0
     CALL lendswith64
+    ADD R13 #8
     RET
 
 LABEL Array64_Arrays

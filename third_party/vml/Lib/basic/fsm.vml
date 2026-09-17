@@ -8,43 +8,51 @@ LABEL BASIC_TRANSITION
     PUSH R1
     PUSH R0
     CALL transition
+    ADD R13 #12
     RET
 
 LABEL BASIC_SEND_EVENT
     PUSH R1
     PUSH R0
     CALL send_event
+    ADD R13 #8
     RET
 
 LABEL BASIC_STATE
     PUSH R1
     PUSH R0
     CALL state
+    ADD R13 #8
     RET
 
 LABEL BASIC_GET_STATE
     PUSH R0
     CALL get_state
+    ADD R13 #4
     RET
 
 LABEL BASIC_EVENT_QUEUE_PUSH
     PUSH R1
     PUSH R0
     CALL event_queue_push
+    ADD R13 #8
     RET
 
 LABEL BASIC_EVENT_QUEUE_POP
     PUSH R0
     CALL event_queue_pop
+    ADD R13 #4
     RET
 
 LABEL BASIC_EVENT_QUEUE_INIT
     PUSH R0
     CALL event_queue_init
+    ADD R13 #4
     RET
 
 LABEL BASIC_EVENT_QUEUE_AVAILABLE
     PUSH R0
     CALL event_queue_available
+    ADD R13 #4
     RET
 

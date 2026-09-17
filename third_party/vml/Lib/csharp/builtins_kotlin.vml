@@ -6,6 +6,7 @@
 LABEL ArrayAlloc
     PUSH R0
     CALL array_alloc
+    ADD R13 #4
     RET
 
 LABEL Builtins_kotlin_ArrayAlloc

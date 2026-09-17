@@ -7,6 +7,7 @@ LABEL cpp_set_setpoint
     PUSH R1
     PUSH R0
     CALL set_setpoint
+    ADD R13 #8
     RET
 
 LABEL cpp_compute
@@ -14,11 +15,13 @@ LABEL cpp_compute
     PUSH R1
     PUSH R0
     CALL compute
+    ADD R13 #12
     RET
 
 LABEL cpp_reset
     PUSH R0
     CALL reset
+    ADD R13 #4
     RET
 
 LABEL func_set_setpoint

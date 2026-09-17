@@ -1,14 +1,21 @@
-.entry main
-.stack 0
-.vectors 0x0
 
 .data
 
 .text
 rgb888_to_rgb565:
+; -------------------------------------------
+; source   : int rgb888_to_rgb565(int r,int g,int b)
+; function : rgb888_to_rgb565
+; param   : int r
+; param   : int g
+; param   : int b
+; return   : int
+; --------------------------------------------
+rgb888_to_rgb565:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #248
@@ -50,19 +57,24 @@ rgb888_to_rgb565:
         pop R1
         or R1 R0
         move R0 R1
-        jmp L27230000
-L27230000:
+        jmp L_27230000
+L_27230000:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+rgb565_to_r:
+; -------------------------------------------
+; source   : int rgb565_to_r(int color)
+; function : rgb565_to_r
+; param   : int color
+; return   : int
+; --------------------------------------------
 rgb565_to_r:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #8
@@ -74,19 +86,24 @@ rgb565_to_r:
         pop R1
         and R1 R0
         move R0 R1
-        jmp L27230001
-L27230001:
+        jmp L_27230001
+L_27230001:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+rgb565_to_g:
+; -------------------------------------------
+; source   : int rgb565_to_g(int color)
+; function : rgb565_to_g
+; param   : int color
+; return   : int
+; --------------------------------------------
 rgb565_to_g:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -98,19 +115,24 @@ rgb565_to_g:
         pop R1
         and R1 R0
         move R0 R1
-        jmp L27230002
-L27230002:
+        jmp L_27230002
+L_27230002:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+rgb565_to_b:
+; -------------------------------------------
+; source   : int rgb565_to_b(int color)
+; function : rgb565_to_b
+; param   : int color
+; return   : int
+; --------------------------------------------
 rgb565_to_b:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -122,19 +144,26 @@ rgb565_to_b:
         pop R1
         and R1 R0
         move R0 R1
-        jmp L27230003
-L27230003:
+        jmp L_27230003
+L_27230003:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+rgb:
+; -------------------------------------------
+; source   : int rgb(int r,int g,int b)
+; function : rgb
+; param   : int r
+; param   : int g
+; param   : int b
+; return   : int
+; --------------------------------------------
 rgb:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -258,19 +287,24 @@ sta_27230025:
         pop R1
         or R1 R0
         move R0 R1
-        jmp L27230028
-L27230028:
+        jmp L_27230028
+L_27230028:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+red:
+; -------------------------------------------
+; source   : int red(int color)
+; function : red
+; param   : int color
+; return   : int
+; --------------------------------------------
 red:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #16
@@ -282,19 +316,24 @@ red:
         pop R1
         and R1 R0
         move R0 R1
-        jmp L27230029
-L27230029:
+        jmp L_27230029
+L_27230029:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+green:
+; -------------------------------------------
+; source   : int green(int color)
+; function : green
+; param   : int color
+; return   : int
+; --------------------------------------------
 green:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #8
@@ -306,38 +345,50 @@ green:
         pop R1
         and R1 R0
         move R0 R1
-        jmp L27230030
-L27230030:
+        jmp L_27230030
+L_27230030:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+blue:
+; -------------------------------------------
+; source   : int blue(int color)
+; function : blue
+; param   : int color
+; return   : int
+; --------------------------------------------
 blue:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #255
         pop R1
         and R1 R0
         move R0 R1
-        jmp L27230031
-L27230031:
+        jmp L_27230031
+L_27230031:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #8
-        push R1
         ret
+grayscale:
+; -------------------------------------------
+; source   : int grayscale(int r,int g,int b)
+; function : grayscale
+; param   : int r
+; param   : int g
+; param   : int b
+; return   : int
+; --------------------------------------------
 grayscale:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 [R12+12]
         push R0
         move R0 #299
@@ -369,44 +420,62 @@ grayscale:
         pop R1
         div R1 R0
         move R0 R1
-        jmp L27230032
-L27230032:
+        jmp L_27230032
+L_27230032:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+color_blend:
+; -------------------------------------------
+; source   : int color_blend(int fg,int bg,int alpha)
+; function : color_blend
+; param   : int fg
+; param   : int bg
+; param   : int alpha
+; return   : int
+; --------------------------------------------
 color_blend:
         push R15
         push R12
         move R12 R13
-        sub R13 #52
+        sub R13 #56
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call red
-        move [R12-4] R0
-        move R0 [R12+12]
-        push R0
-        call green
+        add R13 #4
         move [R12-8] R0
         move R0 [R12+12]
         push R0
-        call blue
+        move R0 [R13+0]
+        call green
+        add R13 #4
         move [R12-12] R0
-        move R0 [R12+16]
+        move R0 [R12+12]
         push R0
-        call red
+        move R0 [R13+0]
+        call blue
+        add R13 #4
         move [R12-16] R0
         move R0 [R12+16]
         push R0
-        call green
+        move R0 [R13+0]
+        call red
+        add R13 #4
         move [R12-20] R0
         move R0 [R12+16]
         push R0
-        call blue
+        move R0 [R13+0]
+        call green
+        add R13 #4
         move [R12-24] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R13+0]
+        call blue
+        add R13 #4
+        move [R12-28] R0
         move R0 [R12+20]
         push R0
         move R0 #255
@@ -442,46 +511,24 @@ _L27230039:
         move R0 [R12+20]
 _L27230040:
 _L27230036:
-        move [R12-28] R0
-        move R0 #255
-        push R0
-        move R0 [R12-28]
-        pop R1
-        sub R1 R0
-        move R0 R1
         move [R12-32] R0
-        move R0 [R12-4]
-        push R0
-        move R0 [R12-28]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-16]
+        move R0 #255
         push R0
         move R0 [R12-32]
         pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 #255
-        pop R1
-        div R1 R0
+        sub R1 R0
         move R0 R1
         move [R12-36] R0
         move R0 [R12-8]
         push R0
-        move R0 [R12-28]
+        move R0 [R12-32]
         pop R1
         mul R1 R0
         move R0 R1
         push R0
         move R0 [R12-20]
         push R0
-        move R0 [R12-32]
+        move R0 [R12-36]
         pop R1
         mul R1 R0
         move R0 R1
@@ -496,14 +543,14 @@ _L27230036:
         move [R12-40] R0
         move R0 [R12-12]
         push R0
-        move R0 [R12-28]
+        move R0 [R12-32]
         pop R1
         mul R1 R0
         move R0 R1
         push R0
         move R0 [R12-24]
         push R0
-        move R0 [R12-32]
+        move R0 [R12-36]
         pop R1
         mul R1 R0
         move R0 R1
@@ -516,39 +563,63 @@ _L27230036:
         div R1 R0
         move R0 R1
         move [R12-44] R0
-        move R0 [R12-36]
+        move R0 [R12-16]
         push R0
-        move R0 [R12-40]
+        move R0 [R12-32]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        push R0
+        move R0 [R12-28]
+        push R0
+        move R0 [R12-36]
+        pop R1
+        mul R1 R0
+        move R0 R1
+        pop R1
+        add R1 R0
+        move R0 R1
+        push R0
+        move R0 #255
+        pop R1
+        div R1 R0
+        move R0 R1
+        move [R12-48] R0
+        move R0 [R12-48]
         push R0
         move R0 [R12-44]
         push R0
+        move R0 [R12-40]
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call rgb
-        jmp L27230041
-L27230041:
+        add R13 #12
+        jmp L_27230041
+L_27230041:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #16
-        push R1
         ret
+color_brightness:
+; -------------------------------------------
+; source   : int color_brightness(int color,int amount)
+; function : color_brightness
+; param   : int color
+; param   : int amount
+; return   : int
+; --------------------------------------------
 color_brightness:
         push R15
         push R12
         move R12 R13
-        sub R13 #20
+        sub R13 #24
         move R0 [R12+12]
         push R0
+        move R0 [R13+0]
         call red
-        push R0
-        move R0 [R12+16]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-4] R0
-        move R0 [R12+12]
-        push R0
-        call green
+        add R13 #4
         push R0
         move R0 [R12+16]
         pop R1
@@ -557,14 +628,27 @@ color_brightness:
         move [R12-8] R0
         move R0 [R12+12]
         push R0
-        call blue
+        move R0 [R13+0]
+        call green
+        add R13 #4
         push R0
         move R0 [R12+16]
         pop R1
         add R1 R0
         move R0 R1
         move [R12-12] R0
-        move R0 [R12-4]
+        move R0 [R12+12]
+        push R0
+        move R0 [R13+0]
+        call blue
+        add R13 #4
+        push R0
+        move R0 [R12+16]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-16] R0
+        move R0 [R12-8]
         push R0
         move R0 #0
         pop R1
@@ -578,10 +662,10 @@ _L27230045:
         cmp R0 #0
         jz sta_27230042
         move R0 #0
-        move [R12-4] R0
+        move [R12-8] R0
 sta_27230042:
 sta_27230043:
-        move R0 [R12-4]
+        move R0 [R12-8]
         push R0
         move R0 #255
         pop R1
@@ -595,10 +679,10 @@ _L27230049:
         cmp R0 #0
         jz sta_27230046
         move R0 #255
-        move [R12-4] R0
+        move [R12-8] R0
 sta_27230046:
 sta_27230047:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #0
         pop R1
@@ -612,10 +696,10 @@ _L27230053:
         cmp R0 #0
         jz sta_27230050
         move R0 #0
-        move [R12-8] R0
+        move [R12-12] R0
 sta_27230050:
 sta_27230051:
-        move R0 [R12-8]
+        move R0 [R12-12]
         push R0
         move R0 #255
         pop R1
@@ -629,10 +713,10 @@ _L27230057:
         cmp R0 #0
         jz sta_27230054
         move R0 #255
-        move [R12-8] R0
+        move [R12-12] R0
 sta_27230054:
 sta_27230055:
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #0
         pop R1
@@ -646,10 +730,10 @@ _L27230061:
         cmp R0 #0
         jz sta_27230058
         move R0 #0
-        move [R12-12] R0
+        move [R12-16] R0
 sta_27230058:
 sta_27230059:
-        move R0 [R12-12]
+        move R0 [R12-16]
         push R0
         move R0 #255
         pop R1
@@ -663,109 +747,167 @@ _L27230065:
         cmp R0 #0
         jz sta_27230062
         move R0 #255
-        move [R12-12] R0
+        move [R12-16] R0
 sta_27230062:
 sta_27230063:
-        move R0 [R12-4]
-        push R0
-        move R0 [R12-8]
+        move R0 [R12-16]
         push R0
         move R0 [R12-12]
         push R0
+        move R0 [R12-8]
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
         call rgb
-        jmp L27230066
-L27230066:
+        add R13 #12
+        jmp L_27230066
+L_27230066:
         move R13 R12
         pop R12
         pop R15
-        move R1 @13
-        add R13 #12
-        push R1
         ret
+color_black:
+; -------------------------------------------
+; source   : int color_black()
+; function : color_black
+; return   : int
+; --------------------------------------------
 color_black:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #0
-        jmp L27230067
-L27230067:
+        jmp L_27230067
+L_27230067:
         move R13 R12
         pop R12
         pop R15
         ret
 color_white:
+; -------------------------------------------
+; source   : int color_white()
+; function : color_white
+; return   : int
+; --------------------------------------------
+color_white:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #16777215
-        jmp L27230068
-L27230068:
+        jmp L_27230068
+L_27230068:
         move R13 R12
         pop R12
         pop R15
         ret
 color_red:
+; -------------------------------------------
+; source   : int color_red()
+; function : color_red
+; return   : int
+; --------------------------------------------
+color_red:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #16711680
-        jmp L27230069
-L27230069:
+        jmp L_27230069
+L_27230069:
         move R13 R12
         pop R12
         pop R15
         ret
 color_green:
+; -------------------------------------------
+; source   : int color_green()
+; function : color_green
+; return   : int
+; --------------------------------------------
+color_green:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #65280
-        jmp L27230070
-L27230070:
+        jmp L_27230070
+L_27230070:
         move R13 R12
         pop R12
         pop R15
         ret
 color_blue:
+; -------------------------------------------
+; source   : int color_blue()
+; function : color_blue
+; return   : int
+; --------------------------------------------
+color_blue:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #255
-        jmp L27230071
-L27230071:
+        jmp L_27230071
+L_27230071:
         move R13 R12
         pop R12
         pop R15
         ret
 color_yellow:
+; -------------------------------------------
+; source   : int color_yellow()
+; function : color_yellow
+; return   : int
+; --------------------------------------------
+color_yellow:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #16776960
-        jmp L27230072
-L27230072:
+        jmp L_27230072
+L_27230072:
         move R13 R12
         pop R12
         pop R15
         ret
 color_cyan:
+; -------------------------------------------
+; source   : int color_cyan()
+; function : color_cyan
+; return   : int
+; --------------------------------------------
+color_cyan:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #65535
-        jmp L27230073
-L27230073:
+        jmp L_27230073
+L_27230073:
         move R13 R12
         pop R12
         pop R15
         ret
 color_magenta:
+; -------------------------------------------:
+; -------------------------------------------
+; source   : int color_magenta()
+; function : color_magenta
+; return   : int
+; --------------------------------------------
+color_magenta:
         push R15
         push R12
         move R12 R13
+        sub R13 #12
         move R0 #16711935
-        jmp L27230074
-L27230074:
+        jmp L_27230074
+L_27230074:
         move R13 R12
         pop R12
         pop R15

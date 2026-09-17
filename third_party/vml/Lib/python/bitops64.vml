@@ -9,6 +9,7 @@ LABEL python_lbit_and64
     sub R13 #8
     movel @13 R0
     CALL lbit_and64
+    ADD R13 #16
     RET
 
 LABEL python_lbit_or64
@@ -17,6 +18,7 @@ LABEL python_lbit_or64
     sub R13 #8
     movel @13 R0
     CALL lbit_or64
+    ADD R13 #16
     RET
 
 LABEL python_lbit_xor64
@@ -25,12 +27,14 @@ LABEL python_lbit_xor64
     sub R13 #8
     movel @13 R0
     CALL lbit_xor64
+    ADD R13 #16
     RET
 
 LABEL python_lbit_not64
     sub R13 #8
     movel @13 R0
     CALL lbit_not64
+    ADD R13 #8
     RET
 
 LABEL python_lbit_shl64
@@ -39,6 +43,7 @@ LABEL python_lbit_shl64
     sub R13 #8
     movel @13 R0
     CALL lbit_shl64
+    ADD R13 #16
     RET
 
 LABEL python_lbit_shr64
@@ -47,6 +52,7 @@ LABEL python_lbit_shr64
     sub R13 #8
     movel @13 R0
     CALL lbit_shr64
+    ADD R13 #16
     RET
 
 LABEL python_lrol64
@@ -55,6 +61,7 @@ LABEL python_lrol64
     sub R13 #8
     movel @13 R0
     CALL lrol64
+    ADD R13 #16
     RET
 
 LABEL python_lror64
@@ -63,6 +70,7 @@ LABEL python_lror64
     sub R13 #8
     movel @13 R0
     CALL lror64
+    ADD R13 #16
     RET
 
 LABEL python_lbit_set64
@@ -71,6 +79,7 @@ LABEL python_lbit_set64
     sub R13 #8
     movel @13 R0
     CALL lbit_set64
+    ADD R13 #16
     RET
 
 LABEL python_lbit_clear64
@@ -79,6 +88,7 @@ LABEL python_lbit_clear64
     sub R13 #8
     movel @13 R0
     CALL lbit_clear64
+    ADD R13 #16
     RET
 
 LABEL python_lbit_toggle64
@@ -87,6 +97,7 @@ LABEL python_lbit_toggle64
     sub R13 #8
     movel @13 R0
     CALL lbit_toggle64
+    ADD R13 #16
     RET
 
 LABEL python_lbit_test64
@@ -95,12 +106,14 @@ LABEL python_lbit_test64
     sub R13 #8
     movel @13 R0
     CALL lbit_test64
+    ADD R13 #16
     RET
 
 LABEL python_lcount64
     sub R13 #8
     movel @13 R0
     CALL lcount64
+    ADD R13 #8
     RET
 
 LABEL python_lrotate_left64
@@ -109,6 +122,7 @@ LABEL python_lrotate_left64
     sub R13 #8
     movel @13 R0
     CALL lrotate_left64
+    ADD R13 #16
     RET
 
 LABEL python_lrotate_right64
@@ -117,12 +131,14 @@ LABEL python_lrotate_right64
     sub R13 #8
     movel @13 R0
     CALL lrotate_right64
+    ADD R13 #16
     RET
 
 LABEL python_llowest_set64
     sub R13 #8
     movel @13 R0
     CALL llowest_set64
+    ADD R13 #8
     RET
 
 LABEL python_lctz64
@@ -135,12 +151,14 @@ LABEL python_lhighest_set64
     sub R13 #8
     movel @13 R0
     CALL lhighest_set64
+    ADD R13 #8
     RET
 
 LABEL python_lmask64
     sub R13 #8
     movel @13 R0
     CALL lmask64
+    ADD R13 #8
     RET
 
 LABEL python_lextract64
@@ -151,18 +169,21 @@ LABEL python_lextract64
     sub R13 #8
     movel @13 R0
     CALL lextract64
+    ADD R13 #24
     RET
 
 LABEL python_lis_power_of_two64
     sub R13 #8
     movel @13 R0
     CALL lis_power_of_two64
+    ADD R13 #8
     RET
 
 LABEL python_lnext_power_of_two64
     sub R13 #8
     movel @13 R0
     CALL lnext_power_of_two64
+    ADD R13 #8
     RET
 
 LABEL func_lbit_and64

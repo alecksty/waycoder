@@ -7,65 +7,77 @@ LABEL Add
     PUSH R1
     PUSH R0
     CALL add
+    ADD R13 #8
     RET
 
 LABEL Sub
     PUSH R1
     PUSH R0
     CALL sub
+    ADD R13 #8
     RET
 
 LABEL Mul
     PUSH R1
     PUSH R0
     CALL mul
+    ADD R13 #8
     RET
 
 LABEL Div
     PUSH R1
     PUSH R0
     CALL div_
+    ADD R13 #8
     RET
 
 LABEL Mod
     PUSH R1
     PUSH R0
     CALL mod_
+    ADD R13 #8
     RET
 
 LABEL Neg
     PUSH R0
     CALL neg_
+    ADD R13 #4
     RET
 
 LABEL ArrSum
     PUSH R0
     CALL arr_sum
+    ADD R13 #4
     RET
 
 LABEL ArrAvg
     PUSH R0
     CALL arr_avg
+    ADD R13 #4
     RET
 
 LABEL ArrMax
     PUSH R0
     CALL arr_max
+    ADD R13 #4
     RET
 
 LABEL ArrMin
     PUSH R0
     CALL arr_min
+    ADD R13 #4
     RET
 
 LABEL IsEven
     PUSH R0
     CALL is_even
+    ADD R13 #4
     RET
 
 LABEL IsOdd
     PUSH R0
     CALL is_odd
+    ADD R13 #4
     RET
 
 LABEL Crosslang_Add

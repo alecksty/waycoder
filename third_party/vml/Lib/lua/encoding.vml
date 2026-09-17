@@ -7,6 +7,7 @@ LABEL lua_encoding_utf8_decode
     PUSH R1
     PUSH R0
     CALL encoding_utf8_decode
+    ADD R13 #8
     RET
 
 LABEL lua_encoding_utf8_encode
@@ -14,39 +15,46 @@ LABEL lua_encoding_utf8_encode
     PUSH R1
     PUSH R0
     CALL encoding_utf8_encode
+    ADD R13 #12
     RET
 
 LABEL lua_encoding_utf8_strlen
     PUSH R0
     CALL encoding_utf8_strlen
+    ADD R13 #4
     RET
 
 LABEL lua_encoding_utf8_seqlen
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL encoding_utf8_seqlen
+    ADD R13 #4
     RET
 
 LABEL lua_encoding_ascii_decode
     PUSH R1
     PUSH R0
     CALL encoding_ascii_decode
+    ADD R13 #8
     RET
 
 LABEL lua_encoding_ascii_is_clean
     PUSH R0
     CALL encoding_ascii_is_clean
+    ADD R13 #4
     RET
 
 LABEL lua_encoding_ascii_isclean
     PUSH R0
     CALL encoding_ascii_isclean
+    ADD R13 #4
     RET
 
 LABEL lua_encoding_latin1_decode
     PUSH R1
     PUSH R0
     CALL encoding_latin1_decode
+    ADD R13 #8
     RET
 
 LABEL lua_encoding_latin1_encode
@@ -54,24 +62,28 @@ LABEL lua_encoding_latin1_encode
     PUSH R1
     PUSH R0
     CALL encoding_latin1_encode
+    ADD R13 #12
     RET
 
 LABEL lua_encoding_utf16le_decode
     PUSH R1
     PUSH R0
     CALL encoding_utf16le_decode
+    ADD R13 #8
     RET
 
 LABEL lua_encoding_utf16be_decode
     PUSH R1
     PUSH R0
     CALL encoding_utf16be_decode
+    ADD R13 #8
     RET
 
 LABEL lua_encoding_gbk_decode
     PUSH R1
     PUSH R0
     CALL encoding_gbk_decode
+    ADD R13 #8
     RET
 
 LABEL lua_encoding_gbk_encode
@@ -79,12 +91,14 @@ LABEL lua_encoding_gbk_encode
     PUSH R1
     PUSH R0
     CALL encoding_gbk_encode
+    ADD R13 #12
     RET
 
 LABEL lua_encoding_big5_decode
     PUSH R1
     PUSH R0
     CALL encoding_big5_decode
+    ADD R13 #8
     RET
 
 LABEL lua_encoding_detect_bom
@@ -92,11 +106,13 @@ LABEL lua_encoding_detect_bom
     PUSH R1
     PUSH R0
     CALL encoding_detect_bom
+    ADD R13 #12
     RET
 
 LABEL lua_encoding_name
     PUSH R0
     CALL encoding_name
+    ADD R13 #4
     RET
 
 LABEL lua_encoding_convert
@@ -107,6 +123,7 @@ LABEL lua_encoding_convert
     PUSH R1
     PUSH R0
     CALL encoding_convert
+    ADD R13 #24
     RET
 
 LABEL lua_wrappers
@@ -118,11 +135,13 @@ LABEL lua_wrappers
 LABEL lua_encoding_detect_bom_1
     PUSH R0
     CALL encoding_detect_bom_1
+    ADD R13 #4
     RET
 
 LABEL lua_encoding_get_name
     PUSH R0
     CALL encoding_get_name
+    ADD R13 #4
     RET
 
 LABEL lua_encoding_convert_utf8_to_latin1
@@ -130,28 +149,33 @@ LABEL lua_encoding_convert_utf8_to_latin1
     PUSH R1
     PUSH R0
     CALL encoding_convert_utf8_to_latin1
+    ADD R13 #12
     RET
 
 LABEL lua_encoding_latin1_decode_1
     PUSH R0
     CALL encoding_latin1_decode_1
+    ADD R13 #4
     RET
 
 LABEL lua_encoding_latin1_encode_2
     PUSH R1
     PUSH R0
     CALL encoding_latin1_encode_2
+    ADD R13 #8
     RET
 
 LABEL lua_encoding_ascii_decode_1
     PUSH R0
     CALL encoding_ascii_decode_1
+    ADD R13 #4
     RET
 
 LABEL lua_encoding_gbk_encode_2
     PUSH R1
     PUSH R0
     CALL encoding_gbk_encode_2
+    ADD R13 #8
     RET
 
 LABEL func_encoding_utf8_decode

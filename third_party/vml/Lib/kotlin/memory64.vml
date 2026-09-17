@@ -21,6 +21,7 @@ LABEL kotlin_lmemcpy
     PUSH R1
     PUSH R0
     CALL lmemcpy
+    ADD R13 #16
     RET
 
 LABEL kotlin_lmemset
@@ -29,6 +30,7 @@ LABEL kotlin_lmemset
     PUSH R1
     PUSH R0
     CALL lmemset
+    ADD R13 #16
     RET
 
 LABEL kotlin_lmemmove
@@ -37,6 +39,7 @@ LABEL kotlin_lmemmove
     PUSH R1
     PUSH R0
     CALL lmemmove
+    ADD R13 #16
     RET
 
 LABEL kotlin_lmemcmp
@@ -45,6 +48,7 @@ LABEL kotlin_lmemcmp
     PUSH R1
     PUSH R0
     CALL lmemcmp
+    ADD R13 #16
     RET
 
 LABEL func_long

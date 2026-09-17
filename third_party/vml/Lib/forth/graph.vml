@@ -228,6 +228,7 @@ LABEL forth_InitGraph
     PUSH R1
     PUSH R0
     CALL InitGraph
+    ADD R13 #12
     RET
 
 LABEL forth_CloseGraph
@@ -238,6 +239,7 @@ LABEL forth_DetectGraph
     PUSH R1
     PUSH R0
     CALL DetectGraph
+    ADD R13 #8
     RET
 
 LABEL forth_GetMaxX
@@ -255,11 +257,13 @@ LABEL forth_GetDriverName
 LABEL forth_GetModeName
     PUSH R0
     CALL GetModeName
+    ADD R13 #4
     RET
 
 LABEL forth_SetColor
     PUSH R0
     CALL SetColor
+    ADD R13 #4
     RET
 
 LABEL forth_GetColor
@@ -269,6 +273,7 @@ LABEL forth_GetColor
 LABEL forth_SetBkColor
     PUSH R0
     CALL SetBkColor
+    ADD R13 #4
     RET
 
 LABEL forth_GetBkColor
@@ -281,6 +286,7 @@ LABEL forth_SetRGBPalette
     PUSH R1
     PUSH R0
     CALL SetRGBPalette
+    ADD R13 #16
     RET
 
 LABEL forth_PutPixel
@@ -288,12 +294,14 @@ LABEL forth_PutPixel
     PUSH R1
     PUSH R0
     CALL PutPixel
+    ADD R13 #12
     RET
 
 LABEL forth_GetPixel
     PUSH R1
     PUSH R0
     CALL GetPixel
+    ADD R13 #8
     RET
 
 LABEL forth_Line
@@ -302,18 +310,21 @@ LABEL forth_Line
     PUSH R1
     PUSH R0
     CALL Line
+    ADD R13 #16
     RET
 
 LABEL forth_LineTo
     PUSH R1
     PUSH R0
     CALL LineTo
+    ADD R13 #8
     RET
 
 LABEL forth_LineRel
     PUSH R1
     PUSH R0
     CALL LineRel
+    ADD R13 #8
     RET
 
 LABEL forth_Rectangle
@@ -322,6 +333,7 @@ LABEL forth_Rectangle
     PUSH R1
     PUSH R0
     CALL Rectangle
+    ADD R13 #16
     RET
 
 LABEL forth_Bar
@@ -330,6 +342,7 @@ LABEL forth_Bar
     PUSH R1
     PUSH R0
     CALL Bar
+    ADD R13 #16
     RET
 
 LABEL forth_Bar3D
@@ -340,6 +353,7 @@ LABEL forth_Bar3D
     PUSH R1
     PUSH R0
     CALL Bar3D
+    ADD R13 #24
     RET
 
 LABEL forth_Circle
@@ -347,6 +361,7 @@ LABEL forth_Circle
     PUSH R1
     PUSH R0
     CALL Circle
+    ADD R13 #12
     RET
 
 LABEL forth_FillCircle
@@ -354,6 +369,7 @@ LABEL forth_FillCircle
     PUSH R1
     PUSH R0
     CALL FillCircle
+    ADD R13 #12
     RET
 
 LABEL forth_Ellipse
@@ -364,6 +380,7 @@ LABEL forth_Ellipse
     PUSH R1
     PUSH R0
     CALL Ellipse
+    ADD R13 #24
     RET
 
 LABEL forth_FillEllipse
@@ -372,6 +389,7 @@ LABEL forth_FillEllipse
     PUSH R1
     PUSH R0
     CALL FillEllipse
+    ADD R13 #16
     RET
 
 LABEL forth_Arc
@@ -381,6 +399,7 @@ LABEL forth_Arc
     PUSH R1
     PUSH R0
     CALL Arc
+    ADD R13 #20
     RET
 
 LABEL forth_PieSlice
@@ -390,12 +409,14 @@ LABEL forth_PieSlice
     PUSH R1
     PUSH R0
     CALL PieSlice
+    ADD R13 #20
     RET
 
 LABEL forth_SetFillStyle
     PUSH R1
     PUSH R0
     CALL SetFillStyle
+    ADD R13 #8
     RET
 
 LABEL forth_SetLineStyle
@@ -403,6 +424,7 @@ LABEL forth_SetLineStyle
     PUSH R1
     PUSH R0
     CALL SetLineStyle
+    ADD R13 #12
     RET
 
 LABEL forth_ClearDevice
@@ -420,11 +442,13 @@ LABEL forth_SetViewPort
     PUSH R1
     PUSH R0
     CALL SetViewPort
+    ADD R13 #20
     RET
 
 LABEL forth_OutText
     PUSH R0
     CALL OutText
+    ADD R13 #4
     RET
 
 LABEL forth_OutTextXY
@@ -432,6 +456,7 @@ LABEL forth_OutTextXY
     PUSH R1
     PUSH R0
     CALL OutTextXY
+    ADD R13 #12
     RET
 
 LABEL forth_FloodFill
@@ -439,6 +464,7 @@ LABEL forth_FloodFill
     PUSH R1
     PUSH R0
     CALL FloodFill
+    ADD R13 #12
     RET
 
 LABEL forth_ImageSize
@@ -447,6 +473,7 @@ LABEL forth_ImageSize
     PUSH R1
     PUSH R0
     CALL ImageSize
+    ADD R13 #16
     RET
 
 LABEL forth_GetImage
@@ -456,6 +483,7 @@ LABEL forth_GetImage
     PUSH R1
     PUSH R0
     CALL GetImage
+    ADD R13 #20
     RET
 
 LABEL forth_PutImage
@@ -464,6 +492,7 @@ LABEL forth_PutImage
     PUSH R1
     PUSH R0
     CALL PutImage
+    ADD R13 #16
     RET
 
 LABEL forth_GetPaletteSize
@@ -473,11 +502,13 @@ LABEL forth_GetPaletteSize
 LABEL forth_GetPalette
     PUSH R0
     CALL GetPalette
+    ADD R13 #4
     RET
 
 LABEL forth_GetDefaultPalette
     PUSH R0
     CALL GetDefaultPalette
+    ADD R13 #4
     RET
 
 LABEL forth_GraphResult
@@ -487,6 +518,7 @@ LABEL forth_GraphResult
 LABEL forth_GraphErrorMsg
     PUSH R0
     CALL GraphErrorMsg
+    ADD R13 #4
     RET
 
 LABEL forth_RestoreCrtMode

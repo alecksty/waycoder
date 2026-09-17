@@ -6,31 +6,37 @@
 LABEL intToStr
     PUSH R0
     CALL int_to_str
+    ADD R13 #4
     RET
 
 LABEL intToWstr
     PUSH R0
     CALL int_to_wstr
+    ADD R13 #4
     RET
 
 LABEL intToUstr
     PUSH R0
     CALL int_to_ustr
+    ADD R13 #4
     RET
 
 LABEL strToInt
     PUSH R0
     CALL str_to_int
+    ADD R13 #4
     RET
 
 LABEL wstrToInt
     PUSH R0
     CALL wstr_to_int
+    ADD R13 #4
     RET
 
 LABEL ustrToInt
     PUSH R0
     CALL ustr_to_int
+    ADD R13 #4
     RET
 
 LABEL ltoa
@@ -46,24 +52,28 @@ LABEL longToStrbuf
     sub R13 #8
     movel @13 R0
     CALL long_to_strbuf
+    ADD R13 #12
     RET
 
 LABEL longToStr
     sub R13 #8
     movel @13 R0
     CALL long_to_str
+    ADD R13 #8
     RET
 
 LABEL longToWstr
     sub R13 #8
     movel @13 R0
     CALL long_to_wstr
+    ADD R13 #8
     RET
 
 LABEL longToUstr
     sub R13 #8
     movel @13 R0
     CALL long_to_ustr
+    ADD R13 #8
     RET
 
 LABEL atol
@@ -75,75 +85,89 @@ LABEL atol
 LABEL strToLong
     PUSH R0
     CALL str_to_long
+    ADD R13 #4
     RET
 
 LABEL wstrToLong
     PUSH R0
     CALL wstr_to_long
+    ADD R13 #4
     RET
 
 LABEL ustrToLong
     PUSH R0
     CALL ustr_to_long
+    ADD R13 #4
     RET
 
 LABEL uintToStr
     PUSH R0
     CALL uint_to_str
+    ADD R13 #4
     RET
 
 LABEL ulongToStr
     sub R13 #8
     movel @13 R0
     CALL ulong_to_str
+    ADD R13 #8
     RET
 
 LABEL strToUint
     PUSH R0
     CALL str_to_uint
+    ADD R13 #4
     RET
 
 LABEL strToUlong
     PUSH R0
     CALL str_to_ulong
+    ADD R13 #4
     RET
 
 LABEL boolToStr
     PUSH R0
     CALL bool_to_str
+    ADD R13 #4
     RET
 
 LABEL strToBool
     PUSH R0
     CALL str_to_bool
+    ADD R13 #4
     RET
 
 LABEL charToStr
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL char_to_str
+    ADD R13 #4
     RET
 
 LABEL strToChar
     PUSH R0
     CALL str_to_char
+    ADD R13 #4
     RET
 
 LABEL byteToStr
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL byte_to_str
+    ADD R13 #4
     RET
 
 LABEL strToByte
     PUSH R0
     CALL str_to_byte
+    ADD R13 #4
     RET
 
 LABEL sbyteToStr
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL sbyte_to_str
+    ADD R13 #4
     RET
 
 LABEL strToSbyte
@@ -153,25 +177,29 @@ LABEL strToSbyte
     RET
 
 LABEL shortToStr
-    sub R13 #2
+    sub R13 #4
     moveh @13 R0
     CALL short_to_str
+    ADD R13 #4
     RET
 
 LABEL strToShort
     PUSH R0
     CALL str_to_short
+    ADD R13 #4
     RET
 
 LABEL ushortToStr
-    sub R13 #2
+    sub R13 #4
     moveh @13 R0
     CALL ushort_to_str
+    ADD R13 #4
     RET
 
 LABEL strToUshort
     PUSH R0
     CALL str_to_ushort
+    ADD R13 #4
     RET
 
 LABEL ftoa
@@ -186,11 +214,13 @@ LABEL floatToStr
     sub R13 #4
     movef @13 R0
     CALL float_to_str
+    ADD R13 #4
     RET
 
 LABEL strToFloat
     PUSH R0
     CALL str_to_float
+    ADD R13 #4
     RET
 
 LABEL dtoa
@@ -206,45 +236,53 @@ LABEL doubleToStr
     sub R13 #8
     moved @13 R0
     CALL double_to_str
+    ADD R13 #8
     RET
 
 LABEL strToDouble
     PUSH R0
     CALL str_to_double
+    ADD R13 #4
     RET
 
 LABEL floatToWstr
     sub R13 #4
     movef @13 R0
     CALL float_to_wstr
+    ADD R13 #4
     RET
 
 LABEL doubleToWstr
     sub R13 #8
     moved @13 R0
     CALL double_to_wstr
+    ADD R13 #8
     RET
 
 LABEL boolToWstr
     PUSH R0
     CALL bool_to_wstr
+    ADD R13 #4
     RET
 
 LABEL floatToUstr
     sub R13 #4
     movef @13 R0
     CALL float_to_ustr
+    ADD R13 #4
     RET
 
 LABEL doubleToUstr
     sub R13 #8
     moved @13 R0
     CALL double_to_ustr
+    ADD R13 #8
     RET
 
 LABEL boolToUstr
     PUSH R0
     CALL bool_to_ustr
+    ADD R13 #4
     RET
 
 LABEL wstrToUtf8
@@ -252,6 +290,7 @@ LABEL wstrToUtf8
     PUSH R1
     PUSH R0
     CALL wstr_to_utf8
+    ADD R13 #12
     RET
 
 LABEL ustrToUtf8
@@ -259,6 +298,7 @@ LABEL ustrToUtf8
     PUSH R1
     PUSH R0
     CALL ustr_to_utf8
+    ADD R13 #12
     RET
 
 LABEL Conv_IntToStr

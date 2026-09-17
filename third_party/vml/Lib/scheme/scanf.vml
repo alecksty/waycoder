@@ -24,12 +24,12 @@ LABEL scheme__isdigit
 LABEL scheme_vsscanf
     PUSH R3
     PUSH R2
-    sub R13 #1
+    sub R13 #4
     moveb @13 R1
-    sub R13 #1
+    sub R13 #4
     moveb @13 R0
     CALL vsscanf
-    ADD R13 #10
+    ADD R13 #16
     RET
 
 LABEL func__count_args

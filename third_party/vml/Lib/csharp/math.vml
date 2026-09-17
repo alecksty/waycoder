@@ -8,21 +8,25 @@
 LABEL Min
     PUSH R0
     CALL min
+    ADD R13 #4
     RET
 
 LABEL Max
     PUSH R0
     CALL max
+    ADD R13 #4
     RET
 
 LABEL Sum
     PUSH R0
     CALL sum
+    ADD R13 #4
     RET
 
 LABEL Abs
     PUSH R0
     CALL abs
+    ADD R13 #4
     RET
 
 LABEL Random
@@ -34,6 +38,7 @@ LABEL Clamp
     PUSH R1
     PUSH R0
     CALL clamp
+    ADD R13 #12
     RET
 
 LABEL Cos
@@ -51,22 +56,26 @@ LABEL Sin
 LABEL Sqrt
     PUSH R0
     CALL sqrt
+    ADD R13 #4
     RET
 
 LABEL Atan2
     PUSH R1
     PUSH R0
     CALL atan2
+    ADD R13 #8
     RET
 
 LABEL Pow10
     PUSH R0
     CALL pow10
+    ADD R13 #4
     RET
 
 LABEL Randomize
     PUSH R0
     CALL randomize
+    ADD R13 #4
     RET
 
 LABEL SinTaylor
@@ -101,36 +110,42 @@ LABEL Tan
     sub R13 #8
     moved @13 R0
     CALL tan
+    ADD R13 #8
     RET
 
 LABEL Asin
     sub R13 #8
     moved @13 R0
     CALL asin
+    ADD R13 #8
     RET
 
 LABEL Acos
     sub R13 #8
     moved @13 R0
     CALL acos
+    ADD R13 #8
     RET
 
 LABEL Atan
     sub R13 #8
     moved @13 R0
     CALL atan
+    ADD R13 #8
     RET
 
 LABEL Exp
     sub R13 #8
     moved @13 R0
     CALL exp
+    ADD R13 #8
     RET
 
 LABEL Log
     sub R13 #8
     moved @13 R0
     CALL log
+    ADD R13 #8
     RET
 
 LABEL Pow
@@ -139,30 +154,35 @@ LABEL Pow
     sub R13 #8
     moved @13 R0
     CALL pow
+    ADD R13 #16
     RET
 
 LABEL Ipow
     PUSH R1
     PUSH R0
     CALL ipow
+    ADD R13 #8
     RET
 
 LABEL SinDeg
     sub R13 #4
     movef @13 R0
     CALL sin_deg
+    ADD R13 #4
     RET
 
 LABEL CosDeg
     sub R13 #4
     movef @13 R0
     CALL cos_deg
+    ADD R13 #4
     RET
 
 LABEL TanDeg
     sub R13 #4
     movef @13 R0
     CALL tan_deg
+    ADD R13 #4
     RET
 
 LABEL Approximation
@@ -174,29 +194,34 @@ LABEL Approximation
 LABEL Ilog2
     PUSH R0
     CALL ilog2
+    ADD R13 #4
     RET
 
 LABEL CeilDiv
     PUSH R1
     PUSH R0
     CALL ceil_div
+    ADD R13 #8
     RET
 
 LABEL RoundDiv
     PUSH R1
     PUSH R0
     CALL round_div
+    ADD R13 #8
     RET
 
 LABEL RandomRange
     PUSH R1
     PUSH R0
     CALL random_range
+    ADD R13 #8
     RET
 
 LABEL RandomSetSeed
     PUSH R0
     CALL random_set_seed
+    ADD R13 #4
     RET
 
 LABEL Lerp
@@ -204,6 +229,7 @@ LABEL Lerp
     PUSH R1
     PUSH R0
     CALL lerp
+    ADD R13 #12
     RET
 
 LABEL MapRange
@@ -213,6 +239,7 @@ LABEL MapRange
     PUSH R1
     PUSH R0
     CALL map_range
+    ADD R13 #20
     RET
 
 LABEL ClampInt
@@ -220,61 +247,72 @@ LABEL ClampInt
     PUSH R1
     PUSH R0
     CALL clamp_int
+    ADD R13 #12
     RET
 
 LABEL HypotInt
     PUSH R1
     PUSH R0
     CALL hypot_int
+    ADD R13 #8
     RET
 
 LABEL Isqrt
     PUSH R0
     CALL isqrt
+    ADD R13 #4
     RET
 
 LABEL SinDegD
     sub R13 #8
     moved @13 R0
     CALL sin_deg_d
+    ADD R13 #8
     RET
 
 LABEL CosDegD
     sub R13 #8
     moved @13 R0
     CALL cos_deg_d
+    ADD R13 #8
     RET
 
 LABEL TanDegD
     sub R13 #8
     moved @13 R0
     CALL tan_deg_d
+    ADD R13 #8
     RET
 
 LABEL SumArr
     PUSH R0
     CALL sum_arr
+    ADD R13 #4
     RET
 
 LABEL MinArr
     PUSH R0
     CALL min_arr
+    ADD R13 #4
     RET
 
 LABEL MaxArr
     PUSH R0
     CALL max_arr
+    ADD R13 #4
     RET
 
 LABEL IntPow
     PUSH R1
     PUSH R0
     CALL int_pow
+    ADD R13 #8
     RET
 
 LABEL IntSqrt
     PUSH R0
     CALL int_sqrt
+    ADD R13 #4
     RET
 
 LABEL Math_Min

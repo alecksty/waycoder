@@ -11,6 +11,7 @@ LABEL scheme_ldev_read64
     PUSH R1
     PUSH R0
     CALL ldev_read64
+    ADD R13 #24
     RET
 
 LABEL scheme_ldev_write64
@@ -21,6 +22,7 @@ LABEL scheme_ldev_write64
     PUSH R1
     PUSH R0
     CALL ldev_write64
+    ADD R13 #24
     RET
 
 LABEL func_ldev_read64

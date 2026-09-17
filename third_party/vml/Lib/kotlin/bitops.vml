@@ -7,71 +7,83 @@ LABEL kotlin_bit_and
     PUSH R1
     PUSH R0
     CALL bit_and
+    ADD R13 #8
     RET
 
 LABEL kotlin_bit_or
     PUSH R1
     PUSH R0
     CALL bit_or
+    ADD R13 #8
     RET
 
 LABEL kotlin_bit_xor
     PUSH R1
     PUSH R0
     CALL bit_xor
+    ADD R13 #8
     RET
 
 LABEL kotlin_bit_not
     PUSH R0
     CALL bit_not
+    ADD R13 #4
     RET
 
 LABEL kotlin_bit_shl
     PUSH R1
     PUSH R0
     CALL bit_shl
+    ADD R13 #8
     RET
 
 LABEL kotlin_bit_shr
     PUSH R1
     PUSH R0
     CALL bit_shr
+    ADD R13 #8
     RET
 
 LABEL kotlin_rol
     PUSH R1
     PUSH R0
     CALL rol
+    ADD R13 #8
     RET
 
 LABEL kotlin_ror
     PUSH R1
     PUSH R0
     CALL ror
+    ADD R13 #8
     RET
 
 LABEL kotlin_bit_set
     PUSH R1
     PUSH R0
     CALL bit_set
+    ADD R13 #8
     RET
 
 LABEL kotlin_bit_clear
     PUSH R1
     PUSH R0
     CALL bit_clear
+    ADD R13 #8
     RET
 
 LABEL kotlin_bit_toggle
     PUSH R1
     PUSH R0
     CALL bit_toggle
+    ADD R13 #8
     RET
 
 LABEL kotlin_bit_test
     PUSH R1
     PUSH R0
     CALL bit_test
+    ADD R13 #8
     RET
 
 LABEL func_bit_and

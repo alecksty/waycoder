@@ -4772,6 +4772,190 @@ func vml_syscall5(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) in
     return vml.R0()
 }
 
+func ui_dlg_msg(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("ui_dlg_msg")
+    return vml.R0()
+}
+
+func ui_dlg_select(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) int32 {
+    vml.Call("ui_dlg_select")
+    return vml.R0()
+}
+
+func ui_dlg_multi(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("ui_dlg_multi")
+    return vml.R0()
+}
+
+func ui_dlg_input(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("ui_dlg_input")
+    return vml.R0()
+}
+
+func ui_win_open(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("ui_win_open")
+    return vml.R0()
+}
+
+func ui_win_close() int32 {
+    vml.Call("ui_win_close")
+    return vml.R0()
+}
+
+func ui_win_closed() int32 {
+    vml.Call("ui_win_closed")
+    return vml.R0()
+}
+
+func ui_scr_w() int32 {
+    vml.Call("ui_scr_w")
+    return vml.R0()
+}
+
+func ui_scr_h() int32 {
+    vml.Call("ui_scr_h")
+    return vml.R0()
+}
+
+func ui_clear(a0 int32) {
+    vml.Call("ui_clear")
+}
+
+func ui_pixel(a0 int32, a1 int32, a2 int32) {
+    vml.Call("ui_pixel")
+}
+
+func ui_line(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
+    vml.Call("ui_line")
+}
+
+func ui_rect(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32, a6 int32, a7 int32) {
+    vml.Call("ui_rect")
+}
+
+func ui_circle(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
+    vml.Call("ui_circle")
+}
+
+func ui_ellipse(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32, a6 int32) {
+    vml.Call("ui_ellipse")
+}
+
+func ui_present() {
+    vml.Call("ui_present")
+}
+
+func ui_text(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
+    vml.Call("ui_text")
+}
+
+func ui_text_styled(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32, a6 int32) {
+    vml.Call("ui_text_styled")
+}
+
+func ui_set_font(a0 int32, a1 int32, a2 int32, a3 int32) {
+    vml.Call("ui_set_font")
+}
+
+func ui_text_cur(a0 int32, a1 int32, a2 int32) {
+    vml.Call("ui_text_cur")
+}
+
+func ui_poll(a0 int32) int32 {
+    vml.Call("ui_poll")
+    return vml.R0()
+}
+
+func ui_wait(a0 int32, a1 int32) int32 {
+    vml.Call("ui_wait")
+    return vml.R0()
+}
+
+func ui_msg_count() int32 {
+    vml.Call("ui_msg_count")
+    return vml.R0()
+}
+
+func ui_poll_msg() int32 {
+    vml.Call("ui_poll_msg")
+    return vml.R0()
+}
+
+func ui_wait_msg(a0 int32) int32 {
+    vml.Call("ui_wait_msg")
+    return vml.R0()
+}
+
+func ui_msg_type() int32 {
+    vml.Call("ui_msg_type")
+    return vml.R0()
+}
+
+func ui_msg_a() int32 {
+    vml.Call("ui_msg_a")
+    return vml.R0()
+}
+
+func ui_msg_b() int32 {
+    vml.Call("ui_msg_b")
+    return vml.R0()
+}
+
+func ui_gclear() {
+    vml.Call("ui_gclear")
+}
+
+func ui_gset(a0 int32, a1 int32) {
+    vml.Call("ui_gset")
+}
+
+func ui_gget(a0 int32) int32 {
+    vml.Call("ui_gget")
+    return vml.R0()
+}
+
+func ui_piece_init() {
+    vml.Call("ui_piece_init")
+}
+
+func _ui_rot90(a0 int32) int32 {
+    vml.Call("_ui_rot90")
+    return vml.R0()
+}
+
+func ui_piece_cell(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("ui_piece_cell")
+    return vml.R0()
+}
+
+func ui_timer_set(a0 int32, a1 int32) int32 {
+    vml.Call("ui_timer_set")
+    return vml.R0()
+}
+
+func ui_timer_kill(a0 int32) int32 {
+    vml.Call("ui_timer_kill")
+    return vml.R0()
+}
+
+func ui_rand(a0 int32) int32 {
+    vml.Call("ui_rand")
+    return vml.R0()
+}
+
+func ui_tick() int32 {
+    vml.Call("ui_tick")
+    return vml.R0()
+}
+
+func ui_icon(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
+    vml.Call("ui_icon")
+}
+
+func ui_image(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
+    vml.Call("ui_image")
+}
+
 func character(a0 int32, a1 int32) int32 {
     vml.Call("character")
     return vml.R0()

@@ -8,23 +8,27 @@
 LABEL peek
     PUSH R0
     CALL peek
+    ADD R13 #4
     RET
 
 LABEL poke
     PUSH R1
     PUSH R0
     CALL poke
+    ADD R13 #8
     RET
 
 LABEL peekb
     PUSH R0
     CALL peekb
+    ADD R13 #4
     RET
 
 LABEL pokeb
     PUSH R1
     PUSH R0
     CALL pokeb
+    ADD R13 #8
     RET
 
 LABEL alloc
@@ -36,6 +40,7 @@ LABEL alloc
 LABEL free
     PUSH R0
     CALL free
+    ADD R13 #4
     RET
 
 LABEL memcpy
@@ -43,6 +48,7 @@ LABEL memcpy
     PUSH R1
     PUSH R0
     CALL memcpy
+    ADD R13 #12
     RET
 
 LABEL memset
@@ -50,6 +56,7 @@ LABEL memset
     PUSH R1
     PUSH R0
     CALL memset
+    ADD R13 #12
     RET
 
 LABEL memcmp
@@ -57,16 +64,19 @@ LABEL memcmp
     PUSH R1
     PUSH R0
     CALL memcmp
+    ADD R13 #12
     RET
 
 LABEL devOpen
     PUSH R0
     CALL dev_open
+    ADD R13 #4
     RET
 
 LABEL devClose
     PUSH R0
     CALL dev_close
+    ADD R13 #4
     RET
 
 LABEL devRead
@@ -75,6 +85,7 @@ LABEL devRead
     PUSH R1
     PUSH R0
     CALL dev_read
+    ADD R13 #16
     RET
 
 LABEL devWrite
@@ -83,6 +94,7 @@ LABEL devWrite
     PUSH R1
     PUSH R0
     CALL dev_write
+    ADD R13 #16
     RET
 
 LABEL devControl
@@ -90,6 +102,7 @@ LABEL devControl
     PUSH R1
     PUSH R0
     CALL dev_control
+    ADD R13 #12
     RET
 
 LABEL memmove
@@ -97,16 +110,19 @@ LABEL memmove
     PUSH R1
     PUSH R0
     CALL memmove
+    ADD R13 #12
     RET
 
 LABEL getconfig
     PUSH R0
     CALL getconfig
+    ADD R13 #4
     RET
 
 LABEL exit
     PUSH R0
     CALL exit
+    ADD R13 #4
     RET
 
 LABEL System_Peek
