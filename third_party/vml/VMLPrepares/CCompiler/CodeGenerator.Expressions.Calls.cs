@@ -232,6 +232,7 @@ namespace CCompiler
             // 现在全程不装寄存器，这个坑从结构上消失了；但**结构体返回的隐藏指针**仍要守这条规矩
             //（见下面 ②：它是**压栈**进去的，不是提前存进某个寄存器）。
             int totalArgs = funcCall.Args.Count;
+            var argSizes = new int[totalArgs];
 
             // ① 只求值 + 压栈，从右到左（⇒ arg0 在最低地址 = 最后压入 = `[R12+12]`）
             for (int i = totalArgs - 1; i >= 0; i--)
@@ -241,7 +242,7 @@ namespace CCompiler
                     PushStructToStack(funcCall.Args[i], structArgSizes[i]);
                     // ⚠ 必须按**向上取整到 4 的倍数**计账：PushStructToStack 是按「字」压的
                     //（末尾不足一字的部分也占一整格），按原始字节数计账会让清栈少弹一截。
-                    argSize += ParamStackBytes(null, isStruct: true, structSize: structArgSizes[i]);
+                    argSizes[i] = ParamStackBytes(null, isStruct: true, structSize: structArgSizes[i]);
                 }
                 else
                 {
@@ -249,8 +250,9 @@ namespace CCompiler
                     // 与 ParamStackBytes 同源的 4/8 规则（见该函数注释）
                     int size = ParamStackBytes(funcDef?.Params.Count > i ? funcDef.Params[i].Type : null);
                     if (isDoubleArg[i] || isLongArg[i]) size = 8;
-                    argSize += EmitPushArg(size, isFloatArg[i], isDoubleArg[i], isLongArg[i]);
+                    argSizes[i] = EmitPushArg(size, isFloatArg[i], isDoubleArg[i], isLongArg[i]);
                 }
+                argSize += argSizes[i];
             }
 
             // ② 结构体返回：调用方在自己的栈上留出返回区，并把地址**当 arg0 压进去**
@@ -268,8 +270,36 @@ namespace CCompiler
                 argSize += returnStructSize + 4;
             }
 
+            // ③ 兼容层：把实参**同时**镜像进 R0-R3。
+            //
+            // ⚠ 这是给 `Lib` 里那 543 处内联汇编用的 —— 它们形如 `asm("SYSCALL #6")`
+            //（参数直接吃 R0），把「第一个形参在 R0」**烙死在源码里**。
+            // 掐掉这个镜像，那 500 多处就得逐个改源码才能活（配方是 `asm("SYSCALL #6, ${val}")`，
+            // 见 docs/VML调用约定统一.md），而它们的收益只是「每次调用少 4 条指令」，
+            // **没有任何用户可见的行为改善**。所以这里保留一份镜像：
+            // 参数既按规范全部在栈上（清栈因此是统一的一条），也顺手复制进 R0-R3。
+            //
+            // 位置有讲究：必须**在所有实参求值完成之后**。表达式生成器用 R0/R1 做 push/pop 暂存，
+            // 早装必被后一个实参的求值冲掉（本仓的历史伤：`probe(p + 3*k, q + 3*k, 3*k)`
+            // 曾传出 R1=101 而非 113，五子棋星位就是这么画歪的）。
+            // 现在压栈循环里一个寄存器都不碰，这里读的就是栈上的真值，天然免疫。
+            {
+                // 结构体返回时隐藏指针占了 [R13+0]，声明参数整体后移一格
+                int shadowOff = returnsStruct ? 4 : 0;
+                for (int i = 0; i < totalArgs && i < 4; i++)
+                {
+                    // 结构体参数不走寄存器（被调方也从栈读它们），只推进偏移
+                    if (!isStructArg[i])
+                    {
+                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> {
+                            new Operand(OperandType.REGISTER, i),
+                            new Operand(OperandType.MEMORY, $"R13+{shadowOff}") }));
+                    }
+                    shadowOff += argSizes[i];
+                }
+            }
 
-            // ③ 间接调用：把最底下那格（被调地址）取回 R8
+            // ④ 间接调用：把最底下那格（被调地址）取回 R8
             //    —— 此刻 SP 已经停在「实参区之下」，被调地址正好在实参区上方一格。
             if (indirectAddrPushed)
             {
