@@ -77,6 +77,7 @@ game-ruby-catch	-	examples/ruby/catch.rb	window	-	接方块（Ruby）—— ⚠ 
 game-rust-breakout	-	examples/rust/breakout.rs	window	-	打砖块（Rust）—— 换玩法：24 砖数组遍历 + 矩形碰撞；⚠ 数组字面量必须写在一行（跨行 `];` 报非法 token）
 game-lua-life	-	examples/lua/life.lua	window	-	生命游戏（Lua）—— 双缓冲 480 格数组 + 八邻域求和，照「数组当主力」路径	300
 game-basic-whack	-	examples/basic/whack.bas	window	-	打地鼠（BASIC）—— ui_rand + 离散光标 + 秒级倒计时；⚠ NATIVE 形参名不能叫 `on`（关键字）	300
+game-fortran-sokoban	-	examples/fortran/sokoban.f90	window	-	推箱子（Fortran）—— 双数组状态 + 移动规则 + 过关判定；⚠ `if` 条件里解析不了「紧跟括号的除法」，要先算进变量
 # README 明说这两个跑不了（BASIC 前端三个既有缺陷 / Python 列表写不生效）。
 # 留着是为了**验证"读代码记下的结论在设备上仍成立"**，不是指望它们过。
 game-basic-tetris	-	examples/basic/tetris.bas	window	-	README 记：BASIC 前端缺陷，跑不了	60
