@@ -42,7 +42,7 @@ scripts/vml-abi-probe/run-langs.sh cpp  # 按扩展名挑
 | ~~`abi.rb`~~ | **`8` ✓** | 已修：调用点改右到左 + **包装器改从自己的栈帧读实参**（见下「总根源」） |
 | ~~`abi.lua`~~ | **`8` ✓** | 已修：Lua 的「压栈」原先**不动 R13**（假压栈），改成真压 + 调用方清；被调方也改成每个形参都从 `[R12+12+4i]` 取（原先从 R0-R3，第 4 个之后还不支持） |
 | ~~`abi.js`~~ | **`8` ✓** | 已修：根因是 `naming.json` 给 javascript 的 `PrimaryPrefix` 为空，而它的 `LabelStyle` 是 camelCase ⇒ **单词名函数**（`ipow`/`pow`/`abs`/`sqrt`）的主标签与 C 符号名同名，`LABEL ipow … CALL ipow` 成了自调用。补上 `js_` 前缀即可（java 同病，一并补 `java_`）。GenLib 里加了护栏：真实存在的函数一旦撞名就告警 |
-| `drift.lua` | `0` | `ipow` 在循环**外**是对的（常量实参、`local` 变量实参都实测得 8），**进 `for` 循环就变 0** —— Lua 前端的另一个独立问题（与实参传递无关），待查 |
+| `drift.lua` | `0` | **与调用约定无关**：Lua 的数值 `for` 循环**要求循环变量事先用 `local` 声明过**。见下 |
 | `drift.m` | `2059` | ObjC 的多参外部调用（**既存缺陷**：重生成前基线也是 2059；栈漂移那部分已修） |
 
 ### ⚠ 总根源：`Lib/{lang}/**` 的包装器仍在用**寄存器**收参数
@@ -93,6 +93,36 @@ LABEL ruby_ipow
 `Lib/` 里那 543 处 `asm("SYSCALL #6")` 也由包装器这一层的镜像喂饱。
 ⚠ 代价是 `Lib/{lang}/**` 要整体重生成一次（1933 个文件），改法与验证路径与上一轮相同
 （`GenLib -A` + `scripts/check-vml-patches.sh` 的「可重生成」判据）。
+
+### `drift.lua` 的真实根因：Lua 的 `for` 循环变量必须先 `local` 声明
+
+它跟调用约定**没有关系** —— 顺藤摸下去是一条纯粹的 Lua 前端缺陷。实测（`ipow` 只是恰好被写在循环里）：
+
+```lua
+function main()
+    local a = {1, 2, 3, 4}
+    local s = 0
+    for i = 1, 4 do  s = s + a[i]  end
+    print(s)          -- 0     ✗ 循环体一次都没执行（循环里的 print 也不输出）
+end
+```
+
+**只差一句前置声明就对**：
+
+```lua
+function main()
+    local a = {1, 2, 3, 4}
+    local s = 0
+    local i = 0       -- ← 就这一句
+    for i = 1, 4 do  s = s + a[i]  end
+    print(s)          -- 10    ✓
+end
+```
+
+`scripts/maui-vml-verify/corpus/lua/skel.lua` 里恰好有 `local i = 0`（语料作者的习惯写法），
+所以 22 语言骨架一直是绿的 —— **循环变量没预声明**这条路径从来没被覆盖。
+锅在 Lua 前端生成 `for` 时的局部槽分配（循环变量没有预先占位，条件判断读到的是别的槽）。
+**修法**：`for` 语句生成时无条件为循环变量分配槽（不管它此前是否出现在符号表里）。
 
 ### 顺带挖出的一条独立缺陷：`ParseFunctions` 把**注释**当函数签名
 
