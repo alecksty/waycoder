@@ -243,7 +243,12 @@ public partial class CodeGenerator
     private void GenerateCall(CallNode node)
     {
         // Inline print functions — push arg to stack, then CALL print_str/print_int
-        // print_* functions expect arg on stack (cleanup via add R13 #8 in epilogue)
+        // ⚠ 压一格**必须跟着清**（2026-09-17 调用约定统一后补的 `ADD R13 #4`）。
+        //    旧注释写「print_* functions expect arg on stack (cleanup via add R13 #8 in epilogue)」，
+        //    指的是 `Lib/console.vml` 里那几个函数**还没重生成**时替调用方多弹一格的形态。
+        //    现在被调方裸 `ret`（它们从 R0 取参），压了不清就是每次 print 净漏 4 字节。
+        //    保留压栈而不是改成裸 CALL：压进去的是**与 R0 相同的值**，将来被调方改成读
+        //    `[R12+12]` 也不会错。
         if (node.Name == "print_int" || node.Name == "NSLog")
         {
             foreach (var arg in node.Arguments)
@@ -255,6 +260,8 @@ public partial class CodeGenerator
                 GenerateExpression(arg);
                 instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
                 instructions.Add(new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, func)]));
+                instructions.Add(new Instruction(OpCode.ADD,
+                    [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 4)]));
             }
             return;
         }
@@ -336,17 +343,28 @@ public partial class CodeGenerator
         }
         else
         {
-            // External functions use stdcall convention (callee cleans stack)
-            // Push arguments right-to-left using EmitPushArg for type-aware stack writes
+            // ⚠ **调用方清栈**（2026-09-17 调用约定统一后补的）。
+            // 旧注释写「External functions use stdcall convention (callee cleans stack)」，
+            // 并据此**不做任何清理** —— 那是 `Lib` 里那些函数还没重生成时的形态
+            // （收尾 `… add R13 #N …` 会替调用方弹掉实参槽）。
+            // 现在被调方一律裸 `ret`，压了不清就是**每次调用净漏 argSize 字节**：
+            // 实测 `ipow(2,i)` 累加 i=1..6 得 `66`（正确值 `126`），漂移把 `s`/`i` 踩花。
+            // 压栈仍用 `EmitPushArg`（类型感知，double/long 占 8 字节）。
+            int totalArgBytes = 0;
             for (int i = node.Arguments.Count - 1; i >= 0; i--)
             {
                 var arg = node.Arguments[i];
                 GenerateExpression(arg);
                 var (size, isFloat, isDouble, isLong) = GetArgTypeInfo(arg);
                 EmitPushArg(size, isFloat, isDouble, isLong);
+                totalArgBytes += size;
             }
             instructions.Add(new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, node.Name)], instructions.Count));
-            // No caller cleanup — callee cleans its own stack (stdcall)
+            if (totalArgBytes > 0)
+            {
+                instructions.Add(new Instruction(OpCode.ADD,
+                    [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, totalArgBytes)], instructions.Count));
+            }
         }
     }
 

@@ -150,12 +150,19 @@ public partial class CodeGenerator
             case "*": _expr!.EmitBinOp(left, right, "*"); break;
             case "/": _expr!.EmitBinOp(left, right, "/"); break;
             case "**":
-                // CALL shared_ipow (__stdcall: 被调用者清栈)
+                // ⚠ 这里是 **调用方清栈**（2026-09-17 调用约定统一后补的最后那句 `ADD R13 #8`）。
+                //
+                // 旧注释写「__stdcall: 被调用者清栈」—— 那时 `Lib` 里的 `ipow` 收尾是
+                // `… move R1 @13; add R13 #8; push R1; ret`，替调用方多弹掉两个实参槽，
+                // 所以调用方压完不用管。现在 `Lib/` 已按统一约定重生成（被调方一律裸 `ret`），
+                // 那句话不再成立：**不补 `ADD R13 #8` 就是每次求幂净漏 8 字节**。
+                // 实测（`2 ** i` 累加 i=1..6）：修复前得 `SUM=66`，正确值 `SUM=126`。
                 GenerateExpression(node.Right);  // R0 = exp
                 instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
                 GenerateExpression(node.Left);   // R0 = base
                 instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
                 instructions.Add(new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, "ipow")]));
+                instructions.Add(new Instruction(OpCode.ADD, [Reg(13), new Operand(OperandType.IMMEDIATE, 8)]));
                 break;
             case "==": _expr!.EmitCmp(left, right, "=="); break;
             case "/=": _expr!.EmitCmp(left, right, "!="); break;

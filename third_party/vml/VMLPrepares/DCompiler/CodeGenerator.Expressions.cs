@@ -73,10 +73,17 @@ public partial class CodeGenerator
         if (_expr!.EmitStandardBinaryOps(node.Op, left, right)) return;
         if (node.Op == "^^")
         {
-            // CALL shared_ipow (__stdcall: 被调用者清栈)
+            // ⚠ 这里是 **调用方清栈**（2026-09-17 调用约定统一后改的，此前没有最后那句 `ADD R13`）。
+            //
+            // 旧注释写「__stdcall: 被调用者清栈」—— 那时 `Lib` 里的 `ipow` 收尾是
+            // `… move R1 @13; add R13 #8; push R1; ret`，替调用方多弹掉两个实参槽，
+            // 所以调用方压完不用管。现在 `Lib/` 已按统一约定重生成（被调方一律裸 `ret`），
+            // 那句话不再成立：**不补 `ADD R13 #8` 就是每次求幂净漏 8 字节**。
+            // 实测（`2 ^^ i` 累加 i=1..6）：修复前得 `SUM=66`，正确值 `SUM=126`。
             GenerateExpression(node.Right); AddInstruction(OpCode.PUSH, Reg(0));
             GenerateExpression(node.Left); AddInstruction(OpCode.PUSH, Reg(0));
             AddCall("ipow");
+            AddInstruction(OpCode.ADD, Reg(13), new Operand(OperandType.IMMEDIATE, 8));
             return;
         }
         if (node.Op is "&" or "|" or "^" or "<<" or ">>")

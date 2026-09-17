@@ -93,12 +93,17 @@ public partial class CodeGenerator
             case "/": _expr!.EmitBinOp(left, right, "/"); break;
             case "%": _expr!.EmitBinOp(left, right, "%"); break;
             case "**":
-                // CALL shared_ipow (__stdcall: 被调用者清栈)
+                // ⚠ 这里是 **调用方清栈**（2026-09-17 调用约定统一后补的最后那句 `ADD R13 #8`）。
+                // 旧注释写「__stdcall: 被调用者清栈」—— 那是 `Lib` 里 `ipow` 还没重生成时的形态
+                // （收尾 `… add R13 #8 …` 会替调用方弹掉两个实参槽）。现在被调方一律裸 `ret`，
+                // 不补清栈就是每次求幂净漏 8 字节 —— 与 D 的 `^^`、Fortran 的 `**`、Forth 的 `."`
+                // 是同一族回归（那三处已同样补上）。
                 GenerateExpression(node.Right);  // R0 = exp
                 instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
                 GenerateExpression(node.Left);   // R0 = base
                 instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
                 instructions.Add(new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, "ipow")]));
+                instructions.Add(new Instruction(OpCode.ADD, [Reg(13), new Operand(OperandType.IMMEDIATE, 8)]));
                 break;
             case "==": _expr!.EmitCmp(left, right, "=="); break;
             case "!=": _expr!.EmitCmp(left, right, "!="); break;

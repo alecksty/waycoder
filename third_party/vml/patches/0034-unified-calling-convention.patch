@@ -1,3 +1,40 @@
+diff --git a/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Misc.cs b/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Misc.cs
+index 562966bc..d20382b4 100644
+--- a/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Misc.cs
++++ b/third_party/vml/VMLPrepares/BasicCompiler/CodeGenerator.Misc.cs
+@@ -44,8 +44,12 @@ namespace BasicCompiler
+             }));
+         }
+ 
+-        /// <summary>生成对共享库函数的 CALL（__stdcall 约定）：求值参数→压栈→CALL→结果入reg
+-        /// __stdcall: 被调用者清理栈，调用者不需要 ADD R13</summary>
++        /// <summary>生成对共享库函数的 CALL：求值参数→压栈→CALL→**调用方清栈**→结果入reg
++        ///
++        /// ⚠ 2026-09-17 调用约定统一后改的：旧注释写「__stdcall: 被调用者清理栈，调用者不需要 ADD R13」，
++        /// 那是 `Lib` 里那些函数还没重生成时的形态（收尾会替调用方弹掉实参槽）。现在被调方
++        /// 一律裸 `ret`，**压了就必须自己清** —— 否则每次库调用净漏 `实参个数 × 4` 字节，
++        /// 攒够就把调用方的栈帧踩花（与 D 的 `^^`、Fortran/Ruby 的 `**`、Forth 的 `."` 同族）。</summary>
+         private void GenerateLibraryCall(string funcName, FunctionCallExpression funcCall, int reg, bool returnsFloat = false)
+         {
+             // 从右到左求值参数并压栈（使用 EvalIntCoord 确保 float→int 转换）
+@@ -54,8 +58,16 @@ namespace BasicCompiler
+                 EvalIntCoord(funcCall.Arguments[i], 0);
+                 instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
+             }
+-            // CALL 库函数 (__stdcall: callee cleans stack)
++            // CALL 库函数
+             instructions.Add(new Instruction(OpCode.CALL, new List<Operand> { new Operand(OperandType.LABEL, funcName) }));
++            // ⚠ 清栈必须在**取返回值之前还是之后**都行（返回值在 R0，与 R13 无关），
++            //    放在这里紧跟 CALL，与其它前端一致。
++            if (funcCall.Arguments.Count > 0)
++            {
++                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> {
++                    new Operand(OperandType.REGISTER, 13),
++                    new Operand(OperandType.IMMEDIATE, funcCall.Arguments.Count * 4) }));
++            }
+             // 结果移到目标寄存器 (浮点函数用F0,整数函数用R0)
+             if (returnsFloat)
+             {
 diff --git a/third_party/vml/VMLPrepares/CCompiler/CodeGenerator.Expressions.Calls.cs b/third_party/vml/VMLPrepares/CCompiler/CodeGenerator.Expressions.Calls.cs
 index bad5dd6d..dd00e181 100644
 --- a/third_party/vml/VMLPrepares/CCompiler/CodeGenerator.Expressions.Calls.cs
@@ -599,6 +636,50 @@ index dab2a5af..e8251319 100644
              else
                  instructions.Add(new Instruction(OpCode.RET, new List<Operand>()));
          }
+diff --git a/third_party/vml/VMLPrepares/CSharpCompiler/CodeGenerator.cs b/third_party/vml/VMLPrepares/CSharpCompiler/CodeGenerator.cs
+index 87a7a3d0..1b59794d 100644
+--- a/third_party/vml/VMLPrepares/CSharpCompiler/CodeGenerator.cs
++++ b/third_party/vml/VMLPrepares/CSharpCompiler/CodeGenerator.cs
+@@ -1144,7 +1144,15 @@ namespace CSharpCompiler
+                 instructions.Add(new Instruction(OpCode.CALL, new List<Operand> {
+                     new Operand(OperandType.LABEL, label)
+                 }));
+-                // PrintlnStr/shared_println_str 内部已 ADD R13 #8 清理参数, 调用方不需额外清理
++                // ⚠ **调用方清栈**（2026-09-17 调用约定统一后补的）。
++                // 旧注释写「PrintlnStr/shared_println_str 内部已 ADD R13 #8 清理参数, 调用方不需额外清理」——
++                // 那说的是 `Lib` 里那两个函数**还没重生成**时的形态：它们替调用方多弹掉一格。
++                // 现在 `Lib/` 已按统一约定重生成（被调方一律裸 `ret`；`Lib/csharp/console.vml` 的
++                // 包装器只清它自己压的那一格）⇒ 这一句是**净漏 4 字节/次**的泄漏。
++                // 同一个 `PrintlnStr` 在 `GenerateFunctionCall` 的 stdlibLabel 分支里本来就由调用方清
++                // （`ADD R13, count*4`），两条路此前一个清一个不清 —— 现在统一成调用方清。
++                instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 13),
++                    new Operand(OperandType.IMMEDIATE, 4)]));
+             }
+             if (writeLineStmt.Arguments.Count == 0 && writeLineStmt.HasNewLine)
+             {
+diff --git a/third_party/vml/VMLPrepares/DCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/DCompiler/CodeGenerator.Expressions.cs
+index e56c48be..5fefbf49 100644
+--- a/third_party/vml/VMLPrepares/DCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/DCompiler/CodeGenerator.Expressions.cs
+@@ -73,10 +73,17 @@ public partial class CodeGenerator
+         if (_expr!.EmitStandardBinaryOps(node.Op, left, right)) return;
+         if (node.Op == "^^")
+         {
+-            // CALL shared_ipow (__stdcall: 被调用者清栈)
++            // ⚠ 这里是 **调用方清栈**（2026-09-17 调用约定统一后改的，此前没有最后那句 `ADD R13`）。
++            //
++            // 旧注释写「__stdcall: 被调用者清栈」—— 那时 `Lib` 里的 `ipow` 收尾是
++            // `… move R1 @13; add R13 #8; push R1; ret`，替调用方多弹掉两个实参槽，
++            // 所以调用方压完不用管。现在 `Lib/` 已按统一约定重生成（被调方一律裸 `ret`），
++            // 那句话不再成立：**不补 `ADD R13 #8` 就是每次求幂净漏 8 字节**。
++            // 实测（`2 ^^ i` 累加 i=1..6）：修复前得 `SUM=66`，正确值 `SUM=126`。
+             GenerateExpression(node.Right); AddInstruction(OpCode.PUSH, Reg(0));
+             GenerateExpression(node.Left); AddInstruction(OpCode.PUSH, Reg(0));
+             AddCall("ipow");
++            AddInstruction(OpCode.ADD, Reg(13), new Operand(OperandType.IMMEDIATE, 8));
+             return;
+         }
+         if (node.Op is "&" or "|" or "^" or "<<" or ">>")
 diff --git a/third_party/vml/VMLPrepares/ForthCompiler/CodeGenerator.Operations.cs b/third_party/vml/VMLPrepares/ForthCompiler/CodeGenerator.Operations.cs
 index 34012bd0..0988e98f 100644
 --- a/third_party/vml/VMLPrepares/ForthCompiler/CodeGenerator.Operations.cs
@@ -658,3 +739,154 @@ index 34012bd0..0988e98f 100644
                      break;
  
                  case TokenType.FDOT:
+diff --git a/third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.Expressions.cs
+index 768e0990..254854f4 100644
+--- a/third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/FortranCompiler/CodeGenerator.Expressions.cs
+@@ -150,12 +150,19 @@ public partial class CodeGenerator
+             case "*": _expr!.EmitBinOp(left, right, "*"); break;
+             case "/": _expr!.EmitBinOp(left, right, "/"); break;
+             case "**":
+-                // CALL shared_ipow (__stdcall: 被调用者清栈)
++                // ⚠ 这里是 **调用方清栈**（2026-09-17 调用约定统一后补的最后那句 `ADD R13 #8`）。
++                //
++                // 旧注释写「__stdcall: 被调用者清栈」—— 那时 `Lib` 里的 `ipow` 收尾是
++                // `… move R1 @13; add R13 #8; push R1; ret`，替调用方多弹掉两个实参槽，
++                // 所以调用方压完不用管。现在 `Lib/` 已按统一约定重生成（被调方一律裸 `ret`），
++                // 那句话不再成立：**不补 `ADD R13 #8` 就是每次求幂净漏 8 字节**。
++                // 实测（`2 ** i` 累加 i=1..6）：修复前得 `SUM=66`，正确值 `SUM=126`。
+                 GenerateExpression(node.Right);  // R0 = exp
+                 instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
+                 GenerateExpression(node.Left);   // R0 = base
+                 instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
+                 instructions.Add(new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, "ipow")]));
++                instructions.Add(new Instruction(OpCode.ADD, [Reg(13), new Operand(OperandType.IMMEDIATE, 8)]));
+                 break;
+             case "==": _expr!.EmitCmp(left, right, "=="); break;
+             case "/=": _expr!.EmitCmp(left, right, "!="); break;
+diff --git a/third_party/vml/VMLPrepares/ObjCCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/ObjCCompiler/CodeGenerator.Expressions.cs
+index e456bcd5..f7978ee1 100644
+--- a/third_party/vml/VMLPrepares/ObjCCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/ObjCCompiler/CodeGenerator.Expressions.cs
+@@ -243,7 +243,12 @@ public partial class CodeGenerator
+     private void GenerateCall(CallNode node)
+     {
+         // Inline print functions — push arg to stack, then CALL print_str/print_int
+-        // print_* functions expect arg on stack (cleanup via add R13 #8 in epilogue)
++        // ⚠ 压一格**必须跟着清**（2026-09-17 调用约定统一后补的 `ADD R13 #4`）。
++        //    旧注释写「print_* functions expect arg on stack (cleanup via add R13 #8 in epilogue)」，
++        //    指的是 `Lib/console.vml` 里那几个函数**还没重生成**时替调用方多弹一格的形态。
++        //    现在被调方裸 `ret`（它们从 R0 取参），压了不清就是每次 print 净漏 4 字节。
++        //    保留压栈而不是改成裸 CALL：压进去的是**与 R0 相同的值**，将来被调方改成读
++        //    `[R12+12]` 也不会错。
+         if (node.Name == "print_int" || node.Name == "NSLog")
+         {
+             foreach (var arg in node.Arguments)
+@@ -255,6 +260,8 @@ public partial class CodeGenerator
+                 GenerateExpression(arg);
+                 instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
+                 instructions.Add(new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, func)]));
++                instructions.Add(new Instruction(OpCode.ADD,
++                    [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 4)]));
+             }
+             return;
+         }
+@@ -336,17 +343,28 @@ public partial class CodeGenerator
+         }
+         else
+         {
+-            // External functions use stdcall convention (callee cleans stack)
+-            // Push arguments right-to-left using EmitPushArg for type-aware stack writes
++            // ⚠ **调用方清栈**（2026-09-17 调用约定统一后补的）。
++            // 旧注释写「External functions use stdcall convention (callee cleans stack)」，
++            // 并据此**不做任何清理** —— 那是 `Lib` 里那些函数还没重生成时的形态
++            // （收尾 `… add R13 #N …` 会替调用方弹掉实参槽）。
++            // 现在被调方一律裸 `ret`，压了不清就是**每次调用净漏 argSize 字节**：
++            // 实测 `ipow(2,i)` 累加 i=1..6 得 `66`（正确值 `126`），漂移把 `s`/`i` 踩花。
++            // 压栈仍用 `EmitPushArg`（类型感知，double/long 占 8 字节）。
++            int totalArgBytes = 0;
+             for (int i = node.Arguments.Count - 1; i >= 0; i--)
+             {
+                 var arg = node.Arguments[i];
+                 GenerateExpression(arg);
+                 var (size, isFloat, isDouble, isLong) = GetArgTypeInfo(arg);
+                 EmitPushArg(size, isFloat, isDouble, isLong);
++                totalArgBytes += size;
+             }
+             instructions.Add(new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, node.Name)], instructions.Count));
+-            // No caller cleanup — callee cleans its own stack (stdcall)
++            if (totalArgBytes > 0)
++            {
++                instructions.Add(new Instruction(OpCode.ADD,
++                    [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, totalArgBytes)], instructions.Count));
++            }
+         }
+     }
+ 
+diff --git a/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.Expressions.cs
+index f642ea90..af25bcff 100644
+--- a/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/RCompiler/CodeGenerator.Expressions.cs
+@@ -320,25 +320,27 @@ public partial class CodeGenerator
+                 || (node.Arguments[0] is CallNode call && IsStringReturningFunc(call.Name));
+             bool isFloat = node.Arguments[0] is LiteralNode flit && (flit.Value is float || flit.Value is double);
+ 
+-            // ⚠ **必须在 CALL 之前压一个实参**（不能直接用基类的 EmitPrintArg，它只管
+-            // 「求值到 R0 + CALL」）。`print_int`/`print_str`/`print_float`（Lib/console.vml）
+-            // 的收尾是「被调用方清参数」的蹦床：
++            // ⚠ 压一个实参**必须跟着清**（2026-09-17 调用约定统一后补的最后那句 `ADD R13 #4`）。
++            //
++            // 旧注释说 `print_int`/`print_str`/`print_float`（Lib/console.vml）的收尾是
++            // 「被调用方清参数」的蹦床：
+             //     move R1 @13        ; R1 = 返回地址
+             //     add R13 #8         ; 跳过「返回地址 + 1 个实参」
+-            //     push R1
+-            //     ret
+-            // 调用方一个字节都不压就直接 CALL 的话，每调一次 R13 净上移 4 字节；
+-            // 攒够几次后，循环体里的 `push` / `call` 的返回地址就会落进本函数的栈帧，
+-            // 把循环游标写花 —— 现象是**「循环只跑一轮」**（实测：3 次 print 之后
+-            // `for (j in c(3,4)) { print(7) }` 只打一个 7）。压一个实参正好抵消那一格，
+-            // 调用前后 R13 完全守恒。
+-            // （C 前端踩的是同一条：它压了参数、又在 CALL 后 `add R13 #4` 自己清一遍，
+-            //   净上移 4 ⇒ 同一个循环在同样的位置上只跑一轮。）
++            //     push R1 / ret
++            // 那时**压一个实参正好抵消那一格**，调用前后 R13 完全守恒。
++            //
++            // 现在 `Lib/` 已按统一约定重生成（被调方一律裸 `ret`、调用方清栈）——
++            // 那一格没人弹了，**不补 `ADD R13 #4` 就是每次 print/cat 净漏 4 字节**
++            // （与 D/Fortran 的 `^^`/`**`、Forth 的 `."` 是同一族回归，那几处已同样补上）。
++            // 保留压栈而不是改成裸 CALL，是因为这几个函数从 R0 取参、压进去的是**同一个值**：
++            // 压着清掉，将来被调方改成读 `[R12+12]` 也不会错。
+             GenerateExpression(node.Arguments[0]);
+             instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)], instructions.Count));
+             string printFn = isFloat ? "print_float" : (isString ? "print_str" : "print_int");
+             instructions.Add(new Instruction(OpCode.CALL,
+                 [new Operand(OperandType.LABEL, printFn)], instructions.Count));
++            instructions.Add(new Instruction(OpCode.ADD,
++                [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, 4)], instructions.Count));
+             return;
+         }
+         // push arguments in reverse order
+diff --git a/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.Expressions.cs b/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.Expressions.cs
+index ded299cf..d9704a18 100644
+--- a/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.Expressions.cs
++++ b/third_party/vml/VMLPrepares/RubyCompiler/CodeGenerator.Expressions.cs
+@@ -93,12 +93,17 @@ public partial class CodeGenerator
+             case "/": _expr!.EmitBinOp(left, right, "/"); break;
+             case "%": _expr!.EmitBinOp(left, right, "%"); break;
+             case "**":
+-                // CALL shared_ipow (__stdcall: 被调用者清栈)
++                // ⚠ 这里是 **调用方清栈**（2026-09-17 调用约定统一后补的最后那句 `ADD R13 #8`）。
++                // 旧注释写「__stdcall: 被调用者清栈」—— 那是 `Lib` 里 `ipow` 还没重生成时的形态
++                // （收尾 `… add R13 #8 …` 会替调用方弹掉两个实参槽）。现在被调方一律裸 `ret`，
++                // 不补清栈就是每次求幂净漏 8 字节 —— 与 D 的 `^^`、Fortran 的 `**`、Forth 的 `."`
++                // 是同一族回归（那三处已同样补上）。
+                 GenerateExpression(node.Right);  // R0 = exp
+                 instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
+                 GenerateExpression(node.Left);   // R0 = base
+                 instructions.Add(new Instruction(OpCode.PUSH, [Reg(0)]));
+                 instructions.Add(new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, "ipow")]));
++                instructions.Add(new Instruction(OpCode.ADD, [Reg(13), new Operand(OperandType.IMMEDIATE, 8)]));
+                 break;
+             case "==": _expr!.EmitCmp(left, right, "=="); break;
+             case "!=": _expr!.EmitCmp(left, right, "!="); break;

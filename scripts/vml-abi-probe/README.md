@@ -3,10 +3,55 @@
 > 为 `docs/VML调用约定统一.md` 立的前置判据：**改动之前先钉死「现在是什么样」**，
 > 改完逐条复跑，看的是「红变绿、绿不变红」，不是目测。
 
+两套，各管一件事：
+
+| 跑法 | 管什么 | 现状 |
+|---|---|---|
+| `scripts/vml-abi-probe/run.sh` | **C 前端**的调用约定（6 条栈/实参探针） | 6/6 绿 |
+| `scripts/vml-abi-probe/run-langs.sh` | **跨语言**的实参顺序与栈漂移（13 条） | 7 绿 / 6 红 —— 红的都是**其余前端还没统一** |
+
 ```bash
-scripts/vml-abi-probe/run.sh            # 全部
+scripts/vml-abi-probe/run.sh            # C 的 6 条
 scripts/vml-abi-probe/run.sh p3 p5      # 按前缀挑几条
+scripts/vml-abi-probe/run-langs.sh      # 跨语言的 13 条
+scripts/vml-abi-probe/run-langs.sh cpp  # 按扩展名挑
 ```
+
+---
+
+## 跨语言那套（`run-langs.sh`）
+
+**为什么 22 语言骨架全绿还不够**：`scripts/maui-vml-verify/corpus/` 的骨架里库调用都是单参、
+或参数不参与判据，所以「实参反序」「压了不清的栈漂移」这两种缺陷它一条都照不出来。
+
+两类探针（`langs/` 下，按文件名前缀分）：
+
+- `abi.<ext>` —— 调 `ipow(2,3)` 并打印，判据 `ABI=8`。
+  `ABI=9` = 实参整体反序；`ABI=1` = 第二个实参读成 0；`ABI=0` = 第二个实参压根没传到。
+  选 `ipow` 是因为它**非交换**（`ipow(2,3)=8`、反序 `ipow(3,2)=9`）。
+- `drift.<ext>` —— 反复调用库函数后，累加/循环变量必须一字未动。
+  「压了不清」的每次调用净漏 4~8 字节，攒几次就把调用方栈帧踩花。
+  判据是各语言自己那个和（表在 `run-langs.sh` 的 `DRIFT_EXPECT`）。
+
+### 已知红项（= 还没做的活，别当噪音忽略）
+
+| 探针 | 实测 | 指向 |
+|---|---|---|
+| `abi.cpp` | `9` | `CppCompiler/CodeGenerator.Expressions.cs` 的 extern/stdcall 分支**左→右**压栈；cdecl 分支的 R0-R3 镜像写在**压栈循环内**（会被后续实参求值冲掉） |
+| `abi.java` | `1` | 调用点「第 1 个实参进 R0、其余右→左压栈」——是旧约定本体，第 2 个实参到不了 `[R12+16]` |
+| `abi.rb` | `1` | 同上（`RubyCompiler/CodeGenerator.Expressions.cs:177-183` 左→右） |
+| `abi.js` | 无输出 | `JavaScriptCompiler/CodeGenerator.Calls.cs:737-745` 左→右；且**同一前端内** `super`/`new` 两处却是右→左 |
+| `drift.lua` | `0` | `LuaCompiler/CodeGenerator.Statements_B.cs:465-493` 的「压栈」**不动 R13**，实参只进 R0-R3 ⇒ 被调方读不到（第 5 个起静默丢弃） |
+| `drift.m` | `2059` | ObjC 的多参外部调用（**既存缺陷**：重生成前基线也是 2059；栈漂移那部分已修） |
+
+> `drift.m` 与 `drift.lua` 的数值在 `Lib/` 重生成**前后**都错 ⇒ 不是本次回归；
+> `abi.cpp` / `abi.java` / `abi.rb` / `abi.js` 同理（骨架文件头早就记着这些形态）。
+> 与之相对，`drift.d` / `drift.f90` / `drift.rb` 这三条在重生成**前是对的**（126 / 126 / 65528），
+> 重生成后变错、补上调用方清栈后转绿 —— 那才是本次的回归，已修。
+
+---
+
+## C 的那套（`run.sh`）
 
 判据只有一条，六条探针共用：
 

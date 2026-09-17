@@ -1144,7 +1144,15 @@ namespace CSharpCompiler
                 instructions.Add(new Instruction(OpCode.CALL, new List<Operand> {
                     new Operand(OperandType.LABEL, label)
                 }));
-                // PrintlnStr/shared_println_str 内部已 ADD R13 #8 清理参数, 调用方不需额外清理
+                // ⚠ **调用方清栈**（2026-09-17 调用约定统一后补的）。
+                // 旧注释写「PrintlnStr/shared_println_str 内部已 ADD R13 #8 清理参数, 调用方不需额外清理」——
+                // 那说的是 `Lib` 里那两个函数**还没重生成**时的形态：它们替调用方多弹掉一格。
+                // 现在 `Lib/` 已按统一约定重生成（被调方一律裸 `ret`；`Lib/csharp/console.vml` 的
+                // 包装器只清它自己压的那一格）⇒ 这一句是**净漏 4 字节/次**的泄漏。
+                // 同一个 `PrintlnStr` 在 `GenerateFunctionCall` 的 stdlibLabel 分支里本来就由调用方清
+                // （`ADD R13, count*4`），两条路此前一个清一个不清 —— 现在统一成调用方清。
+                instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 13),
+                    new Operand(OperandType.IMMEDIATE, 4)]));
             }
             if (writeLineStmt.Arguments.Count == 0 && writeLineStmt.HasNewLine)
             {

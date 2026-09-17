@@ -44,8 +44,12 @@ namespace BasicCompiler
             }));
         }
 
-        /// <summary>生成对共享库函数的 CALL（__stdcall 约定）：求值参数→压栈→CALL→结果入reg
-        /// __stdcall: 被调用者清理栈，调用者不需要 ADD R13</summary>
+        /// <summary>生成对共享库函数的 CALL：求值参数→压栈→CALL→**调用方清栈**→结果入reg
+        ///
+        /// ⚠ 2026-09-17 调用约定统一后改的：旧注释写「__stdcall: 被调用者清理栈，调用者不需要 ADD R13」，
+        /// 那是 `Lib` 里那些函数还没重生成时的形态（收尾会替调用方弹掉实参槽）。现在被调方
+        /// 一律裸 `ret`，**压了就必须自己清** —— 否则每次库调用净漏 `实参个数 × 4` 字节，
+        /// 攒够就把调用方的栈帧踩花（与 D 的 `^^`、Fortran/Ruby 的 `**`、Forth 的 `."` 同族）。</summary>
         private void GenerateLibraryCall(string funcName, FunctionCallExpression funcCall, int reg, bool returnsFloat = false)
         {
             // 从右到左求值参数并压栈（使用 EvalIntCoord 确保 float→int 转换）
@@ -54,8 +58,16 @@ namespace BasicCompiler
                 EvalIntCoord(funcCall.Arguments[i], 0);
                 instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 0) }));
             }
-            // CALL 库函数 (__stdcall: callee cleans stack)
+            // CALL 库函数
             instructions.Add(new Instruction(OpCode.CALL, new List<Operand> { new Operand(OperandType.LABEL, funcName) }));
+            // ⚠ 清栈必须在**取返回值之前还是之后**都行（返回值在 R0，与 R13 无关），
+            //    放在这里紧跟 CALL，与其它前端一致。
+            if (funcCall.Arguments.Count > 0)
+            {
+                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> {
+                    new Operand(OperandType.REGISTER, 13),
+                    new Operand(OperandType.IMMEDIATE, funcCall.Arguments.Count * 4) }));
+            }
             // 结果移到目标寄存器 (浮点函数用F0,整数函数用R0)
             if (returnsFloat)
             {
