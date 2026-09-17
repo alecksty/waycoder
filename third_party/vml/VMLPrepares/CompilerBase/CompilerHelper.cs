@@ -445,7 +445,7 @@ namespace CompilerBase
             ["arr_"] = "array", ["sort_bubble"] = "array", ["indexof"] = "array",
             // convert.c
             ["itoa"] = "convert", ["atoi"] = "convert",
-            ["ftoa"] = "convert", ["itoa"] = "convert", ["atoi"] = "convert",
+            ["ftoa"] = "convert",
             // conv.c — 全类型转换 (int_to_str/float_to_str/bool_to_str 等)
             ["int_to_str"] = "conv", ["str_to_int"] = "conv",
             ["float_to_str"] = "conv", ["str_to_float"] = "conv",
@@ -486,14 +486,10 @@ namespace CompilerBase
             // convert64.c — 64位转换 (ltoa/dtoa/atol/atod)
             ["ltoa"] = "convert64", ["dtoa"] = "convert64",
             ["atol"] = "convert64", ["atod"] = "convert64",
-            ["ltoa"] = "convert64", ["dtoa"] = "convert64",
-            ["atol"] = "convert64", ["atod"] = "convert64",
             // C stdio 裸名映射 (puts/getchar/putchar → io, printf系列 → printf)
             ["puts"] = "io", ["getchar"] = "io", ["putchar"] = "io",
-            ["puts"] = "io", ["putchar"] = "io", ["getchar"] = "io",
-            ["printf"] = "printf", ["printf"] = "printf",
+            ["printf"] = "printf",
             ["sprintf"] = "printf", ["snprintf"] = "printf", ["vsnprintf"] = "printf",
-            ["sprintf"] = "printf", ["snprintf"] = "printf",
             ["fprintf"] = "printf", ["scanf"] = "printf", ["sscanf"] = "util",
             // builtins.c + shared.vml (peek/poke等基础函数在shared.vml)
             // v1.66.58: vml_ 前缀已移除，改用直接函数名映射
@@ -522,12 +518,6 @@ namespace CompilerBase
             ["peekf"] = "shared", ["pokef"] = "shared",
             ["peekd"] = "shared", ["poked"] = "shared",
             // shared_ 前缀别名 (Go, Java, Dart等编译器生成)
-            ["peek"] = "shared", ["poke"] = "shared",
-            ["peekb"] = "shared", ["pokeb"] = "shared",
-            ["peekh"] = "shared", ["pokeh"] = "shared",
-            ["peekl"] = "shared", ["pokel"] = "shared",
-            ["peekf"] = "shared", ["pokef"] = "shared",
-            ["peekd"] = "shared", ["poked"] = "shared",
             // bitlib.c
             ["bit_"] = "bitlib",
             // base64.c
@@ -586,7 +576,12 @@ namespace CompilerBase
             ["fwrite"] = "file", ["fseek"] = "file", ["ftell"] = "file",
             ["feof"] = "file", ["fgets"] = "file", ["fputs"] = "file",
             // time.vml — 时间函数
-            ["sleep"] = "time", ["get_tick"] = "time", ["delay"] = "time",
+            // ⚠ `sleep` / `get_tick` 的**唯一实现**在 `shared/src/builtins.c`
+            //   （`SYSCALL #52` / `#53`），`time` 模块里根本没有这两个函数。
+            //   这里原先又写了一遍映射到 `time` —— C# 集合初始化器**后写覆盖先写**，
+            //   于是实际生效的是这条错的，编译器会去链一个不含它们的模块。
+            //   同一个键两处映射、其中一处还是错的，就是「改了一处没生效」的温床，已删。
+            ["delay"] = "time",
             ["time_"] = "time", ["clock"] = "time",
             // encoding.vml — 编码
             ["url_encode"] = "encoding", ["url_decode"] = "encoding",

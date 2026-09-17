@@ -1,3 +1,62 @@
+## v0.96.207 (2026-09-17) — printf 有 4 份实现：同一个函数只留一份
+
+起点是用户的一句追问：**「为啥 printf 有 2 份实现？只要一份就行」「相同的函数只要保留一份，多的删掉」**。
+查下去发现不是一个 printf 的事 —— 全库 **109 组函数被定义了两遍**。
+
+### ① `printf` 到底有几份：三份源码 + 一条前端特例
+
+| 位置 | 状态 |
+|---|---|
+| `shared/src/printf.c:300` → `shared/printf.vml` | **活的**（全库唯一被链的 printf） |
+| `c/printf.vml`（159 条指令的 shim） | **活的**，但**不是实现** —— 它把 shared 的 `static` 助手导出成 `c_emit`/`func_emit` 这类跨模块名 |
+| `c/stdio.c:91` | **不可达**：模块映射表里没有 `stdio` 键，也没有任何 `.vml` 链它 |
+| `c/vmlib.c:111` | **不可达**：VGA 时代的单体库，谁都没链 |
+| `c/src/printf.c:308` | **不可达**，而且是个**地雷** |
+| `CppCompiler/CodeGenerator.Expressions.cs` | 前端硬编码 `printf→print_str` 捷径（v0.96.206 已收窄） |
+
+`c/src/printf.c` 的地雷值得单说：`build_libs.sh` 的 Phase 3 是
+`c/src/*.c → c/<name>.vml`，而 `c/src/` 里**只有它一个文件** ⇒ 谁跑一次构建脚本，
+它就把那个**能工作的 shim（3146 字节）覆盖成自己的编译产物（7915 字节）**，
+然后 `c/builtin.vml` 的 `.linked "printf.vml"` 拿到的是另一份东西。
+一个从没被链接过的 359 行源码，唯一的作用就是等着毁掉旁边那个能跑的文件。
+
+**删**：`c/src/printf.c`、`c/stdio.c`、`c/stdio.vml`、`c/vmlib.c`、`c/vmlib.vml`（补丁 0040）。
+删前逐个验过不可达（模块映射表 + 编译日志 + `.linked` 全图），删后 `pf2.c` 探针
+输出**逐字节相同**。
+
+### ② 模块映射表里同一个键写了两遍 —— 而且后写的那条是**错的**
+
+`CompilerHelper.cs` 的「函数名 → 模块」表（C# 集合初始化器，**后写覆盖先写**）：
+
+```csharp
+["printf"] = "printf", ["printf"] = "printf",        // 同行写两遍
+["sprintf"] = "printf", ["snprintf"] = "printf",     // 隔两行又来一遍
+["ltoa"] = "convert64", ["dtoa"] = "convert64", ["atol"] = "convert64", ["atod"] = "convert64",
+["ltoa"] = "convert64", ["dtoa"] = "convert64", ["atol"] = "convert64", ["atod"] = "convert64",
+["sleep"] = "builtins", ...  ["sleep"] = "time", ["get_tick"] = "time",   // ← 这条是错的
+```
+
+最后一条不是冗余而是**实打实的 bug**：`sleep` / `get_tick` 的**唯一实现**在
+`shared/src/builtins.c`（`SYSCALL #52` / `#53`），`time` 模块里**根本没有这两个函数** ——
+而「后写覆盖先写」意味着实际生效的正是这条错的，编译器会去链一个不含它们的模块
+（平时被 `builtins` 恰好也在链上掩盖住了）。这正是「改了一处没生效」的温床。
+
+清了 **24 个纯冗余条目**（判据：**键和值都相同**才删，保留最先出现的那个），
+两处「同键不同值」的冲突单独报出来人工判断。行尾保住 CRLF（`git ls-files --eol` = `w/crlf`），
+diff 规模 12 删 2 改 —— 不是整文件。
+
+### ③ 没修的（如实记下）
+
+- **`%` 转换产出零个字符**：`printf("D-noarg\n")` 一个字不打（但**执行继续**，
+  后面的 `puts` 照常），而 `sprintf(b,"d=[%d]",42)` 打出 `d=[` 之后直接崩 ——
+  `MOVEB R0, @0 写内存失败: 地址 34313536`。C 源码是对的，`vsnprintf` 返回 `pos` 也对，
+  所以病在**代码生成**这一段长 if/else-if 链上；根因与 CLAUDE.md ⑨ 记的
+  「`Lib/` 里两套栈清理约定并存」同源（`pop` 取的临时值被漂移的栈指针读错），
+  正解是**用当前前端把 `Lib/` 整个重新生成**（上游仓库的事）。
+- 因此 C++ 前端那条 `printf→print_str` 捷径**暂时保留** —— 它遮住了 1 实参的情形，
+  删掉它会让 C++ 的 printf 立刻退到和 C 一样（什么都不打）。等 ③ 修好再删，顺序不能反。
+- `c/stdio.h` / `c/vmlib.h` 是**用户代码 `#include` 的公开头**，不是重复实现，保留。
+
 ## v0.96.205 (2026-09-17) — 弹框把游戏的表停了 / 拒绝终于能退出（真机实测四连报）
 
 用户在手机上逐门试游戏，报回来四条。**头两条是同一个根因，而且 20 份例程全中招**。
