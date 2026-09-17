@@ -272,7 +272,7 @@ func gameOver() {
     A[4] = 0
     ui_beep(200, 320)
     draw()
-    ui_dlg_msg("飞机空战", "被撞到了，这一局结束。\n再来一局？（选「否」退出）", 0)
+    if ui_dlg_msg("飞机空战", "被撞到了，这一局结束。\n再来一局？（选「否」退出）", 0) != 0 { ui_win_close(); return }
     reset()
 }
 

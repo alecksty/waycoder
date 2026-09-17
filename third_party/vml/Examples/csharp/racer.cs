@@ -278,7 +278,7 @@ class Racer
                     alive = 0;
                     ui_beep(180, 320);
                     draw();
-                    ui_dlg_msg("赛车", "撞车了，这一局结束。\n再来一局？（选「否」退出）", DLG_INFO);
+                    if (ui_dlg_msg("赛车", "撞车了，这一局结束。\n再来一局？（选「否」退出）", DLG_INFO) != 0) { ui_win_close(); return 1; }
                     reset();
                     return 1;
                 }

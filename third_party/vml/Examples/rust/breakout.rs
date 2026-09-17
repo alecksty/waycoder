@@ -135,7 +135,7 @@ fn main() {
                     alive = 0;
                     ui_beep(1568, 200);
                     ui_present();
-                    ui_dlg_msg("打砖块", "全清了！这一局结束。\n再来一局？（选「否」退出）", 0);
+                    if (ui_dlg_msg("打砖块", "全清了！这一局结束。\n再来一局？（选「否」退出）", 0)) != 0 { ui_win_close(); break; }
                     i = 0;
                     while i < 24 { bricks[i] = 1; i = i + 1; }
                     left = 24;
@@ -152,7 +152,7 @@ fn main() {
                     alive = 0;
                     ui_beep(220, 260);
                     ui_present();
-                    ui_dlg_msg("打砖块", "球落底了，这一局结束。\n再来一局？（选「否」退出）", 0);
+                    if (ui_dlg_msg("打砖块", "球落底了，这一局结束。\n再来一局？（选「否」退出）", 0)) != 0 { ui_win_close(); break; }
                     i = 0;
                     while i < 24 { bricks[i] = 1; i = i + 1; }
                     left = 24;

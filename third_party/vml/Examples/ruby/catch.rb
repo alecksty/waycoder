@@ -105,7 +105,12 @@ while ui_win_closed() == 0
       if a2 > h
         a7 = 0
         ui_beep(220, 260)
-        ui_dlg_msg("接方块", "没接住，这一局结束。\n再来一局？（选「否」退出）", 0)
+        r = ui_dlg_msg("接方块", "没接住，这一局结束。
+再来一局？（选「否」退出）", 0)
+        if r != 0
+            ui_win_close()
+            break
+        end
         a0 = w / 2 - 40
         a1 = w / 2
         a2 = 70

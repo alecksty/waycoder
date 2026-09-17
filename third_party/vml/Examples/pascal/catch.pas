@@ -96,7 +96,7 @@ begin
     A[7] := 0;
     ui_beep(220, 260);
     draw();
-    ui_dlg_msg('接方块', '没接住，这一局结束。再来一局？（选「否」退出）', 0);
+    if ui_dlg_msg('接方块', '没接住，这一局结束。再来一局？（选「否」退出）', 0) <> 0 then begin ui_win_close(); exit; end;
     resetGame();
   end;
 end;

@@ -33,9 +33,53 @@ internal sealed class VmlUiCalls : ISystemCallHandler
     /// <summary>输入消息队列 —— 页面手势/键盘/定时器投递，程序经 syscall 取走。</summary>
     private readonly VmlMessageQueue _queue = new();
 
-    /// <summary>活着的定时器：id → (Timer, 用户标记)。</summary>
-    private readonly ConcurrentDictionary<int, (System.Threading.Timer Timer, int Tag)> _timers = new();
+    /// <summary>活着的定时器：id → (Timer, 用户标记, 间隔毫秒)。间隔要留着，模态弹框暂停后靠它恢复。</summary>
+    private readonly ConcurrentDictionary<int, (System.Threading.Timer Timer, int Tag, int Interval)> _timers = new();
     private int _nextTimerId = 1;
+
+    /// <summary>模态弹框期间置位：此时新建的定时器直接以「暂停」状态建出来。</summary>
+    private volatile bool _timersPaused;
+
+    /// <summary>
+    /// **模态弹框期间把定时器全部停掉**，弹完按原间隔恢复。
+    ///
+    /// <para>
+    /// 为什么非做不可：`ui_dlg_msg` / `ui_dlg_select` / `ui_dlg_multi` / `ui_dlg_input`
+    /// 都是**阻塞**的（在 VM 线程上同步等用户回答），而 `ui_timer_set` 是**重复**定时器 ——
+    /// 弹框挂多久，队列里就积压多少条 `Timer` 消息。程序一恢复就把这些积压**瞬间抽干**：
+    /// </para>
+    /// <list type="bullet">
+    ///   <item>打地鼠：每局开始时 `left = 90` 刚重置，几十条积压把倒计时一次抽到 0
+    ///     ⇒ 新一局立刻又「时间到」，**弹框再也关不掉**（用户实测报的「时间太短、打不着」）。</item>
+    ///   <item>接方块 / 俄罗斯方块：积压的每一拍都推进一步物理 ⇒ 球/方块瞬移出界、
+    ///     立刻又结束 —— 同一类症状。</item>
+    /// </list>
+    /// <para>
+    /// 语义上也更对：程序在弹框期间**根本没在跑**，它的时钟本来就不该走。
+    /// 放在宿主这一处，20 份例程都不必各自打补丁（那种修法漏一个就是同一个 bug 再来一次）。
+    /// </para>
+    /// </summary>
+    private T WithTimersPaused<T>(Func<T> body)
+    {
+        SetTimersPaused(true);
+        try { return body(); }
+        finally { SetTimersPaused(false); }
+    }
+
+    private void SetTimersPaused(bool paused)
+    {
+        _timersPaused = paused;
+        foreach (var kv in _timers)
+        {
+            var (timer, _, interval) = kv.Value;
+            try
+            {
+                if (paused) timer.Change(Timeout.Infinite, Timeout.Infinite);
+                else timer.Change(interval, interval);
+            }
+            catch (ObjectDisposedException) { /* 弹框期间程序自己 kill 掉了 —— 正常 */ }
+        }
+    }
 
     /// <summary>用户是否已关闭窗口（点返回箭头）。</summary>
     private volatile bool _windowClosed;
@@ -57,6 +101,7 @@ internal sealed class VmlUiCalls : ISystemCallHandler
     {
         Current = this; // 绘图页据此把输入投回本实例的队列
         _queue.Clear();
+        _timersPaused = false;
         foreach (var kv in _timers) kv.Value.Timer.Dispose();
         _timers.Clear();
         _nextTimerId = 1;
@@ -118,10 +163,12 @@ internal sealed class VmlUiCalls : ISystemCallHandler
         {
             switch (syscallNumber)
             {
-                case VmlUi.DlgMsg: registers[0] = DlgMsg(registers, memory); break;
-                case VmlUi.DlgSelect: registers[0] = DlgSelect(registers, memory); break;
-                case VmlUi.DlgMulti: registers[0] = DlgMulti(registers, memory); break;
-                case VmlUi.DlgInput: registers[0] = DlgInput(registers, memory); break;
+                // 四个弹框都是**阻塞**的 —— 期间要把定时器停掉，否则积压的 Timer 消息
+                // 会在程序恢复时被瞬间抽干（详见 WithTimersPaused 的说明）
+                case VmlUi.DlgMsg: registers[0] = WithTimersPaused(() => DlgMsg(registers, memory)); break;
+                case VmlUi.DlgSelect: registers[0] = WithTimersPaused(() => DlgSelect(registers, memory)); break;
+                case VmlUi.DlgMulti: registers[0] = WithTimersPaused(() => DlgMulti(registers, memory)); break;
+                case VmlUi.DlgInput: registers[0] = WithTimersPaused(() => DlgInput(registers, memory)); break;
 
                 case VmlUi.WinOpen: registers[0] = WinOpen(registers, memory); break;
                 case VmlUi.WinClose: registers[0] = WinClose(); break;
@@ -343,6 +390,14 @@ internal sealed class VmlUiCalls : ISystemCallHandler
 
     private int WinClose()
     {
+        // 程序**自己**关窗也要把「窗口已关」置位。
+        // 否则 `ui_win_closed()` 仍报 0 ⇒ 那套「主循环靠 `while (ui_win_closed() == 0)` 退出」的
+        // 游戏在程序主动关窗后**出不来**（用户实测报的「很难退出游戏」）。
+        // 有了它，「对话框里选『否/拒绝』→ `ui_win_close()` → 主循环自然退出」成立，
+        // 各语言例程就不必自己再加一个退出标志位。
+        // 幂等：正常的收尾路径本来就会再关一次，第二次直接返回。
+        if (_windowClosed) return 0;
+        _windowClosed = true;
         var close = CloseWindowAsync;
         if (close != null) MainThread.InvokeOnMainThreadAsync(close).GetAwaiter().GetResult();
         _scene = null;
@@ -394,10 +449,15 @@ internal sealed class VmlUiCalls : ISystemCallHandler
         var interval = Math.Clamp(r[0], 1, 3_600_000);
         var tag = r[1];
         var id = _nextTimerId++;
+        // 正处于模态弹框期间（程序在弹框里又装了个定时器）⇒ 同样以暂停状态建出来，
+        // 免得它成为下一个"积压源"
+        var paused = _timersPaused;
         var timer = new System.Threading.Timer(
             _ => _queue.Post(new VmlMessage(VmlMsgType.Timer, id, tag, Environment.TickCount)),
-            null, interval, interval);
-        _timers[id] = (timer, tag);
+            null,
+            paused ? Timeout.Infinite : interval,
+            paused ? Timeout.Infinite : interval);
+        _timers[id] = (timer, tag, interval);
         return id;
     }
 

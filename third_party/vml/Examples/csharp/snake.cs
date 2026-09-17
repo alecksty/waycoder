@@ -272,7 +272,7 @@ class Snake
         alive = 0;
         ui_beep(220, 260);
         draw();                                    // 先把终局画面画出来
-        ui_dlg_msg("贪吃蛇", "撞到了，这一局结束。\n再来一局？（选「否」退出）", DLG_INFO);
+        if (ui_dlg_msg("贪吃蛇", "撞到了，这一局结束。\n再来一局？（选「否」退出）", DLG_INFO) != 0) { ui_win_close(); return; }
         reset();
     }
 

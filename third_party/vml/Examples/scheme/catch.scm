@@ -127,18 +127,21 @@
                   0)
 
               ;; 没接住：本局结束
+              ;; 选「否/拒绝」→ quit 置 1，主循环下一拍退出（ui_dlg_msg 返回 0=是 / 1=否）
               (if (> py h)
                   (begin
                     (set! alive 0)
                     (ui_beep 220 260)
-                    (ui_dlg_msg "接方块" "没接住，这一局结束。\n再来一局？（选「否」退出）" 0)
-                    (set! bx (- (/ w 2) 40))
-                    (set! px (/ w 2))
-                    (set! py 70)
-                    (set! dx 3)
-                    (set! dy 5)
-                    (set! sc 0)
-                    (set! alive 1))
+                    (if (= (ui_dlg_msg "接方块" "没接住，这一局结束。\n再来一局？（选「否」退出）" 0) 0)
+                        (begin
+                          (set! bx (- (/ w 2) 40))
+                          (set! px (/ w 2))
+                          (set! py 70)
+                          (set! dx 3)
+                          (set! dy 5)
+                          (set! sc 0)
+                          (set! alive 1))
+                        (set! quit 1)))
                   0))
             0)
         )
