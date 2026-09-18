@@ -184,32 +184,58 @@
                  不另放就没有出口了。运行那格是用户要的「写了代码就运行一下」，不必退出全屏。
 
                  横排而不是上下叠：右上角一条 44pt 高，对正文的遮挡只有叠放的一半。
-                 半透明黑底 + 白图标；ZIndex 高于选区操作条与气泡、低于打开中遮罩。 -->
-            <HorizontalStackLayout x:Name="FullscreenBar"
+                 ZIndex 高于选区操作条与气泡、低于打开中遮罩。
+
+                 ⚠ 底色**必须跟随主题**，原因不显然：图标是 SVG 里烘死的 `#777777` 灰（工具栏同一批），
+                 而底色原来是写死的 `#99000000`（60% 黑）。它叠在**代码底**上，
+                 于是两种主题下的实际底色完全不同 —— 日间是 `#666666`、夜间是 `#070708`：
+                 **同一支灰图标叠在 `#666666` 上对比度只有 1.28，等于看不见**（夜间 4.50 正常）。
+                 换成浅色底 `#E9E9EE` 后是 3.70，两端都够（图形元素门槛 3.0）。
+                 ⚠ **注释里绝不能出现注释结束符本身**（哪怕只是想举例说明它）——
+                 它会把剩下的说明变成 Grid 的裸文本，而报出来的错是
+                 「Children 找不到」，完全指不到病因。这里就踩过一次。 -->
+            <!-- 两个按钮**合在一个圆角面板里**（用户要求：「应该做圆角粘在一起，像一个 panel 上面的两个按钮」）：
+                 原来它们是两个各自 44×44 的方块、中间隔着 8pt。
+                 底色挪到外层这个 Border 上、两个按钮自己透明；中间一道细分隔线把两格分开。
+                 分隔线的可见性跟着「运行」那格走（非源码文件时那格隐藏，留着孤零零一条竖线像坏了），
+                 同步放在 ApplyActionButton 一处 —— 那本来就是「这一格长什么样」的唯一出口。 -->
+            <Border x:Name="FullscreenBar"
                     IsVisible="False"
                     ZIndex="21"
-                    Spacing="8"
                     HorizontalOptions="End"
                     VerticalOptions="Start"
-                    Margin="0,8,8,0">
-                <ImageButton x:Name="FullscreenActionBtn"
-                        Source="icon_run.png"
-                        IsVisible="False"
-                        WidthRequest="44"
-                        HeightRequest="44"
-                        Padding="10"
-                        BackgroundColor="#99000000"
-                        Clicked="OnActionButtonClicked"
-                        SemanticProperties.Hint="运行" />
-                <ImageButton x:Name="RestoreBtn"
-                        Source="icon_restore.png"
-                        WidthRequest="44"
-                        HeightRequest="44"
-                        Padding="10"
-                        BackgroundColor="#99000000"
-                        Clicked="OnFullscreenExitClicked"
-                        SemanticProperties.Hint="退出全屏" />
-            </HorizontalStackLayout>
+                    Margin="0,8,8,0"
+                    Padding="0"
+                    StrokeThickness="0"
+                    BackgroundColor="{AppThemeBinding Light=#E9E9EE, Dark=#99000000}">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+                <HorizontalStackLayout Spacing="0">
+                    <ImageButton x:Name="FullscreenActionBtn"
+                            Source="icon_run.png"
+                            IsVisible="False"
+                            WidthRequest="44"
+                            HeightRequest="44"
+                            Padding="10"
+                            BackgroundColor="Transparent"
+                            Clicked="OnActionButtonClicked"
+                            SemanticProperties.Hint="运行" />
+                    <BoxView x:Name="FullscreenDivider"
+                            WidthRequest="1"
+                            HeightRequest="22"
+                            VerticalOptions="Center"
+                            Color="{AppThemeBinding Light=#D5D5DB, Dark=#40FFFFFF}" />
+                    <ImageButton x:Name="RestoreBtn"
+                            Source="icon_restore.png"
+                            WidthRequest="44"
+                            HeightRequest="44"
+                            Padding="10"
+                            BackgroundColor="Transparent"
+                            Clicked="OnFullscreenExitClicked"
+                            SemanticProperties.Hint="退出全屏" />
+                </HorizontalStackLayout>
+            </Border>
 
             <ScrollView x:Name="PreviewScroll" IsVisible="False">
                 <VerticalStackLayout x:Name="PreviewContent" />

@@ -2973,6 +2973,9 @@ public partial class EditorPage : ContentPage
         }
 
         FullscreenActionBtn.IsVisible = _fullscreen && show;
+        // 分隔线跟着「运行」那格走：非源码文件时那格是隐藏的，留着一条孤零零的竖线看着像坏了。
+        // 同步只放在这里 —— 这个函数本来就是「那一格长什么样」的唯一出口（工具栏与全屏浮层共用）。
+        FullscreenDivider.IsVisible = FullscreenActionBtn.IsVisible;
         if (FullscreenActionBtn.IsVisible)
         {
             FullscreenActionBtn.Source = icon;
