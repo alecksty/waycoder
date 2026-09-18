@@ -976,6 +976,7 @@ namespace VML {
     // extern int ui_poll(int* msg);  // CALL ui_poll
     // extern int ui_wait(int* msg, int timeout_ms);  // CALL ui_wait
     // extern int ui_msg_count(void);  // CALL ui_msg_count
+    // extern int ui_msg_clear(void);  // CALL ui_msg_clear
     // extern int ui_wait_msg(int timeout_ms);  // CALL ui_wait_msg
     // extern int ui_poll_msg(void);  // CALL ui_poll_msg
     // extern int ui_msg_type(void);  // CALL ui_msg_type

@@ -126,6 +126,9 @@ int  ui_gget(int idx);
 int  ui_poll(int* msg);
 int  ui_wait(int* msg, int timeout_ms);
 int  ui_msg_count(void);
+/* 丢掉队列里所有待处理消息 → 丢弃条数。重新开始/切关时调，
+   防上一局没读完的输入（一次点击常有多条）被新一局读出来。 */
+int  ui_msg_clear(void);
 int  ui_timer_set(int interval_ms, int tag);
 int  ui_timer_kill(int id);
 

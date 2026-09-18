@@ -228,6 +228,9 @@ internal sealed class VmlUiCalls : ISystemCallHandler
                 case VmlUi.MsgPoll: registers[0] = Poll(registers, memory); break;
                 case VmlUi.MsgWait: registers[0] = Wait(registers, memory); break;
                 case VmlUi.MsgCount: registers[0] = _queue.Count; break;
+                // 清空待处理消息 → 丢弃条数。程序在"重新开始/切关"时调用，防上一局的残留输入
+                // 被新一局读出来（一次点击常有多条：按下/抬起/移动）。
+                case VmlUi.MsgClear: _queue.Clear(); registers[0] = 0; break;
                 case VmlUi.TimerSet: registers[0] = TimerSet(registers); break;
                 case VmlUi.TimerKill: registers[0] = TimerKill(registers); break;
                 case VmlUi.WinClosed: registers[0] = _windowClosed ? 1 : 0; break;

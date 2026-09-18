@@ -6021,6 +6021,13 @@ fn ui_msg_count() -> i32 {
     r
 }
 
+fn ui_msg_clear() -> i32 {
+    asm!("CALL ui_msg_clear")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
 fn ui_wait_msg(a0: i32) -> i32 {
     asm!("CALL ui_wait_msg")
     let r: i32;

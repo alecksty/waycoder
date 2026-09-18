@@ -215,6 +215,27 @@ public partial class DrawWindowPage : ContentPage
     /// </summary>
     internal void Attach(VmlScene scene)
     {
+        // 画布重算挂在**容器自己的** SizeChanged 上（先撤再挂，防多次 Attach 重复订阅）。
+        //
+        // 为什么不靠页面的 `OnSizeAllocated`：它在**转屏时可能只触发一次**，而那一刻
+        // `CanvasHost` 的新尺寸还没算出来 ⇒ 读到旧值 ⇒ 判"不用重排" ⇒ 之后再没有第二次机会。
+        // 实测表现就是用户报的「转 90° 再转回来，游戏尺寸回不来了」。
+        // 容器自己发的事件则一定发生在它**新尺寸已确定**之后。
+        CanvasHost.SizeChanged -= OnCanvasHostSizeChanged;
+        CanvasHost.SizeChanged += OnCanvasHostSizeChanged;
+
+        // ⚠ **清掉上一次留下的画布尺寸请求**。
+        //
+        // Shell 导航会**复用页面实例**（本仓自己在 SettingsGroupPage 的注释里记过这条），
+        // 于是这次的 `WidthRequest` 还是上一局算出来的值。而它会引发一个"没人来纠正"的死角：
+        //   · `ShowFrame` 里那句 `if (CanvasView.WidthRequest <= 0) FitCanvas(scene)` 因为非 0 而跳过；
+        //   · 页面与容器的尺寸这次都没变 ⇒ `OnSizeAllocated` / `SizeChanged` **一个都不触发**；
+        // ⇒ 画面就定格在上一局的尺寸上。
+        // 实测复现路径正是用户给的：**先横屏一下（算出并留下横屏的小尺寸）→ 转回 → 退出 → 再进**。
+        // 置 -1 让 ShowFrame 的兜底重新生效，随后再主动重算一次拿到精确值。
+        CanvasView.WidthRequest = -1;
+        CanvasView.HeightRequest = -1;
+
         _scene = scene;
         Title = scene.Title;
         _renderedVersion = -1;
@@ -222,6 +243,10 @@ public partial class DrawWindowPage : ContentPage
         // —— 程序若很快调 WIN_CLOSE（或退出），异步首帧根本来不及出。这里就地把第一帧出掉，
         // 之后的变化再走定时器。画布小（几百像素见方），同步编码的代价可以接受。
         RenderIfChanged(synchronous: true);
+
+        // 上面那次首帧兜底跑在**布局完成之前**，`CanvasHost` 尺寸还不可靠；下一帧布局落定后
+        // 再精确重算一次（差值超容差才会真设，不会引起抖动）。
+        Dispatcher.Dispatch(RefitCanvasIfNeeded);
     }
 
     protected override void OnAppearing()
@@ -263,20 +288,151 @@ public partial class DrawWindowPage : ContentPage
             VmlUiCalls.MeasuredViewport = now;
         }
 
-        // 布局到位后重算一次画布尺寸（首帧渲染时这里还是 0，见 FitCanvas 注释），
-        // 并按需重画 —— 否则首帧用过兜底尺寸，转屏/分屏之后就再也不会修正。
-        if (_scene is { } s && CanvasHost.Width > 0)
+        // ⛔ **横屏布局切换暂时停用**（2026-09-18）。
+        //
+        // 实测它引入了两个回归：竖屏下画布完全看不见、横屏也不对。原因是"运行时搬控件"
+        // 这条路对布局时序很敏感（先解除父级、改行列定义、再挂回去，中间任何一步让
+        // `CanvasHost` 量到 0 就会连锁失败），而在没有实测数据的情况下盲改只会越叠越多。
+        //
+        // 方法与 XAML 里的命名都**保留着**（见 ApplyOrientation），下次重做时直接启用即可 ——
+        // 但重做前必须先拿到 `RefitCanvasIfNeeded` 里那行 `[WC-DRAW]` 的真实数值。
+        // ApplyOrientation();
+
+        // 这里只做兜底（首帧渲染时 CanvasHost 尺寸还是 0）；**转屏的重算靠
+        // `CanvasHost.SizeChanged`** —— 理由见 Attach 里的注释（页面回调的时序不可靠）。
+        RefitCanvasIfNeeded();
+    }
+
+    /// <summary>
+    /// 容器尺寸变了（转屏/分屏/收起手柄）就按新视口重算画布。幂等，多处调用无副作用。
+    ///
+    /// ⚠ **必须推迟到下一帧**：`SizeChanged` 会在**布局过程中**触发，那一刻
+    /// `CanvasHost.Width/Height` 还是中间值（远小于最终值）。就地算的话，
+    /// `FitCanvas` 会把这个"中间尺寸"写进 `CanvasView.WidthRequest` **定格住**，
+    /// 而容器尺寸之后再变也不一定再发一次事件 —— 实测症状就是「再开一局游戏，
+    /// 画面小得几乎看不见，飘在一大片空白中间」（棋盘被缩成几十像素的小方块）。
+    /// 调度到下一帧时布局已落定，读到的是最终视口。
+    /// </summary>
+    private void OnCanvasHostSizeChanged(object? sender, EventArgs e)
+        => Dispatcher.Dispatch(RefitCanvasIfNeeded);
+
+    private bool? _landscape;
+
+    /// <summary>
+    /// 按屏幕方向切换布局。
+    ///
+    /// **竖屏**（原样）：画布在上、手柄整排在下。
+    /// **横屏**：十字键去最左列、X/Y/A/B 去最右列、画布居中 —— 手柄不再横着摊掉近一半高度；
+    ///           SELECT / START 塞进左右键盘区的**内侧角落**（左区右下、右区左下，掌机那个经典摆法）；
+    ///           折叠条与 Shell 的 TabBar 一并隐藏，整屏高度都留给画面。
+    ///
+    /// ⚠ 只做"搬控件"，**不做两套 XAML** —— 后者会让每个按钮的事件处理器挂两遍。
+    /// ⚠ `Grid.Add(view, column, row)` 的参数是**列在前**（与 `Grid.SetRow/SetColumn` 的书写顺序相反），
+    ///    极易写反；所以统一走 <see cref="PutInGrid"/> / 下面这种带注释的 Add。
+    /// </summary>
+    private void ApplyOrientation()
+    {
+        bool landscape = Width > Height;
+        if (_landscape == landscape) return;   // 方向没变就别折腾（搬控件有代价）
+        _landscape = landscape;
+
+        // 一律先"**全部**离场"。
+        //
+        // ⚠ **必须包含根级那三个**（CanvasHost / CollapseBar / PadArea）：`ApplyOrientation`
+        //    首次被调用时它们还挂在 XAML 定义的父子关系上，只摘手柄那几块是不够的 ——
+        //    `Add` 会抛 `IllegalStateException: The specified child already has a parent`。
+        //    真机实测直接闪退，堆栈落在 `ViewGroup.addViewInner`。
+        RootGrid.Children.Remove(CanvasHost);
+        RootGrid.Children.Remove(CollapseBar);
+        RootGrid.Children.Remove(PadArea);
+        PadArea.Children.Remove(PadLeftArea);
+        PadArea.Children.Remove(PadCenterArea);
+        PadArea.Children.Remove(PadRightArea);
+        PadCenterArea.Children.Remove(BtnSelect);
+        PadCenterArea.Children.Remove(BtnStart);
+        PadLeftArea.Children.Remove(BtnSelect);
+        PadRightArea.Children.Remove(BtnStart);
+
+        RootGrid.RowDefinitions.Clear();
+        RootGrid.ColumnDefinitions.Clear();
+
+        if (landscape)
         {
-            // ⚠ 比较的是 **FitSize 算出来的两个数**，不是"宽度变没变"：
-            //    两维取小之后，宽度可能没变而高度变了（视口变矮 ⇒ 要缩得更多），
-            //    只比宽度就会漏掉这一次重排。
-            var (w, h) = FitSize(s, CanvasHost.Width, CanvasHost.Height);
-            if (Math.Abs(CanvasView.WidthRequest - w) > 0.5 || Math.Abs(CanvasView.HeightRequest - h) > 0.5)
-            {
-                FitCanvas(s);
-                CanvasView.Invalidate();
-            }
+            RootGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));   // 0 左手柄
+            RootGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));   // 1 画布
+            RootGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));   // 2 右手柄
+            RootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
+
+            RootGrid.Children.Remove(PadArea);      // 整排手柄的容器在横屏下不再需要
+            PutInGrid(CanvasHost, 0, 1);
+            PutInGrid(PadLeftArea, 0, 0);
+            PutInGrid(PadRightArea, 0, 2);
+
+            PadLeftArea.Add(BtnSelect, 2, 2);       // 左区右下角
+            PadRightArea.Add(BtnStart, 0, 2);       // 右区左下角（column=0, row=2）
+
+            CollapseBar.IsVisible = false;
+            Shell.SetTabBarIsVisible(this, false);
         }
+        else
+        {
+            RootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
+            RootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+            RootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+            RootGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+
+            PutInGrid(CanvasHost, 0, 0);
+            PutInGrid(CollapseBar, 1, 0);
+            RootGrid.Add(PadArea, 0, 2);            // column=0, row=2
+
+            PadArea.Add(PadLeftArea, 0, 0);
+            PadArea.Add(PadCenterArea, 1, 0);
+            PadArea.Add(PadRightArea, 2, 0);
+
+            PadCenterArea.Add(BtnSelect);
+            PadCenterArea.Add(BtnStart);
+
+            CollapseBar.IsVisible = true;
+            Shell.SetTabBarIsVisible(this, true);
+        }
+    }
+
+    /// <summary>设置控件在网格中的行列（`Grid.Add` 是列在前，这里统一成 row/column 更好读）。</summary>
+    private static void PutInGrid(View view, int row, int column)
+    {
+        Grid.SetRow(view, row);
+        Grid.SetColumn(view, column);
+    }
+
+    /// <summary>
+    /// 视口尺寸与当前画布请求尺寸不一致就重算。
+    /// ⚠ 比的是 **FitSize 算出来的两个数**，不是"宽度变没变"：两维取小之后，
+    /// 宽度可能没变而高度变了（视口变矮 ⇒ 要缩得更多），只比宽度就会漏掉这次重排。
+    /// </summary>
+    private void RefitCanvasIfNeeded()
+    {
+        // 【诊断脚手架】定位"画面缩成小方块 / 干脆看不见"。定位完即撤。
+        //
+        // ⚠ 必须走 `Android.Util.Log`（→ logcat），**不能用 `Console.WriteLine`**：
+        //   `MauiVml.RunProgram` 在 VML 运行期间会把 `Console.Out` 重定向进一个 StringWriter
+        //   （为了把程序输出交回工具返回值），而这个函数正是在运行期间被触发的 ⇒ 输出被它吞掉、
+        //   logcat 里一个字都看不到（实测踩过：以为"函数没被调用"，其实是日志被劫持了）。
+        // ⚠ **放在所有守卫之前**：守卫里那个 `CanvasHost.Width <= 0` 正是"看不见画面"的
+        //   头号嫌疑，放在它后面就永远看不到这次调用到底发生了什么。
+#if ANDROID
+        Android.Util.Log.Info("WC-DRAW",
+            $"scene={(_scene is null ? "null" : $"{_scene.Width}x{_scene.Height}")} " +
+            $"host={CanvasHost.Width:F1}x{CanvasHost.Height:F1} root={RootGrid.Width:F1}x{RootGrid.Height:F1} " +
+            $"req={CanvasView.WidthRequest:F1}x{CanvasView.HeightRequest:F1} page={Width:F1}x{Height:F1} " +
+            $"land={_landscape?.ToString() ?? "?"}");
+#endif
+        if (_scene is not { } s) return;
+        if (CanvasHost.Width <= 0 || CanvasHost.Height <= 0) return;
+        var (w, h) = FitSize(s, CanvasHost.Width, CanvasHost.Height);
+        if (w <= 0) return;
+        if (Math.Abs(CanvasView.WidthRequest - w) <= 0.5 && Math.Abs(CanvasView.HeightRequest - h) <= 0.5) return;
+        FitCanvas(s);
+        CanvasView.Invalidate();
     }
 
     /// <summary>

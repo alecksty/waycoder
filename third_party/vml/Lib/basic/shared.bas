@@ -4609,6 +4609,11 @@ DECLARE FUNCTION ui_msg_count() AS INTEGER
     ui_msg_count = 0
 END FUNCTION
 
+DECLARE FUNCTION ui_msg_clear() AS INTEGER
+    asm("CALL ui_msg_clear")
+    ui_msg_clear = 0
+END FUNCTION
+
 DECLARE FUNCTION ui_wait_msg(a0 AS INTEGER) AS INTEGER
     asm("CALL ui_wait_msg")
     ui_wait_msg = 0

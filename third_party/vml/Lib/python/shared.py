@@ -6026,6 +6026,11 @@ def ui_msg_count():
     asm("CALL ui_msg_count")
     return r0
 
+def ui_msg_clear():
+    r0 = asm("R0")
+    asm("CALL ui_msg_clear")
+    return r0
+
 def ui_wait_msg(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0

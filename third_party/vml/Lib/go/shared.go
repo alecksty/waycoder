@@ -4611,6 +4611,11 @@ func ui_msg_count() int32 {
     return vml.R0()
 }
 
+func ui_msg_clear() int32 {
+    vml.Call("ui_msg_clear")
+    return vml.R0()
+}
+
 func ui_wait_msg(a0 int32) int32 {
     vml.Call("ui_wait_msg")
     return vml.R0()

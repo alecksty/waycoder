@@ -16,7 +16,7 @@
          而排成一排时拇指要横跨整屏找键，做游戏时根本按不过来。
          手柄上方那条**折叠条**（点中间的箭头收起/展开手柄）是为了看长内容 ——
          手柄区占掉约 150dp，收起后画布立刻多出这一截。 -->
-    <Grid RowDefinitions="*,Auto,Auto" Padding="0">
+    <Grid x:Name="RootGrid" RowDefinitions="*,Auto,Auto" Padding="0">
 
         <!-- 画布：**`GraphicsView` 就地重绘**，不是 `<Image>` 换 `Source`。
              ⚠ 换 `Image.Source` 会先卸掉旧图再解码新图，中间必然空一拍 —— 那就是"闪"
@@ -36,7 +36,7 @@
         <!-- 折叠条：左右两条细线 + 中间一个箭头按钮（点一下收起/展开手柄）。
              没有它的话，手柄区是**永久占着**的 —— 而很多 VML 程序只是打印文本或画一张静态图，
              根本用不到手柄，却要一直空掉屏幕底部那一块。 -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto,*" Padding="14,0" ColumnSpacing="8" HeightRequest="26">
+        <Grid x:Name="CollapseBar" Grid.Row="1" ColumnDefinitions="*,Auto,*" Padding="14,0" ColumnSpacing="8" HeightRequest="26">
             <BoxView
                 Grid.Column="0"
                 HeightRequest="1"
@@ -68,7 +68,7 @@
         <Grid x:Name="PadArea" Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Padding="14,4,14,8" ColumnSpacing="6">
 
             <!-- 左：十字方向键。**圆角方块**（角落 10 而不是半圆），比圆形更好按、也更像手柄 -->
-            <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,Auto,Auto"
+            <Grid x:Name="PadLeftArea" Grid.Column="0" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,Auto,Auto"
                   RowSpacing="3" ColumnSpacing="3" VerticalOptions="Center">
                 <Button Grid.Row="0" Grid.Column="1" x:Name="PadUp"    Text="↑" Pressed="OnPadPressed" Released="OnPadReleased"
                         WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="16" />
@@ -83,7 +83,7 @@
             <!-- 中：SELECT / START。小尺寸、上下排开，**不与两侧重叠**
                  ⚠ 必须显式给 WidthRequest：全局 Button 样式的 MinimumWidthRequest(44)
                  会在只靠 Padding 撑宽时变成宽度上限，文字被裁成一个字母。 -->
-            <VerticalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center" HorizontalOptions="Center">
+            <VerticalStackLayout x:Name="PadCenterArea" Grid.Column="1" Spacing="6" VerticalOptions="Center" HorizontalOptions="Center">
                 <Button x:Name="BtnSelect" Text="SELECT" Pressed="OnPadPressed" Released="OnPadReleased"
                         FontSize="10" Padding="0" WidthRequest="70" HeightRequest="28" CornerRadius="9" />
                 <Button x:Name="BtnStart"  Text="START"  Pressed="OnPadPressed" Released="OnPadReleased"
@@ -91,7 +91,7 @@
             </VerticalStackLayout>
 
             <!-- 右：X/Y/A/B 菱形（Y 上 X 左 B 右 A 下） -->
-            <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,Auto,Auto"
+            <Grid x:Name="PadRightArea" Grid.Column="2" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,Auto,Auto"
                   RowSpacing="3" ColumnSpacing="3" VerticalOptions="Center">
                 <Button Grid.Row="0" Grid.Column="1" x:Name="FaceY" Text="Y" Pressed="OnPadPressed" Released="OnPadReleased"
                         WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="15" FontAttributes="Bold" />

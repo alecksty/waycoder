@@ -84,6 +84,15 @@ public static class VmlUi
     public const int MsgWait = 561;
     /// <summary>队列里待处理消息数（非阻塞）→ 条数。</summary>
     public const int MsgCount = 562;
+    /// <summary>
+    /// 丢掉队列里**所有待处理消息**（非阻塞）→ 丢弃条数。
+    ///
+    /// **为什么需要它**：一次点击往往产生**多条**消息（按下/抬起/移动各一条），
+    /// 游戏主循环通常只读它要的那一条，剩下的就留在队列里 —— 于是"重开一局"时
+    /// `ui_poll` 又把**上一局的残留**读出来，黑子立刻落到上次最后点的位置上。
+    /// 程序应在**重新开始 / 切关 / 暂停恢复**这类状态断点上调用它，把历史输入清干净。
+    /// </summary>
+    public const int MsgClear = 568;
     /// <summary>装定时器：R0=间隔毫秒 R1=用户标记 → 定时器 id；消息以 <see cref="VmlMsgType.Timer"/> 入队。</summary>
     public const int TimerSet = 563;
     /// <summary>删定时器：R0=id → 0。</summary>

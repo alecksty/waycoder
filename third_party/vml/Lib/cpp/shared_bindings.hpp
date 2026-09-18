@@ -976,6 +976,7 @@ extern "C" {
      int ui_poll(int* msg);
      int ui_wait(int* msg, int timeout_ms);
      int ui_msg_count(void);
+     int ui_msg_clear(void);
      int ui_wait_msg(int timeout_ms);
      int ui_poll_msg(void);
      int ui_msg_type(void);
