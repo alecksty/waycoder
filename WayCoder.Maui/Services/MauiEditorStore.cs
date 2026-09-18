@@ -82,6 +82,36 @@ public static class MauiEditorStore
 
     public static SaveNewline SaveAsNewline { get; private set; } = SaveNewline.Keep;
 
+    /// <summary>
+    /// 保存编码的候选（标签 → 枚举值，顺序即下拉顺序）。
+    ///
+    /// **放在这里而不是设置页**：设置页的**下拉**与**首页摘要**要用同一份标签，
+    /// 两处各写一遍就是「同一规则两处实现」—— 本仓库的头号坑，迟早一处改了另一处没改。
+    /// </summary>
+    public static readonly (string Label, SaveEncoding Value)[] SaveEncodingOptions =
+    [
+        ("保持原样（推荐）", SaveEncoding.Keep),
+        ("UTF-8（无 BOM）", SaveEncoding.Utf8NoBom),
+        ("UTF-8 带 BOM", SaveEncoding.Utf8Bom),
+        ("UTF-16 LE", SaveEncoding.Utf16Le),
+        ("OEM（系统区域代码页）", SaveEncoding.Oem),
+    ];
+
+    /// <summary>保存换行的候选。理由同上。</summary>
+    public static readonly (string Label, SaveNewline Value)[] SaveNewlineOptions =
+    [
+        ("保持原样（推荐）", SaveNewline.Keep),
+        ("LF+CR（Windows）", SaveNewline.Crlf),
+        ("LF（Unix）", SaveNewline.Lf),
+    ];
+
+    /// <summary>枚举 → 下拉里那个标签（找不到就退回枚举名，绝不返回空）。</summary>
+    public static string NameOf(SaveEncoding e)
+        => SaveEncodingOptions.FirstOrDefault(o => o.Value == e).Label ?? e.ToString();
+
+    public static string NameOf(SaveNewline e)
+        => SaveNewlineOptions.FirstOrDefault(o => o.Value == e).Label ?? e.ToString();
+
     public static void Load()
     {
         try

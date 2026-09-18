@@ -815,6 +815,10 @@ public partial class EditorPage : ContentPage
         {
             Canvas.SetDark(IsDarkTheme);
             RebuildBubbles();
+            // 面板 Tab 的选中态是**代码赋值**的（见 SwitchPanelTab），换主题不会自己变
+            SwitchPanelTab(_panelTab);
+            // 「没有错误。」那行与各诊断行的颜色也是建的时候取的
+            RefreshErrorList();
         }
         catch { /* 换主题不该把界面搞崩 */ }
     }
@@ -3150,13 +3154,28 @@ public partial class EditorPage : ContentPage
         RelayoutBubbles();   // 面板占了底部一块，气泡要避开它
     }
 
+    /// <summary>
+    /// 面板 Tab 的「选中 / 未选中」文字色。**必须跟随主题**。
+    ///
+    /// 这两行原来写死 `Colors.White` 与 `#999999`，恰好把 XAML 里挂的 `AppThemeBinding` 盖掉：
+    /// 日间主题下面板底色是近白 ⇒ **选中的那一格变成白底白字、整条看不见**
+    /// （用户实测报的正是这个）。注意它只影响**当前选中**的那一格 ——
+    /// 未选中的 `#999999` 在白底上还算看得见，所以现象是「时有时无」，很容易被当成偶发。
+    /// </summary>
+    private static Color PanelTabActive => IsDarkTheme ? Colors.White : Color.FromArgb("#1A1A1A");
+    private static Color PanelTabIdle => IsDarkTheme ? Color.FromArgb("#999999") : Color.FromArgb("#6B6B6B");
+
+    /// <summary>当前选中的面板 Tab —— 换主题时要用它把选中态重刷一遍（见 <see cref="OnAppThemeChanged"/>）。</summary>
+    private PanelTab _panelTab = PanelTab.Errors;
+
     private void SwitchPanelTab(PanelTab tab)
     {
+        _panelTab = tab;
         bool errs = tab == PanelTab.Errors;
         PanelErrorsScroll.IsVisible = errs;
         PanelOutputScroll.IsVisible = !errs;
-        PanelTabErrors.TextColor = errs ? Colors.White : Color.FromArgb("#999999");
-        PanelTabOutput.TextColor = errs ? Color.FromArgb("#999999") : Colors.White;
+        PanelTabErrors.TextColor = errs ? PanelTabActive : PanelTabIdle;
+        PanelTabOutput.TextColor = errs ? PanelTabIdle : PanelTabActive;
     }
 
     private void OnPanelTabErrorsClicked(object? sender, EventArgs e) => SwitchPanelTab(PanelTab.Errors);
@@ -3191,7 +3210,7 @@ public partial class EditorPage : ContentPage
             {
                 Text = "没有错误。",
                 FontSize = 12,
-                TextColor = Color.FromArgb("#999999"),
+                TextColor = PanelTabIdle,     // 与未选中的 Tab 同一个弱化色，跟随主题
             });
             return;
         }

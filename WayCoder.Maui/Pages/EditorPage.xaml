@@ -272,13 +272,16 @@
                   RowDefinitions="Auto,*"
                   HeightRequest="220">
                 <HorizontalStackLayout Grid.Row="0" Spacing="0" Padding="4,2">
+                    <!-- 这两个 Tab 的 TextColor **故意不在 XAML 里给**：选中/未选中是运行期状态，
+                         由代码 `SwitchPanelTab` 一处决定（原来 XAML 挂的 AppThemeBinding 被代码
+                         写死的 Colors.White 盖掉，日间主题下选中那格就成了白底白字）。
+                         两处都给 = 「谁生效」要看执行顺序，正是本仓库反复踩的坑。 -->
                     <Button x:Name="PanelTabErrors" Text="错误列表" Style="{StaticResource PanelChip}"
                             Clicked="OnPanelTabErrorsClicked" />
                     <Button x:Name="PanelTabOutput" Text="输出" Style="{StaticResource PanelChip}"
-                            TextColor="{AppThemeBinding Light=#8A8A8E, Dark=#999999}"
                             Clicked="OnPanelTabOutputClicked" />
                     <Button x:Name="PanelStopBtn" Text="■ 停止" Style="{StaticResource PanelChip}"
-                            TextColor="#FF7B72"
+                            TextColor="{AppThemeBinding Light=#C4382F, Dark=#FF7B72}"
                             IsVisible="False" Clicked="OnPanelStopClicked" />
                     <Button x:Name="PanelCloseBtn" Text="✕" Style="{StaticResource PanelChip}"
                             TextColor="{AppThemeBinding Light=#8A8A8E, Dark=#999999}"

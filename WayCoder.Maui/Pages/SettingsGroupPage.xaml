@@ -218,7 +218,13 @@
                 </VerticalStackLayout>
             </Border>
 
-            <!-- ═══ 编辑器 ═══ -->
+            </VerticalStackLayout>
+
+            <!-- ═══ 编辑器 ═══
+                 **与「存储」分成两组**（用户要求：编辑器以后还要增加很多设置）。
+                 原来「存储 / VML 游戏画面 / 编辑器」三块挤在 GrpStorage 里，
+                 而首页那颗卡片的标题就叫「存储与编辑器」—— 编辑器设置一多，那页会长到没法看。 -->
+            <VerticalStackLayout x:Name="GrpEditor" IsVisible="False" Spacing="10">
             <Label Text="编辑器" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
             <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0" Margin="0,4,0,0">

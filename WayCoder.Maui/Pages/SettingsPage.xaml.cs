@@ -42,10 +42,19 @@ public partial class SettingsPage : ContentPage
         // ── 权限（文案唯一真源在 UiText，别在这儿再写一份措辞）
         PermSummary.Text = UiText.PermFull(PermissionManager.CurrentMode);
 
-        // ── 存储与编辑器
+        // ── 存储（只管落盘位置，编辑器那半边已经拆成单独一张卡片）
         var where = WayCoder.Maui.MauiBootstrap.WorkspaceExternal ? "外部存储 ✅" : "App 私有目录 ⚠️";
+        StorageSummary.Text = $"workspace：{where}";
+
+        // ── 编辑器：挑几个最常被问的显示。
+        // 编码/换行那两项的文案走 MauiEditorStore.NameOf（**与设置页下拉同一份标签**），
+        // 不在这里另写一份「UTF-8 无 BOM」之类的短名。
         var mb = (int)(Services.MauiEditorStore.ReadOnlyMaxBytes / (1024 * 1024));
-        StorageSummary.Text = $"workspace：{where} · 可编辑上限 {mb}MB";
+        var full = Services.MauiEditorStore.FullWidthToHalf ? "开" : "关";
+        EditorSummary.Text =
+            $"可编辑上限 {mb}MB · 全角转半角 {full} · " +
+            $"保存 {Services.MauiEditorStore.NameOf(Services.MauiEditorStore.SaveAsEncoding)}" +
+            $"/{Services.MauiEditorStore.NameOf(Services.MauiEditorStore.SaveAsNewline)}";
 
         // ── 语音
         var wm = string.IsNullOrEmpty(cfg.WhisperModel) ? "默认 whisper-1" : cfg.WhisperModel;
@@ -76,6 +85,7 @@ public partial class SettingsPage : ContentPage
     private async void OnParamsTapped(object? sender, TappedEventArgs e) => await Go("params");
     private async void OnPermTapped(object? sender, TappedEventArgs e) => await Go("perm");
     private async void OnStorageTapped(object? sender, TappedEventArgs e) => await Go("storage");
+    private async void OnEditorTapped(object? sender, TappedEventArgs e) => await Go("editor");
     private async void OnVoiceTapped(object? sender, TappedEventArgs e) => await Go("voice");
 
     private async void OnAboutTapped(object? sender, TappedEventArgs e) =>

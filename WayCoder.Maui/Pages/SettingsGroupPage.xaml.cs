@@ -23,7 +23,8 @@ public partial class SettingsGroupPage : ContentPage
         yield return ("模型", GrpModel);
         yield return ("参数", GrpParams);
         yield return ("权限", GrpPerm);
-        yield return ("存储与编辑器", GrpStorage);
+        yield return ("存储", GrpStorage);
+        yield return ("编辑器", GrpEditor);
         yield return ("语音", GrpVoice);
     }
 
@@ -67,7 +68,8 @@ public partial class SettingsGroupPage : ContentPage
         "model" => title == "模型",
         "params" => title == "参数",
         "perm" => title == "权限",
-        "storage" => title == "存储与编辑器",
+        "storage" => title == "存储",
+        "editor" => title == "编辑器",
         "voice" => title == "语音",
         _ => false,
     };
@@ -90,23 +92,13 @@ public partial class SettingsGroupPage : ContentPage
     /// <summary>可编辑上限的候选档位（MB）。0 只是占位，实际不允许 0。</summary>
     private static readonly int[] EditorLimitOptions = [1, 2, 4, 8, 16, 32];
 
-    /// <summary>保存编码的候选（标签 → 枚举值）。标签顺序即下拉顺序。</summary>
+    // 保存编码/换行的候选表**不在这里**：挪到 MauiEditorStore.SaveEncodingOptions /
+    // SaveNewlineOptions —— 设置页的首页摘要也要用同一份标签，两处各写一遍迟早漂。
     private static readonly (string Label, Services.MauiEditorStore.SaveEncoding Value)[] EncOptions =
-    [
-        ("保持原样（推荐）", Services.MauiEditorStore.SaveEncoding.Keep),
-        ("UTF-8（无 BOM）", Services.MauiEditorStore.SaveEncoding.Utf8NoBom),
-        ("UTF-8 带 BOM", Services.MauiEditorStore.SaveEncoding.Utf8Bom),
-        ("UTF-16 LE", Services.MauiEditorStore.SaveEncoding.Utf16Le),
-        ("OEM（系统区域代码页）", Services.MauiEditorStore.SaveEncoding.Oem),
-    ];
+        Services.MauiEditorStore.SaveEncodingOptions;
 
-    /// <summary>保存换行的候选。</summary>
     private static readonly (string Label, Services.MauiEditorStore.SaveNewline Value)[] NlOptions =
-    [
-        ("保持原样（推荐）", Services.MauiEditorStore.SaveNewline.Keep),
-        ("LF+CR（Windows）", Services.MauiEditorStore.SaveNewline.Crlf),
-        ("LF（Unix）", Services.MauiEditorStore.SaveNewline.Lf),
-    ];
+        Services.MauiEditorStore.SaveNewlineOptions;
 
     private bool _loadingEditorSettings;
 
