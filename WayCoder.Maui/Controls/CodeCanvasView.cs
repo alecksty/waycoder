@@ -967,6 +967,44 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             : (_selBLine, _selBCol, _selALine, _selACol);
     }
 
+    // ── 给页面用的只读出口（气泡层 / 选区操作 / 输入归一化）──
+    //
+    // 这三样都是「页面需要、但页面**不该自己再算一遍**」的东西：宽度换算、选区排序、
+    // 行→Y 换算在这里各有一把尺子，页面另算一份就会和绘制错开（本仓库「两把尺子」的老坑）。
+
+    /// <summary>本文件用的语法定义（与高亮绘制同源）。文档为空时是 null。</summary>
+    public Syntax? SyntaxForFile => _syntax;
+
+    /// <summary>选区两端按「谁在前」归一化后的 (起点行/列, 终点行/列)，0-based 行 + 行内码元下标。</summary>
+    public (long LA, int CA, long LB, int CB) SelectionRange => NormalizedSelection();
+
+    /// <summary>
+    /// 单元格（1-based 行 + 1-based 列）在**视口坐标**里的锚点：<paramref name="x"/> 是该字符格的左缘、
+    /// <paramref name="y"/> 是该行的上缘。给诊断气泡的尾巴定位用。
+    ///
+    /// 与 <c>DrawCaret</c> / <c>DrawDiagnosticWave</c> / <c>HandlePositions</c> **同一把尺子**
+    /// （GutterWidth + TextLeftPad − 横向滚动 + MeasurePrefixWidth），所以气泡箭头与那一行下方的
+    /// 波浪线起点逐像素同源，不会出现「箭头指这儿、波浪线画那儿」。
+    ///
+    /// ⚠ 返回值**含滚动偏移** ⇒ 跟着滚动就失效，调用方要在 <c>ViewChanged</c> 里重排
+    /// （照页面里选区操作条的做法）。
+    /// </summary>
+    public bool TryGetCellAnchor(long oneBasedLine, int oneBasedColumn, out float x, out float y)
+    {
+        x = y = 0;
+        if (_doc == null || oneBasedLine < 1 || oneBasedLine > _doc.LineCount) return false;
+
+        long idx = oneBasedLine - 1;
+        var line = _doc.GetLine(idx) ?? "";
+        // 列号越界一律夹到行长：带 #define/#include 的 C 文件，编译器报的列是**预处理之后**
+        // 那一行的列，可能超出原始行长度 —— 不夹住就会把气泡甩到屏幕外。
+        int col = Math.Clamp(oneBasedColumn - 1, 0, line.Length);
+
+        x = GutterWidth() + EditorTypography.TextLeftPad - _scrollX + MeasurePrefixWidth(line, col);
+        y = LineY(idx, EditorTypography.LineHeight);
+        return true;
+    }
+
     /// <summary>
     /// 两个手柄的屏幕位置（起点、终点）。**画在哪与点哪算命中共用这一个** ——
     /// 各算一次就会出现「看到的和点得中的错开」（滚动条那边踩过同样的坑）。

@@ -102,6 +102,49 @@ public static class DiagnosticManager
     }
 
     /// <summary>
+    /// 三档计数（错误 / 警告 / 其它）。
+    ///
+    /// 与 <see cref="GetSummary"/> 并存而不是替换它：后者只给两档、且已有调用方，
+    /// 而气泡配色与状态栏都要**第三档**（Info）—— 那是绿色那一档。
+    /// </summary>
+    public static (int Errors, int Warnings, int Infos) Counts(string filePath)
+    {
+        if (!_diagnostics.TryGetValue(filePath, out var list))
+            return (0, 0, 0);
+        return (
+            list.Count(d => d.Severity == Severity.Error),
+            list.Count(d => d.Severity == Severity.Warning),
+            list.Count(d => d.Severity == Severity.Info)
+        );
+    }
+
+    /// <summary>
+    /// 外部注入诊断（移动端编辑器的编译结果走这条）。
+    ///
+    /// 与 lint **写的是同一份缓存、同一本淘汰账**（走 <see cref="CacheDiagnostics"/>），
+    /// 于是编辑器里那条错误波浪线和浮在上面的气泡读到的是同一批数据 ——
+    /// 关掉气泡，波浪线一起消失，不会出现「两边各说各话」。
+    /// </summary>
+    public static void Inject(string filePath, List<Diagnostic> diagnostics)
+        => CacheDiagnostics(filePath, diagnostics);
+
+    /// <summary>
+    /// 关掉一条诊断（气泡右上角的 ✕）。
+    ///
+    /// **用「读旧表 → 建新表 → 整体替换」而不是就地 <c>RemoveAll</c>**：读取侧（渲染）
+    /// 在 UI 线程，而这里的调用点在输入事件的回调里，就地改 <c>List</c> 会和
+    /// <see cref="GetForLine"/> 的枚举撞车。替换引用是原子的，读取侧一行都不用改。
+    /// </summary>
+    public static void Dismiss(string filePath, Diagnostic d)
+    {
+        if (!_diagnostics.TryGetValue(filePath, out var list)) return;
+        // Diagnostic 是 record，相等性是逐字段的 —— 这里正是要「同一条才算同一条」
+        var next = list.Where(x => x != d).ToList();
+        if (next.Count == list.Count) return;   // 没这条（已被别的路径清掉了）→ 不白写一次
+        CacheDiagnostics(filePath, next);
+    }
+
+    /// <summary>
     /// 格式化诊断信息供 LLM 使用（紧凑文本格式）。
     /// 仅当缓存中有诊断时返回非空字符串。
     /// </summary>

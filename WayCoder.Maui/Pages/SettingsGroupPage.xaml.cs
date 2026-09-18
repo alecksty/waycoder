@@ -90,6 +90,24 @@ public partial class SettingsGroupPage : ContentPage
     /// <summary>可编辑上限的候选档位（MB）。0 只是占位，实际不允许 0。</summary>
     private static readonly int[] EditorLimitOptions = [1, 2, 4, 8, 16, 32];
 
+    /// <summary>保存编码的候选（标签 → 枚举值）。标签顺序即下拉顺序。</summary>
+    private static readonly (string Label, Services.MauiEditorStore.SaveEncoding Value)[] EncOptions =
+    [
+        ("保持原样（推荐）", Services.MauiEditorStore.SaveEncoding.Keep),
+        ("UTF-8（无 BOM）", Services.MauiEditorStore.SaveEncoding.Utf8NoBom),
+        ("UTF-8 带 BOM", Services.MauiEditorStore.SaveEncoding.Utf8Bom),
+        ("UTF-16 LE", Services.MauiEditorStore.SaveEncoding.Utf16Le),
+        ("OEM（系统区域代码页）", Services.MauiEditorStore.SaveEncoding.Oem),
+    ];
+
+    /// <summary>保存换行的候选。</summary>
+    private static readonly (string Label, Services.MauiEditorStore.SaveNewline Value)[] NlOptions =
+    [
+        ("保持原样（推荐）", Services.MauiEditorStore.SaveNewline.Keep),
+        ("LF+CR（Windows）", Services.MauiEditorStore.SaveNewline.Crlf),
+        ("LF（Unix）", Services.MauiEditorStore.SaveNewline.Lf),
+    ];
+
     private bool _loadingEditorSettings;
 
     /// <summary>把编辑器设置填进控件（只在进入页面时做，避免覆盖用户正在改的值）。</summary>
@@ -104,6 +122,17 @@ public partial class SettingsGroupPage : ContentPage
             EditorLimitPicker.ItemsSource = EditorLimitOptions.Select(m => $"{m} MB").ToList();
             EditorLimitPicker.SelectedIndex = idx;
             EditorDebugSwitch.IsToggled = Services.MauiEditorStore.ShowDebugHud;
+            EditorFullWidthSwitch.IsToggled = Services.MauiEditorStore.FullWidthToHalf;
+
+            EditorEncodingPicker.ItemsSource = EncOptions.Select(o => o.Label).ToList();
+            EditorEncodingPicker.SelectedIndex = Array.FindIndex(EncOptions,
+                o => o.Value == Services.MauiEditorStore.SaveAsEncoding);
+            if (EditorEncodingPicker.SelectedIndex < 0) EditorEncodingPicker.SelectedIndex = 0;
+
+            EditorNewlinePicker.ItemsSource = NlOptions.Select(o => o.Label).ToList();
+            EditorNewlinePicker.SelectedIndex = Array.FindIndex(NlOptions,
+                o => o.Value == Services.MauiEditorStore.SaveAsNewline);
+            if (EditorNewlinePicker.SelectedIndex < 0) EditorNewlinePicker.SelectedIndex = 0;
         }
         finally { _loadingEditorSettings = false; }
     }
@@ -120,6 +149,28 @@ public partial class SettingsGroupPage : ContentPage
     {
         if (_loadingEditorSettings) return;
         Services.MauiEditorStore.SetDebugHud(e.Value);
+    }
+
+    private void OnEditorFullWidthToggled(object? sender, ToggledEventArgs e)
+    {
+        if (_loadingEditorSettings) return;
+        Services.MauiEditorStore.SetFullWidthToHalf(e.Value);
+    }
+
+    private void OnEditorEncodingChanged(object? sender, EventArgs e)
+    {
+        if (_loadingEditorSettings) return;
+        int i = EditorEncodingPicker.SelectedIndex;
+        if (i >= 0 && i < EncOptions.Length)
+            Services.MauiEditorStore.SetSaveEncoding(EncOptions[i].Value);
+    }
+
+    private void OnEditorNewlineChanged(object? sender, EventArgs e)
+    {
+        if (_loadingEditorSettings) return;
+        int i = EditorNewlinePicker.SelectedIndex;
+        if (i >= 0 && i < NlOptions.Length)
+            Services.MauiEditorStore.SetSaveNewline(NlOptions[i].Value);
     }
 
     protected override void OnAppearing()

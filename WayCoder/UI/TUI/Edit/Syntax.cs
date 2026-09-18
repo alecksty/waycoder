@@ -31,6 +31,16 @@ public class Syntax
     /// <summary>通用兜底语言的名字（<see cref="Generic"/>）—— 注释识别要认它</summary>
     internal const string GenericName = "通用";
 
+    /// <summary>
+    /// 纯文本语言的名字（<see cref="Plain"/>）。**「这是不是代码」的判定要认它** ——
+    /// 例如「源码编辑时要不要把全角标点转半角」就得先把它和 Markdown 排除掉。
+    /// 给成常量而不是散落的字面量：改名时不会漏掉某一处比较。
+    /// </summary>
+    public const string PlainName = "纯文本";
+
+    /// <summary>Markdown 语言的名字（<see cref="Markdown"/>）—— 散文，不做代码类改写。</summary>
+    public const string MarkdownName = "Markdown";
+
     // ── 代码配色（256 色，对标 One Dark / Crush(glamour) 的暗色主题）──
     // 语义名优先：调色只动这一处，调用点按「这是什么」引用，不再出现「Cyan 其实是紫色」这种名不符实。
     // 之前用标准 16 色（青/绿/黄/品红），在暗色终端里刺眼且层次差；256 色能取到柔和的中间调。
@@ -123,6 +133,27 @@ public class Syntax
             ".swift" => Swift(),
             ".kt" or ".kts" => Kotlin(),
             ".vue" => Vue(),
+
+            // ── 补上 VML 前端支持、而这里原先不认的语言 ──
+            //
+            // 这些扩展名 VML 都能编译（22 个前端），但这里原先一律落到 `Plain()`：
+            // **词表为空** ⇒ 编辑器的「关键字辅助输入条」只能显示通用兜底表，
+            // 对 Lua/Pascal/Fortran 那些语言等于给了一张错的表；顺带这些文件也一直没有语法高亮。
+            // 高亮层本来就是自己一套手写词表（C#/Python 那些同样与 VML 的 lexer 各存一份），
+            // 所以这里是**按既有设计补齐**，不是新开一份。
+            ".bas" => Basic(),
+            ".pas" or ".pascal" => Pascal(),
+            ".lua" => Lua(),
+            ".d" => DLang(),
+            ".dart" => Dart(),
+            ".f" or ".f90" or ".f95" or ".f03" or ".f08" or ".for" or ".ftn" => Fortran(),
+            ".m" or ".mm" => ObjC(),
+            ".forth" or ".fth" => Forth(),
+            ".ladder" or ".ld" => Ladder(),
+            ".cxx" or ".hh" => Cpp(),
+            ".python" => Python(),
+            ".rust" => Rust(),
+
             _ => Plain(),
         };
     }
@@ -153,6 +184,36 @@ public class Syntax
         return null;
     }
 
+    /// <summary>
+    /// 字符串 / 字符字面量 / 注释覆盖的区间（<c>[Start, Start+Length)</c>，行内码元下标）。
+    ///
+    /// **唯一实现** —— 凡「别动正文里那些标点」的判定都调它，别各自再写一份扫描
+    /// （本仓库头号坑就是同一规则两处实现）。
+    ///
+    /// ⚠ **局限（写在明处，别当成 bug 再修一遍）**：<see cref="Tokenize"/> 是**逐行**的，
+    /// 所以判不出跨行的三引号字符串（Python <c>"""</c>）、跨行块注释（<c>/* … */</c>）、
+    /// C 的续行宏 —— 这些结构**中间那几行**里的全角标点会被误判成「代码」。
+    /// 调用方应再叠一条保守兜底：受保护区间占整行比例过高时，整行不动。
+    /// </summary>
+    public List<(int Start, int Length)> ProtectedSpans(string line)
+    {
+        var spans = new List<(int, int)>();
+        if (string.IsNullOrEmpty(line)) return spans;
+
+        int at = 0;
+        foreach (var (text, color) in Tokenize(line))
+        {
+            // 空行时 Tokenize 返回的是一个**空格 token**（长度为 1）而行长为 0。
+            // 越界区间会让 Android 侧的 setSpan 直接抛异常，这里先夹住。
+            int len = Math.Min(text.Length, Math.Max(0, line.Length - at));
+            if (len > 0 && color is Str or Comment or Char)
+                spans.Add((at, len));
+            at += text.Length;
+            if (at >= line.Length) break;
+        }
+        return spans;
+    }
+
     /// <summary>运算符字符 —— 连续同类合并成一段（`=>` 是一个 token 而不是两个）</summary>
     private static bool IsOperatorChar(char c)
         => c is '+' or '-' or '*' or '/' or '%' or '=' or '!' or '<' or '>' or '&' or '|' or '^' or '~' or '?';
@@ -171,7 +232,7 @@ public class Syntax
         while (i < line.Length)
         {
             // Markdown 标题（行首 # / ## / ###）
-            if (Name == "Markdown" && line[i] == '#' && i == 0)
+            if (Name == MarkdownName && line[i] == '#' && i == 0)
             {
                 int j = i;
                 while (j < line.Length && line[j] == '#') j++;
@@ -182,7 +243,7 @@ public class Syntax
             }
 
             // Markdown 行内代码 `code`
-            if (Name == "Markdown" && line[i] == '`')
+            if (Name == MarkdownName && line[i] == '`')
             {
                 var end = line.IndexOf('`', i + 1);
                 if (end < 0) end = line.Length - 1;
@@ -476,7 +537,7 @@ public class Syntax
 
     private static Syntax Markdown() => new()
     {
-        Name = "Markdown",
+        Name = MarkdownName,
         Keywords = [],
     };
 
@@ -645,9 +706,128 @@ public class Syntax
         ],
     };
 
+    // ── VML 支持、而高亮层原先缺的语言 ──
+    //
+    // ⚠ 关键字匹配是**区分大小写**的（`Tokenize` 里 `Keywords.Contains(word)`，默认 ordinal）。
+    // 所以这里按各语言的**书写惯例**存：BASIC / Forth 存大写（传统写法就是大写），
+    // Fortran 存小写（现代写法），其余按常规。用户按另一种大小写打字时高亮不会命中 ——
+    // 那是既有匹配机制的限制，不影响辅助输入条（它插入的就是表里的原样文本）。
+
+    private static Syntax Basic() => new()
+    {
+        Name = "Basic",
+        Keywords = [
+            "IF","THEN","ELSE","ELSEIF","END","FOR","NEXT","TO","STEP","WHILE","WEND",
+            "DO","LOOP","UNTIL","GOTO","GOSUB","RETURN","SUB","FUNCTION","DIM","AS",
+            "INTEGER","STRING","DOUBLE","SINGLE","LONG","BOOLEAN","PRINT","INPUT","LET",
+            "REM","AND","OR","NOT","MOD","XOR","SELECT","CASE","DECLARE","NATIVE",
+            "TRUE","FALSE","NULL",
+        ],
+    };
+
+    private static Syntax Pascal() => new()
+    {
+        Name = "Pascal",
+        Keywords = [
+            "and","array","begin","case","const","div","do","downto","else","end","file",
+            "for","function","goto","if","in","label","mod","nil","not","of","or","packed",
+            "procedure","program","record","repeat","set","then","to","type","until","uses",
+            "var","while","with",
+        ],
+    };
+
+    private static Syntax Lua() => new()
+    {
+        Name = "Lua",
+        Keywords = [
+            "and","break","do","else","elseif","end","false","for","function","goto","if",
+            "in","local","nil","not","or","repeat","return","then","true","until","while",
+        ],
+    };
+
+    private static Syntax DLang() => new()
+    {
+        Name = "D",
+        Keywords = [
+            "abstract","alias","align","asm","assert","auto","body","bool","break","byte",
+            "case","cast","catch","char","class","const","continue","dchar","debug","default",
+            "delegate","delete","do","double","else","enum","export","extern","false","final",
+            "finally","float","for","foreach","foreach_reverse","function","goto","if",
+            "immutable","import","in","inout","int","interface","invariant","is","lazy","long",
+            "macro","mixin","module","new","nothrow","null","out","override","package","pragma",
+            "private","protected","public","pure","real","ref","return","scope","shared","short",
+            "static","struct","super","switch","synchronized","template","this","throw","true",
+            "try","typeid","typeof","ubyte","uint","ulong","union","unittest","ushort","version",
+            "void","volatile","wchar","while","with",
+        ],
+    };
+
+    private static Syntax Dart() => new()
+    {
+        Name = "Dart",
+        Keywords = [
+            "abstract","as","assert","async","await","break","case","catch","class","const",
+            "continue","covariant","default","deferred","do","dynamic","else","enum","export",
+            "extends","extension","external","factory","false","final","finally","for","get",
+            "hide","if","implements","import","in","interface","is","late","library","mixin",
+            "new","null","on","operator","part","required","rethrow","return","set","show",
+            "static","super","switch","sync","this","throw","true","try","typedef","var","void",
+            "while","with","yield",
+        ],
+    };
+
+    private static Syntax Fortran() => new()
+    {
+        Name = "Fortran",
+        Keywords = [
+            "program","end","subroutine","function","if","then","else","elseif","do","while",
+            "select","case","contains","implicit","none","integer","real","double","precision",
+            "character","logical","complex","dimension","allocatable","parameter","call",
+            "return","print","write","read","format","continue","stop","goto","common",
+            "module","use","interface","type","where","forall","intent","kind","result",
+        ],
+    };
+
+    /// <summary>Objective-C：C 的那套关键字 + `@` 指令。`@` 指令在 Tokenize 里会被当运算符切开，
+    /// 这里仍收进来 —— 辅助输入条要能直接插入它们。</summary>
+    private static Syntax ObjC() => new()
+    {
+        Name = "ObjC",
+        Keywords = [
+            "auto","break","case","char","const","continue","default","do","double","else",
+            "enum","extern","float","for","goto","if","int","long","register","return","short",
+            "signed","sizeof","static","struct","switch","typedef","union","unsigned","void",
+            "volatile","while","id","self","super","nil","YES","NO",
+            "@interface","@implementation","@end","@property","@synthesize","@dynamic",
+            "@protocol","@selector","@class","@import","@autoreleasepool","@try","@catch",
+            "@finally","@throw","@encode","@synchronized",
+        ],
+    };
+
+    private static Syntax Forth() => new()
+    {
+        Name = "Forth",
+        Keywords = [
+            "DUP","DROP","SWAP","OVER","ROT","NIP","TUCK","IF","ELSE","THEN","BEGIN","UNTIL",
+            "WHILE","REPEAT","DO","LOOP","LEAVE","VARIABLE","CONSTANT","CREATE","ALLOT",
+            "IMMEDIATE","VALUE","TO","EMIT","CR","KEY","WORDS",".","..","@","!","+","-","*","/",
+        ],
+    };
+
+    /// <summary>梯形图（Ladder）—— 词表来自各家 PLC 的通用助记符（VML 的 LadderCompiler 用它们）。</summary>
+    private static Syntax Ladder() => new()
+    {
+        Name = "Ladder",
+        Keywords = [
+            "XIC","XIO","OTE","OTL","OTU","TON","TOF","RTO","CTU","CTD","RES","MOV","COP",
+            "ADD","SUB","MUL","DIV","EQU","NEQ","GRT","LES","GEQ","LEQ","JMP","LBL","NOP",
+            "TRUE","FALSE","RUNG","END",
+        ],
+    };
+
     private static Syntax Plain() => new()
     {
-        Name = "纯文本",
+        Name = PlainName,
         Keywords = [],
         HighlightSymbols = false, // 散文里的括号/破折号不该变成代码色
     };

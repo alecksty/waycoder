@@ -182,6 +182,26 @@ public partial class ShellPage : ContentPage
         return false;
     }
 
+    /// <summary>
+    /// 把一件 VML 活交给本页（并切过来）。**唯一实现** —— 文件页与编辑器共用一份。
+    ///
+    /// 各写一份的后果很具体：信箱清空的时机、切页失败的回退、错误日志，任何一处改动都会漂移，
+    /// 而这条链正是「点了没反应」的高发区。
+    ///
+    /// 返回 false = 没切过去（调用方负责提示用户）。
+    /// </summary>
+    internal static bool HandOff(PendingVmlJob job)
+    {
+        PendingVml = job;
+        if (SwitchToShellTab()) return true;
+
+        // 没切过去就把信箱清掉 —— 留着它会让用户下次**碰巧**进命令行页时
+        // 莫名其妙地跑起一个程序（这是这条交接唯一的坑）。
+        PendingVml = null;
+        ErrorLog.Error("ShellPage", "找不到「命令行」页（AppShell.xaml 的 Route 变了？）", null);
+        return false;
+    }
+
     protected override void OnAppearing()
     {
         base.OnAppearing();

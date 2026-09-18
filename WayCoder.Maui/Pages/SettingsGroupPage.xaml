@@ -232,6 +232,13 @@
                     <Label Text="调试 HUD（显示可见行区间 / 帧耗时 / 缓存命中 / 等宽自检）"
                            FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Switch x:Name="EditorDebugSwitch" Toggled="OnEditorDebugToggled" />
+                    <Label Text="源码编辑时自动把全角标点转成半角（，。；：（）等）。中文字符串与注释里的标点保持不变。"
+                           FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Switch x:Name="EditorFullWidthSwitch" Toggled="OnEditorFullWidthToggled" />
+                    <Label Text="保存源码时用的编码与换行。**只对源码生效** —— Markdown、纯文本、数据文件一律保持原样，不会被悄悄转码。默认「保持原样」= 沿用文件打开时的编码/换行。"
+                           FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Picker x:Name="EditorEncodingPicker" Title="保存编码" SelectedIndexChanged="OnEditorEncodingChanged" />
+                    <Picker x:Name="EditorNewlinePicker" Title="保存换行" SelectedIndexChanged="OnEditorNewlineChanged" />
                 </VerticalStackLayout>
             </Border>
             </VerticalStackLayout>

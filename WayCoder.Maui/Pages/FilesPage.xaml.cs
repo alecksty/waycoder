@@ -235,16 +235,11 @@ public partial class FilesPage : ContentPage
     /// </summary>
     private async Task HandOffToShellAsync(ShellPage.PendingVmlJob job)
     {
-        ShellPage.PendingVml = job;
+        // 交接本体在 ShellPage.HandOff（**唯一实现** —— 编辑器那边也调它）。
+        // 这里只负责失败时给用户一句人话。各写一份的话，信箱清空的时机、失败回退、
+        // 错误日志任何一处改动都会漂移，而这条链正是「点了没反应」的高发区。
+        if (ShellPage.HandOff(job)) return;
 
-        // 切 Tab 走**直接指定当前项**，不走 `GoToAsync("//shell")`（真机上那条路会抛
-        // `ArgumentOutOfRangeException`，见 ShellPage.SwitchToShellTab 的注释）。
-        if (ShellPage.SwitchToShellTab()) return;
-
-        // 没切过去就把信箱清掉 —— 留着它会让用户下次**碰巧**进命令行页时
-        // 莫名其妙地跑起一个程序（是这条交接唯一的坑）。
-        ShellPage.PendingVml = null;
-        ErrorLog.Error("FilesPage", "找不到「命令行」页（AppShell.xaml 的 Route 变了？）", null);
         await DisplayAlertAsync("无法打开命令行页",
             "没找到「命令行」页 —— AppShell.xaml 里的 Route=\"shell\" 可能被改过。", "关闭");
     }

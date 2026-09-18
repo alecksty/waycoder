@@ -39,7 +39,10 @@
                 LineBreakMode="TailTruncation" />
         </Grid>
 
-        <!-- 编辑工具条（SVG 图标按钮）：撤销 / 重做 / 查找 / 大纲 / 预览(源码) / 编辑(只读↔可写) / 保存 -->
+        <!-- 编辑工具条（SVG 图标按钮）：撤销 / 重做 / 查找 / 大纲 / 预览或运行(按文件类型) / 编辑(只读↔可写) / 保存
+             第 5 格是**变形**的：Markdown → 👁 预览，VML 能编译/汇编/装载的源码 → ▶ 运行，
+             其它（.txt/.json/未知扩展名）→ 整格隐藏。图标与可见性由 ApplyActionButton 统一设，
+             判据只有 ActionForCurrentFile 一处（全屏浮层那个按钮同源）。 -->
         <Grid x:Name="ToolRow" Grid.Row="1" ColumnDefinitions="*,*,*,*,*,*,*" Padding="8,2" ColumnSpacing="4">
             <ImageButton
                 x:Name="UndoBtn"
@@ -78,8 +81,8 @@
                 Source="icon_preview.png"
                 BackgroundColor="Transparent"
                 Padding="8"
-                Clicked="OnPreviewClicked"
-                SemanticProperties.Hint="预览/源码" />
+                Clicked="OnActionButtonClicked"
+                SemanticProperties.Hint="预览/运行" />
             <ImageButton
                 x:Name="EditBtn"
                 Grid.Column="5"
@@ -133,22 +136,37 @@
 
             <ctl:CodeCanvasView x:Name="Canvas" />
 
-            <!-- 全屏时的「还原」按钮：**只能浮在画布上** —— 导航栏那一行（含全屏按钮自己）
-                 在全屏时整条消失，不另放一个就没有出口了。
-                 半透明黑底 + 白图标，压在画布右上角；ZIndex 高于选区操作条、低于打开中遮罩。 -->
-            <ImageButton x:Name="RestoreBtn"
-                    Source="icon_restore.png"
+            <!-- 全屏时右上角的浮层：**还原** + **运行/预览**。
+                 两个都只能浮在画布上 —— 导航栏与工具栏（含全屏按钮自己）在全屏时整条消失，
+                 不另放就没有出口了。运行那格是用户要的「写了代码就运行一下」，不必退出全屏。
+
+                 横排而不是上下叠：右上角一条 44pt 高，对正文的遮挡只有叠放的一半。
+                 半透明黑底 + 白图标；ZIndex 高于选区操作条与气泡、低于打开中遮罩。 -->
+            <HorizontalStackLayout x:Name="FullscreenBar"
                     IsVisible="False"
                     ZIndex="21"
+                    Spacing="8"
                     HorizontalOptions="End"
                     VerticalOptions="Start"
-                    Margin="0,8,8,0"
-                    WidthRequest="44"
-                    HeightRequest="44"
-                    Padding="10"
-                    BackgroundColor="#99000000"
-                    Clicked="OnFullscreenExitClicked"
-                    SemanticProperties.Hint="退出全屏" />
+                    Margin="0,8,8,0">
+                <ImageButton x:Name="FullscreenActionBtn"
+                        Source="icon_run.png"
+                        IsVisible="False"
+                        WidthRequest="44"
+                        HeightRequest="44"
+                        Padding="10"
+                        BackgroundColor="#99000000"
+                        Clicked="OnActionButtonClicked"
+                        SemanticProperties.Hint="运行" />
+                <ImageButton x:Name="RestoreBtn"
+                        Source="icon_restore.png"
+                        WidthRequest="44"
+                        HeightRequest="44"
+                        Padding="10"
+                        BackgroundColor="#99000000"
+                        Clicked="OnFullscreenExitClicked"
+                        SemanticProperties.Hint="退出全屏" />
+            </HorizontalStackLayout>
 
             <ScrollView x:Name="PreviewScroll" IsVisible="False">
                 <VerticalStackLayout x:Name="PreviewContent" />
@@ -172,6 +190,8 @@
                 <HorizontalStackLayout Spacing="0">
                     <Button x:Name="SelCopyBtn" Text="复制" Clicked="OnSelCopyClicked"
                             BackgroundColor="Transparent" TextColor="#FFFFFF" FontSize="13" Padding="10,4" />
+                    <Button x:Name="SelDeleteBtn" Text="删除" Clicked="OnSelDeleteClicked"
+                            BackgroundColor="Transparent" TextColor="#FFFFFF" FontSize="13" Padding="10,4" />
                     <Button x:Name="SelAllBtn" Text="全选" Clicked="OnSelAllClicked"
                             BackgroundColor="Transparent" TextColor="#FFFFFF" FontSize="13" Padding="10,4" />
                     <Button x:Name="SelPasteBtn" Text="粘贴" Clicked="OnSelPasteClicked"
@@ -181,10 +201,133 @@
                 </HorizontalStackLayout>
             </Border>
 
+            <!-- 编译诊断气泡层：**浮在代码之上**，数据从 DiagnosticManager 取
+                 （与行下那条波浪线是同一份，所以关掉气泡时波浪线一起消失）。
+                 下面两个属性**缺一不可**：
+                 · InputTransparent=True —— 整层必须透明，否则它会吃掉画布的触摸（点不动行、滑不动）
+                 · CascadeInputTransparent=False —— MAUI 的 InputTransparent **默认向下级联**，
+                   不关掉的话气泡里的 ✕ 也点不动
+                 气泡各自再设 InputTransparent=False 覆盖回来。
+                 ZIndex 22：高于全屏浮层(21)与选区条(20)，低于打开中/编译中遮罩(30)。 -->
+            <Grid x:Name="DiagLayer"
+                  IsVisible="False"
+                  ZIndex="22"
+                  InputTransparent="True"
+                  CascadeInputTransparent="False"
+                  IsClippedToBounds="True" />
+
+            <!-- 运行面板：**贴在底部**的小窗，两个 Tab（错误列表 / 输出）。
+                 有了它，「运行」就不必跳到命令行页 —— 输出、报错都在原地看得见。
+                 数据来源与气泡是**同一份**：错误列表读 DiagnosticManager，点一条跳到那一行。
+                 ZIndex 23：压住气泡层(22)，否则气泡会飘在面板上面。 -->
+            <Grid x:Name="OutputPanel"
+                  IsVisible="False"
+                  ZIndex="23"
+                  VerticalOptions="End"
+                  BackgroundColor="#F21A1A1E"
+                  RowDefinitions="Auto,*"
+                  HeightRequest="220">
+                <HorizontalStackLayout Grid.Row="0" Spacing="0" Padding="4,2">
+                    <Button x:Name="PanelTabErrors" Text="错误列表" FontSize="12" Padding="12,6"
+                            BackgroundColor="Transparent" TextColor="#FFFFFF"
+                            Clicked="OnPanelTabErrorsClicked" />
+                    <Button x:Name="PanelTabOutput" Text="输出" FontSize="12" Padding="12,6"
+                            BackgroundColor="Transparent" TextColor="#999999"
+                            Clicked="OnPanelTabOutputClicked" />
+                    <Button x:Name="PanelStopBtn" Text="■ 停止" FontSize="12" Padding="12,6"
+                            BackgroundColor="Transparent" TextColor="#FF7B72"
+                            IsVisible="False" Clicked="OnPanelStopClicked" />
+                    <Button x:Name="PanelCloseBtn" Text="✕" FontSize="12" Padding="12,6"
+                            BackgroundColor="Transparent" TextColor="#999999"
+                            Clicked="OnPanelCloseClicked" />
+                </HorizontalStackLayout>
+
+                <!-- 错误列表：与气泡/波浪线**同一份数据** -->
+                <ScrollView Grid.Row="1" x:Name="PanelErrorsScroll">
+                    <VerticalStackLayout x:Name="PanelErrorsList" Padding="8,2" Spacing="4" />
+                </ScrollView>
+
+                <!-- 输出：程序写到控制台的东西（含运行时崩溃的寄存器 dump） -->
+                <ScrollView Grid.Row="1" x:Name="PanelOutputScroll" IsVisible="False">
+                    <VerticalStackLayout Padding="8,2" Spacing="6">
+                        <Label x:Name="PanelOutputText" FontSize="11" TextColor="#DDDDDD"
+                               LineBreakMode="WordWrap" />
+                        <!-- stdin 输入行：只在程序真的读输入时亮出来（与命令行页同一个语义） -->
+                        <Grid x:Name="PanelStdinRow" IsVisible="False" ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                            <Entry x:Name="PanelStdinEntry" Placeholder="输入后回车…" FontSize="12"
+                                   Completed="OnPanelStdinSubmitted" />
+                            <Button Grid.Column="1" Text="发送" FontSize="12" Padding="10,4"
+                                    Clicked="OnPanelStdinSendClicked" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </ScrollView>
+            </Grid>
+
+            <!-- ═══ 浮动代码辅助输入条 ═══
+                 可自由拖动、10 秒不碰自动缩小半透明、点分类弹字符/关键字表。
+                 关键字与运算符**按当前语言自动填充**（问 Syntax.ForFile，不另立表）。
+                 ZIndex 24：压住气泡层(22)与运行面板(23) —— 它是要被点的那一层。
+                 弹出表单独一层（ZIndex 25），因为要能盖住条子本身。 -->
+            <Border x:Name="AssistBar"
+                  IsVisible="False"
+                  ZIndex="24"
+                  HorizontalOptions="Start"
+                  VerticalOptions="Start"
+                  Padding="1"
+                  StrokeThickness="0"
+                  BackgroundColor="#F22C2C2E">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+                <HorizontalStackLayout Spacing="0">
+                    <Button x:Name="AssistTabBtn" Text="TAB" FontSize="12" Padding="10,6"
+                            BackgroundColor="Transparent" TextColor="#FFFFFF"
+                            Clicked="OnAssistTabClicked" />
+                    <Button x:Name="AssistSymBtn" Text="符号" FontSize="12" Padding="10,6"
+                            BackgroundColor="Transparent" TextColor="#FFFFFF"
+                            Clicked="OnAssistSymbolsClicked" />
+                    <Button x:Name="AssistOpBtn" Text="运算符" FontSize="12" Padding="10,6"
+                            BackgroundColor="Transparent" TextColor="#FFFFFF"
+                            Clicked="OnAssistOperatorsClicked" />
+                    <Button x:Name="AssistKwBtn" Text="关键字" FontSize="12" Padding="10,6"
+                            BackgroundColor="Transparent" TextColor="#FFFFFF"
+                            Clicked="OnAssistKeywordsClicked" />
+                    <!-- 拖动区：只在这一小块上拖，免得「想点按钮却把条子拖跑了」 -->
+                    <Label x:Name="AssistDragHandle" Text="⣿" FontSize="14" Padding="10,4"
+                           TextColor="#999999" VerticalTextAlignment="Center">
+                        <Label.GestureRecognizers>
+                            <PanGestureRecognizer PanUpdated="OnAssistPanUpdated" />
+                        </Label.GestureRecognizers>
+                    </Label>
+                    <Button x:Name="AssistCloseBtn" Text="✕" FontSize="12" Padding="10,6"
+                            BackgroundColor="Transparent" TextColor="#999999"
+                            Clicked="OnAssistCloseClicked" />
+                </HorizontalStackLayout>
+            </Border>
+
+            <!-- 弹出表：紧贴条的**上方或下方**（哪边放得下放哪边），内容可滚动 -->
+            <Border x:Name="AssistPopup"
+                    IsVisible="False"
+                    ZIndex="25"
+                    HorizontalOptions="Start"
+                    VerticalOptions="Start"
+                    StrokeThickness="0"
+                    BackgroundColor="#F22C2C2E"
+                    Padding="6">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="10" />
+                </Border.StrokeShape>
+                <ScrollView x:Name="AssistPopupScroll" MaximumHeightRequest="220">
+                    <FlexLayout x:Name="AssistPopupItems" Wrap="Wrap" Direction="Row" />
+                </ScrollView>
+            </Border>
+
             <!-- 打开中遮罩：大文件要顺序扫一遍建行索引（100MB 在百毫秒~数秒级），
                  这期间没有任何反馈的话，用户会以为是「没点到」或者「卡死了」。
-                 放在内容区最上层，盖住画布与输入框。 -->
-            <Grid x:Name="LoadingMask" IsVisible="False" BackgroundColor="#99000000">
+                 放在内容区最上层，盖住画布与输入框。
+                 ⚠ ZIndex 必须**显式写 30**：原来没写（默认 0），而全屏浮层是 21 ⇒ 实际是
+                 浮层盖在遮罩上，与这段注释里说的「最上层」正好相反。 -->
+            <Grid x:Name="LoadingMask" IsVisible="False" ZIndex="30" BackgroundColor="#99000000">
                 <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="12">
                     <ActivityIndicator IsRunning="True" Color="White" />
                     <Label

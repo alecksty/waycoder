@@ -6,6 +6,7 @@ using VMLPlugins;
 using VMLPlugins.Interfaces;
 using VMLRuntime;
 using WayCoder.Tools;
+using WayCoder.UI.Tui.Edit;
 
 namespace WayCoder.Maui.Services;
 
@@ -188,7 +189,7 @@ HALT
     {
         // `ct` 对两段都有效：编译段是"带超时地等一个不可取消的编译"（见 BuildProgram 的看门狗），
         // 运行段是"主循环每条指令查一次"。用户按「强制停止」时两段都能停下来。
-        var (prog, _, error) = BuildProgram(filePath, ct);
+        var (prog, _, error, _) = BuildProgram(filePath, ct);
         return prog == null ? error! : RunProgram(prog, timeoutSeconds, readLine, ct);
     }
 
@@ -208,8 +209,29 @@ HALT
     /// </summary>
     public static (string? Text, string? Error) CompileToVml(string filePath, CancellationToken ct = default)
     {
-        var (prog, _, error) = BuildProgram(filePath, ct);
+        var (prog, _, error, _) = BuildProgram(filePath, ct);
         return prog == null ? (null, error) : (prog.ToString(), null);
+    }
+
+    /// <summary>
+    /// **编辑器那条路**：编一次，**同时**给出①产物文本（交给命令行页去跑）与②结构化诊断（画气泡）。
+    ///
+    /// 存在的理由是一个冲突：气泡要求「报错显示在编辑器里」，而运行交给命令行页。
+    /// 若编辑器编一遍、命令行页再编一遍，手机上就是**两个一分钟**（前端编译实测一分多钟），
+    /// 不可接受。所以这里把**已链接的自包含汇编文本**一并带过去，命令行页只付一次
+    /// **汇编**（秒级）—— 省掉的正是前端编译那一段。
+    ///
+    /// 与 <see cref="CompileToVml"/> 共用 <see cref="BuildProgram"/>，区别只是把诊断一起带出来
+    /// （所以不存在"能跑的编不过、能存的不带诊断"这种分家）。
+    ///
+    /// ⚠ 与 <c>CompileToVml</c> 一样：<c>ToString()</c> 会**就地**做死代码消除，
+    /// 返回之后这个 prog 不能再拿去跑 —— 这里只要文本，符合。
+    /// </summary>
+    public static (string? Text, List<Diagnostic> Diags, string? Error) CompileForEditor(
+        string filePath, CancellationToken ct = default)
+    {
+        var (prog, _, error, diags) = BuildProgram(filePath, ct);
+        return prog == null ? (null, diags, error) : (prog.ToString(), diags, null);
     }
 
     /// <summary>
@@ -289,13 +311,25 @@ HALT
     /// </summary>
     public const int CompileTimeoutSeconds = 180;
 
-    private static (VmlProgram? Prog, string Lang, string? Error) BuildProgram(string filePath, CancellationToken ct)
+    /// <summary>
+    /// 失败出口的统一构造 —— 把「给用户看的原因」**同时**解析成结构化诊断。
+    ///
+    /// 两件事都做而不是二选一：命令行页要的是那句话，编辑器气泡要的是行列。
+    /// 分两处各解析一次就是「同一规则两处实现」，迟早一边改了另一边没改。
+    /// 解析不出位置时 <see cref="VmlDiagnostics.Parse"/> 会给一条无锚诊断，
+    /// 气泡照常显示内容、只是不画指向某一行的箭头。
+    /// </summary>
+    private static (VmlProgram? Prog, string Lang, string? Error, List<Diagnostic> Diags) Fail(string lang, string message)
+        => (null, lang, message, VmlDiagnostics.Parse(message));
+
+    private static (VmlProgram? Prog, string Lang, string? Error, List<Diagnostic> Diags) BuildProgram(
+        string filePath, CancellationToken ct)
     {
-        if (!File.Exists(filePath)) return (null, "", $"⚠️ 找不到文件：{filePath}");
+        if (!File.Exists(filePath)) return Fail("", $"⚠️ 找不到文件：{filePath}");
 
         var libRoot = EnsureLibExtracted();
         if (libRoot == null)
-            return (null, "", "⚠️ VML 标准库（Lib/）解压失败 —— 没有它就编不了高级语言（链接阶段会找不到 stdlib）。");
+            return Fail("", "⚠️ VML 标准库（Lib/）解压失败 —— 没有它就编不了高级语言（链接阶段会找不到 stdlib）。");
 
         // 静态注册 22 个前端编译器，**绕开 PluginManager 的 Assembly.LoadFrom 反射路径**
         // （那条路在 MAUI 的裁剪/AOT 下不可靠，上游自己也在 StaticLink 模式里绕开了它）。
@@ -311,7 +345,7 @@ HALT
         // 扩展名派发用上游现成的 —— 自己遍历 SupportedExtensions 就是第二份实现
         var compiler = pm.GetCompilerByFileName(Path.GetFileName(filePath));
         if (compiler is not IFrontendCompilerEx ex)
-            return (null, "", $"⚠️ 认不出这个扩展名（{Path.GetExtension(filePath)}），没有对应的前端编译器。");
+            return Fail("", $"⚠️ 认不出这个扩展名（{Path.GetExtension(filePath)}），没有对应的前端编译器。");
 
         var lang = compiler.Name.ToLowerInvariant();
 
@@ -357,7 +391,7 @@ HALT
         // 空清单等于**静默不链接**。所以库清单为空必须当失败处理，不能让用户拿到一个
         // "编译成功、一跑就找不到函数"的程序。
         if (libraryPaths.Count == 0)
-            return (null, lang, "⚠️ 标准库清单为空 —— 多半是 `vmltool.config.xml` 没跟着解压出来（或解压目录不对）。"
+            return Fail(lang, "⚠️ 标准库清单为空 —— 多半是 `vmltool.config.xml` 没跟着解压出来（或解压目录不对）。"
                  + "没有它，`LinkLibraries` 会直接跳过整个链接阶段。");
 
         // 前端编译同样是个静默段（手机上**一分钟起步**）—— 与解压那条提示同一个道理
@@ -384,7 +418,7 @@ HALT
                 // 早退之后这个 Task 没人 await：挂个空的续体把异常吃掉，
                 // 否则它最终抛出来会变成"未观察的任务异常"（只在日志里，看不出是谁）。
                 _ = compile.ContinueWith(static t => _ = t.Exception, TaskScheduler.Default);
-                return (null, lang, $"⚠️ 编译超时（{CompileTimeoutSeconds} 秒）—— 多半是源码里有让前端编译器"
+                return Fail(lang, $"⚠️ 编译超时（{CompileTimeoutSeconds} 秒）—— 多半是源码里有让前端编译器"
                     + "卡住的写法。编译线程还在后台跑，建议改完源码再试；实在不行退出 App 重来。");
             }
             vmlText = compile.Result;
@@ -392,7 +426,7 @@ HALT
         catch (OperationCanceledException)
         {
             _ = compile.ContinueWith(static t => _ = t.Exception, TaskScheduler.Default);
-            return (null, lang, "⏹ 编译已被停止。");
+            return Fail(lang, "⏹ 编译已被停止。");
         }
         catch (Exception compileError)
         {
@@ -406,7 +440,7 @@ HALT
             //   不剥的话真机上打出来是 `AggregateException_ctor_DefaultMessage (语法错误 …)`——
             //   前面那段噪音正是用户第一眼看到的东西（真机截图看出来的，构建全绿）。
             var inner = compileError is AggregateException agg ? agg.GetBaseException() : compileError;
-            return (null, lang, $"⚠️ 编译失败：{inner.Message}");
+            return Fail(lang, $"⚠️ 编译失败：{inner.Message}");
         }
 
         // **自检：产物得像 VML 汇编。**
@@ -415,7 +449,7 @@ HALT
         if (string.IsNullOrWhiteSpace(vmlText) || !LooksLikeVml(vmlText))
         {
             var head = vmlText ?? "(空)";
-            return (null, lang, $"⚠️ 前端编译没有产出 VML 汇编（{compiler.Name}）—— 多半是标准库/include 路径不对，"
+            return Fail(lang, $"⚠️ 前端编译没有产出 VML 汇编（{compiler.Name}）—— 多半是标准库/include 路径不对，"
                  + $"或源码本身有语法错误。产物前 200 字符：\n"
                  + head[..Math.Min(200, head.Length)]);
         }
@@ -443,7 +477,7 @@ HALT
         prog.ApplyExports();
 
         // ⑤ 交出去：编完就跑的走 RunProgram，编完存文件的走 prog.ToString()（见 CompileToVml）
-        return (prog, lang, null);
+        return (prog, lang, null, []);
     }
 
     /// <summary>

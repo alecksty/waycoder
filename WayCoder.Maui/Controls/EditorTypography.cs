@@ -220,7 +220,34 @@ internal static class EditorTypography
     public static readonly Color HandleFill = Color.FromArgb("#3B82F6");
     public static readonly Color HandleRing = Color.FromArgb("#FFFFFF");
 
+    /// <summary>
+    /// 诊断三色 —— 行下**波浪线**与**气泡底色**共用同一组，气泡底色由它派生
+    /// （<see cref="BubbleFill"/>），所以调色只动这三个常量。
+    ///
+    /// <c>InfoWave</c> 原为蓝色 <c>#3B82F6</c>，按用户要求改为绿色
+    /// —— 三档的语义是「错误红 / 警告黄 / 其它绿」。全仓只有 <c>DrawDiagnosticWave</c>
+    /// 一处用它，改色没有连带影响。
+    /// </summary>
     public static readonly Color ErrorWave = Color.FromArgb("#E5484D");
     public static readonly Color WarnWave = Color.FromArgb("#F5A524");
-    public static readonly Color InfoWave = Color.FromArgb("#3B82F6");
+    public static readonly Color InfoWave = Color.FromArgb("#30A46C");
+
+    /// <summary>
+    /// 编译诊断气泡的底色：取波浪色、压到接近不透明。
+    /// **派生而不是另抄一份十六进制** —— 否则「改了波浪线颜色、气泡还是旧色」这种
+    /// 半生效的怪状迟早出现。
+    /// </summary>
+    public static Color BubbleFill(Color wave) => wave.WithAlpha(0.94f);
+
+    /// <summary>
+    /// 气泡正文色 —— **跟随系统主题**（亮色档用深字、暗色档用亮字）。
+    ///
+    /// 亮色档用**深色而不是白色**：三种底色里橙黄 (<c>#F5A524</c>) 配白字对比度只有约 1.9
+    /// （几乎读不了），深色则三种都在 4.3 以上 —— 一致性也好，不必给三档各配一种字色。
+    /// 暗色档反过来给亮字，理由同样是「对得上底色」。
+    /// </summary>
+    public static readonly Color BubbleText = Color.FromArgb("#1A1A1A");
+
+    /// <summary>暗色主题下的气泡正文色（与 <see cref="BubbleText"/> 成对，命名随本文件的 Xxx/XxxDark 惯例）。</summary>
+    public static readonly Color BubbleTextDark = Color.FromArgb("#F2F2F2");
 }

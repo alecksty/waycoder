@@ -22,6 +22,15 @@ public static class MauiProgram
 			});
 
 #if ANDROID
+		// 把 Entry 的处理器换成我们自己的 —— 只为让**编辑器那一个输入框**换成
+		// BackspaceAwareEditText（软键盘的行首退格走 InputConnection，只有子类覆写
+		// OnCreateInputConnection 才接得住，mapper 换不了平台视图的类型）。
+		// 非编辑器那一支在 CreatePlatformView 里按 StyleId 分流回原类型，其余输入框不受影响。
+		builder.ConfigureMauiHandlers(h =>
+			h.AddHandler<Microsoft.Maui.Controls.Entry, EditorEntryHandler>());
+#endif
+
+#if ANDROID
 		// 去掉 Android 原生下划线（underbar）：Editor 用于编辑器/多行输入，Entry 用于聊天输入框与
 		// 各设置单行输入——原生 EditText/AppCompatEditText 默认底部一条横线，iOS 无，观感不一致。
 		EditorHandler.Mapper.AppendToMapping("RemoveUnderline", (handler, view) =>
