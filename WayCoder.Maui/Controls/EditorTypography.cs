@@ -221,16 +221,40 @@ internal static class EditorTypography
     public static readonly Color HandleRing = Color.FromArgb("#FFFFFF");
 
     /// <summary>
-    /// 诊断三色 —— 行下**波浪线**与**气泡底色**共用同一组，气泡底色由它派生
-    /// （<see cref="BubbleFill"/>），所以调色只动这三个常量。
-    ///
-    /// <c>InfoWave</c> 原为蓝色 <c>#3B82F6</c>，按用户要求改为绿色
-    /// —— 三档的语义是「错误红 / 警告黄 / 其它绿」。全仓只有 <c>DrawDiagnosticWave</c>
-    /// 一处用它，改色没有连带影响。
+    /// 「是不是深色主题」—— 取色只认这一处（与页面上的 `IsDarkTheme` 同一个判据）。
+    /// 用**属性**而不是让调用方各挑一份：三档色被**错误列表 / 错误气泡 / 行下波浪线**
+    /// 三处共用，让每处自己选「亮版还是暗版」就是三份判据，迟早有一处忘了改。
     /// </summary>
-    public static readonly Color ErrorWave = Color.FromArgb("#E5484D");
-    public static readonly Color WarnWave = Color.FromArgb("#F5A524");
-    public static readonly Color InfoWave = Color.FromArgb("#30A46C");
+    private static bool IsDark => Application.Current?.RequestedTheme == AppTheme.Dark;
+
+    /// <summary>
+    /// 诊断三色 —— 行下**波浪线**与**气泡底色**共用同一组，气泡底色由它派生
+    /// （<see cref="BubbleFill"/>），所以调色只动这六个常量。
+    ///
+    /// 三档语义：错误红 / 警告黄 / 其它绿。**必须分主题两套**，原因是它们要压在四种底上
+    /// （浅色代码底 <c>#FFFFFF</c>、浅色面板底 <c>#F0F0F3</c>、深色代码底 <c>#121214</c>、
+    /// 深色面板底 <c>#1A1A1E</c>）—— 原来一档定死一个色，在浅色面板上警告色只有 **1.79**、
+    /// 提示色 2.78、错误色 3.44（AA 正文门槛 4.5），也就是用户报的「浅色下看不见」。
+    /// 深色那边错误色压面板也只有 4.43，一并修了。
+    ///
+    /// 取值是**算出来的**（WCAG 相对亮度），括号里是「浅色面板 / 浅色代码底」与
+    /// 「深色面板 / 深色代码底」的实测对比度，**每一档都 ≥4.5**：
+    /// · 红 <c>#C4382F</c> (4.67/5.31) ｜ <c>#FF7B72</c> (6.88/7.42)
+    /// · 黄 <c>#8A5A00</c> (5.21/5.93) ｜ <c>#F5A524</c> (8.50/9.17)
+    /// · 绿 <c>#17794A</c> (4.77/5.43) ｜ <c>#30A46C</c> (5.50/5.93)
+    /// ⚠ 浅色那三个都比原来深得多（琥珀在近白底上想达标只能压成**深琥珀/棕**，
+    /// 这是它的宿命，别为了「看着更黄」把它调回去 —— 那就又回到 1.79 了）。
+    /// </summary>
+    public static Color ErrorWave => IsDark ? ErrorWaveDark : ErrorWaveLight;
+    public static Color WarnWave => IsDark ? WarnWaveDark : WarnWaveLight;
+    public static Color InfoWave => IsDark ? InfoWaveDark : InfoWaveLight;
+
+    private static readonly Color ErrorWaveLight = Color.FromArgb("#C4382F");
+    private static readonly Color ErrorWaveDark = Color.FromArgb("#FF7B72");
+    private static readonly Color WarnWaveLight = Color.FromArgb("#8A5A00");
+    private static readonly Color WarnWaveDark = Color.FromArgb("#F5A524");
+    private static readonly Color InfoWaveLight = Color.FromArgb("#17794A");
+    private static readonly Color InfoWaveDark = Color.FromArgb("#30A46C");
 
     /// <summary>
     /// 编译诊断气泡的底色：取波浪色、压到接近不透明。

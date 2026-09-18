@@ -355,7 +355,7 @@
                     <RoundRectangle CornerRadius="10" />
                 </Border.StrokeShape>
                 <!-- 拖动区：**一个填满整条、声明在最底下的 GraphicsView**。
-                     为什么不是 PanGestureRecognizer —— 真机实测（logcat tag WCAS）：
+                     为什么不是 PanGestureRecognizer —— 真机实测（当时挂了个 logcat 探针量的）：
                      那条路上报的 TotalX 是**两条各自有效、相差一个恒定偏移的流**交替出现
                      （慢速匀速的程序化滑动也是 ±39 来回，与速度无关），
                      而 PanUpdatedEventArgs 只有 TotalX/TotalY，没有任何字段能区分它们。

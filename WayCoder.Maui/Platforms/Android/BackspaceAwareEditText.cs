@@ -73,7 +73,6 @@ internal sealed class BackspaceAwareEditText : MauiAppCompatEditText
     {
         var ic = base.OnCreateInputConnection(outAttrs);
         _lastIc = ic;
-        Hook.Trace($"OnCreateInputConnection ic={ic != null} enabled={InterceptEnabled}");
         if (ic == null || !InterceptEnabled) return ic;
         return new Hook(ic, this);
     }
@@ -81,7 +80,7 @@ internal sealed class BackspaceAwareEditText : MauiAppCompatEditText
     /// <summary>
     /// **清掉输入法残留的组合区**。
     ///
-    /// 为什么需要它：真机日志（tag `WCBK`）显示，按退格时**三条路一条都没触发**
+    /// 为什么需要它：当时的真机日志显示，按退格时**三条路一条都没触发**
     /// （只有 `OnCreateInputConnection` 那一条日志）—— 说明退格根本没到应用层，
     /// 被输入法当成「还在组合中」在自己的缓冲里处理掉了，而那个组合态是**残留的**：
     /// 页面进编辑态时会 `LineEditor.Text = …` 写文本，输入法因此重新同步并留下一个
@@ -96,7 +95,6 @@ internal sealed class BackspaceAwareEditText : MauiAppCompatEditText
         try
         {
             _lastIc?.FinishComposingText();
-            Hook.Trace("ClearStaleComposing");
         }
         catch { }
     }
@@ -177,24 +175,7 @@ internal sealed class BackspaceAwareEditText : MauiAppCompatEditText
                     join = page.TryJoinWithPreviousLine();
             }
 
-            bool handled = sel || join;
-            Trace($"{via} before={before} selStart={_owner.SelectionStart} " +
-                  $"textLen={_owner.Text?.Length ?? -1} comp={comp} page={page != null} " +
-                  $"sel={sel} join={join} enabled={_owner.InterceptEnabled} => {handled}");
-            return handled;
-        }
-
-        /// <summary>
-        /// 真机诊断用（logcat tag <c>WCBK</c>）。
-        /// 「擦除键没反应」在手机上**没有任何别的线索** —— 只有把「走了哪条路、参数是什么、
-        /// 我们返回了什么」打出来才判得出是拦截吞了、还是压根没到、还是输入法在组合态。
-        /// </summary>
-        internal static void Trace(string m)
-        {
-            // ⚠ 必须走 **Android 原生日志**：`Console.WriteLine` 在这个 Release 构建里
-            // 压根到不了 logcat（实测整段缓冲区 40 分钟里 0 条 DOTNET 输出），
-            // 于是「一条日志都没有」会被误读成「拦截没装上」。
-            try { Android.Util.Log.Info("WCBK", m); } catch { }
+            return sel || join;
         }
     }
 }

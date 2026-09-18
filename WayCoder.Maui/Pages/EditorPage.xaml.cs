@@ -1809,7 +1809,7 @@ public partial class EditorPage : ContentPage
 
     // ── 拖动（GraphicsView 原始触摸）──
     //
-    // **为什么不用 PanGestureRecognizer**（真机实测，logcat tag WCAS，两次都量到了）：
+    // **为什么不用 PanGestureRecognizer**（真机实测，当时挂了个 logcat 探针量的）：
     // 它上报的 `TotalX` 是**两条各自有效、相差一个恒定偏移（~40~50 DIP）的流交替出现**——
     // 手指快速拖动时是两条平滑轨迹在跳（各自都在正确地跟手），
     // **程序化的匀速慢划（1200ms、纯注入、没有人手）同样是 ±39 的来回** ⇒ 与速度、与人手都无关。
@@ -1846,8 +1846,6 @@ public partial class EditorPage : ContentPage
         _assistGrabT0 = _assistLastT = e.Touches[0];
         _assistGrabMoved = false;
         _assistGrabOnClose = AssistCloseRect.Contains(_assistGrabT0.X, _assistGrabT0.Y);
-        TraceAssist($"GRAB t0=({_assistGrabT0.X:F0},{_assistGrabT0.Y:F0}) " +
-                    $"onClose={_assistGrabOnClose} bar=({AssistBar.TranslationX:F0},{AssistBar.TranslationY:F0})");
     }
 
     /// <summary>
@@ -1877,7 +1875,6 @@ public partial class EditorPage : ContentPage
                 return;                      // 还没过门槛 —— 仍按点击处理
             _assistGrabMoved = true;
             BeginAssistDrag();               // 确定是拖动了，这时才置拖动态
-            TraceAssist($"→ 过门槛，进入拖动 t=({p.X:F0},{p.Y:F0})");
         }
 
         AssistBar.TranslationX += p.X - _assistGrabT0.X;
@@ -1889,7 +1886,6 @@ public partial class EditorPage : ContentPage
     {
         if (_assistGrabMoved)
         {
-            TraceAssist($"RELEASE bar=({AssistBar.TranslationX:F0},{AssistBar.TranslationY:F0})");
             EndAssistDrag();
             return;
         }
@@ -1901,7 +1897,6 @@ public partial class EditorPage : ContentPage
         foreach (var (rect, act) in AssistHitTargets())
         {
             if (!rect.Contains(_assistLastT.X, _assistLastT.Y)) continue;
-            TraceAssist($"TAP → {act.Method.Name}");
             act();
             return;
         }
@@ -1978,18 +1973,6 @@ public partial class EditorPage : ContentPage
     }
 
     private void AssistDoClose() => CloseAssistBar();
-
-    /// <summary>诊断用（logcat tag <c>WCAS</c>）。拖动这条路刚换过机制，先留一行观察；
-    /// 真机验过之后连同三个调用点一起删。</summary>
-    private static void TraceAssist(string m)
-    {
-        // ⚠ 平台 API 必须带守卫：少了 `#if ANDROID`，`net10.0-ios` / Windows 上直接编不过，
-        // 而桌面构建全绿看不出来（本仓库踩过同款）。
-        // 走 Android 原生日志 —— `Console.WriteLine` 在这个 Release 构建里到不了 logcat。
-#if ANDROID
-        try { Android.Util.Log.Info("WCAS", m); } catch { }
-#endif
-    }
 
     private void BeginAssistDrag()
     {
