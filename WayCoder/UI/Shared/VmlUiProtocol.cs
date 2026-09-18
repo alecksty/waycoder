@@ -131,8 +131,13 @@ public static class VmlUi
     /// v0.96.173 由 170 调到 262：那 170 只算了导航栏 + 方向键，**漏了绘图窗口页自己的
     /// 折叠条（26dp）与画布留白（16dp）**，于是每次会话里**第一个** VML 窗口会比可用视口高
     /// 约 90dp —— 用户看到的是「内容超出绘图区，下面被键盘区挡住」（实测）。
-    /// 真实值由 `DrawWindowPage.OnSizeAllocated` 量到后写进 `MeasuredViewport`，
-    /// 那之后的窗口一律用它；这个常数只是"第一次开窗之前"的兜底。
+    /// 真实值由 `DrawWindowPage.PublishViewport`（跑在 40ms 定时器那拍，**布局落定之后**）
+    /// 量到后写进 `MeasuredViewport`，那之后的窗口一律用它；
+    /// 这个常数只是"第一次开窗之前"的兜底。
+    ///
+    /// ⚠ 那个常数是**竖屏**下的实测值：横屏时页面总高本来就只有 300 多 dp，
+    /// 再扣 262 只剩几十 —— 所以横屏里"第一次开窗"必然偏小，
+    /// 得靠上面那个实测值兜（第二局起就贴了）。
     /// </summary>
     public const int DefaultChromeHeightDp = 262;
 
@@ -150,11 +155,31 @@ public static class VmlUi
         int chromeHeightDp = DefaultChromeHeightDp)
     {
         if (density <= 0) density = 1;
-        var w = (int)Math.Floor(displayWidthPx / density) - 16;  // 左右各 8dp 留白
-        var h = (int)Math.Floor(displayHeightPx / density) - chromeHeightDp;
+        var dpW = (int)Math.Floor(displayWidthPx / density);
+        var dpH = (int)Math.Floor(displayHeightPx / density);
+
+        // **横竖屏要扣的不是同一个方向**：竖屏手柄在底部（吃高度），横屏手柄分成左右两列
+        // （吃宽度、几乎不吃高度）、而且 Shell 的 TabBar 也是收起来的。
+        // 拿竖屏那套常数去扣横屏，会算出一个「898 × 149」的畸形区域 ——
+        // 程序照着开窗就是一扇又宽又扁的窗，再按比例塞回中间的画布只剩几十 dp 高，
+        // 等于"横屏画面还是小"。下面的两个常数是**照实际布局量出来的**（模拟器实测
+        // 画布 396.4×301.0，屏幕 914.3×411.4）：高度扣的是状态栏 + 导航栏 + 折叠条，
+        // 宽度扣的是左右两列手柄 + 间距 + 页边距。
+        // ⚠ 改了 `DrawWindowPage.xaml` 里手柄的尺寸/间距就要回来改 `LandscapeSideChromeDp`。
+        // 这只是**第一次开窗之前**的兜底：只要开出过一次窗口，
+        // `MeasuredViewport` 就把真实值接管了（见 `DrawWindowPage.PublishViewport`）。
+        var (w, h) = dpW > dpH
+            ? (dpW - LandscapeSideChromeDp, dpH - LandscapeChromeHeightDp)
+            : (dpW - 16, dpH - chromeHeightDp);          // 竖屏：左右各 8dp 留白 + 底部手柄
         // 下限给足（太小的话程序没法布局）；上限防止异常设备算出离谱值
         return (Math.Clamp(w, 120, 2048), Math.Clamp(h, 120, 4096));
     }
+
+    /// <summary>横屏时**左右两列手柄 + 间距 + 页边距**占掉的宽度（dp）。实测标定，见上。</summary>
+    public const int LandscapeSideChromeDp = 518;
+
+    /// <summary>横屏时**状态栏 + 导航栏 + 折叠条**占掉的高度（dp）。实测标定，见上。</summary>
+    public const int LandscapeChromeHeightDp = 110;
 
     // ── 手感：音效 / 震动（540–546）──
     //

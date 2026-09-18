@@ -532,6 +532,20 @@ public static partial class SelfTest
         Check("VmlUi.AvailableArea: 极小屏有下限（程序仍能布局）",
             VmlUi.AvailableArea(10, 10, 4).Width >= 120 && VmlUi.AvailableArea(10, 10, 4).Height >= 120);
 
+        // **横屏扣的是宽度、不是高度**（手柄分成左右两列，TabBar 也收起来了）。
+        // 拿竖屏那套常数去扣会算出一个又宽又扁的畸形区（实测 898×149），
+        // 程序照着开窗 ⇒ 按比例塞回中间画布只剩几十 dp 高 = "横屏画面还是小"。
+        // 判据照**实测**的横屏布局来：屏幕 914.3×411.4 → 画布 396.4×301.0。
+        var land = VmlUi.AvailableArea(2400, 1080, 2.625);
+        Check("VmlUi.AvailableArea: 横屏宽 = dp 宽 − 左右两列手柄",
+            land.Width == (int)Math.Floor(2400 / 2.625) - VmlUi.LandscapeSideChromeDp);
+        Check("VmlUi.AvailableArea: 横屏高 = dp 高 − 状态栏/导航栏/折叠条",
+            land.Height == (int)Math.Floor(1080 / 2.625) - VmlUi.LandscapeChromeHeightDp);
+        // 横屏那块区域必须**装得下**实测的真实画布（396×301）—— 估小了程序就会开一个
+        // 偏小的窗，画面跟着小；估大一点没关系（FitSize 会等比缩回画布）。
+        Check("VmlUi.AvailableArea: 横屏估算不小于实测画布（396×301）",
+            land.Width >= 396 && land.Height >= 301);
+
         // ── 消息结构 ──
         var mem = new byte[64];
         new VmlMessage(VmlMsgType.TouchDown, 12, 34, 5678).WriteTo(mem, 4);

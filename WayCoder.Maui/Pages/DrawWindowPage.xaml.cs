@@ -236,6 +236,11 @@ public partial class DrawWindowPage : ContentPage
         CanvasView.WidthRequest = -1;
         CanvasView.HeightRequest = -1;
 
+        // 同一个道理：手柄的收起状态也**别带进新的一局**（页面复用会留着上一局的）。
+        // 只置字段、不在这里刷可见性 —— `OnDisappearing` 清了方向判定 ⇒ 这次
+        // `OnAppearing`/`OnSizeAllocated` 的 `ApplyOrientation` 必定整套重摆一遍。
+        _padCollapsed = false;
+
         _scene = scene;
         Title = scene.Title;
         _renderedVersion = -1;
@@ -252,54 +257,70 @@ public partial class DrawWindowPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+
+        // 页面是**复用的**（Shell 导航会留下同一个实例），方向判定在 `OnDisappearing`
+        // 里已经清掉 ⇒ 这里按当前方向重摆一次。放在 `OnSizeAllocated` 之外是因为
+        // 复用页面时尺寸可能一点没变、那个回调根本不再触发。
+        ApplyOrientation();
+
         VmlUiCalls.OnSceneChanged -= OnSceneChanged;
         VmlUiCalls.OnSceneChanged += OnSceneChanged;
 
         // 定时器只做"版本变了就重绘"，不参与画面合成
+        // （另外每拍顺手把**已落定**的视口报出去，见 PublishViewport）
         _timer = Dispatcher.CreateTimer();
         _timer.Interval = TimeSpan.FromMilliseconds(40); // ~25fps 的检查频率，实际编码次数取决于场景变化
-        _timer.Tick += (_, _) => RenderIfChanged();
+        _timer.Tick += (_, _) => { PublishViewport(); RenderIfChanged(); };
         _timer.Start();
+
+        Dispatcher.Dispatch(PublishViewport);
     }
 
     /// <summary>
-    /// 把自己的**画布视口**（不是整页）记进 <see cref="VmlUiCalls.MeasuredViewport"/>，
-    /// 供 <c>SCREEN_W/H</c> 号段回报给 VML 程序。
+    /// 把**已经落定的**画布视口报给宿主：记进 <see cref="VmlUiCalls.MeasuredViewport"/>（供
+    /// <c>SCREEN_W/H</c> 号段回报给 VML 程序），变了就发一条 `WindowResize`。
     ///
     /// 这是"让程序按真实可用面积自适应"的唯一正确来源 —— 按屏幕尺寸减一个固定 chrome 估算，
     /// 底部一百多 dp 的内容会落在可视区外（实测就是这个症状）。MAUI 的长度单位就是 dp，
     /// 所以这里直接就是绘图单位，不需要再按密度换算。
+    ///
+    /// ⚠ **只能在 40ms 定时器那拍做，不能放在 `OnSizeAllocated` 里。**
+    /// 那个回调是**布局期**回调，转屏时它会被夹在"页面已经变矮、新布局还没换上去"的
+    /// 中间态里调一次 —— 那一刻 `CanvasHost` 只剩几十 dp 高（实测横屏转场里量到 `545x46`）。
+    /// 记账的后果是**下一局游戏照这个尺寸开窗**：横屏重开俄罗斯方块开出来一个 `544x46`
+    /// 的窗口，棋盘被压成一条，整个画面是花的；发消息的后果是**正在跑的游戏被要求重排成
+    /// 那个畸形尺寸**。定时器跑在布局落定之后，读到的才是最终值。
     /// </summary>
+    private void PublishViewport()
+    {
+        if (_closing) return;
+        if (CanvasHost.Width <= 0 || CanvasHost.Height <= 0) return;
+
+        var now = (Width: (int)Math.Round(CanvasHost.Width), Height: (int)Math.Round(CanvasHost.Height));
+        if (VmlUiCalls.MeasuredViewport == now) return;
+
+        // **视口真的变了就告诉程序**（`WindowResize`）。这条消息协议里一直有，
+        // 但宿主**从来没发过** —— 于是转屏、折叠屏、以及折叠条收起手柄，程序全都不知道，
+        // 还按开窗时的尺寸排着版（用户看到的就是"收起了手柄但画面没变大"）。
+        // 已经有了旧值 ⇒ 这是一次真变化；第一次只是把值记下来。
+        if (VmlUiCalls.MeasuredViewport is not null)
+            VmlUiCalls.Current?.PostInput(VmlMsgType.WindowResize, now.Width, now.Height);
+
+        VmlUiCalls.MeasuredViewport = now;
+    }
+
     protected override void OnSizeAllocated(double width, double height)
     {
         base.OnSizeAllocated(width, height);
-        if (CanvasHost.Width > 0 && CanvasHost.Height > 0)
-        {
-            var now = (Width: (int)CanvasHost.Width, Height: (int)CanvasHost.Height);
 
-            // **视口真的变了就告诉程序**（`WindowResize`）。这条消息协议里一直有，
-            // 但宿主**从来没发过** —— 于是转屏、折叠屏、以及这条折叠条收起手柄，
-            // 程序全都不知道，还按开窗时的尺寸排着版（用户看到的就是"收起了手柄但画面没变大"）。
-            // 判据是"与上次实测值不同"，而不是"OnSizeAllocated 被调用"：这个回调在布局期
-            // 会连着触发好几次，不比较就会把一堆无意义的 resize 灌进消息队列。
-            if (VmlUiCalls.MeasuredViewport is { } prev && prev != now && !_closing)
-                VmlUiCalls.Current?.PostInput(VmlMsgType.WindowResize, now.Width, now.Height);
-
-            VmlUiCalls.MeasuredViewport = now;
-        }
-
-        // ⛔ **横屏布局切换暂时停用**（2026-09-18）。
-        //
-        // 实测它引入了两个回归：竖屏下画布完全看不见、横屏也不对。原因是"运行时搬控件"
-        // 这条路对布局时序很敏感（先解除父级、改行列定义、再挂回去，中间任何一步让
-        // `CanvasHost` 量到 0 就会连锁失败），而在没有实测数据的情况下盲改只会越叠越多。
-        //
-        // 方法与 XAML 里的命名都**保留着**（见 ApplyOrientation），下次重做时直接启用即可 ——
-        // 但重做前必须先拿到 `RefitCanvasIfNeeded` 里那行 `[WC-DRAW]` 的真实数值。
-        // ApplyOrientation();
+        // 方向变了就先换布局 —— **必须在 `RefitCanvasIfNeeded` 读 `CanvasHost` 尺寸之前**：
+        // 换布局会改它的格子，先读就是拿旧尺寸去算新画布。
+        // （`ApplyOrientation` 自带"方向没变就直接返回"，所以这里可以每帧调。）
+        ApplyOrientation();
 
         // 这里只做兜底（首帧渲染时 CanvasHost 尺寸还是 0）；**转屏的重算靠
         // `CanvasHost.SizeChanged`** —— 理由见 Attach 里的注释（页面回调的时序不可靠）。
+        // 换过布局那一支由 `SizeChanged` 接手重算（画布的格子变了，它必然发一次）。
         RefitCanvasIfNeeded();
     }
 
@@ -318,60 +339,60 @@ public partial class DrawWindowPage : ContentPage
 
     private bool? _landscape;
 
+    /// <summary>手柄是否被折叠条收起（横竖屏共用一个状态）。</summary>
+    private bool _padCollapsed;
+
     /// <summary>
     /// 按屏幕方向切换布局。
     ///
-    /// **竖屏**（原样）：画布在上、手柄整排在下。
+    /// **竖屏**（原样）：画布在上、手柄整排在下（`RootGrid` 的三行）。
     /// **横屏**：十字键去最左列、X/Y/A/B 去最右列、画布居中 —— 手柄不再横着摊掉近一半高度；
     ///           SELECT / START 塞进左右键盘区的**内侧角落**（左区右下、右区左下，掌机那个经典摆法）；
-    ///           折叠条与 Shell 的 TabBar 一并隐藏，整屏高度都留给画面。
+    ///           Shell 的 TabBar 隐藏，整屏高度都留给画面。
     ///
-    /// ⚠ 只做"搬控件"，**不做两套 XAML** —— 后者会让每个按钮的事件处理器挂两遍。
-    /// ⚠ `Grid.Add(view, column, row)` 的参数是**列在前**（与 `Grid.SetRow/SetColumn` 的书写顺序相反），
-    ///    极易写反；所以统一走 <see cref="PutInGrid"/> / 下面这种带注释的 Add。
+    /// ⚠ **只改附加属性（行/列/跨列），不搬控件、不做两套 XAML。**
+    ///
+    /// 前一版是"运行时搬控件"（全部摘下来再按新布局挂回去），真机上留下过两个回归：
+    /// 先闪退（`IllegalStateException: The specified child already has a parent` ——
+    /// 漏摘了根级那三个），修完又变成竖屏看不见画面（`CanvasHost` 量到 0）。
+    /// 根因是这条路对布局时序太敏感：**摘挂之间控件是没有父级的**，中途任何一次布局
+    /// 都能量到 0 并把 0 定格下来。改附加属性则父子关系自始至终不变，没有中间态。
+    ///
+    /// 唯一的例外是两个按键（SELECT/START）：横屏要落进左右键盘区的角落，跨了父级。
+    /// 那只能摘了再挂 —— 所以走 <see cref="MoveBtn"/>，**先摘再挂**，一步都不能省。
     /// </summary>
     private void ApplyOrientation()
     {
         bool landscape = Width > Height;
-        if (_landscape == landscape) return;   // 方向没变就别折腾（搬控件有代价）
+        if (_landscape == landscape) return;   // 方向没变就别折腾（改布局有代价）
         _landscape = landscape;
-
-        // 一律先"**全部**离场"。
-        //
-        // ⚠ **必须包含根级那三个**（CanvasHost / CollapseBar / PadArea）：`ApplyOrientation`
-        //    首次被调用时它们还挂在 XAML 定义的父子关系上，只摘手柄那几块是不够的 ——
-        //    `Add` 会抛 `IllegalStateException: The specified child already has a parent`。
-        //    真机实测直接闪退，堆栈落在 `ViewGroup.addViewInner`。
-        RootGrid.Children.Remove(CanvasHost);
-        RootGrid.Children.Remove(CollapseBar);
-        RootGrid.Children.Remove(PadArea);
-        PadArea.Children.Remove(PadLeftArea);
-        PadArea.Children.Remove(PadCenterArea);
-        PadArea.Children.Remove(PadRightArea);
-        PadCenterArea.Children.Remove(BtnSelect);
-        PadCenterArea.Children.Remove(BtnStart);
-        PadLeftArea.Children.Remove(BtnSelect);
-        PadRightArea.Children.Remove(BtnStart);
 
         RootGrid.RowDefinitions.Clear();
         RootGrid.ColumnDefinitions.Clear();
 
         if (landscape)
         {
+            RootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));   // 0 手柄 + 画布
+            RootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));   // 1 折叠条
             RootGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));   // 0 左手柄
             RootGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));   // 1 画布
             RootGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));   // 2 右手柄
-            RootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
 
-            RootGrid.Children.Remove(PadArea);      // 整排手柄的容器在横屏下不再需要
             PutInGrid(CanvasHost, 0, 1);
             PutInGrid(PadLeftArea, 0, 0);
             PutInGrid(PadRightArea, 0, 2);
+            // 折叠条只占**画布那一列**：两条细线不会横穿两侧手柄区。
+            PutInGrid(CollapseBar, 1, 1);
+            // ⚠ 跨列**两个方向都要显式重置**：竖屏置过 3，横屏不写回 1 就会从画布列
+            //   一直跨到右手柄列（挤掉右侧手柄）。反之亦然。
+            Grid.SetColumnSpan(CanvasHost, 1);
+            Grid.SetColumnSpan(CollapseBar, 1);
 
-            PadLeftArea.Add(BtnSelect, 2, 2);       // 左区右下角
-            PadRightArea.Add(BtnStart, 0, 2);       // 右区左下角（column=0, row=2）
+            // SELECT / START 落进左右键盘区的内侧角落（用户指定：左区右下、右区左下）。
+            MoveBtn(BtnSelect, PadLeftArea, row: 1, column: 1, margin: new Thickness(4, 4, 0, 0));
+            MoveBtn(BtnStart, PadRightArea, row: 1, column: 0, margin: new Thickness(0, 4, 4, 0));
 
-            CollapseBar.IsVisible = false;
+            // 横屏那点高度（实测页面只有 220.7）经不起 TabBar 再吃掉一截。
             Shell.SetTabBarIsVisible(this, false);
         }
         else
@@ -379,22 +400,64 @@ public partial class DrawWindowPage : ContentPage
             RootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Star));
             RootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
             RootGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+            RootGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
             RootGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+            RootGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
 
             PutInGrid(CanvasHost, 0, 0);
+            Grid.SetColumnSpan(CanvasHost, 3);
             PutInGrid(CollapseBar, 1, 0);
-            RootGrid.Add(PadArea, 0, 2);            // column=0, row=2
+            Grid.SetColumnSpan(CollapseBar, 3);
+            PutInGrid(PadLeftArea, 2, 0);
+            PutInGrid(PadCenterArea, 2, 1);
+            PutInGrid(PadRightArea, 2, 2);
 
-            PadArea.Add(PadLeftArea, 0, 0);
-            PadArea.Add(PadCenterArea, 1, 0);
-            PadArea.Add(PadRightArea, 2, 0);
+            // 回中列（竖屏那个"两个键夹在左右手柄中间"的原样）。
+            MoveBtn(BtnSelect, PadCenterArea, row: 0, column: 0, margin: Thickness.Zero);
+            MoveBtn(BtnStart, PadCenterArea, row: 0, column: 0, margin: Thickness.Zero);
 
-            PadCenterArea.Add(BtnSelect);
-            PadCenterArea.Add(BtnStart);
-
-            CollapseBar.IsVisible = true;
             Shell.SetTabBarIsVisible(this, true);
         }
+
+        ApplyPadVisibility();
+    }
+
+    /// <summary>
+    /// 把手柄键挪到另一个父级里（横屏时 SELECT/START 要进左右键盘区的角落）。
+    ///
+    /// ⚠ **必须先摘再挂**：控件还挂在旧父级上时直接 `Add`，Android 侧会抛
+    ///   `IllegalStateException: The specified child already has a parent`
+    ///   （真机实测直接闪退，堆栈落在 `ViewGroup.addViewInner`）。
+    /// ⚠ 落点是 `VerticalStackLayout`（竖屏中列）时行列无效，靠的是**加入顺序** ——
+    ///   所以竖屏分支里 SELECT 先于 START 调用。横屏的槽位用 `Margin` 留出缝，
+    ///   而不是给外层加 `RowSpacing`：那样竖屏空着的那一格也会算进 3px。
+    /// </summary>
+    private static void MoveBtn(Button btn, Layout target, int row, int column, Thickness margin)
+    {
+        (btn.Parent as Layout)?.Children.Remove(btn);
+        btn.Margin = margin;
+        Grid.SetRow(btn, row);
+        Grid.SetColumn(btn, column);
+        target.Add(btn);
+    }
+
+    /// <summary>
+    /// 手柄的显示/隐藏（折叠条中间那个箭头，横竖屏共用）。
+    ///
+    /// 隐藏整块而不是去改行高：那一行是 `Auto`，`IsVisible=false` 之后自然塌成 0，
+    /// 画布（`*` / 手柄两侧的中间列）立刻吃掉腾出来的空间 —— 一个高度都不用自己算。
+    /// 横屏下这就是用户要的「键盘可以往两边伸缩」。
+    ///
+    /// ⚠ 中列（`PadCenterArea`）**只在竖屏**参与：横屏时两个键已经挪进左右键盘区，
+    ///   它是个空栈，置可见会让它重新占住画布那一格。
+    /// </summary>
+    private void ApplyPadVisibility()
+    {
+        bool show = !_padCollapsed;
+        PadLeftArea.IsVisible = show;
+        PadRightArea.IsVisible = show;
+        PadCenterArea.IsVisible = show && _landscape != true;
+        PadToggleBtn.Text = _padCollapsed ? "▼ 展开手柄" : "▲ 收起手柄";
     }
 
     /// <summary>设置控件在网格中的行列（`Grid.Add` 是列在前，这里统一成 row/column 更好读）。</summary>
@@ -428,7 +491,8 @@ public partial class DrawWindowPage : ContentPage
 #endif
         if (_scene is not { } s) return;
         if (CanvasHost.Width <= 0 || CanvasHost.Height <= 0) return;
-        var (w, h) = FitSize(s, CanvasHost.Width, CanvasHost.Height);
+        var box = CanvasBox();
+        var (w, h) = FitSize(s, box.W, box.H);
         if (w <= 0) return;
         if (Math.Abs(CanvasView.WidthRequest - w) <= 0.5 && Math.Abs(CanvasView.HeightRequest - h) <= 0.5) return;
         FitCanvas(s);
@@ -451,6 +515,11 @@ public partial class DrawWindowPage : ContentPage
     {
         base.OnDisappearing();
         _closing = true;
+
+        // 清掉方向判定 ⇒ **下次进来一定会重摆一次**（页面实例是复用的，不清就会
+        // 带着"我已经摆好了"的状态回来，而 TabBar / 按键位置未必还在）。
+        // 之前那版会把 `_landscape` 留着，于是退出时横屏、再进来还是横屏尺寸却仍是旧摆法。
+        _landscape = null;
         // 页面走了，按住的那个手柄键不可能再收到 Released —— 补一条 KeyUp，
         // 否则程序里那条"按住连发"会一直挂着（虽然马上要终止了，但日志里会留个假象）。
         if (_padDownKey != 0) { PostKeyUp(_padDownKey); _padDownKey = 0; }
@@ -638,10 +707,26 @@ public partial class DrawWindowPage : ContentPage
     /// </summary>
     private void FitCanvas(VmlScene scene)
     {
-        var (w, h) = FitSize(scene, CanvasHost.Width, CanvasHost.Height);
+        var box = CanvasBox();
+        var (w, h) = FitSize(scene, box.W, box.H);
         if (w <= 0) return;
         CanvasView.WidthRequest = w;
         CanvasView.HeightRequest = h;
+    }
+
+    /// <summary>
+    /// 画布**真正能用**的盒子 = `CanvasHost` 的尺寸再扣掉 `CanvasView` 自己的外边距。
+    ///
+    /// ⚠ 不扣这一项，画布就比容器大 16dp（上下左右各 8）：贴上去之后底部越界，
+    /// 压到下面那个折叠条上 —— 横屏实测能直接看到棋盘下沿被「▲ 收起手柄」那条盖住。
+    /// 边距是**从控件本身读的**，不在这里写死数字：改 XAML 里的 `Margin` 不必回来改这里
+    /// （写死就是又立了一张"必须手工同步的平行表"）。
+    /// </summary>
+    private (double W, double H) CanvasBox()
+    {
+        var m = CanvasView.Margin;
+        return (CanvasHost.Width - m.HorizontalThickness,
+                CanvasHost.Height - m.VerticalThickness);
     }
 
     /// <summary>
@@ -822,20 +907,16 @@ public partial class DrawWindowPage : ContentPage
     }
 
     /// <summary>
-    /// 收起 / 展开手柄区（折叠条中间那个箭头）。
+    /// 收起 / 展开手柄区（折叠条中间那个箭头）。横屏下就是用户要的「键盘可以往两边伸缩」。
     ///
-    /// 隐藏整块而不是去改行高：那一行是 `Auto`，`IsVisible=false` 之后自然塌成 0，
-    /// 画布（`*`）立刻吃掉腾出来的空间 —— 一个高度都不用自己算。
-    ///
-    /// ⚠ 画布高度变了，但 VML 程序**在开窗那一刻**就问过 `SCREEN_W/H` 并按它排好版了，
-    /// 之后它并不知道窗口变了（协议里没有"尺寸变化"这条消息）。所以折叠适合
-    /// 「先收起来再看」或「这个程序本来就不用手柄」，别指望跑着的游戏会跟着重排。
+    /// ⚠ 画布尺寸变了，程序**在开窗那一刻**就问过 `SCREEN_W/H` 并按它排好版了 ——
+    /// 之后靠 `WindowResize` 消息补（见 `OnSizeAllocated`），但那是"能重排的程序才跟得上"。
+    /// 所以折叠适合「先收起来再看」或「这个程序本来就不用手柄」。
     /// </summary>
     private void OnTogglePad(object? sender, EventArgs e)
     {
-        var collapse = PadArea.IsVisible;
-        PadArea.IsVisible = !collapse;
-        PadToggleBtn.Text = collapse ? "▼ 展开手柄" : "▲ 收起手柄";
+        _padCollapsed = !_padCollapsed;
+        ApplyPadVisibility();
     }
 
     private static void PostKeyDown(int code)

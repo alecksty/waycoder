@@ -16,7 +16,15 @@
          而排成一排时拇指要横跨整屏找键，做游戏时根本按不过来。
          手柄上方那条**折叠条**（点中间的箭头收起/展开手柄）是为了看长内容 ——
          手柄区占掉约 150dp，收起后画布立刻多出这一截。 -->
-    <Grid x:Name="RootGrid" RowDefinitions="*,Auto,Auto" Padding="0">
+    <!-- ⚠ **三块手柄是 `RootGrid` 的直接子元素，中间没有包装层**。
+         横竖屏切换只改 `Grid.SetRow/SetColumn`（父子关系自始至终不变）——
+         这是"不搬控件"的前提：运行时先摘再挂会撞 `IllegalStateException:
+         The specified child already has a parent`（真机实测闪退），
+         而且中间任何一步让 `CanvasHost` 量到 0 就会连锁失败。
+         原来那层 `PadArea` 就是为了竖屏"一整排"，现在由 `RootGrid` 自己的
+         `ColumnDefinitions="Auto,*,Auto"` + 各块自己的 Padding 还原同样的排布。 -->
+    <Grid x:Name="RootGrid" RowDefinitions="*,Auto,Auto" ColumnDefinitions="Auto,*,Auto"
+          ColumnSpacing="6" Padding="0">
 
         <!-- 画布：**`GraphicsView` 就地重绘**，不是 `<Image>` 换 `Source`。
              ⚠ 换 `Image.Source` 会先卸掉旧图再解码新图，中间必然空一拍 —— 那就是"闪"
@@ -29,14 +37,15 @@
              程序收不到连续的 TOUCHMOVE"，拖动操作整个失灵。
              容器只需要给 FitCanvas 提供一个"可用视口尺寸"（code-behind 只读它的 Width/Height），
              普通 Grid 完全够用，且触摸直达 GraphicsView。 -->
-        <Grid Grid.Row="0" x:Name="CanvasHost">
+        <Grid x:Name="CanvasHost" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3">
             <GraphicsView x:Name="CanvasView" Margin="8" />
         </Grid>
 
         <!-- 折叠条：左右两条细线 + 中间一个箭头按钮（点一下收起/展开手柄）。
              没有它的话，手柄区是**永久占着**的 —— 而很多 VML 程序只是打印文本或画一张静态图，
              根本用不到手柄，却要一直空掉屏幕底部那一块。 -->
-        <Grid x:Name="CollapseBar" Grid.Row="1" ColumnDefinitions="*,Auto,*" Padding="14,0" ColumnSpacing="8" HeightRequest="26">
+        <Grid x:Name="CollapseBar" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
+              ColumnDefinitions="*,Auto,*" Padding="14,0" ColumnSpacing="8" HeightRequest="26">
             <BoxView
                 Grid.Column="0"
                 HeightRequest="1"
@@ -64,11 +73,16 @@
         <!-- 手柄区：整体压小一档，让棋盘多占地方。
              ⚠ **每列都要 Auto 且互不重叠** —— SELECT/START 原来靠 Padding 撑宽，
              加上全局 Button 样式的 MinimumWidthRequest(44)，实际宽度超出中列、
-             压到左右两侧的方向键上（截图里能直接看到叠在一起）。 -->
-        <Grid x:Name="PadArea" Grid.Row="2" ColumnDefinitions="Auto,*,Auto" Padding="14,4,14,8" ColumnSpacing="6">
+             压到左右两侧的方向键上（截图里能直接看到叠在一起）。
+             ⚠ 三块自己是 `RootGrid` 的子元素（见上），**键盘那两块各自多包一层**
+             （`PadLeftArea` / `PadRightArea`）：外层是"这一侧键盘区"的边界，
+             内层的 `*Keys` 才是那块键位。横屏时 SELECT/START 要落在**键盘区的角落**里，
+             而角落那一格必须空着才不把十字键撑歪 —— 所以槽位放在外层。 -->
 
-            <!-- 左：十字方向键。**圆角方块**（角落 10 而不是半圆），比圆形更好按、也更像手柄 -->
-            <Grid x:Name="PadLeftArea" Grid.Column="0" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,Auto,Auto"
+        <!-- 左：十字方向键。**圆角方块**（角落 10 而不是半圆），比圆形更好按、也更像手柄 -->
+        <Grid x:Name="PadLeftArea" Grid.Row="2" Grid.Column="0" Padding="14,4,0,8"
+              RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,Auto" VerticalOptions="Center">
+            <Grid x:Name="PadLeftKeys" Grid.Row="0" Grid.Column="0" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,Auto,Auto"
                   RowSpacing="3" ColumnSpacing="3" VerticalOptions="Center">
                 <Button Grid.Row="0" Grid.Column="1" x:Name="PadUp"    Text="↑" Pressed="OnPadPressed" Released="OnPadReleased"
                         WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="16" />
@@ -79,19 +93,26 @@
                 <Button Grid.Row="2" Grid.Column="1" x:Name="PadDown"  Text="↓" Pressed="OnPadPressed" Released="OnPadReleased"
                         WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="16" />
             </Grid>
+            <!-- (1,1) 空着 = 横屏时 SELECT 的落点（左键盘区**右下角**）。
+                 竖屏这里没有子元素 ⇒ 整格塌成 0，外层又**不设** RowSpacing/ColumnSpacing，
+                 所以竖屏尺寸与原样一字不差。 -->
+        </Grid>
 
-            <!-- 中：SELECT / START。小尺寸、上下排开，**不与两侧重叠**
-                 ⚠ 必须显式给 WidthRequest：全局 Button 样式的 MinimumWidthRequest(44)
-                 会在只靠 Padding 撑宽时变成宽度上限，文字被裁成一个字母。 -->
-            <VerticalStackLayout x:Name="PadCenterArea" Grid.Column="1" Spacing="6" VerticalOptions="Center" HorizontalOptions="Center">
-                <Button x:Name="BtnSelect" Text="SELECT" Pressed="OnPadPressed" Released="OnPadReleased"
-                        FontSize="10" Padding="0" WidthRequest="70" HeightRequest="28" CornerRadius="9" />
-                <Button x:Name="BtnStart"  Text="START"  Pressed="OnPadPressed" Released="OnPadReleased"
-                        FontSize="10" Padding="0" WidthRequest="70" HeightRequest="28" CornerRadius="9" />
-            </VerticalStackLayout>
+        <!-- 中：SELECT / START。小尺寸、上下排开，**不与两侧重叠**
+             ⚠ 必须显式给 WidthRequest：全局 Button 样式的 MinimumWidthRequest(44)
+             会在只靠 Padding 撑宽时变成宽度上限，文字被裁成一个字母。
+             ⚠ 横屏时这两个键会被挪进左右键盘区（见 ApplyOrientation），本栈随即清空、置不可见。 -->
+        <VerticalStackLayout x:Name="PadCenterArea" Grid.Row="2" Grid.Column="1" Spacing="6" VerticalOptions="Center" HorizontalOptions="Center">
+            <Button x:Name="BtnSelect" Text="SELECT" Pressed="OnPadPressed" Released="OnPadReleased"
+                    FontSize="10" Padding="0" WidthRequest="70" HeightRequest="28" CornerRadius="9" />
+            <Button x:Name="BtnStart"  Text="START"  Pressed="OnPadPressed" Released="OnPadReleased"
+                    FontSize="10" Padding="0" WidthRequest="70" HeightRequest="28" CornerRadius="9" />
+        </VerticalStackLayout>
 
-            <!-- 右：X/Y/A/B 菱形（Y 上 X 左 B 右 A 下） -->
-            <Grid x:Name="PadRightArea" Grid.Column="2" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,Auto,Auto"
+        <!-- 右：X/Y/A/B 菱形（Y 上 X 左 B 右 A 下） -->
+        <Grid x:Name="PadRightArea" Grid.Row="2" Grid.Column="2" Padding="0,4,14,8"
+              RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,Auto" VerticalOptions="Center">
+            <Grid x:Name="PadRightKeys" Grid.Row="0" Grid.Column="1" RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,Auto,Auto"
                   RowSpacing="3" ColumnSpacing="3" VerticalOptions="Center">
                 <Button Grid.Row="0" Grid.Column="1" x:Name="FaceY" Text="Y" Pressed="OnPadPressed" Released="OnPadReleased"
                         WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="15" FontAttributes="Bold" />
@@ -102,6 +123,7 @@
                 <Button Grid.Row="2" Grid.Column="1" x:Name="FaceA" Text="A" Pressed="OnPadPressed" Released="OnPadReleased"
                         WidthRequest="42" HeightRequest="38" CornerRadius="10" Padding="0" FontSize="15" FontAttributes="Bold" />
             </Grid>
+            <!-- (1,0) 空着 = 横屏时 START 的落点（右键盘区**左下角**）。理由同左区。 -->
         </Grid>
     </Grid>
 </ContentPage>
