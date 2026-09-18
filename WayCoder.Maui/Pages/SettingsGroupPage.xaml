@@ -192,6 +192,32 @@
                 </VerticalStackLayout>
             </Border>
 
+            <!-- ═══ VML 游戏画面导出 ═══ -->
+            <Label Text="VML 游戏画面" FontSize="12" FontAttributes="Bold"
+                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />
+            <Border BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}" StrokeThickness="0" Margin="0,4,0,0">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="12" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Padding="12,8" Spacing="6">
+                    <HorizontalStackLayout Spacing="10">
+                        <Switch x:Name="VmlExportSwitch" />
+                        <Label Text="导出游戏画面给 AI 看" VerticalOptions="Center" FontSize="13" />
+                    </HorizontalStackLayout>
+                    <Label FontSize="11" LineBreakMode="WordWrap"
+                           TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                           Text="vml 工具跑完图形程序后把画面导成 PNG，AI 用 view_image 查看。关掉可省一次渲染+编码（约 70~110ms）；开着才可能发现「没崩、但画错了」——位置、颜色、该出现却没出现的。" />
+                    <HorizontalStackLayout Spacing="10">
+                        <Label Text="最大边长" VerticalOptions="Center" FontSize="13" />
+                        <Entry x:Name="VmlFrameMaxSideEntry" Keyboard="Numeric" WidthRequest="90" FontSize="13" />
+                        <Label Text="像素" VerticalOptions="Center" FontSize="13" />
+                    </HorizontalStackLayout>
+                    <Label FontSize="11" LineBreakMode="WordWrap"
+                           TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}"
+                           Text="超过则等比缩小（128~4096）。VML 窗口常规 320×480，正常不会触发这条路径。" />
+                </VerticalStackLayout>
+            </Border>
+
             <!-- ═══ 编辑器 ═══ -->
             <Label Text="编辑器" FontSize="12" FontAttributes="Bold"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" Margin="4,8,0,0" />

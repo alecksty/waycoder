@@ -78,7 +78,12 @@ if command -v zip >/dev/null 2>&1; then
     for m in "${MOBILE_EXCLUDE[@]}"; do
         ZIP_EX+=(-x "Lib/shared/$m.vml" -x "Lib/*/$m.vml")
     done
-    ( cd "$VML" && zip -q -r -X "$TMP" "${ZIP_EX[@]}" Lib vmltool.config.xml )
+    # ⚠ `-x` 必须**跟在要打包的路径之后**：Info-ZIP 把 `-x` 之后所有不以 `-` 开头的参数
+    #   一律当成排除模式 ⇒ 写成 `zip ... "${ZIP_EX[@]}" Lib vmltool.config.xml` 会把
+    #   `Lib` 与 `vmltool.config.xml` 也当排除项，一个文件都选不中，报
+    #   `zip error: Invalid command arguments (nothing to select from)`。
+    #   （`MOBILE_EXCLUDE` 为空时 `-x` 根本不出现，所以这个 bug 只在加了排除项之后才暴露。）
+    ( cd "$VML" && zip -q -r -X "$TMP" Lib vmltool.config.xml "${ZIP_EX[@]}" )
     ( cd "$VML" && zip -q -X "$TMP" \
         $(find Examples -maxdepth 1 -type f ! -name '*.gen.vml') \
         $(find Examples -mindepth 2 -maxdepth 2 -type f ! -name '*.gen.vml') )

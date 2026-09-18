@@ -501,6 +501,18 @@ public partial class Config
               c => c.MaxChatLines.ToString(),
               (c, v) => c.MaxChatLines = Math.Clamp(int.Parse(v), 0, 20_000), "500"),
 
+            P("VmlExportFrame",    null,                         null,
+              "导出游戏画面", "🔧 系统", "vml 工具跑完图形程序后，把画面导成 PNG 交给 AI 看（AI 看不见画面就只能盲写：「没崩」≠「画对了」）。关闭可省一次渲染+编码，约 70~110ms",
+              "select", ["true","false"], 8,
+              c => c.VmlExportFrame.ToString().ToLowerInvariant(),
+              (c, v) => c.VmlExportFrame = bool.Parse(v), "true"),
+
+            P("VmlFrameMaxSide",   null,                         null,
+              "画面最大边长", "🔧 系统", "导出画面的最大边长像素（128~4096），超过则等比缩小；VML 窗口常规 320×480，正常不会触发",
+              "number", null, 8,
+              c => c.VmlFrameMaxSide.ToString(),
+              (c, v) => c.VmlFrameMaxSide = Math.Clamp(int.Parse(v), 128, 4096), "1024"),
+
             P("MaxCodePreviewLines",null,                       null,
               "代码预览行数", "🔧 系统", "聊天代码块预览行数上限（10~1000），超过保留头尾中间折叠省略",
               "number", null, 8,

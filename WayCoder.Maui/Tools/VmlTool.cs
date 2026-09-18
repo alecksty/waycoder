@@ -1,3 +1,4 @@
+using WayCoder.Infra;
 using WayCoder.Maui.Services;
 
 namespace WayCoder.Tools;
@@ -98,12 +99,22 @@ public class VmlTool : ITool
             try
             {
                 var output = MauiVml.Run(source, resolved, timeout, readLine);
-                if (string.IsNullOrEmpty(output)) return "（程序正常结束，没有输出）";
+                var text = string.IsNullOrEmpty(output) ? "（程序正常结束，没有输出）" : output;
 
-                return output.Length <= MaxOutputChars
-                    ? output
-                    : output[..MaxOutputChars]
-                      + $"\n\n⚠️ 输出过长已截断（共 {output.Length} 字符，只回传前 {MaxOutputChars}）";
+                if (text.Length > MaxOutputChars)
+                    text = text[..MaxOutputChars]
+                         + $"\n\n⚠️ 输出过长已截断（共 {text.Length} 字符，只回传前 {MaxOutputChars}）";
+
+                // 图形程序：把「程序自己声明这一帧画完了」的画面导成 PNG，附在结果后面。
+                // **「没崩」不等于「画对了」** —— 游戏是画出来的，只回控制台文本等于让 AI 盲写：
+                // 位置偏了、颜色错了、某个图元根本没画出来，文本输出里一个字都看不出来。
+                if (TryExportFrame())
+                    text += $"\n\n🖼 本帧画面已导出到 {FrameFile}（工作区根目录）。"
+                          + "若当前模型支持看图，**用 view_image 打开它确认画得对不对**"
+                          + "（东西画在哪、颜色对不对、有没有该出现却没出现的）。"
+                          + "没有这个提示 = 程序没开过绘图窗口、或没调过 ui_present（纯文本程序属正常）。";
+
+                return text;
             }
             catch (Exception ex)
             {
@@ -119,6 +130,71 @@ public class VmlTool : ITool
                 return $"⚠️ VML 执行失败：{ex.GetType().Name}: {ex.Message}\n{stack}";
             }
         });
+    }
+
+    /// <summary>导出画面的文件名（解析到当前工作目录下）。</summary>
+    private const string FrameFile = "vml_frame.png";
+
+    /// <summary>
+    /// 把绘图窗口「最新呈现帧」渲染成 PNG 写到工作目录。
+    /// 没开过窗、或程序从没调 <c>ui_present</c> → 返回 false（不产生文件、不报错，纯文本程序的正常路径）。
+    /// 用户可在设置里关掉（<c>VmlExportFrame</c>）或限制最大边长（<c>VmlFrameMaxSide</c>）。
+    /// </summary>
+    private static bool TryExportFrame()
+    {
+        if (!Config.Instance.VmlExportFrame) return false;
+
+        var dsl = VmlUiCalls.Current?.TryGetPresentedDsl();
+        if (string.IsNullOrWhiteSpace(dsl)) return false;
+        try
+        {
+            var doc = DrawRunner.Parse(dsl);
+            var png = DrawRunner.ToPng(doc);
+
+            // 先比尺寸再决定要不要缩 —— 正常场景（VML 窗口常规 320×480）走到这里就结束了，
+            // **一次解码都不会做**，所以这个限制对日常使用是零开销。
+            var longest = Math.Max(doc.Width, doc.Height);
+            if (longest > Config.Instance.VmlFrameMaxSide)
+                png = Downscale(png, longest, Config.Instance.VmlFrameMaxSide);
+
+            File.WriteAllBytes(CwdContext.Resolve(FrameFile), png);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // 画面只是**附加**信息，导出失败不该把整轮工具调用判失败 —— 记一行日志就够了。
+            ErrorLog.Warning("VmlTool", "导出画面失败", ex);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 等比缩小到最大边长以内。用**最近邻**：这是给 AI 看整体布局用的缩略图，
+    /// 不值得为平滑插值多写一套；真要逐像素判读，正解是把 <c>VmlFrameMaxSide</c> 调大，
+    /// 而不是靠插值把细节猜出来。
+    /// </summary>
+    private static byte[] Downscale(byte[] png, int longest, int maxSide)
+    {
+        var img = PngDecoder.Decode(png);
+        var scale = (double)maxSide / longest;
+        var w = Math.Max(1, (int)(img.Width * scale));
+        var h = Math.Max(1, (int)(img.Height * scale));
+        var dst = new byte[w * h * 4];
+        for (var y = 0; y < h; y++)
+        {
+            var sy = Math.Min(img.Height - 1, (int)(y / scale));
+            for (var x = 0; x < w; x++)
+            {
+                var sx = Math.Min(img.Width - 1, (int)(x / scale));
+                var si = (sy * img.Width + sx) * 4;
+                var di = (y * w + x) * 4;
+                dst[di] = img.Rgba[si];
+                dst[di + 1] = img.Rgba[si + 1];
+                dst[di + 2] = img.Rgba[si + 2];
+                dst[di + 3] = img.Rgba[si + 3];
+            }
+        }
+        return PngEncoder.Encode(w, h, dst);
     }
 
     /// <summary>从 arguments 里取字符串（工具参数是松散字典，类型不保证）。</summary>

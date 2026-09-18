@@ -1,3 +1,80 @@
+## v0.96.214 (2026-09-18) — 手机端 AI 能**看见**自己写的游戏 + 聊天页「发了没反应」的真身是**滚屏**
+
+起因是用户那句「让手机 AI 写个历险游戏，不能卡死闪退」。真机一测，两件事都不是它看起来的样子：
+「卡死」大半是**看不见**，「写游戏」缺的是**AI 没有眼睛**。
+
+### ① 「发了没反应 / 卡死」= 聊天列表**永久停止跟随**（不是 AI 卡住）
+
+实测：发一句 `hello`，AI **3.2 秒**就回了（`你好 👋 有什么需要我做的？`），token 从
+273,124 涨到 282,988 —— **一切正常**。但屏幕上纹丝不动，新内容全落在视口下方，
+只靠一个 `↓` 按钮提示"下面还有"。
+
+真身是 `ChatPage.ScrollToEnd()` 开头那道门：
+
+```csharp
+if (Messages.Count > 0 && _isNearBottom)   // 只有"接近底部"才跟随
+```
+
+这道门本意没错（上翻历史时别把人拽回去），**但它没有回程**：`_isNearBottom` 只在
+`Scrolled` 事件与点 `↓` 按钮时被写，一旦因上翻变成 false，**之后任何新消息都不再触发滚动**
+⇒ **一次上翻 = 永久停止跟随**。连自己发的消息也滚不动 —— 发送处那句注释写着
+「保证刚发的消息可见」，而它调的正是被门挡住的 `ScrollToEnd()`。
+
+**修法**：新增 `ForceScrollToEnd()`（无视门控 + 重置标志），用在**用户主动发送**的两个点上。
+「用户上翻时不打断」的语义对自动跟随仍然保留。
+
+### ② AI 看得见画面了：`vml` 工具跑完自动导一帧 PNG
+
+原先 `vml` 工具**只回控制台文本**，而游戏是画出来的 —— **「程序没崩」不等于「画对了」**：
+东西画在哪、颜色对不对、有没有该出现却没出现的，文本里一个字都没有。
+
+链路（每一环都核过判据）：
+`ui_present` → `VmlScene.PresentedDsl` → 【新】`VmlUiCalls.TryGetPresentedDsl()` →
+`DrawRunner.Parse` → `ToPng` → 写 `vml_frame.png` → 提示 AI 用 `view_image` 打开。
+
+- **用 `PresentedDsl` 而不是实时图元**：后者可能拍到画到一半的半成品场景
+  （窗口渲染那条链正是为此加的 `PresentVersion`）。
+- **`view_image` / vision 注入在 MAUI 端本就完整可用、没被裁**；用户配的模型
+  `deepseek-v4-flash-vision-exp` 也落在 `ResolveSupportsVision` 的家族子串表里，
+  不会被静默丢弃。
+- 已知限制：程序**自己调 `ui_win_close`** 会立即清空场景，那一帧导不出来（多数游戏是被
+  超时/返回键结束的，场景仍在）。
+
+### ③ 导出开关 + 最大边长（用户要求：能关、能限）
+
+`VmlExportFrame`（默认**开**）、`VmlFrameMaxSide`（默认 **1024**，超了等比缩小），
+桌面设置页（Schema）与手机设置页（`SettingsGroupPage`）都有入口。
+
+**性能上是零开销设计**：先比 `doc.Width/Height` 再决定要不要缩 —— VML 窗口常规
+320×480（程序在 `ui_show_window` 里指定），**正常路径连一次解码都不会做**；
+只有真超限才走「解码 → 最近邻缩放 → 重编码」。满盘场景整条导出约 70~110ms，
+且**每次工具调用只做一次**（不是每帧），相对同一次调用里的编译（几秒~一分多钟）
+与运行（≤60s）可忽略。
+
+### ④ ⚠ `make-vml-lib.sh` 的 `zip -x` 位置写反 ⇒ **从 Mac 打 APK 必然失败**
+
+```bash
+zip -q -r -X "$TMP" "${ZIP_EX[@]}" Lib vmltool.config.xml   # ✗
+```
+
+Info-ZIP 把 `-x` 之后**所有不以 `-` 开头的参数**一律当成排除模式 ⇒ `Lib` 与
+`vmltool.config.xml` 这两个**本该打包的目标**被当成排除项，一个文件都选不中，报
+`zip error: Invalid command arguments (nothing to select from)`。而 `build-apk.sh`
+第 39 行先调它、又是 `set -e` ⇒ **一步都走不到 `dotnet publish`**。
+（`MOBILE_EXCLUDE` 为空时 `-x` 根本不出现，所以这个 bug 只在加了排除项后才暴露。）
+**修法**：`-x` 必须跟在要打包的路径**之后**。
+
+### ⑤ 顺带查清：手机上的包是**另一台机器的密钥**签的
+
+`adb install -r` 报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`。对比证书：**DN 完全相同**
+（`CN=WayCoder, OU=Dev, O=WayCoder, L=Shenzhen, ST=Guangdong, C=CN`）**但 SHA-256 不同**
+（手机 `7598f13e…` / 本机 `14ab383e…`）—— 同一个 DN 生成了两把密钥。
+`build-apk.sh` 注释里写着 keystore 被 `.gitignore` 排除，所以它**不随仓库同步**。
+⚠ **此时千万别顺手 `adb uninstall`**：先确认数据位置 —— 本机实测用户的
+`api_keys.json` / `config.json` / `sessions/` / `memory/` **全在外部存储**
+（`/storage/emulated/0/waycoder/config/.waycoder/`），卸载重装不影响，只丢 app 私有目录的
+界面设置与 vml 库解压缓存。
+
 ## v0.96.213 (2026-09-18) — macOS(MacCatalyst) 与 iOS 端 VML 游戏跑通 + 音效验证；**Xcode 27 把 Simulator.app 换成了 DeviceHub.app**
 
 这一版**没有改任何生产代码** —— 产出是「两端跑通并验证音效」这个结论，外加三条**下次一定会再撞上**

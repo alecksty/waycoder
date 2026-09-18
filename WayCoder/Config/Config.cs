@@ -242,6 +242,20 @@ public partial class Config
     /// <summary>聊天区**总行数**上限（0=不限制）：超过后自动丢最旧显示项到低水位。
     /// 条数上限管不住「一条顶几百行」的消息，而列表布局/渲染/滚动的开销是按行数走的。</summary>
     public int MaxChatLines { get; set; } = 500;
+    /// <summary>
+    /// `vml` 工具跑完**图形**程序后，是否把「最新呈现帧」导成 PNG 附给 AI 看。
+    ///
+    /// 存在的理由：AI 看不见画面就只能盲写 —— **「程序没崩」不等于「画对了」**，
+    /// 东西画在哪、颜色对不对、有没有该出现却没出现的，控制台文本里一个字都看不出来。
+    /// 关掉可省一次光栅化 + 编码（实测满盘游戏场景约 70~110ms；纯文本程序本就无图可导）。
+    /// </summary>
+    public bool VmlExportFrame { get; set; } = true;
+    /// <summary>
+    /// 导出画面的**最大边长**（像素）：超过则等比缩小后再编码。
+    /// 只在超限时才走「解码 → 缩放 → 重编码」那条路 —— VML 窗口常规是 320×480
+    /// （程序在 ui_show_window 里自己指定），所以正常一次都不会触发，不增加日常开销。
+    /// </summary>
+    public int VmlFrameMaxSide { get; set; } = 1024;
     /// <summary>聊天代码块预览行数上限：超过后保留头尾、中间折叠省略</summary>
     public int MaxCodePreviewLines { get; set; } = 500;
     public bool DesktopNotifications { get; set; } = false;

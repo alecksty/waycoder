@@ -133,6 +133,10 @@ public partial class SettingsGroupPage : ContentPage
     {
         var cfg = Config.Instance;
 
+        // VML 游戏画面导出（见 Config.VmlExportFrame 的注释）
+        VmlExportSwitch.IsToggled = cfg.VmlExportFrame;
+        VmlFrameMaxSideEntry.Text = cfg.VmlFrameMaxSide.ToString();
+
         // 服务商列表（排除 local/custom，按展示名排序；保留当前服务商）
         var providers = ModelCatalog.Providers
             .Where(kv => kv.Key is not ("local" or "custom"))
@@ -506,6 +510,11 @@ public partial class SettingsGroupPage : ContentPage
             var sbaseUrl = string.IsNullOrWhiteSpace(SmallBaseUrlEntry.Text) ? null : SmallBaseUrlEntry.Text.Trim();
             ConnectionConfig.ApplyModelChoice(sopt.Id, smodel.Id, isLarge: false, out _, sbaseUrl);
         }
+
+        // VML 游戏画面导出（见 Config.VmlExportFrame / VmlFrameMaxSide）
+        Config.Instance.VmlExportFrame = VmlExportSwitch.IsToggled;
+        if (int.TryParse(VmlFrameMaxSideEntry.Text, out var vms))
+            Config.Instance.VmlFrameMaxSide = Math.Clamp(vms, 128, 4096);
 
         // 3) 参数
         if (int.TryParse(MaxTokensEntry.Text, out var mt)) Config.Instance.MaxTokens = mt;

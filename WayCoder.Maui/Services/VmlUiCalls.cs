@@ -421,6 +421,20 @@ internal sealed class VmlUiCalls : ISystemCallHandler
 
     private VmlScene? Scene() => _scene;
 
+    /// <summary>
+    /// 取当前绘图窗口**最新呈现帧**的 DSL（即程序调 <c>ui_present</c> 时拍的快照）；
+    /// 没开过窗、或程序从没调过 <c>ui_present</c> 时返回 null。
+    ///
+    /// 存在的理由：**让 AI 看得见自己写的图形程序**。<c>vml</c> 工具原先只回控制台文本，
+    /// 而游戏是画出来的 —— 没有画面，AI 只能靠猜，而「程序没崩」根本不等于「画对了」。
+    /// 有出口之后 <c>VmlTool</c> 就能把它渲染成 PNG 交给 <c>view_image</c>。
+    ///
+    /// 用 <see cref="VmlScene.PresentedDsl"/> 而**不是** <c>BuildDsl()</c>：后者是"当前图元"的
+    /// 实时拼装，可能拍到画到一半的场景（道理同 <c>VmlScene.Present</c> 的注释），
+    /// 而前者是程序自己声明"这一帧画完了"的那份。
+    /// </summary>
+    public string? TryGetPresentedDsl() => Scene()?.PresentedDsl;
+
     private void TouchScene()
     {
         if (_scene is { } s) OnSceneChanged?.Invoke(s);

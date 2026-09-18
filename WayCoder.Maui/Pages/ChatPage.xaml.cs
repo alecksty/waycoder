@@ -698,7 +698,9 @@ public partial class ChatPage : ContentPage
             {
                 userMsg = new ChatMessage { Role = ChatRole.User, RawText = text };
                 AddMessage(userMsg);
-                ScrollToEnd(); // 发送后立即滚到底，保证刚发的消息可见
+                // 发送后强制滚到底（不是 ScrollToEnd）：用户主动发消息就是要看新内容，
+                // 不该被「上翻历史不打断」那道门挡掉 —— 被挡的表现就是"发了没反应"。
+                ForceScrollToEnd();
             }
             else
             {
@@ -712,7 +714,7 @@ public partial class ChatPage : ContentPage
             var next = _sendQueue.Dequeue();
             text = next.Text;
             userMsg = next.Msg;
-            ScrollToEnd();
+            ForceScrollToEnd(); // 排队消息轮到它了，同样强制（理由同上）
         }
     }
 
@@ -963,6 +965,27 @@ public partial class ChatPage : ContentPage
     private void ScrollToEnd()
     {
         if (Messages.Count > 0 && _isNearBottom)
+            MsgList.ScrollTo(Messages.Count - 1, position: ScrollToPosition.End, animate: false);
+    }
+
+    /// <summary>
+    /// 强制滚到底并恢复跟随 —— 用户**主动发消息**时用。
+    ///
+    /// 与 <see cref="ScrollToEnd"/> 的唯一区别是**无视 <c>_isNearBottom</c> 门控**。
+    /// 那道门的本意是「用户上翻历史时别把他拽回去」，这个本意没错；但**发送是明确的
+    /// 「我要看新内容」信号**，被它挡掉就会出现：发完消息列表一动不动、自己的气泡和
+    /// 随后的 AI 回复全落在视口下方看不见 —— 用户视角就是"发了没反应 / 卡死"。
+    ///
+    /// 更要命的是**那道门没有回程**：`_isNearBottom` 只在 <c>Scrolled</c>（靠
+    /// <c>LastVisibleItemIndex</c> 算）和点 ↓ 按钮时被写，一旦因上翻变成 false，
+    /// 后续任何新消息都不会再触发滚动，等于**一次上翻 = 永久停止跟随**。
+    /// 所以在"用户主动发起"的路径上必须重置它。
+    /// </summary>
+    private void ForceScrollToEnd()
+    {
+        _isNearBottom = true;
+        JumpBottomBtn.IsVisible = false;
+        if (Messages.Count > 0)
             MsgList.ScrollTo(Messages.Count - 1, position: ScrollToPosition.End, animate: false);
     }
 
