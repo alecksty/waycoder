@@ -76,6 +76,13 @@ int ui_scr_h(void) {
     return asm("SYSCALL #567");
 }
 
+/* 屏幕方向：0 = 竖屏，1 = 横屏。开窗之前就能问。
+   别拿 ui_scr_w() > ui_scr_h() 去推：那是**绘图区**的形状，会随宿主排版变
+   （手柄收起/展开就变），而方向是设备本身的属性。 */
+int ui_orientation(void) {
+    return asm("SYSCALL #569");
+}
+
 /* ── 绘图（保留模式：只管追加图元，宿主按帧渲染）───────────── */
 
 void ui_clear(int color) {

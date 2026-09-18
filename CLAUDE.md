@@ -417,6 +417,32 @@ TabBar 也收着，所以扣的是**宽度**（`LandscapeSideChromeDp=518`）不
 只占画布那一列 ⇒ 两条细线不会横穿两侧手柄区；手柄一收起，左右两列塌成 0、画布自然吃满整宽
 （实测 `host` 396→850）。
 
+㉙ **「屏幕变了」是两条消息 + 一个查询；而「上次量到的值」要先问它还算不算数（v0.96.231）**：
+用户指出「横竖出问题应该是 syscall 接口没考虑横竖方向」。查下来他说的对，但缺口比"少一个号"更宽：
+① **加 `SCR_ORIENT`（#569）查询**：0 竖屏 / 1 横屏，**开窗之前就能问**（程序据此决定
+"棋盘放左还是放上、面板横排还是竖排"）。`VmlUi.OrientationOf(w,h)` 是**判定规则的唯一实现**
+（宿主与自测共用），`Portrait=0/ Landscape=1` 是跨语言契约（22 个前端的 `shared.*` 绑定、
+C 头文件的 `VML_ORIENT_*` 宏都按这两个数写死）。
+② **加 `VmlMsgType.WindowOrient = 12` 消息**（A=新方向）—— 与 `WindowResize` 并列：
+**尺寸说"你能画多大"、方向说"机器横着还是竖着拿"**，两件事。少一条就只能让程序从尺寸里猜方向。
+宿主**先发方向、后发尺寸**（同一个 tick），程序处理尺寸那条时方向已经是对的。
+两条消息都**只在"已经有旧值"之后才发**（程序刚开窗那一下自己问过、也按那个值排好版了，
+再补发只会让它白排一次）。`ScreenOrientation()`（VmlUiCalls）是查询与消息**共用的唯一真源**。
+③ ⚠ **别拿 `ui_scr_w() > ui_scr_h()` 推方向 —— 实测证死了**：竖屏里打完一局退出、
+在**命令行页**上转到横屏、再开一局，那一局拿到的是 `orient=LANDSCAPE` 但 `wh=TALL`
+（`ui_scr_w/h` 报 **411×525**，是上一局竖屏留下的）。真因：`MeasuredViewport` 只在绘图页活着时
+更新，**转屏期间没有绘图页在跑 ⇒ 它一直是旧的**，而 `ScrArea()` 原来无条件沿用。
+新增 `VmlUi.ViewportMatchesOrientation(w,h,orientation)`：**形状与当前方向一致才算数**，
+否则退回 `AvailableArea`（那边已分方向算）。修前横屏那一局 `scene=411x525` 塞进 396×301 的画布
+（画面只剩中间一条），修后 `scene=396x301`、画布铺满（`req=374.9x285.0`）。
+**「上一轮量到的值」用之前一定要问一句"它还算数吗"** —— 这是本仓"中间态被当成真值"的第三种形态
+（前两种见 ㉘）。④ 设备实测（模拟器，`vml run otest.c` 的输出）：竖屏 `A orient=PORTRAIT /
+raw=0 / wh=TALL`；横屏 `A orient=LANDSCAPE / raw=1 / wh=WIDE`；转屏时**先 `C msg-orient=…`
+再 `C msg-resize`**（顺序符合设计）。⑤ **改 `Lib/` 后必须重跑 `scripts/make-vml-lib.sh`**
+（指纹变 ⇒ 设备自动重解压；实测那次设备日志里出现了「正在解压 VML 标准库」才说明包真的换了），
+C 侧包装写在 `Lib/shared/src/vmlui.c` + `Lib/c/waycoder_ui.h`，**用 GenLib 重生成**
+（`-b` 编译 / `-m` 模块包装 / `-g` 绑定），别手改 `.vml`。
+
 **跨端验证的手段（Windows 没有 adb，但可以用 UI Automation 驱动真机之外的第二个平台）**：
 `WayCoder.Maui` 在 Windows 上是免打包的 WinUI（`WindowsPackageType=None`），
 `dotnet build -f net10.0-windows10.0.19041.0` 之后直接跑 exe 就能验观感 —— 这一步值得做，

@@ -546,6 +546,41 @@ public static partial class SelfTest
         Check("VmlUi.AvailableArea: 横屏估算不小于实测画布（396×301）",
             land.Width >= 396 && land.Height >= 301);
 
+        // ── 屏幕方向（`SCR_ORIENT` #569）──
+        // 判定规则**只有 VmlUi.OrientationOf 一处实现**：宿主直接调它，别处不许再写一遍比较。
+        Check("VmlUi.OrientationOf: 宽 > 高 = 横屏",
+            VmlUi.OrientationOf(2400, 1080) == VmlUi.Landscape);
+        Check("VmlUi.OrientationOf: 高 > 宽 = 竖屏",
+            VmlUi.OrientationOf(1080, 2400) == VmlUi.Portrait);
+        // 正方形（以及"还没量到"的 0×0）取保守的一档，不能随缘
+        Check("VmlUi.OrientationOf: 正方形算竖屏（保守档）",
+            VmlUi.OrientationOf(500, 500) == VmlUi.Portrait
+            && VmlUi.OrientationOf(0, 0) == VmlUi.Portrait);
+        // 实测视口**跨方向陈旧**是实测踩到的：竖屏里打完一局退出、转到横屏再开一局，
+        // 转屏期间没有绘图页在跑 ⇒ `MeasuredViewport` 还留着竖屏的 411×525，
+        // 那一局照它开窗（`scene=411x525` 塞进 396×301 的画布，画面只剩中间一条）。
+        // 判据：**量到的值的形状与当前方向一致**才算数，否则退回分方向的估算。
+        Check("VmlUi.ViewportMatchesOrientation: 竖屏量到的值在竖屏下算数",
+            VmlUi.ViewportMatchesOrientation(411, 525, VmlUi.Portrait));
+        Check("VmlUi.ViewportMatchesOrientation: 竖屏量到的值在横屏下**不算数**",
+            !VmlUi.ViewportMatchesOrientation(411, 525, VmlUi.Landscape));
+        Check("VmlUi.ViewportMatchesOrientation: 横屏量到的值在横屏下算数",
+            VmlUi.ViewportMatchesOrientation(396, 301, VmlUi.Landscape));
+
+        // 号不能在号段外 —— 出了 500–599 就是"认领不到"（宿主根本收不到这个 syscall）
+        Check("VmlUi.ScrOrient 在号段内且不与其它号撞车",
+            VmlUi.Handles(VmlUi.ScrOrient)
+            && VmlUi.ScrOrient != VmlUi.ScrW && VmlUi.ScrOrient != VmlUi.ScrH
+            && VmlUi.ScrOrient != VmlUi.MsgClear && VmlUi.ScrOrient != VmlUi.WinClosed);
+        // 返回值 0/1 是**跨语言契约**：22 个前端的 `shared.*` 绑定、C 头文件的
+        // VML_ORIENT_* 宏都按这两个数写死，改了它们等于改了 ABI。
+        Check("VmlUi 方向常量为 0/1（跨语言契约）",
+            VmlUi.Portrait == 0 && VmlUi.Landscape == 1);
+        // 「屏幕变了」是**两条**消息：尺寸一条、方向一条。消息号也是跨语言契约
+        // （C 头文件 VML_MSG_WINDOWORIENT 写死 12），不能随手挪。
+        Check("VmlMsgType: 尺寸与方向是两条不同的消息",
+            (int)VmlMsgType.WindowResize == 11 && (int)VmlMsgType.WindowOrient == 12);
+
         // ── 消息结构 ──
         var mem = new byte[64];
         new VmlMessage(VmlMsgType.TouchDown, 12, 34, 5678).WriteTo(mem, 4);

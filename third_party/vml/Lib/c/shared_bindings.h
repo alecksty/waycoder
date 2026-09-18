@@ -1106,6 +1106,7 @@ __stdcall void vga_text_newline(void);
  int ui_win_closed(void);
  int ui_scr_w(void);
  int ui_scr_h(void);
+ int ui_orientation(void);
  void ui_clear(int color);
  void ui_pixel(int x, int y, int color);
  void ui_line(int x1, int y1, int x2, int y2, int color, int lw);

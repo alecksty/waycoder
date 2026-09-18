@@ -4552,6 +4552,11 @@ func ui_scr_h() int32 {
     return vml.R0()
 }
 
+func ui_orientation() int32 {
+    vml.Call("ui_orientation")
+    return vml.R0()
+}
+
 func ui_clear(a0 int32) {
     vml.Call("ui_clear")
 }

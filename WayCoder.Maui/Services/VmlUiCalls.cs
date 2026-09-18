@@ -236,6 +236,7 @@ internal sealed class VmlUiCalls : ISystemCallHandler
                 case VmlUi.WinClosed: registers[0] = _windowClosed ? 1 : 0; break;
                 case VmlUi.ScrW: registers[0] = ScrArea().Width; break;
                 case VmlUi.ScrH: registers[0] = ScrArea().Height; break;
+                case VmlUi.ScrOrient: registers[0] = ScreenOrientation(); break;
 
                 default: return false; // 号段内但未实现 → 交回运行时（保持"不认领"语义）
             }
@@ -292,7 +293,14 @@ internal sealed class VmlUiCalls : ISystemCallHandler
     /// </summary>
     private static (int Width, int Height) ScrArea()
     {
-        if (MeasuredViewport is { } vp && vp.Width > 0 && vp.Height > 0) return vp;
+        // ⚠ **实测值要先问一句"它还算不算数"**：`MeasuredViewport` 只在绘图页活着时更新，
+        // 而"在竖屏里打完一局 → 退出 → 转到横屏 → 再开一局"这条路上，转屏期间没有绘图页在跑，
+        // 它还留着竖屏的 411×525 —— 横屏那一局照它开窗，画面就只剩中间一条
+        // （实测：`orient=LANDSCAPE` 但 `wh=TALL`，`scene=411x525` 塞进 396×301 的画布）。
+        // 方向对不上就不用它，退回 `AvailableArea`（那边**已经是分方向**算的）。
+        if (MeasuredViewport is { } vp && vp.Width > 0 && vp.Height > 0
+            && VmlUi.ViewportMatchesOrientation(vp.Width, vp.Height, ScreenOrientation()))
+            return vp;
         try
         {
             var info = DeviceDisplay.MainDisplayInfo;
@@ -303,6 +311,31 @@ internal sealed class VmlUiCalls : ISystemCallHandler
             // 取不到显示信息时给一个保守的手机尺寸，而不是抛 —— 程序至少还能跑
             return (320, 480);
         }
+    }
+
+    /// <summary>
+    /// 屏幕方向（<see cref="VmlUi.Portrait"/> 竖屏 / <see cref="VmlUi.Landscape"/> 横屏）。
+    ///
+    /// **优先问设备**（`DeviceDisplay`），取不到才退回按实测视口推 ——
+    /// 方向是"机器横着还是竖着拿"，不该被宿主怎么排版影响（手柄收起会改画布形状，
+    /// 但机器并不会因此翻个身）。退回那一条在真机上不会走到，只是异常设备的兜底。
+    /// 判定规则只有 <see cref="VmlUi.OrientationOf"/> 一处实现。
+    ///
+    /// ⚠ **这一处是唯一真源**：`SCR_ORIENT`（#569）查询走它，
+    /// 方向变化时发的 <see cref="VmlMsgType.WindowOrient"/> 消息也走它 ——
+    /// 两处各算一次的话，"查到的"和"收到的"会在某个边界上不一致，那是最难查的一类。
+    /// </summary>
+    internal static int ScreenOrientation()
+    {
+        try
+        {
+            var info = DeviceDisplay.MainDisplayInfo;
+            if (info.Width > 0 && info.Height > 0) return VmlUi.OrientationOf(info.Width, info.Height);
+        }
+        catch { /* 取不到就往下退 */ }
+        if (MeasuredViewport is { } vp && vp.Width > 0 && vp.Height > 0)
+            return VmlUi.OrientationOf(vp.Width, vp.Height);
+        return VmlUi.Portrait;
     }
 
     // ── 对话框 ────────────────────────────────────────────────

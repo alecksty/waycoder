@@ -50,6 +50,13 @@
 #define VML_MSG_TIMER         9
 #define VML_MSG_WINDOWCLOSE  10
 #define VML_MSG_WINDOWRESIZE 11
+/* 方向变了：msg[1] = 新方向（VML_ORIENT_*）。宿主**先发方向、后发尺寸**，
+   所以处理 WINDOWRESIZE 时读到的方向已经是新的。 */
+#define VML_MSG_WINDOWORIENT 12
+
+/* ── 屏幕方向（ui_orientation() 的返回值）── */
+#define VML_ORIENT_PORTRAIT   0
+#define VML_ORIENT_LANDSCAPE  1
 
 /* ── 键码（Win32 虚拟键值；手柄那一排见 VmlKeys）── */
 #define VML_KEY_BACKSPACE  8
@@ -92,6 +99,13 @@ int  ui_win_close(void);
 int  ui_win_closed(void);
 int  ui_scr_w(void);
 int  ui_scr_h(void);
+/* 屏幕方向：VML_ORIENT_PORTRAIT(0) / VML_ORIENT_LANDSCAPE(1)。
+   **开窗之前就能问** —— 程序据此决定"棋盘放左、面板放右"还是"上下排"。
+   别拿 ui_scr_w() > ui_scr_h() 去推：那两个数是可用**绘图区**，
+   会随宿主排版（手柄收起/展开）变，而方向是设备本身的属性。
+   运行中方向变了，宿主会发 VML_MSG_WINDOWRESIZE（msg[1]=新宽 msg[2]=新高），
+   收到后重新问一次本函数再重排版。 */
+int  ui_orientation(void);
 
 /* ── 绘图 ── */
 void ui_clear(int color);

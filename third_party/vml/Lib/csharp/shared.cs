@@ -962,6 +962,7 @@ namespace VML {
     // extern int ui_win_closed(void);  // CALL ui_win_closed
     // extern int ui_scr_w(void);  // CALL ui_scr_w
     // extern int ui_scr_h(void);  // CALL ui_scr_h
+    // extern int ui_orientation(void);  // CALL ui_orientation
     // extern void ui_clear(int color);  // CALL ui_clear
     // extern void ui_pixel(int x, int y, int color);  // CALL ui_pixel
     // extern void ui_line(int x1, int y1, int x2, int y2, int color, int lw);  // CALL ui_line

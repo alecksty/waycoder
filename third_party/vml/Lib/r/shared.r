@@ -1923,6 +1923,8 @@
 // CALL ui_scr_w
 // extern fn ui_scr_h(void) -> int
 // CALL ui_scr_h
+// extern fn ui_orientation(void) -> int
+// CALL ui_orientation
 // extern fn ui_clear(int color) -> void
 // CALL ui_clear
 // extern fn ui_pixel(int x, int y, int color) -> void

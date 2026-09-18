@@ -67,10 +67,43 @@ adb -s emulator-5554 logcat -d -s WC-DRAW | tail
 `sender.py` 送命令（`input text` 从第一个空格就截断，要逐键码发；
 逐键码发时**最后一个字符会丢** ⇒ 命令末尾补一个空格最省事）。
 
+## 四点五、方向接口（v0.96.231，配套）
+
+用户指出「横竖出问题应该是 syscall 接口没考虑横竖方向」—— 对，且缺口比"少一个号"更宽：
+
+| 加了什么 | 是什么 |
+|---|---|
+| `SCR_ORIENT`（**#569**） | 查询：0 竖屏 / 1 横屏。**开窗之前就能问**（程序据此决定怎么分栏） |
+| `VmlMsgType.WindowOrient`（**12**） | 消息：A = 新方向。与 `WindowResize` 并列 —— 尺寸说"你能画多大"、方向说"机器横着还是竖着拿" |
+| `VmlUi.OrientationOf` | 判定规则的**唯一实现**（宿主查询与消息共用，自测也测它） |
+| `VmlUi.ViewportMatchesOrientation` | **"上次量到的值还算不算数"** —— 见下 |
+
+C 侧：`Lib/shared/src/vmlui.c` 的 `ui_orientation()` + `Lib/c/waycoder_ui.h` 的声明与
+`VML_ORIENT_*` / `VML_MSG_WINDOWORIENT` 宏，用 GenLib 重生成（`-b` / `-m` / `-g`）。
+
+**顺带修掉「实测视口跨方向陈旧」**：`MeasuredViewport` 只在绘图页活着时更新，
+而"竖屏打完一局 → 退出 → 在命令行页转到横屏 → 再开一局"这条路上**转屏期间没有绘图页在跑**，
+它还留着竖屏的 411×525。实测那一局 `orient=LANDSCAPE` 但 `wh=TALL`、`scene=411x525`
+塞进 396×301 的画布（画面只剩中间一条）。现在 `ScrArea()` 先问一句
+`ViewportMatchesOrientation`，对不上就退回 `AvailableArea`（那边已分方向算）。
+修后同一路径：`scene=396x301`、`req=374.9x285.0`（铺满）。
+
+**设备实测**（模拟器，`vml run otest.c`）：
+
+```
+竖屏：A orient=PORTRAIT / A raw=0 / A wh=TALL
+横屏：A orient=LANDSCAPE / A raw=1 / A wh=WIDE
+转屏：C msg-orient=LANDSCAPE → C msg-resize   （先方向、后尺寸，符合设计）
+```
+
 ## 五、还没做的
 
 - **真机复验**：模拟器已过，真机（`cd53cb14` 这台当时不在线）还没跑过，尤其是**横屏进游戏 →
   竖屏 → 退出 → 再进**这条用户报过的路径（模拟器上验过等价的两段，见 `LANDSCAPE` 那几行）。
 - 横屏下**标题栏**（Shell 的 NavBar）仍占约 56dp —— 用户没要求去掉，留着还能看到游戏名与返回箭头。
-- 游戏**场景尺寸**由程序按 `SCREEN_W/H` 自己定：横屏第一局的兜底估算已经能给出了（实测 396×301），
-  但真正贴合仍要靠「开出过一次窗口」之后的实测值。
+- **还没让任何示例程序用上 `ui_orientation()`**：接口通了、设备上也验过，但 `Examples/` 里的游戏
+  一个都没调它，也都没处理 `VML_MSG_WINDOWRESIZE`（连 `tetris.c` 都是按开窗时的尺寸一次算死）。
+  ⚠ 真要让"跑着的游戏跟着转屏重排版"，还差一步：**场景尺寸在 `ui_win_open` 之后就固定了**
+  （`VmlScene.Width/Height` 只在 `WinOpen` 里设一次），程序即使收到 resize 也**没有新的坐标空间**可用 ——
+  要么让宿主支持改场景尺寸，要么程序自己 `ui_win_close()` + 重新 `ui_win_open()`。
+  这是下一步要定的方向，不是漏掉的小尾巴。

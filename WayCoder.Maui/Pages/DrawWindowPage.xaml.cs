@@ -241,6 +241,9 @@ public partial class DrawWindowPage : ContentPage
         // `OnAppearing`/`OnSizeAllocated` 的 `ApplyOrientation` 必定整套重摆一遍。
         _padCollapsed = false;
 
+        // 同上：上一局报过的方向不能算这一局的（否则新程序一开窗就白收一条 `WindowOrient`）。
+        _publishedOrientation = null;
+
         _scene = scene;
         Title = scene.Title;
         _renderedVersion = -1;
@@ -294,6 +297,11 @@ public partial class DrawWindowPage : ContentPage
     private void PublishViewport()
     {
         if (_closing) return;
+
+        // **先方向、后尺寸** —— 同一个 tick 里两条都发时，程序收到尺寸那条时
+        // 已经知道新方向了，不必再插一次查询、也不会拿旧方向配新尺寸排一次版。
+        PublishOrientation();
+
         if (CanvasHost.Width <= 0 || CanvasHost.Height <= 0) return;
 
         var now = (Width: (int)Math.Round(CanvasHost.Width), Height: (int)Math.Round(CanvasHost.Height));
@@ -308,6 +316,31 @@ public partial class DrawWindowPage : ContentPage
 
         VmlUiCalls.MeasuredViewport = now;
     }
+
+    /// <summary>
+    /// 屏幕方向变了就给程序发一条 `WindowOrient`（A = 新方向，见 <see cref="VmlUi.Portrait"/>）。
+    ///
+    /// **"屏幕变了"是两条消息，不是一条**：尺寸（<see cref="VmlMsgType.WindowResize"/>）说的是
+    /// "你能画多大"，方向（这一条）说的是"机器横着还是竖着拿"。程序按后者决定怎么分栏
+    /// （棋盘放左还是放上、面板横排还是竖排），按前者决定格子算多大 —— 两件事，
+    /// 少一条就得让程序自己从尺寸里猜方向（而画布形状是宿主排版算出来的二手信息，会变）。
+    ///
+    /// ⚠ **判据与 `SCR_ORIENT`（#569）查询共用同一处实现**（<see cref="VmlUiCalls.ScreenOrientation"/>）：
+    /// 两处各算一次的话，"查到的"和"收到的"会在某个边界上不一致，那是最难查的一类。
+    /// ⚠ 第一次（程序刚开窗）**不发** —— 它自己问过 `SCR_ORIENT` 才开的窗，再被告知一遍
+    /// 只会让它白排一次版；与 `WindowResize` 的处理一致。
+    /// </summary>
+    private void PublishOrientation()
+    {
+        var orient = VmlUiCalls.ScreenOrientation();
+        if (_publishedOrientation == orient) return;
+        if (_publishedOrientation is not null && !_closing)
+            VmlUiCalls.Current?.PostInput(VmlMsgType.WindowOrient, orient, 0);
+        _publishedOrientation = orient;
+    }
+
+    /// <summary>本窗口已经报过的方向（`null` = 还没报过，见 <see cref="Attach"/>）。</summary>
+    private int? _publishedOrientation;
 
     protected override void OnSizeAllocated(double width, double height)
     {

@@ -126,6 +126,54 @@ public static class VmlUi
     public const int ScrH = 567;
 
     /// <summary>
+    /// **屏幕方向**（0 = 竖屏，1 = 横屏）→ 方向。
+    ///
+    /// ## 为什么单独给一个号，而不是让程序拿 `SCR_W > SCR_H` 去推
+    ///
+    /// 那两个数报的是**可用绘图区**（实测横屏 396×301、竖屏 411×525），形状确实跟着方向走，
+    /// 但它是"宿主排版算出来"的二手信息 —— 手柄收起/展开、页面留白、以后再加什么 chrome 都会动它，
+    /// 而**方向是设备本身的属性**，不随宿主怎么排版而变。程序要分支排版（棋盘放左还是放上、
+    /// 信息面板横排还是竖排）时，问的应该是"机器横着还是竖着拿"，不是"我这块画布是不是扁的"。
+    ///
+    /// ## 用法（开窗**之前**就能问）
+    /// <code>
+    /// SYSCALL #569 → LAND      ; 0 竖屏 / 1 横屏
+    /// W = SCR_W(); H = SCR_H()
+    /// WIN_OPEN(title, W, H)
+    /// </code>
+    /// 运行中方向变了：宿主**直接发** <see cref="VmlMsgType.WindowOrient"/>（A=新方向），
+    /// 不必让程序自己去猜或轮询；同一次变化还会紧跟一条
+    /// <see cref="VmlMsgType.WindowResize"/>（A=新宽 B=新高）。
+    /// </summary>
+    public const int ScrOrient = 569;
+
+    /// <summary>`SCR_ORIENT` / <see cref="VmlUi.OrientationOf"/> 的返回值：竖屏。</summary>
+    public const int Portrait = 0;
+    /// <summary>`SCR_ORIENT` / <see cref="VmlUi.OrientationOf"/> 的返回值：横屏。</summary>
+    public const int Landscape = 1;
+
+    /// <summary>
+    /// 方向判定的**纯逻辑**（宽 > 高 = 横屏）—— 宿主与自测**共用这一处**，
+    /// 别在别处再写一遍比较（"同一规则两处实现"是本仓库头号坑）。
+    /// 边长相等（正方形）算竖屏：那是"还没量到"或异常设备的兜底，取保守的一档。
+    /// </summary>
+    public static int OrientationOf(double width, double height)
+        => width > height ? Landscape : Portrait;
+
+    /// <summary>
+    /// 一块**实测视口**（宽高）是不是当前方向下量出来的。
+    ///
+    /// 判据就是"它自己的形状与方向一致"（<see cref="OrientationOf"/>），
+    /// 宿主拿它决定要不要沿用上次量到的那个值。用它的地方见
+    /// `VmlUiCalls.ScrArea()` 的注释 —— 那里的坑是**跨方向陈旧**：
+    /// 竖屏里关掉窗口之后转屏，转屏期间没有绘图页在跑，那个实测值没人更新，
+    /// 横屏开的第一局就会拿到竖屏尺寸（实测 `scene=411x525` 塞进横屏画布，
+    /// 画面只剩中间一条）。**这类"上次量到的值"用之前一定要问一句"它还算数吗"。**
+    /// </summary>
+    public static bool ViewportMatchesOrientation(double width, double height, int orientation)
+        => OrientationOf(width, height) == orientation;
+
+    /// <summary>
     /// 估算的固定占用 —— **只在"还没量到真实视口"时用**（见下）。
     ///
     /// v0.96.173 由 170 调到 262：那 170 只算了导航栏 + 方向键，**漏了绘图窗口页自己的
@@ -414,6 +462,15 @@ public enum VmlMsgType
     WindowClose = 10,
     /// <summary>窗口尺寸变化；A = 新宽，B = 新高。</summary>
     WindowResize = 11,
+    /// <summary>
+    /// 屏幕方向变化；A = 新方向（0 竖屏 / 1 横屏），B = 0（预留）。
+    ///
+    /// **和 <see cref="WindowResize"/> 一样是消息，不是让程序自己去猜** ——
+    /// 一条"屏幕变了"的事实，程序收到才知道要重排版。
+    /// ⚠ 宿主**先发方向、后发尺寸**（同一个 tick 里）：这样程序在收到尺寸那条时，
+    /// 已经知道新的方向了，不必再插一次查询、也不会用旧方向配新尺寸排一次版。
+    /// </summary>
+    WindowOrient = 12,
 }
 
 /// <summary>

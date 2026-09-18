@@ -5956,6 +5956,13 @@ fn ui_scr_h() -> i32 {
     r
 }
 
+fn ui_orientation() -> i32 {
+    asm!("CALL ui_orientation")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
 fn ui_clear(a0: i32) {
     asm!("CALL ui_clear")
 }

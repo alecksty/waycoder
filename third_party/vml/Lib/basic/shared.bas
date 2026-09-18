@@ -4550,6 +4550,11 @@ DECLARE FUNCTION ui_scr_h() AS INTEGER
     ui_scr_h = 0
 END FUNCTION
 
+DECLARE FUNCTION ui_orientation() AS INTEGER
+    asm("CALL ui_orientation")
+    ui_orientation = 0
+END FUNCTION
+
 DECLARE SUB ui_clear(a0 AS INTEGER)
     asm("CALL ui_clear")
 END SUB

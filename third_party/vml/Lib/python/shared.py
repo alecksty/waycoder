@@ -5924,6 +5924,11 @@ def ui_scr_h():
     asm("CALL ui_scr_h")
     return r0
 
+def ui_orientation():
+    r0 = asm("R0")
+    asm("CALL ui_orientation")
+    return r0
+
 def ui_clear(a0):
     asm(f"PUSH R0")  # push a0
     asm("CALL ui_clear")
