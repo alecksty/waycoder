@@ -26,26 +26,79 @@ internal sealed class BackspaceAwareEditText : MauiAppCompatEditText
 {
     public BackspaceAwareEditText(Context ctx) : base(ctx) { }
 
-    /// <summary>是否接管。由页面在 <c>HandlerChanged</c> 里按 <c>StyleId</c> 确认后置位。</summary>
+    /// <summary>
+    /// 是否接管。**由 <see cref="EditorEntryHandler"/> 在按 StyleId 认出「这就是编辑器那个输入框」
+    /// 时置位** —— 不再由页面去「认类型再接线」（那条路一旦认不出来就静默失效，
+    /// 用户看到的就是「擦除键没反应」）。
+    /// </summary>
     public bool InterceptEnabled { get; set; }
-
-    /// <summary>行首退格（返回 true = 已处理，吃掉这次事件）。</summary>
-    public Func<bool>? OnBackspaceAtLineStart { get; set; }
-
-    /// <summary>行尾 Delete（对称：与下一行合行）。硬件键盘才发得出来。</summary>
-    public Func<bool>? OnDeleteAtLineEnd { get; set; }
-
-    /// <summary>有选区时先删选区（标准编辑器语义）。没有选区时须返回 false。</summary>
-    public Func<bool>? OnDeleteSelection { get; set; }
 
     /// <summary>IME 是否正在组合（拼音未上屏）。组合中一律不接管 —— 退格该归输入法删拼音缓冲。</summary>
     private bool _composing;
 
+    /// <summary>
+    /// **输入法真实的组合区间**是不是空的。
+    ///
+    /// 为什么不信自己那个 <see cref="_composing"/> 标志（真机实测的症状就是它闹的）：
+    /// 标志只由 <c>SetComposingText</c> 置位、由 <c>CommitText</c>/<c>FinishComposingText</c> 清掉，
+    /// 而**程序里给输入框写文本**（进编辑态 `LineEditor.Text = …`、合行、辅助条插入）会让输入法
+    /// 重新同步 —— 它可能就此留下一个名不副实的组合态，标志于是**永久为真**，
+    /// 之后每一次退格都被判给输入法。
+    /// 用户看到的正是：**候选区随退格变化、文本却一个字都不动**。
+    ///
+    /// 这里改成问**平台真正的组合区间**（`BaseInputConnection.GetComposingSpan*`）——
+    /// 它是权威的，不依赖我们有没有把标志维护对。
+    /// </summary>
+    private bool ReallyComposing()
+    {
+        try
+        {
+            var editable = EditableText;
+            if (editable == null) return false;
+            int s = BaseInputConnection.GetComposingSpanStart(editable);
+            int e = BaseInputConnection.GetComposingSpanEnd(editable);
+            return s >= 0 && e > s;
+        }
+        catch
+        {
+            // 拿不到就退回自己的标志（保守：宁可相信「在组合」，也不要在拼音中途乱删）
+            return _composing;
+        }
+    }
+
+    /// <summary>最近一次建出来的输入连接（未包装的那个）—— 用来主动清组合区。</summary>
+    private IInputConnection? _lastIc;
+
     public override IInputConnection? OnCreateInputConnection(EditorInfo? outAttrs)
     {
         var ic = base.OnCreateInputConnection(outAttrs);
+        _lastIc = ic;
+        Hook.Trace($"OnCreateInputConnection ic={ic != null} enabled={InterceptEnabled}");
         if (ic == null || !InterceptEnabled) return ic;
         return new Hook(ic, this);
+    }
+
+    /// <summary>
+    /// **清掉输入法残留的组合区**。
+    ///
+    /// 为什么需要它：真机日志（tag `WCBK`）显示，按退格时**三条路一条都没触发**
+    /// （只有 `OnCreateInputConnection` 那一条日志）—— 说明退格根本没到应用层，
+    /// 被输入法当成「还在组合中」在自己的缓冲里处理掉了，而那个组合态是**残留的**：
+    /// 页面进编辑态时会 `LineEditor.Text = …` 写文本，输入法因此重新同步并留下一个
+    /// 名不副实的组合区。
+    ///
+    /// 所以**每次程序化写完输入框的文本，都要调一次这里**，把它的状态清干净。
+    /// ⚠ 用 `FinishComposingText` 而不是 `InputMethodManager.RestartInput` ——
+    /// 后者会重启输入法（键盘会闪一下），是最后手段。
+    /// </summary>
+    public void ClearStaleComposing()
+    {
+        try
+        {
+            _lastIc?.FinishComposingText();
+            Hook.Trace("ClearStaleComposing");
+        }
+        catch { }
     }
 
     private sealed class Hook : InputConnectionWrapper
@@ -55,6 +108,8 @@ internal sealed class BackspaceAwareEditText : MauiAppCompatEditText
         public Hook(IInputConnection target, BackspaceAwareEditText owner) : base(target, false) => _owner = owner;
 
         // ── 组合态跟踪 ──
+        // ⚠ 这三条**不打日志**：它们每敲一个字都会来一次，把 logcat 淹掉的同时
+        // 还在输入路径上做字符串格式化。它们只负责维护 `_composing` 标志。
         public override bool SetComposingText(ICharSequence? text, int newCursorPosition)
         {
             _owner._composing = true;
@@ -75,24 +130,28 @@ internal sealed class BackspaceAwareEditText : MauiAppCompatEditText
 
         // ── 退格的三条路 ──
         public override bool DeleteSurroundingTextInCodePoints(int beforeLength, int afterLength)
-            => HandleBackspace(beforeLength)
+            => HandleBackspace(beforeLength, "InCodePoints")
                || base.DeleteSurroundingTextInCodePoints(beforeLength, afterLength);
 
         public override bool DeleteSurroundingText(int beforeLength, int afterLength)
-            => HandleBackspace(beforeLength)
+            => HandleBackspace(beforeLength, "Surrounding")
                || base.DeleteSurroundingText(beforeLength, afterLength);
 
         public override bool SendKeyEvent(KeyEvent? e)
         {
-            if (e is { Action: KeyEventActions.Down } && !_owner._composing)
+            if (e is { Action: KeyEventActions.Down } && !_owner.ReallyComposing())
             {
-                if (e.KeyCode == Keycode.Del && _owner.SelectionStart == 0
-                    && _owner.OnBackspaceAtLineStart?.Invoke() == true)
-                    return true;
+                var page = Pages.EditorPage.Active;
+                if (page != null)
+                {
+                    if (e.KeyCode == Keycode.Del && _owner.SelectionStart == 0
+                        && page.TryJoinWithPreviousLine())
+                        return true;
 
-                if (e.KeyCode == Keycode.ForwardDel && _owner.SelectionStart >= _owner.Text?.Length
-                    && _owner.OnDeleteAtLineEnd?.Invoke() == true)
-                    return true;
+                    if (e.KeyCode == Keycode.ForwardDel && _owner.SelectionStart >= _owner.Text?.Length
+                        && page.TryJoinWithNextLine())
+                        return true;
+                }
             }
             return base.SendKeyEvent(e);
         }
@@ -104,13 +163,38 @@ internal sealed class BackspaceAwareEditText : MauiAppCompatEditText
         /// 平台的 <c>deleteSurroundingText</c> 本来就删不掉任何东西 ⇒ 就算这里判断错了
         /// （比如回调没接上），行为也**不会比现在更糟**。
         /// </summary>
-        private bool HandleBackspace(int before)
+        private bool HandleBackspace(int before, string via)
         {
-            if (_owner._composing) return false;                        // 拼音组合中 → 归输入法
-            if (_owner.OnDeleteSelection?.Invoke() == true) return true; // 有可见选区 → 删选区
-            if (before > 0 && _owner.SelectionStart == 0)
-                return _owner.OnBackspaceAtLineStart?.Invoke() == true;
-            return false;
+            bool comp = _owner.ReallyComposing();
+            var page = Pages.EditorPage.Active;
+
+            bool sel = false, join = false;
+            if (!comp && page != null)
+            {
+                // ⚠ 这两个调用**有副作用**（真的会删），所以只调一次、把结果记下来复用
+                sel = page.TryDeleteSelection();
+                if (!sel && before > 0 && _owner.SelectionStart == 0)
+                    join = page.TryJoinWithPreviousLine();
+            }
+
+            bool handled = sel || join;
+            Trace($"{via} before={before} selStart={_owner.SelectionStart} " +
+                  $"textLen={_owner.Text?.Length ?? -1} comp={comp} page={page != null} " +
+                  $"sel={sel} join={join} enabled={_owner.InterceptEnabled} => {handled}");
+            return handled;
+        }
+
+        /// <summary>
+        /// 真机诊断用（logcat tag <c>WCBK</c>）。
+        /// 「擦除键没反应」在手机上**没有任何别的线索** —— 只有把「走了哪条路、参数是什么、
+        /// 我们返回了什么」打出来才判得出是拦截吞了、还是压根没到、还是输入法在组合态。
+        /// </summary>
+        internal static void Trace(string m)
+        {
+            // ⚠ 必须走 **Android 原生日志**：`Console.WriteLine` 在这个 Release 构建里
+            // 压根到不了 logcat（实测整段缓冲区 40 分钟里 0 条 DOTNET 输出），
+            // 于是「一条日志都没有」会被误读成「拦截没装上」。
+            try { Android.Util.Log.Info("WCBK", m); } catch { }
         }
     }
 }

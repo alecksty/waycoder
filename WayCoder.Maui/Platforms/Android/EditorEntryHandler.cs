@@ -33,7 +33,13 @@ internal sealed class EditorEntryHandler : EntryHandler
     protected override MauiAppCompatEditText CreatePlatformView()
     {
         if ((VirtualView as Microsoft.Maui.Controls.Element)?.StyleId == MauiProgram.EditorLineStyleId)
-            return new BackspaceAwareEditText(Context);
+        {
+            // **在这里就打开接管**，不要留给页面去「认类型再接线」：
+            // 那条路依赖 `LineEditor.Handler?.PlatformView is BackspaceAwareEditText` 成立，
+            // 只要它不成立（handler 没换掉、或建平台视图时 VirtualView 还没挂上）就**静默**
+            // 退回普通输入框 —— 用户看到的正是「擦除键没反应」。这里我们已经确知是那个输入框了。
+            return new BackspaceAwareEditText(Context) { InterceptEnabled = true };
+        }
 
         return new MauiAppCompatEditText(Context);
     }

@@ -63,6 +63,15 @@ public partial class EditorPage : ContentPage
 
         Canvas.LineTapped += OnLineTapped;
         Canvas.LineLongPressed += OnLineLongPressed;
+
+        // 辅助条的拖动面 —— 走 GraphicsView 的原始触摸（与画布选区手柄同一条路）。
+        // 空 Drawable 与「期望尺寸报 0」都在 AssistDragSurface 自己身上（见那个类）。
+        AssistDrag.StartInteraction += OnAssistDragStart;
+        AssistDrag.DragInteraction += OnAssistDragMove;
+        AssistDrag.EndInteraction += OnAssistDragEnd;
+        // 被系统打断（来电 / 切走 App / 父容器截走触摸）也是一条结束路径 ——
+        // 只清标志不发结束的话，10 秒收表的计时器就永远不再起了。
+        AssistDrag.CancelInteraction += (_, _) => { if (_assistPanActive) EndAssistDrag(); };
         // 选区一变就同时刷状态栏与**选区操作条**（选词/扩选/全选/清除都从画布发这个事件）
         Canvas.SelectionChanged += (_, _) => { UpdateStatus(); UpdateSelectionBar(); };
         // 视口一变，条子要跟着选区走（滚出视口时收起来）—— 不跟就会停在原地，
@@ -161,22 +170,14 @@ public partial class EditorPage : ContentPage
                 et.KeyPress -= OnAndroidLineEditorKeyPress;
                 et.KeyPress += OnAndroidLineEditorKeyPress;
 
-                // **行首退格 / 行尾 Delete / 有选区先删选区** —— 这三件都在 InputConnection 那条路上，
-                // 软键盘的退格**根本不走 KeyPress**，只有 BackspaceAwareEditText 兜得住。
-                // 回调全部指向页面上已有的那三个方法：合行本体与「选区删除」都只有一份实现。
-                if (LineEditor.Handler?.PlatformView is BackspaceAwareEditText bet)
+                // 行首退格 / 选区删除由 `BackspaceAwareEditText` 自己经 `EditorPage.Active`
+                // 回调过来（不再在这里「认类型再接线」）。
+                // 但**认不出来这件事必须看得见** —— 否则症状就是「擦除键没反应」且毫无线索。
+                if (LineEditor.Handler?.PlatformView is not BackspaceAwareEditText)
                 {
-                    bet.InterceptEnabled = true;
-                    bet.OnBackspaceAtLineStart = JoinWithPreviousLine;
-                    bet.OnDeleteAtLineEnd = JoinWithNextLine;
-                    bet.OnDeleteSelection = DeleteSelectionCore;
-                }
-                else
-                {
-                    // 刻意的痕迹：将来 MAUI 改了 VirtualView 的赋值时机、或 StyleId 对不上，
-                    // 这里会留下一条日志，而不是「行首退格静默失灵」——后者根本查不出来。
                     ErrorLog.Warning("EditorPage",
                         "行输入框不是 BackspaceAwareEditText —— 行首退格 / 选区删除会失效", null);
+                    ShowToast("⚠ 键盘退格增强未生效（输入框类型不符），请反馈", 5000);
                 }
             }
 #elif IOS || MACCATALYST
@@ -798,13 +799,24 @@ public partial class EditorPage : ContentPage
     private void OnFullscreenExitClicked(object? sender, EventArgs e) => SetFullscreen(false);
 
     /// <summary>
-    /// 主题一变就重建气泡 —— 气泡的颜色是**建的时候**从当前主题取的，不重建的话
-    /// 开着编辑器切主题会一直用旧色，要重开文件才对。
-    /// （画布自己的配色是 `SetDocument` 时传进去的，那是既有行为，不在这次范围内。）
+    /// 主题一变：**画布与气泡都要重建**。
+    ///
+    /// 两处的颜色都是**烘进去的**，不是每次绘制现取：
+    /// · 画布 —— `_isDark` 只在 `SetDocument` 时传进来一次，且行缓存里每个段的颜色
+    ///   （正文色、行号色、高亮 span）在建的时候就按当时的 `_isDark` 取好了。
+    ///   所以原来「系统白天↔黑夜，编辑器内容不变色，要退出文件重开才变」——
+    ///   重开走的是 `SetDocument`，那是**唯一**会更新 `_isDark` 的路径。
+    ///   `SetDark` 早就写好了（连清缓存都写对了），只是**从来没有人调它**。
+    /// · 气泡 —— 底色/文字色在建的时候取。
     /// </summary>
     private void OnAppThemeChanged(object? sender, AppThemeChangedEventArgs e)
     {
-        try { RebuildBubbles(); } catch { /* 换主题不该把界面搞崩 */ }
+        try
+        {
+            Canvas.SetDark(IsDarkTheme);
+            RebuildBubbles();
+        }
+        catch { /* 换主题不该把界面搞崩 */ }
     }
 
     protected override void OnAppearing()
@@ -812,6 +824,7 @@ public partial class EditorPage : ContentPage
         base.OnAppearing();
         if (Shell.Current != null) Shell.Current.Navigating += OnShellNavigating;
         if (Application.Current != null) Application.Current.RequestedThemeChanged += OnAppThemeChanged;
+        Active = this;   // 给平台输入连接回调用（见 Active 的说明）
         // 每次进来都回到「有栏」状态：全屏是靠隐藏导航栏实现的，若带着全屏状态重新进入，
         // 用户第一眼看到的是没有返回箭头的界面，容易以为进了死路。
         if (_fullscreen) SetFullscreen(false);
@@ -821,6 +834,7 @@ public partial class EditorPage : ContentPage
     {
         if (Shell.Current != null) Shell.Current.Navigating -= OnShellNavigating;
         if (Application.Current != null) Application.Current.RequestedThemeChanged -= OnAppThemeChanged;
+        if (ReferenceEquals(Active, this)) Active = null;
 
         // 编译可能正在进行（手机上要一分多钟），而用户随时可能按返回走人。
         // 不停的话那个前台线程会一直烧着 CPU，用户以为已经离开了。
@@ -1213,6 +1227,25 @@ public partial class EditorPage : ContentPage
     /// 不适用时返回 **false**，把事件让回平台 —— 第 1 行的行首退格本来就什么都不做，
     /// 不该被我们吞掉。
     /// </summary>
+    /// <summary>
+    /// 当前活跃的编辑器页 —— 给 <c>BackspaceAwareEditText</c> 用。
+    ///
+    /// 为什么走静态钩子而不是在 <c>HandlerChanged</c> 里「认类型再接线」：
+    /// 后者依赖 `LineEditor.Handler?.PlatformView is BackspaceAwareEditText` 成立，
+    /// 一旦不成立就**静默**退回普通输入框，症状是「擦除键没反应」而没有任何线索。
+    /// 静态钩子在 <c>OnAppearing</c>/<c>OnDisappearing</c> 里维护，路径短、可断言。
+    /// </summary>
+    internal static EditorPage? Active { get; private set; }
+
+    /// <summary>行首退格（给平台输入连接调）—— 返回 true = 已处理。</summary>
+    internal bool TryJoinWithPreviousLine() => JoinWithPreviousLine();
+
+    /// <summary>行尾 Delete（给平台输入连接调）。</summary>
+    internal bool TryJoinWithNextLine() => JoinWithNextLine();
+
+    /// <summary>删掉当前选区（给平台输入连接调）。</summary>
+    internal bool TryDeleteSelection() => DeleteSelectionCore();
+
     private bool JoinWithPreviousLine()
     {
         if (_editable == null || _readOnly || _editLine <= 0) return false;
@@ -1604,11 +1637,21 @@ public partial class EditorPage : ContentPage
 
     private IDispatcherTimer? _assistIdle;
     private bool _assistPlaced;                  // 首次显示时给一个初始位置
-    private double _assistPanStartX, _assistPanStartY;
 
-    /// <summary>符号表（括号/引号/标点）。**与运算符分开** —— 两者混在一张表里反而难找。</summary>
+    /// <summary>本次拖动是否已经开始（`StartInteraction` 到过）。</summary>
+    private bool _assistPanActive;
+
+    /// <summary>正在拖动 —— 拖动期间**不许**收小（收小会同时改 Scale/Opacity 触发重排）。</summary>
+    private bool _assistDragging;
+
+    /// <summary>
+    /// 符号表（括号/引号/标点）。**与运算符分开** —— 两者混在一张表里反而难找。
+    /// ⚠ 斜杠 `/` 与反斜杠 `\` 是用户点名要加的：路径、注释、转义都用得到，
+    /// 而手机符号键盘上它们藏在很后面。C# 里反斜杠写成 `"\\"`。
+    /// </summary>
     private static readonly string[] AssistSymbols =
-        ["(", ")", "[", "]", "{", "}", "<", ">", "\"", "'", "`", ";", ":", ",", ".", "_", "|", "@", "#", "$", "?", "!"];
+        ["(", ")", "[", "]", "{", "}", "<", ">", "\"", "'", "`", ";", ":", ",", ".", "_",
+         "|", "/", "\\", "@", "#", "$", "?", "!"];
 
     /// <summary>
     /// 运算符表。
@@ -1627,6 +1670,21 @@ public partial class EditorPage : ContentPage
     private static readonly string[] AssistFallbackKeywords =
         ["if", "else", "for", "while", "return", "break", "continue", "int", "char", "void"];
 
+    /// <summary>
+    /// **高频关键字**（跨语言共用的一份优先级表）—— 只用来**筛选和排序各语言自己的词表**，
+    /// **不是第二份关键字表**：里面没有的、语言里也不会有（那种平行表迟早和 `Syntax` 漂开，
+    /// 本仓库的头号坑）。顺序即优先级，控制流放最前。
+    ///
+    /// 用户的原话是「关键字应该分类，首页是高频关键字，那样才会输入快，现在要去找，输入麻烦」——
+    /// 原来直接按字典序排，`auto`/`break`/`byte`… 挤在前面，要找个 `while` 得扫一遍。
+    /// </summary>
+    private static readonly string[] HotKeywords =
+        ["if", "else", "for", "while", "do", "switch", "case", "default", "break", "continue", "return",
+         "then", "end", "begin", "function", "def", "fn",
+         "int", "char", "float", "double", "bool", "void", "var", "let", "const", "string",
+         "struct", "class", "enum", "typedef", "static", "public", "private",
+         "nil", "null", "true", "false", "print", "puts"];
+
     private void OnAssistMenuClicked() => ToggleAssistBar();
 
     private void ToggleAssistBar()
@@ -1643,6 +1701,7 @@ public partial class EditorPage : ContentPage
         AssistBar.IsVisible = true;
         RestoreAssistScale();
         AssistTouch();
+        UpdateAssistButtonState();
     }
 
     private void CloseAssistBar()
@@ -1650,7 +1709,18 @@ public partial class EditorPage : ContentPage
         AssistBar.IsVisible = false;
         HideAssistPopup();
         _assistIdle?.Stop();
+        UpdateAssistButtonState();
     }
+
+    private void OnAssistToggleClicked(object? sender, EventArgs e) => ToggleAssistBar();
+
+    /// <summary>
+    /// 工具栏那颗开关按钮带**状态**：开着时满不透明、关着时压到 0.45。
+    /// 不带状态的话，「点了没反应」与「它本来就开着」在屏幕上分不出来。
+    /// 放在 Toggle/Close 里而不是点击处理器里 —— 菜单那条路也走这两个方法，状态才不会漏更新。
+    /// </summary>
+    private void UpdateAssistButtonState()
+        => AssistBtn.Opacity = AssistBar.IsVisible ? 1.0 : 0.45;
 
     private void OnAssistCloseClicked(object? sender, EventArgs e) => CloseAssistBar();
 
@@ -1672,46 +1742,276 @@ public partial class EditorPage : ContentPage
         return t;
     }
 
+    /// <summary>闲置缩小后的比例与不透明度。</summary>
+    private const double AssistShrinkScale = 0.72;
+    private const double AssistShrinkOpacity = 0.45;
+
+    /// <summary>缩放动画时长（毫秒）。够短才不像「卡了一下」，够长才看得出是「缩」不是「跳」。</summary>
+    private const uint AssistAnimMs = 170;
+
+    /// <summary>动画的**目标值**（不是当前值）—— 用它做防重入，见 <see cref="AnimateAssist"/>。</summary>
+    private double _assistTargetScale = 1, _assistTargetOpacity = 1;
+
     private void ShrinkAssist()
     {
         if (!AssistBar.IsVisible) return;
-        AssistBar.Scale = 0.72;
-        AssistBar.Opacity = 0.45;
+        if (_assistDragging) return;   // 拖动中不收：那一刻改 Scale/Opacity 就是「闪缩」本身
         HideAssistPopup();                     // 缩小了还把弹表支着，看着像没收干净
+        AnimateAssist(AssistShrinkScale, AssistShrinkOpacity);
     }
 
-    private void RestoreAssistScale()
+    private void RestoreAssistScale() => AnimateAssist(1, 1);
+
+    /// <summary>
+    /// **无动画**地恢复原大小 —— 只在**拖动开始**那一刻用。
+    ///
+    /// 为什么不在这里也放动画：`Scale` 会改变「父容器坐标 → 控件内坐标」的换算
+    /// （平台按 `(父 − 位移) ÷ 缩放` 折算），而拖动的位置公式 `T += (t − t₀)` 吃的就是这个坐标。
+    /// 缩放一边动画一边跟手，等于**尺子本身在被拉伸** —— 手指没动、报出来的坐标却在变，
+    /// 条子就会在起手那一两帧滑一段（抓得越靠边滑得越远）。
+    /// 起手瞬间**直落**到 1 就没有这段扰动；手指正在动，跳跃本来也看不出来。
+    /// 其余路径（点一下恢复、闲置缩小）都走动画。
+    /// </summary>
+    private void RestoreAssistScaleNow()
     {
+        _assistTargetScale = 1;
+        _assistTargetOpacity = 1;
+        AssistBar.CancelAnimations();    // 掐掉在途的缩小动画，否则它还会继续改 Scale
         AssistBar.Scale = 1;
         AssistBar.Opacity = 1;
     }
 
-    // ── 拖动（只在拖动区上拖，免得「想点按钮却把条子拖跑」）──
-
-    private void OnAssistPanUpdated(object? sender, PanUpdatedEventArgs e)
+    /// <summary>
+    /// 缩放 + 淡出，**带动画**（用户要求）。
+    ///
+    /// **支点在左上角**（`AssistBar.AnchorX/AnchorY = 0`，写在 XAML 里）：默认是围绕中心缩放，
+    /// 缩一次左上角就往右下跑一截、放大又跑回来 —— 用户的原话是「居中就会感觉拖动位置乱跑」。
+    /// 支在左上角则**位置一动不动、只改大小**，下次还能照着原位置去抓。
+    ///
+    /// 防重入比对的是**目标值**而不是当前值：拖动开始的每一帧都会调
+    /// <see cref="RestoreAssistScale"/>，若拿「当前 Scale」判（动画途中它在 0.72 与 1 之间），
+    /// 每一帧都会判定「还没到、再起一次动画」，几十个动画叠在一起就是抖动本身。
+    /// </summary>
+    private void AnimateAssist(double scale, double opacity)
     {
-        switch (e.StatusType)
-        {
-            case GestureStatus.Started:
-                _assistPanStartX = AssistBar.TranslationX;
-                _assistPanStartY = AssistBar.TranslationY;
-                AssistTouch();
-                break;
-            case GestureStatus.Running:
-                AssistBar.TranslationX = _assistPanStartX + e.TotalX;
-                AssistBar.TranslationY = _assistPanStartY + e.TotalY;
-                break;
-            case GestureStatus.Completed:
-            case GestureStatus.Canceled:
-                ClampAssistIntoView();
-                AssistTouch();
-                break;
-        }
+        if (Math.Abs(_assistTargetScale - scale) < 0.001 &&
+            Math.Abs(_assistTargetOpacity - opacity) < 0.001) return;
+
+        _assistTargetScale = scale;
+        _assistTargetOpacity = opacity;
+        _ = AssistBar.ScaleTo(scale, AssistAnimMs, Easing.CubicOut);
+        _ = AssistBar.FadeTo(opacity, AssistAnimMs, Easing.CubicOut);
     }
 
-    /// <summary>拖出屏幕就回不来（那条浮条没有别的入口）—— 松手时钳进可视区。</summary>
+    // ── 拖动（GraphicsView 原始触摸）──
+    //
+    // **为什么不用 PanGestureRecognizer**（真机实测，logcat tag WCAS，两次都量到了）：
+    // 它上报的 `TotalX` 是**两条各自有效、相差一个恒定偏移（~40~50 DIP）的流交替出现**——
+    // 手指快速拖动时是两条平滑轨迹在跳（各自都在正确地跟手），
+    // **程序化的匀速慢划（1200ms、纯注入、没有人手）同样是 ±39 的来回** ⇒ 与速度、与人手都无关。
+    // 成因是「两个各记各的起点的监听器」，而 `PanUpdatedEventArgs` 只有 TotalX/TotalY，
+    // **没有任何字段能把它们区分开** ⇒ 这条路修不动。
+    //
+    // 换成 `GraphicsView` 亲手接原始触摸：它是**绝对坐标**（不是「相对某个起点」），
+    // 所以天生免疫「起点不同」这类问题。画布的选区手柄走的就是这条路，
+    // 用户实测「手柄拖动不乱晃」—— 这是有对照的选择，不是猜的。
+
+    /// <summary>起手时手指在拖动面里的坐标（拖动面自己的坐标系）。</summary>
+    private PointF _assistGrabT0;
+
+    /// <summary>最近一次收到的手指坐标 —— 抬手那一刻用它判「点到了哪一格」。</summary>
+    private PointF _assistLastT;
+
+    /// <summary>手指是否已经越过门槛。没过 = 这次手势是**点击**，不是拖动。</summary>
+    private bool _assistGrabMoved;
+
+    /// <summary>起手点落在 ✕ 上 —— 用户指定「关闭那一格不可拖动」，整次手势都不拖。</summary>
+    private bool _assistGrabOnClose;
+
+    /// <summary>
+    /// 「算拖动」的位移门槛（DIP）。Android 自己的 touch slop 也是这个量级。
+    ///
+    /// 有它才能**同时**做到两件用户都要求的事：「点按钮就是点按钮」与「整条都能拖」——
+    /// 不看门槛的话，手指按上按钮那一瞬间的抖动就会被当成拖动，按钮再也点不准。
+    /// </summary>
+    private const double AssistDragSlop = 8;
+
+    private void OnAssistDragStart(object? sender, TouchEventArgs e)
+    {
+        if (e.Touches.Length == 0) return;
+        _assistGrabT0 = _assistLastT = e.Touches[0];
+        _assistGrabMoved = false;
+        _assistGrabOnClose = AssistCloseRect.Contains(_assistGrabT0.X, _assistGrabT0.Y);
+        TraceAssist($"GRAB t0=({_assistGrabT0.X:F0},{_assistGrabT0.Y:F0}) " +
+                    $"onClose={_assistGrabOnClose} bar=({AssistBar.TranslationX:F0},{AssistBar.TranslationY:F0})");
+    }
+
+    /// <summary>
+    /// 拖动面**自己会跟着条子一起动**，所以它报出来的坐标是「手指相对条子」的位置 ——
+    /// 直接拿它当位移会变成一个闭环（条子跟手 → 相对位置不变 → 不动）。
+    ///
+    /// 正确的形式是**每次把「当前偏移误差」补上去**：`T += (t − t₀)`。
+    /// 推导：设手指在父容器里的位置 F，条子位移 T，则 t = F − T（忽略常量），
+    /// t₀ = F₀ − T₀；代入得 T_new = T + (t − t₀) —— 每帧补一次，一帧就收敛（有一帧跟随延迟，看不出来）。
+    /// **不要**写成 `T = T₀ + (t − t₀)`（那是把误差当成绝对位移，手指一动条子就卡住不动了），
+    /// 也**不要**按纯增量 `T += (t − t_prev)`（那会退化成「动一帧停一帧」的半速抖动）。
+    ///
+    /// 拖动中**每次都钳进可视区**（不是只在松手时）：万一上面的推导不成立（比如平台某天改成
+    /// 报父容器坐标），闭环会退化成平方增长，钳位能让它「贴在边上」而不是飞出去，
+    /// 现场也还看得见，不至于变成「条子没了」。
+    /// </summary>
+    private void OnAssistDragMove(object? sender, TouchEventArgs e)
+    {
+        if (e.Touches.Length == 0) return;
+        var p = _assistLastT = e.Touches[0];
+        if (_assistGrabOnClose) return;      // ✕ 那一格：整次手势都不拖（点它照旧关闭）
+
+        if (!_assistGrabMoved)
+        {
+            if (Math.Abs(p.X - _assistGrabT0.X) < AssistDragSlop &&
+                Math.Abs(p.Y - _assistGrabT0.Y) < AssistDragSlop)
+                return;                      // 还没过门槛 —— 仍按点击处理
+            _assistGrabMoved = true;
+            BeginAssistDrag();               // 确定是拖动了，这时才置拖动态
+            TraceAssist($"→ 过门槛，进入拖动 t=({p.X:F0},{p.Y:F0})");
+        }
+
+        AssistBar.TranslationX += p.X - _assistGrabT0.X;
+        AssistBar.TranslationY += p.Y - _assistGrabT0.Y;
+        ClampAssistIntoView();
+    }
+
+    private void OnAssistDragEnd(object? sender, TouchEventArgs e)
+    {
+        if (_assistGrabMoved)
+        {
+            TraceAssist($"RELEASE bar=({AssistBar.TranslationX:F0},{AssistBar.TranslationY:F0})");
+            EndAssistDrag();
+            return;
+        }
+
+        // 没越过门槛 = 一次点击：**按坐标判定点到了哪一格**。
+        // 为什么由拖动面代派：按钮设了 `InputTransparent`（不设的话它们会吞掉触摸、
+        // 整条就只有 ⣿ 能拖），既然触摸到不了按钮，点击也就只能在这一层判。
+        // 判据只有 AssistHitTargets 一份，与按钮的实际位置同源（都取自 Bounds）。
+        foreach (var (rect, act) in AssistHitTargets())
+        {
+            if (!rect.Contains(_assistLastT.X, _assistLastT.Y)) continue;
+            TraceAssist($"TAP → {act.Method.Name}");
+            act();
+            return;
+        }
+        AssistTouch();      // 点在空白处：什么也不做，只把 10 秒收表重新起
+    }
+
+    /// <summary>
+    /// 某个子控件在**拖动面坐标系**里的矩形。
+    ///
+    /// 拖动面填满整条，按钮在它上层的 `AssistRow` 里 ⇒ 按钮的 `Bounds` 是相对那个布局的，
+    /// 加上布局自身的 `Bounds` 就落到拖动面的坐标系（两者是同一个 Grid 单元，原点相同）。
+    ///
+    /// ⚠ 用**布局坐标**而不是屏幕坐标是对的：闲置缩小（`Scale=0.72`）时整条带一个缩放变换，
+    /// 而平台会把触摸换算回子视图的**未缩放**坐标 —— 两边同源，所以缩放态下也不会判错格。
+    /// </summary>
+    private RectF RectInAssistRow(VisualElement child)
+    {
+        var row = AssistRow.Bounds;
+        var b = child.Bounds;
+        return new RectF((float)(row.X + b.X), (float)(row.Y + b.Y), (float)b.Width, (float)b.Height);
+    }
+
+    private RectF AssistCloseRect => RectInAssistRow(AssistCloseBtn);
+
+    /// <summary>
+    /// 「点到了哪一格 → 做什么」的**唯一一份**表。
+    /// 每个动作与按钮自己的 `Clicked` 处理器调**同一个 `AssistDo*` 方法**，别两边各写一遍。
+    /// </summary>
+    private IEnumerable<(RectF Rect, Action Fire)> AssistHitTargets()
+    {
+        yield return (RectInAssistRow(AssistBackspaceBtn), AssistDoBackspace);
+        yield return (RectInAssistRow(AssistTabBtn), AssistDoTab);
+        yield return (RectInAssistRow(AssistSymBtn), AssistDoSymbols);
+        yield return (RectInAssistRow(AssistOpBtn), AssistDoOperators);
+        yield return (RectInAssistRow(AssistKwBtn), AssistDoKeywords);
+        yield return (RectInAssistRow(AssistCloseBtn), AssistDoClose);
+    }
+
+    // ── 每一格「做什么」——按钮的 Clicked 与拖动面的坐标判定**共用这一份** ──
+
+    private void AssistDoBackspace() => AssistBackspaceAsync();
+
+    /// <summary>点空白处之外的分派入口；每个 `AssistDo*` 自己负责「有人在操作」的记账。</summary>
+    private void AssistDoTab() { AssistTouch(); AssistInsertAsync("\t"); }
+
+    private void AssistDoSymbols() { AssistTouch(); ShowAssistPopup(AssistSymbols, "符号"); }
+
+    private void AssistDoOperators() { AssistTouch(); ShowAssistPopup(AssistOperators, "运算符"); }
+
+    /// <summary>
+    /// 关键字表 —— **按当前语言自动填**：直接问 `Syntax.ForFile` 的 <c>Keywords</c>
+    /// （与语法高亮同一份词表），**不另立一张表**。认不出语言时用兜底表。
+    /// </summary>
+    private void AssistDoKeywords()
+    {
+        AssistTouch();
+        var kw = Canvas.SyntaxForFile?.Keywords;
+        if (kw is not { Count: > 0 })
+        {
+            ShowAssistPopup(AssistFallbackKeywords, "关键字");
+            return;
+        }
+
+        // 排序 = **先高频、再其余**，各自按字典序（用户要求「首页是高频关键字」）。
+        // ⚠ 匹配高频表必须**不区分大小写**：词表按各语言的书写惯例存
+        // （BASIC/Fortran 大写、别的语言小写），用区分大小写的比较会让 BASIC 的 IF 一个都排不到前面。
+        var rank = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (int i = 0; i < HotKeywords.Length; i++) rank.TryAdd(HotKeywords[i], i);
+
+        var hot = kw.Where(rank.ContainsKey).OrderBy(k => rank[k]).ToList();
+        var rest = kw.Where(k => !rank.ContainsKey(k)).OrderBy(k => k, StringComparer.Ordinal).ToList();
+
+        ShowAssistPopup([.. hot, .. rest], "关键字", hot.Count);
+    }
+
+    private void AssistDoClose() => CloseAssistBar();
+
+    /// <summary>诊断用（logcat tag <c>WCAS</c>）。拖动这条路刚换过机制，先留一行观察；
+    /// 真机验过之后连同三个调用点一起删。</summary>
+    private static void TraceAssist(string m)
+    {
+        // ⚠ 平台 API 必须带守卫：少了 `#if ANDROID`，`net10.0-ios` / Windows 上直接编不过，
+        // 而桌面构建全绿看不出来（本仓库踩过同款）。
+        // 走 Android 原生日志 —— `Console.WriteLine` 在这个 Release 构建里到不了 logcat。
+#if ANDROID
+        try { Android.Util.Log.Info("WCAS", m); } catch { }
+#endif
+    }
+
+    private void BeginAssistDrag()
+    {
+        _assistPanActive = true;
+        _assistDragging = true;
+
+        // 拖动期间**不碰 Scale/Opacity**：这两个属性会让容器重新测量，
+        // 而拖动每秒来几十上百次事件 —— 每帧重排就是「不顺滑」。
+        // 起手这一次用**无动画**版本（缩放动画会一边改坐标尺子一边跟手，见 RestoreAssistScaleNow）。
+        // 顺手把 10 秒的收表停掉：拖动中每次重置计时器本身也是白做的功。
+        RestoreAssistScaleNow();
+        _assistIdle?.Stop();
+    }
+
+    private void EndAssistDrag()
+    {
+        _assistPanActive = false;
+        _assistDragging = false;
+        ClampAssistIntoView();
+        AssistTouch();          // 松手才重新起 10 秒的收表
+    }
+
+    /// <summary>拖出屏幕就回不来（那条浮条没有别的入口）—— 拖动中与松手时都钳一次。</summary>
     private void ClampAssistIntoView()
     {
+        // ⚠ 宽度取**未缩放**的布局宽：`Scale` 只是绘制变换，钳位用的是布局几何。
         double w = AssistBar.Width > 0 ? AssistBar.Width : 220;
         double h = AssistBar.Height > 0 ? AssistBar.Height : 40;
         double maxX = Math.Max(0, Canvas.Width - w);
@@ -1722,56 +2022,124 @@ public partial class EditorPage : ContentPage
 
     // ── 分类表 ──
 
-    private void OnAssistTabClicked(object? sender, EventArgs e) { AssistTouch(); AssistInsertAsync("\t"); }
-
-    private void OnAssistSymbolsClicked(object? sender, EventArgs e)
-    {
-        AssistTouch();
-        ShowAssistPopup(AssistSymbols);
-    }
-
-    private void OnAssistOperatorsClicked(object? sender, EventArgs e)
-    {
-        AssistTouch();
-        ShowAssistPopup(AssistOperators);
-    }
+    // ⚠ 这几个 `Clicked` 处理器的接线**保留**（按钮虽然设了 `InputTransparent`、点击实际由
+    // 拖动面按坐标派发），理由是：万一哪天平台行为变了、透明不再生效，按钮还能自己工作 ——
+    // 而两边调的是**同一个 `AssistDo*`**，不存在「改一处忘另一处」。
+    private void OnAssistBackspaceClicked(object? sender, EventArgs e) => AssistDoBackspace();
 
     /// <summary>
-    /// 关键字表 —— **按当前语言自动填**：直接问 ``Syntax.ForFile`` 的 <c>Keywords</c>
-    /// （与语法高亮同一份词表），**不另立一张表**。认不出语言时用兜底表。
+    /// **自己实现的退格**（不依赖输入法）。
+    ///
+    /// 为什么需要：用户实测发现**部分输入法的退格只作用于它自己的联想词库、从不回调编辑框**
+    /// （症状：候选区随退格变化、文本一个字不动）。那种情况下 `InputConnection` 这条路
+    /// 根本够不着 —— 它压根不调用我们，拦也没得拦。应用只能自己给一个退格键。
+    ///
+    /// 语义与系统退格一致：有选区先删选区 → 行中删一个字符 → 行首与上一行合行。
+    /// 三条路都复用页面上已有的实现（与平台那条输入连接走的是同一批方法）。
     /// </summary>
-    private void OnAssistKeywordsClicked(object? sender, EventArgs e)
+    private async void AssistBackspaceAsync()
     {
         AssistTouch();
-        var kw = Canvas.SyntaxForFile?.Keywords;
-        var items = kw is { Count: > 0 }
-            ? kw.OrderBy(k => k, StringComparer.Ordinal).ToList()
-            : AssistFallbackKeywords.ToList();
-        ShowAssistPopup(items);
+        if (_editable == null) { ShowToast("大文件以只读方式打开，不能编辑"); return; }
+        if (_readOnly)
+        {
+            if (!_canEdit || _fileReadOnly) { ShowToast("这个文件不能编辑"); return; }
+            SetReadOnly(false);
+        }
+
+        if (DeleteSelectionCore()) return;   // 有可见选区 → 删选区
+
+        long line = Canvas.CaretLine > 0 ? Canvas.CaretLine : 1;
+        if (_editLine != line - 1)
+        {
+            BeginEditLine(line);
+            await Task.Delay(60);
+        }
+        if (_editLine < 0) { ShowToast("先点一下要编辑的那一行"); return; }
+
+        int at = Math.Clamp(LineEditor.CursorPosition, 0, (LineEditor.Text ?? "").Length);
+        if (at == 0)
+        {
+            JoinWithPreviousLine();          // 行首 → 与上一行合行
+            return;
+        }
+
+        // 行中：删掉光标前一个字符。
+        // ⚠ 按**码元**删会有代理对问题（emoji/CJK 扩展 B 是两个 char）—— 退格时要整个删掉，
+        // 不能只删半个。所以先判断是不是低位代理，是就多删一个。
+        var cur = LineEditor.Text ?? "";
+        int del = 1;
+        if (at >= 2 && char.IsLowSurrogate(cur[at - 1]) && char.IsHighSurrogate(cur[at - 2])) del = 2;
+
+        LineEditor.Text = cur[..(at - del)] + cur[at..];
+        LineEditor.CursorPosition = at - del;
+        Canvas.EditingCursor = at - del;
+        Canvas.EnsureCaretVisible();
     }
 
-    private void ShowAssistPopup(IReadOnlyList<string> items)
+    private void OnAssistTabClicked(object? sender, EventArgs e) => AssistDoTab();
+
+    private void OnAssistSymbolsClicked(object? sender, EventArgs e) => AssistDoSymbols();
+
+    private void OnAssistOperatorsClicked(object? sender, EventArgs e) => AssistDoOperators();
+
+    private void OnAssistKeywordsClicked(object? sender, EventArgs e) => AssistDoKeywords();
+
+    /// <summary>
+    /// 弹出分类表。
+    /// </summary>
+    /// <param name="items">格子内容，**前面 <paramref name="hotCount"/> 个是高频项**（底色更实）。</param>
+    /// <param name="owner">
+    /// 分类标签（「符号」/「运算符」/「关键字」）—— 用来判「再点一次同一个分类就收起」。
+    /// ⚠ 判据必须用**标签**而不是列表引用：关键字那一路每次都现排一个新 List，
+    /// 用 `== items` 比引用的话永远不相等，那个「再点一次收起」对它从来没生效过。
+    /// </param>
+    /// <param name="hotCount">高频项个数（0 = 不分档）。</param>
+    private void ShowAssistPopup(IReadOnlyList<string> items, string owner, int hotCount = 0)
     {
         // 再点同一个分类 = 收起（与「点一下按钮弹出、再点一下收回」的直觉一致）
-        if (AssistPopup.IsVisible && _assistPopupOwner == items)
+        if (AssistPopup.IsVisible && _assistPopupOwnerTag == owner)
         {
             HideAssistPopup();
             return;
         }
-        _assistPopupOwner = items;
+        _assistPopupOwnerTag = owner;
 
         AssistPopupItems.Clear();
-        foreach (var item in items)
+        for (int i = 0; i < items.Count; i++)
         {
+            string item = items[i];
+            // 尺寸按用户要求**整体缩到 3/4**（「给屏幕节省点空间」）：
+            // 字号 / 内边距 / 外边距 / **最小宽高** 一起缩。只缩其中一两项会立刻变形
+            // （只缩字号 → 按钮还是那么大、字变小了；只缩内边距 → 长短不一）。
+            // ⚠ `MinimumHeightRequest` 不能漏：App 的全局 Button 隐式样式把它钉在 44
+            // （`Resources/Styles/Styles.xaml:36`），不显式覆盖的话「缩到 3/4」只剩宽度生效、
+            // 高度还是 44 —— 看着**一点没变小**。
+            //
+            // 配色跟随系统主题（用户要求）：浅色主题下「白 20% 的底 + 白字」在白底上等于看不见，
+            // 所以浅色换成「黑 8% 的底 + 深色字」。这些格子是**每次打开弹表现建**的，
+            // 用 `IsDarkTheme` 现取即可 —— 不必像浮条本体那样挂 `AppThemeBinding`。
+            //
+            // 高频项底色**更实一档**（用户要「高频关键字一眼可见」）：不靠位置暗示，
+            // 因为一屏排下来「前几个」和「后面几个」看起来是一样的。
+            bool dark = IsDarkTheme;
+            bool hot = i < hotCount;
             var btn = new Button
             {
                 Text = item,
-                FontSize = 13,
-                Padding = new Thickness(10, 4),
-                Margin = new Thickness(2),
-                MinimumWidthRequest = 46,
-                BackgroundColor = Color.FromArgb("#33FFFFFF"),
-                TextColor = Colors.White,
+                FontSize = 10,
+                Padding = new Thickness(8, 2),
+                Margin = new Thickness(1.5),
+                MinimumWidthRequest = 34,
+                MinimumHeightRequest = 30,
+                BackgroundColor = (dark, hot) switch
+                {
+                    (true, true) => Color.FromArgb("#59FFFFFF"),
+                    (true, false) => Color.FromArgb("#33FFFFFF"),
+                    (false, true) => Color.FromArgb("#2E000000"),
+                    (false, false) => Color.FromArgb("#14000000"),
+                },
+                TextColor = dark ? Colors.White : Color.FromArgb("#1A1A1A"),
             };
             var captured = item;
             btn.Clicked += (_, _) => { HideAssistPopup(); AssistInsertAsync(captured); };
@@ -1783,13 +2151,21 @@ public partial class EditorPage : ContentPage
         PositionAssistPopup();
     }
 
-    private IReadOnlyList<string>? _assistPopupOwner;
+    /// <summary>当前弹表的分类标签（判「再点一次同一个分类就收起」，见 <see cref="ShowAssistPopup"/>）。</summary>
+    private string? _assistPopupOwnerTag;
 
     private void HideAssistPopup()
     {
         AssistPopup.IsVisible = false;
-        _assistPopupOwner = null;
+        _assistPopupOwnerTag = null;
     }
+
+    /// <summary>
+    /// 弹表高度上限（DIP）——**与 XAML 里 `AssistPopupScroll.MaximumHeightRequest` 必须一致**。
+    /// 只用在「量不出真实高度」的兜底分支上（量不出来是极小概率），但两处若漂开，
+    /// 兜底那天就会重现「弹表离浮条老远」的老毛病。
+    /// </summary>
+    private const double AssistPopupMaxHeight = 165;
 
     /// <summary>弹表紧贴浮条的**上方或下方** —— 哪边放得下放哪边（用户要求「下方或者上方」）。</summary>
     private void PositionAssistPopup()
@@ -1798,7 +2174,16 @@ public partial class EditorPage : ContentPage
         double barY = AssistBar.TranslationY;
         double barH = AssistBar.Height > 0 ? AssistBar.Height : 40;
         double popW = AssistPopup.WidthRequest > 0 ? AssistPopup.WidthRequest : 300;
-        double popH = 220;                       // 与 ScrollView 的 MaximumHeightRequest 一致（布局前量不到）
+
+        // 高度**量出来**，不要估。
+        // 原来这里写死 220（注释还写着「与 ScrollView 的 MaximumHeightRequest 一致」），
+        // 但那个上限后来调成了 165，而且真实高度取决于**排了几行** —— 符号二十来个、
+        // 关键字上百个，行数差好几倍。写死一个值的后果是**往上弹时离浮条老远**：
+        // 浮条在屏幕下方时 y = barY − 220 − 6，而弹表实际只有百来高，中间空出一大截
+        // （用户实测：「往上弹出的按键矩阵距离输入条有点远，错位了」）。
+        // `IView.Measure` 是同步的，还没上屏也能量出它要占多高。
+        double popH = ((IView)AssistPopup).Measure(popW, Math.Max(1, Canvas.Height)).Height;
+        if (popH <= 0) popH = AssistPopupMaxHeight;   // 量不出来才退回上限
 
         double x = Math.Clamp(barX, 4, Math.Max(4, Canvas.Width - popW - 4));
         double y = barY - popH - 6;              // 默认上方
@@ -1818,7 +2203,18 @@ public partial class EditorPage : ContentPage
     {
         AssistTouch();
         if (text.Length == 0) return;
-        if (_editable == null || _readOnly) { ShowToast("只读文件不能输入"); return; }
+
+        if (_editable == null) { ShowToast("大文件以只读方式打开，不能输入"); return; }
+        if (_readOnly)
+        {
+            // ⚠ 编辑器**打开时默认是只读**，所以原来那条「只读就拒绝」的守卫会让辅助条
+            // 在默认状态下**完全没反应**（只弹一句很容易没看见的 Toast）——用户实测报的就是这个。
+            // 辅助输入条本来就是**打字辅助**：点它就是要输入，不该先逼用户去按一下工具栏的 ✎。
+            // 这里隐式切到编辑态，与「点某一行就开始编辑」是同一个语义。
+            // 只有**真的改不了**的两种情形才拒绝（超可编辑上限 / 文件属性只读）。
+            if (!_canEdit || _fileReadOnly) { ShowToast("这个文件不能编辑"); return; }
+            SetReadOnly(false);
+        }
 
         long line = Canvas.CaretLine > 0 ? Canvas.CaretLine : 1;
         if (_editLine != line - 1)
@@ -1826,6 +2222,9 @@ public partial class EditorPage : ContentPage
             BeginEditLine(line);
             await Task.Delay(60);   // 等输入框就位（与 OnSelPasteClicked 同一个理由与同一个时长）
         }
+        // 到这一步还没进编辑态 ⇒ 说明上面哪一环没成。**别静默失败**：
+        // 「点了没反应」是手机上最难查的一类症状，这里直接把原因说出来。
+        if (_editLine < 0) { ShowToast("没能进入编辑态，先点一下要插入的那一行"); return; }
 
         int at = Math.Clamp(LineEditor.CursorPosition, 0, (LineEditor.Text ?? "").Length);
         var cur = LineEditor.Text ?? "";
@@ -1970,6 +2369,13 @@ public partial class EditorPage : ContentPage
         // 仍是 4 列宽；`MeasurePrefixWidth` / `CharIndexAtX` 也都先展开再映射，光标与点击同源。
         LineEditor.Text = text;
         _committing = false;
+#if ANDROID
+        // **程序化写完输入框文本之后，必须清掉输入法因此留下的残留组合区**。
+        // 不清的话它把自己当成「还在组合中」，此后把退格全吃在自己的缓冲里，
+        // 应用层一条回调都收不到 —— 真机 logcat 实测：按退格时只有 `OnCreateInputConnection`
+        // 一条日志，`DeleteSurroundingText` / `SendKeyEvent` 三条路一条都没触发。
+        if (LineEditor.Handler?.PlatformView is BackspaceAwareEditText bae) bae.ClearStaleComposing();
+#endif
 
         Canvas.EditingLine = oneBased;
         Canvas.EditingText = LineEditor.Text ?? "";
@@ -2372,14 +2778,21 @@ public partial class EditorPage : ContentPage
     {
         if (_editLine < 0 || _editable == null) return;
 
-        // Enter：提交当前行 → 下方插入空行 → 编辑器移到新行（比让 Entry 吞掉 Enter 更可控）
+        // Enter：**在光标处把这一行劈成两半**（左半留在原行、右半落到新行），编辑器移到新行。
+        //
+        // ⚠ 原来这里是无条件「下面插一个空行」，于是**光标跑到下一行、整行文字却一个字没动**
+        // （用户实测报的就是这个：「输入 one two，光标移到中间回车，光标下去了、单词还在同一行」）。
+        // 真正的编辑器回车是断行，不是「另起一行」。
         var text = CurrentEditedText();
         long line = _editLine;
-        var oldLine = _editLineStart;      // 同上：旧值不能在替换之后取
-        _editable.ReplaceRange(line, 1, [text]);
-        _history.Push(new EditOp(line, [oldLine], [text], 0, 0, Environment.TickCount64));
-        _editable.ReplaceRange(line + 1, 0, [""]);
-        _history.Push(new EditOp(line + 1, [], [""], 0, 0, Environment.TickCount64));
+        var oldLine = _editLineStart;      // 旧值不能在替换之后取
+        int at = Math.Clamp(LineEditor.CursorPosition, 0, text.Length);
+        var left = text[..at];
+        var right = text[at..];
+
+        // 一次「一行 → 两行」：撤销是一步（OldLines/NewLines 都不是单行 ⇒ CanMerge 天然为假）
+        _editable.ReplaceRange(line, 1, [left, right]);
+        _history.Push(new EditOp(line, [oldLine], [left, right], at, 0, Environment.TickCount64));
 
         _modified = true;
         _editLine = -1;
@@ -2387,7 +2800,12 @@ public partial class EditorPage : ContentPage
         Canvas.EditingText = null;
         LineEditor.IsVisible = false;
         Canvas.InvalidateAll();
-        BeginEditLine(line + 2);
+        BeginEditLine(line + 2);           // 1-based：新行是 (line+1)，即第 line+2 行
+        // 光标落在新行**开头**（右半段的第一个字符前）—— 这才是「在这里断行」的语义。
+        // 不显式设的话 BeginEditLine 会按默认的 xInLine=-1 去猜一个列。
+        LineEditor.CursorPosition = 0;
+        Canvas.EditingCursor = 0;
+        Canvas.EnsureCaretVisible();
     }
 
     private void OnLineEditorUnfocused(object? sender, FocusEventArgs e)

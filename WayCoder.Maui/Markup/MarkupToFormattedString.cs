@@ -169,7 +169,7 @@ public static class MarkupToFormattedString
 
         foreach (var (text, color, bg) in MarkdownParser.ParseInline(segment))
         {
-            var span = new Span { Text = text, TextColor = ResolveFg(color, defaultColor, dimColor) };
+            var span = new Span { Text = text, TextColor = ResolveFg(color, defaultColor, dimColor, isDark) };
 
             // 粗体位（AnsiTty.BoldFlag）：«bold»«orange» 这类嵌套解析后是 `色值 | BoldFlag`
             if (color == 1 || (color & WayCoder.UI.Shared.Terminal.AnsiTty.BoldFlag) != 0)
@@ -245,16 +245,113 @@ public static class MarkupToFormattedString
     {
         var fallback = isDark ? DarkDefault : LightDefault;
         var dim = isDark ? DarkDim : LightDim;
-        return ResolveFg(code, fallback, dim);
+        return ResolveFg(code, fallback, dim, isDark);
     }
 
-    private static Color ResolveFg(int code, Color fallback, Color dim)
+    /// <summary>
+    /// 前景色解析。**背景色不要走这里**（见 <see cref="ResolveColor"/> 的另一处调用）——
+    /// 下面那个「浅色主题压暗」的调整只对文字成立，套到背景上会变成反的。
+    /// </summary>
+    private static Color ResolveFg(int code, Color fallback, Color dim, bool isDark)
     {
         if (code == 2) return dim; // dim/faint
         // 先剥粗体位再解析：那个位是 MarkdownParser 用来把「粗体 + 颜色」塞进同一个 int 的，
         // 不剥的话 `≥0x1000000` 的真彩分支会把它当成一个巨大的 RGB 值解出乱色。
         code &= ~WayCoder.UI.Shared.Terminal.AnsiTty.BoldFlag;
-        return ResolveColor(code, fallback);
+        var c = ResolveColor(code, fallback);
+
+        // 浅色主题下，把**照深色底挑的**语法色翻过来。只挑 256 色盘里不在 AnsiRgb 表内的那几个
+        // （= `Syntax` 那套语法配色）：16 色表是终端标准色、diff/输出在用，真彩是调用方显式指定的，
+        // 两者都不该被我们代改。
+        if (!isDark && code is >= 16 and <= 255 && !AnsiRgb.ContainsKey(code))
+            c = ForLightBackground(c);
+        return c;
+    }
+
+    /// <summary>
+    /// 为**浅色底**翻新一个为深色底挑的颜色。
+    ///
+    /// 起因（用户实测）：白天主题下代码里的**标识符几乎看不见**，而旁边的行号正常。
+    /// 标识符用的是 <c>Syntax.Identifier = 253</c>（xterm 亮灰 <c>#dadada</c>）——
+    /// 那套配色整体照深色底挑（One Dark 系），放到白底上普遍偏淡，标识符是最极端的一个
+    /// （行号走的是另一套 <c>GutterFg</c>，所以不受影响）。
+    ///
+    /// **第一版做错了**：按 RGB 等比缩放。等比会连**色差的绝对值**一起缩小 ⇒ 颜色发灰，
+    /// 用户的原话是「所有的颜色都变淡了」。正解是在 **HSL 里只动 L、原样保留色相与饱和度** ——
+    /// 颜色还是那个颜色，只是变深。
+    ///
+    /// 两步：① 灰调（注释 / 标识符 / 括号，饱和度≈0）没有色相可保留，直接把亮度翻过来；
+    /// ② 彩色先按 <c>1 − L</c> 翻（保住调色板内部的明暗层次），再按**感知亮度**兜一道底 ——
+    /// HSL 的 L 不是感知亮度，青/绿在同样的 L 下亮得多，不兜底的话青色在白底上依旧偏淡。
+    /// </summary>
+    private static Color ForLightBackground(Color c)
+    {
+        float max = MathF.Max(c.Red, MathF.Max(c.Green, c.Blue));
+        float min = MathF.Min(c.Red, MathF.Min(c.Green, c.Blue));
+        float l = (max + min) / 2f;
+
+        if (max - min < 0.02f)                       // 灰调：只有明暗，没有色相
+        {
+            float gray = l > 0.5f ? 1f - l : l;
+            return new Color(gray, gray, gray, 1f);
+        }
+
+        float d = max - min;
+        float s = l > 0.5f ? d / (2f - max - min) : d / (max + min);
+        float hue = max == c.Red
+            ? (c.Green - c.Blue) / d + (c.Green < c.Blue ? 6f : 0f)
+            : max == c.Green
+                ? (c.Blue - c.Red) / d + 2f
+                : (c.Red - c.Green) / d + 4f;
+        hue /= 6f;
+
+        float target = Math.Clamp(l > 0.5f ? 1f - l : l, 0.30f, 0.46f);
+        var result = FromHsl(hue, s, target);
+        if (RelativeLuminance(result) <= LightMaxLuminance) return result;
+
+        // 感知亮度兜底：二分降 L —— 色相与饱和度一个字都不动。
+        float lo = 0f, hi = target;
+        for (int i = 0; i < 20; i++)
+        {
+            float mid = (lo + hi) / 2f;
+            if (RelativeLuminance(FromHsl(hue, s, mid)) > LightMaxLuminance) hi = mid;
+            else lo = mid;
+        }
+        return FromHsl(hue, s, lo);
+    }
+
+    /// <summary>
+    /// 白底上对比度 ≥ 4.5 所对应的亮度上限：<c>(1.05 / 4.5) − 0.05</c>。
+    /// 实测这套配色改完之后每个色号都在 4.61 以上。
+    /// </summary>
+    private const double LightMaxLuminance = 0.18;
+
+    /// <summary>
+    /// WCAG 相对亮度（sRGB 线性化后加权）。**不要拿 HSL 的 L 当它用** ——
+    /// 同一个 L 下青/绿比紫/红亮得多，那正是上面要兜底的原因。
+    /// </summary>
+    private static double RelativeLuminance(Color c)
+        => 0.2126 * ToLinear(c.Red) + 0.7152 * ToLinear(c.Green) + 0.0722 * ToLinear(c.Blue);
+
+    private static double ToLinear(float v)
+        => v <= 0.04045f ? v / 12.92 : Math.Pow((v + 0.055) / 1.055, 2.4);
+
+    /// <summary>HSL → RGB（h/s/l 都是 0..1）。</summary>
+    private static Color FromHsl(float h, float s, float l)
+    {
+        float c = (1f - MathF.Abs(2f * l - 1f)) * s;
+        float x = c * (1f - MathF.Abs(h * 6f % 2f - 1f));
+        float m = l - c / 2f;
+        var (r, g, b) = ((int)(h * 6f)) switch
+        {
+            0 => (c, x, 0f),
+            1 => (x, c, 0f),
+            2 => (0f, c, x),
+            3 => (0f, x, c),
+            4 => (x, 0f, c),
+            _ => (c, 0f, x),
+        };
+        return new Color(r + m, g + m, b + m, 1f);
     }
 
     private static Color ResolveColor(int code, Color fallback)

@@ -46,6 +46,18 @@ internal static class VmlDiagnostics
         RegexOptions.Compiled);
 
     /// <summary>
+    /// ④ 英文尾缀：<c>Expected SEMICOLON but got IDENTIFIER ('tm_t') at line 112:</c>
+    ///
+    /// 出处：C/C++ 前端那条英文报错路（真机上在 `.cpp` 文件里撞见的）。
+    /// 位置在句**尾**而不是开头，所以前面三条规则都匹配不到 —— 症状是气泡显示「（无位置）」、
+    /// 指不到行上，而消息里其实明明白白写着 `at line 112`。
+    /// 列号可有可无（有的写 `at line 112, column 5`）。
+    /// </summary>
+    private static readonly Regex AtLineRx = new(
+        @"\bat\s+line\s+(\d+)(?:\s*,\s*(?:column|col)\s+(\d+))?",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    /// <summary>
     /// 解析报错文本。返回的列表**至少有一条**（解析不出位置时给一条无锚诊断），
     /// 除非传进来的本来就是空/纯空白。
     /// </summary>
@@ -76,6 +88,17 @@ internal static class VmlDiagnostics
                 list.Add(new Diagnostic(line, col, Severity.Error, msg, null));
                 return list;
             }
+        }
+
+        // ④ 英文尾缀 `… at line 112:`（位置在句尾，前三条都匹配不到）
+        var at = AtLineRx.Match(text);
+        if (at.Success)
+        {
+            int line = ParseInt(at.Groups[1].Value);
+            int col = at.Groups[2].Success ? ParseInt(at.Groups[2].Value) : 0;
+            var msg = FirstLine(text);
+            list.Add(new Diagnostic(line, col, Severity.Error, msg, null));
+            return list;
         }
 
         // 完全没有位置信息（汇编阶段的「未知指令」、标准库路径不对、超时…）——

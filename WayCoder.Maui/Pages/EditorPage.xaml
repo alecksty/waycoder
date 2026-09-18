@@ -13,6 +13,38 @@
          用户实测反馈「菜单按钮往上挪一行」——原来它和文件名挤在同一行、且方块比标题栏还高，
          视觉上像是压在工具条那一行上。放进 ToolbarItems 就是 Android 标准的动作栏位置，
          同时也把「文件名」那一行整行让给文件名（长路径不再被按钮挤掉）。 -->
+    <ContentPage.Resources>
+        <!-- 辅助输入条上的格子按钮 —— 六个格子共用这一份样式。
+             收成样式有两个理由：① 颜色原先在五个按钮上各写一遍，改主题要改五处；
+             ② 跟随系统主题只能靠 `AppThemeBinding`（它会在系统切换时**自动**更新，
+             而「开浮条时算一次颜色」只会在下次打开时才变）—— 放一处才收得住。
+             ⚠ 浅色主题下别用纯白底：代码底本身就是白的，浮条会「浮不起来」，
+             所以给一个比行号栏（#F2F2F4）再深一点的浅灰。 -->
+        <Style x:Key="AssistChip" TargetType="Button">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="BackgroundColor" Value="Transparent" />
+            <Setter Property="InputTransparent" Value="True" />
+            <Setter Property="TextColor" Value="{AppThemeBinding Light=#1A1A1A, Dark=#FFFFFF}" />
+        </Style>
+
+        <!-- 选区操作条与运行面板的按钮 —— 与 AssistChip 同样是「跟随主题」，区别只有
+             它们**要能点**（不带 InputTransparent）与内外边距不同。
+             浮层底色统一用 `FloatBg` 那一对值，三处保持一致。 -->
+        <Style x:Key="SelChip" TargetType="Button">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="10,4" />
+            <Setter Property="BackgroundColor" Value="Transparent" />
+            <Setter Property="TextColor" Value="{AppThemeBinding Light=#1A1A1A, Dark=#FFFFFF}" />
+        </Style>
+        <Style x:Key="PanelChip" TargetType="Button">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="12,6" />
+            <Setter Property="BackgroundColor" Value="Transparent" />
+            <Setter Property="TextColor" Value="{AppThemeBinding Light=#1A1A1A, Dark=#FFFFFF}" />
+        </Style>
+    </ContentPage.Resources>
+
     <ContentPage.ToolbarItems>
         <!-- ⚠ 必须显式接 Clicked：加了按钮却忘了接线 = 点了没反应（用户实测「没看到菜单」） -->
         <ToolbarItem Text="☰" Order="Primary" Priority="0"
@@ -43,7 +75,7 @@
              第 5 格是**变形**的：Markdown → 👁 预览，VML 能编译/汇编/装载的源码 → ▶ 运行，
              其它（.txt/.json/未知扩展名）→ 整格隐藏。图标与可见性由 ApplyActionButton 统一设，
              判据只有 ActionForCurrentFile 一处（全屏浮层那个按钮同源）。 -->
-        <Grid x:Name="ToolRow" Grid.Row="1" ColumnDefinitions="*,*,*,*,*,*,*" Padding="8,2" ColumnSpacing="4">
+        <Grid x:Name="ToolRow" Grid.Row="1" ColumnDefinitions="*,*,*,*,*,*,*,*" Padding="8,2" ColumnSpacing="4">
             <ImageButton
                 x:Name="UndoBtn"
                 Source="icon_undo.png"
@@ -99,6 +131,17 @@
                 Padding="8"
                 Clicked="OnSaveClicked"
                 SemanticProperties.Hint="保存" />
+            <!-- 辅助输入条开关 —— 用户要求放工具栏（去 ☰ 菜单里找不方便）。
+                 图标带**状态**：开着时高亮，一眼能看出它是开是关。 -->
+            <ImageButton
+                x:Name="AssistBtn"
+                Grid.Column="7"
+                Source="icon_assist.png"
+                BackgroundColor="Transparent"
+                Padding="8"
+                Opacity="0.45"
+                Clicked="OnAssistToggleClicked"
+                SemanticProperties.Hint="辅助输入条" />
         </Grid>
 
         <!-- 内容区：自绘画布 + 浮动的单行输入 + Markdown 预览。
@@ -183,21 +226,22 @@
                     HorizontalOptions="Start"
                     Padding="2"
                     StrokeThickness="0"
-                    BackgroundColor="#EE2C2C2E">
+                    BackgroundColor="{AppThemeBinding Light=#EEF0F0F3, Dark=#EE2C2C2E}">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="8" />
                 </Border.StrokeShape>
                 <HorizontalStackLayout Spacing="0">
-                    <Button x:Name="SelCopyBtn" Text="复制" Clicked="OnSelCopyClicked"
-                            BackgroundColor="Transparent" TextColor="#FFFFFF" FontSize="13" Padding="10,4" />
-                    <Button x:Name="SelDeleteBtn" Text="删除" Clicked="OnSelDeleteClicked"
-                            BackgroundColor="Transparent" TextColor="#FFFFFF" FontSize="13" Padding="10,4" />
-                    <Button x:Name="SelAllBtn" Text="全选" Clicked="OnSelAllClicked"
-                            BackgroundColor="Transparent" TextColor="#FFFFFF" FontSize="13" Padding="10,4" />
-                    <Button x:Name="SelPasteBtn" Text="粘贴" Clicked="OnSelPasteClicked"
-                            BackgroundColor="Transparent" TextColor="#FFFFFF" FontSize="13" Padding="10,4" />
-                    <Button x:Name="SelCloseBtn" Text="✕" Clicked="OnSelCloseClicked"
-                            BackgroundColor="Transparent" TextColor="#FFFFFF" FontSize="13" Padding="10,4" />
+                    <Button x:Name="SelCopyBtn" Text="复制" Style="{StaticResource SelChip}"
+                            Clicked="OnSelCopyClicked" />
+                    <Button x:Name="SelDeleteBtn" Text="删除" Style="{StaticResource SelChip}"
+                            Clicked="OnSelDeleteClicked" />
+                    <Button x:Name="SelAllBtn" Text="全选" Style="{StaticResource SelChip}"
+                            Clicked="OnSelAllClicked" />
+                    <Button x:Name="SelPasteBtn" Text="粘贴" Style="{StaticResource SelChip}"
+                            Clicked="OnSelPasteClicked" />
+                    <Button x:Name="SelCloseBtn" Text="✕" Style="{StaticResource SelChip}"
+                            TextColor="{AppThemeBinding Light=#8A8A8E, Dark=#FFFFFF}"
+                            Clicked="OnSelCloseClicked" />
                 </HorizontalStackLayout>
             </Border>
 
@@ -224,21 +268,20 @@
                   IsVisible="False"
                   ZIndex="23"
                   VerticalOptions="End"
-                  BackgroundColor="#F21A1A1E"
+                  BackgroundColor="{AppThemeBinding Light=#F2F0F0F3, Dark=#F21A1A1E}"
                   RowDefinitions="Auto,*"
                   HeightRequest="220">
                 <HorizontalStackLayout Grid.Row="0" Spacing="0" Padding="4,2">
-                    <Button x:Name="PanelTabErrors" Text="错误列表" FontSize="12" Padding="12,6"
-                            BackgroundColor="Transparent" TextColor="#FFFFFF"
+                    <Button x:Name="PanelTabErrors" Text="错误列表" Style="{StaticResource PanelChip}"
                             Clicked="OnPanelTabErrorsClicked" />
-                    <Button x:Name="PanelTabOutput" Text="输出" FontSize="12" Padding="12,6"
-                            BackgroundColor="Transparent" TextColor="#999999"
+                    <Button x:Name="PanelTabOutput" Text="输出" Style="{StaticResource PanelChip}"
+                            TextColor="{AppThemeBinding Light=#8A8A8E, Dark=#999999}"
                             Clicked="OnPanelTabOutputClicked" />
-                    <Button x:Name="PanelStopBtn" Text="■ 停止" FontSize="12" Padding="12,6"
-                            BackgroundColor="Transparent" TextColor="#FF7B72"
+                    <Button x:Name="PanelStopBtn" Text="■ 停止" Style="{StaticResource PanelChip}"
+                            TextColor="#FF7B72"
                             IsVisible="False" Clicked="OnPanelStopClicked" />
-                    <Button x:Name="PanelCloseBtn" Text="✕" FontSize="12" Padding="12,6"
-                            BackgroundColor="Transparent" TextColor="#999999"
+                    <Button x:Name="PanelCloseBtn" Text="✕" Style="{StaticResource PanelChip}"
+                            TextColor="{AppThemeBinding Light=#8A8A8E, Dark=#999999}"
                             Clicked="OnPanelCloseClicked" />
                 </HorizontalStackLayout>
 
@@ -250,7 +293,8 @@
                 <!-- 输出：程序写到控制台的东西（含运行时崩溃的寄存器 dump） -->
                 <ScrollView Grid.Row="1" x:Name="PanelOutputScroll" IsVisible="False">
                     <VerticalStackLayout Padding="8,2" Spacing="6">
-                        <Label x:Name="PanelOutputText" FontSize="11" TextColor="#DDDDDD"
+                        <Label x:Name="PanelOutputText" FontSize="11"
+                               TextColor="{AppThemeBinding Light=#1A1A1A, Dark=#DDDDDD}"
                                LineBreakMode="WordWrap" />
                         <!-- stdin 输入行：只在程序真的读输入时亮出来（与命令行页同一个语义） -->
                         <Grid x:Name="PanelStdinRow" IsVisible="False" ColumnDefinitions="*,Auto" ColumnSpacing="6">
@@ -275,34 +319,88 @@
                   VerticalOptions="Start"
                   Padding="1"
                   StrokeThickness="0"
-                  BackgroundColor="#F22C2C2E">
+                  BackgroundColor="{AppThemeBinding Light=#E9E9EE, Dark=#F22C2C2E}"
+                  AnchorX="0"
+                  AnchorY="0">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="10" />
                 </Border.StrokeShape>
-                <HorizontalStackLayout Spacing="0">
-                    <Button x:Name="AssistTabBtn" Text="TAB" FontSize="12" Padding="10,6"
-                            BackgroundColor="Transparent" TextColor="#FFFFFF"
-                            Clicked="OnAssistTabClicked" />
-                    <Button x:Name="AssistSymBtn" Text="符号" FontSize="12" Padding="10,6"
-                            BackgroundColor="Transparent" TextColor="#FFFFFF"
-                            Clicked="OnAssistSymbolsClicked" />
-                    <Button x:Name="AssistOpBtn" Text="运算符" FontSize="12" Padding="10,6"
-                            BackgroundColor="Transparent" TextColor="#FFFFFF"
-                            Clicked="OnAssistOperatorsClicked" />
-                    <Button x:Name="AssistKwBtn" Text="关键字" FontSize="12" Padding="10,6"
-                            BackgroundColor="Transparent" TextColor="#FFFFFF"
-                            Clicked="OnAssistKeywordsClicked" />
-                    <!-- 拖动区：只在这一小块上拖，免得「想点按钮却把条子拖跑了」 -->
-                    <Label x:Name="AssistDragHandle" Text="⣿" FontSize="14" Padding="10,4"
-                           TextColor="#999999" VerticalTextAlignment="Center">
-                        <Label.GestureRecognizers>
-                            <PanGestureRecognizer PanUpdated="OnAssistPanUpdated" />
-                        </Label.GestureRecognizers>
-                    </Label>
-                    <Button x:Name="AssistCloseBtn" Text="✕" FontSize="12" Padding="10,6"
-                            BackgroundColor="Transparent" TextColor="#999999"
-                            Clicked="OnAssistCloseClicked" />
-                </HorizontalStackLayout>
+                <!-- 拖动区：**一个填满整条、声明在最底下的 GraphicsView**。
+                     为什么不是 PanGestureRecognizer —— 真机实测（logcat tag WCAS）：
+                     那条路上报的 TotalX 是**两条各自有效、相差一个恒定偏移的流**交替出现
+                     （慢速匀速的程序化滑动也是 ±39 来回，与速度无关），
+                     而 PanUpdatedEventArgs 只有 TotalX/TotalY，没有任何字段能区分它们。
+                     换 GraphicsView 亲手接原始触摸 —— 画布的选区手柄走的正是这条路，
+                     用户实测「手柄拖动不乱晃」，这是有对照的选择。
+
+                     为什么垫在最底下还能收到触摸：Android 的 ViewGroup 分发是
+                     「从最上层子元素往下找，**谁不消费就继续找下一个**」。
+                     按钮 clickable=true 会消费 → 点击归按钮；⣿ 与内边距没人消费
+                     → 落到这一层。所以**可拖区域 = 整条减去按钮**，与今天实测到的
+                     可达范围一致（实测：从按钮起划，pan 事件 0 个 —— 按钮上从来就拖不动）。 -->
+                <Grid>
+                    <!-- ⚠ 必须是 AssistDragSurface 而不是裸 GraphicsView：后者配上 `Fill`
+                         会把期望尺寸报成「可用空间的全部」，把整条 Border 撑成近全屏。 -->
+                    <ctl:AssistDragSurface x:Name="AssistDrag"
+                                           HorizontalOptions="Fill"
+                                           VerticalOptions="Fill" />
+                    <HorizontalStackLayout x:Name="AssistRow" Spacing="0">
+                        <!-- 拖动区放**最左边**（用户要求）：原先它紧挨着右边的 ✕，
+                             手指想拖条子时很容易滑到关闭上、一不小心就把浮条关了。
+                             它现在只是个**视觉提示** —— 真正的拖动面是下面那层 GraphicsView。 -->
+                        <Label x:Name="AssistDragHandle" Text="⣿" FontSize="14" Padding="12,4"
+                               TextColor="{AppThemeBinding Light=#8A8A8E, Dark=#999999}"
+                               VerticalTextAlignment="Center" />
+                        <!-- ⚠ 这六个按钮用的 `AssistChip` 样式里带 `InputTransparent="True"` ——
+                             用户要求「只有关闭按钮位置不可拖动，其他地方都应该能拖动」。
+                             Button 是 clickable，会**消费掉触摸**（实测：从按钮起划，pan 事件 0 个），
+                             于是底下那层拖动面永远收不到 —— 调到透明后触摸穿到拖动面，
+                             按钮的「点击」由拖动面在 `EndInteraction` 里**按坐标判定**后派发
+                             （见 EditorPage.xaml.cs 的 AssistHitTargets）。
+                             ⚠ 与它们配套的是 `AssistRow`：布局本身不消费，子元素透明后就整条可拖。
+                             ⚠ 弹表里的按钮**不受影响**（那是另一棵树、另一组按钮）。 -->
+                        <Button x:Name="AssistTabBtn" Text="TAB" Style="{StaticResource AssistChip}"
+                                Clicked="OnAssistTabClicked" />
+                        <Button x:Name="AssistSymBtn" Text="符号" Style="{StaticResource AssistChip}"
+                                Clicked="OnAssistSymbolsClicked" />
+                        <Button x:Name="AssistOpBtn" Text="运算符" Style="{StaticResource AssistChip}"
+                                Clicked="OnAssistOperatorsClicked" />
+                        <Button x:Name="AssistKwBtn" Text="关键字" Style="{StaticResource AssistChip}"
+                                Clicked="OnAssistKeywordsClicked" />
+                        <!-- 退格 —— **不依赖输入法**的自己实现。
+                             起因（用户实测发现）：**部分输入法的退格只作用于它自己的联想词库，
+                             从不回调编辑框**，于是「候选区在变、文本一个字不动」。
+                             那种情况下平台输入连接这条路根本够不着（它不调用我们），
+                             只能由应用提供一个自己的退格键。
+                             ⚠ 它排在**最右边、紧挨 ✕**（用户要求）：左边那条是抓握/拖动区，
+                             退格杵在那里时「想拖条子」很容易顺手删掉一个字。右边是低频区。 -->
+                        <!-- ⚠ 这两格（⌫ / ✕）**单独收小、并且去掉外框**（用户要求：大了容易误触）。
+                             必须显式给宽高与 `MinimumHeightRequest` —— App 的全局 Button 隐式样式
+                             设了 `BorderWidth=1` 与 `MinimumHeight/WidthRequest=44`
+                             （`Resources/Styles/Styles.xaml:33-37`），只改 `Padding`/`FontSize` 是**压不下去**的，
+                             点击区（命中判定直接取 `Bounds`）照样是 44×44。
+                             `VerticalOptions=Center` 也是必需的：不写就会被拉满整行高度。 -->
+                        <Button x:Name="AssistBackspaceBtn" Text="⌫"
+                                Style="{StaticResource AssistChip}"
+                                FontSize="12" Padding="0"
+                                WidthRequest="34" HeightRequest="28"
+                                MinimumWidthRequest="34" MinimumHeightRequest="28"
+                                VerticalOptions="Center"
+                                BorderWidth="0"
+                                Clicked="OnAssistBackspaceClicked" />
+                        <!-- ✕ 是**唯一不可拖动**的一格（用户指定）：它照旧只关闭浮条，
+                             手指落在它上面时不进入拖动 —— 见 AssistCloseRect 的用法。 -->
+                        <Button x:Name="AssistCloseBtn" Text="✕"
+                                Style="{StaticResource AssistChip}"
+                                FontSize="12" Padding="0"
+                                WidthRequest="28" HeightRequest="28"
+                                MinimumWidthRequest="28" MinimumHeightRequest="28"
+                                VerticalOptions="Center"
+                                BorderWidth="0"
+                                TextColor="{AppThemeBinding Light=#8A8A8E, Dark=#999999}"
+                                Clicked="OnAssistCloseClicked" />
+                    </HorizontalStackLayout>
+                </Grid>
             </Border>
 
             <!-- 弹出表：紧贴条的**上方或下方**（哪边放得下放哪边），内容可滚动 -->
@@ -312,13 +410,22 @@
                     HorizontalOptions="Start"
                     VerticalOptions="Start"
                     StrokeThickness="0"
-                    BackgroundColor="#F22C2C2E"
+                    BackgroundColor="{AppThemeBinding Light=#E9E9EE, Dark=#F22C2C2E}"
                     Padding="6">
                 <Border.StrokeShape>
                     <RoundRectangle CornerRadius="10" />
                 </Border.StrokeShape>
-                <ScrollView x:Name="AssistPopupScroll" MaximumHeightRequest="220">
-                    <FlexLayout x:Name="AssistPopupItems" Wrap="Wrap" Direction="Row" />
+                <!-- 高度上限与按钮尺寸同源缩放（按钮缩到 3/4 ⇒ 220×0.75=165）：
+                     只缩按钮不缩这个上限的话，弹表还是占那么大一块，白缩。 -->
+                <ScrollView x:Name="AssistPopupScroll" MaximumHeightRequest="165">
+                    <!-- ⚠ `AlignContent="Start"` 不能省：它的默认值是 `Stretch`，
+                         意思是「把这些**行**拉伸去填满容器高度」。于是格子的高度取决于
+                         **排了几行** —— 符号二十来项行少、每行被拉得很高，运算符三十来项
+                         行多、每行本来就接近自然高度，两边看着就不一样
+                         （用户实测：「运算符的按钮大小正确，符号按钮的高度大了」）。
+                         `AlignItems="Center"` 让同一行里高矮不同的格子仍然居中对齐。 -->
+                    <FlexLayout x:Name="AssistPopupItems" Wrap="Wrap" Direction="Row"
+                                AlignContent="Start" AlignItems="Center" />
                 </ScrollView>
             </Border>
 

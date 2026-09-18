@@ -323,8 +323,8 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     ///
     /// ⚠ 必须**连行缓存一起清**：缓存里的每个段都烘进了当时的配色（<c>BuildLineRuns</c> 按
     /// <c>_isDark</c> 取色），只 <c>Invalidate()</c> 的话正文会保留旧主题的颜色直到缓存被淘汰。
-    /// 目前主题是在 <see cref="SetDocument"/> 时一次性传进来的（那条路本来就会清缓存），
-    /// 所以这个方法是给「运行中切主题」预留的 —— 保持它自身正确，别留成陷阱。
+    /// 由 `EditorPage.OnAppThemeChanged` 在系统主题切换时调用（那是**唯一**的另一条路 ——
+    /// <see cref="SetDocument"/> 是打开文件时那一条）。
     /// </summary>
     public void SetDark(bool isDark)
     {
