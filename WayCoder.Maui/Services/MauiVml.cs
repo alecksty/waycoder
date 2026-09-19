@@ -424,17 +424,41 @@ HALT
             autoLinkStdLib: true, useSharedLibrary: true), ct);
 
         string vmlText;
+        // **编译期的 stderr 也要接住** —— 此前只接了运行期（`RunProgram` 那段），
+        // 于是前端在编译阶段写的诊断（未使用符号警告之类）在手机上**全部落进虚空**：
+        // MAUI 没有可见控制台，`Console.Error` 就是一条看不见的流。
+        // 症状不是"报错"，是"功能明明做了、用户永远看不到"。
+        //
+        // 与运行期那段同一个闸门、同一套理由：`Console.SetError` 是**进程级**的，
+        // 收进来的内容**并进结果**而不是丢掉（只多不少）。代价是这把锁要持有一两分钟
+        // （编译本身就那么久），但 VML 工具是 Exclusive、ShellPage 另有 `_busy` 闸门，
+        // 正常不会与运行期的捕获并发。
+        string compileDiag = "";
         try
         {
-            if (!compile.Wait(TimeSpan.FromSeconds(CompileTimeoutSeconds), ct))
+            lock (ConsoleRedirectGate)
             {
-                // 早退之后这个 Task 没人 await：挂个空的续体把异常吃掉，
-                // 否则它最终抛出来会变成"未观察的任务异常"（只在日志里，看不出是谁）。
-                _ = compile.ContinueWith(static t => _ = t.Exception, TaskScheduler.Default);
-                return Fail(lang, $"⚠️ 编译超时（{CompileTimeoutSeconds} 秒）—— 多半是源码里有让前端编译器"
-                    + "卡住的写法。编译线程还在后台跑，建议改完源码再试；实在不行退出 App 重来。");
+                var prevErr = Console.Error;
+                var errSink = new StringWriter();
+                try
+                {
+                    Console.SetError(errSink);
+                    if (!compile.Wait(TimeSpan.FromSeconds(CompileTimeoutSeconds), ct))
+                    {
+                        // 早退之后这个 Task 没人 await：挂个空的续体把异常吃掉，
+                        // 否则它最终抛出来会变成"未观察的任务异常"（只在日志里，看不出是谁）。
+                        _ = compile.ContinueWith(static t => _ = t.Exception, TaskScheduler.Default);
+                        return Fail(lang, $"⚠️ 编译超时（{CompileTimeoutSeconds} 秒）—— 多半是源码里有让前端编译器"
+                            + "卡住的写法。编译线程还在后台跑，建议改完源码再试；实在不行退出 App 重来。");
+                    }
+                    vmlText = compile.Result;
+                }
+                finally
+                {
+                    Console.SetError(prevErr);
+                    compileDiag = errSink.ToString();
+                }
             }
-            vmlText = compile.Result;
         }
         catch (OperationCanceledException)
         {
@@ -490,7 +514,15 @@ HALT
         prog.ApplyExports();
 
         // ⑤ 交出去：编完就跑的走 RunProgram，编完存文件的走 prog.ToString()（见 CompileToVml）
-        return (prog, lang, null, []);
+        //
+        // 把**编译期捕获到的诊断**一并带上（见上面 `compileDiag` 那段）——
+        // 取 `Warning` 级别的：错误走的是抛异常那条路（`Fail`），这里是"编过了但有问题"。
+        // 这正是用户要的「未使用符号出警告，可以给 IDE 报警示提示用」在手机上的落点：
+        // `CompileForEditor` 拿这份列表画气泡，`VmlDiagnostics` 早就把 GCC 风格认全了。
+        var compileWarnings = VmlDiagnostics.Parse(compileDiag)
+            .Where(d => d.Severity == Severity.Warning)
+            .ToList();
+        return (prog, lang, null, compileWarnings);
     }
 
     /// <summary>

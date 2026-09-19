@@ -1,3 +1,47 @@
+## v0.96.288 — 把编译期警告接到手机上：`MauiVml` 只接了运行期的 stderr
+
+### 症状：功能做了，用户永远看不到
+
+`MauiVml` 有一段**很讲究**的处理 —— 把 `Console.Out/Error` 临时接到 `StringWriter`，
+因为「运行时的诊断输出走 `System.Console`，而手机上那是一个看不见的流」
+（`VMLRuntime` 的内存错误 / 标签错误 / 寄存器 dump 全走 stderr）。
+
+但那段捕获**只套在 `vm.Run(ct)` 外面**。前端编译是在**另一处**、更早发生的：
+
+```csharp
+var compile = Task.Run(() => ex.CompileFileWithIncludes(...), ct);
+...
+vmlText = compile.Result;      // ← 这期间没人接 stderr
+```
+
+⇒ v0.96.286 起新增的**编译期警告**（未使用符号那类）在手机上**全部落进虚空**。
+不是"报错"，是"做了但没人看得见" —— 这正是本仓库反复记的那一类。
+
+### 修法：同一个闸门、同一套理由
+
+编译那段也包进 `lock (ConsoleRedirectGate)` + `Console.SetError(errSink)`，
+收完并把内容**并进结果**（不丢）。取 `Severity.Warning` 的那些塞进 `BuildProgram` 的
+返回值 —— 那是 `CompileForEditor` 用来画气泡的列表，`VmlDiagnostics` 早就把 GCC 风格认全了，
+所以这一改**直接落在用户要的「给 IDE 报警告提示用」上**。
+
+⚠ 代价说清楚：这把锁要**持有一两分钟**（编译本身就那么久），而运行期那段只持有几十毫秒。
+可以接受是因为 VML 工具是 Exclusive、`ShellPage` 另有 `_busy` 闸门，正常不会与运行期的捕获并发；
+真并发时的表现是"等一会儿"，而不是输出串台。
+
+### 判据
+
+| | 之前 | 之后 |
+|---|---|---|
+| MAUI Android 构建 | — | **0 错误** |
+| 桌面自测 | 5998/0 | 5998/0 |
+| `diag-probe` | 60/0/0 | 60/0/0 |
+| `examples-build` | 78/3 | 78/3 |
+
+⚠ **只对 `CompileForEditor` 那条路生效** —— `CompileAndRun` / `CompileToVml` 都把 Diags
+丢掉了（它们只要"能不能跑"）。命令行页要显示警告是另一件事，没做。
+
+---
+
 ## v0.96.287 — 未使用符号警告（C）：定义了却没人用的 static 函数
 
 用户的诉求：「那些定义了，却没有使用的局部变量或者函数（**外部访问不了的**），
