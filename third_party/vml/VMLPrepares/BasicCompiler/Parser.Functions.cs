@@ -35,9 +35,21 @@ namespace BasicCompiler
                         Advance();
                     }
 
-                    if (Peek().Type != TokenType.IDENTIFIER)
+                    // ⚠ 形参名**接受关键字 token**（取它的文本当名字），不能要求 IDENTIFIER。
+                    //
+                    // 两件事一起逼出来的：
+                    //   · `return null` 在调用方（Parser.Core 的 `case TokenType.FUNCTION`）只表示
+                    //     「这条语句没解析出来」⇒ **整条声明被静默丢掉**，而词法位置还停在形参列表
+                    //     **中间** ⇒ 后面的 token 全被当成顶层语句继续解析。拿 `on` 当形参名时，
+                    //     编出来的东西运行期报 **`内存不足，无法分配!`**，屏幕上没有一个字提到真正的错处。
+                    //   · 但改成一律报错**会打掉本来能用的写法**：`Examples/basic/sysinfo.bas` 里
+                    //     `NATIVE FUNCTION ui_call_json_s(fn AS STRING, …)` 的 `fn` 就是 TokenType.FN，
+                    //     而它**声明里根本用不到形参**（NATIVE 无函数体）⇒ 以前丢掉声明也照样跑。
+                    // 所以这里的判据是「**这个 token 的文本能不能当名字**」，与它是不是关键字无关。
+                    if (Peek().Type == TokenType.EOF || Peek().Type == TokenType.RPAREN ||
+                        Peek().Type == TokenType.COMMA || string.IsNullOrEmpty(Peek().Value))
                     {
-                        return null;
+                        throw Error($"形参名缺失（第 {Peek().Line} 行）");
                     }
                     string paramName = Peek().Value;
                     Advance();
@@ -169,9 +181,21 @@ namespace BasicCompiler
                         Advance();
                     }
 
-                    if (Peek().Type != TokenType.IDENTIFIER)
+                    // ⚠ 形参名**接受关键字 token**（取它的文本当名字），不能要求 IDENTIFIER。
+                    //
+                    // 两件事一起逼出来的：
+                    //   · `return null` 在调用方（Parser.Core 的 `case TokenType.FUNCTION`）只表示
+                    //     「这条语句没解析出来」⇒ **整条声明被静默丢掉**，而词法位置还停在形参列表
+                    //     **中间** ⇒ 后面的 token 全被当成顶层语句继续解析。拿 `on` 当形参名时，
+                    //     编出来的东西运行期报 **`内存不足，无法分配!`**，屏幕上没有一个字提到真正的错处。
+                    //   · 但改成一律报错**会打掉本来能用的写法**：`Examples/basic/sysinfo.bas` 里
+                    //     `NATIVE FUNCTION ui_call_json_s(fn AS STRING, …)` 的 `fn` 就是 TokenType.FN，
+                    //     而它**声明里根本用不到形参**（NATIVE 无函数体）⇒ 以前丢掉声明也照样跑。
+                    // 所以这里的判据是「**这个 token 的文本能不能当名字**」，与它是不是关键字无关。
+                    if (Peek().Type == TokenType.EOF || Peek().Type == TokenType.RPAREN ||
+                        Peek().Type == TokenType.COMMA || string.IsNullOrEmpty(Peek().Value))
                     {
-                        return null;
+                        throw Error($"形参名缺失（第 {Peek().Line} 行）");
                     }
                     string paramName = Peek().Value;
                     Advance();
