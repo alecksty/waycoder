@@ -683,6 +683,8 @@ namespace VMLAssembler
             // 按**指令来源**分两档：`i < userEnd` 是前端为用户代码产出的，之后的是库。
             var userMiss = new Dictionary<string, int>();
             var libMiss = new Dictionary<string, int>();
+            // 标识符 → 第一次出现它的那条指令的源码行（-1 = 取不到）
+            var firstLine = new Dictionary<string, int>();
             for (int i = 0; i < program.Instructions.Count; i++)
             {
                 var instr = program.Instructions[i];
@@ -701,6 +703,11 @@ namespace VMLAssembler
                     if (program.Labels.ContainsKey(lbl) || program.DataSection.ContainsKey(lbl)) continue;
                     bucket.TryGetValue(lbl, out var cnt);
                     bucket[lbl] = cnt + 1;
+                    // 记下**第一次**出现它的那条指令的源码行 —— 报错要指到用户写的那一行。
+                    // `SourceLine` 由汇编器从 `; N: <源码>` 注释里接回来（见 `VMLAssembler`
+                    // 主解析循环那段说明）；取不到就是 -1，此时退化成"只报名字"。
+                    if (!firstLine.TryGetValue(lbl, out var fl) || fl <= 0)
+                        firstLine[lbl] = instr.SourceLine;
                 }
             }
 
@@ -718,12 +725,22 @@ namespace VMLAssembler
                 //
                 // ⚠ 一次把**所有**未解析的名字都列出来（用户第二句要求：「要尽量一次多报些错误，
                 //   现在运行就报一个错误」）—— 运行期是执行到那条 CALL 才抛，一次只报一个。
-                var lines = new List<string>
-                {
-                    $"错误: 有 {userMiss.Count} 个函数**没有定义**（也没有在任何库里找到）："
-                };
+                var lines = new List<string>();
                 foreach (var kv in userMiss)
-                    lines.Add($"  {kv.Key}（引用 {kv.Value} 次）");
+                {
+                    // **GCC 风格的 `文件:行: error: 消息`** —— 用户要求「按标准输出行列号，
+                    // 用来在 IDE 标注错误位置」。这个格式正是 `WayCoder.Maui/Services/VmlDiagnostics`
+                    // 已经在解析的那种（它有 4 条正则覆盖 GCC 带列 / GCC 不带列 / 中文 `第N行` /
+                    // 英文 `at line N`），解析出来的每条会各显示一个气泡 ——
+                    // **一次多报在 UI 上才真的成立**。
+                    //
+                    // 文件名这里是占位符 `<input>`（链接器看不到源文件名，`VmlProgram` 没这个字段）；
+                    // 宿主（CLI / MAUI / LSP）知道真实路径，替换掉即可。
+                    var where = firstLine.TryGetValue(kv.Key, out var ln) && ln > 0
+                        ? $"<input>:{ln}: "
+                        : "";
+                    lines.Add($"{where}error: 未定义的函数 '{kv.Key}'（引用 {kv.Value} 次）");
+                }
                 lines.Add("提示: 检查函数名拼写；库函数要在源码里 #include 对应头文件，或确认该模块在语言库里存在。");
                 var text = string.Join(Environment.NewLine, lines);
                 Console.Error.WriteLine(text);

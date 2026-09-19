@@ -1406,14 +1406,43 @@ namespace VMLAssembler
                 _inDataSection = false;
             }
 
+            // ── 记住「最近一条 `; N:` 注释里的 N」────────────────────────────────
+            // 前端把源码行号写成 `; 12: <那一行的原文>`（见 `VmlProgram.ToString`），
+            // 而这里此前把**所有** `;` 行整个 `continue` 掉 ⇒ `Instruction.SourceLine`
+            // 从来没被赋过值（字段在 `Instruction.cs:31`，汇编器里零赋值）。
+            // 后果：链接期/汇编期报的错只能给函数名、给不出**行列号** ——
+            // 而用户要的正是「按标准输出行列号，用来在 IDE 标注错误位置」。
+            //
+            // 只认 `^\s*;\s*(\d+):` 这一种形态：`; ----`、`; source : …`、`; 参数说明`
+            // 这些都不匹配，不会被误当成行号。
+            var comment = trimmedLine.StartsWith(";") ? trimmedLine[1..].TrimStart() : null;
+            if (comment != null)
+            {
+                int ci = 0;
+                while (ci < comment.Length && char.IsDigit(comment[ci])) ci++;
+                if (ci > 0 && ci < comment.Length && comment[ci] == ':' &&
+                    int.TryParse(comment[..ci], out var srcLine))
+                    _pendingSourceLine = srcLine;
+            }
+
             var instr = ParseLine(trimmedLine);
             if (instr != null)
+            {
+                if (_pendingSourceLine > 0) instr.SourceLine = _pendingSourceLine;
                 instructions.Add(instr);
+            }
 
             return index;
         }
 
         private HashSet<string> _defines = new();
+
+        /// <summary>
+        /// 最近一条 `; N: …` 注释里的源码行号（-1 = 还不知道）。
+        /// 见主解析循环里那段说明 —— 前端把行号写成注释，汇编器要把它接回来，
+        /// 否则报错只能给名字、给不出行列号。
+        /// </summary>
+        private int _pendingSourceLine = -1;
 
 
         private bool IsMacroCall(string line)
