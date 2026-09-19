@@ -251,6 +251,14 @@ public sealed class DrawFigure
     public string? GradientRef;
     /// <summary>解析完成后解析出的渐变定义（GradientRef 命中时）；未命中/未引用为 null。</summary>
     public Gradient? Gradient;
+    /// <summary>
+    /// **描边（画笔）**的渐变引用 id：来自 `stroke @id` 或描边类图元（line/arrow/polyline）的裸 `@id`。
+    /// null = 纯色描边（走 <see cref="Stroke"/>）。与 <see cref="GradientRef"/> **互相独立** ——
+    /// `rect … fill @a stroke @b 3` 是合法的（边框一个渐变、填充一个渐变）。
+    /// </summary>
+    public string? StrokeGradientRef;
+    /// <summary>解析完成后解析出的**描边**渐变定义（StrokeGradientRef 命中时）；未命中/未引用为 null。</summary>
+    public Gradient? StrokeGradient;
     /// <summary>image 指令：贴图原始路径（svg 输入或加载失败时保留，供 SVG 端透传引用）。</summary>
     public string? ImagePath;
     /// <summary>image 指令：已解码的位图（加载失败为 null，PNG 端跳过、SVG 端回退引用路径）。</summary>
@@ -403,9 +411,18 @@ public static class DrawRunner
             foreach (var g in doc.Gradients) map[g.Id] = g;
             foreach (var f in doc.Figures)
             {
-                if (f.GradientRef == null) continue;
-                if (map.TryGetValue(f.GradientRef, out var g)) f.Gradient = g;
-                else f.GradientRef = null;
+                // 填充与描边**各解析一次**，不是"二选一" —— 同一份渐变可以被两者同时引用
+                // （`rect … fill @g stroke @g 3`：边框与填充同一个渐变）。
+                if (f.GradientRef != null)
+                {
+                    if (map.TryGetValue(f.GradientRef, out var g)) f.Gradient = g;
+                    else f.GradientRef = null;   // 悬空引用退化成纯色，与老行为一致
+                }
+                if (f.StrokeGradientRef != null)
+                {
+                    if (map.TryGetValue(f.StrokeGradientRef, out var sg)) f.StrokeGradient = sg;
+                    else f.StrokeGradientRef = null;
+                }
             }
         }
         return doc;

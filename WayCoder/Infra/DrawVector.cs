@@ -102,6 +102,15 @@ public static class DrawVector
     /// <summary>描边（`Stroke == 0` 或全透明表示没给描边色，跳过）。</summary>
     public static void Stroke(IVectorTarget t, IReadOnlyList<double> pts, DrawFigure f, bool close = false)
     {
+        // **渐变描边**：平台画布没有 SetStrokePaint（只有 SetFillPaint），
+        // 而描边本质上是一个填充多边形 —— 所以它**做得到**，只是要先按 DrawGeo 那套数学
+        // 把折线外扩成轮廓再填。这一版还没做，先如实标记"画不了"⇒ 宿主把**整个窗口**
+        // 回退到光栅后端，画面仍然完全正确（只是慢）。宁可慢，也别默默画成黑色的实心块。
+        if (f.StrokeGradient != null)
+        {
+            t.MarkUnsupported("stroke-gradient", f.Kind);
+            return;
+        }
         if (f.Stroke == 0 || (f.Stroke >> 24) == 0) return;
         if (pts.Count < 4) return;
         t.StrokePolyline(Canvas.TransformPoints(f.Transform, pts), f.StrokeWidth, f.Stroke,

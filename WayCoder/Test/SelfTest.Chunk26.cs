@@ -57,6 +57,7 @@ public static partial class SelfTest
         _ = Fail;
 
         TestStrokeStyleCompat(Section, Check);
+        TestStrokeGradient(Section, Check);
         TestBrushModel(Section, Check);
     }
 
@@ -109,8 +110,9 @@ public static partial class SelfTest
         var s2 = new VmlScene();
         var gb = s2.AddGradientBrush(radial: false, 0xFFFF0000, 0xFF0000FF, 0, 0, 1000, 0);
         Check("渐变刷子句柄有效", gb >= 1 && s2.BrushToken(gb)!.StartsWith('@'));
-        Check("渐变刷子给了画笔槽 → 受理（退化成起始色，不崩）",
-            s2.SetStyle(VmlStyleSlot.Pen, gb, 3, 0, 0, 0) && s2.PenToken == "#FFFF0000");
+        // v0.96.306 起画笔槽**收渐变**（描边渐变已落地）—— 从前这里是"退化成起始色"。
+        Check("渐变刷子给了画笔槽 → 受理并**保留渐变**",
+            s2.SetStyle(VmlStyleSlot.Pen, gb, 3, 0, 0, 0) && s2.PenToken!.StartsWith('@'));
 
         // ── 刷子表上限 ──
         var s3 = new VmlScene();
@@ -137,6 +139,166 @@ public static partial class SelfTest
         s6.SetStyle(VmlStyleSlot.Pen, unchecked((int)0xFF00FF00), 3, 0, 0, VmlArrow.None);
         s6.AddShape(VmlShape.Line, 10, 20, 90, 60, 0, 0, 0);
         Check("画笔不带箭头 → 仍然是 line", s6.BuildDsl().Contains("line 10 20 90 60"));
+    }
+
+    /// <summary>
+    /// **描边（画笔）渐变** —— 「边框一个渐变、填充一个渐变」。
+    ///
+    /// 改动集中在三处，判据也就分三层：
+    /// ① **解析**：第二个 `@id` 进描边槽；描边类图元（只有一个颜色位）的裸 `@id` 也是描边槽；
+    ///    `path` 是老特例（裸 `@id` 一直是填充），所以那条走显式 `stroke @id`。
+    /// ② **光栅**：逐段粗线四边形 + 逐像素从刷子取色。**归一化盒用原几何的盒**是本条最难发现的一处 ——
+    ///    拿被线宽撑大的轮廓盒去归一化，渐变会整体偏半个线宽，而"偏一点"肉眼看不出来。
+    /// ③ **SVG**：四条只描边的指令从前各自硬写 `ColorUtil.ToHex(f.Stroke)`，
+    ///    给它们配渐变描边会**光栅对、SVG 黑**。这里把两个出口都钉住。
+    ///
+    /// 判据用的是**能分辨对错**的那一种：起点像素取「纯起始色」而不是"接近起始色"，
+    /// 因为归一化盒错了正好会让它变成 7% 的插值色（R=235 而不是 251）——
+    /// 断言写成"偏红"就两边都过，等于没测。
+    /// </summary>
+    private static void TestStrokeGradient(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("绘图 DSL：描边（画笔）渐变");
+
+        static DrawDocument Doc(string body) => DrawRunner.Parse("canvas 200 200 #ffffff\n" + body);
+        static DrawFigure? One(string body)
+        {
+            var d = Doc(body);
+            return d.Figures.Count == 1 ? d.Figures[0] : null;
+        }
+
+        // ── ① 解析 ──
+
+        // 兼容红线：**一个**裸 @id 仍进填充槽（既有 10 条指令共用的位置约定）
+        var a = One("rect 0 0 10 10 @gf");
+        Check("兼容：单个 @id 仍进填充槽", a?.GradientRef == "gf" && a?.StrokeGradientRef == null);
+
+        // 第二个 @id 从前只是把第一个覆盖掉（= 被静默丢弃），所以这个槽位不碰任何既有语义
+        var b = One("rect 0 0 10 10 @gf @gs 3");
+        Check("第二个 @id → 描边槽", b?.GradientRef == "gf" && b?.StrokeGradientRef == "gs");
+
+        // 描边类图元只有一个颜色位（就是描边本身），裸 @id 只能是描边刷子
+        foreach (var (kind, dsl) in new[]
+        {
+            ("line", "line 0 0 10 10 @g"),
+            ("arrow", "arrow 0 0 10 10 @g"),
+            ("polyline", "polyline 0 0 10 0 10 10 @g"),
+        })
+        {
+            var f = One(dsl);
+            Check($"{kind}: 裸 @id → 描边槽（不是填充槽）",
+                f?.StrokeGradientRef == "g" && f?.GradientRef == null);
+        }
+
+        // path 是老特例：裸 @id 一直是**填充**（既有语义，不能动）⇒ 描边走显式关键字
+        var p1 = One("path \"M 0 0 L 10 0 L 10 10 Z\" @g");
+        Check("path 兼容：裸 @id 仍是填充（红线）", p1?.GradientRef == "g" && p1?.StrokeGradientRef == null);
+        var p2 = One("path \"M 0 0 L 10 0 L 10 10 Z\" stroke @g");
+        Check("path: 显式 stroke @id → 描边槽", p2?.StrokeGradientRef == "g" && p2?.GradientRef == null);
+
+        // 同一份渐变可以被两个槽同时引用（解析不是"二选一"）
+        var dup = Doc("gradient g linear #ff0000 #0000ff\nrect 0 0 10 10 @g @g 3").Figures[0];
+        Check("填充与描边可引用同一份渐变（两边都解析出来）",
+            dup.Gradient != null && dup.StrokeGradient != null
+            && ReferenceEquals(dup.Gradient, dup.StrokeGradient));
+
+        // 悬空引用退化成纯色（与填充槽的老行为一致，不崩）
+        // ⚠ 必须带上一条真的渐变定义：`DrawRunner.Parse` 的解析循环是
+        // `if (doc.Gradients.Count > 0)` 整体的 —— 一条都没定义时它整段跳过，
+        // 那时 `GradientRef` 原样留着（这是既有行为，不是本条要测的东西）。
+        var dangling = Doc("gradient g linear #ff0000 #0000ff\nrect 0 0 10 10 @nosuch @alsono 3").Figures[0];
+        Check("悬空的描边渐变引用 → 退化成纯色",
+            dangling.StrokeGradientRef == null && dangling.StrokeGradient == null);
+
+        // ── ② 光栅 ──
+
+        var doc = Doc("gradient g linear #ff0000 #0000ff\nline 10 10 50 10 @g 6");
+        var img = PngDecoder.Decode(DrawRunner.ToPng(doc));
+
+        // 线从 x=10 到 x=50、粗 6（butt 端帽 ⇒ 四边形恰好落在 [10,50]）。
+        // 归一化盒 = 几何盒 (10,10)-(50,10)、跨度 40，所以 x=10 的像素中心 10.5 → t=0.0125。
+        var left = img.ColorAt(10, 10);
+        var right = img.ColorAt(49, 10);
+        Check($"光栅渐变描边：左端≈起始色（实得 #{R(left):X2}{G(left):X2}{B(left):X2}）",
+            R(left) >= 248 && B(left) <= 8);
+        Check($"光栅渐变描边：右端≈终止色（实得 #{R(right):X2}{G(right):X2}{B(right):X2}）",
+            B(right) >= 248 && R(right) <= 8);
+        Check("光栅渐变描边：中点确在两者之间（不是被钳成一端）",
+            R(img.ColorAt(30, 10)) is > 100 and < 160 && B(img.ColorAt(30, 10)) is > 100 and < 160);
+
+        // **归一化盒**判据（这是本条最容易错的地方）：若误用"被线宽撑大的轮廓盒"（7..53、跨度 46），
+        // 左端会变成 t=0.076 ⇒ R≈235。所以断言必须卡在 248 以上才分辨得开。
+        Check("光栅渐变描边：起点是纯色 ⇒ 归一化盒用的是几何盒而非轮廓盒", R(left) >= 248);
+
+        // 闭合图形也要能画（走 DrawFill.Stroke，与开放描边是两条路）
+        var ring = PngDecoder.Decode(DrawRunner.ToPng(
+            Doc("gradient g linear #ff0000 #0000ff\nrect 20 20 60 40 @nofill @g 8")));
+        var rl = ring.ColorAt(21, 40);
+        Check($"闭合形状的渐变描边（rect 左边框≈起始色，实得 R={R(rl)}）", R(rl) >= 240 && B(rl) <= 20);
+
+        // ── ③ SVG ──
+
+        var svg = DrawRunner.ToSvg(Doc("gradient g linear #ff0000 #0000ff\nline 10 10 50 10 @g 6"));
+        Check("SVG: 线的描边引用渐变（url(#g)）", svg.Contains("stroke=\"url(#g)\""));
+        Check("SVG: defs 里确实有这份渐变", svg.Contains("linearGradient id=\"g\""));
+        var svgRect = DrawRunner.ToSvg(Doc("gradient g linear #ff0000 #0000ff\nrect 0 0 10 10 @nofill @g 3"));
+        Check("SVG: 闭合形状的描边也走 url(#g)", svgRect.Contains("stroke=\"url(#g)\""));
+        // 真正的判据是"描边渐变**不能**漏进填充槽" —— 而不是填充具体是什么色
+        // （`@nofill` 是个不存在的 id，解析后退化回 rect 的默认填充）。
+        Check("SVG: 描边渐变不漏进填充槽（fill 不是 url(#g)）",
+            !svgRect.Contains("fill=\"url(#g)\""));
+
+        // ── ④ 矢量后端：如实标记"画不了"，让宿主整窗回退光栅 ──
+        //    ⚠ 这条不是"以后再说"：默默画不出来的形态是**黑描边**，比慢更糟。
+
+        var vt = new RecordingVectorTarget();
+        var fig = Doc("gradient g linear #ff0000 #0000ff\nline 10 10 50 10 @g 6").Figures[0];
+        fig.Gradient = null; fig.StrokeGradient = new Gradient { Id = "g" };
+        DrawVector.Stroke(vt, fig.Args, fig);
+        Check("矢量: 渐变描边 → MarkUnsupported（宿主回退光栅，不画成黑的）",
+            vt.Unsupported.Contains("stroke-gradient"));
+
+        // ── ⑤ 端到端：**C 层够得到的那个入口**一直钉到解析器 ──
+        //    VML 程序调的是 `ui_set_pen(刷子句柄,…)` + `ui_draw_line(...)`，
+        //    落到 VmlScene 就是"画笔槽 + 画线"。这条断言跨过了**发射**与**解析**两层的接缝 ——
+        //    本仓最常见的故障正是"两边各自都对、中间的字符串对不上"。
+        var s7 = new VmlScene();
+        var gb2 = s7.AddGradientBrush(radial: false, 0xFFFF0000, 0xFF0000FF, 0, 0, 1000, 0);
+        s7.SetStyle(VmlStyleSlot.Pen, gb2, 4, 0, 0, 0);
+        s7.AddShape(VmlShape.Line, 10, 10, 50, 10, 0, 0, 0);
+        var e2e = DrawRunner.Parse(s7.BuildDsl());
+        var line = e2e.Figures.FirstOrDefault(x => x.Kind is "line" or "arrow");
+        Check("端到端：画笔槽的渐变刷子 → DSL → 解析回描边渐变",
+            line?.StrokeGradient != null && line.StrokeGradientRef != null);
+        Check("端到端：VmlScene 发射的画笔 token 是刷子引用（@_b…）而不是退化色",
+            s7.PenToken != null && s7.PenToken.StartsWith('@'));
+
+        // 形状那一路（走 StyleTail 的位置约定：第一个 token = 填充、第二个 = 描边）
+        var s8 = new VmlScene();
+        var gb3 = s8.AddGradientBrush(radial: false, 0xFFFF0000, 0xFF0000FF, 0, 0, 1000, 0);
+        s8.SetStyle(VmlStyleSlot.Fill, unchecked((int)0xFF00FF00), 0, 0, 0, 0);
+        s8.SetStyle(VmlStyleSlot.Pen, gb3, 3, 0, 0, 0);
+        s8.AddShape(VmlShape.Rect, 10, 10, 60, 40, 0, 0, 0);
+        var e2e2 = DrawRunner.Parse(s8.BuildDsl());
+        // 半径 0 ⇒ 发 `rect`（分流判据是**半径 > 0**，不是"高 > 0"）
+        var rectFig = e2e2.Figures.FirstOrDefault(x => x.Kind == "rect");
+        Check($"端到端：形状的填充纯色 + 描边渐变各就各位（实得 {rectFig?.Kind ?? "null"}）",
+            rectFig?.StrokeGradient != null && rectFig.Fill == 0xFF00FF00
+            && rectFig.StrokeGradientRef != null && rectFig.GradientRef == null);
+
+        // 反过来：半径 > 0 ⇒ 发 `roundrect`。两条分支都要被走到才说明分流是对的
+        // （从前判据写成"高 > 0"⇒ 恒真 ⇒ `rect` 那条**永远是死代码**）。
+        var s9 = new VmlScene();
+        s9.SetStyle(VmlStyleSlot.Fill, unchecked((int)0xFF00FF00), 0, 0, 0, 0);
+        s9.AddShape(VmlShape.Rect, 10, 10, 60, 40, 12, 0, 0);
+        Check("形状码分流：半径 > 0 → roundrect",
+            DrawRunner.Parse(s9.BuildDsl()).Figures.Any(x => x.Kind == "roundrect"));
+
+        // 反证：纯色描边**不该**被这条误伤（否则所有描边都会把整窗拖回光栅）
+        var vt2 = new RecordingVectorTarget();
+        var plain = Doc("line 10 10 50 10 #ff0000 6").Figures[0];
+        DrawVector.Stroke(vt2, plain.Args, plain);
+        Check("反证：纯色描边不受影响（不会误触发整窗回退）", vt2.Unsupported.Count == 0);
     }
 
     /// <summary>

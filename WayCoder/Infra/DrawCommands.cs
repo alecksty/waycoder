@@ -46,7 +46,15 @@ internal static class DrawParse
         for (int i = start; i < a.Count; i++)
         {
             var s = a[i].Value;
-            if (s.Length >= 2 && s[0] == '@') { f.GradientRef = s[1..]; fillSet = true; continue; }
+            if (s.Length >= 2 && s[0] == '@')
+            {
+                // 第一个 `@id` = **填充**刷子（老行为，一字不变）；
+                // 第二个 = **描边**刷子。占的是"今天被静默丢弃"的形态：
+                // 从前第二个 `@id` 只是把第一个覆盖掉（等效丢弃），所以不碰任何既有语义。
+                if (!fillSet) { f.GradientRef = s[1..]; fillSet = true; }
+                else f.StrokeGradientRef = s[1..];
+                continue;
+            }
             if (ColorUtil.TryParse(s, out var c))
             {
                 if (!fillSet) { f.Fill = c; fillSet = true; }
@@ -77,19 +85,34 @@ internal static class DrawParse
             if (TryCap(a[i].Value, out var cap)) { f.LineCap = cap; continue; }
             var low = a[i].Value.ToLowerInvariant();
             if (low is "dash" or "dashed") { f.Dashed = true; continue; }
+            // 裸 `@id` = 描边刷子。这几条指令**只有一个颜色位**（就是描边本身），
+            // 所以这里不会与"填充槽"抢 —— 从前这个 token 是被静默丢弃的。
+            if (a[i].Value.Length >= 2 && a[i].Value[0] == '@') { f.StrokeGradientRef = a[i].Value[1..]; continue; }
             if (ColorUtil.TryParse(a[i].Value, out var c)) f.Stroke = c;
             else { var v = Num(a[i]); if (!double.IsNaN(v)) f.StrokeWidth = v; }
         }
     }
 
+    /// <summary>刷子的 SVG 取值：渐变 → `url(#id)`，纯色 → 十六进制。</summary>
+    public static string Paint(string? gradientRef, uint solid)
+        => gradientRef != null ? "url(#" + EscapeXml(gradientRef) + ")" : ColorUtil.ToHex(solid);
+
+    /// <summary>
+    /// **描边色**的 SVG 取值（渐变刷子优先）。
+    /// 抽出来是因为四条"只管描边"的指令（line / arrow / polyline / path）各有自己的
+    /// <c>EmitSvg</c>，从前它们各自硬写 <c>ColorUtil.ToHex(f.Stroke)</c> —— 给它们配渐变描边时
+    /// **光栅那半边是对的、SVG 这半边会画成黑的**（同一份 DSL 两种输出不一样）。
+    /// </summary>
+    public static string StrokeAttr(DrawFigure f) => Paint(f.StrokeGradientRef, f.Stroke);
+
     /// <summary>fill（支持渐变 url(#id)）+ 可选 stroke/stroke-width 属性串。</summary>
     public static string FillStrokeAttrs(DrawFigure f)
     {
         var sb = new StringBuilder();
-        sb.Append(" fill=\"").Append(f.GradientRef != null ? "url(#" + EscapeXml(f.GradientRef) + ")" : ColorUtil.ToHex(f.Fill)).Append('"');
-        if (f.Stroke != 0)
+        sb.Append(" fill=\"").Append(Paint(f.GradientRef, f.Fill)).Append('"');
+        if (f.Stroke != 0 || f.StrokeGradientRef != null)
         {
-            sb.Append(" stroke=\"").Append(ColorUtil.ToHex(f.Stroke)).Append('"')
+            sb.Append(" stroke=\"").Append(StrokeAttr(f)).Append('"')
               .Append(" stroke-width=\"").Append(F(f.StrokeWidth)).Append('"')
               .Append(" stroke-linejoin=\"round\"");
         }
@@ -266,8 +289,31 @@ internal static class DrawFill
 
     public static void Stroke(Canvas c, IReadOnlyList<double> pts, DrawFigure f)
     {
+        // 渐变描边走**逐像素采样**那条路：几何与纯色完全同源（同一份局部点集 + 同一个变换），
+        // 只是每个像素的颜色改成从刷子里取。归一化盒用**原几何**的盒（不是被线宽撑大的轮廓盒），
+        // 否则渐变会整体偏半个线宽 —— SVG 的 objectBoundingBox 也是几何盒，两边要对齐。
+        if (f.StrokeGradient != null)
+        {
+            c.StrokePolylineBrushed(f.Transform, pts, f.StrokeWidth, f.LineCap,
+                f.StrokeGradient, DrawGeo.BBox(pts), dashed: f.Dashed, closed: true);
+            return;
+        }
         if (f.Stroke != 0)
             c.StrokePolygon(Canvas.TransformPoints(f.Transform, pts), f.StrokeWidth, f.Stroke);
+    }
+
+    /// <summary>
+    /// **开放描边**（line / arrow / polyline / path）的渐变分支 —— 几何在**局部**坐标里给，
+    /// 由 <see cref="DrawFigure.Transform"/> 落世界，与纯色那条路同一个口径。
+    /// 返回 true 表示"这次由我画了"，调用方直接收工。
+    /// </summary>
+    public static bool BrushedStroke(Canvas c, DrawFigure f, IReadOnlyList<double> localPts,
+        bool closed = false, (double MinX, double MinY, double MaxX, double MaxY)? box = null)
+    {
+        if (f.StrokeGradient == null) return false;
+        c.StrokePolylineBrushed(f.Transform, localPts, f.StrokeWidth, f.LineCap,
+            f.StrokeGradient, box ?? DrawGeo.BBox(localPts), dashed: f.Dashed, closed: closed);
+        return true;
     }
 }
 
@@ -413,7 +459,7 @@ internal sealed partial class LineCommand : IDrawCommand
     {
         sb.Append("  <line x1=\"").Append(DrawParse.F(f.Args[0])).Append("\" y1=\"").Append(DrawParse.F(f.Args[1]))
           .Append("\" x2=\"").Append(DrawParse.F(f.Args[2])).Append("\" y2=\"").Append(DrawParse.F(f.Args[3]))
-          .Append("\" stroke=\"").Append(ColorUtil.ToHex(f.Stroke))
+          .Append("\" stroke=\"").Append(DrawParse.StrokeAttr(f))
           .Append("\" stroke-width=\"").Append(DrawParse.F(f.StrokeWidth)).Append("\" stroke-linecap=\"").Append(f.LineCap).Append("\"");
         if (f.Dashed) sb.Append(" stroke-dasharray=\"6 4\"");
         sb.Append("/>\n");
@@ -421,6 +467,7 @@ internal sealed partial class LineCommand : IDrawCommand
     public void Rasterize(Canvas c, DrawFigure f)
     {
         double x1 = f.Args[0], y1 = f.Args[1], x2 = f.Args[2], y2 = f.Args[3];
+        if (DrawFill.BrushedStroke(c, f, f.Args)) return;
         var (wx1, wy1) = f.Transform.Apply(x1, y1);
         var (wx2, wy2) = f.Transform.Apply(x2, y2);
         if (f.Dashed) c.DrawLineDashed(wx1, wy1, wx2, wy2, f.Stroke, f.StrokeWidth, f.LineCap);
@@ -446,7 +493,7 @@ internal sealed partial class ArrowCommand : IDrawCommand
         var (hx1, hy1, hx2, hy2) = Head(x1, y1, x2, y2, f.StrokeWidth);
         sb.Append("  <line x1=\"").Append(DrawParse.F(x1)).Append("\" y1=\"").Append(DrawParse.F(y1))
           .Append("\" x2=\"").Append(DrawParse.F(x2)).Append("\" y2=\"").Append(DrawParse.F(y2))
-          .Append("\" stroke=\"").Append(ColorUtil.ToHex(f.Stroke))
+          .Append("\" stroke=\"").Append(DrawParse.StrokeAttr(f))
           .Append("\" stroke-width=\"").Append(DrawParse.F(f.StrokeWidth)).Append("\" stroke-linecap=\"").Append(f.LineCap).Append("\"");
         if (f.Dashed) sb.Append(" stroke-dasharray=\"6 4\"");
         sb.Append("/>\n");
@@ -459,6 +506,15 @@ internal sealed partial class ArrowCommand : IDrawCommand
     {
         double x1 = f.Args[0], y1 = f.Args[1], x2 = f.Args[2], y2 = f.Args[3];
         var (hx1, hy1, hx2, hy2) = Head(x1, y1, x2, y2, f.StrokeWidth);
+        if (f.StrokeGradient != null)
+        {
+            // 箭头 = 杆 + 两条头线，三段共用一个归一化盒（整支箭头的局部包围盒），
+            // 否则每段各自归一化 ⇒ 三段颜色对不上，看起来像三支不同的箭头拼的。
+            var box = DrawGeo.BBox(new[] { x1, y1, x2, y2, hx1, hy1, hx2, hy2 });
+            DrawFill.BrushedStroke(c, f, new[] { x1, y1, x2, y2 }, box: box);
+            DrawFill.BrushedStroke(c, f, new[] { hx1, hy1, x2, y2, hx2, hy2 }, box: box);
+            return;
+        }
         var a = f.Transform.Apply(x1, y1);
         var b = f.Transform.Apply(x2, y2);
         var c1 = f.Transform.Apply(hx1, hy1);
@@ -520,13 +576,14 @@ internal sealed partial class PolylineCommand : IDrawCommand
     public void EmitSvg(StringBuilder sb, DrawFigure f)
     {
         sb.Append("  <polyline points=\"").Append(DrawParse.Points(f))
-          .Append("\" fill=\"none\" stroke=\"").Append(ColorUtil.ToHex(f.Stroke))
+          .Append("\" fill=\"none\" stroke=\"").Append(DrawParse.StrokeAttr(f))
           .Append("\" stroke-width=\"").Append(DrawParse.F(f.StrokeWidth)).Append("\" stroke-linecap=\"").Append(f.LineCap).Append("\"");
         if (f.Dashed) sb.Append(" stroke-dasharray=\"6 4\"");
         sb.Append("/>\n");
     }
     public void Rasterize(Canvas c, DrawFigure f)
     {
+        if (DrawFill.BrushedStroke(c, f, f.Args, closed: false)) return;
         var w = Canvas.TransformPoints(f.Transform, f.Args);
         for (int i = 0; i + 2 < w.Length; i += 2)
         {
@@ -571,6 +628,15 @@ internal sealed partial class PathCommand : IDrawCommand
             if (tok.Equals("dash", StringComparison.OrdinalIgnoreCase) || tok.Equals("dashed", StringComparison.OrdinalIgnoreCase))
             { f.Dashed = true; continue; }
             if (DrawParse.TryCap(tok, out var cap)) { f.LineCap = cap; continue; }
+            // 显式 `stroke <色|@刷子>`。**必须是关键字形态** —— 裸 `@id` 在这一条上
+            // 今天是"填充"，属既有语义，不能动（兼容红线）。
+            if (tok.Equals("stroke", StringComparison.OrdinalIgnoreCase) && i + 1 < a.Count)
+            {
+                var sv = a[++i].Value;
+                if (sv.Length >= 2 && sv[0] == '@') f.StrokeGradientRef = sv[1..];
+                else if (ColorUtil.TryParse(sv, out var sc)) f.Stroke = sc;
+                continue;
+            }
             if (tok.Length >= 2 && tok[0] == '@') { f.GradientRef = tok[1..]; continue; }
             if (ColorUtil.TryParse(tok, out var c)) f.Stroke = c;
             else { var v = DrawParse.Num(a[i]); if (!double.IsNaN(v)) f.StrokeWidth = v; }
@@ -584,7 +650,7 @@ internal sealed partial class PathCommand : IDrawCommand
                  : f.FillSet ? ColorUtil.ToHex(f.Fill) : "none";
         sb.Append("  <path d=\"").Append(DrawParse.EscapeXml(f.Text ?? ""))
           .Append("\" fill=\"").Append(fill)
-          .Append("\" stroke=\"").Append(ColorUtil.ToHex(f.Stroke))
+          .Append("\" stroke=\"").Append(DrawParse.StrokeAttr(f))
           .Append("\" stroke-width=\"").Append(DrawParse.F(f.StrokeWidth)).Append("\" stroke-linecap=\"").Append(f.LineCap).Append('"');
         if (f.Dashed) sb.Append(" stroke-dasharray=\"6 4\"");
         sb.Append("/>\n");
@@ -618,6 +684,19 @@ internal sealed partial class PathCommand : IDrawCommand
 
         // 描边：逐子路径折线
         if (f.StrokeWidth <= 0) return;
+        if (f.StrokeGradient != null)
+        {
+            // 渐变那条路要的是**局部**点（由 StrokePolylineBrushed 自己做变换），
+            // 纯色那条路要的是世界点 —— 两条路各自从 subs 取，别共用上面那份已变换的点。
+            foreach (var sp in subs)
+            {
+                var lp = new List<double>(sp.Points.Count * 2);
+                foreach (var p in sp.Points) { lp.Add(p.X); lp.Add(p.Y); }
+                if (lp.Count < 4) continue;
+                DrawFill.BrushedStroke(c, f, lp, closed: sp.Closed);
+            }
+            return;
+        }
         foreach (var sp in subs)
         {
             var pts = new List<double>(sp.Points.Count * 2);

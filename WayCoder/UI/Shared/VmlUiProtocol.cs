@@ -1362,7 +1362,6 @@ public sealed class VmlScene
 
     // 样式状态。默认：填充不透明白、**不描边**、文字跟随 ui_set_font 的颜色。
     private string? _fill = "#FFFFFFFF";
-    private string _penFallback = "#00000000";
     private string? _pen;
     private uint _textColor;
     private bool _hasTextBrush;
@@ -1431,7 +1430,7 @@ public sealed class VmlScene
     }
 
     /// <summary>
-    /// 该 token 能不能用在"这一批还不支持渐变的槽"（画笔 / 文字）上。
+    /// 该 token 能不能用在"还不支持渐变的槽"上（现在只剩**文字**了 —— 画笔槽 v0.96.306 起收渐变）。
     /// 不能就**退化到它的起始色并记一次警告** —— 绝不静默。
     /// </summary>
     private string SolidTokenFor(int handleOrColor, string slot)
@@ -1442,8 +1441,8 @@ public sealed class VmlScene
             if (!b.Token.StartsWith('@')) return b.Token;
             if (_degradedWarned.Add(slot))
                 ErrorLog.Warning("VmlScene",
-                    $"{slot}槽收到的是渐变刷子 —— 本批只支持纯色（渐变描边/渐变文字还没落地），" +
-                    "已退化用它的起始色。要渐变就先给形状的填充槽用。");
+                    $"{slot}槽收到的是渐变刷子 —— 该槽只支持纯色（渐变**文字**还没落地），" +
+                    "已退化用它的起始色。填充与描边两个槽都收渐变。");
             return Hex(b.Fallback);
         }
         return Hex((uint)handleOrColor);
@@ -1458,8 +1457,9 @@ public sealed class VmlScene
                 _fill = brush == 0 ? null : TokenFor(brush);
                 return true;
             case VmlStyleSlot.Pen:
-                _pen = brush == 0 ? null : SolidTokenFor(brush, "画笔");
-                _penFallback = _pen ?? "#00000000";
+                // 画笔槽**收渐变刷子**（描边渐变已落地）：`_pen` 直接带刷子 token，
+                // 纯色是 `#...`、渐变是 `@_bn` —— 解析侧两条路都认。
+                _pen = brush == 0 ? null : TokenFor(brush);
                 _penWidth = width <= 0 ? 1 : Math.Min(width, CoordLimit);
                 _penCap = cap;
                 _penDash = dash != 0 ? 1 : 0;
@@ -1521,7 +1521,7 @@ public sealed class VmlScene
     private string PenTail()
     {
         var sb = new StringBuilder();
-        sb.Append(' ').Append(_penFallback);
+        sb.Append(' ').Append(_pen ?? "#00000000");
         if (_penWidth > 0) sb.Append(' ').Append(_penWidth);
         if (_penCap == 1) sb.Append(" round");
         else if (_penCap == 2) sb.Append(" square");
@@ -1536,7 +1536,12 @@ public sealed class VmlScene
         {
             case VmlShape.Rect:
                 if (!InCoordRange(a1) || !InCoordRange(a2)) return false;
-                Add(a4 > 0
+                // ⚠ 判据是**半径 > 0**（`a5`），不是"高 > 0"（`a4`）—— 后者恒真，
+                // 于是 `rect` 那条分支**永远不会走到**（一直是死代码）。改成 a5 之后
+                // 半径 0 走 `rect`、半径 > 0 走 `roundrect`，与两条 DSL 指令各自的
+                // ParseStyle 起点（4 / 5）也就对上了。几何上两者等价：RoundRect 把 r 钳到 ≥0，
+                // r=0 时退化成"四个角点各重复 13 次"的退化多边形，四条实边正是矩形四边。
+                Add(a5 > 0
                     ? $"roundrect {a1} {a2} {Dim(a3)} {Dim(a4)} {Dim(a5)}{StyleTail()}"
                     : $"rect {a1} {a2} {Dim(a3)} {Dim(a4)}{StyleTail()}");
                 return true;
@@ -1635,7 +1640,7 @@ public sealed class VmlScene
     public bool AddShapePath(string d)
     {
         if (string.IsNullOrEmpty(d)) return false;
-        Add($"path \"{Escape(d)}\" {_penFallback} {(_penWidth > 0 ? _penWidth : 1)} fill {_fill ?? "#00000000"}");
+        Add($"path \"{Escape(d)}\" stroke {_pen ?? "#00000000"} {(_penWidth > 0 ? _penWidth : 1)} fill {_fill ?? "#00000000"}");
         return true;
     }
 
