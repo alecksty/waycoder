@@ -413,6 +413,7 @@ namespace LadderCompiler
             // 2. 执行 ST 语句 (IF/WHILE/FOR)
             foreach (var stmt in program.StStatements)
             {
+                SetCurrentSource(stmt);
                 stmt.Accept(this);
             }
 
@@ -501,6 +502,7 @@ namespace LadderCompiler
                 // ST 语句 (IF/WHILE/FOR)
                 foreach (var stmt in program.StStatements)
                 {
+                    SetCurrentSource(stmt);
                     stmt.Accept(this);
                 }
                 // 梯形图逻辑
@@ -533,6 +535,7 @@ namespace LadderCompiler
             // Process ST statements (IF/WHILE/FOR) before rungs
             foreach (var stmt in func.StStatements)
             {
+                SetCurrentSource(stmt);
                 stmt.Accept(this);
             }
             foreach (var rung in func.Rungs)
@@ -640,6 +643,23 @@ namespace LadderCompiler
         }
 
         // ========== Visitor实现 ==========
+
+        /// <summary>
+        /// 把"当前源码位置"挪到这个语句上（语义见 `CodeGeneratorBase.CurrentSourceLine`）。
+        ///
+        /// ⚠ 这门语言是**逐节点 `Visit` 重载**（没有集中的语句分发），所以挂点选在
+        /// **语句列表的遍历处** —— ST 语句（`program.StStatements` / `func.StStatements`）
+        /// 是全部语句到达代码生成的公共通道。挂到每个 `Visit(XxxNode)` 里要改十几处，
+        /// 将来新增节点类型还容易漏。
+        ///
+        /// 解析器那半边**是齐的**（`LadderCompiler/Parser*.cs` 里有 38 处 `Line =` 赋值），
+        /// 缺的一直只是代码生成侧这项读取。
+        /// </summary>
+        private void SetCurrentSource(ASTNode node)
+        {
+            if (node == null) return;
+            if (node.Line > 0) { CurrentSourceLine = node.Line; CurrentSourceColumn = node.Column; }
+        }
 
         public void Visit(ProgramNode node)
         {

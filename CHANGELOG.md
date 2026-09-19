@@ -1,3 +1,36 @@
+## v0.96.293 — 行列号铺开第三批：Ladder（**7/22**）
+
+Ladder 的情况与 Rust 相反：**解析器那半边是齐的**（`LadderCompiler/Parser*.cs` 里有 38 处
+`Line =` 赋值），缺的一直只是**代码生成侧读取**。
+
+它是逐节点 `Visit` 重载（没有集中的语句分发），所以挂点选在**语句列表的遍历处** ——
+ST 语句（`program.StStatements` / `func.StStatements`）是全部语句到达代码生成的公共通道，
+一共 **3 处**。挂到每个 `Visit(XxxNode)` 里要改十几处，将来新增节点类型还容易漏。
+
+判据：`undef-var.ld` → `<input>:1:11: error: 未声明的变量 'nosuch'`
+（`PRINT_INT nosuch` 里 `nosuch` 正好在第 11 列，与源码对得上）。
+
+### 进度：**7/22**
+
+| | 语言 |
+|---|---|
+| **有行列号（7）** | `c` `d` `dart` `f90` `ld` `m` `pas` `rs` |
+| 剩余 | `bas` `cpp` `cs` `fth` `go` `java` `kt` `py` `swift` + 动态 6 门 |
+
+⚠ 顺带查清 **Python 与 Rust/Ladder 的情况不同**：它的 `ASTNode` 是
+**构造函数注入**位置（`protected ASTNode(type, line, column)`，属性只读）——
+解析器那半边本来就有值，缺的同样只是代码生成侧读取（它有 ~20 处语句遍历点，得逐处挂）。
+
+### 判据
+
+| | 之前 | 之后 |
+|---|---|---|
+| `diag-probe` | 60/0/0 | 60/0/0 |
+| `vml-out-probe` | 29/29 | 29/29 |
+| `examples-build` | 78/3 | 78/3 |
+
+---
+
 ## v0.96.292 — 行列号铺开第二批：Rust；并量清了「还差哪些」
 
 ### Rust：解析器那半边才是缺的
