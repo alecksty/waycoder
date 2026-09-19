@@ -1,3 +1,36 @@
+## v0.96.274 — 补 `lua_table_` 映射；订正上一版的数字
+
+### 订正
+
+v0.96.273 里我写「挖出 7 个 P2 误报」——**实际是 9 个**。权威数字来自加了排除项之后的完整跑：
+
+```
+通过 76 / 失败 12
+失败：_selftest/out.f90 _selftest/out.ld csharp/file_io.cs forth/parserexp_demo.fs
+      fortran/sysinfo.f90 java/file_io.java lua/life.lua objc/file_io.m
+      r/catch.r r/file_io.r ruby/file_io.rb swift/file_io.swift
+```
+
+12 减去 3 个非 P2 项（`out.f90` 是 Fortran 不支持格式化 `print`、
+`out.ld` 缺 `BEGIN`、`parserexp_demo.fs` 是扩展名没注册）⇒ **P2 误报 9 个**。
+
+### 修掉第一个：`lua_table_` → `luatable`
+
+`Lib/lua/luatable.vml` 里定义着 `lua_table_set` / `lua_table_get`，而 auto-link 映射表里
+**一条 `lua_table_` 都没有** ⇒ `Examples/lua/life.lua` 编不过。补上，已验证通过。
+
+### 剩下 8 个的形状（**还没修**，已查过一部分）
+
+| 例子 | 未定义 | 初查结论 |
+|---|---|---|
+| `csharp/file_io.cs`、`swift/file_io.swift` | `asm` | **库里查不到这个名字** ⇒ 可能不是映射缺口，是例子依赖了某个没被链进来的模块，或前端把关键字/内建编成了 CALL —— 待查 |
+| `java/file_io.java`、`ruby/file_io.rb`、`r/file_io.r` | `method_asm` / `func_asm` | 同上，只是各语言的前缀不同 |
+| `fortran/sysinfo.f90` | `sub_ui_call_json_s` | **Fortran 的前缀是 `sub_`** ⇒ 光加 `["ui_"]` 不够，要按前缀再补一条 |
+| `r/catch.r` | `wend_56` | 库里有 `wend`？带后缀 `_56` 说明是**代码生成器按标签序号拼出来的**，另一类问题 |
+| `objc/file_io.m` | `shared_file_test` | `SharedLib/` 那个例子的助手函数，可能本就该由例子自己提供 |
+
+⇒ **P2 的硬错误在这几门语言上对真实例子仍不安全**。修完之前，`examples-build.sh` 就是这条的红灯。
+
 ## v0.96.273 — 补一层语料：`Examples/` 全量编译检查（**当场挖出 7 个 P2 误报**）
 
 ### 为什么补这一层

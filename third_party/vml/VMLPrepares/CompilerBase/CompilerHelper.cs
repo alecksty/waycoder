@@ -463,6 +463,9 @@ namespace CompilerBase
             //     P2 把用户档的未解析升成**编译期硬错误**之后，这两个例子**当场编不过**。
             //   ⇒ 这就是 P2 的误报面，语料（out-probe）没覆盖到例子才漏掉的。
             ["ui_"] = "vmlui",
+            // Lua 的表操作（`Lib/lua/luatable.vml`）—— 同上，映射表里先前一条都没有，
+            // `Examples/lua/life.lua` 一编译就报 `lua_table_set`/`lua_table_get` 未定义。
+            ["lua_table_"] = "luatable",
             ["uint_to_str"] = "conv", ["str_to_uint"] = "conv",
             ["ulong_to_str"] = "conv", ["str_to_ulong"] = "conv",
             ["byte_to_str"] = "conv", ["str_to_byte"] = "conv",
