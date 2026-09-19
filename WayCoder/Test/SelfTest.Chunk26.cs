@@ -57,6 +57,74 @@ public static partial class SelfTest
         _ = Fail;
 
         TestStrokeStyleCompat(Section, Check);
+        TestBrushModel(Section, Check);
+    }
+
+    /// <summary>
+    /// **刷子模型的参数防护** —— 这批号是"一个号 + 操作码"，程序传进来的
+    /// 种类/槽位/形状码**全是裸整数**，写错一个就是未定义行为。
+    ///
+    /// 仓库既有的规矩是「**让异常参数最多画不出来，绝不崩**」（见 `VmlScene` 那一堆
+    /// `InCoordRange` / `Dim` / `MaxPolyPoints`）。这一批同样按这条写，但
+    /// **写的时候没有自测钉住** —— 于是补在这里。
+    ///
+    /// 判据刻意只断言两类，因为这两类才是"崩"的来源：
+    /// ① **不抛**（越界索引、除零、空引用）；
+    /// ② **越界的东西真的被挡住了**（不是"没崩就算过"—— 静默画错也是错）。
+    /// </summary>
+    private static void TestBrushModel(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("绘图 DSL：刷子模型的参数防护");
+
+        // ── 形状码 ──
+        var s = new VmlScene();
+        Check("未知形状码 → false（不抛）", !s.AddShape(999, 1, 2, 3, 4, 5, 6, 7));
+        Check("负形状码 → false", !s.AddShape(-1, 1, 2, 3, 4, 5, 6, 7));
+
+        // 坐标越界整条丢弃：屏幕外的东西本来也看不见，丢掉还省内存（与既有策略一致）
+        Check("坐标超出 ±100 万 → 丢弃",
+            !s.AddShape(VmlShape.Rect, VmlScene.CoordLimit + 1, 0, 10, 10, 0, 0, 0));
+        Check("合法坐标 → 受理", s.AddShape(VmlShape.Rect, 0, 0, 10, 10, 0, 0, 0));
+
+        // 角数钳位 —— 与 DSL 侧 StarCommand/RegularCommand 的判据同源
+        Check("星形角数 < 2 被抬到 2",
+            s.AddStar(10, 10, 20, 8, 0, 0) && s.BuildDsl().Contains("star 10 10 20 8 2 0"));
+        Check("星形角数 > 4096 被压到 4096",
+            s.AddStar(10, 10, 20, 8, 99999, 0) && s.BuildDsl().Contains("star 10 10 20 8 4096 0"));
+        Check("正多边形边数 < 3 被抬到 3",
+            s.AddRegular(10, 10, 20, 1, 0) && s.BuildDsl().Contains("regular 10 10 20 3 0"));
+        Check("旋转角归一到 [0,360)", s.AddStar(10, 10, 20, 8, 5, -90)
+            && s.BuildDsl().Contains("star 10 10 20 8 5 270"));
+
+        // ── 样式槽 ──
+        Check("未知样式槽 → false（不抛）", !s.SetStyle(99, unchecked((int)0xFF00FF00), 0, 0, 0, 0));
+        Check("SetStyle 正常槽 → true", s.SetStyle(VmlStyleSlot.Fill, unchecked((int)0xFF00FF00), 0, 0, 0, 0));
+
+        // 句柄越界一律当"没有"，绝不能拿它去索引刷子表
+        Check("越界句柄 → BrushToken 为 null", s.BrushToken(999) == null);
+        Check("句柄 0 → null（0 是「没有」）", s.BrushToken(0) == null);
+        Check("未知槽位不产生刷子", s.BrushToken(-5) == null);
+
+        // 渐变刷子给了"画笔"槽（本批还不支持）→ **退化到起始色并记警告**，不崩、不静默
+        var s2 = new VmlScene();
+        var gb = s2.AddGradientBrush(radial: false, 0xFFFF0000, 0xFF0000FF, 0, 0, 1000, 0);
+        Check("渐变刷子句柄有效", gb >= 1 && s2.BrushToken(gb)!.StartsWith('@'));
+        Check("渐变刷子给了画笔槽 → 受理（退化成起始色，不崩）",
+            s2.SetStyle(VmlStyleSlot.Pen, gb, 3, 0, 0, 0) && s2.PenToken == "#FFFF0000");
+
+        // ── 刷子表上限 ──
+        var s3 = new VmlScene();
+        var last = 0;
+        for (var i = 0; i < VmlScene.MaxBrushes + 10; i++) last = s3.AddSolidBrush((uint)(0xFF000000 + i));
+        Check("刷子表满了之后返回 0（不越界、不崩）", last == 0);
+        Check($"上限就是 {VmlScene.MaxBrushes}",
+            s3.BrushToken(VmlScene.MaxBrushes) != null && s3.BrushToken(VmlScene.MaxBrushes + 1) == null);
+
+        // 同色复用：循环里反复造不该把表撑爆
+        var s4 = new VmlScene();
+        var h1 = s4.AddSolidBrush(0xFF123456);
+        var h2 = s4.AddSolidBrush(0xFF123456);
+        Check("同色刷子复用同一个句柄", h1 == h2 && h1 >= 1);
     }
 
     /// <summary>
