@@ -1,3 +1,44 @@
+## v0.96.278 — R 的 `break` / `next` 指向一个**从来没落过的标签**（P2 误报第 2 个）
+
+### 现象
+
+```r
+i <- 0
+while (i < 10) { i <- i + 1; if (i == 5) { break } }
+print(i)
+```
+P2 之后编译报 `error: 未定义的函数 'wend_0'`。
+
+### 真身
+
+`GenerateWhile` 把 `currentBreakLabel = $"wend_{n}"` / `currentNextLabel = $"while_{n}"` 设好，
+`GenerateBreak`/`GenerateNext` 也确实发 `JMP wend_N` —— 但**全 R 前端没有任何一处 `LABEL wend_N`**。
+两个标签只被赋值、从来没被落点。
+
+对照：`repeat` 是**对的**（`AddLabel(startLabel)` + `AddLabel(endLabel)`），
+`for` 也是对的（`currentBreakLabel = endLabel` 且那个 `endLabel` 落了）。**只有 `while` 漏了。**
+
+`StatementManager` 里那套 `_loopStack`（`EmitWhile` 自己会 push）在这条路上用不上 ——
+它**根本没有 `EmitBreak`/`EmitContinue`**，R 走的是自己这条 `currentBreakLabel` 通路。
+
+### 修法
+
+按 R 的语义落点：`next` 跳回**循环体开头**（回去重新判条件），`break` 跳**循环之后**。
+用同文件已有的 `AddLabel` 写法（与 `repeat` 一致 —— 同一件事两种写法正是本仓的坑）。
+
+### 一条方法论教训（我在这条上绕了两圈）
+
+第一轮 grep `wend_` **什么都没找到**，我据此写下「还没找到引用方」。
+**那个结论是错的**：标签名是 `$"wend_{labelCounter++}"` **插值拼**出来的，
+字面量 `"wend_"` 只出现在**赋值那一行**；而"读"它的 `GenerateBreak` 里写的是**变量名**
+（`currentBreakLabel`），我第二次 grep 又加了过滤条件把这几行排掉了。
+
+⇒ **"grep 没命中"不等于"不存在"**。换个搜法（按 AST 节点名 `BreakNode` 找生成函数）一眼就看到了。
+
+### 判据
+
+`i` 停在 **5** ✓；`Examples/r/catch.r` 编译通过；`out-probe` 29/29。
+
 ## v0.96.277 — 运行面板的关闭键：贴右 + 与栏融为一体
 
 用户两条：① 关闭键**靠右对齐**（位置好找）；② **去掉外框和底色**，与栏融为一体。

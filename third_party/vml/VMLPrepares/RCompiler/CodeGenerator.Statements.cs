@@ -172,9 +172,31 @@ public partial class CodeGenerator
         currentBreakLabel = $"wend_{labelCounter++}";
         currentNextLabel = $"while_{labelCounter++}";
 
+        // ⚠ **这两个标签以前从来没被落过** —— `GenerateBreak`/`GenerateNext` 发的是
+        //   `JMP wend_N` / `JMP while_N`，而全 R 前端没有任何一处 `LABEL wend_N`。
+        //   后果：循环里一写 `break`，那条跳转就指向一个不存在的标签
+        //   （P2 之前是"链接期警告、运行到才崩"，P2 之后**直接编译不过**）。
+        //   实测最小复现：`i<-0; while (i<10) { i<-i+1; if (i==5) { break } }; print(i)`
+        //   → `error: 未定义的函数 'wend_0'`。
+        //   （之前 grep 没找到引用方，是因为标签名是 `$"wend_{…}"` 插值拼的 ——
+        //    字面量 `"wend_"` 只出现在赋值那行，"读"它的是同文件里两个生成函数。）
+        //
+        // 落点按 R 的语义定：`next` 跳回**循环体开头**（回去重新判条件），
+        // `break` 跳**循环之后**。`EmitWhile` 自己那套 `_loopStack` 标签是给
+        // 别的语言用的（`StatementManager` 根本没有 EmitBreak/EmitContinue），
+        // R 走的是自己这条 `currentBreakLabel` 通路。
+        string brk = currentBreakLabel!;
+        string nxt = currentNextLabel!;
+
         Sta!.EmitWhile(
             emitCondition: () => GenerateExpression(node.Condition),
-            emitBody: () => { foreach (var stmt in node.Body) GenerateStatement(stmt); });
+            emitBody: () =>
+            {
+                AddLabel(nxt);
+                foreach (var stmt in node.Body) GenerateStatement(stmt);
+            });
+
+        AddLabel(brk);
 
         // restore loop context
         currentBreakLabel = savedBreak;
