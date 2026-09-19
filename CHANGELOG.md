@@ -1,3 +1,66 @@
+## v0.96.285 — 未声明变量：再修 7 门（ObjC / Go / Swift / Dart / C# / D / Java）→ **10/16**
+
+### 三路并行侦察的结论：形态只有两种，基类早就备好了工具
+
+13 个前端**全都（间接）继承 `CodeGeneratorBase`** —— 它上面现成摆着
+`ReportUndefined(name, code, kind)`（收集、不抛）与 `EmitUndefinedFallback()`（发 `MOVE R0,#0`），
+但 grep 全仓**一门都没调过**。读变量的落空分支只有两种形状：
+
+| 形态 | 语言 | 特征 |
+|---|---|---|
+| **顺手建个初值 0 的全局槽** | ObjC / Swift / Dart / C# / D / Java / Pascal / Fortran / Basic | `if (!dataSection.ContainsKey("var_x")) dataSection["var_x"] = 0;` |
+| **假定存在全局符号，直接 load 名字** | Go / C++ / Rust | 连槽都不建，引用一个可能根本不存在的标签（连"确定的 0"都不是） |
+
+修法统一：把落空分支换成 `ReportUndefined(...)` + `EmitUndefinedFallback()` + `return`。
+落空分支里发的占位值本来就等价于"读个 0"，所以**除了多一条诊断，生成代码语义不变**。
+
+### 一门一个坑：Java 的静态字段被解析器丢了
+
+`Examples/java/catch.java` 立刻报了 `未声明的变量 'A'` —— **误报**。
+查下来 `static int[] A = new int[10];` 的 `FieldDecl` 被解析器收进了 `ClassDecl.Fields`，
+而 `GenerateClass` **只遍历构造函数与方法**（`grep '\.Fields' CodeGenerator*.cs` 零命中）
+—— 字段从来没被代码生成消费过。
+
+此前之所以没暴露，是因为 `GenerateVariable` 那条兜底**把它蒙对了**：数组基址要的正是**地址**，
+而那条发的恰好是 `LABEL`。兜底一升级成硬报错，误报就来了。
+
+⇒ 在 `GenerateClass` 开头把字段名登记进 `dataSection`。**生成出来的代码与登记之前逐字相同**
+（标签一直是 `var_<名字>`，值同样是 0），只是把"这个存在"提前告诉符号表。
+
+⚠ 顺带记下**没动**的一条：Java 那句用的是 `OperandType.LABEL`，而本 VM 里 LABEL 的语义是
+**取标签地址**、不是取值 —— `CSharpCompiler/CodeGenerator.cs:368-375` 有段注释专门记过这个坑
+（"v0.96.185 前这里是 LABEL…读出来是地址（几千）"），C# 已改成 `MEMORY`，Java 至今没改。
+它只影响**真正声明过的全局变量**的读取，而 `Examples/java/` 三个例子都只有 `static native`
+方法、没有静态字段可读 ⇒ **没有用例能验证这次改动**，按「没验证就不改」留作待办。
+
+### `dyn-global` 组补上了（豁免的反向护栏）
+
+6 门动态语言（js/lua/py/r/rb/scm）各一条「赋值给未声明的名字 + 打印它」，
+`.expect` 期望输出 `7`。组里加了**输出比对** —— 只判"编得过"是不够的：
+「隐式全局被静默当成 0、值丢了」同样编得过、也不崩，那正是本组要防的"看起来没坏"。
+
+⚠ 写用例时踩到两处语法：**Lua 必须显式写 `main()` 调用**（`out.lua` 末尾就有，
+漏了不报错、只是什么都不输出）；`dyn-global.*.expect` 会被 `dyn-global.*` 的 glob
+当成用例 —— 与前两组同一个坑，已排除。
+
+### 判据
+
+| | 之前 | 之后 |
+|---|---|---|
+| `undef-var` | 3/16 | **10/16** |
+| `dyn-global` | 组不存在 | **6/6** |
+| `undef-fn` / `link-clean` | 16/16 / 22/22 | 16/16 / 22/22 |
+| `vml-out-probe` | 29/29 | 29/29 |
+| `examples-build` | 78/3 | 78/3 |
+
+剩 6 门：`cpp` `rs`（"假定存在全局符号"形态）、`pas` `ld`（多调用点）、
+以及两门**有语言语义例外**的 `f90` `bas` —— Fortran 要 `implicit none`、
+QBasic 要 `OPTION EXPLICIT` 才该报，而这两个指令**目前都只被解析、没有被强制执行**
+（`implicit none` 解析成 `NopNode` 丢弃；`OPTION EXPLICIT` 的 `EXPLICIT` 根本不被识别）。
+这两门得先补上指令语义，不能一刀切。
+
+---
+
 ## v0.96.284 — 未声明变量（P6 第一门：C）；新建 `undef-var` 判据组量出 **2/16** 的基线
 
 ### 判据先行：`undef-var` 组

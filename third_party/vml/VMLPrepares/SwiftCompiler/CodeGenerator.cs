@@ -445,10 +445,17 @@ namespace SwiftCompiler
             }
             else
             {
-                // 简化处理：假设变量在数据段中
                 string label = $"var_{variable.Name}";
                 if (!dataSection.ContainsKey(label))
-                    dataSection[label] = 0;
+                {
+                    // 局部表与 `dataSection` 都没有 ⇒ 这个名字**从未声明过**。
+                    // 此前这里「假设变量在数据段中」顺手建个初值 0 的槽 —— 于是
+                    // `let a = 1; let b = a + nosuch` 编得过、运行期静静按 0 算出个错答案
+                    //（用户原话：「明明有无效标识，非要等到运行才报错」）。
+                    ReportUndefined(variable.Name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                    EmitUndefinedFallback();
+                    return;
+                }
                 // 统一使用 MEMORY 解引用 (GetFloatValue/GetDoubleValue 已正确处理 LABEL→内存读取,
                 // 但 GetLongValue 对 LABEL 错误返回地址而非值, 故 MOVEL/MOVED/MOVEF 也改用 MEMORY)
                 var opType = OperandType.MEMORY;

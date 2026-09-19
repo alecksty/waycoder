@@ -381,7 +381,14 @@ public partial class CodeGenerator
         {
             string dataLabel = $"var_{name}";
             if (!dataSection.ContainsKey(dataLabel))
-                dataSection[dataLabel] = 0;
+            {
+                // 局部表与 `dataSection` 都没有 ⇒ 这个名字**从未声明过**。
+                // 此前这里顺手建个初值 0 的槽就当成全局 ——
+                // `int a = 1; int b = a + nosuch;` 编得过、运行期静静按 0 算出个错答案。
+                ReportUndefined(name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                EmitUndefinedFallback();
+                return;
+            }
             instructions.Add(new Instruction(loadOp,
                 new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, dataLabel) },
                 instructions.Count));

@@ -243,7 +243,23 @@ namespace JavaCompiler
             else
             {
                 string label = $"var_{variable.Name}";
-                if (!dataSection.ContainsKey(label)) dataSection[label] = 0;
+                if (!dataSection.ContainsKey(label))
+                {
+                    // 局部表与 `dataSection` 都没有 ⇒ 这个名字**从未声明过**。
+                    // 此前这里顺手建个初值 0 的槽就当成全局 ——
+                    // `int x = 1; int y = x + nosuch;` 编得过、运行期静静算出个错答案。
+                    //
+                    // ⚠ 另记（**本次没动**）：下面那句用的是 `OperandType.LABEL`，
+                    //   而本 VM 里 LABEL 的语义是**取标签地址**、不是取值 ——
+                    //   `CSharpCompiler/CodeGenerator.cs:368-375` 有一段注释专门记过这个坑
+                    //   （"v0.96.185 前这里是 LABEL…读出来是地址（几千）"），C# 已经改成 MEMORY，
+                    //   Java 这条至今没改。它只影响**真正声明过的全局变量**的读取，
+                    //   而 `Examples/java/` 三个例子都只有 `static native` 方法、没有静态字段，
+                    //   所以没有用例能验证这次改动 —— 按「没验证就不改」留作待办。
+                    ReportUndefined(variable.Name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                    EmitUndefinedFallback();
+                    return;
+                }
                 instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, label)]));
             }
         }

@@ -140,18 +140,29 @@ group_dyn_global() {
     local files=("$HERE"/cases/dyn-global.*)
     shopt -u nullglob
     for f in "${files[@]}"; do
+        # ⚠ `.expect` 是**期望值**不是用例 —— glob 会一并匹配到（其他两组踩过同一个坑）
+        [[ "$f" == *.expect ]] && continue
         [[ -n "$filter" && "${f##*.}" != "$filter" ]] && continue
         any=1
-        local errf; errf="$(mktemp)"
+        local errf outf; errf="$(mktemp)"; outf="$(mktemp)"
         local rc=0
-        ( cd "$(dirname "$f")" && run_probe dotnet "$DLL" "$(basename "$f")" --timeout 10 2>"$errf" ) >/dev/null || rc=$?
-        if [ "$rc" -eq 0 ] && ! grep -qaE 'Unhandled exception|error:' "$errf"; then
-            printf '%-16s PASS\n' "$(basename "$f")"; pass=$((pass + 1))
-        else
-            printf '%-16s FAIL   隐式全局被拒了\n' "$(basename "$f")"
+        ( cd "$(dirname "$f")" && run_probe dotnet "$DLL" "$(basename "$f")" --timeout 10 2>"$errf" ) >"$outf" || rc=$?
+
+        # 判据是**两条**：① 编得过且不崩 ② **输出与期望逐字相同**。
+        # 只判①是不够的 —— 「隐式全局被静默当成 0、值丢了」同样编得过、也不崩，
+        # 那正是本组要防的那种"看起来没坏"。
+        local want; want="$(cat "$f.expect" 2>/dev/null)"
+        if [ "$rc" -ne 0 ] || grep -qaE 'Unhandled exception|error:' "$errf"; then
+            printf '%-18s FAIL   隐式全局被拒了\n' "$(basename "$f")"
             fail=$((fail + 1)); failed+=("$(basename "$f")")
+        elif [ -n "$want" ] && [ "$(cat "$outf")" != "$want" ]; then
+            printf '%-18s FAIL   输出不符（期望 %s，实得 %s）\n' "$(basename "$f")" \
+                "$(printf '%s' "$want" | tr '\n' '/')" "$(tr '\n' '/' <"$outf")"
+            fail=$((fail + 1)); failed+=("$(basename "$f")")
+        else
+            printf '%-18s PASS\n' "$(basename "$f")"; pass=$((pass + 1))
         fi
-        rm -f "$errf"
+        rm -f "$errf" "$outf"
     done
     [ "$any" -eq 1 ] || echo "（dyn-global 组还没有用例 —— P6 阶段补）"
 }

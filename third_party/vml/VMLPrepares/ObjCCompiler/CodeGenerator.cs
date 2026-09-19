@@ -75,7 +75,19 @@ public partial class CodeGenerator : CLikeCodegen<CodeGenerator>
         else
         {
             string dataLabel = $"var_{name}";
-            if (!dataSection.ContainsKey(dataLabel)) dataSection[dataLabel] = 0;
+            if (!dataSection.ContainsKey(dataLabel))
+            {
+                // 局部/形参表（`_varOffsets`）与 `dataSection` 都查不到 ⇒ 这个名字**从未声明过**。
+                // 此前这里顺手 `dataSection[dataLabel] = 0` 建个槽就当它是全局 —— 于是
+                // `int a = 1; return a + nosuch;` 编得过、运行期静静按 0 算出一个错答案
+                //（用户原话：「明明有无效标识，非要等到运行才报错」）。
+                //
+                // 报错 + 发确定性占位值（`MOVE R0,#0`）让生成继续跑：一次能把文件里
+                // 所有拼错的名字都报出来，而不是抛在第一个上。
+                ReportUndefined(name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                EmitUndefinedFallback();
+                return;
+            }
             if (IsVmlArray(name))
                 EmitLoadArrayAddress(dataLabel);
             else

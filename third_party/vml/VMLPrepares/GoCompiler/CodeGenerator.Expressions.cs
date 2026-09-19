@@ -35,8 +35,13 @@ namespace GoCompiler
             }
             else
             {
-                // 未知变量，假设是全局变量，使用默认的LOAD指令
-                AddInstruction(OpCode.MOVE, Reg(0), Mem(ident.Name));
+                // 局部表与 `dataSection` 都没有 ⇒ 这个名字**从未声明过**。
+                // 此前这里「假设是全局变量」直接发一条 `MOVE R0, [name]` ——
+                // 既不建槽也不报错，引用的是一个可能根本不存在的标签：
+                // `x := 1; y := x + nosuch` 编得过，运行期读到的值取决于汇编器/内存残值
+                //（连"确定的 0"都不是），用户要等到运行才发现。
+                ReportUndefined(ident.Name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                EmitUndefinedFallback();
             }
         }
 

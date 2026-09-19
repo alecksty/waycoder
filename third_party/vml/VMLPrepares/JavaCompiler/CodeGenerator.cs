@@ -175,6 +175,23 @@ namespace JavaCompiler
         
         private void GenerateClass(ClassDecl classDecl)
         {
+            // 字段（含 `static int[] A = new int[10];` 这类）**登记进 dataSection**。
+            //
+            // ⚠ 解析器把字段收进了 `ClassDecl.Fields`，而这里只遍历构造函数与方法 ——
+            //   字段**从来没被代码生成消费过**（`grep '\.Fields' CodeGenerator*.cs` 零命中）。
+            //   此前之所以没暴露，是因为 `GenerateVariable` 有一条「查不到就假定是全局、
+            //   现场建个 `var_x` 槽」的兜底 **把它蒙对了**（数组基址要的正是地址，
+            //   而那条恰好发的是 `LABEL`）。现在那条兜底升级成硬报错，就必须先把
+            //   「哪些名字是声明过的」补上，否则 `Examples/java/catch.java` 的 `A` 会被误报。
+            //
+            // 生成出来的代码**与登记之前逐字相同**：标签一直是 `var_<名字>`，
+            // 这里只是把它的存在提前告诉符号表（值同样是 0）。
+            foreach (var field in classDecl.Fields)
+            {
+                string fieldLabel = $"var_{field.Name}";
+                if (!dataSection.ContainsKey(fieldLabel)) dataSection[fieldLabel] = 0;
+            }
+
             // 为每个构造函数生成代码
             foreach (var ctor in classDecl.Constructors)
             {
