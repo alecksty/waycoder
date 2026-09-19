@@ -979,6 +979,10 @@ namespace VML {
     // extern int ui_wait(int* msg, int timeout_ms);  // CALL ui_wait
     // extern int ui_poll_ex(int* msg, int keep);  // CALL ui_poll_ex
     // extern int ui_wait_ex(int* msg, int timeout_ms, int keep);  // CALL ui_wait_ex
+    // extern int ui_call_json(char* fn, char* args_json, char* out_buf, int cap);  // CALL ui_call_json
+    // extern int ui_call_json_s(char* fn, char* args_json);  // CALL ui_call_json_s
+    // extern int ui_call_json_len(void);  // CALL ui_call_json_len
+    // extern int ui_call_json_at(int i);  // CALL ui_call_json_at
     // extern int ui_msg_count(void);  // CALL ui_msg_count
     // extern int ui_msg_clear(void);  // CALL ui_msg_clear
     // extern int ui_wait_msg(int timeout_ms);  // CALL ui_wait_msg

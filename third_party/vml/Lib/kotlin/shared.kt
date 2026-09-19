@@ -1957,6 +1957,14 @@
 // CALL ui_poll_ex
 // extern fn ui_wait_ex(int* msg, int timeout_ms, int keep) -> int
 // CALL ui_wait_ex
+// extern fn ui_call_json(char* fn, char* args_json, char* out_buf, int cap) -> int
+// CALL ui_call_json
+// extern fn ui_call_json_s(char* fn, char* args_json) -> int
+// CALL ui_call_json_s
+// extern fn ui_call_json_len(void) -> int
+// CALL ui_call_json_len
+// extern fn ui_call_json_at(int i) -> int
+// CALL ui_call_json_at
 // extern fn ui_msg_count(void) -> int
 // CALL ui_msg_count
 // extern fn ui_msg_clear(void) -> int

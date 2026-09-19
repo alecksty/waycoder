@@ -4624,6 +4624,26 @@ DECLARE FUNCTION ui_wait_ex(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTE
     ui_wait_ex = 0
 END FUNCTION
 
+DECLARE FUNCTION ui_call_json(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER) AS INTEGER
+    asm("CALL ui_call_json")
+    ui_call_json = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_call_json_s(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL ui_call_json_s")
+    ui_call_json_s = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_call_json_len() AS INTEGER
+    asm("CALL ui_call_json_len")
+    ui_call_json_len = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_call_json_at(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_call_json_at")
+    ui_call_json_at = 0
+END FUNCTION
+
 DECLARE FUNCTION ui_msg_count() AS INTEGER
     asm("CALL ui_msg_count")
     ui_msg_count = 0

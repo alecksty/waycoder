@@ -171,6 +171,47 @@ int ui_wait_ex(int* msg, int timeout_ms, int keep) {
     return asm("SYSCALL #572, ${msg}, ${timeout_ms}, ${keep}");
 }
 
+/* ── 全能接口：两个字符串进、一个 JSON 字符串出 ────────────────────────
+ *
+ * 给**不要求性能**的可扩展功能用：加一个能力 = 宿主侧注册一个函数，
+ * 不占 syscall 号、不用改这里、也不用重生成 22 种语言的绑定。
+ * 绘图/输入这类每帧都发生的东西**别走这里**（一次调用要过两趟 JSON + 一次内存拷贝）。
+ *
+ * 返回值：写进 out_buf 的字节数（不含结尾 NUL）；-1 = 失败（函数不认识 / 参数非法 /
+ * 缓冲区放不下 —— 后面这种情形 out_buf 里会是一段说明原因的信封）。
+ * 结果永远是对象：成功 {"ok":true,"result":…}，失败 {"ok":false,"error":"…"}。 */
+int ui_call_json(char* fn, char* args_json, char* out_buf, int cap) {
+    return asm("SYSCALL #573, ${fn}, ${args_json}, ${out_buf}, ${cap}");
+}
+
+/* 给**拿不到缓冲区指针**的前端（Python / BASIC / Lua …）的版本：
+ * 结果放进静态缓冲，用下面两个函数按字节读 —— 连 char* 都能不解引用。
+ * 容量 4096 够放一般的结果；不够时结果里会是"结果太长"的信封（一眼看得出）。 */
+#define UI_JSON_BUF_N 4096
+static char _ui_json_buf[UI_JSON_BUF_N];
+static int _ui_json_len;
+
+int ui_call_json_s(char* fn, char* args_json) {
+    _ui_json_len = ui_call_json(fn, args_json, _ui_json_buf, UI_JSON_BUF_N);
+    if (_ui_json_len < 0) {
+        _ui_json_len = 0;
+    }
+    return _ui_json_len;
+}
+
+/* 上一次 ui_call_json_s 的结果长度（字节，不含结尾 NUL；失败 0）。 */
+int ui_call_json_len(void) {
+    return _ui_json_len;
+}
+
+/* 结果里第 i 个字节（0..len-1）。越界返回 0 —— 与 ui_gget 一样安全失败。 */
+int ui_call_json_at(int i) {
+    if (i < 0 || i >= _ui_json_len) {
+        return 0;
+    }
+    return _ui_json_buf[i];
+}
+
 int ui_msg_count(void) {
     return asm("SYSCALL #562");
 }

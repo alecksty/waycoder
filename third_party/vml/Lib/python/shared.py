@@ -6051,6 +6051,33 @@ def ui_wait_ex(a0, a1, a2):
     asm("CALL ui_wait_ex")
     return r0
 
+def ui_call_json(a0, a1, a2, a3):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_call_json")
+    return r0
+
+def ui_call_json_s(a0, a1):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_call_json_s")
+    return r0
+
+def ui_call_json_len():
+    r0 = asm("R0")
+    asm("CALL ui_call_json_len")
+    return r0
+
+def ui_call_json_at(a0):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_call_json_at")
+    return r0
+
 def ui_msg_count():
     r0 = asm("R0")
     asm("CALL ui_msg_count")

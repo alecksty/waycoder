@@ -80,6 +80,21 @@ public static class VmlUi
     public const int NeedGamepad = 1;
     /// <summary>`WIN_OPEN_EX` 的 R4：不要手柄区，画布吃满整屏。</summary>
     public const int NoGamepad = 0;
+    /// <summary>
+    /// **全能接口**：R0=函数名* R1=参数 JSON* R2=输出缓冲 R3=缓冲容量 → 写入字节数，失败 -1。
+    ///
+    /// 两个字符串进、一个 JSON 字符串出（结果写进调用方给的缓冲区，与
+    /// <see cref="DlgInput"/> 返回文本同一套 —— VM 里没有宿主能"交还"的堆）。
+    /// 用来承载**不要求性能**的可扩展功能：加一个能力 = 宿主侧
+    /// <see cref="VmlJsonApi.Register"/> 一行，**不用占号、不用重生成 22 种语言的绑定**。
+    ///
+    /// ⚠ 绘图/输入这类每帧都发生的调用**别走这里**：一次调用要序列化+解析两趟 JSON
+    /// 再穿一次内存缓冲。专用号仍然更快也更明确。
+    /// 返回值的信封格式（成功 `{"ok":true,"result":…}` / 失败 `{"ok":false,"error":"…"}`）、
+    /// 以及"缓冲区太小"怎么处理，见 <see cref="VmlJsonApi"/>。
+    /// </summary>
+    public const int CallJson = 573;
+
     /// <summary>关窗口：R0=句柄 → 0。</summary>
     public const int WinClose = 521;
     /// <summary>清屏：R0=颜色(ARGB) → 0（同时清空图元表）。</summary>

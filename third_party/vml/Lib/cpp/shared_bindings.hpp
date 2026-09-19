@@ -979,6 +979,10 @@ extern "C" {
      int ui_wait(int* msg, int timeout_ms);
      int ui_poll_ex(int* msg, int keep);
      int ui_wait_ex(int* msg, int timeout_ms, int keep);
+     int ui_call_json(char* fn, char* args_json, char* out_buf, int cap);
+     int ui_call_json_s(char* fn, char* args_json);
+     int ui_call_json_len(void);
+     int ui_call_json_at(int i);
      int ui_msg_count(void);
      int ui_msg_clear(void);
      int ui_wait_msg(int timeout_ms);

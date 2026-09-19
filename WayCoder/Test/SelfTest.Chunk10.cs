@@ -569,6 +569,35 @@ public static partial class SelfTest
         Check("VmlScene.Resize: 非法尺寸被忽略（不把场景改成 0 宽）",
             rs.Width == 396 && rs.Height == 301);
 
+        // ── 全能接口（`CALLJSON` #573）──
+        // 信封是**跨语言契约**：22 个前端的程序都按 {"ok":…,"result":…} 判断成败，
+        // 格式一改就等于改 ABI。逐条钉住。
+        VmlJsonApi.ClearForTest();
+        VmlJsonApi.Register("echoTest", a => a ?? JNode.Null());
+        Check("calljson: 成功信封是 {\"ok\":true,\"result\":…}",
+            VmlJsonApi.Invoke("echoTest", "{\"n\":7}") == "{\"ok\":true,\"result\":{\"n\":7}}");
+        Check("calljson: 不传参数时 result 为 null（不是少一个键）",
+            VmlJsonApi.Invoke("echoTest", "") == "{\"ok\":true,\"result\":null}");
+        // ⚠ 认不出的函数**必须回信封**，不能抛 —— 抛出去会把 VM 打挂，
+        // 而程序那边只会看到"窗口没了"
+        Check("calljson: 未知函数回 ok:false（不抛）",
+            VmlJsonApi.Invoke("nope", "").Contains("\"ok\":false")
+            && VmlJsonApi.Invoke("nope", "").Contains("未知函数"));
+        Check("calljson: 参数不是合法 JSON 当场报错",
+            VmlJsonApi.Invoke("echoTest", "{不是json}").Contains("参数不是合法 JSON"));
+        // 实现自己抛异常同样翻成信封 —— 这是"宿主出错不能把 VM 打挂"那条约定的落点
+        VmlJsonApi.Register("boomTest", _ => throw new InvalidOperationException("炸了"));
+        Check("calljson: 实现抛异常翻成 ok:false（不把 VM 打挂）",
+            VmlJsonApi.Invoke("boomTest", "").Contains("\"ok\":false")
+            && VmlJsonApi.Invoke("boomTest", "").Contains("炸了"));
+        Check("calljson: 缓冲区放不下的信封由 VmlJsonApi 一处出",
+            VmlJsonApi.TooLongEnvelope(999).Contains("999")
+            && VmlJsonApi.TooLongEnvelope(999).Contains("\"ok\":false"));
+        Check("VmlUi: CallJson 在号段内且不与其它号撞车",
+            VmlUi.Handles(VmlUi.CallJson) && VmlUi.CallJson != VmlUi.MsgWaitEx
+            && VmlUi.CallJson != VmlUi.WinOpenEx && VmlUi.CallJson != VmlUi.ScrOrient);
+        VmlJsonApi.ClearForTest();   // 别把测试用的函数留给后面的用例
+
         // ── 读消息的"读完之后留不留"（`MSG_POLL_EX` #571 / `MSG_WAIT_EX` #572）──
         var mq = new VmlMessageQueue();
         mq.Post(new VmlMessage(VmlMsgType.TouchDown, 11, 22, 0));

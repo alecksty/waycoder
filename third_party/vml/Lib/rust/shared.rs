@@ -6042,6 +6042,34 @@ fn ui_wait_ex(a0: i32, a1: i32, a2: i32) -> i32 {
     r
 }
 
+fn ui_call_json(a0: i32, a1: i32, a2: i32, a3: i32) -> i32 {
+    asm!("CALL ui_call_json")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_call_json_s(a0: i32, a1: i32) -> i32 {
+    asm!("CALL ui_call_json_s")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_call_json_len() -> i32 {
+    asm!("CALL ui_call_json_len")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_call_json_at(a0: i32) -> i32 {
+    asm!("CALL ui_call_json_at")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
 fn ui_msg_count() -> i32 {
     asm!("CALL ui_msg_count")
     let r: i32;

@@ -1,5 +1,7 @@
 
 .data
+_ui_json_buf: .word[4096] 0
+_ui_json_len: .word 0
 _ui_msg_type: .word 0
 _ui_msg_a: .word 0
 _ui_msg_b: .word 0
@@ -645,6 +647,172 @@ L_2170014:
         pop R12
         pop R15
         ret
+ui_call_json:
+; -------------------------------------------
+; source   : int ui_call_json(char* fn,char* args_json,char* out_buf,int cap)
+; function : ui_call_json
+; param   : char* fn
+; param   : char* args_json
+; param   : char* out_buf
+; param   : int cap
+; return   : int
+; --------------------------------------------
+ui_call_json:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+        move R0 [R12+12]
+        move R1 [R12+16]
+        move R2 [R12+20]
+        move R3 [R12+24]
+        syscall #573
+        move [R12-4] R0
+        jmp L_2170015
+L_2170015:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_call_json_s:
+; -------------------------------------------
+; source   : int ui_call_json_s(char* fn,char* args_json)
+; function : ui_call_json_s
+; param   : char* fn
+; param   : char* args_json
+; return   : int
+; --------------------------------------------
+ui_call_json_s:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+        move R0 #4096
+        push R0
+        move R0 _ui_json_buf
+        push R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12+12]
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        move R3 [R13+12]
+        call ui_call_json
+        add R13 #16
+        move [_ui_json_len] R0
+        move R0 [_ui_json_len]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L2170018
+        move R0 #0
+        jmp _L2170019
+_L2170018:
+        move R0 #1
+_L2170019:
+        cmp R0 #0
+        jz sta_2170016
+        move R0 #0
+        move [_ui_json_len] R0
+sta_2170016:
+sta_2170017:
+        move R0 [_ui_json_len]
+        jmp L_2170020
+L_2170020:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_call_json_len:
+; -------------------------------------------
+; source   : int ui_call_json_len()
+; function : ui_call_json_len
+; return   : int
+; --------------------------------------------
+ui_call_json_len:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+        move R0 [_ui_json_len]
+        jmp L_2170021
+L_2170021:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_call_json_at:
+; -------------------------------------------
+; source   : int ui_call_json_at(int i)
+; function : ui_call_json_at
+; param   : int i
+; return   : int
+; --------------------------------------------
+ui_call_json_at:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+        move R0 [R12+12]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jl _L2170027
+        move R0 #0
+        jmp _L2170028
+_L2170027:
+        move R0 #1
+_L2170028:
+        test R0 R0
+        jnz _L2170024
+        move R0 [R12+12]
+        push R0
+        move R0 [_ui_json_len]
+        pop R1
+        cmp R1 R0
+        jge _L2170029
+        move R0 #0
+        jmp _L2170030
+_L2170029:
+        move R0 #1
+_L2170030:
+        test R0 R0
+        jz _L2170025
+_L2170024:
+        move R0 #1
+        jmp _L2170026
+_L2170025:
+        move R0 #0
+_L2170026:
+        cmp R0 #0
+        jz sta_2170022
+        move R0 #0
+        jmp L_2170031
+sta_2170022:
+sta_2170023:
+        move R0 _ui_json_buf
+        push R0
+        move R11 #0
+        push R11
+        move R0 [R12+12]
+        pop R11
+        move R11 R0
+        move R0 R11
+        mul R0 #1
+        pop R10
+        add R0 R10
+        moveb R0 [R0]
+        sextb R0 R0
+        jmp L_2170031
+L_2170031:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
 ui_msg_count:
 ; -------------------------------------------
 ; source   : int ui_msg_count()
@@ -658,8 +826,8 @@ ui_msg_count:
         sub R13 #16
         syscall #562
         move [R12-4] R0
-        jmp L_2170015
-L_2170015:
+        jmp L_2170032
+L_2170032:
         move R13 R12
         pop R12
         pop R15
@@ -677,8 +845,8 @@ ui_msg_clear:
         sub R13 #16
         syscall #568
         move [R12-4] R0
-        jmp L_2170016
-L_2170016:
+        jmp L_2170033
+L_2170033:
         move R13 R12
         pop R12
         pop R15
@@ -706,23 +874,9 @@ ui_wait_msg:
         move R0 R12
         sub R0 #24
         push R0
-        move R11 #0
-        push R11
-        move R0 #1
-        pop R11
-        move R11 R0
-        move R0 R11
-        mul R0 #4
-        pop R10
-        add R0 R10
-        move R0 [R0]
-        move [_ui_msg_a] R0
-        move R0 R12
-        sub R0 #24
-        push R0
         move R9 #0
         push R9
-        move R0 #2
+        move R0 #1
         pop R9
         move R9 R0
         move R0 R9
@@ -730,10 +884,24 @@ ui_wait_msg:
         pop R8
         add R0 R8
         move R0 [R0]
+        move [_ui_msg_a] R0
+        move R0 R12
+        sub R0 #24
+        push R0
+        move R7 #0
+        push R7
+        move R0 #2
+        pop R7
+        move R7 R0
+        move R0 R7
+        mul R0 #4
+        pop R6
+        add R0 R6
+        move R0 [R0]
         move [_ui_msg_b] R0
         move R0 [_ui_msg_type]
-        jmp L_2170017
-L_2170017:
+        jmp L_2170034
+L_2170034:
         move R13 R12
         pop R12
         pop R15
@@ -759,23 +927,9 @@ ui_poll_msg:
         move R0 R12
         sub R0 #24
         push R0
-        move R7 #0
-        push R7
-        move R0 #1
-        pop R7
-        move R7 R0
-        move R0 R7
-        mul R0 #4
-        pop R6
-        add R0 R6
-        move R0 [R0]
-        move [_ui_msg_a] R0
-        move R0 R12
-        sub R0 #24
-        push R0
         move R5 #0
         push R5
-        move R0 #2
+        move R0 #1
         pop R5
         move R5 R0
         move R0 R5
@@ -783,10 +937,24 @@ ui_poll_msg:
         pop R4
         add R0 R4
         move R0 [R0]
+        move [_ui_msg_a] R0
+        move R0 R12
+        sub R0 #24
+        push R0
+        move R3 #0
+        push R3
+        move R0 #2
+        pop R3
+        move R3 R0
+        move R0 R3
+        mul R0 #4
+        pop R2
+        add R0 R2
+        move R0 [R0]
         move [_ui_msg_b] R0
         move R0 [_ui_msg_type]
-        jmp L_2170018
-L_2170018:
+        jmp L_2170035
+L_2170035:
         move R13 R12
         pop R12
         pop R15
@@ -803,8 +971,8 @@ ui_msg_type:
         move R12 R13
         sub R13 #16
         move R0 [_ui_msg_type]
-        jmp L_2170019
-L_2170019:
+        jmp L_2170036
+L_2170036:
         move R13 R12
         pop R12
         pop R15
@@ -821,8 +989,8 @@ ui_msg_a:
         move R12 R13
         sub R13 #16
         move R0 [_ui_msg_a]
-        jmp L_2170020
-L_2170020:
+        jmp L_2170037
+L_2170037:
         move R13 R12
         pop R12
         pop R15
@@ -839,8 +1007,8 @@ ui_msg_b:
         move R12 R13
         sub R13 #16
         move R0 [_ui_msg_b]
-        jmp L_2170021
-L_2170021:
+        jmp L_2170038
+L_2170038:
         move R13 R12
         pop R12
         pop R15
@@ -858,35 +1026,35 @@ ui_gclear:
         sub R13 #16
         move R0 #0
         move [R12-8] R0
-sta_2170022:
+sta_2170039:
         move R0 [R12-8]
         push R0
         move R0 #256
         pop R1
         cmp R1 R0
-        jl _L2170025
+        jl _L2170042
         move R0 #0
-        jmp _L2170026
-_L2170025:
+        jmp _L2170043
+_L2170042:
         move R0 #1
-_L2170026:
+_L2170043:
         cmp R0 #0
-        jz sta_2170024
+        jz sta_2170041
         move R0 #0
-        move R3 R0
+        move R1 R0
         move R0 _ui_grid
         push R0
-        move R2 #0
-        push R2
+        move R11 #0
+        push R11
         move R0 [R12-8]
-        pop R2
-        move R2 R0
-        move R0 R2
+        pop R11
+        move R11 R0
+        move R0 R11
         mul R0 #4
-        pop R1
-        add R0 R1
-        move [R0] R3
-sta_2170023:
+        pop R10
+        add R0 R10
+        move [R0] R1
+sta_2170040:
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -894,8 +1062,8 @@ sta_2170023:
         add R1 R0
         move R0 R1
         move [R12-8] R0
-        jmp sta_2170022
-sta_2170024:
+        jmp sta_2170039
+sta_2170041:
         move R13 R12
         pop R12
         pop R15
@@ -918,50 +1086,50 @@ ui_gset:
         move R0 #0
         pop R1
         cmp R1 R0
-        jge _L2170031
+        jge _L2170048
         move R0 #0
-        jmp _L2170032
-_L2170031:
+        jmp _L2170049
+_L2170048:
         move R0 #1
-_L2170032:
+_L2170049:
         test R0 R0
-        jz _L2170029
+        jz _L2170046
         move R0 [R12+12]
         push R0
         move R0 #256
         pop R1
         cmp R1 R0
-        jl _L2170033
+        jl _L2170050
         move R0 #0
-        jmp _L2170034
-_L2170033:
+        jmp _L2170051
+_L2170050:
         move R0 #1
-_L2170034:
+_L2170051:
         test R0 R0
-        jz _L2170029
+        jz _L2170046
         move R0 #1
-        jmp _L2170030
-_L2170029:
+        jmp _L2170047
+_L2170046:
         move R0 #0
-_L2170030:
+_L2170047:
         cmp R0 #0
-        jz sta_2170027
+        jz sta_2170044
         move R0 [R12+16]
-        move R11 R0
+        move R9 R0
         move R0 _ui_grid
         push R0
-        move R10 #0
-        push R10
+        move R8 #0
+        push R8
         move R0 [R12+12]
-        pop R10
-        move R10 R0
-        move R0 R10
+        pop R8
+        move R8 R0
+        move R0 R8
         mul R0 #4
-        pop R9
-        add R0 R9
-        move [R0] R11
-sta_2170027:
-sta_2170028:
+        pop R7
+        add R0 R7
+        move [R0] R9
+sta_2170044:
+sta_2170045:
         move R13 R12
         pop R12
         pop R15
@@ -983,52 +1151,52 @@ ui_gget:
         move R0 #0
         pop R1
         cmp R1 R0
-        jge _L2170039
+        jge _L2170056
         move R0 #0
-        jmp _L2170040
-_L2170039:
+        jmp _L2170057
+_L2170056:
         move R0 #1
-_L2170040:
+_L2170057:
         test R0 R0
-        jz _L2170037
+        jz _L2170054
         move R0 [R12+12]
         push R0
         move R0 #256
         pop R1
         cmp R1 R0
-        jl _L2170041
+        jl _L2170058
         move R0 #0
-        jmp _L2170042
-_L2170041:
+        jmp _L2170059
+_L2170058:
         move R0 #1
-_L2170042:
+_L2170059:
         test R0 R0
-        jz _L2170037
+        jz _L2170054
         move R0 #1
-        jmp _L2170038
-_L2170037:
+        jmp _L2170055
+_L2170054:
         move R0 #0
-_L2170038:
+_L2170055:
         cmp R0 #0
-        jz sta_2170035
+        jz sta_2170052
         move R0 _ui_grid
         push R0
-        move R8 #0
-        push R8
+        move R6 #0
+        push R6
         move R0 [R12+12]
-        pop R8
-        move R8 R0
-        move R0 R8
+        pop R6
+        move R6 R0
+        move R0 R6
         mul R0 #4
-        pop R7
-        add R0 R7
+        pop R5
+        add R0 R5
         move R0 [R0]
-        jmp L_2170043
-sta_2170035:
-sta_2170036:
+        jmp L_2170060
+sta_2170052:
+sta_2170053:
         move R0 #0
-        jmp L_2170043
-L_2170043:
+        jmp L_2170060
+L_2170060:
         move R13 R12
         pop R12
         pop R15
@@ -1131,117 +1299,22 @@ ui_piece_init:
         call ui_gset
         add R13 #8
         move R0 #0
-        move R6 R0
-        move R0 _ui_piece_rot
-        push R0
-        move R5 #0
-        push R5
-        move R0 #0
-        pop R5
-        move R5 R0
-        move R0 R5
-        mul R0 #4
-        pop R4
-        add R0 R4
-        move [R0] R6
-        move R0 #0
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move R2 R0
-        move R0 _ui_piece_rot
-        push R0
-        move R1 #0
-        push R1
-        move R0 #1
-        pop R1
-        move R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R3
-        add R0 R3
-        move [R0] R2
-        move R0 #0
-        push R0
-        move R0 #2
-        pop R1
-        add R1 R0
-        move R0 R1
-        move R10 R0
-        move R0 _ui_piece_rot
-        push R0
-        move R9 #0
-        push R9
-        move R0 #2
-        pop R9
-        move R9 R0
-        move R0 R9
-        mul R0 #4
-        pop R11
-        add R0 R11
-        move [R0] R10
-        move R0 #0
-        push R0
-        move R0 #3
-        pop R1
-        add R1 R0
-        move R0 R1
-        move R8 R0
-        move R0 _ui_piece_rot
-        push R0
-        move R7 #0
-        push R7
-        move R0 #3
-        pop R7
-        move R7 R0
-        move R0 R7
-        mul R0 #4
-        pop R5
-        add R0 R5
-        move [R0] R8
-        move R0 #0
-        push R0
-        move R0 #4
-        pop R1
-        add R1 R0
-        move R0 R1
         move R4 R0
         move R0 _ui_piece_rot
         push R0
-        move R6 #0
-        push R6
-        move R0 #4
-        pop R6
-        move R6 R0
-        move R0 R6
+        move R3 #0
+        push R3
+        move R0 #0
+        pop R3
+        move R3 R0
+        move R0 R3
         mul R0 #4
-        pop R1
-        add R0 R1
+        pop R2
+        add R0 R2
         move [R0] R4
         move R0 #0
         push R0
-        move R0 #5
-        pop R1
-        add R1 R0
-        move R0 R1
-        move R3 R0
-        move R0 _ui_piece_rot
-        push R0
-        move R2 #0
-        push R2
-        move R0 #5
-        pop R2
-        move R2 R0
-        move R0 R2
-        mul R0 #4
-        pop R9
-        add R0 R9
-        move [R0] R3
-        move R0 #0
-        push R0
-        move R0 #6
+        move R0 #1
         pop R1
         add R1 R0
         move R0 R1
@@ -1250,14 +1323,109 @@ ui_piece_init:
         push R0
         move R10 #0
         push R10
-        move R0 #6
+        move R0 #1
         pop R10
         move R10 R0
         move R0 R10
         mul R0 #4
+        pop R1
+        add R0 R1
+        move [R0] R11
+        move R0 #0
+        push R0
+        move R0 #2
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R8 R0
+        move R0 _ui_piece_rot
+        push R0
+        move R7 #0
+        push R7
+        move R0 #2
+        pop R7
+        move R7 R0
+        move R0 R7
+        mul R0 #4
+        pop R9
+        add R0 R9
+        move [R0] R8
+        move R0 #0
+        push R0
+        move R0 #3
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R6 R0
+        move R0 _ui_piece_rot
+        push R0
+        move R5 #0
+        push R5
+        move R0 #3
+        pop R5
+        move R5 R0
+        move R0 R5
+        mul R0 #4
+        pop R3
+        add R0 R3
+        move [R0] R6
+        move R0 #0
+        push R0
+        move R0 #4
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R2 R0
+        move R0 _ui_piece_rot
+        push R0
+        move R4 #0
+        push R4
+        move R0 #4
+        pop R4
+        move R4 R0
+        move R0 R4
+        mul R0 #4
+        pop R10
+        add R0 R10
+        move [R0] R2
+        move R0 #0
+        push R0
+        move R0 #5
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R1 R0
+        move R0 _ui_piece_rot
+        push R0
+        move R11 #0
+        push R11
+        move R0 #5
+        pop R11
+        move R11 R0
+        move R0 R11
+        mul R0 #4
         pop R7
         add R0 R7
-        move [R0] R11
+        move [R0] R1
+        move R0 #0
+        push R0
+        move R0 #6
+        pop R1
+        add R1 R0
+        move R0 R1
+        move R9 R0
+        move R0 _ui_piece_rot
+        push R0
+        move R8 #0
+        push R8
+        move R0 #6
+        pop R8
+        move R8 R0
+        move R0 R8
+        mul R0 #4
+        pop R5
+        add R0 R5
+        move [R0] R9
         move R13 R12
         pop R12
         pop R15
@@ -1278,38 +1446,38 @@ _ui_rot90:
         move [R12-8] R0
         move R0 #0
         move [R12-12] R0
-sta_2170044:
+sta_2170061:
         move R2 #0
         move R0 [R12-12]
         push R0
         move R0 #4
         pop R1
         cmp R1 R0
-        jl _L2170046
+        jl _L2170063
         move R0 #0
-        jmp _L2170047
-_L2170046:
+        jmp _L2170064
+_L2170063:
         move R0 #1
-_L2170047:
+_L2170064:
         cmp R0 #0
-        jz sta_2170045
+        jz sta_2170062
         move R0 #0
         move [R12-16] R0
-sta_2170048:
+sta_2170065:
         move R2 #0
         move R0 [R12-16]
         push R0
         move R0 #4
         pop R1
         cmp R1 R0
-        jl _L2170050
+        jl _L2170067
         move R0 #0
-        jmp _L2170051
-_L2170050:
+        jmp _L2170068
+_L2170067:
         move R0 #1
-_L2170051:
+_L2170068:
         cmp R0 #0
-        jz sta_2170049
+        jz sta_2170066
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -1335,14 +1503,14 @@ _L2170051:
         move R0 #0
         pop R1
         cmp R1 R0
-        jne _L2170054
+        jne _L2170071
         move R0 #0
-        jmp _L2170055
-_L2170054:
+        jmp _L2170072
+_L2170071:
         move R0 #1
-_L2170055:
+_L2170072:
         cmp R0 #0
-        jz sta_2170052
+        jz sta_2170069
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -1370,8 +1538,8 @@ _L2170055:
         or R1 R0
         move R0 R1
         move [R12-8] R0
-sta_2170052:
-sta_2170053:
+sta_2170069:
+sta_2170070:
         move R0 [R12-16]
         push R0
         move R0 #1
@@ -1379,8 +1547,8 @@ sta_2170053:
         add R1 R0
         move R0 R1
         move [R12-16] R0
-        jmp sta_2170048
-sta_2170049:
+        jmp sta_2170065
+sta_2170066:
         move R0 [R12-12]
         push R0
         move R0 #1
@@ -1388,11 +1556,11 @@ sta_2170049:
         add R1 R0
         move R0 R1
         move [R12-12] R0
-        jmp sta_2170044
-sta_2170045:
+        jmp sta_2170061
+sta_2170062:
         move R0 [R12-8]
-        jmp L_2170056
-L_2170056:
+        jmp L_2170073
+L_2170073:
         move R13 R12
         pop R12
         pop R15
@@ -1416,94 +1584,94 @@ ui_piece_cell:
         move R0 #0
         pop R1
         cmp R1 R0
-        jl _L2170068
+        jl _L2170085
         move R0 #0
-        jmp _L2170069
-_L2170068:
+        jmp _L2170086
+_L2170085:
         move R0 #1
-_L2170069:
+_L2170086:
         test R0 R0
-        jnz _L2170065
+        jnz _L2170082
         move R0 [R12+12]
         push R0
         move R0 #6
         pop R1
         cmp R1 R0
-        jg _L2170070
+        jg _L2170087
         move R0 #0
-        jmp _L2170071
-_L2170070:
+        jmp _L2170088
+_L2170087:
         move R0 #1
-_L2170071:
+_L2170088:
         test R0 R0
-        jz _L2170066
-_L2170065:
+        jz _L2170083
+_L2170082:
         move R0 #1
-        jmp _L2170067
-_L2170066:
+        jmp _L2170084
+_L2170083:
         move R0 #0
-_L2170067:
+_L2170084:
         test R0 R0
-        jnz _L2170062
+        jnz _L2170079
         move R0 [R12+20]
         push R0
         move R0 #0
         pop R1
         cmp R1 R0
-        jl _L2170072
+        jl _L2170089
         move R0 #0
-        jmp _L2170073
-_L2170072:
+        jmp _L2170090
+_L2170089:
         move R0 #1
-_L2170073:
+_L2170090:
         test R0 R0
-        jz _L2170063
-_L2170062:
+        jz _L2170080
+_L2170079:
         move R0 #1
-        jmp _L2170064
-_L2170063:
+        jmp _L2170081
+_L2170080:
         move R0 #0
-_L2170064:
+_L2170081:
         test R0 R0
-        jnz _L2170059
+        jnz _L2170076
         move R0 [R12+20]
         push R0
         move R0 #3
         pop R1
         cmp R1 R0
-        jg _L2170074
+        jg _L2170091
         move R0 #0
-        jmp _L2170075
-_L2170074:
+        jmp _L2170092
+_L2170091:
         move R0 #1
-_L2170075:
+_L2170092:
         test R0 R0
-        jz _L2170060
-_L2170059:
+        jz _L2170077
+_L2170076:
         move R0 #1
-        jmp _L2170061
-_L2170060:
+        jmp _L2170078
+_L2170077:
         move R0 #0
-_L2170061:
+_L2170078:
         cmp R0 #0
-        jz sta_2170057
+        jz sta_2170074
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L_2170076
-sta_2170057:
-sta_2170058:
+        jmp L_2170093
+sta_2170074:
+sta_2170075:
         move R0 _ui_piece_rot
         push R0
-        move R5 #0
-        push R5
+        move R3 #0
+        push R3
         move R0 [R12+12]
-        pop R5
-        move R5 R0
-        move R0 R5
+        pop R3
+        move R3 R0
+        move R0 R3
         mul R0 #4
-        pop R8
-        add R0 R8
+        pop R6
+        add R0 R6
         move R0 [R0]
         push R0
         move R0 [R13+0]
@@ -1517,21 +1685,21 @@ sta_2170058:
         mod R1 R0
         move R0 R1
         move [R12-12] R0
-sta_2170077:
+sta_2170094:
         move R2 #0
         move R0 [R12-12]
         push R0
         move R0 #0
         pop R1
         cmp R1 R0
-        jg _L2170079
+        jg _L2170096
         move R0 #0
-        jmp _L2170080
-_L2170079:
+        jmp _L2170097
+_L2170096:
         move R0 #1
-_L2170080:
+_L2170097:
         cmp R0 #0
-        jz sta_2170078
+        jz sta_2170095
         move R0 [R12-8]
         push R0
         move R0 [R13+0]
@@ -1545,44 +1713,44 @@ _L2170080:
         sub R1 R0
         move R0 R1
         move [R12-12] R0
-        jmp sta_2170077
-sta_2170078:
+        jmp sta_2170094
+sta_2170095:
         move R0 #0
         move [R12-24] R0
         move R0 #0
         move [R12-16] R0
-sta_2170081:
+sta_2170098:
         move R2 #0
         move R0 [R12-16]
         push R0
         move R0 #4
         pop R1
         cmp R1 R0
-        jl _L2170083
+        jl _L2170100
         move R0 #0
-        jmp _L2170084
-_L2170083:
+        jmp _L2170101
+_L2170100:
         move R0 #1
-_L2170084:
+_L2170101:
         cmp R0 #0
-        jz sta_2170082
+        jz sta_2170099
         move R0 #0
         move [R12-20] R0
-sta_2170085:
+sta_2170102:
         move R2 #0
         move R0 [R12-20]
         push R0
         move R0 #4
         pop R1
         cmp R1 R0
-        jl _L2170087
+        jl _L2170104
         move R0 #0
-        jmp _L2170088
-_L2170087:
+        jmp _L2170105
+_L2170104:
         move R0 #1
-_L2170088:
+_L2170105:
         cmp R0 #0
-        jz sta_2170086
+        jz sta_2170103
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -1608,27 +1776,27 @@ _L2170088:
         move R0 #0
         pop R1
         cmp R1 R0
-        jne _L2170091
+        jne _L2170108
         move R0 #0
-        jmp _L2170092
-_L2170091:
+        jmp _L2170109
+_L2170108:
         move R0 #1
-_L2170092:
+_L2170109:
         cmp R0 #0
-        jz sta_2170089
+        jz sta_2170106
         move R0 [R12-24]
         push R0
         move R0 [R12+20]
         pop R1
         cmp R1 R0
-        je _L2170095
+        je _L2170112
         move R0 #0
-        jmp _L2170096
-_L2170095:
+        jmp _L2170113
+_L2170112:
         move R0 #1
-_L2170096:
+_L2170113:
         cmp R0 #0
-        jz sta_2170093
+        jz sta_2170110
         move R0 [R12-20]
         push R0
         move R0 #16
@@ -1640,9 +1808,9 @@ _L2170096:
         pop R1
         add R1 R0
         move R0 R1
-        jmp L_2170076
-sta_2170093:
-sta_2170094:
+        jmp L_2170093
+sta_2170110:
+sta_2170111:
         move R0 [R12-24]
         push R0
         move R0 #1
@@ -1650,8 +1818,8 @@ sta_2170094:
         add R1 R0
         move R0 R1
         move [R12-24] R0
-sta_2170089:
-sta_2170090:
+sta_2170106:
+sta_2170107:
         move R0 [R12-20]
         push R0
         move R0 #1
@@ -1659,8 +1827,8 @@ sta_2170090:
         add R1 R0
         move R0 R1
         move [R12-20] R0
-        jmp sta_2170085
-sta_2170086:
+        jmp sta_2170102
+sta_2170103:
         move R0 [R12-16]
         push R0
         move R0 #1
@@ -1668,13 +1836,13 @@ sta_2170086:
         add R1 R0
         move R0 R1
         move [R12-16] R0
-        jmp sta_2170081
-sta_2170082:
+        jmp sta_2170098
+sta_2170099:
         move R0 #1
         move R0 #1
         neg R0 R0
-        jmp L_2170076
-L_2170076:
+        jmp L_2170093
+L_2170093:
         move R13 R12
         pop R12
         pop R15
@@ -1696,8 +1864,8 @@ ui_timer_set:
         move R1 [R12+16]
         syscall #563
         move [R12-4] R0
-        jmp L_2170097
-L_2170097:
+        jmp L_2170114
+L_2170114:
         move R13 R12
         pop R12
         pop R15
@@ -1717,8 +1885,8 @@ ui_timer_kill:
         move R0 [R12+12]
         syscall #564
         move [R12-4] R0
-        jmp L_2170098
-L_2170098:
+        jmp L_2170115
+L_2170115:
         move R13 R12
         pop R12
         pop R15
@@ -1740,18 +1908,18 @@ ui_rand:
         move R0 #0
         pop R1
         cmp R1 R0
-        jle _L2170101
+        jle _L2170118
         move R0 #0
-        jmp _L2170102
-_L2170101:
+        jmp _L2170119
+_L2170118:
         move R0 #1
-_L2170102:
+_L2170119:
         cmp R0 #0
-        jz sta_2170099
+        jz sta_2170116
         move R0 #0
-        jmp L_2170103
-sta_2170099:
-sta_2170100:
+        jmp L_2170120
+sta_2170116:
+sta_2170117:
         syscall #50
         move [R12-4] R0
         move [R12-8] R0
@@ -1771,8 +1939,8 @@ sta_2170100:
         pop R1
         mod R1 R0
         move R0 R1
-        jmp L_2170103
-L_2170103:
+        jmp L_2170120
+L_2170120:
         move R13 R12
         pop R12
         pop R15
@@ -1790,8 +1958,8 @@ ui_tick:
         sub R13 #16
         syscall #53
         move [R12-4] R0
-        jmp L_2170104
-L_2170104:
+        jmp L_2170121
+L_2170121:
         move R13 R12
         pop R12
         pop R15
@@ -2126,8 +2294,8 @@ ui_store_get:
         move R2 [R12+20]
         syscall #551
         move [R12-4] R0
-        jmp L_2170105
-L_2170105:
+        jmp L_2170122
+L_2170122:
         move R13 R12
         pop R12
         pop R15

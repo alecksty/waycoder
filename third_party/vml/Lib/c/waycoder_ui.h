@@ -148,6 +148,24 @@ void ui_text_styled(int x, int y, char* s, int color, int size, int anchor, int 
 void ui_set_font(int size, int style, int color, int anchor);
 void ui_text_cur(int x, int y, char* s);
 
+/* ── 全能接口（#573）：两个字符串进、一个 JSON 字符串出 ──
+ *
+ * 给**不要求性能**的可扩展功能用：加一个能力 = 宿主侧注册一个函数，不占 syscall 号、
+ * 不用重生成各语言绑定。绘图/输入这类每帧都发生的调用**别走这里**。
+ *
+ * 结果永远是对象：成功 {"ok":true,"result":…}，失败 {"ok":false,"error":"…"}。
+ * 宿主侧已注册：echo（原样回显，自检用）/ version（App 名与版本）/ screen（可用绘图区
+ * 与控制方向，与 SCR_W/H/SCR_ORIENT 同源）。 */
+int  ui_call_json(char* fn, char* args_json, char* out_buf, int cap);
+/* 拿不到缓冲区指针的前端用这两个：结果进静态缓冲，按字节读。 */
+int  ui_call_json_s(char* fn, char* args_json);
+int  ui_call_json_len(void);
+int  ui_call_json_at(int i);
+/* fn 是函数名、args_json 是参数（可为 "" 或 0）。例：
+     char buf[256];
+     ui_call_json("screen", "", buf, 256);      // {"ok":true,"result":{"w":395,…}}
+     ui_call_json("echo", "{\"n\":7}", buf, 256); */
+
 /* ── 不碰指针的消息读取 + 通用整数网格（非 C 语言用，C 也能用）── */
 int  ui_wait_msg(int timeout_ms);
 int  ui_poll_msg(void);

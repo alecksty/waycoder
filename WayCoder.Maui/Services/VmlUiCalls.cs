@@ -237,6 +237,7 @@ internal sealed class VmlUiCalls : ISystemCallHandler
                 case VmlUi.TimerSet: registers[0] = TimerSet(registers); break;
                 case VmlUi.TimerKill: registers[0] = TimerKill(registers); break;
                 case VmlUi.WinClosed: registers[0] = _windowClosed ? 1 : 0; break;
+                case VmlUi.CallJson: registers[0] = CallJson(registers, memory); break;
                 case VmlUi.ScrW: registers[0] = ScrArea().Width; break;
                 case VmlUi.ScrH: registers[0] = ScrArea().Height; break;
                 case VmlUi.ScrOrient: registers[0] = ScreenOrientation(); break;
@@ -314,6 +315,86 @@ internal sealed class VmlUiCalls : ISystemCallHandler
             // 取不到显示信息时给一个保守的手机尺寸，而不是抛 —— 程序至少还能跑
             return (320, 480);
         }
+    }
+
+    /// <summary>宿主侧的 JSON 函数只注册一次（进程内）。</summary>
+    private static bool _jsonHandlersReady;
+
+    /// <summary>
+    /// 注册走 <see cref="VmlUi.CallJson"/> 的那些函数。
+    ///
+    /// **加一个能力 = 这里一行** —— 这正是这个"全能接口"存在的理由：
+    /// 不占 syscall 号、不用碰 C 包装、不用重生成 22 种语言的绑定。
+    /// 只放**不要求性能**、也不是每帧都发生的东西；绘图/输入仍旧走专用号。
+    /// </summary>
+    private static void EnsureJsonHandlers()
+    {
+        if (_jsonHandlersReady) return;
+        _jsonHandlersReady = true;
+
+        // `echo`：参数原样返回。**管线自检 + 程序自己的调试口** ——
+        // 能把"参数到底有没有原样传进 VM"和"结果有没有写回缓冲区"一次问清楚。
+        VmlJsonApi.Register("echo", args => args ?? JNode.Null());
+
+        // `version`：让程序知道自己在哪个 App / 哪个版本上跑（写兼容分支时有用）。
+        VmlJsonApi.Register("version", _ => JNode.Object()
+            .Set("app", Global.AppName)
+            .Set("cn", Global.AppNameCN)
+            .Set("version", Global.Version)
+            .Set("platform", DeviceInfo.Current.Platform.ToString().ToLowerInvariant()));
+
+        // `screen`：与 `SCR_W`/`SCR_H`/`SCR_ORIENT` **同源**（就调那几个函数），
+        // 免得出现"JSON 里报的尺寸和 syscall 报的不一样"这种最难查的分叉。
+        VmlJsonApi.Register("screen", _ =>
+        {
+            var area = ScrArea();
+            var orient = ScreenOrientation();
+            return JNode.Object()
+                .Set("w", area.Width)
+                .Set("h", area.Height)
+                .Set("orientation", orient)
+                .Set("landscape", orient == VmlUi.Landscape);
+        });
+    }
+
+    /// <summary>
+    /// `CALLJSON`（#573）：函数名 + 参数 JSON → 结果 JSON 写进调用方的缓冲区。
+    ///
+    /// 返回**写入的字节数**（不含结尾 NUL）；-1 = 失败（函数不认识 / 参数非法 / 缓冲区放不下）。
+    /// ⚠ 缓冲区放不下时**回一个说明原因的短信封**（能放下的话）—— 让程序看得见"为什么没结果"，
+    /// 而不是拿到一段被截断的、解析不出来的 JSON。
+    /// </summary>
+    private int CallJson(int[] r, byte[] mem)
+    {
+        EnsureJsonHandlers();
+
+        var fn = Str(mem, r[0]);
+        // R1 允许是 0（没传参数）—— 空指针读出来就是空串，实现那侧按"没参数"处理
+        var argsJson = r[1] > 0 ? Str(mem, r[1]) : "";
+        var json = VmlJsonApi.Invoke(fn, argsJson);
+
+        var n = WriteString(mem, r[2], r[3], json);
+        if (n >= 0) return n;
+
+        // 装不下 ⇒ **回一个说明原因的短信封**（能放下的话），别让程序拿到一段被截断的、
+        // 解析不出来的 JSON 还以为是"程序自己写坏了"。两层都放不下才返回 -1。
+        var needed = System.Text.Encoding.UTF8.GetByteCount(json);
+        return WriteString(mem, r[2], r[3], VmlJsonApi.TooLongEnvelope(needed));
+    }
+
+    /// <summary>
+    /// 把字符串按 UTF-8 写进 VM 内存的缓冲区，返回写入字节数（不含结尾 NUL）。
+    /// 放不下就改回一个说明原因的信封再试一次，仍放不下则返回 -1。
+    /// </summary>
+    private static int WriteString(byte[] mem, int dst, int cap, string text)
+    {
+        if (dst < 0 || cap <= 1 || dst + cap > mem.Length) return -1;
+
+        var bytes = System.Text.Encoding.UTF8.GetBytes(text);
+        var n = Math.Min(bytes.Length, cap - 1);          // 留一个字节给结尾 NUL
+        Array.Copy(bytes, 0, mem, dst, n);
+        mem[dst + n] = 0;
+        return bytes.Length <= cap - 1 ? n : -1;
     }
 
     /// <summary>

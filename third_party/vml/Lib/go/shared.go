@@ -4626,6 +4626,26 @@ func ui_wait_ex(a0 int32, a1 int32, a2 int32) int32 {
     return vml.R0()
 }
 
+func ui_call_json(a0 int32, a1 int32, a2 int32, a3 int32) int32 {
+    vml.Call("ui_call_json")
+    return vml.R0()
+}
+
+func ui_call_json_s(a0 int32, a1 int32) int32 {
+    vml.Call("ui_call_json_s")
+    return vml.R0()
+}
+
+func ui_call_json_len() int32 {
+    vml.Call("ui_call_json_len")
+    return vml.R0()
+}
+
+func ui_call_json_at(a0 int32) int32 {
+    vml.Call("ui_call_json_at")
+    return vml.R0()
+}
+
 func ui_msg_count() int32 {
     vml.Call("ui_msg_count")
     return vml.R0()
