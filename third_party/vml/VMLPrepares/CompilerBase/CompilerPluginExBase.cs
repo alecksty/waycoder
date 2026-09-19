@@ -60,7 +60,20 @@ namespace CompilerBase
         public override string CompileFileWithIncludes(string filePath, List<string>? includePaths = null, List<string>? libraryPaths = null, bool autoLinkStdLib = true, bool useSharedLibrary = true)
         {
             SyncToContext();
-            return CompileFileWithIncludesFunc(filePath, includePaths, libraryPaths, autoLinkStdLib, useSharedLibrary);
+            // ⚠ 链接期的「用户代码调用了不存在的函数」在这一层统一翻成 `CompilationException`。
+            //   不翻的话它会以一个 **Unhandled exception + 堆栈**的形态穿到 CLI/MAUI ——
+            //   消息其实是对的，但看上去像编译器自己崩了，而且宿主侧那些
+            //   「把 error: 那几行解析成编辑器气泡」的逻辑也接不上。
+            //   放在**委托调用这一层**而不是各语言的 `CompileFileWithIncludes` 里：
+            //   22 个前端的实现是各自注入的委托，逐个改是「同一规则 22 处实现」。
+            try
+            {
+                return CompileFileWithIncludesFunc(filePath, includePaths, libraryPaths, autoLinkStdLib, useSharedLibrary);
+            }
+            catch (VMLAssembler.UnresolvedSymbolException ex)
+            {
+                throw new CompilationException(ErrorCode.CodeGen_UndefinedFunction, ex.Message, ex);
+            }
         }
 
         public override string GetVersion() => "1.65.90";

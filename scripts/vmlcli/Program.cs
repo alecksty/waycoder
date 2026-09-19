@@ -199,8 +199,24 @@ internal static class Program
         //
         // `autoLinkStdLib: true, useSharedLibrary: true` —— 与 MauiVml 完全一致
         //   （上游 CLI 还多一道「没有 main 就不自动链」的自动识别，MauiVml 没做，这里也不做）。
-        string vmlText = ex.CompileFileWithIncludes(filePath, includePaths, libraryPaths,
-            autoLinkStdLib: true, useSharedLibrary: true);
+        string vmlText;
+        try
+        {
+            vmlText = ex.CompileFileWithIncludes(filePath, includePaths, libraryPaths,
+                autoLinkStdLib: true, useSharedLibrary: true);
+        }
+        catch (Exception compileError)
+        {
+            // ⚠ 编译/链接失败要**当成"编译失败"报**，不能让它穿到顶层变成
+            //   `Unhandled exception` + 一屏堆栈 —— 那看上去像编译器自己崩了，
+            //   而实际上绝大多数是**用户源码的问题**（今天新加的那条"未定义的函数"
+            //   就是最典型的一个：拼错一个函数名，以前要等到**运行**才抛
+            //   `KeyNotFoundException`，现在编译期就拦下来，但如果在这里变成堆栈，
+            //   用户看到的仍然是一屏看不懂的东西）。
+            //   与 `MauiVml` 同口径：只取 `Message`（它已经是 GCC 风格的多行诊断）。
+            var inner = compileError is AggregateException agg ? agg.GetBaseException() : compileError;
+            return (null, lang, $"⚠️ 编译失败：{inner.Message}");
+        }
 
         // 自检：产物得像 VML 汇编（上游「失败就静默原样返回」会把编译错误伪装成汇编期的
         // 「未知指令」，很难查）。判据与 MauiVml.LooksLikeVml 逐条相同。
@@ -224,8 +240,20 @@ internal static class Program
         var prog = new VmlAssembler().AssembleWithIncludes(vmlText, vmlRoot, langDefines);
 
         // ③ 链接共享库 ④ 应用导出符号
-        LibraryLinker.LinkLibraries(prog, libraryPaths);
-        prog.ApplyExports();
+        //
+        // ⚠ 这一步与 ② 一起**必须包 try**：有些前端（Pascal / Forth / Ladder / Basic）
+        //   不在自己的 `CompileFileWithIncludes` 里链接 —— 链接是在**这里**做的
+        //   （`MauiVml` 同样是"编译→汇编→链接"三步，那两步也没包 try，一并记着）。
+        //   所以「用户代码调用了不存在的函数」这条编译期错误，对那几门语言是在这一步抛出来的。
+        try
+        {
+            LibraryLinker.LinkLibraries(prog, libraryPaths);
+            prog.ApplyExports();
+        }
+        catch (Exception linkError)
+        {
+            return (null, lang, $"⚠️ 编译失败：{linkError.Message}");
+        }
 
         return (prog, lang, null);
     }

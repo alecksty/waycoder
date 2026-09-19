@@ -1,0 +1,1 @@
+print(nosuch(1))

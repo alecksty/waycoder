@@ -98,7 +98,9 @@ group_undef_fn() {
     local files=("$HERE"/cases/undef-fn.*)
     shopt -u nullglob
     for f in "${files[@]}"; do
-        [[ "$f" == *.expect ]] && continue
+        # ⚠ `.expect`/`.sym` 是**期望值**不是用例，glob 会一并匹配到
+        #   （out-probe 上踩过同一个坑：`nat.py.expect` 被当成探针去编译）。
+        [[ "$f" == *.expect || "$f" == *.sym ]] && continue
         [[ -n "$filter" && "${f##*.}" != "$filter" ]] && continue
         any=1
         # 用例同目录下放一个 `<用例>.sym`，里面写"必须被点名的标识符"

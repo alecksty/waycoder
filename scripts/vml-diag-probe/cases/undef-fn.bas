@@ -1,0 +1,1 @@
+PURE nosuch(1)

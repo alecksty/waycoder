@@ -84,6 +84,14 @@ namespace CompilerBase
             catch (ParseException ex) { throw new CompilerException(Name, ex.Code, CompilerException.IsGccFormat(ex.Message) ? ex.Message : $"语法错误: {ex.Message}"); }
             catch (CodeGenerationException ex) { throw new CompilerException(Name, ex.Code, CompilerException.IsGccFormat(ex.Message) ? ex.Message : $"代码生成错误: {ex.Message}"); }
             catch (CompilationException ex) { throw new CompilerException(Name, ex.Code, ex.Message); }
+            // 链接期「用户代码调用了不存在的函数」——**用户源码的错**，不是内部故障。
+            // 必须排在下面的 `catch (Exception)` 之前，否则会被标成 `Compilation_InternalError`
+            // 并加上 `internal error:` 前缀（实测就是这样：一个拼错的函数名被报成"内部错误"，
+            // 用户完全不知道该改哪里）。用 `CodeGen_UndefinedFunction` 这个现成的语义码。
+            catch (VMLAssembler.UnresolvedSymbolException ex)
+            {
+                throw new CompilerException(Name, ErrorCode.CodeGen_UndefinedFunction, ex.Message);
+            }
             catch (Exception ex)
             {
                 throw new CompilerException(Name, ErrorCode.Compilation_InternalError, ex.Message);

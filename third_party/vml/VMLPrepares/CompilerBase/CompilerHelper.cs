@@ -826,10 +826,23 @@ namespace CompilerBase
                     allLibPaths.Add(resolved);
             }
 
-            if (autoLinkStdLib)
-                LinkStandardLibrary(prog, langName, allLibPaths);
-            else if (allLibPaths.Count > 0)
-                VMLAssembler.LibraryLinker.LinkLibraries(prog, allLibPaths);
+            // ⚠ 链接期「用户代码调用了不存在的函数」会抛 `UnresolvedSymbolException`。
+            //   走这条路的语言（Pascal / Forth / Ladder / Basic 等 `BuildCompileFileWithIncludes`
+            //   的用户）**不经过 `CompileWithDiagnostics` 的 catch**，于是它会以一个
+            //   `Unhandled exception` 的形态直接穿到调用方 —— 消息是对的、但看上去像崩溃，
+            //   而且不是"编译失败"那个既能被 CLI 识别、又能被 `VmlDiagnostics` 解析成
+            //   编辑器气泡的形态。这里统一翻成 `CompilationException`。
+            try
+            {
+                if (autoLinkStdLib)
+                    LinkStandardLibrary(prog, langName, allLibPaths);
+                else if (allLibPaths.Count > 0)
+                    VMLAssembler.LibraryLinker.LinkLibraries(prog, allLibPaths);
+            }
+            catch (VMLAssembler.UnresolvedSymbolException ex)
+            {
+                throw new CompilationException(ErrorCode.CodeGen_UndefinedFunction, ex.Message, ex);
+            }
 
             return prog;
         }
@@ -860,6 +873,12 @@ namespace CompilerBase
                 throw new CompilationException(ex.Code, $"{file}: error: {ex.Message}", ex);
             }
             catch (CompilationException) { throw; }
+            // 同上（见 CompilerPluginBase 里那段说明）：链接期的"未定义函数"是用户源码的错，
+            // 别落进下面的兜底被标成 internal error。一次会把所有没定义的名字都列出来。
+            catch (VMLAssembler.UnresolvedSymbolException ex)
+            {
+                throw new CompilationException(ErrorCode.CodeGen_UndefinedFunction, ex.Message, ex);
+            }
             catch (Exception ex)
             {
                 throw new CompilationException(ErrorCode.Compilation_InternalError, $"{file}: internal error: {ex.Message}", ex);

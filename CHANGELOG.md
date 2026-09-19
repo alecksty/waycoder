@@ -1,3 +1,54 @@
+## v0.96.268 — 未定义函数升级为**编译期硬错误**（P2：一处机制覆盖 22 门）
+
+用户要求：「没有声明的变量或者函数，编译就应该报错，不然我现在明明有无效标识，
+非要等到运行才报错」。
+
+### 修之前是什么样
+
+```c
+return nosuch(1);     /* 编译通过 → 运行到那一条 CALL 才抛
+                         KeyNotFoundException: 未找到标签: nosuch
+                         —— 而且是**一次只报一个** */
+```
+
+### 改法
+
+`LibraryLinker.ReportUnresolved` 里那条**用户档**从 `Console.Error.WriteLine` 改成
+`throw new UnresolvedSymbolException(...)`，异常文本**一次列出所有**没定义的名字：
+
+```
+错误: 有 2 个函数**没有定义**（也没有在任何库里找到）：
+  nosuch（引用 1 次）
+  other（引用 3 次）
+提示: 检查函数名拼写；库函数要在源码里 #include 对应头文件，或确认该模块在语言库里存在。
+```
+
+**为什么现在才敢升档**：这条以前只能当警告 —— 库里还有一批历史遗留的死包装器
+（目标函数真实、只是没被 auto-link 拉进来），混在一起报就永远升不了档。
+P1 把两档分开之后实测**用户档 22 门全是 0**，前提这才满足。
+
+### 顺带把"报错形态"收了
+
+新加的这个异常会穿过三条不同的路径，逐个收拾了：
+
+| 路径 | 之前 | 现在 |
+|---|---|---|
+| `CompilerPluginBase` / `CompilerHelper` 的兜底 `catch (Exception)` | 被标成 `internal error:` —— 一个拼错的函数名报成"内部错误"，用户完全不知道该改哪里 | 走 `CodeGen_UndefinedFunction`，且**排在兜底 catch 之前** |
+| `CompilerPluginExBase.CompileFileWithIncludes`（Pascal 等注入委托的语言） | 裸 `Unhandled exception` + 堆栈 | 统一翻成 `CompilationException`（放在**委托调用这一层**，不是让 22 个前端各改一遍） |
+| `scripts/vmlcli` 的编译步与**链接步** | 顶层只接 `CliArgumentException` ⇒ 任何编译错误都是裸堆栈 | 两处各包 try → `⚠️ 编译失败：<消息>`。**链接步那一处特别要紧**：Pascal/Forth/Ladder/Basic **不在自己的 `CompileFileWithIncludes` 里链接**，是在 CLI 这一步做的 |
+
+### 判据
+
+`scripts/vml-diag-probe/`（P0 建的那套）加了 `undef-fn` 组：**13/16 通过**。
+
+三门红着的是**待办信号，不是回归**：
+- **Go / BASIC 把整句调用丢掉了** —— 生成的汇编里连 `nosuch` 都没有（`grep -c nosuch` = 0）。
+  这比"发一个不存在的标签"更隐蔽：后者至少在链接期冒出来。属逐门前端的工作（P6+）。
+- JS 待查。
+
+回归：`out-probe` 29/29、`abi-probe` 7/7、`diag-probe link-clean` 22/22 全绿
+（**硬错误没有误伤任何一个正常程序** —— 这是这次最关键的一条验证）。
+
 ## v0.96.267 — 编译期未定义标识符（P0+P1）：判据骨架 + 库侧清源
 
 用户要求：「大部分语言，没有声明的变量或者函数，编译就应该报错……而且要尽量一次多报些错误」。

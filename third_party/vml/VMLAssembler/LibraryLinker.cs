@@ -709,15 +709,25 @@ namespace VMLAssembler
             // 分档的意义就在这里：库里有历史遗留的死包装器，混在一起报就永远升不了档。
             if (userMiss.Count > 0)
             {
-                Console.Error.WriteLine($"错误: 用户代码里有 {userMiss.Count} 处调用指向**不存在的函数**：");
-                int shown = 0;
-                foreach (var kv in userMiss)
+                // **编译期硬错误**（用户要求：「没有声明的变量或者函数，编译就应该报错，
+                // 不然我现在明明有无效标识，非要等到运行才报错」）。
+                //
+                // 在此之前这条只能当警告：库里还有一批历史遗留的死包装器（目标函数真实、
+                // 只是没被 auto-link 拉进来），混在一起报就永远升不了档。
+                // 2026-09-19 实测把两档分开之后，**用户档 22 门全是 0**，前提这才满足。
+                //
+                // ⚠ 一次把**所有**未解析的名字都列出来（用户第二句要求：「要尽量一次多报些错误，
+                //   现在运行就报一个错误」）—— 运行期是执行到那条 CALL 才抛，一次只报一个。
+                var lines = new List<string>
                 {
-                    if (shown++ >= 20) break;
-                    Console.Error.WriteLine($"  {kv.Key} (引用 {kv.Value} 次)");
-                }
-                if (userMiss.Count > 20)
-                    Console.Error.WriteLine($"  ... 及其他 {userMiss.Count - 20} 处");
+                    $"错误: 有 {userMiss.Count} 个函数**没有定义**（也没有在任何库里找到）："
+                };
+                foreach (var kv in userMiss)
+                    lines.Add($"  {kv.Key}（引用 {kv.Value} 次）");
+                lines.Add("提示: 检查函数名拼写；库函数要在源码里 #include 对应头文件，或确认该模块在语言库里存在。");
+                var text = string.Join(Environment.NewLine, lines);
+                Console.Error.WriteLine(text);
+                throw new UnresolvedSymbolException(text, userMiss);
             }
 
             if (libMiss.Count > 0)
