@@ -2,7 +2,12 @@ using CompilerBase;
 using System.Text;
 namespace KotlinCompiler;
 public class Lexer(string source) : LexerBase(source) {
-    static readonly HashSet<string> Keywords = ["fun","val","var","if","else","when","for","while","do","return","break","continue","true","false","null","is","in","println","print","Int","String","Boolean","Unit","class","data","until","downTo","step","interface","sealed","and","or","xor","shl","shr","try","catch","finally","external","object"];
+    // ⚠ `until` / `downTo` / `step` **不在这张表里** —— 它们在 Kotlin 里是**软关键字**
+    //   （只在 `for (i in a..b step c)` 这个位置有意义，见 Parser 的 for 分支），
+    //   当硬关键字用就等于**禁止用户拿它们当变量名**：`var step = 5` 报
+    //   `Expected variable name ... got KEYWORD 'step'`（台账里记的就是这条）。
+    //   解析 for 的那三处判据已改成按**文本**比对，不依赖词法分类。
+    static readonly HashSet<string> Keywords = ["fun","val","var","if","else","when","for","while","do","return","break","continue","true","false","null","is","in","println","print","Int","String","Boolean","Unit","class","data","interface","sealed","and","or","xor","shl","shr","try","catch","finally","external","object"];
     // Uses base.Peek() and base.Advance() from LexerBase
     public List<Token> Tokenize() {
         var tokens = new List<Token>();

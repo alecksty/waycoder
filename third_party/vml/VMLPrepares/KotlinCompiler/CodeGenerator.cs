@@ -8,12 +8,48 @@ public partial class CodeGenerator : OopCodeGenerator {
     int nextStrId = 0;
     readonly HashSet<string> _externalFuncs = [];
 
+    // ── 顶层属性（`val` / `var` 写在所有 `fun` 外面）────────────────────────────
+    //
+    // 它们**不属于任何函数的栈帧**（`_varOffsets` 每进一个函数就 Clear），所以放**数据段**，
+    // 由 `main` 开头统一初始化一次。不这么做的话：声明被解析器丢掉（见 Parser.Parse）、
+    // 引用处又因为查不到偏移而**不生成任何指令** ⇒ 读到的永远是 0。
+    readonly Dictionary<string, string> _globalLabel = new();   // 名字 → 数据段标签
+    readonly Dictionary<string, string> _globalTypes = new();   // 名字 → 声明类型
+    readonly List<VarDecl> _globalInits = new();
+    readonly HashSet<string> _stringGlobals = new();            // 顶层里装着字符串的那几个
+
+    /// <summary>
+    /// 当前函数里**已知装着字符串**的变量名。
+    ///
+    /// 为什么需要它：`println`/`print` 在 VML 里有两条实现（`print_str` 收地址、`print_int` 收数值），
+    /// 值本身没有类型标记，只能编译期判。原判据是「字符串字面量 或 名字像返回串的函数」——
+    /// **变量一律不算** ⇒ `val s = "abc"; println(s)` 走整数那条，**把地址打了出来**
+    /// （实测 1032）。与 Ruby 的 `puts(变量)` 是同一个族。
+    /// 每条函数入口清空（局部名会互相遮蔽），顶层那几个另放 <see cref="_stringGlobals"/>。
+    /// </summary>
+    readonly HashSet<string> _stringVars = new();
+
     public CodeGenerator(Program program) {
         _program = program;
     }
 
     public override VmlProgram GenerateCode() {
         // First pass: collect extension functions, interfaces, and class defs
+        // 顶层属性先登记（数据段 + 类型），再谈生成函数 —— 函数体里引用它们时要查得到
+        foreach (var f in _program.Functions) {
+            if (f is not VarDecl gv) continue;
+            string glabel = "g_" + gv.Name;
+            dataSection[glabel] = 0;
+            _globalLabel[gv.Name] = glabel;
+            _globalTypes[gv.Name] = gv.Type ?? "Int";
+            // ⚠ 就写进 `_arrayVars`（它**不随函数清空**），不要再立一张 `_globalArrayVars` ——
+            //   下标那两处判据各有 `_arrayVars.Contains(...)`，两份表就是"改一处忘一处"。
+            if (gv.Init is CallExpr ac && ac.Name is "arrayOf" or "listOf" or "mutableListOf")
+                _arrayVars.Add(gv.Name);
+            if (IsStringInit(gv.Init)) _stringGlobals.Add(gv.Name);
+            _globalInits.Add(gv);
+        }
+
         foreach (var f in _program.Functions) {
             if (f is ExtensionDecl ed) {
                 _extMethods[$"{ed.ReceiverType}_{ed.Func.Name}"] = ed;
@@ -58,6 +94,7 @@ public partial class CodeGenerator : OopCodeGenerator {
                     instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{stackOff}")]));
                     instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R12-{off + 12}"), new Operand(OperandType.REGISTER, 0)]));
                 }
+                _stringVars.Clear();
                 int prologueIdx = instructions.Count;
                 GenerateNode(fn.Body);
                 int frameSize = _frameBytes < 0 ? 8 : _frameBytes + 12;
@@ -95,7 +132,12 @@ public partial class CodeGenerator : OopCodeGenerator {
                     instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{stackOff}")]));
                     instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R12-{off + 12}"), new Operand(OperandType.REGISTER, 0)]));
                 }
+                _stringVars.Clear();
                 int prologueIdx2 = instructions.Count;
+                // 顶层属性的初始化**塞进 main 的最前面**（程序从 main 进，这是唯一保证会跑到的地方）。
+                // ⚠ 必须在 `_varOffsets.Clear()` **之后** —— 它清的是上一个函数的局部表，
+                //   而顶层属性走的是 `_globalLabel`（另一张表），两者互不影响。
+                if (fn.Name == "main") EmitGlobalInits();
                 GenerateNode(fn.Body);
                 // Allocate stack frame for all local vars (+2 for R12/R15 slots)
                 int frameSize = _frameBytes < 0 ? 8 : _frameBytes + 12;
@@ -131,6 +173,32 @@ public partial class CodeGenerator : OopCodeGenerator {
         return BuildProgram("main");
     }
 
+    /// <summary>`println`/`print` 选哪条实现：字面量串、名字像返回串的调用、或**已知装着串的变量**。</summary>
+    bool IsStringArg(ASTNode? arg) => arg switch {
+        StringLiteral => true,
+        CallExpr c => IsStringReturningFunc(c.Name),
+        VarRef v => _stringVars.Contains(v.Name) || _stringGlobals.Contains(v.Name),
+        _ => false,
+    };
+
+    /// <summary>变量的初始值是不是字符串（用来登记 <see cref="_stringVars"/> / <see cref="_stringGlobals"/>）。</summary>
+    static bool IsStringInit(ASTNode? init)
+        => init is StringLiteral || (init is CallExpr c && IsStringReturningFunc(c.Name));
+
+    /// <summary>把顶层属性逐个初始化一次（值算出来存进数据段标签）。</summary>
+    void EmitGlobalInits() {
+        foreach (var gv in _globalInits) {
+            string vt = gv.Type ?? "Int";
+            if (gv.Init != null) {
+                GenerateNode(gv.Init);
+                EmitKotlinConvert(gv.Init, vt);
+            } else {
+                EmitLoadConstant(vt switch { "Double" => (object)0.0, "Float" => 0f, "Long" => 0L, _ => 0 });
+            }
+            instructions.Add(new(StoreOpFor(vt), [new Operand(OperandType.MEMORY, _globalLabel[gv.Name]), new Operand(OperandType.REGISTER, 0)]));
+        }
+    }
+
     void GenerateNode(ASTNode node) {
         switch (node) {
             case Block b: foreach (var s in b.Statements) GenerateNode(s); break;
@@ -144,6 +212,9 @@ public partial class CodeGenerator : OopCodeGenerator {
                 //   存储指令一起改坏**（实测：指针根本没存进去，读出来恒 0）。
                 if (vd.Init is CallExpr arrCall && arrCall.Name is "arrayOf" or "listOf" or "mutableListOf")
                     _arrayVars.Add(vd.Name);
+                // 记下「这个局部变量现在装的是不是字符串」—— 供 println/print 选对实现
+                if (IsStringInit(vd.Init)) _stringVars.Add(vd.Name);
+                else _stringVars.Remove(vd.Name);
                 _varTypes[vd.Name] = vt;
                 if (vd.Init != null) {
                     GenerateNode(vd.Init);
@@ -215,6 +286,10 @@ public partial class CodeGenerator : OopCodeGenerator {
                     instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, "(R13)")]));
                 } else if (_varOffsets.TryGetValue(vr.Name, out int off)) {
                     instructions.Add(new(LoadOpFor(VarType(vr.Name)), [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{off + 12}")]));
+                } else if (_globalLabel.TryGetValue(vr.Name, out var glabel)) {
+                    // 顶层属性：从数据段读。**这条分支以前没有** —— 查不到局部偏移就什么都不生成，
+                    // R0 留着上一步的残值，读出来永远是 0（台账那条"顶层 arrayOf 读回是 0"的真身）。
+                    instructions.Add(new(LoadOpFor(VarType(vr.Name)), [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, glabel)]));
                 } else if (_varOffsets.TryGetValue("this", out int thisOff)) {
                     // Try to resolve as property of 'this'
                     foreach (var cd in _classDefs.Values) {
@@ -300,6 +375,11 @@ public partial class CodeGenerator : OopCodeGenerator {
                         string vt = VarType(a.Name);
                         EmitKotlinConvert(a.Value, vt);
                         instructions.Add(new(StoreOpFor(vt), [new Operand(OperandType.MEMORY, $"R12-{off + 12}"), new Operand(OperandType.REGISTER, 0)]));
+                    } else if (_globalLabel.TryGetValue(a.Name, out var gstore)) {
+                        // 顶层 `var` 赋值：写回数据段（与读那条对称，别再漏一次）
+                        string vt = VarType(a.Name);
+                        EmitKotlinConvert(a.Value, vt);
+                        instructions.Add(new(StoreOpFor(vt), [new Operand(OperandType.MEMORY, gstore), new Operand(OperandType.REGISTER, 0)]));
                     }
                 }
                 break;
@@ -633,8 +713,7 @@ public partial class CodeGenerator : OopCodeGenerator {
             case CallExpr ce when ce.Name == "println": {
                 if (ce.Args.Count > 0)
                 {
-                    bool isString = ce.Args[0] is StringLiteral
-                        || (ce.Args[0] is CallExpr nc && IsStringReturningFunc(nc.Name));
+                    bool isString = IsStringArg(ce.Args[0]);
                     EmitPrintArg(() => GenerateNode(ce.Args[0]), isString);
                 }
                 EmitPrintNewline();
@@ -643,8 +722,7 @@ public partial class CodeGenerator : OopCodeGenerator {
             case CallExpr ce when ce.Name == "print": {
                 if (ce.Args.Count > 0)
                 {
-                    bool isString = ce.Args[0] is StringLiteral
-                        || (ce.Args[0] is CallExpr nc && IsStringReturningFunc(nc.Name));
+                    bool isString = IsStringArg(ce.Args[0]);
                     EmitPrintArg(() => GenerateNode(ce.Args[0]), isString);
                 }
                 break;
@@ -926,6 +1004,15 @@ public partial class CodeGenerator : OopCodeGenerator {
                 int endOff = AllocVar($"__for_end_{fs.VarName}", "Int");
                 GenerateNode(fs.End);
                 instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R12-{endOff + 12}"), new Operand(OperandType.REGISTER, 0)]));
+                // `step n` —— 步长与终值一样**在进循环前求值一次**（Kotlin 的 range 是值而不是惰性序列）。
+                // ⚠ 此前解析器把 `step` 吃掉了、代码生成这边**看都没看** ⇒ 增量写死 ±1，
+                //   `for (i in 0..10 step 2)` 打出的是全部十一个数（**不报错、静默不生效**）。
+                int stepOff = -1;
+                if (fs.Step != null) {
+                    stepOff = AllocVar($"__for_step_{fs.VarName}", "Int");
+                    GenerateNode(fs.Step);
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R12-{stepOff + 12}"), new Operand(OperandType.REGISTER, 0)]));
+                }
                 // loop label
                 instructions.Add(new(OpCode.LABEL, [new Operand(OperandType.LABEL, loopL)]));
                 // load var, compare with end
@@ -942,7 +1029,12 @@ public partial class CodeGenerator : OopCodeGenerator {
                 GenerateNode(fs.Body);
                 // var increment
                 instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12-{varOff + 12}")]));
-                if (fs.Kind == "downTo")
+                if (stepOff >= 0) {
+                    // 有 step：`R0 = R0 ∓ 步长`（三操作数形式，与下面那条立即数版本同族）
+                    instructions.Add(new(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, $"R12-{stepOff + 12}")]));
+                    instructions.Add(new(fs.Kind == "downTo" ? OpCode.SUB : OpCode.ADD,
+                        [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1)]));
+                } else if (fs.Kind == "downTo")
                     instructions.Add(new(OpCode.SUB, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 1)]));
                 else
                     instructions.Add(new(OpCode.ADD, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 1)]));
@@ -1086,7 +1178,8 @@ public partial class CodeGenerator : OopCodeGenerator {
         "Long" => OpCode.MOVEL,
         _ => OpCode.MOVE,
     };
-    string VarType(string name) => _varTypes.TryGetValue(name, out string? t) ? t : "Int";
+    string VarType(string name) => _varTypes.TryGetValue(name, out string? t) ? t
+        : _globalTypes.TryGetValue(name, out string? g) ? g : "Int";
 
     string InferType(ASTNode n) => n switch {
         VarRef vr => VarType(vr.Name),

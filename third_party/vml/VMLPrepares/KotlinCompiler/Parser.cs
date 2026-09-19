@@ -17,7 +17,15 @@ public class Parser : ParserBase<Token, TokenType>
         var funcs = new List<ASTNode>();
         while (GetTokenType(Cur) != TokenType.EOF) {
             if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "external") { _pendingExternal = true; Advance(); continue; }
-            if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "fun") funcs.Add(ParseFunction());
+            // 顶层 `val` / `var` —— 此前**没有任何一条分支认它**，于是兜底的
+            // `else Advance()` 把它**一个 token 一个 token 地静默吃掉**：
+            // 声明没了、`Program.Functions` 里也没有它，函数里引用它时
+            // `_varOffsets` 查不到 ⇒ 那条 `VarRef` **一个字都不生成**（R0 留着上一步的残值）。
+            // 表现就是台账里那条「顶层 `arrayOf` 读回是 0」—— 其实**顶层标量也一样是 0**，
+            // 而且根因不在数组、在这个兜底分支。
+            if (GetTokenType(Cur) == TokenType.KEYWORD && (Cur.Value == "val" || Cur.Value == "var"))
+                funcs.Add(ParseVarDecl(Cur.Value == "val"));
+            else if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "fun") funcs.Add(ParseFunction());
             else if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "data") funcs.Add(ParseDataClass());
             else if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "class") funcs.Add(ParseClassDecl());
             else if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "interface") funcs.Add(ParseInterface());
@@ -236,12 +244,12 @@ public class Parser : ParserBase<Token, TokenType>
         var start = ParseExpr();
         string kind = "..";
         if (GetTokenType(Cur) == TokenType.DOTDOT) { Advance(); }
-        else if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "until") { Advance(); kind = "until"; }
-        else if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "downTo") { Advance(); kind = "downTo"; }
+        else if (Cur.Value == "until") { Advance(); kind = "until"; }
+        else if (Cur.Value == "downTo") { Advance(); kind = "downTo"; }
         else Expect(TokenType.DOTDOT, "Expected '..', 'until', or 'downTo'");
         var end = ParseExpr();
         ASTNode? step = null;
-        if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "step") { Advance(); step = ParseExpr(); }
+        if (Cur.Value == "step") { Advance(); step = ParseExpr(); }
         Expect(TokenType.RPAREN, "Expected ')'");
         return new ForStmt(varName, start, end, ParseBlockOrSingle(), kind, step);
     }

@@ -1,3 +1,43 @@
+## v0.96.260 — Kotlin 前端：顶层属性、`step` 软关键字与循环步长、`println(变量)`（台账第三批）
+
+### ① 顶层属性读回是 0 —— 根因**不在数组**，比台账写的宽得多
+
+台账原文是「文件级的 `arrayOf` 读回是 0」，绕过写的是「状态数组写在 `main` 内部」。
+实际 `val n = 5` 也一样读回 **0**。两处凑成：
+
+- `Parser.Parse()` 只认 `external`/`fun`/`data`/`class`/`interface`/`sealed`/`object`，
+  **没有一条分支认 `val`/`var`** ⇒ 兜底的 `else Advance()` 把声明**一个 token 一个 token
+  地静默吃掉**（连报错都没有）；
+- 就算声明在，`VarRef` 也只在 `_varOffsets`（函数局部表、每进一个函数就 Clear）里查，
+  查不到就**一条指令都不生成** ⇒ R0 留着上一步的残值。
+
+改成：解析器认顶层 `val`/`var`；顶层属性放**数据段**，由 `main` 开头初始化一次；
+`VarRef`/`AssignStmt` 各补一条全局分支。
+
+### ② `step` / `until` / `downTo` 是**软关键字**，却被当硬关键字用
+
+`var step = 5` 报 `Expected variable name ... got KEYWORD 'step'`。
+三者只在 `for (i in a..b step c)` 这个位置有意义 ⇒ 移出词法关键字表，
+`for` 那三处改成按文本比对。
+
+⚠ **改完顺手验 `for..step` 才发现步长压根没生效**：`ForStmt.Step` 解析出来了，
+**代码生成从没读过它**，增量写死 ±1 —— `for (i in 0..10 step 2)` 静默打出十一个数。
+同批修掉（step 进循环前求值一次存槽位）。
+
+### ③ 新发现：`println(变量)` 打出的是地址
+
+与 Ruby 的 `puts(变量)` 同一族：两条实现（`print_str` 收地址 / `print_int` 收数值）、
+值无类型标记、原判据只看字面量与返回串的函数 ⇒ `val s = "abc"; println(s)` 打出 1032。
+按初始值登记 `_stringVars` / `_stringGlobals`。
+⚠ **形参仍做不到**：解析器把形参的**类型标注整个丢掉了**（只存名字），
+`fun f(s: String) { println(s) }` 还是打地址 —— 已记进台账，要修得先留着形参类型。
+
+### 判据
+
+`scripts/vml-out-probe/langs/nat.kt` 扩成：三个值放**顶层属性**、并用
+`for (i in 0..12 step 2)` 累加出 **42**（步长不生效时是 78）。
+跨语言输出判据 29/29、ABI 判据 7/7 全绿。
+
 ## v0.96.259 — Ruby 前端：`&&` / `||`、`puts(变量)` 打出地址（台账第二批）
 
 ### ① `def` 那条**是陈旧的**，复测已经好了

@@ -184,13 +184,49 @@ puts("LIT")      # → LIT       ✔
 
 ## Kotlin
 
-### 🔴 **文件级（顶层）的 `arrayOf` 读回是 0**
+### 🟡 顶层属性读回是 0 —— **根因不在数组，在解析器的兜底分支**（已修）
 
-**绕过**：状态数组写在 `main` **内部**。
+台账原文是「文件级的 `arrayOf` 读回是 0」，绕过写的是「状态数组写在 `main` 内部」。
+**缩小之后比这宽得多**：
 
-### 🔴 `step` 是保留字
+```kotlin
+val n = 5
+val xs = arrayOf(1, 2, 3)
+fun main() { println(n); println(xs[0]) }   /* 实测 0 和 0 */
+```
 
-别拿它当变量名。
+**顶层标量一样是 0**，所以根因与数组无关。两处凑成：
+
+1. `Parser.Parse()` 只认 `external`/`fun`/`data`/`class`/`interface`/`sealed`/`object`，
+   **没有一条分支认 `val`/`var`** ⇒ 兜底的 `else Advance()` 把声明**一个 token 一个 token 地
+   静默吃掉**（连报错都没有）；
+2. 就算声明在，`VarRef` 那条也只在 `_varOffsets` 里查（那是**函数局部**表、每进一个函数就 Clear），
+   查不到就**一条指令都不生成** ⇒ R0 留着上一步的残值 ⇒ 读出来恒为 0。
+
+**已修**（v0.96.260）：解析器认顶层 `val`/`var`；生成器把顶层属性放**数据段**，
+在 `main` 开头统一初始化一次；`VarRef`/`AssignStmt` 各补一条全局分支。
+判据：`scripts/vml-out-probe/langs/nat.kt`（值放顶层属性里）。
+
+### 🟡 `step` / `until` / `downTo` 被当成硬关键字（已修）+ 步长**根本没生效**（同批修）
+
+三者在 Kotlin 里都是**软关键字**（只在 `for (i in a..b step c)` 这个位置有意义），
+放进词法关键字表等于**禁止用户拿它们当变量名**：`var step = 5` 报
+`Expected variable name ... got KEYWORD 'step'`。
+**已修**：从关键字表移出，`for` 那三处改成按**文本**比对（`Cur.Value == "step"`）。
+
+⚠ **改完顺手验了一下 `for..step`，发现步长压根没生效**：`ForStmt.Step` 解析出来了，
+但**代码生成从没读过它** —— 增量写死 `±1`，`for (i in 0..10 step 2)` 静默打出十一个数。
+同批修掉（step 表达式进循环前求值一次存槽位）。
+判据：`nat.kt` 里那个 `0..12 step 2` 累加得 **42**；步长不生效时是 78，一眼分得出来。
+
+### 🟡 `println(变量)` 打出的是**地址**（新发现，已修）
+
+与 Ruby 的 `puts(变量)` 是同一族：`println`/`print` 在 VML 里有两条实现
+（`print_str` 收地址、`print_int` 收数值），原判据只看「字符串字面量 / 名字像返回串的函数」，
+**变量一律不算** ⇒ `val s = "abc"; println(s)` 打出 `1032`。
+**已修**（v0.96.260）：按初始值登记 `_stringVars`（函数作用域）/ `_stringGlobals`（顶层）。
+⚠ **形参仍做不到** —— 解析器把形参的**类型标注整个丢掉了**（`pars.Add(...)` 只存名字），
+所以 `fun f(s: String) { println(s) }` 还是打地址。要修得先把形参类型留着。
 
 ---
 
