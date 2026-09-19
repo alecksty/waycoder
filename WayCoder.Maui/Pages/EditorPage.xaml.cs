@@ -73,6 +73,8 @@ public partial class EditorPage : ContentPage
         // 被系统打断（来电 / 切走 App / 父容器截走触摸）也是一条结束路径 ——
         // 只清标志不发结束的话，10 秒收表的计时器就永远不再起了。
         AssistDrag.CancelInteraction += (_, _) => { if (_assistPanActive) EndAssistDrag(); };
+        // 第一次打开时条子还没被测量过（Width 是 -1）⇒ 弹出动画要等这一下拿到真实宽高再补
+        AssistBar.SizeChanged += OnAssistBarSizeChanged;
         // 选区一变就同时刷状态栏与**选区操作条**（选词/扩选/全选/清除都从画布发这个事件）
         Canvas.SelectionChanged += (_, _) => { UpdateStatus(); UpdateSelectionBar(); };
         // 视口一变，条子要跟着选区走（滚出视口时收起来）—— 不跟就会停在原地，
@@ -1652,6 +1654,20 @@ public partial class EditorPage : ContentPage
     private IDispatcherTimer? _assistIdle;
     private bool _assistPlaced;                  // 首次显示时给一个初始位置
 
+    /// <summary>
+    /// **停靠位**（用户把它拖到了哪儿）—— 它是 `TranslationX/Y` 的**真源**。
+    ///
+    /// 为什么不能直接拿 `TranslationX/Y` 当停靠位：弹出/收回动画会**临时**把它改成起手位
+    /// （图标那边），动画途中读到的是"路过"的值 —— 下一次打开就从半路上起飞、位置一路漂。
+    /// </summary>
+    private double _assistRestX, _assistRestY;
+
+    /// <summary>第一次打开时条子还没被测量过（`Width` 是 -1）⇒ 起手位算不出来，等尺寸到了再补动画。</summary>
+    private bool _assistPopPending;
+
+    /// <summary>收回动画正在放。放完才真的 `IsVisible = false`；这期间再点开关是"别收了、弹回来"。</summary>
+    private bool _assistHiding;
+
     /// <summary>本次拖动是否已经开始（`StartInteraction` 到过）。</summary>
     private bool _assistPanActive;
 
@@ -1703,27 +1719,94 @@ public partial class EditorPage : ContentPage
 
     private void ToggleAssistBar()
     {
-        if (AssistBar.IsVisible) { CloseAssistBar(); return; }
+        if (AssistBar.IsVisible && !_assistHiding) { CloseAssistBar(); return; }
+
+        // 走到这儿有两种情形：还没打开；或者**收回动画放到一半又要打开** ——
+        // 后者直接接着弹回去（OpenAssistBar 会把 _assistHiding 清掉，
+        // 于是收回动画收尾那一下就不会再把它藏起来了）。
+        OpenAssistBar();
+    }
+
+    private void OpenAssistBar()
+    {
+        _assistHiding = false;
 
         if (!_assistPlaced)
         {
             // 初始位置：左侧偏下（避开右上角的工具栏与浮层），之后由用户拖
-            AssistBar.TranslationX = 8;
-            AssistBar.TranslationY = Math.Max(8, Canvas.Height - 240);
+            _assistRestX = 8;
+            _assistRestY = Math.Max(8, Canvas.Height - 240);
             _assistPlaced = true;
         }
+
+        // 掐掉在途动画（可能是上一次没放完的弹出，也可能是正在放的收回）
+        AssistBar.CancelAnimations();
+        // 起手位是**相对停靠位**算出来的（见 AssistPopStart），所以先把 Translation 摆回停靠位
+        AssistBar.TranslationX = _assistRestX;
+        AssistBar.TranslationY = _assistRestY;
         AssistBar.IsVisible = true;
-        RestoreAssistScale();
-        AssistTouch();
+
+        PlayAssistPop();
+        // ⚠ 这里**不能**顺手调 AssistTouch()：它内含 RestoreAssistScale()，会把 Scale/Opacity
+        // 立刻动画到 1/1 —— 与刚起头的弹出动画抢同一个属性，弹出就没了。
+        RestartAssistIdle();
         UpdateAssistButtonState();
     }
 
+    /// <summary>
+    /// 关闭浮条 —— **倒着放一遍弹出动画**（缩回图标大小、飞回图标位置、淡出），演完才真隐藏。
+    /// 用户要求「关闭动画就反过来」。
+    /// </summary>
     private void CloseAssistBar()
     {
-        AssistBar.IsVisible = false;
         HideAssistPopup();
         _assistIdle?.Stop();
         UpdateAssistButtonState();
+
+        if (!AssistBar.IsVisible) return;
+
+        // 还在等测量（弹出动画根本没开始）⇒ 没有可倒放的，直接收掉
+        if (_assistPopPending || AssistBar.Width <= 0 || AssistBar.Height <= 0)
+        {
+            _assistPopPending = false;
+            AssistBar.Opacity = 1;
+            AssistBar.IsVisible = false;
+            return;
+        }
+
+        AssistBar.CancelAnimations();
+        AssistBar.TranslationX = _assistRestX;    // 同上：起手位按停靠位算
+        AssistBar.TranslationY = _assistRestY;
+        var (x, y, s) = AssistPopStart();
+
+        _assistHiding = true;
+        _assistTargetScale = s;
+        _assistTargetOpacity = 0;
+        _ = HideWhenDoneAsync(
+            AssistBar.TranslateTo(x, y, AssistAnimMs, Easing.CubicIn),
+            AssistBar.ScaleTo(s, AssistAnimMs, Easing.CubicIn),
+            AssistBar.FadeTo(0, AssistAnimMs, Easing.CubicIn));
+    }
+
+    /// <summary>
+    /// 收回动画放完再真隐藏。
+    /// 演到一半又被打开时 `_assistHiding` 已被 <see cref="OpenAssistBar"/> 清掉 —— 那就什么都不做
+    /// （否则会在用户刚打开的一瞬间把它藏掉）。
+    /// </summary>
+    private async Task HideWhenDoneAsync(Task moving, Task scaling, Task fading)
+    {
+        await Task.WhenAll(moving, scaling, fading);
+        if (!_assistHiding) return;
+        _assistHiding = false;
+
+        AssistBar.IsVisible = false;
+        // 复位：下次打开从干净状态起（否则会从"图标大小 + 已淡出"开始，头几帧是空的）
+        AssistBar.Scale = 1;
+        AssistBar.Opacity = 1;
+        AssistBar.TranslationX = _assistRestX;
+        AssistBar.TranslationY = _assistRestY;
+        _assistTargetScale = 1;
+        _assistTargetOpacity = 1;
     }
 
     private void OnAssistToggleClicked(object? sender, EventArgs e) => ToggleAssistBar();
@@ -1742,6 +1825,16 @@ public partial class EditorPage : ContentPage
     private void AssistTouch()
     {
         RestoreAssistScale();
+        RestartAssistIdle();
+    }
+
+    /// <summary>
+    /// 重起 10 秒收表 —— **不碰 Scale/Opacity**。
+    /// 与 <see cref="AssistTouch"/> 分开是因为弹出动画期间只该重起计时、不该动那两个属性
+    /// （动了就和弹出动画抢，见 <see cref="OpenAssistBar"/>）。
+    /// </summary>
+    private void RestartAssistIdle()
+    {
         _assistIdle ??= CreateAssistIdleTimer();
         _assistIdle.Stop();
         _assistIdle.Start();
@@ -1817,6 +1910,116 @@ public partial class EditorPage : ContentPage
         _ = AssistBar.FadeTo(opacity, AssistAnimMs, Easing.CubicOut);
     }
 
+    // ── 弹出 / 收回 ──
+    //
+    // 用户要求：**打开时从工具栏那颗图标的位置与大小"弹"到停靠位与正常大小，关闭就反过来**。
+    // 所以这是一条**可逆**的动画：两边共用 AssistPopStart() 算同一组起手状态，
+    // 只是一个用 CubicOut 往外弹、一个用 CubicIn 倒着收回去。
+
+    /// <summary>
+    /// 起手那一下的不透明度。**不取 0** —— 起点只占头一两帧，全透明就"看不出是从哪儿冒出来的"，
+    /// 而这条动画的全部意义就是让人看见它从图标那儿出来。
+    /// </summary>
+    private const double AssistPopStartOpacity = 0.15;
+
+    /// <summary>
+    /// **弹出**：先把条子摆到「图标位置 + 图标大小」，再动画到停靠位与原始大小。
+    ///
+    /// `Scale`/`Opacity` 这一段与 <see cref="AnimateAssist"/> 共用防重入口径（比对**目标值**），
+    /// 所以这里要自己把目标值写成 1/1：否则紧随其后的 <see cref="RestoreAssistScale"/>
+    /// （点一下条子会走它）会以为"已经在 1 了"而提前返回。
+    /// </summary>
+    private void PlayAssistPop()
+    {
+        // 第一次打开：条子还没被测量过（Width 是 -1），起手位算不出来。
+        // 先整个藏起来（Opacity=0），等 SizeChanged 量到真实宽高再补 —— 见 OnAssistBarSizeChanged。
+        if (AssistBar.Width <= 0 || AssistBar.Height <= 0)
+        {
+            _assistPopPending = true;
+            _assistTargetScale = 1;
+            _assistTargetOpacity = 1;
+            AssistBar.Opacity = 0;
+            return;
+        }
+
+        _assistPopPending = false;
+        var (x, y, s) = AssistPopStart();
+
+        AssistBar.CancelAnimations();
+        AssistBar.Scale = s;
+        AssistBar.Opacity = AssistPopStartOpacity;
+        AssistBar.TranslationX = x;
+        AssistBar.TranslationY = y;
+
+        _assistTargetScale = 1;
+        _assistTargetOpacity = 1;
+        _ = AssistBar.ScaleTo(1, AssistAnimMs, Easing.CubicOut);
+        _ = AssistBar.FadeTo(1, AssistAnimMs, Easing.CubicOut);
+        _ = AssistBar.TranslateTo(_assistRestX, _assistRestY, AssistAnimMs, Easing.CubicOut);
+    }
+
+    /// <summary>
+    /// 第一次打开时尺寸还量不到（`Width` 是 -1）—— 等它到了再把弹出动画补上
+    /// （等待位由 <see cref="PlayAssistPop"/> 置）。
+    ///
+    /// ⚠ 这条路**只对"还没量过"生效**：`SizeChanged` 只在尺寸**变了**才发，
+    /// 第二次打开尺寸没变、不会触发，所以已量到尺寸时必须在 <see cref="PlayAssistPop"/> 里当场起动画，
+    /// 不能一律挂在事件上等（那样第二次打开会永远等不到、条子停在 Opacity=0 上等于没开）。
+    /// </summary>
+    private void OnAssistBarSizeChanged(object? sender, EventArgs e)
+    {
+        if (!_assistPopPending) return;
+        if (AssistBar.Width <= 0 || AssistBar.Height <= 0) return;   // 隐藏期间平台可能报 0，那不是有效尺寸
+        _assistPopPending = false;
+        PlayAssistPop();
+    }
+
+    /// <summary>
+    /// 弹出动画的**起手状态**：条子缩到"跟工具栏那颗图标差不多大"、中心压在图标中心上，
+    /// 再钳进画布范围。返回 (TranslationX, TranslationY, Scale)。
+    ///
+    /// ⚠ 调用前必须先把 `AssistBar.TranslationX/Y` 摆回**停靠位**（`_assistRestX/Y`）——
+    /// 下面的公式是「停靠位 + 图标相对条子的偏移」，读到动画途中的值就会一路算歪。
+    /// </summary>
+    private (double X, double Y, double Scale) AssistPopStart()
+    {
+        double barW = AssistBar.Width, barH = AssistBar.Height;
+
+        // 「缩到图标那么大」按**面积**折算成等比缩放：这条子又长又扁 ——
+        // 按宽度比会小成一根线，按高度比反倒比原图还大；面积比既保住长宽比，
+        // 又确实"跟那颗图标差不多大"。
+        double iconW = AssistBtn.Width > 0 ? AssistBtn.Width : barH;
+        double iconH = AssistBtn.Height > 0 ? AssistBtn.Height : barH;
+        double s = Math.Clamp(Math.Sqrt(iconW * iconH / (barW * barH)), 0.12, 0.9);
+
+        // 起点 = 图标中心（缩完的条子**中心**压在图标中心上，才像"从那颗按钮里冒出来"）。
+        // 图标在上一行的工具条里、条子的父容器是下面那一格 ——
+        // 两者先换算到同一个坐标系（整页）再作差，不能拿各自的 X/Y 直接减。
+        var icon = PosIn(this, AssistBtn);
+        var bar = PosIn(this, AssistBar);          // 此刻 Translation 就是停靠位
+        double left = icon.X + iconW / 2 - barW * s / 2;
+        double top = icon.Y + iconH / 2 - barH * s / 2;
+
+        // ⚠ 图标在工具条的**最右一格**，而条子缩完仍有一百多宽 ⇒ 照图标居中会顶出屏幕右缘；
+        // 纵向更是整颗图标都在条子容器的**上方**（工具条是上一行）。钳进画布范围之后，
+        // 起手位落在"工具条正下方那一角"—— 仍看得出是从那颗按钮出来的，又不会被画到没有画布的地方。
+        double x = Math.Clamp(_assistRestX + left - bar.X, 0, Math.Max(0, Canvas.Width - barW * s));
+        double y = Math.Clamp(_assistRestY + top - bar.Y, 0, Math.Max(0, Canvas.Height - barH * s));
+        return (x, y, s);
+    }
+
+    /// <summary>元素左上角在 <paramref name="root"/> 坐标系里的位置（逐级累加布局位置与位移）。</summary>
+    private static (double X, double Y) PosIn(VisualElement root, VisualElement element)
+    {
+        double x = 0, y = 0;
+        for (VisualElement? e = element; e is not null && e != root; e = e.Parent as VisualElement)
+        {
+            x += e.X + e.TranslationX;
+            y += e.Y + e.TranslationY;
+        }
+        return (x, y);
+    }
+
     // ── 拖动（GraphicsView 原始触摸）──
     //
     // **为什么不用 PanGestureRecognizer**（真机实测，当时挂了个 logcat 探针量的）：
@@ -1853,6 +2056,7 @@ public partial class EditorPage : ContentPage
     private void OnAssistDragStart(object? sender, TouchEventArgs e)
     {
         if (e.Touches.Length == 0) return;
+        if (_assistHiding) return;      // 收回动画中：这条正在消失，别接手势（接了会和收回动画抢属性）
         _assistGrabT0 = _assistLastT = e.Touches[0];
         _assistGrabMoved = false;
         _assistGrabOnClose = AssistCloseRect.Contains(_assistGrabT0.X, _assistGrabT0.Y);
@@ -2015,6 +2219,11 @@ public partial class EditorPage : ContentPage
         double maxY = Math.Max(0, Canvas.Height - h);
         AssistBar.TranslationX = Math.Clamp(AssistBar.TranslationX, 0, maxX);
         AssistBar.TranslationY = Math.Clamp(AssistBar.TranslationY, 0, maxY);
+
+        // 停靠位跟着走 —— 它是 TranslationX/Y 的**真源**（弹出/收回动画会临时改写 Translation），
+        // 拖动每帧都过这里，所以同步放这一处就够。
+        _assistRestX = AssistBar.TranslationX;
+        _assistRestY = AssistBar.TranslationY;
     }
 
     // ── 分类表 ──
