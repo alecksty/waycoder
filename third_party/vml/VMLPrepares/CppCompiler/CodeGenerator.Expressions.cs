@@ -224,6 +224,16 @@ namespace CppCompiler
                                 _ => OpCode.MOVE
                             };
                         }
+                        if (!dataSection.ContainsKey(varLabel))
+                        {
+                            // 局部表、函数表、`dataSection` 三处都没有 ⇒ 这个名字**从未声明过**。
+                            // 此前这里直接发 `MOVE R0, var_x` —— 引用的是一个**可能根本不存在**的
+                            // 标签（连"确定的 0"都不是，值取决于汇编器对该符号的处理）。
+                            // `int a = 1; return a + nosuch;` 就是这么编过去的。
+                            ReportUndefined(id.Name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                            EmitUndefinedFallback();
+                            break;
+                        }
                         Add(loadOp, "R0", varLabel);
                     }
                     break;

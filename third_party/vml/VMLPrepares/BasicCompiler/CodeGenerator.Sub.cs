@@ -1166,7 +1166,10 @@ namespace BasicCompiler
                     }
                     else
                     {
-                        // Auto-create undefined global variable (QBasic behavior: default to 0)
+                        // 形参 / STATIC / 类字段三条都排除之后落到这里 ⇒ 没声明过。
+                        // 「报错还是只警告」的判据**不写在这里** —— 收在
+                        // `GetOrCreateVariable` 一处（那是全前端唯一"没见过就造一个"的出口，
+                        // 写在这里会与它重复计数，也漏掉 `Expressions.cs` 那条无条件调用）。
                         GetOrCreateVariable(ident.Name);
                         EmitLoadVar(reg, ident.Name);   // 全局变量走静态区全局段（见 EmitLoadVar）
                     }

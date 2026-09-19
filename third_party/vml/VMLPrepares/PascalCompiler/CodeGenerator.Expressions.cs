@@ -228,6 +228,16 @@ namespace PascalCompiler
                     {
                         if (!dataSection.ContainsKey(variable.Name))
                         {
+                            // 局部集合 / 局部变量 / 形参三个分支都没命中，`dataSection` 里也没有
+                            // ⇒ 这个名字**从未声明过**。此前这里静默建个初值 0 的槽就当它是全局，
+                            // 于是 `WriteLn(nosuch);` 编得过、运行期打出一个 0。
+                            //
+                            // 这里**保留原来那句建槽**（不像别处改成 `EmitUndefinedFallback + return`）：
+                            // 这一段嵌在四层 if/else 里，提前 return 会跳过后面收尾的指令生成，
+                            // 而"建个 0 槽照旧往下走"与旧行为**逐字相同**、没有任何结构风险。
+                            // 编译反正会因为上面这条诊断失败（`BuildProgram` 见 `Diags.HasErrors` 就抛），
+                            // 生成出来的代码给谁看都无所谓。
+                            ReportUndefined(variable.Name, ErrorCode.CodeGen_UndefinedVariable, "变量");
                             dataSection[variable.Name] = 0;
                         }
 

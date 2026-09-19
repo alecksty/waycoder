@@ -1,1 +1,2 @@
+OPTION EXPLICIT
 PRINT nosuch

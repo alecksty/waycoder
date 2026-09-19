@@ -9,6 +9,16 @@ public enum FortranType { Integer, Long, Real, DoublePrecision, Logical, Charact
 
 public partial class CodeGenerator : TypedCodeGen<FortranType>
 {
+    /// <summary>
+    /// 源文件里出现过 `implicit none` ⇒ **变量必须先声明**，未声明的引用报**错误**；
+    /// 没出现则报**警告**（Fortran 默认的隐式类型是合法语义）。
+    ///
+    /// 由 <see cref="FortranCompiler"/> 从 `<c>Parser.ImplicitNone</c>` 传进来 ——
+    /// 这是**每文件**的属性，不是每语言，所以不能做成 `ImplicitDeclarationAllowed`
+    /// 那种编译期常量。
+    /// </summary>
+    public bool StrictDeclarations { get; set; }
+
     private Dictionary<string, int> symbolTable = null!;
     private Dictionary<string, (string? type, List<string>? paramsList)> _functionTable = new();
     private Dictionary<string, int> _arraySizes = new();

@@ -21,6 +21,15 @@ namespace BasicCompiler
 
     public partial class CodeGenerator : TypedCodeGen<BasicType>
     {
+        /// <summary>
+        /// 源文件里出现过 `OPTION EXPLICIT` ⇒ **变量必须先声明**，未声明的引用报**错误**；
+        /// 没出现则报**警告**（QBasic 默认的「未声明即隐式全局」是合法语义）。
+        ///
+        /// 由 <c>BasicCompiler</c> 从 `<c>Parser.OptionExplicit</c>` 传进来 ——
+        /// 这是**每文件**的属性，不能做成 `ImplicitDeclarationAllowed` 那种编译期常量。
+        /// </summary>
+        public bool StrictDeclarations { get; set; }
+
         // 字符串缓冲区（data section 分配，链接器解析地址，非固定地址）
         public const string StringBufferLabel = "__strbuf";
 
@@ -284,6 +293,23 @@ namespace BasicCompiler
         {
             if (!variables.ContainsKey(name))
             {
+                // 模块级表里没有，且 SUB 的局部/形参表里也没有 ⇒ 这个名字**从未声明过**。
+                //
+                // 这是全前端**唯一**「没见过就造一个」的出口 —— 报错/警告的判据收在这一处，
+                // 而不是散在四五个调用点（`Expressions.cs` 有一条是**无条件**调用的）。
+                //
+                // QBasic 的默认语义就是「未声明即隐式全局、值 0」⇒ **默认只警告**；
+                // 写了 `OPTION EXPLICIT` 才升级成错误。此前无论写没写都静默建槽，那条指令形同虚设。
+                if (currentLocalVars == null || !currentLocalVars.ContainsKey(name))
+                {
+                    if (StrictDeclarations)
+                        ReportUndefined(name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                    else
+                        WarnUndefined(name, ErrorCode.CodeGen_UndefinedVariable, "变量",
+                            "QBasic 默认「未声明即隐式全局」(值为 0)；"
+                            + "要让这类引用直接报错，请在程序开头写 `OPTION EXPLICIT`。");
+                }
+
                 variables[name] = variableCount;
                 // **模块级创建的变量就是全局变量** —— 放静态区全局段。SUB 的局部/参数在
                 // currentLocalVars 里、本来就不进 variables，所以不受影响。

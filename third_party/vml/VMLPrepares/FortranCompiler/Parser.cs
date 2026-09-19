@@ -16,6 +16,15 @@ public class Parser : ParserBase<Token, TokenType>
     private ProgramNode _program = null!;
 
     /// <summary>
+    /// 本文件里出现过 `implicit none` —— 从此**变量必须先声明**。
+    ///
+    /// 它决定未声明变量是「编译错误」还是「只警告」：Fortran 的**默认**语义是隐式类型
+    /// （i-n 为 integer、其余 real），没写 `implicit none` 时引用未声明变量是**合法**的。
+    /// 由 <see cref="FortranCompiler"/> 在解析完交给 <c>CodeGenerator</c>。
+    /// </summary>
+    public bool ImplicitNone { get; private set; }
+
+    /// <summary>
     /// 本文件里出现过的函数/子程序名（小写）。只用来消歧：`x(i)` 到底是数组元素
     /// 还是函数调用 —— 名字声明成数组**且**没被声明成例程，才按数组元素编。
     /// 少了后半条，一个「数组名恰好与某个 contained 函数同名」的文件会被静默编错。
@@ -288,9 +297,17 @@ public class Parser : ParserBase<Token, TokenType>
 
         if (Match(TokenType.Implicit))
         {
-            // implicit none - just skip it (all variables must be declared)
+            // `implicit none` —— 从此**所有变量必须先声明**。
+            //
+            // ⚠ 此前这里只是把它解析掉就丢（`NopNode`），**语义完全没生效**：
+            //   写了 `implicit none` 的程序里引用未声明变量，代码生成照样静默按 0。
+            //   现在落一个标志位，由 `CodeGenerator` 决定"报错"还是"只警告"——
+            //   Fortran 的**默认**语义是隐式类型（i-n 为 integer、其余 real），
+            //   所以没有 `implicit none` 时未声明是**合法**的，不能一刀切报错
+            //   （用户原话：「根据语言特性来定」）。
             int l = Cur.Line, c = Cur.Column;
             Expect(TokenType.None, "expected 'none' after implicit");
+            ImplicitNone = true;
             return new NopNode(l, c);
         }
         if (Match(TokenType.If)) return ParseIf();

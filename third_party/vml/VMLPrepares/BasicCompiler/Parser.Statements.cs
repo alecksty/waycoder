@@ -1078,6 +1078,17 @@ namespace BasicCompiler
                     Advance();
                 }
             }
+            // `OPTION EXPLICIT` —— 从此**变量必须先声明**。
+            //
+            // ⚠ 此前这里只认 `BASE`，别的 OPTION 一律**静默吞掉**（整个 `EXPLICIT` 当没看见）
+            //   ⇒ 写了 `OPTION EXPLICIT` 的程序里引用未声明变量，照样被"隐式建个全局"兜住，
+            //   指令形同虚设。现在落一个标志位交给代码生成：QBasic 的**默认**语义就是
+            //   "未声明即隐式全局"（合法），只有写了这条指令才该报错。
+            else if (Peek().Type == TokenType.IDENTIFIER && Peek().Value.ToUpper() == "EXPLICIT")
+            {
+                Advance(); // skip EXPLICIT
+                OptionExplicit = true;
+            }
             return stmt;
         }
 

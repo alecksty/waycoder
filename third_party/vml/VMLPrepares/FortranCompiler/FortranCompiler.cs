@@ -30,6 +30,9 @@ public class FortranCompiler
             var ast = parser.Parse();
             var codeGenerator = new CodeGenerator();
             codeGenerator.SourceLines = source.Split('\n');
+            // `implicit none` 是**每个源文件**的开关（不是每语言的）—— 从解析器带过来，
+            // 决定未声明变量是报错还是只警告。见 `Parser.ImplicitNone`。
+            codeGenerator.StrictDeclarations = parser.ImplicitNone;
             var prog = codeGenerator.GenerateCode(ast);
             CompilerHelper.LinkStandardLibrary(prog, "fortran", null);
             return prog;

@@ -84,6 +84,23 @@ namespace CompilerBase
         }
 
         /// <summary>
+        /// 报一条「未声明的标识符」的**警告**（收集、不挡编译）。
+        ///
+        /// 用在**语言语义允许隐式声明**的场合 —— 此时它不是错误，但用户仍然值得知道
+        /// 「这个名字没有声明过，是按语言默认规则隐式造出来的」。两处调用：
+        /// Fortran（没写 `implicit none` ⇒ 隐式类型是合法语义）、
+        /// QBasic（没写 `OPTION EXPLICIT` ⇒ 未声明即隐式全局是合法语义）。
+        ///
+        /// 与 <see cref="ReportUndefined"/> 只差级别 —— 别把这两处判据各写一遍。
+        /// </summary>
+        protected void WarnUndefined(string name, ErrorCode code, string kind, string? hint = null)
+        {
+            Diags.AddWarning(CompilerHelper.CurrentSourceFile ?? "<input>", CurrentSourceLine, 0, code,
+                $"隐式声明的{kind} '{name}'",
+                hint ?? $"它没有声明过，按这门语言的默认规则被隐式创建；建议显式声明。");
+        }
+
+        /// <summary>
         /// 未声明标识符的**占位值**：发一个 0 让代码生成继续跑。
         ///
         /// 这不是"随便糊一个" —— 那 16 门语言本来就在做同一件事（查不到就
@@ -1373,6 +1390,16 @@ namespace CompilerBase
             // 本来就是遍历全部匹配、每条各显示一个气泡）。
             if (Diags.HasErrors)
                 throw new CompilationException(Diags.FirstErrorCode, Diags.FormatAll());
+
+            // ── 警告要有出口 ────────────────────────────────────────────────────
+            // `Diags.AddWarning` 一直是**零调用点**，而这里也从来不打 —— 收集了没人看得见
+            // 等于没有。警告与错误的分工：错误挡住编译、警告只是提示
+            //（用户要的「定义了却没用的局部变量/函数，要出警告，可以给 IDE 报警告提示用」
+            //  就走这条）。格式是 `CompilerError.ToString()` 的 GCC 风格
+            // `file:line:col: warning: …`，宿主侧 `VmlDiagnostics` 本来就认这个形状。
+            if (Diags.WarningCount > 0)
+                foreach (var warn in Diags.Warnings)
+                    Console.Error.WriteLine(warn.ToString().TrimEnd());
 
             Vars?.LogStats();
             return new VmlProgram(instructions, labels, dataSection, constants)

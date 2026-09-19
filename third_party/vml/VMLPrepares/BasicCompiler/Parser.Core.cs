@@ -10,6 +10,14 @@ namespace BasicCompiler
         private int current;
         private Dictionary<string, int> _enumValues = new(); // ENUM 成员→值映射 (v1.66.32+)
 
+        /// <summary>
+        /// 源文件里出现过 `OPTION EXPLICIT` ⇒ **变量必须先声明**，未声明的引用报**错误**；
+        /// 没出现则报**警告**（QBasic 默认「未声明即隐式全局、值 0」是合法语义）。
+        ///
+        /// 这是**每文件**的开关（不是每语言），由 <c>BasicCompiler</c> 从解析器带给代码生成。
+        /// </summary>
+        public bool OptionExplicit { get; private set; }
+
         /// <summary>当前 BASIC 方言 (v1.66.32+)</summary>
         private VMLPlugins.BasicDialect CurrentDialect =>
             VMLPlugins.CompilerOptionsContext.Current.BasicDialect;

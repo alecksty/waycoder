@@ -214,8 +214,14 @@ namespace RustCompiler
             }
             else
             {
-                // 全局变量或函数名
-                AddInstruction(loadOp, "R0", node.Name);
+                // 局部表里没有 ⇒ 这个名字**从未声明过**。
+                //
+                // ⚠ 原注释写的是「全局变量或函数名」，但 Rust 前端**既没有 static/全局项的
+                //   代码生成、也没有函数名表**（`grep 'StaticNode|FuncDef'` 在 CodeGenerator*.cs
+                //   零命中）⇒ 这个分支实际只可能是"没声明"。此前它直接发 `MOVE R0, <裸名>`，
+                //   引用一个不存在的标签（值取决于汇编器/内存残值，连"确定的 0"都不是）。
+                ReportUndefined(node.Name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                EmitUndefinedFallback();
             }
         }
         

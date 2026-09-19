@@ -48,6 +48,9 @@ namespace BasicCompiler
                 var parser = new Parser(tokens) { FileName = "<input>", Diagnostics = diagnostics };
                 var ast = parser.Parse();
                 var codeGen = new CodeGenerator(ast);
+                // `OPTION EXPLICIT` 是**每个源文件**的开关（不是每语言的）——
+                // 决定未声明变量是报错还是只警告。见 `Parser.OptionExplicit`。
+                codeGen.StrictDeclarations = parser.OptionExplicit;
                 codeGen.SourceLines = source.Split('\n');
                 var prog = codeGen.GenerateCode();
                 if (autoLink)
@@ -75,6 +78,8 @@ namespace BasicCompiler
                 var parser = new Parser(tokens) { FileName = filePath, Diagnostics = diagnostics };
                 var ast = parser.Parse();
                 var codeGen = new CodeGenerator(ast);
+                // 同 `Compile` 那条：`OPTION EXPLICIT` 逐文件生效
+                codeGen.StrictDeclarations = parser.OptionExplicit;
                 codeGen.SourceLines = source.Split('\n');
                 var prog = codeGen.GenerateCode();
 

@@ -601,10 +601,16 @@ namespace LadderCompiler
             }
             else
             {
-                // 变量未声明，加载0
-                AddInstruction(OpCode.MOVE,
-                    new Operand(OperandType.REGISTER, 0),
-                    new Operand(OperandType.IMMEDIATE, 0));
+                // 常量表、`dataSection` 都没有 ⇒ 这个名字**从未声明过**。
+                // 此前这里静默 `MOVE R0, #0` —— 程序照编照跑，只是那个变量的值永远是 0，
+                // 用户要等到运行才发现（用户原话：「明明有无效标识，非要等到运行才报错」）。
+                //
+                // ⚠ `CodeGenerator.Elements.cs` 的 `LoadVariableOrValue` 里有一处**逐字同形**的
+                //   分支，本次**没动**：它的入参是"变量名**或字面量**"（先 `int.TryParse`、
+                //   再查 `dataSection`），落到 else 的还可能是它认不出的其它字面量形态，
+                //   直接报错有误伤风险，而没有任何用例能区分这两种情况。
+                ReportUndefined(varName, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                EmitUndefinedFallback();
             }
         }
 

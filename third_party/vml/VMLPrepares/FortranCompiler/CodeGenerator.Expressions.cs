@@ -127,10 +127,24 @@ public partial class CodeGenerator
         }
         else
         {
-            // Global variable - auto-allocate in data section
+            // 局部表与 `dataSection` 都没有 ⇒ 这个名字**没有声明过**。
+            //
+            // 到这里该报错还是该放过，取决于**这门语言自己的语义**（用户原话：
+            // 「少数语言不用声明，根据语言特性来定」）：
+            //   · 写了 `implicit none` ⇒ 必须声明 ⇒ **错误**；
+            //   · 没写 ⇒ Fortran 的默认隐式类型是**合法语义**（i-n 为 integer、其余 real）
+            //     ⇒ 只**警告**，绝不能报错 —— 否则 `Examples/fortran/` 那些老风格程序全编不过。
             string dataLabel = $"var_{name}";
             if (!dataSection.ContainsKey(dataLabel))
+            {
+                if (StrictDeclarations)
+                    ReportUndefined(name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                else
+                    WarnUndefined(name, ErrorCode.CodeGen_UndefinedVariable, "变量",
+                        "Fortran 默认按首字母隐式定型（i-n 为 integer、其余 real）；"
+                        + "要让这类引用直接报错，请在程序开头写 `implicit none`。");
                 dataSection[dataLabel] = 0;
+            }
 
             instructions.Add(new Instruction(loadOp,
                 new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, dataLabel) },

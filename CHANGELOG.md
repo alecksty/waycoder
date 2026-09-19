@@ -1,3 +1,64 @@
+## v0.96.286 — 未声明变量收尾：**16/16**（C++ / Rust / Ladder / Pascal + Fortran / Basic 的语义闸门）
+
+### 普通 4 门
+
+| 语言 | 落空分支 | 形态 |
+|---|---|---|
+| C++ | `CodeGenerator.Expressions.cs` 的 `case IdentExpr` 末位 | 静默发 `MOVE R0, var_x`，连槽都不建 |
+| Rust | `CodeGenerator.Expressions.cs` 读标识符的 else | 同上（裸名，值取决于汇编器/内存残值） |
+| Ladder | `CodeGenerator.Core.cs` 的 `LoadVariable` | 静默 `MOVE R0, #0` |
+| Pascal | `CodeGenerator.Expressions.cs` 的第四个 else | 顺手建初值 0 的全局槽 |
+
+Pascal 那处**保留原来那句建槽**、没有改成 `EmitUndefinedFallback + return`：它嵌在四层
+`if/else` 里，提前 return 会跳过后面收尾的指令生成，而"建个 0 槽照旧往下走"与旧行为
+**逐字相同**、零结构风险（编译反正会因为那条诊断失败）。
+
+Ladder 另有一处**逐字同形**的分支（`Elements.cs` 的 `LoadVariableOrValue`）**没动**：
+它的入参是"变量名**或字面量**"（先 `int.TryParse` 再查表），落到 else 的还可能是它认不出的
+其它字面量形态，直接报错有误伤风险，而**没有任何用例能区分这两种情况**。
+
+### Fortran / Basic：先补「指令语义」，再谈报错
+
+这两门**不能一刀切** —— 用户原话「少数语言不用声明，根据语言特性来定」：
+
+| | 默认语义 | 该报错的开关 | 现状 |
+|---|---|---|---|
+| Fortran | 隐式类型（i-n 为 integer、其余 real） | `implicit none` | 解析成 `NopNode` **直接丢**，语义完全没生效 |
+| QBasic | 未声明即隐式全局（值 0） | `OPTION EXPLICIT` | 只认 `OPTION BASE`，`EXPLICIT` 被**静默吞掉** |
+
+⇒ 两条指令都补上了语义：解析器落一个**每文件**的标志位（不是 `ImplicitDeclarationAllowed`
+那种编译期常量 —— 同一门语言的不同文件可以不同），代码生成据此决定
+**报错**（写了开关）还是**只警告**（没写）。
+
+⚠ 为了"只警告"这一半能成立，顺带**给警告开了出口**：`Diags.AddWarning` 此前是
+**零调用点**，而 `BuildProgram` 只抛错误、警告收集了从不上报 —— 等于没有。
+现在 `BuildProgram` 把警告按 GCC 风格 `file:line:col: warning: …` 打到 stderr，
+宿主侧 `VmlDiagnostics` 本来就认这个形状（v0.96.283 新加的裸 `warning:` 规则正好接上）。
+
+### Basic 的另一个坑：判据不能写在调用点
+
+Basic 有**四五个**位置调用 `GetOrCreateVariable`，其中 `CodeGenerator.Expressions.cs`
+那条是**无条件**的。第一版把"报错还是警告"写在了 `CodeGenerator.Sub.cs` 的 else 里，
+实测 **`PRINT nosuch` 根本不走那条路**（`OPTION EXPLICIT` 形同虚设）。
+⇒ 判据收进 `GetOrCreateVariable` 一处 —— 那是全前端**唯一**「没见过就造一个」的出口
+（本仓头号坑就是"同一规则两处实现"，这次是被实测逼出来的）。
+
+### 判据
+
+| | 之前 | 之后 |
+|---|---|---|
+| `undef-var` | 10/16 | **16/16** ✅ |
+| `dyn-global` | 6/6 | 6/6 |
+| `undef-fn` / `link-clean` | 16/16 / 22/22 | 16/16 / 22/22 |
+| `diag-probe` 合计 | 54/12 | **60/0/0** |
+| `vml-out-probe` | 29/29 | 29/29 |
+| `examples-build` | 78/3 | 78/3（3 条为已记录在案的） |
+| 桌面自测 | 5998/0 | 5998/0 |
+
+**P6（逐门未定义变量）16 门静态语言全部完成**；6 门动态语言由 `dyn-global` 反向护栏钉住。
+
+---
+
 ## v0.96.285 — 未声明变量：再修 7 门（ObjC / Go / Swift / Dart / C# / D / Java）→ **10/16**
 
 ### 三路并行侦察的结论：形态只有两种，基类早就备好了工具
