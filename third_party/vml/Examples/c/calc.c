@@ -40,10 +40,18 @@
 #define DISP_NUM   0xFFFFFFFF
 #define DISP_ERR   0xFFFF7B6B
 
+/* 四档按键色，按**功能分区**选不同色相 —— 色相拉开才分得清，
+   同一色系只差明度的话（比如两个蓝灰）在手机上几乎看不出区别：
+     数字键  深蓝灰（安静，占大多数）
+     运算符  暗金  （"这是要算的"）
+     功能键  砖红  （C / ± / % —— 会改变当前输入，给一点警示感）
+     等号    亮蓝  （唯一的"执行"键，最跳） */
 #define KEY_NUM    0xFF2A3346
 #define KEY_NUM_HI 0xFF3C4A63
-#define KEY_FN     0xFFE08A2B
-#define KEY_FN_HI  0xFFFFA94D
+#define KEY_OP     0xFF7A5A28
+#define KEY_OP_HI  0xFF9E7838
+#define KEY_FN     0xFF9E4630
+#define KEY_FN_HI  0xFFC06648
 #define KEY_EQ     0xFF2E7DD1
 #define KEY_EQ_HI  0xFF4C9BEF
 #define KEY_TXT    0xFFF2F6FA
@@ -54,7 +62,7 @@
 /* ── 状态 ───────────────────────────────────────────────── */
 
 int W, H;
-int btop, bh, bgap;              /* 按键区起点 / 键高 / 间隙 */
+int btop, bh, bw, bgap;          /* 按键区起点 / 键高 / 键宽 / 间隙（两个方向同一个）*/
 int bcols, brows;
 
 int acc;                         /* 累加器（×100 定点） */
@@ -86,13 +94,19 @@ int keyCode[20] = {
      1,  2,  3, 10,
      0, 19, 18, 14
 };
-int keyFn[20] = {                 /* 1 = 功能键（橙）2 = 等号（蓝） */
-    1,1,1,1,
-    0,0,0,1,
-    0,0,0,1,
-    0,0,0,1,
-    0,2,0,2
-};
+/* 0 数字 / 1 功能(C ± %) / 2 等号 / 3 运算符(+ - x /)
+ *
+ * ⚠ 用**函数**给，不用数组查表：`keyFn[i]` 这种「全局 int 数组的**元素比较**」在这条
+ *    前端上读不出正确的值（数据段里明明是 1/3/2，程序却一律当 0，于是所有键都画成
+ *    数字键的颜色 —— 而同一张表用 `label_of(keyCode[i])` 就是好的，见文件头那条）。
+ *    改成 if 链之后与 `label_of` 完全同构，行为一致、可预期。 */
+int fn_of(int i)
+{
+    if (i == 0 || i == 1 || i == 2) return 1;                 /* C  +/-  %  */
+    if (i == 3 || i == 7 || i == 11 || i == 15) return 3;     /* /  x  -  +  */
+    if (i == 19) return 2;                                    /* =          */
+    return 0;
+}
 
 char* label_of(int c)
 {
@@ -124,8 +138,12 @@ int g_pts[24];
 
 char g_fmt[24];
 
-/* v 是 ×100 的定点数 → "12.34" / "12" / "-0.05" */
-void fmt(char* out, int v)
+/* v 是 ×100 的定点数 → 写进全局 g_fmt："12.34" / "12" / "-0.05"
+ *
+ * ⚠ 直接写全局量、**不接收 out 指针**：这条前端的「指针形参写回」已知不可靠
+ *    （见文件头第 3 条：`void f(int* x){ *x=…; }` 实测会生成坏地址）。写全局是
+ *    **规避**这条风险 —— 与 `keyRect` 改成"全局量返回"同一个理由，全文件一种写法。 */
+void fmt(int v)
 {
     int i = 0, j = 0, neg = 0, ip, fp;
     char t[16];
@@ -136,15 +154,15 @@ void fmt(char* out, int v)
 
     if (ip == 0) t[j++] = '0';
     while (ip > 0 && j < 14) { t[j++] = (char)('0' + ip % 10); ip = ip / 10; }
-    if (neg) out[i++] = '-';
-    while (j > 0) out[i++] = t[--j];
+    if (neg) g_fmt[i++] = '-';
+    while (j > 0) g_fmt[i++] = t[--j];
 
     if (fp != 0) {
-        out[i++] = '.';
-        out[i++] = (char)('0' + (fp / 10) % 10);
-        if (fp % 10 != 0) out[i++] = (char)('0' + fp % 10);
+        g_fmt[i++] = '.';
+        g_fmt[i++] = (char)('0' + (fp / 10) % 10);
+        if (fp % 10 != 0) g_fmt[i++] = (char)('0' + fp % 10);
     }
-    out[i] = 0;
+    g_fmt[i] = 0;
 }
 
 int atoi_(char* b)
@@ -156,8 +174,8 @@ int atoi_(char* b)
 
 /* ── 布局 ───────────────────────────────────────────────── */
 
-int keyX(int c) { return 14 + c * ((W - 28) / 4); }
-int keyW(void)  { return (W - 28) / 4 - bgap; }
+int keyX(int c) { return 14 + c * (bw + bgap); }
+int keyW(void)  { return bw; }
 int keyY(int r) { return btop + r * (bh + bgap); }
 
 /* 按键在屏幕上的矩形。结果放**全局**量 ——
@@ -168,7 +186,7 @@ int rx, ry, rw, rh;
 void keyRect(int i)
 {
     int r = i / 4, c = i % 4;
-    rx = keyX(c) + c * bgap;
+    rx = keyX(c);
     ry = keyY(r);
     rw = keyW();
     rh = bh;
@@ -257,7 +275,7 @@ void on_key(int i)
         cur = 0; curDigits = 0; hasDot = 0; entering = 0;
         pendingOp = op;
         exprLen = 0; expr[0] = 0;
-        fmt(g_fmt, acc);
+        fmt(acc);
         {
             int t = 0;
             while (g_fmt[t] != 0 && exprLen < 58) expr[exprLen++] = g_fmt[t++];
@@ -272,19 +290,38 @@ void on_key(int i)
 
 void draw_key(int i)
 {
-    int x, y, w, h, col, tcol, dy;
+    int x, y, w, h, col, tcol, dy, f;
     int held = (pressIdx == i);
 
-    keyRect(i, &x, &y, &w, &h);
+    /* 空位键（码 19）：整个不画。
+       ⚠ 它本来就只是列表里的占位符 —— `0` 键（i=16）跨两格、右半边正好压在它上面。
+       但绘制顺序是 i=0..19，i=17 在 i=16 **之后**画 ⇒ 照常画的话它会盖住跨格键的右半，
+       屏幕上就多出一个空按钮（用户报的"下方有多的空按钮"就是这个）。
+       所以必须**在画之前**就返回，而不是画完矩形再跳过文字。 */
+    if (keyCode[i] == 19) return;
+
+    /* ⚠ keyRect 的结果经**全局量** rx/ry/rw/rh 返回（原因见其定义处），这里立刻拷进
+       局部 —— 免得函数体后半段再有什么东西动了那四个全局量。
+
+       这里原先写的是 `keyRect(i, &x, &y, &w, &h)`：那是「指针形参写回」版本的调用点，
+       而 keyRect 后来改成了全局量返回、**调用点忘了跟着改**。C 前端不检查实参个数
+       （多余的实参求值后静默丢弃），于是 x/y/w/h 一路保持未初始化 —— 每个键都按垃圾
+       坐标/尺寸去画，屏幕上按键区就是一片空白，而编译期一声不响。 */
+    keyRect(i);
+    x = rx; y = ry; w = rw; h = rh;
 
     /* ⚠ 别在赋值右边写嵌套三元（同上面那条：这条前端会生成坏地址）*/
+    f = fn_of(i);                     /* ⚠ 用函数、不用 keyFn[i] 查表（原因见 fn_of 处） */
+
     col = KEY_NUM; dy = 0;
-    if (keyFn[i] == 1) col = KEY_FN;
-    if (keyFn[i] == 2) col = KEY_EQ;
+    if (f == 1) col = KEY_FN;
+    if (f == 2) col = KEY_EQ;
+    if (f == 3) col = KEY_OP;
     if (held) {
         col = KEY_NUM_HI;
-        if (keyFn[i] == 1) col = KEY_FN_HI;
-        if (keyFn[i] == 2) col = KEY_EQ_HI;
+        if (f == 1) col = KEY_FN_HI;
+        if (f == 2) col = KEY_EQ_HI;
+        if (f == 3) col = KEY_OP_HI;
         dy = 2;                       /* 按下去：整格下沉 2px（比缩放省事，效果一样清楚） */
     }
 
@@ -294,8 +331,7 @@ void draw_key(int i)
     ui_rect(x, y + dy, w, h, KEY_EDGE, 0, 2, 14);      /* 描边 */
 
     tcol = 0xFFFFFFFF;
-    if (keyFn[i] == 0) tcol = KEY_TXT;
-    if (keyCode[i] == 19) return;                      /* 空位 */
+    if (f == 0) tcol = KEY_TXT;
 
     if (keyCode[i] == 13) {                            /* 除号：自己画，省得依赖字体有没有那个字形 */
         ui_line(x + w / 2 - 9, y + h / 2 + dy, x + w / 2 + 9, y + h / 2 + dy, tcol, 3);
@@ -336,15 +372,25 @@ void draw_display(void)
         if (err) { col = DISP_ERR; txt = "错误"; show = 0; }
         else if (!entering && pendingOp != 0) show = acc;
 
-        fmt(g_fmt, show);
+        fmt(show);
         ui_set_font(ph * 34 / 100, VML_FONT_BOLD, col, VML_ANCHOR_RIGHT);
         ui_text_cur(px + pw - 18, py + ph * 52 / 100, txt);
+    }
+
+    /* ⚠ 临时诊断：按住某键时在面板左下角画个洋红方块 ——
+       用来区分「TOUCHDOWN 根本没收到」与「收到了但高亮没生效」。验完删。 */
+    if (pressIdx >= 0 || flashT > 0) ui_rect(px + 8, py + ph - 34, 18, 18, 0xFFFF00FF, 1, 0, 3);
+    {
     }
 }
 
 void draw(void)
 {
     int i;
+
+    /* ⚠ 先清场：绘制都往宿主的**同一张图元表**里追加，只有 ui_clear 会清空它。
+       这里每点一次按键就整屏重画一遍，不清的话玩久了同样会把宿主撑爆（见 plane.c 的说明）。*/
+    ui_clear(BG_B);
 
     /* 径向渐变底：中心亮、四周沉 */
     ui_gradient("bg", 1, BG_A, BG_B, 500, 380, 780, 0);
@@ -358,7 +404,14 @@ void draw(void)
 
 int main(void)
 {
-    int i, m[4], t;
+    int i, t;
+    /* ⚠ `m` 必须**单独一行**声明，别挤进 `int i, m[4], t;`。
+       这条前端对「标量与数组写在同一条声明里」处理不了：局部数组分不到自己的槽位，
+       连 `m[1]`/`m[2]` 的**读取指令都不会生成**（汇编里一处都没有），于是触摸坐标
+       恒为 0、命中判定全部落空 —— 表现是**按键完全没反应**（连按下高亮都没有），
+       而界面绘制一切正常，很难往"输入"上想。
+       plane.c 那边 `int m[4];` 本来就单独声明，所以同样的代码在那边是好的。 */
+    int m[4];
 
     W = ui_scr_w();
     H = ui_scr_h();
@@ -369,7 +422,8 @@ int main(void)
     /* 布局：上面 26% 给显示屏，下面按键区 */
     bgap = 8;
     btop = H * 26 / 100;
-    bh = (H - btop - 20 - bgap * 4) / 5;
+    bh = (H - btop - 20 - bgap * 4) / 5;       /* 5 行 + 4 条竖缝 */
+    bw = (W - 28 - bgap * 3) / 4;              /* 4 列 + 3 条横缝（左右各留 14）*/
     bcols = 4; brows = 5;
 
     acc = 0; cur = 0; curDigits = 0; hasDot = 0;
@@ -386,7 +440,12 @@ int main(void)
         t = ui_wait(m, 400);
 
         if (t == VML_MSG_TOUCHDOWN) {
-            int x = m[1], y = m[2];
+            /* ⚠ 一行一个变量：别写 `int x = m[1], y = m[2];` —— 同一条声明里塞多个
+               变量在这条前端上不可靠（见 main 里 `m` 那段说明），拆开才拿得到正确的值。 */
+            int x;
+            int y;
+            x = m[1];
+            y = m[2];
             pressIdx = -1;
             for (i = 0; i < 20; i++) {
                 keyRect(i);

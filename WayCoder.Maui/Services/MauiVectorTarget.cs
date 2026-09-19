@@ -109,10 +109,11 @@ internal sealed class MauiVectorTarget : IVectorTarget
             _ => HorizontalAlignment.Left,
         };
         // 平台没有"只给锚点"的 DrawString 重载，最近的是"给一个矩形 + 对齐方式"⇒
-        // 矩形取"锚点往右到画布边"，垂直方向按文本框顶端对齐（top 已换算过基线）。
-        var boxW = (float)Math.Max(1, SceneWidth - x);
+        // 矩形的摆法交给共享层的 VmlUi.TextAnchorBox（纯逻辑，桌面自测能锁住它）；
+        // 垂直方向按文本框顶端对齐（top 已换算过基线）。
+        var (boxX, boxW) = WayCoder.UI.Shared.VmlUi.TextAnchorBox(x, SceneWidth, anchor);
         var boxH = (float)Math.Max(1, size * 2);
-        _canvas.DrawString(text, (float)x, (float)top, boxW, boxH, align, VerticalAlignment.Top);
+        _canvas.DrawString(text, (float)boxX, (float)top, (float)boxW, boxH, align, VerticalAlignment.Top);
     }
 
     public void DrawImage(string? path, double x, double y, double w, double h,

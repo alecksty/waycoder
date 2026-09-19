@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="WayCoder.Maui.Pages.DrawWindowPage"
              Title="VML 窗口"
+             Shell.TabBarIsVisible="False"
              BackgroundColor="{AppThemeBinding Light={StaticResource PageBgLight}, Dark={StaticResource PageBgDark}}">
 
     <!-- VML 程序开的窗口。布局三行：画布 / 折叠条 / 手柄。

@@ -270,6 +270,10 @@ public partial class DrawWindowPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        // 整页占满的页面不该带底部 tab 栏（编辑器 / 游戏窗口里没有切页的需求，返回箭头就够）。
+        // ⚠ XAML 上的 Shell.TabBarIsVisible 对这种 push 出来的页面**不生效**（实机验过：tab 栏照旧），
+        //   必须在 code-behind 设。
+        Shell.SetTabBarIsVisible(this, false);
 
         // 页面是**复用的**（Shell 导航会留下同一个实例），方向判定在 `OnDisappearing`
         // 里已经清掉 ⇒ 这里按当前方向重摆一次。放在 `OnSizeAllocated` 之外是因为
@@ -521,7 +525,9 @@ public partial class DrawWindowPage : ContentPage
             MoveBtn(BtnSelect, PadCenterArea, row: 0, column: 0, margin: Thickness.Zero);
             MoveBtn(BtnStart, PadCenterArea, row: 0, column: 0, margin: Thickness.Zero);
 
-            Shell.SetTabBarIsVisible(this, true);
+            // 竖屏也别把 TabBar 放回来：它是 VML 程序独占的显示区，底部一条切页栏
+            // 既没用又占地方（用户明确要求游戏窗口不带 tab 栏）。
+            Shell.SetTabBarIsVisible(this, false);
         }
 
         ApplyPadVisibility();

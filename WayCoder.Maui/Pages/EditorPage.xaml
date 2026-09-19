@@ -4,7 +4,8 @@
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:ctl="clr-namespace:WayCoder.Maui.Controls"
-    Title="编辑器">
+    Title="编辑器"
+    Shell.TabBarIsVisible="False">
 
     <!-- x:Name：软键盘弹出时按 IME inset 往它加底部内边距（见 EditorPage.xaml.cs 的 HookImeInsets）。
          Android 15+ 的 edge-to-edge 下 WindowSoftInputMode=AdjustResize 已经失效，

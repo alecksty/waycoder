@@ -482,6 +482,31 @@ public static class VmlUi
     /// <summary>本协议是否认领该 syscall 号。**不认识必须返回 false**，否则会把内置 syscall 吞掉。</summary>
     public static bool Handles(int syscallNumber) => syscallNumber is >= 500 and <= 599;
 
+    /// <summary>
+    /// 文字锚点 → 平台 <c>DrawString</c> 要的矩形。
+    ///
+    /// 平台只提供「**在给定矩形内**对齐」的重载，没有"只给一个锚点"的版本，所以锚点只能靠
+    /// **摆矩形**表达：让 <paramref name="x"/> 落在矩形的左缘（start）/ 中心（middle）/
+    /// 右缘（end）上。
+    ///
+    /// ⚠ 别图省事拿「x 到画布右边」（<c>sceneWidth - x</c>）当矩形 —— 那样 middle 居中的是
+    ///   `[x, sceneWidth]` 的**中点**而不是 x。锚点越靠左偏得越多：整屏按键的字会被一起拉向
+    ///   画布中心（实测 col0 的字跑到屏幕中间、文字列间距只剩按键间距的一半），end 同样会歪。
+    ///
+    /// 矩形取 **2×画布宽**以保证装得下任何一行字；允许为负坐标，平台按裁剪处理。
+    /// </summary>
+    public static (double X, double Width) TextAnchorBox(double x, double sceneWidth, string? anchor)
+    {
+        var w = Math.Max(1, sceneWidth * 2);
+        var left = anchor switch
+        {
+            "middle" => x - w / 2,
+            "end" => x - w,
+            _ => x,
+        };
+        return (left, w);
+    }
+
     /// <summary>号段上界（宿主启动时把这整段加进 <c>SyscallConstants.UserAllowed</c> 用）。</summary>
     public static IEnumerable<int> ReservedRange()
     {
@@ -793,31 +818,91 @@ public sealed class VmlScene
     public void Clear(uint background)
     {
         lock (_figures) _figures.Clear();
+        _overflowWarned = false;                  // 新的一帧，超限告警重新计
         Background = background;
         Version++;
     }
 
+    // ── 参数防护 ──────────────────────────────────────────────────────────
+    //
+    // 宿主 syscall 的参数是**程序给的**，可以是任何 int：坐标可以到 ±20 亿、半径可以是负数、
+    // 文本可以指向垃圾内存。这些值会一路进 DSL、再进光栅 / 矢量后端（那里有 int 转换、缓冲区
+    // 分配、路径展平、字形排版），是「异常值把宿主搞崩」的主要入口。
+    //
+    // **统一收口放在这一层**（而不是各宿主各写一遍）：所有端 —— 手机 / 桌面 / Web / GUI ——
+    // 的图元都从这里进场景，而且这一层在桌面上可自测。
+    //
+    // 策略是「**让异常参数最多画不出来，绝不崩**」：
+    //   · 坐标超出窗口 → 整个图元丢弃（屏幕外的东西本来也看不见，丢掉还省内存）
+    //   · 尺寸 / 半径 / 线宽 / 字号 → 负数钳 0、超大钳到窗口（保住"很大"的语义，不撑爆）
+    //   · 计数与字符串长度 → 封顶
+    // 正常程序传的都是合理值，一个也不会被丢。
+
+    /// <summary>坐标窗口（±100 万）：比任何合理画布坐标大几个数量级，又远小于 int 溢出边界。</summary>
+    public const int CoordLimit = 1_000_000;
+
+    /// <summary>图元表上限。程序漏了 <c>ui_clear</c> 时图元只增不减（每帧几十上百条），
+    /// 这是**宿主侧的兜底** —— 到顶丢弃后续图元并记一次警告，绝不让程序的一行疏忽拖垮宿主。</summary>
+    public const int MaxFigures = 12_000;
+
+    /// <summary>单条文本 / 路径串的长度上限（DSL 文本随它线性膨胀）。</summary>
+    public const int MaxTextLength = 4_096;
+
+    /// <summary>坐标是否在窗口内。越界的坐标一律视为无效图元。</summary>
+    public static bool InCoordRange(int v) => v > -CoordLimit && v < CoordLimit;
+
+    /// <summary>尺寸类参数（宽 / 高 / 半径 / 线宽 / 字号）：负数钳 0，超大钳到窗口。</summary>
+    public static int Dim(int v) => v < 0 ? 0 : (v > CoordLimit ? CoordLimit : v);
+
+    /// <summary>按**码点**截断，别把代理对切成两半（emoji / CJK 扩展 B 占两个 char）。</summary>
+    private static string CapText(string s)
+    {
+        if (s.Length <= MaxTextLength) return s;
+        var end = MaxTextLength;
+        if (char.IsHighSurrogate(s[end - 1]) && char.IsLowSurrogate(s[end])) end--;
+        return s[..end];
+    }
+
+    /// <summary>图元超限只报警一次（否则每个被丢的图元一条日志，反而把日志刷爆）。</summary>
+    private bool _overflowWarned;
+
     /// <summary>点 —— DSL 没有单像素指令，用 1×1 的填充矩形表达（语义等价，且复用现成光栅路径）。</summary>
-    public void AddPixel(int x, int y, uint color) => Add($"rect {x} {y} 1 1 {Hex(color)}");
+    public void AddPixel(int x, int y, uint color)
+    {
+        if (!InCoordRange(x) || !InCoordRange(y)) return;
+        Add($"rect {x} {y} 1 1 {Hex(color)}");
+    }
 
     public void AddLine(int x1, int y1, int x2, int y2, uint color, int width)
-        => Add($"line {x1} {y1} {x2} {y2} {Hex(color)}{(width > 0 ? " " + width : "")}");
+    {
+        if (!InCoordRange(x1) || !InCoordRange(y1) || !InCoordRange(x2) || !InCoordRange(y2)) return;
+        width = Dim(width);
+        Add($"line {x1} {y1} {x2} {y2} {Hex(color)}{(width > 0 ? " " + width : "")}");
+    }
 
     /// <summary>矩形；<paramref name="radius"/> &gt; 0 时走 DSL 的 roundrect（圆角矩形）。
     /// <paramref name="fillGradient"/> 非空时用**渐变刷子**填充（DSL 的 `@id` 引用）。</summary>
     public void AddRect(int x, int y, int w, int h, uint color, bool filled, int width, int radius,
         string? fillGradient = null)
     {
+        if (!InCoordRange(x) || !InCoordRange(y)) return;
+        w = Dim(w); h = Dim(h); radius = Dim(radius); width = Dim(width);
         var name = radius > 0 ? "roundrect" : "rect";
         var extra = radius > 0 ? $" {radius}" : "";
         Add($"{name} {x} {y} {w} {h}{extra}{Style(color, filled, width, fillGradient)}");
     }
 
     public void AddCircle(int cx, int cy, int r, uint color, bool filled, int width, string? fillGradient = null)
-        => Add($"circle {cx} {cy} {r}{Style(color, filled, width, fillGradient)}");
+    {
+        if (!InCoordRange(cx) || !InCoordRange(cy)) return;
+        Add($"circle {cx} {cy} {Dim(r)}{Style(color, filled, Dim(width), fillGradient)}");
+    }
 
     public void AddEllipse(int cx, int cy, int rx, int ry, uint color, bool filled, int width, string? fillGradient = null)
-        => Add($"ellipse {cx} {cy} {rx} {ry}{Style(color, filled, width, fillGradient)}");
+    {
+        if (!InCoordRange(cx) || !InCoordRange(cy)) return;
+        Add($"ellipse {cx} {cy} {Dim(rx)} {Dim(ry)}{Style(color, filled, Dim(width), fillGradient)}");
+    }
 
     /// <summary>
     /// **渐变刷子**定义（v0.96.176）。形状用 <c>fillGradient</c> 参数按 <paramref name="id"/> 引用。
@@ -863,8 +948,11 @@ public sealed class VmlScene
         uint fillColor = 0, bool fillSet = false, string? fillGradient = null, bool dashed = false)
     {
         if (string.IsNullOrWhiteSpace(d)) return;
+        d = CapText(d);
         var sb = new StringBuilder();
-        sb.Append("path \"").Append(d.Replace("\"", " ")).Append('"');
+        // ⚠ 引号与**换行**都要抹掉：DSL 是**按行**解析的，`d` 里一个 `\n` 就能伪造出一条
+        //   完整指令；引号则会提前结束字符串、把后面的坐标挤成新的 token。
+        sb.Append("path \"").Append(d.Replace('"', ' ').Replace('\n', ' ').Replace('\r', ' ')).Append('"');
         sb.Append(' ').Append(Hex(strokeColor));
         if (width > 0) sb.Append(' ').Append(Num(width));
         sb.Append(" ").Append(CapName(cap));
@@ -923,6 +1011,10 @@ public sealed class VmlScene
     /// </summary>
     public void AddText(int x, int y, string text, uint color, int fontSize, int anchor, int style = 0)
     {
+        if (!InCoordRange(x) || !InCoordRange(y)) return;
+        if (string.IsNullOrEmpty(text)) return;
+        text = CapText(text);
+        fontSize = Dim(fontSize);
         var w = (style & TextBold) != 0 ? "bold" : "";
         var i = (style & TextItalic) != 0 ? "italic" : "";
         var bi = (w.Length > 0 && i.Length > 0) ? " bi" : (w.Length > 0 ? " bold" : (i.Length > 0 ? " italic" : ""));
@@ -954,6 +1046,8 @@ public sealed class VmlScene
     /// </summary>
     public void AddIcon(int x, int y, string name, int size, uint color)
     {
+        if (!InCoordRange(x) || !InCoordRange(y)) return;
+        size = Dim(size);
         if (!Icons.TryGetValue(name.Trim().ToLowerInvariant(), out var ch))
         {
             AddRect(x, y, size, size, color, filled: false, width: 2, radius: 0);
@@ -963,11 +1057,30 @@ public sealed class VmlScene
     }
 
     public void AddImage(int x, int y, string path, int w, int h)
-        => Add($"image {x} {y} \"{Escape(path)}\"{(w > 0 ? " " + w : "")}{(h > 0 ? " " + h : "")}");
+    {
+        if (!InCoordRange(x) || !InCoordRange(y)) return;
+        w = Dim(w); h = Dim(h);
+        if (w == 0 || h == 0) return;                 // 0 尺寸画不出东西，直接丢（也挡住退化调用）
+        Add($"image {x} {y} \"{Escape(path)}\" {w} {h}");
+    }
 
     private void Add(string line)
     {
-        lock (_figures) _figures.Add(line);
+        lock (_figures)
+        {
+            // **宿主侧兜底**：程序漏了 `ui_clear` 时图元只增不减，不能让它把宿主拖垮。
+            if (_figures.Count >= MaxFigures)
+            {
+                if (!_overflowWarned)
+                {
+                    _overflowWarned = true;
+                    ErrorLog.Warning("VmlScene",
+                        $"场景图元数超过上限 {MaxFigures}，后续绘制被丢弃 —— 程序很可能漏了 ui_clear()");
+                }
+                return;
+            }
+            _figures.Add(line);
+        }
         Version++;
     }
 

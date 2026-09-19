@@ -495,6 +495,61 @@ public static partial class SelfTest
         Check("VmlScene: 文本引号/换行已转义（仍解析出 1 个图元）",
             DrawRunner.Parse(esc.BuildDsl()).Figures.Count == 1);
 
+        // ── 参数防护：宿主 syscall 的参数是**程序给的**，可以是任何 int ──
+        // 目标是「让异常参数最多画不出来，绝不崩」，所以这里量的正是"垃圾值进不来"。
+        // 这些值若不拦，会一路进 DSL、进光栅器（int 转换、缓冲区分配），是崩宿主的入口。
+
+        var guard = new VmlScene { Width = 200, Height = 100 };
+        guard.AddRect(int.MaxValue, 0, 10, 10, 0xFFFFFFFF, true, 0, 0);
+        guard.AddCircle(0, int.MinValue, 5, 0xFFFFFFFF, true, 0);
+        guard.AddLine(0, 0, 0, 3_000_000, 0xFFFFFFFF, 1);
+        guard.AddText(int.MaxValue, 0, "x", 0xFFFFFFFF, 12, 0);
+        guard.AddImage(0, 0, "p", int.MaxValue, 10);
+        // 一条都没进来 ⇒ DSL 只剩 canvas 头与 antialias 两行（Split 后还有个尾空串）
+        Check("防护: 越界坐标的图元整个丢弃",
+            guard.BuildDsl().Split('\n').Length == 3);
+
+        var dim = new VmlScene { Width = 200, Height = 100 };
+        dim.AddCircle(10, 10, -5, 0xFFFFFFFF, true, 0);
+        Check("防护: 负半径钳成 0", dim.BuildDsl().Contains("circle 10 10 0"));
+        dim.AddRect(0, 0, 99_000_000, 10, 0xFFFFFFFF, true, 0, 0);
+        Check("防护: 超大尺寸钳到窗口",
+            dim.BuildDsl().Contains($"rect 0 0 {VmlScene.CoordLimit} 10"));
+
+        // 图元表封顶 —— 这是**程序漏了 ui_clear 时的宿主兜底**（v0.96.255 前 plane.c 就这么崩的）
+        var capped = new VmlScene();
+        for (var i = 0; i < VmlScene.MaxFigures + 500; i++) capped.AddPixel(1, 1, 0xFFFFFFFF);
+        Check("防护: 图元数封顶（漏 ui_clear 也拖不垮宿主）",
+            capped.BuildDsl().Split('\n').Count(l => l.StartsWith("rect ")) == VmlScene.MaxFigures);
+
+        // 文本封顶且**按码点**截断 —— 切碎代理对会在渲染端变成 U+FFFD
+        var longText = new string('a', VmlScene.MaxTextLength - 1) + "😀" + new string('b', 200);
+        var tscene = new VmlScene();
+        tscene.AddText(0, 0, longText, 0xFFFFFFFF, 12, 0);
+        var tdsl = tscene.BuildDsl();
+        Check("防护: 超长文本被截断", tdsl.Length < longText.Length);
+        Check("防护: 截断不切碎代理对（无孤立代理）",
+            !tdsl.Any((c, i) => char.IsHighSurrogate(c)
+                                && (i + 1 >= tdsl.Length || !char.IsLowSurrogate(tdsl[i + 1])))
+            && !tdsl.Any((c, i) => char.IsLowSurrogate(c)
+                                && (i == 0 || !char.IsHighSurrogate(tdsl[i - 1]))));
+
+        // path 串里的换行必须抹掉：DSL 是**按行**解析的，一个 \n 就能伪造出整条指令
+        var pscene = new VmlScene();
+        pscene.AddPath("M0 0 L10 10\nrect 0 0 999 999 #FFFF0000", 0xFFFFFFFF);
+        Check("防护: path 里的换行不产生额外图元",
+            DrawRunner.Parse(pscene.BuildDsl()).Figures.Count == 1);
+
+        // 文字锚点矩形：x 必须落在矩形的左缘 / 中心 / 右缘 —— 矢量后端靠它表达锚点。
+        // ⚠ 这里锁的是"别拿 `[x, 画布右边]` 当矩形"那个 bug：那样 middle 居中的是中点而非 x，
+        //   整屏按键的字会一起被拉向画布中心（真机上文字列间距只剩按键间距的一半）。
+        foreach (var (anchor, frac) in new[] { ("start", 0.0), ("middle", 0.5), ("end", 1.0) })
+        {
+            var (bx, bw) = VmlUi.TextAnchorBox(37, 200, anchor);
+            Check($"锚点矩形: {anchor} 时锚点落在矩形的 {frac:P0} 处",
+                Math.Abs((37 - bx) / bw - frac) < 1e-9);
+        }
+
         // ── 真渲染：把场景出图后逐像素验（**这条才能抓住"空心图形被画成实心白"这类问题**）──
         // 只验 DSL 字符串是不够的：语法对了但样式语义错了（例如透明填充被当成不透明），
         // 字符串看不出任何异常，真机上却是"背景被糊成白色"。所以这里走完整渲染链再量像素。

@@ -786,7 +786,9 @@ public partial class EditorPage : ContentPage
             // 底部 TabBar（首页/对话/命令行/文件/设置）也一起收掉 —— 它同样占着一整条的高度，
             // 全屏的意义就是把这些都让给画布。与上面 NavigateBar 一样是**附加属性**，
             // 设在页面自身上，只影响本页。
-            Shell.SetTabBarIsVisible(this, !on);
+            // TabBar **恒不显示**（不再跟全屏开关走）：编辑器是全屏工作的页面，
+            // 底部那条切页栏既没用又占一行高度。NavBar 仍随全屏开关收放。
+            Shell.SetTabBarIsVisible(this, false);
         }
         FileRow.IsVisible = !on;
         ToolRow.IsVisible = !on;
@@ -829,6 +831,10 @@ public partial class EditorPage : ContentPage
     protected override void OnAppearing()
     {
         base.OnAppearing();
+        // 整页占满的页面不该带底部 tab 栏（编辑器 / 游戏窗口里没有切页的需求，返回箭头就够）。
+        // ⚠ XAML 上的 Shell.TabBarIsVisible 对这种 push 出来的页面**不生效**（实机验过：tab 栏照旧），
+        //   必须在 code-behind 设。
+        Shell.SetTabBarIsVisible(this, false);
         if (Shell.Current != null) Shell.Current.Navigating += OnShellNavigating;
         if (Application.Current != null) Application.Current.RequestedThemeChanged += OnAppThemeChanged;
         Active = this;   // 给平台输入连接回调用（见 Active 的说明）
