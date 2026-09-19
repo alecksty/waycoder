@@ -1126,6 +1126,7 @@ __stdcall void vga_text_newline(void);
  int ui_call_json(char* fn, char* args_json, char* out_buf, int cap);
  int ui_call_json_s(char* fn, char* args_json);
  int ui_call_json_len(void);
+ void ui_call_json_print(void);
  int ui_call_json_at(int i);
  int ui_msg_count(void);
  int ui_msg_clear(void);

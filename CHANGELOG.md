@@ -1,3 +1,63 @@
+## v0.96.236 (2026-09-19) — `sysinfo`（系统信息）+ 21 种语言的 CALLJSON 自测
+
+用户要的：「callwithjson 可以做个 GetSystemInfo，返回系统的 cpu、uuid、os 等一些系统性信息，
+给每个语言写个测试」。
+
+### ① 注册 `sysinfo`
+
+```c
+char buf[512];
+ui_call_json("sysinfo", "", buf, 512);
+```
+
+返回（真机实测）：
+
+```json
+{"ok":true,"result":{"app":"WayCoder","version":"v0.96.236","platform":"android","os":"Android",
+ "osVersion":"16","deviceModel":"sdk_gphone64_arm64","deviceName":"sdk_gphone64_arm64",
+ "manufacturer":"Google","arch":"arm64","cpuCount":4,"memoryMb":382,
+ "deviceId":"d99d9f3c…","screen":{"w":411,"h":914,"density":2.625,"canvasW":395,"canvasH":652},
+ "orientation":0}}
+```
+
+函数名用 **`sysinfo`** 而不是 `GetSystemInfo`：已有的三个是 `echo`/`version`/`screen`，
+小写单词是这套 JSON 函数名的既定风格（跨语言契约，改名要同步 22 端）。
+
+⚠ **`deviceId` 是"本机安装实例的随机 id"，不是硬件序列号** —— 首次用时生成、存进 Preferences。
+手机上拿硬件 id 要么要权限（ANDROID_ID 在新版本已按签名隔离）、要么根本拿不到（IMEI 早就不让读），
+而且那类标识属于"设备指纹"，拿来做普通功能是过度收集。随机 id 够用来区分两次安装，清应用数据即换新。
+**别拿它当设备指纹使** —— 这条写进代码注释了。
+`canvasW/H` 与 `SCR_W`/`SCR_H` **同源**（调的就是同一个函数），免得出现"JSON 报的尺寸和 syscall 报的不一样"。
+
+### ② 共享库加 `ui_call_json_print()`
+
+让 22 种语言各自写一遍"逐字节取 + 单字符输出"的循环，就是 22 份同一段代码（本仓库头号坑）。
+加一个 `ui_call_json_print()`（内部循环 `ui_call_json_at` + `putchar`）之后，
+每份自测都只剩两行：
+
+```c
+ui_call_json_s("sysinfo", "");
+ui_call_json_print();
+```
+
+### ③ 21 种语言各一份 `Examples/<语言>/sysinfo.<ext>`
+
+按各语言已有示例的写法逐个写（Java 要 `static native`、Dart 要 `external`、BASIC 要 `NATIVE` 声明，
+其余大多直接裸调由前端按库符号解析）。**桌面逐个编译过 21/21**，设备上跑了 C 与 Python 两份，
+输出**逐字符一致**。
+
+途中撞到两个语言各自的小坑（都写进文件注释了）：
+
+| 语言 | 坑 |
+|---|---|
+| ObjC | **解析不了 `waycoder_ui.h`**（`expected ) (got IdType 'id'`，报在头文件里）⇒ 只能像 `snake.m` 那样直接裸调、不引头文件 |
+| Pascal | 注释只认 ASCII：`//` 不是注释（要用 `{ }`），注释里的中文破折号/中文逗号都会报「未知字符」/「无效的字符代码」 |
+
+**Ladder 只放了个占位**：它是 PLC 风格前端，没有"带字符串参数的函数调用"这种语法
+（仓库里原有的 `ladder/file_io.ld` 本身就是一个 NOP 测试）。文件里写明了这一点。
+
+---
+
 ## v0.96.235 (2026-09-19) — 编辑器手感三件：自动缩进 / 括号配对高亮 / 查找替换（+ 纯逻辑下沉到可自测层）
 
 按 `docs/编辑器到IDE-差距清单.md` 的第一梯队开工，只做移动端。

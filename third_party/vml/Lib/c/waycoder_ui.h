@@ -161,6 +161,9 @@ int  ui_call_json(char* fn, char* args_json, char* out_buf, int cap);
 int  ui_call_json_s(char* fn, char* args_json);
 int  ui_call_json_len(void);
 int  ui_call_json_at(int i);
+/* 把上一次 ui_call_json_s 的结果整份打到 stdout（末尾补换行）。
+   22 种语言的自测都靠它把结果原样打出来，省得各自写一遍"逐字节取 + 单字符输出"。 */
+void ui_call_json_print(void);
 /* fn 是函数名、args_json 是参数（可为 "" 或 0）。例：
      char buf[256];
      ui_call_json("screen", "", buf, 256);      // {"ok":true,"result":{"w":395,…}}

@@ -343,6 +343,39 @@ internal sealed class VmlUiCalls : ISystemCallHandler
             .Set("version", Global.Version)
             .Set("platform", DeviceInfo.Current.Platform.ToString().ToLowerInvariant()));
 
+        // `sysinfo`：这台设备/这个 App 的系统信息。
+        //
+        // ⚠ **deviceId 是"本机安装实例的随机 id"，不是硬件序列号** —— 手机上拿硬件 id
+        //   要么要权限（ANDROID_ID 在新版本已被限制），要么根本拿不到（IMEI 早就不让读了）。
+        //   随机 id 一次生成、存进 Preferences，用途是"区分两台设备/两次安装"，
+        //   不承担任何鉴权语义 —— **别拿它当设备指纹使**。
+        VmlJsonApi.Register("sysinfo", _ =>
+        {
+            var info = DeviceDisplay.MainDisplayInfo;
+            var area = ScrArea();
+            return JNode.Object()
+                .Set("app", Global.AppName)
+                .Set("version", Global.Version)
+                .Set("platform", DeviceInfo.Current.Platform.ToString().ToLowerInvariant())
+                .Set("os", DeviceInfo.Current.Platform.ToString())
+                .Set("osVersion", DeviceInfo.Current.VersionString)
+                .Set("deviceModel", DeviceInfo.Current.Model)
+                .Set("deviceName", DeviceInfo.Current.Name)
+                .Set("manufacturer", DeviceInfo.Current.Manufacturer)
+                .Set("arch", System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture
+                    .ToString().ToLowerInvariant())
+                .Set("cpuCount", Environment.ProcessorCount)
+                .Set("memoryMb", GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / (1024 * 1024))
+                .Set("deviceId", InstallId())
+                .Set("screen", JNode.Object()
+                    .Set("w", (int)Math.Round(info.Width / Math.Max(1, info.Density)))
+                    .Set("h", (int)Math.Round(info.Height / Math.Max(1, info.Density)))
+                    .Set("density", info.Density)
+                    .Set("canvasW", area.Width)
+                    .Set("canvasH", area.Height))
+                .Set("orientation", ScreenOrientation());
+        });
+
         // `screen`：与 `SCR_W`/`SCR_H`/`SCR_ORIENT` **同源**（就调那几个函数），
         // 免得出现"JSON 里报的尺寸和 syscall 报的不一样"这种最难查的分叉。
         VmlJsonApi.Register("screen", _ =>
@@ -355,6 +388,31 @@ internal sealed class VmlUiCalls : ISystemCallHandler
                 .Set("orientation", orient)
                 .Set("landscape", orient == VmlUi.Landscape);
         });
+    }
+
+    /// <summary>
+    /// 本机安装实例的随机 id（首次用时生成并存进 Preferences，此后不变）。
+    ///
+    /// **刻意不用硬件标识**：ANDROID_ID 在新版 Android 上已按应用签名隔离、IMEI 早就不让读，
+    /// 而且那类标识属于"设备指纹"，拿来做普通功能是过度收集。随机 id 够用来"区分两次安装"，
+    /// 也随时可以清（清应用数据即换一个新的）。
+    /// </summary>
+    private static string InstallId()
+    {
+        try
+        {
+            const string key = "vml.installId";
+            var id = Preferences.Default.Get(key, "");
+            if (!string.IsNullOrEmpty(id)) return id;
+            id = Guid.NewGuid().ToString("N");
+            Preferences.Default.Set(key, id);
+            return id;
+        }
+        catch
+        {
+            // 取不到 Preferences 也不能让 sysinfo 整个失败 —— 给个临时值（每次调用都不同）
+            return "unknown";
+        }
     }
 
     /// <summary>

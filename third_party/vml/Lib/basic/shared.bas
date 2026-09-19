@@ -4639,6 +4639,10 @@ DECLARE FUNCTION ui_call_json_len() AS INTEGER
     ui_call_json_len = 0
 END FUNCTION
 
+DECLARE SUB ui_call_json_print()
+    asm("CALL ui_call_json_print")
+END SUB
+
 DECLARE FUNCTION ui_call_json_at(a0 AS INTEGER) AS INTEGER
     asm("CALL ui_call_json_at")
     ui_call_json_at = 0

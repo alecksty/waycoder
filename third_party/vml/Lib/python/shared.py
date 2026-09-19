@@ -6072,6 +6072,9 @@ def ui_call_json_len():
     asm("CALL ui_call_json_len")
     return r0
 
+def ui_call_json_print():
+    asm("CALL ui_call_json_print")
+
 def ui_call_json_at(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0

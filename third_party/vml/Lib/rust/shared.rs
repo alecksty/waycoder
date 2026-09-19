@@ -6063,6 +6063,10 @@ fn ui_call_json_len() -> i32 {
     r
 }
 
+fn ui_call_json_print() {
+    asm!("CALL ui_call_json_print")
+}
+
 fn ui_call_json_at(a0: i32) -> i32 {
     asm!("CALL ui_call_json_at")
     let r: i32;

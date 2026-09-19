@@ -1963,6 +1963,8 @@
 // CALL ui_call_json_s
 // extern fn ui_call_json_len(void) -> int
 // CALL ui_call_json_len
+// extern fn ui_call_json_print(void) -> void
+// CALL ui_call_json_print
 // extern fn ui_call_json_at(int i) -> int
 // CALL ui_call_json_at
 // extern fn ui_msg_count(void) -> int

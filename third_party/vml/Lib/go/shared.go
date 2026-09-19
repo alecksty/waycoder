@@ -4641,6 +4641,10 @@ func ui_call_json_len() int32 {
     return vml.R0()
 }
 
+func ui_call_json_print() {
+    vml.Call("ui_call_json_print")
+}
+
 func ui_call_json_at(a0 int32) int32 {
     vml.Call("ui_call_json_at")
     return vml.R0()

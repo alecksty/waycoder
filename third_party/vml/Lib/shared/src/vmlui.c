@@ -204,6 +204,19 @@ int ui_call_json_len(void) {
     return _ui_json_len;
 }
 
+/* 把上一次 ui_call_json_s 的结果**整份打到 stdout**（末尾补一个换行）。
+ *
+ * 存在的理由：跨语言自测要"把结果原样打出来给人看/给脚本比"，而让 22 种语言各自
+ * 写一遍"逐字节取 + 单个字符输出"的循环，就是 22 份同一段代码（本仓库头号坑）。
+ * 放在这里之后，各语言的自测都只剩两行：`ui_call_json_s(...)` + `ui_call_json_print()`。 */
+void ui_call_json_print(void) {
+    int i;
+    for (i = 0; i < _ui_json_len; i = i + 1) {
+        putchar(_ui_json_buf[i]);
+    }
+    putchar(10);   /* '\n' */
+}
+
 /* 结果里第 i 个字节（0..len-1）。越界返回 0 —— 与 ui_gget 一样安全失败。 */
 int ui_call_json_at(int i) {
     if (i < 0 || i >= _ui_json_len) {
