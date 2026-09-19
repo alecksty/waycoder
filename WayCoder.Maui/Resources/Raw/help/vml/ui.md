@@ -59,12 +59,12 @@ if (ui_orientation() == VML_ORIENT_LANDSCAPE) { /* 横排 */ }
 | [ui_msg_clear](help:vml/ui/messages) | 清空消息队列（切场景 / 重开一局时用，免得把上一局的按键吃进来）。 |
 | [ui_msg_count](help:vml/ui/messages) | 队列里还积着几条（想丢掉积压时可以看一眼）。 |
 | [ui_msg_type](help:vml/ui/messages) | 当前消息的类型（省得把 `msg[0]` 记在脑子里）。 |
-| [ui_poll](help:vml/ui/messages) | 不等，没有就返回 `VML_MSG_NONE`。连续动画用这个（配自己的节拍）；事件驱动的用 `ui_wait`（常态省电）。 |
+| [ui_poll](help:vml/ui/messages) | 不等：没有消息就返回 `VML_MSG_NONE`。连续动画用这个（配自己的节拍）； |
 | [ui_poll_ex](help:vml/ui/messages) | `ui_poll` 的带「读完后留不留」版本。 |
-| [ui_poll_msg](help:vml/ui/messages) | 只取指定类型，没有就返回 `VML_MSG_NONE`。 |
+| [ui_poll_msg](help:vml/ui/messages) | 不碰指针的取消息版本（拿不到数组指针的语言用）：没有就返回 `VML_MSG_NONE`， |
 | [ui_wait](help:vml/ui/messages) | 等一条消息，参数是 `int msg[4]`。返回消息类型（见下表）；`timeout=0` 表示一直等。 |
 | [ui_wait_ex](help:vml/ui/messages) | 同上，第三个参数决定读完之后留不留这条消息（`VML_MSG_KEEP` / `VML_MSG_CONSUME`）。 |
-| [ui_wait_msg](help:vml/ui/messages) | 只等指定类型的消息（其余留在队列里）。 |
+| [ui_wait_msg](help:vml/ui/messages) | 不碰指针的等消息版本：等到就返回类型、超时返回 `VML_MSG_NONE`。 |
 
 ```c
 /* 例：ui_msg_a */
@@ -77,14 +77,15 @@ int x = ui_msg_a();
 
 | 接口 | 一句话 |
 |---|---|
-| [ui_rand](help:vml/ui/timer) | 随机数。 |
+| [ui_rand](help:vml/ui/timer) | 随机数：`ui_rand(n)` → 0..n-1（n ≤ 0 时返回 1，不会崩）。 |
 | [ui_tick](help:vml/ui/timer) | 开机以来的毫秒数（自己算帧间隔、做动画用）。 |
 | [ui_timer_kill](help:vml/ui/timer) | 停掉一个定时器。 |
 | [ui_timer_set](help:vml/ui/timer) | 起一个重复定时器，每 N 毫秒发一条 `VML_MSG_TIMER`（`msg[1]` 是你给的 id）。 |
 
 ```c
 /* 例：ui_rand */
-int n = ui_rand() % 6;   /* 0..5 */
+int n = ui_rand(6);      /* 0..5 */
+int side = ui_rand(2);   /* 0 或 1 */
 ```
 
 ## 绘图
@@ -94,17 +95,17 @@ int n = ui_rand() % 6;   /* 0..5 */
 | 接口 | 一句话 |
 |---|---|
 | [ui_circle](help:vml/ui/draw) | 画圆，`fill` 非 0 填充。 |
-| [ui_circle_grad](help:vml/ui/draw) | 带渐变的圆。 |
+| [ui_circle_grad](help:vml/ui/draw) | 渐变的圆（渐变先用 `ui_gradient` 起个名字）。 |
 | [ui_clear](help:vml/ui/draw) | 整屏填一个色（每帧开头调）。颜色一律 `0xAARRGGBB`。 |
 | [ui_ellipse](help:vml/ui/draw) | 画椭圆（`rx` / `ry` 两个半径）。 |
-| [ui_gradient](help:vml/ui/draw) | 定义一个渐变并返回 id（之后 `ui_rect_grad` / `ui_circle_grad` 用）。 |
+| [ui_gradient](help:vml/ui/draw) | 定义一个渐变刷子并起个名字（字符串 id）；之后 `ui_rect_grad` / `ui_circle_grad` / `ui_path` 按名字引用它。 |
 | [ui_icon](help:vml/ui/draw) | 画一个内置图标（按名字取，省得自己画）。 |
 | [ui_image](help:vml/ui/draw) | 在指定位置画一张图（PNG / JPG / BMP），`w` / `h` 传 0 按原尺寸。 |
 | [ui_line](help:vml/ui/draw) | 画线，`lw` 是线宽。 |
-| [ui_path](help:vml/ui/draw) | 按 SVG 路径语法画（`M`/`L`/`Q`/`C`/`A`/`Z` 都支持，曲线自动分段）。想画圆角、弧线、曲线图形用它，比拿直线拼省事。 |
+| [ui_path](help:vml/ui/draw) | 按 SVG 路径语法画（`M L H V C S Q T A Z`，大小写区分绝对/相对）。 |
 | [ui_pixel](help:vml/ui/draw) | 画一个点。 |
-| [ui_polygon](help:vml/ui/draw) | 画多边形，点用 `int pts[] = {x1,y1, x2,y2, …}` 给，`count` 是点数（不是坐标个数）。 |
-| [ui_polyline](help:vml/ui/draw) | 折线（不闭合）。 |
+| [ui_polygon](help:vml/ui/draw) | 画多边形（自动闭合）。`pts` 是 int 数组、每两个 int 一个点；`count` 是点数。 |
+| [ui_polyline](help:vml/ui/draw) | 折线（不闭合）。参数含义同 `ui_polygon`（`stroke` 是颜色、`width` 是线宽）。 |
 | [ui_present](help:vml/ui/draw) | 这一帧画完了。整个循环里最关键的一句 —— 不调它屏幕不更新。 |
 | [ui_rect](help:vml/ui/draw) | 画矩形。`fill` 非 0 填充、`radius` 是圆角半径。 |
 | [ui_rect_grad](help:vml/ui/draw) | 带渐变的矩形（渐变先用 `ui_gradient` 定义）。 |
@@ -137,12 +138,12 @@ ui_text_cur(180, 40, "按方向键退出");
 
 | 接口 | 一句话 |
 |---|---|
-| [ui_piece_cell](help:vml/ui/piece) | 把某个棋子的第 (列,行) 格贴到屏幕 (x,y)。 |
-| [ui_piece_init](help:vml/ui/piece) | 把一块小位图注册成「棋子」，之后用 `ui_piece_cell` 按格子取 —— 方块类游戏用它省掉逐格画。 |
+| [ui_piece_cell](help:vml/ui/piece) | 取某个棋子的某一格：`pid` 棋子号、`rot` 旋转、`which` 第几格。 |
+| [ui_piece_init](help:vml/ui/piece) | 初始化棋子贴图表（无参版本；具体形态见 `Lib/shared/src/vmlui.c`）。 |
 
 ```c
 /* 例：ui_piece_cell */
-ui_piece_cell(0, 0, 0, 40, 60);   /* 棋子 0 的 (0,0) 格 → 屏幕 (40,60) */
+ui_piece_cell(0, 0, 3);   /* 0 号棋子、不旋转、第 3 格 */
 ```
 
 ## 整数网格
@@ -166,10 +167,10 @@ ui_gclear();
 
 | 接口 | 一句话 |
 |---|---|
-| [ui_dlg_input](help:vml/ui/dialog) | 要一行文字输入。结果写进你给的缓冲区；拿不到指针的语言用无指针版本 + `len` / `at` 读。 |
-| [ui_dlg_msg](help:vml/ui/dialog) | 弹一个提示框（只有一个「知道了」）。会阻塞到用户点掉 —— 游戏结束时用它报个结果正好。 |
-| [ui_dlg_multi](help:vml/ui/dialog) | 多选对话框，返回选中的个数（选中情况按位收进传出参数）。 |
-| [ui_dlg_select](help:vml/ui/dialog) | 单选对话框，返回用户选的下标（-1 = 取消）。选项用字符串数组给。 |
+| [ui_dlg_input](help:vml/ui/dialog) | 要一行文字输入。结果写进你给的缓冲区。 |
+| [ui_dlg_msg](help:vml/ui/dialog) | 弹一个提示框（`style` 传 0 即可）。会阻塞到用户点掉 —— 游戏结束时报个结果正好。 |
+| [ui_dlg_multi](help:vml/ui/dialog) | 多选对话框：`opts` 选项串、`n` 选项个数。返回选中的个数。 |
+| [ui_dlg_select](help:vml/ui/dialog) | 单选对话框：`opts` 是选项串、`n` 是选项个数、`def` 是默认选中项。返回选中下标（-1 = 取消）。 |
 
 ```c
 /* 例：ui_dlg_input */
@@ -185,7 +186,7 @@ ui_dlg_input("改名", "新名字：", buf, 64);
 |---|---|
 | [ui_beep](help:vml/ui/feel) | 现场合成一个音（不用带音频文件）：`freq` 赫兹、`ms` 毫秒。 |
 | [ui_keep_on](help:vml/ui/feel) | 屏幕常亮开关（玩游戏的都该开）。 |
-| [ui_vibrate](help:vml/ui/feel) | 震动，`ms` 毫秒。 |
+| [ui_vibrate](help:vml/ui/feel) | 震动：`ms` 毫秒，`strength` 强度。 |
 
 ```c
 /* 例：ui_beep */
@@ -199,12 +200,13 @@ ui_beep(1568, 160);    /* 消四行，音更高 */
 
 | 接口 | 一句话 |
 |---|---|
-| [ui_store_get](help:vml/ui/store) | 读一个值，没存过返回 0。 |
-| [ui_store_set](help:vml/ui/store) | 存一个值（键会自动加前缀，不会和 App 自己的设置打架）。 |
+| [ui_store_get](help:vml/ui/store) | 读一个值：写进你给的缓冲区、返回长度（没有这条键返回 -1）。 |
+| [ui_store_set](help:vml/ui/store) | 存一个值。值也是字符串 —— 存数字要先自己转成字符串（这里没有 sprintf 可用）。 |
 
 ```c
 /* 例：ui_store_get */
-int best = ui_store_get("high");
+char buf[16];
+if (ui_store_get("high", buf, 16) > 0) best = atoi(buf);
 ```
 
 ## 全能接口
@@ -216,7 +218,7 @@ int best = ui_store_get("high");
 | [ui_call_json](help:vml/ui/json) | 两个字符串进、一个 JSON 字符串出 —— 查设备信息、调宿主的杂项能力都走它， |
 | [ui_call_json_at](help:vml/ui/json) | 取上一次结果的第 i 个字节。 |
 | [ui_call_json_len](help:vml/ui/json) | 上一次 `ui_call_json_s` 的结果有多长。 |
-| [ui_call_json_print](help:vml/ui/json) | 把上一次的结果直接打到标准输出（调试时最省事）。 |
+| [ui_call_json_print](help:vml/ui/json) | 把上一次 `ui_call_json_s` 的结果整份打到 stdout（末尾补换行）—— 调试最省事， |
 | [ui_call_json_s](help:vml/ui/json) | 同上，但不用给缓冲区（适合拿不到指针的语言），配 `_len` / `_at` 读结果。 |
 
 ```c

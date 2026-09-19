@@ -31,11 +31,13 @@ if (ui_msg_count() > 8) ui_msg_clear();
 if (ui_msg_type() == VML_MSG_TOUCHDOWN) { /* 处理 */ }
 ```
 ### `ui_poll(int* msg)`
-**不等**，没有就返回 `VML_MSG_NONE`。连续动画用这个（配自己的节拍）；事件驱动的用 `ui_wait`（常态省电）。
+**不等**：没有消息就返回 `VML_MSG_NONE`。连续动画用这个（配自己的节拍）；
+事件驱动的用 `ui_wait`（常态省电）。
+⚠ 只有 `int* msg` 一个参数 —— **没有 timeout**，别照 `ui_wait` 写。
 ```c
 int m[4];
 while (ui_win_closed() == 0) {
-    if (ui_poll(m, 0) == VML_MSG_TOUCHDOWN) { /* 处理 */ }
+    if (ui_poll(m) == VML_MSG_TOUCHDOWN) { /* 处理 */ }
     /* 画一帧 */
     ui_present();
 }
@@ -44,13 +46,13 @@ while (ui_win_closed() == 0) {
 `ui_poll` 的带「读完后留不留」版本。
 ```c
 int m[4];
-ui_poll_ex(m, 0, VML_MSG_CONSUME);
+ui_poll_ex(m, VML_MSG_CONSUME);
 ```
 ### `ui_poll_msg(void)`
-只取指定类型，没有就返回 `VML_MSG_NONE`。
+**不碰指针**的取消息版本（拿不到数组指针的语言用）：没有就返回 `VML_MSG_NONE`，
+参数用 `ui_msg_a()` / `ui_msg_b()` 读。
 ```c
-int m[4];
-if (ui_poll_msg(m, VML_MSG_KEYDOWN, 0)) { /* 处理 */ }
+if (ui_poll_msg() == VML_MSG_TOUCHDOWN) { int x = ui_msg_a(); int y = ui_msg_b(); }
 ```
 ### `ui_wait(int* msg, int timeout_ms)`
 **等**一条消息，参数是 `int msg[4]`。返回消息类型（见下表）；`timeout=0` 表示**一直等**。
@@ -65,8 +67,7 @@ int m[4];
 ui_wait_ex(m, 0, VML_MSG_KEEP);   /* 读完不弹掉 */
 ```
 ### `ui_wait_msg(int timeout_ms)`
-只等**指定类型**的消息（其余留在队列里）。
+**不碰指针**的等消息版本：等到就返回类型、超时返回 `VML_MSG_NONE`。
 ```c
-int m[4];
-ui_wait_msg(m, VML_MSG_TOUCHDOWN, 0);
+if (ui_wait_msg(500) == VML_MSG_TIMER) { /* 一拍到了 */ }
 ```

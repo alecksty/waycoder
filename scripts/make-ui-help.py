@@ -54,17 +54,21 @@ E = {
     "ui_wait_ex": ("收消息",
         "同上，第三个参数决定读完之后**留不留**这条消息（`VML_MSG_KEEP` / `VML_MSG_CONSUME`）。",
         "int m[4];\nui_wait_ex(m, 0, VML_MSG_KEEP);   /* 读完不弹掉 */"),
-    "ui_wait_msg": ("收消息", "只等**指定类型**的消息（其余留在队列里）。",
-        "int m[4];\nui_wait_msg(m, VML_MSG_TOUCHDOWN, 0);"),
+    "ui_wait_msg": ("收消息",
+        "**不碰指针**的等消息版本：等到就返回类型、超时返回 `VML_MSG_NONE`。",
+        "if (ui_wait_msg(500) == VML_MSG_TIMER) { /* 一拍到了 */ }"),
     "ui_poll": ("收消息",
-        "**不等**，没有就返回 `VML_MSG_NONE`。连续动画用这个（配自己的节拍）；事件驱动的用 `ui_wait`（常态省电）。",
-        "int m[4];\nwhile (ui_win_closed() == 0) {\n"
-        "    if (ui_poll(m, 0) == VML_MSG_TOUCHDOWN) { /* 处理 */ }\n"
-        "    /* 画一帧 */\n    ui_present();\n}"),
-    "ui_poll_ex": ("收消息", "`ui_poll` 的带「读完后留不留」版本。",
-        "int m[4];\nui_poll_ex(m, 0, VML_MSG_CONSUME);"),
-    "ui_poll_msg": ("收消息", "只取指定类型，没有就返回 `VML_MSG_NONE`。",
-        "int m[4];\nif (ui_poll_msg(m, VML_MSG_KEYDOWN, 0)) { /* 处理 */ }"),
+        "**不等**：没有消息就返回 `VML_MSG_NONE`。连续动画用这个（配自己的节拍）；\n"
+        "事件驱动的用 `ui_wait`（常态省电）。\n"
+        "⚠ 只有 `int* msg` 一个参数 —— **没有 timeout**，别照 `ui_wait` 写。",
+        "int m[4];\nwhile (ui_win_closed() == 0) {\n    if (ui_poll(m) == VML_MSG_TOUCHDOWN) { /* 处理 */ }\n    /* 画一帧 */\n    ui_present();\n}"),
+    "ui_poll_ex": ("收消息",
+        "`ui_poll` 的带「读完后留不留」版本。",
+        "int m[4];\nui_poll_ex(m, VML_MSG_CONSUME);"),
+    "ui_poll_msg": ("收消息",
+        "**不碰指针**的取消息版本（拿不到数组指针的语言用）：没有就返回 `VML_MSG_NONE`，\n"
+        "参数用 `ui_msg_a()` / `ui_msg_b()` 读。",
+        "if (ui_poll_msg() == VML_MSG_TOUCHDOWN) { int x = ui_msg_a(); int y = ui_msg_b(); }"),
     "ui_msg_type": ("收消息", "当前消息的类型（省得把 `msg[0]` 记在脑子里）。",
         "if (ui_msg_type() == VML_MSG_TOUCHDOWN) { /* 处理 */ }"),
     "ui_msg_a": ("收消息", "当前消息的**第一个参数**（触摸的 x、按键的键码、定时器的 id…）。",
@@ -85,9 +89,9 @@ E = {
         "ui_timer_kill(1);"),
     "ui_tick": ("定时器与随机数", "开机以来的毫秒数（自己算帧间隔、做动画用）。",
         "int now = ui_tick();"),
-    "ui_rand": ("定时器与随机数", "随机数。", "int n = ui_rand() % 6;   /* 0..5 */"),
-
-    # ── 绘图 ──
+    "ui_rand": ("定时器与随机数",
+        "随机数：`ui_rand(n)` → **0..n-1**（n ≤ 0 时返回 1，不会崩）。",
+        "int n = ui_rand(6);      /* 0..5 */\nint side = ui_rand(2);   /* 0 或 1 */"),
     "ui_clear": ("绘图", "整屏填一个色（每帧开头调）。颜色一律 `0xAARRGGBB`。",
         "ui_clear(0xFF101020);   /* 深蓝底 */"),
     "ui_pixel": ("绘图", "画一个点。", "ui_pixel(10, 20, 0xFFFFFFFF);"),
@@ -98,22 +102,29 @@ E = {
         "ui_rect_grad(0, 0, 200, 100, g, 8);"),
     "ui_circle": ("绘图", "画圆，`fill` 非 0 填充。",
         "ui_circle(100, 100, 30, 0xFF00FF00, 1, 2);"),
-    "ui_circle_grad": ("绘图", "带渐变的圆。", "ui_circle_grad(100, 100, 60, g, 1, 2);"),
+    "ui_circle_grad": ("绘图",
+        "渐变的圆（渐变先用 `ui_gradient` 起个名字）。",
+        "ui_gradient(\"ball\", 1, 0xFFFFFFFF, 0xFF2E6FC4, 500, 500, 500, 0);\nui_circle_grad(cx, cy, r, \"ball\");"),
     "ui_ellipse": ("绘图", "画椭圆（`rx` / `ry` 两个半径）。",
         "ui_ellipse(100, 100, 50, 30, 0xFFFFFF00, 1, 2);"),
     "ui_polygon": ("绘图",
-        "画多边形，点用 `int pts[] = {x1,y1, x2,y2, …}` 给，`count` 是**点数**（不是坐标个数）。",
-        "int pts[] = {10,10, 110,10, 60,90};\nui_polygon(pts, 3, 0xFFFF8800, 1, 0xFFFFFFFF, 2, -1);"),
-    "ui_polyline": ("绘图", "折线（不闭合）。",
-        "int pts[] = {10,10, 50,60, 90,20};\nui_polyline(pts, 3, 0xFFFFFFFF, 2, -1);"),
+        "画多边形（自动闭合）。`pts` 是 int 数组、**每两个 int 一个点**；`count` 是**点数**。\n"
+        "`fill` / `stroke` 都是**颜色**（不是开关），`width` 是描边线宽，`grad` 传渐变名或空串。\n"
+        "⚠ **顶点必须是具名数组** —— `ui_polygon((int[]){…})` 复合字面量在这条前端上不支持、也不报错。",
+        'int pts[] = {10,10, 110,10, 60,90};\nui_polygon(pts, 3, 0xFFFF8800, 0xFFFFFFFF, 2, "");'),
+    "ui_polyline": ("绘图",
+        "折线（不闭合）。参数含义同 `ui_polygon`（`stroke` 是颜色、`width` 是线宽）。",
+        'int pts[] = {10,10, 50,60, 90,20};\nui_polyline(pts, 3, 0xFFFFFFFF, 2, "");'),
     "ui_path": ("绘图",
-        "按 **SVG 路径语法**画（`M`/`L`/`Q`/`C`/`A`/`Z` 都支持，曲线自动分段）。"
-        "想画圆角、弧线、曲线图形用它，比拿直线拼省事。",
-        'ui_path("M10,50 Q60,0 110,50 T210,50", 0xFFFF00FF, 3, 1);'),
+        "按 **SVG 路径语法**画（`M L H V C S Q T A Z`，大小写区分绝对/相对）。\n"
+        "`stroke` 描边色（0 = 不描边）、`width` 线宽、`fill` 填充色（0 = 不填充）、\n"
+        "`grad` 传渐变名（给了就用它填充）、`cap` 0平/1圆/2方、`dash` 0/1 虚线。",
+        'ui_path("M10,50 Q60,0 110,50 T210,50", 0xFFFF00FF, 3, 0, "", 1, 0);'),
     "ui_gradient": ("绘图",
-        "定义一个渐变并返回 id（之后 `ui_rect_grad` / `ui_circle_grad` 用）。\n"
-        "坐标是**相对这个图形自己的包围盒**的 0..1，不是屏幕坐标。",
-        "int g = ui_gradient(0, 0, 0, 1, 0xFF0000FF, 0xFFFF0000, 0xFFFF00FF);"),
+        "定义一个渐变刷子并**起个名字**（字符串 id）；之后 `ui_rect_grad` / `ui_circle_grad` / `ui_path` 按名字引用它。\n"
+        "几何是**归一化 0..1000 的整数**（千分之一）：线性给 x1,y1,x2,y2；径向给 cx,cy,r（第 4 个忽略）。\n"
+        "⚠ 传像素会让渐变塌成纯色。",
+        'ui_gradient("sky", 0, 0xFF2E6FC4, 0xFFBEE3F7, 0, 0, 0, 1000);\nui_rect_grad(0, 0, w, h, "sky", 0);'),
     "ui_image": ("绘图", "在指定位置画一张图（PNG / JPG / BMP），`w` / `h` 传 0 按原尺寸。",
         'ui_image(20, 20, "~/pics/logo.png", 0, 0);'),
     "ui_icon": ("绘图", "画一个内置图标（按名字取，省得自己画）。",
@@ -138,12 +149,11 @@ E = {
 
     # ── 方块贴图 ──
     "ui_piece_init": ("方块贴图",
-        "把一块小位图注册成「棋子」，之后用 `ui_piece_cell` 按格子取 —— 方块类游戏用它省掉逐格画。",
-        'ui_piece_init(0, "~/pics/tile.png", 4, 4);   /* 第 0 号，切成 4x4 格 */'),
-    "ui_piece_cell": ("方块贴图", "把某个棋子的第 (列,行) 格贴到屏幕 (x,y)。",
-        "ui_piece_cell(0, 0, 0, 40, 60);   /* 棋子 0 的 (0,0) 格 → 屏幕 (40,60) */"),
-
-    # ── 整数网格 ──
+        "初始化棋子贴图表（无参版本；具体形态见 `Lib/shared/src/vmlui.c`）。",
+        "ui_piece_init();"),
+    "ui_piece_cell": ("方块贴图",
+        "取某个棋子的某一格：`pid` 棋子号、`rot` 旋转、`which` 第几格。",
+        "ui_piece_cell(0, 0, 3);   /* 0 号棋子、不旋转、第 3 格 */"),
     "ui_gclear": ("整数网格",
         "清空网格。棋盘 / 地图这种二维状态用它 —— **比语言自带的数组可靠**"
         "（有的前端数组写入读不回来，见「22 种语言」里各语言的坑）。",
@@ -154,32 +164,36 @@ E = {
 
     # ── 对话框 ──
     "ui_dlg_msg": ("对话框",
-        "弹一个提示框（只有一个「知道了」）。**会阻塞到用户点掉** —— 游戏结束时用它报个结果正好。",
-        'ui_dlg_msg("游戏结束", "得分 120");'),
-    "ui_dlg_select": ("对话框", "单选对话框，返回用户选的下标（-1 = 取消）。选项用字符串数组给。",
-        'char* opts[] = {"再来一局", "退出"};\nint r = ui_dlg_select("游戏结束", "要再来一局吗？", opts, 2);'),
-    "ui_dlg_multi": ("对话框", "多选对话框，返回选中的个数（选中情况按位收进传出参数）。",
-        'char* opts[] = {"音效", "震动", "网格"};\nint sel = 0;\nui_dlg_multi("设置", "开哪些？", opts, 3, &sel);'),
+        "弹一个提示框（`style` 传 0 即可）。**会阻塞到用户点掉** —— 游戏结束时报个结果正好。",
+        'ui_dlg_msg("游戏结束", "得分 120", 0);'),
+    "ui_dlg_select": ("对话框",
+        "单选对话框：`opts` 是**选项串**、`n` 是选项个数、`def` 是默认选中项。返回选中下标（-1 = 取消）。",
+        'int r = ui_dlg_select("游戏结束", "再来一局？", opts, 2, 0);'),
+    "ui_dlg_multi": ("对话框",
+        "多选对话框：`opts` 选项串、`n` 选项个数。返回选中的个数。",
+        'int n = ui_dlg_multi("设置", "开哪些？", opts, 3);'),
     "ui_dlg_input": ("对话框",
-        "要一行文字输入。结果写进你给的缓冲区；拿不到指针的语言用无指针版本 + `len` / `at` 读。",
+        "要一行文字输入。结果写进你给的缓冲区。",
         'char buf[64];\nui_dlg_input("改名", "新名字：", buf, 64);'),
-
-    # ── 音效与触感 ──
     "ui_beep": ("音效与触感",
         "**现场合成**一个音（不用带音频文件）：`freq` 赫兹、`ms` 毫秒。\n"
         "⚠ **单通道** —— 一次只响一个，连着发的只有最后一个听得见。"
         "所以用**音高**表达好坏：消一行 880Hz、四行 1568Hz，赢了盖过一切。",
         "ui_beep(880, 80);      /* 消一行 */\nui_beep(1568, 160);    /* 消四行，音更高 */"),
-    "ui_vibrate": ("音效与触感", "震动，`ms` 毫秒。", "ui_vibrate(120);"),
+    "ui_vibrate": ("音效与触感",
+        "震动：`ms` 毫秒，`strength` 强度。",
+        "ui_vibrate(120, 0);"),
     "ui_keep_on": ("音效与触感", "屏幕常亮开关（玩游戏的都该开）。", "ui_keep_on(1);   /* 1 开 0 关 */"),
 
     # ── 本地存档 ──
     "ui_store_set": ("本地存档",
-        "存一个值（键会自动加前缀，不会和 App 自己的设置打架）。",
-        'ui_store_set("high", 1200);'),
-    "ui_store_get": ("本地存档", "读一个值，没存过返回 0。", 'int best = ui_store_get("high");'),
-
-    # ── 全能接口 ──
+        "存一个值。**值也是字符串** —— 存数字要先自己转成字符串（这里没有 sprintf 可用）。\n"
+        "键会自动加前缀，不会和 App 自己的设置打架。",
+        'ui_store_set("high", "1200");'),
+    "ui_store_get": ("本地存档",
+        "读一个值：**写进你给的缓冲区**、返回长度（没有这条键返回 -1）。\n"
+        "⚠ 它不是「返回那个整数」—— 字符串读回来，要数字自己转。",
+        'char buf[16];\nif (ui_store_get("high", buf, 16) > 0) best = atoi(buf);'),
     "ui_call_json": ("全能接口",
         "**两个字符串进、一个 JSON 字符串出** —— 查设备信息、调宿主的杂项能力都走它，\n"
         "不必为每个小功能占一个 syscall 号。结果写进你给的缓冲区。\n"
@@ -193,8 +207,9 @@ E = {
     "ui_call_json_at": ("全能接口", "取上一次结果的第 i 个字节。",
         "char c = (char)ui_call_json_at(i);"),
     "ui_call_json_print": ("全能接口",
-        "把上一次的结果直接打到标准输出（调试时最省事）。",
-        'ui_call_json_print("sysinfo", "");'),
+        "把**上一次** `ui_call_json_s` 的结果整份打到 stdout（末尾补换行）—— 调试最省事，\n"
+        "各语言的自测也都靠它把结果原样打出来。⚠ 无参：打印的是上一次的结果，不是带参数再调一次。",
+        "ui_call_json_s(\"version\", \"\");\nui_call_json_print();"),
 }
 
 # 分组 → (子页 slug, 子页里的一句话标题)。**一页放 60 个接口太长**，按类别拆开，
@@ -223,8 +238,55 @@ def signatures():
     return out
 
 
+
+def _count_args(call_text: str, name: str):
+    """数例子里的实参个数。**先抠掉字符串字面量** —— 里面可能有逗号。"""
+    src = re.sub(r'"[^"]*"', '""', call_text)
+    i = src.find(name + "(")
+    if i < 0:
+        return None
+    k = i + len(name) + 1
+    depth, args, seen = 1, 0, False
+    while k < len(src) and depth > 0:
+        c = src[k]
+        if c in "([{":
+            depth += 1
+        elif c in ")]}":
+            depth -= 1
+        elif c == "," and depth == 1:
+            args += 1
+        elif depth == 1 and not c.isspace():
+            seen = True
+        k += 1
+    return args + 1 if seen else 0
+
+
+def check_arity(sig: dict, table: dict):
+    """
+    例子里的调用**参数个数必须与头文件签名一致**。
+
+    这道闸是补上的：原先只查了"每个函数都有条目"，**没查描述对不对** ——
+    于是 `ui_polygon` 写成 7 个实参（真签名 6 个）、`ui_gradient` 写成有返回值，
+    全都顺利发版了。参数个数是**机器能验的那一半**；措辞对不对仍要靠人读头文件，
+    但至少"照着例子抄会编译不过"这类错，现在跑一次生成器就红。
+    """
+    bad = []
+    for name, (_, _, ex) in table.items():
+        got = _count_args(ex, name)
+        if got is None:
+            bad.append(f"{name}: 例子里没找到调用")
+            continue
+        params = sig[name].strip()
+        want = 0 if params in ("", "void") else params.count(",") + 1
+        if got != want:
+            bad.append(f"{name}: 例子给了 {got} 个实参，签名是 {want} 个（{params}）")
+    if bad:
+        raise SystemExit("✘ 例子与头文件签名对不上：\n  " + "\n  ".join(bad))
+
 def build() -> str:
     sig = signatures()
+
+    check_arity(sig, E)
 
     missing = sorted(set(sig) - set(E))
     extra = sorted(set(E) - set(sig))

@@ -25,9 +25,11 @@ char c = (char)ui_call_json_at(i);
 int n = ui_call_json_len();
 ```
 ### `ui_call_json_print(void)`
-把上一次的结果直接打到标准输出（调试时最省事）。
+把**上一次** `ui_call_json_s` 的结果整份打到 stdout（末尾补换行）—— 调试最省事，
+各语言的自测也都靠它把结果原样打出来。⚠ 无参：打印的是上一次的结果，不是带参数再调一次。
 ```c
-ui_call_json_print("sysinfo", "");
+ui_call_json_s("version", "");
+ui_call_json_print();
 ```
 ### `ui_call_json_s(char* fn, char* args_json)`
 同上，但**不用给缓冲区**（适合拿不到指针的语言），配 `_len` / `_at` 读结果。

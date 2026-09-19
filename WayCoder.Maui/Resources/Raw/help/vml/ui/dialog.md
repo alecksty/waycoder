@@ -6,26 +6,23 @@
 > 签名取自 `Lib/c/waycoder_ui.h`（权威来源）。
 
 ### `ui_dlg_input(char* title, char* prompt, char* buf, int cap)`
-要一行文字输入。结果写进你给的缓冲区；拿不到指针的语言用无指针版本 + `len` / `at` 读。
+要一行文字输入。结果写进你给的缓冲区。
 ```c
 char buf[64];
 ui_dlg_input("改名", "新名字：", buf, 64);
 ```
 ### `ui_dlg_msg(char* title, char* body, int style)`
-弹一个提示框（只有一个「知道了」）。**会阻塞到用户点掉** —— 游戏结束时用它报个结果正好。
+弹一个提示框（`style` 传 0 即可）。**会阻塞到用户点掉** —— 游戏结束时报个结果正好。
 ```c
-ui_dlg_msg("游戏结束", "得分 120");
+ui_dlg_msg("游戏结束", "得分 120", 0);
 ```
 ### `ui_dlg_multi(char* title, char* body, char* opts, int n)`
-多选对话框，返回选中的个数（选中情况按位收进传出参数）。
+多选对话框：`opts` 选项串、`n` 选项个数。返回选中的个数。
 ```c
-char* opts[] = {"音效", "震动", "网格"};
-int sel = 0;
-ui_dlg_multi("设置", "开哪些？", opts, 3, &sel);
+int n = ui_dlg_multi("设置", "开哪些？", opts, 3);
 ```
 ### `ui_dlg_select(char* title, char* body, char* opts, int n, int def)`
-单选对话框，返回用户选的下标（-1 = 取消）。选项用字符串数组给。
+单选对话框：`opts` 是**选项串**、`n` 是选项个数、`def` 是默认选中项。返回选中下标（-1 = 取消）。
 ```c
-char* opts[] = {"再来一局", "退出"};
-int r = ui_dlg_select("游戏结束", "要再来一局吗？", opts, 2);
+int r = ui_dlg_select("游戏结束", "再来一局？", opts, 2, 0);
 ```

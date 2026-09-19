@@ -6,9 +6,10 @@
 > 签名取自 `Lib/c/waycoder_ui.h`（权威来源）。
 
 ### `ui_rand(int n)`
-随机数。
+随机数：`ui_rand(n)` → **0..n-1**（n ≤ 0 时返回 1，不会崩）。
 ```c
-int n = ui_rand() % 6;   /* 0..5 */
+int n = ui_rand(6);      /* 0..5 */
+int side = ui_rand(2);   /* 0 或 1 */
 ```
 ### `ui_tick(void)`
 开机以来的毫秒数（自己算帧间隔、做动画用）。

@@ -18,7 +18,7 @@ ui_beep(1568, 160);    /* 消四行，音更高 */
 ui_keep_on(1);   /* 1 开 0 关 */
 ```
 ### `ui_vibrate(int ms, int strength)`
-震动，`ms` 毫秒。
+震动：`ms` 毫秒，`strength` 强度。
 ```c
-ui_vibrate(120);
+ui_vibrate(120, 0);
 ```
