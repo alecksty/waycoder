@@ -56,6 +56,32 @@ internal static class DrawParse
         }
     }
 
+    /// <summary>
+    /// **描边类**图元（`line` / `arrow` / `polyline`）的样式段：线帽 / 虚线 / 颜色 / 线宽。
+    ///
+    /// 为什么单独一个入口而不是复用 <see cref="ParseStyle"/>：这两类图元的**颜色语义不同** ——
+    /// 填充形状是"第一个颜色=填充、第二个=描边"，而描边类**只有一个颜色位**（就是描边本身）。
+    /// 硬套 `ParseStyle` 会让 `line 0 0 10 10 #f00` 把红色吃成"填充"、描边留在默认黑
+    /// （`line` 不填充 ⇒ 屏幕上什么都看不见）。
+    ///
+    /// ⚠ **这三条以前各写了一份逐字相同的循环**（`LineCommand` / `ArrowCommand` / `PolylineCommand`），
+    ///   属本仓头号坑「同一规则四处实现」：改一处不漏另两处，症状是
+    ///   "多边形好使、折线不好使" —— 而只测矩形/折线中一条的自测**照不出来**。
+    ///   收口成一处之后，加语法（显式 `stroke`/`width` 关键字、`@id` 描边刷子）
+    ///   只需要动这一个函数。
+    /// </summary>
+    public static void ParseStrokeStyle(IReadOnlyList<DrawToken> a, int start, DrawFigure f)
+    {
+        for (int i = start; i < a.Count; i++)
+        {
+            if (TryCap(a[i].Value, out var cap)) { f.LineCap = cap; continue; }
+            var low = a[i].Value.ToLowerInvariant();
+            if (low is "dash" or "dashed") { f.Dashed = true; continue; }
+            if (ColorUtil.TryParse(a[i].Value, out var c)) f.Stroke = c;
+            else { var v = Num(a[i]); if (!double.IsNaN(v)) f.StrokeWidth = v; }
+        }
+    }
+
     /// <summary>fill（支持渐变 url(#id)）+ 可选 stroke/stroke-width 属性串。</summary>
     public static string FillStrokeAttrs(DrawFigure f)
     {
@@ -380,14 +406,7 @@ internal sealed partial class LineCommand : IDrawCommand
         if (a.Count < 4) return null;
         var f = new DrawFigure { Kind = "line", Stroke = 0xFF000000 };
         for (int i = 0; i < 4; i++) f.Args.Add(DrawParse.Num(a[i]));
-        for (int i = 4; i < a.Count; i++)
-        {
-            if (DrawParse.TryCap(a[i].Value, out var cap)) { f.LineCap = cap; continue; }
-            var low = a[i].Value.ToLowerInvariant();
-            if (low is "dash" or "dashed") { f.Dashed = true; continue; }
-            if (ColorUtil.TryParse(a[i].Value, out var c)) f.Stroke = c;
-            else { var v = DrawParse.Num(a[i]); if (!double.IsNaN(v)) f.StrokeWidth = v; }
-        }
+        DrawParse.ParseStrokeStyle(a, 4, f);
         return f;
     }
     public void EmitSvg(StringBuilder sb, DrawFigure f)
@@ -418,14 +437,7 @@ internal sealed partial class ArrowCommand : IDrawCommand
         if (a.Count < 4) return null;
         var f = new DrawFigure { Kind = "arrow", Stroke = 0xFF000000 };
         for (int i = 0; i < 4; i++) f.Args.Add(DrawParse.Num(a[i]));
-        for (int i = 4; i < a.Count; i++)
-        {
-            if (DrawParse.TryCap(a[i].Value, out var cap)) { f.LineCap = cap; continue; }
-            var low = a[i].Value.ToLowerInvariant();
-            if (low is "dash" or "dashed") { f.Dashed = true; continue; }
-            if (ColorUtil.TryParse(a[i].Value, out var c)) f.Stroke = c;
-            else { var v = DrawParse.Num(a[i]); if (!double.IsNaN(v)) f.StrokeWidth = v; }
-        }
+        DrawParse.ParseStrokeStyle(a, 4, f);
         return f;
     }
     public void EmitSvg(StringBuilder sb, DrawFigure f)
@@ -502,14 +514,7 @@ internal sealed partial class PolylineCommand : IDrawCommand
         int i = 0;
         while (i < a.Count && Canvas.TryNum(a[i].Value, out var v)) { f.Args.Add(v); i++; }
         if (f.Args.Count < 4 || f.Args.Count % 2 != 0) return null;
-        for (int j = i; j < a.Count; j++)
-        {
-            if (DrawParse.TryCap(a[j].Value, out var cap)) { f.LineCap = cap; continue; }
-            var low = a[j].Value.ToLowerInvariant();
-            if (low is "dash" or "dashed") { f.Dashed = true; continue; }
-            if (ColorUtil.TryParse(a[j].Value, out var c)) f.Stroke = c;
-            else { var v = DrawParse.Num(a[j]); if (!double.IsNaN(v)) f.StrokeWidth = v; }
-        }
+        DrawParse.ParseStrokeStyle(a, i, f);
         return f;
     }
     public void EmitSvg(StringBuilder sb, DrawFigure f)
@@ -659,6 +664,12 @@ internal sealed partial class TextCommand : IDrawCommand
         for (int i = 3; i < a.Count; i++)
         {
             var s = a[i].Value;
+            // ⚠ **`@id` 必须排在最后那个"其余裸词视为字体族名"的兜底之前** ——
+            //    原先没有这一支，于是 `text 10 20 "hi" @g1` 里那个 `@g1` 落进兜底、
+            //    被当成**字体族名**（`FontFamily = "@g1"`），而填充保持默认黑：
+            //    渐变不但没生效，连"名字去哪了"都看不出来（字体找不到会静默回退默认字体）。
+            //    与 `polyline` 的 `@id` 被丢是同一族问题 —— 静默丢失。
+            if (s.Length >= 2 && s[0] == '@') { f.GradientRef = s[1..]; continue; }
             if (ColorUtil.TryParse(s, out var c)) { f.Fill = c; continue; }
             if (Canvas.TryNum(s, out var v)) { f.FontSize = v; continue; }
             var low = s.ToLowerInvariant();
