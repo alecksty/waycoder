@@ -39,6 +39,15 @@ public partial class CodeGenerator : CodeGeneratorBase {
         int mainFramePatch = instructions.Count;
         instructions.Add(new Instruction(OpCode.SUB,
             [Reg(13), Reg(13), new Operand(OperandType.IMMEDIATE, 0)], mainFramePatch));
+        // ── 顶层帧指针存进数据段 ──────────────────────────────────────────────
+        // 顶层绑定按 `R12 + (12 - off)` 寻址，而 `R12` 在**函数里是那个函数自己的帧指针**
+        // ⇒ 函数读/写顶层变量时算出来的是**它自己帧里的某个槽**，两边互相踩。
+        // 实测：`(define g 0) (define (w1) (set! g 5)) (w1) (display g)` 直接崩在野地址上。
+        // 把入口时的 R12 存下来，凡是要碰**顶层**绑定的地方都改用它当基址（见 EmitLoadTopVar）。
+        // ⚠ `main` 全程只 `sub R13`、不动 R12 ⇒ 顶层处两者本来就相等，所以同一套代码在顶层也成立。
+        dataSection[TopFpLabel] = 0;
+        AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 12)]);
+        AddInstruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, TopFpLabel), new Operand(OperandType.REGISTER, 0)]);
         _peakVarOff = 0;
         GenTopLevel(_ast);
         int mainFrameSize = _peakVarOff * 4 + 32;
@@ -48,6 +57,18 @@ public partial class CodeGenerator : CodeGeneratorBase {
         EmitExit();
         return BuildProgram("main");
     }
+
+    /// <summary>顶层帧指针所在的数据段标签（入口时存进去，见 GenerateCode）。</summary>
+    internal const string TopFpLabel = "__scheme_top_fp";
+
+    /// <summary>
+    /// 顶层 `(define name value)` 分配到的名字 → 偏移。
+    ///
+    /// 有了它才能把「顶层绑定」与「函数局部」分开：两者都存在 `vars` 里、偏移也共用一套编码，
+    /// 但**基址不同** —— 局部用当前 `R12`，顶层要用 <see cref="TopFpLabel"/> 里存的入口帧指针。
+    /// 不分会怎样：函数访问顶层变量时拿自己的 `R12` 当基址，算出来是自己帧里的槽，互相踩。
+    /// </summary>
+    internal readonly Dictionary<string, int> TopVars = new();
 
     void GenTopLevel(SExpr e) {
         if (e is SList l && l.Items.Count > 0) {
@@ -114,7 +135,15 @@ public partial class CodeGenerator : CodeGeneratorBase {
                 int savedPeak_fn = _peakVarOff;
                 _peakVarOff = 4;
                 varOff = 4;
-                GenExpr(l.Items[2], true);
+                // ⚠ **函数体是多形式**：`(define (f x) form1 form2 … formN)` 里
+                //   form1..N-1 只求值、**formN 在尾位置**（Scheme 的隐式 begin）。
+                //   此处原先只生成 `l.Items[2]`（= 第一个形式）⇒ **第二个形式起被静默丢掉**：
+                //   实测 `(define (multi x) (set! g x) (+ x 1))` 的 `(multi 9)` 返回 **9**（set! 的值），
+                //   应为 10。
+                //   —— 与 `let`/`let*`/`letrec` 那三处**同一族**，那三处上一轮已经修成循环了
+                //   （见同文件 `let` 分支的注释），**唯独函数体这一处漏了**。
+                for (int bi = 2; bi < l.Items.Count - 1; bi++) GenExpr(l.Items[bi]);
+                GenExpr(l.Items[^1], true);
                 // 回填帧大小（+32 安全边界；旧的 64 当保底，小函数行为不变）。
                 // **按峰值算**：`let`/`do` 收尾会把 `varOff` 还原，用结束时的值会低估。
                 int frameSize = _peakVarOff * 4 + 32;
@@ -139,13 +168,13 @@ public partial class CodeGenerator : CodeGeneratorBase {
                 string name = ((SSym)l.Items[1]).Name;
                 GenExpr(l.Items[2]);
                 vars[name] = ++varOff * 4;
+                TopVars[name] = vars[name];     // 记一笔「这是顶层绑定」，函数里访问要走帧指针
                 AddInstruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R12+{12 - varOff * 4}"), new Operand(OperandType.REGISTER, 0)]);
             } else if (s.Name == "set!" && l.Items.Count >= 3) {
                 // (set! var value)
                 GenExpr(l.Items[2]);
                 string setVar = ((SSym)l.Items[1]).Name;
-                if (vars.TryGetValue(setVar, out int soff))
-                    AddInstruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R12+{12 - soff}"), new Operand(OperandType.REGISTER, 0)]);
+                if (vars.TryGetValue(setVar, out int soff)) EmitStoreVar(setVar, soff);
             } else if (s.Name == "print") {
                 EmitPrintArg(() => GenExpr(l.Items[1]), IsStringArg(l.Items[1]));
             } else if (s.Name == "display") {
@@ -784,8 +813,7 @@ public partial class CodeGenerator : CodeGeneratorBase {
             } else if (s.Name == "set!" && l.Items.Count >= 3) {
                 GenExpr(l.Items[2]);
                 string setVarE = ((SSym)l.Items[1]).Name;
-                if (vars.TryGetValue(setVarE, out int soffE))
-                    AddInstruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R12+{12 - soffE}"), new Operand(OperandType.REGISTER, 0)]);
+                if (vars.TryGetValue(setVarE, out int soffE)) EmitStoreVar(setVarE, soffE);
             } else if (s.Name == "do" && l.Items.Count >= 3) {
                 int savedVarOffDo = varOff;
                 var stepsDo = new List<(string name, SExpr? step)>();

@@ -57,6 +57,43 @@ public partial class CodeGenerator {
         AddInstruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, (l.Items.Count - 1) * 4)]);
     }
 
+    /// <summary>
+    /// 读一个**顶层**绑定：基址取自数据段里存的入口帧指针，而**不是**当前 `R12`。
+    ///
+    /// 这一条就是台账里「用户函数看不见顶层变量」的修法。原来那句
+    /// `MOVE R0, [R12+{12-off}]` 在**顶层**处没问题（`main` 不动 R12，两者相等），
+    /// 但一旦进了**函数**，`R12` 已经被序言换成了那个函数自己的帧指针 ——
+    /// 同一个偏移读出来的是该函数帧里的某个槽，两边互相踩。
+    ///
+    /// 用 `R1` 当暂存：`R0` 可能正装着要写回去的值（`set!` 那条路），不能碰。
+    /// </summary>
+    void EmitLoadTopVar(int off) {
+        AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, TopFpLabel)]);
+        AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R1+{12 - off}")]);
+    }
+
+    /// <summary>写一个**顶层**绑定（见 <see cref="EmitLoadTopVar"/>）。值在 `R0`，用 `R1` 暂存基址。</summary>
+    void EmitStoreTopVar(int off) {
+        AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.MEMORY, TopFpLabel)]);
+        AddInstruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R1+{12 - off}"), new Operand(OperandType.REGISTER, 0)]);
+    }
+
+    /// <summary>
+    /// `(set! name value)` 的**唯一**写回实现（值已在 `R0`）。
+    ///
+    /// 为什么必须收成一份：`set!` 在三个地方各写了一遍 —— 顶层
+    /// （`CodeGenerator.GenTopLevel`）、表达式/函数体（本文件）、以及另一条运行时分支
+    /// （`CodeGenerator` 约 810 行）。**改「顶层绑定要走帧指针」时只改了第一处**，
+    /// 于是函数体里的 `(set! g …)` 照旧写 `[R12+off]` —— 写进的是**函数自己的帧**，
+    /// 读回来却是对的（读那条只有一处）。症状：`(define g 10)(define (bump n)(set! g (+ g n)) g)`
+    /// 的函数**永不返回**（VM 超时），而汇编里一眼能看到 `move [R12+8] R0` 与
+    /// 上面那三行 `move R1 [__scheme_top_fp]` 不是一套基址。
+    /// </summary>
+    void EmitStoreVar(string name, int off) {
+        if (TopVars.ContainsKey(name)) EmitStoreTopVar(off);
+        else AddInstruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R12+{12 - off}"), new Operand(OperandType.REGISTER, 0)]);
+    }
+
     void GenExpr(SExpr e, bool tailPos = false) {
         if (e is SInt i) { AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, i.Value)]); }
         else if (e is SBool sb) { AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, sb.Value ? 1 : 0)]); }
@@ -71,12 +108,8 @@ public partial class CodeGenerator {
         }
         else if (e is SSym sym) {
             if (vars.TryGetValue(sym.Name, out int off)) {
-                if (sym.Name == "__static_link__") {
-                    // Load static link value directly
-                    AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{12 - off}")]);
-                } else {
-                    AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{12 - off}")]);
-                }
+                if (TopVars.ContainsKey(sym.Name)) EmitLoadTopVar(off);
+                else AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{12 - off}")]);
             } else if (vars.TryGetValue("__static_link__", out int slOff)) {
                 // Try accessing through static link (closure capture)
                 AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.MEMORY, $"R12+{12 - slOff}")]); // load static link
@@ -241,8 +274,7 @@ public partial class CodeGenerator {
             } else if (sFirst.Name == "set!" && l.Items.Count >= 3) {
                 GenExpr(l.Items[2]);
                 string svar = ((SSym)l.Items[1]).Name;
-                if (vars.TryGetValue(svar, out int soffE2))
-                    AddInstruction(OpCode.MOVE, [new Operand(OperandType.MEMORY, $"R12+{12 - soffE2}"), new Operand(OperandType.REGISTER, 0)]);
+                if (vars.TryGetValue(svar, out int soffE2)) EmitStoreVar(svar, soffE2);
             } else if (sFirst.Name == "do" && l.Items.Count >= 3) {
                 int svd = varOff;
                 var sd = new List<(string name, SExpr? step)>();
