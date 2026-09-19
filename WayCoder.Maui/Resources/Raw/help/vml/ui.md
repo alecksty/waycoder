@@ -1,139 +1,227 @@
 # UI 开发
 
-VML 程序能画界面、能收输入、能出声。这一篇是接口全表 + 几条容易踩的规矩。
+VML 程序不是只能打印文字 —— 它有一套完整的**手机界面接口**：开窗、绘图、收触摸与按键、
+放声音、震动、存档。这一页把**全部接口**列出来，每个都带一句用法和一个例子。
 
-> 完整清单（含每个号段的入参/返回）在仓库的 `docs/VML宿主接口.md`。
-> 这里讲**怎么用**。
-
-## 最小骨架
+## 最小程序
 
 ```c
 #include <waycoder_ui.h>
 
 int main(void) {
-    int w = ui_scr_w();          /* 先问可用绘图区 */
-    int h = ui_scr_h();
-    ui_win_open("我的程序", w, h); /* 按它开窗 —— 单位与屏幕 1:1 */
-
+    int w = ui_scr_w(), h = ui_scr_h();     /* ① 先问可用绘图区 */
+    ui_win_open("演示", w, h);              /* ② 再按它开窗 */
     ui_clear(0xFF101020);
-    ui_rect(20, 20, w - 40, h - 40, 0xFF00C8FF, 0, 4, 12);
-    ui_text(40, 60, "你好，VML", 0xFFFFFFFF, 20, 0);
-    ui_present();                 /* **这一帧画完了** */
+    ui_text(20, 40, "Hello", 0xFFFFFFFF, 20, VML_ANCHOR_CENTER);
+    ui_present();                           /* ③ 这一帧画完了 */
 
-    while (ui_win_closed() == 0) {
-        int msg[4];
-        if (ui_wait(msg, 0) == 0) continue;
-        /* 处理输入… */
+    int m[4];
+    while (ui_win_closed() == 0) {          /* ④ 主循环：收消息 → 处理 → 重画 */
+        if (ui_wait(m, 0) == VML_MSG_TOUCHDOWN) { /* 处理 m[1], m[2] */ }
     }
     return 0;
 }
 ```
 
-跑：`vml run mygame.c`
+**四条骨架**：先问尺寸 → 开窗 → 主循环（收消息 / 处理 / `ui_present`）→ 用户关窗退出。
+下面按类别列出全部接口；**不同语言调用方式一样**，只是语法不同（见「22 种语言」）。
 
-**先问后开**（`ui_scr_w/h` → `ui_win_open`）很重要：这样绘图单位与屏幕 1:1，
-不缩放也不出界。
+> 签名的权威来源是 `Lib/c/waycoder_ui.h`，实现在 `Lib/shared/src/vmlui.c` ——
+> **22 个前端共用同一份实现**。本页的签名就是从那个头文件取的，改了接口重跑生成器即可。
 
-## 开窗时可以先声明两件事
+## 窗口
 
-```c
-ui_win_open_ex("五子棋", w, h, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
-```
+开窗、问尺寸、关窗、屏幕方向 —— [`help:vml/ui/window`](help:vml/ui/window)
 
-| 第 4 个参数 | 含义 |
+| 接口 | 一句话 |
 |---|---|
-| `VML_WIN_PORTRAIT` | **只支持竖屏**（棋盘类）：屏幕锁竖屏，怎么转都不动 |
-| `VML_WIN_ROTATABLE` | **支持旋转**（默认）：两种排版都写好了，视口变了宿主会通知你 |
-| `VML_WIN_LANDSCAPE` | 只支持横屏（赛车 / 横版过关） |
+| [ui_orientation](help:vml/ui/window) | 设备方向：`VML_ORIENT_PORTRAIT`(0) / `VML_ORIENT_LANDSCAPE`(1)。 |
+| [ui_scr_h](help:vml/ui/window) | 可用绘图区的高。 |
+| [ui_scr_w](help:vml/ui/window) | 可用绘图区的宽（开窗前也能问）。 |
+| [ui_win_close](help:vml/ui/window) | 关掉窗口（程序自己结束用）。 |
+| [ui_win_closed](help:vml/ui/window) | 用户是不是已经关窗了（主循环的退出条件）。 |
+| [ui_win_open](help:vml/ui/window) | 开一个绘图窗口。先问 `ui_scr_w/h()` 拿可用绘图区，再按它开 —— 写死尺寸在小屏上会溢出。 |
+| [ui_win_open_ex](help:vml/ui/window) | 同上，另加两个开窗前就生效的声明：转屏策略、要不要手柄区。 |
 
-| 第 5 个参数 | 含义 |
+```c
+/* 例：ui_orientation */
+if (ui_orientation() == VML_ORIENT_LANDSCAPE) { /* 横排 */ }
+```
+
+## 收消息
+
+触摸 / 按键 / 定时器消息怎么收 —— [`help:vml/ui/messages`](help:vml/ui/messages)
+
+| 接口 | 一句话 |
 |---|---|
-| `VML_WIN_NEED_GAMEPAD` | 显示屏幕手柄区（默认） |
-| `VML_WIN_NO_GAMEPAD` | **整块手柄区连同折叠条都不显示，画布吃满整屏** |
-
-两条都在**开窗之前**生效 ⇒ 你按 `ui_scr_w/h` 排的版一开始就是对的。
-
-## 绘图（保留模式）
-
-你不是"画上去"，而是**往场景里追加图元**，宿主每帧把整份场景渲染出来。
-
-```c
-ui_clear(0xFF101020);                    /* 清屏：颜色 0xAARRGGBB */
-ui_rect(x, y, w, h, 颜色, 填充, 线宽, 圆角);
-ui_circle(cx, cy, r, 颜色, 填充, 线宽);
-ui_line(x1, y1, x2, y2, 颜色, 线宽);
-ui_text(x, y, "文字", 颜色, 字号, 锚点);   /* 锚点 0左 1中 2右 */
-ui_present();                            /* 提交这一帧 */
-```
-
-颜色一律 **`0xAARRGGBB`**（alpha 在最前）。`0x00xxxxxx` 是全透明 = 看不见。
-
-还有渐变、路径（SVG 语法）、多边形、贴图、图标等，见 `waycoder_ui.h`。
-
-⚠ **每帧画完必须 `ui_present()`** —— 它是"这帧画完了"的标记，宿主据此出图。
-不调的话画面可能停在一半（先 `ui_clear` 完、棋子还没画）。
-
-## 收输入
+| [ui_msg_a](help:vml/ui/messages) | 当前消息的第一个参数（触摸的 x、按键的键码、定时器的 id…）。 |
+| [ui_msg_b](help:vml/ui/messages) | 当前消息的第二个参数（触摸的 y…）。 |
+| [ui_msg_clear](help:vml/ui/messages) | 清空消息队列（切场景 / 重开一局时用，免得把上一局的按键吃进来）。 |
+| [ui_msg_count](help:vml/ui/messages) | 队列里还积着几条（想丢掉积压时可以看一眼）。 |
+| [ui_msg_type](help:vml/ui/messages) | 当前消息的类型（省得把 `msg[0]` 记在脑子里）。 |
+| [ui_poll](help:vml/ui/messages) | 不等，没有就返回 `VML_MSG_NONE`。连续动画用这个（配自己的节拍）；事件驱动的用 `ui_wait`（常态省电）。 |
+| [ui_poll_ex](help:vml/ui/messages) | `ui_poll` 的带「读完后留不留」版本。 |
+| [ui_poll_msg](help:vml/ui/messages) | 只取指定类型，没有就返回 `VML_MSG_NONE`。 |
+| [ui_wait](help:vml/ui/messages) | 等一条消息，参数是 `int msg[4]`。返回消息类型（见下表）；`timeout=0` 表示一直等。 |
+| [ui_wait_ex](help:vml/ui/messages) | 同上，第三个参数决定读完之后留不留这条消息（`VML_MSG_KEEP` / `VML_MSG_CONSUME`）。 |
+| [ui_wait_msg](help:vml/ui/messages) | 只等指定类型的消息（其余留在队列里）。 |
 
 ```c
-int msg[4];
-while (ui_win_closed() == 0) {
-    int t = ui_wait(msg, 0);     /* 0 = 无限等；返回 0 = 超时 */
-    if (t == VML_MSG_TOUCHDOWN) { x = msg[1]; y = msg[2]; ... }
-    if (t == VML_MSG_KEYDOWN)   { k = msg[1]; ... }
-    if (t == VML_MSG_TIMER)     { ... }
-    if (t == VML_MSG_WINDOWCLOSE) break;
-}
+/* 例：ui_msg_a */
+int x = ui_msg_a();
 ```
 
-| 消息 | 含义 |
+## 定时器与随机数
+
+重复定时器、取时间、随机数 —— [`help:vml/ui/timer`](help:vml/ui/timer)
+
+| 接口 | 一句话 |
 |---|---|
-| `VML_MSG_TOUCHDOWN/MOVE/UP` | 触摸，`msg[1]=x msg[2]=y`（**画布坐标**） |
-| `VML_MSG_KEYDOWN/KEYUP` | 按键（含屏幕手柄：方向键 / A B X Y / SELECT / START） |
-| `VML_MSG_TIMER` | 定时器到期，`msg[1]` 是定时器 id |
-| `VML_MSG_WINDOWRESIZE` | 画布尺寸变了（转屏、收起手柄），`msg[1]=宽 msg[2]=高` |
-| `VML_MSG_WINDOWORIENT` | 屏幕方向变了，`msg[1]` = 0 竖屏 / 1 横屏 |
-| `VML_MSG_WINDOWCLOSE` | 用户点了返回箭头 |
-
-⚠ `ui_wait(msg, 0)` 的 `0` 是**无限等**，不是"不阻塞"。要轮询用 `ui_poll(msg)`。
-
-⚠ 一次点击往往产生**多条**消息（按下/抬起/移动）。重开一局前先 `ui_msg_clear()`
-把上一局的残留清掉，否则新一局会立刻读到旧输入。
-
-## 定时器
+| [ui_rand](help:vml/ui/timer) | 随机数。 |
+| [ui_tick](help:vml/ui/timer) | 开机以来的毫秒数（自己算帧间隔、做动画用）。 |
+| [ui_timer_kill](help:vml/ui/timer) | 停掉一个定时器。 |
+| [ui_timer_set](help:vml/ui/timer) | 起一个重复定时器，每 N 毫秒发一条 `VML_MSG_TIMER`（`msg[1]` 是你给的 id）。 |
 
 ```c
-int tid = ui_timer_set(300, 7);   /* 每 300ms 发一条 Timer，msg[2] = 7 */
-...
-ui_timer_kill(tid);
+/* 例：ui_rand */
+int n = ui_rand() % 6;   /* 0..5 */
 ```
 
-⚠ **重复**定时器，记得在暂停/结束时 `kill`，否则它会一直往队列里投消息。
+## 绘图
 
-## 音效 / 震动 / 存档
+点线面、多边形、路径、渐变、贴图 —— [`help:vml/ui/draw`](help:vml/ui/draw)
+
+| 接口 | 一句话 |
+|---|---|
+| [ui_circle](help:vml/ui/draw) | 画圆，`fill` 非 0 填充。 |
+| [ui_circle_grad](help:vml/ui/draw) | 带渐变的圆。 |
+| [ui_clear](help:vml/ui/draw) | 整屏填一个色（每帧开头调）。颜色一律 `0xAARRGGBB`。 |
+| [ui_ellipse](help:vml/ui/draw) | 画椭圆（`rx` / `ry` 两个半径）。 |
+| [ui_gradient](help:vml/ui/draw) | 定义一个渐变并返回 id（之后 `ui_rect_grad` / `ui_circle_grad` 用）。 |
+| [ui_icon](help:vml/ui/draw) | 画一个内置图标（按名字取，省得自己画）。 |
+| [ui_image](help:vml/ui/draw) | 在指定位置画一张图（PNG / JPG / BMP），`w` / `h` 传 0 按原尺寸。 |
+| [ui_line](help:vml/ui/draw) | 画线，`lw` 是线宽。 |
+| [ui_path](help:vml/ui/draw) | 按 SVG 路径语法画（`M`/`L`/`Q`/`C`/`A`/`Z` 都支持，曲线自动分段）。想画圆角、弧线、曲线图形用它，比拿直线拼省事。 |
+| [ui_pixel](help:vml/ui/draw) | 画一个点。 |
+| [ui_polygon](help:vml/ui/draw) | 画多边形，点用 `int pts[] = {x1,y1, x2,y2, …}` 给，`count` 是点数（不是坐标个数）。 |
+| [ui_polyline](help:vml/ui/draw) | 折线（不闭合）。 |
+| [ui_present](help:vml/ui/draw) | 这一帧画完了。整个循环里最关键的一句 —— 不调它屏幕不更新。 |
+| [ui_rect](help:vml/ui/draw) | 画矩形。`fill` 非 0 填充、`radius` 是圆角半径。 |
+| [ui_rect_grad](help:vml/ui/draw) | 带渐变的矩形（渐变先用 `ui_gradient` 定义）。 |
 
 ```c
-ui_beep(880, 120);          /* 现场合成的音：频率 Hz + 时长 ms，不用带音频文件 */
-ui_vibrate(50);             /* 震动毫秒 */
-ui_keep_on(1);              /* 玩的时候别熄屏 */
-ui_store_set("best", 100);  /* 本地存档（键自动加前缀，不会和 App 自己的设置打架） */
-int best = ui_store_get("best", 0);
+/* 例：ui_circle */
+ui_circle(100, 100, 30, 0xFF00FF00, 1, 2);
 ```
 
-音是**单通道**的：一次只响一个。所以要"用音高表达意思"，
-连发一串琶音只有最后一个听得见。
+## 文字
 
-## 屏幕方向
+写字、字体、锚点 —— [`help:vml/ui/text`](help:vml/ui/text)
+
+| 接口 | 一句话 |
+|---|---|
+| [ui_set_font](help:vml/ui/text) | 设一次字体，后面所有 `ui_text_cur` 都用它（省得每次重复传四个参数）。 |
+| [ui_text](help:vml/ui/text) | 在 (x,y) 写一行字。`size` 是字号；`anchor` 决定 (x,y) 指文字的哪一边（`VML_ANCHOR_LEFT` / `CENTER` / `RIGHT`）。 |
+| [ui_text_cur](help:vml/ui/text) | 用 `ui_set_font` 设好的字体写字。 |
+| [ui_text_styled](help:vml/ui/text) | 同上，另加样式（粗体 / 斜体 / 下划线）。 |
 
 ```c
-int land = ui_orientation();   /* 0 竖屏 / 1 横屏；开窗前就能问 */
+/* 例：ui_set_font */
+ui_set_font(18, VML_FONT_BOLD, 0xFFFFFFFF, VML_ANCHOR_CENTER);
+ui_text_cur(180, 40, "按方向键退出");
 ```
 
-⚠ **别拿 `ui_scr_w() > ui_scr_h()` 去推方向** —— 那两个数是"可用绘图区"，
-会随宿主的排版（手柄收起/展开）变，而方向是设备本身的属性。
+## 方块贴图
 
-## 手感三条
+把一张图切成小格反复贴 —— [`help:vml/ui/piece`](help:vml/ui/piece)
 
-1. **先问后开**：`ui_scr_w/h` → `ui_win_open`，不然内容会超出画布（被裁掉）
-2. **帧边界要标**：`ui_present()` 别忘
-3. **声明比事后调整省事**：不要手柄就开窗时说，别等用户去点"收起手柄"
+| 接口 | 一句话 |
+|---|---|
+| [ui_piece_cell](help:vml/ui/piece) | 把某个棋子的第 (列,行) 格贴到屏幕 (x,y)。 |
+| [ui_piece_init](help:vml/ui/piece) | 把一块小位图注册成「棋子」，之后用 `ui_piece_cell` 按格子取 —— 方块类游戏用它省掉逐格画。 |
+
+```c
+/* 例：ui_piece_cell */
+ui_piece_cell(0, 0, 0, 40, 60);   /* 棋子 0 的 (0,0) 格 → 屏幕 (40,60) */
+```
+
+## 整数网格
+
+棋盘 / 地图这种二维状态 —— [`help:vml/ui/grid`](help:vml/ui/grid)
+
+| 接口 | 一句话 |
+|---|---|
+| [ui_gclear](help:vml/ui/grid) | 清空网格。棋盘 / 地图这种二维状态用它 —— 比语言自带的数组可靠（有的前端数组写入读不回来，见「22 种语言」里各语言的坑）。 |
+| [ui_gget](help:vml/ui/grid) | 读一格，没写过返回 0。 |
+| [ui_gset](help:vml/ui/grid) | 写一格，`i` 是一维下标（`row * 宽 + col`）。 |
+
+```c
+/* 例：ui_gclear */
+ui_gclear();
+```
+
+## 对话框
+
+提示、单选、多选、输入 —— [`help:vml/ui/dialog`](help:vml/ui/dialog)
+
+| 接口 | 一句话 |
+|---|---|
+| [ui_dlg_input](help:vml/ui/dialog) | 要一行文字输入。结果写进你给的缓冲区；拿不到指针的语言用无指针版本 + `len` / `at` 读。 |
+| [ui_dlg_msg](help:vml/ui/dialog) | 弹一个提示框（只有一个「知道了」）。会阻塞到用户点掉 —— 游戏结束时用它报个结果正好。 |
+| [ui_dlg_multi](help:vml/ui/dialog) | 多选对话框，返回选中的个数（选中情况按位收进传出参数）。 |
+| [ui_dlg_select](help:vml/ui/dialog) | 单选对话框，返回用户选的下标（-1 = 取消）。选项用字符串数组给。 |
+
+```c
+/* 例：ui_dlg_input */
+char buf[64];
+ui_dlg_input("改名", "新名字：", buf, 64);
+```
+
+## 音效与触感
+
+合成音、震动、屏幕常亮 —— [`help:vml/ui/feel`](help:vml/ui/feel)
+
+| 接口 | 一句话 |
+|---|---|
+| [ui_beep](help:vml/ui/feel) | 现场合成一个音（不用带音频文件）：`freq` 赫兹、`ms` 毫秒。 |
+| [ui_keep_on](help:vml/ui/feel) | 屏幕常亮开关（玩游戏的都该开）。 |
+| [ui_vibrate](help:vml/ui/feel) | 震动，`ms` 毫秒。 |
+
+```c
+/* 例：ui_beep */
+ui_beep(880, 80);      /* 消一行 */
+ui_beep(1568, 160);    /* 消四行，音更高 */
+```
+
+## 本地存档
+
+存最高分这类小数据 —— [`help:vml/ui/store`](help:vml/ui/store)
+
+| 接口 | 一句话 |
+|---|---|
+| [ui_store_get](help:vml/ui/store) | 读一个值，没存过返回 0。 |
+| [ui_store_set](help:vml/ui/store) | 存一个值（键会自动加前缀，不会和 App 自己的设置打架）。 |
+
+```c
+/* 例：ui_store_get */
+int best = ui_store_get("high");
+```
+
+## 全能接口
+
+两个字符串进、一个 JSON 出 —— [`help:vml/ui/json`](help:vml/ui/json)
+
+| 接口 | 一句话 |
+|---|---|
+| [ui_call_json](help:vml/ui/json) | 两个字符串进、一个 JSON 字符串出 —— 查设备信息、调宿主的杂项能力都走它， |
+| [ui_call_json_at](help:vml/ui/json) | 取上一次结果的第 i 个字节。 |
+| [ui_call_json_len](help:vml/ui/json) | 上一次 `ui_call_json_s` 的结果有多长。 |
+| [ui_call_json_print](help:vml/ui/json) | 把上一次的结果直接打到标准输出（调试时最省事）。 |
+| [ui_call_json_s](help:vml/ui/json) | 同上，但不用给缓冲区（适合拿不到指针的语言），配 `_len` / `_at` 读结果。 |
+
+```c
+/* 例：ui_call_json */
+char buf[512];
+ui_call_json("sysinfo", "", buf, 512);
+puts(buf);   /* {"ok":true,"result":{…}} */
+```
