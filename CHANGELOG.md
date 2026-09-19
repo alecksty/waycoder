@@ -1,3 +1,45 @@
+## v0.96.273 — 补一层语料：`Examples/` 全量编译检查（**当场挖出 7 个 P2 误报**）
+
+### 为什么补这一层
+
+`vml-out-probe` 是**每门语言一条十几行的最小程序**。把「未定义函数」从警告升成编译期硬错误
+（v0.96.268）之后，那套 29/29 全绿、`link-clean` 22/22 全绿，看着是"零误伤" ——
+**可它只在那一层成立**。换成真实例子，当场炸出一批：
+
+```
+csharp/file_io.cs     未定义的函数 'asm'（引用 3 次）
+java/file_io.java     未定义的函数 'method_asm'（引用 3 次）
+ruby/file_io.rb       未定义的函数 'func_asm'（引用 3 次）
+r/file_io.r           未定义的函数 'func_asm'（引用 3 次）
+r/catch.r             未定义的函数 'wend_56'（引用 2 次）
+swift/file_io.swift   未定义的函数 'asm'（引用 3 次）
+lua/life.lua          未定义的函数 'lua_table_set'（8 次）/ 'lua_table_get'（12 次）
+objc/file_io.m        未定义的函数 'shared_file_test'（引用 1 次）
+fortran/sysinfo.f90   未定义的函数 'sub_ui_call_json_s'（引用 1 次）
+```
+
+全是同一族：**库函数名在 auto-link 映射表里缺一条**（`asm` 系、`lua_table_*`、
+`sub_ui_*`（Fortran 的前缀版本，单纯加 `ui_` 不够）、`wend_*`、`shared_*`）。
+`Examples/kotlin` 那个 `ui_*` 只是先冒出来的一个。
+
+⇒ **语料只铺一层，结论就只在那一层成立。**
+
+### 新增 `scripts/vml-diag-probe/examples-build.sh`
+
+把 `Examples/<语言>/*` 每个源文件编译一遍，只判"能不能编过"（不跑 —— 很多是交互式游戏）。
+排除非源码（`.md`/`.h`/`.json`/脚本）与 **`.vml`**（那是**已经编好的汇编**，不是源码，
+喂给前端只会得到"认不出扩展名"，第一版就是这么误报了两个）。
+
+### ⚠ 写这个脚本时踩的坑：**`timeout` 会给出"全通过"的假绿**
+
+第一版用了 `timeout 60 dotnet …`，而 **macOS 没有 `timeout`**（GNU coreutils 的）⇒
+整条命令 `command not found` ⇒ 输出为空 ⇒ **每个例子都被算成"通过"**，
+报出「通过 90 / 失败 0」。去掉 `timeout` 重跑才看到 **14 个失败**。
+
+这与 `vml-out-probe/run-langs.sh` 头部记的那个坑**同源但方向相反**：
+那里是"全报错"（28 条一起 FAIL），这里是**"全通过"** ——
+后者更危险，因为它给的是**假的信心**。两个脚本的注释里都钉住了这一条。
+
 ## v0.96.272 — Kotlin 未声明变量 + **修掉 P2 的一处误报**（P6 第二门）
 
 ### ① Kotlin：五条分支全落空 = 未声明（顺带修掉"读回残值"）
