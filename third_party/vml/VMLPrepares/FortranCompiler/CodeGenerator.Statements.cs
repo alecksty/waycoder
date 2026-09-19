@@ -291,7 +291,19 @@ public partial class CodeGenerator
                 new List<Operand> { new Operand(OperandType.REGISTER, 0) }, instructions.Count));
         }
 
-        string funcLabel = $"sub_{fname}";
+        // ⚠ **只有本文件定义过的子程序才加 `sub_` 前缀。**
+        //
+        // 定义端（GenerateSubroutine）一律编成 `sub_<名字>`，所以自己人之间调用没问题；
+        // 但**库函数是裸名**（`Lib/shared/vmlui.vml` 里就叫 `ui_call_json_s`）。
+        // 此前调用点无条件加前缀 ⇒ `call ui_call_json_s(...)` 编成 `CALL sub_ui_call_json_s`，
+        // 那个标签**永远不存在** ⇒ P2 之后直接编不过
+        // （实测 `Examples/fortran/sysinfo.f90` 两条）。
+        //
+        // 判据用 `_functionTable` —— 它就是 `GenerateCode` 开头那次预扫描填的
+        // 「本文件定义了哪些子程序/函数」（含 module 里的），现成的，不用另立一张表。
+        // 名字转小写与定义端一致（定义处用的是 `node.Name.ToLowerInvariant()`）。
+        bool isUserDefined = _functionTable.ContainsKey(fname.ToLowerInvariant());
+        string funcLabel = isUserDefined ? $"sub_{fname}" : fname;
         instructions.Add(new Instruction(OpCode.CALL,
             new List<Operand> { new Operand(OperandType.LABEL, funcLabel) }, instructions.Count));
 

@@ -1,3 +1,48 @@
+## v0.96.279 — Fortran 调用点的 `sub_` 前缀：**P2 的误报清零**
+
+### 现象
+
+`Examples/fortran/sysinfo.f90` 调 `call ui_call_json_s('sysinfo','')`，P2 之后报
+`error: 未定义的函数 'sub_ui_call_json_s'`。
+
+### 真身
+
+Fortran 的**定义端**一律编成 `sub_<名字>`（`GenerateSubroutine`），而**调用点也无条件加前缀**
+（`GenerateCall` 里写死 `$"sub_{fname}"`）。自己人之间调用没问题 —— **但库函数是裸名**
+（`Lib/shared/vmlui.vml` 里就叫 `ui_call_json_s`）⇒ 编出 `CALL sub_ui_call_json_s`，那个标签永远不存在。
+
+### 修法：判据用现成的预扫描
+
+`GenerateCode` 开头**已经**有一次预扫描把本文件定义的所有子程序/函数收进 `_functionTable`
+（含 module 里的）—— 直接用它：
+
+```csharp
+bool isUserDefined = _functionTable.ContainsKey(fname.ToLowerInvariant());
+string funcLabel = isUserDefined ? $"sub_{fname}" : fname;
+```
+
+名字转小写与定义端一致（定义处用的是 `node.Name.ToLowerInvariant()`）。
+
+### 之前试过、**不生效**的两条（记下来免得重走）
+
+1. 补 `["sub_ui_"] = "vmlui"` 映射 —— 不生效；
+2. 把 `sub_` 加进链接器的「已知内部前缀」表（让候选人被剥成 `ui_call_json_s` 去匹配）—— **也不生效**。
+
+真身比"缺一条映射"深一层：**剥离前缀只用于「决定链哪个模块」，不改写 CALL 目标**。
+链进来也没用，因为那条 `CALL` 的字面量就是错的。**问题在前端，不在链接器。**
+
+### 结果：P2 的 9 个误报**全部清零**
+
+`examples-build.sh`：**通过 79 / 失败 3**（起点是 12）。剩下 3 个**都不是 P2 误报**：
+
+| 失败项 | 性质 |
+|---|---|
+| `_selftest/out.f90` | Fortran 不支持格式化 `print '(A,I0)'` —— 既有语言限制 |
+| `_selftest/out.ld` | Ladder 要 `BEGIN` —— 探针文件不是 Ladder 语法 |
+| `forth/parserexp_demo.fs` | `.fs` 扩展名没注册 |
+
+`out-probe` 29/29、`abi-probe` 7/7 全绿。
+
 ## v0.96.278 — R 的 `break` / `next` 指向一个**从来没落过的标签**（P2 误报第 2 个）
 
 ### 现象
