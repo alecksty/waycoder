@@ -862,8 +862,19 @@ namespace CCompiler
                 }
                 else
                 {
-                    // 容错模式：跳过无法识别的token继续解析
-                    Console.Error.WriteLine($"[SKIP] 跳过无法识别的顶层token: {Current().Type} at line {Current().OriginalLine}");
+                    // 容错模式：跳过无法识别的 token 继续解析 —— **但要把它报出来**。
+                    //
+                    // ⚠ 原来这里只写一行 `[SKIP] …` 到 stderr：**手机上那是看不见的流**、
+                    //   CLI 也被日志淹没 ⇒ 用户看到的是"编译成功"，而代码里少了一整段。
+                    //   这就是 P5 要治的病：容错**不等于**沉默。
+                    //   报进 `Diagnostics`（不抛）⇒ 解析照常往下走（一次能报多条），
+                    //   最后在 `BuildProgram` 一次性抛出去。
+                    //   实测：`Examples/c|cpp|objc` 全部**零触发** ⇒ 升级成错误不会误伤正常代码。
+                    if (Diagnostics != null)
+                        GccError($"无法识别的顶层标记 '{Current().Value ?? Current().Type.ToString()}'",
+                            ErrorCode.Parser_SyntaxError);
+                    else
+                        Console.Error.WriteLine($"[SKIP] 跳过无法识别的顶层token: {Current().Type} at line {Current().OriginalLine}");
                     Advance();
                 }
                 } catch (ParseException ex) when (ex.Code == ErrorCode.Parser_UnexpectedToken) {
@@ -874,7 +885,14 @@ namespace CCompiler
                     // ⚠ 因此本错误码被约定为"不可恢复"：以后新增用法前，先确认它真该终止编译。
                     throw;
                 } catch (System.Exception ex) {
-                    Console.Error.WriteLine($"[RECOVER] 顶层解析异常恢复: {ex.Message}, 行{Current().OriginalLine}, brace深度={_braceDepth}");
+                    // **恢复要继续，但错误必须报出来** —— 同一个道理：原来只写 stderr，
+                    // 用户看到的是"编译成功"。报进 `Diagnostics` 后解析照样恢复并往下走，
+                    // 于是**一个文件里的多处语法错能一次全报出来**（P5 的"多报"）。
+                    // 实测：`Examples/c|cpp|objc` 全部**零触发**。
+                    if (Diagnostics != null)
+                        GccError($"语法错误：{ex.Message}", ErrorCode.Parser_SyntaxError);
+                    else
+                        Console.Error.WriteLine($"[RECOVER] 顶层解析异常恢复: {ex.Message}, 行{Current().OriginalLine}, brace深度={_braceDepth}");
                     // 恢复策略: 跳过至当前失败构造结束, 然后跳到下一个有效声明
                     int recoverBraceDepth = _braceDepth;
                     int targetDepth = _braceDepth > 1 ? 1 : 0;

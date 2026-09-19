@@ -10,6 +10,31 @@ namespace CCompiler
     public partial class Parser : ParserBase<Token, TokenType>
     {
         protected override TokenType GetTokenType(Token token) => token.Type;
+
+        /// <summary>
+        /// 解析期诊断（`GccError` 那条路）的行/列 —— **必须覆写**。
+        ///
+        /// ⚠ `ParserBase` 里这两个是 `=> 0` 的虚方法，不覆写就**恒为 0**：
+        ///   于是所有解析错的位置都一样，而 `DiagnosticBag` 按「码+文件+行+列+消息」去重
+        ///   ⇒ **一个文件里的多处同类语法错会被并成一条**（实测：三处 `int x = ;` 只报 1 条）。
+        ///   这正是 P5「一次多报」的拦路虎。
+        ///
+        /// 行号取 `OriginalLine` 优先（与 `ParseStatement` 盖戳、`Parser.Core.cs` 报语法错
+        /// 的口径一致）：`Line` 是**预处理后**的，`#include` 一展开就整体推后。
+        /// </summary>
+        /// ⚠ **取的是 `Current()`（C 自己的游标），不是传进来的 `token`** ——
+        ///   因为本前端的解析器用的是**自己的 `pos`/`tokens`**，不是基类的 `_pos`/`_tokens`
+        ///   ⇒ 基类那个 `Cur` 恒指**第 0 个 token**（实测：所有解析错都报成 `1:1`，
+        ///   而 `DiagnosticBag` 按「码+文件+行+列+消息」去重 ⇒ 多处错误被并成一条）。
+        ///   传进来的 `token` 恰恰就是那个走错的 `Cur`，所以这里必须绕开它。
+        protected override int GetTokenLine(Token _)
+        {
+            var t = Current();
+            return t.OriginalLine > 0 ? t.OriginalLine : t.Line;
+        }
+
+        /// <summary>同上 —— 列号。见 <see cref="GetTokenLine"/>。</summary>
+        protected override int GetTokenColumn(Token _) => Current().Column;
         private List<Token> tokens;
         private int         pos;
         private Program     program;

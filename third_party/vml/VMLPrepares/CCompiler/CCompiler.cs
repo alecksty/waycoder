@@ -145,8 +145,19 @@ namespace CCompiler
                 processedSource = source;
             }
 
+            // **诊断袋必须接上** —— 词法与语法错误都收集到它里面。
+            //
+            // ⚠ 这条路（`CompileFile`）此前**一个都不接**：`Lexer.Diagnostics` 与
+            //   `Parser.Diagnostics` 都留在 null ⇒ `ParserBase.GccError` 走"没袋子就抛"的分支、
+            //   而顶层的容错恢复只往 stderr 写一行 `[SKIP]`/`[RECOVER]`（**手机上那是看不见的流**）
+            //   ⇒ 用户看到的是"编译成功"，代码却少了一整段。
+            //   `vmlcli` 走的正是这条路（另一条入口 `Compile` 从 v0.96.269 起就接了）。
+            //   与 `Compile` 同口径——同一个东西不该两条路两种行为。
+            var parseDiagnostics = new DiagnosticBag();
+
             // 词法分析
             Lexer lexer = new Lexer(processedSource, lineMap, filePath);
+            lexer.Diagnostics = parseDiagnostics;
             if (VMLPlugins.CompilerOptionsContext.Current.DumpMode)
                 lexer.DumpMode = true;
             var tokens = lexer.Tokenize();
@@ -154,7 +165,13 @@ namespace CCompiler
             // 语法分析
             Parser parser = new Parser(tokens);
             parser.FileName = filePath;
+            parser.Diagnostics = parseDiagnostics;
             var ast = parser.Parse();
+
+            // 词法/语法错**收集后一次抛出**（与代码生成那半的 `BuildProgram` 同口径）：
+            // 一次把文件里能看到的错全报出来，而不是遇到第一个就停。
+            if (parseDiagnostics.HasErrors)
+                throw new CompilationException(parseDiagnostics.FirstErrorCode, parseDiagnostics.FormatAll());
 
             // 代码生成
             CodeGenerator codeGen = new CodeGenerator(ast);

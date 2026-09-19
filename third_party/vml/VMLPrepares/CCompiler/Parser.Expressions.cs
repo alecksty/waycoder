@@ -932,11 +932,18 @@ namespace CCompiler
                 return new ArrayInitializer(elements);
             }
 
-            // 容错: 遇到未预期的token返回空节点并跳过
+            // 容错: 遇到未预期的 token 返回空节点并跳过 —— **但要报出来**。
+            //
+            // ⚠ 这里是「静默当成 0」最常见的一处：`int a = ;` 里的 `;` 被跳过、
+            //   返回 `NumberLiteral(0)` ⇒ 那句静默变成 `int a = 0`，**编译通过**。
+            //   用户写漏了东西却看不到任何提示（P5 要治的就是这个）。
             if (Current().Type == TokenType.RBRACE || Current().Type == TokenType.SEMICOLON || Current().Type == TokenType.COMMA
                 || Current().Type == TokenType.STRUCT || Current().Type == TokenType.UNION || Current().Type == TokenType.ENUM
                 || Current().Type == TokenType.NUMBER || Current().Type == TokenType.STAR)
             {
+                if (Diagnostics != null)
+                    GccError($"表达式缺失或多余（遇到 '{Current().Value ?? Current().Type.ToString()}'）",
+                        ErrorCode.Parser_SyntaxError);
                 // 对于 struct/union/enum/STAR，跳过后续修饰符
                 if (Current().Type == TokenType.STRUCT || Current().Type == TokenType.UNION || Current().Type == TokenType.ENUM || Current().Type == TokenType.STAR)
                 {
