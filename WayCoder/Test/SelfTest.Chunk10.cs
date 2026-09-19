@@ -843,9 +843,9 @@ public static partial class SelfTest
         Check("calljson: 缓冲区放不下的信封由 VmlJsonApi 一处出",
             VmlJsonApi.TooLongEnvelope(999).Contains("999")
             && VmlJsonApi.TooLongEnvelope(999).Contains("\"ok\":false"));
-        Check("VmlUi: CallJson 在号段内且不与其它号撞车",
-            VmlUi.Handles(VmlUi.CallJson) && VmlUi.CallJson != VmlUi.MsgWaitEx
-            && VmlUi.CallJson != VmlUi.WinOpenEx && VmlUi.CallJson != VmlUi.ScrOrient);
+        // 号段查重已收口到 SelfTest.Chunk26（`VmlUi.AllNumbers` 那张清单一次性查全部号）。
+        // 这里原来手写着「CallJson ≠ MsgWaitEx ≠ WinOpenEx ≠ ScrOrient」那几条 —— 是**平行表**：
+        // 每加一个号就手抄一遍比对名单，而捏造漏掉的那几个永远查不到。已删。
         VmlJsonApi.ClearForTest();   // 别把测试用的函数留给后面的用例
 
         // ── 读消息的"读完之后留不留"（`MSG_POLL_EX` #571 / `MSG_WAIT_EX` #572）──
@@ -863,11 +863,6 @@ public static partial class SelfTest
         Check("消息队列 consume: 取走队头，队列少一条",
             consumed is { } c && c.A == 11 && mq.Count == 1
             && mq.TryRead(keep: true) is { A: 33 });
-        Check("VmlUi: MsgPollEx/MsgWaitEx 在号段内且互不撞车",
-            VmlUi.Handles(VmlUi.MsgPollEx) && VmlUi.Handles(VmlUi.MsgWaitEx)
-            && VmlUi.MsgPollEx != VmlUi.MsgPoll && VmlUi.MsgWaitEx != VmlUi.MsgWait
-            && VmlUi.MsgPollEx != VmlUi.MsgWaitEx
-            && VmlUi.MsgPollEx != VmlUi.WinOpenEx && VmlUi.MsgWaitEx != VmlUi.ScrOrient);
         Check("VmlUi: 保留位常量为 0/1（跨语言契约）",
             VmlUi.Consume == 0 && VmlUi.Keep == 1);
 
@@ -891,9 +886,6 @@ public static partial class SelfTest
         // 三档声明值与 C 头文件 VML_WIN_* 一一对应 —— 跨语言契约，改了等于改 ABI
         Check("VmlUi: 转屏声明三档为 0/1/2（跨语言契约）",
             VmlUi.PortraitOnly == 0 && VmlUi.Rotatable == 1 && VmlUi.LandscapeOnly == 2);
-        Check("VmlUi: WinOpenEx 在号段内、与新老号都不撞车",
-            VmlUi.Handles(VmlUi.WinOpenEx) && VmlUi.WinOpenEx != VmlUi.WinOpen
-            && VmlUi.WinOpenEx != VmlUi.ScrOrient && VmlUi.WinOpenEx != VmlUi.MsgClear);
         // 手柄声明同样是跨语言契约（C 头文件的 VML_WIN_* 宏按这两个数写死）
         Check("VmlUi: 手柄声明常量为 0/1（跨语言契约）",
             VmlUi.NoGamepad == 0 && VmlUi.NeedGamepad == 1);
@@ -909,11 +901,8 @@ public static partial class SelfTest
         Check("VmlUi.ViewportMatchesOrientation: 横屏量到的值在横屏下算数",
             VmlUi.ViewportMatchesOrientation(396, 301, VmlUi.Landscape));
 
-        // 号不能在号段外 —— 出了 500–599 就是"认领不到"（宿主根本收不到这个 syscall）
-        Check("VmlUi.ScrOrient 在号段内且不与其它号撞车",
-            VmlUi.Handles(VmlUi.ScrOrient)
-            && VmlUi.ScrOrient != VmlUi.ScrW && VmlUi.ScrOrient != VmlUi.ScrH
-            && VmlUi.ScrOrient != VmlUi.MsgClear && VmlUi.ScrOrient != VmlUi.WinClosed);
+        // 号不能在号段外 —— 出了 500–599 就是"认领不到"（宿主根本收不到这个 syscall）。
+        // 这条判据已连号段查重一起收口到 SelfTest.Chunk26。
         // 返回值 0/1 是**跨语言契约**：22 个前端的 `shared.*` 绑定、C 头文件的
         // VML_ORIENT_* 宏都按这两个数写死，改了它们等于改了 ABI。
         Check("VmlUi 方向常量为 0/1（跨语言契约）",

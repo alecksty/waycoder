@@ -483,6 +483,37 @@ public static class VmlUi
     public static bool Handles(int syscallNumber) => syscallNumber is >= 500 and <= 599;
 
     /// <summary>
+    /// 本协议**已占用**的全部号，只给自测查重用 —— 没有运行时消费方。
+    ///
+    /// 为什么要有它：号是**在同一个类里一个个加**上去的（`public const int Xxx = 5xx;`），
+    /// 而 AOT 禁反射 ⇒ 没有任何办法在运行时把它们枚举出来。没有这张清单，
+    /// "两个特性抢同一个号"只能靠人眼比对 —— 而它的症状是**一个功能静默变成另一个功能**
+    /// （`switch` 里后写的 `case` 赢不了，先写的赢；两者都"能跑"，只是行为是别人的），
+    /// 属于最难发现的一类。有了它，自测里一条断言就能挡住。
+    ///
+    /// ⚠ **新增一个号必须同时加进这里**，否则这条护栏形同虚设。清单本身不参与任何逻辑，
+    /// 所以忘了加不会让程序出错 —— 只会让这道网漏掉新号（自测第 12 条查的是"这张表里有没有重复"，
+    /// 查不出"表里少了一个"）。开发新号时把这一步和"加常量"当成同一个动作。
+    /// </summary>
+    public static readonly int[] AllNumbers =
+    [
+        // 对话框 500–503
+        DlgMsg, DlgSelect, DlgMulti, DlgInput,
+        // 窗体与绘图 520–533
+        WinOpen, WinClose, DrawClear, DrawPixel, DrawLine, DrawRect, DrawCircle, DrawEllipse,
+        DrawText, DrawIcon, DrawImage, DrawPresent, SetFont, Text,
+        // 绘图增强 534–539
+        Gradient, DrawPath, DrawPolygon, DrawPolyline, DrawRectGrad, DrawCircleGrad,
+        // 手感与存档 541–553
+        AudioPlay, AudioStop, AudioVolume, Vibrate, VibratePattern,
+        StoreSet, StoreGet, StoreDel, ScreenKeepOn,
+        // 输入与屏幕 560–569
+        MsgPoll, MsgWait, MsgCount, TimerSet, TimerKill, WinClosed, ScrW, ScrH, MsgClear, ScrOrient,
+        // 扩展 570–573
+        WinOpenEx, MsgPollEx, MsgWaitEx, CallJson,
+    ];
+
+    /// <summary>
     /// 文字锚点 → 平台 <c>DrawString</c> 要的矩形。
     ///
     /// 平台只提供「**在给定矩形内**对齐」的重载，没有"只给一个锚点"的版本，所以锚点只能靠
