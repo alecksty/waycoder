@@ -1,3 +1,37 @@
+## v0.96.280 — Forth 补登记 `.fs` 扩展名；并记下它后面藏着的那条真问题
+
+### 改的是一行
+
+`ForthCompilerPlugin.SupportedExtensions` 原先只有 `.fth,.forth`，而 **`.fs` 是 gforth 的默认扩展名**
+（`gforth foo.fs`），也是最常见的一种 ⇒ `Examples/forth/parserexp_demo.fs` 被 CLI 判成
+「认不出这个扩展名」而拒绝编译。**不是语言的问题，是派发表少一条。**
+
+### 但补上之后，真问题立刻浮出来了
+
+```
+error: 未定义的函数 'word_parserexp'（引用 3 次）
+```
+
+`parserexp` 是 `Lib/forth/parserexp.vml` 里的一个词，而那个文件里定义的是
+**`LABEL forth_parserexp`**（GenLib 给 Forth 用的前缀是 `forth_`），
+前端发出的却是 **`word_parserexp`**（Forth 编译器自己的前缀是 `word_`）。
+
+⇒ 又是一处**两边前缀约定不一致**，而且这个模块**也没被 auto-link 拉进来**
+（映射表里没有 `parserexp` 这一条）。
+
+**这是今天遇到的第三次同族问题**（前两次：`ui_` 缺映射、Fortran 的 `sub_` 前缀）。
+它们的共同形状是：**前端发 CALL 时用的名字，和库里实际定义的名字，靠两套各自维护的
+命名约定去对**，任何一边漏一条就变成"未定义的函数"。
+
+**未修**：判断哪个前缀才是"对的"要看 Forth 前端与 GenLib 各自怎么命名词
+（`word_` 还是 `forth_`），需要一次专门的核对 —— 不能照着症状在映射表里加一条了事
+（前两次已经证明那样只会绕过问题）。
+
+### 判据
+
+`.fs` 现在能派发到 Forth 前端（错误从"认不出扩展名"变成了上面那条真实的链接错误）。
+`examples-build.sh` 仍是 79 / 3 —— 因为这一条把问题**推进了**、还没修完。
+
 ## v0.96.279 — Fortran 调用点的 `sub_` 前缀：**P2 的误报清零**
 
 ### 现象
