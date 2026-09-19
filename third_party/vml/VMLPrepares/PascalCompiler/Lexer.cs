@@ -425,6 +425,18 @@ namespace PascalCompiler
                     continue;
                 }
 
+                // `//` **行注释** —— 此前词法器只认 `{ }` 与 `(* *)`，
+                // `//` 会原样吐成两个 `/` 交给语法分析 ⇒ 报的是莫名其妙的语法错
+                //（台账里那条「注释是 `{ }` 不是 `//`」说的就是这个）。
+                // 现代 Pascal（Delphi / Free Pascal）都认 `//`，而本前端的目标就是它们
+                //（`writeln` / `program … end.` 那一套）。
+                // 语义与 `{}` 的区别只有一条：**到行尾就结束**，不跨行。
+                if (current == '/' && Peek(1) == '/')
+                {
+                    while (Peek() != '\n' && Peek() != '\0') Advance();
+                    continue;
+                }
+
                 // 标识符或关键字
                 if (char.IsLetter(current) || current == '_' || IsChineseChar(current))
                 {

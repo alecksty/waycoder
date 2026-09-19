@@ -1,3 +1,33 @@
+## v0.96.264 — Pascal 的 `//` 行注释；以及台账里四条「已过时」条目的复核（台账第七批）
+
+### 改代码的只有一条：Pascal `//` 行注释
+
+词法器只认 `{ }` 与 `(* *)`，`//` 被原样吐成两个 `/` 交给语法分析 ⇒ 报的是**莫名其妙的语法错**。
+而现代 Pascal（Delphi / Free Pascal —— 本前端的目标就是它们）都认 `//`。
+已修：`//` 跳到行尾即止、不跨行。
+
+### 复核后确认「已经好了」的四条（台账陈旧）
+
+| 条目 | 复核结果 |
+|---|---|
+| Fortran `if` 条件里「紧跟括号的除法」 | `if ((a / b) > 3) then` 正常，编出 `DIV-OK` |
+| Pascal 注释里只能写 ASCII | `{ 中文注释 —— 破折号、逗号 }` 正常编译 |
+| Python 列表「写不生效」 | `b[1] = 7; print(b[1])` 打出 `7` |
+| `Lib/` 两套栈清理约定并存 | **已消解**：703 处旧约定收尾**全在 `Lib/shared/backup/`**，而该目录无人引用 |
+
+### 复查时顺手核实的两条
+
+- **第二份实现（`stdio_funcs`）**：坏实现已删，各语言的 `stdio_funcs.vml` 现在是**转发壳**
+  （`.linked "../shared/printf.vml"` + `../shared/scanf.vml`，只有 3 行）。
+  `d`/`objc` 的 `stdio.h` 里那句 `#param lib("stdio_funcs")` 还在，但链到的是壳 ⇒ 无副作用。
+  实测 ObjC 的 `printf("%d")` → 42、`sprintf("%s")` → abc。
+- **`LibraryLinker` 后缀匹配劫持**：仍是 🟡（有一条未验证的"取最长匹配"改动被撤回过，
+  留着不动是对的）。
+
+⚠ 台账里两次出现同一个教训：**「当时是坏的」不能当证据** ——
+Ruby 的 `def`、Rust 的跨行数组、Fortran 的除法、Pascal 的中文注释，四条都是中间某次前端改动
+顺带带好的，**没人回头复测**，于是注释和台账一起陈旧了两三个版本。
+
 ## v0.96.263 — Objective-C 前端：`#include <waycoder_ui.h>` 报 `expected )`（台账第六批）
 
 `Lib/c/waycoder_ui.h` 里有**两个形参叫 `id`**（`ui_timer_kill(int id)`、`ui_gradient(char* id, …)`），
