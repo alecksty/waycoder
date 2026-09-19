@@ -200,6 +200,9 @@ public partial class CodeGenerator : OopCodeGenerator {
     }
 
     void GenerateNode(ASTNode node) {
+        // 让随后生成的每条指令带上源码行号（语义见 CodeGeneratorBase.CurrentSourceLine）。
+        // 判据 `> 0`：行号是 1-based，没填的节点是 0，置 0 会把上一句的行号冲掉。
+        if (node.Line > 0) { CurrentSourceLine = node.Line; CurrentSourceColumn = node.Column; }
         switch (node) {
             case Block b: foreach (var s in b.Statements) GenerateNode(s); break;
             case VarDecl vd: {

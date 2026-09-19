@@ -113,7 +113,19 @@ public class Parser : ParserBase<Token, TokenType>
         return new Block(stmts);
     }
 
-    ASTNode ParseStatement() {
+    /// <summary>
+    /// 语句入口 —— **顺手给每条语句盖上起始行列**（`ASTNode.Line`/`Column`）。
+    /// 与 C/Rust 同一套路（单一入口 + 包一层）。见 `CCompiler/Parser.Statements.cs` 的说明。
+    /// </summary>
+    ASTNode ParseStatement()
+    {
+        int __line = Cur.Line, __col = Cur.Column;
+        var __node = ParseStatementCore();
+        if (__node != null && __node.Line == 0) { __node.Line = __line; __node.Column = __col; }
+        return __node;
+    }
+
+    ASTNode ParseStatementCore() {
         if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "val")
             return ParseVarDecl(true);
         if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "var")

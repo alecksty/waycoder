@@ -1,5 +1,15 @@
 namespace KotlinCompiler;
-public abstract class ASTNode { }
+public abstract class ASTNode {
+        /// <summary>
+        /// **预处理之后**的源码行号（1-based）；**0 = 未知**。
+        /// 产物里 `; N: &lt;原文&gt;` 注释按它索引 `SourceLines`（= 预处理后的文本）。
+        /// </summary>
+        public int Line { get; set; }
+        /// <summary>**原文件**行号（1-based）；**0 = 未知**（无预处理时不设，退回 Line）。</summary>
+        public int OriginalLine { get; set; }
+        /// <summary>源码列号（1-based）；**0 = 未知**。</summary>
+        public int Column { get; set; }
+    }
 public class Program(List<ASTNode> functions) : ASTNode { public List<ASTNode> Functions => functions; }
 public class FunctionDecl(string name, List<string> pars, ASTNode body, List<string>? typeParams = null, bool isExternal = false) : ASTNode {
     public string Name => name; public List<string> Parameters => pars; public ASTNode Body => body;

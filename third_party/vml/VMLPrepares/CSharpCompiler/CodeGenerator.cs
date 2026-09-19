@@ -149,6 +149,9 @@ namespace CSharpCompiler
         
         private void GenerateStatement(Statement statement)
         {
+            // 让随后生成的每条指令带上源码行号（语义见 CodeGeneratorBase.CurrentSourceLine）。
+            // 判据 `> 0`：行号是 1-based，没填的节点是 0，置 0 会把上一句的行号冲掉。
+            if (statement.Line > 0) { CurrentSourceLine = statement.Line; CurrentSourceColumn = statement.Column; }
             switch (statement)
             {
                 case ExpressionStatement exprStmt:

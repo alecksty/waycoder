@@ -1,3 +1,45 @@
+## v0.96.294 — 行列号铺开第四批：8 门一次补齐 → **15/16 静态语言**
+
+这一批是最大的：**C# / C++ / Go / Java / JS / Kotlin / Swift** 七门的 `ASTNode` 是**空基类**
+（一个位置字段都没有），加上**盖戳**与**接线**，一门要动三处。
+
+### 三步走的模板（与 C 那次完全一致）
+
+1. **给基类补字段**：`Line`（预处理后，索引 `SourceLines`）/ `OriginalLine`（原文件，给人看）/
+   `Column`。C# 那门原本 `public abstract class ASTNode {}` 是个纯空壳。
+2. **解析器盖戳**：7 门都有**单一 `ParseStatement()`** ⇒ 改名 + 包一层，
+   记下 `Cur` 的行列、解析完盖到节点上（`Line == 0` 才盖，不覆盖子解析器更精确的位置）。
+   ⚠ 中途脚本把 `sig`（已含 `{`）又拼了一个 `{`，七门一起 CS1513 —— 逐文件回读时才发现。
+3. **代码生成接线**：6 门有集中的 `GenerateStatement`/`GenerateStmt`，Kotlin 那门叫
+   `GenerateNode`（**名字不同，得单独找**）。
+
+### 结果
+
+| | |
+|---|---|
+| **有行列号（15）** | `c` `cpp` `cs` `d` `dart` `f90` `go` `java` `kt` `ld` `m` `pas` `rs` `swift` （+ 动态 6 门走 `dyn-global`） |
+| **仍无（2）** | `fth`（词调用不走语句入口）、`bas`（报错点在 `GetOrCreateVariable`） |
+
+### ⚠ 已知不准确的一处：`cs = 1:1`
+
+C# 报的是 `1:1`，而用例里 `nosuch` 在第 4 行 —— 说明**内层语句的 `Line` 仍是 0**，
+`CurrentSourceLine` 停在类声明那一句（第 1 行）。已确认 `ParseBlock` 确实走 `ParseStatement`，
+所以是 C# 前端里**另有一条局部声明的解析路径**绕过了它。**记账待查**，
+其余 14 门的行号都与源码对得上（`go=3:2`、`java=4:5`、`kt=3:5`、`swift=3:5`、
+`cpp=1:25`、`c=1:29`…）。
+
+### 判据
+
+| | 之前 | 之后 |
+|---|---|---|
+| `diag-probe` | 60/0/0 | 60/0/0 |
+| `vml-out-probe` | 29/29 | 29/29 |
+| `examples-build` | 78/3 | 78/3 |
+| 桌面自测 | 5998/0 | 5998/0 |
+| MAUI Android 构建 | — | 0 错误 |
+
+---
+
 ## v0.96.293 — 行列号铺开第三批：Ladder（**7/22**）
 
 Ladder 的情况与 Rust 相反：**解析器那半边是齐的**（`LadderCompiler/Parser*.cs` 里有 38 处

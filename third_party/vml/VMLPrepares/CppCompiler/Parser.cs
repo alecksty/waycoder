@@ -857,7 +857,25 @@ namespace CppCompiler
         }
 
         // Statements
+        /// <summary>
+        /// 语句入口 —— **顺手给每条语句盖上起始行列**（`ASTNode.Line`/`Column`）。
+        ///
+        /// 与 C/Rust 同一套路：这个方法是**单一入口**，包一层就覆盖了全部 return
+        ///（含递归进来的嵌套语句）。用 `Line == 0` 才盖 ——
+        /// 子解析器自己填过的更精确位置不会被外层冲掉。
+        ///
+        /// ⚠ 加这个之前 `ASTNode` 是个**空基类**，一个位置字段都没有 ⇒
+        ///   代码生成侧那句 `if (node.Line > 0) …` 永远不生效，报错只能给个名字。
+        /// </summary>
         public Stmt ParseStatement()
+        {
+            int __line = Cur.Line, __col = Cur.Column;
+            var __node = ParseStatementCore();
+            if (__node != null && __node.Line == 0) { __node.Line = __line; __node.Column = __col; }
+            return __node;
+        }
+
+        public Stmt ParseStatementCore()
         {
             // label: identifier followed by colon
             if (GetTokenType(Cur) == TokenType.IDENTIFIER)
