@@ -1,3 +1,40 @@
+## v0.96.281 — Forth 词调用：分清「本文件定义」与「库词」（命名约定核对的第一份结果）
+
+### 核对结果：`word_` 是一张**必然漂移**的手工清单
+
+| | |
+|---|---|
+| Forth 前端发 CALL | 统一 **`word_<名字>`** |
+| GenLib 为 forth 生成的**主标签** | **`forth_<名字>`** |
+| `word_` 别名 | 手工列了 **6 个模块**（conv/string/math/io/convert/printf） |
+| `modules.json` 里的模块总数 | **74** |
+
+⇒ 任何用到 `word_` 调用、而模块不在这 6 个里的 Forth 程序都会编不过。
+`parserexp_demo.fs` 只是恰好撞上的那一个。
+
+### 改的这一半（已验证）
+
+按「**本文件定义的用 `word_`、库词用 `forth_`**」修 —— 与 Fortran 的 `sub_` 那条**同形**：
+在 `GenerateCode` 开头预扫描 `ast.Statements`/`ast.Words` 里 `WordDefinition` 的名字
+填进 `_definedWords`，两处调用点统一走 `WordCallLabel()`。
+
+判据：调用名从 `word_parserexp` 变成了 **`forth_parserexp`** —— 那正是
+`Lib/forth/parserexp.vml` 里**真实存在**的标签名（`LABEL forth_parserexp`）。
+`out-probe` 29/29 全绿。
+
+### ⚠ 但还有第二半，**没修**
+
+改完仍然编不过：`error: 未定义的函数 'forth_parserexp'` —— 名字对了，
+但 **`parserexp` 这个模块压根没被 auto-link 拉进来**。
+
+试过补 `["parserexp"] = "parserexp"` 映射，**不生效**，已按「没修好就先撤」撤回。
+
+⇒ **auto-link 映射表是第三张手工清单**，而且是同一个病。今天三条同族问题
+（`ui_` 缺映射、Fortran 的 `sub_`、Forth 的 `word_`）背后是**三张各自维护的命名表**：
+各前端的调用前缀、GenLib 的 `naming.json`、链接器的 auto-link 映射。
+**该做的是一次把这三张对齐**（`modules.json` 有 74 个模块，靠人手维护的别名/映射必然漏），
+而不是继续逐个撞。
+
 ## v0.96.280 — Forth 补登记 `.fs` 扩展名；并记下它后面藏着的那条真问题
 
 ### 改的是一行

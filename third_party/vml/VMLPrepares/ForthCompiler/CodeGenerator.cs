@@ -28,6 +28,32 @@ namespace ForthCompiler
         private Program ast;
         private int stackPointer; // 模拟数据栈指针
         private readonly Stack<string> catchLabels = new();
+        /// <summary>
+        /// **本文件定义过的词**（`MangleName` 之后的形态）。
+        ///
+        /// 为什么要这张表：Forth 前端给**自己定义的词**和**库词**发 CALL 时用的是**同一个前缀**
+        /// `word_`，而 GenLib 给 forth 生成的库标签主名是 **`forth_<名字>`**
+        /// （只有 6 个模块额外挂了一组 `word_` 别名，而 `modules.json` 里有 74 个模块）。
+        /// ⇒ 凡是用到"模块不在这 6 个里"的库词，编出来就是个不存在的标签
+        /// （实测 `Examples/forth/parserexp_demo.fs`：`未定义的函数 'word_parserexp'`）。
+        ///
+        /// 修法与 Fortran 那条**同形**：本文件定义的用 `word_`、库词用 `forth_` ——
+        /// 判据需要一个"哪些是本文件定义的"集合，在 <c>GenerateCode</c> 开头预扫描填好
+        /// （与 Fortran 的 `_functionTable` 同一个套路）。
+        /// </summary>
+        private readonly HashSet<string> _definedWords = new();
+
+        /// <summary>
+        /// 词调用该用哪个标签名 —— **唯一真源**（两处调用点都走它）。
+        /// 本文件定义的词 → `word_&lt;mangled&gt;`（与 `GenerateWordDefinition` 里那个标签一致）；
+        /// 库词 → `forth_&lt;mangled&gt;`（GenLib 给 forth 生成的主标签名）。
+        /// </summary>
+        private string WordCallLabel(string wordName)
+        {
+            string m = MangleName(wordName);
+            return _definedWords.Contains(m) ? $"word_{m}" : $"forth_{m}";
+        }
+
         private readonly Dictionary<string, ASTNode> constantValues = new();
         
         // 变量类型跟踪字典
@@ -127,6 +153,12 @@ namespace ForthCompiler
             instructions.Add(new Instruction(OpCode.JMP, new List<Operand>
                 { new Operand(OperandType.LABEL, mainBodyLabel) }, instructions.Count));
 
+            // 预扫描：本文件定义过哪些词（供"库词用 forth_ 前缀"这条判据用，见 _definedWords）
+            foreach (var stmt in ast.Statements)
+                if (stmt is WordDefinition wd) _definedWords.Add(MangleName(wd.Name));
+            foreach (var w in ast.Words)
+                if (w is WordDefinition wd2) _definedWords.Add(MangleName(wd2.Name));
+
             // 首先处理所有词定义
             foreach (var stmt in ast.Statements)
             {
@@ -165,7 +197,7 @@ namespace ForthCompiler
                 if (lastStmt is WordDefinition lastWord)
                 {
                     instructions.Add(new Instruction(OpCode.CALL, new List<Operand>
-                        { new Operand(OperandType.LABEL, $"word_{lastWord.Name}") }, instructions.Count));
+                        { new Operand(OperandType.LABEL, WordCallLabel(lastWord.Name)) }, instructions.Count));
                 }
             }
 
