@@ -259,6 +259,38 @@ namespace BasicCompiler
                 }
             }
 
+            // 返回类型 `AS <类型>` —— **必须在这里吃掉**。
+            //
+            // ⚠ 此前这里直接进下面的「函数体」循环，`AS` 后面的类型名就留在 token 流里，
+            //   被当成了函数体的第一个语句：
+            //     · 改之前：那个 IDENTIFIER 落进 `ParseLetStatement()`，没有 `=` 就
+            //       `return null` ⇒ **静默丢掉**。表面上「没事」（NATIVE 声明的体本来
+            //       也不生成代码），实际是漏了一个 token；
+            //     · 改之后（裸调用不再静默丢）：它被当成 `CALL func_integer` ⇒
+            //       `NATIVE FUNCTION f() AS INTEGER` 后面**跟任何语句都编译不过**。
+            //   两种表现都不是「对」，区别只是漏得响不响。正解是在这里就把它解析掉。
+            //   实测最小复现：`NATIVE FUNCTION f() AS INTEGER` + 换行 + `NATIVE SUB g()`。
+            //
+            // 顺带把 `AS STRING` 接上 `IsStringFunction` —— 此前只有名字带 `$` 后缀
+            // 才能标记字符串返回值，写 `AS STRING` 的会被 `CodeGenerator.Sub.cs:121`
+            // 当成 INTEGER 处理（那里按这个字段二选一决定返回类型）。
+            if (Peek().Type == TokenType.AS)
+            {
+                Advance(); // skip AS
+                bool isStringRet = Peek().Type == TokenType.VB_STRING
+                    || string.Equals(Peek().Value as string, "STRING", StringComparison.OrdinalIgnoreCase);
+                if (isStringRet) func.IsStringFunction = true;
+                // `INTEGER`/`STRING` 这些类型名大多是 IDENTIFIER（词法表里只有首字母大写的
+                // `Integer`/`String` 才映射到 VB_* 专用 token），两条都要吃。
+                if (isStringRet || Peek().Type == TokenType.IDENTIFIER
+                    || Peek().Type == TokenType.VB_INTEGER
+                    || Peek().Type == TokenType.VB_OBJECT
+                    || Peek().Type == TokenType.VB_VARIANT)
+                {
+                    Advance(); // skip 类型名
+                }
+            }
+
             // 解析函数体直到 END FUNCTION
             while (!AtEnd())
             {

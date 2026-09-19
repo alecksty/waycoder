@@ -89,6 +89,45 @@ namespace BasicCompiler
             return stmt;
         }
 
+        /// <summary>
+        /// **块式** THEN / ELSE 体：把语句一直收到 `ELSEIF` / `ELSE` / `END IF` 为止。
+        ///
+        /// ⚠ 此前根本没有这条路径 —— `THEN` 之后无论换不换行都只 `ParseStatement()` 收**一条**，
+        ///   于是块 IF 里**只有第一条语句是条件执行的**，其余全被拍平成无序的兄弟语句
+        ///   （紧跟 `END IF` 的收尾）**无条件执行**。实测：
+        ///     `IF a = 1 THEN / x = 5 / y = 6 / END IF`，a = 0 ⇒ 输出 `0 6`（应为 `0 0`）。
+        ///   连带 `ELSEIF` 也废了：它只有**紧邻**体语句时才被上面的链状 while 看见，
+        ///   多语句体的 ELSEIF 落在外面 → `ELSEIF` 被 `default:` 逐 token 跳过、
+        ///   后面的条件表达式被当成普通语句 ⇒ **整条分支变成死代码**。
+        ///   这个洞一直被"沉默地跳过 token"盖着，直到 v0.96.282 裸调用不再静默丢才露出来
+        ///   （`ELSEIF ty > …` 里的 `ty` 被当成 `CALL func_ty`）。
+        ///
+        /// 判据用 **token 行号**：THEN 之后换行 = 块式；同一行 = 单行 IF（`IF x THEN y = 1`）。
+        /// 这是本前端唯一能区分两者的信息 —— 词法里没有换行 token。
+        /// </summary>
+        private Statement ParseBlockBody()
+        {
+            var seq = new SequenceStatement(Peek().Line, Peek().Column);
+            while (!AtEnd())
+            {
+                if (Peek().Type == TokenType.ELSEIF || Peek().Type == TokenType.ELSE) break;
+                if (Peek().Type == TokenType.END && current + 1 < tokens.Count
+                    && tokens[current + 1].Type == TokenType.IF) break;
+                if (Peek().Type == TokenType.COLON || Peek().Type == TokenType.NUMBER)
+                {
+                    Advance();
+                    continue;
+                }
+                int guard = current;
+                var s = ParseStatement();
+                if (s != null) seq.Statements.Add(s);
+                // 兜底：某个分支没推进游标就手工推进一格，否则整个编译卡死在这儿
+                if (current == guard) Advance();
+            }
+            if (seq.Statements.Count == 0) return null!;
+            return seq.Statements.Count == 1 ? seq.Statements[0] : seq;
+        }
+
         private IfStatement ParseIfStatement()
         {
             Token token = Advance(); // 跳过 IF
@@ -100,9 +139,10 @@ namespace BasicCompiler
             {
                 return null;
             }
-            Advance(); // 跳过 THEN
+            Token thenTok = Advance(); // 跳过 THEN
 
-            stmt.ThenBranch = ParseStatement();
+            bool blockThen = !AtEnd() && Peek().Line > thenTok.Line;
+            stmt.ThenBranch = blockThen ? ParseBlockBody() : ParseStatement();
 
             // Handle colon-separated multi-statement THEN branch: IF x THEN a=1: b=2
             if (stmt.ThenBranch != null && Peek().Type == TokenType.COLON)
@@ -129,8 +169,9 @@ namespace BasicCompiler
                 IfStatement elseifStmt = new IfStatement(token.Line, token.Column);
                 elseifStmt.Condition = ParseExpression();
                 if (Peek().Type != TokenType.THEN) break;
-                Advance(); // skip THEN
-                elseifStmt.ThenBranch = ParseStatement();
+                Token elseifThen = Advance(); // skip THEN
+                elseifStmt.ThenBranch = (Peek().Line > elseifThen.Line)
+                    ? ParseBlockBody() : ParseStatement();
                 // Handle colon-separated multi-statement ELSEIF branch
                 if (elseifStmt.ThenBranch != null && Peek().Type == TokenType.COLON)
                 {
@@ -153,8 +194,10 @@ namespace BasicCompiler
 
             if (Peek().Type == TokenType.ELSE)
             {
-                Advance(); // 跳过 ELSE
-                currentStmt.ElseBranch = ParseStatement();
+                Token elseTok = Advance(); // 跳过 ELSE
+                // 与 THEN 同一判据：ELSE 之后换行 = 块式（多语句），同一行 = 单行 IF 的 ELSE
+                currentStmt.ElseBranch = (Peek().Line > elseTok.Line)
+                    ? ParseBlockBody() : ParseStatement();
                 // Handle colon-separated multi-statement ELSE branch
                 if (currentStmt.ElseBranch != null && Peek().Type == TokenType.COLON)
                 {

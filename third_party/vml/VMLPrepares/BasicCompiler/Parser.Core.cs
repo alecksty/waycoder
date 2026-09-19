@@ -368,7 +368,26 @@ namespace BasicCompiler
                     {
                         return ParseImplicitCallStatement();
                     }
-                    return ParseLetStatement();
+                    // 赋值照旧走 `LET` 解析（`x = 1` 左边也可能是与函数同名的变量）。
+                    if (nextIsAssign)
+                    {
+                        return ParseLetStatement();
+                    }
+                    // 剩下的全是「名字 + 后面不是 `=`」——**一律当裸调用解析**，
+                    // 不再 `return ParseLetStatement()`。
+                    //
+                    // ⚠ 为什么不能交给 ParseLetStatement：它读到一个非 `=` 的 token 就
+                    //   `return null`，而语句层对 null 是**静默跳过** ⇒ 整条语句凭空消失。
+                    //   于是 `nosuch(1)`（名字没声明过）在汇编里一个字都不留，用户要等到
+                    //   运行才发现「这行没效果」——正是「非要等到运行才报错」那种形态。
+                    //   （v0.96.204 修过一次同类：`ui_win_open` 是 declaredFunctions 里的一员，
+                    //     那次只补上了「已声明」这一半；没声明过的名字仍然漏。）
+                    //
+                    // 当裸调用解析之后，**裁决权交给链接器**：名字对 ⇒ 库函数被链上；
+                    // 名字错 ⇒ 链接期报「未定义的函数 '<name>'」，带文件名和出处。
+                    // 这里不自己查表，是因为前端手里的 `declaredSubs`/`declaredFunctions`
+                    // 本来就看不见库（`Lib/basic/*.vml` 里的几万个函数）。
+                    return ParseImplicitCallStatement();
                 // QBASIC 图形/硬件关键字
                 case TokenType.PSET:        return ParsePsetStatement();
                 case TokenType.QB_LINE:     return ParseQbLineStatement();

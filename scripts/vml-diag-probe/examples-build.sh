@@ -44,7 +44,10 @@ for f in "$REPO"/third_party/vml/Examples/*/*; do
     case "$f" in
         # 非源码
         *.md|*.txt|*.h|*.json|*.sh|*.bat|*.ps1|*.xml|*.zip) continue ;;
-        */file_io.cs|*/file_io.java|*/file_io.rb|*/file_io.r|*/file_io.swift|*/file_io.m) continue ;;
+        # ⚠ `file_io.js` 与上面六个**是同一类**（同样是 `asm("CALL shared_file_test")`），
+        #   此前漏在清单外，靠 JS 那条"发一条指向不存在变量的间接调用"的缺陷**假绿**通过 ——
+        #   v0.96.282 把那个静默缺陷改成硬报错之后它才现形。补进排除。
+        */file_io.cs|*/file_io.java|*/file_io.rb|*/file_io.r|*/file_io.swift|*/file_io.m|*/file_io.js) continue ;;
         # ⚠ `.vml` 是**已经编好的汇编**，不是源码；喂给前端只会得到"认不出扩展名"
         #   （`OpenCV/cv_demo.vml` / `SharedLib/test_mylib_c.vml` 就是这么被误报的）
         *.vml) continue ;;

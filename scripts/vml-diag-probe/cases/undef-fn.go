@@ -1,1 +1,1 @@
-fn main() { nosuch(1); }
+func main() { nosuch(1) }

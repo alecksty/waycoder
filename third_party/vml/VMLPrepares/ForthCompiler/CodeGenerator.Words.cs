@@ -306,7 +306,7 @@ namespace ForthCompiler
             // 预定义编译期词: . 打印, CR 换行, EMIT, KEY
             // 这些在 GenerateOperation 中处理
 
-            string labelName = WordCallLabel(wordName);
+            string labelName = $"word_{MangleName(wordName)}";
 
             // 所有词调用都会覆盖 R15。把当前 R15（返回地址）保存到栈上，
             // 调用返回后恢复。操作：POP R1(arg) PUSH R15 PUSH R1(arg) CALL ... POP R1(res) POP R15 PUSH R1(res)

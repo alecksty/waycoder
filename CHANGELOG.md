@@ -1,3 +1,142 @@
+## v0.96.282 — 三处「调了个不存在的函数」被静默放过（其中一个牵出 BASIC 块 IF 的大洞）
+
+起因是 `vml-diag-probe` 里 `undef-fn` 组的 3 条红灯。逐条查下来**两条是假红、一条是真红**，
+但真红那条往下挖，挖出的是 BASIC 一个更严重的问题。
+
+### ① Go 那条是**用例写错了**（不是缺陷）
+
+`cases/undef-fn.go` 里写的是 `fn main() { nosuch(1); }` —— **`fn` 不是 Go 语法**（那是 Rust/Swift）。
+改用 `func main()` 一试，Go 前端**本来就报错**：
+
+```
+error: 未定义的函数 'nosuch'（引用 1 次）
+```
+
+⇒ 用例文件已订正。README 里那个「13/16」是被这条坏用例压低的，Go 那格一直是好的。
+
+### ② JavaScript：`nosuch(1)` 生成的是**指向不存在变量的间接调用**
+
+JS 的 `GenerateCall` 在「既不是 `func_x` 也不是 `x`」时**无条件**走「从 `var_x` 取函数地址」
+那条分支，于是 `nosuch(1)` 编出来是：
+
+```asm
+        move R1 var_nosuch    ; ← 这个标签根本不存在，汇编期静默变 0
+        move R0 @1            ; ← 从地址 0 读
+        call R0               ; ← 调到 0 去
+```
+
+链接器**看不见**它 —— `ReportUnresolved` 只扫 `CALL`/`JMP`/`J*` 的标签操作数，
+而这里的标签挂在 `MOVE` 上。于是「调了个不存在的函数」一路静默通过编译。
+
+**判据本来就不是「找不到 `func_x`」而是「`var_x` 到底有没有」**（后者只出现在
+`var f = foo; f()` 这种写法里）。改成：两者都不是时**直接 `CALL` 这个裸名**，
+由链接器裁决 —— 名字对（库函数）就链上，名字错就报「未定义的函数」。
+前端**不自己查**「是不是库函数」：它手里没有那张表，自己维护一张必然与链接器漂移。
+
+### ③ Basic：裸调用没声明过的名字，**整条语句凭空消失** —— 顺带挖出块 IF 的大洞
+
+`nosuch(1)`（不带 `CALL` 关键字）在解析器里落到 `ParseLetStatement()`，
+而**没有 `=` 的 `ParseLetStatement` 返回 `null`**，语句层对 `null` 是静默跳过
+⇒ 源码写了、汇编里一个字都没有。（v0.96.204 修过同类：`ui_win_open` 是
+`declaredFunctions` 里的一员，那次只补上了「已声明」这一半。）
+
+改法与 JS 同构：**名字后面不是 `=` 就一律当裸调用解析**，裁决权交给链接器。
+赋值仍走 `LET` 解析（`x = 1` 左边也可能是与函数同名的变量）。
+
+**但改完 `tetris.bas` 仍然报 `func_ty` / `func_sh`** —— 二分定位到
+`ELSEIF ty > sh * 3 \ 4 THEN` 这一行。查下去发现两件事：
+
+**(a) `ParseFunctionDeclaration` 从来没解析过返回类型 `AS <类型>`。**
+参数表读完直接进「函数体」循环，于是类型名留在 token 流里当成函数体的第一个语句。
+（`INTEGER` 在词法表里是 `IDENTIFIER` —— 只有首字母大写的 `Integer` 才映射到 `VB_INTEGER`。）
+以前它落进 `ParseLetStatement` 被静默丢掉，表面上「没事」；现在变成 `CALL func_integer`，
+`NATIVE FUNCTION f() AS INTEGER` 后面**跟任何语句都编译不过**。
+已在参数表之后补上 `AS <类型>` 的解析，顺带把 `AS STRING` 接上 `IsStringFunction`
+（此前只有名字带 `$` 后缀才能标记字符串返回值）。
+
+**(b) 块式 IF 体只有第一条语句是条件执行的。** 这是本轮最重的一条：
+
+```basic
+IF a = 1 THEN
+  x = 5
+  y = 6
+END IF
+```
+
+`a = 0` 时输出 **`0 6`**（应为 `0 0`）—— `THEN` 之后无论换不换行都只 `ParseStatement()`
+收**一条**，其余全被拍平成无条件执行的兄弟语句。连带 `ELSEIF` 也废了：它只有
+**紧邻**体语句时才被链状 `while` 看见，多语句体的 `ELSEIF` 落在外面
+⇒ 被 `default:` 逐 token 跳过 ⇒ **整条分支变成死代码**。
+
+修法：用 **token 行号**区分（词法里没有换行 token）—— `THEN`/`ELSE` 之后**换行 = 块式**，
+新增 `ParseBlockBody()` 把语句一直收到 `ELSEIF`/`ELSE`/`END IF`；同一行则是单行 IF。
+带一条防死循环兜底（解析器没推进就手工推进一格）。
+
+验证：8 条语义用例全对（多语句体真假、多语句 ELSEIF 真假、块 ELSE、单行 IF、
+单行 IF/ELSE、冒号序列 IF），嵌套块 IF 三种组合全对。
+
+### ④ 顺带查清：`SharedPrefixMap`（auto-detect 自动链接表）在 vmlcli/MauiVml 链上是**死代码**
+
+上一版留下的「补 `["parserexp"]` 不生效」这回查到底了。
+实测方法：在 `AutoDetectSharedLibs` 入口插一句**无条件** `Console.Error.WriteLine`，
+重新构建（已确认插桩字符串进了 `CompilerBase.dll`），跑 C 和 Forth 各一个 ——
+**一次都没打印**。这个方法在这条链上根本没被调用。
+
+真正决定「哪些库被链进来」的是**前端产出的 `.linked` 指令**：
+GenLib 生成的 `Lib/<lang>/builtin.vml` / `builtins.vml` 写出 `.linked "x.vml"`，
+汇编器解析成路径，外层再 `LinkLibraries` 链上
+（`vmlcli/Program.cs` 第 ④ 步那条注释说的就是这件事）。
+
+已在 `SharedPrefixMap` 上方写明这一点，免得后来人再往里加条目。
+⚠ **本轮没有动 `parserexp`** —— 它要生效得改 `modules.json` 的 `Core` 标志，
+而那是**全局**的（会进所有 22 门的 `builtin.vml`），属于另一件事，不在本次范围。
+
+### ⑤ 撤销 v0.96.281 的 Forth 改动 —— 它切断的是链接器**既有**的一条机制
+
+查 ④ 的过程中发现上一版改错了方向。`LibraryLinker.cs:180-183` **本来就会剥掉
+`word_` 前缀再重试**：
+
+```csharp
+// 情况1b: 剥离语言前缀 (word_, func_, method_, var_) 后重试
+// (如 Forth 的 word_str_to_int → str_to_int → lib_conv_str_to_int)
+foreach (string knownPrefix in new[] { "word_", "func_", "method_", "var_" })
+```
+
+所以 `word_ui_call_json_s` → 剥前缀 → `ui_call_json_s`（在已链接的 `shared/vmlui.vml` 里）能解析，
+`Examples/forth/sysinfo.fth` 一直是靠这条路跑通的。v0.96.281 把它换成 `forth_` ——
+那是**链接器不认识的前缀**（不在剥离清单里），等于把这条机制绕过去了。
+
+判据（回退前后各测一遍）：
+
+| | v0.96.281 之前 | v0.96.281 | 本版（已回退） |
+|---|---|---|---|
+| `forth/sysinfo.fth` | ✔ | ✘ `forth_ui_call_json_s` | ✔ |
+| `forth/parserexp_demo.fs` | ✘ `word_parserexp` | ✘ `forth_parserexp` | ✘ `word_parserexp` |
+
+⇒ 已把 `VMLPrepares/ForthCompiler/` 整体回退到 v0.96.281 之前（`WordCallLabel` / `_definedWords`
+全部移除），并在本版说明里记下**为什么**。`parserexp_demo.fs` 回到它原本就不通过的状态
+（根因是 ④，与本条无关）。
+
+**教训**：「某个前缀在库里找不到」的第一反应不该是**换一个前缀**，
+而该先问「链接器/加载器对这个前缀有没有既定处理」—— 换前缀是在**绕开**一条已经工作的机制，
+症状只会从一个地方挪到另一个地方。
+
+### 判据
+
+| | 之前 | 之后 |
+|---|---|---|
+| `vml-diag-probe`（undef-fn + link-clean） | 13/16、22/22 | **38/0/0** |
+| `vml-out-probe` | 29/29 | 29/29 |
+| `vml-abi-probe` | 7/7 | 7/7 |
+| `examples-build` | 77/5 | **78/3** |
+
+`examples-build` 剩的 3 条都是**已记录在案**的：`_selftest/out.f90`（Fortran 格式化 print 限制）、
+`_selftest/out.ld`（Ladder 需 BEGIN）、`forth/parserexp_demo.fs`（上面 ④）。
+另把 `javascript/file_io.js` 补进排除清单 —— 它与已排除的六个 `file_io.*` **是同一类**
+（`asm("CALL shared_file_test")`），此前靠 ② 那条静默缺陷假绿通过。
+
+---
+
 ## v0.96.281 — Forth 词调用：分清「本文件定义」与「库词」（命名约定核对的第一份结果）
 
 ### 核对结果：`word_` 是一张**必然漂移**的手工清单

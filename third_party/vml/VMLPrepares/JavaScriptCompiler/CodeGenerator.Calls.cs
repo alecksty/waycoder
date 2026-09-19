@@ -848,17 +848,46 @@ namespace JavaScriptCompiler
                 isDirectCall = true;
             }
 
+            // 「名字后面跟一对括号」在 JS 里**永远**是调用，不是「从变量取函数地址」——
+            // 后者只出现在 `var f = foo; f()` 这种写法里，而那时光标变量 `var_f` 是**真存在**的。
+            // 所以判据不是「找不到 func_x」，而是「`var_x` 到底有没有」。
+            bool isNamed = !string.IsNullOrEmpty(functionName) && functionName != "unknown";
+            bool hasFuncVar = isNamed && dataSection.ContainsKey($"var_{functionName}");
+
             if (isDirectCall)
             {
                 instructions.Add(new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, callTarget)]));
             }
-            else
+            else if (hasFuncVar || !isNamed)
             {
                 // 间接调用: 从变量 var_functionName 加载函数地址, 然后 CALL R0
+                //
+                // `!isNamed`（callee 既不是成员访问也不是变量名，比如 `obj[f](x)`）走的是
+                // 老路 —— 那条路本来就发不出正确代码（`var_unknown` 不存在），本次**不动它**：
+                // 没有用例覆盖，改了是「未经验证的行为变更」，与本仓「没修好就先撤」同一条。
+                // 真要做，得先给 `obj[f](x)` 造一条用例。
                 string varLabel = $"var_{functionName}";
                 instructions.Add(new Instruction(OpCode.MOVE, [Reg(1), new Operand(OperandType.LABEL, varLabel)]));
                 instructions.Add(new Instruction(OpCode.MOVE, [Reg(0), new Operand(OperandType.MEMORY, "R1")]));
                 instructions.Add(new Instruction(OpCode.CALL, [Reg(0)]));
+            }
+            else
+            {
+                // 既不是本文件里定义的函数，也没有同名变量装着函数地址 ⇒ **直接调这个裸名**，
+                // 由链接器裁决：名字对（库函数，如 `strlen`/`arr_push`）就链上；名字错就报
+                // 「未定义的函数」。
+                //
+                // ⚠ 此前这里**无条件**走上面那条间接调用分支，于是 `nosuch(1)` 生成的是
+                //     move R1 var_nosuch   ← 这个标签根本不存在，汇编期静默变 0
+                //     move R0 @1           ← 从地址 0 读
+                //     call R0              ← 调到 0 去
+                //   链接器**看不见**它（`ReportUnresolved` 只扫 CALL/JMP/J* 的标签操作数，
+                //   而这里的标签挂在 MOVE 上），于是「调了个不存在的函数」一路静默通过编译，
+                //   直到运行期才以一个无从解释的地址错现形。
+                //
+                // 这里同样不自己查「是不是库函数」：前端手里没有那张表（库在
+                // `Lib/javascript/*.vml`，几万个函数），自己维护一张必然与链接器漂移。
+                instructions.Add(new Instruction(OpCode.CALL, [new Operand(OperandType.LABEL, functionName)]));
             }
             if (call.Arguments.Count > 0)
                 instructions.Add(new Instruction(OpCode.ADD, [new Operand(OperandType.REGISTER, 13), new Operand(OperandType.IMMEDIATE, call.Arguments.Count * 4)]));

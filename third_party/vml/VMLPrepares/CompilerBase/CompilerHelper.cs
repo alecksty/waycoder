@@ -615,6 +615,21 @@ namespace CompilerBase
             ["recv"] = "network",
             // os.vml — 操作系统
             ["getenv"] = "os", ["exec"] = "os",
+            // ⚠ **这张表在 vmlcli / MauiVml 这条链上是死代码**（2026-09-19 实测）。
+            //
+            // 实测方法：在 `AutoDetectSharedLibs` 入口插一句无条件 `Console.Error.WriteLine`，
+            // 重新构建（已确认插桩字符串进了 `CompilerBase.dll`），再跑 C 和 Forth 各一个 ——
+            // **一次都没打印**。即这个方法在这条链上根本没被调用。
+            //
+            // 真正决定「哪些库被链进来」的是**前端产出的 `.linked` 指令**：
+            // 前端（GenLib 生成的 `Lib/<lang>/builtin.vml` / `builtins.vml`）写出 `.linked "x.vml"`，
+            // 汇编器 `AssembleWithIncludes` 解析成路径，外层再 `LibraryLinker.LinkLibraries` 链上。
+            // `vmlcli/Program.cs` 第 ④ 步那条注释说的就是这件事（"Pascal / Forth / Ladder / Basic
+            // 不在自己的 CompileFileWithIncludes 里链接 —— 链接是在这里做的"）。
+            //
+            // ⇒ 想让某个模块对某门语言可用，要改的是 **`Lib/modules.json` 的 `Core` 标志
+            //   （全局，会进所有 22 门的 builtin.vml，别轻易动）或那门语言自己的 `.linked` 清单**，
+            //   **不是**往下面这张表里加条目（加了不生效 —— 本轮 Forth 的 `parserexp` 试过）。
         };
 
         public static string? ResolveImportLibrary(string libName, string sourceDir, string langDir)
