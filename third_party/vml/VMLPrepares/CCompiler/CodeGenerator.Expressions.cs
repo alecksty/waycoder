@@ -113,6 +113,9 @@ namespace CCompiler
                 // 数组变量退化为指针: 生成地址而非加载内容
                 if (arrayLocalVars.Contains(ident.Name) && variables.ContainsKey(ident.Name))
                 {
+                    // ⚠ 这条**不走 `FormatVarOffset`**（它自己拿 `variables[...]` 算偏移）——
+                    //   不在这里补记一笔的话，`int a[10]; a[0]=1;` 会被误报成"未使用的局部变量"。
+                    _localRefs.Add(ident.Name);
                     int arrOffset = variables[ident.Name];
                     instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new(OperandType.REGISTER, 0), new(OperandType.REGISTER, 12) }));
                     if (arrOffset >= 0)
@@ -1241,8 +1244,26 @@ namespace CCompiler
         }
 
 
+        /// <summary>
+        /// 本函数里**声明过**的局部量（名字 → 声明行号）。形参不进这里 —— 它们不是
+        /// 「定义了却没有使用」的候选（那是调用方决定的）。由 `CountLocalVariablesEx` 填，
+        /// 它在 `GenerateFunctionPrologue` 里被调用，是**局部量登记的唯一入口**。
+        /// </summary>
+        private readonly Dictionary<string, int> _localDecls = new();
+
+        /// <summary>
+        /// 本函数里**被用到过**的局部量名字。读 / 写 / 取地址 / 数组基址**都会经过
+        /// <see cref="FormatVarOffset"/>**（要拿某个变量的内存位置就得走它），所以记录点收在那一处。
+        /// </summary>
+        private readonly HashSet<string> _localRefs = new();
+
         private string FormatVarOffset(string varName)
         {
+            // 记一笔「这个局部量被用到了」—— 供「未使用局部变量」的警告用
+            //（见 `_localDecls`/`_localRefs` 与 `GenerateFunction` 末尾那次比对）。
+            // 放在这个函数的**入口**（不是某个分支里）：它下面有多条 return 路径。
+            if (variables.ContainsKey(varName)) _localRefs.Add(varName);
+
             // 优先使用 variables 字典（可能已经过编译器特定的偏移调整）
             if (variables.TryGetValue(varName, out int offset))
                 return offset >= 0 ? $"R12+{offset}" : $"R12{offset}";

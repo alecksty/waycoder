@@ -511,7 +511,7 @@ namespace CCompiler
                         }
                         // 函数名 token 的行列 —— 供 `Function.Line/Column` 用
                         // （未使用函数的警告要指到**声明处**，见 `WarnUnused`）。
-                        int funcLine = nameTok.Line, funcCol = nameTok.Column;
+                        int funcLine = nameTok.OriginalLine > 0 ? nameTok.OriginalLine : nameTok.Line, funcCol = nameTok.Column;
 
                         // 函数
                         if (Match(TokenType.LPAREN))

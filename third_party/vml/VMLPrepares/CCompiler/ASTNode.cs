@@ -15,8 +15,24 @@ namespace CCompiler
     /// </summary>
     public abstract class ASTNode
     {
-        /// <summary>源码行号（1-based）；**0 = 未知**。</summary>
+        /// <summary>
+        /// **预处理之后**的源码行号（1-based）；**0 = 未知**。
+        ///
+        /// ⚠ 这个才与 `SourceLines`（= `processedSource.Split('\n')`）**同一套索引** ——
+        ///   产物里 `; N: &lt;原文&gt;` 注释取的就是 `SourceLines[N-1]`，拿别的行号来索引
+        ///   会引到**毫不相干的一行**（实测：引出来的是 stdio.h 里的注释文字）。
+        /// </summary>
         public int Line { get; set; }
+
+        /// <summary>
+        /// **原文件**里的行号（1-based）；**0 = 未知**（没有 lineMap 时退回 <see cref="Line"/>）。
+        ///
+        /// 报给用户/编辑器的必须是这个 —— `#include` 一展开就把后面所有行整体推后
+        /// （实测 `Examples/c/gomoku.c`：`int x0;` 原文件第 196 行、预处理后第 334 行）。
+        /// 与 <see cref="Line"/> **分工不同、不能互相替代**：一个索引 SourceLines，一个给人看。
+        /// </summary>
+        public int OriginalLine { get; set; }
+
         /// <summary>源码列号（1-based）；**0 = 未知**。</summary>
         public int Column { get; set; }
     }

@@ -21,7 +21,12 @@ namespace CCompiler
             //   判据 `> 0`：没填的节点是 0，置 0 会把上一句的行号冲掉。
             if (node.Line > 0)
             {
+                // 两个都设，分工见 `ASTNode.Line`/`OriginalLine`：
+                //   · `CurrentSourceLine`         → `InstrList.Add` 抄进指令 ⇒ 产物里的 `; N:` 注释
+                //                                    （N 必须与 `SourceLines` 同索引）
+                //   · `CurrentSourceOriginalLine` → 诊断给人看的行号（`#include` 展开会推移）
                 CurrentSourceLine = node.Line;
+                CurrentSourceOriginalLine = node.OriginalLine;
                 CurrentSourceColumn = node.Column;
             }
 
@@ -33,6 +38,17 @@ namespace CCompiler
                     break;
                 case VariableDecl varDecl:
                     GenerateVariableDecl(varDecl);
+                    // **声明时那次"写初值"不算使用**。
+                    //
+                    // `int never_used = 5;` 生成时会走一次变量访问（把初值存进去），
+                    // 而"用到过"的记账挂在 `FormatVarOffset` 上 —— 不在这里擦掉的话，
+                    // 每个带初值的局部量都会被当成"用过了"，**整个检查形同虚设**（实测踩到）。
+                    //
+                    // 这也是 C 编译器自己的分界：`-Wunused-variable` 管的就是
+                    // "声明了但没人读"，而"写过却没读"是另一档（`-Wunused-but-set-variable`），
+                    // 那一档要区分"死存储"和"有意写但不读"，误报风险大，本版不做。
+                    // 声明之后再被写（`x = 1;` 出现在函数体里）会重新记账，所以那种情况仍然算使用。
+                    _localRefs.Remove(varDecl.Name);
                     break;
                 case IfStatement ifStmt:
                     GenerateIfStatement(ifStmt);

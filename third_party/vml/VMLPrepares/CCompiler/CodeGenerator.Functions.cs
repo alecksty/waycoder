@@ -627,6 +627,24 @@ namespace CCompiler
 
             // 函数尾声
             GenerateFunctionEpilogue(function);
+
+            // **定义了却没被用到的局部变量 —— 出警告**（用户要的「局部变量或者函数」的
+            // 前一半；后一半在 `GenerateCode` 末尾处理未使用的函数）。
+            //
+            // 判据：**声明过、但整个函数体里一次都没被引用**（读/写/取地址/数组基址都算引用）。
+            // 比"只写不读"更保守 —— 后者要区分"死存储"和"有意写但不读"，误报风险大；
+            // 而"从头到尾没出现过"是**没有任何争议**的。
+            //
+            // 按行号排序再报：`Dictionary` 的枚举顺序是实现细节，让它决定诊断顺序
+            // 会让同一个文件两次编译的输出不一样（自测/回归比对会莫名其妙地飘）。
+            foreach (var kv in _localDecls.OrderBy(k => k.Value))
+            {
+                if (_localRefs.Contains(kv.Key)) continue;
+                // 行号是声明处自己带下来的（`CountLocalVariablesEx` 记的）——
+                // 不能借用 `CurrentSourceLine`：这里已经跑在函数末尾，游标早就不在声明处了。
+                WarnUnused(kv.Key, ErrorCode.CodeGen_UnusedVariable, "局部变量", line: kv.Value,
+                    hint: "它在整个函数体里一次都没被用到，删掉即可。");
+            }
         }
 
         /// <summary>
@@ -788,6 +806,10 @@ namespace CCompiler
             }
 
             // 统计局部变量（不包括参数）
+            // 顺带清空"本函数的声明/引用"两张表 —— 它们的作用域就是**一个函数**
+            //（见 `GenerateFunction` 末尾那次比对）。
+            _localDecls.Clear();
+            _localRefs.Clear();
             var localIndex = 0;
             CountLocalVariablesEx(function.Body, ref localIndex);
 
@@ -974,6 +996,10 @@ namespace CCompiler
                     else if (varInfo != null)
                         adjustedOffset = varInfo.Offset + allocSize - elementSize;
                     variables[varDecl.Name] = adjustedOffset;
+                    // 记下「这个局部量在这一行声明的」—— 供「未使用局部变量」的警告用。
+                    // 这里（`CountLocalVariablesEx`）是局部量登记的**唯一入口**，
+                    // 所以不必再去 `GenerateVariableDecl` 里挂一次（那会是同一规则两处实现）。
+                    _localDecls[varDecl.Name] = varDecl.OriginalLine > 0 ? varDecl.OriginalLine : varDecl.Line;
                     int unitsNeeded = (allocSize + 3) / 4;
                     localIndex += unitsNeeded;
                     variableTypes[varDecl.Name] = StringToExprType(varDecl.Type);

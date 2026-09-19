@@ -544,9 +544,26 @@ HALT
             || text.StartsWith(".entry", StringComparison.Ordinal)
             || text.StartsWith(".text", StringComparison.Ordinal);
 
-        return hasAsmMarkers
-               && !text.Contains("#include", StringComparison.Ordinal)
-               && !text.Contains("#INCLUDE", StringComparison.Ordinal);
+        return hasAsmMarkers && !HasRawInclude(text);
+    }
+
+    /// <summary>
+    /// 产物里有没有**真的没被展开**的 `#include`。
+    ///
+    /// ⚠ 判据是「**行首** + **跳过注释行**」，不是 `text.Contains("#include")`：
+    ///   产物里的 `; N: &lt;源码行原文&gt;` 注释会**原样引用用户写的源码行** ——
+    ///   而 C 程序第一行往往就是 `#include &lt;stdio.h&gt;`（`vmlcli` 里那份同款判据
+    ///   就是被这个打成假失败的，实测 `scripts/vml-out-probe/langs/nat.c`）。
+    /// </summary>
+    private static bool HasRawInclude(string text)
+    {
+        foreach (var line in text.Split('\n'))
+        {
+            var s = line.TrimStart();
+            if (s.StartsWith(";", StringComparison.Ordinal)) continue;   // 注释行：引用的源码不算
+            if (s.StartsWith("#include", StringComparison.OrdinalIgnoreCase)) return true;
+        }
+        return false;
     }
 
     /// <summary>

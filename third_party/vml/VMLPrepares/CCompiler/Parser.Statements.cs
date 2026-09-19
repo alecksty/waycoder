@@ -19,12 +19,41 @@ namespace CCompiler
         /// </summary>
         private ASTNode ParseStatement()
         {
-            int line = Current().Line, col = Current().Column;
+            // ⚠ **优先用 `OriginalLine`，不是 `Line`** —— `Line` 是**预处理之后**的行号，
+            //   而 `#include` 一展开就把后面所有行整体推后（实测 `Examples/c/gomoku.c`：
+            //   `int x0;` 在原文件第 196 行、预处理后第 334 行，差 138 行）。
+            //   报给用户的必须是**他在编辑器里看到的那一行**，否则气泡会锚到毫不相干的位置。
+            //   这条口径与 `Parser.Core.cs` 报语法错时用的（`currentToken.OriginalLine > 0 ? … : …`）
+            //   **完全一致** —— 同一个"哪一行才算数"的问题不该有两套答案。
+            // 两个行号**都要留**，它们分工不同（见 `ASTNode.Line`/`OriginalLine` 的说明）：
+            //   · `Line`         = 预处理后的行号 —— **索引 `SourceLines` 用**（产物里的 `; N:` 注释）
+            //   · `OriginalLine` = 原文件行号     —— **报给用户/编辑器用**
+            // 只留一个都不行：只用 `Line` ⇒ 用户看到的行号被 `#include` 推后（gomoku 差 138 行）；
+            // 只用 `OriginalLine` ⇒ 注释引错原文（实测引到 stdio.h 里去），
+            // 而且引出来的原文里若含 `#include` 字面量，还会把宿主的产物自检**误判成编译失败**。
+            var startTok = Current();
+            int line = startTok.Line;
+            int origLine = startTok.OriginalLine;
+            int col = startTok.Column;
             var node = ParseStatementCore();
             if (node != null && node.Line == 0)
             {
                 node.Line = line;
+                node.OriginalLine = origLine;
                 node.Column = col;
+            }
+            // `int i, j, m[4], hit;` 这种**一条声明多个变量**的形式，解析器返回的是一个
+            // 装着各 `VariableDecl` 的 `Block`（见 `Parser.Statements.cs` 里 `fpVars` 那段），
+            // 只盖外层 `Block` 的话里面每个变量都是 `Line = 0` ⇒ 关于它们的警告指不到行。
+            // 判据收紧到「整块都是变量声明」，免得把真正的嵌套语句块（那些各自有自己的行号）
+            // 一并盖成同一行。
+            if (node is Block declBlock && declBlock.Statements.Count > 0
+                && declBlock.Statements.All(s => s is VariableDecl))
+            {
+                foreach (var d in declBlock.Statements)
+                {
+                    if (d.Line == 0) { d.Line = line; d.OriginalLine = origLine; d.Column = col; }
+                }
             }
             return node;
         }

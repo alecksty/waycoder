@@ -79,7 +79,7 @@ namespace CompilerBase
             // `CompilerHelper.CurrentSourceFile` 是 `[ThreadStatic]` 的，由
             // `CompileFileStandard` 在进编译器前设好 —— 与 `CompileWithDiagnostics`
             // 取文件名的地方同源。
-            Diags.AddError(CompilerHelper.CurrentSourceFile ?? "<input>", CurrentSourceLine, CurrentSourceColumn, code,
+            Diags.AddError(CompilerHelper.CurrentSourceFile ?? "<input>", DiagLine, CurrentSourceColumn, code,
                 $"未声明的{kind} '{name}'", hint ?? $"先声明它（{kind}要先声明再引用）；名字拼错了也会报这一条。");
         }
 
@@ -95,7 +95,7 @@ namespace CompilerBase
         /// </summary>
         protected void WarnUndefined(string name, ErrorCode code, string kind, string? hint = null)
         {
-            Diags.AddWarning(CompilerHelper.CurrentSourceFile ?? "<input>", CurrentSourceLine, CurrentSourceColumn, code,
+            Diags.AddWarning(CompilerHelper.CurrentSourceFile ?? "<input>", DiagLine, CurrentSourceColumn, code,
                 $"隐式声明的{kind} '{name}'",
                 hint ?? $"它没有声明过，按这门语言的默认规则被隐式创建；建议显式声明。");
         }
@@ -113,7 +113,7 @@ namespace CompilerBase
         protected void WarnUnused(string name, ErrorCode code, string kind, int line = -1, int col = 0, string? hint = null)
         {
             Diags.AddWarning(CompilerHelper.CurrentSourceFile ?? "<input>",
-                line >= 0 ? line : CurrentSourceLine,
+                line >= 0 ? line : DiagLine,
                 // 显式给了行号时列也一并给（不给就写 0）——**别顺手用 `CurrentSourceColumn`**：
                 // 这个调用通常发生在生成之后的清理段，游标早就不在声明处了，
                 // 那一列会指到毫不相干的位置上，比没有列更糟。
@@ -156,6 +156,22 @@ namespace CompilerBase
         /// 打出 `:0`，而宿主侧 `VmlDiagnostics` 的 GCC 正则把列当可选，锚点仍落在行上。
         /// </summary>
         public int CurrentSourceColumn { get; set; } = 0;
+
+        /// <summary>
+        /// 当前语句在**原文件**里的行号（1-based）；**0 = 未知**（退回 <see cref="CurrentSourceLine"/>）。
+        ///
+        /// 与 <see cref="CurrentSourceLine"/> 的分工：后者是**预处理后**的行号，
+        /// 它要跟 `SourceLines`（= 预处理后的文本）同一套索引 —— 产物里 `; N: &lt;原文&gt;` 注释
+        /// 就靠这个索引取原文。而**报给用户的行号**必须是原文件的，否则 `#include` 一展开
+        /// 全部推后（实测 `Examples/c/gomoku.c` 差 138 行）。
+        ///
+        /// 所以诊断一律取这个（拿不到才退回去），而 `Instruction.SourceLine` 仍取
+        /// <see cref="CurrentSourceLine"/>。
+        /// </summary>
+        public int CurrentSourceOriginalLine { get; set; } = 0;
+
+        /// <summary>诊断该用的行号：优先原文件行号，没有就退回预处理后的行号。</summary>
+        private int DiagLine => CurrentSourceOriginalLine > 0 ? CurrentSourceOriginalLine : CurrentSourceLine;
 
         /// <summary>
         /// 源码行文本数组（行号 0 对应第 1 行），为 null 时不生成源码注释
