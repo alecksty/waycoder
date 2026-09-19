@@ -1,10 +1,25 @@
 namespace CCompiler
 {
     /// <summary>
-    /// AST 基类
+    /// AST 基类。
+    ///
+    /// ⚠ 位置字段（<see cref="Line"/>/<see cref="Column"/>）是**后补的** —— 此前这个基类是**完全空的**，
+    /// 全仓 41 个节点类一个行号都没有。后果是三件事都做不到：
+    ///   · 报错给不出行列号（未声明变量只报 `<input>: error:`，指不到哪一行）；
+    ///   · 未使用符号的警告指不到声明处；
+    ///   · 编辑器里的气泡没有锚点。
+    ///
+    /// 填法收在**语句入口** `Parser.ParseStatement()` 一处（改名前是它的主体）——
+    /// 在那里记下起始 token 的行列、解析完再盖到节点上，一处覆盖全部 36 个 return。
+    /// **0 = 没填**（表达式节点一般不填，只有语句/声明级别的才需要）。
     /// </summary>
     public abstract class ASTNode
-    {}
+    {
+        /// <summary>源码行号（1-based）；**0 = 未知**。</summary>
+        public int Line { get; set; }
+        /// <summary>源码列号（1-based）；**0 = 未知**。</summary>
+        public int Column { get; set; }
+    }
 
     /// <summary>
     /// 程序

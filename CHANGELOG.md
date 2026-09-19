@@ -1,3 +1,71 @@
+## v0.96.289 — C 的 AST 补上位置信息：报错终于有**行列号**了
+
+### 一句注释挂了很久
+
+```
+// ⚠ **C 这边暂时设不了 `CurrentSourceLine`** —— 它的 `ASTNode` 是个**空基类**，
+//   一个位置字段都没有（`Token` 上倒是有 `Line`/`Column`，但解析器没往 AST 上带）。
+```
+
+这是全仓**唯一**一门在 `GenerateStatement` 里设不了行号的语言（Dart/Basic 等早就有 `node.Line`），
+代价是三件事一起做不了：报错给不出行列号、警告指不到声明处、编辑器气泡没有锚点。
+**杠杆最大的一处**，这一版补上。
+
+### 填法：一处覆盖 36 个 return
+
+`Parser.ParseStatement()` 是**单一入口**（36 个 `return` 全在一个方法里）。
+所以不改那 36 处，而是**改名 + 包一层**：
+
+```csharp
+private ASTNode ParseStatement()          // 新：记下起始 token 的行列
+{
+    int line = Current().Line, col = Current().Column;
+    var node = ParseStatementCore();
+    if (node != null && node.Line == 0) { node.Line = line; node.Column = col; }
+    return node;
+}
+private ASTNode ParseStatementCore() { ...原来的 36 个 return... }
+```
+
+用 `Line == 0` 才盖 ⇒ 子解析器自己填过的**更精确**的位置不会被外层冲掉。
+
+⚠ **只盖语句/声明级别**，不盖表达式节点 —— 那要改几百处构造点，而三件要办的事
+（报错行列号 / 警告指到声明处 / 气泡锚点）**都只需要语句粒度**。
+
+### 顺带补上「列」
+
+`ReportUndefined` 里列是**硬编码 0** 的。加 `CodeGeneratorBase.CurrentSourceColumn`
+与 `CurrentSourceLine` 配对，C 在语句入口一起设。
+
+**`WarnUnused` 那处刻意不用 `CurrentSourceColumn`**：它通常在生成之后的清理段调用，
+游标早就不在声明处了，那一列会指到毫不相干的位置上 —— **比没有列更糟**。
+所以显式传 `line` 时列也一并传，不传就写 0。
+
+### 判据
+
+| 位置 | 改之前 | 改之后 |
+|---|---|---|
+| C 未声明变量（`_multi.c` 第 3~6 行） | `<input>: error: …`（无位置） | `<input>:3:5:` / `:4:5:` / `:5:5:` / `:6:5:` |
+| 未使用函数（`static` 在第 5 行第 12 列） | `<input>: warning: …` | `<input>:5:12: warning: …` |
+
+两者都与源码对得上（`int a = ...` 缩进 4 空格 ⇒ 列 5；`static int never_used` 的 `n` ⇒ 列 12）。
+
+| | 之前 | 之后 |
+|---|---|---|
+| `diag-probe` | 60/0/0 | 60/0/0 |
+| `vml-out-probe` | 29/29 | 29/29 |
+| `vml-abi-probe` | 7/7 | 7/7 |
+| `examples-build` | 78/3 | 78/3 |
+| 桌面自测 | 5998/0 | 5998/0 |
+
+### 现在还剩什么
+
+`P5 语法错误恢复` 的前提被实测推翻了（C 解析器**不报**语法错，不是"只报一个"）——
+那是"解析器够不够严"的设计取舍，要另定。`未使用局部变量` 那半：
+位置信息这一版已经就位，缺的只是"本函数引用过哪些名字"的记录集。
+
+---
+
 ## v0.96.288 — 把编译期警告接到手机上：`MauiVml` 只接了运行期的 stderr
 
 ### 症状：功能做了，用户永远看不到

@@ -11,11 +11,19 @@ namespace CCompiler
 {
         private void GenerateStatement(ASTNode node)
         {
-            // ⚠ **C 这边暂时设不了 `CurrentSourceLine`** —— 它的 `ASTNode` 是个**空基类**，
-            //   一个位置字段都没有（`Token` 上倒是有 `Line`/`Column`，但解析器没往 AST 上带）。
-            //   所以"C 的报错带行号"这件事要先给 AST 补位置信息，是**独立的一块活**
-            //   （与 `Dart`/`Basic` 那种 `node.Line` 现成可用的语言不同）。
-            //   在那之前这里的诊断退化成"只报名字" —— **取不到就不显示，不编造一个行号**。
+            // 让随后生成的每条指令带上源码行号（语义见 CodeGeneratorBase.CurrentSourceLine）：
+            // 它是产物里 `; N: <原文>` 注释的来源，汇编器再读回 `Instruction.SourceLine`
+            // ⇒ 链接期/语义期报错才给得出**行列号**（否则只能报个名字）。
+            //
+            // ⚠ 这一句此前**写不了** —— C 的 `ASTNode` 是个空基类，41 个节点类一个位置字段都没有。
+            //   已给基类补上 `Line`/`Column`，并收在**语句入口** `Parser.ParseStatement()` 一处填
+            //   （改名前是那个方法的主体，包一层就覆盖了全部 36 个 return）。
+            //   判据 `> 0`：没填的节点是 0，置 0 会把上一句的行号冲掉。
+            if (node.Line > 0)
+            {
+                CurrentSourceLine = node.Line;
+                CurrentSourceColumn = node.Column;
+            }
 
             switch (node)
             {

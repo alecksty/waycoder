@@ -7,7 +7,29 @@ namespace CCompiler
 {
     public partial class Parser : ParserBase<Token, TokenType>
     {
+        /// <summary>
+        /// 语句入口 —— **顺手给每条语句盖上起始行列**（`ASTNode.Line`/`Column`）。
+        ///
+        /// 为什么包一层而不是在 36 个 `return` 处各写一遍：这个方法是**单一入口**，
+        /// 包在这里一处就把全部语句（含递归进来的嵌套语句）都覆盖了。
+        /// 用 `Line == 0` 才盖（子解析器自己填过的就不覆盖），所以内层更精确的位置不会被外层冲掉。
+        ///
+        /// ⚠ 只盖**语句/声明**级别，不盖表达式节点 —— 那需要改几百处构造点，
+        /// 而三件要办的事（报错行列号 / 警告指到声明处 / 气泡锚点）都只需要语句粒度。
+        /// </summary>
         private ASTNode ParseStatement()
+        {
+            int line = Current().Line, col = Current().Column;
+            var node = ParseStatementCore();
+            if (node != null && node.Line == 0)
+            {
+                node.Line = line;
+                node.Column = col;
+            }
+            return node;
+        }
+
+        private ASTNode ParseStatementCore()
         {
             // 处理enum、struct和union定义（局部作用域）
             if (Current().Type == TokenType.ENUM)

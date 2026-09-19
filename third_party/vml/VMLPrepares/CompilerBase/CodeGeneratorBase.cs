@@ -79,7 +79,7 @@ namespace CompilerBase
             // `CompilerHelper.CurrentSourceFile` 是 `[ThreadStatic]` 的，由
             // `CompileFileStandard` 在进编译器前设好 —— 与 `CompileWithDiagnostics`
             // 取文件名的地方同源。
-            Diags.AddError(CompilerHelper.CurrentSourceFile ?? "<input>", CurrentSourceLine, 0, code,
+            Diags.AddError(CompilerHelper.CurrentSourceFile ?? "<input>", CurrentSourceLine, CurrentSourceColumn, code,
                 $"未声明的{kind} '{name}'", hint ?? $"先声明它（{kind}要先声明再引用）；名字拼错了也会报这一条。");
         }
 
@@ -95,7 +95,7 @@ namespace CompilerBase
         /// </summary>
         protected void WarnUndefined(string name, ErrorCode code, string kind, string? hint = null)
         {
-            Diags.AddWarning(CompilerHelper.CurrentSourceFile ?? "<input>", CurrentSourceLine, 0, code,
+            Diags.AddWarning(CompilerHelper.CurrentSourceFile ?? "<input>", CurrentSourceLine, CurrentSourceColumn, code,
                 $"隐式声明的{kind} '{name}'",
                 hint ?? $"它没有声明过，按这门语言的默认规则被隐式创建；建议显式声明。");
         }
@@ -110,10 +110,14 @@ namespace CompilerBase
         /// 显式传行号是为了那些"在末尾统一清理"的场合 —— 那时游标早已不在声明处，
         /// 用 <see cref="CurrentSourceLine"/> 会指到**毫不相干的一行**上（比没有行号更糟）。
         /// </summary>
-        protected void WarnUnused(string name, ErrorCode code, string kind, int line = -1, string? hint = null)
+        protected void WarnUnused(string name, ErrorCode code, string kind, int line = -1, int col = 0, string? hint = null)
         {
             Diags.AddWarning(CompilerHelper.CurrentSourceFile ?? "<input>",
-                line >= 0 ? line : CurrentSourceLine, 0, code,
+                line >= 0 ? line : CurrentSourceLine,
+                // 显式给了行号时列也一并给（不给就写 0）——**别顺手用 `CurrentSourceColumn`**：
+                // 这个调用通常发生在生成之后的清理段，游标早就不在声明处了，
+                // 那一列会指到毫不相干的位置上，比没有列更糟。
+                line >= 0 ? col : CurrentSourceColumn, code,
                 $"定义了但从未使用的{kind} '{name}'",
                 hint ?? $"它不会出现在编译产物里；如果确实用不到，删掉它能少一份维护负担。");
         }
@@ -142,6 +146,16 @@ namespace CompilerBase
         /// 当前正在处理的源码行号（-1 表示未知）
         /// </summary>
         public int CurrentSourceLine { get; set; } = -1;
+
+        /// <summary>
+        /// 当前正在处理的源码**列号**（1-based）；**0 = 未知**。
+        ///
+        /// 与 <see cref="CurrentSourceLine"/> 配对：诊断的 `file:line:col:` 两段分别取它们。
+        /// 只有**手里真有列号**的语言才设（目前是 C —— 它的 `ASTNode` 补上了 `Line`/`Column`，
+        /// 解析器在语句入口一起盖）；其余语言留 0，`CompilerError.LocationString` 会照常
+        /// 打出 `:0`，而宿主侧 `VmlDiagnostics` 的 GCC 正则把列当可选，锚点仍落在行上。
+        /// </summary>
+        public int CurrentSourceColumn { get; set; } = 0;
 
         /// <summary>
         /// 源码行文本数组（行号 0 对应第 1 行），为 null 时不生成源码注释

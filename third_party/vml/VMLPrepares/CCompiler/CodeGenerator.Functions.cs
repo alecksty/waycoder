@@ -120,7 +120,9 @@ namespace CCompiler
                 if (usedFunctions.Contains(func.Name)) continue;
                 if (func.Body == null || func.Body.Statements.Count == 0) continue;  // 声明 ≠ 定义
                 if (!func.IsStatic) continue;                                        // 外部可访问 ⇒ 不报
-                WarnUnused(func.Name, ErrorCode.CodeGen_UnusedFunction, "函数", line: 0,
+                // 行号用函数自己的（`Parser` 在函数名 token 上盖的）—— 这个清理段跑在生成之后、
+                // `CurrentSourceLine` 停在最后一条语句，用它会把警告指到**毫不相干的一行**上。
+                WarnUnused(func.Name, ErrorCode.CodeGen_UnusedFunction, "函数", line: func.Line, col: func.Column,
                     hint: "它是 static 的（外部访问不到）却没在本文件里用过，不会被编进产物；删掉即可。");
             }
 

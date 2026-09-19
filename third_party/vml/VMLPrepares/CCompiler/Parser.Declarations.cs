@@ -496,16 +496,22 @@ namespace CCompiler
                     {
                         // 支持 type (name)(params) 语法（Lua API: extern int (name)(params)）
                         string name;
+                        Token nameTok;
                         if (Current().Type == TokenType.LPAREN)
                         {
                             Advance(); // (
-                            name = Advance().Value.ToString(); // function name
+                            nameTok = Advance(); // function name
+                            name = nameTok.Value.ToString();
                             Expect(TokenType.RPAREN);
                         }
                         else
                         {
-                            name = Advance().Value.ToString();
+                            nameTok = Advance();
+                            name = nameTok.Value.ToString();
                         }
+                        // 函数名 token 的行列 —— 供 `Function.Line/Column` 用
+                        // （未使用函数的警告要指到**声明处**，见 `WarnUnused`）。
+                        int funcLine = nameTok.Line, funcCol = nameTok.Column;
 
                         // 函数
                         if (Match(TokenType.LPAREN))
@@ -751,6 +757,7 @@ namespace CCompiler
                                 // `static` 带过去（`storageClass` 是本方法开头那圈存储类说明符扫描留下的）
                                 var func = ParseFunction(typeName, name, _pendingInterrupt, _pendingConvention,
                                     storageClass == "static");
+                                func.Line = funcLine; func.Column = funcCol;
                                 _pendingInterrupt = false;
                                 _pendingConvention = TokenType.EOF;
                                 // 检查是否已存在同名函数：定义替换声明，重复定义则覆盖
