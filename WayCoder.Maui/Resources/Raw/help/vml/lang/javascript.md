@@ -13,7 +13,7 @@ vml run examples/javascript/bench.js
 
 ## 写法要点
 
-- 定义 `function main()` 之后**记得手动调用一次**
+- 定义 `function main()` 之后«bold»记得手动调用一次«/»
 - 直接调用 `ui_*`
 
 ## 示例
@@ -35,18 +35,18 @@ vml run examples/javascript/bench.js
 
 ### JavaScript 语言编译器规范说明
 
-> **版本**：v1.0 | **日期**：2026-07-06 | **修订者**：深圳市探索智能科技有限公司
+> «bold»版本«/»：v1.0 | «bold»日期«/»：2026-07-06 | «bold»修订者«/»：深圳市探索智能科技有限公司
 
 #### 规范标准
 
 | 字段 | 值 |
 |:-----|:----|
-| **目标标准** | ECMAScript 5.1 子集 (2011) |
-| **发布年份** | 2011 |
-| **完成度** | ~94% |
-| **MCU完成度** | ~92% |
-| **测试** | 0 (测试目录待创建) |
-| **更新** | 2026-05-18: 修正完成度和实现状态描述 |
+| «bold»目标标准«/» | ECMAScript 5.1 子集 (2011) |
+| «bold»发布年份«/» | 2011 |
+| «bold»完成度«/» | ~94% |
+| «bold»MCU完成度«/» | ~92% |
+| «bold»测试«/» | 0 (测试目录待创建) |
+| «bold»更新«/» | 2026-05-18: 修正完成度和实现状态描述 |
 
 #### 关键字
 
@@ -64,19 +64,19 @@ vml run examples/javascript/bench.js
 ##### 1. 数据类型
 
 ###### 原始类型
-- **数字**: `Number` - 双精度浮点数，如 `42`, `3.14`, `0xFF`
-- **字符串**: `String` - Unicode 字符串，如 `"hello"`, `'world'`
-- **布尔值**: `Boolean` - `true` 或 `false`
-- **空值**: `null` - 空对象引用
-- **未定义**: `undefined` - 未定义的值
-- **符号**: `Symbol` (ES6) - 唯一标识符
+- «bold»数字«/»: `Number` - 双精度浮点数，如 `42`, `3.14`, `0xFF`
+- «bold»字符串«/»: `String` - Unicode 字符串，如 `"hello"`, `'world'`
+- «bold»布尔值«/»: `Boolean` - `true` 或 `false`
+- «bold»空值«/»: `null` - 空对象引用
+- «bold»未定义«/»: `undefined` - 未定义的值
+- «bold»符号«/»: `Symbol` (ES6) - 唯一标识符
 
 ###### 对象类型
-- **对象**: `Object` - 键值对集合
-- **数组**: `Array` - 有序集合
-- **函数**: `Function` - 可执行代码块
-- **日期**: `Date` - 日期时间
-- **正则表达式**: `RegExp` - 正则模式
+- «bold»对象«/»: `Object` - 键值对集合
+- «bold»数组«/»: `Array` - 有序集合
+- «bold»函数«/»: `Function` - 可执行代码块
+- «bold»日期«/»: `Date` - 日期时间
+- «bold»正则表达式«/»: `RegExp` - 正则模式
 
 ##### 2. 变量声明
 
@@ -521,20 +521,20 @@ main:
 ##### 12. 限制和注意事项
 
 ###### 当前限制
-1. **不支持的特性**:
+1. «bold»不支持的特性«/»:
    - eval() 函数
    - with 语句
    - 动态属性名（部分支持）
    - Proxy 对象
    - Reflect API
 
-2. **简化实现**:
+2. «bold»简化实现«/»:
    - 原型链为简化版本
    - 闭包实现有限制
    - 异步操作为模拟实现
    - 垃圾回收由VML运行时管理
 
-3. **性能考虑**:
+3. «bold»性能考虑«/»:
    - 静态编译，无JIT优化
    - 对象布局固定
    - 无动态代码执行
@@ -612,25 +612,25 @@ VML 工具链通过三个编译参数控制浮点和 64 位整数的处理策略
 
 JavaScript 中所有数字为 `Number` 类型（IEEE 754 双精度），VML 编译时按以下模式处理 32 位浮点运算：
 
-- **`hard` 模式（默认）**: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
-- **`soft` 模式**: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
-- **`none` 模式**: 禁用所有浮点运算。
+- «bold»`hard` 模式（默认）«/»: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
+- «bold»`soft` 模式«/»: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
+- «bold»`none` 模式«/»: 禁用所有浮点运算。
 
 ##### 64位浮点 (double)
 
 JavaScript 的 `Number` 类型原生为 IEEE 754 双精度 64 位浮点，VML 编译时按以下模式处理：
 
-- **`soft` 模式（默认）**: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
-- **`hard` 模式**: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。需要目标平台支持 64 位运算。
-- **`none` 模式**: 禁用所有 64 位浮点运算。
+- «bold»`soft` 模式（默认）«/»: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
+- «bold»`hard` 模式«/»: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。需要目标平台支持 64 位运算。
+- «bold»`none` 模式«/»: 禁用所有 64 位浮点运算。
 
 ##### 64位整数 (int64)
 
 JavaScript 不区分整数与浮点类型，所有数字统一为 `Number`。VML 编译层预留 `--int64` 参数用于未来 BigInt 扩展支持：
 
-- **`soft` 模式（默认）**: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
-- **`hard` 模式**: 预留，未来 VML 版本将支持原生 64 位整数指令。
-- **`none` 模式**: 禁用 64 位整数扩展。
+- «bold»`soft` 模式（默认）«/»: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
+- «bold»`hard` 模式«/»: 预留，未来 VML 版本将支持原生 64 位整数指令。
+- «bold»`none` 模式«/»: 禁用 64 位整数扩展。
 
 ##### 软件模拟库
 
@@ -658,11 +658,11 @@ JavaScript 不区分整数与浮点类型，所有数字统一为 `Number`。VML
 - ❌ 标准库 (Lib/javascript/) — 待创建
 
 ##### 开发路线图
-1. **阶段1**: 基础语法支持 (var、函数、控制流) — ✅ 完成
-2. **阶段2**: 对象和数组支持 — ⚠️ 基本完成
-3. **阶段3**: 类和模块支持 — ❌ 待实现
-4. **阶段4**: 异步编程支持 — ❌ 待实现
-5. **阶段5**: 性能优化和标准库完善 — ❌ 待实现
+1. «bold»阶段1«/»: 基础语法支持 (var、函数、控制流) — ✅ 完成
+2. «bold»阶段2«/»: 对象和数组支持 — ⚠️ 基本完成
+3. «bold»阶段3«/»: 类和模块支持 — ❌ 待实现
+4. «bold»阶段4«/»: 异步编程支持 — ❌ 待实现
+5. «bold»阶段5«/»: 性能优化和标准库完善 — ❌ 待实现
 
 #### 编译和运行
 
@@ -700,8 +700,8 @@ vmltool app.js -o output.vml --lang javascript
 | MCU (默认) | `.string` (UTF-8) | `.string` | #1 |
 | OS | `.wstring` (UTF-16LE) | `.wstring` | #391 |
 
-**预定义宏**: `VML_WSTRING` — OS 模式下自动定义，MCU 模式未定义
-**输出函数**: OS 模式自动使用 `shared_print_wstr` (UTF-16LE→UTF-8 自动转换)
+«bold»预定义宏«/»: `VML_WSTRING` — OS 模式下自动定义，MCU 模式未定义
+«bold»输出函数«/»: OS 模式自动使用 `shared_print_wstr` (UTF-16LE→UTF-8 自动转换)
 
 ```c
 // 用户代码可通过宏判断编码
@@ -716,9 +716,9 @@ vmltool app.js -o output.vml --lang javascript
 
 ### JavaScript (ECMAScript 5) 编译器
 
-**路径**: `VMLPrepares/JavaScriptCompiler/`
-**完成度**: ~94% | 🟢 生产可用
-**标准库**: `Lib/javascript/`（待创建）
+«bold»路径«/»: `VMLPrepares/JavaScriptCompiler/`
+«bold»完成度«/»: ~94% | 🟢 生产可用
+«bold»标准库«/»: `Lib/javascript/`（待创建）
 
 #### 功能
 - ✅ 完整语法分析 + 代码生成
@@ -735,10 +735,10 @@ vmltool app.js -o output.vml --lang javascript
 ##### MCU 模式（默认 `--mode mcu`）
 MCU 模式针对单片机/裸机环境（Arduino/STM32/8051 等）优化，自动跳过不兼容操作系统的特性。
 
-**跳过**（遇到这些语法不生成代码）:
+«bold»跳过«/»（遇到这些语法不生成代码）:
 - async/await、Promise、eval
 
-**保留**（由 BIOS 实现底层）:
+«bold»保留«/»（由 BIOS 实现底层）:
 - 闭包、对象、数组
 - POKE/PEEK 内存映射 I/O (MMIO)
 - 基本类型运算、控制流、函数调用
@@ -749,7 +749,7 @@ OS 模式针对带操作系统环境（如 Linux 嵌入式、RTOS 等），届�
 
 ##### RAM 级别
 - `--ram k`：KB级别（2KB~64KB，如 8051/PIC/AVR）
-- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，**默认**）
+- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，«bold»默认«/»）
 - `--ram g`：GB级别（如 x86/DDR 系统）
 - `--stack-size <bytes>`：手动指定栈大小（默认自动根据 --ram 分配）
 

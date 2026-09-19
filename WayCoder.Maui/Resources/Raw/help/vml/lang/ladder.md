@@ -1,6 +1,6 @@
 # Ladder
 
-梯形图（PLC）风格的前端 —— 它**做不了手机界面程序**。
+梯形图（PLC）风格的前端 —— 它«bold»做不了手机界面程序«/»。
 
 这一路能用的是「编译与运行」本身，UI 那整套接口（开窗/绘图/输入）没有对应语法（没有「带字符串参数的函数调用」）。
 
@@ -15,7 +15,7 @@ vml run examples/ladder/file_io.ld
 
 ## 写法要点
 
-- 只能写声明与简单逻辑，**不能调 UI 接口**
+- 只能写声明与简单逻辑，«bold»不能调 UI 接口«/»
 
 ## 示例
 
@@ -38,29 +38,29 @@ vml run examples/ladder/file_io.ld
 
 ### 梯形图语言编译器规范说明
 
-> **版本**：v1.0 | **日期**：2026-07-06 | **修订者**：深圳市探索智能科技有限公司
+> «bold»版本«/»：v1.0 | «bold»日期«/»：2026-07-06 | «bold»修订者«/»：深圳市探索智能科技有限公司
 
 #### 规范标准
 
 | 字段 | 值 |
 |:-----|:----|
-| **目标标准** | IEC 61131-3 子集 (2003) |
-| **发布年份** | 2003 |
-| **完成度** | ~98% |
-| **MCU完成度** | ~97% |
-| **测试** | 0 (测试目录待创建) |
-| **更新** | 2026-05-18: 更新定时器实现为 SYSCALL #53 实时时钟；修正代码生成器状态 |
+| «bold»目标标准«/» | IEC 61131-3 子集 (2003) |
+| «bold»发布年份«/» | 2003 |
+| «bold»完成度«/» | ~98% |
+| «bold»MCU完成度«/» | ~97% |
+| «bold»测试«/» | 0 (测试目录待创建) |
+| «bold»更新«/» | 2026-05-18: 更新定时器实现为 SYSCALL #53 实时时钟；修正代码生成器状态 |
 
 #### 关键字（指令）
 
-**触点**: `NO`(常开) `NC`(常闭) `POS`(上升沿) `NEG`(下降沿)
-**线圈**: `OUT`(输出) `SET`(置位) `RST`(复位)
-**定时器**: `TON`(接通延时) `TOF`(断开延时) `TP`(脉冲)
-**计数器**: `CTU`(加计数) `CTD`(减计数) `CTUD`(加减计数)
-**比较**: `EQ` `NE` `GT` `GE` `LT` `LE`
-**算术**: `ADD` `SUB` `MUL` `DIV` `MOD`
-**程序控制**: `JMP` `LBL` `RET` `END`
-**其他**: `MOVE` `SEL` `MUX` `LIMIT`
+«bold»触点«/»: `NO`(常开) `NC`(常闭) `POS`(上升沿) `NEG`(下降沿)
+«bold»线圈«/»: `OUT`(输出) `SET`(置位) `RST`(复位)
+«bold»定时器«/»: `TON`(接通延时) `TOF`(断开延时) `TP`(脉冲)
+«bold»计数器«/»: `CTU`(加计数) `CTD`(减计数) `CTUD`(加减计数)
+«bold»比较«/»: `EQ` `NE` `GT` `GE` `LT` `LE`
+«bold»算术«/»: `ADD` `SUB` `MUL` `DIV` `MOD`
+«bold»程序控制«/»: `JMP` `LBL` `RET` `END`
+«bold»其他«/»: `MOVE` `SEL` `MUX` `LIMIT`
 
 #### 概述
 
@@ -71,39 +71,39 @@ vml run examples/ladder/file_io.ld
 ##### 1. 梯形图基本元素
 
 ###### 触点（Contacts）
-- **常开触点（Normally Open）**: ─┤ ├─
-- **常闭触点（Normally Closed）**: ─┤/├─
-- **上升沿触点（Positive Edge）**: ─┤P├─
-- **下降沿触点（Negative Edge）**: ─┤N├─
+- «bold»常开触点（Normally Open）«/»: ─┤ ├─
+- «bold»常闭触点（Normally Closed）«/»: ─┤/├─
+- «bold»上升沿触点（Positive Edge）«/»: ─┤P├─
+- «bold»下降沿触点（Negative Edge）«/»: ─┤N├─
 
 ###### 线圈（Coils）
-- **输出线圈（Output Coil）**: ─( )─
-- **置位线圈（Set Coil）**: ─(S)─
-- **复位线圈（Reset Coil）**: ─(R)─
-- **保持线圈（Latch Coil）**: ─(L)─
+- «bold»输出线圈（Output Coil）«/»: ─( )─
+- «bold»置位线圈（Set Coil）«/»: ─(S)─
+- «bold»复位线圈（Reset Coil）«/»: ─(R)─
+- «bold»保持线圈（Latch Coil）«/»: ─(L)─
 
 ###### 功能块（Function Blocks）
-- **定时器**: TON（接通延时）, TOF（断开延时）, TP（脉冲）
-- **计数器**: CTU（加计数器）, CTD（减计数器）, CTUD（加减计数器）
-- **比较器**: 等于、不等于、大于、小于等
-- **数学运算**: 加、减、乘、除等
+- «bold»定时器«/»: TON（接通延时）, TOF（断开延时）, TP（脉冲）
+- «bold»计数器«/»: CTU（加计数器）, CTD（减计数器）, CTUD（加减计数器）
+- «bold»比较器«/»: 等于、不等于、大于、小于等
+- «bold»数学运算«/»: 加、减、乘、除等
 
 ##### 2. 数据类型（IEC 61131-3）
 
 ###### 基本数据类型
-- **BOOL**: 布尔值（1位）
-- **BYTE**: 无符号8位整数
-- **WORD**: 无符号16位整数
-- **DWORD**: 无符号32位整数
-- **INT**: 有符号16位整数
-- **DINT**: 有符号32位整数
-- **REAL**: 32位浮点数
-- **STRING**: 字符串
-- **TIME**: 时间类型
+- «bold»BOOL«/»: 布尔值（1位）
+- «bold»BYTE«/»: 无符号8位整数
+- «bold»WORD«/»: 无符号16位整数
+- «bold»DWORD«/»: 无符号32位整数
+- «bold»INT«/»: 有符号16位整数
+- «bold»DINT«/»: 有符号32位整数
+- «bold»REAL«/»: 32位浮点数
+- «bold»STRING«/»: 字符串
+- «bold»TIME«/»: 时间类型
 
 ###### 派生数据类型
-- **数组**: `ARRAY[1..10] OF INT`
-- **结构体**: 
+- «bold»数组«/»: `ARRAY[1..10] OF INT`
+- «bold»结构体«/»: 
 ```iec
 TYPE MotorControl :
 STRUCT
@@ -129,18 +129,18 @@ END_VAR
 ```
 
 ###### 变量声明区域
-- **VAR**: 局部变量
-- **VAR_INPUT**: 输入变量
-- **VAR_OUTPUT**: 输出变量
-- **VAR_IN_OUT**: 输入输出变量
-- **VAR_GLOBAL**: 全局变量
-- **VAR_TEMP**: 临时变量
+- «bold»VAR«/»: 局部变量
+- «bold»VAR_INPUT«/»: 输入变量
+- «bold»VAR_OUTPUT«/»: 输出变量
+- «bold»VAR_IN_OUT«/»: 输入输出变量
+- «bold»VAR_GLOBAL«/»: 全局变量
+- «bold»VAR_TEMP«/»: 临时变量
 
 ###### I/O 映射
-- **输入**: `%IX0.0`（字节0，位0）
-- **输出**: `%QX0.0`（字节0，位0）
-- **内存**: `%MW0`（字0）
-- **保持寄存器**: `%MD0`（双字0）
+- «bold»输入«/»: `%IX0.0`（字节0，位0）
+- «bold»输出«/»: `%QX0.0`（字节0，位0）
+- «bold»内存«/»: `%MW0`（字0）
+- «bold»保持寄存器«/»: `%MD0`（双字0）
 
 ##### 4. 梯形图梯级结构
 
@@ -195,7 +195,7 @@ END_VAR
                PT  ET
 ```
 
-**功能**: 当IN为TRUE时开始计时，经过PT时间后Q变为TRUE。ET显示已过时间。
+«bold»功能«/»: 当IN为TRUE时开始计时，经过PT时间后Q变为TRUE。ET显示已过时间。
 
 ###### 计数器（CTU - 加计数器）
 ```iec
@@ -212,7 +212,7 @@ END_VAR
                 R
 ```
 
-**功能**: 在CU上升沿计数，当CV >= PV时Q为TRUE，R信号复位计数器。
+«bold»功能«/»: 在CU上升沿计数，当CV >= PV时Q为TRUE，R信号复位计数器。
 
 ##### 6. 指令列表（IL）支持
 
@@ -241,30 +241,30 @@ END_IF;
 ##### 8. 标准函数
 
 ###### 位操作函数
-- **AND**, **OR**, **XOR**, **NOT** - 逻辑运算
-- **SHL**, **SHR** - 移位运算
-- **ROL**, **ROR** - 循环移位
+- «bold»AND«/», «bold»OR«/», «bold»XOR«/», «bold»NOT«/» - 逻辑运算
+- «bold»SHL«/», «bold»SHR«/» - 移位运算
+- «bold»ROL«/», «bold»ROR«/» - 循环移位
 
 ###### 数学函数
-- **ADD**, **SUB**, **MUL**, **DIV** - 算术运算
-- **MOD** - 取模
-- **ABS** - 绝对值
-- **SQRT** - 平方根
-- **LN**, **EXP** - 对数和指数
-- **SIN**, **COS**, **TAN** - 三角函数
+- «bold»ADD«/», «bold»SUB«/», «bold»MUL«/», «bold»DIV«/» - 算术运算
+- «bold»MOD«/» - 取模
+- «bold»ABS«/» - 绝对值
+- «bold»SQRT«/» - 平方根
+- «bold»LN«/», «bold»EXP«/» - 对数和指数
+- «bold»SIN«/», «bold»COS«/», «bold»TAN«/» - 三角函数
 
 ###### 比较函数
-- **EQ** (=), **NE** (<>), **GT** (>), **GE** (>=), **LT** (<), **LE** (<=)
+- «bold»EQ«/» (=), «bold»NE«/» (<>), «bold»GT«/» (>), «bold»GE«/» (>=), «bold»LT«/» (<), «bold»LE«/» (<=)
 
 ###### 类型转换函数
-- **BOOL_TO_INT**, **INT_TO_REAL** 等类型转换
-- **TRUNC**, **ROUND** - 取整函数
+- «bold»BOOL_TO_INT«/», «bold»INT_TO_REAL«/» 等类型转换
+- «bold»TRUNC«/», «bold»ROUND«/» - 取整函数
 
 ###### 字符串函数
-- **CONCAT** - 字符串连接
-- **LEFT**, **RIGHT**, **MID** - 子字符串
-- **LEN** - 字符串长度
-- **FIND** - 查找子串
+- «bold»CONCAT«/» - 字符串连接
+- «bold»LEFT«/», «bold»RIGHT«/», «bold»MID«/» - 子字符串
+- «bold»LEN«/» - 字符串长度
+- «bold»FIND«/» - 查找子串
 
 ##### 9. VML 代码生成约定
 
@@ -470,25 +470,25 @@ VML 工具链通过三个编译参数控制浮点和 64 位整数的处理策略
 
 本语言中的 `REAL` 类型（32位单精度浮点）按以下模式编译：
 
-- **`hard` 模式（默认）**: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
-- **`soft` 模式**: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
-- **`none` 模式**: 禁用所有 32 位浮点类型，遇到 `REAL` 声明时报告编译错误。
+- «bold»`hard` 模式（默认）«/»: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
+- «bold»`soft` 模式«/»: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
+- «bold»`none` 模式«/»: 禁用所有 32 位浮点类型，遇到 `REAL` 声明时报告编译错误。
 
 ###### 64位浮点 (double)
 
 VML 编译层支持 64 位双精度浮点运算。梯形图语言本身未定义 `LREAL` 对应类型，但编译器预留扩展支持。
 
-- **`soft` 模式（默认）**: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`。
-- **`hard` 模式**: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`。
-- **`none` 模式**: 禁用双精度浮点扩展。
+- «bold»`soft` 模式（默认）«/»: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`。
+- «bold»`hard` 模式«/»: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`。
+- «bold»`none` 模式«/»: 禁用双精度浮点扩展。
 
 ###### 64位整数 (int64)
 
 梯形图语言 IEC 61131-3 中 `DLONG` / `LINT` 等 64 位整数类型按以下模式编译：
 
-- **`soft` 模式（默认）**: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
-- **`hard` 模式**: 预留，未来 VML 版本将支持原生 64 位整数指令。
-- **`none` 模式**: 禁用 64 位整数类型。
+- «bold»`soft` 模式（默认）«/»: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
+- «bold»`hard` 模式«/»: 预留，未来 VML 版本将支持原生 64 位整数指令。
+- «bold»`none` 模式«/»: 禁用 64 位整数类型。
 
 ###### 软件模拟库
 
@@ -503,12 +503,12 @@ VML 编译层支持 64 位双精度浮点运算。梯形图语言本身未定义
 ##### 13. 编译限制和注意事项
 
 ###### 当前实现状态
-- **词法分析器**: 完整实现，支持IEC 61131-3关键字
-- **语法分析器**: 完整实现，支持梯形图和结构化文本
-- **代码生成器**: 基本实现 (CodeGenerator.Elements.cs)，支持触点/线圈/定时器/计数器
-- **定时器**: TON/TOF/TP 使用 SYSCALL #53 (GetTick) 实时时钟
-- **计数器**: CTU/CTD/CTUD 含溢出保护
-- **标准库**: 需要创建梯形图标准库（stdlib.vml）
+- «bold»词法分析器«/»: 完整实现，支持IEC 61131-3关键字
+- «bold»语法分析器«/»: 完整实现，支持梯形图和结构化文本
+- «bold»代码生成器«/»: 基本实现 (CodeGenerator.Elements.cs)，支持触点/线圈/定时器/计数器
+- «bold»定时器«/»: TON/TOF/TP 使用 SYSCALL #53 (GetTick) 实时时钟
+- «bold»计数器«/»: CTU/CTD/CTUD 含溢出保护
+- «bold»标准库«/»: 需要创建梯形图标准库（stdlib.vml）
 
 ###### 待实现功能
 1. 梯形图到VML指令的代码生成 — ⚠️ 基本完成
@@ -518,24 +518,24 @@ VML 编译层支持 64 位双精度浮点运算。梯形图语言本身未定义
 5. 标准函数库实现 (MOVE/SEL/MUX/LIMIT)
 
 ###### 技术挑战
-1. **图形到文本转换**: 梯形图是图形化语言，使用文本指令列表作为中间表示
-2. **实时性要求**: PLC 程序有严格的实时性要求 — 定时器使用 SYSCALL #53 毫秒时钟
-3. **位操作**: 触点/线圈需要高效位操作和边沿检测
-4. **保持性变量**: 需要保持断电后的变量值
+1. «bold»图形到文本转换«/»: 梯形图是图形化语言，使用文本指令列表作为中间表示
+2. «bold»实时性要求«/»: PLC 程序有严格的实时性要求 — 定时器使用 SYSCALL #53 毫秒时钟
+3. «bold»位操作«/»: 触点/线圈需要高效位操作和边沿检测
+4. «bold»保持性变量«/»: 需要保持断电后的变量值
 
 ##### 14. 与VML运行时集成
 
 梯形图程序通过以下方式与VML运行时交互：
 
-- **I/O访问**: 通过内存映射I/O地址访问物理设备
-- **定时器服务**: 使用系统定时器实现TON/TOF/TP
-- **中断处理**: 支持硬件中断事件
-- **诊断功能**: 扫描周期监控、错误处理
+- «bold»I/O访问«/»: 通过内存映射I/O地址访问物理设备
+- «bold»定时器服务«/»: 使用系统定时器实现TON/TOF/TP
+- «bold»中断处理«/»: 支持硬件中断事件
+- «bold»诊断功能«/»: 扫描周期监控、错误处理
 
 ###### 系统调用
-- **SYSCALL #3**: 程序退出
-- **SYSCALL #53**: GetTick — 获取毫秒时间戳 (定时器计时基准)
-- **I/O 访问**: 通过内存映射 I/O 地址访问物理设备 (触点/线圈)
+- «bold»SYSCALL #3«/»: 程序退出
+- «bold»SYSCALL #53«/»: GetTick — 获取毫秒时间戳 (定时器计时基准)
+- «bold»I/O 访问«/»: 通过内存映射 I/O 地址访问物理设备 (触点/线圈)
 
 ##### 15. 应用领域
 
@@ -559,8 +559,8 @@ VML 编译层支持 64 位双精度浮点运算。梯形图语言本身未定义
 | `.wstring` | 16-bit | UTF-16LE | `wchar_t*` |
 | `.ustring` | 32-bit | UTF-32LE | `char32_t*` |
 
-**MCU 模式** (默认): 字符串输出为 UTF-8 (`.string`)
-**OS 模式**: 可通过 `VML_WSTRING` 宏判断编码
+«bold»MCU 模式«/» (默认): 字符串输出为 UTF-8 (`.string`)
+«bold»OS 模式«/»: 可通过 `VML_WSTRING` 宏判断编码
 
 共享库已提供宽字符串转换函数 (wchar.h/uchar.h)，各语言编译器可按需使用。
 
@@ -568,9 +568,9 @@ VML 编译层支持 64 位双精度浮点运算。梯形图语言本身未定义
 
 ### 梯形图 (IEC 61131-3 子集) 编译器
 
-**路径**: `VMLPrepares/LadderCompiler/`
-**完成度**: ~98% | 🟢 生产可用
-**标准库**: `Lib/ladder/`
+«bold»路径«/»: `VMLPrepares/LadderCompiler/`
+«bold»完成度«/»: ~98% | 🟢 生产可用
+«bold»标准库«/»: `Lib/ladder/`
 
 #### 功能
 - ✅ 语法分析 + 代码生成（Lexer/Parser/CodeGenerator）
@@ -589,10 +589,10 @@ VML 编译层支持 64 位双精度浮点运算。梯形图语言本身未定义
 ##### MCU 模式（默认 `--mode mcu`）
 MCU 模式针对单片机/裸机环境（Arduino/STM32/8051 等）优化，自动跳过不兼容操作系统的特性。
 
-**跳过**（遇到这些语法不生成代码）:
+«bold»跳过«/»（遇到这些语法不生成代码）:
 - 无（PLC 语言天然 MCU 兼容）
 
-**保留**（由 BIOS 实现底层）:
+«bold»保留«/»（由 BIOS 实现底层）:
 - 定时器 (TON/TOF/TP) — 使用 SYSCALL #53 GetTick
 - 计数器 (CTU/CTD/CTUD) — 16位溢出保护
 - POKE/PEEK 内存映射 I/O (MMIO)
@@ -604,7 +604,7 @@ OS 模式针对带操作系统环境（如 Linux 嵌入式、RTOS 等），届�
 
 ##### RAM 级别
 - `--ram k`：KB级别（2KB~64KB，如 8051/PIC/AVR）
-- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，**默认**）
+- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，«bold»默认«/»）
 - `--ram g`：GB级别（如 x86/DDR 系统）
 - `--stack-size <bytes>`：手动指定栈大小（默认自动根据 --ram 分配）
 

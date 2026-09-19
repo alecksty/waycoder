@@ -1,9 +1,19 @@
 namespace WayCoder.UI.Shared;
 
 /// <summary>
-/// 「关于 → 使用说明」的**层级目录**（一级分类 → 二级主题 → 正文），
+/// 「关于 → 使用说明」的**入口目录**（一级分类 → 二级主题 → 正文），
 /// 正文是随包的 markdown（`WayCoder.Maui/Resources/Raw/help/**`），渲染复用编辑器那套
 /// `MarkdownPreview` —— 不另写渲染器。
+///
+/// ## 更深的层级不在这里 —— 在正文的链接里
+///
+/// **多少级都行**：正文里写 `[C 语言](help:vml/lang/c)` 就跳到那一篇。
+/// 层级由内容决定，加页面只写 markdown、不动 C#、不动列表页。
+///
+/// 这里**刻意只保留"入口"**（关于页上那六个分类，以及各自的几篇）：
+/// 它要的是"不用搜就能点进去"，而不是把整棵树抄一遍。
+/// ⚠ 树的第二份实现（早先那个 `Topic.Children`）已经删掉 —— 两套层级机制并存时，
+/// "哪些节点是目录、哪些有正文"的判断漏一处，现象就是**点下去什么也不发生**。
 ///
 /// ## 为什么目录写在代码里、正文写在 markdown 里
 ///
@@ -26,11 +36,7 @@ public static class HelpCatalog
     /// <param name="Id">随包路径（不含 `help/` 前缀、不含 `.md`），也是页面路由里传的 id。</param>
     /// <param name="Title">列表里显示的名字。</param>
     /// <param name="Summary">列表里的第二行小字（一句话说清这篇讲什么）。</param>
-    /// <param name="Children">
-    /// 子主题 —— 有子主题的节点**自己没有正文**，点开是下一级列表。
-    /// 目前只有「22 种语言」用到（分类 → 主题 → 每种语言一份）。
-    /// </param>
-    public readonly record struct Topic(string Id, string Title, string Summary, Topic[]? Children = null);
+    public readonly record struct Topic(string Id, string Title, string Summary);
 
     /// <summary>一个分类（对应「关于」页上的一个按钮）。</summary>
     /// <param name="Key">路由里传的分类标识。</param>
@@ -38,38 +44,6 @@ public static class HelpCatalog
     /// <param name="Icon">分类图标（emoji —— 与底部 Tab 同一套选法，只用 U+1F300 以上那块）。</param>
     /// <param name="Topics">分类下的主题；<b>只有一个主题时点分类直接进正文</b>（少一级点击）。</param>
     public readonly record struct Category(string Key, string Title, string Icon, Topic[] Topics);
-
-    /// <summary>
-    /// 22 种语言各一份说明（「22 种语言」这个节点的子主题）。
-    ///
-    /// 与 `Resources/Raw/help/vml/lang/*.md` **一一对应** —— 自测里有一条会两边对账，
-    /// 少一个文件 / 多一个孤儿文件都会红。
-    /// </summary>
-    private static readonly Topic[] LanguageTopics =
-    [
-            new("vml/lang/c", "C", "最完整的一条路：绘图、音效、手柄全都能用"),
-            new("vml/lang/cpp", "C++", "与 C 同一套接口，另有类与模板"),
-            new("vml/lang/csharp", "C#", "class + Main，需要声明外部函数"),
-            new("vml/lang/objc", "Objective-C", "别 include UI 头文件，直接调用"),
-            new("vml/lang/java", "Java", "static native 声明外部函数"),
-            new("vml/lang/kotlin", "Kotlin", "与 Java 同一套写法"),
-            new("vml/lang/swift", "Swift", "直接调用，无需声明"),
-            new("vml/lang/go", "Go", "package main + func main"),
-            new("vml/lang/rust", "Rust", "fn main，直接调用"),
-            new("vml/lang/d", "D", "void main，直接调用"),
-            new("vml/lang/dart", "Dart", "external 声明外部函数"),
-            new("vml/lang/python", "Python", "写起来最快；可变网格要用 ui_g 那套"),
-            new("vml/lang/javascript", "JavaScript", "function main 后要手动调用一次"),
-            new("vml/lang/lua", "Lua", "轻快，适合小游戏"),
-            new("vml/lang/ruby", "Ruby", "完全平铺写，函数支持有限"),
-            new("vml/lang/r", "R", "向量语言，写法要注意"),
-            new("vml/lang/pascal", "Pascal", "注释里只能写 ASCII"),
-            new("vml/lang/fortran", "Fortran", "call 调用，科学计算友好"),
-            new("vml/lang/basic", "BASIC", "NATIVE 声明，老式写法"),
-            new("vml/lang/forth", "Forth", "栈式写法，字符串用 S 引号"),
-            new("vml/lang/scheme", "Scheme", "顶层扁平写，函数看不见全局变量"),
-            new("vml/lang/ladder", "Ladder", "PLC 风格，做不了界面程序")
-    ];
 
     /// <summary>全部目录。**加一篇说明只改这里 + 放一个 .md 文件。**</summary>
     public static readonly Category[] Categories =
@@ -83,7 +57,7 @@ public static class HelpCatalog
         [
             new("vml/index", "VML 是什么", "一台跑在手机里的虚拟机，22 种语言都能编"),
             new("vml/build", "编译与运行", "源码 → .vml → .vmb 三级产物，各管什么"),
-            new("vml/languages", "22 种语言", "每种语言怎么写、怎么跑、有哪些坑", LanguageTopics),
+            new("vml/languages", "22 种语言", "每种语言怎么写、怎么跑、有哪些坑"),
             new("vml/ui", "UI 开发", "开窗、绘图、收输入、出声音 —— 宿主接口全表"),
             new("vml/errors", "常见错误", "看得懂报错、找得到原因"),
         ]),
@@ -118,30 +92,40 @@ public static class HelpCatalog
     public static Category? Find(string? key)
         => Categories.FirstOrDefault(c => c.Key == key);
 
-    /// <summary>
-    /// 按 id 找主题（找不到返回 null）。**会进子主题** —— 三级的 id（`vml/lang/c`）
-    /// 与二级的写在同一个命名空间里，只查第一层的话它们全都找不到。
-    ///
-    /// ⚠ 找不到的后果不是报错而是**退化成兜底值**：正文页拿它取标题，
-    /// 拿不到就显示成通用的「使用说明」—— 页面照常打开、内容也对，只是标题不对，
-    /// 这种"半对"最难被发现。
-    /// </summary>
+    /// <summary>按 id 找主题（找不到返回 null）。**只查目录表里列出的那些** ——
+    /// 链接跳转过去的目标（`help:vml/lang/c`）不一定在表里，那种 id 的标题由正文自己给
+    /// （见 <see cref="HeadingOf"/>）。</summary>
     public static Topic? FindTopic(string? id)
     {
         if (string.IsNullOrEmpty(id)) return null;
         foreach (var c in Categories)
-            if (Lookup(c.Topics, id) is { } hit) return hit;
-        return null;
-
-        static Topic? Lookup(Topic[] topics, string id)
-        {
-            foreach (var t in topics)
-            {
+            foreach (var t in c.Topics)
                 if (t.Id == id) return t;
-                if (t.Children is { Length: > 0 } kids && Lookup(kids, id) is { } sub) return sub;
+        return null;
+    }
+
+    /// <summary>
+    /// 取一篇说明的**一级标题**（`# 标题` 那一行），拿不到返回 null。
+    ///
+    /// 页面标题以**正文自己写的为准**：层级既然由链接决定（加页面只写 markdown），
+    /// 标题就不该再要求"同时在 C# 目录表里登记一遍" —— 那正是两级不一致的老毛病。
+    /// 目录表里有的（从「关于」点进来的那些）仍然优先用它，因为那里的标题更短、更适合列表。
+    /// </summary>
+    public static string? HeadingOf(string? markdown)
+    {
+        if (string.IsNullOrEmpty(markdown)) return null;
+        foreach (var raw in markdown.Split('\n'))
+        {
+            var line = raw.Trim();
+            if (line.StartsWith("# ", StringComparison.Ordinal))
+            {
+                var t = line[2..].Trim();
+                if (t.Length > 0) return t;
             }
-            return null;
+            // 正文开始之前只找最靠前的那个一级标题；遇到围栏就停（代码块里的 # 不是标题）
+            if (line.StartsWith("```", StringComparison.Ordinal)) return null;
         }
+        return null;
     }
 
     /// <summary>这篇说明的随包路径。</summary>

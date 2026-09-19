@@ -32,10 +32,16 @@ public partial class HelpPage : ContentPage
         var id = TopicId;
         if (string.IsNullOrEmpty(id)) return;
 
-        Title = HelpCatalog.FindTopic(id)?.Title ?? "使用说明";
         Body.Clear();
 
         var md = await LoadMarkdownAsync(id);
+
+        // 标题：目录表里有就用它（更短、更适合列表里看），否则**以正文自己写的一级标题为准**。
+        // 链接能跳到任意一篇（`help:vml/lang/c`）—— 那些目标不一定在目录表里，
+        // 不这么做标题就会退化成通用的「使用说明」（页面照常打开、内容也对，只有标题不对）。
+        Title = HelpCatalog.FindTopic(id)?.Title
+             ?? HelpCatalog.HeadingOf(md)
+             ?? "使用说明";
         if (md is null)
         {
             // 找不到就说清楚是哪一篇找不到 —— 静默空白最难查（多半是目录里写了、文件没放进包）

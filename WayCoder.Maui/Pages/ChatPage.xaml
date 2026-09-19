@@ -252,7 +252,11 @@
                 </Border.StrokeShape>
                 <VerticalStackLayout>
                     <!-- / 前缀命令建议列表（输入 / 时显示，点击填入） -->
+                    <!-- ⚠ `SelectionMode` 必须显式写：MAUI 默认是 `None`，
+                         而 `None` 下 `SelectionChanged` **一次都不触发**（点了没反应、不报错）。
+                         这里与 HelpListPage 是同一个坑，见那边的注释。 -->
                     <CollectionView x:Name="SlashSuggest" IsVisible="False" HeightRequest="160" Margin="4,4,4,0"
+                                    SelectionMode="Single"
                                     SelectionChanged="SlashSuggest_SelectionChanged">
                         <CollectionView.ItemTemplate>
                             <DataTemplate>

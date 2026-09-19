@@ -35,18 +35,18 @@ vml run examples/java/catch.java
 
 ### Java 语言编译器规范说明
 
-> **版本**：v1.0 | **日期**：2026-07-06 | **修订者**：深圳市探索智能科技有限公司
+> «bold»版本«/»：v1.0 | «bold»日期«/»：2026-07-06 | «bold»修订者«/»：深圳市探索智能科技有限公司
 
 #### 规范标准
 
 | 字段 | 值 |
 |:-----|:----|
-| **目标标准** | Java SE 8 子集 (2014) |
-| **发布年份** | 2014 |
-| **完成度** | ~92% |
-| **MCU完成度** | ~90% |
-| **测试** | 0 (测试目录待创建) |
-| **更新** | 2026-05-18: 修正完成度和实现状态描述 |
+| «bold»目标标准«/» | Java SE 8 子集 (2014) |
+| «bold»发布年份«/» | 2014 |
+| «bold»完成度«/» | ~92% |
+| «bold»MCU完成度«/» | ~90% |
+| «bold»测试«/» | 0 (测试目录待创建) |
+| «bold»更新«/» | 2026-05-18: 修正完成度和实现状态描述 |
 
 #### 关键字
 
@@ -66,22 +66,22 @@ vml run examples/java/catch.java
 ##### 1. 数据类型
 
 ###### 字面量
-- **整数**: `42`（十进制）
-- **十六进制**: `0xFF`, `0x40013804`（`0x`/`0X` 前缀）
-- **长整数**: `42L`, `0xFFFFL`（`l`/`L` 后缀）
-- **浮点数**: `3.14f`, `3.14`
-- **双精度**: `3.14d`
-- **布尔**: `true`, `false`
-- **字符**: `'A'`
-- **字符串**: `"hello"`
-- **空**: `null`
+- «bold»整数«/»: `42`（十进制）
+- «bold»十六进制«/»: `0xFF`, `0x40013804`（`0x`/`0X` 前缀）
+- «bold»长整数«/»: `42L`, `0xFFFFL`（`l`/`L` 后缀）
+- «bold»浮点数«/»: `3.14f`, `3.14`
+- «bold»双精度«/»: `3.14d`
+- «bold»布尔«/»: `true`, `false`
+- «bold»字符«/»: `'A'`
+- «bold»字符串«/»: `"hello"`
+- «bold»空«/»: `null`
 
 ###### 基本数据类型
-- **整数类型**: `byte` (8位), `short` (16位), `int` (32位), `long` (64位)
-- **浮点类型**: `float` (32位), `double` (64位)
-- **字符类型**: `char` (16位 Unicode)
-- **布尔类型**: `boolean` (true/false)
-- **引用类型**: 类、接口、数组
+- «bold»整数类型«/»: `byte` (8位), `short` (16位), `int` (32位), `long` (64位)
+- «bold»浮点类型«/»: `float` (32位), `double` (64位)
+- «bold»字符类型«/»: `char` (16位 Unicode)
+- «bold»布尔类型«/»: `boolean` (true/false)
+- «bold»引用类型«/»: 类、接口、数组
 
 ###### 包装类支持
 - `Integer`, `Double`, `Float`, `Boolean`, `Character`, `Byte`, `Short`, `Long`
@@ -392,19 +392,19 @@ main:
 ##### 10. 限制和注意事项
 
 ###### 当前限制
-1. **不支持的特性**:
+1. «bold»不支持的特性«/»:
    - 反射 API
    - 动态代理
    - 原生方法 (native)
    - 序列化
    - 并发包 (java.util.concurrent)
 
-2. **简化实现**:
+2. «bold»简化实现«/»:
    - 垃圾回收由VML运行时管理
    - 异常处理为简化版本
    - 泛型擦除为原始类型
 
-3. **性能考虑**:
+3. «bold»性能考虑«/»:
    - 静态编译，无JIT优化
    - 内存布局固定
    - 无动态类加载
@@ -475,25 +475,25 @@ VML 工具链通过三个编译参数控制浮点和 64 位整数的处理策略
 
 本语言中的 32 位单精度浮点类型 `float` 按以下模式编译：
 
-- **`hard` 模式（默认）**: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
-- **`soft` 模式**: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
-- **`none` 模式**: 禁用所有 32 位浮点类型，遇到 `float` 声明时报告编译错误。
+- «bold»`hard` 模式（默认）«/»: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
+- «bold»`soft` 模式«/»: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
+- «bold»`none` 模式«/»: 禁用所有 32 位浮点类型，遇到 `float` 声明时报告编译错误。
 
 ##### 64位浮点 (double)
 
 本语言中的 64 位双精度浮点类型 `double` 按以下模式编译：
 
-- **`soft` 模式（默认）**: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
-- **`hard` 模式**: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。需要目标平台支持 64 位运算。
-- **`none` 模式**: 禁用所有 64 位浮点类型，遇到 `double` 声明时报告编译错误。
+- «bold»`soft` 模式（默认）«/»: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
+- «bold»`hard` 模式«/»: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。需要目标平台支持 64 位运算。
+- «bold»`none` 模式«/»: 禁用所有 64 位浮点类型，遇到 `double` 声明时报告编译错误。
 
 ##### 64位整数 (int64)
 
 本语言中的 64 位整数类型 `long` 按以下模式编译：
 
-- **`soft` 模式（默认）**: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
-- **`hard` 模式**: 预留，未来 VML 版本将支持原生 64 位整数指令。
-- **`none` 模式**: 禁用 64 位整数类型，遇到 `long` 声明时报告编译错误。
+- «bold»`soft` 模式（默认）«/»: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
+- «bold»`hard` 模式«/»: 预留，未来 VML 版本将支持原生 64 位整数指令。
+- «bold»`none` 模式«/»: 禁用 64 位整数类型，遇到 `long` 声明时报告编译错误。
 
 ##### 软件模拟库
 
@@ -521,11 +521,11 @@ VML 工具链通过三个编译参数控制浮点和 64 位整数的处理策略
 - ❌ 标准库 (Lib/java/) — 待创建
 
 ##### 开发路线图
-1. **阶段1**: 基础语法支持 (if, for, while, 方法调用) — ✅ 完成
-2. **阶段2**: 类和对象支持 — ⚠️ 基本完成
-3. **阶段3**: 异常处理 — ❌ 待实现
-4. **阶段4**: 标准库完善 — ❌ 待实现
-5. **阶段5**: 泛型/高级特性 — ❌ 待实现
+1. «bold»阶段1«/»: 基础语法支持 (if, for, while, 方法调用) — ✅ 完成
+2. «bold»阶段2«/»: 类和对象支持 — ⚠️ 基本完成
+3. «bold»阶段3«/»: 异常处理 — ❌ 待实现
+4. «bold»阶段4«/»: 标准库完善 — ❌ 待实现
+5. «bold»阶段5«/»: 泛型/高级特性 — ❌ 待实现
 
 #### 编译和运行
 
@@ -563,8 +563,8 @@ vmltool HelloWorld.java -o output.vml --lang java
 | MCU (默认) | `.string` (UTF-8) | `.string` | #1 |
 | OS | `.wstring` (UTF-16LE) | `.wstring` | #391 |
 
-**预定义宏**: `VML_WSTRING` — OS 模式下自动定义，MCU 模式未定义
-**输出函数**: OS 模式自动使用 `shared_print_wstr` (UTF-16LE→UTF-8 自动转换)
+«bold»预定义宏«/»: `VML_WSTRING` — OS 模式下自动定义，MCU 模式未定义
+«bold»输出函数«/»: OS 模式自动使用 `shared_print_wstr` (UTF-16LE→UTF-8 自动转换)
 
 ```c
 // 用户代码可通过宏判断编码
@@ -579,9 +579,9 @@ vmltool HelloWorld.java -o output.vml --lang java
 
 ### Java 8 编译器
 
-**路径**: `VMLPrepares/JavaCompiler/`
-**完成度**: ~92% | 🟢 生产可用
-**标准库**: `Lib/java/`（待创建）
+«bold»路径«/»: `VMLPrepares/JavaCompiler/`
+«bold»完成度«/»: ~92% | 🟢 生产可用
+«bold»标准库«/»: `Lib/java/`（待创建）
 
 #### 功能
 - ✅ 完整语法分析 + 代码生成
@@ -598,10 +598,10 @@ vmltool HelloWorld.java -o output.vml --lang java
 ##### MCU 模式（默认 `--mode mcu`）
 MCU 模式针对单片机/裸机环境（Arduino/STM32/8051 等）优化，自动跳过不兼容操作系统的特性。
 
-**跳过**（遇到这些语法不生成代码）:
+«bold»跳过«/»（遇到这些语法不生成代码）:
 - Thread、GC、reflection、synchronized
 
-**保留**（由 BIOS 实现底层）:
+«bold»保留«/»（由 BIOS 实现底层）:
 - new(堆)、class/interface
 - POKE/PEEK 内存映射 I/O (MMIO)
 - 基本类型运算、控制流、函数调用
@@ -612,7 +612,7 @@ OS 模式针对带操作系统环境（如 Linux 嵌入式、RTOS 等），届�
 
 ##### RAM 级别
 - `--ram k`：KB级别（2KB~64KB，如 8051/PIC/AVR）
-- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，**默认**）
+- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，«bold»默认«/»）
 - `--ram g`：GB级别（如 x86/DDR 系统）
 - `--stack-size <bytes>`：手动指定栈大小（默认自动根据 --ram 分配）
 

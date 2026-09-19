@@ -34,18 +34,18 @@ vml run examples/go/snake.go
 
 ### Go 语言编译器规范说明
 
-> **版本**：v1.0 | **日期**：2026-07-06 | **修订者**：深圳市探索智能科技有限公司
+> «bold»版本«/»：v1.0 | «bold»日期«/»：2026-07-06 | «bold»修订者«/»：深圳市探索智能科技有限公司
 
 #### 规范标准
 
 | 字段 | 值 |
 |:-----|:----|
-| **目标标准** | Go 1.0 子集 (2012) |
-| **发布年份** | 2012 |
-| **完成度** | ~90% |
-| **MCU完成度** | ~88% |
-| **测试** | 21 通过 |
-| **更新** | 2026-05-18: 修正测试数（21个）、完成度；明确实现/待实现状态 |
+| «bold»目标标准«/» | Go 1.0 子集 (2012) |
+| «bold»发布年份«/» | 2012 |
+| «bold»完成度«/» | ~90% |
+| «bold»MCU完成度«/» | ~88% |
+| «bold»测试«/» | 21 通过 |
+| «bold»更新«/» | 2026-05-18: 修正测试数（21个）、完成度；明确实现/待实现状态 |
 
 #### 关键字
 
@@ -86,24 +86,24 @@ func main() {
 ##### 2. 数据类型
 
 ###### 基本类型
-- **整数**: `int`, `int8`, `int16`, `int32`, `int64`
-- **无符号整数**: `uint`, `uint8`, `uint16`, `uint32`, `uint64`, `uintptr`
-- **浮点数**: `float32`, `float64`
-- **复数**: `complex64`, `complex128`
-- **布尔**: `bool`
-- **字符串**: `string`
-- **字节**: `byte` (uint8的别名)
-- **符文**: `rune` (int32的别名，表示Unicode码点)
+- «bold»整数«/»: `int`, `int8`, `int16`, `int32`, `int64`
+- «bold»无符号整数«/»: `uint`, `uint8`, `uint16`, `uint32`, `uint64`, `uintptr`
+- «bold»浮点数«/»: `float32`, `float64`
+- «bold»复数«/»: `complex64`, `complex128`
+- «bold»布尔«/»: `bool`
+- «bold»字符串«/»: `string`
+- «bold»字节«/»: `byte` (uint8的别名)
+- «bold»符文«/»: `rune` (int32的别名，表示Unicode码点)
 
 ###### 复合类型
-- **数组**: `[5]int`
-- **切片**: `[]int`
-- **映射**: `map[string]int`
-- **结构体**: `struct`
-- **指针**: `*int`
-- **函数**: `func(int, int) int`
-- **接口**: `interface`
-- **通道**: `chan int`
+- «bold»数组«/»: `[5]int`
+- «bold»切片«/»: `[]int`
+- «bold»映射«/»: `map[string]int`
+- «bold»结构体«/»: `struct`
+- «bold»指针«/»: `*int`
+- «bold»函数«/»: `func(int, int) int`
+- «bold»接口«/»: `interface`
+- «bold»通道«/»: `chan int`
 
 ##### 3. 控制流
 
@@ -684,25 +684,25 @@ VML 工具链通过三个编译参数控制浮点和 64 位整数的处理策略
 
 本语言中的 32 位单精度浮点类型 `float32` 按以下模式编译：
 
-- **`hard` 模式（默认）**: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
-- **`soft` 模式**: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
-- **`none` 模式**: 禁用所有 32 位浮点类型，遇到 `float32` 声明时报告编译错误。
+- «bold»`hard` 模式（默认）«/»: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
+- «bold»`soft` 模式«/»: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
+- «bold»`none` 模式«/»: 禁用所有 32 位浮点类型，遇到 `float32` 声明时报告编译错误。
 
 ###### 64位浮点 (double)
 
 本语言中的 64 位双精度浮点类型 `float64` 按以下模式编译：
 
-- **`soft` 模式（默认）**: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
-- **`hard` 模式**: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。需要目标平台支持 64 位运算。
-- **`none` 模式**: 禁用所有 64 位浮点类型，遇到 `float64` 声明时报告编译错误。
+- «bold»`soft` 模式（默认）«/»: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
+- «bold»`hard` 模式«/»: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。需要目标平台支持 64 位运算。
+- «bold»`none` 模式«/»: 禁用所有 64 位浮点类型，遇到 `float64` 声明时报告编译错误。
 
 ###### 64位整数 (int64)
 
 本语言中的 64 位整数类型 `int64` / `uint64` 按以下模式编译：
 
-- **`soft` 模式（默认）**: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
-- **`hard` 模式**: 预留，未来 VML 版本将支持原生 64 位整数指令。
-- **`none` 模式**: 禁用 64 位整数类型，遇到 `int64` / `uint64` 声明时报告编译错误。
+- «bold»`soft` 模式（默认）«/»: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
+- «bold»`hard` 模式«/»: 预留，未来 VML 版本将支持原生 64 位整数指令。
+- «bold»`none` 模式«/»: 禁用 64 位整数类型，遇到 `int64` / `uint64` 声明时报告编译错误。
 
 ###### 软件模拟库
 
@@ -717,10 +717,10 @@ VML 工具链通过三个编译参数控制浮点和 64 位整数的处理策略
 ##### 13. 编译限制
 
 ###### 当前实现状态
-- **词法分析器**: 完整实现，支持 Go 全部关键字和符号
-- **语法分析器**: 完整实现，支持 Go 语句、表达式、函数和类型系统
-- **代码生成器**: 完整实现，生成 VML 指令
-- **标准库**: 存在于 `Lib/go/` 目录
+- «bold»词法分析器«/»: 完整实现，支持 Go 全部关键字和符号
+- «bold»语法分析器«/»: 完整实现，支持 Go 语句、表达式、函数和类型系统
+- «bold»代码生成器«/»: 完整实现，生成 VML 指令
+- «bold»标准库«/»: 存在于 `Lib/go/` 目录
 
 ###### 已实现功能
 - ✅ 变量声明 (var/:=)、常量 (const)
@@ -740,23 +740,23 @@ VML 工具链通过三个编译参数控制浮点和 64 位整数的处理策略
 5. 完整标准库: strings, strconv, os, time, net/http
 
 ###### 技术挑战
-1. **并发模型**: Goroutine和通道的轻量级实现
-2. **垃圾回收**: 自动内存管理
-3. **接口**: 动态类型和虚表
-4. **反射**: 运行时类型信息
+1. «bold»并发模型«/»: Goroutine和通道的轻量级实现
+2. «bold»垃圾回收«/»: 自动内存管理
+3. «bold»接口«/»: 动态类型和虚表
+4. «bold»反射«/»: 运行时类型信息
 
 ##### 14. 与VML运行时集成
 
 Go 程序通过系统调用与 VML 运行时交互：
 
-- **SYSCALL 4**: 输出字符（用于fmt.Print）
-- **SYSCALL 6**: 输出整数
-- **SYSCALL 150**: 创建通道
-- **SYSCALL 151**: 发送到通道
-- **SYSCALL 152**: 从通道接收
-- **SYSCALL 153**: 启动goroutine
-- **SYSCALL 154**: 垃圾回收
-- **SYSCALL 155**: 反射操作
+- «bold»SYSCALL 4«/»: 输出字符（用于fmt.Print）
+- «bold»SYSCALL 6«/»: 输出整数
+- «bold»SYSCALL 150«/»: 创建通道
+- «bold»SYSCALL 151«/»: 发送到通道
+- «bold»SYSCALL 152«/»: 从通道接收
+- «bold»SYSCALL 153«/»: 启动goroutine
+- «bold»SYSCALL 154«/»: 垃圾回收
+- «bold»SYSCALL 155«/»: 反射操作
 
 Go 的简洁语法和强大并发支持使其适合网络服务和分布式系统。通过 VML 编译器，Go 程序可以在多种平台上运行。
 ---
@@ -770,8 +770,8 @@ Go 的简洁语法和强大并发支持使其适合网络服务和分布式系�
 | MCU (默认) | `.string` (UTF-8) | `.string` | #1 |
 | OS | `.wstring` (UTF-16LE) | `.wstring` | #391 |
 
-**预定义宏**: `VML_WSTRING` — OS 模式下自动定义，MCU 模式未定义
-**输出函数**: OS 模式自动使用 `shared_print_wstr` (UTF-16LE→UTF-8 自动转换)
+«bold»预定义宏«/»: `VML_WSTRING` — OS 模式下自动定义，MCU 模式未定义
+«bold»输出函数«/»: OS 模式自动使用 `shared_print_wstr` (UTF-16LE→UTF-8 自动转换)
 
 ```c
 // 用户代码可通过宏判断编码
@@ -786,9 +786,9 @@ Go 的简洁语法和强大并发支持使其适合网络服务和分布式系�
 
 ### Go 编译器
 
-**路径**: `VMLPrepares/GoCompiler/`
-**完成度**: ~90% | 🟢 生产可用
-**标准库**: `Lib/go/`
+«bold»路径«/»: `VMLPrepares/GoCompiler/`
+«bold»完成度«/»: ~90% | 🟢 生产可用
+«bold»标准库«/»: `Lib/go/`
 
 #### 功能
 - ✅ 完整语法分析 + 代码生成
@@ -805,10 +805,10 @@ Go 的简洁语法和强大并发支持使其适合网络服务和分布式系�
 ##### MCU 模式（默认 `--mode mcu`）
 MCU 模式针对单片机/裸机环境（Arduino/STM32/8051 等）优化，自动跳过不兼容操作系统的特性。
 
-**跳过**（遇到这些语法不生成代码）:
+«bold»跳过«/»（遇到这些语法不生成代码）:
 - goroutine、chan、select
 
-**保留**（由 BIOS 实现底层）:
+«bold»保留«/»（由 BIOS 实现底层）:
 - map(哈希表)、slice(堆)、interface动态分发
 - POKE/PEEK 内存映射 I/O (MMIO)
 - 基本类型运算、控制流、函数调用
@@ -820,7 +820,7 @@ OS 模式针对带操作系统环境（如 Linux 嵌入式、RTOS 等），届�
 
 ##### RAM 级别
 - `--ram k`：KB级别（2KB~64KB，如 8051/PIC/AVR）
-- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，**默认**）
+- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，«bold»默认«/»）
 - `--ram g`：GB级别（如 x86/DDR 系统）
 - `--stack-size <bytes>`：手动指定栈大小（默认自动根据 --ram 分配）
 

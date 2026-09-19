@@ -1,6 +1,6 @@
 # C
 
-**最完整的一条路**：绘图、输入、音效、存档、手柄全都用得上。仓库里那几个完整的游戏（俄罗斯方块、五子棋、吃豆人）都是 C 写的。
+«bold»最完整的一条路«/»：绘图、输入、音效、存档、手柄全都用得上。仓库里那几个完整的游戏（俄罗斯方块、五子棋、吃豆人）都是 C 写的。
 
 如果你不确定用哪门语言 —— 用 C。
 
@@ -35,9 +35,9 @@ vml run examples/c/draw_prims.c
 
 ## 实测踩过的坑
 
-- **编译最慢**：一份带标准库的程序，手机上要**一两分钟**（Python/Lua 那类只要几秒）。
+- «bold»编译最慢«/»：一份带标准库的程序，手机上要«bold»一两分钟«/»（Python/Lua 那类只要几秒）。
   同一份反复跑的话，先编成 `.vmb` 再跑，快很多。
-- 全局数组的初始化器里带**负数**时注意（历史缺陷，已修；写方向表这类东西记得测一下）。
+- 全局数组的初始化器里带«bold»负数«/»时注意（历史缺陷，已修；写方向表这类东西记得测一下）。
 
 ---
 
@@ -49,17 +49,17 @@ vml run examples/c/draw_prims.c
 
 ### C 语言编译器规范说明
 
-> **版本**：v1.1 | **日期**：2026-07-06 | **修订者**：深圳市探索智能科技有限公司
+> «bold»版本«/»：v1.1 | «bold»日期«/»：2026-07-06 | «bold»修订者«/»：深圳市探索智能科技有限公司
 
 #### 规范标准
 
 | 字段 | 值 |
 |:-----|:----|
-| **目标标准** | C99 (ISO/IEC 9899:1999) |
-| **发布年份** | 1999 |
-| **完成度** | ~97% |
-| **测试** | 43+ 通过 (含 12 Int64) + **Lua 5.4 31/31** + cJSON/nbsdgames/parson/tiny_regex_c |
-| **里程碑** | **Lua 5.4 31/31 🎉** + SQLite 255K行 (v1.65.36) |
+| «bold»目标标准«/» | C99 (ISO/IEC 9899:1999) |
+| «bold»发布年份«/» | 1999 |
+| «bold»完成度«/» | ~97% |
+| «bold»测试«/» | 43+ 通过 (含 12 Int64) + «bold»Lua 5.4 31/31«/» + cJSON/nbsdgames/parson/tiny_regex_c |
+| «bold»里程碑«/» | «bold»Lua 5.4 31/31 🎉«/» + SQLite 255K行 (v1.65.36) |
 
 #### 概述
 
@@ -70,32 +70,32 @@ vml run examples/c/draw_prims.c
 ##### 1. 数据类型
 
 ###### 基本数据类型
-- **整数类型**: `int`, `short`, `long`, `signed`, `unsigned`
+- «bold»整数类型«/»: `int`, `short`, `long`, `signed`, `unsigned`
   - 支持类型修饰符组合：`unsigned int`, `signed long`, `unsigned short`等
   - 默认整数类型为`signed int`
   - `unsigned`单独使用等价于`unsigned int`
   - `signed`单独使用等价于`signed int`
-- **字符类型**: `char`, `signed char`, `unsigned char`
-- **浮点类型**: `float`, `double`
-- **布尔类型**: `bool` (C99 扩展)
-- **空类型**: `void`
+- «bold»字符类型«/»: `char`, `signed char`, `unsigned char`
+- «bold»浮点类型«/»: `float`, `double`
+- «bold»布尔类型«/»: `bool` (C99 扩展)
+- «bold»空类型«/»: `void`
 
 ###### 常量后缀
-- **整数常量后缀**:
+- «bold»整数常量后缀«/»:
   - `L` 或 `l`: 长整型常量，如 `100L`
   - `U` 或 `u`: 无符号整型常量，如 `100U`
   - `UL` 或 `ul`: 无符号长整型常量，如 `100UL`
-- **浮点常量后缀**:
+- «bold»浮点常量后缀«/»:
   - `F` 或 `f`: 单精度浮点常量，如 `3.14F`
   - 无后缀: 双精度浮点常量，如 `3.14`
-- **十六进制常量后缀**:
+- «bold»十六进制常量后缀«/»:
   - 支持十六进制常量后缀：`0xFFU`, `0x7FFFFFFFL`, `0xFFFFFFFFUL`
 
 ###### 派生类型
-- **指针**: `int*`, `char*`, `void*` 等
-- **数组**: 一维和多维数组，支持初始化，如 `int arr[10]` 和 `int matrix[2][3] = {{1,2,3},{4,5,6}}`
-- **结构体**: 全局结构体定义和成员访问
-- **枚举**: 全局枚举定义和使用
+- «bold»指针«/»: `int*`, `char*`, `void*` 等
+- «bold»数组«/»: 一维和多维数组，支持初始化，如 `int arr[10]` 和 `int matrix[2][3] = {{1,2,3},{4,5,6}}`
+- «bold»结构体«/»: 全局结构体定义和成员访问
+- «bold»枚举«/»: 全局枚举定义和使用
 
 ##### 2. 变量声明和定义
 
@@ -185,9 +185,9 @@ sizeof // 获取类型大小
 ##### 4. 类型转换和提升
 
 ###### 隐式类型转换
-- **整数提升**: 在表达式中，`char`和`short`类型自动提升为`int`
-- **浮点提升**: 在混合类型表达式中，整数自动转换为浮点数
-- **赋值转换**: 赋值时右侧表达式类型自动转换为左侧变量类型
+- «bold»整数提升«/»: 在表达式中，`char`和`short`类型自动提升为`int`
+- «bold»浮点提升«/»: 在混合类型表达式中，整数自动转换为浮点数
+- «bold»赋值转换«/»: 赋值时右侧表达式类型自动转换为左侧变量类型
 
 ###### 显式类型转换（强制转换）
 ```c
@@ -317,7 +317,7 @@ interrupt static void keyboard_isr(void) {
 }
 ```
 
-**注意事项**:
+«bold»注意事项«/»:
 - ISR 不能有参数（必须为 `void`）
 - ISR 应尽量简短（中断处理时间有限）
 - 编译器自动管理全部寄存器的保存和恢复
@@ -493,18 +493,18 @@ interrupt void isr_name(void) {
 #### 编译器限制
 
 ##### 不支持的特性
-1. **位域 (bit fields)**: 不支持结构体位域
-2. **复杂指针运算**: 指针算术仅限于简单加减
-3. **函数指针**: 声明语法已支持 (v1.65.35)，运行时调用有限
-4. **变长数组 (VLA)**: 不支持 C99 的变长数组
-5. **复杂类型限定符**: 不支持 `restrict`, `_Atomic` 等
-6. **`unsigned` 修饰符**: `unsigned int` / `unsigned char` 当作 `int`/`char` 处理（VML 无符号概念）
+1. «bold»位域 (bit fields)«/»: 不支持结构体位域
+2. «bold»复杂指针运算«/»: 指针算术仅限于简单加减
+3. «bold»函数指针«/»: 声明语法已支持 (v1.65.35)，运行时调用有限
+4. «bold»变长数组 (VLA)«/»: 不支持 C99 的变长数组
+5. «bold»复杂类型限定符«/»: 不支持 `restrict`, `_Atomic` 等
+6. «bold»`unsigned` 修饰符«/»: `unsigned int` / `unsigned char` 当作 `int`/`char` 处理（VML 无符号概念）
 
 ##### v1.65.35 里程碑: SQLite 编译
-- **解析能力**: 完成 SQLite amalgamation 全文件解析 (255,636 行, ~475K tokens)
-- **编译通过**: SQLite stub + 完整版本均可编译运行
-- **运行时验证**: sqlite3_open / CREATE TABLE / INSERT / SELECT / sqlite3_close 全部通过
-- **类型系统增强**: 匿名 struct 成员、双星号指针、函数指针声明
+- «bold»解析能力«/»: 完成 SQLite amalgamation 全文件解析 (255,636 行, ~475K tokens)
+- «bold»编译通过«/»: SQLite stub + 完整版本均可编译运行
+- «bold»运行时验证«/»: sqlite3_open / CREATE TABLE / INSERT / SELECT / sqlite3_close 全部通过
+- «bold»类型系统增强«/»: 匿名 struct 成员、双星号指针、函数指针声明
 
 ##### VML 扩展关键字
 本编译器在标准 C99 基础上增加了以下扩展关键字：
@@ -523,16 +523,16 @@ interrupt void isr_name(void) {
 | `__builtin_va_copy` | 变参 | 拷贝变参 |
 
 ##### 部分支持的特性
-1. **预处理器**: 支持 `#include`、`#define`、`#undef`、条件编译（`#if`/`#ifdef`/`#ifndef`/`#else`/`#elif`/`#endif`）
-2. **标准库**: 支持 `stdio.h`、`stdlib.h`、`string.h`、`math.h`、`conio.h`、`graphics.h`
-3. **浮点运算**: 支持基本浮点运算（`+ - * /`、比较、类型转换）
-4. **结构体**: 支持基本结构体，支持结构体成员指针（`char *buf`）、嵌套结构体
-5. **联合体**: 支持 union 类型
-6. **数组初始化**: 完整支持一维和多维嵌套初始化语法
-7. **内联汇编**: 支持 `asm("instruction")` 单行和 `__chipasm__ { }` 多行语法
-8. **多维数组**: 支持声明、访问和嵌套初始化的完整多维数组
-9. **调用约定**: 支持 `__stdcall` / `__fastcall` / `__cdecl` 三种调用约定
-10. **指示字**: 常量后缀（`L`、`U`、`F`）仅在部分上下文中完全支持
+1. «bold»预处理器«/»: 支持 `#include`、`#define`、`#undef`、条件编译（`#if`/`#ifdef`/`#ifndef`/`#else`/`#elif`/`#endif`）
+2. «bold»标准库«/»: 支持 `stdio.h`、`stdlib.h`、`string.h`、`math.h`、`conio.h`、`graphics.h`
+3. «bold»浮点运算«/»: 支持基本浮点运算（`+ - * /`、比较、类型转换）
+4. «bold»结构体«/»: 支持基本结构体，支持结构体成员指针（`char *buf`）、嵌套结构体
+5. «bold»联合体«/»: 支持 union 类型
+6. «bold»数组初始化«/»: 完整支持一维和多维嵌套初始化语法
+7. «bold»内联汇编«/»: 支持 `asm("instruction")` 单行和 `__chipasm__ { }` 多行语法
+8. «bold»多维数组«/»: 支持声明、访问和嵌套初始化的完整多维数组
+9. «bold»调用约定«/»: 支持 `__stdcall` / `__fastcall` / `__cdecl` 三种调用约定
+10. «bold»指示字«/»: 常量后缀（`L`、`U`、`F`）仅在部分上下文中完全支持
 
 #### 编译流程
 
@@ -700,36 +700,36 @@ dotnet run --project VMLPrepares\\CCompiler input.c -o output.vml
 本编译器目标是实现完整的 C99 标准兼容性。当前已实现约 97% 的 C99 核心功能：
 
 ##### 已实现的核心功能
-1. **基本语法**: 变量声明、表达式、控制结构
-2. **数据类型**: `int`, `char`, `float`, `double`, `void`, 指针、数组、结构体、枚举
-3. **控制流**: `if-else`, `while`, `do-while`, `for`, `switch`, `break`, `continue`, `return`, `goto`
-4. **函数**: 函数定义、声明、调用、递归、参数传递、隐式 int 返回类型
-5. **预处理器**: `#include`, `#define`, `#ifdef`, `#ifndef`, `#if`, `#else`, `#elif`, `#endif`
-6. **数组**: 一维和多维数组声明、嵌套初始化、元素访问
-7. **结构体**: 全局结构体定义、变量声明、成员访问、结构体成员指针
-8. **联合体**: 支持 union 类型
-9. **逗号表达式**: 支持逗号运算符
-10. **注释**: 支持 `/* */` 和 `//` 风格注释
+1. «bold»基本语法«/»: 变量声明、表达式、控制结构
+2. «bold»数据类型«/»: `int`, `char`, `float`, `double`, `void`, 指针、数组、结构体、枚举
+3. «bold»控制流«/»: `if-else`, `while`, `do-while`, `for`, `switch`, `break`, `continue`, `return`, `goto`
+4. «bold»函数«/»: 函数定义、声明、调用、递归、参数传递、隐式 int 返回类型
+5. «bold»预处理器«/»: `#include`, `#define`, `#ifdef`, `#ifndef`, `#if`, `#else`, `#elif`, `#endif`
+6. «bold»数组«/»: 一维和多维数组声明、嵌套初始化、元素访问
+7. «bold»结构体«/»: 全局结构体定义、变量声明、成员访问、结构体成员指针
+8. «bold»联合体«/»: 支持 union 类型
+9. «bold»逗号表达式«/»: 支持逗号运算符
+10. «bold»注释«/»: 支持 `/* */` 和 `//` 风格注释
 
 ##### VML 扩展特性
-1. **中断服务函数**: `interrupt` 关键字声明 ISR，自动保存全部寄存器、IRET 返回
-2. **内联汇编**: `asm("instruction")` 单行和 `__chipasm__ { }` 多行 VML 指令
-3. **调用约定**: `__stdcall` / `__fastcall` / `__cdecl` 跨语言互操作
-4. **跨语言互操作**: `POKE` / `PEEK` 内存映射 I/O (MMIO)
+1. «bold»中断服务函数«/»: `interrupt` 关键字声明 ISR，自动保存全部寄存器、IRET 返回
+2. «bold»内联汇编«/»: `asm("instruction")` 单行和 `__chipasm__ { }` 多行 VML 指令
+3. «bold»调用约定«/»: `__stdcall` / `__fastcall` / `__cdecl` 跨语言互操作
+4. «bold»跨语言互操作«/»: `POKE` / `PEEK` 内存映射 I/O (MMIO)
 
 ##### 缺失的关键功能（计划实现）
-1. **类型系统**: `unsigned` 类型完整支持
-2. **标准库**: 完成 `stdio.h` 文件操作、`math.h` 全部函数
-3. **高级特性**: 函数指针、位域
-4. **复杂指针运算**: 完善的指针算术和类型转换
-5. **宽字符**: `wchar_t` 和相关函数
+1. «bold»类型系统«/»: `unsigned` 类型完整支持
+2. «bold»标准库«/»: 完成 `stdio.h` 文件操作、`math.h` 全部函数
+3. «bold»高级特性«/»: 函数指针、位域
+4. «bold»复杂指针运算«/»: 完善的指针算术和类型转换
+5. «bold»宽字符«/»: `wchar_t` 和相关函数
 
 ##### 与标准 C 的差异
-1. **内存模型**: 使用 VML 虚拟机的内存模型
-2. **标准库**: 使用 VML 运行时库而非标准 C 库
-3. **系统调用**: 通过 VML 运行时进行 I/O 操作
-4. **整数大小**: 使用 VML 的 32 位整数
-5. **浮点精度**: 使用 VML 的浮点表示
+1. «bold»内存模型«/»: 使用 VML 虚拟机的内存模型
+2. «bold»标准库«/»: 使用 VML 运行时库而非标准 C 库
+3. «bold»系统调用«/»: 通过 VML 运行时进行 I/O 操作
+4. «bold»整数大小«/»: 使用 VML 的 32 位整数
+5. «bold»浮点精度«/»: 使用 VML 的浮点表示
 
 #### 浮点与64位编译模式
 
@@ -745,25 +745,25 @@ VML 工具链通过三个编译参数控制浮点和 64 位整数的处理策略
 
 本语言中的 32 位单精度浮点类型 `float` 按以下模式编译：
 
-- **`hard` 模式（默认）**: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
-- **`soft` 模式**: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
-- **`none` 模式**: 禁用所有 32 位浮点类型，遇到 `float` 声明时报告编译错误。
+- «bold»`hard` 模式（默认）«/»: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
+- «bold»`soft` 模式«/»: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
+- «bold»`none` 模式«/»: 禁用所有 32 位浮点类型，遇到 `float` 声明时报告编译错误。
 
 ##### 64位浮点 (double)
 
 本语言中的 64 位双精度浮点类型 `double` 按以下模式编译：
 
-- **`soft` 模式（默认）**: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
-- **`hard` 模式**: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。需要目标平台支持 64 位运算。
-- **`none` 模式**: 禁用所有 64 位浮点类型，遇到 `double` 声明时报告编译错误。
+- «bold»`soft` 模式（默认）«/»: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
+- «bold»`hard` 模式«/»: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。需要目标平台支持 64 位运算。
+- «bold»`none` 模式«/»: 禁用所有 64 位浮点类型，遇到 `double` 声明时报告编译错误。
 
 ##### 64位整数 (int64)
 
 本语言中的 64 位整数类型 `long long` 按以下模式编译：
 
-- **`soft` 模式（默认）**: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
-- **`hard` 模式**: 使用 VML 原生 64 位整数指令 `MOVEL`/`ADDL`/`SUBL`/`MULL`/`DIVL`/`MODL`/`NEGL`/`CMPL`/`ANDL`/`ORL`/`XORL`/`NOTL`/`SHLL`/`SHRL`，通过 L0-L7 八个长整数寄存器运算。v1.65.197+ 起可用。
-- **`none` 模式**: 禁用 64 位整数类型，遇到 `long long` 声明时报告编译错误。
+- «bold»`soft` 模式（默认）«/»: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
+- «bold»`hard` 模式«/»: 使用 VML 原生 64 位整数指令 `MOVEL`/`ADDL`/`SUBL`/`MULL`/`DIVL`/`MODL`/`NEGL`/`CMPL`/`ANDL`/`ORL`/`XORL`/`NOTL`/`SHLL`/`SHRL`，通过 L0-L7 八个长整数寄存器运算。v1.65.197+ 起可用。
+- «bold»`none` 模式«/»: 禁用 64 位整数类型，遇到 `long long` 声明时报告编译错误。
 
 ##### 软件模拟库
 
@@ -777,19 +777,19 @@ VML 工具链通过三个编译参数控制浮点和 64 位整数的处理策略
 
 #### 性能考虑
 
-1. **代码大小**: 生成的 VML 代码比原生代码大
-2. **执行速度**: 在 VML 虚拟机中运行，比原生代码慢
-3. **内存使用**: 使用 VML 虚拟机的内存空间
-4. **优化级别**: 当前为基本优化，可生成较直接的代码
+1. «bold»代码大小«/»: 生成的 VML 代码比原生代码大
+2. «bold»执行速度«/»: 在 VML 虚拟机中运行，比原生代码慢
+3. «bold»内存使用«/»: 使用 VML 虚拟机的内存空间
+4. «bold»优化级别«/»: 当前为基本优化，可生成较直接的代码
 
 #### 扩展性
 
 编译器设计为可扩展的架构：
 
-1. **添加新语法**: 可扩展词法和语法分析器
-2. **优化通道**: 可添加代码优化阶段
-3. **目标平台**: 可扩展支持其他目标架构
-4. **语言特性**: 可逐步添加更多 C 语言特性
+1. «bold»添加新语法«/»: 可扩展词法和语法分析器
+2. «bold»优化通道«/»: 可添加代码优化阶段
+3. «bold»目标平台«/»: 可扩展支持其他目标架构
+4. «bold»语言特性«/»: 可逐步添加更多 C 语言特性
 
 #### 相关文件
 
@@ -822,9 +822,9 @@ wchar_t  c1 = L'字';              // 16-bit 宽字符
 char32_t c2 = U'🎉';              // 32-bit Unicode 字符
 ```
 
-**预定义宏**: `VML_WSTRING` — OS 模式下定义为 1，MCU 模式下未定义
-**标准头**: `<wchar.h>` / `<uchar.h>` 自动链接 `Lib/shared/wchar.vml` / `uchar.vml`
-**输出**: `shared_print_wstr(wstr)` — 自动转换 UTF-16LE→UTF-8→SYSCALL #1
+«bold»预定义宏«/»: `VML_WSTRING` — OS 模式下定义为 1，MCU 模式下未定义
+«bold»标准头«/»: `<wchar.h>` / `<uchar.h>` 自动链接 `Lib/shared/wchar.vml` / `uchar.vml`
+«bold»输出«/»: `shared_print_wstr(wstr)` — 自动转换 UTF-16LE→UTF-8→SYSCALL #1
 
 ---
 
@@ -852,7 +852,7 @@ size_t wcslen(const wchar_t *s) { ... }   // → python_wcslen
 wchar_t *wcscpy(wchar_t *d, const wchar_t *s) { ... }  // → python_wcscpy
 ```
 
-**编译命令**：
+«bold»编译命令«/»：
 ```bash
 # 为 Python 生成 python_wcslen, python_wcscpy ...
 vmltool wstring.c -D VML_PREFIX=python_ -o python/wstring.vml
@@ -864,7 +864,7 @@ vmltool wstring.c -D VML_PREFIX=java_ -o java/wstring.vml
 vmltool wstring.c -D VML_PREFIX=js_ -o js/wstring.vml
 ```
 
-**前缀替换规则**：
+«bold»前缀替换规则«/»：
 - `shared_xxx` → `{prefix}xxx` (替换 shared_ 前缀)
 - `vml_xxx` → `{prefix}xxx` (替换 vml_ 前缀)
 - 其他函数名 → `{prefix}` + 原名 (直接添加前缀)
@@ -931,7 +931,7 @@ __cdecl int shared_sprintf(char *buf, const char *fmt, ...) {
 }
 ```
 
-**变参实现原理**:
+«bold»变参实现原理«/»:
 - `__cdecl` 参数从右向左压栈
 - `fmt` 是最接近栈顶的固定参数
 - `&fmt + 1` 指向栈上的第一个可变参数
@@ -955,15 +955,15 @@ __fastcall int add_four(int a, int b, int c, int d) {
 }
 ```
 
-**注意**: `__cdecl`/`__stdcall`/`__fastcall` 修饰符用于**函数定义**。在调用侧，编译器自动根据函数定义选择正确的调用约定，无需显式声明。
+«bold»注意«/»: `__cdecl`/`__stdcall`/`__fastcall` 修饰符用于«bold»函数定义«/»。在调用侧，编译器自动根据函数定义选择正确的调用约定，无需显式声明。
 
 ## 编译器 README
 
 ### C 编译器
 
-**路径**: `VMLPrepares/CCompiler/`
-**完成度**: ~97% | 🟢 生产可用
-**标准库**: `Lib/c/` (29 个文件)
+«bold»路径«/»: `VMLPrepares/CCompiler/`
+«bold»完成度«/»: ~97% | 🟢 生产可用
+«bold»标准库«/»: `Lib/c/` (29 个文件)
 
 #### 功能
 - ✅ C99 完整标准 (ISO/IEC 9899:1999)
@@ -980,10 +980,10 @@ __fastcall int add_four(int a, int b, int c, int d) {
 ##### MCU 模式（默认 `--mode mcu`）
 MCU 模式针对单片机/裸机环境（Arduino/STM32/8051 等）优化，自动跳过不兼容操作系统的特性。
 
-**跳过**（遇到这些语法不生成代码）:
+«bold»跳过«/»（遇到这些语法不生成代码）:
 - 无（C99无异步/线程/反射）
 
-**保留**（由 BIOS 实现底层）:
+«bold»保留«/»（由 BIOS 实现底层）:
 - malloc/free、fopen/fread、printf%f、va_list
 - POKE/PEEK 内存映射 I/O (MMIO)
 - interrupt 关键字（中断服务函数）
@@ -996,7 +996,7 @@ OS 模式针对带操作系统环境（如 Linux 嵌入式、RTOS 等），届�
 
 ##### RAM 级别
 - `--ram k`：KB级别（2KB~64KB，如 8051/PIC/AVR）
-- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，**默认**）
+- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，«bold»默认«/»）
 - `--ram g`：GB级别（如 x86/DDR 系统）
 - `--stack-size <bytes>`：手动指定栈大小（默认自动根据 --ram 分配）
 

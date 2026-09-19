@@ -15,7 +15,7 @@ vml run examples/kotlin/catch.kt
 
 - 入口 `fun main()`
 - 与 Java 一样直接调用 `ui_*`
-- **状态数组写在 `main` 里面**（见下面那条坑）
+- «bold»状态数组写在 `main` 里面«/»（见下面那条坑）
 
 ## 示例
 
@@ -26,7 +26,7 @@ vml run examples/kotlin/catch.kt
 
 ## 实测踩过的坑
 
-- ⚠ **文件级（顶层）的 `arrayOf` 读回是 0** —— 状态数组请写在 `main` 内部。
+- ⚠ «bold»文件级（顶层）的 `arrayOf` 读回是 0«/» —— 状态数组请写在 `main` 内部。
 - ⚠ `step` 是前端保留字，别拿它当变量名。
 
 ---
@@ -39,18 +39,18 @@ vml run examples/kotlin/catch.kt
 
 ### Kotlin 语言编译器规范说明
 
-> **版本**：v1.0 | **日期**：2026-07-06 | **修订者**：深圳市探索智能科技有限公司
+> «bold»版本«/»：v1.0 | «bold»日期«/»：2026-07-06 | «bold»修订者«/»：深圳市探索智能科技有限公司
 
 #### 规范标准
 
 | 字段 | 值 |
 |:-----|:----|
-| **目标标准** | Kotlin 1.0+ (最小子集) |
-| **发布年份** | 2016 |
-| **完成度** | ~93% |
-| **MCU完成度** | ~91% |
-| **测试** | 29 通过 |
-| **更新** | 2026-05-21: data class toString/equals 实现; sealed class 穷尽性检查升级为编译错误; when 表达式返回值确认已实现 |
+| «bold»目标标准«/» | Kotlin 1.0+ (最小子集) |
+| «bold»发布年份«/» | 2016 |
+| «bold»完成度«/» | ~93% |
+| «bold»MCU完成度«/» | ~91% |
+| «bold»测试«/» | 29 通过 |
+| «bold»更新«/» | 2026-05-21: data class toString/equals 实现; sealed class 穷尽性检查升级为编译错误; when 表达式返回值确认已实现 |
 
 #### 概述
 
@@ -168,7 +168,7 @@ dotnet run --project VMLEmulators/ConsoleEmulator -- -r output.vml
 | 语法分析 | ~95% (fun/val/var/if/while/for/when/class/data class/is/in/lambda/range/sealed/when穷尽性) |
 | 代码生成 | ~93% (表达式/控制流/字符串/类/data class/Lambda/内联汇编/SafeCall/Elvis/泛型擦除) |
 | 标准库 | ~50% (Lib/kotlin/ 基础函数已内联) |
-| **总体** | **~93%** |
+| «bold»总体«/» | «bold»~93%«/» |
 
 ---
 
@@ -181,8 +181,8 @@ dotnet run --project VMLEmulators/ConsoleEmulator -- -r output.vml
 | MCU (默认) | `.string` (UTF-8) | `.string` | #1 |
 | OS | `.wstring` (UTF-16LE) | `.wstring` | #391 |
 
-**预定义宏**: `VML_WSTRING` — OS 模式下自动定义，MCU 模式未定义
-**输出函数**: OS 模式自动使用 `shared_print_wstr` (UTF-16LE→UTF-8 自动转换)
+«bold»预定义宏«/»: `VML_WSTRING` — OS 模式下自动定义，MCU 模式未定义
+«bold»输出函数«/»: OS 模式自动使用 `shared_print_wstr` (UTF-16LE→UTF-8 自动转换)
 
 ```c
 // 用户代码可通过宏判断编码
@@ -197,9 +197,9 @@ dotnet run --project VMLEmulators/ConsoleEmulator -- -r output.vml
 
 ### Kotlin 1.0 编译器
 
-**路径**: `VMLPrepares/KotlinCompiler/`
-**完成度**: ~93% | 🟢 生产可用
-**标准库**: `Lib/kotlin/`（待创建）
+«bold»路径«/»: `VMLPrepares/KotlinCompiler/`
+«bold»完成度«/»: ~93% | 🟢 生产可用
+«bold»标准库«/»: `Lib/kotlin/`（待创建）
 
 #### 功能
 - ✅ 语法分析 + 代码生成（Lexer/Parser/CodeGenerator ~1200行）
@@ -226,10 +226,10 @@ dotnet run --project VMLEmulators/ConsoleEmulator -- -r output.vml
 ##### MCU 模式（默认 `--mode mcu`）
 MCU 模式针对单片机/裸机环境（Arduino/STM32/8051 等）优化，自动跳过不兼容操作系统的特性。
 
-**跳过**（遇到这些语法不生成代码）:
+«bold»跳过«/»（遇到这些语法不生成代码）:
 - coroutine
 
-**保留**（由 BIOS 实现底层）:
+«bold»保留«/»（由 BIOS 实现底层）:
 - class(堆分配 SYSCALL #40)、data class
 - POKE/PEEK 内存映射 I/O (MMIO)
 - 基本类型运算、控制流、函数调用

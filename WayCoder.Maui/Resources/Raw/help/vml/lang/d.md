@@ -34,18 +34,18 @@ vml run examples/d/catch.d
 
 ### D 语言编译器规范说明
 
-> **版本**：v1.0 | **日期**：2026-07-06 | **修订者**：深圳市探索智能科技有限公司
+> «bold»版本«/»：v1.0 | «bold»日期«/»：2026-07-06 | «bold»修订者«/»：深圳市探索智能科技有限公司
 
 #### 元数据
 
 | 属性 | 值 |
 |------|-----|
-| **语言** | D |
-| **标准** | D 2.0 子集 |
-| **年份** | 2001 年首次发布 |
-| **完成度** | ~97% |
-| **源文件扩展名** | `.d` |
-| **文件编码** | UTF-8 (默认) |
+| «bold»语言«/» | D |
+| «bold»标准«/» | D 2.0 子集 |
+| «bold»年份«/» | 2001 年首次发布 |
+| «bold»完成度«/» | ~97% |
+| «bold»源文件扩展名«/» | `.d` |
+| «bold»文件编码«/» | UTF-8 (默认) |
 
 #### 概述
 
@@ -85,7 +85,7 @@ source.d → [预处理器] → [Lexer] → [Parser] → [CodeGenerator] → VML
 | 接口 | `interface` | 占位 | 解析跳过内部声明 |
 | 枚举 | `enum` | 32-bit | 支持显式赋值 `= expr` |
 
-**字面量语法**:
+«bold»字面量语法«/»:
 - 整数: `42`, `0x2A`, `0xFF`
 - 浮点: `3.14`, `0.5`
 - 布尔: `true`, `false`
@@ -115,7 +115,7 @@ char c = 'A';                       // 字符变量
 ClassName obj;                      // 类类型变量（默认初始化为 0/null）
 ```
 
-**语义**:
+«bold»语义«/»:
 - 局部变量分配在栈帧中 (R12 相对偏移，每次分配 4 字节)
 - 全局变量分配在 data section 中 (`var_name` 标签)
 - 不指定初始化器时，默认初始化为 0
@@ -271,9 +271,9 @@ int getAnswer() {
 }
 ```
 
-**语法**: `returnType functionName(paramType paramName, ...) { body }`
+«bold»语法«/»: `returnType functionName(paramType paramName, ...) { body }`
 
-**内部实现**:
+«bold»内部实现«/»:
 - 函数标签: `func_functionName`
 - 类方法标签: `class_ClassName_methodName`
 - 序言: PUSH R15, PUSH R12, MOVE R12 R13 (保存帧指针和返回地址，建立新栈帧)
@@ -351,7 +351,7 @@ enum Color {
 
 编译器内部的 `LexerBase.SkipBlockComment` 处理 `/* ... */`，`SkipLineComment` 处理 `// ...`。`/+ ... +/` 嵌套注释语法当前未在 Lexer 中实现。
 
-**注意**: 注释 token 在 Tokenize 阶段产生但不参与语法分析 (被 `SkipComments()` 跳过)。
+«bold»注意«/»: 注释 token 在 Tokenize 阶段产生但不参与语法分析 (被 `SkipComments()` 跳过)。
 
 ##### 9. 字符串字面量
 
@@ -445,67 +445,67 @@ Primary    := Integer | Float | String | Char | true | false | null
 
 #### 限制与未实现特性
 
-以下特性属于 D 语言完整规范但目前**不支持**：
+以下特性属于 D 语言完整规范但目前«bold»不支持«/»：
 
 ##### 元编程
 
-- **模板 (Template)**: `template T(T)` — 模板元编程核心特性，未实现
-- **混入 (Mixin)**: `mixin("string")` — 编译时代码生成，未实现
-- **CTFE (编译时函数求值)**: 不支持在编译期执行函数
-- **约束 (Constraint)**: `if (is(T == int))` 模板约束，未实现
+- «bold»模板 (Template)«/»: `template T(T)` — 模板元编程核心特性，未实现
+- «bold»混入 (Mixin)«/»: `mixin("string")` — 编译时代码生成，未实现
+- «bold»CTFE (编译时函数求值)«/»: 不支持在编译期执行函数
+- «bold»约束 (Constraint)«/»: `if (is(T == int))` 模板约束，未实现
 
 ##### 契约编程
 
-- **in 契约**: `in { assert(x > 0); }` — 前置条件，未实现
-- **out 契约**: `out (result) { assert(result > 0); }` — 后置条件，未实现
-- **invariant**: `invariant() { ... }` — 类不变量，未实现
+- «bold»in 契约«/»: `in { assert(x > 0); }` — 前置条件，未实现
+- «bold»out 契约«/»: `out (result) { assert(result > 0); }` — 后置条件，未实现
+- «bold»invariant«/»: `invariant() { ... }` — 类不变量，未实现
 
 ##### 内存管理
 
-- **GC (垃圾回收)**: D 的默认内存管理策略，因 MCU 安全子集限制而跳过
-- **new 表达式**: `new ClassName()` — 关键字识别但不生成分配代码
-- **delete**: 显式析构，未实现
+- «bold»GC (垃圾回收)«/»: D 的默认内存管理策略，因 MCU 安全子集限制而跳过
+- «bold»new 表达式«/»: `new ClassName()` — 关键字识别但不生成分配代码
+- «bold»delete«/»: 显式析构，未实现
 
 ##### 控制流
 
-- **switch / case**: 多分支选择，未实现
-- **break**: 循环中断，未实现 (关键字不在词法解析表中)
-- **continue**: 继续下一次迭代，未实现 (关键字不在词法解析表中)
-- **foreach / foreach_reverse**: 范围迭代，未实现
-- **goto**: 跳转语句，未实现
-- **scope 语句**: `scope(exit)`, `scope(success)`, `scope(failure)` — 作用域守卫，未实现
-- **with 语句**: `with (expr) { ... }` — 作用域缩短，未实现
-- **synchronized**: 多线程同步，未实现
-- **try / catch / finally**: 异常处理，因 MCU 安全子集限制跳过
+- «bold»switch / case«/»: 多分支选择，未实现
+- «bold»break«/»: 循环中断，未实现 (关键字不在词法解析表中)
+- «bold»continue«/»: 继续下一次迭代，未实现 (关键字不在词法解析表中)
+- «bold»foreach / foreach_reverse«/»: 范围迭代，未实现
+- «bold»goto«/»: 跳转语句，未实现
+- «bold»scope 语句«/»: `scope(exit)`, `scope(success)`, `scope(failure)` — 作用域守卫，未实现
+- «bold»with 语句«/»: `with (expr) { ... }` — 作用域缩短，未实现
+- «bold»synchronized«/»: 多线程同步，未实现
+- «bold»try / catch / finally«/»: 异常处理，因 MCU 安全子集限制跳过
 
 ##### 类型系统
 
-- **auto**: 类型推导，未实现
-- **const / immutable**: 类型修饰符，未实现
-- **alias**: 类型别名，未实现
-- **typeof**: 类型获取，未实现
-- **delegate / function**: 委托与函数指针，未实现
-- **enum 作为清单类型**: `enum E : string { ... }` — 仅支持基本整数枚举
-- **union**: 联合体，未实现
+- «bold»auto«/»: 类型推导，未实现
+- «bold»const / immutable«/»: 类型修饰符，未实现
+- «bold»alias«/»: 类型别名，未实现
+- «bold»typeof«/»: 类型获取，未实现
+- «bold»delegate / function«/»: 委托与函数指针，未实现
+- «bold»enum 作为清单类型«/»: `enum E : string { ... }` — 仅支持基本整数枚举
+- «bold»union«/»: 联合体，未实现
 
 ##### 复合类型
 
-- **关联数组**: `int[string] aa;` — 键值对容器，未实现
-- **动态数组**: `int[] arr;` — 切片与动态数组，未实现
-- **静态数组**: `int[10] arr;` — 固定大小数组，未实现
-- **切片操作**: `arr[0..$]`, `arr[1..3]` — 未实现
+- «bold»关联数组«/»: `int[string] aa;` — 键值对容器，未实现
+- «bold»动态数组«/»: `int[] arr;` — 切片与动态数组，未实现
+- «bold»静态数组«/»: `int[10] arr;` — 固定大小数组，未实现
+- «bold»切片操作«/»: `arr[0..$]`, `arr[1..3]` — 未实现
 
 ##### 其他
 
-- **unittest 块**: `unittest { ... }` — 单元测试块，未实现
-- **version / debug**: 条件编译块，未实现 (可通过预处理器 `#ifdef` 替代)
-- **属性 (Property)**: `@property T name()` — 未实现
-- **操作符重载**: `T opBinary(string op)(T rhs)` — 未实现
-- **UFCS (统一函数调用语法)**: `obj.method()` 等价 `method(obj)`，未实现
-- **模块构造函数/析构函数**: `static this()`, `static ~this()` — 未实现
-- **嵌套函数/闭包**: 函数内定义函数，未实现
-- **Ranges (范围)**: `std.range` 等惰性求值抽象，未实现
-- **list (链表字面量)**: 如 `[1, 2, 3]`，未实现
+- «bold»unittest 块«/»: `unittest { ... }` — 单元测试块，未实现
+- «bold»version / debug«/»: 条件编译块，未实现 (可通过预处理器 `#ifdef` 替代)
+- «bold»属性 (Property)«/»: `@property T name()` — 未实现
+- «bold»操作符重载«/»: `T opBinary(string op)(T rhs)` — 未实现
+- «bold»UFCS (统一函数调用语法)«/»: `obj.method()` 等价 `method(obj)`，未实现
+- «bold»模块构造函数/析构函数«/»: `static this()`, `static ~this()` — 未实现
+- «bold»嵌套函数/闭包«/»: 函数内定义函数，未实现
+- «bold»Ranges (范围)«/»: `std.range` 等惰性求值抽象，未实现
+- «bold»list (链表字面量)«/»: 如 `[1, 2, 3]`，未实现
 
 ---
 
@@ -603,8 +603,8 @@ BlockComment  := "/*" { Character } "*/"
 | `.wstring` | 16-bit | UTF-16LE | `wchar_t*` |
 | `.ustring` | 32-bit | UTF-32LE | `char32_t*` |
 
-**MCU 模式** (默认): 字符串输出为 UTF-8 (`.string`)
-**OS 模式**: 可通过 `VML_WSTRING` 宏判断编码
+«bold»MCU 模式«/» (默认): 字符串输出为 UTF-8 (`.string`)
+«bold»OS 模式«/»: 可通过 `VML_WSTRING` 宏判断编码
 
 共享库已提供宽字符串转换函数 (wchar.h/uchar.h)，各语言编译器可按需使用。
 
@@ -612,9 +612,9 @@ BlockComment  := "/*" { Character } "*/"
 
 ### D 编译器
 
-**路径**: `VMLPrepares/DCompiler/`
-**完成度**: ~97% | 🟢 生产可用
-**标准库**: `Lib/d/`
+«bold»路径«/»: `VMLPrepares/DCompiler/`
+«bold»完成度«/»: ~97% | 🟢 生产可用
+«bold»标准库«/»: `Lib/d/`
 
 #### 功能
 - ✅ 词法分析 + 语法分析 + 代码生成 (Lexer/Parser/CodeGenerator)
@@ -634,11 +634,11 @@ BlockComment  := "/*" { Character } "*/"
 ##### MCU 模式（默认 `--mode mcu`）
 MCU 模式针对单片机/裸机环境优化。
 
-**跳过**（MCU 不支持）:
+«bold»跳过«/»（MCU 不支持）:
 - 模板元编程 (编译期展开过大)
 - contract/invariant
 
-**保留**:
+«bold»保留«/»:
 - 基本 OOP (class/struct/interface)
 - 模块导入
 - 完整运算符支持

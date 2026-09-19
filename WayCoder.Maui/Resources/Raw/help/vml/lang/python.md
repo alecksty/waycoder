@@ -1,6 +1,6 @@
 # Python
 
-**写起来最快的一门**。语法几乎就是桌面 Python，改一行跑一次很舒服。
+«bold»写起来最快的一门«/»。语法几乎就是桌面 Python，改一行跑一次很舒服。
 
 ## 在手机上怎么跑
 
@@ -15,7 +15,7 @@ vml run examples/python/sysinfo.py
 
 - 直接调用 `ui_*`，不需要声明
 - 编译快（几秒），适合反复改
-- **可变网格（棋盘、地图）用共享库的整数网格**，不要用 Python 列表（见下面那条坑）
+- «bold»可变网格（棋盘、地图）用共享库的整数网格«/»，不要用 Python 列表（见下面那条坑）
 
 ## 示例
 
@@ -26,7 +26,7 @@ vml run examples/python/sysinfo.py
 
 ## 实测踩过的坑
 
-- ⚠ **列表「写不生效」**：`b[i] = v` 之后读回来还是 0（嵌套列表也错）。
+- ⚠ «bold»列表「写不生效」«/»：`b[i] = v` 之后读回来还是 0（嵌套列表也错）。
   棋盘这类请改用共享库的整数网格：
   ```python
   ui_gclear()
@@ -45,17 +45,17 @@ vml run examples/python/sysinfo.py
 
 ### Python 语言编译器规范说明
 
-> **版本**：v1.0 | **日期**：2026-07-06 | **修订者**：深圳市探索智能科技有限公司
+> «bold»版本«/»：v1.0 | «bold»日期«/»：2026-07-06 | «bold»修订者«/»：深圳市探索智能科技有限公司
 
 #### 规范标准
 
 | 字段 | 值 |
 |:-----|:----|
-| **目标标准** | Python 3.0 (2008) |
-| **发布年份** | 2008 |
-| **完成度** | ~90% |
-| **更新** | 2026-05-18: list/dict/tuple/set 全部实现堆分配 |
-| **测试** | 6 通过 |
+| «bold»目标标准«/» | Python 3.0 (2008) |
+| «bold»发布年份«/» | 2008 |
+| «bold»完成度«/» | ~90% |
+| «bold»更新«/» | 2026-05-18: list/dict/tuple/set 全部实现堆分配 |
+| «bold»测试«/» | 6 通过 |
 
 > 版本 1.0 | 2026-04-19 | 编译器路径: VMLPrepares/PythonCompiler/
 
@@ -66,7 +66,7 @@ vml run examples/python/sysinfo.py
 将 Python 子集编译为 VML 汇编，运行在 VML 虚拟机上。
 VML 是寄存器+栈混合架构，16 个通用寄存器（R0–R15），支持整数和浮点运算。
 
-**不实现**: class、async/await、装饰器、类型注解、列表推导、生成器运行时
+«bold»不实现«/»: class、async/await、装饰器、类型注解、列表推导、生成器运行时
 
 ---
 
@@ -119,7 +119,7 @@ VML 是寄存器+栈混合架构，16 个通用寄存器（R0–R15），支持�
 | 元组 | (1, 2) | LPAREN | ✅ 堆分配 [长度+元素] |
 | 集合 | {1, 2, 3} | LBRACE | ✅ 堆分配 [长度+元素] |
 
-**字典 vs 集合歧义**: `{expr}` 为集合，`{expr:expr}` 为字典，`{}` 为空字典。
+«bold»字典 vs 集合歧义«/»: `{expr}` 为集合，`{expr:expr}` 为字典，`{}` 为空字典。
 
 ##### 3.2 类型兼容
 
@@ -267,7 +267,7 @@ endwhile_0:
     STORE [R12-result] RR0
 ```
 
-**while-else 语义**: else 在循环正常结束（条件为假）时执行；被 break 跳出时不执行。
+«bold»while-else 语义«/»: else 在循环正常结束（条件为假）时执行；被 break 跳出时不执行。
 实现方式：break 跳转到 endwhile 之后。
 
 ##### 5.4 for 循环
@@ -349,7 +349,7 @@ match_end:
     POP RR0
 ```
 
-**语义**: 将匹配值压栈，每个 case 比较；_ 通配符无条件匹配。匹配成功执行 body 后 JMP match_end。
+«bold»语义«/»: 将匹配值压栈，每个 case 比较；_ 通配符无条件匹配。匹配成功执行 body 后 JMP match_end。
 
 ##### 5.6 lambda
 
@@ -468,25 +468,25 @@ VML 工具链通过三个编译参数控制浮点和 64 位整数的处理策略
 
 Python 的 `float` 类型在 VML 编译时映射为 64 位双精度浮点。32 位浮点运算用于内部中间结果处理：
 
-- **`hard` 模式（默认）**: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。
-- **`soft` 模式**: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。
-- **`none` 模式**: 禁用浮点运算。
+- «bold»`hard` 模式（默认）«/»: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。
+- «bold»`soft` 模式«/»: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。
+- «bold»`none` 模式«/»: 禁用浮点运算。
 
 ##### 64位浮点 (double)
 
 Python 的 `float` 类型原生为 IEEE 754 双精度 64 位浮点，按以下模式编译：
 
-- **`soft` 模式（默认）**: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
-- **`hard` 模式**: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。
-- **`none` 模式**: 禁用浮点运算。
+- «bold»`soft` 模式（默认）«/»: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
+- «bold»`hard` 模式«/»: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。
+- «bold»`none` 模式«/»: 禁用浮点运算。
 
 ##### 64位整数 (int64)
 
 Python 3 的 `int` 类型为任意精度整数。VML 编译时按以下模式处理 64 位范围内的整数：
 
-- **`soft` 模式（默认）**: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
-- **`hard` 模式**: 预留，未来 VML 版本将支持原生 64 位整数指令。
-- **`none` 模式**: 降级为 32 位整数。
+- «bold»`soft` 模式（默认）«/»: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
+- «bold»`hard` 模式«/»: 预留，未来 VML 版本将支持原生 64 位整数指令。
+- «bold»`none` 模式«/»: 降级为 32 位整数。
 
 ##### 软件模拟库
 
@@ -535,8 +535,8 @@ Python 3 的 `int` 类型为任意精度整数。VML 编译时按以下模式处
 | MCU (默认) | `.string` (UTF-8) | `.string` | #1 |
 | OS | `.wstring` (UTF-16LE) | `.wstring` | #391 |
 
-**预定义宏**: `VML_WSTRING` — OS 模式下自动定义，MCU 模式未定义
-**输出函数**: OS 模式自动使用 `shared_print_wstr` (UTF-16LE→UTF-8 自动转换)
+«bold»预定义宏«/»: `VML_WSTRING` — OS 模式下自动定义，MCU 模式未定义
+«bold»输出函数«/»: OS 模式自动使用 `shared_print_wstr` (UTF-16LE→UTF-8 自动转换)
 
 ```c
 // 用户代码可通过宏判断编码
@@ -551,9 +551,9 @@ Python 3 的 `int` 类型为任意精度整数。VML 编译时按以下模式处
 
 ### Python 3 编译器
 
-**路径**: `VMLPrepares/PythonCompiler/`
-**完成度**: ~90% | 🟢 生产可用
-**标准库**: `Lib/python/`
+«bold»路径«/»: `VMLPrepares/PythonCompiler/`
+«bold»完成度«/»: ~90% | 🟢 生产可用
+«bold»标准库«/»: `Lib/python/`
 
 #### 功能
 - ✅ 语法分析 + 代码生成（Lexer/Parser/CodeGenerator）
@@ -569,10 +569,10 @@ Python 3 的 `int` 类型为任意精度整数。VML 编译时按以下模式处
 ##### MCU 模式（默认 `--mode mcu`）
 MCU 模式针对单片机/裸机环境（Arduino/STM32/8051 等）优化，自动跳过不兼容操作系统的特性。
 
-**跳过**（遇到这些语法不生成代码）:
+«bold»跳过«/»（遇到这些语法不生成代码）:
 - async、yield、import
 
-**保留**（由 BIOS 实现底层）:
+«bold»保留«/»（由 BIOS 实现底层）:
 - list/dict/tuple/set(堆)、class
 - POKE/PEEK 内存映射 I/O (MMIO)
 - 基本类型运算、控制流、函数调用
@@ -583,7 +583,7 @@ OS 模式针对带操作系统环境（如 Linux 嵌入式、RTOS 等），届�
 
 ##### RAM 级别
 - `--ram k`：KB级别（2KB~64KB，如 8051/PIC/AVR）
-- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，**默认**）
+- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，«bold»默认«/»）
 - `--ram g`：GB级别（如 x86/DDR 系统）
 - `--stack-size <bytes>`：手动指定栈大小（默认自动根据 --ram 分配）
 

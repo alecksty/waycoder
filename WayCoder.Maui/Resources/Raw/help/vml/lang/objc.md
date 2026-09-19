@@ -27,8 +27,8 @@ vml run examples/objc/file_io.m
 
 ## 实测踩过的坑
 
-- ⚠ **这个前端解析不了 `waycoder_ui.h`**（会报 `expected )`）——
-  **别引头文件**，直接调用即可（`examples/objc/snake.m` 就是这么写的）。
+- ⚠ «bold»这个前端解析不了 `waycoder_ui.h`«/»（会报 `expected )`）——
+  «bold»别引头文件«/»，直接调用即可（`examples/objc/snake.m` 就是这么写的）。
 
 ---
 
@@ -40,16 +40,16 @@ vml run examples/objc/file_io.m
 
 ### Objective-C 语言编译器规范说明
 
-> **版本**：v1.1 | **日期**：2026-07-06 | **修订者**：深圳市探索智能科技有限公司
+> «bold»版本«/»：v1.1 | «bold»日期«/»：2026-07-06 | «bold»修订者«/»：深圳市探索智能科技有限公司
 
 | 属性 | 值 |
 |------|-----|
-| **标准** | Objective-C 2.0 子集 |
-| **年份** | 1984 (ObjC 2.0: 2006) |
-| **完成度** | ~99% |
-| **扩展名** | `.m`, `.mm` |
-| **编译器入口** | `ObjCCompiler.Compile()` / `ObjCCompiler.CompileFile()` |
-| **源文件** | `Lexer.cs` (145 行) / `Parser.cs` (440 行) / `CodeGenerator*.cs` (399 行) / `ASTNode.cs` (76 行) |
+| «bold»标准«/» | Objective-C 2.0 子集 |
+| «bold»年份«/» | 1984 (ObjC 2.0: 2006) |
+| «bold»完成度«/» | ~99% |
+| «bold»扩展名«/» | `.m`, `.mm` |
+| «bold»编译器入口«/» | `ObjCCompiler.Compile()` / `ObjCCompiler.CompileFile()` |
+| «bold»源文件«/» | `Lexer.cs` (145 行) / `Parser.cs` (440 行) / `CodeGenerator*.cs` (399 行) / `ASTNode.cs` (76 行) |
 
 ---
 
@@ -57,7 +57,7 @@ vml run examples/objc/file_io.m
 
 本编译器实现 Objective-C 2.0 的子集，兼容 C 语法，并扩展面向对象特性。核心设计思路是将 C 函数和 ObjC 消息发送统一编译到 VML IR，由运行时库提供 `NSObject` 等基础类的消息分发骨架。
 
-**架构分层**：
+«bold»架构分层«/»：
 ```
 Objective-C 源码 (.m, .mm)
     → Lexer (词法分析) → Token 流
@@ -66,7 +66,7 @@ Objective-C 源码 (.m, .mm)
     → VMLAssembler / VMLRuntime → 执行
 ```
 
-**编译流水线**：
+«bold»编译流水线«/»：
 1. 预处理 (`Preprocessor`) — 展开 `#import`/`#include`/`#define` 及预定义宏
 2. 词法分析 (`Lexer`) — 源码切割为 Token 流，识别 ObjC 特有 `@` 关键字及 C 运算符
 3. 语法分析 (`Parser`) — 递归下降解析，构建 AST 节点树
@@ -91,11 +91,11 @@ Objective-C 源码 (.m, .mm)
 | `long` | 32 位整数（`long long` 支持 64 位） | `long l = 99999;` |
 | `signed` | 有符号修饰 | `signed int x;` |
 | `unsigned` | 无符号修饰 | `unsigned int u;` |
-| `struct` | 结构体声明（**词法器支持，语法解析器中 `struct` 可被识别为类型名，但结构体成员访问 `.`/`->` 的语义解析尚未完整实现**） | `struct Point p;` |
-| `enum` | 枚举声明（**词法器识别为关键字，语法解析器将其作为类型名识别，但枚举成员定义尚未实现**） | `enum Color c;` |
+| `struct` | 结构体声明（«bold»词法器支持，语法解析器中 `struct` 可被识别为类型名，但结构体成员访问 `.`/`->` 的语义解析尚未完整实现«/»） | `struct Point p;` |
+| `enum` | 枚举声明（«bold»词法器识别为关键字，语法解析器将其作为类型名识别，但枚举成员定义尚未实现«/»） | `enum Color c;` |
 | `id` | ObjC 通用对象指针，等价于 `void *` | `id obj = nil;` |
 
-**类型修饰符组合规则**：`unsigned` / `signed` 可后接基础类型名（如 `unsigned int`），解析器递归拼接类型字符串。
+«bold»类型修饰符组合规则«/»：`unsigned` / `signed` 可后接基础类型名（如 `unsigned int`），解析器递归拼接类型字符串。
 
 ##### 2.2 ObjC 关键字
 
@@ -105,17 +105,17 @@ Objective-C 源码 (.m, .mm)
 
 | 关键字 | 用途 | 解析情况 |
 |--------|------|----------|
-| `@interface` | 声明类接口（实例变量 + 方法声明） | **完整解析** — 支持类名、父类、实例变量块、方法声明列表 |
-| `@implementation` | 实现类方法 | **完整解析** — 支持方法体实现 |
-| `@end` | 终止 `@interface` / `@implementation` 块 | **完整解析** |
-| `@protocol` | 协议声明（**词法器识别，语法解析器未实现解析逻辑**） | 仅 Token 可用 |
-| `@class` | 前向声明类名 | **语法解析器识别并跳过**（不生成代码，无语义效果） |
-| `@property` | 属性声明（**词法器识别，语法解析器未实现解析逻辑**） | 仅 Token 可用 |
-| `@synthesize` | 属性存取器合成（**词法器识别，语法解析器未实现解析逻辑**） | 仅 Token 可用 |
-| `@dynamic` | 属性存取器运行时提供（**词法器识别，语法解析器未实现解析逻辑**） | 仅 Token 可用 |
-| `@selector` | 选择器字面量（**词法器识别，语法解析器未实现解析逻辑**） | 仅 Token 可用 |
+| `@interface` | 声明类接口（实例变量 + 方法声明） | «bold»完整解析«/» — 支持类名、父类、实例变量块、方法声明列表 |
+| `@implementation` | 实现类方法 | «bold»完整解析«/» — 支持方法体实现 |
+| `@end` | 终止 `@interface` / `@implementation` 块 | «bold»完整解析«/» |
+| `@protocol` | 协议声明（«bold»词法器识别，语法解析器未实现解析逻辑«/»） | 仅 Token 可用 |
+| `@class` | 前向声明类名 | «bold»语法解析器识别并跳过«/»（不生成代码，无语义效果） |
+| `@property` | 属性声明（«bold»词法器识别，语法解析器未实现解析逻辑«/»） | 仅 Token 可用 |
+| `@synthesize` | 属性存取器合成（«bold»词法器识别，语法解析器未实现解析逻辑«/»） | 仅 Token 可用 |
+| `@dynamic` | 属性存取器运行时提供（«bold»词法器识别，语法解析器未实现解析逻辑«/»） | 仅 Token 可用 |
+| `@selector` | 选择器字面量（«bold»词法器识别，语法解析器未实现解析逻辑«/»） | 仅 Token 可用 |
 
-**`@interface` 语法**：
+«bold»`@interface` 语法«/»：
 ```objc
 @interface MyClass : SuperClass {
     // 实例变量（仅支持类型+名称，不支持指针 * 语法）
@@ -129,7 +129,7 @@ Objective-C 源码 (.m, .mm)
 @end
 ```
 
-**`@implementation` 语法**：
+«bold»`@implementation` 语法«/»：
 ```objc
 @implementation MyClass
 
@@ -165,7 +165,7 @@ int helperFunc(int x) {
 [[self delegate] update]
 ```
 
-**代码生成**：消息发送编译为 `CALL objc_<method>` 指令，参数和接收者依次 `PUSH` 到栈上。运行时需提供命名规则为 `objc_<selectorName>` 的函数实现消息分发。
+«bold»代码生成«/»：消息发送编译为 `CALL objc_<method>` 指令，参数和接收者依次 `PUSH` 到栈上。运行时需提供命名规则为 `objc_<selectorName>` 的函数实现消息分发。
 
 ###### 2.2.3 NSString 字面量
 
@@ -175,7 +175,7 @@ int helperFunc(int x) {
 id greeting = @"Hello, World!";
 ```
 
-**内部实现**：词法器将 `@"..."` 识别为 `ObjCString` Token（值为 `@"...内容..."`），代码生成器将其作为字符串字面量处理，存入数据段并通过 `MOVE R0, label`（LEA 语义）加载地址。
+«bold»内部实现«/»：词法器将 `@"..."` 识别为 `ObjCString` Token（值为 `@"...内容..."`），代码生成器将其作为字符串字面量处理，存入数据段并通过 `MOVE R0, label`（LEA 语义）加载地址。
 
 ###### 2.2.4 特殊值
 
@@ -185,7 +185,7 @@ id greeting = @"Hello, World!";
 | `YES` | 布尔真 | `MOVE R0, 1` |
 | `NO` | 布尔假 | `MOVE R0, 0` |
 | `self` | 当前对象引用（方法内隐式参数） | 栈帧偏移 0（R12 基址） |
-| `super` | 父类引用（**词法器识别，语义未实现**） | 仅 Token 可用 |
+| `super` | 父类引用（«bold»词法器识别，语义未实现«/»） | 仅 Token 可用 |
 
 ##### 2.3 方法声明
 
@@ -213,7 +213,7 @@ id greeting = @"Hello, World!";
 }
 ```
 
-**方法名编码**：选择器中的冒号被替换为下划线。例如 `add:to:` 编译为标签 `objc_add_to_`。
+«bold»方法名编码«/»：选择器中的冒号被替换为下划线。例如 `add:to:` 编译为标签 `objc_add_to_`。
 
 ##### 2.4 运算符
 
@@ -225,14 +225,14 @@ id greeting = @"Hello, World!";
 | 比较 | `==` `!=` `<` `>` `<=` `>=` | 等于/不等于/大小比较 |
 | 赋值 | `=` `+=` `-=` `*=` `/=` `%=` | 赋值与复合赋值 |
 | 一元 | `-` `!` `++` `--` | 负号/逻辑非/自增/自减 |
-| 解引用 | `*` | 指针解引用（**词法+语法解析支持，代码生成仅做寄存器间接加载**） |
-| 取地址 | `&` | 取地址（**词法+语法解析支持，代码生成仅做寄存器间接存储**） |
+| 解引用 | `*` | 指针解引用（«bold»词法+语法解析支持，代码生成仅做寄存器间接加载«/»） |
+| 取地址 | `&` | 取地址（«bold»词法+语法解析支持，代码生成仅做寄存器间接存储«/»） |
 
 ###### 2.4.2 仅词法器支持（语法解析器未实现语义）
 
 | 运算符 | Token 类型 | 说明 |
 |--------|-----------|------|
-| `&&` `\|\|` | `And`, `Or` | 逻辑与/或（**短路求值未实现**） |
+| `&&` `\|\|` | `And`, `Or` | 逻辑与/或（«bold»短路求值未实现«/»） |
 | `&` `\|` `^` `~` | `Amp`, `Pipe`, `Caret`, `Tilde` | 位运算与/或/异或/取反 |
 | `<<` `>>` | `LShift`, `RShift` | 左移/右移 |
 | `->` | `Arrow` | 结构体指针成员访问 |
@@ -261,9 +261,9 @@ float average(float a, float b, float c) {
 int factorial(int n);
 ```
 
-**调用约定**：参数通过 `PUSH` 入栈，`CALL func_<name>` 调用，`RET` 返回，返回值在 R0。
+«bold»调用约定«/»：参数通过 `PUSH` 入栈，`CALL func_<name>` 调用，`RET` 返回，返回值在 R0。
 
-**函数重载**：不支持。函数名在全程序中必须唯一。
+«bold»函数重载«/»：不支持。函数名在全程序中必须唯一。
 
 ##### 2.6 控制流
 
@@ -279,7 +279,7 @@ if (x > 0) {
 }
 ```
 
-**实现**：条件求值后 `CMP R0, 0` + `JE elseLabel`，支持链式 `else if`。
+«bold»实现«/»：条件求值后 `CMP R0, 0` + `JE elseLabel`，支持链式 `else if`。
 
 ###### 2.6.2 while
 
@@ -289,7 +289,7 @@ while (i < 10) {
 }
 ```
 
-**实现**：循环头标签 + 条件 `JE` 跳转出口 + 循环尾无条件 `JMP` 回循环头。
+«bold»实现«/»：循环头标签 + 条件 `JE` 跳转出口 + 循环尾无条件 `JMP` 回循环头。
 
 ###### 2.6.3 for（C 风格）
 
@@ -299,7 +299,7 @@ for (int i = 0; i < 10; i = i + 1) {
 }
 ```
 
-**实现**：初始化在循环外执行，条件在每次迭代前求值，更新在循环体后执行。
+«bold»实现«/»：初始化在循环外执行，条件在每次迭代前求值，更新在循环体后执行。
 
 ###### 2.6.4 当前不支持的控制流（词法器已识别关键字）
 
@@ -348,7 +348,7 @@ for (int i = 0; i < 10; i = i + 1) {
 | 5 | `-` `!` `*` `&` `++` `--`（前缀） | 右结合 | `ParseUnary()` |
 | 6 (最高) | 字面量、变量、函数调用、消息发送、括号 | — | `ParsePrimary()` |
 
-**注意**：
+«bold»注意«/»：
 - `&&` 和 `||` 尚未纳入表达式解析链，不可在表达式中使用
 - 位运算 `&` `|` `^` `<<` `>>` 仅在词法层面识别
 - 三元运算符 `? :` 未实现
@@ -425,9 +425,9 @@ for (int i = 0; i < 10; i = i + 1) {
 
 ##### 6.3 变量存储
 
-- **局部变量**：栈帧内分配，通过 `symbolTable` 字典将变量名映射到 `R12-{offset}` 的栈偏移量。首次引用时自动分配 4 字节空间
-- **全局变量**：存储在数据段 (`dataSection`)，通过 `var_<name>` 标签寻址
-- **字符串常量**：存储在数据段，生成 `str_<GUID>` 标签，通过 `MOVE R0, label` 加载地址
+- «bold»局部变量«/»：栈帧内分配，通过 `symbolTable` 字典将变量名映射到 `R12-{offset}` 的栈偏移量。首次引用时自动分配 4 字节空间
+- «bold»全局变量«/»：存储在数据段 (`dataSection`)，通过 `var_<name>` 标签寻址
+- «bold»字符串常量«/»：存储在数据段，生成 `str_<GUID>` 标签，通过 `MOVE R0, label` 加载地址
 
 ##### 6.4 消息发送代码生成
 
@@ -468,28 +468,28 @@ CALL objc_setX_y_
 
 | 限制项 | 详细说明 |
 |--------|----------|
-| **@property 合成** | 词法器识别 `@property`/`@synthesize`/`@dynamic`，但语法解析器完全未实现存取器自动合成逻辑。属性需手工编写 getter/setter 方法 |
-| **@protocol 协议** | 词法器识别 `@protocol` Token，语法解析器未实现协议声明、采纳或一致性检查。类型系统不支持 `id<Protocol>` 语法 |
-| **Category 分类** | 完全未实现。不支持 `@interface ClassName (CategoryName)` 扩展语法 |
-| **Block / Closure** | 完全未实现。不支持 `^` block 语法及闭包捕获 |
-| **ARC 内存管理** | 不支持自动引用计数，无 `strong`/`weak`/`unsafe_unretained` 等所有权修饰符。需手工管理对象生命周期 |
-| **属性修饰符** | `@property (nonatomic, strong)` 等属性修饰符语法完全未解析 |
-| **消息转发** | `forwardInvocation:` / `methodSignatureForSelector:` 机制未实现 |
-| **KVC/KVO** | 键值编码和键值观察机制未实现 |
-| **异常处理** | `@try` `@catch` `@finally` `@throw` 完全未实现（MCU 模式跳过） |
-| **struct/enum/union 定义** | 词法器识别关键字，但结构体成员访问 `.`/`->` 的解析与代码生成未实现 |
-| **逻辑运算符 && / \|\|** | Token 已定义，但未纳入表达式解析链，无法使用短路逻辑求值 |
-| **位运算符** | `&` `\|` `^` `~` `<<` `>>` Token 已定义，但表达式解析器仅支持 `&` 和 `*` 作为一元取地址/解引用，不支持二元位运算 |
-| **三元运算符** | `? :` Token 已定义，但语法解析器未实现条件表达式 |
-| **switch/case** | Token 已定义，语法解析器未实现多分支选择 |
-| **break/continue** | Token 已定义，语法解析器未实现循环控制 |
-| **do-while** | Token 已定义，语法解析器未实现 |
-| **goto / 标签** | Token 已定义，语法解析器未实现 |
-| **类型转换** | 不支持 C 风格显式类型转换 `(type)expr` |
-| **数组 / 指针运算** | 不支持数组下标 `[]` 和指针算术 |
-| **对象分配** | 无 `alloc`/`init` 模式或 `+new` 的编译时支持，需依赖运行时手工提供 |
-| **super 语义** | `super` 关键字仅 Token 可用，无方法查找语义 |
-| **多文件编译** | 每次调用编译单个 `.m` 文件，不支持链接时跨文件类层级解析 |
+| «bold»@property 合成«/» | 词法器识别 `@property`/`@synthesize`/`@dynamic`，但语法解析器完全未实现存取器自动合成逻辑。属性需手工编写 getter/setter 方法 |
+| «bold»@protocol 协议«/» | 词法器识别 `@protocol` Token，语法解析器未实现协议声明、采纳或一致性检查。类型系统不支持 `id<Protocol>` 语法 |
+| «bold»Category 分类«/» | 完全未实现。不支持 `@interface ClassName (CategoryName)` 扩展语法 |
+| «bold»Block / Closure«/» | 完全未实现。不支持 `^` block 语法及闭包捕获 |
+| «bold»ARC 内存管理«/» | 不支持自动引用计数，无 `strong`/`weak`/`unsafe_unretained` 等所有权修饰符。需手工管理对象生命周期 |
+| «bold»属性修饰符«/» | `@property (nonatomic, strong)` 等属性修饰符语法完全未解析 |
+| «bold»消息转发«/» | `forwardInvocation:` / `methodSignatureForSelector:` 机制未实现 |
+| «bold»KVC/KVO«/» | 键值编码和键值观察机制未实现 |
+| «bold»异常处理«/» | `@try` `@catch` `@finally` `@throw` 完全未实现（MCU 模式跳过） |
+| «bold»struct/enum/union 定义«/» | 词法器识别关键字，但结构体成员访问 `.`/`->` 的解析与代码生成未实现 |
+| «bold»逻辑运算符 && / \|\|«/» | Token 已定义，但未纳入表达式解析链，无法使用短路逻辑求值 |
+| «bold»位运算符«/» | `&` `\|` `^` `~` `<<` `>>` Token 已定义，但表达式解析器仅支持 `&` 和 `*` 作为一元取地址/解引用，不支持二元位运算 |
+| «bold»三元运算符«/» | `? :` Token 已定义，但语法解析器未实现条件表达式 |
+| «bold»switch/case«/» | Token 已定义，语法解析器未实现多分支选择 |
+| «bold»break/continue«/» | Token 已定义，语法解析器未实现循环控制 |
+| «bold»do-while«/» | Token 已定义，语法解析器未实现 |
+| «bold»goto / 标签«/» | Token 已定义，语法解析器未实现 |
+| «bold»类型转换«/» | 不支持 C 风格显式类型转换 `(type)expr` |
+| «bold»数组 / 指针运算«/» | 不支持数组下标 `[]` 和指针算术 |
+| «bold»对象分配«/» | 无 `alloc`/`init` 模式或 `+new` 的编译时支持，需依赖运行时手工提供 |
+| «bold»super 语义«/» | `super` 关键字仅 Token 可用，无方法查找语义 |
+| «bold»多文件编译«/» | 每次调用编译单个 `.m` 文件，不支持链接时跨文件类层级解析 |
 
 ---
 
@@ -602,8 +602,8 @@ ObjCCompiler.CompileFile("MyClass.m", includePaths, libraryPaths)
 | `.wstring` | 16-bit | UTF-16LE | `wchar_t*` |
 | `.ustring` | 32-bit | UTF-32LE | `char32_t*` |
 
-**MCU 模式** (默认): 字符串输出为 UTF-8 (`.string`)
-**OS 模式**: 可通过 `VML_WSTRING` 宏判断编码
+«bold»MCU 模式«/» (默认): 字符串输出为 UTF-8 (`.string`)
+«bold»OS 模式«/»: 可通过 `VML_WSTRING` 宏判断编码
 
 共享库已提供宽字符串转换函数 (wchar.h/uchar.h)，各语言编译器可按需使用。
 
@@ -611,10 +611,10 @@ ObjCCompiler.CompileFile("MyClass.m", includePaths, libraryPaths)
 
 ### Objective-C 编译器
 
-**路径**: `VMLPrepares/ObjCCompiler/`
-**完成度**: ~99% | 🟢 生产可用
-**标准库**: `Lib/objc/`
-**依赖**: CCompiler (ObjC 是 C 的超集)
+«bold»路径«/»: `VMLPrepares/ObjCCompiler/`
+«bold»完成度«/»: ~99% | 🟢 生产可用
+«bold»标准库«/»: `Lib/objc/`
+«bold»依赖«/»: CCompiler (ObjC 是 C 的超集)
 
 #### 功能
 - ✅ 词法分析 + 语法分析 + 代码生成 (Lexer/Parser/CodeGenerator)
@@ -634,10 +634,10 @@ ObjCCompiler.CompileFile("MyClass.m", includePaths, libraryPaths)
 ##### MCU 模式（默认 `--mode mcu`）
 ObjC 汇编为目标保留 C 兼容子集。
 
-**跳过**:
+«bold»跳过«/»:
 - Block、ARC、Protocol
 
-**保留**:
+«bold»保留«/»:
 - @interface/@implementation 基础 OOP
 - C 完整语法
 - 消息发送 (编译为函数调用)

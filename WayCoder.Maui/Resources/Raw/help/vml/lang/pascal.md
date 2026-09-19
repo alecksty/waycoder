@@ -25,8 +25,8 @@ vml run examples/pascal/catch.pas
 
 ## 实测踩过的坑
 
-- ⚠ **注释是 `{ }` 不是 `//`** —— 用 `//` 的话整行会被当成代码。
-- ⚠ **注释里只能写 ASCII**：中文破折号、中文逗号都会报「未知字符」。
+- ⚠ «bold»注释是 `{ }` 不是 `//`«/» —— 用 `//` 的话整行会被当成代码。
+- ⚠ «bold»注释里只能写 ASCII«/»：中文破折号、中文逗号都会报「未知字符」。
 
 ---
 
@@ -38,19 +38,19 @@ vml run examples/pascal/catch.pas
 
 ### Pascal 语言编译器规范说明
 
-> **版本**：v1.0 | **日期**：2026-07-06 | **修订者**：深圳市探索智能科技有限公司
+> «bold»版本«/»：v1.0 | «bold»日期«/»：2026-07-06 | «bold»修订者«/»：深圳市探索智能科技有限公司
 
 #### 规范标准
 
 | 字段 | 值 |
 |:-----|:----|
-| **目标标准** | Turbo Pascal 7.0 (默认) + 5种方言 |
-| **CLI 选项** | `--pascaltype turbo\|delphi\|freepascal\|iso\|ucsd\|oberon` |
-| **发布年份** | 1992 (Turbo Pascal) |
-| **完成度** | ~92% |
-| **MCU完成度** | ~90% |
-| **测试** | 0 (测试目录待创建) |
-| **更新** | 2026-05-18: 修正 break/continue/指针 状态矛盾；更新测试数 |
+| «bold»目标标准«/» | Turbo Pascal 7.0 (默认) + 5种方言 |
+| «bold»CLI 选项«/» | `--pascaltype turbo\|delphi\|freepascal\|iso\|ucsd\|oberon` |
+| «bold»发布年份«/» | 1992 (Turbo Pascal) |
+| «bold»完成度«/» | ~92% |
+| «bold»MCU完成度«/» | ~90% |
+| «bold»测试«/» | 0 (测试目录待创建) |
+| «bold»更新«/» | 2026-05-18: 修正 break/continue/指针 状态矛盾；更新测试数 |
 
 #### 关键字
 
@@ -70,19 +70,19 @@ vml run examples/pascal/catch.pas
 ##### 1. 数据类型
 
 ###### 字面量
-- **整数**: `42`（十进制）
-- **十六进制**: `$FF`, `$40013804`（`$` 前缀，Pascal 风格）
-- **实数**: `3.14`, `1.5e-2`
-- **字符**: `'A'`
-- **字符串**: `'Hello'`, `"Hello"`
-- **布尔**: `true`, `false`
+- «bold»整数«/»: `42`（十进制）
+- «bold»十六进制«/»: `$FF`, `$40013804`（`$` 前缀，Pascal 风格）
+- «bold»实数«/»: `3.14`, `1.5e-2`
+- «bold»字符«/»: `'A'`
+- «bold»字符串«/»: `'Hello'`, `"Hello"`
+- «bold»布尔«/»: `true`, `false`
 
 ###### 基本数据类型
-- **整数类型**: `integer` — 32位有符号整数（全部实现）
-- **实数类型**: `real` — 浮点数（实现：MOVEF、FADD/FSUB/FMUL/FDIV、比较）
-- **字符类型**: `char` — 单个字符（实现：MOVEB）
-- **布尔类型**: `boolean` — 布尔值（实现：比较产生 0/1）
-- **字符串类型**: `string` — 字符串字面量（实现：SYSCALL 4/2）
+- «bold»整数类型«/»: `integer` — 32位有符号整数（全部实现）
+- «bold»实数类型«/»: `real` — 浮点数（实现：MOVEF、FADD/FSUB/FMUL/FDIV、比较）
+- «bold»字符类型«/»: `char` — 单个字符（实现：MOVEB）
+- «bold»布尔类型«/»: `boolean` — 布尔值（实现：比较产生 0/1）
+- «bold»字符串类型«/»: `string` — 字符串字面量（实现：SYSCALL 4/2）
 
 ###### 枚举类型
 ```pascal
@@ -93,13 +93,13 @@ type
 枚举值编译为整数常量（从 0 递增）。
 
 ###### 派生类型
-- **数组**: 一维数组，支持边界声明，如 `array[1..10] of integer`
+- «bold»数组«/»: 一维数组，支持边界声明，如 `array[1..10] of integer`
   - 支持运行时边界检查（索引越界触发运行时错误）
   - 支持数组元素为 record 类型的字段访问：`snake[i].x`
-- **记录**: `record` 类型定义，支持字段访问（点号操作符）
+- «bold»记录«/»: `record` 类型定义，支持字段访问（点号操作符）
   - 字段可以是基本类型、字符串、数组（包括多维）
-- **集合**: `set of` 类型，支持并集/交集/差集/成员测试（通过位图实现）
-- **文件**: `file of <type>` 和 `text` 类型
+- «bold»集合«/»: `set of` 类型，支持并集/交集/差集/成员测试（通过位图实现）
+- «bold»文件«/»: `file of <type>` 和 `text` 类型
 
 ##### 2. 程序结构
 
@@ -213,8 +213,8 @@ end;
 ```
 
 ###### 参数传递
-- **值参数**: 默认传递方式
-- **变量参数**: 使用 `var` 关键字，允许修改调用者的变量
+- «bold»值参数«/»: 默认传递方式
+- «bold»变量参数«/»: 使用 `var` 关键字，允许修改调用者的变量
 ```pascal
 procedure Swap(var x, y: integer);
 var
@@ -392,10 +392,10 @@ end;
 ```
 
 ###### 变量访问
-- **全局变量**: 从数据段加载（数据段标签）
-- **局部变量**: 从栈帧负偏移访问 `[R14 - offset*4]`
-- **参数**: 从栈帧正偏移访问 `[R14 + 8 + paramIndex*4]`
-- **var 参数**: 参数为地址，需解引用
+- «bold»全局变量«/»: 从数据段加载（数据段标签）
+- «bold»局部变量«/»: 从栈帧负偏移访问 `[R14 - offset*4]`
+- «bold»参数«/»: 从栈帧正偏移访问 `[R14 + 8 + paramIndex*4]`
+- «bold»var 参数«/»: 参数为地址，需解引用
 
 ###### 函数返回值
 - 通过函数名赋值设置返回值
@@ -409,7 +409,7 @@ end;
 | 程序结构 (`program ...; ... end.`) | ✅ 已实现 |
 | 注释 (`{ }`, `(* *)`, `//`) | ✅ 已实现 |
 | `uses` 子句 | ✅ 已实现（解析并跳过） |
-| **数据类型** | |
+| «bold»数据类型«/» | |
 | `integer` (32位有符号) | ✅ 已实现 |
 | `real` (浮点数) | ✅ 已实现 |
 | `boolean` | ✅ 已实现 |
@@ -420,37 +420,37 @@ end;
 | 记录 `record ... end` | ✅ 已实现 |
 | 集合 `set of type` | ✅ 已实现 |
 | 文件 `file of type` / `text` | ✅ 已实现 |
-| **控制流** | |
+| «bold»控制流«/» | |
 | `if/then/else` | ✅ 已实现 |
 | `while/do` | ✅ 已实现 |
 | `for to/downto do` | ✅ 已实现 |
 | `repeat/until` | ✅ 已实现 |
 | `case/of/otherwise/end` | ✅ 已实现 |
 | `break` / `continue` | ✅ 已实现 | 循环控制，支持嵌套循环
-| **过程和函数** | |
+| «bold»过程和函数«/» | |
 | `procedure` (值参数) | ✅ 已实现 |
 | `function` (返回值) | ✅ 已实现 |
 | `var` 参数（引用传递） | ✅ 已实现 |
 | `forward` 声明 | ✅ 已实现 |
 | 递归 | ✅ 已实现 |
-| **运算符** | |
+| «bold»运算符«/» | |
 | 算术 `+ - * / div mod` | ✅ 已实现 |
 | 关系 `= <> < <= > >=` | ✅ 已实现 |
 | 逻辑 `and or not` | ✅ 已实现 |
 | 集合 `in + * -` | ✅ 已实现 |
-| **输入输出** | |
+| «bold»输入输出«/» | |
 | `write`, `writeln` | ✅ 已实现 |
 | `readln`, `read` | ✅ 已实现 |
 | 格式化输出 `x:5` | ✅ 已实现 |
 | 文件 I/O | ✅ 已实现 |
-| **内置函数** | |
+| «bold»内置函数«/» | |
 | `abs`, `sqr`, `chr`, `ord` | ✅ 已实现 |
 | `pred`, `succ`, `odd` | ✅ 已实现 |
 | `round`, `trunc` | ✅ 已实现 |
 | `random`, `randomize` | ✅ 已实现 |
 | `sqrt`, `sin`, `cos`, `exp`, `ln` | ✅ 已实现 |
 | `length`, `concat`, `copy`, `pos` | ✅ 已实现 |
-| **Crt 单元** | |
+| «bold»Crt 单元«/» | |
 | `ClrScr`, `GotoXY`, `WhereX/Y` | ✅ 已实现 |
 | `TextColor`, `TextBackground` | ✅ 已实现 |
 | `Delay`, `Sound`, `NoSound` | ✅ 已实现 |
@@ -537,25 +537,25 @@ VML 工具链通过三个编译参数控制浮点和 64 位整数的处理策略
 
 本语言中的实型类型 `real`（32位单精度浮点）按以下模式编译：
 
-- **`hard` 模式（默认）**: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
-- **`soft` 模式**: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
-- **`none` 模式**: 禁用所有 32 位浮点类型，遇到 `real` 声明时报告编译错误。
+- «bold»`hard` 模式（默认）«/»: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
+- «bold»`soft` 模式«/»: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
+- «bold»`none` 模式«/»: 禁用所有 32 位浮点类型，遇到 `real` 声明时报告编译错误。
 
 ###### 64位浮点 (double)
 
 本语言中的 `double` 类型（64位双精度浮点）按以下模式编译：
 
-- **`soft` 模式（默认）**: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
-- **`hard` 模式**: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。需要目标平台支持 64 位运算。
-- **`none` 模式**: 禁用所有 64 位浮点类型，遇到 `double` 声明时报告编译错误。
+- «bold»`soft` 模式（默认）«/»: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
+- «bold»`hard` 模式«/»: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。需要目标平台支持 64 位运算。
+- «bold»`none` 模式«/»: 禁用所有 64 位浮点类型，遇到 `double` 声明时报告编译错误。
 
 ###### 64位整数 (int64)
 
 本语言中的 `Int64` / `LongInt` 类型按以下模式编译：
 
-- **`soft` 模式（默认）**: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
-- **`hard` 模式**: 预留，未来 VML 版本将支持原生 64 位整数指令。
-- **`none` 模式**: 禁用 64 位整数类型，遇到时报告编译错误。
+- «bold»`soft` 模式（默认）«/»: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
+- «bold»`hard` 模式«/»: 预留，未来 VML 版本将支持原生 64 位整数指令。
+- «bold»`none` 模式«/»: 禁用 64 位整数类型，遇到时报告编译错误。
 
 ###### 软件模拟库
 
@@ -569,24 +569,24 @@ VML 工具链通过三个编译参数控制浮点和 64 位整数的处理策略
 
 ##### 12. 编译限制
 
-1. **多维数组**: `array[1..3, 1..3]` 语法不支持，可用 `array[1..3] of array[1..3]`
-2. **`with` 语句**: 仅解析，不生成代码
-3. **VML 整数**: 所有整数为 32 位有符号
-4. **数组初始化**: 不支持编译时数组常量初始化
-5. **字符串**: 不支持动态字符串操作（无堆分配）
-6. **泛型/generic**: 不支持 Turbo Pascal 不具备的特性
+1. «bold»多维数组«/»: `array[1..3, 1..3]` 语法不支持，可用 `array[1..3] of array[1..3]`
+2. «bold»`with` 语句«/»: 仅解析，不生成代码
+3. «bold»VML 整数«/»: 所有整数为 32 位有符号
+4. «bold»数组初始化«/»: 不支持编译时数组常量初始化
+5. «bold»字符串«/»: 不支持动态字符串操作（无堆分配）
+6. «bold»泛型/generic«/»: 不支持 Turbo Pascal 不具备的特性
 
 ##### 13. 与 VML 运行时集成
 
 Pascal 程序通过以下机制与 VML 运行时交互：
 
-- **SYSCALL 2**: 字符串输入（readln 字符串）
-- **SYSCALL 4**: 输出字符
-- **SYSCALL 5**: 键盘输入（ReadKey）
-- **SYSCALL 6**: 输出整数
-- **SYSCALL 7**: 输入整数（readln 整数）
-- **SYSCALL 100-104**: 文件操作
-- **内存映射 I/O**: 0xB8000 显存（GotoXY/ClrScr），0x6FF4 光标位置等
+- «bold»SYSCALL 2«/»: 字符串输入（readln 字符串）
+- «bold»SYSCALL 4«/»: 输出字符
+- «bold»SYSCALL 5«/»: 键盘输入（ReadKey）
+- «bold»SYSCALL 6«/»: 输出整数
+- «bold»SYSCALL 7«/»: 输入整数（readln 整数）
+- «bold»SYSCALL 100-104«/»: 文件操作
+- «bold»内存映射 I/O«/»: 0xB8000 显存（GotoXY/ClrScr），0x6FF4 光标位置等
 
 标准库函数（`stdlib.vml`）实现了 Crt 单元、数学函数、字符串操作和文件 I/O 的 VML 汇编实现。
 
@@ -602,8 +602,8 @@ Pascal 程序通过以下机制与 VML 运行时交互：
 | `.wstring` | 16-bit | UTF-16LE | `wchar_t*` |
 | `.ustring` | 32-bit | UTF-32LE | `char32_t*` |
 
-**MCU 模式** (默认): 字符串输出为 UTF-8 (`.string`)
-**OS 模式**: 可通过 `VML_WSTRING` 宏判断编码
+«bold»MCU 模式«/» (默认): 字符串输出为 UTF-8 (`.string`)
+«bold»OS 模式«/»: 可通过 `VML_WSTRING` 宏判断编码
 
 共享库已提供宽字符串转换函数 (wchar.h/uchar.h)，各语言编译器可按需使用。
 
@@ -611,9 +611,9 @@ Pascal 程序通过以下机制与 VML 运行时交互：
 
 ### Pascal 编译器
 
-**路径**: `VMLPrepares/PascalCompiler/` | **版本**: v1.66.33
-**完成度**: ~92% (Turbo Pascal) | 🟢 生产可用 | **6 方言 + OOP 基础**
-**标准库**: `Lib/pascal/` | **测试**: 25
+«bold»路径«/»: `VMLPrepares/PascalCompiler/` | «bold»版本«/»: v1.66.33
+«bold»完成度«/»: ~92% (Turbo Pascal) | 🟢 生产可用 | «bold»6 方言 + OOP 基础«/»
+«bold»标准库«/»: `Lib/pascal/` | «bold»测试«/»: 25
 
 #### 多方言支持
 
@@ -660,10 +660,10 @@ vmltool -x pascal --pascaltype delphi test.pas -o test.vml
 ##### MCU 模式（默认 `--mode mcu`）
 MCU 模式针对单片机/裸机环境（Arduino/STM32/8051 等）优化，自动跳过不兼容操作系统的特性。
 
-**跳过**（遇到这些语法不生成代码）:
+«bold»跳过«/»（遇到这些语法不生成代码）:
 - 无（Turbo Pascal 无异步/线程）
 
-**保留**（由 BIOS 实现底层）:
+«bold»保留«/»（由 BIOS 实现底层）:
 - dispose(堆)、文件I/O
 - POKE/PEEK 内存映射 I/O (MMIO)
 - 基本类型运算、控制流、函数调用
@@ -674,7 +674,7 @@ OS 模式针对带操作系统环境（如 Linux 嵌入式、RTOS 等），届�
 
 ##### RAM 级别
 - `--ram k`：KB级别（2KB~64KB，如 8051/PIC/AVR）
-- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，**默认**）
+- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，«bold»默认«/»）
 - `--ram g`：GB级别（如 x86/DDR 系统）
 - `--stack-size <bytes>`：手动指定栈大小（默认自动根据 --ram 分配）
 

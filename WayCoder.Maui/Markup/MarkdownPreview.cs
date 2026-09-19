@@ -125,17 +125,147 @@ public static class MarkdownPreview
                 para.Append('\n').Append(lines[i]);
                 i++;
             }
-            stack.Add(new Label
-            {
-                FormattedText = MarkupToFormattedString.Convert(para.ToString(), isDark),
-                FontSize = 15,
-                LineHeight = 1.35,
-                // 兜底色：绝大多数 span 在 Convert 里已经带上自己的颜色，这里只管没带色的那些
-                TextColor = Ink(isDark, 226, 226, 228, 32, 35, 40),
-            });
+            stack.Add(BuildParagraph(para.ToString(), isDark));
         }
 
         return stack;
+    }
+
+    /// <summary>
+    /// 段落 → Label：把 <c>[文字](目标)</c> 变成**可点的链接**，其余部分照旧走 markup 渲染。
+    ///
+    /// ## 为什么要有链接（而不只是好看）
+    ///
+    /// 说明是一棵树。原先层级完全写死在代码里（`HelpCatalog.Topic.Children`），
+    /// **每加一层就要动一次 C#、还要动列表页**；而且"哪些节点是目录、哪些有正文"这个判断漏一处，
+    /// 现象就是"点下去什么也不发生"（实测就坏过一次：点「22 种语言」去开一个从不存在的
+    /// `help/vml/languages.md`）。改成**正文里写链接**之后，层级由内容决定 ——
+    /// **多少级都行，加页面只写 markdown**。
+    ///
+    /// ## 目标怎么写
+    ///
+    /// · `[C 语言](help:vml/lang/c)` —— 跳到另一篇说明（也可以直接写裸 id：`(vml/lang/c)`）
+    /// · `[官网](https://…)` —— 交给系统浏览器
+    private static Label BuildParagraph(string text, bool isDark, double fontSize = 15)
+    {
+        var links = FindLinks(text);
+
+        // **整块就是一个链接**（表格里的「语言」列、列表里的一行条目都是这种形态）：
+        // 手势直接挂在 Label 上。这是**唯一实测能触发**的做法 ——
+        // Span 级的 `GestureRecognizers` 在 Android 上点了没反应（链接画得对、就是点不动，
+        // 长按也一样），排查成本远高于多写这几行。
+        if (links.Count == 1 && links[0].Start == 0 && links[0].End == text.Length)
+        {
+            var only = new Label
+            {
+                Text = links[0].Label,
+                FontSize = fontSize,
+                LineHeight = 1.35,
+                TextColor = Ink(isDark, 106, 168, 255, 0, 90, 200),
+                TextDecorations = TextDecorations.Underline,
+            };
+            var t = new TapGestureRecognizer();
+            t.Tapped += (_, _) => ActivateLink(links[0].Target);
+            only.GestureRecognizers.Add(t);
+            return only;
+        }
+
+        var fs = new FormattedString();
+        var pos = 0;
+
+        foreach (var (start, end, label, target) in links)
+        {
+            if (start > pos) AppendPlain(fs, text[pos..start], isDark);
+            fs.Spans.Add(LinkSpan(label, target, isDark));
+            pos = end;
+        }
+        if (pos < text.Length) AppendPlain(fs, text[pos..], isDark);
+
+        return new Label
+        {
+            FormattedText = fs,
+            FontSize = fontSize,
+            LineHeight = 1.35,
+            // 兜底色：绝大多数 span 在 Convert 里已经带上自己的颜色，这里只管没带色的那些
+            TextColor = Ink(isDark, 226, 226, 228, 32, 35, 40),
+        };
+    }
+
+    /// <summary>把一段**不含链接**的文本按 markup 渲染后并进目标 FormattedString。</summary>
+    private static void AppendPlain(FormattedString fs, string text, bool isDark)
+    {
+        if (text.Length == 0) return;
+        foreach (var span in MarkupToFormattedString.Convert(text, isDark).Spans)
+            fs.Spans.Add(span);
+    }
+
+    private static Span LinkSpan(string label, string target, bool isDark)
+    {
+        var span = new Span
+        {
+            Text = label,
+            // 链接色：两天套（与 Ink 同一套规矩，别只写一个值）
+            TextColor = Ink(isDark, 106, 168, 255, 0, 90, 200),
+            TextDecorations = TextDecorations.Underline,
+        };
+        var tap = new TapGestureRecognizer();
+        tap.Tapped += (_, _) => ActivateLink(target);
+        span.GestureRecognizers.Add(tap);
+        return span;
+    }
+
+    /// <summary>
+    /// 点链接：`http(s)://` 交给系统；其余一律当**说明页 id**，在 App 内跳转。
+    ///
+    /// ⚠ `Shell.Current` 在页面已销毁时会是 null（异步回调晚到），别直接点下去。
+    /// </summary>
+    private static void ActivateLink(string target)
+    {
+        var t = target.Trim();
+        if (t.StartsWith("help:", StringComparison.OrdinalIgnoreCase)) t = t[5..];
+
+        if (t.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            t.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            try { _ = Launcher.Default.OpenAsync(t); }
+            catch (Exception ex) { ErrorLog.Error("MarkdownPreview", $"打开链接失败: {t}", ex); }
+            return;
+        }
+
+        // 包内说明：走与列表页同一条路由（`helptopic?id=…`），
+        // 这样"从列表点进去"与"从链接点进去"落在同一个页面上。
+        try
+        {
+            if (Shell.Current is { } shell)
+                _ = shell.GoToAsync($"helptopic?id={Uri.EscapeDataString(t)}");
+        }
+        catch (Exception ex) { ErrorLog.Error("MarkdownPreview", $"跳转说明失败: {t}", ex); }
+    }
+
+    /// <summary>
+    /// 找出 <c>[文字](目标)</c>。返回 `(起点, 终点, 文字, 目标)`，终点是**开区间**（紧跟 `)` 之后）。
+    ///
+    /// 只认"一行之内、目标里没有空白"的形态 —— 够用于说明文档，且不会把
+    /// 正文里偶然出现的方括号圆括号吃进去（宁可少认，不可误吃）。
+    /// </summary>
+    private static List<(int Start, int End, string Label, string Target)> FindLinks(string text)
+    {
+        var list = new List<(int, int, string, string)>();
+        for (var i = 0; i < text.Length; i++)
+        {
+            if (text[i] != '[') continue;
+            var close = text.IndexOf(']', i + 1);
+            if (close < 0 || close + 1 >= text.Length || text[close + 1] != '(') continue;
+            var end = text.IndexOf(')', close + 2);
+            if (end < 0) continue;
+
+            var target = text[(close + 2)..end];
+            if (target.Length == 0 || target.Any(char.IsWhiteSpace)) continue;
+
+            list.Add((i, end + 1, text[(i + 1)..close], target));
+            i = end;
+        }
+        return list;
     }
 
     private static bool IsListItem(string line, out char marker)
@@ -156,15 +286,13 @@ public static class MarkdownPreview
         for (int c = 0; c < cols; c++)
             grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
 
+        // 表头 / 单元格都走 BuildParagraph —— 与段落同一条渲染路径。
+        // ⚠ 这里原先是裸 `Label { Text = … }`：正文里能用的东西（**粗体**、`代码`、
+        //   [链接](help:…)）一进表格就变成字面量显示出来。表格恰恰是"哪种语言点哪一篇"
+        //   最自然的排版，链接在那里失效等于整页点不动。
         var header = rows[0];
         for (int c = 0; c < cols; c++)
-            grid.Add(new Label
-            {
-                Text = c < header.Length ? header[c] : "",
-                FontAttributes = FontAttributes.Bold,
-                FontSize = 13,
-                TextColor = Ink(isDark, 232, 232, 234, 18, 20, 24),
-            }, c, 0);
+            grid.Add(BuildParagraph($"«bold»{(c < header.Length ? header[c] : "")}«/»", isDark, 13), c, 0);
         // 表头分隔线
         grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
         grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
@@ -181,13 +309,7 @@ public static class MarkdownPreview
             grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
             var cells = rows[r];
             for (int c = 0; c < cols; c++)
-                grid.Add(new Label
-                {
-                    Text = c < cells.Length ? cells[c] : "",
-                    FontSize = 13,
-                    LineHeight = 1.3,
-                    TextColor = Ink(isDark, 204, 204, 208, 52, 56, 62),
-                }, c, r);
+                grid.Add(BuildParagraph(c < cells.Length ? cells[c] : "", isDark, 13), c, r);
         }
 
         // 表格**允许横向滚动**。
@@ -210,12 +332,7 @@ public static class MarkdownPreview
     {
         var stack = new VerticalStackLayout { Spacing = 2 };
         foreach (var item in items)
-            stack.Add(new Label
-            {
-                FormattedText = MarkupToFormattedString.Convert($"• {item}", isDark),
-                FontSize = 14,
-                LineHeight = 1.3,
-            });
+            stack.Add(BuildParagraph($"• {item}", isDark, 14));
         return stack;
     }
 

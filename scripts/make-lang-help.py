@@ -308,6 +308,26 @@ vml run examples/{key}/{sample}
 """
 
 
+
+def bold_to_markup(md: str) -> str:
+    """
+    把 markdown 的 `**粗体**` 转成仓库的 `«bold»…«/»` 中间格式。
+
+    渲染端（`MarkupToFormattedString.RenderInline`）**只认 «» 标记**，不解析 markdown 的
+    `**` —— 不转的话，正文里满屏都是字面量星号（上游那两份文档几乎每段都有）。
+    只做 `**`，不做 `*斜体*`：单个星号在正文里可能是乘号或列表符号，误伤的代价更大。
+
+    ⚠ 同样要跳过围栏代码块 —— 代码里的 `**` 是乘方或指针，动了就改了代码。
+    """
+    out, in_fence = [], False
+    for line in md.split("\n"):
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            out.append(line)
+            continue
+        out.append(line if in_fence else re.sub(r"\*\*(.+?)\*\*", r"«bold»\1«/»", line))
+    return "\n".join(out)
+
 def demote(md: str, levels: int = 2) -> str:
     """
     把 markdown 的标题整体降级。**必须跳过围栏代码块**。
@@ -375,8 +395,8 @@ def build(lang) -> str:
             if os.path.isfile(os.path.join(d, f)) and f.endswith(lang["ext"])]
     sample = exts[0] if exts else "sysinfo" + lang["ext"]
 
-    tips = "\n".join("- " + t for t in lang["tips"])
-    body = HEAD.format(title=lang["title"], intro=lang["intro"], key=lang["key"],
+    tips = bold_to_markup("\n".join("- " + t for t in lang["tips"]))
+    body = HEAD.format(title=lang["title"], intro=bold_to_markup(lang["intro"]), key=lang["key"],
                        sample=sample, tips=tips)
 
     ex = examples_table(lang)
@@ -384,36 +404,78 @@ def build(lang) -> str:
         body += "\n" + ex
 
     if lang.get("pitfalls"):
-        body += "\n## 实测踩过的坑\n\n" + lang["pitfalls"] + "\n"
+        body += "\n## 实测踩过的坑\n\n" + bold_to_markup(lang["pitfalls"]) + "\n"
 
     body += ("\n---\n\n下面的内容是**从 VML 源码里直接带的**（"
              f"`third_party/vml/VMLPrepares/{lang['dir']}/`）：\n"
              "`README` 讲这个前端支持什么、怎么编；`语言规范` 讲语法本身。\n"
              "上游一改，这里重新生成就是最新的。\n")
 
-    body += "\n## 语言规范\n\n" + demote(read(spec)) + "\n"
-    body += "\n## 编译器 README\n\n" + demote(read(readme)) + "\n"
+    body += "\n## 语言规范\n\n" + demote(bold_to_markup(read(spec))) + "\n"
+    body += "\n## 编译器 README\n\n" + demote(bold_to_markup(read(readme))) + "\n"
     return body
+
+
+def index_page() -> str:
+    """
+    「22 种语言」这一页 —— **层级靠链接表达**，不写死在代码里。
+
+    原先这棵树是 `HelpCatalog.Topic.Children` 里的一组 C# 数组，后果有两个：
+    ① 每加一层都要动代码、动列表页；② "哪些节点是目录、哪些有正文"这个判断漏一处，
+    现象是**点下去什么也不发生**（实测就坏过：点「22 种语言」去开一个从不存在的
+    `help/vml/languages.md`）。改成正文里写链接之后，**多少级都行，加页面只写 markdown**。
+    """
+    rows = "\n".join(f"| [{l['title']}](help:vml/lang/{l['key']}) | {bold_to_markup(l['intro']).splitlines()[0]} |"
+                     for l in LANGS)
+    return f"""# 22 种语言
+
+同一套 VML 接口，22 个前端都能用。**你熟悉哪门就用哪门写**，编出来的东西跑在同一台虚拟机上。
+
+## 每种语言一份说明
+
+点进任意一门，里面有它的**语言规范**（语法/类型/标准库）、**这个前端支持什么**、
+以及**实测踩过的坑** —— 后两类是直接从 VML 源码各编译器的 `README.md` /
+`<语言>_LANGUAGE_SPEC.md` 带过来的，上游一改、这里重新生成就是最新的。
+
+| 语言 | 一句话 |
+|---|---|
+{rows}
+
+## 先跑一个看看
+
+```
+vml run examples/c/tetris.c        # 俄罗斯方块
+vml run examples/python/tetris.py  # 同一个游戏，Python 版
+vml run examples/c/gomoku.c        # 五子棋
+vml run examples/lua/life.lua      # 生命游戏
+vml run examples/basic/whack.bas   # 打地鼠
+```
+
+每门语言目录下还有一个 `sysinfo.<扩展名>`，它调用 `ui_call_json("sysinfo", "")`
+把设备信息打出来 —— **想知道这门语言能不能用，先跑它**。
+"""
 
 
 def main():
     check = "--check" in sys.argv
     os.makedirs(OUT, exist_ok=True)
     n = 0
-    for lang in LANGS:
-        path = os.path.join(OUT, lang["key"] + ".md")
-        text = build(lang)
+    targets = [(l["key"] + ".md", build(l)) for l in LANGS]
+    targets.append(("languages.md", index_page()))   # 上一级那一页（落在 vml/ 下，见下面）
+    for name, text in targets:
+        path = os.path.join(OUT, name) if name != "languages.md" else \
+            os.path.join(os.path.dirname(OUT), "languages.md")
         if check:
             old = open(path, encoding="utf-8").read() if os.path.exists(path) else None
             if old != text:
-                print(f"✘ {lang['key']}.md 与生成结果不一致（重跑一次本脚本）")
+                print(f"✘ {name} 与生成结果不一致（重跑一次本脚本）")
                 n += 1
             continue
         with open(path, "w", encoding="utf-8", newline="") as f:
             f.write(text)
         n += 1
     print(("✘ 有 %d 个页面不一致" % n) if check and n else
-          ("✔ 全部一致" if check else "✔ 生成 %d 个语言说明页 → %s" % (n, OUT)))
+          ("✔ 全部一致" if check else "✔ 生成 %d 个说明页 → %s" % (n, OUT)))
 
 
 if __name__ == "__main__":

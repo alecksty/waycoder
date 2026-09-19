@@ -14,7 +14,7 @@ vml run examples/scheme/catch.scm
 ## 写法要点
 
 - 一切皆表达式：`(函数 参数…)`
-- **游戏请写成扁平顶层程序**（见下面那条坑）
+- «bold»游戏请写成扁平顶层程序«/»（见下面那条坑）
 
 ## 示例
 
@@ -25,8 +25,8 @@ vml run examples/scheme/catch.scm
 
 ## 实测踩过的坑
 
-- ⚠ **用户函数看不见顶层变量**（两边的帧指针会互相踩）。
-  正解：游戏逻辑全写在顶层，只把「参数全部传进去、不碰全局」的**纯函数**抽出去。
+- ⚠ «bold»用户函数看不见顶层变量«/»（两边的帧指针会互相踩）。
+  正解：游戏逻辑全写在顶层，只把「参数全部传进去、不碰全局」的«bold»纯函数«/»抽出去。
 
 ---
 
@@ -38,16 +38,16 @@ vml run examples/scheme/catch.scm
 
 ### Scheme 语言编译器规范说明
 
-> **版本**：v1.0 | **日期**：2026-07-06 | **修订者**：深圳市探索智能科技有限公司
+> «bold»版本«/»：v1.0 | «bold»日期«/»：2026-07-06 | «bold»修订者«/»：深圳市探索智能科技有限公司
 
 #### 规范标准
 
 | 字段 | 值 |
 |:-----|:----|
-| **目标标准** | R5RS (1998) 子集 |
-| **发布年份** | 1998 |
-| **完成度** | ~93% |
-| **测试** | 32 通过 |
+| «bold»目标标准«/» | R5RS (1998) 子集 |
+| «bold»发布年份«/» | 1998 |
+| «bold»完成度«/» | ~93% |
+| «bold»测试«/» | 32 通过 |
 
 #### 关键字
 
@@ -61,49 +61,49 @@ vml run examples/scheme/catch.scm
 #### 支持的语言特性
 
 ##### 1. 数据类型
-- **整数**: `42`, `-1`, `0`
-- **字符串**: `"hello"` (表达式级暂不支持)
-- **布尔**: `#t`, `#f` (由 Parser 支持)
-- **符号**: `x`, `+`, `foo-bar`
-- **列表**: S-表达式嵌套结构
+- «bold»整数«/»: `42`, `-1`, `0`
+- «bold»字符串«/»: `"hello"` (表达式级暂不支持)
+- «bold»布尔«/»: `#t`, `#f` (由 Parser 支持)
+- «bold»符号«/»: `x`, `+`, `foo-bar`
+- «bold»列表«/»: S-表达式嵌套结构
 
 ##### 2. 表达式
-- **算术运算**: `+`, `-`, `*`, `/`
-- **比较运算**: `<`, `>`, `<=`, `>=`, `=`, `eq?`, `equal?`
-- **逻辑运算**: `and`, `or`, `not`
-- **条件**: `if`, `cond`
-- **顺序**: `begin`
+- «bold»算术运算«/»: `+`, `-`, `*`, `/`
+- «bold»比较运算«/»: `<`, `>`, `<=`, `>=`, `=`, `eq?`, `equal?`
+- «bold»逻辑运算«/»: `and`, `or`, `not`
+- «bold»条件«/»: `if`, `cond`
+- «bold»顺序«/»: `begin`
 
 ##### 3. 函数
-- **函数定义**: `(define (name args) body)`
-- **匿名函数**: `(lambda (args) body)`
-- **函数调用**: `(func arg1 arg2 ...)`
-- **变量定义**: `(define name value)`
-- **变量赋值**: `(set! var value)`
+- «bold»函数定义«/»: `(define (name args) body)`
+- «bold»匿名函数«/»: `(lambda (args) body)`
+- «bold»函数调用«/»: `(func arg1 arg2 ...)`
+- «bold»变量定义«/»: `(define name value)`
+- «bold»变量赋值«/»: `(set! var value)`
 
 ##### 4. 绑定结构
-- **局部绑定**: `(let ((var val) ...) body)` — 并行绑定
-- **顺序绑定**: `(let* ((var val) ...) body)` — 串行绑定
+- «bold»局部绑定«/»: `(let ((var val) ...) body)` — 并行绑定
+- «bold»顺序绑定«/»: `(let* ((var val) ...) body)` — 串行绑定
 
 ##### 5. 输入输出
-- **打印整数**: `(print val)` — 输出整数并换行
-- **显示**: `(display val)` — 输出整数不换行
-- **换行**: `(newline)` — 输出换行符
+- «bold»打印整数«/»: `(print val)` — 输出整数并换行
+- «bold»显示«/»: `(display val)` — 输出整数不换行
+- «bold»换行«/»: `(newline)` — 输出换行符
 
 ##### 6. 内存操作
-- **内存读取**: `(peek addr)` — 读取地址 addr 处的 32 位值
-- **内存写入**: `(poke addr val)` — 写入值 val 到地址 addr
+- «bold»内存读取«/»: `(peek addr)` — 读取地址 addr 处的 32 位值
+- «bold»内存写入«/»: `(poke addr val)` — 写入值 val 到地址 addr
 
 ##### 7. 内联汇编
-- **VML 汇编**: `(asm "instruction")` — 直接嵌入 VML 指令
-- **芯片汇编**: `(chipasm "arch" "code")` — 芯片特定汇编
+- «bold»VML 汇编«/»: `(asm "instruction")` — 直接嵌入 VML 指令
+- «bold»芯片汇编«/»: `(chipasm "arch" "code")` — 芯片特定汇编
 
 #### 编译模式
 
 ##### MCU 模式（默认 `--mode mcu`）
 针对单片机环境优化。
-- **保留**: 全部已实现特性
-- **跳过**: call/cc（未实现）
+- «bold»保留«/»: 全部已实现特性
+- «bold»跳过«/»: call/cc（未实现）
 
 ##### OS 模式（`--mode os`，预留）
 全部语言特性可用。
@@ -155,25 +155,25 @@ VML 工具链通过三个编译参数控制浮点和 64 位整数的处理策略
 
 Scheme 中的 `flonum`（不精确浮点数）在 VML 编译时按以下模式处理：
 
-- **`hard` 模式（默认）**: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
-- **`soft` 模式**: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
-- **`none` 模式**: 禁用所有 32 位浮点运算。
+- «bold»`hard` 模式（默认）«/»: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
+- «bold»`soft` 模式«/»: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
+- «bold»`none` 模式«/»: 禁用所有 32 位浮点运算。
 
 ##### 64位浮点 (double)
 
 Scheme 中的双精度浮点运算按以下模式编译：
 
-- **`soft` 模式（默认）**: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
-- **`hard` 模式**: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。
-- **`none` 模式**: 禁用双精度浮点运算。
+- «bold»`soft` 模式（默认）«/»: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
+- «bold»`hard` 模式«/»: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。
+- «bold»`none` 模式«/»: 禁用双精度浮点运算。
 
 ##### 64位整数 (int64)
 
 Scheme 中的大整数（`bignum`）超出 32 位范围时按以下模式处理：
 
-- **`soft` 模式（默认）**: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
-- **`hard` 模式**: 预留，未来 VML 版本将支持原生 64 位整数指令。
-- **`none` 模式**: 降级为 32 位整数。
+- «bold»`soft` 模式（默认）«/»: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
+- «bold»`hard` 模式«/»: 预留，未来 VML 版本将支持原生 64 位整数指令。
+- «bold»`none` 模式«/»: 降级为 32 位整数。
 
 ##### 软件模拟库
 
@@ -214,8 +214,8 @@ dotnet test VMLTests/VMLTests.csproj --filter "SchemeTests"
 | `.wstring` | 16-bit | UTF-16LE | `wchar_t*` |
 | `.ustring` | 32-bit | UTF-32LE | `char32_t*` |
 
-**MCU 模式** (默认): 字符串输出为 UTF-8 (`.string`)
-**OS 模式**: 可通过 `VML_WSTRING` 宏判断编码
+«bold»MCU 模式«/» (默认): 字符串输出为 UTF-8 (`.string`)
+«bold»OS 模式«/»: 可通过 `VML_WSTRING` 宏判断编码
 
 共享库已提供宽字符串转换函数 (wchar.h/uchar.h)，各语言编译器可按需使用。
 
@@ -223,9 +223,9 @@ dotnet test VMLTests/VMLTests.csproj --filter "SchemeTests"
 
 ### Scheme (R5RS 子集) 编译器
 
-**路径**: `VMLPrepares/SchemeCompiler/`
-**完成度**: ~93% | 🟢 生产可用
-**标准库**: `Lib/scheme/`（待创建）
+«bold»路径«/»: `VMLPrepares/SchemeCompiler/`
+«bold»完成度«/»: ~93% | 🟢 生产可用
+«bold»标准库«/»: `Lib/scheme/`（待创建）
 
 #### 功能
 - ✅ 语法分析 + 代码生成（Lexer/Parser/CodeGen ~1800行）
@@ -255,10 +255,10 @@ dotnet test VMLTests/VMLTests.csproj --filter "SchemeTests"
 ##### MCU 模式（默认 `--mode mcu`）
 MCU 模式针对单片机/裸机环境（Arduino/STM32/8051 等）优化，自动跳过不兼容操作系统的特性。
 
-**跳过**（遇到这些语法不生成代码）:
+«bold»跳过«/»（遇到这些语法不生成代码）:
 - call/cc (需栈捕获)、动态eval
 
-**保留**（由 BIOS 实现底层）:
+«bold»保留«/»（由 BIOS 实现底层）:
 - cons(堆分配)、GC标记
 - POKE/PEEK 内存映射 I/O (MMIO)
 - 基本类型运算、控制流、函数调用

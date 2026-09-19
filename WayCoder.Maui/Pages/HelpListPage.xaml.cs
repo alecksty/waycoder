@@ -7,6 +7,9 @@ namespace WayCoder.Maui.Pages;
 ///
 /// 路由：`help?cat=<分类key>`，由「关于」页的分类按钮 push 过来。
 /// 只有一条主题的分类**点分类直接进正文**（少一级点击，"快速上手"就是这种）。
+///
+/// ⚠ **更深的层级不经过这里** —— 正文里写 `[C 语言](help:vml/lang/c)` 就够了
+/// （见 `HelpCatalog` 的类注释）。这个页面只负责"入口那几篇"。
 /// </summary>
 [QueryProperty(nameof(CategoryKey), "cat")]
 public partial class HelpListPage : ContentPage
@@ -16,6 +19,9 @@ public partial class HelpListPage : ContentPage
         InitializeComponent();
         List.SelectionChanged += OnPicked;
     }
+
+    /// <summary>当前分类的 key —— 由 Shell 的路由查询串注入（`help?cat=vml`）。</summary>
+    public string? CategoryKey { get; set; }
 
     protected override void OnAppearing()
     {
@@ -35,9 +41,6 @@ public partial class HelpListPage : ContentPage
             .ToList();
     }
 
-    /// <summary>当前分类的 key —— 由 Shell 的路由查询串注入（`help?cat=vml`）。</summary>
-    public string? CategoryKey { get; set; }
-
     private async void OnPicked(object? sender, SelectionChangedEventArgs e)
     {
         if (e.CurrentSelection.FirstOrDefault() is not Row row) return;
@@ -45,7 +48,7 @@ public partial class HelpListPage : ContentPage
         await Shell.Current.GoToAsync($"helptopic?id={Uri.EscapeDataString(row.Id)}");
     }
 
-    /// <summary>列表行（模板里按名字绑定 —— 见 XAML 的 x:Name）。</summary>
+    /// <summary>列表行（模板里按名字绑定 —— 见 XAML 的 <c>{Binding …}</c>）。</summary>
     public sealed record Row(string Id, string Title, string Summary, string Icon);
 
     /// <summary>给「关于」页用：这个分类只有一条主题时代它直接进正文。</summary>

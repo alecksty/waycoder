@@ -1,6 +1,6 @@
 # Ruby
 
-能写，但这个前端支持的特性最少 —— **完全平铺着写**。
+能写，但这个前端支持的特性最少 —— «bold»完全平铺着写«/»。
 
 ## 在手机上怎么跑
 
@@ -26,8 +26,8 @@ vml run examples/ruby/catch.rb
 
 ## 实测踩过的坑
 
-- ⚠ **不认 `&&`**（用 `and`，或者分开写 `if`）。
-- ⚠ **`def` 会报 `Unexpected token: End`** —— 也就是说这一路**一个函数都写不了**，
+- ⚠ «bold»不认 `&&`«/»（用 `and`，或者分开写 `if`）。
+- ⚠ «bold»`def` 会报 `Unexpected token: End`«/» —— 也就是说这一路«bold»一个函数都写不了«/»，
   只能平铺（`examples/ruby/catch.rb` 就是这么写的）。
 
 ---
@@ -40,16 +40,16 @@ vml run examples/ruby/catch.rb
 
 ### Ruby 语言编译器规范说明
 
-> **版本**：v1.0 | **日期**：2026-07-06 | **修订者**：深圳市探索智能科技有限公司
+> «bold»版本«/»：v1.0 | «bold»日期«/»：2026-07-06 | «bold»修订者«/»：深圳市探索智能科技有限公司
 
 #### 规范标准
 
 | 字段 | 值 |
 |:-----|:----|
-| **目标标准** | Ruby 1.9+ 子集 |
-| **发布年份** | 1995 (Ruby 1.9: 2007) |
-| **完成度** | ~96% |
-| **文件扩展名** | `.rb` |
+| «bold»目标标准«/» | Ruby 1.9+ 子集 |
+| «bold»发布年份«/» | 1995 (Ruby 1.9: 2007) |
+| «bold»完成度«/» | ~96% |
+| «bold»文件扩展名«/» | `.rb` |
 
 #### 概述
 
@@ -59,13 +59,13 @@ vml run examples/ruby/catch.rb
 
 ##### 1. 数据类型
 
-- **整数**: `Integer` — 整数类型 (4 字节有符号)
-- **浮点数**: `Float` — 单精度浮点数
-- **字符串**: `String` — 字符串字面量，双引号 `"..."` 或单引号 `'...'`
-- **符号**: `Symbol` — 以 `:` 开头，如 `:name`
-- **数组**: `Array` — 方括号字面量 `[1, 2, 3]`
-- **nil**: `nil` — 空值
-- **布尔值**: `true` / `false`
+- «bold»整数«/»: `Integer` — 整数类型 (4 字节有符号)
+- «bold»浮点数«/»: `Float` — 单精度浮点数
+- «bold»字符串«/»: `String` — 字符串字面量，双引号 `"..."` 或单引号 `'...'`
+- «bold»符号«/»: `Symbol` — 以 `:` 开头，如 `:name`
+- «bold»数组«/»: `Array` — 方括号字面量 `[1, 2, 3]`
+- «bold»nil«/»: `nil` — 空值
+- «bold»布尔值«/»: `true` / `false`
 
 ##### 2. 变量
 
@@ -234,8 +234,8 @@ method_name       # 无参数调用
 | `.wstring` | 16-bit | UTF-16LE | `wchar_t*` |
 | `.ustring` | 32-bit | UTF-32LE | `char32_t*` |
 
-**MCU 模式** (默认): 字符串输出为 UTF-8 (`.string`)
-**OS 模式**: 可通过 `VML_WSTRING` 宏判断编码
+«bold»MCU 模式«/» (默认): 字符串输出为 UTF-8 (`.string`)
+«bold»OS 模式«/»: 可通过 `VML_WSTRING` 宏判断编码
 
 共享库已提供宽字符串转换函数 (wchar.h/uchar.h)，各语言编译器可按需使用。
 
@@ -243,9 +243,9 @@ method_name       # 无参数调用
 
 ### Ruby 编译器
 
-**路径**: `VMLPrepares/RubyCompiler/`
-**完成度**: ~96% | 🟢 生产可用
-**标准库**: `Lib/ruby/`
+«bold»路径«/»: `VMLPrepares/RubyCompiler/`
+«bold»完成度«/»: ~96% | 🟢 生产可用
+«bold»标准库«/»: `Lib/ruby/`
 
 #### 功能
 - ✅ 词法分析 + 语法分析 + 代码生成 (Lexer/Parser/CodeGenerator)
@@ -267,10 +267,10 @@ method_name       # 无参数调用
 ##### MCU 模式（默认 `--mode mcu`）
 MCU 模式针对单片机/裸机环境优化，自动跳过不兼容操作系统的特性。
 
-**跳过**（MCU 不支持）:
+«bold»跳过«/»（MCU 不支持）:
 - require 动态加载、yield/block
 
-**保留**（BIOS 实现底层）:
+«bold»保留«/»（BIOS 实现底层）:
 - 基本类型运算、控制流、函数调用
 - print/puts 映射到 UART
 

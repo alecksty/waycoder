@@ -14,7 +14,7 @@ vml run examples/cpp/snake.cpp
 ## 写法要点
 
 - 和 C 一样引 `waycoder_ui.h`
-- 支持类与一部分模板；**不要依赖完整的 STL**（标准库是 VML 自己的实现）
+- 支持类与一部分模板；«bold»不要依赖完整的 STL«/»（标准库是 VML 自己的实现）
 - 全局对象的构造时机与 C++ 标准不一定一致 —— 简单起见把状态放在 `main` 里
 
 ## 示例
@@ -34,18 +34,18 @@ vml run examples/cpp/snake.cpp
 
 ### C++ 语言编译器规范说明
 
-> **版本**：v1.1 | **日期**：2026-07-06 | **修订者**：深圳市探索智能科技有限公司
+> «bold»版本«/»：v1.1 | «bold»日期«/»：2026-07-06 | «bold»修订者«/»：深圳市探索智能科技有限公司
 
 #### 规范标准
 
 | 字段 | 值 |
 |:-----|:----|
-| **目标标准** | C++11 子集 (ISO/IEC 14882:2011) |
-| **发布年份** | 2011 |
-| **完成度** | ~95% |
-| **MCU完成度** | ~93% |
-| **测试** | 0 (测试目录待创建) |
-| **更新** | 2026-05-18: 修正目标标准为C++11（含nullptr/constexpr/override）；修正完成度和测试数 |
+| «bold»目标标准«/» | C++11 子集 (ISO/IEC 14882:2011) |
+| «bold»发布年份«/» | 2011 |
+| «bold»完成度«/» | ~95% |
+| «bold»MCU完成度«/» | ~93% |
+| «bold»测试«/» | 0 (测试目录待创建) |
+| «bold»更新«/» | 2026-05-18: 修正目标标准为C++11（含nullptr/constexpr/override）；修正完成度和测试数 |
 
 #### 关键字
 
@@ -96,25 +96,25 @@ VML 工具链通过三个编译参数控制浮点和 64 位整数的处理策略
 
 本语言中的 32 位单精度浮点类型 `float` 按以下模式编译：
 
-- **`hard` 模式（默认）**: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
-- **`soft` 模式**: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
-- **`none` 模式**: 禁用所有 32 位浮点类型，遇到 `float` 声明时报告编译错误。
+- «bold»`hard` 模式（默认）«/»: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
+- «bold»`soft` 模式«/»: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
+- «bold»`none` 模式«/»: 禁用所有 32 位浮点类型，遇到 `float` 声明时报告编译错误。
 
 ##### 64位浮点 (double)
 
 本语言中的 64 位双精度浮点类型 `double` 按以下模式编译：
 
-- **`soft` 模式（默认）**: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
-- **`hard` 模式**: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。需要目标平台支持 64 位运算。
-- **`none` 模式**: 禁用所有 64 位浮点类型，遇到 `double` 声明时报告编译错误。
+- «bold»`soft` 模式（默认）«/»: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
+- «bold»`hard` 模式«/»: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。需要目标平台支持 64 位运算。
+- «bold»`none` 模式«/»: 禁用所有 64 位浮点类型，遇到 `double` 声明时报告编译错误。
 
 ##### 64位整数 (int64)
 
 本语言中的 64 位整数类型 `long long` 按以下模式编译：
 
-- **`soft` 模式（默认）**: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
-- **`hard` 模式**: 使用 VML 原生 64 位整数指令 `MOVEL`/`ADDL`/`SUBL`/`MULL`/`DIVL`/`MODL`/`NEGL`/`CMPL`/`ANDL`/`ORL`/`XORL`/`NOTL`/`SHLL`/`SHRL`，通过 L0-L7 八个长整数寄存器运算。v1.65.197+ 起可用。
-- **`none` 模式**: 禁用 64 位整数类型，遇到 `long long` 声明时报告编译错误。
+- «bold»`soft` 模式（默认）«/»: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
+- «bold»`hard` 模式«/»: 使用 VML 原生 64 位整数指令 `MOVEL`/`ADDL`/`SUBL`/`MULL`/`DIVL`/`MODL`/`NEGL`/`CMPL`/`ANDL`/`ORL`/`XORL`/`NOTL`/`SHLL`/`SHRL`，通过 L0-L7 八个长整数寄存器运算。v1.65.197+ 起可用。
+- «bold»`none` 模式«/»: 禁用 64 位整数类型，遇到 `long long` 声明时报告编译错误。
 
 ##### 软件模拟库
 
@@ -141,8 +141,8 @@ VML 工具链通过三个编译参数控制浮点和 64 位整数的处理策略
 | MCU (默认) | `.string` (UTF-8) | `.string` | #1 |
 | OS | `.wstring` (UTF-16LE) | `.wstring` | #391 |
 
-**预定义宏**: `VML_WSTRING` — OS 模式下自动定义，MCU 模式未定义
-**输出函数**: OS 模式自动使用 `shared_print_wstr` (UTF-16LE→UTF-8 自动转换)
+«bold»预定义宏«/»: `VML_WSTRING` — OS 模式下自动定义，MCU 模式未定义
+«bold»输出函数«/»: OS 模式自动使用 `shared_print_wstr` (UTF-16LE→UTF-8 自动转换)
 
 ```c
 // 用户代码可通过宏判断编码
@@ -172,9 +172,9 @@ C++ 编译器继承 C 编译器的全部预处理器功能：
 
 ### C++11 编译器
 
-**路径**: `VMLPrepares/CppCompiler/`
-**完成度**: ~95% | 🟢 生产可用
-**标准库**: `Lib/cpp/`
+«bold»路径«/»: `VMLPrepares/CppCompiler/`
+«bold»完成度«/»: ~95% | 🟢 生产可用
+«bold»标准库«/»: `Lib/cpp/`
 
 #### 功能
 - ✅ 语法分析 + 代码生成（Lexer/Parser/CodeGenerator）
@@ -193,10 +193,10 @@ C++ 编译器继承 C 编译器的全部预处理器功能：
 ##### MCU 模式（默认 `--mode mcu`）
 MCU 模式针对单片机/裸机环境（Arduino/STM32/8051 等）优化，自动跳过不兼容操作系统的特性。
 
-**跳过**（遇到这些语法不生成代码）:
+«bold»跳过«/»（遇到这些语法不生成代码）:
 - throw/catch、typeid、dynamic_cast
 
-**保留**（由 BIOS 实现底层）:
+«bold»保留«/»（由 BIOS 实现底层）:
 - new/delete(堆)、iostream、STL容器
 - POKE/PEEK 内存映射 I/O (MMIO)
 - 基本类型运算、控制流、函数调用
@@ -208,7 +208,7 @@ OS 模式针对带操作系统环境（如 Linux 嵌入式、RTOS 等），届�
 
 ##### RAM 级别
 - `--ram k`：KB级别（2KB~64KB，如 8051/PIC/AVR）
-- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，**默认**）
+- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，«bold»默认«/»）
 - `--ram g`：GB级别（如 x86/DDR 系统）
 - `--stack-size <bytes>`：手动指定栈大小（默认自动根据 --ram 分配）
 

@@ -35,19 +35,19 @@ vml run examples/r/catch.r
 
 ### R 语言编译器规范说明
 
-> **版本**：v1.0 | **日期**：2026-07-06 | **修订者**：深圳市探索智能科技有限公司
+> «bold»版本«/»：v1.0 | «bold»日期«/»：2026-07-06 | «bold»修订者«/»：深圳市探索智能科技有限公司
 
 #### 元数据
 
 | 项目 | 说明 |
 |------|------|
-| **标准** | R 4.x 子集 (S 语言兼容) |
-| **语言诞生年份** | 1993 |
-| **完成度** | ~96% |
-| **文件扩展名** | `.r` |
-| **编译器入口** | `RCompiler.RCompiler.Compile()` |
-| **插件注册** | `RCompilerPlugin : CompilerPluginExBase` |
-| **语言分类** | 统计分析语言 |
+| «bold»标准«/» | R 4.x 子集 (S 语言兼容) |
+| «bold»语言诞生年份«/» | 1993 |
+| «bold»完成度«/» | ~96% |
+| «bold»文件扩展名«/» | `.r` |
+| «bold»编译器入口«/» | `RCompiler.RCompiler.Compile()` |
+| «bold»插件注册«/» | `RCompilerPlugin : CompilerPluginExBase` |
+| «bold»语言分类«/» | 统计分析语言 |
 
 #### 概述
 
@@ -263,7 +263,7 @@ z <- c()  # 空向量，返回 NULL
 - 元素按顺序存储在连续内存中
 - 空向量 `c()` 返回 0 (NULL)
 - 范围运算符 `start:end` 被解析为对 `:` 函数的调用
-- **不支持**：命名向量、类型强制转换、向量回收（recycling）
+- «bold»不支持«/»：命名向量、类型强制转换、向量回收（recycling）
 
 ##### 索引
 
@@ -276,7 +276,7 @@ b <- x[3]   # 30
 - 使用 `[index]` 语法，1-based 索引
 - 内部实现：索引减 1，乘以 4（字偏移），从基址加载
 - 索引表达式可以是任意表达式：`x[i + 1]`
-- **不支持**：负索引（排除）、逻辑索引、多维索引、`[[` 提取运算符、切片 `x[2:4]`
+- «bold»不支持«/»：负索引（排除）、逻辑索引、多维索引、`[[` 提取运算符、切片 `x[2:4]`
 
 ##### 注释
 
@@ -349,62 +349,62 @@ source("lib/utils.r")
 
 ##### 对象系统
 
-- **S3 对象**：类和泛型函数机制（`class<-`、`UseMethod`、`NextMethod`）
-- **S4 对象**：正式类定义和方法分派（`setClass`、`setMethod`）
-- **RC (Reference Classes)**：引用类
-- **R6 类**：现代 OOP 系统
+- «bold»S3 对象«/»：类和泛型函数机制（`class<-`、`UseMethod`、`NextMethod`）
+- «bold»S4 对象«/»：正式类定义和方法分派（`setClass`、`setMethod`）
+- «bold»RC (Reference Classes)«/»：引用类
+- «bold»R6 类«/»：现代 OOP 系统
 
 ##### 数据结构
 
-- **list()**：递归列表（仅实现了 `c()` 原子向量）
-- **data.frame**：表格数据结构
-- **matrix**：多维矩阵（`matrix()`、`%*%` 矩阵乘法）
-- **array**：多维数组（`array()`、`dim<-`）
-- **factor**：分类变量
-- **names / attributes**：属性系统（`names<-`、`attr<-`、`attributes<-`）
-- **环境 (environment)**：环境对象和词法作用域层级
+- «bold»list()«/»：递归列表（仅实现了 `c()` 原子向量）
+- «bold»data.frame«/»：表格数据结构
+- «bold»matrix«/»：多维矩阵（`matrix()`、`%*%` 矩阵乘法）
+- «bold»array«/»：多维数组（`array()`、`dim<-`）
+- «bold»factor«/»：分类变量
+- «bold»names / attributes«/»：属性系统（`names<-`、`attr<-`、`attributes<-`）
+- «bold»环境 (environment)«/»：环境对象和词法作用域层级
 
 ##### 函数式编程
 
-- **apply 家族**：`apply()`、`lapply()`、`sapply()`、`tapply()`、`mapply()` 等
-- **闭包**：词法作用域中捕获自由变量的函数
-- **`...` (dots)**：可变参数
-- **`on.exit()`**：函数退出钩子
-- **`invisible()`**：不可见返回
+- «bold»apply 家族«/»：`apply()`、`lapply()`、`sapply()`、`tapply()`、`mapply()` 等
+- «bold»闭包«/»：词法作用域中捕获自由变量的函数
+- «bold»`...` (dots)«/»：可变参数
+- «bold»`on.exit()`«/»：函数退出钩子
+- «bold»`invisible()`«/»：不可见返回
 
 ##### 公式接口
 
-- **公式对象**：`y ~ x1 + x2`（统计建模核心语法）
+- «bold»公式对象«/»：`y ~ x1 + x2`（统计建模核心语法）
 - 相关函数：`lm()`、`glm()`、`terms()`、`model.frame()`
 
 ##### 向量化运算
 
-- **向量回收 (recycling)**：不等长向量运算时的自动扩展
-- **逐元素运算**：所有运算符当前为标量操作，不自动对向量广播
-- **向量化 ifelse()**：条件向量选择
+- «bold»向量回收 (recycling)«/»：不等长向量运算时的自动扩展
+- «bold»逐元素运算«/»：所有运算符当前为标量操作，不自动对向量广播
+- «bold»向量化 ifelse()«/»：条件向量选择
 
 ##### 包和库
 
-- **library() / require()**：包加载机制
-- **CRAN 包**：任何第三方包
-- **命名空间**：`::` 和 `:::` 运算符
-- **base/recommended 包**：R 自带的统计和图形包
+- «bold»library() / require()«/»：包加载机制
+- «bold»CRAN 包«/»：任何第三方包
+- «bold»命名空间«/»：`::` 和 `:::` 运算符
+- «bold»base/recommended 包«/»：R 自带的统计和图形包
 
 ##### 其他
 
-- **管道运算符**：`|>` (原生管道) 和 `%>%` (magrittr)
-- **switch()**：多分支选择
-- **tryCatch()**：异常处理
-- **R 复数类型**：`complex`
-- **R 原始类型**：`raw`
-- **字符串操作函数**：`paste()`、`sprintf()`、`gsub()` 等（需通过 C 共享库手动实现）
-- **绘图系统**：图形设备接口
-- **S4 泛型**：`setGeneric`、`setMethod`
-- **延迟求值**：R 的惰性参数求值语义
-- **R 的 `[` `[[` `$` 作为函数**：运算符的函数形式
-- **负索引与逻辑索引**：`x[-1]`、`x[x > 5]`
-- **列表命名元素**：`x[["name"]]`
-- **formals() / body()**：函数对象内省
+- «bold»管道运算符«/»：`|>` (原生管道) 和 `%>%` (magrittr)
+- «bold»switch()«/»：多分支选择
+- «bold»tryCatch()«/»：异常处理
+- «bold»R 复数类型«/»：`complex`
+- «bold»R 原始类型«/»：`raw`
+- «bold»字符串操作函数«/»：`paste()`、`sprintf()`、`gsub()` 等（需通过 C 共享库手动实现）
+- «bold»绘图系统«/»：图形设备接口
+- «bold»S4 泛型«/»：`setGeneric`、`setMethod`
+- «bold»延迟求值«/»：R 的惰性参数求值语义
+- «bold»R 的 `[` `[[` `$` 作为函数«/»：运算符的函数形式
+- «bold»负索引与逻辑索引«/»：`x[-1]`、`x[x > 5]`
+- «bold»列表命名元素«/»：`x[["name"]]`
+- «bold»formals() / body()«/»：函数对象内省
 
 #### 编译器实现细节
 
@@ -489,8 +489,8 @@ VMLPrepares/RCompiler/
 | `.wstring` | 16-bit | UTF-16LE | `wchar_t*` |
 | `.ustring` | 32-bit | UTF-32LE | `char32_t*` |
 
-**MCU 模式** (默认): 字符串输出为 UTF-8 (`.string`)
-**OS 模式**: 可通过 `VML_WSTRING` 宏判断编码
+«bold»MCU 模式«/» (默认): 字符串输出为 UTF-8 (`.string`)
+«bold»OS 模式«/»: 可通过 `VML_WSTRING` 宏判断编码
 
 共享库已提供宽字符串转换函数 (wchar.h/uchar.h)，各语言编译器可按需使用。
 
@@ -498,9 +498,9 @@ VMLPrepares/RCompiler/
 
 ### R 编译器
 
-**路径**: `VMLPrepares/RCompiler/`
-**完成度**: ~96% | 🟢 生产可用
-**标准库**: `Lib/r/`
+«bold»路径«/»: `VMLPrepares/RCompiler/`
+«bold»完成度«/»: ~96% | 🟢 生产可用
+«bold»标准库«/»: `Lib/r/`
 
 #### 功能
 - ✅ 词法分析 + 语法分析 + 代码生成 (Lexer/Parser/CodeGenerator)
@@ -520,12 +520,12 @@ VMLPrepares/RCompiler/
 ##### MCU 模式（默认 `--mode mcu`）
 MCU 模式针对单片机/裸机环境优化。
 
-**跳过**:
+«bold»跳过«/»:
 - source() 动态加载
 - S3/S4 对象系统
 - 图形设备
 
-**保留**:
+«bold»保留«/»:
 - 基本统计运算
 - 向量操作 (c/seq/rep)
 - print 映射到 UART

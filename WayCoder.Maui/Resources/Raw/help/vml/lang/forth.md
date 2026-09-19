@@ -33,31 +33,31 @@ vml run examples/forth/sysinfo.fth
 
 ### Forth 语言编译器规范说明
 
-> **版本**：v1.0 | **日期**：2026-07-06 | **修订者**：深圳市探索智能科技有限公司
+> «bold»版本«/»：v1.0 | «bold»日期«/»：2026-07-06 | «bold»修订者«/»：深圳市探索智能科技有限公司
 
 #### 规范标准
 
 | 字段 | 值 |
 |:-----|:----|
-| **目标标准** | ANSI Forth 子集 (1994) |
-| **发布年份** | 1994 |
-| **完成度** | ~95% |
-| **MCU完成度** | ~93% |
-| **测试** | 0 (测试目录待创建) |
-| **更新** | 2026-05-18: 修正核心词集状态描述、完成度和测试数 |
+| «bold»目标标准«/» | ANSI Forth 子集 (1994) |
+| «bold»发布年份«/» | 1994 |
+| «bold»完成度«/» | ~95% |
+| «bold»MCU完成度«/» | ~93% |
+| «bold»测试«/» | 0 (测试目录待创建) |
+| «bold»更新«/» | 2026-05-18: 修正核心词集状态描述、完成度和测试数 |
 
 #### 关键字（核心词）
 
-**栈操作**: `DUP` `DROP` `SWAP` `OVER` `ROT` `?DUP` `NIP` `TUCK`
-**算术**: `+` `-` `*` `/` `MOD` `/MOD` `1+` `1-` `2*` `2/` `ABS` `NEGATE`
-**比较**: `=` `<>` `<` `>` `<=` `>=` `0=` `0<>` `0<` `0>`
-**逻辑**: `AND` `OR` `XOR` `NOT` `TRUE` `FALSE`
-**控制流**: `IF` `ELSE` `THEN` `BEGIN` `AGAIN` `UNTIL` `WHILE` `REPEAT` `CASE` `ENDCASE` `OF` `ENDOF`
-**循环**: `DO` `LOOP` `+LOOP` `I` `J` `LEAVE` `UNLOOP` `EXIT` `RECURSE`
-**定义**: `:` `;` `CONSTANT` `VARIABLE` `CREATE` `DOES>` `DEFER` `IS` `VALUE` `TO`
-**内存**: `@` `!` `C@` `C!` `ALLOT` `CELLS` `HERE`
-**I/O**: `."` `EMIT` `CR` `SPACE` `TYPE` `KEY`
-**其他**: `DEPTH` `IMMEDIATE` `POSTPONE` `[']` `[CHAR]` `LITERAL`
+«bold»栈操作«/»: `DUP` `DROP` `SWAP` `OVER` `ROT` `?DUP` `NIP` `TUCK`
+«bold»算术«/»: `+` `-` `*` `/` `MOD` `/MOD` `1+` `1-` `2*` `2/` `ABS` `NEGATE`
+«bold»比较«/»: `=` `<>` `<` `>` `<=` `>=` `0=` `0<>` `0<` `0>`
+«bold»逻辑«/»: `AND` `OR` `XOR` `NOT` `TRUE` `FALSE`
+«bold»控制流«/»: `IF` `ELSE` `THEN` `BEGIN` `AGAIN` `UNTIL` `WHILE` `REPEAT` `CASE` `ENDCASE` `OF` `ENDOF`
+«bold»循环«/»: `DO` `LOOP` `+LOOP` `I` `J` `LEAVE` `UNLOOP` `EXIT` `RECURSE`
+«bold»定义«/»: `:` `;` `CONSTANT` `VARIABLE` `CREATE` `DOES>` `DEFER` `IS` `VALUE` `TO`
+«bold»内存«/»: `@` `!` `C@` `C!` `ALLOT` `CELLS` `HERE`
+«bold»I/O«/»: `."` `EMIT` `CR` `SPACE` `TYPE` `KEY`
+«bold»其他«/»: `DEPTH` `IMMEDIATE` `POSTPONE` `[']` `[CHAR]` `LITERAL`
 
 #### 概述
 
@@ -68,9 +68,9 @@ vml run examples/forth/sysinfo.fth
 ##### 1. Forth 核心概念
 
 ###### 栈操作
-- **数据栈**: 用于参数传递和临时存储
-- **返回栈**: 用于控制流和循环
-- **字典**: 存储词（函数）定义
+- «bold»数据栈«/»: 用于参数传递和临时存储
+- «bold»返回栈«/»: 用于控制流和循环
+- «bold»字典«/»: 存储词（函数）定义
 
 ###### 词（Word）定义
 ```
@@ -347,25 +347,25 @@ VML 工具链通过三个编译参数控制浮点和 64 位整数的处理策略
 
 Forth 中的 `FLOAT` 栈操作（32位单精度浮点）按以下模式编译：
 
-- **`hard` 模式（默认）**: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
-- **`soft` 模式**: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
-- **`none` 模式**: 禁用所有 32 位浮点运算。
+- «bold»`hard` 模式（默认）«/»: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
+- «bold»`soft` 模式«/»: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
+- «bold»`none` 模式«/»: 禁用所有 32 位浮点运算。
 
 ###### 64位浮点 (double)
 
 Forth 中的双精度栈项（`2CONSTANT` / `2VARIABLE` 等双单元操作）按以下模式编译：
 
-- **`soft` 模式（默认）**: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
-- **`hard` 模式**: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。
-- **`none` 模式**: 禁用双精度扩展。
+- «bold»`soft` 模式（默认）«/»: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
+- «bold»`hard` 模式«/»: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。
+- «bold»`none` 模式«/»: 禁用双精度扩展。
 
 ###### 64位整数 (int64)
 
 64 位整数在 Forth 中以双单元形式存在（`2*` / `D+` / `DNEGATE` 等双字操作）。VML 编译时按以下模式处理：
 
-- **`soft` 模式（默认）**: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
-- **`hard` 模式**: 预留，未来 VML 版本将支持原生 64 位整数指令。
-- **`none` 模式**: 禁用 64 位双字扩展。
+- «bold»`soft` 模式（默认）«/»: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
+- «bold»`hard` 模式«/»: 预留，未来 VML 版本将支持原生 64 位整数指令。
+- «bold»`none` 模式«/»: 禁用 64 位双字扩展。
 
 ###### 软件模拟库
 
@@ -380,10 +380,10 @@ Forth 中的双精度栈项（`2CONSTANT` / `2VARIABLE` 等双单元操作）按
 ##### 10. 编译限制
 
 ###### 当前实现状态
-- **词法分析器**: 完整实现，支持 Forth 词（word）和符号
-- **语法分析器**: 基本实现，支持冒号定义和控制结构
-- **代码生成器**: 基本实现，栈操作映射到 VML 寄存器/内存操作
-- **标准库**: `Lib/forth/` 目录
+- «bold»词法分析器«/»: 完整实现，支持 Forth 词（word）和符号
+- «bold»语法分析器«/»: 基本实现，支持冒号定义和控制结构
+- «bold»代码生成器«/»: 基本实现，栈操作映射到 VML 寄存器/内存操作
+- «bold»标准库«/»: `Lib/forth/` 目录
 
 ###### 已实现的核心词集（MCU 模式可用）
 1. 栈操作词: DUP, DROP, SWAP, OVER, ROT ✅
@@ -402,12 +402,12 @@ Forth 中的双精度栈项（`2CONSTANT` / `2VARIABLE` 等双单元操作）按
 
 Forth 程序通过系统调用与 VML 运行时交互：
 
-- **SYSCALL 4**: 输出字符（EMIT）
-- **SYSCALL 5**: 输入字符（KEY）
-- **SYSCALL 6**: 输出整数（.）
-- **SYSCALL 7**: 输入整数（数字输入）
-- **SYSCALL 120**: 分配内存（ALLOT）
-- **SYSCALL 121**: 释放内存
+- «bold»SYSCALL 4«/»: 输出字符（EMIT）
+- «bold»SYSCALL 5«/»: 输入字符（KEY）
+- «bold»SYSCALL 6«/»: 输出整数（.）
+- «bold»SYSCALL 7«/»: 输入整数（数字输入）
+- «bold»SYSCALL 120«/»: 分配内存（ALLOT）
+- «bold»SYSCALL 121«/»: 释放内存
 
 Forth 的简洁性和栈式架构使其非常适合嵌入式系统和资源受限环境，通过 VML 编译器可以在多种硬件平台上运行 Forth 程序。
 ---
@@ -422,8 +422,8 @@ Forth 的简洁性和栈式架构使其非常适合嵌入式系统和资源受�
 | `.wstring` | 16-bit | UTF-16LE | `wchar_t*` |
 | `.ustring` | 32-bit | UTF-32LE | `char32_t*` |
 
-**MCU 模式** (默认): 字符串输出为 UTF-8 (`.string`)
-**OS 模式**: 可通过 `VML_WSTRING` 宏判断编码
+«bold»MCU 模式«/» (默认): 字符串输出为 UTF-8 (`.string`)
+«bold»OS 模式«/»: 可通过 `VML_WSTRING` 宏判断编码
 
 共享库已提供宽字符串转换函数 (wchar.h/uchar.h)，各语言编译器可按需使用。
 
@@ -431,9 +431,9 @@ Forth 的简洁性和栈式架构使其非常适合嵌入式系统和资源受�
 
 ### Forth (ANSI Forth 子集) 编译器
 
-**路径**: `VMLPrepares/ForthCompiler/`
-**完成度**: ~95% | 🟢 生产可用
-**标准库**: `Lib/forth/`
+«bold»路径«/»: `VMLPrepares/ForthCompiler/`
+«bold»完成度«/»: ~95% | 🟢 生产可用
+«bold»标准库«/»: `Lib/forth/`
 
 #### 功能
 - ✅ 语法分析 + 代码生成（Lexer/Parser/CodeGenerator）
@@ -453,10 +453,10 @@ Forth 的简洁性和栈式架构使其非常适合嵌入式系统和资源受�
 ##### MCU 模式（默认 `--mode mcu`）
 MCU 模式针对单片机/裸机环境（Arduino/STM32/8051 等）优化，自动跳过不兼容操作系统的特性。
 
-**跳过**（遇到这些语法不生成代码）:
+«bold»跳过«/»（遇到这些语法不生成代码）:
 - 无（Forth 始于嵌入式，天然 MCU 兼容）
 
-**保留**（由 BIOS 实现底层）:
+«bold»保留«/»（由 BIOS 实现底层）:
 - ALLOT(堆)、HERE
 - POKE/PEEK 内存映射 I/O (MMIO)
 - 栈操作、控制流、词定义
@@ -467,7 +467,7 @@ OS 模式针对带操作系统环境（如 Linux 嵌入式、RTOS 等），届�
 
 ##### RAM 级别
 - `--ram k`：KB级别（2KB~64KB，如 8051/PIC/AVR）
-- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，**默认**）
+- `--ram m`：MB级别（64KB~1MB，如 ARM Cortex-M，«bold»默认«/»）
 - `--ram g`：GB级别（如 x86/DDR 系统）
 - `--stack-size <bytes>`：手动指定栈大小（默认自动根据 --ram 分配）
 

@@ -38,27 +38,27 @@ vml run examples/fortran/bench.f90
 
 ### Fortran 语言编译器规范说明
 
-> **版本**：v1.0 | **日期**：2026-07-06 | **修订者**：深圳市探索智能科技有限公司
+> «bold»版本«/»：v1.0 | «bold»日期«/»：2026-07-06 | «bold»修订者«/»：深圳市探索智能科技有限公司
 
 #### 元数据
 
 | 属性 | 值 |
 |------|-----|
-| **标准** | Fortran 90/95 子集 |
-| **首次发布** | 1957 年 (Fortran 90: 1991 年) |
-| **完成度** | ~98% |
-| **文件扩展名** | `.f90`, `.f`, `.f95`, `.f03`, `.f08`, `.for`, `.ftn` |
-| **代码行数** | ~1,590 行 C# |
+| «bold»标准«/» | Fortran 90/95 子集 |
+| «bold»首次发布«/» | 1957 年 (Fortran 90: 1991 年) |
+| «bold»完成度«/» | ~98% |
+| «bold»文件扩展名«/» | `.f90`, `.f`, `.f95`, `.f03`, `.f08`, `.for`, `.ftn` |
+| «bold»代码行数«/» | ~1,590 行 C# |
 
 #### 概述
 
 Fortran（FORmula TRANslation）是世界上第一个高级编程语言，专为科学计算和数值分析设计。本编译器实现 Fortran 90/95 的子集，支持自由列格式（free-form source form）。
 
 核心特性：
-- **大小写不敏感** —— 所有标识符、关键字均以小写内部存储
-- **自由列格式** —— 无固定列限制，语句可跨行书写
-- **列格式注释** —— `*` 或 `C`/`c` 在第 1 列视为注释行（兼容固定格式）
-- **MCU 安全子集** —— 默认跳过异步、线程、GC 等不支持的特性
+- «bold»大小写不敏感«/» —— 所有标识符、关键字均以小写内部存储
+- «bold»自由列格式«/» —— 无固定列限制，语句可跨行书写
+- «bold»列格式注释«/» —— `*` 或 `C`/`c` 在第 1 列视为注释行（兼容固定格式）
+- «bold»MCU 安全子集«/» —— 默认跳过异步、线程、GC 等不支持的特性
 
 #### 支持的特性
 
@@ -73,7 +73,7 @@ Fortran（FORmula TRANslation）是世界上第一个高级编程语言，专为
 | `logical` | `logical` (i32) | 逻辑值，内部以整数 0/1 存储 |
 | `character` | `character` | 字符串类型（通过 `MOVE R0, label` 加载地址） |
 
-> **注意**: `double` 关键字被识别但映射为 `real`（单精度）。`doubleprecision`（无空格）同样映射为 `real`。完整的双精度浮点支持需要启用 `VML_FLOAT64_SOFT` 宏以链接软浮点库。
+> «bold»注意«/»: `double` 关键字被识别但映射为 `real`（单精度）。`doubleprecision`（无空格）同样映射为 `real`。完整的双精度浮点支持需要启用 `VML_FLOAT64_SOFT` 宏以链接软浮点库。
 
 ##### 2. 程序结构
 
@@ -103,13 +103,13 @@ contains
 end program program_name
 ```
 
-**支持的顶层结构**：
+«bold»支持的顶层结构«/»：
 - `program name` / `end program [name]` —— 主程序（`program` 头部可选，缺省名为 `main`）
 - `subroutine name(params)` / `end subroutine [name]` —— 子例程（无返回值）
 - `function name(params) result(resultVar)` / `end function [name]` —— 函数（有返回值）
 - `contains` —— 分隔主程序体与内部过程定义
 
-**语法要点**：
+«bold»语法要点«/»：
 - `end` 后的关键字（`program`/`subroutine`/`function`）和名称均为可选
 - `result` 子句：`function square(x) result(y)` 将 `y` 作为结果变量名，影响函数内部赋值后的返回值
 - 函数默认返回类型为 `integer`；可在 `function` 行前加类型关键字声明：`real function foo(x)`
@@ -129,7 +129,7 @@ integer :: a(10), b(20)
 parameter :: pi = 3.14159
 ```
 
-**实现细节**：
+«bold»实现细节«/»：
 - `::` 分隔符在声明中是可选的——`integer x` 和 `integer :: x` 均可接受
 - 变量在栈帧（`R12` 基址）上分配，每个变量占 4 字节
 - 函数内结果变量（`result` 指定的名称）自动在栈帧上分配空间
@@ -138,7 +138,7 @@ parameter :: pi = 3.14159
 
 编译器识别 `implicit none` 语句并跳过。默认情况下，建议在程序开头声明 `implicit none` 以禁用 Fortran 的隐式类型规则（以首字母 `I-N` 判断 integer，其余为 real）。
 
-**注意**：当前编译器**不强制**显式声明——未声明的变量在使用时自动分配全局数据段变量。这与标准 Fortran 行为不同。
+«bold»注意«/»：当前编译器«bold»不强制«/»显式声明——未声明的变量在使用时自动分配全局数据段变量。这与标准 Fortran 行为不同。
 
 ##### 5. 运算符
 
@@ -165,7 +165,7 @@ parameter :: pi = 3.14159
 - `.eqv.` —— 逻辑等价（词法关键字已注册）
 - `.neqv.` —— 逻辑不等价（词法关键字已注册）
 
-> **注意**: `.eqv.` 和 `.neqv.` 被 Lexer 识别为关键字，但在目前的 CodeGenerator 中尚未实现专门的代码生成。同样，比较运算符同时支持 Fortran 风格（`.eq.`, `.ne.`, `.lt.`, `.gt.`, `.le.`, `.ge.`）和 C 风格（`==`, `/=`, `<`, `>`, `<=`, `>=`）。
+> «bold»注意«/»: `.eqv.` 和 `.neqv.` 被 Lexer 识别为关键字，但在目前的 CodeGenerator 中尚未实现专门的代码生成。同样，比较运算符同时支持 Fortran 风格（`.eq.`, `.ne.`, `.lt.`, `.gt.`, `.le.`, `.ge.`）和 C 风格（`==`, `/=`, `<`, `>`, `<=`, `>=`）。
 
 ##### 6. 赋值
 
@@ -207,7 +207,7 @@ end do
 ```
 
 - 循环体在 `do while (cond)` 和 `end do` 之间
-- 条件在每次迭代**前**求值（入口条件循环）
+- 条件在每次迭代«bold»前«/»求值（入口条件循环）
 - 循环计数器不会自动递增——必须手动更新
 
 ###### 计数 DO 循环
@@ -225,7 +225,7 @@ end do
 - 语法：`do var = start, end [, step]`
 - 循环体在 `do` 和 `end do` 之间
 - 循环变量在栈帧上分配，循环结束后保留最终值
-- **限制**：step 仅支持**整数字面量**（如 `1`, `-1`），不支持表达式
+- «bold»限制«/»：step 仅支持«bold»整数字面量«/»（如 `1`, `-1`），不支持表达式
 - 循环条件为 `var <= end`（适用于正向步长；负向步长行为可能不符合标准 Fortran）
 
 ##### 8. 子程序与函数调用
@@ -237,7 +237,7 @@ call mysub(arg1, arg2)
 call print_values(x, y, z)
 ```
 
-- 参数入栈顺序：**从右到左**（`__cdecl` 风格）
+- 参数入栈顺序：«bold»从右到左«/»（`__cdecl` 风格）
 - 调用后弹出参数
 
 ###### 函数调用（表达式内）
@@ -390,22 +390,22 @@ use math_lib          ! 导入模块 math_lib
 
 | 特性 | 说明 |
 |------|------|
-| **数组操作** | 声明语法被解析跳过，不支持整体数组运算、数组切片、WHERE/FORALL |
-| **模块系统** | `module`/`end module` 块不支持 |
-| **派生类型** | `type`/`end type` 自定义类型不支持 |
-| **指针** | `pointer` 属性不支持 |
-| **接口块** | `interface`/`end interface` 不支持 |
-| **FORMAT 语句** | 格式化 I/O 不支持，仅 `print *,`（列表定向输出） |
-| **READ/WRITE** | 仅 `print *,` 可用；`read *` 不支持 |
-| **COMMON 块** | 公共块不支持，使用栈帧分配变量 |
-| **ENTRY** | 多入口点不支持 |
-| **SAVE** | 变量持久性属性不支持 |
-| **DATA** | DATA 初始化语句不支持 |
-| **IMPLICIT 规则** | 显式声明（`implicit none`）被建议但未强制执行 |
-| **双精度** | `double precision` 映射为单精度 float |
-| **幂运算 `**`** | 简化为乘法，不是真正的幂运算 |
-| **DO 负向步长** | 循环条件 `<=` 对负向步长行为不正确 |
-| **数组参数** | 子程序/函数不能接受数组作为参数 |
+| «bold»数组操作«/» | 声明语法被解析跳过，不支持整体数组运算、数组切片、WHERE/FORALL |
+| «bold»模块系统«/» | `module`/`end module` 块不支持 |
+| «bold»派生类型«/» | `type`/`end type` 自定义类型不支持 |
+| «bold»指针«/» | `pointer` 属性不支持 |
+| «bold»接口块«/» | `interface`/`end interface` 不支持 |
+| «bold»FORMAT 语句«/» | 格式化 I/O 不支持，仅 `print *,`（列表定向输出） |
+| «bold»READ/WRITE«/» | 仅 `print *,` 可用；`read *` 不支持 |
+| «bold»COMMON 块«/» | 公共块不支持，使用栈帧分配变量 |
+| «bold»ENTRY«/» | 多入口点不支持 |
+| «bold»SAVE«/» | 变量持久性属性不支持 |
+| «bold»DATA«/» | DATA 初始化语句不支持 |
+| «bold»IMPLICIT 规则«/» | 显式声明（`implicit none`）被建议但未强制执行 |
+| «bold»双精度«/» | `double precision` 映射为单精度 float |
+| «bold»幂运算 `«/»`** | 简化为乘法，不是真正的幂运算 |
+| «bold»DO 负向步长«/» | 循环条件 `<=` 对负向步长行为不正确 |
+| «bold»数组参数«/» | 子程序/函数不能接受数组作为参数 |
 
 #### 编译器架构
 
@@ -446,12 +446,12 @@ FortranCompiler.cs ─ 编译器入口
 
 #### 调用约定
 
-- **子例程调用** (CALL)：参数从右到左 PUSH，通过 `CALL` 指令跳转
-- **函数调用** (表达式)：参数从右到左 PUSH，通过 `CALL` 指令跳转，返回值在 `R0` 寄存器
-- **内部标签命名**：
+- «bold»子例程调用«/» (CALL)：参数从右到左 PUSH，通过 `CALL` 指令跳转
+- «bold»函数调用«/» (表达式)：参数从右到左 PUSH，通过 `CALL` 指令跳转，返回值在 `R0` 寄存器
+- «bold»内部标签命名«/»：
   - 子例程：`sub_<name>`（小写）
   - 函数：`func_<name>`（小写）
-- **返回**：`RET` 指令（子例程返回 void，函数返回时 `R0` 已加载结果）
+- «bold»返回«/»：`RET` 指令（子例程返回 void，函数返回时 `R0` 已加载结果）
 
 #### 库结构
 
@@ -502,8 +502,8 @@ end program hello
 | `.wstring` | 16-bit | UTF-16LE | `wchar_t*` |
 | `.ustring` | 32-bit | UTF-32LE | `char32_t*` |
 
-**MCU 模式** (默认): 字符串输出为 UTF-8 (`.string`)
-**OS 模式**: 可通过 `VML_WSTRING` 宏判断编码
+«bold»MCU 模式«/» (默认): 字符串输出为 UTF-8 (`.string`)
+«bold»OS 模式«/»: 可通过 `VML_WSTRING` 宏判断编码
 
 共享库已提供宽字符串转换函数 (wchar.h/uchar.h)，各语言编译器可按需使用。
 
@@ -511,9 +511,9 @@ end program hello
 
 ### Fortran 编译器
 
-**路径**: `VMLPrepares/FortranCompiler/`
-**完成度**: ~98% | 🟢 生产可用
-**标准库**: `Lib/fortran/`
+«bold»路径«/»: `VMLPrepares/FortranCompiler/`
+«bold»完成度«/»: ~98% | 🟢 生产可用
+«bold»标准库«/»: `Lib/fortran/`
 
 #### 功能
 - ✅ 词法分析 + 语法分析 + 代码生成 (Lexer/Parser/CodeGenerator)
@@ -537,11 +537,11 @@ end program hello
 ##### MCU 模式（默认 `--mode mcu`）
 MCU 模式针对单片机/裸机环境优化。
 
-**跳过**（MCU 不支持）:
+«bold»跳过«/»（MCU 不支持）:
 - 无
 - 动态数组分配
 
-**保留**:
+«bold»保留«/»:
 - 基本数值计算
 - 子程序/函数调用
 - print/write 映射到 UART

@@ -14,7 +14,7 @@ vml run examples/basic/sysinfo.bas
 ## 写法要点
 
 - 用到的每个 `ui_*` 都要 `NATIVE FUNCTION` / `NATIVE SUB` 声明
-- 无返回值的过程**裸调**（不写括号也可以）
+- 无返回值的过程«bold»裸调«/»（不写括号也可以）
 
 ## 示例
 
@@ -38,18 +38,18 @@ vml run examples/basic/sysinfo.bas
 
 ### BASIC 语言编译器规范说明
 
-> **版本**：v2.1 | **日期**：2026-08-01 | **修订者**：深圳市探索智能科技有限公司
-> **更新**: v1.66.33 — 全方言 ≥90% + CLASS/OOP + GPIO + 116 个关键字
+> «bold»版本«/»：v2.1 | «bold»日期«/»：2026-08-01 | «bold»修订者«/»：深圳市探索智能科技有限公司
+> «bold»更新«/»: v1.66.33 — 全方言 ≥90% + CLASS/OOP + GPIO + 116 个关键字
 
 #### 规范标准
 
 | 字段 | 值 |
 |:-----|:----|
-| **目标标准** | QBasic (默认) + 6种方言, 全部 ≥90% 完成度 |
-| **CLI 选项** | `--basictype qbasic\|turbobasic\|freebasic\|truebasic\|purebasic\|chipbasic\|minibasic` |
-| **完成度** | 92% (QBasic), 90% (全部方言) |
-| **测试** | 63 通过 (Lang_BASIC) + 22 方言测试 |
-| **Token 总数** | 116 个关键字, 141 个 TokenType |
+| «bold»目标标准«/» | QBasic (默认) + 6种方言, 全部 ≥90% 完成度 |
+| «bold»CLI 选项«/» | `--basictype qbasic\|turbobasic\|freebasic\|truebasic\|purebasic\|chipbasic\|minibasic` |
+| «bold»完成度«/» | 92% (QBasic), 90% (全部方言) |
+| «bold»测试«/» | 63 通过 (Lang_BASIC) + 22 方言测试 |
+| «bold»Token 总数«/» | 116 个关键字, 141 个 TokenType |
 
 ---
 
@@ -59,12 +59,12 @@ BASIC 编译器通过 `--basictype` 选项支持 7 种方言。下方列出每�
 
 ##### 1. QBasic (默认) — `__QBASIC__`
 
-Microsoft QBasic/QuickBASIC 兼容。**所有后续方言以此为基础**。
+Microsoft QBasic/QuickBASIC 兼容。«bold»所有后续方言以此为基础«/»。
 
-**独有关键字** (14):
+«bold»独有关键字«/» (14):
 `PSET`, `CIRCLE`, `PAINT`, `DRAW`, `VIEW`, `WINDOW`, `PALETTE`, `SCREEN`, `LPRINT`, `PRINT USING`, `FREEFILE`, `ON ERROR`, `RESUME`, `DEF FN`
 
-**适用场景**: DOS 时代 QBasic 程序、QuickBASIC 游戏 (GORILLAS/NIBBLES)
+«bold»适用场景«/»: DOS 时代 QBasic 程序、QuickBASIC 游戏 (GORILLAS/NIBBLES)
 
 ---
 
@@ -72,13 +72,13 @@ Microsoft QBasic/QuickBASIC 兼容。**所有后续方言以此为基础**。
 
 Borland Turbo Basic 兼容。
 
-**QBasic 基础上新增** (6):
+«bold»QBasic 基础上新增«/» (6):
 `EXIT`, `DO`, `LOOP`, `UNTIL`, `CASE ELSE`, `FUNCTION`
 
-**移除** (与 QBasic 差异) (8):
+«bold»移除«/» (与 QBasic 差异) (8):
 `PSET`, `CIRCLE`, `PAINT`, `DRAW`, `VIEW`, `WINDOW`, `PALETTE`, `SCREEN`
 
-**适用场景**: 科学计算、结构化 BASIC 程序
+«bold»适用场景«/»: 科学计算、结构化 BASIC 程序
 
 ---
 
@@ -86,13 +86,13 @@ Borland Turbo Basic 兼容。
 
 开源跨平台 BASIC 编译器兼容。
 
-**QBasic 基础上新增** (12):
+«bold»QBasic 基础上新增«/» (12):
 `PTR`, `CAST`, `CPTR`, `ANY`, `EXTENDS`, `OPERATOR`, `PROPERTY`, `ENUM`, `NAMESPACE`, `USING`, `DESTRUCTOR`, `CONSTRUCTOR`
 
-**移除** (与 QBasic 差异) (6):
+«bold»移除«/» (与 QBasic 差异) (6):
 `LPRINT`, `PRINT USING`, `PSET`, `CIRCLE`, `DRAW`, `PALETTE`
 
-**适用场景**: 现代开源 BASIC 项目、跨平台开发
+«bold»适用场景«/»: 现代开源 BASIC 项目、跨平台开发
 
 ---
 
@@ -100,13 +100,13 @@ Borland Turbo Basic 兼容。
 
 ANSI/ISO 标准 BASIC。
 
-**QBasic 基础上新增** (4):
+«bold»QBasic 基础上新增«/» (4):
 `MAT`, `ZER`, `CON`, `SOUND`
 
-**移除** (与 QBasic 差异) (12):
+«bold»移除«/» (与 QBasic 差异) (12):
 `SELECT`, `CASE`, `IS`, `ELSEIF`, `DO`, `LOOP`, `EXIT`, `GOSUB`, `PEEK`, `POKE`, `LPRINT`, `ON ERROR`
 
-**适用场景**: 教育、标准兼容程序
+«bold»适用场景«/»: 教育、标准兼容程序
 
 ---
 
@@ -114,13 +114,13 @@ ANSI/ISO 标准 BASIC。
 
 PureBasic 兼容。
 
-**QBasic 基础上新增** (8):
+«bold»QBasic 基础上新增«/» (8):
 `PROCEDURE`, `ENDPROCEDURE`, `PROTECTED`, `GLOBAL`, `THREADED`, `INTERFACE`, `ENDINTERFACE`, `NEW`
 
-**移除** (与 QBasic 差异) (10):
+«bold»移除«/» (与 QBasic 差异) (10):
 `GOSUB`, `RETURN`, `LPRINT`, `PSET`, `CIRCLE`, `DRAW`, `VIEW`, `WINDOW`, `PALETTE`, `DEF FN`
 
-**适用场景**: 游戏开发、GUI 应用
+«bold»适用场景«/»: 游戏开发、GUI 应用
 
 ---
 
@@ -128,13 +128,13 @@ PureBasic 兼容。
 
 MCU 优化方言。
 
-**QBasic 基础上新增** (3):
+«bold»QBasic 基础上新增«/» (3):
 `PINMODE`, `DIGITALWRITE`, `DIGITALREAD`
 
-**移除** (与 QBasic 差异) (15):
+«bold»移除«/» (与 QBasic 差异) (15):
 `SCREEN`, `PSET`, `LINE`, `CIRCLE`, `PAINT`, `DRAW`, `VIEW`, `WINDOW`, `PALETTE`, `LPRINT`, `PRINT USING`, `FREEFILE`, `ON ERROR`, `RESUME`, `CHIPASM`
 
-**适用场景**: 嵌入式 MCU (Arduino/STM32)、IoT 设备
+«bold»适用场景«/»: 嵌入式 MCU (Arduino/STM32)、IoT 设备
 
 ---
 
@@ -142,16 +142,16 @@ MCU 优化方言。
 
 最小子集 — 教学/资源受限环境。
 
-**QBasic 基础上新增** (0):
+«bold»QBasic 基础上新增«/» (0):
 无新增。
 
-**移除** (与 QBasic 差异) (20):
+«bold»移除«/» (与 QBasic 差异) (20):
 `TYPE`, `DIM`, `REDIM`, `ERASE`, `SWAP`, `SHARED`, `COMMON`, `SELECT`, `CASE`, `DO`, `LOOP`, `EXIT`, `GOSUB`, `GOTO`, `CALL`, `LPRINT`, `PRINT USING`, `PSET`, `CIRCLE`, `DRAW`
 
-**保留关键字** (仅 15):
+«bold»保留关键字«/» (仅 15):
 `PRINT`, `INPUT`, `IF`, `THEN`, `ELSE`, `FOR`, `NEXT`, `WHILE`, `WEND`, `LET`, `REM`, `DIM`(简化), `END`, `GOTO`(简化), `GOSUB`(简化)
 
-**适用场景**: 教学、微控制器引导程序
+«bold»适用场景«/»: 教学、微控制器引导程序
 
 ---
 
@@ -238,22 +238,22 @@ INPUT A$
 LPRINT "Hello"
 ```
 
-**PRINT 输出目标规则**
+«bold»PRINT 输出目标规则«/»
 
 PRINT 的输出目标由 `SCREEN` 模式决定：
 
 | 模式 | 控制台输出 | 内存输出 | 说明 |
 |:-----|:---------:|:-------:|------|
-| **默认（无 SCREEN）** | ✅ | ❌ | 仅输出到控制台终端 |
-| **SCREEN 0（文本模式）** | ✅ | ✅ `0xB8000` | 控制台 + VGA 文本显存同时输出 |
-| **SCREEN N>0（图形模式）** | ❌ | ✅ VGA 帧缓冲 | 仅渲染到 VGA 图形帧缓冲，控制台不输出 |
+| «bold»默认（无 SCREEN）«/» | ✅ | ❌ | 仅输出到控制台终端 |
+| «bold»SCREEN 0（文本模式）«/» | ✅ | ✅ `0xB8000` | 控制台 + VGA 文本显存同时输出 |
+| «bold»SCREEN N>0（图形模式）«/» | ❌ | ✅ VGA 帧缓冲 | 仅渲染到 VGA 图形帧缓冲，控制台不输出 |
 
 具体机制：
-- **SYSCALL #4**：纯控制台输出，不涉及 VGA。处理 BEL 蜂鸣和 UTF-8 解码
-- **文本模式 VGA**：由扩展库 `vga_text_putchar` (Lib/shared/vga_text.vml) 处理，写入 `0xB8000` 文本显存并管理光标。BASIC 编译器默认链接此库，在每次 SYSCALL #4 前调用
-- **图形模式 VGA**：编译器为每个 PRINT 字符生成 `EmitGfxPrintChar()` 调用，从 8×8 位图字库渲染像素到 VGA 图形帧缓冲
+- «bold»SYSCALL #4«/»：纯控制台输出，不涉及 VGA。处理 BEL 蜂鸣和 UTF-8 解码
+- «bold»文本模式 VGA«/»：由扩展库 `vga_text_putchar` (Lib/shared/vga_text.vml) 处理，写入 `0xB8000` 文本显存并管理光标。BASIC 编译器默认链接此库，在每次 SYSCALL #4 前调用
+- «bold»图形模式 VGA«/»：编译器为每个 PRINT 字符生成 `EmitGfxPrintChar()` 调用，从 8×8 位图字库渲染像素到 VGA 图形帧缓冲
 - 两者各自检查 SCREEN 模式（0x6FF0），仅在各自模式激活时执行，互补工作
-- **LOCATE** 设置的光标位置在文本模式和图形模式下均有效（通过 `0x6FF4`/`0x6FF8` 共享）
+- «bold»LOCATE«/» 设置的光标位置在文本模式和图形模式下均有效（通过 `0x6FF4`/`0x6FF8` 共享）
 
 ##### 3.2 变量操作
 
@@ -373,7 +373,7 @@ PAINT (160,120), 4, 3                      ' 填充
 DRAW "U10 R20 D10 L20"                     ' 绘图字符串
 ```
 
-**SCREEN 模式对 PRINT 的影响**
+«bold»SCREEN 模式对 PRINT 的影响«/»
 `SCREEN` 语句切换显示模式，PRINT 输出到控制台。
 
 
@@ -581,7 +581,7 @@ PRINT USING "$$###.##"; 12.3     ' 输出: $ 12.30
 - 多平台模拟 (PC, Apple II, C64 等)
 - `POKE` / `PEEK` 内存映射 I/O
 - `__stdcall` 调用约定，支持跨语言函数互操作
-- **PRINT 输出目标根据 SCREEN 模式自动切换**：图形模式下仅渲染到 VGA 帧缓冲，控制台无输出（与 QBASIC 的物理 VGA 显卡行为一致）
+- «bold»PRINT 输出目标根据 SCREEN 模式自动切换«/»：图形模式下仅渲染到 VGA 帧缓冲，控制台无输出（与 QBASIC 的物理 VGA 显卡行为一致）
 
 #### 浮点与64位编译模式
 
@@ -597,25 +597,25 @@ VML 工具链通过三个编译参数控制浮点和 64 位整数的处理策略
 
 本语言中的 32 位单精度浮点类型 `SINGLE` / `!` 按以下模式编译：
 
-- **`hard` 模式（默认）**: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
-- **`soft` 模式**: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
-- **`none` 模式**: 禁用所有 32 位浮点类型，遇到浮点声明时报告编译错误。
+- «bold»`hard` 模式（默认）«/»: 使用 VML 原生浮点指令 `MOVEF`/`FADD`/`FSUB`/`FMUL`/`FDIV`/`FCMP`/`FNEG`，通过 F0-F15 十六个浮点寄存器直接运算。性能最佳，适合支持浮点硬件的目标平台。
+- «bold»`soft` 模式«/»: 使用 Q15.16 定点数软件模拟库 `softfloat.c`，通过 `__vml_float_add/sub/mul/div/neg/abs/cmp` 等函数模拟浮点运算。适合无浮点硬件的 MCU 平台。
+- «bold»`none` 模式«/»: 禁用所有 32 位浮点类型，遇到浮点声明时报告编译错误。
 
 ##### 64位浮点 (double)
 
 本语言中的 64 位双精度浮点类型 `DOUBLE` / `#` 按以下模式编译：
 
-- **`soft` 模式（默认）**: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
-- **`hard` 模式**: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。需要目标平台支持 64 位运算。
-- **`none` 模式**: 禁用所有 64 位浮点类型，遇到浮点声明时报告编译错误。
+- «bold»`soft` 模式（默认）«/»: 使用 IEEE 754 双精度软件模拟库 `softdouble.c`，通过 `__vml_double_add/sub/mul/div/neg/abs/cmp`、`__vml_int2double/double2int`、`__vml_float2double/double2float` 等函数模拟。兼容所有平台（含 MCU）。
+- «bold»`hard` 模式«/»: 使用 VML 双精度指令 `MOVED`/`DADD`/`DSUB`/`DMUL`/`DDIV`/`DCMP`/`DNEG`，通过 D0-D7 八个双精度寄存器运算。需要目标平台支持 64 位运算。
+- «bold»`none` 模式«/»: 禁用所有 64 位浮点类型，遇到浮点声明时报告编译错误。
 
 ##### 64位整数 (int64)
 
 64 位整数类型在本语言中由 VML 编译层支持，BASIC 标准中未定义对应的显式类型，但编译器预留了通过 `--int64` 扩展支持的可能性。
 
-- **`soft` 模式（默认）**: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
-- **`hard` 模式**: 预留，未来 VML 版本将支持原生 64 位整数指令。
-- **`none` 模式**: 禁用 64 位整数扩展。
+- «bold»`soft` 模式（默认）«/»: 使用双寄存器软件模拟库 `softint64.c`，通过 `__vml_i64_add/sub/neg/and/or/xor/not/shl/shr` 等函数模拟 64 位整数运算。
+- «bold»`hard` 模式«/»: 预留，未来 VML 版本将支持原生 64 位整数指令。
+- «bold»`none` 模式«/»: 禁用 64 位整数扩展。
 
 ##### 软件模拟库
 
@@ -682,18 +682,18 @@ dotnet run --project VMLEmulators/FullDevicesEmulator
 | `.wstring` | 16-bit | UTF-16LE | `wchar_t*` |
 | `.ustring` | 32-bit | UTF-32LE | `char32_t*` |
 
-**MCU 模式** (默认): 字符串输出为 UTF-8 (`.string`)
-**OS 模式**: 可通过 `VML_WSTRING` 宏判断编码
+«bold»MCU 模式«/» (默认): 字符串输出为 UTF-8 (`.string`)
+«bold»OS 模式«/»: 可通过 `VML_WSTRING` 宏判断编码
 
 ---
 
 #### v1.66.33 改进 (2026-08-01)
 
 ##### 全方言 90%+ 完成度
-- **PureBasic**: GLOBAL → SHARED, PROCEDURE → SUB (Lexer 映射)
-- **ChipBasic**: PINMODE/DIGITALWRITE/DIGITALREAD → GpioStatement
-- **FreeBasic**: ENUM 编译通过, PTR/CAST/EXTENDS/OPERATOR 识别
-- **TrueBasic**: MAT/ZER/CON 识别
+- «bold»PureBasic«/»: GLOBAL → SHARED, PROCEDURE → SUB (Lexer 映射)
+- «bold»ChipBasic«/»: PINMODE/DIGITALWRITE/DIGITALREAD → GpioStatement
+- «bold»FreeBasic«/»: ENUM 编译通过, PTR/CAST/EXTENDS/OPERATOR 识别
+- «bold»TrueBasic«/»: MAT/ZER/CON 识别
 
 ##### CLASS/OOP 支持
 - CLASS 关键字 → 映射到 TYPE_KW 统一解析
@@ -704,7 +704,7 @@ dotnet run --project VMLEmulators/FullDevicesEmulator
 - 析构函数: DESTRUCTOR (token 已注册)
 
 ##### 词法分析器
-- **116 个关键字** (141 个 TokenType)
+- «bold»116 个关键字«/» (141 个 TokenType)
 - 支持 7 种方言的特有关键字
 - 关键字大小写不敏感 (LexerBase.ReadIdentifier)
 
@@ -714,7 +714,7 @@ dotnet run --project VMLEmulators/FullDevicesEmulator
 - 每个方言自动定义宏: `__QBASIC__`, `__FREEBASIC__` 等
 
 ##### 测试覆盖
-- **63 个单元测试** (Lang_BASIC.cs)
+- «bold»63 个单元测试«/» (Lang_BASIC.cs)
 - 22 个多方言测试 (7 方言 × 特有关键字)
 - 5 个 TYPE/CLASS 结构体测试
 - FreeBasic 示例程序 (14 个测试文件)
@@ -731,9 +731,9 @@ dotnet run --project VMLEmulators/FullDevicesEmulator
 
 ### BASIC 编译器
 
-**路径**: `VMLPrepares/BasicCompiler/` | **版本**: v1.66.33
-**完成度**: 10方言 ≥90% | 🟢 生产可用 | **测试**: 78 (Lang_BASIC)
-**标准库**: `Lib/basic/`
+«bold»路径«/»: `VMLPrepares/BasicCompiler/` | «bold»版本«/»: v1.66.33
+«bold»完成度«/»: 10方言 ≥90% | 🟢 生产可用 | «bold»测试«/»: 78 (Lang_BASIC)
+«bold»标准库«/»: `Lib/basic/`
 
 #### 多方言支持
 
@@ -820,10 +820,10 @@ vmltool input.bas -o output.vml && vmltool -r output.vml
 
 #### 测试
 
-- **78 单元测试** (`VMLTests/Lang_BASIC.cs`): 方言关键字 + TYPE/CLASS + ENUM
-- **22 方言测试**: 7方言特有关键字 + 跨方言兼容性
-- **14 FreeBasic 示例** (`test/basic_examples/freebasic/`): class/constructor/method/pointers等
-- **QBasic 游戏**: gorillas.bas, nibbles.bas
+- «bold»78 单元测试«/» (`VMLTests/Lang_BASIC.cs`): 方言关键字 + TYPE/CLASS + ENUM
+- «bold»22 方言测试«/»: 7方言特有关键字 + 跨方言兼容性
+- «bold»14 FreeBasic 示例«/» (`test/basic_examples/freebasic/`): class/constructor/method/pointers等
+- «bold»QBasic 游戏«/»: gorillas.bas, nibbles.bas
 
 ```bash
 # 运行所有 BASIC 测试

@@ -618,25 +618,72 @@ public static partial class SelfTest
             Check($"使用说明: 目录里的每一篇都有对应的 .md（缺 {missing.Count} 篇：{string.Join("/", missing)}）",
                 missing.Count == 0);
 
-            // 有子主题的节点是**目录**：点开是下一级列表，它自己**没有正文**，
-            // 所以不该要求它配 .md（`vml/languages` 就是这种），转而要求它的每个子节点都配。
+            // 目录表里的每一篇都要有正文文件（**深层的那些不在表里** ——
+            // 它们由正文里的 `help:` 链接指到，见 HelpCatalog 类注释）
             void Walk(HelpCatalog.Topic[] topics)
             {
                 foreach (var t in topics)
                 {
                     ids.Add(t.Id);
-                    if (t.Children is { Length: > 0 } kids) { Walk(kids); continue; }
                     if (!File.Exists(Path.Combine(root, t.Id + ".md"))) missing.Add(t.Id);
                 }
             }
+
             // 反方向：包里有、目录里没有 = 写了没人看得到
             var onDisk = Directory.GetFiles(helpRoot, "*.md", SearchOption.AllDirectories)
                 .Select(f => Path.GetRelativePath(helpRoot, f).Replace('\\', '/'))
                 .Select(f => f[..^3])
                 .ToHashSet();
-            var orphan = onDisk.Where(id => HelpCatalog.FindTopic(id) is null).ToList();
+            // 「能不能被看到」有**两条**路：在目录表里（关于页点得到），
+            // 或被某篇正文的 `help:` 链接指着。只认其中一条就会把另一条的页面误判成孤儿。
+            var linked = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var f in Directory.GetFiles(root, "*.md", SearchOption.AllDirectories))
+                foreach (System.Text.RegularExpressions.Match m in
+                         System.Text.RegularExpressions.Regex.Matches(
+                             File.ReadAllText(f), @"\]\(\s*help:([^)\s]+)\s*\)"))
+                    linked.Add(m.Groups[1].Value);
+
+            var orphan = onDisk
+                .Where(id => HelpCatalog.FindTopic(id) is null && !linked.Contains(id))
+                .ToList();
             Check($"使用说明: 没有「放了却没人能看到」的 .md（{orphan.Count} 篇：{string.Join("/", orphan)}）",
                 orphan.Count == 0);
+
+            // 链接指向的页面**必须真的存在** —— 打错一个字母，用户看到的是"点进去一片空白"
+            var deadLinks = linked.Where(id => !onDisk.Contains(id)).ToList();
+            Check($"使用说明: 正文里 help: 链接的目标都存在（坏链 {deadLinks.Count}：{string.Join("/", deadLinks)}）",
+                deadLinks.Count == 0);
+
+            // ── 全局护栏：CollectionView 想收点击就必须显式写 SelectionMode ──
+            // MAUI 的默认值是 `None`，而 `None` 下 `SelectionChanged` **一次都不会触发** ——
+            // 现象是"点了没反应"：不报错、不崩、列表看着完全正常，只有手点下去才知道。
+            // HelpListPage 与 ChatPage 的 `/` 建议列表都这么坏过（前者的跳转逻辑为此白改了一轮）。
+            var pagesDir = Path.Combine(Path.GetDirectoryName(root)!, "..", "Pages");
+            pagesDir = Path.GetFullPath(pagesDir);
+            var offenders = new List<string>();
+            if (Directory.Exists(pagesDir))
+            {
+                foreach (var xaml in Directory.GetFiles(pagesDir, "*.xaml"))
+                {
+                    var text = File.ReadAllText(xaml);
+                    foreach (System.Text.RegularExpressions.Match m in
+                             System.Text.RegularExpressions.Regex.Matches(
+                                 text, @"<CollectionView\b[^>]*>", System.Text.RegularExpressions.RegexOptions.Singleline))
+                    {
+                        var tag = m.Value;
+                        if (tag.Contains("SelectionChanged=") && !tag.Contains("SelectionMode="))
+                            offenders.Add(Path.GetFileName(xaml));
+                    }
+                }
+            }
+            Check($"使用说明: 绑了 SelectionChanged 的 CollectionView 都写了 SelectionMode（漏 {offenders.Count}：{string.Join("/", offenders)}）",
+                offenders.Count == 0);
+
+            // 一级标题：正文自己写的那个（页面标题以它为准）
+            Check("使用说明: 能从正文取到一级标题",
+                HelpCatalog.HeadingOf("# C\n\n正文") == "C");
+            Check("使用说明: 代码块里的 # 不算标题",
+                HelpCatalog.HeadingOf("```c\n#include <x>\n```\n# 真标题") == null);
         }
 
         // ── 编辑器手感（TextEditAssist：自动缩进 / 括号配对 / 自动配对）──

@@ -6,8 +6,15 @@
     Title="使用说明">
 
     <!-- 二级页面：一个分类下的主题列表。点一条进三级（正文）。
-         一级（分类按钮）在「关于」页上，三级是 HelpPage。 -->
-    <CollectionView x:Name="List" Margin="0,8">
+         一级（分类按钮）在「关于」页上，三级是 HelpPage。
+
+         ⚠ `SelectionMode="Single"` **必须显式写**：MAUI 的默认值是 `None`，
+           而 `None` 下 `SelectionChanged` **一次都不会触发** —— 现象是"点了没反应"，
+           不报错、不崩、列表看着完全正常。本页就是这么坏过一次（用户报「点不进去」，
+           而当时还在改跳转逻辑 —— 那段逻辑压根没机会执行）。
+           仓库里其余几处 CollectionView（FilesPage / ProviderModelsPage / ModelPickerPage）
+           都写了这一句，本页漏了。 -->
+    <CollectionView x:Name="List" Margin="0,8" SelectionMode="Single">
         <CollectionView.ItemTemplate>
             <DataTemplate>
                 <Grid Padding="16,14" ColumnDefinitions="Auto,*" ColumnSpacing="12"
