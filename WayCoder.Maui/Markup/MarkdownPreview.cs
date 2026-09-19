@@ -26,7 +26,11 @@ public static class MarkdownPreview
     /// <summary>渲染整个 markdown 文本为一个可滚动的 VerticalStackLayout。</summary>
     public static View Render(string markdown, bool isDark)
     {
-        var stack = new VerticalStackLayout { Spacing = 4, Padding = new Thickness(14, 10) };
+        // ⚠ **间距是 0**：块与块之间的距离由**每个块自己的 Margin** 决定，不用统一 Spacing。
+        // 统一间距是"看起来都隔开一点"，而桌面阅读器（GitHub / VS Code 预览 / Typora）用的是
+        // **垂直节奏** —— 标题靠上方一大档留白把章节切开、段落之间比行距明显大一档。
+        // 两者差别就是用户说的「内容在一坨，不同段落之间没分开」。
+        var stack = new VerticalStackLayout { Spacing = 0, Padding = new Thickness(15, 14, 15, 24) };
         var lines = (markdown ?? "").Replace("\r\n", "\n").Split('\n');
 
         int i = 0;
@@ -68,12 +72,15 @@ public static class MarkdownPreview
             {
                 var level = line.TakeWhile(c => c == '#').Count();
                 var text = line[level..].Trim();
+                // 上方留白是**分段的唯一手段**（下面一档字号只说明层级，不产生间隔）
+                var gapTop = level <= 1 ? 26 : level == 2 ? 22 : 18;
                 stack.Add(new Label
                 {
                     Text = text,
-                    FontSize = level <= 1 ? 20 : level == 2 ? 17 : 15,
+                    FontSize = level <= 1 ? 23 : level == 2 ? 19 : 16.5,
                     FontAttributes = FontAttributes.Bold,
                     TextColor = Ink(isDark, 232, 232, 234, 22, 24, 28),
+                    Margin = new Thickness(0, gapTop, 0, level <= 2 ? 10 : 7),
                 });
                 i++;
                 continue;
@@ -88,7 +95,7 @@ public static class MarkdownPreview
                     // 分割线是**装饰**不是内容，两套都得让它在自己的底上看得见即可，
                     // 不必追求高对比（画太重反而喧宾夺主）
                     Color = Ink(isDark, 110, 110, 116, 190, 194, 200),
-                    Margin = new Thickness(0, 4),
+                    Margin = new Thickness(0, 18),
                 });
                 i++;
                 continue;
@@ -100,7 +107,7 @@ public static class MarkdownPreview
                 var items = new List<string>();
                 while (i < lines.Length && IsListItem(lines[i].TrimEnd(), out _))
                 {
-                    items.Add(lines[i].Trim().TrimStart('-', '*', ' ', '\t'));
+                    items.Add(lines[i].Trim());   // 原样带标记收进来，拆解统一在 RenderList
                     i++;
                 }
                 stack.Add(RenderList(items, isDark));
@@ -125,7 +132,9 @@ public static class MarkdownPreview
                 para.Append('\n').Append(lines[i]);
                 i++;
             }
-            stack.Add(BuildParagraph(para.ToString(), isDark));
+            var pv = BuildParagraph(para.ToString(), isDark);
+            pv.Margin = new Thickness(0, 7, 0, 7);   // 段间距（两段各 7 = 14，与标题拉开层次）
+            stack.Add(pv);
         }
 
         return stack;
@@ -161,7 +170,7 @@ public static class MarkdownPreview
             {
                 Text = links[0].Label,
                 FontSize = fontSize,
-                LineHeight = 1.35,
+                LineHeight = 1.55,
                 TextColor = Ink(isDark, 106, 168, 255, 0, 90, 200),
                 TextDecorations = TextDecorations.Underline,
             };
@@ -186,7 +195,7 @@ public static class MarkdownPreview
         {
             FormattedText = fs,
             FontSize = fontSize,
-            LineHeight = 1.35,
+            LineHeight = 1.55,
             // 兜底色：绝大多数 span 在 Convert 里已经带上自己的颜色，这里只管没带色的那些
             TextColor = Ink(isDark, 226, 226, 228, 32, 35, 40),
         };
@@ -327,7 +336,7 @@ public static class MarkdownPreview
             RowSpacing = 1,
             ColumnSpacing = 1,
             Padding = new Thickness(1),   // 外圈那一圈线
-            Margin = new Thickness(0, 4),
+            Margin = new Thickness(0, 10, 0, 14),
         };
         for (int c = 0; c < cols; c++)
             grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
@@ -388,12 +397,56 @@ public static class MarkdownPreview
         return cell;
     }
 
+    /// <summary>
+    /// 列表：**悬挂缩进** —— 项目符号单独占一列，折行时文字对齐到文字列而不是回到行首。
+    ///
+    /// 原先是把 `• ` 拼进正文，于是长条目一折行，第二行就顶到最左边（与上一级标题齐平），
+    /// 视觉上分不清"这是同一项的第二行"还是"新的一项"。桌面渲染器（GitHub / Typora）都是悬挂缩进。
+    ///
+    /// ⚠ **有序列表不能再加 `•`**：`1. 用了标准库里没有的函数` 会被拼成 `• 1. 用了…`（双标记）。
+    /// 所以这里把标记拆出来当"列"用 —— 无序用 `•`、有序用它自己那个序号。
+    /// </summary>
     private static View RenderList(List<string> items, bool isDark)
     {
-        var stack = new VerticalStackLayout { Spacing = 2 };
-        foreach (var item in items)
-            stack.Add(BuildParagraph($"• {item}", isDark, 14));
+        var stack = new VerticalStackLayout { Spacing = 6, Margin = new Thickness(0, 7, 0, 10) };
+        foreach (var raw in items)
+        {
+            var (marker, body) = SplitBullet(raw);
+            var row = new Grid
+            {
+                ColumnDefinitions =
+                {
+                    new ColumnDefinition(GridLength.Auto),
+                    new ColumnDefinition(GridLength.Star),
+                },
+                ColumnSpacing = 8,
+            };
+            row.Add(new Label
+            {
+                Text = marker,
+                FontSize = 15,
+                LineHeight = 1.55,
+                TextColor = Ink(isDark, 226, 226, 228, 32, 35, 40),
+            }, 0, 0);
+            row.Add(BuildParagraph(body, isDark, 15), 1, 0);
+            stack.Add(row);
+        }
         return stack;
+    }
+
+    /// <summary>把 `- x` / `* x` / `1. x` / `1) x` 拆成（标记, 正文）。认不出就原样当正文。</summary>
+    private static (string Marker, string Body) SplitBullet(string line)
+    {
+        var t = line.TrimStart();
+        if (t.Length >= 2 && (t[0] == '-' || t[0] == '*') && t[1] == ' ')
+            return ("•", t[2..].Trim());
+
+        var i = 0;
+        while (i < t.Length && char.IsDigit(t[i])) i++;
+        if (i > 0 && i + 1 < t.Length && (t[i] == '.' || t[i] == ')') && t[i + 1] == ' ')
+            return (t[..(i + 1)], t[(i + 2)..].Trim());   // 有序：直接用它自己的序号
+
+        return ("•", t);
     }
 
     private static View RenderCodeBlock(string code, string lang, bool isDark)
@@ -418,8 +471,8 @@ public static class MarkdownPreview
                 // 夜间：比页面底更深的"纸"，让代码块自己成块；白天：比页面底略灰，同理
                 BackgroundColor = Ink(isDark, 24, 25, 31, 243, 244, 247),
                 StrokeThickness = 0,
-                Padding = new Thickness(10, 6),
-                Margin = new Thickness(0, 2),
+                Padding = new Thickness(12, 10),
+                Margin = new Thickness(0, 6),
                 StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 6 },
                 Content = new Label
                 {
