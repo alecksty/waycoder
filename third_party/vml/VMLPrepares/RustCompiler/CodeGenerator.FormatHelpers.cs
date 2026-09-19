@@ -265,6 +265,17 @@ namespace RustCompiler
                 else if (exprType == "bool") OutputBoolFromReg();
                 else EmitPrintInt();
             }
+            else if (argNode is IndexAccessNode indexArg)
+            {
+                // 下标表达式 `xs[0]` —— 此前**没有这条分支**，一路落到兜底的 `[expr]` 占位符，
+                // 于是 `println!("{}", xs[0])` 打出的是**字面量 `[expr]`**（不是元素值、也不报错）。
+                // ⚠ 特别阴的一点：同一个表达式放进二元运算里（`println!("{}", xs[1] + 10)`）
+                //   走的是 BinaryOperationNode 那条，**是对的** —— 只测那一种形态永远照不出来。
+                // `Visit(IndexAccessNode)` 收尾把元素值留在 R0，这里直接接着打即可。
+                indexArg.Accept(this);
+                if (InferTypeFromExpression(indexArg) == "float") OutputFloatFromReg();
+                else EmitPrintInt();
+            }
             else if (argNode is CallExpressionNode callExpr)
             {
                 // 函数调用: 求值后根据函数名判断返回类型 (v1.66.53)
@@ -276,15 +287,13 @@ namespace RustCompiler
             }
             else
             {
-                // 其他类型的表达式，暂时输出占位符
-                string label = NewLabel("expr_arg");
-                if (label == null)
-                {
-                    throw new CodeGenerationException("生成的表达式标签为null");
-                }
-                dataSection[label] = "[expr]";
-                AddInstruction(OpCode.MOVE, "R0", label);
-                EmitPrintString();
+                // 其他类型的表达式 —— **报错，不再打占位符**。
+                // 原来这里往数据段塞一个字面量 "[expr]" 就完事：程序照样编过、照样运行，
+                // 屏幕上多一行 `[expr]`，**没有一点点提示**。本文件上面那条整数字面量的分支
+                // 早就写着「宁可报错也不静默丢 —— 静默丢正是这个 bug 藏了这么久的原因」，
+                // 这条兜底属于同一族，一并改掉。
+                throw new CodeGenerationException(
+                    $"println!/print! 的格式实参暂不支持这种表达式：{argNode.GetType().Name}");
             }
         }
         
