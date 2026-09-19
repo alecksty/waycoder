@@ -1,5 +1,8 @@
 /* draw_brush.c —— **刷子模型**的端到端体检（`BRUSH` #575 / `SET_STYLE` #576 / `DRAW_SHAPE` #574）。
  *
+ * 第 5 行单独验**渐变画笔**（v0.96.306）：画笔槽收渐变刷子之后，
+ * "边框一个渐变、填充一个渐变"就成立了。
+ *
  * 与另外两个体检程序的分工：
  *   draw_prims.c  管**形状**（圆角圆不圆、折线开不开口、路径挖不挖洞）
  *   draw_colors.c 管**颜色**（同一条指令画出来的像素，是不是你给的那个色）
@@ -33,6 +36,7 @@ int cw;
 int ch;
 
 int tri[6];
+int gpen;
 
 int cxx(int col) { return col * cw + cw / 2; }
 int cyy(int row) { return row * ch + ch / 2; }
@@ -46,7 +50,7 @@ int main(void)
     W = ui_scr_w();
     H = ui_scr_h();
     cw = W / 3;
-    ch = H / 4;
+    ch = H / 5;   /* 5 行：第 5 行是**渐变画笔**的格子（v0.96.306） */
 
     ui_win_open_ex("刷子体检", W, H, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
     ui_clear(0xFF000000);
@@ -97,9 +101,28 @@ int main(void)
     ui_gradient("eg", 0, RED, BLUE, 0, 0, 1000, 0);
     ui_ellipse_grad(cxx(2), cyy(3), cw / 3, ch / 4, "eg");
 
-    /* 12 收尾：换回纯色，验证"改过刷子之后状态还生效" —— 必须在最下面一行之外画 */
+    /* ── 第 5 行：**渐变画笔**（v0.96.306「边框一个渐变」）──
+       画笔槽与填充槽一样收刷子：这里造一个匿名线性渐变刷子给它。
+       判据看三格：12 只有渐变描边、13 填充纯色 + 边框渐变、14 直线渐变。 */
+    gpen = ui_brush_linear(RED, BLUE, 0, 0, 1000, 0);
+
+    /* 12 圆：**只有**渐变描边、不填充 */
+    ui_set_fill(0);
+    ui_set_pen(gpen, 6, VML_CAP_BUTT, 0, VML_ARROW_NONE);
+    ui_draw_circle(cxx(0), cyy(4), ch / 3);
+
+    /* 13 矩形：填充纯色 + **边框渐变** —— "填充一个、边框另一个"的正面例子。
+       注意填充与描边是两个独立的槽，互不吃掉（解析侧曾经只有"第一个 @ = 填充"）。 */
     ui_set_fill(C);
-    ui_draw_circle(cxx(0), cyy(3) + ch / 2 - 6, 8);
+    ui_set_pen(gpen, 8, VML_CAP_BUTT, 0, VML_ARROW_NONE);
+    ui_draw_rect(cxx(1) - cw / 3, cyy(4) - ch / 3, cw * 2 / 3, ch * 2 / 3, 10);
+
+    /* 14 上：直线渐变描边 */
+    ui_draw_line(cxx(2) - cw / 3, cyy(4), cxx(2) + cw / 3, cyy(4));
+
+    /* 15 下：收尾换回**纯色画笔**，验证"改过刷子之后状态还生效" */
+    ui_set_pen(C, 2, VML_CAP_BUTT, 0, VML_ARROW_NONE);
+    ui_draw_line(cxx(2) - cw / 3, cyy(4) + ch / 5, cxx(2) + cw / 3, cyy(4) + ch / 5);
 
     ui_present();
     while (ui_win_closed() == 0) {
