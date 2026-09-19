@@ -179,6 +179,9 @@ namespace ForthCompiler
 
         private void GenerateStatement(ASTNode node)
         {
+            // 让随后生成的每条指令带上源码行号（语义见 CodeGeneratorBase.CurrentSourceLine）。
+            // `> 0`：行号是 1-based，Line 没填的节点是 0，置成 0 会把上一句的行号冲掉。
+            if (node.Line > 0) CurrentSourceLine = node.Line;
             if (node is WordDefinition wordDef)
             {
                 GenerateWordDefinition(wordDef);

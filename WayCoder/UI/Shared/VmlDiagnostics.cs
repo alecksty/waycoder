@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using WayCoder.UI.Tui.Edit;
 
-namespace WayCoder.Maui.Services;
+namespace WayCoder.UI.Shared;
 
 /// <summary>
 /// 把 VML 前端编译器的报错文本解析成结构化的 <see cref="Diagnostic"/>。**唯一实现**
@@ -58,6 +58,42 @@ internal static class VmlDiagnostics
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     /// <summary>
+    /// ⑤ **没有位置**的裸错误行：<c>error: 未定义的函数 'nosuch'（引用 1 次）</c>。
+    ///
+    /// 出处：<c>LibraryLinker.ReportUnresolved</c> —— 它一次把所有未解析的名字都列出来，
+    /// **有源码行号的**写成 GCC 形状、**取不到行号的**就只有 <c>error: …</c> 这一种形状
+    /// （`firstLine` 查不到时 `where` 是空串）。两族在同一次输出里**混排**。
+    ///
+    /// 判据要求**行首就是** <c>error</c> —— 带位置的那些以 <c>&lt;input&gt;:</c> 或
+    /// <c>main.c:12:</c> 开头，因此天然不会重复计数。
+    /// </summary>
+    private static readonly Regex BareErrRx = new(
+        @"^[ \t]*(error|warning|错误|警告)[ \t]*[:：][ \t]*(.+)$",
+        RegexOptions.Multiline | RegexOptions.Compiled);
+
+    /// <summary>
+    /// 把 <see cref="BareErrRx"/> 匹配到的**无位置**错误补进列表（line/col 记 0 ——
+    /// 气泡照常显示内容，只是不画箭头指向某一行）。
+    ///
+    /// 锚不到行的气泡**仍然有意义**：用户至少能看到「一共错了几个、分别是什么」，
+    /// 而不是只看到第一个。这是「一次多报」在编辑器里的最后一环。
+    /// </summary>
+    private static void AppendUnlocated(string text, List<Diagnostic> list)
+    {
+        foreach (Match m in BareErrRx.Matches(text))
+        {
+            var raw = m.Groups[2].Value.Trim();
+            if (raw.Length == 0) continue;
+            var sev = m.Groups[1].Value switch
+            {
+                "warning" or "警告" => Severity.Warning,
+                _ => Severity.Error,
+            };
+            list.Add(new Diagnostic(0, 0, sev, StripCode(raw, out var code), code));
+        }
+    }
+
+    /// <summary>
     /// 解析报错文本。返回的列表**至少有一条**（解析不出位置时给一条无锚诊断），
     /// 除非传进来的本来就是空/纯空白。
     /// </summary>
@@ -72,38 +108,60 @@ internal static class VmlDiagnostics
         text = text.Replace("⚠️ 编译失败：", "")
                    .Replace("⚠️ 前端编译没有产出 VML 汇编", "前端编译没有产出 VML 汇编");
 
-        // 三个规则**按序尝试、命中即停**：同一条错误被两轮匹配会变成两条气泡。
-        // GCC 优先于中文 —— 它的位置信息更全（带列）。
-        if (TryGcc(GccRx, text, list, hasCol: true)) return list;
-        if (TryGcc(GccNoColRx, text, list, hasCol: false)) return list;
-
-        var cn = CnRx.Match(text);
-        if (cn.Success)
+        // ① **带位置**的那一族：三条规则按序尝试、**命中即停**。
+        //    必须互斥：同一条错误被两轮匹配会变成两条气泡。
+        //    GCC 优先于中文 —— 它的位置信息更全（带列）。
+        //
+        //    ⚠ 注意 `GccNoColRx` 其实**也**能匹配带列的行（它会把 `main.c:12` 吃进"文件名"
+        //      那一段），所以两条 `TryGcc` 是互斥而非叠加，这个顺序不能动。
+        bool located = TryGcc(GccRx, text, list, hasCol: true)
+                    || TryGcc(GccNoColRx, text, list, hasCol: false);
+        if (!located)
         {
-            int line = ParseInt(cn.Groups[1].Value);
-            int col = cn.Groups[2].Success ? ParseInt(cn.Groups[2].Value) : 0;
-            var msg = cn.Groups[3].Value.Trim();
-            if (msg.Length > 0)
+            var cn = CnRx.Match(text);
+            if (cn.Success)
             {
+                int line = ParseInt(cn.Groups[1].Value);
+                int col = cn.Groups[2].Success ? ParseInt(cn.Groups[2].Value) : 0;
+                var msg = cn.Groups[3].Value.Trim();
+                if (msg.Length > 0)
+                {
+                    list.Add(new Diagnostic(line, col, Severity.Error, msg, null));
+                    located = true;
+                }
+            }
+        }
+        if (!located)
+        {
+            // ④ 英文尾缀 `… at line 112:`（位置在句尾，前三条都匹配不到）
+            var at = AtLineRx.Match(text);
+            if (at.Success)
+            {
+                int line = ParseInt(at.Groups[1].Value);
+                int col = at.Groups[2].Success ? ParseInt(at.Groups[2].Value) : 0;
+                var msg = FirstLine(text);
                 list.Add(new Diagnostic(line, col, Severity.Error, msg, null));
-                return list;
+                located = true;
             }
         }
 
-        // ④ 英文尾缀 `… at line 112:`（位置在句尾，前三条都匹配不到）
-        var at = AtLineRx.Match(text);
-        if (at.Success)
-        {
-            int line = ParseInt(at.Groups[1].Value);
-            int col = at.Groups[2].Success ? ParseInt(at.Groups[2].Value) : 0;
-            var msg = FirstLine(text);
-            list.Add(new Diagnostic(line, col, Severity.Error, msg, null));
-            return list;
-        }
+        // ② **没有位置**的那些：`error: 未定义的函数 'a'` 这种裸行，单独再扫一遍补进来。
+        //
+        // ⚠ 此前这里是「命中即停 + `return list`」，于是**链接器那份混排的输出只留得下第一条**：
+        //   链接器一次会把所有未解析的名字都列出来（`LibraryLinker.ReportUnresolved`），
+        //   有行号的写成 `<input>:12: error: …`、没有行号的只有 `error: …`；
+        //   而 `TryGcc` 只收**同一种形状**的匹配 ⇒ 用户看到的气泡数从 N 掉到 1
+        //   （一条都没带位置时更彻底：三条规则全不命中，最后退化成 `FirstLine(text)` 一条）。
+        //   这正是「一次多报」在 UI 上失效的那一环 —— CLI 那边 N 行照打，只有编辑器里并成一条。
+        //
+        //   裸行正则**天然不会**匹配上面那些带位置的行（它们以 `<input>:` / `main.c:12:`
+        //   开头，而这里要求行首就是 `error`），所以两族不会重复计数。
+        AppendUnlocated(text, list);
 
-        // 完全没有位置信息（汇编阶段的「未知指令」、标准库路径不对、超时…）——
-        // 仍然给一条，只是没有锚点，气泡不画箭头。
-        list.Add(new Diagnostic(0, 0, Severity.Error, FirstLine(text), null));
+        // ③ 一条都没解析出来（汇编阶段的「未知指令」、标准库路径不对、超时…）——
+        //    仍然给一条，只是没有锚点，气泡不画箭头。
+        if (list.Count == 0)
+            list.Add(new Diagnostic(0, 0, Severity.Error, FirstLine(text), null));
         return list;
     }
 

@@ -1,3 +1,86 @@
+## v0.96.283 — 报错带行号（P3 前端半边）+ 编辑器不再把 N 条错误并成 1 条
+
+### ① 行号链路：汇编器那半边早就有，**上游一直没喂它**
+
+`Instruction.SourceLine` → `; N:` 注释 → 汇编器读回，这条链 v0.96.269 就铺好了。
+但实测**前端产物里一条 `; N:` 都没有** —— 因为 `InstrList.Add` 是从
+`CodeGeneratorBase.CurrentSourceLine` 抄行号的，而**全仓只有 Dart 和 Basic 两门在设它**。
+
+给「语句生成有**单一入口**」的 8 门各加一句（`if (node.Line > 0) CurrentSourceLine = node.Line;`）：
+
+| | |
+|---|---|
+| 加的 | Lua / Pascal / Ruby / R / Fortran / D / ObjC / Forth |
+| 判据 | `> 0` —— 行号是 1-based，Line 没填的节点是 0，置 0 会把上一句的行号**冲掉** |
+| 实测生效 | **d / lua / m / r / rb**（Pascal 填了 Line 但调用不走这个入口，另查） |
+
+**产物体积没变**：注释只在**源码行变化时**发一条（`if (sl != lastSourceLine)`），
+条数被源文件行数封顶、不随指令数膨胀；而且汇编器建的 program 没有 `SourceLines`，
+所以 `--vml` 写出的**最终产物逐字节不变**（`ToString` 那边要 `SourceLines != null` 才发注释）。
+
+顺带钉掉一个**潜在崩溃**：`VmlProgram.ToString` 的条件是 `SourceLine >= 0`，
+而下一句是 `SourceLines[sl - 1]` ⇒ `sl == 0` 时 `SourceLines[-1]` 直接抛 IndexOutOfRange
+（右边界 `sl - 1 < Length` 对 `-1` 恒真，拦不住）。改成 `>= 1`。
+
+### ② 编辑器把 N 条错误并成 1 条 —— 「一次多报」在 UI 上原来是失效的
+
+`LibraryLinker.ReportUnresolved` 一次会把**所有**未解析的名字列出来，形状是**混排**的：
+有源码行号的写成 `<input>:12: error: …`，取不到行号的只有 `error: …`。
+
+而 `VmlDiagnostics.Parse` 是「三条规则按序尝试、命中即停 + `return list`」——
+`TryGcc` 只收**同一种形状**的匹配 ⇒ 用户看到的从 N 条掉到 1 条；
+一条都没带位置时更彻底：三条规则全不命中，退化成 `FirstLine(text)` **一条**。
+CLI 上 N 行照打、手机上 1 条，两端观感对不上，正是这一环。
+
+改法：带位置的照旧（三条规则仍互斥），**再单独扫一遍无位置的裸错误行补进来**
+（`^[ \t]*(error|warning|错误|警告)[:：]`，行首锚定 ⇒ 天然不会与带位置的那些重复计数）。
+`提示:` 行**不进气泡**（它是提示语不是错误，进了就是每条错误后面跟一个噪声泡）。
+
+### ③ `VmlDiagnostics` 从 MAUI 工程挪到 `UI/Shared/` —— 顺带让自测**重新跑得起来**
+
+它是**纯逻辑**（文本进、诊断出），却长在 `WayCoder.Maui/Services/` 下，
+而 MAUI 工程不进桌面自测 ⇒ **一个用例都碰不到**。按本仓对跨端纯逻辑的既定要求挪进
+`UI/Shared/`（`Diagnostic` 来自 `UI/TUI/Edit/`，MAUI 本来就重新包含了那个目录），
+新增 `SelfTest.Chunk25`：多错多气泡、混排、GCC 带列不重复计数、中文/英文尾缀、
+空输入、warning 级别、噪声行不进气泡 —— 22 条。
+
+**挪完才发现自测根本跑不起来**（`dotnet run -- --test` 直接 CS1593 编不过）：
+
+```csharp
+tdsl.Any((c, i) => …)   // Any 没有带下标的替身（那是 Select / Where 的）
+```
+
+只在 `WAYCODER_TEST` 下编译 ⇒ **`dotnet build`（Release）全绿、自测编不过**，
+这个断点一直没人看见。改成 `Select((c, i) => …).Any(x => x)`。
+
+修完立刻暴露出**第二条**：`防护: 越界坐标的图元整个丢弃` 断言 `DSL 行数 == 3`，
+实测 4。真因是用例自己写错了参数位 —— `AddImage(x, y, path, w, h)` 的第 4 个是**宽**，
+而**宽按既定语义是"钳制"不是"丢弃"**（同一批的 `防护: 超大尺寸钳到窗口` 正靠这个语义通过，
+两条用例对同一件事的要求正好相反）。把越界的那个值挪回第 1 位（坐标）。
+
+⇒ 桌面自测 **5998 / 0 失败**（此前是"编不过"，不是"全绿"）。
+
+### 判据
+
+| | 之前 | 之后 |
+|---|---|---|
+| 桌面自测 | **编不过**（CS1593） | **5998 / 0** |
+| `vml-diag-probe` | 38/0/0 | 38/0/0 |
+| `vml-out-probe` | 29/29 | 29/29 |
+| `examples-build` | 78/3 | 78/3 |
+| MAUI Android 构建 | — | 0 错误 |
+
+剩的 3 条 examples 是已记录在案的（Fortran 格式化 print / Ladder 需 BEGIN / Forth `parserexp`）。
+
+### 还差的一半（P3 未完）
+
+**C 是最大的一块**：它的 `ASTNode` 是**空基类**（41 个节点类全无位置字段），
+要从 parser 一路铺上去，不是加一行的事。同样没有 `Line` 的还有
+C# / C++ / Go / Java / JS / Kotlin / Scheme / Swift。
+Python 与 Rust 的 `ASTNode` **有** `Line`，但它们的语句生成没有单一入口，得逐个找。
+
+---
+
 ## v0.96.282 — 三处「调了个不存在的函数」被静默放过（其中一个牵出 BASIC 块 IF 的大洞）
 
 起因是 `vml-diag-probe` 里 `undef-fn` 组的 3 条红灯。逐条查下来**两条是假红、一条是真红**，

@@ -506,7 +506,14 @@ namespace VMLAssembler
                     continue;
 
                 // 输出源码行注释（当源码行号变化时）
-                if (SourceCommentEnabled && SourceLines != null && instruction.SourceLine >= 0)
+                //
+                // ⚠ 判据是 `>= 1` **不是 `>= 0`** —— 行号是 1-based，下面那句是
+                //   `SourceLines[sl - 1]`；`sl == 0` 时右边界 `sl - 1 < Length` 恒真
+                //   （`-1 < n`），于是直接 `SourceLines[-1]` 抛 IndexOutOfRange。
+                //   `Instruction.SourceLine` 的默认值恰好是 **-1**（不输出），所以今天
+                //   走不到 0；但 `InstrList.Add` 的闸门是 `>= 0`，任何一门语言只要在
+                //   某条语句上把 `CurrentSourceLine` 置成 0，整份产物就炸在这儿。
+                if (SourceCommentEnabled && SourceLines != null && instruction.SourceLine >= 1)
                 {
                     int sl = instruction.SourceLine;
                     if (sl != lastSourceLine && sl - 1 < SourceLines.Length)

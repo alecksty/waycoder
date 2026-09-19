@@ -504,7 +504,13 @@ public static partial class SelfTest
         guard.AddCircle(0, int.MinValue, 5, 0xFFFFFFFF, true, 0);
         guard.AddLine(0, 0, 0, 3_000_000, 0xFFFFFFFF, 1);
         guard.AddText(int.MaxValue, 0, "x", 0xFFFFFFFF, 12, 0);
-        guard.AddImage(0, 0, "p", int.MaxValue, 10);
+        // ⚠ `AddImage` 的签名是 `(x, y, path, w, h)` —— 这里要测的是**越界坐标**，
+        //   所以越界的必须是第 1 个参数（原先写在第 4 位 = 宽，而**宽是"钳制"不是"丢弃"**，
+        //   见下面 `防护: 超大尺寸钳到窗口` 那条 —— 两条用例对同一件事的要求正好相反）。
+        //   写成宽的话这条会有 1 个图元混进来，断言 `长度 == 3` 必红。
+        //   （这个断言此前一直是红的，只是 `WAYCODER_TEST` 下 `SelfTest.Chunk10.cs` 编不过、
+        //     整套自测根本跑不起来，所以没人看见。）
+        guard.AddImage(int.MaxValue, 0, "p", 10, 10);
         // 一条都没进来 ⇒ DSL 只剩 canvas 头与 antialias 两行（Split 后还有个尾空串）
         Check("防护: 越界坐标的图元整个丢弃",
             guard.BuildDsl().Split('\n').Length == 3);
@@ -528,11 +534,15 @@ public static partial class SelfTest
         tscene.AddText(0, 0, longText, 0xFFFFFFFF, 12, 0);
         var tdsl = tscene.BuildDsl();
         Check("防护: 超长文本被截断", tdsl.Length < longText.Length);
+        // ⚠ `Any` **没有带下标的替身**（那是 `Select`/`Where` 的）——
+        //   这里原先写成 `tdsl.Any((c, i) => …)`，只在 `WAYCODER_TEST` 下编译，
+        //   于是 `dotnet build`（Release）全绿、`dotnet run -- --test`（Debug）直接
+        //   CS1593 编不过 ⇒ **整套自测跑不起来**。要下标就用 `Select((c, i) => …).Any(x => x)`。
         Check("防护: 截断不切碎代理对（无孤立代理）",
-            !tdsl.Any((c, i) => char.IsHighSurrogate(c)
-                                && (i + 1 >= tdsl.Length || !char.IsLowSurrogate(tdsl[i + 1])))
-            && !tdsl.Any((c, i) => char.IsLowSurrogate(c)
-                                && (i == 0 || !char.IsHighSurrogate(tdsl[i - 1]))));
+            !tdsl.Select((c, i) => char.IsHighSurrogate(c)
+                                && (i + 1 >= tdsl.Length || !char.IsLowSurrogate(tdsl[i + 1]))).Any(x => x)
+            && !tdsl.Select((c, i) => char.IsLowSurrogate(c)
+                                && (i == 0 || !char.IsHighSurrogate(tdsl[i - 1]))).Any(x => x));
 
         // path 串里的换行必须抹掉：DSL 是**按行**解析的，一个 \n 就能伪造出整条指令
         var pscene = new VmlScene();

@@ -7,6 +7,11 @@ namespace LuaCompiler
     {
         private void GenerateStatement(ASTNode node)
         {
+            // 让随后生成的每条指令带上源码行号（语义见 CodeGeneratorBase.CurrentSourceLine）：
+            // 它是产物里 `; N: <原文>` 注释的来源，汇编器再读回 Instruction.SourceLine
+            // ⇒ 链接期/语义期报错才给得出**行列号**（否则只能报个名字）。
+            // 判据 `> 0`：行号是 1-based，Line 没填的节点是 0，置成 0 会把上一句的行号冲掉。
+            if (node.Line > 0) CurrentSourceLine = node.Line;
             switch (node)
             {
                 case VariableDeclarationNode varDecl:
