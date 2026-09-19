@@ -861,16 +861,28 @@ namespace CompilerBase
             var file = fileName ?? CurrentSourceFile ?? "<input>";
             try
             {
-                return compile(diagnostics);
+                var prog = compile(diagnostics);
+                // ⚠ **成功路径也要看 bag**。此前这里直接 `return compile(...)`，
+                //   于是"收集不抛"的那条路（`LexerBase.ReadStringLiteral`，被 Lua/Ruby/JS/ObjC/
+                //   Dart/R/D 七门用着）**收集到的错误被整个丢掉、程序照编照跑** ——
+                //   实测一个未终止的字符串会静默编译通过。这是"一次多报"的前置 bug：
+                //   连"收集到的"都扔了，还谈什么多报。
+                if (diagnostics.HasErrors)
+                    throw new CompilationException(diagnostics.FirstErrorCode, diagnostics.FormatAll());
+                return prog;
             }
             catch (ParseException ex)
             {
-                throw new CompilationException(ex.Code,
-                    diagnostics.HasErrors ? diagnostics.FormatAll() : $"{file}: error: {ex.Message}", ex);
+                // 把"抛出来的这一条"与"之前已经收集到的若干条"**并成一份**再抛 ——
+                // 原来的写法是二选一（`HasErrors ? FormatAll() : 单条`），
+                // 于是之前收集的那些在"有抛出"的情况下反而不见了。
+                diagnostics.AddError(file, 0, 0, ex.Code, ex.Message);
+                throw new CompilationException(ex.Code, diagnostics.FormatAll(), ex);
             }
             catch (CodeGenerationException ex)
             {
-                throw new CompilationException(ex.Code, $"{file}: error: {ex.Message}", ex);
+                diagnostics.AddError(file, 0, 0, ex.Code, ex.Message);
+                throw new CompilationException(ex.Code, diagnostics.FormatAll(), ex);
             }
             catch (CompilationException) { throw; }
             // 同上（见 CompilerPluginBase 里那段说明）：链接期的"未定义函数"是用户源码的错，

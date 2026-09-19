@@ -1,3 +1,59 @@
+## v0.96.270 — 诊断管道打通：**一次多报**真的生效了（P4）
+
+用户要求：「要尽量一次多报些错误，现在运行就报一个错误」。
+
+### 实测对比
+
+```lua
+print("abc          -- 未终止的字符串
+```
+
+| | 之前 | 现在 |
+|---|---|---|
+| Lua | **静默编译通过**（收集到的错误被扔掉） | `编译失败`，**一次两条** |
+
+现在的输出：
+```
+<input>:2:1: error: 未终止的字符串字面量，缺少闭合引号 '"' [Lexer_UnterminatedString]
+.../unterminated.lua:0:0: error: 期望 ')'
+2 error(s) generated.
+```
+
+**两条**是"词法阶段收集到的" + "语法阶段抛出来的"**并成一份** —— 而以前这两条是**二选一**，
+而且成功路径干脆两条都不要。
+
+### 四处改动
+
+**① `DiagnosticBag` 补四样**（`CompilerBase/DiagnosticBag.cs`）
+- **去重键**（`(code, file, line, col, message)`）：同一条诊断被两条路径重复添加是**常态**
+  （C 前端四个 `throw` 点、将来"收集并继续"之后同一句被扫到两次），不去重的话
+  50 条上限会被同一条消息瞬间吃光、真正其它的错反而被挤掉。
+- **`TooManyErrors` 标志**：原先到上限只是插一条哨兵然后静默 `return` ——
+  调用方**分不出**「刚好 50 条」和「还有 200 条没报」，而"被截断了"恰恰是用户必须知道的。
+  `FormatAll` 现在会补一句「（错误太多，只报了前 N 条）」。
+- **`FirstErrorCode`**：`CompilationException` 需要一个 code。
+- **`Merge(bag)`**：把异常路径那一条并进同一份输出。
+
+**② `CompileWithDiagnostics` 补三处**（`CompilerHelper`）
+1. **成功路径也看 bag** —— 就是它修掉了上面那个"未终止字符串静默编译通过"的既有 bug；
+2. `catch (ParseException)` / `catch (CodeGenerationException)`：把抛出来的那条
+   **并进 bag 再抛**（原来是 `HasErrors ? FormatAll() : 单条` 的**二选一**，
+   于是"之前收集到的"在"有抛出"时反而不见了）。
+
+**③ `CodeGeneratorBase.BuildProgram` 收口** —— **杠杆最大的一处**：
+它是全部 22 门在 `GenerateCode()` 末尾都会调的，且对 `Compile`/`CompileFile`/
+`CompileFileWithIncludes` **三条入口全部生效**，不用碰任何一门语言的入口代码。
+配合新加的**生成器自持**诊断袋 `Diags`（22 个 `CompileFile` 入口没有一个会把 bag 传进 codegen，
+外部注入要改 22 个文件；自持则**改零个入口**）——
+P6 的逐门未定义变量检查只要往 `Diags` 里写，收口是现成的。
+
+⚠ 踩到一个命名坑：`DiagnosticBag` 不能写成 `CompilerBase.DiagnosticBag` ——
+那个命名空间里正好有一个**叫 `CompilerBase` 的类**，限定名会被解析到它上面（CS0426）。
+
+### 回归
+
+`out-probe` 29/29、`abi-probe` 7/7、`link-clean` 22/22 —— 全绿。
+
 ## v0.96.269 — 诊断带上**源码行号**（P3：汇编器半边）
 
 用户要求：「所有错误尽量按照标准输出行列号，可以用来在 IDE 标注错误位置」。

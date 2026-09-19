@@ -31,6 +31,20 @@ namespace CompilerBase
         #region 公共字段
 
         protected InstrList instructions;
+
+        /// <summary>
+        /// 代码生成期间的诊断（语义检查收集到这里，**继续生成**，最后在 `BuildProgram`
+        /// 一次性抛出 —— 见那里的说明）。
+        ///
+        /// **生成器自持，不由外部注入**：22 个 `CompileFile` 入口没有一个会把
+        /// `DiagnosticBag` 传进 codegen，外部注入意味着改 22 个文件；自持则**改零个入口**。
+        /// 与词法/语法那套（`LexerBase.Diagnostics` / `ParserBase.Diagnostics`，外部注入的）
+        /// 并存，两边最后都汇进 `CompileWithDiagnostics` 那一个 bag。
+        /// </summary>
+        /// ⚠ 类型名**不加 `CompilerBase.` 限定** —— 这个命名空间里正好有一个叫
+        /// `CompilerBase` 的类，限定名会被解析到那个类上（CS0426）。
+        protected readonly DiagnosticBag Diags = new();
+
         protected Dictionary<string, int> labels;
         protected Dictionary<string, object> dataSection;
         protected Dictionary<string, object> constants;
@@ -1296,6 +1310,18 @@ namespace CompilerBase
                 if (instructions[i].Opcode == OpCode.LABEL && instructions[i].Operands.Count > 0)
                     if (instructions[i].Operands[0].Value is string ln)
                         labels[ln] = i;
+
+            // ── 诊断收口 ────────────────────────────────────────────────────────
+            // **这里是"一次多报"杠杆最大的一处**：`BuildProgram` 被全部 22 门前端
+            // 在自己的 `GenerateCode()` 末尾调用，且对 `Compile` / `CompileFile` /
+            // `CompileFileWithIncludes` **三条入口全部生效** —— 不用碰任何一门语言的入口代码。
+            //
+            // 语义检查（未定义的标识符）**收集并继续生成**，而不是遇到第一个就抛 ——
+            // 这正是「一次报出多条」的实现方式：把这一轮能看到的错全收进 bag，
+            // 最后一次性抛出去（异常文本是 GCC 风格的多行，宿主侧 `VmlDiagnostics`
+            // 本来就是遍历全部匹配、每条各显示一个气泡）。
+            if (Diags.HasErrors)
+                throw new CompilationException(Diags.FirstErrorCode, Diags.FormatAll());
 
             Vars?.LogStats();
             return new VmlProgram(instructions, labels, dataSection, constants)
