@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>skystrike selftest</title>
+<style>body{background:#111;color:#ddd;font:12px monospace;white-space:pre}</style>
+</head>
+<body>
+<div id="mount" style="width:800px;height:450px"></div>
+<pre id="out">running…</pre>
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { World, WORLD } from './js/world.js';
+import { PlayerAircraft, EnemyAircraft, WingmanAircraft } from './js/aircraft.js';
+import { WeaponSystem, flakHitProbability, FLAK } from './js/weapons.js';
+import { ParticlePool, RNG, clamp, Store, fmtNum, fmtTime, ValueNoise2D, FrameTimer,
+         ScoreBoard, headingOf, missionBrief, battleTime, accuracy, smoothstep,
+         predictImpact, bombLaunchVelocity, hudModeOf, nextHudMode,
+         missionProgress, applyDeadzone, gamepadAxes, gamepadButtons,
+         PAD_BUTTON } from './js/utils.js';
+
+const lines = [];
+let pass = 0, fail = 0;
+function Check(name, cond, extra = '') {
+  if (cond) { pass++; lines.push(`  ok  ${name} ${extra}`); }
+  else { fail++; lines.push(`FAIL  ${name} ${extra}`); }
+}
+const fin = (v) => Number.isFinite(v);
+
+window.addEventListener('error', (e) => { lines.push('!! window error: ' + e.message); });
+window.addEventListener('unhandledrejection', (e) => { lines.push('!! rejection: ' + e.reason); });
+
+async function run() {
+  // ---------- 纯逻辑 ----------
+  Check('fmtNum 千分位', fmtNum(1234567) === '1,234,567');
+  Check('fmtTime 00:00', fmtTime(0) === '00:00');
+  Check('fmtTime 61s', fmtTime(61) === '01:01');
+  Check('clamp', clamp(5, 0, 3) === 3 && clamp(-5, 0, 3) === 0);
+  const nz = new ValueNoise2D(7);
+  Check('噪声范围 0..1', nz.sample(3.3, 4.7) >= 0 && nz.sample(3.3, 4.7) <= 1);
+  Check('fbm 范围', nz.fbm(10, 10, 4) >= 0 && nz.fbm(10, 10, 4) <= 1);
+  const pool = new ParticlePool(50);
+  pool.spawn(1, 2, 3, 0, 0, 0, 1, 1, 0, 0, 0);
+  Check('粒子池 spawn 计数', pool.count === 1 && pool.pos[0] === 1 && pool.pos[1] === 2);
+  pool.update(2);
+  Check('粒子池寿命到期回收', pool.count === 0 && pool.alive[0] === 0);
+
+  // ---------- 世界 ----------
+  const mount = document.getElementById('mount');
+  const world = new World(mount, 'low');
+  Check('渲染器创建', !!world.renderer.domElement);
+  Check('场景创建', world.scene.isScene === true);
+  const h0 = world.heightAt(0, 0);
+  const h1 = world.heightAt(500, -800);
+  Check('地形高度为有限数', fin(h0) && fin(h1), `h(0,0)=${h0.toFixed(1)} h(500,-800)=${h1.toFixed(1)}`);
+  let hMin = Infinity, hMax = -Infinity;
+  for (let i = 0; i < 4000; i++) {
+    const x = (Math.random() - 0.5) * 6000, z = (Math.random() - 0.5) * 6000;
+    const v = world.heightAt(x, z);
+    if (v < hMin) hMin = v; if (v > hMax) hMax = v;
+  }
+  Check('地形高度分布合理', hMin > -400 && hMax < 900, `min=${hMin.toFixed(0)} max=${hMax.toFixed(0)}`);
+  const nrm = world.heightNormal(0, 0);
+  Check('地形法线为单位向量', Math.abs(nrm.length() - 1) < 1e-6);
+  Check('撞海面判定', world.hitsGround(new THREE.Vector3(0, -5, 0)) === true);
+  Check('高空不撞地', world.hitsGround(new THREE.Vector3(0, 3000, 0)) === false);
+  const cl = world.clampToArena(new THREE.Vector3(99999, 99999, -99999));
+  Check('战场边界钳制', cl.hit === true);
+  Check('基准面压平（中心较平）', Math.abs(world.heightAt(0, 0)) < 260, `h=${world.heightAt(0, 0).toFixed(1)}`);
+
+  // ---------- 玩家 ----------
+  const player = new PlayerAircraft(world.scene, {});
+  player.position.set(0, 1200, 0);
+  player.speed = 200;
+  player.velocity.set(0, 0, -200);
+  player.syncMesh();
+  Check('玩家初始存活', player.alive === true && player.hp === 100);
+  Check('机头朝向 -Z', player.getForward(new THREE.Vector3()).z < -0.99);
+  Check('机体上方为 +Y', player.getUp(new THREE.Vector3()).y > 0.99);
+
+  // 俯仰：S（pitch=+1）应抬头
+  player.inputs.pitch = 1;
+  for (let i = 0; i < 60; i++) player.integrate(1 / 60);
+  Check('拉杆抬头（fwd.y > 0）', player.getForward(new THREE.Vector3()).y > 0.15,
+        `fwd.y=${player.getForward(new THREE.Vector3()).y.toFixed(3)}`);
+
+  // 俯冲
+  player.inputs.pitch = -1;
+  const yBefore = player.getForward(new THREE.Vector3()).y;
+  for (let i = 0; i < 60; i++) player.integrate(1 / 60);
+  const yAfter = player.getForward(new THREE.Vector3()).y;
+  Check('推杆低头（fwd.y 下降）', yAfter < yBefore, `${yBefore.toFixed(3)} -> ${yAfter.toFixed(3)}`);
+  player.inputs.pitch = 0;
+
+  // 坡度转弯耦合：右滚（roll=+1）→ 右倾 → 应右转
+  const p2 = new PlayerAircraft(world.scene, {});
+  p2.position.set(0, 1500, 0); p2.speed = 220; p2.velocity.set(0, 0, -220); p2.syncMesh();
+  p2.inputs.roll = 1;
+  for (let i = 0; i < 24; i++) p2.integrate(1 / 60);      // 约 0.4 秒，远小于一整圈
+  const bankAngle = p2.bank;
+  Check('右滚产生右倾（bank < 0）', bankAngle < -0.15, `bank=${bankAngle.toFixed(3)} rad`);
+  const fwdBeforeTurn = p2.getForward(new THREE.Vector3()).clone();
+  for (let i = 0; i < 180; i++) p2.integrate(1 / 60);
+  const fwdAfterTurn = p2.getForward(new THREE.Vector3());
+  const crossY = new THREE.Vector3().crossVectors(fwdBeforeTurn, fwdAfterTurn).y;
+  Check('右倾航向右偏（cross.y < 0）', crossY < 0, `cross.y=${crossY.toFixed(4)}`);
+
+  // 横滚稳定性：无滚转输入时坡度应衰减回正，而不是无限翻滚
+  p2.inputs.roll = 1;
+  for (let i = 0; i < 24; i++) p2.integrate(1 / 60);
+  const bankHeld = Math.abs(p2.bank);
+  p2.inputs.roll = 0;
+  for (let i = 0; i < 300; i++) p2.integrate(1 / 60);
+  Check('松杆后坡度自动回正', Math.abs(p2.bank) < bankHeld * 0.5,
+        `|bank| ${bankHeld.toFixed(2)} -> ${Math.abs(p2.bank).toFixed(2)}`);
+  Check('长时间无输入不翻滚（机身始终大致朝上）',
+        p2.getUp(new THREE.Vector3()).y > 0.5, `up.y=${p2.getUp(new THREE.Vector3()).y.toFixed(2)}`);
+
+  // 加力/阻力
+  const p3 = new PlayerAircraft(world.scene, {});
+  p3.position.set(0, 2500, 0); p3.speed = 200; p3.velocity.set(0, 0, -200);
+  p3.throttle = 1; p3.inputs.pitch = 0;
+  for (let i = 0; i < 120; i++) p3.integrate(1 / 60);
+  const speedNoAB = p3.speed;
+  p3.afterburner = true;
+  for (let i = 0; i < 120; i++) p3.integrate(1 / 60);
+  Check('加力提升极速', p3.speed > speedNoAB, `${speedNoAB.toFixed(0)} -> ${p3.speed.toFixed(0)}`);
+  Check('空速不超过上限', p3.speed <= p3.maxSpeed * 1.28 + 1);
+
+  // 失速
+  const p4 = new PlayerAircraft(world.scene, {});
+  p4.speed = 20; p4.throttle = 0; p4.airbrake = true;
+  for (let i = 0; i < 30; i++) p4.integrate(1 / 60);
+  Check('低速触发失速', p4.stalling === true, `speed=${p4.speed.toFixed(1)}`);
+
+  // 燃料
+  const p5 = new PlayerAircraft(world.scene, {});
+  p5.afterburner = true; p5.update(2.0);
+  Check('加力消耗燃料', p5.fuel < 100, `fuel=${p5.fuel.toFixed(1)}`);
+
+  // 损伤
+  const p6 = new PlayerAircraft(world.scene, {});
+  Check('轻伤不致坠', p6.damage(10) === false && p6.hp === 90);
+  Check('致死伤害返回 true', p6.damage(500) === true && p6.alive === false && p6.hp === 0);
+
+  // 武器冷却
+  const p7 = new PlayerAircraft(world.scene, {});
+  p7.position.set(0, 1000, 0); p7.syncMesh();
+  const combatTmp = new WeaponSystem(world.scene, world, new ParticlePool(200), null);
+  combatTmp.attach(p7, []);
+  Check('机炮首发命中判定成立', combatTmp.firePlayerGun() === true);
+  Check('冷却期间不可连发', combatTmp.firePlayerGun() === false);
+  Check('过热机制触发', (() => { for (let i = 0; i < 40; i++) { p7.weapons.gunCooldown = 0; combatTmp.firePlayerGun(); } return p7.gunOverheat === true; })());
+
+  // 导弹命中
+  const missilePool = new ParticlePool(500);
+  const combat = new WeaponSystem(world.scene, world, missilePool, null);
+  const shooter = new PlayerAircraft(world.scene, {});
+  shooter.position.set(0, 1500, 0); shooter.syncMesh();
+  const victim = new EnemyAircraft(world.scene, { variant: 'fighter', seed: 5 });
+  victim.position.set(0, 1500, -700); victim.velocity.set(0, 0, 60); victim.speed = 200;
+  victim.quaternion.setFromEuler(new THREE.Euler(0, Math.PI, 0));
+  victim.syncMesh();
+  victim.spawnGrace = 0;
+  combat.attach(shooter, [victim]);
+  let killInfo = null;
+  combat.onKill = (v, c) => { if (v === victim) killInfo = c; };
+  Check('导弹发射成功', combat.firePlayerMissile(victim) === true);
+  Check('导弹数量减少', shooter.weapons.missiles === 7);
+  const ctxTmp = { player: shooter, world };
+  for (let i = 0; i < 300 && victim.alive; i++) combat.update(1 / 60, ctxTmp);
+  Check('导弹可命中目标', !victim.alive, `hp=${victim.hp.toFixed(0)} killCredit=${killInfo}`);
+  Check('命中后导弹被回收', combat.missiles.length === 0);
+  Check('击杀产生爆炸特效', combat.explosions.length > 0);
+
+  // 机炮射线命中
+  const combat2 = new WeaponSystem(world.scene, world, new ParticlePool(300), null);
+  const shooter2 = new PlayerAircraft(world.scene, {});
+  shooter2.position.set(0, 2000, 0); shooter2.syncMesh();
+  const tgt2 = new EnemyAircraft(world.scene, { variant: 'fighter', seed: 9 });
+  tgt2.position.set(0, 2000, -600);
+  tgt2.velocity.set(0, 0, 0); tgt2.speed = 0;
+  tgt2.syncMesh(); tgt2.spawnGrace = 0;
+  const hpBefore = tgt2.hp;
+  combat2.attach(shooter2, [tgt2]);
+  combat2.firePlayerGun();
+  Check('机炮射线命中减血', tgt2.hp < hpBefore, `hp ${hpBefore} -> ${tgt2.hp}`);
+  Check('命中统计累加（2 发出膛至少 1 发命中）', combat2.stats.hits >= 1 && combat2.stats.hits <= 2 && combat2.stats.shots === 2,
+        `hits=${combat2.stats.hits} shots=${combat2.stats.shots}`);
+
+  // 干扰弹
+  const combat3 = new WeaponSystem(world.scene, world, new ParticlePool(300), null);
+  const pFlare = new PlayerAircraft(world.scene, {});
+  pFlare.position.set(0, 1500, 0); pFlare.syncMesh();
+  combat3.attach(pFlare, []);
+  Check('释放干扰弹', combat3.releasePlayerFlare() === true && combat3.flares.length === 6);
+  Check('干扰弹冷却生效', combat3.releasePlayerFlare() === false);
+
+  // 炸弹
+  const combat4 = new WeaponSystem(world.scene, world, new ParticlePool(300), null);
+  const pBomb = new PlayerAircraft(world.scene, {});
+  pBomb.position.set(0, 1200, 0); pBomb.velocity.set(0, 0, -150); pBomb.syncMesh();
+  combat4.attach(pBomb, []);
+  Check('投掷炸弹', combat4.dropPlayerBomb() === true && combat4.bombs.length === 1);
+  const groundY = world.heightAt(0, 0);
+  for (let i = 0; i < 900 && combat4.bombs.length > 0; i++) combat4.update(1 / 60, { player: pBomb, world });
+  Check('炸弹落地爆炸', combat4.bombs.length === 0 && combat4.explosions.length > 0);
+
+  // ---------- 敌机 AI ----------
+  const ai = new EnemyAircraft(world.scene, { variant: 'fighter', seed: 3, skill: 0.8 });
+  ai.position.set(0, 1500, -2000);
+  ai.velocity.set(0, 0, 150);
+  ai.speed = 200;
+  ai.quaternion.setFromEuler(new THREE.Euler(0, Math.PI, 0));
+  ai.syncMesh();
+  const pAI = new PlayerAircraft(world.scene, {});
+  pAI.position.set(0, 1500, 0); pAI.speed = 200; pAI.velocity.set(0, 0, -200); pAI.syncMesh();
+  const ctx = { player: pAI, world, aggressive: false, bomberTarget: new THREE.Vector3(0, 900, 0),
+                fireEnemyGun: () => { ctx.gunFired = (ctx.gunFired || 0) + 1; },
+                fireEnemyMissile: () => { ctx.mslFired = true; },
+                releaseEnemyFlare: () => {}, dropEnemyBomb: () => {} };
+  const d0 = ai.position.distanceTo(pAI.position);
+  for (let i = 0; i < 600; i++) ai.update(1 / 60, ctx);
+  const d1 = ai.position.distanceTo(pAI.position);
+  Check('AI 会接近玩家目标', d1 < d0, `dist ${d0.toFixed(0)} -> ${d1.toFixed(0)}`);
+  Check('AI 姿态数值有限', fin(ai.position.x) && fin(ai.quaternion.x) && fin(ai.speed));
+  Check('AI 状态机已进入交战流程', ['engage', 'attack', 'reposition', 'evasive', 'cruise'].includes(ai.state), `state=${ai.state}`);
+  Check('AI 速度合理', ai.speed > 40 && ai.speed < 500, `speed=${ai.speed.toFixed(0)}`);
+
+  // AI 撞地保护
+  const aiLow = new EnemyAircraft(world.scene, { variant: 'fighter', seed: 11 });
+  aiLow.position.set(300, world.heightAt(300, 300) + 60, 300);
+  aiLow.speed = 200; aiLow.velocity.set(0, -20, -200); aiLow.syncMesh();
+  for (let i = 0; i < 200; i++) aiLow.update(1 / 60, { ...ctx, player: null, aggressive: false });
+  Check('AI 贴地时会拉升', aiLow.position.y > world.heightAt(aiLow.position.x, aiLow.position.z) + 20,
+        `alt=${aiLow.position.y.toFixed(0)} ground=${world.heightAt(aiLow.position.x, aiLow.position.z).toFixed(0)}`);
+
+  // 王牌机 & 轰炸机
+  const ace = new EnemyAircraft(world.scene, { variant: 'ace', seed: 21 });
+  const bmb = new EnemyAircraft(world.scene, { variant: 'bomber', seed: 22 });
+  Check('王牌机血量更高', ace.maxHp > 150 && ace.variant === 'ace');
+  Check('轰炸机体积更大', bmb.scale > 1.5 && bmb.maxHp > 200);
+
+  // 敌机规避
+  ai._enter('attack');
+  ai.forceEvade();
+  Check('强制规避切换到 evasive', ai.state === 'evasive');
+
+  // ---------- 新增工具（utils） ----------
+  const sb = new ScoreBoard(3);
+  sb.add({ score: 100, acc: 20, win: false, combo: 2 });
+  sb.add({ score: 500, acc: 60, win: true, combo: 5 });
+  sb.add({ score: 300, acc: 40, win: true, combo: 3 });
+  sb.add({ score: 50, acc: 10, win: false, combo: 1 });
+  Check('ScoreBoard 容量上限', sb.entries.length === 3 && sb.entries[0].score === 500);
+  Check('ScoreBoard 最高分', sb.best() === 500);
+  Check('ScoreBoard 平均命中率', Math.abs(sb.avgAccuracy() - (60 + 40 + 20) / 3) < 1e-6, `${sb.avgAccuracy().toFixed(1)}`);
+  Check('ScoreBoard 胜率', Math.abs(sb.winRate() - 2 / 3) < 1e-6);
+  Check('ScoreBoard 最高连杀', sb.bestCombo() === 5);
+  const hd = headingOf(new THREE.Vector3(0, 0, -1));
+  Check('headingOf 正北 0°', Math.round(hd.deg) === 0 && hd.label === '北');
+  const hd2 = headingOf(new THREE.Vector3(1, 0, 0));
+  Check('headingOf 正东 90°', Math.round(hd2.deg) === 90 && hd2.label === '东');
+  const hd3 = headingOf(new THREE.Vector3(0, 0, 1));
+  Check('headingOf 正南 180°', Math.round(hd3.deg) === 180);
+  Check('missionBrief 对地突击', missionBrief({ type: 'strike', flakTargets: 3 }, { flakDown: 1 }).includes('1/3'));
+  Check('missionBrief 拦截', missionBrief({ type: 'escort', maxBaseLoss: 34 }).includes('66%'));
+  Check('missionBrief 王牌已消灭', missionBrief({ type: 'ace', commander: { alive: false } }).includes('已消灭'));
+  Check('missionBrief 空域清扫', missionBrief({ type: 'sweep' }, { alive: 4 }).includes('4 架'));
+  Check('battleTime 秒', battleTime(45) === '45 秒');
+  Check('battleTime 分钟', battleTime(125) === '2 分 5 秒');
+  Check('accuracy 正常', accuracy(3, 6) === 50);
+  Check('accuracy 零分母安全', accuracy(0, 0) === 0 && accuracy(5, 0) === 0);
+
+  // ---------- 投弹落点预测（CCIP）----------
+  const flatGround = () => 0;
+  const ip1 = predictImpact({ x: 0, y: 500, z: 0 }, { x: 0, y: 0, z: -100 }, flatGround);
+  Check('predictImpact 命中平地', ip1.hit === true && Math.abs(ip1.y) < 1, `y=${ip1.y.toFixed(2)}`);
+  Check('predictImpact 水平位移符合抛体', Math.abs(ip1.z - (-100 * ip1.time)) < 2,
+        `z=${ip1.z.toFixed(1)} t=${ip1.time.toFixed(2)}`);
+  // 自由落体解析解：500m 高、竖直初速 0 → t=sqrt(2h/g)
+  const ip2 = predictImpact({ x: 0, y: 500, z: 0 }, { x: 0, y: 0, z: 0 }, flatGround, 9.81);
+  Check('predictImpact 与解析解一致', Math.abs(ip2.time - Math.sqrt(2 * 500 / 9.81)) < 0.05,
+        `t=${ip2.time.toFixed(3)} 期望=${Math.sqrt(2 * 500 / 9.81).toFixed(3)}`);
+  Check('predictImpact 无水平速度则原地落', Math.abs(ip2.x) < 1e-9 && Math.abs(ip2.z) < 1e-9);
+  // 倾斜地形：落到坡上而不是基准面（弹体沿 -Z 飞行，故地形沿 z 抬升）
+  const slope = (x, z) => Math.max(0, -z - 400);
+  const ip3 = predictImpact({ x: 0, y: 600, z: 0 }, { x: 0, y: 0, z: -120 }, slope);
+  Check('predictImpact 可命中抬升地形', ip3.hit === true && ip3.z < -400 && Math.abs(ip3.y - slope(0, ip3.z)) < 3,
+        `z=${ip3.z.toFixed(0)} y=${ip3.y.toFixed(0)} 地形=${slope(0, ip3.z).toFixed(0)}`);
+  // 与 weapons.js 的炸弹积分一致：同样参数下解析/数值落点应吻合（容差取一个积分步）
+  {
+    const H = 1200, V = 220, G = 9.81 * 2.2;
+    const pred = predictImpact({ x: 0, y: H, z: 0 }, { x: 0, y: 0, z: -V }, flatGround, G);
+    let y = H, vy = 0, z = 0, t = 0;
+    while (y > 0 && t < 60) { vy -= G * (1 / 60); z -= V * (1 / 60); y += vy * (1 / 60); t += 1 / 60; }
+    Check('predictImpact 与逐帧积分吻合', Math.abs(pred.z - z) < 25 && Math.abs(pred.time - t) < 0.35,
+          `pred z=${pred.z.toFixed(1)} t=${pred.time.toFixed(2)} | 数值 z=${z.toFixed(1)} t=${t.toFixed(2)}`);
+  }
+  Check('predictImpact 高空长时间未落地有标记', predictImpact({ x: 0, y: 4000, z: 0 }, { x: 0, y: 300, z: 0 }, flatGround, 9.81, 1).hit === false);
+  {
+    const bl = bombLaunchVelocity(new THREE.Vector3(0, 0, -1), new THREE.Vector3(0, 0, -200));
+    Check('bombLaunchVelocity 叠加前向初速', Math.abs(bl.z - (-240)) < 1e-6 && bl.y === 0, `z=${bl.z}`);
+    const bl2 = bombLaunchVelocity(new THREE.Vector3(0, 1, 0), new THREE.Vector3(10, 5, 0));
+    Check('bombLaunchVelocity 竖直投弹', Math.abs(bl2.y - 45) < 1e-6 && bl2.x === 10, `y=${bl2.y}`);
+  }
+
+  // ---------- 地形与高原（重塑后的世界） ----------
+  Check('中央高原标高 = 22', Math.abs(world.heightAt(0, 0) - 22) < 1e-9, `h=${world.heightAt(0, 0)}`);
+  Check('高原内完全平坦', Math.abs(world.heightAt(700, -500) - 22) < 1e-9);
+  Check('高原判定 onPlateau', world.onPlateau(0, 0) === true && world.onPlateau(3000, 3000) === false);
+  let plateauMaxDev = 0, fieldMax = 0;
+  for (let i = 0; i < 3000; i++) {
+    const a = Math.random() * Math.PI * 2, r = Math.random() * 880;
+    plateauMaxDev = Math.max(plateauMaxDev, Math.abs(world.heightAt(Math.cos(a) * r, Math.sin(a) * r) - 22));
+    const x = (Math.random() - 0.5) * 6400, z = (Math.random() - 0.5) * 6400;
+    fieldMax = Math.max(fieldMax, world.heightAt(x, z));
+  }
+  Check('高原 900m 内起伏 < 0.001m', plateauMaxDev < 1e-3, `dev=${plateauMaxDev.toExponential(2)}`);
+  Check('野外最高不超过 400m', fieldMax < 400, `max=${fieldMax.toFixed(0)}`);
+  Check('地形高度函数有限', fin(world.fieldHeight(123, -456)));
+
+  // ---------- 远景地平线与海面跟随 ----------
+  Check('地平线山脉已创建', !!world.horizon && world.horizon.geometry.attributes.position.count > 1000);
+  Check('远景 followers 已注册', world.followers.length >= 2);
+  const mtnH = world._horizonHeight(0.7, 8500);
+  Check('地平线山脊高度合理', mtnH >= 0 && mtnH <= 1800, `h=${mtnH.toFixed(0)}`);
+  const snapCam = new THREE.Object3D();
+  snapCam.position.set(1234, 500, -4321);
+  world.update(1 / 60, snapCam);
+  Check('海面按网格吸附跟随',
+        world.ocean.position.x % world._oceanStep === 0 && world.ocean.position.z % world._oceanStep === 0,
+        `(${world.ocean.position.x}, ${world.ocean.position.z})`);
+  Check('地平线随相机平移', Math.abs(world.horizon.position.x - 1234 * 0.92) < 1);
+  Check('海面高度随波浪微动', Math.abs(world.ocean.position.y) < 1);
+
+  // ---------- 战损系统 ----------
+  const pDmg = new PlayerAircraft(world.scene, {});
+  pDmg.position.set(0, 1500, 0); pDmg.speed = 220; pDmg.velocity.set(0, 0, -220); pDmg.syncMesh();
+  pDmg.damage(40);
+  Check('战损降低系统状态', pDmg.sysDamage > 0.3 && pDmg.smokeLevel > 0.3, `sys=${pDmg.sysDamage.toFixed(2)}`);
+  pDmg.throttle = 1; pDmg.inputs.pitch = 0;
+  for (let i = 0; i < 60; i++) pDmg.integrate(1 / 60);
+  const spdDamaged = pDmg.speed;
+  const pDmgFresh = new PlayerAircraft(world.scene, {});
+  pDmgFresh.position.set(0, 1500, 0); pDmgFresh.speed = 220; pDmgFresh.velocity.set(0, 0, -220);
+  pDmgFresh.syncMesh(); pDmgFresh.throttle = 1; pDmgFresh.inputs.pitch = 0;
+  for (let i = 0; i < 60; i++) pDmgFresh.integrate(1 / 60);
+  Check('受损后加速更慢', spdDamaged < pDmgFresh.speed, `${spdDamaged.toFixed(1)} vs ${pDmgFresh.speed.toFixed(1)}`);
+  const smokePool = new ParticlePool(200);
+  const dmgRng = new RNG(3);
+  pDmg.smokeT = 0;
+  pDmg.emitDamageSmoke(1 / 60, smokePool, dmgRng);
+  Check('受损冒黑烟生成粒子', smokePool.count > 0, `n=${smokePool.count}`);
+  pDmg.contrailOn = true; pDmg.trailT = 0;
+  const tipPool = new ParticlePool(50);
+  pDmg.emitWingtips(1 / 60, tipPool);
+  Check('翼尖拉烟生成两股', tipPool.count === 2, `n=${tipPool.count}`);
+  Check('完好静止机不冒烟', (() => {
+    const ok = new PlayerAircraft(world.scene, {});
+    const pl = new ParticlePool(10);
+    ok.emitDamageSmoke(1 / 60, pl, new RNG(1));
+    return pl.count === 0;
+  })());
+  Check('战损上限为 1', (() => { const z = new PlayerAircraft(world.scene, {}); z.damage(999); return z.sysDamage === 1; })());
+
+  // ---------- 机炮过热（真实升温/降温节流） ----------
+  const pH = new PlayerAircraft(world.scene, {});
+  pH.position.set(0, 1200, 0); pH.syncMesh();
+  const cH = new WeaponSystem(world.scene, world, new ParticlePool(120), null);
+  cH.attach(pH, []);
+  let overheatCallbacks = 0;
+  cH.onOverheat = () => { overheatCallbacks++; };
+  let shots = 0;
+  for (let i = 0; i < 60; i++) {
+    if (cH.firePlayerGun()) shots++;
+    pH.weapons.gunCooldown = 0;      // 模拟一直按住扳机
+    pH.update(1 / 60);
+  }
+  Check('连续开火触发过热', pH.gunOverheat === true, `shots=${shots} heat=${pH.weapons.gunHeat.toFixed(2)}`);
+  Check('过热回调只触发一次', overheatCallbacks === 1, `n=${overheatCallbacks}`);
+  Check('过热后拒绝开火', cH.firePlayerGun() === false);
+  Check('过热后需冷却解锁', (() => {
+    for (let i = 0; i < 300; i++) { pH.weapons.gunCooldown = 0; pH.update(1 / 60); }
+    return pH.gunOverheat === false;
+  })(), `heat=${pH.weapons.gunHeat.toFixed(2)}`);
+  Check('出膛弹数统计累加', cH.stats.fired > 0, `fired=${cH.stats.fired}`);
+  Check('命中率为 0..100', accuracy(cH.stats.hits, cH.stats.fired) <= 100);
+
+  // ---------- 命中标记 / 碎片 / 导弹尾烟 ----------
+  const cFX = new WeaponSystem(world.scene, world, new ParticlePool(400), null);
+  cFX._hitMarker(new THREE.Vector3(0, 1000, 0));
+  Check('命中标记精灵已生成', cFX.explosions.length === 1, `n=${cFX.explosions.length}`);
+  const fragPool = new ParticlePool(400);
+  const cFx2 = new WeaponSystem(world.scene, world, fragPool, null);
+  cFx2.explode(new THREE.Vector3(0, 1200, 0), 30, 2, 'player');
+  let fragCount = 0, sparkCount = 0;
+  for (let i = 0; i < fragPool.capacity; i++) {
+    if (!fragPool.alive[i]) continue;
+    if (fragPool.kind[i] === 2) fragCount++;
+    else if (fragPool.kind[i] === 0) sparkCount++;
+  }
+  Check('爆炸生成碎片粒子(kind=2)', fragCount >= 10, `frag=${fragCount}`);
+  Check('爆炸生成火花粒子(kind=0)', sparkCount >= 14, `spark=${sparkCount}`);
+  Check('爆炸回调通知地面目标', (() => {
+    let called = 0;
+    cFx2.onExplosion = () => { called++; };
+    cFx2.explode(new THREE.Vector3(0, 500, 0), 20, 1, 'player');
+    return called === 1;
+  })());
+  const mslSmoke = new ParticlePool(400);
+  const cMsl = new WeaponSystem(world.scene, world, mslSmoke, null);
+  const mslShooter = new PlayerAircraft(world.scene, {});
+  mslShooter.position.set(0, 1500, 0); mslShooter.syncMesh();
+  const mslTgt = new EnemyAircraft(world.scene, { variant: 'fighter', seed: 77 });
+  mslTgt.position.set(0, 1500, -3000); mslTgt.spawnGrace = 0; mslTgt.syncMesh();
+  cMsl.attach(mslShooter, [mslTgt]);
+  cMsl.firePlayerMissile(mslTgt);
+  mslSmoke.clear();
+  for (let i = 0; i < 30; i++) cMsl.update(1 / 60, { player: mslShooter, world });
+  Check('导弹飞行留下尾烟', mslSmoke.count > 0, `smoke=${mslSmoke.count}`);
+  Check('导弹发射计数', cMsl.stats.missilesFired === 1);
+
+  // ---------- 僚机 AI ----------
+  const allyPlayer = new PlayerAircraft(world.scene, {});
+  allyPlayer.position.set(0, 1500, 0); allyPlayer.speed = 220; allyPlayer.velocity.set(0, 0, -220);
+  allyPlayer.syncMesh();
+  const ally = new WingmanAircraft(world.scene, { side: -1, seed: 4 });
+  ally.position.set(-160, 1560, 120); ally.speed = 210; ally.velocity.copy(allyPlayer.velocity); ally.syncMesh();
+  const allyFoe = new EnemyAircraft(world.scene, { variant: 'fighter', seed: 31 });
+  allyFoe.position.set(-400, 1900, -2200); allyFoe.velocity.set(0, 0, 120); allyFoe.speed = 180;
+  allyFoe.syncMesh(); allyFoe.spawnGrace = 0;
+  let allyGunCalls = 0, allyMslCalls = 0;
+  const allyCtx = {
+    player: allyPlayer, world, enemies: [allyFoe],
+    fireGun: () => { allyGunCalls++; }, fireMissile: () => { allyMslCalls++; },
+  };
+  const allyFoeD0 = ally.position.distanceTo(allyFoe.position);
+  for (let i = 0; i < 600; i++) ally.update(1 / 60, allyCtx);
+  Check('僚机姿态数值有限', fin(ally.position.x) && fin(ally.quaternion.w) && fin(ally.speed));
+  Check('僚机进入交战/归队状态', ['engage', 'formation'].includes(ally.state), `state=${ally.state}`);
+  Check('僚机自动开火', allyGunCalls > 0, `calls=${allyGunCalls}`);
+  Check('僚机发射导弹', allyMslCalls > 0, `calls=${allyMslCalls}`);
+  Check('僚机朝敌机逼近', ally.position.distanceTo(allyFoe.position) < allyFoeD0,
+        `${allyFoeD0.toFixed(0)} -> ${ally.position.distanceTo(allyFoe.position).toFixed(0)}`);
+
+  const ally2 = new WingmanAircraft(world.scene, { side: 1, seed: 5 });
+  ally2.position.set(900, 1900, 900); ally2.speed = 200; ally2.velocity.set(0, 0, -200); ally2.syncMesh();
+  const followCtx = { player: allyPlayer, world, enemies: [] };
+  const dFollow0 = ally2.position.distanceTo(allyPlayer.position);
+  let dFollowMin = dFollow0;
+  for (let i = 0; i < 2400; i++) {
+    ally2.update(1 / 60, followCtx);
+    dFollowMin = Math.min(dFollowMin, ally2.position.distanceTo(allyPlayer.position));
+  }
+  const dFollow1 = ally2.position.distanceTo(allyPlayer.position);
+  Check('僚机归队（回到编队距离内）', dFollowMin < dFollow0 * 0.6,
+        `${dFollow0.toFixed(0)} -> 最近 ${dFollowMin.toFixed(0)} / 末态 ${dFollow1.toFixed(0)}`);
+  Check('僚机归队进入 formation', ally2.state === 'formation', `state=${ally2.state}`);
+  Check('僚机带编队偏移', ally2.formationOffset.x !== 0 && ally2.formationOffset.z > 0);
+  Check('无长机时僚机巡逻不崩溃', (() => {
+    const w3 = new WingmanAircraft(world.scene, { side: 1 });
+    w3.position.set(0, 1500, 0); w3.syncMesh();
+    for (let i = 0; i < 120; i++) w3.update(1 / 60, { player: null, world, enemies: [] });
+    return fin(w3.position.x) && fin(w3.speed);
+  })());
+
+  // 友军武器：僚机机炮命中敌机
+  const cAlly = new WeaponSystem(world.scene, world, new ParticlePool(300), null);
+  const shooterA = new PlayerAircraft(world.scene, {});
+  shooterA.position.set(0, 2000, 0); shooterA.syncMesh();
+  const allyWing = new WingmanAircraft(world.scene, { side: -1 });
+  allyWing.position.set(-60, 2000, 0); allyWing.syncMesh();
+  const foe2 = new EnemyAircraft(world.scene, { variant: 'fighter', seed: 41 });
+  foe2.position.set(-60, 2000, -700); foe2.velocity.set(0, 0, 0); foe2.speed = 0;
+  foe2.syncMesh(); foe2.spawnGrace = 0;
+  cAlly.attach(shooterA, [foe2], [allyWing]);
+  const foeHp0 = foe2.hp;
+  cAlly.fireAllyGun(allyWing, 6);
+  Check('僚机机炮可命中敌机', foe2.hp < foeHp0, `hp ${foeHp0} -> ${foe2.hp}`);
+  Check('僚机弹道标记为 ally', cAlly.tracers.some((t) => t.faction === 'ally'));
+  Check('僚机导弹可发射', (() => { const before = cAlly.stats.missilesFired; cAlly.fireAllyMissile(allyWing, foe2); return cAlly.stats.missilesFired === before + 1; })());
+
+  // 敌方机炮可命中僚机
+  const cEnemyVsAlly = new WeaponSystem(world.scene, world, new ParticlePool(300), null);
+  const eShooter = new EnemyAircraft(world.scene, { variant: 'fighter', seed: 51, skill: 1 });
+  eShooter.position.set(0, 2400, 0);
+  eShooter.quaternion.setFromEuler(new THREE.Euler(0, Math.PI, 0));   // 机头朝 +Z
+  eShooter.syncMesh();
+  const allyTarget = new WingmanAircraft(world.scene, { side: 1 });
+  allyTarget.position.set(0, 2400, 500); allyTarget.syncMesh(); allyTarget.spawnGrace = 0;
+  cEnemyVsAlly.attach(null, [eShooter], [allyTarget]);
+  const allyHp0 = allyTarget.hp;
+  // 只打少量几发：打多了僚机（90 HP）会当场阵亡，后面的「阵亡回调」就测不到了
+  for (let i = 0; i < 4; i++) cEnemyVsAlly.fireEnemyGun(eShooter, 1);
+  Check('敌机机炮命中僚机', allyTarget.hp < allyHp0, `hp ${allyHp0} -> ${allyTarget.hp.toFixed(0)}`);
+  Check('僚机阵亡回调触发', (() => {
+    let down = false;
+    cEnemyVsAlly.onAllyDown = () => { down = true; };
+    allyTarget.hp = 1;
+    cEnemyVsAlly.fireEnemyGun(eShooter, 8);
+    return down === true;
+  })());
+
+  // 僚机击落敌机回调
+  const cAllyKill = new WeaponSystem(world.scene, world, new ParticlePool(300), null);
+  const wingK = new WingmanAircraft(world.scene, { side: -1 });
+  wingK.position.set(0, 2600, 0); wingK.syncMesh();
+  const doomed = new EnemyAircraft(world.scene, { variant: 'fighter', seed: 61 });
+  doomed.position.set(0, 2600, -400); doomed.velocity.set(0, 0, 0); doomed.speed = 0;
+  doomed.hp = 3; doomed.syncMesh(); doomed.spawnGrace = 0;
+  cAllyKill.attach(null, [doomed], [wingK]);
+  let allyKill = null;
+  cAllyKill.onAlliedKill = (v, a) => { allyKill = a; };
+  cAllyKill.fireAllyGun(wingK, 8);
+  Check('僚机击杀回调带击杀者', allyKill === wingK && doomed.alive === false);
+
+  // ---------- 防空阵地（对地突击目标） ----------
+  Check('防空阵地已生成', !!world.flakSites && world.flakSites.length === 6,
+        `n=${world.flakSites ? world.flakSites.length : 0}`);
+  Check('防空阵地为独立网格', world.flakSites.every((s) => s.isObject3D === true && s.children.length >= 3));
+  Check('防空阵地落位到地形高度', world.flakSites.every((s) => {
+    const wp = world.siteWorldPos(s, new THREE.Vector3());
+    return Math.abs(wp.y - world.heightAt(wp.x, wp.z)) < 1;
+  }));
+  Check('防空阵地带旋转雷达', world.flakSites.every((s) => !!s.userData.radar));
+
+  // ---------- 地面高炮（AAA）----------
+  const flakWorld = new World(document.getElementById('mount'), 'low');
+  const flakPlayer = new PlayerAircraft(flakWorld.scene, {});
+  flakPlayer.position.set(0, 900, 0);
+  flakPlayer.velocity.set(0, 0, -200); flakPlayer.speed = 200; flakPlayer.syncMesh();
+  const flakFoeA = new EnemyAircraft(flakWorld.scene, { variant: 'fighter', seed: 5 });
+  flakFoeA.alive = false;
+  const flakC = new WeaponSystem(flakWorld.scene, flakWorld, new ParticlePool(400), null);
+  flakC.attach(flakPlayer, []);
+  const site0 = flakWorld.flakSites[0];
+  const sp0 = flakWorld.siteWorldPos(site0, new THREE.Vector3());
+  flakPlayer.position.set(sp0.x, 700, sp0.z);        // 飞越阵地上空
+  flakPlayer.syncMesh();
+  site0.userData.cool = 0;
+  flakC.updateFlak(1 / 60);
+  Check('高炮对低空目标开火', flakC.shells.length > 0, `shells=${flakC.shells.length}`);
+  Check('高炮射击计数', flakC.stats.flakFired > 0, `n=${flakC.stats.flakFired}`);
+  Check('高炮弹丸带速度与寿命', flakC.shells.every((s) => s.life > 0 && s.vel.length() > 100));
+  // 高空不应被锁定
+  flakC.shells.length = 0;
+  flakC.stats.flakFired = 0;
+  for (const s of flakWorld.flakSites) s.userData.cool = 0;
+  flakPlayer.position.set(sp0.x, 3000, sp0.z);
+  flakPlayer.syncMesh();
+  flakC.updateFlak(1 / 60);
+  Check('高炮不射击射高外目标', flakC.shells.length === 0, `shells=${flakC.shells.length}`);
+  // 弹丸飞行与命中判定
+  const nearC = new WeaponSystem(flakWorld.scene, flakWorld, new ParticlePool(200), null);
+  const nearP = new PlayerAircraft(flakWorld.scene, {});
+  const basePos = new THREE.Vector3(0, 800, 0);
+  nearP.position.copy(basePos); nearP.velocity.set(0, 0, 0); nearP.syncMesh();
+  nearC.attach(nearP, []);
+  const hpBeforeFlak = nearP.hp;
+  nearC.shells.push({
+    pos: basePos.clone().add(new THREE.Vector3(-6, 0, 0)),
+    vel: new THREE.Vector3(400, 0, 0), life: 3, owner: 'flak', damage: 6, site: null,
+  });
+  nearC._updateShells(1 / 60);
+  Check('高炮弹丸可命中玩家', nearP.hp < hpBeforeFlak, `hp ${hpBeforeFlak} -> ${nearP.hp}`);
+  Check('弹丸命中后被回收', nearC.shells.length === 0);
+  // 波次任务进度（纯函数）：各任务类型语义不同，曾经统一按「剩余敌机」算而长期显示 0%
+  {
+    const mk = (objs) => objs.map((o) => Object.assign({ alive: true, hp: 100, maxHp: 100, role: 'escort' }, o));
+    // 空域清扫：按击杀比例
+    Check('sweep 进度按剩余敌机算', missionProgress({ type: 'sweep' }, { enemies: mk([{}, {}, {}, {}]) }) === 0);
+    Check('sweep 一半被击落', missionProgress({ type: 'sweep' }, { enemies: mk([{}, { alive: false }, {}, { alive: false }]) }) === 0.5);
+    Check('sweep 全清 = 1', missionProgress({ type: 'sweep' }, { enemies: mk([{ alive: false }]) }) === 1);
+
+    // 对地突击：只看指定阵地
+    Check('strike 进度按指定阵地', missionProgress({ type: 'strike', flakTargets: 4 }, { enemies: [], flakTargetsDown: 1 }) === 0.25);
+    Check('strike 全摧毁 = 1', missionProgress({ type: 'strike', flakTargets: 2 }, { enemies: [], flakTargetsDown: 2 }) === 1);
+    Check('strike 不会超过 1', missionProgress({ type: 'strike', flakTargets: 2 }, { enemies: [], flakTargetsDown: 9 }) === 1);
+
+    // 王牌对决：看长机血量，长机活着绝不满
+    const ace = { type: 'ace', commander: { alive: true, hp: 100, maxHp: 100 } };
+    Check('ace 长机满血 → 0', missionProgress(ace, { enemies: mk([{}]) }) === 0);
+    ace.commander.hp = 50;
+    Check('ace 长机半血 → 0.425', Math.abs(missionProgress(ace, { enemies: mk([{}]) }) - 0.425) < 1e-9,
+          String(missionProgress(ace, { enemies: mk([{}]) })));
+    ace.commander.hp = 1;
+    Check('ace 长机濒死仍 < 1', missionProgress(ace, { enemies: mk([{}]) }) < 1);
+    const aceDead = { type: 'ace', commander: { alive: false, hp: 0, maxHp: 100 } };
+    Check('ace 长机阵亡后按剩余敌机算', missionProgress(aceDead, { enemies: mk([{}, { alive: false }]) }) === 0.5);
+    Check('ace 长机阵亡且全清 = 1', missionProgress(aceDead, { enemies: mk([{ alive: false }]) }) === 1);
+
+    // 拦截轰炸机：60% 看轰炸机存活 + 40% 看机场完好度
+    const esc = { type: 'escort', maxBaseLoss: 34 };
+    Check('escort 轰炸机全在且机场完好 → 0.4',
+      Math.abs(missionProgress(esc, { enemies: mk([{ role: 'bomber' }, { role: 'bomber' }]), base: 100 }) - 0.4) < 1e-9);
+    Check('escort 轰炸机全灭 → 1',
+      Math.abs(missionProgress(esc, { enemies: mk([{ role: 'bomber', alive: false }]), base: 100 }) - 1) < 1e-9);
+    Check('escort 机场被炸掉一半会掉进度',
+      missionProgress(esc, { enemies: mk([{ role: 'bomber' }]), base: 83 }) < missionProgress(esc, { enemies: mk([{ role: 'bomber' }]), base: 100 }));
+
+    // 机场防卫：70% 击杀 + 30% 机场完好
+    const def = { type: 'defend', maxBaseLoss: 30 };
+    Check('defend 进度受机场完好度影响',
+      Math.abs(missionProgress(def, { enemies: mk([{}, {}]), base: 85 }) - 0.15) < 1e-9,
+      String(missionProgress(def, { enemies: mk([{}, {}]), base: 85 })));
+    Check('defend 全清且机场满血 = 1',
+      Math.abs(missionProgress(def, { enemies: mk([{ alive: false }]), base: 100 }) - 1) < 1e-9);
+
+    // 空任务：视为已完成
+    Check('无任务时进度为 1', missionProgress(null, { enemies: [] }) === 1);
+  }
+
+  // 高炮命中率模型：必须随距离/高度递减、随机动递减，否则低空必死（对地突击波无法完成）
+  {
+    const p0 = flakHitProbability(0);
+    const p500 = flakHitProbability(500);
+    const p1500 = flakHitProbability(1500);
+    const p2700 = flakHitProbability(2700);
+    Check('高炮命中率：近距 > 中距 > 远距', p0 > p500 && p500 > p1500 && p1500 > p2700,
+          [p0, p500, p1500, p2700].map((v) => v.toFixed(3)).join(' > '));
+    Check('高炮命中率在 0..1 之间', [p0, p500, p1500, p2700].every((v) => v >= 0 && v <= 1));
+    Check('高炮命中率：远距也能压到很低', p2700 < 0.02, p2700.toFixed(4));
+    Check('高炮命中率：近距威胁显著', p0 > 0.5, p0.toFixed(3));
+    Check('高炮命中率：机动会降低命中率', flakHitProbability(1200, 5) < flakHitProbability(1200, 1));
+    Check('高炮命中率：静止 vs 1g 相同', flakHitProbability(1200, 0) === flakHitProbability(1200, 1));
+    Check('高炮命中率：超大半径必中', flakHitProbability(2800, 1, 1e6) === 1);
+    // 关键回归：不能在「玩家可实现的低空突防高度」上必死。
+    // 单发命中率 × 一个阵地的开火窗口（约 20s / 0.34s 间隔 ≈ 59 发）应远低于机体血量。
+    const passShots = 20 / FLAK.cooldown;
+    for (const alt of [600, 900, 1500]) {
+      const expected = flakHitProbability(alt) * passShots * FLAK.damage;
+      Check(`高度 ${alt}m 单阵地一次通场期望伤害 < 60`, expected < 60, expected.toFixed(1));
+    }
+    const lowExpected = flakHitProbability(150) * passShots * FLAK.damage;
+    Check('150m 超低空单阵地一次通场就足够危险（> 40）', lowExpected > 40, lowExpected.toFixed(1));
+    Check('超低空比中空危险得多', lowExpected > flakHitProbability(600) * passShots * FLAK.damage * 1.8,
+          `${lowExpected.toFixed(0)} vs ${(flakHitProbability(600) * passShots * FLAK.damage).toFixed(0)}`);
+  }
+
+  // 手柄映射（纯函数）：死区 / 摇杆→三轴 / 扳机→油门 / 按钮边沿
+
+  {
+    // 死区
+    Check('死区：小抖动归零', applyDeadzone(0.05) === 0 && applyDeadzone(-0.05) === 0);
+    Check('死区：满行程保持 ±1', applyDeadzone(1) === 1 && applyDeadzone(-1) === -1);
+    Check('死区：中段按比例重映射', Math.abs(applyDeadzone(0.57) - 0.5) < 1e-9, String(applyDeadzone(0.57)));
+    Check('死区：自定义阈值生效', applyDeadzone(0.3, 0.4) === 0 && applyDeadzone(0.5, 0.4) > 0);
+
+    // 摇杆 → 操纵量
+    const mkGP = (axes, pressed = []) => ({
+      axes,
+      buttons: Array.from({ length: 17 }, (_, i) => ({ pressed: pressed.includes(i), value: pressed.includes(i) ? 1 : 0 })),
+    });
+    const mid = gamepadAxes(mkGP([0, 0, 0, 0]));
+    Check('手柄居中 → 三轴为零', mid.pitch === 0 && mid.roll === 0 && mid.yaw === 0);
+    Check('手柄居中 → 不接管油门', mid.throttle === null);
+    const right = gamepadAxes(mkGP([0.9, 0, 0, 0]));
+    Check('左摇杆右推 → 右滚（roll > 0）', right.roll > 0.8, String(right.roll));
+    const downStick = gamepadAxes(mkGP([0, 0.9, 0, 0]));
+    Check('左摇杆下拉 → 推杆低头（pitch > 0）', downStick.pitch > 0.8, String(downStick.pitch));
+    Check('反转俯仰开关生效', gamepadAxes(mkGP([0, 0.9, 0, 0]), { invertPitch: true }).pitch < -0.8);
+    const yawRight = gamepadAxes(mkGP([0, 0, 0.9, 0]));
+    Check('右摇杆右拨 → 右偏航（yaw < 0）', yawRight.yaw < -0.8, String(yawRight.yaw));
+    Check('手柄无手柄对象时安全', gamepadAxes(null).yaw === 0);
+    Check('手柄缺 axes 字段不崩', gamepadAxes({}).roll === 0);
+
+    // 扳机 → 油门
+    Check('RT 满按 → 油门过 100%（可触加力）', gamepadAxes(mkGP([0, 0, 0, 0]), {}).throttle === null);
+    const rt = gamepadAxes({ axes: [0, 0, 0, 0], buttons: [{ value: 0 }, { value: 0 }, { value: 0 }, { value: 0 },
+      { value: 0 }, { value: 0 }, { value: 0 }, { value: 1 }] });
+    Check('RT 满按油门 > 1', rt.throttle > 1, String(rt.throttle));
+    const lt = gamepadAxes({ axes: [0, 0, 0, 0], buttons: [{ value: 0 }, { value: 0 }, { value: 0 }, { value: 0 },
+      { value: 0 }, { value: 0 }, { value: 1 }, { value: 0 }] });
+    Check('LT 满按油门降到最低', lt.throttle === 0.25 || lt.throttle < 0.3, String(lt.throttle));
+
+    // 按钮边沿检测
+    const held = new Set();
+    const b0 = gamepadButtons(mkGP([0, 0, 0, 0], []).buttons, held);
+    Check('未按任何键 → 无动作', !b0.gun && !b0.missile && !b0.pause);
+    const b1 = gamepadButtons(mkGP([0, 0, 0, 0], [PAD_BUTTON.B]).buttons, held);
+    Check('B 按下 → 触发发射（按下沿）', b1.missile === true);
+    const b2 = gamepadButtons(mkGP([0, 0, 0, 0], [PAD_BUTTON.B]).buttons, held);
+    Check('B 持续按住 → 不重复触发', b2.missile === false);
+    const b3 = gamepadButtons(mkGP([0, 0, 0, 0], []).buttons, held);
+    Check('B 松开 → 无动作', b3.missile === false);
+    const b4 = gamepadButtons(mkGP([0, 0, 0, 0], [PAD_BUTTON.B]).buttons, held);
+    Check('B 再按 → 可再次触发', b4.missile === true);
+    const bAll = gamepadButtons(mkGP([0, 0, 0, 0],
+      [PAD_BUTTON.A, PAD_BUTTON.X, PAD_BUTTON.Y, PAD_BUTTON.LB, PAD_BUTTON.RB, PAD_BUTTON.START,
+       PAD_BUTTON.DPAD_UP, PAD_BUTTON.DPAD_DOWN]).buttons, held);
+    Check('A/X/Y/LB/RB/START 均有映射',
+      bAll.gun && bAll.bomb && bAll.flare && bAll.cycleTarget && bAll.camera && bAll.pause);
+    Check('十字键上下映射为油门微调', bAll.throttleUp && bAll.throttleDown);
+    Check('数字按钮数组同样可用（部分浏览器）', gamepadButtons([0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], new Set()).bomb === true);
+    Check('按钮数组长度不足不崩', gamepadButtons([1], new Set()).gun === true && gamepadButtons([], new Set()).gun === false);
+  }
+
+  // HUD 模式归一化（含旧存档 on/off 迁移）
+
+  Check('HUD full 原样返回', hudModeOf('full') === 'full');
+  Check('HUD minimal 原样返回', hudModeOf('minimal') === 'minimal');
+  Check('HUD 旧值 on → auto', hudModeOf('on') === 'auto');
+  Check('HUD 旧值 off → minimal', hudModeOf('off') === 'minimal');
+  Check('HUD 未知值兜底 auto', hudModeOf(undefined) === 'auto' && hudModeOf('xxx') === 'auto');
+  Check('HUD 循环 auto→full→minimal→auto',
+    nextHudMode('auto') === 'full' && nextHudMode('full') === 'minimal' && nextHudMode('minimal') === 'auto');
+  Check('HUD 循环可从旧值进入', nextHudMode('off') === 'auto');
+
+  // 雷达旋转
+  const radarRef = site0.userData.radar;
+  const rot0 = radarRef.rotation.y;
+  site0.userData.cool = 999;
+  radarRef.rotation.y = 0;
+  flakWorld.update(0.5);   // 雷达旋转由 world.update 驱动（对空/对地都要转）
+  Check('高炮雷达持续旋转', radarRef.rotation.y > 0, `${rot0.toFixed(2)} -> ${radarRef.rotation.y.toFixed(2)}`);
+  // 命中通报回调
+  let flakHitInfo = null;
+  nearC.onFlakHit = (site, dmg, near) => { flakHitInfo = { site, dmg, near }; };
+  const nearP2 = new PlayerAircraft(flakWorld.scene, {});
+  nearP2.position.set(0, 800, 0); nearP2.velocity.set(0, 0, 0); nearP2.syncMesh();
+  nearC.attach(nearP2, []);
+  nearC.shells.push({
+    pos: new THREE.Vector3(-6, 800, 0), vel: new THREE.Vector3(400, 0, 0),
+    life: 3, owner: 'flak', damage: 6, site: flakWorld.flakSites[0],
+  });
+  nearC._updateShells(1 / 60);
+  Check('高炮命中触发通报回调', !!flakHitInfo && flakHitInfo.dmg === 6, JSON.stringify(flakHitInfo && flakHitInfo.dmg));
+  Check('高炮弹丸计入曳光阵营', (() => {
+    const c = new WeaponSystem(flakWorld.scene, flakWorld, new ParticlePool(50), null);
+    c._addTracer(new THREE.Vector3(), new THREE.Vector3(0, 0, -100), 'flak');
+    return c.tracers[0].faction === 'flak';
+  })());
+  // 提前量解算：炮弹应飞向目标「未来位置」，而不是当前位置
+  const aimC = new WeaponSystem(flakWorld.scene, flakWorld, new ParticlePool(50), null);
+  const pAim = new PlayerAircraft(flakWorld.scene, {});
+  const siteAim = flakWorld.flakSites[2];
+  // 只留一个阵地开火，否则 shells 里会混入其他阵地的弹丸
+  for (const s of flakWorld.flakSites) s.userData.alive = (s === siteAim);
+  const spAim = flakWorld.siteWorldPos(siteAim, new THREE.Vector3());
+  // 目标从阵地上方 700m 外、200m/s 横飞（垂直穿越射线方向）
+  pAim.position.set(spAim.x + 600, 600, spAim.z + 400);
+  pAim.velocity.set(0, 0, -200); pAim.speed = 200; pAim.syncMesh();
+  aimC.attach(pAim, []);
+  siteAim.userData.cool = 0;
+  aimC.updateFlak(1 / 60);
+  Check('高炮解算产生弹丸', aimC.shells.length === 2, `n=${aimC.shells.length}`);
+  if (aimC.shells.length) {
+    const sh = aimC.shells[0];
+    const toNow = pAim.position.clone().sub(spAim).normalize();
+    const shDir = sh.vel.clone().normalize();
+    Check('弹道指向目标前方（提前量非零）', shDir.dot(toNow) < 0.99999,
+          `dot=${shDir.dot(toNow).toFixed(6)}`);
+    Check('弹道方向朝向上半空', shDir.y > 0.2, `y=${shDir.y.toFixed(2)}`);
+    // 用与弹丸一致的重力模型外推，t 秒后应落在目标未来位置附近
+    const t = pAim.position.distanceTo(spAim) / 620;
+    const bp = sh.pos.clone().addScaledVector(sh.vel, t);
+    bp.y -= 0.5 * 9.81 * 2.2 * t * t;
+    const tp = pAim.position.clone().addScaledVector(pAim.velocity, t);
+    Check('弹丸可逼近目标未来位置', bp.distanceTo(tp) < 180,
+          `偏差=${bp.distanceTo(tp).toFixed(0)}m (t=${t.toFixed(2)}s)`);
+    // 反向验证：若不做提前量（直指当前位置），落点应明显偏后
+    const dirNow = pAim.position.clone().sub(sh.pos).normalize().multiplyScalar(620);
+    const wrong = sh.pos.clone().addScaledVector(dirNow, t);
+    wrong.y -= 0.5 * 9.81 * 2.2 * t * t;
+    Check('提前量确实修正了落点', wrong.distanceTo(tp) > bp.distanceTo(tp) * 1.5,
+          `无提前量偏差=${wrong.distanceTo(tp).toFixed(0)}m 有提前量=${bp.distanceTo(tp).toFixed(0)}m`);
+  }
+  // 收尾：恢复阵地存活状态，避免影响后续集成模拟
+  for (const s of flakWorld.flakSites) s.userData.alive = true;
+
+  Check('高炮弹丸被清空', (() => {
+    const c = new WeaponSystem(flakWorld.scene, flakWorld, new ParticlePool(50), null);
+    c.shells.push({ pos: new THREE.Vector3(), vel: new THREE.Vector3(), life: 1 });
+    c.clear();
+    return c.shells.length === 0;
+  })());
+
+
+  // ---------- 全系统集成压力测试 ----------
+  const fw = new World(document.createElement('div'), 'low');
+  const enemies = [];
+  for (let i = 0; i < 8; i++) {
+    const e = new EnemyAircraft(fw.scene, { variant: i % 4 === 3 ? 'bomber' : 'fighter', seed: 100 + i });
+    e.position.set((i - 4) * 400, 1400 + i * 60, -1500 - i * 100);
+    e.velocity.set(0, 0, 180); e.speed = 200; e.syncMesh();
+    enemies.push(e);
+  }
+  const fp = new PlayerAircraft(fw.scene, {});
+  fp.position.set(0, 1500, 700); fp.speed = 220; fp.velocity.set(0, 0, -220); fp.syncMesh();
+  const fpool = new ParticlePool(1500);
+  const fcombat = new WeaponSystem(fw.scene, fw, fpool, null);
+  const fAllies = [];
+  for (const side of [-1, 1]) {
+    const w = new WingmanAircraft(fw.scene, { side, seed: side + 9 });
+    w.position.copy(fp.position).add(new THREE.Vector3(side * 62, 12, 66));
+    w.speed = 210; w.velocity.copy(fp.velocity); w.syncMesh();
+    fAllies.push(w);
+  }
+  fcombat.attach(fp, enemies, fAllies);
+  fcombat.onKill = () => {};
+  fcombat.onAlliedKill = () => {};
+  fcombat.onAllyDown = () => {};
+
+  const timer = new FrameTimer();
+  const rngSim = new RNG(99);
+  let steps = 0, nanFound = false, groundClip = 0, allyNan = false;
+  const t0 = performance.now();
+  for (let i = 0; i < 1800; i++) {       // 30 秒模拟
+    const dt = 1 / 60;
+    fp.update(dt);
+    for (const e of enemies) {
+      if (!e.alive) continue;
+      e.update(dt, { player: fp, world: fw, aggressive: true, bomberTarget: new THREE.Vector3(0, 900, 0),
+        fireEnemyGun: () => {}, fireEnemyMissile: () => {}, releaseEnemyFlare: () => {}, dropEnemyBomb: () => {} });
+      if (fw.hitsGround(e.position, 1.5)) groundClip++;
+    }
+    if (i % 7 === 0) { fp.weapons.gunCooldown = 0; fcombat.firePlayerGun(); }
+    if (i % 240 === 0) { fp.weapons.missileCooldown = 0; fcombat.firePlayerMissile(enemies.find((e) => e.alive)); }
+    const allyRun = { player: fp, world: fw, enemies,
+      fireGun: (a, b) => fcombat.fireAllyGun(a, b), fireMissile: (a, t) => fcombat.fireAllyMissile(a, t) };
+    for (const a of fAllies) {
+      a.update(dt, allyRun);
+      a.emitDamageSmoke(dt, fpool, rngSim);
+      if (fw.hitsGround(a.position, 1.5)) a.alive = false;
+    }
+    fp.emitDamageSmoke(dt, fpool, rngSim);
+    fp.emitWingtips(dt, fpool);
+    fcombat.update(dt, { player: fp, world: fw });
+    fpool.update(dt);
+    fw.update(dt, fw.camera);
+    fw.clampToArena(fp.position);
+    if (!fin(fp.position.x) || !fin(fp.speed) || !fin(fp.quaternion.w)) { nanFound = true; break; }
+    for (const a of fAllies) if (!fin(a.position.x) || !fin(a.speed)) allyNan = true;
+    steps++;
+  }
+  const elapsed = performance.now() - t0;
+  Check('30 秒集成模拟无 NaN/Inf', !nanFound, `steps=${steps}`);
+  Check('集成模拟帧耗时 < 8ms/帧', elapsed / Math.max(1, steps) < 8,
+        `${(elapsed / steps).toFixed(2)} ms/frame`);
+  Check('曳光弹缓冲不溢出', fcombat.tracers.length <= fcombat.maxTracers + 4, `tracers=${fcombat.tracers.length}`);
+  Check('粒子池未泄漏', fpool.count <= fpool.capacity);
+  Check('导弹实体有界', fcombat.missiles.length < 40, `missiles=${fcombat.missiles.length}`);
+  Check('集成模拟僚机无 NaN', !allyNan, `allies=${fAllies.filter((a) => a.alive).length}/${fAllies.length}`);
+  Check('僚机在集成模拟中存活', fAllies.some((a) => a.alive));
+  Check('粒子池种类包含轨迹烟', (() => {
+    for (let i = 0; i < fpool.capacity; i++) if (fpool.alive[i] && fpool.kind[i] === 1) return true;
+    return false;
+  })());
+
+  // 渲染一帧，确认 WebGL 管线不抛错
+  let rendered = false;
+  try { fw.render(); rendered = true; } catch (e) { lines.push('render error: ' + e.message); }
+  Check('WebGL 渲染一帧成功', rendered);
+
+  // 资源释放不抛错
+  let disposed = false;
+  try { fcombat.dispose(); disposed = true; } catch (e) { lines.push('dispose error: ' + e.message); }
+  Check('武器系统可安全释放', disposed);
+
+  // ===================================================================
+  // 回归：连锁引爆与数组并发修改
+  //   · explode() 会连锁引爆附近弹药并在循环内 splice 数组，
+  //     曾经导致 (a) 无限递归栈溢出 (b) list[i] 变 undefined 抛错
+  // ===================================================================
+  {
+    const cw = new World(document.getElementById('out'), 'low');
+    const cpool = new ParticlePool(300);
+    const cc = new WeaponSystem(cw.scene, cw, cpool, null);
+    const mkBomb = (x) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
+      const pos = new THREE.Vector3(x, 900, 0);
+      const b = { mesh, pos, vel: new THREE.Vector3(), owner: 'player', life: 30,
+                  spin: new THREE.Vector3(), damage: 200, splash: 110 };
+      cw.scene.add(mesh);
+      cc.bombs.push(b);
+      return b;
+    };
+    // ① 同点两枚炸弹：不应栈溢出
+    mkBomb(0); mkBomb(12);
+    let chained = true;
+    try { cc.explode(new THREE.Vector3(0, 900, 0), 30, 1.5, 'player', 0, 0); }
+    catch (e) { chained = false; lines.push('chain error: ' + e.message); }
+    Check('连锁引爆不栈溢出', chained);
+    Check('连锁引爆清空邻近炸弹', cc.bombs.length === 0, `剩余 ${cc.bombs.length}`);
+
+    // ② 一串等距炸弹（每枚都在前一枚的殉爆半径内），单次引爆应逐级串下去。
+    //    间距 90m 恰好等于最小殉爆半径，7 枚要串到第 7 级，用来验证深度上限够用。
+    const pts = [0, 90, 180, 270, 360, 450, 540].map((x) => mkBomb(x));
+    cc.explode(pts[0].pos.clone(), 30, 1.5, 'player', 0, 0);
+    Check('等距弹链逐级殉爆（7 枚全清）', cc.bombs.length === 0, `剩余 ${cc.bombs.length}`);
+
+    // ②b 超长弹链：深度上限必须拦住，而不是无限递归（40 枚 × 90m = 3.6km）
+    let deepOk = true;
+    const longChain = [];
+    for (let i = 0; i < 40; i++) longChain.push(mkBomb(i * 90));
+    let chainThrew = '';
+    try { cc.explode(new THREE.Vector3(0, 900, 0), 30, 1.5, 'player', 0, 0); }
+    catch (e) { deepOk = false; chainThrew = e.message; }
+    Check('超长弹链不栈溢出（深度上限生效）', deepOk, chainThrew || `剩余 ${cc.bombs.length}/40`);
+    Check('深度上限内应清掉一大截', cc.bombs.length <= 30, `剩余 ${cc.bombs.length}/40`);
+    Check('引爆结束后连锁深度归零', cc._chainDepth === 0, String(cc._chainDepth));
+    cc.bombs.length = 0;
+
+    // ③ 循环内数组被并发修改：_updateBombs / _updateMissiles 不得抛错
+    //    构造「炸弹 A 落在炸弹 B 上」的场面：A 命中爆炸会连带移除 B
+    const a1 = mkBomb(0);
+    a1.pos.set(0, cw.heightAt(0, 0) + 1, 0);
+    a1.vel.set(0, -50, 0);
+    const a2 = mkBomb(20);
+    a2.pos.set(20, cw.heightAt(20, 0) + 1, 0);
+    let bombLoopOk = true;
+    try { cc._updateBombs(1 / 60, {}); } catch (e) { bombLoopOk = false; lines.push('bomb loop error: ' + e.message); }
+    Check('炸弹循环容忍数组并发修改', bombLoopOk, `剩余 ${cc.bombs.length}`);
+    Check('同帧落地的邻近炸弹一并殉爆', cc.bombs.length === 0, `剩余 ${cc.bombs.length}`);
+
+    // ③b 循环内数组被掏空：直接模拟「炸弹被更早的爆炸全部带走」的极端时序
+    const b1 = mkBomb(0);
+    let shrinkOk = true;
+    try {
+      // 先把数组清空再跑循环：下标越界时 list[i] 为 undefined，必须安全跳过
+      cc.bombs.length = 0;
+      cc._updateBombs(1 / 60, {});
+      cc.bombs.push(b1);
+      cc._updateBombs(1 / 60, {});
+    } catch (e) { shrinkOk = false; lines.push('shrink loop error: ' + e.message); }
+    Check('炸弹数组被掏空后循环不抛错', shrinkOk);
+    cc.bombs.length = 0;
+
+    // ④ 同帧多枚导弹命中同一目标：第一枚打爆目标，后续导弹转为「失去目标」
+    const tgt = new EnemyAircraft(cw.scene, { variant: 'fighter', seed: 7 });
+    tgt.position.set(0, 1500, 0); tgt.syncMesh();
+    cc.attach(null, [tgt], []);
+    for (let i = 0; i < 4; i++) cc._spawnMissile({
+      position: new THREE.Vector3(i * 5, 1500, -20), velocity: new THREE.Vector3(),
+      getUp: (o) => o.set(0, 1, 0), getForward: (o) => o.set(0, 0, 1),
+    }, tgt, 'player');
+    Check('同帧多发导弹已生成', cc.missiles.length === 4, `n=${cc.missiles.length}`);
+    let mslOk = true;
+    try { for (let f = 0; f < 90; f++) cc._updateMissiles(1 / 60, {}); }
+    catch (e) { mslOk = false; lines.push('missile loop error: ' + e.message); }
+    Check('导弹循环容忍目标同帧死亡', mslOk);
+    Check('命中后导弹实体收敛', cc.missiles.length <= 4, `n=${cc.missiles.length}`);
+    Check('失效目标的导弹已清空引用',
+      cc.missiles.every((m) => m.target === null || (m.target && m.target.alive !== false)));
+
+    // ⑤ 高炮弹丸循环：命中引发爆炸时也不得抛错
+    const shellC = new WeaponSystem(cw.scene, cw, cpool, null);
+    shellC.attach(null, [], []);
+    for (let i = 0; i < 3; i++) {
+      shellC.shells.push({ pos: new THREE.Vector3(0, 800 - i * 4, 0), vel: new THREE.Vector3(0, -60, 0),
+                           life: 3, owner: 'flak', damage: 6, site: null });
+    }
+    let shellOk = true;
+    try { for (let f = 0; f < 120; f++) shellC._updateShells(1 / 60); }
+    catch (e) { shellOk = false; lines.push('shell loop error: ' + e.message); }
+    Check('高炮弹丸循环不抛错', shellOk);
+
+    // ⑥ 高炮在「没有相机」时开火不崩（updateFlak 的 listener 兜底）
+    const st0 = cw.flakSites[0];
+    const fw2 = new WeaponSystem(cw.scene, cw, cpool, null);
+    const dummy = new PlayerAircraft(cw.scene, {});
+    const sp0b = cw.siteWorldPos(st0, new THREE.Vector3());
+    dummy.position.set(sp0b.x, 700, sp0b.z); dummy.velocity.set(0, 0, 0); dummy.syncMesh();
+    fw2.attach(dummy, [], []);
+    st0.userData.cool = 0;
+    let flakOk = true;
+    try { fw2.updateFlak(1 / 60); fw2.updateFlak(1 / 60, null); }
+    catch (e) { flakOk = false; lines.push('flak error: ' + e.message); }
+    Check('高炮无相机时开火不崩', flakOk && fw2.shells.length > 0, `shells=${fw2.shells.length}`);
+    // 听音位置可显式传入（主程序走的是 ctx.camera 这条路）
+    let flakOk2 = true;
+    try { fw2.updateFlak(1 / 60, cw.camera); } catch (e) { flakOk2 = false; lines.push('flak cam error: ' + e.message); }
+    Check('高炮可接受显式相机参数', flakOk2);
+
+    // ⑦ world.update 允许不传相机（自测/离屏回落到世界自带相机）
+    let updOk = true;
+    try { cw.update(1 / 60); } catch (e) { updOk = false; lines.push('world.update error: ' + e.message); }
+    Check('world.update 缺省相机可用', updOk);
+
+    cc.dispose(); shellC.dispose(); fw2.dispose(); cw.dispose();
+  }
+
+  // 分阶段计时
+  lines.push(`\n性能: 集成模拟 ${(elapsed / steps).toFixed(2)} ms/帧 (${steps} 帧)`);
+  lines.push(`几何: 敌机 ${enemies.length} 架，粒子 ${fpool.count}/${fpool.capacity}`);
+}
+
+run().then(() => {
+  lines.unshift(fail === 0 ? '=== ALL PASS ===' : `=== ${fail} FAILED ===`);
+  document.getElementById('out').textContent =
+    lines.join('\n') + `\n\nPASS=${pass} FAIL=${fail}\n`;
+  document.title = fail === 0 ? `RESULT_OK_${pass}` : `RESULT_FAIL_${fail}`;
+}).catch((e) => {
+  document.getElementById('out').textContent = lines.join('\n') + '\n\nEXCEPTION: ' + (e && e.stack || e);
+  document.title = 'RESULT_EXCEPTION';
+});
+</script>
+</body>
+</html>

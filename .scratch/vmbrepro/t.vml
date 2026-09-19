@@ -1,0 +1,3 @@
+main:
+    move R1 [R12+100000]
+    ret

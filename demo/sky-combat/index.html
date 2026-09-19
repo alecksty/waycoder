@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>雷霆空战 · SKY STRIKE 3D</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- 3D 画布挂载点 -->
+  <div id="mount"></div>
+
+  <!-- ==================== 加载屏 ==================== -->
+  <div id="loading" class="screen">
+    <div class="load-box">
+      <h1 class="logo">SKY<span>STRIKE</span></h1>
+      <p class="logo-sub">雷 霆 空 战 · 3D</p>
+      <div class="bar"><div class="bar-fill" id="loadFill"></div></div>
+      <p class="tip" id="loadTip">正在装配战机与生成 3D 战场…</p>
+    </div>
+  </div>
+
+  <!-- ==================== 主菜单 ==================== -->
+  <div id="menu" class="screen hidden">
+    <div class="scanlines"></div>
+    <div class="menu-wrap">
+      <h1 class="logo big">SKY<span>STRIKE</span></h1>
+      <p class="tagline">驾驶 F-32「雷霆」战机突入敌空，摧毁空中与地面目标</p>
+
+      <div class="menu-grid">
+        <button class="btn primary" id="btnStart">▶ 开始任务</button>
+        <button class="btn" id="btnHelp">? 操作说明</button>
+        <button class="btn" id="btnHangar">⚙ 机库设置</button>
+        <button class="btn" id="btnBoard">🏆 战绩记录</button>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat"><span>最高分</span><b id="bestScore">0</b></div>
+        <div class="stat"><span>总击落</span><b id="totalKills">0</b></div>
+        <div class="stat"><span>出击次数</span><b id="totalSorties">0</b></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 游戏 HUD ==================== -->
+  <div id="hud" class="hidden">
+    <!-- 抬头显示器（只有背景色，其余用 canvas 绘制） -->
+    <canvas id="hmd"></canvas>
+
+    <!-- 左上：战机状态 -->
+    <div class="panel tl">
+      <div class="row"><span class="lbl">机体完整度</span><b id="hpTxt">100%</b></div>
+      <div class="meter"><div class="meter-fill hp" id="hpBar"></div></div>
+      <div class="row"><span class="lbl">推力</span><b id="thrTxt">0%</b></div>
+      <div class="meter"><div class="meter-fill thr" id="thrBar"></div></div>
+      <div class="row"><span class="lbl">燃油</span><b id="fuelTxt">100%</b></div>
+      <div class="meter"><div class="meter-fill fuel" id="fuelBar"></div></div>
+      <div class="row small"><span>高度</span><b id="altTxt">0 m</b></div>
+      <div class="row small"><span>空速</span><b id="spdTxt">0 km/h</b></div>
+      <div class="row small"><span>机场完好</span><b id="baseTxt">100%</b></div>
+      <div class="meter thin"><div class="meter-fill obj" id="baseBar"></div></div>
+    </div>
+
+    <!-- 顶部中：任务信息 -->
+    <div class="panel tc">
+      <div class="row"><span class="lbl">任务</span><b id="missionTxt">空域清扫</b></div>
+      <div class="row small"><span>目标</span><b id="objTxt">清除空域内全部敌机</b></div>
+      <div class="meter thin"><div class="meter-fill obj" id="objBar"></div></div>
+      <div class="row small"><span>进度</span><b id="objHint">—</b></div>
+      <div class="row small"><span>剩余敌机</span><b id="enemyTxt">0</b></div>
+      <div class="row small"><span>僚机</span><b id="allyTxt">2/2</b></div>
+      <div class="row small"><span>僚机指令</span><b id="allyOrderTxt">编队跟随</b></div>
+      <div class="row small"><span>战场时间</span><b id="timeTxt">00:00</b></div>
+      <div class="row small"><span>得分</span><b id="scoreTxt">0</b></div>
+    </div>
+
+    <!-- 顶部：王牌机血条 -->
+    <div class="boss-bar hidden" id="bossBarWrap">
+      <span id="bossName">敌方长机</span>
+      <div class="boss-meter"><div class="boss-fill" id="bossBar"></div></div>
+    </div>
+
+    <!-- 右上：雷达 -->
+    <div class="panel tr">
+      <div class="radar-title">雷达 · 20 KM</div>
+      <canvas id="radar" width="180" height="180"></canvas>
+    </div>
+
+    <!-- 左下：武器 -->
+    <div class="panel bl">
+      <div class="wrow"><span class="wkey">1 机炮</span><b id="gunTxt">∞</b></div>
+      <div class="meter thin"><div class="meter-fill heat" id="gunHeatBar"></div></div>
+      <div class="wrow"><span class="wkey">2 导弹</span><b id="missileTxt">6</b></div>
+      <div class="wrow"><span class="wkey">3 炸弹</span><b id="bombTxt">3</b></div>
+      <div class="wrow"><span class="wkey">4 干扰弹</span><b id="flareTxt">5</b></div>
+      <div class="wrow active" id="weaponActive"><span class="wkey">当前武器</span><b id="weaponTxt">机炮</b></div>
+    </div>
+
+    <!-- 右下：锁定目标 -->
+    <div class="panel br" id="targetPanel">
+      <div class="radar-title">锁定目标</div>
+      <div class="row small"><span>型号</span><b id="tgtType">—</b></div>
+      <div class="row small"><span>距离</span><b id="tgtDist">—</b></div>
+      <div class="row small"><span>接近率</span><b id="tgtClosure">—</b></div>
+      <div class="row small"><span>目标血量</span><b id="tgtHp">—</b></div>
+    </div>
+
+    <!-- 中心提示 / 连杀 / 警告 -->
+    <div id="centerMsg" class="center-msg hidden"></div>
+    <div id="combo" class="combo hidden"></div>
+    <div id="warn" class="warn hidden">⚠ 失速警告 · PULL UP</div>
+    <div id="warnPanel" class="warn-panel">
+      <span id="warnRwr">RWR 导弹</span>
+      <span id="warnFlak">AAA 高炮</span>
+      <span id="warnStall">STALL</span>
+      <span id="warnFuel">FUEL 燃油</span>
+      <span id="warnBase">BASE 机场</span>
+      <span id="warnGear">减速板</span>
+    </div>
+    <div id="rearmTip" class="rearm-tip hidden"></div>
+    <div id="damageFlash" class="damage-flash"></div>
+    <div id="killFeed" class="kill-feed"></div>
+  </div>
+
+  <!-- ==================== 暂停 ==================== -->
+  <div id="pause" class="overlay hidden">
+    <div class="dialog">
+      <h2>任务暂停</h2>
+      <button class="btn primary" id="btnResume">▶ 继续任务</button>
+      <button class="btn" id="btnRestartPause">↻ 重新出击</button>
+      <button class="btn" id="btnQuit">⌂ 返回主菜单</button>
+    </div>
+  </div>
+
+  <!-- ==================== 操作说明 ==================== -->
+  <div id="help" class="overlay hidden">
+    <div class="dialog wide">
+      <h2>操作说明</h2>
+      <div class="keys">
+        <div class="k"><kbd>W</kbd>/<kbd>↑</kbd><span>推杆俯冲</span></div>
+        <div class="k"><kbd>S</kbd>/<kbd>↓</kbd><span>拉杆爬升</span></div>
+        <div class="k"><kbd>A</kbd><kbd>D</kbd>/<kbd>←</kbd><kbd>→</kbd><span>横滚转向</span></div>
+        <div class="k"><kbd>Q</kbd><kbd>E</kbd><span>方向舵偏航</span></div>
+        <div class="k"><kbd>Shift</kbd><span>加力燃烧（耗油）</span></div>
+        <div class="k"><kbd>Ctrl</kbd><span>减速板</span></div>
+        <div class="k"><kbd>空格</kbd>/<kbd>左键</kbd><span>机炮开火</span></div>
+        <div class="k"><kbd>F</kbd>/<kbd>右键</kbd><span>发射导弹（需锁定）</span></div>
+        <div class="k"><kbd>B</kbd><span>投掷炸弹</span></div>
+        <div class="k"><kbd>C</kbd><span>释放干扰弹</span></div>
+        <div class="k"><kbd>R</kbd><span>切换武器 / 按住 = 跑道补给</span></div>
+        <div class="k"><kbd>鼠标移动</kbd><span>自由视角</span></div>
+        <div class="k"><kbd>Tab</kbd><span>循环切换锁定目标</span></div>
+        <div class="k"><kbd>X</kbd><span>僚机指令（跟随/攻击/护卫）</span></div>
+        <div class="k"><kbd>H</kbd><span>HUD 模式（自动 / 完整 / 简化）</span></div>
+        <div class="k"><kbd>U</kbd><span>单位制（米·公里 ⇄ 英尺·节·海里）</span></div>
+        <div class="k"><kbd>M</kbd><span>静音开关</span></div>
+        <div class="k"><kbd>V</kbd><span>切换视角（追尾/座舱/电影/观察）</span></div>
+        <div class="k"><kbd>Z</kbd><span>视角复位</span></div>
+        <div class="k"><kbd>P</kbd>/<kbd>Esc</kbd><span>暂停</span></div>
+        <div class="k"><kbd>F3</kbd><span>调试信息（帧率 / 实体数）</span></div>
+        <div class="k pad"><kbd>手柄</kbd><span>左摇杆飞行 · 右摇杆偏航 · RT/A 机炮 · B 导弹 · X 炸弹 · Y 干扰弹 · LB/RB 锁定 / 视角 · Start 暂停</span></div>
+        <div class="k pad"><kbd>手柄油门</kbd><span>LT 收油 · RT 加油（推满触加力）· 十字键上下微调</span></div>
+      </div>
+      <p class="hint">红色方框 = 已锁定目标 · 黄框 = 视野内敌机 · 绿框 = 僚机 · 橘色 ⊕ = 高炮阵地<br>
+        导弹需在锁定后发射 · 机炮会过热，注意点射 · 中弹冒黑烟表示机体受损，操控与推力都会下降<br>
+        投弹时按 <kbd>B</kbd> 后，HUD 会显示落点准星（⊕）与预计弹着时间，对准目标再投<br>
+        <b>注意低空</b>：战场外圈有 6 处敌方高炮阵地，2100m 以下会被锁定射击，<kbd>Shift</kbd> 爬升或提前投放炸弹清除<br>
+        <b>燃油与补给</b>：加力燃烧耗油（约 3.5 倍），油量低于 18% 会告警；沿跑道对正低空飞行并按住 <kbd>R</kbd> 可补满油弹<br>
+        <b>机场设施</b>：跑道旁的油库 / 弹药库 / 机库被炸会损失机场完好度，弹药库还会殉爆连锁<br>
+        <b>任务类型</b>：空域清扫（全歼）/ 拦截轰炸机（保住机场）/ 王牌对决（击落长机）/ 对地突击（炸弹摧毁阵地）/ 机场防卫（击落对地攻击机）</p>
+      <button class="btn primary" id="btnHelpClose">知道了</button>
+    </div>
+  </div>
+
+  <!-- ==================== 机库设置 ==================== -->
+  <div id="hangar" class="overlay hidden">
+    <div class="dialog">
+      <h2>机库设置</h2>
+      <div class="opt">
+        <label>画质</label>
+        <div class="seg" id="segQuality">
+          <button data-v="low">低</button><button data-v="mid" class="on">中</button><button data-v="high">高</button>
+        </div>
+      </div>
+      <div class="opt">
+        <label>音效</label>
+        <div class="seg" id="segAudio">
+          <button data-v="on" class="on">开</button><button data-v="off">关</button>
+        </div>
+      </div>
+      <div class="opt">
+        <label>操纵方式</label>
+        <div class="seg" id="segCtrl">
+          <button data-v="normal" class="on">标准</button><button data-v="arcade">街机(自动改平)</button>
+        </div>
+      </div>
+      <div class="opt">
+        <label>难度</label>
+        <div class="seg" id="segDiff">
+          <button data-v="easy">简单</button><button data-v="normal" class="on">普通</button><button data-v="hard">困难</button>
+        </div>
+      </div>
+      <div class="opt">
+        <label>僚机</label>
+        <div class="seg" id="segWing">
+          <button data-v="on" class="on">带僚机</button><button data-v="off">单机出击</button>
+        </div>
+      </div>
+      <div class="opt">
+        <label>单位</label>
+        <div class="seg" id="segUnits">
+          <button data-v="metric" class="on">米 · 公里</button><button data-v="imperial">英尺 · 节 · 海里</button>
+        </div>
+      </div>
+      <div class="opt">
+        <label>HUD</label>
+        <div class="seg" id="segHud">
+          <button data-v="auto" class="on">自动</button><button data-v="full">完整</button><button data-v="minimal">简化</button>
+        </div>
+      </div>
+      <p class="hint">更改后立即生效并保存到本地。难度影响机体血量、携弹量与敌机技能。单位制只影响显示，物理量始终按公制计算。</p>
+      <button class="btn primary" id="btnHangarClose">返回</button>
+    </div>
+  </div>
+
+  <!-- ==================== 战绩记录 ==================== -->
+  <div id="board" class="overlay hidden">
+    <div class="dialog wide">
+      <h2>战绩记录</h2>
+      <div id="boardList" class="board-list"></div>
+      <button class="btn primary" id="btnBoardClose">返回</button>
+    </div>
+  </div>
+
+  <!-- ==================== 任务结算 ==================== -->
+  <div id="result" class="overlay hidden">
+    <div class="dialog">
+      <h2 id="resultTitle">任务完成</h2>
+      <p class="result-sub" id="resultSub">所有敌机已被击落</p>
+      <div class="result-grid">
+        <div><span>得分</span><b id="resScore">0</b></div>
+        <div><span>击落</span><b id="resKills">0</b></div>
+        <div><span>命中率</span><b id="resAcc">0%</b></div>
+        <div><span>存活时间</span><b id="resTime">0s</b></div>
+        <div><span>最大连杀</span><b id="resCombo">0</b></div>
+        <div><span>剩余机体</span><b id="resHp">0%</b></div>
+        <div><span>导弹命中</span><b id="resMsl">0/0</b></div>
+        <div><span>机场完好度</span><b id="resBase">100%</b></div>
+        <div><span>僚机存活</span><b id="resAlly">0</b></div>
+        <div><span>地面设施</span><b id="resFacility">完好 100%</b></div>
+      </div>
+      <button class="btn primary" id="btnAgain">↻ 再次出击</button>
+      <button class="btn" id="btnResultMenu">⌂ 返回主菜单</button>
+    </div>
+  </div>
+
+  <!-- 浮动提示 -->
+  <div id="toasts" class="toasts"></div>
+
+  <!-- Three.js ES Module 导入映射 -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

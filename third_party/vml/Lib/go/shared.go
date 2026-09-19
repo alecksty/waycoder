@@ -4764,6 +4764,93 @@ func ui_circle_grad(a0 int32, a1 int32, a2 int32, a3 int32) {
     vml.Call("ui_circle_grad")
 }
 
+func ui_brush_solid(a0 int32) int32 {
+    vml.Call("ui_brush_solid")
+    return vml.R0()
+}
+
+func ui_brush_linear(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) int32 {
+    vml.Call("ui_brush_linear")
+    return vml.R0()
+}
+
+func ui_brush_radial(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) int32 {
+    vml.Call("ui_brush_radial")
+    return vml.R0()
+}
+
+func ui_brush_named(a0 int32) int32 {
+    vml.Call("ui_brush_named")
+    return vml.R0()
+}
+
+func ui_set_fill(a0 int32) int32 {
+    vml.Call("ui_set_fill")
+    return vml.R0()
+}
+
+func ui_set_pen(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) int32 {
+    vml.Call("ui_set_pen")
+    return vml.R0()
+}
+
+func ui_set_text_brush(a0 int32) int32 {
+    vml.Call("ui_set_text_brush")
+    return vml.R0()
+}
+
+func ui_draw_rect(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
+    vml.Call("ui_draw_rect")
+}
+
+func ui_draw_circle(a0 int32, a1 int32, a2 int32) {
+    vml.Call("ui_draw_circle")
+}
+
+func ui_draw_ellipse(a0 int32, a1 int32, a2 int32, a3 int32) {
+    vml.Call("ui_draw_ellipse")
+}
+
+func ui_draw_line(a0 int32, a1 int32, a2 int32, a3 int32) {
+    vml.Call("ui_draw_line")
+}
+
+func ui_draw_poly(a0 int32, a1 int32, a2 int32) {
+    vml.Call("ui_draw_poly")
+}
+
+func ui_draw_path(a0 int32) {
+    vml.Call("ui_draw_path")
+}
+
+func ui_draw_text(a0 int32, a1 int32, a2 int32) {
+    vml.Call("ui_draw_text")
+}
+
+func ui_ellipse_grad(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
+    vml.Call("ui_ellipse_grad")
+}
+
+func ui_draw_star(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32, a5 int32) {
+    vml.Call("ui_draw_star")
+}
+
+func ui_draw_regular(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
+    vml.Call("ui_draw_regular")
+}
+
+func ui_draw_ring(a0 int32, a1 int32, a2 int32, a3 int32) {
+    vml.Call("ui_draw_ring")
+}
+
+func ui_draw_pie(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) {
+    vml.Call("ui_draw_pie")
+}
+
+func ui_draw_heart(a0 int32, a1 int32, a2 int32) {
+    vml.Call("ui_draw_heart")
+}
+
 func ui_beep(a0 int32, a1 int32) {
     vml.Call("ui_beep")
 }

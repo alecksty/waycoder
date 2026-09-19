@@ -1,0 +1,73 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>probe8</title>
+<style>body{background:#111;color:#ddd;font:12px monospace;white-space:pre}</style></head>
+<body><div id="mount" style="width:700px;height:420px"></div>
+<pre id="out">running…</pre>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+// 高炮威胁曲线：用「匀速直线飞行的靶标」量高炮伤害，避免被飞行力学干扰。
+// 期望：低空危险但不至于必死，越高越安全，2100m 以上完全无威胁。
+import * as THREE from 'three';
+import { World } from './js/world.js';
+import { WeaponSystem } from './js/weapons.js';
+import { ParticlePool } from './js/utils.js';
+const L = [];
+const out = document.getElementById('out');
+
+// 极简靶标：只要满足武器系统需要的接口即可
+function makeTarget() {
+  return {
+    alive: true, hp: 1000, maxHp: 1000, radius: 9, gLoad: 1, variant: 'fighter',
+    position: new THREE.Vector3(), velocity: new THREE.Vector3(),
+    livery: null, quaternion: new THREE.Quaternion(),
+    damage(a) { this.hp -= a; if (this.hp <= 0) { this.hp = 0; this.alive = false; return true; } return false; },
+  };
+}
+
+function trial(alt, speed, damageScale = 1) {
+  const w = new World(document.getElementById('mount'), 'low');
+  const wp = new WeaponSystem(w.scene, w, new ParticlePool(300), null);
+  const site = w.flakSites[0];
+  const sp = w.siteWorldPos(site, new THREE.Vector3());
+  const tgt = makeTarget();
+  wp.attach(tgt, [], []);
+  wp.flakDamageScale = damageScale;
+  for (const s of w.flakSites) s.userData.cool = 0;
+  tgt.position.set(sp.x, sp.y + alt, sp.z + 5000);
+  tgt.velocity.set(0, 0, -speed);
+  let t = 0, firstHit = null;
+  const DT = 1 / 60;
+  const damageTaken = [];
+  for (let f = 0; f < 60 * 90; f++) {
+    tgt.position.addScaledVector(tgt.velocity, DT);
+    const before = tgt.hp;
+    wp.update(DT, {});
+    wp.updateFlak(DT, w.camera);
+    if (tgt.hp < before && firstHit == null) firstHit = t;
+    t += DT;
+    damageTaken.push(before - tgt.hp);
+    if (tgt.position.z - sp.z < -5000) break;
+  }
+  const total = 1000 - tgt.hp;
+  const shots = wp.stats.flakFired;
+  const hits = damageTaken.filter((d) => d > 0).length;
+  w.dispose();
+  return { alt, speed, t, total, shots, hits, firstHit, hpLeft: tgt.hp };
+}
+
+L.push(`== 单阵地以 ${'160 m/s（576 km/h）'} 直飞穿越（穿越时长约 ${(10000 / 160).toFixed(0)}s，单个阵地开火窗口更短）==`);
+for (const alt of [150, 300, 600, 900, 1200, 1500, 1800, 2200]) {
+  const r = trial(alt, 160);
+  L.push(`高度 ${String(alt).padStart(4)}m  开火 ${String(r.shots).padStart(3)} 发  命中 ${String(r.hits).padStart(2)} 发` +
+         `  伤害 ${String(Math.round(r.total)).padStart(3)}  首次命中=${r.firstHit == null ? ' 无' : r.firstHit.toFixed(1) + 's'}`);
+}
+L.push('');
+L.push('== 同一高度（600m）不同速度：越快越难被打中 ==');
+for (const spd of [120, 160, 220, 280, 340]) {
+  const r = trial(600, spd);
+  L.push(`速度 ${String(spd).padStart(3)} m/s  开火 ${String(r.shots).padStart(3)} 发  命中 ${String(r.hits).padStart(2)} 发  伤害 ${Math.round(r.total)}`);
+}
+out.textContent = L.join('\n');
+document.title = 'PROBE8_DONE';
+</script></body></html>

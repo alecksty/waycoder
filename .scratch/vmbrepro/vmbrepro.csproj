@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    桌面端 VML 快速编译+运行 CLI。
+
+    目标：**在桌面上秒级复现手机端（WayCoder.Maui/Services/MauiVml.cs）的编译+运行结果**，
+    好让「22 种语言只有 7 种能跑通」这类修复不必每改一行就打一次 APK（约 2 分钟）。
+
+    ⚠ 它原先住在 `.scratch/vmlcli/`（临时目录），**未跟踪也未 gitignore** ——
+    清一次临时目录就没，而 `scripts/vml-abi-probe/` 整套调用约定判据都靠它跑。
+    2026-09-17 转正到 `scripts/vmlcli/`。位置**与 .scratch 距仓库根同为两层**，
+    故下面所有 `../../` 相对引用一字未改。
+
+    两条硬约束：
+      ① ProjectReference 必须指向 **vendored** 的 third_party/vml（带 patches/ 那 8 个本地补丁），
+         不能指向上游仓库 —— 实测同一份 python 语料 vendored 能编过、上游在编译期崩
+         `Index was outside the bounds of the array`（patches/0007 里 PythonCompiler/CompilerBase 的修复）。
+      ② 引用的项目清单照抄 WayCoder.Maui.csproj 的 VML 那一段（22 个前端编译器逐个直引）。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>VmbRepro</RootNamespace>
+    <AssemblyName>vmbrepro</AssemblyName>
+    <!-- 上游 VML 的共享源码在桌面文档解析下会报一堆 XML 注释格式警告，与本次目的无关 -->
+    <NoWarn>$(NoWarn);CS1570;CS1587;CS1591</NoWarn>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ⚠ 全指向 third_party/vml（vendored + patches），不是上游仓库 -->
+    <ProjectReference Include="../../third_party/vml/VMLAssembler/VMLAssembler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLRuntime/VMLRuntime.csproj" />
+
+    <!-- 22 个前端编译器（照抄 WayCoder.Maui.csproj 的清单） -->
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/CompilerBase/CompilerBase.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/CCompiler/CCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/BasicCompiler/BasicCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/PascalCompiler/PascalCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/PythonCompiler/PythonCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/LuaCompiler/LuaCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/ForthCompiler/ForthCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/RustCompiler/RustCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/GoCompiler/GoCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/LadderCompiler/LadderCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/CSharpCompiler/CSharpCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/JavaCompiler/JavaCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/JavaScriptCompiler/JavaScriptCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/SwiftCompiler/SwiftCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/CppCompiler/CppCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/KotlinCompiler/KotlinCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/SchemeCompiler/SchemeCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/RubyCompiler/RubyCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/DartCompiler/DartCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/ObjCCompiler/ObjCCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/RCompiler/RCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/DCompiler/DCompiler.csproj" />
+    <ProjectReference Include="../../third_party/vml/VMLPrepares/FortranCompiler/FortranCompiler.csproj" />
+
+    <!-- VMLTool（vendored 版 OutputType=Library）：只为拿 VmlToolConfig 的
+         Load/ResolveLibs —— 库清单必须与手机端**同一份解析实现**，自己另写一张「C 要链 crt.vml」
+         就是本仓库反复踩的平行表。 -->
+    <ProjectReference Include="../../third_party/vml/VMLTool/VMLTool.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 22 个编译器的清单唯一真源（与手机端编同一份文件，namespace = WayCoder.UI.Shared）。
+         引用它就能在注册后断言「注册到的 == 清单里的」。 -->
+    <Compile Include="../../WayCoder/UI/Shared/VmlFrontendCompilerList.cs" Link="VmlFrontendCompilerList.cs" />
+  </ItemGroup>
+
+</Project>

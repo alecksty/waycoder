@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon Runner — 3D Endless Runner</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- ============ Loading Screen ============ -->
+  <div id="loading" class="screen">
+    <div class="loading-content">
+      <h1 class="title-glow">NEON RUNNER</h1>
+      <p class="subtitle">Initializing 3D world…</p>
+      <div class="loader-bar"><div class="loader-fill" id="loaderFill"></div></div>
+      <p class="loading-tip" id="loadingTip">Tip: use arrow keys or WASD to move</p>
+    </div>
+  </div>
+
+  <!-- ============ Main Menu ============ -->
+  <div id="menu" class="screen hidden">
+    <div class="menu-bg-grid"></div>
+    <div class="menu-content">
+      <h1 class="title-glow big">NEON RUNNER</h1>
+      <p class="tagline">Endless cyber parkour — how far can you go?</p>
+
+      <div class="menu-buttons">
+        <button class="btn primary" id="btnStart">▶ START</button>
+        <button class="btn" id="btnHowto">? HOW TO PLAY</button>
+        <button class="btn" id="btnCredits">★ CREDITS</button>
+      </div>
+
+      <div class="best-score">
+        <span>Best: <b id="bestScore">0</b></span>
+        <span>Last: <b id="lastScore">0</b></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ HUD (in-game) ============ -->
+  <div id="hud" class="hidden">
+    <div class="hud-row top">
+      <div class="hud-item">
+        <div class="hud-label">SCORE</div>
+        <div class="hud-value" id="hudScore">0</div>
+      </div>
+      <div class="hud-item center">
+        <div class="hud-label">SPEED</div>
+        <div class="hud-value" id="hudSpeed">0</div>
+        <div class="speed-bar"><div class="speed-fill" id="speedFill"></div></div>
+      </div>
+      <div class="hud-item right">
+        <div class="hud-label">COINS</div>
+        <div class="hud-value" id="hudCoins">0</div>
+      </div>
+    </div>
+
+    <div class="hud-row bottom">
+      <div class="lives" id="livesContainer">♥♥♥</div>
+      <div class="multiplier" id="multiplier">×1</div>
+    </div>
+
+    <div class="center-msg hidden" id="centerMsg"></div>
+  </div>
+
+  <!-- ============ Pause Overlay ============ -->
+  <div id="pause" class="overlay hidden">
+    <div class="overlay-box">
+      <h2>PAUSED</h2>
+      <button class="btn primary" id="btnResume">▶ RESUME</button>
+      <button class="btn" id="btnRestartFromPause">↻ RESTART</button>
+      <button class="btn" id="btnQuitToMenu">⌂ MAIN MENU</button>
+    </div>
+  </div>
+
+  <!-- ============ How To Play ============ -->
+  <div id="howto" class="overlay hidden">
+    <div class="overlay-box wide">
+      <h2>HOW TO PLAY</h2>
+      <div class="howto-grid">
+        <div class="howto-item"><kbd>←</kbd><kbd>→</kbd> or <kbd>A</kbd><kbd>D</kbd><span>Switch lane</span></div>
+        <div class="howto-item"><kbd>Space</kbd> / <kbd>W</kbd> / <kbd>↑</kbd><span>Jump</span></div>
+        <div class="howto-item"><kbd>S</kbd> / <kbd>↓</kbd><span>Slide</span></div>
+        <div class="howto-item"><kbd>Shift</kbd><span>Boost (slows you down, but builds multiplier)</span></div>
+        <div class="howto-item"><kbd>P</kbd> or <kbd>Esc</kbd><span>Pause</span></div>
+        <div class="howto-item"><kbd>M</kbd><span>Mute</span></div>
+      </div>
+      <p class="hint">Collect <span style="color:#ffd54a">coins</span>, avoid <span style="color:#ff3b6b">obstacles</span>, and survive the ever-increasing neon speed!</p>
+      <button class="btn primary" id="btnHowtoClose">GOT IT</button>
+    </div>
+  </div>
+
+  <!-- ============ Game Over ============ -->
+  <div id="gameover" class="overlay hidden">
+    <div class="overlay-box">
+      <h2 id="gameoverTitle">GAME OVER</h2>
+      <div class="go-stats">
+        <div><span>Score</span><b id="goScore">0</b></div>
+        <div><span>Best</span><b id="goBest">0</b></div>
+        <div><span>Distance</span><b id="goDistance">0 m</b></div>
+        <div><span>Coins</span><b id="goCoins">0</b></div>
+      </div>
+      <div class="go-reason" id="goReason">You crashed!</div>
+      <button class="btn primary" id="btnRetry">↻ RETRY</button>
+      <button class="btn" id="btnMenu">⌂ MAIN MENU</button>
+    </div>
+  </div>
+
+  <!-- ============ Credits ============ -->
+  <div id="credits" class="overlay hidden">
+    <div class="overlay-box wide">
+      <h2>CREDITS</h2>
+      <p><b>Neon Runner</b> — a complete 3D web game built with vanilla JavaScript + Three.js.</p>
+      <ul>
+        <li>🎮 <b>Engine:</b> Three.js (CDN) — WebGL renderer, PBR materials, dynamic lighting</li>
+        <li>🧠 <b>AI:</b> Procedural track generation, physics simulation, AABB collision</li>
+        <li>🔊 <b>Audio:</b> Web Audio API — fully procedural SFX (no asset files)</li>
+        <li>🎨 <b>Visuals:</b> Custom CSS neon glow, particle systems, fog & bloom</li>
+        <li>📐 <b>Code:</b> Pure ES6 modules, no build step required</li>
+      </ul>
+      <button class="btn primary" id="btnCreditsClose">BACK</button>
+    </div>
+  </div>
+
+  <!-- ============ Floating notifications ============ -->
+  <div id="notifs" class="notifs"></div>
+
+  <!-- ============ Game canvas mount ============ -->
+  <div id="gameMount"></div>
+
+  <!-- Three.js via importmap (ES modules) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <!-- App entry (module) -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

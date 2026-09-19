@@ -1010,6 +1010,26 @@ namespace VML {
     // extern void ui_polyline(int* pts, int count, int stroke, int width, char* grad);  // CALL ui_polyline
     // extern void ui_rect_grad(int x, int y, int w, int h, char* grad, int radius);  // CALL ui_rect_grad
     // extern void ui_circle_grad(int cx, int cy, int r, char* grad);  // CALL ui_circle_grad
+    // extern int ui_brush_solid(int color);  // CALL ui_brush_solid
+    // extern int ui_brush_linear(int color_a, int color_b, int x1, int y1, int x2, int y2);  // CALL ui_brush_linear
+    // extern int ui_brush_radial(int color_a, int color_b, int cx, int cy, int r);  // CALL ui_brush_radial
+    // extern int ui_brush_named(char* gradId);  // CALL ui_brush_named
+    // extern int ui_set_fill(int brush);  // CALL ui_set_fill
+    // extern int ui_set_pen(int brush, int width, int cap, int dash, int arrow);  // CALL ui_set_pen
+    // extern int ui_set_text_brush(int brush);  // CALL ui_set_text_brush
+    // extern void ui_draw_rect(int x, int y, int w, int h, int radius);  // CALL ui_draw_rect
+    // extern void ui_draw_circle(int cx, int cy, int r);  // CALL ui_draw_circle
+    // extern void ui_draw_ellipse(int cx, int cy, int rx, int ry);  // CALL ui_draw_ellipse
+    // extern void ui_draw_line(int x1, int y1, int x2, int y2);  // CALL ui_draw_line
+    // extern void ui_draw_poly(int* pts, int count, int close);  // CALL ui_draw_poly
+    // extern void ui_draw_path(char* d);  // CALL ui_draw_path
+    // extern void ui_draw_text(int x, int y, char* s);  // CALL ui_draw_text
+    // extern void ui_ellipse_grad(int cx, int cy, int rx, int ry, char* grad);  // CALL ui_ellipse_grad
+    // extern void ui_draw_star(int cx, int cy, int r_out, int r_in, int points, int rot);  // CALL ui_draw_star
+    // extern void ui_draw_regular(int cx, int cy, int r, int n, int rot);  // CALL ui_draw_regular
+    // extern void ui_draw_ring(int cx, int cy, int r_out, int r_in);  // CALL ui_draw_ring
+    // extern void ui_draw_pie(int cx, int cy, int r, int a0, int a1);  // CALL ui_draw_pie
+    // extern void ui_draw_heart(int cx, int cy, int size);  // CALL ui_draw_heart
     // extern void ui_beep(int freq, int ms);  // CALL ui_beep
     // extern void ui_vibrate(int ms, int strength);  // CALL ui_vibrate
     // extern void ui_keep_on(int on);  // CALL ui_keep_on

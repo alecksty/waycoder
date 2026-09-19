@@ -1,0 +1,8 @@
+fn main() {
+    let xs = [
+        1,
+        2,
+        3
+    ];
+    println!("{}", xs[0]);
+}

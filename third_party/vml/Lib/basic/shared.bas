@@ -4762,6 +4762,93 @@ DECLARE SUB ui_circle_grad(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS IN
     asm("CALL ui_circle_grad")
 END SUB
 
+DECLARE FUNCTION ui_brush_solid(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_brush_solid")
+    ui_brush_solid = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_brush_linear(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER) AS INTEGER
+    asm("CALL ui_brush_linear")
+    ui_brush_linear = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_brush_radial(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER) AS INTEGER
+    asm("CALL ui_brush_radial")
+    ui_brush_radial = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_brush_named(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_brush_named")
+    ui_brush_named = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_set_fill(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_set_fill")
+    ui_set_fill = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_set_pen(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER) AS INTEGER
+    asm("CALL ui_set_pen")
+    ui_set_pen = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_set_text_brush(a0 AS INTEGER) AS INTEGER
+    asm("CALL ui_set_text_brush")
+    ui_set_text_brush = 0
+END FUNCTION
+
+DECLARE SUB ui_draw_rect(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER)
+    asm("CALL ui_draw_rect")
+END SUB
+
+DECLARE SUB ui_draw_circle(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
+    asm("CALL ui_draw_circle")
+END SUB
+
+DECLARE SUB ui_draw_ellipse(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
+    asm("CALL ui_draw_ellipse")
+END SUB
+
+DECLARE SUB ui_draw_line(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
+    asm("CALL ui_draw_line")
+END SUB
+
+DECLARE SUB ui_draw_poly(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
+    asm("CALL ui_draw_poly")
+END SUB
+
+DECLARE SUB ui_draw_path(a0 AS INTEGER)
+    asm("CALL ui_draw_path")
+END SUB
+
+DECLARE SUB ui_draw_text(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
+    asm("CALL ui_draw_text")
+END SUB
+
+DECLARE SUB ui_ellipse_grad(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER)
+    asm("CALL ui_ellipse_grad")
+END SUB
+
+DECLARE SUB ui_draw_star(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER, a5 AS INTEGER)
+    asm("CALL ui_draw_star")
+END SUB
+
+DECLARE SUB ui_draw_regular(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER)
+    asm("CALL ui_draw_regular")
+END SUB
+
+DECLARE SUB ui_draw_ring(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER)
+    asm("CALL ui_draw_ring")
+END SUB
+
+DECLARE SUB ui_draw_pie(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER)
+    asm("CALL ui_draw_pie")
+END SUB
+
+DECLARE SUB ui_draw_heart(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER)
+    asm("CALL ui_draw_heart")
+END SUB
+
 DECLARE SUB ui_beep(a0 AS INTEGER, a1 AS INTEGER)
     asm("CALL ui_beep")
 END SUB

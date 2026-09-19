@@ -1,0 +1,25 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>probe5</title></head>
+<body><pre id="out">…</pre></body>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { World } from './js/world.js';
+import { PlayerAircraft } from './js/aircraft.js';
+const L=[]; const out=document.getElementById('out');
+const world = new World(out, 'low');
+const p = new PlayerAircraft(world.scene, {});
+p.position.set(0, 1500, 0); p.speed = 220; p.velocity.set(0,0,-220); p.syncMesh();
+p.inputs.roll = 1;
+L.push('帧   bank    aRoll   roll输入  速度   up.y');
+for (let i=0;i<120;i++){
+  p.integrate(1/60);
+  if (i%6===0 || i===89){
+    const up = p.getUp(new THREE.Vector3());
+    L.push(`${String(i).padStart(3)} ${p.bank.toFixed(3).padStart(7)} ${p.angular.roll.toFixed(3).padStart(7)} ${p.inputs.roll.toFixed(2).padStart(6)}  ${p.speed.toFixed(0).padStart(4)}  ${up.y.toFixed(3).padStart(6)}  ${i===89?'<-- 自测取样点':''}`);
+  }
+}
+out.textContent = L.join('\n');
+document.title='PROBE5_DONE';
+</script></body></html>

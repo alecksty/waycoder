@@ -1,0 +1,51 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>axis4</title></head>
+<body><pre id="out">…</pre></body>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+const L=[];
+const _v=(v)=>`(${v.x.toFixed(2)},${v.y.toFixed(2)},${v.z.toFixed(2)})`;
+// 复刻 _applyAttitude 的组装方式
+function mk(bank, pitch, heading){
+  const q = new THREE.Quaternion();
+  const m = new THREE.Matrix4();
+  const cb=Math.cos(bank), sb=Math.sin(bank);
+  m.set(cb,-sb,0,0, sb,cb,0,0, 0,0,1,0, 0,0,0,1);
+  q.setFromRotationMatrix(m);
+  q.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0), pitch));
+  q.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), -heading));
+  return q;
+}
+for (const [bank,pitch,hd] of [[0,0,0],[0,0,Math.PI/2],[0,0.3,0],[0.5,0,0],[-0.6,0,0],[0.4,0.3,1.0]]){
+  const q = mk(bank,pitch,hd);
+  const fwd=new THREE.Vector3(0,0,-1).applyQuaternion(q);
+  const up=new THREE.Vector3(0,1,0).applyQuaternion(q);
+  const right=new THREE.Vector3(1,0,0).applyQuaternion(q);
+  L.push(`in(bank=${bank.toFixed(2)} pitch=${pitch.toFixed(2)} hdg=${hd.toFixed(2)})`);
+  L.push(`   fwd=${_v(fwd)} 期望.y=${Math.sin(pitch).toFixed(2)} | up=${_v(up)} 期望(-up·right)=${(-Math.sin(bank)).toFixed(2)} 实=${(-up.dot(right)).toFixed(2)} | right=${_v(right)}`);
+}
+// 往返：syncAttitude 是否与输入一致
+function sync(q){
+  const fwd=new THREE.Vector3(0,0,-1).applyQuaternion(q);
+  const up=new THREE.Vector3(0,1,0).applyQuaternion(q);
+  const right=new THREE.Vector3(1,0,0).applyQuaternion(q);
+  const horiz=Math.max(1e-6,Math.hypot(fwd.x,fwd.z));
+  return { heading: Math.atan2(fwd.x,-fwd.z), pitch: Math.atan2(fwd.y,horiz), bank: bankOf(fwd, up) };
+}
+function bankOf(fwd, up){
+  const ref = new THREE.Vector3(0,1,0).addScaledVector(fwd, -fwd.y);
+  if (ref.lengthSq() < 1e-8) return 0;
+  ref.normalize();
+  const rh = new THREE.Vector3().crossVectors(fwd, ref).normalize();
+  return -Math.atan2(rh.dot(up), ref.dot(up));
+}
+L.push('往返检验:');
+for (const [bank,pitch,hd] of [[0,0,0],[0,0,Math.PI/2],[0,0.3,0],[0.5,0,0],[-0.6,0,0],[0.4,0.3,1.0],[0,-0.4,-2.0]]){
+  const q=mk(bank,pitch,hd), s=sync(q);
+  L.push(`   in(b=${bank.toFixed(2)},p=${pitch.toFixed(2)},h=${hd.toFixed(2)}) -> sync(b=${s.bank.toFixed(2)},p=${s.pitch.toFixed(2)},h=${s.heading.toFixed(2)}) ok=${Math.abs(s.bank-bank)<1e-6&&Math.abs(s.pitch-pitch)<1e-6&&Math.abs(s.heading-hd)<1e-6}`);
+}
+document.getElementById('out').textContent=L.join('\n');
+document.title='AXIS4_DONE';
+</script></body></html>

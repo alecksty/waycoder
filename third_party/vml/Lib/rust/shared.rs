@@ -6216,6 +6216,107 @@ fn ui_circle_grad(a0: i32, a1: i32, a2: i32, a3: i32) {
     asm!("CALL ui_circle_grad")
 }
 
+fn ui_brush_solid(a0: i32) -> i32 {
+    asm!("CALL ui_brush_solid")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_brush_linear(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) -> i32 {
+    asm!("CALL ui_brush_linear")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_brush_radial(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
+    asm!("CALL ui_brush_radial")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_brush_named(a0: i32) -> i32 {
+    asm!("CALL ui_brush_named")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_set_fill(a0: i32) -> i32 {
+    asm!("CALL ui_set_fill")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_set_pen(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
+    asm!("CALL ui_set_pen")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_set_text_brush(a0: i32) -> i32 {
+    asm!("CALL ui_set_text_brush")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_draw_rect(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
+    asm!("CALL ui_draw_rect")
+}
+
+fn ui_draw_circle(a0: i32, a1: i32, a2: i32) {
+    asm!("CALL ui_draw_circle")
+}
+
+fn ui_draw_ellipse(a0: i32, a1: i32, a2: i32, a3: i32) {
+    asm!("CALL ui_draw_ellipse")
+}
+
+fn ui_draw_line(a0: i32, a1: i32, a2: i32, a3: i32) {
+    asm!("CALL ui_draw_line")
+}
+
+fn ui_draw_poly(a0: i32, a1: i32, a2: i32) {
+    asm!("CALL ui_draw_poly")
+}
+
+fn ui_draw_path(a0: i32) {
+    asm!("CALL ui_draw_path")
+}
+
+fn ui_draw_text(a0: i32, a1: i32, a2: i32) {
+    asm!("CALL ui_draw_text")
+}
+
+fn ui_ellipse_grad(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
+    asm!("CALL ui_ellipse_grad")
+}
+
+fn ui_draw_star(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32, a5: i32) {
+    asm!("CALL ui_draw_star")
+}
+
+fn ui_draw_regular(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
+    asm!("CALL ui_draw_regular")
+}
+
+fn ui_draw_ring(a0: i32, a1: i32, a2: i32, a3: i32) {
+    asm!("CALL ui_draw_ring")
+}
+
+fn ui_draw_pie(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) {
+    asm!("CALL ui_draw_pie")
+}
+
+fn ui_draw_heart(a0: i32, a1: i32, a2: i32) {
+    asm!("CALL ui_draw_heart")
+}
+
 fn ui_beep(a0: i32, a1: i32) {
     asm!("CALL ui_beep")
 }

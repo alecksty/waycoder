@@ -1,0 +1,53 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>probe2</title></head>
+<body><pre id="out">…</pre></body>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { World } from './js/world.js';
+import { PlayerAircraft, WingmanAircraft } from './js/aircraft.js';
+const L=[]; const out=document.getElementById('out');
+const world = new World(out, 'low');
+
+// A) 坡度转弯：先滚 20 帧建立坡度，随后 300 帧观察航向/坡度演化
+const p = new PlayerAircraft(world.scene, {});
+p.position.set(0, 2500, 0); p.speed = 220; p.velocity.set(0,0,-220); p.syncMesh();
+const f0 = p.getForward(new THREE.Vector3()).clone();
+const samples=[];
+for (let i=0;i<20;i++){ p.inputs.roll = 1; p.integrate(1/60); }
+for (let i=0;i<300;i++){
+  p.inputs.roll = 0; p.integrate(1/60);
+  if (i%50===0){ const f=p.getForward(new THREE.Vector3()); samples.push(`t=${(i/60).toFixed(2)}s bank=${p.bank.toFixed(3)} hdg=${((Math.atan2(f.x,-f.z)*180/Math.PI+360)%360).toFixed(1)} pitch=${(Math.asin(f.y)*180/Math.PI).toFixed(1)}`); }
+}
+L.push('A) 右滚20帧后松开:');
+L.push(...samples.map(s=>'   '+s));
+
+// B) 持续滚转：bank 与航向随时间
+const q = new PlayerAircraft(world.scene, {});
+q.position.set(0, 2500, 0); q.speed = 220; q.velocity.set(0,0,-220); q.syncMesh();
+L.push('B) 持续 roll=+1:');
+for (let k=1;k<=6;k++){
+  for (let i=0;i<30;i++){ q.inputs.roll=1; q.integrate(1/60); }
+  const f=q.getForward(new THREE.Vector3());
+  const r=q.getRight(new THREE.Vector3());
+  L.push(`   t=${(k*0.5).toFixed(1)}s bank=${q.bank.toFixed(3)} right.y=${r.y.toFixed(3)} hdg=${((Math.atan2(f.x,-f.z)*180/Math.PI+360)%360).toFixed(1)}`);
+}
+
+// C) 僚机编队跟随
+const fp = new PlayerAircraft(world.scene, {});
+fp.position.set(0, 1500, 0); fp.speed = 220; fp.velocity.set(0,0,-220); fp.syncMesh();
+const ally = new WingmanAircraft(world.scene, { side: 1, seed: 5 });
+ally.position.set(900, 1900, 900); ally.speed = 200; ally.velocity.set(0,0,-200); ally.syncMesh();
+const ctx = { player: fp, world, enemies: [] };
+L.push('C) 僚机归队 (玩家 0,1500,0 匀速 -Z):');
+for (let i=0;i<900;i++){
+  ally.update(1/60, ctx); fp.integrate(1/60);
+  if (i%150===0) L.push(`   t=${(i/60).toFixed(1)}s d=${ally.position.distanceTo(fp.position).toFixed(0)} y=${ally.position.y.toFixed(0)} spd=${ally.speed.toFixed(0)} alive=${ally.alive} st=${ally.state} thr=${ally.throttle.toFixed(2)}`);
+}
+L.push(`   end d=${ally.position.distanceTo(fp.position).toFixed(0)} player=${fp.position.toArray().map(v=>v.toFixed(0)).join(',')} ally=${ally.position.toArray().map(v=>v.toFixed(0)).join(',')}`);
+
+out.textContent = L.join("\n");
+document.getElementById("out").appendChild(document.createElement("span"));
+document.title='PROBE2_DONE';
+</script></body></html>

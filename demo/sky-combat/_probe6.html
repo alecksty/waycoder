@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>probe6</title>
+<style>body{background:#111;color:#ddd;font:12px monospace;white-space:pre}</style>
+</head>
+<body>
+<div id="mount" style="width:900px;height:500px"></div>
+<pre id="out">running…</pre>
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+const L = [];
+const fin = (v) => Number.isFinite(v);
+const flush = () => { document.getElementById('out').textContent = L.join('\n'); };
+window.addEventListener('error', (e) => { L.push('!! error: ' + e.message + ' @' + e.lineno); flush(); });
+window.addEventListener('unhandledrejection', (e) => { L.push('!! reject: ' + (e.reason && e.reason.stack || e.reason)); flush(); });
+
+const step = () => new Promise((r) => setTimeout(r, 50));
+
+async function run() {
+  const g = window.__game;
+  if (!g) { L.push('FAIL 无 __game'); return; }
+  for (let i = 0; i < 80 && g.state === 'loading'; i++) await step();
+  L.push(`boot: ${g.state}`);
+  g.startMission();
+  for (let i = 0; i < 40 && g.state !== 'playing'; i++) await step();
+  L.push(`playing: 敌=${g.enemies.length} 僚=${g.allies.length}`);
+
+  const DT = 1000 / 60;
+  let now = 0;
+  // 1) 地面设施 / 停机坪 / 坠机位是否建好
+  L.push(`设施: ${g.world.groundFacilities.map(f=>f.kind+':'+(f.alive?'ok':'down')).join(' ')}`);
+  L.push(`停机坪候机: ${g.world.parkedJets.length} 架 (可见 ${g.world.parkedJets.filter(j=>j.mesh.visible).length})`);
+  L.push(`坠机位: ${g.world.crashSites.length}`);
+
+  // 2) 补给条件：跑道上方低空对正
+  const p = g.player;
+  p.position.set(0, g.world.heightAt(0, 0) + 60, 400);
+  p.quaternion.setFromEuler(new THREE.Euler(0, 0, 0));
+  p.velocity.set(0, 0, -120); p.speed = 120;
+  p.syncAttitude(); p.syncMesh();
+  p.fuel = 35; p.weapons.missiles = 1; p.weapons.bombs = 1;
+  const st = g.rearmState(p);
+  L.push(`补给判定: inZone=${st.inZone} aligned=${st.aligned} ready=${st.ready} alt=${st.alt.toFixed(0)}`);
+  p.inputs.pitch = 0; p.inputs.roll = 0; p.throttle = 0.2;
+  for (let f = 0; f < 240; f++) {
+    // 保持贴地（模拟在跑道上滑行），避免撞地判定
+    p.position.set(0, g.world.heightAt(0, 0) + 55, 400 - f * 0.5);
+    g._updateRearm(1 / 60);
+    g._frame(now += DT);
+    if (f % 30 === 0) await step();
+  }
+  L.push(`补给结果: 油=${p.fuel.toFixed(1)}% 弹=${p.weapons.missiles}/${p.weapons.bombs} 次数=${g.stats.rearmCount} active=${g.rearm.active}`);
+
+  // 3) 单位切换
+  g.settings.units = 'imperial';
+  L.push(`英制: alt=${g.fmtAlt(1000)} spd=${g.fmtSpeed(100)} dist=${g.fmtDist(3704)} clos=${g.fmtClosure(-50)}`);
+  g.settings.units = 'metric';
+  L.push(`公制: alt=${g.fmtAlt(1000)} spd=${g.fmtSpeed(100)} dist=${g.fmtDist(3704)} clos=${g.fmtClosure(-50)}`);
+
+  // 4) 机场防卫波
+  g.stats.wave = 5; g._spawnWave(5);
+  for (let f = 0; f < 60; f++) { g._frame(now += DT); }
+  const m = g.mission;
+  const strikeCount = g.enemies.filter(e => e.targetBase).length;
+  L.push(`波次5: ${m.type}/${m.name} 对地攻击机=${strikeCount}/${g.enemies.length} 进度=${(g._missionProgress()*100).toFixed(0)}% 完成=${g._missionComplete()}`);
+  // 让攻击机飞一会儿，确认不会撞地/NaN
+  let bad = 0;
+  for (let f = 0; f < 600; f++) {
+    g._frame(now += DT);
+    for (const e of g.enemies) if (!fin(e.position.x) || !fin(e.speed) || !fin(e.hp)) bad++;
+    if (f % 60 === 0) await step();
+  }
+  const aliveStrike = g.enemies.filter(e => e.alive && e.targetBase);
+  L.push(`攻击机飞行 10s: 存活=${aliveStrike.length} NaN=${bad} 最低高度=${Math.min(...g.enemies.map(e=>e.position.y)).toFixed(0)}` +
+         ` 投弹数=${g.combat.bombs.length} 阵地=${g.stats.base}% 设施完好=${g.baseIntegrity()}%`);
+
+  // 5) 敌方炸弹砸机场 → 设施受损 + 停机坪损失 + 连锁
+  const fac0 = g.baseIntegrity();
+  const fuelPos = new THREE.Vector3();
+  const fuel = g.world.groundFacilities.find(f => f.kind === 'fuel');
+  g.world.siteWorldPos(fuel.group, fuelPos);
+  g._landSuppliesNear(fuelPos.setY(g.world.heightAt(fuelPos.x, fuelPos.z) + 5), 90);
+  L.push(`炸油库: 设施完好 ${fac0}% -> ${g.baseIntegrity()}% down=${g.stats.facilitiesDown} 机场=${g.stats.base}%`);
+  const ammo = g.world.groundFacilities.find(f => f.kind === 'ammo');
+  const ammoPos = g.world.siteWorldPos(ammo.group, new THREE.Vector3());
+  g._damageFacilities(ammoPos.setY(g.world.heightAt(ammoPos.x, ammoPos.z) + 5), 90);
+  L.push(`炸弹药库(殉爆): down=${g.stats.facilitiesDown} 机场=${g.stats.base}% 完好=${g.baseIntegrity()}%`);
+
+  // 6) 链式引爆：两枚炸弹挨着，一颗炸另一颗
+  const before = g.combat.bombs.length;
+  const bp = new THREE.Vector3(0, 600, 0);
+  g.combat.bombs.push({ mesh: new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshBasicMaterial()), pos: bp.clone(), vel: new THREE.Vector3(), owner: 'player', life: 20, spin: new THREE.Vector3(), damage: 200, splash: 110 });
+  g.combat.bombs.push({ mesh: new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshBasicMaterial()), pos: bp.clone().add(new THREE.Vector3(30, 0, 0)), vel: new THREE.Vector3(), owner: 'player', life: 20, spin: new THREE.Vector3(), damage: 200, splash: 110 });
+  const added = g.combat.bombs.length - before;
+  const explosionsBefore = g.combat.explosions.length;
+  g.combat.explode(bp.clone(), 30, 1.5, 'player', 0, 0);
+  L.push(`链式引爆: 新增炸弹=${added} 剩余=${g.combat.bombs.length - before} 爆炸精灵+${g.combat.explosions.length - explosionsBefore}`);
+
+  // 7) 结算面板字段
+  g.finishMission(false, '测试结算');
+  L.push(`结算: ${g.el.resultTitle.textContent} | ${g.el.resBase.textContent} | ${g.el.resFacility.textContent}`);
+
+  // 8) 渲染一帧
+  let ok = false;
+  try { g.world.render(); ok = true; } catch (e) { L.push('render: ' + e.message); }
+  L.push(`渲染一帧: ${ok}`);
+
+  document.getElementById('out').textContent = L.join('\n');
+  document.title = 'PROBE6_DONE';
+}
+run().catch((e) => { L.push('EXCEPTION: ' + (e && e.stack || e)); flush(); });
+</script>
+</body>
+</html>

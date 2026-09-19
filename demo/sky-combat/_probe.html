@@ -1,0 +1,30 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>probe</title></head>
+<body><pre id="out">…</pre>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { World } from './js/world.js';
+import { PlayerAircraft } from './js/aircraft.js';
+const L=[];
+const world = new World(document.getElementById('out'), 'low');
+function rollTest(rollIn, rollFrames, holdFrames){
+  const p = new PlayerAircraft(world.scene, {});
+  p.position.set(0, 2000, 0); p.speed = 220; p.velocity.set(0,0,-220); p.syncMesh();
+  for (let i=0;i<rollFrames;i++){ p.inputs.roll = rollIn; p.integrate(1/60); }
+  const bank = p.bank;
+  const f0 = p.getForward(new THREE.Vector3()).clone();
+  for (let i=0;i<holdFrames;i++){ p.inputs.roll = 0; p.integrate(1/60); }
+  const f1 = p.getForward(new THREE.Vector3());
+  const cross = new THREE.Vector3().crossVectors(f0, f1).y;
+  return {bank, cross, fx: f1.x, fz: f1.z, heading: (Math.atan2(f1.x,-f1.z)*180/Math.PI+360)%360};
+}
+for (const rf of [12, 21, 30, 45, 60, 90]) {
+  const r = rollTest(1, rf, 180);
+  const l = rollTest(-1, rf, 180);
+  L.push(`rollFrames=${rf}  右滚 bank=${r.bank.toFixed(3)} cross.y=${r.cross.toFixed(4)} fx=${r.fx.toFixed(3)} hdg=${r.heading.toFixed(0)} | 左滚 bank=${l.bank.toFixed(3)} cross.y=${l.cross.toFixed(4)} fx=${l.fx.toFixed(3)} hdg=${l.heading.toFixed(0)}`);
+}
+document.getElementById('out').textContent = L.join('\n');
+document.title = 'PROBE_DONE';
+</script></body></html>

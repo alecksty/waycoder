@@ -220,6 +220,21 @@ internal sealed class VmlUiCalls : ISystemCallHandler
                     TouchScene(); break;
                 }
 
+                // ── 刷子 / 样式 / 一个号画所有形状（574–576）──
+                //
+                // 这一组是"一个号 + 操作码"：R0 是种类/槽位/形状码，后面几个寄存器
+                // 是**通用槽**，由那张表各自解释。加新形状**不用再占号** —— 见
+                // `VmlUi.DrawShape` 的注释（号是给库用的，不是给程序作者用的）。
+                case VmlUi.Brush:
+                    registers[0] = Brush(registers, memory); TouchScene(); break;
+                case VmlUi.SetStyle:
+                    registers[0] = Scene()?.SetStyle(registers[0], registers[1],
+                        registers[2], registers[3], registers[4], registers[5]) == true ? 1 : 0;
+                    TouchScene(); break;
+                case VmlUi.DrawShape:
+                    registers[0] = DrawShape(registers, memory) ? 1 : 0;
+                    TouchScene(); break;
+
                 // ── 持久化与常亮 ──
                 case VmlUi.StoreSet: registers[0] = StoreSet(registers, memory); break;
                 case VmlUi.StoreGet: registers[0] = StoreGet(registers, memory); break;
@@ -803,6 +818,81 @@ internal sealed class VmlUiCalls : ISystemCallHandler
             Scene()?.AddPolyline(pts, (uint)r[2], r[3], GradientIdOrNull(r, 4, mem));
         }
         TouchScene();
+    }
+
+    /// <summary>
+    /// `BRUSH`（#575）：造一个刷子 → 句柄（≥1；0 = 失败）。
+    ///
+    /// R0=种类（<see cref="VmlBrushKind"/>）R1..R6=参数。几何是**千分之一**的整数，
+    /// 与 `ui_gradient` 同一口径 —— 换算**只在 `VmlScene.AddGradient` 一处**做，
+    /// 这里不许再除一次（两端各换算一次就是沉默的错，那边注释记着踩过的坑）。
+    /// </summary>
+    private int Brush(int[] r, byte[] mem)
+    {
+        var s = Scene();
+        if (s == null) return 0;
+        switch (r[0])
+        {
+            case VmlBrushKind.Solid:
+                return s.AddSolidBrush((uint)r[1]);
+            case VmlBrushKind.Linear:
+                return s.AddGradientBrush(radial: false, (uint)r[1], (uint)r[2], r[3], r[4], r[5], r[6]);
+            case VmlBrushKind.Radial:
+                return s.AddGradientBrush(radial: true, (uint)r[1], (uint)r[2], r[3], r[4], r[5], 0);
+            case VmlBrushKind.ByName:
+                return s.AddNamedBrush(Str(mem, r[1]));
+            default:
+                return 0;
+        }
+    }
+
+    /// <summary>
+    /// `DRAW_SHAPE`（#574）：一个号画所有形状。
+    ///
+    /// R0=形状码（<see cref="VmlShape"/>）R1..R7=七个通用槽。
+    /// **样式取自当前状态**（`SET_STYLE`），只有 <see cref="VmlShape.EllipseGrad"/> 自带渐变名
+    /// （与既有的 `ui_rect_grad` / `ui_circle_grad` 同形）。
+    /// </summary>
+    private bool DrawShape(int[] r, byte[] mem)
+    {
+        var s = Scene();
+        if (s == null) return false;
+        var shape = r[0];
+
+        // 点数组 / 路径 / 文本 这三种要读内存，其余都是纯数值槽 —— 分开处理，
+        // 免得把 "R1 是坐标" 和 "R1 是地址" 混进同一个 switch 里。
+        switch (shape)
+        {
+            case VmlShape.Polygon:
+            case VmlShape.Polyline:
+            {
+                var count = r[2];
+                if (count < 2 || count > VmlUi.MaxPolyPoints) return false;
+                var pts = new List<double>(count * 2);
+                for (var i = 0; i < count; i++)
+                {
+                    var at = r[1] + i * 8;
+                    if (at < 0 || at + 8 > mem.Length) break;      // 越界就地停，不读坏内存
+                    pts.Add(BitConverter.ToInt32(mem, at));
+                    pts.Add(BitConverter.ToInt32(mem, at + 4));
+                }
+                return pts.Count >= 4 && s.AddShapePoly(pts, close: shape == VmlShape.Polygon);
+            }
+            case VmlShape.Path:
+                return s.AddShapePath(Str(mem, r[1]));
+            case VmlShape.Text:
+                return s.AddShapeText(r[1], r[2], Str(mem, r[3]));
+            case VmlShape.EllipseGrad:
+            {
+                // 唯一自带刷子的形状码：没有渐变名就什么都不画（与 ui_rect_grad 一致）。
+                var g = GradientIdOrNull(r, 5, mem);
+                if (g == null) return false;
+                s.AddEllipse(r[1], r[2], r[3], r[4], 0, filled: true, width: 0, fillGradient: g);
+                return true;
+            }
+            default:
+                return s.AddShape(shape, r[1], r[2], r[3], r[4], r[5], r[6], r[7]);
+        }
     }
 
     /// <summary>渐变 id 指针 → 清洗后的 id；指针为 0（或读出来是空串）返回 null（= 用纯色填充）。</summary>

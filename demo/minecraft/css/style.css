@@ -1,0 +1,203 @@
+/* style.css — 方块世界 UI 主题（暗色夜间风格，仿 MC 界面） */
+
+:root {
+  --bg-0: #0a0e14;
+  --bg-1: #131a24;
+  --fg: #e8f0e0;
+  --accent: #7ccf5a;
+  --accent-2: #a9e57a;
+  --warn: #ffb86b;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; padding: 0; height: 100%; width: 100%;
+  overflow: hidden;
+  background: var(--bg-0);
+  color: var(--fg);
+  font-family: "PingFang SC", "Microsoft YaHei", -apple-system, sans-serif;
+  user-select: none;
+}
+
+#gameMount { position: fixed; inset: 0; }
+#gameMount canvas { display: block; }
+
+/* ---------- 准星 ---------- */
+#crosshair {
+  position: fixed; left: 50%; top: 50%;
+  width: 22px; height: 22px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  display: none;
+  z-index: 20;
+}
+#crosshair .ch-h, #crosshair .ch-v {
+  position: absolute; background: rgba(255,255,255,0.85);
+  box-shadow: 0 0 3px rgba(0,0,0,0.8);
+}
+#crosshair .ch-h { left: 0; top: 10px; width: 22px; height: 2px; }
+#crosshair .ch-v { left: 10px; top: 0; width: 2px; height: 22px; }
+
+/* ---------- 目标提示 ---------- */
+#prompt {
+  position: fixed; left: 50%; bottom: 130px;
+  transform: translateX(-50%);
+  display: none;
+  background: rgba(10,14,20,0.7);
+  border: 1px solid rgba(124,207,90,0.4);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--accent-2);
+  z-index: 20;
+  backdrop-filter: blur(6px);
+}
+
+/* ---------- 屏幕（菜单/暂停/说明） ---------- */
+.screen {
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 30;
+  background: rgba(8, 12, 18, 0.82);
+  backdrop-filter: blur(8px);
+}
+.screen.hidden { display: none; }
+
+.menu-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(124,207,90,0.15), transparent 50%),
+    radial-gradient(ellipse at 70% 80%, rgba(255,184,107,0.1), transparent 50%),
+    repeating-linear-gradient(45deg, transparent 0 24px, rgba(255,255,255,0.012) 24px 25px);
+}
+
+.menu-content {
+  position: relative;
+  text-align: center;
+  padding: 32px 40px;
+  max-width: 460px;
+  border-radius: 16px;
+  background: rgba(19,26,36,0.7);
+  border: 1px solid rgba(124,207,90,0.25);
+  box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+}
+.menu-content.wide { max-width: 560px; }
+
+.title {
+  margin: 0 0 8px;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2), #ffd54a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.tagline { margin: 0 0 24px; font-size: 14px; opacity: 0.8; }
+
+.menu-buttons { display: flex; flex-direction: column; gap: 10px; }
+.btn {
+  border: none;
+  cursor: pointer;
+  padding: 13px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 10px;
+  color: var(--fg);
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  transition: all 0.15s ease;
+}
+.btn:hover { background: rgba(255,255,255,0.14); transform: translateY(-1px); }
+.btn.primary {
+  background: linear-gradient(135deg, var(--accent), #4e9c38);
+  color: #12280c;
+  border-color: transparent;
+  box-shadow: 0 4px 16px rgba(124,207,90,0.35);
+}
+.btn.primary:hover { box-shadow: 0 6px 22px rgba(124,207,90,0.5); }
+
+.hint { margin: 16px 0 0; font-size: 13px; opacity: 0.7; }
+.version { margin: 12px 0 0; font-size: 11px; opacity: 0.4; }
+
+/* ---------- 操作说明 ---------- */
+.howto-grid {
+  display: flex; flex-wrap: wrap;
+  gap: 10px 18px;
+  margin: 18px 0 8px;
+  justify-content: center;
+}
+.howto-item {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 13px;
+  background: rgba(255,255,255,0.05);
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+kbd {
+  background: #2a3542;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-bottom: 2px solid rgba(255,255,255,0.15);
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-size: 12px;
+  color: #fff;
+  min-width: 20px; text-align: center;
+}
+
+/* ---------- 快捷栏 ---------- */
+#hotbar {
+  position: fixed; left: 50%; bottom: 16px;
+  transform: translateX(-50%);
+  display: flex; gap: 6px;
+  padding: 6px;
+  background: rgba(10,14,20,0.6);
+  border: 1px solid rgba(124,207,90,0.25);
+  border-radius: 10px;
+  z-index: 25;
+  backdrop-filter: blur(6px);
+}
+.hb-slot {
+  position: relative;
+  width: 46px; height: 46px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  border: 2px solid transparent;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.hb-slot:hover { background: rgba(255,255,255,0.12); }
+.hb-slot.active {
+  border-color: var(--accent);
+  background: rgba(124,207,90,0.15);
+  box-shadow: 0 0 10px rgba(124,207,90,0.4);
+}
+.hb-key {
+  position: absolute; top: 2px; left: 4px;
+  font-size: 9px; opacity: 0.7;
+}
+#hotbar-label {
+  position: fixed; left: 50%; bottom: 70px;
+  transform: translateX(-50%);
+  font-size: 12px;
+  opacity: 0.85;
+  z-index: 25;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+
+/* ---------- 错误 ---------- */
+#err {
+  position: fixed; left: 50%; top: 16px;
+  transform: translateX(-50%);
+  background: #5a1e1e;
+  border: 1px solid #ff5a5a;
+  color: #ffd0d0;
+  padding: 10px 18px;
+  border-radius: 8px;
+  z-index: 50;
+  font-size: 13px;
+  max-width: 80%;
+}
+.hidden { display: none !important; }

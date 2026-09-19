@@ -487,6 +487,180 @@ void ui_circle_grad(int cx, int cy, int r, char* grad) {
     asm("SYSCALL #539, ${cx}, ${cy}, ${r}, ${grad}");
 }
 
+/* ── 刷子 / 样式 / 一个号画所有形状（574–576）────────────────────────
+ *
+ * ## 为什么只有三个号
+ *
+ * VML 程序**不直接调 syscall** —— 它调这里的包装函数（22 门语言各有 GenLib 生成的绑定）。
+ * **号是给库用的，不是给程序作者用的**，所以一个号可以靠"操作码"承担很多版本：
+ * 加一个形状 = 加一个形状码 + 一个包装函数，**不用再占号**。
+ *
+ * ⚠ `${}` 占位符**只认变量名**（宏名、字面量都不认），所以操作码要先落到一个局部变量。
+ *   这是实测校准过的写法（见 Lib/README-ui.md），别图省事写成 ${VML_SHAPE_STAR}。
+ */
+
+/* 操作码 —— 与宿主 `VmlShape` / `VmlBrushKind` / `VmlStyleSlot` 一一对应，
+ * 也与 `Lib/c/waycoder_ui.h` 里给用户看的 `VML_CAP_*` / `VML_ARROW_*` 同族。
+ * ⚠ **跨语言契约，只能末尾追加**。
+ *
+ * ⚠ 定义在**本文件**而不是头文件里：本文件（共享库的实现）并不 include 头文件 ——
+ *   头文件是给**用户的 C 程序**用的（只有声明与常量）。两边是同一个契约，
+ *   改一边必须改另一边（`scripts/check-vml-patches.sh` 的判据②a 会盯着生成物）。 */
+#define VML_BRUSH_SOLID    0
+#define VML_BRUSH_LINEAR   1
+#define VML_BRUSH_RADIAL   2
+#define VML_BRUSH_BY_NAME  3
+
+#define VML_STYLE_FILL     0
+#define VML_STYLE_PEN      1
+#define VML_STYLE_TEXT     2
+
+#define VML_SHAPE_RECT         0
+#define VML_SHAPE_CIRCLE       1
+#define VML_SHAPE_ELLIPSE      2
+#define VML_SHAPE_LINE         3
+#define VML_SHAPE_POLYGON      4
+#define VML_SHAPE_POLYLINE     5
+#define VML_SHAPE_PATH         6
+#define VML_SHAPE_TEXT         7
+#define VML_SHAPE_STAR         8
+#define VML_SHAPE_REGULAR      9
+#define VML_SHAPE_RING        10
+#define VML_SHAPE_PIE         11
+#define VML_SHAPE_HEART       12
+#define VML_SHAPE_ELLIPSE_GRAD 13
+
+/* 造刷子 → 句柄（>=1；0 = 失败）。颜色 = 0xAARRGGBB。 */
+int ui_brush_solid(int color) {
+    int op;
+    op = VML_BRUSH_SOLID;
+    return asm("SYSCALL #575, ${op}, ${color}");
+}
+
+/* 线性渐变刷子。几何是**千分之一**（0..1000）：x1 y1 x2 y2 相对形状自己的包围盒。 */
+int ui_brush_linear(int color_a, int color_b, int x1, int y1, int x2, int y2) {
+    int op;
+    op = VML_BRUSH_LINEAR;
+    return asm("SYSCALL #575, ${op}, ${color_a}, ${color_b}, ${x1}, ${y1}, ${x2}, ${y2}");
+}
+
+/* 径向渐变刷子：cx cy r 也是千分之一。 */
+int ui_brush_radial(int color_a, int color_b, int cx, int cy, int r) {
+    int op;
+    op = VML_BRUSH_RADIAL;
+    return asm("SYSCALL #575, ${op}, ${color_a}, ${color_b}, ${cx}, ${cy}, ${r}");
+}
+
+/* 按名字引用一个已经 ui_gradient 定义过的渐变 → 句柄（0 = 没有这个名字）。 */
+int ui_brush_named(char* gradId) {
+    int op;
+    op = VML_BRUSH_BY_NAME;
+    return asm("SYSCALL #575, ${op}, ${gradId}");
+}
+
+/* 设置填充刷子。**直接传颜色也合法**（颜色 = 只有一个色标的刷子）：ui_set_fill(0xFF2A3346)。 */
+int ui_set_fill(int brush) {
+    int slot;
+    slot = VML_STYLE_FILL;
+    return asm("SYSCALL #576, ${slot}, ${brush}, 0, 0, 0, 0");
+}
+
+/* 设置画笔（描边）：刷子 + 线宽 + 线帽 + 虚线 + 箭头。brush 传 0 = 不描边。 */
+int ui_set_pen(int brush, int width, int cap, int dash, int arrow) {
+    int slot;
+    slot = VML_STYLE_PEN;
+    return asm("SYSCALL #576, ${slot}, ${brush}, ${width}, ${cap}, ${dash}, ${arrow}");
+}
+
+/* 设置文字刷子（0 = 回到 ui_set_font 给的颜色）。 */
+int ui_set_text_brush(int brush) {
+    int slot;
+    slot = VML_STYLE_TEXT;
+    return asm("SYSCALL #576, ${slot}, ${brush}, 0, 0, 0, 0");
+}
+
+/* ── 形状（都走 #574，样式取自上面设的刷子）── */
+
+void ui_draw_rect(int x, int y, int w, int h, int radius) {
+    int op;
+    op = VML_SHAPE_RECT;
+    asm("SYSCALL #574, ${op}, ${x}, ${y}, ${w}, ${h}, ${radius}");
+}
+
+void ui_draw_circle(int cx, int cy, int r) {
+    int op;
+    op = VML_SHAPE_CIRCLE;
+    asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r}");
+}
+
+void ui_draw_ellipse(int cx, int cy, int rx, int ry) {
+    int op;
+    op = VML_SHAPE_ELLIPSE;
+    asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${rx}, ${ry}");
+}
+
+void ui_draw_line(int x1, int y1, int x2, int y2) {
+    int op;
+    op = VML_SHAPE_LINE;
+    asm("SYSCALL #574, ${op}, ${x1}, ${y1}, ${x2}, ${y2}");
+}
+
+/* 多边形（close=1 自动闭合）/ 折线（close=0）。pts 每两个 int 一个点，count 是**点数**。 */
+void ui_draw_poly(int* pts, int count, int close) {
+    int op;
+    if (close != 0) { op = VML_SHAPE_POLYGON; } else { op = VML_SHAPE_POLYLINE; }
+    asm("SYSCALL #574, ${op}, ${pts}, ${count}");
+}
+
+void ui_draw_path(char* d) {
+    int op;
+    op = VML_SHAPE_PATH;
+    asm("SYSCALL #574, ${op}, ${d}");
+}
+
+void ui_draw_text(int x, int y, char* s) {
+    int op;
+    op = VML_SHAPE_TEXT;
+    asm("SYSCALL #574, ${op}, ${x}, ${y}, ${s}");
+}
+
+/* 渐变填充的椭圆（自带渐变名，与 ui_rect_grad / ui_circle_grad 同形）。 */
+void ui_ellipse_grad(int cx, int cy, int rx, int ry, char* grad) {
+    int op;
+    op = VML_SHAPE_ELLIPSE_GRAD;
+    asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${rx}, ${ry}, ${grad}");
+}
+
+void ui_draw_star(int cx, int cy, int r_out, int r_in, int points, int rot) {
+    int op;
+    op = VML_SHAPE_STAR;
+    asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r_out}, ${r_in}, ${points}, ${rot}");
+}
+
+void ui_draw_regular(int cx, int cy, int r, int n, int rot) {
+    int op;
+    op = VML_SHAPE_REGULAR;
+    asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r}, ${n}, ${rot}");
+}
+
+void ui_draw_ring(int cx, int cy, int r_out, int r_in) {
+    int op;
+    op = VML_SHAPE_RING;
+    asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r_out}, ${r_in}");
+}
+
+void ui_draw_pie(int cx, int cy, int r, int a0, int a1) {
+    int op;
+    op = VML_SHAPE_PIE;
+    asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r}, ${a0}, ${a1}");
+}
+
+void ui_draw_heart(int cx, int cy, int size) {
+    int op;
+    op = VML_SHAPE_HEART;
+    asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${size}");
+}
+
 /* ── 手感：音效 / 震动 / 持久化 / 常亮 ──
  *
  * 音效走 **VM 内置的 #57 蜂鸣** —— 宿主把它截住接到真实音频（方波 + 3ms 包络），

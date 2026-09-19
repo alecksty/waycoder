@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace WayCoder.UI.Shared;
@@ -365,6 +366,69 @@ public static class VmlUi
     public const int DrawCircleGrad = 539;
 
     /// <summary>
+    /// `DRAW_SHAPE`：**一个号画所有形状** —— R0=形状码（见 <see cref="VmlShape"/>）
+    /// R1..R7=七个通用参数（**每个形状码自己定义这几个槽的含义**）。
+    ///
+    /// ## 为什么是「一个号 + 操作码」而不是「一个形状一个号」
+    ///
+    /// VML 程序**不直接调 syscall** —— 它调 `Lib/` 里的包装函数（`ui_star` 之类），
+    /// 22 门语言各有 GenLib 生成的绑定。**号是给库用的，不是给程序作者用的**，
+    /// 所以一个号完全可以承担多个"版本"，只要库侧按形状码分派。
+    ///
+    /// 好处是实打实的：
+    /// ① **加形状再也不用占号**（加一个形状码 + 一行 C 包装），也就不会再出现
+    ///    "号段用尽"，以及"规划表里写着某个号、其实早被别的功能占了"那类事；
+    /// ② **参数个数可控**：通用槽固定 7 个，各形状按需取前 k 个 —— 绕开
+    ///    "星形要 9 个参数"这个全仓没有先例的形态（现有内联汇编最多 8 个实参）；
+    /// ③ 宿主侧只有**一个** switch 分支。
+    ///
+    /// ⚠ 代价：**形状码是跨语言契约**（像 `VML_MSG_*` / `VML_ORIENT_*`）——
+    ///   发布后只能**末尾追加**，不能改值、不能插队。
+    ///
+    /// **样式取自当前状态**（<see cref="SetStyle"/>），除了 <see cref="VmlShape.EllipseGrad"/>
+    /// 那一个自带渐变名的特例（理由见它自己的注释）。
+    /// </summary>
+    public const int DrawShape = 574;
+
+    /// <summary>
+    /// `BRUSH`：造一个刷子 → **句柄**（≥1；0 = 失败）。
+    ///
+    /// R0=种类（见 <see cref="VmlBrushKind"/>）R1..R6=参数。
+    ///
+    /// ## 为什么要有句柄，而不是到处传颜色/名字
+    ///
+    /// 状态式接口每帧都要引用刷子；传字符串要穿内存 + 清洗 + 查表，句柄就是一次 int 比较。
+    /// **句柄与颜色值不共用命名空间**：句柄是小整数（1..<see cref="MaxBrushes"/>），
+    /// 颜色是 `0xAARRGGBB`（≥ 0x01000000）—— 所以 <see cref="SetStyle"/> 那类地方
+    /// **直接传颜色也是合法的**（"颜色 = 只有一个色标的刷子"），不必强制先 `BRUSH` 一下。
+    /// 两者值域天然不重叠，不需要魔法位。
+    ///
+    /// ⚠ **生命周期与 `ui_gradient` 不同**：老的 `ui_gradient` 往图元表里追加一行，
+    /// **`ui_clear` 会把它清掉**；刷子表是**窗口态**，`ui_clear` 不清，窗口关闭才丢。
+    /// （`BRUSH_BY_NAME` 造的引用型刷子依赖程序当帧自己 `ui_gradient`，是第三种。）
+    /// </summary>
+    public const int Brush = 575;
+
+    /// <summary>
+    /// `SET_STYLE`：设置**当前样式** —— R0=槽位（见 <see cref="VmlStyleSlot"/>）
+    /// R1=刷子句柄**或颜色** R2..R5=线宽/线帽/虚线/箭头（只有画笔槽用得上）。
+    ///
+    /// "前景色、背景色都是刷子，线条是画笔"落在这里：
+    /// · 填充槽 = 刷子（纯色或渐变都行）；
+    /// · 画笔槽 = 刷子 + 线宽 + 线帽 + 虚线 + 箭头；
+    /// · 文字槽 = 刷子；
+    /// · 底色槽 = 刷子（配合 `ui_clear` 之外的整屏铺底）。
+    ///
+    /// 默认值（没调过 `SET_STYLE` 时）：填充 = 不透明白、画笔 = **无**（不描边）、
+    /// 文字 = 跟随 `ui_set_font` 给的颜色。
+    ///
+    /// ⚠ **本批只支持纯色画笔与纯色文字刷子**：渐变画笔/渐变文字要等引擎侧把
+    /// "可采样描边"与"渐变文字"做出来（DSL 与三条后端都要动）。给渐变句柄时宿主会
+    /// **记一次警告并退回该渐变的起始色** —— 不静默。
+    /// </summary>
+    public const int SetStyle = 576;
+
+    /// <summary>
     /// 多边形/折线的**点数上限**。程序传的是内存里的点数组，点数由它自己给 ——
     /// 不设上限的话，一个写错的大数会让宿主去读几十万个点（每次读还要做越界检查），
     /// 界面直接卡住。512 个点足够画任何真实图形（一张地图轮廓也不过几百个点）。
@@ -511,6 +575,8 @@ public static class VmlUi
         MsgPoll, MsgWait, MsgCount, TimerSet, TimerKill, WinClosed, ScrW, ScrH, MsgClear, ScrOrient,
         // 扩展 570–573
         WinOpenEx, MsgPollEx, MsgWaitEx, CallJson,
+        // 绘图扩展 574–576（一个号 + 操作码，见 VmlShape / VmlBrushKind / VmlStyleSlot）
+        DrawShape, Brush, SetStyle,
     ];
 
     /// <summary>
@@ -543,6 +609,85 @@ public static class VmlUi
     {
         for (var n = 500; n <= 599; n++) yield return n;
     }
+}
+
+/// <summary>
+/// <see cref="VmlUi.DrawShape"/> 的**形状码** —— 跨语言契约，与 C 头文件的 `VML_SHAPE_*` 宏
+/// 一一对应，改了等于改 ABI。
+///
+/// 每个码定义 `R1..R7` 这七个通用槽里**前几个**的含义（其余忽略）。选"通用槽 + 各自解释"
+/// 而不是"一个形状一个号"，理由见 <see cref="VmlUi.DrawShape"/>。
+///
+/// ⚠ **只能末尾追加**：不能改数值、不能插队。22 门语言的绑定是按名字生成的（GenLib），
+///   但 C 头文件里的宏、以及程序里已经写下的字面量，都是按**值**编译的。
+/// </summary>
+public static class VmlShape
+{
+    /// <summary>R1..R5 = x y w h 半径（半径 &gt; 0 即圆角）。</summary>
+    public const int Rect = 0;
+    /// <summary>R1..R3 = cx cy r。</summary>
+    public const int Circle = 1;
+    /// <summary>R1..R4 = cx cy rx ry。</summary>
+    public const int Ellipse = 2;
+    /// <summary>R1..R4 = x1 y1 x2 y2。</summary>
+    public const int Line = 3;
+    /// <summary>R1=点数组\* R2=**点数**（x,y 交替的 int32；自动闭合）。</summary>
+    public const int Polygon = 4;
+    /// <summary>R1=点数组\* R2=点数（不闭合）。</summary>
+    public const int Polyline = 5;
+    /// <summary>R1=SVG path 的 d\*。</summary>
+    public const int Path = 6;
+    /// <summary>R1..R3 = x y 文本\*（用 <see cref="VmlUi.SetFont"/> 设的文字属性）。</summary>
+    public const int Text = 7;
+    /// <summary>R1..R6 = cx cy 外半径 内半径 角数 旋转角(度)。</summary>
+    public const int Star = 8;
+    /// <summary>R1..R5 = cx cy 半径 边数 旋转角(度)。</summary>
+    public const int Regular = 9;
+    /// <summary>R1..R4 = cx cy 外半径 内半径。</summary>
+    public const int Ring = 10;
+    /// <summary>R1..R5 = cx cy 半径 起始角 结束角（度）。</summary>
+    public const int Pie = 11;
+    /// <summary>R1..R3 = cx cy 尺寸。</summary>
+    public const int Heart = 12;
+    /// <summary>
+    /// R1..R4 = cx cy rx ry **R5=渐变名\***（UTF-8，NUL 结尾）。
+    ///
+    /// ⚠ 这是**唯一一个自带刷子**的形状码 —— 其余码的填充/描边一律取当前样式状态
+    /// （<see cref="VmlUi.SetStyle"/>）。它破例是为了与既有的 `ui_rect_grad` / `ui_circle_grad`
+    /// 同形：那两条也是"渐变名直接传给绘制调用"，混用两种写法比破一次例更难记。
+    /// 没有渐变名时**什么都不画**（与那两条一致 —— 退化成黑椭圆只会让人以为渐变没生效）。
+    /// </summary>
+    public const int EllipseGrad = 13;
+}
+
+/// <summary>
+/// <see cref="VmlUi.Brush"/> 的刷子种类 —— 跨语言契约（C 头文件 `VML_BRUSH_*`）。
+/// ⚠ 只能末尾追加。
+/// </summary>
+public static class VmlBrushKind
+{
+    /// <summary>R1=颜色(ARGB)。**同色会复用同一个句柄**，循环里反复造也安全。</summary>
+    public const int Solid = 0;
+    /// <summary>R1=色A R2=色B R3..R6 = x1 y1 x2 y2（**千分之一**，与 <c>ui_gradient</c> 同口径）。</summary>
+    public const int Linear = 1;
+    /// <summary>R1=色A R2=色B R3..R5 = cx cy r（千分之一）。</summary>
+    public const int Radial = 2;
+    /// <summary>R1=渐变名\*（引一个已经用 `ui_gradient` 定义过的）→ 句柄，没有则 0。</summary>
+    public const int ByName = 3;
+}
+
+/// <summary>
+/// <see cref="VmlUi.SetStyle"/> 的槽位 —— 跨语言契约（C 头文件 `VML_STYLE_*`）。
+/// ⚠ 只能末尾追加。
+/// </summary>
+public static class VmlStyleSlot
+{
+    /// <summary>填充刷子。这是默认槽（不传槽位就等于设它）。</summary>
+    public const int Fill = 0;
+    /// <summary>画笔（描边）：刷子 + 线宽 + 线帽 + 虚线 + 箭头。传 0 = 不描边。</summary>
+    public const int Pen = 1;
+    /// <summary>文字刷子。传 0 = 回到 <see cref="VmlUi.SetFont"/> 给的颜色。</summary>
+    public const int Text = 2;
 }
 
 /// <summary>
@@ -876,6 +1021,14 @@ public sealed class VmlScene
     /// 这是**宿主侧的兜底** —— 到顶丢弃后续图元并记一次警告，绝不让程序的一行疏忽拖垮宿主。</summary>
     public const int MaxFigures = 12_000;
 
+    /// <summary>
+    /// 刷子表上限（<see cref="Brush"/> 造的句柄）。
+    ///
+    /// 句柄是**小整数**（1..本值），与颜色值（`0xAARRGGBB`）不共用命名空间 ——
+    /// 这条边界要求本值**远小于 0x01000000**；改大到那个量级就会开始把颜色误判成句柄。
+    /// </summary>
+    public const int MaxBrushes = 128;
+
     /// <summary>单条文本 / 路径串的长度上限（DSL 文本随它线性膨胀）。</summary>
     public const int MaxTextLength = 4_096;
 
@@ -951,6 +1104,7 @@ public sealed class VmlScene
     {
         var safe = VmlUi.SafeId(id);
         if (safe.Length == 0) return;
+        _gradientNames.Add(safe);   // 防 BRUSH 的匿名名（_b{n}）与用户起的名字撞车
         // ⚠ **单位只在这一处换算**：对外（C# API 与 VML 的 syscall）统一用**千分之一**的整数
         //   0..1000，进 DSL 前除以 1000 变成 SVG 的归一化 0..1。
         //   两端各写一次换算就会出现"我按千分之一传、它按 0..1 收"这种**沉默的错**：
@@ -1063,7 +1217,7 @@ public sealed class VmlScene
 
     /// <summary>按当前属性画一行字（<see cref="Text"/> 号段的实现体，放这里便于自测）。</summary>
     public void AddTextCurrent(int x, int y, string text)
-        => AddText(x, y, text, FontColor, FontSize, FontAnchor, FontStyle);
+        => AddText(x, y, text, _hasTextBrush ? _textColor : FontColor, FontSize, FontAnchor, FontStyle);
 
     /// <summary>文字样式位：粗体。</summary>
     public const int TextBold = 1;
@@ -1156,6 +1310,306 @@ public sealed class VmlScene
 
     /// <summary>0xAARRGGBB → <c>#AARRGGBB</c>（<c>ColorUtil</c> 的 8 位分支按此解析）。</summary>
     private static string Hex(uint argb) => "#" + argb.ToString("X8");
+
+    // ══════════════════════════════════════════════════════════════════════
+    // 刷子与样式状态（`BRUSH` #575 / `SET_STYLE` #576 / `DRAW_SHAPE` #574）
+    //
+    // 骨架只有三件事：**一张刷子表**（句柄 → 进 DSL 的那个 token）、
+    // **三个样式槽**（填充 / 画笔 / 文字）、**每个形状按当前样式拼一行 DSL**。
+    // ══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 刷子表：下标 + 1 = 句柄（句柄从 1 起，**0 一律表示"没有"**）。
+    /// <c>Token</c> 是进 DSL 的那个词（纯色是 <c>#AARRGGBB</c>、渐变是 <c>@名字</c>）；
+    /// <c>Fallback</c> 是"这个刷子退化成一个颜色时会是什么"—— 渐变取起始色。
+    /// </summary>
+    private readonly List<(string Token, uint Fallback)> _brushes = new();
+    private readonly Dictionary<uint, int> _solidBrushCache = new();
+    private int _anonSeq;
+    private bool _brushOverflowWarned;
+
+    // 样式状态。默认：填充不透明白、**不描边**、文字跟随 ui_set_font 的颜色。
+    private string? _fill = "#FFFFFFFF";
+    private string _penFallback = "#00000000";
+    private string? _pen;
+    private uint _textColor;
+    private bool _hasTextBrush;
+    private int _penWidth = 1, _penCap, _penDash, _penArrow;
+    private readonly HashSet<string> _degradedWarned = new(StringComparer.Ordinal);
+
+    /// <summary>当前填充 token（<c>@id</c> 或 <c>#AARRGGBB</c>）；null = 不填充。</summary>
+    public string? FillToken => _fill;
+
+    /// <summary>纯色刷子（**同色复用**，循环里反复造也安全）。满了返回 0。</summary>
+    public int AddSolidBrush(uint argb)
+    {
+        if (_solidBrushCache.TryGetValue(argb, out var hit)) return hit;
+        if (_brushes.Count >= MaxBrushes) { WarnBrushOverflow(); return 0; }
+        _brushes.Add((Hex(argb), argb));
+        var handle = _brushes.Count;
+        _solidBrushCache[argb] = handle;
+        return handle;
+    }
+
+    /// <summary>渐变刷子：定义一条匿名渐变（名字 <c>_b{n}</c>），再返回引用它的句柄。</summary>
+    public int AddGradientBrush(bool radial, uint colorA, uint colorB, int a1, int a2, int a3, int a4)
+    {
+        if (_brushes.Count >= MaxBrushes) { WarnBrushOverflow(); return 0; }
+        string name;
+        do { _anonSeq++; name = "_b" + _anonSeq; } while (_gradientNames.Contains(name));
+        _gradientNames.Add(name);
+        AddGradient(name, radial, colorA, colorB, a1, a2, a3, a4);
+        _brushes.Add(("@" + name, colorA));
+        return _brushes.Count;
+    }
+
+    /// <summary>
+    /// 按名字引用一个**已经用 `ui_gradient` 定义过**的渐变。
+    ///
+    /// ⚠ 这是"引用型"刷子：它自己不定义渐变，所以**依赖程序当帧先调过 `ui_gradient`**，
+    /// 而 `ui_clear` 会把那条定义清掉 —— 与 `BRUSH_LINEAR/RADIAL` 造的匿名刷子
+    /// （窗口态、`ui_clear` 不清）**生命周期不同**。三种生命周期都写在这里了，别混。
+    /// </summary>
+    public int AddNamedBrush(string name)
+    {
+        var safe = VmlUi.SafeId(name);
+        if (safe.Length == 0) return 0;
+        for (var i = 0; i < _brushes.Count; i++)
+            if (_brushes[i].Token == "@" + safe) return i + 1;   // 同名复用，不产生重复定义
+        if (_brushes.Count >= MaxBrushes) { WarnBrushOverflow(); return 0; }
+        _brushes.Add(("@" + safe, 0xFF000000u));
+        return _brushes.Count;
+    }
+
+    /// <summary>句柄 → 样式 token；0 或越界返回 null（= 该槽"没有"）。</summary>
+    public string? BrushToken(int handle)
+        => handle >= 1 && handle <= _brushes.Count ? _brushes[handle - 1].Token : null;
+
+    /// <summary>
+    /// 「句柄**或**颜色」→ 样式 token。
+    ///
+    /// 两者值域**天然不重叠**（句柄 1..<see cref="MaxBrushes"/>，颜色 ≥ 0x01000000），
+    /// 所以 `ui_set_fill(0xFF2A3346)` 直接传颜色是合法的 —— 这正是
+    /// 「颜色 = 只有一个色标的刷子」在**实现**上的落点，不必强制先 `ui_brush_solid`。
+    /// </summary>
+    private string TokenFor(int handleOrColor)
+    {
+        if (handleOrColor >= 1 && handleOrColor <= _brushes.Count) return _brushes[handleOrColor - 1].Token;
+        return Hex((uint)handleOrColor);
+    }
+
+    /// <summary>
+    /// 该 token 能不能用在"这一批还不支持渐变的槽"（画笔 / 文字）上。
+    /// 不能就**退化到它的起始色并记一次警告** —— 绝不静默。
+    /// </summary>
+    private string SolidTokenFor(int handleOrColor, string slot)
+    {
+        if (handleOrColor >= 1 && handleOrColor <= _brushes.Count)
+        {
+            var b = _brushes[handleOrColor - 1];
+            if (!b.Token.StartsWith('@')) return b.Token;
+            if (_degradedWarned.Add(slot))
+                ErrorLog.Warning("VmlScene",
+                    $"{slot}槽收到的是渐变刷子 —— 本批只支持纯色（渐变描边/渐变文字还没落地），" +
+                    "已退化用它的起始色。要渐变就先给形状的填充槽用。");
+            return Hex(b.Fallback);
+        }
+        return Hex((uint)handleOrColor);
+    }
+
+    /// <summary>设置一个样式槽。<paramref name="slot"/> 见 <see cref="VmlStyleSlot"/>。</summary>
+    public bool SetStyle(int slot, int brush, int width, int cap, int dash, int arrow)
+    {
+        switch (slot)
+        {
+            case VmlStyleSlot.Fill:
+                _fill = brush == 0 ? null : TokenFor(brush);
+                return true;
+            case VmlStyleSlot.Pen:
+                _pen = brush == 0 ? null : SolidTokenFor(brush, "画笔");
+                _penFallback = _pen ?? "#00000000";
+                _penWidth = width <= 0 ? 1 : Math.Min(width, CoordLimit);
+                _penCap = cap;
+                _penDash = dash != 0 ? 1 : 0;
+                _penArrow = arrow;
+                return true;
+            case VmlStyleSlot.Text:
+                _hasTextBrush = brush != 0;
+                if (_hasTextBrush) _textColor = ParseHex(SolidTokenFor(brush, "文字"));
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>当前画笔（描边）token；null = 不描边。</summary>
+    public string? PenToken => _pen;
+
+    /// <summary>当前文字刷子的颜色；没设过时 <see cref="_hasTextBrush"/> 为假，跟随 ui_set_font。</summary>
+    public uint TextBrushColor => _textColor;
+    /// <summary>是否设过文字刷子。</summary>
+    public bool HasTextBrush => _hasTextBrush;
+
+    /// <summary>`#AARRGGBB` → uint。只喂我们自己拼出来的串（<see cref="Hex"/> 的产物）。</summary>
+    private static uint ParseHex(string s)
+        => uint.TryParse(s.TrimStart('#'), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var v) ? v : 0;
+
+    private readonly HashSet<string> _gradientNames = new(StringComparer.Ordinal);
+
+    private void WarnBrushOverflow()
+    {
+        if (_brushOverflowWarned) return;
+        _brushOverflowWarned = true;
+        ErrorLog.Warning("VmlScene", $"刷子数超过上限 {MaxBrushes}，后续 BRUSH 返回 0（句柄 0 = 没有刷子）。");
+    }
+
+    /// <summary>
+    /// 形状的样式尾巴：`[fill] [stroke] [width] [cap] [dash]`。
+    ///
+    /// 用的是 DSL 的**位置约定**（第一个颜色 = 填充、第二个 = 描边，见 <c>DrawParse.ParseStyle</c>）——
+    /// 这条约定早于刷子模型，且被 10 条指令共用，不动它。
+    /// 空心图形必须把填充写成全透明色而不是省略 —— 省了的话颜色位会被描边占去。
+    /// </summary>
+    private string StyleTail()
+    {
+        var sb = new StringBuilder();
+        sb.Append(' ').Append(_fill ?? "#00000000");
+        if (_pen != null)
+        {
+            sb.Append(' ').Append(_pen);
+            if (_penWidth > 0) sb.Append(' ').Append(_penWidth);
+            if (_penCap == 1) sb.Append(" round");
+            else if (_penCap == 2) sb.Append(" square");
+            if (_penDash != 0) sb.Append(" dash");
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>只管描边的图元（`line` / `polyline`）的样式尾巴：`[色] [width] [cap] [dash]`。</summary>
+    private string PenTail()
+    {
+        var sb = new StringBuilder();
+        sb.Append(' ').Append(_penFallback);
+        if (_penWidth > 0) sb.Append(' ').Append(_penWidth);
+        if (_penCap == 1) sb.Append(" round");
+        else if (_penCap == 2) sb.Append(" square");
+        if (_penDash != 0) sb.Append(" dash");
+        return sb.ToString();
+    }
+
+    /// <summary>按 <see cref="VmlShape"/> 的码画一个形状（样式取当前状态）。未知码返回 false。</summary>
+    public bool AddShape(int shape, int a1, int a2, int a3, int a4, int a5, int a6, int a7)
+    {
+        switch (shape)
+        {
+            case VmlShape.Rect:
+                if (!InCoordRange(a1) || !InCoordRange(a2)) return false;
+                Add(a4 > 0
+                    ? $"roundrect {a1} {a2} {Dim(a3)} {Dim(a4)} {Dim(a5)}{StyleTail()}"
+                    : $"rect {a1} {a2} {Dim(a3)} {Dim(a4)}{StyleTail()}");
+                return true;
+            case VmlShape.Circle:
+                if (!InCoordRange(a1) || !InCoordRange(a2)) return false;
+                Add($"circle {a1} {a2} {Dim(a3)}{StyleTail()}");
+                return true;
+            case VmlShape.Ellipse:
+                if (!InCoordRange(a1) || !InCoordRange(a2)) return false;
+                Add($"ellipse {a1} {a2} {Dim(a3)} {Dim(a4)}{StyleTail()}");
+                return true;
+            case VmlShape.Line:
+                if (!InCoordRange(a1) || !InCoordRange(a2)
+                    || !InCoordRange(a3) || !InCoordRange(a4)) return false;
+                Add($"line {a1} {a2} {a3} {a4}{PenTail()}");
+                return true;
+            case VmlShape.Star:
+                return AddStar(a1, a2, a3, a4, a5, a6);
+            case VmlShape.Regular:
+                return AddRegular(a1, a2, a3, a4, a5);
+            case VmlShape.Ring:
+                return AddRing(a1, a2, a3, a4);
+            case VmlShape.Pie:
+                return AddPie(a1, a2, a3, a4, a5);
+            case VmlShape.Heart:
+                return AddHeart(a1, a2, a3);
+            default:
+                return false;
+        }
+    }
+
+    private static int NormDeg(int deg) => ((deg % 360) + 360) % 360;
+
+    /// <summary>星形（`star cx cy 外半径 内半径 角数 旋转角`）。</summary>
+    public bool AddStar(int cx, int cy, int rOut, int rIn, int points, int rot)
+    {
+        if (!InCoordRange(cx) || !InCoordRange(cy)) return false;
+        if (points < 2) points = 2;
+        if (points > 4096) points = 4096;
+        Add($"star {cx} {cy} {Dim(rOut)} {Dim(rIn)} {points} {NormDeg(rot)}{StyleTail()}");
+        return true;
+    }
+
+    /// <summary>正多边形（`regular cx cy 半径 边数 旋转角`）。边数 &lt; 3 画不出面。</summary>
+    public bool AddRegular(int cx, int cy, int r, int n, int rot)
+    {
+        if (!InCoordRange(cx) || !InCoordRange(cy)) return false;
+        if (n < 3) n = 3;
+        if (n > 4096) n = 4096;
+        Add($"regular {cx} {cy} {Dim(r)} {n} {NormDeg(rot)}{StyleTail()}");
+        return true;
+    }
+
+    /// <summary>圆环（`ring cx cy 外半径 内半径`）—— 中间的洞靠奇偶规则挖。</summary>
+    public bool AddRing(int cx, int cy, int rOut, int rIn)
+    {
+        if (!InCoordRange(cx) || !InCoordRange(cy)) return false;
+        Add($"ring {cx} {cy} {Dim(rOut)} {Dim(rIn)}{StyleTail()}");
+        return true;
+    }
+
+    /// <summary>扇形（`pie cx cy 半径 起始角 结束角`，角度制）。</summary>
+    public bool AddPie(int cx, int cy, int r, int a0, int a1)
+    {
+        if (!InCoordRange(cx) || !InCoordRange(cy)) return false;
+        Add($"pie {cx} {cy} {Dim(r)} {a0} {a1}{StyleTail()}");
+        return true;
+    }
+
+    /// <summary>心形（`heart cx cy 尺寸`）。</summary>
+    public bool AddHeart(int cx, int cy, int size)
+    {
+        if (!InCoordRange(cx) || !InCoordRange(cy)) return false;
+        Add($"heart {cx} {cy} {Dim(size)}{StyleTail()}");
+        return true;
+    }
+
+    /// <summary>多边形 / 折线：点数组来自 VML 内存，调用方已读成扁平坐标。</summary>
+    public bool AddShapePoly(IReadOnlyList<double> points, bool close)
+    {
+        var pts = FlatPoints(points);
+        if (pts == null) return false;
+        Add(close ? $"polygon {pts}{StyleTail()}" : $"polyline {pts}{PenTail()}");
+        return true;
+    }
+
+    /// <summary>
+    /// 路径（SVG 语法）。DSL 里 `path` 的**裸颜色是描边**、填充要写 `fill &lt;色|@id&gt;` ——
+    /// 与其它形状"第一个颜色 = 填充"相反，是历史遗留，这里按它的规矩拼。
+    /// </summary>
+    public bool AddShapePath(string d)
+    {
+        if (string.IsNullOrEmpty(d)) return false;
+        Add($"path \"{Escape(d)}\" {_penFallback} {(_penWidth > 0 ? _penWidth : 1)} fill {_fill ?? "#00000000"}");
+        return true;
+    }
+
+    /// <summary>文字（用当前文字属性；文字刷子非空时覆盖颜色）。</summary>
+    public bool AddShapeText(int x, int y, string text)
+    {
+        if (!InCoordRange(x) || !InCoordRange(y)) return false;
+        AddTextCurrent(x, y, text);
+        return true;
+    }
+
 
     private static string AnchorName(int anchor) => anchor switch
     {

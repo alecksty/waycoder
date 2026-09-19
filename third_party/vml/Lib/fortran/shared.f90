@@ -2018,6 +2018,46 @@
 // CALL ui_rect_grad
 // extern fn ui_circle_grad(int cx, int cy, int r, char* grad) -> void
 // CALL ui_circle_grad
+// extern fn ui_brush_solid(int color) -> int
+// CALL ui_brush_solid
+// extern fn ui_brush_linear(int color_a, int color_b, int x1, int y1, int x2, int y2) -> int
+// CALL ui_brush_linear
+// extern fn ui_brush_radial(int color_a, int color_b, int cx, int cy, int r) -> int
+// CALL ui_brush_radial
+// extern fn ui_brush_named(char* gradId) -> int
+// CALL ui_brush_named
+// extern fn ui_set_fill(int brush) -> int
+// CALL ui_set_fill
+// extern fn ui_set_pen(int brush, int width, int cap, int dash, int arrow) -> int
+// CALL ui_set_pen
+// extern fn ui_set_text_brush(int brush) -> int
+// CALL ui_set_text_brush
+// extern fn ui_draw_rect(int x, int y, int w, int h, int radius) -> void
+// CALL ui_draw_rect
+// extern fn ui_draw_circle(int cx, int cy, int r) -> void
+// CALL ui_draw_circle
+// extern fn ui_draw_ellipse(int cx, int cy, int rx, int ry) -> void
+// CALL ui_draw_ellipse
+// extern fn ui_draw_line(int x1, int y1, int x2, int y2) -> void
+// CALL ui_draw_line
+// extern fn ui_draw_poly(int* pts, int count, int close) -> void
+// CALL ui_draw_poly
+// extern fn ui_draw_path(char* d) -> void
+// CALL ui_draw_path
+// extern fn ui_draw_text(int x, int y, char* s) -> void
+// CALL ui_draw_text
+// extern fn ui_ellipse_grad(int cx, int cy, int rx, int ry, char* grad) -> void
+// CALL ui_ellipse_grad
+// extern fn ui_draw_star(int cx, int cy, int r_out, int r_in, int points, int rot) -> void
+// CALL ui_draw_star
+// extern fn ui_draw_regular(int cx, int cy, int r, int n, int rot) -> void
+// CALL ui_draw_regular
+// extern fn ui_draw_ring(int cx, int cy, int r_out, int r_in) -> void
+// CALL ui_draw_ring
+// extern fn ui_draw_pie(int cx, int cy, int r, int a0, int a1) -> void
+// CALL ui_draw_pie
+// extern fn ui_draw_heart(int cx, int cy, int size) -> void
+// CALL ui_draw_heart
 // extern fn ui_beep(int freq, int ms) -> void
 // CALL ui_beep
 // extern fn ui_vibrate(int ms, int strength) -> void

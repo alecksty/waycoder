@@ -107,6 +107,60 @@ E = {
         "ui_gradient(\"ball\", 1, 0xFFFFFFFF, 0xFF2E6FC4, 500, 500, 500, 0);\nui_circle_grad(cx, cy, r, \"ball\");"),
     "ui_ellipse": ("绘图", "画椭圆（`rx` / `ry` 两个半径）。",
         "ui_ellipse(100, 100, 50, 30, 0xFFFFFF00, 1, 2);"),
+    # ── 刷子 / 样式 / 形状（574–576）：一个号 + 操作码，加形状不必再占号 ──
+    "ui_brush_solid": ("绘图",
+        "造一个**纯色刷子**。返回句柄（≥1；0 = 失败），交给 `ui_set_fill` / `ui_set_pen` 用。\n"
+        "⚠ 其实**直接传颜色**也行（颜色 = 只有一个色标的刷子），这个函数是给"
+        "「先造一批刷子、之后换着用」的场合。",
+        "int b = ui_brush_solid(0xFF2A3346);\nui_set_fill(b);"),
+    "ui_brush_linear": ("绘图",
+        "造一个**线性渐变刷子**。几何是**千分之一**（0..1000），相对**形状自己的包围盒**："
+        "`0,0,1000,0` = 从左到右。",
+        'int b = ui_brush_linear(0xFFFF3020, 0xFF2050FF, 0, 0, 1000, 0);\nui_set_fill(b);'),
+    "ui_brush_radial": ("绘图",
+        "造一个**径向渐变刷子**（中心 → 四周）。`cx cy r` 同样千分之一，`500,500,500` = 居中。",
+        'int b = ui_brush_radial(0xFFFFE060, 0xFF204020, 500, 500, 500);\nui_set_fill(b);'),
+    "ui_brush_named": ("绘图",
+        "按**名字**引用一个已经 `ui_gradient` 定义过的渐变 → 句柄。\n"
+        "⚠ 它是**引用型**：自己不定义渐变，所以依赖程序当帧先调过 `ui_gradient`，"
+        "而 `ui_clear` 会把那条定义清掉。",
+        'ui_gradient("sky", 0, 0xFF2E6FC4, 0xFFBEE3F7, 0, 0, 0, 1000);\n'
+        'int b = ui_brush_named("sky");\nui_set_fill(b);'),
+    "ui_set_fill": ("绘图",
+        "设置**填充刷子**。传刷子句柄或颜色都行；传 0 = 不填充（空心）。",
+        "ui_set_fill(0xFF2A3346);        /* 直接给颜色 */\nui_draw_rect(20, 20, 120, 60, 8);"),
+    "ui_set_pen": ("绘图",
+        "设置**画笔**（描边）= 刷子 + 线宽 + 线帽 + 虚线 + 箭头。传 0 = 不描边。\n"
+        "线帽用 `VML_CAP_BUTT/ROUND/SQUARE`，箭头用 `VML_ARROW_*`。\n"
+        "⚠ 本批**画笔只支持纯色**（渐变描边还没落地，给渐变句柄会记一次警告并退回它的起始色）。",
+        "ui_set_fill(0xFF2A3346);\n"
+        "ui_set_pen(0xFFF2F6FA, 3, VML_CAP_ROUND, 0, VML_ARROW_NONE);\nui_draw_rect(20, 20, 120, 60, 8);"),
+    "ui_set_text_brush": ("绘图",
+        "设置**文字刷子**（配合 `ui_set_font` + `ui_draw_text`）。传 0 = 回到 `ui_set_font` 给的颜色。",
+        "ui_set_text_brush(0xFFFFD700);\nui_set_font(24, VML_FONT_BOLD, 0, VML_ANCHOR_CENTER);\n"
+        "ui_draw_text(100, 40, \"标题\");"),
+    "ui_draw_rect": ("绘图", "用**当前刷子**画矩形（`radius > 0` 即圆角）。",
+        "ui_set_fill(0xFF4ADE80);\nui_draw_rect(20, 20, 120, 60, 8);"),
+    "ui_draw_circle": ("绘图", "用当前刷子画圆。", "ui_draw_circle(100, 100, 40);"),
+    "ui_draw_ellipse": ("绘图", "用当前刷子画椭圆。", "ui_draw_ellipse(100, 100, 50, 30);"),
+    "ui_draw_line": ("绘图", "用当前**画笔**画直线。", "ui_set_pen(0xFFE06C50, 3, 0, 0, 0);\nui_draw_line(10, 10, 120, 60);"),
+    "ui_draw_poly": ("绘图",
+        "用当前刷子画多边形（`close=1` 自动闭合）或折线（`close=0`）。"
+        "`pts` 每两个 int 一个点，`count` 是**点数**。",
+        "int tri[6];\ntri[0]=60; tri[1]=10; tri[2]=90; tri[3]=70; tri[4]=30; tri[5]=70;\n"
+        "ui_set_fill(0xFF4ADE80);\nui_draw_poly(tri, 3, 1);"),
+    "ui_draw_path": ("绘图", "用当前刷子画 SVG 路径（`M L C Q A Z`，大小写区分绝对/相对；多子路径按奇偶规则挖洞）。",
+        'ui_set_fill(0xFF4ADE80);\nui_draw_path("M 20 80 L 60 20 L 100 80 Z");'),
+    "ui_draw_text": ("绘图", "用**当前文字属性**（`ui_set_font`）画一行字。", 'ui_set_font(24, 0, 0xFFFFFFFF, VML_ANCHOR_CENTER);\nui_draw_text(100, 40, "你好");'),
+    "ui_draw_star": ("绘图", "用当前刷子画星形：外半径 / 内半径 / 角数 / 旋转角(度)。", "ui_set_fill(0xFFFFD700);\nui_draw_star(100, 100, 50, 22, 5, 0);"),
+    "ui_draw_regular": ("绘图", "用当前刷子画正多边形：半径 / 边数 / 旋转角(度)。", "ui_set_fill(0xFF4ADE80);\nui_draw_regular(100, 100, 50, 6, 0);"),
+    "ui_draw_ring": ("绘图", "用当前刷子画圆环（外半径 / 内半径，中间的洞靠奇偶规则挖）。", "ui_set_fill(0xFF4A90D9);\nui_draw_ring(100, 100, 50, 30);"),
+    "ui_draw_pie": ("绘图", "用当前刷子画扇形：半径 / 起始角 / 结束角（度）。", "ui_set_fill(0xFFE06C50);\nui_draw_pie(100, 100, 50, 0, 120);"),
+    "ui_draw_heart": ("绘图", "用当前刷子画心形。", "ui_set_fill(0xFFFF4D6D);\nui_draw_heart(100, 100, 60);"),
+    "ui_ellipse_grad": ("绘图",
+        "渐变填充的椭圆。与 `ui_rect_grad` / `ui_circle_grad` 是一组（那批接口当时**漏了椭圆**）。",
+        'ui_gradient("ball", 1, 0xFFFFFFFF, 0xFF2E6FC4, 500, 500, 500, 0);\n'
+        'ui_ellipse_grad(cx, cy, rx, ry, "ball");'),
     "ui_polygon": ("绘图",
         "画多边形（自动闭合）。`pts` 是 int 数组、**每两个 int 一个点**；`count` 是**点数**。\n"
         "`fill` / `stroke` 都是**颜色**（不是开关），`width` 是描边线宽，`grad` 传渐变名或空串。\n"

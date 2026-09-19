@@ -1,0 +1,37 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>probe3</title></head>
+<body><pre id="out">…</pre></body>
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { World } from './js/world.js';
+import { PlayerAircraft, WingmanAircraft } from './js/aircraft.js';
+const L=[]; const out=document.getElementById('out');
+const world = new World(out, 'low');
+const fp = new PlayerAircraft(world.scene, {});
+fp.position.set(0, 1500, 0); fp.speed = 220; fp.velocity.set(0,0,-220); fp.syncMesh();
+const ally = new WingmanAircraft(world.scene, { side: 1, seed: 5 });
+ally.position.set(900, 1900, 900); ally.speed = 200; ally.velocity.set(0,0,-200);
+ally.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,-1), new THREE.Vector3(-0.7,0,-0.7));
+ally.syncAttitude(); ally.syncMesh();
+const ctx = { player: fp, world, enemies: [] };
+const f=(v)=>v.toArray().map(x=>x.toFixed(0)).join(',');
+L.push('C) 僚机归队明细:');
+for (let i=0;i<1800;i++){
+
+  ally.update(1/60, ctx); fp.integrate(1/60);
+  if (i%150===0 || i===1799){
+    const fwd = ally.getForward(new THREE.Vector3());
+    const off = new THREE.Vector3(70, -16, 60).applyQuaternion(fp.quaternion);
+    const aim = fp.position.clone().add(off);
+    const toAim = aim.clone().sub(ally.position);
+    const d = ally.position.distanceTo(fp.position);
+    L.push(`   t=${(i/60).toFixed(1)}s d=${d.toFixed(0)} aimDist=${toAim.length().toFixed(0)} spd=${ally.speed.toFixed(0)} y=${ally.position.y.toFixed(0)}` +
+      ` bank=${ally.bank.toFixed(2)} aRoll=${ally.angular.roll.toFixed(2)} aYaw=${ally.angular.yaw.toFixed(2)} aPitch=${ally.angular.pitch.toFixed(2)}` +
+      ` fwd=${f(fwd)} ally=${f(ally.position)} player=${f(fp.position)} in=${ally.inputs.roll.toFixed(2)}/${ally.inputs.pitch.toFixed(2)} thr=${ally.throttle.toFixed(2)} ab=${ally.afterburner}`);
+  }
+}
+out.textContent = L.join('\n');
+document.title='PROBE3_DONE';
+</script></body></html>

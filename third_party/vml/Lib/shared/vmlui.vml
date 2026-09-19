@@ -2367,6 +2367,619 @@ ui_circle_grad:
         pop R12
         pop R15
         ret
+ui_brush_solid:
+; -------------------------------------------
+; source   : int ui_brush_solid(int color)
+; function : ui_brush_solid
+; param   : int color
+; return   : int
+; --------------------------------------------
+ui_brush_solid:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 437:     op = 0;
+        move R0 #0
+        move [R12-8] R0
+; 438:     return asm("SYSCALL #575, ${op}, ${color}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        syscall #575
+        move [R12-4] R0
+        jmp L_2170127
+L_2170127:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_brush_linear:
+; -------------------------------------------
+; source   : int ui_brush_linear(int color_a,int color_b,int x1,int y1,int x2,int y2)
+; function : ui_brush_linear
+; param   : int color_a
+; param   : int color_b
+; param   : int x1
+; param   : int y1
+; param   : int x2
+; param   : int y2
+; return   : int
+; --------------------------------------------
+ui_brush_linear:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 443:     op = 1;
+        move R0 #1
+        move [R12-8] R0
+; 444:     return asm("SYSCALL #575, ${op}, ${color_a}, ${color_b}, ${x1}, ${y1}, ${x2}, ${y2}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        move R2 [R12+16]
+        move R3 [R12+20]
+        move R4 [R12+24]
+        move R5 [R12+28]
+        move R6 [R12+32]
+        syscall #575
+        move [R12-4] R0
+        jmp L_2170128
+L_2170128:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_brush_radial:
+; -------------------------------------------
+; source   : int ui_brush_radial(int color_a,int color_b,int cx,int cy,int r)
+; function : ui_brush_radial
+; param   : int color_a
+; param   : int color_b
+; param   : int cx
+; param   : int cy
+; param   : int r
+; return   : int
+; --------------------------------------------
+ui_brush_radial:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 449:     op = 2;
+        move R0 #2
+        move [R12-8] R0
+; 450:     return asm("SYSCALL #575, ${op}, ${color_a}, ${color_b}, ${cx}, ${cy}, ${r}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        move R2 [R12+16]
+        move R3 [R12+20]
+        move R4 [R12+24]
+        move R5 [R12+28]
+        syscall #575
+        move [R12-4] R0
+        jmp L_2170129
+L_2170129:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_brush_named:
+; -------------------------------------------
+; source   : int ui_brush_named(char* gradId)
+; function : ui_brush_named
+; param   : char* gradId
+; return   : int
+; --------------------------------------------
+ui_brush_named:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 455:     op = 3;
+        move R0 #3
+        move [R12-8] R0
+; 456:     return asm("SYSCALL #575, ${op}, ${gradId}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        syscall #575
+        move [R12-4] R0
+        jmp L_2170130
+L_2170130:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_set_fill:
+; -------------------------------------------
+; source   : int ui_set_fill(int brush)
+; function : ui_set_fill
+; param   : int brush
+; return   : int
+; --------------------------------------------
+ui_set_fill:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 461:     slot = 0;
+        move R0 #0
+        move [R12-8] R0
+; 462:     return asm("SYSCALL #576, ${slot}, ${brush}, 0, 0, 0, 0");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        syscall #576
+        move [R12-4] R0
+        jmp L_2170131
+L_2170131:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_set_pen:
+; -------------------------------------------
+; source   : int ui_set_pen(int brush,int width,int cap,int dash,int arrow)
+; function : ui_set_pen
+; param   : int brush
+; param   : int width
+; param   : int cap
+; param   : int dash
+; param   : int arrow
+; return   : int
+; --------------------------------------------
+ui_set_pen:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 467:     slot = 1;
+        move R0 #1
+        move [R12-8] R0
+; 468:     return asm("SYSCALL #576, ${slot}, ${brush}, ${width}, ${cap}, ${dash}, ${arrow}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        move R2 [R12+16]
+        move R3 [R12+20]
+        move R4 [R12+24]
+        move R5 [R12+28]
+        syscall #576
+        move [R12-4] R0
+        jmp L_2170132
+L_2170132:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_set_text_brush:
+; -------------------------------------------
+; source   : int ui_set_text_brush(int brush)
+; function : ui_set_text_brush
+; param   : int brush
+; return   : int
+; --------------------------------------------
+ui_set_text_brush:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 473:     slot = 2;
+        move R0 #2
+        move [R12-8] R0
+; 474:     return asm("SYSCALL #576, ${slot}, ${brush}, 0, 0, 0, 0");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        syscall #576
+        move [R12-4] R0
+        jmp L_2170133
+L_2170133:
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_draw_rect:
+; -------------------------------------------
+; source   : void ui_draw_rect(int x,int y,int w,int h,int radius)
+; function : ui_draw_rect
+; param   : int x
+; param   : int y
+; param   : int w
+; param   : int h
+; param   : int radius
+; return   : void
+; --------------------------------------------
+ui_draw_rect:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 479:     op = 0;
+        move R0 #0
+        move [R12-8] R0
+; 480:     asm("SYSCALL #574, ${op}, ${x}, ${y}, ${w}, ${h}, ${radius}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        move R2 [R12+16]
+        move R3 [R12+20]
+        move R4 [R12+24]
+        move R5 [R12+28]
+        syscall #574
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_draw_circle:
+; -------------------------------------------
+; source   : void ui_draw_circle(int cx,int cy,int r)
+; function : ui_draw_circle
+; param   : int cx
+; param   : int cy
+; param   : int r
+; return   : void
+; --------------------------------------------
+ui_draw_circle:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 484:     op = 1;
+        move R0 #1
+        move [R12-8] R0
+; 485:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        move R2 [R12+16]
+        move R3 [R12+20]
+        syscall #574
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_draw_ellipse:
+; -------------------------------------------
+; source   : void ui_draw_ellipse(int cx,int cy,int rx,int ry)
+; function : ui_draw_ellipse
+; param   : int cx
+; param   : int cy
+; param   : int rx
+; param   : int ry
+; return   : void
+; --------------------------------------------
+ui_draw_ellipse:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 489:     op = 2;
+        move R0 #2
+        move [R12-8] R0
+; 490:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${rx}, ${ry}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        move R2 [R12+16]
+        move R3 [R12+20]
+        move R4 [R12+24]
+        syscall #574
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_draw_line:
+; -------------------------------------------
+; source   : void ui_draw_line(int x1,int y1,int x2,int y2)
+; function : ui_draw_line
+; param   : int x1
+; param   : int y1
+; param   : int x2
+; param   : int y2
+; return   : void
+; --------------------------------------------
+ui_draw_line:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 494:     op = 3;
+        move R0 #3
+        move [R12-8] R0
+; 495:     asm("SYSCALL #574, ${op}, ${x1}, ${y1}, ${x2}, ${y2}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        move R2 [R12+16]
+        move R3 [R12+20]
+        move R4 [R12+24]
+        syscall #574
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_draw_poly:
+; -------------------------------------------
+; source   : void ui_draw_poly(int* pts,int count,int close)
+; function : ui_draw_poly
+; param   : int* pts
+; param   : int count
+; param   : int close
+; return   : void
+; --------------------------------------------
+ui_draw_poly:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 500:     if (close != 0) { op = 4; } else { op = 5; }
+        move R0 [R12+20]
+        push R0
+        move R0 #0
+        pop R1
+        cmp R1 R0
+        jne _L2170136
+        move R0 #0
+        jmp _L2170137
+_L2170136:
+        move R0 #1
+_L2170137:
+        cmp R0 #0
+        jz sta_2170134
+        move R0 #4
+        move [R12-8] R0
+        jmp sta_2170135
+sta_2170134:
+        move R0 #5
+        move [R12-8] R0
+sta_2170135:
+; 501:     asm("SYSCALL #574, ${op}, ${pts}, ${count}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        move R2 [R12+16]
+        syscall #574
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_draw_path:
+; -------------------------------------------
+; source   : void ui_draw_path(char* d)
+; function : ui_draw_path
+; param   : char* d
+; return   : void
+; --------------------------------------------
+ui_draw_path:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 505:     op = 6;
+        move R0 #6
+        move [R12-8] R0
+; 506:     asm("SYSCALL #574, ${op}, ${d}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        syscall #574
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_draw_text:
+; -------------------------------------------
+; source   : void ui_draw_text(int x,int y,char* s)
+; function : ui_draw_text
+; param   : int x
+; param   : int y
+; param   : char* s
+; return   : void
+; --------------------------------------------
+ui_draw_text:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 510:     op = 7;
+        move R0 #7
+        move [R12-8] R0
+; 511:     asm("SYSCALL #574, ${op}, ${x}, ${y}, ${s}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        move R2 [R12+16]
+        move R3 [R12+20]
+        syscall #574
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_ellipse_grad:
+; -------------------------------------------
+; source   : void ui_ellipse_grad(int cx,int cy,int rx,int ry,char* grad)
+; function : ui_ellipse_grad
+; param   : int cx
+; param   : int cy
+; param   : int rx
+; param   : int ry
+; param   : char* grad
+; return   : void
+; --------------------------------------------
+ui_ellipse_grad:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 516:     op = 13;
+        move R0 #13
+        move [R12-8] R0
+; 517:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${rx}, ${ry}, ${grad}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        move R2 [R12+16]
+        move R3 [R12+20]
+        move R4 [R12+24]
+        move R5 [R12+28]
+        syscall #574
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_draw_star:
+; -------------------------------------------
+; source   : void ui_draw_star(int cx,int cy,int r_out,int r_in,int points,int rot)
+; function : ui_draw_star
+; param   : int cx
+; param   : int cy
+; param   : int r_out
+; param   : int r_in
+; param   : int points
+; param   : int rot
+; return   : void
+; --------------------------------------------
+ui_draw_star:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 521:     op = 8;
+        move R0 #8
+        move [R12-8] R0
+; 522:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r_out}, ${r_in}, ${points}, ${rot}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        move R2 [R12+16]
+        move R3 [R12+20]
+        move R4 [R12+24]
+        move R5 [R12+28]
+        move R6 [R12+32]
+        syscall #574
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_draw_regular:
+; -------------------------------------------
+; source   : void ui_draw_regular(int cx,int cy,int r,int n,int rot)
+; function : ui_draw_regular
+; param   : int cx
+; param   : int cy
+; param   : int r
+; param   : int n
+; param   : int rot
+; return   : void
+; --------------------------------------------
+ui_draw_regular:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 526:     op = 9;
+        move R0 #9
+        move [R12-8] R0
+; 527:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r}, ${n}, ${rot}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        move R2 [R12+16]
+        move R3 [R12+20]
+        move R4 [R12+24]
+        move R5 [R12+28]
+        syscall #574
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_draw_ring:
+; -------------------------------------------
+; source   : void ui_draw_ring(int cx,int cy,int r_out,int r_in)
+; function : ui_draw_ring
+; param   : int cx
+; param   : int cy
+; param   : int r_out
+; param   : int r_in
+; return   : void
+; --------------------------------------------
+ui_draw_ring:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 531:     op = 10;
+        move R0 #10
+        move [R12-8] R0
+; 532:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r_out}, ${r_in}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        move R2 [R12+16]
+        move R3 [R12+20]
+        move R4 [R12+24]
+        syscall #574
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_draw_pie:
+; -------------------------------------------
+; source   : void ui_draw_pie(int cx,int cy,int r,int a0,int a1)
+; function : ui_draw_pie
+; param   : int cx
+; param   : int cy
+; param   : int r
+; param   : int a0
+; param   : int a1
+; return   : void
+; --------------------------------------------
+ui_draw_pie:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 536:     op = 11;
+        move R0 #11
+        move [R12-8] R0
+; 537:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${r}, ${a0}, ${a1}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        move R2 [R12+16]
+        move R3 [R12+20]
+        move R4 [R12+24]
+        move R5 [R12+28]
+        syscall #574
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
+ui_draw_heart:
+; -------------------------------------------
+; source   : void ui_draw_heart(int cx,int cy,int size)
+; function : ui_draw_heart
+; param   : int cx
+; param   : int cy
+; param   : int size
+; return   : void
+; --------------------------------------------
+ui_draw_heart:
+        push R15
+        push R12
+        move R12 R13
+        sub R13 #16
+; 541:     op = 12;
+        move R0 #12
+        move [R12-8] R0
+; 542:     asm("SYSCALL #574, ${op}, ${cx}, ${cy}, ${size}");
+        move R0 [R12-8]
+        move R1 [R12+12]
+        move R2 [R12+16]
+        move R3 [R12+20]
+        syscall #574
+        move [R12-4] R0
+        move R13 R12
+        pop R12
+        pop R15
+        ret
 ui_beep:
 ; -------------------------------------------
 ; source   : void ui_beep(int freq,int ms)
@@ -2380,7 +2993,7 @@ ui_beep:
         push R12
         move R12 R13
         sub R13 #16
-; 421:     asm("SYSCALL #57, ${freq}, ${ms}");
+; 549:     asm("SYSCALL #57, ${freq}, ${ms}");
         move R0 [R12+12]
         move R1 [R12+16]
         syscall #57
@@ -2402,7 +3015,7 @@ ui_vibrate:
         push R12
         move R12 R13
         sub R13 #16
-; 427:     asm("SYSCALL #545, ${ms}, ${strength}");
+; 555:     asm("SYSCALL #545, ${ms}, ${strength}");
         move R0 [R12+12]
         move R1 [R12+16]
         syscall #545
@@ -2423,7 +3036,7 @@ ui_keep_on:
         push R12
         move R12 R13
         sub R13 #16
-; 430:     asm("SYSCALL #553, ${on}");
+; 558:     asm("SYSCALL #553, ${on}");
         move R0 [R12+12]
         syscall #553
         move [R12-4] R0
@@ -2444,7 +3057,7 @@ ui_store_set:
         push R12
         move R12 R13
         sub R13 #16
-; 434:     asm("SYSCALL #550, ${key}, ${value}");
+; 562:     asm("SYSCALL #550, ${key}, ${value}");
         move R0 [R12+12]
         move R1 [R12+16]
         syscall #550
@@ -2468,14 +3081,14 @@ ui_store_get:
         push R12
         move R12 R13
         sub R13 #16
-; 437:     return asm("SYSCALL #551, ${key}, ${buf}, ${cap}");
+; 565:     return asm("SYSCALL #551, ${key}, ${buf}, ${cap}");
         move R0 [R12+12]
         move R1 [R12+16]
         move R2 [R12+20]
         syscall #551
         move [R12-4] R0
-        jmp L_2170127
-L_2170127:
+        jmp L_2170138
+L_2170138:
         move R13 R12
         pop R12
         pop R15

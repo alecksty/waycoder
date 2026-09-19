@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>雷霆空战 · SKY STRIKE 3D</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- 3D 画布挂载点 -->
+  <div id="mount"></div>
+
+  <!-- ==================== 加载屏 ==================== -->
+  <div id="loading" class="screen">
+    <div class="load-box">
+      <h1 class="logo">SKY<span>STRIKE</span></h1>
+      <p class="logo-sub">雷 霆 空 战 · 3D</p>
+      <div class="bar"><div class="bar-fill" id="loadFill"></div></div>
+      <p class="tip" id="loadTip">正在装配战机与生成 3D 战场…</p>
+    </div>
+  </div>
+
+  <!-- ==================== 主菜单 ==================== -->
+  <div id="menu" class="screen hidden">
+    <div class="scanlines"></div>
+    <div class="menu-wrap">
+      <h1 class="logo big">SKY<span>STRIKE</span></h1>
+      <p class="tagline">驾驶 F-32「雷霆」战机突入敌空，摧毁空中与地面目标</p>
+
+      <div class="menu-grid">
+        <button class="btn primary" id="btnStart">▶ 开始任务</button>
+        <button class="btn" id="btnHelp">? 操作说明</button>
+        <button class="btn" id="btnHangar">⚙ 机库设置</button>
+        <button class="btn" id="btnBoard">🏆 战绩记录</button>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat"><span>最高分</span><b id="bestScore">0</b></div>
+        <div class="stat"><span>总击落</span><b id="totalKills">0</b></div>
+        <div class="stat"><span>出击次数</span><b id="totalSorties">0</b></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 游戏 HUD ==================== -->
+  <div id="hud" class="hidden">
+    <!-- 抬头显示器（只有背景色，其余用 canvas 绘制） -->
+    <canvas id="hmd"></canvas>
+
+    <!-- 左上：战机状态 -->
+    <div class="panel tl">
+      <div class="row"><span class="lbl">机体完整度</span><b id="hpTxt">100%</b></div>
+      <div class="meter"><div class="meter-fill hp" id="hpBar"></div></div>
+      <div class="row"><span class="lbl">推力</span><b id="thrTxt">0%</b></div>
+      <div class="meter"><div class="meter-fill thr" id="thrBar"></div></div>
+      <div class="row small"><span>高度</span><b id="altTxt">0 m</b></div>
+      <div class="row small"><span>空速</span><b id="spdTxt">0 km/h</b></div>
+    </div>
+
+    <!-- 顶部中：任务信息 -->
+    <div class="panel tc">
+      <div class="row"><span class="lbl">任务</span><b id="missionTxt">空域清扫</b></div>
+      <div class="row small"><span>目标</span><b id="objTxt">清除空域内全部敌机</b></div>
+      <div class="meter thin"><div class="meter-fill obj" id="objBar"></div></div>
+      <div class="row small"><span>进度</span><b id="objHint">—</b></div>
+      <div class="row small"><span>剩余敌机</span><b id="enemyTxt">0</b></div>
+      <div class="row small"><span>僚机</span><b id="allyTxt">2/2</b></div>
+      <div class="row small"><span>僚机指令</span><b id="allyOrderTxt">编队跟随</b></div>
+      <div class="row small"><span>战场时间</span><b id="timeTxt">00:00</b></div>
+      <div class="row small"><span>得分</span><b id="scoreTxt">0</b></div>
+    </div>
+
+    <!-- 顶部：王牌机血条 -->
+    <div class="boss-bar hidden" id="bossBarWrap">
+      <span id="bossName">敌方长机</span>
+      <div class="boss-meter"><div class="boss-fill" id="bossBar"></div></div>
+    </div>
+
+    <!-- 右上：雷达 -->
+    <div class="panel tr">
+      <div class="radar-title">雷达 · 20 KM</div>
+      <canvas id="radar" width="180" height="180"></canvas>
+    </div>
+
+    <!-- 左下：武器 -->
+    <div class="panel bl">
+      <div class="wrow"><span class="wkey">1 机炮</span><b id="gunTxt">∞</b></div>
+      <div class="meter thin"><div class="meter-fill heat" id="gunHeatBar"></div></div>
+      <div class="wrow"><span class="wkey">2 导弹</span><b id="missileTxt">6</b></div>
+      <div class="wrow"><span class="wkey">3 炸弹</span><b id="bombTxt">3</b></div>
+      <div class="wrow"><span class="wkey">4 干扰弹</span><b id="flareTxt">5</b></div>
+      <div class="wrow active" id="weaponActive"><span class="wkey">当前武器</span><b id="weaponTxt">机炮</b></div>
+    </div>
+
+    <!-- 右下：锁定目标 -->
+    <div class="panel br" id="targetPanel">
+      <div class="radar-title">锁定目标</div>
+      <div class="row small"><span>型号</span><b id="tgtType">—</b></div>
+      <div class="row small"><span>距离</span><b id="tgtDist">—</b></div>
+      <div class="row small"><span>接近率</span><b id="tgtClosure">—</b></div>
+      <div class="row small"><span>目标血量</span><b id="tgtHp">—</b></div>
+    </div>
+
+    <!-- 中心提示 / 连杀 / 警告 -->
+    <div id="centerMsg" class="center-msg hidden"></div>
+    <div id="combo" class="combo hidden"></div>
+    <div id="warn" class="warn hidden">⚠ 失速警告 · PULL UP</div>
+    <div id="warnPanel" class="warn-panel">
+      <span id="warnRwr">RWR 导弹</span>
+      <span id="warnFlak">AAA 高炮</span>
+      <span id="warnStall">STALL</span>
+      <span id="warnGear">减速板</span>
+    </div>
+    <div id="damageFlash" class="damage-flash"></div>
+    <div id="killFeed" class="kill-feed"></div>
+  </div>
+
+  <!-- ==================== 暂停 ==================== -->
+  <div id="pause" class="overlay hidden">
+    <div class="dialog">
+      <h2>任务暂停</h2>
+      <button class="btn primary" id="btnResume">▶ 继续任务</button>
+      <button class="btn" id="btnRestartPause">↻ 重新出击</button>
+      <button class="btn" id="btnQuit">⌂ 返回主菜单</button>
+    </div>
+  </div>
+
+  <!-- ==================== 操作说明 ==================== -->
+  <div id="help" class="overlay hidden">
+    <div class="dialog wide">
+      <h2>操作说明</h2>
+      <div class="keys">
+        <div class="k"><kbd>W</kbd>/<kbd>↑</kbd><span>推杆俯冲</span></div>
+        <div class="k"><kbd>S</kbd>/<kbd>↓</kbd><span>拉杆爬升</span></div>
+        <div class="k"><kbd>A</kbd><kbd>D</kbd>/<kbd>←</kbd><kbd>→</kbd><span>横滚转向</span></div>
+        <div class="k"><kbd>Q</kbd><kbd>E</kbd><span>方向舵偏航</span></div>
+        <div class="k"><kbd>Shift</kbd><span>加力燃烧（耗油）</span></div>
+        <div class="k"><kbd>Ctrl</kbd><span>减速板</span></div>
+        <div class="k"><kbd>空格</kbd>/<kbd>左键</kbd><span>机炮开火</span></div>
+        <div class="k"><kbd>F</kbd>/<kbd>右键</kbd><span>发射导弹（需锁定）</span></div>
+        <div class="k"><kbd>B</kbd><span>投掷炸弹</span></div>
+        <div class="k"><kbd>C</kbd><span>释放干扰弹</span></div>
+        <div class="k"><kbd>R</kbd><span>切换武器</span></div>
+        <div class="k"><kbd>鼠标移动</kbd><span>自由视角</span></div>
+        <div class="k"><kbd>Tab</kbd><span>循环切换锁定目标</span></div>
+        <div class="k"><kbd>X</kbd><span>僚机指令（跟随/攻击/护卫）</span></div>
+        <div class="k"><kbd>H</kbd><span>切换 HUD 简繁</span></div>
+        <div class="k"><kbd>M</kbd><span>静音开关</span></div>
+        <div class="k"><kbd>V</kbd><span>切换视角（追尾/座舱/电影/观察）</span></div>
+        <div class="k"><kbd>Z</kbd><span>视角复位</span></div>
+        <div class="k"><kbd>P</kbd>/<kbd>Esc</kbd><span>暂停</span></div>
+      </div>
+      <p class="hint">红色方框 = 已锁定目标 · 黄框 = 视野内敌机 · 绿框 = 僚机 · 橘色 ⊕ = 地面阵地<br>
+        导弹需在锁定后发射 · 机炮会过热，注意点射 · 中弹冒黑烟表示机体受损，操控与推力都会下降<br>
+        <b>任务类型</b>：空域清扫（全歼）/ 拦截轰炸机（保住基地）/ 王牌对决（击落长机）/ 对地突击（炸弹摧毁阵地）</p>
+      <button class="btn primary" id="btnHelpClose">知道了</button>
+    </div>
+  </div>
+
+  <!-- ==================== 机库设置 ==================== -->
+  <div id="hangar" class="overlay hidden">
+    <div class="dialog">
+      <h2>机库设置</h2>
+      <div class="opt">
+        <label>画质</label>
+        <div class="seg" id="segQuality">
+          <button data-v="low">低</button><button data-v="mid" class="on">中</button><button data-v="high">高</button>
+        </div>
+      </div>
+      <div class="opt">
+        <label>音效</label>
+        <div class="seg" id="segAudio">
+          <button data-v="on" class="on">开</button><button data-v="off">关</button>
+        </div>
+      </div>
+      <div class="opt">
+        <label>操纵方式</label>
+        <div class="seg" id="segCtrl">
+          <button data-v="normal" class="on">标准</button><button data-v="arcade">街机(自动改平)</button>
+        </div>
+      </div>
+      <div class="opt">
+        <label>难度</label>
+        <div class="seg" id="segDiff">
+          <button data-v="easy">简单</button><button data-v="normal" class="on">普通</button><button data-v="hard">困难</button>
+        </div>
+      </div>
+      <div class="opt">
+        <label>僚机</label>
+        <div class="seg" id="segWing">
+          <button data-v="on" class="on">带僚机</button><button data-v="off">单机出击</button>
+        </div>
+      </div>
+      <p class="hint">更改后立即生效并保存到本地。难度影响机体血量、携弹量与敌机技能。</p>
+      <button class="btn primary" id="btnHangarClose">返回</button>
+    </div>
+  </div>
+
+  <!-- ==================== 战绩记录 ==================== -->
+  <div id="board" class="overlay hidden">
+    <div class="dialog wide">
+      <h2>战绩记录</h2>
+      <div id="boardList" class="board-list"></div>
+      <button class="btn primary" id="btnBoardClose">返回</button>
+    </div>
+  </div>
+
+  <!-- ==================== 任务结算 ==================== -->
+  <div id="result" class="overlay hidden">
+    <div class="dialog">
+      <h2 id="resultTitle">任务完成</h2>
+      <p class="result-sub" id="resultSub">所有敌机已被击落</p>
+      <div class="result-grid">
+        <div><span>得分</span><b id="resScore">0</b></div>
+        <div><span>击落</span><b id="resKills">0</b></div>
+        <div><span>命中率</span><b id="resAcc">0%</b></div>
+        <div><span>存活时间</span><b id="resTime">0s</b></div>
+        <div><span>最大连杀</span><b id="resCombo">0</b></div>
+        <div><span>剩余机体</span><b id="resHp">0%</b></div>
+        <div><span>导弹命中</span><b id="resMsl">0/0</b></div>
+        <div><span>基地完好度</span><b id="resBase">100%</b></div>
+        <div><span>僚机存活</span><b id="resAlly">0</b></div>
+      </div>
+      <button class="btn primary" id="btnAgain">↻ 再次出击</button>
+      <button class="btn" id="btnResultMenu">⌂ 返回主菜单</button>
+    </div>
+  </div>
+
+  <pre id="e2eout" style="position:fixed;left:0;bottom:0;z-index:9999;background:#000c;color:#ddd;font:10px monospace;max-height:40%;overflow:auto">…</pre>
+  <!-- 浮动提示 -->
+  <div id="toasts" class="toasts"></div>
+
+  <!-- Three.js ES Module 导入映射 -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  
+<script type="module">
+import * as THREE from 'three';
+import './js/main.js';
+import { predictImpact, bombLaunchVelocity } from './js/utils.js';
+const L = [];
+const fin = (v) => Number.isFinite(v);
+window.addEventListener('error', (e) => L.push('!! window error: ' + e.message));
+window.addEventListener('unhandledrejection', (e) => L.push('!! rejection: ' + e.reason));
+const step = () => new Promise((r) => setTimeout(r, 60));
+let realRender = null;
+let renderCalls = 0;
+function finish(){
+  // 恢复真实渲染并出一帧，确认渲染路径本身没被破坏
+  const g = window.__game;
+  if (g && g.world && realRender) {
+    g.world.render = realRender;
+    let renderOk = false;
+    try { g.world.render(); renderOk = true; } catch (e) { L.push('render error: ' + e.message); }
+    L.push(`渲染：手动步进跳过 ${renderCalls} 帧绘制 / 真实出一帧=${renderOk}`);
+  }
+  document.getElementById('e2eout').textContent = L.join('\n');
+  document.title = 'E2E_DONE';
+}
+async function run(){
+  const g = window.__game;
+  if (!g) { L.push('FAIL 无法取得 window.__game'); return finish(); }
+  for (let i = 0; i < 60 && g.state === 'loading'; i++) await step();
+  L.push(`boot: state=${g.state} (期望 menu)`);
+  g.startMission();
+  for (let i = 0; i < 30 && g.state !== 'playing'; i++) await step();
+  L.push(`start: state=${g.state} 敌机=${g.enemies.length} 僚机=${g.allies.length}`);
+  L.push('12 秒自动飞行轨迹:');
+  // headless 下 requestAnimationFrame 会被节流甚至不触发，所以这里直接按 60Hz
+  // 手动步进 _frame：既保证可复现，也顺带验证主循环能被外部驱动。
+  // 顺带关掉真实 WebGL 绘制：软件光栅化（swiftshader）每帧几十毫秒，
+  // 上千帧会吃掉 headless 的 virtual-time 预算，导致整个用例时跑时停。
+  // 逻辑与绘制是同一帧里的两段，这里只跳过后半段；末尾仍会真实渲染一帧做校验。
+  realRender = g.world.render.bind(g.world);
+  g.world.render = () => { renderCalls++; };
+  const MANUAL_DT = 1000 / 60;
+  let simNow = 0;
+  for (let f = 0; f < 720; f++) {
+    if (g.player.alive) {
+      g.player.inputs.roll = 0; g.player.inputs.pitch = 0;
+      g.player.weapons.gunCooldown = 0;
+      g.combat.firePlayerGun();
+    }
+    simNow += MANUAL_DT;
+    g._frame(simNow);
+    if (f % 12 === 0) await step();
+    if (f % 120 === 0) {
+      const p = g.player, fw = p.getForward(new THREE.Vector3());
+      L.push(`  t=${(f/60).toFixed(0)}s state=${g.state} hp=${p.hp.toFixed(0)}` +
+        ` pos=(${p.position.x.toFixed(0)},${p.position.y.toFixed(0)},${p.position.z.toFixed(0)}) spd=${p.speed.toFixed(0)}` +
+        ` fwd.y=${fw.y.toFixed(2)} bank=${p.bank.toFixed(2)} up.y=${p.getUp(new THREE.Vector3()).y.toFixed(2)}` +
+        ` 敌=${g.enemies.filter(e=>e.alive).length}/${g.enemies.length}` +
+        ` 僚=${g.allies.filter(a=>a.alive).length}/${g.allies.length}` +
+        ` 分=${g.stats.score} 命中率=${(g.combat.stats.fired? (g.combat.stats.hits/g.combat.stats.fired*100).toFixed(0):0)}%`);
+    }
+  }
+  const p = g.player;
+  L.push(`数值健全: pos=${fin(p.position.x)&&fin(p.position.z)} quat=${fin(p.quaternion.w)} speed=${fin(p.speed)}`);
+  L.push(`坐标有界: |x|=${Math.abs(p.position.x).toFixed(0)} |z|=${Math.abs(p.position.z).toFixed(0)} y=${p.position.y.toFixed(0)}`);
+  let nan = 0, minAlt = Infinity;
+  for (const a of [...g.enemies, ...g.allies]) { if (!fin(a.position.x) || !fin(a.speed)) nan++; minAlt = Math.min(minAlt, a.position.y); }
+  L.push(`AI 数值健全: NaN=${nan} 最低高度=${minAlt.toFixed(0)}`);
+  L.push(`击杀=${g.stats.kills} 任务=${g.mission && g.mission.type} 波次=${g.stats.wave}`);
+  // 高炮系统：把玩家压到低空，确认会被地面火力打到
+  const sp = g.world.siteWorldPos(g.world.flakSites[0], new THREE.Vector3());
+  g.player.position.set(sp.x, 500, sp.z + 400);
+  g.player.velocity.set(0, 0, -200); g.player.speed = 200;
+  g.player.hp = g.player.maxHp; g.player.syncMesh();
+  const hp0 = g.player.hp;
+  let flakShells = 0, warnSeen = false, warnText = '', radarsSpinning = true;
+  for (let f = 0; f < 300; f++) {
+    simNow += MANUAL_DT;
+    g._frame(simNow);
+    flakShells = Math.max(flakShells, g.combat.shells.length);
+    if (g.player.alive && !g.el.warn.classList.contains('hidden')) warnSeen = true;
+    if (g.player.alive && g.el.warnFlak && g.el.warnFlak.classList.contains('on')) warnText = g.el.warnFlak.textContent;
+  }
+  L.push(`高炮压制: 弹丸峰值=${flakShells} 玩家 hp ${hp0.toFixed(0)} -> ${g.player.hp.toFixed(0)}` +
+         ` 高炮发射数=${g.combat.stats.flakFired} 存活时报警=${warnSeen}(${warnText})`);
+  // 投弹落点预测（CCIP）：低空对地突击时应能命中目标阵地
+  g.player.position.set(sp.x + 260, 420, sp.z + 1500);
+  g.player.velocity.set(0, 0, -220); g.player.speed = 220;
+  g.player.quaternion.setFromEuler(new THREE.Euler(0, 0, 0));
+  g.player.syncAttitude(); g.player.syncMesh();
+  const pred = predictImpact(g.player.position,
+    bombLaunchVelocity(g.player.getForward(new THREE.Vector3()), g.player.velocity),
+    (x, z) => g.world.heightAt(x, z));
+  L.push(`投弹预测: 落点=(${pred.x.toFixed(0)},${pred.z.toFixed(0)}) t=${pred.time.toFixed(1)}s` +
+         ` 距目标阵地=${Math.hypot(pred.x - sp.x, pred.z - sp.z).toFixed(0)}m hit=${pred.hit}`);
+  // 任务流程：四种波次都能正常生成，且目标语义自洽
+  g.startMission();
+  for (let f = 0; f < 10; f++) { simNow += MANUAL_DT; g._frame(simNow); }
+  for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    g._spawnWave(n);
+    for (let f = 0; f < 30; f++) { simNow += MANUAL_DT; g._frame(simNow); }
+    const m = g.mission;
+    const finite = g.enemies.every((e) => fin(e.position.x) && fin(e.speed) && fin(e.hp));
+    const targets = g.world.flakSites.filter((x) => x.userData.target).length;
+    L.push(`波次${n}: ${m.type}/${m.name} 敌机=${g.enemies.filter(e=>e.alive).length}/${g.enemies.length}` +
+           ` 进度=${(g._missionProgress() * 100).toFixed(0)}% 完成=${g._missionComplete()}` +
+           (m.type === 'strike' ? ` 指定阵地=${targets}/${m.flakTargets}` : '') +
+           ` 数值健全=${finite}`);
+  }
+  // 对地突击：用炸弹真的炸掉指定阵地，确认任务能推进
+  g.stats.wave = 4; g._spawnWave(4);
+  L.push(`对地突击目标数=${g.mission.flakTargets} 指定=${g.world.flakSites.filter(x=>x.userData.target).length}`);
+  let bombRuns = 0;
+  for (const site of g.world.flakSites.filter((x) => x.userData.target)) {
+    const spx = g.world.siteWorldPos(site, new THREE.Vector3());
+    for (let k = 0; k < 4 && site.userData.alive !== false; k++) {
+      bombRuns++;
+      g._damageFlak(new THREE.Vector3(spx.x, spx.y + 10, spx.z), 130);
+    }
+  }
+  L.push(`轰炸结果: 投弹=${bombRuns} 摧毁指定=${g._flakTargetsDown()}/${g.mission.flakTargets}` +
+         ` 进度=${(g._missionProgress() * 100).toFixed(0)}% 已完成=${g._missionComplete()}` +
+         ` 阵地隐藏=${g.world.flakSites.filter(x=>x.visible===false).length}`);
+
+  finish();
+}
+run();
+</script>
+</body>
+</html>

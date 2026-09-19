@@ -227,6 +227,48 @@ void ui_polyline(int* pts, int count, int stroke, int width, char* grad);
 void ui_rect_grad(int x, int y, int w, int h, char* grad, int radius);
 void ui_circle_grad(int cx, int cy, int r, char* grad);
 
+/* ── 刷子 / 样式 / 形状（574–576）────────────────────────────────────
+ *
+ * 一条总原则：**颜色 = 只有一个色标的刷子** —— `ui_set_fill(0xFF2A3346)` 直接
+ * 传颜色是合法的，不必先 `ui_brush_solid` 一下。
+ *
+ * 旧的 `ui_rect` / `ui_circle` / … **全部原样保留**（各走各的老号）；这一套是另加的：
+ * 样式来自"当前刷子"，绘制调用本身**不带颜色**。
+ *
+ * ⚠ 本批**画笔与文字只支持纯色**：渐变描边/渐变文字要等引擎侧做出来。
+ *   给渐变句柄时宿主会记一次警告并退回该渐变的起始色（不静默）。 */
+int  ui_brush_solid(int color);
+int  ui_brush_linear(int color_a, int color_b, int x1, int y1, int x2, int y2);
+int  ui_brush_radial(int color_a, int color_b, int cx, int cy, int r);
+int  ui_brush_named(char* gradId);
+int  ui_set_fill(int brush);
+int  ui_set_pen(int brush, int width, int cap, int dash, int arrow);
+int  ui_set_text_brush(int brush);
+
+void ui_draw_rect(int x, int y, int w, int h, int radius);
+void ui_draw_circle(int cx, int cy, int r);
+void ui_draw_ellipse(int cx, int cy, int rx, int ry);
+void ui_draw_line(int x1, int y1, int x2, int y2);
+void ui_draw_poly(int* pts, int count, int close);
+void ui_draw_path(char* d);
+void ui_draw_text(int x, int y, char* s);
+void ui_draw_star(int cx, int cy, int r_out, int r_in, int points, int rot);
+void ui_draw_regular(int cx, int cy, int r, int n, int rot);
+void ui_draw_ring(int cx, int cy, int r_out, int r_in);
+void ui_draw_pie(int cx, int cy, int r, int a0, int a1);
+void ui_draw_heart(int cx, int cy, int size);
+void ui_ellipse_grad(int cx, int cy, int rx, int ry, char* grad);
+
+/* ui_set_pen 的线帽 */
+#define VML_CAP_BUTT    0
+#define VML_CAP_ROUND   1
+#define VML_CAP_SQUARE  2
+/* ui_set_pen 的箭头（⚠ 本批只记下意图，箭头几何还没落地） */
+#define VML_ARROW_NONE  0
+#define VML_ARROW_END   1
+#define VML_ARROW_START 2
+#define VML_ARROW_BOTH  3
+
 /* ── 随机数 / 计时（游戏用；实现走 VM 的 #50/#53，各语言共用一份）── */
 int  ui_rand(int n);      /* 0..n-1 */
 int  ui_tick(void);       /* VM 启动至今毫秒 */

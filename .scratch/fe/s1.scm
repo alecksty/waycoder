@@ -1,0 +1,6 @@
+(define g 0)
+(define (w1)
+  (set! g 5))
+(w1)
+(display g)
+(newline)

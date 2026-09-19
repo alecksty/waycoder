@@ -16,7 +16,7 @@ int side = ui_rand(2);   /* 0 或 1 */
 ```c
 int now = ui_tick();
 ```
-### `ui_timer_kill(int id)`
+### `ui_timer_kill(int timerId)`
 停掉一个定时器。
 ⚠ 它是**重复**的 —— 靠「一定会收到 KeyUp」来停是不可靠的，自己要有刹车（换键即接管 / 按了没动两次就停 / 总拍数上限）。
 ```c

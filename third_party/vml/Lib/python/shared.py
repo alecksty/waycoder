@@ -6242,6 +6242,151 @@ def ui_circle_grad(a0, a1, a2, a3):
     asm(f"PUSH R0")  # push a0
     asm("CALL ui_circle_grad")
 
+def ui_brush_solid(a0):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_brush_solid")
+    return r0
+
+def ui_brush_linear(a0, a1, a2, a3, a4, a5):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a5
+    asm(f"PUSH R0")  # push a4
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_brush_linear")
+    return r0
+
+def ui_brush_radial(a0, a1, a2, a3, a4):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a4
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_brush_radial")
+    return r0
+
+def ui_brush_named(a0):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_brush_named")
+    return r0
+
+def ui_set_fill(a0):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_set_fill")
+    return r0
+
+def ui_set_pen(a0, a1, a2, a3, a4):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a4
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_set_pen")
+    return r0
+
+def ui_set_text_brush(a0):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_set_text_brush")
+    return r0
+
+def ui_draw_rect(a0, a1, a2, a3, a4):
+    asm(f"PUSH R0")  # push a4
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_draw_rect")
+
+def ui_draw_circle(a0, a1, a2):
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_draw_circle")
+
+def ui_draw_ellipse(a0, a1, a2, a3):
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_draw_ellipse")
+
+def ui_draw_line(a0, a1, a2, a3):
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_draw_line")
+
+def ui_draw_poly(a0, a1, a2):
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_draw_poly")
+
+def ui_draw_path(a0):
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_draw_path")
+
+def ui_draw_text(a0, a1, a2):
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_draw_text")
+
+def ui_ellipse_grad(a0, a1, a2, a3, a4):
+    asm(f"PUSH R0")  # push a4
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_ellipse_grad")
+
+def ui_draw_star(a0, a1, a2, a3, a4, a5):
+    asm(f"PUSH R0")  # push a5
+    asm(f"PUSH R0")  # push a4
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_draw_star")
+
+def ui_draw_regular(a0, a1, a2, a3, a4):
+    asm(f"PUSH R0")  # push a4
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_draw_regular")
+
+def ui_draw_ring(a0, a1, a2, a3):
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_draw_ring")
+
+def ui_draw_pie(a0, a1, a2, a3, a4):
+    asm(f"PUSH R0")  # push a4
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_draw_pie")
+
+def ui_draw_heart(a0, a1, a2):
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_draw_heart")
+
 def ui_beep(a0, a1):
     asm(f"PUSH R0")  # push a1
     asm(f"PUSH R0")  # push a0

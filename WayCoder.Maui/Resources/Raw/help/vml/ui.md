@@ -94,10 +94,27 @@ int side = ui_rand(2);   /* 0 或 1 */
 
 | 接口 | 一句话 |
 |---|---|
+| [ui_brush_linear](help:vml/ui/draw) | 造一个线性渐变刷子。几何是千分之一（0..1000），相对形状自己的包围盒：`0,0,1000,0` = 从左到右。 |
+| [ui_brush_named](help:vml/ui/draw) | 按名字引用一个已经 `ui_gradient` 定义过的渐变 → 句柄。 |
+| [ui_brush_radial](help:vml/ui/draw) | 造一个径向渐变刷子（中心 → 四周）。`cx cy r` 同样千分之一，`500,500,500` = 居中。 |
+| [ui_brush_solid](help:vml/ui/draw) | 造一个纯色刷子。返回句柄（≥1；0 = 失败），交给 `ui_set_fill` / `ui_set_pen` 用。 |
 | [ui_circle](help:vml/ui/draw) | 画圆，`fill` 非 0 填充。 |
 | [ui_circle_grad](help:vml/ui/draw) | 渐变的圆（渐变先用 `ui_gradient` 起个名字）。 |
 | [ui_clear](help:vml/ui/draw) | 整屏填一个色（每帧开头调）。颜色一律 `0xAARRGGBB`。 |
+| [ui_draw_circle](help:vml/ui/draw) | 用当前刷子画圆。 |
+| [ui_draw_ellipse](help:vml/ui/draw) | 用当前刷子画椭圆。 |
+| [ui_draw_heart](help:vml/ui/draw) | 用当前刷子画心形。 |
+| [ui_draw_line](help:vml/ui/draw) | 用当前画笔画直线。 |
+| [ui_draw_path](help:vml/ui/draw) | 用当前刷子画 SVG 路径（`M L C Q A Z`，大小写区分绝对/相对；多子路径按奇偶规则挖洞）。 |
+| [ui_draw_pie](help:vml/ui/draw) | 用当前刷子画扇形：半径 / 起始角 / 结束角（度）。 |
+| [ui_draw_poly](help:vml/ui/draw) | 用当前刷子画多边形（`close=1` 自动闭合）或折线（`close=0`）。`pts` 每两个 int 一个点，`count` 是点数。 |
+| [ui_draw_rect](help:vml/ui/draw) | 用当前刷子画矩形（`radius > 0` 即圆角）。 |
+| [ui_draw_regular](help:vml/ui/draw) | 用当前刷子画正多边形：半径 / 边数 / 旋转角(度)。 |
+| [ui_draw_ring](help:vml/ui/draw) | 用当前刷子画圆环（外半径 / 内半径，中间的洞靠奇偶规则挖）。 |
+| [ui_draw_star](help:vml/ui/draw) | 用当前刷子画星形：外半径 / 内半径 / 角数 / 旋转角(度)。 |
+| [ui_draw_text](help:vml/ui/draw) | 用当前文字属性（`ui_set_font`）画一行字。 |
 | [ui_ellipse](help:vml/ui/draw) | 画椭圆（`rx` / `ry` 两个半径）。 |
+| [ui_ellipse_grad](help:vml/ui/draw) | 渐变填充的椭圆。与 `ui_rect_grad` / `ui_circle_grad` 是一组（那批接口当时漏了椭圆）。 |
 | [ui_gradient](help:vml/ui/draw) | 定义一个渐变刷子并起个名字（字符串 id）；之后 `ui_rect_grad` / `ui_circle_grad` / `ui_path` 按名字引用它。 |
 | [ui_icon](help:vml/ui/draw) | 画一个内置图标（按名字取，省得自己画）。 |
 | [ui_image](help:vml/ui/draw) | 在指定位置画一张图（PNG / JPG / BMP），`w` / `h` 传 0 按原尺寸。 |
@@ -109,10 +126,14 @@ int side = ui_rand(2);   /* 0 或 1 */
 | [ui_present](help:vml/ui/draw) | 这一帧画完了。整个循环里最关键的一句 —— 不调它屏幕不更新。 |
 | [ui_rect](help:vml/ui/draw) | 画矩形。`fill` 非 0 填充、`radius` 是圆角半径。 |
 | [ui_rect_grad](help:vml/ui/draw) | 带渐变的矩形（渐变先用 `ui_gradient` 定义）。 |
+| [ui_set_fill](help:vml/ui/draw) | 设置填充刷子。传刷子句柄或颜色都行；传 0 = 不填充（空心）。 |
+| [ui_set_pen](help:vml/ui/draw) | 设置画笔（描边）= 刷子 + 线宽 + 线帽 + 虚线 + 箭头。传 0 = 不描边。 |
+| [ui_set_text_brush](help:vml/ui/draw) | 设置文字刷子（配合 `ui_set_font` + `ui_draw_text`）。传 0 = 回到 `ui_set_font` 给的颜色。 |
 
 ```c
-/* 例：ui_circle */
-ui_circle(100, 100, 30, 0xFF00FF00, 1, 2);
+/* 例：ui_brush_linear */
+int b = ui_brush_linear(0xFFFF3020, 0xFF2050FF, 0, 0, 1000, 0);
+ui_set_fill(b);
 ```
 
 ## 文字

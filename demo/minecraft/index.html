@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>方块世界 — 我的世界风格 体素建造</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- ============ 3D 画布挂载点 ============ -->
+  <div id="gameMount"></div>
+
+  <!-- ============ 准星 ============ -->
+  <div id="crosshair">
+    <span class="ch-h"></span><span class="ch-v"></span>
+  </div>
+
+  <!-- ============ 目标方块提示 ============ -->
+  <div id="prompt"></div>
+
+  <!-- ============ 主菜单 ============ -->
+  <div id="menu" class="screen">
+    <div class="menu-bg"></div>
+    <div class="menu-content">
+      <h1 class="title">⛏️ 方块世界</h1>
+      <p class="tagline">一个「我的世界」风格的可编程体素建造游戏</p>
+      <div class="menu-buttons">
+        <button class="btn primary" id="btnStart">▶ 开始游戏</button>
+        <button class="btn" id="btnNewWorld">🌍 新世界</button>
+        <button class="btn" id="btnHowto">? 操作说明</button>
+      </div>
+      <p class="hint" id="stats"></p>
+      <p class="version">v1.0 · Three.js · 纯前端 · 无构建</p>
+    </div>
+  </div>
+
+  <!-- ============ 暂停 ============ -->
+  <div id="pause" class="screen hidden">
+    <div class="menu-bg"></div>
+    <div class="menu-content">
+      <h1 class="title">已暂停</h1>
+      <div class="menu-buttons">
+        <button class="btn primary" id="btnResume">▶ 继续</button>
+        <button class="btn" id="btnMenu">⌂ 返回菜单</button>
+      </div>
+      <p class="hint">点击游戏画面返回</p>
+    </div>
+  </div>
+
+  <!-- ============ 操作说明 ============ -->
+  <div id="howto" class="screen hidden">
+    <div class="menu-bg"></div>
+    <div class="menu-content wide">
+      <h1 class="title">操作说明</h1>
+      <div class="howto-grid">
+        <div class="howto-item"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>移动</span></div>
+        <div class="howto-item"><kbd>鼠标</kbd><span>转动视角</span></div>
+        <div class="howto-item"><kbd>空格</kbd><span>跳跃</span></div>
+        <div class="howto-item"><kbd>Ctrl</kbd><span>疾跑</span></div>
+        <div class="howto-item"><kbd>左键</kbd><span>破坏方块</span></div>
+        <div class="howto-item"><kbd>右键</kbd><span>放置方块</span></div>
+        <div class="howto-item"><kbd>1-9</kbd><span>选择快捷栏方块</span></div>
+        <div class="howto-item"><kbd>滚轮</kbd><span>切换快捷栏</span></div>
+        <div class="howto-item"><kbd>Esc</kbd><span>暂停/返回菜单</span></div>
+      </div>
+      <p class="hint">点击游戏画面锁定鼠标，Esc 释放。</p>
+      <button class="btn primary" id="btnHowtoClose">明白了</button>
+    </div>
+  </div>
+
+  <!-- ============ 快捷栏 ============ -->
+  <div id="hotbar"><!-- 由 JS 生成 --></div>
+  <div id="hotbar-label"></div>
+
+  <!-- ============ 错误提示 ============ -->
+  <div id="err" class="hidden"></div>
+
+  <!-- Three.js via importmap (ES modules) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <!-- 应用入口 -->
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
