@@ -11,6 +11,12 @@ namespace CCompiler
 {
         private void GenerateStatement(ASTNode node)
         {
+            // ⚠ **C 这边暂时设不了 `CurrentSourceLine`** —— 它的 `ASTNode` 是个**空基类**，
+            //   一个位置字段都没有（`Token` 上倒是有 `Line`/`Column`，但解析器没往 AST 上带）。
+            //   所以"C 的报错带行号"这件事要先给 AST 补位置信息，是**独立的一块活**
+            //   （与 `Dart`/`Basic` 那种 `node.Line` 现成可用的语言不同）。
+            //   在那之前这里的诊断退化成"只报名字" —— **取不到就不显示，不编造一个行号**。
+
             switch (node)
             {
                 case Block block:

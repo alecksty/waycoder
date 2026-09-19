@@ -602,7 +602,7 @@ namespace CCompiler
                 }
                 else
                 {
-                    throw new CodeGenerationException(ErrorCode.CodeGen_UndefinedVariable, $"未定义的变量: {ident.Name}");
+                    NoteUndefinedVariable(ident.Name);
                 }
             }
             else if (assignment.Target is ArrayAccess arrayAccess)
@@ -730,7 +730,7 @@ namespace CCompiler
                 }
                 else
                 {
-                    throw new CodeGenerationException(ErrorCode.CodeGen_UndefinedArray, $"未定义的数组: {ident.Name}");
+                    NoteUndefinedVariable(ident.Name, isArray: true);
                 }
             }
             else if (arrayAccess.Array is MemberAccess memberArr)
@@ -1066,7 +1066,7 @@ namespace CCompiler
                 }
                 else
                 {
-                    throw new CodeGenerationException(ErrorCode.CodeGen_UndefinedVariable, $"未定义的变量: {ident.Name}");
+                    NoteUndefinedVariable(ident.Name);
                 }
             }
             else if (node is MemberAccess nestedMember)
@@ -1261,6 +1261,27 @@ namespace CCompiler
         /// 生成表达式的地址（用于取地址操作）
         /// 将地址放入R0
         /// </summary>
+        /// <summary>
+        /// 碰到一个**未声明的标识符**：记一条诊断、发个占位值、**继续生成**。
+        ///
+        /// 此前这里是 `throw new CodeGenerationException(...)` —— 5 处，而且**遇到第一个就抛**，
+        /// 于是用户一次只能看到一个错（这正是用户抱怨的「现在运行就报一个错误」的编译期版本）。
+        /// 改成收集之后，一个文件里写错 20 个名字会**一次全报出来**
+        /// （`BuildProgram` 在 `GenerateCode` 末尾统一抛，见 `CodeGeneratorBase`）。
+        ///
+        /// 占位值必须发：不发的话后面的代码拿着上一条指令留在 R0 里的残值继续算，
+        /// 很容易级联出一串**假**的后续错误，把真正的问题淹掉。
+        /// </summary>
+        private void NoteUndefinedVariable(string name, bool isArray = false)
+        {
+            if (ImplicitDeclarationAllowed) return;
+            ReportUndefined(name,
+                isArray ? ErrorCode.CodeGen_UndefinedArray : ErrorCode.CodeGen_UndefinedVariable,
+                isArray ? "数组" : "变量");
+            // 发 `MOVE R0, #0`：地址/值都当 0 处理，让生成继续往下走
+            EmitUndefinedFallback();
+        }
+
         private void GenerateAddressOf(ASTNode node)
         {
             if (node is Identifier addrIdent)
@@ -1296,7 +1317,7 @@ namespace CCompiler
                 }
                 else
                 {
-                    throw new CodeGenerationException(ErrorCode.CodeGen_UndefinedVariable, $"未定义的变量: {addrIdent.Name}");
+                    NoteUndefinedVariable(addrIdent.Name);
                 }
             }
             else if (node is ArrayAccess arrayAddr)
@@ -1363,7 +1384,7 @@ namespace CCompiler
                 }
                 else
                 {
-                    throw new CodeGenerationException(ErrorCode.CodeGen_UndefinedVariable, $"未定义的变量: {lvalueIdent.Name}");
+                    NoteUndefinedVariable(lvalueIdent.Name);
                 }
             }
             else

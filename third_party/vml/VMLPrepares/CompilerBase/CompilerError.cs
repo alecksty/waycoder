@@ -29,10 +29,18 @@ public readonly record struct CompilerError(
     };
 
     /// <summary>GCC 风格位置: file:line:col: level: message</summary>
+    /// <summary>
+    /// GCC 风格位置 `file:line:col`；**位置未知时退化成只有文件名**。
+    ///
+    /// ⚠ 别在不知道的时候编一个 `:-1:0` 出来 —— 那不是 GCC 语法，
+    ///   编辑器/IDE 的位置解析器（`WayCoder.Maui/Services/VmlDiagnostics` 那 4 条正则）
+    ///   对 `line <= 0` 是**直接跳过**的，结果是**几条错误被合成一个气泡**，
+    ///   正好把"一次多报"毁掉。`file: error: …`（不带位置）才是标准里"位置未知"的写法。
+    /// </summary>
     public string LocationString =>
-        string.IsNullOrEmpty(File)
-            ? $"<input>:{Line}:{Column}"
-            : $"{File}:{Line}:{Column}";
+        Line <= 0
+            ? (string.IsNullOrEmpty(File) ? "<input>" : File)
+            : (string.IsNullOrEmpty(File) ? $"<input>:{Line}:{Column}" : $"{File}:{Line}:{Column}");
 
     public override string ToString()
     {

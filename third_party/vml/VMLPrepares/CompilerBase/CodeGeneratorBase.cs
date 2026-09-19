@@ -45,6 +45,57 @@ namespace CompilerBase
         /// `CompilerBase` 的类，限定名会被解析到那个类上（CS0426）。
         protected readonly DiagnosticBag Diags = new();
 
+        /// <summary>
+        /// 这门语言允不允许「不声明就直接用」。
+        ///
+        /// **默认 false**（大多数语言要先声明再引用）；**动态语言覆写成 true 豁免**：
+        /// JavaScript / Lua / Python / R / Ruby / Scheme —— 对它们来说
+        /// 「未声明即隐式全局」是**合法语义**，不是缺陷。
+        ///
+        /// ⚠ 做成**一个虚拟属性**而不是在 16 处散写 `if (lang != "python")`：
+        /// 散写就是本仓头号坑「同一规则两处实现」，改一处忘一处。
+        /// </summary>
+        protected virtual bool ImplicitDeclarationAllowed => false;
+
+        // ⚠ `CurrentSourceLine` **基类里已经有了**（就是 Dart/Basic 在设、`InstrList.Add`
+        //   读的那个），别在这儿再声明一次（CS0102）。它同时驱动两件事：
+        //   ① 报错带行号；② `InstrList` 把它写进指令的 `SourceLine`，
+        //   于是前端产物里出现 `; N:` 注释、汇编器再读回来。
+
+        /// <summary>
+        /// 报一个「未声明的标识符」——**收集，不抛**。
+        ///
+        /// 这是「一次多报」的关键：遇到第一个错就抛的话，用户一次只能看到一个；
+        /// 收集起来继续生成，最后在 <see cref="BuildProgram"/> 一次性抛出去
+        /// （顺便让调用方用 <see cref="EmitUndefinedFallback"/> 发个占位值，
+        /// 后续生成才不会级联崩）。
+        ///
+        /// 同一个名字**写 100 遍只报 1 条** —— 去重交给 <see cref="Diags"/> 自己
+        /// （它按「码+文件+行+列+消息」去重，同一行写两次仍是一条）。
+        /// </summary>
+        protected void ReportUndefined(string name, ErrorCode code, string kind, string? hint = null)
+        {
+            if (ImplicitDeclarationAllowed) return;
+            // `CompilerHelper.CurrentSourceFile` 是 `[ThreadStatic]` 的，由
+            // `CompileFileStandard` 在进编译器前设好 —— 与 `CompileWithDiagnostics`
+            // 取文件名的地方同源。
+            Diags.AddError(CompilerHelper.CurrentSourceFile ?? "<input>", CurrentSourceLine, 0, code,
+                $"未声明的{kind} '{name}'", hint ?? $"先声明它（{kind}要先声明再引用）；名字拼错了也会报这一条。");
+        }
+
+        /// <summary>
+        /// 未声明标识符的**占位值**：发一个 0 让代码生成继续跑。
+        ///
+        /// 这不是"随便糊一个" —— 那 16 门语言本来就在做同一件事（查不到就
+        /// `dataSection["var_x"] = 0` 建个初值 0 的槽，或者干脆什么都不发让 R0 留残值）。
+        /// 明写成一句指令，至少**行为是确定的**（不像"留残值"那样取决于上一条指令）。
+        /// </summary>
+        protected void EmitUndefinedFallback()
+        {
+            instructions.Add(new Instruction(OpCode.MOVE,
+                new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0) }));
+        }
+
         protected Dictionary<string, int> labels;
         protected Dictionary<string, object> dataSection;
         protected Dictionary<string, object> constants;

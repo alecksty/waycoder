@@ -1,3 +1,44 @@
+## v0.96.271 — P6 第一门：C 的未声明标识符改成**一次全报**
+
+### 改了什么
+
+C 前端此前有 **5 处** `throw new CodeGenerationException(CodeGen_UndefinedVariable, ...)`
+（赋值左值、取址、数组下标、复合赋值目标…），**遇到第一个就抛** ⇒ 用户一次只看到一个。
+现在统一走 `NoteUndefinedVariable()`：**记一条诊断 + 发个 `MOVE R0,#0` 占位 + 继续生成**，
+最后在 `CodeGeneratorBase.BuildProgram` 一次性抛出（P4 建好的收口）。
+
+```c
+int main(void) { int a; a=1; b=2; c=3; return nosuch(a); }
+```
+
+| | 之前 | 现在 |
+|---|---|---|
+| 报错 | `未定义的变量: b`（1 条） | `未声明的变量 'b'` + `'c'`（**2 条**） |
+
+那个占位值不是随便糊的：不发的话后面的代码会拿上一条指令留在 R0 里的残值继续算，
+很容易级联出一串**假**错误把真问题淹掉。
+
+顺带统一了文案与错误码（`未定义的变量: x` → `未声明的变量 'x'`，与基类 `ReportUndefined` 同源），
+并给基类加了三个原语：`Diags`（生成器自持诊断袋）、`ReportUndefined`、
+`EmitUndefinedFallback`、`ImplicitDeclarationAllowed`（动态语言的豁免开关，**一个虚拟属性**
+而不是在 16 处散写 `if (lang != "python")`）。
+
+### 一个**估算错了**的地方，如实记下来
+
+方案里写的是「18 门前端补 `CurrentSourceLine`，每门一句 `CurrentSourceLine = node.Line`」——
+**对 C 不成立**：它的 `ASTNode` 是个**空基类**，一个位置字段都没有
+（`Token` 上倒是有 `Line`/`Column`，但解析器没往 AST 上带）。
+所以「C 的报错带行号」需要先给 C 的 AST 补位置信息并在各构造点填上，是**独立的一块活**。
+
+**取不到就不显示**，不编造：`CompilerError.LocationString` 在 `Line <= 0` 时退化成
+`file: error: …`（GCC 里"位置未知"的标准写法）。别写成 `file:-1:0:` ——
+编辑器的位置解析器对 `line <= 0` 是**直接跳过**的，结果是**几条错误被合成一个气泡**，
+正好把"一次多报"毁掉。
+
+### 回归
+
+`out-probe` 29/29 全绿。
+
 ## v0.96.270 — 诊断管道打通：**一次多报**真的生效了（P4）
 
 用户要求：「要尽量一次多报些错误，现在运行就报一个错误」。
