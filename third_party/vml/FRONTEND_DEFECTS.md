@@ -358,9 +358,22 @@ println!("{}", xs[1] + 10);   // → 12                    ✔
 
 ## Objective-C
 
-### 🔴 `#include <waycoder_ui.h>` 报 `expected )`
+### 🟡 `#include <waycoder_ui.h>` 报 `expected )`（**已修**）
 
-**绕过**：**别引头文件**，直接调用即可（`Examples/objc/snake.m` 就是这么写的）。
+**真身**：头文件里有**两个形参叫 `id`**（`ui_timer_kill(int id)`、`ui_gradient(char* id, …)`），
+而 **`id` 在 Objective-C 里是保留的*类型名*** ⇒ ObjC 前端在形参位置读到 `IdType 'id'`
+就报 `expected )`。
+
+**已修**（v0.96.263）：两个形参改名（`timerId` / `gradId`）。
+**原型里的形参名对 C 没有任何语义，改名零风险** —— 而 `Lib/c/waycoder_ui.h` 是
+22 门语言共用的那一份，让它对 ObjC 也能 `#include` 才合理。
+
+**判据**：`#include <waycoder_ui.h>` + `ui_clear(...)` / `ui_rect(...)` 编译通过；
+`Examples/objc/*.m` 四个例子与 `drift.m` 全部照旧。
+
+⚠ 顺带实测到一条**没记过、也还没修**的：ObjC 前端**不认 `0x` 十六进制字面量** ——
+`ui_clear(0xFF000000)` 报 `expected ) (got Identifier 'xFF000000' at line …)`（`0` 和 `xFF000000` 被切成两个 token）。
+现阶段颜色按**负数十进制**写（与 `Examples/objc/snake.m` 一致）。
 
 ---
 

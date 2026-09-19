@@ -34,6 +34,11 @@
  * 文本按 **UTF-8**（NUL 结尾）传给宿主，源文件存成 UTF-8 即可直接写中文。
  */
 
+/* ⚠ 本头文件要能被 **Objective-C** 源文件 `#include` —— 所以形式参数**不能叫 `id`**
+ *   （`id` 在 ObjC 里是保留的**类型名**，形参位置写它会让 ObjC 前端报
+ *   `expected ) (got IdType 'id')`）。原型里的形参名对 C 没有任何语义，改名零风险。
+ *   实测（2026-09-19）：`Examples/objc/*.m` 引这个头一直是报错的，
+ *   台账里那条「别引头文件、直接调用」的绕过就是这么来的。 */
 #ifndef WAYCODER_UI_H
 #define WAYCODER_UI_H
 
@@ -196,7 +201,7 @@ int  ui_msg_count(void);
    防上一局没读完的输入（一次点击常有多条）被新一局读出来。 */
 int  ui_msg_clear(void);
 int  ui_timer_set(int interval_ms, int tag);
-int  ui_timer_kill(int id);
+int  ui_timer_kill(int timerId);
 
 /* ── 绘图增强（534–539，v0.96.176）：渐变刷子 / 路径与曲线 / 多边形 ──
  *
@@ -206,7 +211,7 @@ int  ui_timer_kill(int id);
 /* 渐变刷子：id 之后用 ui_rect_grad / ui_circle_grad / ui_path 的 grad 参数按名引用。
  * 几何是**归一化 0..1000 的整数**（千分之一）：线性给 x1,y1,x2,y2；径向给 cx,cy,r（第 4 个忽略）。
  * 不想要自定义几何就传 0,0,1000,0（线性从左到右）或 500,500,500,0（径向居中）。 */
-void ui_gradient(char* id, int radial, int color_a, int color_b,
+void ui_gradient(char* gradId, int radial, int color_a, int color_b,
                  int a1, int a2, int a3, int a4);
 
 /* 路径：d 是 **SVG path 语法**（M L H V C S Q T A Z，大小写区分绝对/相对）。

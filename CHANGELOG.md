@@ -1,3 +1,19 @@
+## v0.96.263 — Objective-C 前端：`#include <waycoder_ui.h>` 报 `expected )`（台账第六批）
+
+`Lib/c/waycoder_ui.h` 里有**两个形参叫 `id`**（`ui_timer_kill(int id)`、`ui_gradient(char* id, …)`），
+而 **`id` 在 Objective-C 里是保留的*类型名*** ⇒ ObjC 前端在形参位置读到 `IdType 'id'` 就报
+`expected )`。台账里那条「别引头文件、直接调用」的绕过就是这么来的。
+
+两个形参改名（`timerId` / `gradId`）。**原型里的形参名对 C 没有任何语义、改名零风险**，
+而这是 22 门语言共用的那一份头文件 —— 让它对 ObjC 也能 `#include` 才合理。
+
+判据：`#include <waycoder_ui.h>` + `ui_clear(...)`/`ui_rect(...)` 编译通过；
+`Examples/objc/*.m` 四个例子与 `drift.m` 全部照旧。
+
+⚠ 顺带实测到一条**没记过、也还没修**的：ObjC 前端**不认 `0x` 十六进制字面量** ——
+`ui_clear(0xFF000000)` 报 `expected ) (got Identifier 'xFF000000')`（被切成 `0` + `xFF000000` 两个 token）。
+现阶段颜色按**负数十进制**写。已记进台账。
+
 ## v0.96.262 — BASIC 前端：保留字当形参名时的**假崩溃**（台账第五批）
 
 台账那条「形参名不能叫 `on`」只写了"不能"，没写症状。查下来是两层：
