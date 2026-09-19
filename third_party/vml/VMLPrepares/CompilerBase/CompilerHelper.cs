@@ -452,6 +452,17 @@ namespace CompilerBase
             ["double_to_str"] = "conv", ["str_to_double"] = "conv",
             ["long_to_str"] = "conv", ["str_to_long"] = "conv",
             ["bool_to_str"] = "conv", ["str_to_bool"] = "conv",
+            // ── 绘图 / 窗口那一套宿主接口 ────────────────────────────────────────
+            // 实现在 `Lib/shared/vmlui.c` → `shared/vmlui.vml`（`ui_clear` / `ui_rect` /
+            // `ui_win_open` / `ui_call_json_s` / `ui_timer_set` …）。
+            //
+            // ⚠ 此前这里**一条 `ui_` 都没有** ⇒ 任何**直接**引用它们的程序都链不到 vmlui：
+            //   · C 侥幸躲过 —— `waycoder_ui.h` 里写着一句显式的 `.linked`/`#param`；
+            //   · **Kotlin 躲不过**（`Examples/kotlin/sysinfo.kt` 直接调 `ui_call_json_s`），
+            //     而 P2 之前这条只是"链接期警告"、运行时执行到才崩，所以谁都没发现；
+            //     P2 把用户档的未解析升成**编译期硬错误**之后，这两个例子**当场编不过**。
+            //   ⇒ 这就是 P2 的误报面，语料（out-probe）没覆盖到例子才漏掉的。
+            ["ui_"] = "vmlui",
             ["uint_to_str"] = "conv", ["str_to_uint"] = "conv",
             ["ulong_to_str"] = "conv", ["str_to_ulong"] = "conv",
             ["byte_to_str"] = "conv", ["str_to_byte"] = "conv",

@@ -301,6 +301,21 @@ public partial class CodeGenerator : OopCodeGenerator {
                         }
                     }
                 }
+                // ⚠ **五条分支全落空 = 这个标识符从来没被声明过**。
+                //
+                // 这里此前**什么都不发**（直接掉到 `break`）—— 比"建个初值 0 的槽"更隐蔽：
+                // 另外 15 门查不到会 `dataSection["var_x"] = 0` 至少给个确定的 0，
+                // 而 Kotlin 这条让 **R0 保留上一条指令的残值** ⇒ 读出来的是**上一次运算的结果**，
+                // 看着像个"有时对有时不对"的随机 bug。
+                //
+                // 现在：报一条「未声明的变量」+ 发 `MOVE R0,#0` 占位，**继续生成** ——
+                // 一个文件里写错多个名字会一次全报出来（收口在 `BuildProgram`）。
+                else
+                {
+                    if (!ImplicitDeclarationAllowed)
+                        ReportUndefined(vr.Name, ErrorCode.CodeGen_UndefinedVariable, "变量");
+                    EmitUndefinedFallback();
+                }
                 break;
             }
             case AssignStmt a: {
