@@ -91,11 +91,14 @@ group_link_clean() {
 #           且**没有** Unhandled exception / KeyNotFoundException / VmlLabelException
 #   CRASH = 出现上面那三种异常（= 还是在运行期/链接期崩，不是干净的编译期诊断）
 #   FAIL  = 编译"成功"了（退出码 0）
-group_undef_fn() {
-    local filter="${1:-}"
+# ⚠ `undef-fn` 与 `undef-var` 的**判定逻辑完全同形**（编译必须失败 + 点名符号），
+#   所以是同一个函数跑两遍，不是两份实现 —— 本仓头号坑就是「同一规则两处实现」。
+group_undefined() {
+    local prefix="$1"
+    local filter="${2:-}"
     local any=0
     shopt -s nullglob
-    local files=("$HERE"/cases/undef-fn.*)
+    local files=("$HERE"/cases/"$prefix".*)
     shopt -u nullglob
     for f in "${files[@]}"; do
         # ⚠ `.expect`/`.sym` 是**期望值**不是用例，glob 会一并匹配到
@@ -124,7 +127,7 @@ group_undef_fn() {
         rm -f "$errf" "$out"
         printf '%-14s %-6s %s\n' "$(basename "$f")" "$verdict" "$brief"
     done
-    [ "$any" -eq 1 ] || echo "（undef-fn 组还没有用例 —— P2 阶段补）"
+    [ "$any" -eq 1 ] || echo "（$prefix 组还没有用例）"
 }
 
 # ── 组三：dyn-global（动态语言必须**仍然编得过**）────────────────────────────
@@ -160,17 +163,20 @@ printf '%-14s %-6s %s\n' "用例" "结果" "说明"
 printf '%s\n' "--------------------------------------------------------------"
 case "$GROUP" in
     link-clean) group_link_clean "$FILTER" ;;
-    undef-fn)   group_undef_fn "$FILTER" ;;
+    undef-fn)   group_undefined undef-fn "$FILTER" ;;
+    undef-var)  group_undefined undef-var "$FILTER" ;;
     dyn-global) group_dyn_global "$FILTER" ;;
     all)
         echo "── link-clean（正常程序不该有未解析标签）──"
         group_link_clean "$FILTER"
         echo "── undef-fn（未定义函数必须编译期报错）──"
-        group_undef_fn "$FILTER"
+        group_undefined undef-fn "$FILTER"
+        echo "── undef-var（未声明变量必须编译期报错）──"
+        group_undefined undef-var "$FILTER"
         echo "── dyn-global（动态语言的隐式全局必须仍然合法）──"
         group_dyn_global "$FILTER"
         ;;
-    *) echo "✘ 未知的组：$GROUP（可选 link-clean / undef-fn / dyn-global）" >&2; exit 2 ;;
+    *) echo "✘ 未知的组：$GROUP（可选 link-clean / undef-fn / undef-var / dyn-global）" >&2; exit 2 ;;
 esac
 printf '%s\n' "--------------------------------------------------------------"
 echo "通过 $pass / 不符 $fail / **崩溃 $crash**"

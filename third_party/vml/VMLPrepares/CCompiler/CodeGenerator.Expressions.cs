@@ -162,11 +162,16 @@ namespace CCompiler
                     }
                     else
                     {
-                        // 未定义变量: 可能是解析失败泄漏的函数参数/局部变量
-                        // 输出警告, 加载0继续编译(生产编译器行为)
-                        if (VMLPlugins.CompilerOptionsContext.Current.DebugMode)
-                            Console.Error.WriteLine($"警告: 未定义的变量'{ident.Name}', 假定为0继续编译");
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0) }));
+                        // 未声明就**读** ⇒ 报错。
+                        //
+                        // ⚠ 这里此前是「DebugMode 下打一行中文警告、然后**静默按 0 继续**」，
+                        //   同一个文件里其余四条路径（取地址 / 左值 / 数组元素 / 下标）**早就在报错**，
+                        //   只有"读"这一条漏着 —— 于是 `int a = 1; return a + nosuch;` 编得过、
+                        //   运行期静静算出个错答案。用户的原话正是「明明有无效标识，非要等到运行才报错」。
+                        //
+                        // `NoteUndefinedVariable` 发的占位值与本来的 `MOVE R0, #0` 是同一条指令
+                        //   ⇒ **除了多一条诊断，生成出来的代码一字不差**（不会级联出假错）。
+                        NoteUndefinedVariable(ident.Name);
                     }
                 }
             }

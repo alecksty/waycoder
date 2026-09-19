@@ -71,6 +71,7 @@
 #define COL_FOE_D   0xFF6E3F1B
 #define COL_HUD     0xCC101018
 #define COL_TEXT    0xFFEDEDF2
+#define COL_WARN    0xFFF87171
 #define COL_FLAG    0xFF25C24A
 #define COL_POLE    0xFFCFCFD8
 

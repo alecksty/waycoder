@@ -1,0 +1,2 @@
+PRINT_INT nosuch
+END_PROGRAM
