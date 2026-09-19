@@ -1557,13 +1557,22 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         {
             bool caret = i == _caretLine;
             bool inSel = selActive && i >= selA && i <= selB;
-            if (!inSel && !caret) continue;
+            bool matchLine = i == _matchALine || i == _matchBLine;
+            if (!inSel && !caret && !matchLine) continue;
 
             // 高亮条与文字用**同一个 y**（都是行顶）。二者曾经因为一处算了基线补偿、
             // 另一处没算而差开半行 —— 现在两边都直接取行顶，没有第二套算法。
             float y = LineY(i, lineH) + EditorTypography.TextBaselineOffset;
-            canvas.FillColor = _isDark ? EditorTypography.CaretLineBgDark : EditorTypography.CaretLineBg;
-            canvas.FillRectangle(0, y, w, lineH);
+
+            // ⚠ **整行底色只给光标行与选区行**：配对括号只是两个**字符格**，
+            // 让它们也铺整行的话，光标停在一个括号旁边时会多出一条横贯整屏的色带。
+            if (caret || inSel)
+            {
+                canvas.FillColor = _isDark ? EditorTypography.CaretLineBgDark : EditorTypography.CaretLineBg;
+                canvas.FillRectangle(0, y, w, lineH);
+            }
+
+            if (matchLine) DrawBracketMatch(canvas, i, textX, y, lineH);
 
             if (!inSel) continue;
 
@@ -1581,6 +1590,52 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             canvas.FillColor = EditorTypography.SelectionBg;
             canvas.FillRectangle(x0, y, Math.Max(1f, x1 - x0), lineH);
         }
+    }
+
+    // ── 配对括号高亮 ──
+    //
+    // ⚠ **配对逻辑不在这里**：画布只拿得到"当前可见的那几行"，而配对要跨行扫描 ——
+    // 放在这里会出现"滚动一下配对就变了"这种最难查的现象。宿主（EditorPage）算好两个位置传进来，
+    // 这里只负责把两个**字符格**涂上色（与选区同一套坐标：起点取字符格左边缘，
+    // 与 MeasurePrefixWidth 同源，所以色块边界与文字边界永远对得上）。
+    private long _matchALine = -1;
+    private int _matchACol;
+    private long _matchBLine = -1;
+    private int _matchBCol;
+
+    /// <summary>
+    /// 设置"光标贴着的那个括号 + 它配对的那一个"（宿主算好传进来；没有就传 null）。
+    /// 两个位置可以同行（`()` 挨在一起）。
+    /// </summary>
+    public void SetBracketMatch((long Line, int Col)? a, (long Line, int Col)? b)
+    {
+        var al = a?.Line ?? -1;
+        var bl = b?.Line ?? -1;
+        var ac = a?.Col ?? 0;
+        var bc = b?.Col ?? 0;
+        if (al == _matchALine && bl == _matchBLine && ac == _matchACol && bc == _matchBCol) return;
+
+        _matchALine = al; _matchACol = ac;
+        _matchBLine = bl; _matchBCol = bc;
+        InvalidateAll();
+    }
+
+    /// <summary>画出这一行上属于配对的两个字符格（可能两个都在这一行）。</summary>
+    private void DrawBracketMatch(ICanvas canvas, long line, float textX, float y, float lineH)
+    {
+        var text = _doc?.GetLine(line);
+        if (text == null) return;
+        canvas.FillColor = _isDark ? EditorTypography.BracketMatchBgDark : EditorTypography.BracketMatchBg;
+        if (line == _matchALine) FillBracketCell(canvas, text, _matchACol, textX, y, lineH);
+        if (line == _matchBLine) FillBracketCell(canvas, text, _matchBCol, textX, y, lineH);
+    }
+
+    private void FillBracketCell(ICanvas canvas, string text, int col, float textX, float y, float lineH)
+    {
+        if (col < 0 || col >= text.Length) return;
+        var x0 = textX + MeasurePrefixWidth(text, col);
+        var x1 = textX + MeasurePrefixWidth(text, Math.Min(col + 1, text.Length));
+        canvas.FillRectangle(x0, y, Math.Max(1f, x1 - x0), lineH);
     }
 
     /// <summary>

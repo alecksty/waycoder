@@ -4,6 +4,7 @@ using System.Text;
 // 我们要的那个类型引进作用域，不牵连别的。
 using Shapes = Microsoft.Maui.Controls.Shapes;
 using WayCoder.Infra;
+using WayCoder.UI.Shared;          // TextEditAssist：自动缩进与括号配对的纯逻辑（可自测）
 using WayCoder.Maui.Controls;
 using WayCoder.Maui.Markup;
 using WayCoder.Maui.Services;
@@ -434,6 +435,7 @@ public partial class EditorPage : ContentPage
             "↶  撤销",
             "↷  重做",
             "🔍  查找…",
+            "🔁  替换…",
             "🔢  跳到行…",
             "📖  大纲…",
         };
@@ -469,6 +471,7 @@ public partial class EditorPage : ContentPage
             case "↶  撤销": OnUndoClicked(this, EventArgs.Empty); break;
             case "↷  重做": OnRedoClicked(this, EventArgs.Empty); break;
             case "🔍  查找…": OnFindClicked(this, EventArgs.Empty); break;
+            case "🔁  替换…": OnReplaceClicked(this, EventArgs.Empty); break;
             case "🔢  跳到行…": await GoToLineAsync(); break;
             case "📖  大纲…": OnOutlineClicked(this, EventArgs.Empty); break;
             case AssistMenuLabel: ToggleAssistBar(); break;
@@ -1071,6 +1074,7 @@ public partial class EditorPage : ContentPage
         Canvas.InvalidateAll();          // 行数可能变了 → 渲染缓存整份作废
         Canvas.ScrollToLine(op.Line + 1);
         Canvas.SetCaretLine(op.Line + 1);
+        UpdateBracketMatch();           // 撤销/重做可能把光标连同括号一起挪走了
         UpdateStatus();
     }
 
@@ -2374,6 +2378,10 @@ public partial class EditorPage : ContentPage
         LineEditor.CursorPosition = Math.Clamp(col, 0, (LineEditor.Text ?? "").Length);
         Canvas.EditingCursor = LineEditor.CursorPosition;
         Canvas.SetCaretLine(oneBased);
+        // 自动配对的基线：**进编辑态时**取一次当前文本。不初始化的话，
+        // 第一下按键会拿上一行的旧文本去比，长度差恰好为 1 时就会认出一个不存在的插入。
+        _lastEditText = LineEditor.Text ?? "";
+        UpdateBracketMatch();
         PositionEditor(oneBased);
         LineEditor.IsVisible = true;
         LineEditor.Focus();
@@ -2704,6 +2712,10 @@ public partial class EditorPage : ContentPage
         Canvas.EditingLine = -1;
         Canvas.EditingText = null;
         LineEditor.IsVisible = false;
+        // 离开编辑态 ⇒ 自动配对的基线作废（下次进编辑态会重新取）
+        _lastEditText = null;
+        // 光标不在任何一行里了，配对高亮跟着收掉（否则它会留在屏幕上指着上次那两个括号）
+        Canvas.SetBracketMatch(null, null);
         _caretSync?.Stop();
 
         if (newText == oldText) { Canvas.Invalidate(); return; }
@@ -2729,6 +2741,10 @@ public partial class EditorPage : ContentPage
         // 一动手就把上一轮编译留下的诊断清掉 —— 那些行号多半已经偏了，
         // 继续浮在代码上等于给用户看假信息（`_bubbles` 为空时是一次极便宜的早退）。
         ClearDiagnosticsOnEdit();
+
+        // 光标可能刚贴上一个括号（也可能刚离开）—— 配对高亮跟着走。
+        // 不在括号旁边时这个函数是**常数级早退**，所以放在每次按键的路径上也不心疼。
+        UpdateBracketMatch();
 
         // 多行粘贴：Entry 是单行控件，各平台对含换行的粘贴处理不一致（替换成空格 / 截断），
         // 自己拆更可靠 —— 首行留在当前行，其余插入到下面。
@@ -2759,6 +2775,98 @@ public partial class EditorPage : ContentPage
         Canvas.EnsureCaretVisible();                     // 长行时把光标带进视野
         Canvas.InvalidateLine(_editLine + 1);
         UpdateStatus();
+
+        MaybeAutoPair(text);
+    }
+
+    /// <summary>
+    /// 上一次见到的编辑行文本（用来认出"刚刚敲进去的是哪一个字符"）。
+    /// 每次进编辑态与每次文本变化都要更新，否则中途换行会拿旧值去比、认出一个假的插入。
+    /// </summary>
+    private string? _lastEditText;
+
+    /// <summary>
+    /// **自动配对**：敲了 `(` `[` `{` 就补上右半边、光标停在中间；敲的正好是已经在那儿的那半个
+    /// 右括号时**跨过去**（否则会变成 `())`）。
+    ///
+    /// ## 两条硬约束（都踩过或差点踩）
+    ///
+    /// ① **绝不在这条回调栈里回写 `LineEditor.Text`** —— 那会打断 IME 的组合态
+    ///   （拼音还没上屏时 `TextChanged` 已经触发了，回写等于把半成品拍死）。
+    ///   所以真正的写入走 `Dispatcher.Dispatch` 推到下一拍 —— 与 `AssistInsertAsync`
+    ///   那条"从点击处理器里改文本"的路同一个模式。
+    /// ② **判断"刚插进去的是哪一个字符"要能证伪**：`text.Remove(col-1, 1) == 上一次的文本`
+    ///   才算数。只比长度（长了 1）会在**粘贴、自动更正、输入法整词上屏**这些情形下认错，
+    ///   然后我们就会往一段不是我们插入的文本里再塞一个字符。行太长时直接放弃（那条比较是 O(n)）。
+    ///
+    /// ⚠ 真机上只用 ASCII 验过（`adb shell input text` 发不了中文）——
+    /// 中文输入法的组合态下会不会误判，需要人工敲一次中文确认。
+    /// </summary>
+    private void MaybeAutoPair(string text)
+    {
+        var prev = _lastEditText;
+        _lastEditText = text;
+
+        if (prev == null || _committing || _readOnly) return;
+        if (text.Length != prev.Length + 1) return;              // 只处理"多了一个字符"
+        if (LineEditor.SelectionLength != 0) return;            // 有选区时输入是**替换**，不是插入
+        if (text.Length > MaxAutoPairLine) return;              // 超长行不比对了（Remove+比较是 O(n)）
+
+        int col = Math.Clamp(LineEditor.CursorPosition, 0, text.Length);
+        if (col < 1) return;
+        if (text.Remove(col - 1, 1) != prev) return;            // 插的不在光标左边那一位 ⇒ 不认
+
+        var inserted = text[col - 1];
+        var before = col >= 2 ? text[col - 2] : '\0';
+        var after = col < text.Length ? text[col] : '\0';
+
+        // ① 补右半边：在光标处**插入**，不删任何东西
+        if (TextEditAssist.AutoCloseFor(inserted, before, after) is { } closer)
+        {
+            DeferLineEdit(at: col, removeCount: 0, insert: closer.ToString(), caret: col);
+            return;
+        }
+
+        // ② 跨过已存在的那半个（否则 `(` 自动补成 `()` 之后，用户再敲 `)` 会得到 `())`）：
+        //    把光标处那一个删掉，就等于"跨过去了"
+        if (after == inserted && TextEditAssist.BracketPairs.ContainsKey(inserted))
+            DeferLineEdit(at: col, removeCount: 1, insert: "", caret: col);
+    }
+
+    /// <summary>自动配对的行长上限 —— 超过就不做（每次按键都要比一次全文，长行上不划算）。</summary>
+    private const int MaxAutoPairLine = 2000;
+
+    /// <summary>
+    /// 把编辑行里 `[at, at+removeCount)` 这一段换成 <paramref name="insert"/>，并把光标放到
+    /// <paramref name="caret"/>。
+    ///
+    /// 自动配对的两个动作都是它的特例：补右半边 = 在光标处插入（removeCount 0）；
+    /// 跨过已存在的右半边 = 把光标那一个删掉（insert 空串）。
+    ///
+    /// **推到下一拍再写**（见 `MaybeAutoPair` 的第 ① 条约束）：`_committing` 是那次程序化写入的
+    /// 重入闸门 —— `OnLineEditorTextChanged` 见到它就早退，否则我们自己那次写入会再触发一轮配对。
+    /// </summary>
+    private void DeferLineEdit(int at, int removeCount, string insert, int caret)
+    {
+        Dispatcher.Dispatch(() =>
+        {
+            if (_editLine < 0 || _committing || _editable == null) return;
+            var cur = LineEditor.Text ?? "";
+            if (at < 0 || at > cur.Length || at + removeCount > cur.Length) return;
+
+            var next = cur.Remove(at, removeCount).Insert(at, insert);
+            _committing = true;
+            try
+            {
+                LineEditor.Text = next;
+                var pos = Math.Clamp(caret, 0, next.Length);
+                LineEditor.CursorPosition = pos;
+                Canvas.EditingCursor = pos;
+                _lastEditText = next;      // 这次程序化改动不该被当成"用户敲了一个字符"
+            }
+            finally { _committing = false; }
+            UpdateBracketMatch();
+        });
     }
 
     private void OnLineEditorCompleted(object? sender, EventArgs e)
@@ -2777,6 +2885,13 @@ public partial class EditorPage : ContentPage
         var left = text[..at];
         var right = text[at..];
 
+        // **自动缩进**：新行继承左半段的前导空白；左半段以开括号收尾时再多一级。
+        // 没有它的话，写嵌套代码每按一次回车都要自己敲一遍空格 —— 这是"手感像不像 IDE"
+        // 最直接的一条。**顺带把右半段的前导空白去掉**：那多半是光标后面的分隔空格，
+        // 留着就等于在新行的缩进上又叠了一层（用户看到的是"越缩越深"）。
+        var indent = TextEditAssist.IndentForNewLine(left, MauiEditorStore.TabColumns);
+        right = indent + right.TrimStart(' ', '\t');
+
         // 一次「一行 → 两行」：撤销是一步（OldLines/NewLines 都不是单行 ⇒ CanMerge 天然为假）
         _editable.ReplaceRange(line, 1, [left, right]);
         _history.Push(new EditOp(line, [oldLine], [left, right], at, 0, Environment.TickCount64));
@@ -2788,11 +2903,52 @@ public partial class EditorPage : ContentPage
         LineEditor.IsVisible = false;
         Canvas.InvalidateAll();
         BeginEditLine(line + 2);           // 1-based：新行是 (line+1)，即第 line+2 行
-        // 光标落在新行**开头**（右半段的第一个字符前）—— 这才是「在这里断行」的语义。
+        // 光标落在**缩进之后**（即新行内容的第一列）—— 这才是「在这里断行」的语义：
+        // 用户接下来敲的字应该紧跟着缩进，而不是被顶到行首、还得自己再挪一次。
         // 不显式设的话 BeginEditLine 会按默认的 xInLine=-1 去猜一个列。
-        LineEditor.CursorPosition = 0;
-        Canvas.EditingCursor = 0;
+        LineEditor.CursorPosition = indent.Length;
+        Canvas.EditingCursor = indent.Length;
         Canvas.EnsureCaretVisible();
+    }
+
+    // ── 配对括号高亮 ──
+
+    /// <summary>配对扫描的字符上限 —— 超出就放弃（宁可不标，也不要为了一个高亮把输入卡住）。</summary>
+    private const int MaxBracketScan = 20000;
+
+    /// <summary>
+    /// 光标贴着一个括号时，把**与它配对的那一个**交给画布高亮；否则清掉。
+    ///
+    /// 规则本身（认哪个括号、怎么跨行找配对）在 `TextEditAssist` 里 —— 那是纯逻辑，
+    /// 放那边才有自测（这个类在 MAUI 工程里，桌面自测碰不到）。这里只做两件这里才有的事：
+    /// ① **取实时文本**：编辑中那一行还没提交，`_editable` 里存的可能是旧的；
+    /// ② 把结果喂给画布。
+    /// </summary>
+    private void UpdateBracketMatch()
+    {
+        if (_editable == null || _editLine < 0)
+        {
+            Canvas.SetBracketMatch(null, null);
+            return;
+        }
+
+        var text = CurrentEditedText();
+        int col = Math.Clamp(LineEditor.CursorPosition, 0, text.Length);
+        if (TextEditAssist.BracketAtCaret(text, col) is not { } b)
+        {
+            Canvas.SetBracketMatch(null, null);
+            return;
+        }
+
+        var editable = _editable;
+        // 编辑中那行的实时文本与 `_editable` 里存的可能不同（还没提交），必须取实时那份
+        string? LineAt(long i) => i == _editLine ? text : editable.GetLine(i);
+
+        var match = TextEditAssist.MatchBracket(
+            LineAt, editable.LineCount, _editLine, b.Col, b.Open, b.Close, b.Forward, MaxBracketScan);
+
+        if (match is { } m) Canvas.SetBracketMatch((_editLine, b.Col), m);
+        else Canvas.SetBracketMatch(null, null);
     }
 
     private void OnLineEditorUnfocused(object? sender, FocusEventArgs e)
@@ -2838,6 +2994,120 @@ public partial class EditorPage : ContentPage
         Canvas.SetCaretLine(hit + 1);
         UpdateStatus();
     }
+
+    /// <summary>
+    /// 查找替换。
+    ///
+    /// 交互走**对话框串**（手机上没有"查找栏"那一行的地方，这套与既有的「查找」保持一致）：
+    /// 问查找内容 → 问替换为 → 选「替换全部 / 只替换下一个」。
+    ///
+    /// ⚠ **一次替换全部 = 一步撤销**：所有改动合成**一个** `EditOp`（行区间替换天生支持），
+    /// 否则用户改错一次要按几十下撤销 —— 那是"不敢用"的典型。
+    /// ⚠ 与「查找」一样，替换**只作用于可编辑的文档**（`_editable`）：大文件是只读的，
+    /// 没有 `_editable`，直接告诉用户而不是静默什么都不做。
+    /// </summary>
+    private async void OnReplaceClicked(object? sender, EventArgs e)
+    {
+        CommitEditingLine();
+        if (_doc == null) return;
+        if (_editable == null)
+        {
+            await DisplayAlertAsync("替换", "这个大文件是只读打开的，不能替换。", "关闭");
+            return;
+        }
+
+        var query = await DisplayPromptAsync("替换", "查找内容", accept: "下一步", cancel: "取消", maxLength: 200);
+        if (string.IsNullOrWhiteSpace(query)) return;
+        var replacement = await DisplayPromptAsync("替换", $"把「{query}」替换为", accept: "下一步", cancel: "取消", maxLength: 200);
+        if (replacement == null) return;          // 取消（空串是合法输入 = 删除）
+
+        var choice = await DisplayActionSheet("替换", "取消", null, "替换全部", "只替换下一个");
+        if (choice == "替换全部") ReplaceAll(query, replacement);
+        else if (choice == "只替换下一个") ReplaceNext(query, replacement);
+    }
+
+    /// <summary>替换从光标处开始遇到的第一处（与「查找」同一套定位：逐行扫、绕回开头）。</summary>
+    private void ReplaceNext(string query, string replacement)
+    {
+        if (_editable == null) return;
+
+        long start = Math.Max(0, Canvas.CaretLine < 0 ? 0 : Canvas.CaretLine);
+        var hit = FindLine(query, start);
+        if (hit < 0)
+        {
+            ShowToast($"未找到「{query}」", 2000);
+            return;
+        }
+
+        var line = _editable.GetLine(hit) ?? "";
+        var col = line.IndexOf(query, StringComparison.Ordinal);
+        if (col < 0) return;                       // FindLine 刚找到的，理论上不会
+
+        var newLine = line[..col] + replacement + line[(col + query.Length)..];
+        _editable.ReplaceRange(hit, 1, [newLine]);
+        _history.Push(new EditOp(hit, [line], [newLine], col, col + replacement.Length, Environment.TickCount64));
+        _modified = true;
+
+        Canvas.InvalidateAll();
+        Canvas.ScrollToLine(hit + 1, center: true);
+        Canvas.SetCaretLine(hit + 1);
+        UpdateStatus();
+        ShowToast($"已替换 1 处", 1500);
+    }
+
+    /// <summary>
+    /// 全文替换（**只改真正含关键词的那些行**，其余整段原样搬回去）。
+    ///
+    /// 全部改动压成**一个** `EditOp`：`ReplaceRange` 本来就是"行区间替换"，
+    /// 首尾之间的行一并写回即可 —— 中间没变的行写回原值，语义与"只改那几行"完全一致，
+    /// 但撤销只有一步。⛔ 别改成"每行一个 EditOp"，那样一次替换全部会压进去几十上百步。
+    /// </summary>
+    private void ReplaceAll(string query, string replacement)
+    {
+        if (_editable == null) return;
+
+        long count = _doc?.LineCount ?? 0;
+        long first = -1, last = -1;
+        var hits = 0;
+
+        // 先把首尾范围找出来（只读一遍），再整段取出/写回 —— 避免边扫边改导致的索引漂移
+        for (long i = 0; i < count; i++)
+        {
+            var line = _editable.GetLine(i) ?? _doc?.GetLine(i);
+            if (line == null || !line.Contains(query, StringComparison.Ordinal)) continue;
+            if (first < 0) first = i;
+            last = i;
+            hits++;
+            if (hits > MaxReplaceLines)
+            {
+                ShowToast($"匹配太多（超过 {MaxReplaceLines} 行），请缩小范围", 3000);
+                return;
+            }
+        }
+        if (first < 0) { ShowToast($"未找到「{query}」", 2000); return; }
+
+        var span = (int)(last - first + 1);
+        var oldLines = _editable.Snapshot(first, span);
+        var newLines = new string[span];
+        var changed = 0;
+        for (var i = 0; i < span; i++)
+        {
+            var l = oldLines[i];
+            if (!l.Contains(query, StringComparison.Ordinal)) { newLines[i] = l; continue; }
+            newLines[i] = l.Replace(query, replacement, StringComparison.Ordinal);
+            changed++;
+        }
+
+        _editable.ReplaceRange(first, span, newLines);
+        _history.Push(new EditOp(first, oldLines, newLines, 0, 0, Environment.TickCount64));
+        _modified = true;
+        Canvas.InvalidateAll();
+        UpdateStatus();
+        ShowToast($"已替换 {changed} 行", 2000);
+    }
+
+    /// <summary>替换全部的行数上限 —— 超大范围一把改掉既慢又难回退，超过就请用户缩小范围。</summary>
+    private const int MaxReplaceLines = 2000;
 
     /// <summary>后台逐行查找（从 <paramref name="fromLine"/> 开始，绕回开头；带上限防大文件卡死）。</summary>
     private long FindLine(string query, long fromLine)

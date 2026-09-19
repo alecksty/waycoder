@@ -569,6 +569,74 @@ public static partial class SelfTest
         Check("VmlScene.Resize: 非法尺寸被忽略（不把场景改成 0 宽）",
             rs.Width == 396 && rs.Height == 301);
 
+        // ── 编辑器手感（TextEditAssist：自动缩进 / 括号配对 / 自动配对）──
+        // 这三条下沉到 UI/Shared 就是为了**能在这里测** —— 留在 MAUI 的 EditorPage 里
+        // 桌面自测一行都碰不到，而它们全是"边界一多、肉眼看不出来"的东西。
+        Check("自动缩进: 继承前导空白",
+            TextEditAssist.IndentForNewLine("    foo();", 4) == "    ");
+        Check("自动缩进: 以 { 收尾再多一级（空格缩进）",
+            TextEditAssist.IndentForNewLine("    if (x) {", 4) == "        ");
+        Check("自动缩进: { 后面带空格也算（TrimEnd 之后再判）",
+            TextEditAssist.IndentForNewLine("if (x) {   ", 4) == "    ");
+        // ⚠ **用 tab 缩进的就加 tab**：把它换成空格，一份 tab 文件按一次回车就变味了，
+        //    diff 里全是噪音 —— 这种"改一下看不出来、一提交就炸"的最坑
+        Check("自动缩进: 本来用 tab 的就加 tab（不换成空格）",
+            TextEditAssist.IndentForNewLine("\tif (x) {", 4) == "\t\t");
+        Check("自动缩进: 顶层语句不加级",
+            TextEditAssist.IndentForNewLine("foo();", 4) == "");
+        Check("自动缩进: 空行 / 纯空白行不炸",
+            TextEditAssist.IndentForNewLine("", 4) == ""
+            && TextEditAssist.IndentForNewLine("     ", 4) == "     ");
+
+        Check("括号配对: 光标在左括号后面 → 认左边那个（向后扫）",
+            TextEditAssist.BracketAtCaret("foo()", 4) is { Col: 3, Open: '(', Close: ')', Forward: true });
+        // 贴在**右**括号后面 ⇒ 认左边那个，且方向是**向前**扫（去找它的左半边）
+        Check("括号配对: 光标在右括号后面 → 认左边那个（向前扫）",
+            TextEditAssist.BracketAtCaret("foo()", 5) is { Col: 4, Open: ')', Close: '(', Forward: false });
+        // 左边不是括号、**正下方**才是 ⇒ 认正下方那个。
+        // `foo( )` 里 `)` 在下标 5：光标停在它前面（col=5）时左边是空格、不是括号。
+        Check("括号配对: 正下方是括号也认（左边不是括号时）",
+            TextEditAssist.BracketAtCaret("foo( )", 5) is { Col: 5, Open: ')', Close: '(', Forward: false });
+        Check("括号配对: 不在括号旁返回 null",
+            TextEditAssist.BracketAtCaret("foo(x)", 2) is null);
+        // 嵌套：从最外层左括号出发要找**最外层**的右括号（深度计数），不是第一个遇到的 ')'
+        // `f(g(x))`：下标 f0 (1 g2 (3 x4 )5 )6 —— 从最外层 ( (下标 1) 出发要找到下标 **6**，
+        // 而不是第一个遇到的 `)`（下标 5）。这才是"深度计数"与"找下一个同款字符"的分水岭。
+        var nested = new[] { "f(g(x))" };
+        Check("括号配对: 嵌套里找的是配对的那个（深度计数）",
+            TextEditAssist.MatchBracket(i => i == 0 ? nested[0] : null, 1, 0, 1, '(', ')', true, 1000)
+                is { Line: 0, Col: 6 });
+        // 反过来：从最外层右括号（下标 6）向前扫，要回到下标 1
+        Check("括号配对: 反向也是一样的深度计数",
+            TextEditAssist.MatchBracket(i => i == 0 ? nested[0] : null, 1, 0, 6, ')', '(', false, 1000)
+                is { Line: 0, Col: 1 });
+        // 跨行：`{` 在第 0 行、配对在第 2 行
+        var lines3 = new[] { "if (x) {", "    y();", "}" };
+        Check("括号配对: 跨行找得到",
+            TextEditAssist.MatchBracket(i => i < lines3.Length ? lines3[i] : null, 3, 0, 7, '{', '}', true, 1000)
+                is { Line: 2, Col: 0 });
+        // 扫描上限：上限之内找不到就放弃（**不能变成"为了高亮把输入卡住"**）
+        Check("括号配对: 超过扫描上限就放弃",
+            TextEditAssist.MatchBracket(_ => new string('.', 5000) + "(", 2, 0, 0, '(', ')', true, 100) is null);
+        // 取不到行（大文件 LRU 窗口外）也要安全放弃，不能当成空行继续扫
+        Check("括号配对: 取不到行就放弃（不当成空行）",
+            TextEditAssist.MatchBracket(_ => null, 10, 0, 0, '(', ')', true, 1000) is null);
+
+        Check("自动配对: 开括号补右半边",
+            TextEditAssist.AutoCloseFor('(', '\0', '\0') == ')'
+            && TextEditAssist.AutoCloseFor('[', '\0', '\0') == ']'
+            && TextEditAssist.AutoCloseFor('{', '\0', '\0') == '}');
+        // ⚠ 右边紧挨着字母数字 ⇒ 是在已有内容中间插入，补上去等于把后面的劈开
+        Check("自动配对: 右边紧挨着标识符不补",
+            TextEditAssist.AutoCloseFor('(', '\0', 'x') is null);
+        // 引号在词中间 = 撇号（don't），不是要开字符串
+        Check("自动配对: 词中间的撇号不补",
+            TextEditAssist.AutoCloseFor('\'', 'n', 't') is null
+            && TextEditAssist.AutoCloseFor('\'', ' ', '\0') == '\'');
+        Check("自动配对: 不认识的字符不补",
+            TextEditAssist.AutoCloseFor('a', '\0', '\0') is null
+            && TextEditAssist.AutoCloseFor(')', '\0', '\0') is null);
+
         // ── 全能接口（`CALLJSON` #573）──
         // 信封是**跨语言契约**：22 个前端的程序都按 {"ok":…,"result":…} 判断成败，
         // 格式一改就等于改 ABI。逐条钉住。

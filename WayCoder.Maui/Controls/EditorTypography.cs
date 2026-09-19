@@ -181,6 +181,17 @@ internal static class EditorTypography
     // 当前行高亮是**长期停在屏幕上**的东西，压得越低越不累眼睛：
     // 它的作用是「让你知道光标在哪」，不是「吸引注意力」。实测 9% 白已经嫌刺眼。
     public static readonly Color SelectionBg = Color.FromArgb("#403B82F6");        // 蓝 25%
+
+    /// <summary>
+    /// 配对括号的底色（#AARRGGBB，alpha 在前）。
+    ///
+    /// 它要压在**当前行底色**（黑 2% / 白 4%）之上，又**不能盖过选区**（蓝 25%），
+    /// 所以取琥珀 30%：与选中蓝、错误红、警告黄都分得开，且足够淡 —— 它是个"提示你
+    /// 括号在哪儿"的记号，不是让你盯着看的东西。深色底上用更亮的一档，
+    /// 否则琥珀在深色代码背景上会糊成一片棕。
+    /// </summary>
+    public static readonly Color BracketMatchBg = Color.FromArgb("#4DD19A38");
+    public static readonly Color BracketMatchBgDark = Color.FromArgb("#5FE8B84B");
     /// <summary>滚动条：静止时淡、按住/拖动时浓（就是「点一下变大变明显」的那半）。</summary>
     public static readonly Color BarIdle = Color.FromArgb("#33000000");
     public static readonly Color BarIdleDark = Color.FromArgb("#33FFFFFF");
