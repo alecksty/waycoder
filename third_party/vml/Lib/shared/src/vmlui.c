@@ -298,6 +298,18 @@ int ui_msg_b(void) { return _ui_msg_b; }
 #define UI_GRID_N 256
 static int _ui_grid[UI_GRID_N];
 
+/* 棋盘占 0..199（`BOARD_AT`），7 种方块的掩码紧接着放 200..206 —— 这段布局是**跨语言约定**：
+ * `Examples/python/tetris.py` 里写死了 `BOARD_AT = 0` / `MASK_AT = 200`，两边必须对得上。
+ *
+ * ⚠ **这个宏曾经不存在**：`ui_piece_init` 用了 `MASK_AT` 却没有任何地方定义它，
+ *   而当时的前端对未声明标识符是**静默按 0 算**的 ⇒ 掩码实际落在 0..6，
+ *   **正好压在前 7 个棋盘格上**（棋盘写 0..6 就把掩码冲了，`ui_piece_cell` 从此返回垃圾）。
+ *   一直没暴露，是因为 `GenLib -b` 是**增量**的（`.vml` 比 `.c` 新就跳过）——
+ *   直到给本文件加新接口时改了它的 mtime，重编译才把这条打出来：
+ *   `error: 未声明的变量 'MASK_AT'`（前端的未定义变量检查是后来加的，
+ *   这类"靠 0 蒙对"的代码再也过不去了）。 */
+#define MASK_AT 200
+
 void ui_gclear(void) {
     int i;
     for (i = 0; i < UI_GRID_N; i = i + 1) _ui_grid[i] = 0;
