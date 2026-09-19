@@ -21,6 +21,34 @@ namespace WayCoder.Maui.Services;
 ///   在长折线上可能有半个周期的差。
 ///
 /// 这些都是"观感差异"而不是"画错"，但值得在自测里留一条**抽样比对**的护栏。
+///
+/// ## ⚠ 渐变的余荫：用过一次渐变之后，**后面的纯色全都画不出来**（v0.96.297 修）
+///
+/// 这是"两条路都对、拼起来就错"的一类，桌面自测（记录型落笔面）**照不出来** ——
+/// 因为它错在**平台实现**里，而不是我们的映射里。
+///
+/// 机制（逐层读 MAUI 源码确认，`Microsoft.Maui.Graphics` 10.0.20）：
+///   · `PlatformCanvas.SetFillPaint(paint, rect)` 遇到渐变会把 shader **挂到那个
+///     Android `Paint` 对象上**（`CurrentState.SetFillPaintShader(shader)`），
+///     并在**开头**清掉上一个 shader —— 它是**唯一**会清 shader 的入口；
+///   · 而 `PlatformCanvas.FillColor` 的 setter **只写 `_fillColor`**，不碰 shader；
+///   · 真正上屏用的是 `CurrentState.FillPaintWithAlpha` —— 它拿同一个 `Paint`，
+///     `SetARGB(...)` 写上颜色**就返回了**。而 Android 里 **shader 优先级高于颜色**，
+///     颜色写得再对也不起作用。
+///   ⇒ 只要这一帧里画过任何一个渐变，**之后所有 `FillColor = …` 都是空操作**，
+///     统统被那个旧渐变接管：落在刷子矩形内的部分是渐变，落在外的按 `TileMode.Clamp`
+///     取端点色。
+///
+/// **实测症状**（`Examples/c/calc.c`，用户报的「按键颜色还是不对」）：
+/// 计算器先画"玻璃面板"（一个从 `0x33FFFFFF` 到 `0x11FFFFFF` 的竖向渐变），
+/// **再画二十个按键** —— 于是每个按键都被那块玻璃渐变接管；按键全在面板包围盒**下方**
+/// 被 clamp 到 EndColor `0x11FFFFFF`，等价于"给底图叠了 7% 白"：
+/// 数字键/运算符/功能键/等号**四档配色全被抹平**，屏幕上只剩背景那层径向渐变在透出来。
+/// 量出来的证据：十条同色横带里，渐变之后那四条画成了**红→蓝的渐变**（刷子 `g` 的
+/// 红→蓝被原样搬过来了），渐变之前的两条是**精确的 `#2A3346`**。
+///
+/// **规矩**：这条路上**不要再出现裸的 `_canvas.FillColor = …`**。纯色一律走
+/// `SetFillPaint(SolidPaint, rect)`（多花一次调用，换来"上一个 shader 一定被清掉"）。
 /// </summary>
 internal sealed class MauiVectorTarget : IVectorTarget
 {
@@ -60,17 +88,32 @@ internal sealed class MauiVectorTarget : IVectorTarget
         }
         if (!any) return;
 
+        // ⚠ **两条分支都必须走 `SetFillPaint`，纯色那条不能只写 `FillColor`** ——
+        //    原因见类注释里「渐变的余荫」。一句话：平台把渐变挂成 Android `Paint` 的
+        //    shader，而 shader **优先级高于颜色**，只改 `FillColor` 是改不动的。
+        var rect = path.Bounds;
         if (gradient != null)
         {
             // 刷子矩形 = 这条路径的外接矩形；渐变坐标本身就是"相对这个矩形"的 0..1（见 BuildPaint）
-            _canvas.SetFillPaint(BuildPaint(gradient), path.Bounds);
+            _canvas.SetFillPaint(BuildPaint(gradient), rect);
         }
         else
         {
-            _canvas.FillColor = Col(fill);
+            _solid.Color = Col(fill);
+            _canvas.SetFillPaint(_solid, rect);
         }
         _canvas.FillPath(path, evenOdd ? WindingMode.EvenOdd : WindingMode.NonZero);
     }
+
+    /// <summary>
+    /// 纯色填充用的可复用刷子。
+    ///
+    /// 只用来**把上一次的渐变 shader 顶掉**（`SetFillPaint` 是唯一会清 shader 的入口，
+    /// 见「渐变的余荫」）。平台对 SolidPaint 的处理就是一句 `FillColor = paint.Color`，
+    /// 读完即弃，所以一个实例反复改 `.Color` 是安全的 —— 这条路每帧要走上百次，
+    /// 不值得每次都 new 一个（本后端当初就是为了消掉每帧的垃圾才做的）。
+    /// </summary>
+    private readonly SolidPaint _solid = new(Colors.White);
 
     public void StrokePolyline(IReadOnlyList<double> pts, double width, uint color, string cap, bool dashed, bool close)
     {
@@ -240,6 +283,20 @@ internal sealed class MauiVectorTarget : IVectorTarget
 
     /// <summary>场景底色等处也要用（画布铺底）⇒ 暴露一个只读入口，避免第二份换算。</summary>
     internal static Color ColOf(uint argb) => Col(argb);
+
+    /// <summary>
+    /// **纯色填充的唯一入口** —— 直接用 <see cref="ICanvas"/> 铺底（场景背景那类）的地方也走它。
+    ///
+    /// 存在的理由只有一个：别让谁再写出裸的 `canvas.FillColor = …`。那句话本身没错，
+    /// 错在它**清不掉上一个渐变挂上去的 shader**（见类注释「渐变的余荫」）——
+    /// 而那是个"只有真机才看得见"的错。多包一层，规则就只有一条：
+    /// **这条路上填色一律经过 <c>SetFillPaint</c>**。
+    /// </summary>
+    internal static void FillSolid(ICanvas canvas, uint argb, RectF rect)
+    {
+        canvas.SetFillPaint(new SolidPaint(Col(argb)), rect);
+        canvas.FillRectangle(rect.X, rect.Y, rect.Width, rect.Height);
+    }
 
     /// <summary>`0xAARRGGBB`（VML 的颜色序，与 <c>RasterImage.ColorAt</c> 一致）→ 平台颜色。</summary>
     private static Color Col(uint argb) => Color.FromRgba(

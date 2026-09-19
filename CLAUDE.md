@@ -225,6 +225,25 @@ WayCoder/
 
 
 
+- **平台画布的「上一个刷子」会一直生效：`FillColor` 清不掉渐变的 shader（v0.96.298）**：
+  用户报「计算器的按钮颜色还是不对」。四档按键色（数字/运算符/功能/等号）**全被抹平成同一个色**，
+  而且那个色还**随位置平滑变化**。量法：`adb exec-out screencap` 取**裸帧缓冲**逐点采样 + 游程编码
+  （本机没有 PIL/numpy，裸 RGBA 比解 PNG 省事）。三轮探针把范围收到一格：① 十条纯色横带**逐字节精确**
+  ⇒ `ui_rect` 自身没问题；② 用 `ui_dlg_msg` 把程序自己算的坐标打出来**全对** ⇒ 不是 C 前端算错；
+  ③ 六条**同色**横带中间插一次 `ui_rect_grad` ⇒ 渐变**之前**两条精确、**之后**四条画成了那个刷子的红→蓝渐变。
+  **根因逐层读 MAUI 源码确认**（`Microsoft.Maui.Graphics` 10.0.20）：`PlatformCanvas.SetFillPaint` 遇到渐变会把
+  shader **挂到 Android `Paint` 对象上**（`SetFillPaintShader`）——那是**唯一**会清 shader 的入口；
+  而 `PlatformCanvas.FillColor` 的 setter **只写 `_fillColor`**；真正上屏用的是 `CurrentState.FillPaintWithAlpha`，
+  它 `SetARGB(颜色)` 之后直接返回那个 `Paint`，而 **Android 里 shader 优先级高于颜色** ⇒
+  **只要这一帧画过任何一个渐变，之后所有 `FillColor = …` 都是空操作**，全被旧渐变接管（落在外面的按 `TileMode.Clamp` 取端点色）。
+  计算器刚好踩满：先画背景径向渐变 + 玻璃面板渐变，**再画二十个按键**，按键全在面板包围盒下方被 clamp 到 `0x11FFFFFF`
+  ⇒ 等价于「给底图叠 7% 白」，四档配色全冲掉。**修法**：`MauiVectorTarget.FillShape` 的纯色分支也走
+  `SetFillPaint(SolidPaint, rect)`；并收成唯一入口 `MauiVectorTarget.FillSolid`（`DrawWindowPage` 两处裸 `FillColor` 一并改掉）。
+  **规矩：这条路上不要再出现裸的 `_canvas.FillColor = …`**（完整机制见该类注释「渐变的余荫」）。
+  另加 `Examples/c/draw_colors.c` 把判据固定下来（15 格全部取同一个 `0xFF3C6EB4`，逐格取格心像素比色；
+  其中 3 格是**回归格**：排在用过渐变之后，必须仍是原色）。
+  ⚠ 写这个例子时自己踩的坑：**`ui_path` 的参数序是 `stroke, width, fill, grad, cap, dash`** —— 描边色排在填充色**前面**，
+  与 `ui_rect` 的「颜色在前、开关在后」相反；写反**不报错**，只是把空心轮廓画成实心三角（截图上看出来的）。
 - **移动端编辑器性能：真身是「字体被压缩进 APK」+ 定位改用平台实测推进量（v0.96.128 ~ v0.96.129）**：滑动/缩放每帧 ~250ms（4fps）的**根因不是绘制，是字体资产被打包成了 Deflate**。① **诊断靠分段计时 + 排除法**：在 `Draw` 里插 `Stopwatch` 分段打 logcat，读出 `canvas.Font = X` 花 **0.0ms** 而紧跟的 `canvas.FontSize = X` 花 **~110ms**、**同一个字号再设一遍又只有 0.0ms** ⇒ 是**一次性**开销（字体族解析）而非 `setTextSize`。源头：`PlatformCanvasState.FontPaint` 的 getter 在 `_typefaceInvalid` 时调 `Microsoft.Maui.Graphics.Platform.FontExtensions.ToTypeface()`，**那条路没有任何缓存**（每次都 `Typeface.CreateFromAsset`）；而 25.5MB 的 CJK 字体在 APK 里是 **`Defl:N` 压缩**的 ⇒ **每次调用解压 25.5MB**，一帧两次 ≈ 220ms。**修法：`<AndroidStoreUncompressedFileExtensions>.ttf;.otf</AndroidStoreUncompressedFileExtensions>`**（打包成 `Stored` 后可 mmap）—— 112.8ms → **0.3ms**、行号栏 115.3ms → **2.4ms**、整帧 **~250ms → ~31–56ms**。`unzip -v` 看压缩方式是关键一步，**别只看「命令跑成功了」**。② **`GetStringSize` 的真相**：走 `PlatformStringSizeService`（**无界排版**，`boundedWidth: null` ⇒ 宽 `int.MaxValue`，**不折行**）取 `GetLineWidth(i)` 的**真实浮点宽** —— 早期把它误当成「有界 512、会折行」绕了弯路（长行量出恒定 26.5px 的假偏差）。③ **平台逐字形取整**：同一行在偶数号偏差 **0.00px**、奇数 13 号差 **53.5px**（= 每个半角字形 +0.5），且**与字号无关**（11/13/17 号都是同一个 26.5/53.5，因为都是 x.5 半列宽）—— 差值与半角字形数成正比、与字号无关，正是「每个字形取整」的指纹。④ **定位改成逐字形累加平台实测推进量**（`MeasureAdvances` 量 `"0"`/`"中"` 各一个），`MeasurePrefixWidth` 与 `CharIndexAtX` 互为逆、共用同一套量 ⇒ **撤销「只允许偶数号」**（那条限制会让捏合每档 2 磅、手感发跳），字号连续可取。不变量自检（`logcat -s WCFONT`）：「逐字累加 vs 平台整段排版」在 8/12/**13**/16/28/30 号下**最大偏差 0.00px**。⑤ **整行一次 `DrawText`**（语法色 = 同一串里的多个 run），取代「逐语法段各画一次」——每可见行从十几次调用降到 1 次。⑥ **横屏别弹全屏输入法**：Android 的抽取式编辑（extract mode）会整屏盖住输入区，`Entry`/`Editor` handler 加 `flagNoExtractUi` + `flagNoFullscreen`，且**用 `|=` 不能赋值**（MAUI 拿 `ImeOptions` 表达 `ReturnType`，赋值会把 Done 抹掉）；绑定把 `ImeOptions` 暴露成 `ImeAction`、flag 与动作位共用同一个 int ⇒ 只能转 `int` 再或。⑦ **浮动输入框的横向原点必须与画布正文逐项对齐**（v0.96.130）：那层 `Entry` 的文字与光标是**透明**的，但**「光标 / 选择手柄 / 复制粘贴浮层」是系统按输入框自己的内部坐标画的** —— 我们只是让它看不见，没让它不存在。所以 `Margin.Left` 必须是 `行号栏 + 正文左内边距 − 横向滚动`（与 `CodeCanvasView` 的 `textX` 同式），并且要 `SetPadding(0, top, 0, bottom)` 清掉 EditText 的左右内边距；少一项，系统浮层就整体偏那么多（横向一滚差出整个滚动量）。同理 **`ResetTypography()` 里不能 `_scrollX = 0`** —— 横向偏移是像素、字号一变含义就变，但正解是**按字号比例换算**（`_scrollX × 新字号 ÷ 旧字号`）而不是清零，否则「滚到行中间一缩放就跳回最左」。⑧ **滚动中不画行号数字**（v0.96.130）：判据是「本帧视口位姿与上帧是否相同」（首个可见行 + 横向偏移），不依赖手势状态机 ⇒ 拖拽/惯性/程序滚动自动覆盖，停下后下一帧数字回来；**底色照画只跳数字**，否则滚动时左边缘露出与正文同色的空白像界面在抖
 ⑨ **选中/复制/粘贴全部自己做（v0.96.132）—— 平台只留 IME 与剪贴板数据**：平台的选区 UI（长按弹出的 复制/粘贴/全选 工具条 + 两个水滴选择手柄）**所有坐标都按它自己那层输入框算**，而正文是自绘的 ⇒ 差一点就「选中的位置和看到的位置对不上」。与其追平它的坐标系，不如**把它请出去**。画布侧：选区是**字符级**（端点 = 行 + 行内码元下标），长按 = 选词（同类字符段，空白处选整行）、长按后拖动 = 扩选，底色**按字符跨度**铺（起止都取字符格左缘，与 `MeasurePrefixWidth` 同源）、自己画；页面侧：自己的操作条（复制/全选/粘贴/✕），`CustomSelectionActionModeCallback` 三个回调**全返回 true** 关掉平台浮层，剪贴板仍走 `Clipboard`（**那是数据通道不是 UI**）。**两条硬坑**：① **长按必须在「手指还按着」时判定**（加 500ms 单次定时器）—— 只在抬手时按耗时判断的话**永远做不出「长按选中再拖着扩选」**（抬手=手势结束）；② 一个手势里「长按」与「拖动」的语义靠 `_selecting` 标志分开：为真时拖动改的是选区端点而不是滚动视口。
 ⑩ **仍未解决**：小字号（≤10）滑动偏卡 —— `framestats` 拆出 `布局 0.1ms / 绘制 51.9ms / GPU 5.6ms`，卡在我们的绘制路径；每可见行两次平台文本绘制而 `DrawText` 每次新建 `StaticLayout`（`ICanvas` 无缓存入口），字号 8 一屏行数是 14 号的约 2 倍，**把每行成本减半的收益又吃了回去**（1.8ms/行 → 0.96ms/行，但 24 行 → 54 行）。可选的下一步：滑动中先不画行号、停下再补（约省一半）

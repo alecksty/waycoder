@@ -129,9 +129,11 @@ public partial class DrawWindowPage : ContentPage
 
         public void Draw(ICanvas canvas, RectF dirtyRect)
         {
-            // 背景铺满整个视图（含 AspectFit 留出的黑边），否则未覆盖区会是平台默认底色
-            canvas.FillColor = Colors.Black;
-            canvas.FillRectangle(dirtyRect);
+            // 背景铺满整个视图（含 AspectFit 留出的黑边），否则未覆盖区会是平台默认底色。
+            // ⚠ 走 FillSolid 而不是裸 `FillColor = …` —— 理由同下面那处（见 MauiVectorTarget
+            //    类注释「渐变的余荫」）。这一处眼下是安全的（每次 Draw 都是新画布），
+            //    但同一条链上留一句两种写法，迟早有人照着错的那句写。
+            MauiVectorTarget.FillSolid(canvas, 0xFF000000, dirtyRect);
 
             if (UseVector && _doc is { } doc)
             {
@@ -177,9 +179,10 @@ public partial class DrawWindowPage : ContentPage
             canvas.Translate(x, y);
             canvas.Scale((float)s, (float)s);
 
-            // 场景底色（`canvas w h <bg>` 那条），与光栅路径的起始填充一致
-            canvas.FillColor = MauiVectorTarget.ColOf(doc.Background);
-            canvas.FillRectangle(0, 0, doc.Width, doc.Height);
+            // 场景底色（`canvas w h <bg>` 那条），与光栅路径的起始填充一致。
+            // ⚠ 必须走 FillSolid 而不是裸的 `FillColor = …`：后者清不掉上一个渐变挂上去的
+            //    shader（见 MauiVectorTarget 类注释「渐变的余荫」）。
+            MauiVectorTarget.FillSolid(canvas, doc.Background, new RectF(0, 0, doc.Width, doc.Height));
 
             var target = new MauiVectorTarget(canvas, doc.Width, doc.Height);
             foreach (var f in doc.Figures)
