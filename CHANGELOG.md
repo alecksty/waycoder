@@ -1,3 +1,43 @@
+## v0.96.291 — 行列号铺开第一批：10 门补上**列**
+
+用户定了「全部需要修复」，这一版开铺。先做收益最高、风险最低的一批 ——
+**已经在设 `CurrentSourceLine`、只是没设列的 10 门**（它们本来就有集中的语句入口）：
+
+| | |
+|---|---|
+| 同形一句话改（7 门） | D / Forth / Fortran / Lua / ObjC / R / Ruby |
+| 形状不同、单独改（3 门） | Dart / Pascal / Basic（Basic 有两处语句循环） |
+
+改法是把 `if (node.Line > 0) CurrentSourceLine = node.Line;`
+扩成 `{ CurrentSourceLine = node.Line; CurrentSourceColumn = node.Column; }` ——
+**一处一处改、改完逐文件 `grep` 回读确认**（本仓铁律：脚本改完文件必须回读，
+`replace_all` 误伤与 CRLF 静默失配都栽过）。
+
+实测生效：`pas` → `<input>:3:10:`、`c` → `<input>:1:29:`。
+
+### 普查出来的全景（这一版之后还剩什么）
+
+| 状态 | 门数 | 语言 |
+|---|---|---|
+| 行 + 列都有 | 1 | C |
+| 只有行、**列刚补上** | 10 | D / Forth / Fortran / Lua / ObjC / R / Ruby / Dart / Pascal / Basic |
+| 有 `Line`/`Column` 字段但**没接** | 3 | Ladder / Python / Rust |
+| **AST 连位置字段都没有** | 8 | C# / C++ / Go / Java / JS / Kotlin / Scheme / Swift |
+
+后两类是接下来的活。第三类（Ladder/Python/Rust）按 C 的路子接上即可；
+第四类要先给基类补 `Line`/`Column`/`OriginalLine`，再在语句入口盖 ——
+与 C 同一套做法（`Parser.ParseStatement()` 改名 + 包一层，一处覆盖全部 return）。
+
+### 判据
+
+| | 之前 | 之后 |
+|---|---|---|
+| `diag-probe` | 60/0/0 | 60/0/0 |
+| `vml-out-probe` | 29/29 | 29/29 |
+| `examples-build` | 78/3 | 78/3 |
+
+---
+
 ## v0.96.290 — 未使用局部变量 + **两个行号的分工**（修 v0.96.289 引入的回归）
 
 v0.96.289 加上源行注释之后 `nat.c` / `gomoku.c` / `draw_prims.c` 全挂了，

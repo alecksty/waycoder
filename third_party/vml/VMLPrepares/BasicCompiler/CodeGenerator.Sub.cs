@@ -63,7 +63,7 @@ namespace BasicCompiler
             // Generate body
             foreach (var stmt in subDecl.Body)
             {
-                CurrentSourceLine = stmt.Line;
+                CurrentSourceLine = stmt.Line; CurrentSourceColumn = stmt.Column;
                 GenerateSubStatement(stmt);
             }
 
@@ -140,7 +140,7 @@ namespace BasicCompiler
             // Generate body
             foreach (var stmt in funcDecl.Body)
             {
-                CurrentSourceLine = stmt.Line;
+                CurrentSourceLine = stmt.Line; CurrentSourceColumn = stmt.Column;
                 GenerateSubStatement(stmt);
             }
 

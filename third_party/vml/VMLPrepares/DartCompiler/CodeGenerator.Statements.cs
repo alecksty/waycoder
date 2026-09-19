@@ -13,7 +13,7 @@ public partial class CodeGenerator
     private void GenerateStatement(ASTNode node)
     {
         if (node is ASTNode ast && ast.Line > 0)
-            CurrentSourceLine = ast.Line;
+        { CurrentSourceLine = ast.Line; CurrentSourceColumn = ast.Column; }
 
         switch (node)
         {

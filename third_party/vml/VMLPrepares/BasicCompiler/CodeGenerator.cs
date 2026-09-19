@@ -1097,7 +1097,7 @@ namespace BasicCompiler
                 if (statement == null) { continue; }
                 if (VMLPlugins.CompilerOptionsContext.Current.DebugMode)
                     System.Console.Error.WriteLine($"Processing: {statement.GetType().Name}, Line={statement.Line}");
-                CurrentSourceLine = statement.Line;
+                CurrentSourceLine = statement.Line; CurrentSourceColumn = statement.Column;
                 if (statement is SubDeclaration || statement is FunctionDeclaration
                     || statement is TypeDeclaration || statement is ClassDeclaration)
                 {
