@@ -135,6 +135,44 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
 PY
 fi
 
+# ── Help/：把 App 内置的说明文档也打进包 ────────────────────────────────
+#
+# 用途与 Examples/ 一样：解到工作区 `help/`，**用户能自己翻阅**（文件页里点开看，
+# 或者拿去喂给 AI）。App 内「使用说明」读的是 `Resources/Raw/help/**` 那一份，
+# 这里是**同一个源的另一个落地点** —— `scripts/make-ui-help.py` /
+# `make-lang-help.py` 生成的还是那一份，不存在两份要对着改。
+#
+# 走**暂存目录**而不是直接加 `Resources/Raw/help`：zip 里的路径必须带 `Help/` 前缀，
+# 而 Info-ZIP 只能按"当前目录下的相对路径"存档，直接加会写成 `Resources/Raw/help/...`，
+# 与 `EnsureHelp()` 期望的布局对不上。
+HELP_SRC="$ROOT/WayCoder.Maui/Resources/Raw/help"
+if [ -d "$HELP_SRC" ]; then
+    STAGE="$(mktemp -d)"
+    mkdir -p "$STAGE/Help"
+    cp -R "$HELP_SRC/." "$STAGE/Help/"
+    if command -v zip >/dev/null 2>&1; then
+        ( cd "$STAGE" && zip -q -r -X "$TMP" Help )
+    else
+        "$PYTHON" - "$STAGE" "$TMP" <<'PYEOF'
+import os, sys, zipfile
+stage, out = sys.argv[1], sys.argv[2]
+base = os.path.join(stage, "Help")
+with zipfile.ZipFile(out, "a", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
+    for dirpath, _, files in os.walk(base):
+        for f in sorted(files):
+            full = os.path.join(dirpath, f)
+            rel = "Help/" + os.path.relpath(full, base).replace(os.sep, "/")
+            info = zipfile.ZipInfo(rel, date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o644 << 16
+            with open(full, "rb") as fh:
+                z.writestr(info, fh.read())
+PYEOF
+    fi
+    rm -rf "$STAGE"
+    echo "ℹ 已把说明文档打进包（Help/）"
+fi
+
 # ⚠ **先算指纹、再落盘 —— 顺序不能反。**
 #    原先的顺序是「先把 zip 移到 $OUT（就在这一行）→ 再算指纹」，于是指纹那一步一旦失败，
 #    就留下**新 zip + 旧指纹**的矛盾状态。而设备的解压判据是**指纹**、不是 zip

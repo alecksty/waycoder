@@ -1,3 +1,35 @@
+## v0.96.251 (2026-09-19) — 工作区多了一个 `help/` 目录：说明文档可以直接翻阅
+
+用户：「在工作目录也需要建个 help 目录，和 examples 一样，但是只放各种说明文档，方便用户自己查阅」。
+
+### 一个源，两个落地点
+
+说明文档的**唯一源**仍然是 `WayCoder.Maui/Resources/Raw/help/**`（App 内「使用说明」读的就是它）。
+新增的只是它的第二个落地点：
+
+```
+Resources/Raw/help/**  ──make-vml-lib.sh──▶  vml_lib.zip 里的 Help/
+                                                      │
+                                          EnsureHelp() 解包
+                                                      ▼
+                                        工作区 help/   ← 用户在文件页里直接点开看
+```
+
+**不存在"两份要对着改"**：两个位置都出自同一份源（`make-lang-help.py` /
+`make-ui-help.py` 生成的也是那一份）。
+
+- `scripts/make-vml-lib.sh`：把 help 树**经暂存目录**打进 zip 的 `Help/` 前缀下
+  （Info-ZIP 只能按"当前目录的相对路径"存档，直接加会写成 `Resources/Raw/help/...`，
+  与期望布局对不上）。两条打包路径（`zip` / Python zipfile）都覆盖。
+- `MauiBootstrap.EnsureHelp()`：与 `EnsureExamples()` 同一个 zip、同一个版本闸门，
+  解到 `WorkspaceDir/help/`。**整棵替换**（说明文档是一整套，留一半旧的比不给更糟）。
+  解不出来只记日志、不拦启动。
+
+⚠ **改了说明文档必须升版本** —— 闸门就是 `Global.Version`（与 examples 同一个坑）。
+
+真机验收：`/storage/emulated/0/waycoder/workspace/help/` 下 48 篇 markdown，
+按 `quickstart / vml / vml/lang / vml/ui / editor / cli / files / settings` 分层。
+
 ## v0.96.250 (2026-09-19) — 「UI 开发」补齐全部 60 个接口，并按类别分级
 
 用户：「ui 开发要把所有函数用法列出来举例说明，现在只有基础的」，随后补一句

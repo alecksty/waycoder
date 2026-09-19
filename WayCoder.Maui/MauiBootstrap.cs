@@ -228,6 +228,7 @@ public static class MauiBootstrap
         // 6c) 把示例程序（经典小游戏等）按语言解到工作区 `examples/<语言>/`，用户开箱即可
         //     `vml run examples/c/gomoku.c` 跑一个真程序。
         EnsureExamples();
+        EnsureHelp();
 
         // 7) 交互桥注入：权限确认 / AskUserQuestion / diff 确认走原生对话框（M5）
         UxHelper.WebInteraction = new MauiWebInteraction();
@@ -401,6 +402,67 @@ public static class MauiBootstrap
         {
             // 示例解不出来不该拦住启动
             ErrorLog.Error("MauiBootstrap", "释放示例程序失败", ex);
+        }
+    }
+
+    /// <summary>
+    /// 把随包的**说明文档**解到工作区 `help/` —— 与 `examples/` 同一个 zip、同一个版本闸门，
+    /// 目的是**用户能自己翻阅**（在文件页里点开看，或者拿去喂给 AI）。
+    ///
+    /// 与 `EnsureExamples()` 的关系：**同源**。两份内容都出自
+    /// `WayCoder.Maui/Resources/Raw/help/**`（App 内「使用说明」读的就是那一份），
+    /// `scripts/make-vml-lib.sh` 把它复制成 zip 里的 `Help/`。
+    /// 也就是说**只有一个源**，这里是它落地的第二个位置 —— 不存在"两份要对着改"。
+    ///
+    /// ⚠ 版本号是闸门（标记文件里存的就是 `Global.Version`）：**改了说明文档必须升版本**，
+    ///    否则手机上永远解不出新的（与 examples 同一个坑，见 CLAUDE.md）。
+    /// </summary>
+    static void EnsureHelp()
+    {
+        try
+        {
+            var dir = Path.Combine(WorkspaceDir, "help");
+            var marker = Path.Combine(dir, ".unpacked");
+            if (File.Exists(marker) && File.ReadAllText(marker).Trim() == WayCoder.Global.Version
+                && Directory.EnumerateFiles(dir, "*.md", SearchOption.AllDirectories).Any())
+                return;
+
+            using var zipStream = FileSystem.OpenAppPackageFileAsync("vml_lib.zip").GetAwaiter().GetResult();
+            using var zip = new System.IO.Compression.ZipArchive(zipStream, System.IO.Compression.ZipArchiveMode.Read);
+
+            var rels = new List<(string Rel, System.IO.Compression.ZipArchiveEntry Entry)>();
+            foreach (var e in zip.Entries)
+            {
+                if (!e.FullName.StartsWith("Help/", StringComparison.Ordinal)) continue;
+                var rel = e.FullName["Help/".Length..];
+                if (rel.Length == 0 || rel.EndsWith("/", StringComparison.Ordinal)) continue;
+                rels.Add((rel, e));
+            }
+            if (rels.Count == 0) return;
+
+            // 整棵替换：说明文档是一整套，留一半旧的比不给更糟（用户分不清哪份是新版）
+            if (Directory.Exists(dir))
+            {
+                try { Directory.Delete(dir, recursive: true); } catch { }
+            }
+            Directory.CreateDirectory(dir);
+
+            foreach (var (rel, entry) in rels)
+            {
+                var dst = Path.Combine(dir, rel.Replace('/', Path.DirectorySeparatorChar));
+                var parent = Path.GetDirectoryName(dst);
+                if (!string.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
+                using var src = entry.Open();
+                using var f = File.Create(dst);
+                src.CopyTo(f);
+            }
+
+            File.WriteAllText(marker, WayCoder.Global.Version);
+        }
+        catch (Exception ex)
+        {
+            // 说明文档解不出来同样不该拦住启动
+            ErrorLog.Error("MauiBootstrap", "释放说明文档失败", ex);
         }
     }
 
