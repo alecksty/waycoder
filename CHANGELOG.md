@@ -1,3 +1,45 @@
+## v0.96.275 — Examples 判据转正一半：12 → 5；记两条**没修成**的
+
+### 修好的（已验证）
+
+- **`lua_table_` → `luatable`**：`Lib/lua/luatable.vml` 定义着 `lua_table_set`/`lua_table_get`，
+  而映射表一条都没有 ⇒ `Examples/lua/life.lua` 编不过。补上即通。
+- **`Examples/*/file_io.*` 从判据里显式排除**（csharp/java/ruby/r/swift/objc 六个）：
+  它们是 **SharedLib 演示存根**，内容是 `asm("CALL shared_file_test")` + `asm("LOAD R0 #100")`
+  + `asm("SYSCALL 3")`。**两个理由都不该修成能编**：
+  ① 新版**只在 C 类语言保留内嵌汇编**，其余语言取消（改为"只能调 C 写好的库"）
+     ⇒ `asm("…")` 在这些语言上本来就不是支持的能力了；
+  ② 被调的 `shared_file_test` **在整个仓库里没有任何地方定义**。
+  **留着当红灯只会训练人去忽略红灯** —— 排除比让它常年红着诚实。
+
+⇒ `examples-build.sh`：**通过 77 / 失败 5**（原 12）。
+
+### 两条**没修成、已撤回**的（记下来免得下次重走）
+
+**① Fortran 的 `sub_ui_call_json_s`** —— 补 `["sub_ui_"] = "vmlui"` **不生效**；
+换成正解（把 `sub_` 加进「已知内部前缀」表让候选人被剥成 `ui_call_json_s`）**也不生效**。
+
+真身比"映射缺一条"深一层：**剥离前缀只用于「决定链哪个模块」，不改写 CALL 目标**。
+Fortran 发的是 `CALL sub_ui_call_json_s`，而 `shared/vmlui.vml` 定义的是 `ui_call_json_s`
+—— 名字对不上。所以就算把 vmlui 链进来，那条 CALL 依然解析不了。
+⇒ 要修得动 **Fortran 的调用命名**或**给 Fortran 侧加别名**，是另一块活。
+
+两条改动**都撤回了** —— 按本仓的规矩「**没修好就先撤，别留一个说不清效果的改动**」
+（`EndsWith("_itoa")` 那次教训）。
+
+### 剩余 5 个
+
+| 失败项 | 性质 |
+|---|---|
+| `fortran/sysinfo.f90` | 上面那条，**未修** |
+| `r/catch.r`（`wend_56`） | 名字带序号 ⇒ 代码生成器拼的标签，另一类，**未查** |
+| `forth/parserexp_demo.fs` | `.fs` 扩展名没注册（前端扩展名表缺一条） |
+| `_selftest/out.f90` / `out.ld` | 既有语言限制（Fortran 不支持格式化 `print` / Ladder 缺 `BEGIN`），**不是缺陷** |
+
+### 回归
+
+`out-probe` 29/29 全绿。
+
 ## v0.96.274 — 补 `lua_table_` 映射；订正上一版的数字
 
 ### 订正

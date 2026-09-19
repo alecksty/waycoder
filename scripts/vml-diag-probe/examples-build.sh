@@ -29,9 +29,22 @@ DLL="${VMLCLI:-$REPO/scripts/vmlcli}/bin/Release/net10.0/vmlcli.dll"
 ok=0; fail=0; failed=()
 for f in "$REPO"/third_party/vml/Examples/*/*; do
     [ -f "$f" ] || continue
+    # ── 已知**按设计**编不过的（不是缺陷，是孤儿存根）───────────────────────────
+    # `Examples/*/file_io.*`（csharp / java / ruby / r / swift / objc）是一组
+    # **SharedLib 演示存根**：内容是 `asm("CALL shared_file_test")` + `asm("LOAD R0 #100")`
+    # + `asm("SYSCALL 3")`，靠**内嵌汇编**去调一个配套的共享库。
+    # 两个理由让它们编不过，**都不该修成能编**：
+    #   ① 新版**只在 C 类语言保留内嵌汇编**，其余语言取消（改为"只能调 C 写好的库"）
+    #      ⇒ `asm("…")` 在这些语言上本来就已经不是支持的能力了，编不过是对的；
+    #   ② 被调的那个 `shared_file_test` **在整个仓库里没有任何地方定义**
+    #      （`Examples/SharedLib/` 下只有一个 build 脚本和一个预编好的 `test_mylib_c.vml`）
+    #      ⇒ 就算把 asm 换成普通调用，也还是缺实现。
+    # 结论：它们不是"坏了的例子"，是**已经不成立的例子**。留着当红灯只会训练人去忽略红灯。
+    # （是重写成"调 C 库"的现代写法、还是删掉，由仓库决定 —— 这里先显式排除。）
     case "$f" in
         # 非源码
         *.md|*.txt|*.h|*.json|*.sh|*.bat|*.ps1|*.xml|*.zip) continue ;;
+        */file_io.cs|*/file_io.java|*/file_io.rb|*/file_io.r|*/file_io.swift|*/file_io.m) continue ;;
         # ⚠ `.vml` 是**已经编好的汇编**，不是源码；喂给前端只会得到"认不出扩展名"
         #   （`OpenCV/cv_demo.vml` / `SharedLib/test_mylib_c.vml` 就是这么被误报的）
         *.vml) continue ;;
