@@ -146,7 +146,8 @@ public static class MarkdownPreview
     ///
     /// · `[C 语言](help:vml/lang/c)` —— 跳到另一篇说明（也可以直接写裸 id：`(vml/lang/c)`）
     /// · `[官网](https://…)` —— 交给系统浏览器
-    private static Label BuildParagraph(string text, bool isDark, double fontSize = 15)
+    private static Label BuildParagraph(string text, bool isDark, double fontSize = 15,
+        bool attachLinkTap = true)
     {
         var links = FindLinks(text);
 
@@ -154,7 +155,7 @@ public static class MarkdownPreview
         // 手势直接挂在 Label 上。这是**唯一实测能触发**的做法 ——
         // Span 级的 `GestureRecognizers` 在 Android 上点了没反应（链接画得对、就是点不动，
         // 长按也一样），排查成本远高于多写这几行。
-        if (links.Count == 1 && links[0].Start == 0 && links[0].End == text.Length)
+        if (attachLinkTap && links.Count == 1 && links[0].Start == 0 && links[0].End == text.Length)
         {
             var only = new Label
             {
@@ -176,7 +177,7 @@ public static class MarkdownPreview
         foreach (var (start, end, label, target) in links)
         {
             if (start > pos) AppendPlain(fs, text[pos..start], isDark);
-            fs.Spans.Add(LinkSpan(label, target, isDark));
+            fs.Spans.Add(LinkSpan(label, target, isDark, attachLinkTap));
             pos = end;
         }
         if (pos < text.Length) AppendPlain(fs, text[pos..], isDark);
@@ -199,7 +200,15 @@ public static class MarkdownPreview
             fs.Spans.Add(span);
     }
 
-    private static Span LinkSpan(string label, string target, bool isDark)
+    /// <param name="tappable">
+    /// 是否**在这个 Span 上**装手势。
+    ///
+    /// ⚠ 整格可点的单元格必须传 `false`：Span 上的手势会挂上 `LinkMovementMethod`，
+    /// 它**把触摸整个吃掉**（而它自己的 Span 手势在 Android 上又不触发）⇒
+    /// 事件传不到外层那个真正管用的 `Border`，表现为"点了没反应"。
+    /// 这一条是真机上试出来的：同样的格子，只把 Span 手势留着就点不动。
+    /// </param>
+    private static Span LinkSpan(string label, string target, bool isDark, bool tappable = true)
     {
         var span = new Span
         {
@@ -208,9 +217,12 @@ public static class MarkdownPreview
             TextColor = Ink(isDark, 106, 168, 255, 0, 90, 200),
             TextDecorations = TextDecorations.Underline,
         };
-        var tap = new TapGestureRecognizer();
-        tap.Tapped += (_, _) => ActivateLink(target);
-        span.GestureRecognizers.Add(tap);
+        if (tappable)
+        {
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += (_, _) => ActivateLink(target);
+            span.GestureRecognizers.Add(tap);
+        }
         return span;
     }
 
@@ -277,39 +289,55 @@ public static class MarkdownPreview
         return false;
     }
 
+    /// <summary>
+    /// 表格：**画出格线**，并且**整格可点**。
+    ///
+    /// ## 格线怎么画
+    ///
+    /// MAUI 的 `Border` 只能四边一起描边（没有单独画某一边的 API），
+    /// 一格一个 Border 拼起来会在相邻处叠成 2px、外圈 1px 的"粗细不一"。
+    /// 所以用**留缝**的办法：Grid 的底色 = 线色，`RowSpacing`/`ColumnSpacing` 各留 1px，
+    /// 每格自己铺底色盖住中间 —— 露出来的就是均匀的 1px 格线，外圈再靠 `Padding = 1` 兜一圈。
+    /// 格线宽度只由 spacing 决定，改一处即可，不会有"某条线偏粗"。
+    ///
+    /// ## 为什么整格可点
+    ///
+    /// 用户报「表格有点小，点击不方便」：原先只有链接那几个字有手势，
+    /// 手指要精准落在文字上。现在**手势挂到整格**，格子又加了内边距 ——
+    /// 一格就是一整块触摸区（约 40×40dp，达到可点尺寸的下限）。
+    /// ⚠ 这时**不能再让 Label 自己也有手势**（一次点击会推两页），
+    /// 所以纯链接的格子用 `attachLinkTap: false` 渲染。
+    /// </summary>
     private static View RenderTable(List<string[]> rows, bool isDark)
     {
         if (rows.Count == 0) return new VerticalStackLayout();
 
+        // ⚠ 把 markdown 的**分隔行**（`|---|---|`）丢掉 —— 它是排版记号，不是内容。
+        // 原先是靠"数据行从下标 2 开始"绕开的；改成整表统一循环之后它就被当成数据渲染出来了
+        // （屏幕上多一行 `--- | ---`）。判据写成"每格只由 `-`/`:`/空白组成"，比写死下标 1 稳。
+        rows = rows.Where((_, idx) => idx != 1 || !IsSeparatorRow(rows[1])).ToList();
+
         var cols = rows.Max(r => r.Length);
-        var grid = new Grid { ColumnSpacing = 10, RowSpacing = 2, Margin = new Thickness(0, 2) };
+        var lineColor = Ink(isDark, 62, 64, 72, 205, 209, 216);
+
+        var grid = new Grid
+        {
+            // 格线 = 露出来的 Grid 底色（见方法注释）
+            BackgroundColor = lineColor,
+            RowSpacing = 1,
+            ColumnSpacing = 1,
+            Padding = new Thickness(1),   // 外圈那一圈线
+            Margin = new Thickness(0, 4),
+        };
         for (int c = 0; c < cols; c++)
             grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
 
-        // 表头 / 单元格都走 BuildParagraph —— 与段落同一条渲染路径。
-        // ⚠ 这里原先是裸 `Label { Text = … }`：正文里能用的东西（**粗体**、`代码`、
-        //   [链接](help:…)）一进表格就变成字面量显示出来。表格恰恰是"哪种语言点哪一篇"
-        //   最自然的排版，链接在那里失效等于整页点不动。
-        var header = rows[0];
-        for (int c = 0; c < cols; c++)
-            grid.Add(BuildParagraph($"«bold»{(c < header.Length ? header[c] : "")}«/»", isDark, 13), c, 0);
-        // 表头分隔线
-        grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
-        grid.Add(new BoxView
-        {
-            HeightRequest = 1,
-            Color = Ink(isDark, 96, 96, 102, 196, 200, 206),
-        }, 0, 1);
-        Grid.SetColumnSpan((View)grid.Children[^1], cols);
-
-        // 数据行（跳过表头与分隔线）
-        for (int r = 2; r < rows.Count; r++)
+        for (int r = 0; r < rows.Count; r++)
         {
             grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
             var cells = rows[r];
             for (int c = 0; c < cols; c++)
-                grid.Add(BuildParagraph(c < cells.Length ? cells[c] : "", isDark, 13), c, r);
+                grid.Add(BuildCell(c < cells.Length ? cells[c] : "", isDark, header: r == 0), c, r);
         }
 
         // 表格**允许横向滚动**。
@@ -326,6 +354,38 @@ public static class MarkdownPreview
             HorizontalScrollBarVisibility = ScrollBarVisibility.Default,
             Content = grid,
         };
+    }
+
+    /// <summary>`|---|---|` 这种分隔行（每格只由 `-`/`:`/空白组成）。</summary>
+    private static bool IsSeparatorRow(string[] cells)
+        => cells.Length > 0 && cells.All(c => c.Length > 0 && c.All(ch => ch is '-' or ':' or ' '));
+
+    /// <summary>一个单元格：底色 + 内边距（撑出可点的面积）；整格是一个链接时**整格可点**。</summary>
+    private static View BuildCell(string text, bool isDark, bool header)
+    {
+        var links = FindLinks(text);
+        var whole = links.Count == 1 && links[0].Start == 0 && links[0].End == text.Length;
+
+        var cell = new Border
+        {
+            Padding = new Thickness(12, 12),     // 触摸面积主要就来自这里（约 44dp 高）
+            StrokeThickness = 0,
+            BackgroundColor = header
+                ? Ink(isDark, 38, 40, 48, 238, 240, 244)
+                : Ink(isDark, 22, 23, 28, 255, 255, 255),
+            // 纯链接格：交给整格的手势（attachLinkTap: false 免得点一次推两页）
+            Content = BuildParagraph(header ? $"«bold»{text}«/»" : text, isDark, 14,
+                                     attachLinkTap: !whole),
+        };
+
+        if (whole)
+        {
+            var t = new TapGestureRecognizer();
+            var target = links[0].Target;
+            t.Tapped += (_, _) => ActivateLink(target);
+            cell.GestureRecognizers.Add(t);
+        }
+        return cell;
     }
 
     private static View RenderList(List<string> items, bool isDark)
