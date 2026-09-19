@@ -14,7 +14,16 @@
 # 注意 `-p:AndroidPackageFormat=apk`：.NET Android 的 Release 默认产出 .aab（商店用），
 # 不加这个参数拿到的是 bundle 而不是能直接安装的 APK。
 set -euo pipefail
-cd "$(dirname "$0")"
+# 脚本目录**只解析一次**并且**转成绝对路径**。
+# ⚠ 从前这里 `cd "$(dirname "$0")"`，下面又用一次 `$(dirname "$0")` —— 第二处的 `$0`
+#   是**相对**路径（`WayCoder.Maui/build-apk.sh`），而此刻 cwd 已经变成 `WayCoder.Maui` 了，
+#   `cd WayCoder.Maui` 于是找不到目录。文档写的是 `./build-apk.sh`（`$0` = `./build-apk.sh`，
+#   `dirname` = `.`，两次都对）—— 但从仓库根敲 `bash WayCoder.Maui/build-apk.sh` 就会在
+#   第 39 行炸掉，而报错长这样：
+#       build-apk.sh: 行 39: /../scripts/make-vml-lib.sh: No such file or directory
+#   看不出是路径解析的问题。实测踩过一次。
+HERE="$(cd "$(dirname "$0")" && pwd)"
+cd "$HERE"
 
 # Android 工具链：优先用已设的环境变量，否则回退到本机 SDK 安装位置（与 csproj 里的探测一致）
 export JAVA_HOME="${JAVA_HOME:-$HOME/Library/Android/jdk}"
@@ -36,7 +45,7 @@ fi
 #    实测踩过（2026-09-17，补丁 0033 新增 `Lib/lua/luatable.vml` 之后直接打包）：
 #    手机上 Lua 一路报 `未找到标签: lua_table_get`，而桌面同一条语料 PASS。
 #    这一步保证「打出来的包」与「当前工作树的 `Lib/`」一致。
-"$(cd "$(dirname "$0")" && pwd)/../scripts/make-vml-lib.sh"
+"$HERE/../scripts/make-vml-lib.sh"
 
 dotnet publish -f net10.0-android -c Release \
   -p:AndroidPackageFormat=apk \
