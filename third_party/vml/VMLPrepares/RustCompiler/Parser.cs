@@ -38,7 +38,29 @@ namespace RustCompiler
         /// <summary>
         /// 解析语句
         /// </summary>
+        /// <summary>
+        /// 语句入口 —— **顺手给每条语句盖上起始行列**（`ASTNode.Line`/`Column`）。
+        ///
+        /// 与 C 同一套路（见 `CCompiler/Parser.Statements.cs` 那段说明）：这个方法是**单一入口**，
+        /// 包一层就覆盖了全部 return（含递归进来的嵌套语句）。
+        /// 用 `Line == 0` 才盖 —— 子解析器自己填过的更精确位置不会被外层冲掉。
+        ///
+        /// ⚠ 加这个之前，`ASTNode.Line`/`Column` **是摆设**：字段早就有，解析器从不赋值，
+        ///   于是代码生成侧那句 `if (node.Line > 0) CurrentSourceLine = node.Line;` 永远不生效。
+        /// </summary>
         private ASTNode ParseStatement()
+        {
+            int line = Cur.Line, col = Cur.Column;
+            var node = ParseStatementCore();
+            if (node != null && node.Line == 0)
+            {
+                node.Line = line;
+                node.Column = col;
+            }
+            return node;
+        }
+
+        private ASTNode ParseStatementCore()
         {
             if (Match(TokenType.FN))
             {

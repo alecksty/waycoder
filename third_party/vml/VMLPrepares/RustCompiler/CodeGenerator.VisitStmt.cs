@@ -128,6 +128,7 @@ namespace RustCompiler
             
             foreach (var statement in node.Statements)
             {
+                SetCurrentSource(statement);
                 statement.Accept(this);
             }
             

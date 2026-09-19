@@ -1,3 +1,66 @@
+## v0.96.292 — 行列号铺开第二批：Rust；并量清了「还差哪些」
+
+### Rust：解析器那半边才是缺的
+
+上一版给 Rust 加了代码生成侧的挂点（`Visit(ProgramNode)` / `Visit(BlockNode)` 两处遍历），
+**但它是空转的** —— 实测 Rust 报错依然没有行号。查下来：
+
+> `ASTNode` 里 `Line`/`Column` **字段早就有，解析器从不赋值** ⇒ 恒为 0
+> ⇒ `if (node.Line > 0) …` 永远不成立。
+
+**这不是 Rust 一家的问题**，是全仓的普遍状态（`grep 'Line\s*=' <lang>/Parser*.cs`：
+Rust 0 处、Python 0 处、D 0 处、Lua 0 处 …… 字段是摆设）。
+所以真正要补的是**解析器侧**，与 C 那次同一套路：
+
+```
+private ASTNode ParseStatement()          // 新：记下 Cur 的行列，解析完盖到节点上
+{
+    int line = Cur.Line, col = Cur.Column;
+    var node = ParseStatementCore();
+    if (node != null && node.Line == 0) { node.Line = line; node.Column = col; }
+    return node;
+}
+private ASTNode ParseStatementCore() { …原来的全部 return… }
+```
+
+判据：`undef-var.rs` → `<path>:3:5: error: 未声明的变量 'nosuch'`（第 3 行第 5 列，
+`let b = a + nosuch;` 里 `let` 的位置，与源码对得上）。
+
+### 量清了全景：**6/22 已带行列号**
+
+不做模糊表述，直接逐门量「报错里有没有 `:行:列:`」：
+
+| | 语言 |
+|---|---|
+| **有位置（6）** | `c` `d` `dart` `f90` `m` `pas` |
+| **无位置（10）** | `bas` `cpp` `cs` `fth` `go` `java` `kt` `ld` `rs`→已修 `swift` |
+| 动态语言 6 门 | `js` `lua` `py` `r` `rb` `scm` —— 走 `dyn-global` 组，不在此列 |
+
+⚠ 中途一次**测量方法本身错了**：我先去 `.vml` 产物里数 `; N:` 注释，得到"22 门全 0"——
+但 `--vml` 写的是**汇编之后**的 program，那份的 `SourceLines` 是 null，本来就不该有注释。
+看到"全 0"差点当成"全军覆没"，换成量**端到端报错里的位置**才对上。
+
+### 接下来的活（一张清单）
+
+剩下的门分三类，做法都已经验证过：
+
+1. **解析器有单一 `ParseStatement()`**（Rust 已做，Python/Ladder 等大概率同形）——
+   改名 + 包一层，与 C/Rust 完全一致。
+2. **AST 连位置字段都没有**（C# / C++ / Go / Java / JS / Kotlin / Scheme / Swift）——
+   先给基类补 `Line`/`Column`，再做第 1 步。
+3. **报错不走语句入口**的几门（`bas` 的 `GetOrCreateVariable`、`fth` 的词调用、
+   `ld` 的 `LoadVariable`）—— 要看它们各自的路径，可能需要额外的挂点。
+
+### 判据
+
+| | 之前 | 之后 |
+|---|---|---|
+| `diag-probe` | 60/0/0 | 60/0/0 |
+| `vml-out-probe` | 29/29 | 29/29 |
+| `examples-build` | 78/3 | 78/3 |
+
+---
+
 ## v0.96.291 — 行列号铺开第一批：10 门补上**列**
 
 用户定了「全部需要修复」，这一版开铺。先做收益最高、风险最低的一批 ——

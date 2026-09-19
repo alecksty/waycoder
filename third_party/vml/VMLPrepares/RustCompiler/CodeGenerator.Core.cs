@@ -10,6 +10,20 @@ namespace RustCompiler
     {
         private int _variableOffset = 0;
         private string _firstLocalVarName = ""; // first local var name (for main exit RO type)
+        /// <summary>
+        /// 把"当前源码位置"挪到这个语句上（语义见 `CodeGeneratorBase.CurrentSourceLine`）。
+        ///
+        /// ⚠ 这门语言的前端是**逐节点 `Visit` 重载**（没有集中的语句分发），所以挂点选在
+        /// **语句列表的遍历处** —— `Visit(ProgramNode)` 与 `Visit(BlockNode)`，
+        /// 那是所有语句到达代码生成的公共通道。挂在每个 `Visit(XxxStatement)` 里要改十几处，
+        /// 而且将来新增节点类型容易漏。
+        /// </summary>
+        private void SetCurrentSource(ASTNode node)
+        {
+            if (node == null) return;
+            if (node.Line > 0) { CurrentSourceLine = node.Line; CurrentSourceColumn = node.Column; }
+        }
+
         private readonly Dictionary<string, int> _variables = new Dictionary<string, int>();
         private readonly Dictionary<string, string> _variableTypes = new Dictionary<string, string>();
         private readonly Dictionary<string, string> _variableStructTypes = new Dictionary<string, string>(); // 变量名 -> 结构体名
