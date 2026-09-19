@@ -106,8 +106,15 @@ public partial class CodeGenerator
         var savedSymbols = new Dictionary<string, int>(symbolTable);
         int savedOffset = nextStackOffset;
         int numParams = node.Parameters.Count;
+        // 形参的「是不是字符串」由**预扫描**给出（见 CollectStringArgPositions）——
+        // 函数体生成的那一刻调用点可能还在后面，不看预扫描就只能一律当成整数。
+        var savedStringVars = new HashSet<string>(_stringVars);
         for (int i = 0; i < numParams; i++)
+        {
             symbolTable[node.Parameters[i]] = -(12 + i * 4);
+            if (ParamIsString(node.Name, i)) _stringVars.Add(node.Parameters[i]);
+            else _stringVars.Remove(node.Parameters[i]);
+        }
 
         // generate body
         foreach (var stmt in node.Body)
@@ -135,6 +142,9 @@ public partial class CodeGenerator
         symbolTable.Clear();
         foreach (var kv in savedSymbols)
             symbolTable[kv.Key] = kv.Value;
+        // 形参的字符串标记同理要还原（函数体里的局部变量可能改了集合）
+        _stringVars.Clear();
+        _stringVars.UnionWith(savedStringVars);
         nextStackOffset = savedOffset;
         _currentClassName = prevClassName;
     }
@@ -245,6 +255,21 @@ public partial class CodeGenerator
     {
         GenerateExpression(node.Value);
         EmitStoreVar(node.Name);
+        NoteVarStringness(node.Name, node.Value);
+    }
+
+    /// <summary>记一笔「这个变量现在装的是不是字符串」—— 供 `puts`/`print` 选对实现，见 <see cref="_stringVars"/>。</summary>
+    private void NoteVarStringness(string name, ASTNode value)
+    {
+        bool isString = value switch
+        {
+            LiteralNode lit => lit.Value is string,
+            CallNode call => IsStringReturningFunc(call.Method),
+            VarNode src => _stringVars.Contains(src.Name),   // `t = s` 跟着源变量走
+            _ => false,
+        };
+        if (isString) _stringVars.Add(name);
+        else _stringVars.Remove(name);
     }
 
     private void GenerateOpAssign(OpAssignNode node)
@@ -255,6 +280,9 @@ public partial class CodeGenerator
         GenerateExpression(node.Value);
         instructions.Add(new Instruction(OpCode.POP,
             new List<Operand> { new Operand(OperandType.REGISTER, 1) }, instructions.Count));
+
+        // 复合赋值后类型可能变了（`s += 1` 之后不再是那个串）—— 保守地取消字符串标记
+        _stringVars.Remove(node.Name);
 
         OpCode op = node.Op switch
         {

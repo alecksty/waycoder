@@ -60,6 +60,18 @@ public class Lexer : LexerBase
                 case '\n': Tokens.Add(new Token(TokenType.Newline, "\\n", _line, _col)); break;
                 case ';': Tokens.Add(new Token(TokenType.Semicolon, ";", _line, _col)); break;
                 case '?': Tokens.Add(new Token(TokenType.Question, "?", _line, _col)); break;
+                // `&&` / `||` —— 此前词法器完全不认 `&` 与 `|`，一写就是
+                // `Unexpected char: &`，于是「多个条件」只能写成嵌套 if
+                // （`Examples/ruby/catch.rb` 开头那段注释记的就是这个坑）。
+                // 词法产出**源码原文**（"&&"/"||"），由代码生成那边与 `and`/`or` 并列识别。
+                case '&':
+                    if (Match('&')) { Tokens.Add(new Token(TokenType.And, "&&", _line, _col)); break; }
+                    throw new ParseException(ErrorCode.Lexer_UnknownCharacter,
+                        $"Unexpected char: & at {_line}:{_col}（本前端只支持逻辑 `&&`/`||`，位运算 `& | ^` 尚未实现）");
+                case '|':
+                    if (Match('|')) { Tokens.Add(new Token(TokenType.Or, "||", _line, _col)); break; }
+                    throw new ParseException(ErrorCode.Lexer_UnknownCharacter,
+                        $"Unexpected char: | at {_line}:{_col}（本前端只支持逻辑 `&&`/`||`，位运算 `& | ^` 尚未实现）");
                 default: throw new ParseException(ErrorCode.Lexer_UnknownCharacter, $"Unexpected char: {c} at {_line}:{_col}");
             }
         }

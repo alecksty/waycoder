@@ -114,7 +114,9 @@ public partial class CodeGenerator
             case "<=>":
                 _expr!.EmitCmp(left, right, "<=>");
                 break;
+            // `and` / `&&` 是同义写法（`&&` 由词法器产出原文，见 Lexer.Tokenize）
             case "and":
+            case "&&":
                 // logical AND — evaluate both operands (0/1), bitwise AND works
                 GenerateExpression(node.Left);
                 instructions.Add(new Instruction(OpCode.PUSH,
@@ -126,6 +128,7 @@ public partial class CodeGenerator
                     new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) }, instructions.Count));
                 return;
             case "or":
+            case "||":
                 // logical OR — evaluate both operands (0/1), bitwise OR works
                 GenerateExpression(node.Left);
                 instructions.Add(new Instruction(OpCode.PUSH,
@@ -171,7 +174,10 @@ public partial class CodeGenerator
             foreach (var arg in node.Arguments)
             {
                 bool isString = arg is LiteralNode lit && lit.Value is string
-                    || (arg is CallNode call && IsStringReturningFunc(call.Method));
+                    || (arg is CallNode call && IsStringReturningFunc(call.Method))
+                    // ⚠ 变量这条路原先漏了 ⇒ `s = "VAR"; puts(s)` 打出的是**地址**
+                    //   （实测 1024 而不是 VAR）。见 _stringVars 的说明。
+                    || (arg is VarNode v && _stringVars.Contains(v.Name));
                 EmitPrintArg(() => GenerateExpression(arg), isString: isString, isFloat: arg is LiteralNode flit && (flit.Value is float || flit.Value is double));
             }
             if (node.Method == "puts")
