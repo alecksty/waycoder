@@ -1,9 +1,4 @@
 
-.linked "uscanf.vml"
-.linked "wprintf.vml"
-.linked "wscanf.vml"
-.linked "wchar.vml"
-.linked "uchar.vml"
 .data
 L_35270013: .string "(null)"
 flt_35270100: .word 0
@@ -4548,8 +4543,9 @@ printf:
         sub R13 #536
         move R0 [R12+12]
         move R0 R12
+        add R0 #12
         push R0
-        move R0 #4
+        move R0 #1
         mul R0 R0 #4
         pop R1
         add R1 R0
@@ -4610,8 +4606,9 @@ sprintf:
         sub R13 #16
         move R0 [R12+16]
         move R0 R12
+        add R0 #16
         push R0
-        move R0 #4
+        move R0 #1
         mul R0 R0 #4
         pop R1
         add R1 R0

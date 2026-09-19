@@ -665,7 +665,6 @@ namespace CCompiler
             }
 
             // 计算局部变量空间
-            stackFrameSize = 0;
             variables      = new Dictionary<string, int>();
             staticLocals   = new Dictionary<string, string>();
             variableTypes  = new Dictionary<string, ExprType>();

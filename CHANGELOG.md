@@ -1,3 +1,56 @@
+## v0.96.258 — C 前端：`&形参` 取址、`printf` 的 `%` 转换（前端缺陷台账第一批）
+
+按 `third_party/vml/FRONTEND_DEFECTS.md` 逐条清。**这一版是 C 一门。**
+
+### ① `&形参` 得到的是裸 `R12`（台账里挂了两个版本、当时只观察到现象）
+
+台账原条目写的是「通过指针形参写回会生成坏地址」，并列了四种猜测 —— **四条全不对**。
+缩小之后真身只有一条：**取形参的地址**。
+
+```c
+void par(int v) { int* p = &v; … }     /* 实测 *p = 65528（应为 42），写回也完全不生效 */
+```
+
+- **取局部地址 / 取全局地址 / 通过指针形参写回**（`wrp(&x)`）**全都是好的** ——
+  「指针写回一律坏」这个结论是错的，坏的是「取形参地址」这一个操作。
+- 真身：C 前端里「取地址」有**两份实现**。`GenerateUnaryOp` 的 `case "&"` 手写的那份算的是
+  `offset = stackFrameSize - 变量偏移` 再 `SUB`，而 `stackFrameSize` **只被赋过一次 0、再没更新过**
+  （编译器自己会报 CS0414）。局部变量偏移是负的 ⇒ 减负数得正数 ⇒ 碰巧 SUB 对；
+  形参偏移是正的 ⇒ 减出负数 ⇒ 那个 `if (offset > 0)` 不成立 ⇒ **一句不加**。
+  而 `GenerateAddressOf` 用的 `FormatVarOffset` 本就按**带符号偏移**来 ——
+  **同一规则两处实现、只对了一半**。
+- **改法**：`case "&"` 整个改成转调 `GenerateAddressOf`（收敛成一份），删掉那个死字段。
+
+### ② `printf` / `sprintf` 的 `%` 转换
+
+```c
+sprintf(b, "ab%dcd", 9);   /* → "ab" + 地址的十进制 + "cd"  ✗ */
+sprintf(b, "%s", "abc");   /* → "%s"（把格式串自己打了出来）  ✗ */
+printf("%d\n", 42);        /* → 42  ✔ —— 纯属巧合 */
+```
+`printf.c` 取变参表写的是 `(int*)(&fmt + 4)`：`&fmt` 是 `const char**`，`+4` 按 4 字节缩放成 **+16**
+⇒ 读到 `fmt` 之后的**第 4 个**槽。`printf` 只有一个形参、变参紧跟其后，**碰巧落对**；
+`sprintf` 多一个 `buf` 就整个读偏，`args[0]` 读到的正是 `fmt` 自己。
+改成 `(int*)&fmt + 1`（按 `int` 步长加一格，与形参个数无关）。
+
+### 判据（都反证过）
+
+- 新增 `scripts/vml-abi-probe/probes/p7_param_addr.c`：读形参地址 + 写回形参地址 +
+  取局部/全局地址三组一起钉。**把旧实现放回去，这条立刻报 `ABI-FAIL 取形参地址读回不对` 并挂死**。
+- ABI 判据 7/7、跨语言输出判据 28/28 全绿。
+
+### 顺手修掉的两个**工具链**坑
+
+- **`scripts/vml-out-probe/run-langs.sh` 在 macOS 上一直是 0/28**：脚本里用了 `timeout`，
+  那是 GNU coreutils 的命令、macOS 默认没有 ⇒ 整条命令行 `command not found` ⇒ 抓到空输出
+  ⇒ **28 条探针一起报 FAIL，看上去像"所有语言都坏了"**（手工单跑 `out.c` 却三行全对）。
+  已改成「有 `timeout` 用它、其次 `gtimeout`、都没有就不加外壳」。
+  **判据脚本坏了比没有更糟 —— 它会指挥你去修错的东西。**
+- **重生成 `Lib/` 必须用 GenLib，不能用 `vmlcli --rebuild-lib`**：后者不设
+  `CompilerOptionsContext` ⇒ 默认 Soft 模式 ⇒ 64 位模块退化成库调用
+  （实测 `printf.vml` 的 `movel` 从 47 掉到 1）。GenLib 显式 `Int64Mode.Hard + Float64Mode.Hard`，
+  且会跳过 mtime 比 `.c` 新的 `.vml`（只想重建一个模块就把其余 `.vml` `touch` 一下）。
+
 ## v0.96.257 — 真机修掉计算器的五个缺陷 + syscall 参数防护 + 两处 TabBar
 
 这一版几乎全是**在真机上用眼睛看出来的**：界面全对、程序不崩，但就是不对。

@@ -436,47 +436,21 @@ namespace CCompiler
                         else _expr!.EmitPrefixDec(WrapTargetExpr(unaryOp.Operand));
                         break;
                     case "&":
-                        // 取地址操作
-                        if (unaryOp.Operand is Identifier addrIdent)
-                        {
-                            if (staticLocals.ContainsKey(addrIdent.Name))
-                            {
-                                // static局部变量地址: data section标签
-                                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, staticLocals[addrIdent.Name]) }));
-                            }
-                            else if (variables.ContainsKey(addrIdent.Name))
-                            {
-                                // 局部变量地址: R12 - offset
-                                var offset = stackFrameSize - variables[addrIdent.Name];
-                                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 12) }));
-                                if (offset > 0)
-                                {
-                                    instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, offset) }));
-                                }
-                            }
-                            else if (dataSection.ContainsKey(addrIdent.Name))
-                            {
-                                // 全局变量地址: 使用标签
-                                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, addrIdent.Name) }));
-                            }
-                            else if (ast.Functions.Exists(f => f.Name == addrIdent.Name))
-                            {
-                                // 函数指针: &function_name → 加载函数标签
-                                instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.LABEL, addrIdent.Name) }));
-                            }
-                            else
-                            {
-                                throw new CodeGenerationException(ErrorCode.CodeGen_UndefinedVariable, $"未定义的变量: {addrIdent.Name}");
-                            }
-                        }
-                        else if (unaryOp.Operand is ArrayAccess)
-                        {
-                            GenerateArrayAddress((ArrayAccess)unaryOp.Operand);
-                        }
-                        else if (unaryOp.Operand is MemberAccess)
-                        {
-                            GenerateMemberAddress((MemberAccess)unaryOp.Operand);
-                        }
+                        // ⚠ **必须走 GenerateAddressOf，不要在这里再写一份**。
+                        //
+                        // 这里原先是一份手抄的取址实现，而它把**形参**的地址算错了：
+                        // 写的是 `offset = stackFrameSize - variables[name]` 再 `SUB R0, offset`。
+                        // 那条公式只在「局部变量」上成立 —— 局部的偏移是**负**的（`R12-8`），
+                        // 减负数得正数、正好 SUB 出 `R12-8`；而形参的偏移是**正**的（`R12+12`），
+                        // 减出负数 ⇒ `if (offset > 0)` 不成立 ⇒ **一句不加，`&形参` 得到裸 `R12`**。
+                        // （`stackFrameSize` 本身也只被赋过一次 0，从来没更新过。）
+                        // 实测：`void par(int v){ int* p=&v; … }` 读 `*p` 得 65528（应为 42），
+                        // 通过它写回也写不到 `v` 上。
+                        //
+                        // 而 `GenerateAddressOf` 用的 `FormatVarOffset` 是照**带符号偏移**来的
+                        // （`offset >= 0 ? R12+offset : R12-offset`），本来就对 ——
+                        // 两处实现只对了一半，正是本仓反复踩的「同一规则两处实现」。
+                        GenerateAddressOf(unaryOp.Operand);
                         break;
                     case "*":
                         // 解引用操作: 从地址加载值

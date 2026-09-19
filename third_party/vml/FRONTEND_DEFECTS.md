@@ -11,65 +11,74 @@
 
 ## C
 
-### 🔴 通过指针形参写回会生成坏地址（**待缩小**）
+### 🟡 取**形参**的地址得到的是裸 `R12`（**已缩小并修复**）
 
-**发现**：v0.96.252 写 `Examples/c/calc.c` 时。
+**发现**：v0.96.252 写 `Examples/c/calc.c` 时。当时报的是
+`内存错误(PC=000002AB): MOVE @1, R0 — 地址=FFFFFFF1`，只观察到现象、没缩小，
+台账里记的是「可能是"通过指针形参写回"」等四种猜测 —— **那四条猜测全都不对**。
 
-**现象**：
-```
-内存错误(PC=000002AB): MOVE @1, R0 — 内存访问越界：地址=FFFFFFF1, 大小=4
-```
-`FFFFFFF1` = **-15**，看着像个负偏移被当成了地址。
-
-**最小复现**（当时那份 `calc.c` 的写法）：
+**缩小到的最小复现**（2026-09-19 定案）：
 ```c
-int rx;                       /* 全局 */
-
-void keyRect(int i, int* x, int* y, int* w, int* h)   /* 多个指针形参 */
+void par(int v)
 {
-    int r = i / 4, c = i % 4;
-    *x = keyX(c) + c * bgap;  /* ← 通过指针写回 */
-    *y = keyY(r);
-    *w = keyW();
-    *h = bh;
-}
-
-void draw_key(void) {
-    int x, y, w, h;           /* ← 调用方的**局部**变量 */
-    keyRect(i, &x, &y, &w, &h);
-    ui_rect(x, y, w, h, ...);
+    int* p = &v;          /* ← 取形参地址 */
+    printf("PAR-RD=%d\n", *p);   /* 实测 65528，应为 42 */
+    *p = 123;
+    printf("PAR-WR=%d\n", v);    /* 实测 42，写回一个字都没生效 */
 }
 ```
+对照：`int a; int* q = &a;`（取**局部**地址）、`&g`（取全局）、
+`void wrp(int* p){ *p = 77; }` 配 `wrp(&x)`（通过指针形参写回）**全都是好的**。
+所以「指针写回一律坏」是错的，**坏的只有「取形参地址」这一个操作**。
 
-**判据**：把同一份逻辑改成**写全局量**（`rx/ry/rw/rh` + `keyRect(i)` 无指针参数）之后，
-**同一个程序运行正常**（跑满超时、退出码 0）。这是唯一改动，所以因果是确定的。
+**真身**：C 前端里「取地址」有**两份实现** ——
+`GenerateUnaryOp` 的 `case "&"` 里手写了一份，`GenerateAddressOf` 是另一份。
+手写那份算的是 `offset = stackFrameSize - variables[name]` 再 `SUB R0, offset`，
+而 **`stackFrameSize` 只被赋过一次 0、再没更新过**（编译器自己会报 CS0414）：
+- 局部变量偏移是**负**的（`R12-8`）⇒ `0 - (-8) = 8 > 0` ⇒ SUB 出 `R12-8`，**碰巧对**；
+- 形参偏移是**正**的（`R12+12`）⇒ `0 - 12 = -12`，那个 `if (offset > 0)` 不成立
+  ⇒ **一句不加，`&形参` 就是裸 `R12`**。
 
-**尚未缩小**（修的时候先做这一步），可能的原因有四种：
-1. "通过指针形参写回"本身
-2. "取**局部变量**的地址传出去"（注意 `itoa_(char* b, int v)` 写的是**全局数组**，它是好的）
-3. **多个**指针形参
-4. 写回的值里含**函数调用**（`keyX(c) + c * bgap`）
+`GenerateAddressOf` 用的 `FormatVarOffset` 是照**带符号偏移**来的
+（`offset >= 0 ? R12+offset : R12-offset`），本来就对 ——
+**同一规则两处实现、只对了一半**，正是本仓反复踩的那一类。
 
-**注意反例**：`plane.c` 里的 `void itoa_(char* b, int v) { b[i++] = …; }`、
-`void fmt(char* out, int v) { out[i++] = …; }` 都是写指针形参，**都正常** ——
-所以"指针写回一律坏"是错的，别照这个结论去改前端。
+**已修**（v0.96.258）：`case "&"` 整个改成 `GenerateAddressOf(unaryOp.Operand)`（收敛成一份），
+并删掉那个从来没被赋过值的 `stackFrameSize`。
+**判据**：`scripts/vml-abi-probe/probes/p7_param_addr.c` ——
+读形参地址、写回形参地址、以及「取局部地址」「取全局地址」三组一起钉。
+**反证过**：把旧实现放回去，这条立刻报 `ABI-FAIL 取形参地址读回不对` 并挂死（不响的自测比没有更糟）。
 
-**绕过**：写成全局量（`calc.c` 现在就是这么做的）。
+**绕过**：取形参地址改成先拷进局部变量再取（`int t = v; int* p = &t;`）。
 
 ---
 
-### 🔴 `printf` / `sprintf` 的 `%` 转换产出零个字符
+### 🟡 `printf` / `sprintf` 的 `%` 转换产出零个字符（**已修**）
 
-**现象**：`sprintf(b, "d=[%d]", 42)` 打出 `d=[` 之后就崩在 `MOVEB R0, @0`。
+**现象**（v0.96.252 时）：`sprintf(b, "d=[%d]", 42)` 打出 `d=[` 之后就崩在 `MOVEB R0, @0`。
+**2026-09-19 复测的现象已经变了**：栈漂移那一半（见下面「全局」节）随 `Lib/` 重生成好了，
+剩下的是**变参表读偏**：
+```c
+sprintf(b, "x");            /* → "x"        （对） */
+sprintf(b, "ab%dcd", 9);    /* → "ab" + 地址的十进制 + "cd"  ✗ */
+sprintf(b, "%s", "abc");    /* → "%s"       ✗  %s 打出了格式串自己 */
+printf("%d\n", 42);         /* → 42         （对，纯属巧合，见下） */
+```
 
-**背景**：根因与「`Lib/` 里两套栈清理约定并存」同源（见下面「全局」那节）——
-C 前端生成的函数是**调用方清参数**，而 `Lib/` 里 700+ 个函数是**被调用方自己清**，
-每调一次栈指针就多释放一次，漂了之后凡是**用 `pop` 取临时值**的地方都读错。
+**真身**：`Lib/shared/src/printf.c` 里取变参表写的是 `int *stack_args = (int*)(&fmt + 4);`。
+`&fmt` 是 `const char**`，`+4` 会按 **4 字节缩放成 +16 字节** —— 那是 `fmt` 之后的**第 4 个**槽。
+- `printf(const char* fmt, ...)` 只有**一个**形参，变参紧跟其后 ⇒ `R12+16` **碰巧就是第一个变参**，所以它一直是对的；
+- `sprintf(char* buf, const char* fmt, ...)` 多一个 `buf` ⇒ 整个读偏一格，
+  `args[0]` 读到的是 **`fmt` 自己** ⇒ `%s` 把格式串原样打出来、`%d` 打出地址。
 
-**当前处置**：C++ 前端有一条 `printf → print_str` 的捷径**故意留着没删** ——
-它遮住了"1 实参"的情形，删了就是拿一个可见的回归换整洁。**先修库、再删捷径**。
+**修法（两处一起）**：
+1. C 前端「取形参地址」的修复（见上一条）—— 不修它 `&fmt` 本身还是裸 `R12`；
+2. `printf.c` 改成 `(int*)&fmt + 1`：按 `int` 步长加一格，**与形参个数无关**。
 
-**绕过**：写数字自己转字符串（见 `plane.c` 的 `itoa_`）。**别用 `%` 格式化。**
+**判据**：`.scratch` 期的四行对照（`x` / `ab%dcd` / `%s` / `printf`）现在**四行全对**；
+`scripts/vml-out-probe` 的 `nat.c`（C 自己的标准输出那条路）也在 28/28 里。
+
+**绕过**（若将来又坏）：写数字自己转字符串（见 `plane.c` 的 `itoa_`）。
 
 ---
 
@@ -320,6 +329,26 @@ void itoa_(char* b, int v) { … }
 
 /* 5. 别在参数位置写嵌套三元（虽然没证实是它，但改成 if 也不亏） */
 ```
+
+---
+
+## 工具链上的两个坑（2026-09-19 各踩一次）
+
+**① 重生成 `Lib/` 必须用 GenLib，不能用 `vmlcli --rebuild-lib`。**
+`--rebuild-lib` 只走裸的 `CompileFile`，**不设 `CompilerOptionsContext`** ⇒ 默认 Soft 模式 ⇒
+`convert64/conv/array64/math64…` 这些必须用**硬件 64 位指令**的模块会退化成库调用
+（实测把 `printf.vml` 重生成后 `movel` 从 47 掉到 1、`pushl/popl/cmpl` 全成 0）。
+`GenLib` 的 `BuildShared` 显式 `RunWith(Int64Mode.Hard + Float64Mode.Hard)`（与
+`vmltool.config.xml` 的 `<Int64>hard</Int64>` 一致），并且**跳过 mtime 比 `.c` 新的 `.vml`** ——
+只想重建一个模块时，`touch Lib/shared/*.vml` 再把它单独 `touch -t` 改老即可
+（实测 `完成: 1 编译, 105 跳过`，diff 只有 11 行）。
+`.vml` 是 **LF**（`.gitattributes` 里 `eol=lf`），GenLib 的 `WriteGen` 正好写 LF，别手动转 CRLF。
+
+**② `scripts/vml-out-probe/run-langs.sh` 里用了 `timeout`，而那是 GNU coreutils 的命令。**
+macOS 默认没有 ⇒ 整条命令行 `command not found` ⇒ 抓到空输出 ⇒
+**28 条探针一起报 FAIL，看上去像"所有语言都坏了"**（实测就是这样，手工单跑 `out.c` 却三行全对）。
+已改成「有 `timeout` 用它、其次 `gtimeout`、都没有就不加外壳」（vmlcli 自己的 `--timeout`
+已经能在 VM 层掐掉跑不完的程序）。**判据脚本坏了比没有更糟 —— 它会指挥你去修错的东西。**
 
 ---
 

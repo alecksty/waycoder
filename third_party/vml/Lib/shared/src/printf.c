@@ -305,9 +305,16 @@ int vsnprintf(char *buf, const char *fmt, const int *args, int nargs) {
 
 // ====== Public API ======
 
+// ⚠ 变参表 = 「紧跟 `fmt` 槽的那一个槽」，写法必须**按元素步长走**：
+//   `&fmt` 是 `const char**`，写成 `&fmt + 4` 会按 4 字节缩放成 **+16 字节**，
+//   正好是 fmt 之后的**第 4 个**槽 —— `printf` 只有一个形参、变参紧跟其后，
+//   它碰巧落对；`sprintf` 多一个 `buf` 形参，于是整个读偏：
+//   实测 `sprintf(b,"s=[%s]","abc")` 打出 `s=[s=[%s]]`（`%s` 读到了格式串自己）、
+//   `sprintf(b,"ab%dcd",9)` 打出 `ab` + 地址的十进制 + `cd`。
+//   转成 `int*` 再加 1 才是「下一个槽」，与形参个数无关。
 __cdecl void printf(const char *fmt, ...) {
     char buf[512];
-    int *stack_args = (int*)(&fmt + 4);
+    int *stack_args = (int*)&fmt + 1;
     int len = vsnprintf(buf, fmt, stack_args, 8);
     buf[len] = 0;
     int dummy = (int)buf;
@@ -315,7 +322,7 @@ __cdecl void printf(const char *fmt, ...) {
 }
 
 __cdecl int sprintf(char *buf, const char *fmt, ...) {
-    int *stack_args = (int*)(&fmt + 4);
+    int *stack_args = (int*)&fmt + 1;      // 见上面 printf 处的说明
     return vsnprintf(buf, fmt, stack_args, 8);
 }
 

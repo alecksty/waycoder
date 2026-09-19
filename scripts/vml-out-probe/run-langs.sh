@@ -64,6 +64,20 @@ TIMEOUT="${TIMEOUT:-30}"
 
 [ -f "$DLL" ] || { echo "✘ 找不到 vmlcli：$DLL（先 dotnet build scripts/vmlcli -c Release）" >&2; exit 2; }
 
+# ⚠ `timeout` 是 **GNU coreutils** 的命令，**macOS 默认没有**（本仓日常在 Mac 上验证）。
+#   缺了它的表现极具误导性：整条命令行直接 `command not found` ⇒ 抓到空输出 ⇒
+#   **28 条探针一起报 FAIL，而一条真问题都看不出来** —— 比不跑还糟（会让人去"修语言"）。
+#   实测 2026-09-19：手工单跑 out.c 三行全对，走本脚本却 0/28。
+#   有 `timeout` 就用，其次 `gtimeout`（brew coreutils 装的那个），都没有就**不加外壳** ——
+#   vmlcli 自己的 `--timeout` 已经能在 VM 层把跑不完的程序掐掉，外壳只是多一层兜底。
+#   ⚠ 用函数而不是数组：macOS 自带的是 bash 3.2，空数组配 `set -u` 展开会报 unbound variable。
+if command -v timeout >/dev/null 2>&1; then TIMEOUT_BIN=timeout
+elif command -v gtimeout >/dev/null 2>&1; then TIMEOUT_BIN=gtimeout
+else TIMEOUT_BIN=""; fi
+run_probe() {
+    if [ -n "$TIMEOUT_BIN" ]; then "$TIMEOUT_BIN" $((TIMEOUT + 20)) "$@"; else "$@"; fi
+}
+
 EXPECT=$'OUT-STR=abc\nOUT-INT=42\nOUT-PUN=hello, world'
 
 shopt -s nullglob
@@ -107,7 +121,7 @@ for f in "${files[@]}"; do
     #   早先一律 2>/dev/null，把 5 个**编译失败**报成了「输出为空」，
     #   于是「修编译器」和「修探针注释前缀」混在一起看不出来（实测踩过）。
     errf="$(mktemp)"
-    out="$(cd "$(dirname "$f")" && timeout $((TIMEOUT + 20)) dotnet "$DLL" "$f" --timeout "$TIMEOUT" 2>"$errf" | tr -d '\0')"
+    out="$(cd "$(dirname "$f")" && run_probe dotnet "$DLL" "$f" --timeout "$TIMEOUT" 2>"$errf" | tr -d '\0')"
     # 只看程序自己的输出：vmlcli 的编译/链接进度走 stderr；再掐掉 `? 运行完成…` 那一行兜底
     got="$(printf '%s\n' "$out" | grep -av '^?' | sed -e 's/[[:space:]]*$//')"
     if grep -qaE 'Unhandled exception|CompilationException|ParseException' "$errf"; then

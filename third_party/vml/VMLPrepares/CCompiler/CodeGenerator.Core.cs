@@ -111,7 +111,6 @@ namespace CCompiler
         // ====== ======
 
         private Program                                          ast;
-        private int                                              stackFrameSize;
         private Dictionary<string, int>                          variables;
         private HashSet<string>                                  vlaVariables = new();  // VLA变量名集合
         private Dictionary<string, string>                       staticLocals; // static局部变量: varName → dataSection label
