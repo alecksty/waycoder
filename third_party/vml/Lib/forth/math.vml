@@ -409,16 +409,6 @@ LABEL forth_tan_deg
     pop R15
     RET
 
-LABEL forth_approximation
-    push R15
-    push R12
-    move R12 R13
-    CALL approximation
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL forth_ilog2
     push R15
     push R12
@@ -895,12 +885,6 @@ LABEL word_TanDeg
 LABEL word_tanDeg
     JMP forth_tan_deg
 
-LABEL word_approximation
-    JMP forth_approximation
-
-LABEL word_Approximation
-    JMP forth_approximation
-
 LABEL word_ilog2
     JMP forth_ilog2
 
@@ -1236,12 +1220,6 @@ LABEL func_TanDeg
 
 LABEL func_tanDeg
     JMP forth_tan_deg
-
-LABEL func_approximation
-    JMP forth_approximation
-
-LABEL func_Approximation
-    JMP forth_approximation
 
 LABEL func_ilog2
     JMP forth_ilog2

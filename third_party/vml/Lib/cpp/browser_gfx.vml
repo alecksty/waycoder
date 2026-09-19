@@ -3,26 +3,6 @@
 
 .linked "../shared/browser_gfx.vml"
 
-LABEL cpp_CMD_BUF
-    push R15
-    push R12
-    move R12 R13
-    CALL CMD_BUF
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL cpp_format
-    push R15
-    push R12
-    move R12 R13
-    CALL format
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL cpp_cmd_write
     push R15
     push R12
@@ -120,21 +100,6 @@ LABEL cpp_browser_flush
     pop R12
     pop R15
     RET
-
-LABEL func_CMD_BUF
-    JMP cpp_CMD_BUF
-
-LABEL func_CMDBUF
-    JMP cpp_CMD_BUF
-
-LABEL func_cMDBUF
-    JMP cpp_CMD_BUF
-
-LABEL func_format
-    JMP cpp_format
-
-LABEL func_Format
-    JMP cpp_format
 
 LABEL func_cmd_write
     JMP cpp_cmd_write

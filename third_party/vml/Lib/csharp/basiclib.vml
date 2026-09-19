@@ -3,16 +3,6 @@
 
 .linked "../shared/basiclib.vml"
 
-LABEL Values
-    push R15
-    push R12
-    move R12 R13
-    CALL values
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL HexStr
     push R15
     push R12
@@ -152,16 +142,6 @@ LABEL BasicTimeStr
     pop R15
     RET
 
-LABEL Elapsed
-    push R15
-    push R12
-    move R12 R13
-    CALL elapsed
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL BasicTimer
     push R15
     push R12
@@ -223,16 +203,6 @@ LABEL BasicEof
     pop R15
     RET
 
-LABEL csharp_Manipulation
-    push R15
-    push R12
-    move R12 R13
-    CALL Manipulation
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL BasicUcase
     push R15
     push R12
@@ -289,16 +259,6 @@ LABEL BasicAsc
     pop R15
     RET
 
-LABEL Code
-    push R15
-    push R12
-    move R12 R13
-    CALL code
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL BasicChr
     push R15
     push R12
@@ -308,16 +268,6 @@ LABEL BasicChr
     move R0 [R13+0]
     CALL basic_chr
     ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL Spaces
-    push R15
-    push R12
-    move R12 R13
-    CALL spaces
     move R13 R12
     pop R12
     pop R15
@@ -455,16 +405,6 @@ LABEL BasicSgn
     pop R15
     RET
 
-LABEL Interpolation
-    push R15
-    push R12
-    move R12 R13
-    CALL interpolation
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL SinLookup
     push R15
     push R12
@@ -521,16 +461,6 @@ LABEL BasicTan
     pop R15
     RET
 
-LABEL Method
-    push R15
-    push R12
-    move R12 R13
-    CALL method
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL BasicSqr
     push R15
     push R12
@@ -545,31 +475,11 @@ LABEL BasicSqr
     pop R15
     RET
 
-LABEL Integer
-    push R15
-    push R12
-    move R12 R13
-    CALL integer
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL BasicRnd
     push R15
     push R12
     move R12 R13
     CALL basic_rnd
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL Series
-    push R15
-    push R12
-    move R12 R13
-    CALL series
     move R13 R12
     pop R12
     pop R15
@@ -648,19 +558,6 @@ LABEL BasicPoint
     pop R15
     RET
 
-LABEL Above
-    push R15
-    push R12
-    move R12 R13
-    CALL above
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL Basiclib_Values
-    JMP Values
-
 LABEL Basiclib_HexStr
     JMP HexStr
 
@@ -688,9 +585,6 @@ LABEL Basiclib_BasicDateStr
 LABEL Basiclib_BasicTimeStr
     JMP BasicTimeStr
 
-LABEL Basiclib_Elapsed
-    JMP Elapsed
-
 LABEL Basiclib_BasicTimer
     JMP BasicTimer
 
@@ -702,9 +596,6 @@ LABEL Basiclib_Asm
 
 LABEL Basiclib_BasicEof
     JMP BasicEof
-
-LABEL Basiclib_Manipulation
-    JMP csharp_Manipulation
 
 LABEL Basiclib_BasicUcase
     JMP BasicUcase
@@ -718,14 +609,8 @@ LABEL Basiclib_BasicLen
 LABEL Basiclib_BasicAsc
     JMP BasicAsc
 
-LABEL Basiclib_Code
-    JMP Code
-
 LABEL Basiclib_BasicChr
     JMP BasicChr
-
-LABEL Basiclib_Spaces
-    JMP Spaces
 
 LABEL Basiclib_BasicSpace
     JMP BasicSpace
@@ -754,9 +639,6 @@ LABEL Basiclib_BasicAbs
 LABEL Basiclib_BasicSgn
     JMP BasicSgn
 
-LABEL Basiclib_Interpolation
-    JMP Interpolation
-
 LABEL Basiclib_SinLookup
     JMP SinLookup
 
@@ -769,20 +651,11 @@ LABEL Basiclib_BasicCos
 LABEL Basiclib_BasicTan
     JMP BasicTan
 
-LABEL Basiclib_Method
-    JMP Method
-
 LABEL Basiclib_BasicSqr
     JMP BasicSqr
 
-LABEL Basiclib_Integer
-    JMP Integer
-
 LABEL Basiclib_BasicRnd
     JMP BasicRnd
-
-LABEL Basiclib_Series
-    JMP Series
 
 LABEL Basiclib_BasicExp
     JMP BasicExp
@@ -798,7 +671,4 @@ LABEL Basiclib_BasicInt
 
 LABEL Basiclib_BasicPoint
     JMP BasicPoint
-
-LABEL Basiclib_Above
-    JMP Above
 

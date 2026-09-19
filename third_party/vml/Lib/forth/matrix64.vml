@@ -3,16 +3,6 @@
 
 .linked "../shared/matrix64.vml"
 
-LABEL forth_arrays
-    push R15
-    push R12
-    move R12 R13
-    CALL arrays
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL forth_mat2_identity_d
     push R15
     push R12
@@ -563,12 +553,6 @@ LABEL forth_mat4_transform_vec3_d
     pop R12
     pop R15
     RET
-
-LABEL func_arrays
-    JMP forth_arrays
-
-LABEL func_Arrays
-    JMP forth_arrays
 
 LABEL func_mat2_identity_d
     JMP forth_mat2_identity_d

@@ -3,41 +3,11 @@
 
 .linked "../shared/graphics.vml"
 
-LABEL objc_base
-    push R15
-    push R12
-    move R12 R13
-    CALL base
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL objc_params
-    push R15
-    push R12
-    move R12 R13
-    CALL params
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL objc__gfx_refresh_cache
     push R15
     push R12
     move R12 R13
     CALL _gfx_refresh_cache
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL objc_config
-    push R15
-    push R12
-    move R12 R13
-    CALL config
     move R13 R12
     pop R12
     pop R15
@@ -87,16 +57,6 @@ LABEL objc_gfx_h
     pop R15
     RET
 
-LABEL objc_address
-    push R15
-    push R12
-    move R12 R13
-    CALL address
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL objc__putpixel
     push R15
     push R12
@@ -112,16 +72,6 @@ LABEL objc__putpixel
     move R2 [R13+8]
     CALL _putpixel
     ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL objc_PUSH
-    push R15
-    push R12
-    move R12 R13
-    CALL PUSH
     move R13 R12
     pop R12
     pop R15
@@ -144,26 +94,6 @@ LABEL objc__getpixel
     pop R15
     RET
 
-LABEL objc_R0
-    push R15
-    push R12
-    move R12 R13
-    CALL R0
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL objc_offset
-    push R15
-    push R12
-    move R12 R13
-    CALL offset
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL objc__putpixel_fast
     push R15
     push R12
@@ -181,68 +111,6 @@ LABEL objc__putpixel_fast
     pop R15
     RET
 
-LABEL objc_R4
-    push R15
-    push R12
-    move R12 R13
-    CALL R4
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL objc_Sector
-    push R15
-    push R12
-    move R12 R13
-    CALL Sector
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL objc_points
-    push R15
-    push R12
-    move R12 R13
-    CALL points
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL objc_Font
-    push R15
-    push R12
-    move R12 R13
-    CALL Font
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL objc_Points
-    push R15
-    push R12
-    move R12 R13
-    CALL Points
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL func_base
-    JMP objc_base
-
-LABEL func_Base
-    JMP objc_base
-
-LABEL func_params
-    JMP objc_params
-
-LABEL func_Params
-    JMP objc_params
-
 LABEL func__gfx_refresh_cache
     JMP objc__gfx_refresh_cache
 
@@ -251,12 +119,6 @@ LABEL func_GfxRefreshCache
 
 LABEL func_gfxRefreshCache
     JMP objc__gfx_refresh_cache
-
-LABEL func_config
-    JMP objc_config
-
-LABEL func_Config
-    JMP objc_config
 
 LABEL func_get_config
     JMP objc_get_config
@@ -294,12 +156,6 @@ LABEL func_GfxH
 LABEL func_gfxH
     JMP objc_gfx_h
 
-LABEL func_address
-    JMP objc_address
-
-LABEL func_Address
-    JMP objc_address
-
 LABEL func__putpixel
     JMP objc__putpixel
 
@@ -308,12 +164,6 @@ LABEL func_Putpixel
 
 LABEL func_putpixel
     JMP objc__putpixel
-
-LABEL func_PUSH
-    JMP objc_PUSH
-
-LABEL func_pUSH
-    JMP objc_PUSH
 
 LABEL func__getpixel
     JMP objc__getpixel
@@ -324,18 +174,6 @@ LABEL func_Getpixel
 LABEL func_getpixel
     JMP objc__getpixel
 
-LABEL func_R0
-    JMP objc_R0
-
-LABEL func_r0
-    JMP objc_R0
-
-LABEL func_offset
-    JMP objc_offset
-
-LABEL func_Offset
-    JMP objc_offset
-
 LABEL func__putpixel_fast
     JMP objc__putpixel_fast
 
@@ -344,34 +182,4 @@ LABEL func_PutpixelFast
 
 LABEL func_putpixelFast
     JMP objc__putpixel_fast
-
-LABEL func_R4
-    JMP objc_R4
-
-LABEL func_r4
-    JMP objc_R4
-
-LABEL func_Sector
-    JMP objc_Sector
-
-LABEL func_sector
-    JMP objc_Sector
-
-LABEL func_points
-    JMP objc_points
-
-LABEL func_Points
-    JMP objc_points
-
-LABEL func_Font
-    JMP objc_Font
-
-LABEL func_font
-    JMP objc_Font
-
-LABEL func_Points
-    JMP objc_Points
-
-LABEL func_points
-    JMP objc_Points
 

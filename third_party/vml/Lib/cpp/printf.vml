@@ -62,16 +62,6 @@ LABEL cpp_slen
     pop R15
     RET
 
-LABEL cpp_itoa64
-    push R15
-    push R12
-    move R12 R13
-    CALL itoa64
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL cpp_out_rev
     push R15
     push R12
@@ -150,16 +140,6 @@ LABEL cpp_sign64
     pop R15
     RET
 
-LABEL cpp_ftoe
-    push R15
-    push R12
-    move R12 R13
-    CALL ftoe
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL func_emit
     JMP cpp_emit
 
@@ -180,12 +160,6 @@ LABEL func_slen
 
 LABEL func_Slen
     JMP cpp_slen
-
-LABEL func_itoa64
-    JMP cpp_itoa64
-
-LABEL func_Itoa64
-    JMP cpp_itoa64
 
 LABEL func_out_rev
     JMP cpp_out_rev
@@ -213,10 +187,4 @@ LABEL func_sign64
 
 LABEL func_Sign64
     JMP cpp_sign64
-
-LABEL func_ftoe
-    JMP cpp_ftoe
-
-LABEL func_Ftoe
-    JMP cpp_ftoe
 

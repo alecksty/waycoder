@@ -43,16 +43,6 @@ LABEL java_csub
     pop R15
     RET
 
-LABEL java_b
-    push R15
-    push R12
-    move R12 R13
-    CALL b
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL java_cmul
     push R15
     push R12
@@ -102,16 +92,6 @@ LABEL java_complexAbs
     move R0 [R13+0]
     CALL complex_abs
     ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL java_radians
-    push R15
-    push R12
-    move R12 R13
-    CALL radians
     move R13 R12
     pop R12
     pop R15
@@ -243,9 +223,6 @@ LABEL Complex_Cadd
 LABEL Complex_Csub
     JMP java_csub
 
-LABEL Complex_B
-    JMP java_b
-
 LABEL Complex_Cmul
     JMP java_cmul
 
@@ -254,9 +231,6 @@ LABEL Complex_Cdiv
 
 LABEL Complex_ComplexAbs
     JMP java_complexAbs
-
-LABEL Complex_Radians
-    JMP java_radians
 
 LABEL Complex_ComplexArg
     JMP java_complexArg
@@ -291,12 +265,6 @@ LABEL method_csub
 LABEL method_Csub
     JMP java_csub
 
-LABEL method_b
-    JMP java_b
-
-LABEL method_B
-    JMP java_b
-
 LABEL method_cmul
     JMP java_cmul
 
@@ -317,12 +285,6 @@ LABEL method_ComplexAbs
 
 LABEL method_complexAbs
     JMP java_complexAbs
-
-LABEL method_radians
-    JMP java_radians
-
-LABEL method_Radians
-    JMP java_radians
 
 LABEL method_complex_arg
     JMP java_complexArg

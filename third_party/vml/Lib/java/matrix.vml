@@ -424,16 +424,6 @@ LABEL java_vec2Dot
     pop R15
     RET
 
-LABEL java_product
-    push R15
-    push R12
-    move R12 R13
-    CALL product
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL java_vec2Cross
     push R15
     push R12
@@ -544,16 +534,6 @@ LABEL java_vec3Normalize
     pop R15
     RET
 
-LABEL java_vector
-    push R15
-    push R12
-    move R12 R13
-    CALL vector
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL java_mat4TransformVec3
     push R15
     push R12
@@ -643,9 +623,6 @@ LABEL Matrix_Mat4Transpose
 LABEL Matrix_Vec2Dot
     JMP java_vec2Dot
 
-LABEL Matrix_Product
-    JMP java_product
-
 LABEL Matrix_Vec2Cross
     JMP java_vec2Cross
 
@@ -666,9 +643,6 @@ LABEL Matrix_Vec3Len
 
 LABEL Matrix_Vec3Normalize
     JMP java_vec3Normalize
-
-LABEL Matrix_Vector
-    JMP java_vector
 
 LABEL Matrix_Mat4TransformVec3
     JMP java_mat4TransformVec3
@@ -880,12 +854,6 @@ LABEL method_Vec2Dot
 LABEL method_vec2Dot
     JMP java_vec2Dot
 
-LABEL method_product
-    JMP java_product
-
-LABEL method_Product
-    JMP java_product
-
 LABEL method_vec2_cross
     JMP java_vec2Cross
 
@@ -948,12 +916,6 @@ LABEL method_Vec3Normalize
 
 LABEL method_vec3Normalize
     JMP java_vec3Normalize
-
-LABEL method_vector
-    JMP java_vector
-
-LABEL method_Vector
-    JMP java_vector
 
 LABEL method_mat4_transform_vec3
     JMP java_mat4TransformVec3

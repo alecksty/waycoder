@@ -3,13 +3,3 @@
 
 .linked "../shared/util.vml"
 
-LABEL PASCAL_ROOT
-    push R15
-    push R12
-    move R12 R13
-    CALL root
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-

@@ -3,16 +3,6 @@
 
 .linked "../shared/parserexp.vml"
 
-LABEL cpp_literals
-    push R15
-    push R12
-    move R12 R13
-    CALL literals
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL cpp_NULL
     push R15
     push R12
@@ -106,22 +96,6 @@ LABEL cpp_parserexp
     pop R15
     RET
 
-LABEL cpp_cases
-    push R15
-    push R12
-    move R12 R13
-    CALL cases
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL func_literals
-    JMP cpp_literals
-
-LABEL func_Literals
-    JMP cpp_literals
-
 LABEL func_NULL
     JMP cpp_NULL
 
@@ -187,10 +161,4 @@ LABEL func_parserexp
 
 LABEL func_Parserexp
     JMP cpp_parserexp
-
-LABEL func_cases
-    JMP cpp_cases
-
-LABEL func_Cases
-    JMP cpp_cases
 

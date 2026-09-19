@@ -3,41 +3,11 @@
 
 .linked "../shared/graphics.vml"
 
-LABEL java_base
-    push R15
-    push R12
-    move R12 R13
-    CALL base
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL java_params
-    push R15
-    push R12
-    move R12 R13
-    CALL params
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL java_gfxRefreshCache
     push R15
     push R12
     move R12 R13
     CALL _gfx_refresh_cache
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL java_config
-    push R15
-    push R12
-    move R12 R13
-    CALL config
     move R13 R12
     pop R12
     pop R15
@@ -87,16 +57,6 @@ LABEL java_gfxH
     pop R15
     RET
 
-LABEL java_address
-    push R15
-    push R12
-    move R12 R13
-    CALL address
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL java_putpixel
     push R15
     push R12
@@ -112,16 +72,6 @@ LABEL java_putpixel
     move R2 [R13+8]
     CALL _putpixel
     ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL java_pUSH
-    push R15
-    push R12
-    move R12 R13
-    CALL PUSH
     move R13 R12
     pop R12
     pop R15
@@ -144,26 +94,6 @@ LABEL java_getpixel
     pop R15
     RET
 
-LABEL java_r0
-    push R15
-    push R12
-    move R12 R13
-    CALL R0
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL java_offset
-    push R15
-    push R12
-    move R12 R13
-    CALL offset
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL java_putpixelFast
     push R15
     push R12
@@ -181,67 +111,8 @@ LABEL java_putpixelFast
     pop R15
     RET
 
-LABEL java_r4
-    push R15
-    push R12
-    move R12 R13
-    CALL R4
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL java_sector
-    push R15
-    push R12
-    move R12 R13
-    CALL Sector
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL java_points
-    push R15
-    push R12
-    move R12 R13
-    CALL points
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL java_font
-    push R15
-    push R12
-    move R12 R13
-    CALL Font
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL java_points
-    push R15
-    push R12
-    move R12 R13
-    CALL Points
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL Graphics_Base
-    JMP java_base
-
-LABEL Graphics_Params
-    JMP java_params
-
 LABEL Graphics_GfxRefreshCache
     JMP java_gfxRefreshCache
-
-LABEL Graphics_Config
-    JMP java_config
 
 LABEL Graphics_GetConfig
     JMP java_getConfig
@@ -255,53 +126,14 @@ LABEL Graphics_GfxW
 LABEL Graphics_GfxH
     JMP java_gfxH
 
-LABEL Graphics_Address
-    JMP java_address
-
 LABEL Graphics_Putpixel
     JMP java_putpixel
-
-LABEL Graphics_PUSH
-    JMP java_pUSH
 
 LABEL Graphics_Getpixel
     JMP java_getpixel
 
-LABEL Graphics_R0
-    JMP java_r0
-
-LABEL Graphics_Offset
-    JMP java_offset
-
 LABEL Graphics_PutpixelFast
     JMP java_putpixelFast
-
-LABEL Graphics_R4
-    JMP java_r4
-
-LABEL Graphics_Sector
-    JMP java_sector
-
-LABEL Graphics_Points
-    JMP java_points
-
-LABEL Graphics_Font
-    JMP java_font
-
-LABEL Graphics_Points
-    JMP java_points
-
-LABEL method_base
-    JMP java_base
-
-LABEL method_Base
-    JMP java_base
-
-LABEL method_params
-    JMP java_params
-
-LABEL method_Params
-    JMP java_params
 
 LABEL method__gfx_refresh_cache
     JMP java_gfxRefreshCache
@@ -311,12 +143,6 @@ LABEL method_GfxRefreshCache
 
 LABEL method_gfxRefreshCache
     JMP java_gfxRefreshCache
-
-LABEL method_config
-    JMP java_config
-
-LABEL method_Config
-    JMP java_config
 
 LABEL method_get_config
     JMP java_getConfig
@@ -354,12 +180,6 @@ LABEL method_GfxH
 LABEL method_gfxH
     JMP java_gfxH
 
-LABEL method_address
-    JMP java_address
-
-LABEL method_Address
-    JMP java_address
-
 LABEL method__putpixel
     JMP java_putpixel
 
@@ -368,12 +188,6 @@ LABEL method_Putpixel
 
 LABEL method_putpixel
     JMP java_putpixel
-
-LABEL method_PUSH
-    JMP java_pUSH
-
-LABEL method_pUSH
-    JMP java_pUSH
 
 LABEL method__getpixel
     JMP java_getpixel
@@ -384,18 +198,6 @@ LABEL method_Getpixel
 LABEL method_getpixel
     JMP java_getpixel
 
-LABEL method_R0
-    JMP java_r0
-
-LABEL method_r0
-    JMP java_r0
-
-LABEL method_offset
-    JMP java_offset
-
-LABEL method_Offset
-    JMP java_offset
-
 LABEL method__putpixel_fast
     JMP java_putpixelFast
 
@@ -404,34 +206,4 @@ LABEL method_PutpixelFast
 
 LABEL method_putpixelFast
     JMP java_putpixelFast
-
-LABEL method_R4
-    JMP java_r4
-
-LABEL method_r4
-    JMP java_r4
-
-LABEL method_Sector
-    JMP java_sector
-
-LABEL method_sector
-    JMP java_sector
-
-LABEL method_points
-    JMP java_points
-
-LABEL method_Points
-    JMP java_points
-
-LABEL method_Font
-    JMP java_font
-
-LABEL method_font
-    JMP java_font
-
-LABEL method_Points
-    JMP java_points
-
-LABEL method_points
-    JMP java_points
 

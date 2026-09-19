@@ -3,16 +3,6 @@
 
 .linked "../shared/crc.vml"
 
-LABEL csharp_CRC
-    push R15
-    push R12
-    move R12 R13
-    CALL CRC
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL Crc8
     push R15
     push R12
@@ -139,9 +129,6 @@ LABEL Checksum16
     pop R12
     pop R15
     RET
-
-LABEL Crc_CRC
-    JMP csharp_CRC
 
 LABEL Crc_Crc8
     JMP Crc8

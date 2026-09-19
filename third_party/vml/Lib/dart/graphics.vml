@@ -3,41 +3,11 @@
 
 .linked "../shared/graphics.vml"
 
-LABEL dart_base
-    push R15
-    push R12
-    move R12 R13
-    CALL base
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL dart_params
-    push R15
-    push R12
-    move R12 R13
-    CALL params
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL dart__gfx_refresh_cache
     push R15
     push R12
     move R12 R13
     CALL _gfx_refresh_cache
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL dart_config
-    push R15
-    push R12
-    move R12 R13
-    CALL config
     move R13 R12
     pop R12
     pop R15
@@ -87,16 +57,6 @@ LABEL dart_gfx_h
     pop R15
     RET
 
-LABEL dart_address
-    push R15
-    push R12
-    move R12 R13
-    CALL address
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL dart__putpixel
     push R15
     push R12
@@ -112,16 +72,6 @@ LABEL dart__putpixel
     move R2 [R13+8]
     CALL _putpixel
     ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL dart_PUSH
-    push R15
-    push R12
-    move R12 R13
-    CALL PUSH
     move R13 R12
     pop R12
     pop R15
@@ -144,26 +94,6 @@ LABEL dart__getpixel
     pop R15
     RET
 
-LABEL dart_R0
-    push R15
-    push R12
-    move R12 R13
-    CALL R0
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL dart_offset
-    push R15
-    push R12
-    move R12 R13
-    CALL offset
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL dart__putpixel_fast
     push R15
     push R12
@@ -181,68 +111,6 @@ LABEL dart__putpixel_fast
     pop R15
     RET
 
-LABEL dart_R4
-    push R15
-    push R12
-    move R12 R13
-    CALL R4
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL dart_Sector
-    push R15
-    push R12
-    move R12 R13
-    CALL Sector
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL dart_points
-    push R15
-    push R12
-    move R12 R13
-    CALL points
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL dart_Font
-    push R15
-    push R12
-    move R12 R13
-    CALL Font
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL dart_Points
-    push R15
-    push R12
-    move R12 R13
-    CALL Points
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL func_base
-    JMP dart_base
-
-LABEL func_Base
-    JMP dart_base
-
-LABEL func_params
-    JMP dart_params
-
-LABEL func_Params
-    JMP dart_params
-
 LABEL func__gfx_refresh_cache
     JMP dart__gfx_refresh_cache
 
@@ -251,12 +119,6 @@ LABEL func_GfxRefreshCache
 
 LABEL func_gfxRefreshCache
     JMP dart__gfx_refresh_cache
-
-LABEL func_config
-    JMP dart_config
-
-LABEL func_Config
-    JMP dart_config
 
 LABEL func_get_config
     JMP dart_get_config
@@ -294,12 +156,6 @@ LABEL func_GfxH
 LABEL func_gfxH
     JMP dart_gfx_h
 
-LABEL func_address
-    JMP dart_address
-
-LABEL func_Address
-    JMP dart_address
-
 LABEL func__putpixel
     JMP dart__putpixel
 
@@ -308,12 +164,6 @@ LABEL func_Putpixel
 
 LABEL func_putpixel
     JMP dart__putpixel
-
-LABEL func_PUSH
-    JMP dart_PUSH
-
-LABEL func_pUSH
-    JMP dart_PUSH
 
 LABEL func__getpixel
     JMP dart__getpixel
@@ -324,18 +174,6 @@ LABEL func_Getpixel
 LABEL func_getpixel
     JMP dart__getpixel
 
-LABEL func_R0
-    JMP dart_R0
-
-LABEL func_r0
-    JMP dart_R0
-
-LABEL func_offset
-    JMP dart_offset
-
-LABEL func_Offset
-    JMP dart_offset
-
 LABEL func__putpixel_fast
     JMP dart__putpixel_fast
 
@@ -344,34 +182,4 @@ LABEL func_PutpixelFast
 
 LABEL func_putpixelFast
     JMP dart__putpixel_fast
-
-LABEL func_R4
-    JMP dart_R4
-
-LABEL func_r4
-    JMP dart_R4
-
-LABEL func_Sector
-    JMP dart_Sector
-
-LABEL func_sector
-    JMP dart_Sector
-
-LABEL func_points
-    JMP dart_points
-
-LABEL func_Points
-    JMP dart_points
-
-LABEL func_Font
-    JMP dart_Font
-
-LABEL func_font
-    JMP dart_Font
-
-LABEL func_Points
-    JMP dart_Points
-
-LABEL func_points
-    JMP dart_Points
 

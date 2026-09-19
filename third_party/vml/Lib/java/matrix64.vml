@@ -3,16 +3,6 @@
 
 .linked "../shared/matrix64.vml"
 
-LABEL java_arrays
-    push R15
-    push R12
-    move R12 R13
-    CALL arrays
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL java_mat2IdentityD
     push R15
     push R12
@@ -564,9 +554,6 @@ LABEL java_mat4TransformVec3D
     pop R15
     RET
 
-LABEL Matrix64_Arrays
-    JMP java_arrays
-
 LABEL Matrix64_Mat2IdentityD
     JMP java_mat2IdentityD
 
@@ -659,12 +646,6 @@ LABEL Matrix64_Vec3NormalizeD
 
 LABEL Matrix64_Mat4TransformVec3D
     JMP java_mat4TransformVec3D
-
-LABEL method_arrays
-    JMP java_arrays
-
-LABEL method_Arrays
-    JMP java_arrays
 
 LABEL method_mat2_identity_d
     JMP java_mat2IdentityD

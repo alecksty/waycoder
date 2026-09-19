@@ -3,16 +3,6 @@
 
 .linked "../shared/string.vml"
 
-LABEL js_string
-    push R15
-    push R12
-    move R12 R13
-    CALL string
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL js_strcpy
     push R15
     push R12
@@ -200,16 +190,6 @@ LABEL js_strrev
     pop R15
     RET
 
-LABEL js_uppercase
-    push R15
-    push R12
-    move R12 R13
-    CALL uppercase
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL js_strToupper
     push R15
     push R12
@@ -222,16 +202,6 @@ LABEL js_strToupper
     move R1 [R13+4]
     CALL str_toupper
     ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL js_lowercase
-    push R15
-    push R12
-    move R12 R13
-    CALL lowercase
     move R13 R12
     pop R12
     pop R15
@@ -291,16 +261,6 @@ LABEL js_strContains
     pop R15
     RET
 
-LABEL js_whitespace
-    push R15
-    push R12
-    move R12 R13
-    CALL whitespace
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL js_strTrim
     push R15
     push R12
@@ -353,16 +313,6 @@ LABEL js_strIndexof
     move R1 [R13+4]
     CALL str_indexof
     ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL js_parts
-    push R15
-    push R12
-    move R12 R13
-    CALL parts
     move R13 R12
     pop R12
     pop R15
@@ -488,9 +438,6 @@ LABEL js_strEndswith
     pop R15
     RET
 
-LABEL String_String
-    JMP js_string
-
 LABEL String_Strcpy
     JMP js_strcpy
 
@@ -524,14 +471,8 @@ LABEL String_Strstr
 LABEL String_Strrev
     JMP js_strrev
 
-LABEL String_Uppercase
-    JMP js_uppercase
-
 LABEL String_StrToupper
     JMP js_strToupper
-
-LABEL String_Lowercase
-    JMP js_lowercase
 
 LABEL String_StrTolower
     JMP js_strTolower
@@ -542,9 +483,6 @@ LABEL String_StrRepeat
 LABEL String_StrContains
     JMP js_strContains
 
-LABEL String_Whitespace
-    JMP js_whitespace
-
 LABEL String_StrTrim
     JMP js_strTrim
 
@@ -553,9 +491,6 @@ LABEL String_StrSubstr
 
 LABEL String_StrIndexof
     JMP js_strIndexof
-
-LABEL String_Parts
-    JMP js_parts
 
 LABEL String_StrSplit
     JMP js_strSplit
@@ -574,12 +509,6 @@ LABEL String_StrStartswith
 
 LABEL String_StrEndswith
     JMP js_strEndswith
-
-LABEL method_string
-    JMP js_string
-
-LABEL method_String
-    JMP js_string
 
 LABEL method_strcpy
     JMP js_strcpy
@@ -653,12 +582,6 @@ LABEL method_strrev
 LABEL method_Strrev
     JMP js_strrev
 
-LABEL method_uppercase
-    JMP js_uppercase
-
-LABEL method_Uppercase
-    JMP js_uppercase
-
 LABEL method_str_toupper
     JMP js_strToupper
 
@@ -667,12 +590,6 @@ LABEL method_StrToupper
 
 LABEL method_strToupper
     JMP js_strToupper
-
-LABEL method_lowercase
-    JMP js_lowercase
-
-LABEL method_Lowercase
-    JMP js_lowercase
 
 LABEL method_str_tolower
     JMP js_strTolower
@@ -701,12 +618,6 @@ LABEL method_StrContains
 LABEL method_strContains
     JMP js_strContains
 
-LABEL method_whitespace
-    JMP js_whitespace
-
-LABEL method_Whitespace
-    JMP js_whitespace
-
 LABEL method_str_trim
     JMP js_strTrim
 
@@ -733,12 +644,6 @@ LABEL method_StrIndexof
 
 LABEL method_strIndexof
     JMP js_strIndexof
-
-LABEL method_parts
-    JMP js_parts
-
-LABEL method_Parts
-    JMP js_parts
 
 LABEL method_str_split
     JMP js_strSplit

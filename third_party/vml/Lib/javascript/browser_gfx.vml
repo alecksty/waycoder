@@ -3,26 +3,6 @@
 
 .linked "../shared/browser_gfx.vml"
 
-LABEL js_cMDBUF
-    push R15
-    push R12
-    move R12 R13
-    CALL CMD_BUF
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL js_format
-    push R15
-    push R12
-    move R12 R13
-    CALL format
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL js_cmdWrite
     push R15
     push R12
@@ -121,12 +101,6 @@ LABEL js_browserFlush
     pop R15
     RET
 
-LABEL Browser_gfx_CMDBUF
-    JMP js_cMDBUF
-
-LABEL Browser_gfx_Format
-    JMP js_format
-
 LABEL Browser_gfx_CmdWrite
     JMP js_cmdWrite
 
@@ -144,21 +118,6 @@ LABEL Browser_gfx_BrowserDrawPolygon
 
 LABEL Browser_gfx_BrowserFlush
     JMP js_browserFlush
-
-LABEL method_CMD_BUF
-    JMP js_cMDBUF
-
-LABEL method_CMDBUF
-    JMP js_cMDBUF
-
-LABEL method_cMDBUF
-    JMP js_cMDBUF
-
-LABEL method_format
-    JMP js_format
-
-LABEL method_Format
-    JMP js_format
 
 LABEL method_cmd_write
     JMP js_cmdWrite

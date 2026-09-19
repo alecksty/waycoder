@@ -3,16 +3,6 @@
 
 .linked "../shared/fixed64.vml"
 
-LABEL csharp_Math
-    push R15
-    push R12
-    move R12 R13
-    CALL Math
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL LfixedMul64
     push R15
     push R12
@@ -125,9 +115,6 @@ LABEL LfixedToDouble
     pop R12
     pop R15
     RET
-
-LABEL Fixed64_Math
-    JMP csharp_Math
 
 LABEL Fixed64_LfixedMul64
     JMP LfixedMul64

@@ -3,16 +3,6 @@
 
 .linked "../shared/array64.vml"
 
-LABEL ruby_Arrays
-    push R15
-    push R12
-    move R12 R13
-    CALL Arrays
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL ruby_llen64
     push R15
     push R12
@@ -450,12 +440,6 @@ LABEL ruby_lendswith64
     pop R12
     pop R15
     RET
-
-LABEL func_Arrays
-    JMP ruby_Arrays
-
-LABEL func_arrays
-    JMP ruby_Arrays
 
 LABEL func_llen64
     JMP ruby_llen64

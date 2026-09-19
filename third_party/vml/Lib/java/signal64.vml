@@ -3,16 +3,6 @@
 
 .linked "../shared/signal64.vml"
 
-LABEL java_processing
-    push R15
-    push R12
-    move R12 R13
-    CALL Processing
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL java_lmovingAvgInit64
     push R15
     push R12
@@ -177,9 +167,6 @@ LABEL java_lhysteresis64
     pop R15
     RET
 
-LABEL Signal64_Processing
-    JMP java_processing
-
 LABEL Signal64_LmovingAvgInit64
     JMP java_lmovingAvgInit64
 
@@ -203,12 +190,6 @@ LABEL Signal64_Ldeadband64
 
 LABEL Signal64_Lhysteresis64
     JMP java_lhysteresis64
-
-LABEL method_Processing
-    JMP java_processing
-
-LABEL method_processing
-    JMP java_processing
 
 LABEL method_lmoving_avg_init64
     JMP java_lmovingAvgInit64

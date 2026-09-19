@@ -3,16 +3,6 @@
 
 .linked "../shared/matrix64.vml"
 
-LABEL js_arrays
-    push R15
-    push R12
-    move R12 R13
-    CALL arrays
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL js_mat2IdentityD
     push R15
     push R12
@@ -564,9 +554,6 @@ LABEL js_mat4TransformVec3D
     pop R15
     RET
 
-LABEL Matrix64_Arrays
-    JMP js_arrays
-
 LABEL Matrix64_Mat2IdentityD
     JMP js_mat2IdentityD
 
@@ -659,12 +646,6 @@ LABEL Matrix64_Vec3NormalizeD
 
 LABEL Matrix64_Mat4TransformVec3D
     JMP js_mat4TransformVec3D
-
-LABEL method_arrays
-    JMP js_arrays
-
-LABEL method_Arrays
-    JMP js_arrays
 
 LABEL method_mat2_identity_d
     JMP js_mat2IdentityD

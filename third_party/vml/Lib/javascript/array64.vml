@@ -3,16 +3,6 @@
 
 .linked "../shared/array64.vml"
 
-LABEL js_arrays
-    push R15
-    push R12
-    move R12 R13
-    CALL Arrays
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL js_llen64
     push R15
     push R12
@@ -451,9 +441,6 @@ LABEL js_lendswith64
     pop R15
     RET
 
-LABEL Array64_Arrays
-    JMP js_arrays
-
 LABEL Array64_Llen64
     JMP js_llen64
 
@@ -531,12 +518,6 @@ LABEL Array64_Lstartswith64
 
 LABEL Array64_Lendswith64
     JMP js_lendswith64
-
-LABEL method_Arrays
-    JMP js_arrays
-
-LABEL method_arrays
-    JMP js_arrays
 
 LABEL method_llen64
     JMP js_llen64

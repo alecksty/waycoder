@@ -268,16 +268,6 @@ LABEL LADDER_LCLZ64
     pop R15
     RET
 
-LABEL LADDER_COUNT
-    push R15
-    push R12
-    move R12 R13
-    CALL Count
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL LADDER_LPOPCNT64
     push R15
     push R12

@@ -3,26 +3,6 @@
 
 .linked "../shared/memory64.vml"
 
-LABEL java_long
-    push R15
-    push R12
-    move R12 R13
-    CALL long
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL java_int
-    push R15
-    push R12
-    move R12 R13
-    CALL int
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL java_lmemcpy
     push R15
     push R12
@@ -107,12 +87,6 @@ LABEL java_lmemcmp
     pop R15
     RET
 
-LABEL Memory64_Long
-    JMP java_long
-
-LABEL Memory64_Int
-    JMP java_int
-
 LABEL Memory64_Lmemcpy
     JMP java_lmemcpy
 
@@ -124,18 +98,6 @@ LABEL Memory64_Lmemmove
 
 LABEL Memory64_Lmemcmp
     JMP java_lmemcmp
-
-LABEL method_long
-    JMP java_long
-
-LABEL method_Long
-    JMP java_long
-
-LABEL method_int
-    JMP java_int
-
-LABEL method_Int
-    JMP java_int
 
 LABEL method_lmemcpy
     JMP java_lmemcpy

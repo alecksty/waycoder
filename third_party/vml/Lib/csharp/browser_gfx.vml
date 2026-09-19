@@ -3,26 +3,6 @@
 
 .linked "../shared/browser_gfx.vml"
 
-LABEL CMDBUF
-    push R15
-    push R12
-    move R12 R13
-    CALL CMD_BUF
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL Format
-    push R15
-    push R12
-    move R12 R13
-    CALL format
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL CmdWrite
     push R15
     push R12
@@ -120,12 +100,6 @@ LABEL BrowserFlush
     pop R12
     pop R15
     RET
-
-LABEL Browser_gfx_CMDBUF
-    JMP CMDBUF
-
-LABEL Browser_gfx_Format
-    JMP Format
 
 LABEL Browser_gfx_CmdWrite
     JMP CmdWrite

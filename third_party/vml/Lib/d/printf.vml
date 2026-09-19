@@ -62,16 +62,6 @@ LABEL d_slen
     pop R15
     RET
 
-LABEL d_itoa64
-    push R15
-    push R12
-    move R12 R13
-    CALL itoa64
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL d_out_rev
     push R15
     push R12
@@ -150,16 +140,6 @@ LABEL d_sign64
     pop R15
     RET
 
-LABEL d_ftoe
-    push R15
-    push R12
-    move R12 R13
-    CALL ftoe
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL func_emit
     JMP d_emit
 
@@ -180,12 +160,6 @@ LABEL func_slen
 
 LABEL func_Slen
     JMP d_slen
-
-LABEL func_itoa64
-    JMP d_itoa64
-
-LABEL func_Itoa64
-    JMP d_itoa64
 
 LABEL func_out_rev
     JMP d_out_rev
@@ -213,10 +187,4 @@ LABEL func_sign64
 
 LABEL func_Sign64
     JMP d_sign64
-
-LABEL func_ftoe
-    JMP d_ftoe
-
-LABEL func_Ftoe
-    JMP d_ftoe
 

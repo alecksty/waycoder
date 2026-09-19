@@ -300,16 +300,6 @@ LABEL java_encodingConvert
     pop R15
     RET
 
-LABEL java_wrappers
-    push R15
-    push R12
-    move R12 R13
-    CALL wrappers
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL java_encodingDetectBom1
     push R15
     push R12
@@ -470,9 +460,6 @@ LABEL Encoding_EncodingName
 
 LABEL Encoding_EncodingConvert
     JMP java_encodingConvert
-
-LABEL Encoding_Wrappers
-    JMP java_wrappers
 
 LABEL Encoding_EncodingDetectBom1
     JMP java_encodingDetectBom1
@@ -647,12 +634,6 @@ LABEL method_EncodingConvert
 
 LABEL method_encodingConvert
     JMP java_encodingConvert
-
-LABEL method_wrappers
-    JMP java_wrappers
-
-LABEL method_Wrappers
-    JMP java_wrappers
 
 LABEL method_encoding_detect_bom_1
     JMP java_encodingDetectBom1

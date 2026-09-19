@@ -3,16 +3,6 @@
 
 .linked "../shared/wchar.vml"
 
-LABEL js_character
-    push R15
-    push R12
-    move R12 R13
-    CALL character
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL js_wctomb
     push R15
     push R12
@@ -139,9 +129,6 @@ LABEL js_wmemcmp
     pop R15
     RET
 
-LABEL Wchar_Character
-    JMP js_character
-
 LABEL Wchar_Wctomb
     JMP js_wctomb
 
@@ -162,12 +149,6 @@ LABEL Wchar_Wcscspn
 
 LABEL Wchar_Wmemcmp
     JMP js_wmemcmp
-
-LABEL method_character
-    JMP js_character
-
-LABEL method_Character
-    JMP js_character
 
 LABEL method_wctomb
     JMP js_wctomb

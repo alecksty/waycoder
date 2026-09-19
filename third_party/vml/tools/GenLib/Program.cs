@@ -114,7 +114,20 @@ switch (cmd)
         var naming = NamingConfig.LoadOrCreate(libRoot);
         var funcMap = funcs.ToDictionary(f => f.Name);
         var targets = lang == "all" ? allLangs : new[] { lang };
-        Parallel.ForEach(targets, t => GenModules(t, libRoot, cfg, naming, funcMap));
+        // 跳过名单：`modules.json` 里那些在 `Lib/shared/src/*.c` 里查不到的**虚构函数名**。
+        // 并发（Parallel.ForEach）所以用 ConcurrentQueue；语言之间会重复报同一个名字，
+        // 最后去重再打印 —— 打印的是**模块.函数**，直接对应 `modules.json` 里该删的条目。
+        var skipped = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        Parallel.ForEach(targets, t => GenModules(t, libRoot, cfg, naming, funcMap, skipped));
+        var distinct = skipped.Distinct().OrderBy(x => x).ToList();
+        if (distinct.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"⚠ {distinct.Count} 个 modules.json 条目在 Lib/shared/src/*.c 里**不存在**，已跳过（没有生成包装器）：");
+            foreach (var s in distinct) Console.WriteLine($"    {s}");
+            Console.WriteLine("  ⇒ 这些是虚构条目：它们生成的 `LABEL x / CALL x` 是死包装器，");
+            Console.WriteLine("    会让正常程序在链接期冒出「未解析标签」。请从 modules.json 里删掉。");
+        }
         break;
     }
     case "aggregators":
@@ -177,11 +190,20 @@ switch (cmd)
         var naming = NamingConfig.LoadOrCreate(libRoot);
         var funcMap = funcs.ToDictionary(f => f.Name);
         var targets = lang == "all" ? allLangs : new[] { lang };
+        var skippedInAll = new System.Collections.Concurrent.ConcurrentQueue<string>();
         Parallel.ForEach(targets, t =>
         {
-            GenModules(t, libRoot, cfg, naming, funcMap);
+            GenModules(t, libRoot, cfg, naming, funcMap, skippedInAll);
             GenAggregators(t, libRoot, cfg);
         });
+        var distinctInAll = skippedInAll.Distinct().OrderBy(x => x).ToList();
+        if (distinctInAll.Count > 0)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"⚠ {distinctInAll.Count} 个 modules.json 条目在 Lib/shared/src/*.c 里**不存在**，已跳过：");
+            foreach (var s in distinctInAll) Console.WriteLine($"    {s}");
+            Console.WriteLine("  ⇒ 这些是虚构条目，应从 modules.json 里删掉（它们生成的是死包装器）。");
+        }
         var gen = new BindingGenerator(libRoot, funcs);
         Parallel.ForEach(targets, t => gen.Generate(t, package));
         break;
@@ -331,7 +353,8 @@ static (string[] lines, int bytes) EmitPushParam(string paramType, int regIdx)
 }
 
 static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef> modules,
-    Dictionary<string, LanguageNaming> naming, Dictionary<string, FuncDef> funcMap)
+    Dictionary<string, LanguageNaming> naming, Dictionary<string, FuncDef> funcMap,
+    System.Collections.Concurrent.ConcurrentQueue<string> skipped)
 {
     var langDir = Path.Combine(libRoot, lang);
     if (!Directory.Exists(langDir)) { Console.WriteLine($"  {lang}: SKIP (目录不存在)"); return; }
@@ -388,12 +411,26 @@ static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef
             }
             else
             {
-                if (funcName.EndsWith("_str") || funcName.EndsWith("_wstr") || funcName.EndsWith("_ustr")
-                    || funcName.EndsWith("_int") || funcName.EndsWith("_hex") || funcName.EndsWith("_float")
-                    || funcName.EndsWith("_double") || funcName.EndsWith("_long") || funcName.EndsWith("_char"))
-                    pCount = 1;
-                else if (funcName.EndsWith("_str_no_nl")) pCount = 1;
-                isCdecl = true; // v1.66.63: 未知函数默认 cdecl，包装器负责清理参数栈
+                // ⚠ **这里的兜底分支曾经是「编造签名照样生成」** —— 而 `modules.json` 里有一批
+                //   **虚构的函数名**（`Lib/shared/src/*.c` 里根本没有：`Sector` / `Arrays` /
+                //   `CMD_BUF` / `Font` / `Manipulation` …，2026-09-19 实测共 59 个、涉及 21 个模块）。
+                //   照着它们生成出来的就是 `LABEL c_Sector` + `CALL Sector` 这种**死包装器**：
+                //   自己没有实现、调用的名字也不存在。
+                //
+                //   后果分两种，都不报错：
+                //     · basic / csharp / ladder / pascal 是 `SCREAMING_SNAKE`/`PascalCase`，
+                //       **不生成 `func_*` 别名** ⇒ 死调用赤裸裸地变成**未解析标签**，
+                //       正常程序一编译就冒出 49~60 条警告；
+                //     · 另外 18 门因为链接器的别名机制把 `CALL Arrays` 救成了
+                //       `func_Arrays → JMP c_Arrays → CALL Arrays` ⇒ 未解析数 0，
+                //       但那是**一条自递归死循环**（与 `Lib/javascript/math.vml` 的
+                //       `LABEL ipow / CALL ipow` 完全同型）。
+                //
+                //   ⇒ **查不到就跳过**，并累计到 `_skippedFunctions` 里在最后报告。
+                //     判据由「编译期不报错」变成「生成器自己喊出来」——
+                //     这正是本仓那条规矩：**宁可报错也不静默丢**。
+                skipped.Enqueue($"{modName}.{funcName}");
+                continue;
             }
 
             sb.AppendLine($"LABEL {label}");
@@ -486,6 +523,11 @@ static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef
         {
             foreach (var funcName in modDef.Functions)
             {
+                // 虚构条目在上面的包装器循环里已经跳过 —— 别名段**必须同样跳过**，
+                // 否则会生成 `LABEL func_Arrays / JMP c_Arrays`，而 `c_Arrays` 根本不存在：
+                // 未解析标签换个名字继续存在（而且更隐蔽 —— 调用点写的是裸名 `Arrays`，
+                // 链接器的别名机制会把它引到这里）。
+                if (!funcMap.ContainsKey(funcName)) continue;
                 var primaryLabel = SafeWrapperLabel(NamingConfig.ToLabel(funcName, langNaming), funcName, lang);
                 // func_/method_/word_: 生成 snake_case + PascalCase + camelCase 三种版本
                 if (prefix == "func_" || prefix == "method_" || prefix == "word_")
@@ -527,6 +569,30 @@ static void GenModules(string lang, string libRoot, Dictionary<string, ModuleDef
                     }
                 }
             }
+        }
+
+        // ⚠ **一个包装器都没生成出来 ⇒ 不要写文件，并把已存在的删掉。**
+        //
+        // 模块的条目全是被跳过的虚构名时（`syscall` 就是 6/6 全虚），这里以前会写出一个
+        // 「只有 `.linked` 头、没有任何 LABEL」的文件并留在盘上。那种**孤儿产物**没有任何判据抓得到：
+        // `check-vml-patches.sh` 的判据①只比对"补丁该产出的那些文件"、判据②a 只比对
+        // "GenLib 写过的文件" —— 一个不再被生成器写、却还躺在盘上的文件，两边都不覆盖。
+        // （这正是"陈旧产物"长出来的方式，记在 `FRONTEND_DEFECTS.md` 的工具链那节。）
+        // ⚠ 判据是「**既没有 LABEL、也没有 `.linked`**」，不是「没有 LABEL」。
+        //   第一版只看了 LABEL，于是把 `util` / `syscall` 这两个**聚合模块**也删了 ——
+        //   它们的 `Includes` 非空（`.linked "../shared/util.vml"`），
+        //   而 `Lib/<lang>/builtin.vml:29` 正写着 `.linked "util.vml"` ⇒ 删完那条引用就断了
+        //   （降级成「文件不存在」警告，共享模块也跟着链不进来）。
+        //   一个"包装器全被跳光、但还 re-export 共享模块"的模块**是有用的**，必须照写。
+        if (!sb.ToString().Contains("\nLABEL ") && modDef.Includes.Count == 0)
+        {
+            var orphan = Path.Combine(langDir, modName + ".vml");
+            if (File.Exists(orphan))
+            {
+                File.Delete(orphan);
+                Console.WriteLine($"  {lang}: 删除孤儿产物 {modName}.vml（该模块已无有效函数）");
+            }
+            continue;
         }
 
         var outPath = Path.Combine(langDir, modName + ".vml");

@@ -3,41 +3,11 @@
 
 .linked "../shared/graphics.vml"
 
-LABEL cpp_base
-    push R15
-    push R12
-    move R12 R13
-    CALL base
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL cpp_params
-    push R15
-    push R12
-    move R12 R13
-    CALL params
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL cpp__gfx_refresh_cache
     push R15
     push R12
     move R12 R13
     CALL _gfx_refresh_cache
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL cpp_config
-    push R15
-    push R12
-    move R12 R13
-    CALL config
     move R13 R12
     pop R12
     pop R15
@@ -87,16 +57,6 @@ LABEL cpp_gfx_h
     pop R15
     RET
 
-LABEL cpp_address
-    push R15
-    push R12
-    move R12 R13
-    CALL address
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL cpp__putpixel
     push R15
     push R12
@@ -112,16 +72,6 @@ LABEL cpp__putpixel
     move R2 [R13+8]
     CALL _putpixel
     ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL cpp_PUSH
-    push R15
-    push R12
-    move R12 R13
-    CALL PUSH
     move R13 R12
     pop R12
     pop R15
@@ -144,26 +94,6 @@ LABEL cpp__getpixel
     pop R15
     RET
 
-LABEL cpp_R0
-    push R15
-    push R12
-    move R12 R13
-    CALL R0
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL cpp_offset
-    push R15
-    push R12
-    move R12 R13
-    CALL offset
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL cpp__putpixel_fast
     push R15
     push R12
@@ -181,68 +111,6 @@ LABEL cpp__putpixel_fast
     pop R15
     RET
 
-LABEL cpp_R4
-    push R15
-    push R12
-    move R12 R13
-    CALL R4
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL cpp_Sector
-    push R15
-    push R12
-    move R12 R13
-    CALL Sector
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL cpp_points
-    push R15
-    push R12
-    move R12 R13
-    CALL points
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL cpp_Font
-    push R15
-    push R12
-    move R12 R13
-    CALL Font
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL cpp_Points
-    push R15
-    push R12
-    move R12 R13
-    CALL Points
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL func_base
-    JMP cpp_base
-
-LABEL func_Base
-    JMP cpp_base
-
-LABEL func_params
-    JMP cpp_params
-
-LABEL func_Params
-    JMP cpp_params
-
 LABEL func__gfx_refresh_cache
     JMP cpp__gfx_refresh_cache
 
@@ -251,12 +119,6 @@ LABEL func_GfxRefreshCache
 
 LABEL func_gfxRefreshCache
     JMP cpp__gfx_refresh_cache
-
-LABEL func_config
-    JMP cpp_config
-
-LABEL func_Config
-    JMP cpp_config
 
 LABEL func_get_config
     JMP cpp_get_config
@@ -294,12 +156,6 @@ LABEL func_GfxH
 LABEL func_gfxH
     JMP cpp_gfx_h
 
-LABEL func_address
-    JMP cpp_address
-
-LABEL func_Address
-    JMP cpp_address
-
 LABEL func__putpixel
     JMP cpp__putpixel
 
@@ -308,12 +164,6 @@ LABEL func_Putpixel
 
 LABEL func_putpixel
     JMP cpp__putpixel
-
-LABEL func_PUSH
-    JMP cpp_PUSH
-
-LABEL func_pUSH
-    JMP cpp_PUSH
 
 LABEL func__getpixel
     JMP cpp__getpixel
@@ -324,18 +174,6 @@ LABEL func_Getpixel
 LABEL func_getpixel
     JMP cpp__getpixel
 
-LABEL func_R0
-    JMP cpp_R0
-
-LABEL func_r0
-    JMP cpp_R0
-
-LABEL func_offset
-    JMP cpp_offset
-
-LABEL func_Offset
-    JMP cpp_offset
-
 LABEL func__putpixel_fast
     JMP cpp__putpixel_fast
 
@@ -344,34 +182,4 @@ LABEL func_PutpixelFast
 
 LABEL func_putpixelFast
     JMP cpp__putpixel_fast
-
-LABEL func_R4
-    JMP cpp_R4
-
-LABEL func_r4
-    JMP cpp_R4
-
-LABEL func_Sector
-    JMP cpp_Sector
-
-LABEL func_sector
-    JMP cpp_Sector
-
-LABEL func_points
-    JMP cpp_points
-
-LABEL func_Points
-    JMP cpp_points
-
-LABEL func_Font
-    JMP cpp_Font
-
-LABEL func_font
-    JMP cpp_Font
-
-LABEL func_Points
-    JMP cpp_Points
-
-LABEL func_points
-    JMP cpp_Points
 

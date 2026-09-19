@@ -3,26 +3,6 @@
 
 .linked "../shared/memory64.vml"
 
-LABEL Long
-    push R15
-    push R12
-    move R12 R13
-    CALL long
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL Int
-    push R15
-    push R12
-    move R12 R13
-    CALL int
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL Lmemcpy
     push R15
     push R12
@@ -106,12 +86,6 @@ LABEL Lmemcmp
     pop R12
     pop R15
     RET
-
-LABEL Memory64_Long
-    JMP Long
-
-LABEL Memory64_Int
-    JMP Int
 
 LABEL Memory64_Lmemcpy
     JMP Lmemcpy

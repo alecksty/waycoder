@@ -3,16 +3,6 @@
 
 .linked "../shared/crc.vml"
 
-LABEL go_CRC
-    push R15
-    push R12
-    move R12 R13
-    CALL CRC
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL go_crc8
     push R15
     push R12
@@ -139,12 +129,6 @@ LABEL go_checksum16
     pop R12
     pop R15
     RET
-
-LABEL func_CRC
-    JMP go_CRC
-
-LABEL func_cRC
-    JMP go_CRC
 
 LABEL func_crc8
     JMP go_crc8

@@ -3,16 +3,6 @@
 
 .linked "../shared/basiclib.vml"
 
-LABEL dart_values
-    push R15
-    push R12
-    move R12 R13
-    CALL values
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL dart__hex_str
     push R15
     push R12
@@ -152,16 +142,6 @@ LABEL dart_basic_time_str
     pop R15
     RET
 
-LABEL dart_elapsed
-    push R15
-    push R12
-    move R12 R13
-    CALL elapsed
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL dart_basic_timer
     push R15
     push R12
@@ -223,16 +203,6 @@ LABEL dart_basic_eof
     pop R15
     RET
 
-LABEL dart_Manipulation
-    push R15
-    push R12
-    move R12 R13
-    CALL Manipulation
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL dart_basic_ucase
     push R15
     push R12
@@ -289,16 +259,6 @@ LABEL dart_basic_asc
     pop R15
     RET
 
-LABEL dart_code
-    push R15
-    push R12
-    move R12 R13
-    CALL code
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL dart_basic_chr
     push R15
     push R12
@@ -308,16 +268,6 @@ LABEL dart_basic_chr
     move R0 [R13+0]
     CALL basic_chr
     ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL dart_spaces
-    push R15
-    push R12
-    move R12 R13
-    CALL spaces
     move R13 R12
     pop R12
     pop R15
@@ -455,16 +405,6 @@ LABEL dart_basic_sgn
     pop R15
     RET
 
-LABEL dart_interpolation
-    push R15
-    push R12
-    move R12 R13
-    CALL interpolation
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL dart__sin_lookup
     push R15
     push R12
@@ -521,16 +461,6 @@ LABEL dart_basic_tan
     pop R15
     RET
 
-LABEL dart_method
-    push R15
-    push R12
-    move R12 R13
-    CALL method
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL dart_basic_sqr
     push R15
     push R12
@@ -545,31 +475,11 @@ LABEL dart_basic_sqr
     pop R15
     RET
 
-LABEL dart_integer
-    push R15
-    push R12
-    move R12 R13
-    CALL integer
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL dart_basic_rnd
     push R15
     push R12
     move R12 R13
     CALL basic_rnd
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL dart_series
-    push R15
-    push R12
-    move R12 R13
-    CALL series
     move R13 R12
     pop R12
     pop R15
@@ -647,22 +557,6 @@ LABEL dart_basic_point
     pop R12
     pop R15
     RET
-
-LABEL dart_above
-    push R15
-    push R12
-    move R12 R13
-    CALL above
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL func_values
-    JMP dart_values
-
-LABEL func_Values
-    JMP dart_values
 
 LABEL func__hex_str
     JMP dart__hex_str
@@ -745,12 +639,6 @@ LABEL func_BasicTimeStr
 LABEL func_basicTimeStr
     JMP dart_basic_time_str
 
-LABEL func_elapsed
-    JMP dart_elapsed
-
-LABEL func_Elapsed
-    JMP dart_elapsed
-
 LABEL func_basic_timer
     JMP dart_basic_timer
 
@@ -783,12 +671,6 @@ LABEL func_BasicEof
 
 LABEL func_basicEof
     JMP dart_basic_eof
-
-LABEL func_Manipulation
-    JMP dart_Manipulation
-
-LABEL func_manipulation
-    JMP dart_Manipulation
 
 LABEL func_basic_ucase
     JMP dart_basic_ucase
@@ -826,12 +708,6 @@ LABEL func_BasicAsc
 LABEL func_basicAsc
     JMP dart_basic_asc
 
-LABEL func_code
-    JMP dart_code
-
-LABEL func_Code
-    JMP dart_code
-
 LABEL func_basic_chr
     JMP dart_basic_chr
 
@@ -840,12 +716,6 @@ LABEL func_BasicChr
 
 LABEL func_basicChr
     JMP dart_basic_chr
-
-LABEL func_spaces
-    JMP dart_spaces
-
-LABEL func_Spaces
-    JMP dart_spaces
 
 LABEL func_basic_space
     JMP dart_basic_space
@@ -928,12 +798,6 @@ LABEL func_BasicSgn
 LABEL func_basicSgn
     JMP dart_basic_sgn
 
-LABEL func_interpolation
-    JMP dart_interpolation
-
-LABEL func_Interpolation
-    JMP dart_interpolation
-
 LABEL func__sin_lookup
     JMP dart__sin_lookup
 
@@ -970,12 +834,6 @@ LABEL func_BasicTan
 LABEL func_basicTan
     JMP dart_basic_tan
 
-LABEL func_method
-    JMP dart_method
-
-LABEL func_Method
-    JMP dart_method
-
 LABEL func_basic_sqr
     JMP dart_basic_sqr
 
@@ -985,12 +843,6 @@ LABEL func_BasicSqr
 LABEL func_basicSqr
     JMP dart_basic_sqr
 
-LABEL func_integer
-    JMP dart_integer
-
-LABEL func_Integer
-    JMP dart_integer
-
 LABEL func_basic_rnd
     JMP dart_basic_rnd
 
@@ -999,12 +851,6 @@ LABEL func_BasicRnd
 
 LABEL func_basicRnd
     JMP dart_basic_rnd
-
-LABEL func_series
-    JMP dart_series
-
-LABEL func_Series
-    JMP dart_series
 
 LABEL func_basic_exp
     JMP dart_basic_exp
@@ -1050,10 +896,4 @@ LABEL func_BasicPoint
 
 LABEL func_basicPoint
     JMP dart_basic_point
-
-LABEL func_above
-    JMP dart_above
-
-LABEL func_Above
-    JMP dart_above
 

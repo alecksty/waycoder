@@ -62,16 +62,6 @@ LABEL LADDER_SLEN
     pop R15
     RET
 
-LABEL LADDER_ITOA64
-    push R15
-    push R12
-    move R12 R13
-    CALL itoa64
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL LADDER_OUT_REV
     push R15
     push R12
@@ -145,16 +135,6 @@ LABEL LADDER_SIGN64
     move R2 [R13+12]
     CALL sign64
     ADD R13 #16
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL LADDER_FTOE
-    push R15
-    push R12
-    move R12 R13
-    CALL ftoe
     move R13 R12
     pop R12
     pop R15

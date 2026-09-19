@@ -268,16 +268,6 @@ LABEL Lclz64
     pop R15
     RET
 
-LABEL csharp_Count
-    push R15
-    push R12
-    move R12 R13
-    CALL Count
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL Lpopcnt64
     push R15
     push R12
@@ -499,9 +489,6 @@ LABEL Math64_Lrandom64
 
 LABEL Math64_Lclz64
     JMP Lclz64
-
-LABEL Math64_Count
-    JMP csharp_Count
 
 LABEL Math64_Lpopcnt64
     JMP Lpopcnt64

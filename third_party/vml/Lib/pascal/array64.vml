@@ -3,16 +3,6 @@
 
 .linked "../shared/array64.vml"
 
-LABEL PASCAL_ARRAYS
-    push R15
-    push R12
-    move R12 R13
-    CALL Arrays
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL PASCAL_LLEN64
     push R15
     push R12

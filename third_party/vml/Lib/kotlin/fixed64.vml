@@ -3,16 +3,6 @@
 
 .linked "../shared/fixed64.vml"
 
-LABEL kotlin_Math
-    push R15
-    push R12
-    move R12 R13
-    CALL Math
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL kotlin_lfixed_mul64
     push R15
     push R12
@@ -125,12 +115,6 @@ LABEL kotlin_lfixed_to_double
     pop R12
     pop R15
     RET
-
-LABEL func_Math
-    JMP kotlin_Math
-
-LABEL func_math
-    JMP kotlin_Math
 
 LABEL func_lfixed_mul64
     JMP kotlin_lfixed_mul64

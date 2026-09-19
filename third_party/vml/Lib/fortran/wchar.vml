@@ -3,16 +3,6 @@
 
 .linked "../shared/wchar.vml"
 
-LABEL fortran_character
-    push R15
-    push R12
-    move R12 R13
-    CALL character
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL fortran_wctomb
     push R15
     push R12
@@ -138,12 +128,6 @@ LABEL fortran_wmemcmp
     pop R12
     pop R15
     RET
-
-LABEL func_character
-    JMP fortran_character
-
-LABEL func_Character
-    JMP fortran_character
 
 LABEL func_wctomb
     JMP fortran_wctomb

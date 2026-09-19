@@ -424,16 +424,6 @@ LABEL Vec2Dot
     pop R15
     RET
 
-LABEL Product
-    push R15
-    push R12
-    move R12 R13
-    CALL product
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL Vec2Cross
     push R15
     push R12
@@ -544,16 +534,6 @@ LABEL Vec3Normalize
     pop R15
     RET
 
-LABEL Vector
-    push R15
-    push R12
-    move R12 R13
-    CALL vector
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL Mat4TransformVec3
     push R15
     push R12
@@ -643,9 +623,6 @@ LABEL Matrix_Mat4Transpose
 LABEL Matrix_Vec2Dot
     JMP Vec2Dot
 
-LABEL Matrix_Product
-    JMP Product
-
 LABEL Matrix_Vec2Cross
     JMP Vec2Cross
 
@@ -666,9 +643,6 @@ LABEL Matrix_Vec3Len
 
 LABEL Matrix_Vec3Normalize
     JMP Vec3Normalize
-
-LABEL Matrix_Vector
-    JMP Vector
 
 LABEL Matrix_Mat4TransformVec3
     JMP Mat4TransformVec3

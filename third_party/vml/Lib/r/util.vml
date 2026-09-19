@@ -3,19 +3,3 @@
 
 .linked "../shared/util.vml"
 
-LABEL r_root
-    push R15
-    push R12
-    move R12 R13
-    CALL root
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL func_root
-    JMP r_root
-
-LABEL func_Root
-    JMP r_root
-

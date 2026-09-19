@@ -409,16 +409,6 @@ LABEL go_tan_deg
     pop R15
     RET
 
-LABEL go_approximation
-    push R15
-    push R12
-    move R12 R13
-    CALL approximation
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL go_ilog2
     push R15
     push R12
@@ -793,9 +783,6 @@ LABEL math_CosDeg
 LABEL math_TanDeg
     JMP go_tan_deg
 
-LABEL math_Approximation
-    JMP go_approximation
-
 LABEL math_Ilog2
     JMP go_ilog2
 
@@ -1032,12 +1019,6 @@ LABEL func_TanDeg
 
 LABEL func_tanDeg
     JMP go_tan_deg
-
-LABEL func_approximation
-    JMP go_approximation
-
-LABEL func_Approximation
-    JMP go_approximation
 
 LABEL func_ilog2
     JMP go_ilog2

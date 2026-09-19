@@ -17,16 +17,6 @@ LABEL swift_lmedian64
     pop R15
     RET
 
-LABEL swift_middle
-    push R15
-    push R12
-    move R12 R13
-    CALL middle
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL swift_lrange64
     push R15
     push R12
@@ -162,12 +152,6 @@ LABEL func_lmedian64
 
 LABEL func_Lmedian64
     JMP swift_lmedian64
-
-LABEL func_middle
-    JMP swift_middle
-
-LABEL func_Middle
-    JMP swift_middle
 
 LABEL func_lrange64
     JMP swift_lrange64

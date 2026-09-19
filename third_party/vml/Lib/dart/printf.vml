@@ -62,16 +62,6 @@ LABEL dart_slen
     pop R15
     RET
 
-LABEL dart_itoa64
-    push R15
-    push R12
-    move R12 R13
-    CALL itoa64
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL dart_out_rev
     push R15
     push R12
@@ -150,16 +140,6 @@ LABEL dart_sign64
     pop R15
     RET
 
-LABEL dart_ftoe
-    push R15
-    push R12
-    move R12 R13
-    CALL ftoe
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL func_emit
     JMP dart_emit
 
@@ -180,12 +160,6 @@ LABEL func_slen
 
 LABEL func_Slen
     JMP dart_slen
-
-LABEL func_itoa64
-    JMP dart_itoa64
-
-LABEL func_Itoa64
-    JMP dart_itoa64
 
 LABEL func_out_rev
     JMP dart_out_rev
@@ -213,10 +187,4 @@ LABEL func_sign64
 
 LABEL func_Sign64
     JMP dart_sign64
-
-LABEL func_ftoe
-    JMP dart_ftoe
-
-LABEL func_Ftoe
-    JMP dart_ftoe
 

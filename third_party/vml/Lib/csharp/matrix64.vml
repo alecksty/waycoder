@@ -3,16 +3,6 @@
 
 .linked "../shared/matrix64.vml"
 
-LABEL Arrays
-    push R15
-    push R12
-    move R12 R13
-    CALL arrays
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL Mat2IdentityD
     push R15
     push R12
@@ -563,9 +553,6 @@ LABEL Mat4TransformVec3D
     pop R12
     pop R15
     RET
-
-LABEL Matrix64_Arrays
-    JMP Arrays
 
 LABEL Matrix64_Mat2IdentityD
     JMP Mat2IdentityD

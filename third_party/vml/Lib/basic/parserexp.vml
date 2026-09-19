@@ -3,16 +3,6 @@
 
 .linked "../shared/parserexp.vml"
 
-LABEL BASIC_LITERALS
-    push R15
-    push R12
-    move R12 R13
-    CALL literals
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL BASIC_NULL
     push R15
     push R12
@@ -101,16 +91,6 @@ LABEL BASIC_PARSEREXP
     move R0 [R13+0]
     CALL parserexp
     ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL BASIC_CASES
-    push R15
-    push R12
-    move R12 R13
-    CALL cases
     move R13 R12
     pop R12
     pop R15

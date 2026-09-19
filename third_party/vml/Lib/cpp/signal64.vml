@@ -3,16 +3,6 @@
 
 .linked "../shared/signal64.vml"
 
-LABEL cpp_Processing
-    push R15
-    push R12
-    move R12 R13
-    CALL Processing
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL cpp_lmoving_avg_init64
     push R15
     push R12
@@ -176,12 +166,6 @@ LABEL cpp_lhysteresis64
     pop R12
     pop R15
     RET
-
-LABEL func_Processing
-    JMP cpp_Processing
-
-LABEL func_processing
-    JMP cpp_Processing
 
 LABEL func_lmoving_avg_init64
     JMP cpp_lmoving_avg_init64

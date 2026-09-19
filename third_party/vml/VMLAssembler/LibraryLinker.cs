@@ -24,6 +24,18 @@ namespace VMLAssembler
         public static VmlProgram LinkLibraries(VmlProgram mainProgram, List<string> libraryPaths,
             List<string>? multiPrefixes = null, bool debug = false)
         {
+            // ⚠ **用户代码 / 库代码的分界**：`mainProgram` 里的指令是**前端为这门语言产出的**，
+            //   后面 `LinkSingleLibrary` 追加进来的全是库来源。索引边界在链接开始前取，
+            //   之后不再变（`AddRange` 只往后加）。
+            //
+            //   为什么不用「`lib_` 前缀」判：链接器会**主动给库标签造裸别名**
+            //   （见下面 265 行那一带），同一个符号两种写法；而模块名自带下划线
+            //   （`lib_printf__printf_itoa`）——「按名字猜来源」本仓已经付过一次代价
+            //   （`EndsWith("_itoa")` 那起 `printf` 事故，见 FRONTEND_DEFECTS.md）。
+            //   也不做可达性分析：那会**漏报用户代码里的死分支**，而且对没有 `main` 的
+            //   程序（Pascal 单元、GenLib 编共享库）整个失效。
+            int userEnd = mainProgram.Instructions.Count;
+
             if (libraryPaths == null || libraryPaths.Count == 0)
                 return mainProgram;
 
@@ -306,7 +318,7 @@ namespace VMLAssembler
             if (legacyAliasCount > 0)
                 Console.WriteLine($"  别名: {legacyAliasCount} 个 CALL 标签已解析");
 
-            ReportUnresolved(linkedProgram);
+            ReportUnresolved(linkedProgram, userEnd);
 
             Console.WriteLine($"链接完成，总指令数: {linkedProgram.Instructions.Count}");
             return linkedProgram;
@@ -666,39 +678,59 @@ namespace VMLAssembler
             return mergedSource.ToString();
         }
 
-        private static void ReportUnresolved(VmlProgram program)
+        private static void ReportUnresolved(VmlProgram program, int userEnd)
         {
-            var unresolved = new Dictionary<string, int>();
-            foreach (var instr in program.Instructions)
+            // 按**指令来源**分两档：`i < userEnd` 是前端为用户代码产出的，之后的是库。
+            var userMiss = new Dictionary<string, int>();
+            var libMiss = new Dictionary<string, int>();
+            for (int i = 0; i < program.Instructions.Count; i++)
             {
-                if (instr.Opcode == OpCode.CALL || instr.Opcode == OpCode.JMP ||
-                    instr.Opcode.ToString().StartsWith("J"))
+                var instr = program.Instructions[i];
+                if (instr.Opcode != OpCode.CALL && instr.Opcode != OpCode.JMP &&
+                    !instr.Opcode.ToString().StartsWith("J")) continue;
+
+                var bucket = i < userEnd ? userMiss : libMiss;
+                foreach (var op in instr.Operands)
                 {
-                    foreach (var op in instr.Operands)
-                    {
-                        if (op.Type == OperandType.LABEL)
-                        {
-                            var lbl = op.Value?.ToString() ?? "";
-                            if (!string.IsNullOrEmpty(lbl) && !program.Labels.ContainsKey(lbl))
-                            {
-                                unresolved.TryGetValue(lbl, out var cnt);
-                                unresolved[lbl] = cnt + 1;
-                            }
-                        }
-                    }
+                    if (op.Type != OperandType.LABEL) continue;
+                    var lbl = op.Value?.ToString() ?? "";
+                    if (string.IsNullOrEmpty(lbl)) continue;
+                    // ⚠ 判定集合必须是 **Labels ∪ DataSection** —— 运行期就是这么查的
+                    //   （`VmlRuntime` 先拿 `program.Labels` 建表，**又把每个 DataSection 的 key
+                    //   也塞进同一张表**，CALL/JMP 查不到就抛）。少算一半会凭空多出误报。
+                    if (program.Labels.ContainsKey(lbl) || program.DataSection.ContainsKey(lbl)) continue;
+                    bucket.TryGetValue(lbl, out var cnt);
+                    bucket[lbl] = cnt + 1;
                 }
             }
-            if (unresolved.Count > 0)
+
+            // **用户代码里的未解析标签 = 真的写错了一个函数名。**
+            // 这一档将来要升级成**编译期硬错误**（见 FRONTEND_DEFECTS.md 的"工具链"一节）。
+            // 分档的意义就在这里：库里有历史遗留的死包装器，混在一起报就永远升不了档。
+            if (userMiss.Count > 0)
             {
-                Console.Error.WriteLine($"警告: {unresolved.Count} 个未解析标签 (运行时将崩溃):");
+                Console.Error.WriteLine($"错误: 用户代码里有 {userMiss.Count} 处调用指向**不存在的函数**：");
                 int shown = 0;
-                foreach (var kv in unresolved)
+                foreach (var kv in userMiss)
                 {
                     if (shown++ >= 20) break;
                     Console.Error.WriteLine($"  {kv.Key} (引用 {kv.Value} 次)");
                 }
-                if (unresolved.Count > 20)
-                    Console.Error.WriteLine($"  ... 及其他 {unresolved.Count - 20} 个");
+                if (userMiss.Count > 20)
+                    Console.Error.WriteLine($"  ... 及其他 {userMiss.Count - 20} 处");
+            }
+
+            if (libMiss.Count > 0)
+            {
+                Console.Error.WriteLine($"警告: 库代码里有 {libMiss.Count} 个未解析标签 (该路径一旦被执行就会崩):");
+                int shown = 0;
+                foreach (var kv in libMiss)
+                {
+                    if (shown++ >= 20) break;
+                    Console.Error.WriteLine($"  {kv.Key} (引用 {kv.Value} 次)");
+                }
+                if (libMiss.Count > 20)
+                    Console.Error.WriteLine($"  ... 及其他 {libMiss.Count - 20} 个");
             }
         }
 

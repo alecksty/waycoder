@@ -3,16 +3,6 @@
 
 .linked "../shared/fixed64.vml"
 
-LABEL c_Math
-    push R15
-    push R12
-    move R12 R13
-    CALL Math
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL c_lfixed_mul64
     push R15
     push R12
@@ -125,12 +115,6 @@ LABEL c_lfixed_to_double
     pop R12
     pop R15
     RET
-
-LABEL func_Math
-    JMP c_Math
-
-LABEL func_math
-    JMP c_Math
 
 LABEL func_lfixed_mul64
     JMP c_lfixed_mul64

@@ -43,16 +43,6 @@ LABEL go_csub
     pop R15
     RET
 
-LABEL go_b
-    push R15
-    push R12
-    move R12 R13
-    CALL b
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL go_cmul
     push R15
     push R12
@@ -102,16 +92,6 @@ LABEL go_complex_abs
     move R0 [R13+0]
     CALL complex_abs
     ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL go_radians
-    push R15
-    push R12
-    move R12 R13
-    CALL radians
     move R13 R12
     pop R12
     pop R15
@@ -249,12 +229,6 @@ LABEL func_csub
 LABEL func_Csub
     JMP go_csub
 
-LABEL func_b
-    JMP go_b
-
-LABEL func_B
-    JMP go_b
-
 LABEL func_cmul
     JMP go_cmul
 
@@ -275,12 +249,6 @@ LABEL func_ComplexAbs
 
 LABEL func_complexAbs
     JMP go_complex_abs
-
-LABEL func_radians
-    JMP go_radians
-
-LABEL func_Radians
-    JMP go_radians
 
 LABEL func_complex_arg
     JMP go_complex_arg

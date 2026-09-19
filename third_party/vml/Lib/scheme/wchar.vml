@@ -3,16 +3,6 @@
 
 .linked "../shared/wchar.vml"
 
-LABEL scheme_character
-    push R15
-    push R12
-    move R12 R13
-    CALL character
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL scheme_wctomb
     push R15
     push R12
@@ -138,12 +128,6 @@ LABEL scheme_wmemcmp
     pop R12
     pop R15
     RET
-
-LABEL func_character
-    JMP scheme_character
-
-LABEL func_Character
-    JMP scheme_character
 
 LABEL func_wctomb
     JMP scheme_wctomb

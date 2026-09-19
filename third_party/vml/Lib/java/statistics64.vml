@@ -17,16 +17,6 @@ LABEL java_lmedian64
     pop R15
     RET
 
-LABEL java_middle
-    push R15
-    push R12
-    move R12 R13
-    CALL middle
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL java_lrange64
     push R15
     push R12
@@ -160,9 +150,6 @@ LABEL java_llinregIntercept64
 LABEL Statistics64_Lmedian64
     JMP java_lmedian64
 
-LABEL Statistics64_Middle
-    JMP java_middle
-
 LABEL Statistics64_Lrange64
     JMP java_lrange64
 
@@ -192,12 +179,6 @@ LABEL method_lmedian64
 
 LABEL method_Lmedian64
     JMP java_lmedian64
-
-LABEL method_middle
-    JMP java_middle
-
-LABEL method_Middle
-    JMP java_middle
 
 LABEL method_lrange64
     JMP java_lrange64

@@ -300,16 +300,6 @@ LABEL fortran_encoding_convert
     pop R15
     RET
 
-LABEL fortran_wrappers
-    push R15
-    push R12
-    move R12 R13
-    CALL wrappers
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL fortran_encoding_detect_bom_1
     push R15
     push R12
@@ -572,12 +562,6 @@ LABEL func_EncodingConvert
 
 LABEL func_encodingConvert
     JMP fortran_encoding_convert
-
-LABEL func_wrappers
-    JMP fortran_wrappers
-
-LABEL func_Wrappers
-    JMP fortran_wrappers
 
 LABEL func_encoding_detect_bom_1
     JMP fortran_encoding_detect_bom_1

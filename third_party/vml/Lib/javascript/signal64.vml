@@ -3,16 +3,6 @@
 
 .linked "../shared/signal64.vml"
 
-LABEL js_processing
-    push R15
-    push R12
-    move R12 R13
-    CALL Processing
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL js_lmovingAvgInit64
     push R15
     push R12
@@ -177,9 +167,6 @@ LABEL js_lhysteresis64
     pop R15
     RET
 
-LABEL Signal64_Processing
-    JMP js_processing
-
 LABEL Signal64_LmovingAvgInit64
     JMP js_lmovingAvgInit64
 
@@ -203,12 +190,6 @@ LABEL Signal64_Ldeadband64
 
 LABEL Signal64_Lhysteresis64
     JMP js_lhysteresis64
-
-LABEL method_Processing
-    JMP js_processing
-
-LABEL method_processing
-    JMP js_processing
 
 LABEL method_lmoving_avg_init64
     JMP js_lmovingAvgInit64

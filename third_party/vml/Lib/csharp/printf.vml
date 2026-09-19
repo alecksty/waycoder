@@ -62,16 +62,6 @@ LABEL Slen
     pop R15
     RET
 
-LABEL Itoa64
-    push R15
-    push R12
-    move R12 R13
-    CALL itoa64
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL OutRev
     push R15
     push R12
@@ -150,16 +140,6 @@ LABEL Sign64
     pop R15
     RET
 
-LABEL Ftoe
-    push R15
-    push R12
-    move R12 R13
-    CALL ftoe
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL Printf_Emit
     JMP Emit
 
@@ -168,9 +148,6 @@ LABEL Printf_PadChar
 
 LABEL Printf_Slen
     JMP Slen
-
-LABEL Printf_Itoa64
-    JMP Itoa64
 
 LABEL Printf_OutRev
     JMP OutRev
@@ -183,7 +160,4 @@ LABEL Printf_ReadDouble
 
 LABEL Printf_Sign64
     JMP Sign64
-
-LABEL Printf_Ftoe
-    JMP Ftoe
 

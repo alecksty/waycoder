@@ -3,16 +3,6 @@
 
 .linked "../shared/string.vml"
 
-LABEL LADDER_STRING
-    push R15
-    push R12
-    move R12 R13
-    CALL string
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL LADDER_STRCPY
     push R15
     push R12
@@ -200,16 +190,6 @@ LABEL LADDER_STRREV
     pop R15
     RET
 
-LABEL LADDER_UPPERCASE
-    push R15
-    push R12
-    move R12 R13
-    CALL uppercase
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL LADDER_STR_TOUPPER
     push R15
     push R12
@@ -222,16 +202,6 @@ LABEL LADDER_STR_TOUPPER
     move R1 [R13+4]
     CALL str_toupper
     ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL LADDER_LOWERCASE
-    push R15
-    push R12
-    move R12 R13
-    CALL lowercase
     move R13 R12
     pop R12
     pop R15
@@ -291,16 +261,6 @@ LABEL LADDER_STR_CONTAINS
     pop R15
     RET
 
-LABEL LADDER_WHITESPACE
-    push R15
-    push R12
-    move R12 R13
-    CALL whitespace
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL LADDER_STR_TRIM
     push R15
     push R12
@@ -353,16 +313,6 @@ LABEL LADDER_STR_INDEXOF
     move R1 [R13+4]
     CALL str_indexof
     ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL LADDER_PARTS
-    push R15
-    push R12
-    move R12 R13
-    CALL parts
     move R13 R12
     pop R12
     pop R15

@@ -3,16 +3,6 @@
 
 .linked "../shared/fixed64.vml"
 
-LABEL objc_Math
-    push R15
-    push R12
-    move R12 R13
-    CALL Math
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL objc_lfixed_mul64
     push R15
     push R12
@@ -125,12 +115,6 @@ LABEL objc_lfixed_to_double
     pop R12
     pop R15
     RET
-
-LABEL func_Math
-    JMP objc_Math
-
-LABEL func_math
-    JMP objc_Math
 
 LABEL func_lfixed_mul64
     JMP objc_lfixed_mul64

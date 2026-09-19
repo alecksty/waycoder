@@ -17,16 +17,6 @@ LABEL lua_lmedian64
     pop R15
     RET
 
-LABEL lua_middle
-    push R15
-    push R12
-    move R12 R13
-    CALL middle
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL lua_lrange64
     push R15
     push R12
@@ -162,12 +152,6 @@ LABEL func_lmedian64
 
 LABEL func_Lmedian64
     JMP lua_lmedian64
-
-LABEL func_middle
-    JMP lua_middle
-
-LABEL func_Middle
-    JMP lua_middle
 
 LABEL func_lrange64
     JMP lua_lrange64

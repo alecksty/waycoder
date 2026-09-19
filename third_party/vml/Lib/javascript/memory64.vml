@@ -3,26 +3,6 @@
 
 .linked "../shared/memory64.vml"
 
-LABEL js_long
-    push R15
-    push R12
-    move R12 R13
-    CALL long
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL js_int
-    push R15
-    push R12
-    move R12 R13
-    CALL int
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL js_lmemcpy
     push R15
     push R12
@@ -107,12 +87,6 @@ LABEL js_lmemcmp
     pop R15
     RET
 
-LABEL Memory64_Long
-    JMP js_long
-
-LABEL Memory64_Int
-    JMP js_int
-
 LABEL Memory64_Lmemcpy
     JMP js_lmemcpy
 
@@ -124,18 +98,6 @@ LABEL Memory64_Lmemmove
 
 LABEL Memory64_Lmemcmp
     JMP js_lmemcmp
-
-LABEL method_long
-    JMP js_long
-
-LABEL method_Long
-    JMP js_long
-
-LABEL method_int
-    JMP js_int
-
-LABEL method_Int
-    JMP js_int
 
 LABEL method_lmemcpy
     JMP js_lmemcpy

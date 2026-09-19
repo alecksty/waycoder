@@ -3,16 +3,3 @@
 
 .linked "../shared/util.vml"
 
-LABEL Root
-    push R15
-    push R12
-    move R12 R13
-    CALL root
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL Util_Root
-    JMP Root
-

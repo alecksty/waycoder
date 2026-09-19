@@ -43,16 +43,6 @@ LABEL dart_csub
     pop R15
     RET
 
-LABEL dart_b
-    push R15
-    push R12
-    move R12 R13
-    CALL b
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL dart_cmul
     push R15
     push R12
@@ -102,16 +92,6 @@ LABEL dart_complex_abs
     move R0 [R13+0]
     CALL complex_abs
     ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL dart_radians
-    push R15
-    push R12
-    move R12 R13
-    CALL radians
     move R13 R12
     pop R12
     pop R15
@@ -249,12 +229,6 @@ LABEL func_csub
 LABEL func_Csub
     JMP dart_csub
 
-LABEL func_b
-    JMP dart_b
-
-LABEL func_B
-    JMP dart_b
-
 LABEL func_cmul
     JMP dart_cmul
 
@@ -275,12 +249,6 @@ LABEL func_ComplexAbs
 
 LABEL func_complexAbs
     JMP dart_complex_abs
-
-LABEL func_radians
-    JMP dart_radians
-
-LABEL func_Radians
-    JMP dart_radians
 
 LABEL func_complex_arg
     JMP dart_complex_arg

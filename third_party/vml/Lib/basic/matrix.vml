@@ -424,16 +424,6 @@ LABEL BASIC_VEC2_DOT
     pop R15
     RET
 
-LABEL BASIC_PRODUCT
-    push R15
-    push R12
-    move R12 R13
-    CALL product
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL BASIC_VEC2_CROSS
     push R15
     push R12
@@ -539,16 +529,6 @@ LABEL BASIC_VEC3_NORMALIZE
     move R0 [R13+0]
     CALL vec3_normalize
     ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL BASIC_VECTOR
-    push R15
-    push R12
-    move R12 R13
-    CALL vector
     move R13 R12
     pop R12
     pop R15

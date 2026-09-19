@@ -3,26 +3,6 @@
 
 .linked "../shared/browser_gfx.vml"
 
-LABEL java_cMDBUF
-    push R15
-    push R12
-    move R12 R13
-    CALL CMD_BUF
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL java_format
-    push R15
-    push R12
-    move R12 R13
-    CALL format
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL java_cmdWrite
     push R15
     push R12
@@ -121,12 +101,6 @@ LABEL java_browserFlush
     pop R15
     RET
 
-LABEL Browser_gfx_CMDBUF
-    JMP java_cMDBUF
-
-LABEL Browser_gfx_Format
-    JMP java_format
-
 LABEL Browser_gfx_CmdWrite
     JMP java_cmdWrite
 
@@ -144,21 +118,6 @@ LABEL Browser_gfx_BrowserDrawPolygon
 
 LABEL Browser_gfx_BrowserFlush
     JMP java_browserFlush
-
-LABEL method_CMD_BUF
-    JMP java_cMDBUF
-
-LABEL method_CMDBUF
-    JMP java_cMDBUF
-
-LABEL method_cMDBUF
-    JMP java_cMDBUF
-
-LABEL method_format
-    JMP java_format
-
-LABEL method_Format
-    JMP java_format
 
 LABEL method_cmd_write
     JMP java_cmdWrite

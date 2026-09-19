@@ -3,16 +3,6 @@
 
 .linked "../shared/string.vml"
 
-LABEL ruby_string
-    push R15
-    push R12
-    move R12 R13
-    CALL string
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL ruby_strcpy
     push R15
     push R12
@@ -200,16 +190,6 @@ LABEL ruby_strrev
     pop R15
     RET
 
-LABEL ruby_uppercase
-    push R15
-    push R12
-    move R12 R13
-    CALL uppercase
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL ruby_str_toupper
     push R15
     push R12
@@ -222,16 +202,6 @@ LABEL ruby_str_toupper
     move R1 [R13+4]
     CALL str_toupper
     ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL ruby_lowercase
-    push R15
-    push R12
-    move R12 R13
-    CALL lowercase
     move R13 R12
     pop R12
     pop R15
@@ -291,16 +261,6 @@ LABEL ruby_str_contains
     pop R15
     RET
 
-LABEL ruby_whitespace
-    push R15
-    push R12
-    move R12 R13
-    CALL whitespace
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL ruby_str_trim
     push R15
     push R12
@@ -353,16 +313,6 @@ LABEL ruby_str_indexof
     move R1 [R13+4]
     CALL str_indexof
     ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL ruby_parts
-    push R15
-    push R12
-    move R12 R13
-    CALL parts
     move R13 R12
     pop R12
     pop R15
@@ -488,12 +438,6 @@ LABEL ruby_str_endswith
     pop R15
     RET
 
-LABEL func_string
-    JMP ruby_string
-
-LABEL func_String
-    JMP ruby_string
-
 LABEL func_strcpy
     JMP ruby_strcpy
 
@@ -566,12 +510,6 @@ LABEL func_strrev
 LABEL func_Strrev
     JMP ruby_strrev
 
-LABEL func_uppercase
-    JMP ruby_uppercase
-
-LABEL func_Uppercase
-    JMP ruby_uppercase
-
 LABEL func_str_toupper
     JMP ruby_str_toupper
 
@@ -580,12 +518,6 @@ LABEL func_StrToupper
 
 LABEL func_strToupper
     JMP ruby_str_toupper
-
-LABEL func_lowercase
-    JMP ruby_lowercase
-
-LABEL func_Lowercase
-    JMP ruby_lowercase
 
 LABEL func_str_tolower
     JMP ruby_str_tolower
@@ -614,12 +546,6 @@ LABEL func_StrContains
 LABEL func_strContains
     JMP ruby_str_contains
 
-LABEL func_whitespace
-    JMP ruby_whitespace
-
-LABEL func_Whitespace
-    JMP ruby_whitespace
-
 LABEL func_str_trim
     JMP ruby_str_trim
 
@@ -646,12 +572,6 @@ LABEL func_StrIndexof
 
 LABEL func_strIndexof
     JMP ruby_str_indexof
-
-LABEL func_parts
-    JMP ruby_parts
-
-LABEL func_Parts
-    JMP ruby_parts
 
 LABEL func_str_split
     JMP ruby_str_split

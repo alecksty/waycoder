@@ -3,16 +3,6 @@
 
 .linked "../shared/crc.vml"
 
-LABEL js_cRC
-    push R15
-    push R12
-    move R12 R13
-    CALL CRC
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL js_crc8
     push R15
     push R12
@@ -140,9 +130,6 @@ LABEL js_checksum16
     pop R15
     RET
 
-LABEL Crc_CRC
-    JMP js_cRC
-
 LABEL Crc_Crc8
     JMP js_crc8
 
@@ -166,12 +153,6 @@ LABEL Crc_Checksum8
 
 LABEL Crc_Checksum16
     JMP js_checksum16
-
-LABEL method_CRC
-    JMP js_cRC
-
-LABEL method_cRC
-    JMP js_cRC
 
 LABEL method_crc8
     JMP js_crc8

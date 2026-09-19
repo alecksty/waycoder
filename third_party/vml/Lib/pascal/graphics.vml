@@ -3,41 +3,11 @@
 
 .linked "../shared/graphics.vml"
 
-LABEL PASCAL_BASE
-    push R15
-    push R12
-    move R12 R13
-    CALL base
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL PASCAL_PARAMS
-    push R15
-    push R12
-    move R12 R13
-    CALL params
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL PASCAL__GFX_REFRESH_CACHE
     push R15
     push R12
     move R12 R13
     CALL _gfx_refresh_cache
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL PASCAL_CONFIG
-    push R15
-    push R12
-    move R12 R13
-    CALL config
     move R13 R12
     pop R12
     pop R15
@@ -87,16 +57,6 @@ LABEL PASCAL_GFX_H
     pop R15
     RET
 
-LABEL PASCAL_ADDRESS
-    push R15
-    push R12
-    move R12 R13
-    CALL address
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL PASCAL__PUTPIXEL
     push R15
     push R12
@@ -112,16 +72,6 @@ LABEL PASCAL__PUTPIXEL
     move R2 [R13+8]
     CALL _putpixel
     ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL PASCAL_PUSH
-    push R15
-    push R12
-    move R12 R13
-    CALL PUSH
     move R13 R12
     pop R12
     pop R15
@@ -144,26 +94,6 @@ LABEL PASCAL__GETPIXEL
     pop R15
     RET
 
-LABEL PASCAL_R0
-    push R15
-    push R12
-    move R12 R13
-    CALL R0
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL PASCAL_OFFSET
-    push R15
-    push R12
-    move R12 R13
-    CALL offset
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL PASCAL__PUTPIXEL_FAST
     push R15
     push R12
@@ -176,56 +106,6 @@ LABEL PASCAL__PUTPIXEL_FAST
     move R1 [R13+4]
     CALL _putpixel_fast
     ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL PASCAL_R4
-    push R15
-    push R12
-    move R12 R13
-    CALL R4
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL PASCAL_SECTOR
-    push R15
-    push R12
-    move R12 R13
-    CALL Sector
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL PASCAL_POINTS
-    push R15
-    push R12
-    move R12 R13
-    CALL points
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL PASCAL_FONT
-    push R15
-    push R12
-    move R12 R13
-    CALL Font
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL PASCAL_POINTS
-    push R15
-    push R12
-    move R12 R13
-    CALL Points
     move R13 R12
     pop R12
     pop R15

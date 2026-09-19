@@ -3,16 +3,6 @@
 
 .linked "../shared/wchar.vml"
 
-LABEL Character
-    push R15
-    push R12
-    move R12 R13
-    CALL character
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL Wctomb
     push R15
     push R12
@@ -138,9 +128,6 @@ LABEL Wmemcmp
     pop R12
     pop R15
     RET
-
-LABEL Wchar_Character
-    JMP Character
 
 LABEL Wchar_Wctomb
     JMP Wctomb

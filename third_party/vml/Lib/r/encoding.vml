@@ -300,16 +300,6 @@ LABEL r_encoding_convert
     pop R15
     RET
 
-LABEL r_wrappers
-    push R15
-    push R12
-    move R12 R13
-    CALL wrappers
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL r_encoding_detect_bom_1
     push R15
     push R12
@@ -572,12 +562,6 @@ LABEL func_EncodingConvert
 
 LABEL func_encodingConvert
     JMP r_encoding_convert
-
-LABEL func_wrappers
-    JMP r_wrappers
-
-LABEL func_Wrappers
-    JMP r_wrappers
 
 LABEL func_encoding_detect_bom_1
     JMP r_encoding_detect_bom_1

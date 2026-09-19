@@ -300,16 +300,6 @@ LABEL EncodingConvert
     pop R15
     RET
 
-LABEL Wrappers
-    push R15
-    push R12
-    move R12 R13
-    CALL wrappers
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL EncodingDetectBom1
     push R15
     push R12
@@ -470,9 +460,6 @@ LABEL Encoding_EncodingName
 
 LABEL Encoding_EncodingConvert
     JMP EncodingConvert
-
-LABEL Encoding_Wrappers
-    JMP Wrappers
 
 LABEL Encoding_EncodingDetectBom1
     JMP EncodingDetectBom1

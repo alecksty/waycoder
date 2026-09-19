@@ -3,16 +3,6 @@
 
 .linked "../shared/string.vml"
 
-LABEL java_string
-    push R15
-    push R12
-    move R12 R13
-    CALL string
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL java_strcpy
     push R15
     push R12
@@ -200,16 +190,6 @@ LABEL java_strrev
     pop R15
     RET
 
-LABEL java_uppercase
-    push R15
-    push R12
-    move R12 R13
-    CALL uppercase
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL java_strToupper
     push R15
     push R12
@@ -222,16 +202,6 @@ LABEL java_strToupper
     move R1 [R13+4]
     CALL str_toupper
     ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL java_lowercase
-    push R15
-    push R12
-    move R12 R13
-    CALL lowercase
     move R13 R12
     pop R12
     pop R15
@@ -291,16 +261,6 @@ LABEL java_strContains
     pop R15
     RET
 
-LABEL java_whitespace
-    push R15
-    push R12
-    move R12 R13
-    CALL whitespace
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL java_strTrim
     push R15
     push R12
@@ -353,16 +313,6 @@ LABEL java_strIndexof
     move R1 [R13+4]
     CALL str_indexof
     ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL java_parts
-    push R15
-    push R12
-    move R12 R13
-    CALL parts
     move R13 R12
     pop R12
     pop R15
@@ -488,9 +438,6 @@ LABEL java_strEndswith
     pop R15
     RET
 
-LABEL String_String
-    JMP java_string
-
 LABEL String_Strcpy
     JMP java_strcpy
 
@@ -524,14 +471,8 @@ LABEL String_Strstr
 LABEL String_Strrev
     JMP java_strrev
 
-LABEL String_Uppercase
-    JMP java_uppercase
-
 LABEL String_StrToupper
     JMP java_strToupper
-
-LABEL String_Lowercase
-    JMP java_lowercase
 
 LABEL String_StrTolower
     JMP java_strTolower
@@ -542,9 +483,6 @@ LABEL String_StrRepeat
 LABEL String_StrContains
     JMP java_strContains
 
-LABEL String_Whitespace
-    JMP java_whitespace
-
 LABEL String_StrTrim
     JMP java_strTrim
 
@@ -553,9 +491,6 @@ LABEL String_StrSubstr
 
 LABEL String_StrIndexof
     JMP java_strIndexof
-
-LABEL String_Parts
-    JMP java_parts
 
 LABEL String_StrSplit
     JMP java_strSplit
@@ -574,12 +509,6 @@ LABEL String_StrStartswith
 
 LABEL String_StrEndswith
     JMP java_strEndswith
-
-LABEL method_string
-    JMP java_string
-
-LABEL method_String
-    JMP java_string
 
 LABEL method_strcpy
     JMP java_strcpy
@@ -653,12 +582,6 @@ LABEL method_strrev
 LABEL method_Strrev
     JMP java_strrev
 
-LABEL method_uppercase
-    JMP java_uppercase
-
-LABEL method_Uppercase
-    JMP java_uppercase
-
 LABEL method_str_toupper
     JMP java_strToupper
 
@@ -667,12 +590,6 @@ LABEL method_StrToupper
 
 LABEL method_strToupper
     JMP java_strToupper
-
-LABEL method_lowercase
-    JMP java_lowercase
-
-LABEL method_Lowercase
-    JMP java_lowercase
 
 LABEL method_str_tolower
     JMP java_strTolower
@@ -701,12 +618,6 @@ LABEL method_StrContains
 LABEL method_strContains
     JMP java_strContains
 
-LABEL method_whitespace
-    JMP java_whitespace
-
-LABEL method_Whitespace
-    JMP java_whitespace
-
 LABEL method_str_trim
     JMP java_strTrim
 
@@ -733,12 +644,6 @@ LABEL method_StrIndexof
 
 LABEL method_strIndexof
     JMP java_strIndexof
-
-LABEL method_parts
-    JMP java_parts
-
-LABEL method_Parts
-    JMP java_parts
 
 LABEL method_str_split
     JMP java_strSplit

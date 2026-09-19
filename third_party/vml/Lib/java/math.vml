@@ -409,16 +409,6 @@ LABEL java_tanDeg
     pop R15
     RET
 
-LABEL java_approximation
-    push R15
-    push R12
-    move R12 R13
-    CALL approximation
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL java_ilog2
     push R15
     push R12
@@ -793,9 +783,6 @@ LABEL Math_CosDeg
 LABEL Math_TanDeg
     JMP java_tanDeg
 
-LABEL Math_Approximation
-    JMP java_approximation
-
 LABEL Math_Ilog2
     JMP java_ilog2
 
@@ -1032,12 +1019,6 @@ LABEL method_TanDeg
 
 LABEL method_tanDeg
     JMP java_tanDeg
-
-LABEL method_approximation
-    JMP java_approximation
-
-LABEL method_Approximation
-    JMP java_approximation
 
 LABEL method_ilog2
     JMP java_ilog2

@@ -3,16 +3,6 @@
 
 .linked "../shared/array64.vml"
 
-LABEL csharp_Arrays
-    push R15
-    push R12
-    move R12 R13
-    CALL Arrays
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL Llen64
     push R15
     push R12
@@ -450,9 +440,6 @@ LABEL Lendswith64
     pop R12
     pop R15
     RET
-
-LABEL Array64_Arrays
-    JMP csharp_Arrays
 
 LABEL Array64_Llen64
     JMP Llen64

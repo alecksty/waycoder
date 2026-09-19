@@ -268,16 +268,6 @@ LABEL r_lclz64
     pop R15
     RET
 
-LABEL r_Count
-    push R15
-    push R12
-    move R12 R13
-    CALL Count
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL r_lpopcnt64
     push R15
     push R12
@@ -553,12 +543,6 @@ LABEL func_lclz64
 
 LABEL func_Lclz64
     JMP r_lclz64
-
-LABEL func_Count
-    JMP r_Count
-
-LABEL func_count
-    JMP r_Count
 
 LABEL func_lpopcnt64
     JMP r_lpopcnt64

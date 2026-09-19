@@ -3,16 +3,6 @@
 
 .linked "../shared/basiclib.vml"
 
-LABEL BASIC_VALUES
-    push R15
-    push R12
-    move R12 R13
-    CALL values
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL BASIC__HEX_STR
     push R15
     push R12
@@ -152,16 +142,6 @@ LABEL BASIC_BASIC_TIME_STR
     pop R15
     RET
 
-LABEL BASIC_ELAPSED
-    push R15
-    push R12
-    move R12 R13
-    CALL elapsed
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL BASIC_BASIC_TIMER
     push R15
     push R12
@@ -223,16 +203,6 @@ LABEL BASIC_BASIC_EOF
     pop R15
     RET
 
-LABEL BASIC_MANIPULATION
-    push R15
-    push R12
-    move R12 R13
-    CALL Manipulation
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL BASIC_BASIC_UCASE
     push R15
     push R12
@@ -289,16 +259,6 @@ LABEL BASIC_BASIC_ASC
     pop R15
     RET
 
-LABEL BASIC_CODE
-    push R15
-    push R12
-    move R12 R13
-    CALL code
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL BASIC_BASIC_CHR
     push R15
     push R12
@@ -308,16 +268,6 @@ LABEL BASIC_BASIC_CHR
     move R0 [R13+0]
     CALL basic_chr
     ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL BASIC_SPACES
-    push R15
-    push R12
-    move R12 R13
-    CALL spaces
     move R13 R12
     pop R12
     pop R15
@@ -455,16 +405,6 @@ LABEL BASIC_BASIC_SGN
     pop R15
     RET
 
-LABEL BASIC_INTERPOLATION
-    push R15
-    push R12
-    move R12 R13
-    CALL interpolation
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL BASIC__SIN_LOOKUP
     push R15
     push R12
@@ -521,16 +461,6 @@ LABEL BASIC_BASIC_TAN
     pop R15
     RET
 
-LABEL BASIC_METHOD
-    push R15
-    push R12
-    move R12 R13
-    CALL method
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL BASIC_BASIC_SQR
     push R15
     push R12
@@ -545,31 +475,11 @@ LABEL BASIC_BASIC_SQR
     pop R15
     RET
 
-LABEL BASIC_INTEGER
-    push R15
-    push R12
-    move R12 R13
-    CALL integer
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL BASIC_BASIC_RND
     push R15
     push R12
     move R12 R13
     CALL basic_rnd
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL BASIC_SERIES
-    push R15
-    push R12
-    move R12 R13
-    CALL series
     move R13 R12
     pop R12
     pop R15
@@ -643,16 +553,6 @@ LABEL BASIC_BASIC_POINT
     move R1 [R13+4]
     CALL basic_point
     ADD R13 #8
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL BASIC_ABOVE
-    push R15
-    push R12
-    move R12 R13
-    CALL above
     move R13 R12
     pop R12
     pop R15

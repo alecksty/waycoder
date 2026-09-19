@@ -62,16 +62,6 @@ LABEL java_slen
     pop R15
     RET
 
-LABEL java_itoa64
-    push R15
-    push R12
-    move R12 R13
-    CALL itoa64
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL java_outRev
     push R15
     push R12
@@ -150,16 +140,6 @@ LABEL java_sign64
     pop R15
     RET
 
-LABEL java_ftoe
-    push R15
-    push R12
-    move R12 R13
-    CALL ftoe
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL Printf_Emit
     JMP java_emit
 
@@ -168,9 +148,6 @@ LABEL Printf_PadChar
 
 LABEL Printf_Slen
     JMP java_slen
-
-LABEL Printf_Itoa64
-    JMP java_itoa64
 
 LABEL Printf_OutRev
     JMP java_outRev
@@ -183,9 +160,6 @@ LABEL Printf_ReadDouble
 
 LABEL Printf_Sign64
     JMP java_sign64
-
-LABEL Printf_Ftoe
-    JMP java_ftoe
 
 LABEL method_emit
     JMP java_emit
@@ -207,12 +181,6 @@ LABEL method_slen
 
 LABEL method_Slen
     JMP java_slen
-
-LABEL method_itoa64
-    JMP java_itoa64
-
-LABEL method_Itoa64
-    JMP java_itoa64
 
 LABEL method_out_rev
     JMP java_outRev
@@ -240,10 +208,4 @@ LABEL method_sign64
 
 LABEL method_Sign64
     JMP java_sign64
-
-LABEL method_ftoe
-    JMP java_ftoe
-
-LABEL method_Ftoe
-    JMP java_ftoe
 

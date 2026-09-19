@@ -3,16 +3,6 @@
 
 .linked "../shared/parserexp.vml"
 
-LABEL js_literals
-    push R15
-    push R12
-    move R12 R13
-    CALL literals
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL js_nULL
     push R15
     push R12
@@ -106,19 +96,6 @@ LABEL js_parserexp
     pop R15
     RET
 
-LABEL js_cases
-    push R15
-    push R12
-    move R12 R13
-    CALL cases
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL Parserexp_Literals
-    JMP js_literals
-
 LABEL Parserexp_NULL
     JMP js_nULL
 
@@ -142,15 +119,6 @@ LABEL Parserexp_ParseFactor
 
 LABEL Parserexp_Parserexp
     JMP js_parserexp
-
-LABEL Parserexp_Cases
-    JMP js_cases
-
-LABEL method_literals
-    JMP js_literals
-
-LABEL method_Literals
-    JMP js_literals
 
 LABEL method_NULL
     JMP js_nULL
@@ -217,10 +185,4 @@ LABEL method_parserexp
 
 LABEL method_Parserexp
     JMP js_parserexp
-
-LABEL method_cases
-    JMP js_cases
-
-LABEL method_Cases
-    JMP js_cases
 

@@ -424,16 +424,6 @@ LABEL objc_vec2_dot
     pop R15
     RET
 
-LABEL objc_product
-    push R15
-    push R12
-    move R12 R13
-    CALL product
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL objc_vec2_cross
     push R15
     push R12
@@ -539,16 +529,6 @@ LABEL objc_vec3_normalize
     move R0 [R13+0]
     CALL vec3_normalize
     ADD R13 #4
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL objc_vector
-    push R15
-    push R12
-    move R12 R13
-    CALL vector
     move R13 R12
     pop R12
     pop R15
@@ -781,12 +761,6 @@ LABEL func_Vec2Dot
 LABEL func_vec2Dot
     JMP objc_vec2_dot
 
-LABEL func_product
-    JMP objc_product
-
-LABEL func_Product
-    JMP objc_product
-
 LABEL func_vec2_cross
     JMP objc_vec2_cross
 
@@ -849,12 +823,6 @@ LABEL func_Vec3Normalize
 
 LABEL func_vec3Normalize
     JMP objc_vec3_normalize
-
-LABEL func_vector
-    JMP objc_vector
-
-LABEL func_Vector
-    JMP objc_vector
 
 LABEL func_mat4_transform_vec3
     JMP objc_mat4_transform_vec3

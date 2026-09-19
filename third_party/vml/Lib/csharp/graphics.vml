@@ -3,41 +3,11 @@
 
 .linked "../shared/graphics.vml"
 
-LABEL Base
-    push R15
-    push R12
-    move R12 R13
-    CALL base
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL Params
-    push R15
-    push R12
-    move R12 R13
-    CALL params
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL GfxRefreshCache
     push R15
     push R12
     move R12 R13
     CALL _gfx_refresh_cache
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL Config
-    push R15
-    push R12
-    move R12 R13
-    CALL config
     move R13 R12
     pop R12
     pop R15
@@ -87,16 +57,6 @@ LABEL GfxH
     pop R15
     RET
 
-LABEL Address
-    push R15
-    push R12
-    move R12 R13
-    CALL address
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL Putpixel
     push R15
     push R12
@@ -112,16 +72,6 @@ LABEL Putpixel
     move R2 [R13+8]
     CALL _putpixel
     ADD R13 #12
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL csharp_PUSH
-    push R15
-    push R12
-    move R12 R13
-    CALL PUSH
     move R13 R12
     pop R12
     pop R15
@@ -144,26 +94,6 @@ LABEL Getpixel
     pop R15
     RET
 
-LABEL csharp_R0
-    push R15
-    push R12
-    move R12 R13
-    CALL R0
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL Offset
-    push R15
-    push R12
-    move R12 R13
-    CALL offset
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL PutpixelFast
     push R15
     push R12
@@ -181,67 +111,8 @@ LABEL PutpixelFast
     pop R15
     RET
 
-LABEL csharp_R4
-    push R15
-    push R12
-    move R12 R13
-    CALL R4
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL csharp_Sector
-    push R15
-    push R12
-    move R12 R13
-    CALL Sector
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL Points
-    push R15
-    push R12
-    move R12 R13
-    CALL points
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL csharp_Font
-    push R15
-    push R12
-    move R12 R13
-    CALL Font
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL csharp_Points
-    push R15
-    push R12
-    move R12 R13
-    CALL Points
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
-LABEL Graphics_Base
-    JMP Base
-
-LABEL Graphics_Params
-    JMP Params
-
 LABEL Graphics_GfxRefreshCache
     JMP GfxRefreshCache
-
-LABEL Graphics_Config
-    JMP Config
 
 LABEL Graphics_GetConfig
     JMP GetConfig
@@ -255,39 +126,12 @@ LABEL Graphics_GfxW
 LABEL Graphics_GfxH
     JMP GfxH
 
-LABEL Graphics_Address
-    JMP Address
-
 LABEL Graphics_Putpixel
     JMP Putpixel
-
-LABEL Graphics_PUSH
-    JMP csharp_PUSH
 
 LABEL Graphics_Getpixel
     JMP Getpixel
 
-LABEL Graphics_R0
-    JMP csharp_R0
-
-LABEL Graphics_Offset
-    JMP Offset
-
 LABEL Graphics_PutpixelFast
     JMP PutpixelFast
-
-LABEL Graphics_R4
-    JMP csharp_R4
-
-LABEL Graphics_Sector
-    JMP csharp_Sector
-
-LABEL Graphics_Points
-    JMP Points
-
-LABEL Graphics_Font
-    JMP csharp_Font
-
-LABEL Graphics_Points
-    JMP csharp_Points
 

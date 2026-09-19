@@ -268,16 +268,6 @@ LABEL js_lclz64
     pop R15
     RET
 
-LABEL js_count
-    push R15
-    push R12
-    move R12 R13
-    CALL Count
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL js_lpopcnt64
     push R15
     push R12
@@ -500,9 +490,6 @@ LABEL Math64_Lrandom64
 LABEL Math64_Lclz64
     JMP js_lclz64
 
-LABEL Math64_Count
-    JMP js_count
-
 LABEL Math64_Lpopcnt64
     JMP js_lpopcnt64
 
@@ -631,12 +618,6 @@ LABEL method_lclz64
 
 LABEL method_Lclz64
     JMP js_lclz64
-
-LABEL method_Count
-    JMP js_count
-
-LABEL method_count
-    JMP js_count
 
 LABEL method_lpopcnt64
     JMP js_lpopcnt64

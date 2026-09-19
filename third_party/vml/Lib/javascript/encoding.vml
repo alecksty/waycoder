@@ -300,16 +300,6 @@ LABEL js_encodingConvert
     pop R15
     RET
 
-LABEL js_wrappers
-    push R15
-    push R12
-    move R12 R13
-    CALL wrappers
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL js_encodingDetectBom1
     push R15
     push R12
@@ -470,9 +460,6 @@ LABEL Encoding_EncodingName
 
 LABEL Encoding_EncodingConvert
     JMP js_encodingConvert
-
-LABEL Encoding_Wrappers
-    JMP js_wrappers
 
 LABEL Encoding_EncodingDetectBom1
     JMP js_encodingDetectBom1
@@ -647,12 +634,6 @@ LABEL method_EncodingConvert
 
 LABEL method_encodingConvert
     JMP js_encodingConvert
-
-LABEL method_wrappers
-    JMP js_wrappers
-
-LABEL method_Wrappers
-    JMP js_wrappers
 
 LABEL method_encoding_detect_bom_1
     JMP js_encodingDetectBom1

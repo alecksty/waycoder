@@ -3,16 +3,6 @@
 
 .linked "../shared/fixed64.vml"
 
-LABEL js_math
-    push R15
-    push R12
-    move R12 R13
-    CALL Math
-    move R13 R12
-    pop R12
-    pop R15
-    RET
-
 LABEL js_lfixedMul64
     push R15
     push R12
@@ -126,9 +116,6 @@ LABEL js_lfixedToDouble
     pop R15
     RET
 
-LABEL Fixed64_Math
-    JMP js_math
-
 LABEL Fixed64_LfixedMul64
     JMP js_lfixedMul64
 
@@ -149,12 +136,6 @@ LABEL Fixed64_LfixedFromDouble
 
 LABEL Fixed64_LfixedToDouble
     JMP js_lfixedToDouble
-
-LABEL method_Math
-    JMP js_math
-
-LABEL method_math
-    JMP js_math
 
 LABEL method_lfixed_mul64
     JMP js_lfixedMul64
