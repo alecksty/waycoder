@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage
+    x:Class="WayCoder.Maui.Pages.HelpListPage"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    Title="使用说明">
+
+    <!-- 二级页面：一个分类下的主题列表。点一条进三级（正文）。
+         一级（分类按钮）在「关于」页上，三级是 HelpPage。 -->
+    <CollectionView x:Name="List" Margin="0,8">
+        <CollectionView.ItemTemplate>
+            <DataTemplate>
+                <Grid Padding="16,14" ColumnDefinitions="Auto,*" ColumnSpacing="12"
+                      BackgroundColor="{AppThemeBinding Light={StaticResource CardBgLight}, Dark={StaticResource CardBgDark}}"
+                      Margin="12,4">
+                    <Label Grid.Column="0" Text="{Binding Icon}" FontSize="20" VerticalOptions="Center" />
+                    <VerticalStackLayout Grid.Column="1" Spacing="2" VerticalOptions="Center">
+                        <Label Text="{Binding Title}" FontSize="15" FontAttributes="Bold"
+                               TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
+                        <Label Text="{Binding Summary}" FontSize="11" LineBreakMode="TailTruncation"
+                               TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    </VerticalStackLayout>
+                </Grid>
+            </DataTemplate>
+        </CollectionView.ItemTemplate>
+    </CollectionView>
+</ContentPage>

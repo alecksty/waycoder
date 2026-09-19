@@ -6,6 +6,7 @@ using VMLPlugins;
 using VMLPlugins.Interfaces;
 using VMLRuntime;
 using WayCoder.Tools;
+using WayCoder.UI.Shared;
 using WayCoder.UI.Tui.Edit;
 
 namespace WayCoder.Maui.Services;
@@ -85,12 +86,24 @@ HALT
     /// <param name="filePath">**已解析好的**文件路径（调用方负责用 CwdContext 解析，见 VmlTool 注释）</param>
     /// <param name="timeoutSeconds">超时秒数。⚠ 交互式（<paramref name="readLine"/> 非空）要放大，见 RunProgram 注释</param>
     /// <param name="readLine">stdin 输入源；null = 无输入（读到空串）</param>
+    /// <param name="markup">
+    /// 返回值要不要带**给人看的颜色标记**（`«»` 中间格式）：
+    ///
+    /// · `false`（默认）= 老行为，纯文本，**AI 走的 `vml` 工具必须是这一支** ——
+    ///   颜色标记混进工具结果里只会污染模型看到的内容。
+    /// · `true` = 命令行页/编辑器用：程序自己的 stdout 里的裸 ANSI 翻成标记，
+    ///   而 **stderr 整段套红**（`VML 错误`、寄存器 dump、`Permission denied` 都走 stderr，
+    ///   它们本来就该一眼看出来是"出事了"，而不是跟正常输出混在一起）。
+    ///
+    /// 两个流的**先后顺序与老行为完全一致**（stdout 在前、诊断在后），
+    /// 只在这一处做分色 —— 不拆成两个返回值，免得每一层调用都要多带一个 out。
+    /// </param>
     public static string Run(string? source, string? filePath, int timeoutSeconds, Func<string>? readLine = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default, bool markup = false)
     {
         // 给了内联源码 → 一律当 VML 汇编
         if (!string.IsNullOrWhiteSpace(source))
-            return RunAssembly(source!, timeoutSeconds, readLine, ct);
+            return RunAssembly(source!, timeoutSeconds, readLine, ct, markup);
 
         if (string.IsNullOrWhiteSpace(filePath))
             return "⚠️ 需要 `source`（VML 源码）或 `file_path`（文件路径）二者之一。";
@@ -102,7 +115,7 @@ HALT
 
         if (ext.Equals(".vml", StringComparison.OrdinalIgnoreCase))
         {
-            try { return RunAssembly(File.ReadAllText(filePath), timeoutSeconds, readLine, ct); }
+            try { return RunAssembly(File.ReadAllText(filePath), timeoutSeconds, readLine, ct, markup); }
             catch (Exception ex) { return $"⚠️ 读文件失败：{ex.Message}"; }
         }
 
@@ -110,11 +123,11 @@ HALT
         // 在文件页上分开之后要有的那半条路（编译产物应当能被直接跑起来）。
         if (ext.Equals(".vmb", StringComparison.OrdinalIgnoreCase))
         {
-            try { return RunProgram(VmlProgram.LoadFromVmbFile(filePath), timeoutSeconds, readLine, ct); }
+            try { return RunProgram(VmlProgram.LoadFromVmbFile(filePath), timeoutSeconds, readLine, ct, markup); }
             catch (Exception ex) { return $"⚠️ VMB 装载失败：{ex.Message}"; }
         }
 
-        return CompileAndRun(filePath, timeoutSeconds, readLine, ct);
+        return CompileAndRun(filePath, timeoutSeconds, readLine, ct, markup);
     }
 
     /// <summary>
@@ -173,8 +186,8 @@ HALT
     /// ⚠ 同步阻塞，调用方要自己放后台线程。
     /// </summary>
     public static string RunAssembly(string source, int timeoutSeconds = 10, Func<string>? readLine = null,
-        CancellationToken ct = default)
-        => RunProgram(new VmlAssembler().Assemble(source), timeoutSeconds, readLine, ct);
+        CancellationToken ct = default, bool markup = false)
+        => RunProgram(new VmlAssembler().Assemble(source), timeoutSeconds, readLine, ct, markup);
 
     /// <summary>
     /// **编译一个高级语言源文件并运行它**（按扩展名自动选编译器，22 种语言）。
@@ -185,12 +198,12 @@ HALT
     /// ⚠ 同步阻塞（前端编译本身就吃 CPU），调用方要自己放后台线程。
     /// </summary>
     public static string CompileAndRun(string filePath, int timeoutSeconds = 30, Func<string>? readLine = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default, bool markup = false)
     {
         // `ct` 对两段都有效：编译段是"带超时地等一个不可取消的编译"（见 BuildProgram 的看门狗），
         // 运行段是"主循环每条指令查一次"。用户按「强制停止」时两段都能停下来。
         var (prog, _, error, _) = BuildProgram(filePath, ct);
-        return prog == null ? error! : RunProgram(prog, timeoutSeconds, readLine, ct);
+        return prog == null ? error! : RunProgram(prog, timeoutSeconds, readLine, ct, markup);
     }
 
     /// <summary>
@@ -511,7 +524,7 @@ HALT
     /// 运行时的主循环**每条指令都查一次**这个 token（`VMLRuntime.cs:681`），所以取消是即时的。
     /// </summary>
     private static string RunProgram(VmlProgram prog, int timeoutSeconds, Func<string>? readLine = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default, bool markup = false)
     {
         // **每次跑之前必须重置单例 DeviceManager**：它跨运行保留状态，
         // 不重置的话第二次运行的 MMIO 地址会和第一次串掉（这是 VML 自带测试里的做法）。
@@ -599,28 +612,49 @@ HALT
         // 内容也会被一起收进来 —— 但它们是**并进输出**而不是被丢掉，所以只多不少。
         // 用锁串行化：VML 工具是 Exclusive，ShellPage 也有 `_busy` 闸门，正常不会并发，
         // 锁只是兜住"将来谁绕过那两道闸门"。
+        // 两个流**分开接**（原来接进同一个 sink）—— 命令行页要把 stderr 显示成红的，
+        // 合并之后就再也分不出哪一段是报错了（`VML 错误`/寄存器 dump 走 stderr，
+        // `Permission denied`/`VM execution cancelled` 走 stdout，混在一起只能靠猜）。
         string diag;
+        string diagErr;
         lock (ConsoleRedirectGate)
         {
             var prevOut = Console.Out;
             var prevErr = Console.Error;
-            var sink = new StringWriter();
+            var outSink = new StringWriter();
+            var errSink = new StringWriter();
             try
             {
-                Console.SetOut(sink);
-                Console.SetError(sink);
+                Console.SetOut(outSink);
+                Console.SetError(errSink);
                 vm.Run(ct);
             }
             finally
             {
                 Console.SetOut(prevOut);
                 Console.SetError(prevErr);
-                diag = sink.ToString();
+                diag = outSink.ToString();
+                diagErr = errSink.ToString();
             }
         }
 
-        if (diag.Length == 0) return io.Text;
-        return io.Text.Length == 0 ? diag.TrimEnd() : io.Text.TrimEnd() + "\n" + diag.TrimEnd();
+        if (!markup)
+        {
+            // 老行为（AI 那条路）：两个流按 stdout→诊断 的顺序并成一段纯文本
+            if (diag.Length == 0 && diagErr.Length == 0) return io.Text;
+            var tail = (diag.TrimEnd() + "\n" + diagErr.TrimEnd()).TrimEnd();
+            return io.Text.Length == 0 ? tail : io.Text.TrimEnd() + "\n" + tail;
+        }
+
+        // 给人看的：裸 ANSI 翻成标记，stderr 整段套红（内层自带的颜色会盖掉这层红，正是想要的）
+        var outTxt = AnsiMarkup.ToMarkup(io.Text).TrimEnd();
+        var midTxt = AnsiMarkup.ToMarkup(diag).TrimEnd();
+        var errTxt = AnsiMarkup.ToMarkup(diagErr).TrimEnd();
+        var sb = new StringBuilder();
+        if (outTxt.Length > 0) sb.Append(outTxt);
+        if (midTxt.Length > 0) sb.Append(sb.Length > 0 ? "\n" : "").Append(midTxt);
+        if (errTxt.Length > 0) sb.Append(sb.Length > 0 ? "\n" : "").Append("«red»").Append(errTxt).Append("«/»");
+        return sb.ToString();
     }
 
     /// <summary>串行化 <see cref="RunProgram"/> 里的控制台重定向（见那里的说明）。</summary>

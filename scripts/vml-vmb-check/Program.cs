@@ -13,6 +13,17 @@
 // 而这次抓到的四处不对称里有两处（偏移 ≥128、负偏移符号位）恰好是抽查漏网的。
 using VMLAssembler;
 
+// 用法：
+//   dotnet run --project scripts/vml-vmb-check                 # 穷举往返检
+//   dotnet run --project scripts/vml-vmb-check <in.vml> <out.vmb>   # 顺带把一份 .vml 汇编成 .vmb（给设备端验收用）
+if (args.Length >= 2)
+{
+    var asmProg = new VmlAssembler().Assemble(File.ReadAllText(args[0]));
+    File.WriteAllBytes(args[1], asmProg.ToVmbBytes());
+    Console.WriteLine($"已把 {args[0]} 汇编成 {args[1]}（{new FileInfo(args[1]).Length:#,0} 字节）");
+    return 0;
+}
+
 var prog = new VmlProgram(new List<Instruction>(), new Dictionary<string, int>(),
                           new Dictionary<string, object>(), new Dictionary<string, object>());
 prog.EntryPoint = "main";
@@ -74,6 +85,7 @@ catch (Exception ex) { Console.WriteLine($"✘ FromVmbBytes 抛：{ex.GetType().
 
 var after = back.Instructions.Select(i => i.ToString()).ToList();
 Console.WriteLine($"指令 {before.Count} 条 → {bytes.Length} 字节 → 读回 {after.Count} 条");
+if (args.Length > 1) { File.WriteAllBytes(args[1], bytes); Console.WriteLine($"已写出 {args[1]}"); }
 
 var bad = 0;
 for (var i = 0; i < Math.Min(before.Count, after.Count); i++)

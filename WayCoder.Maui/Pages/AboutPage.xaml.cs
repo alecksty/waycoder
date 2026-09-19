@@ -1,37 +1,49 @@
+using WayCoder.UI.Shared;
+
 namespace WayCoder.Maui.Pages;
 
-/// <summary>关于页：图标 / App 名 / 版本号 / 使用说明。</summary>
+/// <summary>
+/// 关于页：图标 / App 名 / 版本号 / **使用说明的分类入口**。
+///
+/// 说明内容是**多级**的：这里是一级（分类按钮），点开是二级（主题列表 `HelpListPage`）
+/// 或三级（正文 `HelpPage`）。分类与正文都不在这个页面里 —— 见 <see cref="HelpCatalog"/>。
+/// </summary>
 public partial class AboutPage : ContentPage
 {
     public AboutPage()
     {
         InitializeComponent();
+        BuildCategories();
     }
 
     protected override void OnAppearing()
     {
         base.OnAppearing();
         VersionLabel.Text = $"版本 {Global.Version}";
-        UsageLabel.Text = Usage;
     }
 
-    private const string Usage = """
-        使用说明
-
-        【对话】输入问题与 AI 对话；输入框上方动态状态栏显示思考中/执行工具/等待确认；每轮结束显示用时/token/费用。
-
-        【语音/图片】输入框左侧 ＋：语音输入（录音→转录）、选音频转录、拍照/相册看图（需 vision 模型）。
-
-        【文件】导入项目/文件到沙箱工作区；点文件可打开/用外部应用打开/重命名/删除。
-
-        【编辑器】默认只读防误改，点「✎ 编辑」解锁；左侧行号、长行不换行可横向滚动；markdown 文件点「预览」渲染表格；「保存」写回沙箱。
-
-        【菜单 ☰】右上角：模型选择、模式切换（建造/计划/聊天）、权限切换（Ask/Auto/SmartAuto/Yolo）、会话管理（继续/新会话）、任务管理。
-
-        【会话】退出自动记住对话（仅正文，不含思考/工具结果）；下次进入可「继续会话」或「新的会话」。
-
-        【设置】按服务商填 API Key、选模型。
-
-        【关于】版本与使用说明。
-        """;
+    /// <summary>
+    /// 按目录表生成分类按钮。
+    ///
+    /// ⚠ **分类是"按钮"而不是"列表项"**：它们点下去是**跳转**（进二级页），
+    /// 不是在同一页里选中某一行 —— 用 Button 让"点得动"这件事在视觉上就成立
+    /// （列表项的点击语义要用户自己试出来）。
+    /// </summary>
+    private void BuildCategories()
+    {
+        foreach (var cat in HelpCatalog.Categories)
+        {
+            var btn = new Button
+            {
+                Text = $"{cat.Icon}  {cat.Title}",
+                FontSize = 15,
+                HorizontalOptions = LayoutOptions.Fill,
+                HeightRequest = 48,
+                Padding = new Thickness(16, 0),
+                CornerRadius = 10,
+            };
+            btn.Clicked += async (_, _) => await HelpListPage.OpenAsync(cat);
+            Categories.Add(btn);
+        }
+    }
 }

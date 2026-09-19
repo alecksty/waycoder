@@ -266,6 +266,30 @@ public static class MarkdownParser
     /// 属于数据而不是格式，走完整内联解析会把它们当标记吃掉；但 «» 是我们自己的中间格式，
     /// 必须在渲染层解码成颜色，否则用户直接看到 «grey» 字面量。
     /// </summary>
+    /// <summary>
+    /// 转义书名号的还原：`««` → 一个字面量 `«`，`»»` → 一个字面量 `»`。
+    ///
+    /// 由 <see cref="AnsiHelper.Esc"/> 产出（外部命令输出里出现 `«red»` 这样的字面量时，
+    /// 不转义就会被渲染层当**真标签**吃掉）。**两个解析循环共用这一份判据** ——
+    /// <see cref="ParseInline"/> 与 <see cref="ParseMarkupOnly"/> 各有一套扫描循环，
+    /// 规则写两份必然漂移（本仓库的头号坑）。
+    ///
+    /// ⚠ 必须排在「找闭合 `»`」**之前**：`««a»»` 里第一个 `«` 后面紧跟的还是 `«`，
+    ///   按标签去找闭合会一路找到最后一个 `»`，把中间整段当成一个（不认识的）标签。
+    ///
+    /// ⚠ 此前这条还原**根本不存在** —— Esc 把 `«` 变成 `««`，却没有任何地方变回来，
+    ///   于是"转义过"的文本在屏幕上显示成两个书名号。是 ANSI→标记那条往返用例把它逼出来的。
+    /// </summary>
+    private static bool TryReadEscapedBook(string text, int i, out char literal, out int consumed)
+    {
+        literal = '\0';
+        consumed = 0;
+        if (i + 1 >= text.Length) return false;
+        if (text[i] == '\xAB' && text[i + 1] == '\xAB') { literal = '\xAB'; consumed = 2; return true; }
+        if (text[i] == '\xBB' && text[i + 1] == '\xBB') { literal = '\xBB'; consumed = 2; return true; }
+        return false;
+    }
+
     public static List<(string Text, int Color, int Bg)> ParseMarkupOnly(string text,
         int defaultColor = 0, int defaultBg = 0)
     {
@@ -283,6 +307,13 @@ public static class MarkdownParser
 
         for (int i = 0; i < text.Length;)
         {
+            if (TryReadEscapedBook(text, i, out var lit, out var used))
+            {
+                current.Append(lit);
+                i += used;
+                continue;
+            }
+
             if (text[i] == '\xAB') // «
             {
                 int close = text.IndexOf('\xBB', i + 1);
@@ -346,6 +377,13 @@ public static class MarkdownParser
 
         while (i < text.Length)
         {
+            if (TryReadEscapedBook(text, i, out var lit, out var used))
+            {
+                current.Append(lit);
+                i += used;
+                continue;
+            }
+
             // Markup 标记 «tag»（样式/颜色）与 «/»（复位到上一级）
             if (text[i] == '\xAB') // «
             {

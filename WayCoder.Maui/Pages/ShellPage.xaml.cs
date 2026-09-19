@@ -1,5 +1,6 @@
 using System.Text;
 using WayCoder.Maui.Controls;
+using WayCoder.Maui.Markup;
 using WayCoder.Maui.Services;
 using WayCoder.Tools;
 using WayCoder.UI.Shared;
@@ -251,7 +252,7 @@ public partial class ShellPage : ContentPage
         // 路径**缩写成 `~/…`** —— 文件页递过来的是绝对路径，原样打出来要占两行（用户点名要短）。
         // 进度钩子（解压/编译提示）在 ExecVmlAsync 里装。
         => RunWithPromptAsync($"vml run {SandboxFsService.Abbreviate(absPath)}",
-            () => ExecVmlAsync(null, absPath));
+            () => ExecVmlAsync(null, absPath), markupResult: true);
 
     /// <summary>
     /// 把源文件编成下一级产物写到沙箱里（`main.c` → `main.vml`、`main.vml` → `main.vmb`）。
@@ -298,8 +299,10 @@ public partial class ShellPage : ContentPage
                     return ($"{text.Length:#,0} 字符", null);
                 });
 
+                // 编译报错**套红**（用户要的就是"一眼看出出事了"）：这段是给人看的，
+                // 所以整个 RunWithPromptAsync 走 markup 支（见下面的 markupResult: true）
                 return error != null
-                    ? error
+                    ? "«red»" + error.TrimEnd() + "«/»"
                     : $"✔ 已生成 {outRel}（{note}）\n回文件页点它选「VML 运行」即可执行。";
             }
             finally
@@ -310,7 +313,7 @@ public partial class ShellPage : ContentPage
                 _runDone = null;
                 done.TrySetResult();
             }
-        });
+        }, markupResult: true);   // 本分支自己产出 markup（上面那句套红），别再转一遍
     }
 
     /// <summary>
@@ -354,13 +357,20 @@ public partial class ShellPage : ContentPage
     /// 三个入口（手敲的命令、文件页递来的运行、文件页递来的编译）共用这一份 ——
     /// 各写一遍的话，总有一个会漏掉收尾提示符，用户就又分不清"跑完了没有"了。
     /// </summary>
-    private async Task RunWithPromptAsync(string cmdLine, Func<Task<string>> body)
+    /// <param name="markupResult">
+    /// <paramref name="body"/> 的返回值**已经是 markup**（VML 那条路：
+    /// <c>MauiVml.Run(..., markup: true)</c> 已经把裸 ANSI 翻过、并把 stderr 套了红）。
+    /// 为真时不再过一次 <see cref="AnsiMarkup.ToMarkup"/> —— 那会把我们自己的
+    /// <c>«red»</c> 转义成字面量，屏幕上直接打出「«red»」四个字符。
+    /// 普通 shell 命令（`ls`/`cd`…）返回的是原始文本，保持默认 false。
+    /// </param>
+    private async Task RunWithPromptAsync(string cmdLine, Func<Task<string>> body, bool markupResult = false)
     {
         Append($"{Prompt} {cmdLine}\n");
         SetBusy(true);
         try
         {
-            Append((await body()).TrimEnd() + "\n\n");
+            Append((await body()).TrimEnd() + "\n\n", alreadyMarkup: markupResult);
         }
         catch (Exception ex)
         {
@@ -497,7 +507,8 @@ public partial class ShellPage : ContentPage
         InstallVmlProgress();   // 这里是**本页所有 VML 运行**的唯一入口（文件页递的 + 手敲的）
         try
         {
-            return await Task.Run(() => MauiVml.Run(source, file, InteractiveTimeoutSec, ReadLineFromProgram, cts.Token));
+            return await Task.Run(() => MauiVml.Run(source, file, InteractiveTimeoutSec, ReadLineFromProgram,
+            cts.Token, markup: true));
         }
         finally
         {
@@ -625,12 +636,22 @@ public partial class ShellPage : ContentPage
         _lines.Clear();
         _partial = false;
         OutputLabel.Text = "";
+        OutputLabel.FormattedText = null;
         UpdateScrollBar();
     }
 
-    /// <summary>追加输出、按行裁剪、按需滚到底。</summary>
-    private void Append(string text)
+    /// <summary>
+    /// 追加输出、按行裁剪、按需滚到底。
+    ///
+    /// <paramref name="text"/> 默认按**外部命令的裸输出**看待：先把 ANSI 转义翻成
+    /// <c>«»</c> 中间格式（颜色留下来，光标/OSC 这类吃掉），再进缓冲。
+    /// 这样 `ls --color`、`git status` 的颜色在手机上终于是彩色的，而不是被剥成一片灰。
+    /// </summary>
+    /// <param name="alreadyMarkup">已经是中间格式，别再转一遍（见 RunWithPromptAsync 的说明）。</param>
+    private void Append(string text, bool alreadyMarkup = false)
     {
+        if (!alreadyMarkup) text = AnsiMarkup.ToMarkup(text);
+
         // 按 \n 切段并入缓冲：有换行的段落是**整行**，末尾没换行的那段是**半行**
         // （与上一段半行拼起来，而不是另起一行）。
         int start = 0;
@@ -655,7 +676,9 @@ public partial class ShellPage : ContentPage
         // 现在按终端的老规矩：贴底才跟随，一旦往上滚就"脱钩"，让用户安安静静看历史。
         var follow = ScrollBarMath.IsAtBottom(ContentHeight, OutputScroll.Height, OutputScroll.ScrollY);
 
-        OutputLabel.Text = string.Join("\n", _lines);
+        // 走 FormattedText 而不是 Text —— 颜色就靠它（Text 是纯文本，标记会原样显示）
+        OutputLabel.FormattedText = MarkupToFormattedString.Convert(
+            string.Join("\n", _lines), MauiUi.IsDark);
 
         // 排到下一拍：此刻刚换完 Text，布局还没算，量出来的高度还是旧值
         // （滚动条显不显示、滑块多长、能不能贴底，都得等新布局落定）。

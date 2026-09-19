@@ -31,5 +31,8 @@ public partial class AppShell : Shell
         Routing.RegisterRoute("panel", typeof(CommandPanelPage));
         // VML 程序开的绘图窗口（标题栏自带返回箭头；内容由宿主渲染，见 DrawWindowPage）
         Routing.RegisterRoute("drawwindow", typeof(DrawWindowPage));
+        // 使用说明的两级：分类 → 主题列表（help）/ 一篇正文（helptopic）
+        Routing.RegisterRoute("help", typeof(HelpListPage));
+        Routing.RegisterRoute("helptopic", typeof(HelpPage));
     }
 }

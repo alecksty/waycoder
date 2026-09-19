@@ -25,8 +25,10 @@ public static class SandboxFsService
     {
         /// <summary>能被 VML 前端编译的源码（`.c`/`.py`/`.bas`/`.lua`…）—— 可编译、可编辑。</summary>
         Compilable,
-        /// <summary>能**直接跑**的 VML 产物：`.vml`（汇编源码，可编辑）/ `.vmb`（字节码，二进制）。</summary>
+        /// <summary>`.vml` —— 文本汇编，能直接跑（但每次跑都要**现场汇编一遍**），可编辑。</summary>
         Runnable,
+        /// <summary>`.vmb` —— 二进制字节码，**装载即跑**（VML 链上的终态，不可编辑）。</summary>
+        Binary,
         /// <summary>其他源码与纯文本（`.md`/`.json`/`.txt`/`.sh`…）。</summary>
         Source,
         /// <summary>网页（`.html`/`.htm`/`.xhtml`/`.mhtml`）。</summary>
@@ -104,8 +106,12 @@ public static class SandboxFsService
     public static FileCategory DetectCategory(string path)
     {
         var ext = System.IO.Path.GetExtension(path);
-        if (ext.Equals(".vml", StringComparison.OrdinalIgnoreCase)
-            || ext.Equals(".vmb", StringComparison.OrdinalIgnoreCase))
+        // ⚠ `.vml` 与 `.vmb` **分成两类**：两者都能跑，但链上位置不同 ——
+        //   `.vml` 还要汇编一次（🚀 点火），`.vmb` 装载即执行（🛸 已经在飞了）。
+        //   原来是同一类，图标因此一样；分开之后"哪个更快"在文件页一眼就看得出。
+        if (ext.Equals(".vmb", StringComparison.OrdinalIgnoreCase))
+            return FileCategory.Binary;
+        if (ext.Equals(".vml", StringComparison.OrdinalIgnoreCase))
             return FileCategory.Runnable;
         if (MauiVml.CanCompile(path)) return FileCategory.Compilable;
         if (WebExts.Contains(ext)) return FileCategory.Web;
@@ -118,7 +124,8 @@ public static class SandboxFsService
 
     /// <summary>
     /// 文件类型图标 —— **图标要说"这个文件能干什么"**：
-    /// 可编译 📐（要"画图纸"编译一下才能跑）、可运行 🚀（直接就能跑）、
+    /// 可编译 📐（要"画图纸"编译一下才能跑）、可运行 🚀（`.vml`，还要点一次火）、
+    /// **字节码 🛸（`.vmb`，装载即跑 —— 已经在飞了）**、
     /// 源码/文本 📝、网页 🌐、图像 🖼、声音 🎵、视频 🎬、未知 📄。
     ///
     /// ⚠ Unicode 里**没有"圆规"这个 emoji**，📐（三角尺）是制图工具里最接近的一个；
@@ -128,6 +135,8 @@ public static class SandboxFsService
     {
         FileCategory.Compilable => "📐",
         FileCategory.Runnable => "🚀",
+        // 用户定的隐喻：**飞碟比火箭快** —— `.vmb` 是链上终态，装载就跑，不必再"点火"
+        FileCategory.Binary => "🛸",
         FileCategory.Source => "📝",
         FileCategory.Web => "🌐",
         FileCategory.Image => "🖼",

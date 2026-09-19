@@ -7,6 +7,21 @@ namespace WayCoder;
 
 public static partial class SelfTest
 {
+    /// <summary>
+    /// 从当前目录往上找「Resources/Raw/help」（自测可能跑在 bin/ 下）。
+    /// 找不到返回 null —— 由用例自己报红，而不是静默跳过（静默跳过 = 这条测试永远不生效）。
+    /// </summary>
+    private static string? FindHelpDir()
+    {
+        var dir = new DirectoryInfo(Directory.GetCurrentDirectory());
+        for (var i = 0; i < 8 && dir != null; i++, dir = dir.Parent)
+        {
+            var probe = Path.Combine(dir.FullName, "WayCoder.Maui", "Resources", "Raw", "help");
+            if (Directory.Exists(probe)) return probe;
+        }
+        return null;
+    }
+
     private static void TestChunk10(Action<string> Section, Action<string, bool> Check, Action<string> Fail)
     {
         // ── ColorUtil ──
@@ -569,6 +584,61 @@ public static partial class SelfTest
         Check("VmlScene.Resize: 非法尺寸被忽略（不把场景改成 0 宽）",
             rs.Width == 396 && rs.Height == 301);
 
+        // ── 使用说明的目录 ↔ 正文文件 ──
+        // ⚠ 这两边**分别**写在目录表（代码）与 `Resources/Raw/help/*.md`（文件）里，
+        //   谁都编译不过才怪 —— 写错一个字母的后果是**真机上那一页一片空白**，
+        //   而"空白"是最难查的一种现象。所以在这里把它们对上。
+        var helpRoot = FindHelpDir();
+        Check("使用说明: 找得到 Resources/Raw/help 目录（自测自己也得能定位仓库）",
+            helpRoot != null);
+        if (helpRoot != null)
+        {
+            var root = helpRoot;   // 收成非空局部量：局部函数里捕获可空变量会丢掉可空分析
+            var missing = new List<string>();
+            var ids = new List<string>();
+            var dupCat = new List<string>();
+            var seenCat = new HashSet<string>();
+
+            foreach (var cat in HelpCatalog.Categories)
+            {
+                if (!seenCat.Add(cat.Key)) dupCat.Add(cat.Key);
+                Walk(cat.Topics);
+            }
+
+            // 分类 key / 主题 id 都不能重 —— 重了的后果是「点了 A 打开 B」，
+            // 两边都编译得过、界面也不报错，只有用户点下去才发现。
+            // （⚠ 这里原先写的是 `Check(..., seen.Add(...) || true)` —— 恒为真，
+            //   等于一条永远绿的断言；`FindTopic` 只返回第一个匹配，重复 id 正是靠它兜底的。）
+            Check($"使用说明: 分类 key 不重复（重 {dupCat.Count}：{string.Join("/", dupCat)}）",
+                dupCat.Count == 0);
+            var dupId = ids.GroupBy(x => x).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
+            Check($"使用说明: 主题 id 不重复（重 {dupId.Count}：{string.Join("/", dupId)}）",
+                dupId.Count == 0);
+
+            Check($"使用说明: 目录里的每一篇都有对应的 .md（缺 {missing.Count} 篇：{string.Join("/", missing)}）",
+                missing.Count == 0);
+
+            // 有子主题的节点是**目录**：点开是下一级列表，它自己**没有正文**，
+            // 所以不该要求它配 .md（`vml/languages` 就是这种），转而要求它的每个子节点都配。
+            void Walk(HelpCatalog.Topic[] topics)
+            {
+                foreach (var t in topics)
+                {
+                    ids.Add(t.Id);
+                    if (t.Children is { Length: > 0 } kids) { Walk(kids); continue; }
+                    if (!File.Exists(Path.Combine(root, t.Id + ".md"))) missing.Add(t.Id);
+                }
+            }
+            // 反方向：包里有、目录里没有 = 写了没人看得到
+            var onDisk = Directory.GetFiles(helpRoot, "*.md", SearchOption.AllDirectories)
+                .Select(f => Path.GetRelativePath(helpRoot, f).Replace('\\', '/'))
+                .Select(f => f[..^3])
+                .ToHashSet();
+            var orphan = onDisk.Where(id => HelpCatalog.FindTopic(id) is null).ToList();
+            Check($"使用说明: 没有「放了却没人能看到」的 .md（{orphan.Count} 篇：{string.Join("/", orphan)}）",
+                orphan.Count == 0);
+        }
+
         // ── 编辑器手感（TextEditAssist：自动缩进 / 括号配对 / 自动配对）──
         // 这三条下沉到 UI/Shared 就是为了**能在这里测** —— 留在 MAUI 的 EditorPage 里
         // 桌面自测一行都碰不到，而它们全是"边界一多、肉眼看不出来"的东西。
@@ -779,6 +849,68 @@ public static partial class SelfTest
 
         TestShellCommands(Section, Check);
         TestScrollBarMath(Section, Check);
+        TestAnsiMarkup(Section, Check);
+    }
+
+    // ═══ 外部命令输出的 ANSI → «» 中间格式 ═══
+    //
+    // 判据有两条，缺一不可：
+    //  ① **颜色留下来了** —— 否则就是把原来的 StripAnsi 换个名字；
+    //  ② **可见文字一字不差** —— 这条才是真判据。转义吃掉之后，正文必须与 StripAnsi
+    //     的结果**逐字相同**。`«` 的转义、非 SGR 序列（光标/OSC）的剔除出错时，
+    //     症状都是"少字/多字"，而看一段彩色输出时肉眼几乎发现不了。
+    static void TestAnsiMarkup(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("[ANSI→标记]");
+
+        // 没有转义的普通文本原样返回（快路径，也证明不会平白无故加标记）
+        Check("ANSI: 无转义原样返回", AnsiMarkup.ToMarkup("普通文本 abc") == "普通文本 abc");
+
+        // 16 色前景：**走命名色**，这样能吃到渲染端那张终端标准色表
+        Check("ANSI: 红色 → «red»",
+            AnsiMarkup.ToMarkup("\x1b[31m红\x1b[0m") == "«red»红«/»");
+        Check("ANSI: 亮色 → «bright …»",
+            AnsiMarkup.ToMarkup("\x1b[92m亮\x1b[0m") == "«bright green»亮«/»");
+
+        // 样式与颜色叠加（SGR 1;32 是最常见的一种）
+        Check("ANSI: 粗体+颜色",
+            AnsiMarkup.ToMarkup("\x1b[1;32m好\x1b[0m") == "«bold»«green»好«/»«/»");
+
+        // 背景色
+        Check("ANSI: 背景红 → «bg:red»",
+            AnsiMarkup.ToMarkup("\x1b[41m底\x1b[0m") == "«bg:red»底«/»");
+
+        // 256 色 / 真彩 → 十六进制（markup 只认命名色与 #rrggbb）
+        Check("ANSI: 256 色 → #rrggbb",
+            AnsiMarkup.ToMarkup("\x1b[38;5;208m橙\x1b[0m") == "«#ff8700»橙«/»");
+        Check("ANSI: 真彩 → #rrggbb",
+            AnsiMarkup.ToMarkup("\x1b[38;2;18;52;86m深蓝\x1b[0m") == "«#123456»深蓝«/»");
+
+        // 非 SGR 的转义**吃掉、不落到正文**（光标定位 / 清屏 / OSC 标题）
+        Check("ANSI: 光标与清屏序列不出现在正文",
+            AnsiMarkup.ToMarkup("\x1b[2J\x1b[Ha\x1b[31mb") == "a«red»b«/»");
+        Check("ANSI: OSC 标题被吃掉",
+            AnsiMarkup.ToMarkup("\x1b]0;标题\x07正文") == "正文");
+
+        // 正文里本来就是书名的字面量要被转义，否则渲染层会把 `«red»` 当成真标签吃掉
+        Check("ANSI: 正文里的 «» 被转义",
+            AnsiMarkup.ToMarkup("a«b»c") == "a««b»»c");
+
+        // ── 真判据：往返 ──
+        // 转成标记、再过一遍真正的解析器，可见文字必须与 StripAnsi 的结果逐字相同。
+        // 这条把「转义对不对」「有没有漏字」「标记有没有被误当标签」一次全兜住。
+        foreach (var (name, raw) in new[]
+                 {
+                     ("带色", "\x1b[31m红\x1b[0m普通\x1b[1;36m青\x1b[0m"),
+                     ("带光标", "\x1b[2J\x1b[1;1H第一行\x1b[K"),
+                     ("带书名号", "文件：\x1b[34m«奇怪»的名字\x1b[0m.txt"),
+                     ("多行", "a\x1b[32mb\x1b[0m\nc\x1b[33md\x1b[0m"),
+                 })
+        {
+            var got = string.Concat(MarkdownParser.ParseInline(AnsiMarkup.ToMarkup(raw))
+                .Select(s => s.Text));
+            Check($"ANSI 往返: 可见文字不变（{name}）", got == AnsiHelper.StripAnsi(raw));
+        }
     }
 
     // ═══ VML 手感接口（音效 / 震动 / 持久化）的纯逻辑 ═══

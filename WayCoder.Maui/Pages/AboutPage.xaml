@@ -18,10 +18,12 @@
             <Label Text="作者：施探宇" FontSize="13" HorizontalTextAlignment="Center"
                    TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
 
-            <Label Text="使用说明" FontSize="16" FontAttributes="Bold" Margin="0,20,0,4"
+            <!-- 使用说明：**一级是分类按钮**，点开进二级（主题列表）或三级（正文）。
+                 目录与正文都在别处（HelpCatalog + Resources/Raw/help/*.md），
+                 这里只负责列出分类 —— 加一篇说明不用动这个页面。 -->
+            <Label Text="使用说明" FontSize="16" FontAttributes="Bold" Margin="0,24,0,4"
                    TextColor="{AppThemeBinding Light={StaticResource MainTextLight}, Dark={StaticResource MainTextDark}}" />
-            <Label x:Name="UsageLabel" FontSize="12" LineHeight="1.4"
-                   TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+            <VerticalStackLayout x:Name="Categories" Spacing="8" />
         </VerticalStackLayout>
     </ScrollView>
 </ContentPage>
