@@ -225,3 +225,25 @@ import sys, zipfile
 ns=[n for n in zipfile.ZipFile(sys.argv[1]).namelist() if n.startswith('Examples/') and n.count('/')==2]
 print(len(ns), '个 →', ' '.join(sorted(ns)))
 " "$OUT")"
+
+# ── 陈旧告警：签入的那份 zip 与仓库 `Lib/` 是否已经对不上 ────────────────
+#
+# 为什么需要这一条：**这个 zip 是签入仓库的生成物**，而它的消费方只有手机
+# （桌面 `vmlcli` 直接读 `third_party/vml/Lib/`）。所以 `Lib/` 改了而 zip 没重建时，
+# **桌面一切正常、手机上是旧的** —— 而且设备侧的判据是内容指纹，指纹跟着 zip 一起算，
+# zip 没重建则指纹没变 ⇒ **连"要不要重新解压"都不会触发**。全绿、无警告、静默陈旧。
+#
+# 实测（2026-09-19）：签入的 zip 停在 v0.96.258，一路到 v0.96.295 都没人重建过 ——
+# 37 个版本里所有 `Lib/` 改动一个都没到手机上（解开新旧 zip 逐文件比：421 个文件不同）。
+#
+# 判据刻意做得**保守**：只在「工作区里这份 zip 相对签入版本变了」时提醒，不看时间戳
+# （`git pull` / 切分支都会动 mtime，拿它当判据会天天误报）。它不是门禁 ——
+# `build-apk.sh` 每次都重建，所以要防的是「改了 `Lib/` 却一直没打 APK」。
+if command -v git >/dev/null 2>&1 && git -C "$ROOT" rev-parse --git-dir >/dev/null 2>&1; then
+    if ! git -C "$ROOT" diff --quiet -- "$OUT" 2>/dev/null; then
+        echo
+        echo "⚠ 签入的 vml_lib.zip 与仓库 Lib/ 原本**不一致** —— 刚重建的这份是新的。"
+        echo "  意味着：这段时间里手机上跑的是旧标准库（桌面看不出来，因为桌面不读这个包）。"
+        echo "  ⇒ 记得把 Resources/Raw/vml_lib.zip 与 vml_lib.hash 一起提交。"
+    fi
+fi
