@@ -1,3 +1,16 @@
+## v0.96.277 — 运行面板的关闭键：贴右 + 与栏融为一体
+
+用户两条：① 关闭键**靠右对齐**（位置好找）；② **去掉外框和底色**，与栏融为一体。
+
+- **右对齐**：那一行原本是 `HorizontalStackLayout` —— Stack **没有**"把最后一个推到最右"
+  这种能力，所以换成 `Grid` + 一列 `*` 空档（`Auto,Auto,Auto,*,Auto`）。
+  `■ 停止` 仍在 ✕ 左边（只是它平时不可见）。
+  ⚠ 三个按钮都要**显式写 `Grid.Column`** —— 不写就全挤在第 0 列叠在一起。
+- **去外框**：`BorderWidth="0"` **必须显式写**。外框**不是来自 `PanelChip`**（那里底色本来
+  就是 `Transparent`），而是来自 App 的**全局 Button 隐式样式**（`Styles.xaml` 的
+  `BorderWidth=1` + `MinimumHeight/WidthRequest=44`）—— 局部样式压不住它。
+  `VerticalOptions="Center"` 同理：不写会被拉满整行高度。
+
 ## v0.96.276 — 编辑器诊断气泡：按字数折行 + **永远摆在行下方**
 
 用户定的两条规矩：

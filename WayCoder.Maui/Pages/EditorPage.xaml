@@ -298,22 +298,32 @@
                   BackgroundColor="{AppThemeBinding Light=#F2F0F0F3, Dark=#F21A1A1E}"
                   RowDefinitions="Auto,*"
                   HeightRequest="220">
-                <HorizontalStackLayout Grid.Row="0" Spacing="0" Padding="4,2">
+                <!-- ⚠ 用 **Grid** 而不是 HorizontalStackLayout：Stack 没有"把最后一个推到最右"这种能力，
+                     而关闭键**要贴右**（用户要求：位置好找 —— 固定在一行最右端，手不用每次去找它）。
+                     第 3 列是 `*` 空档，负责把 ✕ 顶到最右边；`PanelStopBtn` 仍在它左边（只是它平时不可见）。 -->
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*,Auto" Padding="4,2">
                     <!-- 这两个 Tab 的 TextColor **故意不在 XAML 里给**：选中/未选中是运行期状态，
                          由代码 `SwitchPanelTab` 一处决定（原来 XAML 挂的 AppThemeBinding 被代码
                          写死的 Colors.White 盖掉，日间主题下选中那格就成了白底白字）。
                          两处都给 = 「谁生效」要看执行顺序，正是本仓库反复踩的坑。 -->
-                    <Button x:Name="PanelTabErrors" Text="错误列表" Style="{StaticResource PanelChip}"
+                    <Button x:Name="PanelTabErrors" Grid.Column="0" Text="错误列表" Style="{StaticResource PanelChip}"
                             Clicked="OnPanelTabErrorsClicked" />
-                    <Button x:Name="PanelTabOutput" Text="输出" Style="{StaticResource PanelChip}"
+                    <Button x:Name="PanelTabOutput" Grid.Column="1" Text="输出" Style="{StaticResource PanelChip}"
                             Clicked="OnPanelTabOutputClicked" />
-                    <Button x:Name="PanelStopBtn" Text="■ 停止" Style="{StaticResource PanelChip}"
+                    <Button x:Name="PanelStopBtn" Grid.Column="2" Text="■ 停止" Style="{StaticResource PanelChip}"
                             TextColor="{AppThemeBinding Light=#C4382F, Dark=#FF7B72}"
                             IsVisible="False" Clicked="OnPanelStopClicked" />
-                    <Button x:Name="PanelCloseBtn" Text="✕" Style="{StaticResource PanelChip}"
+                    <!-- ⚠ `BorderWidth="0"` **必须显式写**：外框不是来自 `PanelChip`（那里底色本来就是
+                         Transparent），而是来自 App 的**全局 Button 隐式样式**（`Styles.xaml` 里
+                         `BorderWidth=1` + `MinimumHeight/WidthRequest=44`）。局部样式压不住它 ——
+                         用户要求「去掉外框和底色，与栏融为一体」，两样都要显式覆盖。
+                         `VerticalOptions=Center` 同理：不写会被拉满整行高度。 -->
+                    <Button x:Name="PanelCloseBtn" Grid.Column="4" Text="✕" Style="{StaticResource PanelChip}"
                             TextColor="{AppThemeBinding Light=#8A8A8E, Dark=#999999}"
+                            BorderWidth="0"
+                            VerticalOptions="Center"
                             Clicked="OnPanelCloseClicked" />
-                </HorizontalStackLayout>
+                </Grid>
 
                 <!-- 错误列表：与气泡/波浪线**同一份数据** -->
                 <ScrollView Grid.Row="1" x:Name="PanelErrorsScroll">
