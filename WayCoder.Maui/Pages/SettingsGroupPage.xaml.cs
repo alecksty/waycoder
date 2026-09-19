@@ -114,6 +114,7 @@ public partial class SettingsGroupPage : ContentPage
             EditorLimitPicker.ItemsSource = EditorLimitOptions.Select(m => $"{m} MB").ToList();
             EditorLimitPicker.SelectedIndex = idx;
             EditorDebugSwitch.IsToggled = Services.MauiEditorStore.ShowDebugHud;
+            EditorBubbleCharsEntry.Text = Services.MauiEditorStore.BubbleChars.ToString();
             EditorFullWidthSwitch.IsToggled = Services.MauiEditorStore.FullWidthToHalf;
 
             EditorEncodingPicker.ItemsSource = EncOptions.Select(o => o.Label).ToList();
@@ -141,6 +142,20 @@ public partial class SettingsGroupPage : ContentPage
     {
         if (_loadingEditorSettings) return;
         Services.MauiEditorStore.SetDebugHud(e.Value);
+    }
+
+    /// <summary>
+    /// 气泡每行字数。**失焦与回车都走这一个处理器**（用户可能改完直接点走）。
+    ///
+    /// 无论输入是否合法，都把框里的值**回写成人话**（夹取后的真实值）——
+    /// 不回写的话，用户输入 `5` 之后框里留着 5、实际生效 16，两边对不上，
+    /// 而"设置没生效"这种印象最难查。范围由 `MauiEditorStore.ClampBubbleChars` 一处夹取。
+    /// </summary>
+    private void OnEditorBubbleCharsCompleted(object? sender, EventArgs e)
+    {
+        if (int.TryParse(EditorBubbleCharsEntry.Text, out int n))
+            Services.MauiEditorStore.SetBubbleChars(n);
+        EditorBubbleCharsEntry.Text = Services.MauiEditorStore.BubbleChars.ToString();
     }
 
     private void OnEditorFullWidthToggled(object? sender, ToggledEventArgs e)

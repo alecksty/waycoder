@@ -21,6 +21,27 @@ public static class MauiEditorStore
 
     public static long ReadOnlyMaxBytes => _readOnlyMaxBytes;
 
+    // ── 诊断气泡每行几个字符 ──────────────────────────────────────────────────
+    //
+    // 用户定的规矩：**默认一个气泡就是一行字，超过这个字数才换行**；
+    // 并且**不用管会不会超出屏幕**（屏幕本来就能滑动）。
+    //
+    // ⚠ 这条改的是**气泡宽度的来源**。原先宽度是 `min(300, 画布宽−16)` —— 宽度由屏幕定，
+    //   每行几个字再由宽度反推出来（`宽 / 字号×0.62`），于是"一行多少字"随屏幕/字号漂移。
+    //   现在是**反过来**：字数由设置定死，宽度 = 字数 × 字宽。这跟"不看屏幕"是同一件事
+    //   的两面 —— 只要宽度还受画布约束，"每行 N 字"就随时可能被挤掉。
+    public const int DefaultBubbleChars = 32;
+    public const int MinBubbleChars = 16;
+    public const int MaxBubbleChars = 1024;
+
+    private static int _bubbleChars = DefaultBubbleChars;
+
+    /// <summary>气泡每行最多几个字符（按**显示宽度**算：全角算 2）。</summary>
+    public static int BubbleChars => _bubbleChars;
+
+    /// <summary>把任意值夹进合法区间 —— 纯函数，让"夹取"这条规则只有一处实现。</summary>
+    public static int ClampBubbleChars(int n) => Math.Clamp(n, MinBubbleChars, MaxBubbleChars);
+
     /// <summary>编辑器字号（磅）。默认值与真源一致（<see cref="Controls.EditorTypography.DefaultFontSize"/>）。</summary>
     public static float FontSize { get; private set; } = Controls.EditorTypography.DefaultFontSize;
 
@@ -132,6 +153,11 @@ public static class MauiEditorStore
             // 其实静默关着」，而用户还以为是没生效。Has 判的就是这个区别。
             FullWidthToHalf = !root.Has("fullWidthToHalf") || root.GetBool("fullWidthToHalf");
 
+            // 气泡每行字数：**缺键 = 用默认值**（不是 0）—— 老版本升上来的 editor.json 里
+            // 没有这个键，写成 `(int)root.GetNumber("bubbleChars")` 会得到 0，
+            // 再被 Clamp 夹成 16 ⇒ 用户的界面"自己变窄了"，而他根本没改过这项。
+            if (root.Has("bubbleChars")) _bubbleChars = ClampBubbleChars((int)root.GetNumber("bubbleChars"));
+
             int enc = (int)root.GetNumber("saveEncoding");
             if (enc >= 0 && enc <= (int)SaveEncoding.Oem) SaveAsEncoding = (SaveEncoding)enc;
             int nl = (int)root.GetNumber("saveNewline");
@@ -159,6 +185,12 @@ public static class MauiEditorStore
         Save();
     }
 
+    public static void SetBubbleChars(int n)
+    {
+        _bubbleChars = ClampBubbleChars(n);
+        Save();
+    }
+
     public static void SetSaveEncoding(SaveEncoding enc)
     {
         SaveAsEncoding = enc;
@@ -181,6 +213,7 @@ public static class MauiEditorStore
             root.Set("tabColumns", TabColumns);
             root.Set("debugHud", ShowDebugHud);
             root.Set("fullWidthToHalf", FullWidthToHalf);
+            root.Set("bubbleChars", _bubbleChars);
             root.Set("saveEncoding", (int)SaveAsEncoding);
             root.Set("saveNewline", (int)SaveAsNewline);
             Global.WriteAllTextAtomic(StorePath, root.ToJson());

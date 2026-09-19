@@ -1427,13 +1427,16 @@ public partial class EditorPage : ContentPage
         var text = d.Code is { Length: > 0 } code ? $"{d.Message}   [{code}]" : d.Message;
         if (d.Line > 0) text = $"第 {d.Line} 行：{text}";
 
+        // **自己折行**（按设置里的列数），所以 `LineBreakMode` 必须是 `NoWrap` ——
+        // 交给平台再折一次的话，我们算好的换行位置会被它按宽度重排，规矩就没了。
+        var wrapped = WrapByColumns(text, Services.MauiEditorStore.BubbleChars);
+
         var msg = new Label
         {
-            Text = text,
+            Text = wrapped,
             FontSize = BubbleFont,
             TextColor = BubbleTextColor,
-            LineBreakMode = LineBreakMode.TailTruncation,
-            MaxLines = BubbleMaxLines,
+            LineBreakMode = LineBreakMode.NoWrap,
             VerticalOptions = LayoutOptions.Center,
         };
 
@@ -1462,8 +1465,19 @@ public partial class EditorPage : ContentPage
         // **高度按字符数估出来并写死**：MAUI 的 Measure 是异步的，拿不到就别想做「堆叠不重叠」
         // 的算术。写死高度之后布局完全确定，几十条气泡也不会算错。
         // 估行高/每行字数都用同一个字号 —— 字号一变，宽度与高度都要跟着重算（见 ApplyFontSize 的重建）
-        int charsPerLine = Math.Max(8, (int)(BubbleWidth / (BubbleFont * 0.62f)));
-        int lines = Math.Clamp((text.Length + charsPerLine - 1) / charsPerLine, 1, BubbleMaxLines);
+        // 行数**数真实的换行**，不再按字符数估 —— 折行已经是自己做的，估反而会算错
+        //（中英混排时一行的**字符数**与**列数**不是一回事）。
+        // 超过上限的截断在这里做：`NoWrap` 之后 `MaxLines` 管不住我们插入的 `\n`，
+        // 不截的话文字会溢出边框。
+        var linesArr = wrapped.Split('\n');
+        if (linesArr.Length > BubbleMaxLines)
+        {
+            wrapped = string.Join('\n', linesArr.Take(BubbleMaxLines - 1))
+                      + "\n" + linesArr[BubbleMaxLines - 1] + "…";
+            msg.Text = wrapped;
+            linesArr = wrapped.Split('\n');
+        }
+        int lines = linesArr.Length;
         float bodyH = lines * (BubbleFont * 1.4f) + 12f;
 
         var body = new Border
@@ -1481,15 +1495,16 @@ public partial class EditorPage : ContentPage
         // ⚠ 别用「旋转 45° 的方块」代替 —— 那是想当然：方块要**被气泡裁掉一半**才剩个三角，
         // 而这里是竖排里**相邻的独立元素**，谁也没裁它，于是整块都看得见 ⇒ 屏幕上就是个**菱形**。
         // （真机一眼就看出来了。）
-        // 顶点画的是「尖朝上」。气泡摆在错误行**上方**，所以尾巴要朝**下**指着那一行
-        // ⇒ 整体转 180°（转的是同一个三角形，不用另画一组顶点）。
+        // **气泡永远摆在错误行「下方」**（用户定的）：摆在**上方**时，一旦错误行靠近屏幕顶端，
+        // 气泡的第一行就顶出可视区、**根本看不见** —— 而第一行恰恰写着"第几行、什么错"。
+        // 所以尾巴尖朝**上**，指着它上面那一行。
         var tail = new Shapes.Polygon
         {
             Points = new PointCollection
             {
-                new Point(0, 0),
-                new Point(BubbleTailSize, 0),
-                new Point(BubbleTailSize / 2f, BubbleTailSize),
+                new Point(BubbleTailSize / 2f, 0),      // 尖朝上：气泡在下方，箭头指着上面那一行
+                new Point(0, BubbleTailSize),
+                new Point(BubbleTailSize, BubbleTailSize),
             },
             Fill = new SolidColorBrush(fill),
             WidthRequest = BubbleTailSize,
@@ -1515,10 +1530,10 @@ public partial class EditorPage : ContentPage
             HorizontalOptions = LayoutOptions.Start,
             VerticalOptions = LayoutOptions.Start,
         };
-        // 气泡在**上**、尾巴在**下**（尾巴底端指着错误行）—— 所以身体从 y=0 起，尾巴挂在身体下沿。
+        // 尾巴在**上**、气泡在**下**（尾巴尖指着上面那一行）—— 与"气泡放下方"这条规矩配套。
         // 尾巴的横向位置在 RelayoutBubbles 里按「出错那一列」算。
-        AbsoluteLayout.SetLayoutBounds(body, new Rect(0, 0, BubbleWidth, bodyH));
-        AbsoluteLayout.SetLayoutBounds(tail, new Rect(BubbleTailSize, bodyH, BubbleTailSize, BubbleTailSize));
+        AbsoluteLayout.SetLayoutBounds(tail, new Rect(BubbleTailSize, 0, BubbleTailSize, BubbleTailSize));
+        AbsoluteLayout.SetLayoutBounds(body, new Rect(0, BubbleTailSize, BubbleWidth, bodyH));
         root.Add(tail);
         root.Add(body);
 
@@ -1534,10 +1549,45 @@ public partial class EditorPage : ContentPage
     {
         get
         {
-            double avail = Canvas.Width - 16;
-            if (avail <= 0) return 200;      // 画布还没量到尺寸，先给个安全值
-            return (float)Math.Min(300, avail);
+            // ⚠ **宽度不再由画布决定**（用户定的规矩：气泡按字数折行，**不用管会不会超出屏幕**
+            //   —— 屏幕本来就能滑动）。改成「每行 N 列 × 半角字宽 + 内边距」：
+            //   字数由设置定死（`MauiEditorStore.BubbleChars`），宽度只是把它换算成像素。
+            //
+            //   这与"不看屏幕"是同一件事的两面：只要宽度还受画布约束，
+            //   "每行 N 字"就随时可能被挤掉 —— 而用户要的正是一个**确定的**折行位置。
+            int cols = Services.MauiEditorStore.BubbleChars;
+            return cols * (BubbleFont * 0.5f) + 40f;   // 40 = 左内边距10 + ✕那列 + 右内边距
         }
+    }
+
+    /// <summary>
+    /// 按**显示列数**硬折行 —— 每行最多 <paramref name="maxCols"/> 列（全角算 2 列）。
+    ///
+    /// 为什么要自己折、而不是交给 `Label`：MAUI 的折行是**按控件宽度**算的，
+    /// 而用户要的是**按字符数**（"一行超过 32 字符就换行"）。两者只在字宽恰好均匀时才等价，
+    /// 而气泡里常混着中英文 —— 交给平台折，换行位置会随字号、字体、取整各处漂移，
+    /// 于是"每行 32 字"这条规矩根本立不住。
+    ///
+    /// 宽度真源用 <c>AnsiString.CharWidth</c>（全仓唯一那份，别在这儿另写一张表
+    /// —— 本仓为"同一规则两处实现"付过很多次代价）。
+    /// </summary>
+    private static string WrapByColumns(string text, int maxCols)
+    {
+        if (maxCols < 1 || text.Length == 0) return text;
+        var sb = new System.Text.StringBuilder(text.Length + 16);
+        int col = 0;
+        // ⚠ 按**码点**遍历（`EnumerateRunes`）而不是 `foreach (char)`：
+        //   emoji / CJK 扩展 B 是 UTF-16 代理对（两个 char），逐 char 走会把它们拆开
+        //   —— 既是本仓明令禁止的（字符串处理一律按 Rune），`CharWidth` 本身也只收 `Rune`。
+        foreach (var rune in text.EnumerateRunes())
+        {
+            if (rune.Value == '\n') { sb.Append('\n'); col = 0; continue; }
+            int w = WayCoder.UI.Shared.Terminal.AnsiString.CharWidth(rune);
+            if (col + w > maxCols) { sb.Append('\n'); col = 0; }
+            sb.Append(rune.ToString());
+            col += w;
+        }
+        return sb.ToString();
     }
 
     /// <summary>
@@ -1582,9 +1632,11 @@ public partial class EditorPage : ContentPage
             // 横向只做「别整条探出屏幕」这一件事（用户要求过「尽量不要超出屏幕」）：
             // 夹的是**气泡本体**，尾巴另有自己的偏移，所以箭头仍然指着出错那一列。
             float bx = Math.Clamp(anchorX, 4f, Math.Max(4f, (float)Canvas.Width - BubbleWidth - 4f));
-            // 摆在错误行**上方**（用户定的）：盖住的是已经读过的那一行，
-            // 而读代码是从上往下的 —— 把「接着要读的那行」挡住代价更大。
-            float by = anchorY - bubbleH - BubbleGap;
+            // **永远摆在错误行下方**（用户定的）。原先放上方，理由是"盖住已经读过的那一行、
+            // 不挡接着要读的" —— 但那个理由只在错误行**不在屏幕顶端**时成立：
+            // 行一靠近顶端，`anchorY − 高度` 就把整条气泡顶到可视区之外，**第一行直接看不见**，
+            // 而第一行正是"第几行、什么错"。
+            float by = anchorY + lineH + BubbleGap;
 
             var rect = new Rect(bx, by, BubbleWidth, bubbleH);
             int guard = 0;
@@ -1607,7 +1659,7 @@ public partial class EditorPage : ContentPage
             float tailX = Math.Clamp(anchorX - bx - BubbleTailSize / 2f,
                 2f, Math.Max(2f, BubbleWidth - BubbleTailSize - 2f));
             AbsoluteLayout.SetLayoutBounds(b.Tail,
-                new Rect(tailX, b.BodyHeight, BubbleTailSize, BubbleTailSize));
+                new Rect(tailX, 0, BubbleTailSize, BubbleTailSize));
         }
     }
 

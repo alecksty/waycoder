@@ -238,6 +238,10 @@
                     <Label Text="调试 HUD（显示可见行区间 / 帧耗时 / 缓存命中 / 等宽自检）"
                            FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Switch x:Name="EditorDebugSwitch" Toggled="OnEditorDebugToggled" />
+                    <Label Text="诊断气泡每行最多几个字符（16–1024，默认 32）。一个气泡默认就一行，超过这个字数才换行；**按字数折行、不看屏幕宽度**（屏幕本来就能左右滑），所以折行位置是确定的。"
+                           FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
+                    <Entry x:Name="EditorBubbleCharsEntry" Keyboard="Numeric" Placeholder="32"
+                           Completed="OnEditorBubbleCharsCompleted" Unfocused="OnEditorBubbleCharsCompleted" />
                     <Label Text="源码编辑时自动把全角标点转成半角（，。；：（）等）。中文字符串与注释里的标点保持不变。"
                            FontSize="11" TextColor="{AppThemeBinding Light={StaticResource MutedTextLight}, Dark={StaticResource MutedTextDark}}" />
                     <Switch x:Name="EditorFullWidthSwitch" Toggled="OnEditorFullWidthToggled" />
