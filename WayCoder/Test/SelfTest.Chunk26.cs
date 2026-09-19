@@ -125,6 +125,18 @@ public static partial class SelfTest
         var h1 = s4.AddSolidBrush(0xFF123456);
         var h2 = s4.AddSolidBrush(0xFF123456);
         Check("同色刷子复用同一个句柄", h1 == h2 && h1 >= 1);
+
+        // ── 画笔的箭头：改发 `arrow` 指令（DSL 里是另一条指令，几何在 ArrowCommand.Head）──
+        var s5 = new VmlScene();
+        s5.SetStyle(VmlStyleSlot.Pen, unchecked((int)0xFF00FF00), 3, 0, 0, VmlArrow.End);
+        s5.AddShape(VmlShape.Line, 10, 20, 90, 60, 0, 0, 0);
+        Check("画笔带箭头 → 发的是 arrow 而不是 line",
+            s5.BuildDsl().Contains("arrow 10 20 90 60") && !s5.BuildDsl().Contains("line 10 20"));
+
+        var s6 = new VmlScene();
+        s6.SetStyle(VmlStyleSlot.Pen, unchecked((int)0xFF00FF00), 3, 0, 0, VmlArrow.None);
+        s6.AddShape(VmlShape.Line, 10, 20, 90, 60, 0, 0, 0);
+        Check("画笔不带箭头 → 仍然是 line", s6.BuildDsl().Contains("line 10 20 90 60"));
     }
 
     /// <summary>

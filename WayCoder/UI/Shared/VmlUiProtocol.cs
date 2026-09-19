@@ -677,6 +677,38 @@ public static class VmlBrushKind
 }
 
 /// <summary>
+/// 画笔的**线帽** —— 跨语言契约（C 头文件 `VML_CAP_*`）。⚠ 只能末尾追加。
+/// </summary>
+public static class VmlCap
+{
+    /// <summary>平头（默认）。</summary>
+    public const int Butt = 0;
+    /// <summary>圆头。</summary>
+    public const int Round = 1;
+    /// <summary>方头。</summary>
+    public const int Square = 2;
+}
+
+/// <summary>
+/// 画笔的**箭头** —— 跨语言契约（C 头文件 `VML_ARROW_*`）。⚠ 只能末尾追加。
+///
+/// ⚠ **本批只做末端箭头**，且只对 <see cref="VmlShape.Line"/> 生效：
+/// DSL 的 `arrow` 指令几何就是"从起点指向终点"，起端/两端要让它支持反向，还没做。
+/// <see cref="Start"/> / <see cref="Both"/> 现在与 <see cref="End"/> 同义。
+/// </summary>
+public static class VmlArrow
+{
+    /// <summary>不画箭头（默认）。</summary>
+    public const int None = 0;
+    /// <summary>末端箭头。</summary>
+    public const int End = 1;
+    /// <summary>起端箭头（⚠ 本批与 End 同义）。</summary>
+    public const int Start = 2;
+    /// <summary>两端箭头（⚠ 本批与 End 同义）。</summary>
+    public const int Both = 3;
+}
+
+/// <summary>
 /// <see cref="VmlUi.SetStyle"/> 的槽位 —— 跨语言契约（C 头文件 `VML_STYLE_*`）。
 /// ⚠ 只能末尾追加。
 /// </summary>
@@ -1519,7 +1551,12 @@ public sealed class VmlScene
             case VmlShape.Line:
                 if (!InCoordRange(a1) || !InCoordRange(a2)
                     || !InCoordRange(a3) || !InCoordRange(a4)) return false;
-                Add($"line {a1} {a2} {a3} {a4}{PenTail()}");
+                // 画笔要箭头时改发 `arrow` —— 那是 DSL 里**另一条指令**（主干 + 两条箭头边），
+                // 几何在 `ArrowCommand.Head` 里、三条后端共用。这是"一个绘制调用两种形态"，
+                // 所以放在这里选指令名，而不是让 `line` 自己长出箭头参数。
+                // ⚠ 本批只做**末端**箭头：`arrow` 指令的几何就是"从起点指向终点"，
+                //   起端/两端箭头要 `ArrowCommand.Head` 支持反向，还没做。
+                Add($"{(_penArrow != 0 ? "arrow" : "line")} {a1} {a2} {a3} {a4}{PenTail()}");
                 return true;
             case VmlShape.Star:
                 return AddStar(a1, a2, a3, a4, a5, a6);

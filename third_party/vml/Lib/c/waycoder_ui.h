@@ -263,7 +263,8 @@ void ui_ellipse_grad(int cx, int cy, int rx, int ry, char* grad);
 #define VML_CAP_BUTT    0
 #define VML_CAP_ROUND   1
 #define VML_CAP_SQUARE  2
-/* ui_set_pen 的箭头（⚠ 本批只记下意图，箭头几何还没落地） */
+/* ui_set_pen 的箭头。⚠ 本批只做**末端**箭头，且只对 ui_draw_line 生效
+ *   （折线/路径的箭头要各自的几何支持，还没做）—— START/BOTH 与 END 同义 */
 #define VML_ARROW_NONE  0
 #define VML_ARROW_END   1
 #define VML_ARROW_START 2
