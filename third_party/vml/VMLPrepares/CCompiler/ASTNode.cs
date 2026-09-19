@@ -45,6 +45,18 @@ namespace CCompiler
         public bool IsDeclaration { get; set; }
         public bool IsVariadic { get; set; }
         public bool IsInterrupt { get; set; }
+
+        /// <summary>
+        /// `static` 函数 —— **内部链接**，外部访问不到。
+        ///
+        /// 这正是「未使用」该不该报警的**判据**（用户原话：「未使用的只报外部无法访问的」）：
+        /// 非 static 的函数有外部链接、随时可能被别的翻译单元调用，
+        /// 「本文件没调它」根本说明不了什么；只有 `static` 的才真的是"只可能在本文件里用"。
+        ///
+        /// ⚠ 解析器此前把存储类说明符读进一个局部变量 `storageClass` 就丢了，
+        ///   `Function` 上根本没有这个字段 —— 所以这条判据以前**没法表达**。
+        /// </summary>
+        public bool IsStatic { get; set; }
         public CallingConvention Convention { get; set; } = CallingConvention.Cdecl;
 
         public Function(string name, string returnType, List<Parameter> parameters, Block body, bool isMain = false, bool isDeclaration = false, bool isVariadic = false, bool isInterrupt = false, CallingConvention convention = CallingConvention.Cdecl)

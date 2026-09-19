@@ -870,7 +870,7 @@ namespace CCompiler
             throw Error($"期望 {expectedTypes}，但得到 {Current().Type.ToString()}");
         }
 
-        private Function ParseFunction(string returnType, string name, bool isInterrupt = false, TokenType conventionToken = TokenType.EOF)
+        private Function ParseFunction(string returnType, string name, bool isInterrupt = false, TokenType conventionToken = TokenType.EOF, bool isStatic = false)
         {
             // 参数列表
             List<Parameter> parameters = new List<Parameter>();
@@ -1069,7 +1069,11 @@ namespace CCompiler
                 TokenType.CDECL => CallingConvention.Cdecl,
                 _ => CallingConvention.Cdecl
             };
-            return new Function(name, returnType, parameters, body, name == "main", false, isVariadic, isInterrupt, convention);
+            var fn = new Function(name, returnType, parameters, body, name == "main", false, isVariadic, isInterrupt, convention);
+            // `static` —— 内部链接、外部访问不到。这是「未使用了该不该报警」的判据
+            // （见 `Function.IsStatic` 的说明）。调用方从存储类说明符里带过来。
+            fn.IsStatic = isStatic;
+            return fn;
         }
 
         private Block ParseBlock()

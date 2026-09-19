@@ -748,7 +748,9 @@ namespace CCompiler
                             else
                             {
                                 // 处理普通函数定义
-                                var func = ParseFunction(typeName, name, _pendingInterrupt, _pendingConvention);
+                                // `static` 带过去（`storageClass` 是本方法开头那圈存储类说明符扫描留下的）
+                                var func = ParseFunction(typeName, name, _pendingInterrupt, _pendingConvention,
+                                    storageClass == "static");
                                 _pendingInterrupt = false;
                                 _pendingConvention = TokenType.EOF;
                                 // 检查是否已存在同名函数：定义替换声明，重复定义则覆盖

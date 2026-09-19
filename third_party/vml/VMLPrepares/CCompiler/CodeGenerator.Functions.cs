@@ -87,6 +87,43 @@ namespace CCompiler
             var usedFunctions    = FindUsedFunctions();
             var usedFunctionList = ast.Functions.Where(f => usedFunctions.Contains(f.Name)).ToList();
 
+            // **定义了却没被调用的函数 —— 出警告**。
+            //
+            // 用户要的：「那些定义了，却没有使用的局部变量或者函数（外部访问不了的），
+            // 要出警告，可以给 IDE 报警告提示用」。
+            //
+            // 这些函数被上面这行**直接从 AST 里剔除**（下面全走 `usedFunctionList`），
+            // 此前是**完全静默**的 —— 用户写了个函数、以为它在，产物里一个字都没有
+            // （实测：`int unused_fn(int x){...}` 在 `.vml` 里出现 **0 次**）。
+            //
+            // 口径说明：`FindUsedFunctions` 是从 `main` + 中断函数出发做**可达性分析**，
+            // 所以"没被任何可达路径调用"就是未使用 —— 这正是"外部访问不了的"那一类。
+            // `main`/中断函数是种子，天然不会被误报；无入口点的库编译会整批算作已用。
+            //
+            // 行号传 -1（用 `CurrentSourceLine`）会指到毫不相干的一行上 —— 这个清理段
+            // 已经跑在生成之后、游标停在最后一条语句。C 的 `ASTNode` 是空基类、
+            // 节点上**没有行号**（见 `CodeGeneratorBase.CurrentSourceLine` 那段说明），
+            // 所以这里只能报不带位置的名字。等 C 的 AST 补上位置信息再回填。
+            // 两条判据缺一不可，**都是被实测打回来的**：
+            //
+            // ① **有函数体** —— 第一版没带，实测 `Examples/c/*` 每个文件刷出 **40~58 条**：
+            //    那时 `ast.Functions` 里早已塞满了 `#include` 带进来的**库函数声明**
+            //    （`waycoder_ui.h` 那几百个），它们当然"没被这个文件调用"。
+            //    用户要的是「**定义了**却没有使用」，**声明**不在其列 —— 没有 body 的就是声明。
+            //
+            // ② **`static`** —— 用户随后补的一条：「未使用的只报外部无法访问的」。
+            //    非 static 的函数有**外部链接**，别的翻译单元随时可能调它，
+            //    "本文件没调"根本说明不了什么；只有 `static` 才是真的只可能在本文件里用。
+            //    这条同时把 ① 剩下的那些边角也收干净了（剩下的 1~2 条正是 static 的）。
+            foreach (var func in ast.Functions)
+            {
+                if (usedFunctions.Contains(func.Name)) continue;
+                if (func.Body == null || func.Body.Statements.Count == 0) continue;  // 声明 ≠ 定义
+                if (!func.IsStatic) continue;                                        // 外部可访问 ⇒ 不报
+                WarnUnused(func.Name, ErrorCode.CodeGen_UnusedFunction, "函数", line: 0,
+                    hint: "它是 static 的（外部访问不到）却没在本文件里用过，不会被编进产物；删掉即可。");
+            }
+
             // 处理全局变量
             foreach (var varDecl in usedVariables)
             {

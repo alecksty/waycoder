@@ -101,6 +101,24 @@ namespace CompilerBase
         }
 
         /// <summary>
+        /// 报一条「定义了但从未使用」的**警告**（不挡编译）。
+        ///
+        /// 用户要的：「那些定义了，却没有使用的局部变量或者函数（外部访问不了的），
+        /// 要出警告，可以给 IDE 报警告提示用」。
+        ///
+        /// <paramref name="line"/> 传 -1 表示用当前的 <see cref="CurrentSourceLine"/>；
+        /// 显式传行号是为了那些"在末尾统一清理"的场合 —— 那时游标早已不在声明处，
+        /// 用 <see cref="CurrentSourceLine"/> 会指到**毫不相干的一行**上（比没有行号更糟）。
+        /// </summary>
+        protected void WarnUnused(string name, ErrorCode code, string kind, int line = -1, string? hint = null)
+        {
+            Diags.AddWarning(CompilerHelper.CurrentSourceFile ?? "<input>",
+                line >= 0 ? line : CurrentSourceLine, 0, code,
+                $"定义了但从未使用的{kind} '{name}'",
+                hint ?? $"它不会出现在编译产物里；如果确实用不到，删掉它能少一份维护负担。");
+        }
+
+        /// <summary>
         /// 未声明标识符的**占位值**：发一个 0 让代码生成继续跑。
         ///
         /// 这不是"随便糊一个" —— 那 16 门语言本来就在做同一件事（查不到就

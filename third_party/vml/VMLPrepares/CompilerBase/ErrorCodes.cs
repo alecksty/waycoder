@@ -66,6 +66,10 @@ public enum ErrorCode
     CodeGen_UndefinedConst = 1312,
     CodeGen_BreakOutsideLoop = 1314,
     CodeGen_ContinueOutsideLoop = 1315,
+    /// <summary>定义了但从未被调用的函数（**警告**，不是错误 —— 见 `WarnUndefined` 一族的说明）。</summary>
+    CodeGen_UnusedFunction = 1316,
+    /// <summary>定义了但从未被引用的局部变量（**警告**）。</summary>
+    CodeGen_UnusedVariable = 1317,
 
     // ---- 通用编译错误 (1400-1499) ----
     Compilation_LibraryNotFound = 1400,
