@@ -170,7 +170,8 @@ internal sealed class VmlUiCalls : ISystemCallHandler
                 case VmlUi.DlgMulti: registers[0] = WithTimersPaused(() => DlgMulti(registers, memory)); break;
                 case VmlUi.DlgInput: registers[0] = WithTimersPaused(() => DlgInput(registers, memory)); break;
 
-                case VmlUi.WinOpen: registers[0] = WinOpen(registers, memory); break;
+                case VmlUi.WinOpen: registers[0] = WinOpen(registers, memory, ex: false); break;
+                case VmlUi.WinOpenEx: registers[0] = WinOpen(registers, memory, ex: true); break;
                 case VmlUi.WinClose: registers[0] = WinClose(); break;
                 case VmlUi.DrawClear: Scene()?.Clear((uint)registers[0]); TouchScene(); break;
                 case VmlUi.DrawPixel: Scene()?.AddPixel(registers[0], registers[1], (uint)registers[2]); TouchScene(); break;
@@ -225,8 +226,10 @@ internal sealed class VmlUiCalls : ISystemCallHandler
                 case VmlUi.StoreDel: registers[0] = StoreDel(registers, memory); break;
                 case VmlUi.ScreenKeepOn: ScreenKeepOn(registers[0] != 0); registers[0] = 0; break;
 
-                case VmlUi.MsgPoll: registers[0] = Poll(registers, memory); break;
-                case VmlUi.MsgWait: registers[0] = Wait(registers, memory); break;
+                case VmlUi.MsgPoll: registers[0] = Poll(registers, memory, ex: false); break;
+                case VmlUi.MsgWait: registers[0] = Wait(registers, memory, ex: false); break;
+                case VmlUi.MsgPollEx: registers[0] = Poll(registers, memory, ex: true); break;
+                case VmlUi.MsgWaitEx: registers[0] = Wait(registers, memory, ex: true); break;
                 case VmlUi.MsgCount: registers[0] = _queue.Count; break;
                 // 清空待处理消息 → 丢弃条数。程序在"重新开始/切关"时调用，防上一局的残留输入
                 // 被新一局读出来（一次点击常有多条：按下/抬起/移动）。
@@ -405,13 +408,31 @@ internal sealed class VmlUiCalls : ISystemCallHandler
 
     // ── 窗体与绘图 ────────────────────────────────────────────
 
-    private int WinOpen(int[] r, byte[] mem)
+    /// <summary>
+    /// 开窗口。<paramref name="ex"/> = 走的是 <see cref="VmlUi.WinOpenEx"/>（多两个声明参数）。
+    ///
+    /// ⚠ **两个号分成两条路读，不能合并成"从 r[3]/r[4] 里取默认值"**：只传 3 个参数的老程序，
+    /// r[3]/r[4] 里是**它自己上一句留下的值**（可能是个指针、也可能是个计数），宿主无从判断
+    /// 那是不是"真给的"。老号就按老语义（可旋转=1、要手柄=1 = 今天的行为）走。
+    /// </summary>
+    private int WinOpen(int[] r, byte[] mem, bool ex)
     {
         var scene = new VmlScene
         {
             Title = Str(mem, r[0]) is { Length: > 0 } t ? t : "VML",
             Width = r[1] > 0 ? r[1] : 320,
             Height = r[2] > 0 ? r[2] : 240,
+            // 老号（#520）一个字的声明都没有 ⇒ Legacy（跟随旋转但**不动坐标系**，= 老行为）。
+            // 新号 R3 三档：0=只竖屏 / 1=支持旋转 / 2=只横屏；**其余值一律当"支持旋转"**
+            // （宽容：将来加档位时老宿主至少不会把它当成"锁死"而卡住程序）。
+            // R4=0 才是"不要手柄"，非 0 一律当要。
+            Rotation = !ex ? WindowRotation.Legacy : r[3] switch
+            {
+                VmlUi.PortraitOnly => WindowRotation.PortraitOnly,
+                VmlUi.LandscapeOnly => WindowRotation.LandscapeOnly,
+                _ => WindowRotation.Follow,
+            },
+            NeedGamepad = !ex || r[4] != VmlUi.NoGamepad,
         };
         _scene = scene;
         _windowClosed = false;
@@ -478,17 +499,31 @@ internal sealed class VmlUiCalls : ISystemCallHandler
 
     // ── 输入 ──────────────────────────────────────────────────
 
-    private int Poll(int[] r, byte[] mem)
+    /// <summary>
+    /// 读一条消息（非阻塞）。<paramref name="ex"/> = 走 <see cref="VmlUi.MsgPollEx"/>：
+    /// 多一个 R1=保留位（<see cref="VmlUi.Keep"/> 时**只看队头、不取走**）。
+    ///
+    /// ⚠ 老号只读 R0 —— 不把两个号合成"从 r[1] 取默认值"的理由与 `WinOpen` 同一处：
+    /// 只传 R0 的老程序，r[1] 里是它自己上一句留下的值。
+    /// </summary>
+    private int Poll(int[] r, byte[] mem, bool ex)
     {
-        var msg = _queue.TryTake();
+        var msg = ex ? _queue.TryRead(r[1] == VmlUi.Keep) : _queue.TryTake();
         if (msg is not { } m) return 0;
         m.WriteTo(mem, r[0]);
         return (int)m.Type;
     }
 
-    private int Wait(int[] r, byte[] mem)
+    /// <summary>
+    /// 读一条消息（阻塞）。<paramref name="ex"/> = 走 <see cref="VmlUi.MsgWaitEx"/>：
+    /// 多一个 R2=保留位。理由同 <see cref="Poll"/>。
+    ///
+    /// ⚠ 保留模式**必须阻塞等待**吗？不必 —— 队头那条一直在，`TryRead(keep)` 立刻就能返回。
+    /// 换句话说保留模式下这个"阻塞"只在**队列空**时才起作用（等的还是"来第一条"）。
+    /// </summary>
+    private int Wait(int[] r, byte[] mem, bool ex)
     {
-        var msg = _queue.Take(r[1]);
+        var msg = ex ? _queue.Read(r[1], r[2] == VmlUi.Keep) : _queue.Take(r[1]);
         if (msg is not { } m) return 0;
         m.WriteTo(mem, r[0]);
         return (int)m.Type;

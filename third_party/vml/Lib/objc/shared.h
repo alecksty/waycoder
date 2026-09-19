@@ -1915,6 +1915,8 @@
 // CALL ui_dlg_input
 // extern fn ui_win_open(char* title, int w, int h) -> int
 // CALL ui_win_open
+// extern fn ui_win_open_ex(char* title, int w, int h, int rotatable, int gamepad) -> int
+// CALL ui_win_open_ex
 // extern fn ui_win_close(void) -> int
 // CALL ui_win_close
 // extern fn ui_win_closed(void) -> int
@@ -1951,6 +1953,10 @@
 // CALL ui_poll
 // extern fn ui_wait(int* msg, int timeout_ms) -> int
 // CALL ui_wait
+// extern fn ui_poll_ex(int* msg, int keep) -> int
+// CALL ui_poll_ex
+// extern fn ui_wait_ex(int* msg, int timeout_ms, int keep) -> int
+// CALL ui_wait_ex
 // extern fn ui_msg_count(void) -> int
 // CALL ui_msg_count
 // extern fn ui_msg_clear(void) -> int

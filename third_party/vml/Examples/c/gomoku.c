@@ -338,7 +338,10 @@ int main(void) {
     if (sw <= 0) sw = 360;
     if (sh <= 0) sh = 620;
 
-    ui_win_open(title, sw, sh);
+    /* **只支持竖屏 + 不要手柄区**：棋盘是竖着看的，转屏只会让格子重排一次、
+     * 玩家还得多转回来；而五子棋全程用触摸落子，屏幕手柄一个都用不到 ——
+     * 留着一整块手柄区等于白白吃掉一百多像素的棋盘高度。 */
+    ui_win_open_ex(title, sw, sh, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
 
     /* 布局：**宽和高分开算约束**，再在整块画布里居中。
      *

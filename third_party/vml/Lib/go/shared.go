@@ -4532,6 +4532,11 @@ func ui_win_open(a0 int32, a1 int32, a2 int32) int32 {
     return vml.R0()
 }
 
+func ui_win_open_ex(a0 int32, a1 int32, a2 int32, a3 int32, a4 int32) int32 {
+    vml.Call("ui_win_open_ex")
+    return vml.R0()
+}
+
 func ui_win_close() int32 {
     vml.Call("ui_win_close")
     return vml.R0()
@@ -4608,6 +4613,16 @@ func ui_poll(a0 int32) int32 {
 
 func ui_wait(a0 int32, a1 int32) int32 {
     vml.Call("ui_wait")
+    return vml.R0()
+}
+
+func ui_poll_ex(a0 int32, a1 int32) int32 {
+    vml.Call("ui_poll_ex")
+    return vml.R0()
+}
+
+func ui_wait_ex(a0 int32, a1 int32, a2 int32) int32 {
+    vml.Call("ui_wait_ex")
     return vml.R0()
 }
 

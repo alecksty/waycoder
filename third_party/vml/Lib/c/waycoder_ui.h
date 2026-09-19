@@ -95,6 +95,29 @@ int  ui_dlg_input(char* title, char* prompt, char* buf, int cap);
 
 /* ── 窗体 ── */
 int  ui_win_open(char* title, int w, int h);
+/* 开窗（带两个声明）。两条都在**开窗之前**就生效 —— 所以按 SCR_W/H 排的版一开始就是对的，
+   不会"先按小画布排一次、再收到 resize 重排"。
+   老程序照旧用 ui_win_open()（走 #520，宿主那边默认就是"支持旋转 + 要手柄"）。 */
+int  ui_win_open_ex(char* title, int w, int h, int rotatable, int gamepad);
+
+/* 第 4 个参数（转屏声明），三选一：
+     VML_WIN_PORTRAIT  —— 只支持竖屏（棋盘类）。屏幕**锁在竖屏**，用户怎么转都不动。
+     VML_WIN_ROTATABLE —— 支持旋转（默认）。两种排版都写好了 ⇒ 视口一变宿主就发
+                          VML_MSG_WINDOWORIENT + VML_MSG_WINDOWRESIZE，并把**新的坐标空间**
+                          整个给到窗口（程序按新尺寸重排版即可）。
+     VML_WIN_LANDSCAPE —— 只支持横屏（赛车 / 横版过关）。锁在横屏。
+   ⚠ 只有 ROTATABLE 那一档会换坐标系。窗口空间被换掉之后，不重新排版的程序会继续按
+     老坐标画 ⇒ 内容被裁掉一大截 —— 所以"没声明"（老接口）保持"跟随旋转但坐标系不动"。 */
+#define VML_WIN_PORTRAIT     0
+#define VML_WIN_ROTATABLE    1
+#define VML_WIN_LANDSCAPE    2
+
+/* 第 5 个参数（要不要屏幕手柄区）：
+     VML_WIN_NO_GAMEPAD  —— 整块手柄区连同折叠条一起不显示，画布吃满整屏
+                            （画图表 / 放幻灯片那种不用手柄的程序）。
+     VML_WIN_NEED_GAMEPAD —— 显示（默认）。 */
+#define VML_WIN_NEED_GAMEPAD 1
+#define VML_WIN_NO_GAMEPAD   0
 int  ui_win_close(void);
 int  ui_win_closed(void);
 int  ui_scr_w(void);
@@ -103,8 +126,9 @@ int  ui_scr_h(void);
    **开窗之前就能问** —— 程序据此决定"棋盘放左、面板放右"还是"上下排"。
    别拿 ui_scr_w() > ui_scr_h() 去推：那两个数是可用**绘图区**，
    会随宿主排版（手柄收起/展开）变，而方向是设备本身的属性。
-   运行中方向变了，宿主会发 VML_MSG_WINDOWRESIZE（msg[1]=新宽 msg[2]=新高），
-   收到后重新问一次本函数再重排版。 */
+   运行中方向变了，宿主会先发 VML_MSG_WINDOWORIENT（msg[1]=新方向）再发
+   VML_MSG_WINDOWRESIZE（msg[1]=新宽 msg[2]=新高），收到后重新问一次本函数再重排版
+   —— 前提是开窗时声明了 VML_WIN_ROTATABLE（老接口不换坐标系，见上）。 */
 int  ui_orientation(void);
 
 /* ── 绘图 ── */
@@ -139,6 +163,13 @@ int  ui_gget(int idx);
 /* ── 输入 ── */
 int  ui_poll(int* msg);
 int  ui_wait(int* msg, int timeout_ms);
+/* 读一条，带"读完之后留不留"：keep=VML_MSG_KEEP 时**只看队头、不取走**
+   （下一次读到的还是它，直到明确消费掉）；VML_MSG_CONSUME 与 ui_poll/ui_wait 同义。
+   ⚠ 保留模式**别当循环条件用** —— 它永远返回同一条。 */
+int  ui_poll_ex(int* msg, int keep);
+int  ui_wait_ex(int* msg, int timeout_ms, int keep);
+#define VML_MSG_CONSUME 0
+#define VML_MSG_KEEP    1
 int  ui_msg_count(void);
 /* 丢掉队列里所有待处理消息 → 丢弃条数。重新开始/切关时调，
    防上一局没读完的输入（一次点击常有多条）被新一局读出来。 */

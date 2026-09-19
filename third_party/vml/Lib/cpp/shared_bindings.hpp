@@ -958,6 +958,7 @@ extern "C" {
      int ui_dlg_multi(char* title, char* body, char* opts, int n);
      int ui_dlg_input(char* title, char* prompt, char* buf, int cap);
      int ui_win_open(char* title, int w, int h);
+     int ui_win_open_ex(char* title, int w, int h, int rotatable, int gamepad);
      int ui_win_close(void);
      int ui_win_closed(void);
      int ui_scr_w(void);
@@ -976,6 +977,8 @@ extern "C" {
      void ui_text_cur(int x, int y, char* s);
      int ui_poll(int* msg);
      int ui_wait(int* msg, int timeout_ms);
+     int ui_poll_ex(int* msg, int keep);
+     int ui_wait_ex(int* msg, int timeout_ms, int keep);
      int ui_msg_count(void);
      int ui_msg_clear(void);
      int ui_wait_msg(int timeout_ms);

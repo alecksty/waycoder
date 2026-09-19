@@ -958,6 +958,7 @@ namespace VML {
     // extern int ui_dlg_multi(char* title, char* body, char* opts, int n);  // CALL ui_dlg_multi
     // extern int ui_dlg_input(char* title, char* prompt, char* buf, int cap);  // CALL ui_dlg_input
     // extern int ui_win_open(char* title, int w, int h);  // CALL ui_win_open
+    // extern int ui_win_open_ex(char* title, int w, int h, int rotatable, int gamepad);  // CALL ui_win_open_ex
     // extern int ui_win_close(void);  // CALL ui_win_close
     // extern int ui_win_closed(void);  // CALL ui_win_closed
     // extern int ui_scr_w(void);  // CALL ui_scr_w
@@ -976,6 +977,8 @@ namespace VML {
     // extern void ui_text_cur(int x, int y, char* s);  // CALL ui_text_cur
     // extern int ui_poll(int* msg);  // CALL ui_poll
     // extern int ui_wait(int* msg, int timeout_ms);  // CALL ui_wait
+    // extern int ui_poll_ex(int* msg, int keep);  // CALL ui_poll_ex
+    // extern int ui_wait_ex(int* msg, int timeout_ms, int keep);  // CALL ui_wait_ex
     // extern int ui_msg_count(void);  // CALL ui_msg_count
     // extern int ui_msg_clear(void);  // CALL ui_msg_clear
     // extern int ui_wait_msg(int timeout_ms);  // CALL ui_wait_msg

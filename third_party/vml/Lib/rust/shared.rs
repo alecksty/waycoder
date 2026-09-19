@@ -5928,6 +5928,13 @@ fn ui_win_open(a0: i32, a1: i32, a2: i32) -> i32 {
     r
 }
 
+fn ui_win_open_ex(a0: i32, a1: i32, a2: i32, a3: i32, a4: i32) -> i32 {
+    asm!("CALL ui_win_open_ex")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
 fn ui_win_close() -> i32 {
     asm!("CALL ui_win_close")
     let r: i32;
@@ -6016,6 +6023,20 @@ fn ui_poll(a0: i32) -> i32 {
 
 fn ui_wait(a0: i32, a1: i32) -> i32 {
     asm!("CALL ui_wait")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_poll_ex(a0: i32, a1: i32) -> i32 {
+    asm!("CALL ui_poll_ex")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn ui_wait_ex(a0: i32, a1: i32, a2: i32) -> i32 {
+    asm!("CALL ui_wait_ex")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r

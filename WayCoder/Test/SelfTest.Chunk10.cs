@@ -556,6 +556,69 @@ public static partial class SelfTest
         Check("VmlUi.OrientationOf: 正方形算竖屏（保守档）",
             VmlUi.OrientationOf(500, 500) == VmlUi.Portrait
             && VmlUi.OrientationOf(0, 0) == VmlUi.Portrait);
+        // ── 场景换尺寸（转屏/收起手柄时宿主调用）──
+        // `BuildDsl()` 会把 `canvas W H` 写进这一帧，而它可能在 VM 线程上被 `Present()` 调用
+        // ⇒ 两个数必须一起换（分开赋值会被拍到"新宽 + 旧高"，那一帧整幅被拉伸）。
+        var rs = new VmlScene { Width = 320, Height = 240 };
+        rs.Resize(396, 301);
+        Check("VmlScene.Resize: 宽高一起换",
+            rs.Width == 396 && rs.Height == 301);
+        Check("VmlScene.Resize: 新尺寸进了 DSL 的 canvas 头",
+            rs.BuildDsl().StartsWith("canvas 396 301 "));
+        rs.Resize(0, 100);
+        Check("VmlScene.Resize: 非法尺寸被忽略（不把场景改成 0 宽）",
+            rs.Width == 396 && rs.Height == 301);
+
+        // ── 读消息的"读完之后留不留"（`MSG_POLL_EX` #571 / `MSG_WAIT_EX` #572）──
+        var mq = new VmlMessageQueue();
+        mq.Post(new VmlMessage(VmlMsgType.TouchDown, 11, 22, 0));
+        mq.Post(new VmlMessage(VmlMsgType.KeyDown, 33, 0, 0));
+        var keepFirst = mq.TryRead(keep: true);
+        Check("消息队列 keep: 只看队头，不取走",
+            keepFirst is { } k1 && k1.A == 11 && mq.Count == 2);
+        var keepAgain = mq.TryRead(keep: true);
+        Check("消息队列 keep: 再看还是同一条（队列一条没少）",
+            keepAgain is { } k2 && k2.A == 11 && mq.Count == 2);
+        // **消费一次才真的走掉** —— 这正是"先看一眼再决定谁处理"的用法
+        var consumed = mq.TryRead(keep: false);
+        Check("消息队列 consume: 取走队头，队列少一条",
+            consumed is { } c && c.A == 11 && mq.Count == 1
+            && mq.TryRead(keep: true) is { A: 33 });
+        Check("VmlUi: MsgPollEx/MsgWaitEx 在号段内且互不撞车",
+            VmlUi.Handles(VmlUi.MsgPollEx) && VmlUi.Handles(VmlUi.MsgWaitEx)
+            && VmlUi.MsgPollEx != VmlUi.MsgPoll && VmlUi.MsgWaitEx != VmlUi.MsgWait
+            && VmlUi.MsgPollEx != VmlUi.MsgWaitEx
+            && VmlUi.MsgPollEx != VmlUi.WinOpenEx && VmlUi.MsgWaitEx != VmlUi.ScrOrient);
+        Check("VmlUi: 保留位常量为 0/1（跨语言契约）",
+            VmlUi.Consume == 0 && VmlUi.Keep == 1);
+
+        // ── 开窗的两个声明（`WIN_OPEN_EX` #570）──
+        // **默认必须是"老行为"**：不做任何声明的场景 = Legacy 转屏 + 要手柄。
+        // 默认写反的话，所有老程序（走的还是 #520）会突然没有手柄区、
+        // 或者更糟 —— 被换掉坐标系（它们不处理 resize，内容会被裁）。
+        var defScene = new VmlScene();
+        Check("VmlScene: 默认声明 = Legacy（老接口行为）+ 要手柄",
+            defScene.Rotation == WindowRotation.Legacy && defScene.NeedGamepad);
+        // 四档必须互不相同：**"老程序"和"声明了 ROTATABLE 的程序"要能分开** ——
+        // 只有"跟随/不跟随"两档的话，"跟随旋转"会被老程序也吃到，
+        // 而它们不会重排版 ⇒ 坐标系被换掉、内容被裁。
+        var modes = new[] { WindowRotation.Legacy, WindowRotation.Follow,
+                            WindowRotation.PortraitOnly, WindowRotation.LandscapeOnly };
+        Check("WindowRotation: 老/跟随/只竖屏/只横屏 四档互不相同",
+            modes.Distinct().Count() == 4);
+        // 只竖屏 / 只横屏 是两档**不同的**锁（不是"锁在当前方向"那种含糊语义）
+        Check("WindowRotation: 只竖屏与只横屏是两档不同的锁",
+            WindowRotation.PortraitOnly != WindowRotation.LandscapeOnly);
+        // 三档声明值与 C 头文件 VML_WIN_* 一一对应 —— 跨语言契约，改了等于改 ABI
+        Check("VmlUi: 转屏声明三档为 0/1/2（跨语言契约）",
+            VmlUi.PortraitOnly == 0 && VmlUi.Rotatable == 1 && VmlUi.LandscapeOnly == 2);
+        Check("VmlUi: WinOpenEx 在号段内、与新老号都不撞车",
+            VmlUi.Handles(VmlUi.WinOpenEx) && VmlUi.WinOpenEx != VmlUi.WinOpen
+            && VmlUi.WinOpenEx != VmlUi.ScrOrient && VmlUi.WinOpenEx != VmlUi.MsgClear);
+        // 手柄声明同样是跨语言契约（C 头文件的 VML_WIN_* 宏按这两个数写死）
+        Check("VmlUi: 手柄声明常量为 0/1（跨语言契约）",
+            VmlUi.NoGamepad == 0 && VmlUi.NeedGamepad == 1);
+
         // 实测视口**跨方向陈旧**是实测踩到的：竖屏里打完一局退出、转到横屏再开一局，
         // 转屏期间没有绘图页在跑 ⇒ `MeasuredViewport` 还留着竖屏的 411×525，
         // 那一局照它开窗（`scene=411x525` 塞进 396×301 的画布，画面只剩中间一条）。

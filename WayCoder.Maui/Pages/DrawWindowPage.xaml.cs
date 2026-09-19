@@ -243,10 +243,20 @@ public partial class DrawWindowPage : ContentPage
 
         // 同上：上一局报过的方向不能算这一局的（否则新程序一开窗就白收一条 `WindowOrient`）。
         _publishedOrientation = null;
+        // "两拍一致"的中间值也要清 —— 新窗口的第一拍不该跟上一局的残留凑成"一致"。
+        _pendingViewport = null;
 
         _scene = scene;
         Title = scene.Title;
         _renderedVersion = -1;
+
+        // 窗口开出来的**两个声明**（`WIN_OPEN_EX` 的 R3/R4，老号一律给默认值）。
+        // 必须在 render 之前定下来：`SCR_W/H` 报的可用绘图区随"要不要手柄"变，
+        // 程序接下来会照它排版 —— 晚一步就是"先按小画布排一次、再收到 resize 重排"。
+        _needGamepad = scene.NeedGamepad;
+        _rotation = scene.Rotation;
+        ApplyOrientationLock(_rotation);
+        ApplyPadVisibility();
         // **首帧同步渲染**：异步那条路要等 40ms 的定时器，而实测「窗口一闪而过、什么也没看到」
         // —— 程序若很快调 WIN_CLOSE（或退出），异步首帧根本来不及出。这里就地把第一帧出掉，
         // 之后的变化再走定时器。画布小（几百像素见方），同步编码的代价可以接受。
@@ -305,6 +315,22 @@ public partial class DrawWindowPage : ContentPage
         if (CanvasHost.Width <= 0 || CanvasHost.Height <= 0) return;
 
         var now = (Width: (int)Math.Round(CanvasHost.Width), Height: (int)Math.Round(CanvasHost.Height));
+
+        // ⚠ **连续两拍读到同一个值才算数。**
+        //
+        // "跑在定时器里"只保证了"不在布局回调内部"，**不保证布局已经结束** ——
+        // 转屏要连着走好几趟布局，定时器完全可能落在两趟之间：实测转回竖屏那一拍读到
+        // `host=411x525` 之前先读到过 `411x780`（手柄那一行还没被量出来），
+        // 于是场景被改成 411×780、还发了一条同值的 `WindowResize` ——
+        // 程序照着排的版比真实画布高一截，画面被压下去 0.67 倍。
+        // 要求"两拍一致"之后，中间态最多活一拍就被下一个值顶掉，永远不会被当成结论。
+        // 代价是真变化晚 40ms 生效，肉眼不可见。
+        if (_pendingViewport != now)
+        {
+            _pendingViewport = now;
+            return;
+        }
+
         if (VmlUiCalls.MeasuredViewport == now) return;
 
         // **视口真的变了就告诉程序**（`WindowResize`）。这条消息协议里一直有，
@@ -312,9 +338,52 @@ public partial class DrawWindowPage : ContentPage
         // 还按开窗时的尺寸排着版（用户看到的就是"收起了手柄但画面没变大"）。
         // 已经有了旧值 ⇒ 这是一次真变化；第一次只是把值记下来。
         if (VmlUiCalls.MeasuredViewport is not null)
+        {
+            // ① **先把新坐标空间给到场景**，再发消息 —— 程序收到消息就会按新尺寸重画，
+            //    那一刻它的坐标系必须已经是新的，否则第一笔就画到界外（被光栅裁掉）。
+            //
+            //    ⚠ **只给声明过 `VML_WIN_ROTATABLE` 的程序换**（见 `WindowRotation` 的注释）：
+            //    老程序（`ui_win_open`）压根不知道坐标系会变，换了之后它继续按老坐标画，
+            //    空间变小就**被裁掉一大截** —— 那比原来的"整幅等比缩小"更糟。
+            //    老程序保持原样：场景尺寸不动，宿主缩放着显示。
+            if (_rotation == WindowRotation.Follow) ResizeScene(now);
+
+            // ② 然后告诉程序（方向那条已经在上面的 `PublishOrientation` 里发过了）
             VmlUiCalls.Current?.PostInput(VmlMsgType.WindowResize, now.Width, now.Height);
+        }
 
         VmlUiCalls.MeasuredViewport = now;
+    }
+
+    /// <summary>
+    /// **视口变了，就把新的坐标空间整个给到场景**（宿主支持运行期改场景尺寸）。
+    ///
+    /// 为什么不让程序自己 `ui_win_close()` + 重新 `ui_win_open()` 换空间：那条路要拆掉再建
+    /// 一个窗口，屏幕上会闪一下，程序还得自己处理"关窗之后我还跑不跑"这类边界。
+    /// 宿主改一行尺寸就够 —— 场景本来就是"程序只追加、宿主负责渲染"的解耦结构，
+    /// 尺寸属于渲染侧。
+    ///
+    /// ⚠ **只在"视口真的变了"时改，不碰开窗时程序自己指定的尺寸**：
+    /// `ui_win_open(title, w, h)` 是程序对自己坐标系的主张，在它还没画第一笔时就改掉，
+    /// 等于把"我就要 320×240"这个意图抹了（`Examples/c/draw_prims.c` 正是这种：它要的
+    /// 就是固定格距的体检图）。**变化之后**旧空间已经没有意义（画布形状都变了），
+    /// 这时把可用绘图区整个给它，才是"给程序一块能重新排版的地方"。
+    ///
+    /// ⚠ 尺寸变了 ⇒ 已渲染的那一帧作废（`_renderedVersion = -1`）：否则画面会停在
+    /// 旧尺寸上，而程序可能正卡在 `ui_wait` 上等输入、根本不会重画。
+    /// </summary>
+    private void ResizeScene((int Width, int Height) box)
+    {
+        if (_scene is not { } scene) return;
+        if (scene.Width == box.Width && scene.Height == box.Height) return;
+
+        scene.Resize(box.Width, box.Height);
+        _renderedVersion = -1;
+        // 新尺寸立刻落到画布控件上 —— **不能等下一帧的 `SizeChanged`**：
+        // 视口变化时画布控件的格子确实会变（会触发），但这里是"内容变了而格子没变"的另一半，
+        // 少这一次就有一帧停在旧比例上。
+        FitCanvas(scene);
+        CanvasView.Invalidate();
     }
 
     /// <summary>
@@ -341,6 +410,9 @@ public partial class DrawWindowPage : ContentPage
 
     /// <summary>本窗口已经报过的方向（`null` = 还没报过，见 <see cref="Attach"/>）。</summary>
     private int? _publishedOrientation;
+
+    /// <summary>上一拍读到的视口 —— 与这一拍相同才认为布局落定（见 <see cref="PublishViewport"/>）。</summary>
+    private (int Width, int Height)? _pendingViewport;
 
     protected override void OnSizeAllocated(double width, double height)
     {
@@ -486,11 +558,57 @@ public partial class DrawWindowPage : ContentPage
     /// </summary>
     private void ApplyPadVisibility()
     {
-        bool show = !_padCollapsed;
+        // `_needGamepad` 是这个窗口开出来时的声明（`WIN_OPEN_EX` 的 R4）：
+        // 声明"不要手柄"的程序（画图表、放幻灯片）**整块连同折叠条一起不显示** ——
+        // 留一条"▲ 收起手柄"给它点，等于让用户去关一个本来就不该出现的东西。
+        bool show = _needGamepad && !_padCollapsed;
         PadLeftArea.IsVisible = show;
         PadRightArea.IsVisible = show;
         PadCenterArea.IsVisible = show && _landscape != true;
+        CollapseBar.IsVisible = _needGamepad;
         PadToggleBtn.Text = _padCollapsed ? "▼ 展开手柄" : "▲ 收起手柄";
+    }
+
+    /// <summary>这个窗口要不要屏幕手柄区（`ui_win_open_ex` 的 R4）；老接口一律 true。</summary>
+    private bool _needGamepad = true;
+
+    /// <summary>这个窗口的转屏声明（`ui_win_open_ex` 的 R3）；老接口一律 <see cref="WindowRotation.Legacy"/>。</summary>
+    private WindowRotation _rotation = WindowRotation.Legacy;
+
+    /// <summary>
+    /// 按窗口的声明决定**屏幕要不要跟着转**（`ui_win_open_ex` 的 R3，三档）。
+    ///
+    /// 只有一种排版的程序（棋盘必须竖着看、赛车必须横着看）与其让它去处理第二种排版，
+    /// 不如**根本不让它遇到** —— 锁比"跟着转再缩放"省事，也不会画出它从没写过的形状。
+    ///
+    /// ⚠ 用 `Portrait`/`Landscape` 而不是 `Unspecified` 锁：前者是"锁死这一种"，
+    /// 后者是"交还给系统"（用户开着自动旋转时照样会转）。
+    /// ⚠ 退出时必须还原成 `Unspecified`，否则**整个 App 都被这一个游戏锁住方向**。
+    /// </summary>
+    private void ApplyOrientationLock(WindowRotation rotation)
+    {
+#if ANDROID
+        try
+        {
+            var activity = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
+            if (activity == null) return;
+            // ⚠ 枚举成员**必须全限定写**：`var so = Android.Content.PM.ScreenOrientation;`
+            //   是"把类型当表达式"，CS0119 编不过（踩过：publish 明明失败了，
+            //   我只看了管道末尾的退出码就当成成功，结果设备上跑的还是旧包）。
+            activity.RequestedOrientation = rotation switch
+            {
+                WindowRotation.PortraitOnly => Android.Content.PM.ScreenOrientation.Portrait,
+                WindowRotation.LandscapeOnly => Android.Content.PM.ScreenOrientation.Landscape,
+                // Legacy / Follow：交给系统（用户开着自动旋转就跟着转）
+                _ => Android.Content.PM.ScreenOrientation.Unspecified,
+            };
+        }
+        catch (Exception ex)
+        {
+            // 锁不住方向不是致命问题（程序还能跑，只是会跟着转）—— 记一笔就好
+            ErrorLog.Error("VmlDraw", "锁定屏幕方向失败", ex);
+        }
+#endif
     }
 
     /// <summary>设置控件在网格中的行列（`Grid.Add` 是列在前，这里统一成 row/column 更好读）。</summary>
@@ -553,6 +671,11 @@ public partial class DrawWindowPage : ContentPage
         // 带着"我已经摆好了"的状态回来，而 TabBar / 按键位置未必还在）。
         // 之前那版会把 `_landscape` 留着，于是退出时横屏、再进来还是横屏尺寸却仍是旧摆法。
         _landscape = null;
+
+        // **把方向还回去**：锁是给"这一个窗口"用的（只竖屏/只横屏），
+        // 不还原就是整个 App 被它锁住方向，退出后首页也转不动了。
+        // 传 Legacy = 交给系统（尊重用户自己的自动旋转开关）。
+        ApplyOrientationLock(WindowRotation.Legacy);
         // 页面走了，按住的那个手柄键不可能再收到 Released —— 补一条 KeyUp，
         // 否则程序里那条"按住连发"会一直挂着（虽然马上要终止了，但日志里会留个假象）。
         if (_padDownKey != 0) { PostKeyUp(_padDownKey); _padDownKey = 0; }

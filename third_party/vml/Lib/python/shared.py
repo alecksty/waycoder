@@ -5904,6 +5904,16 @@ def ui_win_open(a0, a1, a2):
     asm("CALL ui_win_open")
     return r0
 
+def ui_win_open_ex(a0, a1, a2, a3, a4):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a4
+    asm(f"PUSH R0")  # push a3
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_win_open_ex")
+    return r0
+
 def ui_win_close():
     r0 = asm("R0")
     asm("CALL ui_win_close")
@@ -6024,6 +6034,21 @@ def ui_wait(a0, a1):
     asm(f"PUSH R0")  # push a1
     asm(f"PUSH R0")  # push a0
     asm("CALL ui_wait")
+    return r0
+
+def ui_poll_ex(a0, a1):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_poll_ex")
+    return r0
+
+def ui_wait_ex(a0, a1, a2):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a2
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL ui_wait_ex")
     return r0
 
 def ui_msg_count():

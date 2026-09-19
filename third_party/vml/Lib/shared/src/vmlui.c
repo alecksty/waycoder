@@ -58,6 +58,14 @@ int ui_win_open(char* title, int w, int h) {
     return asm("SYSCALL #520, ${title}, ${w}, ${h}");
 }
 
+/* 开窗（带声明）。rotatable 三选一：VML_WIN_PORTRAIT 只竖屏 / VML_WIN_ROTATABLE 支持旋转 /
+ * VML_WIN_LANDSCAPE 只横屏；gamepad=0 ⇒ 不显示屏幕手柄区，画布吃满整屏。
+ * 老程序照旧用 ui_win_open()（走 #520）—— **两个号各调各的，默认值只有宿主一处**：
+ * 老号那边宿主直接给"可旋转=1、要手柄=1"，在这里再写一遍默认值就是第二张平行表。 */
+int ui_win_open_ex(char* title, int w, int h, int rotatable, int gamepad) {
+    return asm("SYSCALL #570, ${title}, ${w}, ${h}, ${rotatable}, ${gamepad}");
+}
+
 int ui_win_close(void) {
     return asm("SYSCALL #521");
 }
@@ -149,6 +157,18 @@ int ui_poll(int* msg) {
 /* 阻塞取一条，timeout_ms=0 表示无限等。返回消息类型，超时 0。 */
 int ui_wait(int* msg, int timeout_ms) {
     return asm("SYSCALL #561, ${msg}, ${timeout_ms}");
+}
+
+/* 读一条，带"读完之后留不留"（VML_MSG_KEEP / VML_MSG_CONSUME）。
+ * 保留模式只**看**队头那一条，队列里一个都不少 —— 下一次读到的还是它，
+ * 直到程序明确地消费掉。想"先看一眼再决定谁来处理"时用；
+ * ⚠ **别拿它当循环条件**：保留模式下永远返回同一条 = 死循环。 */
+int ui_poll_ex(int* msg, int keep) {
+    return asm("SYSCALL #571, ${msg}, ${keep}");
+}
+
+int ui_wait_ex(int* msg, int timeout_ms, int keep) {
+    return asm("SYSCALL #572, ${msg}, ${timeout_ms}, ${keep}");
 }
 
 int ui_msg_count(void) {

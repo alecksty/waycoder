@@ -41,6 +41,45 @@ public static class VmlUi
     // ── 窗体与绘图（保留模式）──
     /// <summary>开窗口：R0=标题* R1=宽 R2=高 → 句柄，失败 -1。</summary>
     public const int WinOpen = 520;
+
+    /// <summary>
+    /// 开窗口（**带两个声明**）：R0=标题* R1=宽 R2=高 R3=可旋转 R4=要手柄 → 句柄，失败 -1。
+    ///
+    /// 为什么不直接把 <see cref="WinOpen"/> 扩成 5 个参数：**老程序会静默走进未定义行为**。
+    /// 宿主是从 `registers[3]/[4]` 读的，而只传 3 个参数的程序那两只寄存器里是**它自己上一句
+    /// 留下的值**（可能是个指针、可能是个计数），宿主无从判断"这是不是真给了"。
+    /// 所以新能力一律走新号 —— 与 `MSG_CLEAR`(#568) 当初的处理一致。
+    /// C 侧的老名字 `ui_win_open(t,w,h)` 保留、语义一字不改（走 #520）。
+    ///
+    /// ## R3 转屏（三档：<see cref="PortraitOnly"/> / <see cref="Rotatable"/> / <see cref="LandscapeOnly"/>）
+    /// · `0` / `VML_WIN_PORTRAIT` = **只支持竖屏**（棋盘类游戏）：屏幕锁在竖屏，怎么转都不动；
+    /// · `1` / `VML_WIN_ROTATABLE` = **支持旋转**（默认）：两种排版都写好了 ⇒ 视口一变，
+    ///   宿主把**新的坐标空间**（可用绘图区）整个给到场景，并先发 `WINDOWORIENT` 再发 `WINDOWRESIZE`；
+    /// · `2` / `VML_WIN_LANDSCAPE` = **只支持横屏**（赛车 / 横版过关）。
+    ///
+    /// **老接口没有这一位**，所以"没声明"是独立的一档（见 <see cref="WindowRotation"/>）：
+    /// 跟随旋转但**坐标系不动**（宿主等比缩放着显示）—— 老行为，一字不改。
+    ///
+    /// ⚠ `ROTATABLE` 那一档才换坐标系，是**故意的**：不处理 `WINDOWRESIZE` 的程序
+    /// 被换了空间之后会继续按老坐标画，空间变小 ⇒ 内容被裁掉一大截（比"等比缩小"更糟）。
+    ///
+    /// ## R4 要手柄（<see cref="NeedGamepad"/> / <see cref="NoGamepad"/>）
+    /// 0 = 这个程序不用手柄（画图表、写文档、放幻灯片）⇒ **整块手柄区连同折叠条一起不显示**，
+    /// 画布直接吃满整屏；1 = 显示（默认）。这一条比"开完窗再点收起"强在**开窗前就生效** ——
+    /// 程序按 `SCR_W/H` 排的版一开始就是对的，不会先按小画布排一次、再收到 resize 重排。
+    /// </summary>
+    public const int WinOpenEx = 570;
+
+    /// <summary>`WIN_OPEN_EX` 的 R3：**只支持竖屏**（把屏幕锁在竖屏）。</summary>
+    public const int PortraitOnly = 0;
+    /// <summary>`WIN_OPEN_EX` 的 R3：**支持旋转**（默认）；视口变了宿主会换掉坐标系。</summary>
+    public const int Rotatable = 1;
+    /// <summary>`WIN_OPEN_EX` 的 R3：**只支持横屏**（把屏幕锁在横屏）。</summary>
+    public const int LandscapeOnly = 2;
+    /// <summary>`WIN_OPEN_EX` 的 R4：显示屏幕手柄（默认）。</summary>
+    public const int NeedGamepad = 1;
+    /// <summary>`WIN_OPEN_EX` 的 R4：不要手柄区，画布吃满整屏。</summary>
+    public const int NoGamepad = 0;
     /// <summary>关窗口：R0=句柄 → 0。</summary>
     public const int WinClose = 521;
     /// <summary>清屏：R0=颜色(ARGB) → 0（同时清空图元表）。</summary>
@@ -93,6 +132,35 @@ public static class VmlUi
     /// 程序应在**重新开始 / 切关 / 暂停恢复**这类状态断点上调用它，把历史输入清干净。
     /// </summary>
     public const int MsgClear = 568;
+    /// <summary>
+    /// 读一条消息（**非阻塞，带"读完之后留不留"**）：R0=消息缓冲地址 R1=保留位 → 消息类型。
+    ///
+    /// <paramref name="keep"/> 的语义（<see cref="Consume"/> / <see cref="Keep"/>）：
+    /// - **消费（0，默认）** = 读完就没了，下一条 poll 拿到的是再下一条 —— 与
+    ///   <see cref="MsgPoll"/> 完全一致。
+    /// - **保留（1）** = 只**看**队头那一条，队列里一个都不少 —— 下一次 poll/wait 还是它，
+    ///   直到程序**明确地**消费掉它（再调一次消费模式的 poll）。
+    ///
+    /// 什么时候要"保留"：程序想**先看一眼再决定谁处理**（比如"是触摸就自己吃掉、
+    /// 是按键就留给下一层"），或者一帧里要按同一条消息做几件事。**别拿它当循环条件** ——
+    /// 保留模式下 poll 永远返回同一条，写成 `while (ui_poll_ex(...) != 0)` 就是死循环。
+    ///
+    /// ⚠ 与 <see cref="WinOpenEx"/> 同样的理由走新号：老程序只传 R0，R1 里是**它自己
+    /// 上一句留下的值**，宿主无从判断那是"保留"还是垃圾。
+    /// </summary>
+    public const int MsgPollEx = 571;
+
+    /// <summary>
+    /// 读一条消息（**阻塞，带"读完之后留不留"**）：R0=缓冲地址 R1=超时毫秒(0=无限) R2=保留位 → 类型。
+    /// 保留位语义见 <see cref="MsgPollEx"/>。
+    /// </summary>
+    public const int MsgWaitEx = 572;
+
+    /// <summary>读消息的 R? 保留位：读完就没了（默认行为）。</summary>
+    public const int Consume = 0;
+    /// <summary>读消息的 R? 保留位：只读**队头**那一条，队列里一个都不少。</summary>
+    public const int Keep = 1;
+
     /// <summary>装定时器：R0=间隔毫秒 R1=用户标记 → 定时器 id；消息以 <see cref="VmlMsgType.Timer"/> 入队。</summary>
     public const int TimerSet = 563;
     /// <summary>删定时器：R0=id → 0。</summary>
@@ -529,28 +597,44 @@ public sealed class VmlMessageQueue
         if (_signal.CurrentCount == 0) _signal.Release();
     }
 
-    /// <summary>非阻塞取一条；无消息返回 null。</summary>
-    public VmlMessage? TryTake()
+    /// <summary>非阻塞读一条；无消息返回 null。</summary>
+    /// <param name="keep">
+    /// true = **只看队头，不取走**（下一次还是它）；false = 取走（默认）。
+    /// 两个模式共用这一处实现 —— 分成 `TryTake`/`TryPeek` 两份的话，
+    /// 信号量那套"投递—唤醒"迟早只修一边。
+    /// </param>
+    public VmlMessage? TryRead(bool keep)
     {
-        lock (_lock) return _queue.Count > 0 ? _queue.Dequeue() : null;
+        lock (_lock)
+        {
+            if (_queue.Count == 0) return null;
+            return keep ? _queue.Peek() : _queue.Dequeue();
+        }
     }
 
+    /// <summary>非阻塞取一条（消费）；无消息返回 null。</summary>
+    public VmlMessage? TryTake() => TryRead(keep: false);
+
     /// <summary>
-    /// 阻塞取一条，最多等 <paramref name="timeoutMs"/> 毫秒（0 = 无限等）。
+    /// 阻塞读一条，最多等 <paramref name="timeoutMs"/> 毫秒（0 = 无限等）。
     /// 超时返回 null。**阻塞方是 VM 线程**，不要从 UI 线程调。
+    /// <paramref name="keep"/> 见 <see cref="TryRead"/>。
     /// </summary>
-    public VmlMessage? Take(int timeoutMs)
+    public VmlMessage? Read(int timeoutMs, bool keep)
     {
         // 先看队列：有就直接拿走，不走信号量（信号量的计数与队列长度不是一对一的 ——
         // 连投两条只 Release 一次，靠信号量判断会漏消息）
-        if (TryTake() is { } first) return first;
+        if (TryRead(keep) is { } first) return first;
 
         var waited = timeoutMs <= 0
             ? _signal.Wait(Timeout.Infinite)
             : _signal.Wait(timeoutMs);
         if (!waited) return null;
-        return TryTake();
+        return TryRead(keep);
     }
+
+    /// <summary>阻塞取一条（消费），最多等 <paramref name="timeoutMs"/> 毫秒。超时返回 null。</summary>
+    public VmlMessage? Take(int timeoutMs) => Read(timeoutMs, keep: false);
 
     /// <summary>清空（每次 VML 运行开始前调用，避免上一轮的消息串到这一轮）。</summary>
     public void Clear()
@@ -558,6 +642,35 @@ public sealed class VmlMessageQueue
         lock (_lock) _queue.Clear();
         while (_signal.Wait(0)) { /* 把信号量计数也归零 */ }
     }
+}
+
+/// <summary>
+/// 窗口对"屏幕旋转"的声明 —— **三种**，因为"老程序"必须能和"声明了两者之一的程序"分开。
+///
+/// 为什么不能只有两态：宿主**改了场景的坐标空间**之后，不处理 `WINDOWRESIZE` 的程序
+/// 会继续按老坐标画，而空间变小了 ⇒ 内容被裁掉一大截（比原来的"等比缩小"更糟）。
+/// 所以那条能力只能给**明确声明过"我会重排版"**的程序；
+/// 老接口（`WIN_OPEN` #520）一个字的声明都没有，就得保持它原来的样子。
+/// </summary>
+public enum WindowRotation
+{
+    /// <summary>
+    /// 老窗口（`ui_win_open`）：**跟随旋转，但坐标系不动** —— 宿主把整份场景等比缩放着显示，
+    /// 内容完整但会变小。这是 v0.96.230 之前对所有程序的行为，**保持一字不改**。
+    /// </summary>
+    Legacy = 0,
+    /// <summary>
+    /// `VML_WIN_ROTATABLE`：程序自己会按新尺寸重排版 ⇒ 视口一变，宿主就把
+    /// **新的坐标空间**（可用绘图区）整个给到场景，并先发 `WINDOWORIENT` 再发 `WINDOWRESIZE`。
+    /// </summary>
+    Follow = 1,
+    /// <summary>
+    /// `VML_WIN_PORTRAIT`：程序**只写了竖屏一种排版** ⇒ 宿主把屏幕锁在竖屏，怎么转都不动。
+    /// 锁比"跟着转再缩放"省事，也不会让程序遇到它没写过的形状。
+    /// </summary>
+    PortraitOnly = 2,
+    /// <summary>`VML_WIN_LANDSCAPE`：只支持横屏（赛车 / 横版过关），锁在横屏。</summary>
+    LandscapeOnly = 3,
 }
 
 /// <summary>
@@ -572,6 +685,9 @@ public sealed class VmlMessageQueue
 /// 也就是说图元的语义只有一处实现（<c>DrawCommandRegistry</c> 那 16 条指令），
 /// 这里只负责把 syscall 参数**翻译成 DSL 行**。
 /// </summary>
+/// <summary>
+/// 一个 VML 绘图窗口的场景（保留模式）。
+/// </summary>
 public sealed class VmlScene
 {
     private readonly List<string> _figures = new();
@@ -579,6 +695,29 @@ public sealed class VmlScene
     public string Title { get; set; } = "VML";
     public int Width { get; set; } = 320;
     public int Height { get; set; } = 240;
+
+    /// <summary>转屏声明（`WIN_OPEN_EX` 的 R3；不声明就是 <see cref="WindowRotation.Legacy"/>）。</summary>
+    public WindowRotation Rotation { get; set; } = WindowRotation.Legacy;
+
+    /// <summary>是否需要屏幕手柄区（`WIN_OPEN_EX` 的 R4；默认 true = 今天的行为）。</summary>
+    public bool NeedGamepad { get; set; } = true;
+
+    /// <summary>
+    /// 换一块坐标空间（转屏 / 收起手柄之后宿主调用）。
+    ///
+    /// **两个数一起换**：`BuildDsl()` 会把 `canvas W H` 写进这一帧的 DSL，
+    /// 而它可能在 VM 线程上被 `Present()` 调用（拍快照）—— 分开赋值就有机会被读到
+    /// "新宽 + 旧高"的中间态，那一帧整幅会被拉伸。所以读写都在 `_figures` 这把锁里成对做。
+    /// </summary>
+    public void Resize(int width, int height)
+    {
+        if (width <= 0 || height <= 0) return;
+        lock (_figures)
+        {
+            Width = width;
+            Height = height;
+        }
+    }
 
     /// <summary>背景色（0xAARRGGBB）。</summary>
     public uint Background { get; set; } = 0xFF000000;
@@ -821,17 +960,21 @@ public sealed class VmlScene
     public string BuildDsl()
     {
         var sb = new StringBuilder();
-        sb.Append("canvas ").Append(Width).Append(' ').Append(Height).Append(' ').Append(Hex(Background)).Append('\n');
 
         // **必须开抗锯齿。** 光栅器本身支持（`DrawDocument.Antialias` → 3× 超采样再盒式降采样），
         // 但**默认是关的**，得由 DSL 显式打开。不开的后果全在"斜的、圆的、细的"东西上：
         // 圆角矩形的四个角是锯齿、斜线是台阶、文字笔画边缘发毛 —— 画棋盘这种满屏圆角+斜线的
         // 场景一眼就能看出来（用户报的"圆角需要做平滑处理"就是它）。
-        sb.Append("antialias\n");
-
+        // ⚠ **尺寸与图元在同一把锁里取**：换尺寸走 `Resize()`（也在这把锁里改），
+        // 分开的话会被 VM 线程上的 `Present()` 拍到"新宽 + 旧高"，那一帧整幅被拉伸。
         lock (_figures)
+        {
+            sb.Append("canvas ").Append(Width).Append(' ').Append(Height).Append(' ')
+              .Append(Hex(Background)).Append('\n');
+            sb.Append("antialias\n");
             foreach (var f in _figures)
                 sb.Append(f).Append('\n');
+        }
         return sb.ToString();
     }
 

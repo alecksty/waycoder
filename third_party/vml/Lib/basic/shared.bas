@@ -4530,6 +4530,11 @@ DECLARE FUNCTION ui_win_open(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INT
     ui_win_open = 0
 END FUNCTION
 
+DECLARE FUNCTION ui_win_open_ex(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER, a3 AS INTEGER, a4 AS INTEGER) AS INTEGER
+    asm("CALL ui_win_open_ex")
+    ui_win_open_ex = 0
+END FUNCTION
+
 DECLARE FUNCTION ui_win_close() AS INTEGER
     asm("CALL ui_win_close")
     ui_win_close = 0
@@ -4607,6 +4612,16 @@ END FUNCTION
 DECLARE FUNCTION ui_wait(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
     asm("CALL ui_wait")
     ui_wait = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_poll_ex(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL ui_poll_ex")
+    ui_poll_ex = 0
+END FUNCTION
+
+DECLARE FUNCTION ui_wait_ex(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
+    asm("CALL ui_wait_ex")
+    ui_wait_ex = 0
 END FUNCTION
 
 DECLARE FUNCTION ui_msg_count() AS INTEGER
