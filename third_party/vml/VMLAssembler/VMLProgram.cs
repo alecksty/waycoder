@@ -990,7 +990,16 @@ namespace VMLAssembler
                     break;
 
                 case OperandType.INDIRECT:
-                    writer.Write((byte)0x03); // 编码为 MEMORY, bit31=1 表示寄存器相对
+                    // **自己的 tag 0x05**。
+                    //
+                    // 原来借用 MEMORY(0x03) + 一个 bit31 置位的 uint，读取侧靠"peek 后面 4 字节的
+                    // 最高位"来区分它和"寄存器相对寻址"（子模式 0x02）—— 那个启发式**必然误判**：
+                    // 子模式 0x02 的第 4 个字节正是**偏移量的最低字节**，于是 `[R12+128]` 这种
+                    // 偏移低字节 ≥ 0x80 的地址会被当成间接寻址读掉 4 字节（实际是 6 字节），
+                    // 后面的字节流整条错位，最后报 `Unknown operand type tag: 0x00`。
+                    // 实测：偏移 8 / 127 往返一致，**128 / 200 / 384 全部错**。
+                    // 一个 type tag 换掉一次"猜"，是这个格式里最划算的一处修改。
+                    writer.Write((byte)0x05);
                     if (operand.Value is int indRegNum)
                     {
                         // @0 → [R0+0], @1 → [R1+0] 等
@@ -1106,15 +1115,33 @@ namespace VMLAssembler
                     writer.Write((byte)0x10);
                     writer.Write(doubleVal);
                 }
+                else if (kvp.Value is long longVal)
+                {
+                    // **64 位整数**。原来这里直接抛 `Unsupported data type: System.Int64`，
+                    // 而 64 位常量在 C 标准库里到处都是（实测一个 hello 级程序的数据段 160 项里
+                    // 7 项是 Int64，全来自 conv.vml / convert64.vml 的浮点常量）——
+                    // 于是「.vml 编 .vmb」对几乎所有 C 程序都失败。
+                    //
+                    // 编码沿用 double 那一路（tag 0x10 + 8 字节小端）：装载侧对 tag 0x10 是
+                    // `ReadDouble()` → `BitConverter.GetBytes(doubleValue)` **逐字节搬运**，
+                    // 三处（写 / 读 / 装载）都没有一处按数值语义去解释它，所以位模式原样保留、等价。
+                    // 宿主侧的 `MauiVml.NormalizeLongConstants` 做的就是同一件事；编码器修好之后
+                    // 那一步已经不是必需的（留着不影响 —— 两条路产出的字节完全一致）。
+                    writer.Write((byte)0x10);
+                    writer.Write(longVal);
+                }
                 else if (kvp.Value is System.Collections.IList objList)
                 {
                     writer.Write((byte)0x40);
                     writer.Write((uint)objList.Count);
                     foreach (var elem in objList)
                     {
+                        // ⚠ 列表元素也要认 long：原来的 else 分支**静默写成 0** ——
+                        // 一个 64 位常量落在数组里就变成 0，而且不报错（比抛异常难查得多）。
                         if (elem is int i) { writer.Write((byte)0x04); writer.Write(i); }
                         else if (elem is float f) { writer.Write((byte)0x08); writer.Write(f); }
                         else if (elem is double d) { writer.Write((byte)0x10); writer.Write(d); }
+                        else if (elem is long l) { writer.Write((byte)0x10); writer.Write(l); }
                         else { writer.Write((byte)0x04); writer.Write(0); }
                     }
                 }
@@ -1321,27 +1348,31 @@ namespace VMLAssembler
                         default: throw new InvalidDataException($"Unknown immediate width: {width}");
                     }
 
-                case 0x03:
-                    // Peek 4 bytes: if bit31 set → INDIRECT encoding (0x80000000|reg<<24|off)
+                // 间接寻址（写侧 0x05）。**不再用"peek 后面 4 字节最高位"去猜** ——
+                // 那个启发式与 MEMORY 的子模式 0x02 撞车（第 4 字节就是偏移量的最低字节），
+                // 偏移 ≥ 128 的寄存器相对寻址会被误读成间接寻址、后面整条错位。
+                // 详见写侧 `case OperandType.INDIRECT` 的注释。
+                case 0x05:
                     {
-                        var peek = reader.ReadBytes(4);
-                        reader.BaseStream.Seek(-4, SeekOrigin.Current);
-                        if (peek.Length == 4 && (peek[3] & 0x80) != 0)
-                        {
-                            uint enc = reader.ReadUInt32();
-                            int rn = (int)((enc >> 24) & 0x7F);
-                            int off = (int)(enc & 0x00FFFFFF);
-                            if ((off & 0x800000) != 0) off |= unchecked((int)0xFF000000);
-                            return new Operand(OperandType.MEMORY, $"R{rn}{(off >= 0 ? "+" : "-")}{Math.Abs(off)}");
-                        }
+                        uint enc = reader.ReadUInt32();
+                        int rn = (int)((enc >> 24) & 0x7F);
+                        int off = (int)(enc & 0x00FFFFFF);
+                        if ((off & 0x800000) != 0) off |= unchecked((int)0xFF000000);
+                        return new Operand(OperandType.MEMORY, $"R{rn}{(off >= 0 ? "+" : "-")}{Math.Abs(off)}");
                     }
+
+                case 0x03:
                     var memMode = reader.ReadByte();
                     if (memMode == 0x02)
                     {
                         var regNum = reader.ReadByte();
                         var sign = reader.ReadSByte();
                         var offset = reader.ReadInt32();
-                        string regStr = $"R{regNum}{(sign >= 0 ? "+" : "-")}{offset}";
+                        // ⚠ 符号位是**约定值**（写侧：0 = 正、1 = 负），不是有符号数。
+                        // 原来写成 `sign >= 0 ? "+" : "-"` ⇒ 无论正负都是 "+" ——
+                        // 于是 `[R12-24]` 读回来变成 `[R12+24]`，**局部变量与参数全部指错**。
+                        // 这种错不会抛异常，只是程序行为诡异地不对（最难查的一类）。
+                        string regStr = $"R{regNum}{(sign == 0 ? "+" : "-")}{offset}";
                         return new Operand(OperandType.MEMORY, regStr);
                     }
                     if (memMode == 0x03)
@@ -1392,6 +1423,27 @@ namespace VMLAssembler
                         var strBytes = reader.ReadBytes((int)strLen);
                         var str = Encoding.UTF8.GetString(strBytes);
                         result[name] = str.TrimEnd('\0');
+                        break;
+                    case 0x40:
+                        // **整数/浮点数组**（写侧 tag 0x40）。原来读侧根本没有这一支 ⇒
+                        // 只要程序的数据段里有数组，`FromVmbBytes` 就抛 `Unknown data type tag: 0x40`。
+                        // 与写侧同一份元素编码（0x04 int / 0x08 float / 0x10 double）。
+                        {
+                            var listLen = reader.ReadUInt32();
+                            var list = new List<object>((int)listLen);
+                            for (uint k = 0; k < listLen; k++)
+                            {
+                                switch (reader.ReadByte())
+                                {
+                                    case 0x04: list.Add(reader.ReadInt32()); break;
+                                    case 0x08: list.Add(reader.ReadSingle()); break;
+                                    case 0x10: list.Add(reader.ReadDouble()); break;
+                                    // 写侧对不认识的元素写 0x04 + 0；这里照单读回，保持前进不中断
+                                    default: throw new InvalidDataException("Unknown list element tag");
+                                }
+                            }
+                            result[name] = list;
+                        }
                         break;
                     default:
                         throw new InvalidDataException($"Unknown data type tag: 0x{typeTag:X2}");
