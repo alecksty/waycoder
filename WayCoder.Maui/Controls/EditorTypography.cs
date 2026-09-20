@@ -339,6 +339,12 @@ internal static class EditorTypography
     /// <summary>气泡描边宽度（细线，随字号微调）—— 没描边时气泡与同色系的代码容易糊在一起。</summary>
     public static float BubbleStrokeSize => MathF.Max(1f, FontSize * 0.07f);
 
+    /// <summary>
+    /// **同一个位置上**相邻两个气泡之间的缝（错误/警告各一个气泡，上下挨着摆）。
+    /// 只要有极小一条缝就够 —— 两个圆角矩形贴死会糊成一块，看不出是两条。
+    /// </summary>
+    public static float BubbleStackGap => MathF.Max(1f, FontSize * 0.15f);
+
     /// <summary>✕ 那个方块（**画出来的**笔迹都在它里面，再内缩三分之一）。</summary>
     public static float BubbleCloseSize => MathF.Max(14f, FontSize * 1.25f);
 

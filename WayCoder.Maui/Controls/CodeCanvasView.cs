@@ -523,7 +523,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         {
             _dragging = false;
             _bubbleGrab = true;      // OnEnd 不许再把它当成单击
-            SetDiagExpanded(diagHit.Group, !diagHit.Expanded);
+            SetDiagExpanded(diagHit.Spot, !diagHit.Expanded);
             Invalidate();
             return;
         }
@@ -2020,12 +2020,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
             MeasurePrefixWidth(line, line.Length) - MeasurePrefixWidth(line, from)));
         float baseY = y + lineH - WaveBaseInset;
 
-        canvas.StrokeColor = worst.Severity switch
-        {
-            Severity.Error => EditorTypography.ErrorWave,
-            Severity.Warning => EditorTypography.WarnWave,
-            _ => EditorTypography.InfoWave,
-        };
+        canvas.StrokeColor = WaveColor(worst.Severity);
         canvas.StrokeSize = 1.2f;
 
         var path = new PathF();
@@ -2075,20 +2070,41 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     // ⑧ 内边距、圆角、尖、✕、圆点全部由字号推导（见 `EditorTypography` 的气泡几何那一节）。
     // ══════════════════════════════════════════════════════════════════
 
-    /// <summary>一个 (行,列) 分组 —— 同一位置的多条诊断**合并成一个**气泡。</summary>
+    /// <summary>
+    /// **同一严重度**、同一 (行,列) 的一组诊断 —— 合并成**一个**气泡（组内多条排成 `1. …` / `2. …`）。
+    ///
+    /// ⚠ 分组键是 **(行, 列, 严重度)**：同一个位置上「又是错误又是警告」时**不合并到一起**，
+    /// 而是拆成两个气泡上下挨着摆（用户定的：错误合并错误、警告合并警告）。
+    /// </summary>
     private sealed class DiagGroup
     {
-        public int Line;
-        public int Column;
-
-        /// <summary>组内最严重的一档（决定气泡底色）。枚举顺序即严重度：Error &lt; Warning &lt; Info。</summary>
+        /// <summary>本组的严重度（决定气泡底色）。枚举顺序即严重度：Error &lt; Warning &lt; Info。</summary>
         public Severity Severity;
 
-        /// <summary>组内的原始诊断（✕ 关闭时按条 <c>Dismiss</c> —— 关掉的就是这**一个气泡**）。</summary>
+        /// <summary>组内的原始诊断。</summary>
         public readonly List<Diagnostic> Items = [];
 
         /// <summary>已按显示列折好的正文行。</summary>
         public string[] Lines = [];
+    }
+
+    /// <summary>
+    /// 一个 **(行,列) 位置**上的全部诊断 —— 按严重度分成若干组，组间**上下挨着**摆（错误在上）。
+    ///
+    /// **展开/收起状态是整个位置共用一个**（用户定的）：点 ✕ 收起该位置的**全部**气泡，
+    /// 收成**一个小圆点**（颜色取该位置最严重的那档，即错误优先红）；点圆点再全部展开。
+    /// 这正好与「状态表按 (行,列) 记」对得上 —— 见 <see cref="_bubbleOverrides"/>。
+    /// </summary>
+    private sealed class DiagSpot
+    {
+        public int Line;
+        public int Column;
+
+        /// <summary>该位置最严重的一档（收起态圆点的颜色、以及「谁在最上面」的顺序）。</summary>
+        public Severity Severity;
+
+        /// <summary>按严重度升序的组（Error → Warning → Info）—— 也就是**从上到下**的顺序。</summary>
+        public readonly List<DiagGroup> Groups = [];
     }
 
     /// <summary>
@@ -2100,7 +2116,8 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// </summary>
     private sealed class BubbleHit
     {
-        public DiagGroup Group = null!;
+        /// <summary>这一小块属于哪个位置 —— 切换展开/收起时按它写状态（**整个位置一起切**）。</summary>
+        public DiagSpot Spot = null!;
 
         /// <summary>本帧画的是展开态（气泡）还是收起态（小圆点）。</summary>
         public bool Expanded;
@@ -2140,78 +2157,99 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     // 与字号无关；而所有像素级的尺寸都是每帧现读 `EditorTypography` 算的 ⇒
     // **捏合缩放时不需要重建任何东西**（这正是「画在画布上」比「叠一层控件」好的地方：
     // 老实现每改一次字号都要 `RebuildBubbles()` 把整批视图重建一遍）。
-    private List<DiagGroup>? _bubbleGroups;
+    private List<DiagSpot>? _bubbleSpots;
     private List<Diagnostic>? _bubbleSource;
     private int _bubbleCols;
 
     /// <summary>
     /// 分组 + 折行（**纯内容**，与视口、与字号都无关）。内容没变就复用上一次的结果。
     /// </summary>
-    private List<DiagGroup> EnsureBubbleGroups(List<Diagnostic> all)
+    private List<DiagSpot> EnsureDiagSpots(List<Diagnostic> all)
     {
         int cols = MauiEditorStore.BubbleChars;
 
         // 无诊断时每帧拿到的可能都是**新的空表**（DiagnosticManager.GetAll 找不到就返回新 List），
         // 所以这种情况单独认「上次也是空」——否则每帧都要重建一次空表。
         bool sameSource = all.Count == 0
-            ? _bubbleGroups is not null && _bubbleGroups.Count == 0 && _bubbleSource is null
+            ? _bubbleSpots is not null && _bubbleSpots.Count == 0 && _bubbleSource is null
             : ReferenceEquals(_bubbleSource, all);
-        if (_bubbleGroups is not null && sameSource && _bubbleCols == cols) return _bubbleGroups;
+        if (_bubbleSpots is not null && sameSource && _bubbleCols == cols) return _bubbleSpots;
 
-        // **诊断换了一批** ⇒ 逐条的展开/收起状态作废：那张表按 (行,列) 记，
+        // **诊断换了一批** ⇒ 展开/收起状态作废：那张表按 (行,列) 记，
         // 而新的一批诊断里同样的 (行,列) 指的已经是别的东西了（换文件、重新编译都是这条路）。
         // ⚠ 改「每行字数」**不算**换了一批 —— 那条路要保住用户的选择。
         if (!sameSource) _bubbleOverrides.Clear();
 
         _bubbleCols = cols;
         _bubbleSource = all.Count == 0 ? null : all;
-        _bubbleGroups = BuildBubbleGroups(all, cols);
-        return _bubbleGroups;
+        _bubbleSpots = BuildDiagSpots(all, cols);
+        return _bubbleSpots;
     }
 
-    /// <summary>按 (行,列) 分组并折行。**纯函数**（输入定了输出就定了）。</summary>
-    private static List<DiagGroup> BuildBubbleGroups(List<Diagnostic> all, int cols)
+    /// <summary>
+    /// 按 **(行, 列, 严重度)** 分组，再按 (行,列) 收成「位置」。**纯函数**。
+    ///
+    /// 同一位置上的**错误与警告是两个气泡**（用户定的：错误合并错误、警告合并警告），
+    /// 位置上按严重度升序排 ⇒ **错误在上、警告在下、提示更下**（严重的优先）。
+    /// 这个顺序就是屏幕上的上下顺序，想调就调这里那句 Sort。
+    /// </summary>
+    private static List<DiagSpot> BuildDiagSpots(List<Diagnostic> all, int cols)
     {
-        var map = new Dictionary<(int Line, int Column), DiagGroup>();
+        var map = new Dictionary<(int Line, int Column), DiagSpot>();
         foreach (var d in all)
         {
             var key = (d.Line, d.Column);
-            if (!map.TryGetValue(key, out var g))
+            if (!map.TryGetValue(key, out var spot))
             {
-                g = new DiagGroup { Line = d.Line, Column = d.Column, Severity = d.Severity };
-                map[key] = g;
+                spot = new DiagSpot { Line = d.Line, Column = d.Column, Severity = d.Severity };
+                map[key] = spot;
             }
+            if (d.Severity < spot.Severity) spot.Severity = d.Severity;   // 位置最严重的那档
+
+            // 同一严重度合成一组（组内几条 → 同一个气泡里的 `1. …` / `2. …`）
+            var g = spot.Groups.Find(x => x.Severity == d.Severity);
+            if (g is null) { g = new DiagGroup { Severity = d.Severity }; spot.Groups.Add(g); }
             g.Items.Add(d);
-            if (d.Severity < g.Severity) g.Severity = d.Severity;   // 取最严重的那档
         }
 
-        var groups = new List<DiagGroup>(map.Count);
-        foreach (var kv in map) groups.Add(kv.Value);
+        var spots = new List<DiagSpot>(map.Count);
+        foreach (var kv in map) spots.Add(kv.Value);
         // 稳定顺序（按行、再按列）：Dictionary 的遍历顺序是实现细节，而绘制顺序应当可预期
-        groups.Sort((a, b) => a.Line != b.Line ? a.Line.CompareTo(b.Line) : a.Column.CompareTo(b.Column));
+        spots.Sort((a, b) => a.Line != b.Line ? a.Line.CompareTo(b.Line) : a.Column.CompareTo(b.Column));
 
-        foreach (var g in groups)
+        foreach (var spot in spots)
         {
-            var lines = new List<string>();
-            for (int i = 0; i < g.Items.Count; i++)
-            {
-                var d = g.Items[i];
-                var body = d.Code is { Length: > 0 } code ? $"{d.Message}   [{code}]" : d.Message;
-
-                // 单条 → 保持改造前的观感（带上「第 N 行：」）；多条 → 用户要的 `1. …` / `2. …` 编号。
-                // 编号占掉的列数要从**可用列**里扣掉，否则第一行会顶出气泡宽度
-                // （续行因此比气泡窄几个列宽，宁可短一点也不许顶出去）。
-                string text = g.Items.Count == 1
-                    ? (d.Line > 0 ? $"第 {d.Line} 行：{body}" : body)
-                    : $"{i + 1}. {body}";
-                int prefix = g.Items.Count == 1 ? 0 : $"{i + 1}. ".Length;
-
-                foreach (var ln in WrapByColumns(text, cols - prefix).Split('\n'))
-                    if (ln.Length > 0) lines.Add(ln);   // 原文本里的空行不占高度
-            }
-            g.Lines = lines.Count > 0 ? [.. lines] : [""];
+            // 上下顺序 = 严重度升序（Error 0 → Warning 1 → Info 2）⇒「错误在最上面」
+            spot.Groups.Sort((a, b) => a.Severity.CompareTo(b.Severity));
+            foreach (var g in spot.Groups) WrapGroup(g, cols);
         }
-        return groups;
+        return spots;
+    }
+
+    /// <summary>把一个严重度组的正文按显示列折好（单条带「第 N 行：」、多条编号）。</summary>
+    private static void WrapGroup(DiagGroup g, int cols)
+    {
+        var lines = new List<string>();
+        for (int i = 0; i < g.Items.Count; i++)
+        {
+            var d = g.Items[i];
+
+            // 正文**不带**那个方括号里的英文错误码（用户要求：`[Parser_UnexpectedToken]` 与消息
+            // 意思重复）。⚠ **只改气泡**：`Diagnostic.Code` 本身、以及错误列表里对它的显示都不动。
+            // 气泡宽度与这条无关 —— 它恒等于「每行字数 × 半角字宽」，不随正文长短伸缩。
+
+            // 单条 → 保持改造前的观感（带上「第 N 行：」）；多条 → 用户要的 `1. …` / `2. …` 编号。
+            // 编号占掉的列数要从**可用列**里扣掉，否则第一行会顶出气泡宽度
+            // （续行因此比气泡窄几个列宽，宁可短一点也不许顶出去）。
+            string text = g.Items.Count == 1
+                ? (d.Line > 0 ? $"第 {d.Line} 行：{d.Message}" : d.Message)
+                : $"{i + 1}. {d.Message}";
+            int prefix = g.Items.Count == 1 ? 0 : $"{i + 1}. ".Length;
+
+            foreach (var ln in WrapByColumns(text, cols - prefix).Split('\n'))
+                if (ln.Length > 0) lines.Add(ln);   // 原文本里的空行不占高度
+        }
+        g.Lines = lines.Count > 0 ? [.. lines] : [""];
     }
 
     /// <summary>
@@ -2257,8 +2295,8 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     {
         _bubbleHits.Clear();
         _bubbleRightCodeX = 0f;
-        var groups = EnsureBubbleGroups(all);
-        if (groups.Count == 0) return;
+        var spots = EnsureDiagSpots(all);
+        if (spots.Count == 0) return;
 
         // 所有像素尺寸**每帧现读**（全部由 `EditorTypography.FontSize` 推导）⇒ 捏合缩放自动跟随
         float halfW = Math.Max(1f, _charWidth);          // 半角字宽（与定位同一把尺子）
@@ -2279,15 +2317,15 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // 行号栏刚把字号减 1（见 DrawGutter），气泡正文要还原成与代码同号（用户要求「一般大」）
         canvas.FontSize = EditorTypography.FontSize;
 
-        foreach (var g in groups)
+        foreach (var spot in spots)
         {
             // ── 锚点 + 可见性 ──
             // ⚠ 不能写成 `bool anchored = cond && TryGetCellAnchor(out …)`：`&&` 的右侧不保证求值，
             //   编译器会判 out 变量「可能未赋值」（CS0165）。分开写。
             float anchorX = 0f, lineTop = 0f, tipY;
             bool anchored = false;
-            if (g.Line > 0)
-                anchored = TryGetCellAnchor(g.Line, g.Column > 0 ? g.Column : 1, out anchorX, out lineTop);
+            if (spot.Line > 0)
+                anchored = TryGetCellAnchor(spot.Line, spot.Column > 0 ? spot.Column : 1, out anchorX, out lineTop);
             if (anchored)
             {
                 // **可见性判据 = 诊断那一行在不在视口里**（不是气泡/圆点的矩形）：
@@ -2304,30 +2342,58 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
                 tipY = 0f;
             }
 
-            var wave = g.Severity switch
-            {
-                Severity.Error => EditorTypography.ErrorWave,
-                Severity.Warning => EditorTypography.WarnWave,
-                _ => EditorTypography.InfoWave,
-            };
-
-            bool expanded = _bubbleOverrides.TryGetValue((g.Line, g.Column), out var ov)
+            // 展开/收起是**整个位置共用**的（用户定的）⇒ 一个位置上要么全是气泡、要么只有一个小圆点；
+            // 圆点的颜色取该位置**最严重**的那一档（错误优先红）。
+            bool expanded = _bubbleOverrides.TryGetValue((spot.Line, spot.Column), out var ov)
                 ? ov : defaultExpanded;
 
-            if (expanded) DrawBubble(canvas, g, wave, anchored, anchorX, tipY,
-                pad, tipW, tipH, closeW, inflate, bodyW, radius, textColor, lineH, w, h);
-            else DrawDot(canvas, g, wave, anchored, anchorX, lineTop, lineH,
-                dotR, inflate, w, h);
+            if (!expanded)
+            {
+                DrawDot(canvas, spot, WaveColor(spot.Severity), anchored, anchorX, lineTop, lineH,
+                    dotR, inflate, w, h);
+                continue;
+            }
+
+            // 同一位置的多组**上下挨着**摆：最上面那个的尖接锚点，下面那些紧挨着它往下排。
+            // 只有最上面那个画尖 —— 尖是「指向锚点」的，下面那个的尖会指进上一个气泡里去。
+            float y = tipY;
+            for (int i = 0; i < spot.Groups.Count; i++)
+            {
+                var g = spot.Groups[i];
+                bool withTip = i == 0 && anchored;   // 没有锚点的诊断本来也没尖可画
+                float bodyH = g.Lines.Length * lineH + pad * 2f;
+
+                DrawBubble(canvas, spot, g, WaveColor(g.Severity), withTip, anchorX, y,
+                    pad, tipW, tipH, closeW, inflate, bodyW, radius, textColor, lineH, w, h);
+
+                // 下一个的上边缘 = 这个的下边缘（带尖的那个要多让出尖那一段）+ 极小缝
+                y += bodyH + (withTip ? tipH : EditorTypography.BubbleStackGap);
+            }
         }
     }
 
-    /// <summary>展开态：一体路径的圆角矩形（左上角收成一个尖）+ 正文 + 右上角的 ✕。</summary>
-    private void DrawBubble(ICanvas canvas, DiagGroup g, Color wave, bool anchored,
+    /// <summary>严重度 → 波浪线/气泡/圆点那三种色（**唯一一处映射**）。</summary>
+    private static Color WaveColor(Severity s) => s switch
+    {
+        Severity.Error => EditorTypography.ErrorWave,
+        Severity.Warning => EditorTypography.WarnWave,
+        _ => EditorTypography.InfoWave,
+    };
+
+    /// <summary>
+    /// 展开态的一个气泡：一体路径（最上面那个带尖、被压在下面的用普通圆角矩形）
+    /// + 正文 + 右上角的 ✕。
+    ///
+    /// <paramref name="withTip"/> = 是否画左上角那个尖：同一位置上**只有最上面那个画尖**
+    /// （尖的用途是「指向锚点」，下面那个的尖会指进上一个气泡里去，不合理）。
+    /// 传 false 时 <paramref name="tipY"/> 就是**本体的上边缘**（尖的那段高度不参与）。
+    /// </summary>
+    private void DrawBubble(ICanvas canvas, DiagSpot spot, DiagGroup g, Color wave, bool withTip,
         float bx, float tipY, float pad, float tipW, float tipH, float closeW, float inflate,
         float bodyW, float radius, Color textColor, float lineH, float w, float h)
     {
         float bodyH = g.Lines.Length * lineH + pad * 2f;
-        float bodyTop = tipY + tipH;    // 上边缘（尖在它上面 tipH 处）
+        float bodyTop = withTip ? tipY + tipH : tipY;   // 上边缘（带尖时尖在它上面 tipH 处）
 
         // 一体路径：圆角矩形，**左上角不收圆角、直接收成一个尖**
         // （不是「圆角矩形 + 另画一个小三角」：那要多一个图形，还要处理两者的对齐/接缝）。
@@ -2336,7 +2402,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         // 记下最右缘（**内容坐标** = 视口坐标 + 横向滚动）供横向滚动上限用 —— 见 _bubbleRightCodeX
         _bubbleRightCodeX = MathF.Max(_bubbleRightCodeX, bx + _scrollX + bodyW);
 
-        var path = BubblePath(bx, tipY, bodyW, bodyH, tipW, tipH, radius, anchored);
+        var path = BubblePath(bx, tipY, bodyW, bodyH, tipW, tipH, radius, withTip);
         canvas.FillColor = EditorTypography.BubbleFill(wave);
         canvas.FillPath(path);
         // 细描边：把气泡与同色系的代码分开（没它时两者容易糊在一起）。颜色取主题边框色系。
@@ -2363,10 +2429,10 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
 
         _bubbleHits.Add(new BubbleHit
         {
-            Group = g,
+            Spot = spot,
             Expanded = true,
             // 本体矩形含左上角那个尖（tipH 那一段），这样「点在尖上」也算点在气泡上
-            Body = new RectF(bx, tipY, bodyW, bodyH + tipH),
+            Body = new RectF(bx, tipY, bodyW, withTip ? bodyH + tipH : bodyH),
             ToggleTouch = Inflate(glyph, inflate, w, h),
         });
     }
@@ -2379,7 +2445,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     /// 不会与它错开。颜色就是那一档的波浪色（错误红 / 警告黄 / 提示绿）。
     /// 点它就把这一条**展开**（可逆 —— 与「彻底删掉这条诊断」不是一回事）。
     /// </summary>
-    private void DrawDot(ICanvas canvas, DiagGroup g, Color wave, bool anchored,
+    private void DrawDot(ICanvas canvas, DiagSpot spot, Color wave, bool anchored,
         float anchorX, float lineTop, float lineH, float dotR, float inflate, float w, float h)
     {
         // y 与 DrawDiagnosticWave **同源**（那边是 `y + lineH - WaveBaseInset`）：
@@ -2396,7 +2462,7 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
         var box = new RectF(anchorX - dotR, cy - dotR, dotR * 2f, dotR * 2f);
         _bubbleHits.Add(new BubbleHit
         {
-            Group = g,
+            Spot = spot,
             Expanded = false,
             // 收起态没有「本体」可言：那一块就是圆点的热区，点它就是展开
             Body = Inflate(box, inflate, w, h),
@@ -2489,16 +2555,19 @@ public sealed class CodeCanvasView : GraphicsView, IDrawable
     }
 
     /// <summary>
-    /// 把一条诊断切成展开（气泡）或收起（小圆点）—— **点 ✕ 与点圆点都走这里**，
+    /// 把一个**位置**切成展开（气泡）或收起（小圆点）—— **点 ✕ 与点圆点都走这里**，
     /// 于是「展开/收起」这条规则只有一处实现。
+    ///
+    /// ⚠ 状态按**位置**（行,列）记、不按单个气泡：同一位置上错误/警告是两个气泡，
+    /// 点其中任何一个的 ✕ 都把**整个位置**收成一个小圆点（用户定的语义）。
     ///
     /// ⚠ 这里**不动** `DiagnosticManager`：那条诊断仍然存在（行下波浪线照画、错误列表照列），
     /// 只是它在编辑器里的标记换了个形态。这正是「✕ 不是删掉、而是收起来」的落地方式 ——
     /// 所以它**可逆**（点那一点小圆点就能再展开）。
     /// </summary>
-    private void SetDiagExpanded(DiagGroup g, bool expanded)
+    private void SetDiagExpanded(DiagSpot spot, bool expanded)
     {
-        _bubbleOverrides[(g.Line, g.Column)] = expanded;
+        _bubbleOverrides[(spot.Line, spot.Column)] = expanded;
 
         // 几何从「气泡」变成「小圆点」（或反过来），命中表必须作废：留着的话紧接着的第二次点击
         // 会按**旧几何**再切一次（那会儿那块位置可能已经换成了别的诊断）。
