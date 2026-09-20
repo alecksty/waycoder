@@ -885,6 +885,17 @@ WayCoder 的模式参考 Claude Code / OpenAI Codex / Crush / Aider 划分为**�
 > **本机的 JDK / SDK 路径**（`JAVA_HOME` 与 `ANDROID_HOME` 都没设，必须显式给）：
 > `JAVA_HOME="C:\Program Files\Android\openjdk\jdk-21.0.8"`、`ANDROID_HOME=D:\Android\Sdk`（`apksigner`/`aapt2` 在 `D:\Android\Sdk\build-tools\37.0.0\`，它们也要 `JAVA_HOME`）。**改过 APK 里任何资产就要先删旧 APK 再 publish**，否则不会重签。
 >
+> **⚠ 两台机器两张证书 —— 必须共用同一份 keystore（2026-09-20 实测踩到）**：`waycoder.keystore` 是私钥、被 `.gitignore` 排除（**是对的**），但代价是**每台机器都会各自生成一份同名文件**。于是同一份代码在两台机器上打出来的包**签名不同**，A 机器打的包装不上 B 机器装过的手机，报：
+> ```
+> INSTALL_FAILED_UPDATE_INCOMPATIBLE: signatures do not match newer version
+> ```
+> 而**这个报错看不出是"两台机器两张证书"**，唯一"官方"的补救是 `adb uninstall` —— 那会删掉用户手机上的 API Key 与会话（私有目录里；工作区在外部存储、不受影响）。实测那次：Mac 的 keystore 生成于 9-13（`SHA256withRSA`，`14:AB:38:…`）、Windows 的生成于 9-14（`SHA384withRSA`，`75:98:F1:…`），手机装的是 Windows 那份 ⇒ Mac 这边怎么打都装不上去。**判据是证书指纹，不是文件名**（两份都叫 `waycoder.keystore`、DN 也一模一样）。
+>
+> **规矩**：所有机器共用**同一份** keystore，离线传（U 盘 / 密码管理器 / 安全通道），**绝不走 git**。以**手机上正在生效的那一份**为准（换钥匙否则要再卸一次）。指纹钉在 `WayCoder.Maui/keystore.sha256` —— 指纹是**公开信息**（印在 APK 签名里），可以进仓库；私钥不行，这个分工就是那个文件的意义。`build-apk.sh` 构建前会校验指纹，**对不上直接失败**（好过打出一个装不上去的包）。
+>
+> ⚠ **Windows 上走的是裸 `dotnet publish`（没有这个校验）** —— 在那台机器上打之前，先手动对一次：
+> `keytool -list -v -keystore WayCoder.Maui/waycoder.keystore -storepass waycoder | grep SHA256`
+
 > **示例（`Examples/`）进包的规则**：`vml_lib.zip` 里打 `Lib/` + `vmltool.config.xml` + **`Examples/` 的 1~2 层**（`Examples/README.md` 与 `Examples/<语言>/<文件>`）。手机端 `MauiBootstrap.EnsureExamples()` **保持这个层形解包**（v0.96.184 起：`examples/<语言>/<文件>`；此前是**平铺**的，十来种语言堆在一个目录里只能靠文件名猜），所以：① 递归整棵树会把上游 stb/stm32 上千个文件糊进 `examples/` 一个目录、还重名互覆；② **加新示例/游戏就放 `Examples/<语言>/` 下，别建子目录**（子目录不会进包）；③ 光把文件放进 `Examples/` 不会自动到手机上，要重跑 `scripts/make-vml-lib.sh` 再重打 APK —— ⚠ **而且必须同时升 `Global.Version`**（v0.96.212 实测踩到）：`EnsureExamples()` 的闸门是 `File.ReadAllText(marker).Trim() == Global.Version`，**只判版本、不看内容指纹**（与 `MauiVml.EnsureLibExtracted` 用 `vml_lib.hash` 判内容**不是一回事**）⇒ **版本没变就不会重新解压**，包里的新示例永远到不了手机，而 `adb` 看 `examples/` 目录"确实没有新文件"，很容易误判成"打包漏了"。改示例 = 改版本号，这两件事要一起做；④ 命令带语言名：`vml run examples/c/tetris.c`；⑤ 重新解包时**只清"包里有的那些"**（顶层散文件 + 我们管理的语言子目录），用户自己在 `examples/` 下建的目录不碰 —— 标记文件 `.unpacked` 里存的是**版本号**，所以每次发版都会重解压一次（迁移旧布局就靠它，不用另写迁移代码）。真机验收：`adb shell ls /storage/emulated/0/waycoder/workspace/examples`（**工作区在外部存储，adb 直接可读**，比翻私有目录省事）。
 >
 > **真机跑 VML 程序不用写代码**：App 的「命令行」页敲 `vml run examples/c/tetris.c`（走 `VmlTool`，与 AI 调工具同一条流水线）。手机自带手柄（方向键 + SELECT/START + X/Y/A/B → Win32 虚拟键），**VML 程序的键盘分支直接认**。⚠ C 前端 + 汇编 + 链接 3.7 万条指令在手机上要**一分多钟**，别当成卡死。

@@ -38,6 +38,39 @@ if [[ ! -f "$KS" ]]; then
   exit 1
 fi
 
+# ⚠ **签名指纹必须与 `keystore.sha256` 一致** —— 否则这个包**打得出来、装不上去**。
+#
+# `waycoder.keystore` 是私钥、不进 git（对），但代价是**每台机器都可能各自生成一份同名文件**，
+# 于是同一份代码在两台机器上打出来的包**签名不同** ⇒ 手机上
+# `INSTALL_FAILED_UPDATE_INCOMPATIBLE: signatures do not match`，
+# 而那个报错**看不出是"两台机器两张证书"**，唯一的"官方"补救是 `adb uninstall`
+# （会删掉用户手机上的 API Key 与会话）。实测踩过（2026-09-20）：
+#   Mac 的 keystore 生成于 9-13，Windows 的生成于 9-14，手机装的是 Windows 那份
+#   ⇒ Mac 这边怎么打都装不上去。
+#
+# 指纹是**公开信息**（印在 APK 签名里，谁都能看到），所以可以进仓库；私钥不行。
+# 这个分工正是 `keystore.sha256` 存在的意义。
+EXPECTED="$HERE/keystore.sha256"
+if [[ -f "$EXPECTED" ]]; then
+  want=$(grep -E '^[0-9A-Fa-f:]{95}$' "$EXPECTED" | head -1 | tr 'a-f' 'A-F')
+  got=$("$JAVA_HOME/bin/keytool" -list -v -keystore "$KS" -storepass waycoder -alias waycoder 2>/dev/null \
+        | grep -m1 'SHA256: *' | sed 's/.*SHA256: *//' | tr -d ' ' | tr 'a-f' 'A-F')
+  if [[ -z "$got" ]]; then
+    echo "✘ 读不出 $KS 的证书指纹（口令/别名不对？）—— 中止，别打出一个装不上去的包。"
+    exit 1
+  fi
+  if [[ "$got" != "$want" ]]; then
+    echo "✘ 签名证书指纹对不上 —— **这个包装不上任何用统一钥匙的手机**。"
+    echo "    期望: $want"
+    echo "    实得: $got"
+    echo "  原因: waycoder.keystore 是私钥、不在 git 里，每台机器可能各自生成一份。"
+    echo "  修法: 把统一的那份 waycoder.keystore 覆盖到 $KS（离线传，别走 git；"
+    echo "        细节见 WayCoder.Maui/keystore.sha256 的说明）。"
+    exit 1
+  fi
+  echo "✔ 签名指纹匹配（${want:0:14}…）"
+fi
+
 # ⚠ **先重新生成内置标准库资产** —— `Resources/Raw/vml_lib.zip` 是**签入仓库的生成物**，
 #    `Lib/` 一有改动（新增 / 改名 / 删文件）它就过期，而过期的后果**只在手机上现形**：
 #    桌面跑 VML 直接读 `third_party/vml/Lib/`，**根本不走「zip → APK 资产 → 设备解压」这条链**
