@@ -11,6 +11,22 @@ namespace LuaCompiler
 
         protected override TokenType GetTokenType(Token token) => token.Type;
 
+        /// <summary>
+        /// 表达式**收尾符** —— 永远不会是表达式的开头（`GapAnchor()` 的第一个判据）。
+        ///
+        /// ⚠ Lua **没有 `NEWLINE` 这个 token**（语句靠空白分隔，换行不是词法单元），
+        /// 所以 `x = 1 +` 结尾撞上的是 **`EOF`** —— `EOF` 必须算进来，
+        /// 否则这条判据在最常见的形态上不生效。
+        /// </summary>
+        protected override bool IsExpressionCloser(Token token) => token.Type
+            is TokenType.RPAREN or TokenType.RBRACE or TokenType.RBRACKET
+            or TokenType.COMMA or TokenType.SEMICOLON or TokenType.COLON
+            or TokenType.EOF;
+
+        /// <summary>语句分隔 —— Lua 只有 `;`（换行不是 token）。</summary>
+        protected override bool IsStatementSeparator(Token token) => token.Type
+            is TokenType.SEMICOLON;
+
         public Parser(List<Token> tokens) : base(tokens)
         {
             anonymousFunctionCounter = 0;
@@ -706,7 +722,10 @@ namespace LuaCompiler
                     return ParsePostfix(table);
                     
                 default:
-                    throw Error($"意外的token: {token.Type}（此处不该出现它）");
+                    // 位置用 `GapAnchor()`，不是裸 `Cur`：`x = 1 +` 结尾撞上的是 **`EOF`**
+                    // （Lua 没有换行 token，EOF 被标在下一行）⇒ 按当前位置报就落到第 5 行，
+                    // 而错在第 4 行。锚定规则见基类 `GapAnchor`。
+                    throw ErrorAt($"意外的token: {token.Type}（此处不该出现它）", GapAnchor());
             }
         }
     }
