@@ -61,7 +61,7 @@ printf '%s\n' "-----------------------------------------------------------------
 
 for p in "${probes[@]}"; do
     name="$(basename "$p" .c)"
-    out="$(cd "$TMPDIR" && dotnet "$DLL" "$p" --timeout "$TIMEOUT" 2>/dev/null)"
+    out="$(cd "${TMPDIR:-/tmp}" && dotnet "$DLL" "$p" --timeout "$TIMEOUT" 2>/dev/null)"
     # 只看探针自己的 stdout；`VM execution cancelled` 是 CLI 在超时时补的
     if grep -q '^ABI-OK' <<<"$out" && ! grep -q 'VM execution cancelled' <<<"$out"; then
         verdict="PASS"; pass=$((pass + 1))

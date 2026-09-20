@@ -171,7 +171,9 @@ internal sealed record Outcome(
     string RawText,         // 完整报错文本
     string? ExceptionType,
     string Noise,           // 编译期间被探针截下来的 stdout/stderr（链接器日志等）
-    string? FoundFile = null)  // 报错文本里点名的文件（只判得出文件名的形态才有）
+    string? FoundFile = null,  // 报错文本里点名的文件（只判得出文件名的形态才有）
+    // CRASH 那一档的完整调用栈（`--stack` 才填）。见 `Program.ShowStack` 的注释。
+    string? Stack = null)
 {
     public string VerdictText => Verdict switch
     {
@@ -187,10 +189,23 @@ internal sealed record Outcome(
 
 internal static class Program
 {
+    /// <summary>
+    /// `--stack`：CRASH 那一档额外打**完整调用栈**。
+    ///
+    /// ⚠ 为什么必须有这一档：CRASH 的正文（`ex.Message`）往往是一句
+    /// `Object reference not set to an instance of an object.` ——
+    /// **一句话四个字都没有信息量**，光看它连是哪个前端、哪一步崩的都定不下来。
+    /// 本仓的规矩是「不响的自测比没有更糟」，而这条是它的同一面：
+    /// **报了崩溃但报不出位置，等于把排查成本推给下一个人**。
+    /// 默认不开（输出会长），崩了才需要。
+    /// </summary>
+    private static bool ShowStack;
+
     private static int Main(string[] args)
     {
         bool full = args.Contains("--full");
         bool listOnly = args.Contains("--list");
+        ShowStack = args.Contains("--stack");
         var filters = args.Where(a => !a.StartsWith("--")).ToArray();
 
         var samples = Samples();
@@ -279,7 +294,14 @@ internal static class Program
         }
         catch (CompilationException ex)
         {
-            return Judge(s, ex.Message ?? "", ex.GetType().Name, noise.ToString());
+            // ⚠ `--stack` 在这一支**同样要能出堆栈**，而且取的是 `InnerException`：
+            //   `CompilerHelper`（1043 行附近）把内部异常**包装**成
+            //   `CompilationException("<file>: 内部错误: <msg>", ex)` —— 正文只剩一句
+            //   「Object reference not set…」，**真因与调用栈全在 InnerException 里**。
+            //   只看 `ex.ToString()` 会得到"包装层"的栈（就在包装点上），
+            //   那对定位毫无用处。实测就是这么被骗过一轮。
+            return Judge(s, ex.Message ?? "", ex.GetType().Name, noise.ToString(),
+                         Stack: ShowStack ? (ex.InnerException ?? ex).ToString() : null);
         }
         catch (Exception ex) when (ex is VMLAssembler.UnresolvedSymbolException)
         {
@@ -295,7 +317,8 @@ internal static class Program
             // 非编译错误（内部错误 / 未捕获异常）—— 位置判定不了，**必须单列**。
             // 那正是"修复没生效、只是换个地方崩"的伪装形态。
             var text = $"{ex.GetType().Name}: {ex.Message}";
-            return new Outcome(s, Verdict.Crash, null, null, null, text.Replace('\n', ' '), text, ex.GetType().Name, noise.ToString());
+            return new Outcome(s, Verdict.Crash, null, null, null, text.Replace('\n', ' '), text, ex.GetType().Name, noise.ToString(),
+                               Stack: ShowStack ? ex.ToString() : null);
         }
         finally
         {
@@ -311,12 +334,12 @@ internal static class Program
     /// 列只在样本显式给了 <see cref="Sample.ExpectedColumn"/> 时才判：
     /// 链接期那几门报的是「哪条 CALL 指令」、根本没有列的概念，判了就是假红。
     /// </summary>
-    private static Outcome Judge(Sample s, string text, string exceptionType, string noise)
+    private static Outcome Judge(Sample s, string text, string exceptionType, string noise, string? Stack = null)
     {
         var pos = ExtractPosition(text);
         var first = FirstDiagnosticLine(text);
         if (pos is null)
-            return new Outcome(s, Verdict.NoPosition, null, null, null, first, text, exceptionType, noise);
+            return new Outcome(s, Verdict.NoPosition, null, null, null, first, text, exceptionType, noise, Stack: Stack);
 
         var v = Verdict.Pass;
         // **文件先判、行后判**：本档的命题就是"错在哪个文件"，文件不对的严重性高于行号不对
@@ -329,7 +352,7 @@ internal static class Program
             v = Verdict.WrongColumn;
 
         return new Outcome(s, v, pos.Value.Line, pos.Value.Column, pos.Value.Kind, first, text,
-                           exceptionType, noise, pos.Value.File);
+                           exceptionType, noise, pos.Value.File, Stack);
     }
 
     /// <summary>
@@ -446,6 +469,13 @@ internal static class Program
             if (!full && text.Length > 1200) text = text[..1200] + "\n   …（截断，加 --full 看全文）";
             foreach (var l in text.TrimEnd('\n').Split('\n'))
                 Console.WriteLine("     | " + l.TrimEnd('\r'));
+
+            if (o.Stack != null)
+            {
+                Console.WriteLine("   调用栈（--stack）：");
+                foreach (var l in o.Stack.TrimEnd('\n').Split('\n'))
+                    Console.WriteLine("     @ " + l.TrimEnd('\r'));
+            }
 
             // 编译期间被截下来的 stdout/stderr（链接器日志、各前端的 warning）。
             // `full` 之外只打尾巴 —— 有用的那几行通常在最后。

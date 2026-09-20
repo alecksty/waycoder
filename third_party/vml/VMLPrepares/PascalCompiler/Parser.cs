@@ -325,7 +325,7 @@ namespace PascalCompiler
                 if (GetTokenType(Cur) == TokenType.IDENTIFIER || GetTokenType(Cur) == TokenType.INTEGER_LITERAL)
                     Advance();
                 else
-                    Error("期望标签名");
+                    GccError("期望标签名", ErrorCode.Parser_ExpectedIdentifier);
             } while (Match(TokenType.COMMA));
             Expect(TokenType.SEMICOLON, "期望 ';'");
         }
@@ -403,8 +403,10 @@ namespace PascalCompiler
                         Column = token.Column
                     };
                 }
-                Error("期望子界类型上界");
-                return null;
+                // 报出来 + 用 INTEGER 占位继续（**不返回 null**：null 会流到代码生成再崩，
+                // 把真正的错盖成一句没有位置的「内部错误」）。见 `ParserBase.Collect` 的两分法。
+                GccError("期望子界类型上界", ErrorCode.Parser_ExpectedExpression);
+                return new SimpleTypeNode { TypeName = "INTEGER", Line = token.Line, Column = token.Column };
             }
             else if (GetTokenType(Cur) == TokenType.PROCEDURE || GetTokenType(Cur) == TokenType.FUNCTION
                   || GetTokenType(Cur) == TokenType.CONSTRUCTOR || GetTokenType(Cur) == TokenType.DESTRUCTOR)
@@ -556,7 +558,8 @@ namespace PascalCompiler
                     }
                     else
                     {
-                        Error("期望字段声明或 'end'");
+                        // 报出来 + 继续（循环末尾会吃分号/推进，不会原地打转）
+                        GccError("期望字段声明或 'end'", ErrorCode.Parser_InvalidDeclaration);
                     }
                 }
 
@@ -653,8 +656,9 @@ namespace PascalCompiler
             }
             else
             {
-                Error("期望类型声明");
-                return null;
+                // 同「期望子界类型上界」：报出来 + 占位继续，不返回 null。
+                GccError("期望类型声明", ErrorCode.Parser_InvalidDeclaration);
+                return new SimpleTypeNode { TypeName = "INTEGER", Line = token.Line, Column = token.Column };
             }
         }
 
@@ -787,7 +791,12 @@ namespace PascalCompiler
                 if (GetTokenType(Cur) == TokenType.IDENTIFIER || GetTokenType(Cur) == TokenType.INTEGER_LITERAL)
                     Advance();
                 else
-                    Error("期望标签名");
+                {
+                    // 报出来 + **吃掉这个 token 保证推进**：本函数返回后由语句循环接手，
+                    // 一个 token 都不动的话下一轮还是同一个 token、同一处错（原地打转）。
+                    GccError("期望标签名", ErrorCode.Parser_ExpectedIdentifier);
+                    Advance();
+                }
                 return new GotoNode { Label = label, Line = token.Line, Column = token.Column };
             }
             else if (token.Type == TokenType.BREAK)
@@ -802,8 +811,13 @@ namespace PascalCompiler
             }
             else
             {
-                Error("期望语句");
-                return null;
+                // 报出来 + 返回**空复合语句**占位（一个不生成任何指令的 no-op）。
+                //
+                // ⚠ **不能返回 null**：语句列表是 `block.Statements.Add(ParseStatement())`、
+                //   代码生成侧 `foreach (var stmt in …) GenerateStatement(stmt)` **没有 null 判据**
+                //   ⇒ null 进去就是另一处 NRE，把真正的错盖掉。
+                GccError("期望语句", ErrorCode.Parser_SyntaxError);
+                return new CompoundStatementNode { Line = token.Line, Column = token.Column };
             }
         }
 

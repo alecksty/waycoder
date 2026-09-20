@@ -22,7 +22,7 @@ namespace GoCompiler
             while (GetTokenType(Cur) == TokenType.OR)
             {
                 Advance();
-                var right = ParseAnd();
+                var right = RequiredOperand(ParseAnd());
                 left = new BinaryOp("||", left, right);
             }
 
@@ -36,7 +36,7 @@ namespace GoCompiler
             while (GetTokenType(Cur) == TokenType.AND)
             {
                 Advance();
-                var right = ParseEquality();
+                var right = RequiredOperand(ParseEquality());
                 left = new BinaryOp("&&", left, right);
             }
 
@@ -50,7 +50,7 @@ namespace GoCompiler
             while (GetTokenType(Cur) == TokenType.EQ || GetTokenType(Cur) == TokenType.NE)
             {
                 var op = Advance().Type == TokenType.EQ ? "==" : "!=";
-                var right = ParseRelational();
+                var right = RequiredOperand(ParseRelational());
                 left = new BinaryOp(op, left, right);
             }
 
@@ -71,7 +71,7 @@ namespace GoCompiler
                     TokenType.GE => ">=",
                     _ => throw Error("未知的运算符")
                 };
-                var right = ParseShift();
+                var right = RequiredOperand(ParseShift());
                 left = new BinaryOp(op, left, right);
             }
 
@@ -85,7 +85,7 @@ namespace GoCompiler
             while (GetTokenType(Cur) == TokenType.LSHIFT || GetTokenType(Cur) == TokenType.RSHIFT)
             {
                 var op = Advance().Type == TokenType.LSHIFT ? "<<" : ">>";
-                var right = ParseAddSub();
+                var right = RequiredOperand(ParseAddSub());
                 left = new BinaryOp(op, left, right);
             }
 
@@ -99,7 +99,7 @@ namespace GoCompiler
             while (GetTokenType(Cur) == TokenType.PLUS || GetTokenType(Cur) == TokenType.MINUS)
             {
                 string op = Advance().Type == TokenType.PLUS ? "+" : "-";
-                var right = ParseMulDiv();
+                var right = RequiredOperand(ParseMulDiv());
                 left = new BinaryOp(op, left, right);
             }
 
@@ -130,7 +130,7 @@ namespace GoCompiler
                         _ => throw Error("未知的运算符")
                     };
                 }
-                var right = ParseUnary();
+                var right = RequiredOperand(ParseUnary());
                 left = new BinaryOp(op, left, right);
             }
 
@@ -142,37 +142,37 @@ namespace GoCompiler
             if (GetTokenType(Cur) == TokenType.PLUS)
             {
                 Advance();
-                return ParseUnary();
+                return RequiredOperand(ParseUnary());
             }
             if (GetTokenType(Cur) == TokenType.MINUS)
             {
                 Advance();
-                return new UnaryOp("-", ParseUnary());
+                return new UnaryOp("-", RequiredOperand(ParseUnary()));
             }
             if (GetTokenType(Cur) == TokenType.NOT)
             {
                 Advance();
-                return new UnaryOp("!", ParseUnary());
+                return new UnaryOp("!", RequiredOperand(ParseUnary()));
             }
             if (GetTokenType(Cur) == TokenType.XOR)
             {
                 Advance();
-                return new UnaryOp("^", ParseUnary());
+                return new UnaryOp("^", RequiredOperand(ParseUnary()));
             }
             if (GetTokenType(Cur) == TokenType.STAR)
             {
                 Advance();
-                return new UnaryOp("*", ParseUnary());
+                return new UnaryOp("*", RequiredOperand(ParseUnary()));
             }
             if (GetTokenType(Cur) == TokenType.AMPERSAND)
             {
                 Advance();
-                return new UnaryOp("&", ParseUnary());
+                return new UnaryOp("&", RequiredOperand(ParseUnary()));
             }
             // Channel receive: <-ch
             if (Match(TokenType.ARROW))
             {
-                return new ReceiveExpr(ParseUnary());
+                return new ReceiveExpr(RequiredOperand(ParseUnary()));
             }
 
             return ParsePrimary();
@@ -193,6 +193,35 @@ namespace GoCompiler
             var __node = ParsePrimaryCore();
             if (__node != null && __node.Line == 0) { __node.Line = __line; __node.OriginalLine = __origLine; __node.Column = __col; }
             return __node;
+        }
+
+        /// <summary>
+        /// 解析**必需**的操作数 —— 解析不出来就报带位置的语法错误。
+        ///
+        /// ⚠ 为什么不在 `ParsePrimaryCore` 的 `return null` 兜底处直接抛：
+        ///   `ParsePrimary` 返回 null 是**试探语义**（"这里是不是一个表达式"），
+        ///   语句分派靠它决定要不要换一种语句种类解析。一律抛出去会把
+        ///   `class`/`using` 这类非表达式开头的语句一起判成语法错误
+        ///   （cs 前端本轮实测踩过：3 条用例全变成 `1:1 …遇到 Class 'class'`）。
+        ///   所以「试探」允许 null，「必需」在**操作数位置**报错 —— 本方法。
+        ///
+        /// ⚠ 修之前的行为：`println_int(1 + )` 编出「右子节点为 null 的 `BinaryOp`」，
+        ///   解析期一句错都不报，**到代码生成才 NRE** —— 被 `CompilerHelper` 包成
+        ///   「内部错误: Object reference not set…」，一句位置都没有。
+        /// </summary>
+        private ASTNode RequiredOperand(ASTNode? parsed)
+        {
+            if (parsed != null) return parsed;
+            // **报错，但把这一句接着解析下去** —— 这正是"错误分两类"里的前一类：
+            // 少一个操作数不影响解析器继续认出后面的东西，所以不该当场把整份文件停掉。
+            // 发个占位 0 顶上去，AST 才是完好的 —— 否则 null 会一路流到代码生成，
+            // 变成一句没有位置的「内部错误」（修之前就是这个症状）。
+            //
+            // ⚠ `GccError` 是**收集**、`Error` 是**抛出**（见 `ParserBase.Collect` 的注释）；
+            //   没有收集器时 `GccError` 自己会抛，不会凭空吞掉。
+            GccError($"这里缺少一个表达式，却遇到 {Cur.Type} '{Cur.Value}'",
+                     ErrorCode.Parser_ExpectedExpression);
+            return new NumberLiteral("0");
         }
 
         private ASTNode ParsePrimaryCore()

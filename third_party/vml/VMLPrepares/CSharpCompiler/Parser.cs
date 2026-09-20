@@ -11,6 +11,17 @@ namespace CSharpCompiler
     public partial class Parser : ParserBase<Token, TokenType>
     {
         protected override TokenType GetTokenType(Token token) => token.Type;
+
+        /// <summary>
+        /// 诊断取位置用**本文本解析器自己的**当前 Token。
+        ///
+        /// ⚠ 不覆写这一条，`ParserBase.ResolveDiagnosticPosition` 会读基类的 `Cur`
+        /// —— 而本类把 `Peek`/`Advance`/`Check`/`IsAtEnd`/`Previous` 全部 `new` 掉了
+        /// （见 `ParseStatement` 那段注释），基类的 `_pos` **从不移动**、
+        /// 恒指向 `tokens[0]`（第一行那个 `class`）⇒ 本前端报的**每条语法错误都是 `1:1`**。
+        /// 实测症状：报「期望 ';'」时位置落在第 1 行，用户完全找不到。
+        /// </summary>
+        protected override Token CurrentToken => Peek();
         private readonly List<Token> tokens;
         private int position;
         private readonly bool debugMode;
@@ -37,8 +48,39 @@ namespace CSharpCompiler
             {
                 Statement statement;
                 try { statement = ParseStatement(); }
+                catch (ParseException ex) when (Collect(ex))
+                {
+                    // ⚠ 这里是**「报出来 + 恢复」**，不是「吞掉」也不是「当场停」。
+                    //
+                    // 三者区别（本仓在这上面栽过，记在 `ParserBase.Collect` 的注释里）：
+                    //   · **吞掉**（这里的原样）：无过滤的裸 `catch` 把带位置的
+                    //     `ParseException` 一起吃、连一行日志都不留 ⇒ 用户零错误提示，
+                    //     畸形 AST 照常往下走，到代码生成才炸成没有位置的「内部错误」。
+                    //     实测 `int b = a + ;` 一句错都不报、报出来的是
+                    //     「内部错误: Object reference not set…」。
+                    //   · **当场停**：报了一条就停，后面的错看不到 —— 用户得改一处编一次。
+                    //   · **报出来 + 恢复**（现在这条）：异常里的位置与正文**原样收进诊断**
+                    //     （`Collect`），然后跳过这句、继续解析后面的语句。
+                    //     编译整体照样失败（诊断里有错），而一次能报出尽可能多的错。
+                    //
+                    // 异常过滤器的那一句就是判据：**没有收集器时 `Collect` 返回 false**
+                    // ⇒ 落到下面的裸 `catch`，绝不凭空吞掉。
+                    //
+                    // 恢复：跳过当前有问题的语句, 找下一个分号或右大括号
+                    int depth = 0;
+                    while (!IsAtEnd())
+                    {
+                        if (Check(TokenType.LeftBrace)) depth++;
+                        if (Check(TokenType.RightBrace)) { if (depth <= 0) break; depth--; }
+                        if (Check(TokenType.Semicolon) && depth <= 0) { Advance(); break; }
+                        Advance();
+                    }
+                    statement = null;
+                }
                 catch
                 {
+                    // 真正的**内部**异常（前端自己的 bug）—— 位置算不出来，
+                    // 只能跳过当前语句继续，让文件里其余部分仍能报出来。
                     // 跳过当前有问题的语句, 找下一个分号或右大括号
                     int depth = 0;
                     while (!IsAtEnd())
@@ -1040,11 +1082,17 @@ namespace CSharpCompiler
                 }
                 else
                 {
-                    initializer = ParseExpression();
+                    // ⚠ `=` 已经吃掉了 ⇒ 初始化值**是必需的**，缺了必须报。
+                    //   此前直接 `ParseExpression()`：认不出表达式时它**静默返回 null**
+                    //   （那个 null 是语句分派的试探语义，见 `RequiredOperand` 的注释），
+                    //   于是 `int b = ;` 一句错都不报、整份文件照编过 —— 实测
+                    //   （`.scratch/multi/t.cs` 三处 `= ;` 报出来是「编译成功」）。
+                    //   走 `RequiredOperand`：报错 + 占位 0 + 继续解析这一句。
+                    initializer = RequiredOperand(ParseExpression());
                     // Lambda表达式: Dlg d = x => x * 2;
                     if (Match(TokenType.Lambda))
                     {
-                        initializer = ParseExpression();
+                        initializer = RequiredOperand(ParseExpression());
                     }
                 }
             }

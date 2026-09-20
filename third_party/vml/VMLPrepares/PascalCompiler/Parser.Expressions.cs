@@ -216,8 +216,25 @@ namespace PascalCompiler
             }
             else
             {
-                Error("期望表达式");
-                return null;
+                // **报错，但把这一句接着解析下去** —— 少一个表达式不影响解析器继续
+                // 认出后面的东西（同一句里还有别的错时也能一起报出来），所以不当场停。
+                //
+                // ⚠ 这里原先是 `Error("期望表达式"); return null;` —— **`Error` 是
+                //   「构造并返回异常」、不会自己抛**（Pascal 的覆写就是 `=> new ParseException(…)`）。
+                //   少了 `throw` 就等于**把错构造出来直接丢掉**，然后返回 null；
+                //   null 一路流到代码生成，崩成一句没有位置的
+                //   「内部错误: Object reference not set…」。实测 `WriteLn(1 + )` 就是这样
+                //   （DiagProbe【语法错误】档 pas 一栏）。
+                //   改走 `GccError`（**收集**）之后，位置与文案都进诊断，编译整体照样失败。
+                GccError("期望表达式", ErrorCode.Parser_ExpectedExpression);
+                // 占位 0 顶上去，AST 保持完好 —— 这是"能继续"的那一类错误该有的恢复。
+                return new LiteralNode
+                {
+                    Value = 0,
+                    Type = TokenType.INTEGER_LITERAL,
+                    Line = token.Line,
+                    Column = token.Column
+                };
             }
         }
 

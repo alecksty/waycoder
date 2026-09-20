@@ -63,11 +63,26 @@ namespace PascalCompiler
                 source = pp.Process(filePath);
             }
 
-            Lexer lexer = new Lexer(source);
+            // ⚠ **必须把诊断收集器接给词法器与解析器** —— 这一条是"一次多报多个错误"的前提。
+            //
+            // 本方法是 Pascal 自己手写的一条流水线（不像其余 17 门走
+            // `CompilerHelper.CompileFileStandard` → `Compile` → `CompileWithDiagnostics`），
+            // 所以此前 `new Parser(tokens)` **既没 `Diagnostics`、也没 `FileName`**。
+            // 后果不是"少了个字段"，而是**错误处理策略整个退化**：
+            // `GccError` 见 `Diagnostics == null` 只能**抛**（它没有地方可收），
+            // 于是文件里后面的错全部看不到 —— 实测一份有两个错的文件只报出第一条。
+            // 接上收集器之后，能继续的错误才会走"收集 + 恢复"，一路报到底。
+            var diagnostics = new DiagnosticBag();
+            Lexer lexer = new Lexer(source) { FileName = filePath, Diagnostics = diagnostics };
             var tokens = lexer.Tokenize();
 
-            Parser parser = new Parser(tokens);
+            Parser parser = new Parser(tokens) { FileName = filePath, Diagnostics = diagnostics };
             var ast = parser.Parse();
+
+            // 解析阶段收下的错在这里一次性报出去（与 `CompileWithDiagnostics` 同一口径：
+            // 用 `FormatAll()` 把所有错一起带给用户，而不是只报第一条）。
+            if (diagnostics.HasErrors)
+                throw new CompilationException(diagnostics.FirstErrorCode, diagnostics.FormatAll());
 
             VmlProgram prog;
             if (ast is ProgramNode programNode)

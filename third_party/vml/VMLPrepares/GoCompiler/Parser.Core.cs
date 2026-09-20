@@ -31,10 +31,17 @@ namespace GoCompiler
             _isMCU = isMCU;
         }
 
-        protected override ParseException Error(string message)
-        {
-            return new ParseException($"语法错误 在第{Cur.Line}行{Cur.Column}列：{message}", Cur!);
-        }
+        // ⚠ 这里原先有一条 `protected override ParseException Error(string message)`
+        //   自己拼 `语法错误 在第{Cur.Line}行{Cur.Column}列：…`。**已删除、改用基类实现**，
+        //   理由是它比基类少两件事：
+        //     ① 没有 `文件:行:列: error:` 前缀 —— 宿主（CLI/MAUI/LSP）按这个形状锚位置
+        //        （`VmlDiagnostics` 的 4 条正则 + 编辑器气泡），Go 的语法错误在编辑器里
+        //        锚不到行；
+        //     ② 没走 `ResolveDiagnosticPosition` ⇒ **不查预处理行号映射** ——
+        //        错在 `#include` 进来的头文件里时，报的是拼接后的行号。
+        //   Go 的 `Token` 实现了 `ITokenPosition`（`Token.cs:6`），基类那条通用实现
+        //   取到的行列**与这里手写的完全同源**（同一只 `Cur`），所以删掉只是补上前缀与映射，
+        //   位置一个字不变。实测 DiagProbe 三档无回归。
 
         private void SkipNewlines()
         {

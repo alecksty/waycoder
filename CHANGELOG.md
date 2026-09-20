@@ -1,3 +1,141 @@
+## v0.96.320 — 编译器崩溃修复 ＋ 错误处理两分（能继续的多报、不能继续的停）
+
+> 承接 v0.96.319 结尾那句「【语法错误】档 3 PASS / 8 行不对 / 6 无位置 / 5 没检出 —— **未修**」。
+> 这一轮把它落地，并按用户定的原则重做了错误处理：**错误分两类，能继续的要尽量多报，
+> 不能继续的才停**。中间两个提交（`cb063ca3` 报错中文化、`2edac8e0` 头文件行号接线）当时按
+> 「检查点」直接落的、没走日志，一并补在第一节。
+
+### 一、头文件行号接线（21 门）＋ 报错中文化（部分）
+
+**缺的不是管道，是投递。** 上一轮把三个消费端都建好了（`LexerBase.GccError/Error`、
+`ParserBase.ResolveDiagnosticPosition`、`CodeGeneratorBase.DiagFile/DiagLine`），而
+`Preprocessor.LineMap` 算出来后被 21 门**逐门丢掉**（`source = pp.Process();` 之后再没人提它）。
+四处共享改动把投递接上：`Preprocessor` 登记「产物引用 → 映射表」→ 词法器凭**引用相等**认领
+→ 解析器兜底取生效表 → `DiagPosition()` 把游标行换回原文件。**20 门前端一行代码没改**。
+
+引用相等是安全性关键：21 门都把 `Process()` 的返回值原样传给 `new Lexer(source)` ⇒
+「这次没预处理」绝不会捡到上次编译的陈表（那会报出另一份文件的行）。
+
+顺带修掉 C 的同族形态：它只带 `ASTNode.OriginalLine`、不带 `OriginalFile` ⇒ 报「主文件名 +
+头文件行号」，正是要修的那个 bug 的另一种形态。
+
+报错中文化：22 门前端 + `CompilerBase` 里面向用户的英文消息已转中文（**还剩 Ruby 词法器 2 条**）。
+
+**仍未做**：`js`/`scm`/`fth` 三门只能经链接器报「未定义的函数」，而
+`LibraryLinker.ReportUnresolved` 手上是**拼接后**行号 + 硬编码 `<input>`。要修得把
+「文件 + 原行」一路带进 VML 文本格式（产品链是 编译→写 `.vml`→汇编→链接）。
+
+### 二、四门前端在语法错误上**直接崩**（cs / go / pas / scm）
+
+【语法错误】档报出来的第 4 个「无位置」其实不是「没位置」，是**编译器自己崩了**：
+
+| 门 | 修之前用户看到的 |
+|---|---|
+| `cs` `go` `pas` | `<input>: 内部错误: Object reference not set to an instance of an object.` |
+| `scm` | `<input>: 内部错误: Index was out of range.` |
+
+四门是**同一个形态**：解析器接受了「缺操作数的表达式」、编出畸形 AST（`BinaryExpression`
+右子节点为 `null`，或 `(+ 1)` 这种参数少一个的列表），解析期一句错都不报，
+**到代码生成才 NRE**，被 `CompilerHelper` 包成一句没有位置的「内部错误」。
+
+修法不是给代码生成加 null 判据（那是把症状按下去），而是**在解析器认出问题的那一刻报出来**：
+
+- cs / go：新增 `RequiredOperand()`，包在**每一个操作数位**上（cs 16 处、go 14 处，
+  含二元/一元/三元/解引用/取地址）
+- scm：`GenCall` 链首一处**元数检查**（覆盖下面所有按下标取参的分支）
+- pas：`ParseFactor` 认不出表达式时不再返回 `null`
+
+### 三、错误分两类：**能继续的多报，不能继续的才停**
+
+用户原话：**「错误有两种，一种不影响往下编译，一种是完全无法继续下去，前面一种可以报多个错误，
+后面一种报错就编译停止了。尽量多报错误」**。
+
+落到代码上是一个新接缝 `ParserBase.Collect(ex)` —— 把**已经算好位置**的 `ParseException`
+**原样收进诊断**（`Code`/`File`/`Line`/`Column`/`BareMessage` 五个字段都在异常上），
+配合**异常过滤器**用：
+
+```csharp
+catch (ParseException ex) when (Collect(ex)) { /* 只负责恢复：跳到同步点继续 */ }
+```
+
+没有诊断收集器时 `Collect` 返回 `false` ⇒ 自动退回抛出，**绝不凭空吞掉**。
+
+⚠ **「恢复」与「吞掉」是两件事，本仓在这上面栽过两次**：
+
+- cs `Parse()` 是**无过滤的裸 `catch`** —— 把带位置的 `ParseException` 与内部异常一视同仁地吃掉、
+  连一行日志都没有，然后「跳过当前语句、继续编」。用户零错误提示，程序照编出来。
+- go `ParseProgram`/`ParseBlock` 把异常打到 **stdout**（用户根本看不到）再恢复。
+
+两处现在都改成「**收进诊断 + 恢复**」：错报了、编译整体照样失败，而一次能报出尽可能多的错。
+恢复还都补了**推进保证**（`_pos` 一个都没动就至少吃掉当前 token）—— 否则出错点正好落在
+同步点上时，外层 `while` 会拿同一个 token 原地打转。
+
+### 四、`Error(...)` 忘了 `throw` ＝ **构造完直接丢掉**（Pascal 7 处）
+
+Pascal 的 `Error` 覆写是 `=> new ParseException(…)` —— **返回异常、自己不抛**。而 7 处调用点写的是
+
+```csharp
+Error("期望表达式");   // ← 构造了一个 ParseException，然后丢掉
+return null;
+```
+
+错**一个字都不会出现**，返回的 `null` 一路流到代码生成再崩。全仓机械扫过一遍：
+`CCompiler` 的 `Error` 体内自带 `throw`（写法不同但安全）、词法器的 `Error` 是 `void` 且内部抛，
+**只有 Pascal 这 7 处是真的丢**，已全部改掉。
+
+### 五、位置：Go / Pascal 接回统一出口
+
+两门各有一条**绕开基类**的报错实现，各少两件事（没有 `文件:行:列: error:` 前缀 ⇒ 编辑器锚不到行；
+没走 `ResolveDiagnosticPosition` ⇒ **不查 `#include` 行号映射**）：
+
+- go：删除 `override ParseException Error(...)`，改用基类（`Token` 实现了 `ITokenPosition`，
+  取到的行列与原来手写的**完全同源**，删掉只补上前缀与映射，位置一个字不变）
+- cs：基类 `ResolveDiagnosticPosition` 读的是基类游标 `Cur`，而 C# 前端**自己维护 `position`**、
+  把 `Peek`/`Advance`/`Check`/`IsAtEnd` 全 `new` 掉了 ⇒ 基类 `_pos` 从不移动、**每条语法错误都报
+  1:1**。新增基类接缝 `CurrentToken`（默认 `Cur`），自维护游标的前端覆写它即可 ——
+  **不做「两个游标同步」**（那正是本仓反复踩的「同一件事两处实现」）
+
+### 六、Pascal `CompileFile` 没接诊断收集器 ⇒ 整个前端退化成「只报一条」
+
+`GccError` 见 `Diagnostics == null` **只能抛**（它没有地方可收）⇒ 文件里后面的错全部看不到。
+实测一份有两处独立错的文件只报出第一条。`CompileFile` 是 Pascal 手写的一条流水线
+（不像其余 17 门走 `CompileFileStandard` → `Compile` → `CompileWithDiagnostics`），
+接上收集器后两处都报出来了。
+
+### 七、工具两处
+
+- **DiagProbe 加 `--stack`**：`CRASH` 那一档正文往往就是一句 `Object reference not set…`、
+  四个字都没有信息量。而真因与调用栈**在 `InnerException` 里**（`CompilerHelper` 把它包成
+  `CompilationException("<file>: 内部错误: <msg>", ex)`）——只看 `ex.ToString()` 得到的是
+  **包装层**的栈（就在包装点上），对定位毫无用处。这一条实测被骗过一轮。
+- **`vml-abi-probe` 的 `$TMPDIR` 在 `set -u` 下假红**：Git Bash 里没这个变量 ⇒
+  `unbound variable` ⇒ **7 条全部 FAIL**，看上去像「整个调用约定塌了」。改成 `${TMPDIR:-/tmp}`。
+  （这类假红最坏：它训练人去忽略红灯。）
+
+### 判据
+
+| 判据 | 结果 |
+|---|---|
+| DiagProbe【语法错误】 | PASS **3 → 7**、崩溃 **4 → 0**、无位置 **6 → 2** |
+| DiagProbe【未定义标识符】/【头文件里的错】 | 22/22、19/22 —— 与基线**逐字相同** |
+| **多报错实测**（一份文件放多处独立错） | cs **3/3**、go **2/2**、pas **2/2**、scm **3/3**（cs 修前是「编译成功」） |
+| 桌面自测 | 6134 / 0（与基线同） |
+| `vml-diag-probe` / `vml-out-probe` / `vml-abi-probe` | 61/61、30/30、7/7 |
+| `vml-diag-probe/examples-build.sh` | 80/3 —— **用 baseline DLL 复跑过，同样 80/3、同样那 3 个文件**（fortran/ladder/forth，本轮没碰，属既有红灯） |
+
+三档的判定沿用探针的六档口径：`NOPOS`（报了错但没行号）与 `NOERR`（该报错没报）**各自单列**，
+不并进 FAIL —— 「跑通了」既不是「位置对」也不是「位置错」，是另一种故障。
+
+### 仍未做（如实）
+
+- 【语法错误】档余下：**8 门行不对**（`java kt dart ld py rb lua r` —— 错报在**下一个 token**
+  的行上，`1 +` 结尾时报的是下一行的 `NEWLINE`/`EOF`）、**`rs`/`js` 格式不符**（位置其实是对的，
+  只是不走 `文件:行:列:` 那个形状）、**5 门静默接受**（`c cpp swift bas fth` 把 `int c = a + ;`
+  整份编过 —— 静默错编，按严重度不亚于崩溃）
+- **另外 18 门的「两类错误」没系统过一遍**：本轮只改了测试面里的 4 门 + 抽出的共用接缝
+- 另有 **C×2 / Forth / Ladder** 三处 `new Parser(...)` 没接诊断收集器
+
+---
 ## v0.96.319 — 诊断气泡画布化 ＋ 配色定稿 ＋ 报错位置准确性
 
 > v0.96.316~318 是这一轮的中间真机验证版（装在手机上逐轮调观感用的），未单独记日志。

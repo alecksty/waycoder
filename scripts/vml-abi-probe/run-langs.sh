@@ -95,7 +95,7 @@ for p in "${probes[@]}"; do
         abi)   expect="ABI=8" ;;
         drift) expect="DRIFT=${DRIFT_EXPECT[$ext]:-?}" ;;
     esac
-    out="$(cd "$TMPDIR" && dotnet "$DLL" "$p" --timeout "$TIMEOUT" 2>/dev/null)"
+    out="$(cd "${TMPDIR:-/tmp}" && dotnet "$DLL" "$p" --timeout "$TIMEOUT" 2>/dev/null)"
     got="$(grep -a -o "$(tr 'a-z' 'A-Z' <<<"$kind")=[0-9-]*" <<<"$out" | head -1)"
 
     if [[ "$got" == "$expect" ]]; then

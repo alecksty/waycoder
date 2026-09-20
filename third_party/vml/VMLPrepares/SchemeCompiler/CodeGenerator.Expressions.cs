@@ -198,6 +198,25 @@ public partial class CodeGenerator {
                     () => GenExpr(l.Items[2], tailPos),
                     l.Items.Count >= 4 ? () => GenExpr(l.Items[3], tailPos) : null);
             } else {
+            // ── 内置函数的**元数检查**（唯一一处）────────────────────────────────
+            // 下面几条分支**无条件按 `l.Items[1]` / `l.Items[2]` 取参**，少给一个参数
+            // 就是 `ArgumentOutOfRangeException` —— 被 `CompilerHelper` 包成
+            // 「内部错误: Index was out of range」，**一句位置都没有**，用户看不到错在哪一行。
+            // 实测 `(display (+ 1))` 就是这么崩的（DiagProbe【语法错误】档 scm 一栏）。
+            //
+            // ⚠ 判据放在**链首一处**，不往每个分支里各塞一句 —— 这一整条链是
+            //   「按名字分派 + 按下标取参」，元数规则只有一条。
+            // ⚠ 自带 `Items.Count` 判据的分支（`if` / `case` / `set!` / `do` / `let`）
+            //   **不进这张表**：它们少参数时会落到链尾当普通函数调用处理，那是既有语义，
+            //   不属本次修复范围。
+            if (MinArity(sFirst.Name) is int need && l.Items.Count - 1 < need) {
+                Diags.AddError(DiagFile, l.Line, l.Column, ErrorCode.CodeGen_InvalidOperand,
+                    $"'{sFirst.Name}' 需要至少 {need} 个参数，这里只给了 {l.Items.Count - 1} 个");
+                // 发个 0 兜底：诊断是**收集**的（`BuildProgram` 才一次性抛），
+                // 不兜住的话后续生成会级联崩在别处、把真正的错盖掉。
+                AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0)]);
+                return;
+            }
             if (sFirst.Name == "+" || sFirst.Name == "-") {
                 GenExpr(l.Items[1]); AddInstruction(OpCode.PUSH, [new Operand(OperandType.REGISTER, 0)]);
                 GenExpr(l.Items[2]); AddInstruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0)]);
@@ -687,4 +706,16 @@ public partial class CodeGenerator {
         AddInstruction(OpCode.JMP, [new Operand(OperandType.LABEL, $"{targetFunc}_body")]);
     }
 
+    /// <summary>
+    /// 内置运算的**最少参数个数**；`null` = 本表不管（判据与理由见 `GenCall` 链首那处调用）。
+    ///
+    /// 只收「会无条件按下标取参、少一个就崩」的那几条；自带 `Items.Count` 判据的分支
+    /// （`if` / `case` / `set!` / `do` / `let`）故意不在表里。
+    /// </summary>
+    private static int? MinArity(string name) => name switch {
+        "+" or "-" or "*" or "/" => 2,
+        "<" or ">" or "<=" or ">=" or "=" or "eq?" or "equal?" => 2,
+        "not" => 1,
+        _ => null,
+    };
 }

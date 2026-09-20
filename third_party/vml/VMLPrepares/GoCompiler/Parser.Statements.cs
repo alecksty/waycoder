@@ -26,8 +26,41 @@ namespace GoCompiler
                         program.Declarations.Add(decl);
                     }
                 }
+                catch (ParseException ex) when (Collect(ex))
+                {
+                    // ⚠ 这里是**「报出来 + 恢复」**，不是「吞掉」也不是「当场停」。
+                    //
+                    // 三者区别（本仓在这上面栽过，记在 `ParserBase.Collect` 的注释里）：
+                    //   · **吞掉**（这里的原样）：`catch (System.Exception)` 把带位置的
+                    //     `ParseException` 与内部异常一视同仁 —— 打到 **stdout**
+                    //     （用户根本看不到）然后「跳过本段、找下一个 FUNC/VAR/…」继续编。
+                    //     实测 `println_int(1 + )`：解析器明明认出来了、位置也算好了，
+                    //     用户一个字都看不到，程序照常编出来（DiagProbe 里表现为
+                    //     「NOERR 静默编过」）。
+                    //   · **当场停**：报一条就停，后面的错看不到。
+                    //   · **报出来 + 恢复**（现在这条）：位置与正文原样收进诊断
+                    //     （`Collect`），再跳到下一个声明起点继续 —— 编译整体照样失败，
+                    //     而一次能报出尽可能多的错。
+                    //
+                    // 异常过滤器那句就是判据：**没有收集器时 `Collect` 返回 false**
+                    // ⇒ 落到下面的裸 `catch`，绝不凭空吞掉。
+                    //
+                    // 恢复：跳过本段，找下一个声明起点。
+                    // ⚠ **必须保证推进** —— 出错点正好就是一个声明关键字时（`func` 后面
+                    //   括号里写错），下面这个 `while` 一个 token 都不动就退出，
+                    //   外层再拿同一个 token 调 `ParseDeclaration` 又是一模一样的异常
+                    //   ⇒ 原地死循环（外层 `while` 只看 EOF，没有次数兜底）。
+                    var before = _pos;
+                    while (GetTokenType(Cur) != TokenType.EOF && GetTokenType(Cur) != TokenType.PACKAGE && GetTokenType(Cur) != TokenType.FUNC && GetTokenType(Cur) != TokenType.VAR && GetTokenType(Cur) != TokenType.CONST && GetTokenType(Cur) != TokenType.TYPE && GetTokenType(Cur) != TokenType.IMPORT)
+                    {
+                        Advance();
+                    }
+                    if (_pos == before) Advance();   // 一个都没动 ⇒ 至少吃掉当前 token
+                }
                 catch (System.Exception ex)
                 {
+                    // 真正的**内部**异常（前端自己的 bug）—— 位置算不出来，
+                    // 只能跳过本段继续，让整份文件里其余部分仍能报出来。
                     Console.WriteLine($"解析错误: {ex.Message}");
                     // 尝试恢复
                     while (GetTokenType(Cur) != TokenType.EOF && GetTokenType(Cur) != TokenType.PACKAGE && GetTokenType(Cur) != TokenType.FUNC && GetTokenType(Cur) != TokenType.VAR && GetTokenType(Cur) != TokenType.CONST && GetTokenType(Cur) != TokenType.TYPE && GetTokenType(Cur) != TokenType.IMPORT)
@@ -769,8 +802,24 @@ namespace GoCompiler
                         Advance();
                     }
                 }
+                catch (ParseException ex) when (Collect(ex))
+                {
+                    // 同 `ParseProgram` 那一支：**收进诊断 + 恢复**（见那里的长注释）。
+                    // ⚠ 同样要保证推进：跳到本语句的边界（Go 语句以换行/分号结束）。
+                    //   `ParseStatement()` 抛出时可能一个 token 都没消费，本循环
+                    //   只有 `_stmtGuard > 100000` 兜底，那等于卡死几秒后才放弃。
+                    var before = _pos;
+                    while (GetTokenType(Cur) != TokenType.NEWLINE && GetTokenType(Cur) != TokenType.SEMICOLON
+                           && GetTokenType(Cur) != TokenType.RBRACE && GetTokenType(Cur) != TokenType.EOF)
+                    {
+                        Advance();
+                    }
+                    if (GetTokenType(Cur) == TokenType.NEWLINE || GetTokenType(Cur) == TokenType.SEMICOLON) Advance();
+                    else if (_pos == before) Advance();   // 已经在边界上 ⇒ 至少吃掉它，别原地打转
+                }
                 catch (System.Exception ex)
                 {
+                    // 内部异常才收口：打一行、结束本块。
                     Console.WriteLine($"解析错误: {ex.Message}");
                     break;
                 }

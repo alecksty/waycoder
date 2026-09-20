@@ -20,7 +20,7 @@ namespace CSharpCompiler
             // ?? 空合并运算符 (必须在 ? 之前检查)
             if (Match(TokenType.NullCoalescing))
             {
-                var right = ParseConditional();
+                var right = RequiredOperand(ParseConditional());
                 // 简化：直接返回右值（null check 在运行时）
                 return right;
             }
@@ -42,7 +42,7 @@ namespace CSharpCompiler
             while (Match(TokenType.LogicalOr))
             {
                 var op = Previous();
-                var right = ParseLogicalAnd();
+                var right = RequiredOperand(ParseLogicalAnd());
                 expr = new BinaryExpression(expr, op.Type, right);
             }
             return expr;
@@ -54,7 +54,7 @@ namespace CSharpCompiler
             while (Match(TokenType.LogicalAnd))
             {
                 var op = Previous();
-                var right = ParseBitwiseOr();
+                var right = RequiredOperand(ParseBitwiseOr());
                 expr = new BinaryExpression(expr, op.Type, right);
             }
             return expr;
@@ -66,7 +66,7 @@ namespace CSharpCompiler
             while (Match(TokenType.BitwiseOr))
             {
                 var op = Previous();
-                var right = ParseBitwiseXor();
+                var right = RequiredOperand(ParseBitwiseXor());
                 expr = new BinaryExpression(expr, op.Type, right);
             }
             return expr;
@@ -78,7 +78,7 @@ namespace CSharpCompiler
             while (Match(TokenType.BitwiseXor))
             {
                 var op = Previous();
-                var right = ParseBitwiseAnd();
+                var right = RequiredOperand(ParseBitwiseAnd());
                 expr = new BinaryExpression(expr, op.Type, right);
             }
             return expr;
@@ -90,7 +90,7 @@ namespace CSharpCompiler
             while (Match(TokenType.BitwiseAnd))
             {
                 var op = Previous();
-                var right = ParseEquality();
+                var right = RequiredOperand(ParseEquality());
                 expr = new BinaryExpression(expr, op.Type, right);
             }
             return expr;
@@ -122,7 +122,7 @@ namespace CSharpCompiler
             while (Match(TokenType.Equal) || Match(TokenType.NotEqual))
             {
                 var op = Previous();
-                var right = ParseComparison();
+                var right = RequiredOperand(ParseComparison());
                 expr = new BinaryExpression(expr, op.Type, right);
             }
             
@@ -137,7 +137,7 @@ namespace CSharpCompiler
                    Match(TokenType.GreaterThan) || Match(TokenType.GreaterThanOrEqual))
             {
                 var op = Previous();
-                var right = ParseShift();
+                var right = RequiredOperand(ParseShift());
                 expr = new BinaryExpression(expr, op.Type, right);
             }
 
@@ -150,7 +150,7 @@ namespace CSharpCompiler
             while (Match(TokenType.LeftShift) || Match(TokenType.RightShift))
             {
                 var op = Previous();
-                var right = ParseTerm();
+                var right = RequiredOperand(ParseTerm());
                 expr = new BinaryExpression(expr, op.Type, right);
             }
             return expr;
@@ -163,7 +163,7 @@ namespace CSharpCompiler
             while (Match(TokenType.Plus) || Match(TokenType.Minus))
             {
                 var op = Previous();
-                var right = ParseFactor();
+                var right = RequiredOperand(ParseFactor());
                 expr = new BinaryExpression(expr, op.Type, right);
             }
             
@@ -177,7 +177,7 @@ namespace CSharpCompiler
             while (Match(TokenType.Multiply) || Match(TokenType.Divide) || Match(TokenType.Modulo))
             {
                 var op = Previous();
-                var right = ParseUnary();
+                var right = RequiredOperand(ParseUnary());
                 expr = new BinaryExpression(expr, op.Type, right);
             }
             
@@ -189,33 +189,33 @@ namespace CSharpCompiler
             if (Match(TokenType.Minus) || Match(TokenType.LogicalNot) || Match(TokenType.BitwiseNot))
             {
                 var op = Previous();
-                var right = ParseUnary();
+                var right = RequiredOperand(ParseUnary());
                 return new UnaryExpression(op.Type, right);
             }
 
             // Pointer dereference: *ptr
             if (Match(TokenType.Multiply))
             {
-                var right = ParseUnary();
+                var right = RequiredOperand(ParseUnary());
                 return new DerefExpression(right);
             }
 
             // Address-of: &var
             if (Match(TokenType.BitwiseAnd))
             {
-                var right = ParseUnary();
+                var right = RequiredOperand(ParseUnary());
                 return new AddrOfExpression(right);
             }
 
             if (Match(TokenType.Increment))
             {
-                var right = ParseUnary();
+                var right = RequiredOperand(ParseUnary());
                 return new AssignmentExpression(right, TokenType.Increment, new LiteralExpression(1));
             }
 
             if (Match(TokenType.Decrement))
             {
-                var right = ParseUnary();
+                var right = RequiredOperand(ParseUnary());
                 return new AssignmentExpression(right, TokenType.Decrement, new LiteralExpression(1));
             }
 
@@ -319,6 +319,46 @@ namespace CSharpCompiler
             var __node = ParsePrimaryCore();
             if (__node != null && __node.Line == 0) { __node.Line = __line; __node.Column = __col; }
             return __node;
+        }
+
+        /// <summary>
+        /// 解析**必需**的操作数 —— 解析不出来就报带位置的语法错误。
+        ///
+        /// ⚠ 为什么不能把这条判据塞进 `ParsePrimary`（"认不出表达式开头就抛"）：
+        ///   那个 `null` **是承重的**。`ParseStatementCore` 的分派顺序是
+        ///   「表达式语句兜底」**在前**、「`using` / `namespace` / `class` 声明」在后
+        ///   （见 `Parser.cs` 那几段），靠的正是"认不出表达式 ⇒ 返回 null ⇒
+        ///   落到后面的语句种类"这个**试探语义**。一律抛出去，`class P { … }`
+        ///   在第一句就被判成语法错误 —— 实测就是这么炸的（3 条 cs 用例全变成
+        ///   `1:1 需要一个表达式，但遇到 Class 'class'`）。
+        ///
+        ///   所以「试探」与「必需」必须分开：
+        ///   · **试探** = 语句开头的 `ParseExpression()`，允许 null（原样保留）；
+        ///   · **必需** = 二元运算符**右边**那个操作数，缺了就是语法错误（本方法）。
+        ///
+        /// ⚠ 修之前的行为：`int b = a + ;` 编出「右操作数为 null 的
+        ///   `BinaryExpression`」，解析期一句错都不报，**到代码生成才 NRE** ——
+        ///   被 `CompilerHelper` 包成「内部错误: Object reference not set…」，
+        ///   一句位置都没有（DiagProbe【语法错误】档 cs 一栏实测）。
+        ///
+        /// 位置取 `Peek()`（= 那个不该出现的 token），诊断的当前 token 由
+        /// `CurrentToken` 覆写指向同一个 `Peek()`，两者同源、不会错位。
+        /// </summary>
+        private Expression RequiredOperand(Expression? parsed)
+        {
+            if (parsed != null) return parsed;
+            // **报错，但把这一句接着解析下去** —— 这正是"错误分两类"里的前一类：
+            // 少一个操作数不影响解析器继续认出后面的东西（`a + ; b = ] c` 里的后两处
+            // 也应当一起报出来），所以不该当场把整份文件停掉。
+            // 发个占位 0 顶上去，AST 才是完好的 —— 否则 null 会一路流到代码生成，
+            // 变成一句没有位置的「内部错误」（修之前就是这个症状）。
+            //
+            // ⚠ `GccError` 是**收集**、`Error` 是**抛出**。这里必须用收集的那条：
+            //   `ParserBase.Collect` 的注释里写了这个两分法。没有收集器时
+            //   `GccError` 自己会抛，不会凭空吞掉。
+            GccError($"这里缺少一个表达式，却遇到 {Peek().Type} '{Peek().Value}'",
+                     ErrorCode.Parser_ExpectedExpression);
+            return new LiteralExpression(0);
         }
 
         private Expression ParsePrimaryCore()

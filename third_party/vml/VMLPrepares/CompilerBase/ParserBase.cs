@@ -38,6 +38,22 @@ namespace CompilerBase
         /// <summary>当前 Token（越界安全：_pos 超出范围时返回 EOF 哨兵而非崩溃）</summary>
         protected TToken Cur => _pos < _tokens.Count ? _tokens[_pos] : _tokens[^1];
 
+        /// <summary>
+        /// **诊断取位置**用的当前 Token —— 默认就是 <see cref="Cur"/>。
+        ///
+        /// ⚠ 为什么不能直接用 `Cur`：**有的前端自己维护游标**。
+        /// `CSharpCompiler.Parser` 把 `Peek`/`Advance`/`Check`/`IsAtEnd`/`Previous`
+        /// 全部 `new` 掉了（见它自己 `ParseStatement` 那段注释），基类的 `_pos`
+        /// **从不移动** ⇒ 读 `Cur` 永远拿到 `tokens[0]`（第一行那个 `class`），
+        /// 于是它报的**每条语法错误都是 `1:1`**。
+        ///
+        /// ⚠ 为什么不改成"让 C# 同步维护 `_pos`"：那就是**两个游标**，
+        /// 必然漂移（本仓反复踩的「同一件事两处实现」）。这里的接缝是**一个问题**：
+        /// 「你这门语言的当前位置在哪」—— 自维护游标的前端覆写本属性返回它自己的
+        /// 当前 Token 即可，位置仍然只有 `ResolveDiagnosticPosition` 一处取法。
+        /// </summary>
+        protected virtual TToken CurrentToken => Cur;
+
         /// <summary>Token 总数</summary>
         protected int TokenCount => _tokens.Count;
 
@@ -170,7 +186,7 @@ namespace CompilerBase
         /// </summary>
         protected (string File, int Line, int Column) ResolveDiagnosticPosition()
         {
-            var cur = Cur;
+            var cur = CurrentToken;
             var line = GetTokenLine(cur);
             var col = GetTokenColumn(cur);
             // 位置映射回**原文件**（`#include` 展开会把行号整体推后；没有映射时原样退回）
@@ -220,7 +236,49 @@ namespace CompilerBase
             // 三段拼进 `Message`，同时把位置与正文各留一份。外层
             // `CompilerHelper.CompileWithDiagnostics` 要用分开的两份去调 `AddError`，
             // 直接塞拼好的字符串就会拼出两层前缀（见 `ParseException.BareMessage`）。
-            return new ParseException(ErrorCode.Unknown, message, Cur!, file, line, col);
+            return new ParseException(ErrorCode.Unknown, message, CurrentToken!, file, line, col);
+        }
+
+        /// <summary>
+        /// 把一条**已经算好位置**的语法错误收进诊断（**不抛**），供容错恢复用。
+        /// 返回是否收下了 —— 没收集器时返回 false，调用方应让它继续往外抛。
+        ///
+        /// <para>
+        /// **为什么需要它**：错误分两类，容错策略也必须分两类。
+        /// </para>
+        /// <list type="bullet">
+        /// <item>
+        /// **能继续的错误**（少个操作数、少个分号、某个 token 不该出现…）：
+        /// 解析器手上还握得住局面，**应当报出来然后接着编** —— 这样一份文件里的
+        /// 后面几处错也能一起报给用户，而不是改一个、编一次、再看下一个。
+        /// </item>
+        /// <item>
+        /// **无法继续的错误**（词法器坏了、内部状态不可信）：
+        /// 继续编只会级联出一堆假错，**应当当场停**。
+        /// </item>
+        /// </list>
+        ///
+        /// <para>
+        /// ⚠ **"恢复"与"吞掉"是两件事，本仓在这上面栽过**：
+        /// 前端顶层那种 `catch (Exception) { …跳过、继续… }` 把**语法错误一起吞了**，
+        /// 一行日志都不留 ⇒ 用户零错误提示、程序照常编出来（"能跑但少一段"），
+        /// 到代码生成才崩成一句没有位置的「内部错误」。
+        /// 正确做法是**先收进诊断、再恢复**：错报了、编译整体照样失败，
+        /// 而用户一次能看到尽可能多的错。本方法就是那个"先收进诊断"。
+        /// </para>
+        ///
+        /// <para>
+        /// 典型用法是**异常过滤器**，没有收集器时自动退回抛出：
+        /// <c>catch (ParseException ex) when (Collect(ex)) { /* 恢复 */ }</c>
+        /// </para>
+        /// </summary>
+        protected bool Collect(ParseException ex)
+        {
+            if (Diagnostics == null) return false;
+            // 位置与正文都用**分开的字段**（`AddError` 自己会拼前缀；
+            // 塞已经拼好的 `Message` 会得到两层前缀，见 `ParseException.BareMessage`）。
+            Diagnostics.AddError(ex.File, ex.Line, ex.Column, ex.Code, ex.BareMessage);
+            return true;
         }
     }
 }
