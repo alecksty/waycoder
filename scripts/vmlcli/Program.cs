@@ -684,10 +684,97 @@ internal sealed class NullUiCalls : ISystemCallHandler
             SyscallConstants.UserAllowed.Add(n);
     }
 
+    /// <summary>`CALLJSON`（#573）—— 桌面端**唯一真正实现**的一个号。</summary>
+    private const int CallJsonNum = 573;
+
     public bool HandleSyscall(int syscallNumber, int[] registers, byte[] memory, ref int pc)
     {
+        if (syscallNumber == CallJsonNum) { registers[0] = CallJson(registers, memory); return true; }
         if (syscallNumber is < ReservedFirst or > ReservedLast) return false;
         registers[0] = 0;
         return true;
     }
+
+    /// <summary>
+    /// **`CALLJSON`(#573) 的桌面实现**。
+    ///
+    /// ## 为什么这一个号不能像其他号那样"空着"
+    ///
+    /// 其余 500–599 是"画到哪儿无所谓"的 UI 号（桌面 CLI 只要编译产物与运行结果一致），
+    /// 但 `CALLJSON` 返回的是**数据**，程序拿它做逻辑与输出。空着 = 返回空串 ⇒
+    /// `ui_call_json_print()` 一个字节都打不出来。
+    ///
+    /// 实测（2026-09-20）：`Examples/*/sysinfo.*` **22 门语言全部零输出** ——
+    /// 因为每个 `sysinfo.*` 都是同一句 `ui_call_json_s("sysinfo","")` + `ui_call_json_print()`，
+    /// 这是 CALLJSON 的自检程序。空着的时候它们"编译成功、运行成功、什么都不打印"，
+    /// 极易被读成"程序没问题"（我自己第一轮只数了告警，就没看出来）。
+    ///
+    /// ## 与手机端的关系
+    ///
+    /// 信封格式（`{"ok":true,"result":…}`）与手机端 `VmlJsonApi` **同形**，
+    /// 但数值来自**桌面环境**，且 `app`/`version` 报的是"桌面脚手架"而不是 `Global.Version`
+    /// —— 桌面 CLI 刻意**不引用 WayCoder 核心**（csproj 里写着只引 vendored 的 `third_party/vml`），
+    /// 拿不到那个常量。**这是有意为之，不是漏了**：与其抄一个会漂的版本号进来，
+    /// 不如如实说"这是桌面脚手架"。
+    /// </summary>
+    private static int CallJson(int[] r, byte[] mem)
+    {
+        var fn = Str(mem, r[0]);
+        var json = fn == "sysinfo" ? SysinfoJson() : VmlJsonEnvelope.NotFound(fn);
+        int n = WriteString(mem, r[2], r[3], json);
+        if (n >= 0) return n;
+        // 装不下 ⇒ 回一个说明原因的短信封（与手机端同一套两段式退让）
+        return WriteString(mem, r[2], r[3],
+            VmlJsonEnvelope.TooLong(System.Text.Encoding.UTF8.GetByteCount(json)));
+    }
+
+    /// <summary>VM 内存里的 NUL 结尾 C 字符串；指针为 0 或越界时返回空串（与手机端的 `Str` 同语义）。</summary>
+    private static string Str(byte[] mem, int ptr)
+    {
+        if (ptr <= 0 || ptr >= mem.Length) return "";
+        int end = ptr;
+        while (end < mem.Length && mem[end] != 0) end++;
+        return System.Text.Encoding.UTF8.GetString(mem, ptr, end - ptr);
+    }
+
+    /// <summary>把 UTF-8 写进 VM 缓冲区，返回**实际需要**的字节数；放不下返回 -1（结尾留一个 NUL）。</summary>
+    private static int WriteString(byte[] mem, int dst, int cap, string text)
+    {
+        if (dst < 0 || cap <= 1 || dst + cap > mem.Length) return -1;
+        var bytes = System.Text.Encoding.UTF8.GetBytes(text);
+        int n = Math.Min(bytes.Length, cap - 1);
+        Array.Copy(bytes, 0, mem, dst, n);
+        mem[dst + n] = 0;
+        return bytes.Length <= cap - 1 ? n : -1;
+    }
+
+    /// <summary>桌面环境的 sysinfo。字段名与手机端逐一对齐（跨语言契约）。</summary>
+    private static string SysinfoJson()
+        => "{\"ok\":true,\"result\":{" +
+           "\"app\":\"WayCoder\"," +
+           "\"version\":\"(desktop-cli)\"," +
+           "\"platform\":\"desktop\"," +
+           "\"os\":\"" + Escape(Environment.OSVersion.Platform.ToString()) + "\"," +
+           "\"osVersion\":\"" + Escape(Environment.OSVersion.VersionString) + "\"," +
+           "\"deviceModel\":\"(desktop)\",\"deviceName\":\"(desktop)\",\"manufacturer\":\"(desktop)\"," +
+           "\"arch\":\"" + System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant() + "\"," +
+           "\"cpuCount\":" + Environment.ProcessorCount + "," +
+           "\"memoryMb\":" + (GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / (1024 * 1024)) + "," +
+           "\"deviceId\":\"(desktop-cli)\"," +
+           "\"screen\":{\"w\":0,\"h\":0,\"density\":1,\"canvasW\":0,\"canvasH\":0}," +
+           "\"orientation\":0}}";
+
+    /// <summary>JSON 字符串转义（只处理必要字符；这里的值全是我们自己造的，但空值与路径可能带 `\`）。</summary>
+    private static string Escape(string s)
+        => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
+}
+
+/// <summary>桌面端的**信封**（与手机端 `VmlJsonApi` 同构：成功 `ok:true`／失败 `ok:false` + `error`）。</summary>
+internal static class VmlJsonEnvelope
+{
+    public static string NotFound(string fn)
+        => "{\"ok\":false,\"error\":\"桌面脚手架未实现该函数：" + fn.Replace("\"", "") + "\"}";
+
+    public static string TooLong(int needed)
+        => "{\"ok\":false,\"error\":\"结果太长：需要 " + needed + " 字节，缓冲区装不下\"}";
 }
