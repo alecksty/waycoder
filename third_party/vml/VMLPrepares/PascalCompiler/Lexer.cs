@@ -401,7 +401,7 @@ namespace PascalCompiler
 
         private new void Error(string message)
         {
-            throw new ParseException(ErrorCode.Lexer_UnknownCharacter, $"词法错误在第{_line}行{_col}列：{message}");
+            Error(ErrorCode.Lexer_UnknownCharacter, message);   // 位置交给 LexerBase 的唯一出口（不再自拼「在第N行M列」）
         }
 
         public List<Token> Tokenize()
