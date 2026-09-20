@@ -147,7 +147,20 @@ run_with_timeout() {
     #（前端卡在纯计算循环里时不响应 TERM）。
     "$@" &
     local pid=$!
-    ( sleep "$secs"; kill -9 "$pid" 2>/dev/null ) &
+    # ⚠ 看门狗**必须把 stdio 接到 /dev/null**，否则它会拖住调用方的管道。
+    #
+    #   实情：`kill "$watcher"` 杀的是这个**子 shell**，而 `sleep` 是它的**孩子**
+    #   （`sleep` 拿到的是另一个 pid，杀父不杀子）⇒ 那个 `sleep` 会一直活到点。
+    #   默认它继承调用方的 stdout —— 而调用点几乎总是
+    #       out="$( … run_with_timeout … | tr -d '\0' )"
+    #   ⇒ `tr` 要等**所有**写端关闭才见 EOF，其中就包括这个 `sleep` 的写端
+    #   ⇒ **每次调用都实打实地等满超时**（实测 `run_with_timeout 20 echo hi` 耗时 20.013s）。
+    #
+    #   为什么长期没被发现：Linux 上有 GNU `timeout`（`TIMEOUT_BIN=timeout`），根本走不到这条
+    #   POSIX 分支；**只有 macOS 会中** —— 而 macOS 正是本仓的开发机。
+    #   症状是「整套例程从 3.5 分钟变成二十几分钟、600 秒预算必被打爆」，
+    #   看起来像"编译器变慢了"，实际是**仪表在空转**。
+    ( sleep "$secs"; kill -9 "$pid" 2>/dev/null ) >/dev/null 2>&1 &
     local watcher=$!
     wait "$pid"
     local rc=$?

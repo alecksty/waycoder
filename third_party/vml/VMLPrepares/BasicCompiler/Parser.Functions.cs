@@ -115,6 +115,34 @@ namespace BasicCompiler
                 }
             }
 
+            // ── NATIVE 声明**没有体**，别去解析体 ────────────────────────────────
+            //
+            // 体循环是 `while (!AtEnd())` 直到配对的那个 END {SUB,FUNCTION}。声明写成
+            // `NATIVE FUNCTION f() AS INTEGER` 而**没写 END FUNCTION** 时，它一路吃到
+            // EOF —— 于是**该声明后面整个程序都被当成了它的体**。
+            //
+            // 为什么后果是「零输出」而不是报错：NATIVE 的体**本来就不生成代码**
+            // （`CodeGenerator.Sub.cs` 的 GenerateSub/FunctionDeclaration 开头就 `if (IsNative) return;`），
+            // 被吞进去的语句连一个 `line_N` 标签都拿不到。主程序一条语句都不剩 ⇒
+            // 编出来的是一份**完全合法、什么也不做**的程序，退出码 0、屏幕上没有一个字。
+            // 实测 `Examples/basic/sysinfo.bas`：`statements=1 FunctionDeclaration=1`。
+            //
+            // 判据是「是不是 NATIVE」而不是「有没有 END」：NATIVE 就是**外部符号声明**，
+            // 它没有「体」这个概念，写不写 END 都不该吃后面的语句。
+            // 紧跟的 END 仍旧吃掉 —— `Examples/basic/whack.bas` 等既有例子写的是
+            // `NATIVE SUB f(...)` + `END SUB` 的**空体**写法（那是绕这个 bug 的土办法），
+            // 留着它两种写法都能编。
+
+            if (_pendingNative)
+            {
+                if (Peek().Type == TokenType.END && current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.SUB)
+                {
+                    Advance(); // skip END
+                    Advance(); // skip SUB
+                }
+                return sub;
+            }
+
             // 解析子程序体直到 END SUB
             while (!AtEnd())
             {
@@ -289,6 +317,34 @@ namespace BasicCompiler
                 {
                     Advance(); // skip 类型名
                 }
+            }
+
+            // ── NATIVE 声明**没有体**，别去解析体 ────────────────────────────────
+            //
+            // 体循环是 `while (!AtEnd())` 直到配对的那个 END {SUB,FUNCTION}。声明写成
+            // `NATIVE FUNCTION f() AS INTEGER` 而**没写 END FUNCTION** 时，它一路吃到
+            // EOF —— 于是**该声明后面整个程序都被当成了它的体**。
+            //
+            // 为什么后果是「零输出」而不是报错：NATIVE 的体**本来就不生成代码**
+            // （`CodeGenerator.Sub.cs` 的 GenerateSub/FunctionDeclaration 开头就 `if (IsNative) return;`），
+            // 被吞进去的语句连一个 `line_N` 标签都拿不到。主程序一条语句都不剩 ⇒
+            // 编出来的是一份**完全合法、什么也不做**的程序，退出码 0、屏幕上没有一个字。
+            // 实测 `Examples/basic/sysinfo.bas`：`statements=1 FunctionDeclaration=1`。
+            //
+            // 判据是「是不是 NATIVE」而不是「有没有 END」：NATIVE 就是**外部符号声明**，
+            // 它没有「体」这个概念，写不写 END 都不该吃后面的语句。
+            // 紧跟的 END 仍旧吃掉 —— `Examples/basic/whack.bas` 等既有例子写的是
+            // `NATIVE SUB f(...)` + `END SUB` 的**空体**写法（那是绕这个 bug 的土办法），
+            // 留着它两种写法都能编。
+
+            if (_pendingNative)
+            {
+                if (Peek().Type == TokenType.END && current + 1 < tokens.Count && tokens[current + 1].Type == TokenType.FUNCTION)
+                {
+                    Advance(); // skip END
+                    Advance(); // skip FUNCTION
+                }
+                return func;
             }
 
             // 解析函数体直到 END FUNCTION

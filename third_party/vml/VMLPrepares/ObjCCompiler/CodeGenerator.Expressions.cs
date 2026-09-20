@@ -289,6 +289,10 @@ public partial class CodeGenerator
                 var arg = node.Arguments[i];
                 GenerateExpression(arg);
                 var (size, isFloat, isDouble, isLong) = GetArgTypeInfo(arg);
+                // 可变参数默认提升 `float → double`（C 语义）：`printf` 的实参表是 `...`，
+                // 而 printf 侧 `%f` 按 C 读**一个 double（2 槽）** ⇒ float 必须在这里提上去。
+                // `i == 0` 是格式串本身，不动。`totalArgBytes` 用提升后的 size（清栈按实际压的算）。
+                if (i > 0 && isFloat) { size = 8; isFloat = false; isDouble = true; }
                 EmitPushArg(size, isFloat, isDouble, isLong);
                 totalArgBytes += size;
             }
@@ -401,6 +405,18 @@ public partial class CodeGenerator
             if (cast.TargetType == "float") return (4, true, false, false);
             if (cast.TargetType == "double") return (8, false, true, false);
             if (cast.TargetType == "long" || cast.TargetType == "long long") return (8, false, false, true);
+        }
+        // ⚠ **函数调用**也要判：此前落进最后那个 `return (4, …)` ⇒ 返回 double 的调用
+        //   只压 4 字节（1 槽），而 printf 侧 `%f` 按 C 语义读 2 槽
+        //   ⇒ 实测 `printf("Float: %f\n", parserexpf(...))` 打出 `0.000000`。
+        //   复用现成的 `InferExpType`（它会查 FuncDeclNode 的 ReturnType），
+        //   不另造一张表 —— 本仓头号坑就是"同一规则两处实现"。
+        if (arg is CallNode cn)
+        {
+            var et = InferExpType(cn);
+            if (et == ExpType.F64) return (8, false, true, false);
+            if (et == ExpType.I64) return (8, false, false, true);
+            if (et == ExpType.F32) return (4, true, false, false);
         }
         return (4, false, false, false);
     }

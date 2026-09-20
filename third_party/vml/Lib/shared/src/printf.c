@@ -6,10 +6,11 @@
 //  %d %i %u %x %X %o %b %B %c %s %p  — 32位 整数/字符串
 //  %ld %lu %lx %lX %lo %lb             — 64位 整数
 //  %lld %llu %llx %llo %llb             — 64位 long long (同 long)
-//  %f      — float32 (IEEE 754 位模式通过 int 传递)
-//  %e %E   — float32 科学计数
-//  %lf     — double64 (两级 int 参数: lo32, hi32)
-//  %le %lE — double64 科学计数
+//  %f %e %E %g %G — **double64**（两个 int 槽: lo32, hi32）—— 与 C 一致
+//  %lf %le %lE    — 同上（printf 里 `%f` 与 `%lf` 语义相同）
+//  ⚠ 曾经 %f 读的是「一槽 float」、%lf 才是 double，而 %lf 那条分支是**空的**
+//    ⇒ `printf("%f", 1.5)` 打出 0.0（1.5 是 double，低 32 位恰好 0x00000000）、
+//       `printf("%lf", 任何东西)` 也打出 0.0。两者都已按 C 语义修正。
 //  %ls %ws — wchar_t* / %us — char32_t*
 //  宽度/精度/对齐: %5d %05d %-5d %3.2f
 //  函数: sprintf / printf2..5 / printf64_2..5
@@ -90,13 +91,20 @@ static long long readLong(const int *args, int ai) {
 }
 
 // 从 args 读取 double (2 slots: lo32, hi32)
-// 注: VML 中 double 按 IEEE 754 存储, 需要还原
+//
+// ⚠ **不要用 `((unsigned long long)hi << 32) | lo` 拼位** —— 实测本前端的 64 位
+//   移位不工作：拿 `pair[1]=0x3FF80000, pair[0]=0`（1.5）走那条路，
+//   得到的是 `0x3FF800003FF80000`（**两半都成了 hi**），再当 double 读就是 0。
+//   `Lib/` 里所有 64 位函数都写成「lo/hi 两个 int 分开传」（见 `_printf_itoa64`
+//   的形参表），正是为了绕开它 —— 这里也照那条路走。
+//
+// 正解：让两半在**内存里自然相邻**，再把那块内存按 double 读。零 64 位算术。
+// 实测（`/tmp/d2.c`）：`pair={0,0x3FF80000}` ⇒ `d*1000 == 1500` ✓。
 static double readDouble(const int *args, int ai) {
-    unsigned int lo = (unsigned int)args[ai];
-    unsigned int hi = (unsigned int)args[ai + 1];
-    unsigned long long bits = ((unsigned long long)hi << 32) | (unsigned long long)lo;
-    // 用指针重解释 (VML 不支持 union)
-    double *dp = (double*)(&bits);
+    int pair[2];
+    pair[0] = args[ai];        // lo32
+    pair[1] = args[ai + 1];    // hi32（VML 是小端，低字在前）
+    double *dp = (double*)pair;
     return *dp;
 }
 
@@ -194,6 +202,7 @@ int vsnprintf(char *buf, const char *fmt, const int *args, int nargs) {
         // 读取参数值
         int val = 0;
         long long val64 = 0;
+        int argStart = ai;   // %f 系列要**回头**从这两个槽重读一个 double，故记下起点
         if (is64 && ai + 1 < nargs) {
             val64 = readLong(args, ai);
             ai += 2;
@@ -276,12 +285,20 @@ int vsnprintf(char *buf, const char *fmt, const int *args, int nargs) {
         } else if (*fmt == 'f' || *fmt == 'e' || *fmt == 'E' || *fmt == 'g' || *fmt == 'G') {
             if (prec < 0) prec = 6;
             char fbuf[60]; int flen;
-            if (is64) {
-                // 64-bit double — 需要从 args 读指针 (val 已推进ai, 回退读double)
-                // double 传参: 占2个int槽位, 但前面is64读取已跳过了
-                // 简化: %lf 时 double 作为第三第四个参数单独传
-            }
-            float fv = *(float*)&val;  // int bits → float
+            // ⚠ `%f`/`%e`/`%g` 消费的是**一整个 double（两个槽）**，不是一槽 float。
+            //
+            //   判据是 C 的可变参数默认提升：`printf("%f", x)` 里 x 无论是 float 还是
+            //   double，**到达 printf 时一律是 double**。此前这里读的是 `*(float*)&val`
+            //   ——只取了低 32 位，于是：
+            //     · `printf("%f", 1.5)`：1.5 是 double，低字 0x00000000 ⇒ 打出 `0.0`
+            //     · `printf("%f", x)`（x 是 float 变量）：1 槽、位模式正好落在低字 ⇒ 1.5 ✓
+            //   也就是「对错取决于实参的静态类型」——运行期无从分辨，只能按 C 定死成 double。
+            //   配套：C 前端的调用点会把 float 实参**提升成 double**（见
+            //   `CCompiler/CodeGenerator.Expressions.Calls.cs` 的「可变参数默认提升」），
+            //   所以 `printf("%f", floatVar)` 依旧正确。
+            double dv = (argStart + 1 < nargs) ? readDouble(args, argStart) : 0.0;
+            ai = argStart + 2;          // 固定消费两个槽（is64 与否一视同仁）
+            float fv = (float)dv;
             if (*fmt == 'e' || *fmt == 'E') {
                 flen = _printf_ftoe(fbuf, fv, prec, (*fmt == 'E'));
             } else if (*fmt == 'g' || *fmt == 'G') {

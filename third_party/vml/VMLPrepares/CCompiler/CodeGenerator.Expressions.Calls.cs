@@ -177,6 +177,36 @@ namespace CCompiler
                 }
             }
 
+            // ── 可变参数默认提升：float → double（C 语义）──────────────────────────
+            //
+            // `printf("%f", x)` 里 x 无论是 float 还是 double，**到达 printf 时一律是 double**。
+            // 本前端不做提升时：float 实参压 1 槽、double 压 2 槽 ⇒ printf 侧读到什么完全取决于
+            // 实参的**静态类型**，运行期无从分辨。实测（改动前）：
+            //     printf("%f", 1.5)      → `0.0`   （1.5 是 double，低字 0x00000000）
+            //     printf("%f", x_float)  → `1.500000`（1 槽，位模式正好落在低字）
+            // 现在 printf 侧按 C 定死「%f 读两槽 double」，所以在**调用点**把 float 提上去，
+            // 那种"碰巧对"的写法才不会反过来变成乱码。
+            //
+            // 只提升**形参表覆盖不到的那一段**（`i >= Params.Count`）—— 固定形参有声明类型，
+            // 该不该是 float 由声明说了算，不该被这里改写。
+            if (funcDef != null && funcDef.IsVariadic)
+            {
+                for (int i = funcDef.Params.Count; i < funcCall.Args.Count; i++)
+                {
+                    // double 也要**显式**判一次：上面那条回退推断只认 `NumberLiteral`，
+                    // 所以 `double z = 5.5; printf("%f", z)` 里 `z` 落不进 isDoubleArg
+                    // ⇒ 被当成 4 字节 int 压栈（1 槽），而 printf 侧现在按 double 读 2 槽
+                    // ⇒ 实测打出 `0.000000`。变参位置没有声明类型可依，只能按表达式推断。
+                    var __at = InferExpressionType(funcCall.Args[i]);
+                    if (!isStructArg[i] && !isDoubleArg[i] &&
+                        (isFloatArg[i] || __at == ExprType.Float || __at == ExprType.Double))
+                    {
+                        isDoubleArg[i] = true;
+                        isFloatArg[i] = false;
+                    }
+                }
+            }
+
             // 间接调用判断:
             // 1. IsIndirectCall: Callee 不是简单 Identifier（如 *fp、arr[i]、obj.method）
             // 2. 函数指针变量调用: fp(42) 其中 fp 是已知的指针类型变量且不是已定义函数

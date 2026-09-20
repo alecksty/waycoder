@@ -477,7 +477,16 @@ namespace ForthCompiler
         {
             Advance(); // 跳过S
             Advance(); // 跳过"
-            
+            // ⚠ 与 `."` **同一条**规则（见上面 TokenizeDotString 那段）：`S"` 后面那个空格是
+            //   **分隔符**、不属于字符串内容。`."` 在 v0.96.208 那轮已经补上了，`S"` 漏了
+            //   —— 本仓反复出现的「同一规则两处实现、只修了其中一处」，这是又一例。
+            //   不跳的下场极具误导性：每个 `S" ..."` 都多一个**前导空格**，
+            //   而字符串比较/按名查表**不会报错，只会查不到** ——
+            //   实测 `S" sysinfo"` 编成 `" sysinfo"`，宿主按名字查表永远命不中，
+            //   报出来的却是「未实现该函数：」（名字后面带一个看不见的前导空格）。
+            //   只跳「确实有那一个空格」的情形 —— 也允许 `S"abc"` 这种紧贴写法。
+            if (_pos < _source.Length && _source[_pos] == ' ') Advance();
+
             int startLine = _line;
             int startColumn = _col;
             StringBuilder sb = new StringBuilder();
