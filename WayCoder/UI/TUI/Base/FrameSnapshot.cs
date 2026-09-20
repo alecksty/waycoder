@@ -170,6 +170,9 @@ public sealed class FrameSnapshot
                 case 2: style |= StDim; k++; break;
                 case 3: style |= StItalic; k++; break;
                 case 4: style |= StUnderline; k++; break;
+                // 9 = 删除线。图形界面（MAUI/GUI/Web）画真删除线，**TUI 的样式位里没有这一位**
+                // ⇒ 退化成淡化。不这样兜的话 `~~x~~` 在终端会「完全没样式」，比之前更糟。
+                case 9: style |= StDim; k++; break;
                 case 22: style &= ~(StBold | StDim); k++; break;
                 case 23: style &= ~StItalic; k++; break;
                 case 24: style &= ~StUnderline; k++; break;

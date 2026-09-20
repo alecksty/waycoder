@@ -544,6 +544,72 @@ public static partial class SelfTest
         Check("MarkdownParser 代码块", cNodes.Count == 1 && cNodes[0] is MdCodeBlock cb && cb.Language == "csharp");
         Check("MdCodeBlock 内容", ((MdCodeBlock)cNodes[0]).Code.Contains("Console"));
 
+        // ── 补齐的 CommonMark 语法（2026-09-20）────────────────────────────
+        // 这些此前全是缺口：要么字面显示、要么**主动渲染错**（Setext 被拆成「段落+分割线」）
+        var h6 = MarkdownParser.Parse("##### 五级\n###### 六级\n## 带关闭 ##");
+        Check("MarkdownParser 标题 1-6 级（此前只到 4 级，##### 掉进段落字面）",
+            h6.Count == 3 && h6[0] is MdHeading hv && hv.Level == 5
+            && h6[1] is MdHeading hvi && hvi.Level == 6);
+        Check("MarkdownParser 关闭式井号 `## x ##` 被剥掉", h6[2] is MdHeading hc && hc.Text == "带关闭");
+
+        var sx = MarkdownParser.Parse("一级标题\n===\n\n二级标题\n---");
+        Check("MarkdownParser Setext `===` → h1",
+            sx.Count == 2 && sx[0] is MdHeading s1 && s1.Level == 1 && s1.Setext && s1.Text == "一级标题");
+        Check("MarkdownParser Setext `---` → h2（不再被拆成段落+分割线）",
+            sx[1] is MdHeading s2 && s2.Level == 2 && s2.Text == "二级标题");
+        Check("MarkdownParser 空行后的 `---` 仍是分割线",
+            MarkdownParser.Parse("文本\n\n---").Any(n => n is MdRule));
+
+        var plus = MarkdownParser.Parse("+ 甲\n+ 乙");
+        Check("MarkdownParser `+` 列表项（此前字面显示加号）",
+            plus.Count == 2 && plus.All(n => n is MdListItem));
+
+        var tilde = MarkdownParser.Parse("~~~c\nint x;\n~~~");
+        Check("MarkdownParser `~~~` 围栏", tilde.Count == 1
+            && tilde[0] is MdCodeBlock tc && tc.Language == "c" && tc.Code.Contains("int x"));
+        Check("MarkdownParser ``` 开的块不能被 ~~~ 闭",
+            MarkdownParser.Parse("```\na\n~~~\nb\n```")[0] is MdCodeBlock mix
+            && mix.Code.Contains("~~~") && mix.Code.Contains("b"));
+
+        var ind = MarkdownParser.Parse("    indented code");
+        Check("MarkdownParser 4 空格缩进代码块",
+            ind.Count == 1 && ind[0] is MdCodeBlock ic && ic.Code == "indented code");
+
+        var q = MarkdownParser.Parse("> 外层\n>> 内层");
+        Check("MarkdownParser 引用是容器块（内含嵌套引用）", q.Count == 1
+            && q[0] is MdBlockQuote nbq
+            && nbq.Blocks.Any(b => b is MdBlockQuote inner && inner.Text.Contains("内层")));
+
+        var tbl = MarkdownParser.Parse("| a | b | c |\n| :-- | :-: | --: |\n| 1 | 2 | 3 |");
+        Check("MarkdownParser 表格对齐 :-- / :-: / --:",
+            tbl.Count == 1 && tbl[0] is MdTable tblNode && tblNode.Alignments.SequenceEqual(new[] { 1, 2, 3 }));
+
+        Check("ParseInline `__加粗__`",
+            MarkdownParser.ParseInline("__粗__").Any(r => r.Color == 1 && r.Text == "粗"));
+        Check("ParseInline `_斜体_`",
+            MarkdownParser.ParseInline("_斜_").Any(r => r.Color == 3 && r.Text == "斜"));
+        Check("ParseInline 词内下划线不触发强调（foo_bar_baz）",
+            MarkdownParser.ParseInline("foo_bar_baz").Any(r => r.Text.Contains("foo_bar_baz")));
+        Check("ParseInline 反斜杠转义 `\\*`",
+            MarkdownParser.ParseInline("\\*不是斜体\\*").Any(r => r.Text.Contains("*不是斜体*")));
+        Check("ParseInline HTML 实体 `&amp;` → `&`",
+            MarkdownParser.ParseInline("A &amp; B").Any(r => r.Text.Contains("A & B")));
+        Check("ParseInline 数字实体 `&#39;` → `'`",
+            MarkdownParser.ParseInline("it&#39;s").Any(r => r.Text.Contains("it's")));
+        Check("ParseInline 自动链接 `<https://x.com>`",
+            MarkdownParser.ParseInline("<https://x.com>").Any(r => r.Color == 36 && r.Text == "https://x.com"));
+        Check("ParseInline 裸 URL 自动链接",
+            MarkdownParser.ParseInline("见 https://x.com 结束").Any(r => r.Color == 36 && r.Text == "https://x.com"));
+        Check("ParseInline 裸 URL 尾部句读不算进链接",
+            MarkdownParser.ParseInline("见 https://x.com。").Any(r => r.Color == 36 && r.Text == "https://x.com"));
+        Check("ParseInline 链接 title 被剥掉（只留 URL）",
+            MarkdownParser.ParseInline("[文](https://x.com \"标题\")").Any(r => r.Text.Contains("(https://x.com)"))
+            && !MarkdownParser.ParseInline("[文](https://x.com \"标题\")").Any(r => r.Text.Contains("标题")));
+        Check("ParseInline 反引号数量可变 ``a`b``",
+            MarkdownParser.ParseInline("``a`b``").Any(r => r.Color == 33 && r.Text == "a`b"));
+        Check("ParseInline 图片不再漏出孤立的 `!`",
+            !MarkdownParser.ParseInline("![图](https://x/a.png)").Any(r => r.Text.Trim() == "!"));
+
         // 代码块渲染（TuiMarkdown.RenderMessage → RenderCodeBlock）：文本必须出现在色段里
         var cRender = WayCoder.UI.Tui.TuiMarkdown.RenderMessage("```csharp\ncode001 = 1;\n```", "assistant", 80);
         Check("TuiMarkdown 代码块渲染含文本", cRender.Any(l => l.Any(s => s.Text.Contains("code001"))));
@@ -902,9 +968,12 @@ public static partial class SelfTest
         var linkResult = MarkdownParser.ParseInline("见 [文档](https://example.com) 详情");
         Check("ParseInline 链接文字色=36", linkResult.Any(r => r.Color == 36 && r.Text == "文档"));
 
-        // 删除线
+        // 删除线 —— 9 是**真删除线**（MAUI → TextDecorations.Strikethrough、AnsiMarkup → strike）。
+        // 此前发的是 2（淡化），终端和手机都只是「变淡」；TUI 的样式位里没有删除线，
+        // 由 FrameSnapshot 把 9 退化成淡化（形状不同、但那是终端能力所限）。
         var strikeResult = MarkdownParser.ParseInline("这是 ~~删除~~ 文本");
-        Check("ParseInline 删除线标记=2", strikeResult.Any(r => r.Color == 2 && r.Text == "删除"));
+        Check("ParseInline 删除线标记=9（真删除线，不再是淡化 2）",
+            strikeResult.Any(r => r.Color == 9 && r.Text == "删除"));
 
         // Markup 标记 «tag»…«/»（LLM 推理内容用 «dim»…«/» 包裹，须转成真实样式而非字面输出）
         // 注：用 «/» 而非 \xAB/\xBB——C# 的 \x 会贪婪吞吃后续十六进制字符
