@@ -13,6 +13,24 @@ namespace PythonCompiler
 
         protected override TokenType GetTokenType(Token token) => token.Type;
 
+        /// <summary>
+        /// 表达式**收尾符** —— 永远不会是表达式的开头。`GapAnchor()` 拿它判
+        /// 「缺口在撞上的 token 之前吗」（见基类那条规则的三个判据）。
+        ///
+        /// `NEWLINE` / `EOF` 也算收尾符：Python 的语句以换行收尾，`x = 1 +` 正是等换行后
+        /// 遇到 `NEWLINE` 才发作 —— 不把它算进来，这条判据在最常见的形态上就不生效。
+        /// （它同时是**语句分隔**，但两个谓词判的是不同的 token：这个判 `Cur`，
+        ///  下面那个判"上一个"，不冲突。）
+        /// </summary>
+        protected override bool IsExpressionCloser(Token token) => token.Type
+            is TokenType.RPAREN or TokenType.RBRACKET or TokenType.RBRACE
+            or TokenType.COMMA or TokenType.COLON or TokenType.SEMICOLON
+            or TokenType.NEWLINE or TokenType.EOF;
+
+        /// <summary>语句分隔 —— `GapAnchor()` 的第二个判据：上一个若是它，缺口在本行行首。</summary>
+        protected override bool IsStatementSeparator(Token token) => token.Type
+            is TokenType.NEWLINE or TokenType.SEMICOLON;
+
         public Parser(List<Token> tokens, bool isMCU = true) : base(tokens)
         {
             _isMCU = isMCU;
@@ -855,7 +873,10 @@ namespace PythonCompiler
                     return new AwaitNode(aval, token.Line, token.Column);
                     
                 default:
-                    throw Error($"意外的 token: {token.Type}（此处不该出现它）");
+                    // 位置用 `GapAnchor()`，不是裸 `Cur`：`x = 1 +` 的下一个 token 是
+                    // **下一行**的 `NEWLINE` —— 按当前位置报就落到第 5 行（修复前实测），
+                    // 而错在第 4 行。锚定规则（含"什么时候**不该**锚"）见基类 `GapAnchor`。
+                    throw ErrorAt($"意外的 token: {token.Type}（此处不该出现它）", GapAnchor());
             }
         }
 
