@@ -194,7 +194,8 @@ public class Lexer : LexerBase
                     Tokens.Add(new Token(TokenType.Dot, ".", l, col));
                     break;
                 default:
-                    throw new ParseException(ErrorCode.Lexer_UnknownCharacter, $"意外的字符: {c} (0x{(int)c:X2})（位置 {l}:{col}）");
+                    Error(ErrorCode.Lexer_UnknownCharacter, $"意外的字符: '{c}' (0x{(int)c:X2})");   // 位置交给统一出口
+                    break;
             }
         }
         Tokens.Add(new Token(TokenType.EOF, "", _line, _col));
