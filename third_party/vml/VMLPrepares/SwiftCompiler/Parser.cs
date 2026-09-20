@@ -10,42 +10,65 @@ namespace SwiftCompiler
     /// </summary>
     public class Parser : ParserBase<Token, TokenType>
     {
-        private bool hasError;
-        private string errorMessage;
         private bool IsMCU => CompilerOptionsContext.Current.IsMCU;
 
         protected override TokenType GetTokenType(Token token) => token.Type;
 
-        public bool HasError => hasError;
-        public string ErrorMessage => errorMessage;
+        // ⚠ 这里原有 `hasError` / `errorMessage` 两个字段与 `HasError` / `ErrorMessage`
+        //   两个公开属性 —— **已删除**。
+        //
+        //   它们不是"暂时没用"，是**一个陷阱**：`Parse()` 出错时把异常写进这两个字段、
+        //   然后 `return new Program()`，而**全仓没有任何调用点读它们**
+        //   （grep `.HasError` 在 `third_party/vml/` 下零命中）⇒ 语法错误彻底消失、
+        //   调用方拿到空程序照常往下走，实测表现是「编译成功」。
+        //   现在改成「收进诊断 + 语句级恢复」（见 `Parse()`），错误走正规通道。
+        //
+        //   之所以**删掉而不是留着**：留一个没人读的状态通道，下一个人很容易以为
+        //   "这是上报出口"而照着写一个读取方 —— 那时它**恒为 false**，又是一个静默。
+        //   本仓已有同一处置的先例（C 前端那个从来没被赋过值的 `stackFrameSize`）。
 
         public Parser(List<Token> tokens) : base(tokens)
         {
-            hasError = false;
-            errorMessage = "";
         }
         
         public Program Parse()
         {
-            try
+            var program = new Program();
+
+            while (!IsAtEnd)
             {
-                var program = new Program();
-                
-                while (!IsAtEnd)
+                try
                 {
                     var statement = ParseStatement();
                     if (statement != null)
                         program.Statements.Add(statement);
                     Match(TokenType.Semicolon);
                 }
-                return program;
+                catch (ParseException ex) when (Collect(ex))
+                {
+                    // **收进诊断 + 恢复**（两分法，见 `ParserBase.Collect` 的注释）。
+                    //
+                    // ⚠ 原来整段是一个 `try`：任意一处语法错误直接跳到 `catch`，
+                    //   写两个字段 `hasError` / `errorMessage` 然后 `return new Program()`。
+                    //   那两个字段**全仓没有任何调用点读**（grep 只有定义与写入：
+                    //   `HasError`/`ErrorMessage` 两个公开属性也一样没人用）——
+                    //   于是语法错误**彻底消失**、调用方拿到一个空程序照常往下走。
+                    //   实测 `let c = a + ;` 的表现是「编译成功」（DiagProbe【语法错误】档 swift NOERR）。
+                    //   另外 `return new Program()` 还会**丢掉此前已经解析成功的语句**。
+                    //
+                    // 现在：错误进诊断（编译整体照样失败），并跳到语句边界继续 ——
+                    // 同一份文件里后面的错也能一起报出来。
+                    var before = _pos;
+                    while (!IsAtEnd && !Check(TokenType.Semicolon) && !Check(TokenType.RightBrace)
+                           && !Check(TokenType.LeftBrace))
+                    {
+                        Advance();
+                    }
+                    if (Check(TokenType.Semicolon)) Advance();
+                    else if (_pos == before) Advance();   // 保证推进，别原地打转
+                }
             }
-            catch (ParseException ex)
-            {
-                hasError = true;
-                errorMessage = ex.Message;
-                return new Program();
-            }
+            return program;
         }
         
         /// <summary>
@@ -1008,9 +1031,25 @@ namespace SwiftCompiler
                 return ParseArrayLiteral();
             }
             
-            // 错误恢复
+            // 错误恢复：**先把异常造好、再跳过这个 token、最后抛**。
+            //
+            // ⚠ 顺序不能反（原来就是反的，两处各错一半）：
+            //   ① `new ParseException($"…{GetTokenType(Cur)}")` 用的是**单字符串构造** ——
+            //      那条路**不带位置**（带位置的是 `(code, message, token, file, line, col)`），
+            //      抛出去谁也不知道错在哪一行。改用基类 `Error(...)`：它会取当前 token 的
+            //      行列、并把 `文件:行:列: error:` 拼进 `Message`（`Collect` 之后还要用
+            //      `ex.File`/`Line`/`Column` 三个字段进诊断，单字符串构造那三个字段是空的）。
+            //   ② 原先是先 `Advance()` 再取 `Cur` ⇒ 报出来的是**下一个** token：
+            //      实测 `let c = a + ;` 报成「但找到 EndOfFile」，位置也跟着跑到文件尾。
+            //      现在位置与文案都取**跳过之前**的那个 token（= 真正出错的）。
+            //   跳过这个 token 仍然要做（保证恢复能推进），只是放在造完异常之后。
+            //   ③ 位置还要再往前挪一格：真正缺东西的地方是**上一个 token 之后**，
+            //      而 `Cur` 是解析器"撞上"的那个（`let c = a +` 要等换行后遇到 `}` 才发作）。
+            //      钉在 `Cur` 上就报到**下一行**去了（实测 5:1 而不是 4:x）。
+            //      用 `ErrorAt(…, Previous())`：位置取 `+`（出错那一行），文案仍旧说"找到了什么"。
+            var ex = ErrorAt($"期望表达式，但找到 {GetTokenType(Cur)}", Previous());
             Advance();
-            throw new ParseException($"期望表达式，但找到 {GetTokenType(Cur)}");
+            throw ex;
         }
         
         private Expression ParseStringInterpolation()
