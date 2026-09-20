@@ -417,6 +417,62 @@ public static partial class SelfTest
         Check("矢量: 文字渐变 → MarkUnsupported（平台文字 API 只吃纯色）",
             vt.Unsupported.Contains("text-gradient"));
 
+        // ── SVG：文字渐变必须走**专用**那份 userSpaceOnUse 定义 ──
+        //
+        // 为什么不能与形状共用：形状用 objectBoundingBox，而文字的盒在 SVG 里由渲染器
+        // **按字形墨迹**算 —— 与我们 TextBlockBox（行高×行数 + 最长行宽）必然不等，
+        // PNG 与 SVG 的渐变位置会差一截。
+        var svgDoc = DrawRunner.Parse(
+            "canvas 300 80 #ffffff\ngradient g linear #ff0000 #0000ff\ntext 20 20 \"WWWWWW\" 44 @g start");
+        var svg = DrawRunner.ToSvg(svgDoc);
+        Check("SVG: 文字渐变用 userSpaceOnUse", svg.Contains("gradientUnits=\"userSpaceOnUse\""));
+        Check("SVG: 文字 fill 引用的是文字专用 id（不是形状那个 g）",
+            svg.Contains("fill=\"url(#tg0)\"") && !svg.Contains("fill=\"url(#g)\""));
+        // 计划里的判据：x1 必须等于 TextBlockBox 的左缘（线性渐变默认几何就是"从左到右"）
+        var tbox = DrawParse.TextBox(svgDoc.Figures[0]);
+        Check($"SVG: 渐变 x1 落在文字盒左缘（盒 X={tbox.X}）",
+            svg.Contains($"x1=\"{tbox.X:0.###}\" y1=\"{tbox.Y:0.###}\""));
+        Check("SVG: 渐变 x2 落在文字盒右缘（跨度 = 最长行宽）",
+            svg.Contains($"x2=\"{tbox.X + tbox.W:0.###}\" y2=\"{tbox.Y:0.###}\""));
+
+        // 同一份渐变被**两个**文字图元引用 ⇒ 各发一份（盒不同）、id 不能撞
+        var two = DrawRunner.ToSvg(DrawRunner.Parse(
+            "canvas 300 120 #ffffff\ngradient g linear #ff0000 #0000ff\n"
+            + "text 10 10 \"AA\" 30 @g start\ntext 10 60 \"BBBB\" 30 @g start"));
+        Check("SVG: 两个文字图元各拿一个 id（tg0 / tg1，不撞）",
+            two.Contains("id=\"tg0\"") && two.Contains("id=\"tg1\"")
+            && two.Contains("fill=\"url(#tg0)\"") && two.Contains("fill=\"url(#tg1)\""));
+        // ⚠ 这里第一版写成 `Matches(...).Count == 2` —— 那只数了**个数**，
+        //    跟标签说的"x2 不同"根本不是一回事（两个相等的 x2 也能过）。
+        //    断言写错和实现写错一样会让人以为验过了，所以改成真比较。
+        // ⚠ 取的是**文字那两份 def 里的** x2：`<defs>` 里还有一份共享的 `g`（objectBoundingBox、
+        //    x2="1"），那是**既有行为**——所有 `gradient` 定义都无条件发出，不管有没有人引用。
+        //    不按 id 收窄的话会把它也算进来（第一版就是，看到的三个值里有它）。
+        var x2s = System.Text.RegularExpressions.Regex
+            .Matches(two, "<linearGradient id=\"tg[0-9]+\"[^>]*x2=\"([0-9.]+)\"")
+            .Select(m => m.Groups[1].Value).ToList();
+        Check($"SVG: 两个文字图元的渐变跨度不同（实得 {string.Join(" / ", x2s)}）",
+            x2s.Count == 2 && x2s[0] != x2s[1]);
+
+        // 兼容性：用户**真的**把渐变起名叫 `tg0` 时不能撞 ——
+        // DSL 里 `gradient tg0 linear …` 合法，撞上就是一个 SVG 里两个同名 id、
+        // `url(#tg0)` 指哪个由渲染器说了算（"平时没事、别人起个名就坏"那类隐患）。
+        var clash = DrawRunner.ToSvg(DrawRunner.Parse(
+            "canvas 300 80 #ffffff\ngradient tg0 linear #ff0000 #0000ff\ntext 20 20 \"WW\" 30 @tg0 start"));
+        // 用户占了 `tg0` ⇒ 文字那份应当排到 `tg1`，**并且文字真的引用 tg1**。
+        // （第一版这里写成 `!Contains("tg1")` —— 与前半句自相矛盾：tg1 正是避让后该用的那个。）
+        Check("SVG: 文字专用 id 避开用户已用的渐变名（文字改引用 tg1）",
+            clash.Contains("id=\"tg0\"") && clash.Contains("id=\"tg1\"")
+            && clash.Contains("fill=\"url(#tg1)\"")
+            && System.Text.RegularExpressions.Regex.Matches(clash, "id=\"tg[0-9]+\"").Count == 2);
+
+        // 回归守卫：**形状**那份渐变仍然不带 gradientUnits（= objectBoundingBox），
+        // 别把文字的改动漏进形状 —— 那会让所有形状渐变的基准跟着变。
+        var shapeSvg = DrawRunner.ToSvg(DrawRunner.Parse(
+            "canvas 100 100 #ffffff\ngradient g linear #ff0000 #0000ff\nrect 10 10 50 30 @g"));
+        Check("回归: 形状渐变仍是 objectBoundingBox（不带 gradientUnits）",
+            !shapeSvg.Contains("gradientUnits") && shapeSvg.Contains("fill=\"url(#g)\""));
+
         // 反证：纯色文字**不该**被这条误伤（否则所有文字都会把整窗拖回光栅）
         var vt2 = new RecordingVectorTarget();
         var plain = DrawRunner.Parse("canvas 300 80 #ffffff\ntext 20 20 \"hi\" 44 #ff0000 start").Figures[0];

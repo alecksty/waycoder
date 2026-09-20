@@ -93,6 +93,26 @@ internal static class DrawParse
         }
     }
 
+    /// <summary>多行文本里最长的那一行（文字盒的宽度由它定）。</summary>
+    public static string LongestLine(string? text)
+        => (text ?? "").Split('\n').OrderByDescending(l => l.Length).FirstOrDefault() ?? "";
+
+    /// <summary>
+    /// 一行文字的**局部**宽度 —— 两条字体路径各按自己的度量
+    /// （TrueType 走 `Measure`；5×7 点阵是"每字 6 格 × 缩放"，缩放下限 1，见 `Canvas.DrawText`）。
+    ///
+    /// 抽出来是因为**三处**都要用它：光栅的渐变采样器、SVG 的 `userSpaceOnUse` 定义、自测。
+    /// 各算各的就是"文字盒三份实现"——本仓头号坑。
+    /// </summary>
+    public static double MeasureLineWidth(DrawFigure f, string line)
+        => TrueTypeFont.Resolve(f.FontFamily) is { } font
+            ? font.Measure(line, f.FontSize)
+            : line.Length * 6 * Math.Max(1, f.FontSize / 7.0);
+
+    /// <summary>文字图元的**局部**包围盒（= 最长行宽 + 锚点 + 行数）。文字渐变唯一的归一化基准。</summary>
+    public static (double X, double Y, double W, double H) TextBox(DrawFigure f)
+        => DrawGeo.TextBlockBox(f, MeasureLineWidth(f, LongestLine(f.Text)));
+
     /// <summary>刷子的 SVG 取值：渐变 → `url(#id)`，纯色 → 十六进制。</summary>
     public static string Paint(string? gradientRef, uint solid)
         => gradientRef != null ? "url(#" + EscapeXml(gradientRef) + ")" : ColorUtil.ToHex(solid);
@@ -884,7 +904,10 @@ internal sealed partial class TextCommand : IDrawCommand
           .Append("\" font-size=\"").Append(DrawParse.F(f.FontSize))
           .Append("\" font-weight=\"").Append(f.FontWeight)
           .Append("\" font-style=\"").Append(f.FontStyle)
-          .Append("\" fill=\"").Append(ColorUtil.ToHex(f.Fill))
+          // 文字渐变走**专用**那份 def（`userSpaceOnUse`，见 DrawFigure.TextGradientId）。
+          // 形状那份 `objectBoundingBox` 在文字上由渲染器按字形墨迹算盒，与我们这个盒不等。
+          .Append("\" fill=\"").Append(f.TextGradientId != null
+              ? "url(#" + DrawParse.EscapeXml(f.TextGradientId) + ")" : ColorUtil.ToHex(f.Fill))
           .Append("\" text-anchor=\"").Append(f.Anchor).Append("\">");
         if (lines.Length == 1)
         {
@@ -920,13 +943,9 @@ internal sealed partial class TextCommand : IDrawCommand
         Func<double, double, uint>? sample = null;
         if (f.Gradient != null)
         {
-            var longest = lines.OrderByDescending(l => l.Length).FirstOrDefault() ?? "";
             // 盒用**局部**单位（`f.FontSize` 而不是已乘过变换的 `size`）—— 采样器拿到的
-            // 是逆变换回去的局部坐标，两边必须同一个口径。
-            double lw = font != null
-                ? font.Measure(longest, f.FontSize)
-                : longest.Length * 6 * Math.Max(1, f.FontSize / 7.0);
-            var box = DrawGeo.TextBlockBox(f, lw);
+            // 是逆变换回去的局部坐标，两边必须同一个口径。宽度与 SVG 那份**同一个函数**算。
+            var box = DrawParse.TextBox(f);
             var inv = f.Transform.Inverse();
             var g = f.Gradient;
             sample = (wx, wy) =>

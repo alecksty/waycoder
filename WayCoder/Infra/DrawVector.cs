@@ -37,14 +37,24 @@ public interface IVectorTarget
     /// <summary>
     /// 填充一组子路径（每个子路径是 x,y 交替的点集）。
     /// <paramref name="evenOdd"/> 为真时按**奇偶规则**挖洞（`path` 的多子路径靠它做环）。
+    /// </summary>
+    void FillShape(IReadOnlyList<IReadOnlyList<double>> subpaths, uint fill, Gradient? gradient, bool evenOdd);
+
+    /// <summary>
+    /// 带**显式刷子矩形**的填充。矩形是世界坐标；null = 用这组子路径自己的外接矩形。
     ///
-    /// <paramref name="box"/> 是**刷子矩形**（世界坐标）；null = 用这组子路径自己的外接矩形。
-    /// **描边必须显式传**：描边的轮廓比原几何胖出 width/2，拿轮廓盒归一化会让渐变
-    /// 整体偏半个线宽（肉眼看不出来）。填充传 null 即可 —— 那时两者本来就相等。
+    /// 描边那条路**必须显式传**：描边的轮廓比原几何胖出 `width/2`，拿轮廓盒归一化会让
+    /// 渐变整体偏半个线宽（肉眼看不出来）。填充传 null 即可 —— 那时两者本来就相等。
     /// 语义与 SVG 的 `objectBoundingBox` 一致（它取的也是**几何**的盒，不含描边）。
+    ///
+    /// ⚠ **这是一个带默认实现的新方法，不是给上面那个加参数** —— 兼容性优先：
+    /// 接口方法加参数对**所有实现方**都是破坏性改动（包括本仓之外的插件），
+    /// 而"能画渐变描边"这件事只有实现方在意。默认实现直接退到 4 参版（丢掉矩形），
+    /// 于是**不关心这个矩形的实现方一个字都不用改** —— 最坏也只是渐变位置退化成原样。
     /// </summary>
     void FillShape(IReadOnlyList<IReadOnlyList<double>> subpaths, uint fill, Gradient? gradient,
-        bool evenOdd, (double MinX, double MinY, double MaxX, double MaxY)? box = null);
+        bool evenOdd, (double MinX, double MinY, double MaxX, double MaxY)? box)
+        => FillShape(subpaths, fill, gradient, evenOdd);
 
     /// <summary>描边折线；<paramref name="close"/> 为真时首尾相连（多边形轮廓）。</summary>
     void StrokePolyline(IReadOnlyList<double> pts, double width, uint color, string cap, bool dashed, bool close);

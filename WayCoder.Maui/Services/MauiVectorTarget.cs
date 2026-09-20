@@ -74,7 +74,10 @@ internal sealed class MauiVectorTarget : IVectorTarget
     // ── 填充 / 描边 ────────────────────────────────────────────────────────
 
     public void FillShape(IReadOnlyList<IReadOnlyList<double>> subpaths, uint fill, Gradient? gradient,
-        bool evenOdd, (double MinX, double MinY, double MaxX, double MaxY)? box = null)
+        bool evenOdd) => FillShape(subpaths, fill, gradient, evenOdd, null);
+
+    public void FillShape(IReadOnlyList<IReadOnlyList<double>> subpaths, uint fill, Gradient? gradient,
+        bool evenOdd, (double MinX, double MinY, double MaxX, double MaxY)? box)
     {
         var path = new PathF();
         var any = false;

@@ -269,6 +269,17 @@ public sealed class DrawFigure
     public double CornerRadius = 0;
     /// <summary>image 指令：SVG 端 clipPath 的 id（ToSvg 阶段按文档内顺序分配，保证唯一）。</summary>
     public string? ClipId;
+    /// <summary>
+    /// text 指令：SVG 端**文字专用渐变**的 id（ToSvg 阶段分配）。
+    ///
+    /// 为什么文字要单独一份渐变定义、不能与形状共用那一份：
+    /// 形状用 `objectBoundingBox`（坐标相对**几何盒**归一化），而文字在 SVG 里那个盒
+    /// 由渲染器**按字形墨迹**算 —— 与我们 `TextBlockBox`（行高 × 行数 + 最长行宽）
+    /// 必然不等，PNG 与 SVG 的渐变位置会差一截。
+    /// 所以文字那份必须 `gradientUnits="userSpaceOnUse"`，坐标按 `TextBlockBox` 算成绝对值。
+    /// 同一份渐变被多个文字图元引用时各自一份（盒不同），故按图元分配。
+    /// </summary>
+    public string? TextGradientId;
 }
 
 /// <summary>绘图指令接口。插件可自定义实现并注册到 <see cref="DrawCommandRegistry"/>。</summary>
@@ -544,6 +555,23 @@ public static class DrawRunner
             sb.Append("  </defs>\n");
         }
 
+        // ── 文字渐变的 **userSpaceOnUse** 定义（必须发在这里，与图元同一遍）──
+        // 形状那份 `objectBoundingBox` 的 def 文字用不了（见 `DrawFigure.TextGradientId` 的注释），
+        // 所以这里给**每个**带渐变的 text 图元再发一份绝对坐标的。
+        // ⚠ id **必须避开用户自己用过的渐变名**：DSL 里 `gradient tg0 linear …` 是合法的，
+        //    撞上就是一个 SVG 里出现两个同名 id，`url(#tg0)` 指哪个由渲染器说了算 ——
+        //    这类"平时没事、别人起个名就坏"的隐患不值得留（`ClipId` 那边是老代码，另说）。
+        var usedSvgIds = new HashSet<string>(doc.Gradients.Select(g => g.Id), StringComparer.Ordinal);
+        int textGradN = 0;
+        foreach (var f in doc.Figures)
+        {
+            if (f.Kind != "text" || f.Gradient == null) continue;
+            string id;
+            do { id = "tg" + textGradN++; } while (!usedSvgIds.Add(id));
+            f.TextGradientId = id;
+            EmitTextGradient(sb, f, f.Gradient);
+        }
+
         int clipN = 0;
         foreach (var f in doc.Figures)
         {
@@ -565,6 +593,41 @@ public static class DrawRunner
         }
         sb.Append("</svg>\n");
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// 发射**文字专用**的渐变定义：`gradientUnits="userSpaceOnUse"` + 绝对坐标。
+    ///
+    /// 归一化几何（0..1，相对形状盒那套）映射到该文字的 `TextBlockBox` 上。
+    /// ⚠ 径向半径按 **SVG 规范对 `objectBoundingBox` 的定义**换算：
+    /// 那里 `r` 是"归一化对角线"的比例（`sqrt(w²+h²)/sqrt(2)`），
+    /// 不这么换的话非正方盒上的圆会比形状那份扁 —— 两条路就不一致了。
+    /// ⚠ 这个 `<defs>` **不能**与形状那份合并：单位不同，同一个 id 只能有一种语义。
+    /// </summary>
+    static void EmitTextGradient(StringBuilder sb, DrawFigure f, Gradient g)
+    {
+        var box = DrawParse.TextBox(f);
+        sb.Append(g.Radial ? "    <radialGradient id=\"" : "    <linearGradient id=\"")
+          .Append(DrawParse.EscapeXml(f.TextGradientId ?? "")).Append('"')
+          .Append(" gradientUnits=\"userSpaceOnUse\"");
+        if (g.Radial)
+        {
+            double diag = Math.Sqrt(box.W * box.W + box.H * box.H) / Math.Sqrt(2);
+            sb.Append(" cx=\"").Append(FmtNum(box.X + g.Cx * box.W))
+              .Append("\" cy=\"").Append(FmtNum(box.Y + g.Cy * box.H))
+              .Append("\" r=\"").Append(FmtNum(g.R * diag)).Append('"');
+        }
+        else
+        {
+            sb.Append(" x1=\"").Append(FmtNum(box.X + g.X1 * box.W))
+              .Append("\" y1=\"").Append(FmtNum(box.Y + g.Y1 * box.H))
+              .Append("\" x2=\"").Append(FmtNum(box.X + g.X2 * box.W))
+              .Append("\" y2=\"").Append(FmtNum(box.Y + g.Y2 * box.H)).Append('"');
+        }
+        sb.Append(">\n")
+          .Append("      <stop offset=\"0\" stop-color=\"").Append(ColorUtil.ToHex(g.ColorA)).Append("\"/>\n")
+          .Append("      <stop offset=\"1\" stop-color=\"").Append(ColorUtil.ToHex(g.ColorB)).Append("\"/>\n")
+          .Append(g.Radial ? "    </radialGradient>\n" : "    </linearGradient>\n");
     }
 
     /// <summary>发射渐变定义（linearGradient / radialGradient，objectBoundingBox 归一化坐标）。</summary>

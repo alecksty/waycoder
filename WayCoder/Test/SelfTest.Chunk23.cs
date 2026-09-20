@@ -168,7 +168,10 @@ public static partial class SelfTest
         public double SceneHeight => 100;
 
         public void FillShape(IReadOnlyList<IReadOnlyList<double>> subpaths, uint fill, Gradient? gradient,
-            bool evenOdd, (double MinX, double MinY, double MaxX, double MaxY)? box = null)
+            bool evenOdd) => FillShape(subpaths, fill, gradient, evenOdd, null);
+
+        public void FillShape(IReadOnlyList<IReadOnlyList<double>> subpaths, uint fill, Gradient? gradient,
+            bool evenOdd, (double MinX, double MinY, double MaxX, double MaxY)? box)
         {
             var f = new Fill { Color = fill, Gradient = gradient, EvenOdd = evenOdd, Box = box };
             foreach (var sp in subpaths)
