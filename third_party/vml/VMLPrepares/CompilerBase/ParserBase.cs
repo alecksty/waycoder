@@ -240,6 +240,65 @@ namespace CompilerBase
         }
 
         /// <summary>
+        /// 与 <see cref="Error"/> **同源**，但位置取**指定的那个 token**。
+        ///
+        /// <para>
+        /// 用在「错在**上一个** token 之后」这一类：解析器往往是看到**下一个** token 才发现
+        /// 前面缺了东西的，把位置钉在 `Cur` 上就会报到**下一行**去。
+        /// 典型是缺操作数：`let c = a +` 要等换行后遇到 `}` 才发作 ——
+        /// 报在 `}` 上（下一行）用户找不到，报在 `+` 上（同一行）才是"出错的那一行"。
+        /// </para>
+        ///
+        /// <para>
+        /// 判据：**位置取"缺口在哪"，文案取"看到了什么"** —— GCC 也是这么做的
+        /// （`expected expression before '}' token` 指在 `+` 上）。
+        /// 两个都要给对，不能只给一个。
+        /// </para>
+        /// </summary>
+        protected ParseException ErrorAt(string message, TToken anchor)
+        {
+            var (file, line, col) = ResolveAnchor(anchor);
+            return new ParseException(ErrorCode.Unknown, message, anchor, file, line, col);
+        }
+
+        /// <summary>
+        /// <see cref="GccError"/> 的锚定版：**收集**（不抛）到**指定 token** 的位置上。
+        ///
+        /// 与 <see cref="ErrorAt"/> / <see cref="GccError"/> 的分工是同一套：
+        /// 「锚定与否」×「收集还是抛」四种组合，位置计算只有 <see cref="ResolveAnchor"/> 一处。
+        /// 用在**行/块结尾才发现缺口**的语言上 —— BASIC 与 Swift 的语句以换行收尾，
+        /// `PRINT 1 +` 的下一个 token 是**下一行**的 `EOF`，按当前位置收集就报到了下一行。
+        /// </summary>
+        protected void GccErrorAt(string message, TToken anchor, ErrorCode code = ErrorCode.Unknown)
+        {
+            var (file, line, col) = ResolveAnchor(anchor);
+            if (Diagnostics != null)
+            {
+                Diagnostics.AddError(file, line, col, code, message);
+            }
+            else
+            {
+                throw new ParseException(code, message, anchor, file, line, col);
+            }
+        }
+
+        /// <summary>
+        /// 把某个 token 解析成 `(文件, 行, 列)` —— **锚定类诊断的唯一位置计算**。
+        ///
+        /// 与 <see cref="ResolveDiagnosticPosition"/> 的差别只有"锚在哪一个 token"：
+        /// 那边锚 `CurrentToken`（当前位置），这边锚调用方给的那个。
+        /// 行号映射（`#include` 展开要把行号换回原文件）走的是**同一套**，
+        /// 两处各写一遍必然漂移。
+        /// </summary>
+        private (string File, int Line, int Column) ResolveAnchor(TToken anchor)
+        {
+            var line = GetTokenLine(anchor);
+            var col = GetTokenColumn(anchor);
+            var (originFile, originLine) = MapOriginal(line);
+            return (originFile ?? FileName ?? "<input>", originLine, col);
+        }
+
+        /// <summary>
         /// 把一条**已经算好位置**的语法错误收进诊断（**不抛**），供容错恢复用。
         /// 返回是否收下了 —— 没收集器时返回 false，调用方应让它继续往外抛。
         ///
