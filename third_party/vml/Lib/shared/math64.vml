@@ -1123,6 +1123,7 @@ sta_8740141:
 sta_8740136:
         movel R0 [R12-12]
         pushl R0
+; 97:     for (i = 3; i <= limit; i += 2)
         move R0 #2
         i2l R0 R0
         popl R1

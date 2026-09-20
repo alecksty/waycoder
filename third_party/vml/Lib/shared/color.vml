@@ -981,26 +981,31 @@ sta_27230073:
         move R0 [R12-8]
         move R1 R0
         push R1
+; 66:         case 0:  return rgb(v, t, p);
         move R0 #0
         pop R1
         cmp R0 R1
         je sta_27230078
         push R1
+; 67:         case 1:  return rgb(q, v, p);
         move R0 #1
         pop R1
         cmp R0 R1
         je sta_27230079
         push R1
+; 68:         case 2:  return rgb(p, v, t);
         move R0 #2
         pop R1
         cmp R0 R1
         je sta_27230080
         push R1
+; 69:         case 3:  return rgb(p, q, v);
         move R0 #3
         pop R1
         cmp R0 R1
         je sta_27230081
         push R1
+; 70:         case 4:  return rgb(t, p, v);
         move R0 #4
         pop R1
         cmp R0 R1

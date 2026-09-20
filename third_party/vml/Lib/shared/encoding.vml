@@ -3286,36 +3286,43 @@ encoding_name:
         move R0 [R12+12]
         move R1 R0
         push R1
+; 161:         case 0: return "UTF-8";
         move R0 #0
         pop R1
         cmp R0 R1
         je sta_20990441
         push R1
+; 162:         case 1: return "UTF-16LE";
         move R0 #1
         pop R1
         cmp R0 R1
         je sta_20990442
         push R1
+; 163:         case 2: return "UTF-16BE";
         move R0 #2
         pop R1
         cmp R0 R1
         je sta_20990443
         push R1
+; 164:         case 3: return "ASCII";
         move R0 #3
         pop R1
         cmp R0 R1
         je sta_20990444
         push R1
+; 165:         case 4: return "Latin-1";
         move R0 #4
         pop R1
         cmp R0 R1
         je sta_20990445
         push R1
+; 166:         case 5: return "GBK";
         move R0 #5
         pop R1
         cmp R0 R1
         je sta_20990446
         push R1
+; 167:         case 6: return "Big5";
         move R0 #6
         pop R1
         cmp R0 R1

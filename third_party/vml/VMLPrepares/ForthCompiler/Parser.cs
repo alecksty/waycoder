@@ -65,9 +65,19 @@ namespace ForthCompiler
                         program.Statements.Add(node);
                     }
                 }
-                catch (Exception ex)
+                // ⚠ 从前这里是「`Console.WriteLine` 一句然后 `break`」—— **错误被吞了**：
+                //   诊断包是空的、位置也丢了，上层 `CompileWithDiagnostics` 那句
+                //   「成功路径也要看 bag」看不见任何东西 ⇒ **编译"成功"**。
+                //   实测：`: sq` + `dup *`（定义没写 `;` 就结束）⇒ 退出码 0、
+                //   编出 44516 条指令的"程序"；`ParseStatement` 里 `Expect(SEMICOLON)`
+                //   明明算出了 `<input>:3:1`，那条位置就这么扔了。
+                //
+                // 现在按本仓的"错误两分"办：**能收就收（收集后停下 —— 定义都断了，
+                // 后面也没法继续），收不了（没有诊断包）就抛出去让上层收编**。
+                // 一句话都不再打在 stdout 上：那既不是诊断、宿主也解析不出来。
+                catch (ParseException ex)
                 {
-                    Console.WriteLine($"解析错误: {ex.Message}");
+                    if (!Collect(ex)) throw;
                     break;
                 }
             }

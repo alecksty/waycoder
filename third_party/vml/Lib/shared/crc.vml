@@ -687,6 +687,7 @@ _L87720058:
 sta_87720055:
         move R0 [R12-12]
         push R0
+; 81:     for (i = 0; i < len - 1; i += 2)
         move R0 #2
         pop R1
         add R1 R0

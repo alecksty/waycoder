@@ -48,10 +48,15 @@ namespace ForthCompiler
                     return codeGen.GenerateCode();
                 });
             }
-            catch (Exception ex)
+            // ⚠ 从前这里把**所有**异常（含 `CompilationException`）换成一份
+            //   `CreateErrorProgram` 的空程序返回 ⇒ `Compile` **永不失败**：
+            //   宿主看 `prog != null` 就报"编译成功"，用户拿到一个什么都不做的程序，
+            //   而诊断包里那条错（本来带着 `<input>:3:1`）就这么没了。
+            //   现在只把**意外**异常收编成编译错误（带位置、能定位），编译错误原样上抛。
+            catch (Exception ex) when (ex is not CompilationException and not OperationCanceledException)
             {
-                Console.Error.WriteLine($"<input>: error: {ex.Message}");
-                return CreateErrorProgram($"Forth编译错误: {ex.Message}");
+                throw new CompilationException(ErrorCode.Compilation_InternalError,
+                    $"<input>: 内部错误: {ex.Message}", ex);
             }
             finally { CompilerOptionsContext.Current = savedCtx; }
         }
@@ -109,10 +114,11 @@ namespace ForthCompiler
 
                 return prog;
             }
-            catch (Exception ex)
+            // 同 `Compile`：编译错误不能被换成一份"能跑的空程序"（那等于报告成功）。
+            catch (Exception ex) when (ex is not CompilationException and not OperationCanceledException)
             {
-                Console.Error.WriteLine($"Forth编译错误: {ex.Message}");
-                return CreateErrorProgram($"Forth编译错误: {ex.Message}");
+                throw new CompilationException(ErrorCode.Compilation_InternalError,
+                    $"<input>: 内部错误: {ex.Message}", ex);
             }
             finally { CompilerOptionsContext.Current = savedCtx; }
         }
@@ -125,25 +131,16 @@ namespace ForthCompiler
                 CompileFile(filePath, includePaths, null, false),
                 filePath, libraryPaths, autoLinkStdLib, useSharedLibrary, "forth");
 
-        private static VmlProgram CreateErrorProgram(string errorMessage)
-        {
-            var instructions = new List<Instruction>();
-            var labels = new Dictionary<string, int>();
-            var dataSection = new Dictionary<string, object>();
-            var constants = new Dictionary<string, object>();
-
-            labels["main"] = 0;
-            instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, "main") }, 0, "main"));
-            // EmitExit(): MOVE R0, #0; SYSCALL #3
-            instructions.Add(new Instruction(OpCode.MOVE, [new Operand(OperandType.REGISTER, 0), new Operand(OperandType.IMMEDIATE, 0)], 1));
-            instructions.Add(new Instruction(OpCode.SYSCALL, [new Operand(OperandType.IMMEDIATE, 3)], 2));
-
-            return new VmlProgram(instructions, labels, dataSection, constants);
-        }
-
         /// <summary>
         /// 打印帮助信息
         /// </summary>
+        /// <remarks>
+        /// ⚠ 此处原有一个 `CreateErrorProgram(errorMessage)`（造一份打印退出码的空程序）。
+        ///   它的**唯一**用途就是给上面两个 `catch` 当"失败也返回个东西"的替身，
+        ///   而那个替身正是"编译失败被报成成功"的载体 —— 两个 catch 改成上抛之后它就成了
+        ///   死代码（全仓 `grep` 只剩定义处），已删。**别再把它加回来**：
+        ///   任何"失败时返回一份能跑的空程序"的写法，在宿主那边都读作编译成功。
+        /// </remarks>
         public static void PrintHelp()
         {
             Console.WriteLine("ForthCompiler - Forth语言到VML编译器");

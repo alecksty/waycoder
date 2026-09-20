@@ -35,13 +35,50 @@ public class Parser : ParserBase<Token, TokenType>
         return node;
     }
 
+    // 收尾符 / 语句分隔：给 `GapAnchor()` 用（**只有各门自己知道自己的记号长什么样**）。
+    // Scheme 的"语句"就是一个个顶层形式，没有分隔符 —— 所以后者恒 false。
+    protected override bool IsExpressionCloser(Token token) =>
+        token.Type is TokenType.RPAREN or TokenType.EOF;
+
     SExpr ParseExprCore() {
-        if (Check(TokenType.LPAREN)) { Advance(); var items = new List<SExpr>(); while (!Check(TokenType.RPAREN) && !IsAtEnd) items.Add(ParseExpr()); if (Check(TokenType.RPAREN)) Advance(); return new SList(items); }
-        if (Check(TokenType.QUOTE)) { Advance(); var quoted = ParseExpr(); return new SList([new SSym("quote"), quoted]); }
+        if (Check(TokenType.LPAREN))
+        {
+            var open = Advance();
+            var items = new List<SExpr>();
+            while (!Check(TokenType.RPAREN) && !IsAtEnd) items.Add(ParseExpr());
+            if (Check(TokenType.RPAREN)) Advance();
+            // ⚠ 从前这里**不报错**：EOF 到了就带着没闭合的列表原样返回 ⇒
+            //   `(define (f x) (+ x 1)` 这种"写了一半就先存一下"的文件**编译成功**、
+            //   退出码 0，而生成器对着一棵缺胳膊少腿的树照样出指令。
+            //   位置锚在**开括号**上（缺口就是它没被关上），不是锚在 EOF 上。
+            else GccErrorAt("括号未闭合（缺少 ')'）", open, ErrorCode.Parser_SyntaxError);
+            return new SList(items);
+        }
+        if (Check(TokenType.QUOTE)) {
+            var q = Advance();
+            // `'` 后面必须跟一个表达式；文件正好在此结束（或跟了 `)`）就是缺口。
+            if (IsAtEnd || Check(TokenType.RPAREN))
+                GccErrorAt("' 后面缺少表达式", q, ErrorCode.Parser_SyntaxError);
+            var quoted = ParseExpr();
+            return new SList([new SSym("quote"), quoted]);
+        }
         if (Check(TokenType.NUMBER)) { var v = Advance().Value; if (v.Contains('.')) return new SDouble(double.Parse(v)); return new SInt(int.Parse(v)); }
         if (Check(TokenType.STRING)) { return new SStr(Advance().Value); }
         if (Check(TokenType.TRUE)) { Advance(); return new SBool(true); }
         if (Check(TokenType.FALSE)) { Advance(); return new SBool(false); }
-        return new SSym(Advance().Value);
+        // 能从这儿落下来的只剩 SYMBOL 与**畸形记号**（多余的 `)`、EOF）。
+        //
+        // ⚠ 原来这里是无条件的 `new SSym(Advance().Value)` —— 于是 `(display "a"))`
+        //   里多出来的那个 `)` 被当成名叫 `")"` 的符号**静默收下**（实测退出码 0）。
+        //   符号名恰好等于 `)` / `<eof>` 是绝无可能合法的，所以按类型拦。
+        if (Check(TokenType.SYMBOL)) return new SSym(Advance().Value);
+        if (Check(TokenType.RPAREN))
+            GccErrorAt("多余的 ')'", CurrentToken, ErrorCode.Parser_SyntaxError);
+        else
+            GccErrorAt("表达式缺失（输入在此结束）", CurrentToken, ErrorCode.Parser_SyntaxError);
+        // 收下现状、让 `Parse()` 的循环去判断能不能继续 —— 报错与"还编不编得下去"
+        // 是两件事（本仓的"错误两分"）：这里只是把缺口报出来。
+        Advance();
+        return new SSym("<error>");
     }
 }

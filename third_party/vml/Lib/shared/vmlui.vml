@@ -823,6 +823,7 @@ _L2170026:
         call putchar
         add R13 #4
 sta_2170023:
+; 177:     for (i = 0; i < _ui_json_len; i = i + 1) {
         move R0 [R12-8]
         push R0
         move R0 #1

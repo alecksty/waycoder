@@ -663,31 +663,37 @@ sta_9530113:
         sextb R0 R0
         move R1 R0
         push R1
+; 68:             case 'd':
         move R0 #100
         pop R1
         cmp R0 R1
         je sta_9530117
         push R1
+; 69:             case 'i':
         move R0 #105
         pop R1
         cmp R0 R1
         je sta_9530118
         push R1
+; 99:             case 'x':
         move R0 #120
         pop R1
         cmp R0 R1
         je sta_9530119
         push R1
+; 100:             case 'X':
         move R0 #88
         pop R1
         cmp R0 R1
         je sta_9530120
         push R1
+; 116:             case 's':
         move R0 #115
         pop R1
         cmp R0 R1
         je sta_9530121
         push R1
+; 125:             case 'c':
         move R0 #99
         pop R1
         cmp R0 R1

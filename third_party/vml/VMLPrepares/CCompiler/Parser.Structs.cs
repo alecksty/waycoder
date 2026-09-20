@@ -1088,6 +1088,7 @@ namespace CCompiler
                 return new Block();
             }
             Expect(TokenType.LBRACE);
+            var open = Previous();   // 这个 `{` —— 报"块没关上"时锚在它身上（缺口就是它）
 
             var block = new Block();
             while (Current().Type != TokenType.RBRACE && Current().Type != TokenType.EOF)
@@ -1096,13 +1097,15 @@ namespace CCompiler
                 block.Statements.Add(stmt);
             }
 
-            // 容错: 块未正常关闭时跳过直到 RBRACE
-            if (Current().Type != TokenType.RBRACE && Current().Type != TokenType.EOF)
-            {
-                while (Current().Type != TokenType.RBRACE && Current().Type != TokenType.EOF)
-                    Advance();
-            }
+            // ⚠ 从前这里是「容错: 块未正常关闭时跳过直到 RBRACE」+ 无条件返回 ——
+            //   两层都是空操作：上面的循环**只在** `}` 或 EOF 退出，所以那个
+            //   `!= RBRACE && != EOF` 的判据恒假（一段死代码），而 EOF 那一支则
+            //   **一声不吭地把缺了 `}` 的块原样返回**。实测 `int main() {` +
+            //   任意几行 ⇒ **编译成功、退出码 0** ——
+            //   「写了一半就先存一下」在 C 上表现为「静默编出一份残程序」。
+            //   （cs/java/go/rust 都会报 `Expected '}'`，只有 C 漏了。）
             if (Current().Type == TokenType.RBRACE) Advance();
+            else GccErrorAt("块未闭合（缺少 '}'）", open, ErrorCode.Parser_SyntaxError);
             return block;
         }
 

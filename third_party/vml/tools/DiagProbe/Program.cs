@@ -208,6 +208,21 @@ internal static class Program
         ShowStack = args.Contains("--stack");
         var filters = args.Where(a => !a.StartsWith("--")).ToArray();
 
+        // ── `--truncate`：另一档（见 HangProbe.cs 的文件头）────────────────────
+        // 位置那一套问「报得准不准」，这一档问「**还有没有反应**」。极性不同，
+        // 所以走独立分支、不混进下面那张表。
+        if (args.Contains("--truncate"))
+        {
+            HangProbe.Configure(OptInt(args, "--timeout-ms"), OptInt(args, "--max-cuts"));
+            // ⚠ 选项的**值**（`--timeout-ms 15000` 里的 `15000`）不以 `--` 开头，
+            //   会被上面那句 `filters` 当成语言名捡进来 ⇒ 在这里再排掉一次。
+            var optValues = new[] { OptRaw(args, "--timeout-ms"), OptRaw(args, "--max-cuts") }
+                                .Where(v => v != null).ToArray();
+            var truncLangs = filters.Where(f => !optValues.Contains(f)).ToArray();
+            if (args.Contains("--selftest")) return HangProbe.SelfTest();
+            return HangProbe.Run(truncLangs, ResolveVmlHome());
+        }
+
         var samples = Samples();
         if (listOnly)
         {
@@ -249,6 +264,17 @@ internal static class Program
         PrintDetails(outcomes, full);
         return PrintSummary(outcomes);
     }
+
+    /// <summary>读 `--名 值` 形式选项的**原样字符串**（没给返回 null）。</summary>
+    private static string? OptRaw(string[] args, string name)
+    {
+        int i = Array.IndexOf(args, name);
+        return i >= 0 && i + 1 < args.Length ? args[i + 1] : null;
+    }
+
+    /// <summary>读 `--名 值` 形式的整数选项；没给/不是整数一律返回 0（= 用默认值）。</summary>
+    private static int OptInt(string[] args, string name)
+        => int.TryParse(OptRaw(args, name), out var v) ? v : 0;
 
     // ── 找标准库根 ───────────────────────────────────────────────────────────
     //
@@ -346,7 +372,10 @@ internal static class Program
         //（行号对了文件错了正是被修掉的那个 bug 的伪装形态）。
         if (s.ExpectedInFile != null && !FileMatches(pos.Value.File, s.ExpectedInFile))
             v = Verdict.WrongFile;
-        else if (pos.Value.Line != s.Expected)
+        // `Expected == 0` = **本档不判行**（与 `ExpectedColumn == 0` 同一套约定）。
+        // 「块未闭合」那一档用它：锚在开块行还是锚在 EOF，各门习惯不同且都说得通，
+        // 硬钉一个行号等于把一种随手选的约定当成判据。判据只压在"报不报"上。
+        else if (s.Expected > 0 && pos.Value.Line != s.Expected)
             v = Verdict.WrongLine;
         else if (s.ExpectedColumn > 0 && pos.Value.Column != s.ExpectedColumn)
             v = Verdict.WrongColumn;
@@ -539,6 +568,8 @@ internal static class Groups
     public const string Undef = "未定义标识符";
     public const string Syntax = "语法错误";
     public const string Header = "头文件里的错";
+    /// <summary>档四：块开了没关 —— **必须报错**。判据只压在"报不报"上（`Expected = 0` 不判行）。</summary>
+    public const string Unclosed = "块未闭合";
 }
 
     // ── 用例表 ───────────────────────────────────────────────────────────────
@@ -600,7 +631,10 @@ internal static class Groups
                           ExpectedInFile: $"probe_bad_{lang}.h");
     }
 
-    private static List<Sample> Samples() =>
+    // `internal`（不是 private）：`--truncate` 那一档（HangProbe.cs）要复用这张表的
+    // 「语言 → 扩展名 → 编译入口 → 补链语言」接线。**不另建一张**——那正是本仓
+    // 反复踩的「必须手工同步的平行表」。
+    internal static List<Sample> Samples() =>
     [
         // ═══════════ 用例档一：未定义标识符 ═══════════
         // ── C 家族 ────────────────────────────────────────────────────────────
@@ -992,5 +1026,115 @@ internal static class Groups
             ["( probe main 1 )", "( probe main 2 )"],
             [],
             s => LForth.Compile(s), postLink: "forth"),
+
+        // ══════════════════════════════════════════════════════════════════════
+        //  档四：块未闭合 —— **必须报错**
+        // ══════════════════════════════════════════════════════════════════════
+        //
+        // 命题（用户定的规矩）：**所有语言的块必须闭合，不闭合的代码必须报错**。
+        //
+        // ⚠ 本档的 `Expected` **一律 0**（= 不判行，只要求"报了错且有位置"）。
+        //   这是刻意的：锚在**开块那一行**还是锚在 **EOF**，各门习惯不同且都说得通
+        //   （GCC 报在 `end of input`；本仓 C 修完锚在开括号）。
+        //   硬钉一个期望行号，等于把我随手选的一种约定变成判据 ——
+        //   那是"用一档冒充整体"的变体。判据只压在**"报不报"**上，
+        //   那正是用户那句要求本身。
+        //
+        // 每一份样本都**恰好只差最后一行闭合符**：闭上的那一版**实测 22/22 全部编过**
+        //   （见提交信息）。所以本档一旦红，红的必然是"未闭合没报错"这一件事，
+        //   不可能是"样本本身写坏了"。
+        new("c", "c", Groups.Unclosed, "块未闭合", 0, 0,
+            ["int main(void) {", "    int a = 1;", "    return a;"],
+            s => LC.Compile(s)),
+
+        new("cpp", "cpp", Groups.Unclosed, "块未闭合", 0, 0,
+            ["int main() {", "    int a = 1;", "    return a;"],
+            s => LCpp.Compile(s)),
+
+        new("objc", "m", Groups.Unclosed, "块未闭合", 0, 0,
+            ["int main(void) {", "    int a = 1;", "    return a;"],
+            s => LObjC.Compile(s)),
+
+        new("cs", "cs", Groups.Unclosed, "块未闭合", 0, 0,
+            ["class P {", "  static void Main() {", "    int a = 1;", "  }"],
+            s => new LCs().Compile(s)),
+
+        new("java", "java", Groups.Unclosed, "块未闭合", 0, 0,
+            ["public class P {", "  public static void main(String[] a) {", "    int x = 1;", "  }"],
+            s => new LJava().Compile(s)),
+
+        new("kt", "kt", Groups.Unclosed, "块未闭合", 0, 0,
+            ["fun main() {", "    val a = 1", "    val b = 2"],
+            s => LKt.Compile(s)),
+
+        new("swift", "swift", Groups.Unclosed, "块未闭合", 0, 0,
+            ["func main() {", "    let a = 1", "    let b = 2"],
+            s => new LSwift().Compile(s)),
+
+        new("d", "d", Groups.Unclosed, "块未闭合", 0, 0,
+            ["void main() {", "    int a = 1;", "    int b = 2;"],
+            s => LD.Compile(s)),
+
+        new("dart", "dart", Groups.Unclosed, "块未闭合", 0, 0,
+            ["void main() {", "  int a = 1;", "  int b = 2;"],
+            s => LDart.Compile(s)),
+
+        new("rs", "rs", Groups.Unclosed, "块未闭合", 0, 0,
+            ["fn main() {", "    let a = 1;", "    let b = 2;"],
+            s => LRust.Compile(s)),
+
+        new("go", "go", Groups.Unclosed, "块未闭合", 0, 0,
+            ["package main", "func main() {", "    println_int(1)"],
+            s => LGo.Compile(s)),
+
+        new("js", "js", Groups.Unclosed, "块未闭合", 0, 0,
+            ["function f(x) {", "  return x + 1;"],
+            s => new LJs().Compile(s)),
+
+        new("r", "r", Groups.Unclosed, "块未闭合", 0, 0,
+            ["f <- function(x) {", "  x + 1"],
+            s => LR.Compile(s)),
+
+        new("scm", "scm", Groups.Unclosed, "块未闭合", 0, 0,
+            ["(define (f x)", "  (+ x 1)"],
+            s => LScm.Compile(s)),
+
+        new("f90", "f90", Groups.Unclosed, "块未闭合", 0, 0,
+            ["program p", "  implicit none", "  print *, 1"],
+            s => LFortran.Compile(s)),
+
+        new("pas", "pas", Groups.Unclosed, "块未闭合", 0, 0,
+            ["program p;", "begin", "  WriteLn(1);"],
+            s => LPascal.Compile(s)),
+
+        new("bas", "bas", Groups.Unclosed, "块未闭合", 0, 0,
+            ["IF 1 THEN", "PRINT 1"],
+            s => LBasic.Compile(s)),
+
+        new("py", "py", Groups.Unclosed, "块未闭合", 0, 0,
+            ["def f(x):"],
+            s => LPy.Compile(s)),
+
+        new("rb", "rb", Groups.Unclosed, "块未闭合", 0, 0,
+            ["def f(x)", "  x + 1"],
+            s => LRb.Compile(s)),
+
+        new("lua", "lua", Groups.Unclosed, "块未闭合", 0, 0,
+            ["function f(x)", "  return x + 1"],
+            s => LLua.Compile(s)),
+
+        // ⚠ ladder 这份**返工过一次**，记下来免得下次又写错：
+        //   第一版写的是 `PRINT_INT 1`（裸打印语句），探针报 NOERR —— 看着像"ladder 不收块"，
+        //   其实**是样本没写块**：`END_PROGRAM` 在本方言里**是可选**的（三份随包例程一份都没写），
+        //   而裸语句模式（省略 `BEGIN`）本来就只有打印语句。真正的块是 `IF/END_IF`、
+        //   `WHILE/END_WHILE`、`FUNCTION/END_FUNCTION` —— 实测未闭合那几个**都会报错**（ladder 没问题）。
+        //   还是本仓那条老账：**先怀疑用例，再怀疑实现**（`undef-fn.go` 写成 Rust 语法那次）。
+        new("ld", "ld", Groups.Unclosed, "块未闭合", 0, 0,
+            ["BEGIN", "IF 1 THEN"],
+            s => LLadder.Compile(s)),
+
+        new("fth", "fth", Groups.Unclosed, "块未闭合", 0, 0,
+            [": sq", "  dup *"],
+            s => LForth.Compile(s), PostLinkLang: "forth"),
     ];
 }

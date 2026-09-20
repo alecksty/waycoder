@@ -142,6 +142,9 @@ namespace BasicCompiler
             Token thenTok = Advance(); // 跳过 THEN
 
             bool blockThen = !AtEnd() && Peek().Line > thenTok.Line;
+            // 只要**任何一个**分支走了块式（THEN/ELSEIF/ELSE 之后换行），这条 IF 就必须有
+            // `END IF` 收尾 —— 单行 IF（`IF x THEN y = 1`）不需要。判据在函数末尾。
+            bool blockForm = blockThen;
             stmt.ThenBranch = blockThen ? ParseBlockBody() : ParseStatement();
 
             // Handle colon-separated multi-statement THEN branch: IF x THEN a=1: b=2
@@ -170,6 +173,7 @@ namespace BasicCompiler
                 elseifStmt.Condition = ParseExpression();
                 if (Peek().Type != TokenType.THEN) break;
                 Token elseifThen = Advance(); // skip THEN
+                if (Peek().Line > elseifThen.Line) blockForm = true;
                 elseifStmt.ThenBranch = (Peek().Line > elseifThen.Line)
                     ? ParseBlockBody() : ParseStatement();
                 // Handle colon-separated multi-statement ELSEIF branch
@@ -196,6 +200,7 @@ namespace BasicCompiler
             {
                 Token elseTok = Advance(); // 跳过 ELSE
                 // 与 THEN 同一判据：ELSE 之后换行 = 块式（多语句），同一行 = 单行 IF 的 ELSE
+                if (Peek().Line > elseTok.Line) blockForm = true;
                 currentStmt.ElseBranch = (Peek().Line > elseTok.Line)
                     ? ParseBlockBody() : ParseStatement();
                 // Handle colon-separated multi-statement ELSE branch
@@ -221,6 +226,11 @@ namespace BasicCompiler
                 Advance(); // skip END
                 Advance(); // skip IF
             }
+            // ⚠ 从这里往下（EOF 处）**从前是一声不吭**：块式的 `IF ... THEN` 不写 `END IF`
+            //   就结束文件 ⇒ 编译成功、退出码 0 —— 一份写了一半的 BASIC 程序被编成残程序。
+            //   位置锚在 `IF` 那个词上（缺口就是它没被关上）。
+            else if (blockForm)
+                GccErrorAt("IF 块未闭合（缺少 'END IF'）", token, ErrorCode.Parser_SyntaxError);
 
             return stmt;
         }

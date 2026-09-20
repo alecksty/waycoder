@@ -5748,6 +5748,7 @@ sta_69550327:
         call gfx_line
         add R13 #20
 sta_69550322:
+; 420:     for (a = start_angle; a <= end_angle; a = a + 2) {
         move R0 [R12-8]
         push R0
         move R0 #2
@@ -6073,7 +6074,7 @@ _L69550375:
 _L69550376:
         cmp R0 #0
         jz sta_69550374
-; 663:                             _putpixel(cur_x + col * scale + sx,
+; 664:                                        cur_y + row * scale + sy, color);
         move R0 [R12+24]
         push R0
         move R0 [R12-16]
@@ -6093,6 +6094,7 @@ _L69550376:
         add R1 R0
         move R0 R1
         push R0
+; 663:                             _putpixel(cur_x + col * scale + sx,
         move R0 [R12-12]
         push R0
         move R0 [R12-36]

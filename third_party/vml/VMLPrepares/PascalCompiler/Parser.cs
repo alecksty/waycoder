@@ -730,8 +730,18 @@ namespace PascalCompiler
                 Line = Cur.Line,
                 Column = Cur.Column
             };
+            // 三个调用点都在 `begin` 之后 —— 这个 `begin` 就是"块没关上"时该指的地方。
+            var open = Previous();
 
-            while (GetTokenType(Cur) != TokenType.END && GetTokenType(Cur) != TokenType.UNTIL)
+            // ⚠ 这个循环从前**没有 EOF 出口**（只认 `end` / `until`）：文件在块中间结束时
+            //   `Cur` 停在 EOF 上，`ParseStatement()` 也推进不了 ⇒ **空转**。
+            //   实测 `program p; begin WriteLn(1);`（少 `end.`）不报"块未闭合"，
+            //   而是由运行期兜底 `ProgressGuard` 抛出一条
+            //   「解析未收敛（在同一处反复读取、从不推进）—— 这是编译器内部缺陷，请报告给开发者」。
+            //   **兜底能兜住不挂死，但把"用户少写了一个 end"说成了"编译器坏了"** ——
+            //   位置是对的、归因是错的，而用户会照着那句话去提 bug。兜底不是诊断。
+            while (GetTokenType(Cur) != TokenType.END && GetTokenType(Cur) != TokenType.UNTIL
+                   && GetTokenType(Cur) != TokenType.EOF)
             {
                 block.Statements.Add(ParseStatement());
                 if (GetTokenType(Cur) == TokenType.SEMICOLON)
@@ -739,6 +749,8 @@ namespace PascalCompiler
                     Advance();
                 }
             }
+            if (GetTokenType(Cur) == TokenType.EOF)
+                GccErrorAt("块未闭合（缺少 'end'）", open, ErrorCode.Parser_SyntaxError);
 
             return block;
         }

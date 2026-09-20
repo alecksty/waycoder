@@ -1638,6 +1638,7 @@ sta_41360155:
         dmul R0 R1 R0
         moved [R12-12] R0
 sta_41360156:
+; 130:     } while (guess < prev - 1e-10 || guess > prev + 1e-10);
         moved R0 [R12-12]
         dpush R0
         moved R0 [R12-20]
@@ -3410,6 +3411,7 @@ sta_41360422:
 sta_41360417:
         move R0 [R12-8]
         push R0
+; 328:     for (i = 3; i * i <= n; i += 2)
         move R0 #2
         pop R1
         add R1 R0

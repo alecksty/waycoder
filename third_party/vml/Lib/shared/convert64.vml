@@ -653,6 +653,7 @@ sta_19190052:
 sta_19190047:
         move R0 [R12-28]
         push R0
+; 45:     for (shift = 60; shift >= 0; shift -= 4) {
         move R0 #4
         pop R1
         sub R1 R0

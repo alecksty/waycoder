@@ -1455,6 +1455,7 @@ mat3_det_d:
         dpop R1
         dmul R0 R1 R0
         dpush R0
+; 64:           -a[1]*(a[3]*a[8]-a[5]*a[6])
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -1505,6 +1506,7 @@ mat3_det_d:
         dpop R1
         dsub R0 R1 R0
         dpush R0
+; 65:           +a[2]*(a[3]*a[7]-a[4]*a[6]);
         move R0 [R12+12]
         push R0
         move R0 #2

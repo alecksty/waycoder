@@ -292,6 +292,7 @@ _L42090020:
 sta_42090001:
         move R0 [R12-12]
         push R0
+; 8:     for (i = 0; i < len; i += 3) {
         move R0 #3
         pop R1
         add R1 R0

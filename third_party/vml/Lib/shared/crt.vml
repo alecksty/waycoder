@@ -620,36 +620,43 @@ sta_87890023:
         move R0 [_crt_fg]
         move R1 R0
         push R1
+; 100:         case 0: _crt_tmp1=30; break;  // Black
         move R0 #0
         pop R1
         cmp R0 R1
         je sta_87890028
         push R1
+; 101:         case 1: _crt_tmp1=34; break;  // Blue
         move R0 #1
         pop R1
         cmp R0 R1
         je sta_87890029
         push R1
+; 102:         case 2: _crt_tmp1=32; break;  // Green
         move R0 #2
         pop R1
         cmp R0 R1
         je sta_87890030
         push R1
+; 103:         case 3: _crt_tmp1=36; break;  // Cyan
         move R0 #3
         pop R1
         cmp R0 R1
         je sta_87890031
         push R1
+; 104:         case 4: _crt_tmp1=31; break;  // Red
         move R0 #4
         pop R1
         cmp R0 R1
         je sta_87890032
         push R1
+; 105:         case 5: _crt_tmp1=35; break;  // Magenta
         move R0 #5
         pop R1
         cmp R0 R1
         je sta_87890033
         push R1
+; 106:         case 6: _crt_tmp1=33; break;  // Yellow
         move R0 #6
         pop R1
         cmp R0 R1

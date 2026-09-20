@@ -43,7 +43,13 @@ public class Parser : ParserBase<Token, TokenType>
     public ProgramNode Parse()
     {
         SkipNewlines();
-        if (Match(TokenType.Program))
+        // 写出来的 `program 名` **必须**有 `end program` 收尾 —— 循环跑完没见到就是漏了。
+        // ⚠ 没有 `program` 语句的文件是**隐式主程序**（Fortran 本来就这么规定），
+        //   那种情况没有"块"要关，不报 —— 判据挂在"写没写 program"上。
+        bool hasProgramStmt = Match(TokenType.Program);
+        var programTok = hasProgramStmt ? Previous() : Cur;
+        bool closed = false;
+        if (hasProgramStmt)
         {
             string name = Expect(TokenType.Identifier, "期望程序名").Value;
             _program = new ProgramNode(name);
@@ -67,6 +73,7 @@ public class Parser : ParserBase<Token, TokenType>
                 if (Match(TokenType.Program))
                 {
                     if (!inContains) Match(TokenType.Identifier); // optional program name
+                    closed = true;
                     break;
                 }
                 // end subroutine/function inside contains
@@ -112,6 +119,11 @@ public class Parser : ParserBase<Token, TokenType>
 
             prog.Statements.Add(ParseStatement());
         }
+        // ⚠ 循环**只在 `end program` 或 EOF 处退出**，而 EOF 这一支从前**一声不吭**：
+        //   `program p` + 几行语句、不写 `end program p` ⇒ 编译成功、退出码 0。
+        //   位置锚在 `program` 那个词上（缺口就是它没被关上）。
+        if (hasProgramStmt && !closed)
+            GccErrorAt("程序块未闭合（缺少 'end program'）", programTok, ErrorCode.Parser_SyntaxError);
         return prog;
     }
 
