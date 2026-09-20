@@ -59,7 +59,10 @@ namespace PythonCompiler
 
         private new void Error(string message)
         {
-            throw new ParseException(ErrorCode.Lexer_UnknownCharacter, message);
+            // ⚠ 位置交给基类那一处（见 `LexerBase.Error`）。原来是
+            //   `new ParseException(code, message)` —— 三参构造 **`line = 0`**
+            //   ⇒ 词法错误报出来**没有位置**（本前端的词法错全是这一条出口）。
+            base.Error(ErrorCode.Lexer_UnknownCharacter, message);
         }
 
 
