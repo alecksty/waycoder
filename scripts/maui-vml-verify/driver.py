@@ -427,11 +427,34 @@ class Driver:
     def window_open(self, ns=None):
         """VML 程序开的绘图窗口在不在。
 
-        判据取绘图页那几个手柄按钮的文字（`DrawWindowPage.xaml` 的 SELECT / START / 收起手柄）——
-        它们只在绘图页上出现，命令行页没有。
+        判据一：绘图页那几个手柄按钮的文字（`DrawWindowPage.xaml` 的 SELECT / START / 收起手柄）。
+
+        ⚠ **判据二（"命令行页不见了"）不是锦上添花，是必需的**：
+        `ui_win_open_ex(..., VML_WIN_NO_GAMEPAD, ...)` 声明"不要手柄区"的程序，
+        手柄按钮**一个都没有** —— 只看判据一，这类程序永远被认成"窗口没开"，
+        于是**已经跑起来的程序被记成失败**（实测：`draw_brush.c` 就是 NO_GAMEPAD，
+        窗口明明开着，采集端在下面傻等超时）。
+        这条 CLAUDE.md 里记过，这次又踩到，所以直接补进来而不是靠调用方兜。
         """
-        for n in (ns if ns is not None else self.nodes()):
+        ns = ns if ns is not None else self.nodes()
+        for n in ns:
             if n["text"] in ("SELECT", "START", "▲ 收起手柄"):
+                return True
+        # 兜底：命令行页在不在。它不在（而被我们查过节点）⇒ 已经切到绘图页了。
+        return not self._shell_page_present(ns)
+
+    def _shell_page_present(self, ns):
+        """命令行页的标志物：输入框 placeholder 或标题那句提示。
+
+        与 `on_shell_page` 分开是因为后者会**自己去取节点**，而这里必须复用调用方
+        已经取好的那一份（同一帧的两次 dump 之间页面可能已经切走）。
+        """
+        for n in ns:
+            tx = n["text"] or ""
+            # 「WayCoder 命令行」在页面上是**一段多行文字**（后面还跟着使用提示），
+            # 所以用包含判断而不是相等 —— 相等会永远落空，而落空的后果是
+            # "命令行页明明在、却被判成窗口开了"。
+            if tx in PLACEHOLDERS or "WayCoder 命令行" in tx:
                 return True
         return False
 
