@@ -615,6 +615,14 @@ public static partial class SelfTest
         Check("TuiMarkdown 代码块渲染含文本", cRender.Any(l => l.Any(s => s.Text.Contains("code001"))));
         Check("TuiMarkdown 代码块渲染含行号", cRender.Any(l => l.Any(s => s.Text.Contains("1"))));
 
+        // 标题文本必须走**行内解析** —— 帮助文档里 `### `ui_circle(...)`` 到处都是，
+        // 原先是 `(h.Text, color, 0)` 直接放 ⇒ 屏幕上赫然显示一对反引号。
+        // （TUI 是四端里唯一能被桌面自测覆盖的，所以这条判据钉在这里；MAUI/GUI 靠真机/编译。）
+        var hRender = WayCoder.UI.Tui.TuiMarkdown.RenderMessage("### `ui_circle(int r)`", "assistant", 80);
+        var hText = string.Concat(hRender.SelectMany(l => l).Select(s => s.Text));
+        Check("TuiMarkdown 标题里的行内代码不显示字面反引号", !hText.Contains('`'));
+        Check("TuiMarkdown 标题里的行内代码保留内容", hText.Contains("ui_circle(int r)"));
+
         // 端到端：ChatScreen 渲染帧应包含消息正文（TuiListItem → TuiMarkdown → WriteAt 全链路）
         {
             var msgScreen = new ChatScreen();
