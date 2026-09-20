@@ -76,7 +76,16 @@ namespace JavaScriptCompiler
                 if (!labels.ContainsKey("main"))
                     AddDefaultMain();
 
-                var program = new VmlProgram(instructions, labels, dataSection, constants);
+                // ⚠ 这里**又造了一个** `VmlProgram`（字段是上面那份缓存），而 `Generate()`
+                //   返回的那一份才是 `BuildProgram` 盖过行号映射的 —— 两张对象不是同一个，
+                //   表得**搬过来**。
+                //   本门是唯一"在编译委托内部就调 `LinkStandardLibrary`"的 ⇒ 一旦表没搬，
+                //   链接期读到的就是 null：错在 `#include` 进来的头文件里时会报成
+                //   `<input>:4`（实测 DiagProbe【头文件里的错】js 一栏就是这条）。
+                var program = new VmlProgram(instructions, labels, dataSection, constants)
+                {
+                    SourceLineMap = vmlProgram.SourceLineMap
+                };
                 CompilerHelper.LinkStandardLibrary(program, "javascript", null);
                 return program;
             });

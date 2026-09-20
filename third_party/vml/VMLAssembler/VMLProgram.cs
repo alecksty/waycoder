@@ -21,6 +21,19 @@ namespace VMLAssembler
         public string EntryPoint { get; set; } = "main";
 
         /// <summary>
+        /// 「预处理拼接后的行号 → (原文件, 原行)」的映射表（`Preprocessor.LineMap` 原样带过来）。
+        /// 由 `CompilerHelper.CompileWithDiagnostics` 在返回程序前盖上（一处覆盖各门）。
+        /// **null = 没有映射**（没预处理过），此时按拼接行号报。
+        ///
+        /// <para>
+        /// 为什么放在程序对象上：**链接器也要用它**（「未定义的函数」是链接期才发现的错，
+        /// 而报错要指到用户写的那一行）。链接器手里只有程序对象 —— 编译器那边的
+        /// "生效中的表"它够不着（依赖方向 `CompilerBase → VMLAssembler` 是单向的）。
+        /// </para>
+        /// </summary>
+        public List<(string, int)>? SourceLineMap { get; set; }
+
+        /// <summary>
         /// 栈顶地址（字节偏移量，相对于 memory 起始地址，默认 1MB = 1048576）
         /// </summary>
         public int StackTop { get; set; } = 0;  // 0 表示使用默认值（memorySize - 4）

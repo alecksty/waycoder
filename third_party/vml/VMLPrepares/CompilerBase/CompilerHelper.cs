@@ -34,29 +34,14 @@ namespace CompilerBase
         /// </para>
         /// </summary>
         public static (string? File, int Line) MapOriginalLine(List<(string, int)>? lineMap, int processedLine)
-        {
-            if (lineMap != null && processedLine > 0 && processedLine <= lineMap.Count)
-            {
-                var e = lineMap[processedLine - 1];
-                // ⚠ **`<unknown>` 是占位符，不是文件名**。
-                //   `Preprocessor` 的 `currentFile` 初值就是它，只有 `Process(filePath)` 传了
-                //   真实路径才会被换掉；而 21 门语言的 `Compile(string)` 走的都是无参 `Process()`
-                //   ⇒ 主文件每一行都会被映射成 `("<unknown>", N)`。
-                //   照原样往上冒，用户会看到 `<unknown>:4:20: error: …` —— 比原来那个
-                //   `<input>` 更难懂，而且把"文件名未知"谎报成了"文件名叫 <unknown>"。
-                //   所以这里**只把文件退成未知、行号照旧映射**（行号是真的，不该丢）。
-                //   `CppCompiler` 用的是 `<input>`（那是宿主认得的"正在编的这个文件"占位符，
-                //   见 `CppCompiler.Compile` 里的说明）——**那个不能退**，退了 C++ 的
-                //   `ASTNode.OriginalFile` 会跟着变 null，正好把它已经修好的头文件定位弄坏。
-                string? file = e.Item1;
-                if (file == UnknownFilePlaceholder) file = null;
-                return (file, e.Item2);
-            }
-            return (null, processedLine);
-        }
+            // 规则本体搬到 `VMLAssembler.SourceLineMapUtil` —— **链接器也要用它**
+            // （「未定义的函数」是链接期才发现的错），而依赖方向是
+            // `CompilerBase → VMLAssembler` 单向 ⇒ 实现必须在下层，上层转调。
+            // 两处各写一份的话，规则一改必然只改一处。
+            => VMLAssembler.SourceLineMapUtil.Map(lineMap, processedLine);
 
         /// <summary>`Preprocessor` 在主文件名未知时用的占位符（见 <see cref="MapOriginalLine"/>）。</summary>
-        public const string UnknownFilePlaceholder = "<unknown>";
+        public const string UnknownFilePlaceholder = VMLAssembler.SourceLineMapUtil.UnknownFilePlaceholder;   // 唯一定义在 SourceLineMapUtil（链接器也要用）
 
         // ── 行号映射的「投递」────────────────────────────────────────────────
         //

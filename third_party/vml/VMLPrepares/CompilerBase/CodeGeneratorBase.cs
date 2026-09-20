@@ -1528,6 +1528,18 @@ namespace CompilerBase
             return new VmlProgram(instructions, labels, dataSection, constants)
             {
                 EntryPoint = entryPoint,
+                // 把**这次编译生效中的行号映射**盖上程序对象 —— **必须在这里盖**。
+                //
+                // 用处：链接器报「未定义的函数」时，要把 `instr.SourceLine`（预处理
+                // **拼接后**的行号）换回「原文件的原行」，否则错在 `#include` 进来的
+                // 头文件里时会报成用户文件里被顶下去的那一行、文件名也只能写死 `<input>`。
+                //
+                // ⚠ **不能盖在 `CompileWithDiagnostics` 的出口**：有几门（如 JS）在
+                //   自己的编译委托**内部**就调了 `LinkStandardLibrary` —— 那是"先链接、
+                //   后盖章"，链接期根本读不到表（实测 js/scm 两门就是这样漏掉的）。
+                //   这里是程序**被造出来的那一刻**，早于任何链接，且 22 门的
+                //   `GenerateCode()` 末尾都走这一句。
+                SourceLineMap = CompilerHelper.ActiveLineMap,
                 SourceLines = SourceLines,
                 SourceCommentEnabled = VMLPlugins.CompilerOptionsContext.Current.SourceComment,
                 RawDirectives = rawDirectives

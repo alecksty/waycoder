@@ -736,9 +736,18 @@ namespace VMLAssembler
                     //
                     // 文件名这里是占位符 `<input>`（链接器看不到源文件名，`VmlProgram` 没这个字段）；
                     // 宿主（CLI / MAUI / LSP）知道真实路径，替换掉即可。
-                    var where = firstLine.TryGetValue(kv.Key, out var ln) && ln > 0
-                        ? $"<input>:{ln}: "
-                        : "";
+                    // 位置：把「预处理拼接后的行号」换回**原文件的原行**。
+                    // `instr.SourceLine` 是**拼接流**的行号（`#include` 一展开，用户文件
+                    // 后面的行号整体后移）⇒ 不映射的话，错在头文件里时会报成
+                    // 用户文件里被顶下去的那一行，文件名也只能写死 `<input>`。
+                    // 映射规则与解析器/代码生成器**同一处**（`SourceLineMapUtil.Map`），
+                    // 表跟着程序对象过来（`VmlProgram.SourceLineMap`）。
+                    var where = "";
+                    if (firstLine.TryGetValue(kv.Key, out var ln) && ln > 0)
+                    {
+                        var (file, line) = SourceLineMapUtil.Map(program.SourceLineMap, ln);
+                        where = $"{file ?? "<input>"}:{line}: ";
+                    }
                     lines.Add($"{where}error: 未定义的函数 '{kv.Key}'（引用 {kv.Value} 次）");
                 }
                 lines.Add("提示: 检查函数名拼写；库函数要在源码里 #include 对应头文件，或确认该模块在语言库里存在。");
