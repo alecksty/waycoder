@@ -115,6 +115,22 @@ namespace CompilerBase
             => MapOriginalLine(_activeLineMap, processedLine);
 
         /// <summary>
+        /// 生效中的那张表**覆盖这一行吗**（= 这次映射到底可不可用）。
+        ///
+        /// <para>
+        /// ⚠ 为什么需要单独一个判据、不能只看 <see cref="MapActiveOriginal"/> 的返回值：
+        /// 那张表里的文件可能是占位符 `<unknown>`（内存里编的源码没有文件名），
+        /// 而 <see cref="MapOriginalLine"/> 会把它**规范成 `null`**（对，那是刻意的 ——
+        /// 让文件名退回调用方的默认值）。于是 `(null, 行)` 就有了两种含义：
+        /// 「没有映射」与「有映射、但文件名未知」——**行号在后者里是对的，不能一起丢掉**。
+        /// 实测踩过：只看 `file == null` 就退回拼接行号，于是「主文件第 5 行的错」
+        /// 在有 `#include` 时又被报成拼接后的第 7 行。
+        /// </para>
+        /// </summary>
+        public static bool ActiveMapCovers(int processedLine)
+            => _activeLineMap != null && processedLine > 0 && processedLine <= _activeLineMap.Count;
+
+        /// <summary>
         /// 根据目标语言，将 -D/-U 宏定义注入为语言对应的常量声明。
         /// 返回: 注入后的源代码（C/C++ 使用 #define，其他语言使用对应语法）。
         /// </summary>

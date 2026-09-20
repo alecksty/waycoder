@@ -191,23 +191,58 @@ namespace CompilerBase
         /// `WarnUndefined` / `WarnUnused`）与 `DiagFile`/`DiagLine` 全从这里取。
         ///
         /// <para>
-        /// 三条分支：
-        /// ① 语言自己给了原文件行号（`CurrentSourceOriginalLine`，C/C++ 走这条）⇒ 原样用，
-        ///    **绝不能再映射一次**（那会把"原文件第 30 行"当成"拼接流第 30 行"去查表，
-        ///    查出来是**另一个文件**的行 —— 比不映射更糟）；
-        /// ② 有生效中的映射表（词法器认领的那份，见 `CompilerHelper.ActiveLineMap`）⇒
-        ///    把**预处理后的行号**映射回原文件。这一条正是 21 门语言从前缺的那一环：
-        ///    它们只给 `CurrentSourceLine`（= 拼接流行号），于是「错在 `Lib/c/time.h` 第 30 行」
-        ///    被报成「用户文件第 112 行」；
-        /// ③ 没有表 ⇒ 原样退回，与从前**逐字相同**（不传 `#` 的源码走这条，行为零变化）。
+        /// 先查一次**生效中的映射表**（词法器在构造时认领的那份，见
+        /// `CompilerHelper.ActiveLineMap`）：`CurrentSourceLine` 是**预处理后**的行号，
+        /// 查它就能拿回 `(原文件, 原行)`。然后按"这门语言自己给了什么"分两支：
+        /// </para>
+        ///
+        /// <para>
+        /// ① **给了原文件行号**（`CurrentSourceOriginalLine`：C/C++ 的 `ASTNode.OriginalLine`）
+        /// ⇒ 行号以它为准（它来自"报错的那个节点"，比游标更精确），
+        /// **不能再拿它去查表**（那会把"原文件第 30 行"当成"拼接流第 30 行"，
+        /// 查出来是**另一个文件**的行 —— 比不映射更糟）；
+        /// 但**文件仍取自映射表**：C 的 `ASTNode` 只带 `OriginalLine`、**不带 `OriginalFile`**，
+        /// 只靠它就等于报「主文件名 + 头文件的行号」，而宿主会把这个行号硬贴到用户
+        /// 正在看的那个文件上 —— 正是要修的那个 bug 的另一种形态（实测就是这么表现的）。
+        /// C++ 两者都有，取到的是同一个答案（见它自己的 `DiagFile` 覆写）。
+        /// </para>
+        ///
+        /// <para>
+        /// ② **没给**（其余 20 门）⇒ 靠映射表把游标行换回原文件。这一条正是它们
+        /// 从前缺的那一环：只给 `CurrentSourceLine`（= 拼接流行号），于是
+        /// 「错在 `Lib/c/time.h` 第 30 行」被报成「用户文件第 112 行」。
+        /// </para>
+        ///
+        /// <para>
+        /// 没有生效表时**原样退回**，与从前逐字相同（不碰 `#` 的源码走这条，行为零变化）。
         /// </para>
         /// </summary>
         protected (string File, int Line) DiagPosition()
         {
-            if (CurrentSourceOriginalLine > 0) return (BaseDiagFile, CurrentSourceOriginalLine);
-            var (file, line) = CompilerHelper.MapActiveOriginal(CurrentSourceLine);
-            if (file == null) return (BaseDiagFile, CurrentSourceLine);
-            return (file, line);
+            // 生效中的映射表（词法器在构造时认领的那一份，见 `CompilerHelper.ActiveLineMap`）：
+            // `CurrentSourceLine` 是**预处理后**的行号，查它就能拿回 `(原文件, 原行)`。
+            //
+            // ⚠ 判"有没有映射"要看 `ActiveMapCovers`，**不能只看文件是不是 null** ——
+            //   内存里编的源码没有文件名，表里的文件是占位符 `<unknown>`，
+            //   而它会被规范成 null（见那一处的说明）。只看文件的话，「有表、但文件名未知」
+            //   会被误当成「没有表」，于是**行号那一半修复也跟着丢了**
+            //   （实测：主文件第 5 行的错在 `#include` 之后又被报成第 7 行）。
+            var mappedFile = (string?)null;
+            int mappedLine = CurrentSourceLine;
+            if (CompilerHelper.ActiveMapCovers(CurrentSourceLine))
+                (mappedFile, mappedLine) = CompilerHelper.MapActiveOriginal(CurrentSourceLine);
+
+            // ① 语言自己给了原文件行号（`CurrentSourceOriginalLine`：C/C++ 的 `ASTNode.OriginalLine`）
+            //    ⇒ 行号以它为准（它来自"报错的那个节点"，比游标更精确），
+            //    但**文件仍从映射表取** —— C 的 `ASTNode` 只带 `OriginalLine`、**不带 OriginalFile**，
+            //    只靠它就等于报「主文件名 + 头文件的行号」，而宿主会把这个行号硬贴到
+            //    用户正在看的那个文件上 —— 正是要修的那个 bug 的另一种形态。
+            //    （C++ 两者都有，取到的是同一个答案；见它自己的 `DiagFile` 覆写。）
+            if (CurrentSourceOriginalLine > 0)
+                return (mappedFile ?? BaseDiagFile, CurrentSourceOriginalLine);
+
+            // ② 没有自带的原文件行号 ⇒ 用映射表换回原文件（20 门语言走这条）。
+            return (mappedFile ?? BaseDiagFile, mappedLine);
         }
 
         /// <summary>没映射可用时的文件名（= 从前 `DiagFile` 的默认实现，逐字保留）。</summary>

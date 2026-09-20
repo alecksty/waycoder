@@ -11,7 +11,7 @@
 // 退出码：0 = 全 PASS；1 = 有任一门不是 PASS（可直接当 CI 判据用）。
 //
 // ---------------------------------------------------------------------------
-// 判据（五档，**「没报错」与「报了但没位置」都算 FAIL**，且各自单列一档）
+// 判据（六档，**「没报错」「报了但没位置」「文件指错了」都算 FAIL**，且各自单列一档）
 // ---------------------------------------------------------------------------
 //   PASS    报了编译错误，且报错文本里的行号 == 期望行号
 //   FILE    报了编译错误，行号也对，但**文件名不对**（只有「头文件里的错」那一档判文件）
@@ -30,29 +30,35 @@
 //   而那正是被修掉的那个 bug 的伪装形态（行号碰巧对上，文件整个是错的）。
 //
 // ---------------------------------------------------------------------------
-// 样本规则
+// 样本规则（三档：未定义标识符 / 语法错误 / 头文件里的错）
 // ---------------------------------------------------------------------------
 // · **每门语言一份最小样本**，错误埋在一个**明确的行**上（= `Lines` 数组下标 + 1）。
 // · 只用该语言最基本的语法，**不碰标准库、不用花哨特性** —— 否则前端会先挂在
 //   别的地方，量到的就是别的问题（这一条是 `scripts/vml-diag-probe/README.md`
 //   里用真金白银换来的：`undef-fn.go` 当年写成了 Rust 语法，测出来的是"用例写错了"）。
-// · 错误类型统一取「**读一个未定义的标识符**」：
+// · 前两档的错误类型统一取「**读一个未定义的标识符**」：
 //     - 静态类型语言 → 未声明的**变量**（c/cpp/cs/java/kt/swift/d/objc/rs/go/f90/pas/bas/fth/ld/dart）
 //     - 动态语言 6 门 → 未声明的**函数**（py/rb/lua/js/r/scm）
 //       因为这 6 门的「未声明即隐式全局」是**合法语义**（见 `vml-diag-probe` 的
 //       `dyn-global` 组），用未声明变量测不出错来。
-// · 每份样本都有 1~3 行**有效的前导语句**，让错误落在第 3~4 行而不是第 1 行 ——
+// · 前两档每份样本都有 1~3 行**有效的前导语句**，让错误落在第 3~4 行而不是第 1 行 ——
 //   第 1 行出错太容易"碰巧对"，量不出真实的位置计算。
+// · **第三档（头文件里的错）**另有一套形状，见那一档自己的注释块（`Samples()` 里）。
 //
 // ---------------------------------------------------------------------------
 // 为什么不写文件、不走 CLI
 // ---------------------------------------------------------------------------
-// 直接调各前端的 `Compile(string)` 入口（进程内），**不经文件读写**：
+// 前两档直接调各前端的 `Compile(string)` 入口（进程内），**不经文件读写**：
 // 这样量到的纯粹是「**前端自己的位置计算**」，与宿主/编辑器那一侧
 // （文件路径、BOM、编码、`VmlDiagnostics` 解析）完全解耦 —— 两者混在一起量，
 // 出了偏差分不清是谁的锅。
 // `scripts/vml-diag-probe/run.sh` 走的是外部 CLI 进程、判的是"有没有点名符号"；
 // 本探针走进程内、判的是"**行号对不对**"。两者互补，不重复。
+//
+// ⚠ **第三档是唯一的例外：它必须真写文件**（`HeaderPath`）。`#include` 只有
+//   "真去读磁盘"一条路，而那一档的命题恰恰是"拼接流里的行号能不能映射回
+//   它来自哪个文件" —— 不落盘就量不到。写成**临时目录**里的独立文件，
+//   内容就在样本里（自包含，不引用 `Examples/` 或用户的任何文件）。
 //
 // ⚠ 样本用 `\n` 拼（不是 CRLF）：先排除行尾差异这个变量。将来若要量 CRLF 的影响，
 //   应该**另开一档**，别把两种行尾混进同一列数字里。
@@ -190,9 +196,10 @@ internal static class Program
         var samples = Samples();
         if (listOnly)
         {
+            // 三档之后"条数"与"门数"不再是同一个数 —— 分开报，别让 66 被读成 66 门语言。
             foreach (var s in samples)
-                Console.WriteLine($"{s.Lang,-10} .{s.Ext,-6} 期望第 {s.Expected} 行  {s.ErrorKind}");
-            Console.WriteLine($"共 {samples.Count} 门");
+                Console.WriteLine($"{s.Lang,-10} .{s.Ext,-6} [{s.Group}] 期望第 {s.Expected} 行  {s.ErrorKind}");
+            Console.WriteLine($"共 {samples.Count} 条样本 / {samples.Select(s => s.Lang).Distinct().Count()} 门语言");
             return 0;
         }
 
@@ -536,9 +543,32 @@ internal static class Groups
         return path.Replace('\\', '/');
     }
 
-    /// <summary>主文件 = 一句 `#include "<绝对路径>"` + 语言自己的正文。</summary>
-    private static string[] WithInclude(string headerPath, params string[] body)
-        => new[] { $"#include \"{headerPath}\"" }.Concat(body).ToArray();
+    /// <summary>
+    /// 主文件 = 前导 + 一句 `#include "<绝对路径>"` + 后置。
+    ///
+    /// ⚠ **前导必须排在那句 `#include` 之前**（不是装饰，是判据的一部分）：
+    /// 头文件正文在拼接流里的行号因此比它自己的行号大，一个"没做映射"的实现
+    /// 会报出偏移后的行号 —— 前导为零的话，拼接行号与头文件行号天然相等，
+    /// 这一档就退化成"只要报了个位置就算过"。
+    /// </summary>
+    private static string[] WithInclude(string headerPath, string[] prelude, string[] postlude)
+        => prelude.Append($"#include \"{headerPath}\"").Concat(postlude).ToArray();
+
+    /// <summary>
+    /// 「头文件里的错」那一档的样本工厂 —— **头文件正文只写一处**：
+    /// 既拿去落盘，又经过 `#include` 进主文件；`ExpectedInFile` 由文件名推出来
+    ///（写死第二份必然漂移）。
+    /// </summary>
+    private static Sample Hdr(string lang, string ext, string errorKind, int expected,
+                              string[] header, string[] prelude, string[] postlude,
+                              Func<string, object?> compile, string? postLink = null)
+    {
+        var path = HeaderPath(lang, header);
+        return new Sample(lang, ext, Groups.Header, errorKind, expected, 0,
+                          WithInclude(path, prelude, postlude), compile,
+                          PostLinkLang: postLink, HeaderLines: header,
+                          ExpectedInFile: $"probe_bad_{lang}.h");
+    }
 
     private static List<Sample> Samples() =>
     [
@@ -736,5 +766,194 @@ internal static class Groups
         new("scm", "scm", Groups.Syntax, "语法错误", 4, 0,
             ["(display 1)", "(display 2)", "(display 3)", "(display (+ 1))"],
             s => LScm.Compile(s)),
+
+        // ═══════════ 用例档三：头文件里的错 ═══════════
+        //
+        // ── 这一档要回答的问题 ────────────────────────────────────────────────
+        // 用户报过：「我现在打开的文件，报 112 行错误，但是这里报错是不对的」——
+        // 他的第 112 行是一句无害的注释，**真正的错在 `#include` 进来的头文件里**。
+        // `#include` 是把头文件正文**拼进同一个流**的，于是词法/语法/代码生成拿到的
+        // 行号都是**拼接后**的；映射表（`Preprocessor.LineMap`）一直都在，
+        // 缺的只是"谁把它交给报错那一端"。前两档量不到这件事：它们的样本里没有 `#include`。
+        //
+        // ── 样本形状（22 门统一）──────────────────────────────────────────────
+        //   主文件 = 两行前导（该语言最平凡的合法代码）+ 一句 `#include "<临时目录>/probe_bad_<lang>.h"`
+        //           + 可选后置；**错埋在头文件的第 2 行**。
+        //   期望行 = 头文件里的那一行（= 2），期望文件 = 那个头文件（`WrongFile` 那一档）。
+        //
+        // ⚠ 前导那两行**必须自己不出错**，否则第一个错误变成前导里的错，量到的就不是头文件
+        //   （BASIC 第一版就是这么废掉的：`OPTION EXPLICIT` 一开，前导里的
+        //   `LET probeMainA = 1` 自己先报「未声明的变量」，而且它排在头文件那条前面）。
+        //
+        // ── 错误类型按语言选 ─────────────────────────────────────────────────
+        //   · **静态语言**：头文件里**用了一个没声明的名字** —— 就是用户真遇到的那一类
+        //     （`Lib/c/time.h` 里的 `typedef struct tm tm_t;` 让下游报「未声明的变量」）。
+        //     注意要放进**函数 / 方法体**里：C / C# / Java 的**全局 / 字段初始化式**
+        //     是不被检查的（实测那三门对整个 NOERR，前端连错都不报）。
+        //   · **动态语言 6 门**：「未声明即隐式全局」是合法语义
+        //     （见 `CodeGeneratorBase.ImplicitDeclarationAllowed`），取语法错。
+        //     其中 js / scm 两门的未定义**函数**只能由链接器报（它手上只有一条 CALL 指令，
+        //     见 `LibraryLinker.ReportUnresolved`），而链接器手里是**拼接流**的位置 ——
+        //     这两门 + Forth 的实测结论就是「文件不对」，见汇总。
+
+        // ⚠ C 这一门的主文件**必须真的调用**头文件里那个坏函数（`return probe_b();`）：
+        //   C 的 codegen 不生成**没人调用**的函数体 ⇒ 主文件写 `return 0;` 时整个 NOERR
+        //   （实测：`int main(void) { return 0; }` 编译"成功"，换成 `return probe_b();` 立刻报出来）。
+        //   cpp / objc 没有这个行为（不调用也照样生成），但既然真实程序就是会调用它，
+        //   三门统一这么写更贴近实际。
+        Hdr("c", "c", "头文件里的未声明变量", 2,
+            ["int probe_ok_a(void) { return 1; }",
+             "int probe_b(void) { return nosuch_ident; }",
+             "int probe_ok_b(void) { return 2; }"],
+            ["int probe_main_a = 1;", "int probe_main_b = 2;"],
+            ["int main(void) { return probe_b(); }"],
+            s => LC.Compile(s)),
+
+        Hdr("cpp", "cpp", "头文件里的未声明变量", 2,
+            ["int probe_ok_a(void) { return 1; }",
+             "int probe_b(void) { return nosuch_ident; }",
+             "int probe_ok_b(void) { return 2; }"],
+            ["int probe_main_a = 1;", "int probe_main_b = 2;"],
+            ["int main() { return probe_b(); }"],
+            s => LCpp.Compile(s)),
+
+        Hdr("objc", "m", "头文件里的未声明变量", 2,
+            ["int probe_ok_a(void) { return 1; }",
+             "int probe_b(void) { return nosuch_ident; }",
+             "int probe_ok_b(void) { return 2; }"],
+            ["int probe_main_a = 1;", "int probe_main_b = 2;"],
+            ["int main(void) { return probe_b(); }"],
+            s => LObjC.Compile(s)),
+
+        Hdr("cs", "cs", "头文件里的未声明变量", 2,
+            ["  static int probeBadA = 1;",
+             "  static void Bad() { int x = nosuch_ident; }",
+             "  static int probeBadB = 2;"],
+            ["class ProbeMain {", "  static int probeMainA = 1;"],
+            ["  static void Main() { }", "}"],
+            s => new LCs().Compile(s)),
+
+        Hdr("java", "java", "头文件里的未声明变量", 2,
+            ["  static int probeBadA = 1;",
+             "  static void bad() { int x = nosuch_ident; }",
+             "  static int probeBadB = 2;"],
+            ["public class ProbeMain {", "  static int probeMainA = 1;"],
+            ["  public static void main(String[] a) { }", "}"],
+            s => new LJava().Compile(s)),
+
+        Hdr("kt", "kt", "头文件里的未声明变量", 2,
+            ["val probeOkA = 1", "val probeB = nosuch_ident", "val probeOkB = 2"],
+            ["val probeMainA = 1", "val probeMainB = 2"],
+            ["fun main() { }"],
+            s => LKt.Compile(s)),
+
+        Hdr("swift", "swift", "头文件里的未声明变量", 2,
+            ["let probeOkA = 1", "let probeB = nosuch_ident", "let probeOkB = 2"],
+            ["let probeMainA = 1", "let probeMainB = 2"],
+            ["func main() { }"],
+            s => new LSwift().Compile(s)),
+
+        Hdr("d", "d", "头文件里的未声明变量", 2,
+            ["int probeOkA = 1;", "int probeB = nosuch_ident;", "int probeOkB = 2;"],
+            ["int probeMainA = 1;", "int probeMainB = 2;"],
+            ["void main() { }"],
+            s => LD.Compile(s)),
+
+        Hdr("dart", "dart", "头文件里的未声明变量", 2,
+            ["int probeOkA = 1;", "int probeB = nosuch_ident;", "int probeOkB = 2;"],
+            ["int probeMainA = 1;", "int probeMainB = 2;"],
+            ["void main() { }"],
+            s => LDart.Compile(s)),
+
+        Hdr("rs", "rs", "头文件里的未声明变量", 2,
+            ["fn probe_ok_a() -> i32 { 1 }",
+             "fn probe_b() -> i32 { nosuch_ident }",
+             "fn probe_ok_b() -> i32 { 2 }"],
+            ["fn probe_main_a() -> i32 { 1 }", "fn probe_main_b() -> i32 { 2 }"],
+            ["fn main() { }"],
+            s => LRust.Compile(s)),
+
+        Hdr("go", "go", "头文件里的未声明变量", 2,
+            ["func probeOkA() { println_int(1) }",
+             "func probeB() { println_int(nosuch_ident) }",
+             "func probeOkB() { println_int(2) }"],
+            ["package main", "func probeMainA() { println_int(1) }"],
+            ["func main() { }"],
+            s => LGo.Compile(s)),
+
+        // Fortran / Pascal / BASIC / Ladder 的**程序单元**结构不允许"半句话"，
+        // 所以头文件正文落在单元内部：前导开单元、后置收单元，错误仍在头文件第 2 行。
+        Hdr("f90", "f90", "头文件里的未声明变量", 2,
+            ["      integer :: probe_ok_a",
+             "      probe_b = nosuch_ident",
+             "      integer :: probe_ok_b"],
+            ["      program probemain", "      implicit none"],
+            ["      print *, 1", "      end program probemain"],
+            s => LFortran.Compile(s)),
+
+        Hdr("pas", "pas", "头文件里的未声明变量", 2,
+            ["  WriteLn(7);", "  WriteLn(nosuch);", "  WriteLn(3);"],
+            ["program probemain;", "begin"],
+            ["  WriteLn(1);", "end."],
+            s => LPascal.Compile(s)),
+
+        // ⚠ 前导里**不能**出现未声明变量：头文件里那句 `OPTION EXPLICIT` 一生效，
+        //   前导自己的 `LET` 就会被判定为未声明，而那条错误排在头文件那条**前面**。
+        Hdr("bas", "bas", "头文件里的未声明变量", 2,
+            ["OPTION EXPLICIT", "PRINT nosuch", "PRINT 3"],
+            ["PRINT 1", "PRINT 2"],
+            [],
+            s => LBasic.Compile(s)),
+
+        Hdr("ld", "ld", "头文件里的未声明变量", 2,
+            ["PRINT_INT 7", "PRINT_INT nosuch", "END_PROGRAM"],
+            ["PRINT_INT 1", "PRINT_INT 2"],
+            [],
+            s => LLadder.Compile(s)),
+
+        Hdr("py", "py", "头文件里的语法错误", 2,
+            ["probe_ok_a = 1", "probe_b = )", "probe_ok_b = 2"],
+            ["probe_main_a = 1", "probe_main_b = 2"],
+            [],
+            s => LPy.Compile(s)),
+
+        Hdr("rb", "rb", "头文件里的语法错误", 2,
+            ["probe_ok_a = 1", "probe_b = )", "probe_ok_b = 2"],
+            ["probe_main_a = 1", "probe_main_b = 2"],
+            [],
+            s => LRb.Compile(s)),
+
+        Hdr("lua", "lua", "头文件里的语法错误", 2,
+            ["probe_ok_a = 1", "probe_b = )", "probe_ok_b = 2"],
+            ["probe_main_a = 1", "probe_main_b = 2"],
+            [],
+            s => LLua.Compile(s)),
+
+        Hdr("r", "r", "头文件里的语法错误", 2,
+            ["probe_ok_a <- 1", "probe_b <- )", "probe_ok_b <- 2"],
+            ["probe_main_a <- 1", "probe_main_b <- 2"],
+            [],
+            s => LR.Compile(s)),
+
+        // js / scm：未定义**函数**由链接器报（前端 codegen 对这两门豁免「未声明」）。
+        // 探针量到的就是链接器那一条 —— 实测**没**指到头文件（汇总里的「文件不对」）。
+        Hdr("js", "js", "头文件里的未定义函数", 2,
+            ["var probe_ok_a = 1;", "probe_b();", "var probe_ok_b = 2;"],
+            ["var probe_main_a = 1;", "var probe_main_b = 2;"],
+            [],
+            s => new LJs().Compile(s)),
+
+        Hdr("scm", "scm", "头文件里的未定义函数", 2,
+            ["(define probe-ok-a 1)", "(define probe-b (nosuch-ident))", "(define probe-ok-b 2)"],
+            ["(define probe-main-a 1)", "(define probe-main-b 2)"],
+            [],
+            s => LScm.Compile(s)),
+
+        // Forth 的 `Compile(string)` 不链标准库 ⇒ 补一步（与第一档同一处置）。
+        Hdr("fth", "fth", "头文件里的未定义字", 2,
+            ["( probe bad )", "nosuch .", ": probe-ok 1 ;"],
+            ["( probe main 1 )", "( probe main 2 )"],
+            [],
+            s => LForth.Compile(s), postLink: "forth"),
     ];
 }
