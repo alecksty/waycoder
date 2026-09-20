@@ -765,9 +765,16 @@ internal static class Groups
             ["PRINT 1", "PRINT 2", "PRINT 3", "PRINT 1 +"],
             s => LBasic.Compile(s)),
 
+        // ⚠ **必须补 `PostLinkLang`**（与上一档同一处置，这里当初漏了）。
+        //   Forth 是栈式语言：`+` 少操作数是**运行期**属性，不是语法错；
+        //   这一句真正该报的是 `nosuch` / `nosuch2` 这两个**未定义的字**，
+        //   而「未定义的字」只有**链接器**看得见（前端 `Compile(string)` 不链标准库）。
+        //   不补这一步，量到的是"探针没接上链接"，而不是前端行为 —— 于是这一档
+        //   长期显示 `NOERR`，看着像"Forth 静默接受了一段坏代码"，其实全是探针的锅。
+        //   （同一类"用例写错了"本仓有前例：`undef-fn.go` 当年写成了 Rust 语法。）
         new("fth", "fth", Groups.Syntax, "语法错误", 4, 0,
             ["( line 1 )", "( line 2 )", "( line 3 )", "nosuch + nosuch2 +"],
-            s => LForth.Compile(s)),
+            s => LForth.Compile(s), PostLinkLang: "forth"),
 
         new("ld", "ld", Groups.Syntax, "语法错误", 3, 0,
             ["PRINT_INT 1", "PRINT_INT 2", "PRINT_INT 1 +", "END_PROGRAM"],
