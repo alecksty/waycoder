@@ -1238,6 +1238,26 @@ public sealed class VmlScene
         Add($"text {x} {y} \"{Escape(text)}\" {fontSize} {Hex(color)} {AnchorName(anchor)}{bi}");
     }
 
+    /// <summary>
+    /// 带**刷子 token** 的文字：`#AARRGGBB`（纯色）或 `@渐变id`（渐变）。文字渐变的入口。
+    ///
+    /// ⚠ 这是**新增的重载**，不是给上面那个换参数 —— `AddText(…, uint color, …)` 是
+    /// `VmlScene` 的公开 API（`AddIcon`、以及将来别的自定义控件都在用），
+    /// 把 `uint` 换成 `string` 是**破坏性改动**。重载之后两边都留得下：
+    /// 传 `uint` 的落老的那个，传 `string` 的落这个。
+    /// </summary>
+    public void AddText(int x, int y, string text, string colorToken, int fontSize, int anchor, int style = 0)
+    {
+        if (!InCoordRange(x) || !InCoordRange(y)) return;
+        if (string.IsNullOrEmpty(text)) return;
+        text = CapText(text);
+        fontSize = Dim(fontSize);
+        var w = (style & TextBold) != 0 ? "bold" : "";
+        var i = (style & TextItalic) != 0 ? "italic" : "";
+        var bi = (w.Length > 0 && i.Length > 0) ? " bi" : (w.Length > 0 ? " bold" : (i.Length > 0 ? " italic" : ""));
+        Add($"text {x} {y} \"{Escape(text)}\" {fontSize} {colorToken} {AnchorName(anchor)}{bi}");
+    }
+
     /// <summary>当前文字属性（<see cref="SetFont"/> 设、<see cref="Text"/> 用）。宿主侧状态，不占 VML 内存。</summary>
     public int FontSize { get; set; } = 16;
     /// <summary>当前文字样式位（见 <see cref="TextBold"/>/<see cref="TextItalic"/>）。</summary>
@@ -1249,7 +1269,9 @@ public sealed class VmlScene
 
     /// <summary>按当前属性画一行字（<see cref="Text"/> 号段的实现体，放这里便于自测）。</summary>
     public void AddTextCurrent(int x, int y, string text)
-        => AddText(x, y, text, _hasTextBrush ? _textColor : FontColor, FontSize, FontAnchor, FontStyle);
+        => AddText(x, y, text,
+            _hasTextBrush && _textToken != null ? _textToken : Hex(FontColor),
+            FontSize, FontAnchor, FontStyle);
 
     /// <summary>文字样式位：粗体。</summary>
     public const int TextBold = 1;
@@ -1363,6 +1385,8 @@ public sealed class VmlScene
     // 样式状态。默认：填充不透明白、**不描边**、文字跟随 ui_set_font 的颜色。
     private string? _fill = "#FFFFFFFF";
     private string? _pen;
+    /// <summary>文字刷子的 token（`#AARRGGBB` 或 `@渐变id`）；null = 没设过，跟随 `FontColor`。</summary>
+    private string? _textToken;
     private uint _textColor;
     private bool _hasTextBrush;
     private int _penWidth = 1, _penCap, _penDash, _penArrow;
@@ -1429,24 +1453,6 @@ public sealed class VmlScene
         return Hex((uint)handleOrColor);
     }
 
-    /// <summary>
-    /// 该 token 能不能用在"还不支持渐变的槽"上（现在只剩**文字**了 —— 画笔槽 v0.96.306 起收渐变）。
-    /// 不能就**退化到它的起始色并记一次警告** —— 绝不静默。
-    /// </summary>
-    private string SolidTokenFor(int handleOrColor, string slot)
-    {
-        if (handleOrColor >= 1 && handleOrColor <= _brushes.Count)
-        {
-            var b = _brushes[handleOrColor - 1];
-            if (!b.Token.StartsWith('@')) return b.Token;
-            if (_degradedWarned.Add(slot))
-                ErrorLog.Warning("VmlScene",
-                    $"{slot}槽收到的是渐变刷子 —— 该槽只支持纯色（渐变**文字**还没落地），" +
-                    "已退化用它的起始色。填充与描边两个槽都收渐变。");
-            return Hex(b.Fallback);
-        }
-        return Hex((uint)handleOrColor);
-    }
 
     /// <summary>设置一个样式槽。<paramref name="slot"/> 见 <see cref="VmlStyleSlot"/>。</summary>
     public bool SetStyle(int slot, int brush, int width, int cap, int dash, int arrow)
@@ -1466,8 +1472,15 @@ public sealed class VmlScene
                 _penArrow = arrow;
                 return true;
             case VmlStyleSlot.Text:
-                _hasTextBrush = brush != 0;
-                if (_hasTextBrush) _textColor = ParseHex(SolidTokenFor(brush, "文字"));
+                // 文字槽**收渐变**（v0.96.311 起渐变文字已落地）—— 与填充/画笔两个槽一致。
+                _textToken = brush == 0 ? null : TokenFor(brush);
+                _hasTextBrush = _textToken != null;
+                // `TextBrushColor` 是给"只认纯色"的老消费方留的**向后兼容**读取口；
+                // 拿到渐变时取它的起始色（不再告警 —— 从前那句"该槽只支持纯色"现在不成立了）。
+                if (_hasTextBrush)
+                    _textColor = ParseHex(_textToken!.StartsWith('@')
+                        ? Hex(brush >= 1 && brush <= _brushes.Count ? _brushes[brush - 1].Fallback : 0xFF000000u)
+                        : _textToken);
                 return true;
             default:
                 return false;

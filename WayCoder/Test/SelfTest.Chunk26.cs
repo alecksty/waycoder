@@ -417,6 +417,36 @@ public static partial class SelfTest
         Check("矢量: 文字渐变 → MarkUnsupported（平台文字 API 只吃纯色）",
             vt.Unsupported.Contains("text-gradient"));
 
+        // ── 端到端：C 层够得到的入口（`ui_set_text_brush(渐变刷子)` + `ui_draw_text`）──
+        var st = new VmlScene();
+        var tgb = st.AddGradientBrush(radial: false, 0xFFFF0000, 0xFF0000FF, 0, 0, 1000, 0);
+        st.SetStyle(VmlStyleSlot.Text, tgb, 0, 0, 0, 0);
+        st.AddShapeText(20, 30, "hi");
+        var tdoc = DrawRunner.Parse(st.BuildDsl());
+        var tfig2 = tdoc.Figures.FirstOrDefault(x => x.Kind == "text");
+        Check("端到端：文字槽的渐变刷子 → DSL → 解析回文字渐变",
+            tfig2?.Gradient != null && tfig2.GradientRef != null);
+        Check("端到端：发射的 token 是刷子引用（@_b…）而不是退化色",
+            st.TextBrushColor != 0);   // 向后兼容的读取口仍给得出一个色（渐变的起始色）
+
+        // 兼容回归：老的 `AddText(…, uint, …)` 与 `SetFont` 那条路**一字没变**
+        var sPlain = new VmlScene();
+        sPlain.FontSize = 20;
+        sPlain.FontColor = 0xFF00FF00;
+        sPlain.AddShapeText(10, 10, "hi");
+        var pdoc = DrawRunner.Parse(sPlain.BuildDsl());
+        var pfig = pdoc.Figures.FirstOrDefault(x => x.Kind == "text");
+        Check("兼容：没设文字刷子时仍跟随 SetFont 的颜色",
+            pfig?.Gradient == null && pfig?.Fill == 0xFF00FF00);
+
+        // 兼容：`AddText` 的 uint 重载仍然可用（公开 API，不能被 string 版顶掉）
+        var sDirect = new VmlScene();
+        sDirect.AddText(5, 5, "ab", 0xFF123456, 18, 0);
+        var ddoc = DrawRunner.Parse(sDirect.BuildDsl());
+        var dfig = ddoc.Figures.FirstOrDefault(x => x.Kind == "text");
+        Check("兼容：AddText(uint color) 重载未被 string 版顶掉",
+            dfig?.Gradient == null && dfig?.Fill == 0xFF123456);
+
         // ── SVG：文字渐变必须走**专用**那份 userSpaceOnUse 定义 ──
         //
         // 为什么不能与形状共用：形状用 objectBoundingBox，而文字的盒在 SVG 里由渲染器

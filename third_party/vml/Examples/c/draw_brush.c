@@ -50,7 +50,7 @@ int main(void)
     W = ui_scr_w();
     H = ui_scr_h();
     cw = W / 3;
-    ch = H / 5;   /* 5 行：第 5 行是**渐变画笔**的格子（v0.96.306） */
+    ch = H / 6;   /* 6 行：第 5 行渐变画笔（v0.96.306），第 6 行渐变文字（v0.96.311） */
 
     ui_win_open_ex("刷子体检", W, H, VML_WIN_PORTRAIT, VML_WIN_NO_GAMEPAD);
     ui_clear(0xFF000000);
@@ -123,6 +123,18 @@ int main(void)
     /* 15 下：收尾换回**纯色画笔**，验证"改过刷子之后状态还生效" */
     ui_set_pen(C, 2, VML_CAP_BUTT, 0, VML_ARROW_NONE);
     ui_draw_line(cxx(2) - cw / 3, cyy(4) + ch / 5, cxx(2) + cw / 3, cyy(4) + ch / 5);
+
+    /* ── 第 6 行：**渐变文字**（v0.96.311）──
+       文字槽与填充/画笔一样收刷子；`ui_draw_text` 用当前文字刷子。
+       判据看颜色分布：纯色文字整行只有一个色相，渐变的**左端偏红、右端偏蓝**。 */
+    ui_set_text_brush(gpen);
+    ui_set_font(ch / 3, VML_FONT_BOLD, 0, VML_ANCHOR_LEFT);
+    ui_draw_text(cxx(0) - cw / 3, cyy(5) - ch / 4, "WWWWWW");
+
+    /* 收尾：换回纯色文字刷子，验证"改过刷子之后状态还生效" */
+    ui_set_text_brush(RED);
+    ui_set_font(ch / 4, 0, 0, VML_ANCHOR_LEFT);
+    ui_draw_text(cxx(1) - cw / 3, cyy(5) - ch / 6, "RED");
 
     ui_present();
     while (ui_win_closed() == 0) {
