@@ -311,9 +311,15 @@ namespace GoCompiler
 
         private new void Error(string message)
         {
-            var errorLine = GetLine(_line);
-            var arrow = new string(' ', _col - 1) + "^";
-            throw new ParseException(ErrorCode.Lexer_UnknownCharacter, message);
+            // ⚠ 位置交给基类那一处（`LexerBase.Error`：拼 `文件:行:列: error:`，
+            //   并走 `MapOriginal` 把 `#include` 展开后的行号换回原文件）。
+            //
+            //   原来这里是 `new ParseException(code, message)` —— 那是三参构造，
+            //   **`line = 0` ⇒ 报出来一个位置都没有**（用户只看到一句「未结束的字符串」，
+            //   不知道在哪）。而上面那两行 `errorLine` / `arrow`（源码行 + 插入符）
+            //   算完**根本没被用上**，是死代码 —— 作者的意图显然是要带位置的，
+            //   只是那条路没接上。
+            base.Error(ErrorCode.Lexer_UnknownCharacter, message);
         }
 
         /// <summary>
