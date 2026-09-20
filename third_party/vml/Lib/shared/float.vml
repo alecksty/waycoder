@@ -10,16 +10,16 @@ putfloat:
 ; return   : void
 ; --------------------------------------------
 putfloat:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 3:     asm("SYSCALL #8");
         syscall #8
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 getfloat:
 ; -------------------------------------------
@@ -28,16 +28,16 @@ getfloat:
 ; return   : void
 ; --------------------------------------------
 getfloat:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 6:     asm("SYSCALL #9");
         syscall #9
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 puthex:
 ; -------------------------------------------:
@@ -48,14 +48,14 @@ puthex:
 ; return   : void
 ; --------------------------------------------
 puthex:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 9:     asm("SYSCALL #10");
         syscall #10
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

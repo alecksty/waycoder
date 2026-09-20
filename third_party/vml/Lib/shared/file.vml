@@ -11,20 +11,20 @@ fopen:
 ; return   : int
 ; --------------------------------------------
 fopen:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 4:     asm("SYSCALL #110");
         syscall #110
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 5:     return h;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_30360000
 L_30360000:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 fclose:
 ; -------------------------------------------
@@ -34,20 +34,20 @@ fclose:
 ; return   : int
 ; --------------------------------------------
 fclose:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 8:     asm("SYSCALL #111");
         syscall #111
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 9:     return 0;
-        move R0 #0
+        move @R0 #0
         jmp L_30360001
 L_30360001:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 fread:
 ; -------------------------------------------
@@ -59,20 +59,20 @@ fread:
 ; return   : int
 ; --------------------------------------------
 fread:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 13:     asm("SYSCALL #112");
         syscall #112
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 14:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_30360002
 L_30360002:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 fwrite:
 ; -------------------------------------------
@@ -84,20 +84,20 @@ fwrite:
 ; return   : int
 ; --------------------------------------------
 fwrite:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 18:     asm("SYSCALL #113");
         syscall #113
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 19:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_30360003
 L_30360003:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 fseek:
 ; -------------------------------------------
@@ -109,20 +109,20 @@ fseek:
 ; return   : int
 ; --------------------------------------------
 fseek:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 23:     asm("SYSCALL #114");
         syscall #114
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 24:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_30360004
 L_30360004:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 ftell:
 ; -------------------------------------------
@@ -132,20 +132,20 @@ ftell:
 ; return   : int
 ; --------------------------------------------
 ftell:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 28:     asm("SYSCALL #114");
         syscall #114
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 29:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_30360005
 L_30360005:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 fsize:
 ; -------------------------------------------
@@ -155,20 +155,20 @@ fsize:
 ; return   : int
 ; --------------------------------------------
 fsize:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 33:     asm("SYSCALL #114");
         syscall #114
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 34:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_30360006
 L_30360006:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 ftruncate:
 ; -------------------------------------------:
@@ -180,18 +180,18 @@ ftruncate:
 ; return   : int
 ; --------------------------------------------
 ftruncate:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 38:     asm("SYSCALL #114");
         syscall #114
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 39:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_30360007
 L_30360007:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

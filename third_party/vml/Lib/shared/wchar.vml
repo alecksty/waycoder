@@ -12,51 +12,51 @@ wcslen:
 ; return   : size_t
 ; --------------------------------------------
 wcslen:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 10:     size_t len = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 sta_13730000:
-        move R2 #0
+        move @R2 #0
 ; 11:     while (s[len] != 0)
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        mul R0 #2
-        pop R11
-        add R0 R11
-        moveh R0 [R0]
-        sexth R0 R0
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #2
+        pop @R11
+        add @R0 @R11
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jne _L13730002
-        move R0 #0
+        move @R0 #0
         jmp _L13730003
 _L13730002:
-        move R0 #1
+        move @R0 #1
 _L13730003:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730001
 ; 12:         len++;
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
         jmp sta_13730000
 sta_13730001:
 ; 13:     return len;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_13730004
 L_13730004:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wcscmp:
 ; -------------------------------------------
@@ -67,70 +67,70 @@ wcscmp:
 ; return   : int
 ; --------------------------------------------
 wcscmp:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 sta_13730005:
-        move R2 #0
+        move @R2 #0
 ; 18:     while (*a && *a == *b) { a++; b++; }
-        move R0 [R12+12]
-        moveh R0 [R0]
-        sexth R0 R0
-        test R0 R0
+        move @R0 [@R12+12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        test @R0 @R0
         jz _L13730007
-        move R0 [R12+12]
-        moveh R0 [R0]
-        sexth R0 R0
-        pushh R0
-        move R0 [R12+16]
-        moveh R0 [R0]
-        sexth R0 R0
-        poph R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        pushh @R0
+        move @R0 [@R12+16]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        poph @R1
+        cmp @R1 @R0
         je _L13730009
-        move R0 #0
+        move @R0 #0
         jmp _L13730010
 _L13730009:
-        move R0 #1
+        move @R0 #1
 _L13730010:
-        test R0 R0
+        test @R0 @R0
         jz _L13730007
-        move R0 #1
+        move @R0 #1
         jmp _L13730008
 _L13730007:
-        move R0 #0
+        move @R0 #0
 _L13730008:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730006
-        move R0 [R12+12]
-        move R1 R0
-        add R0 R0 #2
-        move [R12+12] R0
-        move R0 R1
-        move R0 [R12+16]
-        move R1 R0
-        add R0 R0 #2
-        move [R12+16] R0
-        move R0 R1
+        move @R0 [@R12+12]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12+12] @R0
+        move @R0 @R1
+        move @R0 [@R12+16]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12+16] @R0
+        move @R0 @R1
         jmp sta_13730005
 sta_13730006:
 ; 19:     return (int)*a - (int)*b;
-        move R0 [R12+12]
-        moveh R0 [R0]
-        sexth R0 R0
-        push R0
-        move R0 [R12+16]
-        moveh R0 [R0]
-        sexth R0 R0
-        pop R1
-        sub R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        push @R0
+        move @R0 [@R12+16]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
         jmp L_13730011
 L_13730011:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wcsncmp:
 ; -------------------------------------------
@@ -142,101 +142,101 @@ wcsncmp:
 ; return   : int
 ; --------------------------------------------
 wcsncmp:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 23:     if (n == 0) return 0;
-        move R0 [R12+20]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L13730014
-        move R0 #0
+        move @R0 #0
         jmp _L13730015
 _L13730014:
-        move R0 #1
+        move @R0 #1
 _L13730015:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730012
-        move R0 #0
+        move @R0 #0
         jmp L_13730016
 sta_13730012:
 sta_13730013:
 sta_13730017:
-        move R2 #0
+        move @R2 #0
 ; 24:     while (--n && *a && *a == *b) { a++; b++; }
-        move R0 [R12+20]
-        move R0 [R12+20]
-        sub R0 R0 #1
-        move [R12+20] R0
-        test R0 R0
+        move @R0 [@R12+20]
+        move @R0 [@R12+20]
+        sub @R0 @R0 #1
+        move [@R12+20] @R0
+        test @R0 @R0
         jz _L13730021
-        move R0 [R12+12]
-        moveh R0 [R0]
-        sexth R0 R0
-        test R0 R0
+        move @R0 [@R12+12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        test @R0 @R0
         jz _L13730021
-        move R0 #1
+        move @R0 #1
         jmp _L13730022
 _L13730021:
-        move R0 #0
+        move @R0 #0
 _L13730022:
-        test R0 R0
+        test @R0 @R0
         jz _L13730019
-        move R0 [R12+12]
-        moveh R0 [R0]
-        sexth R0 R0
-        pushh R0
-        move R0 [R12+16]
-        moveh R0 [R0]
-        sexth R0 R0
-        poph R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        pushh @R0
+        move @R0 [@R12+16]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        poph @R1
+        cmp @R1 @R0
         je _L13730023
-        move R0 #0
+        move @R0 #0
         jmp _L13730024
 _L13730023:
-        move R0 #1
+        move @R0 #1
 _L13730024:
-        test R0 R0
+        test @R0 @R0
         jz _L13730019
-        move R0 #1
+        move @R0 #1
         jmp _L13730020
 _L13730019:
-        move R0 #0
+        move @R0 #0
 _L13730020:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730018
-        move R0 [R12+12]
-        move R1 R0
-        add R0 R0 #2
-        move [R12+12] R0
-        move R0 R1
-        move R0 [R12+16]
-        move R1 R0
-        add R0 R0 #2
-        move [R12+16] R0
-        move R0 R1
+        move @R0 [@R12+12]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12+12] @R0
+        move @R0 @R1
+        move @R0 [@R12+16]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12+16] @R0
+        move @R0 @R1
         jmp sta_13730017
 sta_13730018:
 ; 25:     return (int)*a - (int)*b;
-        move R0 [R12+12]
-        moveh R0 [R0]
-        sexth R0 R0
-        push R0
-        move R0 [R12+16]
-        moveh R0 [R0]
-        sexth R0 R0
-        pop R1
-        sub R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        push @R0
+        move @R0 [@R12+16]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
         jmp L_13730016
 L_13730016:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wcscpy:
 ; -------------------------------------------
@@ -247,51 +247,51 @@ wcscpy:
 ; return   : wchar_t*
 ; --------------------------------------------
 wcscpy:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 30:     wchar_t *p = dest;
-        move R0 [R12+12]
-        move [R12-8] R0
+        move @R0 [@R12+12]
+        move [@R12-8] @R0
 sta_13730025:
-        move R2 #0
+        move @R2 #0
 ; 31:     while ((*p++ = *src++) != 0) ;
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #2
-        move [R12-8] R0
-        move R0 R1
-        move R10 R0
-        move R0 [R12+16]
-        move R1 R0
-        add R0 R0 #2
-        move [R12+16] R0
-        move R0 R1
-        moveh R0 [R0]
-        sexth R0 R0
-        moveh [R10] R0
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12-8] @R0
+        move @R0 @R1
+        move @R10 @R0
+        move @R0 [@R12+16]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12+16] @R0
+        move @R0 @R1
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        moveh [@R10] @R0
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jne _L13730027
-        move R0 #0
+        move @R0 #0
         jmp _L13730028
 _L13730027:
-        move R0 #1
+        move @R0 #1
 _L13730028:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730026
         jmp sta_13730025
 sta_13730026:
 ; 32:     return dest;
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_13730029
 L_13730029:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wcsncpy:
 ; -------------------------------------------
@@ -303,119 +303,119 @@ wcsncpy:
 ; return   : wchar_t*
 ; --------------------------------------------
 wcsncpy:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 37:     for (i = 0; i < n && src[i] != 0; i++)
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 sta_13730030:
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
         jl _L13730035
-        move R0 #0
+        move @R0 #0
         jmp _L13730036
 _L13730035:
-        move R0 #1
+        move @R0 #1
 _L13730036:
-        test R0 R0
+        test @R0 @R0
         jz _L13730033
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-8]
-        mul R0 #2
-        pop R9
-        add R0 R9
-        moveh R0 [R0]
-        sexth R0 R0
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #2
+        pop @R9
+        add @R0 @R9
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jne _L13730037
-        move R0 #0
+        move @R0 #0
         jmp _L13730038
 _L13730037:
-        move R0 #1
+        move @R0 #1
 _L13730038:
-        test R0 R0
+        test @R0 @R0
         jz _L13730033
-        move R0 #1
+        move @R0 #1
         jmp _L13730034
 _L13730033:
-        move R0 #0
+        move @R0 #0
 _L13730034:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730032
 ; 38:         dest[i] = src[i];
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-8]
-        mul R0 #2
-        pop R8
-        add R0 R8
-        moveh R0 [R0]
-        sexth R0 R0
-        move R7 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        mul R0 #2
-        pop R6
-        add R0 R6
-        moveh [R0] R7
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #2
+        pop @R8
+        add @R0 @R8
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        move @R7 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #2
+        pop @R6
+        add @R0 @R6
+        moveh [@R0] @R7
 sta_13730031:
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
         jmp sta_13730030
 sta_13730032:
 sta_13730039:
 ; 39:     for (; i < n; i++)
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
         jl _L13730042
-        move R0 #0
+        move @R0 #0
         jmp _L13730043
 _L13730042:
-        move R0 #1
+        move @R0 #1
 _L13730043:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730041
 ; 40:         dest[i] = 0;
-        move R0 #0
-        move R5 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        mul R0 #2
-        pop R4
-        add R0 R4
-        moveh [R0] R5
+        move @R0 #0
+        move @R5 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #2
+        pop @R4
+        add @R0 @R4
+        moveh [@R0] @R5
 sta_13730040:
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
         jmp sta_13730039
 sta_13730041:
 ; 41:     return dest;
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_13730044
 L_13730044:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wcscat:
 ; -------------------------------------------
@@ -426,66 +426,66 @@ wcscat:
 ; return   : wchar_t*
 ; --------------------------------------------
 wcscat:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 46:     wchar_t *p = dest;
-        move R0 [R12+12]
-        move [R12-8] R0
+        move @R0 [@R12+12]
+        move [@R12-8] @R0
 sta_13730045:
-        move R2 #0
+        move @R2 #0
 ; 47:     while (*p) p++;
-        move R0 [R12-8]
-        moveh R0 [R0]
-        sexth R0 R0
-        cmp R0 #0
+        move @R0 [@R12-8]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        cmp @R0 #0
         jz sta_13730046
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #2
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12-8] @R0
+        move @R0 @R1
         jmp sta_13730045
 sta_13730046:
 sta_13730047:
-        move R2 #0
+        move @R2 #0
 ; 48:     while ((*p++ = *src++) != 0) ;
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #2
-        move [R12-8] R0
-        move R0 R1
-        move R3 R0
-        move R0 [R12+16]
-        move R1 R0
-        add R0 R0 #2
-        move [R12+16] R0
-        move R0 R1
-        moveh R0 [R0]
-        sexth R0 R0
-        moveh [R3] R0
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12-8] @R0
+        move @R0 @R1
+        move @R3 @R0
+        move @R0 [@R12+16]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12+16] @R0
+        move @R0 @R1
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        moveh [@R3] @R0
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jne _L13730049
-        move R0 #0
+        move @R0 #0
         jmp _L13730050
 _L13730049:
-        move R0 #1
+        move @R0 #1
 _L13730050:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730048
         jmp sta_13730047
 sta_13730048:
 ; 49:     return dest;
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_13730051
 L_13730051:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wcsncat:
 ; -------------------------------------------
@@ -497,107 +497,107 @@ wcsncat:
 ; return   : wchar_t*
 ; --------------------------------------------
 wcsncat:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
 ; 53:     wchar_t *p = dest;
-        move R0 [R12+12]
-        move [R12-8] R0
+        move @R0 [@R12+12]
+        move [@R12-8] @R0
 ; 54:     size_t i = 0;
-        move R0 #0
-        move [R12-12] R0
+        move @R0 #0
+        move [@R12-12] @R0
 sta_13730052:
-        move R2 #0
+        move @R2 #0
 ; 55:     while (*p) p++;
-        move R0 [R12-8]
-        moveh R0 [R0]
-        sexth R0 R0
-        cmp R0 #0
+        move @R0 [@R12-8]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        cmp @R0 #0
         jz sta_13730053
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #2
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12-8] @R0
+        move @R0 @R1
         jmp sta_13730052
 sta_13730053:
 sta_13730054:
-        move R2 #0
+        move @R2 #0
 ; 56:     while (i < n && src[i] != 0) { *p++ = src[i++]; }
-        move R0 [R12-12]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
         jl _L13730058
-        move R0 #0
+        move @R0 #0
         jmp _L13730059
 _L13730058:
-        move R0 #1
+        move @R0 #1
 _L13730059:
-        test R0 R0
+        test @R0 @R0
         jz _L13730056
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        mul R0 #2
-        pop R2
-        add R0 R2
-        moveh R0 [R0]
-        sexth R0 R0
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #2
+        pop @R2
+        add @R0 @R2
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jne _L13730060
-        move R0 #0
+        move @R0 #0
         jmp _L13730061
 _L13730060:
-        move R0 #1
+        move @R0 #1
 _L13730061:
-        test R0 R0
+        test @R0 @R0
         jz _L13730056
-        move R0 #1
+        move @R0 #1
         jmp _L13730057
 _L13730056:
-        move R0 #0
+        move @R0 #0
 _L13730057:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730055
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #2
-        move [R12-8] R0
-        move R0 R1
-        move R1 R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-12] R0
-        move R0 R1
-        mul R0 #2
-        pop R11
-        add R0 R11
-        moveh R0 [R0]
-        sexth R0 R0
-        moveh [R1] R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12-8] @R0
+        move @R0 @R1
+        move @R1 @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+        mul @R0 #2
+        pop @R11
+        add @R0 @R11
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        moveh [@R1] @R0
         jmp sta_13730054
 sta_13730055:
 ; 57:     *p = 0;
-        move R0 [R12-8]
-        move R10 R0
-        move R0 #0
-        moveh [R10] R0
+        move @R0 [@R12-8]
+        move @R10 @R0
+        move @R0 #0
+        moveh [@R10] @R0
 ; 58:     return dest;
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_13730062
 L_13730062:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wcschr:
 ; -------------------------------------------
@@ -608,80 +608,80 @@ wcschr:
 ; return   : wchar_t*
 ; --------------------------------------------
 wcschr:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 sta_13730063:
-        move R2 #0
+        move @R2 #0
 ; 63:     while (*s != 0)
-        move R0 [R12+12]
-        moveh R0 [R0]
-        sexth R0 R0
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jne _L13730065
-        move R0 #0
+        move @R0 #0
         jmp _L13730066
 _L13730065:
-        move R0 #1
+        move @R0 #1
 _L13730066:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730064
 ; 65:         if (*s == c) return (wchar_t *)s;
-        move R0 [R12+12]
-        moveh R0 [R0]
-        sexth R0 R0
-        pushh R0
-        moveh R0 [R12+16]
-        poph R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        pushh @R0
+        moveh @R0 [@R12+16]
+        poph @R1
+        cmp @R1 @R0
         je _L13730069
-        move R0 #0
+        move @R0 #0
         jmp _L13730070
 _L13730069:
-        move R0 #1
+        move @R0 #1
 _L13730070:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730067
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_13730071
 sta_13730067:
 sta_13730068:
 ; 66:         s++;
-        move R0 [R12+12]
-        move R1 R0
-        add R0 R0 #2
-        move [R12+12] R0
-        move R0 R1
+        move @R0 [@R12+12]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12+12] @R0
+        move @R0 @R1
         jmp sta_13730063
 sta_13730064:
 ; 68:     return c == 0 ? (wchar_t *)s : 0;
-        moveh R0 [R12+16]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        moveh @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L13730072
-        move R0 #0
+        move @R0 #0
         jmp _L13730073
 _L13730072:
-        move R0 #1
+        move @R0 #1
 _L13730073:
-        test R0 R0
+        test @R0 @R0
         jz _L13730074
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp _L13730075
 _L13730074:
-        move R0 #0
+        move @R0 #0
 _L13730075:
         jmp L_13730071
 L_13730071:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wcsrchr:
 ; -------------------------------------------
@@ -692,83 +692,83 @@ wcsrchr:
 ; return   : wchar_t*
 ; --------------------------------------------
 wcsrchr:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 72:     const wchar_t *last = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 sta_13730076:
-        move R2 #0
+        move @R2 #0
 ; 73:     while (*s != 0)
-        move R0 [R12+12]
-        moveh R0 [R0]
-        sexth R0 R0
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jne _L13730078
-        move R0 #0
+        move @R0 #0
         jmp _L13730079
 _L13730078:
-        move R0 #1
+        move @R0 #1
 _L13730079:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730077
 ; 75:         if (*s == c) last = s;
-        move R0 [R12+12]
-        moveh R0 [R0]
-        sexth R0 R0
-        pushh R0
-        moveh R0 [R12+16]
-        poph R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        pushh @R0
+        moveh @R0 [@R12+16]
+        poph @R1
+        cmp @R1 @R0
         je _L13730082
-        move R0 #0
+        move @R0 #0
         jmp _L13730083
 _L13730082:
-        move R0 #1
+        move @R0 #1
 _L13730083:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730080
-        move R0 [R12+12]
-        move [R12-8] R0
+        move @R0 [@R12+12]
+        move [@R12-8] @R0
 sta_13730080:
 sta_13730081:
 ; 76:         s++;
-        move R0 [R12+12]
-        move R1 R0
-        add R0 R0 #2
-        move [R12+12] R0
-        move R0 R1
+        move @R0 [@R12+12]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12+12] @R0
+        move @R0 @R1
         jmp sta_13730076
 sta_13730077:
 ; 78:     return c == 0 ? (wchar_t *)s : (wchar_t *)last;
-        moveh R0 [R12+16]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        moveh @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L13730084
-        move R0 #0
+        move @R0 #0
         jmp _L13730085
 _L13730084:
-        move R0 #1
+        move @R0 #1
 _L13730085:
-        test R0 R0
+        test @R0 @R0
         jz _L13730086
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp _L13730087
 _L13730086:
-        move R0 [R12-8]
+        move @R0 [@R12-8]
 _L13730087:
         jmp L_13730088
 L_13730088:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wcsstr:
 ; -------------------------------------------
@@ -779,135 +779,135 @@ wcsstr:
 ; return   : wchar_t*
 ; --------------------------------------------
 wcsstr:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
 ; 82:     if (*needle == 0) return (wchar_t *)haystack;
-        move R0 [R12+16]
-        moveh R0 [R0]
-        sexth R0 R0
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L13730091
-        move R0 #0
+        move @R0 #0
         jmp _L13730092
 _L13730091:
-        move R0 #1
+        move @R0 #1
 _L13730092:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730089
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_13730093
 sta_13730089:
 sta_13730090:
 sta_13730094:
-        move R2 #0
+        move @R2 #0
 ; 83:     while (*haystack)
-        move R0 [R12+12]
-        moveh R0 [R0]
-        sexth R0 R0
-        cmp R0 #0
+        move @R0 [@R12+12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        cmp @R0 #0
         jz sta_13730095
 ; 85:         const wchar_t *h = haystack;
-        move R0 [R12+12]
-        move [R12-8] R0
+        move @R0 [@R12+12]
+        move [@R12-8] @R0
 ; 86:         const wchar_t *n = needle;
-        move R0 [R12+16]
-        move [R12-12] R0
+        move @R0 [@R12+16]
+        move [@R12-12] @R0
 sta_13730096:
-        move R2 #0
+        move @R2 #0
 ; 87:         while (*h && *n && *h == *n) { h++; n++; }
-        move R0 [R12-8]
-        moveh R0 [R0]
-        sexth R0 R0
-        test R0 R0
+        move @R0 [@R12-8]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        test @R0 @R0
         jz _L13730100
-        move R0 [R12-12]
-        moveh R0 [R0]
-        sexth R0 R0
-        test R0 R0
+        move @R0 [@R12-12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        test @R0 @R0
         jz _L13730100
-        move R0 #1
+        move @R0 #1
         jmp _L13730101
 _L13730100:
-        move R0 #0
+        move @R0 #0
 _L13730101:
-        test R0 R0
+        test @R0 @R0
         jz _L13730098
-        move R0 [R12-8]
-        moveh R0 [R0]
-        sexth R0 R0
-        pushh R0
-        move R0 [R12-12]
-        moveh R0 [R0]
-        sexth R0 R0
-        poph R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        pushh @R0
+        move @R0 [@R12-12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        poph @R1
+        cmp @R1 @R0
         je _L13730102
-        move R0 #0
+        move @R0 #0
         jmp _L13730103
 _L13730102:
-        move R0 #1
+        move @R0 #1
 _L13730103:
-        test R0 R0
+        test @R0 @R0
         jz _L13730098
-        move R0 #1
+        move @R0 #1
         jmp _L13730099
 _L13730098:
-        move R0 #0
+        move @R0 #0
 _L13730099:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730097
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #2
-        move [R12-8] R0
-        move R0 R1
-        move R0 [R12-12]
-        move R1 R0
-        add R0 R0 #2
-        move [R12-12] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12-8] @R0
+        move @R0 @R1
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12-12] @R0
+        move @R0 @R1
         jmp sta_13730096
 sta_13730097:
 ; 88:         if (*n == 0) return (wchar_t *)haystack;
-        move R0 [R12-12]
-        moveh R0 [R0]
-        sexth R0 R0
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L13730106
-        move R0 #0
+        move @R0 #0
         jmp _L13730107
 _L13730106:
-        move R0 #1
+        move @R0 #1
 _L13730107:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730104
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_13730093
 sta_13730104:
 sta_13730105:
 ; 89:         haystack++;
-        move R0 [R12+12]
-        move R1 R0
-        add R0 R0 #2
-        move [R12+12] R0
-        move R0 R1
+        move @R0 [@R12+12]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12+12] @R0
+        move @R0 @R1
         jmp sta_13730094
 sta_13730095:
 ; 91:     return 0;
-        move R0 #0
+        move @R0 #0
         jmp L_13730093
 L_13730093:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wcsspn:
 ; -------------------------------------------
@@ -918,100 +918,100 @@ wcsspn:
 ; return   : size_t
 ; --------------------------------------------
 wcsspn:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
 ; 95:     size_t count = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 sta_13730108:
-        move R2 #0
+        move @R2 #0
 ; 96:     while (*s)
-        move R0 [R12+12]
-        moveh R0 [R0]
-        sexth R0 R0
-        cmp R0 #0
+        move @R0 [@R12+12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        cmp @R0 #0
         jz sta_13730109
 ; 98:         const wchar_t *a = accept;
-        move R0 [R12+16]
-        move [R12-12] R0
+        move @R0 [@R12+16]
+        move [@R12-12] @R0
 ; 99:         int found = 0;
-        move R0 #0
-        move [R12-16] R0
+        move @R0 #0
+        move [@R12-16] @R0
 sta_13730110:
-        move R2 #0
+        move @R2 #0
 ; 100:         while (*a) { if (*s == *a) { found = 1; break; } a++; }
-        move R0 [R12-12]
-        moveh R0 [R0]
-        sexth R0 R0
-        cmp R0 #0
+        move @R0 [@R12-12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        cmp @R0 #0
         jz sta_13730111
-        move R0 [R12+12]
-        moveh R0 [R0]
-        sexth R0 R0
-        pushh R0
-        move R0 [R12-12]
-        moveh R0 [R0]
-        sexth R0 R0
-        poph R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        pushh @R0
+        move @R0 [@R12-12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        poph @R1
+        cmp @R1 @R0
         je _L13730114
-        move R0 #0
+        move @R0 #0
         jmp _L13730115
 _L13730114:
-        move R0 #1
+        move @R0 #1
 _L13730115:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730112
-        move R0 #1
-        move [R12-16] R0
+        move @R0 #1
+        move [@R12-16] @R0
         jmp sta_13730111
 sta_13730112:
 sta_13730113:
-        move R0 [R12-12]
-        move R1 R0
-        add R0 R0 #2
-        move [R12-12] R0
-        move R0 R1
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12-12] @R0
+        move @R0 @R1
         jmp sta_13730110
 sta_13730111:
 ; 101:         if (!found) break;
-        move R0 [R12-16]
-        move R0 [R12-16]
-        test R0 R0
+        move @R0 [@R12-16]
+        move @R0 [@R12-16]
+        test @R0 @R0
         jz _L13730118
-        move R0 #0
+        move @R0 #0
         jmp _L13730119
 _L13730118:
-        move R0 #1
+        move @R0 #1
 _L13730119:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730116
         jmp sta_13730109
 sta_13730116:
 sta_13730117:
 ; 102:         count++;
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
 ; 103:         s++;
-        move R0 [R12+12]
-        move R1 R0
-        add R0 R0 #2
-        move [R12+12] R0
-        move R0 R1
+        move @R0 [@R12+12]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12+12] @R0
+        move @R0 @R1
         jmp sta_13730108
 sta_13730109:
 ; 105:     return count;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_13730120
 L_13730120:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wcscspn:
 ; -------------------------------------------
@@ -1022,81 +1022,81 @@ wcscspn:
 ; return   : size_t
 ; --------------------------------------------
 wcscspn:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
 ; 109:     size_t count = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 sta_13730121:
-        move R2 #0
+        move @R2 #0
 ; 110:     while (*s)
-        move R0 [R12+12]
-        moveh R0 [R0]
-        sexth R0 R0
-        cmp R0 #0
+        move @R0 [@R12+12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        cmp @R0 #0
         jz sta_13730122
 ; 112:         const wchar_t *r = reject;
-        move R0 [R12+16]
-        move [R12-12] R0
+        move @R0 [@R12+16]
+        move [@R12-12] @R0
 sta_13730123:
-        move R2 #0
+        move @R2 #0
 ; 113:         while (*r) { if (*s == *r) return count; r++; }
-        move R0 [R12-12]
-        moveh R0 [R0]
-        sexth R0 R0
-        cmp R0 #0
+        move @R0 [@R12-12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        cmp @R0 #0
         jz sta_13730124
-        move R0 [R12+12]
-        moveh R0 [R0]
-        sexth R0 R0
-        pushh R0
-        move R0 [R12-12]
-        moveh R0 [R0]
-        sexth R0 R0
-        poph R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        pushh @R0
+        move @R0 [@R12-12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        poph @R1
+        cmp @R1 @R0
         je _L13730127
-        move R0 #0
+        move @R0 #0
         jmp _L13730128
 _L13730127:
-        move R0 #1
+        move @R0 #1
 _L13730128:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730125
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_13730129
 sta_13730125:
 sta_13730126:
-        move R0 [R12-12]
-        move R1 R0
-        add R0 R0 #2
-        move [R12-12] R0
-        move R0 R1
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12-12] @R0
+        move @R0 @R1
         jmp sta_13730123
 sta_13730124:
 ; 114:         count++;
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
 ; 115:         s++;
-        move R0 [R12+12]
-        move R1 R0
-        add R0 R0 #2
-        move [R12+12] R0
-        move R0 R1
+        move @R0 [@R12+12]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12+12] @R0
+        move @R0 @R1
         jmp sta_13730121
 sta_13730122:
 ; 117:     return count;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_13730129
 L_13730129:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wmemcpy:
 ; -------------------------------------------
@@ -1108,46 +1108,46 @@ wmemcpy:
 ; return   : wchar_t*
 ; --------------------------------------------
 wmemcpy:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 122:     wchar_t *d = dest;
-        move R0 [R12+12]
-        move [R12-8] R0
+        move @R0 [@R12+12]
+        move [@R12-8] @R0
 sta_13730130:
-        move R2 #0
+        move @R2 #0
 ; 123:     while (n--) *d++ = *src++;
-        move R0 [R12+20]
-        move R1 R0
-        sub R0 R0 #1
-        move [R12+20] R0
-        move R0 R1
-        cmp R0 #0
+        move @R0 [@R12+20]
+        move @R1 @R0
+        sub @R0 @R0 #1
+        move [@R12+20] @R0
+        move @R0 @R1
+        cmp @R0 #0
         jz sta_13730131
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #2
-        move [R12-8] R0
-        move R0 R1
-        move R9 R0
-        move R0 [R12+16]
-        move R1 R0
-        add R0 R0 #2
-        move [R12+16] R0
-        move R0 R1
-        moveh R0 [R0]
-        sexth R0 R0
-        moveh [R9] R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12-8] @R0
+        move @R0 @R1
+        move @R9 @R0
+        move @R0 [@R12+16]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12+16] @R0
+        move @R0 @R1
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        moveh [@R9] @R0
         jmp sta_13730130
 sta_13730131:
 ; 124:     return dest;
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_13730132
 L_13730132:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wmemset:
 ; -------------------------------------------
@@ -1159,40 +1159,40 @@ wmemset:
 ; return   : wchar_t*
 ; --------------------------------------------
 wmemset:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 128:     wchar_t *d = dest;
-        move R0 [R12+12]
-        move [R12-8] R0
+        move @R0 [@R12+12]
+        move [@R12-8] @R0
 sta_13730133:
-        move R2 #0
+        move @R2 #0
 ; 129:     while (n--) *d++ = c;
-        move R0 [R12+20]
-        move R1 R0
-        sub R0 R0 #1
-        move [R12+20] R0
-        move R0 R1
-        cmp R0 #0
+        move @R0 [@R12+20]
+        move @R1 @R0
+        sub @R0 @R0 #1
+        move [@R12+20] @R0
+        move @R0 @R1
+        cmp @R0 #0
         jz sta_13730134
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #2
-        move [R12-8] R0
-        move R0 R1
-        move R8 R0
-        moveh R0 [R12+16]
-        moveh [R8] R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12-8] @R0
+        move @R0 @R1
+        move @R8 @R0
+        moveh @R0 [@R12+16]
+        moveh [@R8] @R0
         jmp sta_13730133
 sta_13730134:
 ; 130:     return dest;
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_13730135
 L_13730135:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wmemmove:
 ; -------------------------------------------
@@ -1204,105 +1204,105 @@ wmemmove:
 ; return   : wchar_t*
 ; --------------------------------------------
 wmemmove:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 134:     wchar_t *d = dest;
-        move R0 [R12+12]
-        move [R12-8] R0
+        move @R0 [@R12+12]
+        move [@R12-8] @R0
 ; 135:     if (d < src)
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        cmp @R1 @R0
         jl _L13730138
-        move R0 #0
+        move @R0 #0
         jmp _L13730139
 _L13730138:
-        move R0 #1
+        move @R0 #1
 _L13730139:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730136
 sta_13730140:
-        move R2 #0
+        move @R2 #0
 ; 137:         while (n--) *d++ = *src++;
-        move R0 [R12+20]
-        move R1 R0
-        sub R0 R0 #1
-        move [R12+20] R0
-        move R0 R1
-        cmp R0 #0
+        move @R0 [@R12+20]
+        move @R1 @R0
+        sub @R0 @R0 #1
+        move [@R12+20] @R0
+        move @R0 @R1
+        cmp @R0 #0
         jz sta_13730141
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #2
-        move [R12-8] R0
-        move R0 R1
-        move R6 R0
-        move R0 [R12+16]
-        move R1 R0
-        add R0 R0 #2
-        move [R12+16] R0
-        move R0 R1
-        moveh R0 [R0]
-        sexth R0 R0
-        moveh [R6] R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12-8] @R0
+        move @R0 @R1
+        move @R6 @R0
+        move @R0 [@R12+16]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12+16] @R0
+        move @R0 @R1
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        moveh [@R6] @R0
         jmp sta_13730140
 sta_13730141:
         jmp sta_13730137
 sta_13730136:
 ; 141:         d += n;
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+20]
-        mul R0 R0 #2
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-8] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+20]
+        mul @R0 @R0 #2
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
 ; 142:         src += n;
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+20]
-        mul R0 R0 #2
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12+16] R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+20]
+        mul @R0 @R0 #2
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12+16] @R0
 sta_13730142:
-        move R2 #0
+        move @R2 #0
 ; 143:         while (n--) *--d = *--src;
-        move R0 [R12+20]
-        move R1 R0
-        sub R0 R0 #1
-        move [R12+20] R0
-        move R0 R1
-        cmp R0 #0
+        move @R0 [@R12+20]
+        move @R1 @R0
+        sub @R0 @R0 #1
+        move [@R12+20] @R0
+        move @R0 @R1
+        cmp @R0 #0
         jz sta_13730143
-        move R0 [R12-8]
-        move R0 [R12-8]
-        sub R0 R0 #2
-        move [R12-8] R0
-        move R7 R0
-        move R0 [R12+16]
-        move R0 [R12+16]
-        sub R0 R0 #2
-        move [R12+16] R0
-        moveh R0 [R0]
-        sexth R0 R0
-        moveh [R7] R0
+        move @R0 [@R12-8]
+        move @R0 [@R12-8]
+        sub @R0 @R0 #2
+        move [@R12-8] @R0
+        move @R7 @R0
+        move @R0 [@R12+16]
+        move @R0 [@R12+16]
+        sub @R0 @R0 #2
+        move [@R12+16] @R0
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        moveh [@R7] @R0
         jmp sta_13730142
 sta_13730143:
 sta_13730137:
 ; 145:     return dest;
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_13730144
 L_13730144:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wmemcmp:
 ; -------------------------------------------
@@ -1314,71 +1314,71 @@ wmemcmp:
 ; return   : int
 ; --------------------------------------------
 wmemcmp:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 sta_13730145:
-        move R2 #0
+        move @R2 #0
 ; 149:     while (n--)
-        move R0 [R12+20]
-        move R1 R0
-        sub R0 R0 #1
-        move [R12+20] R0
-        move R0 R1
-        cmp R0 #0
+        move @R0 [@R12+20]
+        move @R1 @R0
+        sub @R0 @R0 #1
+        move [@R12+20] @R0
+        move @R0 @R1
+        cmp @R0 #0
         jz sta_13730146
 ; 151:         if (*a != *b) return (int)*a - (int)*b;
-        move R0 [R12+12]
-        moveh R0 [R0]
-        sexth R0 R0
-        pushh R0
-        move R0 [R12+16]
-        moveh R0 [R0]
-        sexth R0 R0
-        poph R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        pushh @R0
+        move @R0 [@R12+16]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        poph @R1
+        cmp @R1 @R0
         jne _L13730149
-        move R0 #0
+        move @R0 #0
         jmp _L13730150
 _L13730149:
-        move R0 #1
+        move @R0 #1
 _L13730150:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730147
-        move R0 [R12+12]
-        moveh R0 [R0]
-        sexth R0 R0
-        push R0
-        move R0 [R12+16]
-        moveh R0 [R0]
-        sexth R0 R0
-        pop R1
-        sub R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        push @R0
+        move @R0 [@R12+16]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
         jmp L_13730151
 sta_13730147:
 sta_13730148:
 ; 152:         a++; b++;
-        move R0 [R12+12]
-        move R1 R0
-        add R0 R0 #2
-        move [R12+12] R0
-        move R0 R1
-        move R0 [R12+16]
-        move R1 R0
-        add R0 R0 #2
-        move [R12+16] R0
-        move R0 R1
+        move @R0 [@R12+12]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12+12] @R0
+        move @R0 @R1
+        move @R0 [@R12+16]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12+16] @R0
+        move @R0 @R1
         jmp sta_13730145
 sta_13730146:
 ; 154:     return 0;
-        move R0 #0
+        move @R0 #0
         jmp L_13730151
 L_13730151:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wctomb:
 ; -------------------------------------------
@@ -1389,172 +1389,172 @@ wctomb:
 ; return   : int
 ; --------------------------------------------
 wctomb:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 159:     if (wc < 0x80)
-        moveh R0 [R12+16]
-        push R0
-        move R0 #128
-        pop R1
-        cmp R1 R0
+        moveh @R0 [@R12+16]
+        push @R0
+        move @R0 #128
+        pop @R1
+        cmp @R1 @R0
         jl _L13730154
-        move R0 #0
+        move @R0 #0
         jmp _L13730155
 _L13730154:
-        move R0 #1
+        move @R0 #1
 _L13730155:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730152
 ; 161:         dest[0] = (char)wc;
-        moveh R0 [R12+16]
-        move R4 R0
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        mul R0 #1
-        pop R5
-        add R0 R5
-        moveb [R0] R4
+        moveh @R0 [@R12+16]
+        move @R4 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #1
+        pop @R5
+        add @R0 @R5
+        moveb [@R0] @R4
 ; 162:         return 1;
-        move R0 #1
+        move @R0 #1
         jmp L_13730156
         jmp sta_13730153
 sta_13730152:
 ; 164:     else if (wc < 0x800)
-        moveh R0 [R12+16]
-        push R0
-        move R0 #2048
-        pop R1
-        cmp R1 R0
+        moveh @R0 [@R12+16]
+        push @R0
+        move @R0 #2048
+        pop @R1
+        cmp @R1 @R0
         jl _L13730159
-        move R0 #0
+        move @R0 #0
         jmp _L13730160
 _L13730159:
-        move R0 #1
+        move @R0 #1
 _L13730160:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730157
 ; 166:         dest[0] = (char)(0xC0 | (wc >> 6));
-        move R0 #192
-        push R0
-        moveh R0 [R12+16]
-        push R0
-        move R0 #6
-        pop R1
-        shr R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
-        move R3 R0
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        mul R0 #1
-        pop R2
-        add R0 R2
-        moveb [R0] R3
+        move @R0 #192
+        push @R0
+        moveh @R0 [@R12+16]
+        push @R0
+        move @R0 #6
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move @R3 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #1
+        pop @R2
+        add @R0 @R2
+        moveb [@R0] @R3
 ; 167:         dest[1] = (char)(0x80 | (wc & 0x3F));
-        move R0 #128
-        push R0
-        moveh R0 [R12+16]
-        push R0
-        move R0 #63
-        pop R1
-        and R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
-        move R11 R0
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        mul R0 #1
-        pop R1
-        add R0 R1
-        moveb [R0] R11
+        move @R0 #128
+        push @R0
+        moveh @R0 [@R12+16]
+        push @R0
+        move @R0 #63
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move @R11 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        mul @R0 #1
+        pop @R1
+        add @R0 @R1
+        moveb [@R0] @R11
 ; 168:         return 2;
-        move R0 #2
+        move @R0 #2
         jmp L_13730156
         jmp sta_13730158
 sta_13730157:
 ; 172:         dest[0] = (char)(0xE0 | (wc >> 12));
-        move R0 #224
-        push R0
-        moveh R0 [R12+16]
-        push R0
-        move R0 #12
-        pop R1
-        shr R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
-        move R10 R0
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        mul R0 #1
-        pop R9
-        add R0 R9
-        moveb [R0] R10
+        move @R0 #224
+        push @R0
+        moveh @R0 [@R12+16]
+        push @R0
+        move @R0 #12
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move @R10 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #1
+        pop @R9
+        add @R0 @R9
+        moveb [@R0] @R10
 ; 173:         dest[1] = (char)(0x80 | ((wc >> 6) & 0x3F));
-        move R0 #128
-        push R0
-        moveh R0 [R12+16]
-        push R0
-        move R0 #6
-        pop R1
-        shr R1 R0
-        move R0 R1
-        push R0
-        move R0 #63
-        pop R1
-        and R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
-        move R8 R0
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        mul R0 #1
-        pop R6
-        add R0 R6
-        moveb [R0] R8
+        move @R0 #128
+        push @R0
+        moveh @R0 [@R12+16]
+        push @R0
+        move @R0 #6
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #63
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move @R8 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        mul @R0 #1
+        pop @R6
+        add @R0 @R6
+        moveb [@R0] @R8
 ; 174:         dest[2] = (char)(0x80 | (wc & 0x3F));
-        move R0 #128
-        push R0
-        moveh R0 [R12+16]
-        push R0
-        move R0 #63
-        pop R1
-        and R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
-        move R7 R0
-        move R0 [R12+12]
-        push R0
-        move R0 #2
-        mul R0 #1
-        pop R5
-        add R0 R5
-        moveb [R0] R7
+        move @R0 #128
+        push @R0
+        moveh @R0 [@R12+16]
+        push @R0
+        move @R0 #63
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move @R7 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #2
+        mul @R0 #1
+        pop @R5
+        add @R0 @R5
+        moveb [@R0] @R7
 ; 175:         return 3;
-        move R0 #3
+        move @R0 #3
         jmp L_13730156
 sta_13730158:
 sta_13730153:
 L_13730156:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 mbtowc:
 ; -------------------------------------------
@@ -1565,189 +1565,189 @@ mbtowc:
 ; return   : int
 ; --------------------------------------------
 mbtowc:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 180:     unsigned char b0 = (unsigned char)src[0];
-        move R0 [R12+16]
-        push R0
-        move R0 #0
-        mul R0 #1
-        pop R4
-        add R0 R4
-        moveb R0 [R0]
-        sextb R0 R0
-        moveb [R12-5] R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        mul @R0 #1
+        pop @R4
+        add @R0 @R4
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        moveb [@R12-5] @R0
 ; 181:     if (b0 < 0x80)
-        moveb R0 [R12-5]
-        push R0
-        move R0 #128
-        pop R1
-        cmp R1 R0
+        moveb @R0 [@R12-5]
+        push @R0
+        move @R0 #128
+        pop @R1
+        cmp @R1 @R0
         jl _L13730163
-        move R0 #0
+        move @R0 #0
         jmp _L13730164
 _L13730163:
-        move R0 #1
+        move @R0 #1
 _L13730164:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730161
 ; 183:         *dest = (wchar_t)b0;
-        move R0 [R12+12]
-        move R2 R0
-        moveb R0 [R12-5]
-        moveh [R2] R0
+        move @R0 [@R12+12]
+        move @R2 @R0
+        moveb @R0 [@R12-5]
+        moveh [@R2] @R0
 ; 184:         return 1;
-        move R0 #1
+        move @R0 #1
         jmp L_13730165
         jmp sta_13730162
 sta_13730161:
 ; 186:     else if ((b0 & 0xE0) == 0xC0)
-        moveb R0 [R12-5]
-        push R0
-        move R0 #224
-        pop R1
-        and R1 R0
-        move R0 R1
-        push R0
-        move R0 #192
-        pop R1
-        cmp R1 R0
+        moveb @R0 [@R12-5]
+        push @R0
+        move @R0 #224
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #192
+        pop @R1
+        cmp @R1 @R0
         je _L13730168
-        move R0 #0
+        move @R0 #0
         jmp _L13730169
 _L13730168:
-        move R0 #1
+        move @R0 #1
 _L13730169:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730166
 ; 188:         *dest = (wchar_t)(((b0 & 0x1F) << 6) | ((unsigned char)src[1] & 0x3F));
-        move R0 [R12+12]
-        move R3 R0
-        moveb R0 [R12-5]
-        push R0
-        move R0 #31
-        pop R1
-        and R1 R0
-        move R0 R1
-        push R0
-        move R0 #6
-        pop R1
-        shl R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 #1
-        mul R0 #1
-        pop R1
-        add R0 R1
-        moveb R0 [R0]
-        sextb R0 R0
-        push R0
-        move R0 #63
-        pop R1
-        and R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
-        moveh [R3] R0
+        move @R0 [@R12+12]
+        move @R3 @R0
+        moveb @R0 [@R12-5]
+        push @R0
+        move @R0 #31
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #6
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #1
+        mul @R0 #1
+        pop @R1
+        add @R0 @R1
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        push @R0
+        move @R0 #63
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        moveh [@R3] @R0
 ; 189:         return 2;
-        move R0 #2
+        move @R0 #2
         jmp L_13730165
         jmp sta_13730167
 sta_13730166:
 ; 191:     else if ((b0 & 0xF0) == 0xE0)
-        moveb R0 [R12-5]
-        push R0
-        move R0 #240
-        pop R1
-        and R1 R0
-        move R0 R1
-        push R0
-        move R0 #224
-        pop R1
-        cmp R1 R0
+        moveb @R0 [@R12-5]
+        push @R0
+        move @R0 #240
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #224
+        pop @R1
+        cmp @R1 @R0
         je _L13730172
-        move R0 #0
+        move @R0 #0
         jmp _L13730173
 _L13730172:
-        move R0 #1
+        move @R0 #1
 _L13730173:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730170
 ; 193:         *dest = (wchar_t)(((b0 & 0x0F) << 12) | (((unsigned char)src[1] & 0x3F) << 6) | ((unsigned char)src[2] & 0x3F));
-        move R0 [R12+12]
-        move R11 R0
-        moveb R0 [R12-5]
-        push R0
-        move R0 #15
-        pop R1
-        and R1 R0
-        move R0 R1
-        push R0
-        move R0 #12
-        pop R1
-        shl R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 #1
-        mul R0 #1
-        pop R9
-        add R0 R9
-        moveb R0 [R0]
-        sextb R0 R0
-        push R0
-        move R0 #63
-        pop R1
-        and R1 R0
-        move R0 R1
-        push R0
-        move R0 #6
-        pop R1
-        shl R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 #2
-        mul R0 #1
-        pop R10
-        add R0 R10
-        moveb R0 [R0]
-        sextb R0 R0
-        push R0
-        move R0 #63
-        pop R1
-        and R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
-        moveh [R11] R0
+        move @R0 [@R12+12]
+        move @R11 @R0
+        moveb @R0 [@R12-5]
+        push @R0
+        move @R0 #15
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #12
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #1
+        mul @R0 #1
+        pop @R9
+        add @R0 @R9
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        push @R0
+        move @R0 #63
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #6
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #2
+        mul @R0 #1
+        pop @R10
+        add @R0 @R10
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        push @R0
+        move @R0 #63
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        moveh [@R11] @R0
 ; 194:         return 3;
-        move R0 #3
+        move @R0 #3
         jmp L_13730165
 sta_13730170:
 sta_13730171:
 sta_13730167:
 sta_13730162:
 ; 196:     return -1;
-        move R0 #1
-        move R0 #1
-        neg R0 R0
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
         jmp L_13730165
 L_13730165:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wcstombs:
 ; -------------------------------------------
@@ -1759,169 +1759,169 @@ wcstombs:
 ; return   : size_t
 ; --------------------------------------------
 wcstombs:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #32
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #32
 ; 200:     size_t written = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 sta_13730174:
-        move R2 #0
+        move @R2 #0
 ; 201:     while (*src)
-        move R0 [R12+16]
-        moveh R0 [R0]
-        sexth R0 R0
-        cmp R0 #0
+        move @R0 [@R12+16]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        cmp @R0 #0
         jz sta_13730175
 ; 204:         int n = wctomb(buf, *src);
-        move R0 [R12+16]
-        moveh R0 [R0]
-        sexth R0 R0
-        push R0
-        move R0 R12
-        sub R0 #12
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
+        move @R0 [@R12+16]
+        moveh @R0 [@R0]
+        sexth @R0 @R0
+        push @R0
+        move @R0 @R12
+        sub @R0 #12
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
         call wctomb
-        add R13 #8
-        move [R12-16] R0
+        add @R13 #8
+        move [@R12-16] @R0
 ; 205:         if (n < 0 || written + n >= max) break;
-        move R0 [R12-16]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L13730181
-        move R0 #0
+        move @R0 #0
         jmp _L13730182
 _L13730181:
-        move R0 #1
+        move @R0 #1
 _L13730182:
-        test R0 R0
+        test @R0 @R0
         jnz _L13730178
-        move R0 [R12-8]
-        push R0
-        move R0 [R12-16]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
         jge _L13730183
-        move R0 #0
+        move @R0 #0
         jmp _L13730184
 _L13730183:
-        move R0 #1
+        move @R0 #1
 _L13730184:
-        test R0 R0
+        test @R0 @R0
         jz _L13730179
 _L13730178:
-        move R0 #1
+        move @R0 #1
         jmp _L13730180
 _L13730179:
-        move R0 #0
+        move @R0 #0
 _L13730180:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730176
         jmp sta_13730175
 sta_13730176:
 sta_13730177:
 ; 206:         for (int i = 0; i < n; i++)
-        move R0 #0
-        move [R12-20] R0
+        move @R0 #0
+        move [@R12-20] @R0
 sta_13730185:
-        move R0 [R12-20]
-        push R0
-        move R0 [R12-16]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        cmp @R1 @R0
         jl _L13730188
-        move R0 #0
+        move @R0 #0
         jmp _L13730189
 _L13730188:
-        move R0 #1
+        move @R0 #1
 _L13730189:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730187
 ; 207:             dest[written++] = buf[i];
-        move R0 R12
-        sub R0 #12
-        push R0
-        move R6 #0
-        push R6
-        move R0 [R12-20]
-        pop R6
-        move R6 R0
-        move R0 R6
-        mul R0 #1
-        pop R8
-        add R0 R8
-        moveb R0 [R0]
-        sextb R0 R0
-        move R5 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
-        mul R0 #1
-        pop R7
-        add R0 R7
-        moveb [R0] R5
+        move @R0 @R12
+        sub @R0 #12
+        push @R0
+        move @R6 #0
+        push @R6
+        move @R0 [@R12-20]
+        pop @R6
+        move @R6 @R0
+        move @R0 @R6
+        mul @R0 #1
+        pop @R8
+        add @R0 @R8
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        move @R5 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R7
+        add @R0 @R7
+        moveb [@R0] @R5
 sta_13730186:
-        move R0 [R12-20]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-20] R0
-        move R0 R1
+        move @R0 [@R12-20]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-20] @R0
+        move @R0 @R1
         jmp sta_13730185
 sta_13730187:
 ; 208:         src++;
-        move R0 [R12+16]
-        move R1 R0
-        add R0 R0 #2
-        move [R12+16] R0
-        move R0 R1
+        move @R0 [@R12+16]
+        move @R1 @R0
+        add @R0 @R0 #2
+        move [@R12+16] @R0
+        move @R0 @R1
         jmp sta_13730174
 sta_13730175:
 ; 210:     if (written < max) dest[written] = '\0';
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
         jl _L13730192
-        move R0 #0
+        move @R0 #0
         jmp _L13730193
 _L13730192:
-        move R0 #1
+        move @R0 #1
 _L13730193:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730190
-        move R0 #0
-        move R4 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        mul R0 #1
-        pop R2
-        add R0 R2
-        moveb [R0] R4
+        move @R0 #0
+        move @R4 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #1
+        pop @R2
+        add @R0 @R2
+        moveb [@R0] @R4
 sta_13730190:
 sta_13730191:
 ; 211:     return written;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_13730194
 L_13730194:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 mbstowcs:
 ; -------------------------------------------:
@@ -1934,124 +1934,124 @@ mbstowcs:
 ; return   : size_t
 ; --------------------------------------------
 mbstowcs:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
 ; 215:     size_t count = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 sta_13730195:
-        move R2 #0
+        move @R2 #0
 ; 216:     while (*src && count < max - 1)
-        move R0 [R12+16]
-        moveb R0 [R0]
-        sextb R0 R0
-        test R0 R0
+        move @R0 [@R12+16]
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        test @R0 @R0
         jz _L13730197
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+20]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        pop @R1
+        cmp @R1 @R0
         jl _L13730199
-        move R0 #0
+        move @R0 #0
         jmp _L13730200
 _L13730199:
-        move R0 #1
+        move @R0 #1
 _L13730200:
-        test R0 R0
+        test @R0 @R0
         jz _L13730197
-        move R0 #1
+        move @R0 #1
         jmp _L13730198
 _L13730197:
-        move R0 #0
+        move @R0 #0
 _L13730198:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730196
 ; 218:         int n = mbtowc(&dest[count], src);
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        mul R0 #2
-        pop R1
-        add R0 R1
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #2
+        pop @R1
+        add @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
         call mbtowc
-        add R13 #8
-        move [R12-12] R0
+        add @R13 #8
+        move [@R12-12] @R0
 ; 219:         if (n < 0) break;
-        move R0 [R12-12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L13730203
-        move R0 #0
+        move @R0 #0
         jmp _L13730204
 _L13730203:
-        move R0 #1
+        move @R0 #1
 _L13730204:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730201
         jmp sta_13730196
 sta_13730201:
 sta_13730202:
 ; 220:         src += n;
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12+16] R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12+16] @R0
 ; 221:         count++;
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
         jmp sta_13730195
 sta_13730196:
 ; 223:     if (count < max) dest[count] = 0;
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
         jl _L13730207
-        move R0 #0
+        move @R0 #0
         jmp _L13730208
 _L13730207:
-        move R0 #1
+        move @R0 #1
 _L13730208:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13730205
-        move R0 #0
-        move R3 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        mul R0 #2
-        pop R9
-        add R0 R9
-        moveh [R0] R3
+        move @R0 #0
+        move @R3 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #2
+        pop @R9
+        add @R0 @R9
+        moveh [@R0] @R3
 sta_13730205:
 sta_13730206:
 ; 224:     return count;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_13730209
 L_13730209:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

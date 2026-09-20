@@ -10,19 +10,19 @@ getconfig:
 ; return   : int
 ; --------------------------------------------
 getconfig:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 15:     asm("SYSCALL 60");
         asm "SYSCALL 60"
 ; 16:     return 0;
-        move R0 #0
+        move @R0 #0
         jmp L_98610000
 L_98610000:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 random:
 ; -------------------------------------------
@@ -31,19 +31,19 @@ random:
 ; return   : int
 ; --------------------------------------------
 random:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 25:     asm("SYSCALL 50");
         asm "SYSCALL 50"
 ; 26:     return 0;
-        move R0 #0
+        move @R0 #0
         jmp L_98610001
 L_98610001:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 srand:
 ; -------------------------------------------
@@ -53,15 +53,15 @@ srand:
 ; return   : void
 ; --------------------------------------------
 srand:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 33:     asm("SYSCALL 51");
         asm "SYSCALL 51"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 datetime:
 ; -------------------------------------------
@@ -70,19 +70,19 @@ datetime:
 ; return   : int
 ; --------------------------------------------
 datetime:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 41:     asm("SYSCALL 54");
         asm "SYSCALL 54"
 ; 42:     return ts;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_98610002
 L_98610002:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 get_date:
 ; -------------------------------------------
@@ -91,19 +91,19 @@ get_date:
 ; return   : const char*
 ; --------------------------------------------
 get_date:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 51:     asm("SYSCALL 55");
         asm "SYSCALL 55"
 ; 52:     return 0;
-        move R0 #0
+        move @R0 #0
         jmp L_98610003
 L_98610003:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 get_time:
 ; -------------------------------------------
@@ -112,19 +112,19 @@ get_time:
 ; return   : const char*
 ; --------------------------------------------
 get_time:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 59:     asm("SYSCALL 56");
         asm "SYSCALL 56"
 ; 60:     return 0;
-        move R0 #0
+        move @R0 #0
         jmp L_98610004
 L_98610004:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 exit:
 ; -------------------------------------------:
@@ -135,13 +135,13 @@ exit:
 ; return   : void
 ; --------------------------------------------
 exit:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 69:     asm("SYSCALL 3");
         asm "SYSCALL 3"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

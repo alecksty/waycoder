@@ -11,22 +11,22 @@ demolib_add:
 ; return   : int
 ; --------------------------------------------
 demolib_add:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 4: __stdcall int demolib_add(int a, int b) { return a + b; }
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        add R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
         jmp L_68660000
 L_68660000:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 demolib_sub:
 ; -------------------------------------------
@@ -37,22 +37,22 @@ demolib_sub:
 ; return   : int
 ; --------------------------------------------
 demolib_sub:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 5: __stdcall int demolib_sub(int a, int b) { return a - b; }
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        sub R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
         jmp L_68660001
 L_68660001:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 demolib_mul:
 ; -------------------------------------------
@@ -63,22 +63,22 @@ demolib_mul:
 ; return   : int
 ; --------------------------------------------
 demolib_mul:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 6: __stdcall int demolib_mul(int a, int b) { return a * b; }
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        mul R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
         jmp L_68660002
 L_68660002:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 demolib_div:
 ; -------------------------------------------
@@ -89,39 +89,39 @@ demolib_div:
 ; return   : int
 ; --------------------------------------------
 demolib_div:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 7: __stdcall int demolib_div(int a, int b) { if (b == 0) return 0; return a / b; }
-        move R0 [R12+16]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L68660005
-        move R0 #0
+        move @R0 #0
         jmp _L68660006
 _L68660005:
-        move R0 #1
+        move @R0 #1
 _L68660006:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_68660003
-        move R0 #0
+        move @R0 #0
         jmp L_68660007
 sta_68660003:
 sta_68660004:
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        div R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
         jmp L_68660007
 L_68660007:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 demolib_fact:
 ; -------------------------------------------
@@ -131,49 +131,49 @@ demolib_fact:
 ; return   : int
 ; --------------------------------------------
 demolib_fact:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 10:     if (n <= 1) return 1;
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
         jle _L68660010
-        move R0 #0
+        move @R0 #0
         jmp _L68660011
 _L68660010:
-        move R0 #1
+        move @R0 #1
 _L68660011:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_68660008
-        move R0 #1
+        move @R0 #1
         jmp L_68660012
 sta_68660008:
 sta_68660009:
 ; 11:     return n * demolib_fact(n - 1);
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
         call demolib_fact
-        add R13 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
+        add @R13 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
         jmp L_68660012
 L_68660012:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 demolib_fib:
 ; -------------------------------------------
@@ -183,76 +183,76 @@ demolib_fib:
 ; return   : int
 ; --------------------------------------------
 demolib_fib:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 15:     if (n <= 0) return 0;
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jle _L68660015
-        move R0 #0
+        move @R0 #0
         jmp _L68660016
 _L68660015:
-        move R0 #1
+        move @R0 #1
 _L68660016:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_68660013
-        move R0 #0
+        move @R0 #0
         jmp L_68660017
 sta_68660013:
 sta_68660014:
 ; 16:     if (n == 1) return 1;
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
         je _L68660020
-        move R0 #0
+        move @R0 #0
         jmp _L68660021
 _L68660020:
-        move R0 #1
+        move @R0 #1
 _L68660021:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_68660018
-        move R0 #1
+        move @R0 #1
         jmp L_68660017
 sta_68660018:
 sta_68660019:
 ; 17:     return demolib_fib(n - 1) + demolib_fib(n - 2);
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
         call demolib_fib
-        add R13 #4
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 #2
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R13+0]
+        add @R13 #4
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #2
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
         call demolib_fib
-        add R13 #4
-        pop R1
-        add R1 R0
-        move R0 R1
+        add @R13 #4
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
         jmp L_68660017
 L_68660017:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 demolib_square:
 ; -------------------------------------------
@@ -262,22 +262,22 @@ demolib_square:
 ; return   : int
 ; --------------------------------------------
 demolib_square:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 20: __stdcall int demolib_square(int x) { return x * x; }
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+12]
-        pop R1
-        mul R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+12]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
         jmp L_68660022
 L_68660022:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 demolib_negate:
 ; -------------------------------------------:
@@ -288,17 +288,17 @@ demolib_negate:
 ; return   : int
 ; --------------------------------------------
 demolib_negate:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 21: __stdcall int demolib_negate(int x) { return -x; }
-        move R0 [R12+12]
-        move R0 [R12+12]
-        neg R0 R0
+        move @R0 [@R12+12]
+        move @R0 [@R12+12]
+        neg @R0 @R0
         jmp L_68660023
 L_68660023:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

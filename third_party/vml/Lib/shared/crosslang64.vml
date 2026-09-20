@@ -12,21 +12,21 @@ ladd64:
 ; return   : long
 ; --------------------------------------------
 ladd64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 2: __stdcall long ladd64(long a, long b) { return a + b; }
-        movel R0 [R12+12]
-        pushl R0
-        movel R0 [R12+20]
-        popl R1
-        addl R0 R1 R0
+        movel @R0 [@R12+12]
+        pushl @R0
+        movel @R0 [@R12+20]
+        popl @R1
+        addl @R0 @R1 @R0
         jmp L_95880000
 L_95880000:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 lsub64:
 ; -------------------------------------------
@@ -37,21 +37,21 @@ lsub64:
 ; return   : long
 ; --------------------------------------------
 lsub64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 3: __stdcall long lsub64(long a, long b) { return a - b; }
-        movel R0 [R12+12]
-        pushl R0
-        movel R0 [R12+20]
-        popl R1
-        subl R0 R1 R0
+        movel @R0 [@R12+12]
+        pushl @R0
+        movel @R0 [@R12+20]
+        popl @R1
+        subl @R0 @R1 @R0
         jmp L_95880001
 L_95880001:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 lmul64:
 ; -------------------------------------------
@@ -62,21 +62,21 @@ lmul64:
 ; return   : long
 ; --------------------------------------------
 lmul64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 4: __stdcall long lmul64(long a, long b) { return a * b; }
-        movel R0 [R12+12]
-        pushl R0
-        movel R0 [R12+20]
-        popl R1
-        mull R0 R1 R0
+        movel @R0 [@R12+12]
+        pushl @R0
+        movel @R0 [@R12+20]
+        popl @R1
+        mull @R0 @R1 @R0
         jmp L_95880002
 L_95880002:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 ldiv64:
 ; -------------------------------------------
@@ -87,41 +87,41 @@ ldiv64:
 ; return   : long
 ; --------------------------------------------
 ldiv64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 5: __stdcall long ldiv64(long a, long b) { if (b == 0) return 0; return a / b; }
-        movel R0 [R12+20]
-        pushl R0
-        move R0 #0
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12+20]
+        pushl @R0
+        move @R0 #0
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         je _L95880005
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L95880006
 _L95880005:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L95880006:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_95880003
-        move R0 #0
+        move @R0 #0
         jmp L_95880007
 sta_95880003:
 sta_95880004:
-        movel R0 [R12+12]
-        pushl R0
-        movel R0 [R12+20]
-        popl R1
-        divl R0 R1 R0
+        movel @R0 [@R12+12]
+        pushl @R0
+        movel @R0 [@R12+20]
+        popl @R1
+        divl @R0 @R1 @R0
         jmp L_95880007
 L_95880007:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 lmod64:
 ; -------------------------------------------
@@ -132,41 +132,41 @@ lmod64:
 ; return   : long
 ; --------------------------------------------
 lmod64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 6: __stdcall long lmod64(long a, long b) { if (b == 0) return 0; return a % b; }
-        movel R0 [R12+20]
-        pushl R0
-        move R0 #0
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12+20]
+        pushl @R0
+        move @R0 #0
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         je _L95880010
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L95880011
 _L95880010:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L95880011:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_95880008
-        move R0 #0
+        move @R0 #0
         jmp L_95880012
 sta_95880008:
 sta_95880009:
-        movel R0 [R12+12]
-        pushl R0
-        movel R0 [R12+20]
-        popl R1
-        modl R0 R1 R0
+        movel @R0 [@R12+12]
+        pushl @R0
+        movel @R0 [@R12+20]
+        popl @R1
+        modl @R0 @R1 @R0
         jmp L_95880012
 L_95880012:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 lneg64:
 ; -------------------------------------------
@@ -176,19 +176,19 @@ lneg64:
 ; return   : long
 ; --------------------------------------------
 lneg64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 7: __stdcall long lneg64(long x) { return -x; }
-        movel R0 [R12+12]
-        movel R0 [R12+12]
-        negl R0 R0
+        movel @R0 [@R12+12]
+        movel @R0 [@R12+12]
+        negl @R0 @R0
         jmp L_95880013
 L_95880013:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 larr_sum64:
 ; -------------------------------------------
@@ -198,21 +198,21 @@ larr_sum64:
 ; return   : long
 ; --------------------------------------------
 larr_sum64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 8: __stdcall long larr_sum64(long* arr) { return lsum64(arr); }
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
         call lsum64
-        add R13 #4
+        add @R13 #4
         jmp L_95880014
 L_95880014:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 larr_avg64:
 ; -------------------------------------------
@@ -222,21 +222,21 @@ larr_avg64:
 ; return   : long
 ; --------------------------------------------
 larr_avg64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 9: __stdcall long larr_avg64(long* arr) { return lmean64(arr); }
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
         call lmean64
-        add R13 #4
+        add @R13 #4
         jmp L_95880015
 L_95880015:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 larr_max64:
 ; -------------------------------------------
@@ -246,21 +246,21 @@ larr_max64:
 ; return   : long
 ; --------------------------------------------
 larr_max64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 10: __stdcall long larr_max64(long* arr) { return lmax_arr64(arr); }
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
         call lmax_arr64
-        add R13 #4
+        add @R13 #4
         jmp L_95880016
 L_95880016:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 larr_min64:
 ; -------------------------------------------:
@@ -271,19 +271,19 @@ larr_min64:
 ; return   : long
 ; --------------------------------------------
 larr_min64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 11: __stdcall long larr_min64(long* arr) { return lmin_arr64(arr); }
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
         call lmin_arr64
-        add R13 #4
+        add @R13 #4
         jmp L_95880017
 L_95880017:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

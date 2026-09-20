@@ -22,10 +22,15 @@
 
 // ===== 内存访问 =====
 
-__stdcall int peek(int addr) { int v; asm("MOVE @R0 R0"); return v; }
-__stdcall void poke(int val, int addr) { asm("MOVE @R1 R0"); }
-__stdcall int peekb(int addr) { int v; asm("MOVEB @R0 R0"); return v; }
-__stdcall void pokeb(int val, int addr) { asm("MOVEB @R1 R0"); }
+// ⚠ 间接寻址写成 `[@Rn]`：寄存器**一律**带 `@` 标记，括号里也不例外
+//    （见 `VMLAssembler.ParseOperand` 与 `VML-README.md` 的「汇编语法」一节）。
+//    `[R0]`（旧裸名）**仍能读**、语义逐字相同，但新写的一律带标记。
+//    ⚠ `@R0`（`@` 直接跟在括号外）是**另一种**东西 —— 它现在是"寄存器本身"，
+//    不再是间接寻址；间接寻址的 `@` 要在**括号里**。
+__stdcall int peek(int addr) { int v; asm("MOVE [@R0] R0"); return v; }
+__stdcall void poke(int val, int addr) { asm("MOVE [@R1] R0"); }
+__stdcall int peekb(int addr) { int v; asm("MOVEB [@R0] R0"); return v; }
+__stdcall void pokeb(int val, int addr) { asm("MOVEB [@R1] R0"); }
 
 // ===== 控制台 I/O =====
 

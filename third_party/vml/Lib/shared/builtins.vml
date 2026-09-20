@@ -29,18 +29,18 @@ peek:
 ; return   : int
 ; --------------------------------------------
 peek:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 5: __stdcall int peek(int addr) { int v; asm("MOVE @R0 R0"); return v; }
-        asm "MOVE @R0 R0"
-        move R0 [R12-8]
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 10: __stdcall int peek(int addr) { int v; asm("MOVE [@R0] R0"); return v; }
+        asm "MOVE [@R0] R0"
+        move @R0 [@R12-8]
         jmp L_94240000
 L_94240000:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 poke:
 ; -------------------------------------------
@@ -51,15 +51,15 @@ poke:
 ; return   : void
 ; --------------------------------------------
 poke:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 6: __stdcall void poke(int val, int addr) { asm("MOVE @R1 R0"); }
-        asm "MOVE @R1 R0"
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 11: __stdcall void poke(int val, int addr) { asm("MOVE [@R1] R0"); }
+        asm "MOVE [@R1] R0"
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 peekb:
 ; -------------------------------------------
@@ -69,18 +69,18 @@ peekb:
 ; return   : int
 ; --------------------------------------------
 peekb:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 7: __stdcall int peekb(int addr) { int v; asm("MOVEB @R0 R0"); return v; }
-        asm "MOVEB @R0 R0"
-        move R0 [R12-8]
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 12: __stdcall int peekb(int addr) { int v; asm("MOVEB [@R0] R0"); return v; }
+        asm "MOVEB [@R0] R0"
+        move @R0 [@R12-8]
         jmp L_94240001
 L_94240001:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 pokeb:
 ; -------------------------------------------
@@ -91,15 +91,15 @@ pokeb:
 ; return   : void
 ; --------------------------------------------
 pokeb:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 8: __stdcall void pokeb(int val, int addr) { asm("MOVEB @R1 R0"); }
-        asm "MOVEB @R1 R0"
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 13: __stdcall void pokeb(int val, int addr) { asm("MOVEB [@R1] R0"); }
+        asm "MOVEB [@R1] R0"
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 putchar:
 ; -------------------------------------------
@@ -109,16 +109,16 @@ putchar:
 ; return   : void
 ; --------------------------------------------
 putchar:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 10: __stdcall void putchar(char ch) { asm("SYSCALL #4"); }
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 15: __stdcall void putchar(char ch) { asm("SYSCALL #4"); }
         syscall #4
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 print_str:
 ; -------------------------------------------
@@ -128,16 +128,16 @@ print_str:
 ; return   : void
 ; --------------------------------------------
 print_str:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 11: __stdcall void print_str(const char* str) { asm("SYSCALL #1"); }
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 16: __stdcall void print_str(const char* str) { asm("SYSCALL #1"); }
         syscall #1
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 print_int:
 ; -------------------------------------------
@@ -147,16 +147,16 @@ print_int:
 ; return   : void
 ; --------------------------------------------
 print_int:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 12: __stdcall void print_int(int val) { asm("SYSCALL #6"); }
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 17: __stdcall void print_int(int val) { asm("SYSCALL #6"); }
         syscall #6
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 print_hex:
 ; -------------------------------------------
@@ -166,16 +166,16 @@ print_hex:
 ; return   : void
 ; --------------------------------------------
 print_hex:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 13: __stdcall void print_hex(int val) { asm("SYSCALL #10"); }
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 18: __stdcall void print_hex(int val) { asm("SYSCALL #10"); }
         syscall #10
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 println_str:
 ; -------------------------------------------
@@ -185,21 +185,21 @@ println_str:
 ; return   : void
 ; --------------------------------------------
 println_str:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 15:     asm("SYSCALL #1");
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 20:     asm("SYSCALL #1");
         syscall #1
-        move [R12-4] R0
-; 16:     asm("MOVE R0 #10");
+        move [@R12-4] @R0
+; 21:     asm("MOVE R0 #10");
         asm "MOVE R0 #10"
-; 17:     asm("SYSCALL #4");
+; 22:     asm("SYSCALL #4");
         syscall #4
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 println_int:
 ; -------------------------------------------
@@ -209,21 +209,21 @@ println_int:
 ; return   : void
 ; --------------------------------------------
 println_int:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 20:     asm("SYSCALL #6");
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 25:     asm("SYSCALL #6");
         syscall #6
-        move [R12-4] R0
-; 21:     asm("MOVE R0 #10");
+        move [@R12-4] @R0
+; 26:     asm("MOVE R0 #10");
         asm "MOVE R0 #10"
-; 22:     asm("SYSCALL #4");
+; 27:     asm("SYSCALL #4");
         syscall #4
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 newline:
 ; -------------------------------------------
@@ -232,17 +232,17 @@ newline:
 ; return   : void
 ; --------------------------------------------
 newline:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 24: __stdcall void newline(void) { asm("MOVE R0 #10"); asm("SYSCALL #4"); }
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 29: __stdcall void newline(void) { asm("MOVE R0 #10"); asm("SYSCALL #4"); }
         asm "MOVE R0 #10"
         syscall #4
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 print_float:
 ; -------------------------------------------
@@ -252,15 +252,15 @@ print_float:
 ; return   : void
 ; --------------------------------------------
 print_float:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 25: __stdcall void print_float(float f) { asm("SYSCALL 8"); }
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 30: __stdcall void print_float(float f) { asm("SYSCALL 8"); }
         asm "SYSCALL 8"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 print_bool:
 ; -------------------------------------------
@@ -270,31 +270,31 @@ print_bool:
 ; return   : void
 ; --------------------------------------------
 print_bool:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 27:     if (b) { print_str("true"); }
-        move R0 [R12+12]
-        cmp R0 #0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 32:     if (b) { print_str("true"); }
+        move @R0 [@R12+12]
+        cmp @R0 #0
         jz sta_94240002
-        move R0 L_94240004
-        push R0
-        move R0 [R13+0]
+        move @R0 L_94240004
+        push @R0
+        move @R0 [@R13+0]
         call print_str
-        add R13 #4
+        add @R13 #4
         jmp sta_94240003
 sta_94240002:
-; 28:     else { print_str("false"); }
-        move R0 L_94240005
-        push R0
-        move R0 [R13+0]
+; 33:     else { print_str("false"); }
+        move @R0 L_94240005
+        push @R0
+        move @R0 [@R13+0]
         call print_str
-        add R13 #4
+        add @R13 #4
 sta_94240003:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 abs:
 ; -------------------------------------------
@@ -304,36 +304,36 @@ abs:
 ; return   : int
 ; --------------------------------------------
 abs:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 31: __stdcall int abs(int x) { return x < 0 ? -x : x; }
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 36: __stdcall int abs(int x) { return x < 0 ? -x : x; }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L94240006
-        move R0 #0
+        move @R0 #0
         jmp _L94240007
 _L94240006:
-        move R0 #1
+        move @R0 #1
 _L94240007:
-        test R0 R0
+        test @R0 @R0
         jz _L94240008
-        move R0 [R12+12]
-        move R0 [R12+12]
-        neg R0 R0
+        move @R0 [@R12+12]
+        move @R0 [@R12+12]
+        neg @R0 @R0
         jmp _L94240009
 _L94240008:
-        move R0 [R12+12]
+        move @R0 [@R12+12]
 _L94240009:
         jmp L_94240010
 L_94240010:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 min:
 ; -------------------------------------------
@@ -344,34 +344,34 @@ min:
 ; return   : int
 ; --------------------------------------------
 min:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 32: __stdcall int min(int a, int b) { return a < b ? a : b; }
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        cmp R1 R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 37: __stdcall int min(int a, int b) { return a < b ? a : b; }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        cmp @R1 @R0
         jl _L94240011
-        move R0 #0
+        move @R0 #0
         jmp _L94240012
 _L94240011:
-        move R0 #1
+        move @R0 #1
 _L94240012:
-        test R0 R0
+        test @R0 @R0
         jz _L94240013
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp _L94240014
 _L94240013:
-        move R0 [R12+16]
+        move @R0 [@R12+16]
 _L94240014:
         jmp L_94240015
 L_94240015:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 max:
 ; -------------------------------------------
@@ -382,34 +382,34 @@ max:
 ; return   : int
 ; --------------------------------------------
 max:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 33: __stdcall int max(int a, int b) { return a > b ? a : b; }
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        cmp R1 R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 38: __stdcall int max(int a, int b) { return a > b ? a : b; }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        cmp @R1 @R0
         jg _L94240016
-        move R0 #0
+        move @R0 #0
         jmp _L94240017
 _L94240016:
-        move R0 #1
+        move @R0 #1
 _L94240017:
-        test R0 R0
+        test @R0 @R0
         jz _L94240018
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp _L94240019
 _L94240018:
-        move R0 [R12+16]
+        move @R0 [@R12+16]
 _L94240019:
         jmp L_94240020
 L_94240020:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 random:
 ; -------------------------------------------
@@ -418,19 +418,19 @@ random:
 ; return   : int
 ; --------------------------------------------
 random:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 35: __stdcall int random(void) { int r; asm("SYSCALL #50"); return r; }
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 40: __stdcall int random(void) { int r; asm("SYSCALL #50"); return r; }
         syscall #50
-        move [R12-4] R0
-        move R0 [R12-8]
+        move [@R12-4] @R0
+        move @R0 [@R12-8]
         jmp L_94240021
 L_94240021:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 sleep:
 ; -------------------------------------------
@@ -440,16 +440,16 @@ sleep:
 ; return   : void
 ; --------------------------------------------
 sleep:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 36: __stdcall void sleep(int ms) { asm("SYSCALL #52"); }
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 41: __stdcall void sleep(int ms) { asm("SYSCALL #52"); }
         syscall #52
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 get_tick:
 ; -------------------------------------------
@@ -458,19 +458,19 @@ get_tick:
 ; return   : int
 ; --------------------------------------------
 get_tick:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 37: __stdcall int get_tick(void) { int t; asm("SYSCALL #53"); return t; }
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 42: __stdcall int get_tick(void) { int t; asm("SYSCALL #53"); return t; }
         syscall #53
-        move [R12-4] R0
-        move R0 [R12-8]
+        move [@R12-4] @R0
+        move @R0 [@R12-8]
         jmp L_94240022
 L_94240022:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 alloc:
 ; -------------------------------------------
@@ -480,19 +480,19 @@ alloc:
 ; return   : void*
 ; --------------------------------------------
 alloc:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 39: void* alloc(int size) { void* p; asm("SYSCALL #40"); return p; }
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 44: void* alloc(int size) { void* p; asm("SYSCALL #40"); return p; }
         syscall #40
-        move [R12-4] R0
-        move R0 [R12-8]
+        move [@R12-4] @R0
+        move @R0 [@R12-8]
         jmp L_94240023
 L_94240023:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 free:
 ; -------------------------------------------
@@ -502,16 +502,16 @@ free:
 ; return   : void
 ; --------------------------------------------
 free:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 40: __stdcall void free(void* ptr) { asm("SYSCALL #41"); }
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 45: __stdcall void free(void* ptr) { asm("SYSCALL #41"); }
         syscall #41
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 debug_print:
 ; -------------------------------------------
@@ -521,16 +521,16 @@ debug_print:
 ; return   : void
 ; --------------------------------------------
 debug_print:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 42: __stdcall void debug_print(const char* msg) { asm("SYSCALL #70"); }
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 47: __stdcall void debug_print(const char* msg) { asm("SYSCALL #70"); }
         syscall #70
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 debug_print_int:
 ; -------------------------------------------
@@ -540,16 +540,16 @@ debug_print_int:
 ; return   : void
 ; --------------------------------------------
 debug_print_int:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 43: __stdcall void debug_print_int(int val) { asm("SYSCALL #71"); }
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 48: __stdcall void debug_print_int(int val) { asm("SYSCALL #71"); }
         syscall #71
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 assert:
 ; -------------------------------------------
@@ -560,16 +560,16 @@ assert:
 ; return   : void
 ; --------------------------------------------
 assert:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 44: __stdcall void assert(int cond, const char* msg) { asm("SYSCALL #72"); }
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 49: __stdcall void assert(int cond, const char* msg) { asm("SYSCALL #72"); }
         syscall #72
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 clamp:
 ; -------------------------------------------
@@ -581,51 +581,51 @@ clamp:
 ; return   : int
 ; --------------------------------------------
 clamp:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 47:     if (x < low) return low; if (x > high) return high; return x;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        cmp R1 R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 52:     if (x < low) return low; if (x > high) return high; return x;
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        cmp @R1 @R0
         jl _L94240026
-        move R0 #0
+        move @R0 #0
         jmp _L94240027
 _L94240026:
-        move R0 #1
+        move @R0 #1
 _L94240027:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240024
-        move R0 [R12+16]
+        move @R0 [@R12+16]
         jmp L_94240028
 sta_94240024:
 sta_94240025:
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
         jg _L94240031
-        move R0 #0
+        move @R0 #0
         jmp _L94240032
 _L94240031:
-        move R0 #1
+        move @R0 #1
 _L94240032:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240029
-        move R0 [R12+20]
+        move @R0 [@R12+20]
         jmp L_94240028
 sta_94240029:
 sta_94240030:
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_94240028
 L_94240028:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 sign:
 ; -------------------------------------------
@@ -635,53 +635,53 @@ sign:
 ; return   : int
 ; --------------------------------------------
 sign:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 49: __stdcall int sign(int x) { if (x < 0) return -1; if (x > 0) return 1; return 0; }
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 54: __stdcall int sign(int x) { if (x < 0) return -1; if (x > 0) return 1; return 0; }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L94240035
-        move R0 #0
+        move @R0 #0
         jmp _L94240036
 _L94240035:
-        move R0 #1
+        move @R0 #1
 _L94240036:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240033
-        move R0 #1
-        move R0 #1
-        neg R0 R0
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
         jmp L_94240037
 sta_94240033:
 sta_94240034:
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jg _L94240040
-        move R0 #0
+        move @R0 #0
         jmp _L94240041
 _L94240040:
-        move R0 #1
+        move @R0 #1
 _L94240041:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240038
-        move R0 #1
+        move @R0 #1
         jmp L_94240037
 sta_94240038:
 sta_94240039:
-        move R0 #0
+        move @R0 #0
         jmp L_94240037
 L_94240037:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 is_power_of_two:
 ; -------------------------------------------
@@ -691,64 +691,64 @@ is_power_of_two:
 ; return   : int
 ; --------------------------------------------
 is_power_of_two:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 50: __stdcall int is_power_of_two(int x) { return (x > 0) && ((x & (x - 1)) == 0) ? 1 : 0; }
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 55: __stdcall int is_power_of_two(int x) { return (x > 0) && ((x & (x - 1)) == 0) ? 1 : 0; }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jg _L94240044
-        move R0 #0
+        move @R0 #0
         jmp _L94240045
 _L94240044:
-        move R0 #1
+        move @R0 #1
 _L94240045:
-        test R0 R0
+        test @R0 @R0
         jz _L94240042
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        pop R1
-        and R1 R0
-        move R0 R1
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L94240046
-        move R0 #0
+        move @R0 #0
         jmp _L94240047
 _L94240046:
-        move R0 #1
+        move @R0 #1
 _L94240047:
-        test R0 R0
+        test @R0 @R0
         jz _L94240042
-        move R0 #1
+        move @R0 #1
         jmp _L94240043
 _L94240042:
-        move R0 #0
+        move @R0 #0
 _L94240043:
-        test R0 R0
+        test @R0 @R0
         jz _L94240048
-        move R0 #1
+        move @R0 #1
         jmp _L94240049
 _L94240048:
-        move R0 #0
+        move @R0 #0
 _L94240049:
         jmp L_94240050
 L_94240050:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 next_power_of_two:
 ; -------------------------------------------
@@ -758,104 +758,104 @@ next_power_of_two:
 ; return   : int
 ; --------------------------------------------
 next_power_of_two:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 52:     if (x <= 0) return 1; x--; x |= x >> 1; x |= x >> 2; x |= x >> 4; x |= x >> 8; x |= x >> 16; return x + 1;
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 57:     if (x <= 0) return 1; x--; x |= x >> 1; x |= x >> 2; x |= x >> 4; x |= x >> 8; x |= x >> 16; return x + 1;
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jle _L94240053
-        move R0 #0
+        move @R0 #0
         jmp _L94240054
 _L94240053:
-        move R0 #1
+        move @R0 #1
 _L94240054:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240051
-        move R0 #1
+        move @R0 #1
         jmp L_94240055
 sta_94240051:
 sta_94240052:
-        move R0 [R12+12]
-        move R1 R0
-        sub R0 R0 #1
-        move [R12+12] R0
-        move R0 R1
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        pop R1
-        shr R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
-        move [R12+12] R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 #2
-        pop R1
-        shr R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
-        move [R12+12] R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 #4
-        pop R1
-        shr R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
-        move [R12+12] R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 #8
-        pop R1
-        shr R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
-        move [R12+12] R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 #16
-        pop R1
-        shr R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
-        move [R12+12] R0
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        move @R1 @R0
+        sub @R0 @R0 #1
+        move [@R12+12] @R0
+        move @R0 @R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move [@R12+12] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #2
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move [@R12+12] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #4
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move [@R12+12] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #8
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move [@R12+12] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #16
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move [@R12+12] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
         jmp L_94240055
 L_94240055:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 bit_set:
 ; -------------------------------------------
@@ -866,27 +866,27 @@ bit_set:
 ; return   : int
 ; --------------------------------------------
 bit_set:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 55: __stdcall int bit_set(int val, int n) { return val | (1 << n); }
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        push R0
-        move R0 [R12+16]
-        pop R1
-        shl R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 60: __stdcall int bit_set(int val, int n) { return val | (1 << n); }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
         jmp L_94240056
 L_94240056:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 bit_clear:
 ; -------------------------------------------
@@ -897,28 +897,28 @@ bit_clear:
 ; return   : int
 ; --------------------------------------------
 bit_clear:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 56: __stdcall int bit_clear(int val, int n) { return val & ~(1 << n); }
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        push R0
-        move R0 [R12+16]
-        pop R1
-        shl R1 R0
-        move R0 R1
-        not R0
-        pop R1
-        and R1 R0
-        move R0 R1
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 61: __stdcall int bit_clear(int val, int n) { return val & ~(1 << n); }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        not @R0
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
         jmp L_94240057
 L_94240057:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 bit_toggle:
 ; -------------------------------------------
@@ -929,27 +929,27 @@ bit_toggle:
 ; return   : int
 ; --------------------------------------------
 bit_toggle:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 57: __stdcall int bit_toggle(int val, int n) { return val ^ (1 << n); }
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        push R0
-        move R0 [R12+16]
-        pop R1
-        shl R1 R0
-        move R0 R1
-        pop R1
-        xor R1 R0
-        move R0 R1
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 62: __stdcall int bit_toggle(int val, int n) { return val ^ (1 << n); }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        xor @R1 @R0
+        move @R0 @R1
         jmp L_94240058
 L_94240058:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 bit_test:
 ; -------------------------------------------
@@ -960,27 +960,27 @@ bit_test:
 ; return   : int
 ; --------------------------------------------
 bit_test:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 58: __stdcall int bit_test(int val, int n) { return (val >> n) & 1; }
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        shr R1 R0
-        move R0 R1
-        push R0
-        move R0 #1
-        pop R1
-        and R1 R0
-        move R0 R1
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 63: __stdcall int bit_test(int val, int n) { return (val >> n) & 1; }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #1
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
         jmp L_94240059
 L_94240059:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 rol:
 ; -------------------------------------------
@@ -991,44 +991,44 @@ rol:
 ; return   : int
 ; --------------------------------------------
 rol:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 59: __stdcall int rol(int val, int bits) { bits &= 31; return (val << bits) | (val >> (32 - bits)); }
-        move R0 [R12+16]
-        push R0
-        move R0 #31
-        pop R1
-        and R1 R0
-        move R0 R1
-        move [R12+16] R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        shl R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 #32
-        push R0
-        move R0 [R12+16]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        pop R1
-        shr R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 64: __stdcall int rol(int val, int bits) { bits &= 31; return (val << bits) | (val >> (32 - bits)); }
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #31
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R12+16] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #32
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
         jmp L_94240060
 L_94240060:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 ror:
 ; -------------------------------------------
@@ -1039,44 +1039,44 @@ ror:
 ; return   : int
 ; --------------------------------------------
 ror:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 60: __stdcall int ror(int val, int bits) { bits &= 31; return (val >> bits) | (val << (32 - bits)); }
-        move R0 [R12+16]
-        push R0
-        move R0 #31
-        pop R1
-        and R1 R0
-        move R0 R1
-        move [R12+16] R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        shr R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 #32
-        push R0
-        move R0 [R12+16]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        pop R1
-        shl R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 65: __stdcall int ror(int val, int bits) { bits &= 31; return (val >> bits) | (val << (32 - bits)); }
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #31
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R12+16] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #32
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
         jmp L_94240061
 L_94240061:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 popcount:
 ; -------------------------------------------
@@ -1086,43 +1086,43 @@ popcount:
 ; return   : int
 ; --------------------------------------------
 popcount:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 61: __stdcall int popcount(int val) { int n=0; while(val){ n++; val&=val-1; } return n; }
-        move R0 #0
-        move [R12-8] R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 66: __stdcall int popcount(int val) { int n=0; while(val){ n++; val&=val-1; } return n; }
+        move @R0 #0
+        move [@R12-8] @R0
 sta_94240062:
-        move R2 #0
-        move R0 [R12+12]
-        cmp R0 #0
+        move @R2 #0
+        move @R0 [@R12+12]
+        cmp @R0 #0
         jz sta_94240063
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        pop R1
-        and R1 R0
-        move R0 R1
-        move [R12+12] R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R12+12] @R0
         jmp sta_94240062
 sta_94240063:
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_94240064
 L_94240064:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 clz:
 ; -------------------------------------------
@@ -1132,38 +1132,38 @@ clz:
 ; return   : int
 ; --------------------------------------------
 clz:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 62: __stdcall int clz(int val) { int n=32; while(val){ val>>=1; n--; } return n; }
-        move R0 #32
-        move [R12-8] R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 67: __stdcall int clz(int val) { int n=32; while(val){ val>>=1; n--; } return n; }
+        move @R0 #32
+        move [@R12-8] @R0
 sta_94240065:
-        move R2 #0
-        move R0 [R12+12]
-        cmp R0 #0
+        move @R2 #0
+        move @R0 [@R12+12]
+        cmp @R0 #0
         jz sta_94240066
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        pop R1
-        shr R1 R0
-        move R0 R1
-        move [R12+12] R0
-        move R0 [R12-8]
-        move R1 R0
-        sub R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        move [@R12+12] @R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        sub @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
         jmp sta_94240065
 sta_94240066:
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_94240067
 L_94240067:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gcd:
 ; -------------------------------------------
@@ -1174,45 +1174,45 @@ gcd:
 ; return   : int
 ; --------------------------------------------
 gcd:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 sta_94240068:
-        move R2 #0
-; 64: __stdcall int gcd(int a, int b) { int t; while (b != 0) { t = b; b = a % b; a = t; } return a; }
-        move R0 [R12+16]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R2 #0
+; 69: __stdcall int gcd(int a, int b) { int t; while (b != 0) { t = b; b = a % b; a = t; } return a; }
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jne _L94240070
-        move R0 #0
+        move @R0 #0
         jmp _L94240071
 _L94240070:
-        move R0 #1
+        move @R0 #1
 _L94240071:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240069
-        move R0 [R12+16]
-        move [R12-8] R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        mod R1 R0
-        move R0 R1
-        move [R12+16] R0
-        move R0 [R12-8]
-        move [R12+12] R0
+        move @R0 [@R12+16]
+        move [@R12-8] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        mod @R1 @R0
+        move @R0 @R1
+        move [@R12+16] @R0
+        move @R0 [@R12-8]
+        move [@R12+12] @R0
         jmp sta_94240068
 sta_94240069:
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_94240072
 L_94240072:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 lcm:
 ; -------------------------------------------
@@ -1223,53 +1223,53 @@ lcm:
 ; return   : int
 ; --------------------------------------------
 lcm:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 65: __stdcall int lcm(int a, int b) { int g = gcd(a, b); if (g == 0) return 0; return (a / g) * b; }
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 70: __stdcall int lcm(int a, int b) { int g = gcd(a, b); if (g == 0) return 0; return (a / g) * b; }
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
         call gcd
-        add R13 #8
-        move [R12-8] R0
-        move R0 [R12-8]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        add @R13 #8
+        move [@R12-8] @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L94240075
-        move R0 #0
+        move @R0 #0
         jmp _L94240076
 _L94240075:
-        move R0 #1
+        move @R0 #1
 _L94240076:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240073
-        move R0 #0
+        move @R0 #0
         jmp L_94240077
 sta_94240073:
 sta_94240074:
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        div R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+16]
-        pop R1
-        mul R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
         jmp L_94240077
 L_94240077:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 factorial:
 ; -------------------------------------------
@@ -1279,65 +1279,65 @@ factorial:
 ; return   : int
 ; --------------------------------------------
 factorial:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 66: __stdcall int factorial(int n) { int r = 1; if (n < 0) return 0; while (n > 1) { r *= n; n--; } return r; }
-        move R0 #1
-        move [R12-8] R0
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 71: __stdcall int factorial(int n) { int r = 1; if (n < 0) return 0; while (n > 1) { r *= n; n--; } return r; }
+        move @R0 #1
+        move [@R12-8] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L94240080
-        move R0 #0
+        move @R0 #0
         jmp _L94240081
 _L94240080:
-        move R0 #1
+        move @R0 #1
 _L94240081:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240078
-        move R0 #0
+        move @R0 #0
         jmp L_94240082
 sta_94240078:
 sta_94240079:
 sta_94240083:
-        move R2 #0
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        pop R1
-        cmp R1 R0
+        move @R2 #0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
         jg _L94240085
-        move R0 #0
+        move @R0 #0
         jmp _L94240086
 _L94240085:
-        move R0 #1
+        move @R0 #1
 _L94240086:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240084
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+12]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-8] R0
-        move R0 [R12+12]
-        move R1 R0
-        sub R0 R0 #1
-        move [R12+12] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+12]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+        move @R0 [@R12+12]
+        move @R1 @R0
+        sub @R0 @R0 #1
+        move [@R12+12] @R0
+        move @R0 @R1
         jmp sta_94240083
 sta_94240084:
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_94240082
 L_94240082:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 is_prime:
 ; -------------------------------------------
@@ -1347,85 +1347,85 @@ is_prime:
 ; return   : int
 ; --------------------------------------------
 is_prime:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 67: __stdcall int is_prime(int n) { int i; if (n < 2) return 0; for (i = 2; i * i <= n; i++) if (n % i == 0) return 0; return 1; }
-        move R0 [R12+12]
-        push R0
-        move R0 #2
-        pop R1
-        cmp R1 R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 72: __stdcall int is_prime(int n) { int i; if (n < 2) return 0; for (i = 2; i * i <= n; i++) if (n % i == 0) return 0; return 1; }
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #2
+        pop @R1
+        cmp @R1 @R0
         jl _L94240089
-        move R0 #0
+        move @R0 #0
         jmp _L94240090
 _L94240089:
-        move R0 #1
+        move @R0 #1
 _L94240090:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240087
-        move R0 #0
+        move @R0 #0
         jmp L_94240091
 sta_94240087:
 sta_94240088:
-        move R0 #2
-        move [R12-8] R0
+        move @R0 #2
+        move [@R12-8] @R0
 sta_94240092:
-        move R0 [R12-8]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        pop @R1
+        cmp @R1 @R0
         jle _L94240095
-        move R0 #0
+        move @R0 #0
         jmp _L94240096
 _L94240095:
-        move R0 #1
+        move @R0 #1
 _L94240096:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240094
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        mod R1 R0
-        move R0 R1
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        mod @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L94240099
-        move R0 #0
+        move @R0 #0
         jmp _L94240100
 _L94240099:
-        move R0 #1
+        move @R0 #1
 _L94240100:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240097
-        move R0 #0
+        move @R0 #0
         jmp L_94240091
 sta_94240097:
 sta_94240098:
 sta_94240093:
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
         jmp sta_94240092
 sta_94240094:
-        move R0 #1
+        move @R0 #1
         jmp L_94240091
 L_94240091:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 strcpy:
 ; -------------------------------------------
@@ -1436,98 +1436,98 @@ strcpy:
 ; return   : char*
 ; --------------------------------------------
 strcpy:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 70:     int i = 0; if (!dst || !src) return dst;
-        move R0 #0
-        move [R12-8] R0
-        move R0 [R12+12]
-        move R0 [R12+12]
-        test R0 R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 75:     int i = 0; if (!dst || !src) return dst;
+        move @R0 #0
+        move [@R12-8] @R0
+        move @R0 [@R12+12]
+        move @R0 [@R12+12]
+        test @R0 @R0
         jz _L94240106
-        move R0 #0
+        move @R0 #0
         jmp _L94240107
 _L94240106:
-        move R0 #1
+        move @R0 #1
 _L94240107:
-        test R0 R0
+        test @R0 @R0
         jnz _L94240103
-        move R0 [R12+16]
-        move R0 [R12+16]
-        test R0 R0
+        move @R0 [@R12+16]
+        move @R0 [@R12+16]
+        test @R0 @R0
         jz _L94240108
-        move R0 #0
+        move @R0 #0
         jmp _L94240109
 _L94240108:
-        move R0 #1
+        move @R0 #1
 _L94240109:
-        test R0 R0
+        test @R0 @R0
         jz _L94240104
 _L94240103:
-        move R0 #1
+        move @R0 #1
         jmp _L94240105
 _L94240104:
-        move R0 #0
+        move @R0 #0
 _L94240105:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240101
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_94240110
 sta_94240101:
 sta_94240102:
 sta_94240111:
-        move R2 #0
-; 71:     while (src[i]) { dst[i] = src[i]; i++; } dst[i] = 0; return dst;
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-8]
-        mul R0 #1
-        pop R11
-        add R0 R11
-        moveb R0 [R0]
-        sextb R0 R0
-        cmp R0 #0
+        move @R2 #0
+; 76:     while (src[i]) { dst[i] = src[i]; i++; } dst[i] = 0; return dst;
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #1
+        pop @R11
+        add @R0 @R11
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        cmp @R0 #0
         jz sta_94240112
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-8]
-        mul R0 #1
-        pop R10
-        add R0 R10
-        moveb R0 [R0]
-        sextb R0 R0
-        move R9 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        mul R0 #1
-        pop R8
-        add R0 R8
-        moveb [R0] R9
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #1
+        pop @R10
+        add @R0 @R10
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        move @R9 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #1
+        pop @R8
+        add @R0 @R8
+        moveb [@R0] @R9
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
         jmp sta_94240111
 sta_94240112:
-        move R0 #0
-        move R7 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        mul R0 #1
-        pop R6
-        add R0 R6
-        moveb [R0] R7
-        move R0 [R12+12]
+        move @R0 #0
+        move @R7 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #1
+        pop @R6
+        add @R0 @R6
+        moveb [@R0] @R7
+        move @R0 [@R12+12]
         jmp L_94240110
 L_94240110:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 strcat:
 ; -------------------------------------------
@@ -1538,122 +1538,122 @@ strcat:
 ; return   : char*
 ; --------------------------------------------
 strcat:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
-; 74:     int i = 0, j = 0; if (!dst || !src) return dst;
-        move R0 #0
-        move [R12-8] R0
-        move R0 #0
-        move [R12-12] R0
-        move R0 [R12+12]
-        move R0 [R12+12]
-        test R0 R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 79:     int i = 0, j = 0; if (!dst || !src) return dst;
+        move @R0 #0
+        move [@R12-8] @R0
+        move @R0 #0
+        move [@R12-12] @R0
+        move @R0 [@R12+12]
+        move @R0 [@R12+12]
+        test @R0 @R0
         jz _L94240118
-        move R0 #0
+        move @R0 #0
         jmp _L94240119
 _L94240118:
-        move R0 #1
+        move @R0 #1
 _L94240119:
-        test R0 R0
+        test @R0 @R0
         jnz _L94240115
-        move R0 [R12+16]
-        move R0 [R12+16]
-        test R0 R0
+        move @R0 [@R12+16]
+        move @R0 [@R12+16]
+        test @R0 @R0
         jz _L94240120
-        move R0 #0
+        move @R0 #0
         jmp _L94240121
 _L94240120:
-        move R0 #1
+        move @R0 #1
 _L94240121:
-        test R0 R0
+        test @R0 @R0
         jz _L94240116
 _L94240115:
-        move R0 #1
+        move @R0 #1
         jmp _L94240117
 _L94240116:
-        move R0 #0
+        move @R0 #0
 _L94240117:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240113
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_94240122
 sta_94240113:
 sta_94240114:
 sta_94240123:
-        move R2 #0
-; 75:     while (dst[i]) i++; while (src[j]) { dst[i++] = src[j++]; } dst[i] = 0; return dst;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        mul R0 #1
-        pop R5
-        add R0 R5
-        moveb R0 [R0]
-        sextb R0 R0
-        cmp R0 #0
+        move @R2 #0
+; 80:     while (dst[i]) i++; while (src[j]) { dst[i++] = src[j++]; } dst[i] = 0; return dst;
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #1
+        pop @R5
+        add @R0 @R5
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        cmp @R0 #0
         jz sta_94240124
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
         jmp sta_94240123
 sta_94240124:
 sta_94240125:
-        move R2 #0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        mul R0 #1
-        pop R4
-        add R0 R4
-        moveb R0 [R0]
-        sextb R0 R0
-        cmp R0 #0
+        move @R2 #0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R4
+        add @R0 @R4
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        cmp @R0 #0
         jz sta_94240126
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-12] R0
-        move R0 R1
-        mul R0 #1
-        pop R3
-        add R0 R3
-        moveb R0 [R0]
-        sextb R0 R0
-        move R2 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
-        mul R0 #1
-        pop R1
-        add R0 R1
-        moveb [R0] R2
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R3
+        add @R0 @R3
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        move @R2 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R1
+        add @R0 @R1
+        moveb [@R0] @R2
         jmp sta_94240125
 sta_94240126:
-        move R0 #0
-        move R11 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        mul R0 #1
-        pop R10
-        add R0 R10
-        moveb [R0] R11
-        move R0 [R12+12]
+        move @R0 #0
+        move @R11 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #1
+        pop @R10
+        add @R0 @R10
+        moveb [@R0] @R11
+        move @R0 [@R12+12]
         jmp L_94240122
 L_94240122:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 strlen:
 ; -------------------------------------------
@@ -1663,53 +1663,53 @@ strlen:
 ; return   : int
 ; --------------------------------------------
 strlen:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 77: __stdcall int strlen(const char* s) { int n = 0; if (!s) return 0; while (s[n]) n++; return n; }
-        move R0 #0
-        move [R12-8] R0
-        move R0 [R12+12]
-        move R0 [R12+12]
-        test R0 R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 82: __stdcall int strlen(const char* s) { int n = 0; if (!s) return 0; while (s[n]) n++; return n; }
+        move @R0 #0
+        move [@R12-8] @R0
+        move @R0 [@R12+12]
+        move @R0 [@R12+12]
+        test @R0 @R0
         jz _L94240129
-        move R0 #0
+        move @R0 #0
         jmp _L94240130
 _L94240129:
-        move R0 #1
+        move @R0 #1
 _L94240130:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240127
-        move R0 #0
+        move @R0 #0
         jmp L_94240131
 sta_94240127:
 sta_94240128:
 sta_94240132:
-        move R2 #0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        mul R0 #1
-        pop R8
-        add R0 R8
-        moveb R0 [R0]
-        sextb R0 R0
-        cmp R0 #0
+        move @R2 #0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #1
+        pop @R8
+        add @R0 @R8
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        cmp @R0 #0
         jz sta_94240133
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
         jmp sta_94240132
 sta_94240133:
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_94240131
 L_94240131:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 memcpy:
 ; -------------------------------------------
@@ -1721,62 +1721,62 @@ memcpy:
 ; return   : void*
 ; --------------------------------------------
 memcpy:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
-; 86:     char* d = (char*)dst; const char* s = (const char*)src; int i;
-        move R0 [R12+12]
-        move [R12-8] R0
-        move R0 [R12+16]
-        move [R12-12] R0
-; 87:     for (i = 0; i < n; i++) d[i] = s[i]; return dst;
-        move R0 #0
-        move [R12-16] R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 91:     char* d = (char*)dst; const char* s = (const char*)src; int i;
+        move @R0 [@R12+12]
+        move [@R12-8] @R0
+        move @R0 [@R12+16]
+        move [@R12-12] @R0
+; 92:     for (i = 0; i < n; i++) d[i] = s[i]; return dst;
+        move @R0 #0
+        move [@R12-16] @R0
 sta_94240134:
-        move R0 [R12-16]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
         jl _L94240137
-        move R0 #0
+        move @R0 #0
         jmp _L94240138
 _L94240137:
-        move R0 #1
+        move @R0 #1
 _L94240138:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240136
-        move R0 [R12-12]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R9
-        add R0 R9
-        moveb R0 [R0]
-        sextb R0 R0
-        move R6 R0
-        move R0 [R12-8]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R7
-        add R0 R7
-        moveb [R0] R6
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12-16]
+        mul @R0 #1
+        pop @R9
+        add @R0 @R9
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        move @R6 @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-16]
+        mul @R0 #1
+        pop @R7
+        add @R0 @R7
+        moveb [@R0] @R6
 sta_94240135:
-        move R0 [R12-16]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-16] R0
-        move R0 R1
+        move @R0 [@R12-16]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-16] @R0
+        move @R0 @R1
         jmp sta_94240134
 sta_94240136:
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_94240139
 L_94240139:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 memset:
 ; -------------------------------------------
@@ -1788,52 +1788,52 @@ memset:
 ; return   : void*
 ; --------------------------------------------
 memset:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
-; 90:     char* p = (char*)ptr; int i; for (i = 0; i < n; i++) p[i] = (char)val; return ptr;
-        move R0 [R12+12]
-        move [R12-8] R0
-        move R0 #0
-        move [R12-12] R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 95:     char* p = (char*)ptr; int i; for (i = 0; i < n; i++) p[i] = (char)val; return ptr;
+        move @R0 [@R12+12]
+        move [@R12-8] @R0
+        move @R0 #0
+        move [@R12-12] @R0
 sta_94240140:
-        move R0 [R12-12]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
         jl _L94240143
-        move R0 #0
+        move @R0 #0
         jmp _L94240144
 _L94240143:
-        move R0 #1
+        move @R0 #1
 _L94240144:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240142
-        move R0 [R12+16]
-        move R5 R0
-        move R0 [R12-8]
-        push R0
-        move R0 [R12-12]
-        mul R0 #1
-        pop R4
-        add R0 R4
-        moveb [R0] R5
+        move @R0 [@R12+16]
+        move @R5 @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R4
+        add @R0 @R4
+        moveb [@R0] @R5
 sta_94240141:
-        move R0 [R12-12]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-12] R0
-        move R0 R1
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
         jmp sta_94240140
 sta_94240142:
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_94240145
 L_94240145:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 memcmp:
 ; -------------------------------------------
@@ -1845,96 +1845,96 @@ memcmp:
 ; return   : int
 ; --------------------------------------------
 memcmp:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
-; 93:     const char* pa = (const char*)a; const char* pb = (const char*)b; int i;
-        move R0 [R12+12]
-        move [R12-8] R0
-        move R0 [R12+16]
-        move [R12-12] R0
-; 94:     for (i = 0; i < n; i++) { if (pa[i] != pb[i]) return (int)(pa[i]) - (int)(pb[i]); } return 0;
-        move R0 #0
-        move [R12-16] R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
+; 98:     const char* pa = (const char*)a; const char* pb = (const char*)b; int i;
+        move @R0 [@R12+12]
+        move [@R12-8] @R0
+        move @R0 [@R12+16]
+        move [@R12-12] @R0
+; 99:     for (i = 0; i < n; i++) { if (pa[i] != pb[i]) return (int)(pa[i]) - (int)(pb[i]); } return 0;
+        move @R0 #0
+        move [@R12-16] @R0
 sta_94240146:
-        move R0 [R12-16]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
         jl _L94240149
-        move R0 #0
+        move @R0 #0
         jmp _L94240150
 _L94240149:
-        move R0 #1
+        move @R0 #1
 _L94240150:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240148
-        move R0 [R12-8]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R3
-        add R0 R3
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 [R12-12]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R1
-        add R0 R1
-        moveb R0 [R0]
-        sextb R0 R0
-        popb R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-16]
+        mul @R0 #1
+        pop @R3
+        add @R0 @R3
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12-16]
+        mul @R0 #1
+        pop @R1
+        add @R0 @R1
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        popb @R1
+        cmp @R1 @R0
         jne _L94240153
-        move R0 #0
+        move @R0 #0
         jmp _L94240154
 _L94240153:
-        move R0 #1
+        move @R0 #1
 _L94240154:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240151
-        move R0 [R12-8]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R2
-        add R0 R2
-        moveb R0 [R0]
-        sextb R0 R0
-        push R0
-        move R0 [R12-12]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R10
-        add R0 R10
-        moveb R0 [R0]
-        sextb R0 R0
-        pop R1
-        sub R1 R0
-        move R0 R1
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-16]
+        mul @R0 #1
+        pop @R2
+        add @R0 @R2
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        push @R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12-16]
+        mul @R0 #1
+        pop @R10
+        add @R0 @R10
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
         jmp L_94240155
 sta_94240151:
 sta_94240152:
 sta_94240147:
-        move R0 [R12-16]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-16] R0
-        move R0 R1
+        move @R0 [@R12-16]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-16] @R0
+        move @R0 @R1
         jmp sta_94240146
 sta_94240148:
-        move R0 #0
+        move @R0 #0
         jmp L_94240155
 L_94240155:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 delay_us:
 ; -------------------------------------------
@@ -1944,43 +1944,43 @@ delay_us:
 ; return   : void
 ; --------------------------------------------
 delay_us:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 97: __stdcall void delay_us(int us) { int i; for (i = 0; i < us * 10; i++) { } }
-        move R0 #0
-        move [R12-8] R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 102: __stdcall void delay_us(int us) { int i; for (i = 0; i < us * 10; i++) { } }
+        move @R0 #0
+        move [@R12-8] @R0
 sta_94240156:
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 #10
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #10
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        cmp @R1 @R0
         jl _L94240159
-        move R0 #0
+        move @R0 #0
         jmp _L94240160
 _L94240159:
-        move R0 #1
+        move @R0 #1
 _L94240160:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240158
 sta_94240157:
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
         jmp sta_94240156
 sta_94240158:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 rand_range:
 ; -------------------------------------------:
@@ -1992,56 +1992,56 @@ rand_range:
 ; return   : int
 ; --------------------------------------------
 rand_range:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-; 99:     int r; if (max <= min) return min; asm("SYSCALL #50"); r = r % (max - min + 1); return min + r;
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        pop R1
-        cmp R1 R0
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+; 104:     int r; if (max <= min) return min; asm("SYSCALL #50"); r = r % (max - min + 1); return min + r;
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        pop @R1
+        cmp @R1 @R0
         jle _L94240163
-        move R0 #0
+        move @R0 #0
         jmp _L94240164
 _L94240163:
-        move R0 #1
+        move @R0 #1
 _L94240164:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_94240161
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_94240165
 sta_94240161:
 sta_94240162:
         syscall #50
-        move [R12-4] R0
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        pop R1
-        mod R1 R0
-        move R0 R1
-        move [R12-8] R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
+        move [@R12-4] @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        pop @R1
+        mod @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
         jmp L_94240165
 L_94240165:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

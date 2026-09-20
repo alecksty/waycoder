@@ -31,8 +31,8 @@
 
 ## 0. 三条铁律（不可违反）
 
-1. **禁止硬编码写屏**：`UI/**` 目录内禁止直接 `Console.Write`/`ReadKey`/`SetCursorPosition`/`CursorVisible`，禁止裸 `\x1b`/``/`\033` 字面量。唯一写屏出口是 `Terminal/RenderBuffer.cs`（及其底层的 `Terminal/AnsiTty.cs`）。
-2. **取色只走令牌**：颜色一律 `TuiTheme.Current.*` 或 `TuiColors.*`，禁止写死 `36`/`47`/`30` 等 ANSI 色码魔数。
+1. **禁止硬编码写屏**：`UI/**` 目录内禁止直接 `Console.Write`/`ReadKey`/`SetCursorPosition`/`CursorVisible`，禁止裸 `\x1b`/``/`\033` 字面量。唯一写屏出口是 `UI/Shared/Terminal/RenderBuffer.cs`（及其底层的 `UI/Shared/Terminal/AnsiTty.cs`）。
+2. **取色只走令牌**：颜色一律 `TuiTheme.Current.*` 或 `AnsiColors.*`，禁止写死 `36`/`47`/`30` 等 ANSI 色码魔数。
 3. **新界面必用控件**：没有的控件，先基于现有 TUI 架构（`TuiBase`→`TuiControl`→`TuiView`）打造一个，再组装界面，不自造 `ReadKey` 循环。
 
 以上三条由 `dotnet run -- --test` 里的 `[UI Lint]` 段自动校验（扫描 `UI/**` 源码断言无裸 `Console.*`/裸转义），违规即红。
@@ -54,14 +54,14 @@ var accent = "\x1b[36m";
 int fg = 36;   // 切主题后不变色，就是这里
 ```
 
-- **`TuiTheme.Current`**（`UI/TuiBase/TuiTheme.cs`）是运行时唯一主题源，8 个预设：黄金甲（默认）/ 浅色 / 高对比度 / 海洋 / 森林 / 日落 / 单色 / 复古。切主题后**所有**窗口、选择器、对话框必须同步变色——做不到就说明某处写死了色值。
-- **`TuiColors`**（`UI/TuiBase/TuiColors.cs`）是 ANSI 常量真源（`Black=30`…`White=37`、`BgBlack=40`…、`Bright*`、`BgBright*`）。
-- **`AnsiTty`**（`Terminal/AnsiTty.cs`）是唯一允许出现 `\x1b` 的地方；`Fg/Bg/FgBg/BoldFg/SgrReset/Accent/Warn/Error/Success/DimText/BoldText` 等语义化封装覆盖常规场景。
+- **`TuiTheme.Current`**（`UI/TUI/Base/TuiTheme.cs`）是运行时唯一主题源，8 个预设：黄金甲（默认）/ 浅色 / 高对比度 / 海洋 / 森林 / 日落 / 单色 / 复古。切主题后**所有**窗口、选择器、对话框必须同步变色——做不到就说明某处写死了色值。
+- **`AnsiColors`**（`UI/Shared/AnsiColors.cs`）是 ANSI 常量真源（`Black=30`…`White=37`、`BgBlack=40`…、`Bright*`、`BgBright*`）。
+- **`AnsiTty`**（`UI/Shared/Terminal/AnsiTty.cs`）是唯一允许出现 `\x1b` 的地方；`Fg/Bg/FgBg/BoldFg/SgrReset/Accent/Warn/Error/Success/DimText/BoldText` 等语义化封装覆盖常规场景。
 
 ### 1.2 前景/背景必须成对，对比度 ≥ 4.5:1
 
 - 任何「文字 + 背景」组合都从主题里取成对令牌（如 `ControlFocusedFg`/`ControlFocusedBg`、`ListSelFg`/`ListSelBg`），禁止只设前景、背景裸奔（导致透明继承意外）。
-- 对比度校验：`dotnet run -- --theme-verify`（`UI/TuiBase/ThemeVerify.cs`）会按 WCAG 相对亮度逐对算 8 主题全部关键配对的对比度，`<3:1` 报「同色/近色」、`<4.5:1` 报「偏低」。新增配色对后应补进 `ThemeVerify.CheckContrasts` 的 `pairs` 表。
+- 对比度校验：`dotnet run -- --theme-verify`（`UI/TUI/Base/ThemeVerify.cs`）会按 WCAG 相对亮度逐对算 8 主题全部关键配对的对比度，`<3:1` 报「同色/近色」、`<4.5:1` 报「偏低」。新增配色对后应补进 `ThemeVerify.CheckContrasts` 的 `pairs` 表。
 
 ### 1.3 选中态统一反白
 
@@ -79,15 +79,15 @@ int fg = 36;   // 切主题后不变色，就是这里
 | 窗口宽度 | 钳制 `min(目标宽, 终端宽 - 2)`（`ContentW` 钳制，窄终端不溢出） |
 | 标题/状态栏 | 标题两侧各留空格 ` title `，标题栏用 `GradTitleBar` 渐变，状态栏用 `StatusBarFg`/`StatusBarBg` |
 
-- **布局容器**：`TuiVBox`（纵向）/ `TuiHBox`（横向）/ `TuiScrollView`（滚动视口）位于 `UI/TuiBase/TuiView.cs`，是对话框组装的基础件，禁止手算坐标。
-- **居中 + 钳制模板**见 `TuiDialog.NewDialog`（`UI/TuiControls/TuiDialog.cs`）：`TuiWindow{ Modal, HasMask, XScale, 居中 }` + `ContentW` 宽度钳制 + `TuiVBox`/`TuiHBox` 组装。
-- **模态对话框**由 `DialogOverlay` 栈管理、`Esc` 关栈顶；浮动面板（建议列表等）用 `Floating=true` 定位，不参与流式布局，避免把内容挤出屏。
+- **布局容器**：`TuiVBox`（纵向）/ `TuiHBox`（横向）/ `TuiScrollView`（滚动视口）位于 `UI/TUI/Base/TuiView.cs`，是对话框组装的基础件，禁止手算坐标。
+- **居中 + 钳制模板**见 `TuiDialog.NewDialog`（`UI/TUI/Controls/TuiDialog.cs`）：`TuiWindow{ Modal, HasMask, XScale, 居中 }` + `ContentW` 宽度钳制 + `TuiVBox`/`TuiHBox` 组装。
+- **模态对话框**由屏幕的窗口栈管理（`TuiScreen.FocusedWindow` / `TuiManager.CloseWindow`；`TuiManager` 已替代旧 `ScreenManager` + `WindowManager`）、`Esc` 关栈顶；浮动面板（建议列表等）用 `Floating=true` 定位，不参与流式布局，避免把内容挤出屏。
 
 ---
 
 ## 3. 边框与两态
 
-- **边框风格全局统一**：由 `TuiHelper.GetBorderChars(WindowBorder)` 提供字符集（Single/Double/Thick/Rounded/…），不各自手绘 `+---`。
+- **边框风格全局统一**：由 `AnsiHelper.GetBorderChars(WindowBorder)` 提供字符集（Single/Double/Thick/Rounded/…），不各自手绘 `+---`。
 - **每个控件只定义两态**：`Normal`（默认 `Fg`/`Bg`）与 `Focused`（`FocusedFg`/`FocusedBg`）。禁用态用 `DisabledFg`（暗灰）表达。不引入第三、四态——选中态用反白（§1.3），与聚焦态区分开。
 - **窗口边框两色**：聚焦 `WindowBorderFocused`（青），失焦 `WindowBorderUnfocused`（隐藏/弱化）。模态窗口 + `HasMask` 遮罩背景 `MaskBg`。
 
@@ -125,7 +125,7 @@ int fg = 36;   // 切主题后不变色，就是这里
 
 ### 4.3 阻塞 → 事件桥接
 
-所有 `static Show()` 返回结果的模态界面，统一走 `UxHelper.RenderWait`（`UI/TuiCust/UxHelper.cs:309`）：
+所有 `static Show()` 返回结果的模态界面，统一走 `UxHelper.RenderWait`（`UI/TUI/Custom/UxHelper.cs:511`）：
 
 ```csharp
 screen.ShowWindow(win);                 // 弹出模态窗口
@@ -138,12 +138,12 @@ RenderWait(screen, evt, timeoutMs, win); // 阻塞轮询渲染 + 按键，直到
 
 ## 5. 排版
 
-- **宽度真源**：`Terminal/AnsiString.cs` 是 CJK/emoji 显示宽度的唯一真源；`TuiHelper.DisplayWidth`（CJK=2、ASCII=1）与其对齐，禁止两套宽度算法。
+- **宽度真源**：`UI/Shared/Terminal/AnsiString.cs` 是 CJK/emoji 显示宽度的唯一真源；`AnsiHelper.DisplayWidth`（CJK=2、ASCII=1）与其对齐，禁止两套宽度算法。
 - **常用符号显式标定**：`CharWidth` 里统一登记常用符号宽度（`✓✗✔✘`、箭头、几何图形、圆点、`⌘` 按 1 列；`⏱` 等 emoji 按 2 列）——新增符号在此登记，别在调用处硬编码宽度（曾因 `✓` 被算成 2 列导致 diff 打钩错位）。`Emoji_Presentation=No` 的图标（`🎙⚙⏱`）需加 VS16（U+FE0F）强制 emoji 2 列展示，分类/图标才对齐。
-- **截断**：一律 `TuiHelper.TruncateByWidth(text, width)`——末尾追加全角省略号 `…` 并预留其宽度，禁止 `text.Substring(0, n)` 按字符数硬截（会截断半个中文字符）。
-- **对齐填充**：`TuiHelper.PadRightByWidth`/`PadLeftByWidth` 按显示宽度补齐，禁止 `new string(' ', n)` 按字符数补（CJK 下错位）。
-- **折行**：`TuiHelper.WrapText`（优先空格断行，CJK 按字符边界）。
-- **标记转义**：内部标记用书名号 `«color»text«/»`，与方括号 `[ ]` 不冲突、无需双写；`TuiHelper.Esc` 负责转义用户文本中的 `« »`。
+- **截断**：一律 `AnsiHelper.TruncateByWidth(text, width)`——末尾追加全角省略号 `…` 并预留其宽度，禁止 `text.Substring(0, n)` 按字符数硬截（会截断半个中文字符）。
+- **对齐填充**：`AnsiHelper.PadRightByWidth`/`PadLeftByWidth` 按显示宽度补齐，禁止 `new string(' ', n)` 按字符数补（CJK 下错位）。
+- **折行**：`AnsiHelper.WrapText`（优先空格断行，CJK 按字符边界）。
+- **标记转义**：内部标记用书名号 `«color»text«/»`，与方括号 `[ ]` 不冲突、无需双写；`AnsiHelper.Esc` 负责转义用户文本中的 `« »`。
 - **标记语法**（唯一真源 `MarkdownParser.TryMapTag`，TUI/CLI/Web 三端同一套）：
 
   | 写法 | 含义 |
@@ -160,13 +160,13 @@ RenderWait(screen, evt, timeoutMs, win); // 阻塞轮询渲染 + 按键，直到
 
 ## 6. 新控件规范（以 TuiTableList 为例）
 
-缺失控件时按此流程打造，`UI/TuiControls/TuiTableList.cs` 是完整范例：
+缺失控件时按此流程打造，`UI/TUI/Controls/TuiTableList.cs` 是完整范例：
 
 1. **继承**：可交互表格继承 `TuiControl`（非容器则不用 `TuiView`），参照 `TuiList.cs`（焦点/滚动/键盘）与 `TuiListView.cs`（任意行）。
 2. **数据与渲染分离**：纯数据模型（列/行）+ 格式化纯函数（`FormatCell`/`RenderHeader` 返回纯文本、无 ANSI）供自测直接断言；`OnRender` 只做「拼字符串 + 写缓冲」。
 3. **颜色只走主题**：选中行 `ListSelFg`/`ListSelBg`，列头 `MdHeadingFg`，滚动条滑块 `SeekBarThumbFg`/轨道 `SeparatorFg`。
 4. **键盘**：`↑↓`/`Home`/`End`/`PgUp`/`PgDn`/`Enter`/`Space`，边界钳制不越界；`EnsureSelectedVisible()` 保证选中行始终可见。
-5. **AOT 安全**：纯数据 + `TuiHelper`，无反射。
+5. **AOT 安全**：纯数据 + `AnsiHelper`，无反射。
 6. **单测**：`Test/SelfTest.Chunk11.cs` 里补 `[TuiTableList]` 段——数据、截断、键盘边界、回调触发、列头渲染字符串。
 7. **凡影响绘制的属性都要标脏**：增量渲染只画脏叶子（`TuiView.OnRender` 的 `child.IsDirty || parentDirty`），
    状态变了不标脏 = 界面不刷新。属性一律写成 `get => _f; set => SetDirty(ref _f, value);`
@@ -211,16 +211,16 @@ RenderWait(screen, evt, timeoutMs, win); // 阻塞轮询渲染 + 按键，直到
 | `FilePicker` | `TuiWindow` + `TuiInput` + `TuiTableList`（名称/大小/日期） |
 | `ModelPicker` | `TuiWindow` + `TuiInput` + `TuiTableList` + 底部槽位条 |
 | `SessionPicker` | `TuiWindow` + `TuiList` + 按钮行（打开/重命名/删除） |
-| `TuiKeybindHelp` | `TuiWindow` + `TuiTableList`（按键/说明两列） |
+| `TuiKeybindHelp` | `TuiWindow` + `TuiListView`（按键/说明两列） |
 | `DiffPreview` | `TuiWindow`/`TuiScreen` 内嵌只读 `TuiControl` 渲染 diff |
 | `TuiChatInput` | `TuiTextArea` + `TuiList`（建议面板） |
 
 ## 附录 B：参考实现索引
 
-- 对话框模板：`TuiDialog.NewDialog` + `ContentW` + `TuiVBox`/`TuiHBox` + `ApplyButtonGradient` + `RegisterShortcut`（`UI/TuiControls/TuiDialog.cs`）
-- 阻塞桥接：`UxHelper.RenderWait`（`UI/TuiCust/UxHelper.cs:309`）
+- 对话框模板：`TuiDialog.NewDialog` + `ContentW` + `TuiVBox`/`TuiHBox` + `ApplyButtonGradient` + `RegisterShortcut`（`UI/TUI/Controls/TuiDialog.cs`）
+- 阻塞桥接：`UxHelper.RenderWait`（`UI/TUI/Custom/UxHelper.cs:511`）
 - 单列选择：`TuiList`；结构化行：`TuiListView`；多列：`TuiTableList`
 - 文本输入：`TuiInput`/`TuiTextArea`（`TuiEditBase` 已封装光标/撤销/剪贴板）
-- 截断/CJK：`TuiHelper.TruncateByWidth`/`DisplayWidth`/`PadRightByWidth`；宽度真源 `Terminal/AnsiString.cs`
-- diff 高亮：`Edit/Syntax.cs` + `DiffRenderer`，仅换载体为 `TuiControl.OnRender`
+- 截断/CJK：`AnsiHelper.TruncateByWidth`/`DisplayWidth`/`PadRightByWidth`；宽度真源 `UI/Shared/Terminal/AnsiString.cs`
+- diff 高亮：`UI/TUI/Edit/Syntax.cs` + `UI/TUI/Custom/ContentDiffFormatter.cs`，仅换载体为 `TuiControl.OnRender`
 - 主题校验：`dotnet run -- --theme-verify`（WCAG 对比度）

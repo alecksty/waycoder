@@ -1538,10 +1538,10 @@ _gfx_refresh_cache:
 ; return   : void
 ; --------------------------------------------
 _gfx_refresh_cache:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 22:     asm("LOAD R0 #1");
         asm "LOAD R0 #1"
 ; 23:     asm("SYSCALL 60");
@@ -1549,275 +1549,275 @@ _gfx_refresh_cache:
 ; 24:     asm("STORE R0, _gfx_fb");
         asm "STORE R0, _gfx_fb"
 ; 27:     int mode = *(volatile char*)0x6FF0;
-        move R0 #28656
-        moveb R0 [R0]
-        sextb R0 R0
-        move [R12-8] R0
+        move @R0 #28656
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        move [@R12-8] @R0
 ; 28:     if (mode == 0)      { _gfx_w = 80;  _gfx_h = 25;  }
-        move R0 [R12-8]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L69550002
-        move R0 #0
+        move @R0 #0
         jmp _L69550003
 _L69550002:
-        move R0 #1
+        move @R0 #1
 _L69550003:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550000
-        move R0 #80
-        move [_gfx_w] R0
-        move R0 #25
-        move [_gfx_h] R0
+        move @R0 #80
+        move [_gfx_w] @R0
+        move @R0 #25
+        move [_gfx_h] @R0
         jmp sta_69550001
 sta_69550000:
 ; 29:     else if (mode == 1)  { _gfx_w = 320; _gfx_h = 200; }
-        move R0 [R12-8]
-        push R0
-        move R0 #1
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
         je _L69550006
-        move R0 #0
+        move @R0 #0
         jmp _L69550007
 _L69550006:
-        move R0 #1
+        move @R0 #1
 _L69550007:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550004
-        move R0 #320
-        move [_gfx_w] R0
-        move R0 #200
-        move [_gfx_h] R0
+        move @R0 #320
+        move [_gfx_w] @R0
+        move @R0 #200
+        move [_gfx_h] @R0
         jmp sta_69550005
 sta_69550004:
 ; 30:     else if (mode == 2)  { _gfx_w = 640; _gfx_h = 200; }
-        move R0 [R12-8]
-        push R0
-        move R0 #2
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #2
+        pop @R1
+        cmp @R1 @R0
         je _L69550010
-        move R0 #0
+        move @R0 #0
         jmp _L69550011
 _L69550010:
-        move R0 #1
+        move @R0 #1
 _L69550011:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550008
-        move R0 #640
-        move [_gfx_w] R0
-        move R0 #200
-        move [_gfx_h] R0
+        move @R0 #640
+        move [_gfx_w] @R0
+        move @R0 #200
+        move [_gfx_h] @R0
         jmp sta_69550009
 sta_69550008:
 ; 31:     else if (mode == 3)  { _gfx_w = 720; _gfx_h = 400; }
-        move R0 [R12-8]
-        push R0
-        move R0 #3
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #3
+        pop @R1
+        cmp @R1 @R0
         je _L69550014
-        move R0 #0
+        move @R0 #0
         jmp _L69550015
 _L69550014:
-        move R0 #1
+        move @R0 #1
 _L69550015:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550012
-        move R0 #720
-        move [_gfx_w] R0
-        move R0 #400
-        move [_gfx_h] R0
+        move @R0 #720
+        move [_gfx_w] @R0
+        move @R0 #400
+        move [_gfx_h] @R0
         jmp sta_69550013
 sta_69550012:
 ; 32:     else if (mode == 7)  { _gfx_w = 320; _gfx_h = 200; }
-        move R0 [R12-8]
-        push R0
-        move R0 #7
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #7
+        pop @R1
+        cmp @R1 @R0
         je _L69550018
-        move R0 #0
+        move @R0 #0
         jmp _L69550019
 _L69550018:
-        move R0 #1
+        move @R0 #1
 _L69550019:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550016
-        move R0 #320
-        move [_gfx_w] R0
-        move R0 #200
-        move [_gfx_h] R0
+        move @R0 #320
+        move [_gfx_w] @R0
+        move @R0 #200
+        move [_gfx_h] @R0
         jmp sta_69550017
 sta_69550016:
 ; 33:     else if (mode == 8)  { _gfx_w = 640; _gfx_h = 200; }
-        move R0 [R12-8]
-        push R0
-        move R0 #8
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #8
+        pop @R1
+        cmp @R1 @R0
         je _L69550022
-        move R0 #0
+        move @R0 #0
         jmp _L69550023
 _L69550022:
-        move R0 #1
+        move @R0 #1
 _L69550023:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550020
-        move R0 #640
-        move [_gfx_w] R0
-        move R0 #200
-        move [_gfx_h] R0
+        move @R0 #640
+        move [_gfx_w] @R0
+        move @R0 #200
+        move [_gfx_h] @R0
         jmp sta_69550021
 sta_69550020:
 ; 34:     else if (mode == 9)  { _gfx_w = 640; _gfx_h = 350; }
-        move R0 [R12-8]
-        push R0
-        move R0 #9
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #9
+        pop @R1
+        cmp @R1 @R0
         je _L69550026
-        move R0 #0
+        move @R0 #0
         jmp _L69550027
 _L69550026:
-        move R0 #1
+        move @R0 #1
 _L69550027:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550024
-        move R0 #640
-        move [_gfx_w] R0
-        move R0 #350
-        move [_gfx_h] R0
+        move @R0 #640
+        move [_gfx_w] @R0
+        move @R0 #350
+        move [_gfx_h] @R0
         jmp sta_69550025
 sta_69550024:
 ; 35:     else if (mode == 10) { _gfx_w = 640; _gfx_h = 350; }
-        move R0 [R12-8]
-        push R0
-        move R0 #10
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #10
+        pop @R1
+        cmp @R1 @R0
         je _L69550030
-        move R0 #0
+        move @R0 #0
         jmp _L69550031
 _L69550030:
-        move R0 #1
+        move @R0 #1
 _L69550031:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550028
-        move R0 #640
-        move [_gfx_w] R0
-        move R0 #350
-        move [_gfx_h] R0
+        move @R0 #640
+        move [_gfx_w] @R0
+        move @R0 #350
+        move [_gfx_h] @R0
         jmp sta_69550029
 sta_69550028:
 ; 36:     else if (mode == 11) { _gfx_w = 640; _gfx_h = 480; }
-        move R0 [R12-8]
-        push R0
-        move R0 #11
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #11
+        pop @R1
+        cmp @R1 @R0
         je _L69550034
-        move R0 #0
+        move @R0 #0
         jmp _L69550035
 _L69550034:
-        move R0 #1
+        move @R0 #1
 _L69550035:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550032
-        move R0 #640
-        move [_gfx_w] R0
-        move R0 #480
-        move [_gfx_h] R0
+        move @R0 #640
+        move [_gfx_w] @R0
+        move @R0 #480
+        move [_gfx_h] @R0
         jmp sta_69550033
 sta_69550032:
 ; 37:     else if (mode == 12) { _gfx_w = 640; _gfx_h = 480; }
-        move R0 [R12-8]
-        push R0
-        move R0 #12
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #12
+        pop @R1
+        cmp @R1 @R0
         je _L69550038
-        move R0 #0
+        move @R0 #0
         jmp _L69550039
 _L69550038:
-        move R0 #1
+        move @R0 #1
 _L69550039:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550036
-        move R0 #640
-        move [_gfx_w] R0
-        move R0 #480
-        move [_gfx_h] R0
+        move @R0 #640
+        move [_gfx_w] @R0
+        move @R0 #480
+        move [_gfx_h] @R0
         jmp sta_69550037
 sta_69550036:
 ; 38:     else if (mode == 13) { _gfx_w = 320; _gfx_h = 200; }
-        move R0 [R12-8]
-        push R0
-        move R0 #13
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #13
+        pop @R1
+        cmp @R1 @R0
         je _L69550042
-        move R0 #0
+        move @R0 #0
         jmp _L69550043
 _L69550042:
-        move R0 #1
+        move @R0 #1
 _L69550043:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550040
-        move R0 #320
-        move [_gfx_w] R0
-        move R0 #200
-        move [_gfx_h] R0
+        move @R0 #320
+        move [_gfx_w] @R0
+        move @R0 #200
+        move [_gfx_h] @R0
         jmp sta_69550041
 sta_69550040:
 ; 39:     else if (mode == 14) { _gfx_w = 640; _gfx_h = 480; }
-        move R0 [R12-8]
-        push R0
-        move R0 #14
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #14
+        pop @R1
+        cmp @R1 @R0
         je _L69550046
-        move R0 #0
+        move @R0 #0
         jmp _L69550047
 _L69550046:
-        move R0 #1
+        move @R0 #1
 _L69550047:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550044
-        move R0 #640
-        move [_gfx_w] R0
-        move R0 #480
-        move [_gfx_h] R0
+        move @R0 #640
+        move [_gfx_w] @R0
+        move @R0 #480
+        move [_gfx_h] @R0
         jmp sta_69550045
 sta_69550044:
 ; 40:     else if (mode == 15) { _gfx_w = 800; _gfx_h = 600; }
-        move R0 [R12-8]
-        push R0
-        move R0 #15
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #15
+        pop @R1
+        cmp @R1 @R0
         je _L69550050
-        move R0 #0
+        move @R0 #0
         jmp _L69550051
 _L69550050:
-        move R0 #1
+        move @R0 #1
 _L69550051:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550048
-        move R0 #800
-        move [_gfx_w] R0
-        move R0 #600
-        move [_gfx_h] R0
+        move @R0 #800
+        move [_gfx_w] @R0
+        move @R0 #600
+        move [_gfx_h] @R0
         jmp sta_69550049
 sta_69550048:
 ; 41:     else                 { _gfx_w = 320; _gfx_h = 200; }
-        move R0 #320
-        move [_gfx_w] R0
-        move R0 #200
-        move [_gfx_h] R0
+        move @R0 #320
+        move [_gfx_w] @R0
+        move @R0 #200
+        move [_gfx_h] @R0
 sta_69550049:
 sta_69550045:
 sta_69550041:
@@ -1831,9 +1831,9 @@ sta_69550013:
 sta_69550009:
 sta_69550005:
 sta_69550001:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 get_config:
 ; -------------------------------------------
@@ -1843,21 +1843,21 @@ get_config:
 ; return   : int
 ; --------------------------------------------
 get_config:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 46:     asm("SYSCALL 60");
         asm "SYSCALL 60"
 ; 47:     asm("STORE R0, _vml_result_int");
         asm "STORE R0, _vml_result_int"
 ; 48:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_69550052
 L_69550052:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_fb:
 ; -------------------------------------------
@@ -1866,17 +1866,17 @@ gfx_fb:
 ; return   : int*
 ; --------------------------------------------
 gfx_fb:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 50: static int* gfx_fb()     { return (int*)_gfx_fb; }
-        move R0 [_gfx_fb]
+        move @R0 [_gfx_fb]
         jmp L_69550053
 L_69550053:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_w:
 ; -------------------------------------------
@@ -1885,17 +1885,17 @@ gfx_w:
 ; return   : int
 ; --------------------------------------------
 gfx_w:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 51: static int gfx_w()       { return _gfx_w; }
-        move R0 [_gfx_w]
+        move @R0 [_gfx_w]
         jmp L_69550054
 L_69550054:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_h:
 ; -------------------------------------------
@@ -1904,17 +1904,17 @@ gfx_h:
 ; return   : int
 ; --------------------------------------------
 gfx_h:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 52: static int gfx_h()       { return _gfx_h; }
-        move R0 [_gfx_h]
+        move @R0 [_gfx_h]
         jmp L_69550055
 L_69550055:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_screen:
 ; -------------------------------------------
@@ -1924,28 +1924,28 @@ gfx_screen:
 ; return   : int
 ; --------------------------------------------
 gfx_screen:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 59:     if (mode < 0) {
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L69550058
-        move R0 #0
+        move @R0 #0
         jmp _L69550059
 _L69550058:
-        move R0 #1
+        move @R0 #1
 _L69550059:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550056
 ; 62:         return *(volatile char*)0x6FF0;
-        move R0 #28656
-        moveb R0 [R0]
-        sextb R0 R0
+        move @R0 #28656
+        moveb @R0 [@R0]
+        sextb @R0 @R0
         jmp L_69550060
 sta_69550056:
 sta_69550057:
@@ -1962,12 +1962,12 @@ sta_69550057:
 ; 72:     _gfx_refresh_cache();
         call _gfx_refresh_cache
 ; 73:     return mode;
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp L_69550060
 L_69550060:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_width:
 ; -------------------------------------------
@@ -1976,33 +1976,33 @@ gfx_width:
 ; return   : int
 ; --------------------------------------------
 gfx_width:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 76: int gfx_width()  { if (_gfx_w <= 0) _gfx_refresh_cache(); return _gfx_w; }
-        move R0 [_gfx_w]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [_gfx_w]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jle _L69550063
-        move R0 #0
+        move @R0 #0
         jmp _L69550064
 _L69550063:
-        move R0 #1
+        move @R0 #1
 _L69550064:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550061
         call _gfx_refresh_cache
 sta_69550061:
 sta_69550062:
-        move R0 [_gfx_w]
+        move @R0 [_gfx_w]
         jmp L_69550065
 L_69550065:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_height:
 ; -------------------------------------------
@@ -2011,33 +2011,33 @@ gfx_height:
 ; return   : int
 ; --------------------------------------------
 gfx_height:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 77: int gfx_height() { if (_gfx_w <= 0) _gfx_refresh_cache(); return _gfx_h; }
-        move R0 [_gfx_w]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [_gfx_w]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jle _L69550068
-        move R0 #0
+        move @R0 #0
         jmp _L69550069
 _L69550068:
-        move R0 #1
+        move @R0 #1
 _L69550069:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550066
         call _gfx_refresh_cache
 sta_69550066:
 sta_69550067:
-        move R0 [_gfx_h]
+        move @R0 [_gfx_h]
         jmp L_69550070
 L_69550070:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_depth:
 ; -------------------------------------------
@@ -2046,238 +2046,238 @@ gfx_depth:
 ; return   : int
 ; --------------------------------------------
 gfx_depth:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 79:     int mode = *(volatile char*)0x6FF0;
-        move R0 #28656
-        moveb R0 [R0]
-        sextb R0 R0
-        move [R12-8] R0
+        move @R0 #28656
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        move [@R12-8] @R0
 ; 81:     if (mode == 0)  return 4;   // text mode, 16 colors
-        move R0 [R12-8]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L69550073
-        move R0 #0
+        move @R0 #0
         jmp _L69550074
 _L69550073:
-        move R0 #1
+        move @R0 #1
 _L69550074:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550071
-        move R0 #4
+        move @R0 #4
         jmp L_69550075
 sta_69550071:
 sta_69550072:
 ; 82:     if (mode == 1)  return 2;   // CGA 4-color
-        move R0 [R12-8]
-        push R0
-        move R0 #1
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
         je _L69550078
-        move R0 #0
+        move @R0 #0
         jmp _L69550079
 _L69550078:
-        move R0 #1
+        move @R0 #1
 _L69550079:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550076
-        move R0 #2
+        move @R0 #2
         jmp L_69550075
 sta_69550076:
 sta_69550077:
 ; 83:     if (mode == 2)  return 1;   // 2-color
-        move R0 [R12-8]
-        push R0
-        move R0 #2
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #2
+        pop @R1
+        cmp @R1 @R0
         je _L69550082
-        move R0 #0
+        move @R0 #0
         jmp _L69550083
 _L69550082:
-        move R0 #1
+        move @R0 #1
 _L69550083:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550080
-        move R0 #1
+        move @R0 #1
         jmp L_69550075
 sta_69550080:
 sta_69550081:
 ; 84:     if (mode == 7)  return 4;   // EGA 16-color
-        move R0 [R12-8]
-        push R0
-        move R0 #7
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #7
+        pop @R1
+        cmp @R1 @R0
         je _L69550086
-        move R0 #0
+        move @R0 #0
         jmp _L69550087
 _L69550086:
-        move R0 #1
+        move @R0 #1
 _L69550087:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550084
-        move R0 #4
+        move @R0 #4
         jmp L_69550075
 sta_69550084:
 sta_69550085:
 ; 85:     if (mode == 8)  return 4;
-        move R0 [R12-8]
-        push R0
-        move R0 #8
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #8
+        pop @R1
+        cmp @R1 @R0
         je _L69550090
-        move R0 #0
+        move @R0 #0
         jmp _L69550091
 _L69550090:
-        move R0 #1
+        move @R0 #1
 _L69550091:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550088
-        move R0 #4
+        move @R0 #4
         jmp L_69550075
 sta_69550088:
 sta_69550089:
 ; 86:     if (mode == 9)  return 4;
-        move R0 [R12-8]
-        push R0
-        move R0 #9
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #9
+        pop @R1
+        cmp @R1 @R0
         je _L69550094
-        move R0 #0
+        move @R0 #0
         jmp _L69550095
 _L69550094:
-        move R0 #1
+        move @R0 #1
 _L69550095:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550092
-        move R0 #4
+        move @R0 #4
         jmp L_69550075
 sta_69550092:
 sta_69550093:
 ; 87:     if (mode == 10) return 2;
-        move R0 [R12-8]
-        push R0
-        move R0 #10
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #10
+        pop @R1
+        cmp @R1 @R0
         je _L69550098
-        move R0 #0
+        move @R0 #0
         jmp _L69550099
 _L69550098:
-        move R0 #1
+        move @R0 #1
 _L69550099:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550096
-        move R0 #2
+        move @R0 #2
         jmp L_69550075
 sta_69550096:
 sta_69550097:
 ; 88:     if (mode == 11) return 1;
-        move R0 [R12-8]
-        push R0
-        move R0 #11
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #11
+        pop @R1
+        cmp @R1 @R0
         je _L69550102
-        move R0 #0
+        move @R0 #0
         jmp _L69550103
 _L69550102:
-        move R0 #1
+        move @R0 #1
 _L69550103:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550100
-        move R0 #1
+        move @R0 #1
         jmp L_69550075
 sta_69550100:
 sta_69550101:
 ; 89:     if (mode == 12) return 4;
-        move R0 [R12-8]
-        push R0
-        move R0 #12
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #12
+        pop @R1
+        cmp @R1 @R0
         je _L69550106
-        move R0 #0
+        move @R0 #0
         jmp _L69550107
 _L69550106:
-        move R0 #1
+        move @R0 #1
 _L69550107:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550104
-        move R0 #4
+        move @R0 #4
         jmp L_69550075
 sta_69550104:
 sta_69550105:
 ; 90:     if (mode == 13) return 8;   // VGA 256-color
-        move R0 [R12-8]
-        push R0
-        move R0 #13
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #13
+        pop @R1
+        cmp @R1 @R0
         je _L69550110
-        move R0 #0
+        move @R0 #0
         jmp _L69550111
 _L69550110:
-        move R0 #1
+        move @R0 #1
 _L69550111:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550108
-        move R0 #8
+        move @R0 #8
         jmp L_69550075
 sta_69550108:
 sta_69550109:
 ; 91:     if (mode == 14) return 8;
-        move R0 [R12-8]
-        push R0
-        move R0 #14
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #14
+        pop @R1
+        cmp @R1 @R0
         je _L69550114
-        move R0 #0
+        move @R0 #0
         jmp _L69550115
 _L69550114:
-        move R0 #1
+        move @R0 #1
 _L69550115:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550112
-        move R0 #8
+        move @R0 #8
         jmp L_69550075
 sta_69550112:
 sta_69550113:
 ; 92:     if (mode == 15) return 8;
-        move R0 [R12-8]
-        push R0
-        move R0 #15
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #15
+        pop @R1
+        cmp @R1 @R0
         je _L69550118
-        move R0 #0
+        move @R0 #0
         jmp _L69550119
 _L69550118:
-        move R0 #1
+        move @R0 #1
 _L69550119:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550116
-        move R0 #8
+        move @R0 #8
         jmp L_69550075
 sta_69550116:
 sta_69550117:
 ; 93:     return 1; // default
-        move R0 #1
+        move @R0 #1
         jmp L_69550075
 L_69550075:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_palette:
 ; -------------------------------------------
@@ -2290,10 +2290,10 @@ gfx_palette:
 ; return   : void
 ; --------------------------------------------
 gfx_palette:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 100:     asm("PUSH R4");
         asm "PUSH R4"
 ; 101:     asm("PUSH R5");
@@ -2322,9 +2322,9 @@ gfx_palette:
         asm "POP R5"
 ; 113:     asm("POP R4");
         asm "POP R4"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_palette_get:
 ; -------------------------------------------
@@ -2334,10 +2334,10 @@ gfx_palette_get:
 ; return   : int
 ; --------------------------------------------
 gfx_palette_get:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 117:     asm("LOAD R4 [R12+12]");     // R4 = index (R0)
         asm "LOAD R4 [R12+12]"
 ; 118:     asm("MUL R4 3");             // R4 = index * 3
@@ -2359,12 +2359,12 @@ gfx_palette_get:
 ; 126:     asm("STORE R5, _vml_result_int");
         asm "STORE R5, _vml_result_int"
 ; 127:     return _vml_result_int;      // returns b (last stored), sufficient for most uses
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_69550120
 L_69550120:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 _putpixel:
 ; -------------------------------------------
@@ -2376,103 +2376,103 @@ _putpixel:
 ; return   : void
 ; --------------------------------------------
 _putpixel:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 132:     if (_gfx_w <= 0) _gfx_refresh_cache();
-        move R0 [_gfx_w]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [_gfx_w]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jle _L69550123
-        move R0 #0
+        move @R0 #0
         jmp _L69550124
 _L69550123:
-        move R0 #1
+        move @R0 #1
 _L69550124:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550121
         call _gfx_refresh_cache
 sta_69550121:
 sta_69550122:
 ; 133:     if (x < 0 || x >= _gfx_w || y < 0 || y >= _gfx_h) return;
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L69550136
-        move R0 #0
+        move @R0 #0
         jmp _L69550137
 _L69550136:
-        move R0 #1
+        move @R0 #1
 _L69550137:
-        test R0 R0
+        test @R0 @R0
         jnz _L69550133
-        move R0 [R12+12]
-        push R0
-        move R0 [_gfx_w]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [_gfx_w]
+        pop @R1
+        cmp @R1 @R0
         jge _L69550138
-        move R0 #0
+        move @R0 #0
         jmp _L69550139
 _L69550138:
-        move R0 #1
+        move @R0 #1
 _L69550139:
-        test R0 R0
+        test @R0 @R0
         jz _L69550134
 _L69550133:
-        move R0 #1
+        move @R0 #1
         jmp _L69550135
 _L69550134:
-        move R0 #0
+        move @R0 #0
 _L69550135:
-        test R0 R0
+        test @R0 @R0
         jnz _L69550130
-        move R0 [R12+16]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L69550140
-        move R0 #0
+        move @R0 #0
         jmp _L69550141
 _L69550140:
-        move R0 #1
+        move @R0 #1
 _L69550141:
-        test R0 R0
+        test @R0 @R0
         jz _L69550131
 _L69550130:
-        move R0 #1
+        move @R0 #1
         jmp _L69550132
 _L69550131:
-        move R0 #0
+        move @R0 #0
 _L69550132:
-        test R0 R0
+        test @R0 @R0
         jnz _L69550127
-        move R0 [R12+16]
-        push R0
-        move R0 [_gfx_h]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [_gfx_h]
+        pop @R1
+        cmp @R1 @R0
         jge _L69550142
-        move R0 #0
+        move @R0 #0
         jmp _L69550143
 _L69550142:
-        move R0 #1
+        move @R0 #1
 _L69550143:
-        test R0 R0
+        test @R0 @R0
         jz _L69550128
 _L69550127:
-        move R0 #1
+        move @R0 #1
         jmp _L69550129
 _L69550128:
-        move R0 #0
+        move @R0 #0
 _L69550129:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550125
         jmp L_69550144
 sta_69550125:
@@ -2500,9 +2500,9 @@ sta_69550126:
 ; 147:     asm("LOAD R4, _vml_result_int");   // restore caller's R4
         asm "LOAD R4, _vml_result_int"
 L_69550144:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 _getpixel:
 ; -------------------------------------------
@@ -2513,107 +2513,107 @@ _getpixel:
 ; return   : int
 ; --------------------------------------------
 _getpixel:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 150:     if (_gfx_w <= 0) _gfx_refresh_cache();
-        move R0 [_gfx_w]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [_gfx_w]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jle _L69550147
-        move R0 #0
+        move @R0 #0
         jmp _L69550148
 _L69550147:
-        move R0 #1
+        move @R0 #1
 _L69550148:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550145
         call _gfx_refresh_cache
 sta_69550145:
 sta_69550146:
 ; 151:     if (x < 0 || x >= _gfx_w || y < 0 || y >= _gfx_h) return -1;
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L69550160
-        move R0 #0
+        move @R0 #0
         jmp _L69550161
 _L69550160:
-        move R0 #1
+        move @R0 #1
 _L69550161:
-        test R0 R0
+        test @R0 @R0
         jnz _L69550157
-        move R0 [R12+12]
-        push R0
-        move R0 [_gfx_w]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [_gfx_w]
+        pop @R1
+        cmp @R1 @R0
         jge _L69550162
-        move R0 #0
+        move @R0 #0
         jmp _L69550163
 _L69550162:
-        move R0 #1
+        move @R0 #1
 _L69550163:
-        test R0 R0
+        test @R0 @R0
         jz _L69550158
 _L69550157:
-        move R0 #1
+        move @R0 #1
         jmp _L69550159
 _L69550158:
-        move R0 #0
+        move @R0 #0
 _L69550159:
-        test R0 R0
+        test @R0 @R0
         jnz _L69550154
-        move R0 [R12+16]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L69550164
-        move R0 #0
+        move @R0 #0
         jmp _L69550165
 _L69550164:
-        move R0 #1
+        move @R0 #1
 _L69550165:
-        test R0 R0
+        test @R0 @R0
         jz _L69550155
 _L69550154:
-        move R0 #1
+        move @R0 #1
         jmp _L69550156
 _L69550155:
-        move R0 #0
+        move @R0 #0
 _L69550156:
-        test R0 R0
+        test @R0 @R0
         jnz _L69550151
-        move R0 [R12+16]
-        push R0
-        move R0 [_gfx_h]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [_gfx_h]
+        pop @R1
+        cmp @R1 @R0
         jge _L69550166
-        move R0 #0
+        move @R0 #0
         jmp _L69550167
 _L69550166:
-        move R0 #1
+        move @R0 #1
 _L69550167:
-        test R0 R0
+        test @R0 @R0
         jz _L69550152
 _L69550151:
-        move R0 #1
+        move @R0 #1
         jmp _L69550153
 _L69550152:
-        move R0 #0
+        move @R0 #0
 _L69550153:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550149
-        move R0 #1
-        move R0 #1
-        neg R0 R0
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
         jmp L_69550168
 sta_69550149:
 sta_69550150:
@@ -2638,9 +2638,9 @@ sta_69550150:
 ; 162:     asm("LOAD R4, _vml_result_int");   // restore caller's R4
         asm "LOAD R4, _vml_result_int"
 L_69550168:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_pset:
 ; -------------------------------------------
@@ -2652,25 +2652,25 @@ gfx_pset:
 ; return   : void
 ; --------------------------------------------
 gfx_pset:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 165:     _putpixel(x, y, color);
-        move R0 [R12+20]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #12
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_point:
 ; -------------------------------------------
@@ -2681,24 +2681,24 @@ gfx_point:
 ; return   : int
 ; --------------------------------------------
 gfx_point:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 168:     return _getpixel(x, y);
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
         call _getpixel
-        add R13 #8
+        add @R13 #8
         jmp L_69550169
 L_69550169:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_cls:
 ; -------------------------------------------
@@ -2707,19 +2707,19 @@ gfx_cls:
 ; return   : void
 ; --------------------------------------------
 gfx_cls:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 172:     gfx_cls_color(0);
-        move R0 #0
-        push R0
-        move R0 [R13+0]
+        move @R0 #0
+        push @R0
+        move @R0 [@R13+0]
         call gfx_cls_color
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_cls_color:
 ; -------------------------------------------
@@ -2729,72 +2729,72 @@ gfx_cls_color:
 ; return   : void
 ; --------------------------------------------
 gfx_cls_color:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
 ; 175:     if (_gfx_w <= 0) _gfx_refresh_cache();
-        move R0 [_gfx_w]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [_gfx_w]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jle _L69550172
-        move R0 #0
+        move @R0 #0
         jmp _L69550173
 _L69550172:
-        move R0 #1
+        move @R0 #1
 _L69550173:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550170
         call _gfx_refresh_cache
 sta_69550170:
 sta_69550171:
 ; 176:     int total = _gfx_w * _gfx_h;
-        move R0 [_gfx_w]
-        push R0
-        move R0 [_gfx_h]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-8] R0
+        move @R0 [_gfx_w]
+        push @R0
+        move @R0 [_gfx_h]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
 ; 178:     for (i = 0; i < total; i++) {
-        move R0 #0
-        move [R12-12] R0
+        move @R0 #0
+        move [@R12-12] @R0
 sta_69550174:
-        move R0 [R12-12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        cmp @R1 @R0
         jl _L69550177
-        move R0 #0
+        move @R0 #0
         jmp _L69550178
 _L69550177:
-        move R0 #1
+        move @R0 #1
 _L69550178:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550176
 ; 179:         _putpixel_fast(i, color);
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
         call _putpixel_fast
-        add R13 #8
+        add @R13 #8
 sta_69550175:
-        move R0 [R12-12]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-12] R0
-        move R0 R1
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
         jmp sta_69550174
 sta_69550176:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 _putpixel_fast:
 ; -------------------------------------------
@@ -2805,10 +2805,10 @@ _putpixel_fast:
 ; return   : void
 ; --------------------------------------------
 _putpixel_fast:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 185:     asm("PUSH R4");
         asm "PUSH R4"
 ; 186:     asm("PUSH R5");
@@ -2827,9 +2827,9 @@ _putpixel_fast:
         asm "POP R5"
 ; 193:     asm("POP R4");
         asm "POP R4"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_line:
 ; -------------------------------------------
@@ -2843,257 +2843,257 @@ gfx_line:
 ; return   : void
 ; --------------------------------------------
 gfx_line:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #40
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #40
 ; 200:     asm("STORE R4, _vml_result_int");
         asm "STORE R4, _vml_result_int"
 ; 201:     color = _vml_result_int;
-        move R0 [_vml_result_int]
-        move [R12+28] R0
+        move @R0 [_vml_result_int]
+        move [@R12+28] @R0
 ; 202:     dx = x2 - x1;
-        move R0 [R12+20]
-        push R0
-        move R0 [R12+12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-8] R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
 ; 203:     if (dx < 0) dx = -dx;
-        move R0 [R12-8]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L69550181
-        move R0 #0
+        move @R0 #0
         jmp _L69550182
 _L69550181:
-        move R0 #1
+        move @R0 #1
 _L69550182:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550179
-        move R0 [R12-8]
-        move R0 [R12-8]
-        neg R0 R0
-        move [R12-8] R0
+        move @R0 [@R12-8]
+        move @R0 [@R12-8]
+        neg @R0 @R0
+        move [@R12-8] @R0
 sta_69550179:
 sta_69550180:
 ; 204:     dy = y2 - y1;
-        move R0 [R12+24]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-12] R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
 ; 205:     if (dy < 0) dy = -dy;
-        move R0 [R12-12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L69550185
-        move R0 #0
+        move @R0 #0
         jmp _L69550186
 _L69550185:
-        move R0 #1
+        move @R0 #1
 _L69550186:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550183
-        move R0 [R12-12]
-        move R0 [R12-12]
-        neg R0 R0
-        move [R12-12] R0
+        move @R0 [@R12-12]
+        move @R0 [@R12-12]
+        neg @R0 @R0
+        move [@R12-12] @R0
 sta_69550183:
 sta_69550184:
 ; 206:     sx = (x1 < x2) ? 1 : -1;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
         jl _L69550187
-        move R0 #0
+        move @R0 #0
         jmp _L69550188
 _L69550187:
-        move R0 #1
+        move @R0 #1
 _L69550188:
-        test R0 R0
+        test @R0 @R0
         jz _L69550189
-        move R0 #1
+        move @R0 #1
         jmp _L69550190
 _L69550189:
-        move R0 #1
-        move R0 #1
-        neg R0 R0
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
 _L69550190:
-        move [R12-16] R0
+        move [@R12-16] @R0
 ; 207:     sy = (y1 < y2) ? 1 : -1;
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+24]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+24]
+        pop @R1
+        cmp @R1 @R0
         jl _L69550191
-        move R0 #0
+        move @R0 #0
         jmp _L69550192
 _L69550191:
-        move R0 #1
+        move @R0 #1
 _L69550192:
-        test R0 R0
+        test @R0 @R0
         jz _L69550193
-        move R0 #1
+        move @R0 #1
         jmp _L69550194
 _L69550193:
-        move R0 #1
-        move R0 #1
-        neg R0 R0
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
 _L69550194:
-        move [R12-20] R0
+        move [@R12-20] @R0
 ; 208:     err = dx - dy;
-        move R0 [R12-8]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-24] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
 sta_69550195:
-        move R2 #0
+        move @R2 #0
 ; 209:     while (1) {
-        move R0 #1
-        cmp R0 #0
+        move @R0 #1
+        cmp @R0 #0
         jz sta_69550196
 ; 210:         _putpixel(x1, y1, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 211:         if (x1 == x2 && y1 == y2) break;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
         je _L69550201
-        move R0 #0
+        move @R0 #0
         jmp _L69550202
 _L69550201:
-        move R0 #1
+        move @R0 #1
 _L69550202:
-        test R0 R0
+        test @R0 @R0
         jz _L69550199
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+24]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+24]
+        pop @R1
+        cmp @R1 @R0
         je _L69550203
-        move R0 #0
+        move @R0 #0
         jmp _L69550204
 _L69550203:
-        move R0 #1
+        move @R0 #1
 _L69550204:
-        test R0 R0
+        test @R0 @R0
         jz _L69550199
-        move R0 #1
+        move @R0 #1
         jmp _L69550200
 _L69550199:
-        move R0 #0
+        move @R0 #0
 _L69550200:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550197
         jmp sta_69550196
 sta_69550197:
 sta_69550198:
 ; 212:         e2 = 2 * err;
-        move R0 #2
-        push R0
-        move R0 [R12-24]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-28] R0
+        move @R0 #2
+        push @R0
+        move @R0 [@R12-24]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-28] @R0
 ; 213:         if (e2 > -dy) {
-        move R0 [R12-28]
-        push R0
-        move R0 [R12-12]
-        move R0 [R12-12]
-        neg R0 R0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 [@R12-12]
+        move @R0 [@R12-12]
+        neg @R0 @R0
+        pop @R1
+        cmp @R1 @R0
         jg _L69550207
-        move R0 #0
+        move @R0 #0
         jmp _L69550208
 _L69550207:
-        move R0 #1
+        move @R0 #1
 _L69550208:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550205
 ; 214:             err = err - dy;
-        move R0 [R12-24]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-24] R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
 ; 215:             x1 = x1 + sx;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-16]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12+12] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12+12] @R0
 sta_69550205:
 sta_69550206:
 ; 217:         if (e2 < dx) {
-        move R0 [R12-28]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        cmp @R1 @R0
         jl _L69550211
-        move R0 #0
+        move @R0 #0
         jmp _L69550212
 _L69550211:
-        move R0 #1
+        move @R0 #1
 _L69550212:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550209
 ; 218:             err = err + dx;
-        move R0 [R12-24]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-24] R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
 ; 219:             y1 = y1 + sy;
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-20]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12+16] R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-20]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12+16] @R0
 sta_69550209:
 sta_69550210:
         jmp sta_69550195
 sta_69550196:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_rect:
 ; -------------------------------------------
@@ -3107,81 +3107,81 @@ gfx_rect:
 ; return   : void
 ; --------------------------------------------
 gfx_rect:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 225:     gfx_line(x1, y1, x2, y1, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+20]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
-        move R3 [R13+12]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
         call gfx_line
-        add R13 #20
+        add @R13 #20
 ; 226:     gfx_line(x2, y1, x2, y2, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12+20]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+20]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
-        move R3 [R13+12]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
         call gfx_line
-        add R13 #20
+        add @R13 #20
 ; 227:     gfx_line(x2, y2, x1, y2, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12+20]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
-        move R3 [R13+12]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
         call gfx_line
-        add R13 #20
+        add @R13 #20
 ; 228:     gfx_line(x1, y2, x1, y1, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
-        move R3 [R13+12]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
         call gfx_line
-        add R13 #20
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #20
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_rect_fill:
 ; -------------------------------------------
@@ -3195,119 +3195,119 @@ gfx_rect_fill:
 ; return   : void
 ; --------------------------------------------
 gfx_rect_fill:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
 ; 232:     if (x1 > x2) { tmp = x1; x1 = x2; x2 = tmp; }
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
         jg _L69550215
-        move R0 #0
+        move @R0 #0
         jmp _L69550216
 _L69550215:
-        move R0 #1
+        move @R0 #1
 _L69550216:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550213
-        move R0 [R12+12]
-        move [R12-16] R0
-        move R0 [R12+20]
-        move [R12+12] R0
-        move R0 [R12-16]
-        move [R12+20] R0
+        move @R0 [@R12+12]
+        move [@R12-16] @R0
+        move @R0 [@R12+20]
+        move [@R12+12] @R0
+        move @R0 [@R12-16]
+        move [@R12+20] @R0
 sta_69550213:
 sta_69550214:
 ; 233:     if (y1 > y2) { tmp = y1; y1 = y2; y2 = tmp; }
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+24]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+24]
+        pop @R1
+        cmp @R1 @R0
         jg _L69550219
-        move R0 #0
+        move @R0 #0
         jmp _L69550220
 _L69550219:
-        move R0 #1
+        move @R0 #1
 _L69550220:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550217
-        move R0 [R12+16]
-        move [R12-16] R0
-        move R0 [R12+24]
-        move [R12+16] R0
-        move R0 [R12-16]
-        move [R12+24] R0
+        move @R0 [@R12+16]
+        move [@R12-16] @R0
+        move @R0 [@R12+24]
+        move [@R12+16] @R0
+        move @R0 [@R12-16]
+        move [@R12+24] @R0
 sta_69550217:
 sta_69550218:
 ; 234:     for (y = y1; y <= y2; y++) {
-        move R0 [R12+16]
-        move [R12-12] R0
+        move @R0 [@R12+16]
+        move [@R12-12] @R0
 sta_69550221:
-        move R0 [R12-12]
-        push R0
-        move R0 [R12+24]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12+24]
+        pop @R1
+        cmp @R1 @R0
         jle _L69550224
-        move R0 #0
+        move @R0 #0
         jmp _L69550225
 _L69550224:
-        move R0 #1
+        move @R0 #1
 _L69550225:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550223
 ; 235:         for (x = x1; x <= x2; x++) {
-        move R0 [R12+12]
-        move [R12-8] R0
+        move @R0 [@R12+12]
+        move [@R12-8] @R0
 sta_69550226:
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
         jle _L69550229
-        move R0 #0
+        move @R0 #0
         jmp _L69550230
 _L69550229:
-        move R0 #1
+        move @R0 #1
 _L69550230:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550228
 ; 236:             _putpixel(x, y, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12-12]
-        push R0
-        move R0 [R12-8]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 sta_69550227:
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
         jmp sta_69550226
 sta_69550228:
 sta_69550222:
-        move R0 [R12-12]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-12] R0
-        move R0 R1
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
         jmp sta_69550221
 sta_69550223:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_circle:
 ; -------------------------------------------
@@ -3320,332 +3320,332 @@ gfx_circle:
 ; return   : void
 ; --------------------------------------------
 gfx_circle:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #32
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #32
 ; 242:     volatile int x = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 ; 243:     volatile int y = r;
-        move R0 [R12+20]
-        move [R12-12] R0
+        move @R0 [@R12+20]
+        move [@R12-12] @R0
 ; 244:     volatile int d = 3 - 2 * r;
-        move R0 #3
-        push R0
-        move R0 #2
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-16] R0
+        move @R0 #3
+        push @R0
+        move @R0 #2
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-16] @R0
 sta_69550231:
-        move R2 #0
+        move @R2 #0
 ; 245:     while (y >= x) {
-        move R0 [R12-12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        cmp @R1 @R0
         jge _L69550233
-        move R0 #0
+        move @R0 #0
         jmp _L69550234
 _L69550233:
-        move R0 #1
+        move @R0 #1
 _L69550234:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550232
 ; 247:         px = cx + x; py = cy + y; _putpixel(px, py, color);
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-20] R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-24] R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-24]
-        push R0
-        move R0 [R12-20]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 248:         px = cx - x; py = cy + y; _putpixel(px, py, color);
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-20] R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-24] R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-24]
-        push R0
-        move R0 [R12-20]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 249:         px = cx + x; py = cy - y; _putpixel(px, py, color);
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-20] R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-24] R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-24]
-        push R0
-        move R0 [R12-20]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 250:         px = cx - x; py = cy - y; _putpixel(px, py, color);
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-20] R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-24] R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-24]
-        push R0
-        move R0 [R12-20]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 251:         px = cx + y; py = cy + x; _putpixel(px, py, color);
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-20] R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-24] R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-24]
-        push R0
-        move R0 [R12-20]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 252:         px = cx - y; py = cy + x; _putpixel(px, py, color);
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-20] R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-24] R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-24]
-        push R0
-        move R0 [R12-20]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 253:         px = cx + y; py = cy - x; _putpixel(px, py, color);
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-20] R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-24] R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-24]
-        push R0
-        move R0 [R12-20]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 254:         px = cx - y; py = cy - x; _putpixel(px, py, color);
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-20] R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-24] R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-24]
-        push R0
-        move R0 [R12-20]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 255:         x = x + 1;
-        move R0 [R12-8]
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-8] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
 ; 256:         if (d > 0) {
-        move R0 [R12-16]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jg _L69550237
-        move R0 #0
+        move @R0 #0
         jmp _L69550238
 _L69550237:
-        move R0 #1
+        move @R0 #1
 _L69550238:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550235
 ; 257:             y = y - 1;
-        move R0 [R12-12]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-12] R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
 ; 258:             d = d + 4 * (x - y) + 10;
-        move R0 [R12-16]
-        push R0
-        move R0 #4
-        push R0
-        move R0 [R12-8]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 #10
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-16] R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #4
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #10
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-16] @R0
         jmp sta_69550236
 sta_69550235:
 ; 260:             d = d + 4 * x + 6;
-        move R0 [R12-16]
-        push R0
-        move R0 #4
-        push R0
-        move R0 [R12-8]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 #6
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-16] R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #4
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #6
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-16] @R0
 sta_69550236:
         jmp sta_69550231
 sta_69550232:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_circle_fill:
 ; -------------------------------------------
@@ -3658,262 +3658,262 @@ gfx_circle_fill:
 ; return   : void
 ; --------------------------------------------
 gfx_circle_fill:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #32
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #32
 ; 265:     int x = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 ; 266:     int y = r;
-        move R0 [R12+20]
-        move [R12-12] R0
+        move @R0 [@R12+20]
+        move [@R12-12] @R0
 ; 267:     int d = 3 - 2 * r;
-        move R0 #3
-        push R0
-        move R0 #2
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-16] R0
+        move @R0 #3
+        push @R0
+        move @R0 #2
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-16] @R0
 sta_69550239:
-        move R2 #0
+        move @R2 #0
 ; 268:     while (y >= x) {
-        move R0 [R12-12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        cmp @R1 @R0
         jge _L69550241
-        move R0 #0
+        move @R0 #0
         jmp _L69550242
 _L69550241:
-        move R0 #1
+        move @R0 #1
 _L69550242:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550240
 ; 270:         i = cx - x;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-20] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
 sta_69550243:
-        move R2 #0
+        move @R2 #0
 ; 271:         while (i <= cx + x) { _putpixel(i, cy + y, color); _putpixel(i, cy - y, color); i = i + 1; }
-        move R0 [R12-20]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        pop @R1
+        cmp @R1 @R0
         jle _L69550245
-        move R0 #0
+        move @R0 #0
         jmp _L69550246
 _L69550245:
-        move R0 #1
+        move @R0 #1
 _L69550246:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550244
-        move R0 [R12+24]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-20]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
-        move R0 [R12+24]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-20]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        add @R13 #12
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
-        move R0 [R12-20]
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-20] R0
+        add @R13 #12
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
         jmp sta_69550243
 sta_69550244:
 ; 272:         i = cx - y;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-20] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
 sta_69550247:
-        move R2 #0
+        move @R2 #0
 ; 273:         while (i <= cx + y) { _putpixel(i, cy + x, color); _putpixel(i, cy - x, color); i = i + 1; }
-        move R0 [R12-20]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        add R1 R0
-        move R0 R1
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        pop @R1
+        cmp @R1 @R0
         jle _L69550249
-        move R0 #0
+        move @R0 #0
         jmp _L69550250
 _L69550249:
-        move R0 #1
+        move @R0 #1
 _L69550250:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550248
-        move R0 [R12+24]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-20]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
-        move R0 [R12+24]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-20]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        add @R13 #12
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
-        move R0 [R12-20]
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-20] R0
+        add @R13 #12
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
         jmp sta_69550247
 sta_69550248:
 ; 274:         x = x + 1;
-        move R0 [R12-8]
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-8] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
 ; 275:         if (d > 0) { y = y - 1; d = d + 4 * (x - y) + 10; }
-        move R0 [R12-16]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jg _L69550253
-        move R0 #0
+        move @R0 #0
         jmp _L69550254
 _L69550253:
-        move R0 #1
+        move @R0 #1
 _L69550254:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550251
-        move R0 [R12-12]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-12] R0
-        move R0 [R12-16]
-        push R0
-        move R0 #4
-        push R0
-        move R0 [R12-8]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 #10
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-16] R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #4
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #10
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-16] @R0
         jmp sta_69550252
 sta_69550251:
 ; 276:         else { d = d + 4 * x + 6; }
-        move R0 [R12-16]
-        push R0
-        move R0 #4
-        push R0
-        move R0 [R12-8]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 #6
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-16] R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #4
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #6
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-16] @R0
 sta_69550252:
         jmp sta_69550239
 sta_69550240:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_arc:
 ; -------------------------------------------
@@ -3928,336 +3928,336 @@ gfx_arc:
 ; return   : void
 ; --------------------------------------------
 gfx_arc:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #56
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #56
 ; 284:     if (start_angle > end_angle) { int tmp = start_angle; start_angle = end_angle; end_angle = tmp; }
-        move R0 [R12+24]
-        push R0
-        move R0 [R12+28]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        cmp @R1 @R0
         jg _L69550257
-        move R0 #0
+        move @R0 #0
         jmp _L69550258
 _L69550257:
-        move R0 #1
+        move @R0 #1
 _L69550258:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550255
-        move R0 [R12+24]
-        move [R12-12] R0
-        move R0 [R12+28]
-        move [R12+24] R0
-        move R0 [R12-12]
-        move [R12+28] R0
+        move @R0 [@R12+24]
+        move [@R12-12] @R0
+        move @R0 [@R12+28]
+        move [@R12+24] @R0
+        move @R0 [@R12-12]
+        move [@R12+28] @R0
 sta_69550255:
 sta_69550256:
 ; 285:     int prev_x = -1, prev_y = -1;
-        move R0 #1
-        move R0 #1
-        neg R0 R0
-        move [R12-16] R0
-        move R0 #1
-        move R0 #1
-        neg R0 R0
-        move [R12-20] R0
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
+        move [@R12-16] @R0
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
+        move [@R12-20] @R0
 ; 286:     for (a = start_angle; a <= end_angle; a++) {
-        move R0 [R12+24]
-        move [R12-8] R0
+        move @R0 [@R12+24]
+        move [@R12-8] @R0
 sta_69550259:
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+28]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        cmp @R1 @R0
         jle _L69550262
-        move R0 #0
+        move @R0 #0
         jmp _L69550263
 _L69550262:
-        move R0 #1
+        move @R0 #1
 _L69550263:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550261
 ; 291:         int rad = (a * 1144) / 65536;  // rough deg->rad (not accurate but functional)
-        move R0 [R12-8]
-        push R0
-        move R0 #1144
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #65536
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-24] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1144
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #65536
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
 ; 295:         int angle = a % 360;
-        move R0 [R12-8]
-        push R0
-        move R0 #360
-        pop R1
-        mod R1 R0
-        move R0 R1
-        move [R12-28] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #360
+        pop @R1
+        mod @R1 @R0
+        move @R0 @R1
+        move [@R12-28] @R0
 ; 298:         if (angle <= 90) {
-        move R0 [R12-28]
-        push R0
-        move R0 #90
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 #90
+        pop @R1
+        cmp @R1 @R0
         jle _L69550266
-        move R0 #0
+        move @R0 #0
         jmp _L69550267
 _L69550266:
-        move R0 #1
+        move @R0 #1
 _L69550267:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550264
 ; 299:             sx = (90 - angle) * r / 90;
-        move R0 #90
-        push R0
-        move R0 [R12-28]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-32] R0
+        move @R0 #90
+        push @R0
+        move @R0 [@R12-28]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-32] @R0
 ; 300:             sy = angle * r / 90;
-        move R0 [R12-28]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-36] R0
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-36] @R0
         jmp sta_69550265
 sta_69550264:
 ; 301:         } else if (angle <= 180) {
-        move R0 [R12-28]
-        push R0
-        move R0 #180
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 #180
+        pop @R1
+        cmp @R1 @R0
         jle _L69550270
-        move R0 #0
+        move @R0 #0
         jmp _L69550271
 _L69550270:
-        move R0 #1
+        move @R0 #1
 _L69550271:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550268
 ; 302:             sx = -(angle - 90) * r / 90;
-        move R0 [R12-28]
-        push R0
-        move R0 #90
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move R0 [R12-28]
-        push R0
-        move R0 #90
-        pop R1
-        sub R1 R0
-        move R0 R1
-        neg R0 R0
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-32] R0
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 #90
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 #90
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        neg @R0 @R0
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-32] @R0
 ; 303:             sy = (180 - angle) * r / 90;
-        move R0 #180
-        push R0
-        move R0 [R12-28]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-36] R0
+        move @R0 #180
+        push @R0
+        move @R0 [@R12-28]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-36] @R0
         jmp sta_69550269
 sta_69550268:
 ; 304:         } else if (angle <= 270) {
-        move R0 [R12-28]
-        push R0
-        move R0 #270
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 #270
+        pop @R1
+        cmp @R1 @R0
         jle _L69550274
-        move R0 #0
+        move @R0 #0
         jmp _L69550275
 _L69550274:
-        move R0 #1
+        move @R0 #1
 _L69550275:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550272
 ; 305:             sx = -(270 - angle) * r / 90;
-        move R0 #270
-        push R0
-        move R0 [R12-28]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move R0 #270
-        push R0
-        move R0 [R12-28]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        neg R0 R0
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-32] R0
+        move @R0 #270
+        push @R0
+        move @R0 [@R12-28]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move @R0 #270
+        push @R0
+        move @R0 [@R12-28]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        neg @R0 @R0
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-32] @R0
 ; 306:             sy = -(angle - 180) * r / 90;
-        move R0 [R12-28]
-        push R0
-        move R0 #180
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move R0 [R12-28]
-        push R0
-        move R0 #180
-        pop R1
-        sub R1 R0
-        move R0 R1
-        neg R0 R0
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-36] R0
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 #180
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 #180
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        neg @R0 @R0
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-36] @R0
         jmp sta_69550273
 sta_69550272:
 ; 308:             sx = (angle - 270) * r / 90;
-        move R0 [R12-28]
-        push R0
-        move R0 #270
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-32] R0
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 #270
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-32] @R0
 ; 309:             sy = -(360 - angle) * r / 90;
-        move R0 #360
-        push R0
-        move R0 [R12-28]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move R0 #360
-        push R0
-        move R0 [R12-28]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        neg R0 R0
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-36] R0
+        move @R0 #360
+        push @R0
+        move @R0 [@R12-28]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move @R0 #360
+        push @R0
+        move @R0 [@R12-28]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        neg @R0 @R0
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-36] @R0
 sta_69550273:
 sta_69550269:
 sta_69550265:
 ; 311:         int px = cx + sx;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-32]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-32]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
 ; 312:         int py = cy + sy;
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-36]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-44] R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-36]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-44] @R0
 ; 313:         _putpixel(px, py, color);
-        move R0 [R12+32]
-        push R0
-        move R0 [R12-44]
-        push R0
-        move R0 [R12-40]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+32]
+        push @R0
+        move @R0 [@R12-44]
+        push @R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 sta_69550260:
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
         jmp sta_69550259
 sta_69550261:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_ellipse:
 ; -------------------------------------------
@@ -4271,514 +4271,514 @@ gfx_ellipse:
 ; return   : void
 ; --------------------------------------------
 gfx_ellipse:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #64
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #64
 ; 318:     int x = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 ; 319:     int y = ry;
-        move R0 [R12+24]
-        move [R12-12] R0
+        move @R0 [@R12+24]
+        move [@R12-12] @R0
 ; 320:     int rx2 = rx * rx;
-        move R0 [R12+20]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-16] R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-16] @R0
 ; 321:     int ry2 = ry * ry;
-        move R0 [R12+24]
-        push R0
-        move R0 [R12+24]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-20] R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+24]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
 ; 322:     int tworx2 = 2 * rx2;
-        move R0 #2
-        push R0
-        move R0 [R12-16]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-24] R0
+        move @R0 #2
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
 ; 323:     int twory2 = 2 * ry2;
-        move R0 #2
-        push R0
-        move R0 [R12-20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-28] R0
+        move @R0 #2
+        push @R0
+        move @R0 [@R12-20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-28] @R0
 ; 324:     int px = 0;
-        move R0 #0
-        move [R12-32] R0
+        move @R0 #0
+        move [@R12-32] @R0
 ; 325:     int py = tworx2 * y;
-        move R0 [R12-24]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-36] R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-36] @R0
 ; 326:     int p = ry2 - rx2 * ry + rx2 / 4;
-        move R0 [R12-20]
-        push R0
-        move R0 [R12-16]
-        push R0
-        move R0 [R12+24]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-16]
-        push R0
-        move R0 #4
-        pop R1
-        div R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 [@R12+24]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #4
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
 sta_69550276:
-        move R2 #0
+        move @R2 #0
 ; 328:     while (px < py) {
-        move R0 [R12-32]
-        push R0
-        move R0 [R12-36]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-32]
+        push @R0
+        move @R0 [@R12-36]
+        pop @R1
+        cmp @R1 @R0
         jl _L69550278
-        move R0 #0
+        move @R0 #0
         jmp _L69550279
 _L69550278:
-        move R0 #1
+        move @R0 #1
 _L69550279:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550277
 ; 329:         _putpixel(cx + x, cy + y, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 330:         _putpixel(cx - x, cy + y, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 331:         _putpixel(cx + x, cy - y, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 332:         _putpixel(cx - x, cy - y, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 333:         x = x + 1;
-        move R0 [R12-8]
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-8] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
 ; 334:         px = px + twory2;
-        move R0 [R12-32]
-        push R0
-        move R0 [R12-28]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-32] R0
+        move @R0 [@R12-32]
+        push @R0
+        move @R0 [@R12-28]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-32] @R0
 ; 335:         if (p < 0) { p = p + ry2 + px; }
-        move R0 [R12-40]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L69550282
-        move R0 #0
+        move @R0 #0
         jmp _L69550283
 _L69550282:
-        move R0 #1
+        move @R0 #1
 _L69550283:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550280
-        move R0 [R12-40]
-        push R0
-        move R0 [R12-20]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-32]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 [@R12-20]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-32]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
         jmp sta_69550281
 sta_69550280:
 ; 336:         else { y = y - 1; py = py - tworx2; p = p + ry2 + px - py; }
-        move R0 [R12-12]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-12] R0
-        move R0 [R12-36]
-        push R0
-        move R0 [R12-24]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-36] R0
-        move R0 [R12-40]
-        push R0
-        move R0 [R12-20]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-32]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-36]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
+        move @R0 [@R12-36]
+        push @R0
+        move @R0 [@R12-24]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-36] @R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 [@R12-20]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-32]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-36]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
 sta_69550281:
         jmp sta_69550276
 sta_69550277:
 ; 341:         t1 = x * x + x;
-        move R0 [R12-8]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-44] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-44] @R0
 ; 342:         t2 = y - 1;
-        move R0 [R12-12]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-48] R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-48] @R0
 ; 343:         t3 = t2 * t2;
-        move R0 [R12-48]
-        push R0
-        move R0 [R12-48]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-52] R0
+        move @R0 [@R12-48]
+        push @R0
+        move @R0 [@R12-48]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-52] @R0
 ; 344:         p = ry2 * t1;
-        move R0 [R12-20]
-        push R0
-        move R0 [R12-44]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R12-44]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
 ; 345:         p = p + rx2 * t3;
-        move R0 [R12-40]
-        push R0
-        move R0 [R12-16]
-        push R0
-        move R0 [R12-52]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 [@R12-52]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
 ; 346:         p = p - rx2 * ry2;
-        move R0 [R12-40]
-        push R0
-        move R0 [R12-16]
-        push R0
-        move R0 [R12-20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 [@R12-20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
 sta_69550284:
-        move R2 #0
+        move @R2 #0
 ; 348:     while (y >= 0) {
-        move R0 [R12-12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jge _L69550286
-        move R0 #0
+        move @R0 #0
         jmp _L69550287
 _L69550286:
-        move R0 #1
+        move @R0 #1
 _L69550287:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550285
 ; 349:         _putpixel(cx + x, cy + y, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 350:         _putpixel(cx - x, cy + y, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 351:         _putpixel(cx + x, cy - y, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 352:         _putpixel(cx - x, cy - y, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 353:         y = y - 1;
-        move R0 [R12-12]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-12] R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
 ; 354:         py = py - tworx2;
-        move R0 [R12-36]
-        push R0
-        move R0 [R12-24]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-36] R0
+        move @R0 [@R12-36]
+        push @R0
+        move @R0 [@R12-24]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-36] @R0
 ; 355:         if (p > 0) { p = p + rx2 - py; }
-        move R0 [R12-40]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jg _L69550290
-        move R0 #0
+        move @R0 #0
         jmp _L69550291
 _L69550290:
-        move R0 #1
+        move @R0 #1
 _L69550291:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550288
-        move R0 [R12-40]
-        push R0
-        move R0 [R12-16]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-36]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-36]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
         jmp sta_69550289
 sta_69550288:
 ; 356:         else { x = x + 1; px = px + twory2; p = p + rx2 - py + px; }
-        move R0 [R12-8]
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-8] R0
-        move R0 [R12-32]
-        push R0
-        move R0 [R12-28]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-32] R0
-        move R0 [R12-40]
-        push R0
-        move R0 [R12-16]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-36]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-32]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+        move @R0 [@R12-32]
+        push @R0
+        move @R0 [@R12-28]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-32] @R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-36]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-32]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
 sta_69550289:
         jmp sta_69550284
 sta_69550285:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_ellipse_fill:
 ; -------------------------------------------
@@ -4792,522 +4792,522 @@ gfx_ellipse_fill:
 ; return   : void
 ; --------------------------------------------
 gfx_ellipse_fill:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #80
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #80
 ; 361:     int x = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 ; 362:     int y = ry;
-        move R0 [R12+24]
-        move [R12-12] R0
+        move @R0 [@R12+24]
+        move [@R12-12] @R0
 ; 363:     int rx2 = rx * rx;
-        move R0 [R12+20]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-16] R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-16] @R0
 ; 364:     int ry2 = ry * ry;
-        move R0 [R12+24]
-        push R0
-        move R0 [R12+24]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-20] R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+24]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
 ; 365:     int tworx2 = 2 * rx2;
-        move R0 #2
-        push R0
-        move R0 [R12-16]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-24] R0
+        move @R0 #2
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
 ; 366:     int twory2 = 2 * ry2;
-        move R0 #2
-        push R0
-        move R0 [R12-20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-28] R0
+        move @R0 #2
+        push @R0
+        move @R0 [@R12-20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-28] @R0
 ; 367:     int px = 0;
-        move R0 #0
-        move [R12-32] R0
+        move @R0 #0
+        move [@R12-32] @R0
 ; 368:     int py = tworx2 * y;
-        move R0 [R12-24]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-36] R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-36] @R0
 ; 369:     int p = ry2 - rx2 * ry + rx2 / 4;
-        move R0 [R12-20]
-        push R0
-        move R0 [R12-16]
-        push R0
-        move R0 [R12+24]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-16]
-        push R0
-        move R0 #4
-        pop R1
-        div R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 [@R12+24]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #4
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
 sta_69550292:
-        move R2 #0
+        move @R2 #0
 ; 371:     while (px < py) {
-        move R0 [R12-32]
-        push R0
-        move R0 [R12-36]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-32]
+        push @R0
+        move @R0 [@R12-36]
+        pop @R1
+        cmp @R1 @R0
         jl _L69550294
-        move R0 #0
+        move @R0 #0
         jmp _L69550295
 _L69550294:
-        move R0 #1
+        move @R0 #1
 _L69550295:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550293
 ; 373:         _x1 = cx - x; _y1 = cy + y; _x2 = cx + x; _y2 = cy + y;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-44] R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-48] R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-52] R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-56] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-44] @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-48] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-52] @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-56] @R0
 ; 374:         gfx_line(_x1, _y1, _x2, _y2, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12-56]
-        push R0
-        move R0 [R12-52]
-        push R0
-        move R0 [R12-48]
-        push R0
-        move R0 [R12-44]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
-        move R3 [R13+12]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12-56]
+        push @R0
+        move @R0 [@R12-52]
+        push @R0
+        move @R0 [@R12-48]
+        push @R0
+        move @R0 [@R12-44]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
         call gfx_line
-        add R13 #20
+        add @R13 #20
 ; 375:         _x1 = cx - x; _y1 = cy - y; _x2 = cx + x; _y2 = cy - y;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-44] R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-48] R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-52] R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-56] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-44] @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-48] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-52] @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-56] @R0
 ; 376:         gfx_line(_x1, _y1, _x2, _y2, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12-56]
-        push R0
-        move R0 [R12-52]
-        push R0
-        move R0 [R12-48]
-        push R0
-        move R0 [R12-44]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
-        move R3 [R13+12]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12-56]
+        push @R0
+        move @R0 [@R12-52]
+        push @R0
+        move @R0 [@R12-48]
+        push @R0
+        move @R0 [@R12-44]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
         call gfx_line
-        add R13 #20
+        add @R13 #20
 ; 377:         x = x + 1;
-        move R0 [R12-8]
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-8] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
 ; 378:         px = px + twory2;
-        move R0 [R12-32]
-        push R0
-        move R0 [R12-28]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-32] R0
+        move @R0 [@R12-32]
+        push @R0
+        move @R0 [@R12-28]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-32] @R0
 ; 379:         if (p < 0) { p = p + ry2 + px; }
-        move R0 [R12-40]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L69550298
-        move R0 #0
+        move @R0 #0
         jmp _L69550299
 _L69550298:
-        move R0 #1
+        move @R0 #1
 _L69550299:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550296
-        move R0 [R12-40]
-        push R0
-        move R0 [R12-20]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-32]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 [@R12-20]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-32]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
         jmp sta_69550297
 sta_69550296:
 ; 380:         else { y = y - 1; py = py - tworx2; p = p + ry2 + px - py; }
-        move R0 [R12-12]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-12] R0
-        move R0 [R12-36]
-        push R0
-        move R0 [R12-24]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-36] R0
-        move R0 [R12-40]
-        push R0
-        move R0 [R12-20]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-32]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-36]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
+        move @R0 [@R12-36]
+        push @R0
+        move @R0 [@R12-24]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-36] @R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 [@R12-20]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-32]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-36]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
 sta_69550297:
         jmp sta_69550292
 sta_69550293:
 ; 385:         t1 = x * x + x;
-        move R0 [R12-8]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-60] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-60] @R0
 ; 386:         t2 = y - 1;
-        move R0 [R12-12]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-64] R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-64] @R0
 ; 387:         t3 = t2 * t2;
-        move R0 [R12-64]
-        push R0
-        move R0 [R12-64]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-68] R0
+        move @R0 [@R12-64]
+        push @R0
+        move @R0 [@R12-64]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-68] @R0
 ; 388:         p = ry2 * t1;
-        move R0 [R12-20]
-        push R0
-        move R0 [R12-60]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R12-60]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
 ; 389:         p = p + rx2 * t3;
-        move R0 [R12-40]
-        push R0
-        move R0 [R12-16]
-        push R0
-        move R0 [R12-68]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 [@R12-68]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
 ; 390:         p = p - rx2 * ry2;
-        move R0 [R12-40]
-        push R0
-        move R0 [R12-16]
-        push R0
-        move R0 [R12-20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 [@R12-20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
 sta_69550300:
-        move R2 #0
+        move @R2 #0
 ; 392:     while (y >= 0) {
-        move R0 [R12-12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jge _L69550302
-        move R0 #0
+        move @R0 #0
         jmp _L69550303
 _L69550302:
-        move R0 #1
+        move @R0 #1
 _L69550303:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550301
 ; 394:         _x1 = cx - x; _y1 = cy + y; _x2 = cx + x; _y2 = cy + y;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-44] R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-48] R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-52] R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-56] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-44] @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-48] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-52] @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-56] @R0
 ; 395:         gfx_line(_x1, _y1, _x2, _y2, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12-56]
-        push R0
-        move R0 [R12-52]
-        push R0
-        move R0 [R12-48]
-        push R0
-        move R0 [R12-44]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
-        move R3 [R13+12]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12-56]
+        push @R0
+        move @R0 [@R12-52]
+        push @R0
+        move @R0 [@R12-48]
+        push @R0
+        move @R0 [@R12-44]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
         call gfx_line
-        add R13 #20
+        add @R13 #20
 ; 396:         _x1 = cx - x; _y1 = cy - y; _x2 = cx + x; _y2 = cy - y;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-44] R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-48] R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-52] R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-56] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-44] @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-48] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-52] @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-56] @R0
 ; 397:         gfx_line(_x1, _y1, _x2, _y2, color);
-        move R0 [R12+28]
-        push R0
-        move R0 [R12-56]
-        push R0
-        move R0 [R12-52]
-        push R0
-        move R0 [R12-48]
-        push R0
-        move R0 [R12-44]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
-        move R3 [R13+12]
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12-56]
+        push @R0
+        move @R0 [@R12-52]
+        push @R0
+        move @R0 [@R12-48]
+        push @R0
+        move @R0 [@R12-44]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
         call gfx_line
-        add R13 #20
+        add @R13 #20
 ; 398:         y = y - 1;
-        move R0 [R12-12]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-12] R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
 ; 399:         py = py - tworx2;
-        move R0 [R12-36]
-        push R0
-        move R0 [R12-24]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-36] R0
+        move @R0 [@R12-36]
+        push @R0
+        move @R0 [@R12-24]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-36] @R0
 ; 400:         if (p > 0) { p = p + rx2 - py; }
-        move R0 [R12-40]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jg _L69550306
-        move R0 #0
+        move @R0 #0
         jmp _L69550307
 _L69550306:
-        move R0 #1
+        move @R0 #1
 _L69550307:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550304
-        move R0 [R12-40]
-        push R0
-        move R0 [R12-16]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-36]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-36]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
         jmp sta_69550305
 sta_69550304:
 ; 401:         else { x = x + 1; px = px + twory2; p = p + rx2 - py + px; }
-        move R0 [R12-8]
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-8] R0
-        move R0 [R12-32]
-        push R0
-        move R0 [R12-28]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-32] R0
-        move R0 [R12-40]
-        push R0
-        move R0 [R12-16]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-36]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-32]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+        move @R0 [@R12-32]
+        push @R0
+        move @R0 [@R12-28]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-32] @R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-36]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-32]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
 sta_69550305:
         jmp sta_69550300
 sta_69550301:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_sector:
 ; -------------------------------------------
@@ -5322,121 +5322,121 @@ gfx_sector:
 ; return   : void
 ; --------------------------------------------
 gfx_sector:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #32
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #32
 ; 407:     if (start_angle > end_angle) { int tmp = start_angle; start_angle = end_angle; end_angle = tmp; }
-        move R0 [R12+24]
-        push R0
-        move R0 [R12+28]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        cmp @R1 @R0
         jg _L69550310
-        move R0 #0
+        move @R0 #0
         jmp _L69550311
 _L69550310:
-        move R0 #1
+        move @R0 #1
 _L69550311:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550308
-        move R0 [R12+24]
-        move [R12-12] R0
-        move R0 [R12+28]
-        move [R12+24] R0
-        move R0 [R12-12]
-        move [R12+28] R0
+        move @R0 [@R12+24]
+        move [@R12-12] @R0
+        move @R0 [@R12+28]
+        move [@R12+24] @R0
+        move @R0 [@R12-12]
+        move [@R12+28] @R0
 sta_69550308:
 sta_69550309:
 ; 408:     for (a = start_angle; a <= end_angle; a++) {
-        move R0 [R12+24]
-        move [R12-8] R0
+        move @R0 [@R12+24]
+        move [@R12-8] @R0
 sta_69550312:
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+28]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        cmp @R1 @R0
         jle _L69550315
-        move R0 #0
+        move @R0 #0
         jmp _L69550316
 _L69550315:
-        move R0 #1
+        move @R0 #1
 _L69550316:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550314
 ; 409:         int rad = a;
-        move R0 [R12-8]
-        move [R12-16] R0
+        move @R0 [@R12-8]
+        move [@R12-16] @R0
 ; 410:         int x = cx + (r * (90 - rad) / 90);
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+20]
-        push R0
-        move R0 #90
-        push R0
-        move R0 [R12-16]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-20] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #90
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
 ; 411:         int y = cy + (r * rad / 90);
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-16]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-24] R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
 ; 412:         gfx_line(cx, cy, x, y, color);
-        move R0 [R12+32]
-        push R0
-        move R0 [R12-24]
-        push R0
-        move R0 [R12-20]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
-        move R3 [R13+12]
+        move @R0 [@R12+32]
+        push @R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
         call gfx_line
-        add R13 #20
+        add @R13 #20
 sta_69550313:
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
         jmp sta_69550312
 sta_69550314:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_sector_fill:
 ; -------------------------------------------
@@ -5451,335 +5451,335 @@ gfx_sector_fill:
 ; return   : void
 ; --------------------------------------------
 gfx_sector_fill:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #32
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #32
 ; 418:     if (start_angle > end_angle) { int tmp = start_angle; start_angle = end_angle; end_angle = tmp; }
-        move R0 [R12+24]
-        push R0
-        move R0 [R12+28]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        cmp @R1 @R0
         jg _L69550319
-        move R0 #0
+        move @R0 #0
         jmp _L69550320
 _L69550319:
-        move R0 #1
+        move @R0 #1
 _L69550320:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550317
-        move R0 [R12+24]
-        move [R12-12] R0
-        move R0 [R12+28]
-        move [R12+24] R0
-        move R0 [R12-12]
-        move [R12+28] R0
+        move @R0 [@R12+24]
+        move [@R12-12] @R0
+        move @R0 [@R12+28]
+        move [@R12+24] @R0
+        move @R0 [@R12-12]
+        move [@R12+28] @R0
 sta_69550317:
 sta_69550318:
 ; 420:     for (a = start_angle; a <= end_angle; a = a + 2) {
-        move R0 [R12+24]
-        move [R12-8] R0
+        move @R0 [@R12+24]
+        move [@R12-8] @R0
 sta_69550321:
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+28]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        cmp @R1 @R0
         jle _L69550324
-        move R0 #0
+        move @R0 #0
         jmp _L69550325
 _L69550324:
-        move R0 #1
+        move @R0 #1
 _L69550325:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550323
 ; 421:         int angle = a % 360;
-        move R0 [R12-8]
-        push R0
-        move R0 #360
-        pop R1
-        mod R1 R0
-        move R0 R1
-        move [R12-16] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #360
+        pop @R1
+        mod @R1 @R0
+        move @R0 @R1
+        move [@R12-16] @R0
 ; 423:         if (angle <= 90) {
-        move R0 [R12-16]
-        push R0
-        move R0 #90
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #90
+        pop @R1
+        cmp @R1 @R0
         jle _L69550328
-        move R0 #0
+        move @R0 #0
         jmp _L69550329
 _L69550328:
-        move R0 #1
+        move @R0 #1
 _L69550329:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550326
 ; 424:             sx = (90 - angle) * r / 90;
-        move R0 #90
-        push R0
-        move R0 [R12-16]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-20] R0
+        move @R0 #90
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
 ; 425:             sy = angle * r / 90;
-        move R0 [R12-16]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-24] R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
         jmp sta_69550327
 sta_69550326:
 ; 426:         } else if (angle <= 180) {
-        move R0 [R12-16]
-        push R0
-        move R0 #180
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #180
+        pop @R1
+        cmp @R1 @R0
         jle _L69550332
-        move R0 #0
+        move @R0 #0
         jmp _L69550333
 _L69550332:
-        move R0 #1
+        move @R0 #1
 _L69550333:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550330
 ; 427:             sx = -(angle - 90) * r / 90;
-        move R0 [R12-16]
-        push R0
-        move R0 #90
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move R0 [R12-16]
-        push R0
-        move R0 #90
-        pop R1
-        sub R1 R0
-        move R0 R1
-        neg R0 R0
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-20] R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #90
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #90
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        neg @R0 @R0
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
 ; 428:             sy = (180 - angle) * r / 90;
-        move R0 #180
-        push R0
-        move R0 [R12-16]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-24] R0
+        move @R0 #180
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
         jmp sta_69550331
 sta_69550330:
 ; 429:         } else if (angle <= 270) {
-        move R0 [R12-16]
-        push R0
-        move R0 #270
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #270
+        pop @R1
+        cmp @R1 @R0
         jle _L69550336
-        move R0 #0
+        move @R0 #0
         jmp _L69550337
 _L69550336:
-        move R0 #1
+        move @R0 #1
 _L69550337:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550334
 ; 430:             sx = -(270 - angle) * r / 90;
-        move R0 #270
-        push R0
-        move R0 [R12-16]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move R0 #270
-        push R0
-        move R0 [R12-16]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        neg R0 R0
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-20] R0
+        move @R0 #270
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move @R0 #270
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        neg @R0 @R0
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
 ; 431:             sy = -(angle - 180) * r / 90;
-        move R0 [R12-16]
-        push R0
-        move R0 #180
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move R0 [R12-16]
-        push R0
-        move R0 #180
-        pop R1
-        sub R1 R0
-        move R0 R1
-        neg R0 R0
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-24] R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #180
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #180
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        neg @R0 @R0
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
         jmp sta_69550335
 sta_69550334:
 ; 433:             sx = (angle - 270) * r / 90;
-        move R0 [R12-16]
-        push R0
-        move R0 #270
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-20] R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #270
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
 ; 434:             sy = -(360 - angle) * r / 90;
-        move R0 #360
-        push R0
-        move R0 [R12-16]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move R0 #360
-        push R0
-        move R0 [R12-16]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        neg R0 R0
-        push R0
-        move R0 [R12+20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #90
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-24] R0
+        move @R0 #360
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move @R0 #360
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        neg @R0 @R0
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #90
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
 sta_69550335:
 sta_69550331:
 sta_69550327:
 ; 436:         gfx_line(cx, cy, cx + sx, cy + sy, color);
-        move R0 [R12+32]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-24]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-20]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
-        move R3 [R13+12]
+        move @R0 [@R12+32]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-24]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-20]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
         call gfx_line
-        add R13 #20
+        add @R13 #20
 sta_69550322:
 ; 420:     for (a = start_angle; a <= end_angle; a = a + 2) {
-        move R0 [R12-8]
-        push R0
-        move R0 #2
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-8] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #2
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
         jmp sta_69550321
 sta_69550323:
 ; 439:     gfx_arc(cx, cy, r, start_angle, end_angle, color);
-        move R0 [R12+32]
-        push R0
-        move R0 [R12+28]
-        push R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12+20]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
-        move R3 [R13+12]
+        move @R0 [@R12+32]
+        push @R0
+        move @R0 [@R12+28]
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
         call gfx_arc
-        add R13 #24
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #24
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_print:
 ; -------------------------------------------
@@ -5792,30 +5792,30 @@ gfx_print:
 ; return   : void
 ; --------------------------------------------
 gfx_print:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 638:     gfx_print_scale(x, y, text, color, 1);
-        move R0 #1
-        push R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12+20]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
-        move R3 [R13+12]
+        move @R0 #1
+        push @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
         call gfx_print_scale
-        add R13 #20
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #20
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_print_scale:
 ; -------------------------------------------
@@ -5829,352 +5829,352 @@ gfx_print_scale:
 ; return   : void
 ; --------------------------------------------
 gfx_print_scale:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #56
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #56
 ; 641:     int start_x = x;
-        move R0 [R12+12]
-        move [R12-8] R0
+        move @R0 [@R12+12]
+        move [@R12-8] @R0
 ; 642:     int cur_x = x;
-        move R0 [R12+12]
-        move [R12-12] R0
+        move @R0 [@R12+12]
+        move [@R12-12] @R0
 ; 643:     int cur_y = y;
-        move R0 [R12+16]
-        move [R12-16] R0
+        move @R0 [@R12+16]
+        move [@R12-16] @R0
 ; 644:     int i = 0;
-        move R0 #0
-        move [R12-20] R0
+        move @R0 #0
+        move [@R12-20] @R0
 sta_69550338:
-        move R2 #0
+        move @R2 #0
 ; 645:     while (text[i] != '\0') {
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-20]
-        mul R0 #1
-        pop R11
-        add R0 R11
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #0
-        popb R1
-        cmp R1 R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12-20]
+        mul @R0 #1
+        pop @R11
+        add @R0 @R11
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #0
+        popb @R1
+        cmp @R1 @R0
         jne _L69550340
-        move R0 #0
+        move @R0 #0
         jmp _L69550341
 _L69550340:
-        move R0 #1
+        move @R0 #1
 _L69550341:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550339
 ; 646:         char ch = text[i];
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-20]
-        mul R0 #1
-        pop R10
-        add R0 R10
-        moveb R0 [R0]
-        sextb R0 R0
-        moveb [R12-21] R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12-20]
+        mul @R0 #1
+        pop @R10
+        add @R0 @R10
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        moveb [@R12-21] @R0
 ; 647:         if (ch == '\n') {
-        moveb R0 [R12-21]
-        sextb R0 R0
-        pushb R0
-        move R0 #10
-        popb R1
-        cmp R1 R0
+        moveb @R0 [@R12-21]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #10
+        popb @R1
+        cmp @R1 @R0
         je _L69550344
-        move R0 #0
+        move @R0 #0
         jmp _L69550345
 _L69550344:
-        move R0 #1
+        move @R0 #1
 _L69550345:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550342
 ; 648:             cur_x = start_x;
-        move R0 [R12-8]
-        move [R12-12] R0
+        move @R0 [@R12-8]
+        move [@R12-12] @R0
 ; 649:             cur_y = cur_y + 16 * scale;
-        move R0 [R12-16]
-        push R0
-        move R0 #16
-        push R0
-        move R0 [R12+28]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-16] R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #16
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-16] @R0
 ; 650:             i++;
-        move R0 [R12-20]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-20] R0
-        move R0 R1
+        move @R0 [@R12-20]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-20] @R0
+        move @R0 @R1
         jmp sta_69550338
 sta_69550342:
 sta_69550343:
 ; 653:         if (ch < 32 || ch > 126) ch = 32;
-        moveb R0 [R12-21]
-        sextb R0 R0
-        push R0
-        move R0 #32
-        pop R1
-        cmp R1 R0
+        moveb @R0 [@R12-21]
+        sextb @R0 @R0
+        push @R0
+        move @R0 #32
+        pop @R1
+        cmp @R1 @R0
         jl _L69550351
-        move R0 #0
+        move @R0 #0
         jmp _L69550352
 _L69550351:
-        move R0 #1
+        move @R0 #1
 _L69550352:
-        test R0 R0
+        test @R0 @R0
         jnz _L69550348
-        moveb R0 [R12-21]
-        sextb R0 R0
-        push R0
-        move R0 #126
-        pop R1
-        cmp R1 R0
+        moveb @R0 [@R12-21]
+        sextb @R0 @R0
+        push @R0
+        move @R0 #126
+        pop @R1
+        cmp @R1 @R0
         jg _L69550353
-        move R0 #0
+        move @R0 #0
         jmp _L69550354
 _L69550353:
-        move R0 #1
+        move @R0 #1
 _L69550354:
-        test R0 R0
+        test @R0 @R0
         jz _L69550349
 _L69550348:
-        move R0 #1
+        move @R0 #1
         jmp _L69550350
 _L69550349:
-        move R0 #0
+        move @R0 #0
 _L69550350:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550346
-        move R0 #32
-        moveb [R12-21] R0
+        move @R0 #32
+        moveb [@R12-21] @R0
 sta_69550346:
 sta_69550347:
 ; 654:         int char_offset = (ch - 32) * 16;
-        moveb R0 [R12-21]
-        sextb R0 R0
-        push R0
-        move R0 #32
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 #16
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-28] R0
+        moveb @R0 [@R12-21]
+        sextb @R0 @R0
+        push @R0
+        move @R0 #32
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #16
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-28] @R0
 ; 656:         for (row = 0; row < 16; row++) {
-        move R0 #0
-        move [R12-32] R0
+        move @R0 #0
+        move [@R12-32] @R0
 sta_69550355:
-        move R0 [R12-32]
-        push R0
-        move R0 #16
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-32]
+        push @R0
+        move @R0 #16
+        pop @R1
+        cmp @R1 @R0
         jl _L69550358
-        move R0 #0
+        move @R0 #0
         jmp _L69550359
 _L69550358:
-        move R0 #1
+        move @R0 #1
 _L69550359:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550357
 ; 657:             unsigned char bits = font8x16[char_offset + row];
-        move R0 font8x16
-        push R0
-        move R9 #0
-        push R9
-        move R0 [R12-28]
-        push R0
-        move R0 [R12-32]
-        pop R1
-        add R1 R0
-        move R0 R1
-        pop R9
-        move R9 R0
-        move R0 R9
-        mul R0 #1
-        pop R8
-        add R0 R8
-        moveb R0 [R0]
-        moveb [R12-37] R0
+        move @R0 font8x16
+        push @R0
+        move @R9 #0
+        push @R9
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 [@R12-32]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        pop @R9
+        move @R9 @R0
+        move @R0 @R9
+        mul @R0 #1
+        pop @R8
+        add @R0 @R8
+        moveb @R0 [@R0]
+        moveb [@R12-37] @R0
 ; 658:             for (col = 0; col < 8; col++) {
-        move R0 #0
-        move [R12-36] R0
+        move @R0 #0
+        move [@R12-36] @R0
 sta_69550360:
-        move R0 [R12-36]
-        push R0
-        move R0 #8
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-36]
+        push @R0
+        move @R0 #8
+        pop @R1
+        cmp @R1 @R0
         jl _L69550363
-        move R0 #0
+        move @R0 #0
         jmp _L69550364
 _L69550363:
-        move R0 #1
+        move @R0 #1
 _L69550364:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550362
 ; 659:                 if (bits & (0x80 >> col)) {
-        moveb R0 [R12-37]
-        push R0
-        move R0 #128
-        push R0
-        move R0 [R12-36]
-        pop R1
-        shr R1 R0
-        move R0 R1
-        pop R1
-        and R1 R0
-        move R0 R1
-        cmp R0 #0
+        moveb @R0 [@R12-37]
+        push @R0
+        move @R0 #128
+        push @R0
+        move @R0 [@R12-36]
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        cmp @R0 #0
         jz sta_69550365
 ; 661:                     for (sx = 0; sx < scale; sx++) {
-        move R0 #0
-        move [R12-44] R0
+        move @R0 #0
+        move [@R12-44] @R0
 sta_69550367:
-        move R0 [R12-44]
-        push R0
-        move R0 [R12+28]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-44]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        cmp @R1 @R0
         jl _L69550370
-        move R0 #0
+        move @R0 #0
         jmp _L69550371
 _L69550370:
-        move R0 #1
+        move @R0 #1
 _L69550371:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550369
 ; 662:                         for (sy = 0; sy < scale; sy++) {
-        move R0 #0
-        move [R12-48] R0
+        move @R0 #0
+        move [@R12-48] @R0
 sta_69550372:
-        move R0 [R12-48]
-        push R0
-        move R0 [R12+28]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-48]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        cmp @R1 @R0
         jl _L69550375
-        move R0 #0
+        move @R0 #0
         jmp _L69550376
 _L69550375:
-        move R0 #1
+        move @R0 #1
 _L69550376:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550374
 ; 664:                                        cur_y + row * scale + sy, color);
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-16]
-        push R0
-        move R0 [R12-32]
-        push R0
-        move R0 [R12+28]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-48]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 [@R12-32]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-48]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
 ; 663:                             _putpixel(cur_x + col * scale + sx,
-        move R0 [R12-12]
-        push R0
-        move R0 [R12-36]
-        push R0
-        move R0 [R12+28]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-44]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12-36]
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-44]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 sta_69550373:
-        move R0 [R12-48]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-48] R0
-        move R0 R1
+        move @R0 [@R12-48]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-48] @R0
+        move @R0 @R1
         jmp sta_69550372
 sta_69550374:
 sta_69550368:
-        move R0 [R12-44]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-44] R0
-        move R0 R1
+        move @R0 [@R12-44]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-44] @R0
+        move @R0 @R1
         jmp sta_69550367
 sta_69550369:
 sta_69550365:
 sta_69550366:
 sta_69550361:
-        move R0 [R12-36]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-36] R0
-        move R0 R1
+        move @R0 [@R12-36]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-36] @R0
+        move @R0 @R1
         jmp sta_69550360
 sta_69550362:
 sta_69550356:
-        move R0 [R12-32]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-32] R0
-        move R0 R1
+        move @R0 [@R12-32]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-32] @R0
+        move @R0 @R1
         jmp sta_69550355
 sta_69550357:
 ; 670:         cur_x = cur_x + 8 * scale;
-        move R0 [R12-12]
-        push R0
-        move R0 #8
-        push R0
-        move R0 [R12+28]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-12] R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #8
+        push @R0
+        move @R0 [@R12+28]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
 ; 671:         i++;
-        move R0 [R12-20]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-20] R0
-        move R0 R1
+        move @R0 [@R12-20]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-20] @R0
+        move @R0 @R1
         jmp sta_69550338
 sta_69550339:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_flood_fill:
 ; -------------------------------------------
@@ -6187,472 +6187,472 @@ gfx_flood_fill:
 ; return   : void
 ; --------------------------------------------
 gfx_flood_fill:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #40
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #40
 ; 679:     int sp = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 ; 680:     int w = gfx_w();
         call gfx_w
-        move [R12-12] R0
+        move [@R12-12] @R0
 ; 681:     int h = gfx_h();
         call gfx_h
-        move [R12-16] R0
+        move [@R12-16] @R0
 ; 682:     int target = _getpixel(x, y);
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
         call _getpixel
-        add R13 #8
-        move [R12-20] R0
+        add @R13 #8
+        move [@R12-20] @R0
 ; 683:     if (target == fill_color || target == border_color) return;
-        move R0 [R12-20]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
         je _L69550382
-        move R0 #0
+        move @R0 #0
         jmp _L69550383
 _L69550382:
-        move R0 #1
+        move @R0 #1
 _L69550383:
-        test R0 R0
+        test @R0 @R0
         jnz _L69550379
-        move R0 [R12-20]
-        push R0
-        move R0 [R12+24]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 [@R12+24]
+        pop @R1
+        cmp @R1 @R0
         je _L69550384
-        move R0 #0
+        move @R0 #0
         jmp _L69550385
 _L69550384:
-        move R0 #1
+        move @R0 #1
 _L69550385:
-        test R0 R0
+        test @R0 @R0
         jz _L69550380
 _L69550379:
-        move R0 #1
+        move @R0 #1
         jmp _L69550381
 _L69550380:
-        move R0 #0
+        move @R0 #0
 _L69550381:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550377
         jmp L_69550386
 sta_69550377:
 sta_69550378:
 ; 684:     _flood_sx[sp] = x;
-        move R0 [R12+12]
-        move R7 R0
-        move R0 _flood_sx
-        push R0
-        move R6 #0
-        push R6
-        move R0 [R12-8]
-        pop R6
-        move R6 R0
-        move R0 R6
-        mul R0 #4
-        pop R5
-        add R0 R5
-        move [R0] R7
+        move @R0 [@R12+12]
+        move @R7 @R0
+        move @R0 _flood_sx
+        push @R0
+        move @R6 #0
+        push @R6
+        move @R0 [@R12-8]
+        pop @R6
+        move @R6 @R0
+        move @R0 @R6
+        mul @R0 #4
+        pop @R5
+        add @R0 @R5
+        move [@R0] @R7
 ; 685:     _flood_sy[sp] = y;
-        move R0 [R12+16]
-        move R4 R0
-        move R0 _flood_sy
-        push R0
-        move R3 #0
-        push R3
-        move R0 [R12-8]
-        pop R3
-        move R3 R0
-        move R0 R3
-        mul R0 #4
-        pop R2
-        add R0 R2
-        move [R0] R4
+        move @R0 [@R12+16]
+        move @R4 @R0
+        move @R0 _flood_sy
+        push @R0
+        move @R3 #0
+        push @R3
+        move @R0 [@R12-8]
+        pop @R3
+        move @R3 @R0
+        move @R0 @R3
+        mul @R0 #4
+        pop @R2
+        add @R0 @R2
+        move [@R0] @R4
 ; 686:     sp++;
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
 sta_69550387:
-        move R2 #0
+        move @R2 #0
 ; 687:     while (sp > 0 && sp < 256) {
-        move R0 [R12-8]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jg _L69550391
-        move R0 #0
+        move @R0 #0
         jmp _L69550392
 _L69550391:
-        move R0 #1
+        move @R0 #1
 _L69550392:
-        test R0 R0
+        test @R0 @R0
         jz _L69550389
-        move R0 [R12-8]
-        push R0
-        move R0 #256
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #256
+        pop @R1
+        cmp @R1 @R0
         jl _L69550393
-        move R0 #0
+        move @R0 #0
         jmp _L69550394
 _L69550393:
-        move R0 #1
+        move @R0 #1
 _L69550394:
-        test R0 R0
+        test @R0 @R0
         jz _L69550389
-        move R0 #1
+        move @R0 #1
         jmp _L69550390
 _L69550389:
-        move R0 #0
+        move @R0 #0
 _L69550390:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550388
 ; 688:         sp--;
-        move R0 [R12-8]
-        move R1 R0
-        sub R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        sub @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
 ; 689:         int px = _flood_sx[sp];
-        move R0 _flood_sx
-        push R0
-        move R1 #0
-        push R1
-        move R0 [R12-8]
-        pop R1
-        move R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R11
-        add R0 R11
-        move R0 [R0]
-        move [R12-24] R0
+        move @R0 _flood_sx
+        push @R0
+        move @R1 #0
+        push @R1
+        move @R0 [@R12-8]
+        pop @R1
+        move @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R11
+        add @R0 @R11
+        move @R0 [@R0]
+        move [@R12-24] @R0
 ; 690:         int py = _flood_sy[sp];
-        move R0 _flood_sy
-        push R0
-        move R10 #0
-        push R10
-        move R0 [R12-8]
-        pop R10
-        move R10 R0
-        move R0 R10
-        mul R0 #4
-        pop R9
-        add R0 R9
-        move R0 [R0]
-        move [R12-28] R0
+        move @R0 _flood_sy
+        push @R0
+        move @R10 #0
+        push @R10
+        move @R0 [@R12-8]
+        pop @R10
+        move @R10 @R0
+        move @R0 @R10
+        mul @R0 #4
+        pop @R9
+        add @R0 @R9
+        move @R0 [@R0]
+        move [@R12-28] @R0
 ; 691:         if (px < 0 || px >= w || py < 0 || py >= h) continue;
-        move R0 [R12-24]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L69550406
-        move R0 #0
+        move @R0 #0
         jmp _L69550407
 _L69550406:
-        move R0 #1
+        move @R0 #1
 _L69550407:
-        test R0 R0
+        test @R0 @R0
         jnz _L69550403
-        move R0 [R12-24]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        cmp @R1 @R0
         jge _L69550408
-        move R0 #0
+        move @R0 #0
         jmp _L69550409
 _L69550408:
-        move R0 #1
+        move @R0 #1
 _L69550409:
-        test R0 R0
+        test @R0 @R0
         jz _L69550404
 _L69550403:
-        move R0 #1
+        move @R0 #1
         jmp _L69550405
 _L69550404:
-        move R0 #0
+        move @R0 #0
 _L69550405:
-        test R0 R0
+        test @R0 @R0
         jnz _L69550400
-        move R0 [R12-28]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L69550410
-        move R0 #0
+        move @R0 #0
         jmp _L69550411
 _L69550410:
-        move R0 #1
+        move @R0 #1
 _L69550411:
-        test R0 R0
+        test @R0 @R0
         jz _L69550401
 _L69550400:
-        move R0 #1
+        move @R0 #1
         jmp _L69550402
 _L69550401:
-        move R0 #0
+        move @R0 #0
 _L69550402:
-        test R0 R0
+        test @R0 @R0
         jnz _L69550397
-        move R0 [R12-28]
-        push R0
-        move R0 [R12-16]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        cmp @R1 @R0
         jge _L69550412
-        move R0 #0
+        move @R0 #0
         jmp _L69550413
 _L69550412:
-        move R0 #1
+        move @R0 #1
 _L69550413:
-        test R0 R0
+        test @R0 @R0
         jz _L69550398
 _L69550397:
-        move R0 #1
+        move @R0 #1
         jmp _L69550399
 _L69550398:
-        move R0 #0
+        move @R0 #0
 _L69550399:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550395
         jmp sta_69550387
 sta_69550395:
 sta_69550396:
 ; 692:         if (_getpixel(px, py) != target) continue;
-        move R0 [R12-28]
-        push R0
-        move R0 [R12-24]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
         call _getpixel
-        add R13 #8
-        push R0
-        move R0 [R12-20]
-        pop R1
-        cmp R1 R0
+        add @R13 #8
+        push @R0
+        move @R0 [@R12-20]
+        pop @R1
+        cmp @R1 @R0
         jne _L69550416
-        move R0 #0
+        move @R0 #0
         jmp _L69550417
 _L69550416:
-        move R0 #1
+        move @R0 #1
 _L69550417:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550414
         jmp sta_69550387
 sta_69550414:
 sta_69550415:
 ; 693:         _putpixel(px, py, fill_color);
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-28]
-        push R0
-        move R0 [R12-24]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call _putpixel
-        add R13 #12
+        add @R13 #12
 ; 694:         if (sp + 4 < 256) {
-        move R0 [R12-8]
-        push R0
-        move R0 #4
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 #256
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #4
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #256
+        pop @R1
+        cmp @R1 @R0
         jl _L69550420
-        move R0 #0
+        move @R0 #0
         jmp _L69550421
 _L69550420:
-        move R0 #1
+        move @R0 #1
 _L69550421:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_69550418
 ; 695:             _flood_sx[sp] = px + 1; _flood_sy[sp] = py; sp++;
-        move R0 [R12-24]
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move R8 R0
-        move R0 _flood_sx
-        push R0
-        move R6 #0
-        push R6
-        move R0 [R12-8]
-        pop R6
-        move R6 R0
-        move R0 R6
-        mul R0 #4
-        pop R5
-        add R0 R5
-        move [R0] R8
-        move R0 [R12-28]
-        move R7 R0
-        move R0 _flood_sy
-        push R0
-        move R3 #0
-        push R3
-        move R0 [R12-8]
-        pop R3
-        move R3 R0
-        move R0 R3
-        mul R0 #4
-        pop R2
-        add R0 R2
-        move [R0] R7
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move @R8 @R0
+        move @R0 _flood_sx
+        push @R0
+        move @R6 #0
+        push @R6
+        move @R0 [@R12-8]
+        pop @R6
+        move @R6 @R0
+        move @R0 @R6
+        mul @R0 #4
+        pop @R5
+        add @R0 @R5
+        move [@R0] @R8
+        move @R0 [@R12-28]
+        move @R7 @R0
+        move @R0 _flood_sy
+        push @R0
+        move @R3 #0
+        push @R3
+        move @R0 [@R12-8]
+        pop @R3
+        move @R3 @R0
+        move @R0 @R3
+        mul @R0 #4
+        pop @R2
+        add @R0 @R2
+        move [@R0] @R7
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
 ; 696:             _flood_sx[sp] = px - 1; _flood_sy[sp] = py; sp++;
-        move R0 [R12-24]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move R4 R0
-        move R0 _flood_sx
-        push R0
-        move R1 #0
-        push R1
-        move R0 [R12-8]
-        pop R1
-        move R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R11
-        add R0 R11
-        move [R0] R4
-        move R0 [R12-28]
-        move R10 R0
-        move R0 _flood_sy
-        push R0
-        move R9 #0
-        push R9
-        move R0 [R12-8]
-        pop R9
-        move R9 R0
-        move R0 R9
-        mul R0 #4
-        pop R6
-        add R0 R6
-        move [R0] R10
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move @R4 @R0
+        move @R0 _flood_sx
+        push @R0
+        move @R1 #0
+        push @R1
+        move @R0 [@R12-8]
+        pop @R1
+        move @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R11
+        add @R0 @R11
+        move [@R0] @R4
+        move @R0 [@R12-28]
+        move @R10 @R0
+        move @R0 _flood_sy
+        push @R0
+        move @R9 #0
+        push @R9
+        move @R0 [@R12-8]
+        pop @R9
+        move @R9 @R0
+        move @R0 @R9
+        mul @R0 #4
+        pop @R6
+        add @R0 @R6
+        move [@R0] @R10
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
 ; 697:             _flood_sx[sp] = px; _flood_sy[sp] = py + 1; sp++;
-        move R0 [R12-24]
-        move R5 R0
-        move R0 _flood_sx
-        push R0
-        move R8 #0
-        push R8
-        move R0 [R12-8]
-        pop R8
-        move R8 R0
-        move R0 R8
-        mul R0 #4
-        pop R3
-        add R0 R3
-        move [R0] R5
-        move R0 [R12-28]
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move R2 R0
-        move R0 _flood_sy
-        push R0
-        move R7 #0
-        push R7
-        move R0 [R12-8]
-        pop R7
-        move R7 R0
-        move R0 R7
-        mul R0 #4
-        pop R1
-        add R0 R1
-        move [R0] R2
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-24]
+        move @R5 @R0
+        move @R0 _flood_sx
+        push @R0
+        move @R8 #0
+        push @R8
+        move @R0 [@R12-8]
+        pop @R8
+        move @R8 @R0
+        move @R0 @R8
+        mul @R0 #4
+        pop @R3
+        add @R0 @R3
+        move [@R0] @R5
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move @R2 @R0
+        move @R0 _flood_sy
+        push @R0
+        move @R7 #0
+        push @R7
+        move @R0 [@R12-8]
+        pop @R7
+        move @R7 @R0
+        move @R0 @R7
+        mul @R0 #4
+        pop @R1
+        add @R0 @R1
+        move [@R0] @R2
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
 ; 698:             _flood_sx[sp] = px; _flood_sy[sp] = py - 1; sp++;
-        move R0 [R12-24]
-        move R11 R0
-        move R0 _flood_sx
-        push R0
-        move R4 #0
-        push R4
-        move R0 [R12-8]
-        pop R4
-        move R4 R0
-        move R0 R4
-        mul R0 #4
-        pop R9
-        add R0 R9
-        move [R0] R11
-        move R0 [R12-28]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move R6 R0
-        move R0 _flood_sy
-        push R0
-        move R10 #0
-        push R10
-        move R0 [R12-8]
-        pop R10
-        move R10 R0
-        move R0 R10
-        mul R0 #4
-        pop R8
-        add R0 R8
-        move [R0] R6
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-24]
+        move @R11 @R0
+        move @R0 _flood_sx
+        push @R0
+        move @R4 #0
+        push @R4
+        move @R0 [@R12-8]
+        pop @R4
+        move @R4 @R0
+        move @R0 @R4
+        mul @R0 #4
+        pop @R9
+        add @R0 @R9
+        move [@R0] @R11
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move @R6 @R0
+        move @R0 _flood_sy
+        push @R0
+        move @R10 #0
+        push @R10
+        move @R0 [@R12-8]
+        pop @R10
+        move @R10 @R0
+        move @R0 @R10
+        mul @R0 #4
+        pop @R8
+        add @R0 @R8
+        move [@R0] @R6
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
 sta_69550418:
 sta_69550419:
         jmp sta_69550387
 sta_69550388:
 L_69550386:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_screenshot:
 ; -------------------------------------------
@@ -6661,21 +6661,21 @@ gfx_screenshot:
 ; return   : int
 ; --------------------------------------------
 gfx_screenshot:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 705:     asm("SYSCALL 200");
         asm "SYSCALL 200"
 ; 706:     asm("STORE R0, _vml_result_int");
         asm "STORE R0, _vml_result_int"
 ; 707:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_69550422
 L_69550422:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_put_image:
 ; -------------------------------------------
@@ -6689,21 +6689,21 @@ gfx_put_image:
 ; return   : int
 ; --------------------------------------------
 gfx_put_image:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 710:     asm("SYSCALL 201");
         asm "SYSCALL 201"
 ; 711:     asm("STORE R0, _vml_result_int");
         asm "STORE R0, _vml_result_int"
 ; 712:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_69550423
 L_69550423:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_get_image:
 ; -------------------------------------------
@@ -6717,21 +6717,21 @@ gfx_get_image:
 ; return   : int
 ; --------------------------------------------
 gfx_get_image:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 715:     asm("SYSCALL 202");
         asm "SYSCALL 202"
 ; 716:     asm("STORE R0, _vml_result_int");
         asm "STORE R0, _vml_result_int"
 ; 717:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_69550424
 L_69550424:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 gfx_viewport:
 ; -------------------------------------------:
@@ -6745,19 +6745,19 @@ gfx_viewport:
 ; return   : int
 ; --------------------------------------------
 gfx_viewport:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 720:     asm("SYSCALL 203");
         asm "SYSCALL 203"
 ; 721:     asm("STORE R0, _vml_result_int");
         asm "STORE R0, _vml_result_int"
 ; 722:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_69550425
 L_69550425:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

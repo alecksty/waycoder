@@ -11,22 +11,22 @@ bit_and:
 ; return   : int
 ; --------------------------------------------
 bit_and:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 6:     return a & b;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        and R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
         jmp L_47790000
 L_47790000:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 bit_or:
 ; -------------------------------------------
@@ -37,22 +37,22 @@ bit_or:
 ; return   : int
 ; --------------------------------------------
 bit_or:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 11:     return a | b;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        or R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
         jmp L_47790001
 L_47790001:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 bit_xor:
 ; -------------------------------------------
@@ -63,22 +63,22 @@ bit_xor:
 ; return   : int
 ; --------------------------------------------
 bit_xor:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 16:     return a ^ b;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        xor R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        xor @R1 @R0
+        move @R0 @R1
         jmp L_47790002
 L_47790002:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 bit_not:
 ; -------------------------------------------
@@ -88,18 +88,18 @@ bit_not:
 ; return   : int
 ; --------------------------------------------
 bit_not:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 21:     return ~a;
-        move R0 [R12+12]
-        not R0
+        move @R0 [@R12+12]
+        not @R0
         jmp L_47790003
 L_47790003:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 bit_shl:
 ; -------------------------------------------
@@ -110,22 +110,22 @@ bit_shl:
 ; return   : int
 ; --------------------------------------------
 bit_shl:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 26:     return a << bits;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        shl R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
         jmp L_47790004
 L_47790004:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 bit_shr:
 ; -------------------------------------------
@@ -136,22 +136,22 @@ bit_shr:
 ; return   : int
 ; --------------------------------------------
 bit_shr:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 31:     return a >> bits;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        shr R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
         jmp L_47790005
 L_47790005:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 rol:
 ; -------------------------------------------
@@ -162,37 +162,37 @@ rol:
 ; return   : int
 ; --------------------------------------------
 rol:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 36:     return (val << bits) | ((val >> (32 - bits)));
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        shl R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 #32
-        push R0
-        move R0 [R12+16]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        pop R1
-        shr R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #32
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
         jmp L_47790006
 L_47790006:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 ror:
 ; -------------------------------------------
@@ -203,37 +203,37 @@ ror:
 ; return   : int
 ; --------------------------------------------
 ror:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 41:     return ((val >> bits)) | (val << (32 - bits));
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        shr R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 #32
-        push R0
-        move R0 [R12+16]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        pop R1
-        shl R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #32
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
         jmp L_47790007
 L_47790007:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 bit_set:
 ; -------------------------------------------
@@ -244,27 +244,27 @@ bit_set:
 ; return   : int
 ; --------------------------------------------
 bit_set:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 46:     return val | (1 << bit);
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        push R0
-        move R0 [R12+16]
-        pop R1
-        shl R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
         jmp L_47790008
 L_47790008:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 bit_clear:
 ; -------------------------------------------
@@ -275,28 +275,28 @@ bit_clear:
 ; return   : int
 ; --------------------------------------------
 bit_clear:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 51:     return val & ~(1 << bit);
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        push R0
-        move R0 [R12+16]
-        pop R1
-        shl R1 R0
-        move R0 R1
-        not R0
-        pop R1
-        and R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        not @R0
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
         jmp L_47790009
 L_47790009:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 bit_toggle:
 ; -------------------------------------------
@@ -307,27 +307,27 @@ bit_toggle:
 ; return   : int
 ; --------------------------------------------
 bit_toggle:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 56:     return val ^ (1 << bit);
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        push R0
-        move R0 [R12+16]
-        pop R1
-        shl R1 R0
-        move R0 R1
-        pop R1
-        xor R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        xor @R1 @R0
+        move @R0 @R1
         jmp L_47790010
 L_47790010:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 bit_test:
 ; -------------------------------------------:
@@ -339,25 +339,25 @@ bit_test:
 ; return   : int
 ; --------------------------------------------
 bit_test:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 61:     return (val >> bit) & 1;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        shr R1 R0
-        move R0 R1
-        push R0
-        move R0 #1
-        pop R1
-        and R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #1
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
         jmp L_47790011
 L_47790011:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

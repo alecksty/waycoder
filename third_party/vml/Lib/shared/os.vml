@@ -11,20 +11,20 @@ thread_create:
 ; return   : int
 ; --------------------------------------------
 thread_create:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 9:     asm("SYSCALL #300");
         syscall #300
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 10:     return id;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560000
 L_35560000:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 thread_exit:
 ; -------------------------------------------
@@ -33,16 +33,16 @@ thread_exit:
 ; return   : void
 ; --------------------------------------------
 thread_exit:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 13:     asm("SYSCALL #301");
         syscall #301
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 thread_join:
 ; -------------------------------------------
@@ -52,20 +52,20 @@ thread_join:
 ; return   : int
 ; --------------------------------------------
 thread_join:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 17:     asm("SYSCALL #302");
         syscall #302
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 18:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560001
 L_35560001:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 thread_yield:
 ; -------------------------------------------
@@ -74,16 +74,16 @@ thread_yield:
 ; return   : void
 ; --------------------------------------------
 thread_yield:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 21:     asm("SYSCALL #303");
         syscall #303
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 thread_sleep:
 ; -------------------------------------------
@@ -93,16 +93,16 @@ thread_sleep:
 ; return   : void
 ; --------------------------------------------
 thread_sleep:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 24:     asm("SYSCALL #304");
         syscall #304
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 mutex_create:
 ; -------------------------------------------
@@ -111,20 +111,20 @@ mutex_create:
 ; return   : int
 ; --------------------------------------------
 mutex_create:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 31:     asm("SYSCALL #310");
         syscall #310
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 32:     return id;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560002
 L_35560002:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 mutex_lock:
 ; -------------------------------------------
@@ -134,20 +134,20 @@ mutex_lock:
 ; return   : int
 ; --------------------------------------------
 mutex_lock:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 36:     asm("SYSCALL #311");
         syscall #311
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 37:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560003
 L_35560003:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 mutex_unlock:
 ; -------------------------------------------
@@ -157,20 +157,20 @@ mutex_unlock:
 ; return   : int
 ; --------------------------------------------
 mutex_unlock:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 41:     asm("SYSCALL #312");
         syscall #312
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 42:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560004
 L_35560004:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 cond_create:
 ; -------------------------------------------
@@ -179,20 +179,20 @@ cond_create:
 ; return   : int
 ; --------------------------------------------
 cond_create:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 49:     asm("SYSCALL #313");
         syscall #313
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 50:     return id;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560005
 L_35560005:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 cond_wait:
 ; -------------------------------------------
@@ -203,20 +203,20 @@ cond_wait:
 ; return   : int
 ; --------------------------------------------
 cond_wait:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 54:     asm("SYSCALL #314");
         syscall #314
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 55:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560006
 L_35560006:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 cond_signal:
 ; -------------------------------------------
@@ -226,20 +226,20 @@ cond_signal:
 ; return   : int
 ; --------------------------------------------
 cond_signal:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 59:     asm("SYSCALL #315");
         syscall #315
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 60:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560007
 L_35560007:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 cond_broadcast:
 ; -------------------------------------------
@@ -249,20 +249,20 @@ cond_broadcast:
 ; return   : int
 ; --------------------------------------------
 cond_broadcast:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 64:     asm("SYSCALL #316");
         syscall #316
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 65:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560008
 L_35560008:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 exec:
 ; -------------------------------------------
@@ -272,20 +272,20 @@ exec:
 ; return   : int
 ; --------------------------------------------
 exec:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 72:     asm("SYSCALL #320");
         syscall #320
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 73:     return pid;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560009
 L_35560009:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 process_exit:
 ; -------------------------------------------
@@ -295,16 +295,16 @@ process_exit:
 ; return   : void
 ; --------------------------------------------
 process_exit:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 76:     asm("SYSCALL #321");
         syscall #321
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 get_pid:
 ; -------------------------------------------
@@ -313,20 +313,20 @@ get_pid:
 ; return   : int
 ; --------------------------------------------
 get_pid:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 80:     asm("SYSCALL #322");
         syscall #322
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 81:     return pid;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560010
 L_35560010:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 socket_create:
 ; -------------------------------------------
@@ -337,20 +337,20 @@ socket_create:
 ; return   : int
 ; --------------------------------------------
 socket_create:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 88:     asm("SYSCALL #330");
         syscall #330
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 89:     return fd;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560011
 L_35560011:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 socket_bind:
 ; -------------------------------------------
@@ -361,20 +361,20 @@ socket_bind:
 ; return   : int
 ; --------------------------------------------
 socket_bind:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 93:     asm("SYSCALL #331");
         syscall #331
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 94:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560012
 L_35560012:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 socket_listen:
 ; -------------------------------------------
@@ -385,20 +385,20 @@ socket_listen:
 ; return   : int
 ; --------------------------------------------
 socket_listen:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 98:     asm("SYSCALL #332");
         syscall #332
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 99:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560013
 L_35560013:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 socket_accept:
 ; -------------------------------------------
@@ -408,20 +408,20 @@ socket_accept:
 ; return   : int
 ; --------------------------------------------
 socket_accept:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 103:     asm("SYSCALL #333");
         syscall #333
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 104:     return client_fd;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560014
 L_35560014:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 socket_connect:
 ; -------------------------------------------
@@ -433,20 +433,20 @@ socket_connect:
 ; return   : int
 ; --------------------------------------------
 socket_connect:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 108:     asm("SYSCALL #334");
         syscall #334
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 109:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560015
 L_35560015:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 socket_send:
 ; -------------------------------------------
@@ -458,20 +458,20 @@ socket_send:
 ; return   : int
 ; --------------------------------------------
 socket_send:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 113:     asm("SYSCALL #335");
         syscall #335
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 114:     return sent;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560016
 L_35560016:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 socket_recv:
 ; -------------------------------------------
@@ -483,20 +483,20 @@ socket_recv:
 ; return   : int
 ; --------------------------------------------
 socket_recv:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 118:     asm("SYSCALL #336");
         syscall #336
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 119:     return received;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560017
 L_35560017:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 socket_close:
 ; -------------------------------------------
@@ -506,20 +506,20 @@ socket_close:
 ; return   : int
 ; --------------------------------------------
 socket_close:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 123:     asm("SYSCALL #337");
         syscall #337
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 124:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560018
 L_35560018:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 mkdir:
 ; -------------------------------------------
@@ -529,20 +529,20 @@ mkdir:
 ; return   : int
 ; --------------------------------------------
 mkdir:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 131:     asm("SYSCALL #340");
         syscall #340
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 132:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560019
 L_35560019:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 remove_file:
 ; -------------------------------------------
@@ -552,20 +552,20 @@ remove_file:
 ; return   : int
 ; --------------------------------------------
 remove_file:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 136:     asm("SYSCALL #341");
         syscall #341
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 137:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560020
 L_35560020:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 rename_file:
 ; -------------------------------------------
@@ -576,20 +576,20 @@ rename_file:
 ; return   : int
 ; --------------------------------------------
 rename_file:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 141:     asm("SYSCALL #342");
         syscall #342
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 142:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560021
 L_35560021:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 read_dir:
 ; -------------------------------------------
@@ -600,20 +600,20 @@ read_dir:
 ; return   : int
 ; --------------------------------------------
 read_dir:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 146:     asm("SYSCALL #343");
         syscall #343
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 147:     return count;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560022
 L_35560022:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 file_stat:
 ; -------------------------------------------
@@ -624,20 +624,20 @@ file_stat:
 ; return   : int
 ; --------------------------------------------
 file_stat:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 151:     asm("SYSCALL #344");
         syscall #344
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 152:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560023
 L_35560023:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 get_env:
 ; -------------------------------------------
@@ -647,20 +647,20 @@ get_env:
 ; return   : char*
 ; --------------------------------------------
 get_env:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 159:     asm("SYSCALL #360");
         syscall #360
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 160:     return val;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560024
 L_35560024:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 set_env:
 ; -------------------------------------------
@@ -671,16 +671,16 @@ set_env:
 ; return   : void
 ; --------------------------------------------
 set_env:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 163:     asm("SYSCALL #361");
         syscall #361
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 get_args:
 ; -------------------------------------------
@@ -690,20 +690,20 @@ get_args:
 ; return   : int
 ; --------------------------------------------
 get_args:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 167:     asm("SYSCALL #362");
         syscall #362
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 168:     return count;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560025
 L_35560025:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 signal:
 ; -------------------------------------------
@@ -714,20 +714,20 @@ signal:
 ; return   : int
 ; --------------------------------------------
 signal:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 175:     asm("SYSCALL #350");
         syscall #350
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 176:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560026
 L_35560026:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 type_of:
 ; -------------------------------------------
@@ -737,20 +737,20 @@ type_of:
 ; return   : int
 ; --------------------------------------------
 type_of:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 183:     asm("SYSCALL #380");
         syscall #380
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 184:     return type_id;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560027
 L_35560027:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 type_name:
 ; -------------------------------------------:
@@ -762,18 +762,18 @@ type_name:
 ; return   : int
 ; --------------------------------------------
 type_name:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 188:     asm("SYSCALL #381");
         syscall #381
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 189:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_35560028
 L_35560028:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

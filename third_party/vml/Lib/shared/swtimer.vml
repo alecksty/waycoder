@@ -10,131 +10,131 @@ init:
 ; return   : void
 ; --------------------------------------------
 init:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 7:     if (timers == 0) return;
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L56310002
-        move R0 #0
+        move @R0 #0
         jmp _L56310003
 _L56310002:
-        move R0 #1
+        move @R0 #1
 _L56310003:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_56310000
         jmp L_56310004
 sta_56310000:
 sta_56310001:
 ; 9:     for (i = 0; i < 8; i++) {
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 sta_56310005:
-        move R0 [R12-8]
-        push R0
-        move R0 #8
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #8
+        pop @R1
+        cmp @R1 @R0
         jl _L56310008
-        move R0 #0
+        move @R0 #0
         jmp _L56310009
 _L56310008:
-        move R0 #1
+        move @R0 #1
 _L56310009:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_56310007
 ; 10:         timers[i * 4 + 0] = 0;   // period
-        move R0 #0
-        move R11 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R10
-        add R0 R10
-        move [R0] R11
+        move @R0 #0
+        move @R11 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R10
+        add @R0 @R10
+        move [@R0] @R11
 ; 11:         timers[i * 4 + 1] = 0;   // remaining
-        move R0 #0
-        move R9 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R8
-        add R0 R8
-        move [R0] R9
+        move @R0 #0
+        move @R9 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R8
+        add @R0 @R8
+        move [@R0] @R9
 ; 12:         timers[i * 4 + 2] = 0;   // flags
-        move R0 #0
-        move R7 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #2
-        pop R1
-        add R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R6
-        add R0 R6
-        move [R0] R7
+        move @R0 #0
+        move @R7 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #2
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R6
+        add @R0 @R6
+        move [@R0] @R7
 ; 13:         timers[i * 4 + 3] = 0;   // callback_id
-        move R0 #0
-        move R5 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #3
-        pop R1
-        add R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R4
-        add R0 R4
-        move [R0] R5
+        move @R0 #0
+        move @R5 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #3
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R4
+        add @R0 @R4
+        move [@R0] @R5
 sta_56310006:
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
         jmp sta_56310005
 sta_56310007:
 L_56310004:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 start:
 ; -------------------------------------------
@@ -147,218 +147,218 @@ start:
 ; return   : int
 ; --------------------------------------------
 start:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
 ; 19:     if (timers == 0 || period <= 0) return -1;
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L56310015
-        move R0 #0
+        move @R0 #0
         jmp _L56310016
 _L56310015:
-        move R0 #1
+        move @R0 #1
 _L56310016:
-        test R0 R0
+        test @R0 @R0
         jnz _L56310012
-        move R0 [R12+16]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jle _L56310017
-        move R0 #0
+        move @R0 #0
         jmp _L56310018
 _L56310017:
-        move R0 #1
+        move @R0 #1
 _L56310018:
-        test R0 R0
+        test @R0 @R0
         jz _L56310013
 _L56310012:
-        move R0 #1
+        move @R0 #1
         jmp _L56310014
 _L56310013:
-        move R0 #0
+        move @R0 #0
 _L56310014:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_56310010
-        move R0 #1
-        move R0 #1
-        neg R0 R0
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
         jmp L_56310019
 sta_56310010:
 sta_56310011:
 ; 21:     for (i = 0; i < 8; i++) {
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 sta_56310020:
-        move R0 [R12-8]
-        push R0
-        move R0 #8
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #8
+        pop @R1
+        cmp @R1 @R0
         jl _L56310023
-        move R0 #0
+        move @R0 #0
         jmp _L56310024
 _L56310023:
-        move R0 #1
+        move @R0 #1
 _L56310024:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_56310022
 ; 22:         int flags = timers[i * 4 + 2];
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #2
-        pop R1
-        add R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R3
-        add R0 R3
-        move R0 [R0]
-        move [R12-12] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #2
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R3
+        add @R0 @R3
+        move @R0 [@R0]
+        move [@R12-12] @R0
 ; 23:         if (!(flags & 1)) {  // 未激活
-        move R0 [R12-12]
-        push R0
-        move R0 #1
-        pop R1
-        and R1 R0
-        move R0 R1
-        move R0 [R12-12]
-        push R0
-        move R0 #1
-        pop R1
-        and R1 R0
-        move R0 R1
-        test R0 R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        test @R0 @R0
         jz _L56310027
-        move R0 #0
+        move @R0 #0
         jmp _L56310028
 _L56310027:
-        move R0 #1
+        move @R0 #1
 _L56310028:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_56310025
 ; 24:             timers[i * 4 + 0] = period;
-        move R0 [R12+16]
-        move R2 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R1
-        add R0 R1
-        move [R0] R2
+        move @R0 [@R12+16]
+        move @R2 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R1
+        add @R0 @R1
+        move [@R0] @R2
 ; 25:             timers[i * 4 + 1] = period;
-        move R0 [R12+16]
-        move R10 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R11
-        add R0 R11
-        move [R0] R10
+        move @R0 [@R12+16]
+        move @R10 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R11
+        add @R0 @R11
+        move [@R0] @R10
 ; 26:             timers[i * 4 + 2] = 1 | (repeat ? 2 : 0);  // active + repeat
-        move R0 #1
-        push R0
-        move R0 [R12+20]
-        test R0 R0
+        move @R0 #1
+        push @R0
+        move @R0 [@R12+20]
+        test @R0 @R0
         jz _L56310029
-        move R0 #2
+        move @R0 #2
         jmp _L56310030
 _L56310029:
-        move R0 #0
+        move @R0 #0
 _L56310030:
-        pop R1
-        or R1 R0
-        move R0 R1
-        move R8 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #2
-        pop R1
-        add R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R9
-        add R0 R9
-        move [R0] R8
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move @R8 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #2
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R9
+        add @R0 @R9
+        move [@R0] @R8
 ; 27:             timers[i * 4 + 3] = callback_id;
-        move R0 [R12+24]
-        move R6 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #3
-        pop R1
-        add R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R7
-        add R0 R7
-        move [R0] R6
+        move @R0 [@R12+24]
+        move @R6 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #3
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R7
+        add @R0 @R7
+        move [@R0] @R6
 ; 28:             return i;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_56310019
 sta_56310025:
 sta_56310026:
 sta_56310021:
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
         jmp sta_56310020
 sta_56310022:
 ; 31:     return -1;
-        move R0 #1
-        move R0 #1
-        neg R0 R0
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
         jmp L_56310019
 L_56310019:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 stop:
 ; -------------------------------------------
@@ -369,93 +369,93 @@ stop:
 ; return   : void
 ; --------------------------------------------
 stop:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 35:     if (timers == 0 || timer_id < 0 || timer_id >= 8) return;
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L56310039
-        move R0 #0
+        move @R0 #0
         jmp _L56310040
 _L56310039:
-        move R0 #1
+        move @R0 #1
 _L56310040:
-        test R0 R0
+        test @R0 @R0
         jnz _L56310036
-        move R0 [R12+16]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L56310041
-        move R0 #0
+        move @R0 #0
         jmp _L56310042
 _L56310041:
-        move R0 #1
+        move @R0 #1
 _L56310042:
-        test R0 R0
+        test @R0 @R0
         jz _L56310037
 _L56310036:
-        move R0 #1
+        move @R0 #1
         jmp _L56310038
 _L56310037:
-        move R0 #0
+        move @R0 #0
 _L56310038:
-        test R0 R0
+        test @R0 @R0
         jnz _L56310033
-        move R0 [R12+16]
-        push R0
-        move R0 #8
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #8
+        pop @R1
+        cmp @R1 @R0
         jge _L56310043
-        move R0 #0
+        move @R0 #0
         jmp _L56310044
 _L56310043:
-        move R0 #1
+        move @R0 #1
 _L56310044:
-        test R0 R0
+        test @R0 @R0
         jz _L56310034
 _L56310033:
-        move R0 #1
+        move @R0 #1
         jmp _L56310035
 _L56310034:
-        move R0 #0
+        move @R0 #0
 _L56310035:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_56310031
         jmp L_56310045
 sta_56310031:
 sta_56310032:
 ; 36:     timers[timer_id * 4 + 2] = 0;  // clear flags
-        move R0 #0
-        move R4 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #2
-        pop R1
-        add R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R5
-        add R0 R5
-        move [R0] R4
+        move @R0 #0
+        move @R4 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #2
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R5
+        add @R0 @R5
+        move [@R0] @R4
 L_56310045:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 tick:
 ; -------------------------------------------
@@ -465,213 +465,213 @@ tick:
 ; return   : int
 ; --------------------------------------------
 tick:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #32
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #32
 ; 41:     if (timers == 0) return 0;
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L56310048
-        move R0 #0
+        move @R0 #0
         jmp _L56310049
 _L56310048:
-        move R0 #1
+        move @R0 #1
 _L56310049:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_56310046
-        move R0 #0
+        move @R0 #0
         jmp L_56310050
 sta_56310046:
 sta_56310047:
 ; 42:     int triggered = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 ; 44:     for (i = 0; i < 8; i++) {
-        move R0 #0
-        move [R12-12] R0
+        move @R0 #0
+        move [@R12-12] @R0
 sta_56310051:
-        move R0 [R12-12]
-        push R0
-        move R0 #8
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #8
+        pop @R1
+        cmp @R1 @R0
         jl _L56310054
-        move R0 #0
+        move @R0 #0
         jmp _L56310055
 _L56310054:
-        move R0 #1
+        move @R0 #1
 _L56310055:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_56310053
 ; 45:         int flags = timers[i * 4 + 2];
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-12]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #2
-        pop R1
-        add R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R3
-        add R0 R3
-        move R0 [R0]
-        move [R12-16] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #2
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R3
+        add @R0 @R3
+        move @R0 [@R0]
+        move [@R12-16] @R0
 ; 46:         if (flags & 1) {  // active
-        move R0 [R12-16]
-        push R0
-        move R0 #1
-        pop R1
-        and R1 R0
-        move R0 R1
-        cmp R0 #0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #1
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        cmp @R0 #0
         jz sta_56310056
 ; 47:             int remaining = timers[i * 4 + 1];
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-12]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R1
-        add R0 R1
-        move R0 [R0]
-        move [R12-20] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R1
+        add @R0 @R1
+        move @R0 [@R0]
+        move [@R12-20] @R0
 ; 48:             remaining--;
-        move R0 [R12-20]
-        move R1 R0
-        sub R0 R0 #1
-        move [R12-20] R0
-        move R0 R1
+        move @R0 [@R12-20]
+        move @R1 @R0
+        sub @R0 @R0 #1
+        move [@R12-20] @R0
+        move @R0 @R1
 ; 49:             if (remaining <= 0) {
-        move R0 [R12-20]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jle _L56310060
-        move R0 #0
+        move @R0 #0
         jmp _L56310061
 _L56310060:
-        move R0 #1
+        move @R0 #1
 _L56310061:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_56310058
 ; 50:                 triggered |= (1 << i);
-        move R0 [R12-8]
-        push R0
-        move R0 #1
-        push R0
-        move R0 [R12-12]
-        pop R1
-        shl R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
-        move [R12-8] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
 ; 51:                 if (flags & 2) {
-        move R0 [R12-16]
-        push R0
-        move R0 #2
-        pop R1
-        and R1 R0
-        move R0 R1
-        cmp R0 #0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #2
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        cmp @R0 #0
         jz sta_56310062
 ; 53:                     remaining = timers[i * 4 + 0];
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-12]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R2
-        add R0 R2
-        move R0 [R0]
-        move [R12-20] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R2
+        add @R0 @R2
+        move @R0 [@R0]
+        move [@R12-20] @R0
         jmp sta_56310063
 sta_56310062:
 ; 56:                     timers[i * 4 + 2] = 0;
-        move R0 #0
-        move R11 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-12]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #2
-        pop R1
-        add R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R10
-        add R0 R10
-        move [R0] R11
+        move @R0 #0
+        move @R11 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #2
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R10
+        add @R0 @R10
+        move [@R0] @R11
 sta_56310063:
 sta_56310058:
 sta_56310059:
 ; 59:             timers[i * 4 + 1] = remaining;
-        move R0 [R12-20]
-        move R9 R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-12]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R8
-        add R0 R8
-        move [R0] R9
+        move @R0 [@R12-20]
+        move @R9 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R8
+        add @R0 @R8
+        move [@R0] @R9
 sta_56310056:
 sta_56310057:
 sta_56310052:
-        move R0 [R12-12]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-12] R0
-        move R0 R1
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
         jmp sta_56310051
 sta_56310053:
 ; 62:     return triggered;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_56310050
 L_56310050:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 remaining:
 ; -------------------------------------------:
@@ -683,149 +683,149 @@ remaining:
 ; return   : int
 ; --------------------------------------------
 remaining:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 66:     if (timers == 0 || timer_id < 0 || timer_id >= 8) return 0;
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L56310072
-        move R0 #0
+        move @R0 #0
         jmp _L56310073
 _L56310072:
-        move R0 #1
+        move @R0 #1
 _L56310073:
-        test R0 R0
+        test @R0 @R0
         jnz _L56310069
-        move R0 [R12+16]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jl _L56310074
-        move R0 #0
+        move @R0 #0
         jmp _L56310075
 _L56310074:
-        move R0 #1
+        move @R0 #1
 _L56310075:
-        test R0 R0
+        test @R0 @R0
         jz _L56310070
 _L56310069:
-        move R0 #1
+        move @R0 #1
         jmp _L56310071
 _L56310070:
-        move R0 #0
+        move @R0 #0
 _L56310071:
-        test R0 R0
+        test @R0 @R0
         jnz _L56310066
-        move R0 [R12+16]
-        push R0
-        move R0 #8
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #8
+        pop @R1
+        cmp @R1 @R0
         jge _L56310076
-        move R0 #0
+        move @R0 #0
         jmp _L56310077
 _L56310076:
-        move R0 #1
+        move @R0 #1
 _L56310077:
-        test R0 R0
+        test @R0 @R0
         jz _L56310067
 _L56310066:
-        move R0 #1
+        move @R0 #1
         jmp _L56310068
 _L56310067:
-        move R0 #0
+        move @R0 #0
 _L56310068:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_56310064
-        move R0 #0
+        move @R0 #0
         jmp L_56310078
 sta_56310064:
 sta_56310065:
 ; 67:     if (!(timers[timer_id * 4 + 2] & 1)) return 0;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #2
-        pop R1
-        add R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R7
-        add R0 R7
-        move R0 [R0]
-        push R0
-        move R0 #1
-        pop R1
-        and R1 R0
-        move R0 R1
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #2
-        pop R1
-        add R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R6
-        add R0 R6
-        move R0 [R0]
-        push R0
-        move R0 #1
-        pop R1
-        and R1 R0
-        move R0 R1
-        test R0 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #2
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R7
+        add @R0 @R7
+        move @R0 [@R0]
+        push @R0
+        move @R0 #1
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #2
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R6
+        add @R0 @R6
+        move @R0 [@R0]
+        push @R0
+        move @R0 #1
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        test @R0 @R0
         jz _L56310081
-        move R0 #0
+        move @R0 #0
         jmp _L56310082
 _L56310081:
-        move R0 #1
+        move @R0 #1
 _L56310082:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_56310079
-        move R0 #0
+        move @R0 #0
         jmp L_56310078
 sta_56310079:
 sta_56310080:
 ; 68:     return timers[timer_id * 4 + 1];
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 #4
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R5
-        add R0 R5
-        move R0 [R0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #4
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R5
+        add @R0 @R5
+        move @R0 [@R0]
         jmp L_56310078
 L_56310078:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

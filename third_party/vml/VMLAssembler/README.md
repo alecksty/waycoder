@@ -1,5 +1,11 @@
 # VMLAssembler 子工程说明
 
+> **写法**：本文件的例子用**规范写法** —— 寄存器一律带 `@`（`@R0`、`[@R12-8]`）。
+> 裸名（`MOVE R0, [R12-8]`）**仍然能读**（为了老文本兼容），但新写的请带 `@`。
+> 原因（`call f1` 会被读成 `call R1`）与新旧对照见
+> [`VML-README.md`](../VML-README.md) 的「汇编语法：寄存器一律带 `@` 标记」与
+> [`VML_ASSEMBLY_SPEC.md`](VML_ASSEMBLY_SPEC.md) 的「寄存器」一节。
+
 ## 功能描述
 VMLAssembler 是一个 VML (Virtual Machine Language) 汇编器，用于将 VML 汇编代码解析和汇编成 VML 程序对象（VMLProgram）。VMLAsembler 是 VML 工具链的核心组件，连接前端编译器与运行时/翻译器。
 
@@ -50,11 +56,14 @@ VMLAssembler 支持 100+ 个操作码（详见 [OpCode.cs](OpCode.cs) 和 [VML_A
 > **v1.65.167+**: LOAD/STORE/LEA/FLOAD/FSTORE/DLOAD/DSTORE 已彻底删除，统一使用 MOVE 系列指令。
 
 ## 支持的操作数类型
-- **寄存器**：R0-R15, F0-F15, D0-D7, L0-L7
+- **寄存器**：`@R0`-`@R15`、`@F0`-`@F15`、`@D0`-`@D7`、`@L0`-`@L7`
+  （裸名 `R0` / `F1` / `D0` / `L0` **仍可读**，见顶部说明）
 - **立即数**：`#value` 或直接数字
-- **内存寻址**：`[address]` / `[Rn]` / `[Rn±offset]` / `[label±offset]`
-- **标签**：用户定义的标签
-- **间接寻址**：`@reg` 或 `@[addr]`
+- **内存寻址**：`[@address]` / `[@Rn]` / `[@Rn±offset]` / `[@label±offset]`（裸名 `[R0]` 仍可读）
+- **标签**：用户定义的标签（**标签不加 `@`**；`call f1` 里的 `f1` 是标签）
+- **间接寻址**：`[@reg]` 或 `[@[addr]]`（`@` 在括号**里**）
+- **寄存器本身（`@` 在最前面）**：`@R0` —— 注意它与旧的间接寻址写法**同形不同义**，
+  旧文本里的 `@R0`（间接）请改写 `[@R0]`
 
 ## 支持的数值格式
 - **十进制**：如 `123`
@@ -78,7 +87,7 @@ string vmlCode = @"
 
     .text
     start:
-        MOVE R0, msg        ; R0 = 字符串地址
+        MOVE @R0, msg       ; R0 = 字符串地址
         SYSCALL #1          ; 输出字符串
         HALT
 ";
@@ -99,15 +108,15 @@ msg: .string "Hello, VGA!"
 .text
 .entry start
 start:
-    MOVE R0, msg           ; R0 = 字符串地址
-    MOVE R1, #0xB8000      ; R1 = VGA 显存基址
+    MOVE @R0, msg          ; R0 = 字符串地址
+    MOVE @R1, #0xB8000     ; R1 = VGA 显存基址
 loop:
-    MOVEB R2, [R0]         ; R2 = 当前字符（1字节）
-    CMP R2, #0             ; 遇到 null 终止符?
+    MOVEB @R2, [@R0]       ; R2 = 当前字符（1字节）
+    CMP @R2, #0            ; 遇到 null 终止符?
     JZ end
-    MOVEB [R1], R2         ; 写入 VGA 显存
-    ADD R0, #1             ; 下一字符
-    ADD R1, #2             ; VGA 下一个位置（字符+属性）
+    MOVEB [@R1], @R2       ; 写入 VGA 显存
+    ADD @R0, #1            ; 下一字符
+    ADD @R1, #2            ; VGA 下一个位置（字符+属性）
     JMP loop
 end:
     HALT

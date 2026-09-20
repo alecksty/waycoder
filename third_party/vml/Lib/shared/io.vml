@@ -18,16 +18,16 @@ putchar:
 ; return   : void
 ; --------------------------------------------
 putchar:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 6:     asm("SYSCALL #4");
         syscall #4
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 getchar:
 ; -------------------------------------------
@@ -36,20 +36,20 @@ getchar:
 ; return   : int
 ; --------------------------------------------
 getchar:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 10:     asm("SYSCALL #5");
         syscall #5
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 11:     return c;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_33660000
 L_33660000:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 print_str:
 ; -------------------------------------------
@@ -59,16 +59,16 @@ print_str:
 ; return   : void
 ; --------------------------------------------
 print_str:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 14:     asm("SYSCALL #1");
         syscall #1
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 print_int:
 ; -------------------------------------------
@@ -78,16 +78,16 @@ print_int:
 ; return   : void
 ; --------------------------------------------
 print_int:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 17:     asm("SYSCALL #6");
         syscall #6
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 print_hex:
 ; -------------------------------------------
@@ -97,16 +97,16 @@ print_hex:
 ; return   : void
 ; --------------------------------------------
 print_hex:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 20:     asm("SYSCALL #10");
         syscall #10
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 input_str:
 ; -------------------------------------------
@@ -115,20 +115,20 @@ input_str:
 ; return   : int
 ; --------------------------------------------
 input_str:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 24:     asm("SYSCALL #2");
         syscall #2
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 25:     return buf;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_33660001
 L_33660001:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 input_int:
 ; -------------------------------------------
@@ -137,20 +137,20 @@ input_int:
 ; return   : int
 ; --------------------------------------------
 input_int:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 29:     asm("SYSCALL #7");
         syscall #7
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 30:     return val;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_33660002
 L_33660002:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 puts:
 ; -------------------------------------------
@@ -160,21 +160,21 @@ puts:
 ; return   : void
 ; --------------------------------------------
 puts:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 33:     asm("SYSCALL #1");
         syscall #1
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 34:     asm("LOAD R0 #10");
         asm "LOAD R0 #10"
 ; 35:     asm("SYSCALL #4");
         syscall #4
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 print_string:
 ; -------------------------------------------
@@ -184,16 +184,16 @@ print_string:
 ; return   : void
 ; --------------------------------------------
 print_string:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 38:     asm("SYSCALL #1");
         syscall #1
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 kb_hit:
 ; -------------------------------------------
@@ -202,20 +202,20 @@ kb_hit:
 ; return   : int
 ; --------------------------------------------
 kb_hit:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 42:     r = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 ; 43:     return r;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_33660003
 L_33660003:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 clear_screen:
 ; -------------------------------------------
@@ -224,18 +224,18 @@ clear_screen:
 ; return   : void
 ; --------------------------------------------
 clear_screen:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 46:     asm("LOAD R0 #12");
         asm "LOAD R0 #12"
 ; 47:     asm("SYSCALL #4");
         syscall #4
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 println_str:
 ; -------------------------------------------
@@ -245,25 +245,25 @@ println_str:
 ; return   : void
 ; --------------------------------------------
 println_str:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 50:     print_str(str);
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
         call print_str
-        add R13 #4
+        add @R13 #4
 ; 51:     putchar(10);
-        move R0 #10
-        push R0
-        move R0 [R13+0]
+        move @R0 #10
+        push @R0
+        move @R0 [@R13+0]
         call putchar
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 println_int:
 ; -------------------------------------------
@@ -273,25 +273,25 @@ println_int:
 ; return   : void
 ; --------------------------------------------
 println_int:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 54:     print_int(val);
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
         call print_int
-        add R13 #4
+        add @R13 #4
 ; 55:     putchar(10);
-        move R0 #10
-        push R0
-        move R0 [R13+0]
+        move @R0 #10
+        push @R0
+        move @R0 [@R13+0]
         call putchar
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 println_hex:
 ; -------------------------------------------
@@ -301,25 +301,25 @@ println_hex:
 ; return   : void
 ; --------------------------------------------
 println_hex:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 58:     print_hex(val);
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
         call print_hex
-        add R13 #4
+        add @R13 #4
 ; 59:     putchar(10);
-        move R0 #10
-        push R0
-        move R0 [R13+0]
+        move @R0 #10
+        push @R0
+        move @R0 [@R13+0]
         call putchar
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 print_str_no_nl:
 ; -------------------------------------------
@@ -329,19 +329,19 @@ print_str_no_nl:
 ; return   : void
 ; --------------------------------------------
 print_str_no_nl:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 62:     print_str(str);
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
         call print_str
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 print_wstr:
 ; -------------------------------------------
@@ -351,38 +351,38 @@ print_wstr:
 ; return   : void
 ; --------------------------------------------
 print_wstr:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #1040
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #1040
 ; 69:     wcstombs(buf, wstr, sizeof(buf) - 1);
-        move R0 #1
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 R12
-        sub R0 #1028
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 #1
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 @R12
+        sub @R0 #1028
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call wcstombs
-        add R13 #12
+        add @R13 #12
 ; 70:     print_str(buf);
-        move R0 R12
-        sub R0 #1028
-        push R0
-        move R0 [R13+0]
+        move @R0 @R12
+        sub @R0 #1028
+        push @R0
+        move @R0 [@R13+0]
         call print_str
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 println_wstr:
 ; -------------------------------------------
@@ -392,25 +392,25 @@ println_wstr:
 ; return   : void
 ; --------------------------------------------
 println_wstr:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 74:     print_wstr(wstr);
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
         call print_wstr
-        add R13 #4
+        add @R13 #4
 ; 75:     putchar(10);
-        move R0 #10
-        push R0
-        move R0 [R13+0]
+        move @R0 #10
+        push @R0
+        move @R0 [@R13+0]
         call putchar
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 wstr_to_utf8:
 ; -------------------------------------------
@@ -422,27 +422,27 @@ wstr_to_utf8:
 ; return   : int
 ; --------------------------------------------
 wstr_to_utf8:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 79:     return (int)wcstombs(out, wstr, (size_t)max_bytes);
-        move R0 [R12+20]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call wcstombs
-        add R13 #12
+        add @R13 #12
         jmp L_33660004
 L_33660004:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 utf8_to_wstr:
 ; -------------------------------------------
@@ -454,27 +454,27 @@ utf8_to_wstr:
 ; return   : int
 ; --------------------------------------------
 utf8_to_wstr:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 83:     return (int)mbstowcs(out, str, (size_t)max_chars);
-        move R0 [R12+20]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call mbstowcs
-        add R13 #12
+        add @R13 #12
         jmp L_33660005
 L_33660005:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 print_ustr:
 ; -------------------------------------------
@@ -484,38 +484,38 @@ print_ustr:
 ; return   : void
 ; --------------------------------------------
 print_ustr:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #1040
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #1040
 ; 90:     ucs_to_utf8(ustr, buf, sizeof(buf) - 1);
-        move R0 #1
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 R12
-        sub R0 #1028
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 #1
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 @R12
+        sub @R0 #1028
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call ucs_to_utf8
-        add R13 #12
+        add @R13 #12
 ; 91:     print_str(buf);
-        move R0 R12
-        sub R0 #1028
-        push R0
-        move R0 [R13+0]
+        move @R0 @R12
+        sub @R0 #1028
+        push @R0
+        move @R0 [@R13+0]
         call print_str
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 ustr_to_utf8:
 ; -------------------------------------------
@@ -527,27 +527,27 @@ ustr_to_utf8:
 ; return   : int
 ; --------------------------------------------
 ustr_to_utf8:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 94:     return (int)ucs_to_utf8(ustr, out, (size_t)max_bytes);
-        move R0 [R12+20]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call ucs_to_utf8
-        add R13 #12
+        add @R13 #12
         jmp L_33660006
 L_33660006:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 utf8_to_ustr:
 ; -------------------------------------------:
@@ -560,25 +560,25 @@ utf8_to_ustr:
 ; return   : int
 ; --------------------------------------------
 utf8_to_ustr:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 97:     return (int)utf8_to_ucs(str, out, (size_t)max_chars);
-        move R0 [R12+20]
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call utf8_to_ucs
-        add R13 #12
+        add @R13 #12
         jmp L_33660007
 L_33660007:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

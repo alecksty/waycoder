@@ -11,19 +11,19 @@ ldatetime64:
 ; return   : long
 ; --------------------------------------------
 ldatetime64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 5:     int now32 = datetime();
         call datetime
-        move [R12-8] R0
+        move [@R12-8] @R0
 ; 6:     return (long)(unsigned int)now32;
-        move R0 [R12-8]
-        i2l R0 R0
+        move @R0 [@R12-8]
+        i2l @R0 @R0
         jmp L_34490000
 L_34490000:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

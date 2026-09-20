@@ -118,49 +118,44 @@ namespace VMLAssembler
         /// 解析操作数
         /// </summary>
         /// <param name="operandStr">操作数字符串</param>
+        /// <param name="bareTokensAreLabels">
+        /// 「这条指令里的**裸** token 不是寄存器」模式 —— 由 <see cref="ParseLine"/> 按两条规则决定：
+        /// <list type="bullet">
+        /// <item>(a) **标签位置的指令**（CALL / JMP / Jcc / CATCH / LABEL）：操作数只能是标签；</item>
+        /// <item>(b) **本指令里出现了任一 `@` 标记的寄存器**（`@R0`）：其余裸 token 一律当标签
+        /// （用户的原话："`move @R, f1` 说明第二个就不是寄存器"）。</item>
+        /// </list>
+        /// 置位后**裸**的 `R0` / `f1` / `d2` 一类 token 不再当寄存器（`@R0` 仍然当寄存器），
+        /// `#` / `[...]` / `@` 三种写法与平时完全一样。
+        /// </param>
         /// <returns>解析后的操作数</returns>
         /// <exception cref="ArgumentException">操作数字符串格式错误</exception>
-        public Operand ParseOperand(string operandStr)
+        public Operand ParseOperand(string operandStr, bool bareTokensAreLabels = false)
         {
             operandStr = operandStr.Trim();
 
-            // 寄存器：R0-R31 (R0-R15=通用, R16-R23=D0-D7双精度, R24-R31=L0-L7长整数)
-            if (operandStr.StartsWith("R", StringComparison.OrdinalIgnoreCase))
+            // 显式寄存器标记：@R0 / @F1 / @D2 / @L3 =「这个 token 是寄存器」。
+            //
+            // 这是 (b)/(c) 两条规则赖以成立的那个记号：序列化器给每个寄存器操作数写 `@`
+            // （见 `Operand.ToString`），于是"一条指令里有 `@` ⇒ 裸 token 是标签"就永远成立。
+            //
+            // ⚠ **它改变了 `@` 的旧含义**：`@R0` 以前是「以 R0 为地址的间接寻址」
+            //   （INDIRECT），现在是寄存器本身。间接寻址的写法是 `[R0]`（语义逐字相同，
+            //   库存里唯一一处 `@R0` 间接用法 `Lib/shared/src/builtins.c` 的 peek/poke
+            //   已一并改成 `[R0]`）。`@R14-4` / `@13` / `@[x]` 这些**非纯寄存器名**的
+            //   间接写法一个字没动。
+            string afterAt = operandStr.StartsWith("@") ? operandStr.Substring(1) : null;
+            if (afterAt != null && TryParseRegisterName(afterAt, out int markedReg))
             {
-                string regNumStr = operandStr.Substring(1);
-                if (int.TryParse(regNumStr, out int regNum))
+                return new Operand(OperandType.REGISTER, markedReg);
+            }
+
+            if (!bareTokensAreLabels)
+            {
+                // 寄存器：R0-R31 (R0-R15=通用, R16-R23=D0-D7双精度, R24-R31=L0-L7长整数)
+                if (TryParseRegisterName(operandStr, out int regNum))
                 {
                     return new Operand(OperandType.REGISTER, regNum);
-                }
-            }
-
-            // 浮点寄存器：F0-F15
-            if (operandStr.StartsWith("F", StringComparison.OrdinalIgnoreCase))
-            {
-                string regNumStr = operandStr.Substring(1);
-                if (int.TryParse(regNumStr, out int regNum) && regNum >= 0 && regNum <= 15)
-                {
-                    return new Operand(OperandType.REGISTER, regNum);
-                }
-            }
-
-            // 双精度寄存器：D0-D7 (映射到 R16-R23，与运行时一致)
-            if (operandStr.StartsWith("D", StringComparison.OrdinalIgnoreCase))
-            {
-                string regNumStr = operandStr.Substring(1);
-                if (int.TryParse(regNumStr, out int regNum) && regNum >= 0 && regNum <= 7)
-                {
-                    return new Operand(OperandType.REGISTER, regNum + 16);
-                }
-            }
-
-            // 长整数寄存器：L0-L7 (映射到 R24-R31，与运行时一致)
-            if (operandStr.StartsWith("L", StringComparison.OrdinalIgnoreCase))
-            {
-                string regNumStr = operandStr.Substring(1);
-                if (int.TryParse(regNumStr, out int regNum) && regNum >= 0 && regNum <= 7)
-                {
-                    return new Operand(OperandType.REGISTER, regNum + 24);
                 }
             }
 
@@ -186,7 +181,7 @@ namespace VMLAssembler
             // 间接寻址：@reg 或 @[addr]
             if (operandStr.StartsWith("@"))
             {
-                string inner = operandStr.Substring(1);
+                string inner = afterAt;
                 if (inner.StartsWith("[") && inner.EndsWith("]"))
                 {
                     object addr = ParseValue(inner.Substring(1, inner.Length - 2));
@@ -201,10 +196,16 @@ namespace VMLAssembler
             if (operandStr.StartsWith("[") && operandStr.EndsWith("]"))
             {
                 string addrStr = operandStr.Substring(1, operandStr.Length - 2).Trim();
+                // `[@R12-8]` / `[@R0]`：串里也带 `@` 标记（序列化器写的形态）——
+                // 剥掉之后与裸写法走的是**同一条**路，所以内存表示与改动前逐字相同
+                addrStr = RegisterSyntax.StripMarker(addrStr);
+
                 // 检查是否是寄存器间接寻址: [R0], [R12], [F0], [D0], [L0] 等
                 if (IsRegisterName(addrStr))
                 {
-                    return new Operand(OperandType.INDIRECT, ParseOperand(addrStr).Value);
+                    // ⚠ 这里必须显式按「寄存器」解析：本指令可能处于 (b) 的"裸 token 当标签"模式
+                    //   （`_` 带标记的那种）、那样 `R0` 会被当标签 —— 而括号里这个位置本来就只能是寄存器
+                    return new Operand(OperandType.INDIRECT, ParseOperand(addrStr, false).Value);
                 }
                 // 检查是否是标签
                 if (IsValidLabel(addrStr))
@@ -240,6 +241,62 @@ namespace VMLAssembler
                 throw new ArgumentException($"无法解析操作数：{operandStr}");
             }
         }
+
+        /// <summary>
+        /// **(a) 规则**：这条指令的操作数是**标签位置**吗（`CALL` / `JMP` / 条件跳转 / `CATCH` / `LABEL`）。
+        ///
+        /// <para>
+        /// 这些指令的跳转目标**只能是标签**（`VMLRuntime` 的 `ExecuteJmp` 就是
+        /// "取第一个 LABEL 操作数"、`ExecuteCall` 取 `operands[0]`），所以裸的 `f1` 在这里
+        /// 不可能是寄存器 —— 除非它带 `@` 标记（那是**间接**调用 `call @R0`，见 `ExecuteCall`
+        /// 的 `REGISTER` 分支）。
+        /// </para>
+        /// <para>
+        /// `JZ R0, label` 那种"寄存器 + 标签"的组合不受影响：`r0` 由序列化器写成 `@R0`
+        /// （见 `Operand.ToString`），解析时走 `@` 标记分支仍是寄存器。
+        /// </para>
+        /// </summary>
+        private static bool IsLabelPositionOpcode(OpCode opcode) => opcode switch
+        {
+            OpCode.CALL or OpCode.JMP or OpCode.JZ or OpCode.JNZ or OpCode.JE or OpCode.JNE
+                or OpCode.JG or OpCode.JL or OpCode.JGE or OpCode.JLE or OpCode.CATCH or OpCode.LABEL => true,
+            _ => false,
+        };
+
+        /// <summary>
+        /// **(b) 规则**：这条指令里出现了 `@` 标记的寄存器吗（`@R0` / `@F1` / `@D2` / `@L3`）。
+        ///
+        /// <para>
+        /// 出现了 ⇒ **本指令里其余的裸 token 一律当标签**。这是 (c)（序列化器给所有寄存器
+        /// 写 `@`）成立之后，`move @R0, f1` 这种写法唯一的解释方式 —— 用户的原话是
+        /// "`move @R, f1` 说明第二个就不是寄存器"。
+        /// </para>
+        /// </summary>
+        private static bool HasMarkedRegister(List<string> operandStrs)
+        {
+            foreach (var s in operandStrs)
+            {
+                if (s == null || s.Length < 2) continue;
+
+                // ① 自身就是带标记的寄存器操作数：`@R0`
+                if (s[0] == '@' && RegisterSyntax.LooksLikeReference(s.Substring(1)))
+                    return true;
+
+                // ② 内存操作数里带标记：`[@R12-8]` / `[@R0]`
+                if (s[0] == '[' && s.Length > 2 && s[1] == '@' &&
+                    RegisterSyntax.LooksLikeReference(RegisterSyntax.StripMarker(s.Substring(2).TrimEnd(']'))))
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 「这是一个寄存器名」的**唯一判据** —— 实现见 <see cref="RegisterSyntax.TryParseName"/>
+        /// （序列化侧的 <see cref="RegisterSyntax.LooksLikeReference"/> 与它同一份规则；
+        /// 裸 token 与 `@` 标记两种写法也共用它）。
+        /// </summary>
+        private static bool TryParseRegisterName(string str, out int regNum)
+            => RegisterSyntax.TryParseName(str, out regNum);
 
         /// <summary>检查字符串是否是寄存器名 (R0-R31, F0-F15, D0-D7, L0-L7)</summary>
         private static bool IsRegisterName(string str)
@@ -498,9 +555,14 @@ namespace VMLAssembler
                 {
                     // 智能分割操作数，处理带引号的字符串
                     var operandStrs = SplitOperands(parts[1]);
+
+                    // 「裸 token 不是寄存器」模式 —— 两条规则（见 `ParseOperand` 的 bareTokensAreLabels），
+                    // 判据合在一处，22 个前端/手写汇编走的是同一条路。
+                    bool bareTokensAreLabels = IsLabelPositionOpcode(opcode) || HasMarkedRegister(operandStrs);
+
                     foreach (var opStr in operandStrs)
                     {
-                        operands.Add(ParseOperand(opStr));
+                        operands.Add(ParseOperand(opStr, bareTokensAreLabels));
                     }
                 }
             }

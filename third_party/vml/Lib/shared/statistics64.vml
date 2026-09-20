@@ -11,95 +11,95 @@ lmean64:
 ; return   : long
 ; --------------------------------------------
 lmean64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #40
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #40
 ; 3:     long len = arr[0];
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        mul R0 #8
-        pop R11
-        add R0 R11
-        movel R0 [R0]
-        movel [R12-12] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #8
+        pop @R11
+        add @R0 @R11
+        movel @R0 [@R0]
+        movel [@R12-12] @R0
 ; 4:     long sum = 0;
-        move R0 #0
-        i2l R0 R0
-        movel [R12-20] R0
+        move @R0 #0
+        i2l @R0 @R0
+        movel [@R12-20] @R0
 ; 6:     for (i = 1; i <= len; i++) sum += arr[i];
-        move R0 #1
-        i2l R0 R0
-        movel [R12-28] R0
+        move @R0 #1
+        i2l @R0 @R0
+        movel [@R12-28] @R0
 sta_52150000:
-        movel R0 [R12-28]
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-28]
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150003
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150004
 _L52150003:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150004:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150002
-        movel R0 [R12-20]
-        pushl R0
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-28]
-        mul R0 #8
-        pop R10
-        add R0 R10
-        movel R0 [R0]
-        popl R1
-        addl R0 R1 R0
-        movel [R12-20] R0
+        movel @R0 [@R12-20]
+        pushl @R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-28]
+        mul @R0 #8
+        pop @R10
+        add @R0 @R10
+        movel @R0 [@R0]
+        popl @R1
+        addl @R0 @R1 @R0
+        movel [@R12-20] @R0
 sta_52150001:
-        movel R0 [R12-28]
-        movel R1 R0
-        addl R0 R0 #1
-        movel [R12-28] R0
-        movel R0 R1
+        movel @R0 [@R12-28]
+        movel @R1 @R0
+        addl @R0 @R0 #1
+        movel [@R12-28] @R0
+        movel @R0 @R1
         jmp sta_52150000
 sta_52150002:
 ; 7:     if (len <= 0) return 0;
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #0
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #0
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150007
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150008
 _L52150007:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150008:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150005
-        move R0 #0
+        move @R0 #0
         jmp L_52150009
 sta_52150005:
 sta_52150006:
 ; 8:     return sum / len;
-        movel R0 [R12-20]
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        divl R0 R1 R0
+        movel @R0 [@R12-20]
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        divl @R0 @R1 @R0
         jmp L_52150009
 L_52150009:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 lsum64:
 ; -------------------------------------------
@@ -109,70 +109,70 @@ lsum64:
 ; return   : long
 ; --------------------------------------------
 lsum64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #40
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #40
 ; 11:     long len = arr[0];
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        mul R0 #8
-        pop R9
-        add R0 R9
-        movel R0 [R0]
-        movel [R12-12] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #8
+        pop @R9
+        add @R0 @R9
+        movel @R0 [@R0]
+        movel [@R12-12] @R0
 ; 12:     long sum = 0;
-        move R0 #0
-        i2l R0 R0
-        movel [R12-20] R0
+        move @R0 #0
+        i2l @R0 @R0
+        movel [@R12-20] @R0
 ; 14:     for (i = 1; i <= len; i++) sum += arr[i];
-        move R0 #1
-        i2l R0 R0
-        movel [R12-28] R0
+        move @R0 #1
+        i2l @R0 @R0
+        movel [@R12-28] @R0
 sta_52150010:
-        movel R0 [R12-28]
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-28]
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150013
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150014
 _L52150013:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150014:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150012
-        movel R0 [R12-20]
-        pushl R0
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-28]
-        mul R0 #8
-        pop R8
-        add R0 R8
-        movel R0 [R0]
-        popl R1
-        addl R0 R1 R0
-        movel [R12-20] R0
+        movel @R0 [@R12-20]
+        pushl @R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-28]
+        mul @R0 #8
+        pop @R8
+        add @R0 @R8
+        movel @R0 [@R0]
+        popl @R1
+        addl @R0 @R1 @R0
+        movel [@R12-20] @R0
 sta_52150011:
-        movel R0 [R12-28]
-        movel R1 R0
-        addl R0 R0 #1
-        movel [R12-28] R0
-        movel R0 R1
+        movel @R0 [@R12-28]
+        movel @R1 @R0
+        addl @R0 @R0 #1
+        movel [@R12-28] @R0
+        movel @R0 @R1
         jmp sta_52150010
 sta_52150012:
 ; 15:     return sum;
-        movel R0 [R12-20]
+        movel @R0 [@R12-20]
         jmp L_52150015
 L_52150015:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 lmin_arr64:
 ; -------------------------------------------
@@ -182,115 +182,115 @@ lmin_arr64:
 ; return   : long
 ; --------------------------------------------
 lmin_arr64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #40
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #40
 ; 18:     long len = arr[0];
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        mul R0 #8
-        pop R7
-        add R0 R7
-        movel R0 [R0]
-        movel [R12-12] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #8
+        pop @R7
+        add @R0 @R7
+        movel @R0 [@R0]
+        movel [@R12-12] @R0
 ; 19:     if (len <= 0) return 0;
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #0
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #0
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150018
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150019
 _L52150018:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150019:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150016
-        move R0 #0
+        move @R0 #0
         jmp L_52150020
 sta_52150016:
 sta_52150017:
 ; 20:     long min = arr[1];
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        mul R0 #8
-        pop R6
-        add R0 R6
-        movel R0 [R0]
-        movel [R12-20] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        mul @R0 #8
+        pop @R6
+        add @R0 @R6
+        movel @R0 [@R0]
+        movel [@R12-20] @R0
 ; 22:     for (i = 2; i <= len; i++) if (arr[i] < min) min = arr[i];
-        move R0 #2
-        i2l R0 R0
-        movel [R12-28] R0
+        move @R0 #2
+        i2l @R0 @R0
+        movel [@R12-28] @R0
 sta_52150021:
-        movel R0 [R12-28]
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-28]
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150024
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150025
 _L52150024:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150025:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150023
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-28]
-        mul R0 #8
-        pop R5
-        add R0 R5
-        movel R0 [R0]
-        pushl R0
-        movel R0 [R12-20]
-        popl R1
-        cmpl R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-28]
+        mul @R0 #8
+        pop @R5
+        add @R0 @R5
+        movel @R0 [@R0]
+        pushl @R0
+        movel @R0 [@R12-20]
+        popl @R1
+        cmpl @R1 @R0
         jl _L52150028
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150029
 _L52150028:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150029:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150026
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-28]
-        mul R0 #8
-        pop R4
-        add R0 R4
-        movel R0 [R0]
-        movel [R12-20] R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-28]
+        mul @R0 #8
+        pop @R4
+        add @R0 @R4
+        movel @R0 [@R0]
+        movel [@R12-20] @R0
 sta_52150026:
 sta_52150027:
 sta_52150022:
-        movel R0 [R12-28]
-        movel R1 R0
-        addl R0 R0 #1
-        movel [R12-28] R0
-        movel R0 R1
+        movel @R0 [@R12-28]
+        movel @R1 @R0
+        addl @R0 @R0 #1
+        movel [@R12-28] @R0
+        movel @R0 @R1
         jmp sta_52150021
 sta_52150023:
 ; 23:     return min;
-        movel R0 [R12-20]
+        movel @R0 [@R12-20]
         jmp L_52150020
 L_52150020:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 lmax_arr64:
 ; -------------------------------------------
@@ -300,115 +300,115 @@ lmax_arr64:
 ; return   : long
 ; --------------------------------------------
 lmax_arr64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #40
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #40
 ; 26:     long len = arr[0];
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        mul R0 #8
-        pop R3
-        add R0 R3
-        movel R0 [R0]
-        movel [R12-12] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #8
+        pop @R3
+        add @R0 @R3
+        movel @R0 [@R0]
+        movel [@R12-12] @R0
 ; 27:     if (len <= 0) return 0;
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #0
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #0
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150032
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150033
 _L52150032:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150033:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150030
-        move R0 #0
+        move @R0 #0
         jmp L_52150034
 sta_52150030:
 sta_52150031:
 ; 28:     long max = arr[1];
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        mul R0 #8
-        pop R2
-        add R0 R2
-        movel R0 [R0]
-        movel [R12-20] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        mul @R0 #8
+        pop @R2
+        add @R0 @R2
+        movel @R0 [@R0]
+        movel [@R12-20] @R0
 ; 30:     for (i = 2; i <= len; i++) if (arr[i] > max) max = arr[i];
-        move R0 #2
-        i2l R0 R0
-        movel [R12-28] R0
+        move @R0 #2
+        i2l @R0 @R0
+        movel [@R12-28] @R0
 sta_52150035:
-        movel R0 [R12-28]
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-28]
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150038
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150039
 _L52150038:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150039:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150037
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-28]
-        mul R0 #8
-        pop R1
-        add R0 R1
-        movel R0 [R0]
-        pushl R0
-        movel R0 [R12-20]
-        popl R1
-        cmpl R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-28]
+        mul @R0 #8
+        pop @R1
+        add @R0 @R1
+        movel @R0 [@R0]
+        pushl @R0
+        movel @R0 [@R12-20]
+        popl @R1
+        cmpl @R1 @R0
         jg _L52150042
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150043
 _L52150042:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150043:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150040
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-28]
-        mul R0 #8
-        pop R11
-        add R0 R11
-        movel R0 [R0]
-        movel [R12-20] R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-28]
+        mul @R0 #8
+        pop @R11
+        add @R0 @R11
+        movel @R0 [@R0]
+        movel [@R12-20] @R0
 sta_52150040:
 sta_52150041:
 sta_52150036:
-        movel R0 [R12-28]
-        movel R1 R0
-        addl R0 R0 #1
-        movel [R12-28] R0
-        movel R0 R1
+        movel @R0 [@R12-28]
+        movel @R1 @R0
+        addl @R0 @R0 #1
+        movel [@R12-28] @R0
+        movel @R0 @R1
         jmp sta_52150035
 sta_52150037:
 ; 31:     return max;
-        movel R0 [R12-20]
+        movel @R0 [@R12-20]
         jmp L_52150034
 L_52150034:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 lmedian64:
 ; -------------------------------------------
@@ -418,372 +418,372 @@ lmedian64:
 ; return   : long
 ; --------------------------------------------
 lmedian64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #568
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #568
 ; 34:     long len = arr[0];
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        mul R0 #8
-        pop R10
-        add R0 R10
-        movel R0 [R0]
-        movel [R12-12] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #8
+        pop @R10
+        add @R0 @R10
+        movel @R0 [@R0]
+        movel [@R12-12] @R0
 ; 35:     if (len <= 0) return 0;
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #0
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #0
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150046
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150047
 _L52150046:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150047:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150044
-        move R0 #0
+        move @R0 #0
         jmp L_52150048
 sta_52150044:
 sta_52150045:
 ; 39:     if (len > 64) len = 64;
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #64
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #64
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         jg _L52150051
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150052
 _L52150051:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150052:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150049
-        move R0 #64
-        i2l R0 R0
-        movel [R12-12] R0
+        move @R0 #64
+        i2l @R0 @R0
+        movel [@R12-12] @R0
 sta_52150049:
 sta_52150050:
 ; 40:     for (i = 0; i <= len; i++) copy[i] = arr[i];
-        move R0 #0
-        i2l R0 R0
-        movel [R12-540] R0
+        move @R0 #0
+        i2l @R0 @R0
+        movel [@R12-540] @R0
 sta_52150053:
-        movel R0 [R12-540]
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-540]
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150056
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150057
 _L52150056:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150057:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150055
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-540]
-        mul R0 #8
-        pop R9
-        add R0 R9
-        movel R0 [R0]
-        move R8 R0
-        move R0 R12
-        sub R0 #532
-        push R0
-        move R7 #0
-        push R7
-        movel R0 [R12-540]
-        pop R7
-        move R7 R0
-        move R0 R7
-        mul R0 #8
-        pop R6
-        add R0 R6
-        movel [R0] R8
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-540]
+        mul @R0 #8
+        pop @R9
+        add @R0 @R9
+        movel @R0 [@R0]
+        move @R8 @R0
+        move @R0 @R12
+        sub @R0 #532
+        push @R0
+        move @R7 #0
+        push @R7
+        movel @R0 [@R12-540]
+        pop @R7
+        move @R7 @R0
+        move @R0 @R7
+        mul @R0 #8
+        pop @R6
+        add @R0 @R6
+        movel [@R0] @R8
 sta_52150054:
-        movel R0 [R12-540]
-        movel R1 R0
-        addl R0 R0 #1
-        movel [R12-540] R0
-        movel R0 R1
+        movel @R0 [@R12-540]
+        movel @R1 @R0
+        addl @R0 @R0 #1
+        movel [@R12-540] @R0
+        movel @R0 @R1
         jmp sta_52150053
 sta_52150055:
 ; 41:     for (i = 1; i < len; i++)
-        move R0 #1
-        i2l R0 R0
-        movel [R12-540] R0
+        move @R0 #1
+        i2l @R0 @R0
+        movel [@R12-540] @R0
 sta_52150058:
-        movel R0 [R12-540]
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-540]
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        cmpl @R1 @R0
         jl _L52150061
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150062
 _L52150061:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150062:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150060
 ; 42:         for (j = i + 1; j <= len; j++)
-        movel R0 [R12-540]
-        pushl R0
-        move R0 #1
-        i2l R0 R0
-        popl R1
-        addl R0 R1 R0
-        movel [R12-548] R0
+        movel @R0 [@R12-540]
+        pushl @R0
+        move @R0 #1
+        i2l @R0 @R0
+        popl @R1
+        addl @R0 @R1 @R0
+        movel [@R12-548] @R0
 sta_52150063:
-        movel R0 [R12-548]
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-548]
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150066
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150067
 _L52150066:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150067:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150065
 ; 43:             if (copy[i] > copy[j]) { long t = copy[i]; copy[i] = copy[j]; copy[j] = t; }
-        move R0 R12
-        sub R0 #532
-        push R0
-        move R5 #0
-        push R5
-        movel R0 [R12-540]
-        pop R5
-        move R5 R0
-        move R0 R5
-        mul R0 #8
-        pop R4
-        add R0 R4
-        movel R0 [R0]
-        pushl R0
-        move R0 R12
-        sub R0 #532
-        push R0
-        move R3 #0
-        push R3
-        movel R0 [R12-548]
-        pop R3
-        move R3 R0
-        move R0 R3
-        mul R0 #8
-        pop R2
-        add R0 R2
-        movel R0 [R0]
-        popl R1
-        cmpl R1 R0
+        move @R0 @R12
+        sub @R0 #532
+        push @R0
+        move @R5 #0
+        push @R5
+        movel @R0 [@R12-540]
+        pop @R5
+        move @R5 @R0
+        move @R0 @R5
+        mul @R0 #8
+        pop @R4
+        add @R0 @R4
+        movel @R0 [@R0]
+        pushl @R0
+        move @R0 @R12
+        sub @R0 #532
+        push @R0
+        move @R3 #0
+        push @R3
+        movel @R0 [@R12-548]
+        pop @R3
+        move @R3 @R0
+        move @R0 @R3
+        mul @R0 #8
+        pop @R2
+        add @R0 @R2
+        movel @R0 [@R0]
+        popl @R1
+        cmpl @R1 @R0
         jg _L52150070
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150071
 _L52150070:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150071:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150068
-        move R0 R12
-        sub R0 #532
-        push R0
-        move R1 #0
-        push R1
-        movel R0 [R12-540]
-        pop R1
-        move R1 R0
-        move R0 R1
-        mul R0 #8
-        pop R11
-        add R0 R11
-        movel R0 [R0]
-        movel [R12-556] R0
-        move R0 R12
-        sub R0 #532
-        push R0
-        move R10 #0
-        push R10
-        movel R0 [R12-548]
-        pop R10
-        move R10 R0
-        move R0 R10
-        mul R0 #8
-        pop R9
-        add R0 R9
-        movel R0 [R0]
-        move R7 R0
-        move R0 R12
-        sub R0 #532
-        push R0
-        move R6 #0
-        push R6
-        movel R0 [R12-540]
-        pop R6
-        move R6 R0
-        move R0 R6
-        mul R0 #8
-        pop R8
-        add R0 R8
-        movel [R0] R7
-        movel R0 [R12-556]
-        move R5 R0
-        move R0 R12
-        sub R0 #532
-        push R0
-        move R4 #0
-        push R4
-        movel R0 [R12-548]
-        pop R4
-        move R4 R0
-        move R0 R4
-        mul R0 #8
-        pop R3
-        add R0 R3
-        movel [R0] R5
+        move @R0 @R12
+        sub @R0 #532
+        push @R0
+        move @R1 #0
+        push @R1
+        movel @R0 [@R12-540]
+        pop @R1
+        move @R1 @R0
+        move @R0 @R1
+        mul @R0 #8
+        pop @R11
+        add @R0 @R11
+        movel @R0 [@R0]
+        movel [@R12-556] @R0
+        move @R0 @R12
+        sub @R0 #532
+        push @R0
+        move @R10 #0
+        push @R10
+        movel @R0 [@R12-548]
+        pop @R10
+        move @R10 @R0
+        move @R0 @R10
+        mul @R0 #8
+        pop @R9
+        add @R0 @R9
+        movel @R0 [@R0]
+        move @R7 @R0
+        move @R0 @R12
+        sub @R0 #532
+        push @R0
+        move @R6 #0
+        push @R6
+        movel @R0 [@R12-540]
+        pop @R6
+        move @R6 @R0
+        move @R0 @R6
+        mul @R0 #8
+        pop @R8
+        add @R0 @R8
+        movel [@R0] @R7
+        movel @R0 [@R12-556]
+        move @R5 @R0
+        move @R0 @R12
+        sub @R0 #532
+        push @R0
+        move @R4 #0
+        push @R4
+        movel @R0 [@R12-548]
+        pop @R4
+        move @R4 @R0
+        move @R0 @R4
+        mul @R0 #8
+        pop @R3
+        add @R0 @R3
+        movel [@R0] @R5
 sta_52150068:
 sta_52150069:
 sta_52150064:
-        movel R0 [R12-548]
-        movel R1 R0
-        addl R0 R0 #1
-        movel [R12-548] R0
-        movel R0 R1
+        movel @R0 [@R12-548]
+        movel @R1 @R0
+        addl @R0 @R0 #1
+        movel [@R12-548] @R0
+        movel @R0 @R1
         jmp sta_52150063
 sta_52150065:
 sta_52150059:
-        movel R0 [R12-540]
-        movel R1 R0
-        addl R0 R0 #1
-        movel [R12-540] R0
-        movel R0 R1
+        movel @R0 [@R12-540]
+        movel @R1 @R0
+        addl @R0 @R0 #1
+        movel [@R12-540] @R0
+        movel @R0 @R1
         jmp sta_52150058
 sta_52150060:
 ; 44:     if (len % 2 == 1) return copy[(len+1)/2];
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #2
-        i2l R0 R0
-        popl R1
-        modl R0 R1 R0
-        pushl R0
-        move R0 #1
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #2
+        i2l @R0 @R0
+        popl @R1
+        modl @R0 @R1 @R0
+        pushl @R0
+        move @R0 #1
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         je _L52150074
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150075
 _L52150074:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150075:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150072
-        move R0 R12
-        sub R0 #532
-        push R0
-        move R2 #0
-        push R2
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #1
-        i2l R0 R0
-        popl R1
-        addl R0 R1 R0
-        pushl R0
-        move R0 #2
-        i2l R0 R0
-        popl R1
-        divl R0 R1 R0
-        pop R2
-        move R2 R0
-        move R0 R2
-        mul R0 #8
-        pop R1
-        add R0 R1
-        movel R0 [R0]
+        move @R0 @R12
+        sub @R0 #532
+        push @R0
+        move @R2 #0
+        push @R2
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #1
+        i2l @R0 @R0
+        popl @R1
+        addl @R0 @R1 @R0
+        pushl @R0
+        move @R0 #2
+        i2l @R0 @R0
+        popl @R1
+        divl @R0 @R1 @R0
+        pop @R2
+        move @R2 @R0
+        move @R0 @R2
+        mul @R0 #8
+        pop @R1
+        add @R0 @R1
+        movel @R0 [@R0]
         jmp L_52150048
 sta_52150072:
 sta_52150073:
 ; 45:     return (copy[len/2] + copy[len/2 + 1]) / 2;
-        move R0 R12
-        sub R0 #532
-        push R0
-        move R11 #0
-        push R11
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #2
-        i2l R0 R0
-        popl R1
-        divl R0 R1 R0
-        pop R11
-        move R11 R0
-        move R0 R11
-        mul R0 #8
-        pop R10
-        add R0 R10
-        movel R0 [R0]
-        pushl R0
-        move R0 R12
-        sub R0 #532
-        push R0
-        move R9 #0
-        push R9
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #2
-        i2l R0 R0
-        popl R1
-        divl R0 R1 R0
-        pushl R0
-        move R0 #1
-        i2l R0 R0
-        popl R1
-        addl R0 R1 R0
-        pop R9
-        move R9 R0
-        move R0 R9
-        mul R0 #8
-        pop R6
-        add R0 R6
-        movel R0 [R0]
-        popl R1
-        addl R0 R1 R0
-        pushl R0
-        move R0 #2
-        i2l R0 R0
-        popl R1
-        divl R0 R1 R0
+        move @R0 @R12
+        sub @R0 #532
+        push @R0
+        move @R11 #0
+        push @R11
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #2
+        i2l @R0 @R0
+        popl @R1
+        divl @R0 @R1 @R0
+        pop @R11
+        move @R11 @R0
+        move @R0 @R11
+        mul @R0 #8
+        pop @R10
+        add @R0 @R10
+        movel @R0 [@R0]
+        pushl @R0
+        move @R0 @R12
+        sub @R0 #532
+        push @R0
+        move @R9 #0
+        push @R9
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #2
+        i2l @R0 @R0
+        popl @R1
+        divl @R0 @R1 @R0
+        pushl @R0
+        move @R0 #1
+        i2l @R0 @R0
+        popl @R1
+        addl @R0 @R1 @R0
+        pop @R9
+        move @R9 @R0
+        move @R0 @R9
+        mul @R0 #8
+        pop @R6
+        add @R0 @R6
+        movel @R0 [@R0]
+        popl @R1
+        addl @R0 @R1 @R0
+        pushl @R0
+        move @R0 #2
+        i2l @R0 @R0
+        popl @R1
+        divl @R0 @R1 @R0
         jmp L_52150048
 L_52150048:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 lrange64:
 ; -------------------------------------------
@@ -793,160 +793,160 @@ lrange64:
 ; return   : long
 ; --------------------------------------------
 lrange64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #48
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #48
 ; 48:     long len = arr[0];
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        mul R0 #8
-        pop R8
-        add R0 R8
-        movel R0 [R0]
-        movel [R12-12] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #8
+        pop @R8
+        add @R0 @R8
+        movel @R0 [@R0]
+        movel [@R12-12] @R0
 ; 49:     if (len <= 0) return 0;
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #0
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #0
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150078
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150079
 _L52150078:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150079:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150076
-        move R0 #0
+        move @R0 #0
         jmp L_52150080
 sta_52150076:
 sta_52150077:
 ; 50:     long min = arr[1], max = arr[1];
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        mul R0 #8
-        pop R7
-        add R0 R7
-        movel R0 [R0]
-        movel [R12-20] R0
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        mul R0 #8
-        pop R4
-        add R0 R4
-        movel R0 [R0]
-        movel [R12-28] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        mul @R0 #8
+        pop @R7
+        add @R0 @R7
+        movel @R0 [@R0]
+        movel [@R12-20] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        mul @R0 #8
+        pop @R4
+        add @R0 @R4
+        movel @R0 [@R0]
+        movel [@R12-28] @R0
 ; 52:     for (i = 2; i <= len; i++) {
-        move R0 #2
-        i2l R0 R0
-        movel [R12-36] R0
+        move @R0 #2
+        i2l @R0 @R0
+        movel [@R12-36] @R0
 sta_52150081:
-        movel R0 [R12-36]
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-36]
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150084
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150085
 _L52150084:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150085:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150083
 ; 53:         if (arr[i] < min) min = arr[i];
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-36]
-        mul R0 #8
-        pop R3
-        add R0 R3
-        movel R0 [R0]
-        pushl R0
-        movel R0 [R12-20]
-        popl R1
-        cmpl R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-36]
+        mul @R0 #8
+        pop @R3
+        add @R0 @R3
+        movel @R0 [@R0]
+        pushl @R0
+        movel @R0 [@R12-20]
+        popl @R1
+        cmpl @R1 @R0
         jl _L52150088
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150089
 _L52150088:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150089:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150086
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-36]
-        mul R0 #8
-        pop R5
-        add R0 R5
-        movel R0 [R0]
-        movel [R12-20] R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-36]
+        mul @R0 #8
+        pop @R5
+        add @R0 @R5
+        movel @R0 [@R0]
+        movel [@R12-20] @R0
 sta_52150086:
 sta_52150087:
 ; 54:         if (arr[i] > max) max = arr[i];
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-36]
-        mul R0 #8
-        pop R2
-        add R0 R2
-        movel R0 [R0]
-        pushl R0
-        movel R0 [R12-28]
-        popl R1
-        cmpl R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-36]
+        mul @R0 #8
+        pop @R2
+        add @R0 @R2
+        movel @R0 [@R0]
+        pushl @R0
+        movel @R0 [@R12-28]
+        popl @R1
+        cmpl @R1 @R0
         jg _L52150092
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150093
 _L52150092:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150093:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150090
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-36]
-        mul R0 #8
-        pop R1
-        add R0 R1
-        movel R0 [R0]
-        movel [R12-28] R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-36]
+        mul @R0 #8
+        pop @R1
+        add @R0 @R1
+        movel @R0 [@R0]
+        movel [@R12-28] @R0
 sta_52150090:
 sta_52150091:
 sta_52150082:
-        movel R0 [R12-36]
-        movel R1 R0
-        addl R0 R0 #1
-        movel [R12-36] R0
-        movel R0 R1
+        movel @R0 [@R12-36]
+        movel @R1 @R0
+        addl @R0 @R0 #1
+        movel [@R12-36] @R0
+        movel @R0 @R1
         jmp sta_52150081
 sta_52150083:
 ; 56:     return max - min;
-        movel R0 [R12-28]
-        pushl R0
-        movel R0 [R12-20]
-        popl R1
-        subl R0 R1 R0
+        movel @R0 [@R12-28]
+        pushl @R0
+        movel @R0 [@R12-20]
+        popl @R1
+        subl @R0 @R1 @R0
         jmp L_52150080
 L_52150080:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 lcount_gt64:
 ; -------------------------------------------
@@ -957,85 +957,85 @@ lcount_gt64:
 ; return   : long
 ; --------------------------------------------
 lcount_gt64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #40
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #40
 ; 59:     long len = arr[0], count = 0, i;
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        mul R0 #8
-        pop R11
-        add R0 R11
-        movel R0 [R0]
-        movel [R12-12] R0
-        move R0 #0
-        i2l R0 R0
-        movel [R12-20] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #8
+        pop @R11
+        add @R0 @R11
+        movel @R0 [@R0]
+        movel [@R12-12] @R0
+        move @R0 #0
+        i2l @R0 @R0
+        movel [@R12-20] @R0
 ; 60:     for (i = 1; i <= len; i++) if (arr[i] > threshold) count++;
-        move R0 #1
-        i2l R0 R0
-        movel [R12-28] R0
+        move @R0 #1
+        i2l @R0 @R0
+        movel [@R12-28] @R0
 sta_52150094:
-        movel R0 [R12-28]
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-28]
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150097
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150098
 _L52150097:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150098:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150096
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-28]
-        mul R0 #8
-        pop R10
-        add R0 R10
-        movel R0 [R0]
-        pushl R0
-        movel R0 [R12+16]
-        popl R1
-        cmpl R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-28]
+        mul @R0 #8
+        pop @R10
+        add @R0 @R10
+        movel @R0 [@R0]
+        pushl @R0
+        movel @R0 [@R12+16]
+        popl @R1
+        cmpl @R1 @R0
         jg _L52150101
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150102
 _L52150101:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150102:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150099
-        movel R0 [R12-20]
-        movel R1 R0
-        addl R0 R0 #1
-        movel [R12-20] R0
-        movel R0 R1
+        movel @R0 [@R12-20]
+        movel @R1 @R0
+        addl @R0 @R0 #1
+        movel [@R12-20] @R0
+        movel @R0 @R1
 sta_52150099:
 sta_52150100:
 sta_52150095:
-        movel R0 [R12-28]
-        movel R1 R0
-        addl R0 R0 #1
-        movel [R12-28] R0
-        movel R0 R1
+        movel @R0 [@R12-28]
+        movel @R1 @R0
+        addl @R0 @R0 #1
+        movel [@R12-28] @R0
+        movel @R0 @R1
         jmp sta_52150094
 sta_52150096:
 ; 61:     return count;
-        movel R0 [R12-20]
+        movel @R0 [@R12-20]
         jmp L_52150103
 L_52150103:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 lcount_lt64:
 ; -------------------------------------------
@@ -1046,85 +1046,85 @@ lcount_lt64:
 ; return   : long
 ; --------------------------------------------
 lcount_lt64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #40
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #40
 ; 64:     long len = arr[0], count = 0, i;
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        mul R0 #8
-        pop R9
-        add R0 R9
-        movel R0 [R0]
-        movel [R12-12] R0
-        move R0 #0
-        i2l R0 R0
-        movel [R12-20] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #8
+        pop @R9
+        add @R0 @R9
+        movel @R0 [@R0]
+        movel [@R12-12] @R0
+        move @R0 #0
+        i2l @R0 @R0
+        movel [@R12-20] @R0
 ; 65:     for (i = 1; i <= len; i++) if (arr[i] < threshold) count++;
-        move R0 #1
-        i2l R0 R0
-        movel [R12-28] R0
+        move @R0 #1
+        i2l @R0 @R0
+        movel [@R12-28] @R0
 sta_52150104:
-        movel R0 [R12-28]
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-28]
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150107
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150108
 _L52150107:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150108:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150106
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-28]
-        mul R0 #8
-        pop R6
-        add R0 R6
-        movel R0 [R0]
-        pushl R0
-        movel R0 [R12+16]
-        popl R1
-        cmpl R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-28]
+        mul @R0 #8
+        pop @R6
+        add @R0 @R6
+        movel @R0 [@R0]
+        pushl @R0
+        movel @R0 [@R12+16]
+        popl @R1
+        cmpl @R1 @R0
         jl _L52150111
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150112
 _L52150111:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150112:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150109
-        movel R0 [R12-20]
-        movel R1 R0
-        addl R0 R0 #1
-        movel [R12-20] R0
-        movel R0 R1
+        movel @R0 [@R12-20]
+        movel @R1 @R0
+        addl @R0 @R0 #1
+        movel [@R12-20] @R0
+        movel @R0 @R1
 sta_52150109:
 sta_52150110:
 sta_52150105:
-        movel R0 [R12-28]
-        movel R1 R0
-        addl R0 R0 #1
-        movel [R12-28] R0
-        movel R0 R1
+        movel @R0 [@R12-28]
+        movel @R1 @R0
+        addl @R0 @R0 #1
+        movel [@R12-28] @R0
+        movel @R0 @R1
         jmp sta_52150104
 sta_52150106:
 ; 66:     return count;
-        movel R0 [R12-20]
+        movel @R0 [@R12-20]
         jmp L_52150113
 L_52150113:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 lcount_eq64:
 ; -------------------------------------------
@@ -1135,85 +1135,85 @@ lcount_eq64:
 ; return   : long
 ; --------------------------------------------
 lcount_eq64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #40
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #40
 ; 69:     long len = arr[0], count = 0, i;
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        mul R0 #8
-        pop R8
-        add R0 R8
-        movel R0 [R0]
-        movel [R12-12] R0
-        move R0 #0
-        i2l R0 R0
-        movel [R12-20] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #8
+        pop @R8
+        add @R0 @R8
+        movel @R0 [@R0]
+        movel [@R12-12] @R0
+        move @R0 #0
+        i2l @R0 @R0
+        movel [@R12-20] @R0
 ; 70:     for (i = 1; i <= len; i++) if (arr[i] == value) count++;
-        move R0 #1
-        i2l R0 R0
-        movel [R12-28] R0
+        move @R0 #1
+        i2l @R0 @R0
+        movel [@R12-28] @R0
 sta_52150114:
-        movel R0 [R12-28]
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-28]
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150117
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150118
 _L52150117:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150118:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150116
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-28]
-        mul R0 #8
-        pop R7
-        add R0 R7
-        movel R0 [R0]
-        pushl R0
-        movel R0 [R12+16]
-        popl R1
-        cmpl R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-28]
+        mul @R0 #8
+        pop @R7
+        add @R0 @R7
+        movel @R0 [@R0]
+        pushl @R0
+        movel @R0 [@R12+16]
+        popl @R1
+        cmpl @R1 @R0
         je _L52150121
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150122
 _L52150121:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150122:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150119
-        movel R0 [R12-20]
-        movel R1 R0
-        addl R0 R0 #1
-        movel [R12-20] R0
-        movel R0 R1
+        movel @R0 [@R12-20]
+        movel @R1 @R0
+        addl @R0 @R0 #1
+        movel [@R12-20] @R0
+        movel @R0 @R1
 sta_52150119:
 sta_52150120:
 sta_52150115:
-        movel R0 [R12-28]
-        movel R1 R0
-        addl R0 R0 #1
-        movel [R12-28] R0
-        movel R0 R1
+        movel @R0 [@R12-28]
+        movel @R1 @R0
+        addl @R0 @R0 #1
+        movel [@R12-28] @R0
+        movel @R0 @R1
         jmp sta_52150114
 sta_52150116:
 ; 71:     return count;
-        movel R0 [R12-20]
+        movel @R0 [@R12-20]
         jmp L_52150123
 L_52150123:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 lvariance64:
 ; -------------------------------------------
@@ -1223,117 +1223,117 @@ lvariance64:
 ; return   : long
 ; --------------------------------------------
 lvariance64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #56
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #56
 ; 74:     long len = arr[0];
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        mul R0 #8
-        pop R4
-        add R0 R4
-        movel R0 [R0]
-        movel [R12-12] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #8
+        pop @R4
+        add @R0 @R4
+        movel @R0 [@R0]
+        movel [@R12-12] @R0
 ; 75:     if (len <= 1) return 0;
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #1
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #1
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150126
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150127
 _L52150126:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150127:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150124
-        move R0 #0
+        move @R0 #0
         jmp L_52150128
 sta_52150124:
 sta_52150125:
 ; 76:     long m = lmean64(arr);
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
         call lmean64
-        add R13 #4
-        movel [R12-20] R0
+        add @R13 #4
+        movel [@R12-20] @R0
 ; 77:     long sum_sq = 0, i;
-        move R0 #0
-        i2l R0 R0
-        movel [R12-28] R0
+        move @R0 #0
+        i2l @R0 @R0
+        movel [@R12-28] @R0
 ; 78:     for (i = 1; i <= len; i++) { long diff = arr[i] - m; sum_sq += diff * diff; }
-        move R0 #1
-        i2l R0 R0
-        movel [R12-36] R0
+        move @R0 #1
+        i2l @R0 @R0
+        movel [@R12-36] @R0
 sta_52150129:
-        movel R0 [R12-36]
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-36]
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150132
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150133
 _L52150132:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150133:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150131
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-36]
-        mul R0 #8
-        pop R3
-        add R0 R3
-        movel R0 [R0]
-        pushl R0
-        movel R0 [R12-20]
-        popl R1
-        subl R0 R1 R0
-        movel [R12-44] R0
-        movel R0 [R12-28]
-        pushl R0
-        movel R0 [R12-44]
-        pushl R0
-        movel R0 [R12-44]
-        popl R1
-        mull R0 R1 R0
-        popl R1
-        addl R0 R1 R0
-        movel [R12-28] R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-36]
+        mul @R0 #8
+        pop @R3
+        add @R0 @R3
+        movel @R0 [@R0]
+        pushl @R0
+        movel @R0 [@R12-20]
+        popl @R1
+        subl @R0 @R1 @R0
+        movel [@R12-44] @R0
+        movel @R0 [@R12-28]
+        pushl @R0
+        movel @R0 [@R12-44]
+        pushl @R0
+        movel @R0 [@R12-44]
+        popl @R1
+        mull @R0 @R1 @R0
+        popl @R1
+        addl @R0 @R1 @R0
+        movel [@R12-28] @R0
 sta_52150130:
-        movel R0 [R12-36]
-        movel R1 R0
-        addl R0 R0 #1
-        movel [R12-36] R0
-        movel R0 R1
+        movel @R0 [@R12-36]
+        movel @R1 @R0
+        addl @R0 @R0 #1
+        movel [@R12-36] @R0
+        movel @R0 @R1
         jmp sta_52150129
 sta_52150131:
 ; 79:     return sum_sq / (len - 1);
-        movel R0 [R12-28]
-        pushl R0
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #1
-        i2l R0 R0
-        popl R1
-        subl R0 R1 R0
-        popl R1
-        divl R0 R1 R0
+        movel @R0 [@R12-28]
+        pushl @R0
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #1
+        i2l @R0 @R0
+        popl @R1
+        subl @R0 @R1 @R0
+        popl @R1
+        divl @R0 @R1 @R0
         jmp L_52150128
 L_52150128:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 lstd_dev64:
 ; -------------------------------------------
@@ -1343,25 +1343,25 @@ lstd_dev64:
 ; return   : long
 ; --------------------------------------------
 lstd_dev64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 82:     return lisqrt64(lvariance64(arr));
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
         call lvariance64
-        add R13 #4
-        push R0
-        move R0 [R13+0]
+        add @R13 #4
+        push @R0
+        move @R0 [@R13+0]
         call lisqrt64
-        add R13 #4
+        add @R13 #4
         jmp L_52150134
 L_52150134:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 llinreg_slope64:
 ; -------------------------------------------
@@ -1372,242 +1372,242 @@ llinreg_slope64:
 ; return   : long
 ; --------------------------------------------
 llinreg_slope64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #72
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #72
 ; 85:     long n = x[0];
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        mul R0 #8
-        pop R5
-        add R0 R5
-        movel R0 [R0]
-        movel [R12-12] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #8
+        pop @R5
+        add @R0 @R5
+        movel @R0 [@R0]
+        movel [@R12-12] @R0
 ; 86:     if (y[0] < n) n = y[0];
-        move R0 [R12+16]
-        push R0
-        move R0 #0
-        mul R0 #8
-        pop R2
-        add R0 R2
-        movel R0 [R0]
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        cmpl R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        mul @R0 #8
+        pop @R2
+        add @R0 @R2
+        movel @R0 [@R0]
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        cmpl @R1 @R0
         jl _L52150137
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150138
 _L52150137:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150138:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150135
-        move R0 [R12+16]
-        push R0
-        move R0 #0
-        mul R0 #8
-        pop R1
-        add R0 R1
-        movel R0 [R0]
-        movel [R12-12] R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        mul @R0 #8
+        pop @R1
+        add @R0 @R1
+        movel @R0 [@R0]
+        movel [@R12-12] @R0
 sta_52150135:
 sta_52150136:
 ; 87:     if (n <= 1) return 0;
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #1
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #1
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150141
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150142
 _L52150141:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150142:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150139
-        move R0 #0
+        move @R0 #0
         jmp L_52150143
 sta_52150139:
 sta_52150140:
 ; 88:     long sum_x = 0, sum_y = 0, sum_xy = 0, sum_x2 = 0, i;
-        move R0 #0
-        i2l R0 R0
-        movel [R12-20] R0
-        move R0 #0
-        i2l R0 R0
-        movel [R12-28] R0
-        move R0 #0
-        i2l R0 R0
-        movel [R12-36] R0
-        move R0 #0
-        i2l R0 R0
-        movel [R12-44] R0
+        move @R0 #0
+        i2l @R0 @R0
+        movel [@R12-20] @R0
+        move @R0 #0
+        i2l @R0 @R0
+        movel [@R12-28] @R0
+        move @R0 #0
+        i2l @R0 @R0
+        movel [@R12-36] @R0
+        move @R0 #0
+        i2l @R0 @R0
+        movel [@R12-44] @R0
 ; 89:     for (i = 1; i <= n; i++) {
-        move R0 #1
-        i2l R0 R0
-        movel [R12-52] R0
+        move @R0 #1
+        i2l @R0 @R0
+        movel [@R12-52] @R0
 sta_52150144:
-        movel R0 [R12-52]
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-52]
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150147
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150148
 _L52150147:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150148:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150146
 ; 90:         sum_x += x[i]; sum_y += y[i];
-        movel R0 [R12-20]
-        pushl R0
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-52]
-        mul R0 #8
-        pop R11
-        add R0 R11
-        movel R0 [R0]
-        popl R1
-        addl R0 R1 R0
-        movel [R12-20] R0
-        movel R0 [R12-28]
-        pushl R0
-        move R0 [R12+16]
-        push R0
-        movel R0 [R12-52]
-        mul R0 #8
-        pop R10
-        add R0 R10
-        movel R0 [R0]
-        popl R1
-        addl R0 R1 R0
-        movel [R12-28] R0
+        movel @R0 [@R12-20]
+        pushl @R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-52]
+        mul @R0 #8
+        pop @R11
+        add @R0 @R11
+        movel @R0 [@R0]
+        popl @R1
+        addl @R0 @R1 @R0
+        movel [@R12-20] @R0
+        movel @R0 [@R12-28]
+        pushl @R0
+        move @R0 [@R12+16]
+        push @R0
+        movel @R0 [@R12-52]
+        mul @R0 #8
+        pop @R10
+        add @R0 @R10
+        movel @R0 [@R0]
+        popl @R1
+        addl @R0 @R1 @R0
+        movel [@R12-28] @R0
 ; 91:         sum_xy += x[i] * y[i]; sum_x2 += x[i] * x[i];
-        movel R0 [R12-36]
-        pushl R0
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-52]
-        mul R0 #8
-        pop R9
-        add R0 R9
-        movel R0 [R0]
-        pushl R0
-        move R0 [R12+16]
-        push R0
-        movel R0 [R12-52]
-        mul R0 #8
-        pop R6
-        add R0 R6
-        movel R0 [R0]
-        popl R1
-        mull R0 R1 R0
-        popl R1
-        addl R0 R1 R0
-        movel [R12-36] R0
-        movel R0 [R12-44]
-        pushl R0
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-52]
-        mul R0 #8
-        pop R8
-        add R0 R8
-        movel R0 [R0]
-        pushl R0
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-52]
-        mul R0 #8
-        pop R7
-        add R0 R7
-        movel R0 [R0]
-        popl R1
-        mull R0 R1 R0
-        popl R1
-        addl R0 R1 R0
-        movel [R12-44] R0
+        movel @R0 [@R12-36]
+        pushl @R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-52]
+        mul @R0 #8
+        pop @R9
+        add @R0 @R9
+        movel @R0 [@R0]
+        pushl @R0
+        move @R0 [@R12+16]
+        push @R0
+        movel @R0 [@R12-52]
+        mul @R0 #8
+        pop @R6
+        add @R0 @R6
+        movel @R0 [@R0]
+        popl @R1
+        mull @R0 @R1 @R0
+        popl @R1
+        addl @R0 @R1 @R0
+        movel [@R12-36] @R0
+        movel @R0 [@R12-44]
+        pushl @R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-52]
+        mul @R0 #8
+        pop @R8
+        add @R0 @R8
+        movel @R0 [@R0]
+        pushl @R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-52]
+        mul @R0 #8
+        pop @R7
+        add @R0 @R7
+        movel @R0 [@R0]
+        popl @R1
+        mull @R0 @R1 @R0
+        popl @R1
+        addl @R0 @R1 @R0
+        movel [@R12-44] @R0
 sta_52150145:
-        movel R0 [R12-52]
-        movel R1 R0
-        addl R0 R0 #1
-        movel [R12-52] R0
-        movel R0 R1
+        movel @R0 [@R12-52]
+        movel @R1 @R0
+        addl @R0 @R0 #1
+        movel [@R12-52] @R0
+        movel @R0 @R1
         jmp sta_52150144
 sta_52150146:
 ; 93:     long denom = n * sum_x2 - sum_x * sum_x;
-        movel R0 [R12-12]
-        pushl R0
-        movel R0 [R12-44]
-        popl R1
-        mull R0 R1 R0
-        pushl R0
-        movel R0 [R12-20]
-        pushl R0
-        movel R0 [R12-20]
-        popl R1
-        mull R0 R1 R0
-        popl R1
-        subl R0 R1 R0
-        movel [R12-60] R0
+        movel @R0 [@R12-12]
+        pushl @R0
+        movel @R0 [@R12-44]
+        popl @R1
+        mull @R0 @R1 @R0
+        pushl @R0
+        movel @R0 [@R12-20]
+        pushl @R0
+        movel @R0 [@R12-20]
+        popl @R1
+        mull @R0 @R1 @R0
+        popl @R1
+        subl @R0 @R1 @R0
+        movel [@R12-60] @R0
 ; 94:     if (denom == 0) return 0;
-        movel R0 [R12-60]
-        pushl R0
-        move R0 #0
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-60]
+        pushl @R0
+        move @R0 #0
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         je _L52150151
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150152
 _L52150151:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150152:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150149
-        move R0 #0
+        move @R0 #0
         jmp L_52150143
 sta_52150149:
 sta_52150150:
 ; 95:     return (n * sum_xy - sum_x * sum_y) / denom;
-        movel R0 [R12-12]
-        pushl R0
-        movel R0 [R12-36]
-        popl R1
-        mull R0 R1 R0
-        pushl R0
-        movel R0 [R12-20]
-        pushl R0
-        movel R0 [R12-28]
-        popl R1
-        mull R0 R1 R0
-        popl R1
-        subl R0 R1 R0
-        pushl R0
-        movel R0 [R12-60]
-        popl R1
-        divl R0 R1 R0
+        movel @R0 [@R12-12]
+        pushl @R0
+        movel @R0 [@R12-36]
+        popl @R1
+        mull @R0 @R1 @R0
+        pushl @R0
+        movel @R0 [@R12-20]
+        pushl @R0
+        movel @R0 [@R12-28]
+        popl @R1
+        mull @R0 @R1 @R0
+        popl @R1
+        subl @R0 @R1 @R0
+        pushl @R0
+        movel @R0 [@R12-60]
+        popl @R1
+        divl @R0 @R1 @R0
         jmp L_52150143
 L_52150143:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 llinreg_intercept64:
 ; -------------------------------------------:
@@ -1619,158 +1619,158 @@ llinreg_intercept64:
 ; return   : long
 ; --------------------------------------------
 llinreg_intercept64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #56
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #56
 ; 98:     long n = x[0];
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        mul R0 #8
-        pop R4
-        add R0 R4
-        movel R0 [R0]
-        movel [R12-12] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #8
+        pop @R4
+        add @R0 @R4
+        movel @R0 [@R0]
+        movel [@R12-12] @R0
 ; 99:     if (y[0] < n) n = y[0];
-        move R0 [R12+16]
-        push R0
-        move R0 #0
-        mul R0 #8
-        pop R3
-        add R0 R3
-        movel R0 [R0]
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        cmpl R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        mul @R0 #8
+        pop @R3
+        add @R0 @R3
+        movel @R0 [@R0]
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        cmpl @R1 @R0
         jl _L52150155
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150156
 _L52150155:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150156:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150153
-        move R0 [R12+16]
-        push R0
-        move R0 #0
-        mul R0 #8
-        pop R5
-        add R0 R5
-        movel R0 [R0]
-        movel [R12-12] R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        mul @R0 #8
+        pop @R5
+        add @R0 @R5
+        movel @R0 [@R0]
+        movel [@R12-12] @R0
 sta_52150153:
 sta_52150154:
 ; 100:     if (n <= 0) return 0;
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #0
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #0
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150159
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150160
 _L52150159:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150160:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150157
-        move R0 #0
+        move @R0 #0
         jmp L_52150161
 sta_52150157:
 sta_52150158:
 ; 101:     long sum_x = 0, sum_y = 0, i;
-        move R0 #0
-        i2l R0 R0
-        movel [R12-20] R0
-        move R0 #0
-        i2l R0 R0
-        movel [R12-28] R0
+        move @R0 #0
+        i2l @R0 @R0
+        movel [@R12-20] @R0
+        move @R0 #0
+        i2l @R0 @R0
+        movel [@R12-28] @R0
 ; 102:     for (i = 1; i <= n; i++) { sum_x += x[i]; sum_y += y[i]; }
-        move R0 #1
-        i2l R0 R0
-        movel [R12-36] R0
+        move @R0 #1
+        i2l @R0 @R0
+        movel [@R12-36] @R0
 sta_52150162:
-        movel R0 [R12-36]
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-36]
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        cmpl @R1 @R0
         jle _L52150165
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L52150166
 _L52150165:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L52150166:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_52150164
-        movel R0 [R12-20]
-        pushl R0
-        move R0 [R12+12]
-        push R0
-        movel R0 [R12-36]
-        mul R0 #8
-        pop R2
-        add R0 R2
-        movel R0 [R0]
-        popl R1
-        addl R0 R1 R0
-        movel [R12-20] R0
-        movel R0 [R12-28]
-        pushl R0
-        move R0 [R12+16]
-        push R0
-        movel R0 [R12-36]
-        mul R0 #8
-        pop R1
-        add R0 R1
-        movel R0 [R0]
-        popl R1
-        addl R0 R1 R0
-        movel [R12-28] R0
+        movel @R0 [@R12-20]
+        pushl @R0
+        move @R0 [@R12+12]
+        push @R0
+        movel @R0 [@R12-36]
+        mul @R0 #8
+        pop @R2
+        add @R0 @R2
+        movel @R0 [@R0]
+        popl @R1
+        addl @R0 @R1 @R0
+        movel [@R12-20] @R0
+        movel @R0 [@R12-28]
+        pushl @R0
+        move @R0 [@R12+16]
+        push @R0
+        movel @R0 [@R12-36]
+        mul @R0 #8
+        pop @R1
+        add @R0 @R1
+        movel @R0 [@R0]
+        popl @R1
+        addl @R0 @R1 @R0
+        movel [@R12-28] @R0
 sta_52150163:
-        movel R0 [R12-36]
-        movel R1 R0
-        addl R0 R0 #1
-        movel [R12-36] R0
-        movel R0 R1
+        movel @R0 [@R12-36]
+        movel @R1 @R0
+        addl @R0 @R0 #1
+        movel [@R12-36] @R0
+        movel @R0 @R1
         jmp sta_52150162
 sta_52150164:
 ; 103:     long slope = llinreg_slope64(x, y);
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
         call llinreg_slope64
-        add R13 #8
-        movel [R12-44] R0
+        add @R13 #8
+        movel [@R12-44] @R0
 ; 104:     return (sum_y - slope * sum_x) / n;
-        movel R0 [R12-28]
-        pushl R0
-        movel R0 [R12-44]
-        pushl R0
-        movel R0 [R12-20]
-        popl R1
-        mull R0 R1 R0
-        popl R1
-        subl R0 R1 R0
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        divl R0 R1 R0
+        movel @R0 [@R12-28]
+        pushl @R0
+        movel @R0 [@R12-44]
+        pushl @R0
+        movel @R0 [@R12-20]
+        popl @R1
+        mull @R0 @R1 @R0
+        popl @R1
+        subl @R0 @R1 @R0
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        divl @R0 @R1 @R0
         jmp L_52150161
 L_52150161:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

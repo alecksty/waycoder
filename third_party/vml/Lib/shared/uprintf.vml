@@ -15,36 +15,36 @@ uprintf:
 ; return   : void
 ; --------------------------------------------
 uprintf:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #1040
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #1040
 ; 8:     ucs_to_utf8(ufmt, buf, sizeof(buf) - 1);
-        move R0 #1
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 R12
-        sub R0 #1028
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 #1
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 @R12
+        sub @R0 #1028
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call ucs_to_utf8
-        add R13 #12
+        add @R13 #12
 ; 9:     printf(buf);
-        move R0 R12
-        sub R0 #1028
-        push R0
-        move R0 [R13+0]
+        move @R0 @R12
+        sub @R0 #1028
+        push @R0
+        move @R0 [@R13+0]
         call printf
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

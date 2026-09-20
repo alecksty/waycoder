@@ -13,30 +13,30 @@ print_long:
 ; return   : void
 ; --------------------------------------------
 print_long:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #40
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #40
 ; 4:     ltoa(val, buf);
-        move R0 R12
-        sub R0 #28
-        push R0
-        movel R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
+        move @R0 @R12
+        sub @R0 #28
+        push @R0
+        movel @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
         call ltoa
-        add R13 #8
+        add @R13 #8
 ; 5:     print_str(buf);
-        move R0 R12
-        sub R0 #28
-        push R0
-        move R0 [R13+0]
+        move @R0 @R12
+        sub @R0 #28
+        push @R0
+        move @R0 [@R13+0]
         call print_str
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 print_hex_long:
 ; -------------------------------------------
@@ -46,30 +46,30 @@ print_hex_long:
 ; return   : void
 ; --------------------------------------------
 print_hex_long:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #32
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #32
 ; 9:     ltoa_hex(val, buf);
-        move R0 R12
-        sub R0 #24
-        push R0
-        movel R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
+        move @R0 @R12
+        sub @R0 #24
+        push @R0
+        movel @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
         call ltoa_hex
-        add R13 #8
+        add @R13 #8
 ; 10:     print_str(buf);
-        move R0 R12
-        sub R0 #24
-        push R0
-        move R0 [R13+0]
+        move @R0 @R12
+        sub @R0 #24
+        push @R0
+        move @R0 [@R13+0]
         call print_str
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 println_long:
 ; -------------------------------------------
@@ -79,26 +79,26 @@ println_long:
 ; return   : void
 ; --------------------------------------------
 println_long:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 13:     print_long(val);
-        movel R0 [R12+12]
-        sub R13 #8
-        movel @13 R0
-        move R0 [R13+0]
+        movel @R0 [@R12+12]
+        sub @R13 #8
+        movel @13 @R0
+        move @R0 [@R13+0]
         call print_long
-        add R13 #8
+        add @R13 #8
 ; 14:     putchar('\n');
-        move R0 #10
-        push R0
-        move R0 [R13+0]
+        move @R0 #10
+        push @R0
+        move @R0 [@R13+0]
         call putchar
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 println_hex_long:
 ; -------------------------------------------
@@ -108,26 +108,26 @@ println_hex_long:
 ; return   : void
 ; --------------------------------------------
 println_hex_long:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 17:     print_hex_long(val);
-        movel R0 [R12+12]
-        sub R13 #8
-        movel @13 R0
-        move R0 [R13+0]
+        movel @R0 [@R12+12]
+        sub @R13 #8
+        movel @13 @R0
+        move @R0 [@R13+0]
         call print_hex_long
-        add R13 #8
+        add @R13 #8
 ; 18:     putchar('\n');
-        move R0 #10
-        push R0
-        move R0 [R13+0]
+        move @R0 #10
+        push @R0
+        move @R0 [@R13+0]
         call putchar
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 input_long:
 ; -------------------------------------------
@@ -136,141 +136,141 @@ input_long:
 ; return   : long
 ; --------------------------------------------
 input_long:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #56
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #56
 ; 22:     int i = 0;
-        move R0 #0
-        move [R12-40] R0
+        move @R0 #0
+        move [@R12-40] @R0
 sta_64520000:
-        move R2 #0
+        move @R2 #0
 ; 23:     while (i < 30) {
-        move R0 [R12-40]
-        push R0
-        move R0 #30
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-40]
+        push @R0
+        move @R0 #30
+        pop @R1
+        cmp @R1 @R0
         jl _L64520002
-        move R0 #0
+        move @R0 #0
         jmp _L64520003
 _L64520002:
-        move R0 #1
+        move @R0 #1
 _L64520003:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_64520001
 ; 24:         int c = getchar();
         call getchar
-        move [R12-44] R0
+        move [@R12-44] @R0
 ; 25:         if (c == '\n' || c == '\r' || c == 0) break;
-        move R0 [R12-44]
-        push R0
-        move R0 #10
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-44]
+        push @R0
+        move @R0 #10
+        pop @R1
+        cmp @R1 @R0
         je _L64520012
-        move R0 #0
+        move @R0 #0
         jmp _L64520013
 _L64520012:
-        move R0 #1
+        move @R0 #1
 _L64520013:
-        test R0 R0
+        test @R0 @R0
         jnz _L64520009
-        move R0 [R12-44]
-        push R0
-        move R0 #13
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-44]
+        push @R0
+        move @R0 #13
+        pop @R1
+        cmp @R1 @R0
         je _L64520014
-        move R0 #0
+        move @R0 #0
         jmp _L64520015
 _L64520014:
-        move R0 #1
+        move @R0 #1
 _L64520015:
-        test R0 R0
+        test @R0 @R0
         jz _L64520010
 _L64520009:
-        move R0 #1
+        move @R0 #1
         jmp _L64520011
 _L64520010:
-        move R0 #0
+        move @R0 #0
 _L64520011:
-        test R0 R0
+        test @R0 @R0
         jnz _L64520006
-        move R0 [R12-44]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-44]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L64520016
-        move R0 #0
+        move @R0 #0
         jmp _L64520017
 _L64520016:
-        move R0 #1
+        move @R0 #1
 _L64520017:
-        test R0 R0
+        test @R0 @R0
         jz _L64520007
 _L64520006:
-        move R0 #1
+        move @R0 #1
         jmp _L64520008
 _L64520007:
-        move R0 #0
+        move @R0 #0
 _L64520008:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_64520004
         jmp sta_64520001
 sta_64520004:
 sta_64520005:
 ; 26:         buf[i++] = (char)c;
-        move R0 [R12-44]
-        move R11 R0
-        move R0 R12
-        sub R0 #36
-        push R0
-        move R10 #0
-        push R10
-        move R0 [R12-40]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-40] R0
-        move R0 R1
-        pop R10
-        move R10 R0
-        move R0 R10
-        mul R0 #1
-        pop R9
-        add R0 R9
-        moveb [R0] R11
+        move @R0 [@R12-44]
+        move @R11 @R0
+        move @R0 @R12
+        sub @R0 #36
+        push @R0
+        move @R10 #0
+        push @R10
+        move @R0 [@R12-40]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-40] @R0
+        move @R0 @R1
+        pop @R10
+        move @R10 @R0
+        move @R0 @R10
+        mul @R0 #1
+        pop @R9
+        add @R0 @R9
+        moveb [@R0] @R11
         jmp sta_64520000
 sta_64520001:
 ; 28:     buf[i] = 0;
-        move R0 #0
-        move R8 R0
-        move R0 R12
-        sub R0 #36
-        push R0
-        move R7 #0
-        push R7
-        move R0 [R12-40]
-        pop R7
-        move R7 R0
-        move R0 R7
-        mul R0 #1
-        pop R6
-        add R0 R6
-        moveb [R0] R8
+        move @R0 #0
+        move @R8 @R0
+        move @R0 @R12
+        sub @R0 #36
+        push @R0
+        move @R7 #0
+        push @R7
+        move @R0 [@R12-40]
+        pop @R7
+        move @R7 @R0
+        move @R0 @R7
+        mul @R0 #1
+        pop @R6
+        add @R0 @R6
+        moveb [@R0] @R8
 ; 29:     return atol(buf);
-        move R0 R12
-        sub R0 #36
-        push R0
-        move R0 [R13+0]
+        move @R0 @R12
+        sub @R0 #36
+        push @R0
+        move @R0 [@R13+0]
         call atol
-        add R13 #4
+        add @R13 #4
         jmp L_64520018
 L_64520018:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 print_double:
 ; -------------------------------------------
@@ -281,33 +281,33 @@ print_double:
 ; return   : void
 ; --------------------------------------------
 print_double:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #80
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #80
 ; 33:     dtoa(val, precision, buf);
-        move R0 R12
-        sub R0 #68
-        push R0
-        move R0 [R12+20]
-        push R0
-        moved R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 @R12
+        sub @R0 #68
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        moved @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call dtoa
-        add R13 #12
+        add @R13 #12
 ; 34:     print_str(buf);
-        move R0 R12
-        sub R0 #68
-        push R0
-        move R0 [R13+0]
+        move @R0 @R12
+        sub @R0 #68
+        push @R0
+        move @R0 [@R13+0]
         call print_str
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 println_double:
 ; -------------------------------------------:
@@ -319,27 +319,27 @@ println_double:
 ; return   : void
 ; --------------------------------------------
 println_double:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 37:     print_double(val, precision);
-        move R0 [R12+20]
-        push R0
-        moved R0 [R12+12]
-        sub R13 #8
-        moved @13 R0
-        move R0 [R13+0]
-        move R1 [R13+8]
+        move @R0 [@R12+20]
+        push @R0
+        moved @R0 [@R12+12]
+        sub @R13 #8
+        moved @13 @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+8]
         call print_double
-        add R13 #12
+        add @R13 #12
 ; 38:     putchar('\n');
-        move R0 #10
-        push R0
-        move R0 [R13+0]
+        move @R0 #10
+        push @R0
+        move @R0 [@R13+0]
         call putchar
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

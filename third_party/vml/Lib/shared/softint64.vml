@@ -13,63 +13,63 @@ __vml_i64_add:
 ; return   : void
 ; --------------------------------------------
 __vml_i64_add:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
 ; 3:     int rl = *l + bl; int rh = *h + bh;
-        move R0 [R12+12]
-        move R0 [R0]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-8] R0
-        move R0 [R12+16]
-        move R0 [R0]
-        push R0
-        move R0 [R12+24]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-12] R0
+        move @R0 [@R12+12]
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+        move @R0 [@R12+16]
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+24]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
 ; 4:     if (rl < *l) rh = rh + 1;
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+12]
-        move R0 [R0]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+12]
+        move @R0 [@R0]
+        pop @R1
+        cmp @R1 @R0
         jl _L77890002
-        move R0 #0
+        move @R0 #0
         jmp _L77890003
 _L77890002:
-        move R0 #1
+        move @R0 #1
 _L77890003:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_77890000
-        move R0 [R12-12]
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-12] R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
 sta_77890000:
 sta_77890001:
 ; 5:     *l = rl; *h = rh;
-        move R0 [R12+12]
-        move R11 R0
-        move R0 [R12-8]
-        move [R11] R0
-        move R0 [R12+16]
-        move R10 R0
-        move R0 [R12-12]
-        move [R10] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move @R0 [@R12+12]
+        move @R11 @R0
+        move @R0 [@R12-8]
+        move [@R11] @R0
+        move @R0 [@R12+16]
+        move @R10 @R0
+        move @R0 [@R12-12]
+        move [@R10] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __vml_i64_sub:
 ; -------------------------------------------
@@ -82,63 +82,63 @@ __vml_i64_sub:
 ; return   : void
 ; --------------------------------------------
 __vml_i64_sub:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
 ; 9:     int rl = *l - bl; int rh = *h - bh;
-        move R0 [R12+12]
-        move R0 [R0]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-8] R0
-        move R0 [R12+16]
-        move R0 [R0]
-        push R0
-        move R0 [R12+24]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-12] R0
+        move @R0 [@R12+12]
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+        move @R0 [@R12+16]
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+24]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
 ; 10:     if (rl > *l) rh = rh - 1;
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+12]
-        move R0 [R0]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+12]
+        move @R0 [@R0]
+        pop @R1
+        cmp @R1 @R0
         jg _L77890006
-        move R0 #0
+        move @R0 #0
         jmp _L77890007
 _L77890006:
-        move R0 #1
+        move @R0 #1
 _L77890007:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_77890004
-        move R0 [R12-12]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-12] R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
 sta_77890004:
 sta_77890005:
 ; 11:     *l = rl; *h = rh;
-        move R0 [R12+12]
-        move R9 R0
-        move R0 [R12-8]
-        move [R9] R0
-        move R0 [R12+16]
-        move R8 R0
-        move R0 [R12-12]
-        move [R8] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move @R0 [@R12+12]
+        move @R9 @R0
+        move @R0 [@R12-8]
+        move [@R9] @R0
+        move @R0 [@R12+16]
+        move @R8 @R0
+        move @R0 [@R12-12]
+        move [@R8] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __vml_i64_neg:
 ; -------------------------------------------
@@ -149,58 +149,58 @@ __vml_i64_neg:
 ; return   : void
 ; --------------------------------------------
 __vml_i64_neg:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 15:     *l = ~(*l) + 1; *h = ~(*h);
-        move R0 [R12+12]
-        move R7 R0
-        move R0 [R12+12]
-        move R0 [R0]
-        not R0
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R7] R0
-        move R0 [R12+16]
-        move R6 R0
-        move R0 [R12+16]
-        move R0 [R0]
-        not R0
-        move [R6] R0
+        move @R0 [@R12+12]
+        move @R7 @R0
+        move @R0 [@R12+12]
+        move @R0 [@R0]
+        not @R0
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R7] @R0
+        move @R0 [@R12+16]
+        move @R6 @R0
+        move @R0 [@R12+16]
+        move @R0 [@R0]
+        not @R0
+        move [@R6] @R0
 ; 16:     if (*l == 0) *h = *h + 1;
-        move R0 [R12+12]
-        move R0 [R0]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        move @R0 [@R0]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L77890010
-        move R0 #0
+        move @R0 #0
         jmp _L77890011
 _L77890010:
-        move R0 #1
+        move @R0 #1
 _L77890011:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_77890008
-        move R0 [R12+16]
-        move R5 R0
-        move R0 [R12+16]
-        move R0 [R0]
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R5] R0
+        move @R0 [@R12+16]
+        move @R5 @R0
+        move @R0 [@R12+16]
+        move @R0 [@R0]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R5] @R0
 sta_77890008:
 sta_77890009:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __vml_i64_and:
 ; -------------------------------------------
@@ -213,34 +213,34 @@ __vml_i64_and:
 ; return   : void
 ; --------------------------------------------
 __vml_i64_and:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 19: void __vml_i64_and(int* l, int* h, int bl, int bh) { *l = *l & bl; *h = *h & bh; }
-        move R0 [R12+12]
-        move R4 R0
-        move R0 [R12+12]
-        move R0 [R0]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        and R1 R0
-        move R0 R1
-        move [R4] R0
-        move R0 [R12+16]
-        move R3 R0
-        move R0 [R12+16]
-        move R0 [R0]
-        push R0
-        move R0 [R12+24]
-        pop R1
-        and R1 R0
-        move R0 R1
-        move [R3] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move @R0 [@R12+12]
+        move @R4 @R0
+        move @R0 [@R12+12]
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R4] @R0
+        move @R0 [@R12+16]
+        move @R3 @R0
+        move @R0 [@R12+16]
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+24]
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R3] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __vml_i64_or:
 ; -------------------------------------------
@@ -253,34 +253,34 @@ __vml_i64_or:
 ; return   : void
 ; --------------------------------------------
 __vml_i64_or:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 20: void __vml_i64_or(int* l, int* h, int bl, int bh)  { *l = *l | bl; *h = *h | bh; }
-        move R0 [R12+12]
-        move R2 R0
-        move R0 [R12+12]
-        move R0 [R0]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        or R1 R0
-        move R0 R1
-        move [R2] R0
-        move R0 [R12+16]
-        move R1 R0
-        move R0 [R12+16]
-        move R0 [R0]
-        push R0
-        move R0 [R12+24]
-        pop R1
-        or R1 R0
-        move R0 R1
-        move [R1] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move @R0 [@R12+12]
+        move @R2 @R0
+        move @R0 [@R12+12]
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move [@R2] @R0
+        move @R0 [@R12+16]
+        move @R1 @R0
+        move @R0 [@R12+16]
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+24]
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move [@R1] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __vml_i64_xor:
 ; -------------------------------------------
@@ -293,34 +293,34 @@ __vml_i64_xor:
 ; return   : void
 ; --------------------------------------------
 __vml_i64_xor:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 21: void __vml_i64_xor(int* l, int* h, int bl, int bh) { *l = *l ^ bl; *h = *h ^ bh; }
-        move R0 [R12+12]
-        move R11 R0
-        move R0 [R12+12]
-        move R0 [R0]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        xor R1 R0
-        move R0 R1
-        move [R11] R0
-        move R0 [R12+16]
-        move R10 R0
-        move R0 [R12+16]
-        move R0 [R0]
-        push R0
-        move R0 [R12+24]
-        pop R1
-        xor R1 R0
-        move R0 R1
-        move [R10] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move @R0 [@R12+12]
+        move @R11 @R0
+        move @R0 [@R12+12]
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        xor @R1 @R0
+        move @R0 @R1
+        move [@R11] @R0
+        move @R0 [@R12+16]
+        move @R10 @R0
+        move @R0 [@R12+16]
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+24]
+        pop @R1
+        xor @R1 @R0
+        move @R0 @R1
+        move [@R10] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __vml_i64_not:
 ; -------------------------------------------
@@ -331,26 +331,26 @@ __vml_i64_not:
 ; return   : void
 ; --------------------------------------------
 __vml_i64_not:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 22: void __vml_i64_not(int* l, int* h) { *l = ~(*l); *h = ~(*h); }
-        move R0 [R12+12]
-        move R9 R0
-        move R0 [R12+12]
-        move R0 [R0]
-        not R0
-        move [R9] R0
-        move R0 [R12+16]
-        move R8 R0
-        move R0 [R12+16]
-        move R0 [R0]
-        not R0
-        move [R8] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move @R0 [@R12+12]
+        move @R9 @R0
+        move @R0 [@R12+12]
+        move @R0 [@R0]
+        not @R0
+        move [@R9] @R0
+        move @R0 [@R12+16]
+        move @R8 @R0
+        move @R0 [@R12+16]
+        move @R0 [@R0]
+        not @R0
+        move [@R8] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __vml_i64_shl:
 ; -------------------------------------------
@@ -362,101 +362,101 @@ __vml_i64_shl:
 ; return   : void
 ; --------------------------------------------
 __vml_i64_shl:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 25:     if (n >= 32) { *h = *l << (n - 32); *l = 0; }
-        move R0 [R12+20]
-        push R0
-        move R0 #32
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #32
+        pop @R1
+        cmp @R1 @R0
         jge _L77890014
-        move R0 #0
+        move @R0 #0
         jmp _L77890015
 _L77890014:
-        move R0 #1
+        move @R0 #1
 _L77890015:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_77890012
-        move R0 [R12+16]
-        move R7 R0
-        move R0 [R12+12]
-        move R0 [R0]
-        push R0
-        move R0 [R12+20]
-        push R0
-        move R0 #32
-        pop R1
-        sub R1 R0
-        move R0 R1
-        pop R1
-        shl R1 R0
-        move R0 R1
-        move [R7] R0
-        move R0 [R12+12]
-        move R6 R0
-        move R0 #0
-        move [R6] R0
+        move @R0 [@R12+16]
+        move @R7 @R0
+        move @R0 [@R12+12]
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #32
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        move [@R7] @R0
+        move @R0 [@R12+12]
+        move @R6 @R0
+        move @R0 #0
+        move [@R6] @R0
         jmp sta_77890013
 sta_77890012:
 ; 26:     else if (n > 0) { *h = (*h << n) | (*l >> (32 - n)); *l = *l << n; }
-        move R0 [R12+20]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jg _L77890018
-        move R0 #0
+        move @R0 #0
         jmp _L77890019
 _L77890018:
-        move R0 #1
+        move @R0 #1
 _L77890019:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_77890016
-        move R0 [R12+16]
-        move R5 R0
-        move R0 [R12+16]
-        move R0 [R0]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        shl R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        move R0 [R0]
-        push R0
-        move R0 #32
-        push R0
-        move R0 [R12+20]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        pop R1
-        shr R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
-        move [R5] R0
-        move R0 [R12+12]
-        move R4 R0
-        move R0 [R12+12]
-        move R0 [R0]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        shl R1 R0
-        move R0 R1
-        move [R4] R0
+        move @R0 [@R12+16]
+        move @R5 @R0
+        move @R0 [@R12+16]
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        move @R0 [@R0]
+        push @R0
+        move @R0 #32
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move [@R5] @R0
+        move @R0 [@R12+12]
+        move @R4 @R0
+        move @R0 [@R12+12]
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        move [@R4] @R0
 sta_77890016:
 sta_77890017:
 sta_77890013:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __vml_i64_shr:
 ; -------------------------------------------:
@@ -469,105 +469,105 @@ __vml_i64_shr:
 ; return   : void
 ; --------------------------------------------
 __vml_i64_shr:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 30:     if (n >= 32) { *l = *h >> (n - 32); *h = *h >> 31; }
-        move R0 [R12+20]
-        push R0
-        move R0 #32
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #32
+        pop @R1
+        cmp @R1 @R0
         jge _L77890022
-        move R0 #0
+        move @R0 #0
         jmp _L77890023
 _L77890022:
-        move R0 #1
+        move @R0 #1
 _L77890023:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_77890020
-        move R0 [R12+12]
-        move R3 R0
-        move R0 [R12+16]
-        move R0 [R0]
-        push R0
-        move R0 [R12+20]
-        push R0
-        move R0 #32
-        pop R1
-        sub R1 R0
-        move R0 R1
-        pop R1
-        shr R1 R0
-        move R0 R1
-        move [R3] R0
-        move R0 [R12+16]
-        move R2 R0
-        move R0 [R12+16]
-        move R0 [R0]
-        push R0
-        move R0 #31
-        pop R1
-        shr R1 R0
-        move R0 R1
-        move [R2] R0
+        move @R0 [@R12+12]
+        move @R3 @R0
+        move @R0 [@R12+16]
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #32
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        move [@R3] @R0
+        move @R0 [@R12+16]
+        move @R2 @R0
+        move @R0 [@R12+16]
+        move @R0 [@R0]
+        push @R0
+        move @R0 #31
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        move [@R2] @R0
         jmp sta_77890021
 sta_77890020:
 ; 31:     else if (n > 0) { *l = (*l >> n) | (*h << (32 - n)); *h = *h >> n; }
-        move R0 [R12+20]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jg _L77890026
-        move R0 #0
+        move @R0 #0
         jmp _L77890027
 _L77890026:
-        move R0 #1
+        move @R0 #1
 _L77890027:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_77890024
-        move R0 [R12+12]
-        move R1 R0
-        move R0 [R12+12]
-        move R0 [R0]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        shr R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+16]
-        move R0 [R0]
-        push R0
-        move R0 #32
-        push R0
-        move R0 [R12+20]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        pop R1
-        shl R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
-        move [R1] R0
-        move R0 [R12+16]
-        move R11 R0
-        move R0 [R12+16]
-        move R0 [R0]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        shr R1 R0
-        move R0 R1
-        move [R11] R0
+        move @R0 [@R12+12]
+        move @R1 @R0
+        move @R0 [@R12+12]
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+16]
+        move @R0 [@R0]
+        push @R0
+        move @R0 #32
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
+        move [@R1] @R0
+        move @R0 [@R12+16]
+        move @R11 @R0
+        move @R0 [@R12+16]
+        move @R0 [@R0]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        move [@R11] @R0
 sta_77890024:
 sta_77890025:
 sta_77890021:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

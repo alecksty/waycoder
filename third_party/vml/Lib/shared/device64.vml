@@ -14,32 +14,32 @@ ldev_read64:
 ; return   : int
 ; --------------------------------------------
 ldev_read64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 3:     return dev_read(handle, buf, (int)offset, (int)count);
-        movel R0 [R12+28]
-        l2i R0 R0
-        push R0
-        movel R0 [R12+20]
-        l2i R0 R0
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
-        move R3 [R13+12]
+        movel @R0 [@R12+28]
+        l2i @R0 @R0
+        push @R0
+        movel @R0 [@R12+20]
+        l2i @R0 @R0
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
         call dev_read
-        add R13 #16
+        add @R13 #16
         jmp L_5480000
 L_5480000:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 ldev_write64:
 ; -------------------------------------------:
@@ -53,30 +53,30 @@ ldev_write64:
 ; return   : int
 ; --------------------------------------------
 ldev_write64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 6:     return dev_write(handle, buf, (int)offset, (int)count);
-        movel R0 [R12+28]
-        l2i R0 R0
-        push R0
-        movel R0 [R12+20]
-        l2i R0 R0
-        push R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
-        move R3 [R13+12]
+        movel @R0 [@R12+28]
+        l2i @R0 @R0
+        push @R0
+        movel @R0 [@R12+20]
+        l2i @R0 @R0
+        push @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
+        move @R3 [@R13+12]
         call dev_write
-        add R13 #16
+        add @R13 #16
         jmp L_5480001
 L_5480001:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

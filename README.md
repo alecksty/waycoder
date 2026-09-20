@@ -6,7 +6,7 @@
 
 **中文编程智能体,Vibe Coding Agent CLI**
 
-*支持多模型 + 46个工具 + Watch 模式 + 单文件 + 多智能体*
+*支持多模型 + 49个工具 + Watch 模式 + 单文件 + 多智能体*
 
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4)](https://dotnet.microsoft.com)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -45,7 +45,7 @@ WayCoder --web
 WayCoder --cli
 
 # GUI版
-WayCoder --GUI
+WayCoder --gui
 
 # Watch 模式 (监听 AI! 注释自动触发 Agent)
 WayCoder --watch
@@ -65,7 +65,7 @@ WayCoder --mode plan         # 只读规划模式（Plan）：只读白名单工
 
 WayCoder --mode chat         # 纯聊天工作模式（Chat）：等价 --permit tiny，--mode 显式时覆盖
 # 省钱模式工具精简（仅 Build 档，关=全量，开=去重复，开的越大越精简）：
-#   Off=46 → Auto=34（去 bash 可替代）→ On=29（再搜索编辑冗余）→ Extreme=7（核心集）→ 纯聊天 Chat=0
+#   Off=49 → Auto=37（去 bash 可替代）→ On=32（再搜索编辑冗余）→ Extreme=7（核心集）→ 纯聊天 Chat=0
 # 优先级偏好（仅 auto 生效）：/config EconomyPriority quality|balanced|cost（默认 quality）
 # 实测（写 1 万行贪吃蛇，minimax-m3，白名单 5 工具）：auto 8.0M token → extreme 4.2M token（↓48%），花费约减半
 # 配置优先级：config.json 为权威源，环境变量不覆盖（切换模式用 --economy 或改配置）
@@ -100,11 +100,11 @@ WayCoder --json -p "修复一个 bug"
 WayCoder --web          # 默认端口 9527
 WayCoder --web 9000     # 指定端口
 
-# 运行自测（4106 项）
+# 运行自测（6232 项，仅 Debug 版含 --test）
 WayCoder  --test
 ```
 
-给它一个模型加一把 key 就能动。默认走 OpenAI 兼容接口，在项目根目录扔个 `.env`，启动时自动加载：
+给它一个模型加一把 key 就能动。默认走 OpenAI 兼容接口：首次启动（尚无 `~/.waycoder/config.json`）时会读取项目根目录的 `.env` 并**导入固化到 config.json**，此后以 config.json 为唯一权威源（改 `.env` 不再生效，删掉 config.json 才会重新引导）：
 
 | Provider | 环境变量示例 |
 |---|---|
@@ -117,69 +117,56 @@ WayCoder  --test
 ```
 WayCoder/
 ├── Program.cs         入口 + CLI + REPL (ANSI 全屏 TUI)
-├── Agent.cs           主循环 (Stop Hook + 10 阶段流水线)
-├── AgentSlot.cs       多 Agent 工作区 (F1-F10 槽位切换 + 后台并行)
-├── LLM.cs             LLM 客户端 (流式 + 渐进超时重试 + 花费追踪)
-├── ContextManager.cs  Crush 风格三层上下文压缩 + 进度事件
-├── SessionManager.cs  会话持久化
-├── SystemPrompt.cs    系统提示词 (15 结构化区块 + 10 阶段流水线)
-├── Config.cs          配置 (.env 加载, 67 项全部可配)
-├── WatchMode.cs        Watch 模式 (文件监听 + AI! 注释)
-├── PermissionManager.cs 权限确认系统
-├── ProjectContext.cs  项目检测 + CLAUDE.md 加载
-├── ProjectInitializer.cs /init 项目初始化 (生成 AGENT.md，/init claude 生成 CLAUDE.md)
-├── FallbackLLM.cs     模型回退链 (6 模型, 跨供应商 Key 解析)
-├── MemoryStore.cs     记忆系统 (旧格式, 迁移源)
-├── StructuredMemory.cs 结构化记忆 (frontmatter 多文件 + MEMORY.md 索引)
-├── MemoryRetrieval.cs  跨会话记忆检索
-├── Skills/            技能系统 (SkillsManager.cs SKILL.md 发现与解析)
-├── BackgroundTask.cs  后台任务
-├── DebugLog.cs        调试日志
-├── Test/              测试/调试/演示代码（SelfTest 自测 14 partial 文件 + Benchmark/Keypad/TuiAudit/TuiDemo，共 4106 项）
-├── Batch/             批量任务引擎 (2 文件)
-│   ├── BatchSpec.cs     任务清单模型 + JSON 解析 + 名称消毒
-│   └── BatchRunner.cs   多仓库并行执行 + worktree 隔离 + 聚合报告
-├── Plugins/           编译期插件系统 (IPlugin SDK + PluginRegistry)
-├── Infra/             基础设施 (12+ 文件)
-│   ├── BashGuard.cs     命令安全防护 (70+ 禁止 + 47 安全白名单)
-│   ├── FileTracker.cs   文件追踪 (SHA256 + 变更检测)
-│   ├── ErrorLog.cs      统一错误日志
-│   ├── IdGenerator.cs   加密安全 ID 生成
-│   ├── LruCache.cs      线程安全 LRU 缓存
-│   ├── RetryPolicy.cs   智能重试策略
-│   ├── SnippetStore.cs  代码片段管理
-│   └── Logging/         结构化日志系统 (9 文件)
-├── UI/                终端 TUI 控件库 (40+ 文件)
-│   ├── TuiCust/           自定义控件 + 对话框
-│   │   ├── ToolRenderers/   工具输出渲染器 (7 文件)
-│   │   ├── ModelPicker.cs   模型选择对话框
-│   │   ├── FilePicker.cs    文件选择对话框
-│   │   └── CommandPalette.cs 命令面板
-│   ├── TuiControls/       基础控件库
-│   │   ├── TuiDynamicBar.cs 动态状态栏 (Agent 状态 + 工具 + 压缩进度)
-│   │   ├── TuiMarkdown.cs   Markdown→ANSI 渲染
-│   │   ├── TuiListView.cs   懒列表 (二分查找 + 提前终止)
-│   │   └── TuiButton.cs     增强按钮 (快捷键下划线/悬停)
-│   └── TuiScreens/        全屏界面
-└── Tools/             46 个工具
-    ├── BashTool.cs    GitTool.cs    LspTool.cs
-    ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
-    ├── WriteFileTool.cs TodoTool.cs  LintTool.cs
-    ├── EditFileTool.cs AgentTool.cs  WebSearchTool.cs
-    ├── GlobTool.cs    GrepTool.cs    GitPRTool.cs
-    ├── PsTool.cs      KillTool.cs    LsTool.cs
-    ├── MkdirTool.cs   RmTool.cs      CdTool.cs
-    ├── FindReplaceTool.cs CpTool.cs  MvTool.cs
-    ├── DiffTool.cs    TreeTool.cs    WcTool.cs
-    ├── StatTool.cs    PwdTool.cs    SkillTool.cs
-    ├── DocTool.cs     ExportTool.cs StructTodoTool.cs
-    ├── DownloadTool.cs JobOutputTool.cs JobKillTool.cs
-    ├── NotebookEditTool.cs MultiEditTool.cs
-    ├── AskUserQuestionTool.cs ScreenshotTool.cs
-    ├── ViewImageTool.cs
-    ├── TranscribeAudioTool.cs
-    ├── DrawTool.cs 绘图（文本 DSL → SVG/PNG，零反射）
-    └── ImageConvertTool.cs 图片互转（PNG/JPG/BMP）
+├── Agent/             智能体核心 (20 文件)
+│   ├── Agent.cs           主循环 (Stop Hook + WorkReporter + 10 阶段流水线)
+│   ├── AgentSlot.cs       多 Agent 工作区 (F1-F10 槽位切换 + 后台并行)
+│   ├── LLM.cs             LLM 客户端 (流式 + 渐进超时重试 + 任务花费追踪)
+│   ├── ContextManager.cs  Crush 风格上下文管理 (token 追踪 + 自动摘要 + 进度事件)
+│   ├── SystemPrompt.cs    系统提示词 (15 个结构化区块)
+│   ├── WorkModeManager.cs 工作模式 (Build/Plan/Chat)
+│   └── FallbackLLM.cs / BackgroundTask.cs / WorkReporter.cs / TaskProgress.cs
+├── Memory/            记忆与会话 (9 文件: StructuredMemory + MEMORY.md 索引 / MemoryRetrieval / SessionManager / ProjectKnowledge)
+├── Config/            配置 (24 文件: Global.cs 全局 ~/.waycoder/config.json 权威源 / Config.Schema 110 项 / ConnectionConfig / ModelCatalog / ModelCli)
+├── Infra/             基础设施 (86 文件: BashGuard / FileTracker / SandboxManager / HooksManager / UpdateChecker / DrawEngine 绘制 + 图片编解码 + Logging/)
+├── Git/               Git 集成 (8 文件: GitRunner / GitCore / PackFile / RepoMapGenerator / WorktreeIsolation)
+├── Watch/             Watch 模式 + ReviewMode
+├── Sql/               手搓 SQL 引擎 (SqlEngine.cs)
+├── Skills/            技能 + 权限 (SkillsManager / PermissionManager / AutoModeClassifier / builtin/)
+├── Test/              测试/调试/演示代码（SelfTest 自测 40 partial 文件 + Benchmark/Keypad/TuiAudit/TuiDemo，共 6232 项）
+├── Batch/             批量任务引擎 (BatchSpec 清单模型 + BatchRunner 多仓库并行/worktree 隔离)
+├── Plugins/           编译期插件系统 (IPlugin SDK + PluginRegistry + [ModuleInitializer] 自动注册)
+├── Tools/             49 个工具
+│   ├── BashTool.cs    GitTool.cs    LspTool.cs
+│   ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
+│   ├── WriteFileTool.cs TodoTool.cs  LintTool.cs
+│   ├── EditFileTool.cs AgentTool.cs  WebSearchTool.cs
+│   ├── GlobTool.cs    GrepTool.cs    GitPRTool.cs
+│   ├── PsTool.cs      KillTool.cs    LsTool.cs
+│   ├── MkdirTool.cs   RmTool.cs      CdTool.cs
+│   ├── FindReplaceTool.cs CpTool.cs  MvTool.cs
+│   ├── DiffTool.cs    TreeTool.cs    WcTool.cs
+│   ├── StatTool.cs    PwdTool.cs     SkillTool.cs
+│   ├── DocTool.cs     KbTool.cs      TestTool.cs
+│   ├── DownloadTool.cs JobOutputTool.cs JobKillTool.cs
+│   ├── NotebookEditTool.cs MultiEditTool.cs
+│   ├── AskUserQuestionTool.cs ScreenshotTool.cs
+│   ├── ViewImageTool.cs
+│   ├── TranscribeAudioTool.cs
+│   ├── DrawTool.cs 绘图（文本 DSL → SVG/PNG，零反射）
+│   └── ImageConvertTool.cs / ConvertEncodingTool.cs / SqliteTool.cs / SymbolsTool.cs
+└── UI/                 五端界面层
+    ├── TUI/            终端界面 (220 文件)
+    │   ├── Base/           控件基座 (TuiBase→TuiControl→TuiView / TuiManager / TuiScreen / TuiWindow / InputManager / 滚动数学)
+    │   ├── Controls/       基础控件库 (45 文件: TuiButton / TuiListView / TuiDynamicBar / TuiKeybindHelp / TuiMarkdown …)
+    │   ├── Custom/         自定义控件 + 对话框 (15 文件: ModelPicker / FilePicker / CommandPalette / DiffPreview / UxHelper …)
+    │   ├── Screens/        全屏界面 (ChatScreen / MarkupChatScreen / SettingsScreen / EditorScreen …)
+    │   ├── Edit/           终端源码编辑器 (EditorCore / Syntax 语法高亮 / DiagnosticManager Lint 诊断)
+    │   ├── Renderers/      工具输出渲染器 (7 文件)
+    │   └── Raw/            `.tui` 声明式布局
+    ├── Shared/         跨端共享纯逻辑 (MarkdownRenderer / UnifiedDiff / AnsiHelper / AnsiColors / Terminal 缓冲与 ANSI / Vml* 协议与宿主接口)
+    ├── WEB/            Web 端 (WebServer / WebChat / www 前端资源)
+    ├── CLI/            命令行端 (Arguments 参数注册 / Commands 斜杠命令)
+    └── GUI/            Avalonia GUI 占位（预留扩展）
 ```
 
 ## 49 个工具
@@ -190,7 +177,7 @@ WayCoder/
 | `read_file` | 读取文件，显示行号、偏移量、限制行数，支持 PDF/Markdown |
 | `write_file` | 创建/覆盖文件（自动创建目录，diff 预览确认） |
 | `edit_file` | 精确匹配查找替换，输出 diff，支持 replace_all |
-| `multi_edit` | 批量编辑，一次操作多个替换 |
+| `multiedit` | 批量编辑，一次操作多个替换 |
 | `glob` | 文件模式匹配，按修改时间排序，自动过滤忽略文件 |
 | `grep` | 正则表达式内容搜索，支持 literal_text，自动过滤忽略文件 |
 | `agent` | 生成子智能体（独立上下文，禁止递归；支持 tasks 数组并行） |
@@ -222,17 +209,19 @@ WayCoder/
 | `doc` | 查最新库/框架文档（搜索+抓取），获取最新 API 和用法 |
 | `download` | HTTP GET 下载文件到本地（安全检查，最大 500MB） |
 | `notebook_edit` | Jupyter Notebook (.ipynb) 编辑（replace/insert/delete cell） |
-| `export` | 对话导出（Markdown / JSON / HTML） |
+| `export_chat` | 对话导出（Markdown / JSON / HTML） |
 | `job_output` | 读取后台 bash 任务输出 |
 | `job_kill` | 终止后台 bash 任务 |
-| `ask_user` | 向用户提问确认（单/多选 + 文本输入） |
+| `ask_user_question` | 向用户提问确认（单/多选 + 文本输入） |
 | `screenshot` | 抓屏（终端文本 / 桌面 PNG + OCR） |
 | `view_image` | 查看本地图片，附加到下一轮请求让 vision 模型读取 |
 | `transcribe` | 转录音频文件为文字（Whisper 兼容 API），补齐多模态音频输入 |
 | `draw` | 用文本指令绘制图形（变换/新形状/描边/渐变/贴图/裁剪/图标模板，20+ 指令），输出 SVG 矢量或 PNG 位图 |
 | `convert_image` | 图片格式互转（PNG/JPG/BMP），按魔数识别输入、按扩展名决定输出 |
 | `convert_encoding` | 文件编码转换（GB18030/GBK/Big5/Shift-JIS 等，默认 UTF-8） |
-| `sqlite` | 只读 SQL 查询（手搓 SQL 引擎，查询本地 SQLite 库） |
+| `sqlite` | 执行 SQL 查询本地 SQLite 库（走系统 `sqlite3` 命令行，需已安装） |
+| `kb` | 检索全局编程知识库（`~/.waycoder/kb/`：踩坑/修复/习惯），支持 `search` / `diagnose` |
+| `test` | 运行测试命令并解析结果（通过/失败统计、失败用例定位；dotnet test / pytest / npm test / cargo test / go test） |
 
 ## REPL 命令
 
@@ -291,7 +280,7 @@ quit / exit      退出（正常 Ctrl+C 保存退出 / 紧急 Ctrl+Q）
 
 写 `.tui` 声明式布局时可实时预览：
 
-- **终端预览**：`waycoder --tui-preview <file.tui>` / `--tui-watch <file.tui>`（保存即刷新）
+- **终端预览**：`waycoder --tui-preview <file.tui>` / `--tui-watch <file.tui>`（保存即刷新；与 `--test` 同属 `WAYCODER_TEST` 开发版专有参数，Release 版不含）
 - **WPF 图形预览**：`dotnet run --project WayCoder.Preview -- <file.tui>`
   - 等宽字逐格渲染、纯黑背景、内容居中、文件保存自动刷新
   - **缩放**：滑块 / 放大缩小按钮 / **鼠标滚轮（Ctrl+滚轮）**
@@ -318,12 +307,12 @@ quit / exit      退出（正常 Ctrl+C 保存退出 / 紧急 Ctrl+Q）
 - **AOT 编译：JSON 手写序列化**，不依赖反射
 - **权限系统**：bash/write/edit/agent 默认行内确认，`/permit yolo` 跳过确认；`/perm full-auto` 单独启用受限沙箱
 - **双模型架构**：大模型做复杂任务，小模型做压缩/摘要，自动分工省钱
-- **模型回退链**：失败自动尝试备选（6 模型链条，跨供应商 API Key 自动解析）
+- **模型回退链**：`/connect chain <c1> <c2> ...` 配置一串 connect，失败时按链回退（model+key+baseUrl 一起换，可跨服务商）；**开关默认关**，`/connect chain on` 开启
 - **内置编辑器三端**：同一 `EditorCore` 模型在 TUI（`/edit` 全屏）/ Web（`✏ 编辑器`，透明 textarea 保中文 IME）/ GUI（Avalonia `EditorWindow`）可用——语法高亮/行号/撤销/查找/保存后 Lint 摘要；`waycoder --gui [文件]` 直开编辑器
 - **Watch 模式**：文件监听 + AI! 注释解析 → 线程安全队列 → REPL 自动执行
 - **结构化记忆**：`.waycoder/memory/*.md` frontmatter 多文件 + MEMORY.md 索引，支持跨会话检索
 - **Diff 预览**：`/config DiffPreview true` 开启写文件前逐 hunk 确认，非交互模式自动跳过
-- **Bash 安全防护**：70+ 禁止命令 + 47 安全白名单，管道中每个命令独立检查
+- **Bash 安全防护**：87 禁止命令 + 70 安全白名单，管道中每个命令独立检查
 - **计划审批门**：`计划` 模式（Shift+Tab）下模型产出计划后不自动执行，就地弹出审批框——批准则切回 `建造` 模式继续执行，拒绝则停止（对标 Claude Code Plan Mode）
 - **项目初始化 `/init`**：扫描项目生成中文 AGENT.md（默认；`/init claude` 生成 CLAUDE.md 兼容 Claude Code；语言/框架/构建工具 + 构建/测试/lint 命令探测）；下次启动经 `ProjectContext.LoadInstructions` 自动注入系统提示词
 - **MCP 状态管理 `/mcp`**：结构化状态模型（Connecting/Connected/Failed）+ 热重连，`/mcp` 查看服务器状态、`/mcp reload [name]` 重连，对标 Claude Code /mcp

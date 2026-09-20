@@ -14,16 +14,16 @@ printx_int32:
 ; return   : void
 ; --------------------------------------------
 printx_int32:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 18:     asm("SYSCALL #6");
         syscall #6
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 printlnx_int32:
 ; -------------------------------------------
@@ -33,21 +33,21 @@ printlnx_int32:
 ; return   : void
 ; --------------------------------------------
 printlnx_int32:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 21:     asm("SYSCALL #6");
         syscall #6
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 22:     asm("LOAD R0 #10");
         asm "LOAD R0 #10"
 ; 23:     asm("SYSCALL #4");
         syscall #4
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 printx_string:
 ; -------------------------------------------
@@ -57,16 +57,16 @@ printx_string:
 ; return   : void
 ; --------------------------------------------
 printx_string:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 29:     asm("SYSCALL #1");
         syscall #1
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 printlnx_string:
 ; -------------------------------------------
@@ -76,21 +76,21 @@ printlnx_string:
 ; return   : void
 ; --------------------------------------------
 printlnx_string:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 32:     asm("SYSCALL #1");
         syscall #1
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 33:     asm("LOAD R0 #10");
         asm "LOAD R0 #10"
 ; 34:     asm("SYSCALL #4");
         syscall #4
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 printx_wstring:
 ; -------------------------------------------
@@ -100,33 +100,33 @@ printx_wstring:
 ; return   : void
 ; --------------------------------------------
 printx_wstring:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #1040
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #1040
 ; 41:     wcstombs(buf, wstr, 1023);
-        move R0 #1023
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 R12
-        sub R0 #1028
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 #1023
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 @R12
+        sub @R0 #1028
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call wcstombs
-        add R13 #12
+        add @R13 #12
 ; 42:     print_str(buf);
-        move R0 R12
-        sub R0 #1028
-        push R0
-        move R0 [R13+0]
+        move @R0 @R12
+        sub @R0 #1028
+        push @R0
+        move @R0 [@R13+0]
         call print_str
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 printlnx_wstring:
 ; -------------------------------------------
@@ -136,39 +136,39 @@ printlnx_wstring:
 ; return   : void
 ; --------------------------------------------
 printlnx_wstring:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #1040
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #1040
 ; 46:     wcstombs(buf, wstr, 1023);
-        move R0 #1023
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 R12
-        sub R0 #1028
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 #1023
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 @R12
+        sub @R0 #1028
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call wcstombs
-        add R13 #12
+        add @R13 #12
 ; 47:     print_str(buf);
-        move R0 R12
-        sub R0 #1028
-        push R0
-        move R0 [R13+0]
+        move @R0 @R12
+        sub @R0 #1028
+        push @R0
+        move @R0 [@R13+0]
         call print_str
-        add R13 #4
+        add @R13 #4
 ; 48:     putchar(10);
-        move R0 #10
-        push R0
-        move R0 [R13+0]
+        move @R0 #10
+        push @R0
+        move @R0 [@R13+0]
         call putchar
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 printx_ustring:
 ; -------------------------------------------
@@ -178,33 +178,33 @@ printx_ustring:
 ; return   : void
 ; --------------------------------------------
 printx_ustring:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #1040
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #1040
 ; 55:     ucs_to_utf8(ustr, buf, 1023);
-        move R0 #1023
-        push R0
-        move R0 R12
-        sub R0 #1028
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 #1023
+        push @R0
+        move @R0 @R12
+        sub @R0 #1028
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call ucs_to_utf8
-        add R13 #12
+        add @R13 #12
 ; 56:     print_str(buf);
-        move R0 R12
-        sub R0 #1028
-        push R0
-        move R0 [R13+0]
+        move @R0 @R12
+        sub @R0 #1028
+        push @R0
+        move @R0 [@R13+0]
         call print_str
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 printlnx_ustring:
 ; -------------------------------------------
@@ -214,39 +214,39 @@ printlnx_ustring:
 ; return   : void
 ; --------------------------------------------
 printlnx_ustring:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #1040
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #1040
 ; 60:     ucs_to_utf8(ustr, buf, 1023);
-        move R0 #1023
-        push R0
-        move R0 R12
-        sub R0 #1028
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 #1023
+        push @R0
+        move @R0 @R12
+        sub @R0 #1028
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call ucs_to_utf8
-        add R13 #12
+        add @R13 #12
 ; 61:     print_str(buf);
-        move R0 R12
-        sub R0 #1028
-        push R0
-        move R0 [R13+0]
+        move @R0 @R12
+        sub @R0 #1028
+        push @R0
+        move @R0 [@R13+0]
         call print_str
-        add R13 #4
+        add @R13 #4
 ; 62:     putchar(10);
-        move R0 #10
-        push R0
-        move R0 [R13+0]
+        move @R0 #10
+        push @R0
+        move @R0 [@R13+0]
         call putchar
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 printx_float32:
 ; -------------------------------------------
@@ -256,16 +256,16 @@ printx_float32:
 ; return   : void
 ; --------------------------------------------
 printx_float32:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 68:     asm("SYSCALL #8");
         syscall #8
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 printlnx_float32:
 ; -------------------------------------------
@@ -275,21 +275,21 @@ printlnx_float32:
 ; return   : void
 ; --------------------------------------------
 printlnx_float32:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 71:     asm("SYSCALL #8");
         syscall #8
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 72:     asm("LOAD R0 #10");
         asm "LOAD R0 #10"
 ; 73:     asm("SYSCALL #4");
         syscall #4
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 printx_float64:
 ; -------------------------------------------
@@ -299,20 +299,20 @@ printx_float64:
 ; return   : void
 ; --------------------------------------------
 printx_float64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 80:     float f = (float)val;
-        moved R0 [R12+12]
-        d2f R0 R0
-        movef [R12-8] R0
+        moved @R0 [@R12+12]
+        d2f @R0 @R0
+        movef [@R12-8] @R0
 ; 81:     asm("SYSCALL #8");
         syscall #8
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 printlnx_float64:
 ; -------------------------------------------
@@ -322,25 +322,25 @@ printlnx_float64:
 ; return   : void
 ; --------------------------------------------
 printlnx_float64:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 84:     float f = (float)val;
-        moved R0 [R12+12]
-        d2f R0 R0
-        movef [R12-8] R0
+        moved @R0 [@R12+12]
+        d2f @R0 @R0
+        movef [@R12-8] @R0
 ; 85:     asm("SYSCALL #8");
         syscall #8
-        move [R12-4] R0
+        move [@R12-4] @R0
 ; 86:     asm("LOAD R0 #10");
         asm "LOAD R0 #10"
 ; 87:     asm("SYSCALL #4");
         syscall #4
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 printx_int64_hex:
 ; -------------------------------------------
@@ -351,37 +351,37 @@ printx_int64_hex:
 ; return   : void
 ; --------------------------------------------
 printx_int64_hex:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 95:     print_str("0x");
-        move R0 L_35090000
-        push R0
-        move R0 [R13+0]
+        move @R0 L_35090000
+        push @R0
+        move @R0 [@R13+0]
         call print_str
-        add R13 #4
+        add @R13 #4
 ; 96:     print_int(hi);  /* fallback: print as decimal */
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
         call print_int
-        add R13 #4
+        add @R13 #4
 ; 97:     putchar('_');
-        move R0 #95
-        push R0
-        move R0 [R13+0]
+        move @R0 #95
+        push @R0
+        move @R0 [@R13+0]
         call putchar
-        add R13 #4
+        add @R13 #4
 ; 98:     print_int(lo);
-        move R0 [R12+16]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R13+0]
         call print_int
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 printx_nl:
 ; -------------------------------------------:
@@ -391,17 +391,17 @@ printx_nl:
 ; return   : void
 ; --------------------------------------------
 printx_nl:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 104:     putchar(10);
-        move R0 #10
-        push R0
-        move R0 [R13+0]
+        move @R0 #10
+        push @R0
+        move @R0 [@R13+0]
         call putchar
-        add R13 #4
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #4
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

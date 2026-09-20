@@ -12,7 +12,7 @@ WayCoder（道码）是一个中文版易用编程智能体，C# (.NET 10) 实�
 # C# 版
 cd WayCoder
 dotnet publish -c Release            # AOT 编译
-dotnet run -- --test                 # 5122 自测
+dotnet run -- --test                 # 6232 自测
 dotnet run -- -p "提示词"            # 一次性模式
 dotnet run -- --watch                # Watch 模式 (监听 AI! 注释)
 dotnet run -- --update               # 自动升级 (检查并自替换)
@@ -23,115 +23,56 @@ dotnet run -- --update               # 自动升级 (检查并自替换)
 ```
 WayCoder/
 ├── Program.cs         入口 + CLI + REPL (ANSI 全屏 TUI)
-├── Agent.cs           主循环 (Stop Hook + WorkReporter + 10 阶段流水线)
-├── AgentSlot.cs       多 Agent 工作区 (F1-F10 槽位切换 + 后台并行)
-├── LLM.cs             LLM 客户端 (流式 + 渐进超时重试 + 任务花费追踪)
-├── ContextManager.cs  Crush 风格上下文管理 (token 追踪 + 自动摘要 + 进度事件)
-├── SessionManager.cs  会话持久化
-├── SystemPrompt.cs    系统提示词 (对标 Crush coder.md.tpl，15 个结构化区块)
-├── Config.cs          配置 (全局 ~/.waycoder/config.json 权威源 + .env 5 项最小引导)
-├── WatchMode.cs        Watch 模式 (文件监听 + AI! 注释)
-├── PermissionManager.cs 权限确认系统
-├── ProjectContext.cs  项目检测 + CLAUDE.md 加载
-├── ProjectInitializer.cs /init 项目初始化 (生成 AGENT.md，/init claude 生成 CLAUDE.md)
-├── ReviewMode.cs      代码审查模式
-├── FallbackLLM.cs     模型回退链
-├── MemoryStore.cs     记忆系统 (旧格式, 迁移源)
-├── StructuredMemory.cs 结构化记忆 (frontmatter 多文件 + MEMORY.md 索引)
-├── MemoryRetrieval.cs  跨会话记忆检索 (TF-IDF + 时间衰减)
-├── BackgroundTask.cs  后台任务
-├── DebugLog.cs        调试日志
-├── Test/              测试/调试/演示代码（SelfTest 自测 14 partial 文件 + Benchmark/Keypad/TuiAudit/TuiDemo）
+├── Agent/             智能体核心 (20 文件)
+│   ├── Agent.cs           主循环 (Stop Hook + WorkReporter + 10 阶段流水线)
+│   ├── AgentSlot.cs       多 Agent 工作区 (F1-F10 槽位切换 + 后台并行)
+│   ├── LLM.cs             LLM 客户端 (流式 + 渐进超时重试 + 任务花费追踪)
+│   ├── ContextManager.cs  Crush 风格上下文管理 (token 追踪 + 自动摘要 + 进度事件)
+│   ├── SystemPrompt.cs    系统提示词 (15 个结构化区块)
+│   ├── WorkModeManager.cs 工作模式 (Build/Plan/Chat)
+│   └── FallbackLLM.cs / BackgroundTask.cs / WorkReporter.cs / TaskProgress.cs
+├── Memory/            记忆与会话 (9 文件: StructuredMemory + MEMORY.md 索引 / MemoryRetrieval / SessionManager / ProjectKnowledge)
+├── Config/            配置 (24 文件: Global.cs 全局 ~/.waycoder/config.json 权威源 / Config.Schema 110 项 / ConnectionConfig / ModelCatalog / ModelCli)
+├── Infra/             基础设施 (86 文件: BashGuard / FileTracker / SandboxManager / HooksManager / UpdateChecker / DrawEngine 绘制 + 图片编解码 + Logging/)
+├── Git/               Git 集成 (8 文件: GitRunner / GitCore / PackFile / RepoMapGenerator / WorktreeIsolation)
+├── Watch/             Watch 模式 + ReviewMode
+├── Sql/               手搓 SQL 引擎 (SqlEngine.cs)
+├── Skills/            技能 + 权限 (SkillsManager / PermissionManager / AutoModeClassifier / builtin/)
+├── Test/              测试/调试/演示代码（SelfTest 自测 40 partial 文件 + Benchmark/Keypad/TuiAudit/TuiDemo，共 6232 项）
 ├── Batch/             批量任务引擎 (BatchSpec 清单模型 + BatchRunner 多仓库并行/worktree 隔离)
 ├── Plugins/           编译期插件系统 (IPlugin SDK + PluginRegistry + [ModuleInitializer] 自动注册)
-├── WorkReporter.cs    工作总结报告生成器
-├── TaskProgress.cs    任务进度追踪
-├── FileLockManager.cs 文件锁 (防并发修改冲突)
-├── UI/                 终端 TUI 控件库 (36+ 文件)
-│   ├── TuiCust/              自定义控件 + 对话框 (8 文件)
-│   │   ├── ToolRenderers/      工具输出渲染器 (7 文件)
-│   │   ├── ModelPicker.cs      模型选择对话框 (全屏 ANSI)
-│   │   ├── FilePicker.cs       文件选择对话框
-│   │   ├── CommandPalette.cs   命令面板
-│   │   ├── DialogAction.cs     类型化 Action 结果
-│   │   ├── DialogOverlay.cs    栈式对话框管理器
-│   │   ├── DiffPreview.cs      diff 预览 + 逐 hunk 确认
-│   │   └── DiffRenderer.cs     统一 diff 渲染
-│   ├── TuiControls/          基础控件库 (17+ 文件)
-│   │   ├── TuiButton.cs        增强按钮 (快捷键下划线/悬停)
-│   │   ├── TuiButtonGroup.cs  按钮组 (水平/垂直/Tab导航)
-│   │   ├── TuiScrollbar.cs    独立滚动条 (拖拽/滑块/自动隐藏)
-│   │   ├── TuiDynamicBar.cs   动态状态栏 (Agent状态/工具/压缩进度)
-│   │   ├── TuiKeybindHelp.cs  键盘快捷键帮助面板
-│   │   ├── TuiToastQueue.cs   Toast 通知队列
-│   │   ├── TuiMarkdown.cs     Markdown→ANSI 渲染 (ILazyItem)
-│   │   ├── TuiListView.cs     懒列表 (二分查找+提前终止)
-│   │   ├── TuiInput.cs        多行输入区 + 智能提示面板
-│   │   ├── TuiComboBox.cs     下拉选择框
-│   │   ├── TuiGrid.cs         网格布局
-│   │   ├── TuiList.cs         列表选单
-│   │   ├── TuiTable.cs        表格控件
-│   │   ├── TuiTableList.cs    表格列表 (列头/选中/滚动钳制)
-│   │   ├── TuiSpace.cs        空白占位 (布局留白/隔行, 不渲染不聚焦)
-│   │   ├── TuiBox.cs          对话框
-│   │   ├── TuiPrompt.cs       输入框
-│   │   ├── TuiProgress.cs     进度条
-│   │   ├── TuiBanner.cs       欢迎横幅
-│   │   └── ILazyItem.cs       懒渲染项接口
-│   ├── ScreenManager.cs 全屏缓冲 + 弹窗菜单 + 侧栏
-│   ├── SettingsPage.cs  设置界面 (Schema 自动布局)
-│   ├── WindowManager.cs 窗口管理器 (Z-order/模态/Toast)
-│   ├── InputManager.cs  键盘+鼠标+resize 输入拦截
-│   ├── MarkdownRenderer.cs Markdown 解析引擎
-│   ├── TuiHelper.cs     CJK 宽度计算 + 文本工具
-│   ├── TuiColors.cs     统一配色常量
-│   ├── BoxBuffer.cs     矩形缓冲区基类
-│   └── Gui/            GUI 占位（预留扩展）
-├── Edit/               终端源码编辑器 (4 文件)
-│   ├── Editor.cs       编辑器引擎 (光标/缓冲/渲染)
-│   ├── Syntax.cs       语法高亮 (14 种语言)
-│   ├── DiagnosticManager.cs Lint 诊断集成
-│   └── Gui/            GUI 编辑器占位（预留扩展）
-├── Infra/              基础设施 (16+ 文件)
-│   ├── BashGuard.cs     命令安全防护 (70+ 禁止 + 47 安全白名单)
-│   ├── FileTracker.cs   文件追踪 (SHA256 + 变更检测)
-│   ├── ErrorLog.cs      统一错误日志 (四级 + 自动轮转)
-│   ├── FileIgnoreManager.cs .gitignore + .waycoderignore 规则引擎
-│   ├── DesktopNotifier.cs  桌面通知 (终端闪烁 + 响铃 + Toast)
-│   ├── PdfExtractor.cs  PDF 文本提取 (PdfPig, AOT 兼容，分页)
-│   ├── OfficeExtractor.cs  Office 文档提取 (DOCX/XLSX/PPTX, 零依赖)
-│   ├── HooksManager.cs    Hook 系统 (8 事件 + JSON 协议 + 匹配器)
-│   ├── IdGenerator.cs     加密安全 ID 生成
-│   ├── LruCache.cs        线程安全 LRU 缓存 (TTL 过期)
-│   ├── RetryPolicy.cs     智能重试策略 (指数退避 + 异常过滤)
-│   ├── SnippetStore.cs    代码片段管理
-│   ├── UpdateChecker.cs   自动升级 (版本比较 + RID 探测 + GitHub/Gitee 源 + 自替换)
-│   ├── Logging/           结构化日志系统 (9 文件: ILogSink/Console/File/JSON)
-│   ├── DrawEngine.cs     手搓绘图引擎 (文本 DSL → SVG/PNG，零反射，指令可扩展)
-│   ├── DrawCanvas.cs    光栅化画布 (Bresenham 线/扫描线填充/粗线描边/渐变采样)
-│   ├── DrawCommands.cs  内置绘图指令 (20+ 形状 + 变换 + 贴图/裁剪/图标模板)
-│   ├── PngEncoder.cs / PngDecoder.cs / BmpCodec.cs / JpegCodec.cs  手搓图片编解码
-│   ├── RasterImage.cs / ImageLoader.cs  像素缓冲 + 格式检测/编解码分发
-│   └── TrueTypeFont.cs / FontFinder.cs  手搓字体解析 + 系统字体探测
-└── Tools/             44 个工具
-    ├── BashTool.cs    GitTool.cs    LspTool.cs
-    ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
-    ├── WriteFileTool.cs TodoTool.cs  LintTool.cs
-    ├── EditFileTool.cs AgentTool.cs  WebSearchTool.cs
-    ├── GlobTool.cs    GrepTool.cs    GitPRTool.cs
-    ├── PsTool.cs      KillTool.cs    LsTool.cs
-    ├── MkdirTool.cs   RmTool.cs      CdTool.cs
-    ├── FindReplaceTool.cs CpTool.cs  MvTool.cs
-    ├── DiffTool.cs    TreeTool.cs    WcTool.cs
-    ├── StatTool.cs    PwdTool.cs     SkillTool.cs
-    ├── DocTool.cs      DownloadTool.cs MultiEditTool.cs
-    ├── AskUserQuestionTool.cs ExportTool.cs StructTodoTool.cs
-    ├── JobOutputTool.cs JobKillTool.cs NotebookEditTool.cs 后台任务管理
-    ├── ScreenshotTool.cs 抓屏（终端文本 / 桌面 PNG + OCR）
-    ├── ViewImageTool.cs 查看图片（附加到下一轮，vision 模型「看图」）
-    ├── TranscribeAudioTool.cs 音频转录（Whisper 兼容，补齐多模态音频输入）
-    ├── DrawTool.cs 绘图（文本 DSL → SVG/PNG，零反射，指令可扩展）
-    └── ImageConvertTool.cs 图片格式互转（PNG/JPG/BMP）
+├── Tools/             49 个工具
+│   ├── BashTool.cs    GitTool.cs    LspTool.cs
+│   ├── ReadFileTool.cs FetchTool.cs MemoryTool.cs
+│   ├── WriteFileTool.cs TodoTool.cs  LintTool.cs
+│   ├── EditFileTool.cs AgentTool.cs  WebSearchTool.cs
+│   ├── GlobTool.cs    GrepTool.cs    GitPRTool.cs
+│   ├── PsTool.cs      KillTool.cs    LsTool.cs
+│   ├── MkdirTool.cs   RmTool.cs      CdTool.cs
+│   ├── FindReplaceTool.cs CpTool.cs  MvTool.cs
+│   ├── DiffTool.cs    TreeTool.cs    WcTool.cs
+│   ├── StatTool.cs    PwdTool.cs     SkillTool.cs
+│   ├── DocTool.cs     KbTool.cs      TestTool.cs
+│   ├── DownloadTool.cs JobOutputTool.cs JobKillTool.cs
+│   ├── NotebookEditTool.cs MultiEditTool.cs
+│   ├── AskUserQuestionTool.cs ScreenshotTool.cs
+│   ├── ViewImageTool.cs
+│   ├── TranscribeAudioTool.cs
+│   ├── DrawTool.cs 绘图（文本 DSL → SVG/PNG，零反射）
+│   └── ImageConvertTool.cs / ConvertEncodingTool.cs / SqliteTool.cs / SymbolsTool.cs
+└── UI/                 五端界面层
+    ├── TUI/            终端界面 (220 文件)
+    │   ├── Base/           控件基座 (TuiBase→TuiControl→TuiView / TuiManager / TuiScreen / TuiWindow / InputManager / 滚动数学)
+    │   ├── Controls/       基础控件库 (45 文件: TuiButton / TuiListView / TuiDynamicBar / TuiKeybindHelp / TuiMarkdown …)
+    │   ├── Custom/         自定义控件 + 对话框 (15 文件: ModelPicker / FilePicker / CommandPalette / DiffPreview / UxHelper …)
+    │   ├── Screens/        全屏界面 (ChatScreen / MarkupChatScreen / SettingsScreen / EditorScreen …)
+    │   ├── Edit/           终端源码编辑器 (EditorCore / Syntax 语法高亮 / DiagnosticManager Lint 诊断)
+    │   ├── Renderers/      工具输出渲染器 (7 文件)
+    │   └── Raw/            `.tui` 声明式布局
+    ├── Shared/         跨端共享纯逻辑 (MarkdownRenderer / UnifiedDiff / AnsiHelper / AnsiColors / Terminal 缓冲与 ANSI / Vml* 协议与宿主接口)
+    ├── WEB/            Web 端 (WebServer / WebChat / www 前端资源)
+    ├── CLI/            命令行端 (Arguments 参数注册 / Commands 斜杠命令)
+    └── GUI/            Avalonia GUI 占位（预留扩展）
 ```
 
 ## 关键设计决策
@@ -154,7 +95,7 @@ WayCoder/
 - **实例级工作模式**：`Agent.WorkMode` 实例字段替代全局 `WorkModeManager.CurrentMode`（全局仅作 UI 镜像），每个槽位 Agent 持有自己的模式，混合模式并行（A 槽 Plan + B 槽 Build）各自正确；`Agent.OnWorkModeChanged` 回调携带槽位索引——后台槽位批准计划后切回 Build 只通知正确槽位，不污染活跃槽位
 - **内置自动升级**：`UpdateChecker` 版本检查优先 Gitee Releases（国内快）、回退 GitHub（`WAYCODER_GITHUB_REPO`/`WAYCODER_GITEE_REPO` 覆盖）；`/update` 检查、`/update now`/`--update` 自替换；纯逻辑（`CompareVersions`/`DetectCurrentRid`/`FindAssetName`）与网络/文件操作分离便于自测；Windows 落 `.new`+`upgrade.bat` 退出后替换重启、Unix 原子 `rename` 覆盖运行中二进制；`packaging/` 提供 winget manifest / brew formula / apt deb 打包 + GitHub Actions 发布工作流
 - **AOT 编译：JSON 手写序列化**，`JsonHelper.SerializeArgs` 替代 `JsonSerializer`
-- **权限系统**：bash/write/edit/agent 默认行内确认（三行黄底渲染），`/perm yolo` 跳过
+- **权限系统**：bash/write/edit/agent 默认行内确认（输入框下方的文字选择栏，见下条），`/perm yolo` 跳过
 - **计划审批门**：`WorkMode.Plan`（Shift+Tab 计划模式）下模型产出计划（文本、无工具调用）后不自动催促执行，而是就地弹审批框——批准则 `SetMode(Build)` 切回建造模式继续执行，拒绝则停止；`Agent.ShouldPromptPlanApproval(mode, contentLen)` 纯逻辑判定 + `ChatScreen.ShowPlanApproval` 对话框；`WorkModeManager.ModeChanged` 统一同步槽位持久模式与状态栏
 - **项目初始化 `/init`**：`ProjectInitializer.GenerateAgentMd()` 扫描项目生成中文 AGENT.md（默认；`/init claude` 传 `fileName="CLAUDE.md"` 生成 CLAUDE.md 兼容 Claude Code；复用 `ProjectContext.DetectProject` + 构建/测试/lint 命令探测）；`InitCommand` 斜杠命令负责覆盖确认与写文件，生成后下次启动经 `ProjectContext.LoadInstructions` 自动注入系统提示词
 - **MCP 状态管理 `/mcp`**：`McpManager` 结构化状态模型（`McpServerStatus` Connecting/Connected/Failed + `McpServerInfo` 不可变快照 + `McpServerState` 运行时状态）+ `ReloadAsync` 热重连（断开旧连接→移除旧工具→重连）；`McpCommand` 查看/重连，侧栏 MCP 区结构化显示，对标 Claude Code /mcp
@@ -181,9 +122,9 @@ WayCoder/
 - **行内权限确认**：`ChatScreen.InlineChoice`（一个 `TuiPromptBar` 实例）钉在**输入框下方**，❯ 箭头 + 黄底高亮 + 每项一行说明；键位 ↑↓/Home/End 移动、Enter 确认、Esc 拒绝、Y/N/A 单键、1-9 直选、多选 Space 勾选、多题 ←→/Tab 翻页，栏下方常驻键位提示行。**权限确认 / 计划审批 / 粘贴确认 / 通用确认 / 退出确认 / 设置页 select 全走它，CLI/TUI 不再弹框**（Web/GUI/MAUI 仍弹框，分界点是 `TuiManager.ActiveScreen is ChatScreen`，见 CLAUDE.md）。旧 `InlinePermission`（聊天流内嵌黄块）是死代码，已无生产调用
 - **多行输入 + 历史**：`TuiDialog.Input()` 升级为 TuiTextArea 多行，`TuiInputHistory` 按字段名 50 条历史 + AOT 安全文本持久化；聊天输入框 `MaxColumnWidth=终端宽` 超宽自动折行、高度动态 1~5 视觉行超 5 行上滚、`MaxLength=32K` 上限（Rune 安全截断 `TuiTextArea.TruncateRunes`）
 - **粘贴确认**：ChatScreen 和 TuiChatInput 粘贴超长(>500字符)或多行(>3行)时弹出确认
-- **结构化记忆**：`.corecoder/memory/*.md` frontmatter 多文件 + MEMORY.md 索引，`memory` 工具与系统提示词注入均走结构化格式，首次使用自动从旧 memory.md 迁移
+- **结构化记忆**：`.waycoder/memory/*.md` frontmatter 多文件 + MEMORY.md 索引，`memory` 工具与系统提示词注入均走结构化格式，首次使用自动从旧 memory.md 迁移
 - **Diff 预览**：`/config DiffPreview true` 开启，write_file/edit_file 写前逐 hunk 确认（Y/N/A/Q），非交互模式（管道/重定向/测试）自动跳过
-- **Bash 安全防护**：`BashGuard` 三层拦截（命令名 + 参数 + 安全白名单），70+ 禁止命令，47 安全只读命令免确认
+- **Bash 安全防护**：`BashGuard` 三层拦截（命令名 + 参数 + 安全白名单），87 禁止命令，70 安全只读命令免确认
 - **`!` shell 直通**：TUI 输入 `!命令` 在操作系统 shell 执行（Win=cmd / 非 Win=bash），**输出加到聊天**（tool 纯文本，截取最后 500 行 `Program.TailLines`），裸 `!` 弹提示；`BashTool.ExecuteUserShellAsync` 跳过 Agent 黑名单（用户主动、红框警示）仅留绝对红线；输入框上下横线按前缀变色（`!`红 `/`青 `@`品红 `#`灰）——`ChatScreen.InputBorderColorFor` 纯逻辑
 - **文件追踪 + Stale-Read 保护**：`FileTracker` SHA256 哈希记录 + 外部变更检测 + LRU 淘汰 + Agent 主循环注入变更警告（对标 Crush），防止 Agent 基于过期文件内容做决策
 - **自动续写**：检测"口述代码"（content >300 字符 + 代码标记）→ 追问使其写文件；首轮只分析不动手 → 追问执行
@@ -193,7 +134,7 @@ WayCoder/
 - **SHA256 循环检测**：每轮对（assistant 消息 + 工具结果）做哈希，8 轮窗口内相同哈希出现 3+ 次触发 3 级递进式反循环提示（换方法→重新评估→严重警告重置）
 - **工具白名单/黑名单**：`WAYCODER_ALLOWED_TOOLS` / `WAYCODER_DISABLED_TOOLS` 环境变量控制 Agent 可用工具集合，构造函数中过滤，对主 Agent 和子 Agent 均生效
 - **Tiny 模式**：`--tiny [窗口]`（如 `--tiny 8k`）精简提示词 + 小窗口；无参自动探测（Ollama `/api/show` 真实 `context_length` → 目录 → 4K 兜底）
-- **省 Token 模式**：`--economy [on|auto|off]` / `WAYCODER_ECONOMY` 三态开关，保持正常窗口——关=完整；开=精简提示词（砍 RepoMap/Git/记忆/10 阶段流水线）+ 压缩阈值 50/70/90→35/55/75 + 工具输出裁剪 4000→2000 字符 + `max_tokens` 32768→8192；自动=保持完整提示词，压缩/裁剪阈值按任务轮数复杂度动态插值（简单省、复杂保质量），配合 `/config EconomyPriority quality|balanced|cost`（默认 quality，先保质量再省费用）；与 Tiny 的区别是保留正常窗口、面向云端大模型省钱
+- **省 Token 模式**：`--economy [on|auto|off|extreme]` / `WAYCODER_ECONOMY` 四态开关，保持正常窗口——关=完整；开=精简提示词（砍 RepoMap/Git/记忆/10 阶段流水线）+ 压缩阈值 50/70/90→35/55/75 + 工具输出裁剪 4000→2000 字符 + `max_tokens` 32768→8192；自动=保持完整提示词，压缩/裁剪阈值按任务轮数复杂度动态插值（简单省、复杂保质量），配合 `/config EconomyPriority quality|balanced|cost`（默认 quality，先保质量再省费用）；与 Tiny 的区别是保留正常窗口、面向云端大模型省钱
 - **视觉（多模态）支持**：`view_image` 工具把本地图片加入 `LLM.PendingImages` 队列，Agent 主循环下一轮在 `FullMessages()` 末尾注入为多模态 user 消息（OpenAI 格式 `content` 数组，base64 data URL）；`LLM.ModelSupportsVision` 门控——仅 gpt-4o/gpt-5/claude/gemini 等 vision 模型才注入，DeepSeek 等文本模型自动跳过避免 400；配合 `screenshot` 抓屏实现「看图修 bug」
 - **音频（多模态）支持**：`transcribe` 工具把本地音频文件上传到 Whisper 兼容端点（`/v1/audio/transcriptions`，multipart）转成文字，补齐 Codex CLI/Gemini CLI 的音频输入短板；配置 `WAYCODER_WHISPER_MODEL`/`WAYCODER_WHISPER_BASE_URL`/`WAYCODER_WHISPER_API_KEY`（空 key 回退主 `WAYCODER_API_KEY`），支持 OpenAI Whisper / Groq / faster-whisper 任意兼容服务
 - **批量任务引擎**：`--batch <JSON|文件>` / `--batch-repo <仓库> --batch-task <任务>` 多仓库并行处理——每个任务 `git clone` 到 `.waycoder/batch/jobs/<名>_<随机>` 独立副本，子进程以 `-p` 一次性模式 + `-y` 放行执行（进程级隔离 cwd/状态），`SemaphoreSlim` 控并行（1–16 默认 4）、单任务超时可配（默认 1800s，超时杀整个进程树），子进程复用父进程已解析的 `--model`/`--base-url`/`--api-key`/`--max-budget-usd`（避免 clone 目录无 `.env` 丢 key）；跑完输出聚合 Markdown 报告落盘 `batch-report.md` + 退出码（对标 Cursor 批量修复 / Aider 多仓库脚本）
@@ -251,7 +192,7 @@ WayCoder/
 - **行内问答：只 CLI/TUI 不弹窗，四端分界在 `ActiveScreen`（v0.96.111）**：权限确认 / 计划审批 / 粘贴确认 / 通用确认 / 退出确认 / 设置页 select 全改「输入框**下方**的文字选择栏」（`ChatScreen.InlineChoice`，❯ 箭头 + 黄底 + 每项一行说明）；**不放上方**是因为那里与 `/ @ ! #` 前缀提示共用 `InputArea.KeyHook`、且是「Enter 回填输入框」的语义，放一起必打架。**只要终端行内，Web/GUI/MAUI 仍弹框（有意为之，不是没做）**：分界点是 `TuiManager.Instance.ActiveScreen is ChatScreen` —— Web/GUI 不 `PushScreen`、MAUI 的 `TuiManager` 桩 `ActiveScreen` 恒 null，三端一律落到 `UxHelper.WebInteraction` 桥（GUI 用 `GuiInteraction`、MAUI 用 `MauiWebInteraction`）。**四种形态一套机制**（`SurveyQuestion` × `MultiSelect` × `showTabs`）：多选一 / 多选多（`Space` 勾选，`[x]`/`[ ]`）/ 横向多页（页头标签行 + `←→`）/ 分步骤（页头「步骤 k/n」+ `Enter` 推进）；题目末尾自动附「其他（自行输入）」与「跳过此题」（单选页才加，多选页空选本身就是跳过）。**「其他」复用输入框**（KeyHook 对普通键返回 false 放行、只拦 Enter/Esc）—— 它的早退判据**必须含 `_surveyOtherInput`**：输入态时选项栏已收起（`InlineChoiceVisible=false`），若只判可见性，Enter 会被 `HandleSpecial` 的「发送消息」先截走，用户打完自定义答案一按回车就当成聊天消息发了出去。**不阻塞主循环**：`UxHelper.RunInlineChoiceOnScreen` 走 `RenderWait(win: null)`（后台线程只 Sleep 等事件，渲染读键归常驻主循环，顺带绕开 `win.Screen == null` 那条过早返回的判据）。**高度一变必须 `TuiManager.RequestFullRefresh()`** —— 行内栏换页/显隐会改 `Height`，下方兄弟控件整体位移，而增量渲染只重绘「自己标脏」的控件，被挪走位置的旧像素留在屏上（实测上边框被上一帧页头文本啃出豁口 `╭─── ─ ───── ─ ───╮`）。**`TuiPromptBar` 的填充右界要含右框内侧列**：只填到 `Width-3` 会漏掉 `Width-2` 那一列，旧帧画在那里的 `─` 没人覆盖；**页头行也必须按普通内容行渲染**（左右边框 + 整行填充），只写文本会让上一帧的残留（动态栏 spinner/百分比）粘在页头上
 - **语法高亮的 token 类别与两套实现（v0.96.111）**：`Syntax.Tokenize` 认 **10 类** —— 注释 / 字符串 / 字符字面量 / 数字 / 关键字 / 运算符 / 括号标点 / 函数名 / 类型名 / 变量。其中**标识符只挑两类上色**（后跟 `(` = 函数、首字母大写 = 类型名），其余给**明确的亮灰 `Identifier`(253) 而不是 `Default(0)`** —— `0` 是「用终端默认前景」，而暗色终端的默认前景本身就偏暗，会和注释（`Comment` 241 暗灰）糊成一片（用户实测「标识符和注释一样」）。`Plain`（`.txt`）的 `HighlightSymbols=false`：散文里的括号、破折号、冒号不该变色。**Web 端是独立的 JS 实现**（`app.js` 的 `highlightCode` + `style.css` 的 `--tok-*`），跨语言无法共享代码 —— **改一边记得改另一边**（本仓库反复出现的「同一规则两处实现」，这层无法靠共享代码消除）。语言识别两条路：语言标签（23 条分支、60+ 别名含 `c#`/`jsx`/`python3`）与文件扩展名（38 个）；语言标签不认识时走 `Generic()` 通用表（不是 `Plain` —— 后者的关键字表是空的，整块只剩字符串有色）
 - **「粗体 + 颜色」编码进颜色高位（v0.96.111）**：中间格式的段模型是 `(Text, Fg, Bg)` 三元组，**没有独立的样式通道** —— `«bold»«orange»Edit«/»«/»` 里内层的颜色码会把外层 `«bold»` 的样式码 1 **覆盖**掉（解析栈只存 Fg/Bg）。修法：`AnsiTty.BoldFlag = 0x2000000`，`«bold»` 置该位、颜色码保留该位，`FgCode`/`FgBgCode` 见到就先发 `SGR 1` 再发颜色。这样不用改动所有段的消费方（TUI/MAUI/Web 各自的渲染器）；MAUI 侧 `ResolveFg` 要**先剥位再解析**（否则 `≥0x1000000` 的真彩分支会把它当成巨大 RGB 解出乱色）
-- **工具行统一格式（v0.96.111）**：`💡 «bold»«orange»Edit«/»«/»«grey»(参数)«/»` —— 图标统一 `💡`、名称去 `_file` 后缀再 snake→Pascal（`edit_file`→`Edit`、`multi_edit`→`MultiEdit`）、**参数只给值不带 `key=`**（`ToolDisplay.Brief` 第 87 行原拼 `k=v`）、**长度不截断**（默认 `maxLen=0`）改为**按控件宽折行**。折行三要点：在 `«»` 标记**之外**折（硬切会切出字面量）、每行**各自闭合**（plainText 逐行解析标记，跨行对不上）、按显示宽折且**不切断宽字符**；优先在空格/路径分隔符处断行，回退超行宽 1/3 则放弃回退。**bash 的参数按 shell 语法上色**（它就是一条命令行），其他工具的 brief 是路径/描述，统一灰
+- **工具行统一格式（v0.96.111）**：`💡 «bold»«orange»Edit«/»«/»«grey»(参数)«/»` —— 图标统一 `💡`、名称去 `_file` 后缀再 snake→Pascal（`edit_file`→`Edit`、`multiedit`→`Multiedit`）、**参数只给值不带 `key=`**（`ToolDisplay.Brief` 第 87 行原拼 `k=v`）、**长度不截断**（默认 `maxLen=0`）改为**按控件宽折行**。折行三要点：在 `«»` 标记**之外**折（硬切会切出字面量）、每行**各自闭合**（plainText 逐行解析标记，跨行对不上）、按显示宽折且**不切断宽字符**；优先在空格/路径分隔符处断行，回退超行宽 1/3 则放弃回退。**bash 的参数按 shell 语法上色**（它就是一条命令行），其他工具的 brief 是路径/描述，统一灰
 - **代码围栏的容错（v0.96.111）**：模型常把三反引号围栏写成一个或两个反引号（形态是「反引号 + 语言名」独占一行开栏、「纯反引号」独占一行收尾），按标准 markdown 既不是围栏又不是行内代码 —— 抽 `UI/Shared/CodeFence` 做唯一判据（TUI + MAUI 共用），收得很紧：只认「整行只有反引号 + 标识符形态的语言名」。**真正的坑在段落累积**：它的终止条件硬编码了 `StartsWith("```")`，于是「先一句说明、再贴代码」（模型最常这么写）时围栏被当段落续行吃掉；**首行即围栏的形态一直正常**，所以只测那种形态的断言全绿、实际却不对。闭栏判定放宽为「标准形态满 3 个就算闭合」（4 开 3 闭是模型常见写法，按标准「闭栏不少于开栏」会找不到闭合、把后面所有正文吞进代码块）
 - **代码块/ diff 的底色铺满整行（v0.96.111）**：`TuiMarkdown.RenderMessage` 出口统一 `FillRowBackgrounds`（取行内第一个非零背景色补空格到渲染宽度）—— 竞品的代码块与 diff 底色都是铺满整行的，只裹住文字会在右侧留断口。**工具输出按文件后缀上色**：`ContentDiffFormatter` 用 `Syntax.ForFile(file_path)` 定语言（这类代码没有语言标注，但路径一定有），格式是「行号与 `+`/`-` 标记保持 diff 语义色 + 代码逐 token 上真彩 `«fg:#rrggbb»`」（256 色→hex 的换算在 `AnsiTty.Xterm256ToRgb/ToHex`）
 - **动态栏三段与子智能体数（v0.96.111）**：左段（状态）`1/3`→`1/5`、中段（工具命令）吃掉剩余全部宽度、右段（`📊⚡🔤¥`）**右对齐**（实现是「按优先级左起排 → 整体右移贴边」，保持原有的丢项优先级）。几何抽成 `ComputeGeometry`，`OnRender` 与 `RenderDirect` **共用一份** —— 此前两处各硬算 `Width/3`，改一处忘另一处就串位/闪烁。新增 `AgentTool.ActiveSubAgents`（`Interlocked`，包在整个重试周期外）→ 右段 `🤖N`，仅 >0 时占位。**状态栏**：路径在「槽位条之后 / 右侧 Token 之前」区间居中（保尾部截断）；槽位用 **`[N]` 方括号**框住当前（白底/纯颜色在浅色主题与色盲下都不够明确），第 10 槽显示 `0` 而非 `10`（个位等宽，切槽位时后续内容不左右抖）
@@ -263,7 +204,7 @@ WayCoder/
 - **「助手已存在但被绕过」是本仓库最主要的重复形态（v0.96.90）**：全仓 137K 行过了一遍 6 路区域审查 + 机械检测（479 非测试文件 / 8 行窗口 / 跨文件重复 409 组），33 条里去重价值最高的那批**不是「没人写过」**而是「写过了、调用点绕过去了」——`GitRunner` 类注释写着「所有 git 调用都应通过此类」被 4 处绕过；`PathSafety.Guard` 被 6 处绕过；`UiText` 建来就是为消重、**零生产调用点**；`RunModalDialog` 注释写着「收敛约 8 份」而同文件 40 行外有 6 个私有方法没用它。**动手写新助手之前先 grep 有没有现成的**；**同一份数据/文件被两个工具读写时，读写必须单一实现**（`todo`/`struct_todo` 共用 `todos.json` 各写一套，已漂移成：状态词表分裂 + 一个原子写一个裸写 + 文案骗模型三处）。本版落地的单一真源：① `Tools/TodoStore.cs`（todos.json 唯一读写 = 锁 + `Global.WriteAllTextAtomic` + `ValidStatuses` 词表 + 依赖图）；② `Tools/FileWalker.cs`（递归遍历唯一实现，跳过判断**以 `FileIgnoreManager` 权威表为底**、各工具用 `extraSkipDirs` 显式追加噪音项——此前三份表互不相同导致「grep 查不到、find_replace 却改得到」）；③ `GitRunner`（**所有** git 调用走它：自带 `RedirectStandardInput` 隔离 + `GitTimeoutSec` + `ProcUtil.AwaitReadWithTimeoutAsync` 读超时；`SystemPrompt.RunGitCommand` 原来超时后仍无界 `GetResult()`，而那条路径每次构建系统提示词都走）；④ `ProjectInitializer.DetectTestCommand(root, userOverride)` / `DetectBuildCommand(root)`（构建/测试命令唯一真源，`Agent.Feedback` 转调——此前 `/init` 写进 AGENT.md 的命令与 Agent 实际执行的**给出两种答案**）；⑤ `UI/TUI/ChatRoleStyle.cs`（角色显示名/正文色/图标色唯一真源，此前四张平行表把 user/system 硬编码成亮白，使主题 6 变体 × 4 个 `Chat*Fg`/`Icon*Fg` 全成**死键**）；⑥ `SandboxManager.ContainmentReason` + `IsUnder`（路径包含判断唯一实现，**含 symlink 解析 + 路径段边界**——`CheckDirectoryEscape` 原来不解析 symlink，`cd` 逃逸可用「项目内 symlink 指向项目外」绕过；裸 `StartsWith` 还让 `/proj-evil` 通过 `/proj`）；⑦ `PktLine.ReadFrame`（pkt-line 非数据帧判据是 **`len < 4`** 不是 `len <= 1`：v2 的 response-end-pkt 是 `0002`，旧的宽容分支会 `new byte[-2]` 抛 OverflowException 打挂 clone）。另两条易踩：**`RenderBuffer.Write` 的 `fg:`/`bg:` 在 1..9 是样式码、不是颜色码**——`fg: 8` 是 SGR 8 conceal（字符直接不显示）而非 dim，要暗用 `AnsiTty.StyleDim`（=2），`TuiMenu` 的滚动条与分隔线就这么隐形过；**`WayCoder.Maui/CoreStubs.cs` 是桩类**——MAUI 排除 `UI/TUI/**` 却编译 `Tools/**` 与 `Agent/**`，真实现每加一个被这些文件用到的 public 成员都要同步补桩，漏了**只在 MAUI 上 CS0117**（桌面构建全绿看不出来）。
 - **自测失败行必须直写真实 stdout（v0.96.94）**：`SelfTest.Report` 走 `Console.WriteLine`，而不少用例用 `Console.SetOut(StringWriter)` 捕获输出（渲染/对话框/编码类）—— **期间若有 Check 失败，❌ 落进那个 StringWriter 就被丢掉**，表现为「汇总 `失败: N` 但输出里没有任何 ❌ 行」，排查时完全无从下手（实测偶发过两次）。现在 `RunWithFilter` 在入口捕获真实 stdout，`Report` 在当前 `Console.Out` 已不是它时**额外直写真实 stdout**。**新写捕获输出的用例不必管**；但**新增任何「用 SetOut 捕获」的块时，别把 Check 放进捕获区**，或者接受失败行会走两遍。
 - **「从 cwd 向上找」的循环：边界必须锚在「一定在祖先链上」的目录（v0.96.105 结清）**：`SkillsManager.FindSkillDirs` 原先只靠上溯顺带命中 `Global.Home`，而 `dir == Global.Home` **只在 cwd 位于 home 之下时才成立** —— **cwd 与 home 不同盘**（D 盘项目 / C 盘用户目录）时该边界永不触发，循环直落盘根，用户自己的 `~/.claude/skills`、`~/.waycoder/skills` **静默不加载**（现象：换到别的盘建项目，个人技能就「消失」了）。而且 `Global.Home` 会被 `HomeOverride` 改成临时目录（自测/嵌入式），它**根本不在 cwd 的祖先链上** ⇒ 等不到相等 ⇒ 上溯无界。**正解两条一起上**：① 用户的**个人级**技能目录**无条件纳入**（`Global.Home` 不在链上就显式补进链尾 —— 链尾在 `Reverse()` 之后排最前 = 最先加载 = 优先级最低，保持「本地覆盖通用」语义不变）；② 上溯边界锚在 `ProjectContext.UserProfileDir`（**不随 `HomeOverride` 变化**，`internal` 出去了）与盘根，两个都兜 —— 与 `ProjectContext.FindProjectRoot` 同一处置。**写任何「从 cwd 向上找」的循环时先问：这个边界在什么条件下才会触发？锚在被覆写/被重定向的变量上就永远等不到。** 仍未解决的一条（**有意不改**）：自测临时目录若恰好落在真实用户主目录之下，上溯经过 profile 那一级仍会收进开发机真实的 `~/.claude/skills` —— 那是「用户在自己 home 下跑」的正常语义，要修只能迁测试目录，不该往生产代码里加测试专用的特例。
-- **重复代码清理的落地清单（v0.96.90 ~ v0.96.101）**：全仓过了一遍（6 路区域审查 + 机械检测，33 条），判据是「重复是否已在产生风险」，不是行数。**新增共享代码前先 grep 有没有现成的**（详见上一条）。已落地的单一真源：`Tools/TodoStore.cs`（todos.json 唯一读写）、`Tools/FileWalker.cs`（递归遍历 + 跳过判断，以 `FileIgnoreManager` 权威表为底）、`Tools/SsgfRedirect.cs`（跟随重定向 + 每跳 SSRF 校验；**重定向预算必须显式传** —— 此前三处是 5/10/5 无声地不同）、`Tools/WritePipeline.cs`（`ConfirmDiff` 逐 hunk 确认 + `RestoreCrlf`）、`Git/GitRunner.cs`（所有 git 调用）、`UI/Shared/UnifiedDiff.cs`（行级 diff 引擎）、`UI/TUI/ChatRoleStyle.cs`（角色配色）、`SandboxManager.ContainmentReason` + `IsUnder`（路径包含判断）、`PktLine.ReadFrame`、`TextEncoding.MatchBom`（BOM 表）、`UiText`（权限/经济文案）、`ProjectInitializer.Detect*`（构建/测试命令）、`Agent.ApplyRuntimeModel`（模型切换收尾）、`Global.WalkUpDirectories`（从 cwd 逐级上溯找配置，**终止要同时兜住 `parent == dir` 与 `parent == null`** —— `Path.GetDirectoryName` 对盘根返回 null）、`Maui/Markup/MarkdownTable.cs` + `MarkupToFormattedString.AppendCodeLines`（移动端表格判定与代码块高亮；合并时发现三处**并不等价** —— 聊天流那版缺「超大代码块降级纯文本」护栏，而那道护栏正是防移动端 ANR 的）、`ToolErrors.ErrorOpPrefix`（五个工具手拼的 `错误：{op}: …`）。
+- **重复代码清理的落地清单（v0.96.90 ~ v0.96.101）**：全仓过了一遍（6 路区域审查 + 机械检测，33 条），判据是「重复是否已在产生风险」，不是行数。**新增共享代码前先 grep 有没有现成的**（详见上一条）。已落地的单一真源：`Tools/TodoStore.cs`（todos.json 唯一读写）、`Tools/FileWalker.cs`（递归遍历 + 跳过判断，以 `FileIgnoreManager` 权威表为底）、`Tools/SsgfRedirect.cs`（跟随重定向 + 每跳 SSRF 校验；**重定向预算必须显式传** —— 此前三处是 5/10/5 无声地不同）、`Tools/WritePipeline.cs`（`ConfirmDiff` 逐 hunk 确认 + `RestoreCrlf`）、`Git/GitRunner.cs`（所有 git 调用）、`UI/Shared/UnifiedDiff.cs`（行级 diff 引擎）、`UI/TUI/ChatRoleStyle.cs`（角色配色）、`SandboxManager.ContainmentReason` + `IsUnder`（路径包含判断）、`PktLine.ReadFrame`、`TextEncoding.MatchBom`（BOM 表）、`UiText`（权限/经济文案）、`ProjectInitializer.Detect*`（构建/测试命令）、`Agent.ApplyRuntimeModel`（模型切换收尾）、`Global.WalkUpDirectories`（从 cwd 逐级上溯找配置，**终止要同时兜住 `parent == dir` 与 `parent == null`** —— `Path.GetDirectoryName` 对盘根返回 null）、`Maui/Markup/MarkupToFormattedString.cs` + `MarkupToFormattedString.AppendCodeLines`（移动端表格判定与代码块高亮；合并时发现三处**并不等价** —— 聊天流那版缺「超大代码块降级纯文本」护栏，而那道护栏正是防移动端 ANR 的）、`ToolErrors.ErrorOpPrefix`（五个工具手拼的 `错误：{op}: …`）。
 **续（v0.96.97 ~ v0.96.101）**：`UiText.RelativeTime`（相对时间阶梯；移动端那版漏了「N 周前」分支已漂移 —— 10 天前手机上「10 天前」、桌面上「1 周前」）、`Infra/Logging/RotatingFileWriter.cs`（日志文件句柄生命周期，**漏 `Flush` 丢日志、漏 `FileShare.Read` 把文件独占锁死**，两处各写一份时改一处忘另一处无编译期提示）、`UI/TUI/Base/TuiScrollMath.Paint`（滚动条落笔唯一实现，四处内联连 `"█"`/`"│"` 字面量都逐字相同）、`UI/TUI/Base/TuiScrollable.cs`（滚动状态机：`ScrollOffset` + 四个滚动方法 + 跟底标志 + `OnResize` 钳制；`TuiScrollView`/`TuiListView` 只剩 `ScrollStepLines` 一处不同 —— 这套是「跟底状态 × 边界 no-op × 标脏」交织的状态机，漏一处就是「滚一下永久失去自动跟底」或「手动上翻又被拽回底部」）、`TuiView.SetTreeDirty`（树标脏唯一遍历，`MarkDirtyTree`/`MarkDirtyTreeQuiet`/`MarkItemContentDirty` 共用 —— 后两者的差别只是**要不要叫醒帧闸门**）、`TuiWindow.Close(result, callback)`（关模态窗唯一出口，见下）、`ModelCatalog.RemoveProviderFromFile`。
 **再续（v0.96.105 后）**：`Tools/McpConfigStore.cs`（`.waycoder/mcp_servers.json` 的唯一读写 —— 此前三处各写一套「读→去重→写」，**去重口径相反**（一处忽略大小写、一处区分）⇒ 同一份配置两边判定不同、导入写进重复条目；且三处都是 `File.WriteAllText(..., Encoding.UTF8)`，**非原子 + 凭空带 BOM**，与 NotebookEditTool 写坏 `.ipynb` 同类；现在原子写 + 无 BOM + 统一口径）、`Infra/ProcUtil.BuildPsi`（进程启动样板唯一实现 —— `KillTool`/`PsTool` 两份**逐字相同**，连「本工具此前漏了 `ProcEncoding.Apply`」这个修复都各做一遍）、`Infra/ProcEncoding.IsConsoleWrapperName` + `ApplyIfConsoleWrapper`（**「该不该套 OEM 解码」的判据唯一真源**：此前散在十几个启动点各判各的，8 处该 Apply 的漏了 —— 自更新跑 `cmd.exe`、LintTool 跑 `npx`、McpTransport 起 npx 型 server。**判据是「启动的是什么」**：cmd 系包装器（cmd.exe/.bat/.cmd/npm shim）才套 OEM，原生程序（git/dotnet/gcc/语言服务器）输出 UTF-8，套上反而乱码 —— 「所有启动点都调 Apply」是错的）。
 **两条新踩坑（同批）**：① **`TuiScrollMath.Bar` 在 `total <= vis` 时滑块会长过视口**，`(long)(vis - thumb)` 变负 ⇒ `Math.Clamp(value, 0, 负数)` 的 min > max **抛 `ArgumentException`**。四处调用点此前各判一次 `total > vis`，属「四份守卫、漏一处即崩」—— 判据已收进 `Paint` 内部；**凡是收口几何计算的辅助函数，边界守卫也要一起收进去**，别留给调用方。② **关一个模态窗永远要按序做三件事**：写 `Result` → 跑调用方回调 → 触发 `OnClosed`（驱动出栈 + 唤醒渲染等待循环）。**顺序不可换**（回调正是唤醒等待线程的那一下，被唤醒的调用方可能立刻读 `win.Result`）。此前这三行在 `TuiDialog` 的 8 个构建器里手抄 47 处，漏 `OnClosed` ⇒ 窗口永不关闭、调用方一直挂着；漏 `Result` ⇒ 把「取消」读成「确认」。现在只有 `TuiWindow.Close(result, callback)`（+ 无结果的 `Close()`）。**`TuiScreen.OnKey` 的 Esc 兜底故意不走 `Close()`** —— 消息框（Info/Success/Warn/Error）**没注册 Esc 快捷键**，兜底关窗不该编造一个「结果」（保持 `Result = -1`）。这条事实**只有走「屏幕真实路径」（`ShowWindow` + `screen.OnKey`）的测试才测得到**，直接跑快捷键体会抛 `KeyNotFound`。
@@ -884,14 +825,14 @@ int B[3] = { -5,  7, -9 };       /* 程序实际读到  0  7  0    */
 WayCoder 的模式参考 Claude Code / OpenAI Codex / Crush / Aider 划分为**四个正交轴**（完整版见 [docs/模式体系.md](docs/模式体系.md)）：
 
 - **确认轴**（权限模式 `PermissionManager.Mode`，Ctrl+P · `/permit`）：管「何时打断确认」——Ask(必问)/Auto(改必问≈Ask)/SmartAuto(危必问)/Yolo(不问)
-- **边界轴**（沙箱 `SandboxManager`，`/perm`）：管「能碰什么」（可写范围/网络）——对齐 Codex `sandbox_mode`，现状与确认轴纠缠（full-auto→Yolo 联动），待解耦
+- **边界轴**（沙箱 `SandboxManager`，`/perm`）：管「能碰什么」（可写范围/网络）——对齐 Codex `sandbox_mode`；与确认轴**已解耦**（`SetLevel` 只改边界，`yolo`/`god` 不再映射沙箱）
 - **行为轴**（工作模式 `WorkMode`，Shift+Tab · `/mode`）：管「工具有没有 + 干什么活」——Build 全量（受经济模式管）/ Plan 只读白名单+精简提示词（有审批门）/ **Chat 纯聊天（0 工具 0 提示词）**；**槽位实例级**（`Agent.cs:91`）
 - **省钱轴**（经济模式 `EconomyMode`，Ctrl+E · `/config economy`）：管「花多少 token」——提示词档位 + 压缩阈值 + 输出上限（Build 档删工具=用户既定特色，Chat/Plan 不受影响）
 
 **决策链**：工具有没有 = 工作模式（Chat=0 / Plan=只读白名单 `WorkModeManager.PlanReadOnlyTools` / Build=白名单或经济精简）> 黑名单 > 全量；物理边界看边界轴；确认只看确认轴；省钱只看省钱轴。
 **注意**：确认轴全局静态（多槽位共享）、行为轴槽位实例、边界/省钱轴全局 config；同名异义（Auto×4、`--permit tiny`→Chat 工作模式 vs 窗口 `--tiny`）见 docs/模式体系.md §5。
 
-**快捷键一键一义**（v0.96.58 统一）：Ctrl+P=权限循环、Ctrl+E=经济循环（轴向层，主循环 `Program.Repl` 414/474/484 截走），**编辑器→`/edit`、输入建议条→输入 `/`·`!`·`#`·`@` 前缀自动弹出**；ChatScreen 不再绑 Ctrl+E/P/Q（防双重绑定「同一键两种含义」）。完整键表唯一事实源 = `UI/TUI/Controls/TuiKeybindHelp.cs` 的 `Groups`，底部行/文档据此维护。
+**快捷键一键一义**（v0.96.58 统一）：Ctrl+P=权限循环、Ctrl+E=经济循环（轴向层，主循环 `Program.Repl.cs` 590/600 截走），**编辑器→`/edit`、输入建议条→输入 `/`·`!`·`#`·`@` 前缀自动弹出**；ChatScreen 不再绑 Ctrl+E/P/Q（防双重绑定「同一键两种含义」）。完整键表唯一事实源 = `UI/TUI/Controls/TuiKeybindHelp.cs` 的 `Groups`，底部行/文档据此维护。
 
 **快捷键跨平台铁律**（Win/Linux/Mac 通用）：功能键用 `Ctrl+字母`（非信号/控制码）与 `Ctrl+方向/Home/End`；**禁用这些 Unix 坑键**——`Ctrl+C`(SIGINT 信号，系统键=退出)、`Ctrl+Z`(Unix 默认 SIGTSTP 挂起进程，已注册 `PosixSignal.SIGTSTP` 转「优雅暂停」且 `ctx.Cancel=true`)、`Ctrl+M`/`Ctrl+H`(Unix ≡回车/退格)、`Ctrl+S`/`Ctrl+Q`(终端流控 XOFF/XON)。终端拿不准的键一定配斜杠兜底（`/model` `/help` `/session`）；复制 `Ctrl+Insert`（Mac 无 Insert 键，用终端原生复制）。**v0.96.107 起另加三条**：①**不用三键组合** —— `Ctrl+Shift+字母` 在 Windows 上按不到（Windows Terminal 把 `Ctrl+Shift+P` 抢去开它自己的命令面板；即便不被抢，VT 字节流拿不到 Shift 修饰键（`CharSource.ToConsoleKeyInfo`）会退化成同名的纯 Ctrl 键）⇒ 命令面板 `Ctrl+U`、换 connect `Ctrl+N`、主题 `Ctrl+W` 全是纯 Ctrl 键；②**不占用系统的复制/粘贴/剪切键与输入框自己的编辑键** —— `Ctrl+X`（原=交换大小模型，让回系统剪切）、`Ctrl+Y`（原=搜索历史，让回输入框重做）、`Ctrl+K`（原=切模式别名，让回输入框删到行尾）；③**`Alt+字母/数字/符号` 可用**（xterm 系终端对 Alt 组合发 `ESC`+字符，`InputManager.TryParseEscapeSequence` 现在带 Alt 修饰键返回 —— 此前是「字符退回 pending + ESC 单独成键」，按 `Alt+T` 会变成「中断 Agent + 打出 t」，Alt 组合键全部不可用；歧义窗口 20ms 与 `WaitForChar` 同一处）。
 

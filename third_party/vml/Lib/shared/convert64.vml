@@ -12,256 +12,256 @@ ltoa:
 ; return   : int
 ; --------------------------------------------
 ltoa:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #32
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #32
 ; 5:     int i = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 ; 7:     int is_neg = 0;
-        move R0 #0
-        move [R12-16] R0
+        move @R0 #0
+        move [@R12-16] @R0
 ; 8:     if (value < 0) { is_neg = 1; value = -value; }
-        movel R0 [R12+12]
-        pushl R0
-        move R0 #0
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12+12]
+        pushl @R0
+        move @R0 #0
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         jl _L19190002
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L19190003
 _L19190002:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L19190003:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190000
-        move R0 #1
-        move [R12-16] R0
-        movel R0 [R12+12]
-        movel R0 [R12+12]
-        negl R0 R0
-        movel [R12+12] R0
+        move @R0 #1
+        move [@R12-16] @R0
+        movel @R0 [@R12+12]
+        movel @R0 [@R12+12]
+        negl @R0 @R0
+        movel [@R12+12] @R0
 sta_19190000:
 sta_19190001:
 ; 9:     if (value == 0) { dst[0] = '0'; dst[1] = 0; return 1; }
-        movel R0 [R12+12]
-        pushl R0
-        move R0 #0
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12+12]
+        pushl @R0
+        move @R0 #0
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         je _L19190006
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L19190007
 _L19190006:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L19190007:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190004
-        move R0 #48
-        move R11 R0
-        move R0 [R12+20]
-        push R0
-        move R0 #0
-        mul R0 #1
-        pop R10
-        add R0 R10
-        moveb [R0] R11
-        move R0 #0
-        move R9 R0
-        move R0 [R12+20]
-        push R0
-        move R0 #1
-        mul R0 #1
-        pop R8
-        add R0 R8
-        moveb [R0] R9
-        move R0 #1
+        move @R0 #48
+        move @R11 @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #0
+        mul @R0 #1
+        pop @R10
+        add @R0 @R10
+        moveb [@R0] @R11
+        move @R0 #0
+        move @R9 @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #1
+        mul @R0 #1
+        pop @R8
+        add @R0 @R8
+        moveb [@R0] @R9
+        move @R0 #1
         jmp L_19190008
 sta_19190004:
 sta_19190005:
 sta_19190009:
-        move R2 #0
+        move @R2 #0
 ; 10:     while (value > 0) {
-        movel R0 [R12+12]
-        pushl R0
-        move R0 #0
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12+12]
+        pushl @R0
+        move @R0 #0
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         jg _L19190011
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L19190012
 _L19190011:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L19190012:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190010
 ; 11:         dst[i++] = '0' + (char)(value % 10);
-        move R0 #48
-        pushb R0
-        movel R0 [R12+12]
-        pushl R0
-        move R0 #10
-        i2l R0 R0
-        popl R1
-        modl R0 R1 R0
-        l2i R0 R0
-        popb R1
-        add R1 R0
-        moveb R0 R1
-        move R7 R0
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
-        mul R0 #1
-        pop R6
-        add R0 R6
-        moveb [R0] R7
+        move @R0 #48
+        pushb @R0
+        movel @R0 [@R12+12]
+        pushl @R0
+        move @R0 #10
+        i2l @R0 @R0
+        popl @R1
+        modl @R0 @R1 @R0
+        l2i @R0 @R0
+        popb @R1
+        add @R1 @R0
+        moveb @R0 @R1
+        move @R7 @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R6
+        add @R0 @R6
+        moveb [@R0] @R7
 ; 12:         value /= 10;
-        movel R0 [R12+12]
-        pushl R0
-        move R0 #10
-        i2l R0 R0
-        popl R1
-        divl R0 R1 R0
-        movel [R12+12] R0
+        movel @R0 [@R12+12]
+        pushl @R0
+        move @R0 #10
+        i2l @R0 @R0
+        popl @R1
+        divl @R0 @R1 @R0
+        movel [@R12+12] @R0
         jmp sta_19190009
 sta_19190010:
 ; 14:     if (is_neg) dst[i++] = '-';
-        move R0 [R12-16]
-        cmp R0 #0
+        move @R0 [@R12-16]
+        cmp @R0 #0
         jz sta_19190013
-        move R0 #45
-        move R5 R0
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
-        mul R0 #1
-        pop R4
-        add R0 R4
-        moveb [R0] R5
+        move @R0 #45
+        move @R5 @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R4
+        add @R0 @R4
+        moveb [@R0] @R5
 sta_19190013:
 sta_19190014:
 ; 15:     dst[i] = 0;
-        move R0 #0
-        move R3 R0
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-8]
-        mul R0 #1
-        pop R2
-        add R0 R2
-        moveb [R0] R3
+        move @R0 #0
+        move @R3 @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #1
+        pop @R2
+        add @R0 @R2
+        moveb [@R0] @R3
 ; 17:     for (j = 0; j < i / 2; j++) {
-        move R0 #0
-        move [R12-12] R0
+        move @R0 #0
+        move [@R12-12] @R0
 sta_19190015:
-        move R0 [R12-12]
-        push R0
-        move R0 [R12-8]
-        push R0
-        move R0 #2
-        pop R1
-        div R1 R0
-        move R0 R1
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #2
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        pop @R1
+        cmp @R1 @R0
         jl _L19190018
-        move R0 #0
+        move @R0 #0
         jmp _L19190019
 _L19190018:
-        move R0 #1
+        move @R0 #1
 _L19190019:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190017
 ; 18:         char t = dst[j]; dst[j] = dst[i - 1 - j]; dst[i - 1 - j] = t;
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-12]
-        mul R0 #1
-        pop R1
-        add R0 R1
-        moveb R0 [R0]
-        sextb R0 R0
-        moveb [R12-17] R0
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-8]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        mul R0 #1
-        pop R10
-        add R0 R10
-        moveb R0 [R0]
-        sextb R0 R0
-        move R11 R0
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-12]
-        mul R0 #1
-        pop R8
-        add R0 R8
-        moveb [R0] R11
-        moveb R0 [R12-17]
-        sextb R0 R0
-        move R9 R0
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-8]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
-        move R0 R1
-        mul R0 #1
-        pop R6
-        add R0 R6
-        moveb [R0] R9
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R1
+        add @R0 @R1
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        moveb [@R12-17] @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R10
+        add @R0 @R10
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        move @R11 @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #1
+        pop @R8
+        add @R0 @R8
+        moveb [@R0] @R11
+        moveb @R0 [@R12-17]
+        sextb @R0 @R0
+        move @R9 @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R6
+        add @R0 @R6
+        moveb [@R0] @R9
 sta_19190016:
-        move R0 [R12-12]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-12] R0
-        move R0 R1
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
         jmp sta_19190015
 sta_19190017:
 ; 20:     return i;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_19190008
 L_19190008:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 atol:
 ; -------------------------------------------
@@ -271,234 +271,234 @@ atol:
 ; return   : long
 ; --------------------------------------------
 atol:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #32
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #32
 ; 25:     long result = 0;
-        move R0 #0
-        i2l R0 R0
-        movel [R12-12] R0
+        move @R0 #0
+        i2l @R0 @R0
+        movel [@R12-12] @R0
 ; 26:     int sign = 1;
-        move R0 #1
-        move [R12-16] R0
+        move @R0 #1
+        move [@R12-16] @R0
 ; 27:     int i = 0;
-        move R0 #0
-        move [R12-20] R0
+        move @R0 #0
+        move [@R12-20] @R0
 sta_19190020:
-        move R2 #0
+        move @R2 #0
 ; 28:     while (s[i] == ' ' || s[i] == '\t') i++;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-20]
-        mul R0 #1
-        pop R7
-        add R0 R7
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #32
-        popb R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-20]
+        mul @R0 #1
+        pop @R7
+        add @R0 @R7
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #32
+        popb @R1
+        cmp @R1 @R0
         je _L19190025
-        move R0 #0
+        move @R0 #0
         jmp _L19190026
 _L19190025:
-        move R0 #1
+        move @R0 #1
 _L19190026:
-        test R0 R0
+        test @R0 @R0
         jnz _L19190022
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-20]
-        mul R0 #1
-        pop R4
-        add R0 R4
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #9
-        popb R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-20]
+        mul @R0 #1
+        pop @R4
+        add @R0 @R4
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #9
+        popb @R1
+        cmp @R1 @R0
         je _L19190027
-        move R0 #0
+        move @R0 #0
         jmp _L19190028
 _L19190027:
-        move R0 #1
+        move @R0 #1
 _L19190028:
-        test R0 R0
+        test @R0 @R0
         jz _L19190023
 _L19190022:
-        move R0 #1
+        move @R0 #1
         jmp _L19190024
 _L19190023:
-        move R0 #0
+        move @R0 #0
 _L19190024:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190021
-        move R0 [R12-20]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-20] R0
-        move R0 R1
+        move @R0 [@R12-20]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-20] @R0
+        move @R0 @R1
         jmp sta_19190020
 sta_19190021:
 ; 29:     if (s[i] == '-') { sign = -1; i++; }
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-20]
-        mul R0 #1
-        pop R5
-        add R0 R5
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #45
-        popb R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-20]
+        mul @R0 #1
+        pop @R5
+        add @R0 @R5
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #45
+        popb @R1
+        cmp @R1 @R0
         je _L19190031
-        move R0 #0
+        move @R0 #0
         jmp _L19190032
 _L19190031:
-        move R0 #1
+        move @R0 #1
 _L19190032:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190029
-        move R0 #1
-        move R0 #1
-        neg R0 R0
-        move [R12-16] R0
-        move R0 [R12-20]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-20] R0
-        move R0 R1
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
+        move [@R12-16] @R0
+        move @R0 [@R12-20]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-20] @R0
+        move @R0 @R1
         jmp sta_19190030
 sta_19190029:
 ; 30:     else if (s[i] == '+') i++;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-20]
-        mul R0 #1
-        pop R2
-        add R0 R2
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #43
-        popb R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-20]
+        mul @R0 #1
+        pop @R2
+        add @R0 @R2
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #43
+        popb @R1
+        cmp @R1 @R0
         je _L19190035
-        move R0 #0
+        move @R0 #0
         jmp _L19190036
 _L19190035:
-        move R0 #1
+        move @R0 #1
 _L19190036:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190033
-        move R0 [R12-20]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-20] R0
-        move R0 R1
+        move @R0 [@R12-20]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-20] @R0
+        move @R0 @R1
 sta_19190033:
 sta_19190034:
 sta_19190030:
 sta_19190037:
-        move R2 #0
+        move @R2 #0
 ; 31:     while (s[i] >= '0' && s[i] <= '9') {
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-20]
-        mul R0 #1
-        pop R3
-        add R0 R3
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #48
-        popb R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-20]
+        mul @R0 #1
+        pop @R3
+        add @R0 @R3
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #48
+        popb @R1
+        cmp @R1 @R0
         jge _L19190041
-        move R0 #0
+        move @R0 #0
         jmp _L19190042
 _L19190041:
-        move R0 #1
+        move @R0 #1
 _L19190042:
-        test R0 R0
+        test @R0 @R0
         jz _L19190039
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-20]
-        mul R0 #1
-        pop R1
-        add R0 R1
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #57
-        popb R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-20]
+        mul @R0 #1
+        pop @R1
+        add @R0 @R1
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #57
+        popb @R1
+        cmp @R1 @R0
         jle _L19190043
-        move R0 #0
+        move @R0 #0
         jmp _L19190044
 _L19190043:
-        move R0 #1
+        move @R0 #1
 _L19190044:
-        test R0 R0
+        test @R0 @R0
         jz _L19190039
-        move R0 #1
+        move @R0 #1
         jmp _L19190040
 _L19190039:
-        move R0 #0
+        move @R0 #0
 _L19190040:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190038
 ; 32:         result = result * 10 + (long)(s[i] - '0');
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #10
-        i2l R0 R0
-        popl R1
-        mull R0 R1 R0
-        pushl R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-20]
-        mul R0 #1
-        pop R10
-        add R0 R10
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #48
-        popb R1
-        sub R1 R0
-        moveb R0 R1
-        i2l R0 R0
-        popl R1
-        addl R0 R1 R0
-        movel [R12-12] R0
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #10
+        i2l @R0 @R0
+        popl @R1
+        mull @R0 @R1 @R0
+        pushl @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-20]
+        mul @R0 #1
+        pop @R10
+        add @R0 @R10
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #48
+        popb @R1
+        sub @R1 @R0
+        moveb @R0 @R1
+        i2l @R0 @R0
+        popl @R1
+        addl @R0 @R1 @R0
+        movel [@R12-12] @R0
 ; 33:         i++;
-        move R0 [R12-20]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-20] R0
-        move R0 R1
+        move @R0 [@R12-20]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-20] @R0
+        move @R0 @R1
         jmp sta_19190037
 sta_19190038:
 ; 35:     return sign * result;
-        move R0 [R12-16]
-        i2l R0 R0
-        pushl R0
-        movel R0 [R12-12]
-        popl R1
-        mull R0 R1 R0
+        move @R0 [@R12-16]
+        i2l @R0 @R0
+        pushl @R0
+        movel @R0 [@R12-12]
+        popl @R1
+        mull @R0 @R1 @R0
         jmp L_19190045
 L_19190045:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 ltoa_hex:
 ; -------------------------------------------
@@ -509,175 +509,175 @@ ltoa_hex:
 ; return   : int
 ; --------------------------------------------
 ltoa_hex:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #40
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #40
 ; 40:     int i = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 ; 42:     int started = 0;
-        move R0 #0
-        move [R12-16] R0
+        move @R0 #0
+        move [@R12-16] @R0
 ; 43:     unsigned long uval = (unsigned long)value;
-        movel R0 [R12+12]
-        movel [R12-24] R0
+        movel @R0 [@R12+12]
+        movel [@R12-24] @R0
 ; 45:     for (shift = 60; shift >= 0; shift -= 4) {
-        move R0 #60
-        move [R12-28] R0
+        move @R0 #60
+        move [@R12-28] @R0
 sta_19190046:
-        move R0 [R12-28]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jge _L19190049
-        move R0 #0
+        move @R0 #0
         jmp _L19190050
 _L19190049:
-        move R0 #1
+        move @R0 #1
 _L19190050:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190048
 ; 46:         int nibble = (int)((uval >> shift) & 0xF);
-        movel R0 [R12-24]
-        pushl R0
-        move R0 [R12-28]
-        popl R1
-        shr R1 R0
-        movel R0 R1
-        pushl R0
-        move R0 #15
-        popl R1
-        and R1 R0
-        movel R0 R1
-        l2i R0 R0
-        move [R12-32] R0
+        movel @R0 [@R12-24]
+        pushl @R0
+        move @R0 [@R12-28]
+        popl @R1
+        shr @R1 @R0
+        movel @R0 @R1
+        pushl @R0
+        move @R0 #15
+        popl @R1
+        and @R1 @R0
+        movel @R0 @R1
+        l2i @R0 @R0
+        move [@R12-32] @R0
 ; 47:         if (nibble > 0 || started || shift == 0) {
-        move R0 [R12-32]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-32]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jg _L19190059
-        move R0 #0
+        move @R0 #0
         jmp _L19190060
 _L19190059:
-        move R0 #1
+        move @R0 #1
 _L19190060:
-        test R0 R0
+        test @R0 @R0
         jnz _L19190056
-        move R0 [R12-16]
-        test R0 R0
+        move @R0 [@R12-16]
+        test @R0 @R0
         jz _L19190057
 _L19190056:
-        move R0 #1
+        move @R0 #1
         jmp _L19190058
 _L19190057:
-        move R0 #0
+        move @R0 #0
 _L19190058:
-        test R0 R0
+        test @R0 @R0
         jnz _L19190053
-        move R0 [R12-28]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-28]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L19190061
-        move R0 #0
+        move @R0 #0
         jmp _L19190062
 _L19190061:
-        move R0 #1
+        move @R0 #1
 _L19190062:
-        test R0 R0
+        test @R0 @R0
         jz _L19190054
 _L19190053:
-        move R0 #1
+        move @R0 #1
         jmp _L19190055
 _L19190054:
-        move R0 #0
+        move @R0 #0
 _L19190055:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190051
 ; 48:             dst[i++] = (char)(nibble < 10 ? '0' + nibble : 'A' + nibble - 10);
-        move R0 [R12-32]
-        push R0
-        move R0 #10
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-32]
+        push @R0
+        move @R0 #10
+        pop @R1
+        cmp @R1 @R0
         jl _L19190063
-        move R0 #0
+        move @R0 #0
         jmp _L19190064
 _L19190063:
-        move R0 #1
+        move @R0 #1
 _L19190064:
-        test R0 R0
+        test @R0 @R0
         jz _L19190065
-        move R0 #48
-        push R0
-        move R0 [R12-32]
-        pop R1
-        add R1 R0
-        move R0 R1
+        move @R0 #48
+        push @R0
+        move @R0 [@R12-32]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
         jmp _L19190066
 _L19190065:
-        move R0 #65
-        push R0
-        move R0 [R12-32]
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 #10
-        pop R1
-        sub R1 R0
-        move R0 R1
+        move @R0 #65
+        push @R0
+        move @R0 [@R12-32]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #10
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
 _L19190066:
-        move R8 R0
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
-        mul R0 #1
-        pop R11
-        add R0 R11
-        moveb [R0] R8
+        move @R8 @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R11
+        add @R0 @R11
+        moveb [@R0] @R8
 ; 49:             started = 1;
-        move R0 #1
-        move [R12-16] R0
+        move @R0 #1
+        move [@R12-16] @R0
 sta_19190051:
 sta_19190052:
 sta_19190047:
-        move R0 [R12-28]
-        push R0
+        move @R0 [@R12-28]
+        push @R0
 ; 45:     for (shift = 60; shift >= 0; shift -= 4) {
-        move R0 #4
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-28] R0
+        move @R0 #4
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-28] @R0
         jmp sta_19190046
 sta_19190048:
 ; 52:     dst[i] = 0;
-        move R0 #0
-        move R6 R0
-        move R0 [R12+20]
-        push R0
-        move R0 [R12-8]
-        mul R0 #1
-        pop R9
-        add R0 R9
-        moveb [R0] R6
+        move @R0 #0
+        move @R6 @R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #1
+        pop @R9
+        add @R0 @R9
+        moveb [@R0] @R6
 ; 53:     return i;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_19190067
 L_19190067:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 atol_hex:
 ; -------------------------------------------
@@ -687,362 +687,362 @@ atol_hex:
 ; return   : long
 ; --------------------------------------------
 atol_hex:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #32
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #32
 ; 58:     long result = 0;
-        move R0 #0
-        i2l R0 R0
-        movel [R12-12] R0
+        move @R0 #0
+        i2l @R0 @R0
+        movel [@R12-12] @R0
 ; 59:     int i = 0;
-        move R0 #0
-        move [R12-16] R0
+        move @R0 #0
+        move [@R12-16] @R0
 sta_19190068:
-        move R2 #0
+        move @R2 #0
 ; 60:     while (s[i] == ' ' || s[i] == '\t') i++;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R7
-        add R0 R7
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #32
-        popb R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-16]
+        mul @R0 #1
+        pop @R7
+        add @R0 @R7
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #32
+        popb @R1
+        cmp @R1 @R0
         je _L19190073
-        move R0 #0
+        move @R0 #0
         jmp _L19190074
 _L19190073:
-        move R0 #1
+        move @R0 #1
 _L19190074:
-        test R0 R0
+        test @R0 @R0
         jnz _L19190070
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R4
-        add R0 R4
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #9
-        popb R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-16]
+        mul @R0 #1
+        pop @R4
+        add @R0 @R4
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #9
+        popb @R1
+        cmp @R1 @R0
         je _L19190075
-        move R0 #0
+        move @R0 #0
         jmp _L19190076
 _L19190075:
-        move R0 #1
+        move @R0 #1
 _L19190076:
-        test R0 R0
+        test @R0 @R0
         jz _L19190071
 _L19190070:
-        move R0 #1
+        move @R0 #1
         jmp _L19190072
 _L19190071:
-        move R0 #0
+        move @R0 #0
 _L19190072:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190069
-        move R0 [R12-16]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-16] R0
-        move R0 R1
+        move @R0 [@R12-16]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-16] @R0
+        move @R0 @R1
         jmp sta_19190068
 sta_19190069:
 ; 61:     if (s[i] == '0' && (s[i+1] == 'x' || s[i+1] == 'X')) i += 2;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R5
-        add R0 R5
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #48
-        popb R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-16]
+        mul @R0 #1
+        pop @R5
+        add @R0 @R5
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #48
+        popb @R1
+        cmp @R1 @R0
         je _L19190081
-        move R0 #0
+        move @R0 #0
         jmp _L19190082
 _L19190081:
-        move R0 #1
+        move @R0 #1
 _L19190082:
-        test R0 R0
+        test @R0 @R0
         jz _L19190079
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-16]
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        mul R0 #1
-        pop R2
-        add R0 R2
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #120
-        popb R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R2
+        add @R0 @R2
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #120
+        popb @R1
+        cmp @R1 @R0
         je _L19190086
-        move R0 #0
+        move @R0 #0
         jmp _L19190087
 _L19190086:
-        move R0 #1
+        move @R0 #1
 _L19190087:
-        test R0 R0
+        test @R0 @R0
         jnz _L19190083
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-16]
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        mul R0 #1
-        pop R3
-        add R0 R3
-        moveb R0 [R0]
-        sextb R0 R0
-        pushb R0
-        move R0 #88
-        popb R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R3
+        add @R0 @R3
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #88
+        popb @R1
+        cmp @R1 @R0
         je _L19190088
-        move R0 #0
+        move @R0 #0
         jmp _L19190089
 _L19190088:
-        move R0 #1
+        move @R0 #1
 _L19190089:
-        test R0 R0
+        test @R0 @R0
         jz _L19190084
 _L19190083:
-        move R0 #1
+        move @R0 #1
         jmp _L19190085
 _L19190084:
-        move R0 #0
+        move @R0 #0
 _L19190085:
-        test R0 R0
+        test @R0 @R0
         jz _L19190079
-        move R0 #1
+        move @R0 #1
         jmp _L19190080
 _L19190079:
-        move R0 #0
+        move @R0 #0
 _L19190080:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190077
-        move R0 [R12-16]
-        push R0
-        move R0 #2
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-16] R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 #2
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-16] @R0
 sta_19190077:
 sta_19190078:
 sta_19190090:
-        move R2 #0
+        move @R2 #0
 ; 62:     while (1) {
-        move R0 #1
-        cmp R0 #0
+        move @R0 #1
+        cmp @R0 #0
         jz sta_19190091
 ; 63:         char c = s[i];
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-16]
-        mul R0 #1
-        pop R1
-        add R0 R1
-        moveb R0 [R0]
-        sextb R0 R0
-        moveb [R12-17] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-16]
+        mul @R0 #1
+        pop @R1
+        add @R0 @R1
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        moveb [@R12-17] @R0
 ; 64:         if (c >= '0' && c <= '9') result = result * 16 + (long)(c - '0');
-        moveb R0 [R12-17]
-        sextb R0 R0
-        pushb R0
-        move R0 #48
-        popb R1
-        cmp R1 R0
+        moveb @R0 [@R12-17]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #48
+        popb @R1
+        cmp @R1 @R0
         jge _L19190096
-        move R0 #0
+        move @R0 #0
         jmp _L19190097
 _L19190096:
-        move R0 #1
+        move @R0 #1
 _L19190097:
-        test R0 R0
+        test @R0 @R0
         jz _L19190094
-        moveb R0 [R12-17]
-        sextb R0 R0
-        pushb R0
-        move R0 #57
-        popb R1
-        cmp R1 R0
+        moveb @R0 [@R12-17]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #57
+        popb @R1
+        cmp @R1 @R0
         jle _L19190098
-        move R0 #0
+        move @R0 #0
         jmp _L19190099
 _L19190098:
-        move R0 #1
+        move @R0 #1
 _L19190099:
-        test R0 R0
+        test @R0 @R0
         jz _L19190094
-        move R0 #1
+        move @R0 #1
         jmp _L19190095
 _L19190094:
-        move R0 #0
+        move @R0 #0
 _L19190095:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190092
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #16
-        i2l R0 R0
-        popl R1
-        mull R0 R1 R0
-        pushl R0
-        moveb R0 [R12-17]
-        sextb R0 R0
-        pushb R0
-        move R0 #48
-        popb R1
-        sub R1 R0
-        moveb R0 R1
-        i2l R0 R0
-        popl R1
-        addl R0 R1 R0
-        movel [R12-12] R0
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #16
+        i2l @R0 @R0
+        popl @R1
+        mull @R0 @R1 @R0
+        pushl @R0
+        moveb @R0 [@R12-17]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #48
+        popb @R1
+        sub @R1 @R0
+        moveb @R0 @R1
+        i2l @R0 @R0
+        popl @R1
+        addl @R0 @R1 @R0
+        movel [@R12-12] @R0
         jmp sta_19190093
 sta_19190092:
 ; 65:         else if (c >= 'a' && c <= 'f') result = result * 16 + (long)(c - 'a' + 10);
-        moveb R0 [R12-17]
-        sextb R0 R0
-        pushb R0
-        move R0 #97
-        popb R1
-        cmp R1 R0
+        moveb @R0 [@R12-17]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #97
+        popb @R1
+        cmp @R1 @R0
         jge _L19190104
-        move R0 #0
+        move @R0 #0
         jmp _L19190105
 _L19190104:
-        move R0 #1
+        move @R0 #1
 _L19190105:
-        test R0 R0
+        test @R0 @R0
         jz _L19190102
-        moveb R0 [R12-17]
-        sextb R0 R0
-        pushb R0
-        move R0 #102
-        popb R1
-        cmp R1 R0
+        moveb @R0 [@R12-17]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #102
+        popb @R1
+        cmp @R1 @R0
         jle _L19190106
-        move R0 #0
+        move @R0 #0
         jmp _L19190107
 _L19190106:
-        move R0 #1
+        move @R0 #1
 _L19190107:
-        test R0 R0
+        test @R0 @R0
         jz _L19190102
-        move R0 #1
+        move @R0 #1
         jmp _L19190103
 _L19190102:
-        move R0 #0
+        move @R0 #0
 _L19190103:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190100
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #16
-        i2l R0 R0
-        popl R1
-        mull R0 R1 R0
-        pushl R0
-        moveb R0 [R12-17]
-        sextb R0 R0
-        pushb R0
-        move R0 #97
-        popb R1
-        sub R1 R0
-        moveb R0 R1
-        push R0
-        move R0 #10
-        pop R1
-        add R1 R0
-        move R0 R1
-        i2l R0 R0
-        popl R1
-        addl R0 R1 R0
-        movel [R12-12] R0
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #16
+        i2l @R0 @R0
+        popl @R1
+        mull @R0 @R1 @R0
+        pushl @R0
+        moveb @R0 [@R12-17]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #97
+        popb @R1
+        sub @R1 @R0
+        moveb @R0 @R1
+        push @R0
+        move @R0 #10
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        i2l @R0 @R0
+        popl @R1
+        addl @R0 @R1 @R0
+        movel [@R12-12] @R0
         jmp sta_19190101
 sta_19190100:
 ; 66:         else if (c >= 'A' && c <= 'F') result = result * 16 + (long)(c - 'A' + 10);
-        moveb R0 [R12-17]
-        sextb R0 R0
-        pushb R0
-        move R0 #65
-        popb R1
-        cmp R1 R0
+        moveb @R0 [@R12-17]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #65
+        popb @R1
+        cmp @R1 @R0
         jge _L19190112
-        move R0 #0
+        move @R0 #0
         jmp _L19190113
 _L19190112:
-        move R0 #1
+        move @R0 #1
 _L19190113:
-        test R0 R0
+        test @R0 @R0
         jz _L19190110
-        moveb R0 [R12-17]
-        sextb R0 R0
-        pushb R0
-        move R0 #70
-        popb R1
-        cmp R1 R0
+        moveb @R0 [@R12-17]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #70
+        popb @R1
+        cmp @R1 @R0
         jle _L19190114
-        move R0 #0
+        move @R0 #0
         jmp _L19190115
 _L19190114:
-        move R0 #1
+        move @R0 #1
 _L19190115:
-        test R0 R0
+        test @R0 @R0
         jz _L19190110
-        move R0 #1
+        move @R0 #1
         jmp _L19190111
 _L19190110:
-        move R0 #0
+        move @R0 #0
 _L19190111:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190108
-        movel R0 [R12-12]
-        pushl R0
-        move R0 #16
-        i2l R0 R0
-        popl R1
-        mull R0 R1 R0
-        pushl R0
-        moveb R0 [R12-17]
-        sextb R0 R0
-        pushb R0
-        move R0 #65
-        popb R1
-        sub R1 R0
-        moveb R0 R1
-        push R0
-        move R0 #10
-        pop R1
-        add R1 R0
-        move R0 R1
-        i2l R0 R0
-        popl R1
-        addl R0 R1 R0
-        movel [R12-12] R0
+        movel @R0 [@R12-12]
+        pushl @R0
+        move @R0 #16
+        i2l @R0 @R0
+        popl @R1
+        mull @R0 @R1 @R0
+        pushl @R0
+        moveb @R0 [@R12-17]
+        sextb @R0 @R0
+        pushb @R0
+        move @R0 #65
+        popb @R1
+        sub @R1 @R0
+        moveb @R0 @R1
+        push @R0
+        move @R0 #10
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        i2l @R0 @R0
+        popl @R1
+        addl @R0 @R1 @R0
+        movel [@R12-12] @R0
         jmp sta_19190109
 sta_19190108:
         jmp sta_19190091
@@ -1050,20 +1050,20 @@ sta_19190109:
 sta_19190101:
 sta_19190093:
 ; 68:         i++;
-        move R0 [R12-16]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-16] R0
-        move R0 R1
+        move @R0 [@R12-16]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-16] @R0
+        move @R0 @R1
         jmp sta_19190090
 sta_19190091:
 ; 70:     return result;
-        movel R0 [R12-12]
+        movel @R0 [@R12-12]
         jmp L_19190116
 L_19190116:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 dtoa:
 ; -------------------------------------------:
@@ -1076,349 +1076,349 @@ dtoa:
 ; return   : int
 ; --------------------------------------------
 dtoa:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #64
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #64
 ; 75:     int i = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 ; 77:     if (value < 0) { dst[i++] = '-'; value = -value; }
-        moved R0 [R12+12]
-        dpush R0
-        move R0 #0
-        i2d R0 R0
-        dpop R1
-        dcmp R1 R0
+        moved @R0 [@R12+12]
+        dpush @R0
+        move @R0 #0
+        i2d @R0 @R0
+        dpop @R1
+        dcmp @R1 @R0
         jl _L19190119
-        move R0 #0
+        move @R0 #0
         jmp _L19190120
 _L19190119:
-        move R0 #1
+        move @R0 #1
 _L19190120:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190117
-        move R0 #45
-        move R10 R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
-        mul R0 #1
-        pop R11
-        add R0 R11
-        moveb [R0] R10
-        moved R0 [R12+12]
-        moved R0 [R12+12]
-        dneg R0 R0
-        moved [R12+12] R0
+        move @R0 #45
+        move @R10 @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R11
+        add @R0 @R11
+        moveb [@R0] @R10
+        moved @R0 [@R12+12]
+        moved @R0 [@R12+12]
+        dneg @R0 @R0
+        moved [@R12+12] @R0
 sta_19190117:
 sta_19190118:
 ; 78:     long int_part = (long)value;
-        moved R0 [R12+12]
-        d2l R0 R0
-        movel [R12-20] R0
+        moved @R0 [@R12+12]
+        d2l @R0 @R0
+        movel [@R12-20] @R0
 ; 79:     double frac = value - (double)int_part;
-        moved R0 [R12+12]
-        dpush R0
-        movel R0 [R12-20]
-        l2d R0 R0
-        dpop R1
-        dsub R0 R1 R0
-        moved [R12-28] R0
+        moved @R0 [@R12+12]
+        dpush @R0
+        movel @R0 [@R12-20]
+        l2d @R0 @R0
+        dpop @R1
+        dsub @R0 @R1 @R0
+        moved [@R12-28] @R0
 ; 81:     int istart = i;
-        move R0 [R12-8]
-        move [R12-32] R0
+        move @R0 [@R12-8]
+        move [@R12-32] @R0
 ; 82:     if (int_part == 0) { dst[i++] = '0'; }
-        movel R0 [R12-20]
-        pushl R0
-        move R0 #0
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-20]
+        pushl @R0
+        move @R0 #0
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         je _L19190123
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L19190124
 _L19190123:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L19190124:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190121
-        move R0 #48
-        move R8 R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
-        mul R0 #1
-        pop R9
-        add R0 R9
-        moveb [R0] R8
+        move @R0 #48
+        move @R8 @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R9
+        add @R0 @R9
+        moveb [@R0] @R8
         jmp sta_19190122
 sta_19190121:
 ; 84:         int tmp_i = i;
-        move R0 [R12-8]
-        move [R12-36] R0
+        move @R0 [@R12-8]
+        move [@R12-36] @R0
 sta_19190125:
-        move R2 #0
+        move @R2 #0
 ; 85:         while (int_part > 0) { dst[i++] = '0' + (char)(int_part % 10); int_part /= 10; }
-        movel R0 [R12-20]
-        pushl R0
-        move R0 #0
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12-20]
+        pushl @R0
+        move @R0 #0
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         jg _L19190127
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L19190128
 _L19190127:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L19190128:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190126
-        move R0 #48
-        pushb R0
-        movel R0 [R12-20]
-        pushl R0
-        move R0 #10
-        i2l R0 R0
-        popl R1
-        modl R0 R1 R0
-        l2i R0 R0
-        popb R1
-        add R1 R0
-        moveb R0 R1
-        move R6 R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
-        mul R0 #1
-        pop R7
-        add R0 R7
-        moveb [R0] R6
-        movel R0 [R12-20]
-        pushl R0
-        move R0 #10
-        i2l R0 R0
-        popl R1
-        divl R0 R1 R0
-        movel [R12-20] R0
+        move @R0 #48
+        pushb @R0
+        movel @R0 [@R12-20]
+        pushl @R0
+        move @R0 #10
+        i2l @R0 @R0
+        popl @R1
+        modl @R0 @R1 @R0
+        l2i @R0 @R0
+        popb @R1
+        add @R1 @R0
+        moveb @R0 @R1
+        move @R6 @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R7
+        add @R0 @R7
+        moveb [@R0] @R6
+        movel @R0 [@R12-20]
+        pushl @R0
+        move @R0 #10
+        i2l @R0 @R0
+        popl @R1
+        divl @R0 @R1 @R0
+        movel [@R12-20] @R0
         jmp sta_19190125
 sta_19190126:
 ; 87:         int end = i - 1;
-        move R0 [R12-8]
-        push R0
-        move R0 #1
-        pop R1
-        sub R1 R0
-        move R0 R1
-        move [R12-40] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        move [@R12-40] @R0
 sta_19190129:
-        move R2 #0
+        move @R2 #0
 ; 88:         while (tmp_i < end) { char t = dst[tmp_i]; dst[tmp_i] = dst[end]; dst[end] = t; tmp_i++; end--; }
-        move R0 [R12-36]
-        push R0
-        move R0 [R12-40]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-36]
+        push @R0
+        move @R0 [@R12-40]
+        pop @R1
+        cmp @R1 @R0
         jl _L19190131
-        move R0 #0
+        move @R0 #0
         jmp _L19190132
 _L19190131:
-        move R0 #1
+        move @R0 #1
 _L19190132:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190130
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-36]
-        mul R0 #1
-        pop R4
-        add R0 R4
-        moveb R0 [R0]
-        sextb R0 R0
-        moveb [R12-41] R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-40]
-        mul R0 #1
-        pop R5
-        add R0 R5
-        moveb R0 [R0]
-        sextb R0 R0
-        move R2 R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-36]
-        mul R0 #1
-        pop R3
-        add R0 R3
-        moveb [R0] R2
-        moveb R0 [R12-41]
-        sextb R0 R0
-        move R1 R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-40]
-        mul R0 #1
-        pop R11
-        add R0 R11
-        moveb [R0] R1
-        move R0 [R12-36]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-36] R0
-        move R0 R1
-        move R0 [R12-40]
-        move R1 R0
-        sub R0 R0 #1
-        move [R12-40] R0
-        move R0 R1
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-36]
+        mul @R0 #1
+        pop @R4
+        add @R0 @R4
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        moveb [@R12-41] @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-40]
+        mul @R0 #1
+        pop @R5
+        add @R0 @R5
+        moveb @R0 [@R0]
+        sextb @R0 @R0
+        move @R2 @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-36]
+        mul @R0 #1
+        pop @R3
+        add @R0 @R3
+        moveb [@R0] @R2
+        moveb @R0 [@R12-41]
+        sextb @R0 @R0
+        move @R1 @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-40]
+        mul @R0 #1
+        pop @R11
+        add @R0 @R11
+        moveb [@R0] @R1
+        move @R0 [@R12-36]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-36] @R0
+        move @R0 @R1
+        move @R0 [@R12-40]
+        move @R1 @R0
+        sub @R0 @R0 #1
+        move [@R12-40] @R0
+        move @R0 @R1
         jmp sta_19190129
 sta_19190130:
 sta_19190122:
 ; 91:     if (precision > 0) {
-        move R0 [R12+20]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jg _L19190135
-        move R0 #0
+        move @R0 #0
         jmp _L19190136
 _L19190135:
-        move R0 #1
+        move @R0 #1
 _L19190136:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190133
 ; 92:         dst[i++] = '.';
-        move R0 #46
-        move R10 R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
-        mul R0 #1
-        pop R9
-        add R0 R9
-        moveb [R0] R10
+        move @R0 #46
+        move @R10 @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R9
+        add @R0 @R9
+        moveb [@R0] @R10
 ; 94:         for (p = 0; p < precision && p < 15; p++) {
-        move R0 #0
-        move [R12-48] R0
+        move @R0 #0
+        move [@R12-48] @R0
 sta_19190137:
-        move R0 [R12-48]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-48]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
         jl _L19190142
-        move R0 #0
+        move @R0 #0
         jmp _L19190143
 _L19190142:
-        move R0 #1
+        move @R0 #1
 _L19190143:
-        test R0 R0
+        test @R0 @R0
         jz _L19190140
-        move R0 [R12-48]
-        push R0
-        move R0 #15
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-48]
+        push @R0
+        move @R0 #15
+        pop @R1
+        cmp @R1 @R0
         jl _L19190144
-        move R0 #0
+        move @R0 #0
         jmp _L19190145
 _L19190144:
-        move R0 #1
+        move @R0 #1
 _L19190145:
-        test R0 R0
+        test @R0 @R0
         jz _L19190140
-        move R0 #1
+        move @R0 #1
         jmp _L19190141
 _L19190140:
-        move R0 #0
+        move @R0 #0
 _L19190141:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_19190139
 ; 95:             frac *= 10.0;
-        moved R0 [R12-28]
-        dpush R0
-        moved R0 [dbl_19190146]
-        dpop R1
-        dmul R0 R1 R0
-        moved [R12-28] R0
+        moved @R0 [@R12-28]
+        dpush @R0
+        moved @R0 [dbl_19190146]
+        dpop @R1
+        dmul @R0 @R1 @R0
+        moved [@R12-28] @R0
 ; 96:             int digit = (int)frac;
-        moved R0 [R12-28]
-        d2i R0 R0
-        move [R12-52] R0
+        moved @R0 [@R12-28]
+        d2i @R0 @R0
+        move [@R12-52] @R0
 ; 97:             dst[i++] = '0' + (char)digit;
-        move R0 #48
-        pushb R0
-        move R0 [R12-52]
-        popb R1
-        add R1 R0
-        moveb R0 R1
-        move R8 R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-8]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-8] R0
-        move R0 R1
-        mul R0 #1
-        pop R7
-        add R0 R7
-        moveb [R0] R8
+        move @R0 #48
+        pushb @R0
+        move @R0 [@R12-52]
+        popb @R1
+        add @R1 @R0
+        moveb @R0 @R1
+        move @R8 @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-8]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-8] @R0
+        move @R0 @R1
+        mul @R0 #1
+        pop @R7
+        add @R0 @R7
+        moveb [@R0] @R8
 ; 98:             frac -= (double)digit;
-        moved R0 [R12-28]
-        dpush R0
-        move R0 [R12-52]
-        i2d R0 R0
-        dpop R1
-        dsub R0 R1 R0
-        moved [R12-28] R0
+        moved @R0 [@R12-28]
+        dpush @R0
+        move @R0 [@R12-52]
+        i2d @R0 @R0
+        dpop @R1
+        dsub @R0 @R1 @R0
+        moved [@R12-28] @R0
 sta_19190138:
-        move R0 [R12-48]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-48] R0
-        move R0 R1
+        move @R0 [@R12-48]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-48] @R0
+        move @R0 @R1
         jmp sta_19190137
 sta_19190139:
 sta_19190133:
 sta_19190134:
 ; 101:     dst[i] = 0;
-        move R0 #0
-        move R6 R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-8]
-        mul R0 #1
-        pop R4
-        add R0 R4
-        moveb [R0] R6
+        move @R0 #0
+        move @R6 @R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 [@R12-8]
+        mul @R0 #1
+        pop @R4
+        add @R0 @R4
+        moveb [@R0] @R6
 ; 102:     return i;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_19190147
 L_19190147:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

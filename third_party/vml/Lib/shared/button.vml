@@ -13,81 +13,81 @@ init:
 ; return   : void
 ; --------------------------------------------
 init:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 6:     if (state == 0) return;
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L77580002
-        move R0 #0
+        move @R0 #0
         jmp _L77580003
 _L77580002:
-        move R0 #1
+        move @R0 #1
 _L77580003:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_77580000
         jmp L_77580004
 sta_77580000:
 sta_77580001:
 ; 7:     state[0] = debounce_ms;  // 消抖时间(ms)
-        move R0 [R12+16]
-        move R11 R0
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        mul R0 #4
-        pop R10
-        add R0 R10
-        move [R0] R11
+        move @R0 [@R12+16]
+        move @R11 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #4
+        pop @R10
+        add @R0 @R10
+        move [@R0] @R11
 ; 8:     state[1] = hold_ms;      // 长按时间(ms)
-        move R0 [R12+20]
-        move R9 R0
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        mul R0 #4
-        pop R8
-        add R0 R8
-        move [R0] R9
+        move @R0 [@R12+20]
+        move @R9 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        mul @R0 #4
+        pop @R8
+        add @R0 @R8
+        move [@R0] @R9
 ; 9:     state[2] = 0;            // 计数器
-        move R0 #0
-        move R7 R0
-        move R0 [R12+12]
-        push R0
-        move R0 #2
-        mul R0 #4
-        pop R6
-        add R0 R6
-        move [R0] R7
+        move @R0 #0
+        move @R7 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #2
+        mul @R0 #4
+        pop @R6
+        add @R0 @R6
+        move [@R0] @R7
 ; 10:     state[3] = 1;            // 上次状态 (1=释放)
-        move R0 #1
-        move R5 R0
-        move R0 [R12+12]
-        push R0
-        move R0 #3
-        mul R0 #4
-        pop R4
-        add R0 R4
-        move [R0] R5
+        move @R0 #1
+        move @R5 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #3
+        mul @R0 #4
+        pop @R4
+        add @R0 @R4
+        move [@R0] @R5
 ; 11:     state[4] = 0;            // 事件标志
-        move R0 #0
-        move R3 R0
-        move R0 [R12+12]
-        push R0
-        move R0 #4
-        mul R0 #4
-        pop R2
-        add R0 R2
-        move [R0] R3
+        move @R0 #0
+        move @R3 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #4
+        mul @R0 #4
+        pop @R2
+        add @R0 @R2
+        move [@R0] @R3
 L_77580004:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 update:
 ; -------------------------------------------
@@ -99,300 +99,300 @@ update:
 ; return   : int
 ; --------------------------------------------
 update:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #32
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #32
 ; 16:     if (state == 0) return 0;
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L77580007
-        move R0 #0
+        move @R0 #0
         jmp _L77580008
 _L77580007:
-        move R0 #1
+        move @R0 #1
 _L77580008:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_77580005
-        move R0 #0
+        move @R0 #0
         jmp L_77580009
 sta_77580005:
 sta_77580006:
 ; 17:     int debounce = state[0], hold = state[1];
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        mul R0 #4
-        pop R1
-        add R0 R1
-        move R0 [R0]
-        move [R12-8] R0
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        mul R0 #4
-        pop R10
-        add R0 R10
-        move R0 [R0]
-        move [R12-12] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        mul @R0 #4
+        pop @R1
+        add @R0 @R1
+        move @R0 [@R0]
+        move [@R12-8] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        mul @R0 #4
+        pop @R10
+        add @R0 @R10
+        move @R0 [@R0]
+        move [@R12-12] @R0
 ; 18:     int counter = state[2], last = state[3];
-        move R0 [R12+12]
-        push R0
-        move R0 #2
-        mul R0 #4
-        pop R11
-        add R0 R11
-        move R0 [R0]
-        move [R12-16] R0
-        move R0 [R12+12]
-        push R0
-        move R0 #3
-        mul R0 #4
-        pop R8
-        add R0 R8
-        move R0 [R0]
-        move [R12-20] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #2
+        mul @R0 #4
+        pop @R11
+        add @R0 @R11
+        move @R0 [@R0]
+        move [@R12-16] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #3
+        mul @R0 #4
+        pop @R8
+        add @R0 @R8
+        move @R0 [@R0]
+        move [@R12-20] @R0
 ; 19:     int result = 0;
-        move R0 #0
-        move [R12-24] R0
+        move @R0 #0
+        move [@R12-24] @R0
 ; 20:     if (raw != last) {
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12-20]
+        pop @R1
+        cmp @R1 @R0
         jne _L77580012
-        move R0 #0
+        move @R0 #0
         jmp _L77580013
 _L77580012:
-        move R0 #1
+        move @R0 #1
 _L77580013:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_77580010
 ; 21:         counter += dt_ms;
-        move R0 [R12-16]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-16] R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-16] @R0
 ; 22:         if (counter >= debounce) {
-        move R0 [R12-16]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        cmp @R1 @R0
         jge _L77580016
-        move R0 #0
+        move @R0 #0
         jmp _L77580017
 _L77580016:
-        move R0 #1
+        move @R0 #1
 _L77580017:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_77580014
 ; 23:             if (raw == 0) {
-        move R0 [R12+16]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L77580020
-        move R0 #0
+        move @R0 #0
         jmp _L77580021
 _L77580020:
-        move R0 #1
+        move @R0 #1
 _L77580021:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_77580018
 ; 25:                 result = 1;  // 短按 (暂定, 等待确认长短)
-        move R0 #1
-        move [R12-24] R0
+        move @R0 #1
+        move [@R12-24] @R0
 ; 26:                 state[4] = 0; // 清除长按标志
-        move R0 #0
-        move R9 R0
-        move R0 [R12+12]
-        push R0
-        move R0 #4
-        mul R0 #4
-        pop R6
-        add R0 R6
-        move [R0] R9
+        move @R0 #0
+        move @R9 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #4
+        mul @R0 #4
+        pop @R6
+        add @R0 @R6
+        move [@R0] @R9
         jmp sta_77580019
 sta_77580018:
 ; 29:                 if (state[4] == 2) result = 3; // 长按释放
-        move R0 [R12+12]
-        push R0
-        move R0 #4
-        mul R0 #4
-        pop R7
-        add R0 R7
-        move R0 [R0]
-        push R0
-        move R0 #2
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #4
+        mul @R0 #4
+        pop @R7
+        add @R0 @R7
+        move @R0 [@R0]
+        push @R0
+        move @R0 #2
+        pop @R1
+        cmp @R1 @R0
         je _L77580024
-        move R0 #0
+        move @R0 #0
         jmp _L77580025
 _L77580024:
-        move R0 #1
+        move @R0 #1
 _L77580025:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_77580022
-        move R0 #3
-        move [R12-24] R0
+        move @R0 #3
+        move [@R12-24] @R0
         jmp sta_77580023
 sta_77580022:
 ; 30:                 else result = 3; // 短按释放
-        move R0 #3
-        move [R12-24] R0
+        move @R0 #3
+        move [@R12-24] @R0
 sta_77580023:
 sta_77580019:
 ; 32:             last = raw;
-        move R0 [R12+16]
-        move [R12-20] R0
+        move @R0 [@R12+16]
+        move [@R12-20] @R0
 ; 33:             counter = 0;
-        move R0 #0
-        move [R12-16] R0
+        move @R0 #0
+        move [@R12-16] @R0
 sta_77580014:
 sta_77580015:
         jmp sta_77580011
 sta_77580010:
 ; 35:     } else if (raw == 0 && last == 0) {
-        move R0 [R12+16]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L77580030
-        move R0 #0
+        move @R0 #0
         jmp _L77580031
 _L77580030:
-        move R0 #1
+        move @R0 #1
 _L77580031:
-        test R0 R0
+        test @R0 @R0
         jz _L77580028
-        move R0 [R12-20]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-20]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L77580032
-        move R0 #0
+        move @R0 #0
         jmp _L77580033
 _L77580032:
-        move R0 #1
+        move @R0 #1
 _L77580033:
-        test R0 R0
+        test @R0 @R0
         jz _L77580028
-        move R0 #1
+        move @R0 #1
         jmp _L77580029
 _L77580028:
-        move R0 #0
+        move @R0 #0
 _L77580029:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_77580026
 ; 37:         counter += dt_ms;
-        move R0 [R12-16]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-16] R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-16] @R0
 ; 38:         if (counter >= hold && state[4] == 0) {
-        move R0 [R12-16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        cmp @R1 @R0
         jge _L77580038
-        move R0 #0
+        move @R0 #0
         jmp _L77580039
 _L77580038:
-        move R0 #1
+        move @R0 #1
 _L77580039:
-        test R0 R0
+        test @R0 @R0
         jz _L77580036
-        move R0 [R12+12]
-        push R0
-        move R0 #4
-        mul R0 #4
-        pop R4
-        add R0 R4
-        move R0 [R0]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #4
+        mul @R0 #4
+        pop @R4
+        add @R0 @R4
+        move @R0 [@R0]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L77580040
-        move R0 #0
+        move @R0 #0
         jmp _L77580041
 _L77580040:
-        move R0 #1
+        move @R0 #1
 _L77580041:
-        test R0 R0
+        test @R0 @R0
         jz _L77580036
-        move R0 #1
+        move @R0 #1
         jmp _L77580037
 _L77580036:
-        move R0 #0
+        move @R0 #0
 _L77580037:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_77580034
 ; 39:             result = 2;  // 触发长按
-        move R0 #2
-        move [R12-24] R0
+        move @R0 #2
+        move [@R12-24] @R0
 ; 40:             state[4] = 2;
-        move R0 #2
-        move R5 R0
-        move R0 [R12+12]
-        push R0
-        move R0 #4
-        mul R0 #4
-        pop R2
-        add R0 R2
-        move [R0] R5
+        move @R0 #2
+        move @R5 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #4
+        mul @R0 #4
+        pop @R2
+        add @R0 @R2
+        move [@R0] @R5
 sta_77580034:
 sta_77580035:
         jmp sta_77580027
 sta_77580026:
 ; 43:         counter = 0;
-        move R0 #0
-        move [R12-16] R0
+        move @R0 #0
+        move [@R12-16] @R0
 sta_77580027:
 sta_77580011:
 ; 45:     state[2] = counter;
-        move R0 [R12-16]
-        move R3 R0
-        move R0 [R12+12]
-        push R0
-        move R0 #2
-        mul R0 #4
-        pop R1
-        add R0 R1
-        move [R0] R3
+        move @R0 [@R12-16]
+        move @R3 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #2
+        mul @R0 #4
+        pop @R1
+        add @R0 @R1
+        move [@R0] @R3
 ; 46:     state[3] = last;
-        move R0 [R12-20]
-        move R10 R0
-        move R0 [R12+12]
-        push R0
-        move R0 #3
-        mul R0 #4
-        pop R11
-        add R0 R11
-        move [R0] R10
+        move @R0 [@R12-20]
+        move @R10 @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #3
+        mul @R0 #4
+        pop @R11
+        add @R0 @R11
+        move [@R0] @R10
 ; 47:     return result;
-        move R0 [R12-24]
+        move @R0 [@R12-24]
         jmp L_77580009
 L_77580009:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 is_pressed:
 ; -------------------------------------------:
@@ -403,56 +403,56 @@ is_pressed:
 ; return   : int
 ; --------------------------------------------
 is_pressed:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 51:     if (state == 0) return 0;
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L77580044
-        move R0 #0
+        move @R0 #0
         jmp _L77580045
 _L77580044:
-        move R0 #1
+        move @R0 #1
 _L77580045:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_77580042
-        move R0 #0
+        move @R0 #0
         jmp L_77580046
 sta_77580042:
 sta_77580043:
 ; 52:     return state[3] == 0 ? 1 : 0;
-        move R0 [R12+12]
-        push R0
-        move R0 #3
-        mul R0 #4
-        pop R8
-        add R0 R8
-        move R0 [R0]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #3
+        mul @R0 #4
+        pop @R8
+        add @R0 @R8
+        move @R0 [@R0]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L77580047
-        move R0 #0
+        move @R0 #0
         jmp _L77580048
 _L77580047:
-        move R0 #1
+        move @R0 #1
 _L77580048:
-        test R0 R0
+        test @R0 @R0
         jz _L77580049
-        move R0 #1
+        move @R0 #1
         jmp _L77580050
 _L77580049:
-        move R0 #0
+        move @R0 #0
 _L77580050:
         jmp L_77580046
 L_77580046:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

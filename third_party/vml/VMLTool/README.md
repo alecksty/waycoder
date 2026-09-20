@@ -134,8 +134,8 @@ vmltool --help
 ```
 VML 交互式 REPL
 输入 'exit' 退出
-> MOVE R0, #42
-> MOVE R1, #0xB8000
-> MOVE [R0], R1
+> MOVE @R0, #42
+> MOVE @R1, #0xB8000
+> MOVE [@R0], @R1
 > HALT
 ```

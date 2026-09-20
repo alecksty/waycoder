@@ -11,22 +11,22 @@ __vml_float_add:
 ; return   : int
 ; --------------------------------------------
 __vml_float_add:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 5: int __vml_float_add(int a, int b) { return a + b; }
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        add R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
         jmp L_13420000
 L_13420000:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __vml_float_sub:
 ; -------------------------------------------
@@ -37,22 +37,22 @@ __vml_float_sub:
 ; return   : int
 ; --------------------------------------------
 __vml_float_sub:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 6: int __vml_float_sub(int a, int b) { return a - b; }
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        sub R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
         jmp L_13420001
 L_13420001:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __vml_float_mul:
 ; -------------------------------------------
@@ -63,115 +63,115 @@ __vml_float_mul:
 ; return   : int
 ; --------------------------------------------
 __vml_float_mul:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #32
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #32
 ; 9:     int a_lo = a & 0xFFFF, a_hi = a >> 16;
-        move R0 [R12+12]
-        push R0
-        move R0 #65535
-        pop R1
-        and R1 R0
-        move R0 R1
-        move [R12-8] R0
-        move R0 [R12+12]
-        push R0
-        move R0 #16
-        pop R1
-        shr R1 R0
-        move R0 R1
-        move [R12-12] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #65535
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #16
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
 ; 10:     int b_lo = b & 0xFFFF, b_hi = b >> 16;
-        move R0 [R12+16]
-        push R0
-        move R0 #65535
-        pop R1
-        and R1 R0
-        move R0 R1
-        move [R12-16] R0
-        move R0 [R12+16]
-        push R0
-        move R0 #16
-        pop R1
-        shr R1 R0
-        move R0 R1
-        move [R12-20] R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #65535
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R12-16] @R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #16
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        move [@R12-20] @R0
 ; 11:     int mid = a_lo * b_hi + b_lo * a_hi;
-        move R0 [R12-8]
-        push R0
-        move R0 [R12-20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-16]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-24] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-16]
+        push @R0
+        move @R0 [@R12-12]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-24] @R0
 ; 12:     return (a_lo * b_lo >> 15) + (mid >> 15 << 16) + (mid << 17) + ((a_hi * b_hi) << 17);
-        move R0 [R12-8]
-        push R0
-        move R0 [R12-16]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #15
-        pop R1
-        shr R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-24]
-        push R0
-        move R0 #15
-        pop R1
-        shr R1 R0
-        move R0 R1
-        push R0
-        move R0 #16
-        pop R1
-        shl R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-24]
-        push R0
-        move R0 #17
-        pop R1
-        shl R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12-12]
-        push R0
-        move R0 [R12-20]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        push R0
-        move R0 #17
-        pop R1
-        shl R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12-16]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #15
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #15
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #16
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-24]
+        push @R0
+        move @R0 #17
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12-20]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #17
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
         jmp L_13420002
 L_13420002:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __vml_float_div:
 ; -------------------------------------------
@@ -182,47 +182,47 @@ __vml_float_div:
 ; return   : int
 ; --------------------------------------------
 __vml_float_div:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 15: int __vml_float_div(int a, int b) { return (a / b) << 15 | ((a % b) << 15) / b; }
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        div R1 R0
-        move R0 R1
-        push R0
-        move R0 #15
-        pop R1
-        shl R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        mod R1 R0
-        move R0 R1
-        push R0
-        move R0 #15
-        pop R1
-        shl R1 R0
-        move R0 R1
-        push R0
-        move R0 [R12+16]
-        pop R1
-        div R1 R0
-        move R0 R1
-        pop R1
-        or R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #15
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        mod @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #15
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        pop @R1
+        or @R1 @R0
+        move @R0 @R1
         jmp L_13420003
 L_13420003:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __vml_int2float:
 ; -------------------------------------------
@@ -232,22 +232,22 @@ __vml_int2float:
 ; return   : int
 ; --------------------------------------------
 __vml_int2float:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 16: int __vml_int2float(int x) { return x << 15; }
-        move R0 [R12+12]
-        push R0
-        move R0 #15
-        pop R1
-        shl R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #15
+        pop @R1
+        shl @R1 @R0
+        move @R0 @R1
         jmp L_13420004
 L_13420004:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __vml_float2int:
 ; -------------------------------------------
@@ -257,54 +257,54 @@ __vml_float2int:
 ; return   : int
 ; --------------------------------------------
 __vml_float2int:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 17: int __vml_float2int(int x) { return x >= 0 ? (x + 16384) >> 15 : (x - 16384) >> 15; }
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jge _L13420005
-        move R0 #0
+        move @R0 #0
         jmp _L13420006
 _L13420005:
-        move R0 #1
+        move @R0 #1
 _L13420006:
-        test R0 R0
+        test @R0 @R0
         jz _L13420007
-        move R0 [R12+12]
-        push R0
-        move R0 #16384
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 #15
-        pop R1
-        shr R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #16384
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #15
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
         jmp _L13420008
 _L13420007:
-        move R0 [R12+12]
-        push R0
-        move R0 #16384
-        pop R1
-        sub R1 R0
-        move R0 R1
-        push R0
-        move R0 #15
-        pop R1
-        shr R1 R0
-        move R0 R1
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #16384
+        pop @R1
+        sub @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #15
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
 _L13420008:
         jmp L_13420009
 L_13420009:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __vml_float_neg:
 ; -------------------------------------------
@@ -314,19 +314,19 @@ __vml_float_neg:
 ; return   : int
 ; --------------------------------------------
 __vml_float_neg:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 18: int __vml_float_neg(int a) { return -a; }
-        move R0 [R12+12]
-        move R0 [R12+12]
-        neg R0 R0
+        move @R0 [@R12+12]
+        move @R0 [@R12+12]
+        neg @R0 @R0
         jmp L_13420010
 L_13420010:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __vml_float_abs:
 ; -------------------------------------------
@@ -336,36 +336,36 @@ __vml_float_abs:
 ; return   : int
 ; --------------------------------------------
 __vml_float_abs:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 19: int __vml_float_abs(int a) { return a >= 0 ? a : -a; }
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jge _L13420011
-        move R0 #0
+        move @R0 #0
         jmp _L13420012
 _L13420011:
-        move R0 #1
+        move @R0 #1
 _L13420012:
-        test R0 R0
+        test @R0 @R0
         jz _L13420013
-        move R0 [R12+12]
+        move @R0 [@R12+12]
         jmp _L13420014
 _L13420013:
-        move R0 [R12+12]
-        move R0 [R12+12]
-        neg R0 R0
+        move @R0 [@R12+12]
+        move @R0 [@R12+12]
+        neg @R0 @R0
 _L13420014:
         jmp L_13420015
 L_13420015:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __vml_float_cmp:
 ; -------------------------------------------:
@@ -377,51 +377,51 @@ __vml_float_cmp:
 ; return   : int
 ; --------------------------------------------
 __vml_float_cmp:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 20: int __vml_float_cmp(int a, int b) { if (a < b) return -1; if (a > b) return 1; return 0; }
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        cmp @R1 @R0
         jl _L13420018
-        move R0 #0
+        move @R0 #0
         jmp _L13420019
 _L13420018:
-        move R0 #1
+        move @R0 #1
 _L13420019:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13420016
-        move R0 #1
-        move R0 #1
-        neg R0 R0
+        move @R0 #1
+        move @R0 #1
+        neg @R0 @R0
         jmp L_13420020
 sta_13420016:
 sta_13420017:
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        cmp @R1 @R0
         jg _L13420023
-        move R0 #0
+        move @R0 #0
         jmp _L13420024
 _L13420023:
-        move R0 #1
+        move @R0 #1
 _L13420024:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_13420021
-        move R0 #1
+        move @R0 #1
         jmp L_13420020
 sta_13420021:
 sta_13420022:
-        move R0 #0
+        move @R0 #0
         jmp L_13420020
 L_13420020:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

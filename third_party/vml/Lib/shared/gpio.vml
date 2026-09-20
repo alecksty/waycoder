@@ -11,13 +11,13 @@ __gpio_pinmode:
 ; return   : void
 ; --------------------------------------------
 __gpio_pinmode:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __gpio_digitalwrite:
 ; -------------------------------------------
@@ -28,13 +28,13 @@ __gpio_digitalwrite:
 ; return   : void
 ; --------------------------------------------
 __gpio_digitalwrite:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __gpio_digitalread:
 ; -------------------------------------------
@@ -44,17 +44,17 @@ __gpio_digitalread:
 ; return   : int
 ; --------------------------------------------
 __gpio_digitalread:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 13:     return 0;
-        move R0 #0
+        move @R0 #0
         jmp L_94710000
 L_94710000:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __gpio_bload:
 ; -------------------------------------------
@@ -65,13 +65,13 @@ __gpio_bload:
 ; return   : void
 ; --------------------------------------------
 __gpio_bload:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 __gpio_bsave:
 ; -------------------------------------------:
@@ -84,11 +84,11 @@ __gpio_bsave:
 ; return   : void
 ; --------------------------------------------
 __gpio_bsave:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

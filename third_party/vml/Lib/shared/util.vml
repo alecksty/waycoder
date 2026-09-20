@@ -11,16 +11,16 @@ delay:
 ; return   : void
 ; --------------------------------------------
 delay:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 3:     asm("SYSCALL #52");
         syscall #52
-        move [R12-4] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move [@R12-4] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 sscanf:
 ; -------------------------------------------
@@ -32,17 +32,17 @@ sscanf:
 ; return   : int
 ; --------------------------------------------
 sscanf:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 6:     return 0;
-        move R0 #0
+        move @R0 #0
         jmp L_3860000
 L_3860000:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 int_pow:
 ; -------------------------------------------
@@ -53,72 +53,72 @@ int_pow:
 ; return   : int
 ; --------------------------------------------
 int_pow:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 16:     int result = 1;
-        move R0 #1
-        move [R12-8] R0
+        move @R0 #1
+        move [@R12-8] @R0
 sta_3860001:
-        move R2 #0
+        move @R2 #0
 ; 17:     while (exp > 0) {
-        move R0 [R12+16]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jg _L3860003
-        move R0 #0
+        move @R0 #0
         jmp _L3860004
 _L3860003:
-        move R0 #1
+        move @R0 #1
 _L3860004:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_3860002
 ; 18:         if (exp & 1) result *= base;
-        move R0 [R12+16]
-        push R0
-        move R0 #1
-        pop R1
-        and R1 R0
-        move R0 R1
-        cmp R0 #0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #1
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        cmp @R0 #0
         jz sta_3860005
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+12]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12-8] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+12]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
 sta_3860005:
 sta_3860006:
 ; 19:         base *= base;
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+12]
-        pop R1
-        mul R1 R0
-        move R0 R1
-        move [R12+12] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+12]
+        pop @R1
+        mul @R1 @R0
+        move @R0 @R1
+        move [@R12+12] @R0
 ; 20:         exp >>= 1;
-        move R0 [R12+16]
-        push R0
-        move R0 #1
-        pop R1
-        shr R1 R0
-        move R0 R1
-        move [R12+16] R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #1
+        pop @R1
+        shr @R1 @R0
+        move @R0 @R1
+        move [@R12+16] @R0
         jmp sta_3860001
 sta_3860002:
 ; 22:     return result;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_3860007
 L_3860007:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 int_sqrt:
 ; -------------------------------------------
@@ -128,90 +128,90 @@ int_sqrt:
 ; return   : int
 ; --------------------------------------------
 int_sqrt:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
 ; 26:     if (n <= 0) return 0;
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jle _L3860010
-        move R0 #0
+        move @R0 #0
         jmp _L3860011
 _L3860010:
-        move R0 #1
+        move @R0 #1
 _L3860011:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_3860008
-        move R0 #0
+        move @R0 #0
         jmp L_3860012
 sta_3860008:
 sta_3860009:
 ; 27:     int x = n;
-        move R0 [R12+12]
-        move [R12-8] R0
+        move @R0 [@R12+12]
+        move [@R12-8] @R0
 ; 28:     int y = (x + 1) / 2;
-        move R0 [R12-8]
-        push R0
-        move R0 #1
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 #2
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-12] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #2
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
 sta_3860013:
-        move R2 #0
+        move @R2 #0
 ; 29:     while (y < x) {
-        move R0 [R12-12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        cmp @R1 @R0
         jl _L3860015
-        move R0 #0
+        move @R0 #0
         jmp _L3860016
 _L3860015:
-        move R0 #1
+        move @R0 #1
 _L3860016:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_3860014
 ; 30:         x = y;
-        move R0 [R12-12]
-        move [R12-8] R0
+        move @R0 [@R12-12]
+        move [@R12-8] @R0
 ; 31:         y = (x + n / x) / 2;
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        div R1 R0
-        move R0 R1
-        pop R1
-        add R1 R0
-        move R0 R1
-        push R0
-        move R0 #2
-        pop R1
-        div R1 R0
-        move R0 R1
-        move [R12-12] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        push @R0
+        move @R0 #2
+        pop @R1
+        div @R1 @R0
+        move @R0 @R1
+        move [@R12-12] @R0
         jmp sta_3860013
 sta_3860014:
 ; 33:     return x;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_3860012
 L_3860012:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 sum:
 ; -------------------------------------------:
@@ -223,57 +223,57 @@ sum:
 ; return   : int
 ; --------------------------------------------
 sum:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #24
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #24
 ; 37:     int total = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 ; 38:     for (int i = 0; i < n; i++)
-        move R0 #0
-        move [R12-12] R0
+        move @R0 #0
+        move [@R12-12] @R0
 sta_3860017:
-        move R0 [R12-12]
-        push R0
-        move R0 [R12+16]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-12]
+        push @R0
+        move @R0 [@R12+16]
+        pop @R1
+        cmp @R1 @R0
         jl _L3860020
-        move R0 #0
+        move @R0 #0
         jmp _L3860021
 _L3860020:
-        move R0 #1
+        move @R0 #1
 _L3860021:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_3860019
 ; 39:         total += arr[i];
-        move R0 [R12-8]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-12]
-        mul R0 #4
-        pop R11
-        add R0 R11
-        move R0 [R0]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-8] R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-12]
+        mul @R0 #4
+        pop @R11
+        add @R0 @R11
+        move @R0 [@R0]
+        pop @R1
+        add @R1 @R0
+        move @R0 @R1
+        move [@R12-8] @R0
 sta_3860018:
-        move R0 [R12-12]
-        move R1 R0
-        add R0 R0 #1
-        move [R12-12] R0
-        move R0 R1
+        move @R0 [@R12-12]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [@R12-12] @R0
+        move @R0 @R1
         jmp sta_3860017
 sta_3860019:
 ; 40:     return total;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_3860022
 L_3860022:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

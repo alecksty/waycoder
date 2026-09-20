@@ -12,104 +12,104 @@ realloc:
 ; return   : void*
 ; --------------------------------------------
 realloc:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 16:     if (ptr == 0)
-        move R0 [R12+12]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L50740002
-        move R0 #0
+        move @R0 #0
         jmp _L50740003
 _L50740002:
-        move R0 #1
+        move @R0 #1
 _L50740003:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_50740000
 ; 17:         return vml_alloc((int)size);
-        move R0 [R12+16]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R13+0]
         call vml_alloc
-        add R13 #4
+        add @R13 #4
         jmp L_50740004
 sta_50740000:
 sta_50740001:
 ; 18:     if (size == 0) {
-        move R0 [R12+16]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L50740007
-        move R0 #0
+        move @R0 #0
         jmp _L50740008
 _L50740007:
-        move R0 #1
+        move @R0 #1
 _L50740008:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_50740005
 ; 19:         vml_free(ptr);
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
         call vml_free
-        add R13 #4
+        add @R13 #4
 ; 20:         return 0;
-        move R0 #0
+        move @R0 #0
         jmp L_50740004
 sta_50740005:
 sta_50740006:
 ; 22:     void *new_ptr = vml_alloc((int)size);
-        move R0 [R12+16]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R13+0]
         call vml_alloc
-        add R13 #4
-        move [R12-8] R0
+        add @R13 #4
+        move [@R12-8] @R0
 ; 23:     if (new_ptr != 0) {
-        move R0 [R12-8]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jne _L50740011
-        move R0 #0
+        move @R0 #0
         jmp _L50740012
 _L50740011:
-        move R0 #1
+        move @R0 #1
 _L50740012:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_50740009
 ; 24:         memcpy(new_ptr, ptr, size);
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-8]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12-8]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call memcpy
-        add R13 #12
+        add @R13 #12
 ; 25:         vml_free(ptr);
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
         call vml_free
-        add R13 #4
+        add @R13 #4
 sta_50740009:
 sta_50740010:
 ; 27:     return new_ptr;
-        move R0 [R12-8]
+        move @R0 [@R12-8]
         jmp L_50740004
 L_50740004:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

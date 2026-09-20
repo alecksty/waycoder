@@ -21,245 +21,245 @@ _crt_init_maps:
 ; return   : void
 ; --------------------------------------------
 _crt_init_maps:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 19:     _ansi_fg[0]=30; _ansi_bg[0]=40;  // Black
-        move R0 #30
-        move R11 R0
-        move R0 _ansi_fg
-        push R0
-        move R10 #0
-        push R10
-        move R0 #0
-        pop R10
-        move R10 R0
-        move R0 R10
-        mul R0 #4
-        pop R9
-        add R0 R9
-        move [R0] R11
-        move R0 #40
-        move R8 R0
-        move R0 _ansi_bg
-        push R0
-        move R7 #0
-        push R7
-        move R0 #0
-        pop R7
-        move R7 R0
-        move R0 R7
-        mul R0 #4
-        pop R6
-        add R0 R6
-        move [R0] R8
+        move @R0 #30
+        move @R11 @R0
+        move @R0 _ansi_fg
+        push @R0
+        move @R10 #0
+        push @R10
+        move @R0 #0
+        pop @R10
+        move @R10 @R0
+        move @R0 @R10
+        mul @R0 #4
+        pop @R9
+        add @R0 @R9
+        move [@R0] @R11
+        move @R0 #40
+        move @R8 @R0
+        move @R0 _ansi_bg
+        push @R0
+        move @R7 #0
+        push @R7
+        move @R0 #0
+        pop @R7
+        move @R7 @R0
+        move @R0 @R7
+        mul @R0 #4
+        pop @R6
+        add @R0 @R6
+        move [@R0] @R8
 ; 20:     _ansi_fg[1]=34; _ansi_bg[1]=44;  // Blue
-        move R0 #34
-        move R5 R0
-        move R0 _ansi_fg
-        push R0
-        move R4 #0
-        push R4
-        move R0 #1
-        pop R4
-        move R4 R0
-        move R0 R4
-        mul R0 #4
-        pop R3
-        add R0 R3
-        move [R0] R5
-        move R0 #44
-        move R2 R0
-        move R0 _ansi_bg
-        push R0
-        move R1 #0
-        push R1
-        move R0 #1
-        pop R1
-        move R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R10
-        add R0 R10
-        move [R0] R2
+        move @R0 #34
+        move @R5 @R0
+        move @R0 _ansi_fg
+        push @R0
+        move @R4 #0
+        push @R4
+        move @R0 #1
+        pop @R4
+        move @R4 @R0
+        move @R0 @R4
+        mul @R0 #4
+        pop @R3
+        add @R0 @R3
+        move [@R0] @R5
+        move @R0 #44
+        move @R2 @R0
+        move @R0 _ansi_bg
+        push @R0
+        move @R1 #0
+        push @R1
+        move @R0 #1
+        pop @R1
+        move @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R10
+        add @R0 @R10
+        move [@R0] @R2
 ; 21:     _ansi_fg[2]=32; _ansi_bg[2]=42;  // Green
-        move R0 #32
-        move R9 R0
-        move R0 _ansi_fg
-        push R0
-        move R11 #0
-        push R11
-        move R0 #2
-        pop R11
-        move R11 R0
-        move R0 R11
-        mul R0 #4
-        pop R7
-        add R0 R7
-        move [R0] R9
-        move R0 #42
-        move R6 R0
-        move R0 _ansi_bg
-        push R0
-        move R8 #0
-        push R8
-        move R0 #2
-        pop R8
-        move R8 R0
-        move R0 R8
-        mul R0 #4
-        pop R4
-        add R0 R4
-        move [R0] R6
+        move @R0 #32
+        move @R9 @R0
+        move @R0 _ansi_fg
+        push @R0
+        move @R11 #0
+        push @R11
+        move @R0 #2
+        pop @R11
+        move @R11 @R0
+        move @R0 @R11
+        mul @R0 #4
+        pop @R7
+        add @R0 @R7
+        move [@R0] @R9
+        move @R0 #42
+        move @R6 @R0
+        move @R0 _ansi_bg
+        push @R0
+        move @R8 #0
+        push @R8
+        move @R0 #2
+        pop @R8
+        move @R8 @R0
+        move @R0 @R8
+        mul @R0 #4
+        pop @R4
+        add @R0 @R4
+        move [@R0] @R6
 ; 22:     _ansi_fg[3]=36; _ansi_bg[3]=46;  // Cyan
-        move R0 #36
-        move R3 R0
-        move R0 _ansi_fg
-        push R0
-        move R5 #0
-        push R5
-        move R0 #3
-        pop R5
-        move R5 R0
-        move R0 R5
-        mul R0 #4
-        pop R1
-        add R0 R1
-        move [R0] R3
-        move R0 #46
-        move R10 R0
-        move R0 _ansi_bg
-        push R0
-        move R2 #0
-        push R2
-        move R0 #3
-        pop R2
-        move R2 R0
-        move R0 R2
-        mul R0 #4
-        pop R11
-        add R0 R11
-        move [R0] R10
+        move @R0 #36
+        move @R3 @R0
+        move @R0 _ansi_fg
+        push @R0
+        move @R5 #0
+        push @R5
+        move @R0 #3
+        pop @R5
+        move @R5 @R0
+        move @R0 @R5
+        mul @R0 #4
+        pop @R1
+        add @R0 @R1
+        move [@R0] @R3
+        move @R0 #46
+        move @R10 @R0
+        move @R0 _ansi_bg
+        push @R0
+        move @R2 #0
+        push @R2
+        move @R0 #3
+        pop @R2
+        move @R2 @R0
+        move @R0 @R2
+        mul @R0 #4
+        pop @R11
+        add @R0 @R11
+        move [@R0] @R10
 ; 23:     _ansi_fg[4]=31; _ansi_bg[4]=41;  // Red
-        move R0 #31
-        move R7 R0
-        move R0 _ansi_fg
-        push R0
-        move R9 #0
-        push R9
-        move R0 #4
-        pop R9
-        move R9 R0
-        move R0 R9
-        mul R0 #4
-        pop R8
-        add R0 R8
-        move [R0] R7
-        move R0 #41
-        move R4 R0
-        move R0 _ansi_bg
-        push R0
-        move R6 #0
-        push R6
-        move R0 #4
-        pop R6
-        move R6 R0
-        move R0 R6
-        mul R0 #4
-        pop R5
-        add R0 R5
-        move [R0] R4
+        move @R0 #31
+        move @R7 @R0
+        move @R0 _ansi_fg
+        push @R0
+        move @R9 #0
+        push @R9
+        move @R0 #4
+        pop @R9
+        move @R9 @R0
+        move @R0 @R9
+        mul @R0 #4
+        pop @R8
+        add @R0 @R8
+        move [@R0] @R7
+        move @R0 #41
+        move @R4 @R0
+        move @R0 _ansi_bg
+        push @R0
+        move @R6 #0
+        push @R6
+        move @R0 #4
+        pop @R6
+        move @R6 @R0
+        move @R0 @R6
+        mul @R0 #4
+        pop @R5
+        add @R0 @R5
+        move [@R0] @R4
 ; 24:     _ansi_fg[5]=35; _ansi_bg[5]=45;  // Magenta
-        move R0 #35
-        move R1 R0
-        move R0 _ansi_fg
-        push R0
-        move R3 #0
-        push R3
-        move R0 #5
-        pop R3
-        move R3 R0
-        move R0 R3
-        mul R0 #4
-        pop R2
-        add R0 R2
-        move [R0] R1
-        move R0 #45
-        move R11 R0
-        move R0 _ansi_bg
-        push R0
-        move R10 #0
-        push R10
-        move R0 #5
-        pop R10
-        move R10 R0
-        move R0 R10
-        mul R0 #4
-        pop R9
-        add R0 R9
-        move [R0] R11
+        move @R0 #35
+        move @R1 @R0
+        move @R0 _ansi_fg
+        push @R0
+        move @R3 #0
+        push @R3
+        move @R0 #5
+        pop @R3
+        move @R3 @R0
+        move @R0 @R3
+        mul @R0 #4
+        pop @R2
+        add @R0 @R2
+        move [@R0] @R1
+        move @R0 #45
+        move @R11 @R0
+        move @R0 _ansi_bg
+        push @R0
+        move @R10 #0
+        push @R10
+        move @R0 #5
+        pop @R10
+        move @R10 @R0
+        move @R0 @R10
+        mul @R0 #4
+        pop @R9
+        add @R0 @R9
+        move [@R0] @R11
 ; 25:     _ansi_fg[6]=33; _ansi_bg[6]=43;  // Brown/Yellow
-        move R0 #33
-        move R8 R0
-        move R0 _ansi_fg
-        push R0
-        move R7 #0
-        push R7
-        move R0 #6
-        pop R7
-        move R7 R0
-        move R0 R7
-        mul R0 #4
-        pop R6
-        add R0 R6
-        move [R0] R8
-        move R0 #43
-        move R5 R0
-        move R0 _ansi_bg
-        push R0
-        move R4 #0
-        push R4
-        move R0 #6
-        pop R4
-        move R4 R0
-        move R0 R4
-        mul R0 #4
-        pop R3
-        add R0 R3
-        move [R0] R5
+        move @R0 #33
+        move @R8 @R0
+        move @R0 _ansi_fg
+        push @R0
+        move @R7 #0
+        push @R7
+        move @R0 #6
+        pop @R7
+        move @R7 @R0
+        move @R0 @R7
+        mul @R0 #4
+        pop @R6
+        add @R0 @R6
+        move [@R0] @R8
+        move @R0 #43
+        move @R5 @R0
+        move @R0 _ansi_bg
+        push @R0
+        move @R4 #0
+        push @R4
+        move @R0 #6
+        pop @R4
+        move @R4 @R0
+        move @R0 @R4
+        mul @R0 #4
+        pop @R3
+        add @R0 @R3
+        move [@R0] @R5
 ; 26:     _ansi_fg[7]=37; _ansi_bg[7]=47;  // LightGray/White
-        move R0 #37
-        move R2 R0
-        move R0 _ansi_fg
-        push R0
-        move R1 #0
-        push R1
-        move R0 #7
-        pop R1
-        move R1 R0
-        move R0 R1
-        mul R0 #4
-        pop R10
-        add R0 R10
-        move [R0] R2
-        move R0 #47
-        move R9 R0
-        move R0 _ansi_bg
-        push R0
-        move R11 #0
-        push R11
-        move R0 #7
-        pop R11
-        move R11 R0
-        move R0 R11
-        mul R0 #4
-        pop R7
-        add R0 R7
-        move [R0] R9
-        move R13 R12
-        pop R12
-        pop R15
+        move @R0 #37
+        move @R2 @R0
+        move @R0 _ansi_fg
+        push @R0
+        move @R1 #0
+        push @R1
+        move @R0 #7
+        pop @R1
+        move @R1 @R0
+        move @R0 @R1
+        mul @R0 #4
+        pop @R10
+        add @R0 @R10
+        move [@R0] @R2
+        move @R0 #47
+        move @R9 @R0
+        move @R0 _ansi_bg
+        push @R0
+        move @R11 #0
+        push @R11
+        move @R0 #7
+        pop @R11
+        move @R11 @R0
+        move @R0 @R11
+        mul @R0 #4
+        pop @R7
+        add @R0 @R7
+        move [@R0] @R9
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_INIT:
 ; -------------------------------------------
@@ -268,37 +268,37 @@ CRT_INIT:
 ; return   : void
 ; --------------------------------------------
 CRT_INIT:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 33:     _crt_init_maps();
         call _crt_init_maps
 ; 34:     _crt_fg = 7; _crt_bg = 0;
-        move R0 #7
-        move [_crt_fg] R0
-        move R0 #0
-        move [_crt_bg] R0
+        move @R0 #7
+        move [_crt_fg] @R0
+        move @R0 #0
+        move [_crt_bg] @R0
 ; 35:     _crt_wx1 = 1; _crt_wy1 = 1;
-        move R0 #1
-        move [_crt_wx1] R0
-        move R0 #1
-        move [_crt_wy1] R0
+        move @R0 #1
+        move [_crt_wx1] @R0
+        move @R0 #1
+        move [_crt_wy1] @R0
 ; 36:     _crt_wx2 = 80; _crt_wy2 = 25;
-        move R0 #80
-        move [_crt_wx2] R0
-        move R0 #25
-        move [_crt_wy2] R0
+        move @R0 #80
+        move [_crt_wx2] @R0
+        move @R0 #25
+        move [_crt_wy2] @R0
 ; 37:     _crt_x = 1; _crt_y = 1;
-        move R0 #1
-        move [_crt_x] R0
-        move R0 #1
-        move [_crt_y] R0
+        move @R0 #1
+        move [_crt_x] @R0
+        move @R0 #1
+        move [_crt_y] @R0
 ; 38:     CRT_CLRSCR();
         call CRT_CLRSCR
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_CLRSCR:
 ; -------------------------------------------
@@ -307,41 +307,41 @@ CRT_CLRSCR:
 ; return   : void
 ; --------------------------------------------
 CRT_CLRSCR:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 43:     if (_crt_wx2 == 0) {
-        move R0 [_crt_wx2]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [_crt_wx2]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         je _L87890002
-        move R0 #0
+        move @R0 #0
         jmp _L87890003
 _L87890002:
-        move R0 #1
+        move @R0 #1
 _L87890003:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_87890000
 ; 44:         _crt_init_maps();
         call _crt_init_maps
 ; 45:         _crt_fg = 7; _crt_bg = 0;
-        move R0 #7
-        move [_crt_fg] R0
-        move R0 #0
-        move [_crt_bg] R0
+        move @R0 #7
+        move [_crt_fg] @R0
+        move @R0 #0
+        move [_crt_bg] @R0
 ; 46:         _crt_wx1 = 1; _crt_wy1 = 1;
-        move R0 #1
-        move [_crt_wx1] R0
-        move R0 #1
-        move [_crt_wy1] R0
+        move @R0 #1
+        move [_crt_wx1] @R0
+        move @R0 #1
+        move [_crt_wy1] @R0
 ; 47:         _crt_wx2 = 80; _crt_wy2 = 25;
-        move R0 #80
-        move [_crt_wx2] R0
-        move R0 #25
-        move [_crt_wy2] R0
+        move @R0 #80
+        move [_crt_wx2] @R0
+        move @R0 #25
+        move [_crt_wy2] @R0
 sta_87890000:
 sta_87890001:
 ; 49:     asm("MOVE R0, #27"); asm("SYSCALL 400");
@@ -366,13 +366,13 @@ sta_87890001:
         asm "MOVE R0, #72"
         asm "SYSCALL 400"
 ; 56:     _crt_x = 1; _crt_y = 1;
-        move R0 #1
-        move [_crt_x] R0
-        move R0 #1
-        move [_crt_y] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move @R0 #1
+        move [_crt_x] @R0
+        move @R0 #1
+        move [_crt_y] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_CLREOL:
 ; -------------------------------------------
@@ -381,10 +381,10 @@ CRT_CLREOL:
 ; return   : void
 ; --------------------------------------------
 CRT_CLREOL:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 60:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
@@ -394,9 +394,9 @@ CRT_CLREOL:
 ; 62:     asm("MOVE R0, #75"); asm("SYSCALL 400");
         asm "MOVE R0, #75"
         asm "SYSCALL 400"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_GOTOXY:
 ; -------------------------------------------
@@ -407,91 +407,91 @@ CRT_GOTOXY:
 ; return   : void
 ; --------------------------------------------
 CRT_GOTOXY:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 67:     asm("MOVE [_crt_tmp1], R0");  /* 保存 x */
         asm "MOVE [_crt_tmp1], R0"
 ; 68:     asm("MOVE [_crt_tmp2], R1");  /* 保存 y */
         asm "MOVE [_crt_tmp2], R1"
 ; 70:     if (_crt_tmp1 < _crt_wx1) _crt_tmp1 = _crt_wx1;
-        move R0 [_crt_tmp1]
-        push R0
-        move R0 [_crt_wx1]
-        pop R1
-        cmp R1 R0
+        move @R0 [_crt_tmp1]
+        push @R0
+        move @R0 [_crt_wx1]
+        pop @R1
+        cmp @R1 @R0
         jl _L87890006
-        move R0 #0
+        move @R0 #0
         jmp _L87890007
 _L87890006:
-        move R0 #1
+        move @R0 #1
 _L87890007:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_87890004
-        move R0 [_crt_wx1]
-        move [_crt_tmp1] R0
+        move @R0 [_crt_wx1]
+        move [_crt_tmp1] @R0
 sta_87890004:
 sta_87890005:
 ; 71:     if (_crt_tmp1 > _crt_wx2) _crt_tmp1 = _crt_wx2;
-        move R0 [_crt_tmp1]
-        push R0
-        move R0 [_crt_wx2]
-        pop R1
-        cmp R1 R0
+        move @R0 [_crt_tmp1]
+        push @R0
+        move @R0 [_crt_wx2]
+        pop @R1
+        cmp @R1 @R0
         jg _L87890010
-        move R0 #0
+        move @R0 #0
         jmp _L87890011
 _L87890010:
-        move R0 #1
+        move @R0 #1
 _L87890011:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_87890008
-        move R0 [_crt_wx2]
-        move [_crt_tmp1] R0
+        move @R0 [_crt_wx2]
+        move [_crt_tmp1] @R0
 sta_87890008:
 sta_87890009:
 ; 72:     if (_crt_tmp2 < _crt_wy1) _crt_tmp2 = _crt_wy1;
-        move R0 [_crt_tmp2]
-        push R0
-        move R0 [_crt_wy1]
-        pop R1
-        cmp R1 R0
+        move @R0 [_crt_tmp2]
+        push @R0
+        move @R0 [_crt_wy1]
+        pop @R1
+        cmp @R1 @R0
         jl _L87890014
-        move R0 #0
+        move @R0 #0
         jmp _L87890015
 _L87890014:
-        move R0 #1
+        move @R0 #1
 _L87890015:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_87890012
-        move R0 [_crt_wy1]
-        move [_crt_tmp2] R0
+        move @R0 [_crt_wy1]
+        move [_crt_tmp2] @R0
 sta_87890012:
 sta_87890013:
 ; 73:     if (_crt_tmp2 > _crt_wy2) _crt_tmp2 = _crt_wy2;
-        move R0 [_crt_tmp2]
-        push R0
-        move R0 [_crt_wy2]
-        pop R1
-        cmp R1 R0
+        move @R0 [_crt_tmp2]
+        push @R0
+        move @R0 [_crt_wy2]
+        pop @R1
+        cmp @R1 @R0
         jg _L87890018
-        move R0 #0
+        move @R0 #0
         jmp _L87890019
 _L87890018:
-        move R0 #1
+        move @R0 #1
 _L87890019:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_87890016
-        move R0 [_crt_wy2]
-        move [_crt_tmp2] R0
+        move @R0 [_crt_wy2]
+        move [_crt_tmp2] @R0
 sta_87890016:
 sta_87890017:
 ; 74:     _crt_x = _crt_tmp1; _crt_y = _crt_tmp2;
-        move R0 [_crt_tmp1]
-        move [_crt_x] R0
-        move R0 [_crt_tmp2]
-        move [_crt_y] R0
+        move @R0 [_crt_tmp1]
+        move [_crt_x] @R0
+        move @R0 [_crt_tmp2]
+        move [_crt_y] @R0
 ; 76:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
@@ -510,9 +510,9 @@ sta_87890017:
 ; 81:     asm("MOVE R0, #72"); asm("SYSCALL 400");
         asm "MOVE R0, #72"
         asm "SYSCALL 400"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_WHEREX:
 ; -------------------------------------------
@@ -521,17 +521,17 @@ CRT_WHEREX:
 ; return   : int
 ; --------------------------------------------
 CRT_WHEREX:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 83: int CRT_WHEREX();  int CRT_WHEREX()  { return _crt_x; }
-        move R0 [_crt_x]
+        move @R0 [_crt_x]
         jmp L_87890020
 L_87890020:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_WHEREY:
 ; -------------------------------------------
@@ -540,17 +540,17 @@ CRT_WHEREY:
 ; return   : int
 ; --------------------------------------------
 CRT_WHEREY:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 84: int CRT_WHEREY();  int CRT_WHEREY()  { return _crt_y; }
-        move R0 [_crt_y]
+        move @R0 [_crt_y]
         jmp L_87890021
 L_87890021:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_TEXTCOLOR:
 ; -------------------------------------------
@@ -560,41 +560,41 @@ CRT_TEXTCOLOR:
 ; return   : void
 ; --------------------------------------------
 CRT_TEXTCOLOR:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 87:     asm("MOVE [_crt_tmp1], R0");
         asm "MOVE [_crt_tmp1], R0"
 ; 88:     c = _crt_tmp1 & 15;
-        move R0 [_crt_tmp1]
-        push R0
-        move R0 #15
-        pop R1
-        and R1 R0
-        move R0 R1
-        move [R12+12] R0
+        move @R0 [_crt_tmp1]
+        push @R0
+        move @R0 #15
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R12+12] @R0
 ; 89:     _crt_fg = c & 7;
-        move R0 [R12+12]
-        push R0
-        move R0 #7
-        pop R1
-        and R1 R0
-        move R0 R1
-        move [_crt_fg] R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #7
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [_crt_fg] @R0
 ; 90:     if (c > 7) {
-        move R0 [R12+12]
-        push R0
-        move R0 #7
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #7
+        pop @R1
+        cmp @R1 @R0
         jg _L87890024
-        move R0 #0
+        move @R0 #0
         jmp _L87890025
 _L87890024:
-        move R0 #1
+        move @R0 #1
 _L87890025:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_87890022
 ; 91:         asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
@@ -617,90 +617,90 @@ sta_87890023:
         asm "MOVE R0, #91"
         asm "SYSCALL 400"
 ; 99:     switch (_crt_fg) {
-        move R0 [_crt_fg]
-        move R1 R0
-        push R1
+        move @R0 [_crt_fg]
+        move @R1 @R0
+        push @R1
 ; 100:         case 0: _crt_tmp1=30; break;  // Black
-        move R0 #0
-        pop R1
-        cmp R0 R1
+        move @R0 #0
+        pop @R1
+        cmp @R0 @R1
         je sta_87890028
-        push R1
+        push @R1
 ; 101:         case 1: _crt_tmp1=34; break;  // Blue
-        move R0 #1
-        pop R1
-        cmp R0 R1
+        move @R0 #1
+        pop @R1
+        cmp @R0 @R1
         je sta_87890029
-        push R1
+        push @R1
 ; 102:         case 2: _crt_tmp1=32; break;  // Green
-        move R0 #2
-        pop R1
-        cmp R0 R1
+        move @R0 #2
+        pop @R1
+        cmp @R0 @R1
         je sta_87890030
-        push R1
+        push @R1
 ; 103:         case 3: _crt_tmp1=36; break;  // Cyan
-        move R0 #3
-        pop R1
-        cmp R0 R1
+        move @R0 #3
+        pop @R1
+        cmp @R0 @R1
         je sta_87890031
-        push R1
+        push @R1
 ; 104:         case 4: _crt_tmp1=31; break;  // Red
-        move R0 #4
-        pop R1
-        cmp R0 R1
+        move @R0 #4
+        pop @R1
+        cmp @R0 @R1
         je sta_87890032
-        push R1
+        push @R1
 ; 105:         case 5: _crt_tmp1=35; break;  // Magenta
-        move R0 #5
-        pop R1
-        cmp R0 R1
+        move @R0 #5
+        pop @R1
+        cmp @R0 @R1
         je sta_87890033
-        push R1
+        push @R1
 ; 106:         case 6: _crt_tmp1=33; break;  // Yellow
-        move R0 #6
-        pop R1
-        cmp R0 R1
+        move @R0 #6
+        pop @R1
+        cmp @R0 @R1
         je sta_87890034
         jmp sta_87890027
 sta_87890028:
 ; 100:         case 0: _crt_tmp1=30; break;  // Black
-        move R0 #30
-        move [_crt_tmp1] R0
+        move @R0 #30
+        move [_crt_tmp1] @R0
         jmp sta_87890026
 sta_87890029:
 ; 101:         case 1: _crt_tmp1=34; break;  // Blue
-        move R0 #34
-        move [_crt_tmp1] R0
+        move @R0 #34
+        move [_crt_tmp1] @R0
         jmp sta_87890026
 sta_87890030:
 ; 102:         case 2: _crt_tmp1=32; break;  // Green
-        move R0 #32
-        move [_crt_tmp1] R0
+        move @R0 #32
+        move [_crt_tmp1] @R0
         jmp sta_87890026
 sta_87890031:
 ; 103:         case 3: _crt_tmp1=36; break;  // Cyan
-        move R0 #36
-        move [_crt_tmp1] R0
+        move @R0 #36
+        move [_crt_tmp1] @R0
         jmp sta_87890026
 sta_87890032:
 ; 104:         case 4: _crt_tmp1=31; break;  // Red
-        move R0 #31
-        move [_crt_tmp1] R0
+        move @R0 #31
+        move [_crt_tmp1] @R0
         jmp sta_87890026
 sta_87890033:
 ; 105:         case 5: _crt_tmp1=35; break;  // Magenta
-        move R0 #35
-        move [_crt_tmp1] R0
+        move @R0 #35
+        move [_crt_tmp1] @R0
         jmp sta_87890026
 sta_87890034:
 ; 106:         case 6: _crt_tmp1=33; break;  // Yellow
-        move R0 #33
-        move [_crt_tmp1] R0
+        move @R0 #33
+        move [_crt_tmp1] @R0
         jmp sta_87890026
 sta_87890027:
 ; 107:         default: _crt_tmp1=37; break; // White
-        move R0 #37
-        move [_crt_tmp1] R0
+        move @R0 #37
+        move [_crt_tmp1] @R0
         jmp sta_87890026
 sta_87890026:
 ; 109:     asm("MOVE R0, [_crt_tmp1]"); asm("SYSCALL 402");
@@ -709,9 +709,9 @@ sta_87890026:
 ; 110:     asm("MOVE R0, #109"); asm("SYSCALL 400");
         asm "MOVE R0, #109"
         asm "SYSCALL 400"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_TEXTBACKGROUND:
 ; -------------------------------------------
@@ -721,23 +721,23 @@ CRT_TEXTBACKGROUND:
 ; return   : void
 ; --------------------------------------------
 CRT_TEXTBACKGROUND:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 114:     asm("MOVE [_crt_tmp1], R0");
         asm "MOVE [_crt_tmp1], R0"
 ; 115:     c = _crt_tmp1 & 7;
-        move R0 [_crt_tmp1]
-        push R0
-        move R0 #7
-        pop R1
-        and R1 R0
-        move R0 R1
-        move [R12+12] R0
+        move @R0 [_crt_tmp1]
+        push @R0
+        move @R0 #7
+        pop @R1
+        and @R1 @R0
+        move @R0 @R1
+        move [@R12+12] @R0
 ; 116:     _crt_bg = c;
-        move R0 [R12+12]
-        move [_crt_bg] R0
+        move @R0 [@R12+12]
+        move [_crt_bg] @R0
 ; 117:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
@@ -759,9 +759,9 @@ CRT_TEXTBACKGROUND:
 ; 125:     asm("MOVE R0, #109"); asm("SYSCALL 400");
         asm "MOVE R0, #109"
         asm "SYSCALL 400"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_WINDOW:
 ; -------------------------------------------
@@ -774,144 +774,144 @@ CRT_WINDOW:
 ; return   : void
 ; --------------------------------------------
 CRT_WINDOW:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 129:     asm("MOVE [_crt_tmp1], R0");
         asm "MOVE [_crt_tmp1], R0"
 ; 130:     asm("MOVE [_crt_tmp2], R1");
         asm "MOVE [_crt_tmp2], R1"
 ; 131:     x1 = _crt_tmp1; y1 = _crt_tmp2;
-        move R0 [_crt_tmp1]
-        move [R12+12] R0
-        move R0 [_crt_tmp2]
-        move [R12+16] R0
+        move @R0 [_crt_tmp1]
+        move [@R12+12] @R0
+        move @R0 [_crt_tmp2]
+        move [@R12+16] @R0
 ; 132:     asm("MOVE [_crt_tmp1], R2");
         asm "MOVE [_crt_tmp1], R2"
 ; 133:     asm("MOVE [_crt_tmp2], R3");
         asm "MOVE [_crt_tmp2], R3"
 ; 134:     x2 = _crt_tmp1; y2 = _crt_tmp2;
-        move R0 [_crt_tmp1]
-        move [R12+20] R0
-        move R0 [_crt_tmp2]
-        move [R12+24] R0
+        move @R0 [_crt_tmp1]
+        move [@R12+20] @R0
+        move @R0 [_crt_tmp2]
+        move [@R12+24] @R0
 ; 135:     if (x1 < 1) x1 = 1; if (x1 > x2) x1 = 1;
-        move R0 [R12+12]
-        push R0
-        move R0 #1
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
         jl _L87890037
-        move R0 #0
+        move @R0 #0
         jmp _L87890038
 _L87890037:
-        move R0 #1
+        move @R0 #1
 _L87890038:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_87890035
-        move R0 #1
-        move [R12+12] R0
+        move @R0 #1
+        move [@R12+12] @R0
 sta_87890035:
 sta_87890036:
-        move R0 [R12+12]
-        push R0
-        move R0 [R12+20]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R12+20]
+        pop @R1
+        cmp @R1 @R0
         jg _L87890041
-        move R0 #0
+        move @R0 #0
         jmp _L87890042
 _L87890041:
-        move R0 #1
+        move @R0 #1
 _L87890042:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_87890039
-        move R0 #1
-        move [R12+12] R0
+        move @R0 #1
+        move [@R12+12] @R0
 sta_87890039:
 sta_87890040:
 ; 136:     if (x2 > 80) x2 = 80;
-        move R0 [R12+20]
-        push R0
-        move R0 #80
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+20]
+        push @R0
+        move @R0 #80
+        pop @R1
+        cmp @R1 @R0
         jg _L87890045
-        move R0 #0
+        move @R0 #0
         jmp _L87890046
 _L87890045:
-        move R0 #1
+        move @R0 #1
 _L87890046:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_87890043
-        move R0 #80
-        move [R12+20] R0
+        move @R0 #80
+        move [@R12+20] @R0
 sta_87890043:
 sta_87890044:
 ; 137:     if (y1 < 1) y1 = 1; if (y1 > y2) y1 = 1;
-        move R0 [R12+16]
-        push R0
-        move R0 #1
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 #1
+        pop @R1
+        cmp @R1 @R0
         jl _L87890049
-        move R0 #0
+        move @R0 #0
         jmp _L87890050
 _L87890049:
-        move R0 #1
+        move @R0 #1
 _L87890050:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_87890047
-        move R0 #1
-        move [R12+16] R0
+        move @R0 #1
+        move [@R12+16] @R0
 sta_87890047:
 sta_87890048:
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+24]
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+24]
+        pop @R1
+        cmp @R1 @R0
         jg _L87890053
-        move R0 #0
+        move @R0 #0
         jmp _L87890054
 _L87890053:
-        move R0 #1
+        move @R0 #1
 _L87890054:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_87890051
-        move R0 #1
-        move [R12+16] R0
+        move @R0 #1
+        move [@R12+16] @R0
 sta_87890051:
 sta_87890052:
 ; 138:     if (y2 > 25) y2 = 25;
-        move R0 [R12+24]
-        push R0
-        move R0 #25
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+24]
+        push @R0
+        move @R0 #25
+        pop @R1
+        cmp @R1 @R0
         jg _L87890057
-        move R0 #0
+        move @R0 #0
         jmp _L87890058
 _L87890057:
-        move R0 #1
+        move @R0 #1
 _L87890058:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_87890055
-        move R0 #25
-        move [R12+24] R0
+        move @R0 #25
+        move [@R12+24] @R0
 sta_87890055:
 sta_87890056:
 ; 139:     _crt_wx1 = x1; _crt_wy1 = y1;
-        move R0 [R12+12]
-        move [_crt_wx1] R0
-        move R0 [R12+16]
-        move [_crt_wy1] R0
+        move @R0 [@R12+12]
+        move [_crt_wx1] @R0
+        move @R0 [@R12+16]
+        move [_crt_wy1] @R0
 ; 140:     _crt_wx2 = x2; _crt_wy2 = y2;
-        move R0 [R12+20]
-        move [_crt_wx2] R0
-        move R0 [R12+24]
-        move [_crt_wy2] R0
+        move @R0 [@R12+20]
+        move [_crt_wx2] @R0
+        move @R0 [@R12+24]
+        move [_crt_wy2] @R0
 ; 141:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
@@ -931,17 +931,17 @@ sta_87890056:
         asm "MOVE R0, #114"
         asm "SYSCALL 400"
 ; 147:     CRT_GOTOXY(x1, y1);
-        move R0 [R12+16]
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
+        move @R0 [@R12+16]
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
         call CRT_GOTOXY
-        add R13 #8
-        move R13 R12
-        pop R12
-        pop R15
+        add @R13 #8
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_KEYPRESSED:
 ; -------------------------------------------
@@ -950,31 +950,31 @@ CRT_KEYPRESSED:
 ; return   : int
 ; --------------------------------------------
 CRT_KEYPRESSED:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 151:     asm("SYSCALL 5");
         asm "SYSCALL 5"
 ; 152:     asm("MOVE [_crt_tmp1], R0");
         asm "MOVE [_crt_tmp1], R0"
 ; 153:     return _crt_tmp1 != 0;
-        move R0 [_crt_tmp1]
-        push R0
-        move R0 #0
-        pop R1
-        cmp R1 R0
+        move @R0 [_crt_tmp1]
+        push @R0
+        move @R0 #0
+        pop @R1
+        cmp @R1 @R0
         jne _L87890059
-        move R0 #0
+        move @R0 #0
         jmp _L87890060
 _L87890059:
-        move R0 #1
+        move @R0 #1
 _L87890060:
         jmp L_87890061
 L_87890061:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_READKEY:
 ; -------------------------------------------
@@ -983,22 +983,22 @@ CRT_READKEY:
 ; return   : int
 ; --------------------------------------------
 CRT_READKEY:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 157:     asm("MOVE R0, #1"); asm("SYSCALL 5");
         asm "MOVE R0, #1"
         asm "SYSCALL 5"
 ; 158:     asm("MOVE [_crt_tmp1], R0");
         asm "MOVE [_crt_tmp1], R0"
 ; 159:     return _crt_tmp1;
-        move R0 [_crt_tmp1]
+        move @R0 [_crt_tmp1]
         jmp L_87890062
 L_87890062:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_DELAY:
 ; -------------------------------------------
@@ -1008,15 +1008,15 @@ CRT_DELAY:
 ; return   : void
 ; --------------------------------------------
 CRT_DELAY:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 161: void CRT_DELAY(int ms);  void CRT_DELAY(int ms)  { asm("SYSCALL 52"); }
         asm "SYSCALL 52"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_SOUND:
 ; -------------------------------------------
@@ -1026,15 +1026,15 @@ CRT_SOUND:
 ; return   : void
 ; --------------------------------------------
 CRT_SOUND:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 162: void CRT_SOUND(int f);   void CRT_SOUND(int f)   { asm("SYSCALL 57"); }
         asm "SYSCALL 57"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_NOSOUND:
 ; -------------------------------------------
@@ -1043,13 +1043,13 @@ CRT_NOSOUND:
 ; return   : void
 ; --------------------------------------------
 CRT_NOSOUND:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
-        move R13 R12
-        pop R12
-        pop R15
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_NORMVIDEO:
 ; -------------------------------------------
@@ -1058,10 +1058,10 @@ CRT_NORMVIDEO:
 ; return   : void
 ; --------------------------------------------
 CRT_NORMVIDEO:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 166:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
@@ -1075,13 +1075,13 @@ CRT_NORMVIDEO:
         asm "MOVE R0, #109"
         asm "SYSCALL 400"
 ; 170:     _crt_fg = 7; _crt_bg = 0;
-        move R0 #7
-        move [_crt_fg] R0
-        move R0 #0
-        move [_crt_bg] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move @R0 #7
+        move [_crt_fg] @R0
+        move @R0 #0
+        move [_crt_bg] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_HIGHVIDEO:
 ; -------------------------------------------
@@ -1090,10 +1090,10 @@ CRT_HIGHVIDEO:
 ; return   : void
 ; --------------------------------------------
 CRT_HIGHVIDEO:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 174:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
@@ -1106,9 +1106,9 @@ CRT_HIGHVIDEO:
 ; 177:     asm("MOVE R0, #109"); asm("SYSCALL 400");
         asm "MOVE R0, #109"
         asm "SYSCALL 400"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_LOWVIDEO:
 ; -------------------------------------------
@@ -1117,10 +1117,10 @@ CRT_LOWVIDEO:
 ; return   : void
 ; --------------------------------------------
 CRT_LOWVIDEO:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 181:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
@@ -1133,9 +1133,9 @@ CRT_LOWVIDEO:
 ; 184:     asm("MOVE R0, #109"); asm("SYSCALL 400");
         asm "MOVE R0, #109"
         asm "SYSCALL 400"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_INSLINE:
 ; -------------------------------------------
@@ -1144,10 +1144,10 @@ CRT_INSLINE:
 ; return   : void
 ; --------------------------------------------
 CRT_INSLINE:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 188:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
@@ -1157,9 +1157,9 @@ CRT_INSLINE:
 ; 190:     asm("MOVE R0, #76"); asm("SYSCALL 400");  /* 'L' = 76 */
         asm "MOVE R0, #76"
         asm "SYSCALL 400"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_DELLINE:
 ; -------------------------------------------
@@ -1168,10 +1168,10 @@ CRT_DELLINE:
 ; return   : void
 ; --------------------------------------------
 CRT_DELLINE:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 194:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
@@ -1181,9 +1181,9 @@ CRT_DELLINE:
 ; 196:     asm("MOVE R0, #77"); asm("SYSCALL 400");  /* 'M' = 77 */
         asm "MOVE R0, #77"
         asm "SYSCALL 400"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_CURSORON:
 ; -------------------------------------------
@@ -1192,10 +1192,10 @@ CRT_CURSORON:
 ; return   : void
 ; --------------------------------------------
 CRT_CURSORON:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 200:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
@@ -1214,9 +1214,9 @@ CRT_CURSORON:
 ; 205:     asm("MOVE R0, #104"); asm("SYSCALL 400"); /* 'h' = 104 */
         asm "MOVE R0, #104"
         asm "SYSCALL 400"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_CURSOROFF:
 ; -------------------------------------------
@@ -1225,10 +1225,10 @@ CRT_CURSOROFF:
 ; return   : void
 ; --------------------------------------------
 CRT_CURSOROFF:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 209:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
@@ -1247,9 +1247,9 @@ CRT_CURSOROFF:
 ; 214:     asm("MOVE R0, #108"); asm("SYSCALL 400"); /* 'l' = 108 */
         asm "MOVE R0, #108"
         asm "SYSCALL 400"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_WRITE_CHAR:
 ; -------------------------------------------
@@ -1259,129 +1259,129 @@ CRT_WRITE_CHAR:
 ; return   : void
 ; --------------------------------------------
 CRT_WRITE_CHAR:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 218:     asm("MOVE [_crt_tmp1], R0");
         asm "MOVE [_crt_tmp1], R0"
 ; 219:     ch = _crt_tmp1;
-        move R0 [_crt_tmp1]
-        move [R12+12] R0
+        move @R0 [_crt_tmp1]
+        move [@R12+12] @R0
 ; 220:     if (ch == 10) {
-        move R0 [R12+12]
-        push R0
-        move R0 #10
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #10
+        pop @R1
+        cmp @R1 @R0
         je _L87890065
-        move R0 #0
+        move @R0 #0
         jmp _L87890066
 _L87890065:
-        move R0 #1
+        move @R0 #1
 _L87890066:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_87890063
 ; 221:         _crt_y++; _crt_x = _crt_wx1;
-        move R0 [_crt_y]
-        move R1 R0
-        add R0 R0 #1
-        move [_crt_y] R0
-        move R0 R1
-        move R0 [_crt_wx1]
-        move [_crt_x] R0
+        move @R0 [_crt_y]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [_crt_y] @R0
+        move @R0 @R1
+        move @R0 [_crt_wx1]
+        move [_crt_x] @R0
 ; 222:         if (_crt_y > _crt_wy2) _crt_y = _crt_wy2;
-        move R0 [_crt_y]
-        push R0
-        move R0 [_crt_wy2]
-        pop R1
-        cmp R1 R0
+        move @R0 [_crt_y]
+        push @R0
+        move @R0 [_crt_wy2]
+        pop @R1
+        cmp @R1 @R0
         jg _L87890069
-        move R0 #0
+        move @R0 #0
         jmp _L87890070
 _L87890069:
-        move R0 #1
+        move @R0 #1
 _L87890070:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_87890067
-        move R0 [_crt_wy2]
-        move [_crt_y] R0
+        move @R0 [_crt_wy2]
+        move [_crt_y] @R0
 sta_87890067:
 sta_87890068:
         jmp sta_87890064
 sta_87890063:
 ; 223:     } else if (ch == 13) {
-        move R0 [R12+12]
-        push R0
-        move R0 #13
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #13
+        pop @R1
+        cmp @R1 @R0
         je _L87890073
-        move R0 #0
+        move @R0 #0
         jmp _L87890074
 _L87890073:
-        move R0 #1
+        move @R0 #1
 _L87890074:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_87890071
 ; 224:         _crt_x = _crt_wx1;
-        move R0 [_crt_wx1]
-        move [_crt_x] R0
+        move @R0 [_crt_wx1]
+        move [_crt_x] @R0
         jmp sta_87890072
 sta_87890071:
 ; 225:     } else if (ch >= 32) {
-        move R0 [R12+12]
-        push R0
-        move R0 #32
-        pop R1
-        cmp R1 R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 #32
+        pop @R1
+        cmp @R1 @R0
         jge _L87890077
-        move R0 #0
+        move @R0 #0
         jmp _L87890078
 _L87890077:
-        move R0 #1
+        move @R0 #1
 _L87890078:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_87890075
 ; 226:         asm("MOVE R0, [_crt_tmp1]"); asm("SYSCALL 400");
         asm "MOVE R0, [_crt_tmp1]"
         asm "SYSCALL 400"
 ; 227:         _crt_x++;
-        move R0 [_crt_x]
-        move R1 R0
-        add R0 R0 #1
-        move [_crt_x] R0
-        move R0 R1
+        move @R0 [_crt_x]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [_crt_x] @R0
+        move @R0 @R1
 ; 228:         if (_crt_x > _crt_wx2) { _crt_x = _crt_wx1; _crt_y++; }
-        move R0 [_crt_x]
-        push R0
-        move R0 [_crt_wx2]
-        pop R1
-        cmp R1 R0
+        move @R0 [_crt_x]
+        push @R0
+        move @R0 [_crt_wx2]
+        pop @R1
+        cmp @R1 @R0
         jg _L87890081
-        move R0 #0
+        move @R0 #0
         jmp _L87890082
 _L87890081:
-        move R0 #1
+        move @R0 #1
 _L87890082:
-        cmp R0 #0
+        cmp @R0 #0
         jz sta_87890079
-        move R0 [_crt_wx1]
-        move [_crt_x] R0
-        move R0 [_crt_y]
-        move R1 R0
-        add R0 R0 #1
-        move [_crt_y] R0
-        move R0 R1
+        move @R0 [_crt_wx1]
+        move [_crt_x] @R0
+        move @R0 [_crt_y]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [_crt_y] @R0
+        move @R0 @R1
 sta_87890079:
 sta_87890080:
 sta_87890075:
 sta_87890076:
 sta_87890072:
 sta_87890064:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 CRT_WRITE_STRING:
 ; -------------------------------------------:
@@ -1392,21 +1392,21 @@ CRT_WRITE_STRING:
 ; return   : void
 ; --------------------------------------------
 CRT_WRITE_STRING:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 233:     asm("SYSCALL 401");
         asm "SYSCALL 401"
 ; 235:     _crt_y++; _crt_x = _crt_wx1;
-        move R0 [_crt_y]
-        move R1 R0
-        add R0 R0 #1
-        move [_crt_y] R0
-        move R0 R1
-        move R0 [_crt_wx1]
-        move [_crt_x] R0
-        move R13 R12
-        pop R12
-        pop R15
+        move @R0 [_crt_y]
+        move @R1 @R0
+        add @R0 @R0 #1
+        move [_crt_y] @R0
+        move @R0 @R1
+        move @R0 [_crt_wx1]
+        move [_crt_x] @R0
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

@@ -11,21 +11,21 @@ lutf8_strlen:
 ; return   : long
 ; --------------------------------------------
 lutf8_strlen:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 3: __stdcall long lutf8_strlen(const char* s) { return encoding_utf8_strlen(s); }
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
         call encoding_utf8_strlen
-        add R13 #4
+        add @R13 #4
         jmp L_55030000
 L_55030000:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 lutf8_decode:
 ; -------------------------------------------
@@ -36,45 +36,45 @@ lutf8_decode:
 ; return   : long
 ; --------------------------------------------
 lutf8_decode:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 5:     return encoding_utf8_decode(src, (int)(len > 0x7FFFFFFF ? 0x7FFFFFFF : len));
-        movel R0 [R12+16]
-        pushl R0
-        move R0 #2147483647
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12+16]
+        pushl @R0
+        move @R0 #2147483647
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         jg _L55030001
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L55030002
 _L55030001:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L55030002:
-        test R0 R0
+        test @R0 @R0
         jz _L55030003
-        move R0 #2147483647
+        move @R0 #2147483647
         jmp _L55030004
 _L55030003:
-        movel R0 [R12+16]
+        movel @R0 [@R12+16]
 _L55030004:
-        l2i R0 R0
-        push R0
-        move R0 [R12+12]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
+        l2i @R0 @R0
+        push @R0
+        move @R0 [@R12+12]
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
         call encoding_utf8_decode
-        add R13 #8
+        add @R13 #8
         jmp L_55030005
 L_55030005:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 lutf8_encode:
 ; -------------------------------------------:
@@ -87,47 +87,47 @@ lutf8_encode:
 ; return   : long
 ; --------------------------------------------
 lutf8_encode:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 8:     return encoding_utf8_encode((int)codepoint, dst, (int)(max_bytes > 0x7FFFFFFF ? 0x7FFFFFFF : max_bytes));
-        movel R0 [R12+24]
-        pushl R0
-        move R0 #2147483647
-        i2l R0 R0
-        popl R1
-        cmpl R1 R0
+        movel @R0 [@R12+24]
+        pushl @R0
+        move @R0 #2147483647
+        i2l @R0 @R0
+        popl @R1
+        cmpl @R1 @R0
         jg _L55030006
-        move R0 #0
-        i2l R0 R0
+        move @R0 #0
+        i2l @R0 @R0
         jmp _L55030007
 _L55030006:
-        move R0 #1
-        i2l R0 R0
+        move @R0 #1
+        i2l @R0 @R0
 _L55030007:
-        test R0 R0
+        test @R0 @R0
         jz _L55030008
-        move R0 #2147483647
+        move @R0 #2147483647
         jmp _L55030009
 _L55030008:
-        movel R0 [R12+24]
+        movel @R0 [@R12+24]
 _L55030009:
-        l2i R0 R0
-        push R0
-        move R0 [R12+20]
-        push R0
-        movel R0 [R12+12]
-        l2i R0 R0
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
+        l2i @R0 @R0
+        push @R0
+        move @R0 [@R12+20]
+        push @R0
+        movel @R0 [@R12+12]
+        l2i @R0 @R0
+        push @R0
+        move @R0 [@R13+0]
+        move @R1 [@R13+4]
+        move @R2 [@R13+8]
         call encoding_utf8_encode
-        add R13 #12
+        add @R13 #12
         jmp L_55030010
 L_55030010:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret

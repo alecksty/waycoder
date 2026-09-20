@@ -12,15 +12,15 @@ vml_print_str:
 ; return   : void
 ; --------------------------------------------
 vml_print_str:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 21:     asm("SYSCALL 1");
         asm "SYSCALL 1"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_print_int:
 ; -------------------------------------------
@@ -30,15 +30,15 @@ vml_print_int:
 ; return   : void
 ; --------------------------------------------
 vml_print_int:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 25:     asm("SYSCALL 6");
         asm "SYSCALL 6"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_print_char:
 ; -------------------------------------------
@@ -48,15 +48,15 @@ vml_print_char:
 ; return   : void
 ; --------------------------------------------
 vml_print_char:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 29:     asm("SYSCALL 4");
         asm "SYSCALL 4"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_print_float:
 ; -------------------------------------------
@@ -66,15 +66,15 @@ vml_print_float:
 ; return   : void
 ; --------------------------------------------
 vml_print_float:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 33:     asm("SYSCALL 8");
         asm "SYSCALL 8"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_print_hex:
 ; -------------------------------------------
@@ -84,15 +84,15 @@ vml_print_hex:
 ; return   : void
 ; --------------------------------------------
 vml_print_hex:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 37:     asm("SYSCALL 10");
         asm "SYSCALL 10"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_newline:
 ; -------------------------------------------
@@ -101,16 +101,16 @@ vml_newline:
 ; return   : void
 ; --------------------------------------------
 vml_newline:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 41:     asm("MOVE R0, #10\nSYSCALL 4");
         asm "MOVE R0, #10
 SYSCALL 4"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_print_wstr:
 ; -------------------------------------------
@@ -120,15 +120,15 @@ vml_print_wstr:
 ; return   : void
 ; --------------------------------------------
 vml_print_wstr:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 46:     asm("SYSCALL 391");
         asm "SYSCALL 391"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_print_ustr:
 ; -------------------------------------------
@@ -138,15 +138,15 @@ vml_print_ustr:
 ; return   : void
 ; --------------------------------------------
 vml_print_ustr:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 50:     asm("SYSCALL 393");
         asm "SYSCALL 393"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_alloc:
 ; -------------------------------------------
@@ -156,21 +156,21 @@ vml_alloc:
 ; return   : int
 ; --------------------------------------------
 vml_alloc:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 57:     asm("SYSCALL 40");
         asm "SYSCALL 40"
 ; 58:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 59:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800000
 L_18800000:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_free:
 ; -------------------------------------------
@@ -180,15 +180,15 @@ vml_free:
 ; return   : void
 ; --------------------------------------------
 vml_free:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 63:     asm("SYSCALL 41");
         asm "SYSCALL 41"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_mem_copy:
 ; -------------------------------------------
@@ -200,21 +200,21 @@ vml_mem_copy:
 ; return   : int
 ; --------------------------------------------
 vml_mem_copy:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 67:     asm("SYSCALL 11");
         asm "SYSCALL 11"
 ; 68:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 69:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800001
 L_18800001:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_mem_fill:
 ; -------------------------------------------
@@ -226,21 +226,21 @@ vml_mem_fill:
 ; return   : int
 ; --------------------------------------------
 vml_mem_fill:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 73:     asm("SYSCALL 12");
         asm "SYSCALL 12"
 ; 74:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 75:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800002
 L_18800002:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_mem_compare:
 ; -------------------------------------------
@@ -252,21 +252,21 @@ vml_mem_compare:
 ; return   : int
 ; --------------------------------------------
 vml_mem_compare:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 79:     asm("SYSCALL 13");
         asm "SYSCALL 13"
 ; 80:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 81:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800003
 L_18800003:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_random:
 ; -------------------------------------------
@@ -275,21 +275,21 @@ vml_random:
 ; return   : int
 ; --------------------------------------------
 vml_random:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 88:     asm("SYSCALL 50");
         asm "SYSCALL 50"
 ; 89:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 90:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800004
 L_18800004:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_seed:
 ; -------------------------------------------
@@ -299,15 +299,15 @@ vml_seed:
 ; return   : void
 ; --------------------------------------------
 vml_seed:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 94:     asm("SYSCALL 51");
         asm "SYSCALL 51"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_sleep_ms:
 ; -------------------------------------------
@@ -317,15 +317,15 @@ vml_sleep_ms:
 ; return   : void
 ; --------------------------------------------
 vml_sleep_ms:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 98:     asm("SYSCALL 52");
         asm "SYSCALL 52"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_get_tick:
 ; -------------------------------------------
@@ -334,21 +334,21 @@ vml_get_tick:
 ; return   : int
 ; --------------------------------------------
 vml_get_tick:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 102:     asm("SYSCALL 53");
         asm "SYSCALL 53"
 ; 103:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 104:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800005
 L_18800005:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_get_timestamp:
 ; -------------------------------------------
@@ -357,21 +357,21 @@ vml_get_timestamp:
 ; return   : int
 ; --------------------------------------------
 vml_get_timestamp:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 108:     asm("SYSCALL 54");
         asm "SYSCALL 54"
 ; 109:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 110:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800006
 L_18800006:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_get_date:
 ; -------------------------------------------
@@ -380,21 +380,21 @@ vml_get_date:
 ; return   : const char*
 ; --------------------------------------------
 vml_get_date:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 114:     asm("SYSCALL 55");
         asm "SYSCALL 55"
 ; 115:     asm("MOVE [_vml_result_str], R0");
         asm "MOVE [_vml_result_str], R0"
 ; 116:     return _vml_result_str;
-        move R0 [_vml_result_str]
+        move @R0 [_vml_result_str]
         jmp L_18800007
 L_18800007:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_get_time:
 ; -------------------------------------------
@@ -403,21 +403,21 @@ vml_get_time:
 ; return   : const char*
 ; --------------------------------------------
 vml_get_time:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 120:     asm("SYSCALL 56");
         asm "SYSCALL 56"
 ; 121:     asm("MOVE [_vml_result_str], R0");
         asm "MOVE [_vml_result_str], R0"
 ; 122:     return _vml_result_str;
-        move R0 [_vml_result_str]
+        move @R0 [_vml_result_str]
         jmp L_18800008
 L_18800008:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_beep:
 ; -------------------------------------------
@@ -428,15 +428,15 @@ vml_beep:
 ; return   : void
 ; --------------------------------------------
 vml_beep:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 126:     asm("SYSCALL 57");
         asm "SYSCALL 57"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_get_config:
 ; -------------------------------------------
@@ -446,21 +446,21 @@ vml_get_config:
 ; return   : int
 ; --------------------------------------------
 vml_get_config:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 133:     asm("SYSCALL 60");
         asm "SYSCALL 60"
 ; 134:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 135:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800009
 L_18800009:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_get_info:
 ; -------------------------------------------
@@ -470,21 +470,21 @@ vml_get_info:
 ; return   : const char*
 ; --------------------------------------------
 vml_get_info:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 139:     asm("SYSCALL 59");
         asm "SYSCALL 59"
 ; 140:     asm("MOVE [_vml_result_str], R0");
         asm "MOVE [_vml_result_str], R0"
 ; 141:     return _vml_result_str;
-        move R0 [_vml_result_str]
+        move @R0 [_vml_result_str]
         jmp L_18800010
 L_18800010:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_get_platform:
 ; -------------------------------------------
@@ -493,21 +493,21 @@ vml_get_platform:
 ; return   : int
 ; --------------------------------------------
 vml_get_platform:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 145:     asm("SYSCALL 374");
         asm "SYSCALL 374"
 ; 146:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 147:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800011
 L_18800011:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_debug_print:
 ; -------------------------------------------
@@ -517,15 +517,15 @@ vml_debug_print:
 ; return   : void
 ; --------------------------------------------
 vml_debug_print:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 154:     asm("SYSCALL 70");
         asm "SYSCALL 70"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_debug_int:
 ; -------------------------------------------
@@ -535,15 +535,15 @@ vml_debug_int:
 ; return   : void
 ; --------------------------------------------
 vml_debug_int:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 158:     asm("SYSCALL 71");
         asm "SYSCALL 71"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_assert:
 ; -------------------------------------------
@@ -554,15 +554,15 @@ vml_assert:
 ; return   : void
 ; --------------------------------------------
 vml_assert:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 162:     asm("SYSCALL 72");
         asm "SYSCALL 72"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_device_open:
 ; -------------------------------------------
@@ -572,21 +572,21 @@ vml_device_open:
 ; return   : int
 ; --------------------------------------------
 vml_device_open:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 169:     asm("SYSCALL 100");
         asm "SYSCALL 100"
 ; 170:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 171:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800012
 L_18800012:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_device_close:
 ; -------------------------------------------
@@ -596,21 +596,21 @@ vml_device_close:
 ; return   : int
 ; --------------------------------------------
 vml_device_close:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 175:     asm("SYSCALL 101");
         asm "SYSCALL 101"
 ; 176:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 177:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800013
 L_18800013:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_device_read:
 ; -------------------------------------------
@@ -622,21 +622,21 @@ vml_device_read:
 ; return   : int
 ; --------------------------------------------
 vml_device_read:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 181:     asm("SYSCALL 102");
         asm "SYSCALL 102"
 ; 182:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 183:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800014
 L_18800014:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_device_write:
 ; -------------------------------------------
@@ -648,21 +648,21 @@ vml_device_write:
 ; return   : int
 ; --------------------------------------------
 vml_device_write:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 187:     asm("SYSCALL 103");
         asm "SYSCALL 103"
 ; 188:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 189:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800015
 L_18800015:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_device_control:
 ; -------------------------------------------
@@ -675,21 +675,21 @@ vml_device_control:
 ; return   : int
 ; --------------------------------------------
 vml_device_control:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 193:     asm("SYSCALL 104");
         asm "SYSCALL 104"
 ; 194:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 195:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800016
 L_18800016:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_file_open:
 ; -------------------------------------------
@@ -700,21 +700,21 @@ vml_file_open:
 ; return   : int
 ; --------------------------------------------
 vml_file_open:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 202:     asm("SYSCALL 110");
         asm "SYSCALL 110"
 ; 203:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 204:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800017
 L_18800017:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_file_close:
 ; -------------------------------------------
@@ -724,21 +724,21 @@ vml_file_close:
 ; return   : int
 ; --------------------------------------------
 vml_file_close:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 208:     asm("SYSCALL 111");
         asm "SYSCALL 111"
 ; 209:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 210:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800018
 L_18800018:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_file_read:
 ; -------------------------------------------
@@ -750,21 +750,21 @@ vml_file_read:
 ; return   : int
 ; --------------------------------------------
 vml_file_read:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 214:     asm("SYSCALL 112");
         asm "SYSCALL 112"
 ; 215:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 216:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800019
 L_18800019:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_file_write:
 ; -------------------------------------------
@@ -776,21 +776,21 @@ vml_file_write:
 ; return   : int
 ; --------------------------------------------
 vml_file_write:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 220:     asm("SYSCALL 113");
         asm "SYSCALL 113"
 ; 221:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 222:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800020
 L_18800020:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_file_size:
 ; -------------------------------------------
@@ -800,24 +800,24 @@ vml_file_size:
 ; return   : int
 ; --------------------------------------------
 vml_file_size:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 226:     int cmd = 0;
-        move R0 #0
-        move [R12-8] R0
+        move @R0 #0
+        move [@R12-8] @R0
 ; 227:     asm("SYSCALL 114");
         asm "SYSCALL 114"
 ; 228:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 229:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800021
 L_18800021:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_file_seek:
 ; -------------------------------------------
@@ -828,24 +828,24 @@ vml_file_seek:
 ; return   : int
 ; --------------------------------------------
 vml_file_seek:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 233:     int cmd = 1;
-        move R0 #1
-        move [R12-8] R0
+        move @R0 #1
+        move [@R12-8] @R0
 ; 234:     asm("SYSCALL 114");
         asm "SYSCALL 114"
 ; 235:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 236:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800022
 L_18800022:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_file_tell:
 ; -------------------------------------------
@@ -855,24 +855,24 @@ vml_file_tell:
 ; return   : int
 ; --------------------------------------------
 vml_file_tell:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 240:     int cmd = 2;
-        move R0 #2
-        move [R12-8] R0
+        move @R0 #2
+        move [@R12-8] @R0
 ; 241:     asm("SYSCALL 114");
         asm "SYSCALL 114"
 ; 242:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 243:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800023
 L_18800023:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_mkdir:
 ; -------------------------------------------
@@ -882,21 +882,21 @@ vml_mkdir:
 ; return   : int
 ; --------------------------------------------
 vml_mkdir:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 250:     asm("SYSCALL 340");
         asm "SYSCALL 340"
 ; 251:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 252:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800024
 L_18800024:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_remove:
 ; -------------------------------------------
@@ -906,21 +906,21 @@ vml_remove:
 ; return   : int
 ; --------------------------------------------
 vml_remove:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 256:     asm("SYSCALL 341");
         asm "SYSCALL 341"
 ; 257:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 258:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800025
 L_18800025:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_rename:
 ; -------------------------------------------
@@ -931,21 +931,21 @@ vml_rename:
 ; return   : int
 ; --------------------------------------------
 vml_rename:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 262:     asm("SYSCALL 342");
         asm "SYSCALL 342"
 ; 263:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 264:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800026
 L_18800026:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_readdir:
 ; -------------------------------------------
@@ -956,21 +956,21 @@ vml_readdir:
 ; return   : int
 ; --------------------------------------------
 vml_readdir:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 268:     asm("SYSCALL 343");
         asm "SYSCALL 343"
 ; 269:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 270:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800027
 L_18800027:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_stat:
 ; -------------------------------------------
@@ -981,21 +981,21 @@ vml_stat:
 ; return   : int
 ; --------------------------------------------
 vml_stat:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 274:     asm("SYSCALL 344");
         asm "SYSCALL 344"
 ; 275:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 276:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800028
 L_18800028:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_get_env:
 ; -------------------------------------------
@@ -1005,21 +1005,21 @@ vml_get_env:
 ; return   : const char*
 ; --------------------------------------------
 vml_get_env:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 283:     asm("SYSCALL 360");
         asm "SYSCALL 360"
 ; 284:     asm("MOVE [_vml_result_str], R0");
         asm "MOVE [_vml_result_str], R0"
 ; 285:     return _vml_result_str;
-        move R0 [_vml_result_str]
+        move @R0 [_vml_result_str]
         jmp L_18800029
 L_18800029:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_set_env:
 ; -------------------------------------------
@@ -1030,21 +1030,21 @@ vml_set_env:
 ; return   : int
 ; --------------------------------------------
 vml_set_env:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 289:     asm("SYSCALL 361");
         asm "SYSCALL 361"
 ; 290:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 291:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800030
 L_18800030:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_exit:
 ; -------------------------------------------
@@ -1054,15 +1054,15 @@ vml_exit:
 ; return   : void
 ; --------------------------------------------
 vml_exit:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 298:     asm("SYSCALL 3");
         asm "SYSCALL 3"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_get_pid:
 ; -------------------------------------------
@@ -1071,21 +1071,21 @@ vml_get_pid:
 ; return   : int
 ; --------------------------------------------
 vml_get_pid:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 302:     asm("SYSCALL 322");
         asm "SYSCALL 322"
 ; 303:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 304:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800031
 L_18800031:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_thread_create:
 ; -------------------------------------------
@@ -1096,21 +1096,21 @@ vml_thread_create:
 ; return   : int
 ; --------------------------------------------
 vml_thread_create:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 308:     asm("SYSCALL 300");
         asm "SYSCALL 300"
 ; 309:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 310:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800032
 L_18800032:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_thread_exit:
 ; -------------------------------------------
@@ -1119,15 +1119,15 @@ vml_thread_exit:
 ; return   : void
 ; --------------------------------------------
 vml_thread_exit:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 314:     asm("SYSCALL 301");
         asm "SYSCALL 301"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_thread_yield:
 ; -------------------------------------------
@@ -1136,15 +1136,15 @@ vml_thread_yield:
 ; return   : void
 ; --------------------------------------------
 vml_thread_yield:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 318:     asm("SYSCALL 303");
         asm "SYSCALL 303"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_mutex_create:
 ; -------------------------------------------
@@ -1153,21 +1153,21 @@ vml_mutex_create:
 ; return   : int
 ; --------------------------------------------
 vml_mutex_create:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 322:     asm("SYSCALL 310");
         asm "SYSCALL 310"
 ; 323:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 324:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800033
 L_18800033:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_mutex_lock:
 ; -------------------------------------------
@@ -1177,21 +1177,21 @@ vml_mutex_lock:
 ; return   : int
 ; --------------------------------------------
 vml_mutex_lock:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 328:     asm("SYSCALL 311");
         asm "SYSCALL 311"
 ; 329:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 330:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800034
 L_18800034:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_mutex_unlock:
 ; -------------------------------------------
@@ -1201,21 +1201,21 @@ vml_mutex_unlock:
 ; return   : int
 ; --------------------------------------------
 vml_mutex_unlock:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 334:     asm("SYSCALL 312");
         asm "SYSCALL 312"
 ; 335:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 336:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800035
 L_18800035:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_cond_create:
 ; -------------------------------------------
@@ -1224,21 +1224,21 @@ vml_cond_create:
 ; return   : int
 ; --------------------------------------------
 vml_cond_create:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 343:     asm("SYSCALL 313");
         asm "SYSCALL 313"
 ; 344:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 345:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800036
 L_18800036:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_cond_wait:
 ; -------------------------------------------
@@ -1249,21 +1249,21 @@ vml_cond_wait:
 ; return   : int
 ; --------------------------------------------
 vml_cond_wait:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 349:     asm("SYSCALL 314");
         asm "SYSCALL 314"
 ; 350:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 351:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800037
 L_18800037:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_cond_signal:
 ; -------------------------------------------
@@ -1273,21 +1273,21 @@ vml_cond_signal:
 ; return   : int
 ; --------------------------------------------
 vml_cond_signal:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 355:     asm("SYSCALL 315");
         asm "SYSCALL 315"
 ; 356:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 357:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800038
 L_18800038:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_cond_broadcast:
 ; -------------------------------------------
@@ -1297,21 +1297,21 @@ vml_cond_broadcast:
 ; return   : int
 ; --------------------------------------------
 vml_cond_broadcast:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 361:     asm("SYSCALL 316");
         asm "SYSCALL 316"
 ; 362:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 363:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800039
 L_18800039:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_exec:
 ; -------------------------------------------
@@ -1321,21 +1321,21 @@ vml_exec:
 ; return   : int
 ; --------------------------------------------
 vml_exec:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 370:     asm("SYSCALL 320");
         asm "SYSCALL 320"
 ; 371:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 372:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800040
 L_18800040:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_socket_create:
 ; -------------------------------------------
@@ -1346,21 +1346,21 @@ vml_socket_create:
 ; return   : int
 ; --------------------------------------------
 vml_socket_create:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 379:     asm("SYSCALL 330");
         asm "SYSCALL 330"
 ; 380:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 381:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800041
 L_18800041:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_socket_connect:
 ; -------------------------------------------
@@ -1372,21 +1372,21 @@ vml_socket_connect:
 ; return   : int
 ; --------------------------------------------
 vml_socket_connect:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 385:     asm("SYSCALL 334");
         asm "SYSCALL 334"
 ; 386:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 387:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800042
 L_18800042:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_socket_send:
 ; -------------------------------------------
@@ -1398,21 +1398,21 @@ vml_socket_send:
 ; return   : int
 ; --------------------------------------------
 vml_socket_send:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 391:     asm("SYSCALL 335");
         asm "SYSCALL 335"
 ; 392:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 393:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800043
 L_18800043:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_socket_recv:
 ; -------------------------------------------
@@ -1424,21 +1424,21 @@ vml_socket_recv:
 ; return   : int
 ; --------------------------------------------
 vml_socket_recv:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 397:     asm("SYSCALL 336");
         asm "SYSCALL 336"
 ; 398:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 399:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800044
 L_18800044:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_socket_close:
 ; -------------------------------------------
@@ -1448,21 +1448,21 @@ vml_socket_close:
 ; return   : int
 ; --------------------------------------------
 vml_socket_close:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 403:     asm("SYSCALL 337");
         asm "SYSCALL 337"
 ; 404:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 405:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800045
 L_18800045:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_dns_resolve:
 ; -------------------------------------------
@@ -1472,21 +1472,21 @@ vml_dns_resolve:
 ; return   : const char*
 ; --------------------------------------------
 vml_dns_resolve:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 409:     asm("SYSCALL 338");
         asm "SYSCALL 338"
 ; 410:     asm("MOVE [_vml_result_str], R0");
         asm "MOVE [_vml_result_str], R0"
 ; 411:     return _vml_result_str;
-        move R0 [_vml_result_str]
+        move @R0 [_vml_result_str]
         jmp L_18800046
 L_18800046:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_screenshot:
 ; -------------------------------------------
@@ -1495,15 +1495,15 @@ vml_screenshot:
 ; return   : void
 ; --------------------------------------------
 vml_screenshot:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 418:     asm("SYSCALL 200");
         asm "SYSCALL 200"
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
 vml_syscall5:
 ; -------------------------------------------:
@@ -1519,20 +1519,20 @@ vml_syscall5:
 ; return   : int
 ; --------------------------------------------
 vml_syscall5:
-        push R15
-        push R12
-        move R12 R13
-        sub R13 #16
+        push @R15
+        push @R12
+        move @R12 @R13
+        sub @R13 #16
 ; 433:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 437:     _vml_result_int = num;
-        move R0 [R12+12]
-        move [_vml_result_int] R0
+        move @R0 [@R12+12]
+        move [_vml_result_int] @R0
 ; 438:     asm("MOVE R5, [_vml_result_int]");
         asm "MOVE R5, [_vml_result_int]"
 ; 439:     _vml_result_int = a0;
-        move R0 [R12+16]
-        move [_vml_result_int] R0
+        move @R0 [@R12+16]
+        move [_vml_result_int] @R0
 ; 440:     asm("MOVE R0, [_vml_result_int]");
         asm "MOVE R0, [_vml_result_int]"
 ; 441:     asm("SYSCALL R5");
@@ -1540,10 +1540,10 @@ vml_syscall5:
 ; 442:     asm("MOVE [_vml_result_int], R0");
         asm "MOVE [_vml_result_int], R0"
 ; 443:     return _vml_result_int;
-        move R0 [_vml_result_int]
+        move @R0 [_vml_result_int]
         jmp L_18800047
 L_18800047:
-        move R13 R12
-        pop R12
-        pop R15
+        move @R13 @R12
+        pop @R12
+        pop @R15
         ret
