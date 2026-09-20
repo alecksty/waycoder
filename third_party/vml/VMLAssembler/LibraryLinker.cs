@@ -932,7 +932,24 @@ namespace VMLAssembler
             _libFileIndexBuilt = true;
 
             _libFileIndex = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var baseDir in GetVmlLibBaseDirs(null))
+            // ⚠ **必须把 `VML_HOME` 传下去** —— 从前这里写死 `null`，于是
+            //    `GetVmlLibBaseDirs` 里那条 `vmlHome` 分支**永远走不到**，
+            //    索引只剩两个来源：`FindRepoRoot()/Lib`（从 AppContext.BaseDirectory
+            //    上溯 8 层、还要求 `Lib/shared` 存在）与 `CWD/Lib`。
+            //
+            //    两个来源同时落空时**索引整个是空的** ⇒ 所有"纯文件名"的 `.linked`
+            //    （各语言 `shared.vml` / `io.vml` / `wchar.vml` 里的 `system.vml` / `time.vml`）
+            //    一律解析失败，报出**假的**「文件不存在」—— 22 门语言每门 4 条。
+            //
+            //    实测判据（同一条命令、同一份 sysinfo.c，只差工作目录）：
+            //      仓库根       → 66 条误报
+            //      third_party/vml → 0 条
+            //    而**手机端一直是设了 `VML_HOME` 的**（`MauiVml.cs` 里那句
+            //    `SetEnvironmentVariable("VML_HOME", libRoot)`，注释还写着"上游在 4 处读它"）
+            //    —— 只是这一处没读，把那个变量白设了。
+            var vmlHome = Environment.GetEnvironmentVariable("VML_HOME")
+                ?? Environment.GetEnvironmentVariable("VML_TOOL_PATH");
+            foreach (var baseDir in GetVmlLibBaseDirs(vmlHome))
             {
                 if (!Directory.Exists(baseDir)) continue;
                 try
