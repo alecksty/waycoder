@@ -195,7 +195,7 @@ namespace LuaCompiler
                         }
                         else
                         {
-                            throw new ParseException(ErrorCode.Lexer_UnknownCharacter, $"意外的字符: {c} 在第{_line}行{_col}列");
+                            Error(ErrorCode.Lexer_UnknownCharacter, $"意外的字符: '{c}'");   // 位置交给 LexerBase 的唯一出口
                         }
                         break;
                     case '<':
@@ -258,7 +258,7 @@ namespace LuaCompiler
                         }
                         else
                         {
-                            throw new ParseException(ErrorCode.Lexer_UnknownCharacter, $"意外的字符: {c} 在第{_line}行{_col}列");
+                            Error(ErrorCode.Lexer_UnknownCharacter, $"意外的字符: '{c}'");   // 位置交给 LexerBase 的唯一出口
                         }
                         break;
                 }
