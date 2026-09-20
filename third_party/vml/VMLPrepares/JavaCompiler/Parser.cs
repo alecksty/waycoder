@@ -14,6 +14,22 @@ namespace JavaCompiler
 
         protected override TokenType GetTokenType(Token token) => token.Type;
 
+        /// <summary>
+        /// 表达式**收尾符** —— 永远不会是表达式的开头（`GapAnchor()` 的第一个判据，
+        /// 也是下面 ParsePrimaryCore 兜底里"该不该吃掉这个 token"的判据）。
+        ///
+        /// ⚠ Java **没有 `Newline` token**（换行不是词法单元），所以 `x = 1 +`
+        /// 结尾撞上的是 **`EndOfFile`** —— 必须算进来，否则判据在常见形态上不生效。
+        /// </summary>
+        protected override bool IsExpressionCloser(Token token) => token.Type
+            is TokenType.RightParen or TokenType.RightBrace or TokenType.RightBracket
+            or TokenType.Comma or TokenType.Semicolon or TokenType.Colon
+            or TokenType.EndOfFile;
+
+        /// <summary>语句分隔 —— Java 只有 `;`（换行不是 token）。</summary>
+        protected override bool IsStatementSeparator(Token token) => token.Type
+            is TokenType.Semicolon;
+
         public Parser(List<Token> tokens) : base(tokens) { }
 
         /// <summary>
@@ -1295,8 +1311,20 @@ namespace JavaCompiler
                 return arr;
             }
 
-            // 错误恢复
-            Advance();
+            // 错误恢复 —— **先报出来，再决定要不要吃掉这个 token**。
+            //
+            // ⚠ 原来是「静默 `Advance()` + 造个 0」：错一个字都不报，而且**顺手把
+            //   外层要用的那个 token 吃掉了**。`int y = x + ;` 的实测表现是：
+            //   ① 编成 `x + 0`（静默错编）；② 那个 `;` 被这里吃掉 ⇒ 外层 `Expect(';')`
+            //   撞上下一行的 `}`、**级联**报出「期望 ';'」在第 5 行 —— 用户看到的
+            //   一条错，位置和原因**都是错的**（DiagProbe【语法错误】档 java 修前）。
+            //
+            // 现在：报在**缺口**（那个 `+`）上；收尾符**留给外层**去消费（那正是它要的），
+            // 其余垃圾 token 才吃掉 —— 保证推进，否则调用方的循环会原地打转。
+            var __anchor = GapAnchor();
+            GccErrorAt($"表达式缺失或多余（遇到 '{Cur.Value ?? GetTokenType(Cur).ToString()}'）",
+                       __anchor, ErrorCode.Parser_SyntaxError);
+            if (!IsExpressionCloser(Cur)) Advance();
             return new LiteralExpression(0, "int");
         }
 
