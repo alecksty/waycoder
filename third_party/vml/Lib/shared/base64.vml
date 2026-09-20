@@ -18,8 +18,10 @@ base64_encode:
         push R12
         move R12 R13
         sub R13 #32
+; 6:     char* start = dst;
         move R0 [R12+20]
         move [R12-8] R0
+; 8:     for (i = 0; i < len; i += 3) {
         move R0 #0
         move [R12-12] R0
 sta_42090000:
@@ -36,6 +38,7 @@ _L42090003:
 _L42090004:
         cmp R0 #0
         jz sta_42090002
+; 9:         int remaining = len - i;
         move R0 [R12+16]
         push R0
         move R0 [R12-12]
@@ -43,6 +46,7 @@ _L42090004:
         sub R1 R0
         move R0 R1
         move [R12-16] R0
+; 10:         unsigned int group = ((unsigned char)data[i]) << 16;
         move R0 [R12+12]
         push R0
         move R0 [R12-12]
@@ -57,6 +61,7 @@ _L42090004:
         shl R1 R0
         move R0 R1
         move [R12-20] R0
+; 11:         if (remaining > 1) group |= ((unsigned char)data[i + 1]) << 8;
         move R0 [R12-16]
         push R0
         move R0 #1
@@ -96,6 +101,7 @@ _L42090008:
         move [R12-20] R0
 sta_42090005:
 sta_42090006:
+; 12:         if (remaining > 2) group |= (unsigned char)data[i + 2];
         move R0 [R12-16]
         push R0
         move R0 #2
@@ -130,6 +136,7 @@ _L42090012:
         move [R12-20] R0
 sta_42090009:
 sta_42090010:
+; 13:         *dst++ = b64_table[(group >> 18) & 0x3F];
         move R0 [R12+20]
         move R1 R0
         add R0 R0 #1
@@ -160,6 +167,7 @@ sta_42090010:
         moveb R0 [R0]
         sextb R0 R0
         moveb [R8] R0
+; 14:         *dst++ = b64_table[(group >> 12) & 0x3F];
         move R0 [R12+20]
         move R1 R0
         add R0 R0 #1
@@ -190,6 +198,7 @@ sta_42090010:
         moveb R0 [R0]
         sextb R0 R0
         moveb [R5] R0
+; 15:         *dst++ = (remaining > 1) ? b64_table[(group >> 6) & 0x3F] : '=';
         move R0 [R12+20]
         move R1 R0
         add R0 R0 #1
@@ -237,6 +246,7 @@ _L42090015:
         move R0 #61
 _L42090016:
         moveb [R2] R0
+; 16:         *dst++ = (remaining > 2) ? b64_table[group & 0x3F] : '=';
         move R0 [R12+20]
         move R1 R0
         add R0 R0 #1
@@ -289,10 +299,12 @@ sta_42090001:
         move [R12-12] R0
         jmp sta_42090000
 sta_42090002:
+; 18:     *dst = 0;
         move R0 [R12+20]
         move R6 R0
         move R0 #0
         moveb [R6] R0
+; 19:     return (int)(dst - start);
         move R0 [R12+20]
         push R0
         move R0 [R12-8]
@@ -317,6 +329,7 @@ _b64_decode_char:
         push R12
         move R12 R13
         sub R13 #16
+; 22:     if (c >= 'A' && c <= 'Z') return c - 'A';
         moveb R0 [R12+12]
         sextb R0 R0
         pushb R0
@@ -362,6 +375,7 @@ _L42090025:
         jmp L_42090030
 sta_42090022:
 sta_42090023:
+; 23:     if (c >= 'a' && c <= 'z') return c - 'a' + 26;
         moveb R0 [R12+12]
         sextb R0 R0
         pushb R0
@@ -412,6 +426,7 @@ _L42090034:
         jmp L_42090030
 sta_42090031:
 sta_42090032:
+; 24:     if (c >= '0' && c <= '9') return c - '0' + 52;
         moveb R0 [R12+12]
         sextb R0 R0
         pushb R0
@@ -462,6 +477,7 @@ _L42090042:
         jmp L_42090030
 sta_42090039:
 sta_42090040:
+; 25:     if (c == '+') return 62;
         moveb R0 [R12+12]
         sextb R0 R0
         pushb R0
@@ -480,6 +496,7 @@ _L42090050:
         jmp L_42090030
 sta_42090047:
 sta_42090048:
+; 26:     if (c == '/') return 63;
         moveb R0 [R12+12]
         sextb R0 R0
         pushb R0
@@ -498,6 +515,7 @@ _L42090054:
         jmp L_42090030
 sta_42090051:
 sta_42090052:
+; 27:     return -1;
         move R0 #1
         move R0 #1
         neg R0 R0
@@ -521,15 +539,18 @@ base64_decode:
         push R12
         move R12 R13
         sub R13 #32
+; 32:     char* start = dst;
         move R0 [R12+16]
         move [R12-8] R0
 sta_42090055:
         move R2 #0
+; 33:     while (*src) {
         move R0 [R12+12]
         moveb R0 [R0]
         sextb R0 R0
         cmp R0 #0
         jz sta_42090056
+; 34:         int v0 = _b64_decode_char(src[0]);
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -543,6 +564,7 @@ sta_42090055:
         call _b64_decode_char
         add R13 #4
         move [R12-12] R0
+; 35:         int v1 = _b64_decode_char(src[1]);
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -556,6 +578,7 @@ sta_42090055:
         call _b64_decode_char
         add R13 #4
         move [R12-16] R0
+; 36:         if (v0 < 0 || v1 < 0) break;
         move R0 [R12-12]
         push R0
         move R0 #0
@@ -593,6 +616,7 @@ _L42090061:
         jmp sta_42090056
 sta_42090057:
 sta_42090058:
+; 37:         *dst++ = (char)((v0 << 2) | (v1 >> 4));
         move R0 [R12+16]
         move R1 R0
         add R0 R0 #1
@@ -616,6 +640,7 @@ sta_42090058:
         or R1 R0
         move R0 R1
         moveb [R3] R0
+; 38:         if (src[2] == '=') break;
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -639,6 +664,7 @@ _L42090069:
         jmp sta_42090056
 sta_42090066:
 sta_42090067:
+; 39:         int v2 = _b64_decode_char(src[2]);
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -652,6 +678,7 @@ sta_42090067:
         call _b64_decode_char
         add R13 #4
         move [R12-20] R0
+; 40:         if (v2 < 0) break;
         move R0 [R12-20]
         push R0
         move R0 #0
@@ -668,6 +695,7 @@ _L42090073:
         jmp sta_42090056
 sta_42090070:
 sta_42090071:
+; 41:         *dst++ = (char)((v1 << 4) | (v2 >> 2));
         move R0 [R12+16]
         move R1 R0
         add R0 R0 #1
@@ -691,6 +719,7 @@ sta_42090071:
         or R1 R0
         move R0 R1
         moveb [R11] R0
+; 42:         if (src[3] == '=') break;
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -714,6 +743,7 @@ _L42090077:
         jmp sta_42090056
 sta_42090074:
 sta_42090075:
+; 43:         int v3 = _b64_decode_char(src[3]);
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -727,6 +757,7 @@ sta_42090075:
         call _b64_decode_char
         add R13 #4
         move [R12-24] R0
+; 44:         if (v3 < 0) break;
         move R0 [R12-24]
         push R0
         move R0 #0
@@ -743,6 +774,7 @@ _L42090081:
         jmp sta_42090056
 sta_42090078:
 sta_42090079:
+; 45:         *dst++ = (char)((v2 << 6) | v3);
         move R0 [R12+16]
         move R1 R0
         add R0 R0 #1
@@ -761,6 +793,7 @@ sta_42090079:
         or R1 R0
         move R0 R1
         moveb [R7] R0
+; 46:         src += 4;
         move R0 [R12+12]
         push R0
         move R0 #4
@@ -770,6 +803,7 @@ sta_42090079:
         move [R12+12] R0
         jmp sta_42090055
 sta_42090056:
+; 48:     return (int)(dst - start);
         move R0 [R12+16]
         push R0
         move R0 [R12-8]

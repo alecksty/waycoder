@@ -16,6 +16,7 @@ ladd64:
         push R12
         move R12 R13
         sub R13 #16
+; 2: __stdcall long ladd64(long a, long b) { return a + b; }
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -40,6 +41,7 @@ lsub64:
         push R12
         move R12 R13
         sub R13 #16
+; 3: __stdcall long lsub64(long a, long b) { return a - b; }
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -64,6 +66,7 @@ lmul64:
         push R12
         move R12 R13
         sub R13 #16
+; 4: __stdcall long lmul64(long a, long b) { return a * b; }
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -88,6 +91,7 @@ ldiv64:
         push R12
         move R12 R13
         sub R13 #16
+; 5: __stdcall long ldiv64(long a, long b) { if (b == 0) return 0; return a / b; }
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -132,6 +136,7 @@ lmod64:
         push R12
         move R12 R13
         sub R13 #16
+; 6: __stdcall long lmod64(long a, long b) { if (b == 0) return 0; return a % b; }
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -175,6 +180,7 @@ lneg64:
         push R12
         move R12 R13
         sub R13 #16
+; 7: __stdcall long lneg64(long x) { return -x; }
         movel R0 [R12+12]
         movel R0 [R12+12]
         negl R0 R0
@@ -196,6 +202,7 @@ larr_sum64:
         push R12
         move R12 R13
         sub R13 #16
+; 8: __stdcall long larr_sum64(long* arr) { return lsum64(arr); }
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -219,6 +226,7 @@ larr_avg64:
         push R12
         move R12 R13
         sub R13 #16
+; 9: __stdcall long larr_avg64(long* arr) { return lmean64(arr); }
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -242,6 +250,7 @@ larr_max64:
         push R12
         move R12 R13
         sub R13 #16
+; 10: __stdcall long larr_max64(long* arr) { return lmax_arr64(arr); }
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -266,6 +275,7 @@ larr_min64:
         push R12
         move R12 R13
         sub R13 #16
+; 11: __stdcall long larr_min64(long* arr) { return lmin_arr64(arr); }
         move R0 [R12+12]
         push R0
         move R0 [R13+0]

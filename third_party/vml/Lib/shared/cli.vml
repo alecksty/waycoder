@@ -17,6 +17,7 @@ cli_match:
         sub R13 #16
 sta_85920000:
         move R2 #0
+; 7:     while (*input && *command) {
         move R0 [R12+12]
         moveb R0 [R0]
         sextb R0 R0
@@ -34,6 +35,7 @@ _L85920002:
 _L85920003:
         cmp R0 #0
         jz sta_85920001
+; 8:         if (*input != *command) return 0;
         move R0 [R12+12]
         moveb R0 [R0]
         sextb R0 R0
@@ -55,11 +57,13 @@ _L85920007:
         jmp L_85920008
 sta_85920004:
 sta_85920005:
+; 9:         input++;
         move R0 [R12+12]
         move R1 R0
         add R0 R0 #1
         move [R12+12] R0
         move R0 R1
+; 10:         command++;
         move R0 [R12+16]
         move R1 R0
         add R0 R0 #1
@@ -67,6 +71,7 @@ sta_85920005:
         move R0 R1
         jmp sta_85920000
 sta_85920001:
+; 13:     return (*input == 0 || *command == 0) ? 1 : 0;
         move R0 [R12+12]
         moveb R0 [R0]
         sextb R0 R0
@@ -129,6 +134,7 @@ cli_parse_int:
         push R12
         move R12 R13
         sub R13 #32
+; 19:     if (s == 0 || value == 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -167,14 +173,18 @@ _L85920022:
         jmp L_85920027
 sta_85920018:
 sta_85920019:
+; 20:     int result = 0;
         move R0 #0
         move [R12-8] R0
+; 21:     int sign = 1;
         move R0 #1
         move [R12-12] R0
+; 22:     int count = 0;
         move R0 #0
         move [R12-16] R0
 sta_85920028:
         move R2 #0
+; 23:     while (*s == ' ') { s++; count++; }
         move R0 [R12+12]
         moveb R0 [R0]
         sextb R0 R0
@@ -202,6 +212,7 @@ _L85920031:
         move R0 R1
         jmp sta_85920028
 sta_85920029:
+; 24:     if (*s == '-') { sign = -1; s++; count++; }
         move R0 [R12+12]
         moveb R0 [R0]
         sextb R0 R0
@@ -233,6 +244,7 @@ _L85920035:
         move R0 R1
         jmp sta_85920033
 sta_85920032:
+; 25:     else if (*s == '+') { s++; count++; }
         move R0 [R12+12]
         moveb R0 [R0]
         sextb R0 R0
@@ -261,6 +273,7 @@ _L85920039:
 sta_85920036:
 sta_85920037:
 sta_85920033:
+; 26:     if (s[0] == '0' && (s[1] == 'x' || s[1] == 'X')) {
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -336,6 +349,7 @@ _L85920042:
 _L85920043:
         cmp R0 #0
         jz sta_85920040
+; 27:         s += 2; count += 2;
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -351,10 +365,12 @@ _L85920043:
         move R0 R1
         move [R12-16] R0
 sta_85920053:
+; 29:             char c = *s;
         move R0 [R12+12]
         moveb R0 [R0]
         sextb R0 R0
         moveb [R12-17] R0
+; 30:             if (c >= '0' && c <= '9') result = result * 16 + (c - '0');
         moveb R0 [R12-17]
         sextb R0 R0
         pushb R0
@@ -410,6 +426,7 @@ _L85920059:
         move [R12-8] R0
         jmp sta_85920057
 sta_85920056:
+; 31:             else if (c >= 'A' && c <= 'F') result = result * 16 + (c - 'A' + 10);
         moveb R0 [R12-17]
         sextb R0 R0
         pushb R0
@@ -470,6 +487,7 @@ _L85920067:
         move [R12-8] R0
         jmp sta_85920065
 sta_85920064:
+; 32:             else if (c >= 'a' && c <= 'f') result = result * 16 + (c - 'a' + 10);
         moveb R0 [R12-17]
         sextb R0 R0
         pushb R0
@@ -534,6 +552,7 @@ sta_85920072:
 sta_85920073:
 sta_85920065:
 sta_85920057:
+; 34:             s++; count++;
         move R0 [R12+12]
         move R1 R0
         add R0 R0 #1
@@ -551,6 +570,7 @@ sta_85920055:
 sta_85920040:
 sta_85920080:
         move R2 #0
+; 37:         while (*s >= '0' && *s <= '9') {
         move R0 [R12+12]
         moveb R0 [R0]
         sextb R0 R0
@@ -588,6 +608,7 @@ _L85920082:
 _L85920083:
         cmp R0 #0
         jz sta_85920081
+; 38:             result = result * 10 + (*s - '0');
         move R0 [R12-8]
         push R0
         move R0 #10
@@ -607,6 +628,7 @@ _L85920083:
         add R1 R0
         move R0 R1
         move [R12-8] R0
+; 39:             s++; count++;
         move R0 [R12+12]
         move R1 R0
         add R0 R0 #1
@@ -620,6 +642,7 @@ _L85920083:
         jmp sta_85920080
 sta_85920081:
 sta_85920041:
+; 42:     *value = sign * result;
         move R0 [R12+16]
         move R8 R0
         move R0 [R12-12]
@@ -629,6 +652,7 @@ sta_85920041:
         mul R1 R0
         move R0 R1
         move [R8] R0
+; 43:     return count;
         move R0 [R12-16]
         jmp L_85920027
 L_85920027:
@@ -648,6 +672,7 @@ cli_next_arg:
         push R12
         move R12 R13
         sub R13 #16
+; 48:     if (s == 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -667,6 +692,7 @@ sta_85920088:
 sta_85920089:
 sta_85920093:
         move R2 #0
+; 50:     while (*s == ' ') s++;
         move R0 [R12+12]
         moveb R0 [R0]
         sextb R0 R0
@@ -691,6 +717,7 @@ _L85920096:
 sta_85920094:
 sta_85920097:
         move R2 #0
+; 52:     while (*s && *s != ' ') s++;
         move R0 [R12+12]
         moveb R0 [R0]
         sextb R0 R0
@@ -727,6 +754,7 @@ _L85920100:
 sta_85920098:
 sta_85920103:
         move R2 #0
+; 54:     while (*s == ' ') s++;
         move R0 [R12+12]
         moveb R0 [R0]
         sextb R0 R0
@@ -749,6 +777,7 @@ _L85920106:
         move R0 R1
         jmp sta_85920103
 sta_85920104:
+; 55:     return (*s == 0) ? 0 : s;
         move R0 [R12+12]
         moveb R0 [R0]
         sextb R0 R0
@@ -787,6 +816,7 @@ cli_trim_line:
         push R12
         move R12 R13
         sub R13 #24
+; 60:     if (line == 0) return;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -803,10 +833,12 @@ _L85920114:
         jmp L_85920115
 sta_85920111:
 sta_85920112:
+; 62:     char* start = line;
         move R0 [R12+12]
         move [R12-8] R0
 sta_85920116:
         move R2 #0
+; 63:     while (*start == ' ' || *start == '\t') start++;
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -852,6 +884,7 @@ _L85920120:
         move R0 R1
         jmp sta_85920116
 sta_85920117:
+; 65:     if (start != line) {
         move R0 [R12-8]
         push R0
         move R0 [R12+12]
@@ -865,10 +898,12 @@ _L85920127:
 _L85920128:
         cmp R0 #0
         jz sta_85920125
+; 66:         char* p = line;
         move R0 [R12+12]
         move [R12-12] R0
 sta_85920129:
         move R2 #0
+; 67:         while (*start) *p++ = *start++;
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -890,16 +925,19 @@ sta_85920129:
         moveb [R7] R0
         jmp sta_85920129
 sta_85920130:
+; 68:         *p = 0;
         move R0 [R12-12]
         move R6 R0
         move R0 #0
         moveb [R6] R0
 sta_85920125:
 sta_85920126:
+; 71:     char* end = line;
         move R0 [R12+12]
         move [R12-16] R0
 sta_85920131:
         move R2 #0
+; 72:     while (*end) end++;
         move R0 [R12-16]
         moveb R0 [R0]
         sextb R0 R0
@@ -914,6 +952,7 @@ sta_85920131:
 sta_85920132:
 sta_85920133:
         move R2 #0
+; 73:     while (end > line && (end[-1] == '\n' || end[-1] == '\r' || end[-1] == ' ')) {
         move R0 [R12-16]
         push R0
         move R0 [R12+12]
@@ -1016,11 +1055,13 @@ _L85920135:
 _L85920136:
         cmp R0 #0
         jz sta_85920134
+; 74:         end--;
         move R0 [R12-16]
         move R1 R0
         sub R0 R0 #1
         move [R12-16] R0
         move R0 R1
+; 75:         *end = 0;
         move R0 [R12-16]
         move R2 R0
         move R0 #0
@@ -1047,6 +1088,7 @@ cli_tokenize:
         push R12
         move R12 R13
         sub R13 #24
+; 82:     if (line == 0 || argv == 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1085,17 +1127,21 @@ _L85920155:
         jmp L_85920160
 sta_85920151:
 sta_85920152:
+; 83:     cli_trim_line(line);
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
         call cli_trim_line
         add R13 #4
+; 84:     int argc = 0;
         move R0 #0
         move [R12-8] R0
+; 85:     char* p = line;
         move R0 [R12+12]
         move [R12-12] R0
 sta_85920161:
         move R2 #0
+; 86:     while (*p && argc < max_args) {
         move R0 [R12-12]
         moveb R0 [R0]
         sextb R0 R0
@@ -1123,6 +1169,7 @@ _L85920164:
         jz sta_85920162
 sta_85920167:
         move R2 #0
+; 88:         while (*p == ' ') p++;
         move R0 [R12-12]
         moveb R0 [R0]
         sextb R0 R0
@@ -1145,6 +1192,7 @@ _L85920170:
         move R0 R1
         jmp sta_85920167
 sta_85920168:
+; 89:         if (*p == 0) break;
         move R0 [R12-12]
         moveb R0 [R0]
         sextb R0 R0
@@ -1163,6 +1211,7 @@ _L85920174:
         jmp sta_85920162
 sta_85920171:
 sta_85920172:
+; 90:         argv[argc++] = p;
         move R0 [R12-12]
         move R1 R0
         move R0 [R12+16]
@@ -1178,6 +1227,7 @@ sta_85920172:
         moveb [R0] R1
 sta_85920175:
         move R2 #0
+; 92:         while (*p && *p != ' ') p++;
         move R0 [R12-12]
         moveb R0 [R0]
         sextb R0 R0
@@ -1212,6 +1262,7 @@ _L85920178:
         move R0 R1
         jmp sta_85920175
 sta_85920176:
+; 93:         if (*p == ' ') { *p = 0; p++; }
         move R0 [R12-12]
         moveb R0 [R0]
         sextb R0 R0
@@ -1240,6 +1291,7 @@ sta_85920181:
 sta_85920182:
         jmp sta_85920161
 sta_85920162:
+; 95:     return argc;
         move R0 [R12-8]
         jmp L_85920160
 L_85920160:

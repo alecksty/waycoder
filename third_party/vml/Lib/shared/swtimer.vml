@@ -14,6 +14,7 @@ init:
         push R12
         move R12 R13
         sub R13 #16
+; 7:     if (timers == 0) return;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -30,6 +31,7 @@ _L56310003:
         jmp L_56310004
 sta_56310000:
 sta_56310001:
+; 9:     for (i = 0; i < 8; i++) {
         move R0 #0
         move [R12-8] R0
 sta_56310005:
@@ -46,6 +48,7 @@ _L56310008:
 _L56310009:
         cmp R0 #0
         jz sta_56310007
+; 10:         timers[i * 4 + 0] = 0;   // period
         move R0 #0
         move R11 R0
         move R0 [R12+12]
@@ -60,6 +63,7 @@ _L56310009:
         pop R10
         add R0 R10
         move [R0] R11
+; 11:         timers[i * 4 + 1] = 0;   // remaining
         move R0 #0
         move R9 R0
         move R0 [R12+12]
@@ -79,6 +83,7 @@ _L56310009:
         pop R8
         add R0 R8
         move [R0] R9
+; 12:         timers[i * 4 + 2] = 0;   // flags
         move R0 #0
         move R7 R0
         move R0 [R12+12]
@@ -98,6 +103,7 @@ _L56310009:
         pop R6
         add R0 R6
         move [R0] R7
+; 13:         timers[i * 4 + 3] = 0;   // callback_id
         move R0 #0
         move R5 R0
         move R0 [R12+12]
@@ -145,6 +151,7 @@ start:
         push R12
         move R12 R13
         sub R13 #24
+; 19:     if (timers == 0 || period <= 0) return -1;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -185,6 +192,7 @@ _L56310014:
         jmp L_56310019
 sta_56310010:
 sta_56310011:
+; 21:     for (i = 0; i < 8; i++) {
         move R0 #0
         move [R12-8] R0
 sta_56310020:
@@ -201,6 +209,7 @@ _L56310023:
 _L56310024:
         cmp R0 #0
         jz sta_56310022
+; 22:         int flags = timers[i * 4 + 2];
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -219,6 +228,7 @@ _L56310024:
         add R0 R3
         move R0 [R0]
         move [R12-12] R0
+; 23:         if (!(flags & 1)) {  // 未激活
         move R0 [R12-12]
         push R0
         move R0 #1
@@ -240,6 +250,7 @@ _L56310027:
 _L56310028:
         cmp R0 #0
         jz sta_56310025
+; 24:             timers[i * 4 + 0] = period;
         move R0 [R12+16]
         move R2 R0
         move R0 [R12+12]
@@ -254,6 +265,7 @@ _L56310028:
         pop R1
         add R0 R1
         move [R0] R2
+; 25:             timers[i * 4 + 1] = period;
         move R0 [R12+16]
         move R10 R0
         move R0 [R12+12]
@@ -273,6 +285,7 @@ _L56310028:
         pop R11
         add R0 R11
         move [R0] R10
+; 26:             timers[i * 4 + 2] = 1 | (repeat ? 2 : 0);  // active + repeat
         move R0 #1
         push R0
         move R0 [R12+20]
@@ -304,6 +317,7 @@ _L56310030:
         pop R9
         add R0 R9
         move [R0] R8
+; 27:             timers[i * 4 + 3] = callback_id;
         move R0 [R12+24]
         move R6 R0
         move R0 [R12+12]
@@ -323,6 +337,7 @@ _L56310030:
         pop R7
         add R0 R7
         move [R0] R6
+; 28:             return i;
         move R0 [R12-8]
         jmp L_56310019
 sta_56310025:
@@ -335,6 +350,7 @@ sta_56310021:
         move R0 R1
         jmp sta_56310020
 sta_56310022:
+; 31:     return -1;
         move R0 #1
         move R0 #1
         neg R0 R0
@@ -357,6 +373,7 @@ stop:
         push R12
         move R12 R13
         sub R13 #16
+; 35:     if (timers == 0 || timer_id < 0 || timer_id >= 8) return;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -415,6 +432,7 @@ _L56310035:
         jmp L_56310045
 sta_56310031:
 sta_56310032:
+; 36:     timers[timer_id * 4 + 2] = 0;  // clear flags
         move R0 #0
         move R4 R0
         move R0 [R12+12]
@@ -451,6 +469,7 @@ tick:
         push R12
         move R12 R13
         sub R13 #32
+; 41:     if (timers == 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -468,8 +487,10 @@ _L56310049:
         jmp L_56310050
 sta_56310046:
 sta_56310047:
+; 42:     int triggered = 0;
         move R0 #0
         move [R12-8] R0
+; 44:     for (i = 0; i < 8; i++) {
         move R0 #0
         move [R12-12] R0
 sta_56310051:
@@ -486,6 +507,7 @@ _L56310054:
 _L56310055:
         cmp R0 #0
         jz sta_56310053
+; 45:         int flags = timers[i * 4 + 2];
         move R0 [R12+12]
         push R0
         move R0 [R12-12]
@@ -504,6 +526,7 @@ _L56310055:
         add R0 R3
         move R0 [R0]
         move [R12-16] R0
+; 46:         if (flags & 1) {  // active
         move R0 [R12-16]
         push R0
         move R0 #1
@@ -512,6 +535,7 @@ _L56310055:
         move R0 R1
         cmp R0 #0
         jz sta_56310056
+; 47:             int remaining = timers[i * 4 + 1];
         move R0 [R12+12]
         push R0
         move R0 [R12-12]
@@ -530,11 +554,13 @@ _L56310055:
         add R0 R1
         move R0 [R0]
         move [R12-20] R0
+; 48:             remaining--;
         move R0 [R12-20]
         move R1 R0
         sub R0 R0 #1
         move [R12-20] R0
         move R0 R1
+; 49:             if (remaining <= 0) {
         move R0 [R12-20]
         push R0
         move R0 #0
@@ -548,6 +574,7 @@ _L56310060:
 _L56310061:
         cmp R0 #0
         jz sta_56310058
+; 50:                 triggered |= (1 << i);
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -560,6 +587,7 @@ _L56310061:
         or R1 R0
         move R0 R1
         move [R12-8] R0
+; 51:                 if (flags & 2) {
         move R0 [R12-16]
         push R0
         move R0 #2
@@ -568,6 +596,7 @@ _L56310061:
         move R0 R1
         cmp R0 #0
         jz sta_56310062
+; 53:                     remaining = timers[i * 4 + 0];
         move R0 [R12+12]
         push R0
         move R0 [R12-12]
@@ -583,6 +612,7 @@ _L56310061:
         move [R12-20] R0
         jmp sta_56310063
 sta_56310062:
+; 56:                     timers[i * 4 + 2] = 0;
         move R0 #0
         move R11 R0
         move R0 [R12+12]
@@ -605,6 +635,7 @@ sta_56310062:
 sta_56310063:
 sta_56310058:
 sta_56310059:
+; 59:             timers[i * 4 + 1] = remaining;
         move R0 [R12-20]
         move R9 R0
         move R0 [R12+12]
@@ -634,6 +665,7 @@ sta_56310052:
         move R0 R1
         jmp sta_56310051
 sta_56310053:
+; 62:     return triggered;
         move R0 [R12-8]
         jmp L_56310050
 L_56310050:
@@ -655,6 +687,7 @@ remaining:
         push R12
         move R12 R13
         sub R13 #16
+; 66:     if (timers == 0 || timer_id < 0 || timer_id >= 8) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -714,6 +747,7 @@ _L56310068:
         jmp L_56310078
 sta_56310064:
 sta_56310065:
+; 67:     if (!(timers[timer_id * 4 + 2] & 1)) return 0;
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -771,6 +805,7 @@ _L56310082:
         jmp L_56310078
 sta_56310079:
 sta_56310080:
+; 68:     return timers[timer_id * 4 + 1];
         move R0 [R12+12]
         push R0
         move R0 [R12+16]

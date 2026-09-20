@@ -16,10 +16,13 @@ lmemcpy:
         push R12
         move R12 R13
         sub R13 #32
+; 6:     char* d = (char*)dst;
         move R0 [R12+12]
         move [R12-8] R0
+; 7:     const char* s = (const char*)src;
         move R0 [R12+16]
         move [R12-12] R0
+; 9:     if (d < s || d >= s + n) {
         move R0 [R12-8]
         push R0
         move R0 [R12-12]
@@ -60,6 +63,7 @@ _L7690003:
 _L7690004:
         cmp R0 #0
         jz sta_7690000
+; 10:         for (i = 0; i < n; i++) d[i] = s[i];
         move R0 #0
         i2l R0 R0
         movel [R12-20] R0
@@ -105,6 +109,7 @@ sta_7690010:
 sta_7690011:
         jmp sta_7690001
 sta_7690000:
+; 12:         for (i = n - 1; i >= 0; i--) d[i] = s[i];
         movel R0 [R12+20]
         pushl R0
         move R0 #1
@@ -154,6 +159,7 @@ sta_7690015:
         jmp sta_7690014
 sta_7690016:
 sta_7690001:
+; 14:     return dst;
         move R0 [R12+12]
         jmp L_7690019
 L_7690019:
@@ -175,8 +181,10 @@ lmemset:
         push R12
         move R12 R13
         sub R13 #24
+; 19:     char* p = (char*)ptr;
         move R0 [R12+12]
         move [R12-8] R0
+; 21:     for (i = 0; i < n; i++) p[i] = (char)val;
         move R0 #0
         i2l R0 R0
         movel [R12-16] R0
@@ -213,6 +221,7 @@ sta_7690021:
         movel R0 R1
         jmp sta_7690020
 sta_7690022:
+; 22:     return ptr;
         move R0 [R12+12]
         jmp L_7690025
 L_7690025:
@@ -234,6 +243,7 @@ lmemmove:
         push R12
         move R12 R13
         sub R13 #16
+; 27:     return lmemcpy(dst, src, n);
         movel R0 [R12+20]
         sub R13 #8
         movel @13 R0
@@ -267,10 +277,13 @@ lmemcmp:
         push R12
         move R12 R13
         sub R13 #32
+; 32:     const unsigned char* pa = (const unsigned char*)a;
         move R0 [R12+12]
         move [R12-8] R0
+; 33:     const unsigned char* pb = (const unsigned char*)b;
         move R0 [R12+16]
         move [R12-12] R0
+; 35:     for (i = 0; i < n; i++) {
         move R0 #0
         i2l R0 R0
         movel [R12-20] R0
@@ -290,6 +303,7 @@ _L7690030:
 _L7690031:
         cmp R0 #0
         jz sta_7690029
+; 36:         if (pa[i] != pb[i]) return (int)pa[i] - (int)pb[i];
         move R0 [R12-8]
         push R0
         movel R0 [R12-20]
@@ -348,6 +362,7 @@ sta_7690028:
         movel R0 R1
         jmp sta_7690027
 sta_7690029:
+; 38:     return 0;
         move R0 #0
         jmp L_7690036
 L_7690036:

@@ -18,6 +18,7 @@ __vml_double_neg:
         push R12
         move R12 R13
         sub R13 #16
+; 15:     *hi = *hi ^ 0x80000000;
         move R0 [R12+12]
         move R11 R0
         move R0 [R12+12]
@@ -45,6 +46,7 @@ __vml_double_abs:
         push R12
         move R12 R13
         sub R13 #16
+; 19:     *hi = *hi & 0x7FFFFFFF;
         move R0 [R12+12]
         move R10 R0
         move R0 [R12+12]
@@ -74,6 +76,7 @@ __vml_double_cmp:
         push R12
         move R12 R13
         sub R13 #24
+; 23:     int s1 = (hi1 >> 31) & 1, s2 = (hi2 >> 31) & 1;
         move R0 [R12+12]
         push R0
         move R0 #31
@@ -98,6 +101,7 @@ __vml_double_cmp:
         and R1 R0
         move R0 R1
         move [R12-12] R0
+; 25:     if (s1 != s2) return s2 - s1;
         move R0 [R12-8]
         push R0
         move R0 [R12-12]
@@ -120,6 +124,7 @@ _L96590003:
         jmp L_96590004
 sta_96590000:
 sta_96590001:
+; 27:     if (hi1 != hi2) return (hi1 > hi2) ? 1 : -1;
         move R0 [R12+12]
         push R0
         move R0 [R12+20]
@@ -156,6 +161,7 @@ _L96590012:
         jmp L_96590004
 sta_96590005:
 sta_96590006:
+; 28:     if (lo1 != lo2) return (lo1 > lo2) ? 1 : -1;
         move R0 [R12+16]
         push R0
         move R0 [R12+24]
@@ -192,6 +198,7 @@ _L96590020:
         jmp L_96590004
 sta_96590013:
 sta_96590014:
+; 29:     return 0;
         move R0 #0
         jmp L_96590004
 L_96590004:
@@ -213,6 +220,7 @@ __vml_int2double:
         push R12
         move R12 R13
         sub R13 #40
+; 34:     if (x == 0) { *hi = 0; *lo = 0; return; }
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -237,8 +245,10 @@ _L96590024:
         jmp L_96590025
 sta_96590021:
 sta_96590022:
+; 35:     int sign = 0;
         move R0 #0
         move [R12-8] R0
+; 36:     if (x < 0) { sign = 1; x = -x; }
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -260,12 +270,14 @@ _L96590029:
         move [R12+12] R0
 sta_96590026:
 sta_96590027:
+; 38:     int e = 0; int tmp = x;
         move R0 #0
         move [R12-12] R0
         move R0 [R12+12]
         move [R12-16] R0
 sta_96590030:
         move R2 #0
+; 39:     while (tmp > 0) { tmp >>= 1; e++; }
         move R0 [R12-16]
         push R0
         move R0 #0
@@ -293,11 +305,13 @@ _L96590033:
         move R0 R1
         jmp sta_96590030
 sta_96590031:
+; 40:     e--; // 最高位位置
         move R0 [R12-12]
         move R1 R0
         sub R0 R0 #1
         move [R12-12] R0
         move R0 R1
+; 42:     int exp = 1023 + e;
         move R0 #1023
         push R0
         move R0 [R12-12]
@@ -305,6 +319,7 @@ sta_96590031:
         add R1 R0
         move R0 R1
         move [R12-20] R0
+; 44:     int mant = x << (31 - e); // 取小数部分
         move R0 [R12+12]
         push R0
         move R0 #31
@@ -317,6 +332,7 @@ sta_96590031:
         shl R1 R0
         move R0 R1
         move [R12-24] R0
+; 45:     int mhi = (mant >> 12) & 0x000FFFFF;
         move R0 [R12-24]
         push R0
         move R0 #12
@@ -329,6 +345,7 @@ sta_96590031:
         and R1 R0
         move R0 R1
         move [R12-28] R0
+; 46:     int mlo = mant << 20;
         move R0 [R12-24]
         push R0
         move R0 #20
@@ -336,6 +353,7 @@ sta_96590031:
         shl R1 R0
         move R0 R1
         move [R12-32] R0
+; 47:     *hi = (sign << 31) | (exp << 20) | mhi;
         move R0 [R12+16]
         move R7 R0
         move R0 [R12-8]
@@ -360,6 +378,7 @@ sta_96590031:
         or R1 R0
         move R0 R1
         move [R7] R0
+; 48:     *lo = mlo;
         move R0 [R12+20]
         move R6 R0
         move R0 [R12-32]
@@ -382,6 +401,7 @@ __vml_double2int:
         push R12
         move R12 R13
         sub R13 #32
+; 52:     int sign = (hi >> 31) & 1;
         move R0 [R12+12]
         push R0
         move R0 #31
@@ -394,6 +414,7 @@ __vml_double2int:
         and R1 R0
         move R0 R1
         move [R12-8] R0
+; 53:     int exp = ((hi >> 20) & 0x7FF) - 1023;
         move R0 [R12+12]
         push R0
         move R0 #20
@@ -411,6 +432,7 @@ __vml_double2int:
         sub R1 R0
         move R0 R1
         move [R12-12] R0
+; 54:     if (exp < 0) return 0; // 小于1
         move R0 [R12-12]
         push R0
         move R0 #0
@@ -428,6 +450,7 @@ _L96590037:
         jmp L_96590038
 sta_96590034:
 sta_96590035:
+; 55:     if (exp > 30) return sign ? -2147483648 : 2147483647; // 溢出
         move R0 [R12-12]
         push R0
         move R0 #30
@@ -454,6 +477,7 @@ _L96590044:
         jmp L_96590038
 sta_96590039:
 sta_96590040:
+; 56:     int mhi = hi & 0x000FFFFF;
         move R0 [R12+12]
         push R0
         move R0 #1048575
@@ -461,6 +485,7 @@ sta_96590040:
         and R1 R0
         move R0 R1
         move [R12-16] R0
+; 59:     if (exp <= 20) {
         move R0 [R12-12]
         push R0
         move R0 #20
@@ -474,6 +499,7 @@ _L96590049:
 _L96590050:
         cmp R0 #0
         jz sta_96590047
+; 61:         int val = (1 << exp) | (mhi >> (20 - exp));
         move R0 #1
         push R0
         move R0 [R12-12]
@@ -496,6 +522,7 @@ _L96590050:
         or R1 R0
         move R0 R1
         move [R12-20] R0
+; 62:         return sign ? -val : val;
         move R0 [R12-8]
         test R0 R0
         jz _L96590051
@@ -509,6 +536,7 @@ _L96590052:
         jmp L_96590038
         jmp sta_96590048
 sta_96590047:
+; 66:         int shift = 52 - exp;
         move R0 #52
         push R0
         move R0 [R12-12]
@@ -516,6 +544,7 @@ sta_96590047:
         sub R1 R0
         move R0 R1
         move [R12-24] R0
+; 68:         int val = (1 << exp) | (mhi << (exp - 20)) | (lo >> (52 - exp));
         move R0 #1
         push R0
         move R0 [R12-12]
@@ -553,6 +582,7 @@ sta_96590047:
         or R1 R0
         move R0 R1
         move [R12-20] R0
+; 69:         return sign ? -val : val;
         move R0 [R12-8]
         test R0 R0
         jz _L96590053
@@ -584,6 +614,7 @@ __vml_float2double:
         push R12
         move R12 R13
         sub R13 #32
+; 74:     int sign = f32 >> 31;
         move R0 [R12+12]
         push R0
         move R0 #31
@@ -591,6 +622,7 @@ __vml_float2double:
         shr R1 R0
         move R0 R1
         move [R12-8] R0
+; 75:     int exp = (f32 >> 23) & 0xFF;
         move R0 [R12+12]
         push R0
         move R0 #23
@@ -603,6 +635,7 @@ __vml_float2double:
         and R1 R0
         move R0 R1
         move [R12-12] R0
+; 76:     int mant = f32 & 0x7FFFFF;
         move R0 [R12+12]
         push R0
         move R0 #8388607
@@ -610,6 +643,7 @@ __vml_float2double:
         and R1 R0
         move R0 R1
         move [R12-16] R0
+; 77:     if (exp == 0 && mant == 0) { *hi = 0; *lo = 0; return; } // 零
         move R0 [R12-12]
         push R0
         move R0 #0
@@ -654,6 +688,7 @@ _L96590058:
         jmp L_96590063
 sta_96590055:
 sta_96590056:
+; 78:     if (exp == 255) { // Inf/NaN
         move R0 [R12-12]
         push R0
         move R0 #255
@@ -667,6 +702,7 @@ _L96590066:
 _L96590067:
         cmp R0 #0
         jz sta_96590064
+; 79:         *hi = (sign << 31) | 0x7FF00000 | (mant << 20);
         move R0 [R12+16]
         move R3 R0
         move R0 [R12-8]
@@ -691,6 +727,7 @@ _L96590067:
         or R1 R0
         move R0 R1
         move [R3] R0
+; 80:         *lo = mant << 12;
         move R0 [R12+20]
         move R2 R0
         move R0 [R12-16]
@@ -700,9 +737,11 @@ _L96590067:
         shl R1 R0
         move R0 R1
         move [R2] R0
+; 81:         return;
         jmp L_96590063
 sta_96590064:
 sta_96590065:
+; 84:     int dexp = exp + (1023 - 127);
         move R0 [R12-12]
         push R0
         move R0 #1023
@@ -715,6 +754,7 @@ sta_96590065:
         add R1 R0
         move R0 R1
         move [R12-20] R0
+; 85:     *hi = (sign << 31) | (dexp << 20) | (mant >> 3);
         move R0 [R12+16]
         move R1 R0
         move R0 [R12-8]
@@ -744,6 +784,7 @@ sta_96590065:
         or R1 R0
         move R0 R1
         move [R1] R0
+; 86:     *lo = mant << 29;
         move R0 [R12+20]
         move R11 R0
         move R0 [R12-16]
@@ -771,6 +812,7 @@ __vml_double2float:
         push R12
         move R12 R13
         sub R13 #32
+; 90:     int sign = hi >> 31;
         move R0 [R12+12]
         push R0
         move R0 #31
@@ -778,6 +820,7 @@ __vml_double2float:
         shr R1 R0
         move R0 R1
         move [R12-8] R0
+; 91:     int exp = ((hi >> 20) & 0x7FF) - 1023 + 127; // 转为单精度偏置
         move R0 [R12+12]
         push R0
         move R0 #20
@@ -800,6 +843,7 @@ __vml_double2float:
         add R1 R0
         move R0 R1
         move [R12-12] R0
+; 92:     int mhi = hi & 0x000FFFFF;
         move R0 [R12+12]
         push R0
         move R0 #1048575
@@ -807,6 +851,7 @@ __vml_double2float:
         and R1 R0
         move R0 R1
         move [R12-16] R0
+; 93:     if (exp <= 0) return 0; // 下溢
         move R0 [R12-12]
         push R0
         move R0 #0
@@ -824,6 +869,7 @@ _L96590071:
         jmp L_96590072
 sta_96590068:
 sta_96590069:
+; 94:     if (exp >= 255) { // 上溢为Inf
         move R0 [R12-12]
         push R0
         move R0 #255
@@ -837,6 +883,7 @@ _L96590075:
 _L96590076:
         cmp R0 #0
         jz sta_96590073
+; 95:         return (sign << 31) | 0x7F800000;
         move R0 [R12-8]
         push R0
         move R0 #31
@@ -851,6 +898,7 @@ _L96590076:
         jmp L_96590072
 sta_96590073:
 sta_96590074:
+; 97:     int fmant = (mhi << 3) | (lo >> 29);
         move R0 [R12-16]
         push R0
         move R0 #3
@@ -868,6 +916,7 @@ sta_96590074:
         or R1 R0
         move R0 R1
         move [R12-20] R0
+; 98:     return (sign << 31) | (exp << 23) | fmant;
         move R0 [R12-8]
         push R0
         move R0 #31
@@ -910,6 +959,7 @@ __vml_double_add:
         push R12
         move R12 R13
         sub R13 #64
+; 103:     int s1 = (*hi >> 31) & 1, s2 = (bhi >> 31) & 1;
         move R0 [R12+12]
         move R0 [R0]
         push R0
@@ -935,6 +985,7 @@ __vml_double_add:
         and R1 R0
         move R0 R1
         move [R12-12] R0
+; 104:     int e1 = (*hi >> 20) & 0x7FF, e2 = (bhi >> 20) & 0x7FF;
         move R0 [R12+12]
         move R0 [R0]
         push R0
@@ -960,6 +1011,7 @@ __vml_double_add:
         and R1 R0
         move R0 R1
         move [R12-20] R0
+; 105:     int m1_hi = *hi & 0x000FFFFF, m2_hi = bhi & 0x000FFFFF;
         move R0 [R12+12]
         move R0 [R0]
         push R0
@@ -975,11 +1027,13 @@ __vml_double_add:
         and R1 R0
         move R0 R1
         move [R12-28] R0
+; 106:     int m1_lo = *lo, m2_lo = blo;
         move R0 [R12+16]
         move R0 [R0]
         move [R12-32] R0
         move R0 [R12+24]
         move [R12-36] R0
+; 108:     if (e1 != 0) m1_hi |= 0x100000; // 加隐含1
         move R0 [R12-16]
         push R0
         move R0 #0
@@ -1002,6 +1056,7 @@ _L96590080:
         move [R12-24] R0
 sta_96590077:
 sta_96590078:
+; 109:     if (e2 != 0) m2_hi |= 0x100000;
         move R0 [R12-20]
         push R0
         move R0 #0
@@ -1024,6 +1079,7 @@ _L96590084:
         move [R12-28] R0
 sta_96590081:
 sta_96590082:
+; 111:     if (e1 < e2) {
         move R0 [R12-16]
         push R0
         move R0 [R12-20]
@@ -1037,24 +1093,28 @@ _L96590087:
 _L96590088:
         cmp R0 #0
         jz sta_96590085
+; 112:         int t; t = e1; e1 = e2; e2 = t;
         move R0 [R12-16]
         move [R12-40] R0
         move R0 [R12-20]
         move [R12-16] R0
         move R0 [R12-40]
         move [R12-20] R0
+; 113:         t = s1; s1 = s2; s2 = t;
         move R0 [R12-8]
         move [R12-40] R0
         move R0 [R12-12]
         move [R12-8] R0
         move R0 [R12-40]
         move [R12-12] R0
+; 114:         t = m1_hi; m1_hi = m2_hi; m2_hi = t;
         move R0 [R12-24]
         move [R12-40] R0
         move R0 [R12-28]
         move [R12-24] R0
         move R0 [R12-40]
         move [R12-28] R0
+; 115:         t = m1_lo; m1_lo = m2_lo; m2_lo = t;
         move R0 [R12-32]
         move [R12-40] R0
         move R0 [R12-36]
@@ -1063,6 +1123,7 @@ _L96590088:
         move [R12-36] R0
 sta_96590085:
 sta_96590086:
+; 117:     int shift = e1 - e2;
         move R0 [R12-16]
         push R0
         move R0 [R12-20]
@@ -1070,6 +1131,7 @@ sta_96590086:
         sub R1 R0
         move R0 R1
         move [R12-44] R0
+; 118:     if (shift > 52) shift = 52;
         move R0 [R12-44]
         push R0
         move R0 #52
@@ -1087,6 +1149,7 @@ _L96590092:
         move [R12-44] R0
 sta_96590089:
 sta_96590090:
+; 121:     if (shift > 0) {
         move R0 [R12-44]
         push R0
         move R0 #0
@@ -1100,6 +1163,7 @@ _L96590095:
 _L96590096:
         cmp R0 #0
         jz sta_96590093
+; 122:         if (shift < 32) {
         move R0 [R12-44]
         push R0
         move R0 #32
@@ -1113,6 +1177,7 @@ _L96590099:
 _L96590100:
         cmp R0 #0
         jz sta_96590097
+; 123:             m2_lo = (m2_lo >> shift) | (m2_hi << (32 - shift));
         move R0 [R12-36]
         push R0
         move R0 [R12-44]
@@ -1135,6 +1200,7 @@ _L96590100:
         or R1 R0
         move R0 R1
         move [R12-36] R0
+; 124:             m2_hi >>= shift;
         move R0 [R12-28]
         push R0
         move R0 [R12-44]
@@ -1144,6 +1210,7 @@ _L96590100:
         move [R12-28] R0
         jmp sta_96590098
 sta_96590097:
+; 126:             m2_lo = m2_hi >> (shift - 32);
         move R0 [R12-28]
         push R0
         move R0 [R12-44]
@@ -1156,11 +1223,13 @@ sta_96590097:
         shr R1 R0
         move R0 R1
         move [R12-36] R0
+; 127:             m2_hi = 0;
         move R0 #0
         move [R12-28] R0
 sta_96590098:
 sta_96590093:
 sta_96590094:
+; 132:     if (s1 == s2) {
         move R0 [R12-8]
         push R0
         move R0 [R12-12]
@@ -1174,6 +1243,7 @@ _L96590103:
 _L96590104:
         cmp R0 #0
         jz sta_96590101
+; 134:         r_lo = m1_lo + m2_lo;
         move R0 [R12-32]
         push R0
         move R0 [R12-36]
@@ -1181,6 +1251,7 @@ _L96590104:
         add R1 R0
         move R0 R1
         move [R12-52] R0
+; 135:         r_hi = m1_hi + m2_hi;
         move R0 [R12-24]
         push R0
         move R0 [R12-28]
@@ -1188,6 +1259,7 @@ _L96590104:
         add R1 R0
         move R0 R1
         move [R12-48] R0
+; 136:         if ((unsigned int)r_lo < (unsigned int)m1_lo) r_hi++; // 进位
         move R0 [R12-52]
         push R0
         move R0 [R12-32]
@@ -1210,6 +1282,7 @@ sta_96590105:
 sta_96590106:
         jmp sta_96590102
 sta_96590101:
+; 139:         r_lo = m1_lo - m2_lo;
         move R0 [R12-32]
         push R0
         move R0 [R12-36]
@@ -1217,6 +1290,7 @@ sta_96590101:
         sub R1 R0
         move R0 R1
         move [R12-52] R0
+; 140:         r_hi = m1_hi - m2_hi;
         move R0 [R12-24]
         push R0
         move R0 [R12-28]
@@ -1224,6 +1298,7 @@ sta_96590101:
         sub R1 R0
         move R0 R1
         move [R12-48] R0
+; 141:         if (m1_lo < m2_lo) r_hi--; // 借位
         move R0 [R12-32]
         push R0
         move R0 [R12-36]
@@ -1244,6 +1319,7 @@ _L96590112:
         move R0 R1
 sta_96590109:
 sta_96590110:
+; 143:         if (r_hi < 0) {
         move R0 [R12-48]
         push R0
         move R0 #0
@@ -1257,6 +1333,7 @@ _L96590115:
 _L96590116:
         cmp R0 #0
         jz sta_96590113
+; 144:             r_hi = -r_hi; r_lo = -r_lo;
         move R0 [R12-48]
         move R0 [R12-48]
         neg R0 R0
@@ -1265,6 +1342,7 @@ _L96590116:
         move R0 [R12-52]
         neg R0 R0
         move [R12-52] R0
+; 145:             if (r_lo > 0) { r_lo = 0; r_hi--; } // 简化
         move R0 [R12-52]
         push R0
         move R0 #0
@@ -1287,11 +1365,13 @@ _L96590120:
         move R0 R1
 sta_96590117:
 sta_96590118:
+; 146:             s1 = s2; // 取减数的符号
         move R0 [R12-12]
         move [R12-8] R0
 sta_96590113:
 sta_96590114:
 sta_96590102:
+; 152:     if (r_hi & 0x200000) { // 进位到bit 53
         move R0 [R12-48]
         push R0
         move R0 #2097152
@@ -1300,6 +1380,7 @@ sta_96590102:
         move R0 R1
         cmp R0 #0
         jz sta_96590121
+; 153:         r_lo = (r_lo >> 1) | ((r_hi & 1) << 31);
         move R0 [R12-52]
         push R0
         move R0 #1
@@ -1322,6 +1403,7 @@ sta_96590102:
         or R1 R0
         move R0 R1
         move [R12-52] R0
+; 154:         r_hi = (r_hi >> 1) | 0x100000;
         move R0 [R12-48]
         push R0
         move R0 #1
@@ -1334,6 +1416,7 @@ sta_96590102:
         or R1 R0
         move R0 R1
         move [R12-48] R0
+; 155:         e1++;
         move R0 [R12-16]
         move R1 R0
         add R0 R0 #1
@@ -1341,6 +1424,7 @@ sta_96590102:
         move R0 R1
         jmp sta_96590122
 sta_96590121:
+; 156:     } else if (r_hi & 0x100000) {
         move R0 [R12-48]
         push R0
         move R0 #1048576
@@ -1353,6 +1437,7 @@ sta_96590121:
 sta_96590123:
 sta_96590125:
         move R2 #0
+; 161:         while (e1 > 0 && !(r_hi & 0x100000)) {
         move R0 [R12-16]
         push R0
         move R0 #0
@@ -1394,6 +1479,7 @@ _L96590127:
 _L96590128:
         cmp R0 #0
         jz sta_96590126
+; 162:             r_hi = (r_hi << 1) | (r_lo >> 31);
         move R0 [R12-48]
         push R0
         move R0 #1
@@ -1411,6 +1497,7 @@ _L96590128:
         or R1 R0
         move R0 R1
         move [R12-48] R0
+; 163:             r_lo <<= 1;
         move R0 [R12-52]
         push R0
         move R0 #1
@@ -1418,6 +1505,7 @@ _L96590128:
         shl R1 R0
         move R0 R1
         move [R12-52] R0
+; 164:             e1--;
         move R0 [R12-16]
         move R1 R0
         sub R0 R0 #1
@@ -1425,6 +1513,7 @@ _L96590128:
         move R0 R1
         jmp sta_96590125
 sta_96590126:
+; 166:         if (e1 == 0) { *hi = 0; *lo = 0; return; } // 下溢为零
         move R0 [R12-16]
         push R0
         move R0 #0
@@ -1451,6 +1540,7 @@ sta_96590133:
 sta_96590134:
 sta_96590124:
 sta_96590122:
+; 169:     r_hi = (r_hi & 0x000FFFFF);
         move R0 [R12-48]
         push R0
         move R0 #1048575
@@ -1458,6 +1548,7 @@ sta_96590122:
         and R1 R0
         move R0 R1
         move [R12-48] R0
+; 170:     *hi = (s1 << 31) | (e1 << 20) | r_hi;
         move R0 [R12+12]
         move R8 R0
         move R0 [R12-8]
@@ -1482,6 +1573,7 @@ sta_96590122:
         or R1 R0
         move R0 R1
         move [R8] R0
+; 171:     *lo = r_lo;
         move R0 [R12+16]
         move R7 R0
         move R0 [R12-52]
@@ -1506,6 +1598,7 @@ __vml_double_sub:
         push R12
         move R12 R13
         sub R13 #16
+; 175:     int nbhi = bhi ^ 0x80000000;
         move R0 [R12+20]
         push R0
         move R0 #-2147483648
@@ -1513,6 +1606,7 @@ __vml_double_sub:
         xor R1 R0
         move R0 R1
         move [R12-8] R0
+; 176:     __vml_double_add(hi, lo, nbhi, blo);
         move R0 [R12+24]
         push R0
         move R0 [R12-8]
@@ -1546,6 +1640,7 @@ __vml_double_mul:
         push R12
         move R12 R13
         sub R13 #88
+; 180:     int s1 = (*hi >> 31) & 1, s2 = (bhi >> 31) & 1;
         move R0 [R12+12]
         move R0 [R0]
         push R0
@@ -1571,6 +1666,7 @@ __vml_double_mul:
         and R1 R0
         move R0 R1
         move [R12-12] R0
+; 181:     int e1 = (*hi >> 20) & 0x7FF, e2 = (bhi >> 20) & 0x7FF;
         move R0 [R12+12]
         move R0 [R0]
         push R0
@@ -1596,6 +1692,7 @@ __vml_double_mul:
         and R1 R0
         move R0 R1
         move [R12-20] R0
+; 182:     int m1_hi = (*hi & 0x000FFFFF) | 0x100000;
         move R0 [R12+12]
         move R0 [R0]
         push R0
@@ -1609,6 +1706,7 @@ __vml_double_mul:
         or R1 R0
         move R0 R1
         move [R12-24] R0
+; 183:     int m2_hi = (bhi & 0x000FFFFF) | 0x100000;
         move R0 [R12+20]
         push R0
         move R0 #1048575
@@ -1621,11 +1719,13 @@ __vml_double_mul:
         or R1 R0
         move R0 R1
         move [R12-28] R0
+; 184:     int m1_lo = *lo, m2_lo = blo;
         move R0 [R12+16]
         move R0 [R0]
         move [R12-32] R0
         move R0 [R12+24]
         move [R12-36] R0
+; 186:     int e = e1 + e2 - 1023;
         move R0 [R12-16]
         push R0
         move R0 [R12-20]
@@ -1638,6 +1738,7 @@ __vml_double_mul:
         sub R1 R0
         move R0 R1
         move [R12-40] R0
+; 191:     long long product = (long long)m1_hi * m2_hi;
         move R0 [R12-24]
         i2l R0 R0
         pushl R0
@@ -1646,6 +1747,7 @@ __vml_double_mul:
         popl R1
         mull R0 R1 R0
         movel [R12-48] R0
+; 193:     int a_lo = m1_hi & 0xFFFF, a_hi = m1_hi >> 16;
         move R0 [R12-24]
         push R0
         move R0 #65535
@@ -1660,6 +1762,7 @@ __vml_double_mul:
         shr R1 R0
         move R0 R1
         move [R12-56] R0
+; 194:     int b_lo = m2_hi & 0xFFFF, b_hi = m2_hi >> 16;
         move R0 [R12-28]
         push R0
         move R0 #65535
@@ -1674,6 +1777,7 @@ __vml_double_mul:
         shr R1 R0
         move R0 R1
         move [R12-64] R0
+; 195:     int mid = a_lo * b_hi + b_lo * a_hi;
         move R0 [R12-52]
         push R0
         move R0 [R12-64]
@@ -1691,6 +1795,7 @@ __vml_double_mul:
         add R1 R0
         move R0 R1
         move [R12-68] R0
+; 196:     int r_hi = a_hi * b_hi + (mid >> 16);
         move R0 [R12-56]
         push R0
         move R0 [R12-64]
@@ -1708,6 +1813,7 @@ __vml_double_mul:
         add R1 R0
         move R0 R1
         move [R12-72] R0
+; 197:     int r_lo = (a_lo * b_lo) + (mid << 16);
         move R0 [R12-52]
         push R0
         move R0 [R12-60]
@@ -1727,6 +1833,7 @@ __vml_double_mul:
         move [R12-76] R0
 sta_96590138:
         move R2 #0
+; 201:     while (!(r_hi & 0x100000) && e > 0) {
         move R0 [R12-72]
         push R0
         move R0 #1048576
@@ -1768,6 +1875,7 @@ _L96590140:
 _L96590141:
         cmp R0 #0
         jz sta_96590139
+; 202:         r_hi = (r_hi << 1) | (r_lo >> 31);
         move R0 [R12-72]
         push R0
         move R0 #1
@@ -1785,6 +1893,7 @@ _L96590141:
         or R1 R0
         move R0 R1
         move [R12-72] R0
+; 203:         r_lo <<= 1;
         move R0 [R12-76]
         push R0
         move R0 #1
@@ -1792,6 +1901,7 @@ _L96590141:
         shl R1 R0
         move R0 R1
         move [R12-76] R0
+; 204:         e--;
         move R0 [R12-40]
         move R1 R0
         sub R0 R0 #1
@@ -1799,6 +1909,7 @@ _L96590141:
         move R0 R1
         jmp sta_96590138
 sta_96590139:
+; 206:     if (e <= 0) { *hi = 0; *lo = 0; return; } // 下溢
         move R0 [R12-40]
         push R0
         move R0 #0
@@ -1823,6 +1934,7 @@ _L96590149:
         jmp L_96590150
 sta_96590146:
 sta_96590147:
+; 207:     r_hi &= 0x000FFFFF;
         move R0 [R12-72]
         push R0
         move R0 #1048575
@@ -1830,6 +1942,7 @@ sta_96590147:
         and R1 R0
         move R0 R1
         move [R12-72] R0
+; 208:     *hi = ((s1 ^ s2) << 31) | (e << 20) | r_hi;
         move R0 [R12+12]
         move R4 R0
         move R0 [R12-8]
@@ -1859,6 +1972,7 @@ sta_96590147:
         or R1 R0
         move R0 R1
         move [R4] R0
+; 209:     *lo = r_lo;
         move R0 [R12+16]
         move R3 R0
         move R0 [R12-76]
@@ -1884,6 +1998,7 @@ __vml_double_div:
         push R12
         move R12 R13
         sub R13 #72
+; 213:     int s1 = (*hi >> 31) & 1, s2 = (bhi >> 31) & 1;
         move R0 [R12+12]
         move R0 [R0]
         push R0
@@ -1909,6 +2024,7 @@ __vml_double_div:
         and R1 R0
         move R0 R1
         move [R12-12] R0
+; 214:     int e1 = (*hi >> 20) & 0x7FF, e2 = (bhi >> 20) & 0x7FF;
         move R0 [R12+12]
         move R0 [R0]
         push R0
@@ -1934,6 +2050,7 @@ __vml_double_div:
         and R1 R0
         move R0 R1
         move [R12-20] R0
+; 215:     int m1_hi = (*hi & 0x000FFFFF) | 0x100000;
         move R0 [R12+12]
         move R0 [R0]
         push R0
@@ -1947,6 +2064,7 @@ __vml_double_div:
         or R1 R0
         move R0 R1
         move [R12-24] R0
+; 216:     int m2_hi = (bhi & 0x000FFFFF) | 0x100000;
         move R0 [R12+20]
         push R0
         move R0 #1048575
@@ -1959,11 +2077,13 @@ __vml_double_div:
         or R1 R0
         move R0 R1
         move [R12-28] R0
+; 217:     int m1_lo = *lo, m2_lo = blo;
         move R0 [R12+16]
         move R0 [R0]
         move [R12-32] R0
         move R0 [R12+24]
         move [R12-36] R0
+; 219:     if ((bhi & 0x7FFFFFFF) == 0 && blo == 0) {
         move R0 [R12+20]
         push R0
         move R0 #2147483647
@@ -2002,6 +2122,7 @@ _L96590153:
 _L96590154:
         cmp R0 #0
         jz sta_96590151
+; 220:         *hi = s1 ? 0xFFF00000 : 0x7FF00000; // ±Inf
         move R0 [R12+12]
         move R2 R0
         move R0 [R12-8]
@@ -2013,13 +2134,16 @@ _L96590159:
         move R0 #2146435072
 _L96590160:
         move [R2] R0
+; 221:         *lo = 0;
         move R0 [R12+16]
         move R1 R0
         move R0 #0
         move [R1] R0
+; 222:         return;
         jmp L_96590161
 sta_96590151:
 sta_96590152:
+; 224:     int e = e1 - e2 + 1023;
         move R0 [R12-16]
         push R0
         move R0 [R12-20]
@@ -2032,10 +2156,13 @@ sta_96590152:
         add R1 R0
         move R0 R1
         move [R12-40] R0
+; 230:     int num = m1_hi; // 简化: 只使用高21bit
         move R0 [R12-24]
         move [R12-44] R0
+; 231:     int den = m2_hi; // 简化
         move R0 [R12-28]
         move [R12-48] R0
+; 232:     if (den == 0) { *hi = 0; *lo = 0; return; }
         move R0 [R12-48]
         push R0
         move R0 #0
@@ -2060,6 +2187,7 @@ _L96590165:
         jmp L_96590161
 sta_96590162:
 sta_96590163:
+; 233:     int quot = (num << 15) / den;
         move R0 [R12-44]
         push R0
         move R0 #15
@@ -2072,6 +2200,7 @@ sta_96590163:
         div R1 R0
         move R0 R1
         move [R12-52] R0
+; 234:     if (quot == 0) { *hi = 0; *lo = 0; return; }
         move R0 [R12-52]
         push R0
         move R0 #0
@@ -2098,6 +2227,7 @@ sta_96590166:
 sta_96590167:
 sta_96590170:
         move R2 #0
+; 236:     while (!(quot & 0x100000) && e > 0) {
         move R0 [R12-52]
         push R0
         move R0 #1048576
@@ -2139,6 +2269,7 @@ _L96590172:
 _L96590173:
         cmp R0 #0
         jz sta_96590171
+; 237:         quot <<= 1; e--;
         move R0 [R12-52]
         push R0
         move R0 #1
@@ -2153,6 +2284,7 @@ _L96590173:
         move R0 R1
         jmp sta_96590170
 sta_96590171:
+; 239:     if (e <= 0) { *hi = 0; *lo = 0; return; }
         move R0 [R12-40]
         push R0
         move R0 #0
@@ -2177,6 +2309,7 @@ _L96590181:
         jmp L_96590161
 sta_96590178:
 sta_96590179:
+; 240:     int r_hi = quot & 0x000FFFFF;
         move R0 [R12-52]
         push R0
         move R0 #1048575
@@ -2184,8 +2317,10 @@ sta_96590179:
         and R1 R0
         move R0 R1
         move [R12-56] R0
+; 241:     int r_lo = 0;
         move R0 #0
         move [R12-60] R0
+; 242:     *hi = ((s1 ^ s2) << 31) | (e << 20) | r_hi;
         move R0 [R12+12]
         move R5 R0
         move R0 [R12-8]
@@ -2215,6 +2350,7 @@ sta_96590179:
         or R1 R0
         move R0 R1
         move [R5] R0
+; 243:     *lo = r_lo;
         move R0 [R12+16]
         move R4 R0
         move R0 [R12-60]

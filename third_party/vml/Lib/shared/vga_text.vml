@@ -14,14 +14,19 @@ vga_text_putchar:
         push R12
         move R12 R13
         sub R13 #40
+; 12:     char* mode_ptr = (char*)0x6FF0;
         move R0 #28656
         move [R12-8] R0
+; 13:     char* row_ptr = (char*)0x6FF4;
         move R0 #28660
         move [R12-12] R0
+; 14:     char* col_ptr = (char*)0x6FF8;
         move R0 #28664
         move [R12-16] R0
+; 15:     char* attr_ptr = (char*)0x6FFC;
         move R0 #28668
         move [R12-20] R0
+; 18:     if (*mode_ptr != 0) return;
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -40,6 +45,7 @@ _L32520003:
         jmp L_32520004
 sta_32520000:
 sta_32520001:
+; 21:     if (c == 10) {
         move R0 [R12+12]
         push R0
         move R0 #10
@@ -53,6 +59,7 @@ _L32520007:
 _L32520008:
         cmp R0 #0
         jz sta_32520005
+; 22:         *row_ptr = *row_ptr + 1;
         move R0 [R12-12]
         move R11 R0
         move R0 [R12-12]
@@ -64,13 +71,16 @@ _L32520008:
         add R1 R0
         move R0 R1
         moveb [R11] R0
+; 23:         *col_ptr = 0;
         move R0 [R12-16]
         move R10 R0
         move R0 #0
         moveb [R10] R0
+; 24:         return;
         jmp L_32520004
 sta_32520005:
 sta_32520006:
+; 28:     if (c < 32 || c >= 127) return;
         move R0 [R12+12]
         push R0
         move R0 #32
@@ -108,18 +118,22 @@ _L32520013:
         jmp L_32520004
 sta_32520009:
 sta_32520010:
+; 30:     char row = *row_ptr;
         move R0 [R12-12]
         moveb R0 [R0]
         sextb R0 R0
         moveb [R12-21] R0
+; 31:     char col = *col_ptr;
         move R0 [R12-16]
         moveb R0 [R0]
         sextb R0 R0
         moveb [R12-22] R0
+; 32:     char attr = *attr_ptr;
         move R0 [R12-20]
         moveb R0 [R0]
         sextb R0 R0
         moveb [R12-23] R0
+; 35:     if (row >= 25) return;
         moveb R0 [R12-21]
         sextb R0 R0
         push R0
@@ -137,6 +151,7 @@ _L32520021:
         jmp L_32520004
 sta_32520018:
 sta_32520019:
+; 36:     if (col >= 80) return;
         moveb R0 [R12-22]
         sextb R0 R0
         push R0
@@ -154,6 +169,7 @@ _L32520025:
         jmp L_32520004
 sta_32520022:
 sta_32520023:
+; 39:     int offset = (row * 80 + col) * 2;
         moveb R0 [R12-21]
         sextb R0 R0
         push R0
@@ -173,6 +189,7 @@ sta_32520023:
         mul R1 R0
         move R0 R1
         move [R12-28] R0
+; 40:     char* vga = (char*)(0xB8000 + offset);
         move R0 #753664
         push R0
         move R0 [R12-28]
@@ -180,10 +197,12 @@ sta_32520023:
         add R1 R0
         move R0 R1
         move [R12-32] R0
+; 43:     *vga = (char)c;
         move R0 [R12-32]
         move R9 R0
         move R0 [R12+12]
         moveb [R9] R0
+; 44:     vga = vga + 1;
         move R0 [R12-32]
         push R0
         move R0 #1
@@ -191,11 +210,13 @@ sta_32520023:
         add R1 R0
         move R0 R1
         move [R12-32] R0
+; 45:     *vga = attr;
         move R0 [R12-32]
         move R8 R0
         moveb R0 [R12-23]
         sextb R0 R0
         moveb [R8] R0
+; 48:     col = col + 1;
         moveb R0 [R12-22]
         sextb R0 R0
         push R0
@@ -204,6 +225,7 @@ sta_32520023:
         add R1 R0
         move R0 R1
         moveb [R12-22] R0
+; 49:     if (col >= 80) {
         moveb R0 [R12-22]
         sextb R0 R0
         push R0
@@ -218,8 +240,10 @@ _L32520028:
 _L32520029:
         cmp R0 #0
         jz sta_32520026
+; 50:         col = 0;
         move R0 #0
         moveb [R12-22] R0
+; 51:         row = row + 1;
         moveb R0 [R12-21]
         sextb R0 R0
         push R0
@@ -228,6 +252,7 @@ _L32520029:
         add R1 R0
         move R0 R1
         moveb [R12-21] R0
+; 52:         *row_ptr = row;
         move R0 [R12-12]
         move R7 R0
         moveb R0 [R12-21]
@@ -235,6 +260,7 @@ _L32520029:
         moveb [R7] R0
 sta_32520026:
 sta_32520027:
+; 54:     *col_ptr = col;
         move R0 [R12-16]
         move R6 R0
         moveb R0 [R12-22]
@@ -257,12 +283,16 @@ vga_text_newline:
         push R12
         move R12 R13
         sub R13 #24
+; 58:     char* mode_ptr = (char*)0x6FF0;
         move R0 #28656
         move [R12-8] R0
+; 59:     char* row_ptr = (char*)0x6FF4;
         move R0 #28660
         move [R12-12] R0
+; 60:     char* col_ptr = (char*)0x6FF8;
         move R0 #28664
         move [R12-16] R0
+; 62:     if (*mode_ptr != 0) return;
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -281,6 +311,7 @@ _L32520033:
         jmp L_32520034
 sta_32520030:
 sta_32520031:
+; 64:     *row_ptr = *row_ptr + 1;
         move R0 [R12-12]
         move R5 R0
         move R0 [R12-12]
@@ -292,6 +323,7 @@ sta_32520031:
         add R1 R0
         move R0 R1
         moveb [R5] R0
+; 65:     *col_ptr = 0;
         move R0 [R12-16]
         move R4 R0
         move R0 #0

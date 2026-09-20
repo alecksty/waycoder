@@ -16,6 +16,7 @@ llen64:
         push R12
         move R12 R13
         sub R13 #16
+; 2: __stdcall long llen64(long* arr) { return arr[0]; }
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -42,6 +43,7 @@ lget64:
         push R12
         move R12 R13
         sub R13 #16
+; 4:     if (index < 0 || index >= arr[0]) return 0;
         movel R0 [R12+16]
         pushl R0
         move R0 #0
@@ -91,6 +93,7 @@ _L38170005:
         jmp L_38170010
 sta_38170001:
 sta_38170002:
+; 5:     return arr[index + 1];
         move R0 [R12+12]
         push R0
         movel R0 [R12+16]
@@ -123,6 +126,7 @@ lset64:
         push R12
         move R12 R13
         sub R13 #16
+; 8:     if (index >= 0 && index < arr[0]) arr[index + 1] = value;
         movel R0 [R12+16]
         pushl R0
         move R0 #0
@@ -199,6 +203,7 @@ lsort_bubble64:
         push R12
         move R12 R13
         sub R13 #48
+; 11:     long len = arr[0], i, j;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -207,6 +212,7 @@ lsort_bubble64:
         add R0 R5
         movel R0 [R0]
         movel [R12-12] R0
+; 12:     for (i = 1; i < len; i++)
         move R0 #1
         i2l R0 R0
         movel [R12-20] R0
@@ -226,6 +232,7 @@ _L38170022:
 _L38170023:
         cmp R0 #0
         jz sta_38170021
+; 13:         for (j = i + 1; j <= len; j++)
         movel R0 [R12-20]
         pushl R0
         move R0 #1
@@ -249,6 +256,7 @@ _L38170027:
 _L38170028:
         cmp R0 #0
         jz sta_38170026
+; 14:             if (arr[i] > arr[j]) { long t = arr[i]; arr[i] = arr[j]; arr[j] = t; }
         move R0 [R12+12]
         push R0
         movel R0 [R12-20]
@@ -343,6 +351,7 @@ lindexof64:
         push R12
         move R12 R13
         sub R13 #32
+; 17:     long len = arr[0], i;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -351,6 +360,7 @@ lindexof64:
         add R0 R6
         movel R0 [R0]
         movel [R12-12] R0
+; 18:     for (i = 1; i <= len; i++) if (arr[i] == value) return i - 1;
         move R0 #1
         i2l R0 R0
         movel [R12-20] R0
@@ -408,6 +418,7 @@ sta_38170034:
         movel R0 R1
         jmp sta_38170033
 sta_38170035:
+; 19:     return -1;
         move R0 #1
         move R0 #1
         neg R0 R0
@@ -430,6 +441,7 @@ llast_indexof64:
         push R12
         move R12 R13
         sub R13 #24
+; 23:     for (i = arr[0]; i >= 1; i--) if (arr[i] == value) return i - 1;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -493,6 +505,7 @@ sta_38170044:
         movel R0 R1
         jmp sta_38170043
 sta_38170045:
+; 24:     return -1;
         move R0 #1
         move R0 #1
         neg R0 R0
@@ -515,6 +528,7 @@ lcontains64:
         push R12
         move R12 R13
         sub R13 #32
+; 27:     long len = arr[0], i;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -523,6 +537,7 @@ lcontains64:
         add R0 R3
         movel R0 [R0]
         movel [R12-12] R0
+; 28:     for (i = 1; i <= len; i++) if (arr[i] == value) return 1;
         move R0 #1
         i2l R0 R0
         movel [R12-20] R0
@@ -575,6 +590,7 @@ sta_38170054:
         movel R0 R1
         jmp sta_38170053
 sta_38170055:
+; 29:     return 0;
         move R0 #0
         jmp L_38170062
 L_38170062:
@@ -594,6 +610,7 @@ lreverse64:
         push R12
         move R12 R13
         sub R13 #40
+; 32:     long len = arr[0], i;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -602,6 +619,7 @@ lreverse64:
         add R0 R1
         movel R0 [R0]
         movel [R12-12] R0
+; 33:     for (i = 1; i <= len / 2; i++) { long t = arr[i]; arr[i] = arr[len - i + 1]; arr[len - i + 1] = t; }
         move R0 #1
         i2l R0 R0
         movel [R12-20] R0
@@ -701,6 +719,7 @@ lfill64:
         push R12
         move R12 R13
         sub R13 #24
+; 37:     for (i = 1; i <= arr[0]; i++) arr[i] = value;
         move R0 #1
         i2l R0 R0
         movel [R12-12] R0
@@ -760,6 +779,7 @@ lcopy64:
         push R12
         move R12 R13
         sub R13 #24
+; 41:     for (i = 0; i <= src[0]; i++) dst[i] = src[i];
         move R0 #0
         i2l R0 R0
         movel [R12-12] R0
@@ -827,9 +847,11 @@ lslice64:
         push R12
         move R12 R13
         sub R13 #32
+; 44:     long i, j = 0;
         move R0 #0
         i2l R0 R0
         movel [R12-20] R0
+; 45:     if (start < 0) start = 0;
         movel R0 [R12+16]
         pushl R0
         move R0 #0
@@ -851,6 +873,7 @@ _L38170081:
         movel [R12+16] R0
 sta_38170078:
 sta_38170079:
+; 46:     if (start + count > src[0]) count = src[0] - start;
         movel R0 [R12+16]
         pushl R0
         movel R0 [R12+24]
@@ -890,6 +913,7 @@ _L38170085:
         movel [R12+24] R0
 sta_38170082:
 sta_38170083:
+; 47:     dst[0] = count;
         movel R0 [R12+24]
         move R7 R0
         move R0 [R12+32]
@@ -899,6 +923,7 @@ sta_38170083:
         pop R6
         add R0 R6
         movel [R0] R7
+; 48:     for (i = start; i < start + count; i++) dst[++j] = src[i + 1];
         movel R0 [R12+16]
         movel [R12-12] R0
 sta_38170086:
@@ -970,6 +995,7 @@ lconcat64:
         push R12
         move R12 R13
         sub R13 #24
+; 52:     dst[0] = a[0] + b[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -995,6 +1021,7 @@ lconcat64:
         pop R10
         add R0 R10
         movel [R0] R11
+; 53:     for (i = 1; i <= a[0]; i++) dst[i] = a[i];
         move R0 #1
         i2l R0 R0
         movel [R12-12] R0
@@ -1043,6 +1070,7 @@ sta_38170092:
         movel R0 R1
         jmp sta_38170091
 sta_38170093:
+; 54:     for (i = 1; i <= b[0]; i++) dst[a[0] + i] = b[i];
         move R0 #1
         i2l R0 R0
         movel [R12-12] R0
@@ -1118,6 +1146,7 @@ lpush64:
         push R12
         move R12 R13
         sub R13 #16
+; 57:     arr[0]++;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1131,6 +1160,7 @@ lpush64:
         add R0 R0 #1
         movel [R10] R0
         move R0 R9
+; 58:     arr[arr[0]] = value;
         movel R0 [R12+16]
         move R8 R0
         move R0 [R12+12]
@@ -1162,6 +1192,7 @@ lpop64:
         push R12
         move R12 R13
         sub R13 #24
+; 61:     if (arr[0] <= 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1188,6 +1219,7 @@ _L38170104:
         jmp L_38170105
 sta_38170101:
 sta_38170102:
+; 62:     long val = arr[arr[0]];
         move R0 [R12+12]
         push R0
         move R0 [R12+12]
@@ -1202,6 +1234,7 @@ sta_38170102:
         add R0 R2
         movel R0 [R0]
         movel [R12-12] R0
+; 63:     arr[0]--;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1215,6 +1248,7 @@ sta_38170102:
         sub R0 R0 #1
         movel [R1] R0
         move R0 R11
+; 64:     return val;
         movel R0 [R12-12]
         jmp L_38170105
 L_38170105:
@@ -1234,6 +1268,7 @@ lshift64:
         push R12
         move R12 R13
         sub R13 #32
+; 67:     if (arr[0] <= 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1260,6 +1295,7 @@ _L38170109:
         jmp L_38170110
 sta_38170106:
 sta_38170107:
+; 68:     long val = arr[1], i;
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -1268,6 +1304,7 @@ sta_38170107:
         add R0 R10
         movel R0 [R0]
         movel [R12-12] R0
+; 69:     for (i = 1; i < arr[0]; i++) arr[i] = arr[i + 1];
         move R0 #1
         i2l R0 R0
         movel [R12-20] R0
@@ -1321,6 +1358,7 @@ sta_38170112:
         movel R0 R1
         jmp sta_38170111
 sta_38170113:
+; 70:     arr[0]--;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1334,6 +1372,7 @@ sta_38170113:
         sub R0 R0 #1
         movel [R4] R0
         move R0 R3
+; 71:     return val;
         movel R0 [R12-12]
         jmp L_38170110
 L_38170110:
@@ -1354,6 +1393,7 @@ lunshift64:
         push R12
         move R12 R13
         sub R13 #24
+; 75:     for (i = arr[0]; i >= 1; i--) arr[i + 1] = arr[i];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1407,6 +1447,7 @@ sta_38170117:
         movel R0 R1
         jmp sta_38170116
 sta_38170118:
+; 76:     arr[1] = value;
         movel R0 [R12+16]
         move R7 R0
         move R0 [R12+12]
@@ -1416,6 +1457,7 @@ sta_38170118:
         pop R6
         add R0 R6
         movel [R0] R7
+; 77:     arr[0]++;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1447,6 +1489,7 @@ linsert64:
         push R12
         move R12 R13
         sub R13 #24
+; 81:     if (index < 0 || index > arr[0]) return;
         movel R0 [R12+16]
         pushl R0
         move R0 #0
@@ -1495,6 +1538,7 @@ _L38170125:
         jmp L_38170130
 sta_38170121:
 sta_38170122:
+; 82:     for (i = arr[0]; i >= index + 1; i--) arr[i + 1] = arr[i];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1552,6 +1596,7 @@ sta_38170132:
         movel R0 R1
         jmp sta_38170131
 sta_38170133:
+; 83:     arr[index + 1] = value;
         movel R0 [R12+24]
         move R9 R0
         move R0 [R12+12]
@@ -1566,6 +1611,7 @@ sta_38170133:
         pop R6
         add R0 R6
         movel [R0] R9
+; 84:     arr[0]++;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1597,6 +1643,7 @@ lremove64:
         push R12
         move R12 R13
         sub R13 #32
+; 87:     if (index < 0 || index >= arr[0]) return 0;
         movel R0 [R12+16]
         pushl R0
         move R0 #0
@@ -1646,6 +1693,7 @@ _L38170140:
         jmp L_38170145
 sta_38170136:
 sta_38170137:
+; 88:     long val = arr[index + 1], i;
         move R0 [R12+12]
         push R0
         movel R0 [R12+16]
@@ -1659,6 +1707,7 @@ sta_38170137:
         add R0 R3
         movel R0 [R0]
         movel [R12-12] R0
+; 89:     for (i = index + 1; i < arr[0]; i++) arr[i] = arr[i + 1];
         movel R0 [R12+16]
         pushl R0
         move R0 #1
@@ -1716,6 +1765,7 @@ sta_38170147:
         movel R0 R1
         jmp sta_38170146
 sta_38170148:
+; 90:     arr[0]--;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1729,6 +1779,7 @@ sta_38170148:
         sub R0 R0 #1
         movel [R6] R0
         move R0 R8
+; 91:     return val;
         movel R0 [R12-12]
         jmp L_38170145
 L_38170145:
@@ -1748,6 +1799,7 @@ lmin_val64:
         push R12
         move R12 R13
         sub R13 #16
+; 93: __stdcall long lmin_val64(long* arr) { return lmin_arr64(arr); }
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -1771,6 +1823,7 @@ lmax_val64:
         push R12
         move R12 R13
         sub R13 #16
+; 94: __stdcall long lmax_val64(long* arr) { return lmax_arr64(arr); }
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -1794,6 +1847,7 @@ lsum_val64:
         push R12
         move R12 R13
         sub R13 #16
+; 95: __stdcall long lsum_val64(long* arr) { return lsum64(arr); }
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -1818,6 +1872,7 @@ lstartswith64:
         push R12
         move R12 R13
         sub R13 #24
+; 98:     if (b[0] > a[0]) return 0;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -1849,6 +1904,7 @@ _L38170157:
         jmp L_38170158
 sta_38170154:
 sta_38170155:
+; 99:     for (i = 1; i <= b[0]; i++) if (a[i] != b[i]) return 0;
         move R0 #1
         i2l R0 R0
         movel [R12-12] R0
@@ -1913,6 +1969,7 @@ sta_38170160:
         movel R0 R1
         jmp sta_38170159
 sta_38170161:
+; 100:     return 1;
         move R0 #1
         jmp L_38170158
 L_38170158:
@@ -1934,6 +1991,7 @@ lendswith64:
         push R12
         move R12 R13
         sub R13 #32
+; 103:     long i, offset = a[0] - b[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1952,6 +2010,7 @@ lendswith64:
         popl R1
         subl R0 R1 R0
         movel [R12-20] R0
+; 104:     if (b[0] > a[0]) return 0;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -1983,6 +2042,7 @@ _L38170171:
         jmp L_38170172
 sta_38170168:
 sta_38170169:
+; 105:     for (i = 1; i <= b[0]; i++) if (a[offset + i] != b[i]) return 0;
         move R0 #1
         i2l R0 R0
         movel [R12-12] R0
@@ -2051,6 +2111,7 @@ sta_38170174:
         movel R0 R1
         jmp sta_38170173
 sta_38170175:
+; 106:     return 1;
         move R0 #1
         jmp L_38170172
 L_38170172:

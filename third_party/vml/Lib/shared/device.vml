@@ -14,8 +14,10 @@ dev_open:
         push R12
         move R12 R13
         sub R13 #16
+; 5:     asm("SYSCALL #100");
         syscall #100
         move [R12-4] R0
+; 6:     return h;
         move R0 [R12-8]
         jmp L_71620000
 L_71620000:
@@ -35,8 +37,10 @@ dev_close:
         push R12
         move R12 R13
         sub R13 #16
+; 10:     asm("SYSCALL #101");
         syscall #101
         move [R12-4] R0
+; 11:     return 0;
         move R0 #0
         jmp L_71620001
 L_71620001:
@@ -59,8 +63,10 @@ dev_read:
         push R12
         move R12 R13
         sub R13 #16
+; 16:     asm("SYSCALL #102");
         syscall #102
         move [R12-4] R0
+; 17:     return r;
         move R0 [R12-8]
         jmp L_71620002
 L_71620002:
@@ -83,8 +89,10 @@ dev_write:
         push R12
         move R12 R13
         sub R13 #16
+; 22:     asm("SYSCALL #103");
         syscall #103
         move [R12-4] R0
+; 23:     return r;
         move R0 [R12-8]
         jmp L_71620003
 L_71620003:
@@ -107,8 +115,10 @@ dev_control:
         push R12
         move R12 R13
         sub R13 #16
+; 28:     asm("SYSCALL #104");
         syscall #104
         move [R12-4] R0
+; 29:     return r;
         move R0 [R12-8]
         jmp L_71620004
 L_71620004:

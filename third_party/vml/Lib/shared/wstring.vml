@@ -15,10 +15,12 @@ wcslen:
         push R12
         move R12 R13
         sub R13 #16
+; 4:     size_t len = 0;
         move R0 #0
         move [R12-8] R0
 sta_70320000:
         move R2 #0
+; 5:     while (s[len] != 0) len++;
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -46,6 +48,7 @@ _L70320003:
         move R0 R1
         jmp sta_70320000
 sta_70320001:
+; 6:     return len;
         move R0 [R12-8]
         jmp L_70320004
 L_70320004:
@@ -68,6 +71,7 @@ wcscmp:
         sub R13 #16
 sta_70320005:
         move R2 #0
+; 9:     while (*a && *a == *b) { a++; b++; }
         move R0 [R12+12]
         moveh R0 [R0]
         sexth R0 R0
@@ -109,6 +113,7 @@ _L70320008:
         move R0 R1
         jmp sta_70320005
 sta_70320006:
+; 10:     return (int)*a - (int)*b;
         move R0 [R12+12]
         moveh R0 [R0]
         sexth R0 R0
@@ -139,6 +144,7 @@ wcsncmp:
         push R12
         move R12 R13
         sub R13 #16
+; 13:     if (n == 0) return 0;
         move R0 [R12+20]
         push R0
         move R0 #0
@@ -158,6 +164,7 @@ sta_70320012:
 sta_70320013:
 sta_70320017:
         move R2 #0
+; 14:     while (--n && *a && *a == *b) { a++; b++; }
         move R0 [R12+20]
         move R0 [R12+20]
         sub R0 R0 #1
@@ -212,6 +219,7 @@ _L70320020:
         move R0 R1
         jmp sta_70320017
 sta_70320018:
+; 15:     return (int)*a - (int)*b;
         move R0 [R12+12]
         moveh R0 [R0]
         sexth R0 R0
@@ -241,10 +249,12 @@ wcscpy:
         push R12
         move R12 R13
         sub R13 #16
+; 18:     wchar_t *p = dest;
         move R0 [R12+12]
         move [R12-8] R0
 sta_70320025:
         move R2 #0
+; 19:     while ((*p++ = *src++) != 0);
         move R0 [R12-8]
         move R1 R0
         add R0 R0 #2
@@ -273,6 +283,7 @@ _L70320028:
         jz sta_70320026
         jmp sta_70320025
 sta_70320026:
+; 20:     return dest;
         move R0 [R12+12]
         jmp L_70320029
 L_70320029:
@@ -294,6 +305,7 @@ wcsncpy:
         push R12
         move R12 R13
         sub R13 #16
+; 24:     for (i = 0; i < n && src[i] != 0; i++) dest[i] = src[i];
         move R0 #0
         move [R12-8] R0
 sta_70320030:
@@ -362,6 +374,7 @@ sta_70320031:
         jmp sta_70320030
 sta_70320032:
 sta_70320039:
+; 25:     for (; i < n; i++) dest[i] = 0;
         move R0 [R12-8]
         push R0
         move R0 [R12+20]
@@ -392,6 +405,7 @@ sta_70320040:
         move R0 R1
         jmp sta_70320039
 sta_70320041:
+; 26:     return dest;
         move R0 [R12+12]
         jmp L_70320044
 L_70320044:
@@ -412,10 +426,12 @@ wcscat:
         push R12
         move R12 R13
         sub R13 #16
+; 29:     wchar_t *p = dest;
         move R0 [R12+12]
         move [R12-8] R0
 sta_70320045:
         move R2 #0
+; 30:     while (*p) p++;
         move R0 [R12-8]
         moveh R0 [R0]
         sexth R0 R0
@@ -430,6 +446,7 @@ sta_70320045:
 sta_70320046:
 sta_70320047:
         move R2 #0
+; 31:     while ((*p++ = *src++) != 0);
         move R0 [R12-8]
         move R1 R0
         add R0 R0 #2
@@ -458,6 +475,7 @@ _L70320050:
         jz sta_70320048
         jmp sta_70320047
 sta_70320048:
+; 32:     return dest;
         move R0 [R12+12]
         jmp L_70320051
 L_70320051:
@@ -479,12 +497,14 @@ wcsncat:
         push R12
         move R12 R13
         sub R13 #24
+; 35:     wchar_t *p = dest; size_t i = 0;
         move R0 [R12+12]
         move [R12-8] R0
         move R0 #0
         move [R12-12] R0
 sta_70320052:
         move R2 #0
+; 36:     while (*p) p++;
         move R0 [R12-8]
         moveh R0 [R0]
         sexth R0 R0
@@ -499,6 +519,7 @@ sta_70320052:
 sta_70320053:
 sta_70320054:
         move R2 #0
+; 37:     while (i < n && src[i] != 0) { *p++ = src[i++]; }
         move R0 [R12-12]
         push R0
         move R0 [R12+20]
@@ -560,10 +581,12 @@ _L70320057:
         moveh [R1] R0
         jmp sta_70320054
 sta_70320055:
+; 38:     *p = 0;
         move R0 [R12-8]
         move R10 R0
         move R0 #0
         moveh [R10] R0
+; 39:     return dest;
         move R0 [R12+12]
         jmp L_70320062
 L_70320062:
@@ -586,6 +609,7 @@ wcschr:
         sub R13 #16
 sta_70320063:
         move R2 #0
+; 42:     while (*s) { if (*s == c) return (wchar_t *)s; s++; }
         move R0 [R12+12]
         moveh R0 [R0]
         sexth R0 R0
@@ -617,6 +641,7 @@ sta_70320066:
         move R0 R1
         jmp sta_70320063
 sta_70320064:
+; 43:     return c == 0 ? (wchar_t *)s : 0;
         moveh R0 [R12+16]
         push R0
         move R0 #0
@@ -654,10 +679,12 @@ wcsrchr:
         push R12
         move R12 R13
         sub R13 #16
+; 46:     const wchar_t *last = 0;
         move R0 #0
         move [R12-8] R0
 sta_70320074:
         move R2 #0
+; 47:     while (*s) { if (*s == c) last = s; s++; }
         move R0 [R12+12]
         moveh R0 [R0]
         sexth R0 R0
@@ -689,6 +716,7 @@ sta_70320077:
         move R0 R1
         jmp sta_70320074
 sta_70320075:
+; 48:     return c == 0 ? (wchar_t *)s : (wchar_t *)last;
         moveh R0 [R12+16]
         push R0
         move R0 #0
@@ -726,6 +754,7 @@ wcsstr:
         push R12
         move R12 R13
         sub R13 #24
+; 51:     if (*needle == 0) return (wchar_t *)haystack;
         move R0 [R12+16]
         moveh R0 [R0]
         sexth R0 R0
@@ -747,17 +776,20 @@ sta_70320085:
 sta_70320086:
 sta_70320090:
         move R2 #0
+; 52:     while (*haystack) {
         move R0 [R12+12]
         moveh R0 [R0]
         sexth R0 R0
         cmp R0 #0
         jz sta_70320091
+; 53:         const wchar_t *h = haystack, *n = needle;
         move R0 [R12+12]
         move [R12-8] R0
         move R0 [R12+16]
         move [R12-12] R0
 sta_70320092:
         move R2 #0
+; 54:         while (*h && *n && *h == *n) { h++; n++; }
         move R0 [R12-8]
         moveh R0 [R0]
         sexth R0 R0
@@ -811,6 +843,7 @@ _L70320095:
         move R0 R1
         jmp sta_70320092
 sta_70320093:
+; 55:         if (*n == 0) return (wchar_t *)haystack;
         move R0 [R12-12]
         moveh R0 [R0]
         sexth R0 R0
@@ -830,6 +863,7 @@ _L70320103:
         jmp L_70320089
 sta_70320100:
 sta_70320101:
+; 56:         haystack++;
         move R0 [R12+12]
         move R1 R0
         add R0 R0 #2
@@ -837,6 +871,7 @@ sta_70320101:
         move R0 R1
         jmp sta_70320090
 sta_70320091:
+; 58:     return 0;
         move R0 #0
         jmp L_70320089
 L_70320089:
@@ -857,21 +892,25 @@ wcsspn:
         push R12
         move R12 R13
         sub R13 #24
+; 61:     size_t count = 0;
         move R0 #0
         move [R12-8] R0
 sta_70320104:
         move R2 #0
+; 62:     while (*s) {
         move R0 [R12+12]
         moveh R0 [R0]
         sexth R0 R0
         cmp R0 #0
         jz sta_70320105
+; 63:         const wchar_t *a = accept; int found = 0;
         move R0 [R12+16]
         move [R12-12] R0
         move R0 #0
         move [R12-16] R0
 sta_70320106:
         move R2 #0
+; 64:         while (*a) { if (*s == *a) { found = 1; break; } a++; }
         move R0 [R12-12]
         moveh R0 [R0]
         sexth R0 R0
@@ -906,6 +945,7 @@ sta_70320109:
         move R0 R1
         jmp sta_70320106
 sta_70320107:
+; 65:         if (!found) break;
         move R0 [R12-16]
         move R0 [R12-16]
         test R0 R0
@@ -920,6 +960,7 @@ _L70320115:
         jmp sta_70320105
 sta_70320112:
 sta_70320113:
+; 66:         count++; s++;
         move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
@@ -932,6 +973,7 @@ sta_70320113:
         move R0 R1
         jmp sta_70320104
 sta_70320105:
+; 68:     return count;
         move R0 [R12-8]
         jmp L_70320116
 L_70320116:
@@ -952,19 +994,23 @@ wcscspn:
         push R12
         move R12 R13
         sub R13 #24
+; 71:     size_t count = 0;
         move R0 #0
         move [R12-8] R0
 sta_70320117:
         move R2 #0
+; 72:     while (*s) {
         move R0 [R12+12]
         moveh R0 [R0]
         sexth R0 R0
         cmp R0 #0
         jz sta_70320118
+; 73:         const wchar_t *r = reject;
         move R0 [R12+16]
         move [R12-12] R0
 sta_70320119:
         move R2 #0
+; 74:         while (*r) { if (*s == *r) return count; r++; }
         move R0 [R12-12]
         moveh R0 [R0]
         sexth R0 R0
@@ -998,6 +1044,7 @@ sta_70320122:
         move R0 R1
         jmp sta_70320119
 sta_70320120:
+; 75:         count++; s++;
         move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
@@ -1010,6 +1057,7 @@ sta_70320120:
         move R0 R1
         jmp sta_70320117
 sta_70320118:
+; 77:     return count;
         move R0 [R12-8]
         jmp L_70320125
 L_70320125:
@@ -1031,6 +1079,7 @@ wmemcpy:
         push R12
         move R12 R13
         sub R13 #16
+; 80:     wchar_t *d = dest; while (n--) *d++ = *src++;
         move R0 [R12+12]
         move [R12-8] R0
 sta_70320126:
@@ -1058,6 +1107,7 @@ sta_70320126:
         moveh [R9] R0
         jmp sta_70320126
 sta_70320127:
+; 81:     return dest;
         move R0 [R12+12]
         jmp L_70320128
 L_70320128:
@@ -1079,6 +1129,7 @@ wmemset:
         push R12
         move R12 R13
         sub R13 #16
+; 84:     wchar_t *d = dest; while (n--) *d++ = c;
         move R0 [R12+12]
         move [R12-8] R0
 sta_70320129:
@@ -1100,6 +1151,7 @@ sta_70320129:
         moveh [R8] R0
         jmp sta_70320129
 sta_70320130:
+; 85:     return dest;
         move R0 [R12+12]
         jmp L_70320131
 L_70320131:
@@ -1121,8 +1173,10 @@ wmemmove:
         push R12
         move R12 R13
         sub R13 #16
+; 88:     wchar_t *d = dest;
         move R0 [R12+12]
         move [R12-8] R0
+; 89:     if (d < src) { while (n--) *d++ = *src++; }
         move R0 [R12-8]
         push R0
         move R0 [R12+16]
@@ -1163,6 +1217,7 @@ sta_70320136:
 sta_70320137:
         jmp sta_70320133
 sta_70320132:
+; 90:     else { d += n; src += n; while (n--) *--d = *--src; }
         move R0 [R12-8]
         push R0
         move R0 [R12+20]
@@ -1203,6 +1258,7 @@ sta_70320138:
         jmp sta_70320138
 sta_70320139:
 sta_70320133:
+; 91:     return dest;
         move R0 [R12+12]
         jmp L_70320140
 L_70320140:
@@ -1227,6 +1283,7 @@ wmemcmp:
         sub R13 #16
 sta_70320141:
         move R2 #0
+; 94:     while (n--) { if (*a != *b) return (int)*a - (int)*b; a++; b++; }
         move R0 [R12+20]
         move R1 R0
         sub R0 R0 #1
@@ -1276,6 +1333,7 @@ sta_70320144:
         move R0 R1
         jmp sta_70320141
 sta_70320142:
+; 95:     return 0;
         move R0 #0
         jmp L_70320147
 L_70320147:

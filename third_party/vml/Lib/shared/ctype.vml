@@ -15,6 +15,7 @@ is_alpha:
         push R12
         move R12 R13
         sub R13 #16
+; 4:     return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
         move R0 [R12+12]
         push R0
         move R0 #65
@@ -105,6 +106,7 @@ is_digit:
         push R12
         move R12 R13
         sub R13 #16
+; 7:     return c >= '0' && c <= '9';
         move R0 [R12+12]
         push R0
         move R0 #48
@@ -154,6 +156,7 @@ isalnum:
         push R12
         move R12 R13
         sub R13 #16
+; 10:     return is_alpha(c) || is_digit(c);
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -192,6 +195,7 @@ isspace:
         push R12
         move R12 R13
         sub R13 #16
+; 13:     return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
         move R0 [R12+12]
         push R0
         move R0 #32
@@ -326,6 +330,7 @@ isupper:
         push R12
         move R12 R13
         sub R13 #16
+; 16:     return c >= 'A' && c <= 'Z';
         move R0 [R12+12]
         push R0
         move R0 #65
@@ -375,6 +380,7 @@ islower:
         push R12
         move R12 R13
         sub R13 #16
+; 19:     return c >= 'a' && c <= 'z';
         move R0 [R12+12]
         push R0
         move R0 #97
@@ -424,6 +430,7 @@ to_upper:
         push R12
         move R12 R13
         sub R13 #16
+; 22:     if (c >= 'a' && c <= 'z') return c - 32;
         move R0 [R12+12]
         push R0
         move R0 #97
@@ -466,6 +473,7 @@ _L41890072:
         jmp L_41890077
 sta_41890069:
 sta_41890070:
+; 23:     return c;
         move R0 [R12+12]
         jmp L_41890077
 L_41890077:
@@ -485,6 +493,7 @@ to_lower:
         push R12
         move R12 R13
         sub R13 #16
+; 26:     if (c >= 'A' && c <= 'Z') return c + 32;
         move R0 [R12+12]
         push R0
         move R0 #65
@@ -527,6 +536,7 @@ _L41890081:
         jmp L_41890086
 sta_41890078:
 sta_41890079:
+; 27:     return c;
         move R0 [R12+12]
         jmp L_41890086
 L_41890086:
@@ -546,6 +556,7 @@ isxdigit:
         push R12
         move R12 R13
         sub R13 #16
+; 30:     return is_digit(c) || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -651,6 +662,7 @@ ispunct:
         push R12
         move R12 R13
         sub R13 #16
+; 33:     return (c >= '!' && c <= '/') || (c >= ':' && c <= '@') ||
         move R0 [R12+12]
         push R0
         move R0 #33
@@ -823,6 +835,7 @@ isprint:
         push R12
         move R12 R13
         sub R13 #16
+; 37:     return c >= 32 && c <= 126;
         move R0 [R12+12]
         push R0
         move R0 #32
@@ -873,6 +886,7 @@ iscntrl:
         push R12
         move R12 R13
         sub R13 #16
+; 40:     return (c >= 0 && c <= 31) || c == 127;
         move R0 [R12+12]
         push R0
         move R0 #0

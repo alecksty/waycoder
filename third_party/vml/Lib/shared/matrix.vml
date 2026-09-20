@@ -88,6 +88,7 @@ mat2_identity:
         push R12
         move R12 R13
         sub R13 #16
+; 9:     result[0] = 1.0f; result[1] = 0.0f;
         movef R0 [flt_96150000]
         move R11 R0
         move R0 [R12+12]
@@ -106,6 +107,7 @@ mat2_identity:
         pop R8
         add R0 R8
         movef [R0] R9
+; 10:     result[2] = 0.0f; result[3] = 1.0f;
         movef R0 [flt_96150002]
         move R7 R0
         move R0 [R12+12]
@@ -142,6 +144,7 @@ mat2_add:
         push R12
         move R12 R13
         sub R13 #16
+; 15:     result[0] = a[0] + b[0]; result[1] = a[1] + b[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -192,6 +195,7 @@ mat2_add:
         pop R6
         add R0 R6
         movef [R0] R9
+; 16:     result[2] = a[2] + b[2]; result[3] = a[3] + b[3];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -260,6 +264,7 @@ mat2_sub:
         push R12
         move R12 R13
         sub R13 #16
+; 21:     result[0] = a[0] - b[0]; result[1] = a[1] - b[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -310,6 +315,7 @@ mat2_sub:
         pop R2
         add R0 R2
         movef [R0] R5
+; 22:     result[2] = a[2] - b[2]; result[3] = a[3] - b[3];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -378,6 +384,7 @@ mat2_mul:
         push R12
         move R12 R13
         sub R13 #16
+; 27:     result[0] = a[0]*b[0] + a[1]*b[2];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -423,6 +430,7 @@ mat2_mul:
         pop R8
         add R0 R8
         movef [R0] R11
+; 28:     result[1] = a[0]*b[1] + a[1]*b[3];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -468,6 +476,7 @@ mat2_mul:
         pop R3
         add R0 R3
         movef [R0] R9
+; 29:     result[2] = a[2]*b[0] + a[3]*b[2];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -513,6 +522,7 @@ mat2_mul:
         pop R1
         add R0 R1
         movef [R0] R11
+; 30:     result[3] = a[2]*b[1] + a[3]*b[3];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -576,6 +586,7 @@ mat2_scale:
         push R12
         move R12 R13
         sub R13 #16
+; 35:     result[0] = a[0] * scalar; result[1] = a[1] * scalar;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -614,6 +625,7 @@ mat2_scale:
         pop R6
         add R0 R6
         movef [R0] R11
+; 36:     result[2] = a[2] * scalar; result[3] = a[3] * scalar;
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -668,6 +680,7 @@ mat2_det:
         push R12
         move R12 R13
         sub R13 #16
+; 41:     return a[0]*a[3] - a[1]*a[2];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -724,6 +737,7 @@ mat2_transpose:
         push R12
         move R12 R13
         sub R13 #16
+; 46:     result[0] = a[0]; result[1] = a[2];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -754,6 +768,7 @@ mat2_transpose:
         pop R5
         add R0 R5
         movef [R0] R2
+; 47:     result[2] = a[1]; result[3] = a[3];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -801,6 +816,7 @@ mat2_inv:
         push R12
         move R12 R13
         sub R13 #24
+; 52:     float det = a[0]*a[3] - a[1]*a[2];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -839,6 +855,7 @@ mat2_inv:
         fpop R1
         fsub R0 R1 R0
         movef [R12-8] R0
+; 53:     if (det < 1e-10f && det > -1e-10f) return 0;
         movef R0 [R12-8]
         fpush R0
         movef R0 [flt_96150009]
@@ -878,12 +895,14 @@ _L96150008:
         jmp L_96150016
 sta_96150005:
 sta_96150006:
+; 54:     float inv_det = 1.0f / det;
         movef R0 [flt_96150017]
         fpush R0
         movef R0 [R12-8]
         fpop R1
         fdiv R0 R1 R0
         movef [R12-12] R0
+; 55:     result[0] =  a[3] * inv_det;
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -903,6 +922,7 @@ sta_96150006:
         pop R10
         add R0 R10
         movef [R0] R9
+; 56:     result[1] = -a[1] * inv_det;
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -930,6 +950,7 @@ sta_96150006:
         pop R6
         add R0 R6
         movef [R0] R11
+; 57:     result[2] = -a[2] * inv_det;
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -957,6 +978,7 @@ sta_96150006:
         pop R5
         add R0 R5
         movef [R0] R4
+; 58:     result[3] =  a[0] * inv_det;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -976,6 +998,7 @@ sta_96150006:
         pop R9
         add R0 R9
         movef [R0] R10
+; 59:     return 1;
         move R0 #1
         jmp L_96150016
 L_96150016:
@@ -996,12 +1019,14 @@ mat2_rot:
         push R12
         move R12 R13
         sub R13 #24
+; 65:     float a2 = angle_rad * angle_rad;
         movef R0 [R12+12]
         fpush R0
         movef R0 [R12+12]
         fpop R1
         fmul R0 R1 R0
         movef [R12-8] R0
+; 66:     float sin_a = angle_rad - angle_rad*a2*0.166667f + angle_rad*a2*a2*0.00833333f;
         movef R0 [R12+12]
         fpush R0
         movef R0 [R12+12]
@@ -1032,6 +1057,7 @@ mat2_rot:
         fpop R1
         fadd R0 R1 R0
         movef [R12-12] R0
+; 67:     float cos_a = 1.0f - a2*0.5f + a2*a2*0.0416667f - a2*a2*a2*0.00138889f;
         movef R0 [flt_96150020]
         fpush R0
         movef R0 [R12-8]
@@ -1070,6 +1096,7 @@ mat2_rot:
         fpop R1
         fsub R0 R1 R0
         movef [R12-16] R0
+; 68:     result[0] = cos_a; result[1] = -sin_a;
         movef R0 [R12-16]
         move R8 R0
         move R0 [R12+16]
@@ -1090,6 +1117,7 @@ mat2_rot:
         pop R11
         add R0 R11
         movef [R0] R6
+; 69:     result[2] = sin_a; result[3] =  cos_a;
         movef R0 [R12-12]
         move R3 R0
         move R0 [R12+16]
@@ -1124,6 +1152,7 @@ mat3_identity:
         push R12
         move R12 R13
         sub R13 #16
+; 76:     result[0] = 1.0f; result[1] = 0.0f; result[2] = 0.0f;
         movef R0 [flt_96150024]
         move R2 R0
         move R0 [R12+12]
@@ -1151,6 +1180,7 @@ mat3_identity:
         pop R11
         add R0 R11
         movef [R0] R8
+; 77:     result[3] = 0.0f; result[4] = 1.0f; result[5] = 0.0f;
         movef R0 [flt_96150027]
         move R6 R0
         move R0 [R12+12]
@@ -1178,6 +1208,7 @@ mat3_identity:
         pop R9
         add R0 R9
         movef [R0] R5
+; 78:     result[6] = 0.0f; result[7] = 0.0f; result[8] = 1.0f;
         movef R0 [flt_96150030]
         move R2 R0
         move R0 [R12+12]
@@ -1223,6 +1254,7 @@ mat3_mul:
         push R12
         move R12 R13
         sub R13 #16
+; 83:     result[0] = a[0]*b[0] + a[1]*b[3] + a[2]*b[6];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1288,6 +1320,7 @@ mat3_mul:
         pop R11
         add R0 R11
         movef [R0] R2
+; 84:     result[1] = a[0]*b[1] + a[1]*b[4] + a[2]*b[7];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1353,6 +1386,7 @@ mat3_mul:
         pop R5
         add R0 R5
         movef [R0] R9
+; 85:     result[2] = a[0]*b[2] + a[1]*b[5] + a[2]*b[8];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1418,6 +1452,7 @@ mat3_mul:
         pop R4
         add R0 R4
         movef [R0] R6
+; 86:     result[3] = a[3]*b[0] + a[4]*b[3] + a[5]*b[6];
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -1483,6 +1518,7 @@ mat3_mul:
         pop R7
         add R0 R7
         movef [R0] R10
+; 87:     result[4] = a[3]*b[1] + a[4]*b[4] + a[5]*b[7];
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -1548,6 +1584,7 @@ mat3_mul:
         pop R11
         add R0 R11
         movef [R0] R1
+; 88:     result[5] = a[3]*b[2] + a[4]*b[5] + a[5]*b[8];
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -1613,6 +1650,7 @@ mat3_mul:
         pop R5
         add R0 R5
         movef [R0] R3
+; 89:     result[6] = a[6]*b[0] + a[7]*b[3] + a[8]*b[6];
         move R0 [R12+12]
         push R0
         move R0 #6
@@ -1678,6 +1716,7 @@ mat3_mul:
         pop R4
         add R0 R4
         movef [R0] R8
+; 90:     result[7] = a[6]*b[1] + a[7]*b[4] + a[8]*b[7];
         move R0 [R12+12]
         push R0
         move R0 #6
@@ -1743,6 +1782,7 @@ mat3_mul:
         pop R7
         add R0 R7
         movef [R0] R2
+; 91:     result[8] = a[6]*b[2] + a[7]*b[5] + a[8]*b[8];
         move R0 [R12+12]
         push R0
         move R0 #6
@@ -1824,6 +1864,7 @@ mat3_det:
         push R12
         move R12 R13
         sub R13 #16
+; 96:     return a[0]*(a[4]*a[8] - a[5]*a[7])
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1990,6 +2031,7 @@ mat3_transpose:
         push R12
         move R12 R13
         sub R13 #16
+; 103:     result[0] = a[0]; result[1] = a[3]; result[2] = a[6];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -2035,6 +2077,7 @@ mat3_transpose:
         pop R7
         add R0 R7
         movef [R0] R1
+; 104:     result[3] = a[1]; result[4] = a[4]; result[5] = a[7];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -2080,6 +2123,7 @@ mat3_transpose:
         pop R9
         add R0 R9
         movef [R0] R3
+; 105:     result[6] = a[2]; result[7] = a[5]; result[8] = a[8];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -2143,6 +2187,7 @@ mat3_scale:
         push R12
         move R12 R13
         sub R13 #16
+; 110:     result[0] = a[0]*scalar; result[1] = a[1]*scalar; result[2] = a[2]*scalar;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -2200,6 +2245,7 @@ mat3_scale:
         pop R5
         add R0 R5
         movef [R0] R10
+; 111:     result[3] = a[3]*scalar; result[4] = a[4]*scalar; result[5] = a[5]*scalar;
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -2257,6 +2303,7 @@ mat3_scale:
         pop R6
         add R0 R6
         movef [R0] R1
+; 112:     result[6] = a[6]*scalar; result[7] = a[7]*scalar; result[8] = a[8]*scalar;
         move R0 [R12+12]
         push R0
         move R0 #6
@@ -2330,6 +2377,7 @@ mat4_identity:
         push R12
         move R12 R13
         sub R13 #16
+; 120:     for (i = 0; i < 16; i++) result[i] = 0.0f;
         move R0 #0
         move [R12-8] R0
 sta_96150034:
@@ -2363,6 +2411,7 @@ sta_96150035:
         move R0 R1
         jmp sta_96150034
 sta_96150036:
+; 121:     result[0] = 1.0f; result[5] = 1.0f; result[10] = 1.0f; result[15] = 1.0f;
         movef R0 [flt_96150040]
         move R5 R0
         move R0 [R12+12]
@@ -2417,6 +2466,7 @@ mat4_mul:
         push R12
         move R12 R13
         sub R13 #32
+; 127:     for (row = 0; row < 4; row++) {
         move R0 #0
         move [R12-8] R0
 sta_96150044:
@@ -2433,6 +2483,7 @@ _L96150047:
 _L96150048:
         cmp R0 #0
         jz sta_96150046
+; 128:         for (col = 0; col < 4; col++) {
         move R0 #0
         move [R12-12] R0
 sta_96150049:
@@ -2449,8 +2500,10 @@ _L96150052:
 _L96150053:
         cmp R0 #0
         jz sta_96150051
+; 129:             float sum = 0.0f;
         movef R0 [flt_96150054]
         movef [R12-16] R0
+; 131:             for (k = 0; k < 4; k++)
         move R0 #0
         move [R12-20] R0
 sta_96150055:
@@ -2467,6 +2520,7 @@ _L96150058:
 _L96150059:
         cmp R0 #0
         jz sta_96150057
+; 132:                 sum += a[row*4 + k] * b[k*4 + col];
         movef R0 [R12-16]
         fpush R0
         move R0 [R12+12]
@@ -2517,6 +2571,7 @@ sta_96150056:
         move R0 R1
         jmp sta_96150055
 sta_96150057:
+; 133:             result[row*4 + col] = sum;
         movef R0 [R12-16]
         move R6 R0
         move R0 [R12+20]
@@ -2571,11 +2626,13 @@ mat4_translate:
         push R12
         move R12 R13
         sub R13 #16
+; 140:     mat4_identity(result);
         move R0 [R12+24]
         push R0
         move R0 [R13+0]
         call mat4_identity
         add R13 #4
+; 141:     result[12] = tx; result[13] = ty; result[14] = tz;
         movef R0 [R12+12]
         move R5 R0
         move R0 [R12+24]
@@ -2622,6 +2679,7 @@ mat4_scale_xyz:
         push R12
         move R12 R13
         sub R13 #16
+; 147:     for (i = 0; i < 16; i++) result[i] = 0.0f;
         move R0 #0
         move [R12-8] R0
 sta_96150060:
@@ -2655,6 +2713,7 @@ sta_96150061:
         move R0 R1
         jmp sta_96150060
 sta_96150062:
+; 148:     result[0] = sx; result[5] = sy; result[10] = sz; result[15] = 1.0f;
         movef R0 [R12+12]
         move R1 R0
         move R0 [R12+24]
@@ -2708,12 +2767,14 @@ mat4_rot_x:
         push R12
         move R12 R13
         sub R13 #32
+; 153:     float a2 = angle_rad * angle_rad;
         movef R0 [R12+12]
         fpush R0
         movef R0 [R12+12]
         fpop R1
         fmul R0 R1 R0
         movef [R12-8] R0
+; 154:     float s = angle_rad - angle_rad*a2*0.166667f + angle_rad*a2*a2*0.00833333f;
         movef R0 [R12+12]
         fpush R0
         movef R0 [R12+12]
@@ -2744,6 +2805,7 @@ mat4_rot_x:
         fpop R1
         fadd R0 R1 R0
         movef [R12-12] R0
+; 155:     float c = 1.0f - a2*0.5f + a2*a2*0.0416667f - a2*a2*a2*0.00138889f;
         movef R0 [flt_96150069]
         fpush R0
         movef R0 [R12-8]
@@ -2782,6 +2844,7 @@ mat4_rot_x:
         fpop R1
         fsub R0 R1 R0
         movef [R12-16] R0
+; 157:     for (i = 0; i < 16; i++) result[i] = 0.0f;
         move R0 #0
         move [R12-20] R0
 sta_96150073:
@@ -2815,6 +2878,7 @@ sta_96150074:
         move R0 R1
         jmp sta_96150073
 sta_96150075:
+; 158:     result[0] = 1.0f;
         movef R0 [flt_96150079]
         move R2 R0
         move R0 [R12+16]
@@ -2824,6 +2888,7 @@ sta_96150075:
         pop R11
         add R0 R11
         movef [R0] R2
+; 159:     result[5] = c;  result[6] = -s;
         movef R0 [R12-16]
         move R1 R0
         move R0 [R12+16]
@@ -2844,6 +2909,7 @@ sta_96150075:
         pop R8
         add R0 R8
         movef [R0] R6
+; 160:     result[9] = s;  result[10] = c;
         movef R0 [R12-12]
         move R5 R0
         move R0 [R12+16]
@@ -2862,6 +2928,7 @@ sta_96150075:
         pop R3
         add R0 R3
         movef [R0] R10
+; 161:     result[15] = 1.0f;
         movef R0 [flt_96150080]
         move R7 R0
         move R0 [R12+16]
@@ -2888,12 +2955,14 @@ mat4_rot_y:
         push R12
         move R12 R13
         sub R13 #32
+; 166:     float a2 = angle_rad * angle_rad;
         movef R0 [R12+12]
         fpush R0
         movef R0 [R12+12]
         fpop R1
         fmul R0 R1 R0
         movef [R12-8] R0
+; 167:     float s = angle_rad - angle_rad*a2*0.166667f + angle_rad*a2*a2*0.00833333f;
         movef R0 [R12+12]
         fpush R0
         movef R0 [R12+12]
@@ -2924,6 +2993,7 @@ mat4_rot_y:
         fpop R1
         fadd R0 R1 R0
         movef [R12-12] R0
+; 168:     float c = 1.0f - a2*0.5f + a2*a2*0.0416667f - a2*a2*a2*0.00138889f;
         movef R0 [flt_96150083]
         fpush R0
         movef R0 [R12-8]
@@ -2962,6 +3032,7 @@ mat4_rot_y:
         fpop R1
         fsub R0 R1 R0
         movef [R12-16] R0
+; 170:     for (i = 0; i < 16; i++) result[i] = 0.0f;
         move R0 #0
         move [R12-20] R0
 sta_96150087:
@@ -2995,6 +3066,7 @@ sta_96150088:
         move R0 R1
         jmp sta_96150087
 sta_96150089:
+; 171:     result[0] = c;   result[2] = s;
         movef R0 [R12-16]
         move R1 R0
         move R0 [R12+16]
@@ -3013,6 +3085,7 @@ sta_96150089:
         pop R4
         add R0 R4
         movef [R0] R6
+; 172:     result[5] = 1.0f;
         movef R0 [flt_96150093]
         move R5 R0
         move R0 [R12+16]
@@ -3022,6 +3095,7 @@ sta_96150089:
         pop R3
         add R0 R3
         movef [R0] R5
+; 173:     result[8] = -s;  result[10] = c;
         movef R0 [R12-12]
         movef R0 [R12-12]
         fneg R0 R0
@@ -3042,6 +3116,7 @@ sta_96150089:
         pop R9
         add R0 R9
         movef [R0] R7
+; 174:     result[15] = 1.0f;
         movef R0 [flt_96150094]
         move R2 R0
         move R0 [R12+16]
@@ -3068,12 +3143,14 @@ mat4_rot_z:
         push R12
         move R12 R13
         sub R13 #32
+; 179:     float a2 = angle_rad * angle_rad;
         movef R0 [R12+12]
         fpush R0
         movef R0 [R12+12]
         fpop R1
         fmul R0 R1 R0
         movef [R12-8] R0
+; 180:     float s = angle_rad - angle_rad*a2*0.166667f + angle_rad*a2*a2*0.00833333f;
         movef R0 [R12+12]
         fpush R0
         movef R0 [R12+12]
@@ -3104,6 +3181,7 @@ mat4_rot_z:
         fpop R1
         fadd R0 R1 R0
         movef [R12-12] R0
+; 181:     float c = 1.0f - a2*0.5f + a2*a2*0.0416667f - a2*a2*a2*0.00138889f;
         movef R0 [flt_96150097]
         fpush R0
         movef R0 [R12-8]
@@ -3142,6 +3220,7 @@ mat4_rot_z:
         fpop R1
         fsub R0 R1 R0
         movef [R12-16] R0
+; 183:     for (i = 0; i < 16; i++) result[i] = 0.0f;
         move R0 #0
         move [R12-20] R0
 sta_96150101:
@@ -3175,6 +3254,7 @@ sta_96150102:
         move R0 R1
         jmp sta_96150101
 sta_96150103:
+; 184:     result[0] = c;  result[1] = -s;
         movef R0 [R12-16]
         move R6 R0
         move R0 [R12+16]
@@ -3195,6 +3275,7 @@ sta_96150103:
         pop R11
         add R0 R11
         movef [R0] R5
+; 185:     result[4] = s;  result[5] = c;
         movef R0 [R12-12]
         move R10 R0
         move R0 [R12+16]
@@ -3213,6 +3294,7 @@ sta_96150103:
         pop R8
         add R0 R8
         movef [R0] R7
+; 186:     result[10] = 1.0f;
         movef R0 [flt_96150107]
         move R2 R0
         move R0 [R12+16]
@@ -3222,6 +3304,7 @@ sta_96150103:
         pop R4
         add R0 R4
         movef [R0] R2
+; 187:     result[15] = 1.0f;
         movef R0 [flt_96150108]
         move R1 R0
         move R0 [R12+16]
@@ -3248,6 +3331,7 @@ mat4_transpose:
         push R12
         move R12 R13
         sub R13 #16
+; 192:     result[0] = a[0];  result[1] = a[4];  result[2] = a[8];   result[3] = a[12];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3308,6 +3392,7 @@ mat4_transpose:
         pop R6
         add R0 R6
         movef [R0] R1
+; 193:     result[4] = a[1];  result[5] = a[5];  result[6] = a[9];   result[7] = a[13];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -3368,6 +3453,7 @@ mat4_transpose:
         pop R5
         add R0 R5
         movef [R0] R1
+; 194:     result[8] = a[2];  result[9] = a[6];  result[10] = a[10]; result[11] = a[14];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -3428,6 +3514,7 @@ mat4_transpose:
         pop R9
         add R0 R9
         movef [R0] R1
+; 195:     result[12]= a[3];  result[13]= a[7];  result[14]= a[11];  result[15]= a[15];
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -3505,6 +3592,7 @@ vec2_dot:
         push R12
         move R12 R13
         sub R13 #16
+; 202:     return a[0]*b[0] + a[1]*b[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3561,6 +3649,7 @@ vec2_cross:
         push R12
         move R12 R13
         sub R13 #16
+; 207:     return a[0]*b[1] - a[1]*b[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3616,6 +3705,7 @@ vec2_len:
         push R12
         move R12 R13
         sub R13 #24
+; 212:     float s = v[0]*v[0] + v[1]*v[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3654,6 +3744,7 @@ vec2_len:
         fpop R1
         fadd R0 R1 R0
         movef [R12-8] R0
+; 213:     if (s <= 0.0f) return 0.0f;
         movef R0 [R12-8]
         fpush R0
         movef R0 [flt_96150113]
@@ -3671,6 +3762,7 @@ _L96150115:
         jmp L_96150117
 sta_96150111:
 sta_96150112:
+; 214:     float g = s * 0.5f + 0.5f;
         movef R0 [R12-8]
         fpush R0
         movef R0 [flt_96150118]
@@ -3681,6 +3773,7 @@ sta_96150112:
         fpop R1
         fadd R0 R1 R0
         movef [R12-12] R0
+; 216:     for (i = 0; i < 10; i++) g = (g + s/g) * 0.5f;
         move R0 #0
         move [R12-16] R0
 sta_96150120:
@@ -3719,6 +3812,7 @@ sta_96150121:
         move R0 R1
         jmp sta_96150120
 sta_96150122:
+; 217:     return g;
         movef R0 [R12-12]
         jmp L_96150117
 L_96150117:
@@ -3738,12 +3832,14 @@ vec2_normalize:
         push R12
         move R12 R13
         sub R13 #16
+; 222:     float len = vec2_len(v);
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
         call vec2_len
         add R13 #4
         movef [R12-8] R0
+; 223:     if (len > 1e-10f) { v[0] /= len; v[1] /= len; }
         movef R0 [R12-8]
         fpush R0
         movef R0 [flt_96150128]
@@ -3797,6 +3893,7 @@ _L96150130:
         movef [R0] R6
 sta_96150126:
 sta_96150127:
+; 224:     return len;
         movef R0 [R12-8]
         jmp L_96150131
 L_96150131:
@@ -3817,6 +3914,7 @@ vec3_dot:
         push R12
         move R12 R13
         sub R13 #16
+; 229:     return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3894,6 +3992,7 @@ vec3_cross:
         push R12
         move R12 R13
         sub R13 #16
+; 234:     result[0] = a[1]*b[2] - a[2]*b[1];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -3939,6 +4038,7 @@ vec3_cross:
         pop R4
         add R0 R4
         movef [R0] R6
+; 235:     result[1] = a[2]*b[0] - a[0]*b[2];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -3984,6 +4084,7 @@ vec3_cross:
         pop R3
         add R0 R3
         movef [R0] R11
+; 236:     result[2] = a[0]*b[1] - a[1]*b[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -4045,6 +4146,7 @@ vec3_len:
         push R12
         move R12 R13
         sub R13 #24
+; 241:     float s = v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -4103,6 +4205,7 @@ vec3_len:
         fpop R1
         fadd R0 R1 R0
         movef [R12-8] R0
+; 242:     if (s <= 0.0f) return 0.0f;
         movef R0 [R12-8]
         fpush R0
         movef R0 [flt_96150135]
@@ -4120,6 +4223,7 @@ _L96150137:
         jmp L_96150139
 sta_96150133:
 sta_96150134:
+; 243:     float g = s * 0.5f + 0.5f;
         movef R0 [R12-8]
         fpush R0
         movef R0 [flt_96150140]
@@ -4130,6 +4234,7 @@ sta_96150134:
         fpop R1
         fadd R0 R1 R0
         movef [R12-12] R0
+; 245:     for (i = 0; i < 10; i++) g = (g + s/g) * 0.5f;
         move R0 #0
         move [R12-16] R0
 sta_96150142:
@@ -4168,6 +4273,7 @@ sta_96150143:
         move R0 R1
         jmp sta_96150142
 sta_96150144:
+; 246:     return g;
         movef R0 [R12-12]
         jmp L_96150139
 L_96150139:
@@ -4187,12 +4293,14 @@ vec3_normalize:
         push R12
         move R12 R13
         sub R13 #16
+; 251:     float len = vec3_len(v);
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
         call vec3_len
         add R13 #4
         movef [R12-8] R0
+; 252:     if (len > 1e-10f) { v[0] /= len; v[1] /= len; v[2] /= len; }
         movef R0 [R12-8]
         fpush R0
         movef R0 [flt_96150150]
@@ -4265,6 +4373,7 @@ _L96150152:
         movef [R0] R7
 sta_96150148:
 sta_96150149:
+; 253:     return len;
         movef R0 [R12-8]
         jmp L_96150153
 L_96150153:
@@ -4287,6 +4396,7 @@ mat4_transform_vec3:
         push R12
         move R12 R13
         sub R13 #32
+; 258:     float x = m[0]*v[0] + m[1]*v[1] + m[2]*v[2]  + m[3];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -4355,6 +4465,7 @@ mat4_transform_vec3:
         fpop R1
         fadd R0 R1 R0
         movef [R12-8] R0
+; 259:     float y = m[4]*v[0] + m[5]*v[1] + m[6]*v[2]  + m[7];
         move R0 [R12+12]
         push R0
         move R0 #4
@@ -4423,6 +4534,7 @@ mat4_transform_vec3:
         fpop R1
         fadd R0 R1 R0
         movef [R12-12] R0
+; 260:     float z = m[8]*v[0] + m[9]*v[1] + m[10]*v[2] + m[11];
         move R0 [R12+12]
         push R0
         move R0 #8
@@ -4491,6 +4603,7 @@ mat4_transform_vec3:
         fpop R1
         fadd R0 R1 R0
         movef [R12-16] R0
+; 261:     float w = m[12]*v[0]+ m[13]*v[1]+ m[14]*v[2] + m[15];
         move R0 [R12+12]
         push R0
         move R0 #12
@@ -4559,6 +4672,7 @@ mat4_transform_vec3:
         fpop R1
         fadd R0 R1 R0
         movef [R12-20] R0
+; 262:     if (w < 1e-10f && w > -1e-10f) w = 1.0f;
         movef R0 [R12-20]
         fpush R0
         movef R0 [flt_96150158]
@@ -4598,6 +4712,7 @@ _L96150157:
         movef [R12-20] R0
 sta_96150154:
 sta_96150155:
+; 263:     result[0] = x / w;
         movef R0 [R12-8]
         fpush R0
         movef R0 [R12-20]
@@ -4611,6 +4726,7 @@ sta_96150155:
         pop R6
         add R0 R6
         movef [R0] R8
+; 264:     result[1] = y / w;
         movef R0 [R12-12]
         fpush R0
         movef R0 [R12-20]
@@ -4624,6 +4740,7 @@ sta_96150155:
         pop R3
         add R0 R3
         movef [R0] R1
+; 265:     result[2] = z / w;
         movef R0 [R12-16]
         fpush R0
         movef R0 [R12-20]

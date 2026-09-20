@@ -16,6 +16,7 @@ set:
         push R12
         move R12 R13
         sub R13 #16
+; 5:     if (n < 0 || n > 31) return value;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -54,6 +55,7 @@ _L78960004:
         jmp L_78960009
 sta_78960000:
 sta_78960001:
+; 6:     return value | (1 << n);
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -84,6 +86,7 @@ clear:
         push R12
         move R12 R13
         sub R13 #16
+; 10:     if (n < 0 || n > 31) return value;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -122,6 +125,7 @@ _L78960014:
         jmp L_78960019
 sta_78960010:
 sta_78960011:
+; 11:     return value & ~(1 << n);
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -153,6 +157,7 @@ toggle:
         push R12
         move R12 R13
         sub R13 #16
+; 15:     if (n < 0 || n > 31) return value;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -191,6 +196,7 @@ _L78960024:
         jmp L_78960029
 sta_78960020:
 sta_78960021:
+; 16:     return value ^ (1 << n);
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -221,6 +227,7 @@ test:
         push R12
         move R12 R13
         sub R13 #16
+; 20:     if (n < 0 || n > 31) return 0;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -259,6 +266,7 @@ _L78960034:
         jmp L_78960039
 sta_78960030:
 sta_78960031:
+; 21:     return (value >> n) & 1;
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -288,8 +296,10 @@ count:
         push R12
         move R12 R13
         sub R13 #16
+; 25:     unsigned int u = (unsigned int)value;
         move R0 [R12+12]
         move [R12-8] R0
+; 26:     u = u - ((u >> 1) & 0x55555555);
         move R0 [R12-8]
         push R0
         move R0 [R12-8]
@@ -307,6 +317,7 @@ count:
         sub R1 R0
         move R0 R1
         move [R12-8] R0
+; 27:     u = (u & 0x33333333) + ((u >> 2) & 0x33333333);
         move R0 [R12-8]
         push R0
         move R0 #858993459
@@ -329,6 +340,7 @@ count:
         add R1 R0
         move R0 R1
         move [R12-8] R0
+; 28:     u = (u + (u >> 4)) & 0x0F0F0F0F;
         move R0 [R12-8]
         push R0
         move R0 [R12-8]
@@ -346,6 +358,7 @@ count:
         and R1 R0
         move R0 R1
         move [R12-8] R0
+; 29:     u = u + (u >> 8);
         move R0 [R12-8]
         push R0
         move R0 [R12-8]
@@ -358,6 +371,7 @@ count:
         add R1 R0
         move R0 R1
         move [R12-8] R0
+; 30:     u = u + (u >> 16);
         move R0 [R12-8]
         push R0
         move R0 [R12-8]
@@ -370,6 +384,7 @@ count:
         add R1 R0
         move R0 R1
         move [R12-8] R0
+; 31:     return u & 0x3F;
         move R0 [R12-8]
         push R0
         move R0 #63
@@ -394,8 +409,10 @@ reverse:
         push R12
         move R12 R13
         sub R13 #16
+; 35:     unsigned int u = (unsigned int)value;
         move R0 [R12+12]
         move [R12-8] R0
+; 36:     u = ((u & 0xAAAAAAAA) >> 1) | ((u & 0x55555555) << 1);
         move R0 [R12-8]
         push R0
         move R0 #-1431655766
@@ -423,6 +440,7 @@ reverse:
         or R1 R0
         move R0 R1
         move [R12-8] R0
+; 37:     u = ((u & 0xCCCCCCCC) >> 2) | ((u & 0x33333333) << 2);
         move R0 [R12-8]
         push R0
         move R0 #-858993460
@@ -450,6 +468,7 @@ reverse:
         or R1 R0
         move R0 R1
         move [R12-8] R0
+; 38:     u = ((u & 0xF0F0F0F0) >> 4) | ((u & 0x0F0F0F0F) << 4);
         move R0 [R12-8]
         push R0
         move R0 #-252645136
@@ -477,6 +496,7 @@ reverse:
         or R1 R0
         move R0 R1
         move [R12-8] R0
+; 39:     u = ((u & 0xFF00FF00) >> 8) | ((u & 0x00FF00FF) << 8);
         move R0 [R12-8]
         push R0
         move R0 #-16711936
@@ -504,6 +524,7 @@ reverse:
         or R1 R0
         move R0 R1
         move [R12-8] R0
+; 40:     return (int)((u >> 16) | (u << 16));
         move R0 [R12-8]
         push R0
         move R0 #16
@@ -539,8 +560,10 @@ rotate_left:
         push R12
         move R12 R13
         sub R13 #16
+; 44:     unsigned int u = (unsigned int)value;
         move R0 [R12+12]
         move [R12-8] R0
+; 45:     n = n & 31;
         move R0 [R12+16]
         push R0
         move R0 #31
@@ -548,6 +571,7 @@ rotate_left:
         and R1 R0
         move R0 R1
         move [R12+16] R0
+; 46:     return (int)((u << n) | (u >> (32 - n)));
         move R0 [R12-8]
         push R0
         move R0 [R12+16]
@@ -588,8 +612,10 @@ rotate_right:
         push R12
         move R12 R13
         sub R13 #16
+; 50:     unsigned int u = (unsigned int)value;
         move R0 [R12+12]
         move [R12-8] R0
+; 51:     n = n & 31;
         move R0 [R12+16]
         push R0
         move R0 #31
@@ -597,6 +623,7 @@ rotate_right:
         and R1 R0
         move R0 R1
         move [R12+16] R0
+; 52:     return (int)((u >> n) | (u << (32 - n)));
         move R0 [R12-8]
         push R0
         move R0 [R12+16]
@@ -636,6 +663,7 @@ lowest_set:
         push R12
         move R12 R13
         sub R13 #16
+; 56:     if (value == 0) return -1;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -655,10 +683,12 @@ _L78960047:
         jmp L_78960048
 sta_78960044:
 sta_78960045:
+; 57:     int pos = 0;
         move R0 #0
         move [R12-8] R0
 sta_78960049:
         move R2 #0
+; 58:     while ((value & 1) == 0) { value >>= 1; pos++; }
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -691,6 +721,7 @@ _L78960052:
         move R0 R1
         jmp sta_78960049
 sta_78960050:
+; 59:     return pos;
         move R0 [R12-8]
         jmp L_78960048
 L_78960048:
@@ -710,6 +741,7 @@ highest_set:
         push R12
         move R12 R13
         sub R13 #24
+; 63:     if (value == 0) return -1;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -729,12 +761,15 @@ _L78960056:
         jmp L_78960057
 sta_78960053:
 sta_78960054:
+; 64:     int pos = 31;
         move R0 #31
         move [R12-8] R0
+; 65:     unsigned int u = (unsigned int)value;
         move R0 [R12+12]
         move [R12-12] R0
 sta_78960058:
         move R2 #0
+; 66:     while ((u & 0x80000000) == 0) { u <<= 1; pos--; }
         move R0 [R12-12]
         push R0
         move R0 #-2147483648
@@ -767,6 +802,7 @@ _L78960061:
         move R0 R1
         jmp sta_78960058
 sta_78960059:
+; 67:     return pos;
         move R0 [R12-8]
         jmp L_78960057
 L_78960057:
@@ -786,6 +822,7 @@ mask:
         push R12
         move R12 R13
         sub R13 #16
+; 71:     if (n <= 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -803,6 +840,7 @@ _L78960065:
         jmp L_78960066
 sta_78960062:
 sta_78960063:
+; 72:     if (n >= 32) return -1;
         move R0 [R12+12]
         push R0
         move R0 #32
@@ -822,6 +860,7 @@ _L78960070:
         jmp L_78960066
 sta_78960067:
 sta_78960068:
+; 73:     return (1 << n) - 1;
         move R0 #1
         push R0
         move R0 [R12+12]
@@ -853,6 +892,7 @@ extract:
         push R12
         move R12 R13
         sub R13 #16
+; 77:     if (start < 0 || len <= 0 || start + len > 32) return 0;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -917,6 +957,7 @@ _L78960075:
         jmp L_78960085
 sta_78960071:
 sta_78960072:
+; 78:     return ((unsigned int)value >> start) & ((1u << len) - 1);
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -959,6 +1000,7 @@ insert:
         push R12
         move R12 R13
         sub R13 #16
+; 82:     if (start < 0 || len <= 0 || start + len > 32) return value;
         move R0 [R12+20]
         push R0
         move R0 #0
@@ -1023,6 +1065,7 @@ _L78960090:
         jmp L_78960100
 sta_78960086:
 sta_78960087:
+; 83:     unsigned int mask = ((1u << len) - 1) << start;
         move R0 #1
         push R0
         move R0 [R12+24]
@@ -1040,6 +1083,7 @@ sta_78960087:
         shl R1 R0
         move R0 R1
         move [R12-8] R0
+; 84:     return (value & ~mask) | ((field & ((1u << len) - 1)) << start);
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -1090,6 +1134,7 @@ is_power_of_two:
         push R12
         move R12 R13
         sub R13 #16
+; 88:     return (x > 0) && ((x & (x - 1)) == 0) ? 1 : 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1157,6 +1202,7 @@ next_power_of_two:
         push R12
         move R12 R13
         sub R13 #16
+; 92:     if (x <= 0) return 1;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1174,6 +1220,7 @@ _L78960113:
         jmp L_78960114
 sta_78960110:
 sta_78960111:
+; 93:     unsigned int u = (unsigned int)x - 1;
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -1181,6 +1228,7 @@ sta_78960111:
         sub R1 R0
         move R0 R1
         move [R12-8] R0
+; 94:     u |= u >> 1; u |= u >> 2; u |= u >> 4;
         move R0 [R12-8]
         push R0
         move R0 [R12-8]
@@ -1217,6 +1265,7 @@ sta_78960111:
         or R1 R0
         move R0 R1
         move [R12-8] R0
+; 95:     u |= u >> 8; u |= u >> 16;
         move R0 [R12-8]
         push R0
         move R0 [R12-8]
@@ -1241,6 +1290,7 @@ sta_78960111:
         or R1 R0
         move R0 R1
         move [R12-8] R0
+; 96:     return (int)(u + 1);
         move R0 [R12-8]
         push R0
         move R0 #1

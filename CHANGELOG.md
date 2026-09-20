@@ -1,3 +1,68 @@
+## v0.96.313 — 手机端 VML 物理剪枝 ＋ `check-vml-patches.sh` 判据换成分家后的模型
+
+分家（v0.96.212）之后该收的两个尾：**产物层分离了、仓库层没有**，以及**常驻判据还停在分家前**。
+
+### 一、`Lib/` 物理剪枝：2653 个文件 / 约 15 MB
+
+「手机端专用」此前只落在**产物**上 —— `scripts/make-vml-lib.sh` 打包时用 `-x` 排掉 8 个
+PC/DOS 模块，文件本身还躺在树里；而整个 `Lib/` 会被打进 `vml_lib.zip`**下发到手机解压**。
+现在把手机端用不到的**文件**直接删掉，并落成一份可复核的声明清单 `third_party/vml/PRUNED.txt`：
+
+| 组 | 内容 | 量 |
+|---|---|---|
+| ① | `Lib/*/Device/**`（MCU 与古董机的外设/寄存器定义：ATmega / STM32 / RP2040 / ESP32 / ZX Spectrum / NES / Sega / Apple II / IBM-PC…，由 `tools/GenDev` 生成）、`Lib/vml/{Device,Bios}/**`（23 个模拟 BIOS 的启动汇编） | 12.7 MB |
+| ② | `Lib/*/ext/**` + `Lib/dynamic/**`（桌面 GPU/GUI 动态库绑定 imgui / opencv / opengl / skia，由 `tools/GenDyn` 生成） | 0.5 MB |
+| ③ | `Lib/shared/backup/**`（陈旧副本）、PC VGA 字库、`Lib/pascal/vga.pas`、PC 专有头、宿主机构建脚本 | 2.2 MB |
+
+`Lib/` **5201 → 2548 个文件**；`vml_lib.zip` **6.49 MB → 2.48 MB**（5282 → 2532 个条目）。
+
+**剪枝前先证「零引用」**：保留模块对这四组没有一条 `.linked`、`vmltool.config.xml` 里没有、
+`Lib/shared/src/*.c` 里没有 `#param`。**`Lib/c/vmlib.h` 有意保留** —— 它是
+`Lib/c/vmdevice.h` 的 `#include` 目标，删了会留悬空 include。
+
+⚠ **桌面端读的是同一份 `Lib/`**（不经过 zip→APK→解压那条链）⇒ 这些能力在桌面 VML 里
+一并没有了。这符合「手机端专用」的定性；`git checkout` 随时能拿回来。已写进 FORK.md。
+
+### 二、`GenLib -A`：签入的 `Lib/shared/*.vml` 出自旧版 GenLib
+
+跑常驻判据时抓出来的：**82 个 `Lib/shared/*.vml` 与当前生成器的产出逐字节不同**，差异
+**全部是新生成的多出 `; <行号>: <源码>` 注释**（`Lib/shared/printf.vml` 另有 5 行 `.linked`
+指向 `uscanf/wprintf/wscanf/wchar/uchar`）。即签入那批是**更早版本的 GenLib** 产的。
+
+按 CLAUDE.md ㉕ 早写下的「下一步」处理 —— 关键是**先 `touch Lib/shared/src/*.c`**：
+`GenLib -b` 的增量判据是「`.vml` 比 `.c` 旧才重编」，而签入的 `.vml` 比 `.c` 新，直接跑会
+**整批跳过、什么都不变**。touch 之后 **4702 行插入、0 行删除**，纯增量。
+
+### 三、`check-vml-patches.sh` 判据重写
+
+**它在改动前就是红的**：干净的 v0.96.312 上 **131 个 ✘、退出码 1** —— 长期当「绿的」看
+是危险的（红得太久就没人看了）。拆开看，49 个来自**已退役的前提**：
+
+| 判据 | 红 | 性质 |
+|---|---|---|
+| ① 七个目录 == vendor+补丁 | 2（`VMLAssembler` / `VMLPrepares`） | 分家后改了源码，按 FORK.md 不再补补丁 ⇒ 前提失效 |
+| ②b 手工侧 == vendor+补丁 | 47（`util.vml`×22 / `syscall.vml`×22 / `modules.json` / `waycoder_ui.h`） | 同上 |
+| ②a 生成物 == 重生成 | 82 | **真陈旧**（见上） |
+
+① / ②b 验的是「rsync 会不会把我们的改动冲掉」，而 `sync.sh` 已随分家删除。现在换成三条
+**分家后仍然有意义**的：
+
+| 判据 | 验什么 | 失败意味着 |
+|---|---|---|
+| ① | `Lib/` 生成物 == 用本仓 GenLib 重生成的结果 | 改了源码/前端/生成器却没重生成 |
+| ② | 剪枝清单 == 磁盘现实（两个方向） | 清单在说谎，或发生了**清单外的意外删除** |
+| ③ | GenLib 不产出的手工文件已被 git 跟踪 | 新写了手工文件却忘了 `git add`（丢了没法重生成） |
+
+**参考系从「vendor 提交」换成「当前 git 索引」** —— 分家后树本身就是真源。
+（文件名里的 `patches` 已成历史遗留；保留旧名是为了不动 FORK.md / docs 里的一堆引用。）
+
+### 判据
+
+`scripts/check-vml-patches.sh` **全绿**（改动前 131 ✘）。桌面自测 **6072 / 6072**
+（与改动前同数，含 `[VML 前端编译器清单]` 的上游漂移护栏 —— `VMLTool/` 未删，护栏仍生效）。
+
+---
+
 ## v0.96.312 — 文字槽收渐变（C 层够得到）＋ 真机验证
 
 v0.96.310/311 把文字渐变做进了引擎与两条离线后端，但 **VML 程序还够不到** ——

@@ -14,6 +14,7 @@ putfloat:
         push R12
         move R12 R13
         sub R13 #16
+; 3:     asm("SYSCALL #8");
         syscall #8
         move [R12-4] R0
         move R13 R12
@@ -31,6 +32,7 @@ getfloat:
         push R12
         move R12 R13
         sub R13 #16
+; 6:     asm("SYSCALL #9");
         syscall #9
         move [R12-4] R0
         move R13 R12
@@ -50,6 +52,7 @@ puthex:
         push R12
         move R12 R13
         sub R13 #16
+; 9:     asm("SYSCALL #10");
         syscall #10
         move [R12-4] R0
         move R13 R12

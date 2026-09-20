@@ -17,6 +17,7 @@ init:
         push R12
         move R12 R13
         sub R13 #16
+; 12:     if (buffer == 0 || state == 0) return;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -54,6 +55,7 @@ _L90750004:
         jmp L_90750009
 sta_90750000:
 sta_90750001:
+; 13:     state[0] = (int)buffer;
         move R0 [R12+12]
         move R11 R0
         move R0 [R12+20]
@@ -63,6 +65,7 @@ sta_90750001:
         pop R10
         add R0 R10
         move [R0] R11
+; 14:     state[1] = size;
         move R0 [R12+16]
         move R9 R0
         move R0 [R12+20]
@@ -72,6 +75,7 @@ sta_90750001:
         pop R8
         add R0 R8
         move [R0] R9
+; 15:     state[2] = 0;  // read_idx
         move R0 #0
         move R7 R0
         move R0 [R12+20]
@@ -81,6 +85,7 @@ sta_90750001:
         pop R6
         add R0 R6
         move [R0] R7
+; 16:     state[3] = 0;  // write_idx
         move R0 #0
         move R5 R0
         move R0 [R12+20]
@@ -108,6 +113,7 @@ write:
         push R12
         move R12 R13
         sub R13 #32
+; 20:     if (state == 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -125,6 +131,7 @@ _L90750013:
         jmp L_90750014
 sta_90750010:
 sta_90750011:
+; 21:     int* buffer = (int*)state[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -133,6 +140,7 @@ sta_90750011:
         add R0 R3
         move R0 [R0]
         move [R12-8] R0
+; 22:     int size = state[1];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -141,6 +149,7 @@ sta_90750011:
         add R0 R2
         move R0 [R0]
         move [R12-12] R0
+; 23:     int write_idx = state[3];
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -149,6 +158,7 @@ sta_90750011:
         add R0 R1
         move R0 [R0]
         move [R12-16] R0
+; 24:     int read_idx = state[2];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -157,6 +167,7 @@ sta_90750011:
         add R0 R10
         move R0 [R0]
         move [R12-20] R0
+; 25:     int mask = size - 1;
         move R0 [R12-12]
         push R0
         move R0 #1
@@ -164,6 +175,7 @@ sta_90750011:
         sub R1 R0
         move R0 R1
         move [R12-24] R0
+; 26:     if (((write_idx + 1) & mask) == (read_idx & mask)) return 0; // full
         move R0 [R12-16]
         push R0
         move R0 #1
@@ -196,6 +208,7 @@ _L90750018:
         jmp L_90750014
 sta_90750015:
 sta_90750016:
+; 27:     buffer[write_idx & mask] = value;
         move R0 [R12+16]
         move R11 R0
         move R0 [R12-8]
@@ -210,6 +223,7 @@ sta_90750016:
         pop R8
         add R0 R8
         move [R0] R11
+; 28:     state[3] = (write_idx + 1) & mask;
         move R0 [R12-16]
         push R0
         move R0 #1
@@ -229,6 +243,7 @@ sta_90750016:
         pop R6
         add R0 R6
         move [R0] R9
+; 29:     return 1;
         move R0 #1
         jmp L_90750014
 L_90750014:
@@ -249,6 +264,7 @@ read:
         push R12
         move R12 R13
         sub R13 #24
+; 33:     if (state == 0 || value == 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -287,6 +303,7 @@ _L90750023:
         jmp L_90750028
 sta_90750019:
 sta_90750020:
+; 34:     int* buffer = (int*)state[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -295,6 +312,7 @@ sta_90750020:
         add R0 R7
         move R0 [R0]
         move [R12-8] R0
+; 35:     int read_idx = state[2];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -303,6 +321,7 @@ sta_90750020:
         add R0 R4
         move R0 [R0]
         move [R12-12] R0
+; 36:     int write_idx = state[3];
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -311,6 +330,7 @@ sta_90750020:
         add R0 R5
         move R0 [R0]
         move [R12-16] R0
+; 37:     if (read_idx == write_idx) return 0; // empty
         move R0 [R12-12]
         push R0
         move R0 [R12-16]
@@ -328,6 +348,7 @@ _L90750032:
         jmp L_90750028
 sta_90750029:
 sta_90750030:
+; 38:     *value = buffer[read_idx & (state[1] - 1)];
         move R0 [R12+16]
         move R3 R0
         move R0 [R12-8]
@@ -354,6 +375,7 @@ sta_90750030:
         add R0 R1
         move R0 [R0]
         move [R3] R0
+; 39:     state[2] = (read_idx + 1) & (state[1] - 1);
         move R0 [R12-12]
         push R0
         move R0 #1
@@ -384,6 +406,7 @@ sta_90750030:
         pop R11
         add R0 R11
         move [R0] R8
+; 40:     return 1;
         move R0 #1
         jmp L_90750028
 L_90750028:
@@ -403,6 +426,7 @@ available:
         push R12
         move R12 R13
         sub R13 #16
+; 44:     if (state == 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -420,6 +444,7 @@ _L90750036:
         jmp L_90750037
 sta_90750033:
 sta_90750034:
+; 45:     int mask = state[1] - 1;
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -433,6 +458,7 @@ sta_90750034:
         sub R1 R0
         move R0 R1
         move [R12-8] R0
+; 46:     return (state[3] - state[2]) & mask;
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -474,6 +500,7 @@ free:
         push R12
         move R12 R13
         sub R13 #16
+; 50:     if (state == 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -491,6 +518,7 @@ _L90750041:
         jmp L_90750042
 sta_90750038:
 sta_90750039:
+; 51:     int mask = state[1] - 1;
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -504,6 +532,7 @@ sta_90750039:
         sub R1 R0
         move R0 R1
         move [R12-8] R0
+; 52:     return state[1] - 1 - ((state[3] - state[2]) & mask);
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -561,6 +590,7 @@ is_empty:
         push R12
         move R12 R13
         sub R13 #16
+; 56:     if (state == 0) return 1;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -578,6 +608,7 @@ _L90750046:
         jmp L_90750047
 sta_90750043:
 sta_90750044:
+; 57:     return state[2] == state[3] ? 1 : 0;
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -626,6 +657,7 @@ is_full:
         push R12
         move R12 R13
         sub R13 #16
+; 61:     if (state == 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -643,6 +675,7 @@ _L90750055:
         jmp L_90750056
 sta_90750052:
 sta_90750053:
+; 62:     int mask = state[1] - 1;
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -656,6 +689,7 @@ sta_90750053:
         sub R1 R0
         move R0 R1
         move [R12-8] R0
+; 63:     return ((state[3] + 1) & mask) == (state[2] & mask) ? 1 : 0;
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -720,6 +754,7 @@ reset:
         push R12
         move R12 R13
         sub R13 #16
+; 67:     if (state == 0) return;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -736,6 +771,7 @@ _L90750064:
         jmp L_90750065
 sta_90750061:
 sta_90750062:
+; 68:     state[2] = 0;
         move R0 #0
         move R9 R0
         move R0 [R12+12]
@@ -745,6 +781,7 @@ sta_90750062:
         pop R7
         add R0 R7
         move [R0] R9
+; 69:     state[3] = 0;
         move R0 #0
         move R4 R0
         move R0 [R12+12]

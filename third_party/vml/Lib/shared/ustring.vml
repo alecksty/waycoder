@@ -15,10 +15,12 @@ ucslen:
         push R12
         move R12 R13
         sub R13 #16
+; 4:     size_t len = 0;
         move R0 #0
         move [R12-8] R0
 sta_3300000:
         move R2 #0
+; 5:     while (s[len] != 0) len++;
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -45,6 +47,7 @@ _L3300003:
         move R0 R1
         jmp sta_3300000
 sta_3300001:
+; 6:     return len;
         move R0 [R12-8]
         jmp L_3300004
 L_3300004:
@@ -67,6 +70,7 @@ ucscmp:
         sub R13 #16
 sta_3300005:
         move R2 #0
+; 9:     while (*a && *a == *b) { a++; b++; }
         move R0 [R12+12]
         move R0 [R0]
         test R0 R0
@@ -105,6 +109,7 @@ _L3300008:
         move R0 R1
         jmp sta_3300005
 sta_3300006:
+; 10:     if (*a == *b) return 0;
         move R0 [R12+12]
         move R0 [R0]
         push R0
@@ -124,6 +129,7 @@ _L3300014:
         jmp L_3300015
 sta_3300011:
 sta_3300012:
+; 11:     return *a < *b ? -1 : 1;
         move R0 [R12+12]
         move R0 [R0]
         push R0
@@ -166,6 +172,7 @@ ucsncmp:
         push R12
         move R12 R13
         sub R13 #16
+; 14:     if (n == 0) return 0;
         move R0 [R12+20]
         push R0
         move R0 #0
@@ -185,6 +192,7 @@ sta_3300020:
 sta_3300021:
 sta_3300025:
         move R2 #0
+; 15:     while (--n && *a && *a == *b) { a++; b++; }
         move R0 [R12+20]
         move R0 [R12+20]
         sub R0 R0 #1
@@ -236,6 +244,7 @@ _L3300028:
         move R0 R1
         jmp sta_3300025
 sta_3300026:
+; 16:     if (*a == *b) return 0;
         move R0 [R12+12]
         move R0 [R0]
         push R0
@@ -255,6 +264,7 @@ _L3300036:
         jmp L_3300024
 sta_3300033:
 sta_3300034:
+; 17:     return *a < *b ? -1 : 1;
         move R0 [R12+12]
         move R0 [R0]
         push R0
@@ -296,10 +306,12 @@ ucscpy:
         push R12
         move R12 R13
         sub R13 #16
+; 20:     char32_t *p = dest;
         move R0 [R12+12]
         move [R12-8] R0
 sta_3300041:
         move R2 #0
+; 21:     while ((*p++ = *src++) != 0);
         move R0 [R12-8]
         move R1 R0
         add R0 R0 #4
@@ -327,6 +339,7 @@ _L3300044:
         jz sta_3300042
         jmp sta_3300041
 sta_3300042:
+; 22:     return dest;
         move R0 [R12+12]
         jmp L_3300045
 L_3300045:
@@ -348,6 +361,7 @@ ucsncpy:
         push R12
         move R12 R13
         sub R13 #16
+; 26:     for (i = 0; i < n && src[i] != 0; i++) dest[i] = src[i];
         move R0 #0
         move [R12-8] R0
 sta_3300046:
@@ -414,6 +428,7 @@ sta_3300047:
         jmp sta_3300046
 sta_3300048:
 sta_3300055:
+; 27:     for (; i < n; i++) dest[i] = 0;
         move R0 [R12-8]
         push R0
         move R0 [R12+20]
@@ -444,6 +459,7 @@ sta_3300056:
         move R0 R1
         jmp sta_3300055
 sta_3300057:
+; 28:     return dest;
         move R0 [R12+12]
         jmp L_3300060
 L_3300060:
@@ -464,10 +480,12 @@ ucscat:
         push R12
         move R12 R13
         sub R13 #16
+; 31:     char32_t *p = dest;
         move R0 [R12+12]
         move [R12-8] R0
 sta_3300061:
         move R2 #0
+; 32:     while (*p) p++;
         move R0 [R12-8]
         move R0 [R0]
         cmp R0 #0
@@ -481,6 +499,7 @@ sta_3300061:
 sta_3300062:
 sta_3300063:
         move R2 #0
+; 33:     while ((*p++ = *src++) != 0);
         move R0 [R12-8]
         move R1 R0
         add R0 R0 #4
@@ -508,6 +527,7 @@ _L3300066:
         jz sta_3300064
         jmp sta_3300063
 sta_3300064:
+; 34:     return dest;
         move R0 [R12+12]
         jmp L_3300067
 L_3300067:
@@ -529,12 +549,14 @@ ucsncat:
         push R12
         move R12 R13
         sub R13 #24
+; 37:     char32_t *p = dest; size_t i = 0;
         move R0 [R12+12]
         move [R12-8] R0
         move R0 #0
         move [R12-12] R0
 sta_3300068:
         move R2 #0
+; 38:     while (*p) p++;
         move R0 [R12-8]
         move R0 [R0]
         cmp R0 #0
@@ -548,6 +570,7 @@ sta_3300068:
 sta_3300069:
 sta_3300070:
         move R2 #0
+; 39:     while (i < n && src[i] != 0) { *p++ = src[i++]; }
         move R0 [R12-12]
         push R0
         move R0 [R12+20]
@@ -607,10 +630,12 @@ _L3300073:
         move [R1] R0
         jmp sta_3300070
 sta_3300071:
+; 40:     *p = 0;
         move R0 [R12-8]
         move R10 R0
         move R0 #0
         move [R10] R0
+; 41:     return dest;
         move R0 [R12+12]
         jmp L_3300078
 L_3300078:
@@ -633,6 +658,7 @@ ucschr:
         sub R13 #16
 sta_3300079:
         move R2 #0
+; 44:     while (*s) { if (*s == c) return (char32_t *)s; s++; }
         move R0 [R12+12]
         move R0 [R0]
         cmp R0 #0
@@ -662,6 +688,7 @@ sta_3300082:
         move R0 R1
         jmp sta_3300079
 sta_3300080:
+; 45:     return c == 0 ? (char32_t *)s : 0;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -699,10 +726,12 @@ ucsrchr:
         push R12
         move R12 R13
         sub R13 #16
+; 48:     const char32_t *last = 0;
         move R0 #0
         move [R12-8] R0
 sta_3300090:
         move R2 #0
+; 49:     while (*s) { if (*s == c) last = s; s++; }
         move R0 [R12+12]
         move R0 [R0]
         cmp R0 #0
@@ -732,6 +761,7 @@ sta_3300093:
         move R0 R1
         jmp sta_3300090
 sta_3300091:
+; 50:     return c == 0 ? (char32_t *)s : (char32_t *)last;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -769,6 +799,7 @@ ucsstr:
         push R12
         move R12 R13
         sub R13 #24
+; 53:     if (*needle == 0) return (char32_t *)haystack;
         move R0 [R12+16]
         move R0 [R0]
         push R0
@@ -789,16 +820,19 @@ sta_3300101:
 sta_3300102:
 sta_3300106:
         move R2 #0
+; 54:     while (*haystack) {
         move R0 [R12+12]
         move R0 [R0]
         cmp R0 #0
         jz sta_3300107
+; 55:         const char32_t *h = haystack, *n = needle;
         move R0 [R12+12]
         move [R12-8] R0
         move R0 [R12+16]
         move [R12-12] R0
 sta_3300108:
         move R2 #0
+; 56:         while (*h && *n && *h == *n) { h++; n++; }
         move R0 [R12-8]
         move R0 [R0]
         test R0 R0
@@ -848,6 +882,7 @@ _L3300111:
         move R0 R1
         jmp sta_3300108
 sta_3300109:
+; 57:         if (*n == 0) return (char32_t *)haystack;
         move R0 [R12-12]
         move R0 [R0]
         push R0
@@ -866,6 +901,7 @@ _L3300119:
         jmp L_3300105
 sta_3300116:
 sta_3300117:
+; 58:         haystack++;
         move R0 [R12+12]
         move R1 R0
         add R0 R0 #4
@@ -873,6 +909,7 @@ sta_3300117:
         move R0 R1
         jmp sta_3300106
 sta_3300107:
+; 60:     return 0;
         move R0 #0
         jmp L_3300105
 L_3300105:
@@ -893,20 +930,24 @@ ucsspn:
         push R12
         move R12 R13
         sub R13 #24
+; 63:     size_t count = 0;
         move R0 #0
         move [R12-8] R0
 sta_3300120:
         move R2 #0
+; 64:     while (*s) {
         move R0 [R12+12]
         move R0 [R0]
         cmp R0 #0
         jz sta_3300121
+; 65:         const char32_t *a = accept; int found = 0;
         move R0 [R12+16]
         move [R12-12] R0
         move R0 #0
         move [R12-16] R0
 sta_3300122:
         move R2 #0
+; 66:         while (*a) { if (*s == *a) { found = 1; break; } a++; }
         move R0 [R12-12]
         move R0 [R0]
         cmp R0 #0
@@ -938,6 +979,7 @@ sta_3300125:
         move R0 R1
         jmp sta_3300122
 sta_3300123:
+; 67:         if (!found) break;
         move R0 [R12-16]
         move R0 [R12-16]
         test R0 R0
@@ -952,6 +994,7 @@ _L3300131:
         jmp sta_3300121
 sta_3300128:
 sta_3300129:
+; 68:         count++; s++;
         move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
@@ -964,6 +1007,7 @@ sta_3300129:
         move R0 R1
         jmp sta_3300120
 sta_3300121:
+; 70:     return count;
         move R0 [R12-8]
         jmp L_3300132
 L_3300132:
@@ -984,18 +1028,22 @@ ucscspn:
         push R12
         move R12 R13
         sub R13 #24
+; 73:     size_t count = 0;
         move R0 #0
         move [R12-8] R0
 sta_3300133:
         move R2 #0
+; 74:     while (*s) {
         move R0 [R12+12]
         move R0 [R0]
         cmp R0 #0
         jz sta_3300134
+; 75:         const char32_t *r = reject;
         move R0 [R12+16]
         move [R12-12] R0
 sta_3300135:
         move R2 #0
+; 76:         while (*r) { if (*s == *r) return count; r++; }
         move R0 [R12-12]
         move R0 [R0]
         cmp R0 #0
@@ -1026,6 +1074,7 @@ sta_3300138:
         move R0 R1
         jmp sta_3300135
 sta_3300136:
+; 77:         count++; s++;
         move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
@@ -1038,6 +1087,7 @@ sta_3300136:
         move R0 R1
         jmp sta_3300133
 sta_3300134:
+; 79:     return count;
         move R0 [R12-8]
         jmp L_3300141
 L_3300141:
@@ -1059,6 +1109,7 @@ umemcpy:
         push R12
         move R12 R13
         sub R13 #16
+; 82:     char32_t *d = dest; while (n--) *d++ = *src++;
         move R0 [R12+12]
         move [R12-8] R0
 sta_3300142:
@@ -1085,6 +1136,7 @@ sta_3300142:
         move [R9] R0
         jmp sta_3300142
 sta_3300143:
+; 83:     return dest;
         move R0 [R12+12]
         jmp L_3300144
 L_3300144:
@@ -1106,6 +1158,7 @@ umemset:
         push R12
         move R12 R13
         sub R13 #16
+; 86:     char32_t *d = dest; while (n--) *d++ = c;
         move R0 [R12+12]
         move [R12-8] R0
 sta_3300145:
@@ -1127,6 +1180,7 @@ sta_3300145:
         move [R8] R0
         jmp sta_3300145
 sta_3300146:
+; 87:     return dest;
         move R0 [R12+12]
         jmp L_3300147
 L_3300147:
@@ -1148,8 +1202,10 @@ umemmove:
         push R12
         move R12 R13
         sub R13 #16
+; 90:     char32_t *d = dest;
         move R0 [R12+12]
         move [R12-8] R0
+; 91:     if (d < src) { while (n--) *d++ = *src++; }
         move R0 [R12-8]
         push R0
         move R0 [R12+16]
@@ -1189,6 +1245,7 @@ sta_3300152:
 sta_3300153:
         jmp sta_3300149
 sta_3300148:
+; 92:     else { d += n; src += n; while (n--) *--d = *--src; }
         move R0 [R12-8]
         push R0
         move R0 [R12+20]
@@ -1228,6 +1285,7 @@ sta_3300154:
         jmp sta_3300154
 sta_3300155:
 sta_3300149:
+; 93:     return dest;
         move R0 [R12+12]
         jmp L_3300156
 L_3300156:
@@ -1252,6 +1310,7 @@ umemcmp:
         sub R13 #16
 sta_3300157:
         move R2 #0
+; 96:     while (n--) {
         move R0 [R12+20]
         move R1 R0
         sub R0 R0 #1
@@ -1259,6 +1318,7 @@ sta_3300157:
         move R0 R1
         cmp R0 #0
         jz sta_3300158
+; 97:         if (*a != *b) { if (*a < *b) return -1; return 1; }
         move R0 [R12+12]
         move R0 [R0]
         push R0
@@ -1299,6 +1359,7 @@ sta_3300164:
         jmp L_3300167
 sta_3300159:
 sta_3300160:
+; 98:         a++; b++;
         move R0 [R12+12]
         move R1 R0
         add R0 R0 #4
@@ -1311,6 +1372,7 @@ sta_3300160:
         move R0 R1
         jmp sta_3300157
 sta_3300158:
+; 100:     return 0;
         move R0 #0
         jmp L_3300167
 L_3300167:

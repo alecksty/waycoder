@@ -15,8 +15,10 @@ crc8:
         push R12
         move R12 R13
         sub R13 #24
+; 6:     unsigned char crc = 0;
         move R0 #0
         moveb [R12-5] R0
+; 8:     for (i = 0; i < len; i++) {
         move R0 #0
         move [R12-12] R0
 sta_87720000:
@@ -33,6 +35,7 @@ _L87720003:
 _L87720004:
         cmp R0 #0
         jz sta_87720002
+; 9:         crc ^= (unsigned char)data[i];
         moveb R0 [R12-5]
         pushb R0
         move R0 [R12+12]
@@ -47,6 +50,7 @@ _L87720004:
         xor R1 R0
         moveb R0 R1
         moveb [R12-5] R0
+; 10:         for (j = 0; j < 8; j++)
         move R0 #0
         move [R12-16] R0
 sta_87720005:
@@ -63,6 +67,7 @@ _L87720008:
 _L87720009:
         cmp R0 #0
         jz sta_87720007
+; 11:             crc = (crc & 0x80) ? (unsigned char)((crc << 1) ^ 0x07) : (unsigned char)(crc << 1);
         moveb R0 [R12-5]
         push R0
         move R0 #128
@@ -108,6 +113,7 @@ sta_87720001:
         move R0 R1
         jmp sta_87720000
 sta_87720002:
+; 13:     return crc;
         moveb R0 [R12-5]
         jmp L_87720012
 L_87720012:
@@ -128,8 +134,10 @@ crc16:
         push R12
         move R12 R13
         sub R13 #24
+; 18:     unsigned short crc = 0;
         move R0 #0
         moveh [R12-6] R0
+; 20:     for (i = 0; i < len; i++) {
         move R0 #0
         move [R12-12] R0
 sta_87720013:
@@ -146,6 +154,7 @@ _L87720016:
 _L87720017:
         cmp R0 #0
         jz sta_87720015
+; 21:         crc ^= (unsigned short)((unsigned char)data[i] << 8);
         moveh R0 [R12-6]
         pushh R0
         move R0 [R12+12]
@@ -165,6 +174,7 @@ _L87720017:
         xor R1 R0
         moveh R0 R1
         moveh [R12-6] R0
+; 22:         for (j = 0; j < 8; j++)
         move R0 #0
         move [R12-16] R0
 sta_87720018:
@@ -181,6 +191,7 @@ _L87720021:
 _L87720022:
         cmp R0 #0
         jz sta_87720020
+; 23:             crc = (crc & 0x8000) ? (unsigned short)((crc << 1) ^ 0x8005) : (unsigned short)(crc << 1);
         moveh R0 [R12-6]
         push R0
         move R0 #32768
@@ -226,6 +237,7 @@ sta_87720014:
         move R0 R1
         jmp sta_87720013
 sta_87720015:
+; 25:     return crc;
         moveh R0 [R12-6]
         jmp L_87720025
 L_87720025:
@@ -246,8 +258,10 @@ crc32:
         push R12
         move R12 R13
         sub R13 #24
+; 30:     unsigned int crc = 0xFFFFFFFF;
         move R0 #-1
         move [R12-8] R0
+; 32:     for (i = 0; i < len; i++) {
         move R0 #0
         move [R12-12] R0
 sta_87720026:
@@ -264,6 +278,7 @@ _L87720029:
 _L87720030:
         cmp R0 #0
         jz sta_87720028
+; 33:         crc ^= (unsigned char)data[i];
         move R0 [R12-8]
         push R0
         move R0 [R12+12]
@@ -278,6 +293,7 @@ _L87720030:
         xor R1 R0
         move R0 R1
         move [R12-8] R0
+; 34:         for (j = 0; j < 8; j++)
         move R0 #0
         move [R12-16] R0
 sta_87720031:
@@ -294,6 +310,7 @@ _L87720034:
 _L87720035:
         cmp R0 #0
         jz sta_87720033
+; 35:             crc = (crc & 1) ? (crc >> 1) ^ 0xEDB88320 : crc >> 1;
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -339,6 +356,7 @@ sta_87720027:
         move R0 R1
         jmp sta_87720026
 sta_87720028:
+; 37:     return (int)(crc ^ 0xFFFFFFFF);
         move R0 [R12-8]
         push R0
         move R0 #-1
@@ -363,10 +381,12 @@ djb2_hash:
         push R12
         move R12 R13
         sub R13 #24
+; 42:     unsigned int hash = 5381;
         move R0 #5381
         move [R12-8] R0
 sta_87720039:
         move R2 #0
+; 44:     while ((c = *str++))
         move R0 [R12+12]
         move R1 R0
         add R0 R0 #1
@@ -377,6 +397,7 @@ sta_87720039:
         move [R12-12] R0
         cmp R0 #0
         jz sta_87720040
+; 45:         hash = ((hash << 5) + hash) + c; // hash * 33 + c
         move R0 [R12-8]
         push R0
         move R0 #5
@@ -396,6 +417,7 @@ sta_87720039:
         move [R12-8] R0
         jmp sta_87720039
 sta_87720040:
+; 46:     return (int)hash;
         move R0 [R12-8]
         jmp L_87720041
 L_87720041:
@@ -415,10 +437,12 @@ sdbm_hash:
         push R12
         move R12 R13
         sub R13 #24
+; 51:     unsigned int hash = 0;
         move R0 #0
         move [R12-8] R0
 sta_87720042:
         move R2 #0
+; 53:     while ((c = *str++))
         move R0 [R12+12]
         move R1 R0
         add R0 R0 #1
@@ -429,6 +453,7 @@ sta_87720042:
         move [R12-12] R0
         cmp R0 #0
         jz sta_87720043
+; 54:         hash = c + (hash << 6) + (hash << 16) - hash;
         move R0 [R12-12]
         push R0
         move R0 [R12-8]
@@ -458,6 +483,7 @@ sta_87720042:
         move [R12-8] R0
         jmp sta_87720042
 sta_87720043:
+; 55:     return (int)hash;
         move R0 [R12-8]
         jmp L_87720044
 L_87720044:
@@ -477,10 +503,12 @@ fnv1a_hash:
         push R12
         move R12 R13
         sub R13 #24
+; 60:     unsigned int hash = 2166136261u;
         move R0 #-2128831035
         move [R12-8] R0
 sta_87720045:
         move R2 #0
+; 62:     while ((c = *str++)) {
         move R0 [R12+12]
         move R1 R0
         add R0 R0 #1
@@ -491,6 +519,7 @@ sta_87720045:
         move [R12-12] R0
         cmp R0 #0
         jz sta_87720046
+; 63:         hash ^= (unsigned char)c;
         move R0 [R12-8]
         push R0
         move R0 [R12-12]
@@ -498,6 +527,7 @@ sta_87720045:
         xor R1 R0
         move R0 R1
         move [R12-8] R0
+; 64:         hash *= 16777619u;
         move R0 [R12-8]
         push R0
         move R0 #16777619
@@ -507,6 +537,7 @@ sta_87720045:
         move [R12-8] R0
         jmp sta_87720045
 sta_87720046:
+; 66:     return (int)hash;
         move R0 [R12-8]
         jmp L_87720047
 L_87720047:
@@ -527,8 +558,10 @@ checksum8:
         push R12
         move R12 R13
         sub R13 #24
+; 71:     unsigned char sum = 0;
         move R0 #0
         moveb [R12-5] R0
+; 73:     for (i = 0; i < len; i++) sum += (unsigned char)data[i];
         move R0 #0
         move [R12-12] R0
 sta_87720048:
@@ -567,6 +600,7 @@ sta_87720049:
         move R0 R1
         jmp sta_87720048
 sta_87720050:
+; 74:     return sum;
         moveb R0 [R12-5]
         jmp L_87720053
 L_87720053:
@@ -588,8 +622,10 @@ checksum16:
         push R12
         move R12 R13
         sub R13 #24
+; 79:     unsigned int sum = 0;
         move R0 #0
         move [R12-8] R0
+; 81:     for (i = 0; i < len - 1; i += 2)
         move R0 #0
         move [R12-12] R0
 sta_87720054:
@@ -611,6 +647,7 @@ _L87720057:
 _L87720058:
         cmp R0 #0
         jz sta_87720056
+; 82:         sum += ((unsigned char)data[i] << 8) | (unsigned char)data[i + 1];
         move R0 [R12-8]
         push R0
         move R0 [R12+12]
@@ -657,6 +694,7 @@ sta_87720055:
         move [R12-12] R0
         jmp sta_87720054
 sta_87720056:
+; 83:     if (len & 1) sum += (unsigned char)data[len - 1] << 8;
         move R0 [R12+16]
         push R0
         move R0 #1
@@ -693,6 +731,7 @@ sta_87720059:
 sta_87720060:
 sta_87720061:
         move R2 #0
+; 84:     while (sum >> 16) sum = (sum & 0xFFFF) + (sum >> 16);
         move R0 [R12-8]
         push R0
         move R0 #16
@@ -720,6 +759,7 @@ sta_87720061:
         move [R12-8] R0
         jmp sta_87720061
 sta_87720062:
+; 85:     return (int)(~sum & 0xFFFF);
         move R0 [R12-8]
         not R0
         push R0

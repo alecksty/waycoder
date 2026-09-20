@@ -1542,13 +1542,18 @@ _gfx_refresh_cache:
         push R12
         move R12 R13
         sub R13 #16
+; 22:     asm("LOAD R0 #1");
         asm "LOAD R0 #1"
+; 23:     asm("SYSCALL 60");
         asm "SYSCALL 60"
+; 24:     asm("STORE R0, _gfx_fb");
         asm "STORE R0, _gfx_fb"
+; 27:     int mode = *(volatile char*)0x6FF0;
         move R0 #28656
         moveb R0 [R0]
         sextb R0 R0
         move [R12-8] R0
+; 28:     if (mode == 0)      { _gfx_w = 80;  _gfx_h = 25;  }
         move R0 [R12-8]
         push R0
         move R0 #0
@@ -1568,6 +1573,7 @@ _L69550003:
         move [_gfx_h] R0
         jmp sta_69550001
 sta_69550000:
+; 29:     else if (mode == 1)  { _gfx_w = 320; _gfx_h = 200; }
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -1587,6 +1593,7 @@ _L69550007:
         move [_gfx_h] R0
         jmp sta_69550005
 sta_69550004:
+; 30:     else if (mode == 2)  { _gfx_w = 640; _gfx_h = 200; }
         move R0 [R12-8]
         push R0
         move R0 #2
@@ -1606,6 +1613,7 @@ _L69550011:
         move [_gfx_h] R0
         jmp sta_69550009
 sta_69550008:
+; 31:     else if (mode == 3)  { _gfx_w = 720; _gfx_h = 400; }
         move R0 [R12-8]
         push R0
         move R0 #3
@@ -1625,6 +1633,7 @@ _L69550015:
         move [_gfx_h] R0
         jmp sta_69550013
 sta_69550012:
+; 32:     else if (mode == 7)  { _gfx_w = 320; _gfx_h = 200; }
         move R0 [R12-8]
         push R0
         move R0 #7
@@ -1644,6 +1653,7 @@ _L69550019:
         move [_gfx_h] R0
         jmp sta_69550017
 sta_69550016:
+; 33:     else if (mode == 8)  { _gfx_w = 640; _gfx_h = 200; }
         move R0 [R12-8]
         push R0
         move R0 #8
@@ -1663,6 +1673,7 @@ _L69550023:
         move [_gfx_h] R0
         jmp sta_69550021
 sta_69550020:
+; 34:     else if (mode == 9)  { _gfx_w = 640; _gfx_h = 350; }
         move R0 [R12-8]
         push R0
         move R0 #9
@@ -1682,6 +1693,7 @@ _L69550027:
         move [_gfx_h] R0
         jmp sta_69550025
 sta_69550024:
+; 35:     else if (mode == 10) { _gfx_w = 640; _gfx_h = 350; }
         move R0 [R12-8]
         push R0
         move R0 #10
@@ -1701,6 +1713,7 @@ _L69550031:
         move [_gfx_h] R0
         jmp sta_69550029
 sta_69550028:
+; 36:     else if (mode == 11) { _gfx_w = 640; _gfx_h = 480; }
         move R0 [R12-8]
         push R0
         move R0 #11
@@ -1720,6 +1733,7 @@ _L69550035:
         move [_gfx_h] R0
         jmp sta_69550033
 sta_69550032:
+; 37:     else if (mode == 12) { _gfx_w = 640; _gfx_h = 480; }
         move R0 [R12-8]
         push R0
         move R0 #12
@@ -1739,6 +1753,7 @@ _L69550039:
         move [_gfx_h] R0
         jmp sta_69550037
 sta_69550036:
+; 38:     else if (mode == 13) { _gfx_w = 320; _gfx_h = 200; }
         move R0 [R12-8]
         push R0
         move R0 #13
@@ -1758,6 +1773,7 @@ _L69550043:
         move [_gfx_h] R0
         jmp sta_69550041
 sta_69550040:
+; 39:     else if (mode == 14) { _gfx_w = 640; _gfx_h = 480; }
         move R0 [R12-8]
         push R0
         move R0 #14
@@ -1777,6 +1793,7 @@ _L69550047:
         move [_gfx_h] R0
         jmp sta_69550045
 sta_69550044:
+; 40:     else if (mode == 15) { _gfx_w = 800; _gfx_h = 600; }
         move R0 [R12-8]
         push R0
         move R0 #15
@@ -1796,6 +1813,7 @@ _L69550051:
         move [_gfx_h] R0
         jmp sta_69550049
 sta_69550048:
+; 41:     else                 { _gfx_w = 320; _gfx_h = 200; }
         move R0 #320
         move [_gfx_w] R0
         move R0 #200
@@ -1829,8 +1847,11 @@ get_config:
         push R12
         move R12 R13
         sub R13 #16
+; 46:     asm("SYSCALL 60");
         asm "SYSCALL 60"
+; 47:     asm("STORE R0, _vml_result_int");
         asm "STORE R0, _vml_result_int"
+; 48:     return _vml_result_int;
         move R0 [_vml_result_int]
         jmp L_69550052
 L_69550052:
@@ -1849,6 +1870,7 @@ gfx_fb:
         push R12
         move R12 R13
         sub R13 #16
+; 50: static int* gfx_fb()     { return (int*)_gfx_fb; }
         move R0 [_gfx_fb]
         jmp L_69550053
 L_69550053:
@@ -1867,6 +1889,7 @@ gfx_w:
         push R12
         move R12 R13
         sub R13 #16
+; 51: static int gfx_w()       { return _gfx_w; }
         move R0 [_gfx_w]
         jmp L_69550054
 L_69550054:
@@ -1885,6 +1908,7 @@ gfx_h:
         push R12
         move R12 R13
         sub R13 #16
+; 52: static int gfx_h()       { return _gfx_h; }
         move R0 [_gfx_h]
         jmp L_69550055
 L_69550055:
@@ -1904,6 +1928,7 @@ gfx_screen:
         push R12
         move R12 R13
         sub R13 #16
+; 59:     if (mode < 0) {
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1917,18 +1942,26 @@ _L69550058:
 _L69550059:
         cmp R0 #0
         jz sta_69550056
+; 62:         return *(volatile char*)0x6FF0;
         move R0 #28656
         moveb R0 [R0]
         sextb R0 R0
         jmp L_69550060
 sta_69550056:
 sta_69550057:
+; 67:     asm("LOAD R4 #28656");       // R4 = VGA_MODE address (0x6FF0)
         asm "LOAD R4 #28656"
+; 68:     asm("LOAD R0 [R12+12]");     // R0 = mode (saved in frame by prologue)
         asm "LOAD R0 [R12+12]"
+; 69:     asm("STOREB R0 [R4]");       // *(volatile char*)0x6FF0 = mode
         asm "STOREB R0 [R4]"
+; 70:     asm("LOAD R0 #1");
         asm "LOAD R0 #1"
+; 71:     asm("STOREB R0 [R4+3]");     // *(volatile char*)0x6FF3 = 1 (mbpp)
         asm "STOREB R0 [R4+3]"
+; 72:     _gfx_refresh_cache();
         call _gfx_refresh_cache
+; 73:     return mode;
         move R0 [R12+12]
         jmp L_69550060
 L_69550060:
@@ -1947,6 +1980,7 @@ gfx_width:
         push R12
         move R12 R13
         sub R13 #16
+; 76: int gfx_width()  { if (_gfx_w <= 0) _gfx_refresh_cache(); return _gfx_w; }
         move R0 [_gfx_w]
         push R0
         move R0 #0
@@ -1981,6 +2015,7 @@ gfx_height:
         push R12
         move R12 R13
         sub R13 #16
+; 77: int gfx_height() { if (_gfx_w <= 0) _gfx_refresh_cache(); return _gfx_h; }
         move R0 [_gfx_w]
         push R0
         move R0 #0
@@ -2015,10 +2050,12 @@ gfx_depth:
         push R12
         move R12 R13
         sub R13 #16
+; 79:     int mode = *(volatile char*)0x6FF0;
         move R0 #28656
         moveb R0 [R0]
         sextb R0 R0
         move [R12-8] R0
+; 81:     if (mode == 0)  return 4;   // text mode, 16 colors
         move R0 [R12-8]
         push R0
         move R0 #0
@@ -2036,6 +2073,7 @@ _L69550074:
         jmp L_69550075
 sta_69550071:
 sta_69550072:
+; 82:     if (mode == 1)  return 2;   // CGA 4-color
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -2053,6 +2091,7 @@ _L69550079:
         jmp L_69550075
 sta_69550076:
 sta_69550077:
+; 83:     if (mode == 2)  return 1;   // 2-color
         move R0 [R12-8]
         push R0
         move R0 #2
@@ -2070,6 +2109,7 @@ _L69550083:
         jmp L_69550075
 sta_69550080:
 sta_69550081:
+; 84:     if (mode == 7)  return 4;   // EGA 16-color
         move R0 [R12-8]
         push R0
         move R0 #7
@@ -2087,6 +2127,7 @@ _L69550087:
         jmp L_69550075
 sta_69550084:
 sta_69550085:
+; 85:     if (mode == 8)  return 4;
         move R0 [R12-8]
         push R0
         move R0 #8
@@ -2104,6 +2145,7 @@ _L69550091:
         jmp L_69550075
 sta_69550088:
 sta_69550089:
+; 86:     if (mode == 9)  return 4;
         move R0 [R12-8]
         push R0
         move R0 #9
@@ -2121,6 +2163,7 @@ _L69550095:
         jmp L_69550075
 sta_69550092:
 sta_69550093:
+; 87:     if (mode == 10) return 2;
         move R0 [R12-8]
         push R0
         move R0 #10
@@ -2138,6 +2181,7 @@ _L69550099:
         jmp L_69550075
 sta_69550096:
 sta_69550097:
+; 88:     if (mode == 11) return 1;
         move R0 [R12-8]
         push R0
         move R0 #11
@@ -2155,6 +2199,7 @@ _L69550103:
         jmp L_69550075
 sta_69550100:
 sta_69550101:
+; 89:     if (mode == 12) return 4;
         move R0 [R12-8]
         push R0
         move R0 #12
@@ -2172,6 +2217,7 @@ _L69550107:
         jmp L_69550075
 sta_69550104:
 sta_69550105:
+; 90:     if (mode == 13) return 8;   // VGA 256-color
         move R0 [R12-8]
         push R0
         move R0 #13
@@ -2189,6 +2235,7 @@ _L69550111:
         jmp L_69550075
 sta_69550108:
 sta_69550109:
+; 91:     if (mode == 14) return 8;
         move R0 [R12-8]
         push R0
         move R0 #14
@@ -2206,6 +2253,7 @@ _L69550115:
         jmp L_69550075
 sta_69550112:
 sta_69550113:
+; 92:     if (mode == 15) return 8;
         move R0 [R12-8]
         push R0
         move R0 #15
@@ -2223,6 +2271,7 @@ _L69550119:
         jmp L_69550075
 sta_69550116:
 sta_69550117:
+; 93:     return 1; // default
         move R0 #1
         jmp L_69550075
 L_69550075:
@@ -2245,19 +2294,33 @@ gfx_palette:
         push R12
         move R12 R13
         sub R13 #16
+; 100:     asm("PUSH R4");
         asm "PUSH R4"
+; 101:     asm("PUSH R5");
         asm "PUSH R5"
+; 102:     asm("LOAD R4 [R12+12]");     // R4 = index (R0)
         asm "LOAD R4 [R12+12]"
+; 103:     asm("MUL R4 3");             // R4 = index * 3
         asm "MUL R4 3"
+; 104:     asm("LOAD R5 #30720");       // R5 = 0x7800 (256-col palette base)
         asm "LOAD R5 #30720"
+; 105:     asm("ADD R4 R5");            // R4 = 0x7800 + index*3
         asm "ADD R4 R5"
+; 106:     asm("LOAD R5 [R12+16]");     // R5 = r (R1)
         asm "LOAD R5 [R12+16]"
+; 107:     asm("STOREB R5 [R4]");       // palette[index].r = r
         asm "STOREB R5 [R4]"
+; 108:     asm("LOAD R5 [R12+20]");     // R5 = g (R2)
         asm "LOAD R5 [R12+20]"
+; 109:     asm("STOREB R5 [R4+1]");     // palette[index].g = g
         asm "STOREB R5 [R4+1]"
+; 110:     asm("LOAD R5 [R12+24]");     // R5 = b (R3)
         asm "LOAD R5 [R12+24]"
+; 111:     asm("STOREB R5 [R4+2]");     // palette[index].b = b
         asm "STOREB R5 [R4+2]"
+; 112:     asm("POP R5");
         asm "POP R5"
+; 113:     asm("POP R4");
         asm "POP R4"
         move R13 R12
         pop R12
@@ -2275,16 +2338,27 @@ gfx_palette_get:
         push R12
         move R12 R13
         sub R13 #16
+; 117:     asm("LOAD R4 [R12+12]");     // R4 = index (R0)
         asm "LOAD R4 [R12+12]"
+; 118:     asm("MUL R4 3");             // R4 = index * 3
         asm "MUL R4 3"
+; 119:     asm("LOAD R5 #30720");       // R5 = 0x7800
         asm "LOAD R5 #30720"
+; 120:     asm("ADD R4 R5");            // R4 = 0x7800 + index*3
         asm "ADD R4 R5"
+; 121:     asm("LOADB R5 [R4]");        // R5 = r
         asm "LOADB R5 [R4]"
+; 122:     asm("STORE R5, _vml_result_int");
         asm "STORE R5, _vml_result_int"
+; 123:     asm("LOADB R5 [R4+1]");      // R5 = g
         asm "LOADB R5 [R4+1]"
+; 124:     asm("STORE R5, _vml_result_int");
         asm "STORE R5, _vml_result_int"
+; 125:     asm("LOADB R5 [R4+2]");      // R5 = b
         asm "LOADB R5 [R4+2]"
+; 126:     asm("STORE R5, _vml_result_int");
         asm "STORE R5, _vml_result_int"
+; 127:     return _vml_result_int;      // returns b (last stored), sufficient for most uses
         move R0 [_vml_result_int]
         jmp L_69550120
 L_69550120:
@@ -2306,6 +2380,7 @@ _putpixel:
         push R12
         move R12 R13
         sub R13 #16
+; 132:     if (_gfx_w <= 0) _gfx_refresh_cache();
         move R0 [_gfx_w]
         push R0
         move R0 #0
@@ -2322,6 +2397,7 @@ _L69550124:
         call _gfx_refresh_cache
 sta_69550121:
 sta_69550122:
+; 133:     if (x < 0 || x >= _gfx_w || y < 0 || y >= _gfx_h) return;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -2401,16 +2477,27 @@ _L69550129:
         jmp L_69550144
 sta_69550125:
 sta_69550126:
+; 137:     asm("STORE R4, _vml_result_int");  // save caller's R4
         asm "STORE R4, _vml_result_int"
+; 138:     asm("LOAD R4 [R12+16]");     // R4 = y param
         asm "LOAD R4 [R12+16]"
+; 139:     asm("LOAD R0 [_gfx_w]");     // R0 = _gfx_w
         asm "LOAD R0 [_gfx_w]"
+; 140:     asm("MUL R4 R0");            // R4 = y * _gfx_w
         asm "MUL R4 R0"
+; 141:     asm("LOAD R0 [R12+12]");     // R0 = x param
         asm "LOAD R0 [R12+12]"
+; 142:     asm("ADD R4 R0");            // R4 = y * _gfx_w + x
         asm "ADD R4 R0"
+; 143:     asm("LOAD R0 [_gfx_fb]");   // R0 = _gfx_fb
         asm "LOAD R0 [_gfx_fb]"
+; 144:     asm("ADD R4 R0");            // R4 = _gfx_fb + y * _gfx_w + x
         asm "ADD R4 R0"
+; 145:     asm("LOAD R0 [R12+20]");     // R0 = color param
         asm "LOAD R0 [R12+20]"
+; 146:     asm("STOREB R0 [R4]");       // write pixel
         asm "STOREB R0 [R4]"
+; 147:     asm("LOAD R4, _vml_result_int");   // restore caller's R4
         asm "LOAD R4, _vml_result_int"
 L_69550144:
         move R13 R12
@@ -2430,6 +2517,7 @@ _getpixel:
         push R12
         move R12 R13
         sub R13 #16
+; 150:     if (_gfx_w <= 0) _gfx_refresh_cache();
         move R0 [_gfx_w]
         push R0
         move R0 #0
@@ -2446,6 +2534,7 @@ _L69550148:
         call _gfx_refresh_cache
 sta_69550145:
 sta_69550146:
+; 151:     if (x < 0 || x >= _gfx_w || y < 0 || y >= _gfx_h) return -1;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -2528,15 +2617,25 @@ _L69550153:
         jmp L_69550168
 sta_69550149:
 sta_69550150:
+; 153:     asm("STORE R4, _vml_result_int");  // save caller's R4
         asm "STORE R4, _vml_result_int"
+; 154:     asm("LOAD R4 [R12+16]");     // R4 = y param
         asm "LOAD R4 [R12+16]"
+; 155:     asm("LOAD R0 [_gfx_w]");     // R0 = _gfx_w
         asm "LOAD R0 [_gfx_w]"
+; 156:     asm("MUL R4 R0");            // R4 = y * _gfx_w
         asm "MUL R4 R0"
+; 157:     asm("LOAD R0 [R12+12]");     // R0 = x param
         asm "LOAD R0 [R12+12]"
+; 158:     asm("ADD R4 R0");            // R4 = y * _gfx_w + x
         asm "ADD R4 R0"
+; 159:     asm("LOAD R0 [_gfx_fb]");   // R0 = _gfx_fb
         asm "LOAD R0 [_gfx_fb]"
+; 160:     asm("ADD R4 R0");            // R4 = _gfx_fb + y * _gfx_w + x
         asm "ADD R4 R0"
+; 161:     asm("LOADB R0 [R4]");        // read pixel into R0 (return value)
         asm "LOADB R0 [R4]"
+; 162:     asm("LOAD R4, _vml_result_int");   // restore caller's R4
         asm "LOAD R4, _vml_result_int"
 L_69550168:
         move R13 R12
@@ -2557,6 +2656,7 @@ gfx_pset:
         push R12
         move R12 R13
         sub R13 #16
+; 165:     _putpixel(x, y, color);
         move R0 [R12+20]
         push R0
         move R0 [R12+16]
@@ -2585,6 +2685,7 @@ gfx_point:
         push R12
         move R12 R13
         sub R13 #16
+; 168:     return _getpixel(x, y);
         move R0 [R12+16]
         push R0
         move R0 [R12+12]
@@ -2610,6 +2711,7 @@ gfx_cls:
         push R12
         move R12 R13
         sub R13 #16
+; 172:     gfx_cls_color(0);
         move R0 #0
         push R0
         move R0 [R13+0]
@@ -2631,6 +2733,7 @@ gfx_cls_color:
         push R12
         move R12 R13
         sub R13 #24
+; 175:     if (_gfx_w <= 0) _gfx_refresh_cache();
         move R0 [_gfx_w]
         push R0
         move R0 #0
@@ -2647,6 +2750,7 @@ _L69550173:
         call _gfx_refresh_cache
 sta_69550170:
 sta_69550171:
+; 176:     int total = _gfx_w * _gfx_h;
         move R0 [_gfx_w]
         push R0
         move R0 [_gfx_h]
@@ -2654,6 +2758,7 @@ sta_69550171:
         mul R1 R0
         move R0 R1
         move [R12-8] R0
+; 178:     for (i = 0; i < total; i++) {
         move R0 #0
         move [R12-12] R0
 sta_69550174:
@@ -2670,6 +2775,7 @@ _L69550177:
 _L69550178:
         cmp R0 #0
         jz sta_69550176
+; 179:         _putpixel_fast(i, color);
         move R0 [R12+12]
         push R0
         move R0 [R12-12]
@@ -2703,14 +2809,23 @@ _putpixel_fast:
         push R12
         move R12 R13
         sub R13 #16
+; 185:     asm("PUSH R4");
         asm "PUSH R4"
+; 186:     asm("PUSH R5");
         asm "PUSH R5"
+; 187:     asm("LOAD R4 [_gfx_fb]");    // R4 = framebuffer base
         asm "LOAD R4 [_gfx_fb]"
+; 188:     asm("LOAD R5 [R12+12]");     // R5 = offset (1st param = R0)
         asm "LOAD R5 [R12+12]"
+; 189:     asm("ADD R4 R5");            // R4 = fb + offset
         asm "ADD R4 R5"
+; 190:     asm("LOAD R5 [R12+16]");     // R5 = color (2nd param = R1)
         asm "LOAD R5 [R12+16]"
+; 191:     asm("STOREB R5 [R4]");       // write pixel
         asm "STOREB R5 [R4]"
+; 192:     asm("POP R5");
         asm "POP R5"
+; 193:     asm("POP R4");
         asm "POP R4"
         move R13 R12
         pop R12
@@ -2732,9 +2847,12 @@ gfx_line:
         push R12
         move R12 R13
         sub R13 #40
+; 200:     asm("STORE R4, _vml_result_int");
         asm "STORE R4, _vml_result_int"
+; 201:     color = _vml_result_int;
         move R0 [_vml_result_int]
         move [R12+28] R0
+; 202:     dx = x2 - x1;
         move R0 [R12+20]
         push R0
         move R0 [R12+12]
@@ -2742,6 +2860,7 @@ gfx_line:
         sub R1 R0
         move R0 R1
         move [R12-8] R0
+; 203:     if (dx < 0) dx = -dx;
         move R0 [R12-8]
         push R0
         move R0 #0
@@ -2761,6 +2880,7 @@ _L69550182:
         move [R12-8] R0
 sta_69550179:
 sta_69550180:
+; 204:     dy = y2 - y1;
         move R0 [R12+24]
         push R0
         move R0 [R12+16]
@@ -2768,6 +2888,7 @@ sta_69550180:
         sub R1 R0
         move R0 R1
         move [R12-12] R0
+; 205:     if (dy < 0) dy = -dy;
         move R0 [R12-12]
         push R0
         move R0 #0
@@ -2787,6 +2908,7 @@ _L69550186:
         move [R12-12] R0
 sta_69550183:
 sta_69550184:
+; 206:     sx = (x1 < x2) ? 1 : -1;
         move R0 [R12+12]
         push R0
         move R0 [R12+20]
@@ -2808,6 +2930,7 @@ _L69550189:
         neg R0 R0
 _L69550190:
         move [R12-16] R0
+; 207:     sy = (y1 < y2) ? 1 : -1;
         move R0 [R12+16]
         push R0
         move R0 [R12+24]
@@ -2829,6 +2952,7 @@ _L69550193:
         neg R0 R0
 _L69550194:
         move [R12-20] R0
+; 208:     err = dx - dy;
         move R0 [R12-8]
         push R0
         move R0 [R12-12]
@@ -2838,9 +2962,11 @@ _L69550194:
         move [R12-24] R0
 sta_69550195:
         move R2 #0
+; 209:     while (1) {
         move R0 #1
         cmp R0 #0
         jz sta_69550196
+; 210:         _putpixel(x1, y1, color);
         move R0 [R12+28]
         push R0
         move R0 [R12+16]
@@ -2852,6 +2978,7 @@ sta_69550195:
         move R2 [R13+8]
         call _putpixel
         add R13 #12
+; 211:         if (x1 == x2 && y1 == y2) break;
         move R0 [R12+12]
         push R0
         move R0 [R12+20]
@@ -2888,6 +3015,7 @@ _L69550200:
         jmp sta_69550196
 sta_69550197:
 sta_69550198:
+; 212:         e2 = 2 * err;
         move R0 #2
         push R0
         move R0 [R12-24]
@@ -2895,6 +3023,7 @@ sta_69550198:
         mul R1 R0
         move R0 R1
         move [R12-28] R0
+; 213:         if (e2 > -dy) {
         move R0 [R12-28]
         push R0
         move R0 [R12-12]
@@ -2910,6 +3039,7 @@ _L69550207:
 _L69550208:
         cmp R0 #0
         jz sta_69550205
+; 214:             err = err - dy;
         move R0 [R12-24]
         push R0
         move R0 [R12-12]
@@ -2917,6 +3047,7 @@ _L69550208:
         sub R1 R0
         move R0 R1
         move [R12-24] R0
+; 215:             x1 = x1 + sx;
         move R0 [R12+12]
         push R0
         move R0 [R12-16]
@@ -2926,6 +3057,7 @@ _L69550208:
         move [R12+12] R0
 sta_69550205:
 sta_69550206:
+; 217:         if (e2 < dx) {
         move R0 [R12-28]
         push R0
         move R0 [R12-8]
@@ -2939,6 +3071,7 @@ _L69550211:
 _L69550212:
         cmp R0 #0
         jz sta_69550209
+; 218:             err = err + dx;
         move R0 [R12-24]
         push R0
         move R0 [R12-8]
@@ -2946,6 +3079,7 @@ _L69550212:
         add R1 R0
         move R0 R1
         move [R12-24] R0
+; 219:             y1 = y1 + sy;
         move R0 [R12+16]
         push R0
         move R0 [R12-20]
@@ -2977,6 +3111,7 @@ gfx_rect:
         push R12
         move R12 R13
         sub R13 #16
+; 225:     gfx_line(x1, y1, x2, y1, color);
         move R0 [R12+28]
         push R0
         move R0 [R12+16]
@@ -2993,6 +3128,7 @@ gfx_rect:
         move R3 [R13+12]
         call gfx_line
         add R13 #20
+; 226:     gfx_line(x2, y1, x2, y2, color);
         move R0 [R12+28]
         push R0
         move R0 [R12+24]
@@ -3009,6 +3145,7 @@ gfx_rect:
         move R3 [R13+12]
         call gfx_line
         add R13 #20
+; 227:     gfx_line(x2, y2, x1, y2, color);
         move R0 [R12+28]
         push R0
         move R0 [R12+24]
@@ -3025,6 +3162,7 @@ gfx_rect:
         move R3 [R13+12]
         call gfx_line
         add R13 #20
+; 228:     gfx_line(x1, y2, x1, y1, color);
         move R0 [R12+28]
         push R0
         move R0 [R12+16]
@@ -3061,6 +3199,7 @@ gfx_rect_fill:
         push R12
         move R12 R13
         sub R13 #24
+; 232:     if (x1 > x2) { tmp = x1; x1 = x2; x2 = tmp; }
         move R0 [R12+12]
         push R0
         move R0 [R12+20]
@@ -3082,6 +3221,7 @@ _L69550216:
         move [R12+20] R0
 sta_69550213:
 sta_69550214:
+; 233:     if (y1 > y2) { tmp = y1; y1 = y2; y2 = tmp; }
         move R0 [R12+16]
         push R0
         move R0 [R12+24]
@@ -3103,6 +3243,7 @@ _L69550220:
         move [R12+24] R0
 sta_69550217:
 sta_69550218:
+; 234:     for (y = y1; y <= y2; y++) {
         move R0 [R12+16]
         move [R12-12] R0
 sta_69550221:
@@ -3119,6 +3260,7 @@ _L69550224:
 _L69550225:
         cmp R0 #0
         jz sta_69550223
+; 235:         for (x = x1; x <= x2; x++) {
         move R0 [R12+12]
         move [R12-8] R0
 sta_69550226:
@@ -3135,6 +3277,7 @@ _L69550229:
 _L69550230:
         cmp R0 #0
         jz sta_69550228
+; 236:             _putpixel(x, y, color);
         move R0 [R12+28]
         push R0
         move R0 [R12-12]
@@ -3181,10 +3324,13 @@ gfx_circle:
         push R12
         move R12 R13
         sub R13 #32
+; 242:     volatile int x = 0;
         move R0 #0
         move [R12-8] R0
+; 243:     volatile int y = r;
         move R0 [R12+20]
         move [R12-12] R0
+; 244:     volatile int d = 3 - 2 * r;
         move R0 #3
         push R0
         move R0 #2
@@ -3199,6 +3345,7 @@ gfx_circle:
         move [R12-16] R0
 sta_69550231:
         move R2 #0
+; 245:     while (y >= x) {
         move R0 [R12-12]
         push R0
         move R0 [R12-8]
@@ -3212,6 +3359,7 @@ _L69550233:
 _L69550234:
         cmp R0 #0
         jz sta_69550232
+; 247:         px = cx + x; py = cy + y; _putpixel(px, py, color);
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -3237,6 +3385,7 @@ _L69550234:
         move R2 [R13+8]
         call _putpixel
         add R13 #12
+; 248:         px = cx - x; py = cy + y; _putpixel(px, py, color);
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -3262,6 +3411,7 @@ _L69550234:
         move R2 [R13+8]
         call _putpixel
         add R13 #12
+; 249:         px = cx + x; py = cy - y; _putpixel(px, py, color);
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -3287,6 +3437,7 @@ _L69550234:
         move R2 [R13+8]
         call _putpixel
         add R13 #12
+; 250:         px = cx - x; py = cy - y; _putpixel(px, py, color);
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -3312,36 +3463,12 @@ _L69550234:
         move R2 [R13+8]
         call _putpixel
         add R13 #12
+; 251:         px = cx + y; py = cy + x; _putpixel(px, py, color);
         move R0 [R12+12]
         push R0
         move R0 [R12-12]
         pop R1
         add R1 R0
-        move R0 R1
-        move [R12-20] R0
-        move R0 [R12+16]
-        push R0
-        move R0 [R12-8]
-        pop R1
-        add R1 R0
-        move R0 R1
-        move [R12-24] R0
-        move R0 [R12+24]
-        push R0
-        move R0 [R12-24]
-        push R0
-        move R0 [R12-20]
-        push R0
-        move R0 [R13+0]
-        move R1 [R13+4]
-        move R2 [R13+8]
-        call _putpixel
-        add R13 #12
-        move R0 [R12+12]
-        push R0
-        move R0 [R12-12]
-        pop R1
-        sub R1 R0
         move R0 R1
         move [R12-20] R0
         move R0 [R12+16]
@@ -3362,6 +3489,33 @@ _L69550234:
         move R2 [R13+8]
         call _putpixel
         add R13 #12
+; 252:         px = cx - y; py = cy + x; _putpixel(px, py, color);
+        move R0 [R12+12]
+        push R0
+        move R0 [R12-12]
+        pop R1
+        sub R1 R0
+        move R0 R1
+        move [R12-20] R0
+        move R0 [R12+16]
+        push R0
+        move R0 [R12-8]
+        pop R1
+        add R1 R0
+        move R0 R1
+        move [R12-24] R0
+        move R0 [R12+24]
+        push R0
+        move R0 [R12-24]
+        push R0
+        move R0 [R12-20]
+        push R0
+        move R0 [R13+0]
+        move R1 [R13+4]
+        move R2 [R13+8]
+        call _putpixel
+        add R13 #12
+; 253:         px = cx + y; py = cy - x; _putpixel(px, py, color);
         move R0 [R12+12]
         push R0
         move R0 [R12-12]
@@ -3387,6 +3541,7 @@ _L69550234:
         move R2 [R13+8]
         call _putpixel
         add R13 #12
+; 254:         px = cx - y; py = cy - x; _putpixel(px, py, color);
         move R0 [R12+12]
         push R0
         move R0 [R12-12]
@@ -3412,6 +3567,7 @@ _L69550234:
         move R2 [R13+8]
         call _putpixel
         add R13 #12
+; 255:         x = x + 1;
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -3419,6 +3575,7 @@ _L69550234:
         add R1 R0
         move R0 R1
         move [R12-8] R0
+; 256:         if (d > 0) {
         move R0 [R12-16]
         push R0
         move R0 #0
@@ -3432,6 +3589,7 @@ _L69550237:
 _L69550238:
         cmp R0 #0
         jz sta_69550235
+; 257:             y = y - 1;
         move R0 [R12-12]
         push R0
         move R0 #1
@@ -3439,6 +3597,7 @@ _L69550238:
         sub R1 R0
         move R0 R1
         move [R12-12] R0
+; 258:             d = d + 4 * (x - y) + 10;
         move R0 [R12-16]
         push R0
         move R0 #4
@@ -3463,6 +3622,7 @@ _L69550238:
         move [R12-16] R0
         jmp sta_69550236
 sta_69550235:
+; 260:             d = d + 4 * x + 6;
         move R0 [R12-16]
         push R0
         move R0 #4
@@ -3502,10 +3662,13 @@ gfx_circle_fill:
         push R12
         move R12 R13
         sub R13 #32
+; 265:     int x = 0;
         move R0 #0
         move [R12-8] R0
+; 266:     int y = r;
         move R0 [R12+20]
         move [R12-12] R0
+; 267:     int d = 3 - 2 * r;
         move R0 #3
         push R0
         move R0 #2
@@ -3520,6 +3683,7 @@ gfx_circle_fill:
         move [R12-16] R0
 sta_69550239:
         move R2 #0
+; 268:     while (y >= x) {
         move R0 [R12-12]
         push R0
         move R0 [R12-8]
@@ -3533,6 +3697,7 @@ _L69550241:
 _L69550242:
         cmp R0 #0
         jz sta_69550240
+; 270:         i = cx - x;
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -3542,6 +3707,7 @@ _L69550242:
         move [R12-20] R0
 sta_69550243:
         move R2 #0
+; 271:         while (i <= cx + x) { _putpixel(i, cy + y, color); _putpixel(i, cy - y, color); i = i + 1; }
         move R0 [R12-20]
         push R0
         move R0 [R12+12]
@@ -3601,6 +3767,7 @@ _L69550246:
         move [R12-20] R0
         jmp sta_69550243
 sta_69550244:
+; 272:         i = cx - y;
         move R0 [R12+12]
         push R0
         move R0 [R12-12]
@@ -3610,6 +3777,7 @@ sta_69550244:
         move [R12-20] R0
 sta_69550247:
         move R2 #0
+; 273:         while (i <= cx + y) { _putpixel(i, cy + x, color); _putpixel(i, cy - x, color); i = i + 1; }
         move R0 [R12-20]
         push R0
         move R0 [R12+12]
@@ -3669,6 +3837,7 @@ _L69550250:
         move [R12-20] R0
         jmp sta_69550247
 sta_69550248:
+; 274:         x = x + 1;
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -3676,6 +3845,7 @@ sta_69550248:
         add R1 R0
         move R0 R1
         move [R12-8] R0
+; 275:         if (d > 0) { y = y - 1; d = d + 4 * (x - y) + 10; }
         move R0 [R12-16]
         push R0
         move R0 #0
@@ -3720,6 +3890,7 @@ _L69550254:
         move [R12-16] R0
         jmp sta_69550252
 sta_69550251:
+; 276:         else { d = d + 4 * x + 6; }
         move R0 [R12-16]
         push R0
         move R0 #4
@@ -3761,6 +3932,7 @@ gfx_arc:
         push R12
         move R12 R13
         sub R13 #56
+; 284:     if (start_angle > end_angle) { int tmp = start_angle; start_angle = end_angle; end_angle = tmp; }
         move R0 [R12+24]
         push R0
         move R0 [R12+28]
@@ -3782,6 +3954,7 @@ _L69550258:
         move [R12+28] R0
 sta_69550255:
 sta_69550256:
+; 285:     int prev_x = -1, prev_y = -1;
         move R0 #1
         move R0 #1
         neg R0 R0
@@ -3790,6 +3963,7 @@ sta_69550256:
         move R0 #1
         neg R0 R0
         move [R12-20] R0
+; 286:     for (a = start_angle; a <= end_angle; a++) {
         move R0 [R12+24]
         move [R12-8] R0
 sta_69550259:
@@ -3806,6 +3980,7 @@ _L69550262:
 _L69550263:
         cmp R0 #0
         jz sta_69550261
+; 291:         int rad = (a * 1144) / 65536;  // rough deg->rad (not accurate but functional)
         move R0 [R12-8]
         push R0
         move R0 #1144
@@ -3818,6 +3993,7 @@ _L69550263:
         div R1 R0
         move R0 R1
         move [R12-24] R0
+; 295:         int angle = a % 360;
         move R0 [R12-8]
         push R0
         move R0 #360
@@ -3825,6 +4001,7 @@ _L69550263:
         mod R1 R0
         move R0 R1
         move [R12-28] R0
+; 298:         if (angle <= 90) {
         move R0 [R12-28]
         push R0
         move R0 #90
@@ -3838,6 +4015,7 @@ _L69550266:
 _L69550267:
         cmp R0 #0
         jz sta_69550264
+; 299:             sx = (90 - angle) * r / 90;
         move R0 #90
         push R0
         move R0 [R12-28]
@@ -3855,6 +4033,7 @@ _L69550267:
         div R1 R0
         move R0 R1
         move [R12-32] R0
+; 300:             sy = angle * r / 90;
         move R0 [R12-28]
         push R0
         move R0 [R12+20]
@@ -3869,6 +4048,7 @@ _L69550267:
         move [R12-36] R0
         jmp sta_69550265
 sta_69550264:
+; 301:         } else if (angle <= 180) {
         move R0 [R12-28]
         push R0
         move R0 #180
@@ -3882,6 +4062,7 @@ _L69550270:
 _L69550271:
         cmp R0 #0
         jz sta_69550268
+; 302:             sx = -(angle - 90) * r / 90;
         move R0 [R12-28]
         push R0
         move R0 #90
@@ -3906,6 +4087,7 @@ _L69550271:
         div R1 R0
         move R0 R1
         move [R12-32] R0
+; 303:             sy = (180 - angle) * r / 90;
         move R0 #180
         push R0
         move R0 [R12-28]
@@ -3925,6 +4107,7 @@ _L69550271:
         move [R12-36] R0
         jmp sta_69550269
 sta_69550268:
+; 304:         } else if (angle <= 270) {
         move R0 [R12-28]
         push R0
         move R0 #270
@@ -3938,6 +4121,7 @@ _L69550274:
 _L69550275:
         cmp R0 #0
         jz sta_69550272
+; 305:             sx = -(270 - angle) * r / 90;
         move R0 #270
         push R0
         move R0 [R12-28]
@@ -3962,6 +4146,7 @@ _L69550275:
         div R1 R0
         move R0 R1
         move [R12-32] R0
+; 306:             sy = -(angle - 180) * r / 90;
         move R0 [R12-28]
         push R0
         move R0 #180
@@ -3988,6 +4173,7 @@ _L69550275:
         move [R12-36] R0
         jmp sta_69550273
 sta_69550272:
+; 308:             sx = (angle - 270) * r / 90;
         move R0 [R12-28]
         push R0
         move R0 #270
@@ -4005,6 +4191,7 @@ sta_69550272:
         div R1 R0
         move R0 R1
         move [R12-32] R0
+; 309:             sy = -(360 - angle) * r / 90;
         move R0 #360
         push R0
         move R0 [R12-28]
@@ -4032,6 +4219,7 @@ sta_69550272:
 sta_69550273:
 sta_69550269:
 sta_69550265:
+; 311:         int px = cx + sx;
         move R0 [R12+12]
         push R0
         move R0 [R12-32]
@@ -4039,6 +4227,7 @@ sta_69550265:
         add R1 R0
         move R0 R1
         move [R12-40] R0
+; 312:         int py = cy + sy;
         move R0 [R12+16]
         push R0
         move R0 [R12-36]
@@ -4046,6 +4235,7 @@ sta_69550265:
         add R1 R0
         move R0 R1
         move [R12-44] R0
+; 313:         _putpixel(px, py, color);
         move R0 [R12+32]
         push R0
         move R0 [R12-44]
@@ -4085,10 +4275,13 @@ gfx_ellipse:
         push R12
         move R12 R13
         sub R13 #64
+; 318:     int x = 0;
         move R0 #0
         move [R12-8] R0
+; 319:     int y = ry;
         move R0 [R12+24]
         move [R12-12] R0
+; 320:     int rx2 = rx * rx;
         move R0 [R12+20]
         push R0
         move R0 [R12+20]
@@ -4096,6 +4289,7 @@ gfx_ellipse:
         mul R1 R0
         move R0 R1
         move [R12-16] R0
+; 321:     int ry2 = ry * ry;
         move R0 [R12+24]
         push R0
         move R0 [R12+24]
@@ -4103,6 +4297,7 @@ gfx_ellipse:
         mul R1 R0
         move R0 R1
         move [R12-20] R0
+; 322:     int tworx2 = 2 * rx2;
         move R0 #2
         push R0
         move R0 [R12-16]
@@ -4110,6 +4305,7 @@ gfx_ellipse:
         mul R1 R0
         move R0 R1
         move [R12-24] R0
+; 323:     int twory2 = 2 * ry2;
         move R0 #2
         push R0
         move R0 [R12-20]
@@ -4117,8 +4313,10 @@ gfx_ellipse:
         mul R1 R0
         move R0 R1
         move [R12-28] R0
+; 324:     int px = 0;
         move R0 #0
         move [R12-32] R0
+; 325:     int py = tworx2 * y;
         move R0 [R12-24]
         push R0
         move R0 [R12-12]
@@ -4126,6 +4324,7 @@ gfx_ellipse:
         mul R1 R0
         move R0 R1
         move [R12-36] R0
+; 326:     int p = ry2 - rx2 * ry + rx2 / 4;
         move R0 [R12-20]
         push R0
         move R0 [R12-16]
@@ -4150,6 +4349,7 @@ gfx_ellipse:
         move [R12-40] R0
 sta_69550276:
         move R2 #0
+; 328:     while (px < py) {
         move R0 [R12-32]
         push R0
         move R0 [R12-36]
@@ -4163,6 +4363,7 @@ _L69550278:
 _L69550279:
         cmp R0 #0
         jz sta_69550277
+; 329:         _putpixel(cx + x, cy + y, color);
         move R0 [R12+28]
         push R0
         move R0 [R12+16]
@@ -4184,6 +4385,7 @@ _L69550279:
         move R2 [R13+8]
         call _putpixel
         add R13 #12
+; 330:         _putpixel(cx - x, cy + y, color);
         move R0 [R12+28]
         push R0
         move R0 [R12+16]
@@ -4205,6 +4407,7 @@ _L69550279:
         move R2 [R13+8]
         call _putpixel
         add R13 #12
+; 331:         _putpixel(cx + x, cy - y, color);
         move R0 [R12+28]
         push R0
         move R0 [R12+16]
@@ -4226,6 +4429,7 @@ _L69550279:
         move R2 [R13+8]
         call _putpixel
         add R13 #12
+; 332:         _putpixel(cx - x, cy - y, color);
         move R0 [R12+28]
         push R0
         move R0 [R12+16]
@@ -4247,6 +4451,7 @@ _L69550279:
         move R2 [R13+8]
         call _putpixel
         add R13 #12
+; 333:         x = x + 1;
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -4254,6 +4459,7 @@ _L69550279:
         add R1 R0
         move R0 R1
         move [R12-8] R0
+; 334:         px = px + twory2;
         move R0 [R12-32]
         push R0
         move R0 [R12-28]
@@ -4261,6 +4467,7 @@ _L69550279:
         add R1 R0
         move R0 R1
         move [R12-32] R0
+; 335:         if (p < 0) { p = p + ry2 + px; }
         move R0 [R12-40]
         push R0
         move R0 #0
@@ -4288,6 +4495,7 @@ _L69550283:
         move [R12-40] R0
         jmp sta_69550281
 sta_69550280:
+; 336:         else { y = y - 1; py = py - tworx2; p = p + ry2 + px - py; }
         move R0 [R12-12]
         push R0
         move R0 #1
@@ -4322,6 +4530,7 @@ sta_69550280:
 sta_69550281:
         jmp sta_69550276
 sta_69550277:
+; 341:         t1 = x * x + x;
         move R0 [R12-8]
         push R0
         move R0 [R12-8]
@@ -4334,6 +4543,7 @@ sta_69550277:
         add R1 R0
         move R0 R1
         move [R12-44] R0
+; 342:         t2 = y - 1;
         move R0 [R12-12]
         push R0
         move R0 #1
@@ -4341,6 +4551,7 @@ sta_69550277:
         sub R1 R0
         move R0 R1
         move [R12-48] R0
+; 343:         t3 = t2 * t2;
         move R0 [R12-48]
         push R0
         move R0 [R12-48]
@@ -4348,6 +4559,7 @@ sta_69550277:
         mul R1 R0
         move R0 R1
         move [R12-52] R0
+; 344:         p = ry2 * t1;
         move R0 [R12-20]
         push R0
         move R0 [R12-44]
@@ -4355,6 +4567,7 @@ sta_69550277:
         mul R1 R0
         move R0 R1
         move [R12-40] R0
+; 345:         p = p + rx2 * t3;
         move R0 [R12-40]
         push R0
         move R0 [R12-16]
@@ -4367,6 +4580,7 @@ sta_69550277:
         add R1 R0
         move R0 R1
         move [R12-40] R0
+; 346:         p = p - rx2 * ry2;
         move R0 [R12-40]
         push R0
         move R0 [R12-16]
@@ -4381,6 +4595,7 @@ sta_69550277:
         move [R12-40] R0
 sta_69550284:
         move R2 #0
+; 348:     while (y >= 0) {
         move R0 [R12-12]
         push R0
         move R0 #0
@@ -4394,6 +4609,7 @@ _L69550286:
 _L69550287:
         cmp R0 #0
         jz sta_69550285
+; 349:         _putpixel(cx + x, cy + y, color);
         move R0 [R12+28]
         push R0
         move R0 [R12+16]
@@ -4415,6 +4631,7 @@ _L69550287:
         move R2 [R13+8]
         call _putpixel
         add R13 #12
+; 350:         _putpixel(cx - x, cy + y, color);
         move R0 [R12+28]
         push R0
         move R0 [R12+16]
@@ -4436,6 +4653,7 @@ _L69550287:
         move R2 [R13+8]
         call _putpixel
         add R13 #12
+; 351:         _putpixel(cx + x, cy - y, color);
         move R0 [R12+28]
         push R0
         move R0 [R12+16]
@@ -4457,6 +4675,7 @@ _L69550287:
         move R2 [R13+8]
         call _putpixel
         add R13 #12
+; 352:         _putpixel(cx - x, cy - y, color);
         move R0 [R12+28]
         push R0
         move R0 [R12+16]
@@ -4478,6 +4697,7 @@ _L69550287:
         move R2 [R13+8]
         call _putpixel
         add R13 #12
+; 353:         y = y - 1;
         move R0 [R12-12]
         push R0
         move R0 #1
@@ -4485,6 +4705,7 @@ _L69550287:
         sub R1 R0
         move R0 R1
         move [R12-12] R0
+; 354:         py = py - tworx2;
         move R0 [R12-36]
         push R0
         move R0 [R12-24]
@@ -4492,6 +4713,7 @@ _L69550287:
         sub R1 R0
         move R0 R1
         move [R12-36] R0
+; 355:         if (p > 0) { p = p + rx2 - py; }
         move R0 [R12-40]
         push R0
         move R0 #0
@@ -4519,6 +4741,7 @@ _L69550291:
         move [R12-40] R0
         jmp sta_69550289
 sta_69550288:
+; 356:         else { x = x + 1; px = px + twory2; p = p + rx2 - py + px; }
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -4573,10 +4796,13 @@ gfx_ellipse_fill:
         push R12
         move R12 R13
         sub R13 #80
+; 361:     int x = 0;
         move R0 #0
         move [R12-8] R0
+; 362:     int y = ry;
         move R0 [R12+24]
         move [R12-12] R0
+; 363:     int rx2 = rx * rx;
         move R0 [R12+20]
         push R0
         move R0 [R12+20]
@@ -4584,6 +4810,7 @@ gfx_ellipse_fill:
         mul R1 R0
         move R0 R1
         move [R12-16] R0
+; 364:     int ry2 = ry * ry;
         move R0 [R12+24]
         push R0
         move R0 [R12+24]
@@ -4591,6 +4818,7 @@ gfx_ellipse_fill:
         mul R1 R0
         move R0 R1
         move [R12-20] R0
+; 365:     int tworx2 = 2 * rx2;
         move R0 #2
         push R0
         move R0 [R12-16]
@@ -4598,6 +4826,7 @@ gfx_ellipse_fill:
         mul R1 R0
         move R0 R1
         move [R12-24] R0
+; 366:     int twory2 = 2 * ry2;
         move R0 #2
         push R0
         move R0 [R12-20]
@@ -4605,8 +4834,10 @@ gfx_ellipse_fill:
         mul R1 R0
         move R0 R1
         move [R12-28] R0
+; 367:     int px = 0;
         move R0 #0
         move [R12-32] R0
+; 368:     int py = tworx2 * y;
         move R0 [R12-24]
         push R0
         move R0 [R12-12]
@@ -4614,6 +4845,7 @@ gfx_ellipse_fill:
         mul R1 R0
         move R0 R1
         move [R12-36] R0
+; 369:     int p = ry2 - rx2 * ry + rx2 / 4;
         move R0 [R12-20]
         push R0
         move R0 [R12-16]
@@ -4638,6 +4870,7 @@ gfx_ellipse_fill:
         move [R12-40] R0
 sta_69550292:
         move R2 #0
+; 371:     while (px < py) {
         move R0 [R12-32]
         push R0
         move R0 [R12-36]
@@ -4651,6 +4884,7 @@ _L69550294:
 _L69550295:
         cmp R0 #0
         jz sta_69550293
+; 373:         _x1 = cx - x; _y1 = cy + y; _x2 = cx + x; _y2 = cy + y;
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -4679,6 +4913,7 @@ _L69550295:
         add R1 R0
         move R0 R1
         move [R12-56] R0
+; 374:         gfx_line(_x1, _y1, _x2, _y2, color);
         move R0 [R12+28]
         push R0
         move R0 [R12-56]
@@ -4695,6 +4930,7 @@ _L69550295:
         move R3 [R13+12]
         call gfx_line
         add R13 #20
+; 375:         _x1 = cx - x; _y1 = cy - y; _x2 = cx + x; _y2 = cy - y;
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -4723,6 +4959,7 @@ _L69550295:
         sub R1 R0
         move R0 R1
         move [R12-56] R0
+; 376:         gfx_line(_x1, _y1, _x2, _y2, color);
         move R0 [R12+28]
         push R0
         move R0 [R12-56]
@@ -4739,6 +4976,7 @@ _L69550295:
         move R3 [R13+12]
         call gfx_line
         add R13 #20
+; 377:         x = x + 1;
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -4746,6 +4984,7 @@ _L69550295:
         add R1 R0
         move R0 R1
         move [R12-8] R0
+; 378:         px = px + twory2;
         move R0 [R12-32]
         push R0
         move R0 [R12-28]
@@ -4753,6 +4992,7 @@ _L69550295:
         add R1 R0
         move R0 R1
         move [R12-32] R0
+; 379:         if (p < 0) { p = p + ry2 + px; }
         move R0 [R12-40]
         push R0
         move R0 #0
@@ -4780,6 +5020,7 @@ _L69550299:
         move [R12-40] R0
         jmp sta_69550297
 sta_69550296:
+; 380:         else { y = y - 1; py = py - tworx2; p = p + ry2 + px - py; }
         move R0 [R12-12]
         push R0
         move R0 #1
@@ -4814,6 +5055,7 @@ sta_69550296:
 sta_69550297:
         jmp sta_69550292
 sta_69550293:
+; 385:         t1 = x * x + x;
         move R0 [R12-8]
         push R0
         move R0 [R12-8]
@@ -4826,6 +5068,7 @@ sta_69550293:
         add R1 R0
         move R0 R1
         move [R12-60] R0
+; 386:         t2 = y - 1;
         move R0 [R12-12]
         push R0
         move R0 #1
@@ -4833,6 +5076,7 @@ sta_69550293:
         sub R1 R0
         move R0 R1
         move [R12-64] R0
+; 387:         t3 = t2 * t2;
         move R0 [R12-64]
         push R0
         move R0 [R12-64]
@@ -4840,6 +5084,7 @@ sta_69550293:
         mul R1 R0
         move R0 R1
         move [R12-68] R0
+; 388:         p = ry2 * t1;
         move R0 [R12-20]
         push R0
         move R0 [R12-60]
@@ -4847,6 +5092,7 @@ sta_69550293:
         mul R1 R0
         move R0 R1
         move [R12-40] R0
+; 389:         p = p + rx2 * t3;
         move R0 [R12-40]
         push R0
         move R0 [R12-16]
@@ -4859,6 +5105,7 @@ sta_69550293:
         add R1 R0
         move R0 R1
         move [R12-40] R0
+; 390:         p = p - rx2 * ry2;
         move R0 [R12-40]
         push R0
         move R0 [R12-16]
@@ -4873,6 +5120,7 @@ sta_69550293:
         move [R12-40] R0
 sta_69550300:
         move R2 #0
+; 392:     while (y >= 0) {
         move R0 [R12-12]
         push R0
         move R0 #0
@@ -4886,6 +5134,7 @@ _L69550302:
 _L69550303:
         cmp R0 #0
         jz sta_69550301
+; 394:         _x1 = cx - x; _y1 = cy + y; _x2 = cx + x; _y2 = cy + y;
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -4914,6 +5163,7 @@ _L69550303:
         add R1 R0
         move R0 R1
         move [R12-56] R0
+; 395:         gfx_line(_x1, _y1, _x2, _y2, color);
         move R0 [R12+28]
         push R0
         move R0 [R12-56]
@@ -4930,6 +5180,7 @@ _L69550303:
         move R3 [R13+12]
         call gfx_line
         add R13 #20
+; 396:         _x1 = cx - x; _y1 = cy - y; _x2 = cx + x; _y2 = cy - y;
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -4958,6 +5209,7 @@ _L69550303:
         sub R1 R0
         move R0 R1
         move [R12-56] R0
+; 397:         gfx_line(_x1, _y1, _x2, _y2, color);
         move R0 [R12+28]
         push R0
         move R0 [R12-56]
@@ -4974,6 +5226,7 @@ _L69550303:
         move R3 [R13+12]
         call gfx_line
         add R13 #20
+; 398:         y = y - 1;
         move R0 [R12-12]
         push R0
         move R0 #1
@@ -4981,6 +5234,7 @@ _L69550303:
         sub R1 R0
         move R0 R1
         move [R12-12] R0
+; 399:         py = py - tworx2;
         move R0 [R12-36]
         push R0
         move R0 [R12-24]
@@ -4988,6 +5242,7 @@ _L69550303:
         sub R1 R0
         move R0 R1
         move [R12-36] R0
+; 400:         if (p > 0) { p = p + rx2 - py; }
         move R0 [R12-40]
         push R0
         move R0 #0
@@ -5015,6 +5270,7 @@ _L69550307:
         move [R12-40] R0
         jmp sta_69550305
 sta_69550304:
+; 401:         else { x = x + 1; px = px + twory2; p = p + rx2 - py + px; }
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -5070,6 +5326,7 @@ gfx_sector:
         push R12
         move R12 R13
         sub R13 #32
+; 407:     if (start_angle > end_angle) { int tmp = start_angle; start_angle = end_angle; end_angle = tmp; }
         move R0 [R12+24]
         push R0
         move R0 [R12+28]
@@ -5091,6 +5348,7 @@ _L69550311:
         move [R12+28] R0
 sta_69550308:
 sta_69550309:
+; 408:     for (a = start_angle; a <= end_angle; a++) {
         move R0 [R12+24]
         move [R12-8] R0
 sta_69550312:
@@ -5107,8 +5365,10 @@ _L69550315:
 _L69550316:
         cmp R0 #0
         jz sta_69550314
+; 409:         int rad = a;
         move R0 [R12-8]
         move [R12-16] R0
+; 410:         int x = cx + (r * (90 - rad) / 90);
         move R0 [R12+12]
         push R0
         move R0 [R12+20]
@@ -5131,6 +5391,7 @@ _L69550316:
         add R1 R0
         move R0 R1
         move [R12-20] R0
+; 411:         int y = cy + (r * rad / 90);
         move R0 [R12+16]
         push R0
         move R0 [R12+20]
@@ -5148,6 +5409,7 @@ _L69550316:
         add R1 R0
         move R0 R1
         move [R12-24] R0
+; 412:         gfx_line(cx, cy, x, y, color);
         move R0 [R12+32]
         push R0
         move R0 [R12-24]
@@ -5193,6 +5455,7 @@ gfx_sector_fill:
         push R12
         move R12 R13
         sub R13 #32
+; 418:     if (start_angle > end_angle) { int tmp = start_angle; start_angle = end_angle; end_angle = tmp; }
         move R0 [R12+24]
         push R0
         move R0 [R12+28]
@@ -5214,6 +5477,7 @@ _L69550320:
         move [R12+28] R0
 sta_69550317:
 sta_69550318:
+; 420:     for (a = start_angle; a <= end_angle; a = a + 2) {
         move R0 [R12+24]
         move [R12-8] R0
 sta_69550321:
@@ -5230,6 +5494,7 @@ _L69550324:
 _L69550325:
         cmp R0 #0
         jz sta_69550323
+; 421:         int angle = a % 360;
         move R0 [R12-8]
         push R0
         move R0 #360
@@ -5237,6 +5502,7 @@ _L69550325:
         mod R1 R0
         move R0 R1
         move [R12-16] R0
+; 423:         if (angle <= 90) {
         move R0 [R12-16]
         push R0
         move R0 #90
@@ -5250,6 +5516,7 @@ _L69550328:
 _L69550329:
         cmp R0 #0
         jz sta_69550326
+; 424:             sx = (90 - angle) * r / 90;
         move R0 #90
         push R0
         move R0 [R12-16]
@@ -5267,6 +5534,7 @@ _L69550329:
         div R1 R0
         move R0 R1
         move [R12-20] R0
+; 425:             sy = angle * r / 90;
         move R0 [R12-16]
         push R0
         move R0 [R12+20]
@@ -5281,6 +5549,7 @@ _L69550329:
         move [R12-24] R0
         jmp sta_69550327
 sta_69550326:
+; 426:         } else if (angle <= 180) {
         move R0 [R12-16]
         push R0
         move R0 #180
@@ -5294,6 +5563,7 @@ _L69550332:
 _L69550333:
         cmp R0 #0
         jz sta_69550330
+; 427:             sx = -(angle - 90) * r / 90;
         move R0 [R12-16]
         push R0
         move R0 #90
@@ -5318,6 +5588,7 @@ _L69550333:
         div R1 R0
         move R0 R1
         move [R12-20] R0
+; 428:             sy = (180 - angle) * r / 90;
         move R0 #180
         push R0
         move R0 [R12-16]
@@ -5337,6 +5608,7 @@ _L69550333:
         move [R12-24] R0
         jmp sta_69550331
 sta_69550330:
+; 429:         } else if (angle <= 270) {
         move R0 [R12-16]
         push R0
         move R0 #270
@@ -5350,6 +5622,7 @@ _L69550336:
 _L69550337:
         cmp R0 #0
         jz sta_69550334
+; 430:             sx = -(270 - angle) * r / 90;
         move R0 #270
         push R0
         move R0 [R12-16]
@@ -5374,6 +5647,7 @@ _L69550337:
         div R1 R0
         move R0 R1
         move [R12-20] R0
+; 431:             sy = -(angle - 180) * r / 90;
         move R0 [R12-16]
         push R0
         move R0 #180
@@ -5400,6 +5674,7 @@ _L69550337:
         move [R12-24] R0
         jmp sta_69550335
 sta_69550334:
+; 433:             sx = (angle - 270) * r / 90;
         move R0 [R12-16]
         push R0
         move R0 #270
@@ -5417,6 +5692,7 @@ sta_69550334:
         div R1 R0
         move R0 R1
         move [R12-20] R0
+; 434:             sy = -(360 - angle) * r / 90;
         move R0 #360
         push R0
         move R0 [R12-16]
@@ -5444,6 +5720,7 @@ sta_69550334:
 sta_69550335:
 sta_69550331:
 sta_69550327:
+; 436:         gfx_line(cx, cy, cx + sx, cy + sy, color);
         move R0 [R12+32]
         push R0
         move R0 [R12+16]
@@ -5480,6 +5757,7 @@ sta_69550322:
         move [R12-8] R0
         jmp sta_69550321
 sta_69550323:
+; 439:     gfx_arc(cx, cy, r, start_angle, end_angle, color);
         move R0 [R12+32]
         push R0
         move R0 [R12+28]
@@ -5517,6 +5795,7 @@ gfx_print:
         push R12
         move R12 R13
         sub R13 #16
+; 638:     gfx_print_scale(x, y, text, color, 1);
         move R0 #1
         push R0
         move R0 [R12+24]
@@ -5553,16 +5832,21 @@ gfx_print_scale:
         push R12
         move R12 R13
         sub R13 #56
+; 641:     int start_x = x;
         move R0 [R12+12]
         move [R12-8] R0
+; 642:     int cur_x = x;
         move R0 [R12+12]
         move [R12-12] R0
+; 643:     int cur_y = y;
         move R0 [R12+16]
         move [R12-16] R0
+; 644:     int i = 0;
         move R0 #0
         move [R12-20] R0
 sta_69550338:
         move R2 #0
+; 645:     while (text[i] != '\0') {
         move R0 [R12+20]
         push R0
         move R0 [R12-20]
@@ -5583,6 +5867,7 @@ _L69550340:
 _L69550341:
         cmp R0 #0
         jz sta_69550339
+; 646:         char ch = text[i];
         move R0 [R12+20]
         push R0
         move R0 [R12-20]
@@ -5592,6 +5877,7 @@ _L69550341:
         moveb R0 [R0]
         sextb R0 R0
         moveb [R12-21] R0
+; 647:         if (ch == '\n') {
         moveb R0 [R12-21]
         sextb R0 R0
         pushb R0
@@ -5606,8 +5892,10 @@ _L69550344:
 _L69550345:
         cmp R0 #0
         jz sta_69550342
+; 648:             cur_x = start_x;
         move R0 [R12-8]
         move [R12-12] R0
+; 649:             cur_y = cur_y + 16 * scale;
         move R0 [R12-16]
         push R0
         move R0 #16
@@ -5620,6 +5908,7 @@ _L69550345:
         add R1 R0
         move R0 R1
         move [R12-16] R0
+; 650:             i++;
         move R0 [R12-20]
         move R1 R0
         add R0 R0 #1
@@ -5628,6 +5917,7 @@ _L69550345:
         jmp sta_69550338
 sta_69550342:
 sta_69550343:
+; 653:         if (ch < 32 || ch > 126) ch = 32;
         moveb R0 [R12-21]
         sextb R0 R0
         push R0
@@ -5668,6 +5958,7 @@ _L69550350:
         moveb [R12-21] R0
 sta_69550346:
 sta_69550347:
+; 654:         int char_offset = (ch - 32) * 16;
         moveb R0 [R12-21]
         sextb R0 R0
         push R0
@@ -5681,6 +5972,7 @@ sta_69550347:
         mul R1 R0
         move R0 R1
         move [R12-28] R0
+; 656:         for (row = 0; row < 16; row++) {
         move R0 #0
         move [R12-32] R0
 sta_69550355:
@@ -5697,6 +5989,7 @@ _L69550358:
 _L69550359:
         cmp R0 #0
         jz sta_69550357
+; 657:             unsigned char bits = font8x16[char_offset + row];
         move R0 font8x16
         push R0
         move R9 #0
@@ -5715,6 +6008,7 @@ _L69550359:
         add R0 R8
         moveb R0 [R0]
         moveb [R12-37] R0
+; 658:             for (col = 0; col < 8; col++) {
         move R0 #0
         move [R12-36] R0
 sta_69550360:
@@ -5731,6 +6025,7 @@ _L69550363:
 _L69550364:
         cmp R0 #0
         jz sta_69550362
+; 659:                 if (bits & (0x80 >> col)) {
         moveb R0 [R12-37]
         push R0
         move R0 #128
@@ -5744,6 +6039,7 @@ _L69550364:
         move R0 R1
         cmp R0 #0
         jz sta_69550365
+; 661:                     for (sx = 0; sx < scale; sx++) {
         move R0 #0
         move [R12-44] R0
 sta_69550367:
@@ -5760,6 +6056,7 @@ _L69550370:
 _L69550371:
         cmp R0 #0
         jz sta_69550369
+; 662:                         for (sy = 0; sy < scale; sy++) {
         move R0 #0
         move [R12-48] R0
 sta_69550372:
@@ -5776,6 +6073,7 @@ _L69550375:
 _L69550376:
         cmp R0 #0
         jz sta_69550374
+; 663:                             _putpixel(cur_x + col * scale + sx,
         move R0 [R12+24]
         push R0
         move R0 [R12-16]
@@ -5851,6 +6149,7 @@ sta_69550356:
         move R0 R1
         jmp sta_69550355
 sta_69550357:
+; 670:         cur_x = cur_x + 8 * scale;
         move R0 [R12-12]
         push R0
         move R0 #8
@@ -5863,6 +6162,7 @@ sta_69550357:
         add R1 R0
         move R0 R1
         move [R12-12] R0
+; 671:         i++;
         move R0 [R12-20]
         move R1 R0
         add R0 R0 #1
@@ -5889,12 +6189,16 @@ gfx_flood_fill:
         push R12
         move R12 R13
         sub R13 #40
+; 679:     int sp = 0;
         move R0 #0
         move [R12-8] R0
+; 680:     int w = gfx_w();
         call gfx_w
         move [R12-12] R0
+; 681:     int h = gfx_h();
         call gfx_h
         move [R12-16] R0
+; 682:     int target = _getpixel(x, y);
         move R0 [R12+16]
         push R0
         move R0 [R12+12]
@@ -5904,6 +6208,7 @@ gfx_flood_fill:
         call _getpixel
         add R13 #8
         move [R12-20] R0
+; 683:     if (target == fill_color || target == border_color) return;
         move R0 [R12-20]
         push R0
         move R0 [R12+20]
@@ -5941,6 +6246,7 @@ _L69550381:
         jmp L_69550386
 sta_69550377:
 sta_69550378:
+; 684:     _flood_sx[sp] = x;
         move R0 [R12+12]
         move R7 R0
         move R0 _flood_sx
@@ -5955,6 +6261,7 @@ sta_69550378:
         pop R5
         add R0 R5
         move [R0] R7
+; 685:     _flood_sy[sp] = y;
         move R0 [R12+16]
         move R4 R0
         move R0 _flood_sy
@@ -5969,6 +6276,7 @@ sta_69550378:
         pop R2
         add R0 R2
         move [R0] R4
+; 686:     sp++;
         move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
@@ -5976,6 +6284,7 @@ sta_69550378:
         move R0 R1
 sta_69550387:
         move R2 #0
+; 687:     while (sp > 0 && sp < 256) {
         move R0 [R12-8]
         push R0
         move R0 #0
@@ -6009,11 +6318,13 @@ _L69550389:
 _L69550390:
         cmp R0 #0
         jz sta_69550388
+; 688:         sp--;
         move R0 [R12-8]
         move R1 R0
         sub R0 R0 #1
         move [R12-8] R0
         move R0 R1
+; 689:         int px = _flood_sx[sp];
         move R0 _flood_sx
         push R0
         move R1 #0
@@ -6027,6 +6338,7 @@ _L69550390:
         add R0 R11
         move R0 [R0]
         move [R12-24] R0
+; 690:         int py = _flood_sy[sp];
         move R0 _flood_sy
         push R0
         move R10 #0
@@ -6040,6 +6352,7 @@ _L69550390:
         add R0 R9
         move R0 [R0]
         move [R12-28] R0
+; 691:         if (px < 0 || px >= w || py < 0 || py >= h) continue;
         move R0 [R12-24]
         push R0
         move R0 #0
@@ -6119,6 +6432,7 @@ _L69550399:
         jmp sta_69550387
 sta_69550395:
 sta_69550396:
+; 692:         if (_getpixel(px, py) != target) continue;
         move R0 [R12-28]
         push R0
         move R0 [R12-24]
@@ -6142,6 +6456,7 @@ _L69550417:
         jmp sta_69550387
 sta_69550414:
 sta_69550415:
+; 693:         _putpixel(px, py, fill_color);
         move R0 [R12+20]
         push R0
         move R0 [R12-28]
@@ -6153,6 +6468,7 @@ sta_69550415:
         move R2 [R13+8]
         call _putpixel
         add R13 #12
+; 694:         if (sp + 4 < 256) {
         move R0 [R12-8]
         push R0
         move R0 #4
@@ -6171,6 +6487,7 @@ _L69550420:
 _L69550421:
         cmp R0 #0
         jz sta_69550418
+; 695:             _flood_sx[sp] = px + 1; _flood_sy[sp] = py; sp++;
         move R0 [R12-24]
         push R0
         move R0 #1
@@ -6209,6 +6526,7 @@ _L69550421:
         add R0 R0 #1
         move [R12-8] R0
         move R0 R1
+; 696:             _flood_sx[sp] = px - 1; _flood_sy[sp] = py; sp++;
         move R0 [R12-24]
         push R0
         move R0 #1
@@ -6247,6 +6565,7 @@ _L69550421:
         add R0 R0 #1
         move [R12-8] R0
         move R0 R1
+; 697:             _flood_sx[sp] = px; _flood_sy[sp] = py + 1; sp++;
         move R0 [R12-24]
         move R5 R0
         move R0 _flood_sx
@@ -6285,6 +6604,7 @@ _L69550421:
         add R0 R0 #1
         move [R12-8] R0
         move R0 R1
+; 698:             _flood_sx[sp] = px; _flood_sy[sp] = py - 1; sp++;
         move R0 [R12-24]
         move R11 R0
         move R0 _flood_sx
@@ -6343,8 +6663,11 @@ gfx_screenshot:
         push R12
         move R12 R13
         sub R13 #16
+; 705:     asm("SYSCALL 200");
         asm "SYSCALL 200"
+; 706:     asm("STORE R0, _vml_result_int");
         asm "STORE R0, _vml_result_int"
+; 707:     return _vml_result_int;
         move R0 [_vml_result_int]
         jmp L_69550422
 L_69550422:
@@ -6368,8 +6691,11 @@ gfx_put_image:
         push R12
         move R12 R13
         sub R13 #16
+; 710:     asm("SYSCALL 201");
         asm "SYSCALL 201"
+; 711:     asm("STORE R0, _vml_result_int");
         asm "STORE R0, _vml_result_int"
+; 712:     return _vml_result_int;
         move R0 [_vml_result_int]
         jmp L_69550423
 L_69550423:
@@ -6393,8 +6719,11 @@ gfx_get_image:
         push R12
         move R12 R13
         sub R13 #16
+; 715:     asm("SYSCALL 202");
         asm "SYSCALL 202"
+; 716:     asm("STORE R0, _vml_result_int");
         asm "STORE R0, _vml_result_int"
+; 717:     return _vml_result_int;
         move R0 [_vml_result_int]
         jmp L_69550424
 L_69550424:
@@ -6418,8 +6747,11 @@ gfx_viewport:
         push R12
         move R12 R13
         sub R13 #16
+; 720:     asm("SYSCALL 203");
         asm "SYSCALL 203"
+; 721:     asm("STORE R0, _vml_result_int");
         asm "STORE R0, _vml_result_int"
+; 722:     return _vml_result_int;
         move R0 [_vml_result_int]
         jmp L_69550425
 L_69550425:

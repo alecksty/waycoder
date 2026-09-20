@@ -83,6 +83,7 @@ cadd:
         push R12
         move R12 R13
         sub R13 #16
+; 6:     result[0] = a[0] + b[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -108,6 +109,7 @@ cadd:
         pop R8
         add R0 R8
         movef [R0] R9
+; 7:     result[1] = a[1] + b[1];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -151,6 +153,7 @@ csub:
         push R12
         move R12 R13
         sub R13 #16
+; 11:     result[0] = a[0] - b[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -176,6 +179,7 @@ csub:
         pop R11
         add R0 R11
         movef [R0] R1
+; 12:     result[1] = a[1] - b[1];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -219,6 +223,7 @@ cmul:
         push R12
         move R12 R13
         sub R13 #16
+; 18:     result[0] = a[0]*b[0] - a[1]*b[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -264,6 +269,7 @@ cmul:
         pop R11
         add R0 R11
         movef [R0] R2
+; 19:     result[1] = a[0]*b[1] + a[1]*b[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -327,6 +333,7 @@ cdiv:
         push R12
         move R12 R13
         sub R13 #16
+; 24:     float denom = b[0]*b[0] + b[1]*b[1];
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -365,6 +372,7 @@ cdiv:
         fpop R1
         fadd R0 R1 R0
         movef [R12-8] R0
+; 25:     if (denom < 1e-10f && denom > -1e-10f) {
         movef R0 [R12-8]
         fpush R0
         movef R0 [flt_43840004]
@@ -400,6 +408,7 @@ _L43840002:
 _L43840003:
         cmp R0 #0
         jz sta_43840000
+; 26:         result[0] = 0.0f;
         movef R0 [flt_43840011]
         move R2 R0
         move R0 [R12+20]
@@ -409,6 +418,7 @@ _L43840003:
         pop R1
         add R0 R1
         movef [R0] R2
+; 27:         result[1] = 0.0f;
         movef R0 [flt_43840012]
         move R10 R0
         move R0 [R12+20]
@@ -418,9 +428,11 @@ _L43840003:
         pop R8
         add R0 R8
         movef [R0] R10
+; 28:         return;
         jmp L_43840013
 sta_43840000:
 sta_43840001:
+; 30:     result[0] = (a[0]*b[0] + a[1]*b[1]) / denom;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -470,6 +482,7 @@ sta_43840001:
         pop R3
         add R0 R3
         movef [R0] R5
+; 31:     result[1] = (a[1]*b[0] - a[0]*b[1]) / denom;
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -536,6 +549,7 @@ complex_abs:
         push R12
         move R12 R13
         sub R13 #32
+; 35:     float sum = z[0]*z[0] + z[1]*z[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -574,6 +588,7 @@ complex_abs:
         fpop R1
         fadd R0 R1 R0
         movef [R12-8] R0
+; 37:     if (sum <= 0.0f) return 0.0f;
         movef R0 [R12-8]
         fpush R0
         movef R0 [flt_43840016]
@@ -591,6 +606,7 @@ _L43840018:
         jmp L_43840020
 sta_43840014:
 sta_43840015:
+; 38:     float guess = sum * 0.5f + 0.5f;
         movef R0 [R12-8]
         fpush R0
         movef R0 [flt_43840021]
@@ -601,6 +617,7 @@ sta_43840015:
         fpop R1
         fadd R0 R1 R0
         movef [R12-12] R0
+; 41:     for (i = 0; i < 10; i++) {
         move R0 #0
         move [R12-20] R0
 sta_43840023:
@@ -617,8 +634,10 @@ _L43840026:
 _L43840027:
         cmp R0 #0
         jz sta_43840025
+; 42:         prev = guess;
         movef R0 [R12-12]
         movef [R12-16] R0
+; 43:         guess = (guess + sum / guess) * 0.5f;
         movef R0 [R12-12]
         fpush R0
         movef R0 [R12-8]
@@ -633,6 +652,7 @@ _L43840027:
         fpop R1
         fmul R0 R1 R0
         movef [R12-12] R0
+; 44:         if (guess >= prev - 1e-6f && guess <= prev + 1e-6f) break;
         movef R0 [R12-12]
         fpush R0
         movef R0 [R12-16]
@@ -685,6 +705,7 @@ sta_43840024:
         move R0 R1
         jmp sta_43840023
 sta_43840025:
+; 46:     return guess;
         movef R0 [R12-12]
         jmp L_43840020
 L_43840020:
@@ -704,6 +725,7 @@ complex_arg:
         push R12
         move R12 R13
         sub R13 #32
+; 51:     float x = z[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -712,6 +734,7 @@ complex_arg:
         add R0 R5
         movef R0 [R0]
         movef [R12-8] R0
+; 52:     float y = z[1];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -720,6 +743,7 @@ complex_arg:
         add R0 R11
         movef R0 [R0]
         movef [R12-12] R0
+; 54:     if (x > 0.0f) {
         movef R0 [R12-8]
         fpush R0
         movef R0 [flt_43840041]
@@ -733,12 +757,14 @@ _L43840042:
 _L43840043:
         cmp R0 #0
         jz sta_43840039
+; 55:         float t = y / x;
         movef R0 [R12-12]
         fpush R0
         movef R0 [R12-8]
         fpop R1
         fdiv R0 R1 R0
         movef [R12-16] R0
+; 56:         return t / (1.0f + 0.28f * t * t);  // fast atan approx
         movef R0 [R12-16]
         fpush R0
         movef R0 [flt_43840044]
@@ -759,6 +785,7 @@ _L43840043:
         jmp L_43840046
 sta_43840039:
 sta_43840040:
+; 58:     if (x < 0.0f) {
         movef R0 [R12-8]
         fpush R0
         movef R0 [flt_43840049]
@@ -772,12 +799,14 @@ _L43840050:
 _L43840051:
         cmp R0 #0
         jz sta_43840047
+; 59:         float t = y / x;
         movef R0 [R12-12]
         fpush R0
         movef R0 [R12-8]
         fpop R1
         fdiv R0 R1 R0
         movef [R12-16] R0
+; 60:         float at = t / (1.0f + 0.28f * t * t);
         movef R0 [R12-16]
         fpush R0
         movef R0 [flt_43840052]
@@ -796,6 +825,7 @@ _L43840051:
         fpop R1
         fdiv R0 R1 R0
         movef [R12-20] R0
+; 61:         if (y >= 0.0f) return at + 3.1415927f;
         movef R0 [R12-12]
         fpush R0
         movef R0 [flt_43840056]
@@ -817,6 +847,7 @@ _L43840058:
         jmp L_43840046
 sta_43840054:
 sta_43840055:
+; 62:         return at - 3.1415927f;
         movef R0 [R12-20]
         fpush R0
         movef R0 [flt_43840060]
@@ -825,6 +856,7 @@ sta_43840055:
         jmp L_43840046
 sta_43840047:
 sta_43840048:
+; 64:     if (y > 0.0f) return 1.5707963f;
         movef R0 [R12-12]
         fpush R0
         movef R0 [flt_43840063]
@@ -842,6 +874,7 @@ _L43840065:
         jmp L_43840046
 sta_43840061:
 sta_43840062:
+; 65:     if (y < 0.0f) return -1.5707963f;
         movef R0 [R12-12]
         fpush R0
         movef R0 [flt_43840069]
@@ -861,6 +894,7 @@ _L43840071:
         jmp L_43840046
 sta_43840067:
 sta_43840068:
+; 66:     return 0.0f;
         movef R0 [flt_43840074]
         jmp L_43840046
 L_43840046:
@@ -881,6 +915,7 @@ cconj:
         push R12
         move R12 R13
         sub R13 #16
+; 70:     result[0] = a[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -896,6 +931,7 @@ cconj:
         pop R8
         add R0 R8
         movef [R0] R2
+; 71:     result[1] = -a[1];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -936,6 +972,7 @@ cneg:
         push R12
         move R12 R13
         sub R13 #16
+; 75:     result[0] = -a[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -959,6 +996,7 @@ cneg:
         pop R11
         add R0 R11
         movef [R0] R5
+; 76:     result[1] = -a[1];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -999,12 +1037,14 @@ cexp_re:
         push R12
         move R12 R13
         sub R13 #24
+; 83:     float im2 = im * im;
         movef R0 [R12+16]
         fpush R0
         movef R0 [R12+16]
         fpop R1
         fmul R0 R1 R0
         movef [R12-8] R0
+; 84:     float cos_im = 1.0f - im2 * 0.5f + im2 * im2 * 0.0416667f - im2 * im2 * im2 * 0.00138889f;
         movef R0 [flt_43840075]
         fpush R0
         movef R0 [R12-8]
@@ -1043,6 +1083,7 @@ cexp_re:
         fpop R1
         fsub R0 R1 R0
         movef [R12-12] R0
+; 86:     float exp_re = 1.0f + re + re*re*0.5f + re*re*re*0.166667f + re*re*re*re*0.0416667f;
         movef R0 [flt_43840079]
         fpush R0
         movef R0 [R12+12]
@@ -1097,6 +1138,7 @@ cexp_re:
         fpop R1
         fadd R0 R1 R0
         movef [R12-16] R0
+; 87:     return exp_re * cos_im;
         movef R0 [R12-16]
         fpush R0
         movef R0 [R12-12]
@@ -1121,12 +1163,14 @@ cexp_im:
         push R12
         move R12 R13
         sub R13 #24
+; 91:     float im2 = im * im;
         movef R0 [R12+16]
         fpush R0
         movef R0 [R12+16]
         fpop R1
         fmul R0 R1 R0
         movef [R12-8] R0
+; 92:     float sin_im = im - im*im2*0.166667f + im*im2*im2*0.00833333f;
         movef R0 [R12+16]
         fpush R0
         movef R0 [R12+16]
@@ -1157,6 +1201,7 @@ cexp_im:
         fpop R1
         fadd R0 R1 R0
         movef [R12-12] R0
+; 93:     float exp_re = 1.0f + re + re*re*0.5f + re*re*re*0.166667f + re*re*re*re*0.0416667f;
         movef R0 [flt_43840086]
         fpush R0
         movef R0 [R12+12]
@@ -1211,6 +1256,7 @@ cexp_im:
         fpop R1
         fadd R0 R1 R0
         movef [R12-16] R0
+; 94:     return exp_re * sin_im;
         movef R0 [R12-16]
         fpush R0
         movef R0 [R12-12]
@@ -1235,6 +1281,7 @@ csqr:
         push R12
         move R12 R13
         sub R13 #16
+; 98:     result[0] = a[0]*a[0] - a[1]*a[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1280,6 +1327,7 @@ csqr:
         pop R11
         add R0 R11
         movef [R0] R3
+; 99:     result[1] = 2.0f * a[0] * a[1];
         movef R0 [flt_43840091]
         fpush R0
         move R0 [R12+12]
@@ -1327,12 +1375,14 @@ csqrt:
         push R12
         move R12 R13
         sub R13 #40
+; 103:     float r = complex_abs(z);
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
         call complex_abs
         add R13 #4
         movef [R12-8] R0
+; 104:     if (r < 1e-10f) {
         movef R0 [R12-8]
         fpush R0
         movef R0 [flt_43840094]
@@ -1346,6 +1396,7 @@ _L43840095:
 _L43840096:
         cmp R0 #0
         jz sta_43840092
+; 105:         result[0] = 0.0f;
         movef R0 [flt_43840097]
         move R2 R0
         move R0 [R12+16]
@@ -1355,6 +1406,7 @@ _L43840096:
         pop R10
         add R0 R10
         movef [R0] R2
+; 106:         result[1] = 0.0f;
         movef R0 [flt_43840098]
         move R9 R0
         move R0 [R12+16]
@@ -1364,9 +1416,11 @@ _L43840096:
         pop R6
         add R0 R6
         movef [R0] R9
+; 107:         return;
         jmp L_43840099
 sta_43840092:
 sta_43840093:
+; 109:     float re = z[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1375,6 +1429,7 @@ sta_43840093:
         add R0 R4
         movef R0 [R0]
         movef [R12-12] R0
+; 110:     float im = z[1];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -1383,6 +1438,7 @@ sta_43840093:
         add R0 R11
         movef R0 [R0]
         movef [R12-16] R0
+; 111:     if (re >= 0.0f) {
         movef R0 [R12-12]
         fpush R0
         movef R0 [flt_43840102]
@@ -1396,6 +1452,7 @@ _L43840103:
 _L43840104:
         cmp R0 #0
         jz sta_43840100
+; 112:         float s = (r + re) * 0.5f;
         movef R0 [R12-8]
         fpush R0
         movef R0 [R12-12]
@@ -1406,6 +1463,7 @@ _L43840104:
         fpop R1
         fmul R0 R1 R0
         movef [R12-20] R0
+; 113:         if (s > 0.0f) {
         movef R0 [R12-20]
         fpush R0
         movef R0 [flt_43840108]
@@ -1419,6 +1477,7 @@ _L43840109:
 _L43840110:
         cmp R0 #0
         jz sta_43840106
+; 114:             float g = s * 0.5f + 0.5f;
         movef R0 [R12-20]
         fpush R0
         movef R0 [flt_43840111]
@@ -1429,6 +1488,7 @@ _L43840110:
         fpop R1
         fadd R0 R1 R0
         movef [R12-24] R0
+; 116:             for (i = 0; i < 8; i++) g = (g + s/g) * 0.5f;
         move R0 #0
         move [R12-28] R0
 sta_43840113:
@@ -1467,6 +1527,7 @@ sta_43840114:
         move R0 R1
         jmp sta_43840113
 sta_43840115:
+; 117:             result[0] = g;
         movef R0 [R12-24]
         move R3 R0
         move R0 [R12+16]
@@ -1478,6 +1539,7 @@ sta_43840115:
         movef [R0] R3
         jmp sta_43840107
 sta_43840106:
+; 119:             result[0] = 0.0f;
         movef R0 [flt_43840119]
         move R1 R0
         move R0 [R12+16]
@@ -1488,6 +1550,7 @@ sta_43840106:
         add R0 R7
         movef [R0] R1
 sta_43840107:
+; 121:         result[1] = result[0] > 1e-10f ? im / (2.0f * result[0]) : 0.0f;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -1536,6 +1599,7 @@ _L43840124:
         movef [R0] R2
         jmp sta_43840101
 sta_43840100:
+; 123:         float s = (r - re) * 0.5f;
         movef R0 [R12-8]
         fpush R0
         movef R0 [R12-12]
@@ -1546,6 +1610,7 @@ sta_43840100:
         fpop R1
         fmul R0 R1 R0
         movef [R12-20] R0
+; 124:         if (s > 0.0f) {
         movef R0 [R12-20]
         fpush R0
         movef R0 [flt_43840130]
@@ -1559,6 +1624,7 @@ _L43840131:
 _L43840132:
         cmp R0 #0
         jz sta_43840128
+; 125:             float g = s * 0.5f + 0.5f;
         movef R0 [R12-20]
         fpush R0
         movef R0 [flt_43840133]
@@ -1569,6 +1635,7 @@ _L43840132:
         fpop R1
         fadd R0 R1 R0
         movef [R12-24] R0
+; 127:             for (i = 0; i < 8; i++) g = (g + s/g) * 0.5f;
         move R0 #0
         move [R12-28] R0
 sta_43840135:
@@ -1607,6 +1674,7 @@ sta_43840136:
         move R0 R1
         jmp sta_43840135
 sta_43840137:
+; 128:             result[1] = (im >= 0.0f) ? g : -g;
         movef R0 [R12-16]
         fpush R0
         movef R0 [flt_43840141]
@@ -1637,6 +1705,7 @@ _L43840145:
         movef [R0] R9
         jmp sta_43840129
 sta_43840128:
+; 130:             result[1] = 0.0f;
         movef R0 [flt_43840146]
         move R11 R0
         move R0 [R12+16]
@@ -1647,6 +1716,7 @@ sta_43840128:
         add R0 R5
         movef [R0] R11
 sta_43840129:
+; 132:         result[0] = result[1] > 1e-10f ? im / (2.0f * result[1]) : 0.0f;
         move R0 [R12+16]
         push R0
         move R0 #1

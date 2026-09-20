@@ -17,6 +17,7 @@ print_long:
         push R12
         move R12 R13
         sub R13 #40
+; 4:     ltoa(val, buf);
         move R0 R12
         sub R0 #28
         push R0
@@ -26,6 +27,7 @@ print_long:
         move R1 [R13+4]
         call ltoa
         add R13 #8
+; 5:     print_str(buf);
         move R0 R12
         sub R0 #28
         push R0
@@ -48,6 +50,7 @@ print_hex_long:
         push R12
         move R12 R13
         sub R13 #32
+; 9:     ltoa_hex(val, buf);
         move R0 R12
         sub R0 #24
         push R0
@@ -57,6 +60,7 @@ print_hex_long:
         move R1 [R13+4]
         call ltoa_hex
         add R13 #8
+; 10:     print_str(buf);
         move R0 R12
         sub R0 #24
         push R0
@@ -79,12 +83,14 @@ println_long:
         push R12
         move R12 R13
         sub R13 #16
+; 13:     print_long(val);
         movel R0 [R12+12]
         sub R13 #8
         movel @13 R0
         move R0 [R13+0]
         call print_long
         add R13 #8
+; 14:     putchar('\n');
         move R0 #10
         push R0
         move R0 [R13+0]
@@ -106,12 +112,14 @@ println_hex_long:
         push R12
         move R12 R13
         sub R13 #16
+; 17:     print_hex_long(val);
         movel R0 [R12+12]
         sub R13 #8
         movel @13 R0
         move R0 [R13+0]
         call print_hex_long
         add R13 #8
+; 18:     putchar('\n');
         move R0 #10
         push R0
         move R0 [R13+0]
@@ -132,10 +140,12 @@ input_long:
         push R12
         move R12 R13
         sub R13 #56
+; 22:     int i = 0;
         move R0 #0
         move [R12-40] R0
 sta_64520000:
         move R2 #0
+; 23:     while (i < 30) {
         move R0 [R12-40]
         push R0
         move R0 #30
@@ -149,8 +159,10 @@ _L64520002:
 _L64520003:
         cmp R0 #0
         jz sta_64520001
+; 24:         int c = getchar();
         call getchar
         move [R12-44] R0
+; 25:         if (c == '\n' || c == '\r' || c == 0) break;
         move R0 [R12-44]
         push R0
         move R0 #10
@@ -209,6 +221,7 @@ _L64520008:
         jmp sta_64520001
 sta_64520004:
 sta_64520005:
+; 26:         buf[i++] = (char)c;
         move R0 [R12-44]
         move R11 R0
         move R0 R12
@@ -230,6 +243,7 @@ sta_64520005:
         moveb [R0] R11
         jmp sta_64520000
 sta_64520001:
+; 28:     buf[i] = 0;
         move R0 #0
         move R8 R0
         move R0 R12
@@ -245,6 +259,7 @@ sta_64520001:
         pop R6
         add R0 R6
         moveb [R0] R8
+; 29:     return atol(buf);
         move R0 R12
         sub R0 #36
         push R0
@@ -270,6 +285,7 @@ print_double:
         push R12
         move R12 R13
         sub R13 #80
+; 33:     dtoa(val, precision, buf);
         move R0 R12
         sub R0 #68
         push R0
@@ -282,6 +298,7 @@ print_double:
         move R2 [R13+8]
         call dtoa
         add R13 #12
+; 34:     print_str(buf);
         move R0 R12
         sub R0 #68
         push R0
@@ -306,6 +323,7 @@ println_double:
         push R12
         move R12 R13
         sub R13 #16
+; 37:     print_double(val, precision);
         move R0 [R12+20]
         push R0
         moved R0 [R12+12]
@@ -315,6 +333,7 @@ println_double:
         move R1 [R13+8]
         call print_double
         add R13 #12
+; 38:     putchar('\n');
         move R0 #10
         push R0
         move R0 [R13+0]

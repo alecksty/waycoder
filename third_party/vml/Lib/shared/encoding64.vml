@@ -15,6 +15,7 @@ lutf8_strlen:
         push R12
         move R12 R13
         sub R13 #16
+; 3: __stdcall long lutf8_strlen(const char* s) { return encoding_utf8_strlen(s); }
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -39,6 +40,7 @@ lutf8_decode:
         push R12
         move R12 R13
         sub R13 #16
+; 5:     return encoding_utf8_decode(src, (int)(len > 0x7FFFFFFF ? 0x7FFFFFFF : len));
         movel R0 [R12+16]
         pushl R0
         move R0 #2147483647
@@ -89,6 +91,7 @@ lutf8_encode:
         push R12
         move R12 R13
         sub R13 #16
+; 8:     return encoding_utf8_encode((int)codepoint, dst, (int)(max_bytes > 0x7FFFFFFF ? 0x7FFFFFFF : max_bytes));
         movel R0 [R12+24]
         pushl R0
         move R0 #2147483647

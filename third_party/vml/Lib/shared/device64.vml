@@ -18,6 +18,7 @@ ldev_read64:
         push R12
         move R12 R13
         sub R13 #16
+; 3:     return dev_read(handle, buf, (int)offset, (int)count);
         movel R0 [R12+28]
         l2i R0 R0
         push R0
@@ -56,6 +57,7 @@ ldev_write64:
         push R12
         move R12 R13
         sub R13 #16
+; 6:     return dev_write(handle, buf, (int)offset, (int)count);
         movel R0 [R12+28]
         l2i R0 R0
         push R0

@@ -57,6 +57,7 @@ zadd:
         push R12
         move R12 R13
         sub R13 #16
+; 4:     result[0] = a[0] + b[0]; result[1] = a[1] + b[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -125,6 +126,7 @@ zsub:
         push R12
         move R12 R13
         sub R13 #16
+; 7:     result[0] = a[0] - b[0]; result[1] = a[1] - b[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -193,6 +195,7 @@ zmul:
         push R12
         move R12 R13
         sub R13 #16
+; 10:     result[0] = a[0]*b[0] - a[1]*b[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -238,6 +241,7 @@ zmul:
         pop R11
         add R0 R11
         moved [R0] R2
+; 11:     result[1] = a[0]*b[1] + a[1]*b[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -301,6 +305,7 @@ zdiv:
         push R12
         move R12 R13
         sub R13 #24
+; 14:     double denom = b[0]*b[0] + b[1]*b[1];
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -339,6 +344,7 @@ zdiv:
         dpop R1
         dadd R0 R1 R0
         moved [R12-12] R0
+; 15:     if (denom == 0.0) { result[0]=0.0; result[1]=0.0; return; }
         moved R0 [R12-12]
         dpush R0
         moved R0 [dbl_92980002]
@@ -373,6 +379,7 @@ _L92980004:
         jmp L_92980007
 sta_92980000:
 sta_92980001:
+; 16:     result[0] = (a[0]*b[0] + a[1]*b[1]) / denom;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -422,6 +429,7 @@ sta_92980001:
         pop R3
         add R0 R3
         moved [R0] R5
+; 17:     result[1] = (a[1]*b[0] - a[0]*b[1]) / denom;
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -488,6 +496,7 @@ zabs:
         push R12
         move R12 R13
         sub R13 #40
+; 20:     double sq = z[0]*z[0] + z[1]*z[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -526,6 +535,7 @@ zabs:
         dpop R1
         dadd R0 R1 R0
         moved [R12-12] R0
+; 21:     if (sq <= 0.0) return 0.0;
         moved R0 [R12-12]
         dpush R0
         moved R0 [dbl_92980010]
@@ -543,6 +553,7 @@ _L92980012:
         jmp L_92980014
 sta_92980008:
 sta_92980009:
+; 22:     double g = sq*0.5 + 0.5; int i;
         moved R0 [R12-12]
         dpush R0
         moved R0 [dbl_92980015]
@@ -553,6 +564,7 @@ sta_92980009:
         dpop R1
         dadd R0 R1 R0
         moved [R12-20] R0
+; 23:     for(i=0;i<15;i++) { double ng=(g+sq/g)*0.5; if(ng>=g) return g; g=ng; }
         move R0 #0
         move [R12-24] R0
 sta_92980017:
@@ -610,6 +622,7 @@ sta_92980018:
         move R0 R1
         jmp sta_92980017
 sta_92980019:
+; 24:     return g;
         moved R0 [R12-20]
         jmp L_92980014
 L_92980014:
@@ -629,6 +642,7 @@ zarg:
         push R12
         move R12 R13
         sub R13 #72
+; 27:     if (z[0] == 0.0 && z[1] == 0.0) return 0.0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -678,6 +692,7 @@ _L92980030:
         jmp L_92980038
 sta_92980027:
 sta_92980028:
+; 29:     double y = z[1], x = z[0];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -694,6 +709,7 @@ sta_92980028:
         add R0 R2
         moved R0 [R0]
         moved [R12-20] R0
+; 30:     double abs_y = y < 0 ? -y : y;
         moved R0 [R12-12]
         dpush R0
         move R0 #0
@@ -716,6 +732,7 @@ _L92980041:
         moved R0 [R12-12]
 _L92980042:
         moved [R12-28] R0
+; 31:     double abs_x = x < 0 ? -x : x;
         moved R0 [R12-20]
         dpush R0
         move R0 #0
@@ -738,6 +755,7 @@ _L92980045:
         moved R0 [R12-20]
 _L92980046:
         moved [R12-36] R0
+; 33:     if (abs_x > abs_y) {
         moved R0 [R12-36]
         dpush R0
         moved R0 [R12-28]
@@ -751,16 +769,19 @@ _L92980049:
 _L92980050:
         cmp R0 #0
         jz sta_92980047
+; 34:         r = abs_y / abs_x;
         moved R0 [R12-28]
         dpush R0
         moved R0 [R12-36]
         dpop R1
         ddiv R0 R1 R0
         moved [R12-44] R0
+; 35:         double t = r, sum = r; int n;
         moved R0 [R12-44]
         moved [R12-52] R0
         moved R0 [R12-44]
         moved [R12-60] R0
+; 36:         for (n=1; n<15; n++) { t*=-r*r*(2*n-1)/(2*n+1); sum+=t; }
         move R0 #1
         move [R12-64] R0
 sta_92980051:
@@ -833,8 +854,10 @@ sta_92980052:
         move R0 R1
         jmp sta_92980051
 sta_92980053:
+; 37:         r = sum;
         moved R0 [R12-60]
         moved [R12-44] R0
+; 38:         if (x < 0) r = 3.141592653589793 - r;
         moved R0 [R12-20]
         dpush R0
         move R0 #0
@@ -857,6 +880,7 @@ _L92980059:
         moved [R12-44] R0
 sta_92980056:
 sta_92980057:
+; 39:         if (y < 0) r = -r;
         moved R0 [R12-12]
         dpush R0
         move R0 #0
@@ -879,6 +903,7 @@ sta_92980061:
 sta_92980062:
         jmp sta_92980048
 sta_92980047:
+; 41:         if (abs_y == 0) return 0.0;
         moved R0 [R12-28]
         dpush R0
         move R0 #0
@@ -897,16 +922,19 @@ _L92980068:
         jmp L_92980038
 sta_92980065:
 sta_92980066:
+; 42:         r = abs_x / abs_y;
         moved R0 [R12-36]
         dpush R0
         moved R0 [R12-28]
         dpop R1
         ddiv R0 R1 R0
         moved [R12-44] R0
+; 43:         double t = r, sum = r; int n;
         moved R0 [R12-44]
         moved [R12-52] R0
         moved R0 [R12-44]
         moved [R12-60] R0
+; 44:         for (n=1; n<15; n++) { t*=-r*r*(2*n-1)/(2*n+1); sum+=t; }
         move R0 #1
         move [R12-64] R0
 sta_92980070:
@@ -979,12 +1007,14 @@ sta_92980071:
         move R0 R1
         jmp sta_92980070
 sta_92980072:
+; 45:         r = 1.570796326794896 - sum;
         moved R0 [dbl_92980075]
         dpush R0
         moved R0 [R12-60]
         dpop R1
         dsub R0 R1 R0
         moved [R12-44] R0
+; 46:         if (y < 0) r = -r;
         moved R0 [R12-12]
         dpush R0
         move R0 #0
@@ -1005,6 +1035,7 @@ _L92980079:
         moved [R12-44] R0
 sta_92980076:
 sta_92980077:
+; 47:         if (x < 0) r = 3.141592653589793 - (y > 0 ? r : -r);
         moved R0 [R12-20]
         dpush R0
         move R0 #0
@@ -1048,6 +1079,7 @@ _L92980088:
 sta_92980080:
 sta_92980081:
 sta_92980048:
+; 49:     return r;
         moved R0 [R12-44]
         jmp L_92980038
 L_92980038:
@@ -1068,6 +1100,7 @@ zconj:
         push R12
         move R12 R13
         sub R13 #16
+; 52:     result[0] = a[0]; result[1] = -a[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1123,6 +1156,7 @@ zneg:
         push R12
         move R12 R13
         sub R13 #16
+; 55:     result[0] = -a[0]; result[1] = -a[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1186,12 +1220,15 @@ zexp_re:
         push R12
         move R12 R13
         sub R13 #40
+; 59:     double e = 1.0, term = 1.0;
         moved R0 [dbl_92980089]
         moved [R12-12] R0
         moved R0 [dbl_92980090]
         moved [R12-20] R0
+; 61:     double x = re;
         moved R0 [R12+12]
         moved [R12-32] R0
+; 62:     if (x < 0) x = -x;
         moved R0 [R12-32]
         dpush R0
         move R0 #0
@@ -1212,6 +1249,7 @@ _L92980094:
         moved [R12-32] R0
 sta_92980091:
 sta_92980092:
+; 63:     for (i=1; i<20; i++) { term*=x/i; e+=term; }
         move R0 #1
         move [R12-24] R0
 sta_92980095:
@@ -1253,6 +1291,7 @@ sta_92980096:
         move R0 R1
         jmp sta_92980095
 sta_92980097:
+; 64:     if (re < 0) e = 1.0/e;
         moved R0 [R12+12]
         dpush R0
         move R0 #0
@@ -1275,6 +1314,7 @@ _L92980103:
         moved [R12-12] R0
 sta_92980100:
 sta_92980101:
+; 65:     return e * (im < 1e-15 && im > -1e-15 ? 1.0 : 0.0);
         moved R0 [R12-12]
         dpush R0
         moved R0 [R12+20]
@@ -1338,12 +1378,15 @@ zexp_im:
         push R12
         move R12 R13
         sub R13 #56
+; 68:     double e = 1.0, term = 1.0;
         moved R0 [dbl_92980119]
         moved [R12-12] R0
         moved R0 [dbl_92980120]
         moved [R12-20] R0
+; 70:     double x = re;
         moved R0 [R12+12]
         moved [R12-32] R0
+; 71:     if (x < 0) x = -x;
         moved R0 [R12-32]
         dpush R0
         move R0 #0
@@ -1364,6 +1407,7 @@ _L92980124:
         moved [R12-32] R0
 sta_92980121:
 sta_92980122:
+; 72:     for (i=1; i<20; i++) { term*=x/i; e+=term; }
         move R0 #1
         move [R12-24] R0
 sta_92980125:
@@ -1405,6 +1449,7 @@ sta_92980126:
         move R0 R1
         jmp sta_92980125
 sta_92980127:
+; 73:     if (re < 0) e = 1.0/e;
         moved R0 [R12+12]
         dpush R0
         move R0 #0
@@ -1427,10 +1472,12 @@ _L92980133:
         moved [R12-12] R0
 sta_92980130:
 sta_92980131:
+; 75:     double s = im, st = im;
         moved R0 [R12+20]
         moved [R12-40] R0
         moved R0 [R12+20]
         moved [R12-48] R0
+; 76:     for (i=1; i<12; i++) { st*=-im*im/((2*i)*(2*i+1)); s+=st; }
         move R0 #1
         move [R12-24] R0
 sta_92980135:
@@ -1498,6 +1545,7 @@ sta_92980136:
         move R0 R1
         jmp sta_92980135
 sta_92980137:
+; 77:     return e * s;
         moved R0 [R12-12]
         dpush R0
         moved R0 [R12-40]
@@ -1522,6 +1570,7 @@ zsqr:
         push R12
         move R12 R13
         sub R13 #16
+; 80:     result[0] = a[0]*a[0] - a[1]*a[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1567,6 +1616,7 @@ zsqr:
         pop R2
         add R0 R2
         moved [R0] R11
+; 81:     result[1] = 2.0 * a[0] * a[1];
         moved R0 [dbl_92980141]
         dpush R0
         move R0 [R12+12]
@@ -1614,12 +1664,14 @@ zsqrt:
         push R12
         move R12 R13
         sub R13 #64
+; 84:     double r = zabs(z);
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
         call zabs
         add R13 #4
         moved [R12-12] R0
+; 85:     if (r == 0.0) { result[0]=0.0; result[1]=0.0; return; }
         moved R0 [R12-12]
         dpush R0
         moved R0 [dbl_92980144]
@@ -1654,6 +1706,7 @@ _L92980146:
         jmp L_92980149
 sta_92980142:
 sta_92980143:
+; 86:     double re = (z[0] + r) * 0.5;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1670,6 +1723,7 @@ sta_92980143:
         dpop R1
         dmul R0 R1 R0
         moved [R12-20] R0
+; 87:     double im = (r - z[0]) * 0.5;
         moved R0 [R12-12]
         dpush R0
         move R0 [R12+12]
@@ -1686,6 +1740,7 @@ sta_92980143:
         dpop R1
         dmul R0 R1 R0
         moved [R12-28] R0
+; 88:     double g = re > 0 ? 1.0 : 0.0;
         moved R0 [R12-20]
         dpush R0
         move R0 #0
@@ -1706,6 +1761,7 @@ _L92980154:
         moved R0 [dbl_92980157]
 _L92980155:
         moved [R12-36] R0
+; 90:     if (re <= 0) { re = 0; g = 0; }
         moved R0 [R12-20]
         dpush R0
         move R0 #0
@@ -1728,6 +1784,7 @@ _L92980161:
         moved [R12-36] R0
 sta_92980158:
 sta_92980159:
+; 91:     g = re*0.5+0.5; for (h=0;h<15;h++) { double ng=(g+re/g)*0.5; if(ng>=g) break; g=ng; }
         moved R0 [R12-20]
         dpush R0
         moved R0 [dbl_92980162]
@@ -1796,6 +1853,7 @@ sta_92980165:
         moved R0 R1
         jmp sta_92980164
 sta_92980166:
+; 92:     result[0] = g;
         moved R0 [R12-36]
         move R11 R0
         move R0 [R12+16]
@@ -1805,6 +1863,7 @@ sta_92980166:
         pop R1
         add R0 R1
         moved [R0] R11
+; 93:     if (z[1] < 0) result[0] = -result[0];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -1850,6 +1909,7 @@ _L92980177:
         moved [R0] R9
 sta_92980174:
 sta_92980175:
+; 94:     if (im <= 0) { result[1] = 0; return; }
         moved R0 [R12-28]
         dpush R0
         move R0 #0
@@ -1876,6 +1936,7 @@ _L92980181:
         jmp L_92980149
 sta_92980178:
 sta_92980179:
+; 95:     g = im*0.5+0.5; for (h=0;h<15;h++) { double ng=(g+im/g)*0.5; if(ng>=g) break; g=ng; }
         moved R0 [R12-28]
         dpush R0
         moved R0 [dbl_92980182]
@@ -1944,6 +2005,7 @@ sta_92980185:
         moved R0 R1
         jmp sta_92980184
 sta_92980186:
+; 96:     result[1] = g;
         moved R0 [R12-36]
         move R5 R0
         move R0 [R12+16]

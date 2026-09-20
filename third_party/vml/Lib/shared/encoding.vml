@@ -23,6 +23,7 @@ encoding_utf8_decode:
         push R12
         move R12 R13
         sub R13 #32
+; 7:     if (len <= 0 || src == 0) return -1;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -63,6 +64,7 @@ _L20990004:
         jmp L_20990009
 sta_20990000:
 sta_20990001:
+; 8:     int b0 = src[0] & 0xFF;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -77,6 +79,7 @@ sta_20990001:
         and R1 R0
         move R0 R1
         move [R12-8] R0
+; 9:     if (b0 < 0x80) return b0;
         move R0 [R12-8]
         push R0
         move R0 #128
@@ -94,6 +97,7 @@ _L20990013:
         jmp L_20990009
 sta_20990010:
 sta_20990011:
+; 11:     if ((b0 & 0xE0) == 0xC0) {
         move R0 [R12-8]
         push R0
         move R0 #224
@@ -112,6 +116,7 @@ _L20990016:
 _L20990017:
         cmp R0 #0
         jz sta_20990014
+; 12:         if (b0 < 0xC2) return -1; /* overlong */
         move R0 [R12-8]
         push R0
         move R0 #194
@@ -131,10 +136,12 @@ _L20990021:
         jmp L_20990009
 sta_20990018:
 sta_20990019:
+; 13:         seqlen = 2;
         move R0 #2
         move [R12-12] R0
         jmp sta_20990015
 sta_20990014:
+; 14:     } else if ((b0 & 0xF0) == 0xE0) {
         move R0 [R12-8]
         push R0
         move R0 #240
@@ -153,10 +160,12 @@ _L20990024:
 _L20990025:
         cmp R0 #0
         jz sta_20990022
+; 15:         seqlen = 3;
         move R0 #3
         move [R12-12] R0
         jmp sta_20990023
 sta_20990022:
+; 16:     } else if ((b0 & 0xF8) == 0xF0) {
         move R0 [R12-8]
         push R0
         move R0 #248
@@ -175,6 +184,7 @@ _L20990028:
 _L20990029:
         cmp R0 #0
         jz sta_20990026
+; 17:         if (b0 > 0xF4) return -1; /* beyond Unicode */
         move R0 [R12-8]
         push R0
         move R0 #244
@@ -194,10 +204,12 @@ _L20990033:
         jmp L_20990009
 sta_20990030:
 sta_20990031:
+; 18:         seqlen = 4;
         move R0 #4
         move [R12-12] R0
         jmp sta_20990027
 sta_20990026:
+; 20:         return -1; /* invalid: 0x80-0xBF, 0xC0-C1, 0xF5-FF */
         move R0 #1
         move R0 #1
         neg R0 R0
@@ -205,6 +217,7 @@ sta_20990026:
 sta_20990027:
 sta_20990023:
 sta_20990015:
+; 22:     if (len < seqlen) return -2;
         move R0 [R12+16]
         push R0
         move R0 [R12-12]
@@ -224,6 +237,7 @@ _L20990037:
         jmp L_20990009
 sta_20990034:
 sta_20990035:
+; 23:     int cp = b0 & ((1 << (7 - seqlen)) - 1);
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -246,6 +260,7 @@ sta_20990035:
         and R1 R0
         move R0 R1
         move [R12-16] R0
+; 25:     for (i = 1; i < seqlen; i++) {
         move R0 #1
         move [R12-20] R0
 sta_20990038:
@@ -262,6 +277,7 @@ _L20990041:
 _L20990042:
         cmp R0 #0
         jz sta_20990040
+; 26:         int b = src[i];
         move R0 [R12+12]
         push R0
         move R0 [R12-20]
@@ -271,6 +287,7 @@ _L20990042:
         moveb R0 [R0]
         sextb R0 R0
         move [R12-24] R0
+; 27:         if ((b & 0xC0) != 0x80) return -1;
         move R0 [R12-24]
         push R0
         move R0 #192
@@ -295,6 +312,7 @@ _L20990046:
         jmp L_20990009
 sta_20990043:
 sta_20990044:
+; 28:         cp = (cp << 6) | (b & 0x3F);
         move R0 [R12-16]
         push R0
         move R0 #6
@@ -320,6 +338,7 @@ sta_20990039:
         move R0 R1
         jmp sta_20990038
 sta_20990040:
+; 30:     if (seqlen == 3 && cp < 0x800) return -1;
         move R0 [R12-12]
         push R0
         move R0 #3
@@ -359,6 +378,7 @@ _L20990050:
         jmp L_20990009
 sta_20990047:
 sta_20990048:
+; 31:     if (seqlen == 4 && cp < 0x10000) return -1;
         move R0 [R12-12]
         push R0
         move R0 #4
@@ -398,6 +418,7 @@ _L20990058:
         jmp L_20990009
 sta_20990055:
 sta_20990056:
+; 32:     if (cp >= 0xD800 && cp <= 0xDFFF) return -1;
         move R0 [R12-16]
         push R0
         move R0 #55296
@@ -437,6 +458,7 @@ _L20990066:
         jmp L_20990009
 sta_20990063:
 sta_20990064:
+; 33:     if (cp > 0x10FFFF) return -1;
         move R0 [R12-16]
         push R0
         move R0 #1114111
@@ -456,6 +478,7 @@ _L20990074:
         jmp L_20990009
 sta_20990071:
 sta_20990072:
+; 34:     return cp;
         move R0 [R12-16]
         jmp L_20990009
 L_20990009:
@@ -477,6 +500,7 @@ encoding_utf8_encode:
         push R12
         move R12 R13
         sub R13 #16
+; 38:     if (codepoint < 0 || codepoint > 0x10FFFF || (codepoint >= 0xD800 && codepoint <= 0xDFFF))
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -552,12 +576,14 @@ _L20990078:
 _L20990079:
         cmp R0 #0
         jz sta_20990075
+; 39:         return -1;
         move R0 #1
         move R0 #1
         neg R0 R0
         jmp L_20990093
 sta_20990075:
 sta_20990076:
+; 40:     if (codepoint < 0x80) { if (max_bytes < 1) return -1; dst[0] = codepoint & 0xFF; return 1; }
         move R0 [R12+12]
         push R0
         move R0 #128
@@ -608,6 +634,7 @@ sta_20990099:
         jmp L_20990093
 sta_20990094:
 sta_20990095:
+; 41:     if (codepoint < 0x800) { if (max_bytes < 2) return -1; dst[0] = 0xC0 | (codepoint >> 6); dst[1] = 0x80 | (codepoint & 0x3F); return 2; }
         move R0 [R12+12]
         push R0
         move R0 #2048
@@ -682,6 +709,7 @@ sta_20990107:
         jmp L_20990093
 sta_20990102:
 sta_20990103:
+; 42:     if (codepoint < 0x10000) { if (max_bytes < 3) return -1; dst[0] = 0xE0 | (codepoint >> 12); dst[1] = 0x80 | ((codepoint >> 6) & 0x3F); dst[2] = 0x80 | (codepoint & 0x3F); return 3; }
         move R0 [R12+12]
         push R0
         move R0 #65536
@@ -780,6 +808,7 @@ sta_20990115:
         jmp L_20990093
 sta_20990110:
 sta_20990111:
+; 43:     if (max_bytes < 4) return -1;
         move R0 [R12+20]
         push R0
         move R0 #4
@@ -799,6 +828,7 @@ _L20990121:
         jmp L_20990093
 sta_20990118:
 sta_20990119:
+; 44:     dst[0] = 0xF0 | (codepoint >> 18); dst[1] = 0x80 | ((codepoint >> 12) & 0x3F); dst[2] = 0x80 | ((codepoint >> 6) & 0x3F); dst[3] = 0x80 | (codepoint & 0x3F); return 4;
         move R0 #240
         push R0
         move R0 [R12+12]
@@ -904,6 +934,7 @@ encoding_utf8_strlen:
         push R12
         move R12 R13
         sub R13 #16
+; 47:     if (s == 0) return 0; int c = 0; while (*s) { if ((*s & 0xC0) != 0x80) c++; s++; } return c;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -983,6 +1014,7 @@ encoding_utf8_seqlen:
         push R12
         move R12 R13
         sub R13 #16
+; 50:     int b = lead_byte & 0xFF;
         moveb R0 [R12+12]
         push R0
         move R0 #255
@@ -990,6 +1022,7 @@ encoding_utf8_seqlen:
         and R1 R0
         move R0 R1
         move [R12-8] R0
+; 51:     if (b < 0x80) return 1;
         move R0 [R12-8]
         push R0
         move R0 #128
@@ -1007,6 +1040,7 @@ _L20990136:
         jmp L_20990137
 sta_20990133:
 sta_20990134:
+; 52:     if ((b & 0xE0) == 0xC0) return 2;
         move R0 [R12-8]
         push R0
         move R0 #224
@@ -1029,6 +1063,7 @@ _L20990141:
         jmp L_20990137
 sta_20990138:
 sta_20990139:
+; 53:     if ((b & 0xF0) == 0xE0) return 3;
         move R0 [R12-8]
         push R0
         move R0 #240
@@ -1051,6 +1086,7 @@ _L20990145:
         jmp L_20990137
 sta_20990142:
 sta_20990143:
+; 54:     if ((b & 0xF8) == 0xF0) return 4;
         move R0 [R12-8]
         push R0
         move R0 #248
@@ -1073,6 +1109,7 @@ _L20990149:
         jmp L_20990137
 sta_20990146:
 sta_20990147:
+; 55:     return -1;
         move R0 #1
         move R0 #1
         neg R0 R0
@@ -1095,6 +1132,7 @@ encoding_ascii_decode:
         push R12
         move R12 R13
         sub R13 #16
+; 59:     if (len <= 0 || src == 0) return -1;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -1135,6 +1173,7 @@ _L20990154:
         jmp L_20990159
 sta_20990150:
 sta_20990151:
+; 60:     int c = src[0] & 0xFF;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1149,6 +1188,7 @@ sta_20990151:
         and R1 R0
         move R0 R1
         move [R12-8] R0
+; 61:     if (c > 0x7F) return -1;
         move R0 [R12-8]
         push R0
         move R0 #127
@@ -1168,6 +1208,7 @@ _L20990163:
         jmp L_20990159
 sta_20990160:
 sta_20990161:
+; 62:     return c;
         move R0 [R12-8]
         jmp L_20990159
 L_20990159:
@@ -1187,6 +1228,7 @@ encoding_ascii_is_clean:
         push R12
         move R12 R13
         sub R13 #16
+; 66:     if (s == 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1206,6 +1248,7 @@ sta_20990164:
 sta_20990165:
 sta_20990169:
         move R2 #0
+; 67:     while (*s) { if ((*s & 0xFF) > 0x7F) return 0; s++; }
         move R0 [R12+12]
         moveb R0 [R0]
         sextb R0 R0
@@ -1242,6 +1285,7 @@ sta_20990172:
         move R0 R1
         jmp sta_20990169
 sta_20990170:
+; 68:     return 1;
         move R0 #1
         jmp L_20990168
 L_20990168:
@@ -1261,6 +1305,7 @@ encoding_ascii_isclean:
         push R12
         move R12 R13
         sub R13 #16
+; 71:     if (s == 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1280,6 +1325,7 @@ sta_20990175:
 sta_20990176:
 sta_20990180:
         move R2 #0
+; 72:     while (*s) { if ((*s & 0xFF) > 0x7F) return 0; s++; }
         move R0 [R12+12]
         moveb R0 [R0]
         sextb R0 R0
@@ -1316,6 +1362,7 @@ sta_20990183:
         move R0 R1
         jmp sta_20990180
 sta_20990181:
+; 73:     return 1;
         move R0 #1
         jmp L_20990179
 L_20990179:
@@ -1336,6 +1383,7 @@ encoding_latin1_decode:
         push R12
         move R12 R13
         sub R13 #16
+; 77:     if (len <= 0 || src == 0) return -1;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -1376,6 +1424,7 @@ _L20990190:
         jmp L_20990195
 sta_20990186:
 sta_20990187:
+; 78:     return src[0] & 0xFF;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1409,6 +1458,7 @@ encoding_latin1_encode:
         push R12
         move R12 R13
         sub R13 #16
+; 81:     if (dst == 0 || max_bytes < 1) return -1;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -1449,6 +1499,7 @@ _L20990200:
         jmp L_20990205
 sta_20990196:
 sta_20990197:
+; 82:     if (codepoint < 0 || codepoint > 0xFF) return -1;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1489,6 +1540,7 @@ _L20990210:
         jmp L_20990205
 sta_20990206:
 sta_20990207:
+; 83:     dst[0] = codepoint & 0xFF;
         move R0 [R12+12]
         push R0
         move R0 #255
@@ -1503,6 +1555,7 @@ sta_20990207:
         pop R6
         add R0 R6
         moveb [R0] R10
+; 84:     return 1;
         move R0 #1
         jmp L_20990205
 L_20990205:
@@ -1523,6 +1576,7 @@ encoding_utf16le_decode:
         push R12
         move R12 R13
         sub R13 #24
+; 88:     if (len < 2 || src == 0) return -1;
         move R0 [R12+16]
         push R0
         move R0 #2
@@ -1563,6 +1617,7 @@ _L20990219:
         jmp L_20990224
 sta_20990215:
 sta_20990216:
+; 89:     int w1 = (src[0] & 0xFF) | ((src[1] & 0xFF) << 8);
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1599,6 +1654,7 @@ sta_20990216:
         or R1 R0
         move R0 R1
         move [R12-8] R0
+; 90:     if (w1 >= 0xD800 && w1 <= 0xDBFF) {
         move R0 [R12-8]
         push R0
         move R0 #55296
@@ -1632,6 +1688,7 @@ _L20990227:
 _L20990228:
         cmp R0 #0
         jz sta_20990225
+; 91:         if (len < 4) return -2;
         move R0 [R12+16]
         push R0
         move R0 #4
@@ -1651,6 +1708,7 @@ _L20990236:
         jmp L_20990224
 sta_20990233:
 sta_20990234:
+; 92:         int w2 = (src[2] & 0xFF) | ((src[3] & 0xFF) << 8);
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -1687,6 +1745,7 @@ sta_20990234:
         or R1 R0
         move R0 R1
         move [R12-12] R0
+; 93:         if (w2 < 0xDC00 || w2 > 0xDFFF) return -1;
         move R0 [R12-12]
         push R0
         move R0 #56320
@@ -1727,6 +1786,7 @@ _L20990241:
         jmp L_20990224
 sta_20990237:
 sta_20990238:
+; 94:         return 0x10000 + ((w1 - 0xD800) << 10) + (w2 - 0xDC00);
         move R0 #65536
         push R0
         move R0 [R12-8]
@@ -1756,6 +1816,7 @@ sta_20990238:
         jmp L_20990224
 sta_20990225:
 sta_20990226:
+; 96:     return w1;
         move R0 [R12-8]
         jmp L_20990224
 L_20990224:
@@ -1776,6 +1837,7 @@ encoding_utf16be_decode:
         push R12
         move R12 R13
         sub R13 #24
+; 100:     if (len < 2 || src == 0) return -1;
         move R0 [R12+16]
         push R0
         move R0 #2
@@ -1816,6 +1878,7 @@ _L20990250:
         jmp L_20990255
 sta_20990246:
 sta_20990247:
+; 101:     int w1 = ((src[0] & 0xFF) << 8) | (src[1] & 0xFF);
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1852,6 +1915,7 @@ sta_20990247:
         or R1 R0
         move R0 R1
         move [R12-8] R0
+; 102:     if (w1 >= 0xD800 && w1 <= 0xDBFF) {
         move R0 [R12-8]
         push R0
         move R0 #55296
@@ -1885,6 +1949,7 @@ _L20990258:
 _L20990259:
         cmp R0 #0
         jz sta_20990256
+; 103:         if (len < 4) return -2;
         move R0 [R12+16]
         push R0
         move R0 #4
@@ -1904,6 +1969,7 @@ _L20990267:
         jmp L_20990255
 sta_20990264:
 sta_20990265:
+; 104:         int w2 = ((src[2] & 0xFF) << 8) | (src[3] & 0xFF);
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -1940,6 +2006,7 @@ sta_20990265:
         or R1 R0
         move R0 R1
         move [R12-12] R0
+; 105:         if (w2 < 0xDC00 || w2 > 0xDFFF) return -1;
         move R0 [R12-12]
         push R0
         move R0 #56320
@@ -1980,6 +2047,7 @@ _L20990272:
         jmp L_20990255
 sta_20990268:
 sta_20990269:
+; 106:         return 0x10000 + ((w1 - 0xD800) << 10) + (w2 - 0xDC00);
         move R0 #65536
         push R0
         move R0 [R12-8]
@@ -2009,6 +2077,7 @@ sta_20990269:
         jmp L_20990255
 sta_20990256:
 sta_20990257:
+; 108:     return w1;
         move R0 [R12-8]
         jmp L_20990255
 L_20990255:
@@ -2029,6 +2098,7 @@ encoding_gbk_decode:
         push R12
         move R12 R13
         sub R13 #24
+; 112:     if (len <= 0 || src == 0) return -1;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -2069,6 +2139,7 @@ _L20990281:
         jmp L_20990286
 sta_20990277:
 sta_20990278:
+; 113:     int b0 = src[0] & 0xFF;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -2083,6 +2154,7 @@ sta_20990278:
         and R1 R0
         move R0 R1
         move [R12-8] R0
+; 114:     if (b0 <= 0x7F) return b0;
         move R0 [R12-8]
         push R0
         move R0 #127
@@ -2100,6 +2172,7 @@ _L20990290:
         jmp L_20990286
 sta_20990287:
 sta_20990288:
+; 115:     if (len < 2 || b0 < 0x81) return -1;
         move R0 [R12+16]
         push R0
         move R0 #2
@@ -2140,6 +2213,7 @@ _L20990295:
         jmp L_20990286
 sta_20990291:
 sta_20990292:
+; 116:     int gb = (b0 << 8) | (src[1] & 0xFF);
         move R0 [R12-8]
         push R0
         move R0 #8
@@ -2164,6 +2238,7 @@ sta_20990292:
         or R1 R0
         move R0 R1
         move [R12-12] R0
+; 117:     if (gb == 0xB0A1) return 0x554A; // 啊
         move R0 [R12-12]
         push R0
         move R0 #45217
@@ -2181,6 +2256,7 @@ _L20990303:
         jmp L_20990286
 sta_20990300:
 sta_20990301:
+; 118:     if (b0 >= 0xB0 && b0 <= 0xF7) {
         move R0 [R12-8]
         push R0
         move R0 #176
@@ -2214,6 +2290,7 @@ _L20990306:
 _L20990307:
         cmp R0 #0
         jz sta_20990304
+; 119:         int b1 = src[1] & 0xFF;
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -2228,6 +2305,7 @@ _L20990307:
         and R1 R0
         move R0 R1
         move [R12-16] R0
+; 120:         if (b1 >= 0xA1 && b1 <= 0xFE)
         move R0 [R12-16]
         push R0
         move R0 #161
@@ -2261,6 +2339,7 @@ _L20990314:
 _L20990315:
         cmp R0 #0
         jz sta_20990312
+; 121:             return 0x554A + (b0 - 0xB0) * 94 + (b1 - 0xA1);
         move R0 #21834
         push R0
         move R0 [R12-8]
@@ -2292,6 +2371,7 @@ sta_20990312:
 sta_20990313:
 sta_20990304:
 sta_20990305:
+; 123:     return -1;
         move R0 #1
         move R0 #1
         neg R0 R0
@@ -2315,6 +2395,7 @@ encoding_gbk_encode:
         push R12
         move R12 R13
         sub R13 #16
+; 126:     if (dst == 0 || max_bytes < 1) return -1;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -2355,6 +2436,7 @@ _L20990324:
         jmp L_20990329
 sta_20990320:
 sta_20990321:
+; 127:     if (codepoint <= 0x7F) { dst[0] = codepoint & 0xFF; return 1; }
         move R0 [R12+12]
         push R0
         move R0 #127
@@ -2386,6 +2468,7 @@ _L20990333:
         jmp L_20990329
 sta_20990330:
 sta_20990331:
+; 128:     if (codepoint >= 0x554A && codepoint <= 0x554A + 72 * 94) {
         move R0 [R12+12]
         push R0
         move R0 #21834
@@ -2429,6 +2512,7 @@ _L20990336:
 _L20990337:
         cmp R0 #0
         jz sta_20990334
+; 129:         if (max_bytes < 2) return -1;
         move R0 [R12+20]
         push R0
         move R0 #2
@@ -2448,6 +2532,7 @@ _L20990345:
         jmp L_20990329
 sta_20990342:
 sta_20990343:
+; 130:         int off = codepoint - 0x554A;
         move R0 [R12+12]
         push R0
         move R0 #21834
@@ -2455,6 +2540,7 @@ sta_20990343:
         sub R1 R0
         move R0 R1
         move [R12-8] R0
+; 131:         dst[0] = 0xB0 + off / 94; dst[1] = 0xA1 + off % 94; return 2;
         move R0 #176
         push R0
         move R0 [R12-8]
@@ -2497,6 +2583,7 @@ sta_20990343:
         jmp L_20990329
 sta_20990334:
 sta_20990335:
+; 133:     return -1;
         move R0 #1
         move R0 #1
         neg R0 R0
@@ -2519,6 +2606,7 @@ encoding_big5_decode:
         push R12
         move R12 R13
         sub R13 #24
+; 137:     if (len <= 0 || src == 0) return -1;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -2559,6 +2647,7 @@ _L20990350:
         jmp L_20990355
 sta_20990346:
 sta_20990347:
+; 138:     int b0 = src[0] & 0xFF;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -2573,6 +2662,7 @@ sta_20990347:
         and R1 R0
         move R0 R1
         move [R12-8] R0
+; 139:     if (b0 <= 0x7F) return b0;
         move R0 [R12-8]
         push R0
         move R0 #127
@@ -2590,6 +2680,7 @@ _L20990359:
         jmp L_20990355
 sta_20990356:
 sta_20990357:
+; 140:     if (len < 2 || b0 < 0xA1 || b0 > 0xF9) return -1;
         move R0 [R12+16]
         push R0
         move R0 #2
@@ -2651,6 +2742,7 @@ _L20990364:
         jmp L_20990355
 sta_20990360:
 sta_20990361:
+; 141:     if (b0 == 0xA4 && (src[1] & 0xFF) == 0x40) return 0x4E00; // 一
         move R0 [R12-8]
         push R0
         move R0 #164
@@ -2700,6 +2792,7 @@ _L20990377:
         jmp L_20990355
 sta_20990374:
 sta_20990375:
+; 142:     int b1 = src[1] & 0xFF;
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -2714,6 +2807,7 @@ sta_20990375:
         and R1 R0
         move R0 R1
         move [R12-12] R0
+; 143:     if (b1 >= 0x40 && b1 <= 0x7E) return 0x4E00 + (b0 - 0xA4) * 157 + (b1 - 0x40);
         move R0 [R12-12]
         push R0
         move R0 #64
@@ -2776,6 +2870,7 @@ _L20990385:
         jmp L_20990355
 sta_20990382:
 sta_20990383:
+; 144:     if (b1 >= 0xA1 && b1 <= 0xFE) return 0x4E00 + (b0 - 0xA4) * 157 + 63 + (b1 - 0xA1);
         move R0 [R12-12]
         push R0
         move R0 #161
@@ -2843,6 +2938,7 @@ _L20990393:
         jmp L_20990355
 sta_20990390:
 sta_20990391:
+; 145:     return -1;
         move R0 #1
         move R0 #1
         neg R0 R0
@@ -2866,6 +2962,7 @@ encoding_detect_bom:
         push R12
         move R12 R13
         sub R13 #16
+; 149:     if (len >= 3 && (src[0] & 0xFF) == 0xEF && (src[1] & 0xFF) == 0xBB && (src[2] & 0xFF) == 0xBF)
         move R0 [R12+16]
         push R0
         move R0 #3
@@ -2975,6 +3072,7 @@ _L20990400:
 _L20990401:
         cmp R0 #0
         jz sta_20990398
+; 150:         { *bom_len = 3; return 0; }
         move R0 [R12+20]
         move R9 R0
         move R0 #3
@@ -2983,6 +3081,7 @@ _L20990401:
         jmp L_20990414
 sta_20990398:
 sta_20990399:
+; 151:     if (len >= 2 && (src[0] & 0xFF) == 0xFF && (src[1] & 0xFF) == 0xFE)
         move R0 [R12+16]
         push R0
         move R0 #2
@@ -3060,6 +3159,7 @@ _L20990417:
 _L20990418:
         cmp R0 #0
         jz sta_20990415
+; 152:         { *bom_len = 2; return 1; }
         move R0 [R12+20]
         move R11 R0
         move R0 #2
@@ -3068,6 +3168,7 @@ _L20990418:
         jmp L_20990414
 sta_20990415:
 sta_20990416:
+; 153:     if (len >= 2 && (src[0] & 0xFF) == 0xFE && (src[1] & 0xFF) == 0xFF)
         move R0 [R12+16]
         push R0
         move R0 #2
@@ -3145,6 +3246,7 @@ _L20990429:
 _L20990430:
         cmp R0 #0
         jz sta_20990427
+; 154:         { *bom_len = 2; return 2; }
         move R0 [R12+20]
         move R1 R0
         move R0 #2
@@ -3153,10 +3255,12 @@ _L20990430:
         jmp L_20990414
 sta_20990427:
 sta_20990428:
+; 155:     *bom_len = 0;
         move R0 [R12+20]
         move R8 R0
         move R0 #0
         move [R8] R0
+; 156:     return -1;
         move R0 #1
         move R0 #1
         neg R0 R0
@@ -3178,6 +3282,7 @@ encoding_name:
         push R12
         move R12 R13
         sub R13 #16
+; 160:     switch (enc) {
         move R0 [R12+12]
         move R1 R0
         push R1
@@ -3217,27 +3322,35 @@ encoding_name:
         je sta_20990447
         jmp sta_20990440
 sta_20990441:
+; 161:         case 0: return "UTF-8";
         move R0 L_20990448
         jmp L_20990449
 sta_20990442:
+; 162:         case 1: return "UTF-16LE";
         move R0 L_20990450
         jmp L_20990449
 sta_20990443:
+; 163:         case 2: return "UTF-16BE";
         move R0 L_20990451
         jmp L_20990449
 sta_20990444:
+; 164:         case 3: return "ASCII";
         move R0 L_20990452
         jmp L_20990449
 sta_20990445:
+; 165:         case 4: return "Latin-1";
         move R0 L_20990453
         jmp L_20990449
 sta_20990446:
+; 166:         case 5: return "GBK";
         move R0 L_20990454
         jmp L_20990449
 sta_20990447:
+; 167:         case 6: return "Big5";
         move R0 L_20990455
         jmp L_20990449
 sta_20990440:
+; 168:         default: return "Unknown";
         move R0 L_20990456
         jmp L_20990449
 sta_20990439:
@@ -3263,6 +3376,7 @@ encoding_convert:
         push R12
         move R12 R13
         sub R13 #32
+; 173:     if (src == 0 || dst == 0 || src_len < 0 || dst_max < 0) return -1;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3345,12 +3459,14 @@ _L20990461:
         jmp L_20990476
 sta_20990457:
 sta_20990458:
+; 174:     int sp = 0, dp = 0;
         move R0 #0
         move [R12-8] R0
         move R0 #0
         move [R12-12] R0
 sta_20990477:
         move R2 #0
+; 175:     while (sp < src_len && dp < dst_max) {
         move R0 [R12-8]
         push R0
         move R0 [R12+16]
@@ -3384,6 +3500,7 @@ _L20990479:
 _L20990480:
         cmp R0 #0
         jz sta_20990478
+; 177:         if (from_enc == 0) cp = encoding_utf8_decode(src + sp, src_len - sp);
         move R0 [R12+28]
         push R0
         move R0 #0
@@ -3418,6 +3535,7 @@ _L20990488:
         move [R12-16] R0
         jmp sta_20990486
 sta_20990485:
+; 178:         else if (from_enc == 4) cp = encoding_latin1_decode(src + sp, src_len - sp);
         move R0 [R12+28]
         push R0
         move R0 #4
@@ -3452,6 +3570,7 @@ _L20990492:
         move [R12-16] R0
         jmp sta_20990490
 sta_20990489:
+; 179:         else if (from_enc == 3) cp = encoding_ascii_decode(src + sp, src_len - sp);
         move R0 [R12+28]
         push R0
         move R0 #3
@@ -3490,6 +3609,7 @@ sta_20990493:
 sta_20990494:
 sta_20990490:
 sta_20990486:
+; 181:         if (cp < 0) break;
         move R0 [R12-16]
         push R0
         move R0 #0
@@ -3506,6 +3626,7 @@ _L20990500:
         jmp sta_20990478
 sta_20990497:
 sta_20990498:
+; 183:         if (to_enc == 4) nb = encoding_latin1_encode(cp, dst + dp, dst_max - dp);
         move R0 [R12+32]
         push R0
         move R0 #4
@@ -3543,6 +3664,7 @@ _L20990504:
         move [R12-20] R0
         jmp sta_20990502
 sta_20990501:
+; 184:         else if (to_enc == 0) nb = encoding_utf8_encode(cp, dst + dp, dst_max - dp);
         move R0 [R12+32]
         push R0
         move R0 #0
@@ -3580,6 +3702,7 @@ _L20990508:
         move [R12-20] R0
         jmp sta_20990506
 sta_20990505:
+; 185:         else if (to_enc == 3) { if (cp > 0x7F) return -2; dst[dp] = cp; nb = 1; }
         move R0 [R12+32]
         push R0
         move R0 #3
@@ -3629,6 +3752,7 @@ sta_20990509:
 sta_20990510:
 sta_20990506:
 sta_20990502:
+; 187:         if (nb < 0) return nb;
         move R0 [R12-20]
         push R0
         move R0 #0
@@ -3646,6 +3770,7 @@ _L20990520:
         jmp L_20990476
 sta_20990517:
 sta_20990518:
+; 188:         sp += (cp < 0x80 ? 1 : (cp < 0x800 ? 2 : (cp < 0x10000 ? 3 : 4)));
         move R0 [R12-8]
         push R0
         move R0 [R12-16]
@@ -3704,6 +3829,7 @@ _L20990524:
         add R1 R0
         move R0 R1
         move [R12-8] R0
+; 189:         dp += nb;
         move R0 [R12-12]
         push R0
         move R0 [R12-20]
@@ -3713,6 +3839,7 @@ _L20990524:
         move [R12-12] R0
         jmp sta_20990477
 sta_20990478:
+; 191:     return dp;
         move R0 [R12-12]
         jmp L_20990476
 L_20990476:
@@ -3732,6 +3859,7 @@ encoding_detect_bom_1:
         push R12
         move R12 R13
         sub R13 #16
+; 196:     if (src == 0) return -1;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3751,6 +3879,7 @@ _L20990536:
         jmp L_20990537
 sta_20990533:
 sta_20990534:
+; 197:     if ((src[0] & 0xFF) == 0xEF && (src[1] & 0xFF) == 0xBB && (src[2] & 0xFF) == 0xBF) return 3;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3844,6 +3973,7 @@ _L20990541:
         jmp L_20990537
 sta_20990538:
 sta_20990539:
+; 198:     if ((src[0] & 0xFF) == 0xFF && (src[1] & 0xFF) == 0xFE) return 514;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3905,6 +4035,7 @@ _L20990553:
         jmp L_20990537
 sta_20990550:
 sta_20990551:
+; 199:     if ((src[0] & 0xFF) == 0xFE && (src[1] & 0xFF) == 0xFF) return 515;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3966,6 +4097,7 @@ _L20990561:
         jmp L_20990537
 sta_20990558:
 sta_20990559:
+; 200:     return 0;
         move R0 #0
         jmp L_20990537
 L_20990537:
@@ -3985,6 +4117,7 @@ encoding_get_name:
         push R12
         move R12 R13
         sub R13 #16
+; 203: __stdcall const char* encoding_get_name(int enc) { return encoding_name(enc); }
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -4010,6 +4143,7 @@ encoding_convert_utf8_to_latin1:
         push R12
         move R12 R13
         sub R13 #16
+; 206:     return encoding_convert(src, 9999, dst, max_len, 0, 4);
         move R0 #4
         push R0
         move R0 #0
@@ -4046,6 +4180,7 @@ encoding_latin1_decode_1:
         push R12
         move R12 R13
         sub R13 #16
+; 209: __stdcall int encoding_latin1_decode_1(unsigned char* src) { return encoding_latin1_decode(src, 1); }
         move R0 #1
         push R0
         move R0 [R12+12]
@@ -4073,6 +4208,7 @@ encoding_latin1_encode_2:
         push R12
         move R12 R13
         sub R13 #16
+; 210: __stdcall int encoding_latin1_encode_2(int cp, unsigned char* out) { return encoding_latin1_encode(cp, out, 1); }
         move R0 #1
         push R0
         move R0 [R12+16]
@@ -4102,6 +4238,7 @@ encoding_ascii_decode_1:
         push R12
         move R12 R13
         sub R13 #16
+; 211: __stdcall int encoding_ascii_decode_1(unsigned char* src) { return encoding_ascii_decode(src, 1); }
         move R0 #1
         push R0
         move R0 [R12+12]
@@ -4130,6 +4267,7 @@ encoding_gbk_encode_2:
         push R12
         move R12 R13
         sub R13 #16
+; 212: __stdcall int encoding_gbk_encode_2(int cp, unsigned char* out) { return encoding_gbk_encode(cp, out, 2); }
         move R0 #2
         push R0
         move R0 [R12+16]

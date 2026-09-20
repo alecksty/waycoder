@@ -25,6 +25,7 @@ InitGraph:
         push R12
         move R12 R13
         sub R13 #24
+; 51:     int d = driver ? *driver : 0;
         move R0 [R12+12]
         test R0 R0
         jz _L56300000
@@ -35,6 +36,7 @@ _L56300000:
         move R0 #0
 _L56300001:
         move [R12-8] R0
+; 52:     int m = mode ? *mode : 2;
         move R0 [R12+16]
         test R0 R0
         jz _L56300002
@@ -45,8 +47,10 @@ _L56300002:
         move R0 #2
 _L56300003:
         move [R12-12] R0
+; 54:     int vga_mode = 12; // 默认 VGA 640x480x16
         move R0 #12
         move [R12-16] R0
+; 55:     if (d == 0) {
         move R0 [R12-8]
         push R0
         move R0 #0
@@ -60,10 +64,12 @@ _L56300006:
 _L56300007:
         cmp R0 #0
         jz sta_56300004
+; 57:         vga_mode = 12;
         move R0 #12
         move [R12-16] R0
         jmp sta_56300005
 sta_56300004:
+; 58:     } else if (d == 9) {
         move R0 [R12-8]
         push R0
         move R0 #9
@@ -77,6 +83,7 @@ _L56300010:
 _L56300011:
         cmp R0 #0
         jz sta_56300008
+; 59:         if (m == 0)  vga_mode = 8;   // 640x200x16
         move R0 [R12-12]
         push R0
         move R0 #0
@@ -94,6 +101,7 @@ _L56300015:
         move [R12-16] R0
         jmp sta_56300013
 sta_56300012:
+; 60:         else if (m == 1) vga_mode = 9;  // 640x350x16
         move R0 [R12-12]
         push R0
         move R0 #1
@@ -111,6 +119,7 @@ _L56300019:
         move [R12-16] R0
         jmp sta_56300017
 sta_56300016:
+; 61:         else vga_mode = 12;  // 640x480x16
         move R0 #12
         move [R12-16] R0
 sta_56300017:
@@ -118,11 +127,13 @@ sta_56300013:
 sta_56300008:
 sta_56300009:
 sta_56300005:
+; 63:     gfx_screen(vga_mode);
         move R0 [R12-16]
         push R0
         move R0 [R13+0]
         call gfx_screen
         add R13 #4
+; 64:     gfx_cls_color(_bgi_bgcolor);
         move R0 [_bgi_bgcolor]
         push R0
         move R0 [R13+0]
@@ -143,6 +154,7 @@ CloseGraph:
         push R12
         move R12 R13
         sub R13 #16
+; 68:     gfx_screen(0);  // 返回文本模式
         move R0 #0
         push R0
         move R0 [R13+0]
@@ -165,6 +177,7 @@ DetectGraph:
         push R12
         move R12 R13
         sub R13 #16
+; 72:     if (driver) *driver = 9;
         move R0 [R12+12]
         cmp R0 #0
         jz sta_56300020
@@ -174,6 +187,7 @@ DetectGraph:
         move [R11] R0
 sta_56300020:
 sta_56300021:
+; 73:     if (mode) *mode = 2;
         move R0 [R12+16]
         cmp R0 #0
         jz sta_56300022
@@ -198,6 +212,7 @@ GetMaxX:
         push R12
         move R12 R13
         sub R13 #16
+; 76: __stdcall int GetMaxX(void) { return gfx_width() - 1; }
         call gfx_width
         push R0
         move R0 #1
@@ -221,6 +236,7 @@ GetMaxY:
         push R12
         move R12 R13
         sub R13 #16
+; 77: __stdcall int GetMaxY(void) { return gfx_height() - 1; }
         call gfx_height
         push R0
         move R0 #1
@@ -244,6 +260,7 @@ GetDriverName:
         push R12
         move R12 R13
         sub R13 #16
+; 79: __stdcall char* GetDriverName(void) { return (char*)"VGA"; }
         move R0 L_56300026
         jmp L_56300027
 L_56300027:
@@ -263,6 +280,7 @@ GetModeName:
         push R12
         move R12 R13
         sub R13 #16
+; 80: __stdcall char* GetModeName(int mode) { return (char*)"640x480x16"; }
         move R0 L_56300028
         jmp L_56300029
 L_56300029:
@@ -282,6 +300,7 @@ SetColor:
         push R12
         move R12 R13
         sub R13 #16
+; 83:     _bgi_color = color;
         move R0 [R12+12]
         move [_bgi_color] R0
         move R13 R12
@@ -299,6 +318,7 @@ GetColor:
         push R12
         move R12 R13
         sub R13 #16
+; 86:     return _bgi_color;
         move R0 [_bgi_color]
         jmp L_56300030
 L_56300030:
@@ -318,6 +338,7 @@ SetBkColor:
         push R12
         move R12 R13
         sub R13 #16
+; 89:     _bgi_bgcolor = color;
         move R0 [R12+12]
         move [_bgi_bgcolor] R0
         move R13 R12
@@ -335,6 +356,7 @@ GetBkColor:
         push R12
         move R12 R13
         sub R13 #16
+; 92:     return _bgi_bgcolor;
         move R0 [_bgi_bgcolor]
         jmp L_56300031
 L_56300031:
@@ -357,6 +379,7 @@ SetRGBPalette:
         push R12
         move R12 R13
         sub R13 #16
+; 95:     gfx_palette(index, r, g, b);
         move R0 [R12+24]
         push R0
         move R0 [R12+20]
@@ -389,6 +412,7 @@ PutPixel:
         push R12
         move R12 R13
         sub R13 #16
+; 99:     gfx_pset(x, y, color);
         move R0 [R12+20]
         push R0
         move R0 [R12+16]
@@ -417,6 +441,7 @@ GetPixel:
         push R12
         move R12 R13
         sub R13 #16
+; 102:     return gfx_point(x, y);
         move R0 [R12+16]
         push R0
         move R0 [R12+12]
@@ -446,6 +471,7 @@ Line:
         push R12
         move R12 R13
         sub R13 #16
+; 106:     gfx_line(x1, y1, x2, y2, _bgi_color);
         move R0 [_bgi_color]
         push R0
         move R0 [R12+24]
@@ -479,6 +505,7 @@ LineTo:
         push R12
         move R12 R13
         sub R13 #16
+; 110:     gfx_line(0, 0, x, y, _bgi_color);
         move R0 [_bgi_color]
         push R0
         move R0 [R12+16]
@@ -512,6 +539,7 @@ LineRel:
         push R12
         move R12 R13
         sub R13 #16
+; 113:     gfx_line(0, 0, dx, dy, _bgi_color);
         move R0 [_bgi_color]
         push R0
         move R0 [R12+16]
@@ -547,6 +575,7 @@ Rectangle:
         push R12
         move R12 R13
         sub R13 #16
+; 117:     gfx_rect(x1, y1, x2, y2, _bgi_color);
         move R0 [_bgi_color]
         push R0
         move R0 [R12+24]
@@ -582,6 +611,7 @@ Bar:
         push R12
         move R12 R13
         sub R13 #16
+; 120:     gfx_rect_fill(x1, y1, x2, y2, _bgi_fill_color);
         move R0 [_bgi_fill_color]
         push R0
         move R0 [R12+24]
@@ -619,6 +649,7 @@ Bar3D:
         push R12
         move R12 R13
         sub R13 #16
+; 123:     gfx_rect_fill(x1, y1, x2, y2, _bgi_fill_color);
         move R0 [_bgi_fill_color]
         push R0
         move R0 [R12+24]
@@ -653,6 +684,7 @@ Circle:
         push R12
         move R12 R13
         sub R13 #16
+; 128:     gfx_circle(x, y, r, _bgi_color);
         move R0 [_bgi_color]
         push R0
         move R0 [R12+20]
@@ -685,6 +717,7 @@ FillCircle:
         push R12
         move R12 R13
         sub R13 #16
+; 131:     gfx_circle_fill(x, y, r, _bgi_fill_color);
         move R0 [_bgi_fill_color]
         push R0
         move R0 [R12+20]
@@ -720,6 +753,7 @@ Ellipse:
         push R12
         move R12 R13
         sub R13 #16
+; 137:     gfx_ellipse(x, y, rx, ry, _bgi_color);
         move R0 [_bgi_color]
         push R0
         move R0 [R12+32]
@@ -755,6 +789,7 @@ FillEllipse:
         push R12
         move R12 R13
         sub R13 #16
+; 140:     gfx_ellipse_fill(x, y, rx, ry, _bgi_fill_color);
         move R0 [_bgi_fill_color]
         push R0
         move R0 [R12+24]
@@ -791,6 +826,7 @@ Arc:
         push R12
         move R12 R13
         sub R13 #16
+; 144:     gfx_arc(x, y, r, sa, ea, _bgi_color);
         move R0 [_bgi_color]
         push R0
         move R0 [R12+24]
@@ -829,6 +865,7 @@ PieSlice:
         push R12
         move R12 R13
         sub R13 #16
+; 148:     gfx_sector_fill(x, y, r, sa, ea, _bgi_fill_color);
         move R0 [_bgi_fill_color]
         push R0
         move R0 [R12+24]
@@ -864,8 +901,10 @@ SetFillStyle:
         push R12
         move R12 R13
         sub R13 #16
+; 152:     _bgi_fill_pattern = pattern;
         move R0 [R12+12]
         move [_bgi_fill_pattern] R0
+; 153:     _bgi_fill_color = color;
         move R0 [R12+16]
         move [_bgi_fill_color] R0
         move R13 R12
@@ -901,6 +940,7 @@ ClearDevice:
         push R12
         move R12 R13
         sub R13 #16
+; 161:     gfx_cls_color(_bgi_bgcolor);
         move R0 [_bgi_bgcolor]
         push R0
         move R0 [R13+0]
@@ -921,6 +961,7 @@ ClearViewPort:
         push R12
         move R12 R13
         sub R13 #16
+; 164:     gfx_cls_color(_bgi_bgcolor);
         move R0 [_bgi_bgcolor]
         push R0
         move R0 [R13+0]
@@ -946,6 +987,7 @@ SetViewPort:
         push R12
         move R12 R13
         sub R13 #16
+; 168:     gfx_viewport(x1, y1, x2, y2);
         move R0 [R12+24]
         push R0
         move R0 [R12+20]
@@ -976,6 +1018,7 @@ OutText:
         push R12
         move R12 R13
         sub R13 #16
+; 173:     gfx_print(0, 0, text, _bgi_color);
         move R0 [_bgi_color]
         push R0
         move R0 [R12+12]
@@ -1008,6 +1051,7 @@ OutTextXY:
         push R12
         move R12 R13
         sub R13 #16
+; 176:     gfx_print(x, y, text, _bgi_color);
         move R0 [_bgi_color]
         push R0
         move R0 [R12+20]
@@ -1040,6 +1084,7 @@ FloodFill:
         push R12
         move R12 R13
         sub R13 #16
+; 180:     gfx_flood_fill(x, y, _bgi_fill_color, border);
         move R0 [R12+20]
         push R0
         move R0 [_bgi_fill_color]
@@ -1073,6 +1118,7 @@ ImageSize:
         push R12
         move R12 R13
         sub R13 #24
+; 184:     int w = x2 - x1 + 1;
         move R0 [R12+20]
         push R0
         move R0 [R12+12]
@@ -1085,6 +1131,7 @@ ImageSize:
         add R1 R0
         move R0 R1
         move [R12-8] R0
+; 185:     int h = y2 - y1 + 1;
         move R0 [R12+24]
         push R0
         move R0 [R12+16]
@@ -1097,6 +1144,7 @@ ImageSize:
         add R1 R0
         move R0 R1
         move [R12-12] R0
+; 186:     return w * h * 4 + 4;  // 每个像素最多4字节 + 头部
         move R0 [R12-8]
         push R0
         move R0 [R12-12]
@@ -1135,6 +1183,7 @@ GetImage:
         push R12
         move R12 R13
         sub R13 #16
+; 189:     gfx_get_image(x1, y1, x2 - x1 + 1, y2 - y1 + 1, bitmap);
         move R0 [R12+28]
         push R0
         move R0 [R12+24]
@@ -1190,8 +1239,10 @@ PutImage:
         push R12
         move R12 R13
         sub R13 #32
+; 192:     int* hdr = (int*)bitmap;
         move R0 [R12+20]
         move [R12-8] R0
+; 193:     int w = hdr[0];
         move R0 [R12-8]
         push R0
         move R0 #0
@@ -1200,6 +1251,7 @@ PutImage:
         add R0 R9
         move R0 [R0]
         move [R12-12] R0
+; 194:     int h = hdr[1];
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -1208,6 +1260,7 @@ PutImage:
         add R0 R8
         move R0 [R0]
         move [R12-16] R0
+; 195:     const char* data = (const char*)(hdr + 1);
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -1216,6 +1269,7 @@ PutImage:
         add R1 R0
         move R0 R1
         move [R12-20] R0
+; 196:     gfx_put_image(x, y, w, h, data);
         move R0 [R12-20]
         push R0
         move R0 [R12-16]
@@ -1247,6 +1301,7 @@ GetPaletteSize:
         push R12
         move R12 R13
         sub R13 #16
+; 200:     return 256;
         move R0 #256
         jmp L_56300034
 L_56300034:
@@ -1297,6 +1352,7 @@ GraphResult:
         push R12
         move R12 R13
         sub R13 #16
+; 210:     return 0;  // grOk
         move R0 #0
         jmp L_56300035
 L_56300035:
@@ -1316,6 +1372,7 @@ GraphErrorMsg:
         push R12
         move R12 R13
         sub R13 #16
+; 213:     return (char*)"OK";
         move R0 L_56300036
         jmp L_56300037
 L_56300037:
@@ -1335,6 +1392,7 @@ RestoreCrtMode:
         push R12
         move R12 R13
         sub R13 #16
+; 217:     gfx_screen(0);
         move R0 #0
         push R0
         move R0 [R13+0]

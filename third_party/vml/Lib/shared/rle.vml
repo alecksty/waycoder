@@ -16,6 +16,7 @@ rle_encode:
         push R12
         move R12 R13
         sub R13 #32
+; 7:     if (len <= 0) { dst[0] = 0; return 1; }
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -42,12 +43,15 @@ _L30030003:
         jmp L_30030004
 sta_30030000:
 sta_30030001:
+; 8:     char* start = dst;
         move R0 [R12+20]
         move [R12-8] R0
+; 9:     int i = 0;
         move R0 #0
         move [R12-12] R0
 sta_30030005:
         move R2 #0
+; 10:     while (i < len) {
         move R0 [R12-12]
         push R0
         move R0 [R12+16]
@@ -61,6 +65,7 @@ _L30030007:
 _L30030008:
         cmp R0 #0
         jz sta_30030006
+; 11:         char current = data[i];
         move R0 [R12+12]
         push R0
         move R0 [R12-12]
@@ -70,10 +75,12 @@ _L30030008:
         moveb R0 [R0]
         sextb R0 R0
         moveb [R12-13] R0
+; 12:         int count = 1;
         move R0 #1
         move [R12-20] R0
 sta_30030009:
         move R2 #0
+; 13:         while (i + count < len && data[i + count] == current && count < 255) count++;
         move R0 [R12-12]
         push R0
         move R0 [R12-20]
@@ -152,6 +159,7 @@ _L30030012:
         move R0 R1
         jmp sta_30030009
 sta_30030010:
+; 14:         *dst++ = (char)count;
         move R0 [R12+20]
         move R1 R0
         add R0 R0 #1
@@ -160,6 +168,7 @@ sta_30030010:
         move R7 R0
         move R0 [R12-20]
         moveb [R7] R0
+; 15:         *dst++ = current;
         move R0 [R12+20]
         move R1 R0
         add R0 R0 #1
@@ -169,6 +178,7 @@ sta_30030010:
         moveb R0 [R12-13]
         sextb R0 R0
         moveb [R6] R0
+; 16:         i += count;
         move R0 [R12-12]
         push R0
         move R0 [R12-20]
@@ -178,6 +188,7 @@ sta_30030010:
         move [R12-12] R0
         jmp sta_30030005
 sta_30030006:
+; 18:     *dst++ = 0; // terminator
         move R0 [R12+20]
         move R1 R0
         add R0 R0 #1
@@ -186,6 +197,7 @@ sta_30030006:
         move R5 R0
         move R0 #0
         moveb [R5] R0
+; 19:     return (int)(dst - start);
         move R0 [R12+20]
         push R0
         move R0 [R12-8]
@@ -212,13 +224,16 @@ rle_decode:
         push R12
         move R12 R13
         sub R13 #32
+; 24:     char* start = dst;
         move R0 [R12+16]
         move [R12-8] R0
 sta_30030021:
         move R2 #0
+; 25:     while (1) {
         move R0 #1
         cmp R0 #0
         jz sta_30030022
+; 26:         int count = (unsigned char)*src++;
         move R0 [R12+12]
         move R1 R0
         add R0 R0 #1
@@ -227,6 +242,7 @@ sta_30030021:
         moveb R0 [R0]
         sextb R0 R0
         move [R12-12] R0
+; 27:         if (count == 0) break;
         move R0 [R12-12]
         push R0
         move R0 #0
@@ -243,6 +259,7 @@ _L30030026:
         jmp sta_30030022
 sta_30030023:
 sta_30030024:
+; 28:         char value = *src++;
         move R0 [R12+12]
         move R1 R0
         add R0 R0 #1
@@ -251,6 +268,7 @@ sta_30030024:
         moveb R0 [R0]
         sextb R0 R0
         moveb [R12-13] R0
+; 30:         for (i = 0; i < count; i++) *dst++ = value;
         move R0 #0
         move [R12-20] R0
 sta_30030027:
@@ -286,6 +304,7 @@ sta_30030028:
 sta_30030029:
         jmp sta_30030021
 sta_30030022:
+; 32:     return (int)(dst - start);
         move R0 [R12+16]
         push R0
         move R0 [R12-8]

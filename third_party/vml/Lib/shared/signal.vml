@@ -16,6 +16,7 @@ moving_avg_init:
         push R12
         move R12 R13
         sub R13 #16
+; 8:     if (state == 0 || buffer == 0) return 0;
         move R0 [R12+20]
         push R0
         move R0 #0
@@ -54,6 +55,7 @@ _L79280004:
         jmp L_79280009
 sta_79280000:
 sta_79280001:
+; 10:     for (i = 0; i < window_size; i++) buffer[i] = 0;
         move R0 #0
         move [R12-8] R0
 sta_79280010:
@@ -87,6 +89,7 @@ sta_79280011:
         move R0 R1
         jmp sta_79280010
 sta_79280012:
+; 11:     state[0] = 0;  // sum
         move R0 #0
         move R9 R0
         move R0 [R12+20]
@@ -96,6 +99,7 @@ sta_79280012:
         pop R8
         add R0 R8
         move [R0] R9
+; 12:     state[1] = 0;  // count
         move R0 #0
         move R7 R0
         move R0 [R12+20]
@@ -105,6 +109,7 @@ sta_79280012:
         pop R6
         add R0 R6
         move [R0] R7
+; 13:     state[2] = (int)buffer;
         move R0 [R12+16]
         move R5 R0
         move R0 [R12+20]
@@ -114,6 +119,7 @@ sta_79280012:
         pop R4
         add R0 R4
         move [R0] R5
+; 14:     state[3] = window_size;
         move R0 [R12+12]
         move R3 R0
         move R0 [R12+20]
@@ -123,6 +129,7 @@ sta_79280012:
         pop R2
         add R0 R2
         move [R0] R3
+; 15:     state[4] = 0;  // write_idx
         move R0 #0
         move R1 R0
         move R0 [R12+20]
@@ -132,6 +139,7 @@ sta_79280012:
         pop R10
         add R0 R10
         move [R0] R1
+; 16:     return 1;
         move R0 #1
         jmp L_79280009
 L_79280009:
@@ -152,6 +160,7 @@ moving_avg_update:
         push R12
         move R12 R13
         sub R13 #32
+; 20:     if (state == 0) return new_value;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -169,6 +178,7 @@ _L79280018:
         jmp L_79280019
 sta_79280015:
 sta_79280016:
+; 21:     int sum = state[0], count = state[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -185,6 +195,7 @@ sta_79280016:
         add R0 R8
         move R0 [R0]
         move [R12-12] R0
+; 22:     int* buffer = (int*)state[2];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -193,6 +204,7 @@ sta_79280016:
         add R0 R9
         move R0 [R0]
         move [R12-16] R0
+; 23:     int window = state[3];
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -201,6 +213,7 @@ sta_79280016:
         add R0 R6
         move R0 [R0]
         move [R12-20] R0
+; 24:     int idx = state[4];
         move R0 [R12+12]
         push R0
         move R0 #4
@@ -209,6 +222,7 @@ sta_79280016:
         add R0 R7
         move R0 [R0]
         move [R12-24] R0
+; 26:     if (count < window) {
         move R0 [R12-12]
         push R0
         move R0 [R12-20]
@@ -222,6 +236,7 @@ _L79280022:
 _L79280023:
         cmp R0 #0
         jz sta_79280020
+; 27:         buffer[idx] = new_value;
         move R0 [R12+16]
         move R4 R0
         move R0 [R12-16]
@@ -231,6 +246,7 @@ _L79280023:
         pop R5
         add R0 R5
         move [R0] R4
+; 28:         sum += new_value;
         move R0 [R12-8]
         push R0
         move R0 [R12+16]
@@ -238,11 +254,13 @@ _L79280023:
         add R1 R0
         move R0 R1
         move [R12-8] R0
+; 29:         count++;
         move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
         move [R12-12] R0
         move R0 R1
+; 30:         state[0] = sum;
         move R0 [R12-8]
         move R2 R0
         move R0 [R12+12]
@@ -252,6 +270,7 @@ _L79280023:
         pop R3
         add R0 R3
         move [R0] R2
+; 31:         state[1] = count;
         move R0 [R12-12]
         move R10 R0
         move R0 [R12+12]
@@ -261,6 +280,7 @@ _L79280023:
         pop R1
         add R0 R1
         move [R0] R10
+; 32:         state[4] = (idx + 1) % window;
         move R0 [R12-24]
         push R0
         move R0 #1
@@ -280,6 +300,7 @@ _L79280023:
         pop R8
         add R0 R8
         move [R0] R11
+; 33:         return sum / count;
         move R0 [R12-8]
         push R0
         move R0 [R12-12]
@@ -289,6 +310,7 @@ _L79280023:
         jmp L_79280019
 sta_79280020:
 sta_79280021:
+; 36:     sum = sum - buffer[idx] + new_value;
         move R0 [R12-8]
         push R0
         move R0 [R12-16]
@@ -307,6 +329,7 @@ sta_79280021:
         add R1 R0
         move R0 R1
         move [R12-8] R0
+; 37:     buffer[idx] = new_value;
         move R0 [R12+16]
         move R6 R0
         move R0 [R12-16]
@@ -316,6 +339,7 @@ sta_79280021:
         pop R7
         add R0 R7
         move [R0] R6
+; 38:     state[0] = sum;
         move R0 [R12-8]
         move R5 R0
         move R0 [R12+12]
@@ -325,6 +349,7 @@ sta_79280021:
         pop R4
         add R0 R4
         move [R0] R5
+; 39:     state[4] = (idx + 1) % window;
         move R0 [R12-24]
         push R0
         move R0 #1
@@ -344,6 +369,7 @@ sta_79280021:
         pop R2
         add R0 R2
         move [R0] R3
+; 40:     return sum / window;
         move R0 [R12-8]
         push R0
         move R0 [R12-20]
@@ -368,6 +394,7 @@ ema_init:
         push R12
         move R12 R13
         sub R13 #16
+; 47:     if (state == 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -385,6 +412,7 @@ _L79280027:
         jmp L_79280028
 sta_79280024:
 sta_79280025:
+; 48:     state[0] = 0;
         move R0 #0
         move R1 R0
         move R0 [R12+12]
@@ -394,6 +422,7 @@ sta_79280025:
         pop R10
         add R0 R10
         move [R0] R1
+; 49:     return 1;
         move R0 #1
         jmp L_79280028
 L_79280028:
@@ -415,6 +444,7 @@ ema_update:
         push R12
         move R12 R13
         sub R13 #24
+; 53:     if (state == 0) return value;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -432,6 +462,7 @@ _L79280032:
         jmp L_79280033
 sta_79280029:
 sta_79280030:
+; 54:     int prev = state[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -440,6 +471,7 @@ sta_79280030:
         add R0 R8
         move R0 [R0]
         move [R12-8] R0
+; 56:     int result = (alpha * value + (1000 - alpha) * prev) / 1000;
         move R0 [R12+20]
         push R0
         move R0 [R12+16]
@@ -467,6 +499,7 @@ sta_79280030:
         div R1 R0
         move R0 R1
         move [R12-12] R0
+; 57:     state[0] = result;
         move R0 [R12-12]
         move R11 R0
         move R0 [R12+12]
@@ -476,6 +509,7 @@ sta_79280030:
         pop R9
         add R0 R9
         move [R0] R11
+; 58:     return result;
         move R0 [R12-12]
         jmp L_79280033
 L_79280033:
@@ -498,6 +532,7 @@ kalman_init:
         push R12
         move R12 R13
         sub R13 #16
+; 65:     if (state == 0) return;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -514,6 +549,7 @@ _L79280037:
         jmp L_79280038
 sta_79280034:
 sta_79280035:
+; 66:     state[0] = initial_value;  // x: 估计值
         move R0 [R12+16]
         move R7 R0
         move R0 [R12+12]
@@ -523,6 +559,7 @@ sta_79280035:
         pop R6
         add R0 R6
         move [R0] R7
+; 67:     state[1] = 1000;           // p: 初始估计误差(缩放)
         move R0 #1000
         move R4 R0
         move R0 [R12+12]
@@ -532,6 +569,7 @@ sta_79280035:
         pop R5
         add R0 R5
         move [R0] R4
+; 68:     state[2] = process_noise;  // q: 过程噪声
         move R0 [R12+20]
         move R2 R0
         move R0 [R12+12]
@@ -541,6 +579,7 @@ sta_79280035:
         pop R3
         add R0 R3
         move [R0] R2
+; 69:     state[3] = measure_noise;  // r: 测量噪声
         move R0 [R12+24]
         move R10 R0
         move R0 [R12+12]
@@ -568,6 +607,7 @@ kalman_update:
         push R12
         move R12 R13
         sub R13 #40
+; 73:     if (state == 0) return measurement;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -585,6 +625,7 @@ _L79280042:
         jmp L_79280043
 sta_79280039:
 sta_79280040:
+; 74:     int x = state[0], p = state[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -601,6 +642,7 @@ sta_79280040:
         add R0 R9
         move R0 [R0]
         move [R12-12] R0
+; 75:     int q = state[2], r = state[3];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -617,6 +659,7 @@ sta_79280040:
         add R0 R6
         move R0 [R0]
         move [R12-20] R0
+; 78:     p = p + q;
         move R0 [R12-12]
         push R0
         move R0 [R12-16]
@@ -624,6 +667,7 @@ sta_79280040:
         add R1 R0
         move R0 R1
         move [R12-12] R0
+; 81:     int denom = p + r;
         move R0 [R12-12]
         push R0
         move R0 [R12-20]
@@ -631,6 +675,7 @@ sta_79280040:
         add R1 R0
         move R0 R1
         move [R12-24] R0
+; 82:     if (denom > 0) {
         move R0 [R12-24]
         push R0
         move R0 #0
@@ -644,6 +689,7 @@ _L79280046:
 _L79280047:
         cmp R0 #0
         jz sta_79280044
+; 83:         int k = (p * 1000) / denom;  // Kalman gain * 1000
         move R0 [R12-12]
         push R0
         move R0 #1000
@@ -656,6 +702,7 @@ _L79280047:
         div R1 R0
         move R0 R1
         move [R12-28] R0
+; 84:         x = x + (k * (measurement - x)) / 1000;
         move R0 [R12-8]
         push R0
         move R0 [R12-28]
@@ -678,6 +725,7 @@ _L79280047:
         add R1 R0
         move R0 R1
         move [R12-8] R0
+; 85:         p = ((1000 - k) * p) / 1000;
         move R0 #1000
         push R0
         move R0 [R12-28]
@@ -697,6 +745,7 @@ _L79280047:
         move [R12-12] R0
 sta_79280044:
 sta_79280045:
+; 88:     state[0] = x;
         move R0 [R12-8]
         move R7 R0
         move R0 [R12+12]
@@ -706,6 +755,7 @@ sta_79280045:
         pop R5
         add R0 R5
         move [R0] R7
+; 89:     state[1] = p;
         move R0 [R12-12]
         move R4 R0
         move R0 [R12+12]
@@ -715,6 +765,7 @@ sta_79280045:
         pop R3
         add R0 R3
         move [R0] R4
+; 90:     return x;
         move R0 [R12-8]
         jmp L_79280043
 L_79280043:
@@ -737,6 +788,7 @@ lerp_table:
         push R12
         move R12 R13
         sub R13 #32
+; 97:     if (x_table == 0 || y_table == 0 || n < 2) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -796,6 +848,7 @@ _L79280052:
         jmp L_79280062
 sta_79280048:
 sta_79280049:
+; 99:     if (x <= x_table[0]) return y_table[0];
         move R0 [R12+24]
         push R0
         move R0 [R12+12]
@@ -825,6 +878,7 @@ _L79280066:
         jmp L_79280062
 sta_79280063:
 sta_79280064:
+; 100:     if (x >= x_table[n - 1]) return y_table[n - 1];
         move R0 [R12+24]
         push R0
         move R0 [R12+12]
@@ -864,6 +918,7 @@ _L79280070:
         jmp L_79280062
 sta_79280067:
 sta_79280068:
+; 102:     int lo = 0, hi = n - 1;
         move R0 #0
         move [R12-8] R0
         move R0 [R12+20]
@@ -875,6 +930,7 @@ sta_79280068:
         move [R12-12] R0
 sta_79280071:
         move R2 #0
+; 103:     while (lo < hi - 1) {
         move R0 [R12-8]
         push R0
         move R0 [R12-12]
@@ -893,6 +949,7 @@ _L79280073:
 _L79280074:
         cmp R0 #0
         jz sta_79280072
+; 104:         int mid = (lo + hi) / 2;
         move R0 [R12-8]
         push R0
         move R0 [R12-12]
@@ -905,6 +962,7 @@ _L79280074:
         div R1 R0
         move R0 R1
         move [R12-16] R0
+; 105:         if (x_table[mid] <= x) lo = mid;
         move R0 [R12+12]
         push R0
         move R0 [R12-16]
@@ -928,11 +986,13 @@ _L79280078:
         move [R12-8] R0
         jmp sta_79280076
 sta_79280075:
+; 106:         else hi = mid;
         move R0 [R12-16]
         move [R12-12] R0
 sta_79280076:
         jmp sta_79280071
 sta_79280072:
+; 109:     int dx = x_table[hi] - x_table[lo];
         move R0 [R12+12]
         push R0
         move R0 [R12-12]
@@ -952,6 +1012,7 @@ sta_79280072:
         sub R1 R0
         move R0 R1
         move [R12-20] R0
+; 110:     if (dx == 0) return y_table[lo];
         move R0 [R12-20]
         push R0
         move R0 #0
@@ -975,6 +1036,7 @@ _L79280082:
         jmp L_79280062
 sta_79280079:
 sta_79280080:
+; 111:     return y_table[lo] + ((y_table[hi] - y_table[lo]) * (x - x_table[lo])) / dx;
         move R0 [R12+16]
         push R0
         move R0 [R12-8]
@@ -1044,6 +1106,7 @@ deadband:
         push R12
         move R12 R13
         sub R13 #16
+; 117:     if (value > threshold) return value;
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -1061,6 +1124,7 @@ _L79280086:
         jmp L_79280087
 sta_79280083:
 sta_79280084:
+; 118:     if (value < -threshold) return value;
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -1080,6 +1144,7 @@ _L79280091:
         jmp L_79280087
 sta_79280088:
 sta_79280089:
+; 119:     return 0;
         move R0 #0
         jmp L_79280087
 L_79280087:
@@ -1103,6 +1168,7 @@ hysteresis:
         push R12
         move R12 R13
         sub R13 #16
+; 125:     if (state == 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1120,6 +1186,7 @@ _L79280095:
         jmp L_79280096
 sta_79280092:
 sta_79280093:
+; 126:     if (input > on_threshold) state[0] = 1;
         move R0 [R12+16]
         push R0
         move R0 [R12+20]
@@ -1144,6 +1211,7 @@ _L79280100:
         move [R0] R1
         jmp sta_79280098
 sta_79280097:
+; 127:     else if (input < off_threshold) state[0] = 0;
         move R0 [R12+16]
         push R0
         move R0 [R12+24]
@@ -1169,6 +1237,7 @@ _L79280104:
 sta_79280101:
 sta_79280102:
 sta_79280098:
+; 128:     return state[0];
         move R0 [R12+12]
         push R0
         move R0 #0

@@ -17,6 +17,7 @@ add:
         push R12
         move R12 R13
         sub R13 #16
+; 4: __stdcall int add(int a, int b) { return a + b; }
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -42,6 +43,7 @@ sub:
         push R12
         move R12 R13
         sub R13 #16
+; 5: __stdcall int sub(int a, int b) { return a - b; }
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -67,6 +69,7 @@ mul:
         push R12
         move R12 R13
         sub R13 #16
+; 6: __stdcall int mul(int a, int b) { return a * b; }
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -92,6 +95,7 @@ div_:
         push R12
         move R12 R13
         sub R13 #16
+; 7: __stdcall int div_(int a, int b) { return b != 0 ? a / b : 0; }
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -134,6 +138,7 @@ mod_:
         push R12
         move R12 R13
         sub R13 #16
+; 8: __stdcall int mod_(int a, int b) { return b != 0 ? a % b : 0; }
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -175,6 +180,7 @@ neg_:
         push R12
         move R12 R13
         sub R13 #16
+; 9: __stdcall int neg_(int x) { return -x; }
         move R0 [R12+12]
         move R0 [R12+12]
         neg R0 R0
@@ -196,6 +202,7 @@ arr_sum:
         push R12
         move R12 R13
         sub R13 #24
+; 12:     if (arr == 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -213,8 +220,10 @@ _L20940017:
         jmp L_20940018
 sta_20940014:
 sta_20940015:
+; 13:     int i, s = 0;
         move R0 #0
         move [R12-12] R0
+; 14:     for (i = 0; i < arr[0]; i++) s += arr[i + 1];
         move R0 #0
         move [R12-8] R0
 sta_20940019:
@@ -263,6 +272,7 @@ sta_20940020:
         move R0 R1
         jmp sta_20940019
 sta_20940021:
+; 15:     return s;
         move R0 [R12-12]
         jmp L_20940018
 L_20940018:
@@ -282,6 +292,7 @@ arr_avg:
         push R12
         move R12 R13
         sub R13 #16
+; 18:     int n = arr ? arr[0] : 0;
         move R0 [R12+12]
         test R0 R0
         jz _L20940024
@@ -297,6 +308,7 @@ _L20940024:
         move R0 #0
 _L20940025:
         move [R12-8] R0
+; 19:     return n > 0 ? arr_sum(arr) / n : 0;
         move R0 [R12-8]
         push R0
         move R0 #0
@@ -342,6 +354,7 @@ arr_max:
         push R12
         move R12 R13
         sub R13 #24
+; 22:     if (arr == 0 || arr[0] <= 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -386,6 +399,7 @@ _L20940035:
         jmp L_20940040
 sta_20940031:
 sta_20940032:
+; 23:     int i, m = arr[1];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -394,6 +408,7 @@ sta_20940032:
         add R0 R7
         move R0 [R0]
         move [R12-12] R0
+; 24:     for (i = 1; i < arr[0]; i++)
         move R0 #1
         move [R12-8] R0
 sta_20940041:
@@ -416,6 +431,7 @@ _L20940044:
 _L20940045:
         cmp R0 #0
         jz sta_20940043
+; 25:         if (arr[i + 1] > m) m = arr[i + 1];
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -463,6 +479,7 @@ sta_20940042:
         move R0 R1
         jmp sta_20940041
 sta_20940043:
+; 26:     return m;
         move R0 [R12-12]
         jmp L_20940040
 L_20940040:
@@ -482,6 +499,7 @@ arr_min:
         push R12
         move R12 R13
         sub R13 #24
+; 29:     if (arr == 0 || arr[0] <= 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -526,6 +544,7 @@ _L20940054:
         jmp L_20940059
 sta_20940050:
 sta_20940051:
+; 30:     int i, m = arr[1];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -534,6 +553,7 @@ sta_20940051:
         add R0 R2
         move R0 [R0]
         move [R12-12] R0
+; 31:     for (i = 1; i < arr[0]; i++)
         move R0 #1
         move [R12-8] R0
 sta_20940060:
@@ -556,6 +576,7 @@ _L20940063:
 _L20940064:
         cmp R0 #0
         jz sta_20940062
+; 32:         if (arr[i + 1] < m) m = arr[i + 1];
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -603,6 +624,7 @@ sta_20940061:
         move R0 R1
         jmp sta_20940060
 sta_20940062:
+; 33:     return m;
         move R0 [R12-12]
         jmp L_20940059
 L_20940059:
@@ -622,10 +644,12 @@ str_len:
         push R12
         move R12 R13
         sub R13 #16
+; 37:     int n = 0;
         move R0 #0
         move [R12-8] R0
 sta_20940069:
         move R2 #0
+; 38:     while (s[n]) n++;
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -643,6 +667,7 @@ sta_20940069:
         move R0 R1
         jmp sta_20940069
 sta_20940070:
+; 39:     return n;
         move R0 [R12-8]
         jmp L_20940071
 L_20940071:
@@ -665,6 +690,7 @@ str_cmp:
         sub R13 #16
 sta_20940072:
         move R2 #0
+; 42:     while (*a && *a == *b) { a++; b++; }
         move R0 [R12+12]
         moveb R0 [R0]
         sextb R0 R0
@@ -706,6 +732,7 @@ _L20940075:
         move R0 R1
         jmp sta_20940072
 sta_20940073:
+; 43:     return *a - *b;
         move R0 [R12+12]
         moveb R0 [R0]
         sextb R0 R0
@@ -736,6 +763,7 @@ clamp:
         push R12
         move R12 R13
         sub R13 #16
+; 47:     if (x < low) return low;
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -753,6 +781,7 @@ _L20940082:
         jmp L_20940083
 sta_20940079:
 sta_20940080:
+; 48:     if (x > high) return high;
         move R0 [R12+12]
         push R0
         move R0 [R12+20]
@@ -770,6 +799,7 @@ _L20940087:
         jmp L_20940083
 sta_20940084:
 sta_20940085:
+; 49:     return x;
         move R0 [R12+12]
         jmp L_20940083
 L_20940083:
@@ -789,6 +819,7 @@ is_even:
         push R12
         move R12 R13
         sub R13 #16
+; 51: __stdcall int is_even(int x) { return (x & 1) == 0; }
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -824,6 +855,7 @@ is_odd:
         push R12
         move R12 R13
         sub R13 #16
+; 52: __stdcall int is_odd(int x)  { return (x & 1) == 1; }
         move R0 [R12+12]
         push R0
         move R0 #1

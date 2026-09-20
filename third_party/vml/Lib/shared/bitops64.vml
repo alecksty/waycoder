@@ -36,6 +36,7 @@ lbit_and64:
         push R12
         move R12 R13
         sub R13 #16
+; 4: __stdcall long lbit_and64(long a, long b) { return a & b; }
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -61,6 +62,7 @@ lbit_or64:
         push R12
         move R12 R13
         sub R13 #16
+; 5: __stdcall long lbit_or64(long a, long b)  { return a | b; }
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -86,6 +88,7 @@ lbit_xor64:
         push R12
         move R12 R13
         sub R13 #16
+; 6: __stdcall long lbit_xor64(long a, long b) { return a ^ b; }
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -110,6 +113,7 @@ lbit_not64:
         push R12
         move R12 R13
         sub R13 #16
+; 7: __stdcall long lbit_not64(long a)         { return ~a; }
         movel R0 [R12+12]
         not R0
         jmp L_81630003
@@ -131,6 +135,7 @@ lbit_shl64:
         push R12
         move R12 R13
         sub R13 #16
+; 9:     if (bits <= 0) return a;
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -151,6 +156,7 @@ _L81630007:
         jmp L_81630008
 sta_81630004:
 sta_81630005:
+; 10:     if (bits >= 64) return 0;
         movel R0 [R12+20]
         pushl R0
         move R0 #64
@@ -171,6 +177,7 @@ _L81630012:
         jmp L_81630008
 sta_81630009:
 sta_81630010:
+; 11:     return a << bits;
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -196,6 +203,7 @@ lbit_shr64:
         push R12
         move R12 R13
         sub R13 #24
+; 14:     if (bits <= 0) return a;
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -216,6 +224,7 @@ _L81630016:
         jmp L_81630017
 sta_81630013:
 sta_81630014:
+; 15:     if (bits >= 64) return 0;
         movel R0 [R12+20]
         pushl R0
         move R0 #64
@@ -236,8 +245,10 @@ _L81630021:
         jmp L_81630017
 sta_81630018:
 sta_81630019:
+; 16:     unsigned long ua = (unsigned long)a;
         movel R0 [R12+12]
         movel [R12-12] R0
+; 17:     return (long)(ua >> bits);
         movel R0 [R12-12]
         pushl R0
         movel R0 [R12+20]
@@ -263,8 +274,10 @@ lrol64:
         push R12
         move R12 R13
         sub R13 #24
+; 21:     unsigned long uval = (unsigned long)val;
         movel R0 [R12+12]
         movel [R12-12] R0
+; 22:     bits = bits & 63;
         movel R0 [R12+20]
         pushl R0
         move R0 #63
@@ -272,6 +285,7 @@ lrol64:
         and R1 R0
         movel R0 R1
         movel [R12+20] R0
+; 23:     return (long)((uval << bits) | (uval >> (64 - bits)));
         movel R0 [R12-12]
         pushl R0
         movel R0 [R12+20]
@@ -312,8 +326,10 @@ lror64:
         push R12
         move R12 R13
         sub R13 #24
+; 27:     unsigned long uval = (unsigned long)val;
         movel R0 [R12+12]
         movel [R12-12] R0
+; 28:     bits = bits & 63;
         movel R0 [R12+20]
         pushl R0
         move R0 #63
@@ -321,6 +337,7 @@ lror64:
         and R1 R0
         movel R0 R1
         movel [R12+20] R0
+; 29:     return (long)((uval >> bits) | (uval << (64 - bits)));
         movel R0 [R12-12]
         pushl R0
         movel R0 [R12+20]
@@ -361,6 +378,7 @@ lbit_set64:
         push R12
         move R12 R13
         sub R13 #16
+; 33:     if (bit < 0 || bit >= 64) return val;
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -405,6 +423,7 @@ _L81630028:
         jmp L_81630033
 sta_81630024:
 sta_81630025:
+; 34:     return val | (1L << bit);
         movel R0 [R12+12]
         pushl R0
         movel R0 [i64_81630034]
@@ -435,6 +454,7 @@ lbit_clear64:
         push R12
         move R12 R13
         sub R13 #16
+; 38:     if (bit < 0 || bit >= 64) return val;
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -479,6 +499,7 @@ _L81630039:
         jmp L_81630044
 sta_81630035:
 sta_81630036:
+; 39:     return val & ~(1L << bit);
         movel R0 [R12+12]
         pushl R0
         movel R0 [i64_81630045]
@@ -510,6 +531,7 @@ lbit_toggle64:
         push R12
         move R12 R13
         sub R13 #16
+; 43:     if (bit < 0 || bit >= 64) return val;
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -554,6 +576,7 @@ _L81630050:
         jmp L_81630055
 sta_81630046:
 sta_81630047:
+; 44:     return val ^ (1L << bit);
         movel R0 [R12+12]
         pushl R0
         movel R0 [i64_81630056]
@@ -584,6 +607,7 @@ lbit_test64:
         push R12
         move R12 R13
         sub R13 #16
+; 48:     if (bit < 0 || bit >= 64) return 0;
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -628,6 +652,7 @@ _L81630061:
         jmp L_81630066
 sta_81630057:
 sta_81630058:
+; 49:     return (val >> bit) & 1;
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -657,8 +682,10 @@ lcount64:
         push R12
         move R12 R13
         sub R13 #24
+; 54:     unsigned long v = (unsigned long)value;
         movel R0 [R12+12]
         movel [R12-12] R0
+; 55:     v = v - ((v >> 1) & 0x5555555555555555UL);
         movel R0 [R12-12]
         pushl R0
         movel R0 [R12-12]
@@ -675,6 +702,7 @@ lcount64:
         popl R1
         subl R0 R1 R0
         movel [R12-12] R0
+; 56:     v = (v & 0x3333333333333333UL) + ((v >> 2) & 0x3333333333333333UL);
         movel R0 [R12-12]
         pushl R0
         movel R0 [i64_81630068]
@@ -696,6 +724,7 @@ lcount64:
         popl R1
         addl R0 R1 R0
         movel [R12-12] R0
+; 57:     v = (v + (v >> 4)) & 0x0F0F0F0F0F0F0F0FUL;
         movel R0 [R12-12]
         pushl R0
         movel R0 [R12-12]
@@ -712,6 +741,7 @@ lcount64:
         and R1 R0
         movel R0 R1
         movel [R12-12] R0
+; 58:     v = (v * 0x0101010101010101UL) >> 56;
         movel R0 [R12-12]
         pushl R0
         movel R0 [i64_81630071]
@@ -723,6 +753,7 @@ lcount64:
         shr R1 R0
         movel R0 R1
         movel [R12-12] R0
+; 59:     return (long)v;
         movel R0 [R12-12]
         jmp L_81630072
 L_81630072:
@@ -742,8 +773,10 @@ lreverse64:
         push R12
         move R12 R13
         sub R13 #24
+; 63:     unsigned long v = (unsigned long)value;
         movel R0 [R12+12]
         movel [R12-12] R0
+; 64:     v = ((v & 0xAAAAAAAAAAAAAAAAUL) >> 1) | ((v & 0x5555555555555555UL) << 1);
         movel R0 [R12-12]
         pushl R0
         movel R0 [i64_81630073]
@@ -771,6 +804,7 @@ lreverse64:
         or R1 R0
         movel R0 R1
         movel [R12-12] R0
+; 65:     v = ((v & 0xCCCCCCCCCCCCCCCCUL) >> 2) | ((v & 0x3333333333333333UL) << 2);
         movel R0 [R12-12]
         pushl R0
         movel R0 [i64_81630075]
@@ -798,6 +832,7 @@ lreverse64:
         or R1 R0
         movel R0 R1
         movel [R12-12] R0
+; 66:     v = ((v & 0xF0F0F0F0F0F0F0F0UL) >> 4) | ((v & 0x0F0F0F0F0F0F0F0FUL) << 4);
         movel R0 [R12-12]
         pushl R0
         movel R0 [i64_81630077]
@@ -825,6 +860,7 @@ lreverse64:
         or R1 R0
         movel R0 R1
         movel [R12-12] R0
+; 67:     v = ((v & 0xFF00FF00FF00FF00UL) >> 8) | ((v & 0x00FF00FF00FF00FFUL) << 8);
         movel R0 [R12-12]
         pushl R0
         movel R0 [i64_81630079]
@@ -852,6 +888,7 @@ lreverse64:
         or R1 R0
         movel R0 R1
         movel [R12-12] R0
+; 68:     v = ((v & 0xFFFF0000FFFF0000UL) >> 16) | ((v & 0x0000FFFF0000FFFFUL) << 16);
         movel R0 [R12-12]
         pushl R0
         movel R0 [i64_81630081]
@@ -879,6 +916,7 @@ lreverse64:
         or R1 R0
         movel R0 R1
         movel [R12-12] R0
+; 69:     v = (v >> 32) | (v << 32);
         movel R0 [R12-12]
         pushl R0
         move R0 #32
@@ -896,6 +934,7 @@ lreverse64:
         or R1 R0
         movel R0 R1
         movel [R12-12] R0
+; 70:     return (long)v;
         movel R0 [R12-12]
         jmp L_81630083
 L_81630083:
@@ -916,6 +955,7 @@ lrotate_left64:
         push R12
         move R12 R13
         sub R13 #16
+; 74:     return lrol64(value, n);
         movel R0 [R12+20]
         sub R13 #8
         movel @13 R0
@@ -945,6 +985,7 @@ lrotate_right64:
         push R12
         move R12 R13
         sub R13 #16
+; 78:     return lror64(value, n);
         movel R0 [R12+20]
         sub R13 #8
         movel @13 R0
@@ -973,6 +1014,7 @@ llowest_set64:
         push R12
         move R12 R13
         sub R13 #16
+; 82:     if (value == 0) return -1;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -995,6 +1037,7 @@ _L81630089:
         jmp L_81630090
 sta_81630086:
 sta_81630087:
+; 83:     return lctz64(value);
         movel R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -1018,6 +1061,7 @@ lhighest_set64:
         push R12
         move R12 R13
         sub R13 #40
+; 87:     if (value == 0) return -1;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -1040,11 +1084,14 @@ _L81630094:
         jmp L_81630095
 sta_81630091:
 sta_81630092:
+; 88:     unsigned long v = (unsigned long)value;
         movel R0 [R12+12]
         movel [R12-12] R0
+; 89:     long pos = 63;
         move R0 #63
         i2l R0 R0
         movel [R12-20] R0
+; 90:     unsigned long mask = 1UL << 63;
         movel R0 [i64_81630096]
         pushl R0
         move R0 #63
@@ -1054,6 +1101,7 @@ sta_81630092:
         movel [R12-28] R0
 sta_81630097:
         move R2 #0
+; 91:     while (mask && !(v & mask)) { pos--; mask >>= 1; }
         movel R0 [R12-28]
         test R0 R0
         jz _L81630099
@@ -1099,6 +1147,7 @@ _L81630100:
         movel [R12-28] R0
         jmp sta_81630097
 sta_81630098:
+; 92:     return pos;
         movel R0 [R12-20]
         jmp L_81630095
 L_81630095:
@@ -1118,6 +1167,7 @@ lmask64:
         push R12
         move R12 R13
         sub R13 #16
+; 96:     if (n <= 0) return 0;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -1138,6 +1188,7 @@ _L81630106:
         jmp L_81630107
 sta_81630103:
 sta_81630104:
+; 97:     if (n >= 64) return -1;
         movel R0 [R12+12]
         pushl R0
         move R0 #64
@@ -1160,6 +1211,7 @@ _L81630111:
         jmp L_81630107
 sta_81630108:
 sta_81630109:
+; 98:     return (1L << n) - 1;
         movel R0 [i64_81630112]
         pushl R0
         movel R0 [R12+12]
@@ -1191,6 +1243,7 @@ lextract64:
         push R12
         move R12 R13
         sub R13 #16
+; 102:     if (start < 0 || len <= 0 || start + len > 64) return 0;
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -1263,6 +1316,7 @@ _L81630117:
         jmp L_81630127
 sta_81630113:
 sta_81630114:
+; 103:     return (value >> start) & lmask64(len);
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -1300,6 +1354,7 @@ linsert64:
         push R12
         move R12 R13
         sub R13 #24
+; 107:     if (start < 0 || len <= 0 || start + len > 64) return value;
         movel R0 [R12+28]
         pushl R0
         move R0 #0
@@ -1372,6 +1427,7 @@ _L81630132:
         jmp L_81630142
 sta_81630128:
 sta_81630129:
+; 108:     long mask = lmask64(len) << start;
         movel R0 [R12+36]
         sub R13 #8
         movel @13 R0
@@ -1384,6 +1440,7 @@ sta_81630129:
         shl R1 R0
         movel R0 R1
         movel [R12-12] R0
+; 109:     return (value & ~mask) | ((field & lmask64(len)) << start);
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12-12]
@@ -1429,6 +1486,7 @@ lis_power_of_two64:
         push R12
         move R12 R13
         sub R13 #16
+; 113:     return x > 0 && (x & (x - 1)) == 0;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -1495,6 +1553,7 @@ lnext_power_of_two64:
         push R12
         move R12 R13
         sub R13 #24
+; 117:     if (x <= 1) return 1;
         movel R0 [R12+12]
         pushl R0
         move R0 #1
@@ -1515,6 +1574,7 @@ _L81630153:
         jmp L_81630154
 sta_81630150:
 sta_81630151:
+; 118:     unsigned long v = (unsigned long)(x - 1);
         movel R0 [R12+12]
         pushl R0
         move R0 #1
@@ -1522,6 +1582,7 @@ sta_81630151:
         popl R1
         subl R0 R1 R0
         movel [R12-12] R0
+; 119:     v |= v >> 1; v |= v >> 2; v |= v >> 4;
         movel R0 [R12-12]
         pushl R0
         movel R0 [R12-12]
@@ -1558,6 +1619,7 @@ sta_81630151:
         or R1 R0
         movel R0 R1
         movel [R12-12] R0
+; 120:     v |= v >> 8; v |= v >> 16; v |= v >> 32;
         movel R0 [R12-12]
         pushl R0
         movel R0 [R12-12]
@@ -1594,6 +1656,7 @@ sta_81630151:
         or R1 R0
         movel R0 R1
         movel [R12-12] R0
+; 121:     return (long)(v + 1);
         movel R0 [R12-12]
         pushl R0
         move R0 #1

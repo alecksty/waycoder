@@ -15,11 +15,16 @@ net_connect:
         push R12
         move R12 R13
         sub R13 #24
+; 8:     asm("LOAD R0 #2");
         asm "LOAD R0 #2"
+; 9:     asm("LOAD R1 #1");
         asm "LOAD R1 #1"
+; 10:     asm("SYSCALL #330");
         syscall #330
         move [R12-4] R0
+; 11:     asm("MOVE fd, R0");
         asm "MOVE fd, R0"
+; 12:     if (fd < 0) return -1;
         move R0 [R12-8]
         push R0
         move R0 #0
@@ -39,12 +44,18 @@ _L52300003:
         jmp L_52300004
 sta_52300000:
 sta_52300001:
+; 14:     asm("MOVE R0, fd");
         asm "MOVE R0, fd"
+; 15:     asm("MOVE R1, host");
         asm "MOVE R1, host"
+; 16:     asm("MOVE R2, port");
         asm "MOVE R2, port"
+; 17:     asm("SYSCALL #334");
         syscall #334
         move [R12-4] R0
+; 18:     asm("MOVE result, R0");
         asm "MOVE result, R0"
+; 19:     if (result < 0) {
         move R0 [R12-12]
         push R0
         move R0 #0
@@ -58,15 +69,19 @@ _L52300007:
 _L52300008:
         cmp R0 #0
         jz sta_52300005
+; 20:         asm("MOVE R0, fd");
         asm "MOVE R0, fd"
+; 21:         asm("SYSCALL #337");
         syscall #337
         move [R12-4] R0
+; 22:         return -1;
         move R0 #1
         move R0 #1
         neg R0 R0
         jmp L_52300004
 sta_52300005:
 sta_52300006:
+; 24:     return fd;
         move R0 [R12-8]
         jmp L_52300004
 L_52300004:
@@ -88,9 +103,12 @@ net_send:
         push R12
         move R12 R13
         sub R13 #16
+; 28:     asm("SYSCALL #335");
         syscall #335
         move [R12-4] R0
+; 29:     asm("MOVE result, R0");
         asm "MOVE result, R0"
+; 30:     return result;
         move R0 [R12-8]
         jmp L_52300009
 L_52300009:
@@ -112,9 +130,12 @@ net_recv:
         push R12
         move R12 R13
         sub R13 #16
+; 34:     asm("SYSCALL #336");
         syscall #336
         move [R12-4] R0
+; 35:     asm("MOVE result, R0");
         asm "MOVE result, R0"
+; 36:     return result;
         move R0 [R12-8]
         jmp L_52300010
 L_52300010:
@@ -134,6 +155,7 @@ net_close:
         push R12
         move R12 R13
         sub R13 #16
+; 39:     asm("SYSCALL #337");
         syscall #337
         move [R12-4] R0
         move R13 R12
@@ -153,11 +175,16 @@ net_listen:
         push R12
         move R12 R13
         sub R13 #24
+; 45:     asm("LOAD R0 #2");
         asm "LOAD R0 #2"
+; 46:     asm("LOAD R1 #1");
         asm "LOAD R1 #1"
+; 47:     asm("SYSCALL #330");
         syscall #330
         move [R12-4] R0
+; 48:     asm("MOVE fd, R0");
         asm "MOVE fd, R0"
+; 49:     if (fd < 0) return -1;
         move R0 [R12-8]
         push R0
         move R0 #0
@@ -177,11 +204,16 @@ _L52300014:
         jmp L_52300015
 sta_52300011:
 sta_52300012:
+; 51:     asm("MOVE R0, fd");
         asm "MOVE R0, fd"
+; 52:     asm("MOVE R1, port");
         asm "MOVE R1, port"
+; 53:     asm("SYSCALL #331");
         syscall #331
         move [R12-4] R0
+; 54:     asm("MOVE result, R0");
         asm "MOVE result, R0"
+; 55:     if (result < 0) {
         move R0 [R12-12]
         push R0
         move R0 #0
@@ -195,20 +227,28 @@ _L52300018:
 _L52300019:
         cmp R0 #0
         jz sta_52300016
+; 56:         asm("MOVE R0, fd");
         asm "MOVE R0, fd"
+; 57:         asm("SYSCALL #337");
         syscall #337
         move [R12-4] R0
+; 58:         return -1;
         move R0 #1
         move R0 #1
         neg R0 R0
         jmp L_52300015
 sta_52300016:
 sta_52300017:
+; 61:     asm("MOVE R0, fd");
         asm "MOVE R0, fd"
+; 62:     asm("LOAD R1 #5");
         asm "LOAD R1 #5"
+; 63:     asm("SYSCALL #332");
         syscall #332
         move [R12-4] R0
+; 64:     asm("MOVE result, R0");
         asm "MOVE result, R0"
+; 65:     if (result < 0) {
         move R0 [R12-12]
         push R0
         move R0 #0
@@ -222,15 +262,19 @@ _L52300022:
 _L52300023:
         cmp R0 #0
         jz sta_52300020
+; 66:         asm("MOVE R0, fd");
         asm "MOVE R0, fd"
+; 67:         asm("SYSCALL #337");
         syscall #337
         move [R12-4] R0
+; 68:         return -1;
         move R0 #1
         move R0 #1
         neg R0 R0
         jmp L_52300015
 sta_52300020:
 sta_52300021:
+; 70:     return fd;
         move R0 [R12-8]
         jmp L_52300015
 L_52300015:

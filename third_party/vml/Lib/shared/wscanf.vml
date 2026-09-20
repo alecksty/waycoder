@@ -17,6 +17,7 @@ wscanf:
         push R12
         move R12 R13
         sub R13 #1040
+; 9:     wcstombs(buf, wfmt, sizeof(buf) - 1);
         move R0 #1
         push R0
         move R0 #1
@@ -34,6 +35,7 @@ wscanf:
         move R2 [R13+8]
         call wcstombs
         add R13 #12
+; 10:     scanf(buf);
         move R0 R12
         sub R0 #1028
         push R0

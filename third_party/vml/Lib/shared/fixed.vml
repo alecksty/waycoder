@@ -18,6 +18,7 @@ mul:
         push R12
         move R12 R13
         sub R13 #24
+; 5:     long long result = (long long)a * (long long)b;
         move R0 [R12+12]
         i2l R0 R0
         pushl R0
@@ -26,6 +27,7 @@ mul:
         popl R1
         mull R0 R1 R0
         movel [R12-12] R0
+; 6:     return (int)(result >> 16);
         movel R0 [R12-12]
         pushl R0
         move R0 #16
@@ -52,6 +54,7 @@ div:
         push R12
         move R12 R13
         sub R13 #24
+; 10:     if (b == 0) return 0x7FFFFFFF; // max positive
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -69,6 +72,7 @@ _L57480004:
         jmp L_57480005
 sta_57480001:
 sta_57480002:
+; 11:     long long aa = (long long)a << 16;
         move R0 [R12+12]
         i2l R0 R0
         pushl R0
@@ -77,6 +81,7 @@ sta_57480002:
         shl R1 R0
         movel R0 R1
         movel [R12-12] R0
+; 12:     return (int)(aa / b);
         movel R0 [R12-12]
         pushl R0
         move R0 [R12+16]
@@ -102,6 +107,7 @@ from_int:
         push R12
         move R12 R13
         sub R13 #16
+; 16:     return value << 16;
         move R0 [R12+12]
         push R0
         move R0 #16
@@ -126,6 +132,7 @@ to_int:
         push R12
         move R12 R13
         sub R13 #16
+; 20:     return value >> 16;
         move R0 [R12+12]
         push R0
         move R0 #16
@@ -150,6 +157,7 @@ to_int_round:
         push R12
         move R12 R13
         sub R13 #16
+; 24:     return (value + 0x8000) >> 16;
         move R0 [R12+12]
         push R0
         move R0 #32768
@@ -179,6 +187,7 @@ from_float:
         push R12
         move R12 R13
         sub R13 #16
+; 28:     return (int)(f * 65536.0f);
         movef R0 [R12+12]
         fpush R0
         movef R0 [flt_57480009]
@@ -203,6 +212,7 @@ to_float:
         push R12
         move R12 R13
         sub R13 #16
+; 32:     return (float)value / 65536.0f;
         move R0 [R12+12]
         i2f R0 R0
         fpush R0
@@ -227,6 +237,7 @@ sqrt:
         push R12
         move R12 R13
         sub R13 #24
+; 36:     if (value <= 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -244,6 +255,7 @@ _L57480016:
         jmp L_57480017
 sta_57480013:
 sta_57480014:
+; 37:     int guess = value >> 1;
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -251,6 +263,7 @@ sta_57480014:
         shr R1 R0
         move R0 R1
         move [R12-8] R0
+; 38:     if (guess < 1) guess = 1;
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -268,6 +281,7 @@ _L57480021:
         move [R12-8] R0
 sta_57480018:
 sta_57480019:
+; 40:     for (i = 0; i < 10; i++) {
         move R0 #0
         move [R12-12] R0
 sta_57480022:
@@ -284,6 +298,7 @@ _L57480025:
 _L57480026:
         cmp R0 #0
         jz sta_57480024
+; 41:         int div = guess > 0 ? ((value << 16) / guess) >> 16 : 0;
         move R0 [R12-8]
         push R0
         move R0 #0
@@ -318,6 +333,7 @@ _L57480029:
         move R0 #0
 _L57480030:
         move [R12-16] R0
+; 42:         guess = (guess + div) >> 1;
         move R0 [R12-8]
         push R0
         move R0 [R12-16]
@@ -338,6 +354,7 @@ sta_57480023:
         move R0 R1
         jmp sta_57480022
 sta_57480024:
+; 44:     return guess;
         move R0 [R12-8]
         jmp L_57480017
 L_57480017:
@@ -357,12 +374,15 @@ sin:
         push R12
         move R12 R13
         sub R13 #56
+; 50:     int pi = 205887; // PI * 65536
         move R0 #205887
         move [R12-8] R0
+; 51:     int pi2 = 411775; // 2*PI * 65536
         move R0 #411775
         move [R12-12] R0
 sta_57480031:
         move R2 #0
+; 52:     while (rad_q16 > pi) rad_q16 -= pi2;
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -387,6 +407,7 @@ _L57480034:
 sta_57480032:
 sta_57480035:
         move R2 #0
+; 53:     while (rad_q16 < -pi) rad_q16 += pi2;
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -411,8 +432,10 @@ _L57480038:
         move [R12+12] R0
         jmp sta_57480035
 sta_57480036:
+; 55:     int x = rad_q16;
         move R0 [R12+12]
         move [R12-16] R0
+; 56:     int x2 = mul(x, x);      // x^2
         move R0 [R12-16]
         push R0
         move R0 [R12-16]
@@ -422,6 +445,7 @@ sta_57480036:
         call mul
         add R13 #8
         move [R12-20] R0
+; 57:     int x3 = mul(x2, x);     // x^3
         move R0 [R12-16]
         push R0
         move R0 [R12-20]
@@ -431,8 +455,10 @@ sta_57480036:
         call mul
         add R13 #8
         move [R12-24] R0
+; 58:     int term1 = x;                  // x
         move R0 [R12-16]
         move [R12-28] R0
+; 59:     int term2 = -(x3 / 6);          // -x^3/6
         move R0 [R12-24]
         push R0
         move R0 #6
@@ -447,6 +473,7 @@ sta_57480036:
         move R0 R1
         neg R0 R0
         move [R12-32] R0
+; 60:     int x5 = mul(x3, x2);    // x^5
         move R0 [R12-20]
         push R0
         move R0 [R12-24]
@@ -456,6 +483,7 @@ sta_57480036:
         call mul
         add R13 #8
         move [R12-36] R0
+; 61:     int term3 = x5 / 120;           // x^5/120
         move R0 [R12-36]
         push R0
         move R0 #120
@@ -463,6 +491,7 @@ sta_57480036:
         div R1 R0
         move R0 R1
         move [R12-40] R0
+; 62:     int x7 = mul(x5, x2);    // x^7
         move R0 [R12-20]
         push R0
         move R0 [R12-36]
@@ -472,6 +501,7 @@ sta_57480036:
         call mul
         add R13 #8
         move [R12-44] R0
+; 63:     int term4 = -(x7 / 5040);       // -x^7/5040
         move R0 [R12-44]
         push R0
         move R0 #5040
@@ -486,6 +516,7 @@ sta_57480036:
         move R0 R1
         neg R0 R0
         move [R12-48] R0
+; 64:     return term1 + term2 + term3 + term4;
         move R0 [R12-28]
         push R0
         move R0 [R12-32]
@@ -520,8 +551,10 @@ cos:
         push R12
         move R12 R13
         sub R13 #16
+; 68:     int pi_half = 102944; // PI/2 * 65536
         move R0 #102944
         move [R12-8] R0
+; 69:     return sin(rad_q16 + pi_half);
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -552,6 +585,7 @@ atan2:
         push R12
         move R12 R13
         sub R13 #40
+; 73:     if (x == 0) {
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -565,6 +599,7 @@ _L57480043:
 _L57480044:
         cmp R0 #0
         jz sta_57480041
+; 74:         if (y > 0) return 102944;  // PI/2
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -582,6 +617,7 @@ _L57480048:
         jmp L_57480049
 sta_57480045:
 sta_57480046:
+; 75:         if (y < 0) return -102944; // -PI/2
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -601,10 +637,12 @@ _L57480053:
         jmp L_57480049
 sta_57480050:
 sta_57480051:
+; 76:         return 0;
         move R0 #0
         jmp L_57480049
 sta_57480041:
 sta_57480042:
+; 79:     int abs_y = y >= 0 ? y : -y;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -626,6 +664,7 @@ _L57480056:
         neg R0 R0
 _L57480057:
         move [R12-8] R0
+; 80:     int abs_x = x >= 0 ? x : -x;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -647,6 +686,7 @@ _L57480060:
         neg R0 R0
 _L57480061:
         move [R12-12] R0
+; 81:     int ratio = (abs_x > 0) ? (abs_y << 16) / abs_x : 0x7FFFFFFF;
         move R0 [R12-12]
         push R0
         move R0 #0
@@ -676,8 +716,10 @@ _L57480064:
         move R0 #2147483647
 _L57480065:
         move [R12-16] R0
+; 83:     int z = ratio; // already Q15.16
         move R0 [R12-16]
         move [R12-20] R0
+; 84:     int z2 = mul(z, z);
         move R0 [R12-20]
         push R0
         move R0 [R12-20]
@@ -687,6 +729,7 @@ _L57480065:
         call mul
         add R13 #8
         move [R12-24] R0
+; 85:     int denom = 65536 + (z2 * 28) / 100; // 1 + 0.28*z^2 in Q15.16
         move R0 #65536
         push R0
         move R0 [R12-24]
@@ -704,6 +747,7 @@ _L57480065:
         add R1 R0
         move R0 R1
         move [R12-28] R0
+; 86:     int atan = (denom > 0) ? ((z << 16) / denom) : 102944;
         move R0 [R12-28]
         push R0
         move R0 #0
@@ -733,6 +777,7 @@ _L57480068:
         move R0 #102944
 _L57480069:
         move [R12-32] R0
+; 88:     if (x < 0) atan = (y >= 0) ? 205887 - atan : -205887 + atan;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -779,6 +824,7 @@ _L57480077:
         move [R12-32] R0
 sta_57480070:
 sta_57480071:
+; 89:     return atan;
         move R0 [R12-32]
         jmp L_57480049
 L_57480049:

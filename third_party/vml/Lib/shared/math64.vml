@@ -40,6 +40,7 @@ labs64:
         push R12
         move R12 R13
         sub R13 #16
+; 6:     return x < 0 ? -x : x;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -82,6 +83,7 @@ lmin64:
         push R12
         move R12 R13
         sub R13 #16
+; 10:     return a < b ? a : b;
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -121,6 +123,7 @@ lmax64:
         push R12
         move R12 R13
         sub R13 #16
+; 14:     return a > b ? a : b;
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -161,6 +164,7 @@ lclamp64:
         push R12
         move R12 R13
         sub R13 #16
+; 18:     if (x < low) return low;
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -180,6 +184,7 @@ _L8740018:
         jmp L_8740019
 sta_8740015:
 sta_8740016:
+; 19:     if (x > high) return high;
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+28]
@@ -199,6 +204,7 @@ _L8740023:
         jmp L_8740019
 sta_8740020:
 sta_8740021:
+; 20:     return x;
         movel R0 [R12+12]
         jmp L_8740019
 L_8740019:
@@ -218,6 +224,7 @@ lsign64:
         push R12
         move R12 R13
         sub R13 #16
+; 24:     if (x > 0) return 1;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -238,6 +245,7 @@ _L8740027:
         jmp L_8740028
 sta_8740024:
 sta_8740025:
+; 25:     if (x < 0) return -1;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -260,6 +268,7 @@ _L8740032:
         jmp L_8740028
 sta_8740029:
 sta_8740030:
+; 26:     return 0;
         move R0 #0
         jmp L_8740028
 L_8740028:
@@ -280,6 +289,7 @@ lgcd64:
         push R12
         move R12 R13
         sub R13 #24
+; 32:     if (a < 0) a = -a;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -302,6 +312,7 @@ _L8740036:
         movel [R12+12] R0
 sta_8740033:
 sta_8740034:
+; 33:     if (b < 0) b = -b;
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -326,6 +337,7 @@ sta_8740037:
 sta_8740038:
 sta_8740041:
         move R2 #0
+; 34:     while (b != 0) { t = b; b = a % b; a = t; }
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -354,6 +366,7 @@ _L8740044:
         movel [R12+12] R0
         jmp sta_8740041
 sta_8740042:
+; 35:     return a;
         movel R0 [R12+12]
         jmp L_8740045
 L_8740045:
@@ -374,6 +387,7 @@ llcm64:
         push R12
         move R12 R13
         sub R13 #24
+; 39:     if (a == 0 || b == 0) return 0;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -418,6 +432,7 @@ _L8740050:
         jmp L_8740055
 sta_8740046:
 sta_8740047:
+; 40:     long g = lgcd64(a, b);
         movel R0 [R12+20]
         sub R13 #8
         movel @13 R0
@@ -429,6 +444,7 @@ sta_8740047:
         call lgcd64
         add R13 #16
         movel [R12-12] R0
+; 41:     return (a / g) * b;
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12-12]
@@ -456,6 +472,7 @@ lisqrt64:
         push R12
         move R12 R13
         sub R13 #40
+; 45:     if (n <= 0) return 0;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -476,6 +493,7 @@ _L8740059:
         jmp L_8740060
 sta_8740056:
 sta_8740057:
+; 46:     if (n == 1) return 1;
         movel R0 [R12+12]
         pushl R0
         move R0 #1
@@ -496,6 +514,7 @@ _L8740064:
         jmp L_8740060
 sta_8740061:
 sta_8740062:
+; 47:     long g = n / 2;
         movel R0 [R12+12]
         pushl R0
         move R0 #2
@@ -503,6 +522,7 @@ sta_8740062:
         popl R1
         divl R0 R1 R0
         movel [R12-12] R0
+; 48:     if (g < 1) g = 1;
         movel R0 [R12-12]
         pushl R0
         move R0 #1
@@ -524,6 +544,7 @@ _L8740068:
         movel [R12-12] R0
 sta_8740065:
 sta_8740066:
+; 50:     for (i = 0; i < 20; i++) {
         move R0 #0
         i2l R0 R0
         movel [R12-20] R0
@@ -544,6 +565,7 @@ _L8740072:
 _L8740073:
         cmp R0 #0
         jz sta_8740071
+; 51:         long ng = (g + n / g) / 2;
         movel R0 [R12-12]
         pushl R0
         movel R0 [R12+12]
@@ -559,6 +581,7 @@ _L8740073:
         popl R1
         divl R0 R1 R0
         movel [R12-28] R0
+; 52:         if (ng >= g) return g;
         movel R0 [R12-28]
         pushl R0
         movel R0 [R12-12]
@@ -578,6 +601,7 @@ _L8740077:
         jmp L_8740060
 sta_8740074:
 sta_8740075:
+; 53:         g = ng;
         movel R0 [R12-28]
         movel [R12-12] R0
 sta_8740070:
@@ -588,6 +612,7 @@ sta_8740070:
         movel R0 R1
         jmp sta_8740069
 sta_8740071:
+; 55:     return g;
         movel R0 [R12-12]
         jmp L_8740060
 L_8740060:
@@ -608,9 +633,11 @@ lpow64:
         push R12
         move R12 R13
         sub R13 #24
+; 59:     long result = 1;
         move R0 #1
         i2l R0 R0
         movel [R12-12] R0
+; 60:     if (exp < 0) return 0; // 负指数不支持整数
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -633,6 +660,7 @@ sta_8740078:
 sta_8740079:
 sta_8740083:
         move R2 #0
+; 61:     while (exp > 0) {
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -649,6 +677,7 @@ _L8740085:
 _L8740086:
         cmp R0 #0
         jz sta_8740084
+; 62:         if (exp & 1) result *= base;
         movel R0 [R12+20]
         pushl R0
         move R0 #1
@@ -665,12 +694,14 @@ _L8740086:
         movel [R12-12] R0
 sta_8740087:
 sta_8740088:
+; 63:         base *= base;
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+12]
         popl R1
         mull R0 R1 R0
         movel [R12+12] R0
+; 64:         exp >>= 1;
         movel R0 [R12+20]
         pushl R0
         move R0 #1
@@ -680,6 +711,7 @@ sta_8740088:
         movel [R12+20] R0
         jmp sta_8740083
 sta_8740084:
+; 66:     return result;
         movel R0 [R12-12]
         jmp L_8740082
 L_8740082:
@@ -699,9 +731,11 @@ lfactorial64:
         push R12
         move R12 R13
         sub R13 #32
+; 70:     long result = 1;
         move R0 #1
         i2l R0 R0
         movel [R12-12] R0
+; 72:     if (n < 0) return 0;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -722,6 +756,7 @@ _L8740092:
         jmp L_8740093
 sta_8740089:
 sta_8740090:
+; 73:     if (n > 20) return 0; // 21! exceeds 64-bit
         movel R0 [R12+12]
         pushl R0
         move R0 #20
@@ -742,6 +777,7 @@ _L8740097:
         jmp L_8740093
 sta_8740094:
 sta_8740095:
+; 74:     for (i = 2; i <= n; i++) result *= i;
         move R0 #2
         i2l R0 R0
         movel [R12-20] R0
@@ -775,6 +811,7 @@ sta_8740099:
         movel R0 R1
         jmp sta_8740098
 sta_8740100:
+; 75:     return result;
         movel R0 [R12-12]
         jmp L_8740093
 L_8740093:
@@ -795,6 +832,7 @@ lceil_div64:
         push R12
         move R12 R13
         sub R13 #16
+; 80:     if (b == 0) return 0;
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -815,6 +853,7 @@ _L8740106:
         jmp L_8740107
 sta_8740103:
 sta_8740104:
+; 81:     return (a + b - 1) / b;
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -848,6 +887,7 @@ lround_div64:
         push R12
         move R12 R13
         sub R13 #16
+; 85:     if (b == 0) return 0;
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -868,6 +908,7 @@ _L8740111:
         jmp L_8740112
 sta_8740108:
 sta_8740109:
+; 86:     if (a >= 0) return (a + b / 2) / b;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -901,6 +942,7 @@ _L8740116:
         jmp L_8740112
 sta_8740113:
 sta_8740114:
+; 87:     return (a - b / 2) / b;
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -933,6 +975,7 @@ lis_prime64:
         push R12
         move R12 R13
         sub R13 #32
+; 93:     if (n < 2) return 0;
         movel R0 [R12+12]
         pushl R0
         move R0 #2
@@ -953,6 +996,7 @@ _L8740120:
         jmp L_8740121
 sta_8740117:
 sta_8740118:
+; 94:     if (n == 2 || n == 3) return 1;
         movel R0 [R12+12]
         pushl R0
         move R0 #2
@@ -997,6 +1041,7 @@ _L8740126:
         jmp L_8740121
 sta_8740122:
 sta_8740123:
+; 95:     if (n % 2 == 0) return 0;
         movel R0 [R12+12]
         pushl R0
         move R0 #2
@@ -1022,6 +1067,7 @@ _L8740134:
         jmp L_8740121
 sta_8740131:
 sta_8740132:
+; 96:     long limit = lisqrt64(n);
         movel R0 [R12+12]
         sub R13 #8
         movel @13 R0
@@ -1029,6 +1075,7 @@ sta_8740132:
         call lisqrt64
         add R13 #8
         movel [R12-20] R0
+; 97:     for (i = 3; i <= limit; i += 2)
         move R0 #3
         i2l R0 R0
         movel [R12-12] R0
@@ -1048,6 +1095,7 @@ _L8740138:
 _L8740139:
         cmp R0 #0
         jz sta_8740137
+; 98:         if (n % i == 0) return 0;
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12-12]
@@ -1082,6 +1130,7 @@ sta_8740136:
         movel [R12-12] R0
         jmp sta_8740135
 sta_8740137:
+; 99:     return 1;
         move R0 #1
         jmp L_8740121
 L_8740121:
@@ -1102,6 +1151,7 @@ lrandom64:
         push R12
         move R12 R13
         sub R13 #24
+; 106:     if (max < min) { long t = min; min = max; max = t; }
         movel R0 [R12+20]
         pushl R0
         movel R0 [R12+12]
@@ -1125,6 +1175,7 @@ _L8740147:
         movel [R12+20] R0
 sta_8740144:
 sta_8740145:
+; 107:     seed = (6364136223846793005L * seed + 1442695040888963407L) & 0x7FFFFFFFFFFFFFFFL;
         movel R0 [i64_8740148]
         dpush R0
         movel R0 [lrandom64__seed]
@@ -1142,6 +1193,7 @@ sta_8740145:
         move R0 R1
         d2l R0 R0
         movel [lrandom64__seed] R0
+; 108:     return min + (seed % (max - min + 1));
         movel R0 [R12+12]
         pushl R0
         movel R0 [lrandom64__seed]
@@ -1178,6 +1230,7 @@ lclz64:
         push R12
         move R12 R13
         sub R13 #32
+; 113:     if (x == 0) return 64;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -1198,9 +1251,11 @@ _L8740155:
         jmp L_8740156
 sta_8740152:
 sta_8740153:
+; 114:     long count = 0;
         move R0 #0
         i2l R0 R0
         movel [R12-12] R0
+; 115:     long mask = 1L << 63;
         movel R0 [i64_8740157]
         pushl R0
         move R0 #63
@@ -1210,6 +1265,7 @@ sta_8740153:
         movel [R12-20] R0
 sta_8740158:
         move R2 #0
+; 116:     while ((x & mask) == 0 && mask != 0) {
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12-20]
@@ -1254,11 +1310,13 @@ _L8740160:
 _L8740161:
         cmp R0 #0
         jz sta_8740159
+; 117:         count++;
         movel R0 [R12-12]
         movel R1 R0
         addl R0 R0 #1
         movel [R12-12] R0
         movel R0 R1
+; 118:         mask >>= 1;  // unsigned shift: use >>>
         movel R0 [R12-20]
         pushl R0
         move R0 #1
@@ -1266,6 +1324,7 @@ _L8740161:
         shr R1 R0
         movel R0 R1
         movel [R12-20] R0
+; 121:         mask = (long)((unsigned long)mask >> 1);
         movel R0 [R12-20]
         pushl R0
         move R0 #1
@@ -1275,6 +1334,7 @@ _L8740161:
         movel [R12-20] R0
         jmp sta_8740158
 sta_8740159:
+; 123:     return count;
         movel R0 [R12-12]
         jmp L_8740156
 L_8740156:
@@ -1294,6 +1354,7 @@ lctz64:
         push R12
         move R12 R13
         sub R13 #24
+; 127:     if (x == 0) return 64;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -1314,11 +1375,13 @@ _L8740169:
         jmp L_8740170
 sta_8740166:
 sta_8740167:
+; 128:     long count = 0;
         move R0 #0
         i2l R0 R0
         movel [R12-12] R0
 sta_8740171:
         move R2 #0
+; 129:     while ((x & 1) == 0) {
         movel R0 [R12+12]
         pushl R0
         move R0 #1
@@ -1340,11 +1403,13 @@ _L8740173:
 _L8740174:
         cmp R0 #0
         jz sta_8740172
+; 130:         count++;
         movel R0 [R12-12]
         movel R1 R0
         addl R0 R0 #1
         movel [R12-12] R0
         movel R0 R1
+; 131:         x >>= 1;  // >>>
         movel R0 [R12+12]
         pushl R0
         move R0 #1
@@ -1352,10 +1417,12 @@ _L8740174:
         shr R1 R0
         movel R0 R1
         movel [R12+12] R0
+; 132:         x = (long)((unsigned long)x);
         movel R0 [R12+12]
         movel [R12+12] R0
         jmp sta_8740171
 sta_8740172:
+; 134:     return count;
         movel R0 [R12-12]
         jmp L_8740170
 L_8740170:
@@ -1375,13 +1442,16 @@ lpopcnt64:
         push R12
         move R12 R13
         sub R13 #32
+; 138:     long count = 0;
         move R0 #0
         i2l R0 R0
         movel [R12-12] R0
+; 139:     unsigned long ux = (unsigned long)x;
         movel R0 [R12+12]
         movel [R12-20] R0
 sta_8740175:
         move R2 #0
+; 140:     while (ux != 0) {
         movel R0 [R12-20]
         pushl R0
         move R0 #0
@@ -1398,6 +1468,7 @@ _L8740177:
 _L8740178:
         cmp R0 #0
         jz sta_8740176
+; 141:         count += (long)(ux & 1);
         movel R0 [R12-12]
         pushl R0
         movel R0 [R12-20]
@@ -1409,6 +1480,7 @@ _L8740178:
         popl R1
         addl R0 R1 R0
         movel [R12-12] R0
+; 142:         ux >>= 1;
         movel R0 [R12-20]
         pushl R0
         move R0 #1
@@ -1418,6 +1490,7 @@ _L8740178:
         movel [R12-20] R0
         jmp sta_8740175
 sta_8740176:
+; 144:     return count;
         movel R0 [R12-12]
         jmp L_8740179
 L_8740179:
@@ -1439,6 +1512,7 @@ llerp64:
         push R12
         move R12 R13
         sub R13 #16
+; 149:     return a + ((b - a) * t) / 1000;
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -1479,6 +1553,7 @@ lmap_range64:
         push R12
         move R12 R13
         sub R13 #16
+; 153:     if (in_max == in_min) return out_min;
         movel R0 [R12+28]
         pushl R0
         movel R0 [R12+20]
@@ -1498,6 +1573,7 @@ _L8740184:
         jmp L_8740185
 sta_8740181:
 sta_8740182:
+; 154:     return out_min + ((x - in_min) * (out_max - out_min)) / (in_max - in_min);
         movel R0 [R12+36]
         pushl R0
         movel R0 [R12+12]
@@ -1541,9 +1617,11 @@ lpow10_64:
         push R12
         move R12 R13
         sub R13 #32
+; 159:     long r = 1;
         move R0 #1
         i2l R0 R0
         movel [R12-12] R0
+; 161:     if (n < 0) return 0;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -1564,6 +1642,7 @@ _L8740189:
         jmp L_8740190
 sta_8740186:
 sta_8740187:
+; 162:     if (n > 18) return 0; // 10^19 exceeds 64-bit
         movel R0 [R12+12]
         pushl R0
         move R0 #18
@@ -1584,6 +1663,7 @@ _L8740194:
         jmp L_8740190
 sta_8740191:
 sta_8740192:
+; 163:     for (i = 0; i < n; i++) r *= 10;
         move R0 #0
         i2l R0 R0
         movel [R12-20] R0
@@ -1618,6 +1698,7 @@ sta_8740196:
         movel R0 R1
         jmp sta_8740195
 sta_8740197:
+; 164:     return r;
         movel R0 [R12-12]
         jmp L_8740190
 L_8740190:
@@ -1638,6 +1719,7 @@ lhypot64:
         push R12
         move R12 R13
         sub R13 #24
+; 168:     if (a < 0) a = -a;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -1660,6 +1742,7 @@ _L8740203:
         movel [R12+12] R0
 sta_8740200:
 sta_8740201:
+; 169:     if (b < 0) b = -b;
         movel R0 [R12+20]
         pushl R0
         move R0 #0
@@ -1682,6 +1765,7 @@ _L8740207:
         movel [R12+20] R0
 sta_8740204:
 sta_8740205:
+; 171:     if (a == 0 && b == 0) return 0;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -1725,6 +1809,7 @@ _L8740211:
         jmp L_8740216
 sta_8740208:
 sta_8740209:
+; 172:     if (a > b) {
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+20]
@@ -1740,6 +1825,7 @@ _L8740219:
 _L8740220:
         cmp R0 #0
         jz sta_8740217
+; 173:         long ratio = b * 1000 / (a > 0 ? a : 1);
         movel R0 [R12+20]
         pushl R0
         move R0 #1000
@@ -1771,6 +1857,7 @@ _L8740224:
         popl R1
         divl R0 R1 R0
         movel [R12-12] R0
+; 174:         return lisqrt64(a * a + (b * b > 0 ? b * b : 0));
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+12]
@@ -1816,6 +1903,7 @@ _L8740228:
         jmp L_8740216
 sta_8740217:
 sta_8740218:
+; 176:     return lisqrt64(a * a + b * b);
         movel R0 [R12+12]
         pushl R0
         movel R0 [R12+12]
@@ -1852,9 +1940,11 @@ lilog2_64:
         push R12
         move R12 R13
         sub R13 #24
+; 180:     long result = 0;
         move R0 #0
         i2l R0 R0
         movel [R12-12] R0
+; 181:     if (x <= 0) return -1;
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -1879,6 +1969,7 @@ sta_8740229:
 sta_8740230:
 sta_8740234:
         move R2 #0
+; 182:     while (x > 1) { x >>= 1; result++; }
         movel R0 [R12+12]
         pushl R0
         move R0 #1
@@ -1909,6 +2000,7 @@ _L8740237:
         movel R0 R1
         jmp sta_8740234
 sta_8740235:
+; 183:     return result;
         movel R0 [R12-12]
         jmp L_8740233
 L_8740233:
@@ -1928,6 +2020,7 @@ lis_even64:
         push R12
         move R12 R13
         sub R13 #16
+; 187:     return (x & 1) == 0;
         movel R0 [R12+12]
         pushl R0
         move R0 #1
@@ -1965,6 +2058,7 @@ lis_odd64:
         push R12
         move R12 R13
         sub R13 #16
+; 191:     return (x & 1) == 1;
         movel R0 [R12+12]
         pushl R0
         move R0 #1
@@ -2002,16 +2096,20 @@ _sin_taylor64:
         push R12
         move R12 R13
         sub R13 #40
+; 198:     double x2 = x * x;
         moved R0 [R12+12]
         dpush R0
         moved R0 [R12+12]
         dpop R1
         dmul R0 R1 R0
         moved [R12-12] R0
+; 199:     double term = x;
         moved R0 [R12+12]
         moved [R12-20] R0
+; 200:     double sum = x;
         moved R0 [R12+12]
         moved [R12-28] R0
+; 202:     for (n = 1; n < 15; n++) {
         move R0 #1
         move [R12-32] R0
 sta_8740244:
@@ -2028,6 +2126,7 @@ _L8740247:
 _L8740248:
         cmp R0 #0
         jz sta_8740246
+; 203:         term *= -x2 / (double)((2 * n) * (2 * n + 1));
         moved R0 [R12-20]
         dpush R0
         moved R0 [R12-12]
@@ -2061,12 +2160,14 @@ _L8740248:
         dpop R1
         dmul R0 R1 R0
         moved [R12-20] R0
+; 204:         sum += term;
         moved R0 [R12-28]
         dpush R0
         moved R0 [R12-20]
         dpop R1
         dadd R0 R1 R0
         moved [R12-28] R0
+; 205:         if (term < 1e-15 && term > -1e-15) break;
         moved R0 [R12-20]
         dpush R0
         moved R0 [dbl_8740253]
@@ -2113,6 +2214,7 @@ sta_8740245:
         move R0 R1
         jmp sta_8740244
 sta_8740246:
+; 207:     return sum;
         moved R0 [R12-28]
         jmp L_8740260
 L_8740260:
@@ -2132,16 +2234,20 @@ _cos_taylor64:
         push R12
         move R12 R13
         sub R13 #40
+; 210:     double x2 = x * x;
         moved R0 [R12+12]
         dpush R0
         moved R0 [R12+12]
         dpop R1
         dmul R0 R1 R0
         moved [R12-12] R0
+; 211:     double term = 1.0;
         moved R0 [dbl_8740261]
         moved [R12-20] R0
+; 212:     double sum = 1.0;
         moved R0 [dbl_8740262]
         moved [R12-28] R0
+; 214:     for (n = 1; n < 15; n++) {
         move R0 #1
         move [R12-32] R0
 sta_8740263:
@@ -2158,6 +2264,7 @@ _L8740266:
 _L8740267:
         cmp R0 #0
         jz sta_8740265
+; 215:         term *= -x2 / (double)((2 * n - 1) * (2 * n));
         moved R0 [R12-20]
         dpush R0
         moved R0 [R12-12]
@@ -2191,12 +2298,14 @@ _L8740267:
         dpop R1
         dmul R0 R1 R0
         moved [R12-20] R0
+; 216:         sum += term;
         moved R0 [R12-28]
         dpush R0
         moved R0 [R12-20]
         dpop R1
         dadd R0 R1 R0
         moved [R12-28] R0
+; 217:         if (term < 1e-15 && term > -1e-15) break;
         moved R0 [R12-20]
         dpush R0
         moved R0 [dbl_8740272]
@@ -2243,6 +2352,7 @@ sta_8740264:
         move R0 R1
         jmp sta_8740263
 sta_8740265:
+; 219:     return sum;
         moved R0 [R12-28]
         jmp L_8740279
 L_8740279:
@@ -2262,8 +2372,10 @@ sin_deg_d:
         push R12
         move R12 R13
         sub R13 #32
+; 223:     double sign = 1.0;
         moved R0 [dbl_8740280]
         moved [R12-12] R0
+; 224:     double rad = degrees * PI64_D / 180.0;
         moved R0 [R12+12]
         dpush R0
         moved R0 [PI64_D]
@@ -2275,6 +2387,7 @@ sin_deg_d:
         dpop R1
         ddiv R0 R1 R0
         moved [R12-20] R0
+; 225:     if (rad < 0) { rad = -rad; sign = -1.0; }
         moved R0 [R12-20]
         dpush R0
         move R0 #0
@@ -2299,6 +2412,7 @@ _L8740285:
         moved [R12-12] R0
 sta_8740282:
 sta_8740283:
+; 226:     rad = rad - (double)(long)(rad / PI2_D) * PI2_D;
         moved R0 [R12-20]
         dpush R0
         moved R0 [R12-20]
@@ -2317,6 +2431,7 @@ sta_8740283:
         dpop R1
         dsub R0 R1 R0
         moved [R12-20] R0
+; 227:     if (rad > PI64_D) { rad -= PI64_D; sign = -sign; }
         moved R0 [R12-20]
         dpush R0
         moved R0 [PI64_D]
@@ -2344,6 +2459,7 @@ _L8740291:
         moved [R12-12] R0
 sta_8740288:
 sta_8740289:
+; 228:     if (rad > PI_HALF_D) rad = PI64_D - rad;
         moved R0 [R12-20]
         dpush R0
         moved R0 [PI_HALF_D]
@@ -2367,6 +2483,7 @@ _L8740295:
         moved [R12-20] R0
 sta_8740292:
 sta_8740293:
+; 229:     return sign * _sin_taylor64(rad);
         moved R0 [R12-12]
         dpush R0
         moved R0 [R12-20]
@@ -2395,6 +2512,7 @@ cos_deg_d:
         push R12
         move R12 R13
         sub R13 #24
+; 233:     double rad = degrees * PI64_D / 180.0;
         moved R0 [R12+12]
         dpush R0
         moved R0 [PI64_D]
@@ -2406,6 +2524,7 @@ cos_deg_d:
         dpop R1
         ddiv R0 R1 R0
         moved [R12-12] R0
+; 234:     if (rad < 0) rad = -rad;
         moved R0 [R12-12]
         dpush R0
         move R0 #0
@@ -2426,6 +2545,7 @@ _L8740301:
         moved [R12-12] R0
 sta_8740298:
 sta_8740299:
+; 235:     rad = rad - (double)(long)(rad / PI2_D) * PI2_D;
         moved R0 [R12-12]
         dpush R0
         moved R0 [R12-12]
@@ -2444,6 +2564,7 @@ sta_8740299:
         dpop R1
         dsub R0 R1 R0
         moved [R12-12] R0
+; 236:     if (rad > PI64_D) rad = PI2_D - rad;
         moved R0 [R12-12]
         dpush R0
         moved R0 [PI64_D]
@@ -2467,6 +2588,7 @@ _L8740305:
         moved [R12-12] R0
 sta_8740302:
 sta_8740303:
+; 237:     if (rad > PI_HALF_D) rad = PI64_D - rad;
         moved R0 [R12-12]
         dpush R0
         moved R0 [PI_HALF_D]
@@ -2490,6 +2612,7 @@ _L8740309:
         moved [R12-12] R0
 sta_8740306:
 sta_8740307:
+; 238:     return _cos_taylor64(rad);
         moved R0 [R12-12]
         sub R13 #8
         moved @13 R0
@@ -2515,6 +2638,7 @@ tan_deg_d:
         push R12
         move R12 R13
         sub R13 #32
+; 242:     double s = sin_deg_d(degrees);
         moved R0 [R12+12]
         sub R13 #8
         moved @13 R0
@@ -2522,6 +2646,7 @@ tan_deg_d:
         call sin_deg_d
         add R13 #8
         moved [R12-12] R0
+; 243:     double c = cos_deg_d(degrees);
         moved R0 [R12+12]
         sub R13 #8
         moved @13 R0
@@ -2529,6 +2654,7 @@ tan_deg_d:
         call cos_deg_d
         add R13 #8
         moved [R12-20] R0
+; 244:     if (c < 1e-15 && c > -1e-15) return 0.0;
         moved R0 [R12-20]
         dpush R0
         moved R0 [dbl_8740315]
@@ -2568,6 +2694,7 @@ _L8740314:
         jmp L_8740323
 sta_8740311:
 sta_8740312:
+; 245:     return s / c;
         moved R0 [R12-12]
         dpush R0
         moved R0 [R12-20]

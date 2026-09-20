@@ -16,6 +16,7 @@ cmd_write:
         push R12
         move R12 R13
         sub R13 #16
+; 17:     volatile int* p = (volatile int*)(0x5000 + __cmd_offset);
         move R0 #20480
         push R0
         move R0 [__cmd_offset]
@@ -23,10 +24,12 @@ cmd_write:
         add R1 R0
         move R0 R1
         move [R12-8] R0
+; 18:     *p = val;
         move R0 [R12-8]
         move R11 R0
         move R0 [R12+12]
         move [R11] R0
+; 19:     __cmd_offset += 4;
         move R0 [__cmd_offset]
         push R0
         move R0 #4
@@ -52,26 +55,31 @@ browser_clear:
         push R12
         move R12 R13
         sub R13 #16
+; 22:     cmd_write(1);          // cmd_id = clear
         move R0 #1
         push R0
         move R0 [R13+0]
         call cmd_write
         add R13 #4
+; 23:     cmd_write(3);          // param_count = 3
         move R0 #3
         push R0
         move R0 [R13+0]
         call cmd_write
         add R13 #4
+; 24:     cmd_write(r);
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
         call cmd_write
         add R13 #4
+; 25:     cmd_write(g);
         move R0 [R12+16]
         push R0
         move R0 [R13+0]
         call cmd_write
         add R13 #4
+; 26:     cmd_write(b);
         move R0 [R12+20]
         push R0
         move R0 [R13+0]
@@ -95,26 +103,31 @@ browser_color:
         push R12
         move R12 R13
         sub R13 #16
+; 29:     cmd_write(5);          // cmd_id = setColor
         move R0 #5
         push R0
         move R0 [R13+0]
         call cmd_write
         add R13 #4
+; 30:     cmd_write(3);          // param_count = 3
         move R0 #3
         push R0
         move R0 [R13+0]
         call cmd_write
         add R13 #4
+; 31:     cmd_write(r);
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
         call cmd_write
         add R13 #4
+; 32:     cmd_write(g);
         move R0 [R12+16]
         push R0
         move R0 [R13+0]
         call cmd_write
         add R13 #4
+; 33:     cmd_write(b);
         move R0 [R12+20]
         push R0
         move R0 [R13+0]
@@ -137,11 +150,13 @@ browser_fill_polygon:
         push R12
         move R12 R13
         sub R13 #16
+; 36:     cmd_write(2);          // cmd_id = fillPolygon
         move R0 #2
         push R0
         move R0 [R13+0]
         call cmd_write
         add R13 #4
+; 37:     cmd_write(count * 2);  // param_count (x,y pairs)
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -152,6 +167,7 @@ browser_fill_polygon:
         move R0 [R13+0]
         call cmd_write
         add R13 #4
+; 39:     for (i = 0; i < count * 2; i++)
         move R0 #0
         move [R12-8] R0
 sta_9900000:
@@ -173,6 +189,7 @@ _L9900003:
 _L9900004:
         cmp R0 #0
         jz sta_9900002
+; 40:         cmd_write(points[i]);
         move R0 [R12+16]
         push R0
         move R0 [R12-8]
@@ -209,11 +226,13 @@ browser_draw_polygon:
         push R12
         move R12 R13
         sub R13 #16
+; 43:     cmd_write(3);          // cmd_id = drawPolygon
         move R0 #3
         push R0
         move R0 [R13+0]
         call cmd_write
         add R13 #4
+; 44:     cmd_write(count * 2);
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -224,6 +243,7 @@ browser_draw_polygon:
         move R0 [R13+0]
         call cmd_write
         add R13 #4
+; 46:     for (i = 0; i < count * 2; i++)
         move R0 #0
         move [R12-8] R0
 sta_9900005:
@@ -245,6 +265,7 @@ _L9900008:
 _L9900009:
         cmp R0 #0
         jz sta_9900007
+; 47:         cmd_write(points[i]);
         move R0 [R12+16]
         push R0
         move R0 [R12-8]
@@ -280,16 +301,19 @@ browser_flush:
         push R12
         move R12 R13
         sub R13 #16
+; 50:     cmd_write(4);          // cmd_id = flush (no-op marker for JS)
         move R0 #4
         push R0
         move R0 [R13+0]
         call cmd_write
         add R13 #4
+; 51:     cmd_write(0);          // param_count = 0
         move R0 #0
         push R0
         move R0 [R13+0]
         call cmd_write
         add R13 #4
+; 52:     cmd_write(0);          // terminator (cmd_id=0)
         move R0 #0
         push R0
         move R0 [R13+0]

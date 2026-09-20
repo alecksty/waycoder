@@ -15,6 +15,7 @@ init:
         push R12
         move R12 R13
         sub R13 #16
+; 7:     if (tasks == 0) return;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -31,6 +32,7 @@ _L4690003:
         jmp L_4690004
 sta_4690000:
 sta_4690001:
+; 9:     for (i = 0; i < 8; i++) {
         move R0 #0
         move [R12-8] R0
 sta_4690005:
@@ -47,6 +49,7 @@ _L4690008:
 _L4690009:
         cmp R0 #0
         jz sta_4690007
+; 10:         tasks[i * 5 + 0] = 0;  // period
         move R0 #0
         move R11 R0
         move R0 [R12+12]
@@ -61,6 +64,7 @@ _L4690009:
         pop R10
         add R0 R10
         move [R0] R11
+; 11:         tasks[i * 5 + 1] = 0;  // remaining
         move R0 #0
         move R9 R0
         move R0 [R12+12]
@@ -80,6 +84,7 @@ _L4690009:
         pop R8
         add R0 R8
         move [R0] R9
+; 12:         tasks[i * 5 + 2] = 0;  // func_addr
         move R0 #0
         move R7 R0
         move R0 [R12+12]
@@ -99,6 +104,7 @@ _L4690009:
         pop R6
         add R0 R6
         move [R0] R7
+; 13:         tasks[i * 5 + 3] = 0;  // state_ptr
         move R0 #0
         move R5 R0
         move R0 [R12+12]
@@ -118,6 +124,7 @@ _L4690009:
         pop R4
         add R0 R4
         move [R0] R5
+; 14:         tasks[i * 5 + 4] = 0;  // priority (0=stopped)
         move R0 #0
         move R3 R0
         move R0 [R12+12]
@@ -166,6 +173,7 @@ add_task:
         push R12
         move R12 R13
         sub R13 #16
+; 19:     if (tasks == 0 || period <= 0) return -1;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -206,6 +214,7 @@ _L4690014:
         jmp L_4690019
 sta_4690010:
 sta_4690011:
+; 21:     for (i = 0; i < 8; i++) {
         move R0 #0
         move [R12-8] R0
 sta_4690020:
@@ -222,6 +231,7 @@ _L4690023:
 _L4690024:
         cmp R0 #0
         jz sta_4690022
+; 22:         if (tasks[i * 5 + 4] == 0) {  // stopped
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -251,6 +261,7 @@ _L4690027:
 _L4690028:
         cmp R0 #0
         jz sta_4690025
+; 23:             tasks[i * 5 + 0] = period;
         move R0 [R12+16]
         move R10 R0
         move R0 [R12+12]
@@ -265,6 +276,7 @@ _L4690028:
         pop R11
         add R0 R11
         move [R0] R10
+; 24:             tasks[i * 5 + 1] = 0;     // 立即到期
         move R0 #0
         move R8 R0
         move R0 [R12+12]
@@ -284,6 +296,7 @@ _L4690028:
         pop R9
         add R0 R9
         move [R0] R8
+; 25:             tasks[i * 5 + 2] = func_addr;
         move R0 [R12+24]
         move R6 R0
         move R0 [R12+12]
@@ -303,6 +316,7 @@ _L4690028:
         pop R7
         add R0 R7
         move [R0] R6
+; 26:             tasks[i * 5 + 3] = state_ptr;
         move R0 [R12+28]
         move R4 R0
         move R0 [R12+12]
@@ -322,6 +336,7 @@ _L4690028:
         pop R5
         add R0 R5
         move [R0] R4
+; 27:             tasks[i * 5 + 4] = priority;
         move R0 [R12+20]
         move R2 R0
         move R0 [R12+12]
@@ -341,6 +356,7 @@ _L4690028:
         pop R3
         add R0 R3
         move [R0] R2
+; 28:             return i;
         move R0 [R12-8]
         jmp L_4690019
 sta_4690025:
@@ -353,6 +369,7 @@ sta_4690021:
         move R0 R1
         jmp sta_4690020
 sta_4690022:
+; 31:     return -1;
         move R0 #1
         move R0 #1
         neg R0 R0
@@ -375,6 +392,7 @@ task:
         push R12
         move R12 R13
         sub R13 #16
+; 35:     if (tasks == 0 || task_id < 0 || task_id >= 8) return;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -433,6 +451,7 @@ _L4690033:
         jmp L_4690043
 sta_4690029:
 sta_4690030:
+; 36:     tasks[task_id * 5 + 4] = 0;  // priority=0 → stopped
         move R0 #0
         move R1 R0
         move R0 [R12+12]
@@ -471,6 +490,7 @@ set_period:
         push R12
         move R12 R13
         sub R13 #16
+; 40:     if (tasks == 0 || task_id < 0 || task_id >= 8 || period <= 0) return;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -550,6 +570,7 @@ _L4690048:
         jmp L_4690063
 sta_4690044:
 sta_4690045:
+; 41:     tasks[task_id * 5 + 0] = period;
         move R0 [R12+20]
         move R10 R0
         move R0 [R12+12]
@@ -564,6 +585,7 @@ sta_4690045:
         pop R9
         add R0 R9
         move [R0] R10
+; 42:     if (tasks[task_id * 5 + 1] > period)
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -593,6 +615,7 @@ _L4690066:
 _L4690067:
         cmp R0 #0
         jz sta_4690064
+; 43:         tasks[task_id * 5 + 1] = period;
         move R0 [R12+20]
         move R7 R0
         move R0 [R12+12]
@@ -631,6 +654,7 @@ run:
         push R12
         move R12 R13
         sub R13 #32
+; 47:     if (tasks == 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -648,8 +672,10 @@ _L4690071:
         jmp L_4690072
 sta_4690068:
 sta_4690069:
+; 48:     int ready = 0;
         move R0 #0
         move [R12-8] R0
+; 51:     for (i = 0; i < 8; i++) {
         move R0 #0
         move [R12-12] R0
 sta_4690073:
@@ -666,6 +692,7 @@ _L4690076:
 _L4690077:
         cmp R0 #0
         jz sta_4690075
+; 52:         int priority = tasks[i * 5 + 4];
         move R0 [R12+12]
         push R0
         move R0 [R12-12]
@@ -684,6 +711,7 @@ _L4690077:
         add R0 R5
         move R0 [R0]
         move [R12-16] R0
+; 53:         if (priority > 0) {
         move R0 [R12-16]
         push R0
         move R0 #0
@@ -697,6 +725,7 @@ _L4690080:
 _L4690081:
         cmp R0 #0
         jz sta_4690078
+; 54:             int remaining = tasks[i * 5 + 1];
         move R0 [R12+12]
         push R0
         move R0 [R12-12]
@@ -715,6 +744,7 @@ _L4690081:
         add R0 R4
         move R0 [R0]
         move [R12-20] R0
+; 55:             if (remaining > 0) remaining--;
         move R0 [R12-20]
         push R0
         move R0 #0
@@ -735,6 +765,7 @@ _L4690085:
         move R0 R1
 sta_4690082:
 sta_4690083:
+; 56:             if (remaining <= 0) {
         move R0 [R12-20]
         push R0
         move R0 #0
@@ -748,6 +779,7 @@ _L4690088:
 _L4690089:
         cmp R0 #0
         jz sta_4690086
+; 57:                 ready |= (1 << i);
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -760,6 +792,7 @@ _L4690089:
         or R1 R0
         move R0 R1
         move [R12-8] R0
+; 58:                 remaining = tasks[i * 5 + 0];  // 重新装载周期
         move R0 [R12+12]
         push R0
         move R0 [R12-12]
@@ -775,6 +808,7 @@ _L4690089:
         move [R12-20] R0
 sta_4690086:
 sta_4690087:
+; 60:             tasks[i * 5 + 1] = remaining;
         move R0 [R12-20]
         move R2 R0
         move R0 [R12+12]
@@ -804,6 +838,7 @@ sta_4690074:
         move R0 R1
         jmp sta_4690073
 sta_4690075:
+; 63:     return ready;
         move R0 [R12-8]
         jmp L_4690072
 L_4690072:
@@ -824,6 +859,7 @@ get_func:
         push R12
         move R12 R13
         sub R13 #16
+; 67:     if (tasks == 0 || task_id < 0 || task_id >= 8) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -883,6 +919,7 @@ _L4690094:
         jmp L_4690104
 sta_4690090:
 sta_4690091:
+; 68:     return tasks[task_id * 5 + 2];
         move R0 [R12+12]
         push R0
         move R0 [R12+16]
@@ -920,6 +957,7 @@ get_state:
         push R12
         move R12 R13
         sub R13 #16
+; 71:     if (tasks == 0 || task_id < 0 || task_id >= 8) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -979,6 +1017,7 @@ _L4690109:
         jmp L_4690119
 sta_4690105:
 sta_4690106:
+; 72:     return tasks[task_id * 5 + 3];
         move R0 [R12+12]
         push R0
         move R0 [R12+16]

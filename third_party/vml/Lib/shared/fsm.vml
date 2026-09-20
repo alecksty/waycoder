@@ -17,6 +17,7 @@ transition:
         push R12
         move R12 R13
         sub R13 #40
+; 7:     if (state == 0 || transitions == 0) return -1;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -57,6 +58,7 @@ _L16960004:
         jmp L_16960009
 sta_16960000:
 sta_16960001:
+; 8:     int current = state[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -65,6 +67,7 @@ sta_16960001:
         add R0 R11
         move R0 [R0]
         move [R12-8] R0
+; 9:     int event = state[1];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -73,6 +76,7 @@ sta_16960001:
         add R0 R10
         move R0 [R0]
         move [R12-12] R0
+; 11:     for (i = 0; i < trans_count; i++) {
         move R0 #0
         move [R12-16] R0
 sta_16960010:
@@ -89,6 +93,7 @@ _L16960013:
 _L16960014:
         cmp R0 #0
         jz sta_16960012
+; 12:         int from = transitions[i * 3 + 0];
         move R0 [R12+16]
         push R0
         move R0 [R12-16]
@@ -102,6 +107,7 @@ _L16960014:
         add R0 R9
         move R0 [R0]
         move [R12-20] R0
+; 13:         int evt  = transitions[i * 3 + 1];
         move R0 [R12+16]
         push R0
         move R0 [R12-16]
@@ -120,6 +126,7 @@ _L16960014:
         add R0 R8
         move R0 [R0]
         move [R12-24] R0
+; 14:         int to   = transitions[i * 3 + 2];
         move R0 [R12+16]
         push R0
         move R0 [R12-16]
@@ -138,6 +145,7 @@ _L16960014:
         add R0 R7
         move R0 [R0]
         move [R12-28] R0
+; 15:         if (from == current && evt == event) {
         move R0 [R12-20]
         push R0
         move R0 [R12-8]
@@ -171,6 +179,7 @@ _L16960017:
 _L16960018:
         cmp R0 #0
         jz sta_16960015
+; 16:             state[0] = to;
         move R0 [R12-28]
         move R6 R0
         move R0 [R12+12]
@@ -180,6 +189,7 @@ _L16960018:
         pop R5
         add R0 R5
         move [R0] R6
+; 17:             state[1] = 0; // 清除事件
         move R0 #0
         move R4 R0
         move R0 [R12+12]
@@ -189,6 +199,7 @@ _L16960018:
         pop R3
         add R0 R3
         move [R0] R4
+; 18:             return to;
         move R0 [R12-28]
         jmp L_16960009
 sta_16960015:
@@ -201,6 +212,7 @@ sta_16960011:
         move R0 R1
         jmp sta_16960010
 sta_16960012:
+; 21:     return -1;
         move R0 #1
         move R0 #1
         neg R0 R0
@@ -223,6 +235,7 @@ send_event:
         push R12
         move R12 R13
         sub R13 #16
+; 25:     if (state == 0) return;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -239,6 +252,7 @@ _L16960026:
         jmp L_16960027
 sta_16960023:
 sta_16960024:
+; 26:     state[1] = event;
         move R0 [R12+16]
         move R2 R0
         move R0 [R12+12]
@@ -266,6 +280,7 @@ state:
         push R12
         move R12 R13
         sub R13 #16
+; 30:     if (state == 0) return;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -282,6 +297,7 @@ _L16960031:
         jmp L_16960032
 sta_16960028:
 sta_16960029:
+; 31:     state[0] = new_state;
         move R0 [R12+16]
         move R11 R0
         move R0 [R12+12]
@@ -291,6 +307,7 @@ sta_16960029:
         pop R10
         add R0 R10
         move [R0] R11
+; 32:     state[1] = 0;
         move R0 #0
         move R9 R0
         move R0 [R12+12]
@@ -317,6 +334,7 @@ get_state:
         push R12
         move R12 R13
         sub R13 #16
+; 36:     if (state == 0) return -1;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -336,6 +354,7 @@ _L16960036:
         jmp L_16960037
 sta_16960033:
 sta_16960034:
+; 37:     return state[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -362,6 +381,7 @@ event_queue_push:
         push R12
         move R12 R13
         sub R13 #24
+; 42:     if (queue == 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -379,6 +399,7 @@ _L16960041:
         jmp L_16960042
 sta_16960038:
 sta_16960039:
+; 43:     int head = queue[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -387,6 +408,7 @@ sta_16960039:
         add R0 R5
         move R0 [R0]
         move [R12-8] R0
+; 44:     int tail = queue[1];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -395,6 +417,7 @@ sta_16960039:
         add R0 R6
         move R0 [R0]
         move [R12-12] R0
+; 45:     int next = (head + 1) % 16;
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -407,6 +430,7 @@ sta_16960039:
         mod R1 R0
         move R0 R1
         move [R12-16] R0
+; 46:     if (next == tail) return 0; // full
         move R0 [R12-16]
         push R0
         move R0 [R12-12]
@@ -424,6 +448,7 @@ _L16960046:
         jmp L_16960042
 sta_16960043:
 sta_16960044:
+; 47:     queue[2 + head] = event;
         move R0 [R12+16]
         move R3 R0
         move R0 [R12+12]
@@ -438,6 +463,7 @@ sta_16960044:
         pop R4
         add R0 R4
         move [R0] R3
+; 48:     queue[0] = next;
         move R0 [R12-16]
         move R1 R0
         move R0 [R12+12]
@@ -447,6 +473,7 @@ sta_16960044:
         pop R2
         add R0 R2
         move [R0] R1
+; 49:     return 1;
         move R0 #1
         jmp L_16960042
 L_16960042:
@@ -466,6 +493,7 @@ event_queue_pop:
         push R12
         move R12 R13
         sub R13 #24
+; 53:     if (queue == 0) return -1;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -485,6 +513,7 @@ _L16960050:
         jmp L_16960051
 sta_16960047:
 sta_16960048:
+; 54:     int head = queue[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -493,6 +522,7 @@ sta_16960048:
         add R0 R10
         move R0 [R0]
         move [R12-8] R0
+; 55:     int tail = queue[1];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -501,6 +531,7 @@ sta_16960048:
         add R0 R11
         move R0 [R0]
         move [R12-12] R0
+; 56:     if (head == tail) return -1; // empty
         move R0 [R12-8]
         push R0
         move R0 [R12-12]
@@ -520,6 +551,7 @@ _L16960055:
         jmp L_16960051
 sta_16960052:
 sta_16960053:
+; 57:     int event = queue[2 + tail];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -533,6 +565,7 @@ sta_16960053:
         add R0 R8
         move R0 [R0]
         move [R12-16] R0
+; 58:     queue[1] = (tail + 1) % 16;
         move R0 [R12-12]
         push R0
         move R0 #1
@@ -552,6 +585,7 @@ sta_16960053:
         pop R7
         add R0 R7
         move [R0] R9
+; 59:     return event;
         move R0 [R12-16]
         jmp L_16960051
 L_16960051:
@@ -571,6 +605,7 @@ event_queue_init:
         push R12
         move R12 R13
         sub R13 #16
+; 63:     if (queue == 0) return;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -587,6 +622,7 @@ _L16960059:
         jmp L_16960060
 sta_16960056:
 sta_16960057:
+; 64:     queue[0] = 0; // head
         move R0 #0
         move R5 R0
         move R0 [R12+12]
@@ -596,6 +632,7 @@ sta_16960057:
         pop R6
         add R0 R6
         move [R0] R5
+; 65:     queue[1] = 0; // tail
         move R0 #0
         move R4 R0
         move R0 [R12+12]
@@ -623,6 +660,7 @@ event_queue_available:
         push R12
         move R12 R13
         sub R13 #24
+; 69:     if (queue == 0) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -640,6 +678,7 @@ _L16960064:
         jmp L_16960065
 sta_16960061:
 sta_16960062:
+; 70:     int head = queue[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -648,6 +687,7 @@ sta_16960062:
         add R0 R2
         move R0 [R0]
         move [R12-8] R0
+; 71:     int tail = queue[1];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -656,6 +696,7 @@ sta_16960062:
         add R0 R1
         move R0 [R0]
         move [R12-12] R0
+; 72:     return (head - tail + 16) % 16;
         move R0 [R12-8]
         push R0
         move R0 [R12-12]

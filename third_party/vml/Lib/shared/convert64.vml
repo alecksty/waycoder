@@ -16,10 +16,13 @@ ltoa:
         push R12
         move R12 R13
         sub R13 #32
+; 5:     int i = 0;
         move R0 #0
         move [R12-8] R0
+; 7:     int is_neg = 0;
         move R0 #0
         move [R12-16] R0
+; 8:     if (value < 0) { is_neg = 1; value = -value; }
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -44,6 +47,7 @@ _L19190003:
         movel [R12+12] R0
 sta_19190000:
 sta_19190001:
+; 9:     if (value == 0) { dst[0] = '0'; dst[1] = 0; return 1; }
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -84,6 +88,7 @@ sta_19190004:
 sta_19190005:
 sta_19190009:
         move R2 #0
+; 10:     while (value > 0) {
         movel R0 [R12+12]
         pushl R0
         move R0 #0
@@ -100,6 +105,7 @@ _L19190011:
 _L19190012:
         cmp R0 #0
         jz sta_19190010
+; 11:         dst[i++] = '0' + (char)(value % 10);
         move R0 #48
         pushb R0
         movel R0 [R12+12]
@@ -124,6 +130,7 @@ _L19190012:
         pop R6
         add R0 R6
         moveb [R0] R7
+; 12:         value /= 10;
         movel R0 [R12+12]
         pushl R0
         move R0 #10
@@ -133,6 +140,7 @@ _L19190012:
         movel [R12+12] R0
         jmp sta_19190009
 sta_19190010:
+; 14:     if (is_neg) dst[i++] = '-';
         move R0 [R12-16]
         cmp R0 #0
         jz sta_19190013
@@ -151,6 +159,7 @@ sta_19190010:
         moveb [R0] R5
 sta_19190013:
 sta_19190014:
+; 15:     dst[i] = 0;
         move R0 #0
         move R3 R0
         move R0 [R12+20]
@@ -160,6 +169,7 @@ sta_19190014:
         pop R2
         add R0 R2
         moveb [R0] R3
+; 17:     for (j = 0; j < i / 2; j++) {
         move R0 #0
         move [R12-12] R0
 sta_19190015:
@@ -181,6 +191,7 @@ _L19190018:
 _L19190019:
         cmp R0 #0
         jz sta_19190017
+; 18:         char t = dst[j]; dst[j] = dst[i - 1 - j]; dst[i - 1 - j] = t;
         move R0 [R12+20]
         push R0
         move R0 [R12-12]
@@ -244,6 +255,7 @@ sta_19190016:
         move R0 R1
         jmp sta_19190015
 sta_19190017:
+; 20:     return i;
         move R0 [R12-8]
         jmp L_19190008
 L_19190008:
@@ -263,15 +275,19 @@ atol:
         push R12
         move R12 R13
         sub R13 #32
+; 25:     long result = 0;
         move R0 #0
         i2l R0 R0
         movel [R12-12] R0
+; 26:     int sign = 1;
         move R0 #1
         move [R12-16] R0
+; 27:     int i = 0;
         move R0 #0
         move [R12-20] R0
 sta_19190020:
         move R2 #0
+; 28:     while (s[i] == ' ' || s[i] == '\t') i++;
         move R0 [R12+12]
         push R0
         move R0 [R12-20]
@@ -327,6 +343,7 @@ _L19190024:
         move R0 R1
         jmp sta_19190020
 sta_19190021:
+; 29:     if (s[i] == '-') { sign = -1; i++; }
         move R0 [R12+12]
         push R0
         move R0 [R12-20]
@@ -358,6 +375,7 @@ _L19190032:
         move R0 R1
         jmp sta_19190030
 sta_19190029:
+; 30:     else if (s[i] == '+') i++;
         move R0 [R12+12]
         push R0
         move R0 [R12-20]
@@ -388,6 +406,7 @@ sta_19190034:
 sta_19190030:
 sta_19190037:
         move R2 #0
+; 31:     while (s[i] >= '0' && s[i] <= '9') {
         move R0 [R12+12]
         push R0
         move R0 [R12-20]
@@ -435,6 +454,7 @@ _L19190039:
 _L19190040:
         cmp R0 #0
         jz sta_19190038
+; 32:         result = result * 10 + (long)(s[i] - '0');
         movel R0 [R12-12]
         pushl R0
         move R0 #10
@@ -459,6 +479,7 @@ _L19190040:
         popl R1
         addl R0 R1 R0
         movel [R12-12] R0
+; 33:         i++;
         move R0 [R12-20]
         move R1 R0
         add R0 R0 #1
@@ -466,6 +487,7 @@ _L19190040:
         move R0 R1
         jmp sta_19190037
 sta_19190038:
+; 35:     return sign * result;
         move R0 [R12-16]
         i2l R0 R0
         pushl R0
@@ -491,12 +513,16 @@ ltoa_hex:
         push R12
         move R12 R13
         sub R13 #40
+; 40:     int i = 0;
         move R0 #0
         move [R12-8] R0
+; 42:     int started = 0;
         move R0 #0
         move [R12-16] R0
+; 43:     unsigned long uval = (unsigned long)value;
         movel R0 [R12+12]
         movel [R12-24] R0
+; 45:     for (shift = 60; shift >= 0; shift -= 4) {
         move R0 #60
         move [R12-28] R0
 sta_19190046:
@@ -513,6 +539,7 @@ _L19190049:
 _L19190050:
         cmp R0 #0
         jz sta_19190048
+; 46:         int nibble = (int)((uval >> shift) & 0xF);
         movel R0 [R12-24]
         pushl R0
         move R0 [R12-28]
@@ -526,6 +553,7 @@ _L19190050:
         movel R0 R1
         l2i R0 R0
         move [R12-32] R0
+; 47:         if (nibble > 0 || started || shift == 0) {
         move R0 [R12-32]
         push R0
         move R0 #0
@@ -571,6 +599,7 @@ _L19190054:
 _L19190055:
         cmp R0 #0
         jz sta_19190051
+; 48:             dst[i++] = (char)(nibble < 10 ? '0' + nibble : 'A' + nibble - 10);
         move R0 [R12-32]
         push R0
         move R0 #10
@@ -616,6 +645,7 @@ _L19190066:
         pop R11
         add R0 R11
         moveb [R0] R8
+; 49:             started = 1;
         move R0 #1
         move [R12-16] R0
 sta_19190051:
@@ -630,6 +660,7 @@ sta_19190047:
         move [R12-28] R0
         jmp sta_19190046
 sta_19190048:
+; 52:     dst[i] = 0;
         move R0 #0
         move R6 R0
         move R0 [R12+20]
@@ -639,6 +670,7 @@ sta_19190048:
         pop R9
         add R0 R9
         moveb [R0] R6
+; 53:     return i;
         move R0 [R12-8]
         jmp L_19190067
 L_19190067:
@@ -658,13 +690,16 @@ atol_hex:
         push R12
         move R12 R13
         sub R13 #32
+; 58:     long result = 0;
         move R0 #0
         i2l R0 R0
         movel [R12-12] R0
+; 59:     int i = 0;
         move R0 #0
         move [R12-16] R0
 sta_19190068:
         move R2 #0
+; 60:     while (s[i] == ' ' || s[i] == '\t') i++;
         move R0 [R12+12]
         push R0
         move R0 [R12-16]
@@ -720,6 +755,7 @@ _L19190072:
         move R0 R1
         jmp sta_19190068
 sta_19190069:
+; 61:     if (s[i] == '0' && (s[i+1] == 'x' || s[i+1] == 'X')) i += 2;
         move R0 [R12+12]
         push R0
         move R0 [R12-16]
@@ -816,9 +852,11 @@ sta_19190077:
 sta_19190078:
 sta_19190090:
         move R2 #0
+; 62:     while (1) {
         move R0 #1
         cmp R0 #0
         jz sta_19190091
+; 63:         char c = s[i];
         move R0 [R12+12]
         push R0
         move R0 [R12-16]
@@ -828,6 +866,7 @@ sta_19190090:
         moveb R0 [R0]
         sextb R0 R0
         moveb [R12-17] R0
+; 64:         if (c >= '0' && c <= '9') result = result * 16 + (long)(c - '0');
         moveb R0 [R12-17]
         sextb R0 R0
         pushb R0
@@ -883,6 +922,7 @@ _L19190095:
         movel [R12-12] R0
         jmp sta_19190093
 sta_19190092:
+; 65:         else if (c >= 'a' && c <= 'f') result = result * 16 + (long)(c - 'a' + 10);
         moveb R0 [R12-17]
         sextb R0 R0
         pushb R0
@@ -943,6 +983,7 @@ _L19190103:
         movel [R12-12] R0
         jmp sta_19190101
 sta_19190100:
+; 66:         else if (c >= 'A' && c <= 'F') result = result * 16 + (long)(c - 'A' + 10);
         moveb R0 [R12-17]
         sextb R0 R0
         pushb R0
@@ -1007,6 +1048,7 @@ sta_19190108:
 sta_19190109:
 sta_19190101:
 sta_19190093:
+; 68:         i++;
         move R0 [R12-16]
         move R1 R0
         add R0 R0 #1
@@ -1014,6 +1056,7 @@ sta_19190093:
         move R0 R1
         jmp sta_19190090
 sta_19190091:
+; 70:     return result;
         movel R0 [R12-12]
         jmp L_19190116
 L_19190116:
@@ -1036,8 +1079,10 @@ dtoa:
         push R12
         move R12 R13
         sub R13 #64
+; 75:     int i = 0;
         move R0 #0
         move [R12-8] R0
+; 77:     if (value < 0) { dst[i++] = '-'; value = -value; }
         moved R0 [R12+12]
         dpush R0
         move R0 #0
@@ -1071,9 +1116,11 @@ _L19190120:
         moved [R12+12] R0
 sta_19190117:
 sta_19190118:
+; 78:     long int_part = (long)value;
         moved R0 [R12+12]
         d2l R0 R0
         movel [R12-20] R0
+; 79:     double frac = value - (double)int_part;
         moved R0 [R12+12]
         dpush R0
         movel R0 [R12-20]
@@ -1081,8 +1128,10 @@ sta_19190118:
         dpop R1
         dsub R0 R1 R0
         moved [R12-28] R0
+; 81:     int istart = i;
         move R0 [R12-8]
         move [R12-32] R0
+; 82:     if (int_part == 0) { dst[i++] = '0'; }
         movel R0 [R12-20]
         pushl R0
         move R0 #0
@@ -1114,10 +1163,12 @@ _L19190124:
         moveb [R0] R8
         jmp sta_19190122
 sta_19190121:
+; 84:         int tmp_i = i;
         move R0 [R12-8]
         move [R12-36] R0
 sta_19190125:
         move R2 #0
+; 85:         while (int_part > 0) { dst[i++] = '0' + (char)(int_part % 10); int_part /= 10; }
         movel R0 [R12-20]
         pushl R0
         move R0 #0
@@ -1167,6 +1218,7 @@ _L19190128:
         movel [R12-20] R0
         jmp sta_19190125
 sta_19190126:
+; 87:         int end = i - 1;
         move R0 [R12-8]
         push R0
         move R0 #1
@@ -1176,6 +1228,7 @@ sta_19190126:
         move [R12-40] R0
 sta_19190129:
         move R2 #0
+; 88:         while (tmp_i < end) { char t = dst[tmp_i]; dst[tmp_i] = dst[end]; dst[end] = t; tmp_i++; end--; }
         move R0 [R12-36]
         push R0
         move R0 [R12-40]
@@ -1237,6 +1290,7 @@ _L19190132:
         jmp sta_19190129
 sta_19190130:
 sta_19190122:
+; 91:     if (precision > 0) {
         move R0 [R12+20]
         push R0
         move R0 #0
@@ -1250,6 +1304,7 @@ _L19190135:
 _L19190136:
         cmp R0 #0
         jz sta_19190133
+; 92:         dst[i++] = '.';
         move R0 #46
         move R10 R0
         move R0 [R12+24]
@@ -1263,6 +1318,7 @@ _L19190136:
         pop R9
         add R0 R9
         moveb [R0] R10
+; 94:         for (p = 0; p < precision && p < 15; p++) {
         move R0 #0
         move [R12-48] R0
 sta_19190137:
@@ -1299,15 +1355,18 @@ _L19190140:
 _L19190141:
         cmp R0 #0
         jz sta_19190139
+; 95:             frac *= 10.0;
         moved R0 [R12-28]
         dpush R0
         moved R0 [dbl_19190146]
         dpop R1
         dmul R0 R1 R0
         moved [R12-28] R0
+; 96:             int digit = (int)frac;
         moved R0 [R12-28]
         d2i R0 R0
         move [R12-52] R0
+; 97:             dst[i++] = '0' + (char)digit;
         move R0 #48
         pushb R0
         move R0 [R12-52]
@@ -1326,6 +1385,7 @@ _L19190141:
         pop R7
         add R0 R7
         moveb [R0] R8
+; 98:             frac -= (double)digit;
         moved R0 [R12-28]
         dpush R0
         move R0 [R12-52]
@@ -1343,6 +1403,7 @@ sta_19190138:
 sta_19190139:
 sta_19190133:
 sta_19190134:
+; 101:     dst[i] = 0;
         move R0 #0
         move R6 R0
         move R0 [R12+24]
@@ -1352,6 +1413,7 @@ sta_19190134:
         pop R4
         add R0 R4
         moveb [R0] R6
+; 102:     return i;
         move R0 [R12-8]
         jmp L_19190147
 L_19190147:

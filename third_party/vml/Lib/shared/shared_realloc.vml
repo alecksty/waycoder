@@ -16,9 +16,12 @@ realloc:
         push R12
         move R12 R13
         sub R13 #16
+; 12:     void *result = 0;
         move R0 #0
         move [R12-8] R0
+; 13:     asm("LOAD R0 #0");
         asm "LOAD R0 #0"
+; 14:     return result;
         move R0 [R12-8]
         jmp L_65840000
 L_65840000:

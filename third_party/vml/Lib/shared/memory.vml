@@ -16,10 +16,13 @@ memcpy:
         push R12
         move R12 R13
         sub R13 #24
+; 4:     char* d = (char*)dst;
         move R0 [R12+12]
         move [R12-8] R0
+; 5:     const char* s = (const char*)src;
         move R0 [R12+16]
         move [R12-12] R0
+; 6:     for (int i = 0; i < n; i++) d[i] = s[i];
         move R0 #0
         move [R12-16] R0
 sta_66710000:
@@ -60,6 +63,7 @@ sta_66710001:
         move R0 R1
         jmp sta_66710000
 sta_66710002:
+; 7:     return dst;
         move R0 [R12+12]
         jmp L_66710005
 L_66710005:
@@ -81,8 +85,10 @@ memset:
         push R12
         move R12 R13
         sub R13 #24
+; 11:     char* p = (char*)ptr;
         move R0 [R12+12]
         move [R12-8] R0
+; 12:     for (int i = 0; i < n; i++) p[i] = (char)val;
         move R0 #0
         move [R12-12] R0
 sta_66710006:
@@ -116,6 +122,7 @@ sta_66710007:
         move R0 R1
         jmp sta_66710006
 sta_66710008:
+; 13:     return ptr;
         move R0 [R12+12]
         jmp L_66710011
 L_66710011:
@@ -137,10 +144,13 @@ memmove:
         push R12
         move R12 R13
         sub R13 #24
+; 17:     char* d = (char*)dst;
         move R0 [R12+12]
         move [R12-8] R0
+; 18:     const char* s = (const char*)src;
         move R0 [R12+16]
         move [R12-12] R0
+; 19:     if (d < s) {
         move R0 [R12-8]
         push R0
         move R0 [R12-12]
@@ -154,6 +164,7 @@ _L66710014:
 _L66710015:
         cmp R0 #0
         jz sta_66710012
+; 20:         for (int i = 0; i < n; i++) d[i] = s[i];
         move R0 #0
         move [R12-16] R0
 sta_66710016:
@@ -196,6 +207,7 @@ sta_66710017:
 sta_66710018:
         jmp sta_66710013
 sta_66710012:
+; 22:         for (int i = n - 1; i >= 0; i--) d[i] = s[i];
         move R0 [R12+20]
         push R0
         move R0 #1
@@ -242,6 +254,7 @@ sta_66710022:
         jmp sta_66710021
 sta_66710023:
 sta_66710013:
+; 24:     return dst;
         move R0 [R12+12]
         jmp L_66710026
 L_66710026:
@@ -264,10 +277,13 @@ memcmp:
         push R12
         move R12 R13
         sub R13 #24
+; 28:     const char* pa = (const char*)a;
         move R0 [R12+12]
         move [R12-8] R0
+; 29:     const char* pb = (const char*)b;
         move R0 [R12+16]
         move [R12-12] R0
+; 30:     for (int i = 0; i < n; i++) {
         move R0 #0
         move [R12-16] R0
 sta_66710027:
@@ -284,6 +300,7 @@ _L66710030:
 _L66710031:
         cmp R0 #0
         jz sta_66710029
+; 31:         if (pa[i] != pb[i]) return pa[i] - pb[i];
         move R0 [R12-8]
         push R0
         move R0 [R12-16]
@@ -342,6 +359,7 @@ sta_66710028:
         move R0 R1
         jmp sta_66710027
 sta_66710029:
+; 33:     return 0;
         move R0 #0
         jmp L_66710036
 L_66710036:

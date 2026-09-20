@@ -25,6 +25,7 @@ _crt_init_maps:
         push R12
         move R12 R13
         sub R13 #16
+; 19:     _ansi_fg[0]=30; _ansi_bg[0]=40;  // Black
         move R0 #30
         move R11 R0
         move R0 _ansi_fg
@@ -53,6 +54,7 @@ _crt_init_maps:
         pop R6
         add R0 R6
         move [R0] R8
+; 20:     _ansi_fg[1]=34; _ansi_bg[1]=44;  // Blue
         move R0 #34
         move R5 R0
         move R0 _ansi_fg
@@ -81,6 +83,7 @@ _crt_init_maps:
         pop R10
         add R0 R10
         move [R0] R2
+; 21:     _ansi_fg[2]=32; _ansi_bg[2]=42;  // Green
         move R0 #32
         move R9 R0
         move R0 _ansi_fg
@@ -109,6 +112,7 @@ _crt_init_maps:
         pop R4
         add R0 R4
         move [R0] R6
+; 22:     _ansi_fg[3]=36; _ansi_bg[3]=46;  // Cyan
         move R0 #36
         move R3 R0
         move R0 _ansi_fg
@@ -137,6 +141,7 @@ _crt_init_maps:
         pop R11
         add R0 R11
         move [R0] R10
+; 23:     _ansi_fg[4]=31; _ansi_bg[4]=41;  // Red
         move R0 #31
         move R7 R0
         move R0 _ansi_fg
@@ -165,6 +170,7 @@ _crt_init_maps:
         pop R5
         add R0 R5
         move [R0] R4
+; 24:     _ansi_fg[5]=35; _ansi_bg[5]=45;  // Magenta
         move R0 #35
         move R1 R0
         move R0 _ansi_fg
@@ -193,6 +199,7 @@ _crt_init_maps:
         pop R9
         add R0 R9
         move [R0] R11
+; 25:     _ansi_fg[6]=33; _ansi_bg[6]=43;  // Brown/Yellow
         move R0 #33
         move R8 R0
         move R0 _ansi_fg
@@ -221,6 +228,7 @@ _crt_init_maps:
         pop R3
         add R0 R3
         move [R0] R5
+; 26:     _ansi_fg[7]=37; _ansi_bg[7]=47;  // LightGray/White
         move R0 #37
         move R2 R0
         move R0 _ansi_fg
@@ -264,23 +272,29 @@ CRT_INIT:
         push R12
         move R12 R13
         sub R13 #16
+; 33:     _crt_init_maps();
         call _crt_init_maps
+; 34:     _crt_fg = 7; _crt_bg = 0;
         move R0 #7
         move [_crt_fg] R0
         move R0 #0
         move [_crt_bg] R0
+; 35:     _crt_wx1 = 1; _crt_wy1 = 1;
         move R0 #1
         move [_crt_wx1] R0
         move R0 #1
         move [_crt_wy1] R0
+; 36:     _crt_wx2 = 80; _crt_wy2 = 25;
         move R0 #80
         move [_crt_wx2] R0
         move R0 #25
         move [_crt_wy2] R0
+; 37:     _crt_x = 1; _crt_y = 1;
         move R0 #1
         move [_crt_x] R0
         move R0 #1
         move [_crt_y] R0
+; 38:     CRT_CLRSCR();
         call CRT_CLRSCR
         move R13 R12
         pop R12
@@ -297,6 +311,7 @@ CRT_CLRSCR:
         push R12
         move R12 R13
         sub R13 #16
+; 43:     if (_crt_wx2 == 0) {
         move R0 [_crt_wx2]
         push R0
         move R0 #0
@@ -310,35 +325,47 @@ _L87890002:
 _L87890003:
         cmp R0 #0
         jz sta_87890000
+; 44:         _crt_init_maps();
         call _crt_init_maps
+; 45:         _crt_fg = 7; _crt_bg = 0;
         move R0 #7
         move [_crt_fg] R0
         move R0 #0
         move [_crt_bg] R0
+; 46:         _crt_wx1 = 1; _crt_wy1 = 1;
         move R0 #1
         move [_crt_wx1] R0
         move R0 #1
         move [_crt_wy1] R0
+; 47:         _crt_wx2 = 80; _crt_wy2 = 25;
         move R0 #80
         move [_crt_wx2] R0
         move R0 #25
         move [_crt_wy2] R0
 sta_87890000:
 sta_87890001:
+; 49:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
+; 50:     asm("MOVE R0, #91"); asm("SYSCALL 400");
         asm "MOVE R0, #91"
         asm "SYSCALL 400"
+; 51:     asm("MOVE R0, #50"); asm("SYSCALL 400");
         asm "MOVE R0, #50"
         asm "SYSCALL 400"
+; 52:     asm("MOVE R0, #74"); asm("SYSCALL 400");
         asm "MOVE R0, #74"
         asm "SYSCALL 400"
+; 53:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
+; 54:     asm("MOVE R0, #91"); asm("SYSCALL 400");
         asm "MOVE R0, #91"
         asm "SYSCALL 400"
+; 55:     asm("MOVE R0, #72"); asm("SYSCALL 400");
         asm "MOVE R0, #72"
         asm "SYSCALL 400"
+; 56:     _crt_x = 1; _crt_y = 1;
         move R0 #1
         move [_crt_x] R0
         move R0 #1
@@ -358,10 +385,13 @@ CRT_CLREOL:
         push R12
         move R12 R13
         sub R13 #16
+; 60:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
+; 61:     asm("MOVE R0, #91"); asm("SYSCALL 400");
         asm "MOVE R0, #91"
         asm "SYSCALL 400"
+; 62:     asm("MOVE R0, #75"); asm("SYSCALL 400");
         asm "MOVE R0, #75"
         asm "SYSCALL 400"
         move R13 R12
@@ -381,8 +411,11 @@ CRT_GOTOXY:
         push R12
         move R12 R13
         sub R13 #16
+; 67:     asm("MOVE [_crt_tmp1], R0");  /* 保存 x */
         asm "MOVE [_crt_tmp1], R0"
+; 68:     asm("MOVE [_crt_tmp2], R1");  /* 保存 y */
         asm "MOVE [_crt_tmp2], R1"
+; 70:     if (_crt_tmp1 < _crt_wx1) _crt_tmp1 = _crt_wx1;
         move R0 [_crt_tmp1]
         push R0
         move R0 [_crt_wx1]
@@ -400,6 +433,7 @@ _L87890007:
         move [_crt_tmp1] R0
 sta_87890004:
 sta_87890005:
+; 71:     if (_crt_tmp1 > _crt_wx2) _crt_tmp1 = _crt_wx2;
         move R0 [_crt_tmp1]
         push R0
         move R0 [_crt_wx2]
@@ -417,6 +451,7 @@ _L87890011:
         move [_crt_tmp1] R0
 sta_87890008:
 sta_87890009:
+; 72:     if (_crt_tmp2 < _crt_wy1) _crt_tmp2 = _crt_wy1;
         move R0 [_crt_tmp2]
         push R0
         move R0 [_crt_wy1]
@@ -434,6 +469,7 @@ _L87890015:
         move [_crt_tmp2] R0
 sta_87890012:
 sta_87890013:
+; 73:     if (_crt_tmp2 > _crt_wy2) _crt_tmp2 = _crt_wy2;
         move R0 [_crt_tmp2]
         push R0
         move R0 [_crt_wy2]
@@ -451,20 +487,27 @@ _L87890019:
         move [_crt_tmp2] R0
 sta_87890016:
 sta_87890017:
+; 74:     _crt_x = _crt_tmp1; _crt_y = _crt_tmp2;
         move R0 [_crt_tmp1]
         move [_crt_x] R0
         move R0 [_crt_tmp2]
         move [_crt_y] R0
+; 76:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
+; 77:     asm("MOVE R0, #91"); asm("SYSCALL 400");
         asm "MOVE R0, #91"
         asm "SYSCALL 400"
+; 78:     asm("MOVE R0, [_crt_tmp2]"); asm("SYSCALL 402");  /* y */
         asm "MOVE R0, [_crt_tmp2]"
         asm "SYSCALL 402"
+; 79:     asm("MOVE R0, #59"); asm("SYSCALL 400");
         asm "MOVE R0, #59"
         asm "SYSCALL 400"
+; 80:     asm("MOVE R0, [_crt_tmp1]"); asm("SYSCALL 402");  /* x */
         asm "MOVE R0, [_crt_tmp1]"
         asm "SYSCALL 402"
+; 81:     asm("MOVE R0, #72"); asm("SYSCALL 400");
         asm "MOVE R0, #72"
         asm "SYSCALL 400"
         move R13 R12
@@ -482,6 +525,7 @@ CRT_WHEREX:
         push R12
         move R12 R13
         sub R13 #16
+; 83: int CRT_WHEREX();  int CRT_WHEREX()  { return _crt_x; }
         move R0 [_crt_x]
         jmp L_87890020
 L_87890020:
@@ -500,6 +544,7 @@ CRT_WHEREY:
         push R12
         move R12 R13
         sub R13 #16
+; 84: int CRT_WHEREY();  int CRT_WHEREY()  { return _crt_y; }
         move R0 [_crt_y]
         jmp L_87890021
 L_87890021:
@@ -519,7 +564,9 @@ CRT_TEXTCOLOR:
         push R12
         move R12 R13
         sub R13 #16
+; 87:     asm("MOVE [_crt_tmp1], R0");
         asm "MOVE [_crt_tmp1], R0"
+; 88:     c = _crt_tmp1 & 15;
         move R0 [_crt_tmp1]
         push R0
         move R0 #15
@@ -527,6 +574,7 @@ CRT_TEXTCOLOR:
         and R1 R0
         move R0 R1
         move [R12+12] R0
+; 89:     _crt_fg = c & 7;
         move R0 [R12+12]
         push R0
         move R0 #7
@@ -534,6 +582,7 @@ CRT_TEXTCOLOR:
         and R1 R0
         move R0 R1
         move [_crt_fg] R0
+; 90:     if (c > 7) {
         move R0 [R12+12]
         push R0
         move R0 #7
@@ -547,20 +596,27 @@ _L87890024:
 _L87890025:
         cmp R0 #0
         jz sta_87890022
+; 91:         asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
+; 92:         asm("MOVE R0, #91"); asm("SYSCALL 400");
         asm "MOVE R0, #91"
         asm "SYSCALL 400"
+; 93:         asm("MOVE R0, #49"); asm("SYSCALL 400");
         asm "MOVE R0, #49"
         asm "SYSCALL 400"
+; 94:         asm("MOVE R0, #109"); asm("SYSCALL 400");
         asm "MOVE R0, #109"
         asm "SYSCALL 400"
 sta_87890022:
 sta_87890023:
+; 96:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
+; 97:     asm("MOVE R0, #91"); asm("SYSCALL 400");
         asm "MOVE R0, #91"
         asm "SYSCALL 400"
+; 99:     switch (_crt_fg) {
         move R0 [_crt_fg]
         move R1 R0
         push R1
@@ -600,40 +656,50 @@ sta_87890023:
         je sta_87890034
         jmp sta_87890027
 sta_87890028:
+; 100:         case 0: _crt_tmp1=30; break;  // Black
         move R0 #30
         move [_crt_tmp1] R0
         jmp sta_87890026
 sta_87890029:
+; 101:         case 1: _crt_tmp1=34; break;  // Blue
         move R0 #34
         move [_crt_tmp1] R0
         jmp sta_87890026
 sta_87890030:
+; 102:         case 2: _crt_tmp1=32; break;  // Green
         move R0 #32
         move [_crt_tmp1] R0
         jmp sta_87890026
 sta_87890031:
+; 103:         case 3: _crt_tmp1=36; break;  // Cyan
         move R0 #36
         move [_crt_tmp1] R0
         jmp sta_87890026
 sta_87890032:
+; 104:         case 4: _crt_tmp1=31; break;  // Red
         move R0 #31
         move [_crt_tmp1] R0
         jmp sta_87890026
 sta_87890033:
+; 105:         case 5: _crt_tmp1=35; break;  // Magenta
         move R0 #35
         move [_crt_tmp1] R0
         jmp sta_87890026
 sta_87890034:
+; 106:         case 6: _crt_tmp1=33; break;  // Yellow
         move R0 #33
         move [_crt_tmp1] R0
         jmp sta_87890026
 sta_87890027:
+; 107:         default: _crt_tmp1=37; break; // White
         move R0 #37
         move [_crt_tmp1] R0
         jmp sta_87890026
 sta_87890026:
+; 109:     asm("MOVE R0, [_crt_tmp1]"); asm("SYSCALL 402");
         asm "MOVE R0, [_crt_tmp1]"
         asm "SYSCALL 402"
+; 110:     asm("MOVE R0, #109"); asm("SYSCALL 400");
         asm "MOVE R0, #109"
         asm "SYSCALL 400"
         move R13 R12
@@ -652,7 +718,9 @@ CRT_TEXTBACKGROUND:
         push R12
         move R12 R13
         sub R13 #16
+; 114:     asm("MOVE [_crt_tmp1], R0");
         asm "MOVE [_crt_tmp1], R0"
+; 115:     c = _crt_tmp1 & 7;
         move R0 [_crt_tmp1]
         push R0
         move R0 #7
@@ -660,18 +728,28 @@ CRT_TEXTBACKGROUND:
         and R1 R0
         move R0 R1
         move [R12+12] R0
+; 116:     _crt_bg = c;
         move R0 [R12+12]
         move [_crt_bg] R0
+; 117:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
+; 118:     asm("MOVE R0, #91"); asm("SYSCALL 400");
         asm "MOVE R0, #91"
         asm "SYSCALL 400"
+; 119:     asm("MOVE R1, _ansi_bg");
         asm "MOVE R1, _ansi_bg"
+; 120:     asm("MOVE R2, [_crt_bg]");
         asm "MOVE R2, [_crt_bg]"
+; 121:     asm("MUL R2, #4");
         asm "MUL R2, #4"
+; 122:     asm("ADD R1, R2");
         asm "ADD R1, R2"
+; 123:     asm("MOVE R0, [R1]");
         asm "MOVE R0, [R1]"
+; 124:     asm("SYSCALL 402");
         asm "SYSCALL 402"
+; 125:     asm("MOVE R0, #109"); asm("SYSCALL 400");
         asm "MOVE R0, #109"
         asm "SYSCALL 400"
         move R13 R12
@@ -693,18 +771,25 @@ CRT_WINDOW:
         push R12
         move R12 R13
         sub R13 #16
+; 129:     asm("MOVE [_crt_tmp1], R0");
         asm "MOVE [_crt_tmp1], R0"
+; 130:     asm("MOVE [_crt_tmp2], R1");
         asm "MOVE [_crt_tmp2], R1"
+; 131:     x1 = _crt_tmp1; y1 = _crt_tmp2;
         move R0 [_crt_tmp1]
         move [R12+12] R0
         move R0 [_crt_tmp2]
         move [R12+16] R0
+; 132:     asm("MOVE [_crt_tmp1], R2");
         asm "MOVE [_crt_tmp1], R2"
+; 133:     asm("MOVE [_crt_tmp2], R3");
         asm "MOVE [_crt_tmp2], R3"
+; 134:     x2 = _crt_tmp1; y2 = _crt_tmp2;
         move R0 [_crt_tmp1]
         move [R12+20] R0
         move R0 [_crt_tmp2]
         move [R12+24] R0
+; 135:     if (x1 < 1) x1 = 1; if (x1 > x2) x1 = 1;
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -739,6 +824,7 @@ _L87890042:
         move [R12+12] R0
 sta_87890039:
 sta_87890040:
+; 136:     if (x2 > 80) x2 = 80;
         move R0 [R12+20]
         push R0
         move R0 #80
@@ -756,6 +842,7 @@ _L87890046:
         move [R12+20] R0
 sta_87890043:
 sta_87890044:
+; 137:     if (y1 < 1) y1 = 1; if (y1 > y2) y1 = 1;
         move R0 [R12+16]
         push R0
         move R0 #1
@@ -790,6 +877,7 @@ _L87890054:
         move [R12+16] R0
 sta_87890051:
 sta_87890052:
+; 138:     if (y2 > 25) y2 = 25;
         move R0 [R12+24]
         push R0
         move R0 #25
@@ -807,26 +895,35 @@ _L87890058:
         move [R12+24] R0
 sta_87890055:
 sta_87890056:
+; 139:     _crt_wx1 = x1; _crt_wy1 = y1;
         move R0 [R12+12]
         move [_crt_wx1] R0
         move R0 [R12+16]
         move [_crt_wy1] R0
+; 140:     _crt_wx2 = x2; _crt_wy2 = y2;
         move R0 [R12+20]
         move [_crt_wx2] R0
         move R0 [R12+24]
         move [_crt_wy2] R0
+; 141:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
+; 142:     asm("MOVE R0, #91"); asm("SYSCALL 400");
         asm "MOVE R0, #91"
         asm "SYSCALL 400"
+; 143:     asm("MOVE R0, [_crt_wy1]"); asm("SYSCALL 402");
         asm "MOVE R0, [_crt_wy1]"
         asm "SYSCALL 402"
+; 144:     asm("MOVE R0, #59"); asm("SYSCALL 400");
         asm "MOVE R0, #59"
         asm "SYSCALL 400"
+; 145:     asm("MOVE R0, [_crt_wy2]"); asm("SYSCALL 402");
         asm "MOVE R0, [_crt_wy2]"
         asm "SYSCALL 402"
+; 146:     asm("MOVE R0, #114"); asm("SYSCALL 400");  /* 'r' = 114 */
         asm "MOVE R0, #114"
         asm "SYSCALL 400"
+; 147:     CRT_GOTOXY(x1, y1);
         move R0 [R12+16]
         push R0
         move R0 [R12+12]
@@ -850,8 +947,11 @@ CRT_KEYPRESSED:
         push R12
         move R12 R13
         sub R13 #16
+; 151:     asm("SYSCALL 5");
         asm "SYSCALL 5"
+; 152:     asm("MOVE [_crt_tmp1], R0");
         asm "MOVE [_crt_tmp1], R0"
+; 153:     return _crt_tmp1 != 0;
         move R0 [_crt_tmp1]
         push R0
         move R0 #0
@@ -880,9 +980,12 @@ CRT_READKEY:
         push R12
         move R12 R13
         sub R13 #16
+; 157:     asm("MOVE R0, #1"); asm("SYSCALL 5");
         asm "MOVE R0, #1"
         asm "SYSCALL 5"
+; 158:     asm("MOVE [_crt_tmp1], R0");
         asm "MOVE [_crt_tmp1], R0"
+; 159:     return _crt_tmp1;
         move R0 [_crt_tmp1]
         jmp L_87890062
 L_87890062:
@@ -902,6 +1005,7 @@ CRT_DELAY:
         push R12
         move R12 R13
         sub R13 #16
+; 161: void CRT_DELAY(int ms);  void CRT_DELAY(int ms)  { asm("SYSCALL 52"); }
         asm "SYSCALL 52"
         move R13 R12
         pop R12
@@ -919,6 +1023,7 @@ CRT_SOUND:
         push R12
         move R12 R13
         sub R13 #16
+; 162: void CRT_SOUND(int f);   void CRT_SOUND(int f)   { asm("SYSCALL 57"); }
         asm "SYSCALL 57"
         move R13 R12
         pop R12
@@ -950,14 +1055,19 @@ CRT_NORMVIDEO:
         push R12
         move R12 R13
         sub R13 #16
+; 166:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
+; 167:     asm("MOVE R0, #91"); asm("SYSCALL 400");
         asm "MOVE R0, #91"
         asm "SYSCALL 400"
+; 168:     asm("MOVE R0, #48"); asm("SYSCALL 400");  /* '0' = 48 */
         asm "MOVE R0, #48"
         asm "SYSCALL 400"
+; 169:     asm("MOVE R0, #109"); asm("SYSCALL 400");
         asm "MOVE R0, #109"
         asm "SYSCALL 400"
+; 170:     _crt_fg = 7; _crt_bg = 0;
         move R0 #7
         move [_crt_fg] R0
         move R0 #0
@@ -977,12 +1087,16 @@ CRT_HIGHVIDEO:
         push R12
         move R12 R13
         sub R13 #16
+; 174:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
+; 175:     asm("MOVE R0, #91"); asm("SYSCALL 400");
         asm "MOVE R0, #91"
         asm "SYSCALL 400"
+; 176:     asm("MOVE R0, #49"); asm("SYSCALL 400");  /* '1' */
         asm "MOVE R0, #49"
         asm "SYSCALL 400"
+; 177:     asm("MOVE R0, #109"); asm("SYSCALL 400");
         asm "MOVE R0, #109"
         asm "SYSCALL 400"
         move R13 R12
@@ -1000,12 +1114,16 @@ CRT_LOWVIDEO:
         push R12
         move R12 R13
         sub R13 #16
+; 181:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
+; 182:     asm("MOVE R0, #91"); asm("SYSCALL 400");
         asm "MOVE R0, #91"
         asm "SYSCALL 400"
+; 183:     asm("MOVE R0, #50"); asm("SYSCALL 400");  /* '2' */
         asm "MOVE R0, #50"
         asm "SYSCALL 400"
+; 184:     asm("MOVE R0, #109"); asm("SYSCALL 400");
         asm "MOVE R0, #109"
         asm "SYSCALL 400"
         move R13 R12
@@ -1023,10 +1141,13 @@ CRT_INSLINE:
         push R12
         move R12 R13
         sub R13 #16
+; 188:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
+; 189:     asm("MOVE R0, #91"); asm("SYSCALL 400");
         asm "MOVE R0, #91"
         asm "SYSCALL 400"
+; 190:     asm("MOVE R0, #76"); asm("SYSCALL 400");  /* 'L' = 76 */
         asm "MOVE R0, #76"
         asm "SYSCALL 400"
         move R13 R12
@@ -1044,10 +1165,13 @@ CRT_DELLINE:
         push R12
         move R12 R13
         sub R13 #16
+; 194:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
+; 195:     asm("MOVE R0, #91"); asm("SYSCALL 400");
         asm "MOVE R0, #91"
         asm "SYSCALL 400"
+; 196:     asm("MOVE R0, #77"); asm("SYSCALL 400");  /* 'M' = 77 */
         asm "MOVE R0, #77"
         asm "SYSCALL 400"
         move R13 R12
@@ -1065,16 +1189,22 @@ CRT_CURSORON:
         push R12
         move R12 R13
         sub R13 #16
+; 200:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
+; 201:     asm("MOVE R0, #91"); asm("SYSCALL 400");
         asm "MOVE R0, #91"
         asm "SYSCALL 400"
+; 202:     asm("MOVE R0, #63"); asm("SYSCALL 400");  /* '?' = 63 */
         asm "MOVE R0, #63"
         asm "SYSCALL 400"
+; 203:     asm("MOVE R0, #50"); asm("SYSCALL 400");  /* '2' */
         asm "MOVE R0, #50"
         asm "SYSCALL 400"
+; 204:     asm("MOVE R0, #53"); asm("SYSCALL 400");  /* '5' */
         asm "MOVE R0, #53"
         asm "SYSCALL 400"
+; 205:     asm("MOVE R0, #104"); asm("SYSCALL 400"); /* 'h' = 104 */
         asm "MOVE R0, #104"
         asm "SYSCALL 400"
         move R13 R12
@@ -1092,16 +1222,22 @@ CRT_CURSOROFF:
         push R12
         move R12 R13
         sub R13 #16
+; 209:     asm("MOVE R0, #27"); asm("SYSCALL 400");
         asm "MOVE R0, #27"
         asm "SYSCALL 400"
+; 210:     asm("MOVE R0, #91"); asm("SYSCALL 400");
         asm "MOVE R0, #91"
         asm "SYSCALL 400"
+; 211:     asm("MOVE R0, #63"); asm("SYSCALL 400");
         asm "MOVE R0, #63"
         asm "SYSCALL 400"
+; 212:     asm("MOVE R0, #50"); asm("SYSCALL 400");
         asm "MOVE R0, #50"
         asm "SYSCALL 400"
+; 213:     asm("MOVE R0, #53"); asm("SYSCALL 400");
         asm "MOVE R0, #53"
         asm "SYSCALL 400"
+; 214:     asm("MOVE R0, #108"); asm("SYSCALL 400"); /* 'l' = 108 */
         asm "MOVE R0, #108"
         asm "SYSCALL 400"
         move R13 R12
@@ -1120,9 +1256,12 @@ CRT_WRITE_CHAR:
         push R12
         move R12 R13
         sub R13 #16
+; 218:     asm("MOVE [_crt_tmp1], R0");
         asm "MOVE [_crt_tmp1], R0"
+; 219:     ch = _crt_tmp1;
         move R0 [_crt_tmp1]
         move [R12+12] R0
+; 220:     if (ch == 10) {
         move R0 [R12+12]
         push R0
         move R0 #10
@@ -1136,6 +1275,7 @@ _L87890065:
 _L87890066:
         cmp R0 #0
         jz sta_87890063
+; 221:         _crt_y++; _crt_x = _crt_wx1;
         move R0 [_crt_y]
         move R1 R0
         add R0 R0 #1
@@ -1143,6 +1283,7 @@ _L87890066:
         move R0 R1
         move R0 [_crt_wx1]
         move [_crt_x] R0
+; 222:         if (_crt_y > _crt_wy2) _crt_y = _crt_wy2;
         move R0 [_crt_y]
         push R0
         move R0 [_crt_wy2]
@@ -1162,6 +1303,7 @@ sta_87890067:
 sta_87890068:
         jmp sta_87890064
 sta_87890063:
+; 223:     } else if (ch == 13) {
         move R0 [R12+12]
         push R0
         move R0 #13
@@ -1175,10 +1317,12 @@ _L87890073:
 _L87890074:
         cmp R0 #0
         jz sta_87890071
+; 224:         _crt_x = _crt_wx1;
         move R0 [_crt_wx1]
         move [_crt_x] R0
         jmp sta_87890072
 sta_87890071:
+; 225:     } else if (ch >= 32) {
         move R0 [R12+12]
         push R0
         move R0 #32
@@ -1192,13 +1336,16 @@ _L87890077:
 _L87890078:
         cmp R0 #0
         jz sta_87890075
+; 226:         asm("MOVE R0, [_crt_tmp1]"); asm("SYSCALL 400");
         asm "MOVE R0, [_crt_tmp1]"
         asm "SYSCALL 400"
+; 227:         _crt_x++;
         move R0 [_crt_x]
         move R1 R0
         add R0 R0 #1
         move [_crt_x] R0
         move R0 R1
+; 228:         if (_crt_x > _crt_wx2) { _crt_x = _crt_wx1; _crt_y++; }
         move R0 [_crt_x]
         push R0
         move R0 [_crt_wx2]
@@ -1242,7 +1389,9 @@ CRT_WRITE_STRING:
         push R12
         move R12 R13
         sub R13 #16
+; 233:     asm("SYSCALL 401");
         asm "SYSCALL 401"
+; 235:     _crt_y++; _crt_x = _crt_wx1;
         move R0 [_crt_y]
         move R1 R0
         add R0 R0 #1

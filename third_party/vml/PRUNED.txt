@@ -1,0 +1,85 @@
+# ═══════════════════════════════════════════════════════════════
+# 手机端剪枝清单 —— 有意删除的路径（不是漏同步、不是误删）
+#
+# 背景：`third_party/vml/` 自 2026-09-17 起是「移动设备手机端专用」的独立分支
+#       （见 FORK.md）。完整 VML 项目里有一批**手机端物理上做不到、或语义上无意义**
+#       的东西（单片机外设寄存器定义、古董机 BIOS、桌面 GPU/GUI 动态库绑定、PC 显存
+#       头文件…）。它们不影响编译，但会被 `scripts/make-vml-lib.sh` 打进
+#       `vml_lib.zip` 下发到手机、解压进工作区，白占体积与解压时间。
+#
+# 消费者：`scripts/check-vml-patches.sh` 的反向检查（「vendor+补丁里有、工作区里
+#         没有」= 本地删过？）。那条检查的前提是「rsync 会不会把它加回来」，而
+#         `sync.sh` 已随分家删除 ⇒ 对「有意删除」不再适用。脚本读到本清单里的路径
+#         只提示、不报错；**清单外的意外删除照旧报红**。
+#
+# 格式：每行一个 glob（相对 `third_party/vml/`），`#` 开头是注释，空行忽略。
+#       匹配用 shell `case` 的通配语义（`*` 可跨 `/`）。
+#
+# ⚠ 删的是**产物**，生成器（`tools/GenDev`、`tools/GenDyn`）仍留在本仓、也仍有能力
+#    重新产出它们 —— 但它们**没有任何脚本或构建会去跑**（唯一被自动调用的是
+#    `tools/GenLib`，而它不产这两族）。将来若要重生成，先想清楚手机端是否真的需要。
+# ═══════════════════════════════════════════════════════════════
+
+# ── ① MCU / 古董机设备定义（tools/GenDev 的产物）12.2 MB ─────────
+# ATmega / STM32 / RP2040 / ESP32 / ZX Spectrum / NES / Sega / Apple II /
+# IBM-PC-5150/AT / Commodore，外加 gpio_pcf8574、sensor_bme280、display_ssd1306
+# 等 40 个外设。手机上没有这些寄存器与外设。
+Lib/*/Device/*
+Lib/vml/Device/*
+
+# 模拟 x86 / mips / riscv / z80 / 6502 / m68k / sparc / ppc / avr / mcs51 / pic /
+# msp430 BIOS 的启动汇编 —— 手机不模拟古董机
+Lib/vml/Bios/*
+
+# ── ② 桌面 GPU / GUI 动态库绑定（tools/GenDyn 的产物）────────────
+# imgui_demo / libdemodll / opencv / opengl / skia_demo × 22 门语言的绑定
+Lib/*/ext/*
+
+# 上面那批动态库的 C 实现与构建脚本（opencv_lib.c / skia_demo_lib.c / build_gl.ps1…）
+Lib/dynamic/*
+
+# ── ③ 陈旧副本与死重量 ──────────────────────────────────────────
+# `shared/*.vml` 的陈旧副本：GenLib 既不产出也不清理，82 个文件 2.0 MB
+Lib/shared/backup/*
+
+# PC VGA/BIOS 8×16 点阵字库（真正在用的那份内嵌在 Lib/shared/src/graphics.c 里）
+Lib/basic/font.bas
+Lib/basic/font8x16.bas
+
+# Pascal 的 VGA / 键盘 / 鼠标单元
+Lib/pascal/vga.pas
+
+# PC 专有头：写死 0xB8000 文本缓冲、0x6000 调色板、0x60/0x64 键盘端口、BIOS 中断向量
+Lib/c/conio.h
+Lib/c/curses.h
+Lib/c/graphics.h
+Lib/c/gfx.h
+Lib/d/conio.h
+Lib/objc/conio.h
+#
+# ⚠ `Lib/c/vmlib.h` **有意保留**（虽同属 PC 图形头）：它是 `Lib/c/vmdevice.h` 的
+#    `#include` 目标，而 `vmdevice.h` 属于另一族（MCU 设备头，未列入本轮剪枝）
+#    —— 删了会留下悬空 include。要一起清，得连 `Lib/c/{vmdevice,eeprom,ffi,
+#    vmlinfo}.h` 那批一并处理。
+
+# 宿主机构建脚本：与 GenLib 重复实现同一批生成阶段（且语义更旧、缺 -g/-n），
+# 其 Phase 3 还会覆盖 GenLib 生成的 shim（本仓记过两次的地雷源头）。
+# 唯一被自动调用的生成器是 GenLib（见 check-vml-patches.sh 判据 ②a）。
+Lib/MakeDevice.sh
+Lib/MakeDevice.bat
+Lib/MakeDevice.ps1
+Lib/build_libs.sh
+Lib/build_libs.bat
+Lib/build_libs.ps1
+Lib/build_static.sh
+Lib/build_static.bat
+Lib/build_static.ps1
+Lib/build_dynamic.sh
+Lib/build_dynamic.bat
+Lib/build_dynamic.ps1
+Lib/cleanup.sh
+Lib/cleanup.bat
+Lib/cleanup.ps1
+Lib/publish_tools.sh
+Lib/publish_tools.bat
+Lib/publish_tools.ps1

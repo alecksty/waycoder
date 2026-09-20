@@ -23,6 +23,7 @@ is_digit:
         push R12
         move R12 R13
         sub R13 #16
+; 9:     return c >= '0' && c <= '9';
         moveb R0 [R12+12]
         sextb R0 R0
         pushb R0
@@ -75,6 +76,7 @@ skip_spaces:
         sub R13 #16
 sta_29360007:
         move R2 #0
+; 12:     while (*g_pos == ' ' || *g_pos == '\t' || *g_pos == '\n' || *g_pos == '\r')
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -155,6 +157,7 @@ _L29360010:
 _L29360011:
         cmp R0 #0
         jz sta_29360008
+; 13:         g_pos++;
         move R0 [g_pos]
         move R1 R0
         add R0 R0 #1
@@ -177,9 +180,12 @@ parse_factor_f:
         push R12
         move R12 R13
         sub R13 #32
+; 21:     double val = 0.0;
         moved R0 [dbl_29360026]
         moved [R12-12] R0
+; 22:     skip_spaces();
         call skip_spaces
+; 23:     if (*g_pos == '(') {
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -194,14 +200,18 @@ _L29360029:
 _L29360030:
         cmp R0 #0
         jz sta_29360027
+; 24:         g_pos++;
         move R0 [g_pos]
         move R1 R0
         add R0 R0 #1
         move [g_pos] R0
         move R0 R1
+; 25:         val = parse_expr_f();
         call parse_expr_f
         moved [R12-12] R0
+; 26:         skip_spaces();
         call skip_spaces
+; 27:         if (*g_pos == ')') g_pos++;
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -223,10 +233,12 @@ _L29360034:
         move R0 R1
 sta_29360031:
 sta_29360032:
+; 28:         return val;
         moved R0 [R12-12]
         jmp L_29360035
 sta_29360027:
 sta_29360028:
+; 30:     if (*g_pos == '-') {
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -241,11 +253,13 @@ _L29360038:
 _L29360039:
         cmp R0 #0
         jz sta_29360036
+; 31:         g_pos++;
         move R0 [g_pos]
         move R1 R0
         add R0 R0 #1
         move [g_pos] R0
         move R0 R1
+; 32:         return -parse_factor_f();
         call parse_factor_f
         call parse_factor_f
         dneg R0 R0
@@ -254,6 +268,7 @@ sta_29360036:
 sta_29360037:
 sta_29360040:
         move R2 #0
+; 35:     while (is_digit(*g_pos)) {
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -262,6 +277,7 @@ sta_29360040:
         add R13 #4
         cmp R0 #0
         jz sta_29360041
+; 36:         val = val * 10.0 + (*g_pos - '0');
         moved R0 [R12-12]
         dpush R0
         moved R0 [dbl_29360042]
@@ -279,6 +295,7 @@ sta_29360040:
         dpop R1
         dadd R0 R1 R0
         moved [R12-12] R0
+; 37:         g_pos++;
         move R0 [g_pos]
         move R1 R0
         add R0 R0 #1
@@ -286,6 +303,7 @@ sta_29360040:
         move R0 R1
         jmp sta_29360040
 sta_29360041:
+; 40:     if (*g_pos == '.') {
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -300,15 +318,18 @@ _L29360045:
 _L29360046:
         cmp R0 #0
         jz sta_29360043
+; 41:         g_pos++;
         move R0 [g_pos]
         move R1 R0
         add R0 R0 #1
         move [g_pos] R0
         move R0 R1
+; 42:         double frac = 0.1;
         moved R0 [dbl_29360047]
         moved [R12-20] R0
 sta_29360048:
         move R2 #0
+; 43:         while (is_digit(*g_pos)) {
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -317,6 +338,7 @@ sta_29360048:
         add R13 #4
         cmp R0 #0
         jz sta_29360049
+; 44:             val += (*g_pos - '0') * frac;
         moved R0 [R12-12]
         dpush R0
         move R0 [g_pos]
@@ -334,12 +356,14 @@ sta_29360048:
         dpop R1
         dadd R0 R1 R0
         moved [R12-12] R0
+; 45:             frac *= 0.1;
         moved R0 [R12-20]
         dpush R0
         moved R0 [dbl_29360050]
         dpop R1
         dmul R0 R1 R0
         moved [R12-20] R0
+; 46:             g_pos++;
         move R0 [g_pos]
         move R1 R0
         add R0 R0 #1
@@ -349,6 +373,7 @@ sta_29360048:
 sta_29360049:
 sta_29360043:
 sta_29360044:
+; 49:     return val;
         moved R0 [R12-12]
         jmp L_29360035
 L_29360035:
@@ -367,11 +392,14 @@ parse_term_f:
         push R12
         move R12 R13
         sub R13 #32
+; 53:     double left = parse_factor_f();
         call parse_factor_f
         moved [R12-12] R0
+; 54:     skip_spaces();
         call skip_spaces
 sta_29360051:
         move R2 #0
+; 55:     while (*g_pos == '*' || *g_pos == '/') {
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -408,16 +436,20 @@ _L29360054:
 _L29360055:
         cmp R0 #0
         jz sta_29360052
+; 56:         char op = *g_pos;
         move R0 [g_pos]
         move R0 [R0]
         moveb [R12-13] R0
+; 57:         g_pos++;
         move R0 [g_pos]
         move R1 R0
         add R0 R0 #1
         move [g_pos] R0
         move R0 R1
+; 58:         double right = parse_factor_f();
         call parse_factor_f
         moved [R12-24] R0
+; 59:         if (op == '*')
         moveb R0 [R12-13]
         sextb R0 R0
         pushb R0
@@ -432,6 +464,7 @@ _L29360062:
 _L29360063:
         cmp R0 #0
         jz sta_29360060
+; 60:             left = left * right;
         moved R0 [R12-12]
         dpush R0
         moved R0 [R12-24]
@@ -440,6 +473,7 @@ _L29360063:
         moved [R12-12] R0
         jmp sta_29360061
 sta_29360060:
+; 62:             if (right == 0.0) return 0.0;
         moved R0 [R12-24]
         dpush R0
         moved R0 [dbl_29360066]
@@ -457,6 +491,7 @@ _L29360068:
         jmp L_29360070
 sta_29360064:
 sta_29360065:
+; 63:             left = left / right;
         moved R0 [R12-12]
         dpush R0
         moved R0 [R12-24]
@@ -464,9 +499,11 @@ sta_29360065:
         ddiv R0 R1 R0
         moved [R12-12] R0
 sta_29360061:
+; 65:         skip_spaces();
         call skip_spaces
         jmp sta_29360051
 sta_29360052:
+; 67:     return left;
         moved R0 [R12-12]
         jmp L_29360070
 L_29360070:
@@ -485,11 +522,14 @@ parse_expr_f:
         push R12
         move R12 R13
         sub R13 #32
+; 71:     double left = parse_term_f();
         call parse_term_f
         moved [R12-12] R0
+; 72:     skip_spaces();
         call skip_spaces
 sta_29360071:
         move R2 #0
+; 73:     while (*g_pos == '+' || *g_pos == '-') {
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -526,16 +566,20 @@ _L29360074:
 _L29360075:
         cmp R0 #0
         jz sta_29360072
+; 74:         char op = *g_pos;
         move R0 [g_pos]
         move R0 [R0]
         moveb [R12-13] R0
+; 75:         g_pos++;
         move R0 [g_pos]
         move R1 R0
         add R0 R0 #1
         move [g_pos] R0
         move R0 R1
+; 76:         double right = parse_term_f();
         call parse_term_f
         moved [R12-24] R0
+; 77:         if (op == '+')
         moveb R0 [R12-13]
         sextb R0 R0
         pushb R0
@@ -550,6 +594,7 @@ _L29360082:
 _L29360083:
         cmp R0 #0
         jz sta_29360080
+; 78:             left = left + right;
         moved R0 [R12-12]
         dpush R0
         moved R0 [R12-24]
@@ -558,6 +603,7 @@ _L29360083:
         moved [R12-12] R0
         jmp sta_29360081
 sta_29360080:
+; 80:             left = left - right;
         moved R0 [R12-12]
         dpush R0
         moved R0 [R12-24]
@@ -565,9 +611,11 @@ sta_29360080:
         dsub R0 R1 R0
         moved [R12-12] R0
 sta_29360081:
+; 81:         skip_spaces();
         call skip_spaces
         jmp sta_29360071
 sta_29360072:
+; 83:     return left;
         moved R0 [R12-12]
         jmp L_29360084
 L_29360084:
@@ -588,6 +636,7 @@ parserexpf:
         push R12
         move R12 R13
         sub R13 #16
+; 87:     if (expression == ((void*)0)) return 0.0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -605,9 +654,12 @@ _L29360088:
         jmp L_29360090
 sta_29360085:
 sta_29360086:
+; 88:     g_pos = expression;
         move R0 [R12+12]
         move [g_pos] R0
+; 89:     skip_spaces();
         call skip_spaces
+; 90:     if (*g_pos == 0) return 0.0;
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -626,6 +678,7 @@ _L29360094:
         jmp L_29360090
 sta_29360091:
 sta_29360092:
+; 91:     return parse_expr_f();
         call parse_expr_f
         jmp L_29360090
 L_29360090:

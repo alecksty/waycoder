@@ -17,6 +17,7 @@ uscanf:
         push R12
         move R12 R13
         sub R13 #1040
+; 8:     ucs_to_utf8(ufmt, buf, sizeof(buf) - 1);
         move R0 #1
         push R0
         move R0 #1
@@ -34,6 +35,7 @@ uscanf:
         move R2 [R13+8]
         call ucs_to_utf8
         add R13 #12
+; 9:     scanf(buf);
         move R0 R12
         sub R0 #1028
         push R0

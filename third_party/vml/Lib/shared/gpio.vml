@@ -48,6 +48,7 @@ __gpio_digitalread:
         push R12
         move R12 R13
         sub R13 #16
+; 13:     return 0;
         move R0 #0
         jmp L_94710000
 L_94710000:

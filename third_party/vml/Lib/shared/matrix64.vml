@@ -51,6 +51,7 @@ mat2_identity_d:
         push R12
         move R12 R13
         sub R13 #16
+; 5:     result[0] = 1.0; result[1] = 0.0;
         moved R0 [dbl_73430000]
         move R11 R0
         move R0 [R12+12]
@@ -69,6 +70,7 @@ mat2_identity_d:
         pop R8
         add R0 R8
         moved [R0] R9
+; 6:     result[2] = 0.0; result[3] = 1.0;
         moved R0 [dbl_73430002]
         move R7 R0
         move R0 [R12+12]
@@ -105,6 +107,7 @@ mat2_add_d:
         push R12
         move R12 R13
         sub R13 #16
+; 9:     result[0] = a[0] + b[0]; result[1] = a[1] + b[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -155,6 +158,7 @@ mat2_add_d:
         pop R6
         add R0 R6
         moved [R0] R9
+; 10:     result[2] = a[2] + b[2]; result[3] = a[3] + b[3];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -223,6 +227,7 @@ mat2_sub_d:
         push R12
         move R12 R13
         sub R13 #16
+; 13:     result[0] = a[0] - b[0]; result[1] = a[1] - b[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -273,6 +278,7 @@ mat2_sub_d:
         pop R2
         add R0 R2
         moved [R0] R5
+; 14:     result[2] = a[2] - b[2]; result[3] = a[3] - b[3];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -341,6 +347,7 @@ mat2_mul_d:
         push R12
         move R12 R13
         sub R13 #48
+; 17:     double r0 = a[0]*b[0] + a[1]*b[2];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -379,6 +386,7 @@ mat2_mul_d:
         dpop R1
         dadd R0 R1 R0
         moved [R12-12] R0
+; 18:     double r1 = a[0]*b[1] + a[1]*b[3];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -417,6 +425,7 @@ mat2_mul_d:
         dpop R1
         dadd R0 R1 R0
         moved [R12-20] R0
+; 19:     double r2 = a[2]*b[0] + a[3]*b[2];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -455,6 +464,7 @@ mat2_mul_d:
         dpop R1
         dadd R0 R1 R0
         moved [R12-28] R0
+; 20:     double r3 = a[2]*b[1] + a[3]*b[3];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -493,6 +503,7 @@ mat2_mul_d:
         dpop R1
         dadd R0 R1 R0
         moved [R12-36] R0
+; 21:     result[0] = r0; result[1] = r1; result[2] = r2; result[3] = r3;
         moved R0 [R12-12]
         move R8 R0
         move R0 [R12+20]
@@ -547,6 +558,7 @@ mat2_scale_d:
         push R12
         move R12 R13
         sub R13 #16
+; 24:     result[0] = a[0]*scalar; result[1] = a[1]*scalar;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -585,6 +597,7 @@ mat2_scale_d:
         pop R7
         add R0 R7
         moved [R0] R8
+; 25:     result[2] = a[2]*scalar; result[3] = a[3]*scalar;
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -639,6 +652,7 @@ mat2_det_d:
         push R12
         move R12 R13
         sub R13 #16
+; 28:     return a[0]*a[3] - a[1]*a[2];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -695,6 +709,7 @@ mat2_transpose_d:
         push R12
         move R12 R13
         sub R13 #16
+; 31:     result[0] = a[0]; result[1] = a[2];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -725,6 +740,7 @@ mat2_transpose_d:
         pop R5
         add R0 R5
         moved [R0] R2
+; 32:     result[2] = a[1]; result[3] = a[3];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -772,6 +788,7 @@ mat2_inv_d:
         push R12
         move R12 R13
         sub R13 #32
+; 35:     double det = a[0]*a[3] - a[1]*a[2];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -810,6 +827,7 @@ mat2_inv_d:
         dpop R1
         dsub R0 R1 R0
         moved [R12-12] R0
+; 36:     if (det == 0.0) return 0;
         moved R0 [R12-12]
         dpush R0
         moved R0 [dbl_73430007]
@@ -827,12 +845,14 @@ _L73430009:
         jmp L_73430010
 sta_73430005:
 sta_73430006:
+; 37:     double inv = 1.0 / det;
         moved R0 [dbl_73430011]
         dpush R0
         moved R0 [R12-12]
         dpop R1
         ddiv R0 R1 R0
         moved [R12-20] R0
+; 38:     result[0] = a[3]*inv; result[1] = -a[1]*inv;
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -879,6 +899,7 @@ sta_73430006:
         pop R7
         add R0 R7
         moved [R0] R8
+; 39:     result[2] = -a[2]*inv; result[3] = a[0]*inv;
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -925,6 +946,7 @@ sta_73430006:
         pop R3
         add R0 R3
         moved [R0] R10
+; 40:     return 1;
         move R0 #1
         jmp L_73430010
 L_73430010:
@@ -945,6 +967,7 @@ mat2_rot_d:
         push R12
         move R12 R13
         sub R13 #32
+; 43:     double c = cos_deg_d(angle_rad * 180.0 / 3.141592653589793);
         moved R0 [R12+12]
         dpush R0
         moved R0 [dbl_73430012]
@@ -960,6 +983,7 @@ mat2_rot_d:
         add R13 #4
         i2d R0 R0
         moved [R12-12] R0
+; 44:     double s = sin_deg_d(angle_rad * 180.0 / 3.141592653589793);
         moved R0 [R12+12]
         dpush R0
         moved R0 [dbl_73430014]
@@ -975,6 +999,7 @@ mat2_rot_d:
         add R13 #4
         i2d R0 R0
         moved [R12-20] R0
+; 45:     result[0] = c; result[1] = -s;
         moved R0 [R12-12]
         move R11 R0
         move R0 [R12+20]
@@ -995,6 +1020,7 @@ mat2_rot_d:
         pop R8
         add R0 R8
         moved [R0] R7
+; 46:     result[2] = s; result[3] = c;
         moved R0 [R12-20]
         move R4 R0
         move R0 [R12+20]
@@ -1029,6 +1055,7 @@ mat3_identity_d:
         push R12
         move R12 R13
         sub R13 #16
+; 50:     result[0]=1;result[1]=0;result[2]=0;
         move R0 #1
         move R2 R0
         move R0 [R12+12]
@@ -1056,6 +1083,7 @@ mat3_identity_d:
         pop R8
         add R0 R8
         moved [R0] R11
+; 51:     result[3]=0;result[4]=1;result[5]=0;
         move R0 #0
         move R7 R0
         move R0 [R12+12]
@@ -1083,6 +1111,7 @@ mat3_identity_d:
         pop R3
         add R0 R3
         moved [R0] R5
+; 52:     result[6]=0;result[7]=0;result[8]=1;
         move R0 #0
         move R2 R0
         move R0 [R12+12]
@@ -1128,6 +1157,7 @@ mat3_mul_d:
         push R12
         move R12 R13
         sub R13 #96
+; 56:     for(i=0;i<3;i++) for(j=0;j<3;j++) {
         move R0 #0
         move [R12-80] R0
 sta_73430016:
@@ -1160,6 +1190,7 @@ _L73430024:
 _L73430025:
         cmp R0 #0
         jz sta_73430023
+; 57:         t[i*3+j]=0;
         move R0 #0
         move R7 R0
         move R0 R12
@@ -1185,6 +1216,7 @@ _L73430025:
         pop R4
         add R0 R4
         moved [R0] R7
+; 58:         for(k=0;k<3;k++) t[i*3+j] += a[i*3+k]*b[k*3+j];
         move R0 #0
         move [R12-88] R0
 sta_73430026:
@@ -1312,6 +1344,7 @@ sta_73430017:
         move R0 R1
         jmp sta_73430016
 sta_73430018:
+; 60:     for(i=0;i<9;i++) result[i]=t[i];
         move R0 #0
         move [R12-80] R0
 sta_73430031:
@@ -1373,6 +1406,7 @@ mat3_det_d:
         push R12
         move R12 R13
         sub R13 #16
+; 63:     return a[0]*(a[4]*a[8]-a[5]*a[7])
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1539,6 +1573,7 @@ mat3_transpose_d:
         push R12
         move R12 R13
         sub R13 #16
+; 68:     result[0]=a[0];result[1]=a[3];result[2]=a[6];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -1584,6 +1619,7 @@ mat3_transpose_d:
         pop R5
         add R0 R5
         moved [R0] R3
+; 69:     result[3]=a[1];result[4]=a[4];result[5]=a[7];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -1629,6 +1665,7 @@ mat3_transpose_d:
         pop R4
         add R0 R4
         moved [R0] R9
+; 70:     result[6]=a[2];result[7]=a[5];result[8]=a[8];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -1692,6 +1729,7 @@ mat3_scale_d:
         push R12
         move R12 R13
         sub R13 #16
+; 73:     int i; for(i=0;i<9;i++) result[i]=a[i]*scalar;
         move R0 #0
         move [R12-8] R0
 sta_73430037:
@@ -1751,6 +1789,7 @@ mat4_identity_d:
         push R12
         move R12 R13
         sub R13 #16
+; 77:     int i; for(i=0;i<16;i++) result[i]=(i%5==0)?1.0:0.0;
         move R0 #0
         move [R12-8] R0
 sta_73430042:
@@ -1824,6 +1863,7 @@ mat4_mul_d:
         push R12
         move R12 R13
         sub R13 #152
+; 81:     for(i=0;i<4;i++) for(j=0;j<4;j++) {
         move R0 #0
         move [R12-136] R0
 sta_73430053:
@@ -1856,6 +1896,7 @@ _L73430061:
 _L73430062:
         cmp R0 #0
         jz sta_73430060
+; 82:         t[i*4+j]=0;
         move R0 #0
         move R10 R0
         move R0 R12
@@ -1881,6 +1922,7 @@ _L73430062:
         pop R2
         add R0 R2
         moved [R0] R10
+; 83:         for(k=0;k<4;k++) t[i*4+j] += a[i*4+k]*b[k*4+j];
         move R0 #0
         move [R12-144] R0
 sta_73430063:
@@ -2008,6 +2050,7 @@ sta_73430054:
         move R0 R1
         jmp sta_73430053
 sta_73430055:
+; 85:     for(i=0;i<16;i++) result[i]=t[i];
         move R0 #0
         move [R12-136] R0
 sta_73430068:
@@ -2072,11 +2115,13 @@ mat4_translate_d:
         push R12
         move R12 R13
         sub R13 #16
+; 88:     mat4_identity_d(result);
         move R0 [R12+36]
         push R0
         move R0 [R13+0]
         call mat4_identity_d
         add R13 #4
+; 89:     result[3]=tx; result[7]=ty; result[11]=tz;
         moved R0 [R12+12]
         move R11 R0
         move R0 [R12+36]
@@ -2123,11 +2168,13 @@ mat4_scale_xyz_d:
         push R12
         move R12 R13
         sub R13 #16
+; 92:     mat4_identity_d(result);
         move R0 [R12+36]
         push R0
         move R0 [R13+0]
         call mat4_identity_d
         add R13 #4
+; 93:     result[0]=sx; result[5]=sy; result[10]=sz;
         moved R0 [R12+12]
         move R5 R0
         move R0 [R12+36]
@@ -2172,6 +2219,7 @@ mat4_rot_x_d:
         push R12
         move R12 R13
         sub R13 #32
+; 96:     double c = cos_deg_d(angle_rad * 180.0 / 3.141592653589793);
         moved R0 [R12+12]
         dpush R0
         moved R0 [dbl_73430073]
@@ -2187,6 +2235,7 @@ mat4_rot_x_d:
         add R13 #4
         i2d R0 R0
         moved [R12-12] R0
+; 97:     double s = sin_deg_d(angle_rad * 180.0 / 3.141592653589793);
         moved R0 [R12+12]
         dpush R0
         moved R0 [dbl_73430075]
@@ -2202,11 +2251,13 @@ mat4_rot_x_d:
         add R13 #4
         i2d R0 R0
         moved [R12-20] R0
+; 98:     mat4_identity_d(result);
         move R0 [R12+20]
         push R0
         move R0 [R13+0]
         call mat4_identity_d
         add R13 #4
+; 99:     result[5]=c; result[6]=-s; result[9]=s; result[10]=c;
         moved R0 [R12-12]
         move R11 R0
         move R0 [R12+20]
@@ -2262,6 +2313,7 @@ mat4_rot_y_d:
         push R12
         move R12 R13
         sub R13 #32
+; 102:     double c = cos_deg_d(angle_rad * 180.0 / 3.141592653589793);
         moved R0 [R12+12]
         dpush R0
         moved R0 [dbl_73430077]
@@ -2277,6 +2329,7 @@ mat4_rot_y_d:
         add R13 #4
         i2d R0 R0
         moved [R12-12] R0
+; 103:     double s = sin_deg_d(angle_rad * 180.0 / 3.141592653589793);
         moved R0 [R12+12]
         dpush R0
         moved R0 [dbl_73430079]
@@ -2292,11 +2345,13 @@ mat4_rot_y_d:
         add R13 #4
         i2d R0 R0
         moved [R12-20] R0
+; 104:     mat4_identity_d(result);
         move R0 [R12+20]
         push R0
         move R0 [R13+0]
         call mat4_identity_d
         add R13 #4
+; 105:     result[0]=c; result[2]=s; result[8]=-s; result[10]=c;
         moved R0 [R12-12]
         move R8 R0
         move R0 [R12+20]
@@ -2352,6 +2407,7 @@ mat4_rot_z_d:
         push R12
         move R12 R13
         sub R13 #32
+; 108:     double c = cos_deg_d(angle_rad * 180.0 / 3.141592653589793);
         moved R0 [R12+12]
         dpush R0
         moved R0 [dbl_73430081]
@@ -2367,6 +2423,7 @@ mat4_rot_z_d:
         add R13 #4
         i2d R0 R0
         moved [R12-12] R0
+; 109:     double s = sin_deg_d(angle_rad * 180.0 / 3.141592653589793);
         moved R0 [R12+12]
         dpush R0
         moved R0 [dbl_73430083]
@@ -2382,11 +2439,13 @@ mat4_rot_z_d:
         add R13 #4
         i2d R0 R0
         moved [R12-20] R0
+; 110:     mat4_identity_d(result);
         move R0 [R12+20]
         push R0
         move R0 [R13+0]
         call mat4_identity_d
         add R13 #4
+; 111:     result[0]=c; result[1]=-s; result[4]=s; result[5]=c;
         moved R0 [R12-12]
         move R9 R0
         move R0 [R12+20]
@@ -2442,6 +2501,7 @@ mat4_transpose_d:
         push R12
         move R12 R13
         sub R13 #24
+; 114:     int i,j; for(i=0;i<4;i++) for(j=0;j<4;j++) result[j*4+i]=a[i*4+j];
         move R0 #0
         move [R12-8] R0
 sta_73430085:
@@ -2542,6 +2602,7 @@ vec2_dot_d:
         push R12
         move R12 R13
         sub R13 #16
+; 117: __stdcall double vec2_dot_d(double* a, double* b) { return a[0]*b[0] + a[1]*b[1]; }
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -2598,6 +2659,7 @@ vec2_cross_d:
         push R12
         move R12 R13
         sub R13 #16
+; 118: __stdcall double vec2_cross_d(double* a, double* b) { return a[0]*b[1] - a[1]*b[0]; }
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -2653,6 +2715,7 @@ vec2_len_d:
         push R12
         move R12 R13
         sub R13 #40
+; 120:     double sq = v[0]*v[0] + v[1]*v[1];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -2691,6 +2754,7 @@ vec2_len_d:
         dpop R1
         dadd R0 R1 R0
         moved [R12-12] R0
+; 121:     if (sq <= 0.0) return 0.0;
         moved R0 [R12-12]
         dpush R0
         moved R0 [dbl_73430099]
@@ -2708,6 +2772,7 @@ _L73430101:
         jmp L_73430103
 sta_73430097:
 sta_73430098:
+; 122:     double g = sq*0.5 + 0.5; int i;
         moved R0 [R12-12]
         dpush R0
         moved R0 [dbl_73430104]
@@ -2718,6 +2783,7 @@ sta_73430098:
         dpop R1
         dadd R0 R1 R0
         moved [R12-20] R0
+; 123:     for(i=0;i<15;i++) { double ng=(g+sq/g)*0.5; if(ng>=g) return g; g=ng; }
         move R0 #0
         move [R12-24] R0
 sta_73430106:
@@ -2775,6 +2841,7 @@ sta_73430107:
         move R0 R1
         jmp sta_73430106
 sta_73430108:
+; 124:     return g;
         moved R0 [R12-20]
         jmp L_73430103
 L_73430103:
@@ -2794,12 +2861,14 @@ vec2_normalize_d:
         push R12
         move R12 R13
         sub R13 #24
+; 127:     double len = vec2_len_d(v);
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
         call vec2_len_d
         add R13 #4
         moved [R12-12] R0
+; 128:     if (len > 0.0) { v[0]/=len; v[1]/=len; }
         moved R0 [R12-12]
         dpush R0
         moved R0 [dbl_73430118]
@@ -2853,6 +2922,7 @@ _L73430120:
         moved [R0] R8
 sta_73430116:
 sta_73430117:
+; 129:     return len;
         moved R0 [R12-12]
         jmp L_73430121
 L_73430121:
@@ -2873,6 +2943,7 @@ vec3_dot_d:
         push R12
         move R12 R13
         sub R13 #16
+; 132: __stdcall double vec3_dot_d(double* a, double* b) { return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -2950,6 +3021,7 @@ vec3_cross_d:
         push R12
         move R12 R13
         sub R13 #16
+; 134:     result[0]=a[1]*b[2]-a[2]*b[1];
         move R0 [R12+12]
         push R0
         move R0 #1
@@ -2995,6 +3067,7 @@ vec3_cross_d:
         pop R2
         add R0 R2
         moved [R0] R8
+; 135:     result[1]=a[2]*b[0]-a[0]*b[2];
         move R0 [R12+12]
         push R0
         move R0 #2
@@ -3040,6 +3113,7 @@ vec3_cross_d:
         pop R5
         add R0 R5
         moved [R0] R9
+; 136:     result[2]=a[0]*b[1]-a[1]*b[0];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3101,6 +3175,7 @@ vec3_len_d:
         push R12
         move R12 R13
         sub R13 #40
+; 139:     double sq = v[0]*v[0]+v[1]*v[1]+v[2]*v[2];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3159,6 +3234,7 @@ vec3_len_d:
         dpop R1
         dadd R0 R1 R0
         moved [R12-12] R0
+; 140:     if (sq<=0.0) return 0.0;
         moved R0 [R12-12]
         dpush R0
         moved R0 [dbl_73430125]
@@ -3176,6 +3252,7 @@ _L73430127:
         jmp L_73430129
 sta_73430123:
 sta_73430124:
+; 141:     double g=sq*0.5+0.5; int i;
         moved R0 [R12-12]
         dpush R0
         moved R0 [dbl_73430130]
@@ -3186,6 +3263,7 @@ sta_73430124:
         dpop R1
         dadd R0 R1 R0
         moved [R12-20] R0
+; 142:     for(i=0;i<15;i++){double ng=(g+sq/g)*0.5; if(ng>=g) return g; g=ng;}
         move R0 #0
         move [R12-24] R0
 sta_73430132:
@@ -3243,6 +3321,7 @@ sta_73430133:
         move R0 R1
         jmp sta_73430132
 sta_73430134:
+; 143:     return g;
         moved R0 [R12-20]
         jmp L_73430129
 L_73430129:
@@ -3262,12 +3341,14 @@ vec3_normalize_d:
         push R12
         move R12 R13
         sub R13 #24
+; 146:     double len = vec3_len_d(v);
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
         call vec3_len_d
         add R13 #4
         moved [R12-12] R0
+; 147:     if (len>0.0) { v[0]/=len; v[1]/=len; v[2]/=len; }
         moved R0 [R12-12]
         dpush R0
         moved R0 [dbl_73430144]
@@ -3340,6 +3421,7 @@ _L73430146:
         moved [R0] R10
 sta_73430142:
 sta_73430143:
+; 148:     return len;
         moved R0 [R12-12]
         jmp L_73430147
 L_73430147:
@@ -3362,6 +3444,7 @@ mat4_transform_vec3_d:
         push R12
         move R12 R13
         sub R13 #16
+; 151:     result[0]=m[0]*v[0]+m[1]*v[1]+m[2]*v[2]+m[3];
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -3437,6 +3520,7 @@ mat4_transform_vec3_d:
         pop R1
         add R0 R1
         moved [R0] R8
+; 152:     result[1]=m[4]*v[0]+m[5]*v[1]+m[6]*v[2]+m[7];
         move R0 [R12+12]
         push R0
         move R0 #4
@@ -3512,6 +3596,7 @@ mat4_transform_vec3_d:
         pop R6
         add R0 R6
         moved [R0] R11
+; 153:     result[2]=m[8]*v[0]+m[9]*v[1]+m[10]*v[2]+m[11];
         move R0 [R12+12]
         push R0
         move R0 #8

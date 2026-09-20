@@ -17,6 +17,7 @@ is_digit:
         push R12
         move R12 R13
         sub R13 #16
+; 13:     return c >= '0' && c <= '9';
         moveb R0 [R12+12]
         sextb R0 R0
         pushb R0
@@ -68,6 +69,7 @@ is_hex_digit:
         push R12
         move R12 R13
         sub R13 #16
+; 16:     return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
         moveb R0 [R12+12]
         sextb R0 R0
         pushb R0
@@ -206,6 +208,7 @@ skip_spaces:
         sub R13 #16
 sta_67060032:
         move R2 #0
+; 19:     while (*g_pos == ' ' || *g_pos == '\t' || *g_pos == '\n' || *g_pos == '\r')
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -286,6 +289,7 @@ _L67060035:
 _L67060036:
         cmp R0 #0
         jz sta_67060033
+; 20:         g_pos++;
         move R0 [g_pos]
         move R1 R0
         add R0 R0 #1
@@ -308,10 +312,13 @@ next_token:
         push R12
         move R12 R13
         sub R13 #16
+; 24:     skip_spaces();
         call skip_spaces
+; 25:     g_current = (unsigned char)*g_pos;
         move R0 [g_pos]
         move R0 [R0]
         move [g_current] R0
+; 26:     if (g_current != 0) g_pos++;
         move R0 [g_current]
         push R0
         move R0 #0
@@ -347,9 +354,12 @@ parse_factor:
         push R12
         move R12 R13
         sub R13 #24
+; 34:     int val = 0;
         move R0 #0
         move [R12-8] R0
+; 35:     skip_spaces();
         call skip_spaces
+; 36:     if (*g_pos == '(') {
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -364,14 +374,18 @@ _L67060057:
 _L67060058:
         cmp R0 #0
         jz sta_67060055
+; 37:         g_pos++;          /* skip ( */
         move R0 [g_pos]
         move R1 R0
         add R0 R0 #1
         move [g_pos] R0
         move R0 R1
+; 38:         val = parse_expr();
         call parse_expr
         move [R12-8] R0
+; 39:         skip_spaces();
         call skip_spaces
+; 40:         if (*g_pos == ')') g_pos++; /* skip ) */
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -393,10 +407,12 @@ _L67060062:
         move R0 R1
 sta_67060059:
 sta_67060060:
+; 41:         return val;
         move R0 [R12-8]
         jmp L_67060063
 sta_67060055:
 sta_67060056:
+; 43:     if (*g_pos == '-') {
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -411,17 +427,20 @@ _L67060066:
 _L67060067:
         cmp R0 #0
         jz sta_67060064
+; 44:         g_pos++;          /* skip - */
         move R0 [g_pos]
         move R1 R0
         add R0 R0 #1
         move [g_pos] R0
         move R0 R1
+; 45:         return -parse_factor();
         call parse_factor
         call parse_factor
         neg R0 R0
         jmp L_67060063
 sta_67060064:
 sta_67060065:
+; 48:     if (*g_pos == '0' && (*(g_pos + 1) == 'x' || *(g_pos + 1) == 'X')) {
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -489,6 +508,7 @@ _L67060070:
 _L67060071:
         cmp R0 #0
         jz sta_67060068
+; 49:         g_pos += 2;
         move R0 [g_pos]
         push R0
         move R0 #2
@@ -498,6 +518,7 @@ _L67060071:
         move [g_pos] R0
 sta_67060081:
         move R2 #0
+; 50:         while (is_hex_digit(*g_pos)) {
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -506,9 +527,11 @@ sta_67060081:
         add R13 #4
         cmp R0 #0
         jz sta_67060082
+; 51:             char c = *g_pos;
         move R0 [g_pos]
         move R0 [R0]
         moveb [R12-9] R0
+; 52:             val = val * 16 + (c >= 'a' ? c - 'a' + 10 : c >= 'A' ? c - 'A' + 10 : c - '0');
         move R0 [R12-8]
         push R0
         move R0 #16
@@ -585,6 +608,7 @@ _L67060086:
         add R1 R0
         move R0 R1
         move [R12-8] R0
+; 53:             g_pos++;
         move R0 [g_pos]
         move R1 R0
         add R0 R0 #1
@@ -592,12 +616,14 @@ _L67060086:
         move R0 R1
         jmp sta_67060081
 sta_67060082:
+; 55:         return val;
         move R0 [R12-8]
         jmp L_67060063
 sta_67060068:
 sta_67060069:
 sta_67060091:
         move R2 #0
+; 58:     while (is_digit(*g_pos)) {
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -606,6 +632,7 @@ sta_67060091:
         add R13 #4
         cmp R0 #0
         jz sta_67060092
+; 59:         val = val * 10 + (*g_pos - '0');
         move R0 [R12-8]
         push R0
         move R0 #10
@@ -624,6 +651,7 @@ sta_67060091:
         add R1 R0
         move R0 R1
         move [R12-8] R0
+; 60:         g_pos++;
         move R0 [g_pos]
         move R1 R0
         add R0 R0 #1
@@ -631,6 +659,7 @@ sta_67060091:
         move R0 R1
         jmp sta_67060091
 sta_67060092:
+; 62:     return val;
         move R0 [R12-8]
         jmp L_67060063
 L_67060063:
@@ -649,11 +678,14 @@ parse_term:
         push R12
         move R12 R13
         sub R13 #24
+; 66:     int left = parse_factor();
         call parse_factor
         move [R12-8] R0
+; 67:     skip_spaces();
         call skip_spaces
 sta_67060093:
         move R2 #0
+; 68:     while (*g_pos == '*' || *g_pos == '/') {
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -690,16 +722,20 @@ _L67060096:
 _L67060097:
         cmp R0 #0
         jz sta_67060094
+; 69:         char op = *g_pos;
         move R0 [g_pos]
         move R0 [R0]
         moveb [R12-9] R0
+; 70:         g_pos++;
         move R0 [g_pos]
         move R1 R0
         add R0 R0 #1
         move [g_pos] R0
         move R0 R1
+; 71:         int right = parse_factor();
         call parse_factor
         move [R12-16] R0
+; 72:         if (op == '*')
         moveb R0 [R12-9]
         sextb R0 R0
         pushb R0
@@ -714,6 +750,7 @@ _L67060104:
 _L67060105:
         cmp R0 #0
         jz sta_67060102
+; 73:             left = left * right;
         move R0 [R12-8]
         push R0
         move R0 [R12-16]
@@ -723,6 +760,7 @@ _L67060105:
         move [R12-8] R0
         jmp sta_67060103
 sta_67060102:
+; 75:             if (right == 0) return 0; /* division by zero → return 0 */
         move R0 [R12-16]
         push R0
         move R0 #0
@@ -740,6 +778,7 @@ _L67060109:
         jmp L_67060110
 sta_67060106:
 sta_67060107:
+; 76:             left = left / right;
         move R0 [R12-8]
         push R0
         move R0 [R12-16]
@@ -748,9 +787,11 @@ sta_67060107:
         move R0 R1
         move [R12-8] R0
 sta_67060103:
+; 78:         skip_spaces();
         call skip_spaces
         jmp sta_67060093
 sta_67060094:
+; 80:     return left;
         move R0 [R12-8]
         jmp L_67060110
 L_67060110:
@@ -769,11 +810,14 @@ parse_expr:
         push R12
         move R12 R13
         sub R13 #24
+; 84:     int left = parse_term();
         call parse_term
         move [R12-8] R0
+; 85:     skip_spaces();
         call skip_spaces
 sta_67060111:
         move R2 #0
+; 86:     while (*g_pos == '+' || *g_pos == '-') {
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -810,16 +854,20 @@ _L67060114:
 _L67060115:
         cmp R0 #0
         jz sta_67060112
+; 87:         char op = *g_pos;
         move R0 [g_pos]
         move R0 [R0]
         moveb [R12-9] R0
+; 88:         g_pos++;
         move R0 [g_pos]
         move R1 R0
         add R0 R0 #1
         move [g_pos] R0
         move R0 R1
+; 89:         int right = parse_term();
         call parse_term
         move [R12-16] R0
+; 90:         if (op == '+')
         moveb R0 [R12-9]
         sextb R0 R0
         pushb R0
@@ -834,6 +882,7 @@ _L67060122:
 _L67060123:
         cmp R0 #0
         jz sta_67060120
+; 91:             left = left + right;
         move R0 [R12-8]
         push R0
         move R0 [R12-16]
@@ -843,6 +892,7 @@ _L67060123:
         move [R12-8] R0
         jmp sta_67060121
 sta_67060120:
+; 93:             left = left - right;
         move R0 [R12-8]
         push R0
         move R0 [R12-16]
@@ -851,9 +901,11 @@ sta_67060120:
         move R0 R1
         move [R12-8] R0
 sta_67060121:
+; 94:         skip_spaces();
         call skip_spaces
         jmp sta_67060111
 sta_67060112:
+; 96:     return left;
         move R0 [R12-8]
         jmp L_67060124
 L_67060124:
@@ -874,6 +926,7 @@ parserexp:
         push R12
         move R12 R13
         sub R13 #16
+; 100:     if (expression == ((void*)0)) return 0;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -891,9 +944,12 @@ _L67060128:
         jmp L_67060129
 sta_67060125:
 sta_67060126:
+; 101:     g_pos = expression;
         move R0 [R12+12]
         move [g_pos] R0
+; 102:     skip_spaces();
         call skip_spaces
+; 103:     if (*g_pos == 0) return 0;
         move R0 [g_pos]
         move R0 [R0]
         push R0
@@ -912,8 +968,10 @@ _L67060133:
         jmp L_67060129
 sta_67060130:
 sta_67060131:
+; 104:     int result = parse_expr();
         call parse_expr
         move [R12-8] R0
+; 105:     return result;
         move R0 [R12-8]
         jmp L_67060129
 L_67060129:

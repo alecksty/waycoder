@@ -15,17 +15,21 @@ _count_args:
         push R12
         move R12 R13
         sub R13 #24
+; 18:     int n = 0;
         move R0 #0
         move [R12-8] R0
+; 19:     const char *p = format;
         move R0 [R12+12]
         move [R12-12] R0
 sta_9530000:
         move R2 #0
+; 20:     while (*p) {
         move R0 [R12-12]
         moveb R0 [R0]
         sextb R0 R0
         cmp R0 #0
         jz sta_9530001
+; 21:         if (*p == '%') {
         move R0 [R12-12]
         moveb R0 [R0]
         sextb R0 R0
@@ -41,11 +45,13 @@ _L9530004:
 _L9530005:
         cmp R0 #0
         jz sta_9530002
+; 22:             p++;
         move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
         move [R12-12] R0
         move R0 R1
+; 23:             if (*p == '%' || *p == 0) { }
         move R0 [R12-12]
         moveb R0 [R0]
         sextb R0 R0
@@ -86,6 +92,7 @@ _L9530010:
         jz sta_9530006
         jmp sta_9530007
 sta_9530006:
+; 24:             else { n++; }
         move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
@@ -94,6 +101,7 @@ sta_9530006:
 sta_9530007:
 sta_9530002:
 sta_9530003:
+; 26:         p++;
         move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
@@ -101,6 +109,7 @@ sta_9530003:
         move R0 R1
         jmp sta_9530000
 sta_9530001:
+; 28:     return n;
         move R0 [R12-8]
         jmp L_9530015
 L_9530015:
@@ -120,6 +129,7 @@ _isspace:
         push R12
         move R12 R13
         sub R13 #16
+; 33:     return c == ' ' || c == '\t' || c == '\n' || c == '\r';
         move R0 [R12+12]
         push R0
         move R0 #32
@@ -212,6 +222,7 @@ _isdigit:
         push R12
         move R12 R13
         sub R13 #16
+; 38:     return c >= '0' && c <= '9';
         move R0 [R12+12]
         push R0
         move R0 #48
@@ -264,6 +275,7 @@ vsscanf:
         push R12
         move R12 R13
         sub R13 #56
+; 43:     if (!str || !format || !args) return -1;
         move R0 [R12+12]
         move R0 [R12+12]
         test R0 R0
@@ -319,16 +331,21 @@ _L9530045:
         jmp L_9530055
 sta_9530041:
 sta_9530042:
+; 44:     char *s = str;
         move R0 [R12+12]
         move [R12-8] R0
+; 45:     int arg_idx = 0;
         move R0 #0
         move [R12-12] R0
+; 46:     int count = 0;
         move R0 #0
         move [R12-16] R0
+; 47:     char *p = format;
         move R0 [R12+16]
         move [R12-20] R0
 sta_9530056:
         move R2 #0
+; 52:     while (*p && *s) {
         move R0 [R12-20]
         moveb R0 [R0]
         sextb R0 R0
@@ -346,6 +363,7 @@ _L9530058:
 _L9530059:
         cmp R0 #0
         jz sta_9530057
+; 53:         if (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') {
         move R0 [R12-20]
         moveb R0 [R0]
         sextb R0 R0
@@ -432,6 +450,7 @@ _L9530064:
         jz sta_9530060
 sta_9530079:
         move R2 #0
+; 54:             while (*s && (*s == ' ' || *s == '\t' || *s == '\n' || *s == '\r'))
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -528,6 +547,7 @@ _L9530081:
 _L9530082:
         cmp R0 #0
         jz sta_9530080
+; 55:                 s++;
         move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
@@ -535,6 +555,7 @@ _L9530082:
         move R0 R1
         jmp sta_9530079
 sta_9530080:
+; 56:             p++;
         move R0 [R12-20]
         move R1 R0
         add R0 R0 #1
@@ -543,6 +564,7 @@ sta_9530080:
         jmp sta_9530056
 sta_9530060:
 sta_9530061:
+; 59:         if (*p != '%') {
         move R0 [R12-20]
         moveb R0 [R0]
         sextb R0 R0
@@ -558,6 +580,7 @@ _L9530102:
 _L9530103:
         cmp R0 #0
         jz sta_9530100
+; 60:             if (*p == *s) { p++; s++; }
         move R0 [R12-20]
         moveb R0 [R0]
         sextb R0 R0
@@ -592,11 +615,13 @@ sta_9530105:
         jmp sta_9530056
 sta_9530100:
 sta_9530101:
+; 64:         p++;
         move R0 [R12-20]
         move R1 R0
         add R0 R0 #1
         move [R12-20] R0
         move R0 R1
+; 65:         if (*p == 0) break;
         move R0 [R12-20]
         moveb R0 [R0]
         sextb R0 R0
@@ -615,6 +640,7 @@ _L9530111:
         jmp sta_9530057
 sta_9530108:
 sta_9530109:
+; 66:         if (arg_idx >= nargs) break;
         move R0 [R12-12]
         push R0
         move R0 [R12+24]
@@ -631,6 +657,7 @@ _L9530115:
         jmp sta_9530057
 sta_9530112:
 sta_9530113:
+; 67:         switch (*p) {
         move R0 [R12-20]
         moveb R0 [R0]
         sextb R0 R0
@@ -668,6 +695,7 @@ sta_9530113:
         jmp sta_9530116
 sta_9530117:
 sta_9530118:
+; 70:                 val = 0; sign = 1; got = 0;
         move R0 #0
         move [R12-24] R0
         move R0 #1
@@ -676,6 +704,7 @@ sta_9530118:
         move [R12-32] R0
 sta_9530123:
         move R2 #0
+; 71:                 while (*s == ' ' || *s == '\t') s++;
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -721,6 +750,7 @@ _L9530127:
         move R0 R1
         jmp sta_9530123
 sta_9530124:
+; 72:                 if (*s == '-') { sign = -1; s++; }
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -747,6 +777,7 @@ _L9530135:
         move R0 R1
         jmp sta_9530133
 sta_9530132:
+; 73:                 else if (*s == '+') { s++; }
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -770,6 +801,7 @@ _L9530139:
 sta_9530136:
 sta_9530137:
 sta_9530133:
+; 74:                 if (*s == '0') {
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -785,11 +817,13 @@ _L9530142:
 _L9530143:
         cmp R0 #0
         jz sta_9530140
+; 75:                     s++;
         move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
         move [R12-8] R0
         move R0 R1
+; 76:                     if (*s == 'x' || *s == 'X') {
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -828,6 +862,7 @@ _L9530147:
 _L9530148:
         cmp R0 #0
         jz sta_9530144
+; 77:                         s++;
         move R0 [R12-8]
         move R1 R0
         add R0 R0 #1
@@ -835,11 +870,13 @@ _L9530148:
         move R0 R1
 sta_9530153:
         move R2 #0
+; 78:                         while (*s) {
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
         cmp R0 #0
         jz sta_9530154
+; 79:                             if (*s >= '0' && *s <= '9')
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -877,6 +914,7 @@ _L9530157:
 _L9530158:
         cmp R0 #0
         jz sta_9530155
+; 80:                                 val = val * 16 + (*s - '0');
         move R0 [R12-24]
         push R0
         move R0 #16
@@ -898,6 +936,7 @@ _L9530158:
         move [R12-24] R0
         jmp sta_9530156
 sta_9530155:
+; 81:                             else if (*s >= 'a' && *s <= 'f')
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -935,6 +974,7 @@ _L9530165:
 _L9530166:
         cmp R0 #0
         jz sta_9530163
+; 82:                                 val = val * 16 + (*s - 'a' + 10);
         move R0 [R12-24]
         push R0
         move R0 #16
@@ -961,6 +1001,7 @@ _L9530166:
         move [R12-24] R0
         jmp sta_9530164
 sta_9530163:
+; 83:                             else if (*s >= 'A' && *s <= 'F')
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -998,6 +1039,7 @@ _L9530173:
 _L9530174:
         cmp R0 #0
         jz sta_9530171
+; 84:                                 val = val * 16 + (*s - 'A' + 10);
         move R0 [R12-24]
         push R0
         move R0 #16
@@ -1028,6 +1070,7 @@ sta_9530171:
 sta_9530172:
 sta_9530164:
 sta_9530156:
+; 86:                             got = 1; s++;
         move R0 #1
         move [R12-32] R0
         move R0 [R12-8]
@@ -1041,6 +1084,7 @@ sta_9530154:
 sta_9530144:
 sta_9530179:
         move R2 #0
+; 89:                         while (*s >= '0' && *s <= '7')
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -1078,6 +1122,7 @@ _L9530181:
 _L9530182:
         cmp R0 #0
         jz sta_9530180
+; 90:                             { val = val * 8 + (*s - '0'); got = 1; s++; }
         move R0 [R12-24]
         push R0
         move R0 #8
@@ -1111,6 +1156,7 @@ sta_9530145:
 sta_9530140:
 sta_9530187:
         move R2 #0
+; 93:                     while (*s >= '0' && *s <= '9')
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -1148,6 +1194,7 @@ _L9530189:
 _L9530190:
         cmp R0 #0
         jz sta_9530188
+; 94:                         { val = val * 10 + (*s - '0'); got = 1; s++; }
         move R0 [R12-24]
         push R0
         move R0 #10
@@ -1177,6 +1224,7 @@ _L9530190:
         jmp sta_9530187
 sta_9530188:
 sta_9530141:
+; 96:                 if (got) { dest = (int *)args[arg_idx]; *dest = sign * val; count++; }
         move R0 [R12-32]
         cmp R0 #0
         jz sta_9530195
@@ -1204,6 +1252,7 @@ sta_9530141:
         move R0 R1
 sta_9530195:
 sta_9530196:
+; 97:                 arg_idx++;
         move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
@@ -1212,12 +1261,14 @@ sta_9530196:
         jmp sta_9530116
 sta_9530119:
 sta_9530120:
+; 101:                 val = 0; got = 0;
         move R0 #0
         move [R12-24] R0
         move R0 #0
         move [R12-32] R0
 sta_9530197:
         move R2 #0
+; 102:                 while (*s == ' ' || *s == '\t') s++;
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -1265,11 +1316,13 @@ _L9530201:
 sta_9530198:
 sta_9530206:
         move R2 #0
+; 103:                 while (*s) {
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
         cmp R0 #0
         jz sta_9530207
+; 104:                     if (*s >= '0' && *s <= '9')
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -1307,6 +1360,7 @@ _L9530210:
 _L9530211:
         cmp R0 #0
         jz sta_9530208
+; 105:                         val = val * 16 + (*s - '0');
         move R0 [R12-24]
         push R0
         move R0 #16
@@ -1328,6 +1382,7 @@ _L9530211:
         move [R12-24] R0
         jmp sta_9530209
 sta_9530208:
+; 106:                     else if (*s >= 'a' && *s <= 'f')
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -1365,6 +1420,7 @@ _L9530218:
 _L9530219:
         cmp R0 #0
         jz sta_9530216
+; 107:                         val = val * 16 + (*s - 'a' + 10);
         move R0 [R12-24]
         push R0
         move R0 #16
@@ -1391,6 +1447,7 @@ _L9530219:
         move [R12-24] R0
         jmp sta_9530217
 sta_9530216:
+; 108:                     else if (*s >= 'A' && *s <= 'F')
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -1428,6 +1485,7 @@ _L9530226:
 _L9530227:
         cmp R0 #0
         jz sta_9530224
+; 109:                         val = val * 16 + (*s - 'A' + 10);
         move R0 [R12-24]
         push R0
         move R0 #16
@@ -1458,6 +1516,7 @@ sta_9530224:
 sta_9530225:
 sta_9530217:
 sta_9530209:
+; 111:                     got = 1; s++;
         move R0 #1
         move [R12-32] R0
         move R0 [R12-8]
@@ -1467,6 +1526,7 @@ sta_9530209:
         move R0 R1
         jmp sta_9530206
 sta_9530207:
+; 113:                 if (got) { dest = (int *)args[arg_idx]; *dest = val; count++; }
         move R0 [R12-32]
         cmp R0 #0
         jz sta_9530232
@@ -1489,6 +1549,7 @@ sta_9530207:
         move R0 R1
 sta_9530232:
 sta_9530233:
+; 114:                 arg_idx++;
         move R0 [R12-12]
         move R1 R0
         add R0 R0 #1
@@ -1496,6 +1557,7 @@ sta_9530233:
         move R0 R1
         jmp sta_9530116
 sta_9530121:
+; 117:                 dst = (char *)args[arg_idx];
         move R0 [R12+20]
         push R0
         move R0 [R12-12]
@@ -1506,6 +1568,7 @@ sta_9530121:
         move [R12-36] R0
 sta_9530234:
         move R2 #0
+; 118:                 while (*s == ' ' || *s == '\t') s++;
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -1551,10 +1614,12 @@ _L9530238:
         move R0 R1
         jmp sta_9530234
 sta_9530235:
+; 119:                 n = 0;
         move R0 #0
         move [R12-44] R0
 sta_9530243:
         move R2 #0
+; 120:                 while (*s && *s != ' ' && *s != '\t' && *s != '\n' && n < 255)
         move R0 [R12-8]
         moveb R0 [R0]
         sextb R0 R0
@@ -1646,6 +1711,7 @@ _L9530245:
 _L9530246:
         cmp R0 #0
         jz sta_9530244
+; 121:                     { *dst = *s; dst++; s++; n++; }
         move R0 [R12-36]
         move R6 R0
         move R0 [R12-8]
@@ -1669,10 +1735,12 @@ _L9530246:
         move R0 R1
         jmp sta_9530243
 sta_9530244:
+; 122:                 *dst = 0;
         move R0 [R12-36]
         move R5 R0
         move R0 #0
         moveb [R5] R0
+; 123:                 count++; arg_idx++;
         move R0 [R12-16]
         move R1 R0
         add R0 R0 #1
@@ -1685,6 +1753,7 @@ sta_9530244:
         move R0 R1
         jmp sta_9530116
 sta_9530122:
+; 126:                 dst = (char *)args[arg_idx];
         move R0 [R12+20]
         push R0
         move R0 [R12-12]
@@ -1693,6 +1762,7 @@ sta_9530122:
         add R0 R4
         move R0 [R0]
         move [R12-36] R0
+; 127:                 *dst = *s; dst++; *dst = 0; s++;
         move R0 [R12-36]
         move R3 R0
         move R0 [R12-8]
@@ -1713,6 +1783,7 @@ sta_9530122:
         add R0 R0 #1
         move [R12-8] R0
         move R0 R1
+; 128:                 count++; arg_idx++;
         move R0 [R12-16]
         move R1 R0
         add R0 R0 #1
@@ -1725,6 +1796,7 @@ sta_9530122:
         move R0 R1
         jmp sta_9530116
 sta_9530116:
+; 131:         p++;
         move R0 [R12-20]
         move R1 R0
         add R0 R0 #1
@@ -1732,6 +1804,7 @@ sta_9530116:
         move R0 R1
         jmp sta_9530056
 sta_9530057:
+; 133:     return count;
         move R0 [R12-16]
         jmp L_9530055
 L_9530055:
@@ -1751,6 +1824,7 @@ scanf:
         push R12
         move R12 R13
         sub R13 #336
+; 138:     __builtin_va_start(ap, format);
         move R0 R12
         add R0 #12
         add R0 #4
@@ -1758,12 +1832,14 @@ scanf:
         move R0 R12
         sub R0 #8
         move [R0] R1
+; 139:     int nargs = _count_args(format);
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
         call _count_args
         add R13 #4
         move [R12-12] R0
+; 142:     for (i = 0; i < nargs && i < 12; i++)
         move R0 #0
         move [R12-64] R0
 sta_9530261:
@@ -1800,6 +1876,7 @@ _L9530264:
 _L9530265:
         cmp R0 #0
         jz sta_9530263
+; 143:         args[i] = __builtin_va_arg(ap, sizeof(int));
         move R0 [R12-8]
         move R1 R0
         move R2 [R1]
@@ -1831,10 +1908,12 @@ sta_9530262:
         move R0 R1
         jmp sta_9530261
 sta_9530263:
+; 146:     int i2 = 0;
         move R0 #0
         move [R12-324] R0
 sta_9530270:
         move R2 #0
+; 148:     while (i2 < 254) {
         move R0 [R12-324]
         push R0
         move R0 #254
@@ -1848,8 +1927,10 @@ _L9530272:
 _L9530273:
         cmp R0 #0
         jz sta_9530271
+; 149:         c = getchar();
         call getchar
         move [R12-328] R0
+; 150:         if (c <= 0 || c == '\n') break;
         move R0 [R12-328]
         push R0
         move R0 #0
@@ -1887,6 +1968,7 @@ _L9530278:
         jmp sta_9530271
 sta_9530274:
 sta_9530275:
+; 151:         buf[i2] = (char)c;
         move R0 [R12-328]
         move R9 R0
         move R0 R12
@@ -1902,6 +1984,7 @@ sta_9530275:
         pop R7
         add R0 R7
         moveb [R0] R9
+; 152:         i2++;
         move R0 [R12-324]
         move R1 R0
         add R0 R0 #1
@@ -1909,6 +1992,7 @@ sta_9530275:
         move R0 R1
         jmp sta_9530270
 sta_9530271:
+; 154:     buf[i2] = 0;
         move R0 #0
         move R6 R0
         move R0 R12
@@ -1924,6 +2008,7 @@ sta_9530271:
         pop R4
         add R0 R4
         moveb [R0] R6
+; 155:     return vsscanf(buf, format, args, nargs);
         move R0 [R12-12]
         push R0
         move R0 R12
@@ -1960,6 +2045,7 @@ sscanf:
         push R12
         move R12 R13
         sub R13 #72
+; 160:     __builtin_va_start(ap, format);
         move R0 R12
         add R0 #16
         add R0 #4
@@ -1967,12 +2053,14 @@ sscanf:
         move R0 R12
         sub R0 #8
         move [R0] R1
+; 161:     int nargs = _count_args(format);
         move R0 [R12+16]
         push R0
         move R0 [R13+0]
         call _count_args
         add R13 #4
         move [R12-12] R0
+; 164:     for (i = 0; i < nargs && i < 12; i++)
         move R0 #0
         move [R12-64] R0
 sta_9530284:
@@ -2009,6 +2097,7 @@ _L9530287:
 _L9530288:
         cmp R0 #0
         jz sta_9530286
+; 165:         args[i] = __builtin_va_arg(ap, sizeof(int));
         move R0 [R12-8]
         move R1 R0
         move R2 [R1]
@@ -2040,6 +2129,7 @@ sta_9530285:
         move R0 R1
         jmp sta_9530284
 sta_9530286:
+; 167:     return vsscanf(str, format, args, nargs);
         move R0 [R12-12]
         push R0
         move R0 R12

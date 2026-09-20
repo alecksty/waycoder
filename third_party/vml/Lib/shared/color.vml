@@ -16,6 +16,7 @@ rgb888_to_rgb565:
         push R12
         move R12 R13
         sub R13 #16
+; 6:     return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | ((b & 0xF8) >> 3);
         move R0 [R12+12]
         push R0
         move R0 #248
@@ -75,6 +76,7 @@ rgb565_to_r:
         push R12
         move R12 R13
         sub R13 #16
+; 10: __stdcall int rgb565_to_r(int color) { return (color >> 8) & 0xF8; }
         move R0 [R12+12]
         push R0
         move R0 #8
@@ -104,6 +106,7 @@ rgb565_to_g:
         push R12
         move R12 R13
         sub R13 #16
+; 11: __stdcall int rgb565_to_g(int color) { return (color >> 3) & 0xFC; }
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -133,6 +136,7 @@ rgb565_to_b:
         push R12
         move R12 R13
         sub R13 #16
+; 12: __stdcall int rgb565_to_b(int color) { return (color << 3) & 0xF8; }
         move R0 [R12+12]
         push R0
         move R0 #3
@@ -164,6 +168,7 @@ rgb:
         push R12
         move R12 R13
         sub R13 #16
+; 16:     if (r < 0) r = 0; if (r > 255) r = 255;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -198,6 +203,7 @@ _L27230011:
         move [R12+12] R0
 sta_27230008:
 sta_27230009:
+; 17:     if (g < 0) g = 0; if (g > 255) g = 255;
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -232,6 +238,7 @@ _L27230019:
         move [R12+16] R0
 sta_27230016:
 sta_27230017:
+; 18:     if (b < 0) b = 0; if (b > 255) b = 255;
         move R0 [R12+20]
         push R0
         move R0 #0
@@ -266,6 +273,7 @@ _L27230027:
         move [R12+20] R0
 sta_27230024:
 sta_27230025:
+; 19:     return (r << 16) | (g << 8) | b;
         move R0 [R12+12]
         push R0
         move R0 #16
@@ -305,6 +313,7 @@ red:
         push R12
         move R12 R13
         sub R13 #16
+; 23: __stdcall int red(int color)   { return (color >> 16) & 0xFF; }
         move R0 [R12+12]
         push R0
         move R0 #16
@@ -334,6 +343,7 @@ green:
         push R12
         move R12 R13
         sub R13 #16
+; 24: __stdcall int green(int color) { return (color >> 8) & 0xFF; }
         move R0 [R12+12]
         push R0
         move R0 #8
@@ -363,6 +373,7 @@ blue:
         push R12
         move R12 R13
         sub R13 #16
+; 25: __stdcall int blue(int color)  { return color & 0xFF; }
         move R0 [R12+12]
         push R0
         move R0 #255
@@ -389,6 +400,7 @@ grayscale:
         push R12
         move R12 R13
         sub R13 #16
+; 29:     return (r * 299 + g * 587 + b * 114) / 1000;
         move R0 [R12+12]
         push R0
         move R0 #299
@@ -440,6 +452,7 @@ color_blend:
         push R12
         move R12 R13
         sub R13 #56
+; 34:     int fr = red(fg), fg_g = green(fg), fb = blue(fg);
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -458,6 +471,7 @@ color_blend:
         call blue
         add R13 #4
         move [R12-16] R0
+; 35:     int br = red(bg), bg_g = green(bg), bb = blue(bg);
         move R0 [R12+16]
         push R0
         move R0 [R13+0]
@@ -476,6 +490,7 @@ color_blend:
         call blue
         add R13 #4
         move [R12-28] R0
+; 36:     int a = alpha > 255 ? 255 : (alpha < 0 ? 0 : alpha);
         move R0 [R12+20]
         push R0
         move R0 #255
@@ -512,6 +527,7 @@ _L27230039:
 _L27230040:
 _L27230036:
         move [R12-32] R0
+; 37:     int ia = 255 - a;
         move R0 #255
         push R0
         move R0 [R12-32]
@@ -519,6 +535,7 @@ _L27230036:
         sub R1 R0
         move R0 R1
         move [R12-36] R0
+; 38:     int r = (fr * a + br * ia) / 255;
         move R0 [R12-8]
         push R0
         move R0 [R12-32]
@@ -541,6 +558,7 @@ _L27230036:
         div R1 R0
         move R0 R1
         move [R12-40] R0
+; 39:     int g = (fg_g * a + bg_g * ia) / 255;
         move R0 [R12-12]
         push R0
         move R0 [R12-32]
@@ -563,6 +581,7 @@ _L27230036:
         div R1 R0
         move R0 R1
         move [R12-44] R0
+; 40:     int b = (fb * a + bb * ia) / 255;
         move R0 [R12-16]
         push R0
         move R0 [R12-32]
@@ -585,6 +604,7 @@ _L27230036:
         div R1 R0
         move R0 R1
         move [R12-48] R0
+; 41:     return rgb(r, g, b);
         move R0 [R12-48]
         push R0
         move R0 [R12-44]
@@ -615,6 +635,7 @@ color_brightness:
         push R12
         move R12 R13
         sub R13 #24
+; 46:     int r = red(color) + amount;
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -626,6 +647,7 @@ color_brightness:
         add R1 R0
         move R0 R1
         move [R12-8] R0
+; 47:     int g = green(color) + amount;
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -637,6 +659,7 @@ color_brightness:
         add R1 R0
         move R0 R1
         move [R12-12] R0
+; 48:     int b = blue(color) + amount;
         move R0 [R12+12]
         push R0
         move R0 [R13+0]
@@ -648,6 +671,7 @@ color_brightness:
         add R1 R0
         move R0 R1
         move [R12-16] R0
+; 49:     if (r < 0) r = 0; if (r > 255) r = 255;
         move R0 [R12-8]
         push R0
         move R0 #0
@@ -682,6 +706,7 @@ _L27230049:
         move [R12-8] R0
 sta_27230046:
 sta_27230047:
+; 50:     if (g < 0) g = 0; if (g > 255) g = 255;
         move R0 [R12-12]
         push R0
         move R0 #0
@@ -716,6 +741,7 @@ _L27230057:
         move [R12-12] R0
 sta_27230054:
 sta_27230055:
+; 51:     if (b < 0) b = 0; if (b > 255) b = 255;
         move R0 [R12-16]
         push R0
         move R0 #0
@@ -750,6 +776,7 @@ _L27230065:
         move [R12-16] R0
 sta_27230062:
 sta_27230063:
+; 52:     return rgb(r, g, b);
         move R0 [R12-16]
         push R0
         move R0 [R12-12]
@@ -781,6 +808,7 @@ hsv_to_rgb:
         push R12
         move R12 R13
         sub R13 #32
+; 57:     if (s == 0) return rgb(v, v, v);
         move R0 [R12+16]
         push R0
         move R0 #0
@@ -808,6 +836,7 @@ _L27230070:
         jmp L_27230071
 sta_27230067:
 sta_27230068:
+; 58:     h = h % 360;
         move R0 [R12+12]
         push R0
         move R0 #360
@@ -815,6 +844,7 @@ sta_27230068:
         mod R1 R0
         move R0 R1
         move [R12+12] R0
+; 59:     if (h < 0) h += 360;
         move R0 [R12+12]
         push R0
         move R0 #0
@@ -837,6 +867,7 @@ _L27230075:
         move [R12+12] R0
 sta_27230072:
 sta_27230073:
+; 60:     int region = h / 60;
         move R0 [R12+12]
         push R0
         move R0 #60
@@ -844,6 +875,7 @@ sta_27230073:
         div R1 R0
         move R0 R1
         move [R12-8] R0
+; 61:     int remainder = (h - region * 60) * 255 / 60;
         move R0 [R12+12]
         push R0
         move R0 [R12-8]
@@ -866,6 +898,7 @@ sta_27230073:
         div R1 R0
         move R0 R1
         move [R12-12] R0
+; 62:     int p = (v * (255 - s)) / 255;
         move R0 [R12+20]
         push R0
         move R0 #255
@@ -883,6 +916,7 @@ sta_27230073:
         div R1 R0
         move R0 R1
         move [R12-16] R0
+; 63:     int q = (v * (255 - (s * remainder) / 255)) / 255;
         move R0 [R12+20]
         push R0
         move R0 #255
@@ -910,6 +944,7 @@ sta_27230073:
         div R1 R0
         move R0 R1
         move [R12-20] R0
+; 64:     int t = (v * (255 - (s * (255 - remainder)) / 255)) / 255;
         move R0 [R12+20]
         push R0
         move R0 #255
@@ -942,6 +977,7 @@ sta_27230073:
         div R1 R0
         move R0 R1
         move [R12-24] R0
+; 65:     switch (region) {
         move R0 [R12-8]
         move R1 R0
         push R1
@@ -971,6 +1007,7 @@ sta_27230073:
         je sta_27230082
         jmp sta_27230077
 sta_27230078:
+; 66:         case 0:  return rgb(v, t, p);
         move R0 [R12-16]
         push R0
         move R0 [R12-24]
@@ -984,6 +1021,7 @@ sta_27230078:
         add R13 #12
         jmp L_27230071
 sta_27230079:
+; 67:         case 1:  return rgb(q, v, p);
         move R0 [R12-16]
         push R0
         move R0 [R12+20]
@@ -997,6 +1035,7 @@ sta_27230079:
         add R13 #12
         jmp L_27230071
 sta_27230080:
+; 68:         case 2:  return rgb(p, v, t);
         move R0 [R12-24]
         push R0
         move R0 [R12+20]
@@ -1010,6 +1049,7 @@ sta_27230080:
         add R13 #12
         jmp L_27230071
 sta_27230081:
+; 69:         case 3:  return rgb(p, q, v);
         move R0 [R12+20]
         push R0
         move R0 [R12-20]
@@ -1023,6 +1063,7 @@ sta_27230081:
         add R13 #12
         jmp L_27230071
 sta_27230082:
+; 70:         case 4:  return rgb(t, p, v);
         move R0 [R12+20]
         push R0
         move R0 [R12-16]
@@ -1036,6 +1077,7 @@ sta_27230082:
         add R13 #12
         jmp L_27230071
 sta_27230077:
+; 71:         default: return rgb(v, p, q);
         move R0 [R12-20]
         push R0
         move R0 [R12-16]
@@ -1065,6 +1107,7 @@ color_black:
         push R12
         move R12 R13
         sub R13 #16
+; 76: __stdcall int color_black()   { return 0x000000; }
         move R0 #0
         jmp L_27230083
 L_27230083:
@@ -1083,6 +1126,7 @@ color_white:
         push R12
         move R12 R13
         sub R13 #16
+; 77: __stdcall int color_white()   { return 0xFFFFFF; }
         move R0 #16777215
         jmp L_27230084
 L_27230084:
@@ -1101,6 +1145,7 @@ color_red:
         push R12
         move R12 R13
         sub R13 #16
+; 78: __stdcall int color_red()     { return 0xFF0000; }
         move R0 #16711680
         jmp L_27230085
 L_27230085:
@@ -1119,6 +1164,7 @@ color_green:
         push R12
         move R12 R13
         sub R13 #16
+; 79: __stdcall int color_green()   { return 0x00FF00; }
         move R0 #65280
         jmp L_27230086
 L_27230086:
@@ -1137,6 +1183,7 @@ color_blue:
         push R12
         move R12 R13
         sub R13 #16
+; 80: __stdcall int color_blue()    { return 0x0000FF; }
         move R0 #255
         jmp L_27230087
 L_27230087:
@@ -1155,6 +1202,7 @@ color_yellow:
         push R12
         move R12 R13
         sub R13 #16
+; 81: __stdcall int color_yellow()  { return 0xFFFF00; }
         move R0 #16776960
         jmp L_27230088
 L_27230088:
@@ -1173,6 +1221,7 @@ color_cyan:
         push R12
         move R12 R13
         sub R13 #16
+; 82: __stdcall int color_cyan()    { return 0x00FFFF; }
         move R0 #65535
         jmp L_27230089
 L_27230089:
@@ -1192,6 +1241,7 @@ color_magenta:
         push R12
         move R12 R13
         sub R13 #16
+; 83: __stdcall int color_magenta() { return 0xFF00FF; }
         move R0 #16711935
         jmp L_27230090
 L_27230090:
