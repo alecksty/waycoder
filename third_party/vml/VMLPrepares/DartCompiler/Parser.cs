@@ -11,6 +11,20 @@ public class Parser : ParserBase<Token, TokenType>
 
     protected override TokenType GetTokenType(Token token) => token.Type;
 
+    /// <summary>
+    /// 表达式**收尾符** —— 永远不会是表达式的开头。
+    /// 两个用途：`GapAnchor()` 的锚定判据；以及 `ParsePrimary` 容错分支里
+    /// **「这个 token 该不该吃掉」** —— 收尾符属于外层构造，吃掉它就会**级联**出假错。
+    /// </summary>
+    protected override bool IsExpressionCloser(Token token) => token.Type
+        is TokenType.RParen or TokenType.RBrace or TokenType.RBracket
+        or TokenType.Comma or TokenType.Semicolon or TokenType.Colon
+        or TokenType.EOF;
+
+    /// <summary>语句分隔 —— Dart 只有 `;`（换行不是 token）。</summary>
+    protected override bool IsStatementSeparator(Token token) => token.Type
+        is TokenType.Semicolon;
+
     protected override Token Expect(TokenType t, string msg) => base.Expect(t, $"Dart 解析错误: {msg}（得到 {Cur.Type}）");
 
     public Parser(List<Token> tokens) : base(tokens) { }
@@ -921,11 +935,30 @@ public class Parser : ParserBase<Token, TokenType>
         }
 
         // 容错: 类型关键词/泛型/字面量容器/其他token
-        if (IsType(Cur) || Cur.Type == TokenType.Void || Cur.Type == TokenType.Identifier ||
-            Cur.Type == TokenType.Lt || Cur.Type == TokenType.Gt ||
-            Cur.Type == TokenType.RBrace || Cur.Type == TokenType.RBracket ||
-            Cur.Type == TokenType.Semicolon || Cur.Type == TokenType.Colon)
+        //
+        // ⚠ 这条分支此前是**静默 `Advance()` + 造个 0**，而且名单里带着 `;` `:` `}` `]`
+        //   —— 那些是**外层构造的收尾符**，吃掉它们必然级联出假错。`int c = a + ;` 的实测：
+        //   ① 编成 `a + 0`（静默错编）；② 那个 `;` 被这里吃掉 ⇒ `ParseVarDecl` 的容错循环
+        //   一路跳到 `}`、再 `Expect(';')` 失败，报出「期望 ';' 在变量声明后」在**第 5 行**
+        //   —— 用户看到的那一条错，位置与原因**都是错的**（DiagProbe dart 修前实测）。
+        //
+        // 现在：报在**缺口**上；`IsExpressionCloser` 的收尾符**留给外层**（那正是它要的），
+        // 其余（类型名/泛型尖括号等垃圾 token）照旧吃掉以保证推进。
+        //
+        // ⚠ 报告必须**落在分支里面**：下面还有两条**正经**分支（数组字面量 `[`、map/set `{`），
+        //   把报告提到分支外面就会连它们一起报掉 —— 实测 `Examples/dart/catch.dart` 第 46 行
+        //   一句合法的 `[` 被报成「表达式缺失或多余（遇到 '['）」（本轮改出来的回归，语料当场抓住）。
+        if (IsExpressionCloser(Cur))
         {
+            GccErrorAt($"表达式缺失或多余（遇到 '{Cur.Value ?? GetTokenType(Cur).ToString()}'）",
+                       GapAnchor(), ErrorCode.Parser_SyntaxError);
+            return new LiteralNode(0, l, c);   // 不吃：留给外层构造去收尾
+        }
+        if (IsType(Cur) || Cur.Type == TokenType.Void || Cur.Type == TokenType.Identifier ||
+            Cur.Type == TokenType.Lt || Cur.Type == TokenType.Gt)
+        {
+            GccErrorAt($"表达式缺失或多余（遇到 '{Cur.Value ?? GetTokenType(Cur).ToString()}'）",
+                       GapAnchor(), ErrorCode.Parser_SyntaxError);
             Advance(); return new LiteralNode(0, l, c);
         }
         // 数组字面量: [1,2,3]
@@ -955,7 +988,8 @@ public class Parser : ParserBase<Token, TokenType>
             }
             return new LiteralNode(0, l, c);
         }
-        throw Error($"意外的 token: {Cur.Type}({Cur.Value})（位置 {Cur.Line}:{Cur.Column}）");
+        // 位置用 `GapAnchor()`；顺带去掉消息里手写的「（位置 L:C）」——与统一前缀重复。
+        throw ErrorAt($"意外的 token: {Cur.Type}({Cur.Value})", GapAnchor());
     }
 
     /// <summary>检测当前 &lt; 是否为泛型参数列表 (而非比较运算符)。
