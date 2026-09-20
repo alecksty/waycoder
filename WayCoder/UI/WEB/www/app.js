@@ -1638,6 +1638,16 @@ const MARKUP_STYLES = {
   'white': 'color:#c9d1d9;', 'orange3': 'color:#d29922;', 'orange': 'color:#ff8700;', 'grey': 'color:#6e7681;',
   'dim': 'opacity:.6;', 'bold': 'font-weight:700;',
   'underline': 'text-decoration:underline;', 'italic': 'font-style:italic;',
+  // ── 与 C# `MarkdownParser.TryMapTag` 对齐的**别名** ──
+  // 缺一个，那个标签就会**字面泄漏**成 `«gray»` 这样的文本（TUI/MAUI/GUI 三端都认，只有 Web 不认）。
+  'black': 'color:#484f58;', 'gray': 'color:#6e7681;', 'purple': 'color:#bc8cff;',
+  'faint': 'opacity:.6;', 'i': 'font-style:italic;', 'u': 'text-decoration:underline;',
+  'bright': 'font-weight:700;',
+  'strike': 'text-decoration:line-through;', 'strikethrough': 'text-decoration:line-through;',
+  's': 'text-decoration:line-through;',
+  // 终端概念，浏览器没有对应表现。**不能给空串** —— `markupTokenStyle` 用真值判断查表结果，
+  // 空串会被当成「未知标签」再泄漏一次；给一条浏览器会忽略的声明即可把标签吃掉。
+  'blink': 'text-decoration:blink;', 'reverse': 'filter:invert(1);', 'invert': 'filter:invert(1);',
 };
 // 单个标签词 → CSS 片段。命名词查表；«fg:#rrggbb» / «bg:#rrggbb» / «#rgb» 走十六进制，
 // «bg:red» 这类命名背景把 color: 改写成 background-color:。与 C# MarkdownParser.TryMapTag 同语法。
@@ -1916,6 +1926,23 @@ function renderToolOutput(text, raw) {
 }
 
 // ── Markdown 渲染（手搓、XSS 安全：先转义再结构化）──
+// HTML 实体表：**必须在转义之前**解码。解码后必经 `escapeHtml`，所以「重解出 < > &」不会引入 XSS
+// （`&lt;` → `<` → 转义回 `&lt;`，浏览器显示 `<`，正是 markdown 的语义）。
+const MD_ENTITIES = {
+  amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ',
+  hellip: '…', mdash: '—', ndash: '–', copy: '©', reg: '®', trade: '™', times: '×', divide: '÷',
+  deg: '°', plusmn: '±', middot: '·', bull: '•', euro: '€', pound: '£', yen: '¥',
+  sect: '§', para: '¶', laquo: '«', raquo: '»', ldquo: '“', rdquo: '”', lsquo: '‘', rsquo: '’',
+};
+function mdDecodeEntities(s) {
+  if (s.indexOf('&') < 0) return s;
+  const ok = (cp) => cp > 0 && cp <= 0x10ffff;
+  return s
+    .replace(/&#(\d{1,7});/g, (m, d) => { const cp = parseInt(d, 10); return ok(cp) ? String.fromCodePoint(cp) : m; })
+    .replace(/&#[xX]([0-9a-fA-F]{1,6});/g, (m, h) => { const cp = parseInt(h, 16); return ok(cp) ? String.fromCodePoint(cp) : m; })
+    .replace(/&([a-zA-Z]+);/g, (m, n) => (MD_ENTITIES[n] !== undefined ? MD_ENTITIES[n] : m));
+}
+
 function mdToHtml(src) {
   if (!src) return '';
   const lines = src.split('\n');
@@ -1925,11 +1952,27 @@ function mdToHtml(src) {
   let quote = false;
 
   function inline(s) {
+    // ① 实体先解码（见 MD_ENTITIES 注释）—— 此前不解码、且 markupToHtml 会转义一次
+    //    ⇒ `&amp;` 在页面上显示成 `&amp;`（**二次转义**）
+    s = mdDecodeEntities(s);
     s = markupToHtml(s);
-    s = s.replace(/`([^`]+)`/g, '<code class="md-inline">$1</code>');
-    s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+
+    // ② 行内代码：反引号**数量可变**（`` ``a`b`` ``）—— 此前只认单反引号，含反引号的内容解析失败
+    s = s.replace(/(`+)([\s\S]*?)\1/g, '<code class="md-inline">$2</code>');
+    // ③ 链接：允许 title（`[t](url "标题")`）与任意 scheme / 相对路径 ——
+    //    此前只认 `https?://` 且 url 内不能有空格 ⇒ 相对链接、`mailto:`、带 title 的**全部字面显示**
+    //    ⚠ 正则跑在 `markupToHtml` **之后**，此时 `"` `'` 已转义成 `&quot;` `&#39;`
+    //      ⇒ title 的引号必须同时容忍**转义形态**，否则带标题的链接整条不匹配、退化成纯文本。
+    s = s.replace(/\[([^\]]+)\]\(\s*([^\s)]+)(?:\s+(?:"[^"]*"|'[^']*'|&quot;[^&]*&quot;|&#39;[^&]*&#39;))?\s*\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    // ④ 强调：补 `***粗斜***`、`__加粗__`、`_斜体_`（此前只认 `*` / `**`，下划线形态完全不认）
+    s = s.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
     s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>');
     s = s.replace(/(^|[^*\w])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+    s = s.replace(/(^|[^_\w])_([^_\n]+)_(?![_\w])/g, '$1<em>$2</em>');
+    // ⑤ 删除线 —— 此前字面显示（TUI 淡化、MAUI/GUI 画真删除线，只有 Web 不认识）
+    s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
     return s;
   }
   function flushParagraph() {
@@ -1969,7 +2012,8 @@ function mdToHtml(src) {
       });
       i += 2; // 跳过表头与分隔行
       const rows = [];
-      while (i < lines.length && lines[i].includes('|')) { rows.push(splitRow(lines[i])); i++; }
+      // ⚠ 必须排除空行：表格后面跟一段**含竖线的正文**（`a | b 的用法说明`）会被吃进 tbody
+      while (i < lines.length && lines[i].trim() !== '' && lines[i].includes('|')) { rows.push(splitRow(lines[i])); i++; }
       const alignAttr = idx => (aligns[idx] && aligns[idx] !== 'left') ? ' style="text-align:' + aligns[idx] + '"' : '';
       let t = '<table class="md-table"><thead><tr>' + headers.map((h, idx) => '<th' + alignAttr(idx) + '>' + inline(h) + '</th>').join('') + '</tr></thead><tbody>';
       t += rows.map(r => '<tr>' + r.map((c, idx) => '<td' + alignAttr(idx) + '>' + inline(c) + '</td>').join('') + '</tr>').join('');
