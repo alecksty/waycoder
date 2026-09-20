@@ -85,34 +85,46 @@ public static class MarkupToFormattedString
         try { nodes = MarkdownParser.Parse(markup); }
         catch { RenderInline(markup, fs, isDark); return; }   // 渲染层崩掉比少一行格式更糟
 
-        foreach (var node in nodes)
-            RenderBlock(node, fs, isDark, maxHighlightChars, depth: 0);
+        RenderBlocks(nodes, fs, isDark, maxHighlightChars, depth: 0);
     }
 
-    /// <summary>渲染一个块（每个块**自带尾换行**，块间不再另插分隔）。</summary>
+    /// <summary>
+    /// 依次渲染一串块：**只在块之间插换行，末尾不插**。
+    ///
+    /// ⚠ 「末尾不插」是**硬要求**，不是风格问题：本方法也被当**行内渲染器**用 ——
+    /// `MarkdownPreview.AppendPlain` → `Convert` 渲染**表格单元格**。末尾多一个 `\n`
+    /// 会让每个格子多出整整一行，症状是「表格行变高、文字顶到上面、像多了个空行」。
+    /// （原始实现在这里就是「只在行间插」，重写时漏掉这条，真机上当场现形。）
+    /// </summary>
+    private static void RenderBlocks(List<MdNode> nodes, FormattedString fs, bool isDark,
+        int maxHighlightChars, int depth)
+    {
+        for (int n = 0; n < nodes.Count; n++)
+        {
+            RenderBlock(nodes[n], fs, isDark, maxHighlightChars, depth);
+            if (n < nodes.Count - 1) fs.Spans.Add(new Span { Text = "\n" });
+        }
+    }
+
+    /// <summary>渲染一个块 —— **不自带尾换行**（块间换行由 <see cref="RenderBlocks"/> 负责）。</summary>
     private static void RenderBlock(MdNode node, FormattedString fs, bool isDark,
         int maxHighlightChars, int depth)
     {
         switch (node)
         {
             case MdHeading h:
-            {
                 // 图形界面按级别放大字号 + 加粗（TUI 那边只能用颜色，能力所限）
-                var span = new Span
+                fs.Spans.Add(new Span
                 {
                     Text = h.Text,
                     FontAttributes = FontAttributes.Bold,
                     TextColor = ColorForToken(0, isDark),
                     FontSize = h.Level switch { 1 => 22, 2 => 19, 3 => 17, 4 => 16, _ => 15 },
-                };
-                fs.Spans.Add(span);
-                fs.Spans.Add(new Span { Text = "\n" });
+                });
                 break;
-            }
 
             case MdParagraph p:
                 RenderInline(p.Text, fs, isDark);
-                fs.Spans.Add(new Span { Text = "\n" });
                 break;
 
             case MdCodeBlock c:
@@ -123,7 +135,6 @@ public static class MarkupToFormattedString
                 // ⚠ 不再有「纯文本就退化成连着反引号一起显示」那条分支 —— 认不出语言也是代码块，
                 //   只是不高亮（此前 ```text 整块字面输出，手机上能看到 ```text 这几个字）
                 RenderCode(c.Code, syntax, fs, isDark, maxHighlightChars);
-                fs.Spans.Add(new Span { Text = "\n" });
                 break;
             }
 
@@ -138,31 +149,23 @@ public static class MarkupToFormattedString
                     TextColor = ColorForToken(li.Checked is true ? 32 : 0, isDark),
                 });
                 RenderInline(li.Text, fs, isDark);
-                fs.Spans.Add(new Span { Text = "\n" });
                 break;
             }
 
             case MdBlockQuote q:
             {
-                // 引用是**容器块**：内部块渲染到临时串上，再给每一行统一加 `▎ ` 前缀
+                // 引用是**容器块**：内部块先渲染到临时串，再给每一行统一加 `▎ ` 前缀。
+                // 因为内部末尾不带换行，替换后不会留下悬空的竖条（早先那个 TrimTrailingBar 补丁已不需要）。
                 var inner = new FormattedString();
-                foreach (var child in q.Blocks)
-                    RenderBlock(child, inner, isDark, maxHighlightChars, depth + 1);
-                if (inner.Spans.Count == 0)
-                    RenderInline(q.Text, inner, isDark);
+                RenderBlocks(q.Blocks, inner, isDark, maxHighlightChars, depth + 1);
+                if (inner.Spans.Count == 0) RenderInline(q.Text, inner, isDark);
 
-                var barColor = ColorForToken(2, isDark);
-                fs.Spans.Add(new Span { Text = "▎ ", TextColor = barColor });
-                for (int k = 0; k < inner.Spans.Count; k++)
+                fs.Spans.Add(new Span { Text = "▎ ", TextColor = ColorForToken(2, isDark) });
+                foreach (var s in inner.Spans)
                 {
-                    var s = inner.Spans[k];
-                    // 每行都补前缀（引用块跨多行时要看得出是整块被引用）
-                    s.Text = s.Text.Replace("\n", "\n▎ ");
+                    s.Text = s.Text.Replace("\n", "\n▎ ");   // 每行都补前缀
                     fs.Spans.Add(s);
                 }
-                // 末行原本以 \n 结尾，替换后变成「\n▎ 」——去掉那个悬空的竖条
-                TrimTrailingBar(fs, "▎ ");
-                fs.Spans.Add(new Span { Text = "\n" });
                 break;
             }
 
@@ -172,27 +175,16 @@ public static class MarkupToFormattedString
                     Text = new string('─', 24),
                     TextColor = ColorForToken(2, isDark),
                 });
-                fs.Spans.Add(new Span { Text = "\n" });
                 break;
 
             case MdMarkup m:
                 RenderInline(m.Text, fs, isDark, baseColor: m.Style);
-                fs.Spans.Add(new Span { Text = "\n" });
                 break;
 
             case MdTable tbl:
                 RenderTable(tbl, fs, isDark);
                 break;
         }
-    }
-
-    /// <summary>去掉最后一个 Span 末尾悬空的行前缀（引用块 `▎ ` 用）。</summary>
-    private static void TrimTrailingBar(FormattedString fs, string bar)
-    {
-        if (fs.Spans.Count == 0) return;
-        var last = fs.Spans[^1];
-        if (last.Text.EndsWith(bar, StringComparison.Ordinal))
-            last.Text = last.Text[..^bar.Length];
     }
 
     /// <summary>
@@ -206,7 +198,7 @@ public static class MarkupToFormattedString
         rows.AddRange(tbl.Rows);
 
         var cols = rows.Max(r => r.Count);
-        if (cols == 0) { fs.Spans.Add(new Span { Text = "\n" }); return; }
+        if (cols == 0) return;
 
         // 列宽按**去掉标记后的可见文本**量 —— 用原始串会把 `**` 也算进宽度，列宽虚胖
         var widths = new int[cols];
@@ -240,7 +232,8 @@ public static class MarkupToFormattedString
                 if (right > 0) fs.Spans.Add(new Span { Text = new string(' ', right), FontFamily = MonoFont });
                 fs.Spans.Add(new Span { Text = " | ", FontFamily = MonoFont, TextColor = border });
             }
-            fs.Spans.Add(new Span { Text = "\n" });
+            // 行间换行；**末行不补**（与 RenderBlocks 同一条规矩：渲染单元末尾不留换行）
+            if (r < rows.Count - 1) fs.Spans.Add(new Span { Text = "\n" });
         }
     }
 
