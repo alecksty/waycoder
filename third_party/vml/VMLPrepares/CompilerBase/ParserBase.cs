@@ -261,6 +261,40 @@ namespace CompilerBase
             return new ParseException(ErrorCode.Unknown, message, anchor, file, line, col);
         }
 
+        /// <summary>该 token 是**表达式收尾符**（`)` / `]` / `}` / `,` / `:` / `;` / 换行 / EOF）。
+        /// 逐语言给 —— 只有各门自己知道自己的 TokenType 长什么样。</summary>
+        protected virtual bool IsExpressionCloser(TToken token) => false;
+
+        /// <summary>该 token 是**语句分隔**（换行 / `;`）。同样逐语言给。</summary>
+        protected virtual bool IsStatementSeparator(TToken token) => false;
+
+        /// <summary>
+        /// 报「表达式缺失」时该把位置**锚在哪个 token** 上 —— 缺口比撞上的 token 更早时返回上一个，
+        /// 否则返回当前 token。三个判据，缺一不可：
+        ///
+        /// <list type="number">
+        /// <item><b>撞上的必须是收尾符</b>。收尾符**永远不会是表达式的开头**，所以撞上它就说明
+        /// 缺口在**它之前**（`x = 1 +` 换行后才遇到 `NEWLINE`，报 `NEWLINE` 就跑到第 5 行去了，
+        /// 而错在第 4 行）。反过来，撞上的若是普通 token（比如行首一个不该出现的符号），
+        /// **它自己就是问题**，锚到上一个 token 只会报到上一行去。</item>
+        /// <item><b>上一个不能是语句分隔</b>。`x = 1` 换行后跟一个 `)`：缺口在本行**行首**，
+        /// 锚到上一行的 `NEWLINE` 是错的（那一格正好被第 1 条放行进来）。</item>
+        /// <item><b>两者要跨行</b>。同行就直接报撞上的那个（`f(a,)` 报 `)` 是对的）——
+        /// 锚定只用来解决「缺口在上一行」这一件事。</item>
+        /// </list>
+        ///
+        /// 本仓的判据是**位置取"缺口在哪"、文案取"看到了什么"**（见 <see cref="ErrorAt"/>）。
+        /// 用法：<c>ErrorAt($"…{Cur.Type}…", GapAnchor())</c>。
+        /// </summary>
+        protected TToken GapAnchor()
+        {
+            var prev = Previous();
+            if (!IsExpressionCloser(CurrentToken)) return CurrentToken;
+            if (IsStatementSeparator(prev)) return CurrentToken;
+            if (GetTokenLine(CurrentToken) == GetTokenLine(prev)) return CurrentToken;
+            return prev;
+        }
+
         /// <summary>
         /// <see cref="GccError"/> 的锚定版：**收集**（不抛）到**指定 token** 的位置上。
         ///
