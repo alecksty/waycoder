@@ -171,24 +171,47 @@ namespace CompilerBase
         public int CurrentSourceOriginalLine { get; set; } = 0;
 
         /// <summary>诊断该用的行号：优先原文件行号，没有就退回预处理后的行号。</summary>
-        private int DiagLine => CurrentSourceOriginalLine > 0 ? CurrentSourceOriginalLine : CurrentSourceLine;
+        private int DiagLine => DiagPosition().Line;
 
         /// <summary>
         /// 诊断该用的**文件**（与 <see cref="DiagLine"/> 配对）。
         ///
         /// <para>
-        /// 默认就是"当前编译的源文件"（`CompileFileStandard` 设的 `CurrentSourceFile`），
-        /// 与从前逐字相同 —— 不覆写的 21 门语言行为**零变化**。
-        /// </para>
-        ///
-        /// <para>
         /// 之所以做成虚属性：**错误其实在头文件里**时，若照旧报「主文件名 + 头文件的行号」，
         /// 宿主侧只能把这行号硬贴到用户正在看的那个文件上 —— 用户看到的是"编译器指着我
         /// 这句没问题的代码报错"（实测：`#include &lt;stdio.h&gt;` 之后的错被贴到用户文件
-        /// 第 112 行一句无害的 `/// &lt;summary&gt;` 上）。有 `OriginalFile` 的语言覆写它即可。
+        /// 第 112 行一句无害的 `/// &lt;summary&gt;` 上）。有 `OriginalFile` 的语言覆写它即可
+        ///（C++ 就是这么做的）。
         /// </para>
         /// </summary>
-        protected virtual string DiagFile => CompilerHelper.CurrentSourceFile ?? "<input>";
+        protected virtual string DiagFile => DiagPosition().File;
+
+        /// <summary>
+        /// **诊断位置（文件 + 行）的唯一判据** —— 三个报错出口（`ReportUndefined` /
+        /// `WarnUndefined` / `WarnUnused`）与 `DiagFile`/`DiagLine` 全从这里取。
+        ///
+        /// <para>
+        /// 三条分支：
+        /// ① 语言自己给了原文件行号（`CurrentSourceOriginalLine`，C/C++ 走这条）⇒ 原样用，
+        ///    **绝不能再映射一次**（那会把"原文件第 30 行"当成"拼接流第 30 行"去查表，
+        ///    查出来是**另一个文件**的行 —— 比不映射更糟）；
+        /// ② 有生效中的映射表（词法器认领的那份，见 `CompilerHelper.ActiveLineMap`）⇒
+        ///    把**预处理后的行号**映射回原文件。这一条正是 21 门语言从前缺的那一环：
+        ///    它们只给 `CurrentSourceLine`（= 拼接流行号），于是「错在 `Lib/c/time.h` 第 30 行」
+        ///    被报成「用户文件第 112 行」；
+        /// ③ 没有表 ⇒ 原样退回，与从前**逐字相同**（不传 `#` 的源码走这条，行为零变化）。
+        /// </para>
+        /// </summary>
+        protected (string File, int Line) DiagPosition()
+        {
+            if (CurrentSourceOriginalLine > 0) return (BaseDiagFile, CurrentSourceOriginalLine);
+            var (file, line) = CompilerHelper.MapActiveOriginal(CurrentSourceLine);
+            if (file == null) return (BaseDiagFile, CurrentSourceLine);
+            return (file, line);
+        }
+
+        /// <summary>没映射可用时的文件名（= 从前 `DiagFile` 的默认实现，逐字保留）。</summary>
+        private string BaseDiagFile => CompilerHelper.CurrentSourceFile ?? "<input>";
 
         /// <summary>
         /// 源码行文本数组（行号 0 对应第 1 行），为 null 时不生成源码注释

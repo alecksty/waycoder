@@ -140,7 +140,7 @@ public partial class CodeGenerator
                     new List<Operand> { new Operand(OperandType.REGISTER, 0), new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 0) }, instructions.Count));
                 return;
             default:
-                throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, $"Unknown binary operator: {node.Op}");
+                throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, $"未知的二元运算符: {node.Op}");
         }
     }
 

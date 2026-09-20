@@ -104,7 +104,7 @@ public partial class CodeGenerator
             _expr!.EmitBinOp(left, right, node.Op);
             return;
         }
-        throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, $"Unknown binary operator: {node.Op}");
+        throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, $"未知的二元运算符: {node.Op}");
     }
 
     private void GenerateTernary(ASTNode cond, ASTNode thenExpr, ASTNode elseExpr)

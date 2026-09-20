@@ -9,7 +9,7 @@ public class Parser : ParserBase<Token, TokenType>
 {
     protected override TokenType GetTokenType(Token token) => token.Type;
 
-    protected override Token Expect(TokenType t, string msg) => base.Expect(t, $"Ruby parse error: {msg} (got {Cur.Type})");
+    protected override Token Expect(TokenType t, string msg) => base.Expect(t, $"Ruby 解析错误: {msg}（得到 {Cur.Type}）");
 
     public Parser(List<Token> tokens) : base(tokens) { }
 
@@ -34,7 +34,7 @@ public class Parser : ParserBase<Token, TokenType>
         if (Check(TokenType.Def)) return ParseDef();
         if (Check(TokenType.Module)) return ParseModule();
         if (Check(TokenType.Class)) return ParseClass();
-        if (Check(TokenType.Include)) { Advance(); return new IncludeNode(Expect(TokenType.Identifier, "expected module name").Value, Cur.Line, Cur.Column); }
+        if (Check(TokenType.Include)) { Advance(); return new IncludeNode(Expect(TokenType.Identifier, "期望模块名").Value, Cur.Line, Cur.Column); }
         if (Check(TokenType.Return)) return ParseReturn();
         if (Check(TokenType.If) || Check(TokenType.Unless)) return ParseIf();
         if (Check(TokenType.While) || Check(TokenType.Until)) return ParseWhile();
@@ -57,13 +57,13 @@ public class Parser : ParserBase<Token, TokenType>
         int l = Cur.Line, c = Cur.Column;
         Advance(); // def
         bool isNative = Match(TokenType.Native);
-        string name = Expect(TokenType.Identifier, "expected method name").Value;
+        string name = Expect(TokenType.Identifier, "期望方法名").Value;
         var parms = new List<string>();
         if (Match(TokenType.LParen))
         {
             if (!Check(TokenType.RParen))
             {
-                do parms.Add(Expect(TokenType.Identifier, "expected param").Value);
+                do parms.Add(Expect(TokenType.Identifier, "期望参数名").Value);
                 while (Match(TokenType.Comma));
             }
             Expect(TokenType.RParen, "expected )");
@@ -76,7 +76,7 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance(); // module
-        string name = Expect(TokenType.Identifier, "expected module name").Value;
+        string name = Expect(TokenType.Identifier, "期望模块名").Value;
         var body = new List<ASTNode>(ParseBlock());
         return new ModuleNode(name, body, l, c);
     }
@@ -84,7 +84,7 @@ public class Parser : ParserBase<Token, TokenType>
     private ASTNode ParseClass()
     {
         Advance(); // class
-        string name = Expect(TokenType.Identifier, "expected class name").Value;
+        string name = Expect(TokenType.Identifier, "期望类名").Value;
         var body = ParseBlock();
         return new DefNode("self." + name, new List<string>(), body, 0, 0);
     }
@@ -160,7 +160,7 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance(); // for
-        string v = Expect(TokenType.Identifier, "expected variable").Value;
+        string v = Expect(TokenType.Identifier, "期望变量名").Value;
         Expect(TokenType.In, "expected 'in'");
         var from = ParseExpression();
         Expect(TokenType.Range, "expected '..'");
@@ -190,7 +190,7 @@ public class Parser : ParserBase<Token, TokenType>
             {
                 excClass = Cur.Value; Advance(); // 异常类名
                 Advance(); // =>
-                varName = Expect(TokenType.Identifier, "expected variable name after =>").Value;
+                varName = Expect(TokenType.Identifier, "期望变量名在 => 后").Value;
             }
             var rescueBody = new List<ASTNode>();
             while (Cur.Type != TokenType.Rescue && Cur.Type != TokenType.Ensure && Cur.Type != TokenType.Else && Cur.Type != TokenType.End)
@@ -265,7 +265,7 @@ public class Parser : ParserBase<Token, TokenType>
             int l = Cur.Line, c = Cur.Column;
             Advance(); // consume ?
             var trueVal = ParseExpression();
-            Expect(TokenType.Colon, "expected ':' in ternary expression");
+            Expect(TokenType.Colon, "期望 ':' 在三元表达式中");
             var falseVal = ParseExpression();
             return new TernaryNode(left, trueVal, falseVal, l, c);
         }
@@ -398,7 +398,7 @@ public class Parser : ParserBase<Token, TokenType>
             if (Check(TokenType.Dot))
             {
                 Advance();
-                string method = Expect(TokenType.Identifier, "expected method").Value;
+                string method = Expect(TokenType.Identifier, "期望方法名").Value;
                 if (Match(TokenType.LParen)) return ParseCall(new VarNode(name, l, c), method);
                 return new CallNode(new VarNode(name, l, c), method, new List<ASTNode>(), l, c);
             }
@@ -421,7 +421,7 @@ public class Parser : ParserBase<Token, TokenType>
             return expr;
         }
 
-        throw Error($"Unexpected token: {Cur.Type}({Cur.Value}) at {Cur.Line}:{Cur.Column}");
+        throw Error($"意外的 token: {Cur.Type}({Cur.Value})（位置 {Cur.Line}:{Cur.Column}）");
     }
 
     private ASTNode ParseCall(ASTNode? receiver, string method)

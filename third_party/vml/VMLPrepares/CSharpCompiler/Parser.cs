@@ -164,9 +164,9 @@ namespace CSharpCompiler
             if (Match(TokenType.Lock) && IsMCU)
             {
                 WarningEmitter.Emit("csharp", Strings.McuSkipped("csharp", "lock语句", "不支持多线程"), line: Previous().Line);
-                Expect(TokenType.LeftParen, "Expected '(' after lock");
+                Expect(TokenType.LeftParen, "期望 '(' 在 lock 后");
                 SkipExpression();  // 跳过锁定对象表达式
-                Expect(TokenType.RightParen, "Expected ')' after lock expression");
+                Expect(TokenType.RightParen, "期望 ')' 在 lock 表达式后");
                 SkipBlock();       // 跳过锁定的代码块
                 return null;
             }
@@ -177,7 +177,7 @@ namespace CSharpCompiler
                 WarningEmitter.Emit("csharp", Strings.McuSkipped("csharp", "yield语句", "不支持迭代器"), line: Previous().Line);
                 // 消耗 yield return / yield break
                 Advance();
-                Expect(TokenType.Semicolon, "Expected ';' after yield");
+                Expect(TokenType.Semicolon, "期望 ';' 在 yield 后");
                 return null;
             }
 
@@ -185,9 +185,9 @@ namespace CSharpCompiler
             if (Match(TokenType.Fixed) && IsMCU)
             {
                 WarningEmitter.Emit("csharp", Strings.McuSkipped("csharp", "fixed语句", "平坦内存模型不需要"), line: Previous().Line);
-                Expect(TokenType.LeftParen, "Expected '(' after fixed");
+                Expect(TokenType.LeftParen, "期望 '(' 在 fixed 后");
                 SkipExpression();
-                Expect(TokenType.RightParen, "Expected ')' after fixed expression");
+                Expect(TokenType.RightParen, "期望 ')' 在 fixed 表达式后");
                 SkipBlock();
                 return null;
             }
@@ -195,12 +195,12 @@ namespace CSharpCompiler
             // break/continue语句
             if (Match(TokenType.Break))
             {
-                Expect(TokenType.Semicolon, "Expected ';' after break");
+                Expect(TokenType.Semicolon, "期望 ';' 在 break 后");
                 return new BreakStatement();
             }
             if (Match(TokenType.Continue))
             {
-                Expect(TokenType.Semicolon, "Expected ';' after continue");
+                Expect(TokenType.Semicolon, "期望 ';' 在 continue 后");
                 return new ContinueStatement();
             }
             
@@ -254,7 +254,7 @@ namespace CSharpCompiler
                             Advance();
                         }
                     }
-                    Expect(TokenType.Semicolon, "Expected ';' after delegate");
+                    Expect(TokenType.Semicolon, "期望 ';' 在 delegate 后");
                     return null;
                 }
                 // 递归解析后面的声明
@@ -395,7 +395,7 @@ namespace CSharpCompiler
                         nsParts.Add(Peek().Value);
                     Advance();
                 }
-                Expect(TokenType.Semicolon, "Expected ';' after using");
+                Expect(TokenType.Semicolon, "期望 ';' 在 using 后");
                 if (nsParts.Count > 0)
                     _usingNamespaces.Add(string.Join(".", nsParts));
                 return null;
@@ -513,14 +513,14 @@ namespace CSharpCompiler
             string aliasName = null;
             if (isNative && Match(TokenType.Alias))
             {
-                Expect(TokenType.StringLiteral, "Expected string literal after 'alias'");
+                Expect(TokenType.StringLiteral, "期望字符串字面量在 'alias' 后");
                 aliasName = Previous().Value;
             }
 
             Block body = null;
             if (isNative)
             {
-                Expect(TokenType.Semicolon, "Expected ';' after native method declaration");
+                Expect(TokenType.Semicolon, "期望 ';' 在 native 方法声明后");
             }
             else if (Match(TokenType.Lambda))
             {
@@ -528,7 +528,7 @@ namespace CSharpCompiler
                 var expr = ParseExpression();
                 body = new Block();
                 body.Statements.Add(new ReturnStatement(expr));
-                Expect(TokenType.Semicolon, "Expected ';' after expression-bodied method");
+                Expect(TokenType.Semicolon, "期望 ';' 在表达式体方法后");
             }
             else
             {
@@ -564,7 +564,7 @@ namespace CSharpCompiler
                 baseType = tokens[position++].Value;
             else
             {
-                Expect(TokenType.Identifier, "Expected type name");
+                Expect(TokenType.Identifier, "期望类型名");
                 return "int";
             }
 
@@ -660,11 +660,11 @@ namespace CSharpCompiler
                             }
                         } while (Match(TokenType.Comma));
                         
-                        Expect(TokenType.RightParen, "Expected ')' after arguments");
+                        Expect(TokenType.RightParen, "期望 ')' 在实参后");
                     }
                 }
                 
-                Expect(TokenType.Semicolon, "Expected ';' after Console statement");
+                Expect(TokenType.Semicolon, "期望 ';' 在 Console 语句后");
                 
                 return new ConsoleWriteLineStatement(arguments) { HasNewLine = hasNewLine };
             }
@@ -674,9 +674,9 @@ namespace CSharpCompiler
         
         private Statement ParseIfStatement()
         {
-            Expect(TokenType.LeftParen, "Expected '(' after 'if'");
+            Expect(TokenType.LeftParen, "期望 '(' 在 'if' 后");
             var condition = ParseExpression();
-            Expect(TokenType.RightParen, "Expected ')' after if condition");
+            Expect(TokenType.RightParen, "期望 ')' 在 if 条件后");
             
             var thenBranch = ParseStatement();
             
@@ -691,9 +691,9 @@ namespace CSharpCompiler
         
         private Statement ParseWhileStatement()
         {
-            Expect(TokenType.LeftParen, "Expected '(' after 'while'");
+            Expect(TokenType.LeftParen, "期望 '(' 在 'while' 后");
             var condition = ParseExpression();
-            Expect(TokenType.RightParen, "Expected ')' after while condition");
+            Expect(TokenType.RightParen, "期望 ')' 在 while 条件后");
             
             var body = ParseStatement();
             
@@ -702,7 +702,7 @@ namespace CSharpCompiler
         
         private Statement ParseForStatement()
         {
-            Expect(TokenType.LeftParen, "Expected '(' after 'for'");
+            Expect(TokenType.LeftParen, "期望 '(' 在 'for' 后");
 
             
             Statement initializer = null;
@@ -721,11 +721,11 @@ namespace CSharpCompiler
                     // 处理数组类型：int[], string[]等
                     if (Match(TokenType.LeftBracket))
                     {
-                        Expect(TokenType.RightBracket, "Expected ']' after array type");
+                        Expect(TokenType.RightBracket, "期望 ']' 在数组类型后");
                         type += "[]";
                     }
                     
-                    Expect(TokenType.Identifier, "Expected variable name");
+                    Expect(TokenType.Identifier, "期望变量名");
                     var nameToken = Previous();
                     string name = nameToken.Value;
                     
@@ -743,7 +743,7 @@ namespace CSharpCompiler
                                     var element = ParseExpression();
                                     if (element != null) elements.Add(element);
                                 } while (Match(TokenType.Comma));
-                                Expect(TokenType.RightBrace, "Expected '}' after array literal");
+                                Expect(TokenType.RightBrace, "期望 '}' 在数组字面量后");
                             }
                             initializerExpr = new ArrayLiteralExpression(elements);
                         }
@@ -765,7 +765,7 @@ namespace CSharpCompiler
                 }
             }
             
-            Expect(TokenType.Semicolon, "Expected ';' after for initializer");
+            Expect(TokenType.Semicolon, "期望 ';' 在 for 初始化后");
             
             Expression condition = null;
             if (!Check(TokenType.Semicolon))
@@ -773,14 +773,14 @@ namespace CSharpCompiler
                 condition = ParseExpression();
             }
             
-            Expect(TokenType.Semicolon, "Expected ';' after for condition");
+            Expect(TokenType.Semicolon, "期望 ';' 在 for 条件后");
             
             Expression increment = null;
             if (!Check(TokenType.RightParen))
             {
                 increment = ParseExpression();
             }
-            Expect(TokenType.RightParen, "Expected ')' after for increment");
+            Expect(TokenType.RightParen, "期望 ')' 在 for 增量后");
             
             var body = ParseStatement();
             
@@ -789,13 +789,13 @@ namespace CSharpCompiler
         
         private Statement ParseForEachStatement()
         {
-            Expect(TokenType.LeftParen, "Expected '(' after 'foreach'");
+            Expect(TokenType.LeftParen, "期望 '(' 在 'foreach' 后");
             string varType = null;
             string varName = null;
 
             if (Match(TokenType.Var))
             {
-                Expect(TokenType.Identifier, "Expected variable name after 'var'");
+                Expect(TokenType.Identifier, "期望变量名在 'var' 后");
                 varName = Previous().Value;
                 varType = "var";
             }
@@ -807,33 +807,33 @@ namespace CSharpCompiler
                 varType = Previous().Value;
                 if (Match(TokenType.LeftBracket))
                 {
-                    Expect(TokenType.RightBracket, "Expected ']' after array type");
+                    Expect(TokenType.RightBracket, "期望 ']' 在数组类型后");
                     varType += "[]";
                 }
-                Expect(TokenType.Identifier, "Expected variable name");
+                Expect(TokenType.Identifier, "期望变量名");
                 varName = Previous().Value;
             }
             else
             {
-                Expect(TokenType.Identifier, "Expected variable type");
+                Expect(TokenType.Identifier, "期望变量类型");
                 varType = Previous().Value;
-                Expect(TokenType.Identifier, "Expected variable name");
+                Expect(TokenType.Identifier, "期望变量名");
                 varName = Previous().Value;
             }
 
-            Expect(TokenType.In, "Expected 'in' in foreach statement");
+            Expect(TokenType.In, "期望 'in' 在 foreach 语句中");
             var collection = ParseExpression();
-            Expect(TokenType.RightParen, "Expected ')' after foreach collection");
+            Expect(TokenType.RightParen, "期望 ')' 在 foreach 集合后");
             var body = ParseStatement();
             return new ForEachStatement(varType, varName, collection, body);
         }
 
         private Statement ParseSwitchStatement()
         {
-            Expect(TokenType.LeftParen, "Expected '(' after 'switch'");
+            Expect(TokenType.LeftParen, "期望 '(' 在 'switch' 后");
             var value = ParseExpression();
-            Expect(TokenType.RightParen, "Expected ')' after switch value");
-            Expect(TokenType.LeftBrace, "Expected '{' to start switch block");
+            Expect(TokenType.RightParen, "期望 ')' 在 switch 值后");
+            Expect(TokenType.LeftBrace, "期望 '{' 用于开始 switch 块");
 
             var sw = new SwitchStatement(value);
             while (!Check(TokenType.RightBrace) && !IsAtEnd())
@@ -841,7 +841,7 @@ namespace CSharpCompiler
                 if (Match(TokenType.Case))
                 {
                     var caseVal = ParseExpression();
-                    Expect(TokenType.Colon, "Expected ':' after case value");
+                    Expect(TokenType.Colon, "期望 ':' 在 case 值后");
                     var sc = new SwitchCase { Value = caseVal };
                     while (!Check(TokenType.RightBrace) && !Check(TokenType.Case) && !Check(TokenType.Default) && !IsAtEnd())
                     {
@@ -853,7 +853,7 @@ namespace CSharpCompiler
                 }
                 else if (Match(TokenType.Default))
                 {
-                    Expect(TokenType.Colon, "Expected ':' after default");
+                    Expect(TokenType.Colon, "期望 ':' 在 default 后");
                     var sc = new SwitchCase { Value = null };
                     while (!Check(TokenType.RightBrace) && !Check(TokenType.Case) && !Check(TokenType.Default) && !IsAtEnd())
                     {
@@ -865,17 +865,17 @@ namespace CSharpCompiler
                 }
                 else break;
             }
-            Expect(TokenType.RightBrace, "Expected '}' to end switch block");
+            Expect(TokenType.RightBrace, "期望 '}' 用于结束 switch 块");
             return sw;
         }
 
         private Statement ParseDoWhileStatement()
         {
             var body = ParseStatement();
-            Expect(TokenType.While, "Expected 'while' after do body");
-            Expect(TokenType.LeftParen, "Expected '(' after 'while'");
+            Expect(TokenType.While, "期望 'while' 在 do 语句体后");
+            Expect(TokenType.LeftParen, "期望 '(' 在 'while' 后");
             var condition = ParseExpression();
-            Expect(TokenType.RightParen, "Expected ')' after while condition");
+            Expect(TokenType.RightParen, "期望 ')' 在 while 条件后");
             Match(TokenType.Semicolon);
             return new DoWhileStatement(body, condition);
         }
@@ -891,7 +891,7 @@ namespace CSharpCompiler
                 {
                     if (Match(TokenType.Identifier)) cc.ExceptionType = Previous().Value;
                     if (Match(TokenType.Identifier)) cc.VariableName = Previous().Value;
-                    Expect(TokenType.RightParen, "Expected ')' after catch parameters");
+                    Expect(TokenType.RightParen, "期望 ')' 在 catch 参数后");
                 }
                 cc.Body = ParseStatement();
                 ts.Catches.Add(cc);
@@ -906,15 +906,15 @@ namespace CSharpCompiler
             {
                 value = ParseExpression();
             }
-            Expect(TokenType.Semicolon, "Expected ';' after throw");
+            Expect(TokenType.Semicolon, "期望 ';' 在 throw 后");
             return new ThrowStatement(value);
         }
 
         private Statement ParseEnumDeclaration()
         {
-            Expect(TokenType.Identifier, "Expected enum name");
+            Expect(TokenType.Identifier, "期望枚举名");
             string name = Previous().Value;
-            Expect(TokenType.LeftBrace, "Expected '{' after enum name");
+            Expect(TokenType.LeftBrace, "期望 '{' 在枚举名后");
 
             var members = new List<string>();
             while (!Check(TokenType.RightBrace) && !IsAtEnd())
@@ -933,7 +933,7 @@ namespace CSharpCompiler
                 }
                 else break;
             }
-            Expect(TokenType.RightBrace, "Expected '}' after enum members");
+            Expect(TokenType.RightBrace, "期望 '}' 在枚举成员后");
             Match(TokenType.Semicolon);
 
             return new EnumDeclStatement(name, members);
@@ -990,7 +990,7 @@ namespace CSharpCompiler
                 // 数组
                 if (Match(TokenType.LeftBracket))
                 {
-                    Expect(TokenType.RightBracket, "Expected ']' after array type");
+                    Expect(TokenType.RightBracket, "期望 ']' 在数组类型后");
                     type += "[]";
                 }
             }
@@ -998,7 +998,7 @@ namespace CSharpCompiler
             // 处理数组类型：int[], string[]等
             if (Match(TokenType.LeftBracket))
             {
-                Expect(TokenType.RightBracket, "Expected ']' after array type");
+                Expect(TokenType.RightBracket, "期望 ']' 在数组类型后");
                 type += "[]";
             }
             
@@ -1008,7 +1008,7 @@ namespace CSharpCompiler
                 Console.WriteLine($"DEBUG ParseVariableDeclaration: type={type}, current={Current?.Type}:{Current?.Value}");
             }
             
-            Expect(TokenType.Identifier, "Expected variable name");
+            Expect(TokenType.Identifier, "期望变量名");
             var nameToken = Previous();
             string name = nameToken.Value;
             
@@ -1033,7 +1033,7 @@ namespace CSharpCompiler
                             }
                         } while (Match(TokenType.Comma));
                         
-                        Expect(TokenType.RightBrace, "Expected '}' after array literal");
+                        Expect(TokenType.RightBrace, "期望 '}' 在数组字面量后");
                     }
                     
                     initializer = new ArrayLiteralExpression(elements);
@@ -1056,20 +1056,20 @@ namespace CSharpCompiler
                 stmts.Add(new VariableDeclStatement(type, name, initializer));
                 do
                 {
-                    Expect(TokenType.Identifier, "Expected variable name after comma");
+                    Expect(TokenType.Identifier, "期望变量名在逗号后");
                     var nextName = Previous().Value;
                     Expression nextInit = null;
                     if (Match(TokenType.Assignment))
                         nextInit = ParseExpression();
                     stmts.Add(new VariableDeclStatement(type, nextName, nextInit));
                 } while (Match(TokenType.Comma));
-                Expect(TokenType.Semicolon, "Expected ';' after variable declaration");
+                Expect(TokenType.Semicolon, "期望 ';' 在变量声明后");
                 if (stmts.Count > 1)
                     _extraDeclarations.AddRange(stmts.Skip(1));
                 return stmts[0];
             }
             
-            Expect(TokenType.Semicolon, "Expected ';' after variable declaration");
+            Expect(TokenType.Semicolon, "期望 ';' 在变量声明后");
             
             return new VariableDeclStatement(type, name, initializer);
         }
@@ -1083,7 +1083,7 @@ namespace CSharpCompiler
                 value = ParseExpression();
             }
             
-            Expect(TokenType.Semicolon, "Expected ';' after return statement");
+            Expect(TokenType.Semicolon, "期望 ';' 在 return 语句后");
             
             return new ReturnStatement(value);
         }

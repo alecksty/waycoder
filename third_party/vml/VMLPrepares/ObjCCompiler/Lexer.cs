@@ -107,7 +107,7 @@ public class Lexer : LexerBase
                 case ':': Tokens.Add(new Token(TokenType.Colon, ":", _line, _col)); break;
                 case '?': Tokens.Add(new Token(TokenType.Question, "?", _line, _col)); break;
                 case '.': Tokens.Add(Match('.') ? (Match('.') ? new Token(TokenType.Ellipsis, "...", _line, _col) : new Token(TokenType.Dot, "..", _line, _col)) : new Token(TokenType.Dot, ".", _line, _col)); break;
-                default: Error($"Unexpected char: {c}"); break;
+                default: Error($"意外的字符: {c}"); break;
             }
         }
         Tokens.Add(new Token(TokenType.EOF, "", _line, _col));

@@ -26,7 +26,7 @@ namespace RustCompiler
                 else node.Left.Accept(this);
                 return;
             }
-            throw new CodeGenerationException(VMLPlugins.Localization.Get("rust.unsupported_binary") + $": {node.Operator}");
+            throw new CodeGenerationException("不支持的二元运算符" + $": {node.Operator}");
         }
         
         public void Visit(UnaryOperationNode node)
@@ -85,7 +85,7 @@ namespace RustCompiler
                     }
                     break;
                 default:
-                    throw new CodeGenerationException(VMLPlugins.Localization.Get("rust.unsupported_unary") + $": {node.Operator}");
+                    throw new CodeGenerationException("不支持的一元运算符" + $": {node.Operator}");
             }
         }
         
@@ -155,7 +155,7 @@ namespace RustCompiler
             if (_movedVariables.Contains(node.Name))
             {
                 throw new CodeGenerationException(
-                    $"use of moved value: `{node.Name}` (value moved to another binding)");
+                    $"使用了已被移动的值: `{node.Name}`（值已被移动到另一个绑定）");
             }
 
             // 获取变量类型

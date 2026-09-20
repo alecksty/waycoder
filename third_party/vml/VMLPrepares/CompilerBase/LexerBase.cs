@@ -11,7 +11,12 @@ public class LexerBase
     protected int _line = 1;
     protected int _col = 1;
 
-    protected LexerBase(string source) { _source = source; }
+    protected LexerBase(string source)
+    {
+        _source = source;
+        RefreshLineMap();
+    }
+
     protected LexerBase(string source, string? fileName) : this(source) { FileName = fileName; }
 
     /// <summary>当前行号</summary>
@@ -34,7 +39,31 @@ public class LexerBase
     /// 它后面的代码整体后移，于是报错指到了用户文件里一个毫不相干的 `/// &lt;summary&gt;`）。
     /// </para>
     /// </summary>
-    public List<(string, int)>? SourceLineMap { get; set; }
+    public List<(string, int)>? SourceLineMap
+    {
+        // ⚠ `get` 返回的是**已经解析好的那一份**（显式给的优先，否则是"这份源码对应的那张表"），
+        //   不能让调用方拿到 null 再退回拼接行号 —— `MapOriginal` 就在下面转调它。
+        get => _resolvedLineMap;
+        set { _explicitLineMap = value; RefreshLineMap(); }
+    }
+
+    /// <summary>显式设进来的表（C/C++ 走这条）；null = 用"这份源码对应的那张表"。</summary>
+    private List<(string, int)>? _explicitLineMap;
+    private List<(string, int)>? _resolvedLineMap;
+
+    /// <summary>
+    /// 认领/刷新映射表 —— **把"当前生效的映射"登记给解析器与代码生成器**
+    /// （它们手里只有 token / AST，拿不到源码字符串，只能读这一份）。
+    ///
+    /// 词法器是**唯一**知道"这份源码是不是预处理产物"的地方（它就拿在手上），
+    /// 所以这个认领动作放在这里、且**每次构造都做**：认不到匹配的表就写 null，
+    /// 上一次编译的陈表因此进不来（陈表会把行号映射到**另一份文件**上 —— 那正是要修的 bug）。
+    /// </summary>
+    private void RefreshLineMap()
+    {
+        _resolvedLineMap = _explicitLineMap ?? CompilerHelper.LineMapForSource(_source);
+        CompilerHelper.SetActiveLineMap(_resolvedLineMap);
+    }
 
     /// <summary>
     /// 「预处理拼接后的行号」→「(原文件, 原行)」——转调

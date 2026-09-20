@@ -134,7 +134,7 @@ namespace ForthCompiler
                 case TokenType.RECURSE:
                     Advance();
                     if (_currentWordName == null)
-                        throw Error("RECURSE can only be used inside a word definition.");
+                        throw Error("RECURSE 只能在字定义内部使用。");
                     return new WordCall
                     {
                         Name = _currentWordName,

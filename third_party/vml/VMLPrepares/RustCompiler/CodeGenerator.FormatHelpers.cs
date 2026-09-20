@@ -248,7 +248,7 @@ namespace RustCompiler
                     {
                         throw new CodeGenerationException("生成的错误标签为null");
                     }
-                    dataSection[label] = $"[Error: variable '{identifier.Name}' not found]";
+                    dataSection[label] = $"[错误: 找不到变量 '{identifier.Name}']";
                     AddInstruction(OpCode.MOVE, "R0", label);
                     EmitPrintString();
                 }

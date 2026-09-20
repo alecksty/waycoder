@@ -93,7 +93,7 @@ namespace PythonCompiler
             else if (GetTokenType(Cur) == TokenType.CLASS)
                 result = ParseClassDef(decorators);
             else
-                throw Error($"Expected 'def' or 'class' after decorator, got {GetTokenType(Cur)}");
+                throw Error($"期望 'def' 或 'class' 在装饰器后，实际得到 {GetTokenType(Cur)}");
 
             return result;
         }
@@ -884,7 +884,7 @@ namespace PythonCompiler
                 }
                 else
                 {
-                    if (isDict) throw Error(VMLPlugins.Localization.Get("syntax.dict_set_mix"));
+                    if (isDict) throw Error("字典字面量中不能混入非键值对元素");
                     elements.Add(key);
                 }
                 

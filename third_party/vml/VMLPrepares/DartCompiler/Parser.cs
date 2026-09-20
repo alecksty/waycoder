@@ -11,7 +11,7 @@ public class Parser : ParserBase<Token, TokenType>
 
     protected override TokenType GetTokenType(Token token) => token.Type;
 
-    protected override Token Expect(TokenType t, string msg) => base.Expect(t, $"Dart parse error: {msg} (got {Cur.Type})");
+    protected override Token Expect(TokenType t, string msg) => base.Expect(t, $"Dart 解析错误: {msg}（得到 {Cur.Type}）");
 
     public Parser(List<Token> tokens) : base(tokens) { }
 
@@ -30,7 +30,7 @@ public class Parser : ParserBase<Token, TokenType>
     {
         if (Match(TokenType.Enum))
         {
-            string name = Expect(TokenType.Identifier, "expected enum name").Value;
+            string name = Expect(TokenType.Identifier, "期望枚举名").Value;
             Expect(TokenType.LBrace, "expected '{'");
             while (!Check(TokenType.RBrace) && !Check(TokenType.EOF))
             {
@@ -67,13 +67,13 @@ public class Parser : ParserBase<Token, TokenType>
         if (Match(TokenType.Break))
         {
             int l = Cur.Line, c = Cur.Column;
-            Expect(TokenType.Semicolon, "expected ';' after break");
+            Expect(TokenType.Semicolon, "期望 ';' 在 break 后");
             return new BreakNode(l, c);
         }
         if (Match(TokenType.Continue))
         {
             int l = Cur.Line, c = Cur.Column;
-            Expect(TokenType.Semicolon, "expected ';' after continue");
+            Expect(TokenType.Semicolon, "期望 ';' 在 continue 后");
             return new ContinueNode(l, c);
         }
         if (Check(TokenType.Semicolon)) { Advance(); return new ExprStmtNode(new LiteralNode(null, Cur.Line, Cur.Column), Cur.Line, Cur.Column); }
@@ -157,7 +157,7 @@ public class Parser : ParserBase<Token, TokenType>
             type = type + "_gen";
         }
 
-        string name = Expect(TokenType.Identifier, "expected variable name").Value;
+        string name = Expect(TokenType.Identifier, "期望变量名").Value;
         ASTNode? init = null;
         if (Match(TokenType.Assign))
             init = ParseExpression();
@@ -165,7 +165,7 @@ public class Parser : ParserBase<Token, TokenType>
         // 多变量声明: int a = 1, b = 2;
         while (Match(TokenType.Comma))
         {
-            string extraName = Expect(TokenType.Identifier, "expected variable name").Value;
+            string extraName = Expect(TokenType.Identifier, "期望变量名").Value;
             ASTNode? extraInit = null;
             if (Match(TokenType.Assign))
                 extraInit = ParseExpression();
@@ -174,7 +174,7 @@ public class Parser : ParserBase<Token, TokenType>
         // 容错: 跳过无法识别的token到;
         while (!Check(TokenType.Semicolon) && !Check(TokenType.EOF) && !Check(TokenType.RBrace))
             Advance();
-        Expect(TokenType.Semicolon, "expected ';' after variable declaration");
+        Expect(TokenType.Semicolon, "期望 ';' 在变量声明后");
         return result;
     }
 
@@ -182,7 +182,7 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance(); // mixin
-        string name = Expect(TokenType.Identifier, "expected mixin name").Value;
+        string name = Expect(TokenType.Identifier, "期望 mixin 名").Value;
         Expect(TokenType.LBrace, "expected '{'");
         var members = new List<ASTNode>();
         while (!Check(TokenType.RBrace) && !Check(TokenType.EOF))
@@ -207,10 +207,10 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance(); // 'extension'
-        string extName = Expect(TokenType.Identifier, "expected extension name").Value;
+        string extName = Expect(TokenType.Identifier, "期望 extension 名").Value;
         string onKw = Match(TokenType.OnKw) ? "on" : "";
         if (onKw == "") { Expect(TokenType.OnKw, "expected 'on'"); }
-        string targetType = IsType(Cur) ? Advance().Value : Expect(TokenType.Identifier, "expected type").Value;
+        string targetType = IsType(Cur) ? Advance().Value : Expect(TokenType.Identifier, "期望类型名").Value;
         Expect(TokenType.LBrace, "expected '{'");
         var methods = new List<ASTNode>();
         while (!Check(TokenType.RBrace) && !Check(TokenType.EOF))
@@ -218,7 +218,7 @@ public class Parser : ParserBase<Token, TokenType>
             int ml = Cur.Line, mc = Cur.Column;
             string retType = Advance().Value; // return type
             Match(TokenType.Question);
-            string mName = Expect(TokenType.Identifier, "expected method name").Value;
+            string mName = Expect(TokenType.Identifier, "期望方法名").Value;
             Expect(TokenType.LParen, "expected '('");
             var parms = ParseParameters();
             while (!Check(TokenType.RParen) && !Check(TokenType.EOF)) Advance();
@@ -245,7 +245,7 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance();
-        string name = Expect(TokenType.Identifier, "expected class name").Value;
+        string name = Expect(TokenType.Identifier, "期望类名").Value;
         // 泛型类型参数: class Box<T> { ... } — 跳过 <...>
         if (Check(TokenType.Lt))
         {
@@ -266,7 +266,7 @@ public class Parser : ParserBase<Token, TokenType>
             {
                 // Parse comma-separated mixin names: with A, B, C
                 do {
-                    string mixinName = Expect(TokenType.Identifier, "expected mixin name after 'with'").Value;
+                    string mixinName = Expect(TokenType.Identifier, "期望 mixin 名在 'with' 后").Value;
                     mixinNames.Add(mixinName);
                 } while (Match(TokenType.Comma));
             }
@@ -306,7 +306,7 @@ public class Parser : ParserBase<Token, TokenType>
                 else if (Peek(1).Type == TokenType.Identifier)
                     members.Add(ParseVarDecl());
                 else
-                    throw Error($"Unexpected token in class body: {Cur.Type} at {Cur.Line}:{Cur.Column}");
+                    throw Error($"类体中意外的 token: {Cur.Type}（位置 {Cur.Line}:{Cur.Column}）");
             }
             else if (Cur.Type == TokenType.Identifier && (Cur.Value == "static" || Cur.Value == "native" || Cur.Value == "external"))
             {
@@ -321,10 +321,10 @@ public class Parser : ParserBase<Token, TokenType>
                     || (Peek(1).Type == TokenType.Lt && IsGenericVarDecl()))
                     members.Add(ParseVarDecl());
                 else
-                    throw Error($"Unexpected token in class body: {Cur.Type} at {Cur.Line}:{Cur.Column}");
+                    throw Error($"类体中意外的 token: {Cur.Type}（位置 {Cur.Line}:{Cur.Column}）");
             }
             else
-                throw Error($"Unexpected token in class body: {Cur.Type} at {Cur.Line}:{Cur.Column}");
+                throw Error($"类体中意外的 token: {Cur.Type}（位置 {Cur.Line}:{Cur.Column}）");
         }
         Expect(TokenType.RBrace, "expected '}'");
         return new ClassDeclNode(name, members, l, c, mixinNames);
@@ -337,7 +337,7 @@ public class Parser : ParserBase<Token, TokenType>
         int l = Cur.Line, c = Cur.Column;
         string returnType = Advance().Value;
         Match(TokenType.Question); // 可空返回类型
-        string name = Expect(TokenType.Identifier, "expected method name").Value;
+        string name = Expect(TokenType.Identifier, "期望方法名").Value;
         Expect(TokenType.LParen, "expected '('");
         var parms = ParseParameters();
         while (!Check(TokenType.RParen) && !Check(TokenType.EOF)) Advance();
@@ -370,7 +370,7 @@ public class Parser : ParserBase<Token, TokenType>
                 if (ptype == "this" && Check(TokenType.Dot))
                 {
                     Advance(); // .
-                    string pname = Expect(TokenType.Identifier, "expected parameter name").Value;
+                    string pname = Expect(TokenType.Identifier, "期望参数名").Value;
                     parms.Add(new ParamNode("this", pname, pl, pc));
                 }
                 else
@@ -388,7 +388,7 @@ public class Parser : ParserBase<Token, TokenType>
                     }
                     // 跳过可空类型?
                     Match(TokenType.Question);
-                    string pname = Expect(TokenType.Identifier, "expected parameter name").Value;
+                    string pname = Expect(TokenType.Identifier, "期望参数名").Value;
                     parms.Add(new ParamNode(ptype, pname, pl, pc));
                 }
             } while (Match(TokenType.Comma));
@@ -400,10 +400,10 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance();
-        Expect(TokenType.LParen, "expected '(' after if");
+        Expect(TokenType.LParen, "期望 '(' 在 if 后");
         var cond = ParseExpression();
         while (!Check(TokenType.RParen) && !Check(TokenType.EOF)) Advance();
-        Expect(TokenType.RParen, "expected ')' after condition");
+        Expect(TokenType.RParen, "期望 ')' 在条件后");
         var thenBody = ParseStatementAsBlock();
         List<ASTNode>? elseBody = null;
         if (Match(TokenType.Else))
@@ -415,10 +415,10 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance();
-        Expect(TokenType.LParen, "expected '(' after while");
+        Expect(TokenType.LParen, "期望 '(' 在 while 后");
         var cond = ParseExpression();
         while (!Check(TokenType.RParen) && !Check(TokenType.EOF)) Advance();
-        Expect(TokenType.RParen, "expected ')' after condition");
+        Expect(TokenType.RParen, "期望 ')' 在条件后");
         var body = ParseStatementAsBlock();
         return new WhileNode(cond, body, l, c);
     }
@@ -427,7 +427,7 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         Advance();
-        Expect(TokenType.LParen, "expected '(' after for");
+        Expect(TokenType.LParen, "期望 '(' 在 for 后");
 
         ASTNode? init = null;
         if (!Check(TokenType.Semicolon))
@@ -448,17 +448,17 @@ public class Parser : ParserBase<Token, TokenType>
             return new ForNode(init, null, null, forInBody, l, c);
         }
         while (!Check(TokenType.Semicolon) && !Check(TokenType.EOF)) Advance();
-        Expect(TokenType.Semicolon, "expected ';' in for");
+        Expect(TokenType.Semicolon, "期望 ';' 在 for 中");
 
         ASTNode? condition = null;
         if (!Check(TokenType.Semicolon))
             condition = ParseExpression();
-        Expect(TokenType.Semicolon, "expected ';' in for");
+        Expect(TokenType.Semicolon, "期望 ';' 在 for 中");
 
         ASTNode? increment = null;
         if (!Check(TokenType.RParen))
             increment = ParseExpression();
-        Expect(TokenType.RParen, "expected ')' after for clauses");
+        Expect(TokenType.RParen, "期望 ')' 在 for 子句后");
 
         var body = ParseStatementAsBlock();
         return new ForNode(init, condition, increment, body, l, c);
@@ -469,12 +469,12 @@ public class Parser : ParserBase<Token, TokenType>
         int l = Cur.Line, c = Cur.Column;
         Advance(); // do
         var body = ParseStatementAsBlock();
-        Expect(TokenType.While, "expected 'while' after do body");
-        Expect(TokenType.LParen, "expected '(' after while");
+        Expect(TokenType.While, "期望 'while' 在 do 语句体后");
+        Expect(TokenType.LParen, "期望 '(' 在 while 后");
         var cond = ParseExpression();
         while (!Check(TokenType.RParen) && !Check(TokenType.EOF)) Advance();
-        Expect(TokenType.RParen, "expected ')' after condition");
-        Expect(TokenType.Semicolon, "expected ';' after do-while");
+        Expect(TokenType.RParen, "期望 ')' 在条件后");
+        Expect(TokenType.Semicolon, "期望 ';' 在 do-while 后");
         return new DoWhileNode(cond, body, l, c);
     }
 
@@ -512,7 +512,7 @@ public class Parser : ParserBase<Token, TokenType>
         int l = Cur.Line, c = Cur.Column;
         ASTNode? expr = null;
         if (Cur.Type != TokenType.Semicolon) expr = ParseExpression();
-        Expect(TokenType.Semicolon, "expected ';' after throw");
+        Expect(TokenType.Semicolon, "期望 ';' 在 throw 后");
         return new ThrowStmt(expr, l, c);
     }
 
@@ -520,7 +520,7 @@ public class Parser : ParserBase<Token, TokenType>
     {
         int l = Cur.Line, c = Cur.Column;
         string type = Advance().Value;
-        string name = Expect(TokenType.Identifier, "expected variable name").Value;
+        string name = Expect(TokenType.Identifier, "期望变量名").Value;
         ASTNode? init = null;
         if (Match(TokenType.Assign))
             init = ParseExpression();
@@ -534,7 +534,7 @@ public class Parser : ParserBase<Token, TokenType>
         ASTNode? val = null;
         if (!Check(TokenType.Semicolon))
             val = ParseExpression();
-        Expect(TokenType.Semicolon, "expected ';' after return");
+        Expect(TokenType.Semicolon, "期望 ';' 在 return 后");
         return new ReturnNode(val, l, c);
     }
 
@@ -645,7 +645,7 @@ public class Parser : ParserBase<Token, TokenType>
                     Advance();
                 if (!Check(TokenType.Colon)) return left;
             }
-            Expect(TokenType.Colon, "expected ':' in ternary");
+            Expect(TokenType.Colon, "期望 ':' 在三元表达式中");
             var elseExpr = ParseTernary();
             return new BinaryNode(
                 new BinaryNode(left, "?", thenExpr, l, cl),
@@ -855,7 +855,7 @@ public class Parser : ParserBase<Token, TokenType>
             if (Check(TokenType.Question) && Peek(1).Type == TokenType.Dot)
             {
                 Advance(); Advance(); // ?.
-                string field = Expect(TokenType.Identifier, "expected field name").Value;
+                string field = Expect(TokenType.Identifier, "期望字段名").Value;
                 expr = new VarNode($"_qdot_{field}", expr.Line, expr.Column);
                 continue;
             }
@@ -955,7 +955,7 @@ public class Parser : ParserBase<Token, TokenType>
             }
             return new LiteralNode(0, l, c);
         }
-        throw Error($"Unexpected token: {Cur.Type}({Cur.Value}) at {Cur.Line}:{Cur.Column}");
+        throw Error($"意外的 token: {Cur.Type}({Cur.Value})（位置 {Cur.Line}:{Cur.Column}）");
     }
 
     /// <summary>检测当前 &lt; 是否为泛型参数列表 (而非比较运算符)。

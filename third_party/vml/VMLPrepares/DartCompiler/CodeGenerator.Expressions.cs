@@ -89,7 +89,7 @@ public partial class CodeGenerator
         if (node.Op == "&&") { _expr!.EmitLogicalAnd(() => GenerateExpression(node.Left), () => GenerateExpression(node.Right)); return; }
         if (node.Op == "||") { _expr!.EmitLogicalOr(() => GenerateExpression(node.Left), () => GenerateExpression(node.Right)); return; }
         if (node.Op == "??") { _expr!.EmitBinOp(left, right, "+"); return; } // 简化: 返回左值
-        throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, $"Unknown binary operator: {node.Op}");
+        throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, $"未知的二元运算符: {node.Op}");
     }
 
     private void GenerateUnary(UnaryNode node)

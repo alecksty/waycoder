@@ -28,7 +28,7 @@ namespace CSharpCompiler
             if (Match(TokenType.Conditional))
             {
                 var trueVal = ParseExpression();
-                Expect(TokenType.Colon, "Expected ':' for conditional expression");
+                Expect(TokenType.Colon, "期望 ':' 用于条件表达式");
                 var falseVal = ParseConditional();
                 return new ConditionalExpression(expr, trueVal, falseVal);
             }
@@ -251,7 +251,7 @@ namespace CSharpCompiler
                                     call.Arguments.Add(arg);
                             } while (Match(TokenType.Comma));
                         }
-                        Expect(TokenType.RightParen, "Expected ')' after method arguments");
+                        Expect(TokenType.RightParen, "期望 ')' 在方法实参后");
                         expr = call;
                     }
                     else
@@ -272,14 +272,14 @@ namespace CSharpCompiler
                                 call.Arguments.Add(arg);
                         } while (Match(TokenType.Comma));
                     }
-                    Expect(TokenType.RightParen, "Expected ')' after function arguments");
+                    Expect(TokenType.RightParen, "期望 ')' 在函数实参后");
                     expr = call;
                 }
                 // 数组索引：arr[index]
                 else if (Match(TokenType.LeftBracket))
                 {
                     var index = ParseExpression();
-                    Expect(TokenType.RightBracket, "Expected ']' after array index");
+                    Expect(TokenType.RightBracket, "期望 ']' 在数组下标后");
                     expr = new IndexExpression(expr, index);
                 }
                 // 后置自增：expr++
@@ -331,10 +331,10 @@ namespace CSharpCompiler
             // typeof(int) → MCU不支持反射, 返回0
             if (Match(TokenType.Typeof))
             {
-                Expect(TokenType.LeftParen, "Expected '(' after typeof");
+                Expect(TokenType.LeftParen, "期望 '(' 在 typeof 后");
                 // 跳过类型名(可能包含泛型)
                 SkipExpression();
-                Expect(TokenType.RightParen, "Expected ')' after typeof");
+                Expect(TokenType.RightParen, "期望 ')' 在 typeof 后");
                 return new LiteralExpression(0);
             }
             
@@ -397,7 +397,7 @@ namespace CSharpCompiler
                 {
                     string typeName = GetTypeKeywordName(Current);
                     Advance(); // 消费类型关键字
-                    Expect(TokenType.RightParen, "Expected ')' after type in cast");
+                    Expect(TokenType.RightParen, "期望 ')' 在强制转换的类型后");
                     var operand = ParseUnary();
                     return new CastExpression(typeName, operand);
                 }
@@ -407,7 +407,7 @@ namespace CSharpCompiler
                 {
                     Console.WriteLine($"DEBUG ParsePrimary: after ParseExpression, current={Current?.Type}:{Current?.Value}");
                 }
-                Expect(TokenType.RightParen, "Expected ')' after expression");
+                Expect(TokenType.RightParen, "期望 ')' 在表达式后");
                 return new ParenthesizedExpression(expr);
             }
             
@@ -464,7 +464,7 @@ namespace CSharpCompiler
                     Expression sizeExpr = null;
                     if (!Check(TokenType.RightBracket))
                         sizeExpr = ParseExpression();
-                    Expect(TokenType.RightBracket, "Expected ']' after array type");
+                    Expect(TokenType.RightBracket, "期望 ']' 在数组类型后");
                     if (Match(TokenType.LeftBrace))
                     {
                         var arr = ParseArrayLiteral();
@@ -531,7 +531,7 @@ namespace CSharpCompiler
             
             if (Check(TokenType.RightBrace))
             {
-                Expect(TokenType.RightBrace, "Expected '}' after array literal");
+                Expect(TokenType.RightBrace, "期望 '}' 在数组字面量后");
                 return new ArrayLiteralExpression(elements);
             }
             else

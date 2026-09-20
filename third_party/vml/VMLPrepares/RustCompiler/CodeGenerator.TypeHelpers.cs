@@ -30,7 +30,7 @@ namespace RustCompiler
             {
                 if (key == null)
                 {
-                    throw new CodeGenerationException("DataSection contains null key");
+                    throw new CodeGenerationException("数据段里含 null 键");
                 }
             }
 

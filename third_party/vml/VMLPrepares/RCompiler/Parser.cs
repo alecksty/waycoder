@@ -7,7 +7,7 @@ public class Parser : ParserBase<Token, TokenType>
 {
     protected override TokenType GetTokenType(Token token) => token.Type;
 
-    protected override Token Expect(TokenType t, string msg) => base.Expect(t, $"R parse error: {msg} (got {Cur.Type})");
+    protected override Token Expect(TokenType t, string msg) => base.Expect(t, $"R 解析错误: {msg}（得到 {Cur.Type}）");
 
     public Parser(List<Token> tokens) : base(tokens) { }
 
@@ -59,7 +59,7 @@ public class Parser : ParserBase<Token, TokenType>
         {
             do
             {
-                parms.Add(Expect(TokenType.Identifier, "expected parameter name").Value);
+                parms.Add(Expect(TokenType.Identifier, "期望参数名").Value);
             }
             while (Match(TokenType.Comma));
         }
@@ -143,7 +143,7 @@ public class Parser : ParserBase<Token, TokenType>
         int l = Cur.Line, c = Cur.Column;
         Advance(); // for
         Expect(TokenType.LParen, "expected '('");
-        string variable = Expect(TokenType.Identifier, "expected variable name").Value;
+        string variable = Expect(TokenType.Identifier, "期望变量名").Value;
         Expect(TokenType.In, "expected 'in'");
         var sequence = ParseExpression();
         Expect(TokenType.RParen, "expected ')'");
@@ -324,7 +324,7 @@ public class Parser : ParserBase<Token, TokenType>
             else if (Check(TokenType.Dollar))
             {
                 Advance();
-                string field = Expect(TokenType.Identifier, "expected field name").Value;
+                string field = Expect(TokenType.Identifier, "期望字段名").Value;
                 expr = new BinaryNode(expr, "$", new VarNode(field, field.Length, 0), expr.Line, expr.Column);
             }
             else if (Check(TokenType.Colon))
@@ -428,6 +428,6 @@ public class Parser : ParserBase<Token, TokenType>
             return expr;
         }
 
-        throw Error($"Unexpected token: {Cur.Type}({Cur.Value}) at {Cur.Line}:{Cur.Column}");
+        throw Error($"意外的 token: {Cur.Type}({Cur.Value})（位置 {Cur.Line}:{Cur.Column}）");
     }
 }

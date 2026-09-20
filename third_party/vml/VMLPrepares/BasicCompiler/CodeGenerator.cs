@@ -83,7 +83,7 @@ namespace BasicCompiler
         private void WarnUnimplemented(string feature)
         {
             instructions.Add(new Instruction(OpCode.LABEL,
-                [new Operand(OperandType.IMMEDIATE, 0)]) { Label = $"; WARNING: {feature} — not implemented, no runtime effect" });
+                [new Operand(OperandType.IMMEDIATE, 0)]) { Label = $"; 警告: {feature} — 本前端尚未实现，运行时没有任何效果" });
         }
 
         private BasicProgram program;

@@ -37,7 +37,7 @@ namespace VML.MixedLanguage
             {
                 return func.DynamicInvoke(args);
             }
-            throw new InvalidOperationException($"Function '{name}' not found");
+            throw new InvalidOperationException($"找不到函数 '{name}'");
         }
         
         /// <summary>
@@ -60,7 +60,7 @@ namespace VML.MixedLanguage
             {
                 return $"Function: {name}, Type: {func.GetType().Name}";
             }
-            return $"Function '{name}' not found";
+            return $"找不到函数 '{name}'";
         }
     }
     

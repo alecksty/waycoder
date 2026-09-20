@@ -67,7 +67,7 @@ namespace JavaScriptCompiler
                             nativeFunc.IsNative = true;
                             return nativeFunc;
                         }
-                        throw Error($"Unexpected token after 'native': {Previous().Value}");
+                        throw Error($"'native' 后出现意外的 token: {Previous().Value}");
 
                     case "function":
                         Advance();
@@ -537,7 +537,7 @@ namespace JavaScriptCompiler
             if (Match(TokenType.Question))
             {
                 var trueVal = ParseExpression();
-                Expect(TokenType.Colon, "Expected ':' for conditional expression");
+                Expect(TokenType.Colon, "期望 ':' 用于条件表达式");
                 var falseVal = ParseConditional();
                 return new ConditionalExpression(expr, trueVal, falseVal);
             }
@@ -661,7 +661,7 @@ namespace JavaScriptCompiler
             if (Check(TokenType.Keyword) && Cur.Value == "instanceof")
             {
                 Advance(); // consume 'instanceof'
-                string typeName = Expect(TokenType.Identifier, "Expected type name after 'instanceof'").Value;
+                string typeName = Expect(TokenType.Identifier, "期望类型名在 'instanceof' 后").Value;
                 expr = new InstanceofExpression(expr, typeName);
             }
 
@@ -870,7 +870,7 @@ namespace JavaScriptCompiler
                 // super.method(args) or super.property
                 if (Match(TokenType.Dot))
                 {
-                    string member = Expect(TokenType.Identifier, "expected member name after super.").Value;
+                    string member = Expect(TokenType.Identifier, "期望成员名在 super. 后").Value;
                     if (Match(TokenType.LeftParen))
                     {
                         // super.method(args) → CallExpression on super member

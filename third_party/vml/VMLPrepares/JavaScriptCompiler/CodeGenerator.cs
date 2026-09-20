@@ -40,7 +40,7 @@ namespace JavaScriptCompiler
 
         public override VmlProgram GenerateCode()
         {
-            if (_program == null) throw new System.InvalidOperationException("No AST program set");
+            if (_program == null) throw new System.InvalidOperationException("尚未设置 AST 程序");
             return Generate(_program);
         }
 

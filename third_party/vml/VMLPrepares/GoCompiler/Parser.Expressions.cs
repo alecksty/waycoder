@@ -69,7 +69,7 @@ namespace GoCompiler
                     TokenType.LE => "<=",
                     TokenType.GT => ">",
                     TokenType.GE => ">=",
-                    _ => throw Error("Unknown operator")
+                    _ => throw Error("未知的运算符")
                 };
                 var right = ParseShift();
                 left = new BinaryOp(op, left, right);
@@ -127,7 +127,7 @@ namespace GoCompiler
                         TokenType.AMPERSAND => "&",
                         TokenType.PIPE => "|",
                         TokenType.CARET => "^",
-                        _ => throw Error("Unknown operator")
+                        _ => throw Error("未知的运算符")
                     };
                 }
                 var right = ParseUnary();

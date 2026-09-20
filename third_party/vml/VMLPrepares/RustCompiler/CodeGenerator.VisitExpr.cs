@@ -57,12 +57,12 @@ namespace RustCompiler
                     if (_movedVariables.Contains(idInit.Name))
                     {
                         throw new CodeGenerationException(
-                            $"use of moved value: `{idInit.Name}` (value moved here in previous assignment)");
+                            $"使用了已被移动的值: `{idInit.Name}`（值在此前的赋值中被移动）");
                     }
                     if (!IsCopyVariable(idInit.Name) && IsBorrowed(idInit.Name))
                     {
                         throw new CodeGenerationException(
-                            $"cannot move out of `{idInit.Name}` because it is borrowed");
+                            $"无法从 `{idInit.Name}` 中移出，因为它已被借用");
                     }
                 }
 
@@ -135,7 +135,7 @@ namespace RustCompiler
                 }
                 else
                 {
-                    throw new CodeGenerationException(VMLPlugins.Localization.Get("rust.undefined_const") + $": {identifier.Name}");
+                    throw new CodeGenerationException("未定义的常量" + $": {identifier.Name}");
                 }
             }
             else if (expression is BinaryOperationNode binaryOp)
@@ -223,7 +223,7 @@ namespace RustCompiler
             {
                 string kind = _mutBorrowed.Contains(node.VariableName) ? "mutably " : "";
                 throw new CodeGenerationException(
-                    $"cannot assign to `{node.VariableName}` because it is {kind}borrowed");
+                    $"无法赋值给 `{node.VariableName}`，因为它已被{kind}借用");
             }
 
             // 所有权检查：如果赋值源是一个变量
@@ -233,12 +233,12 @@ namespace RustCompiler
                 if (_movedVariables.Contains(idVal.Name))
                 {
                     throw new CodeGenerationException(
-                        $"use of moved value: `{idVal.Name}` (value moved here in previous assignment)");
+                        $"使用了已被移动的值: `{idVal.Name}`（值在此前的赋值中被移动）");
                 }
                 if (!IsCopyVariable(idVal.Name) && IsBorrowed(idVal.Name))
                 {
                     throw new CodeGenerationException(
-                        $"cannot move out of `{idVal.Name}` because it is borrowed");
+                        $"无法从 `{idVal.Name}` 中移出，因为它已被借用");
                 }
             }
 

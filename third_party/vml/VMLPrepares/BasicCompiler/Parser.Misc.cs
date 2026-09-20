@@ -350,13 +350,13 @@ namespace BasicCompiler
         private Statement ParseChipAsmStatement()
         {
             Advance(); // consume CHIPASM
-            if (Peek().Type != TokenType.LPAREN) throw Error("期望 '(' after CHIPASM");
+            if (Peek().Type != TokenType.LPAREN) throw Error("期望 '(' 在 CHIPASM 后");
             Advance(); // consume (
-            if (Peek().Type != TokenType.STRING) throw Error("期望 string arch");
+            if (Peek().Type != TokenType.STRING) throw Error("期望字符串形式的 arch");
             string arch = Advance().Value;
             if (Peek().Type != TokenType.COMMA) throw Error("期望 ','");
             Advance(); // consume ,
-            if (Peek().Type != TokenType.STRING) throw Error("期望 string code");
+            if (Peek().Type != TokenType.STRING) throw Error("期望字符串形式的 code");
             string code = Advance().Value;
             if (Peek().Type != TokenType.RPAREN) throw Error("期望 ')'");
             Advance(); // consume )

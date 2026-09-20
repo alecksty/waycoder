@@ -792,7 +792,7 @@ namespace CppCompiler
                     else if (!Match(TokenType.SEMICOLON))
                         Advance();
                 }
-                Expect(TokenType.RBRACE, "extern block");
+                Expect(TokenType.RBRACE, "期望 '}' 在 extern 块后");
             }
             else
             {

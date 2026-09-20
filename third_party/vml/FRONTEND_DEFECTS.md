@@ -516,6 +516,66 @@ macOS 默认没有 ⇒ 整条命令行 `command not found` ⇒ 抓到空输出 �
 
 ---
 
+## 待办：每条编译错误都带一个「英文错误 ID」（多语言版本的底座，**尚未做**）
+
+**要做的事**（用户 2026-09-20 定）：所有编译错误统一成下面这个形状 ——
+`[英文错误 ID]` 是稳定 ASCII，将来把它换成别的语言就直接得到多语言版本，
+不用再动任何一个前端：
+
+```
+file:xx,line:xx,col:xx,error:<本地化消息> [English_Error_Id]
+```
+
+**现状**（2026-09-20 通查 22 门前端 + CompilerBase 的结论）：
+
+- **只有一条路带 ID**：走 `DiagnosticBag` / `GccError` 的那些（`CompilerError.ToString()`
+  在句尾拼 `[Code]`，宿主 `VmlDiagnostics.StripCode` 再摘走）。
+  实测**源里写明 `[…]` 的报文只有 10 条**（9 条预处理指令 + 1 条「找不到头文件」的警告），
+  另有十来处经 `WarnUndefined`/`WarnUnused`/`ReportUndefined` 的辅助函数借 `AddError`/`AddWarning`
+  带上 code —— 相对 1000 多个 `Expect` 调用点，等于**没有**。
+- **绝大多数没有 ID**：`ParserBase.Error(string)` / `LexerBase.Error(string)` /
+  `CompilerPluginBase` 的兜底全走 `ErrorCode.Unknown`。仅
+  `Expect(TokenType, "…")` 这一族就有 **1020 多个调用点**（22 门加起来），
+  全部拿不到 ID —— 它们正是用户最常看到的那批（「期望 ';' 在 break 后」）。
+- **`ErrorCode` 枚举只有 57 个成员**（`Lexer_`/`Parser_`/`Preprocessor_`/`CodeGen_`/`Compilation_`
+  五个前缀，值是 1000/1100/1200/1300/1400 分段整数），粒度是**分类**不是**逐条消息** ——
+  要按 ID 做本地化，先得把「一条消息 = 一个 ID」这层补出来。
+- **文案是硬编码中文**：换语言 = 改 350 多处源码，改不动。
+- **`VMLPlugins` 里其实已经有一套 Localization**（`Resources/Locale.*.resx`，
+  含 `zh-CN`/`zh-TW`/`en`/`fr`/`es`/`ru`/`ar` 七份 + `lang.*.json`），
+  但 **VMLPrepares 里只有 4 处调它**，而且其中 4 个键
+  （`rust.unsupported_binary` / `rust.unsupported_unary` / `rust.undefined_const` /
+  `syntax.dict_set_mix`）**resx 里根本没有** ⇒ `Localization.Get` 回退成
+  `[键名]` 字面量，用户看到的是 `[rust.unsupported_binary]: +`。
+  2026-09-20 那一轮已就地改成内联中文（与其余 20 门一致）；
+  **Localization 这条线在 VMLPrepares 里等于从没接上**，要复用得先把键补齐。
+
+**做的时候必须守住的（都是被现有代码钉死的）**：
+
+1. **ID 必须纯 ASCII + 下划线**：`VmlDiagnostics.StripCode` 是「把 ID 从正文摘出来」的
+   唯一实现，正则写死 `\[([A-Za-z_][A-Za-z0-9_]*)\]\s*$`，形状一变就摘不掉，
+   ID 会连同方括号一起留在气泡正文里。
+2. **`error:` / `warning:` / `note:` 级别标签不许翻**：`VmlDiagnostics.SeverityOf` 按
+   这三个字面量判严重度（`GccRx` 也按 `(error|warning|note)` 匹配），翻了就
+   「警告被当成错误」。
+3. **三段各有人解析，位置在前、级别在中间、ID 在句尾 —— 这个骨架不能动**：
+   `tools/DiagProbe` 抽行号（`^(\S+?):(\d+):(\d+):`）、
+   `scripts/vml-diag-probe/run.sh` 抽符号名与 `error:`、
+   `scripts/vml-abi-probe/run.sh` 只看退出码与 `ABI-OK`。
+4. **文案进 resx 之后，「上下文串」要变成带参模板**：现在
+   `Expect(TokenType.Semicolon, "期望 ';' 在 break 后")` 是**一句整串**，
+   而中/英/日的语序不同（英语是 `Expected ';' after break`）⇒
+   必须拆成 `{0}`/`{1}` 的模板（`expect.token` / `expect.identifier` 已经是现成的两个键，
+   可以照它们的样子扩）。
+5. **别只做一半**：`ErrorCode.Unknown` 的调用点有几百处。要么逐门语言把
+   `Error(message)` 全换成带 code 的重载，要么先只给「宿主会解析的那几族」加 ID ——
+   **「一半有 ID、一半没有」比完全没有更难用**（下游按 ID 分支时会被漏掉的那半误导）。
+6. 位置数字与它的拼接表达式**一个字都不要动**：`scripts/vml-diag-probe`（61/61）、
+   `tools/DiagProbe`（未定义标识符 22/22）、`scripts/vml-out-probe`（30/30）
+   全都在断位置，动了就是全红。
+
+---
+
 ## 怎么用这份台账
 
 - **发现新缺陷**：按上面的格式加一条（现象 / 最小复现 / **判据** / 状态 / 绕过）。

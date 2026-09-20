@@ -272,7 +272,7 @@ namespace PascalCompiler
                     {
                         arrayValues.Add(ParseExpression());
                         if (GetTokenType(Cur) != TokenType.RPAREN)
-                            Expect(TokenType.COMMA, "expected ',' in array initializer");
+                            Expect(TokenType.COMMA, "期望 ',' 在数组初始化器中");
                     }
                     Expect(TokenType.RPAREN, "expected ')'");
                     value = new LiteralNode(); // placeholder

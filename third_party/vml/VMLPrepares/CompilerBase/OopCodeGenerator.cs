@@ -20,7 +20,7 @@ namespace CompilerBase
         // ====== 函数调用 ======
 
         /// <summary>生成函数调用（参数从右到左压栈）→ 委托给 EmitCdeclCall</summary>
-        [System.Obsolete("Use EmitCdeclCall from CodeGeneratorBase instead")]
+        [System.Obsolete("应改用 CodeGeneratorBase 的 EmitCdeclCall")]
         protected void EmitFunctionCall(string label, int argCount, System.Action<int> emitArg)
         {
             EmitCdeclCall(label, argCount, emitArg);

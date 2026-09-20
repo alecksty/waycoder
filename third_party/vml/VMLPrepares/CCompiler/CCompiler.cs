@@ -98,7 +98,7 @@ namespace CCompiler
             }
             catch (System.Exception ex)
             {
-                throw new CompilerBase.CompilationException(ErrorCode.Compilation_InternalError, $"{filePath}: internal error: {ex.Message}", ex);
+                throw new CompilerBase.CompilationException(ErrorCode.Compilation_InternalError, $"{filePath}: 内部错误: {ex.Message}", ex);
             }
         }
 

@@ -339,7 +339,7 @@ public partial class CodeGenerator
     private void GenerateBreak()
     {
         if (currentBreakLabel == null)
-            throw new CompilationException(ErrorCode.CodeGen_BreakOutsideLoop, "break used outside of loop");
+            throw new CompilationException(ErrorCode.CodeGen_BreakOutsideLoop, "break 语句不在循环内");
         instructions.Add(new Instruction(OpCode.JMP,
             new List<Operand> { new Operand(OperandType.LABEL, currentBreakLabel) }, instructions.Count));
     }
@@ -347,7 +347,7 @@ public partial class CodeGenerator
     private void GenerateNext()
     {
         if (currentNextLabel == null)
-            throw new CompilationException(ErrorCode.CodeGen_ContinueOutsideLoop, "next used outside of loop");
+            throw new CompilationException(ErrorCode.CodeGen_ContinueOutsideLoop, "next 语句不在循环内");
         instructions.Add(new Instruction(OpCode.JMP,
             new List<Operand> { new Operand(OperandType.LABEL, currentNextLabel) }, instructions.Count));
     }

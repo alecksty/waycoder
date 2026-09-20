@@ -352,7 +352,16 @@ namespace CompilerBase
             }
 
             while (ifStack.Count > 0) ifStack.RemoveAt(ifStack.Count - 1);
-            return sb.ToString();
+
+            // **投递行号映射**（唯一的生产者）：返回的那个字符串对象与这张表一一对应，
+            // 词法器/解析器/代码生成器凭**引用相等**取回它 —— 21 门语言因此一个字段都不用加，
+            // 就能把「错在头文件里」报到头文件的真实位置上去（见 `CompilerHelper` 那段说明）。
+            //
+            // ⚠ 必须用**返回的那个对象**去登记：`return sb.ToString()` 现写一遍的话
+            //   登记的是另一个对象，`ReferenceEquals` 当场不成立、整条管道静默失效。
+            string result = sb.ToString();
+            CompilerHelper.TrackPreprocessedOutput(result, lineMap);
+            return result;
         }
 
         /// <summary>

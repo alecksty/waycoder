@@ -31,8 +31,8 @@ namespace PythonCompiler
         }
 
 #pragma warning disable CS0809
-        [System.Obsolete("Use Generate(ASTNode) instead", true)]
-        public override VmlProgram GenerateCode() => throw new System.NotSupportedException("Use Generate(ASTNode) instead");
+        [System.Obsolete("应改用 Generate(ASTNode)", true)]
+        public override VmlProgram GenerateCode() => throw new System.NotSupportedException("应改用 Generate(ASTNode)");
 #pragma warning restore CS0809
 
         /// <summary>

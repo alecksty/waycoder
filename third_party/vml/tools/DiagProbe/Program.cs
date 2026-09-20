@@ -14,6 +14,7 @@
 // 判据（五档，**「没报错」与「报了但没位置」都算 FAIL**，且各自单列一档）
 // ---------------------------------------------------------------------------
 //   PASS    报了编译错误，且报错文本里的行号 == 期望行号
+//   FILE    报了编译错误，行号也对，但**文件名不对**（只有「头文件里的错」那一档判文件）
 //   FAIL    报了编译错误，但行号 != 期望行号（位置报错了地方）
 //   NOPOS   报了编译错误，但文本里**没有任何行号**（用户看不到位置）
 //   NOERR   编译"成功"了 —— 前端静默接受了一段本该报错的源码
@@ -23,6 +24,10 @@
 //   本仓的规矩是「冒烟不许冒充 PASS」。「跑通了」既不是「位置对」，
 //   也不是「位置错」—— 它是**另一种故障**，混进 FAIL 会让下一轮修的人
 //   把「前端根本没做这个检查」当成「位置算错了」去修。
+//
+// ⚠ 为什么 `FILE` 也要单列：本轮的命题就是「**错在头文件里**时别指到用户文件上」。
+//   只判行号的话，「报的是用户文件里恰好同一行号」会被算成 PASS ——
+//   而那正是被修掉的那个 bug 的伪装形态（行号碰巧对上，文件整个是错的）。
 //
 // ---------------------------------------------------------------------------
 // 样本规则
@@ -92,6 +97,7 @@ namespace DiagProbe;
 internal enum Verdict
 {
     Pass,
+    WrongFile,     // 表里显示 FILE —— **行号对了、文件不对**（"半对"，必须单列，见下）
     WrongLine,     // 表里显示 FAIL
     WrongColumn,   // 表里显示 COL —— 行对了、列不对（"半对"，必须单列）
     NoPosition,    // 表里显示 NOPOS
@@ -129,7 +135,21 @@ internal sealed record Sample(
     //   而「未定义**函数**」恰恰只有链接器看得见。不补这一步，探针会把
     //   「探针自己没接上链接」误报成「前端静默接受」。
     //   实测只有 Forth 这一门需要（其余各门的样本都是前端自己就会报的错）。
-    string? PostLinkLang = null)
+    string? PostLinkLang = null,
+    // ── 只用「头文件里的错」那一档（`Groups.Header`）的两个字段 ──────────────────
+    //
+    // 那一档的命题是：**错在 `#include` 进来的头文件里时，报错必须指到头文件**。
+    // 头文件是**运行时**才落到临时目录的（`#include` 只有真去读磁盘一条路），
+    // 所以样本用「头文件正文」描述它，主文件里的那句 `#include "<绝对路径>"`
+    // 由 `WithInclude()` 现拼 —— 路径写不进源码常量里。
+    string[]? HeaderLines = null,
+    // 期望报错**指到这个文件**（比对的子串，= 头文件名）。
+    // `null` = 本档不判文件（前两档都是 null，判据与从前逐字相同）。
+    //
+    // ⚠ 为什么必须判文件：只判行号的话，「报的是主文件里恰好同一行号」会算成 PASS，
+    //   而那正是本轮要修的那个 bug 的伪装形态（用户看到的就是"编译器指着我这句
+    //   没问题的代码报错"）。
+    string? ExpectedInFile = null)
 {
     public string Source => string.Join("\n", Lines) + "\n";
 }
@@ -144,11 +164,13 @@ internal sealed record Outcome(
     string? FirstMessage,   // 报错文本里的第一条诊断（一行）
     string RawText,         // 完整报错文本
     string? ExceptionType,
-    string Noise)           // 编译期间被探针截下来的 stdout/stderr（链接器日志等）
+    string Noise,           // 编译期间被探针截下来的 stdout/stderr（链接器日志等）
+    string? FoundFile = null)  // 报错文本里点名的文件（只判得出文件名的形态才有）
 {
     public string VerdictText => Verdict switch
     {
         Verdict.Pass => "PASS",
+        Verdict.WrongFile => "FILE",
         Verdict.WrongLine => "FAIL",
         Verdict.WrongColumn => "COL",
         Verdict.NoPosition => "NOPOS",
@@ -290,12 +312,28 @@ internal static class Program
             return new Outcome(s, Verdict.NoPosition, null, null, null, first, text, exceptionType, noise);
 
         var v = Verdict.Pass;
-        if (pos.Value.Line != s.Expected)
+        // **文件先判、行后判**：本档的命题就是"错在哪个文件"，文件不对的严重性高于行号不对
+        //（行号对了文件错了正是被修掉的那个 bug 的伪装形态）。
+        if (s.ExpectedInFile != null && !FileMatches(pos.Value.File, s.ExpectedInFile))
+            v = Verdict.WrongFile;
+        else if (pos.Value.Line != s.Expected)
             v = Verdict.WrongLine;
         else if (s.ExpectedColumn > 0 && pos.Value.Column != s.ExpectedColumn)
             v = Verdict.WrongColumn;
 
-        return new Outcome(s, v, pos.Value.Line, pos.Value.Column, pos.Value.Kind, first, text, exceptionType, noise);
+        return new Outcome(s, v, pos.Value.Line, pos.Value.Column, pos.Value.Kind, first, text,
+                           exceptionType, noise, pos.Value.File);
+    }
+
+    /// <summary>
+    /// 报错点名的文件是不是期望的那个头文件（按**文件名**比，不比整条路径 ——
+    /// 临时目录的绝对路径每个机器都不一样，比全路径等于把判据钉在环境上）。
+    /// </summary>
+    private static bool FileMatches(string? found, string expectedInFile)
+    {
+        if (found == null) return false;
+        var name = Path.GetFileName(found.Trim());
+        return name.Equals(expectedInFile, StringComparison.OrdinalIgnoreCase);
     }
 
     // ── 从报错文本里抽行号 ───────────────────────────────────────────────────
@@ -305,7 +343,7 @@ internal static class Program
     //   2) 中文：`在第 N 行…`
     //   3) 英文后缀：`… at line N`
     // **按顺序取第一条命中的** —— 用户先看到的就是它。
-    private static (int Line, int Column, string Kind)? ExtractPosition(string text)
+    private static (int Line, int Column, string Kind, string? File)? ExtractPosition(string text)
     {
         foreach (var raw in text.Split('\n'))
         {
@@ -317,18 +355,18 @@ internal static class Program
             // 带列：file:line:col:
             var m = Regex.Match(line, @"^(?<f>\S+?):(?<l>\d+):(?<c>\d+):");
             if (m.Success)
-                return (int.Parse(m.Groups["l"].Value), int.Parse(m.Groups["c"].Value), "GCC");
+                return (int.Parse(m.Groups["l"].Value), int.Parse(m.Groups["c"].Value), "GCC", m.Groups["f"].Value);
             // 不带列：file:line:
             m = Regex.Match(line, @"^(?<f>\S+?):(?<l>\d+):");
             if (m.Success)
-                return (int.Parse(m.Groups["l"].Value), -1, "GCC-无列");
+                return (int.Parse(m.Groups["l"].Value), -1, "GCC-无列", m.Groups["f"].Value);
         }
 
         var cn = Regex.Match(text, @"第\s*(\d+)\s*行");
-        if (cn.Success) return (int.Parse(cn.Groups[1].Value), -1, "中文");
+        if (cn.Success) return (int.Parse(cn.Groups[1].Value), -1, "中文", null);
 
         var en = Regex.Match(text, @"at line\s+(\d+)", RegexOptions.IgnoreCase);
-        if (en.Success) return (int.Parse(en.Groups[1].Value), -1, "英文");
+        if (en.Success) return (int.Parse(en.Groups[1].Value), -1, "英文", null);
 
         return null;
     }
@@ -362,7 +400,10 @@ internal static class Program
                 var found = o.FoundLine?.ToString() ?? "-";
                 var expCol = o.Sample.ExpectedColumn > 0 ? o.Sample.ExpectedColumn.ToString() : "-";
                 var col = o.FoundColumn is > 0 ? o.FoundColumn.Value.ToString() : "-";
-                var brief = Truncate(o.FirstMessage ?? "", 58);
+                // 报错点名的文件（只有判得出文件名的形态才有）—— **一行里就要看得出
+                // "指到哪个文件去了"**，否则 FILE/FAIL 只差一个字母，还得翻详情。
+                var file = o.FoundFile != null ? $"[{Path.GetFileName(o.FoundFile)}] " : "";
+                var brief = Truncate(file + (o.FirstMessage ?? ""), 58);
                 Console.WriteLine($"{o.Sample.Lang,-10} {o.Sample.Expected,-7} {found,-7} {expCol,-7} {col,-7} {o.VerdictText,-7} {brief}");
             }
             Console.WriteLine(new string('-', 120));
@@ -383,6 +424,9 @@ internal static class Program
             Console.WriteLine($"── {o.Sample.Lang} (.{o.Sample.Ext}) [{o.VerdictText}] " +
                               $"期望第 {o.Sample.Expected} 行，实得 {(o.FoundLine?.ToString() ?? "无位置")}");
             Console.WriteLine($"   错误类型：{o.Sample.ErrorKind}");
+            if (o.Sample.ExpectedInFile != null)
+                Console.WriteLine($"   期望文件：{o.Sample.ExpectedInFile}（含此文件名的路径都算对）" +
+                                  $"　实得文件：{o.FoundFile ?? "(报错文本里没点名文件)"}");
             Console.WriteLine("   样本源码：");
             for (int i = 0; i < o.Sample.Lines.Length; i++)
             {
@@ -421,6 +465,7 @@ internal static class Program
         {
             var g = outcomes.Where(o => o.Sample.Group == group).ToList();
             int pass = g.Count(o => o.Verdict == Verdict.Pass);
+            int wfile = g.Count(o => o.Verdict == Verdict.WrongFile);
             int wrong = g.Count(o => o.Verdict == Verdict.WrongLine);
             int col = g.Count(o => o.Verdict == Verdict.WrongColumn);
             int nopos = g.Count(o => o.Verdict == Verdict.NoPosition);
@@ -428,15 +473,16 @@ internal static class Program
             int crash = g.Count(o => o.Verdict == Verdict.Crash);
 
             Console.WriteLine();
-            Console.WriteLine($"【{group}】共 {g.Count} 门 —— PASS {pass} / 行不对 {wrong} / 列不对 {col} / " +
+            Console.WriteLine($"【{group}】共 {g.Count} 门 —— PASS {pass} / 文件不对 {wfile} / 行不对 {wrong} / 列不对 {col} / " +
                               $"无位置 {nopos} / 没报错 {noerr} / 崩溃 {crash}");
+            if (wfile > 0) Console.WriteLine($"  行对文件不对：{Names(g, Verdict.WrongFile)}");
             if (wrong > 0) Console.WriteLine($"  行号不对：{Names(g, Verdict.WrongLine)}");
             if (col > 0) Console.WriteLine($"  行对列不对：{Names(g, Verdict.WrongColumn)}");
             if (nopos > 0) Console.WriteLine($"  报了错但没位置：{Names(g, Verdict.NoPosition)}");
             if (noerr > 0) Console.WriteLine($"  该报错却没报：{Names(g, Verdict.NoError)}");
             if (crash > 0) Console.WriteLine($"  非编译错误（内部错误/未捕获异常）：{Names(g, Verdict.Crash)}");
 
-            if (wrong + col + nopos + noerr + crash > 0) ok = false;
+            if (wfile + wrong + col + nopos + noerr + crash > 0) ok = false;
         }
         return ok ? 0 : 1;
     }
@@ -455,6 +501,7 @@ internal static class Groups
 {
     public const string Undef = "未定义标识符";
     public const string Syntax = "语法错误";
+    public const string Header = "头文件里的错";
 }
 
     // ── 用例表 ───────────────────────────────────────────────────────────────
@@ -470,6 +517,29 @@ internal static class Groups
     //     这一档此前是**空档**：探针只覆盖语义错误，于是"语法错误报的位置准不准"
     //     一直没人量。两档的代码路径完全不同（一个在 Parser、一个在 CodeGenerator），
     //     一档全绿证明不了另一档 —— 这正是「用一档冒充整体」的典型。
+    // ── 「头文件里的错」那一档的两个小工具 ───────────────────────────────────
+    //
+    // 这一档**必须真写文件**（前两档刻意不写 —— `#include` 只有"真去读磁盘"一条路，
+    // 而这里的命题恰恰是「拼接流里的行号能不能映射回它来自哪个文件」）。
+    // 写进临时目录，每门一份 `probe_bad_<lang>.h`，**内容就在样本里**（自包含：
+    // 不引用 `Examples/` 下的任何文件、也不碰用户的 `game17.cpp`）。
+    // 每次启动重写一遍（内容变了立刻生效，不用手工清理）。
+    private static string HeaderPath(string lang, string[] lines)
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "vml_diagprobe_hdr");
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, $"probe_bad_{lang}.h");
+        // 无 BOM（本仓铁律：不给自己产的文件凭空加 BOM）。
+        File.WriteAllText(path, string.Join("\n", lines) + "\n", new UTF8Encoding(false));
+        // 统一用 `/` 分隔：`#include` 里的路径会原样进报错文本，
+        // 反斜杠在部分语言的词法器里有转义含义，正斜杠三端都认。
+        return path.Replace('\\', '/');
+    }
+
+    /// <summary>主文件 = 一句 `#include "<绝对路径>"` + 语言自己的正文。</summary>
+    private static string[] WithInclude(string headerPath, params string[] body)
+        => new[] { $"#include \"{headerPath}\"" }.Concat(body).ToArray();
+
     private static List<Sample> Samples() =>
     [
         // ═══════════ 用例档一：未定义标识符 ═══════════

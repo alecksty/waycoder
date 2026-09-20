@@ -74,8 +74,8 @@ public partial class CodeGenerator : TypedCodeGen<FortranType>
     }
 
 #pragma warning disable CS0809
-    [System.Obsolete("Use GenerateCode(ProgramNode) instead", true)]
-    public override VmlProgram GenerateCode() => throw new System.NotSupportedException("Use GenerateCode(ProgramNode) instead");
+    [System.Obsolete("应改用 GenerateCode(ProgramNode)", true)]
+    public override VmlProgram GenerateCode() => throw new System.NotSupportedException("应改用 GenerateCode(ProgramNode)");
 #pragma warning restore CS0809
 
     public VmlProgram GenerateCode(ProgramNode program)

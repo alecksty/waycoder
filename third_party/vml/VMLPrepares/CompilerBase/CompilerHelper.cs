@@ -38,10 +38,81 @@ namespace CompilerBase
             if (lineMap != null && processedLine > 0 && processedLine <= lineMap.Count)
             {
                 var e = lineMap[processedLine - 1];
-                return (e.Item1, e.Item2);
+                // ⚠ **`<unknown>` 是占位符，不是文件名**。
+                //   `Preprocessor` 的 `currentFile` 初值就是它，只有 `Process(filePath)` 传了
+                //   真实路径才会被换掉；而 21 门语言的 `Compile(string)` 走的都是无参 `Process()`
+                //   ⇒ 主文件每一行都会被映射成 `("<unknown>", N)`。
+                //   照原样往上冒，用户会看到 `<unknown>:4:20: error: …` —— 比原来那个
+                //   `<input>` 更难懂，而且把"文件名未知"谎报成了"文件名叫 <unknown>"。
+                //   所以这里**只把文件退成未知、行号照旧映射**（行号是真的，不该丢）。
+                //   `CppCompiler` 用的是 `<input>`（那是宿主认得的"正在编的这个文件"占位符，
+                //   见 `CppCompiler.Compile` 里的说明）——**那个不能退**，退了 C++ 的
+                //   `ASTNode.OriginalFile` 会跟着变 null，正好把它已经修好的头文件定位弄坏。
+                string? file = e.Item1;
+                if (file == UnknownFilePlaceholder) file = null;
+                return (file, e.Item2);
             }
             return (null, processedLine);
         }
+
+        /// <summary>`Preprocessor` 在主文件名未知时用的占位符（见 <see cref="MapOriginalLine"/>）。</summary>
+        public const string UnknownFilePlaceholder = "<unknown>";
+
+        // ── 行号映射的「投递」────────────────────────────────────────────────
+        //
+        // 这条管道解决的是**用户报过的那个 bug**：`#include` 一展开，前端拿到的行号整体
+        // 后移，于是「错在 `Lib/c/time.h` 第 30 行」被报成「用户文件第 112 行一句无害的注释」。
+        //
+        // `Preprocessor.Process()` 早就把映射表算好了（`LineMap`），21 门语言也早就把它
+        // 拿到手了 —— 只是**全都扔掉了**（`source = pp.Process();` 之后就没人再提它）。
+        // 逐门去接是 21 份手抄（本仓头号坑），所以改成**投递**：
+        //   ① 生产者（`Preprocessor.Process()`）把「输出文本 + 映射表」一并挂出来；
+        //   ② 消费者（词法器/解析器/代码生成器基类）**凭"这就是我手上这份源码"取回它**。
+        //
+        // 判据是**引用相等**（不是内容相等）：`Process()` 返回的那个字符串对象被各语言
+        // 原样传给 `new Lexer(source)`，所以只要 `ReferenceEquals` 成立，这张表就一定
+        // 对应这份源码；不成立就当作"没有映射"（**宁可退回拼接行号，也不能报出别的文件的行**）。
+        // 这比"设一个全局变量、谁最后写谁赢"安全：一门语言这次没预处理，也不会捡到
+        // 上一次编译留下的陈表（那正好会报出另一份文件的行号）。
+
+        [ThreadStatic] private static string? _preprocessedOutput;
+        [ThreadStatic] private static List<(string, int)>? _preprocessedLineMap;
+        [ThreadStatic] private static List<(string, int)>? _activeLineMap;
+
+        /// <summary>
+        /// 生产者：`Preprocessor.Process()` 在返回前把结果登记在这里（**唯一调用点**）。
+        /// </summary>
+        public static void TrackPreprocessedOutput(string output, List<(string, int)>? lineMap)
+        {
+            _preprocessedOutput = output;
+            _preprocessedLineMap = lineMap;
+        }
+
+        /// <summary>
+        /// 「这份源码」对应的映射表；不是预处理产物就返回 null（见上面那段说明）。
+        /// </summary>
+        public static List<(string, int)>? LineMapForSource(string? source)
+            => source != null && ReferenceEquals(source, _preprocessedOutput) ? _preprocessedLineMap : null;
+
+        /// <summary>
+        /// 当前这次编译「生效中的」映射表 —— 由**词法器构造时**认领
+        /// （`LexerBase` 拿到源码就能判定它是不是预处理产物）。
+        ///
+        /// 解析器与代码生成器手里只有 token / AST，拿不到源码字符串，所以它们读这一份。
+        /// 词法器每构造一次就**重写**一次（认不到匹配的表就写 null），
+        /// 于是"上一次编译的陈表"进不来。
+        /// </summary>
+        public static List<(string, int)>? ActiveLineMap => _activeLineMap;
+
+        /// <summary>词法器认领映射表（见 <see cref="ActiveLineMap"/>）。</summary>
+        public static void SetActiveLineMap(List<(string, int)>? map) => _activeLineMap = map;
+
+        /// <summary>
+        /// 「预处理拼接后的行号」→「(原文件, 原行)」，用**生效中**的那张表
+        /// （没有生效表时原样退回，与 <see cref="MapOriginalLine"/> 同语义）。
+        /// </summary>
+        public static (string? File, int Line) MapActiveOriginal(int processedLine)
+            => MapOriginalLine(_activeLineMap, processedLine);
 
         /// <summary>
         /// 根据目标语言，将 -D/-U 宏定义注入为语言对应的常量声明。
@@ -953,7 +1024,7 @@ namespace CompilerBase
             }
             catch (Exception ex)
             {
-                throw new CompilationException(ErrorCode.Compilation_InternalError, $"{file}: internal error: {ex.Message}", ex);
+                throw new CompilationException(ErrorCode.Compilation_InternalError, $"{file}: 内部错误: {ex.Message}", ex);
             }
         }
     }

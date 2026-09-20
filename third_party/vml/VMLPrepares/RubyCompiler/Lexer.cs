@@ -72,7 +72,7 @@ public class Lexer : LexerBase
                     if (Match('|')) { Tokens.Add(new Token(TokenType.Or, "||", _line, _col)); break; }
                     throw new ParseException(ErrorCode.Lexer_UnknownCharacter,
                         $"Unexpected char: | at {_line}:{_col}（本前端只支持逻辑 `&&`/`||`，位运算 `& | ^` 尚未实现）");
-                default: throw new ParseException(ErrorCode.Lexer_UnknownCharacter, $"Unexpected char: {c} at {_line}:{_col}");
+                default: throw new ParseException(ErrorCode.Lexer_UnknownCharacter, $"意外的字符: {c}（位置 {_line}:{_col}）");
             }
         }
         Tokens.Add(new Token(TokenType.EOF, "", _line, _col));

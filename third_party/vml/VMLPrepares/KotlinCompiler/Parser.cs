@@ -11,7 +11,7 @@ public class Parser : ParserBase<Token, TokenType>
     public Parser(List<Token> tokens) : base(tokens) { }
 
     protected override Token Expect(TokenType t, string msg) =>
-        Check(t) ? Advance() : throw Error($"{msg} at {Cur.Line}:{Cur.Column}, got {GetTokenType(Cur)} '{Cur.Value}'");
+        Check(t) ? Advance() : throw Error($"{msg}（位置 {Cur.Line}:{Cur.Column}），实际得到 {GetTokenType(Cur)} '{Cur.Value}'");
 
     public Program Parse() {
         var funcs = new List<ASTNode>();
@@ -38,7 +38,7 @@ public class Parser : ParserBase<Token, TokenType>
 
     ASTNode ParseInterface() {
         Advance(); // interface
-        string name = Expect(TokenType.IDENTIFIER, "Expected interface name").Value;
+        string name = Expect(TokenType.IDENTIFIER, "期望接口名").Value;
         Expect(TokenType.LBRACE, "Expected '{'");
         var methods = new List<FunctionDecl>();
         while (GetTokenType(Cur) != TokenType.RBRACE && GetTokenType(Cur) != TokenType.EOF) {
@@ -57,7 +57,7 @@ public class Parser : ParserBase<Token, TokenType>
             Advance(); // <
             while (GetTokenType(Cur) != TokenType.GT && GetTokenType(Cur) != TokenType.EOF) {
                 if (tparams.Count > 0 && GetTokenType(Cur) == TokenType.COMMA) { Advance(); continue; }
-                tparams.Add(Expect(TokenType.IDENTIFIER, "Expected type parameter name").Value);
+                tparams.Add(Expect(TokenType.IDENTIFIER, "期望类型参数名").Value);
             }
             Expect(TokenType.GT, "Expected '>'");
         }
@@ -69,19 +69,19 @@ public class Parser : ParserBase<Token, TokenType>
         _pendingExternal = false;
         Expect(TokenType.KEYWORD, "Expected 'fun'"); // fun
         var tparams = ParseTypeParams(); // generic type params (ignored in MCU mode)
-        string name = Expect(TokenType.IDENTIFIER, "Expected function name").Value;
+        string name = Expect(TokenType.IDENTIFIER, "期望函数名").Value;
         // Extension function: fun ReceiverType.methodName(...)
         string? receiverType = null;
         if (GetTokenType(Cur) == TokenType.DOT) {
             Advance(); // .
             receiverType = name; // First identifier is the receiver type
-            name = Expect(TokenType.IDENTIFIER, "Expected function name after .").Value;
+            name = Expect(TokenType.IDENTIFIER, "期望函数名在 . 后").Value;
         }
         Expect(TokenType.LPAREN, "Expected '('");
         var pars = new List<string>();
         while (GetTokenType(Cur) != TokenType.RPAREN) {
             if (pars.Count > 0) Expect(TokenType.COMMA, "Expected ','");
-            Expect(TokenType.IDENTIFIER, "Expected param name");
+            Expect(TokenType.IDENTIFIER, "期望参数名");
             if (GetTokenType(Cur) == TokenType.COLON) { Advance(); Advance(); }
             pars.Add(_tokens[_pos - 3].Value);
         }
@@ -179,7 +179,7 @@ public class Parser : ParserBase<Token, TokenType>
 
     ASTNode ParseVarDecl(bool isVal) {
         Advance(); // val/var
-        string name = Expect(TokenType.IDENTIFIER, "Expected variable name").Value;
+        string name = Expect(TokenType.IDENTIFIER, "期望变量名").Value;
         string type = "Int";
         if (GetTokenType(Cur) == TokenType.COLON) { Advance(); type = Advance().Value; } // : Type
         ASTNode? init = null;
@@ -251,14 +251,14 @@ public class Parser : ParserBase<Token, TokenType>
     ASTNode ParseFor() {
         Advance(); // for
         Expect(TokenType.LPAREN, "Expected '('");
-        string varName = Expect(TokenType.IDENTIFIER, "Expected variable name").Value;
+        string varName = Expect(TokenType.IDENTIFIER, "期望变量名").Value;
         Expect(TokenType.KEYWORD, "Expected 'in'"); // in
         var start = ParseExpr();
         string kind = "..";
         if (GetTokenType(Cur) == TokenType.DOTDOT) { Advance(); }
         else if (Cur.Value == "until") { Advance(); kind = "until"; }
         else if (Cur.Value == "downTo") { Advance(); kind = "downTo"; }
-        else Expect(TokenType.DOTDOT, "Expected '..', 'until', or 'downTo'");
+        else Expect(TokenType.DOTDOT, "期望 '..'、'until' 或 'downTo'");
         var end = ParseExpr();
         ASTNode? step = null;
         if (Cur.Value == "step") { Advance(); step = ParseExpr(); }
@@ -286,7 +286,7 @@ public class Parser : ParserBase<Token, TokenType>
                 else { Expect(TokenType.ARROW, "Expected '->'"); var body = ParseStatement(); branches.Add(new WhenBranch(new BinaryOp("in", new VarRef("__when_val__"), rangeStart), body)); }
             } else if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "is") {
                 Advance(); // is
-                string typeName = GetTokenType(Cur) == TokenType.KEYWORD ? Advance().Value : Expect(TokenType.IDENTIFIER, "Expected type name after 'is'").Value;
+                string typeName = GetTokenType(Cur) == TokenType.KEYWORD ? Advance().Value : Expect(TokenType.IDENTIFIER, "期望类型名在 'is' 后").Value;
                 Expect(TokenType.ARROW, "Expected '->'");
                 branches.Add(new WhenBranch(new BinaryOp("is", new VarRef("__when_val__"), new VarRef(typeName)), ParseStatement()));
             } else {
@@ -302,7 +302,7 @@ public class Parser : ParserBase<Token, TokenType>
 
     ASTNode ParseClassDecl() {
         Advance(); // class
-        string name = Expect(TokenType.IDENTIFIER, "Expected class name").Value;
+        string name = Expect(TokenType.IDENTIFIER, "期望类名").Value;
         var tparams = ParseTypeParams(); // generic type params (ignored in MCU mode)
         var props = new List<(string, string)>();
 
@@ -313,7 +313,7 @@ public class Parser : ParserBase<Token, TokenType>
                 if (props.Count > 0) Expect(TokenType.COMMA, "Expected ','");
                 bool isVal = Cur.Value == "val" || Cur.Value == "var";
                 if (isVal) Advance();
-                string pname = Expect(TokenType.IDENTIFIER, "Expected property name").Value;
+                string pname = Expect(TokenType.IDENTIFIER, "期望属性名").Value;
                 if (GetTokenType(Cur) == TokenType.COLON) { Advance(); string ptype = Advance().Value; props.Add((pname, ptype)); }
                 else { props.Add((pname, "Int")); }
             }
@@ -325,7 +325,7 @@ public class Parser : ParserBase<Token, TokenType>
         if (GetTokenType(Cur) == TokenType.COLON) {
             Advance(); // :
             while (true) {
-                string ifaceName = Expect(TokenType.IDENTIFIER, "Expected interface name after ':'").Value;
+                string ifaceName = Expect(TokenType.IDENTIFIER, "期望接口名在 ':' 后").Value;
                 interfaces.Add(ifaceName);
                 if (GetTokenType(Cur) == TokenType.COMMA) { Advance(); }
                 else break;
@@ -342,7 +342,7 @@ public class Parser : ParserBase<Token, TokenType>
                 } else if (Cur.Value == "var" || Cur.Value == "val") {
                     // Parse body property: var/val name:Type = init
                     Advance(); // var or val
-                    string pname = Expect(TokenType.IDENTIFIER, "Expected property name").Value;
+                    string pname = Expect(TokenType.IDENTIFIER, "期望属性名").Value;
                     string ptype = "Int";
                     if (GetTokenType(Cur) == TokenType.COLON) { Advance(); ptype = Advance().Value; }
                     if (GetTokenType(Cur) == TokenType.EQ) {
@@ -360,15 +360,15 @@ public class Parser : ParserBase<Token, TokenType>
 
     ASTNode ParseDataClass() {
         Advance(); // data
-        Expect(TokenType.KEYWORD, "Expected 'class' after 'data'"); // class
-        string name = Expect(TokenType.IDENTIFIER, "Expected class name").Value;
+        Expect(TokenType.KEYWORD, "期望 'class' 在 'data' 后"); // class
+        string name = Expect(TokenType.IDENTIFIER, "期望类名").Value;
         Expect(TokenType.LPAREN, "Expected '('");
         var props = new List<(string, string)>();
         while (GetTokenType(Cur) != TokenType.RPAREN) {
             if (props.Count > 0) Expect(TokenType.COMMA, "Expected ','");
             bool isVal = Cur.Value == "val" || Cur.Value == "var";
             if (isVal) Advance();
-            string pname = Expect(TokenType.IDENTIFIER, "Expected property name").Value;
+            string pname = Expect(TokenType.IDENTIFIER, "期望属性名").Value;
             if (GetTokenType(Cur) == TokenType.COLON) { Advance(); string ptype = Advance().Value; props.Add((pname, ptype)); }
             else { props.Add((pname, "Int")); }
         }
@@ -378,7 +378,7 @@ public class Parser : ParserBase<Token, TokenType>
         if (GetTokenType(Cur) == TokenType.COLON) {
             Advance();
             while (true) {
-                interfaces.Add(Expect(TokenType.IDENTIFIER, "Expected interface name").Value);
+                interfaces.Add(Expect(TokenType.IDENTIFIER, "期望接口名").Value);
                 if (GetTokenType(Cur) == TokenType.COMMA) { Advance(); }
                 else break;
             }
@@ -440,7 +440,7 @@ public class Parser : ParserBase<Token, TokenType>
         }
         if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "is") {
             Advance(); // is
-            string typeName = GetTokenType(Cur) == TokenType.KEYWORD ? Advance().Value : Expect(TokenType.IDENTIFIER, "Expected type name after 'is'").Value;
+            string typeName = GetTokenType(Cur) == TokenType.KEYWORD ? Advance().Value : Expect(TokenType.IDENTIFIER, "期望类型名在 'is' 后").Value;
             return new BinaryOp("is", left, new VarRef(typeName));
         }
         if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "in") {
@@ -492,13 +492,13 @@ public class Parser : ParserBase<Token, TokenType>
             if (GetTokenType(Cur) == TokenType.DECREMENT) { Advance(); expr = new UnaryOp("--post", expr); continue; }
             if (GetTokenType(Cur) == TokenType.DOT) {
                 Advance();
-                string member = Expect(TokenType.IDENTIFIER, "Expected member name").Value;
+                string member = Expect(TokenType.IDENTIFIER, "期望成员名").Value;
                 expr = new MemberAccess(expr, member);
                 continue;
             }
             if (GetTokenType(Cur) == TokenType.SAFE_DOT) {
                 Advance();
-                string member = Expect(TokenType.IDENTIFIER, "Expected member name").Value;
+                string member = Expect(TokenType.IDENTIFIER, "期望成员名").Value;
                 expr = new SafeCallExpr(expr, member);
                 continue;
             }
@@ -601,12 +601,12 @@ public class Parser : ParserBase<Token, TokenType>
                 while (GetTokenType(Cur) == TokenType.DOT || GetTokenType(Cur) == TokenType.SAFE_DOT) {
                     if (GetTokenType(Cur) == TokenType.SAFE_DOT) {
                         Advance(); // ?.
-                        string safeMember = Expect(TokenType.IDENTIFIER, "Expected member name").Value;
+                        string safeMember = Expect(TokenType.IDENTIFIER, "期望成员名").Value;
                         result = new SafeCallExpr(result, safeMember);
                         break; // SAFE_DOT terminates the chain
                     }
                     Advance(); // .
-                    string member = Expect(TokenType.IDENTIFIER, "Expected member name").Value;
+                    string member = Expect(TokenType.IDENTIFIER, "期望成员名").Value;
                     if (GetTokenType(Cur) == TokenType.LPAREN) {
                         Advance();
                         var args = new List<ASTNode>();
@@ -638,7 +638,7 @@ public class Parser : ParserBase<Token, TokenType>
             }
             if (GetTokenType(Cur) == TokenType.SAFE_DOT) {
                 Advance(); // ?.
-                string member = Expect(TokenType.IDENTIFIER, "Expected member name").Value;
+                string member = Expect(TokenType.IDENTIFIER, "期望成员名").Value;
                 return new SafeCallExpr(new VarRef(name), member);
             }
             if (IsAssignOp(GetTokenType(Cur))) {
@@ -679,18 +679,18 @@ public class Parser : ParserBase<Token, TokenType>
                 var pars = new List<string>();
                 while (GetTokenType(Cur) != TokenType.ARROW && GetTokenType(Cur) != TokenType.RBRACE && GetTokenType(Cur) != TokenType.EOF) {
                     if (pars.Count > 0 && GetTokenType(Cur) == TokenType.COMMA) { Advance(); continue; }
-                    string pname = Expect(TokenType.IDENTIFIER, "Expected parameter name").Value;
+                    string pname = Expect(TokenType.IDENTIFIER, "期望参数名").Value;
                     if (GetTokenType(Cur) == TokenType.COLON) { Advance(); Advance(); }
                     pars.Add(pname);
                 }
                 if (GetTokenType(Cur) == TokenType.ARROW) Advance(); // ->
                 var body = ParseExpr();
-                Expect(TokenType.RBRACE, "Expected '}' in lambda");
+                Expect(TokenType.RBRACE, "期望 '}' 在 lambda 中");
                 return new LambdaExpr(pars, body);
             } else {
                 // Implicit 'it' parameter lambda: { expr }
                 var body = ParseExpr();
-                Expect(TokenType.RBRACE, "Expected '}' in lambda");
+                Expect(TokenType.RBRACE, "期望 '}' 在 lambda 中");
                 return new LambdaExpr(["it"], body);
             }
         }
@@ -698,6 +698,6 @@ public class Parser : ParserBase<Token, TokenType>
             return ParseWhen();
         if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "if")
             return ParseIf();
-        throw Error($"Unexpected token: {GetTokenType(Cur)} '{Cur.Value}' at {Cur.Line}:{Cur.Column}");
+        throw Error($"意外的 token: {GetTokenType(Cur)} '{Cur.Value}'（位置 {Cur.Line}:{Cur.Column}）");
     }
 }

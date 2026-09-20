@@ -44,7 +44,7 @@ namespace GoCompiler
             }
             catch (Exception ex) when (ex is not CompilationException)
             {
-                Console.Error.WriteLine($"<input>: warning: full compiler failed, using simplified: {ex.Message}");
+                Console.Error.WriteLine($"<input>: warning: 完整编译失败，改用简化编译: {ex.Message}");
                 return CompileSimple(source);
             }
         }

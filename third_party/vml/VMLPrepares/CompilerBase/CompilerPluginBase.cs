@@ -22,7 +22,7 @@ namespace CompilerBase
 
         /// <summary>检测消息是否已使用 GCC 格式 (file:line:col: level: msg)</summary>
         public static bool IsGccFormat(string msg) =>
-            msg.Contains(": error:") || msg.Contains(": warning:") || msg.Contains(": note:") || msg.Contains(" error(s) generated");
+            msg.Contains(": error:") || msg.Contains(": warning:") || msg.Contains(": note:") || msg.Contains(" 个错误。") || msg.Contains(" 个警告。");
     }
 
     public class CompileFailedException : CompilerException

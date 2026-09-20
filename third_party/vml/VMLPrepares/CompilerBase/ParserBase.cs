@@ -54,7 +54,17 @@ namespace CompilerBase
         /// 用户看到的是「我文件里那一行没问题，编译器却指着它报错」。
         /// </para>
         /// </summary>
-        public List<(string, int)>? SourceLineMap { get; set; }
+        public List<(string, int)>? SourceLineMap
+        {
+            // 显式设进来的优先（C/C++ 走这条，语义零变化）；没设就**认领生效中那一份** ——
+            // 解析器手里只有 token 列表，拿不到源码字符串，无法自己去比对，
+            // 所以由词法器在构造时认领（`LexerBase.RefreshLineMap`），这里取用。
+            // 21 门语言因此**一个字段都不用加**就能把头文件里的错报到头文件上去。
+            get => _sourceLineMap ?? CompilerHelper.ActiveLineMap;
+            set => _sourceLineMap = value;
+        }
+
+        private List<(string, int)>? _sourceLineMap;
 
         /// <summary>
         /// 「预处理拼接行号」→「(原文件, 原行)」——规则本体在
@@ -146,7 +156,7 @@ namespace CompilerBase
         {
             if (Check(type)) return Advance();
             var got = IsAtEnd ? "EOF" : GetTokenType(Cur).ToString();
-            throw Error($"Expected {type}, but got {got}");
+            throw Error($"期望 {type}，实际得到 {got}");
         }
 
         /// <summary>

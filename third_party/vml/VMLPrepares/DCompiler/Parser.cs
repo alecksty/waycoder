@@ -11,7 +11,7 @@ public class Parser : ParserBase<Token, TokenType>
     protected override TokenType GetTokenType(Token token) => token.Type;
 
     protected override Token Expect(TokenType t, string msg) =>
-        base.Expect(t, $"D parse error: {msg} (got {Cur.Type})");
+        base.Expect(t, $"D 解析错误: {msg}（得到 {Cur.Type}）");
 
     public Parser(List<Token> tokens) : base(tokens) { }
 
@@ -55,7 +55,7 @@ public class Parser : ParserBase<Token, TokenType>
                 Expect(TokenType.RBracket, "expected ']'");
                 type += "[]";
             }
-            string name = Expect(TokenType.Identifier, "expected name").Value;
+            string name = Expect(TokenType.Identifier, "期望名称").Value;
             if (Check(TokenType.LParen))
                 return ParseFuncDef(name, type);
 
@@ -70,7 +70,7 @@ public class Parser : ParserBase<Token, TokenType>
             // 收集后续变量名: int x, y=1, z = 0;
             while (Match(TokenType.Comma))
             {
-                string extraName = Expect(TokenType.Identifier, "expected variable name").Value;
+                string extraName = Expect(TokenType.Identifier, "期望变量名").Value;
                 ASTNode? extraInit = null;
                 if (Match(TokenType.Assign))
                     extraInit = ParseExpression();
@@ -126,7 +126,7 @@ public class Parser : ParserBase<Token, TokenType>
     private ASTNode ParseModuleDecl()
     {
         int l = Cur.Line, c = Cur.Column;
-        string name = Expect(TokenType.Identifier, "expected module name").Value;
+        string name = Expect(TokenType.Identifier, "期望模块名").Value;
         Expect(TokenType.Semicolon, "expected ';'");
         return new LiteralNode(null, l, c); // placeholder
     }
@@ -134,10 +134,10 @@ public class Parser : ParserBase<Token, TokenType>
     private ASTNode ParseImportDecl()
     {
         int l = Cur.Line, c = Cur.Column;
-        string name = Expect(TokenType.Identifier, "expected module name").Value;
+        string name = Expect(TokenType.Identifier, "期望模块名").Value;
         // support import foo.bar;
         while (Match(TokenType.Dot))
-            name += "." + Expect(TokenType.Identifier, "expected identifier").Value;
+            name += "." + Expect(TokenType.Identifier, "期望标识符").Value;
         Expect(TokenType.Semicolon, "expected ';'");
         return new LiteralNode(null, l, c); // placeholder
     }
@@ -152,7 +152,7 @@ public class Parser : ParserBase<Token, TokenType>
             do
             {
                 string pt = ParseType();
-                string pn = Expect(TokenType.Identifier, "expected param name").Value;
+                string pn = Expect(TokenType.Identifier, "期望参数名").Value;
                 parms.Add((pn, pt));
             } while (Match(TokenType.Comma));
         }
@@ -174,7 +174,7 @@ public class Parser : ParserBase<Token, TokenType>
     private ASTNode ParseClassDecl()
     {
         int l = Cur.Line, c = Cur.Column;
-        string name = Expect(TokenType.Identifier, "expected class name").Value;
+        string name = Expect(TokenType.Identifier, "期望类名").Value;
         // D 模板声明: class Box(T) { ... } — 跳过模板参数列表
         if (Match(TokenType.LParen))
         {
@@ -202,7 +202,7 @@ public class Parser : ParserBase<Token, TokenType>
     private ASTNode ParseStructDecl()
     {
         int l = Cur.Line, c = Cur.Column;
-        string name = Expect(TokenType.Identifier, "expected struct name").Value;
+        string name = Expect(TokenType.Identifier, "期望结构体名").Value;
         Expect(TokenType.LBrace, "expected '{'");
         var members = new List<ASTNode>();
         while (!Check(TokenType.RBrace) && !Check(TokenType.EOF))
@@ -219,7 +219,7 @@ public class Parser : ParserBase<Token, TokenType>
     private ASTNode ParseInterfaceDecl()
     {
         int l = Cur.Line, c = Cur.Column;
-        string name = Expect(TokenType.Identifier, "expected interface name").Value;
+        string name = Expect(TokenType.Identifier, "期望接口名").Value;
         Expect(TokenType.LBrace, "expected '{'");
         while (!Check(TokenType.RBrace) && !Check(TokenType.EOF))
         {
@@ -235,13 +235,13 @@ public class Parser : ParserBase<Token, TokenType>
     private ASTNode ParseEnumDecl()
     {
         int l = Cur.Line, c = Cur.Column;
-        string name = Expect(TokenType.Identifier, "expected enum name").Value;
+        string name = Expect(TokenType.Identifier, "期望枚举名").Value;
         Expect(TokenType.LBrace, "expected '{'");
         while (!Check(TokenType.RBrace) && !Check(TokenType.EOF))
         {
             SkipComments();
             if (Check(TokenType.RBrace)) break;
-            var _ = Expect(TokenType.Identifier, "expected enum member").Value;
+            var _ = Expect(TokenType.Identifier, "期望枚举成员").Value;
             if (Match(TokenType.Assign)) ParseExpression();
             Match(TokenType.Comma);
         }
@@ -303,7 +303,7 @@ public class Parser : ParserBase<Token, TokenType>
         if (Check(TokenType.Identifier) && Cur.Value == "goto")
         {
             Advance(); // goto
-            Expect(TokenType.Identifier, "expected label name");
+            Expect(TokenType.Identifier, "期望标签名");
             Expect(TokenType.Semicolon, "expected ';'");
             return new LiteralNode(null, Cur.Line, Cur.Column);
         }
@@ -343,18 +343,18 @@ public class Parser : ParserBase<Token, TokenType>
         // D with语句: with (expr) { ... } — evaluate expr, parse body (simplified)
         if (Match(TokenType.With))
         {
-            Expect(TokenType.LParen, "expected '(' after with");
+            Expect(TokenType.LParen, "期望 '(' 在 with 后");
             ParseExpression(); // evaluate with expression (discard for now)
-            Expect(TokenType.RParen, "expected ')' after with");
+            Expect(TokenType.RParen, "期望 ')' 在 with 后");
             ParseBlockOrSingle(); // parse body
             return new LiteralNode(null, Cur.Line, Cur.Column);
         }
         // D scope语句: scope(exit/success/failure) { ... } — parse body (deferred exec not yet)
         if (Match(TokenType.Scope))
         {
-            Expect(TokenType.LParen, "expected '(' after scope");
+            Expect(TokenType.LParen, "期望 '(' 在 scope 后");
             if (Match(TokenType.Identifier)) { /* exit/success/failure */ }
-            Expect(TokenType.RParen, "expected ')' after scope");
+            Expect(TokenType.RParen, "期望 ')' 在 scope 后");
             ParseBlockOrSingle(); // parse body
             return new LiteralNode(null, Cur.Line, Cur.Column);
         }
@@ -391,7 +391,7 @@ public class Parser : ParserBase<Token, TokenType>
                 Expect(TokenType.RBracket, "expected ']'");
                 type += "[]";
             }
-            string name = Expect(TokenType.Identifier, "expected name").Value;
+            string name = Expect(TokenType.Identifier, "期望名称").Value;
             ASTNode? init = null;
             if (Match(TokenType.Assign))
                 init = ParseExpression();
@@ -400,7 +400,7 @@ public class Parser : ParserBase<Token, TokenType>
             var result = new VarDeclNode(name, type, init, declLine, declCol);
             while (Match(TokenType.Comma))
             {
-                string extraName = Expect(TokenType.Identifier, "expected variable name").Value;
+                string extraName = Expect(TokenType.Identifier, "期望变量名").Value;
                 ASTNode? extraInit = null;
                 if (Match(TokenType.Assign))
                     extraInit = ParseExpression();
@@ -472,7 +472,7 @@ public class Parser : ParserBase<Token, TokenType>
             if (IsTypeKeyword() || (Check(TokenType.Identifier) && Peek(1).Type == TokenType.Identifier))
             {
                 string type = ParseType();
-                string name = Expect(TokenType.Identifier, "expected name").Value;
+                string name = Expect(TokenType.Identifier, "期望名称").Value;
                 init = ParseVarDecl(name, type);
                 initIsVarDecl = true;
             }
@@ -524,11 +524,11 @@ public class Parser : ParserBase<Token, TokenType>
         string? keyName = null;
         string varName;
         // foreach (element; collection) or foreach (key, element; collection)
-        var first = Expect(TokenType.Identifier, "expected identifier").Value;
+        var first = Expect(TokenType.Identifier, "期望标识符").Value;
         if (Match(TokenType.Comma))
         {
             keyName = first;
-            varName = Expect(TokenType.Identifier, "expected element variable").Value;
+            varName = Expect(TokenType.Identifier, "期望元素变量").Value;
         }
         else
         {
@@ -586,7 +586,7 @@ public class Parser : ParserBase<Token, TokenType>
         {
             int l = left.Line, cl = left.Column;
             var thenExpr = ParseExpression();
-            Expect(TokenType.Colon, "expected ':' in ternary");
+            Expect(TokenType.Colon, "期望 ':' 在三元表达式中");
             var elseExpr = ParseTernary();
             // Encode as nested BinaryNode: (cond ? then) : else
             return new BinaryNode(
@@ -709,9 +709,9 @@ public class Parser : ParserBase<Token, TokenType>
         {
             int l = Cur.Line, c = Cur.Column;
             Advance(); // consume 'cast'
-            Expect(TokenType.LParen, "expected '(' after cast");
+            Expect(TokenType.LParen, "期望 '(' 在 cast 后");
             string targetType = ParseType();
-            Expect(TokenType.RParen, "expected ')' after cast type");
+            Expect(TokenType.RParen, "期望 ')' 在 cast 类型后");
             var expr = ParseUnary();
             return new CastExpr(targetType, expr, l, c);
         }
@@ -755,7 +755,7 @@ public class Parser : ParserBase<Token, TokenType>
             if (Check(TokenType.Dot))
             {
                 Advance(); // consume '.'
-                string field = Expect(TokenType.Identifier, "expected field name").Value;
+                string field = Expect(TokenType.Identifier, "期望字段名").Value;
                 string baseName = expr is VarNode v ? v.Name : "_";
                 expr = new VarNode($"{baseName}.{field}", expr.Line, expr.Column);
                 continue;
@@ -873,7 +873,7 @@ public class Parser : ParserBase<Token, TokenType>
         // new expression: new ClassName(args)
         if (Match(TokenType.New))
         {
-            string className = Expect(TokenType.Identifier, "expected class name").Value;
+            string className = Expect(TokenType.Identifier, "期望类名").Value;
             // D 模板实例化: new Box!int() — 跳过 !type 模板参数
             if (Match(TokenType.Not))
             {
@@ -912,7 +912,7 @@ public class Parser : ParserBase<Token, TokenType>
         }
 
         throw Error(
-            $"Unexpected token: {Cur.Type}({Cur.Value}) at {Cur.Line}:{Cur.Column}");
+            $"意外的 token: {Cur.Type}({Cur.Value})（位置 {Cur.Line}:{Cur.Column}）");
     }
 
     private void SkipComments()
@@ -924,7 +924,7 @@ public class Parser : ParserBase<Token, TokenType>
     private ASTNode ParseSwitch()
     {
         int l = Cur.Line, c = Cur.Column;
-        Expect(TokenType.LParen, "expected '(' after switch");
+        Expect(TokenType.LParen, "期望 '(' 在 switch 后");
         var expr = ParseExpression();
         Expect(TokenType.RParen, "expected ')'");
         Expect(TokenType.LBrace, "expected '{'");
@@ -935,7 +935,7 @@ public class Parser : ParserBase<Token, TokenType>
             {
                 int cl = Cur.Line, cc = Cur.Column;
                 var caseVal = ParseExpression();
-                Expect(TokenType.Colon, "expected ':' after case");
+                Expect(TokenType.Colon, "期望 ':' 在 case 后");
                 var body = new List<ASTNode>();
                 while (!Check(TokenType.Case) && !Check(TokenType.Default) && !Check(TokenType.RBrace) && !Check(TokenType.EOF))
                     body.Add(ParseStatement());
@@ -944,7 +944,7 @@ public class Parser : ParserBase<Token, TokenType>
             else if (Match(TokenType.Default))
             {
                 int dl = Cur.Line, dc = Cur.Column;
-                Expect(TokenType.Colon, "expected ':' after default");
+                Expect(TokenType.Colon, "期望 ':' 在 default 后");
                 var body = new List<ASTNode>();
                 while (!Check(TokenType.Case) && !Check(TokenType.Default) && !Check(TokenType.RBrace) && !Check(TokenType.EOF))
                     body.Add(ParseStatement());

@@ -771,7 +771,7 @@ namespace CppCompiler
                     }
                     if (!Match(TokenType.COMMA)) break;
                 }
-                Expect(TokenType.GT, "TemplateDeclaration: expected '>' after template parameters");
+                Expect(TokenType.GT, "TemplateDeclaration: 期望 '>' 在模板参数后");
             }
             else if (Match(TokenType.TYPENAME, TokenType.CLASS))
             {
@@ -1054,7 +1054,7 @@ namespace CppCompiler
             if (Match(TokenType.TRY))
             {
                 if (_isMCU) WarningEmitter.Emit("cpp", "MCU模式: try/catch异常处理被忽略（不支持异常）");
-                Expect(TokenType.LBRACE, "expected '{' after try");
+                Expect(TokenType.LBRACE, "期望 '{' 在 try 后");
                 var body = ParseBlock();
                 var ts = new TryStmt { Body = body };
                 while (Match(TokenType.CATCH))
@@ -1071,7 +1071,7 @@ namespace CppCompiler
                         }
                         Expect(TokenType.RPAREN);
                     }
-                    Expect(TokenType.LBRACE, "expected '{' after catch");
+                    Expect(TokenType.LBRACE, "期望 '{' 在 catch 后");
                     cc.Body = ParseBlock();
                     ts.Catches.Add(cc);
                 }
@@ -1087,7 +1087,7 @@ namespace CppCompiler
             }
             if (Match(TokenType.ASM))
             {
-                Expect(TokenType.LPAREN, "expected '(' after asm");
+                Expect(TokenType.LPAREN, "期望 '(' 在 asm 后");
                 string code = Expect(TokenType.STRING).Value;
                 Expect(TokenType.RPAREN, "expected ')'");
                 Expect(TokenType.SEMICOLON, "expected ';'");
@@ -1220,7 +1220,7 @@ namespace CppCompiler
             if (GetTokenType(Cur) != type)
             {
                 var detail = string.IsNullOrWhiteSpace(msg) ? "" : $" ({msg})";
-                throw Error($"{Where(Cur)}error: Expected {type} but got {GetTokenType(Cur)} ('{Cur.Value}'){detail}");
+                throw Error($"{Where(Cur)}error: 期望 {type}，实际得到 {GetTokenType(Cur)} ('{Cur.Value}'){detail}");
             }
             return Advance();
         }

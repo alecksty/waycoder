@@ -20,7 +20,7 @@ namespace RustCompiler
                 else
                 {
                     string errorLabel = NewLabel("error") ?? throw new CodeGenerationException("error标签为null");
-                    dataSection[errorLabel] = "[Error: println first argument must be string literal]";
+                    dataSection[errorLabel] = "[错误: println! 的第一个实参必须是字符串字面量]";
                     AddInstruction(OpCode.MOVE, "R0", errorLabel);
                     EmitPrintString();
                 }
@@ -208,10 +208,10 @@ namespace RustCompiler
                 // &mut x: 必须没有任何借用
                 if (_immutBorrowed.Contains(varName))
                     throw new CodeGenerationException(
-                        $"cannot borrow `{varName}` as mutable because it is also borrowed as immutable");
+                        $"无法把 `{varName}` 借用为可变，因为它同时被借用为不可变");
                 if (_mutBorrowed.Contains(varName))
                     throw new CodeGenerationException(
-                        $"cannot borrow `{varName}` as mutable more than once at a time");
+                        $"无法把 `{varName}` 同时借用为可变两次");
                 _mutBorrowed.Add(varName);
             }
             else
@@ -219,7 +219,7 @@ namespace RustCompiler
                 // &x: 不能同时有可变借用
                 if (_mutBorrowed.Contains(varName))
                     throw new CodeGenerationException(
-                        $"cannot borrow `{varName}` as immutable because it is also borrowed as mutable");
+                        $"无法把 `{varName}` 借用为不可变，因为它同时被借用为可变");
                 _immutBorrowed.Add(varName);
             }
         }

@@ -121,7 +121,7 @@ public static class DiagnosticsCommand
         foreach (var line in message.Split('\n'))
         {
             var t = line.Trim();
-            if (string.IsNullOrEmpty(t) || t.Contains("error(s) generated")) continue;
+            if (string.IsNullOrEmpty(t) || t.Contains("个错误。")) continue;
 
             var c1 = t.IndexOf(':');
             if (c1 < 0) continue;

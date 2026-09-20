@@ -63,7 +63,7 @@ namespace CompilerBase
             if (!string.IsNullOrEmpty(includedFile))
             {
                 if (includedFiles.Count > 500) // safety: max 500 includes
-                    throw new CompilationException(ErrorCode.Preprocessor_MaxIncludeDepth, $"{currentFile}: error: #include nesting depth exceeds 500 [Preprocessor_MaxIncludeDepth]");
+                    throw new CompilationException(ErrorCode.Preprocessor_MaxIncludeDepth, $"{currentFile}: error: #include 嵌套深度超过 500 [Preprocessor_MaxIncludeDepth]");
                 string fullPath = ResolveIncludePath(includedFile, currentFile);
                 if (!includedFiles.Contains(fullPath))
                 {
@@ -220,7 +220,7 @@ namespace CompilerBase
                 }
             }
 
-            throw new CompilationException(ErrorCode.Preprocessor_InvalidInclude, $"{currentFile}:{currentLine}: error: invalid #include directive format [Preprocessor_InvalidInclude]");
+            throw new CompilationException(ErrorCode.Preprocessor_InvalidInclude, $"{currentFile}:{currentLine}: error: #include 指令格式无效 [Preprocessor_InvalidInclude]");
         }
 
         /// <summary>
@@ -312,7 +312,7 @@ namespace CompilerBase
                 string macroName = trimmed.Substring(0, parenIdx).Trim();
                 int closeParen = FindMatchingParen(trimmed, parenIdx);
                 if (closeParen < 0)
-                    throw new CompilationException(ErrorCode.Preprocessor_MacroMissingParen, $"{currentFile}:{currentLine}: error: function-like macro missing closing parenthesis: {macroName} [Preprocessor_MacroMissingParen]");
+                    throw new CompilationException(ErrorCode.Preprocessor_MacroMissingParen, $"{currentFile}:{currentLine}: error: 函数式宏缺少右括号: {macroName} [Preprocessor_MacroMissingParen]");
 
                 string paramsStr = trimmed.Substring(parenIdx + 1, closeParen - parenIdx - 1).Trim();
                 string body = trimmed.Substring(closeParen + 1).Trim();
@@ -455,7 +455,7 @@ namespace CompilerBase
         {
             if (ifStack.Count == 0)
             {
-                throw new CompilationException(ErrorCode.Preprocessor_ElseWithoutIf, $"{currentFile}:{currentLine}: error: #else without matching #if/#ifdef/#ifndef [Preprocessor_ElseWithoutIf]");
+                throw new CompilationException(ErrorCode.Preprocessor_ElseWithoutIf, $"{currentFile}:{currentLine}: error: #else 指令没有对应的 #if、#ifdef 或 #ifndef 指令 [Preprocessor_ElseWithoutIf]");
             }
 
             var (isTrue, depth) = ifStack[^1];
@@ -473,7 +473,7 @@ namespace CompilerBase
         {
             if (ifStack.Count == 0)
             {
-                throw new CompilationException(ErrorCode.Preprocessor_ElifWithoutIf, $"{currentFile}:{currentLine}: error: #elif without matching #if/#ifdef/#ifndef [Preprocessor_ElifWithoutIf]");
+                throw new CompilationException(ErrorCode.Preprocessor_ElifWithoutIf, $"{currentFile}:{currentLine}: error: #elif 指令没有对应的 #if、#ifdef 或 #ifndef 指令 [Preprocessor_ElifWithoutIf]");
             }
 
             var (isTrue, depth) = ifStack[^1];
@@ -498,7 +498,7 @@ namespace CompilerBase
         {
             if (ifStack.Count == 0)
             {
-                throw new CompilationException(ErrorCode.Preprocessor_EndifWithoutIf, $"{currentFile}:{currentLine}: error: #endif without matching #if/#ifdef/#ifndef [Preprocessor_EndifWithoutIf]");
+                throw new CompilationException(ErrorCode.Preprocessor_EndifWithoutIf, $"{currentFile}:{currentLine}: error: #endif 指令没有对应的 #if、#ifdef 或 #ifndef 指令 [Preprocessor_EndifWithoutIf]");
             }
 
             ifStack.RemoveAt(ifStack.Count - 1);
@@ -556,7 +556,7 @@ namespace CompilerBase
             int parenOpen = rest.IndexOf('(');
             int parenClose = rest.LastIndexOf(')');
             if (parenOpen < 0 || parenClose < 0 || parenClose <= parenOpen)
-                throw new CompilationException(ErrorCode.Preprocessor_ParamSyntaxError, $"{currentFile}:{currentLine}: error: #param syntax error: {rest} [Preprocessor_ParamSyntaxError]");
+                throw new CompilationException(ErrorCode.Preprocessor_ParamSyntaxError, $"{currentFile}:{currentLine}: error: #param 语法错误: {rest} [Preprocessor_ParamSyntaxError]");
 
             string func = rest.Substring(0, parenOpen).Trim().ToLowerInvariant();
             string arg = rest.Substring(parenOpen + 1, parenClose - parenOpen - 1).Trim();
@@ -618,7 +618,7 @@ namespace CompilerBase
                     break;
 
                 default:
-                    throw new CompilationException(ErrorCode.Preprocessor_UnknownParamFunction, $"{currentFile}:{currentLine}: error: unknown #param function: {func} [Preprocessor_UnknownParamFunction]");
+                    throw new CompilationException(ErrorCode.Preprocessor_UnknownParamFunction, $"{currentFile}:{currentLine}: error: 未知的 #param 函数: {func} [Preprocessor_UnknownParamFunction]");
             }
         }
 

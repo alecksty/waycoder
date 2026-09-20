@@ -989,7 +989,7 @@ public partial class CodeGenerator : OopCodeGenerator {
                                         var missing = allSubs.Where(s => !coveredTypes.Contains(s)).ToList();
                                         if (missing.Count > 0)
                                         {
-                                            throw new CompilationException(ErrorCode.Parser_TypeConflict, $"sealed class '{parentName}' when-expression must be exhaustive — missing subclasses: {string.Join(", ", missing)} (covered: {string.Join(", ", coveredTypes)})");
+                                            throw new CompilationException(ErrorCode.Parser_TypeConflict, $"密封类 '{parentName}' 的 when 表达式必须穷尽全部子类，缺少: {string.Join(", ", missing)}（已覆盖: {string.Join(", ", coveredTypes)}）");
                                         }
                                     }
                                     found = true;

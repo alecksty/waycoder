@@ -116,7 +116,7 @@ public class Lexer : LexerBase
                         {
                             string val = sb2.ToString();
                             if (val == "%")
-                                Error("Unexpected char: %");
+                                Error("意外的字符: %");
                         }
                     }
                     break;
@@ -135,7 +135,7 @@ public class Lexer : LexerBase
                     {
                         Advance();
                         if (Peek() == '-') { Advance(); Tokens.Add(new Token(TokenType.SuperAssign, "<<-", _line, _col)); break; }
-                        Error($"Unexpected char after <<: {Peek()}");
+                        Error($"'<<' 后出现意外的字符: {Peek()}");
                     }
                     Tokens.Add(new Token(TokenType.Lt, "<", _line, _col));
                     break;
@@ -157,7 +157,7 @@ public class Lexer : LexerBase
                 case ':': Tokens.Add(new Token(TokenType.Colon, ":", _line, _col)); break;
                 case '$': Tokens.Add(new Token(TokenType.Dollar, "$", _line, _col)); break;
                 default:
-                    Error($"Unexpected char: {c}"); break;
+                    Error($"意外的字符: {c}"); break;
             }
         }
         Tokens.Add(new Token(TokenType.EOF, "", _line, _col));

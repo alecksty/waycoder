@@ -97,7 +97,7 @@ namespace CSharpCompiler
 
         public override VmlProgram GenerateCode()
         {
-            if (_program == null) throw new System.InvalidOperationException("No AST program set");
+            if (_program == null) throw new System.InvalidOperationException("尚未设置 AST 程序");
             return Generate(_program);
         }
 
@@ -681,7 +681,7 @@ namespace CSharpCompiler
                     TokenType.MultiplyEqual => "*",
                     TokenType.DivideEqual => "/",
                     TokenType.ModuloEqual => "%",
-                    _ => throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, $"Unknown compound operator: {assign.Operator}")
+                    _ => throw new CompilationException(ErrorCode.CodeGen_InvalidOperand, $"未知的复合运算符: {assign.Operator}")
                 };
                 _expr!.EmitCompoundAssign(target, WrapExpr(assign.Value), op);
                 return;

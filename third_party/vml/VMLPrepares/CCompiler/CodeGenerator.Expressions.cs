@@ -1384,7 +1384,7 @@ namespace CCompiler
             else
             {
                 if (node is UnaryOp uo2)
-                    throw new CodeGenerationException(ErrorCode.CodeGen_UnsupportedExpression, $"Unsupported expression: UnaryOp({uo2.Op})");
+                    throw new CodeGenerationException(ErrorCode.CodeGen_UnsupportedExpression, $"不支持的表达式: UnaryOp({uo2.Op})");
                 throw new CodeGenerationException(ErrorCode.CodeGen_UnsupportedExpression, VMLPlugins.Strings.UnsupportedExpression(node.GetType().Name));
             }
         }
