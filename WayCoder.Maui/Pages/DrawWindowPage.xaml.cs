@@ -28,6 +28,13 @@ public partial class DrawWindowPage : ContentPage
     private IDispatcherTimer? _timer;
     /// <summary>上次出图时的标记（presented 程序 = `PresentVersion`，否则 = `Version`）。</summary>
     private int _renderedVersion = -1;
+
+    /// <summary>
+    /// 「矢量后端画不了 ⇒ 换光栅再画一遍」的**一次性**放行牌。
+    /// 置位时渲染那一拍跳过版本守卫、并且**现拍** DSL（不走 `TakePresentedDsl`，那份快照已被取走）。
+    /// 一次一帧就够：换过去之后一直是光栅，不会反复。
+    /// </summary>
+    private bool _forceRasterRender;
     /// <summary>上一拍看到的 `Version` —— 只给「没调 present 的老程序」判"这一拍还在画"用。</summary>
     private int _lastSeenVersion = -1;
     private bool _rendering;
@@ -80,8 +87,23 @@ public partial class DrawWindowPage : ContentPage
     private void FallbackToRaster(IReadOnlyCollection<string> kinds)
     {
         if (!_canvas.UseVector) return;
-        _canvas.UseVector = false;      // 下一帧起走光栅；当前这帧已经画好了，不重绘（免得闪成空白）
+        _canvas.UseVector = false;
         ErrorLog.Warning("VmlDraw", $"矢量后端画不了 {string.Join("/", kinds)} ⇒ 本窗口回退光栅后端");
+
+        // ⚠⚠ **必须重出这一帧** —— 只翻标志位是"下一帧起走光栅"，而**静态程序没有下一帧**。
+        //
+        // 这里从前写着"当前这帧已经画好了，不重绘（免得闪成空白）"，那句话对**逐帧重画的游戏**
+        // 成立（下一拍自然就补上了），对**画完一帧就 `ui_wait()` 挂着的程序**是错的：
+        // 屏上会**永久**停在"矢量后端画不出来的那一块是空的"的状态。
+        //
+        // 实测就是这么发现的（v0.96.306 的渐变描边）：`examples/c/draw_brush.c` 第 5 行
+        // 三格 —— 圆（只有渐变描边）整格空白、矩形只剩填充没有边框、渐变直线不见，
+        // 而同帧里矢量**支持**的椭圆渐变填充好好的。每一处观察都指向"矢量画了一半就被丢下"。
+        //
+        // 重出**不会**闪成空白：光栅那条路是后台算好再换（旧帧一直贴在屏上），
+        // 这里只是让**正确的帧**稍后替换掉**残缺的帧**。
+        _renderedVersion = -1;          // 否则下面那圈"版本没变就返回"会把重出挡掉
+        _forceRasterRender = true;
     }
 
     /// <summary>
@@ -750,7 +772,9 @@ public partial class DrawWindowPage : ContentPage
         // 都调，两个游戏也都调）。**没调过 present 的老程序**退到"这一拍内容没再变"——
         // 同样是"画完再说"，只是晚一拍；**都不再是"一变就出图"**。
         // 首帧（synchronous）不受此限：那时程序可能一个图元都还没画，等一拍就会"一闪而过"。
-        if (!synchronous)
+        // `_forceRasterRender` 时不走版本守卫：回退是"同一份内容换条路再画一遍"，
+        // 版本号当然没变，按版本判会直接返回、那一帧永远补不回来。
+        if (!synchronous && !_forceRasterRender)
         {
             int mark;
             if (scene.EverPresented)
@@ -782,7 +806,11 @@ public partial class DrawWindowPage : ContentPage
         // 快照已在 `VmlScene.Present()` 里当场拍好，这里只取；老程序（没调 present）
         // 才退到此刻现拍 —— 那条路上"这一拍内容没再变"已经保证程序不在画。
         var swTotal = System.Diagnostics.Stopwatch.StartNew();
-        var dsl = scene.EverPresented ? scene.TakePresentedDsl() : scene.BuildDsl();
+        // 回退重出时**不能走 Take** —— 上一拍已经把快照取走了（Take 会清），再取是 null，
+        // 整帧直接 return（那条 `if (dsl == null)` 分支）。静态程序本来就只有一帧，
+        // 所以这里现拍一次。
+        var dsl = (_forceRasterRender || !scene.EverPresented) ? scene.BuildDsl() : scene.TakePresentedDsl();
+        _forceRasterRender = false;
         var dslMs = swTotal.Elapsed.TotalMilliseconds;
         if (dsl == null)
         {

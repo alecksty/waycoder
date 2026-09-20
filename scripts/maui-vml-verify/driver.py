@@ -60,6 +60,23 @@ def keycodes_for(text):
     return [_KEYCODES[c] for c in text]
 
 
+def shell_sendable(text):
+    """这串字符能不能**只用键码**送进去（键码注入不经过输入法，确定得多）。"""
+    return all(c in _KEYCODES for c in text)
+
+
+def input_text_payload(text):
+    """`input text` 的实参：空格写成 `%s`（安卓 `input text` 的分隔约定），
+    整条套单引号交给**设备上的 shell**剥。
+
+    ⚠ 是"这一层由谁解析"的问题，不是"要不要加引号"：`sh()` 把参数当列表交给 adb，
+    adb 再用空格拼成一条命令丢给设备 shell ⇒ 不套引号的话，
+    `input text vml run a.c` 会被设备 shell 拆开，`input` 只拿到第一个词。
+    """
+    body = text.replace(" ", "%s").replace("'", "").replace("\"", "").replace("\\", "")
+    return "'" + body + "'"
+
+
 class Driver:
     def __init__(self, serial="emulator-5554", pkg="com.tanso.waycoder", verbose=True):
         self.serial = serial
@@ -312,6 +329,25 @@ class Driver:
             time.sleep(0.5)
         return self.entry_text() == ""
 
+    def send_text(self, cmd):
+        """把 cmd 送进**已聚焦**的输入框。调用方负责聚焦/清空/回读校验。
+
+        优先键码注入（不经过输入法）。**键码表覆盖不到的字符**（典型：`_` ——
+        安卓根本没有下划线键，它是 shift + 减号）退回 `input text`。
+
+        ⚠ 从前这里是直接 `raise ValueError`。报错本身是响的（好过静默丢字符），
+        但代价是**带下划线的例子一条都跑不了** —— 而语料里到处是下划线：
+        `draw_brush.c` / `draw_prims.c` / `file_io.c` / `sys_config`…
+        （实测：`draw_brush.c` 送不进去，被记成"驱动失败"，看不出是键码表的缺口。）
+
+        退路安全的前提是**调用方每条都回读校验**（`submit` 就是这么做的）：
+        字符真被吞了就重试，绝不会被读成"程序没输出"。
+        """
+        if shell_sendable(cmd):
+            self.sh("shell", "input", "keyevent", *keycodes_for(cmd))
+        else:
+            self.sh("shell", "input", "text", input_text_payload(cmd))
+
     def submit(self, cmd, tries=6):
         """把 cmd 送进输入框并回车。全程回读校验，直到输入框确实收到这串且被提交。"""
         for _ in range(tries):
@@ -331,11 +367,7 @@ class Driver:
             # 拆成 ["shell","input","text","vml run a.c"] 会被 adb 用空格拼起来再交给设备 shell，
             # 于是变成 `input text vml run a.c` —— `input` 只拿到 `vml`，命令从第一个空格就被截断。
             # 这就是"引号"那个坑的准确形状：**不是加不加引号的问题，是这一层是谁在解析**。
-            try:
-                self.sh("shell", "input", "keyevent", *keycodes_for(cmd))
-            except ValueError as ex:
-                return dict(ok=False, saw_busy=False, window=False, output="",
-                            error=str(ex)) if False else False
+            self.send_text(cmd)
             time.sleep(0.7)
             if self.entry_text() != cmd:
                 continue
