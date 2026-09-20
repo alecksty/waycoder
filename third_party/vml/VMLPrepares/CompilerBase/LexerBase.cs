@@ -130,12 +130,16 @@ public class LexerBase
     /// </summary>
     protected void Error(ErrorCode code, string message)
     {
+        // 位置一律走 **GCC 形态 `文件:行:列: error: 正文`** —— 宿主（CLI / 编辑器气泡 / LSP）
+        // 就是按这个形状锚行的；`MapOriginal` 负责把 `#include` 展开后的行号换回原文件。
+        //
+        // ⚠ 此前是**两套形状**：只有映射指向另一个文件时才用 GCC 形态，否则退回老式文案
+        //   `…第N行M列：…`。那套"我们自己看得懂"的形状**宿主认不出来** ⇒
+        //   词法错误在编辑器里一行都锚不到，而解析错误锚得到 —— 同一件事两套答案。
+        //   （改之前查过影响面：全仓没有任何测试/脚本断言旧文案。）
         var (originFile, originLine) = MapOriginal(_line);
-        // 映射给出了**另一个文件**（错误其实在头文件里）⇒ 只有 GCC 形态写得下文件名；
-        // 没有映射/仍是本文件 ⇒ 保持从前的文案，一个字符都不动。
-        if (originFile != null)
-            throw new ParseException(code, $"{originFile}:{originLine}:{_col}: error: {message}");
-        throw new ParseException(code, $"{FileName ?? "词法错误 在第"}{originLine}行{_col}列：{message}");
+        throw new ParseException(code,
+            $"{originFile ?? FileName ?? "<input>"}:{originLine}:{_col}: error: {message}");
     }
 
     // ---- 位置 ----
