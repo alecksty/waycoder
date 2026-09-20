@@ -501,7 +501,10 @@ namespace RustCompiler
                 return arr;
             }
             
-            throw new ParseException($"意外的token: {Peek()}");
+            // 两处一起改：① 两参 `new ParseException(msg)` **不带位置**（`Line = 0`）⇒ 锚不到行；
+            // ② `{Peek()}` 走 `Token.ToString()`，而它自带 `line:N, col:C` ⇒ 位置混进正文、
+            //    且不是宿主认的形状。位置交给统一前缀一处给，正文只留 token 的种类与值。
+            throw ErrorAt($"意外的token: {Peek().Type} '{Peek().Value}'", GapAnchor());
         }
         
         /// <summary>

@@ -9,6 +9,19 @@ namespace RustCompiler
     /// </summary>
     public partial class Parser : ParserBase<Token, TokenType>
     {
+        /// <summary>
+        /// 表达式**收尾符** —— 永远不会是表达式的开头（`GapAnchor()` 的第一个判据）。
+        /// `EOF` 必须算进来：`let c = a +` 结尾会撞上它。
+        /// </summary>
+        protected override bool IsExpressionCloser(Token token) => token.Type
+            is TokenType.RPAREN or TokenType.RBRACE or TokenType.RBRACKET
+            or TokenType.COMMA or TokenType.SEMICOLON or TokenType.COLON
+            or TokenType.EOF;
+
+        /// <summary>语句分隔 —— Rust 的 `;`（换行不是本前端的词法单元）。</summary>
+        protected override bool IsStatementSeparator(Token token) => token.Type
+            is TokenType.SEMICOLON;
+
         private int _variableCounter = 0;
         private int _functionCounter = 0;
 
@@ -569,7 +582,7 @@ namespace RustCompiler
             else if (Match(TokenType.PERCENTEQ))
                 compound.Operator = "%=";
             else
-                throw new ParseException("期望复合赋值运算符");
+                throw Error("期望复合赋值运算符");   // 统一出口：拼位置前缀 + 查 #include 映射
             
             // 值
             compound.Value = ParseExpression();
