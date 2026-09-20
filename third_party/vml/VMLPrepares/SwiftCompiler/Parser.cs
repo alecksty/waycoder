@@ -255,7 +255,7 @@ namespace SwiftCompiler
                     GetTokenType(Cur) == TokenType.Character)
                     typeAnnotation = Advance().Value;
                 else
-                    throw new ParseException("期望类型注解");
+                    throw Error("期望类型注解");   // 两参构造不带位置 ⇒ 改统一出口（拼 `文件:行:列:` + 查 #include 映射）
             }
             
             Expression initializer = null;
@@ -328,7 +328,7 @@ namespace SwiftCompiler
                     }
                     else
                     {
-                        throw new ParseException("期望参数类型");
+                        throw Error("期望参数类型");   // 同上
                     }
                     
                     parameters.Add(new Parameter(externalName, internalName, type));
