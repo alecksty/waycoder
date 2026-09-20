@@ -1189,6 +1189,13 @@ namespace BasicCompiler
                 // 二元运算：推断左右操作数类型，然后决定结果类型
                 var leftType = InferExpressionType(binExpr.Left);
                 var rightType = InferExpressionType(binExpr.Right);
+
+                // `字符串 + 字符串` 的结果**也是字符串**（拼接）。
+                // 缺这一条时 `a$ + b$ + c$` 只有**最外层**会被认成非字符串 ⇒
+                // 内层 `a$ + b$` 落回整数加法（自己踩自己），拼出来的还是空串。
+                // 与 `GenerateStringConcat` 是同一个判据的两半，改一处必须改另一处。
+                if (binExpr.Operator == "+" && leftType == BasicType.String && rightType == BasicType.String)
+                    return BasicType.String;
                 
                 // 类型提升规则：
                 // 1. 如果有一个是 Double/Long，结果是 Double (64位)
@@ -1222,10 +1229,19 @@ namespace BasicCompiler
                 // Functions ending with $ return strings
                 string name = funcCall.FunctionName.ToLower();
                 if (name.EndsWith("$")) return BasicType.String;
-                // 浮点函数（RND 在 VML 中返回整数 0..n-1）
+                // ⚠ SIN/COS/TAN/SQR/EXP/LOG/ATN **一律返回整数**（定标 10000 的整型值），
+                //   不是 SINGLE。这里原来写的是 `return BasicType.Single` —— 与
+                //   `Lib/shared/src/basiclib.c` 里那一串 `__stdcall int basic_xxx(int)` 直接矛盾。
+                //   代价是**调用点被插进一条 `f2i R0 R0`**（把返回的整数当成浮点位型又转一次）：
+                //   PRINT 那处（`Statements.IO.cs`）与赋值那处（`GenerateLetStatement`）都会插，
+                //   实测 `PRINT SQR(16)` 打出 **0**（应 4）、`SIN(30)` 打出 0（应 5000）。
+                //   更隐蔽的是它还会把 `SQR(4) + 1` 整个拖进**浮点运算路径**（F 寄存器），
+                //   而返回的其实是整数 ⇒ 算出来的东西与预期无关。
+                //   （`ABS`/`SGN`/`INT`/`RND` 本来就没在这张表里，所以一直是好的 ——
+                //     这正是"只有三角函数坏"的原因。）
                 if (name == "sin" || name == "cos" || name == "tan" ||
                     name == "sqr" || name == "exp" || name == "log" || name == "atn")
-                    return BasicType.Single;
+                    return BasicType.Integer;
                 // 类型转换函数返回目标类型
                 if (name == "csng")
                     return BasicType.Single;

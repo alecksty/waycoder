@@ -394,6 +394,11 @@ func basic_rtrim(a0 int32) int32 {
     return vml.R0()
 }
 
+func basic_concat(a0 int32, a1 int32) int32 {
+    vml.Call("basic_concat")
+    return vml.R0()
+}
+
 func basic_abs(a0 int32) int32 {
     vml.Call("basic_abs")
     return vml.R0()
@@ -4869,6 +4874,26 @@ func ui_store_set(a0 int32, a1 int32) {
 
 func ui_store_get(a0 int32, a1 int32, a2 int32) int32 {
     vml.Call("ui_store_get")
+    return vml.R0()
+}
+
+func callwithint8(a0 int32) int32 {
+    vml.Call("callwithint8")
+    return vml.R0()
+}
+
+func callwithfloat8(a0 int32) int32 {
+    vml.Call("callwithfloat8")
+    return vml.R0()
+}
+
+func callwithlong4(a0 int32) int32 {
+    vml.Call("callwithlong4")
+    return vml.R0()
+}
+
+func callwithdouble4(a0 int32) int32 {
+    vml.Call("callwithdouble4")
     return vml.R0()
 }
 

@@ -124,6 +124,11 @@ namespace BasicCompiler
             }
             else if (expr is BinaryExpression binary)
             {
+                // 字符串拼接 `a$ + b$` —— 必须**排在整数加法之前**分叉。
+                // 交给下面的算术路径就是"把两个字符串指针相加"，结果是野指针，
+                // 打出来是空行且**不报错**（实测 `b$ = "x" + "y"` → 空串）。
+                if (GenerateStringConcat(binary, reg)) return;
+
                 // 推断左右操作数类型
                 ExpType leftType = InferExpType(binary.Left);
                 ExpType rightType = InferExpType(binary.Right);
@@ -293,6 +298,33 @@ namespace BasicCompiler
             {
                 GenerateFieldAccessExpression(fieldAccess, reg);
             }
+        }
+
+        /// <summary>
+        /// `a$ + b$` → `CALL basic_concat`（库里的静态缓冲区版本）。
+        ///
+        /// 判据是**两边都推断为 String**：这样 `1 + 2`、`a$ + 1` 之类不受影响。
+        /// 递归形状（`a$ + b$ + c$`）靠 `InferExpressionType` 里那条同名规则支撑 ——
+        /// 它把「String + String」的二元节点也判成 String，于是左结合的三元链
+        /// 每次都会走到这里。
+        ///
+        /// ⚠ 与其它库调用一样要 `EmitSaveRegsExcept`：库函数会把 R0–R5 用掉，
+        ///   而这可能发生在另一个表达式求值的中途。
+        /// </summary>
+        private bool GenerateStringConcat(BinaryExpression binary, int reg)
+        {
+            if (binary.Operator != "+") return false;
+            if (InferExpressionType(binary.Left) != BasicType.String) return false;
+            if (InferExpressionType(binary.Right) != BasicType.String) return false;
+
+            var call = new FunctionCallExpression(binary.Line, binary.Column, "basic_concat");
+            call.Arguments.Add(binary.Left);
+            call.Arguments.Add(binary.Right);
+
+            EmitSaveRegsExcept(reg, 0, 1, 2, 3, 4, 5);
+            GenerateLibraryCall("basic_concat", call, reg);
+            EmitRestoreRegsExcept(reg, 0, 1, 2, 3, 4, 5);
+            return true;
         }
 
         private void GenerateMainFunctionCall(FunctionCallExpression funcCall, int reg)
@@ -565,14 +597,22 @@ namespace BasicCompiler
             
             instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, rangeCheckLabel) }));
             
-            // 计算元素地址: 基址 + 线性索引 * 4
-            int baseOffset = 8 + (arrayOffset * 4);
-            instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 12) }));
-            if (baseOffset != 0)
-            {
-                instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.IMMEDIATE, baseOffset) }));
-            }
-            
+            // 计算元素地址: **静态区全局段** + 数组基址 + 线性索引 * 4
+            //
+            // ⚠ 这里原来是 `MOVE R2, R12; ADD R2, #(8 + arrayOffset*4)` —— 把数组当成了
+            //   **当前帧里的局部量**（`R12+8` 之上）。而数组元素槽本来就是经
+            //   `GetOrCreateVariable` 在模块级建的 ⇒ 它们住在静态区全局段（`EmitLoadVar`
+            //   那条路）。两者只在"所有访问都在同一个栈深度"时才偶然重合：
+            //     · 主程序里读写、以及**同一深度**的子过程之间传数据 —— 看着是对的
+            //       （`R12+8` 那块其实是各次同深度调用共用的暂存区）；
+            //     · 一旦跨层（`FUNCTION` 里读 `SUB` 写好的 `board(i)`、递归、嵌套调用），
+            //       `R12+8` 换成了**另一层**的暂存区，读出来的就是垃圾 —— 实测
+            //       `t9` 读出 `0 0 2 65528`（应为 `0 2 4 6`），而**一个错都不报**。
+            //   改成静态区寻址之后，数组的位置与谁在读它无关。
+            string elem0 = arrayName.ToLower() + "(0)";
+            int arrayByteOffset = variables.ContainsKey(elem0) ? GetVarByteOffset(elem0) : arrayOffset * 4;
+            EmitStaticAddr(2, STATIC_GLOBALS_OFFSET + arrayByteOffset);
+
             instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.IMMEDIATE, 4) }));
             instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, 2), new Operand(OperandType.REGISTER, 1) }));
             

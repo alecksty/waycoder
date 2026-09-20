@@ -18,6 +18,14 @@ namespace BasicCompiler
             currentLocalVarCount = 0;
             currentParamCount = subDecl.Parameters.Count;
 
+            // 形参声明为 STRING（`SUB f(s AS STRING)`）⇒ 登记成字符串类型。
+            // 不登记的话 `GetVariableType("s")` 走"无后缀 ⇒ Integer"那条默认，
+            // 于是 `PRINT s` 把**字符串指针**当整数打出来 —— 实测打出 `1024`（一个地址），
+            // 一个字都不像"字符串坏了"的样子。
+            foreach (var pDecl in subDecl.Parameters)
+                if (pDecl.IsString)
+                    variableTypes[pDecl.Name.ToLower()] = BasicType.String;
+
             // Collect local variables from body
             foreach (var stmt in subDecl.Body)
             {
@@ -86,6 +94,11 @@ namespace BasicCompiler
             currentLocalVars = new Dictionary<string, int>();
             currentLocalVarCount = 0;
             currentParamCount = funcDecl.Parameters.Count;
+
+            // 形参声明为 STRING ⇒ 登记成字符串类型（同 SUB 那处，理由见那里）
+            foreach (var pDecl in funcDecl.Parameters)
+                if (pDecl.IsString)
+                    variableTypes[pDecl.Name.ToLower()] = BasicType.String;
 
             // The function name is a special local variable for the return value
             currentLocalVars[funcDecl.Name.ToLower()] = currentLocalVarCount++;
@@ -242,6 +255,45 @@ namespace BasicCompiler
                 foreach (var arg in callStmt.Arguments)
                     CollectLocalVariablesFromExpr(arg);
             }
+            // `DIM arr(n)` / `DIM arr(n) AS INTEGER` 写在 SUB 里 —— **数组**。
+            //
+            // ⚠ 此前**完全没有这条分支**：数组名与它的元素槽一个都没建，
+            //   于是 `arr(2) = 7` 静默什么都不做、`PRINT arr(2)` 恒为 0
+            //   （`GenerateArrayAccess` 查不到 `arrayVariables` 就"返回 0 / 不生成代码"）。
+            //   实测 t11：`SUB g() / DIM arr(8) AS INTEGER / arr(2) = 7 / PRINT arr(2)` 打出 0。
+            //
+            // 存储位置：**静态区全局段**（与模块级数组同一块），不是子帧。理由是
+            // `GenerateArrayAccess` 现在只认静态区寻址（见那里的注释：帧相对寻址在跨层时
+            // 会读到别的帧的暂存区）。**代价要说清楚**：这样 DIM 出来的数组
+            // **跨调用保留**、且**递归不安全** —— 与 QBasic 的"每次调用一份局部数组"不同。
+            // 之所以接受这个偏离：原来它根本不工作（不是语义不同，是没有语义），
+            // 而"静态数组"至少行为确定、可解释；真要递归就得把数组也做成帧相对，
+            // 那是另一件事（要同时改 `GenerateArrayAccess` 的寻址模型）。
+            else if (stmt is DimStatement dimStmt && (dimStmt.Dimensions.Count > 0 || dimStmt.Size > 1))
+            {
+                if (!arrayVariables.ContainsKey(dimStmt.VariableName))
+                {
+                    int arrSize = dimStmt.Size > 0 ? dimStmt.Size : 1;
+                    arrayVariables[dimStmt.VariableName] = new ArrayInfo
+                    {
+                        Size = arrSize,
+                        Offset = variableCount,
+                        Dimensions = dimStmt.Dimensions.Count > 0
+                            ? new List<int>(dimStmt.Dimensions)
+                            : new List<int> { arrSize }
+                    };
+                    for (int i = 0; i < arrSize; i++)
+                    {
+                        string elementName = $"{dimStmt.VariableName}({i})";
+                        if (!variables.ContainsKey(elementName))
+                        {
+                            variables[elementName] = variableCount++;
+                        }
+                    }
+                }
+                if (!string.IsNullOrEmpty(dimStmt.TypeName))
+                    dimAsVariables[dimStmt.VariableName.ToLower()] = dimStmt.TypeName.ToLower();
+            }
             // Turbo Basic: LOCAL declaration -- always add to local vars
             else if (stmt is LocalDeclaration localDecl)
             {
@@ -301,6 +353,13 @@ namespace BasicCompiler
                 {
                     currentLocalVars[varName] = currentLocalVarCount++;
                 }
+
+                // `DIM s AS STRING` / `DIM n AS INTEGER` —— **类型名要接上**。
+                // 只写进 `dimAsVariables`（那是记录字段布局用的表）不够：变量本身的类型
+                // 由 `GetVariableType` 决定，而它只看后缀与 DEFtype ⇒ `DIM s AS STRING`
+                // 明明写着 STRING，`PRINT s` 仍旧按整数打（实测打出 `1024`，是个栈地址）。
+                // 与主程序那处（`CodeGenerator.cs` 的 DimAsStatement 分支）**同一口径**。
+                RegisterDimAsType(varName, dimAs.TypeName);
             }
             else if (stmt is DoLoopStatement doLoop)
             {
@@ -1177,112 +1236,117 @@ namespace BasicCompiler
             }
             else if (expr is BinaryExpression binary)
             {
-                // Save R1 to stack before computing right side (R1 may be clobbered by CALL)
-                bool hasFuncCall = ContainsFunctionCall(binary.Right);
-                if (hasFuncCall)
+                // ══════════════════════════════════════════════════════════════════════
+                // 二元表达式 —— **SUB 体那一套最贵的一处缺陷**（顶层走 GenerateExpression，与此无关）
+                //
+                // 这里原来是：
+                //     GenerateSubExpression(left, 1);
+                //     GenerateSubExpression(right, 2);          // 右侧带函数调用时先 push R1
+                //     case "*": MOVE reg, R1; MUL reg, R2;
+                //
+                // 两个错叠在一起，**都不报错**：
+                //   ① **操作数寄存器硬编码 R1/R2，且不保护左值** —— 右侧只要是个复合子表达式，
+                //      它自己又会用 R1（把外层辛辛苦苦算好的左值冲掉）；
+                //   ② **合并式 `MOVE reg, R1` 在 reg == 2 时自毁** —— 那正是"右操作数被求值时
+                //      所用的 reg"，`MOVE R2, R1` 先把右值覆盖掉，紧接着 `OP R2, R2` = 自己跟自己算。
+                //   实测：`h = 1 + (2 * 3)` 得 **6**（内层先算成 4 且把外层的 1 覆盖成 2 ⇒ 2+4）。
+                //   受影响的是**一切右侧为复合表达式的算式与比较**，其中最隐蔽的是条件：
+                //   `IF bi > NB - 1 THEN …`（NB 是 CONST）里右侧 `NB - 1` 把 `bi` 冲掉，
+                //   比较变成 `6 > 0` ⇒ **无条件成立**（bi = 0 也会被改成 5）。
+                //
+                // 现在的形状：**左右都算到 R1，左值用栈保管**。递归任意深都不会互相覆盖，
+                // 也不需要"右侧有没有函数调用"这种特判（原来那个 `hasFuncCall` 只挡住了
+                // 函数调用这一种覆盖来源，复合子表达式照样覆盖）。
+                // 求值结束时：**左值在 R2、右值在 R1**。
+                // ══════════════════════════════════════════════════════════════════════
+                // 字符串拼接**先分叉**（与顶层 GenerateExpression 同一条判据、同一个库函数）
+                if (GenerateStringConcat(binary, reg)) return;
+
+                GenerateSubExpression(binary.Left, 1);
+                instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 1) }));
+                GenerateSubExpression(binary.Right, 1);
+                instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 2) }));
+
+                // ⚠ 运算符要**大小写无关**地比：操作数文本取自 token 的 `Value`（保留源码大小写），
+                //   所以 `mod` / `Mod` / `MOD` 是三个不同的字符串。顶层那套按 `"MOD"` 精确比，
+                //   小写 mod 同样编不出代码（同一个坑，只是这边顺手一起兜住）。
+                string op = binary.Operator.ToUpperInvariant();
+
+                // 算术与位运算：都满足 `reg = 左 OP 右`
+                OpCode? arithOp = op switch
                 {
-                    GenerateSubExpression(binary.Left, 1);
-                    instructions.Add(new Instruction(OpCode.PUSH, new List<Operand> { new Operand(OperandType.REGISTER, 1) }));
-                    GenerateSubExpression(binary.Right, 2);
-                    instructions.Add(new Instruction(OpCode.POP, new List<Operand> { new Operand(OperandType.REGISTER, 1) }));
+                    "+" => OpCode.ADD,
+                    "-" => OpCode.SUB,
+                    "*" => OpCode.MUL,
+                    "/" => OpCode.DIV,
+                    "\\" => OpCode.DIV,        // BASIC 的整除：VML 的 DIV 对整数就是整除
+                    "MOD" => OpCode.MOD,
+                    "AND" => OpCode.AND,
+                    "OR" => OpCode.OR,
+                    _ => null
+                };
+
+                if (arithOp != null)
+                {
+                    // reg == 1 时结果寄存器**就是右操作数所在的寄存器**，`MOVE reg, R2` 会把它冲掉；
+                    // 改为在 R2（左值）上就地累加、最后搬回 R1。
+                    if (reg == 1)
+                    {
+                        AddRR(arithOp.Value, 2, 1);
+                        AddRR(OpCode.MOVE, 1, 2);
+                    }
+                    else
+                    {
+                        AddRR(OpCode.MOVE, reg, 2);
+                        AddRR(arithOp.Value, reg, 1);
+                    }
+                }
+                else if (op == "^")
+                {
+                    // 幂：R0 = 1; while (R1 > 0) { R0 = R0 * R2; R1 = R1 - 1; }
+                    // 用 R0 当累加器 —— 此刻 R0 不是活的（左值在 R2、右值在 R1/栈上）。
+                    string powLoop = GenerateLabel();
+                    string powEnd = GenerateLabel();
+                    AddRI(OpCode.MOVE, 0, 1);
+                    instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, powLoop) }));
+                    AddRI(OpCode.CMP, 1, 0);
+                    instructions.Add(new Instruction(OpCode.JLE, new List<Operand> { new Operand(OperandType.LABEL, powEnd) }));
+                    AddRR(OpCode.MUL, 0, 2);
+                    AddRI(OpCode.SUB, 1, 1);
+                    instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, powLoop) }));
+                    instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, powEnd) }));
+                    if (reg != 0) AddRR(OpCode.MOVE, reg, 0);
+                }
+                else if (op == "=" || op == "<>" || op == "<" || op == "<=" || op == ">" || op == ">=")
+                {
+                    // 比较：左在 R2、右在 R1 —— 跳转指令的**条件**与原来一字不差，
+                    // 只是把 `CMP R1, R2` 换成 `CMP R2, R1`（操作数次序本来就在 CMP 里）。
+                    AddRR(OpCode.CMP, 2, 1);
+                    string falseLabel = GenerateLabel();
+                    string endLabel = GenerateLabel();
+                    // 「不满足」时跳到 falseLabel
+                    OpCode jumpOp = op switch
+                    {
+                        "=" => OpCode.JNE,
+                        "<>" => OpCode.JE,
+                        "<" => OpCode.JGE,
+                        "<=" => OpCode.JG,
+                        ">" => OpCode.JLE,
+                        _ => OpCode.JL      // ">="
+                    };
+                    instructions.Add(new Instruction(jumpOp, new List<Operand> { new Operand(OperandType.LABEL, falseLabel) }));
+                    AddRI(OpCode.MOVE, reg, 1);
+                    instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, endLabel) }));
+                    instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, falseLabel) }));
+                    AddRI(OpCode.MOVE, reg, 0);
+                    instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, endLabel) }));
                 }
                 else
                 {
-                    GenerateSubExpression(binary.Left, 1);
-                    GenerateSubExpression(binary.Right, 2);
-                }
-                switch (binary.Operator)
-                {
-                    case "+":
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 1) }));
-                        instructions.Add(new Instruction(OpCode.ADD, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 2) }));
-                        break;
-                    case "-":
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 1) }));
-                        instructions.Add(new Instruction(OpCode.SUB, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 2) }));
-                        break;
-                    case "*":
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 1) }));
-                        instructions.Add(new Instruction(OpCode.MUL, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 2) }));
-                        break;
-                    case "/":
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 1) }));
-                        instructions.Add(new Instruction(OpCode.DIV, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 2) }));
-                        break;
-                    case "=":
-                        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
-                        string eqLabel1 = GenerateLabel();
-                        string eqLabel2 = GenerateLabel();
-                        instructions.Add(new Instruction(OpCode.JNE, new List<Operand> { new Operand(OperandType.LABEL, eqLabel1) }));
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 1) }));
-                        instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, eqLabel2) }));
-                        instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, eqLabel1) }));
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0) }));
-                        instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, eqLabel2) }));
-                        break;
-                    case "<>":
-                        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
-                        string neLabel1 = GenerateLabel();
-                        string neLabel2 = GenerateLabel();
-                        instructions.Add(new Instruction(OpCode.JE, new List<Operand> { new Operand(OperandType.LABEL, neLabel1) }));
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 1) }));
-                        instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, neLabel2) }));
-                        instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, neLabel1) }));
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0) }));
-                        instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, neLabel2) }));
-                        break;
-                    case "<":
-                        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
-                        string lLabel1 = GenerateLabel();
-                        string lLabel2 = GenerateLabel();
-                        instructions.Add(new Instruction(OpCode.JGE, new List<Operand> { new Operand(OperandType.LABEL, lLabel1) }));
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 1) }));
-                        instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, lLabel2) }));
-                        instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, lLabel1) }));
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0) }));
-                        instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, lLabel2) }));
-                        break;
-                    case ">":
-                        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
-                        string gLabel1 = GenerateLabel();
-                        string gLabel2 = GenerateLabel();
-                        instructions.Add(new Instruction(OpCode.JLE, new List<Operand> { new Operand(OperandType.LABEL, gLabel1) }));
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 1) }));
-                        instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, gLabel2) }));
-                        instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, gLabel1) }));
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0) }));
-                        instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, gLabel2) }));
-                        break;
-                    case "<=":
-                        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
-                        string leLabel1 = GenerateLabel();
-                        string leLabel2 = GenerateLabel();
-                        instructions.Add(new Instruction(OpCode.JLE, new List<Operand> { new Operand(OperandType.LABEL, leLabel1) }));
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0) }));
-                        instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, leLabel2) }));
-                        instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, leLabel1) }));
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 1) }));
-                        instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, leLabel2) }));
-                        break;
-                    case ">=":
-                        instructions.Add(new Instruction(OpCode.CMP, new List<Operand> { new Operand(OperandType.REGISTER, 1), new Operand(OperandType.REGISTER, 2) }));
-                        string geLabel1 = GenerateLabel();
-                        string geLabel2 = GenerateLabel();
-                        instructions.Add(new Instruction(OpCode.JGE, new List<Operand> { new Operand(OperandType.LABEL, geLabel1) }));
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 0) }));
-                        instructions.Add(new Instruction(OpCode.JMP, new List<Operand> { new Operand(OperandType.LABEL, geLabel2) }));
-                        instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, geLabel1) }));
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.IMMEDIATE, 1) }));
-                        instructions.Add(new Instruction(OpCode.LABEL, new List<Operand> { new Operand(OperandType.LABEL, geLabel2) }));
-                        break;
-                    case "AND":
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 1) }));
-                        instructions.Add(new Instruction(OpCode.AND, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 2) }));
-                        break;
-                    case "OR":
-                        instructions.Add(new Instruction(OpCode.MOVE, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 1) }));
-                        instructions.Add(new Instruction(OpCode.OR, new List<Operand> { new Operand(OperandType.REGISTER, reg), new Operand(OperandType.REGISTER, 2) }));
-                        break;
+                    // 认不出的运算符 —— 此前是**默默什么都不发**，于是 `100 \ 2` / `100 MOD 7`
+                    // 编出来的是一条"没有运算"的赋值（实测都得到 61：上一次运算残留的值）。
+                    // 现在报出来，别再让它静默。
+                    WarnUnimplemented($"二元运算符 {binary.Operator}");
                 }
             }
             else if (expr is UnaryExpression unary)

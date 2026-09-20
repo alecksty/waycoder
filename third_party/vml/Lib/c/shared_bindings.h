@@ -89,6 +89,7 @@ __stdcall char* basic_left(const char* s, int n);
 __stdcall char* basic_right(const char* s, int n);
 __stdcall char* basic_ltrim(const char* s);
 __stdcall char* basic_rtrim(const char* s);
+__stdcall char* basic_concat(const char* a, const char* b);
 __stdcall int basic_abs(int n);
 __stdcall int basic_sgn(int n);
 __stdcall int _sin_lookup(int deg);
@@ -1179,6 +1180,10 @@ __stdcall void vga_text_newline(void);
  void ui_keep_on(int on);
  void ui_store_set(char* key, char* value);
  int ui_store_get(char* key, char* buf, int cap);
+ int callwithint8(int* v);
+ float callwithfloat8(float* v);
+ long callwithlong4(long* v);
+ double callwithdouble4(double* v);
 
 // wchar.c
  int wctomb(char *dest, wchar_t wc);

@@ -446,7 +446,7 @@ namespace BasicCompiler
             if (Peek().Type == TokenType.AS)
             {
                 Advance(); // skip AS
-                if (Peek().Type == TokenType.IDENTIFIER)
+                if (IsTypeNameToken(Peek()))
                 {
                     stmt.TypeName = Peek().Value;
                     Advance();
@@ -479,7 +479,7 @@ namespace BasicCompiler
                     if (Peek().Type == TokenType.AS)
                     {
                         Advance(); // skip AS
-                        if (Peek().Type == TokenType.IDENTIFIER)
+                        if (IsTypeNameToken(Peek()))
                             Advance(); // skip type name
                     }
                 }
@@ -538,8 +538,28 @@ namespace BasicCompiler
                     stmt.Body.Add(bodyStmt);
             }
 
+            // ⚠ `NEXT i` 里的循环变量**必须在这里吃掉**。
+            //
+            // 词法里没有换行 token，语句边界靠"读到什么关键字"来断。只 `Advance()` 掉 NEXT
+            // 的话，紧跟的 `i` 会被外层语句循环当成**下一条语句**，而
+            // `case TokenType.IDENTIFIER` 的兜底分支把「不是 `=` 的标识符」一律当裸调用
+            // ⇒ 编出 `call func_i`，链接期报「未定义的函数 'func_i'」。
+            //   **更糟的是它不报错也能"跑"**：链接器把 `func_i` 解析到同名的全局标签上，
+            //   于是 `NEXT i` 变成一次**递归调用**，`FOR i = 0 TO 3` 无限循环
+            //   （实测打出 1 2 3 0 1 2 3 …直到内存不足）。
+            //
+            // 因此这里的判据是「同一行、且是标识符」——避免把下一行的语句吃进来。
             if (Peek().Type == TokenType.NEXT)
+            {
+                int nextLine = Peek().Line;
                 Advance(); // 跳过 NEXT
+                while (!AtEnd() && Peek().Line == nextLine && Peek().Type == TokenType.IDENTIFIER)
+                {
+                    Advance(); // 跳过循环变量名
+                    if (Peek().Type == TokenType.COMMA) { Advance(); continue; } // NEXT i, j
+                    break;
+                }
+            }
 
             return stmt;
         }
@@ -710,12 +730,29 @@ namespace BasicCompiler
             }
         }
 
+        /// <summary>
+        /// 这个 token 的文本能不能当**类型名**用。
+        ///
+        /// ⚠ 不能只认 `IDENTIFIER` —— 词法表里有 `Integer` / `String` 这些
+        ///   **VB 风格关键字**（`TokenType.VB_INTEGER` / `VB_STRING`），
+        ///   而词法表是**大小写敏感**的：`AS INTEGER`（全大写）落到 IDENTIFIER、
+        ///   `AS Integer`（首字母大写，标准写法）落到 VB_INTEGER。
+        ///   于是 `DIM x AS Integer` 在 `ParseDimAsStatement` 里 `return null`
+        ///   ⇒ **整条 DIM 被静默丢掉**（语句层对 null 是跳过），变量退化成隐式全局整数。
+        ///   实测：`DIM s AS String` 之后 `s = "hello"`、`PRINT s` 打出 **1024**（一个栈地址）。
+        /// </summary>
+        private static bool IsTypeNameToken(Token t)
+            => (t.Type == TokenType.IDENTIFIER || t.Type == TokenType.VB_INTEGER
+                || t.Type == TokenType.VB_STRING || t.Type == TokenType.VB_OBJECT
+                || t.Type == TokenType.VB_VARIANT)
+               && !string.IsNullOrEmpty(t.Value);
+
         private DimAsStatement ParseDimAsStatement(Token dimToken, string varName)
         {
             // Already consumed DIM and variable name, now on AS
             Advance(); // skip AS
 
-            if (Peek().Type != TokenType.IDENTIFIER)
+            if (!IsTypeNameToken(Peek()))
                 return null;
 
             string typeName = Peek().Value;

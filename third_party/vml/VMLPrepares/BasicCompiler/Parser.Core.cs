@@ -74,7 +74,7 @@ namespace BasicCompiler
                     {
                         if (tokens[j].Type == TokenType.LPAREN) parenDepth++;
                         else if (tokens[j].Type == TokenType.RPAREN) parenDepth--;
-                        else if (parenDepth == 0 && tokens[j].Type == TokenType.AS && j + 1 < tokens.Count && tokens[j + 1].Type == TokenType.IDENTIFIER)
+                        else if (parenDepth == 0 && tokens[j].Type == TokenType.AS && j + 1 < tokens.Count && IsTypeNameToken(tokens[j + 1]))
                         {
                             declaredArrayTypes[arrName] = tokens[j + 1].Value;
                             break;
@@ -98,7 +98,7 @@ namespace BasicCompiler
                             {
                                 if (tokens[k].Type == TokenType.LPAREN) parenDepth++;
                                 else if (tokens[k].Type == TokenType.RPAREN) parenDepth--;
-                                else if (parenDepth == 0 && tokens[k].Type == TokenType.AS && k + 1 < tokens.Count && tokens[k + 1].Type == TokenType.IDENTIFIER)
+                                else if (parenDepth == 0 && tokens[k].Type == TokenType.AS && k + 1 < tokens.Count && IsTypeNameToken(tokens[k + 1]))
                                 {
                                     declaredArrayTypes[arrName] = tokens[k + 1].Value;
                                     break;
@@ -111,11 +111,22 @@ namespace BasicCompiler
                             break;
                     }
                 }
-                else if (tokens[i].Type == TokenType.SUB && i + 1 < tokens.Count && tokens[i + 1].Type == TokenType.IDENTIFIER)
+                // ⚠ `SUB <名>` 必须先排除 `END SUB` —— 词法里没有换行 token，
+                //   而 `END SUB` 后面紧跟的**主程序第一条语句**往往就是一个标识符：
+                //     `SUB t() / … / END SUB / q = 1`
+                //   于是 `SUB q` 被当成了「又声明了一个叫 q 的子过程」，
+                //   后面那条真语句就被 `case TokenType.IDENTIFIER` 的
+                //   `declaredSubs.Contains` 判成**裸调用**，链接期报「未定义的函数 'func_q'」。
+                //   症状极具误导性：**报错的那一行本身完全合法**，删掉它就"修好了"，
+                //   而真凶是前面那个 END（实测：只要 END SUB 与 `q = 1` 之间**夹任意一条语句**
+                //   就一切正常 —— 那只是因为夹的那条先被消费掉了）。
+                else if (tokens[i].Type == TokenType.SUB && i + 1 < tokens.Count && tokens[i + 1].Type == TokenType.IDENTIFIER
+                         && (i == 0 || tokens[i - 1].Type != TokenType.END))
                 {
                     declaredSubs.Add(tokens[i + 1].Value);
                 }
-                else if (tokens[i].Type == TokenType.FUNCTION && i + 1 < tokens.Count && tokens[i + 1].Type == TokenType.IDENTIFIER)
+                else if (tokens[i].Type == TokenType.FUNCTION && i + 1 < tokens.Count && tokens[i + 1].Type == TokenType.IDENTIFIER
+                         && (i == 0 || tokens[i - 1].Type != TokenType.END))
                 {
                     declaredFunctions.Add(tokens[i + 1].Value);
                 }
@@ -191,6 +202,35 @@ namespace BasicCompiler
                 program.EnumValues[kv.Key] = kv.Value;
 
             return program;
+        }
+
+        /// <summary>
+        /// 当前这条语句**是不是赋值** —— 判据是「本行内、括号深度为 0 处出现 `=`」。
+        ///
+        /// 词法里没有换行 token，所以"本行"要靠 token 的 `Line` 判定（语句不跨行）。
+        /// 括号深度是为了不把 `arr(f(1) = 2)` 这种（虽怪但合法）的下标表达式看成本行的 `=`。
+        /// 字符串里的 `=` 天然安全 —— 它整个是一个 STRING token，不会被认成 EQUALS。
+        /// </summary>
+        private bool HasTopLevelEqualsOnLine()
+        {
+            if (current >= tokens.Count) return false;
+            int line = tokens[current].Line;
+            int depth = 0;
+            for (int j = current; j < tokens.Count; j++)
+            {
+                var t = tokens[j];
+                if (t.Type == TokenType.EOF) break;
+                // 换行 = 语句结束（`a = 1 : b = 2` 那种同行冒号分隔由外面拆开，这里不越过冒号）
+                if (t.Line != line) break;
+                if (depth == 0)
+                {
+                    if (t.Type == TokenType.EQUALS) return true;
+                    if (t.Type == TokenType.COLON) break;
+                }
+                if (t.Type == TokenType.LPAREN) depth++;
+                else if (t.Type == TokenType.RPAREN) { if (depth > 0) depth--; }
+            }
+            return false;
         }
 
         /// <summary>
@@ -375,6 +415,20 @@ namespace BasicCompiler
                         if (current < tokens.Count && Peek().Type != TokenType.EOF)
                             body = ParseStatement();
                         return new LabelStatement(token.Line, token.Column, labelName, body);
+                    }
+                    // ── 赋值先行：`x = 1` / `arr(3) = 42` / `rec.f = 1` ───────────────────
+                    //
+                    // ⚠ 判据 = 「**本行内、括号深度为 0** 的地方有没有 `=`」。不能只看
+                    //   紧邻的那一个 token：数组/记录赋值左边是 `arr` 而下一个 token 是 `(`。
+                    //
+                    // 此前 `arr(3) = 42` 会落到下面的「一律当裸调用」分支 ⇒ 编成 `func_arr`、
+                    // 链接期报「未定义的函数 'func_arr'」——**数组整个不可用**，
+                    // 而报错文案指向的是一个名字，与"数组"二字毫无关联。
+                    // 顺序也必须排在 `declaredSubs` 判断**之前**：否则一个与子过程同名的
+                    // 变量（`counter = 1` 而恰好有 `SUB counter`）会被判成调用。
+                    if (HasTopLevelEqualsOnLine())
+                    {
+                        return ParseLetStatement();
                     }
                     // Check for implicit SUB call (without CALL keyword) — QBasic allows bare sub name calls
                     if (declaredSubs.Contains(token.Value))

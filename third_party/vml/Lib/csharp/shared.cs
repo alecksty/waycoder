@@ -83,6 +83,7 @@ namespace VML {
     // extern char* basic_right(const char* s, int n);  // CALL basic_right
     // extern char* basic_ltrim(const char* s);  // CALL basic_ltrim
     // extern char* basic_rtrim(const char* s);  // CALL basic_rtrim
+    // extern char* basic_concat(const char* a, const char* b);  // CALL basic_concat
     // extern int basic_abs(int n);  // CALL basic_abs
     // extern int basic_sgn(int n);  // CALL basic_sgn
     // extern int _sin_lookup(int deg);  // CALL _sin_lookup
@@ -1035,6 +1036,10 @@ namespace VML {
     // extern void ui_keep_on(int on);  // CALL ui_keep_on
     // extern void ui_store_set(char* key, char* value);  // CALL ui_store_set
     // extern int ui_store_get(char* key, char* buf, int cap);  // CALL ui_store_get
+    // extern int callwithint8(int* v);  // CALL callwithint8
+    // extern float callwithfloat8(float* v);  // CALL callwithfloat8
+    // extern long callwithlong4(long* v);  // CALL callwithlong4
+    // extern double callwithdouble4(double* v);  // CALL callwithdouble4
     // extern int wctomb(char *dest, wchar_t wc);  // CALL wctomb
     // extern int mbtowc(wchar_t *dest, const char *src);  // CALL mbtowc
     // extern int wcscmp(const wchar_t *a, const wchar_t *b);  // CALL wcscmp

@@ -1,3 +1,141 @@
+## v0.96.326 — 猴子在手机上跑通 + BASIC 前端 17 条缺陷 + 桌面端补齐 syscall + 通用宿主调用口
+
+本版量很大，四批工作交织（互相碰过同一批文件），逐条记清归属。
+
+### 一、`gorilla.bas` 在模拟器上跑通，并打完一整局（玩家二 3:0）
+
+**画面是逐点比色验的，不是截图看的**（`scripts/maui-vml-verify/gorilla_pixels.py`，22/22）：
+
+| 图元 | 期望 | 实得 |
+|---|---|---|
+| 角度条绿 `#4ADE80` | 半条 | 填充 **0.496**（瞄准 45/90） |
+| 力度条橙 `#FFB020` | 七成 | 填充 **0.699**（力度 70/100） |
+| 发射键红 `#D8443C` | 两端各留 14 单位 | 左右留白**都精确等于 14**（源码常量就是 14） |
+
+触摸：拖角度条 → **0.741**（目标 0.75）、拖力度条 → **0.687**（目标 0.70）、互不误伤；
+按发射 → 香蕉 → 落点爆炸 → **回合换边**；打中 → **比分圆点由 off 变蓝**。
+
+★ **`gorilla.bas` 一个字都没改。** 上设备后暴露的三个问题**全在宿主与工具链里** ——
+游戏源码画出的东西与它自己的常量逐项吻合。那段"桌面自检"不是白写的。
+
+### 二、★ 一个影响**所有** VML 程序的宿主缺陷：安卓上手指拖动根本不发事件
+
+`DrawWindowPage` 用 `PointerGestureRecognizer.PointerMoved` 收拖动 ——
+而它在安卓上是 **hover 语义，手指拖动时一次都不发**。
+实测形状："3 秒长 swipe，每 250ms 采一次，绿色填充**一个像素都没动**；
+**同位置改成单击立刻生效**" ⇒ 按下好的、抬起好的、**只有移动丢了**。
+改用 `GraphicsView` 的 `StartInteraction`/`DragInteraction`/`EndInteraction`；
+改完同一条 swipe：`0.086 → 0.149 → 0.542 → 0.886`，跟着手指走。
+**任何需要拖动的 VML 程序在此之前于手机上都拖不动** —— 不只是猴子的事。
+
+配套修 `driver.py` 一处**破坏性误判**：程序一开窗/弹框，`uiautomator` 只 dump 焦点窗口，
+输入框整个不在树里、`entry_text()` 返回 `None`，而判据写的是 `== ""`
+⇒ **一个跑得好好的程序被记成"命令没送进去"、然后被强行冷启动重来**。
+
+### 三、BASIC 前端：12 条报告缺陷 + 5 条顺带挖出的，共 17 条
+
+**根因不在"两套语句生成器"，而在更窄的一处**：`GenerateSubExpression` 的 `BinaryExpression`
+分支是 `GenerateExpression` 那条的**残缺副本** —— 缺 `\`/`MOD`/`^`（**且没有 default，
+静默什么都不发**），操作数寄存器硬编码 R1/R2 且不保护左值（`MOVE reg,R1` 在 `reg==2` 时
+变成 `OP R2,R2`，自己跟自己算）。**12 条里 6 条出自这一处**，修完一起消失。
+
+修前 → 修后：`SQR(16)` 0→**4**；`SIN(30)` 0→**5000**；SUB 体 `100\2` 0→**50**；
+SUB 体 `1+(2*3)` 6→**7**；SUB 体 CONST 比较恒真→**假**；`DIM a(10)`/`a(3)=42` 链接失败→**通过**；
+字符串拼接空→**xy**；`DIM x AS STRING` 1024→**hello**；SUB 字符串形参垃圾→**hello**。
+
+**顺带挖出 5 条不在清单里的**，两条很重：
+- **`NEXT i` 的循环变量没被吃掉** ⇒ 紧跟的 `i` 被当独立语句，链接器把它接到同名全局标签，
+  `NEXT i` 变成**递归调用**：`FOR i=0 TO 3` 打出 `1 2 3 0 1 2 3 …` 直到内存不足。
+  **`scripts/basic-tests/` 的 t2/t5/t9/t10/t11 五条全栽在这一个根因上**（t1–t11 现在 11/11）。
+- **C 前端空语句 NRE**（`for(…);` 编成 `ExpressionStatement(null)`，读 `node.Line` 就炸）
+  ⇒ **`basiclib.vml` 根本重生成不出来**（`uchar/ustring/wchar/wstring` 五个同因）
+  —— 库源码与签入产物早就对不上，只是没人看得见。
+
+`_sin_lookup` 的每段基点抄成了**该段上界**的值、且 `basic_sin` 把角度当弧度（全族统一改成角度制）。
+
+### 四、C++ 前端：`long*` / `short*` 参数解析不了
+
+`CppCompiler/Parser.Declarations.cs` 的 `ParseType()` 里 `long`/`short` 两支**提前 `return`**，
+函数末尾吃 `*` 的循环永远走不到 ⇒ `long* v` 解析成 `"long"`、`*` 留给调用方撞上 `Expect(IDENTIFIER)`。
+**只有 `long`/`short` 中招**（`int*`/`float*`/`double*` 都落到末行、本来就是对的）——
+所以它看起来像"随机某个类型不行"。**C 前端本来就是好的**（各种位置试过，零失败）。
+
+⚠ 刻意**没有**改成 fall-through：那会让 `long int` 变成类型串 `"long int"`，
+而 C++ 后端判位宽是 `Contains("int")`，4 字节会**悄悄变 8 字节**。
+
+### 五、通用宿主调用口 `callwith*`（号 577–580）
+
+`callwithint8` / `callwithfloat8` / `callwithlong4` / `callwithdouble4`：按**数字 id** 调宿主函数，
+入参走寄存器、返回值覆盖第 0 个寄存器，**省掉 JSON 编解码**（与 CALLJSON #573 并列的"带类型快通道"）。
+
+★ **动手前先查清了寄存器组，这个要求值回票价**：
+
+| 组 | 存储 | 名字 |
+|---|---|---|
+| 整数 | `int[32]` | R0–R31 |
+| 浮点 | `float[16]` | F0–F15（**与 R0–R15 同号**，值在另一个数组） |
+| 双精度 | `double[8]` | D0–D7 |
+| 长整数 | `long[8]` | L0–L7 |
+
+⇒ **4 个 long 走 L0–L3、4 个 double 走 D0–D3**。我原以为的"R0–R7 每两个槽拼一个"是**错的**，
+而且错得隐蔽：`ISystemCallHandler.HandleSyscall` 只给宿主 `int[] registers`，
+而 `SetLongValue`/`SetDoubleValue` **只把低 32 位镜像进那个数组** —— 照那个数组配对，每个 64 位值只能拿到半截。
+
+错误码全不崩、各带一条可读日志（未注册 `-6` / 类型不符 `-2` / 负数号 `-2` / 实现体抛异常 `-9`）。
+
+### 六、桌面端补齐 syscall：**不靠窗口也能在桌面上跑游戏**
+
+新增共享宿主层 `WayCoder/UI/Shared/VmlHostRuntime.cs`：`IVmlHost`（20 个成员）只装**两个平台
+真的不一样**的事，`VmlHostRuntime`（1016 行）装**全部逻辑**（整张 `switch` 表、坐标/字号钳位、
+消息队列语义、定时器暂停、刷子状态机、`Str/StrBlock`、CALLJSON 两段式退让、`#57` 截获）。
+手机 `VmlUiCalls.cs` **1042 → 434 行**（只剩薄壳），桌面新增 `CliVmlHost.cs`。
+
+**关键决定：桌面没有窗口，画面照样建 `VmlScene` → 渲 PNG 落盘**，
+出图走仓库**现成的** `DrawRunner.Parse` + `ToPng`（与手机端 `VmlTool.TryExportFrame` 同一条）
+—— **只有这样，桌面上渲出来的像素与手机上才是同一个引擎的产物**，逐像素判据才可能在桌面上做。
+输入靠 `--input` 脚本按墙钟投消息（走与手机 UI 线程**同一个** `VmlHostRuntime.Post`）。
+
+成果：`draw_colors.c` 从"跑满 20s 超时被杀、什么都不出"变成 **3337ms 跑完并出图**（15 格全部
+`#3C6EB4`、渐变左 `#EF000F` → 右 `#0D00F1`）；`tetris.c` 12 帧、分数 98；`gomoku.c` 两次点击
+**黑子真的落在点的位置上、AI 回了两个白子**。新增可复跑套件 `scripts/vmlcli-verify/`（20 项）。
+
+**这一刀抓出 3 个真缺陷，第一个手机上也跑同一份代码**：
+1. **`VmlMessageQueue` 信号量的账不对**（`VmlUiProtocol.cs`，**共享、手机同一份**）：
+   `Post` 只在计数为 0 时 `Release()`（把信号量当唤醒开关），而 `TryRead` **不消费许可**
+   ⇒ 队列取空后计数还留着 ⇒ 下一次 `Read` **空唤醒、当场返回 null**。
+   症状：连读两条消息再装 60ms 定时器，定时器明明投了消息，`ui_wait(msg, 2000)` 立刻返回 0。
+2. **宿主诊断日志被当成"程序输出"并进 stdout** ⇒ 污染 `stdout = 程序输出` 这条契约
+   （`vml-out-probe` 那套逐字节判据靠它）。
+3. **`--timeout` 管不住无限等待**：VM 的超时在**指令循环**里查，而 `ui_wait(msg,0)` 让 VM 线程
+   阻塞在宿主 syscall 里 —— 实测 `--timeout 30` 跑了 5 分钟还在。
+
+### 七、判据
+
+| 套件 | 结果 |
+|---|---|
+| 桌面自测 | **6232 / 6233**（唯一失败 `VmlDiagnostics` 那条**预先存在**，在未触碰的文件里） |
+| `vml-out-probe` | **31 / 31** |
+| `vml-abi-probe` | **7 / 7** |
+| `vml-diag-probe/examples-build` | **85 / 86**（唯一失败 `forth/parserexp_demo.fs`，**预先存在**） |
+| `vmlcli-verify`（新增） | 全过 |
+| 22 语言 sysinfo（模拟器 v0.96.325 实测） | 21 门 JSON **逐字节相同** + `ladder` 豁免 |
+
+### 遗留（已诊断未修）
+
+1. **`CCompiler.FindUsedFunctionsInExpression` 不认 `CastExpr`** ⇒ `(int)g(a)` 这类调用对可达性
+   分析不可见、函数被当"没人用"**静默不生成**、链接期才报未定义。
+   最小复现：`int g(long* v){return v[0];} int main(){long a[2]; a[0]=1; return (int)g(a);}`
+2. **`forth/parserexp_demo.fs` 的真源**：`Lib/shared/src/ctype.c` **第一行 `#param lib("parserexpf")`**
+   （ctype 与 parserexp 毫无关系，显然是误抄）让 `ctype.vml` 带上 `.linked "parserexpf.vml"`。
+   但删掉它也不能让例子过（那需要往 GenLib 生成的自动链接清单里加 `parserexp.vml`，影响 22 门）。
+3. **汇编器寄存器名冲突**：`f1`/`d2`/`l3` 这类小写函数名被当成寄存器，`call f2` 链接期变 `call R2`。
+   实测 `print_int(f1());print_int(f2())` 打 `77`（应 `7 11`）。影响全部 22 门语言。
+4. **`asm("SYSCALL #N")` 的返回值写进硬编码 `R12-4`**（局部量在 `R12-8`）⇒
+   `Lib/shared/src/{file,network}.c` 里所有 `int r; asm("SYSCALL #N"); return r;`
+   返回未初始化栈内容（`fopen`/`fwrite`/`net_send`/`get_tick` 全返回 0，**副作用是真的**）。
+   `vmlsys.c` 早绕开了（写**不带 `#`** 的 `SYSCALL`）。
+5. **手机端共享宿主层改动只到编译通过**，未上设备验证。
+
 ### 补记（同日收口）：判据升级 + 手机端未验 + 猴子移植的路线判定
 
 **① 22 语言 sysinfo 的判据从「有 `"ok":true`」升级成「逐字节相同」**，重跑结果：

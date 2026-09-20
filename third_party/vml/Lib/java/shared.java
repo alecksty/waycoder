@@ -165,6 +165,8 @@
 // CALL basic_ltrim
 // extern fn basic_rtrim(const char* s) -> char*
 // CALL basic_rtrim
+// extern fn basic_concat(const char* a, const char* b) -> char*
+// CALL basic_concat
 // extern fn basic_abs(int n) -> int
 // CALL basic_abs
 // extern fn basic_sgn(int n) -> int
@@ -2068,6 +2070,14 @@
 // CALL ui_store_set
 // extern fn ui_store_get(char* key, char* buf, int cap) -> int
 // CALL ui_store_get
+// extern fn callwithint8(int* v) -> int
+// CALL callwithint8
+// extern fn callwithfloat8(float* v) -> float
+// CALL callwithfloat8
+// extern fn callwithlong4(long* v) -> long
+// CALL callwithlong4
+// extern fn callwithdouble4(double* v) -> double
+// CALL callwithdouble4
 // extern fn wctomb(char *dest, wchar_t wc) -> int
 // CALL wctomb
 // extern fn mbtowc(wchar_t *dest, const char *src) -> int

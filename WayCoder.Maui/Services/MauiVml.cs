@@ -662,6 +662,11 @@ HALT
         foreach (var syscall in new[] { 330, 334, 335, 336, 337, 338 })
             vm.HostAllowedSyscalls.Add(syscall);
 
+        // 回填运行时：通用宿主调用口（577–580）里 float8/long4/double4 的参数在
+        // 浮点/长整数/双精度寄存器组里，而处理器只拿得到 32 位的通用整数寄存器
+        //（见 VmlUiCalls.Vm 的注释）。必须在 Run() 之前接上。
+        uiCalls.Vm = vm;
+
         vm.LoadProgram(prog);
 
         // **运行时的诊断输出走的是 `System.Console`，而手机上那是一个看不见的流。**

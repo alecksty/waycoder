@@ -60,6 +60,171 @@ public static partial class SelfTest
         TestStrokeGradient(Section, Check);
         TestTextGradient(Section, Check);
         TestBrushModel(Section, Check);
+        TestCallPorts(Section, Check);
+    }
+
+    /// <summary>
+    /// **通用宿主调用口**（577–580）—— 号段、契约值、注册表、参数读写、失败码。
+    ///
+    /// 这一批的判据有个特点：**宿主侧那一半（id → 实现、寄存器 ↔ 参数、返回值写回哪一组）
+    /// 可以完全离线自测** —— 它只跟四个数组打交道，不需要真 VM。
+    /// 另一半（C 包装把数组装进寄存器）在 `Lib/shared/src/vmlui.c` 里，
+    /// 由 `scripts/vmlcli` 的端到端例程验（`Examples/c/callports.c`）。
+    ///
+    /// 所以这里**手工摆四个数组**当寄存器组用 —— 它们就是 VM 的 `registers` /
+    /// `floatRegisters` / `doubleRegisters` / `longRegisters`，形状与语义一模一样。
+    /// </summary>
+    private static void TestCallPorts(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("VML 宿主接口：通用调用口（577–580）");
+
+        // ── ① 号段：四个号必须登记在案（漏登记 → 查重网漏掉新号）──
+        var set = new HashSet<int>(VmlUi.AllNumbers);
+        Check("四个调用口都在号清单里",
+            set.Contains(VmlUi.CallWithInt8) && set.Contains(VmlUi.CallWithFloat8)
+            && set.Contains(VmlUi.CallWithLong4) && set.Contains(VmlUi.CallWithDouble4));
+
+        // 号值本身是**跨语言契约**（C 头文件的包装函数把号写在内联汇编里），钉死。
+        Check("号值 = 577/578/579/580",
+            VmlUi.CallWithInt8 == 577 && VmlUi.CallWithFloat8 == 578
+            && VmlUi.CallWithLong4 == 579 && VmlUi.CallWithDouble4 == 580);
+
+        Check("号 → 种类映射正确",
+            VmlUi.TryCallCast(577, out var c1) && c1 == VmlCallCast.Int8
+            && VmlUi.TryCallCast(578, out var c2) && c2 == VmlCallCast.Float8
+            && VmlUi.TryCallCast(579, out var c3) && c3 == VmlCallCast.Long4
+            && VmlUi.TryCallCast(580, out var c4) && c4 == VmlCallCast.Double4);
+
+        // **反向**：不是这四个号必须返回 false —— 否则会把别的 syscall 吞掉
+        //（`TryHandle` 由宿主无条件调用，返回 true 就等于"我处理了"）。
+        Check("非本批号不认领（573/576/999）",
+            !VmlUi.TryCallCast(573, out _) && !VmlUi.TryCallCast(576, out _) && !VmlUi.TryCallCast(999, out _));
+
+        // ── ② 种类与调用号的数值也是契约（C 侧只有调用号宏 `VML_CALL_*` —— 种类是**绑在号上**的）──
+        Check("种类值 = Int8/Float8/Long4/Double4 = 0/1/2/3",
+            (int)VmlCallCast.Int8 == 0 && (int)VmlCallCast.Float8 == 1
+            && (int)VmlCallCast.Long4 == 2 && (int)VmlCallCast.Double4 == 3);
+        Check("自检族调用号 = 1..5",
+            VmlCallIds.EchoInt == 1 && VmlCallIds.EchoFloat == 2 && VmlCallIds.EchoLong == 3
+            && VmlCallIds.EchoDouble == 4 && VmlCallIds.HostInfo == 5);
+
+        // 失败码与 `VMLRuntime/ErrorCodes` **同值**（那边是权威）。本文件不能引用运行时
+        //（主工程不引 VMLRuntime，而自测跑在主工程里），所以这里钉字面量 ——
+        // 值一旦被改，两端程序读到的"失败"就变了，那正是这套码存在的意义。
+        Check("失败码 = -1/-2/-6/-9（与 ErrorCodes 同值）",
+            VmlCallRegistry.ErrorFailure == -1 && VmlCallRegistry.ErrorInvalidParameter == -2
+            && VmlCallRegistry.ErrorNotFound == -6 && VmlCallRegistry.ErrorInternal == -9);
+
+        // ── ③ 注册表：四个种类各走一遍（合成寄存器组）──
+        // 先清空再注册自己那几条：注册表是**静态**的，别的用例（或将来某段启动代码）
+        // 注册过什么会影响判定 —— 不隔离的话"类型不符"那条可能因为别人占了号而假绿。
+        VmlCallRegistry.ClearForTest();
+        Check("清空后注册表为空", VmlCallRegistry.Count == 0);
+
+        VmlCallRegistry.RegisterInt8(101, a => a.Int(0) + a.Int(1) * 10L + a.Int(6) * 100L);
+        VmlCallRegistry.RegisterFloat8(102, a => a.Float(0) + a.Float(6) * 10.0);
+        VmlCallRegistry.RegisterLong4(103, a => a.Int(0) + a.Int(2) * 1000L);
+        VmlCallRegistry.RegisterDouble4(104, a => a.Float(0) + a.Float(2) * 1000.0);
+        Check("四类各注册一条", VmlCallRegistry.Count == 4);
+
+        int[] regs;
+        float[] fr;
+        double[] dr;
+        long[] lr;
+
+        // Int8：R0=id R1..R7=参数 → 返回值覆盖 R0
+        regs = new int[32]; fr = new float[16]; dr = new double[8]; lr = new long[8];
+        regs[0] = 101; regs[1] = 7; regs[2] = 8; regs[7] = 9;
+        Check("int8 认领（TryHandle 返回 true）",
+            VmlCallRegistry.TryHandle(577, regs, fr, dr, lr));
+        Check("int8 参数按位取对、返回值覆盖 R0（7 + 8×10 + 9×100 = 987）", regs[0] == 987);
+
+        // Float8：F0=id F1..F7=参数 → 返回值覆盖 F0（**同时**镜像进 R0 的位模式）
+        regs = new int[32]; fr = new float[16]; dr = new double[8]; lr = new long[8];
+        fr[0] = 102; fr[1] = 1.5f; fr[7] = 2.0f;
+        regs[0] = 102;                        // C 包装同时把 id 的整数视图放进 R0
+        Check("float8 认领", VmlCallRegistry.TryHandle(578, regs, fr, dr, lr));
+        Check("float8 参数取对、返回值覆盖 F0（1.5 + 2×10 = 21.5）", Math.Abs(fr[0] - 21.5f) < 1e-4);
+        Check("float8 返回值同时镜像进 R0（C 调用方按浮点位模式读）",
+            regs[0] == BitConverter.SingleToInt32Bits(21.5f));
+
+        // Long4：L0=id L1..L3=参数 → 返回值覆盖 L0（+ R0 低 32 位镜像）
+        regs = new int[32]; fr = new float[16]; dr = new double[8]; lr = new long[8];
+        lr[0] = 103; lr[1] = 5; lr[3] = 6;
+        regs[0] = 103;
+        Check("long4 认领", VmlCallRegistry.TryHandle(579, regs, fr, dr, lr));
+        Check("long4 参数取对、返回值覆盖 L0（5 + 6×1000 = 6005）", lr[0] == 6005);
+        Check("long4 返回值镜像 R0 低 32 位", regs[0] == 6005);
+
+        // Double4：D0=id D1..D3=参数 → 返回值覆盖 D0（+ R0 位模式低半镜像）
+        regs = new int[32]; fr = new float[16]; dr = new double[8]; lr = new long[8];
+        dr[0] = 104; dr[1] = 0.25; dr[3] = 3.0;
+        regs[0] = 104;
+        Check("double4 认领", VmlCallRegistry.TryHandle(580, regs, fr, dr, lr));
+        Check("double4 参数取对、返回值覆盖 D0（0.25 + 3×1000 = 3000.25）",
+            Math.Abs(dr[0] - 3000.25) < 1e-9);
+        Check("double4 返回值镜像 R0（低 32 位位模式）",
+            regs[0] == (int)(BitConverter.DoubleToInt64Bits(3000.25) & 0xFFFFFFFF));
+
+        // ── ④ 失败路径：**一个都不许崩**，而且要给出可读码 ──
+        // 未注册的号
+        regs = new int[32]; fr = new float[16]; dr = new double[8]; lr = new long[8];
+        regs[0] = 9999;
+        VmlCallRegistry.TryHandle(577, regs, fr, dr, lr);
+        Check("未注册的调用号 → -6（RESOURCE_NOT_FOUND）", regs[0] == VmlCallRegistry.ErrorNotFound);
+
+        // 类型不符：102 注册的是 Float8，却被 int8 口调用
+        regs = new int[32]; fr = new float[16]; dr = new double[8]; lr = new long[8];
+        regs[0] = 102;
+        VmlCallRegistry.TryHandle(577, regs, fr, dr, lr);
+        Check("种类不符 → -2（INVALID_PARAMETER）", regs[0] == VmlCallRegistry.ErrorInvalidParameter);
+
+        // 负数调用号
+        regs = new int[32]; fr = new float[16]; dr = new double[8]; lr = new long[8];
+        regs[0] = -5;
+        VmlCallRegistry.TryHandle(577, regs, fr, dr, lr);
+        Check("负数调用号 → -2", regs[0] == VmlCallRegistry.ErrorInvalidParameter);
+
+        // 实现体抛异常：**必须被接住**（抛出去 = VM 被打挂，程序只看到"窗口没了"）
+        VmlCallRegistry.RegisterInt8(105, _ => throw new InvalidOperationException("实现体自己炸了"));
+        regs = new int[32]; fr = new float[16]; dr = new double[8]; lr = new long[8];
+        regs[0] = 105;
+        var threw = false;
+        try { VmlCallRegistry.TryHandle(577, regs, fr, dr, lr); }
+        catch { threw = true; }
+        Check("实现体抛异常被接住（TryHandle 不抛）", !threw);
+        Check("实现体抛异常 → -9（INTERNAL_ERROR）", regs[0] == VmlCallRegistry.ErrorInternal);
+
+        // 数组比应有的短（宿主给错了）也不许越界崩 —— 参数一律取 0，返回值仍写进存在的那个槽
+        //（期望值是 0 而不是 101：`R0` 是**调用号槽**，返回值覆盖它，所以读到的是
+        //  "参数全 0 时的结果" 0 —— 这正好也把"返回值覆盖 R0"再钉一遍）
+        var tinyRegs = new int[1] { 101 };
+        var ok = true;
+        try { VmlCallRegistry.TryHandle(577, tinyRegs, new float[1], new double[1], new long[1]); }
+        catch { ok = false; }
+        Check("寄存器数组短得离谱也不抛", ok);
+        Check("短数组下参数按 0 处理，返回值仍写回 R0（0）", tinyRegs[0] == 0);
+
+        // ── ⑤ 收尾：把注册表恢复成"生产用"的样子，免得上面的用例污染后面 ──
+        VmlCallRegistry.ClearForTest();
+        VmlCallRegistry.RegisterDefaults(VmlCallRegistry.HostDesktop);
+        Check("RegisterDefaults 之后自检族可用（宿主信息 = 桌面）",
+            TryCall(VmlUi.CallWithInt8, VmlCallIds.HostInfo) == VmlCallRegistry.HostDesktop);
+        Check("自检族 EchoInt：1..7 → 7654321", TryCall(VmlUi.CallWithInt8,
+            VmlCallIds.EchoInt, 1, 2, 3, 4, 5, 6, 7) == 7654321);
+
+        // 收尾后表里是 5 条（自检族）。
+        Check("自检族共 5 条", VmlCallRegistry.Count == 5);
+
+        // 小工具：把 7 个 int 参数按 int8 口发一次，返回 R0。
+        static long TryCall(int syscallNumber, int id, params int[] args)
+        {
+            var r = new int[32];
+            r[0] = id;
+            for (var i = 0; i < args.Length && i < 7; i++) r[i + 1] = args[i];
+            VmlCallRegistry.TryHandle(syscallNumber, r, new float[16], new double[8], new long[8]);
+            return r[0];
+        }
     }
 
     /// <summary>

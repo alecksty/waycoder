@@ -511,6 +511,13 @@ def basic_rtrim(a0):
     asm("CALL basic_rtrim")
     return r0
 
+def basic_concat(a0, a1):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a1
+    asm(f"PUSH R0")  # push a0
+    asm("CALL basic_concat")
+    return r0
+
 def basic_abs(a0):
     r0 = asm("R0")
     asm(f"PUSH R0")  # push a0
@@ -6412,6 +6419,30 @@ def ui_store_get(a0, a1, a2):
     asm(f"PUSH R0")  # push a1
     asm(f"PUSH R0")  # push a0
     asm("CALL ui_store_get")
+    return r0
+
+def callwithint8(a0):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a0
+    asm("CALL callwithint8")
+    return r0
+
+def callwithfloat8(a0):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a0
+    asm("CALL callwithfloat8")
+    return r0
+
+def callwithlong4(a0):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a0
+    asm("CALL callwithlong4")
+    return r0
+
+def callwithdouble4(a0):
+    r0 = asm("R0")
+    asm(f"PUSH R0")  # push a0
+    asm("CALL callwithdouble4")
     return r0
 
 def wctomb(a0, a1):

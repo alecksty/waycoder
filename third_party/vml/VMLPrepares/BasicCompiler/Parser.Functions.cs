@@ -73,7 +73,7 @@ namespace BasicCompiler
                     if (Peek().Type == TokenType.AS)
                     {
                         Advance(); // skip AS
-                        if (Peek().Type == TokenType.IDENTIFIER)
+                        if (IsTypeNameToken(Peek()))
                         {
                             var typeName = Peek().Value.ToUpper();
                             if (typeName == "STRING")
@@ -98,8 +98,12 @@ namespace BasicCompiler
                     }
                     else if (paramName.EndsWith("$"))
                     {
+                        // ⚠ **不要剥掉 `$`** —— 形参名是子程序体里找它的那把钥匙。
+                        //   剥掉之后声明侧叫 `a`、而体内写的是 `a$`，`FindParameterIndex("a$")`
+                        //   必然返回 -1 ⇒ 退化成"一个从没见过的全局变量"、读到 0（实测打出空行）。
+                        //   留着 `$` 还有第二个好处：`GetVariableType("a$")` 靠后缀就判得出 String，
+                        //   读 / 写 / 打印三条路都自洽（不必再单独登记一次类型）。
                         isString = true;
-                        paramName = paramName.Substring(0, paramName.Length - 1);
                     }
 
                     sub.Parameters.Add(new ParameterNode(token.Line, token.Column, paramName, isByRef, isString));
@@ -247,7 +251,7 @@ namespace BasicCompiler
                     if (Peek().Type == TokenType.AS)
                     {
                         Advance(); // skip AS
-                        if (Peek().Type == TokenType.IDENTIFIER)
+                        if (IsTypeNameToken(Peek()))
                         {
                             var typeName = Peek().Value.ToUpper();
                             if (typeName == "STRING")
@@ -270,8 +274,12 @@ namespace BasicCompiler
                     }
                     else if (paramName.EndsWith("$"))
                     {
+                        // ⚠ **不要剥掉 `$`** —— 形参名是子程序体里找它的那把钥匙。
+                        //   剥掉之后声明侧叫 `a`、而体内写的是 `a$`，`FindParameterIndex("a$")`
+                        //   必然返回 -1 ⇒ 退化成"一个从没见过的全局变量"、读到 0（实测打出空行）。
+                        //   留着 `$` 还有第二个好处：`GetVariableType("a$")` 靠后缀就判得出 String，
+                        //   读 / 写 / 打印三条路都自洽（不必再单独登记一次类型）。
                         isString = true;
-                        paramName = paramName.Substring(0, paramName.Length - 1);
                     }
 
                     func.Parameters.Add(new ParameterNode(token.Line, token.Column, paramName, isByRef, isString));

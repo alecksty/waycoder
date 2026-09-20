@@ -289,6 +289,22 @@ namespace BasicCompiler
             currentParamCount = 0;
         }
 
+        /// <summary>
+        /// `DIM x AS &lt;类型&gt;` 的**类型登记** —— 主程序与 SUB 两处生成代码**共用这一份**。
+        ///
+        /// 只把类型记进 `dimAsVariables` 是不够的：那张表只用来算**记录字段偏移**，
+        /// 而"这个变量是整数还是字符串"由 `GetVariableType` 决定，它只看 `$/%/!/#/&amp;` 后缀
+        /// 与 `DEFtype` 字母范围。于是 `DIM s AS STRING` 之后：
+        ///   · `s = "hello"` 把**字符串指针**存进一个整数槽（能存下，没人拦）；
+        ///   · `PRINT s` 按整数把它打出来 —— 实测 `1024`（一个地址）。
+        /// 声明里白纸黑字写着 STRING 却被当成整数，是最容易让人怀疑"字符串坏了"的那种形态。
+        /// </summary>
+        private void RegisterDimAsType(string varName, string typeName)
+        {
+            if (string.Equals(typeName, "string", StringComparison.OrdinalIgnoreCase))
+                variableTypes[varName] = BasicType.String;
+        }
+
         private int GetOrCreateVariable(string name)
         {
             if (!variables.ContainsKey(name))
@@ -743,6 +759,7 @@ namespace BasicCompiler
                     GetOrCreateVariable(varName);
                 }
                 dimAsVariables[varName] = dimAsStmt.TypeName.ToLower();
+                RegisterDimAsType(varName, dimAsStmt.TypeName);
                 // Allocate slots based on type size
                 if (typeDefinitions.ContainsKey(dimAsStmt.TypeName.ToLower()))
                 {

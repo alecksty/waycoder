@@ -514,6 +514,13 @@ fn basic_rtrim(a0: i32) -> i32 {
     r
 }
 
+fn basic_concat(a0: i32, a1: i32) -> i32 {
+    asm!("CALL basic_concat")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
 fn basic_abs(a0: i32) -> i32 {
     asm!("CALL basic_abs")
     let r: i32;
@@ -6335,6 +6342,34 @@ fn ui_store_set(a0: i32, a1: i32) {
 
 fn ui_store_get(a0: i32, a1: i32, a2: i32) -> i32 {
     asm!("CALL ui_store_get")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn callwithint8(a0: i32) -> i32 {
+    asm!("CALL callwithint8")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn callwithfloat8(a0: i32) -> i32 {
+    asm!("CALL callwithfloat8")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn callwithlong4(a0: i32) -> i32 {
+    asm!("CALL callwithlong4")
+    let r: i32;
+    asm!("MOVE {{0}}, R0", out(reg) r);
+    r
+}
+
+fn callwithdouble4(a0: i32) -> i32 {
+    asm!("CALL callwithdouble4")
     let r: i32;
     asm!("MOVE {{0}}, R0", out(reg) r);
     r

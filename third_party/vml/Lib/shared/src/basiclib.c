@@ -10,6 +10,7 @@
 // Static buffers for string return values (QBASIC convention)
 static char _buf1[256];
 static char _buf2[256];
+static char _buf3[256];   // 字符串拼接（`a$ + b$`）的结果缓冲，见 basic_concat
 
 static void _hex_str(int val, char* buf) {
     const char* h = "0123456789ABCDEF";
@@ -311,6 +312,24 @@ __stdcall char* basic_rtrim(const char* s) {
     return _buf1;
 }
 
+/// 字符串拼接 `a$ + b$` —— 返回一个**静态缓冲区**里的结果（QBasic 约定）。
+///
+/// 为什么必须放在库里：`+` 在编译器里只按整数加法生成（把两个**指针**相加），
+/// 结果是野指针，`PRINT` 打出来是空行（实测 `b$ = "x" + "y"` 得空串、且不报错）。
+/// 前端认到「两边都是字符串」时会直接 `CALL basic_concat`（见 `GenerateStringConcat`）。
+///
+/// ⚠ 用 `_buf3` 这块**独立**缓冲，不复用 `_buf1`/`_buf2`：那两个是 `LEFT$/RIGHT$/MID$`
+///   等函数的返回值暂存处，拼接结果若与参数共用会让 `a$ + LEFT$(a$, 1)` 这类写法自己踩自己。
+__stdcall char* basic_concat(const char* a, const char* b) {
+    int i, j;
+    if (a == 0) return _buf3;
+    if (b == 0) b = a;
+    for (i = 0; a[i] && i < 255; i++) _buf3[i] = a[i];
+    for (j = 0; b[j] && i < 255; j++) { _buf3[i] = b[j]; i = i + 1; }
+    _buf3[i] = 0;
+    return _buf3;
+}
+
 /// ABS(n) — absolute value
 __stdcall int basic_abs(int n) {
     return n < 0 ? -n : n;
@@ -333,15 +352,19 @@ __stdcall int _sin_lookup(int deg) {
     if (deg >= 360) deg = deg - (deg / 360) * 360;
     if (deg < 0) deg = deg + 360;
     // Quadrant 0-90: sin(deg) = sin(deg)
+    //
+    // ⚠ 分段的**基点**原来一律抄成了该段**上界**的值（`if (deg <= 30) return 5000 + ...`
+    //   —— 而 5000 是 30° 的 sin，应该是 15° 的 2588）⇒ 每段整体抬高一段：
+    //   30° 得 7505（应 5000）、60° 得 10250（> 10000，比 sin 的最大值还大）。
+    //   斜率也因此全线偏移。现在每一段用**该段下界的真值**当基点、上界当真值收敛点，
+    //   端点逐点精确（sin 15/30/45/60/75/90 = 2588/5000/7071/8660/9659/10000）。
     if (deg <= 90) {
-        if (deg == 0) return 0;
-        if (deg <= 15) return deg * 174;                          // ~sin(15)=2588
-        if (deg <= 30) return 5000 + (deg - 15) * 167;           // ~sin(30)=5000
-        if (deg <= 45) return 7071 + (deg - 30) * 138;           // ~sin(45)=7071
-        if (deg <= 60) return 8660 + (deg - 45) * 106;           // ~sin(60)=8660
-        if (deg <= 75) return 9659 + (deg - 60) * 68;            // ~sin(75)=9659
-        if (deg <= 89) return 10000 - (90 - deg) * 34;           // ~sin(90)=10000
-        return 10000;
+        if (deg <= 15) return 2588 * deg / 15;                            //  0°:0     15°:2588
+        if (deg <= 30) return 2588 + 2412 * (deg - 15) / 15;              // 15°:2588  30°:5000
+        if (deg <= 45) return 5000 + 2071 * (deg - 30) / 15;              // 30°:5000  45°:7071
+        if (deg <= 60) return 7071 + 1589 * (deg - 45) / 15;              // 45°:7071  60°:8660
+        if (deg <= 75) return 8660 + 999 * (deg - 60) / 15;               // 60°:8660  75°:9659
+        return 9659 + 341 * (deg - 75) / 15;                              // 75°:9659  90°:10000
     }
     // Quadrant 90-180: sin(deg) = sin(180-deg)
     if (deg <= 180) {
@@ -358,20 +381,22 @@ __stdcall int _sin_lookup(int deg) {
     return -v;
 }
 
-/// SIN(x) — x is radians * 10000, returns sin * 10000
+/// SIN(x) — **x 是角度**，返回 sin(x) * 10000（0.5 → 5000）
+///
+/// ⚠ 参数单位：QBasic 的 SIN 收弧度，但这一套库**整体是角度制** ——
+///   同族函数全按角度调用（`SIN(30)` 要 0.5、`SIN(90)` 要 1.0），
+///   而最初这里写的是「x 是弧度 * 10000 ⇒ deg = x / 174」，
+///   于是 `SIN(30)` 落进 `_sin_lookup(0)`，**恒等于 0**（不管表修没修都一样）。
+///   与 `_sin_lookup` 的度数参数直接对齐，去掉那层换算。
 __stdcall int basic_sin(int x) {
-    int deg;
-    // Normalize to 0..2*PI (62832 = 2*PI*10000)
-    while (x < 0) x = x + 62832;
-    while (x >= 62832) x = x - 62832;
-    // rad to deg: deg ≈ x * 180 / 31416 ≈ x / 174
-    deg = x / 174;
-    return _sin_lookup(deg);
+    while (x < 0) x = x + 360;
+    while (x >= 360) x = x - 360;
+    return _sin_lookup(x);
 }
 
-/// COS(x) — cos(x) = sin(x + PI/2)
+/// COS(x) — x 是角度，cos(x) = sin(x + 90°)
 __stdcall int basic_cos(int x) {
-    return basic_sin(x + 15708); // 15708 ≈ PI/2 * 10000
+    return basic_sin(x + 90);
 }
 
 /// TAN(x) — tan = sin/cos, avoid division if cos is small

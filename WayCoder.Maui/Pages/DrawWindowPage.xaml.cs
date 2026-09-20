@@ -59,11 +59,24 @@ public partial class DrawWindowPage : ContentPage
 
         // 指针事件：按下/移动/抬起 → 触摸消息（同时补一对鼠标消息，
         // 让按"鼠标"写法的程序在手机上也直接能跑）
-        var pointer = new PointerGestureRecognizer();
-        pointer.PointerPressed += (_, e) => PostPointer(e, down: true);
-        pointer.PointerMoved += (_, e) => PostPointer(e, move: true);
-        pointer.PointerReleased += (_, e) => PostPointer(e, up: true);
-        CanvasView.GestureRecognizers.Add(pointer);
+        //
+        // ⚠ **不能用 `PointerGestureRecognizer.PointerMoved`**（v0.96.326 实测）：
+        //   它在安卓上是 **hover 语义**，手指**拖动**过程中一次都不发 —— 而本仓几个
+        //   拖条瞄准的游戏（`Examples/basic/gorilla.bas` 的角度/力度条）全靠它。
+        //   症状：拖的时候条子一动不动、松手后停在**按下那一刻**的位置（看起来像
+        //   "点得中、拖不动"，最容易被误判成程序没处理 `TOUCHMOVE`）。
+        //   模拟器实测：3 秒的长 swipe 期间每 250ms 采一次画面，绿色填充**一个像素都没动**；
+        //   而把同一个位置改成单击，条子立刻跳到该处 ⇒ 按下/抬起是好的、**只有移动丢了**。
+        //
+        //   改用 `GraphicsView` 自带的三段交互：安卓上由平台触摸事件直接驱动，
+        //   拖动中每一帧都来。这套还**跨平台同源**（iOS/桌面同一份代码就有同样的语义），
+        //   不必再写一份 `#if ANDROID` 的平台触摸处理器。
+        CanvasView.StartInteraction  += (_, e) => PostTouch(e.Touches, down: true);
+        CanvasView.DragInteraction   += (_, e) => PostTouch(e.Touches, move: true);
+        CanvasView.EndInteraction    += (_, e) => PostTouch(e.Touches, up: true);
+        // 取消（父容器截走触摸 / 来电切走）也要收尾 —— 只清状态不发抬起，
+        // 程序那边的手势就永远停在"按着"（本仓踩过同类坑，见 CLAUDE.md 的捏合那段）。
+        CanvasView.CancelInteraction += (_, _) => PostTouch([], up: true);
 
         CanvasView.Drawable = _canvas;
         _canvas.UseVector = UseVectorBackend;
@@ -1024,18 +1037,23 @@ public partial class DrawWindowPage : ContentPage
 
     // ── 输入 ──────────────────────────────────────────────────
 
-    private void PostPointer(PointerEventArgs e, bool down = false, bool move = false, bool up = false)
+    private void PostTouch(PointF[] points, bool down = false, bool move = false, bool up = false)
     {
-        var p = e.GetPosition(CanvasView);
-        if (p is not { } pt) return;
+        var calls = VmlUiCalls.Current;
+        if (calls == null) return;
+
+        // 取消事件（`CancelInteraction`）**不带坐标** —— 用最近一次的位置收尾。
+        // 宁可位置略有偏差，也不能让程序那边的手势永远停在"按着"。
+        Point pt;
+        if (points is { Length: > 0 }) { pt = new Point(points[0].X, points[0].Y); _lastTouch = pt; }
+        else if (_lastTouch is { } last) pt = last;
+        else return;
 
         // ⚠ **必须换算成场景坐标**：画布是缩放贴上去的（还可能有黑边/滚动偏移），
         // 直接把视图坐标发过去，程序按自己的网格算就会偏 —— 屏幕越大/越扁偏得越多。
         if (_canvas.ToScene(pt) is not { } scene) return;
         var x = scene.X;
         var y = scene.Y;
-        var calls = VmlUiCalls.Current;
-        if (calls == null) return;
 
         if (down)
         {
@@ -1052,7 +1070,21 @@ public partial class DrawWindowPage : ContentPage
             calls.PostInput(VmlMsgType.TouchUp, x, y);
             calls.PostInput(VmlMsgType.MouseUp, x, y);
         }
+
+        // 【诊断脚手架】证明"拖动真的来了"。默认关（`TraceTouch` 打开才打），
+        // 因为拖动每帧一条、开着会淹掉 logcat。读法：`adb logcat -s WC-TOUCH`
+#if ANDROID
+        if (TraceTouch)
+            Android.Util.Log.Info("WC-TOUCH",
+                $"{(down ? "down" : move ? "move" : "up")} view=({pt.X:F1},{pt.Y:F1}) scene=({x},{y})");
+#endif
     }
+
+    /// <summary>最近一次触摸的**视图**坐标（取消事件不带坐标时收尾用）。</summary>
+    private Point? _lastTouch;
+
+    /// <summary>把每一次指针事件打进 logcat（`adb logcat -s WC-TOUCH`）。默认关 —— 拖动每帧一条。</summary>
+    internal static bool TraceTouch;
 
     // 屏幕手柄：手机没有物理键盘，不把这些键做出来的话「方向键 + 动作键写的游戏」在真机上没法玩。
     // 键码全部取自 VmlKeys（唯一真源），且刻意映射到自然键盘等价键 —— 同一份程序接物理键盘也能玩。

@@ -392,6 +392,11 @@ DECLARE FUNCTION basic_rtrim(a0 AS INTEGER) AS INTEGER
     basic_rtrim = 0
 END FUNCTION
 
+DECLARE FUNCTION basic_concat(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER
+    asm("CALL basic_concat")
+    basic_concat = 0
+END FUNCTION
+
 DECLARE FUNCTION basic_abs(a0 AS INTEGER) AS INTEGER
     asm("CALL basic_abs")
     basic_abs = 0
@@ -4868,6 +4873,26 @@ END SUB
 DECLARE FUNCTION ui_store_get(a0 AS INTEGER, a1 AS INTEGER, a2 AS INTEGER) AS INTEGER
     asm("CALL ui_store_get")
     ui_store_get = 0
+END FUNCTION
+
+DECLARE FUNCTION callwithint8(a0 AS INTEGER) AS INTEGER
+    asm("CALL callwithint8")
+    callwithint8 = 0
+END FUNCTION
+
+DECLARE FUNCTION callwithfloat8(a0 AS INTEGER) AS INTEGER
+    asm("CALL callwithfloat8")
+    callwithfloat8 = 0
+END FUNCTION
+
+DECLARE FUNCTION callwithlong4(a0 AS INTEGER) AS INTEGER
+    asm("CALL callwithlong4")
+    callwithlong4 = 0
+END FUNCTION
+
+DECLARE FUNCTION callwithdouble4(a0 AS INTEGER) AS INTEGER
+    asm("CALL callwithdouble4")
+    callwithdouble4 = 0
 END FUNCTION
 
 DECLARE FUNCTION wctomb(a0 AS INTEGER, a1 AS INTEGER) AS INTEGER

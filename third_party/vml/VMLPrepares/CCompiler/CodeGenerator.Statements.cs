@@ -84,7 +84,17 @@ namespace CCompiler
                     GenerateAsmStatement(asmStmt);
                     break;
                 case ExpressionStatement exprStmt:
-                    GenerateExpression(exprStmt.Expression);
+                    // ⚠ `ExpressionStatement` 的 `Expression` **可以是 null**，而且这是**正常形态**：
+                    //   解析器用 `new ExpressionStatement(null)` 表示「空语句」（`;`），
+                    //   `Parser.Statements.cs` 里有 9 处这么造（`for (...);` 这种空循环体、
+                    //   `while (...);`、孤立的 `;` 都是）。这里不判空就等于**假设它永远非空** ——
+                    //   实测 `Lib/shared/src/basiclib.c` 的 `basic_instr` 里那句
+                    //     `for (j = 0; j < nlen && …; j++);`
+                    //   一路 NRE：`GenerateExpression(null)` 在第一行读 `node.Line` 就炸，
+                    //   而调用方只看到一个 `NullReferenceException` 的**类型名**，
+                    //   连是哪个文件哪一行都没有 ⇒ 整个 `basiclib.vml` 重生成不出来。
+                    if (exprStmt.Expression != null)
+                        GenerateExpression(exprStmt.Expression);
                     break;
                 case TryStatement tryStmt:
                     GenerateTryStatement(tryStmt);

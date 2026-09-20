@@ -428,6 +428,64 @@ public static class VmlUi
     /// </summary>
     public const int SetStyle = 576;
 
+    // ── 通用宿主调用口（577–580，v0.96.326）──
+    //
+    // 四个号 = 「按**数字 id** 调宿主函数」的带类型快通道，与 `CALLJSON`(#573) 并列：
+    //   · `CALLJSON` 走两个字符串 + 一次 JSON 编解码，加一个能力**不用占号**（注册一行即可），
+    //     代价是每次调用都要序列化/解析两趟、还穿一次内存缓冲；
+    //   · 这四个号把类型写死在**调用口**上（int8 / float8 / long4 / double4），
+    //     参数直接躺在寄存器里、返回值直接写回第 0 号寄存器 —— **一次调用零编解码**。
+    //
+    // **分派靠 id**：第 0 个槽既是**调用号（进）**又是**返回值（出）**（`R0` / `F0` / `L0` / `D0`），
+    // 于是"调用方拿不到它原来传进去的 `val[0]`"—— 这是确认过的预期，不是缺陷。
+    // id → 实现由宿主侧的注册表查（<see cref="VmlCallRegistry"/>），
+    // 两个宿主（手机 App / 桌面 CLI）**注册同一批 id**。
+    //
+    // ⚠ **id 是跨语言契约**（像 `VML_MSG_*` / `VML_ORIENT_*`）：发布后只能**末尾追加**，
+    //   不能改值、不能插队；C 侧的宏在 `Lib/c/waycoder_ui.h`。
+    //
+    // 为什么不合成一个号（像 `DRAW_SHAPE` 那样"一个号 + 操作码"）：**类型的差别宿主看不出来** ——
+    // 同一个 `R0` 里放的是 1 还是 1.0f 的位模式，只有调用口自己知道。合成一个号就必须
+    // 额外传一个"类型"参数，而那一个参数会挤掉一个真正有用的参数槽（8 个槽本来就紧）。
+
+    /// <summary>
+    /// `CALLWITHINT8`：**8 个 int** —— R0=调用号 R1..R7=7 个参数 → **R0=返回值**。
+    ///
+    /// C 侧是 `int callwithint8(int* v)`（v[0]=调用号，v[1..7]=参数）。
+    /// 调用号见 <see cref="VmlCallIds"/>，宿主按它查注册表；
+    /// 未注册/类型不符/实现抛异常都**不崩**，写回一个可读的失败码（见
+    /// <see cref="VmlCallRegistry.ErrorNotFound"/> 那一族）。
+    /// </summary>
+    public const int CallWithInt8 = 577;
+
+    /// <summary>
+    /// `CALLWITHFLOAT8`：**8 个 float** —— F0=调用号 F1..F7=7 个参数 → **F0=返回值**。
+    ///
+    /// ⚠ **调用号是浮点槽里的一个整数值**（`F0` = `v[0]`），所以它必须能被 `float`
+    /// 精确表示（id &lt; 2²⁴ 就绝对安全）；宿主另外在 `R0` 里拿到它的**整数视图**
+    /// （C 包装函数把 `(int)v[0]` 也装进 R0），于是四个调用口读 id 的方式完全一致。
+    /// </summary>
+    public const int CallWithFloat8 = 578;
+
+    /// <summary>
+    /// `CALLWITHLONG4`：**4 个 long** —— L0=调用号 L1..L3=3 个参数 → **L0=返回值**。
+    ///
+    /// `L0`–`L7` 是运行时的**长整数寄存器组**（`longRegisters[0..7]`，
+    /// 操作数编码 24–31；`R0`–`R7` 在长整数指令语境下也映射到同一组 —— 见
+    /// `VMLRuntime.Float.cs` 的 `GetLongValue`）。64 位值**只有这一组寄存器装得下**：
+    /// 通用整数寄存器是 32 位的，`MOVEL` 写 `R0` 时只把低 32 位镜像进 `registers[0]`。
+    /// 所以宿主读参数必须读 `LongRegisters`，光看 `int[] registers` 只能拿到低半截。
+    /// </summary>
+    public const int CallWithLong4 = 579;
+
+    /// <summary>
+    /// `CALLWITHDOUBLE4`：**4 个 double** —— D0=调用号 D1..D3=3 个参数 → **D0=返回值**。
+    ///
+    /// `D0`–`D7` 是**双精度寄存器组**（`doubleRegisters[0..7]`，操作数编码 16–23），
+    /// 与 `long4` 同理：`int[] registers` 里只有低 32 位镜像，宿主必须读 `DoubleRegisters`。
+    /// </summary>
+    public const int CallWithDouble4 = 580;
+
     /// <summary>
     /// 多边形/折线的**点数上限**。程序传的是内存里的点数组，点数由它自己给 ——
     /// 不设上限的话，一个写错的大数会让宿主去读几十万个点（每次读还要做越界检查），
@@ -577,7 +635,28 @@ public static class VmlUi
         WinOpenEx, MsgPollEx, MsgWaitEx, CallJson,
         // 绘图扩展 574–576（一个号 + 操作码，见 VmlShape / VmlBrushKind / VmlStyleSlot）
         DrawShape, Brush, SetStyle,
+        // 通用宿主调用口 577–580（带类型快通道，见 VmlCallRegistry）
+        CallWithInt8, CallWithFloat8, CallWithLong4, CallWithDouble4,
     ];
+
+    /// <summary>
+    /// 号 → 调用口种类；**不是这四个号就返回 false**（交回宿主原样处理）。
+    ///
+    /// 放在这里而不是注册表里：号段表就在本文件，注册表只该管"id → 实现"。
+    /// 四个号的映射是**跨语言契约的一半**（另一半是 C 头文件里的包装函数），
+    /// 只有一处实现，宿主两边共用（<see cref="VmlCallRegistry.TryHandle"/>）。
+    /// </summary>
+    public static bool TryCallCast(int syscallNumber, out VmlCallCast cast)
+    {
+        switch (syscallNumber)
+        {
+            case CallWithInt8: cast = VmlCallCast.Int8; return true;
+            case CallWithFloat8: cast = VmlCallCast.Float8; return true;
+            case CallWithLong4: cast = VmlCallCast.Long4; return true;
+            case CallWithDouble4: cast = VmlCallCast.Double4; return true;
+            default: cast = VmlCallCast.Int8; return false;
+        }
+    }
 
     /// <summary>
     /// 文字锚点 → 平台 <c>DrawString</c> 要的矩形。
@@ -838,11 +917,24 @@ public sealed class VmlMessageQueue
         get { lock (_lock) return _queue.Count; }
     }
 
-    /// <summary>投递一条消息（UI 线程调用）。</summary>
+    /// <summary>
+    /// 投递一条消息（UI 线程调用）。
+    ///
+    /// ⚠ **每条消息一个许可，无条件 Release** —— 这行原来是
+    /// `if (_signal.CurrentCount == 0) _signal.Release();`（"信号量只是个唤醒开关"），
+    /// 而那个写法与下面 <see cref="TryRead"/> 的"不消费许可"配在一起就**破坏了不变量**：
+    /// 队列可以被 TryRead 取空而信号量计数还留着，于是
+    /// 「计数 &gt; 0 但队列是空的」成立 ⇒ 一次**空唤醒**，<see cref="Read"/> 立刻返回 null。
+    ///
+    /// 实测症状（`scripts/vmlcli-verify/run.sh` 抓住的）：程序连读两条消息之后装一个定时器，
+    /// 60ms 后定时器明明投了消息，`ui_wait(msg, 2000)` 却**当场返回 0（"超时"）** ——
+    /// 程序那边完全看不出是宿主的账没对上，只会以为"这一拍没有事件"。
+    /// 电话端同一份代码同一套账，症状是 `ui_wait(msg, 0)` 偶发空转（该睡的时候在空跑）。
+    /// </summary>
     public void Post(VmlMessage msg)
     {
         lock (_lock) _queue.Enqueue(msg);
-        if (_signal.CurrentCount == 0) _signal.Release();
+        _signal.Release();
     }
 
     /// <summary>非阻塞读一条；无消息返回 null。</summary>
@@ -856,7 +948,13 @@ public sealed class VmlMessageQueue
         lock (_lock)
         {
             if (_queue.Count == 0) return null;
-            return keep ? _queue.Peek() : _queue.Dequeue();
+            if (keep) return _queue.Peek();     // 只看不取：不消费许可（队头那条还在）
+            var msg = _queue.Dequeue();
+            // **取走一条 = 用掉一个许可**：许可数与队列长度必须一一对应，
+            // 否则会留下"计数 > 0 而队列为空"的假信号（见 Post 的注释）。
+            // `Wait(0)` 永不阻塞，且不进 `_lock`，所以放在锁里不会死锁。
+            _signal.Wait(0);
+            return msg;
         }
     }
 
@@ -870,15 +968,23 @@ public sealed class VmlMessageQueue
     /// </summary>
     public VmlMessage? Read(int timeoutMs, bool keep)
     {
-        // 先看队列：有就直接拿走，不走信号量（信号量的计数与队列长度不是一对一的 ——
-        // 连投两条只 Release 一次，靠信号量判断会漏消息）
+        // 先看队列：有就直接拿走，不走信号量（比等一趟再醒更省）
         if (TryRead(keep) is { } first) return first;
 
-        var waited = timeoutMs <= 0
-            ? _signal.Wait(Timeout.Infinite)
-            : _signal.Wait(timeoutMs);
-        if (!waited) return null;
-        return TryRead(keep);
+        // **醒了不等于有货**：`keep`（只看队头）不消费许可，多个读者并发时也会互相抢，
+        // 所以醒来之后要回头再看一眼，没有就继续等**剩下的**时间。
+        // 从前这里等一次、看一次就返回 —— 一次空唤醒会被上层读成"超时/没有事件"，
+        // 而调用方（比如 `ui_wait(msg, 2000)`）完全看不出是宿主的账没对上。
+        var deadline = timeoutMs <= 0 ? long.MaxValue : Environment.TickCount64 + timeoutMs;
+        while (true)
+        {
+            var remaining = timeoutMs <= 0
+                ? Timeout.Infinite
+                : (int)Math.Max(0, deadline - Environment.TickCount64);
+            if (remaining == 0) return null;
+            if (!_signal.Wait(remaining)) return null;
+            if (TryRead(keep) is { } msg) return msg;
+        }
     }
 
     /// <summary>阻塞取一条（消费），最多等 <paramref name="timeoutMs"/> 毫秒。超时返回 null。</summary>

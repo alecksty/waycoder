@@ -283,4 +283,58 @@ void ui_keep_on(int on);                     /* 玩游戏时别熄屏：0 关 / 
 void ui_store_set(char* key, char* value);   /* 写持久化键值（最高分/进度/设置） */
 int  ui_store_get(char* key, char* buf, int cap);  /* 读；返回长度，没有这条键返回 -1 */
 
+/* ── 通用宿主调用口（577–580，v0.96.326）──────────────────────────────
+ *
+ * 这四个函数让程序**按数字 id 调宿主的函数**：参数直接躺在寄存器里、返回值直接
+ * 写回第 0 号寄存器，**一次调用零编解码**（对比 `ui_call_json` —— 那条路要
+ * 序列化 + 解析两趟 JSON，好处是加能力不用占号）。
+ *
+ * 用法（四步）：
+ *
+ *     int v[8];
+ *     v[0] = VML_CALL_ECHO_INT;   ① 调用号，见下面的宏
+ *     v[1] = 1; v[2] = 2; …       ② 参数（不够的位留 0）
+ *     int r = callwithint8(v);    ③ 发出去，返回值覆盖 v[0] —— ④ **拿不到原来的 v[0]**
+ *
+ * ## 寄存器约定（跨语言契约，改不得）
+ *
+ *     callwithint8  : v[0..7] → R0..R7   返回值 → R0
+ *     callwithfloat8: v[0..7] → F0..F7   返回值 → F0
+ *     callwithlong4 : v[0..3] → L0..L3   返回值 → L0
+ *     callwithdouble4: v[0..3] → D0..D3  返回值 → D0
+ *
+ * 第 0 个元素**既是调用号（进）又是返回值（出）** —— 所以"调用方拿不到 val[0]"
+ * 是设计的一部分，不是缺陷。四个函数的调用号都是 `(int)v[0]`
+ * （float 那个也一样：调用号必须能被 `float` 精确表示，id < 2²⁴ 就安全）。
+ *
+ * ## 失败长什么样
+ *
+ * **不崩**。没注册过的 id、种类对不上、实现体自己抛异常，都写回一个**负数失败码**：
+ * `-2` 参数非法、`-6` 没有这个调用号、`-9` 宿主内部错误（正数才是正常返回值）。
+ * 宿主同时会记一条可读日志。
+ *
+ * ## 实现与注册
+ *
+ * 实现在 `Lib/shared/src/vmlui.c`（编成 `.vml` 后各语言共用），
+ * 调用号 → 函数的对应表在宿主里（手机 `WayCoder.Maui/Services/VmlUiCalls.cs`、
+ * 桌面 `scripts/vmlcli`，两边共用 `WayCoder/UI/Shared/VmlCallRegistry.cs`）。
+ */
+int    callwithint8(int* v);
+float  callwithfloat8(float* v);
+long   callwithlong4(long* v);
+double callwithdouble4(double* v);
+
+/* 调用号 —— **跨语言契约，只能末尾追加、不能改值**。
+ * 本批是"自检族"：返回值是每个参数按位权拼出来的可分辨数
+ * （传 1,2,3,4,5,6,7 得 7654321），哪个参数没到、串没串位一眼看得出。 */
+#define VML_CALL_ECHO_INT     1   /* callwithint8：7 个 int 的位权拼接 */
+#define VML_CALL_ECHO_FLOAT   2   /* callwithfloat8：同上，浮点域 */
+#define VML_CALL_ECHO_LONG    3   /* callwithlong4：3 个 long 的位权拼接（×1 / ×1000 / ×10⁶） */
+#define VML_CALL_ECHO_DOUBLE  4   /* callwithdouble4：同上，浮点域 */
+#define VML_CALL_HOST_INFO    5   /* callwithint8：宿主种类（VML_CALL_HOST_*） */
+
+/* VML_CALL_HOST_INFO 的返回值 */
+#define VML_CALL_HOST_DESKTOP 1   /* 桌面脚手架（scripts/vmlcli） */
+#define VML_CALL_HOST_MOBILE  2   /* 手机 App */
+
 #endif /* WAYCODER_UI_H */

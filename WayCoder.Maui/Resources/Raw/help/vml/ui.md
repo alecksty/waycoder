@@ -248,3 +248,22 @@ char buf[512];
 ui_call_json("sysinfo", "", buf, 512);
 puts(buf);   /* {"ok":true,"result":{…}} */
 ```
+
+## 调用宿主
+
+按数字 id 调宿主函数（带类型、零编解码） —— [`help:vml/ui/call`](help:vml/ui/call)
+
+| 接口 | 一句话 |
+|---|---|
+| [callwithdouble4](help:vml/ui/call) | 同上，参数是 3 个 `double`（走 `D1..D3`），返回覆盖 `D0`。 |
+| [callwithfloat8](help:vml/ui/call) | 同上，参数是 7 个 `float`（走 `F1..F7`），返回覆盖 `F0`。 |
+| [callwithint8](help:vml/ui/call) | 按数字 id 调宿主的函数：`v[0]` 是调用号（见 `VML_CALL_*` 宏）、`v[1..7]` 是参数， |
+| [callwithlong4](help:vml/ui/call) | 同上，参数是 3 个 `long`（走 `L1..L3`），返回覆盖 `L0`。 |
+
+```c
+/* 例：callwithdouble4 */
+double v[4];
+v[0] = VML_CALL_ECHO_DOUBLE;
+v[1] = 1.0; v[2] = 2.0;
+double r = callwithdouble4(v);
+```

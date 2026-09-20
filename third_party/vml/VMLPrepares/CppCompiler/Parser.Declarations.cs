@@ -668,8 +668,37 @@ namespace CppCompiler
                 return ParseType(); // skip qualifiers
             if (Match(TokenType.UNSIGNED)) type = "unsigned ";
             if (Match(TokenType.SIGNED)) type = "signed ";
-            if (Match(TokenType.LONG)) { type += "long "; if (Match(TokenType.LONG)) type += "long "; return type.Trim(); }
-            if (Match(TokenType.SHORT)) { type += "short "; return type.Trim(); }
+            // ⚠ `long` / `short` **必须也吃掉后面的 `*`** 再返回。
+            //   这两支原本是提前 `return` 的（为的是不让下面的 `Match(INT)` 去啃
+            //   `long int` 里的那个 `int`），可末行那个 `while (Match(STAR))` 于是
+            //   永远走不到 ⇒ `long* v` 解析成类型 "long"、紧跟着的 `*` 留给调用方，
+            //   调用方在参数位 `Expect(IDENTIFIER)` 撞上 STAR 当场报
+            //   「期望 IDENTIFIER，实际得到 STAR」。
+            //   实测只有 `long` / `short` 中招（`int*`/`float*`/`double*`/`char*` 都
+            //   落到末行、本来就是对的），而 `Lib/c/waycoder_ui.h` 里的
+            //   `long callwithlong4(long* v);` 正好踩在 `long` 上 ⇒
+            //   `Examples/cpp/sysinfo.cpp` 编不过。
+            //   这里**只补指针后缀、不改成 fall-through**：换成 fall-through 会让
+            //   `long int` 变成类型串 "long int"，而 C++ 后端的判宽是
+            //   `baseType.Contains("int")` ⇒ 4 字节悄悄变 8 字节（见
+            //   CodeGenerator.Expressions.cs:77-78）。那是另一件事，别混进来。
+            //   （拼指针前先 `TrimEnd` —— 否则会拼出 `"long *"`，与末行那条路拼出的
+            //     `"int*"` 形态不一致，下游按字符串比类型就会漏。）
+            if (Match(TokenType.LONG))
+            {
+                type += "long ";
+                if (Match(TokenType.LONG)) type += "long ";
+                type = type.TrimEnd();
+                while (Match(TokenType.STAR)) type += "*";
+                return type;
+            }
+            if (Match(TokenType.SHORT))
+            {
+                type += "short ";
+                type = type.TrimEnd();
+                while (Match(TokenType.STAR)) type += "*";
+                return type;
+            }
             if (Match(TokenType.INT)) type += "int";
             else if (Match(TokenType.CHAR)) type += "char";
             else if (Match(TokenType.FLOAT)) type += "float";

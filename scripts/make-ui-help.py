@@ -264,6 +264,29 @@ E = {
         "把**上一次** `ui_call_json_s` 的结果整份打到 stdout（末尾补换行）—— 调试最省事，\n"
         "各语言的自测也都靠它把结果原样打出来。⚠ 无参：打印的是上一次的结果，不是带参数再调一次。",
         "ui_call_json_s(\"version\", \"\");\nui_call_json_print();"),
+
+    # ── 通用宿主调用口（577–580）──
+    "callwithint8": ("调用宿主",
+        "**按数字 id 调宿主的函数**：`v[0]` 是调用号（见 `VML_CALL_*` 宏）、`v[1..7]` 是参数，\n"
+        "返回值**覆盖 `v[0]`** —— 所以调用完拿不到原来传进去的 `v[0]`，这是设计不是 bug。\n"
+        "比 `ui_call_json` 快得多（参数直接进寄存器、一次调用零编解码），代价是**类型写死在接口上**。\n"
+        "没注册过的 id / 类型对不上都**不崩**，写回负数失败码（-2 参数、-6 没这个号、-9 宿主内部错）。",
+        'int v[8];\nv[0] = VML_CALL_ECHO_INT;\nv[1] = 1; v[2] = 2; v[3] = 3;\n'
+        'int r = callwithint8(v);   /* 1 + 2×10 + 3×100 = 321 */'),
+    "callwithfloat8": ("调用宿主",
+        "同上，参数是 7 个 `float`（走 `F1..F7`），返回覆盖 `F0`。\n"
+        "⚠ 调用号也放在 `F0`（`v[0]`）里，所以它必须能被 `float` 精确表示 —— 取小整数就没事。",
+        'float v[8];\nv[0] = VML_CALL_ECHO_FLOAT;\nv[1] = 1.0; v[2] = 2.0;\n'
+        'float r = callwithfloat8(v);'),
+    "callwithlong4": ("调用宿主",
+        "同上，参数是 3 个 `long`（走 `L1..L3`），返回覆盖 `L0`。\n"
+        "64 位值只有长整数寄存器组装得下 —— 通用寄存器是 32 位的。",
+        'long v[4];\nv[0] = VML_CALL_ECHO_LONG;\nv[1] = 1; v[2] = 2;\n'
+        'long r = callwithlong4(v);'),
+    "callwithdouble4": ("调用宿主",
+        "同上，参数是 3 个 `double`（走 `D1..D3`），返回覆盖 `D0`。",
+        'double v[4];\nv[0] = VML_CALL_ECHO_DOUBLE;\nv[1] = 1.0; v[2] = 2.0;\n'
+        'double r = callwithdouble4(v);'),
 }
 
 # 分组 → (子页 slug, 子页里的一句话标题)。**一页放 60 个接口太长**，按类别拆开，
@@ -280,14 +303,24 @@ GROUPS = [
     ("音效与触感", "feel", "合成音、震动、屏幕常亮"),
     ("本地存档", "store", "存最高分这类小数据"),
     ("全能接口", "json", "两个字符串进、一个 JSON 出"),
+    ("调用宿主", "call", "按数字 id 调宿主函数（带类型、零编解码）"),
 ]
 
 
 def signatures():
-    """从头文件抓 `ui_*` 的签名（参数表）——**权威来源**，文档里的签名直接用它。"""
+    """从头文件抓 `ui_*` 的签名（参数表）——**权威来源**，文档里的签名直接用它。
+
+    ⚠ 认的名字有两族：
+      · `ui_*` —— 常规接口；
+      · `callwith*` —— 通用宿主调用口（577–580）。**这两族的返回类型不止 int/void**
+        （还有 float / long / double），正则当年只写了 `(?:int|void)`，于是
+        "加了新接口"这道闸对它们**根本不响** —— 那正是这个脚本存在的理由，所以一并放宽。
+    """
     src = open(HEADER, encoding="utf-8").read()
     out = {}
-    for m in re.finditer(r'^\s*(?:int|void)\s+(ui_[a-z_]+)\s*\(([^;]*)\)\s*;', src, re.M):
+    pat = (r'^\s*(?:int|void|float|long|double)\s+'
+           r'((?:ui_[a-z_]+)|(?:callwith[a-z0-9_]+))\s*\(([^;]*)\)\s*;')
+    for m in re.finditer(pat, src, re.M):
         out[m.group(1)] = re.sub(r'\s+', ' ', m.group(2)).strip()
     return out
 

@@ -32,6 +32,7 @@ import html
 import re
 import subprocess
 import time
+import xml.etree.ElementTree as ET
 
 # 输入框为空时 uiautomator 回报的 placeholder 文案（ShellPage.xaml 里的 Placeholder）
 PLACEHOLDERS = ("输入 shell 命令…", "程序在等一行输入…")
@@ -95,24 +96,72 @@ class Driver:
         if self.verbose:
             print(msg, flush=True)
 
-    # ── UI 树 ───────────────────────────────────────────────────────────
-    def nodes(self):
-        self.sh("shell", "uiautomator", "dump", "/sdcard/vmlverify.xml")
-        raw = self.sh("shell", "cat", "/sdcard/vmlverify.xml")
+    # ── UI 树解析 ───────────────────────────────────────────────────────
+    # ⚠ **别用 `text="([^"]*)"` 这种正则去啃 dump**（v0.96.326 实测踩到，整轮 22 门
+    # 全被判成"无输出"）。android 的 uiautomator 在**属性值里含 `"` 时把外层引号换成
+    # `'`**（`XmlSerializer` 挑定界符的行为）：
+    #
+    #     <node text='{"ok":true,"result":{…}' …/>
+    #
+    # 于是固定双引号的正则一个字符都取不到、`g("text")` 返回 `""` —— **而屏幕上的输出
+    # 好端端地在那儿**。这个失败形状最坑的地方是「空输出」与「命令真没跑」长得一模一样，
+    # 而本轮的语料恰好全是 JSON（每个字面量里都有 `"`）⇒ 22 门全军覆没，
+    # 而只含中文/数字的 skel 语料（`SKEL-SUM=14`）跑得全绿。
+    #
+    # 那份 dump **是合法 XML**（`'…'` 本来就是 XML 允许的属性定界符）⇒ 交给真正的 XML
+    # 解析器即可，两种引号、实体都在它该在的地方一次解决。
+    _INVALID_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+    @classmethod
+    def _xml_nodes(cls, raw):
+        """用真 XML 解析器读 dump。非法控制字符会先清掉再试一次。"""
+        for attempt in (raw, cls._INVALID_XML.sub("", raw)):
+            try:
+                return list(ET.fromstring(attempt).iter("node"))
+            except ET.ParseError:
+                continue
+        return None
+
+    @staticmethod
+    def _regex_nodes(raw):
+        """兜底：dump 不是合法 XML 时按属性语法松散解析（**两种引号都认**）。"""
         out = []
-        for m in re.finditer(r"<node[^>]*?>", raw):
+        for m in re.finditer(r"<node\b[^>]*>", raw):
             s = m.group(0)
 
             def g(k):
-                mm = re.search(k + r'="([^"]*)"', s)
-                return html.unescape(mm.group(1)) if mm else ""
+                # `(?<![\w-])` 是**属性名的左边界**：不加的话 `text` 会命中的是
+                # 未来某个以 `text` 结尾的属性名（如 `hinttext`），取回一个张冠李戴的值。
+                mm = re.search(r"(?<![\w-])" + k + r"""\s*=\s*(?:"([^"]*)"|'([^']*)')""", s)
+                if not mm:
+                    return ""
+                return html.unescape(mm.group(1) if mm.group(1) is not None else mm.group(2))
 
-            b = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", g("bounds"))
-            x1, y1, x2, y2 = (int(b.group(i)) for i in (1, 2, 3, 4)) if b else (0, 0, 0, 0)
             out.append(dict(text=g("text"), cls=g("class"), desc=g("content-desc"),
-                            x1=x1, y1=y1, x2=x2, y2=y2,
-                            focused=(g("focused") == "true")))
+                            bounds=g("bounds"), focused=(g("focused") == "true")))
         return out
+
+    @classmethod
+    def parse_dump(cls, raw):
+        """一份 dump 原始文本 → 节点列表（**与设备无关的纯函数**，自检直接喂字符串）。"""
+        els = cls._xml_nodes(raw)
+        if els is None:
+            rows = cls._regex_nodes(raw)
+        else:
+            rows = [dict(text=(e.get("text") or ""), cls=(e.get("class") or ""),
+                         desc=(e.get("content-desc") or ""), bounds=(e.get("bounds") or ""),
+                         focused=(e.get("focused") == "true")) for e in els]
+        out = []
+        for r in rows:
+            b = re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", r["bounds"])
+            x1, y1, x2, y2 = (int(b.group(i)) for i in (1, 2, 3, 4)) if b else (0, 0, 0, 0)
+            out.append(dict(text=r["text"], cls=r["cls"], desc=r["desc"],
+                            x1=x1, y1=y1, x2=x2, y2=y2, focused=r["focused"]))
+        return out
+
+    def nodes(self):
+        self.sh("shell", "uiautomator", "dump", "/sdcard/vmlverify.xml")
+        return self.parse_dump(self.sh("shell", "cat", "/sdcard/vmlverify.xml"))
 
     @staticmethod
     def _center(n):
@@ -348,6 +397,27 @@ class Driver:
         else:
             self.sh("shell", "input", "text", input_text_payload(cmd))
 
+    def _accepted(self, ns=None):
+        """命令**被受理了**没有。
+
+        判据一：输入框空了（`OnRunRequested` 里 `CmdEntry.Text = ""` 在 `await` 之前）。
+
+        判据二：**输入框连同整个命令行页都不见了**。这条是实测补的 ——
+        程序一开绘图窗口、或者先弹一个 `ui_dlg_msg`（gorilla 开局就弹），
+        `uiautomator` 只 dump **当前焦点窗口** ⇒ 命令行页的 EditText 整个不在树里，
+        `entry_text()` 返回 `None`，于是老的 `== ""` 永远不成立。
+
+        后果不是"多等一会儿"而是**误判 + 破坏**：`run()` 收到"没送进去"会**冷启动
+        重来**（把正在跑的那个程序杀掉）再送一遍，最后记一条"命令未能送进输入框" ——
+        而屏幕上那个程序明明跑得好好的（gorilla 连中两次，每次都得靠人工 dump 界面才发现）。
+        这与 `Entry` 那次教训同源：**"读不到"不等于"没发生"**。
+        """
+        ns = ns if ns is not None else self.nodes()
+        t = self.entry_text(ns)
+        if t == "":
+            return True
+        return t is None and not self.on_shell_page(ns)
+
     def submit(self, cmd, tries=6):
         """把 cmd 送进输入框并回车。全程回读校验，直到输入框确实收到这串且被提交。"""
         for _ in range(tries):
@@ -391,11 +461,11 @@ class Driver:
             if b is not None:
                 self.sh("shell", "input", "tap", *self._center(b))
                 time.sleep(1.2)
-                if self.entry_text_stable() == "":
+                if self._accepted():
                     return True
             self.sh("shell", "input", "keyevent", "66")
             time.sleep(1.2)
-            if self.entry_text_stable() == "":
+            if self._accepted():
                 return True
             # 还是没提交（偶发）—— 清掉重来，别让残留污染下一条
             self.clear_entry()
@@ -588,3 +658,46 @@ class Driver:
             if n["cls"] == "android.widget.TextView" and n["text"].startswith("cwd:"):
                 return n["text"]
         return ""
+
+
+# ── 离线自检（`python3 driver.py`）────────────────────────────────────────
+# 样本专挑**只有真解析器才过得了**的形状：属性值里含 `"` 时 uiautomator 会把外层引号
+# 换成 `'`（见 `parse_dump` 上面的说明）。曾经用 `text="([^"]*)"` 啃它，于是**每一门
+# 输出 JSON 的语言都被判成"没有输出"** —— 而那正是"命令真没跑"的形状，属于最贵的一类
+# 误判（把装置的缺陷读成产品的缺陷）。没有设备也能跑，所以它留在这里而不是留给下一次真机。
+_SELFTEST_DUMPS = (
+    # ① 常规：双引号定界
+    ('<hierarchy><node index="0" text="Hello, VML!" class="android.widget.TextView"'
+     ' bounds="[0,0][10,10]" focused="false"/></hierarchy>',
+     "Hello, VML!"),
+    # ② 值里含 `"`（JSON）—— 旧式正则在**这一条**上取回空串
+    ('<hierarchy><node index="0" text=\'{"ok":true,"result":{"w":411}}\''
+     ' class="android.widget.TextView" bounds="[0,0][10,10]" focused="false"/></hierarchy>',
+     '{"ok":true,"result":{"w":411}}'),
+    # ③ 值里同时有 `"`、实体与转义（`&#10;` 换行 / `&gt;` 提示符 / `&amp;`）
+    ('<hierarchy><node index="0" text=\'~&gt; a&amp;b&#10;{"k":1}\''
+     ' class="android.widget.TextView" bounds="[0,0][10,10]" focused="false"/></hierarchy>',
+     '~> a&b\n{"k":1}'),
+)
+
+
+def _selftest():
+    bad = 0
+    for raw, want in _SELFTEST_DUMPS:
+        rows = Driver.parse_dump(raw)
+        if len(rows) != 1:
+            print("✘ 节点数 %d（应 1）：%r" % (len(rows), raw[:60])); bad += 1; continue
+        got = rows[0]["text"]
+        if got != want:
+            print("✘ text=%r\n  应=%r" % (got, want)); bad += 1
+            continue
+        # 兜底解析器也必须是同一份判据（两条路给两个答案 = 缺陷重现的温床）
+        got2 = Driver._regex_nodes(raw)
+        if not got2 or got2[0]["text"] != want:
+            print("✘ 兜底解析器 text=%r\n  应=%r" % (got2 and got2[0]["text"], want)); bad += 1
+    print("driver 自检：%d/%d 通过" % (len(_SELFTEST_DUMPS) - bad, len(_SELFTEST_DUMPS)))
+    return 1 if bad else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_selftest())

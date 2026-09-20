@@ -689,3 +689,77 @@ void ui_store_set(char* key, char* value) {
 int ui_store_get(char* key, char* buf, int cap) {
     return asm("SYSCALL #551, ${key}, ${buf}, ${cap}");
 }
+
+/* ── 通用宿主调用口（577–580，v0.96.326）──
+ *
+ * 四个函数的结构完全一样：**把数组的元素装进寄存器 + 发一条 syscall**。
+ * 第 0 个元素是**调用号**（id），返回值写回第 0 号寄存器 —— 于是调用方
+ * 拿不到原来传进去的 v[0]（这是 ABI 的一部分，见头文件那段）。
+ * 宿主按 id 查注册表（两端共用 WayCoder/UI/Shared/VmlCallRegistry.cs）。
+ *
+ * ## 为什么 int8 直接排 8 个 `${}`，另外三个要绕一道指针
+ *
+ * `${局部量}` 展开出来的是**一条 32 位 `MOVE` 装载**（见本文件开头那段：
+ * 形参/局部量按出现顺序落 R0、R1…）。int8 要的正好就是"32 位值进 R0–R7"，一拍即合。
+ *
+ * 但 float/long/double **不行**：`MOVE` 只搬 32 位，而且它**不碰浮点/长整数寄存器组** ——
+ * 值进了通用寄存器，`F1`/`L1`/`D1` 里还是旧的。这三个组只能由
+ * `MOVEF`/`MOVEL`/`MOVED` 写（运行时按操作数编码落到 `floatRegisters`/`longRegisters`/
+ * `doubleRegisters`）。所以先把地址算进一个指针局部量，再用
+ * `MOVEF F1, [R0]` 把**该类型的值**从内存直接读进对应的寄存器组。
+ * 顺带一个好处：值全程没有被拆成低/高两半过（64 位的 long/double 用 `MOVE` 只能拿到低 32 位）。
+ *
+ * ## 调用号的整数视图
+ *
+ * 四个口的宿主都从 `R0` 读 id（"怎么读 id"在宿主侧只有一种写法）。int8 本来就是 R0；
+ * 另外三个在装完类型寄存器之后再补一句 `id = (int)v[0]`，由前端生成一条
+ * `F2I`/`L2I`/`D2I` 把整数视图放进 R0 —— 那一步**不会**碰 F0/L0/D0 里已经装好的值。
+ * ⚠ 顺序不能反：先装类型寄存器、后写 R0（反过来 R0 会被 `MOVEF F0` 的低位镜像冲掉）。
+ */
+
+/* 8 个 int：v[0]=调用号 R0，v[1..7] → R1..R7；返回值覆盖 R0。 */
+int callwithint8(int* v) {
+    int a0 = v[0]; int a1 = v[1]; int a2 = v[2]; int a3 = v[3];
+    int a4 = v[4]; int a5 = v[5]; int a6 = v[6]; int a7 = v[7];
+    return asm("SYSCALL #577, ${a0}, ${a1}, ${a2}, ${a3}, ${a4}, ${a5}, ${a6}, ${a7}");
+}
+
+/* 8 个 float：v[0]=调用号 F0（同时 R0 放它的整数视图），v[1..7] → F1..F7；返回值覆盖 F0。 */
+float callwithfloat8(float* v) {
+    float* p;
+    int id;
+    p = v;     asm("MOVEF F0, [${p}]");
+    p = v + 1; asm("MOVEF F1, [${p}]");
+    p = v + 2; asm("MOVEF F2, [${p}]");
+    p = v + 3; asm("MOVEF F3, [${p}]");
+    p = v + 4; asm("MOVEF F4, [${p}]");
+    p = v + 5; asm("MOVEF F5, [${p}]");
+    p = v + 6; asm("MOVEF F6, [${p}]");
+    p = v + 7; asm("MOVEF F7, [${p}]");
+    id = (int)v[0];
+    return asm("SYSCALL #578, ${id}");
+}
+
+/* 4 个 long：v[0]=调用号 L0（同时 R0 放它的整数视图），v[1..3] → L1..L3；返回值覆盖 L0。 */
+long callwithlong4(long* v) {
+    long* p;
+    int id;
+    p = v;     asm("MOVEL L0, [${p}]");
+    p = v + 1; asm("MOVEL L1, [${p}]");
+    p = v + 2; asm("MOVEL L2, [${p}]");
+    p = v + 3; asm("MOVEL L3, [${p}]");
+    id = (int)v[0];
+    return asm("SYSCALL #579, ${id}");
+}
+
+/* 4 个 double：v[0]=调用号 D0（同时 R0 放它的整数视图），v[1..3] → D1..D3；返回值覆盖 D0。 */
+double callwithdouble4(double* v) {
+    double* p;
+    int id;
+    p = v;     asm("MOVED D0, [${p}]");
+    p = v + 1; asm("MOVED D1, [${p}]");
+    p = v + 2; asm("MOVED D2, [${p}]");
+    p = v + 3; asm("MOVED D3, [${p}]");
+    id = (int)v[0];
+    return asm("SYSCALL #580, ${id}");
+}

@@ -359,20 +359,29 @@ internal static class Program
 
         // **永远只用 "mcu" 模式** —— 这是手机端的安全边界（见 MauiVml 那段长注释：
         // os 模式会放开线程/Socket/mkdir/Exec 等 300–376 号，手机上要么被沙箱挡、要么不该开）。
+        // 处理器先建出来（下面 `uiCalls.Runtime = vm` 要回填 —— 通用调用口读浮点/长整数
+        // 寄存器组必须拿得到运行时，见 NullUiCalls.Runtime 的注释）。
+        var uiCalls = new CliUiCalls(opt.ToHostConfig(sourcePath));
         using var vm = new VmRuntime(2 * 1024 * 1024, MakeConfig(), [], mode: "mcu")
         {
             TimeoutSeconds = Math.Clamp(opt.TimeoutSeconds, 1, 600),
             ConsoleIO = io,
-            SystemCallHandler = new NullUiCalls(),
+            SystemCallHandler = uiCalls,
             // 文件沙箱根 = 源文件所在目录（手机上等价物是 CwdContext.Root = workspace）。
             FileSystemRoot = Path.GetDirectoryName(sourcePath) ?? Directory.GetCurrentDirectory(),
         };
+        uiCalls.Vm = vm;
 
         // 网络：只放客户端那一半，与 MauiVml 逐号相同。
         foreach (var syscall in new[] { 330, 334, 335, 336, 337, 338 })
             vm.HostAllowedSyscalls.Add(syscall);
 
         vm.LoadProgram(prog);
+
+        // **脚本化输入**（`--input`）：手机端程序靠 `ui_wait_msg`/`ui_poll` 收按键与触摸，
+        // 桌面端没有输入源 ⇒ 不装这个，任何交互程序都只能空转（这正是"桌面上什么也证明不了"
+        // 的另一半：前半是画不出来，后半是动不了）。投递走的是与手机端 UI 线程**同一条路**。
+        uiCalls.Host.StartInputScript();
 
         // 运行时的诊断（内存错误 / 标签错误 / 未预期崩溃 + 16 个寄存器 dump 走 Console.Error，
         // Permission denied / VM execution cancelled 走 Console.Out）—— 接进内存并进返回值。
@@ -395,6 +404,10 @@ internal static class Program
                 diag = sink.ToString();
             }
         }
+
+        // **出图**（`--frame` / `--frames`）：程序跑完之后才做，所以拍到的是**它声明过的最后一帧**
+        //（`VmlScene.PresentedDsl` 是 `ui_present()` 那一刻当场拍的快照，不是"此刻的场景"）。
+        uiCalls.Host.EmitRequestedOutputs();
 
         if (diag.Length == 0) return io.Text;
         return io.Text.Length == 0 ? diag.TrimEnd() : io.Text.TrimEnd() + "\n" + diag.TrimEnd();
@@ -530,6 +543,24 @@ internal static class Program
   --vml <路径>         把链接之后的 VML 汇编写出到文件（只编不跑）
   -h, --help           显示本帮助
 
+绘图窗口（UI 程序：ui_win_open / ui_rect / ui_present …）：
+  --frame <路径>       运行结束后把「最新呈现帧」渲成 PNG 写到这里
+                       （判据是 ui_present 拍下的快照，不是"此刻的场景"—— 见 VmlScene.Present）
+  --frames <目录>      每个 ui_present 落一帧（看动画用，文件名 frame_0000.png …）
+  --frames-max <N>     帧数上限（默认 120，防死循环程序写满磁盘）
+  --screen <宽x高>     可用绘图区 / SCR_W、SCR_H 报的数（默认 480x640）
+
+交互（UI 程序靠 ui_wait_msg / ui_poll 取输入，桌面没有输入源就要脚本喂）：
+  --input <路径>       脚本化输入事件表，每行 `<毫秒> <事件> [参数…]`：
+                         keydown/keyup <虚拟键码>   mousemove/mousedown/mouseup <x> <y>
+                         touchdown/touchmove/touchup <x> <y>
+                         resize <w> <h>   orient <0|1>   close   wait
+                       键码沿用 Win32 虚拟键值（方向键 37–40、回车 13、空格 32、A/B/X/Y 就是字母）
+  --answer <值>        对话框按顺序消费的答案（可重复）。
+                        消息框：ok/yes（默认）| cancel/no；单选：下标；多选：逗号分隔下标；
+                        输入框：任意文本；cancel 一律表示取消
+  --store <路径>       键值存档落成 JSON（不给就只在本次进程内，不碰用户目录）
+
 重建 Lib 模块（与上面互斥，走单独一条路）：
   --rebuild-lib <源.c> [--out <输出.vml>]
                        把 Lib/shared/src/<模块>.c 编成 Lib/shared/<模块>.vml
@@ -543,7 +574,7 @@ internal static class Program
 // ══════════════════════════════════════════════════════════════════════════════════
 
 /// <summary>命令行参数。</summary>
-internal sealed class CliOptions
+internal sealed partial class CliOptions
 {
     public string? SourcePath { get; private set; }
     public string? Lang { get; private set; }
@@ -612,6 +643,9 @@ internal sealed class CliOptions
                     break;
 
                 default:
+                    // 宿主相关的选项（--frame / --input / --screen / --answer / --store …）
+                    // 认领不了才往下走 —— **绝不静默跳过**（拼错的选项必须响亮地失败）。
+                    if (o.TryParseHostOption(a, args, ref i)) break;
                     if (a.StartsWith('-'))
                         throw new CliArgumentException($"未知选项 `{a}`");
                     if (o.SourcePath is not null)
@@ -655,126 +689,7 @@ internal sealed class CaptureIo : IConsoleIO
     public bool KeyAvailable() => false;
 }
 
-/// <summary>
-/// 宿主 syscall 处理器 —— **只为了让 500–599 号段（ui_rect / ui_present / dlg_* …）不报错**。
-///
-/// <para>
-/// 手机端那份是 <c>WayCoder.Maui/Services/VmlUiCalls.cs</c>（真画窗口、真弹对话框）。
-/// 桌面 CLI 只需要「**编译产物与运行结果与手机端一致**」，UI 画到哪里无关紧要；
-/// 而**不能不做这一层**：运行时的 dispatch 是「先问宿主处理器，再走内置 switch」，没有处理器时
-/// 这些号会掉进内置 switch 的 default 分支（或过不了 mcu 的白名单门）并打出
-/// `Permission denied: syscall 525 …` —— 那是一行**手机端不会有的输出**，会污染比对。
-/// </para>
-///
-/// <para>
-/// 两道手续与手机端逐条相同：① 把 500–599 加进 <c>SyscallConstants.UserAllowed</c>
-/// （与运行时内部那个 <c>UserAllowedSyscalls</c> 是**同一个对象引用**，见
-/// <c>VMLRuntime/VMLRuntime.cs:179</c>）—— 漏了这步的现象是「处理器注册了却永远不被调用」；
-/// ② 处理器对号段返回 true 并置 <c>R0 = 0</c>（这些 syscall 的返回值都是 0）。
-/// </para>
-/// </summary>
-internal sealed class NullUiCalls : ISystemCallHandler
-{
-    private const int ReservedFirst = 500;
-    private const int ReservedLast = 599;
-
-    static NullUiCalls()
-    {
-        for (int n = ReservedFirst; n <= ReservedLast; n++)
-            SyscallConstants.UserAllowed.Add(n);
-    }
-
-    /// <summary>`CALLJSON`（#573）—— 桌面端**唯一真正实现**的一个号。</summary>
-    private const int CallJsonNum = 573;
-
-    public bool HandleSyscall(int syscallNumber, int[] registers, byte[] memory, ref int pc)
-    {
-        if (syscallNumber == CallJsonNum) { registers[0] = CallJson(registers, memory); return true; }
-        if (syscallNumber is < ReservedFirst or > ReservedLast) return false;
-        registers[0] = 0;
-        return true;
-    }
-
-    /// <summary>
-    /// **`CALLJSON`(#573) 的桌面实现**。
-    ///
-    /// ## 为什么这一个号不能像其他号那样"空着"
-    ///
-    /// 其余 500–599 是"画到哪儿无所谓"的 UI 号（桌面 CLI 只要编译产物与运行结果一致），
-    /// 但 `CALLJSON` 返回的是**数据**，程序拿它做逻辑与输出。空着 = 返回空串 ⇒
-    /// `ui_call_json_print()` 一个字节都打不出来。
-    ///
-    /// 实测（2026-09-20）：`Examples/*/sysinfo.*` **22 门语言全部零输出** ——
-    /// 因为每个 `sysinfo.*` 都是同一句 `ui_call_json_s("sysinfo","")` + `ui_call_json_print()`，
-    /// 这是 CALLJSON 的自检程序。空着的时候它们"编译成功、运行成功、什么都不打印"，
-    /// 极易被读成"程序没问题"（我自己第一轮只数了告警，就没看出来）。
-    ///
-    /// ## 与手机端的关系
-    ///
-    /// 信封格式（`{"ok":true,"result":…}`）与手机端 `VmlJsonApi` **同形**，
-    /// 但数值来自**桌面环境**，且 `app`/`version` 报的是"桌面脚手架"而不是 `Global.Version`
-    /// —— 桌面 CLI 刻意**不引用 WayCoder 核心**（csproj 里写着只引 vendored 的 `third_party/vml`），
-    /// 拿不到那个常量。**这是有意为之，不是漏了**：与其抄一个会漂的版本号进来，
-    /// 不如如实说"这是桌面脚手架"。
-    /// </summary>
-    private static int CallJson(int[] r, byte[] mem)
-    {
-        var fn = Str(mem, r[0]);
-        var json = fn == "sysinfo" ? SysinfoJson() : VmlJsonEnvelope.NotFound(fn);
-        int n = WriteString(mem, r[2], r[3], json);
-        if (n >= 0) return n;
-        // 装不下 ⇒ 回一个说明原因的短信封（与手机端同一套两段式退让）
-        return WriteString(mem, r[2], r[3],
-            VmlJsonEnvelope.TooLong(System.Text.Encoding.UTF8.GetByteCount(json)));
-    }
-
-    /// <summary>VM 内存里的 NUL 结尾 C 字符串；指针为 0 或越界时返回空串（与手机端的 `Str` 同语义）。</summary>
-    private static string Str(byte[] mem, int ptr)
-    {
-        if (ptr <= 0 || ptr >= mem.Length) return "";
-        int end = ptr;
-        while (end < mem.Length && mem[end] != 0) end++;
-        return System.Text.Encoding.UTF8.GetString(mem, ptr, end - ptr);
-    }
-
-    /// <summary>把 UTF-8 写进 VM 缓冲区，返回**实际需要**的字节数；放不下返回 -1（结尾留一个 NUL）。</summary>
-    private static int WriteString(byte[] mem, int dst, int cap, string text)
-    {
-        if (dst < 0 || cap <= 1 || dst + cap > mem.Length) return -1;
-        var bytes = System.Text.Encoding.UTF8.GetBytes(text);
-        int n = Math.Min(bytes.Length, cap - 1);
-        Array.Copy(bytes, 0, mem, dst, n);
-        mem[dst + n] = 0;
-        return bytes.Length <= cap - 1 ? n : -1;
-    }
-
-    /// <summary>桌面环境的 sysinfo。字段名与手机端逐一对齐（跨语言契约）。</summary>
-    private static string SysinfoJson()
-        => "{\"ok\":true,\"result\":{" +
-           "\"app\":\"WayCoder\"," +
-           "\"version\":\"(desktop-cli)\"," +
-           "\"platform\":\"desktop\"," +
-           "\"os\":\"" + Escape(Environment.OSVersion.Platform.ToString()) + "\"," +
-           "\"osVersion\":\"" + Escape(Environment.OSVersion.VersionString) + "\"," +
-           "\"deviceModel\":\"(desktop)\",\"deviceName\":\"(desktop)\",\"manufacturer\":\"(desktop)\"," +
-           "\"arch\":\"" + System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant() + "\"," +
-           "\"cpuCount\":" + Environment.ProcessorCount + "," +
-           "\"memoryMb\":" + (GC.GetGCMemoryInfo().TotalAvailableMemoryBytes / (1024 * 1024)) + "," +
-           "\"deviceId\":\"(desktop-cli)\"," +
-           "\"screen\":{\"w\":0,\"h\":0,\"density\":1,\"canvasW\":0,\"canvasH\":0}," +
-           "\"orientation\":0}}";
-
-    /// <summary>JSON 字符串转义（只处理必要字符；这里的值全是我们自己造的，但空值与路径可能带 `\`）。</summary>
-    private static string Escape(string s)
-        => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
-}
-
-/// <summary>桌面端的**信封**（与手机端 `VmlJsonApi` 同构：成功 `ok:true`／失败 `ok:false` + `error`）。</summary>
-internal static class VmlJsonEnvelope
-{
-    public static string NotFound(string fn)
-        => "{\"ok\":false,\"error\":\"桌面脚手架未实现该函数：" + fn.Replace("\"", "") + "\"}";
-
-    public static string TooLong(int needed)
-        => "{\"ok\":false,\"error\":\"结果太长：需要 " + needed + " 字节，缓冲区装不下\"}";
-}
+// 桌面宿主（500–599 号段 + VM 内置的 #57 的真实实现）在 `CliVmlHost.cs`：
+//   · `CliVmlHost` —— IVmlHost 的桌面实现（出图 / 脚本化输入 / 对话框 / 存档 / 音效震动）
+//   · `CliUiCalls`  —— ISystemCallHandler 的薄壳（把寄存器递进共享运行时）
+// 逻辑本身在 `WayCoder/UI/Shared/VmlHostRuntime.cs`，与手机端**编同一份**。

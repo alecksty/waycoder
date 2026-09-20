@@ -69,6 +69,56 @@
     <!-- 22 个编译器的清单唯一真源（与手机端编同一份文件，namespace = WayCoder.UI.Shared）。
          引用它就能在注册后断言「注册到的 == 清单里的」。 -->
     <Compile Include="../../WayCoder/UI/Shared/VmlFrontendCompilerList.cs" Link="VmlFrontendCompilerList.cs" />
+
+    <!-- 通用宿主调用口（577–580）：**注册表与协议层与手机端编同一份文件**。
+         理由与上面那条相同，而且更硬：这两份逻辑（"id → 实现"的查表、寄存器 ↔ 参数的
+         读写、失败码）要是各写一份，分叉的症状是"手机上对、桌面上错"，
+         而桌面 CLI 恰恰是手机端的**验收脚手架** —— 它一错，手机上就更验不出来。
+
+         · VmlCallRegistry.cs —— 注册表 + 四个口的宿主侧唯一入口（TryHandle）
+         · VmlUiProtocol.cs   —— 号段（VmlUi.CallWithInt8 …）与 TryCallCast
+         两者都**不引用 WayCoder 核心**（注册表刻意连 VMLRuntime 都不引），
+         所以能原样编进这个只引 vendored VML 的 CLI（`WayCoder.Infra.ErrorLog`
+         是 VmlUiProtocol 唯一的核心依赖，由 Program.cs 末尾那个空实现顶上）。 -->
+    <Compile Include="../../WayCoder/UI/Shared/VmlUiProtocol.cs" Link="VmlUiProtocol.cs" />
+    <Compile Include="../../WayCoder/UI/Shared/VmlCallRegistry.cs" Link="VmlCallRegistry.cs" />
+
+    <!-- 宿主 syscall（500–599 + VM 内置的 #57）的**共享实现**。
+         逻辑全在这一份里：坐标钳位、字符串读取、消息队列语义、定时器暂停、刷子/样式状态机…
+         两端的差别（弹框/开窗/存档/音频/屏幕）走 IVmlHost 接口，各给一个实现
+         （手机 = WayCoder.Maui/Services/VmlUiCalls.cs 的 MauiVmlHost；
+          桌面 = 本工程的 CliVmlHost.cs）。
+
+         ⚠ **这一条是本工程存在的意义所在**：在这之前桌面宿主是 `NullUiCalls`
+         （同一批号、全部空操作），于是「手机上能跑的游戏在桌面上什么也证明不了」，
+         每改一行都得打 APK 上模拟器（一次一分多钟）。而如果改成在桌面端**重抄一份**逻辑，
+         撞的就是本仓库头号坑 —— 同一规则两处实现，症状恰好是"手机上对、桌面上错"，
+         而桌面 CLI 恰恰是手机端的验收脚手架，它一错就更验不出来。 -->
+    <Compile Include="../../WayCoder/UI/Shared/VmlHostRuntime.cs" Link="VmlHostRuntime.cs" />
+
+    <!-- JSON：`CALLJSON`(#573) 的信封与解析。与手机端编**同一份**（`VmlJsonApi`），
+         于是"结果太长""函数不认识"这两种失败信封两端逐字相同 ——
+         此前桌面端自己拼过一套 `VmlJsonEnvelope`，那正是一张会漂的平行格式表。 -->
+    <Compile Include="../../WayCoder/UI/Shared/VmlJsonApi.cs" Link="VmlJsonApi.cs" />
+    <Compile Include="../../WayCoder/Infra/JsonLib.cs" Link="Infra/JsonLib.cs" />
+
+    <!-- 绘图光栅化 + PNG 编码 —— 「能看见」那条链。
+         桌面的 VML 画面走的就是 `DrawRunner.Parse` + `ToPng`（手机端
+         `VmlTool.TryExportFrame` 走的也是它），**不另写渲染器**：
+         只有这样，"桌面上渲出来的像素"才与"手机上渲出来的像素"是同一个引擎的产物，
+         逐像素判据（像 `Examples/c/draw_colors.c` 那套）才有可能在桌面上做。
+         ⚠ `Draw*.cs` 用通配：这一族是同一个子系统，将来加一个 `DrawXxx.cs`
+         不该需要回来改这张表（漂了会**响亮地**编译失败，不是静默出错）。 -->
+    <Compile Include="../../WayCoder/Infra/Draw*.cs" Link="Infra/%(Filename)%(Extension)" />
+    <Compile Include="../../WayCoder/Infra/FlowchartCommand.cs" Link="Infra/FlowchartCommand.cs" />
+    <Compile Include="../../WayCoder/Infra/PngEncoder.cs" Link="Infra/PngEncoder.cs" />
+    <Compile Include="../../WayCoder/Infra/PngDecoder.cs" Link="Infra/PngDecoder.cs" />
+    <Compile Include="../../WayCoder/Infra/RasterImage.cs" Link="Infra/RasterImage.cs" />
+    <Compile Include="../../WayCoder/Infra/BmpCodec.cs" Link="Infra/BmpCodec.cs" />
+    <Compile Include="../../WayCoder/Infra/JpegCodec.cs" Link="Infra/JpegCodec.cs" />
+    <Compile Include="../../WayCoder/Infra/ImageLoader.cs" Link="Infra/ImageLoader.cs" />
+    <Compile Include="../../WayCoder/Infra/TrueTypeFont.cs" Link="Infra/TrueTypeFont.cs" />
+    <Compile Include="../../WayCoder/Infra/FontFinder.cs" Link="Infra/FontFinder.cs" />
   </ItemGroup>
 
 </Project>

@@ -1942,6 +1942,7 @@ _L43310201:
         or R1 R0
         move R0 R1
         push R0
+; 215:                          | (((unsigned char)src[2] & 0x3F) << 6) | ((unsigned char)src[3] & 0x3F));
         move R0 [R12+16]
         push R0
         move R0 #2
