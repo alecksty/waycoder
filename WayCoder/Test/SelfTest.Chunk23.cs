@@ -129,6 +129,8 @@ public static partial class SelfTest
             public uint Color;
             public Gradient? Gradient;
             public bool EvenOdd;
+            /// <summary>显式刷子矩形（世界坐标）；null = 用子路径自己的外接矩形。</summary>
+            public (double MinX, double MinY, double MaxX, double MaxY)? Box;
         }
 
         public sealed class Stroke
@@ -165,9 +167,10 @@ public static partial class SelfTest
         public double SceneWidth => 100;
         public double SceneHeight => 100;
 
-        public void FillShape(IReadOnlyList<IReadOnlyList<double>> subpaths, uint fill, Gradient? gradient, bool evenOdd)
+        public void FillShape(IReadOnlyList<IReadOnlyList<double>> subpaths, uint fill, Gradient? gradient,
+            bool evenOdd, (double MinX, double MinY, double MaxX, double MaxY)? box = null)
         {
-            var f = new Fill { Color = fill, Gradient = gradient, EvenOdd = evenOdd };
+            var f = new Fill { Color = fill, Gradient = gradient, EvenOdd = evenOdd, Box = box };
             foreach (var sp in subpaths)
             {
                 f.Subpaths.Add(sp);

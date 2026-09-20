@@ -248,15 +248,17 @@ public static partial class SelfTest
         Check("SVG: 描边渐变不漏进填充槽（fill 不是 url(#g)）",
             !svgRect.Contains("fill=\"url(#g)\""));
 
-        // ── ④ 矢量后端：如实标记"画不了"，让宿主整窗回退光栅 ──
-        //    ⚠ 这条不是"以后再说"：默默画不出来的形态是**黑描边**，比慢更糟。
+        // ── ④ 矢量后端：**轮廓化填掉**，不回退光栅 ──
+        //    平台没有 SetStrokePaint，但描边就是个填充多边形 ⇒ 展成轮廓再填。
+        //    （v0.96.306~308 那两版是"标记画不了 ⇒ 整窗回退"，画面正确但慢；
+        //      而且回退只翻标志位时静态程序会永久停在残缺帧上，见 v0.96.308。）
 
         var vt = new RecordingVectorTarget();
         var fig = Doc("gradient g linear #ff0000 #0000ff\nline 10 10 50 10 @g 6").Figures[0];
-        fig.Gradient = null; fig.StrokeGradient = new Gradient { Id = "g" };
         DrawVector.Stroke(vt, fig.Args, fig);
-        Check("矢量: 渐变描边 → MarkUnsupported（宿主回退光栅，不画成黑的）",
-            vt.Unsupported.Contains("stroke-gradient"));
+        Check("矢量: 渐变描边走轮廓化填充（不回退光栅）", vt.Unsupported.Count == 0 && vt.Fills.Count == 1);
+        Check("矢量: 一次 FillShape 装下全部块（不是逐块建路径）",
+            vt.Fills.Count == 1 && vt.Fills[0].Subpaths.Count >= 1 && vt.Fills[0].Gradient != null);
 
         // ── ⑤ 端到端：**C 层够得到的那个入口**一直钉到解析器 ──
         //    VML 程序调的是 `ui_set_pen(刷子句柄,…)` + `ui_draw_line(...)`，
@@ -294,11 +296,41 @@ public static partial class SelfTest
         Check("形状码分流：半径 > 0 → roundrect",
             DrawRunner.Parse(s9.BuildDsl()).Figures.Any(x => x.Kind == "roundrect"));
 
-        // 反证：纯色描边**不该**被这条误伤（否则所有描边都会把整窗拖回光栅）
+        // 绕向一致性：非零环绕靠它成立（各块绕向若不同，重叠处会被挖空成洞）。
+        static double Shoelace(IReadOnlyList<double> p)
+        {
+            double s = 0;
+            for (int i = 0; i + 1 < p.Count; i += 2)
+            {
+                int j = (i + 2) % p.Count;
+                s += p[i] * p[j + 1] - p[j] * p[i + 1];
+            }
+            return s;
+        }
+        Check("矢量: 各块绕向一致（非零环绕才是并集，否则重叠处被挖空）",
+            vt.Fills[0].Subpaths.All(sp => Shoelace(sp) > 0));
+
+        // **刷子矩形必须是原几何的盒**，不是被线宽撑大的轮廓盒 ——
+        // 这是渐变位置唯一的判据：偏半个线宽肉眼看不出来。
+        // 几何 (10,10)-(50,10)、线宽 6 ⇒ 轮廓盒 y 是 7..13，几何盒是 10..10。
+        var bx = vt.Fills[0].Box;
+        Check($"矢量: 刷子矩形用的是原几何盒（实得 y {bx?.MinY}..{bx?.MaxY}）",
+            bx != null && Math.Abs(bx.Value.MinY - 10) < 1e-6 && Math.Abs(bx.Value.MaxY - 10) < 1e-6
+            && Math.Abs(bx.Value.MinX - 10) < 1e-6 && Math.Abs(bx.Value.MaxX - 50) < 1e-6);
+
+        // round 端帽的圆也要进同一批子路径（它们与杆重叠，靠非零规则相加）
+        var vt3 = new RecordingVectorTarget();
+        var round = Doc("gradient g linear #ff0000 #0000ff\nline 10 10 50 10 @g 6 round").Figures[0];
+        DrawVector.Stroke(vt3, round.Args, round);
+        var pieces = vt3.Fills.Count > 0 ? vt3.Fills[0].Subpaths.Count : 0;
+        Check($"矢量: round 端帽的圆也进了同一批子路径（实得 {pieces} 块，应 ≥ 3）", pieces >= 3);
+
+        // 反证：纯色描边**不走这条路**（仍走 StrokePolyline，不建填充）
         var vt2 = new RecordingVectorTarget();
         var plain = Doc("line 10 10 50 10 #ff0000 6").Figures[0];
         DrawVector.Stroke(vt2, plain.Args, plain);
-        Check("反证：纯色描边不受影响（不会误触发整窗回退）", vt2.Unsupported.Count == 0);
+        Check("反证：纯色描边仍走 StrokePolyline（不误入轮廓化路径）",
+            vt2.Unsupported.Count == 0 && vt2.Fills.Count == 0 && vt2.Strokes.Count == 1);
     }
 
     /// <summary>

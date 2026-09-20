@@ -358,10 +358,10 @@ public sealed class Canvas
     /// 连"段与段之间不做圆角接合"这个既有行为都照搬（`StrokePolyline` 本来就是逐段 DrawLine）。
     /// 唯一的差别是每个像素的颜色按**几何局部坐标**从刷子里取。
     ///
-    /// 为什么逐段调 <see cref="FillTransformed"/> 而不是先拼一个整轮廓多边形：
-    /// 拼轮廓在凹多边形（星形）上会自交，用奇偶规则填出来的接缝处会**漏洞**；
-    /// 而"逐段四边形取并集"正是既有实现的定义，照搬它既简单又天然等价。
-    /// 代价是每段各自扫一次自己的包围盒（不是整个图形的盒），实测与描边面积成正比。
+    /// 几何分解在 <see cref="DrawGeo.StrokePieces"/>（**光栅与矢量共用的那一份**）；
+    /// 这里只管"逐块扫自己的包围盒、逐像素从刷子取色"。
+    /// 逐块而不是先拼一个整轮廓：拼轮廓在凹多边形（星形）上会自交，
+    /// 奇偶规则填出来的接缝处会**漏洞**；"逐块四边形取并集"才是既有实现的定义。
     /// </summary>
     /// <param name="localPts">**局部**坐标（x,y 交替）——变换由本方法自己做，与填充那条路同口径。</param>
     /// <param name="norm">渐变归一化盒（原几何的局部包围盒）；基准与 SVG 的 objectBoundingBox 一致。</param>
@@ -370,69 +370,14 @@ public sealed class Canvas
         bool dashed = false, bool closed = false)
     {
         if (localPts.Count < 4 || g == null) return;
-        // 与 DrawLine 一致：width ≤ 1 那条路是 Bresenham。渐变版退化成"1 像素宽的四边形"
-        // （视觉上等价，只是斜线上取的像素格子可能与 Bresenham 不同）。
-        double hw = Math.Max(1.0, width) / 2;
-        int n = localPts.Count / 2;
-        const double DashOn = 6, DashOff = 4;   // 与 DrawLineDashed 的默认值同源
-
-        for (int i = 0; i + 1 < n; i++)
-            Segment(localPts[i * 2], localPts[i * 2 + 1], localPts[(i + 1) * 2], localPts[(i + 1) * 2 + 1]);
-        if (closed && n >= 3)
-            Segment(localPts[(n - 1) * 2], localPts[(n - 1) * 2 + 1], localPts[0], localPts[1]);
-        return;
-
-        void Segment(double x1, double y1, double x2, double y2)
+        // 几何来自 `DrawGeo.StrokePieces` —— **与矢量后端同一份**。
+        // 从前这段分解逻辑只长在这里，矢量那边要用就得再写一遍（本仓头号坑）。
+        foreach (var piece in DrawGeo.StrokePieces(localPts, width, cap, closed, dashed))
         {
-            double dx = x2 - x1, dy = y2 - y1;
-            double len = Math.Sqrt(dx * dx + dy * dy);
-            if (len < 1e-6) { Disc(x1, y1); return; }
-
-            if (dashed)
-            {
-                // 虚线在**局部**空间切。从前 DrawLineDashed 拿到的是世界点，
-                // 缩放/旋转会改变虚线的节奏（挤密或拉长）—— 顺手修正。
-                double ux = dx / len, uy = dy / len;
-                for (double s0 = 0; s0 < len; s0 += DashOn + DashOff)
-                {
-                    double s1 = Math.Min(s0 + DashOn, len);
-                    Piece(x1 + ux * s0, y1 + uy * s0, x1 + ux * s1, y1 + uy * s1);
-                }
-                return;
-            }
-            Piece(x1, y1, x2, y2);
-        }
-
-        void Piece(double x1, double y1, double x2, double y2)
-        {
-            double dx = x2 - x1, dy = y2 - y1;
-            double len = Math.Sqrt(dx * dx + dy * dy);
-            if (len < 1e-6) { Disc(x1, y1); return; }
-            double ux = dx / len, uy = dy / len;
-            double nx = -uy * hw, ny = ux * hw;
-            double ex1 = x1, ey1 = y1, ex2 = x2, ey2 = y2;
-            if (cap == "square") { ex1 -= ux * hw; ey1 -= uy * hw; ex2 += ux * hw; ey2 += uy * hw; }
-            var quad = new[] { ex1 + nx, ey1 + ny, ex1 - nx, ey1 - ny, ex2 - nx, ey2 - ny, ex2 + nx, ey2 + ny };
-            FillPiece(quad, (lx, ly) => PointInPolygon(lx, ly, quad));
-            if (cap == "round") { Disc(x1, y1); Disc(x2, y2); }
-        }
-
-        void Disc(double cx, double cy)
-        {
-            double r2 = hw * hw;
-            FillPiece(new[] { cx - hw, cy - hw, cx + hw, cy + hw },
-                (lx, ly) => { double ax = lx - cx, ay = ly - cy; return ax * ax + ay * ay <= r2; });
-        }
-
-        void FillPiece(IReadOnlyList<double> pts, Func<double, double, bool> inside)
-        {
-            double mnX = double.MaxValue, mnY = double.MaxValue, mxX = double.MinValue, mxY = double.MinValue;
-            for (int i = 0; i + 1 < pts.Count; i += 2)
-            {
-                mnX = Math.Min(mnX, pts[i]); mxX = Math.Max(mxX, pts[i]);
-                mnY = Math.Min(mnY, pts[i + 1]); mxY = Math.Max(mxY, pts[i + 1]);
-            }
-            FillTransformed(t, mnX, mnY, mxX, mxY, inside, 0, g, norm);
+            var pts = piece;
+            var (mnX, mnY, mxX, mxY) = DrawGeo.BBox(pts);
+            FillTransformed(t, mnX, mnY, mxX, mxY,
+                (lx, ly) => PointInPolygon(lx, ly, pts), 0, g, norm);
         }
     }
 

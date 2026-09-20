@@ -145,6 +145,97 @@ internal static class DrawGeo
         return (minX, minY, maxX, maxY);
     }
 
+    /// <summary>虚线的实/空长度。`DrawLineDashed` 与 `StrokePieces` 共用这一个真源。</summary>
+    public const double DashOn = 6, DashOff = 4;
+
+    /// <summary>
+    /// **粗折线的分解** —— 把"线宽 w 的描边"表示成一组多边形
+    /// （每段一个粗线四边形；square 端帽把四边形外延 hw；round 端帽另补两个圆）。
+    ///
+    /// 这是描边的**定义**，不是某种近似：`StrokePolyline` 本来就是"逐段 `DrawLine`"，
+    /// 而 `DrawLine` 画的就是这些四边形/圆 —— 连"段与段之间不做圆角接合"这个行为都照搬。
+    ///
+    /// ## 为什么必须抽出来（而不是光栅与矢量各写一份）
+    ///
+    /// 光栅那条路（`StrokePolylineBrushed`）与矢量那条路（`DrawVector`）都要这份几何，
+    /// 各写一份就是本仓头号坑「**同一规则两处实现**」——症状是"同一条 DS​L，
+    /// 导出 PNG 和手机上看到的不一样"，而且只测一条后端照不出来。
+    ///
+    /// ## 用法
+    ///
+    /// 返回的每块是**并集**的一个成员，不是互不相交的划分：重叠处会画两遍。
+    /// 同色/同渐变时重叠无害（同一个像素两次得到同一个颜色），所以：
+    /// · 光栅：逐块 `PointInPolygon` 判定即可；
+    /// · 矢量：逐块 `FillPath`，**必须用非零环绕**（`WindingMode.EvenOdd` 会把重叠处挖空）。
+    /// </summary>
+    /// <param name="pts">**局部**坐标（x,y 交替）；变换由调用方自己做。</param>
+    /// <param name="closed">true 时补上"末点→首点"那一段（与 `StrokePolygon` 一致）。</param>
+    public static List<double[]> StrokePieces(IReadOnlyList<double> pts, double width,
+        string cap, bool closed, bool dashed)
+    {
+        var pieces = new List<double[]>();
+        if (pts.Count < 4) return pieces;
+        // 与 DrawLine 一致：width ≤ 1 那条路是 Bresenham，这里退化成"1 像素宽的四边形"
+        // （视觉等价，只是斜线上取的像素格子可能与 Bresenham 不同）。
+        double hw = Math.Max(1.0, width) / 2;
+        int n = pts.Count / 2;
+
+        for (int i = 0; i + 1 < n; i++)
+            Segment(pts[i * 2], pts[i * 2 + 1], pts[(i + 1) * 2], pts[(i + 1) * 2 + 1]);
+        if (closed && n >= 3)
+            Segment(pts[(n - 1) * 2], pts[(n - 1) * 2 + 1], pts[0], pts[1]);
+        return pieces;
+
+        void Segment(double x1, double y1, double x2, double y2)
+        {
+            double dx = x2 - x1, dy = y2 - y1;
+            double len = Math.Sqrt(dx * dx + dy * dy);
+            if (len < 1e-6) { Disc(x1, y1); return; }
+            if (dashed)
+            {
+                // 虚线在**局部**空间切。从前 `DrawLineDashed` 拿到的是世界坐标，
+                // 缩放/旋转会改变虚线的节奏（挤密或拉长）—— 渐变那条路顺手修正过，
+                // 现在是所有描边统一的行为。
+                double ux = dx / len, uy = dy / len;
+                for (double s0 = 0; s0 < len; s0 += DashOn + DashOff)
+                {
+                    double s1 = Math.Min(s0 + DashOn, len);
+                    Piece(x1 + ux * s0, y1 + uy * s0, x1 + ux * s1, y1 + uy * s1);
+                }
+                return;
+            }
+            Piece(x1, y1, x2, y2);
+        }
+
+        void Piece(double x1, double y1, double x2, double y2)
+        {
+            double dx = x2 - x1, dy = y2 - y1;
+            double len = Math.Sqrt(dx * dx + dy * dy);
+            if (len < 1e-6) { Disc(x1, y1); return; }
+            double ux = dx / len, uy = dy / len;
+            double ox = -uy * hw, oy = ux * hw;
+            double ex1 = x1, ey1 = y1, ex2 = x2, ey2 = y2;
+            if (cap == "square") { ex1 -= ux * hw; ey1 -= uy * hw; ex2 += ux * hw; ey2 += uy * hw; }
+            pieces.Add(new[] { ex1 + ox, ey1 + oy, ex1 - ox, ey1 - oy, ex2 - ox, ey2 - oy, ex2 + ox, ey2 + oy });
+            if (cap == "round") { Disc(x1, y1); Disc(x2, y2); }
+        }
+
+        void Disc(double cx, double cy)
+        {
+            // 圆的点数按半径走：太小会看出多边形，太大是白给。半径 hw、周长 2πhw，
+            // 取"每 3px 一个点"并钳在 [8, 64] —— 与 DrawGeo.Ellipse 的量级一致。
+            int seg = Math.Clamp((int)(2 * Math.PI * hw / 3), 8, 64);
+            var d = new double[seg * 2];
+            for (int k = 0; k < seg; k++)
+            {
+                double a = 2 * Math.PI * k / seg;
+                d[k * 2] = cx + hw * Math.Cos(a);
+                d[k * 2 + 1] = cy + hw * Math.Sin(a);
+            }
+            pieces.Add(d);
+        }
+    }
+
     public static List<double> Star(double cx, double cy, double R, double r, int n, double rotDeg)
     {
         var pts = new List<double>(n * 4);

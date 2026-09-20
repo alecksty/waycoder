@@ -73,7 +73,8 @@ internal sealed class MauiVectorTarget : IVectorTarget
 
     // ── 填充 / 描边 ────────────────────────────────────────────────────────
 
-    public void FillShape(IReadOnlyList<IReadOnlyList<double>> subpaths, uint fill, Gradient? gradient, bool evenOdd)
+    public void FillShape(IReadOnlyList<IReadOnlyList<double>> subpaths, uint fill, Gradient? gradient,
+        bool evenOdd, (double MinX, double MinY, double MaxX, double MaxY)? box = null)
     {
         var path = new PathF();
         var any = false;
@@ -91,10 +92,14 @@ internal sealed class MauiVectorTarget : IVectorTarget
         // ⚠ **两条分支都必须走 `SetFillPaint`，纯色那条不能只写 `FillColor`** ——
         //    原因见类注释里「渐变的余荫」。一句话：平台把渐变挂成 Android `Paint` 的
         //    shader，而 shader **优先级高于颜色**，只改 `FillColor` 是改不动的。
-        var rect = path.Bounds;
+        // 刷子矩形：默认取这条路径的外接矩形；**描边必须显式传**原几何的盒 ——
+        // 描边轮廓比几何胖出 width/2，用轮廓盒归一化会让渐变整体偏半个线宽（肉眼看不出来）。
+        var rect = box is { } b
+            ? new RectF((float)b.MinX, (float)b.MinY, (float)(b.MaxX - b.MinX), (float)(b.MaxY - b.MinY))
+            : path.Bounds;
         if (gradient != null)
         {
-            // 刷子矩形 = 这条路径的外接矩形；渐变坐标本身就是"相对这个矩形"的 0..1（见 BuildPaint）
+            // 渐变坐标本身就是"相对这个矩形"的 0..1（见 BuildPaint）
             _canvas.SetFillPaint(BuildPaint(gradient), rect);
         }
         else

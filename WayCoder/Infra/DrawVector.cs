@@ -37,8 +37,14 @@ public interface IVectorTarget
     /// <summary>
     /// 填充一组子路径（每个子路径是 x,y 交替的点集）。
     /// <paramref name="evenOdd"/> 为真时按**奇偶规则**挖洞（`path` 的多子路径靠它做环）。
+    ///
+    /// <paramref name="box"/> 是**刷子矩形**（世界坐标）；null = 用这组子路径自己的外接矩形。
+    /// **描边必须显式传**：描边的轮廓比原几何胖出 width/2，拿轮廓盒归一化会让渐变
+    /// 整体偏半个线宽（肉眼看不出来）。填充传 null 即可 —— 那时两者本来就相等。
+    /// 语义与 SVG 的 `objectBoundingBox` 一致（它取的也是**几何**的盒，不含描边）。
     /// </summary>
-    void FillShape(IReadOnlyList<IReadOnlyList<double>> subpaths, uint fill, Gradient? gradient, bool evenOdd);
+    void FillShape(IReadOnlyList<IReadOnlyList<double>> subpaths, uint fill, Gradient? gradient,
+        bool evenOdd, (double MinX, double MinY, double MaxX, double MaxY)? box = null);
 
     /// <summary>描边折线；<paramref name="close"/> 为真时首尾相连（多边形轮廓）。</summary>
     void StrokePolyline(IReadOnlyList<double> pts, double width, uint color, string cap, bool dashed, bool close);
@@ -102,19 +108,56 @@ public static class DrawVector
     /// <summary>描边（`Stroke == 0` 或全透明表示没给描边色，跳过）。</summary>
     public static void Stroke(IVectorTarget t, IReadOnlyList<double> pts, DrawFigure f, bool close = false)
     {
-        // **渐变描边**：平台画布没有 SetStrokePaint（只有 SetFillPaint），
-        // 而描边本质上是一个填充多边形 —— 所以它**做得到**，只是要先按 DrawGeo 那套数学
-        // 把折线外扩成轮廓再填。这一版还没做，先如实标记"画不了"⇒ 宿主把**整个窗口**
-        // 回退到光栅后端，画面仍然完全正确（只是慢）。宁可慢，也别默默画成黑色的实心块。
+        // **渐变描边**：平台画布没有 `SetStrokePaint`（只有 `SetFillPaint`），
+        // 但描边本质上就是一个填充多边形 ⇒ 把折线展成一组多边形再填即可，**不必回退光栅**。
         if (f.StrokeGradient != null)
         {
-            t.MarkUnsupported("stroke-gradient", f.Kind);
+            StrokeBrushed(t, pts, f, close);
             return;
         }
         if (f.Stroke == 0 || (f.Stroke >> 24) == 0) return;
         if (pts.Count < 4) return;
         t.StrokePolyline(Canvas.TransformPoints(f.Transform, pts), f.StrokeWidth, f.Stroke,
             f.LineCap, f.Dashed, close);
+    }
+
+    /// <summary>
+    /// **渐变描边的矢量画法**：几何取自 <see cref="DrawGeo.StrokePieces"/>
+    /// （**与光栅后端同一份**），变换落到点上，再一次性填掉。
+    ///
+    /// ## 两条必须记住的约束
+    ///
+    /// ① **刷子矩形必须传原几何的盒**（`BoundsOf`），不能让它退到"轮廓的外接矩形" ——
+    ///    轮廓比几何胖出 `width/2`，拿它归一化会让渐变整体偏半个线宽。偏一点**肉眼看不出来**，
+    ///    所以这条只在断言里卡得住（光栅那边的自测就是拿"起点必须是纯起始色"卡的）。
+    /// ② **必须非零环绕**：这些块之间是**并集**关系（接头处、圆帽与杆之间都重叠），
+    ///    用奇偶规则会把每一处重叠都挖成洞。能这么写是因为 `StrokePieces` 产出的每块
+    ///    **绕向一致**（四边形无论朝向、圆的鞋带和都是正的），所以非零规则下它们只会相加。
+    ///
+    /// 一次 `FillShape` 装下全部子路径，不是逐块调 —— 一条 64 段的椭圆描边加上圆帽
+    /// 能到两百块，逐块调就是每帧两百次建路径。
+    /// </summary>
+    static void StrokeBrushed(IVectorTarget t, IReadOnlyList<double> pts, DrawFigure f, bool close)
+    {
+        var pieces = DrawGeo.StrokePieces(pts, f.StrokeWidth, f.LineCap, close, f.Dashed);
+        if (pieces.Count == 0) return;
+        var subs = new List<IReadOnlyList<double>>(pieces.Count);
+        foreach (var p in pieces) subs.Add(Canvas.TransformPoints(f.Transform, p));
+        t.FillShape(subs, 0, f.StrokeGradient, evenOdd: false, box: BoundsOf(f.Transform, pts));
+    }
+
+    /// <summary>局部包围盒的四角变换到世界之后的**轴对齐**包围盒（刷子矩形的口径）。</summary>
+    static (double MinX, double MinY, double MaxX, double MaxY) BoundsOf(Affine tf, IReadOnlyList<double> pts)
+    {
+        var (x0, y0, x1, y1) = DrawGeo.BBox(pts);
+        double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
+        foreach (var (lx, ly) in new[] { (x0, y0), (x1, y0), (x1, y1), (x0, y1) })
+        {
+            var (wx, wy) = tf.Apply(lx, ly);
+            minX = Math.Min(minX, wx); maxX = Math.Max(maxX, wx);
+            minY = Math.Min(minY, wy); maxY = Math.Max(maxY, wy);
+        }
+        return (minX, minY, maxX, maxY);
     }
 
     /// <summary>
