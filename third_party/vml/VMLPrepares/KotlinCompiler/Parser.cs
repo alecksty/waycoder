@@ -6,6 +6,19 @@ public class Parser : ParserBase<Token, TokenType>
 {
     protected override TokenType GetTokenType(Token token) => token.Type;
 
+    /// <summary>
+    /// 表达式**收尾符** —— 永远不会是表达式的开头（`GapAnchor()` 的第一个判据）。
+    /// `NEWLINE` / `EOF` 必须算进来：`x = 1 +` 正是等换行后遇到 `NEWLINE`（或到 `EOF`）才发作。
+    /// </summary>
+    protected override bool IsExpressionCloser(Token token) => token.Type
+        is TokenType.RPAREN or TokenType.RBRACE or TokenType.RBRACKET
+        or TokenType.COMMA or TokenType.SEMICOLON or TokenType.COLON
+        or TokenType.NEWLINE or TokenType.EOF;
+
+    /// <summary>语句分隔 —— `GapAnchor()` 的第二个判据：上一个若是它，缺口在本行行首。</summary>
+    protected override bool IsStatementSeparator(Token token) => token.Type
+        is TokenType.NEWLINE or TokenType.SEMICOLON;
+
     bool _pendingExternal = false;
 
     public Parser(List<Token> tokens) : base(tokens) { }
@@ -698,6 +711,9 @@ public class Parser : ParserBase<Token, TokenType>
             return ParseWhen();
         if (GetTokenType(Cur) == TokenType.KEYWORD && Cur.Value == "if")
             return ParseIf();
-        throw Error($"意外的 token: {GetTokenType(Cur)} '{Cur.Value}'（位置 {Cur.Line}:{Cur.Column}）");
+        // 位置用 `GapAnchor()`：`x = 1 +` 的下一个 token 是**下一行**的 `RBRACE`/`NEWLINE`
+        // ⇒ 按当前位置报就落到下一行，而错在第 4 行。锚定规则见基类 `GapAnchor`。
+        // 顺带去掉消息里手写的「（位置 L:C）」—— 与统一前缀重复。
+        throw ErrorAt($"意外的 token: {GetTokenType(Cur)} '{Cur.Value}'", GapAnchor());
     }
 }
