@@ -58,6 +58,7 @@ public static partial class SelfTest
 
         TestStrokeStyleCompat(Section, Check);
         TestStrokeGradient(Section, Check);
+        TestTextGradient(Section, Check);
         TestBrushModel(Section, Check);
     }
 
@@ -331,6 +332,97 @@ public static partial class SelfTest
         DrawVector.Stroke(vt2, plain.Args, plain);
         Check("反证：纯色描边仍走 StrokePolyline（不误入轮廓化路径）",
             vt2.Unsupported.Count == 0 && vt2.Fills.Count == 0 && vt2.Strokes.Count == 1);
+    }
+
+    /// <summary>
+    /// **文字渐变** —— 「文字也可以使用渐变」。
+    ///
+    /// ## 归一化按**整个文本块**，不是逐个字形
+    ///
+    /// 逐字形归一化会让每个字都自己红→蓝，一眼看去是"花的"；要的是"这一行从红到蓝"。
+    /// 盒由 `DrawGeo.TextBlockBox` 给（**唯一真源**，SVG 那一半将来要用同一个盒）。
+    ///
+    /// ## 判据为什么是"红像素和蓝像素都存在"
+    ///
+    /// 这条路径有**两种**失败形态，且都不会报错：
+    /// ① 渐变没接上 ⇒ 回退成 `f.Fill`（黑），画出来是黑的；
+    /// ② 盒算错 ⇒ 整行落在渐变的一端，全是同色。
+    /// "红 R>120&&B<80 的像素 > 5 个" + "蓝 B>120&&R<80 的像素 > 5 个" 两条一起
+    /// 把这两种都挡住。对照组（纯色文字）必须**两条都不成立** —— 少了对照组，
+    /// 一条"任何情况下都返回 true"的判据也能过。
+    /// </summary>
+    private static void TestTextGradient(Action<string> Section, Action<string, bool> Check)
+    {
+        Section("绘图 DSL：文字渐变");
+
+        // ── TextBlockBox：唯一真源 ──
+        var fig = DrawRunner.Parse("canvas 400 100 #ffffff\ntext 200 40 \"hi\" 20 #ffffff middle").Figures[0];
+        var box = DrawGeo.TextBlockBox(fig, 40);
+        Check($"TextBlockBox: middle 锚点向左退半个宽度（实得 x={box.X}）",
+            Math.Abs(box.X - 180) < 1e-6 && Math.Abs(box.W - 40) < 1e-6);
+        var figEnd = DrawRunner.Parse("canvas 400 100 #ffffff\ntext 200 40 \"hi\" 20 #ffffff end").Figures[0];
+        Check("TextBlockBox: end 锚点向左退一个宽度",
+            Math.Abs(DrawGeo.TextBlockBox(figEnd, 40).X - 160) < 1e-6);
+        var figMulti = DrawRunner.Parse("canvas 400 100 #ffffff\ntext 0 10 \"a\\nb\\nc\" 20 #ffffff start").Figures[0];
+        Check("TextBlockBox: 三行的高度 = 2×行距 + 一个 em",
+            Math.Abs(DrawGeo.TextBlockBox(figMulti, 10).H - (20 * 1.3 * 2 + 20)) < 1e-6);
+
+        // ── 光栅：红蓝像素都要出现 ──
+        static int CountR(uint c) => R(c);
+        static int CountB(uint c) => B(c);
+        static (int Red, int Blue) Scan(RasterImage img, int x0, int y0, int x1, int y1)
+        {
+            int red = 0, blue = 0;
+            for (int y = y0; y < y1; y++)
+                for (int x = x0; x < x1; x++)
+                {
+                    var c = img.ColorAt(x, y);
+                    if (A(c) < 128) continue;
+                    if (CountR(c) > 120 && CountB(c) < 80) red++;
+                    else if (CountB(c) > 120 && CountR(c) < 80) blue++;
+                }
+            return (red, blue);
+        }
+
+        var doc = DrawRunner.Parse(
+            "canvas 300 80 #ffffff\ngradient g linear #ff0000 #0000ff\ntext 20 20 \"WWWWWW\" 44 @g start");
+        var img = PngDecoder.Decode(DrawRunner.ToPng(doc));
+        var (red, blue) = Scan(img, 0, 0, 300, 80);
+        Check($"光栅文字渐变: 左端有红像素（实得 {red} 个）", red > 5);
+        Check($"光栅文字渐变: 右端有蓝像素（实得 {blue} 个）", blue > 5);
+
+        // 对照组：纯色文字**不该**同时出现红与蓝（少了这条，判据永真也能过）
+        var solid = PngDecoder.Decode(DrawRunner.ToPng(DrawRunner.Parse(
+            "canvas 300 80 #ffffff\ntext 20 20 \"WWWWWW\" 44 #ff0000 start")));
+        var (sred, sblue) = Scan(solid, 0, 0, 300, 80);
+        Check($"对照: 纯色文字只有红、没有蓝（实得 红={sred} 蓝={sblue}）", sred > 5 && sblue == 0);
+
+        // ── 未知字体族名：兜底到可用字体之后，渐变**仍然**生效 ──
+        //
+        // ⚠ **这条测不到 5×7 点阵那条路**，别读成"5×7 也验过了"。
+        //    `TrueTypeFont.Resolve` 对不认识的族名有一个"候选里随便挑一个能加载的"兜底，
+        //    所以 `no-such-font-xyz` 照样拿到真字体 —— 露馅的是**像素数与 TrueType 那条一模一样**
+        //    （690/680 对 690/680），两条断言本该是不同路径。
+        //    5×7 只在"一个字体都加载不出来"时才走，DSL 层造不出那个环境
+        //    ⇒ **那条路目前没有自测覆盖**（代码支持渐变，`Canvas.DrawText` 也接了采样器，但没验过）。
+        var fallback = PngDecoder.Decode(DrawRunner.ToPng(DrawRunner.Parse(
+            "canvas 300 80 #ffffff\ngradient g linear #ff0000 #0000ff\ntext 20 20 \"WWWWWW\" 44 @g start no-such-font-xyz")));
+        var (fred, fblue) = Scan(fallback, 0, 0, 300, 80);
+        Check($"未知族名兜底后渐变仍生效（实得 红={fred} 蓝={fblue}）", fred > 5 && fblue > 5);
+
+        // ── 矢量后端：字形没有路径 API ⇒ 如实标记，让宿主整窗回退光栅 ──
+        var vt = new RecordingVectorTarget();
+        var tfig = DrawRunner.Parse("canvas 300 80 #ffffff\ngradient g linear #ff0000 #0000ff\ntext 20 20 \"hi\" 44 @g start").Figures[0];
+        DrawVector.Text(vt, tfig);
+        Check("矢量: 文字渐变 → MarkUnsupported（平台文字 API 只吃纯色）",
+            vt.Unsupported.Contains("text-gradient"));
+
+        // 反证：纯色文字**不该**被这条误伤（否则所有文字都会把整窗拖回光栅）
+        var vt2 = new RecordingVectorTarget();
+        var plain = DrawRunner.Parse("canvas 300 80 #ffffff\ntext 20 20 \"hi\" 44 #ff0000 start").Figures[0];
+        DrawVector.Text(vt2, plain);
+        Check("反证：纯色文字不受影响（不会误触发整窗回退）",
+            vt2.Unsupported.Count == 0 && vt2.Texts.Count == 1);
     }
 
     /// <summary>

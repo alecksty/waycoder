@@ -167,6 +167,17 @@ public static class DrawVector
     public static void Text(IVectorTarget t, DrawFigure f)
     {
         if (string.IsNullOrEmpty(f.Text)) return;
+        // **渐变文字**：平台那套文字 API（`ICanvas.DrawString`）只吃一个纯色，
+        // 没有"字形 → 路径"的入口 ⇒ 矢量后端**做不了**，如实标记 ⇒ 宿主整窗回退光栅。
+        // （渐变描边当初看着也"做不了"，但描边本质是填充多边形、能轮廓化；
+        //   文字不行 —— 要拿到字形轮廓得走平台专有 API，正是本后端刻意避开的那类东西。）
+        // 回退之后由光栅那条路画（它支持），而 v0.96.308 起回退会**重出这一帧**，
+        // 所以静态程序也不会停在残缺帧上。
+        if (f.Gradient != null)
+        {
+            t.MarkUnsupported("text-gradient", "text");
+            return;
+        }
         if ((f.Fill >> 24) == 0) return;
         var p = f.Transform.Apply(f.Args[0], f.Args[1]);
         var size = f.FontSize * f.Transform.ScaleFactor;

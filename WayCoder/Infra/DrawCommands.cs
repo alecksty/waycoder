@@ -145,6 +145,30 @@ internal static class DrawGeo
         return (minX, minY, maxX, maxY);
     }
 
+    /// <summary>
+    /// **文字块的局部包围盒** —— 文字渐变的归一化基准。
+    ///
+    /// ⚠ 归一化按**整个文本块**，不是逐个字形：逐字形归一化会让每个字都自己红→蓝，
+    /// 一眼看去是"花的"，而不是"这一行从红到蓝"。这条与形状那边同源（形状用几何盒）。
+    ///
+    /// ⚠ **这是第二套几何真源**（第一套是各 `DrawGeo.*` 的形状点集），所以：
+    /// ① 放在 `Infra` 层、只此一处；② SVG 那一半要用**同一个盒**（且必须配
+    /// `gradientUnits="userSpaceOnUse"` —— 形状用的 `objectBoundingBox` 在文字上由渲染器
+    /// 按**字形墨迹**算盒，与我们这个"行高 × 行数 + 最长行宽"必然不等 ⇒ PNG 与 SVG 的渐变位置会差一截）。
+    /// </summary>
+    /// <param name="measuredWidth">最长一行的宽度（**局部**单位）——由调用方按实际那条字体路径量。</param>
+    public static (double X, double Y, double W, double H) TextBlockBox(DrawFigure f, double measuredWidth)
+    {
+        int n = Math.Max(1, (f.Text ?? "").Split('\n').Length);
+        double lineH = f.FontSize * 1.3;
+        double x = f.Args[0];
+        if (f.Anchor == "middle") x -= measuredWidth / 2;
+        else if (f.Anchor == "end") x -= measuredWidth;
+        // 纵向：从**首行顶**到**末行底**。光栅那条路的 `y` 是顶线（基线在 yTop + ascent），
+        // 所以这里用"行数 × 行距 + 一个 em"的口径——与它一致。
+        return (x, f.Args[1], measuredWidth, lineH * (n - 1) + f.FontSize);
+    }
+
     /// <summary>虚线的实/空长度。`DrawLineDashed` 与 `StrokePieces` 共用这一个真源。</summary>
     public const double DashOn = 6, DashOff = 4;
 
@@ -887,15 +911,42 @@ internal sealed partial class TextCommand : IDrawCommand
         var font = TrueTypeFont.Resolve(f.FontFamily);
         var lines = (f.Text ?? "").Split('\n');
         double lineH = size * 1.3;
+
+        // ── **文字渐变**（v0.96.310）──
+        // 字形填充是扫描线，落笔点只有 `BlendPixel` 一处，所以"按坐标问颜色"就够了：
+        // 传一个采样器下去，把局部坐标归一化后去刷子里取色。
+        // 两条字体路径（TrueType / 5×7）都支持；5×7 的粒度只有 size/7 像素 ⇒ 渐变呈阶梯，
+        // 这是**可接受的降级**（只承诺"不崩 + 两端不同色"，不承诺平滑）。
+        Func<double, double, uint>? sample = null;
+        if (f.Gradient != null)
+        {
+            var longest = lines.OrderByDescending(l => l.Length).FirstOrDefault() ?? "";
+            // 盒用**局部**单位（`f.FontSize` 而不是已乘过变换的 `size`）—— 采样器拿到的
+            // 是逆变换回去的局部坐标，两边必须同一个口径。
+            double lw = font != null
+                ? font.Measure(longest, f.FontSize)
+                : longest.Length * 6 * Math.Max(1, f.FontSize / 7.0);
+            var box = DrawGeo.TextBlockBox(f, lw);
+            var inv = f.Transform.Inverse();
+            var g = f.Gradient;
+            sample = (wx, wy) =>
+            {
+                var (lx, ly) = inv.Apply(wx, wy);
+                double nx = box.W <= 0 ? 0 : (lx - box.X) / box.W;
+                double ny = box.H <= 0 ? 0 : (ly - box.Y) / box.H;
+                return GradientSampler.Sample(g, nx, ny);
+            };
+        }
+
         for (int i = 0; i < lines.Length; i++)
         {
             double y = p.Y + lineH * i;
             if (font != null)
                 font.Render(c, lines[i], p.X, y, size, f.Fill, f.Anchor,
-                    f.FontWeight == "bold", f.FontStyle == "italic");
+                    f.FontWeight == "bold", f.FontStyle == "italic", sample);
             else
                 c.DrawText(p.X, y, lines[i], size, f.Fill, f.Anchor,
-                    f.FontWeight == "bold", f.FontStyle == "italic");
+                    f.FontWeight == "bold", f.FontStyle == "italic", sample);
         }
     }
 }

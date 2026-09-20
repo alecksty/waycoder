@@ -256,8 +256,15 @@ public sealed class TrueTypeFont
     /// 渲染一行文本到画布。y 为文本顶线（与位图字体一致），x 受 anchor 影响（start/middle/end）。
     /// 字形边缘按 4×4 超采样抗锯齿，bold 双次偏移描粗，italic 简单斜切。
     /// </summary>
+    /// <param name="sample">
+    /// **逐像素取色**（可选）。给 null 就是原来的纯色填充。
+    /// 文字渐变走这里：字形填充是扫描线，落笔点只有一处（`BlendPixel`），
+    /// 所以换成"按坐标问颜色"就够了，不必给光栅器再写一套。
+    /// 参数是**画布坐标**（与 `c` 同一坐标系，含超采样那层缩放）——
+    /// 逆变换回局部坐标由调用方在委托里做（只有它知道几何的变换）。
+    /// </param>
     public void Render(Canvas c, string text, double x, double yTop, double size, uint color, string anchor,
-        bool bold, bool italic)
+        bool bold, bool italic, Func<double, double, uint>? sample = null)
     {
         if (string.IsNullOrEmpty(text)) return;
         double width = Measure(text, size);
@@ -266,11 +273,12 @@ public sealed class TrueTypeFont
         else if (anchor == "end") penX = x - width;
         double baseline = yTop + _ascent * (size / _unitsPerEm);
 
-        if (bold) DrawString(c, text, penX + size * 0.02, baseline, size, color, italic);
-        DrawString(c, text, penX, baseline, size, color, italic);
+        if (bold) DrawString(c, text, penX + size * 0.02, baseline, size, color, italic, sample);
+        DrawString(c, text, penX, baseline, size, color, italic, sample);
     }
 
-    void DrawString(Canvas c, string text, double penX, double baseline, double size, uint color, bool italic)
+    void DrawString(Canvas c, string text, double penX, double baseline, double size, uint color,
+        bool italic, Func<double, double, uint>? sample = null)
     {
         double scale = size / _unitsPerEm;
         double slant = italic ? 0.25 : 0.0;
@@ -281,7 +289,7 @@ public sealed class TrueTypeFont
             double advance = AdvanceWidth(g) * scale;
             var contours = GetOutline(g);
             if (contours.Count > 0)
-                FillGlyphAa(c, contours, curX, baseline, scale, slant, color);
+                FillGlyphAa(c, contours, curX, baseline, scale, slant, color, sample);
             curX += advance;
         }
     }
@@ -519,7 +527,8 @@ public sealed class TrueTypeFont
 
     // —— 抗锯齿字形填充（4×4 超采样 + 非零环绕）——
 
-    void FillGlyphAa(Canvas c, List<double[]> contours, double penX, double baseline, double scale, double slant, uint color)
+    void FillGlyphAa(Canvas c, List<double[]> contours, double penX, double baseline, double scale,
+        double slant, uint color, Func<double, double, uint>? sample = null)
     {
         double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
         var world = new List<double[]>(contours.Count);
@@ -607,7 +616,9 @@ public sealed class TrueTypeFont
                     }
             }
             for (int px = x0; px <= x1; px++)
-                if (hits[px - x0] > 0) c.BlendPixel(px, py, color, (double)hits[px - x0] / (SS * SS));
+                if (hits[px - x0] > 0)
+                    c.BlendPixel(px, py, sample != null ? sample(px, py) : color,
+                        (double)hits[px - x0] / (SS * SS));
         }
     }
 

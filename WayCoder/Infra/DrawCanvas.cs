@@ -462,7 +462,8 @@ public sealed class Canvas
     }
 
     // ── 文字 ──
-    public void DrawText(double x, double y, string text, double size, uint c, string anchor, bool bold = false, bool italic = false)
+    public void DrawText(double x, double y, string text, double size, uint c, string anchor,
+        bool bold = false, bool italic = false, Func<double, double, uint>? sample = null)
     {
         if (string.IsNullOrEmpty(text)) return;
         // size 过大（如 1e300）时 scale 转 int 会 OverflowException；钳到画布对角线，
