@@ -1949,7 +1949,7 @@ function mdToHtml(src) {
   const out = [];
   let paragraph = [];
   let listType = null;   // 'ul' | 'ol' | null
-  let quote = false;
+  let quoteDepth = 0;    // > 的嵌套层数（`>>` 是引用里的引用）
 
   function inline(s) {
     // ① 实体先解码（见 MD_ENTITIES 注释）—— 此前不解码、且 markupToHtml 会转义一次
@@ -1982,21 +1982,24 @@ function mdToHtml(src) {
     if (listType) { out.push('</' + listType + '>'); listType = null; }
   }
   function flushQuote() {
-    if (quote) { out.push('</blockquote>'); quote = false; }
+    while (quoteDepth > 0) { out.push('</blockquote>'); quoteDepth--; }
   }
 
   let i = 0;
   while (i < lines.length) {
     const line = lines[i];
 
-    // 围栏代码块
-    if (/^```/.test(line)) {
+    // 围栏代码块 —— ``` 或 ~~~（CommonMark 两种都算；**闭合必须同字符**：``` 开的块不能被 ~~~ 闭）
+    const fence = /^(`{3,}|~{3,})\s*(.*)$/.exec(line);
+    if (fence) {
       flushParagraph(); flushList(); flushQuote();
-      const lang = line.slice(3).trim();
+      const mark = fence[1][0];
+      const lang = fence[2].trim();
+      const closeRe = new RegExp('^' + mark + '{3,}\\s*$');
       const code = [];
       i++;
-      while (i < lines.length && !/^```/.test(lines[i])) { code.push(lines[i]); i++; }
-      if (i < lines.length) i++; // 跳过结束 ```
+      while (i < lines.length && !closeRe.test(lines[i])) { code.push(lines[i]); i++; }
+      if (i < lines.length) i++; // 跳过结束围栏
       out.push('<pre class="md-code"><code' + (lang ? ' class="lang-' + escapeHtml(lang) + '"' : '') + '>' + highlightCode(code.join('\n'), lang) + '</code></pre>');
       continue;
     }
@@ -2022,6 +2025,19 @@ function mdToHtml(src) {
       continue;
     }
 
+    // Setext 标题：正文行 + 下一行 `===` / `---`
+    // ⚠ 必须排在**水平线之前**：`---` 前面有正文时是 h2 下划线、没有正文时才是分割线。
+    //   排在后面的话 `标题\n---` 会被拆成「段落 + 分割线」，两端都渲染错。
+    if (line.trim() !== '' && i + 1 < lines.length && /^(=+|-+)\s*$/.test(lines[i + 1])
+        && !/^[>#|]/.test(line.trim()) && !/^(`{3,}|~{3,})/.test(line.trim())
+        && !/^\s*[-*+]\s/.test(line) && !/^\s*\d+[.)]\s/.test(line)) {
+      flushParagraph(); flushList(); flushQuote();
+      const lv = lines[i + 1].trim()[0] === '=' ? 1 : 2;
+      out.push('<h' + lv + '>' + inline(line.trim()) + '</h' + lv + '>');
+      i += 2;
+      continue;
+    }
+
     // 水平线
     if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) {
       flushParagraph(); flushList(); flushQuote();
@@ -2040,22 +2056,32 @@ function mdToHtml(src) {
       continue;
     }
 
-    // 引用
-    const q = /^>\s?(.*)$/.exec(line);
+    // 引用（`>` 可**嵌套**：`>>` 是引用里的引用 —— 层数变化时开/关对应的 blockquote）
+    const q = /^(\s*>+\s?)(.*)$/.exec(line);
     if (q) {
       flushParagraph(); flushList();
-      if (!quote) { out.push('<blockquote>'); quote = true; }
-      out.push('<p>' + inline(q[1]) + '</p>');
+      const depth = (q[1].match(/>/g) || []).length;
+      while (quoteDepth < depth) { out.push('<blockquote>'); quoteDepth++; }
+      while (quoteDepth > depth) { out.push('</blockquote>'); quoteDepth--; }
+      out.push('<p>' + inline(q[2]) + '</p>');
       i++;
       continue;
     }
 
-    // 无序列表
+    // 无序列表（`-` / `*` / `+` 三种记号等价）
     const ul = /^\s*[-*+]\s+(.*)$/.exec(line);
     if (ul) {
       flushParagraph(); flushQuote();
       if (listType !== 'ul') { flushList(); out.push('<ul>'); listType = 'ul'; }
-      out.push('<li>' + inline(ul[1]) + '</li>');
+      // 任务列表 `- [ ]` / `- [x]`（此前整串字面显示）
+      const task = /^\[([ xX])\]\s+(.*)$/.exec(ul[1]);
+      if (task) {
+        const checked = task[1].toLowerCase() === 'x';
+        out.push('<li class="md-task"><input type="checkbox" disabled' + (checked ? ' checked' : '') + '> '
+          + inline(task[2]) + '</li>');
+      } else {
+        out.push('<li>' + inline(ul[1]) + '</li>');
+      }
       i++;
       continue;
     }

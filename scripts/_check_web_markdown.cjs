@@ -38,7 +38,10 @@ const parts = [
   slice('function', 'mdToHtml'),
 ].join('\n');
 
-const sandbox = { highlightCode: () => 'CODE', console };
+// 代码高亮用**回显**桩（而不是常量）：块级判据要断言「代码内容进没进 <pre>」，
+// 桩成常量的话内容永远断言不到（判据会假红 —— 这轮就踩过一次）。
+const sandbox = { highlightCode: (code) => escapeHtmlForStub(code), console };
+function escapeHtmlForStub(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 const fn = new Function(...Object.keys(sandbox), parts + '\nreturn { mdToHtml, markupToHtml };');
 const { mdToHtml, markupToHtml } = fn(...Object.values(sandbox));
 
@@ -85,6 +88,31 @@ check('表格后的含竖线正文不被吞进 tbody', (() => {
   const h = mdToHtml('| a | b |\n| --- | --- |\n| 1 | 2 |\n\na | b 是或运算');
   return h.indexOf('</table>') >= 0 && h.indexOf('</table>') < h.indexOf('或运算');
 })(), mdToHtml('| a | b |\n| --- | --- |\n| 1 | 2 |\n\na | b 是或运算'));
+
+console.log('[块级：向共享解析器对齐]');
+check('Setext `===` → h1',
+  mdToHtml('一级\n===').includes('<h1>一级</h1>'), mdToHtml('一级\n==='));
+check('Setext `---` → h2（不再拆成段落+分割线）',
+  (() => { const h = mdToHtml('二级\n---'); return h.includes('<h2>二级</h2>') && !h.includes('<hr>'); })(),
+  mdToHtml('二级\n---'));
+check('空行后的 `---` 仍是分割线（没被 Setext 抢走）',
+  mdToHtml('正文\n\n---').includes('<hr>'), mdToHtml('正文\n\n---'));
+check('`~~~` 围栏', mdToHtml('~~~c\nint x;\n~~~').includes('<pre class="md-code">')
+  && mdToHtml('~~~c\nint x;\n~~~').includes('int x;'), mdToHtml('~~~c\nint x;\n~~~'));
+check('``` 开的块不能被 ~~~ 闭',
+  (() => { const h = mdToHtml('```\na\n~~~\nb\n```'); return h.includes('~~~'); })(),
+  mdToHtml('```\na\n~~~\nb\n```'));
+check('嵌套引用 `>>` 生成两层 blockquote',
+  (() => { const h = mdToHtml('> 外\n>> 内'); return h.includes('<blockquote>') && (h.match(/<blockquote>/g) || []).length === 2; })(),
+  mdToHtml('> 外\n>> 内'));
+check('引用结束后 blockquote 正确闭合',
+  (() => { const h = mdToHtml('> 引用\n\n普通段落'); return (h.match(/<blockquote>/g) || []).length === (h.match(/<\/blockquote>/g) || []).length; })(),
+  mdToHtml('> 引用\n\n普通段落'));
+check('任务列表 `- [x]` → 勾选',
+  mdToHtml('- [x] 完成').includes('checked'), mdToHtml('- [x] 完成'));
+check('任务列表 `- [ ]` → 未勾选且不是字面',
+  (() => { const h = mdToHtml('- [ ] 待办'); return h.includes('type="checkbox"') && !h.includes('[ ] 待办'); })(),
+  mdToHtml('- [ ] 待办'));
 
 console.log('\n通过: ' + pass + '  失败: ' + fail + '  总计: ' + (pass + fail));
 process.exit(fail === 0 ? 0 : 1);
