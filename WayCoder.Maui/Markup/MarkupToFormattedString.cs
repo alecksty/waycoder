@@ -56,7 +56,6 @@ public static class MarkupToFormattedString
         return fs;
     }
 
-    /// <summary>按行渲染：围栏块 / markdown 表格块走专门渲染，其余累积后走 ParseInline（保留跨行 «» 块）。</summary>
     /// <summary>一次性（最终）渲染的高亮长度上限。</summary>
     internal const int DefaultHighlightMaxChars = 100_000;
 
@@ -71,103 +70,199 @@ public static class MarkupToFormattedString
     /// </summary>
     internal const int StreamingHighlightMaxChars = 8_000;
 
+    /// <summary>
+    /// 按**块**渲染：交给共享 <see cref="MarkdownParser"/> 出 AST，再逐块渲染。
+    ///
+    /// ⚠ 此前这里是**按行扫描**、只认围栏与表格，其余整段并进一个行内段
+    /// ⇒ 标题 / 列表 / 引用 / 分割线 / 任务项**全部字面显示**（手机上是一串 `- `、
+    /// 终端上却是真列表 —— 同一段 md 两端不一样，这正是「四套实现」那个结构债的现场）。
+    /// 共享 AST 已被 WayCoder / Gui / Maui 三端一起编译，接上它就等于三端同源。
+    /// </summary>
     private static void RenderSegments(string markup, FormattedString fs, bool isDark,
         int maxHighlightChars = DefaultHighlightMaxChars)
     {
-        var lines = markup.Replace("\r\n", "\n").Split('\n');
-        var inline = new System.Text.StringBuilder();
-        int i = 0;
+        List<MdNode> nodes;
+        try { nodes = MarkdownParser.Parse(markup); }
+        catch { RenderInline(markup, fs, isDark); return; }   // 渲染层崩掉比少一行格式更糟
 
-        void FlushInline()
-        {
-            if (inline.Length == 0) return;
-            RenderInline(inline.ToString(), fs, isDark);
-            inline.Clear();
-        }
-
-        while (i < lines.Length)
-        {
-            var line = lines[i];
-
-            // 围栏代码块 ```lang（判据与 TUI 共用 CodeFence，含反引号写少了的容错）
-            if (CodeFence.TryOpen(line, out var lang, out var ticks))
-            {
-                FlushInline();
-                var code = new System.Text.StringBuilder();
-                i++;
-                while (i < lines.Length && !CodeFence.IsClose(lines[i], ticks))
-                {
-                    code.AppendLine(lines[i]);
-                    i++;
-                }
-                i++; // 跳过闭合围栏（可能越界=未闭合）
-                var syntax = lang.Length > 0 ? Syntax.ByLanguage(lang) : Syntax.Detect(code.ToString()) ?? Syntax.ByLanguage("");
-                if (syntax.Name != "纯文本")
-                    RenderCode(code.ToString().TrimEnd('\n'), syntax, fs, isDark, maxHighlightChars);
-                else
-                    RenderInline("```" + lang + "\n" + code + "```", fs, isDark);
-                continue;
-            }
-
-            // markdown 表格块：当前行以 | 开头，且下一行是分隔线（|---|---|）
-            if (line.TrimStart().StartsWith('|') && MarkdownTable.IsSeparator(lines, i + 1))
-            {
-                FlushInline();
-                var tbl = new List<string>();
-                while (i < lines.Length && lines[i].TrimStart().StartsWith('|'))
-                {
-                    tbl.Add(lines[i]);
-                    i++;
-                }
-                RenderTable(tbl, fs, isDark);
-                continue;
-            }
-
-            inline.Append(line);
-            if (i < lines.Length - 1) inline.Append('\n');
-            i++;
-        }
-        FlushInline();
+        foreach (var node in nodes)
+            RenderBlock(node, fs, isDark, maxHighlightChars, depth: 0);
     }
 
-    /// <summary>markdown 表格 → 等宽对齐文本（列宽补齐 + Courier New 等宽 + 表头加粗）。</summary>
-    private static void RenderTable(List<string> rawLines, FormattedString fs, bool isDark)
+    /// <summary>渲染一个块（每个块**自带尾换行**，块间不再另插分隔）。</summary>
+    private static void RenderBlock(MdNode node, FormattedString fs, bool isDark,
+        int maxHighlightChars, int depth)
     {
-        var rows = rawLines.Select(MarkdownTable.SplitRow).ToList();
-        if (rows.Count < 2) { foreach (var l in rawLines) RenderInline(l + "\n", fs, isDark); return; }
+        switch (node)
+        {
+            case MdHeading h:
+            {
+                // 图形界面按级别放大字号 + 加粗（TUI 那边只能用颜色，能力所限）
+                var span = new Span
+                {
+                    Text = h.Text,
+                    FontAttributes = FontAttributes.Bold,
+                    TextColor = ColorForToken(0, isDark),
+                    FontSize = h.Level switch { 1 => 22, 2 => 19, 3 => 17, 4 => 16, _ => 15 },
+                };
+                fs.Spans.Add(span);
+                fs.Spans.Add(new Span { Text = "\n" });
+                break;
+            }
 
-        var cols = rows.Max(r => r.Length);
+            case MdParagraph p:
+                RenderInline(p.Text, fs, isDark);
+                fs.Spans.Add(new Span { Text = "\n" });
+                break;
+
+            case MdCodeBlock c:
+            {
+                var syntax = c.Language.Length > 0
+                    ? Syntax.ByLanguage(c.Language)
+                    : Syntax.Detect(c.Code) ?? Syntax.ByLanguage("");
+                // ⚠ 不再有「纯文本就退化成连着反引号一起显示」那条分支 —— 认不出语言也是代码块，
+                //   只是不高亮（此前 ```text 整块字面输出，手机上能看到 ```text 这几个字）
+                RenderCode(c.Code, syntax, fs, isDark, maxHighlightChars);
+                fs.Spans.Add(new Span { Text = "\n" });
+                break;
+            }
+
+            case MdListItem li:
+            {
+                for (int k = 0; k < li.Level; k++) fs.Spans.Add(new Span { Text = "  " });
+                var marker = li.Checked is bool ck ? (ck ? "☑ " : "☐ ")
+                    : li.Ordered ? $"{li.OrderNum}. " : "• ";
+                fs.Spans.Add(new Span
+                {
+                    Text = marker,
+                    TextColor = ColorForToken(li.Checked is true ? 32 : 0, isDark),
+                });
+                RenderInline(li.Text, fs, isDark);
+                fs.Spans.Add(new Span { Text = "\n" });
+                break;
+            }
+
+            case MdBlockQuote q:
+            {
+                // 引用是**容器块**：内部块渲染到临时串上，再给每一行统一加 `▎ ` 前缀
+                var inner = new FormattedString();
+                foreach (var child in q.Blocks)
+                    RenderBlock(child, inner, isDark, maxHighlightChars, depth + 1);
+                if (inner.Spans.Count == 0)
+                    RenderInline(q.Text, inner, isDark);
+
+                var barColor = ColorForToken(2, isDark);
+                fs.Spans.Add(new Span { Text = "▎ ", TextColor = barColor });
+                for (int k = 0; k < inner.Spans.Count; k++)
+                {
+                    var s = inner.Spans[k];
+                    // 每行都补前缀（引用块跨多行时要看得出是整块被引用）
+                    s.Text = s.Text.Replace("\n", "\n▎ ");
+                    fs.Spans.Add(s);
+                }
+                // 末行原本以 \n 结尾，替换后变成「\n▎ 」——去掉那个悬空的竖条
+                TrimTrailingBar(fs, "▎ ");
+                fs.Spans.Add(new Span { Text = "\n" });
+                break;
+            }
+
+            case MdRule:
+                fs.Spans.Add(new Span
+                {
+                    Text = new string('─', 24),
+                    TextColor = ColorForToken(2, isDark),
+                });
+                fs.Spans.Add(new Span { Text = "\n" });
+                break;
+
+            case MdMarkup m:
+                RenderInline(m.Text, fs, isDark, baseColor: m.Style);
+                fs.Spans.Add(new Span { Text = "\n" });
+                break;
+
+            case MdTable tbl:
+                RenderTable(tbl, fs, isDark);
+                break;
+        }
+    }
+
+    /// <summary>去掉最后一个 Span 末尾悬空的行前缀（引用块 `▎ ` 用）。</summary>
+    private static void TrimTrailingBar(FormattedString fs, string bar)
+    {
+        if (fs.Spans.Count == 0) return;
+        var last = fs.Spans[^1];
+        if (last.Text.EndsWith(bar, StringComparison.Ordinal))
+            last.Text = last.Text[..^bar.Length];
+    }
+
+    /// <summary>
+    /// Markdown 表格 → 等宽对齐文本（列宽补齐 + Courier New + 表头加粗）。
+    /// 现在直接吃 <see cref="MdTable"/>：`**粗**` / `` `code` `` 这类**单元格内行内格式生效**，
+    /// `:--` / `:-:` / `--:` **对齐标记也生效**（此前只有 Web 端认对齐）。
+    /// </summary>
+    private static void RenderTable(MdTable tbl, FormattedString fs, bool isDark)
+    {
+        var rows = new List<List<string>> { tbl.Headers };
+        rows.AddRange(tbl.Rows);
+
+        var cols = rows.Max(r => r.Count);
+        if (cols == 0) { fs.Spans.Add(new Span { Text = "\n" }); return; }
+
+        // 列宽按**去掉标记后的可见文本**量 —— 用原始串会把 `**` 也算进宽度，列宽虚胖
         var widths = new int[cols];
         for (int c = 0; c < cols; c++)
-            widths[c] = rows.Select(r => c < r.Length ? r[c].Length : 0).Max();
+            foreach (var r in rows)
+                if (c < r.Count) widths[c] = Math.Max(widths[c], PlainWidth(r[c]));
 
         for (int r = 0; r < rows.Count; r++)
         {
-            if (MarkdownTable.IsSeparatorRow(rows[r])) continue; // 跳过 |---|---| 分隔行
+            var row = rows[r];
+            var border = ColorForToken(2, isDark);
+            fs.Spans.Add(new Span { Text = "| ", FontFamily = MonoFont, TextColor = border });
 
-            var sb = new System.Text.StringBuilder("| ");
             for (int c = 0; c < cols; c++)
-                sb.Append((c < rows[r].Length ? rows[r][c] : "").PadRight(widths[c])).Append(" | ");
-
-            var span = new Span
             {
-                Text = sb.ToString().TrimEnd(),
-                FontFamily = "Courier New",
-                TextColor = ColorForToken(0, isDark),
-            };
-            if (r == 0) span.FontAttributes = FontAttributes.Bold; // 表头加粗
-            fs.Spans.Add(span);
-            if (r < rows.Count - 1) fs.Spans.Add(new Span { Text = "\n" });
+                var cell = c < row.Count ? row[c] : "";
+                var pad = Math.Max(0, widths[c] - PlainWidth(cell));
+                var align = c < tbl.Alignments.Count ? tbl.Alignments[c] : 0;
+                var left = align == 3 ? pad : align == 2 ? pad / 2 : 0;   // 3=右对齐 2=居中
+                if (left > 0) fs.Spans.Add(new Span { Text = new string(' ', left), FontFamily = MonoFont });
+
+                var before = fs.Spans.Count;
+                RenderInline(cell, fs, isDark);
+                for (int k = before; k < fs.Spans.Count; k++)
+                {
+                    fs.Spans[k].FontFamily = MonoFont;
+                    if (r == 0) fs.Spans[k].FontAttributes = FontAttributes.Bold;   // 表头加粗
+                }
+
+                var right = pad - left;
+                if (right > 0) fs.Spans.Add(new Span { Text = new string(' ', right), FontFamily = MonoFont });
+                fs.Spans.Add(new Span { Text = " | ", FontFamily = MonoFont, TextColor = border });
+            }
+            fs.Spans.Add(new Span { Text = "\n" });
         }
     }
 
+    /// <summary>单元格可见宽度 = 行内解析后各段文本长度之和（`**`/`` ` `` 这类标记不计入）。</summary>
+    private static int PlainWidth(string cell)
+    {
+        int w = 0;
+        foreach (var (text, _, _) in MarkdownParser.ParseInline(cell)) w += text.Length;
+        return w;
+    }
+
     /// <summary>单段 ParseInline 渲染（非代码块段）。</summary>
-    private static void RenderInline(string segment, FormattedString fs, bool isDark)
+    /// <param name="baseColor">
+    /// 基础**色码**（不是 Color）—— 0 表示用主题默认前景。
+    /// 块级 `«dim»…«/»` 推理内容走这个：那一整块被外面的标记定性，块内的行内标记再在其上叠加。
+    /// </param>
+    private static void RenderInline(string segment, FormattedString fs, bool isDark, int baseColor = 0)
     {
         var defaultColor = isDark ? DarkDefault : LightDefault;
         var dimColor = isDark ? DarkDim : LightDim;
 
-        foreach (var (text, color, bg) in MarkdownParser.ParseInline(segment))
+        foreach (var (text, color, bg) in MarkdownParser.ParseInline(segment, baseColor))
         {
             var span = new Span { Text = text, TextColor = ResolveFg(color, defaultColor, dimColor, isDark) };
 

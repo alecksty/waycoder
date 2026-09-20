@@ -1,5 +1,6 @@
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
+using WayCoder.UI.Shared;   // MarkdownParser / MdNode …（块级结构走共享 AST，别再本地扫行）
 using WayCoder.UI.Tui.Edit;
 
 namespace WayCoder.Maui.Markup;
@@ -31,113 +32,163 @@ public static class MarkdownPreview
         // **垂直节奏** —— 标题靠上方一大档留白把章节切开、段落之间比行距明显大一档。
         // 两者差别就是用户说的「内容在一坨，不同段落之间没分开」。
         var stack = new VerticalStackLayout { Spacing = 0, Padding = new Thickness(15, 14, 15, 24) };
-        var lines = (markdown ?? "").Replace("\r\n", "\n").Split('\n');
 
-        int i = 0;
-        while (i < lines.Length)
+        // 块级结构交给**共享 MarkdownParser**（与聊天渲染、终端同源）。
+        // ⚠ 此前这里是**另一套独立的行扫描器**，四个已知缺陷全由它而来：
+        //   · 段落只断「空行 / `|` / ``` / `#`」⇒ 紧跟段落的 `- 列表`/`> 引用`/`---` **全被吸进段落**
+        //   · 围栏无容错（4 反引号开、3 反引号闭会提前结束）
+        //   · 分割线只认**精确 3 个字符**（`----`、`- - -` 落段落）
+        //   · 引用块**根本没有分支**（`> x` 当普通段落）
+        List<MdNode> nodes;
+        try { nodes = MarkdownParser.Parse(markdown ?? ""); }
+        catch { nodes = [new MdParagraph { Text = markdown ?? "" }]; }
+
+        foreach (var node in nodes)
+            AddBlock(stack, node, isDark);
+
+        return stack;
+    }
+
+    /// <summary>把一个 AST 块加成视图（块级结构统一由共享解析器决定，这里只管「怎么画」）。</summary>
+    private static void AddBlock(VerticalStackLayout stack, MdNode node, bool isDark)
+    {
+        switch (node)
         {
-            var line = lines[i].TrimEnd();
+            case MdHeading h:
+                stack.Add(RenderHeading(h, isDark));
+                break;
 
-            // 代码围栏 ```lang
-            if (line.StartsWith("```"))
+            case MdParagraph p:
             {
-                var lang = line[3..].Trim();
-                var sb = new System.Text.StringBuilder();
-                i++;
-                while (i < lines.Length && !lines[i].TrimStart().StartsWith("```"))
-                {
-                    sb.AppendLine(lines[i]);
-                    i++;
-                }
-                i++; // 跳过闭合 ```
-                stack.Add(RenderCodeBlock(sb.ToString().TrimEnd('\n'), lang, isDark));
-                continue;
+                var v = BuildParagraph(p.Text, isDark);
+                v.Margin = new Thickness(0, 7, 0, 7);   // 段间距（两段各 7 = 14，与标题拉开层次）
+                stack.Add(v);
+                break;
             }
 
-            // 表格：当前行以 | 开头，且下一行是分隔线（|---| 或 |-:|）
-            if (line.StartsWith('|') && MarkdownTable.IsSeparator(lines, i + 1))
-            {
-                var rows = new List<string[]>();
-                while (i < lines.Length && lines[i].TrimStart().StartsWith('|'))
-                {
-                    rows.Add(MarkdownTable.SplitRow(lines[i]));
-                    i++;
-                }
-                stack.Add(RenderTable(rows, isDark));
-                continue;
-            }
+            case MdCodeBlock c:
+                stack.Add(RenderCodeBlock(c.Code, c.Language, isDark));
+                break;
 
-            // 标题 #
-            if (line.StartsWith('#'))
-            {
-                var level = line.TakeWhile(c => c == '#').Count();
-                var text = line[level..].Trim();
-                // 上方留白是**分段的唯一手段**（下面一档字号只说明层级，不产生间隔）
-                var gapTop = level <= 1 ? 26 : level == 2 ? 22 : 18;
-                stack.Add(new Label
-                {
-                    Text = text,
-                    FontSize = level <= 1 ? 23 : level == 2 ? 19 : 16.5,
-                    FontAttributes = FontAttributes.Bold,
-                    TextColor = Ink(isDark, 232, 232, 234, 22, 24, 28),
-                    Margin = new Thickness(0, gapTop, 0, level <= 2 ? 10 : 7),
-                });
-                i++;
-                continue;
-            }
+            case MdListItem li:
+                stack.Add(RenderListItem(li, isDark));
+                break;
 
-            // 分割线 --- / ***
-            if (line is "---" or "***" or "___")
-            {
+            case MdBlockQuote q:
+                stack.Add(RenderQuote(q, isDark));
+                break;
+
+            case MdRule:
+                // 分割线是**装饰**不是内容，两套主题下看得见即可，不必追求高对比
                 stack.Add(new BoxView
                 {
                     HeightRequest = 1,
-                    // 分割线是**装饰**不是内容，两套都得让它在自己的底上看得见即可，
-                    // 不必追求高对比（画太重反而喧宾夺主）
                     Color = Ink(isDark, 110, 110, 116, 190, 194, 200),
                     Margin = new Thickness(0, 18),
                 });
-                i++;
-                continue;
+                break;
+
+            case MdTable t:
+            {
+                var rows = new List<string[]> { t.Headers.ToArray() };
+                foreach (var r in t.Rows) rows.Add(r.ToArray());
+                stack.Add(RenderTable(rows, isDark));
+                break;
             }
 
-            // 列表项 - / * / 1.
-            if (IsListItem(line, out var marker))
+            case MdMarkup m:
             {
-                var items = new List<string>();
-                while (i < lines.Length && IsListItem(lines[i].TrimEnd(), out _))
-                {
-                    items.Add(lines[i].Trim());   // 原样带标记收进来，拆解统一在 RenderList
-                    i++;
-                }
-                stack.Add(RenderList(items, isDark));
-                continue;
+                // 块级 «dim»…«/» 推理内容（整块定性，块内行内标记照常生效）
+                var v = BuildParagraph(m.Text, isDark);
+                v.Margin = new Thickness(0, 7, 0, 7);
+                stack.Add(v);
+                break;
             }
+        }
+    }
 
-            // 空行跳过
-            if (string.IsNullOrWhiteSpace(line))
-            {
-                i++;
-                continue;
-            }
+    /// <summary>标题：按级别给字号，**上方留白是分段的主要手段**（字号只说明层级，不产生间隔）。</summary>
+    private static View RenderHeading(MdHeading h, bool isDark)
+    {
+        var level = h.Level;
+        var gapTop = level <= 1 ? 26 : level == 2 ? 22 : 18;
+        return new Label
+        {
+            Text = h.Text,
+            FontSize = level <= 1 ? 23 : level == 2 ? 19 : 16.5,
+            FontAttributes = FontAttributes.Bold,
+            TextColor = Ink(isDark, 232, 232, 234, 22, 24, 28),
+            Margin = new Thickness(0, gapTop, 0, level <= 2 ? 10 : 7),
+        };
+    }
 
-            // 段落：累积到下一个空行/特殊块
-            var para = new System.Text.StringBuilder(line);
-            i++;
-            while (i < lines.Length && !string.IsNullOrWhiteSpace(lines[i])
-                   && !lines[i].TrimStart().StartsWith('|')
-                   && !lines[i].TrimStart().StartsWith("```")
-                   && !lines[i].TrimStart().StartsWith('#'))
-            {
-                para.Append('\n').Append(lines[i]);
-                i++;
-            }
-            var pv = BuildParagraph(para.ToString(), isDark);
-            pv.Margin = new Thickness(0, 7, 0, 7);   // 段间距（两段各 7 = 14，与标题拉开层次）
-            stack.Add(pv);
+    /// <summary>列表项：标记列 + 正文列；缩进按 AST 的 <c>Level</c>（嵌套列表不再被拍平）。</summary>
+    private static View RenderListItem(MdListItem li, bool isDark)
+    {
+        string marker, hexDark, hexLight;
+        if (li.Checked is bool ck)
+        {
+            marker = ck ? "☑" : "☐";
+            (hexDark, hexLight) = ("#28A04C", "#14783C");
+        }
+        else if (li.Ordered)
+        {
+            marker = $"{li.OrderNum}.";
+            (hexDark, hexLight) = ("#E2E2E4", "#202328");
+        }
+        else
+        {
+            marker = "•";
+            (hexDark, hexLight) = ("#E2E2E4", "#202328");
         }
 
-        return stack;
+        var row = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = GridLength.Auto },
+                new ColumnDefinition { Width = GridLength.Star },
+            },
+            ColumnSpacing = 8,
+            Margin = new Thickness(li.Level * 18, 3, 0, 3),
+        };
+        row.Add(new Label
+        {
+            Text = marker,
+            FontSize = 15,
+            LineHeight = 1.55,
+            TextColor = Color.FromArgb(isDark ? hexDark : hexLight),
+        }, 0, 0);
+        row.Add(BuildParagraph(li.Text, isDark, 15), 1, 0);
+        return row;
+    }
+
+    /// <summary>引用块：左侧竖条 + 内部块（容器块，内部走同一套 <see cref="AddBlock"/>）。</summary>
+    private static View RenderQuote(MdBlockQuote q, bool isDark)
+    {
+        var inner = new VerticalStackLayout { Spacing = 0 };
+        foreach (var child in q.Blocks)
+            AddBlock(inner, child, isDark);
+        if (inner.Children.Count == 0)
+        {
+            var only = BuildParagraph(q.Text, isDark);
+            only.Margin = new Thickness(0, 4, 0, 4);
+            inner.Add(only);
+        }
+
+        var grid = new Grid
+        {
+            ColumnDefinitions =
+            {
+                new ColumnDefinition { Width = new GridLength(3) },
+                new ColumnDefinition { Width = GridLength.Star },
+            },
+            ColumnSpacing = 10,
+            Margin = new Thickness(0, 7, 0, 7),
+        };
+        grid.Add(new BoxView { Color = Ink(isDark, 190, 194, 200, 110, 110, 116) }, 0, 0);
+        grid.Add(inner, 1, 0);
+        return grid;
     }
 
     /// <summary>
@@ -289,15 +340,6 @@ public static class MarkdownPreview
         return list;
     }
 
-    private static bool IsListItem(string line, out char marker)
-    {
-        var t = line.TrimStart();
-        marker = '\0';
-        if (t.Length >= 2 && (t[0] == '-' || t[0] == '*') && t[1] == ' ') { marker = t[0]; return true; }
-        if (t.Length >= 3 && char.IsDigit(t[0]) && (t[1] == '.' || t[1] == ')') && t[2] == ' ') { marker = '1'; return true; }
-        return false;
-    }
-
     /// <summary>
     /// 表格：**画出格线**，并且**整格可点**。
     ///
@@ -398,57 +440,6 @@ public static class MarkdownPreview
     }
 
     /// <summary>
-    /// 列表：**悬挂缩进** —— 项目符号单独占一列，折行时文字对齐到文字列而不是回到行首。
-    ///
-    /// 原先是把 `• ` 拼进正文，于是长条目一折行，第二行就顶到最左边（与上一级标题齐平），
-    /// 视觉上分不清"这是同一项的第二行"还是"新的一项"。桌面渲染器（GitHub / Typora）都是悬挂缩进。
-    ///
-    /// ⚠ **有序列表不能再加 `•`**：`1. 用了标准库里没有的函数` 会被拼成 `• 1. 用了…`（双标记）。
-    /// 所以这里把标记拆出来当"列"用 —— 无序用 `•`、有序用它自己那个序号。
-    /// </summary>
-    private static View RenderList(List<string> items, bool isDark)
-    {
-        var stack = new VerticalStackLayout { Spacing = 6, Margin = new Thickness(0, 7, 0, 10) };
-        foreach (var raw in items)
-        {
-            var (marker, body) = SplitBullet(raw);
-            var row = new Grid
-            {
-                ColumnDefinitions =
-                {
-                    new ColumnDefinition(GridLength.Auto),
-                    new ColumnDefinition(GridLength.Star),
-                },
-                ColumnSpacing = 8,
-            };
-            row.Add(new Label
-            {
-                Text = marker,
-                FontSize = 15,
-                LineHeight = 1.55,
-                TextColor = Ink(isDark, 226, 226, 228, 32, 35, 40),
-            }, 0, 0);
-            row.Add(BuildParagraph(body, isDark, 15), 1, 0);
-            stack.Add(row);
-        }
-        return stack;
-    }
-
-    /// <summary>把 `- x` / `* x` / `1. x` / `1) x` 拆成（标记, 正文）。认不出就原样当正文。</summary>
-    private static (string Marker, string Body) SplitBullet(string line)
-    {
-        var t = line.TrimStart();
-        if (t.Length >= 2 && (t[0] == '-' || t[0] == '*') && t[1] == ' ')
-            return ("•", t[2..].Trim());
-
-        var i = 0;
-        while (i < t.Length && char.IsDigit(t[i])) i++;
-        if (i > 0 && i + 1 < t.Length && (t[i] == '.' || t[i] == ')') && t[i + 1] == ' ')
-            return (t[..(i + 1)], t[(i + 2)..].Trim());   // 有序：直接用它自己的序号
-
-        return ("•", t);
-    }
-
     private static View RenderCodeBlock(string code, string lang, bool isDark)
     {
         var syntax = lang.Length > 0 ? Syntax.ByLanguage(lang) : Syntax.Detect(code) ?? Syntax.ByLanguage("");
