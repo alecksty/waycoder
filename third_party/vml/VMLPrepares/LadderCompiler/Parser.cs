@@ -14,13 +14,47 @@ namespace LadderCompiler
 
         protected override TokenType GetTokenType(Token token) => token.Type;
 
+        /// <summary>
+        /// 「**永远不会是表达式开头**」的 token（`GapAnchor()` 的第一个判据）——
+        /// 撞上它们说明缺口在**它们之前**。
+        ///
+        /// ⚠ 本门要额外收 **`END_*` 关键字家族**：梯形图的语句以换行分隔，而
+        /// `SkipWhitespaceAndComments()` 会把 `NewLine` **跳掉** ⇒ 解析器撞上的
+        /// 不是换行，而是下一行的关键字（`PRINT_INT 1 +` 撞的是第 4 行的 `END_PROGRAM`）。
+        /// 只看括号/逗号/分号那一套的话，这一门永远锚不着。
+        /// </summary>
+        protected override bool IsExpressionCloser(Token token) => token.Type
+            is TokenType.RightParenthesis or TokenType.RightBracket
+            or TokenType.Comma or TokenType.Semicolon or TokenType.Colon
+            or TokenType.NewLine or TokenType.EOF
+            // END_* 家族（块/程序/变量段/各种控制结构的收尾）—— 都不能当表达式开头
+            or TokenType.KeywordEndProgram or TokenType.KeywordEndFunction or TokenType.KeywordEndFunctionBlock
+            or TokenType.KeywordEndVar or TokenType.KeywordEndIf or TokenType.KeywordEndCase
+            or TokenType.KeywordEndFor or TokenType.KeywordEndWhile or TokenType.KeywordEndRepeat
+            or TokenType.KeywordEndType or TokenType.KeywordEndStruct or TokenType.KeywordEndEnum;
+
+        /// <summary>
+        /// 语句分隔 —— `GapAnchor()` 的第二个判据：上一个若是它，说明缺口在本行**行首**。
+        ///
+        /// ⚠ 本门**故意不把 `NewLine` 算进来**：`SkipWhitespaceAndComments()` 会把换行
+        /// **跳掉**，于是"缺口右侧那个 token"前面隔着的是一个**已被消费掉**的换行 ——
+        /// 它的行号正是缺口所在的那一行（`PRINT_INT 1 +` 结尾的换行记在第 3 行）。
+        /// 算进来反而会把锚点踢回 `Cur`（第 4 行）。只有 `;` 才是这里真正的语句分隔。
+        /// </summary>
+        protected override bool IsStatementSeparator(Token token) => token.Type
+            is TokenType.Semicolon;
+
         public Parser(List<Token> tokens) : base(tokens) { }
 
         protected override Token Expect(TokenType type, string message)
         {
             if (Check(type)) return Advance();
             string msg = message ?? VMLPlugins.Strings.ExpectedToken(type.ToString(), GetTokenType(Cur).ToString());
-            throw Error(VMLPlugins.Strings.SyntaxErrorAt(Cur.Line, Cur.Column, msg));
+            // 位置改走**统一出口**：`Error`/`ErrorAt` 会把位置拼成
+            // `文件:行:列: error: 正文`（宿主按这个形状锚位置），并查 `#include` 行号映射。
+            // 原来那层 `Strings.SyntaxErrorAt(line, col, msg)` 自己又拼了一遍
+            // （`… at line N … (col C)`）⇒ 与统一前缀**重复**，且那份取的是预处理后的行列。
+            throw ErrorAt(msg, GapAnchor());
         }
 
         private void SkipWhitespaceAndComments()
@@ -1253,7 +1287,10 @@ namespace LadderCompiler
                 return expr;
             }
             
-            throw Error(VMLPlugins.Strings.SyntaxErrorAt(Cur.Line, Cur.Column, VMLPlugins.Strings.ExpectedToken("表达式", GetTokenType(Cur).ToString())));
+            // 位置用 `GapAnchor()`：`PRINT_INT 1 +` 的下一个 token 是**下一行**的
+            // `END_PROGRAM` ⇒ 按当前位置报就落到第 4 行，而错在第 3 行。
+            // 顺带去掉了 `Strings.SyntaxErrorAt` 那层自拼的位置（与统一前缀重复）。
+            throw ErrorAt(VMLPlugins.Strings.ExpectedToken("表达式", GetTokenType(Cur).ToString()), GapAnchor());
         }
 
         private string ExpressionToInitialString(ExpressionNode expr)
