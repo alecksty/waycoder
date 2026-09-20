@@ -593,6 +593,17 @@ namespace CppCompiler
                 return expr;
             }
             if (Check(TokenType.LBRACE)) return ParseInitializerList();
+            // ⚠ **兜底不能"静默当成 0"** —— 这一行就是本仓反复记的那个形态的最坏版本。
+            //
+            // 这里对**任何认不出的 token** 直接造一个 `IntLiteral(0)` 顶上，一句话都不报。
+            // 于是 `int c = a + ;` 被编成 `a + 0`：**编译成功、程序照跑、结果是错的**。
+            // 比崩掉更糟 —— 崩了至少用户知道出事了；这个连提示都没有。
+            // 实测（DiagProbe【语法错误】档 cpp 一栏）修之前是 **NOERR**。
+            //
+            // 与 C 前端同一处置：**报出来**（`GccError` 收集、不抛）再返回占位 0。
+            // 收集而非抛出是刻意的：解析器还能往下走，同一份文件里后面几处错也能一起报出来。
+            GccError($"表达式缺失或多余（遇到 '{Cur.Value ?? Cur.Type.ToString()}'）",
+                ErrorCode.Parser_SyntaxError);
             return new IntLiteral { Value = 0 };
         }
 
