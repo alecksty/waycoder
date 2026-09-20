@@ -6,6 +6,22 @@ namespace BasicCompiler
     public partial class Parser : ParserBase<Token, TokenType>
     {
         protected override TokenType GetTokenType(Token token) => token.Type;
+
+        /// <summary>
+        /// 诊断取位置用**本文本解析器自己的**当前 Token。
+        ///
+        /// ⚠ 不覆写这一条，`ParserBase.ResolveDiagnosticPosition` 会读基类的 `Cur` ——
+        ///   而本类把游标做成了自己的 `private int current`（`Peek`/`Advance`/`Previous`
+        ///   都读写它），基类的 `_pos` **从不移动**、恒指向 `tokens[0]`
+        ///   ⇒ 本前端报的**每条位置都落在第 1 行**。
+        ///   实测（`.scratch/multi/t.bas` 那类输入）修之前是 `1:1`。
+        ///
+        /// 与 `CSharpCompiler.Parser` 那处**同源同因**（它也是自维护游标、也覆写本属性）——
+        /// 判据是「你这门语言的当前位置在哪」，所以只有一处实现，不做"两个游标同步"
+        /// （那正是本仓反复踩的「同一件事两处实现」）。
+        /// </summary>
+        protected override Token CurrentToken => Peek();
+
         private List<Token> tokens;
         private int current;
         private Dictionary<string, int> _enumValues = new(); // ENUM 成员→值映射 (v1.66.32+)

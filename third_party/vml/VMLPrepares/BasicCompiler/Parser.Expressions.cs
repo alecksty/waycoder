@@ -18,7 +18,7 @@ namespace BasicCompiler
             {
                 string op = Peek().Value;
                 Advance();
-                Expression right = ParseLogicalAnd();
+                Expression right = RequiredOperand(ParseLogicalAnd());
                 BinaryExpression binary = new BinaryExpression(expr.Line, expr.Column);
                 binary.Left = expr;
                 binary.Operator = op;
@@ -37,7 +37,7 @@ namespace BasicCompiler
             {
                 string op = Peek().Value;
                 Advance();
-                Expression right = ParseLogicalNot();
+                Expression right = RequiredOperand(ParseLogicalNot());
                 BinaryExpression binary = new BinaryExpression(expr.Line, expr.Column);
                 binary.Left = expr;
                 binary.Operator = op;
@@ -53,7 +53,7 @@ namespace BasicCompiler
             if (Peek().Type == TokenType.NOT)
             {
                 Advance();
-                Expression operand = ParseLogicalNot();
+                Expression operand = RequiredOperand(ParseLogicalNot());
                 UnaryExpression unary = new UnaryExpression(operand.Line, operand.Column);
                 unary.Operator = "NOT";
                 unary.Expression = operand;
@@ -76,7 +76,7 @@ namespace BasicCompiler
             {
                 string op = Peek().Value;
                 Advance();
-                Expression right = ParseTerm();
+                Expression right = RequiredOperand(ParseTerm());
                 BinaryExpression binary = new BinaryExpression(expr.Line, expr.Column);
                 binary.Left = expr;
                 binary.Operator = op;
@@ -96,7 +96,7 @@ namespace BasicCompiler
             {
                 string op = Peek().Value;
                 Advance();
-                Expression right = ParseFactor();
+                Expression right = RequiredOperand(ParseFactor());
                 BinaryExpression binary = new BinaryExpression(expr.Line, expr.Column);
                 binary.Left = expr;
                 binary.Operator = op;
@@ -105,6 +105,35 @@ namespace BasicCompiler
             }
 
             return expr;
+        }
+
+        /// <summary>
+        /// 解析**必需**的操作数 —— 解析不出来就报带位置的语法错误，并返回占位 0。
+        ///
+        /// ⚠ 为什么不在 `ParsePrimary` 的 `default: return null` 处直接报：
+        ///   `ParsePrimary` 返回 null 是**试探语义**（"这里是不是一个表达式"），
+        ///   语句分派靠它决定要不要换一种语句种类（`Parser.Statements.cs` 里
+        ///   `if (!IsExpressionStart(Peek())) break;` 与若干 `if (expr != null)` 都是这个用法）。
+        ///   一律报出来会把合法语句判成语法错误 —— cs 前端本轮实测踩过
+        ///   （3 条用例全变成 `1:1 …遇到 Class 'class'`）。
+        ///   所以「试探」允许 null，「必需」在**操作数位置**报错 —— 本方法。
+        ///
+        /// ⚠ 修之前的行为：`PRINT 1 +`（行尾缺操作数）编出「右子节点为 null 的
+        ///   `BinaryExpression`」⇒ 一句错都不报、程序照编（DiagProbe【语法错误】档 bas NOERR）。
+        ///   报出来 + 占位 0 之后，这一句能继续解析下去，同一文件里后面的错也能一起报。
+        /// </summary>
+        private Expression RequiredOperand(Expression? parsed)
+        {
+            if (parsed != null) return parsed;
+            var t = Peek();
+            // ⚠ 位置**锚在上一个 token**，不是 `t`：BASIC 的语句以换行收尾，
+            //   `PRINT 1 +` 的下一个 token 是**下一行**的 `EOF`（或下一句的行号），
+            //   按当前位置收集就报到下一行去了（实测 5:1，而错在 4 行）。
+            //   文案仍旧说"遇到了什么"——**位置取缺口在哪、文案取看到了什么**，
+            //   与 `ParserBase.ErrorAt` 那条判据同一套。
+            GccErrorAt($"这里缺少一个表达式，却遇到 {t.Type} '{t.Value}'",
+                       Previous(), ErrorCode.Parser_ExpectedExpression);
+            return new NumberLiteral(t.Line, t.Column, 0);
         }
 
         private Expression ParseFactor()
@@ -118,7 +147,7 @@ namespace BasicCompiler
             {
                 string op = Peek().Value;
                 Advance();
-                Expression right = ParsePrimary();
+                Expression right = RequiredOperand(ParsePrimary());
                 BinaryExpression binary = new BinaryExpression(expr.Line, expr.Column);
                 binary.Left = expr;
                 binary.Operator = op;
@@ -279,7 +308,7 @@ namespace BasicCompiler
                     Advance();
                     UnaryExpression unary = new UnaryExpression(token.Line, token.Column);
                     unary.Operator = op;
-                    unary.Expression = ParsePrimary();
+                    unary.Expression = RequiredOperand(ParsePrimary());
                     expr = unary;
                     break;
                 default:
