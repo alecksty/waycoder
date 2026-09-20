@@ -706,7 +706,7 @@ namespace LuaCompiler
                     return ParsePostfix(table);
                     
                 default:
-                    throw Error($"意外的token: {token.Type} 在第{token.Line}行{token.Column}列");
+                    throw Error($"意外的token: {token.Type}（此处不该出现它）");
             }
         }
     }

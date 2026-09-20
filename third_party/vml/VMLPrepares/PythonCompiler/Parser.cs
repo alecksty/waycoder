@@ -855,7 +855,7 @@ namespace PythonCompiler
                     return new AwaitNode(aval, token.Line, token.Column);
                     
                 default:
-                    throw Error($"意外的 token: {token.Type} 在第{token.Line}行");
+                    throw Error($"意外的 token: {token.Type}（此处不该出现它）");
             }
         }
 
@@ -1001,7 +1001,7 @@ namespace PythonCompiler
                     }
                     
                     if (depth > 0)
-                        throw Error($"未终止的f-string表达式在第{line}行{column}列");
+                        throw Error($"未终止的 f-string 表达式");
                     
                     // 提取表达式（不包括最后的}）
                     string exprStr = fstringValue.Substring(start, i - start - 1);
