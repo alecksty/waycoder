@@ -79,6 +79,25 @@ namespace CCompiler
                 codeGen.InitLabelCounter(string.IsNullOrEmpty(filePath) ? "source" : Path.GetFileNameWithoutExtension(filePath));
                 codeGen.SourceLines = processedSource.Split('\n');
                 var prog = codeGen.GenerateCode();
+
+                // ⚠ **成功路径也要看 bag** —— 漏掉这一句就是「收集到的错误被整个丢掉、程序照编照跑」。
+                //
+                // `diagnostics` 里的错分两种来路：① 词法器/解析器**收集**（`GccError`，不抛）；
+                // ② 抛出后被 `catch` 收编。这一条走的是**第 ①种**：解析器认出了错、算好了位置、
+                // 收进 bag，然后**顺着正常路径返回** —— 一个异常都没有 ⇒ 下面那些 `catch`
+                // 一条也不会进 ⇒ 错误静默消失、编译"成功"。
+                //
+                // 实测症状：`int c = a + ;` 经 `CCompiler.Compile(string)` **编译成功**
+                // （DiagProbe【语法错误】档 c 一栏 NOERR），而同一份源码走 `CompileFile`
+                // （vmlcli）却**报错** —— 同一份源码两条路径两个答案，正是因为这一句只在
+                // `CompileFile` 那条链上被别处补上了。
+                //
+                // `CompilerHelper.CompileWithDiagnostics` 里早就写着这条（「**成功路径也要看 bag**。
+                // 此前这里直接 `return compile(...)`，于是"收集不抛"的那条路……收集到的错误被
+                // 整个丢掉」）—— 17 门走的是那条共用路径，**C 这条是手写的，漏了**。
+                if (diagnostics.HasErrors)
+                    throw new CompilerBase.CompilationException(diagnostics.FirstErrorCode, diagnostics.FormatAll());
+
                 // LinkStandardLibrary 由 CompileCore/测试框架统一调用，避免重复链接
                 return prog;
             }
