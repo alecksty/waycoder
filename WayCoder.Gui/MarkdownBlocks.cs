@@ -67,7 +67,9 @@ public static class MarkdownBlocks
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, h.Level <= 2 ? 8 : 5, 0, 3),
         };
-        tb.Inlines!.Add(new Run(h.Text) { Foreground = new SolidColorBrush(Text) });
+        // ⚠ 标题文本**要走行内解析**（与 TUI / MAUI 同源）—— 直接 `Run(h.Text)` 会把
+        //   `### \`ui_circle(...)\`` 这类标题里的反引号**字面显示**出来。
+        AddInlines(tb, MarkdownInlines.RenderInline(h.Text, Text, Dim));
         return tb;
     }
 

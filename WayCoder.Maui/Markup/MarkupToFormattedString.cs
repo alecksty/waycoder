@@ -40,6 +40,16 @@ public static class MarkupToFormattedString
     /// <summary>命令行/代码块等宽字体（对齐、像终端）。</summary>
     internal const string MonoFont = "Courier New";
 
+    /// <summary>
+    /// 行内代码的底色 —— 与 Web 的 <c>.md-inline</c>（<c>background:var(--panel2)</c>）同一角色：
+    /// 比正文底略深（夜间）/ 略灰（白天）的一小块「纸」，让 `` `code` `` 一眼看得出是代码。
+    ///
+    /// ⚠ MAUI 的 <c>Span</c> 只能给**方形**底色，**没有圆角**（不像 CSS 能给行内框 border-radius）
+    /// ⇒ 这里做到能力上限，圆角那份差距是平台限制，不是没做。
+    /// </summary>
+    internal static Color InlineCodeBg(bool isDark)
+        => isDark ? Color.FromArgb("#2A2B33") : Color.FromArgb("#ECEDF1");
+
     /// <summary>把 «» 中间格式文本解析成 MAUI FormattedString（自适应深浅主题默认色）。
     /// 同时支持 ```lang 围栏代码块：块内用 Syntax 逐行 Tokenize 语法高亮。</summary>
     /// <param name="maxHighlightChars">
@@ -113,15 +123,23 @@ public static class MarkupToFormattedString
         switch (node)
         {
             case MdHeading h:
+            {
                 // 图形界面按级别放大字号 + 加粗（TUI 那边只能用颜色，能力所限）
-                fs.Spans.Add(new Span
+                // ⚠ 标题文本**要走行内解析**：帮助文档里 `### \`ui_circle(...)\`` 这类标题很多，
+                //   直接 `Text = h.Text` 会把反引号**字面显示**出来。
+                var size = h.Level switch { 1 => 22, 2 => 19, 3 => 17, 4 => 16, _ => 15 };
+                var tmp = new FormattedString();
+                RenderInline(h.Text, tmp, isDark);
+                if (tmp.Spans.Count == 0) tmp.Spans.Add(new Span { Text = h.Text });
+                foreach (var s in tmp.Spans)
                 {
-                    Text = h.Text,
-                    FontAttributes = FontAttributes.Bold,
-                    TextColor = ColorForToken(0, isDark),
-                    FontSize = h.Level switch { 1 => 22, 2 => 19, 3 => 17, 4 => 16, _ => 15 },
-                });
+                    s.FontSize = size;                        // 标题字号对整行生效
+                    s.FontAttributes |= FontAttributes.Bold;  // 行内加粗叠加在标题粗体上
+                    // 颜色不用管：RenderInline 总会带上解析出来的色（无标记时就是正文色）
+                }
+                foreach (var s in tmp.Spans) fs.Spans.Add(s);
                 break;
+            }
 
             case MdParagraph p:
                 RenderInline(p.Text, fs, isDark);
@@ -268,6 +286,10 @@ public static class MarkupToFormattedString
                 case 3: span.FontAttributes = FontAttributes.Italic; break;      // italic
                 case 4: span.TextDecorations = TextDecorations.Underline; break;
                 case 9: span.TextDecorations = TextDecorations.Strikethrough; break;
+                case 33:   // 行内代码：与桌面同款「底色方块 + 等宽」（Web 的 .md-inline）
+                    span.FontFamily = MonoFont;
+                    span.BackgroundColor = InlineCodeBg(isDark);
+                    break;
             }
 
             if (bg >= 30) span.BackgroundColor = ResolveColor(bg, Colors.Transparent);

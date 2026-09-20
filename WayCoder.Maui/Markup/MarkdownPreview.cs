@@ -114,9 +114,12 @@ public static class MarkdownPreview
         var gapTop = level <= 1 ? 26 : level == 2 ? 22 : 18;
         return new Label
         {
-            Text = h.Text,
+            // ⚠ 标题文本**必须走行内解析**。直接 `Text = h.Text` 会把标记**字面显示** ——
+            //   帮助文档里 `### \`ui_circle(...)\`` 这种标题到处都是，症状是屏幕上赫然出现
+            //   一对反引号（用户报的「`text` 这种格式没渲染」就是它）。
+            FormattedText = MarkupToFormattedString.Convert(h.Text, isDark),
             FontSize = level <= 1 ? 23 : level == 2 ? 19 : 16.5,
-            FontAttributes = FontAttributes.Bold,
+            FontAttributes = FontAttributes.Bold,   // 作为**基础**样式，span 自己的覆盖它
             TextColor = Ink(isDark, 232, 232, 234, 22, 24, 28),
             Margin = new Thickness(0, gapTop, 0, level <= 2 ? 10 : 7),
         };

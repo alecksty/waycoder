@@ -212,7 +212,10 @@ public static class TuiMarkdown
     {
         var prefix = new string('#', h.Level) + " ";
         var color = h.Level <= 2 ? TuiTheme.Current.MdH1H2Fg : AnsiColors.White;  // H1-H2 亮白，H3+ 白
-        var line = new List<(string, int, int)> { (prefix, TuiTheme.Current.MdHeadingFg, 0), (h.Text, color, 0) };
+        var line = new List<(string, int, int)> { (prefix, TuiTheme.Current.MdHeadingFg, 0) };
+        // ⚠ 标题文本要走**行内解析**（与 MAUI / GUI 同源）—— 直接放 `h.Text` 会把
+        //   `### \`ui_circle(...)\`` 这类标题里的反引号**字面显示**出来（帮助文档里到处都是）。
+        line.AddRange(MarkdownParser.ParseInline(h.Text, color, 0));
         result.Add(line);
     }
 

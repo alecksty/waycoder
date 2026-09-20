@@ -55,7 +55,12 @@ public static class MarkdownInlines
                 case 3: run.FontStyle = FontStyle.Italic; break;
                 case 4: run.TextDecorations = TextDecorations.Underline; break;
                 case 9: run.TextDecorations = TextDecorations.Strikethrough; break;
-                case 33: run.FontFamily = MonoFont; break;   // 行内代码用等宽
+                case 33:   // 行内代码：与 Web 的 .md-inline 同款「底色方块 + 等宽」
+                    run.FontFamily = MonoFont;
+                    // ⚠ Avalonia 的 Inline 只能给方形底色、**没有圆角**（不像 CSS 能给行内框
+                    //   border-radius）⇒ 做到能力上限，圆角那份差距是平台限制。
+                    run.Background = new SolidColorBrush(GuiColors.CodeBlockBgColor);
+                    break;
             }
 
             if (bg >= 30) run.Background = SyntaxBrushMap.ForBg(bg);
