@@ -110,7 +110,7 @@ public class Lexer : LexerBase
                 case '^': Tokens.Add(MakeToken(TokenType.BitNot, "^")); break; // bitwise XOR
                 case '?': Tokens.Add(MakeToken(TokenType.Question, "?")); break;
                 case ':': Tokens.Add(MakeToken(TokenType.Colon, ":")); break;
-                default: throw new ParseException(ErrorCode.Lexer_UnknownCharacter, $"意外的字符: {c}（位置 {_line}:{_col}）");
+                default: Error(ErrorCode.Lexer_UnknownCharacter, $"意外的字符: '{c}'"); break;   // 位置交给 LexerBase 的唯一出口
             }
         }
         Tokens.Add(new Token(TokenType.EOF, "", _line, _col));
@@ -148,7 +148,7 @@ public class Lexer : LexerBase
     private void Expect(char expected)
     {
         if (Advance() != expected)
-            throw new ParseException(ErrorCode.Lexer_UnknownCharacter, $"Expected '{expected}' at {_line}:{_col}");
+            Error(ErrorCode.Lexer_UnknownCharacter, $"期望 '{expected}'");   // 位置交给统一出口（原文案还夹着英文与手写位置）
     }
 
     private Token MakeToken(TokenType type, string value)
