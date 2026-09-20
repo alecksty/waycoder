@@ -1,3 +1,0 @@
-DIM on AS INTEGER
-on = 7
-PRINT on

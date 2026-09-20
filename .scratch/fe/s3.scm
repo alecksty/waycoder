@@ -1,6 +1,0 @@
-(define g 10)
-(define (bump n)
-  (set! g (+ g n))
-  g)
-(print (bump 5))
-(print g)

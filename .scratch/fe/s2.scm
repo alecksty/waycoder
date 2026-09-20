@@ -1,8 +1,0 @@
-(define g 10)
-(define (bump n)
-  (set! g (+ g n))
-  g)
-(display (bump 5))
-(newline)
-(display g)
-(newline)

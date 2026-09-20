@@ -1,4 +1,0 @@
-FUNCTION add(on AS INTEGER) AS INTEGER
-    add = on + 1
-END FUNCTION
-PRINT add(41)
