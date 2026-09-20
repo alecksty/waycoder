@@ -75,5 +75,7 @@ public enum ErrorCode
     Compilation_LibraryNotFound = 1400,
     Compilation_InternalError = 1401,
     Compilation_Timeout = 1402,
+    /// <summary>「没进展 ⇒ 死循环」的进展守卫判定的（见 `ProgressGuard`）—— 编译器内部缺陷，不是用户输入的问题。</summary>
+    Compilation_NotConverging = 1404,
     Compilation_BinaryFile = 1403,
 }

@@ -36,7 +36,26 @@ namespace CompilerBase
         }
 
         /// <summary>当前 Token（越界安全：_pos 超出范围时返回 EOF 哨兵而非崩溃）</summary>
-        protected TToken Cur => _pos < _tokens.Count ? _tokens[_pos] : _tokens[^1];
+        protected TToken Cur
+        {
+            get
+            {
+                // **进展守卫**：位置长时间不动 ⇒ 判定为死循环，**抛错而不是挂死**。
+                // 判据是"位置不动"而不是"总步数超限"（见 `ProgressGuard` 的说明）——
+                // 所以阈值给到百万级、对大文件仍然零误报。
+                if (_progress.Tick(_pos))
+                    throw new ParseException(ErrorCode.Compilation_NotConverging,
+                        // 面向用户的一条就够（定位靠位置与"请报告这段输入"）。
+                        // 要拿**调用栈**诊断时，在下面临时加 `+ Environment.NewLine + Environment.StackTrace`
+                        // —— 注意**不能**在这里读 `Cur`：会再触发守卫自己的消息 → 无限递归（实测栈溢出）。
+                        "解析未收敛（在同一处反复读取、从不推进）—— 这是编译器内部缺陷，请把这段输入报告给开发者。",
+                        null, FileName ?? "<input>", GetTokenLine(_tokens[^1]), 0);
+                return _pos < _tokens.Count ? _tokens[_pos] : _tokens[^1];
+            }
+        }
+
+        /// <summary>进展守卫（阈值 100 万次：正常解析在两次推进之间只读常数次）。</summary>
+        private readonly ProgressGuard _progress = new(1_000_000);
 
         /// <summary>
         /// **诊断取位置**用的当前 Token —— 默认就是 <see cref="Cur"/>。
@@ -127,14 +146,34 @@ namespace CompilerBase
 
         // ---- 类型检查 ----
 
-        /// <summary>检查当前 Token 是否为指定类型（不消费）</summary>
-        protected bool Check(TTokenType type) =>
-            !IsAtEnd && EqualityComparer<TTokenType>.Default.Equals(GetTokenType(Cur), type);
+        /// <summary>
+        /// 检查当前 Token 是否为指定类型（不消费）。
+        ///
+        /// ⚠ **不要把 `IsAtEnd` 短路写进来**（这里曾经是 `!IsAtEnd && Equals(...)`）——
+        /// 那会让 `Check(EOF)` **永远返回 false**（末尾时 `IsAtEnd` 为真 ⇒ 被短路掉），
+        /// 于是 `while (!Check(RBrace) && !Check(EOF))` 这类循环在**跑到输入末尾时两个条件同时为假
+        /// ⇒ 等于 `while (true)`**；而循环体里的 `Advance()` 到末尾也不再推进 ⇒ **死循环**。
+        ///
+        /// 实测（Dart，2026-09-20）：`void main() {` 这一个文件就能让编译器永不返回。
+        /// 全仓同类写法共 **104 处**（8 门），都是「畸形输入跑到尾部」才发作的潜伏死循环。
+        ///
+        /// 去掉短路的**代价为零**：22 门的词法器**全部**在末尾追加了 EOF 哨兵（逐个核过），
+        /// 末尾处 `Cur` 就是那个 EOF token —— `Check(EOF)` 该为真、其余类型该为假，
+        /// 与直觉一致，且与从前的行为**只差 EOF 这一格**。
+        /// </summary>
+        protected bool Check(TTokenType type)
+        {
+            // 空列表是唯一的例外：连 EOF 哨兵都没有，`Cur` 会去取 `_tokens[^1]` 而抛。
+            // （正文里 22 门都会追加哨兵；这一句是给"手工构造空列表"的调用方兜底。）
+            if (_tokens.Count == 0) return false;
+            return EqualityComparer<TTokenType>.Default.Equals(GetTokenType(Cur), type);
+        }
 
         /// <summary>检查当前 Token 是否为任意一个指定类型（不消费）。用于需要多类型判断的场景（如 C#/Java 的修饰符检查）</summary>
         protected bool Check(params TTokenType[] types)
         {
-            if (IsAtEnd) return false;
+            // 同 `Check(TTokenType)`：**不能**用 `IsAtEnd` 短路（否则 `Check(EOF)` 永不成立）。
+            if (_tokens.Count == 0) return false;
             var curType = GetTokenType(Cur);
             foreach (var t in types)
                 if (EqualityComparer<TTokenType>.Default.Equals(curType, t))
